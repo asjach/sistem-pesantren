@@ -2,7 +2,7 @@
 
 | Atribut | Keterangan |
 |---|---|
-| Versi Dokumen | 1.8 (sesi + token) |
+| Versi Dokumen | 1.9 (Modul 103 transaksi live) |
 | Tanggal | 10 September 2026 |
 | Status | Proyek ini = menyusun dokumentasi, bukan coding app. G0–G3 didetailkan; G4+ roadmap |
 | Penyusun | Solo dev + Yayasan |
@@ -29,6 +29,7 @@
 | 1.7 | 2026-09-10 | Modul 102 Siklus live: service+8 endpoint, 9 tests hijau, suite 31/31; gerbang AND target (minor) |
 | 1.7.1 | 2026-09-10 | status_awal final: kenaikan (naik), is_pindahan+masuk_tingkat PSB, tidak_lulus buka mengulang (patch) |
 | 1.8 | 2026-09-10 | Sesi: token per-device, staf 30 hari / ortu-santri 365 hari, revokasi saat peran berubah, logout-all, prune harian; SQLite tanpa enkripsi (minor) |
+| 1.9 | 2026-09-10 | Modul 103 transaksi live: generate+bayar+void, kuitansi PDF+thermal, client_op_id, 10 tests hijau, suite 49/49 (minor) |
 
 ## Daftar Isi
 
@@ -639,11 +640,10 @@ buka baris mengulang tapel-berikut (tanpa alumni).
 
 **103 Finance.** `pos_keuangan` (global `kode_pos`), `tarif_biaya`
 (+`nominal_paket`), `tagihan` (idempotent `[santri,pos,periode]`),
-`pembayaran` (`no_kuitansi` locked counter + 1062 retry), `akun_kas`
+`pembayaran` (`no_kuitansi` locked counter + 1062 retry, `client_op_id` Opsi B), `akun_kas`
 (null = central), `jurnal_kas`; `lockForUpdate` pay flow; admin void with
 reversal; kasir scoped to own lembaga.
-Status: 🟡 master tables + controllers exist (`pos-keuangan`, `tarif-biaya`);
-transactional billing pending.
+Status: ✅ live (generate, bayar multi/partial, void, kuitansi PDF+thermal; 10 tests).
 
 #### Phase 2 — Academic 🟡 (spec locked, not implemented)
 

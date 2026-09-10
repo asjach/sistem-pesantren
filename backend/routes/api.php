@@ -12,6 +12,8 @@ use App\Http\Controllers\Api\Admin\UserManagementController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\KamusController;
+use App\Http\Controllers\Api\KeuanganController;
+use App\Http\Controllers\KuitansiController;
 use App\Http\Controllers\Api\PengajuanBiodataController;
 use App\Http\Controllers\Api\PsbController;
 use App\Http\Controllers\Api\PsbDokumenController;
@@ -144,3 +146,21 @@ Route::middleware(['auth:sanctum', 'role:orang_tua|admin'])
 Route::middleware('throttle:30,1')->prefix('kamus')->group(function () {
     Route::get('/{jenis}', [KamusController::class, 'saran']);
 });
+
+// Keuangan 103-B: transaksi kasir (auth + role super_admin|admin|kasir, tenant per aksi).
+Route::middleware(['auth:sanctum', 'role:super_admin|admin|kasir'])
+    ->prefix('keuangan')
+    ->group(function () {
+        Route::get('/santri/{santriId}/tagihan', [KeuanganController::class, 'getTagihanSantri']);
+        Route::post('/tagihan/generate-bulanan', [KeuanganController::class, 'generateBulanan']);
+        Route::post('/bayar', [KeuanganController::class, 'bayar']);
+        Route::post('/pembayaran/{pembayaran}/void', [KeuanganController::class, 'void']);
+    });
+
+// Kuitansi 103-C: PDF dompdf + HTML thermal (auth + role super_admin|admin|kasir).
+Route::middleware(['auth:sanctum', 'role:super_admin|admin|kasir'])
+    ->prefix('kuitansi')
+    ->group(function () {
+        Route::get('/{pembayaranId}/pdf', [KuitansiController::class, 'cetakPdf']);
+        Route::get('/{pembayaranId}/thermal', [KuitansiController::class, 'cetakThermal']);
+    });

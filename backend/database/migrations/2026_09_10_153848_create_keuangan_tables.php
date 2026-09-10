@@ -93,6 +93,9 @@ return new class extends Migration
                     $table->decimal('total_bayar', 12, 2)->default(0);
                     $table->string('metode_pembayaran')->default('tunai'); // ref_metode_pembayaran (dulu enum tunai/transfer; string agar VA/QRIS bisa tambah via kamus)
                     $table->text('catatan')->nullable();
+                    // Idempotensi Opsi B (root PRD OFF-07): kirim ulang dengan kunci sama
+                    // mengembalikan pembayaran existing, bukan catat dobel.
+                    $table->string('client_op_id', 64)->nullable()->unique();
                     $table->timestamps();
 
                     // Unik global: barikade duplikat no_kuitansi (belt tambahan anti race condition)
