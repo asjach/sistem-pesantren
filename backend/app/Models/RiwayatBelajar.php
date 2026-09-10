@@ -10,7 +10,7 @@ class RiwayatBelajar extends Model
 {
     protected $table = 'riwayat_belajar';
     protected $guarded = ['id'];
-    protected $casts = ['tgl_masuk' => 'date', 'is_aktif' => 'boolean'];
+    protected $casts = ['tgl_masuk' => 'date', 'is_aktif' => 'boolean', 'no_absen' => 'integer'];
 
     public function santri(): BelongsTo { return $this->belongsTo(Santri::class); }
     public function lembaga(): BelongsTo { return $this->belongsTo(Lembaga::class); }

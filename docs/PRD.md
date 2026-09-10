@@ -2,7 +2,7 @@
 
 | Atribut | Keterangan |
 |---|---|
-| Versi Dokumen | 1.6 (Modul 101 Santri live) |
+| Versi Dokumen | 1.7 (Modul 102 Siklus live) |
 | Tanggal | 10 September 2026 |
 | Status | Proyek ini = menyusun dokumentasi, bukan coding app. G0–G3 didetailkan; G4+ roadmap |
 | Penyusun | Solo dev + Yayasan |
@@ -26,6 +26,7 @@
 | 1.4 | 2026-09-10 | Kunci paket offline OFF-01 s/d OFF-10 (minor) |
 | 1.5 | 2026-09-10 | Modul 100 PSB full live: 69 routes, 10 tests hijau; is_seleksi ganti psb_butuh_seleksi_default (minor) |
 | 1.6 | 2026-09-10 | Modul 101 Santri live: policy+kamus+import+CRUD, 10 tests hijau, suite 22/22 (minor) |
+| 1.7 | 2026-09-10 | Modul 102 Siklus live: service+8 endpoint, 9 tests hijau, suite 31/31; gerbang AND target (minor) |
 
 ## Daftar Isi
 
@@ -628,7 +629,9 @@ mengulang/pindahan; `status_akhir`: aktif/naik/tidak_naik/pindah_keluar/
 lulus/tidak_lulus; `is_aktif` true iff `aktif`; semester 1/2; per-item mass
 promotion with `{berhasil, gagal[]}`); graduation via `alumni` (last-wins),
 exit via `mutasi_keluar`; package-aware (`nonAktifkanRiwayat`).
-Status: 🟡 tables exist; `SiklusSantriService` pending.
+Status: ✅ live (8 endpoints, 9 tests). Gerbang AND per-lembaga target
+(canAccess + riwayat-aktif). Catatan: `naik_kelas`/`keluar_pindah` ikut
+seeder no.51 (`pindah_keluar`); konflik `naik_kelas` vs no.19 OPEN (butuh putusan).
 
 **103 Finance.** `pos_keuangan` (global `kode_pos`), `tarif_biaya`
 (+`nominal_paket`), `tagihan` (idempotent `[santri,pos,periode]`),
@@ -769,7 +772,8 @@ Status: 🔲 not scaffolded (backend 201/202 pending).
 | 103 pos/tarif master | ✅ | ✅ | — | ✅ |
 | 100 PSB full (daftar, paket, verify/ACC, portal, dokumen, import) | ✅ | ✅ | — | ✅ (69 routes, 10 tests) |
 | 101 Santri (CRUD, import, kamus, policy) | ✅ | ✅ | — | ✅ (10 tests) |
-| 102/103-tx/200/201/202/203 | ✅ specs | ✅ tables | — | 🔲 |
+| 102 Siklus (naik, pindah, mutasi, lulus, list) | ✅ | ✅ | — | ✅ (9 tests) |
+| 103-tx/200/201/202/203 | ✅ specs | ✅ tables | — | 🔲 |
 | Fase 5 (500–504), infra (900–901) | 🔲 drafts | ✅ tables | — | 🔲 |
 | 6 frontend apps | §6 above | n/a | n/a | 🔲 |
 

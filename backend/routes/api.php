@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\Admin\LembagaController;
 use App\Http\Controllers\Api\Admin\PosKeuanganController;
 use App\Http\Controllers\Api\Admin\ReferensiController;
 use App\Http\Controllers\Api\Admin\SantriController;
+use App\Http\Controllers\Api\Admin\SiklusController;
 use App\Http\Controllers\Api\Admin\TahunAjaranController;
 use App\Http\Controllers\Api\Admin\TarifBiayaController;
 use App\Http\Controllers\Api\Admin\UserManagementController;
@@ -55,6 +56,16 @@ Route::middleware(['auth:sanctum', 'role:super_admin|admin'])
         Route::post('santri/import-lengkap', [SantriController::class, 'importLengkap']);
         Route::post('santri/{santri}/foto', [SantriController::class, 'uploadFoto']);
         Route::post('santri/{santri}/dokumen', [SantriController::class, 'uploadDokumen']);
+
+        // Siklus status santri (102: naik/tinggal/pindah kelas, mutasi, lulus, alumni)
+        Route::post('akademik/naik-kelas', [SiklusController::class, 'naikKelasMassal']);
+        Route::post('riwayat/{riwayat}/pindah-kelas', [SiklusController::class, 'pindahKelas']);
+        Route::post('riwayat/{riwayat}/set-kelas', [SiklusController::class, 'setKelas']);
+        Route::post('santri/{santri}/berhenti-jenjang', [SiklusController::class, 'berhentiJenjang']);
+        Route::post('santri/{santri}/mutasi', [SiklusController::class, 'mutasiKeluar']);
+        Route::post('santri/{santri}/lulus', [SiklusController::class, 'lulus']);
+        Route::get('mutasi-keluar', [SiklusController::class, 'getMutasiKeluar']);
+        Route::get('alumni', [SiklusController::class, 'getAlumni']);
 
         Route::prefix('users')->group(function () {
             Route::get('/', [UserManagementController::class, 'index']);
