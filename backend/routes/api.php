@@ -4,11 +4,13 @@ use App\Http\Controllers\Api\Admin\KelasController;
 use App\Http\Controllers\Api\Admin\LembagaController;
 use App\Http\Controllers\Api\Admin\PosKeuanganController;
 use App\Http\Controllers\Api\Admin\ReferensiController;
+use App\Http\Controllers\Api\Admin\SantriController;
 use App\Http\Controllers\Api\Admin\TahunAjaranController;
 use App\Http\Controllers\Api\Admin\TarifBiayaController;
 use App\Http\Controllers\Api\Admin\UserManagementController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\KamusController;
 use App\Http\Controllers\Api\PengajuanBiodataController;
 use App\Http\Controllers\Api\PsbController;
 use App\Http\Controllers\Api\PsbDokumenController;
@@ -47,6 +49,12 @@ Route::middleware(['auth:sanctum', 'role:super_admin|admin'])
 
         Route::apiResource('pos-keuangan', PosKeuanganController::class)->only(['index', 'store', 'update', 'destroy']);
         Route::apiResource('tarif-biaya', TarifBiayaController::class)->only(['index', 'store', 'update', 'destroy']);
+
+        // Data Santri (101: master profil + import PPDB massal + foto/dokumen)
+        Route::get('santri', [SantriController::class, 'index']);
+        Route::post('santri/import-lengkap', [SantriController::class, 'importLengkap']);
+        Route::post('santri/{santri}/foto', [SantriController::class, 'uploadFoto']);
+        Route::post('santri/{santri}/dokumen', [SantriController::class, 'uploadDokumen']);
 
         Route::prefix('users')->group(function () {
             Route::get('/', [UserManagementController::class, 'index']);
@@ -119,3 +127,8 @@ Route::middleware(['auth:sanctum', 'role:orang_tua|admin'])
     ->group(function () {
         Route::get('{calon}/dokumen', [PsbDokumenController::class, 'listCalon']);
     });
+
+// Kamus global (saran combobox): publik + throttle (dipakai form PSB tanpa login).
+Route::middleware('throttle:30,1')->prefix('kamus')->group(function () {
+    Route::get('/{jenis}', [KamusController::class, 'saran']);
+});

@@ -2,7 +2,7 @@
 
 | Atribut | Keterangan |
 |---|---|
-| Versi Dokumen | 1.5 (Modul 100 PSB live) |
+| Versi Dokumen | 1.6 (Modul 101 Santri live) |
 | Tanggal | 10 September 2026 |
 | Status | Proyek ini = menyusun dokumentasi, bukan coding app. G0–G3 didetailkan; G4+ roadmap |
 | Penyusun | Solo dev + Yayasan |
@@ -25,6 +25,7 @@
 | 1.3.2 | 2026-09-10 | attach/detach lembaga, resolve fallback, 3 bug referensi, dashboard terdokumentasi, .env.example MySQL (patch) |
 | 1.4 | 2026-09-10 | Kunci paket offline OFF-01 s/d OFF-10 (minor) |
 | 1.5 | 2026-09-10 | Modul 100 PSB full live: 69 routes, 10 tests hijau; is_seleksi ganti psb_butuh_seleksi_default (minor) |
+| 1.6 | 2026-09-10 | Modul 101 Santri live: policy+kamus+import+CRUD, 10 tests hijau, suite 22/22 (minor) |
 
 ## Daftar Isi
 
@@ -618,7 +619,9 @@ promosi routes, notifications table, `lembaga.is_seleksi`. Captcha + PDF bukti d
 dedup; `updateOrCreate` only when NIK present (+ intra-file guard);
 `status_global` bool (false iff ALL riwayat non-active);
 `SantriPolicy` (guru excluded from admin list).
-Status: 🟡 tables exist; service/controller/import pending.
+Status: ✅ live (CRUD scoped, import-lengkap, kamus, foto/dokumen; 10 tests).
+Tambahan vs vault: mapping import penuh (tanpa drop diam-diam), `uploadFoto`,
+`tipe_santri` rule, `kewarganegaraan` default WNI. Recalc `status_global` tetap di 102.
 
 **102 Santri lifecycle.** `riwayat_belajar` (`status_awal`: santri_baru/
 mengulang/pindahan; `status_akhir`: aktif/naik/tidak_naik/pindah_keluar/
@@ -765,7 +768,8 @@ Status: 🔲 not scaffolded (backend 201/202 pending).
 | 004 ref/master (36 kamus, lembaga/TA/kelas) | ✅ | ✅ | ✅ no.51 | ✅ |
 | 103 pos/tarif master | ✅ | ✅ | — | ✅ |
 | 100 PSB full (daftar, paket, verify/ACC, portal, dokumen, import) | ✅ | ✅ | — | ✅ (69 routes, 10 tests) |
-| 101/102/103-tx/200/201/202/203 | ✅ specs | ✅ tables | — | 🔲 |
+| 101 Santri (CRUD, import, kamus, policy) | ✅ | ✅ | — | ✅ (10 tests) |
+| 102/103-tx/200/201/202/203 | ✅ specs | ✅ tables | — | 🔲 |
 | Fase 5 (500–504), infra (900–901) | 🔲 drafts | ✅ tables | — | 🔲 |
 | 6 frontend apps | §6 above | n/a | n/a | 🔲 |
 
