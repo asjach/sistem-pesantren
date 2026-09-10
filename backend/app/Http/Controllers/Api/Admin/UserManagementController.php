@@ -164,6 +164,8 @@ class UserManagementController extends Controller
         $user->update($data);
         if (array_key_exists('roles', $data)) {
             $user->syncRoles($data['roles']);
+            // 2b: peran berubah → cabut semua token target (paksa login ulang).
+            $user->tokens()->delete();
         }
 
         return response()->json($user->load('roles'));
@@ -212,6 +214,8 @@ class UserManagementController extends Controller
         }
 
         $user->assignRole($request->input('role'));
+        // 2b: peran berubah → cabut semua token target (paksa login ulang).
+        $user->tokens()->delete();
 
         return response()->json(['message' => 'Role berhasil ditambahkan.', 'user' => $user->load('roles')]);
     }
@@ -231,6 +235,8 @@ class UserManagementController extends Controller
         }
 
         $user->removeRole($request->input('role'));
+        // 2b: peran berubah → cabut semua token target (paksa login ulang).
+        $user->tokens()->delete();
 
         return response()->json(['message' => 'Role berhasil dihapus.', 'user' => $user->load('roles')]);
     }

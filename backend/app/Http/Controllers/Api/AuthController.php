@@ -34,7 +34,12 @@ class AuthController extends Controller
         }
 
         $user->forceFill(['last_login_at' => now()])->saveQuietly();
-        $token = $user->createToken('api-token')->plainTextToken;
+
+        // 2a: nama token per perangkat (cabut-per-device). 2d: expiry per peran —
+        // staf 30 hari, murni orang_tua/santri 365 hari (root PRD OFF-06/v1.8).
+        $device = substr(trim((string) $request->input('device', 'api-token')), 0, 100) ?: 'api-token';
+        $staff = $user->hasAnyRole(['super_admin', 'admin', 'kasir', 'guru']);
+        $token = $user->createToken($device, ['*'], now()->addDays($staff ? 30 : 365))->plainTextToken;
 
         return response()->json([
             'user' => $user->load('roles'),
@@ -47,6 +52,14 @@ class AuthController extends Controller
         request()->user()->currentAccessToken()->delete();
 
         return response()->json(['message' => 'Berhasil logout.']);
+    }
+
+    /** 2c: cabut SEMUA token milik sendiri (mis. HP hilang). */
+    public function logoutAll()
+    {
+        request()->user()->tokens()->delete();
+
+        return response()->json(['message' => 'Semua sesi perangkat telah diakhiri.']);
     }
 
     public function me()
