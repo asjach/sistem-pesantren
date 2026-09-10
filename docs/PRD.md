@@ -2,7 +2,7 @@
 
 | Atribut | Keterangan |
 |---|---|
-| Versi Dokumen | 1.3.2 (tenant multi-lembaga + fix referensi) |
+| Versi Dokumen | 1.5 (Modul 100 PSB live) |
 | Tanggal | 10 September 2026 |
 | Status | Proyek ini = menyusun dokumentasi, bukan coding app. G0–G3 didetailkan; G4+ roadmap |
 | Penyusun | Solo dev + Yayasan |
@@ -23,6 +23,8 @@
 | 1.3 | 2026-09-10 | Pindah ke root docs/PRD.md + gabung backend PRD Part B (minor) |
 | 1.3.1 | 2026-09-10 | docs/SCHEMA.md baru + migration per-modul 15 file, hapus single-file (patch) |
 | 1.3.2 | 2026-09-10 | attach/detach lembaga, resolve fallback, 3 bug referensi, dashboard terdokumentasi, .env.example MySQL (patch) |
+| 1.4 | 2026-09-10 | Kunci paket offline OFF-01 s/d OFF-10 (minor) |
+| 1.5 | 2026-09-10 | Modul 100 PSB full live: 69 routes, 10 tests hijau; is_seleksi ganti psb_butuh_seleksi_default (minor) |
 
 ## Daftar Isi
 
@@ -451,10 +453,30 @@ SIMPES; santri; lembaga (MI=SD formal, MD=SD non-formal paralel, MTS=SMP, MLN=Al
 | 2026-09-10 | Bab 2.2 poin 2 | `psb_butuh_seleksi_default` ke `lembaga.is_seleksi`; override null ikut default | Sederhanakan nama | Modul 002, 004, 100; kontrak FE |
 | 2026-09-10 | Bab 2.2 poin 3 | `MUA` ke `MLN`; istilah beku ke hardcoded; PK tetap id INT | Samakan singkatan | Seed kode, nomor PSB, filter FE |
 | 2026-09-10 | Bab 2.2 poin 4 | Fallback tambah placeholder bila root null | Kop dokumen G0 | Profil lembaga, kuitansi |
+| 2026-09-10 | OFF-01 s/d OFF-10 | Online-only ke online-first + SQLite lokal (detail Lampiran F) | PC putus-nyambung | Kontrak FE, API bayar (`client_op_id`), SOP kasir |
+
+## Lampiran F — Keputusan Offline (terkunci v1.4)
+
+Scope: desktop admin + kasir (nanti). Mobile ortu wajib online (tanpa lapisan offline).
+
+| ID | Keputusan |
+|---|---|
+| OFF-01 | SQLite lokal = replika baca + draft; MySQL server satu-satunya sumber kebenaran; tanpa sync-engine dua-arah |
+| OFF-02 | Baca-lokal + sync bertingkat: struktural 60 mnt, kamus 60 mnt full-pull, tarif 30 mnt, santri list 10 mnt (detail live), users 10 mnt full-pull, status transaksi 2 mnt + refresh fokus/pasca-tulis; delta via `updated_since` (endpoint baru, kecil) |
+| OFF-03 | Pemicu sync: login penuh (jaminan minimal), interval, tutup best-effort, pasca-tulis, reconnect, manual |
+| OFF-04 | Online = live langsung; offline = fallback SQLite + banner + timer dashboard sejak `last_seen_server` + label basi; tulis transaksi mati |
+| OFF-05 | Login-offline: verifier perangkat 30 hari, semua peran, password tiap buka, salah 5x kunci 5 mnt, akun baru/PC baru/kedaluwarsa wajib online, revokasi berlaku online-berikutnya |
+| OFF-06 | Token: staf 30 hari, murni `orang_tua/santri` 365 hari; auto-login desktop admin+kasir; pencabutan berlaku seketika saat online |
+| OFF-07 | Opsi B payment-intent: snapshot-only, nominal fixed, nomor `LOKAL-*` + struk SEMENTARA, 1 pintu, tutup-hari terkunci, dorong per-item via API bayar + `client_op_id`, void/ACC final online-only |
+| OFF-08 | Perubahan tarif/pos tulis-hanya-online (pull 30 mnt) |
+| OFF-09 | Tanpa merge otomatis: tolak 409 `{kode, alasan, server_state, bisa_aksi[]}`, pilih manual per item + audit pilihan |
+| OFF-10 | Validasi server tak berubah (tenant, peran, ref efektif, kuota, kunci billing, counter) |
+
+TBD (tidak dikunci): enkripsi SQLite, bentuk endpoint delta, LAN-fallback, UAT chaos.
 
 ## Pembahasan Selanjutnya (sesi baru)
 
-- Selesai v1.2; v1.3 gabung backend PRD. Next: SCHEMA.md + migration per-modul.
+- v1.4 paket offline terkunci. Next: scaffold Tauri / backend 100 (sesuai pilihan).
 
 ---
 
@@ -589,7 +611,8 @@ Status: ✅ migrated + seeded (agama 6, tingkat 12, tugas 2, …).
 `no_pendaftaran` race → catch 1062 regenerate (max 3×).
 Stories: public daftar (+paket), admin verify/ACC/tolak(+paket), wali portal
 lengkapi/ajukan-daftar-ulang, TU verifies `dokumen_santri`.
-Status: 🟡 tables exist; service/controller pending.
+Status: ✅ live (69 routes; 10 feature tests green). Tambahan vs vault: verifikasiPaket +
+promosi routes, notifications table, `lembaga.is_seleksi`. Captcha + PDF bukti ditunda.
 
 **101 Santri master.** 74-column EMIS profile; NIK/NISN index-only + service
 dedup; `updateOrCreate` only when NIK present (+ intra-file guard);
@@ -741,7 +764,8 @@ Status: 🔲 not scaffolded (backend 201/202 pending).
 | 003 auth/users | ✅ | ✅ | ✅ roles | ✅ |
 | 004 ref/master (36 kamus, lembaga/TA/kelas) | ✅ | ✅ | ✅ no.51 | ✅ |
 | 103 pos/tarif master | ✅ | ✅ | — | ✅ |
-| 100/101/102/103-tx/200/201/202/203 | ✅ specs | ✅ tables | — | 🔲 |
+| 100 PSB full (daftar, paket, verify/ACC, portal, dokumen, import) | ✅ | ✅ | — | ✅ (69 routes, 10 tests) |
+| 101/102/103-tx/200/201/202/203 | ✅ specs | ✅ tables | — | 🔲 |
 | Fase 5 (500–504), infra (900–901) | 🔲 drafts | ✅ tables | — | 🔲 |
 | 6 frontend apps | §6 above | n/a | n/a | 🔲 |
 

@@ -32,7 +32,7 @@ return new class extends Migration
                     $table->decimal('nominal_paket', 12, 2)->nullable(); // harga paket MI-MD (di baris primer MI); null = paket tidak ditawarkan
                     $table->decimal('nominal_masuk', 12, 2)->default(0); // biaya daftar ulang / masuk, boleh 0
                     $table->integer('kuota')->nullable();
-                    $table->boolean('membutuhkan_seleksi')->nullable(); // null = ikut lembaga.psb_butuh_seleksi_default
+                    $table->boolean('membutuhkan_seleksi')->nullable(); // null = ikut lembaga.is_seleksi
                     $table->boolean('membutuhkan_pemberkasan')->default(true);
                     $table->timestamps();
 

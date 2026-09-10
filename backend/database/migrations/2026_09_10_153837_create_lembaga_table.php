@@ -56,7 +56,7 @@ return new class extends Migration
                     $table->enum('mode_rapor', ['terpisah', 'digabung'])->default('digabung');
                     $table->string('template_rapor')->default('default');
                     // Kolom Modul 100 PSB (konfigurasi jalur fleksibel):
-                    $table->boolean('psb_butuh_seleksi_default')->default(false); // false = jalur langsung (A), true = jalur seleksi (B)
+                    $table->boolean('is_seleksi')->default(false); // default jalur lembaga: false = langsung (A), true = seleksi (B); override per-gelombang via psb_kuota_biaya.membutuhkan_seleksi (root PRD Lampiran E)
                     $table->enum('kelompok_psb', ['combo_mi_md', 'eksklusif_mts'])->default('combo_mi_md'); // aturan daftar ganda
                     $table->boolean('is_active')->default(true); // nonaktifkan tanpa hapus
                     $table->timestamps();
