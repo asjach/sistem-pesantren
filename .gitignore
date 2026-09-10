@@ -1,0 +1,7 @@
+.DS_Store
+**/.env
+backend/vendor/
+backend/node_modules/
+mobile/*/vendor/
+mobile/*/node_modules/
+*.log

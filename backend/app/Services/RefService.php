@@ -1,0 +1,93 @@
+<?php
+
+namespace App\Services;
+
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+
+class RefService
+{
+    // Kunci nilai untuk kamus bebas (kolom 'nama'), status (kolom 'kode').
+    // 33 kamus bebas + 2 status = 35 tipe di KEY; + ref_alamat terpisah = 36 ref total.
+    public const KEY = [
+        'agama' => 'nama', 'cita_cita' => 'nama', 'hobi' => 'nama',
+        'pekerjaan' => 'nama', 'pendidikan' => 'nama',
+        'kebutuhan_khusus' => 'nama', 'kota' => 'nama',
+        'penghasilan' => 'nama', 'transportasi' => 'nama', 'status_tinggal' => 'nama',
+        'jarak' => 'nama', 'waktu_tempuh' => 'nama', 'bahasa_sehari_hari' => 'nama',
+        'disabilitas' => 'nama', 'tmp_lahir' => 'nama', 'status_ortu' => 'nama',
+        'yang_membiayai' => 'nama', 'provinsi' => 'nama', 'kecamatan' => 'nama',
+        'desa_kelurahan' => 'nama', 'alasan_mutasi' => 'nama',
+        'jenis_dokumen_santri' => 'nama', 'jenis_dokumen_pegawai' => 'nama',
+        'status_pernikahan' => 'nama', 'gol_darah' => 'nama',
+        'jenis_ptk' => 'nama', 'jenjang_sertifikasi' => 'nama',
+        'tingkat' => 'nama', 'tugas_utama' => 'nama', 'tipe_pelanggaran' => 'nama',
+        'kategori_kas' => 'nama', 'metode_pembayaran' => 'nama', 'jalur_sertifikasi' => 'nama',
+        'status_awal' => 'kode', 'status_akhir' => 'kode',
+    ];
+
+    public static function table(string $tipe): string
+    {
+        if (! isset(self::KEY[$tipe])) abort(422, "Tipe referensi tidak valid: $tipe.");
+        return 'ref_' . $tipe;
+    }
+
+    // Gabung baris global (lembaga null) + baris lembaga; baris lembaga menang per kunci.
+    public static function effective(string $tipe, ?int $lembagaId): array
+    {
+        $table = self::table($tipe);
+        $key = self::KEY[$tipe];
+        return Cache::remember("ref:$tipe:$lembagaId", 300, function () use ($table, $key, $lembagaId) {
+            $rows = DB::table($table)
+                ->whereNull('lembaga_id')
+                ->when($lembagaId, fn ($q) => $q->orWhere('lembaga_id', $lembagaId))
+                ->orderBy('urutan')->get();
+            $map = [];
+            foreach ($rows as $r) $map[$r->{$key}] = $r;
+            return array_values(array_filter($map, fn ($r) => (bool) $r->is_active));
+        });
+    }
+
+    public static function kodeAktif(string $tipe, ?int $lembagaId): array
+    {
+        $key = self::KEY[$tipe];
+        return array_map(fn ($r) => $r->{$key}, self::effective($tipe, $lembagaId));
+    }
+
+    public static function sifatStatusAkhir(string $kode, ?int $lembagaId): ?object
+    {
+        foreach (self::effective('status_akhir', $lembagaId) as $r) {
+            if ($r->kode === $kode) return $r;
+        }
+        return null;
+    }
+
+    public static function forget(?int $lembagaId = null): void
+    {
+        foreach (array_keys(self::KEY) as $tipe) Cache::forget("ref:$tipe:$lembagaId");
+    }
+
+    public static function effectiveAlamat(?int $lembagaId): array
+    {
+        return Cache::remember("ref:alamat:$lembagaId", 300, function () use ($lembagaId) {
+            $rows = DB::table('ref_alamat')
+                ->whereNull('lembaga_id')
+                ->when($lembagaId, fn ($q) => $q->orWhere('lembaga_id', $lembagaId))
+                ->orderBy('urutan')->get();
+            $map = [];
+            foreach ($rows as $r) $map[$r->nama] = $r;
+            return array_values(array_filter($map, fn ($r) => (bool) $r->is_active));
+        });
+    }
+
+    public static function forgetAlamat(?int $lembagaId = null): void
+    {
+        Cache::forget("ref:alamat:$lembagaId");
+    }
+
+    // Alias lama (kompatibilitas sementara): efektif() => effective().
+    public static function efektif(string $tipe, ?int $lembagaId): array
+    {
+        return self::effective($tipe, $lembagaId);
+    }
+}
