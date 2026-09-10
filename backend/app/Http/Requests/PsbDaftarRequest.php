@@ -34,6 +34,8 @@ class PsbDaftarRequest extends FormRequest
             'nama_ayah' => ['nullable', 'string', 'max:100'],
             'nama_ibu' => ['nullable', 'string', 'max:100'],
             'santri_asal_id' => ['nullable', 'integer', 'exists:santri,id'], // pintu lanjutan
+            'is_pindahan' => ['nullable', 'boolean'], // true = pindahan, false/absen = santri baru
+            'masuk_tingkat' => ['nullable', 'string', 'max:2'], // matriks per kode lembaga dicek service
             'paket' => ['nullable', 'in:MI-MD'], // radio paket; satu-satunya paket saat ini (primer MI, non_asrama saja)
             'bukti_transfer' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:2048'], // disimpan ke storage, DB hanya path
         ];

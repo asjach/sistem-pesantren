@@ -71,6 +71,46 @@ class PsbService
     /** Definisi paket (sengaja konstanta, bukan tabel — paket jarang dan selalu spesifik). */
     public const PAKET_MI_MD = ['kode' => 'MI-MD', 'primer' => 'MI', 'anggota' => ['MI', 'MD']];
 
+    /** Tingkat masuk santri baru per kode lembaga (root PRD: is_pindahan=false). */
+    public const TINGKAT_MASUK_BARU = ['MI' => '1', 'MD' => '1', 'MTS' => '7', 'MLN' => '10'];
+
+    /** Tingkat boleh untuk pindahan per kode lembaga (root PRD). */
+    public const TINGKAT_PINDAHAN = [
+        'MI' => ['2', '3', '4', '5', '6'],
+        'MD' => ['2', '3', '4', '5', '6'],
+        'MTS' => ['8', '9'],
+        'MLN' => ['11', '12'],
+    ];
+
+    /**
+     * Validasi + resolve masuk_tingkat. Santri baru: harus entry jenjang
+     * (null = pakai default entry). Pindahan: wajib salah satu dari daftar.
+     */
+    protected function validasiMasukTingkat(Lembaga $lembaga, bool $isPindahan, mixed $tingkat): string
+    {
+        $kode = (string) $lembaga->kode;
+        if (! $isPindahan) {
+            $def = self::TINGKAT_MASUK_BARU[$kode] ?? null;
+            if ($def === null) {
+                throw ValidationException::withMessages(['lembaga_id' => "Kode lembaga {$kode} belum punya tingkat masuk santri baru."]);
+            }
+            if ($tingkat !== null && (string) $tingkat !== $def) {
+                throw ValidationException::withMessages(['masuk_tingkat' => "Santri baru {$kode} wajib tingkat {$def}."]);
+            }
+
+            return $def;
+        }
+        $boleh = self::TINGKAT_PINDAHAN[$kode] ?? null;
+        if ($boleh === null) {
+            throw ValidationException::withMessages(['lembaga_id' => "Kode lembaga {$kode} belum punya daftar tingkat pindahan."]);
+        }
+        if (! in_array((string) ($tingkat ?? ''), $boleh, true)) {
+            throw ValidationException::withMessages(['masuk_tingkat' => 'Pindahan ' . $kode . ' wajib tingkat ' . implode('/', $boleh) . '.']);
+        }
+
+        return (string) $tingkat;
+    }
+
     /** Cek NIK publik: boolean saja (anti enumerasi) + throttle + captcha di route. */
     public function cekNikTerdaftar(string $nik): bool
     {
@@ -108,6 +148,11 @@ class PsbService
                 }
                 $this->cekAturanGanda($data);
             }
+
+            // Jenis PSB + tingkat masuk (root PRD): validasi matriks per kode lembaga.
+            $lembagaDaftar = Lembaga::findOrFail($data['lembaga_id']);
+            $isPindahan = (bool) ($data['is_pindahan'] ?? false);
+            $masukTingkat = $this->validasiMasukTingkat($lembagaDaftar, $isPindahan, $data['masuk_tingkat'] ?? null);
 
             // Lookup tarif 2 tahap (tanpa interpolasi ke SQL mentah):
             // exact tipe dulu, fallback 'semua'.
@@ -152,6 +197,8 @@ class PsbService
                         'ibu_nama' => $data['nama_ibu'] ?? null,
                         'santri_asal_id' => $data['santri_asal_id'] ?? null,
                         'is_lanjutan' => $isLanjutan,
+                        'is_pindahan' => $isPindahan,
+                        'masuk_tingkat' => $masukTingkat,
                         'is_duplikat_kontak' => ! empty($catatanSistem),
                         'catatan_sistem' => $catatanSistem ? implode('; ', $catatanSistem) : null,
                         'no_pendaftaran' => $noPendaftaran,
@@ -232,6 +279,11 @@ class PsbService
             if (! $kuotaPrimer || $kuotaPrimer->nominal_paket === null) {
                 throw ValidationException::withMessages(['paket' => 'Paket MI-MD tidak ditawarkan di gelombang ini.']);
             }
+            // Paket selalu santri baru tingkat 1 (kedua jenjang SD).
+            $this->validasiMasukTingkat($lembagaPrimer, false, $data['masuk_tingkat'] ?? '1');
+            $this->validasiMasukTingkat($lembagaSekunder, false, '1');
+            $data['is_pindahan'] = false;
+            $data['masuk_tingkat'] = '1';
 
             $grupId = (string) Str::uuid();
             // Atomik: salah satu penuh -> SELURUH paket waiting_list (paket = non_asrama)
@@ -273,6 +325,8 @@ class PsbService
                     'ibu_nama' => $data['nama_ibu'] ?? null,
                     'paket_grup_id' => $grupId,
                     'is_lanjutan' => false,
+                    'is_pindahan' => (bool) ($data['is_pindahan'] ?? false),
+                    'masuk_tingkat' => $data['masuk_tingkat'] ?? null,
                     'no_pendaftaran' => $noPaket ?? $this->generateNoPendaftaran((int) $data['gelombang_id'], $lembagaId),
                     'status_pendaftaran' => $status,
                     'tanggal_daftar' => now()->toDateString(),
@@ -323,12 +377,13 @@ class PsbService
             $payload['nis'] = null;
             $payload['kelas_id'] = null;
             $santri = Santri::create($payload);
-            // Dua riwayat (MI + MD): santri_baru/aktif/is_aktif=true
+            // Dua riwayat (MI + MD): status_awal dari flag tiap baris + tingkat masuknya.
             foreach ($baris as $b) {
                 if ($b->tahun_ajaran_id) {
+                    [$awalPkt, $tingkatPkt] = $this->awalDanTingkat($b);
                     RiwayatBelajar::firstOrCreate(
                         ['santri_id' => $santri->id, 'tahun_ajaran_id' => $b->tahun_ajaran_id, 'lembaga_id' => $b->lembaga_id, 'semester' => '1'],
-                        ['status_awal' => 'santri_baru', 'status_akhir' => 'aktif', 'is_aktif' => true, 'tgl_masuk' => $b->tanggal_masuk ?? null]
+                        ['status_awal' => $awalPkt, 'tingkat' => $tingkatPkt, 'status_akhir' => 'aktif', 'is_aktif' => true, 'tgl_masuk' => $b->tanggal_masuk ?? null]
                     );
                 }
                 Tagihan::where('psb_calon_santri_id', $b->id)->update(['santri_id' => $santri->id]);
@@ -503,9 +558,10 @@ class PsbService
             }
             // Riwayat belajar menyusul boleh null kelas
             if ($calon->tahun_ajaran_id) {
+                [$awalAcc, $tingkatAcc] = $this->awalDanTingkat($calon);
                 RiwayatBelajar::firstOrCreate(
                     ['santri_id' => $santri->id, 'tahun_ajaran_id' => $calon->tahun_ajaran_id, 'lembaga_id' => $calon->lembaga_id, 'semester' => '1'],
-                    ['status_awal' => 'santri_baru', 'status_akhir' => 'aktif', 'is_aktif' => true, 'tgl_masuk' => $calon->tanggal_masuk ?? null]
+                    ['status_awal' => $awalAcc, 'tingkat' => $tingkatAcc, 'status_akhir' => 'aktif', 'is_aktif' => true, 'tgl_masuk' => $calon->tanggal_masuk ?? null]
                 );
             }
             // Backfill pembayaran: tagihan/pembayaran calon ikut santri_id (audit psb_calon_santri_id tetap)
@@ -545,6 +601,22 @@ class PsbService
         $t = preg_replace('/\D/', '', $telp ?? '');
 
         return preg_replace('/^(0|62)/', '62', $t);
+    }
+
+    /**
+     * status_awal + tingkat riwayat ACC dari flag calon (root PRD):
+     * is_pindahan=false -> 'santri_baru', true -> 'pindahan'.
+     */
+    protected function awalDanTingkat(PsbCalonSantri $calon): array
+    {
+        $awal = $calon->is_pindahan ? 'pindahan' : 'santri_baru';
+        $tingkat = $calon->masuk_tingkat;
+        if (! $tingkat) {
+            $lembaga = $calon->lembagaTujuan ?? Lembaga::find($calon->lembaga_id);
+            $tingkat = $lembaga ? (self::TINGKAT_MASUK_BARU[$lembaga->kode] ?? null) : null;
+        }
+
+        return [$awal, $tingkat];
     }
 
     /** Banding tanggal null-safe lintas DB (normalisasi Y-m-d). */

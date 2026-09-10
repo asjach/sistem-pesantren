@@ -72,8 +72,9 @@ class ReferensiSeeder extends Seeder
              'desa_kelurahan' => 'Rahayu', 'alamat' => 'Kp. Kumambang', 'rt' => '05', 'rw' => '08',
              'kode_pos' => '40218', 'urutan' => 0, 'is_active' => true]);
 
-        // Status siklus no.51 GANTI TOTAL (terkunci): awal 3 kode, akhir 6 kode; is_aktif_bawaan=true HANYA untuk 'aktif' (invarian 102 terjaga).
-        $awal = ['santri_baru' => 'Santri Baru', 'mengulang' => 'Mengulang', 'pindahan' => 'Pindahan'];
+        // Status siklus no.51 GANTI TOTAL (terkunci): awal 3 kode + 'kenaikan' (root PRD v1.7.1:
+        // kenaikan kelas -> status_awal baris tapel-berikut), akhir 6 kode; is_aktif_bawaan=true HANYA untuk 'aktif' (invarian 102 terjaga).
+        $awal = ['santri_baru' => 'Santri Baru', 'mengulang' => 'Mengulang', 'pindahan' => 'Pindahan', 'kenaikan' => 'Kenaikan Kelas'];
         foreach (array_values($awal) as $i => $label) DB::table('ref_status_awal')->updateOrInsert(
             ['lembaga_id' => null, 'kode' => array_keys($awal)[$i]], ['label' => $label, 'urutan' => $i, 'is_active' => true]);
 

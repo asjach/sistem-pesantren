@@ -34,16 +34,16 @@ class SiklusFlowTest extends TestCase
 
     /**
      * Minimal global refs agar validasi RefService lolos di sqlite.
-     * 'pindah_keluar' sudah di ReferensiSeeder (no.51); 'naik_kelas' disisip
-     * sementara menunggu keputusan konflik no.19 vs no.51 (lihat bawah file).
+     * Cermin ReferensiSeeder (no.51 + 'kenaikan' v1.7.1); disisip manual
+     * karena test tidak menjalankan seeder ref.
      */
     protected function ensureRefs(): void
     {
         foreach ([
             ['kode' => 'santri_baru', 'label' => 'Santri Baru'],
-            ['kode' => 'naik_kelas', 'label' => 'Naik Kelas'],
             ['kode' => 'mengulang', 'label' => 'Mengulang'],
             ['kode' => 'pindahan', 'label' => 'Pindahan'],
+            ['kode' => 'kenaikan', 'label' => 'Kenaikan Kelas'],
         ] as $i => $r) {
             DB::table('ref_status_awal')->updateOrInsert(
                 ['lembaga_id' => null, 'kode' => $r['kode']],
@@ -226,7 +226,7 @@ class SiklusFlowTest extends TestCase
             ->where('semester', '1')->firstOrFail();
         $this->assertNull($baru->kelas_id);
         $this->assertTrue((bool) $baru->is_aktif);
-        $this->assertEquals('naik_kelas', $baru->status_awal);
+        $this->assertEquals('kenaikan', $baru->status_awal);
         $this->assertEquals('aktif', $baru->status_akhir);
         $this->assertEquals('3', $baru->tingkat);
 
@@ -546,18 +546,54 @@ class SiklusFlowTest extends TestCase
         $this->assertContains($sAlMd->id, $idsAlumni);
         $this->assertNotContains($sAlMi->id, $idsAlumni);
     }
+
+    // ---------- 10. tidak lulus -> baris tapel-berikut mengulang ----------
+
+    public function test_10_tidak_lulus_buka_baris_mengulang(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeUser('super_admin', []);
+
+        // TA berikut di lembaga yang sama (MI).
+        $taA = TahunAjaran::create([
+            'lembaga_id' => $f['mi']->id, 'nama' => '2025/2026',
+            'tanggal_mulai' => '2025-07-01', 'tanggal_selesai' => '2026-06-30', 'is_aktif' => false,
+        ]);
+        $taB = TahunAjaran::create([
+            'lembaga_id' => $f['mi']->id, 'nama' => '2026/2027',
+            'tanggal_mulai' => '2026-07-01', 'tanggal_selesai' => '2027-06-30', 'is_aktif' => true,
+        ]);
+        $s = $this->makeSantri($f['mi'], 'Tidak Lulus');
+        $this->makeRiwayat($s, $taA, $f['mi'], '2', ['tingkat' => '3']);
+
+        $res = $this->actingAs($admin, 'sanctum')->postJson(
+            "/api/admin/santri/{$s->id}/lulus",
+            array_merge($this->lulusPayload($f['mi'], $taA), ['hasil' => 'tidak_lulus'])
+        );
+        $res->assertStatus(200);
+        $this->assertEquals('mengulang', $res->json('data.status_awal'));
+
+        // Baris lama tutup tidak_lulus; baris baru aktif mengulang tingkat sama.
+        $lama = RiwayatBelajar::where('santri_id', $s->id)
+            ->where('tahun_ajaran_id', $taA->id)->firstOrFail();
+        $this->assertEquals('tidak_lulus', $lama->status_akhir);
+        $this->assertFalse((bool) $lama->is_aktif);
+        $baru = RiwayatBelajar::where('santri_id', $s->id)
+            ->where('tahun_ajaran_id', $taB->id)->firstOrFail();
+        $this->assertEquals('mengulang', $baru->status_awal);
+        $this->assertEquals('3', $baru->tingkat);
+        $this->assertTrue((bool) $baru->is_aktif);
+        $this->assertTrue((bool) $s->fresh()->status_global);
+        // Tanpa baris alumni (alumni hanya untuk lulusan).
+        $this->assertEquals(0, Alumni::where('santri_id', $s->id)->count());
+    }
 }
 
 /*
 DAFTAR PENYIMPANGAN / ISSUE (SiklusFlowTest):
-1. ref_status_awal 'naik_kelas' dipakai SiklusSantriService::prosesKenaikanPerSantri
-   tapi ReferensiSeeder (no.51, terbaru) MENCABUT naik_kelas — konflik dengan 000 no.19
-   + vault 102 §2. Test menyisipkan global via ensureRefs() sementara menunggu
-   keputusan: (A) kembalikan naik_kelas ke seeder + catat revisi no.51, atau
-   (B) service tak pakai naik_kelas lagi (nilai pengganti TBD).
-2. SELESAI: service mutasi/lulus kini pakai 'pindah_keluar' selaras seeder+migration
-   (no.51); 'keluar_pindah' (no.19/vault 102) tidak dipakai lagi.
-3. Gerbang tenant controller = canAccess(target) + riwayat-aktif-di-target
+1. SELESAI v1.7.1: status_awal naik = 'kenaikan' (bukan 'naik_kelas' no.19 yang
+   dicabut no.51); mutasi/lulus pakai 'pindah_keluar' selaras seeder+migration.
+2. Gerbang tenant controller = canAccess(target) + riwayat-aktif-di-target
    (authorizeAksiLembaga), BUKAN policy primer — admin sekunder paket sah memproses
    baris lembaganya. SantriPolicy::mutasi tetap ada untuk kompatibilitas.
 */

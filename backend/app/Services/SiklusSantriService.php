@@ -7,6 +7,7 @@ use App\Models\Kelas;
 use App\Models\MutasiKeluar;
 use App\Models\RiwayatBelajar;
 use App\Models\Santri;
+use App\Models\TahunAjaran;
 use App\Services\RefService;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
@@ -101,7 +102,7 @@ class SiklusSantriService
             if (! in_array($status, ['naik', 'tidak_naik'], true)) abort(422, 'Status harus naik/tidak_naik.');
             // Validasi ke ref efektif lembaga (boleh custom per lembaga).
             $akhirLama = $status; // 'naik' / 'tidak_naik' adalah kode status_akhir
-            $awalBaru = $status === 'naik' ? 'naik_kelas' : 'mengulang';
+            $awalBaru = $status === 'naik' ? 'kenaikan' : 'mengulang'; // root PRD: kenaikan, bukan naik_kelas
             foreach ([['status_akhir', $akhirLama], ['status_awal', $awalBaru], ['status_akhir', 'aktif']] as [$t, $k]) {
                 if (! in_array($k, RefService::kodeAktif($t, $lembagaId), true)) abort(422, "Status $k tidak aktif di lembaga ini.");
             }
@@ -275,6 +276,62 @@ class SiklusSantriService
             }
             $this->hitungUlangStatusGlobal($santri->fresh());
             return $alumni;
+        });
+    }
+
+    /**
+     * Tidak lulus (root PRD): tutup baris aktif (status_akhir tidak_lulus) + buka
+     * baris tapel BERIKUT (status_awal mengulang, tingkat sama, semester 1).
+     * Tanpa baris alumni (alumni hanya untuk lulusan). TA berikut wajib sudah ada.
+     */
+    public function prosesTidakLulus(Santri $santri, int $lembagaId, array $data): RiwayatBelajar
+    {
+        return DB::transaction(function () use ($santri, $lembagaId, $data) {
+            $santri = Santri::where('id', $santri->id)->lockForUpdate()->firstOrFail();
+            if (! in_array('tidak_lulus', RefService::kodeAktif('status_akhir', $lembagaId), true)) abort(422, 'Status tidak_lulus nonaktif di lembaga ini.');
+            if (! in_array('mengulang', RefService::kodeAktif('status_awal', $lembagaId), true)) abort(422, 'Status mengulang nonaktif di lembaga ini.');
+            $aktif = RiwayatBelajar::where('santri_id', $santri->id)->where('lembaga_id', $lembagaId)
+                ->where('is_aktif', true)->lockForUpdate()->latest('id')->get();
+            if ($aktif->isEmpty()) {
+                abort(422, 'Santri tidak memiliki riwayat aktif di lembaga ini.');
+            }
+            foreach ($aktif as $row) {
+                $row->update(['status_akhir' => 'tidak_lulus', 'is_aktif' => false]);
+            }
+            $taLama = TahunAjaran::find($aktif->first()->tahun_ajaran_id);
+            $taBerikut = TahunAjaran::where('lembaga_id', $lembagaId)
+                ->when($taLama?->tanggal_mulai, fn ($q, $mulai) => $q->where('tanggal_mulai', '>', $mulai))
+                ->orderBy('tanggal_mulai')->orderBy('id')->first();
+            if (! $taBerikut) {
+                abort(422, 'Tahun ajaran berikut belum ada di lembaga ini — buat dulu sebelum proses tidak lulus.');
+            }
+            $usaha = 0;
+            while (true) {
+                try {
+                    $baru = RiwayatBelajar::create([
+                        'santri_id' => $santri->id,
+                        'tahun_ajaran_id' => $taBerikut->id,
+                        'lembaga_id' => $lembagaId,
+                        'kelas_id' => null,
+                        'semester' => '1',
+                        'nis' => $aktif->first()->nis,
+                        'tingkat' => $aktif->first()->tingkat,
+                        'status_awal' => 'mengulang',
+                        'status_akhir' => 'aktif',
+                        'is_aktif' => true,
+                    ]);
+                    break;
+                } catch (QueryException $e) {
+                    if (($e->errorInfo[1] ?? null) !== 1062 || ++$usaha >= 3) throw $e;
+                    $baru = RiwayatBelajar::where('santri_id', $santri->id)
+                        ->where('tahun_ajaran_id', $taBerikut->id)->where('lembaga_id', $lembagaId)
+                        ->where('semester', '1')->first();
+                    if ($baru) break;
+                }
+            }
+            $this->hitungUlangStatusGlobal($santri->fresh());
+
+            return $baru->fresh();
         });
     }
 

@@ -161,14 +161,25 @@ class SiklusController extends Controller
             'lembaga_id' => 'required|exists:lembaga,id',
             'tahun_ajaran_lulus_id' => 'required|exists:tahun_ajaran,id',
             'tanggal_lulus' => 'required|date',
-            'nomor_ijazah' => 'nullable|string',
-            'no_surat_ijazah' => 'nullable|string|max:50',
-            'kegiatan_setelah_lulus' => 'nullable|string',
-            'penyerahan_ijazah' => 'nullable|in:sudah,belum',
-            'melanjutkan' => 'nullable|in:ya,tidak',
+            'hasil' => ['nullable', 'in:lulus,tidak_lulus'], // absen = lulus
+            'nomor_ijazah' => ['nullable', 'required_if:hasil,lulus', 'string'],
+            'no_surat_ijazah' => ['nullable', 'string', 'max:50'],
+            'kegiatan_setelah_lulus' => ['nullable', 'string'],
+            'penyerahan_ijazah' => ['nullable', 'in:sudah,belum'],
+            'melanjutkan' => ['nullable', 'in:ya,tidak'],
         ]);
 
         $this->authorizeAksiLembaga($request, $santri, (int) $data['lembaga_id']);
+
+        if (($data['hasil'] ?? 'lulus') === 'tidak_lulus') {
+            // Tidak lulus: tutup baris + buka baris tapel-berikut mengulang (tanpa baris alumni).
+            $riwayat = $this->siklusService->prosesTidakLulus($santri, (int) $data['lembaga_id'], $data);
+
+            return response()->json([
+                'pesan' => 'Santri tidak lulus; riwayat mengulang tapel berikut dibuka.',
+                'data' => $riwayat,
+            ]);
+        }
 
         $alumni = $this->siklusService->prosesLulusPerLembaga($santri, (int) $data['lembaga_id'], $data);
 

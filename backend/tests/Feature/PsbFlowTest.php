@@ -494,4 +494,65 @@ class PsbFlowTest extends TestCase
             'diff' => ['alamat' => 'Jl. Kedua 10'],
         ])->assertStatus(422);
     }
+
+    // ---------- 11. is_pindahan + masuk_tingkat ----------
+
+    public function test_11_pindahan_dan_tingkat_masuk(): void
+    {
+        $f = $this->baseFixture();
+        $this->makeKuota($f['gel'], $f['mi'], $f['ta'], ['membutuhkan_seleksi' => false]);
+        $admin = $this->makeUser('admin', [$f['mi']->id]);
+        $ortu = $this->makeUser('orang_tua', [], 'ortu11@example.com', '081111111111');
+
+        // Pindahan MI tingkat 3: OK.
+        $daftar = $this->postJson('/api/psb/daftar', $this->daftarPayload(
+            $f['gel'], $f['mi'], '1100000000000011', 'Pindahan Anak', 'ortu11@example.com', '081111111111',
+            ['is_pindahan' => true, 'masuk_tingkat' => '3']
+        ));
+        $daftar->assertStatus(201);
+        $calonId = $daftar->json('data.calon.id');
+        $this->assertTrue((bool) PsbCalonSantri::find($calonId)->is_pindahan);
+        $this->assertEquals('3', PsbCalonSantri::find($calonId)->masuk_tingkat);
+
+        // Pindahan MI tingkat 7 (luar 2-6): 422.
+        $this->postJson('/api/psb/daftar', $this->daftarPayload(
+            $f['gel'], $f['mi'], '1100000000000012', 'Pindahan Salah', 'ortu11@example.com', '081111111111',
+            ['is_pindahan' => true, 'masuk_tingkat' => '7']
+        ))->assertStatus(422);
+
+        // Santri baru MI tingkat 2 (bukan entry 1): 422.
+        $this->postJson('/api/psb/daftar', $this->daftarPayload(
+            $f['gel'], $f['mi'], '1100000000000013', 'Baru Salah', 'ortu11@example.com', '081111111111',
+            ['masuk_tingkat' => '2']
+        ))->assertStatus(422);
+
+        // Alur sampai ACC: riwayat pindahan tingkat 3.
+        $this->actingAs($admin, 'sanctum')->postJson("/api/psb/{$calonId}/verifikasi")->assertStatus(200);
+        $this->actingAs($ortu, 'sanctum')->postJson("/api/portal/psb/{$calonId}/ajukan-daftar-ulang")
+            ->assertStatus(201);
+        $santriId = $this->actingAs($admin, 'sanctum')->postJson("/api/psb/{$calonId}/acc-daftar-ulang")
+            ->json('data.id');
+        $riwayat = RiwayatBelajar::where('santri_id', $santriId)->firstOrFail();
+        $this->assertEquals('pindahan', $riwayat->status_awal);
+        $this->assertEquals('3', $riwayat->tingkat);
+
+        // Santri baru MTS tanpa tingkat: default entry 7.
+        $this->makeKuota($f['gel'], $f['mts'], $f['ta'], ['membutuhkan_seleksi' => true]);
+        $adminMts = $this->makeUser('admin', [$f['mts']->id]);
+        $baru = $this->postJson('/api/psb/daftar', $this->daftarPayload(
+            $f['gel'], $f['mts'], '1100000000000014', 'Baru MTS', 'ortu11@example.com', '081111111111'
+        ));
+        $baru->assertStatus(201);
+        $calonBaru = $baru->json('data.calon.id');
+        $this->actingAs($adminMts, 'sanctum')->postJson("/api/psb/{$calonBaru}/verifikasi")->assertStatus(200);
+        $this->actingAs($adminMts, 'sanctum')->postJson("/api/psb/{$calonBaru}/seleksi", ['lolos' => true])
+            ->assertStatus(200);
+        $this->actingAs($ortu, 'sanctum')->postJson("/api/portal/psb/{$calonBaru}/ajukan-daftar-ulang")
+            ->assertStatus(201);
+        $santriBaru = $this->actingAs($adminMts, 'sanctum')->postJson("/api/psb/{$calonBaru}/acc-daftar-ulang")
+            ->json('data.id');
+        $riwayatBaru = RiwayatBelajar::where('santri_id', $santriBaru)->firstOrFail();
+        $this->assertEquals('santri_baru', $riwayatBaru->status_awal);
+        $this->assertEquals('7', $riwayatBaru->tingkat);
+    }
 }

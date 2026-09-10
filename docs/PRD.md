@@ -2,7 +2,7 @@
 
 | Atribut | Keterangan |
 |---|---|
-| Versi Dokumen | 1.7 (Modul 102 Siklus live) |
+| Versi Dokumen | 1.7.1 (status_awal + is_pindahan) |
 | Tanggal | 10 September 2026 |
 | Status | Proyek ini = menyusun dokumentasi, bukan coding app. G0–G3 didetailkan; G4+ roadmap |
 | Penyusun | Solo dev + Yayasan |
@@ -27,6 +27,7 @@
 | 1.5 | 2026-09-10 | Modul 100 PSB full live: 69 routes, 10 tests hijau; is_seleksi ganti psb_butuh_seleksi_default (minor) |
 | 1.6 | 2026-09-10 | Modul 101 Santri live: policy+kamus+import+CRUD, 10 tests hijau, suite 22/22 (minor) |
 | 1.7 | 2026-09-10 | Modul 102 Siklus live: service+8 endpoint, 9 tests hijau, suite 31/31; gerbang AND target (minor) |
+| 1.7.1 | 2026-09-10 | status_awal final: kenaikan (naik), is_pindahan+masuk_tingkat PSB, tidak_lulus buka mengulang (patch) |
 
 ## Daftar Isi
 
@@ -456,6 +457,7 @@ SIMPES; santri; lembaga (MI=SD formal, MD=SD non-formal paralel, MTS=SMP, MLN=Al
 | 2026-09-10 | Bab 2.2 poin 3 | `MUA` ke `MLN`; istilah beku ke hardcoded; PK tetap id INT | Samakan singkatan | Seed kode, nomor PSB, filter FE |
 | 2026-09-10 | Bab 2.2 poin 4 | Fallback tambah placeholder bila root null | Kop dokumen G0 | Profil lembaga, kuitansi |
 | 2026-09-10 | OFF-01 s/d OFF-10 | Online-only ke online-first + SQLite lokal (detail Lampiran F) | PC putus-nyambung | Kontrak FE, API bayar (`client_op_id`), SOP kasir |
+| 2026-09-10 | status_awal | `naik_kelas` ke `kenaikan`; ACC dari flag `is_pindahan`; `masuk_tingkat` per jenjang; `tidak_lulus` buka baris mengulang | Putusan domain | 100/102, seeder, tests |
 
 ## Lampiran F — Keputusan Offline (terkunci v1.4)
 
@@ -629,9 +631,9 @@ mengulang/pindahan; `status_akhir`: aktif/naik/tidak_naik/pindah_keluar/
 lulus/tidak_lulus; `is_aktif` true iff `aktif`; semester 1/2; per-item mass
 promotion with `{berhasil, gagal[]}`); graduation via `alumni` (last-wins),
 exit via `mutasi_keluar`; package-aware (`nonAktifkanRiwayat`).
-Status: ✅ live (8 endpoints, 9 tests). Gerbang AND per-lembaga target
-(canAccess + riwayat-aktif). Catatan: `naik_kelas`/`keluar_pindah` ikut
-seeder no.51 (`pindah_keluar`); konflik `naik_kelas` vs no.19 OPEN (butuh putusan).
+Status: ✅ live (8 endpoints, 10 tests). Gerbang AND per-lembaga target
+(canAccess + riwayat-aktif). `pindah_keluar` ikut seeder no.51; `tidak_lulus`
+buka baris mengulang tapel-berikut (tanpa alumni).
 
 **103 Finance.** `pos_keuangan` (global `kode_pos`), `tarif_biaya`
 (+`nominal_paket`), `tagihan` (idempotent `[santri,pos,periode]`),

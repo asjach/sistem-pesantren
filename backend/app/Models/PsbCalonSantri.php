@@ -14,6 +14,7 @@ class PsbCalonSantri extends Model
         'ayah_tgl_lahir' => 'date', 'ibu_tgl_lahir' => 'date', 'wali_tgl_lahir' => 'date',
         'is_pendaftaran_paid' => 'boolean', 'is_daftar_ulang_paid' => 'boolean',
         'is_duplikat_kontak' => 'boolean', 'is_lanjutan' => 'boolean',
+        'is_pindahan' => 'boolean',
     ];
 
     public function gelombang(): BelongsTo { return $this->belongsTo(PsbGelombang::class, 'gelombang_id'); }
