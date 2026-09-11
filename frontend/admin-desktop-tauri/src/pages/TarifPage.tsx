@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import PageHeader, { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { ViewDialog } from '@/components/ViewDialog';
 import {
   Dialog,
@@ -203,13 +204,9 @@ export default function TarifPage() {
   }
 
   return (
-    <div className="flex h-[calc(100dvh_-_3.5rem)] flex-col max-md:h-auto max-md:min-h-[calc(100dvh_-_2rem)]">
-      <div className="flex flex-wrap items-center gap-3">
-        <h1 id="title_tarif" className="text-2xl font-bold">Tarif Biaya</h1>
-      </div>
-      {err && (
-        <p className="mt-3 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">{err}</p>
-      )}
+    <div className={PAGE_SHELL}>
+      <PageHeader titleId="title_tarif" title="Tarif Biaya" />
+      <ErrorNotice>{err}</ErrorNotice>
       <ExcelTable
         tableKey="tarif"
         fields={fields}
@@ -230,7 +227,7 @@ export default function TarifPage() {
         filter={(
           <>
             <Select value={lembagaId === '' ? '_semua' : String(lembagaId)} onValueChange={(v) => { setLembagaId(v === '_semua' ? '' : Number(v)); setTaId(''); }}>
-              <SelectTrigger id="select_lembaga_tarif" title="Filter lembaga" aria-label="Filter lembaga" className="h-6 w-36">
+              <SelectTrigger id="select_lembaga_tarif" title="Filter lembaga" aria-label="Filter lembaga" className="h-8 w-36">
                 <SelectValue placeholder="Semua" />
               </SelectTrigger>
               <SelectContent>
@@ -239,7 +236,7 @@ export default function TarifPage() {
               </SelectContent>
             </Select>
             <Select value={posId === '' ? '_semua' : String(posId)} onValueChange={(v) => setPosId(v === '_semua' ? '' : Number(v))}>
-              <SelectTrigger id="select_pos_tarif" title="Filter pos" aria-label="Filter pos" className="h-6 w-36">
+              <SelectTrigger id="select_pos_tarif" title="Filter pos" aria-label="Filter pos" className="h-8 w-36">
                 <SelectValue placeholder="Semua" />
               </SelectTrigger>
               <SelectContent>
@@ -248,7 +245,7 @@ export default function TarifPage() {
               </SelectContent>
             </Select>
             <Select value={taId === '' ? '_semua' : String(taId)} onValueChange={(v) => setTaId(v === '_semua' ? '' : Number(v))}>
-              <SelectTrigger id="select_ta_tarif" title="Filter tahun ajaran" aria-label="Filter tahun ajaran" className="h-6 w-36">
+              <SelectTrigger id="select_ta_tarif" title="Filter tahun ajaran" aria-label="Filter tahun ajaran" className="h-8 w-36">
                 <SelectValue placeholder="Semua" />
               </SelectTrigger>
               <SelectContent>

@@ -10,6 +10,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import PageHeader, { ErrorNotice } from '@/components/PageHeader';
 
 export default function ReferensiPage() {
   const [types, setTypes] = useState<string[]>([]);
@@ -35,11 +36,9 @@ export default function ReferensiPage() {
 
   return (
     <div>
-      <h1 id="title_referensi" className="text-2xl font-bold">Referensi</h1>
-      {err && (
-        <p className="mt-3 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">{err}</p>
-      )}
-      <div className="mt-3 rounded-xl border bg-card p-4">
+      <PageHeader titleId="title_referensi" title="Referensi" />
+      <ErrorNotice>{err}</ErrorNotice>
+      <div className="rounded-xl border bg-card p-4">
         <div className="grid max-w-xs gap-1.5">
           <Label htmlFor="select_tipe">Tipe kamus ({types.length || '…'})</Label>
           <Select value={tipe} onValueChange={setTipe}>

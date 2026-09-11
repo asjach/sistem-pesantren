@@ -12,17 +12,6 @@ import { useTheme } from '@/theme';
 import { errorMessage, prefGet, prefSet } from '@/api/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectSeparator,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Dialog,
@@ -32,9 +21,31 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Copy, MoveHorizontal, RotateCcw, Rows3, Save, Search, Type, X } from 'lucide-react';
+import { DEFAULT_FONT_PX, FONT_FAMILY_DEFAULT, FONT_OPTIONS, useGridPrefs } from '@/components/GridPrefs';
+import { Copy, MoveHorizontal, RotateCcw, Save, Search, X } from 'lucide-react';
 import { copyText, toTSV } from '@/lib/clipboard';
+import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+
+/** Wadah kecil untuk mengelompokkan kontrol toolbar yang sejenis. */
+function ToolbarGroup({
+  children,
+  title,
+  className,
+}: {
+  children: ReactNode;
+  title?: string;
+  className?: string;
+}) {
+  return (
+    <div
+      title={title}
+      className={cn('flex h-8 items-center gap-1.5 rounded-lg border bg-card px-2', className)}
+    >
+      {children}
+    </div>
+  );
+}
 
 export interface ExcelChoice {
   value: string;
@@ -97,12 +108,7 @@ interface ExcelTableProps<T extends { id: string | number }> {
   addButton?: ReactNode;
 }
 
-const MIN_ROW_H = 26;
-const MAX_ROW_H = 200;
 const MIN_COL_W = 50;
-const MIN_FONT_PX = 9;
-const MAX_FONT_PX = 24;
-const DEFAULT_FONT_PX = 13;
 /** Batas lebar hasil AutoFit (Excel juga membatasi, ~255 karakter). */
 const AUTOFIT_MAX_W = 480;
 /** Ruang napas agar teks tidak menempel garis kolom saat AutoFit. */
@@ -111,49 +117,6 @@ const AUTOFIT_BUFFER = 8;
 const ACTIONS_DEFAULT_W = 112;
 /** Lantai lebar kolom Aksi (1 tombol ikon + padding). */
 const ACTIONS_MIN_W = 56;
-
-/** Tinggi baris tunggal untuk SELURUH tabel (bukan per tabel). */
-const GLOBAL_ROWH_KEY = 'simpes_grid_rowh';
-/** Ukuran huruf tunggal untuk SELURUH tabel (bukan per tabel). */
-const GLOBAL_FONT_KEY = 'simpes_grid_font';
-/** Jenis huruf ISI tabel, tunggal untuk SELURUH tabel. */
-const GLOBAL_FONT_FAMILY_KEY = 'simpes_grid_font_family';
-
-/** Nilai SelectItem untuk "ikut bawaan" (Radix tidak mengizinkan string kosong). */
-const FONT_FAMILY_DEFAULT = '_bawaan';
-
-/** Pilihan jenis huruf isi tabel — sans-serif (tanpa kaki), relatif ramping.
- *  Nilai berformat "<font-family>|<font-weight>"; `FONT_FAMILY_DEFAULT`
- *  berarti ikut font & ketebalan bawaan aplikasi. */
-const FONT_OPTIONS: { value: string; label: string; group: 'sistem' | 'google' }[] = [
-  { value: FONT_FAMILY_DEFAULT, label: 'Bawaan', group: 'sistem' },
-  // Font sistem (terpasang di OS pengguna).
-  { value: '"Helvetica Neue", Helvetica, Arial, sans-serif|400', label: 'Helvetica Neue', group: 'sistem' },
-  { value: '"Helvetica Neue", Helvetica, Arial, sans-serif|300', label: 'Helvetica Neue Light', group: 'sistem' },
-  { value: '"Segoe UI", "Noto Sans", Roboto, Arial, sans-serif|400', label: 'Segoe UI', group: 'sistem' },
-  { value: 'Calibri, Candara, "Segoe UI", Optima, sans-serif|400', label: 'Calibri', group: 'sistem' },
-  { value: 'Arial, "Helvetica Neue", Helvetica, sans-serif|400', label: 'Arial', group: 'sistem' },
-  { value: 'Tahoma, Geneva, sans-serif|400', label: 'Tahoma', group: 'sistem' },
-  { value: '"Trebuchet MS", Tahoma, sans-serif|400', label: 'Trebuchet MS', group: 'sistem' },
-  { value: '"Lucida Sans Unicode", "Lucida Grande", sans-serif|400', label: 'Lucida Sans', group: 'sistem' },
-  // Google Fonts — sudah diunduh ke src/assets/fonts (berjalan offline).
-  { value: '"Inter", sans-serif|300', label: 'Inter Light', group: 'google' },
-  { value: '"Inter", sans-serif|400', label: 'Inter', group: 'google' },
-  { value: '"Roboto", sans-serif|300', label: 'Roboto Light', group: 'google' },
-  { value: '"Roboto", sans-serif|400', label: 'Roboto', group: 'google' },
-  { value: '"Open Sans", sans-serif|300', label: 'Open Sans Light', group: 'google' },
-  { value: '"Open Sans", sans-serif|400', label: 'Open Sans', group: 'google' },
-  { value: '"Lato", sans-serif|300', label: 'Lato Light', group: 'google' },
-  { value: '"Lato", sans-serif|400', label: 'Lato', group: 'google' },
-  { value: '"Noto Sans", sans-serif|300', label: 'Noto Sans Light', group: 'google' },
-  { value: '"Noto Sans", sans-serif|400', label: 'Noto Sans', group: 'google' },
-  { value: '"Source Sans 3", sans-serif|300', label: 'Source Sans 3 Light', group: 'google' },
-  { value: '"Source Sans 3", sans-serif|400', label: 'Source Sans 3', group: 'google' },
-  { value: '"Work Sans", sans-serif|300', label: 'Work Sans Light', group: 'google' },
-  { value: '"Work Sans", sans-serif|400', label: 'Work Sans', group: 'google' },
-  { value: '"Plus Jakarta Sans", sans-serif|300', label: 'Plus Jakarta Sans Light', group: 'google' },
-  { value: '"Plus Jakarta Sans", sans-serif|400', label: 'Plus Jakarta Sans', group: 'google' },
-];
 
 function widthsKey(tableKey: string) {
   return `simpes_grid_${tableKey}_w`;
@@ -170,40 +133,6 @@ async function loadWidths(key: string): Promise<Record<string, number>> {
     return out;
   } catch {
     return {};
-  }
-}
-
-async function loadRowH(key: string): Promise<number | null> {
-  try {
-    const v = await prefGet(key);
-    if (v == null || v.trim() === '') return null;
-    const n = Number(v);
-    if (!Number.isFinite(n)) return null;
-    return Math.min(MAX_ROW_H, Math.max(MIN_ROW_H, Math.round(n)));
-  } catch {
-    return null;
-  }
-}
-
-async function loadFontPx(key: string): Promise<number | null> {
-  try {
-    const v = await prefGet(key);
-    if (v == null || v.trim() === '') return null;
-    const n = Number(v);
-    if (!Number.isFinite(n)) return null;
-    return Math.min(MAX_FONT_PX, Math.max(MIN_FONT_PX, Math.round(n)));
-  } catch {
-    return null;
-  }
-}
-
-async function loadFontFamily(key: string): Promise<string> {
-  try {
-    const v = await prefGet(key);
-    if (v == null || v === '') return FONT_FAMILY_DEFAULT;
-    return FONT_OPTIONS.some((f) => f.value === v) ? v : FONT_FAMILY_DEFAULT;
-  } catch {
-    return FONT_FAMILY_DEFAULT;
   }
 }
 
@@ -401,6 +330,8 @@ export default function ExcelTable<T extends { id: string | number }>({
 }: ExcelTableProps<T>) {
   const { density } = useTheme();
   const densityPx = DENSITY_PX[density];
+  // Preferensi tampilan tabel global (dikontrol dari top bar).
+  const { rowH, fontPx, fontFamily } = useGridPrefs();
 
   const [editMode, setEditMode] = useState(false);
   const [drafts, setDrafts] = useState<Drafts>({});
@@ -408,11 +339,6 @@ export default function ExcelTable<T extends { id: string | number }>({
   const [range, setRange] = useState<GridSelection | null>(null);
   const [saving, setSaving] = useState(false);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
-  const [rowH, setRowH] = useState<number | null>(null);
-  const [draft, setDraft] = useState<string | null>(null);
-  const [fontPx, setFontPx] = useState<number | null>(null);
-  const [fontDraft, setFontDraft] = useState<string | null>(null);
-  const [fontFamily, setFontFamily] = useState(FONT_FAMILY_DEFAULT);
 
   const rowsRef = useRef(rows);
   rowsRef.current = rows;
@@ -465,14 +391,10 @@ export default function ExcelTable<T extends { id: string | number }>({
 
   useEffect(() => {
     setWidthsReady(false);
-    loadRowH(GLOBAL_ROWH_KEY).then(setRowH);
-    loadFontPx(GLOBAL_FONT_KEY).then(setFontPx);
-    loadFontFamily(GLOBAL_FONT_FAMILY_KEY).then(setFontFamily);
     loadWidths(widthsKey(tableKey)).then((w) => {
       setWidths(w);
       setWidthsReady(true);
     });
-    setDraft(null);
   }, [tableKey]);
 
   // Muat awal: kolom yang belum punya lebar tersimpan disesuaikan dengan isi
@@ -529,32 +451,6 @@ export default function ExcelTable<T extends { id: string | number }>({
     setRange(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows]);
-
-  // Simpan tinggi baris global (debounce agar tidak menulis tiap ketikan).
-  useEffect(() => {
-    if (rowH == null) return;
-    const t = setTimeout(() => {
-      prefSet(GLOBAL_ROWH_KEY, String(rowH)).catch(() => {});
-    }, 400);
-    return () => clearTimeout(t);
-  }, [rowH]);
-
-  // Simpan ukuran huruf global (debounce, berlaku semua tabel).
-  useEffect(() => {
-    if (fontPx == null) return;
-    const t = setTimeout(() => {
-      prefSet(GLOBAL_FONT_KEY, String(fontPx)).catch(() => {});
-    }, 400);
-    return () => clearTimeout(t);
-  }, [fontPx]);
-
-  // Simpan jenis huruf isi tabel (global, berlaku semua tabel).
-  useEffect(() => {
-    const t = setTimeout(() => {
-      prefSet(GLOBAL_FONT_FAMILY_KEY, fontFamily).catch(() => {});
-    }, 400);
-    return () => clearTimeout(t);
-  }, [fontFamily]);
 
   // Ukuran/jenis huruf berubah → teks butuh lebar baru: hitung ulang AutoFit
   // (lebar yang sudah diatur pengguna tetap dipertahankan).
@@ -1092,24 +988,6 @@ export default function ExcelTable<T extends { id: string | number }>({
     toast.success('Tampilan tabel dikembalikan bawaan.');
   }
 
-  /** Terapkan langsung saat diketik/dipanah (clamp), tampilkan apa adanya. */
-  function applyRowHDraft(raw: string) {
-    setDraft(raw);
-    if (raw.trim() === '') return;
-    const n = Number(raw);
-    if (!Number.isFinite(n)) return;
-    setRowH(Math.min(MAX_ROW_H, Math.max(MIN_ROW_H, Math.round(n))));
-  }
-
-  /** Ukuran huruf grid (berlaku semua tabel), clamp saat diketik. */
-  function applyFontDraft(raw: string) {
-    setFontDraft(raw);
-    if (raw.trim() === '') return;
-    const n = Number(raw);
-    if (!Number.isFinite(n)) return;
-    setFontPx(Math.min(MAX_FONT_PX, Math.max(MIN_FONT_PX, Math.round(n))));
-  }
-
   function onToggleEdit(next: boolean) {
     if (!next && dirtyIds.length > 0) {
       setConfirmDiscard(true);
@@ -1130,10 +1008,10 @@ export default function ExcelTable<T extends { id: string | number }>({
   const buttonId = searchIds?.button ?? `btn_cari_${tableKey}`;
 
   return (
-    <div className="mt-4 flex flex-1 flex-col">
+    <div className="flex flex-1 flex-col">
       {/* Satu baris: pencarian + filter (kiri), lalu kontrol tabel dan tombol
           tambah halaman (kanan), dikelompokkan menurut fungsi. */}
-      <div className="mb-2 flex flex-wrap items-center gap-1.5">
+      <div className="mb-3 flex flex-wrap items-center gap-2">
         {hasSearch && (
           <form
             id={formId}
@@ -1150,7 +1028,7 @@ export default function ExcelTable<T extends { id: string | number }>({
                 placeholder={searchPlaceholder ?? 'Cari'}
                 value={searchValue}
                 onChange={(e) => onSearchChange?.(e.target.value)}
-                className="h-6 w-40 sm:w-44"
+                className="h-8 w-44 sm:w-48"
               />
             )}
             {filter}
@@ -1161,6 +1039,7 @@ export default function ExcelTable<T extends { id: string | number }>({
               variant="outline"
               title="Cari"
               aria-label="Cari"
+              className="h-8 w-8"
             >
               <Search size={16} />
             </Button>
@@ -1172,112 +1051,28 @@ export default function ExcelTable<T extends { id: string | number }>({
         >
           {checkedIds.size} baris dipilih
         </span>
-        <div className="ml-auto flex flex-wrap items-center gap-1.5">
+        <div className="ml-auto flex flex-wrap items-center gap-2">
           {/* Grup 1 — mode edit sel */}
           {canEdit && (
-            <label
-              htmlFor={`chk_edit_${tableKey}`}
-              className="flex cursor-pointer items-center gap-1.5 text-xs text-muted-foreground"
-              title="Mode edit sel"
-            >
-              <input
-                id={`chk_edit_${tableKey}`}
-                type="checkbox"
-                checked={editMode}
-                onChange={(e) => onToggleEdit(e.target.checked)}
-                className="h-4 w-4 accent-[var(--accent)]"
-              />
-              Edit
-            </label>
-          )}
-          {canEdit && <span className="h-5 w-px bg-border" aria-hidden="true" />}
-
-          {/* Grup 2 — tampilan: ukuran huruf + tinggi baris (berlaku semua tabel) */}
-          <div
-            className="flex items-center gap-1.5 rounded-md border border-border px-1.5 py-0.5"
-            title="Tampilan tabel (berlaku semua tabel)"
-          >
-            <Label
-              htmlFor={`input_huruf_${tableKey}`}
-              title="Ukuran huruf (berlaku semua tabel)"
-              className="cursor-default text-muted-foreground"
-            >
-              <Type size={16} />
-              <span className="sr-only">Ukuran huruf (semua tabel)</span>
-            </Label>
-            <Input
-              id={`input_huruf_${tableKey}`}
-              type="number"
-              min={MIN_FONT_PX}
-              max={MAX_FONT_PX}
-              step={1}
-              aria-label="Ukuran huruf (px)"
-              className="h-6 w-12"
-              value={fontDraft ?? String(effectiveFont)}
-              onChange={(e) => applyFontDraft(e.target.value)}
-              onBlur={() => setFontDraft(null)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-              }}
-            />
-            <Select value={fontFamily} onValueChange={setFontFamily}>
-              <SelectTrigger
-                id={`select_huruf_${tableKey}`}
-                title="Jenis huruf isi tabel (berlaku semua tabel)"
-                aria-label="Jenis huruf isi tabel"
-                className="h-6 w-36"
+            <ToolbarGroup title="Mode edit sel">
+              <label
+                htmlFor={`chk_edit_${tableKey}`}
+                className="flex cursor-pointer items-center gap-1.5 text-xs text-muted-foreground"
               >
-                <SelectValue placeholder="Bawaan" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectLabel>Font sistem</SelectLabel>
-                  {FONT_OPTIONS.filter((f) => f.group === 'sistem').map((f) => (
-                    <SelectItem key={f.label} value={f.value}>
-                      {f.label}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-                <SelectSeparator />
-                <SelectGroup>
-                  <SelectLabel>Font Google (offline)</SelectLabel>
-                  {FONT_OPTIONS.filter((f) => f.group === 'google').map((f) => (
-                    <SelectItem key={f.label} value={f.value}>
-                      {f.label}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-            <Label
-              htmlFor={`input_tinggi_${tableKey}`}
-              title="Tinggi baris (berlaku semua tabel)"
-              className="cursor-default text-muted-foreground"
-            >
-              <Rows3 size={16} />
-              <span className="sr-only">Tinggi baris (semua tabel)</span>
-            </Label>
-            <Input
-              id={`input_tinggi_${tableKey}`}
-              type="number"
-              min={MIN_ROW_H}
-              max={MAX_ROW_H}
-              step={1}
-              aria-label="Tinggi baris (px)"
-              className="h-6 w-12"
-              value={draft ?? String(effectiveH)}
-              onChange={(e) => applyRowHDraft(e.target.value)}
-              onBlur={() => setDraft(null)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-              }}
-            />
-          </div>
+                <input
+                  id={`chk_edit_${tableKey}`}
+                  type="checkbox"
+                  checked={editMode}
+                  onChange={(e) => onToggleEdit(e.target.checked)}
+                  className="size-3.5 accent-[var(--accent)]"
+                />
+                Edit
+              </label>
+            </ToolbarGroup>
+          )}
 
-          <span className="h-5 w-px bg-border" aria-hidden="true" />
-
-          {/* Grup 3 — alat tabel: salin, sesuaikan lebar, reset */}
-          <div className="flex items-center gap-1.5">
+          {/* Grup 2 — alat tabel: salin, sesuaikan lebar, reset */}
+          <ToolbarGroup>
           <Button
             id={`btn_salin_${tableKey}`}
             size="icon-sm"
@@ -1309,12 +1104,11 @@ export default function ExcelTable<T extends { id: string | number }>({
           >
             <RotateCcw size={16} />
           </Button>
-          </div>
+          </ToolbarGroup>
 
           {/* Grup 4 — draft belum disimpan */}
           {canEdit && dirtyIds.length > 0 && (
-            <>
-              <span className="h-5 w-px bg-border" aria-hidden="true" />
+            <ToolbarGroup>
               <Button id={`btn_simpan_${tableKey}`} size="sm" disabled={saving} onClick={() => onSave()}>
                 <Save size={15} /> Simpan ({dirtyIds.length})
               </Button>
@@ -1327,16 +1121,11 @@ export default function ExcelTable<T extends { id: string | number }>({
               >
                 <X size={15} /> Batal
               </Button>
-            </>
+            </ToolbarGroup>
           )}
 
           {/* Tombol aksi utama halaman, sejajar dengan kontrol tabel. */}
-          {addButton && (
-            <>
-              <span className="h-5 w-px bg-border" aria-hidden="true" />
-              <div className="flex items-center gap-2">{addButton}</div>
-            </>
-          )}
+          {addButton && <div className="flex items-center gap-2">{addButton}</div>}
         </div>
       </div>
 
@@ -1351,7 +1140,7 @@ export default function ExcelTable<T extends { id: string | number }>({
           } as React.CSSProperties
         }
         title="Seret untuk memblokir sel • Ctrl+C menyalin"
-        className="simpes-dsg flex min-h-[280px] flex-1 flex-col overflow-hidden rounded-xl bg-card"
+        className="simpes-dsg relative flex min-h-[280px] flex-1 flex-col overflow-hidden rounded-xl bg-card"
       >
         <DataSheetGrid
           value={gridValue}
@@ -1370,7 +1159,9 @@ export default function ExcelTable<T extends { id: string | number }>({
           onScroll={fitActionsIfNeeded}
         />
         {gridValue.length === 0 && !loading && (
-          <p className="p-6 text-center text-sm text-muted-foreground">{emptyText}</p>
+          <div className="pointer-events-none absolute inset-0 grid place-items-center">
+            <p className="text-sm text-muted-foreground">{emptyText}</p>
+          </div>
         )}
       </div>
       <Dialog open={confirmDiscard} onOpenChange={setConfirmDiscard}>

@@ -27,9 +27,14 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --radius-lg: var(--radius);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-sm: calc(var(--radius) - 4px);
+  /* Radius seragam 4px untuk seluruh komponen (badge/chip bulat tetap bulat). */
+  --radius-xs: 4px;
+  --radius-sm: 4px;
+  --radius-md: 4px;
+  --radius-lg: 4px;
+  --radius-xl: 4px;
+  --radius-2xl: 4px;
+  --radius-3xl: 4px;
 }
 
 /* ---------- basis: nilai aman sebelum JS jalan (Hijau terang) ----------
@@ -38,7 +43,7 @@
    --foreground, --sidebar, --sidebar-deep disetel inline di <html>.
    Sisanya DITURUNKAN otomatis lewat color-mix — berlaku semua tema & mode. */
 :root {
-  --radius: 0.625rem;
+  --radius: 4px;
 
   /* ---------- hierarki font (semua sans-serif sistem, tanpa unduhan) ----------
      --font-sans: isi/body, tabel, navigasi (netral).
@@ -205,6 +210,17 @@
 }
 .simpes-dsg .dsg-row.dsg-row-header {
   background: color-mix(in srgb, var(--foreground) 7%, var(--card));
+}
+/* Indikator sudut select-all ala Excel: DSG memberi `margin: auto` (tampak
+   berjarak ke semua sisi). Rapatkan tepat ke sudut kanan-bawah sel. */
+.simpes-dsg .dsg-cell-gutter.dsg-cell-header {
+  position: relative;
+}
+.simpes-dsg .dsg-cell-gutter.dsg-cell-header .dsg-corner-indicator {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  margin: 0;
 }
 .simpes-dsg .dsg-cell-header .dsg-cell-header-container {
   font-family: var(--font-display);

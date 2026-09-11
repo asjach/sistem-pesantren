@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/select';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { ViewDialog } from '@/components/ViewDialog';
+import PageHeader, { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import {
   Dialog,
   DialogContent,
@@ -152,13 +153,13 @@ export default function LembagaPage() {
   }
 
   return (
-    <div className="flex h-[calc(100dvh_-_3.5rem)] flex-col max-md:h-auto max-md:min-h-[calc(100dvh_-_2rem)]">
-      <div className="flex flex-wrap items-center gap-3">
-        <h1 id="title_lembaga" className="text-2xl font-bold">Lembaga</h1>
-      </div>
-      {err && (
-        <p className="mt-3 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">{err}</p>
-      )}
+    <div className={PAGE_SHELL}>
+      <PageHeader
+        titleId="title_lembaga"
+        title="Lembaga"
+        description={!isSuper ? 'Tambah/ubah/hapus lembaga hanya super_admin.' : undefined}
+      />
+      <ErrorNotice>{err}</ErrorNotice>
       <ExcelTable
         tableKey="lembaga"
         fields={fields}
@@ -204,7 +205,6 @@ export default function LembagaPage() {
         onPage={(p) => { pager.setPage(p); load(p); }}
         onPerPage={(pp) => { pager.setPerPage(pp); load(1, pp); }}
       />
-      {!isSuper && <p className="text-sm text-muted-foreground">Tambah/ubah/hapus lembaga hanya super_admin.</p>}
       {isSuper && (
         <Dialog open={tambahOpen} onOpenChange={setTambahOpen}>
           <DialogContent className="max-w-3xl">

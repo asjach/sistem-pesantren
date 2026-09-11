@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import PageHeader, { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { ViewDialog } from '@/components/ViewDialog';
 import {
   Dialog,
@@ -147,13 +148,9 @@ export default function PosPage() {
   }
 
   return (
-    <div className="flex h-[calc(100dvh_-_3.5rem)] flex-col max-md:h-auto max-md:min-h-[calc(100dvh_-_2rem)]">
-      <div className="flex flex-wrap items-center gap-3">
-        <h1 id="title_pos" className="text-2xl font-bold">Pos Keuangan</h1>
-      </div>
-      {err && (
-        <p className="mt-3 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">{err}</p>
-      )}
+    <div className={PAGE_SHELL}>
+      <PageHeader titleId="title_pos" title="Pos Keuangan" />
+      <ErrorNotice>{err}</ErrorNotice>
       <ExcelTable
         tableKey="pos"
         fields={fields}

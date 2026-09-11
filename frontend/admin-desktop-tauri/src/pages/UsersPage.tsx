@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/select';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { ViewDialog } from '@/components/ViewDialog';
+import PageHeader, { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import {
   Dialog,
   DialogContent,
@@ -198,13 +199,13 @@ export default function UsersPage() {
   }
 
   return (
-    <div className="flex h-[calc(100dvh_-_3.5rem)] flex-col max-md:h-auto max-md:min-h-[calc(100dvh_-_2rem)]">
-      <div className="flex flex-wrap items-center gap-3">
-        <h1 id="title_users" className="text-2xl font-bold">Pengguna</h1>
-      </div>
-      {err && (
-        <p className="mt-3 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">{err}</p>
-      )}
+    <div className={PAGE_SHELL}>
+      <PageHeader
+        titleId="title_users"
+        title="Pengguna"
+        description="Role diri sendiri terkunci untuk semua peran. Baris pemegang admin/super_admin hanya bisa diubah super_admin; hanya super_admin yang dapat memberi role admin/super_admin."
+      />
+      <ErrorNotice>{err}</ErrorNotice>
       <ExcelTable
         tableKey="users"
         fields={fields}
@@ -227,7 +228,7 @@ export default function UsersPage() {
         )}
         filter={(
           <Select value={roleFilter || '_semua'} onValueChange={(v) => setRoleFilter(v === '_semua' ? '' : v)}>
-            <SelectTrigger id="select_filter_role" title="Filter role" aria-label="Filter role" className="h-6 w-36">
+            <SelectTrigger id="select_filter_role" title="Filter role" aria-label="Filter role" className="h-8 w-36">
               <SelectValue placeholder="Semua" />
             </SelectTrigger>
             <SelectContent>
@@ -261,7 +262,6 @@ export default function UsersPage() {
         onPage={(p) => { pager.setPage(p); load(p); }}
         onPerPage={(pp) => { pager.setPerPage(pp); load(1, pp); }}
       />
-      <p className="text-sm text-muted-foreground">Role diri sendiri terkunci untuk semua peran. Baris pemegang admin/super_admin hanya bisa diubah super_admin. Hanya super_admin yang dapat memberi role admin/super_admin.</p>
       <Dialog open={tambahOpen} onOpenChange={setTambahOpen}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>

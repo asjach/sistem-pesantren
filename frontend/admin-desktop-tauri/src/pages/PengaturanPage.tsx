@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import PageHeader from '@/components/PageHeader';
 import { Check, Monitor, Moon, Sun } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -78,13 +79,17 @@ export default function PengaturanPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 id="title_pengaturan" className="text-2xl font-bold">Pengaturan</h1>
-        <p className="text-sm text-muted-foreground">
-          Aktif: <b className="text-foreground">{aktif}</b> · Mode:{' '}
-          <Badge variant="secondary">{isTauri() ? 'desktop' : 'web'}</Badge>
-        </p>
-      </div>
+      <PageHeader
+        titleId="title_pengaturan"
+        title="Pengaturan"
+        className="mb-0"
+        description={(
+          <>
+            Aktif: <b className="text-foreground">{aktif}</b> · Mode:{' '}
+            <Badge variant="secondary">{isTauri() ? 'desktop' : 'web'}</Badge>
+          </>
+        )}
+      />
 
       <section className="w-full max-w-none space-y-3 rounded-xl border bg-card p-5">
         <h2 className="text-base font-semibold">Server backend</h2>

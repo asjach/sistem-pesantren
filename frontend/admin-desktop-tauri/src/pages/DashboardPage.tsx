@@ -2,12 +2,18 @@ import { useEffect, useState } from 'react';
 import { ringkasan, type Ringkasan } from '../api/master';
 import { errorMessage } from '../api/client';
 import { Skeleton } from '@/components/ui/skeleton';
+import PageHeader from '@/components/PageHeader';
+import { BookOpen, CalendarCheck, Landmark, Users, type LucideIcon } from 'lucide-react';
 
-const STATS: { key: keyof Pick<Ringkasan, 'lembaga' | 'pengguna' | 'tahun_ajaran_aktif' | 'kelas'>; label: string }[] = [
-  { key: 'lembaga', label: 'Lembaga' },
-  { key: 'pengguna', label: 'Pengguna' },
-  { key: 'tahun_ajaran_aktif', label: 'Tahun ajaran aktif' },
-  { key: 'kelas', label: 'Kelas' },
+const STATS: {
+  key: keyof Pick<Ringkasan, 'lembaga' | 'pengguna' | 'tahun_ajaran_aktif' | 'kelas'>;
+  label: string;
+  icon: LucideIcon;
+}[] = [
+  { key: 'lembaga', label: 'Lembaga', icon: Landmark },
+  { key: 'pengguna', label: 'Pengguna', icon: Users },
+  { key: 'tahun_ajaran_aktif', label: 'Tahun ajaran aktif', icon: CalendarCheck },
+  { key: 'kelas', label: 'Kelas', icon: BookOpen },
 ];
 
 export default function DashboardPage() {
@@ -21,17 +27,17 @@ export default function DashboardPage() {
   if (err) {
     return (
       <div>
-        <h1 id="title_dashboard" className="text-2xl font-bold">Ringkasan</h1>
-        <p className="mt-3 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">{err}</p>
+        <PageHeader titleId="title_dashboard" title="Ringkasan" />
+        <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-3.5 py-2.5 text-sm text-destructive">{err}</p>
       </div>
     );
   }
   if (!data) {
     return (
       <div>
-        <h1 id="title_dashboard" className="text-2xl font-bold">Ringkasan</h1>
-        <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
-          {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-24" />)}
+        <PageHeader titleId="title_dashboard" title="Ringkasan" />
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-20 rounded-xl" />)}
         </div>
       </div>
     );
@@ -39,20 +45,28 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <h1 id="title_dashboard" className="text-2xl font-bold">Ringkasan</h1>
-      <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {STATS.map((s) => (
-          <div key={s.key} className="rounded-xl border bg-card p-4">
-            <div className="text-[13px] text-muted-foreground">{s.label}</div>
-            <div className="text-[28px] font-bold tabular-nums text-primary">{data[s.key]}</div>
-          </div>
-        ))}
+      <PageHeader titleId="title_dashboard" title="Ringkasan" />
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {STATS.map((s) => {
+          const Icon = s.icon;
+          return (
+            <div key={s.key} className="flex items-center gap-4 rounded-xl border bg-card p-4">
+              <span className="grid size-11 shrink-0 place-items-center rounded-lg bg-accent text-accent-foreground">
+                <Icon size={20} />
+              </span>
+              <div className="min-w-0">
+                <div className="truncate text-[13px] text-muted-foreground">{s.label}</div>
+                <div className="text-[26px] font-bold leading-tight tabular-nums">{data[s.key]}</div>
+              </div>
+            </div>
+          );
+        })}
       </div>
-      <h2 className="mt-6 text-base font-semibold">Tahun aktif</h2>
+      <h2 className="mt-6 mb-2 text-base font-semibold">Tahun aktif</h2>
       {data.tahun_aktif.length === 0 ? (
         <p className="text-sm text-muted-foreground">Belum ada tahun ajaran aktif.</p>
       ) : (
-        <ul className="mt-2 space-y-2">
+        <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {data.tahun_aktif.map((t) => (
             <li key={t.id} className="rounded-lg border bg-card px-4 py-2.5 text-sm">
               <b>{t.nama}</b> <span className="text-muted-foreground">— {t.lembaga?.nama ?? t.lembaga_id}</span>
