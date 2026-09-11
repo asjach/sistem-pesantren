@@ -28,6 +28,18 @@ class UserManagementController extends Controller
     }
 
     /**
+     * Target privileged = pemegang role admin/super_admin. Hanya super_admin
+     * yang boleh memutasinya; admin lain ditolak meski setenant.
+     * Akun sendiri dikecualikan (diatur aturan kunci-diri masing-masing aksi).
+     */
+    protected function blocksPrivilegedTarget(User $authUser, User $target): bool
+    {
+        return ! $authUser->hasRole('super_admin')
+            && $authUser->id !== $target->id
+            && $target->hasAnyRole(['admin', 'super_admin']);
+    }
+
+    /**
      * Validasi lembaga_ids[]: tiap id wajib exists + boleh diakses actor.
      * Admin non-full tanpa lembaga_ids = fallback seluruh pivot sendiri (vault 003).
      */
@@ -60,7 +72,7 @@ class UserManagementController extends Controller
     public function index(Request $request)
     {
         $this->authorize('viewAny', User::class);
-        $query = User::tenantScope()->with('roles');
+        $query = User::tenantScope()->with(['roles', 'lembagas:id,nama,kode']);
 
         if ($request->filled('role')
             && ! in_array($request->input('role'), $this->assignableRolesFor(auth()->user()), true)) {
@@ -77,7 +89,7 @@ class UserManagementController extends Controller
             $query->role($request->input('role'));
         }
 
-        $perPage = max(1, min((int) $request->input('per_page', 20), 100));
+        $perPage = max(1, min((int) $request->input('per_page', 100), 1000));
 
         return response()->json($query->latest('id')->paginate($perPage));
     }
@@ -117,6 +129,17 @@ class UserManagementController extends Controller
 
         if (! $authUser->isSameTenant($user)) {
             return response()->json(['message' => 'Akses ditolak.'], 403);
+        }
+
+        // Target privileged (admin/super_admin) hanya boleh dimutasi super_admin.
+        if ($this->blocksPrivilegedTarget($authUser, $user)) {
+            return response()->json(['message' => 'Hanya super_admin yang dapat mengelola admin.'], 403);
+        }
+
+        // Kunci role diri: siapapun (termasuk super_admin) tidak boleh
+        // mengubah role akunnya sendiri via update (Lampiran E v1.9.1).
+        if ($authUser->id === $user->id && $request->exists('roles')) {
+            return response()->json(['message' => 'Tidak boleh mengubah role diri sendiri.'], 403);
         }
 
         if (! $authUser->hasRole('super_admin')) {
@@ -206,6 +229,15 @@ class UserManagementController extends Controller
     {
         $authUser = auth()->user();
 
+        // Kunci role diri: siapapun (termasuk super_admin) tidak boleh
+        // menambah role ke akunnya sendiri (Lampiran E v1.9.1).
+        if ($authUser->id === $user->id) {
+            return response()->json(['message' => 'Tidak boleh mengubah role diri sendiri.'], 403);
+        }
+        // Target privileged (admin/super_admin) hanya boleh dimutasi super_admin.
+        if ($this->blocksPrivilegedTarget($authUser, $user)) {
+            return response()->json(['message' => 'Hanya super_admin yang dapat mengelola admin.'], 403);
+        }
         if (! $authUser->isSameTenant($user)) {
             return response()->json(['message' => 'Akses ditolak.'], 403);
         }
@@ -227,6 +259,10 @@ class UserManagementController extends Controller
         if ($authUser->id === $user->id) {
             return response()->json(['message' => 'Tidak boleh mencabut role diri sendiri.'], 403);
         }
+        // Target privileged (admin/super_admin) hanya boleh dimutasi super_admin.
+        if ($this->blocksPrivilegedTarget($authUser, $user)) {
+            return response()->json(['message' => 'Hanya super_admin yang dapat mengelola admin.'], 403);
+        }
         if (! $authUser->isSameTenant($user)) {
             return response()->json(['message' => 'Akses ditolak.'], 403);
         }
@@ -247,6 +283,10 @@ class UserManagementController extends Controller
 
         if ($authUser->id === $user->id) {
             return response()->json(['message' => 'Tidak boleh menghapus diri sendiri.'], 403);
+        }
+        // Target privileged (admin/super_admin) hanya boleh dihapus super_admin.
+        if ($this->blocksPrivilegedTarget($authUser, $user)) {
+            return response()->json(['message' => 'Hanya super_admin yang dapat menghapus admin.'], 403);
         }
         if (! $authUser->isSameTenant($user)) {
             return response()->json(['message' => 'Akses ditolak.'], 403);
@@ -274,6 +314,11 @@ class UserManagementController extends Controller
     {
         $this->authorize('update', $user);
         $authUser = auth()->user();
+
+        // Target privileged (admin/super_admin) hanya boleh dimutasi super_admin.
+        if ($this->blocksPrivilegedTarget($authUser, $user)) {
+            return response()->json(['message' => 'Hanya super_admin yang dapat mengelola admin.'], 403);
+        }
 
         $data = $request->validate([
             'lembaga_id' => ['required', 'integer', 'exists:lembaga,id'],
@@ -304,6 +349,11 @@ class UserManagementController extends Controller
     public function detachLembaga(Request $request, User $user)
     {
         $this->authorize('update', $user);
+
+        // Target privileged (admin/super_admin) hanya boleh dimutasi super_admin.
+        if ($this->blocksPrivilegedTarget(auth()->user(), $user)) {
+            return response()->json(['message' => 'Hanya super_admin yang dapat mengelola admin.'], 403);
+        }
 
         $data = $request->validate([
             'lembaga_id' => ['required', 'integer', 'exists:lembaga,id'],

@@ -14,7 +14,7 @@ trait TenantGuard
 {
     protected function perPage(Request $request): int
     {
-        return max(1, min((int) $request->input('per_page', 20), 100));
+        return max(1, min((int) $request->input('per_page', 100), 1000));
     }
 
     protected function authorizeLembaga(User $auth, int $lembagaId): void

@@ -1,0 +1,42 @@
+{
+  "name": "admin-desktop-tauri",
+  "private": true,
+  "version": "0.5.0",
+  "type": "module",
+  "description": "SIMPES Admin Desktop (Tauri 2 shell) — super_admin/admin lawan API 003/004 live",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.11.1",
+    "@tauri-apps/plugin-store": "^2.4.4",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "cn": "^0.2.6",
+    "lucide-react": "^1.44.0",
+    "next-themes": "^0.4.6",
+    "radix-ui": "^1.6.7",
+    "react": "^18.3.1",
+    "react-datasheet-grid": "^4.11.6",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.26.2",
+    "sonner": "^2.0.8",
+    "tailwind-merge": "^3.6.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@tauri-apps/cli": "^2.11.4",
+    "@types/node": "^22.20.2",
+    "@types/react": "^18.3.5",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.3",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^5.6.2",
+    "vite": "^5.4.8"
+  }
+}

@@ -1,0 +1,87 @@
+import { api } from './client';
+import { PER_PAGE_DEFAULT } from '@/prefs';
+import type { Role } from './auth';
+
+export interface AdminUser {
+  id: number;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  username: string | null;
+  roles: Role[];
+  lembagas?: { id: number; nama: string; kode: string | null }[];
+}
+
+export interface Paginate<T> {
+  data: T[];
+  current_page: number;
+  last_page: number;
+  per_page: number;
+  total: number;
+}
+
+// Pagination bawaan tabel: PER_PAGE_DEFAULT (lihat prefs.ts).
+export function listUsers(params: { search?: string; role?: string; page?: number; per_page?: number } = {}) {
+  const q = new URLSearchParams();
+  if (params.search) q.set('search', params.search);
+  if (params.role) q.set('role', params.role);
+  q.set('page', String(params.page ?? 1));
+  q.set('per_page', String(params.per_page ?? PER_PAGE_DEFAULT));
+  return api<Paginate<AdminUser>>(`/admin/users?${q.toString()}`);
+}
+
+export function createUser(input: {
+  name: string;
+  email?: string;
+  phone?: string;
+  username?: string;
+  password: string;
+  roles: string[];
+  lembaga_ids?: number[];
+}) {
+  return api<AdminUser>('/admin/users', { method: 'POST', body: JSON.stringify(input) });
+}
+
+export function deleteUser(id: number) {
+  return api<{ message: string }>(`/admin/users/${id}`, { method: 'DELETE' });
+}
+
+export function updateUser(id: number, input: {
+  name?: string;
+  email?: string | null;
+  phone?: string | null;
+  username?: string | null;
+  password?: string;
+  roles?: string[];
+  lembaga_ids?: number[];
+}) {
+  return api<AdminUser>(`/admin/users/${id}`, { method: 'PUT', body: JSON.stringify(input) });
+}
+
+export function attachLembaga(userId: number, lembaga_id: number) {
+  return api(`/admin/users/${userId}/lembaga`, {
+    method: 'POST',
+    body: JSON.stringify({ lembaga_id }),
+  });
+}
+
+export function detachLembaga(userId: number, lembaga_id: number) {
+  return api(`/admin/users/${userId}/lembaga`, {
+    method: 'DELETE',
+    body: JSON.stringify({ lembaga_id }),
+  });
+}
+
+export function assignRole(userId: number, role: string) {
+  return api<{ message: string; user: AdminUser }>(`/admin/users/${userId}/roles`, {
+    method: 'POST',
+    body: JSON.stringify({ role }),
+  });
+}
+
+export function removeRole(userId: number, role: string) {
+  return api<{ message: string; user: AdminUser }>(`/admin/users/${userId}/roles`, {
+    method: 'DELETE',
+    body: JSON.stringify({ role }),
+  });
+}

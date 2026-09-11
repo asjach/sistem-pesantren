@@ -32,8 +32,9 @@ class LembagaController extends Controller
     public function store(Request $request)
     {
         $auth = auth()->user();
-        if (! $auth->hasAnyRole(['super_admin', 'admin'])) {
-            return response()->json(['message' => 'Akses ditolak.'], 403);
+        // Tambah lembaga hanya super_admin (Lampiran E v1.9.2).
+        if (! $auth->hasRole('super_admin')) {
+            return response()->json(['message' => 'Hanya super_admin yang dapat menambah lembaga.'], 403);
         }
 
         $data = $request->validate([

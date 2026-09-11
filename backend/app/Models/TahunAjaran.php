@@ -10,6 +10,8 @@ class TahunAjaran extends Model
     protected $table = 'tahun_ajaran';
     protected $fillable = ['lembaga_id', 'nama', 'tanggal_mulai', 'tanggal_selesai', 'is_aktif'];
 
+    public function lembaga() { return $this->belongsTo(Lembaga::class); }
+
     public function scopeTenantScope(Builder $query): Builder
     {
         $user = auth()->user();

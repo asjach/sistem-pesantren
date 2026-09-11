@@ -1,0 +1,337 @@
+@import "tailwindcss";
+/* Google Fonts disimpan lokal (offline) — lihat scripts/fonts-offline.py */
+@import "./assets/fonts/fonts-offline.css";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme inline {
+  --font-sans: var(--font-sans);
+  --font-display: var(--font-display);
+  --font-mono: var(--font-mono);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent-soft);
+  --color-accent-foreground: var(--accent-soft-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+}
+
+/* ---------- basis: nilai aman sebelum JS jalan (Hijau terang) ----------
+   Tema (20 preset + kustom) diterapkan RUNTIME oleh ThemeProvider
+   (src/theme.tsx + src/themes.ts): --accent, --on-accent, --background,
+   --foreground, --sidebar, --sidebar-deep disetel inline di <html>.
+   Sisanya DITURUNKAN otomatis lewat color-mix — berlaku semua tema & mode. */
+:root {
+  --radius: 0.625rem;
+
+  /* ---------- hierarki font (semua sans-serif sistem, tanpa unduhan) ----------
+     --font-sans: isi/body, tabel, navigasi (netral).
+     --font-display: judul (h1–h3), brand sidebar, header grid (humanis, lebih lebar).
+     --font-mono: kode, ID, hex, angka tabular bila perlu. */
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Helvetica Neue", Arial, sans-serif;
+  --font-display: "Trebuchet MS", "Lucida Grande", "Lucida Sans Unicode", Verdana, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "Cascadia Code", "JetBrains Mono", Menlo, Consolas, "Liberation Mono", monospace;
+
+  --accent: #2c5c38;
+  --on-accent: #ffffff;
+  --background: #f2f5f1;
+  --foreground: #1d241e;
+  --sidebar: #17351f;
+  --sidebar-deep: #122b1a;
+  --sidebar-foreground: #cfe0d3;
+
+  --card: color-mix(in srgb, var(--foreground) 5%, var(--background));
+  --card-foreground: var(--foreground);
+  --popover: var(--card);
+  --popover-foreground: var(--foreground);
+  --primary: var(--accent);
+  --primary-foreground: var(--on-accent);
+  --secondary: color-mix(in srgb, var(--foreground) 8%, var(--background));
+  --secondary-foreground: var(--foreground);
+  --muted: color-mix(in srgb, var(--foreground) 8%, var(--background));
+  --muted-foreground: color-mix(in srgb, var(--foreground) 68%, var(--background));
+  --accent-soft: color-mix(in srgb, var(--accent) 16%, var(--background));
+  --accent-soft-foreground: color-mix(in srgb, var(--accent) 70%, var(--foreground));
+  --destructive: #a12622;
+  --destructive-foreground: #ffffff;
+  /* Border low-contrast: hanya 12% teks di atas latar (lembut, tidak "tebal"). */
+  --border: color-mix(in srgb, var(--foreground) 12%, var(--background));
+  --input: var(--border);
+  --ring: var(--accent);
+}
+
+/* ---------- dark: fallback aman (Hijau gelap) ---------- */
+.dark {
+  --background: #101511;
+  --foreground: #e8ede8;
+  --sidebar: #0d1f12;
+  --sidebar-deep: #0a180e;
+  --destructive: #e0685f;
+  --destructive-foreground: #1a0b0a;
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    font-size: 14.5px;
+    line-height: 1.5;
+    margin: 0;
+  }
+  /* Judul memakai font display (sans humanis) agar kontras dengan isi. */
+  h1, h2, h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+  /* Kode / ID / hex memakai font mono. */
+  code, pre, kbd, samp {
+    font-family: var(--font-mono);
+    font-size: 0.92em;
+  }
+}
+
+/* ---------- Spreadsheet DSG (Pos): ikut 20 tema + dark via var aplikasi ---------- */
+.simpes-dsg {
+  --dsg-border-color: var(--border);
+  --dsg-cell-background-color: var(--card);
+  --dsg-cell-disabled-background-color: var(--card);
+  --dsg-header-text-color: var(--muted-foreground);
+  --dsg-header-active-text-color: var(--foreground);
+  --dsg-selection-border-color: var(--accent);
+  --dsg-selection-border-width: 1px;
+  --dsg-selection-background-color: color-mix(in srgb, var(--accent) 20%, transparent);
+  --dsg-selection-disabled-background-color: color-mix(in srgb, var(--accent) 20%, transparent);
+  --dsg-selection-disabled-border-color: var(--accent);
+  color-scheme: light;
+  /* Jenis & ukuran huruf ISI tabel: diatur dari toolbar tabel (berlaku semua
+     tabel). Header kolom TIDAK mengikuti — lihat .dsg-cell-header-container
+     yang memakai --font-display. */
+  font-family: var(--simpes-font-family, var(--font-sans));
+  font-size: var(--simpes-font-size, 13px);
+}
+/* ---------- Seleksi gaya spreadsheet ----------
+   Geometri rect bawaan DSG SUDAH tepat: rect membentang dari tepi kiri/atas
+   sel pertama sampai 1px melewati tepi kanan/bawah sel terakhir — persis di
+   atas garis grid pembatas range. JANGAN digeser dengan transform:
+   menggeser membuat border aksen berdampingan dengan garis grid (dobel). */
+
+/* Range: outline aksen + tint. Seluruh sel read-only ikut gaya yang sama. */
+.simpes-dsg .dsg-selection-rect,
+.simpes-dsg .dsg-selection-rect-disabled {
+  border-color: var(--dsg-selection-border-color);
+  background: var(--dsg-selection-background-color);
+}
+
+/* Sel tunggal: hanya outline (seperti Excel), tanpa isi. */
+.simpes-dsg .dsg-active-cell,
+.simpes-dsg .dsg-active-cell-disabled {
+  border-color: var(--dsg-selection-border-color);
+  background: transparent;
+}
+
+/* DSG melubangi rect (clip-path) tepat di sel jangkar supaya input edit
+   tidak tertutup. Saat TIDAK mengedit, lubang itu memutus outline range di
+   atas/samping sel jangkar — jadi dibuang agar outline utuh mengelilingi
+   blok. Saat mengedit lubang dipertahankan (input tetap terbaca). */
+.simpes-dsg:not(:has(.dsg-active-cell-focus)) .dsg-selection-rect {
+  clip-path: none !important;
+}
+
+/* Di dalam range: sel jangkar tanpa border sendiri (tidak dobel),
+   cukup outline range yang mengelilingi seluruh blok. */
+.simpes-dsg:has(.dsg-selection-rect) .dsg-active-cell:not(.dsg-active-cell-focus) {
+  border-color: transparent;
+  box-shadow: none;
+  background: transparent;
+}
+
+/* Header kolom & nomor baris ikut disorot bila masuk range (seperti Excel). */
+.simpes-dsg .dsg-cell-header-active,
+.simpes-dsg .dsg-cell-gutter-active {
+  background-color: color-mix(in srgb, var(--accent) 18%, var(--card));
+  color: var(--foreground);
+}
+
+/* Penanda garis DSG (col/row marker) menggambar garis tambahan tepat di atas
+   border rect (dobel) dan row-marker jatuh di dalam range saat di-scroll.
+   Sembunyikan: cukup border rect + sorot header & nomor baris. */
+.simpes-dsg .dsg-selection-col-marker-container,
+.simpes-dsg .dsg-selection-row-marker-container {
+  display: none;
+}
+.simpes-dsg .dsg-expand-rows-indicator-disabled {
+  border-color: var(--dsg-selection-border-color);
+}
+.dark .simpes-dsg {
+  color-scheme: dark;
+}
+.simpes-dsg .dsg-container {
+  color: var(--foreground);
+  background: var(--card);
+  /* Ikut jenis huruf isi tabel; header kolom menimpanya sendiri. */
+  font-family: var(--simpes-font-family, var(--font-sans));
+  /* Isi sisa wrapper: basis flex, boleh menyusut (scroll internal) bila data banyak. */
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+}
+/* DSG membungkus container dalam div perantara: teruskan rantai flex. */
+.simpes-dsg > div:first-child {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.simpes-dsg .dsg-row.dsg-row-header {
+  background: color-mix(in srgb, var(--foreground) 7%, var(--card));
+}
+.simpes-dsg .dsg-cell-header .dsg-cell-header-container {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: var(--simpes-font-size, 13px);
+  /* Sel header DSG adalah flex: buat wadah judul mengisi penuh agar gagang
+     resize di tepi kanan jatuh di perbatasan kolom, bukan di akhir teks. */
+  flex: 1;
+  min-width: 0;
+}
+.simpes-dsg .dsg-cell {
+  padding-left: 12px;
+  padding-right: 12px;
+  /* Ketebalan mengikuti pilihan di toolbar (mis. varian Light). */
+  font-weight: var(--simpes-font-weight, 400);
+  font-variant-numeric: tabular-nums;
+}
+/* Garis pemisah antar baris berasal dari border-top baris DI BAWAHNYA,
+   sehingga baris terakhir tidak punya garis bawah. Garis kanan kolom
+   terakhir juga putus karena box-shadow DSG terpotong area scroll.
+   Keduanya digambar DI DALAM elemen agar tidak ikut terpotong. */
+.simpes-dsg .simpes-dsg-col-last {
+  border-right: 1px solid var(--dsg-border-color);
+}
+.simpes-dsg .simpes-dsg-row-last::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: var(--dsg-border-color);
+  pointer-events: none;
+  /* di atas kolom nomor baris yang sticky (z-index 30) */
+  z-index: 35;
+}
+/* Sel header tanpa padding kanan agar gagang resize tepat di perbatasan kolom. */
+.simpes-dsg .dsg-row-header .dsg-cell {
+  padding-right: 0;
+}
+/* Gagang seret pengubah lebar kolom di tepi kanan judul. */
+.simpes-dsg-headtitle {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+/* Gagang resize mengangkangi garis perbatasan antar kolom: lebarnya 12px
+   dipusat tepat di garis batas (right:-16px mengimbangi padding 10px wadah
+   judul + padding kanan sel 0, sehingga gagang = batas-6 .. batas+6). */
+.simpes-dsg-resizer {
+  position: absolute;
+  right: -16px;
+  top: -6px;
+  bottom: -6px;
+  width: 12px;
+  cursor: ew-resize;
+  touch-action: none;
+  z-index: 5;
+}
+.simpes-dsg .simpes-dsg-resizer:hover {
+  background: color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.simpes-dsg .dsg-input {
+  font-size: var(--simpes-font-size, 13px);
+  /* Input edit ikut jenis & ketebalan huruf selnya. */
+  font-family: inherit;
+  font-weight: inherit;
+  color: var(--foreground);
+}
+/* Isi sel baca-saja mengisi penuh area sel: sasaran klik 2× (edit cepat)
+   jadi seluruh sel, bukan hanya bagian yang tertutup teks. */
+.simpes-dsg .simpes-dsg-fill {
+  flex: 1;
+  min-width: 0;
+}
+.simpes-dsg .simpes-dsg-select {
+  flex: 1;
+  align-self: stretch;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  outline: none;
+  cursor: pointer;
+  padding: 0;
+}
+/* Sel dengan draft belum disimpan. */
+.simpes-dsg .simpes-dsg-dirty {
+  background-color: color-mix(in srgb, var(--accent) 14%, var(--card));
+}
+/* Checkbox kolom seleksi selalu center (header + body). */
+.simpes-dsg .dsg-cell:has(> input.dsg-checkbox) {
+  justify-content: center;
+}
+.simpes-dsg .dsg-row-header .dsg-cell:has(input.simpes-dsg-checkall),
+.simpes-dsg .dsg-row:not(.dsg-row-header) .dsg-cell:has(> input.dsg-checkbox) {
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
+}
+/* Checkbox DSG: kotak border; terpilih = titik aksen 6px tanpa border. */
+.simpes-dsg input.dsg-checkbox {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  margin: auto;
+  border: 1.5px solid color-mix(in srgb, var(--foreground) 45%, transparent);
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+}
+.simpes-dsg input.dsg-checkbox:checked {
+  border-color: transparent;
+  background: radial-gradient(circle at center, var(--accent) 3px, transparent 3.5px);
+}
+.simpes-dsg input.dsg-checkbox:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+/* Menu konteks DSG ikut tema (portal di luar scope .simpes-dsg). */
+.dsg-context-menu {
+  background: var(--card);
+  color: var(--foreground);
+  border: 1px solid var(--border);
+}
+.dsg-context-menu-item:hover {
+  background: color-mix(in srgb, var(--foreground) 6%, transparent);
+}

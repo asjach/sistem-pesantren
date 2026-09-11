@@ -2,7 +2,7 @@
 
 | Atribut | Keterangan |
 |---|---|
-| Versi Dokumen | 1.9 (Modul 103 transaksi live) |
+| Versi Dokumen | 1.9.7 (tabel master ExcelTable + font offline + desktop 0.5.0) |
 | Tanggal | 10 September 2026 |
 | Status | Proyek ini = menyusun dokumentasi, bukan coding app. G0–G3 didetailkan; G4+ roadmap |
 | Penyusun | Solo dev + Yayasan |
@@ -30,6 +30,13 @@
 | 1.7.1 | 2026-09-10 | status_awal final: kenaikan (naik), is_pindahan+masuk_tingkat PSB, tidak_lulus buka mengulang (patch) |
 | 1.8 | 2026-09-10 | Sesi: token per-device, staf 30 hari / ortu-santri 365 hari, revokasi saat peran berubah, logout-all, prune harian; SQLite tanpa enkripsi (minor) |
 | 1.9 | 2026-09-10 | Modul 103 transaksi live: generate+bayar+void, kuitansi PDF+thermal, client_op_id, 10 tests hijau, suite 49/49 (minor) |
+| 1.9.1 | 2026-09-11 | Kunci role diri (update+assign 403 semua peran, admin tak bisa buat admin), auto-attach pivot buat lembaga, FE users (opsi+kelola role/lembaga) + tambah lembaga; 8 tests hijau, suite 57/57 (patch) |
+| 1.9.2 | 2026-09-11 | Anti-eskalasi: non-super_admin 403 mutasi/hapus pemegang admin/super_admin (update/assign/remove/attach/detach/destroy), tambah lembaga hanya super_admin (gantikan auto-attach v1.9.1); FE kunci baris privileged + form lembaga super_admin-only; 12 tests hijau, suite 61/61 (patch) |
+| 1.9.3 | 2026-09-11 | Desktop Tauri: src-tauri asli (store plugin, id pesantren), token/base-URL via plugin-store + halaman Pengaturan (ganti backend tanpa rebuild), bundle macOS .app + .dmg aarch64 VALID & jalan; CI Win/Linux tunda (patch) |
+| 1.9.4 | 2026-09-11 | Design overhaul FE v0.4.0: tokens + komponen (toolbar, table-wrap, badge/chip, check-pills, alert), layout responsif, empty-state semua tabel; tanpa ubah logika/API; dmg rebuilt (patch) |
+| 1.9.5 | 2026-09-11 | Pause desktop: hapus `src-tauri/target` (±1 GB) + `.app/.dmg`; source Tauri tersimpan, resume via `tauri:build`; percobaan web-only (patch, docs-only) |
+| 1.9.6 | 2026-09-11 | Migrasi FE v0.5.0 ke Tailwind v4 + shadcn (10 komponen Radix): galeri 20 tema Top Populer ala VSCode data-driven (`src/themes.ts`, palet resmi) + kustom, teks tombol otomatis via `onAccentFor` (40/40 pasang ≥4.5:1), border global lembut (12% via color-mix, tanpa shadow kartu) + mode Gelap/Terang/Sistem per perangkat, galeri kartu pratinjau, Ctrl/Cmd+B sidebar, grid Excel `react-data-grid` pin beta.40 (resize kolom persist, density + drag tinggi baris, checkbox + salin TSV, kolom Aksi Lihat/Ubah/Hapus role-gated, ikut 20 tema; sorting off, seleksi per halaman) untuk 6 tabel master, form tambah 6 halaman jadi modal + tombol kanan atas, pagination semua list, dialog/toast/skeleton, favicon, catch-all, min window; QA build + kontras + screenshot; tanpa ubah backend/API (patch) |
+| 1.9.7 | 2026-09-11 | Tabel master pindah ke `react-datasheet-grid` (wrapper `ExcelTable`, 6 halaman): 3 lib tabel lama + CSS-nya dicabut (react-data-grid/ag-grid/react-data-table-component) dan `ViewDialog` dipisah; seleksi gaya spreadsheet (outline 1px tunggal menimpa garis grid, tint, header kolom + nomor baris tersorot, lubang jangkar hanya saat edit); resize kolom 1:1 + AutoFit (klik 2× gagang, tombol semua kolom, otomatis saat muat & saat font berubah) + resize serentak untuk multi-kolom terseleksi; edit klik-2× langsung tersimpan (`quickEditRef` + simpan satu baris); toolbar satu baris (cari+filter+kontrol+tambah) dengan grup fungsi (mode edit/tampilan/alat/draft), petunjuk pindah ke tooltip; kontrol global ukuran huruf, tinggi baris, dan jenis huruf (9 font sistem + 8 Google Fonts **offline**: 32 `@font-face` dari `src/assets/fonts`, 1,4 MB, skrip `scripts/fonts-offline.py`; isi tabel saja, header tetap `--font-display`); garis kolom & baris terakhir digambar di dalam sel; label tombol jadi "+ Pengguna"/"+ Tahun Ajaran"/dst; desktop Tauri 0.5.0 dibangun ulang (`.app` 11 MB, `.dmg` 4 MB, font ter-embed); tanpa ubah backend/API (patch) |
 
 ## Daftar Isi
 
@@ -136,7 +143,7 @@ Aturan terkunci:
 | Peran | Tenant | Hak utama |
 |---|---|---|
 | `super_admin` | Semua, tanpa pivot | Semua; tulis global `ref_*`; buat semua peran |
-| `admin` | Full tanpa pivot = semua; scoped dengan pivot = subset via `isAdminFull()` | CRUD `001–004`, `100–103`, attach/detach `user_lembaga` |
+| `admin` | Full tanpa pivot = semua; scoped dengan pivot = subset via `isAdminFull()` | CRUD `001–004` (kecuali tambah lembaga = super_admin), `100–103`, attach/detach `user_lembaga`; tak boleh mutasi/hapus pemegang `admin/super_admin` maupun role diri sendiri |
 | `kasir` | Wajib pivot ≥1, hanya lembaganya via `canAccessLembaga()` | Modul 103 Keuangan: generate/tagihan/bayar/kuitansi; tanpa void (void = admin); kas pusat null hanya admin full |
 | `guru` | Wajib pivot ≥1 | Modul 202 Nilai-Rapor: input miliknya/walasnya |
 | `orang_tua` | Wajib pivot, via `wali_santri_relasi` | Modul 203 Portal Wali + Modul 100 PSB Penerimaan daftar + Modul 103 history bayar + ajukan/batal (1 aktif/santri) |
@@ -461,6 +468,9 @@ SIMPES; santri; lembaga (MI=SD formal, MD=SD non-formal paralel, MTS=SMP, MLN=Al
 | 2026-09-10 | OFF-01 s/d OFF-10 | Online-only ke online-first + SQLite lokal (detail Lampiran F) | PC putus-nyambung | Kontrak FE, API bayar (`client_op_id`), SOP kasir |
 | 2026-09-10 | status_awal | `naik_kelas` ke `kenaikan`; ACC dari flag `is_pindahan`; `masuk_tingkat` per jenjang; `tidak_lulus` buka baris mengulang | Putusan domain | 100/102, seeder, tests |
 | 2026-09-10 | sesi 2a-2d, 4a | Token per-device; staf 30 hari / murni ortu-santri 365 hari; revokasi saat peran berubah; `logout-all`; prune harian; SQLite tanpa enkripsi (SOP akun OS + kunci layar) | PC admin + HP hilang | AuthController, UserManagement, scheduler, tests |
+| 2026-09-11 | kunci role diri | Bebas ubah role sendiri ke 403 semua peran (`update` key `roles` + `assignRole`; `removeRole` sudah 403); admin tetap tak bisa beri `admin/super_admin` | Admin tak bisa naikkan diri; super_admin pun terkunci | UserManagement, tests, FE users |
+| 2026-09-11 | auto-attach lembaga | Buat lembaga tanpa auto-akses ke scoped pembuat auto-attach pivot (full/super_admin tidak di-attach) | Lembaga baru langsung bisa dikelola pembuatnya | LembagaController, tests, FE lembaga |
+| 2026-09-11 | anti-eskalasi admin | Admin bisa hapus super_admin / tambah role ke super_admin / tambah lembaga ke tutup: mutasi target pemegang `admin/super_admin` (update/assign/remove/attach/detach/destroy) 403 bila actor bukan super_admin; `store` lembaga 403 bila bukan super_admin (gantikan auto-attach v1.9.1) | Hanya super_admin kelola admin & lembaga | UserManagement, LembagaController, tests, FE users/lembaga |
 
 ## Lampiran F — Keputusan Offline (terkunci v1.4)
 
@@ -691,7 +701,7 @@ views), pos/tarif, plus (when backend lands): PSB antrean (verify/ACC/tolak,
 paket ops), santri master + import, siklus (naik/pindah/mutasi/lulus),
 billing/pay/void + kuitansi print, pegawai + keaktifan/sertifikasi,
 kurikulum/mapel/pengampu, nilai massal + rapor print, wali proposals approval.
-Status: 🔲 not scaffolded.
+Status: 🟢 shell v0.5.0 live (Tailwind+shadcn: 20 tema ala VSCode data-driven + kustom, Gelap/Terang/Sistem per perangkat, galeri pratinjau, border lembut tanpa shadow, sidebar rail + Ctrl/Cmd+B, pagination, dialog/toast/skeleton). Tabel master memakai `react-datasheet-grid` lewat wrapper `ExcelTable` (seleksi gaya spreadsheet, resize + AutoFit, edit klik-2× langsung simpan) dengan kontrol global ukuran/tinggi/jenis huruf; **Google Fonts disimpan lokal di repo** (`src/assets/fonts`, 8 keluarga × Light/Regular) sehingga aplikasi berjalan **tanpa internet** — dihasilkan ulang via `scripts/fonts-offline.py`. Desktop Tauri 0.5.0 dibangun (`.app` 11 MB, `.dmg` 4 MB, aarch64, belum ditandatangani); build desktop hanya dijalankan bila diminta. Belum: PSB/santri/siklus/keuangan transaksi, 200+.
 
 #### 6.2 `frontend/admin-desktop-pyside` (alternate admin)
 
