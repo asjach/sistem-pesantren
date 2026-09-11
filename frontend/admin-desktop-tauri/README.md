@@ -70,7 +70,8 @@ dan `react-data-table-component` sudah dicabut) lewat wrapper `ExcelTable`.
 - Checkbox baris + **Salin TSV** (siap tempel ke Excel); Ctrl+C menyalin sel.
 - Kolom **Aksi** (Lihat/Ubah/Hapus) digerbang role per halaman; klik di dalam
   sel Aksi tidak mengubah seleksi grid.
-- Sorting dimatikan; seleksi reset tiap ganti halaman; Referensi tetap chips.
+- Sorting dimatikan; seleksi reset tiap ganti halaman; Referensi tampil sebagai
+  tabel (filter tipe + lembaga, tambah/ubah/nonaktifkan lewat dialog).
 
 **Jenis huruf (offline)**
 
@@ -84,7 +85,7 @@ header kolom tetap `--font-display`.
 Scope: login + dashboard ringkasan + pengguna (opsi role ikut peran login, kelola
 role/lembaga per baris; role diri terkunci; baris admin/super_admin hanya untuk
 super_admin) + lembaga (tambah/ubah/hapus hanya super_admin) + CRUD penuh
-tahun-ajaran/kelas/pos-keuangan/tarif-biaya + referensi (read) + Pengaturan server,
+tahun-ajaran/kelas/pos-keuangan/tarif-biaya + referensi (tabel + tambah/ubah/nonaktifkan) + Pengaturan server,
 lawan backend live. Belum: PSB/santri/siklus/keuangan transaksi, Modul 200+.
 
 ## Prasyarat
@@ -116,7 +117,7 @@ Token per-device `admin-desktop-tauri`, staf 30 hari (v1.8).
 - `GET/POST/PUT/DELETE /api/admin/kelas` (TA wajib se-lembaga 422; tingkat cek kamus 422)
 - `GET/POST/PUT/DELETE /api/admin/pos-keuangan` (kode_pos unik global)
 - `GET/POST/PUT/DELETE /api/admin/tarif-biaya` (triple FK pos+lembaga+TA; edit hanya nominal)
-- `GET /api/admin/referensi/types`, `GET /api/admin/referensi/{tipe}`
+- `GET /api/admin/referensi/types`, `GET/POST/PUT/DELETE /api/admin/referensi/{tipe}` (baris global hanya super_admin; nonaktifkan = shadow off per lembaga)
 - Semua list `per_page=100` bawaan (opsi 100/250/500/1000, tersimpan per tabel);
   `control id snake_case` (NFR-02/05).
 - 401 → sesi dibersihkan + ke /login; 403 tenant; 422 validasi; 429 throttle.

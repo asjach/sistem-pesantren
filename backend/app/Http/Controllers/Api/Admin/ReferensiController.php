@@ -9,9 +9,9 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * CRUD kamus berlapis per-lembaga (004, single-pesantren).
- * Global (lembaga null): tambah hanya super_admin.
- * Baris lembaga: admin kelola lembaganya (tambah/shadow on-off).
- * Guardrail: baris global HANYA boleh on/off per lembaga.
+ * Global (lembaga null): tambah/ubah hanya super_admin.
+ * Baris lembaga: admin kelola lembaganya (tambah/ubah/shadow on-off).
+ * Guardrail: baris global HANYA boleh on/off per lembaga (via destroy).
  */
 class ReferensiController extends Controller
 {
@@ -95,6 +95,47 @@ class ReferensiController extends Controller
 
         RefService::forget($targetLembaga);
         return response()->json(DB::table($table)->find($id), 201);
+    }
+
+    public function update(Request $request, string $tipe, int $id)
+    {
+        $actor = $request->user();
+        $isStatus = in_array($tipe, ['status_awal', 'status_akhir'], true);
+        RefService::KEY[$tipe] ?? abort(422, 'Tipe tidak valid.');
+        $table = RefService::table($tipe);
+        $row = DB::table($table)->find($id) ?? abort(404);
+
+        if (is_null($row->lembaga_id)) {
+            // Ubah baris global hanya super_admin; lembaga hanya boleh shadow on/off.
+            if (! $actor->hasRole('super_admin')) abort(403, 'Baris global hanya super_admin.');
+        } elseif (! $this->canLembaga($actor, (int) $row->lembaga_id)) {
+            abort(403, 'Di luar lembaga Anda.');
+        }
+
+        // Kode (status) TIDAK diubah: kunci yang dipakai data pemakai.
+        // Nama (kamus) boleh diubah walau konsumen string bebas tanpa FK.
+        $data = $isStatus
+            ? $request->validate(['label' => 'required|string', 'urutan' => 'nullable|integer'])
+            : $request->validate(['nama' => 'required|string', 'urutan' => 'nullable|integer']);
+
+        $upd = ['urutan' => $data['urutan'] ?? $row->urutan];
+        if ($isStatus) {
+            $upd['label'] = $data['label'];
+        } else {
+            // Cegah bentrok nama di scope yang sama (global + lembaga sendiri).
+            $q = DB::table($table)->where('nama', $data['nama'])->where('id', '!=', $id)
+                ->where(function ($q) use ($row) {
+                    $q->whereNull('lembaga_id');
+                    if (! is_null($row->lembaga_id)) $q->orWhere('lembaga_id', $row->lembaga_id);
+                });
+            if ($q->exists()) abort(422, 'Nilai sudah ada.');
+            $upd['nama'] = $data['nama'];
+        }
+
+        DB::table($table)->where('id', $id)->update($upd);
+        RefService::forget($row->lembaga_id);
+
+        return response()->json(DB::table($table)->find($id));
     }
 
     public function destroy(Request $request, string $tipe, int $id)

@@ -65,13 +65,57 @@ export function ringkasan(lembaga_id?: number) {
   return api<Ringkasan>(`/dashboard/ringkasan${q}`);
 }
 
+// ---------- Referensi (004: kamus global + shadow per lembaga) ----------
+
+export interface ReferensiRow {
+  id: number;
+  lembaga_id: number | null;
+  /** Kamus bebas memakai `nama`; status memakai `kode` + `label`. */
+  nama?: string | null;
+  kode?: string | null;
+  label?: string | null;
+  urutan: number;
+  is_active: boolean;
+  is_aktif_bawaan?: boolean | null;
+  terminal_ke?: string | null;
+}
+
+export interface ReferensiInput {
+  lembaga_id?: number | null;
+  nama?: string;
+  kode?: string;
+  label?: string;
+  urutan?: number;
+}
+
 export function referensiTypes() {
   return api<string[]>('/admin/referensi/types');
 }
 
 export function referensiList(tipe: string, lembaga_id?: number) {
   const q = lembaga_id ? `?lembaga_id=${lembaga_id}` : '';
-  return api<Record<string, unknown>[]>(`/admin/referensi/${encodeURIComponent(tipe)}${q}`);
+  return api<ReferensiRow[]>(`/admin/referensi/${encodeURIComponent(tipe)}${q}`);
+}
+
+export function createReferensi(tipe: string, input: ReferensiInput) {
+  return api<ReferensiRow>(`/admin/referensi/${encodeURIComponent(tipe)}`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export function updateReferensi(tipe: string, id: number, input: Omit<ReferensiInput, 'lembaga_id' | 'kode'>) {
+  return api<ReferensiRow>(`/admin/referensi/${encodeURIComponent(tipe)}/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(input),
+  });
+}
+
+export function deleteReferensi(tipe: string, id: number, lembaga_id?: number) {
+  const q = lembaga_id ? `?lembaga_id=${lembaga_id}` : '';
+  return api<{ pesan: string }>(`/admin/referensi/${encodeURIComponent(tipe)}/${id}${q}`, {
+    method: 'DELETE',
+  });
 }
 
 // ---------- Tahun ajaran (004, FB-004-01) ----------

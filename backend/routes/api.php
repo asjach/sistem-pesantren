@@ -44,6 +44,7 @@ Route::middleware(['auth:sanctum', 'role:super_admin|admin'])
         Route::get('referensi/types', [ReferensiController::class, 'types']);
         Route::get('referensi/{tipe}', [ReferensiController::class, 'index']);
         Route::post('referensi/{tipe}', [ReferensiController::class, 'store']);
+        Route::match(['put', 'patch'], 'referensi/{tipe}/{id}', [ReferensiController::class, 'update']);
         Route::delete('referensi/{tipe}/{id}', [ReferensiController::class, 'destroy']);
 
         Route::apiResource('tahun-ajaran', TahunAjaranController::class)->only(['index', 'store', 'update', 'destroy']);
