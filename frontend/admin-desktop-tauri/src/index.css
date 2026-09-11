@@ -188,6 +188,11 @@
 .simpes-dsg .dsg-expand-rows-indicator-disabled {
   border-color: var(--dsg-selection-border-color);
 }
+/* Handle perluas seleksi (mirip fill handle Excel) hanya saat mode Edit. */
+.simpes-dsg-readonly .dsg-expand-rows-indicator,
+.simpes-dsg-readonly .dsg-expand-rows-rect {
+  display: none;
+}
 .dark .simpes-dsg {
   color-scheme: dark;
 }
@@ -291,11 +296,14 @@
   font-weight: inherit;
   color: var(--foreground);
 }
-/* Isi sel baca-saja mengisi penuh area sel: sasaran klik 2× (edit cepat)
-   jadi seluruh sel, bukan hanya bagian yang tertutup teks. */
+/* Isi sel baca-saja mengisi penuh area sel (lebar DAN tinggi): sasaran klik
+   1×/2× jadi seluruh sel, termasuk sel kosong yang tingginya 0 bila inline. */
 .simpes-dsg .simpes-dsg-fill {
   flex: 1;
   min-width: 0;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
 }
 .simpes-dsg .simpes-dsg-select {
   flex: 1;

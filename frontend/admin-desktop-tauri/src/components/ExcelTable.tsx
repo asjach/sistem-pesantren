@@ -13,16 +13,8 @@ import { errorMessage, prefGet, prefSet } from '@/api/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { DEFAULT_FONT_PX, FONT_FAMILY_DEFAULT, FONT_OPTIONS, useGridPrefs } from '@/components/GridPrefs';
-import { Copy, MoveHorizontal, RotateCcw, Save, Search, X } from 'lucide-react';
+import { Copy, MoveHorizontal, Pencil, RotateCcw, Search } from 'lucide-react';
 import { copyText, toTSV } from '@/lib/clipboard';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -90,9 +82,9 @@ interface ExcelTableProps<T extends { id: string | number }> {
   emptyText?: string;
   /** Gerbang hak akses: bila false, grid selalu baca-saja (tanpa checkbox Edit). */
   canEdit: boolean;
-  /** Simpan satu baris draft (dipanggil per baris saat Simpan). */
+  /** Simpan satu baris hasil edit sel (auto-save, dipanggil saat sel berubah). */
   onCommit: (id: T['id'], fields: Record<string, string | null>) => Promise<void>;
-  /** Dipanggil setelah Simpan (biasanya reload halaman aktif). */
+  /** Dipanggil sekali setelah antrean auto-save selesai (biasanya reload halaman). */
   onSaved: () => Promise<void> | void;
   /** Isi kolom Aksi (ikon Lihat/Ubah/Hapus, sudah digerbang role oleh halaman). */
   renderActions: (row: T) => ReactNode;
@@ -139,8 +131,16 @@ async function loadWidths(key: string): Promise<Record<string, number>> {
 interface TextColData {
   fieldKey: string;
   maxLength?: number;
-  /** Dipanggil saat klik 2× di sel (mulai edit cepat, langsung tersimpan). */
-  onQuickEdit?: (id: string | number) => void;
+  /** Klik 2× sel (mode view): nyalakan checkbox Edit. */
+  onDblClick?: (id: string | number) => void;
+  /** Klik 1× sel (mode Edit): buka editor sel ini. */
+  onClickCell?: (id: string | number) => void;
+}
+
+/** Editor sel DSG (input teks / select) sedang terbuka dan fokus? */
+function hasOpenEditor(): boolean {
+  const el = document.activeElement as HTMLElement | null;
+  return !!el?.classList?.contains('dsg-input') || !!el?.classList?.contains('simpes-dsg-select');
 }
 
 /** Sel teks: span saat baca-saja, input saat fokus edit. */
@@ -157,12 +157,13 @@ function TextCell({ rowData, setRowData, columnData, focus, stopEditing }: CellP
     return (
       <span
         className="simpes-dsg-fill"
-        onMouseDown={(e) => {
-          // detail >= 2 = mousedown kedua dari klik 2×. Dijalankan SEBELUM
-          // handler dokumen DSG agar sel dianggap aktif-editable dan DSG
-          // langsung membuka mode edit. Span dibuat mengisi penuh sel
-          // (kelas simpes-dsg-fill) supaya klik di mana pun kena.
-          if (e.detail >= 2) columnData.onQuickEdit?.(rowData.id);
+        onDoubleClick={() => columnData.onDblClick?.(rowData.id)}
+        onClick={(e) => {
+          if (e.detail !== 1) return;
+          // Sel yang tadinya aktif sudah otomatis membuka editor lewat
+          // mousedown DSG (input fokus) — jangan buka dua kali.
+          if (hasOpenEditor()) return;
+          columnData.onClickCell?.(rowData.id);
         }}
       >
         {committed}
@@ -186,16 +187,26 @@ function TextCell({ rowData, setRowData, columnData, focus, stopEditing }: CellP
         setVal(null);
       }}
       onKeyDown={(e) => {
-        // Biarkan Tab ke DSG (pindah sel + commit via blur); sisanya milik input.
-        if (e.key === 'Tab') return;
+        // Tab & panah atas/bawah: commit dulu, lalu biarkan DSG yang
+        // memindahkan sel + menutup mode edit (DSG tak memicu blur saat
+        // input di-unmount, jadi commit wajib di sini).
+        if (e.key === 'Tab' || e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+          commit(cur);
+          setVal(null);
+          return;
+        }
+        // Panah kiri/kanan tetap milik input (pindah kursor di dalam teks).
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') return;
         e.stopPropagation();
         if (e.key === 'Enter') {
           commit(cur);
           setVal(null);
+          // stopEditing bawaan DSG = tutup edit + aktif turun 1 baris (kolom sama).
           stopEditing();
         } else if (e.key === 'Escape') {
           setVal(null);
-          stopEditing();
+          // Batal: tutup edit tanpa pindah baris.
+          stopEditing({ nextRow: false });
         }
       }}
     />
@@ -205,8 +216,10 @@ function TextCell({ rowData, setRowData, columnData, focus, stopEditing }: CellP
 interface SelectColData {
   fieldKey: string;
   choices: ExcelChoice[];
-  /** Dipanggil saat klik 2× di sel (mulai edit cepat, langsung tersimpan). */
-  onQuickEdit?: (id: string | number) => void;
+  /** Klik 2× sel (mode view): nyalakan checkbox Edit. */
+  onDblClick?: (id: string | number) => void;
+  /** Klik 1× sel (mode Edit): buka editor sel ini. */
+  onClickCell?: (id: string | number) => void;
 }
 
 /** Sel dropdown native (tanpa dependensi baru). */
@@ -217,8 +230,11 @@ function SelectCell({ rowData, setRowData, columnData, stopEditing, disabled }: 
     return (
       <span
         className="simpes-dsg-fill"
-        onMouseDown={(e) => {
-          if (e.detail >= 2) columnData.onQuickEdit?.(rowData.id);
+        onDoubleClick={() => columnData.onDblClick?.(rowData.id)}
+        onClick={(e) => {
+          if (e.detail !== 1) return;
+          if (hasOpenEditor()) return;
+          columnData.onClickCell?.(rowData.id);
         }}
       >
         {cur}
@@ -252,11 +268,17 @@ function SelectCell({ rowData, setRowData, columnData, stopEditing, disabled }: 
 
 interface StaticColData {
   fieldKey: string;
+  /** Klik 2× sel (mode view): nyalakan checkbox Edit. */
+  onDblClick?: () => void;
 }
 
 /** Sel baca-saja (teks polos). */
 function StaticCell({ rowData, columnData }: CellProps<GridRow, StaticColData>) {
-  return <span>{String(rowData[columnData.fieldKey] ?? '')}</span>;
+  return (
+    <span className="simpes-dsg-fill" onDoubleClick={() => columnData.onDblClick?.()}>
+      {String(rowData[columnData.fieldKey] ?? '')}
+    </span>
+  );
 }
 
 /** Judul kolom dengan gagang seret pengubah lebar (drag di tepi kanan).
@@ -337,8 +359,6 @@ export default function ExcelTable<T extends { id: string | number }>({
   const [drafts, setDrafts] = useState<Drafts>({});
   const [checkedIds, setCheckedIds] = useState<Set<T['id']>>(new Set());
   const [range, setRange] = useState<GridSelection | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [confirmDiscard, setConfirmDiscard] = useState(false);
 
   const rowsRef = useRef(rows);
   rowsRef.current = rows;
@@ -349,9 +369,11 @@ export default function ExcelTable<T extends { id: string | number }>({
   const resizeRef = useRef<{ key: string; startX: number; startW: number; targets: string[] } | null>(
     null,
   );
-  /** Sel yang sedang diedit lewat klik 2× (ref dibaca sinkron oleh DSG). */
-  const quickEditRef = useRef<{ key: string; id: string } | null>(null);
-  const [quickEdit, setQuickEdit] = useState<{ key: string; id: string } | null>(null);
+  /** Antrean simpan otomatis per baris (id → field yang belum dikirim). */
+  const queueRef = useRef<Map<string, Record<string, string | null>>>(new Map());
+  const drainingRef = useRef(false);
+  /** Baris yang sukses tersimpan pada siklus drain berjalan. */
+  const savedRef = useRef<{ id: string; keys: string[] }[]>([]);
   const rangeRef = useRef(range);
   rangeRef.current = range;
   const measureCtxRef = useRef<CanvasRenderingContext2D | null>(null);
@@ -434,23 +456,28 @@ export default function ExcelTable<T extends { id: string | number }>({
     [],
   );
 
-  // Edit cepat (klik 2×): begitu draft baris itu terbentuk (dari blur/Enter),
-  // langsung simpan baris tersebut — tanpa menekan tombol Simpan.
-  useEffect(() => {
-    const q = quickEdit;
-    if (!q || saving) return;
-    const d = drafts[q.id];
-    if (!d || Object.keys(d).length === 0) return;
-    void onSave(q.id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [drafts, quickEdit, saving]);
-
   // Seleksi + range mengikuti data aktif.
   useEffect(() => {
     setCheckedIds(new Set());
     setRange(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows]);
+
+  // Esc saat TIDAK sedang mengedit sel = keluar dari mode Edit.
+  // Esc di dalam editor sel ditangani TextCell/SelectCell (tidak sampai ke sini).
+  useEffect(() => {
+    if (!(canEdit && editMode)) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key !== 'Escape') return;
+      const t = e.target as HTMLElement | null;
+      if (t && ['INPUT', 'SELECT', 'TEXTAREA'].includes(t.tagName)) return;
+      // Jangan ikut menutup saat Esc dipakai dialog/dropdown yang sedang terbuka.
+      if (t?.closest?.('[role="dialog"], [role="listbox"], [role="menu"]')) return;
+      setEditMode(false);
+    }
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [canEdit, editMode]);
 
   // Ukuran/jenis huruf berubah → teks butuh lebar baru: hitung ulang AutoFit
   // (lebar yang sudah diatur pengguna tetap dipertahankan).
@@ -692,15 +719,27 @@ export default function ExcelTable<T extends { id: string | number }>({
   const editing = canEdit && editMode;
   const editableKeys = useMemo(() => fields.filter((f) => f.kind !== 'static').map((f) => f.key), [fields]);
 
-  /** Predikat disabled per sel. DSG memanggilnya saat event, jadi cukup
-   *  membaca ref: mode Edit aktif → semua bisa diedit; selain itu hanya sel
-   *  yang sedang di-edit cepat (klik 2×) yang bisa diedit. */
-  function cellDisabledFor(key: string) {
-    return ({ rowData }: { rowData: GridRow }) => {
-      if (editing) return false;
-      const q = quickEditRef.current;
-      return !(q && q.key === key && q.id === String(rowData.id));
-    };
+  /** Buka editor untuk sel aktif (sinyal Enter ke DSG). Aman dipanggil ulang:
+   *  bila editor sudah terbuka/fokus, tidak melakukan apa-apa. */
+  function openEditorForActiveCell() {
+    if (hasOpenEditor()) return;
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+  }
+
+  /** Klik 1× sel saat mode Edit: buka editor sel (sel sudah aktif dari mousedown). */
+  function openEditorByClick() {
+    if (!canEdit || !editMode) return;
+    openEditorForActiveCell();
+  }
+
+  /** Klik 2× sel: nyalakan checkbox Edit + buka editor sel itu.
+   *  Dijalankan lewat event dblclick (bukan mousedown detail) agar andal di
+   *  semua WebView; dispatch Enter ditunda hingga kolom DSG ikut ter-update. */
+  function enableEditByDoubleClick() {
+    if (!canEdit) return;
+    if (!editMode) setEditMode(true);
+    setTimeout(openEditorForActiveCell, 0);
+    setTimeout(openEditorForActiveCell, 80);
   }
 
   /** Nilai grid = baris server ditimpa draft lokal + checklist. */
@@ -738,9 +777,9 @@ export default function ExcelTable<T extends { id: string | number }>({
     }
     setCheckedIds(nc);
     setDrafts(nd);
+    // Auto-save: setiap baris yang berubah langsung masuk antrean simpan.
+    for (const [idKey, flds] of Object.entries(nd)) enqueueSave(idKey, flds);
   }
-
-  const dirtyIds = useMemo(() => Object.keys(drafts), [drafts]);
 
   const dsgColumns: Column<GridRow>[] = useMemo(() => {
     const cols: Column<GridRow>[] = [
@@ -794,7 +833,7 @@ export default function ExcelTable<T extends { id: string | number }>({
         cols.push({
           ...common,
           component: StaticCell,
-          columnData: { fieldKey: f.key },
+          columnData: { fieldKey: f.key, onDblClick: enableEditByDoubleClick },
           disableKeys: false,
           keepFocus: false,
           disabled: true,
@@ -810,11 +849,12 @@ export default function ExcelTable<T extends { id: string | number }>({
           columnData: {
             fieldKey: f.key,
             choices: f.choices ?? [],
-            onQuickEdit: (id: string | number) => startQuickEdit(f.key, id),
+            onDblClick: enableEditByDoubleClick,
+            onClickCell: openEditorByClick,
           },
           disableKeys: true,
           keepFocus: false,
-          disabled: cellDisabledFor(f.key),
+          disabled: !editing,
           deleteValue: ({ rowData }) => (editing ? ({ ...rowData, [f.key]: null }) as GridRow : rowData),
           copyValue: ({ rowData }) => String(rowData[f.key] ?? ''),
           pasteValue: ({ rowData, value }: { rowData: GridRow; value: string }) => {
@@ -832,11 +872,12 @@ export default function ExcelTable<T extends { id: string | number }>({
           columnData: {
             fieldKey: f.key,
             maxLength: f.maxLength,
-            onQuickEdit: (id: string | number) => startQuickEdit(f.key, id),
+            onDblClick: enableEditByDoubleClick,
+            onClickCell: openEditorByClick,
           },
           disableKeys: false,
           keepFocus: false,
-          disabled: cellDisabledFor(f.key),
+          disabled: !editing,
           deleteValue: ({ rowData }) => (editing ? ({ ...rowData, [f.key]: null }) as GridRow : rowData),
           copyValue: ({ rowData }) => String(rowData[f.key] ?? ''),
           pasteValue: ({ rowData, value }: { rowData: GridRow; value: string }) =>
@@ -915,64 +956,74 @@ export default function ExcelTable<T extends { id: string | number }>({
     else toast.error('Gagal menyalin. Coba blok manual + Ctrl+C.');
   }
 
-  /** `onlyId` dipakai oleh edit cepat (klik 2×) untuk menyimpan satu baris. */
-  async function onSave(onlyId?: string) {
-    const entries = Object.entries(draftsRef.current).filter(([idKey]) => !onlyId || idKey === onlyId);
-    if (entries.length === 0 || saving) return;
-    setSaving(true);
-    let ok = 0;
-    let fail = 0;
-    let lastErr = '';
-    const remaining: Drafts = { ...draftsRef.current };
-    try {
-      for (const [idKey, flds] of entries) {
-        const domain = rowsRef.current.find((r) => String(r.id) === String(idKey));
-        if (!domain) {
-          delete remaining[idKey];
-          continue;
-        }
-        let blocked: string | null = null;
-        for (const f of fields) {
-          if (flds[f.key] !== undefined && f.validate) {
-            blocked = f.validate(flds[f.key]);
-            if (blocked) break;
-          }
-        }
-        if (blocked) {
-          fail++;
-          lastErr = blocked;
-          continue;
-        }
-        try {
-          await onCommit(domain.id, flds);
-          ok++;
-          delete remaining[idKey];
-        } catch (e) {
-          fail++;
-          lastErr = errorMessage(e);
-        }
-      }
-    } finally {
-      setDrafts(remaining);
-      setSaving(false);
-    }
-    if (ok > 0) toast.success(`${ok} baris disimpan.`);
-    if (fail > 0) toast.error(`Gagal menyimpan ${fail} baris. ${lastErr}`);
-    if (onlyId) {
-      // Edit cepat selesai: lepas penanda agar tidak tersimpan berulang.
-      quickEditRef.current = null;
-      setQuickEdit(null);
-    }
-    await onSaved();
+  /** Buang kunci draft yang selesai/gagal — nilai sel kembali ke data server. */
+  function dropDraft(idKey: string, keys: string[]) {
+    setDrafts((prev) => {
+      const left = { ...(prev[idKey] ?? {}) };
+      for (const k of keys) delete left[k];
+      const next = { ...prev };
+      if (Object.keys(left).length === 0) delete next[idKey];
+      else next[idKey] = left;
+      return next;
+    });
   }
 
-  /** Klik 2× pada sel = mulai edit cepat (tanpa checkbox Edit).
-   *  Ref diisi sinkron supaya DSG menganggap sel ini tidak disabled. */
-  function startQuickEdit(key: string, id: string | number) {
-    if (!canEdit) return;
-    const next = { key, id: String(id) };
-    quickEditRef.current = next;
-    setQuickEdit(next);
+  /** Simpan satu baris; ditolak validasi / gagal API → nilai kembali + toast. */
+  async function saveRow(idKey: string, flds: Record<string, string | null>) {
+    const domain = rowsRef.current.find((r) => String(r.id) === idKey);
+    if (!domain) {
+      dropDraft(idKey, Object.keys(flds));
+      return;
+    }
+    for (const f of fields) {
+      if (flds[f.key] !== undefined && f.validate) {
+        const blocked = f.validate(flds[f.key]);
+        if (blocked) {
+          dropDraft(idKey, Object.keys(flds));
+          toast.error(blocked);
+          return;
+        }
+      }
+    }
+    try {
+      await onCommit(domain.id, flds);
+      savedRef.current.push({ id: idKey, keys: Object.keys(flds) });
+      toast.success('Perubahan tersimpan.');
+    } catch (e) {
+      dropDraft(idKey, Object.keys(flds));
+      toast.error(`Gagal menyimpan. ${errorMessage(e)}`);
+    }
+  }
+
+  /** Antrean simpan per baris: perubahan beruntun di baris yang sama digabung. */
+  function enqueueSave(idKey: string, flds: Record<string, string | null>) {
+    const prev = queueRef.current.get(idKey) ?? {};
+    queueRef.current.set(idKey, { ...prev, ...flds });
+    void drain();
+  }
+
+  /** Proses antrean berurutan; satu reload server setelah antrean habis. */
+  async function drain() {
+    if (drainingRef.current) return;
+    drainingRef.current = true;
+    try {
+      while (queueRef.current.size > 0) {
+        const [idKey, flds] = [...queueRef.current.entries()][0];
+        queueRef.current.delete(idKey);
+        await saveRow(idKey, flds);
+      }
+      try {
+        await onSaved();
+      } catch {
+        // Reload gagal: draft sukses tetap dibuang (data sudah tersimpan di server).
+      }
+      for (const s of savedRef.current) dropDraft(s.id, s.keys);
+      savedRef.current = [];
+    } finally {
+      drainingRef.current = false;
+    }
+    // Ada perubahan baru saat reload berjalan → proses lagi.
+    if (queueRef.current.size > 0) void drain();
   }
 
   function onResetView() {
@@ -981,19 +1032,9 @@ export default function ExcelTable<T extends { id: string | number }>({
     // Kembali ke bawaan = lebar menyesuaikan isi (dihitung ulang).
     fittedRef.current = null;
     setAutoWidths(computeAutoWidths(true));
-    quickEditRef.current = null;
-    setQuickEdit(null);
     setCheckedIds(new Set());
     setRange(null);
     toast.success('Tampilan tabel dikembalikan bawaan.');
-  }
-
-  function onToggleEdit(next: boolean) {
-    if (!next && dirtyIds.length > 0) {
-      setConfirmDiscard(true);
-      return;
-    }
-    setEditMode(next);
   }
 
   if (loading && rows.length === 0) {
@@ -1009,6 +1050,32 @@ export default function ExcelTable<T extends { id: string | number }>({
 
   return (
     <div className="flex flex-1 flex-col">
+      {editing && (
+        <div
+          id={`banner_mode_edit_${tableKey}`}
+          role="status"
+          className="mb-2 flex flex-wrap items-center gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-700 dark:text-amber-300"
+        >
+          <Pencil size={14} />
+          <span className="font-semibold">Mode Edit aktif</span>
+          <span>
+            — tekan{' '}
+            <kbd className="rounded border border-amber-500/40 bg-background/60 px-1 font-mono text-[10px]">
+              Esc
+            </kbd>{' '}
+            untuk keluar.
+          </span>
+          <Button
+            id={`btn_keluar_mode_edit_${tableKey}`}
+            variant="outline"
+            size="sm"
+            className="ml-auto border-amber-500/40 bg-transparent text-amber-700 hover:bg-amber-500/10 hover:text-amber-800 dark:text-amber-300 dark:hover:text-amber-200"
+            onClick={() => setEditMode(false)}
+          >
+            Keluar mode Edit
+          </Button>
+        </div>
+      )}
       {/* Satu baris: pencarian + filter (kiri), lalu kontrol tabel dan tombol
           tambah halaman (kanan), dikelompokkan menurut fungsi. */}
       <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -1052,7 +1119,7 @@ export default function ExcelTable<T extends { id: string | number }>({
           {checkedIds.size} baris dipilih
         </span>
         <div className="ml-auto flex flex-wrap items-center gap-2">
-          {/* Grup 1 — mode edit sel */}
+          {/* Grup 1 — gerbang mode edit (satu-satunya cara mengaktifkan ubah sel) */}
           {canEdit && (
             <ToolbarGroup title="Mode edit sel">
               <label
@@ -1063,7 +1130,7 @@ export default function ExcelTable<T extends { id: string | number }>({
                   id={`chk_edit_${tableKey}`}
                   type="checkbox"
                   checked={editMode}
-                  onChange={(e) => onToggleEdit(e.target.checked)}
+                  onChange={(e) => setEditMode(e.target.checked)}
                   className="size-3.5 accent-[var(--accent)]"
                 />
                 Edit
@@ -1106,24 +1173,6 @@ export default function ExcelTable<T extends { id: string | number }>({
           </Button>
           </ToolbarGroup>
 
-          {/* Grup 4 — draft belum disimpan */}
-          {canEdit && dirtyIds.length > 0 && (
-            <ToolbarGroup>
-              <Button id={`btn_simpan_${tableKey}`} size="sm" disabled={saving} onClick={() => onSave()}>
-                <Save size={15} /> Simpan ({dirtyIds.length})
-              </Button>
-              <Button
-                id={`btn_batal_${tableKey}`}
-                size="sm"
-                variant="ghost"
-                disabled={saving}
-                onClick={() => setDrafts({})}
-              >
-                <X size={15} /> Batal
-              </Button>
-            </ToolbarGroup>
-          )}
-
           {/* Tombol aksi utama halaman, sejajar dengan kontrol tabel. */}
           {addButton && <div className="flex items-center gap-2">{addButton}</div>}
         </div>
@@ -1140,7 +1189,10 @@ export default function ExcelTable<T extends { id: string | number }>({
           } as React.CSSProperties
         }
         title="Seret untuk memblokir sel • Ctrl+C menyalin"
-        className="simpes-dsg relative flex min-h-[280px] flex-1 flex-col overflow-hidden rounded-xl bg-card"
+        className={cn(
+          'simpes-dsg relative flex min-h-[280px] flex-1 flex-col overflow-hidden rounded-xl bg-card',
+          !editing && 'simpes-dsg-readonly',
+        )}
       >
         <DataSheetGrid
           value={gridValue}
@@ -1164,31 +1216,6 @@ export default function ExcelTable<T extends { id: string | number }>({
           </div>
         )}
       </div>
-      <Dialog open={confirmDiscard} onOpenChange={setConfirmDiscard}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Buang perubahan?</DialogTitle>
-            <DialogDescription>
-              Ada {dirtyIds.length} baris yang belum disimpan. Mematikan mode Edit akan membuang semuanya.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmDiscard(false)}>
-              Batal
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => {
-                setDrafts({});
-                setEditMode(false);
-                setConfirmDiscard(false);
-              }}
-            >
-              Buang
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

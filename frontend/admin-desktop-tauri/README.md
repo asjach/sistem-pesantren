@@ -50,19 +50,31 @@ dan `react-data-table-component` sudah dicabut) lewat wrapper `ExcelTable`.
 
 **Edit**
 
-- Checkbox **Edit** (mode lama, ada tombol Simpan/Batal) **atau** klik 2× pada
-  sel → langsung masuk edit dan **langsung tersimpan** per baris.
-- Klik 2× pada sel dropdown membuka dropdown; klik 1× tetap baca-saja.
-- Validasi per kolom tetap jalan; Escape membatalkan.
+- Checkbox **Edit** adalah satu-satunya gerbang ubah: selama tidak dicentang,
+  sel baca-saja (tidak ada edit tak sengaja lewat keyboard).
+- Klik 2× sel saat mode view = **menyalakan** checkbox Edit saja (editor belum
+  terbuka); input keyboard tidak menyalakan checkbox.
+- Saat mode Edit aktif: **klik 1× sel langsung membuka editor**; sel terpilih +
+  ketik = langsung edit. Handle perluas seleksi (mirip fill handle Excel) hanya
+  tampil saat mode Edit.
+- Navigasi saat edit: **Tab** → sel kanan, **Enter** → baris bawah (kolom sama),
+  **↑/↓** → pindah baris (commit dulu), **←/→** → pindah kursor di dalam teks.
+  Semua perpindahan **langsung tersimpan otomatis** per baris + toast
+  sukses/gagal. Validasi per kolom tetap jalan; Escape membatalkan.
+- Tanpa tombol Simpan/Batal dan tanpa dialog buang perubahan (semua auto-save).
+- Saat mode Edit aktif muncul **banner** di atas toolbar: "Mode Edit aktif —
+  tekan Esc untuk keluar" + tombol **Keluar mode Edit**. **Esc** (saat tidak
+  sedang mengedit sel) mematikan mode; Esc di dalam editor hanya membatalkan
+  edit sel tersebut (tekan Esc dua kali untuk keluar).
 
 **Toolbar (satu baris, dikelompokkan)**
 
 ```
-[cari][filter][Cari]   [Edit] │ [A ukuran][jenis huruf][tinggi] │ [Salin][AutoFit][Reset] │ [Simpan][Batal] │ [+ Pengguna]
+[cari][filter][Cari]   [Edit] │ [A ukuran][jenis huruf][tinggi] │ [Salin][AutoFit][Reset] │ [+ Pengguna]
 ```
 
 - Grup: mode edit · tampilan (ukuran huruf 9–24px, jenis huruf, tinggi baris
-  26–200px) · alat tabel · draft · tombol tambah halaman.
+  26–200px) · alat tabel · tombol tambah halaman.
 - **Global** (berlaku semua tabel, tersimpan per perangkat): ukuran huruf,
   tinggi baris, jenis huruf.
 - Petunjuk "Seret untuk memblokir sel • Ctrl+C menyalin" ada di tooltip area
