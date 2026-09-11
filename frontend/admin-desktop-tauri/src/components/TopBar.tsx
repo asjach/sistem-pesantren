@@ -41,9 +41,11 @@ import {
   CalendarDays,
   ChevronDown,
   Database,
+  Home,
   Landmark,
-  LayoutDashboard,
   LogOut,
+  Minus,
+  Plus,
   ReceiptText,
   Rows3,
   Settings,
@@ -58,6 +60,8 @@ interface NavItem {
   label: string;
   icon: LucideIcon;
   id: string;
+  /** Ikon saja tanpa teks (teks tetap dibaca screen reader & tooltip). */
+  iconOnly?: boolean;
 }
 
 interface NavGroup {
@@ -69,12 +73,13 @@ interface NavGroup {
 type NavEntry = ({ kind: 'link' } & NavItem) | ({ kind: 'group' } & NavGroup);
 
 const NAV: NavEntry[] = [
-  { kind: 'link', to: '/', label: 'Dashboard', icon: LayoutDashboard, id: 'nav_dashboard' },
+  { kind: 'link', to: '/', label: 'Dashboard', icon: Home, id: 'nav_dashboard', iconOnly: true },
   {
     kind: 'group',
-    label: 'Data Master',
+    label: 'master',
     icon: Database,
     items: [
+      { to: '/users', label: 'user', icon: Users, id: 'nav_users' },
       { to: '/lembaga', label: 'Lembaga', icon: Landmark, id: 'nav_lembaga' },
       { to: '/tahun-ajaran', label: 'Tahun Ajaran', icon: CalendarDays, id: 'nav_tahun_ajaran' },
       { to: '/kelas', label: 'Kelas', icon: BookOpen, id: 'nav_kelas' },
@@ -90,12 +95,10 @@ const NAV: NavEntry[] = [
       { to: '/tarif', label: 'Tarif', icon: ReceiptText, id: 'nav_tarif' },
     ],
   },
-  { kind: 'link', to: '/users', label: 'Pengguna', icon: Users, id: 'nav_users' },
-  { kind: 'link', to: '/pengaturan', label: 'Pengaturan', icon: Settings, id: 'nav_pengaturan' },
 ];
 
 /** Halaman yang memakai grid — kontrol tampilan tabel hanya relevan di sini. */
-const TABLE_ROUTES = ['/users', '/lembaga', '/tahun-ajaran', '/kelas', '/pos', '/tarif'];
+const TABLE_ROUTES = ['/users', '/lembaga', '/tahun-ajaran', '/kelas', '/pos', '/tarif', '/referensi'];
 
 const navBase =
   'flex items-center gap-2 rounded-md px-3 py-1.5 text-sm whitespace-nowrap transition-colors';
@@ -106,6 +109,80 @@ function clamp(n: number, lo: number, hi: number) {
   return Math.min(hi, Math.max(lo, Math.round(n)));
 }
 
+/** Spinbox dengan tombol −/+ yang selalu tampil (bukan spinner native saat hover). */
+function SpinBox({
+  id,
+  value,
+  min,
+  max,
+  title,
+  ariaLabel,
+  onChange,
+}: {
+  id: string;
+  value: number;
+  min: number;
+  max: number;
+  title: string;
+  ariaLabel: string;
+  onChange: (n: number) => void;
+}) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const stepBy = (d: number) => {
+    const typed = draft !== null && draft.trim() !== '' && Number.isFinite(Number(draft))
+      ? Number(draft)
+      : value;
+    setDraft(null);
+    onChange(clamp(typed + d, min, max));
+  };
+  const btn =
+    'grid w-5 shrink-0 place-items-center text-white/70 transition-colors hover:bg-white/10 hover:text-white disabled:pointer-events-none disabled:opacity-40';
+  return (
+    <div
+      title={title}
+      className="flex h-6 items-stretch overflow-hidden rounded-md border border-white/20 bg-white/5 focus-within:ring-2 focus-within:ring-white/30"
+    >
+      <button
+        type="button"
+        id={`${id}_kurang`}
+        aria-label={`${ariaLabel} kurang`}
+        disabled={value <= min}
+        className={btn}
+        onClick={() => stepBy(-1)}
+      >
+        <Minus size={12} />
+      </button>
+      <input
+        id={id}
+        type="text"
+        inputMode="numeric"
+        aria-label={ariaLabel}
+        className="h-full w-8 border-x border-white/20 bg-transparent px-0 text-center text-xs text-white outline-none"
+        value={draft ?? String(value)}
+        onChange={(e) => {
+          setDraft(e.target.value);
+          const n = Number(e.target.value);
+          if (e.target.value.trim() !== '' && Number.isFinite(n)) onChange(clamp(n, min, max));
+        }}
+        onBlur={() => setDraft(null)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+        }}
+      />
+      <button
+        type="button"
+        id={`${id}_tambah`}
+        aria-label={`${ariaLabel} tambah`}
+        disabled={value >= max}
+        className={btn}
+        onClick={() => stepBy(1)}
+      >
+        <Plus size={12} />
+      </button>
+    </div>
+  );
+}
+
 /** Brand + navigasi berkelompok (dropdown) + kontrol tabel + pengguna. */
 export default function TopBar() {
   const { user, logoutLocal } = useAuth();
@@ -113,8 +190,6 @@ export default function TopBar() {
   const nav = useNavigate();
   const { pathname } = useLocation();
   const { rowH, fontPx, fontFamily, setRowH, setFontPx, setFontFamily } = useGridPrefs();
-  const [rowDraft, setRowDraft] = useState<string | null>(null);
-  const [fontDraft, setFontDraft] = useState<string | null>(null);
 
   const effectiveH = rowH ?? DENSITY_PX[density];
   const effectiveFont = fontPx ?? DEFAULT_FONT_PX;
@@ -131,13 +206,13 @@ export default function TopBar() {
       className="sticky top-0 z-40 border-b border-white/10 text-white"
       style={{ background: 'linear-gradient(90deg, var(--sidebar-deep), var(--sidebar))' }}
     >
-      <div className="flex min-h-14 flex-wrap items-center gap-x-4 gap-y-2 px-3 py-2 md:px-5">
-        <div className="font-display text-[17px] font-extrabold leading-tight">
+      <div className="flex min-h-14 items-center gap-x-4 px-3 py-2 md:px-5">
+        <div className="shrink-0 font-display text-[17px] font-extrabold leading-tight">
           SIMPES Admin
           <small className="hidden text-[11px] font-normal text-white/60 sm:block">Sistem Pesantren</small>
         </div>
 
-        <nav className="order-3 flex w-full items-center gap-1 overflow-x-auto md:order-none md:w-auto md:overflow-visible">
+        <nav className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
           {NAV.map((entry) =>
             entry.kind === 'link' ? (
               <NavLink
@@ -145,10 +220,12 @@ export default function TopBar() {
                 id={entry.id}
                 to={entry.to}
                 end={entry.to === '/'}
-                className={({ isActive }) => cn(navBase, isActive ? navActive : navIdle)}
+                title={entry.iconOnly ? entry.label : undefined}
+                aria-label={entry.iconOnly ? entry.label : undefined}
+                className={({ isActive }) => cn(navBase, entry.iconOnly && 'px-2', isActive ? navActive : navIdle)}
               >
                 <entry.icon size={17} />
-                {entry.label}
+                {entry.iconOnly ? <span className="sr-only">{entry.label}</span> : entry.label}
               </NavLink>
             ) : (
               <NavGroupMenu key={entry.label} group={entry} pathname={pathname} />
@@ -156,9 +233,9 @@ export default function TopBar() {
           )}
         </nav>
 
-        <div className="ml-auto flex flex-wrap items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           {showGrid && (
-            <div className="flex h-8 items-center gap-1.5 rounded-md border border-white/20 bg-white/10 px-2">
+            <>
               <label
                 htmlFor="input_tinggi_top"
                 title="Tinggi baris (berlaku semua tabel)"
@@ -167,24 +244,14 @@ export default function TopBar() {
                 <Rows3 size={15} />
                 <span className="sr-only">Tinggi baris (semua tabel)</span>
               </label>
-              <input
+              <SpinBox
                 id="input_tinggi_top"
-                type="number"
+                value={effectiveH}
                 min={MIN_ROW_H}
                 max={MAX_ROW_H}
-                step={1}
-                aria-label="Tinggi baris (px)"
-                className="h-6 w-12 rounded-md border border-white/20 bg-white/5 px-1.5 text-xs text-white outline-none focus-visible:ring-2 focus-visible:ring-white/30"
-                value={rowDraft ?? String(effectiveH)}
-                onChange={(e) => {
-                  setRowDraft(e.target.value);
-                  const n = Number(e.target.value);
-                  if (Number.isFinite(n)) setRowH(clamp(n, MIN_ROW_H, MAX_ROW_H));
-                }}
-                onBlur={() => setRowDraft(null)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-                }}
+                title="Tinggi baris (berlaku semua tabel)"
+                ariaLabel="Tinggi baris (px)"
+                onChange={setRowH}
               />
 
               <Select value={fontFamily} onValueChange={setFontFamily}>
@@ -221,27 +288,29 @@ export default function TopBar() {
                 <Type size={15} />
                 <span className="sr-only">Ukuran huruf (semua tabel)</span>
               </label>
-              <input
+              <SpinBox
                 id="input_huruf_top"
-                type="number"
+                value={effectiveFont}
                 min={MIN_FONT_PX}
                 max={MAX_FONT_PX}
-                step={1}
-                aria-label="Ukuran huruf (px)"
-                className="h-6 w-12 rounded-md border border-white/20 bg-white/5 px-1.5 text-xs text-white outline-none focus-visible:ring-2 focus-visible:ring-white/30"
-                value={fontDraft ?? String(effectiveFont)}
-                onChange={(e) => {
-                  setFontDraft(e.target.value);
-                  const n = Number(e.target.value);
-                  if (Number.isFinite(n)) setFontPx(clamp(n, MIN_FONT_PX, MAX_FONT_PX));
-                }}
-                onBlur={() => setFontDraft(null)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-                }}
+                title="Ukuran huruf (berlaku semua tabel)"
+                ariaLabel="Ukuran huruf (px)"
+                onChange={setFontPx}
               />
-            </div>
+              <span aria-hidden className="h-6 w-px bg-white/20" />
+            </>
           )}
+
+          <NavLink
+            id="nav_pengaturan"
+            to="/pengaturan"
+            title="Pengaturan"
+            aria-label="Pengaturan"
+            className={({ isActive }) => cn(navBase, 'px-2', isActive ? navActive : navIdle)}
+          >
+            <Settings size={17} />
+            <span className="sr-only">Pengaturan</span>
+          </NavLink>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
