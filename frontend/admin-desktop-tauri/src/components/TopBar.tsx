@@ -14,6 +14,9 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
@@ -40,14 +43,20 @@ import {
   BookOpen,
   CalendarDays,
   ChevronDown,
+  ClipboardList,
   Database,
+  FileCheck2,
+  GraduationCap,
+  History,
   Home,
   Landmark,
   LogOut,
   Minus,
+  NotebookTabs,
   Plus,
   ReceiptText,
   Rows3,
+  ScrollText,
   Settings,
   Type,
   Users,
@@ -64,10 +73,19 @@ interface NavItem {
   iconOnly?: boolean;
 }
 
+interface NavSubGroup {
+  label: string;
+  items: NavItem[];
+}
+
 interface NavGroup {
   label: string;
   icon: LucideIcon;
-  items: NavItem[];
+  items: (NavItem | NavSubGroup)[];
+}
+
+function isSubGroup(item: NavItem | NavSubGroup): item is NavSubGroup {
+  return !('to' in item);
 }
 
 type NavEntry = ({ kind: 'link' } & NavItem) | ({ kind: 'group' } & NavGroup);
@@ -88,17 +106,49 @@ const NAV: NavEntry[] = [
   },
   {
     kind: 'group',
+    label: 'Santri',
+    icon: GraduationCap,
+    items: [
+      {
+        label: 'PSB',
+        items: [
+          { to: '/psb', label: 'Antrean', icon: ClipboardList, id: 'nav_psb' },
+          { to: '/dokumen-wajib', label: 'Dokumen Wajib', icon: FileCheck2, id: 'nav_dokumen_wajib' },
+        ],
+      },
+      { to: '/santri', label: 'Data Santri', icon: Users, id: 'nav_santri' },
+      { to: '/siklus', label: 'Mutasi & Alumni', icon: History, id: 'nav_siklus' },
+      { to: '/pengajuan-biodata', label: 'Pengajuan Biodata', icon: NotebookTabs, id: 'nav_pengajuan_biodata' },
+    ],
+  },
+  {
+    kind: 'group',
     label: 'Keuangan',
     icon: Wallet,
     items: [
       { to: '/pos', label: 'Pos', icon: Wallet, id: 'nav_pos' },
       { to: '/tarif', label: 'Tarif', icon: ReceiptText, id: 'nav_tarif' },
+      { to: '/keuangan', label: 'Tagihan & Bayar', icon: ScrollText, id: 'nav_keuangan' },
     ],
   },
 ];
 
 /** Halaman yang memakai grid — kontrol tampilan tabel hanya relevan di sini. */
-const TABLE_ROUTES = ['/users', '/lembaga', '/tahun-ajaran', '/kelas', '/pos', '/tarif', '/referensi'];
+const TABLE_ROUTES = [
+  '/users',
+  '/lembaga',
+  '/tahun-ajaran',
+  '/kelas',
+  '/pos',
+  '/tarif',
+  '/referensi',
+  '/psb',
+  '/santri',
+  '/siklus',
+  '/keuangan',
+  '/pengajuan-biodata',
+  '/dokumen-wajib',
+];
 
 const navBase =
   'flex items-center gap-2 rounded-md px-3 py-1.5 text-sm whitespace-nowrap transition-colors';
@@ -352,7 +402,8 @@ export default function TopBar() {
 }
 
 function NavGroupMenu({ group, pathname }: { group: NavGroup; pathname: string }) {
-  const active = group.items.some((i) => pathname === i.to || pathname.startsWith(`${i.to}/`));
+  const allItems = group.items.flatMap((i) => (isSubGroup(i) ? i.items : [i]));
+  const active = allItems.some((i) => pathname === i.to || pathname.startsWith(`${i.to}/`));
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -363,18 +414,45 @@ function NavGroupMenu({ group, pathname }: { group: NavGroup; pathname: string }
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
-        {group.items.map((item) => (
-          <DropdownMenuItem key={item.to} asChild>
-            <NavLink
-              id={item.id}
-              to={item.to}
-              className="flex cursor-pointer items-center gap-2"
-            >
-              <item.icon size={16} className="text-muted-foreground" />
-              {item.label}
-            </NavLink>
-          </DropdownMenuItem>
-        ))}
+        {group.items.map((item) =>
+          isSubGroup(item) ? (
+            <DropdownMenuSub key={item.label}>
+              <DropdownMenuSubTrigger
+                className={cn(
+                  item.items.some((i) => pathname === i.to || pathname.startsWith(`${i.to}/`)) &&
+                    'text-accent-foreground',
+                )}
+              >
+                {item.label}
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent>
+                {item.items.map((sub) => (
+                  <DropdownMenuItem key={sub.to} asChild>
+                    <NavLink
+                      id={sub.id}
+                      to={sub.to}
+                      className="flex cursor-pointer items-center gap-2"
+                    >
+                      <sub.icon size={16} className="text-muted-foreground" />
+                      {sub.label}
+                    </NavLink>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+          ) : (
+            <DropdownMenuItem key={item.to} asChild>
+              <NavLink
+                id={item.id}
+                to={item.to}
+                className="flex cursor-pointer items-center gap-2"
+              >
+                <item.icon size={16} className="text-muted-foreground" />
+                {item.label}
+              </NavLink>
+            </DropdownMenuItem>
+          ),
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

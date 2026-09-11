@@ -13,6 +13,12 @@ import KelasPage from './pages/KelasPage';
 import PosPage from './pages/PosPage';
 import TarifPage from './pages/TarifPage';
 import PengaturanPage from './pages/PengaturanPage';
+import PsbPage from './pages/PsbPage';
+import SantriPage from './pages/SantriPage';
+import SiklusPage from './pages/SiklusPage';
+import KeuanganPage from './pages/KeuanganPage';
+import PengajuanBiodataPage from './pages/PengajuanBiodataPage';
+import DokumenWajibPage from './pages/DokumenWajibPage';
 
 function Shell({ children }: { children: JSX.Element }) {
   return (
@@ -37,6 +43,12 @@ export default function App() {
           <Route path="/pos" element={<Shell><PosPage /></Shell>} />
           <Route path="/tarif" element={<Shell><TarifPage /></Shell>} />
           <Route path="/referensi" element={<Shell><ReferensiPage /></Shell>} />
+          <Route path="/psb" element={<Shell><PsbPage /></Shell>} />
+          <Route path="/santri" element={<Shell><SantriPage /></Shell>} />
+          <Route path="/siklus" element={<Shell><SiklusPage /></Shell>} />
+          <Route path="/keuangan" element={<Shell><KeuanganPage /></Shell>} />
+          <Route path="/pengajuan-biodata" element={<Shell><PengajuanBiodataPage /></Shell>} />
+          <Route path="/dokumen-wajib" element={<Shell><DokumenWajibPage /></Shell>} />
           <Route path="/pengaturan" element={<Shell><PengaturanPage /></Shell>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

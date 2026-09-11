@@ -555,4 +555,19 @@ class PsbFlowTest extends TestCase
         $this->assertEquals('santri_baru', $riwayatBaru->status_awal);
         $this->assertEquals('7', $riwayatBaru->tingkat);
     }
+
+    // ---------- 12. template Excel import PSB ----------
+
+    public function test_12_template_import_psb_bisa_diunduh(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeUser('admin', [$f['mi']->id]);
+
+        $res = $this->actingAs($admin, 'sanctum')->get('/api/psb/import-template');
+
+        $res->assertStatus(200);
+        $disposisi = (string) $res->headers->get('content-disposition');
+        $this->assertStringContainsString('attachment', $disposisi);
+        $this->assertStringContainsString('template-import-psb.xlsx', $disposisi);
+    }
 }

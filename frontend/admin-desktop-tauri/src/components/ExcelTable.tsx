@@ -1043,7 +1043,8 @@ export default function ExcelTable<T extends { id: string | number }>({
 
   const hasSearchInput = searchValue !== undefined && onSearchChange;
   const hasFilter = filter !== undefined;
-  const hasSearch = !!onSearchSubmit && (hasSearchInput || hasFilter);
+  const showToolbar = hasSearchInput || hasFilter;
+  const showSearchButton = !!onSearchSubmit;
   const formId = searchIds?.form ?? `form_cari_${tableKey}`;
   const inputId = searchIds?.input ?? `input_cari_${tableKey}`;
   const buttonId = searchIds?.button ?? `btn_cari_${tableKey}`;
@@ -1079,7 +1080,7 @@ export default function ExcelTable<T extends { id: string | number }>({
       {/* Satu baris: pencarian + filter (kiri), lalu kontrol tabel dan tombol
           tambah halaman (kanan), dikelompokkan menurut fungsi. */}
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        {hasSearch && (
+        {showToolbar && (
           <form
             id={formId}
             onSubmit={(e) => {
@@ -1099,17 +1100,19 @@ export default function ExcelTable<T extends { id: string | number }>({
               />
             )}
             {filter}
-            <Button
-              id={buttonId}
-              type="submit"
-              size="icon-sm"
-              variant="outline"
-              title="Cari"
-              aria-label="Cari"
-              className="h-8 w-8"
-            >
-              <Search size={16} />
-            </Button>
+            {showSearchButton && (
+              <Button
+                id={buttonId}
+                type="submit"
+                size="icon-sm"
+                variant="outline"
+                title="Cari"
+                aria-label="Cari"
+                className="h-8 w-8"
+              >
+                <Search size={16} />
+              </Button>
+            )}
           </form>
         )}
         <span

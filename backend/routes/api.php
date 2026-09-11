@@ -116,6 +116,7 @@ Route::middleware(['auth:sanctum', 'role:super_admin|admin'])
         Route::post('{calon}/promosi', [PsbController::class, 'promosi']);
         Route::post('paket/{grup}/tolak', [PsbController::class, 'tolakPaket']);
         Route::post('import', [PsbController::class, 'import']);
+        Route::get('import-template', [PsbController::class, 'template']);
         Route::post('dokumen/{dokumen}/verifikasi', [PsbDokumenController::class, 'verifikasi']);
     });
 

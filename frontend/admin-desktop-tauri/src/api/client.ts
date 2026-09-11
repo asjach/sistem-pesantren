@@ -122,6 +122,29 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   } catch {
     throw new ApiError(0, { message: `Tidak dapat menghubungi server (${base}). Periksa alamat di Pengaturan.` });
   }
+  return parseResponse<T>(res);
+}
+
+/** POST multipart (upload file): tanpa header Content-Type agar boundary otomatis. */
+export async function apiUpload<T>(path: string, body: FormData): Promise<T> {
+  const [token, base] = await Promise.all([getToken(), getBaseUrl()]);
+  let res: Response;
+  try {
+    res = await fetch(`${base}${path}`, {
+      method: 'POST',
+      body,
+      headers: {
+        Accept: 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    });
+  } catch {
+    throw new ApiError(0, { message: `Tidak dapat menghubungi server (${base}). Periksa alamat di Pengaturan.` });
+  }
+  return parseResponse<T>(res);
+}
+
+async function parseResponse<T>(res: Response): Promise<T> {
   const text = await res.text();
   const body: unknown = text ? safeJson(text) : null;
   if (!res.ok) {
@@ -129,6 +152,38 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     throw new ApiError(res.status, body);
   }
   return body as T;
+}
+
+/** Unduh file ber-token (template/impor): fetch blob → anchor download. */
+export async function downloadFile(path: string, fallbackName: string): Promise<void> {
+  const [token, base] = await Promise.all([getToken(), getBaseUrl()]);
+  let res: Response;
+  try {
+    res = await fetch(`${base}${path}`, {
+      headers: {
+        Accept: '*/*',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    });
+  } catch {
+    throw new ApiError(0, { message: `Tidak dapat menghubungi server (${base}). Periksa alamat di Pengaturan.` });
+  }
+  if (!res.ok) {
+    if (res.status === 401) await clearSession();
+    throw new ApiError(res.status, await res.text().catch(() => null));
+  }
+  const blob = await res.blob();
+  const disposisi = res.headers.get('Content-Disposition') ?? '';
+  const match = /filename\*?=(?:UTF-8''|")?([^";]+)/i.exec(disposisi);
+  const nama = match ? decodeURIComponent(match[1].replace(/"/g, '')) : fallbackName;
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = nama;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }
 
 function safeJson(text: string): unknown {

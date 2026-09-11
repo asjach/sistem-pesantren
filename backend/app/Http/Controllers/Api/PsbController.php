@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Api\Concerns\TenantGuard;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\PsbSeleksiRequest;
+use App\Exports\PsbTemplateExport;
 use App\Imports\PsbImport;
 use App\Models\PsbCalonSantri;
 use App\Services\PsbService;
@@ -136,6 +137,12 @@ class PsbController extends Controller
         $service->tolakPaket($grup, auth()->id(), $data['catatan'] ?? null);
 
         return response()->json(['pesan' => 'Paket ditolak.']);
+    }
+
+    /** GET /api/psb/import-template — unduh template Excel (kolom = rules PsbImport). */
+    public function template()
+    {
+        return Excel::download(new PsbTemplateExport(), 'template-import-psb.xlsx');
     }
 
     /** POST /api/psb/import — Excel kolom inti, NIK required -> create() langsung. */
