@@ -44,7 +44,9 @@ export function listAntrean(params: { status: string; lembaga_id?: number; page?
   if (params.lembaga_id) q.set('lembaga_id', String(params.lembaga_id));
   q.set('page', String(params.page ?? 1));
   if (params.per_page) q.set('per_page', String(params.per_page));
-  return api<{ pesan: string; data: Paginate<PsbCalon> }>(`/psb/antrean-daftar-ulang?${q.toString()}`);
+  return api<{ pesan: string; data: Paginate<PsbCalon>; badge: Record<string, number> }>(
+    `/psb/antrean-daftar-ulang?${q.toString()}`,
+  );
 }
 
 export function verifikasiCalon(id: number) {
@@ -98,6 +100,44 @@ export function importPsb(input: { gelombang_id: number; lembaga_id: number; fil
 
 export function downloadTemplatePsb() {
   return downloadFile('/psb/import-template', 'template-import-psb.xlsx');
+}
+
+export interface PsbGelombang {
+  id: number;
+  tahun_ajaran_id: number;
+  nama: string;
+  tgl_buka: string | null;
+  tgl_tutup: string | null;
+  is_aktif: boolean;
+  tahun_ajaran?: { id: number; nama: string } | null;
+}
+
+export function listGelombangPsb() {
+  return api<{ pesan: string; data: PsbGelombang[] }>('/psb/gelombang');
+}
+
+export interface PsbCalonInput {
+  gelombang_id: number;
+  lembaga_id: number;
+  tipe_santri: 'asrama' | 'non_asrama';
+  nik: string;
+  nama_lengkap: string;
+  jk?: 'L' | 'P';
+  tgl_lahir?: string;
+  email_ortu?: string;
+  telp_ortu?: string;
+  nama_ayah?: string;
+  nama_ibu?: string;
+  is_pindahan?: boolean;
+  masuk_tingkat?: string;
+}
+
+/** Input pendaftar manual oleh admin (bukan jalur pendaftaran publik). */
+export function createCalonPsb(input: PsbCalonInput) {
+  return api<{ pesan: string; data: PsbCalon }>('/psb/calon', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
 }
 
 // ---------- Dokumen calon + dokumen wajib ----------

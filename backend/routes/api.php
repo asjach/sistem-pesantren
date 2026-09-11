@@ -107,6 +107,8 @@ Route::middleware(['auth:sanctum', 'role:super_admin|admin'])
     ->prefix('psb')
     ->group(function () {
         Route::get('antrean-daftar-ulang', [PsbController::class, 'antrean']);
+        Route::get('gelombang', [PsbController::class, 'gelombang']);
+        Route::post('calon', [PsbController::class, 'storeCalon']);
         Route::post('{calon}/verifikasi', [PsbController::class, 'verifikasi']);
         Route::post('{calon}/seleksi', [PsbController::class, 'seleksi']);
         Route::post('{calon}/acc-daftar-ulang', [PsbController::class, 'acc']);

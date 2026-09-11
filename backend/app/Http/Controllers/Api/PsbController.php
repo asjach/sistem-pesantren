@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Api\Concerns\TenantGuard;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\PsbDaftarRequest;
 use App\Http\Requests\PsbSeleksiRequest;
 use App\Exports\PsbTemplateExport;
 use App\Imports\PsbImport;
 use App\Models\PsbCalonSantri;
+use App\Models\PsbGelombang;
 use App\Services\PsbService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -18,18 +20,30 @@ class PsbController extends Controller
 {
     use TenantGuard;
 
-    /** GET /api/psb/antrean-daftar-ulang?status=ajukan_daftar_ulang (scope tenant). */
+    /** GET /api/psb/antrean-daftar-ulang?status=ajukan_daftar_ulang (scope tenant).
+     *  `status` boleh beberapa dipisah koma (dipakai tahapan timeline FE). */
     public function antrean(Request $request): JsonResponse
     {
-        $status = $request->input('status', 'ajukan_daftar_ulang');
-        $query = $this->scopeLembaga(PsbCalonSantri::query(), $request->user(), $request)
-            ->where('status_pendaftaran', $status)
+        $status = (string) $request->input('status', 'ajukan_daftar_ulang');
+        $statuses = array_values(array_filter(array_map('trim', explode(',', $status))));
+
+        $base = $this->scopeLembaga(PsbCalonSantri::query(), $request->user(), $request);
+
+        // Jumlah per status (tanpa filter status) untuk badge tahapan timeline.
+        $badge = (clone $base)
+            ->selectRaw('status_pendaftaran, COUNT(*) as jumlah')
+            ->groupBy('status_pendaftaran')
+            ->pluck('jumlah', 'status_pendaftaran');
+
+        $query = (clone $base)
+            ->whereIn('status_pendaftaran', $statuses)
             ->with(['lembagaTujuan:id,nama,kode', 'gelombang:id,nama'])
             ->latest('id');
 
         return response()->json([
             'pesan' => 'Antrean berhasil dimuat.',
             'data' => $query->paginate($this->perPage($request)),
+            'badge' => $badge,
         ]);
     }
 
@@ -137,6 +151,32 @@ class PsbController extends Controller
         $service->tolakPaket($grup, auth()->id(), $data['catatan'] ?? null);
 
         return response()->json(['pesan' => 'Paket ditolak.']);
+    }
+
+    /** GET /api/psb/gelombang — dropdown gelombang admin (opsional ?tahun_ajaran_id=). */
+    public function gelombang(Request $request): JsonResponse
+    {
+        $rows = PsbGelombang::with('tahunAjaran:id,nama')
+            ->when($request->filled('tahun_ajaran_id'), fn ($q) => $q->where('tahun_ajaran_id', $request->integer('tahun_ajaran_id')))
+            ->orderByDesc('id')
+            ->get(['id', 'tahun_ajaran_id', 'nama', 'tgl_buka', 'tgl_tutup', 'is_aktif']);
+
+        return response()->json(['pesan' => 'Gelombang dimuat.', 'data' => $rows]);
+    }
+
+    /** POST /api/psb/calon — input pendaftar manual oleh admin (tanpa buka/tutup gelombang;
+     *  kuota & dedup NIK tetap dijalankan service yang sama dengan pendaftaran publik). */
+    public function storeCalon(PsbDaftarRequest $request, PsbService $service): JsonResponse
+    {
+        $data = $request->validated();
+        $this->authorizeLembaga($request->user(), (int) $data['lembaga_id']);
+
+        $calon = $service->daftarPublik($data);
+
+        return response()->json([
+            'pesan' => 'Pendaftar dibuat oleh admin.',
+            'data' => $calon->fresh(),
+        ], 201);
     }
 
     /** GET /api/psb/import-template — unduh template Excel (kolom = rules PsbImport). */

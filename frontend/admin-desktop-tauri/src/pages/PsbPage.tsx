@@ -3,11 +3,12 @@ import { errorMessage } from '../api/client';
 import {
   accCalon,
   accPaket,
+  createCalonPsb,
   downloadTemplatePsb,
   importPsb,
   listAntrean,
   listDokumenCalon,
-  PSB_STATUS,
+  listGelombangPsb,
   promosiCalon,
   seleksiCalon,
   tolakCalon,
@@ -16,12 +17,15 @@ import {
   verifikasiDokumen,
   verifikasiPaket,
   type PsbCalon,
+  type PsbGelombang,
 } from '../api/psb';
 import { listLembaga, type Lembaga } from '../api/master';
 import type { DokumenSantri } from '../api/santri';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import {
   Select,
   SelectContent,
@@ -55,10 +59,22 @@ import {
   XCircle,
 } from 'lucide-react';
 
-// 100 PSB: antrean per status + verifikasi/seleksi/ACC/tolak/promosi + dokumen + import.
+// Tahapan timeline PSB → kumpulan status_pendaftaran (nilai enum di DB).
+const STAGES: { id: string; label: string; statuses: string[] }[] = [
+  { id: 'pendaftar', label: 'Pendaftar', statuses: ['baru', 'waiting_list'] },
+  { id: 'terdaftar', label: 'Terdaftar', statuses: ['terverifikasi'] },
+  { id: 'tes', label: 'Tes Akademik', statuses: ['lolos'] },
+  { id: 'daftar_ulang', label: 'Daftar Ulang', statuses: ['pemberkasan', 'ajukan_daftar_ulang'] },
+  { id: 'diterima', label: 'Diterima', statuses: ['daftar_ulang'] },
+  { id: 'ditolak', label: 'Mengundurkan Diri / Ditolak', statuses: ['ditolak', 'tidak_lolos'] },
+];
+
+// 100 PSB: antrean per tahapan timeline + verifikasi/seleksi/ACC/tolak/promosi + dokumen + import.
 export default function PsbPage() {
   const [lembagas, setLembagas] = useState<Lembaga[]>([]);
-  const [status, setStatus] = useState<string>('ajukan_daftar_ulang');
+  const [stage, setStage] = useState('daftar_ulang');
+  const [subStatus, setSubStatus] = useState('');
+  const [badge, setBadge] = useState<Record<string, number>>({});
   const [lembagaId, setLembagaId] = useState('');
   const [rows, setRows] = useState<PsbCalon[]>([]);
   const pager = usePager('psb');
@@ -79,9 +95,25 @@ export default function PsbPage() {
   const [dokumen, setDokumen] = useState<DokumenSantri[]>([]);
 
   const [importOpen, setImportOpen] = useState(false);
+  const [gelombangs, setGelombangs] = useState<PsbGelombang[]>([]);
   const [importGelombang, setImportGelombang] = useState('');
   const [importLembaga, setImportLembaga] = useState('');
   const [importFile, setImportFile] = useState<File | null>(null);
+
+  const [tambahOpen, setTambahOpen] = useState(false);
+  const [tfGelombang, setTfGelombang] = useState('');
+  const [tfLembaga, setTfLembaga] = useState('');
+  const [tfTipe, setTfTipe] = useState<'asrama' | 'non_asrama'>('non_asrama');
+  const [tfNik, setTfNik] = useState('');
+  const [tfNama, setTfNama] = useState('');
+  const [tfJk, setTfJk] = useState('');
+  const [tfTglLahir, setTfTglLahir] = useState('');
+  const [tfEmail, setTfEmail] = useState('');
+  const [tfTelp, setTfTelp] = useState('');
+  const [tfAyah, setTfAyah] = useState('');
+  const [tfIbu, setTfIbu] = useState('');
+  const [tfPindahan, setTfPindahan] = useState(false);
+  const [tfTingkat, setTfTingkat] = useState('');
 
   const fields: ExcelField[] = [
     { key: 'no', label: 'No. pendaftaran', width: 190, kind: 'static' },
@@ -113,8 +145,12 @@ export default function PsbPage() {
     setErr('');
     setLoading(true);
     try {
+      const stageDef = STAGES.find((s) => s.id === stage);
+      let statuses = stageDef?.statuses ?? [];
+      // Tahap Pendaftar dipisah: baru vs waiting_list.
+      if (stage === 'pendaftar' && subStatus) statuses = [subStatus];
       const res = await listAntrean({
-        status,
+        status: statuses.join(','),
         lembaga_id: lembagaId ? Number(lembagaId) : undefined,
         page: p,
         per_page: pp,
@@ -125,6 +161,7 @@ export default function PsbPage() {
         return;
       }
       setRows(res.data.data);
+      setBadge(res.badge ?? {});
       setLastPage(res.data.last_page);
       setTotal(res.data.total);
     } catch (e) {
@@ -137,11 +174,51 @@ export default function PsbPage() {
   useEffect(() => {
     if (pager.ready) load(pager.page);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pager.ready, status, lembagaId]);
+  }, [pager.ready, stage, subStatus, lembagaId]);
 
   useEffect(() => {
     listLembaga({ per_page: 100 }).then((p) => setLembagas(p.data)).catch((e) => setErr(errorMessage(e)));
+    listGelombangPsb().then((r) => setGelombangs(r.data)).catch(() => {});
   }, []);
+
+  function resetTambah() {
+    setTfGelombang(''); setTfLembaga(''); setTfTipe('non_asrama');
+    setTfNik(''); setTfNama(''); setTfJk(''); setTfTglLahir('');
+    setTfEmail(''); setTfTelp(''); setTfAyah(''); setTfIbu('');
+    setTfPindahan(false); setTfTingkat('');
+  }
+
+  async function onCreateCalon(e: React.FormEvent) {
+    e.preventDefault();
+    if (!tfGelombang || !tfLembaga) return;
+    setBusy(true);
+    setErr('');
+    try {
+      const res = await createCalonPsb({
+        gelombang_id: Number(tfGelombang),
+        lembaga_id: Number(tfLembaga),
+        tipe_santri: tfTipe,
+        nik: tfNik.trim(),
+        nama_lengkap: tfNama.trim(),
+        jk: tfJk === '' ? undefined : (tfJk as 'L' | 'P'),
+        tgl_lahir: tfTglLahir || undefined,
+        email_ortu: tfEmail.trim() || undefined,
+        telp_ortu: tfTelp.trim() || undefined,
+        nama_ayah: tfAyah.trim() || undefined,
+        nama_ibu: tfIbu.trim() || undefined,
+        is_pindahan: tfPindahan || undefined,
+        masuk_tingkat: tfPindahan && tfTingkat ? tfTingkat : undefined,
+      });
+      toast.success(res.pesan ?? 'Pendaftar dibuat.');
+      setTambahOpen(false);
+      resetTambah();
+      await load(1);
+    } catch (e2) {
+      setErr(errorMessage(e2));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function run(fn: () => Promise<{ pesan?: string }>, sukses: string) {
     setBusy(true);
@@ -227,28 +304,65 @@ export default function PsbPage() {
 
   return (
     <div className={PAGE_SHELL}>
-      <PageHeader titleId="title_psb" title="PSB — Antrean Daftar Ulang" />
+      <PageHeader titleId="title_psb" title="PSB — Antrean Pendaftaran" />
       <ErrorNotice>{err}</ErrorNotice>
+
+      {/* Timeline tahapan (pengganti combobox status) */}
+      <ol id="timeline_psb" className="mb-3 flex flex-wrap items-center gap-y-2">
+        {STAGES.map((s, i) => {
+          const aktif = s.id === stage;
+          const jumlah = s.statuses.reduce((n, st) => n + (badge[st] ?? 0), 0);
+          return (
+            <li key={s.id} className="flex items-center">
+              {i > 0 && <span aria-hidden className="mx-2 h-px w-5 bg-border sm:w-8" />}
+              <button
+                id={`stage_psb_${s.id}`}
+                type="button"
+                onClick={() => { setStage(s.id); setSubStatus(''); pager.goFirst(); }}
+                className={cn(
+                  'flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition-colors',
+                  aktif
+                    ? 'border-primary bg-primary/10 font-semibold text-primary'
+                    : 'bg-card text-muted-foreground hover:bg-accent hover:text-foreground',
+                )}
+              >
+                <span className="whitespace-nowrap">{i + 1}. {s.label}</span>
+                <Badge variant={aktif ? 'default' : 'secondary'} className="px-1.5 text-[10px]">
+                  {jumlah}
+                </Badge>
+              </button>
+            </li>
+          );
+        })}
+      </ol>
+
       <ExcelTable
         tableKey="psb"
         fields={fields}
         rows={rows}
         getValues={gridValues}
         loading={loading}
-        emptyText="Tidak ada calon pada status ini."
+        emptyText="Tidak ada calon pada tahap ini."
         canEdit={false}
         onCommit={async () => {}}
         onSaved={() => load()}
         filter={(
           <>
-            <Select value={status} onValueChange={(v) => { setStatus(v); pager.goFirst(); }}>
-              <SelectTrigger id="select_status_psb" title="Filter status" aria-label="Filter status" className="h-8 w-44">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                {PSB_STATUS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            {stage === 'pendaftar' && (
+              <Select
+                value={subStatus === '' ? '_semua' : subStatus}
+                onValueChange={(v) => { setSubStatus(v === '_semua' ? '' : v); pager.goFirst(); }}
+              >
+                <SelectTrigger id="select_substatus_pendaftar" title="Filter status pendaftar" aria-label="Filter status pendaftar" className="h-8 w-44">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="_semua">Semua pendaftar</SelectItem>
+                  <SelectItem value="baru">Baru</SelectItem>
+                  <SelectItem value="waiting_list">Waiting list</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
             <Select value={lembagaId === '' ? '_semua' : lembagaId} onValueChange={(v) => { setLembagaId(v === '_semua' ? '' : v); pager.goFirst(); }}>
               <SelectTrigger id="select_lembaga_psb" title="Filter lembaga" aria-label="Filter lembaga" className="h-8 w-40">
                 <SelectValue placeholder="Semua" />
@@ -260,11 +374,20 @@ export default function PsbPage() {
             </Select>
           </>
         )}
-        addButton={(
-          <Button id="btn_buka_import_psb" onClick={() => setImportOpen(true)}>
-            <Upload size={16} /> Import
-          </Button>
-        )}
+        addButton={stage === 'pendaftar' ? (
+          <>
+            <Button
+              id="btn_buka_tambah_pendaftar"
+              variant="outline"
+              onClick={() => { resetTambah(); setTambahOpen(true); }}
+            >
+              + Pendaftar
+            </Button>
+            <Button id="btn_buka_import_psb" onClick={() => setImportOpen(true)}>
+              <Upload size={16} /> Import
+            </Button>
+          </>
+        ) : undefined}
         renderActions={(c) => {
           const paket = !!c.paket_grup_id;
           return (
@@ -439,15 +562,19 @@ export default function PsbPage() {
               Unduh template Excel
             </Button>
             <div className="grid gap-1.5">
-              <Label htmlFor="input_gelombang_psb">ID Gelombang</Label>
-              <Input
-                id="input_gelombang_psb"
-                type="number"
-                min={1}
-                value={importGelombang}
-                onChange={(e) => setImportGelombang(e.target.value)}
-                required
-              />
+              <Label htmlFor="select_gelombang_psb">Gelombang</Label>
+              <Select value={importGelombang} onValueChange={setImportGelombang}>
+                <SelectTrigger id="select_gelombang_psb" className="w-full">
+                  <SelectValue placeholder="Pilih gelombang" />
+                </SelectTrigger>
+                <SelectContent>
+                  {gelombangs.map((g) => (
+                    <SelectItem key={g.id} value={String(g.id)}>
+                      {g.nama}{g.tahun_ajaran ? ` — ${g.tahun_ajaran.nama}` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="select_import_psb_lembaga">Lembaga tujuan</Label>
@@ -474,6 +601,142 @@ export default function PsbPage() {
               <Button type="button" variant="outline" onClick={() => setImportOpen(false)}>Batal</Button>
               <Button id="btn_import_psb" type="submit" disabled={busy || !importFile || !importGelombang || !importLembaga}>
                 Import
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={tambahOpen} onOpenChange={setTambahOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Tambah pendaftar (input admin)</DialogTitle>
+            <DialogDescription>
+              Jalur manual tanpa pendaftaran publik. Kuota & dedup NIK tetap berlaku.
+            </DialogDescription>
+          </DialogHeader>
+          <form id="form_tambah_pendaftar" onSubmit={onCreateCalon} className="space-y-3">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-1.5">
+                <Label htmlFor="select_gelombang_pendaftar">Gelombang</Label>
+                <Select value={tfGelombang} onValueChange={setTfGelombang}>
+                  <SelectTrigger id="select_gelombang_pendaftar" className="w-full">
+                    <SelectValue placeholder="Pilih gelombang" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {gelombangs.map((g) => (
+                      <SelectItem key={g.id} value={String(g.id)}>
+                        {g.nama}{g.tahun_ajaran ? ` — ${g.tahun_ajaran.nama}` : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="select_lembaga_pendaftar">Lembaga tujuan</Label>
+                <Select value={tfLembaga} onValueChange={setTfLembaga}>
+                  <SelectTrigger id="select_lembaga_pendaftar" className="w-full">
+                    <SelectValue placeholder="Pilih lembaga" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.nama}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="select_tipe_pendaftar">Tipe santri</Label>
+                <Select value={tfTipe} onValueChange={(v) => setTfTipe(v as 'asrama' | 'non_asrama')}>
+                  <SelectTrigger id="select_tipe_pendaftar" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="non_asrama">Non asrama</SelectItem>
+                    <SelectItem value="asrama">Asrama</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="input_nik_pendaftar">NIK (16 digit)</Label>
+                <Input
+                  id="input_nik_pendaftar"
+                  value={tfNik}
+                  onChange={(e) => setTfNik(e.target.value)}
+                  inputMode="numeric"
+                  minLength={16}
+                  maxLength={16}
+                  required
+                />
+              </div>
+              <div className="grid gap-1.5 sm:col-span-2">
+                <Label htmlFor="input_nama_pendaftar">Nama lengkap</Label>
+                <Input id="input_nama_pendaftar" value={tfNama} onChange={(e) => setTfNama(e.target.value)} required maxLength={100} />
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="select_jk_pendaftar">Jenis kelamin</Label>
+                <Select value={tfJk === '' ? '_kosong' : tfJk} onValueChange={(v) => setTfJk(v === '_kosong' ? '' : v)}>
+                  <SelectTrigger id="select_jk_pendaftar" className="w-full">
+                    <SelectValue placeholder="-" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_kosong">-</SelectItem>
+                    <SelectItem value="L">Laki-laki</SelectItem>
+                    <SelectItem value="P">Perempuan</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="input_tgl_lahir_pendaftar">Tanggal lahir</Label>
+                <Input id="input_tgl_lahir_pendaftar" type="date" value={tfTglLahir} onChange={(e) => setTfTglLahir(e.target.value)} />
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="input_email_ortu_pendaftar">Email orang tua</Label>
+                <Input id="input_email_ortu_pendaftar" type="email" value={tfEmail} onChange={(e) => setTfEmail(e.target.value)} maxLength={100} />
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="input_telp_ortu_pendaftar">No. HP orang tua</Label>
+                <Input id="input_telp_ortu_pendaftar" value={tfTelp} onChange={(e) => setTfTelp(e.target.value)} maxLength={20} />
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="input_ayah_pendaftar">Nama ayah</Label>
+                <Input id="input_ayah_pendaftar" value={tfAyah} onChange={(e) => setTfAyah(e.target.value)} maxLength={100} />
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="input_ibu_pendaftar">Nama ibu</Label>
+                <Input id="input_ibu_pendaftar" value={tfIbu} onChange={(e) => setTfIbu(e.target.value)} maxLength={100} />
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <label htmlFor="check_pindahan_pendaftar" className="flex cursor-pointer items-center gap-2 text-sm">
+                <input
+                  id="check_pindahan_pendaftar"
+                  type="checkbox"
+                  checked={tfPindahan}
+                  onChange={(e) => setTfPindahan(e.target.checked)}
+                  className="size-4 accent-[var(--accent)]"
+                />
+                Pindahan (bukan santri baru)
+              </label>
+              {tfPindahan && (
+                <div className="grid flex-1 gap-1.5">
+                  <Label htmlFor="input_tingkat_pendaftar">Masuk tingkat</Label>
+                  <Input
+                    id="input_tingkat_pendaftar"
+                    value={tfTingkat}
+                    onChange={(e) => setTfTingkat(e.target.value)}
+                    maxLength={2}
+                    placeholder="mis. 3"
+                  />
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setTambahOpen(false)}>Batal</Button>
+              <Button
+                id="btn_simpan_pendaftar"
+                type="submit"
+                disabled={busy || !tfGelombang || !tfLembaga || tfNik.trim().length !== 16 || !tfNama.trim()}
+              >
+                Simpan pendaftar
               </Button>
             </DialogFooter>
           </form>

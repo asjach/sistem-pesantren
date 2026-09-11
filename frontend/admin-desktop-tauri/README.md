@@ -131,6 +131,7 @@ Token per-device `admin-desktop-tauri`, staf 30 hari (v1.8).
 - `GET/POST/PUT/DELETE /api/admin/tarif-biaya` (triple FK pos+lembaga+TA; edit hanya nominal)
 - `GET /api/admin/referensi/types`, `GET/POST/PUT/DELETE /api/admin/referensi/{tipe}` (baris global hanya super_admin; nonaktifkan = shadow off per lembaga)
 - `GET /api/psb/import-template` (unduh template XLSX import PSB; tombol di dialog Import)
+- `GET /api/psb/gelombang`, `POST /api/psb/calon` (input pendaftar manual admin, kuota & dedup NIK tetap berlaku)
 - Semua list `per_page=100` bawaan (opsi 100/250/500/1000, tersimpan per tabel);
   `control id snake_case` (NFR-02/05).
 - 401 → sesi dibersihkan + ke /login; 403 tenant; 422 validasi; 429 throttle.

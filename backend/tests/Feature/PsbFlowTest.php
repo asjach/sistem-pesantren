@@ -570,4 +570,78 @@ class PsbFlowTest extends TestCase
         $this->assertStringContainsString('attachment', $disposisi);
         $this->assertStringContainsString('template-import-psb.xlsx', $disposisi);
     }
+
+    // ---------- 13. antrean timeline: badge per status + filter multi-status ----------
+
+    public function test_13_antrean_badge_dan_filter_multi_status(): void
+    {
+        $f = $this->baseFixture();
+        $this->makeKuota($f['gel'], $f['mi'], $f['ta'], ['membutuhkan_seleksi' => false]);
+        $admin = $this->makeUser('admin', [$f['mi']->id]);
+
+        $ids = [];
+        foreach ([['1100000000000101', 'Calon Baru'], ['1100000000000102', 'Calon Verif'], ['1100000000000103', 'Calon Ajukan']] as $i => [$nik, $nama]) {
+            $res = $this->postJson('/api/psb/daftar', $this->daftarPayload(
+                $f['gel'], $f['mi'], $nik, $nama, "ortu13{$i}@example.com", '0813000000' . $i
+            ));
+            $res->assertStatus(201);
+            $ids[] = $res->json('data.calon.id');
+        }
+        PsbCalonSantri::find($ids[1])->update(['status_pendaftaran' => 'terverifikasi']);
+        PsbCalonSantri::find($ids[2])->update(['status_pendaftaran' => 'ajukan_daftar_ulang']);
+
+        // Filter multi-status (dipakai tahapan timeline "ditolak/tidak_lolos" dsb).
+        $res = $this->actingAs($admin, 'sanctum')
+            ->getJson('/api/psb/antrean-daftar-ulang?status=terverifikasi,ajukan_daftar_ulang');
+
+        $res->assertStatus(200)
+            ->assertJsonPath('badge.baru', 1)
+            ->assertJsonPath('badge.terverifikasi', 1)
+            ->assertJsonPath('badge.ajukan_daftar_ulang', 1);
+        $this->assertEqualsCanonicalizing(
+            ['terverifikasi', 'ajukan_daftar_ulang'],
+            collect($res->json('data.data'))->pluck('status_pendaftaran')->all(),
+        );
+    }
+
+    // ---------- 14. input pendaftar manual oleh admin + dropdown gelombang ----------
+
+    public function test_14_admin_input_pendaftar_manual(): void
+    {
+        $f = $this->baseFixture();
+        $this->makeKuota($f['gel'], $f['mi'], $f['ta'], ['membutuhkan_seleksi' => false]);
+        $admin = $this->makeUser('admin', [$f['mi']->id]);
+
+        $res = $this->actingAs($admin, 'sanctum')->postJson('/api/psb/calon', [
+            'gelombang_id' => $f['gel']->id,
+            'lembaga_id' => $f['mi']->id,
+            'tipe_santri' => 'non_asrama',
+            'nik' => '1100000000000201',
+            'nama_lengkap' => 'Pendaftar Manual',
+            'jk' => 'L',
+            'tgl_lahir' => '2015-01-01',
+        ]);
+
+        $res->assertStatus(201)
+            ->assertJsonPath('data.status_pendaftaran', 'baru')
+            ->assertJsonPath('data.nama_lengkap', 'Pendaftar Manual');
+        $this->assertDatabaseHas('psb_calon_santri', [
+            'nik' => '1100000000000201', 'status_pendaftaran' => 'baru', 'lembaga_id' => $f['mi']->id,
+        ]);
+
+        // Tenant: admin lembaga lain tidak boleh input ke MI.
+        $adminMd = $this->makeUser('admin', [$f['md']->id]);
+        $this->actingAs($adminMd, 'sanctum')->postJson('/api/psb/calon', [
+            'gelombang_id' => $f['gel']->id,
+            'lembaga_id' => $f['mi']->id,
+            'tipe_santri' => 'non_asrama',
+            'nik' => '1100000000000202',
+            'nama_lengkap' => 'Salah Lembaga',
+        ])->assertStatus(403);
+
+        // Dropdown gelombang admin.
+        $this->actingAs($admin, 'sanctum')->getJson('/api/psb/gelombang')
+            ->assertStatus(200)
+            ->assertJsonPath('data.0.id', $f['gel']->id);
+    }
 }
