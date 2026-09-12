@@ -32,12 +32,29 @@ class RefService
         return 'ref_' . $tipe;
     }
 
+    public const VERSI_KEY = 'ref:versi_global';
+
+    public static function versiGlobal(): int
+    {
+        return (int) Cache::get(self::VERSI_KEY, 1);
+    }
+
+    public static function bumpVersiGlobal(): void
+    {
+        Cache::put(self::VERSI_KEY, self::versiGlobal() + 1);
+    }
+
+    public static function kunci(string $tipe, ?int $lembagaId): string
+    {
+        return "ref:$tipe:$lembagaId:v" . self::versiGlobal();
+    }
+
     // Gabung baris global (lembaga null) + baris lembaga; baris lembaga menang per kunci.
     public static function effective(string $tipe, ?int $lembagaId): array
     {
         $table = self::table($tipe);
         $key = self::KEY[$tipe];
-        return Cache::remember("ref:$tipe:$lembagaId", 300, function () use ($table, $key, $lembagaId) {
+        return Cache::remember(self::kunci($tipe, $lembagaId), 300, function () use ($table, $key, $lembagaId) {
             $rows = DB::table($table)
                 ->whereNull('lembaga_id')
                 ->when($lembagaId, fn ($q) => $q->orWhere('lembaga_id', $lembagaId))
@@ -64,12 +81,19 @@ class RefService
 
     public static function forget(?int $lembagaId = null): void
     {
-        foreach (array_keys(self::KEY) as $tipe) Cache::forget("ref:$tipe:$lembagaId");
+        if ($lembagaId === null) {
+            self::bumpVersiGlobal();
+
+            return;
+        }
+        foreach (array_keys(self::KEY) as $tipe) {
+            Cache::forget(self::kunci($tipe, $lembagaId));
+        }
     }
 
     public static function effectiveAlamat(?int $lembagaId): array
     {
-        return Cache::remember("ref:alamat:$lembagaId", 300, function () use ($lembagaId) {
+        return Cache::remember('ref:alamat:' . $lembagaId . ':v' . self::versiGlobal(), 300, function () use ($lembagaId) {
             $rows = DB::table('ref_alamat')
                 ->whereNull('lembaga_id')
                 ->when($lembagaId, fn ($q) => $q->orWhere('lembaga_id', $lembagaId))
@@ -82,7 +106,12 @@ class RefService
 
     public static function forgetAlamat(?int $lembagaId = null): void
     {
-        Cache::forget("ref:alamat:$lembagaId");
+        if ($lembagaId === null) {
+            self::bumpVersiGlobal();
+
+            return;
+        }
+        Cache::forget('ref:alamat:' . $lembagaId . ':v' . self::versiGlobal());
     }
 
     // Alias lama (kompatibilitas sementara): efektif() => effective().

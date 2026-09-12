@@ -38,6 +38,15 @@ class AuthController extends Controller
         // 2a: nama token per perangkat (cabut-per-device). 2d: expiry per peran —
         // staf 30 hari, murni orang_tua/santri 365 hari (root PRD OFF-06/v1.8).
         $device = substr(trim((string) $request->input('device', 'api-token')), 0, 100) ?: 'api-token';
+
+        // Aplikasi desktop admin hanya untuk super_admin/admin; peran portal
+        // (orang_tua/santri dsb.) ditolak agar tidak mendapat token desktop.
+        if (str_starts_with($device, 'admin-desktop-tauri') && ! $user->hasAnyRole(['super_admin', 'admin'])) {
+            return response()->json([
+                'message' => 'Aplikasi desktop hanya untuk peran super_admin/admin.',
+            ], 403);
+        }
+
         $staff = $user->hasAnyRole(['super_admin', 'admin', 'kasir', 'guru']);
         $token = $user->createToken($device, ['*'], now()->addDays($staff ? 30 : 365))->plainTextToken;
 

@@ -98,6 +98,9 @@ class KeuanganController extends Controller
         foreach ($data['items'] as $item) {
             $this->authorize('bayar', Tagihan::findOrFail($item['tagihan_id']));
         }
+        if (! $actor->hasRole('super_admin') && ! $actor->isAdminFull()) {
+            $data['tenant_lembaga_ids'] = $actor->lembagaIds();
+        }
 
         $pembayaran = $this->keuanganService->bayarTagihan($data);
 

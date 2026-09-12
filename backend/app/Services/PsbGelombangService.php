@@ -12,6 +12,9 @@ class PsbGelombangService
     public function cekBukaDanKuota(int $gelombangId, int $lembagaId): void
     {
         $gelombang = PsbGelombang::findOrFail($gelombangId);
+        if (! $gelombang->is_aktif) {
+            throw ValidationException::withMessages(['gelombang_id' => 'Gelombang pendaftaran tidak aktif.']);
+        }
         $hariIni = now()->toDateString();
         $buka = $gelombang->tgl_buka ? $gelombang->tgl_buka->toDateString() : null;
         $tutup = $gelombang->tgl_tutup ? $gelombang->tgl_tutup->toDateString() : null;

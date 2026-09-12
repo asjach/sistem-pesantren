@@ -359,6 +359,10 @@ class UserManagementController extends Controller
             'lembaga_id' => ['required', 'integer', 'exists:lembaga,id'],
         ]);
 
+        if (! auth()->user()->canAccessLembaga((int) $data['lembaga_id'])) {
+            return response()->json(['message' => 'Akses ditolak untuk lembaga ini.'], 403);
+        }
+
         DB::table('user_lembaga')
             ->where('user_id', $user->id)
             ->where('lembaga_id', (int) $data['lembaga_id'])

@@ -22,7 +22,7 @@ use App\Http\Controllers\Api\PsbPublikController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('auth')->group(function () {
-    Route::post('login', [AuthController::class, 'login'])->middleware('throttle:6,1');
+    Route::post('login', [AuthController::class, 'login'])->middleware('throttle:login');
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('logout', [AuthController::class, 'logout']);
@@ -31,9 +31,10 @@ Route::prefix('auth')->group(function () {
     });
 });
 
-Route::middleware('auth:sanctum')->get('dashboard/ringkasan', [DashboardController::class, 'ringkasan']);
+Route::middleware(['auth:sanctum', 'role:super_admin|admin', 'throttle:api_user'])
+    ->get('dashboard/ringkasan', [DashboardController::class, 'ringkasan']);
 
-Route::middleware(['auth:sanctum', 'role:super_admin|admin'])
+Route::middleware(['auth:sanctum', 'role:super_admin|admin', 'throttle:api_user'])
     ->prefix('admin')
     ->group(function () {
         Route::get('lembaga', [LembagaController::class, 'index']);
@@ -57,7 +58,7 @@ Route::middleware(['auth:sanctum', 'role:super_admin|admin'])
 
         // Data Santri (101: master profil + import PPDB massal + foto/dokumen)
         Route::get('santri', [SantriController::class, 'index']);
-        Route::post('santri/import-lengkap', [SantriController::class, 'importLengkap']);
+        Route::post('santri/import-lengkap', [SantriController::class, 'importLengkap'])->middleware('throttle:imports');
         Route::post('santri/{santri}/foto', [SantriController::class, 'uploadFoto']);
         Route::post('santri/{santri}/dokumen', [SantriController::class, 'uploadDokumen']);
 
@@ -76,7 +77,7 @@ Route::middleware(['auth:sanctum', 'role:super_admin|admin'])
             Route::post('/', [UserManagementController::class, 'store']);
             Route::match(['put', 'patch'], '/{user}', [UserManagementController::class, 'update']);
             Route::delete('/{user}', [UserManagementController::class, 'destroy']);
-            Route::post('/import', [UserManagementController::class, 'import']);
+            Route::post('/import', [UserManagementController::class, 'import'])->middleware('throttle:imports');
             Route::post('/{user}/roles', [UserManagementController::class, 'assignRole']);
             Route::delete('/{user}/roles', [UserManagementController::class, 'removeRole']);
             Route::post('/{user}/lembaga', [UserManagementController::class, 'attachLembaga']);
@@ -103,7 +104,7 @@ Route::prefix('psb')->group(function () {
 });
 
 // PSB admin (auth + role super_admin|admin, scope tenant lembaga per aksi).
-Route::middleware(['auth:sanctum', 'role:super_admin|admin'])
+Route::middleware(['auth:sanctum', 'role:super_admin|admin', 'throttle:api_user'])
     ->prefix('psb')
     ->group(function () {
         Route::get('antrean-daftar-ulang', [PsbController::class, 'antrean']);
@@ -117,13 +118,13 @@ Route::middleware(['auth:sanctum', 'role:super_admin|admin'])
         Route::post('{calon}/tolak', [PsbController::class, 'tolak']);
         Route::post('{calon}/promosi', [PsbController::class, 'promosi']);
         Route::post('paket/{grup}/tolak', [PsbController::class, 'tolakPaket']);
-        Route::post('import', [PsbController::class, 'import']);
+        Route::post('import', [PsbController::class, 'import'])->middleware('throttle:imports');
         Route::get('import-template', [PsbController::class, 'template']);
         Route::post('dokumen/{dokumen}/verifikasi', [PsbDokumenController::class, 'verifikasi']);
     });
 
 // Portal orang tua (auth + role orang_tua, envelope pesan/data, cek pemilik B5).
-Route::middleware(['auth:sanctum', 'role:orang_tua'])
+Route::middleware(['auth:sanctum', 'role:orang_tua', 'throttle:api_user'])
     ->prefix('portal')
     ->group(function () {
         Route::prefix('psb')->group(function () {
@@ -140,7 +141,7 @@ Route::middleware(['auth:sanctum', 'role:orang_tua'])
     });
 
 // List dokumen calon: orang_tua pemilik + admin tenant.
-Route::middleware(['auth:sanctum', 'role:orang_tua|admin'])
+Route::middleware(['auth:sanctum', 'role:orang_tua|admin', 'throttle:api_user'])
     ->prefix('portal/psb')
     ->group(function () {
         Route::get('{calon}/dokumen', [PsbDokumenController::class, 'listCalon']);
@@ -152,7 +153,7 @@ Route::middleware('throttle:30,1')->prefix('kamus')->group(function () {
 });
 
 // Keuangan 103-B: transaksi kasir (auth + role super_admin|admin|kasir, tenant per aksi).
-Route::middleware(['auth:sanctum', 'role:super_admin|admin|kasir'])
+Route::middleware(['auth:sanctum', 'role:super_admin|admin|kasir', 'throttle:api_user'])
     ->prefix('keuangan')
     ->group(function () {
         Route::get('/santri/{santriId}/tagihan', [KeuanganController::class, 'getTagihanSantri']);
@@ -162,7 +163,7 @@ Route::middleware(['auth:sanctum', 'role:super_admin|admin|kasir'])
     });
 
 // Kuitansi 103-C: PDF dompdf + HTML thermal (auth + role super_admin|admin|kasir).
-Route::middleware(['auth:sanctum', 'role:super_admin|admin|kasir'])
+Route::middleware(['auth:sanctum', 'role:super_admin|admin|kasir', 'throttle:api_user'])
     ->prefix('kuitansi')
     ->group(function () {
         Route::get('/{pembayaranId}/pdf', [KuitansiController::class, 'cetakPdf']);

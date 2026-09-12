@@ -95,20 +95,28 @@ class PsbPortalController extends Controller
             ->where('is_active', true)
             ->pluck('santri_id')->all();
 
-        $list = PsbCalonSantri::where(function ($q) use ($user, $santriIds) {
-            if ($user->email) {
-                $q->orWhere('email_ortu', $user->email);
-            }
-            if ($user->phone) {
-                $q->orWhere('telp_ortu', $user->phone);
-            }
-            if ($santriIds) {
-                $q->orWhereIn('santri_asal_id', $santriIds);
-            }
-        })
-            ->with(['lembagaTujuan:id,nama,kode', 'gelombang:id,nama'])
-            ->latest('id')
-            ->get();
+        $adaKriteria = ($user->email && $user->email !== '')
+            || ($user->phone && $user->phone !== '')
+            || ! empty($santriIds);
+
+        $list = collect();
+        if ($adaKriteria) {
+            $list = PsbCalonSantri::where(function ($q) use ($user, $santriIds) {
+                $q->whereRaw('1 = 0');
+                if ($user->email) {
+                    $q->orWhere('email_ortu', $user->email);
+                }
+                if ($user->phone) {
+                    $q->orWhere('telp_ortu', $user->phone);
+                }
+                if ($santriIds) {
+                    $q->orWhereIn('santri_asal_id', $santriIds);
+                }
+            })
+                ->with(['lembagaTujuan:id,nama,kode', 'gelombang:id,nama'])
+                ->latest('id')
+                ->get();
+        }
 
         return response()->json(['pesan' => 'Riwayat pendaftaran berhasil dimuat.', 'data' => $list]);
     }

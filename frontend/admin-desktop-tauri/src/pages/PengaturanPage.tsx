@@ -12,9 +12,11 @@ import { useTheme, type DensityName, type ModeName, type ThemeName } from '@/the
 import { THEME_PRESETS } from '@/themes';
 import { normalizeHex, onAccentFor } from '@/prefs';
 import { Button } from '@/components/ui/button';
+import { Field, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import PageHeader from '@/components/PageHeader';
 import { Check, Monitor, Moon, Sun } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -78,7 +80,7 @@ export default function PengaturanPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       <PageHeader
         titleId="title_pengaturan"
         title="Pengaturan"
@@ -91,23 +93,25 @@ export default function PengaturanPage() {
         )}
       />
 
-      <section className="w-full max-w-none space-y-3 rounded-xl border bg-card p-5">
+      <section className="flex w-full max-w-none flex-col gap-3 rounded-xl border bg-card p-5">
         <h2 className="text-base font-semibold">Server backend</h2>
         <p className="text-sm text-muted-foreground">Bawaan: {DEFAULT_API_BASE_URL}</p>
         {err && (
-          <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">{err}</p>
+          <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">{err}</p>
         )}
-        <form id="form_server" onSubmit={(e) => { e.preventDefault(); onUji(); }} className="space-y-3">
-          <div className="grid gap-1.5">
-            <Label htmlFor="input_base_url">Alamat API backend (tanpa garis miring akhir)</Label>
-            <Input
-              id="input_base_url"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              placeholder="http://127.0.0.1:8000/api"
-              required
-            />
-          </div>
+        <form id="form_server" onSubmit={(e) => { e.preventDefault(); onUji(); }} className="flex flex-col gap-3">
+          <FieldGroup className="gap-3">
+            <Field>
+              <FieldLabel htmlFor="input_base_url">Alamat API backend (tanpa garis miring akhir)</FieldLabel>
+              <Input
+                id="input_base_url"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                placeholder="http://127.0.0.1:8000/api"
+                required
+              />
+            </Field>
+          </FieldGroup>
           <div className="flex flex-wrap gap-2">
             <Button id="btn_uji_server">Simpan & uji koneksi</Button>
             <Button id="btn_reset_server" type="button" variant="outline" onClick={onReset}>
@@ -117,7 +121,7 @@ export default function PengaturanPage() {
         </form>
       </section>
 
-      <section className="w-full max-w-none space-y-4 rounded-xl border bg-card p-5">
+      <section className="flex w-full max-w-none flex-col gap-4 rounded-xl border bg-card p-5">
         <h2 className="text-base font-semibold">Tampilan</h2>
         <div>
           <div className="mb-2 text-sm font-medium">Tema warna ({THEME_PRESETS.length})</div>
@@ -141,7 +145,7 @@ export default function PengaturanPage() {
                   {/* Pratinjau mini ala VSCode: strip sidebar + latar tema + contoh UI. */}
                   <span className="flex" style={{ background: face.bg, color: face.fg }}>
                     <span className="w-4 shrink-0" style={{ background: t.sidebar }} />
-                    <span className="block flex-1 space-y-1.5 p-3">
+                    <span className="flex flex-1 flex-col gap-1.5 p-3">
                       <span className="flex items-center justify-between text-[11px] opacity-80">
                         <span>{t.nama}</span>
                         {aktif && <Check size={13} />}
@@ -191,48 +195,42 @@ export default function PengaturanPage() {
             Kontras teks di atas aksen dijaga otomatis (≥4.5:1).
           </p>
         </div>
-        <div>
-          <div className="mb-2 text-sm font-medium">Mode</div>
-          <div className="inline-flex rounded-lg border p-1">
+        <FieldSet className="gap-3">
+          <FieldLegend variant="label" className="mb-0">Mode</FieldLegend>
+          <ToggleGroup
+            type="single"
+            variant="outline"
+            spacing={0}
+            value={mode}
+            onValueChange={(v) => { if (v) setMode(v as ModeName); }}
+          >
             {MODES.map((m) => (
-              <button
-                key={m.id}
-                id={`btn_mode_${m.id}`}
-                type="button"
-                onClick={() => setMode(m.id)}
-                className={cn(
-                  'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm',
-                  mode === m.id ? 'bg-primary font-semibold text-primary-foreground' : 'hover:bg-muted',
-                )}
-              >
-                <m.icon size={15} />
+              <ToggleGroupItem key={m.id} id={`btn_mode_${m.id}`} value={m.id}>
+                <m.icon />
                 {m.nama}
-              </button>
+              </ToggleGroupItem>
             ))}
-          </div>
-        </div>
-        <div>
-          <div className="mb-2 text-sm font-medium">Kerapatan baris tabel</div>
-          <div className="inline-flex rounded-lg border p-1">
+          </ToggleGroup>
+        </FieldSet>
+        <FieldSet className="gap-3">
+          <FieldLegend variant="label" className="mb-0">Kerapatan baris tabel</FieldLegend>
+          <ToggleGroup
+            type="single"
+            variant="outline"
+            spacing={0}
+            value={density}
+            onValueChange={(v) => { if (v) setDensity(v as DensityName); }}
+          >
             {DENSITIES.map((d) => (
-              <button
-                key={d.id}
-                id={`btn_density_${d.id}`}
-                type="button"
-                onClick={() => setDensity(d.id)}
-                className={cn(
-                  'rounded-md px-3 py-1.5 text-sm',
-                  density === d.id ? 'bg-primary font-semibold text-primary-foreground' : 'hover:bg-muted',
-                )}
-              >
+              <ToggleGroupItem key={d.id} id={`btn_density_${d.id}`} value={d.id}>
                 {d.nama}
-              </button>
+              </ToggleGroupItem>
             ))}
-          </div>
-          <p className="mt-1 text-xs text-muted-foreground">
+          </ToggleGroup>
+          <FieldDescription>
             Berlaku untuk semua tabel. Tinggi tiap baris juga bisa diseret langsung di grid.
-          </p>
-        </div>
+          </FieldDescription>
+        </FieldSet>
       </section>
     </div>
   );

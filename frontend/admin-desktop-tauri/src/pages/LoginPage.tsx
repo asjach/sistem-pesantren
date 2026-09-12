@@ -4,8 +4,8 @@ import { login } from '../api/auth';
 import { errorMessage } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { Button } from '@/components/ui/button';
+import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 
 export default function LoginPage() {
   const [identifier, setIdentifier] = useState('');
@@ -35,35 +35,41 @@ export default function LoginPage() {
       <form
         id="form_login"
         onSubmit={onSubmit}
-        className="w-full max-w-sm space-y-4 rounded-xl border bg-card p-6"
+        className="flex w-full max-w-sm flex-col gap-4 rounded-xl border bg-card p-6"
       >
         <div>
           <h1 className="text-xl font-bold">Masuk Admin</h1>
           <p className="text-sm text-muted-foreground">super_admin / admin · throttle 6/mnt</p>
         </div>
-        <div className="grid gap-1.5">
-          <Label htmlFor="input_identifier">Email / HP / Username</Label>
-          <Input
-            id="input_identifier"
-            value={identifier}
-            onChange={(e) => setIdentifier(e.target.value)}
-            autoComplete="username"
-            required
-          />
-        </div>
-        <div className="grid gap-1.5">
-          <Label htmlFor="input_password">Kata sandi</Label>
-          <Input
-            id="input_password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete="current-password"
-            required
-          />
-        </div>
+        <FieldGroup className="gap-4">
+          <Field>
+            <FieldLabel htmlFor="input_identifier">Email / HP / Username</FieldLabel>
+            <Input
+              id="input_identifier"
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
+              autoComplete="username"
+              required
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="input_password">Kata sandi</FieldLabel>
+            <Input
+              id="input_password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
+              required
+            />
+          </Field>
+        </FieldGroup>
         {err && (
-          <p id="text_error" className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          <p
+            id="text_error"
+            role="alert"
+            className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+          >
             {err}
           </p>
         )}

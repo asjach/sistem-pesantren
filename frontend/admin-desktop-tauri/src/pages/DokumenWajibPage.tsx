@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { errorMessage } from '../api/client';
 import {
   hapusDokumenWajib,
@@ -8,10 +8,11 @@ import {
 } from '../api/psb';
 import { listLembaga, referensiList, type Lembaga, type ReferensiRow } from '../api/master';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
+import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -29,6 +30,17 @@ import {
 import { DeleteAction } from '@/components/RowActions';
 import { toast } from 'sonner';
 
+const FIELDS: ExcelField[] = [
+  { key: 'jenis', label: 'Jenis dokumen', width: 260, kind: 'static' },
+  { key: 'wajib', label: 'Wajib', width: 100, kind: 'static' },
+];
+
+function gridValues(d: DokumenWajib): Record<string, string | null> {
+  return { jenis: d.jenis_dokumen_santri, wajib: d.is_wajib ? 'Ya' : 'Tidak' };
+}
+
+async function noopCommit() {}
+
 // Ketentuan dokumen wajib per lembaga (dipakai verifikasi PSB/daftar ulang).
 export default function DokumenWajibPage() {
   const [lembagas, setLembagas] = useState<Lembaga[]>([]);
@@ -40,15 +52,23 @@ export default function DokumenWajibPage() {
   const [busy, setBusy] = useState(false);
   const [tambahOpen, setTambahOpen] = useState(false);
   const [jenisBaru, setJenisBaru] = useState('');
+  const reqRef = useRef(0);
 
-  const fields: ExcelField[] = [
-    { key: 'jenis', label: 'Jenis dokumen', width: 260, kind: 'static' },
-    { key: 'wajib', label: 'Wajib', width: 100, kind: 'static' },
-  ];
-
-  function gridValues(d: DokumenWajib): Record<string, string | null> {
-    return { jenis: d.jenis_dokumen_santri, wajib: d.is_wajib ? 'Ya' : 'Tidak' };
-  }
+  const load = useCallback(async () => {
+    if (!lembagaId) return;
+    const req = ++reqRef.current;
+    setErr('');
+    setLoading(true);
+    try {
+      const res = await listDokumenWajib(Number(lembagaId));
+      if (req !== reqRef.current) return;
+      setRows(res.data);
+    } catch (e) {
+      if (req === reqRef.current) setErr(errorMessage(e));
+    } finally {
+      if (req === reqRef.current) setLoading(false);
+    }
+  }, [lembagaId]);
 
   useEffect(() => {
     listLembaga({ per_page: 100 }).then((p) => setLembagas(p.data)).catch((e) => setErr(errorMessage(e)));
@@ -56,29 +76,21 @@ export default function DokumenWajibPage() {
 
   useEffect(() => {
     if (!lembagaId) {
+      reqRef.current += 1;
       setRows([]);
+      setJenis([]);
+      setLoading(false);
       return;
     }
-    setErr('');
-    setLoading(true);
-    listDokumenWajib(Number(lembagaId))
-      .then((res) => setRows(res.data))
-      .catch((e) => setErr(errorMessage(e)))
-      .finally(() => setLoading(false));
-    referensiList('jenis_dokumen_santri', Number(lembagaId)).then(setJenis).catch(() => {});
-  }, [lembagaId]);
+    void load();
+    let alive = true;
+    referensiList('jenis_dokumen_santri', Number(lembagaId))
+      .then((r) => { if (alive) setJenis(r); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [lembagaId, load]);
 
-  async function load() {
-    if (!lembagaId) return;
-    try {
-      const res = await listDokumenWajib(Number(lembagaId));
-      setRows(res.data);
-    } catch (e) {
-      setErr(errorMessage(e));
-    }
-  }
-
-  async function onTambah(e: React.FormEvent) {
+  const onTambah = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!lembagaId || !jenisBaru) return;
     setBusy(true);
@@ -98,9 +110,9 @@ export default function DokumenWajibPage() {
     } finally {
       setBusy(false);
     }
-  }
+  }, [lembagaId, jenisBaru, load]);
 
-  async function onHapus(id: number) {
+  const onHapus = useCallback(async (id: number) => {
     setErr('');
     try {
       await hapusDokumenWajib(id);
@@ -109,7 +121,16 @@ export default function DokumenWajibPage() {
     } catch (e) {
       setErr(errorMessage(e));
     }
-  }
+  }, [load]);
+
+  const renderActions = useCallback((d: DokumenWajib) => (
+    <DeleteAction
+      id={`btn_hapus_dokumen_wajib_${d.id}`}
+      title="Hapus ketentuan?"
+      description={`${d.jenis_dokumen_santri} tidak lagi menjadi syarat dokumen.`}
+      onConfirm={() => onHapus(d.id)}
+    />
+  ), [onHapus]);
 
   return (
     <div className={PAGE_SHELL}>
@@ -117,21 +138,23 @@ export default function DokumenWajibPage() {
       <ErrorNotice>{err}</ErrorNotice>
       <ExcelTable
         tableKey="dokumen_wajib"
-        fields={fields}
+        fields={FIELDS}
         rows={rows}
         getValues={gridValues}
         loading={loading}
         emptyText={lembagaId ? 'Belum ada ketentuan dokumen.' : 'Pilih lembaga dulu.'}
         canEdit={false}
-        onCommit={async () => {}}
+        onCommit={noopCommit}
         onSaved={load}
         filter={(
           <Select value={lembagaId} onValueChange={setLembagaId}>
-            <SelectTrigger id="select_lembaga_dokumen_wajib" title="Lembaga" aria-label="Lembaga" className="h-8 w-44">
+            <SelectTrigger id="select_lembaga_dokumen_wajib" title="Lembaga" aria-label="Lembaga" size="sm" className="w-44">
               <SelectValue placeholder="Pilih lembaga" />
             </SelectTrigger>
             <SelectContent>
-              {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.nama}</SelectItem>)}
+              <SelectGroup>
+                {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.nama}</SelectItem>)}
+              </SelectGroup>
             </SelectContent>
           </Select>
         )}
@@ -140,14 +163,7 @@ export default function DokumenWajibPage() {
             + Ketentuan
           </Button>
         )}
-        renderActions={(d) => (
-          <DeleteAction
-            id={`btn_hapus_dokumen_wajib_${d.id}`}
-            title="Hapus ketentuan?"
-            description={`${d.jenis_dokumen_santri} tidak lagi menjadi syarat dokumen.`}
-            onConfirm={() => onHapus(d.id)}
-          />
-        )}
+        renderActions={renderActions}
       />
 
       <Dialog open={tambahOpen} onOpenChange={setTambahOpen}>
@@ -156,22 +172,26 @@ export default function DokumenWajibPage() {
             <DialogTitle>Tambah ketentuan dokumen</DialogTitle>
             <DialogDescription>Jenis dokumen diambil dari kamus aktif lembaga.</DialogDescription>
           </DialogHeader>
-          <form id="form_tambah_dokumen_wajib" onSubmit={onTambah} className="space-y-3">
-            <div className="grid gap-1.5">
-              <Label htmlFor="select_jenis_dokumen_wajib">Jenis dokumen</Label>
-              <Select value={jenisBaru} onValueChange={setJenisBaru}>
-                <SelectTrigger id="select_jenis_dokumen_wajib" className="w-full">
-                  <SelectValue placeholder="Pilih jenis" />
-                </SelectTrigger>
-                <SelectContent>
-                  {jenis.map((r) => (
-                    <SelectItem key={r.id} value={String(r.nama ?? r.kode)}>
-                      {String(r.nama ?? r.label ?? r.kode)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          <form id="form_tambah_dokumen_wajib" onSubmit={onTambah} className="flex flex-col gap-3">
+            <FieldGroup className="gap-3">
+              <Field>
+                <FieldLabel htmlFor="select_jenis_dokumen_wajib">Jenis dokumen</FieldLabel>
+                <Select value={jenisBaru} onValueChange={setJenisBaru}>
+                  <SelectTrigger id="select_jenis_dokumen_wajib" className="w-full">
+                    <SelectValue placeholder="Pilih jenis" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {jenis.map((r) => (
+                        <SelectItem key={r.id} value={String(r.nama ?? r.kode)}>
+                          {String(r.nama ?? r.label ?? r.kode)}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </Field>
+            </FieldGroup>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setTambahOpen(false)}>Batal</Button>
               <Button id="btn_tambah_dokumen_wajib" type="submit" disabled={busy || !jenisBaru}>Simpan</Button>

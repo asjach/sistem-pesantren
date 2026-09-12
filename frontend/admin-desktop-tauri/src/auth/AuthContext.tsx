@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { me, type Me } from '../api/auth';
-import { getToken, clearSession } from '../api/client';
+import { isDesktopRoleAllowed, me, type Me } from '../api/auth';
+import { AUTH_EXPIRED_EVENT, getToken, clearSession } from '../api/client';
 
 interface AuthState {
   user: Me | null;
@@ -22,7 +22,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
       try {
-        setUser(await me());
+        const u = await me();
+        // Sesi lama milik peran portal (orang_tua/santri) tidak boleh dipakai.
+        if (!isDesktopRoleAllowed(u)) {
+          await clearSession();
+          setUser(null);
+          return;
+        }
+        setUser(u);
       } catch {
         await clearSession();
         setUser(null);
@@ -30,6 +37,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setLoading(false);
       }
     })();
+  }, []);
+
+  // 401 dari request mana pun (api/apiUpload/downloadFile) → keluar ke login.
+  useEffect(() => {
+    const onExpired = () => setUser(null);
+    window.addEventListener(AUTH_EXPIRED_EVENT, onExpired);
+    return () => window.removeEventListener(AUTH_EXPIRED_EVENT, onExpired);
   }, []);
 
   async function logoutLocal() {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   createReferensi,
   deleteReferensi,
@@ -14,11 +14,13 @@ import { errorMessage } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field';
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
@@ -27,6 +29,7 @@ import PageHeader, { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -35,6 +38,9 @@ import { DeleteAction, EditAction } from '@/components/RowActions';
 import { toast } from 'sonner';
 
 const STATUS_TIPE = ['status_awal', 'status_akhir'];
+
+const NOOP = () => {};
+async function noopCommit() {}
 
 /** Nilai tampil baris: kamus bebas pakai `nama`, status pakai `label`/`kode`. */
 function rowText(r: ReferensiRow): string {
@@ -52,7 +58,7 @@ export default function ReferensiPage() {
   const { user: me } = useAuth();
   const isSuper = !!me?.roles.some((r) => r.name === 'super_admin');
   const canManage = !!me?.roles.some((r) => r.name === 'super_admin' || r.name === 'admin');
-  const myLembagaIds = me?.lembagas?.map((l) => l.id) ?? [];
+  const myLembagaIds = useMemo(() => me?.lembagas?.map((l) => l.id) ?? [], [me]);
   const adminFull = canManage && !isSuper && myLembagaIds.length === 0;
 
   const [types, setTypes] = useState<string[]>([]);
@@ -106,46 +112,55 @@ export default function ReferensiPage() {
     return () => { alive = false; };
   }, [tipe, lembagaId, tick]);
 
-  function reload() {
+  const reload = useCallback(() => {
     setTick((t) => t + 1);
-  }
+  }, []);
 
-  function lembagaName(id: number | null): string {
+  const lembagaName = useCallback((id: number | null): string => {
     if (id === null) return 'Global';
     return lembagas.find((l) => l.id === id)?.nama ?? `Lembaga #${id}`;
-  }
+  }, [lembagas]);
 
-  const canAccessRow = (lid: number | null) =>
-    isSuper || adminFull || (lid !== null && myLembagaIds.includes(lid));
-  const canUbahRow = (r: ReferensiRow) =>
-    r.lembaga_id === null ? isSuper : canAccessRow(r.lembaga_id);
-  const canNonaktifRow = (r: ReferensiRow) =>
-    r.lembaga_id === null ? canManage && lembagaId !== '' : canAccessRow(r.lembaga_id);
+  const canAccessRow = useCallback(
+    (lid: number | null) =>
+      isSuper || adminFull || (lid !== null && myLembagaIds.includes(lid)),
+    [isSuper, adminFull, myLembagaIds],
+  );
+  const canUbahRow = useCallback(
+    (r: ReferensiRow) => (r.lembaga_id === null ? isSuper : canAccessRow(r.lembaga_id)),
+    [isSuper, canAccessRow],
+  );
+  const canNonaktifRow = useCallback(
+    (r: ReferensiRow) =>
+      r.lembaga_id === null ? canManage && lembagaId !== '' : canAccessRow(r.lembaga_id),
+    [canManage, lembagaId, canAccessRow],
+  );
 
-  const fields: ExcelField[] = isStatus
-    ? [
-        { key: 'kode', label: 'Kode', width: 150, kind: 'static' },
-        { key: 'label', label: 'Label', width: 200, kind: 'static' },
-        { key: 'urutan', label: 'Urutan', width: 80, kind: 'static' },
-        ...(isStatusAkhir ? [{ key: 'sifat', label: 'Sifat', width: 170, kind: 'static' as const }] : []),
-        { key: 'sumber', label: 'Sumber', width: 170, kind: 'static' },
-      ]
-    : [
-        { key: 'nama', label: 'Nama', width: 220, kind: 'static' },
-        { key: 'urutan', label: 'Urutan', width: 80, kind: 'static' },
-        { key: 'sumber', label: 'Sumber', width: 170, kind: 'static' },
-      ];
+  const fields = useMemo<ExcelField[]>(
+    () => isStatus
+      ? [
+          { key: 'kode', label: 'Kode', width: 150, kind: 'static' },
+          { key: 'label', label: 'Label', width: 200, kind: 'static' },
+          { key: 'urutan', label: 'Urutan', width: 80, kind: 'static' },
+          ...(isStatusAkhir ? [{ key: 'sifat', label: 'Sifat', width: 170, kind: 'static' as const }] : []),
+          { key: 'sumber', label: 'Sumber', width: 170, kind: 'static' },
+        ]
+      : [
+          { key: 'nama', label: 'Nama', width: 220, kind: 'static' },
+          { key: 'urutan', label: 'Urutan', width: 80, kind: 'static' },
+          { key: 'sumber', label: 'Sumber', width: 170, kind: 'static' },
+        ],
+    [isStatus, isStatusAkhir],
+  );
 
-  function gridValues(r: ReferensiRow): Record<string, string | null> {
-    return {
-      nama: r.nama ?? null,
-      kode: r.kode ?? null,
-      label: r.label ?? null,
-      urutan: String(r.urutan ?? 0),
-      sifat: sifatOf(r),
-      sumber: lembagaName(r.lembaga_id),
-    };
-  }
+  const gridValues = useCallback((r: ReferensiRow): Record<string, string | null> => ({
+    nama: r.nama ?? null,
+    kode: r.kode ?? null,
+    label: r.label ?? null,
+    urutan: String(r.urutan ?? 0),
+    sifat: sifatOf(r),
+    sumber: lembagaName(r.lembaga_id),
+  }), [lembagaName]);
 
   const q = search.trim().toLowerCase();
   const visibleRows = q
@@ -154,16 +169,16 @@ export default function ReferensiPage() {
       )
     : rows;
 
-  function openTambah() {
+  const openTambah = useCallback(() => {
     setFNama(''); setFKode(''); setFLabel(''); setFUrutan('0');
     const fallback = lembagaId !== ''
       ? String(lembagaId)
       : (isSuper ? '_global' : (lembagas[0] ? String(lembagas[0].id) : ''));
     setScope(fallback);
     setTambahOpen(true);
-  }
+  }, [lembagaId, isSuper, lembagas]);
 
-  async function onCreate(e: React.FormEvent) {
+  const onCreate = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isSuper && scope === '_global') {
       setErr('Pilih lembaga dulu.');
@@ -189,16 +204,16 @@ export default function ReferensiPage() {
     } finally {
       setSubmitting(false);
     }
-  }
+  }, [isSuper, scope, fUrutan, isStatus, fKode, fLabel, fNama, tipe, reload]);
 
-  function openEdit(r: ReferensiRow) {
+  const openEdit = useCallback((r: ReferensiRow) => {
     setEditRow(r);
     setENama(r.nama ?? '');
     setELabel(r.label ?? '');
     setEUrutan(String(r.urutan ?? 0));
-  }
+  }, []);
 
-  async function onUpdate() {
+  const onUpdate = useCallback(async () => {
     if (!editRow) return;
     setErr('');
     setSubmitting(true);
@@ -217,9 +232,9 @@ export default function ReferensiPage() {
     } finally {
       setSubmitting(false);
     }
-  }
+  }, [editRow, isStatus, tipe, eLabel, eNama, eUrutan, reload]);
 
-  async function onDelete(r: ReferensiRow) {
+  const onDelete = useCallback(async (r: ReferensiRow) => {
     // Baris global: nonaktif per lembaga (shadow) — butuh konteks lembaga terpilih.
     const lid = r.lembaga_id === null && lembagaId !== '' ? Number(lembagaId) : undefined;
     try {
@@ -229,7 +244,28 @@ export default function ReferensiPage() {
     } catch (e) {
       setErr(errorMessage(e));
     }
-  }
+  }, [tipe, lembagaId, reload]);
+
+  const renderActions = useCallback((r: ReferensiRow) => {
+    const bolehUbah = canUbahRow(r);
+    const bolehNonaktif = canNonaktifRow(r);
+    if (!bolehUbah && !bolehNonaktif) return null;
+    return (
+      <>
+        {bolehUbah && <EditAction id={`btn_ubah_referensi_${r.id}`} onClick={() => openEdit(r)} />}
+        {bolehNonaktif && (
+          <DeleteAction
+            id={`btn_hapus_referensi_${r.id}`}
+            title="Nonaktifkan entri?"
+            description={r.lembaga_id === null
+              ? `"${rowText(r)}" tidak akan tampil untuk ${lembagaName(Number(lembagaId))}. Baris global tetap berlaku di lembaga lain.`
+              : `"${rowText(r)}" tidak akan tampil lagi di daftar efektif.`}
+            onConfirm={() => onDelete(r)}
+          />
+        )}
+      </>
+    );
+  }, [canUbahRow, canNonaktifRow, openEdit, onDelete, lembagaName, lembagaId]);
 
   return (
     <div className={PAGE_SHELL}>
@@ -244,33 +280,39 @@ export default function ReferensiPage() {
         loading={loading}
         emptyText="Belum ada entri."
         canEdit={false}
-        onCommit={async () => {}}
+        onCommit={noopCommit}
         onSaved={reload}
         searchValue={search}
         onSearchChange={setSearch}
-        onSearchSubmit={() => {}}
+        onSearchSubmit={NOOP}
         searchPlaceholder={isStatus ? 'Kode / label' : 'Nama'}
         searchIds={{ form: 'form_cari_referensi', input: 'input_cari_referensi', button: 'btn_cari_referensi' }}
         filter={(
           <>
             <Select value={tipe} onValueChange={(v) => { setTipe(v); setSearch(''); }}>
-              <SelectTrigger id="select_tipe" title="Tipe kamus" aria-label="Tipe kamus" className="h-8 w-44">
+              <SelectTrigger id="select_tipe" title="Tipe kamus" aria-label="Tipe kamus" size="sm" className="w-44">
                 <SelectValue placeholder="Pilih tipe" />
               </SelectTrigger>
               <SelectContent>
-                {types.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                <SelectGroup>
+                  {types.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                </SelectGroup>
               </SelectContent>
             </Select>
             <Select
               value={lembagaId === '' ? '_global' : String(lembagaId)}
               onValueChange={(v) => setLembagaId(v === '_global' ? '' : Number(v))}
             >
-              <SelectTrigger id="select_lembaga_referensi" title="Filter lembaga" aria-label="Filter lembaga" className="h-8 w-40">
+              <SelectTrigger id="select_lembaga_referensi" title="Filter lembaga" aria-label="Filter lembaga" size="sm" className="w-40">
                 <SelectValue placeholder="Semua" />
               </SelectTrigger>
               <SelectContent>
-                {isSuper && <SelectItem value="_global">Global (bawaan)</SelectItem>}
-                {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.nama}</SelectItem>)}
+                <SelectGroup>
+                  {isSuper && <SelectLabel>Global</SelectLabel>}
+                  {isSuper && <SelectItem value="_global">Global (bawaan)</SelectItem>}
+                  <SelectLabel>Per lembaga</SelectLabel>
+                  {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.nama}</SelectItem>)}
+                </SelectGroup>
               </SelectContent>
             </Select>
           </>
@@ -280,89 +322,77 @@ export default function ReferensiPage() {
             + Entri
           </Button>
         )}
-        renderActions={(r) => {
-          const bolehUbah = canUbahRow(r);
-          const bolehNonaktif = canNonaktifRow(r);
-          if (!bolehUbah && !bolehNonaktif) return null;
-          return (
-            <>
-              {bolehUbah && <EditAction id={`btn_ubah_referensi_${r.id}`} onClick={() => openEdit(r)} />}
-              {bolehNonaktif && (
-                <DeleteAction
-                  id={`btn_hapus_referensi_${r.id}`}
-                  title="Nonaktifkan entri?"
-                  description={r.lembaga_id === null
-                    ? `"${rowText(r)}" tidak akan tampil untuk ${lembagaName(Number(lembagaId))}. Baris global tetap berlaku di lembaga lain.`
-                    : `"${rowText(r)}" tidak akan tampil lagi di daftar efektif.`}
-                  onConfirm={() => onDelete(r)}
-                />
-              )}
-            </>
-          );
-        }}
+        renderActions={renderActions}
       />
       <Dialog open={tambahOpen} onOpenChange={setTambahOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Tambah entri referensi</DialogTitle>
+            <DialogDescription className="sr-only">Formulir penambahan entri referensi.</DialogDescription>
           </DialogHeader>
-          <form id="form_tambah_referensi" onSubmit={onCreate} className="space-y-3">
-            <div className="grid gap-1.5">
-              <Label htmlFor="select_scope_referensi">Lembaga</Label>
-              <Select value={scope} onValueChange={setScope}>
-                <SelectTrigger id="select_scope_referensi" className="w-full">
-                  <SelectValue placeholder="Pilih lembaga" />
-                </SelectTrigger>
-                <SelectContent>
-                  {isSuper && <SelectItem value="_global">Global (bawaan sistem)</SelectItem>}
-                  {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.nama}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            {isStatus ? (
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="grid gap-1.5">
-                  <Label htmlFor="input_kode_referensi">Kode</Label>
+          <form id="form_tambah_referensi" onSubmit={onCreate} className="flex flex-col gap-3">
+            <FieldGroup className="gap-3">
+              <Field>
+                <FieldLabel htmlFor="select_scope_referensi">Lembaga</FieldLabel>
+                <Select value={scope} onValueChange={setScope}>
+                  <SelectTrigger id="select_scope_referensi" className="w-full">
+                    <SelectValue placeholder="Pilih lembaga" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {isSuper && <SelectLabel>Global</SelectLabel>}
+                      {isSuper && <SelectItem value="_global">Global (bawaan sistem)</SelectItem>}
+                      <SelectLabel>Per lembaga</SelectLabel>
+                      {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.nama}</SelectItem>)}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </Field>
+              {isStatus ? (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Field>
+                    <FieldLabel htmlFor="input_kode_referensi">Kode</FieldLabel>
+                    <Input
+                      id="input_kode_referensi"
+                      value={fKode}
+                      onChange={(e) => setFKode(e.target.value)}
+                      required
+                      maxLength={50}
+                      placeholder="cuti_panjang"
+                    />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="input_label_referensi">Label</FieldLabel>
+                    <Input
+                      id="input_label_referensi"
+                      value={fLabel}
+                      onChange={(e) => setFLabel(e.target.value)}
+                      maxLength={100}
+                      placeholder="Cuti Panjang"
+                    />
+                  </Field>
+                </div>
+              ) : (
+                <Field>
+                  <FieldLabel htmlFor="input_nama_referensi">Nama</FieldLabel>
                   <Input
-                    id="input_kode_referensi"
-                    value={fKode}
-                    onChange={(e) => setFKode(e.target.value)}
+                    id="input_nama_referensi"
+                    value={fNama}
+                    onChange={(e) => setFNama(e.target.value)}
                     required
-                    maxLength={50}
-                    placeholder="cuti_panjang"
                   />
-                </div>
-                <div className="grid gap-1.5">
-                  <Label htmlFor="input_label_referensi">Label</Label>
-                  <Input
-                    id="input_label_referensi"
-                    value={fLabel}
-                    onChange={(e) => setFLabel(e.target.value)}
-                    maxLength={100}
-                    placeholder="Cuti Panjang"
-                  />
-                </div>
-              </div>
-            ) : (
-              <div className="grid gap-1.5">
-                <Label htmlFor="input_nama_referensi">Nama</Label>
+                </Field>
+              )}
+              <Field>
+                <FieldLabel htmlFor="input_urutan_referensi">Urutan</FieldLabel>
                 <Input
-                  id="input_nama_referensi"
-                  value={fNama}
-                  onChange={(e) => setFNama(e.target.value)}
-                  required
+                  id="input_urutan_referensi"
+                  type="number"
+                  value={fUrutan}
+                  onChange={(e) => setFUrutan(e.target.value)}
                 />
-              </div>
-            )}
-            <div className="grid gap-1.5">
-              <Label htmlFor="input_urutan_referensi">Urutan</Label>
-              <Input
-                id="input_urutan_referensi"
-                type="number"
-                value={fUrutan}
-                onChange={(e) => setFUrutan(e.target.value)}
-              />
-            </div>
+              </Field>
+            </FieldGroup>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setTambahOpen(false)}>Batal</Button>
               <Button id="btn_simpan_tambah_referensi" type="submit" disabled={submitting}>Tambah</Button>
@@ -374,16 +404,17 @@ export default function ReferensiPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Ubah entri referensi</DialogTitle>
+            <DialogDescription className="sr-only">Formulir perubahan entri referensi.</DialogDescription>
           </DialogHeader>
-          <div className="grid gap-3">
+          <FieldGroup className="gap-3">
             {isStatus ? (
               <>
-                <div className="grid gap-1.5">
-                  <Label htmlFor="input_kode_referensi_ubah">Kode (tidak dapat diubah)</Label>
+                <Field>
+                  <FieldLabel htmlFor="input_kode_referensi_ubah">Kode (tidak dapat diubah)</FieldLabel>
                   <Input id="input_kode_referensi_ubah" value={editRow?.kode ?? ''} readOnly disabled />
-                </div>
-                <div className="grid gap-1.5">
-                  <Label htmlFor="input_label_referensi_ubah">Label</Label>
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="input_label_referensi_ubah">Label</FieldLabel>
                   <Input
                     id="input_label_referensi_ubah"
                     value={eLabel}
@@ -391,32 +422,32 @@ export default function ReferensiPage() {
                     required
                     maxLength={100}
                   />
-                </div>
+                </Field>
               </>
             ) : (
-              <div className="grid gap-1.5">
-                <Label htmlFor="input_nama_referensi_ubah">Nama</Label>
+              <Field>
+                <FieldLabel htmlFor="input_nama_referensi_ubah">Nama</FieldLabel>
                 <Input
                   id="input_nama_referensi_ubah"
                   value={eNama}
                   onChange={(e) => setENama(e.target.value)}
                   required
                 />
-                <p className="text-xs text-muted-foreground">
+                <FieldDescription>
                   Mengubah nama tidak mengubah data lama yang sudah memakainya (kamus saran).
-                </p>
-              </div>
+                </FieldDescription>
+              </Field>
             )}
-            <div className="grid gap-1.5">
-              <Label htmlFor="input_urutan_referensi_ubah">Urutan</Label>
+            <Field>
+              <FieldLabel htmlFor="input_urutan_referensi_ubah">Urutan</FieldLabel>
               <Input
                 id="input_urutan_referensi_ubah"
                 type="number"
                 value={eUrutan}
                 onChange={(e) => setEUrutan(e.target.value)}
               />
-            </div>
-          </div>
+            </Field>
+          </FieldGroup>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditRow(null)}>Batal</Button>
             <Button

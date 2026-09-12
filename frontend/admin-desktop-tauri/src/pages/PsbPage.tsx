@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { errorMessage } from '../api/client';
 import {
   accCalon,
@@ -23,12 +23,13 @@ import { listLembaga, type Lembaga } from '../api/master';
 import type { DokumenSantri } from '../api/santri';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -69,6 +70,34 @@ const STAGES: { id: string; label: string; statuses: string[] }[] = [
   { id: 'ditolak', label: 'Mengundurkan Diri / Ditolak', statuses: ['ditolak', 'tidak_lolos'] },
 ];
 
+const PSB_FIELDS: ExcelField[] = [
+  { key: 'no', label: 'No. pendaftaran', width: 190, kind: 'static' },
+  { key: 'nama', label: 'Nama', width: 200, kind: 'static' },
+  { key: 'nik', label: 'NIK', width: 160, kind: 'static' },
+  { key: 'tipe', label: 'Tipe', width: 110, kind: 'static' },
+  { key: 'lembaga', label: 'Lembaga', width: 180, kind: 'static' },
+  { key: 'gelombang', label: 'Gelombang', width: 140, kind: 'static' },
+  { key: 'paket', label: 'Paket', width: 120, kind: 'static' },
+  { key: 'status', label: 'Status', width: 150, kind: 'static' },
+  { key: 'daftar', label: 'Tgl daftar', width: 110, kind: 'static' },
+];
+
+const BOLEH_TOLAK = ['baru', 'terverifikasi', 'lolos', 'pemberkasan', 'ajukan_daftar_ulang', 'waiting_list'];
+
+function psbGridValues(c: PsbCalon): Record<string, string | null> {
+  return {
+    no: c.no_pendaftaran,
+    nama: c.nama_lengkap,
+    nik: c.nik,
+    tipe: c.tipe_santri,
+    lembaga: c.lembaga_tujuan?.nama ?? String(c.lembaga_id),
+    gelombang: c.gelombang?.nama ?? String(c.gelombang_id),
+    paket: c.paket_grup_id ? c.paket_grup_id : null,
+    status: c.status_pendaftaran,
+    daftar: c.tanggal_daftar,
+  };
+}
+
 // 100 PSB: antrean per tahapan timeline + verifikasi/seleksi/ACC/tolak/promosi + dokumen + import.
 export default function PsbPage() {
   const [lembagas, setLembagas] = useState<Lembaga[]>([]);
@@ -78,6 +107,10 @@ export default function PsbPage() {
   const [lembagaId, setLembagaId] = useState('');
   const [rows, setRows] = useState<PsbCalon[]>([]);
   const pager = usePager('psb');
+  const reqRef = useRef(0);
+  const lembagaReqRef = useRef(0);
+  const gelombangReqRef = useRef(0);
+  const dokumenReqRef = useRef(0);
   const [lastPage, setLastPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -115,61 +148,43 @@ export default function PsbPage() {
   const [tfPindahan, setTfPindahan] = useState(false);
   const [tfTingkat, setTfTingkat] = useState('');
 
-  const fields: ExcelField[] = [
-    { key: 'no', label: 'No. pendaftaran', width: 190, kind: 'static' },
-    { key: 'nama', label: 'Nama', width: 200, kind: 'static' },
-    { key: 'nik', label: 'NIK', width: 160, kind: 'static' },
-    { key: 'tipe', label: 'Tipe', width: 110, kind: 'static' },
-    { key: 'lembaga', label: 'Lembaga', width: 180, kind: 'static' },
-    { key: 'gelombang', label: 'Gelombang', width: 140, kind: 'static' },
-    { key: 'paket', label: 'Paket', width: 120, kind: 'static' },
-    { key: 'status', label: 'Status', width: 150, kind: 'static' },
-    { key: 'daftar', label: 'Tgl daftar', width: 110, kind: 'static' },
-  ];
+  const getValues = useCallback(psbGridValues, []);
 
-  function gridValues(c: PsbCalon): Record<string, string | null> {
-    return {
-      no: c.no_pendaftaran,
-      nama: c.nama_lengkap,
-      nik: c.nik,
-      tipe: c.tipe_santri,
-      lembaga: c.lembaga_tujuan?.nama ?? String(c.lembaga_id),
-      gelombang: c.gelombang?.nama ?? String(c.gelombang_id),
-      paket: c.paket_grup_id ? c.paket_grup_id : null,
-      status: c.status_pendaftaran,
-      daftar: c.tanggal_daftar,
-    };
-  }
-
-  async function load(p = pager.page, pp = pager.perPage) {
-    setErr('');
-    setLoading(true);
-    try {
-      const stageDef = STAGES.find((s) => s.id === stage);
-      let statuses = stageDef?.statuses ?? [];
-      // Tahap Pendaftar dipisah: baru vs waiting_list.
-      if (stage === 'pendaftar' && subStatus) statuses = [subStatus];
-      const res = await listAntrean({
-        status: statuses.join(','),
-        lembaga_id: lembagaId ? Number(lembagaId) : undefined,
-        page: p,
-        per_page: pp,
-      });
-      const fix = pager.sync(res.data.current_page, res.data.last_page);
-      if (fix != null && fix !== p) {
-        await load(fix, pp);
-        return;
+  const load = useCallback(
+    async function loadPage(p = pager.page, pp = pager.perPage) {
+      const req = ++reqRef.current;
+      setErr('');
+      setLoading(true);
+      try {
+        const stageDef = STAGES.find((s) => s.id === stage);
+        let statuses = stageDef?.statuses ?? [];
+        // Tahap Pendaftar dipisah: baru vs waiting_list.
+        if (stage === 'pendaftar' && subStatus) statuses = [subStatus];
+        const res = await listAntrean({
+          status: statuses.join(','),
+          lembaga_id: lembagaId ? Number(lembagaId) : undefined,
+          page: p,
+          per_page: pp,
+        });
+        if (req !== reqRef.current) return;
+        const fix = pager.sync(res.data.current_page, res.data.last_page);
+        if (fix != null && fix !== p) {
+          await loadPage(fix, pp);
+          return;
+        }
+        if (req !== reqRef.current) return;
+        setRows(res.data.data);
+        setBadge(res.badge ?? {});
+        setLastPage(res.data.last_page);
+        setTotal(res.data.total);
+      } catch (e) {
+        if (req === reqRef.current) setErr(errorMessage(e));
+      } finally {
+        if (req === reqRef.current) setLoading(false);
       }
-      setRows(res.data.data);
-      setBadge(res.badge ?? {});
-      setLastPage(res.data.last_page);
-      setTotal(res.data.total);
-    } catch (e) {
-      setErr(errorMessage(e));
-    } finally {
-      setLoading(false);
-    }
-  }
+    },
+    [pager.page, pager.perPage, pager.sync, stage, subStatus, lembagaId],
+  );
 
   useEffect(() => {
     if (pager.ready) load(pager.page);
@@ -177,8 +192,23 @@ export default function PsbPage() {
   }, [pager.ready, stage, subStatus, lembagaId]);
 
   useEffect(() => {
-    listLembaga({ per_page: 100 }).then((p) => setLembagas(p.data)).catch((e) => setErr(errorMessage(e)));
-    listGelombangPsb().then((r) => setGelombangs(r.data)).catch(() => {});
+    const lembagaReq = ++lembagaReqRef.current;
+    listLembaga({ per_page: 100 })
+      .then((p) => {
+        if (lembagaReq !== lembagaReqRef.current) return;
+        setLembagas(p.data);
+      })
+      .catch((e) => {
+        if (lembagaReq !== lembagaReqRef.current) return;
+        setErr(errorMessage(e));
+      });
+    const gelombangReq = ++gelombangReqRef.current;
+    listGelombangPsb()
+      .then((r) => {
+        if (gelombangReq !== gelombangReqRef.current) return;
+        setGelombangs(r.data);
+      })
+      .catch(() => {});
   }, []);
 
   function resetTambah() {
@@ -220,7 +250,7 @@ export default function PsbPage() {
     }
   }
 
-  async function run(fn: () => Promise<{ pesan?: string }>, sukses: string) {
+  const run = useCallback(async (fn: () => Promise<{ pesan?: string }>, sukses: string) => {
     setBusy(true);
     setErr('');
     try {
@@ -232,18 +262,21 @@ export default function PsbPage() {
     } finally {
       setBusy(false);
     }
-  }
+  }, [load]);
 
-  async function openDokumen(c: PsbCalon) {
+  const openDokumen = useCallback(async (c: PsbCalon) => {
+    const reqId = ++dokumenReqRef.current;
     setDokRow(c);
     setDokumen([]);
     try {
       const res = await listDokumenCalon(c.id);
+      if (reqId !== dokumenReqRef.current) return;
       setDokumen(res.data);
     } catch (e) {
+      if (reqId !== dokumenReqRef.current) return;
       setErr(errorMessage(e));
     }
-  }
+  }, []);
 
   async function onSeleksi(e: React.FormEvent) {
     e.preventDefault();
@@ -300,7 +333,62 @@ export default function PsbPage() {
     }
   }
 
-  const bolehTolak = ['baru', 'terverifikasi', 'lolos', 'pemberkasan', 'ajukan_daftar_ulang', 'waiting_list'];
+  const onSaved = useCallback(() => load(), [load]);
+  const onCommit = useCallback(async () => {}, []);
+
+  const renderActions = useCallback((c: PsbCalon) => {
+    const paket = !!c.paket_grup_id;
+    return (
+      <>
+        {c.status_pendaftaran === 'baru' && (
+          paket ? (
+            <ActionIcon id={`btn_verifikasi_paket_${c.id}`} title="Verifikasi paket (grup)" onClick={() => run(() => verifikasiPaket(c.paket_grup_id as string), 'Paket terverifikasi.')}>
+              <PackageCheck size={16} />
+            </ActionIcon>
+          ) : (
+            <ActionIcon id={`btn_verifikasi_psb_${c.id}`} title="Verifikasi" onClick={() => run(() => verifikasiCalon(c.id), 'Calon terverifikasi.')}>
+              <CheckCircle2 size={16} />
+            </ActionIcon>
+          )
+        )}
+        {c.status_pendaftaran === 'terverifikasi' && !paket && (
+          <ActionIcon id={`btn_seleksi_psb_${c.id}`} title="Seleksi" onClick={() => { setSeleksiRow(c); setSeleksiLolos('lolos'); }}>
+            <Gavel size={16} />
+          </ActionIcon>
+        )}
+        {c.status_pendaftaran === 'waiting_list' && (
+          <ActionIcon id={`btn_promosi_psb_${c.id}`} title="Promosi dari waiting list" onClick={() => run(() => promosiCalon(c.id), 'Calon dipromosikan.')}>
+            <UserCheck size={16} />
+          </ActionIcon>
+        )}
+        {c.status_pendaftaran === 'ajukan_daftar_ulang' && (
+          paket ? (
+            <ActionIcon id={`btn_acc_paket_${c.id}`} title="ACC paket (grup)" onClick={() => run(() => accPaket(c.paket_grup_id as string), 'Paket disetujui.')}>
+              <PackageCheck size={16} />
+            </ActionIcon>
+          ) : (
+            <ActionIcon id={`btn_acc_psb_${c.id}`} title="ACC daftar ulang" onClick={() => run(() => accCalon(c.id), 'Daftar ulang disetujui (santri dibuat).')}>
+              <BadgeCheck size={16} />
+            </ActionIcon>
+          )
+        )}
+        {BOLEH_TOLAK.includes(c.status_pendaftaran) && (
+          paket ? (
+            <ActionIcon id={`btn_tolak_paket_${c.id}`} title="Tolak paket (grup)" onClick={() => run(() => tolakPaket(c.paket_grup_id as string), 'Paket ditolak.')}>
+              <PackageX size={16} />
+            </ActionIcon>
+          ) : (
+            <ActionIcon id={`btn_tolak_psb_${c.id}`} title="Tolak" onClick={() => { setTolakRow(c); setTolakCatatan(''); }}>
+              <XCircle size={16} />
+            </ActionIcon>
+          )
+        )}
+        <ActionIcon id={`btn_dokumen_psb_${c.id}`} title="Dokumen" onClick={() => openDokumen(c)}>
+          <FolderOpen size={16} />
+        </ActionIcon>
+      </>
+    );
+  }, [run, openDokumen]);
 
   return (
     <div className={PAGE_SHELL}>
@@ -318,6 +406,7 @@ export default function PsbPage() {
               <button
                 id={`stage_psb_${s.id}`}
                 type="button"
+                aria-pressed={aktif}
                 onClick={() => { setStage(s.id); setSubStatus(''); pager.goFirst(); }}
                 className={cn(
                   'flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition-colors',
@@ -338,14 +427,14 @@ export default function PsbPage() {
 
       <ExcelTable
         tableKey="psb"
-        fields={fields}
+        fields={PSB_FIELDS}
         rows={rows}
-        getValues={gridValues}
+        getValues={getValues}
         loading={loading}
         emptyText="Tidak ada calon pada tahap ini."
         canEdit={false}
-        onCommit={async () => {}}
-        onSaved={() => load()}
+        onCommit={onCommit}
+        onSaved={onSaved}
         filter={(
           <>
             {stage === 'pendaftar' && (
@@ -353,23 +442,27 @@ export default function PsbPage() {
                 value={subStatus === '' ? '_semua' : subStatus}
                 onValueChange={(v) => { setSubStatus(v === '_semua' ? '' : v); pager.goFirst(); }}
               >
-                <SelectTrigger id="select_substatus_pendaftar" title="Filter status pendaftar" aria-label="Filter status pendaftar" className="h-8 w-44">
+                <SelectTrigger id="select_substatus_pendaftar" title="Filter status pendaftar" aria-label="Filter status pendaftar" size="sm" className="w-44">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="_semua">Semua pendaftar</SelectItem>
-                  <SelectItem value="baru">Baru</SelectItem>
-                  <SelectItem value="waiting_list">Waiting list</SelectItem>
+                  <SelectGroup>
+                    <SelectItem value="_semua">Semua pendaftar</SelectItem>
+                    <SelectItem value="baru">Baru</SelectItem>
+                    <SelectItem value="waiting_list">Waiting list</SelectItem>
+                  </SelectGroup>
                 </SelectContent>
               </Select>
             )}
             <Select value={lembagaId === '' ? '_semua' : lembagaId} onValueChange={(v) => { setLembagaId(v === '_semua' ? '' : v); pager.goFirst(); }}>
-              <SelectTrigger id="select_lembaga_psb" title="Filter lembaga" aria-label="Filter lembaga" className="h-8 w-40">
+              <SelectTrigger id="select_lembaga_psb" title="Filter lembaga" aria-label="Filter lembaga" size="sm" className="w-40">
                 <SelectValue placeholder="Semua" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="_semua">Semua lembaga</SelectItem>
-                {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.nama}</SelectItem>)}
+                <SelectGroup>
+                  <SelectItem value="_semua">Semua lembaga</SelectItem>
+                  {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.nama}</SelectItem>)}
+                </SelectGroup>
               </SelectContent>
             </Select>
           </>
@@ -384,63 +477,11 @@ export default function PsbPage() {
               + Pendaftar
             </Button>
             <Button id="btn_buka_import_psb" onClick={() => setImportOpen(true)}>
-              <Upload size={16} /> Import
+              <Upload data-icon="inline-start" size={16} /> Import
             </Button>
           </>
         ) : undefined}
-        renderActions={(c) => {
-          const paket = !!c.paket_grup_id;
-          return (
-            <>
-              {c.status_pendaftaran === 'baru' && (
-                paket ? (
-                  <ActionIcon id={`btn_verifikasi_paket_${c.id}`} title="Verifikasi paket (grup)" onClick={() => run(() => verifikasiPaket(c.paket_grup_id as string), 'Paket terverifikasi.')}>
-                    <PackageCheck size={16} />
-                  </ActionIcon>
-                ) : (
-                  <ActionIcon id={`btn_verifikasi_psb_${c.id}`} title="Verifikasi" onClick={() => run(() => verifikasiCalon(c.id), 'Calon terverifikasi.')}>
-                    <CheckCircle2 size={16} />
-                  </ActionIcon>
-                )
-              )}
-              {c.status_pendaftaran === 'terverifikasi' && !paket && (
-                <ActionIcon id={`btn_seleksi_psb_${c.id}`} title="Seleksi" onClick={() => { setSeleksiRow(c); setSeleksiLolos('lolos'); }}>
-                  <Gavel size={16} />
-                </ActionIcon>
-              )}
-              {c.status_pendaftaran === 'waiting_list' && (
-                <ActionIcon id={`btn_promosi_psb_${c.id}`} title="Promosi dari waiting list" onClick={() => run(() => promosiCalon(c.id), 'Calon dipromosikan.')}>
-                  <UserCheck size={16} />
-                </ActionIcon>
-              )}
-              {c.status_pendaftaran === 'ajukan_daftar_ulang' && (
-                paket ? (
-                  <ActionIcon id={`btn_acc_paket_${c.id}`} title="ACC paket (grup)" onClick={() => run(() => accPaket(c.paket_grup_id as string), 'Paket disetujui.')}>
-                    <PackageCheck size={16} />
-                  </ActionIcon>
-                ) : (
-                  <ActionIcon id={`btn_acc_psb_${c.id}`} title="ACC daftar ulang" onClick={() => run(() => accCalon(c.id), 'Daftar ulang disetujui (santri dibuat).')}>
-                    <BadgeCheck size={16} />
-                  </ActionIcon>
-                )
-              )}
-              {bolehTolak.includes(c.status_pendaftaran) && (
-                paket ? (
-                  <ActionIcon id={`btn_tolak_paket_${c.id}`} title="Tolak paket (grup)" onClick={() => run(() => tolakPaket(c.paket_grup_id as string), 'Paket ditolak.')}>
-                    <PackageX size={16} />
-                  </ActionIcon>
-                ) : (
-                  <ActionIcon id={`btn_tolak_psb_${c.id}`} title="Tolak" onClick={() => { setTolakRow(c); setTolakCatatan(''); }}>
-                    <XCircle size={16} />
-                  </ActionIcon>
-                )
-              )}
-              <ActionIcon id={`btn_dokumen_psb_${c.id}`} title="Dokumen" onClick={() => openDokumen(c)}>
-                <FolderOpen size={16} />
-              </ActionIcon>
-            </>
-          );
-        }}
+        renderActions={renderActions}
       />
       <Pager
         page={pager.page}
@@ -457,23 +498,27 @@ export default function PsbPage() {
             <DialogTitle>Seleksi: {seleksiRow?.nama_lengkap}</DialogTitle>
             <DialogDescription>Gelombang jalur seleksi — hasil langsung lolos/tidak lolos.</DialogDescription>
           </DialogHeader>
-          <form id="form_seleksi_psb" onSubmit={onSeleksi} className="space-y-3">
-            <div className="grid gap-1.5">
-              <Label htmlFor="select_hasil_seleksi">Hasil</Label>
-              <Select value={seleksiLolos} onValueChange={setSeleksiLolos}>
-                <SelectTrigger id="select_hasil_seleksi" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="lolos">Lolos</SelectItem>
-                  <SelectItem value="tidak_lolos">Tidak lolos</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="input_catatan_seleksi">Catatan (opsional)</Label>
-              <Input id="input_catatan_seleksi" value={seleksiCatatan} onChange={(e) => setSeleksiCatatan(e.target.value)} />
-            </div>
+          <form id="form_seleksi_psb" onSubmit={onSeleksi} className="flex flex-col gap-3">
+            <FieldGroup className="gap-3">
+              <Field>
+                <FieldLabel htmlFor="select_hasil_seleksi">Hasil</FieldLabel>
+                <Select value={seleksiLolos} onValueChange={setSeleksiLolos}>
+                  <SelectTrigger id="select_hasil_seleksi" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectItem value="lolos">Lolos</SelectItem>
+                      <SelectItem value="tidak_lolos">Tidak lolos</SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="input_catatan_seleksi">Catatan (opsional)</FieldLabel>
+                <Input id="input_catatan_seleksi" value={seleksiCatatan} onChange={(e) => setSeleksiCatatan(e.target.value)} />
+              </Field>
+            </FieldGroup>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setSeleksiRow(null)}>Batal</Button>
               <Button id="btn_simpan_seleksi" type="submit" disabled={busy}>Simpan</Button>
@@ -486,12 +531,17 @@ export default function PsbPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Tolak: {tolakRow?.nama_lengkap}</DialogTitle>
+            <DialogDescription className="sr-only">
+              Catatan penolakan opsional; calon akan berstatus ditolak.
+            </DialogDescription>
           </DialogHeader>
-          <form id="form_tolak_psb" onSubmit={onTolak} className="space-y-3">
-            <div className="grid gap-1.5">
-              <Label htmlFor="input_catatan_tolak">Catatan (opsional)</Label>
-              <Input id="input_catatan_tolak" value={tolakCatatan} onChange={(e) => setTolakCatatan(e.target.value)} />
-            </div>
+          <form id="form_tolak_psb" onSubmit={onTolak} className="flex flex-col gap-3">
+            <FieldGroup className="gap-3">
+              <Field>
+                <FieldLabel htmlFor="input_catatan_tolak">Catatan (opsional)</FieldLabel>
+                <Input id="input_catatan_tolak" value={tolakCatatan} onChange={(e) => setTolakCatatan(e.target.value)} />
+              </Field>
+            </FieldGroup>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setTolakRow(null)}>Batal</Button>
               <Button id="btn_simpan_tolak" type="submit" variant="destructive" disabled={busy}>Tolak</Button>
@@ -504,6 +554,9 @@ export default function PsbPage() {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Dokumen: {dokRow?.nama_lengkap}</DialogTitle>
+            <DialogDescription className="sr-only">
+              Daftar dokumen calon beserta status verifikasi dan aksinya.
+            </DialogDescription>
           </DialogHeader>
           {dokumen.length === 0 ? (
             <p className="text-sm text-muted-foreground">Belum ada dokumen diupload.</p>
@@ -551,7 +604,7 @@ export default function PsbPage() {
               Gelombang menentukan tahun ajaran calon. Pakai template agar nama kolom sesuai.
             </DialogDescription>
           </DialogHeader>
-          <form id="form_import_psb" onSubmit={onImport} className="space-y-3">
+          <form id="form_import_psb" onSubmit={onImport} className="flex flex-col gap-3">
             <Button
               id="btn_template_psb"
               type="button"
@@ -561,42 +614,48 @@ export default function PsbPage() {
             >
               Unduh template Excel
             </Button>
-            <div className="grid gap-1.5">
-              <Label htmlFor="select_gelombang_psb">Gelombang</Label>
-              <Select value={importGelombang} onValueChange={setImportGelombang}>
-                <SelectTrigger id="select_gelombang_psb" className="w-full">
-                  <SelectValue placeholder="Pilih gelombang" />
-                </SelectTrigger>
-                <SelectContent>
-                  {gelombangs.map((g) => (
-                    <SelectItem key={g.id} value={String(g.id)}>
-                      {g.nama}{g.tahun_ajaran ? ` — ${g.tahun_ajaran.nama}` : ''}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="select_import_psb_lembaga">Lembaga tujuan</Label>
-              <Select value={importLembaga} onValueChange={setImportLembaga}>
-                <SelectTrigger id="select_import_psb_lembaga" className="w-full">
-                  <SelectValue placeholder="Pilih lembaga" />
-                </SelectTrigger>
-                <SelectContent>
-                  {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.nama}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="input_file_psb">File (.xlsx/.xls/.csv, maks 5 MB)</Label>
-              <Input
-                id="input_file_psb"
-                type="file"
-                accept=".xlsx,.xls,.csv"
-                onChange={(e) => setImportFile(e.target.files?.[0] ?? null)}
-                required
-              />
-            </div>
+            <FieldGroup className="gap-3">
+              <Field>
+                <FieldLabel htmlFor="select_gelombang_psb">Gelombang</FieldLabel>
+                <Select value={importGelombang} onValueChange={setImportGelombang}>
+                  <SelectTrigger id="select_gelombang_psb" className="w-full">
+                    <SelectValue placeholder="Pilih gelombang" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {gelombangs.map((g) => (
+                        <SelectItem key={g.id} value={String(g.id)}>
+                          {g.nama}{g.tahun_ajaran ? ` — ${g.tahun_ajaran.nama}` : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="select_import_psb_lembaga">Lembaga tujuan</FieldLabel>
+                <Select value={importLembaga} onValueChange={setImportLembaga}>
+                  <SelectTrigger id="select_import_psb_lembaga" className="w-full">
+                    <SelectValue placeholder="Pilih lembaga" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.nama}</SelectItem>)}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="input_file_psb">File (.xlsx/.xls/.csv, maks 5 MB)</FieldLabel>
+                <Input
+                  id="input_file_psb"
+                  type="file"
+                  accept=".xlsx,.xls,.csv"
+                  onChange={(e) => setImportFile(e.target.files?.[0] ?? null)}
+                  required
+                />
+              </Field>
+            </FieldGroup>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setImportOpen(false)}>Batal</Button>
               <Button id="btn_import_psb" type="submit" disabled={busy || !importFile || !importGelombang || !importLembaga}>
@@ -615,48 +674,54 @@ export default function PsbPage() {
               Jalur manual tanpa pendaftaran publik. Kuota & dedup NIK tetap berlaku.
             </DialogDescription>
           </DialogHeader>
-          <form id="form_tambah_pendaftar" onSubmit={onCreateCalon} className="space-y-3">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="grid gap-1.5">
-                <Label htmlFor="select_gelombang_pendaftar">Gelombang</Label>
+          <form id="form_tambah_pendaftar" onSubmit={onCreateCalon} className="flex flex-col gap-3">
+            <FieldGroup className="grid gap-3 sm:grid-cols-2">
+              <Field>
+                <FieldLabel htmlFor="select_gelombang_pendaftar">Gelombang</FieldLabel>
                 <Select value={tfGelombang} onValueChange={setTfGelombang}>
                   <SelectTrigger id="select_gelombang_pendaftar" className="w-full">
                     <SelectValue placeholder="Pilih gelombang" />
                   </SelectTrigger>
                   <SelectContent>
-                    {gelombangs.map((g) => (
-                      <SelectItem key={g.id} value={String(g.id)}>
-                        {g.nama}{g.tahun_ajaran ? ` — ${g.tahun_ajaran.nama}` : ''}
-                      </SelectItem>
-                    ))}
+                    <SelectGroup>
+                      {gelombangs.map((g) => (
+                        <SelectItem key={g.id} value={String(g.id)}>
+                          {g.nama}{g.tahun_ajaran ? ` — ${g.tahun_ajaran.nama}` : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
                   </SelectContent>
                 </Select>
-              </div>
-              <div className="grid gap-1.5">
-                <Label htmlFor="select_lembaga_pendaftar">Lembaga tujuan</Label>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="select_lembaga_pendaftar">Lembaga tujuan</FieldLabel>
                 <Select value={tfLembaga} onValueChange={setTfLembaga}>
                   <SelectTrigger id="select_lembaga_pendaftar" className="w-full">
                     <SelectValue placeholder="Pilih lembaga" />
                   </SelectTrigger>
                   <SelectContent>
-                    {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.nama}</SelectItem>)}
+                    <SelectGroup>
+                      {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.nama}</SelectItem>)}
+                    </SelectGroup>
                   </SelectContent>
                 </Select>
-              </div>
-              <div className="grid gap-1.5">
-                <Label htmlFor="select_tipe_pendaftar">Tipe santri</Label>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="select_tipe_pendaftar">Tipe santri</FieldLabel>
                 <Select value={tfTipe} onValueChange={(v) => setTfTipe(v as 'asrama' | 'non_asrama')}>
                   <SelectTrigger id="select_tipe_pendaftar" className="w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="non_asrama">Non asrama</SelectItem>
-                    <SelectItem value="asrama">Asrama</SelectItem>
+                    <SelectGroup>
+                      <SelectItem value="non_asrama">Non asrama</SelectItem>
+                      <SelectItem value="asrama">Asrama</SelectItem>
+                    </SelectGroup>
                   </SelectContent>
                 </Select>
-              </div>
-              <div className="grid gap-1.5">
-                <Label htmlFor="input_nik_pendaftar">NIK (16 digit)</Label>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="input_nik_pendaftar">NIK (16 digit)</FieldLabel>
                 <Input
                   id="input_nik_pendaftar"
                   value={tfNik}
@@ -666,45 +731,47 @@ export default function PsbPage() {
                   maxLength={16}
                   required
                 />
-              </div>
-              <div className="grid gap-1.5 sm:col-span-2">
-                <Label htmlFor="input_nama_pendaftar">Nama lengkap</Label>
+              </Field>
+              <Field className="sm:col-span-2">
+                <FieldLabel htmlFor="input_nama_pendaftar">Nama lengkap</FieldLabel>
                 <Input id="input_nama_pendaftar" value={tfNama} onChange={(e) => setTfNama(e.target.value)} required maxLength={100} />
-              </div>
-              <div className="grid gap-1.5">
-                <Label htmlFor="select_jk_pendaftar">Jenis kelamin</Label>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="select_jk_pendaftar">Jenis kelamin</FieldLabel>
                 <Select value={tfJk === '' ? '_kosong' : tfJk} onValueChange={(v) => setTfJk(v === '_kosong' ? '' : v)}>
                   <SelectTrigger id="select_jk_pendaftar" className="w-full">
                     <SelectValue placeholder="-" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="_kosong">-</SelectItem>
-                    <SelectItem value="L">Laki-laki</SelectItem>
-                    <SelectItem value="P">Perempuan</SelectItem>
+                    <SelectGroup>
+                      <SelectItem value="_kosong">-</SelectItem>
+                      <SelectItem value="L">Laki-laki</SelectItem>
+                      <SelectItem value="P">Perempuan</SelectItem>
+                    </SelectGroup>
                   </SelectContent>
                 </Select>
-              </div>
-              <div className="grid gap-1.5">
-                <Label htmlFor="input_tgl_lahir_pendaftar">Tanggal lahir</Label>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="input_tgl_lahir_pendaftar">Tanggal lahir</FieldLabel>
                 <Input id="input_tgl_lahir_pendaftar" type="date" value={tfTglLahir} onChange={(e) => setTfTglLahir(e.target.value)} />
-              </div>
-              <div className="grid gap-1.5">
-                <Label htmlFor="input_email_ortu_pendaftar">Email orang tua</Label>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="input_email_ortu_pendaftar">Email orang tua</FieldLabel>
                 <Input id="input_email_ortu_pendaftar" type="email" value={tfEmail} onChange={(e) => setTfEmail(e.target.value)} maxLength={100} />
-              </div>
-              <div className="grid gap-1.5">
-                <Label htmlFor="input_telp_ortu_pendaftar">No. HP orang tua</Label>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="input_telp_ortu_pendaftar">No. HP orang tua</FieldLabel>
                 <Input id="input_telp_ortu_pendaftar" value={tfTelp} onChange={(e) => setTfTelp(e.target.value)} maxLength={20} />
-              </div>
-              <div className="grid gap-1.5">
-                <Label htmlFor="input_ayah_pendaftar">Nama ayah</Label>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="input_ayah_pendaftar">Nama ayah</FieldLabel>
                 <Input id="input_ayah_pendaftar" value={tfAyah} onChange={(e) => setTfAyah(e.target.value)} maxLength={100} />
-              </div>
-              <div className="grid gap-1.5">
-                <Label htmlFor="input_ibu_pendaftar">Nama ibu</Label>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="input_ibu_pendaftar">Nama ibu</FieldLabel>
                 <Input id="input_ibu_pendaftar" value={tfIbu} onChange={(e) => setTfIbu(e.target.value)} maxLength={100} />
-              </div>
-            </div>
+              </Field>
+            </FieldGroup>
             <div className="flex flex-wrap items-center gap-3">
               <label htmlFor="check_pindahan_pendaftar" className="flex cursor-pointer items-center gap-2 text-sm">
                 <input
@@ -717,8 +784,8 @@ export default function PsbPage() {
                 Pindahan (bukan santri baru)
               </label>
               {tfPindahan && (
-                <div className="grid flex-1 gap-1.5">
-                  <Label htmlFor="input_tingkat_pendaftar">Masuk tingkat</Label>
+                <Field className="flex-1">
+                  <FieldLabel htmlFor="input_tingkat_pendaftar">Masuk tingkat</FieldLabel>
                   <Input
                     id="input_tingkat_pendaftar"
                     value={tfTingkat}
@@ -726,7 +793,7 @@ export default function PsbPage() {
                     maxLength={2}
                     placeholder="mis. 3"
                   />
-                </div>
+                </Field>
               )}
             </div>
             <DialogFooter>

@@ -187,4 +187,42 @@ class ReferensiCrudTest extends TestCase
             'id' => $id, 'kode' => 'cuti_panjang', 'label' => 'Cuti Panjang', 'urutan' => 9,
         ]);
     }
+
+    // ---------- 7. perubahan baris global invalidasi cache per-lembaga ----------
+
+    public function test_07_perubahan_global_invalidasi_cache_per_lembaga(): void
+    {
+        $f = $this->fixture();
+        $super = $this->makeUser('super_admin');
+
+        $id = $this->actingAs($super, 'sanctum')->postJson('/api/admin/referensi/hobi', [
+            'nama' => 'Hobi Global Awal',
+        ])->assertStatus(201)->json('id');
+
+        // Prime cache per-lembaga MI (baris global ikut ter-cache).
+        $this->assertContains('Hobi Global Awal', $this->namaEfektif('hobi', $f['mi']->id));
+
+        $this->actingAs($super, 'sanctum')
+            ->putJson("/api/admin/referensi/hobi/{$id}", ['nama' => 'Hobi Global Baru'])
+            ->assertStatus(200);
+
+        $efektif = $this->namaEfektif('hobi', $f['mi']->id);
+        $this->assertContains('Hobi Global Baru', $efektif);
+        $this->assertNotContains('Hobi Global Awal', $efektif);
+
+        // forgetAlamat juga menginvalidasi cache alamat (global).
+        DB::table('ref_alamat')->insert([
+            'lembaga_id' => null, 'nama' => 'Alamat Global Awal', 'urutan' => 0, 'is_active' => true,
+        ]);
+        $alamatAwal = array_map(fn ($r) => $r->nama, RefService::effectiveAlamat($f['mi']->id));
+        $this->assertContains('Alamat Global Awal', $alamatAwal);
+
+        DB::table('ref_alamat')->whereNull('lembaga_id')->where('nama', 'Alamat Global Awal')
+            ->update(['nama' => 'Alamat Global Baru']);
+        RefService::forgetAlamat(null);
+
+        $alamatBaru = array_map(fn ($r) => $r->nama, RefService::effectiveAlamat($f['mi']->id));
+        $this->assertContains('Alamat Global Baru', $alamatBaru);
+        $this->assertNotContains('Alamat Global Awal', $alamatBaru);
+    }
 }

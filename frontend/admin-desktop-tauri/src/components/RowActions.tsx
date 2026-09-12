@@ -1,8 +1,8 @@
 import { Check, Eye, Pencil, Trash2 } from 'lucide-react';
+import { forwardRef, type ComponentPropsWithoutRef, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import ConfirmDelete from '@/components/ConfirmDelete';
 import { cn } from '@/lib/utils';
-import type { ReactNode } from 'react';
 
 interface ActionIconProps {
   id: string;
@@ -13,10 +13,15 @@ interface ActionIconProps {
   children: ReactNode;
 }
 
-/** Tombol aksi baris: ikon saja (tanpa label teks). */
-export function ActionIcon({ id, title, onClick, className, children }: ActionIconProps) {
+/** Tombol aksi baris: ikon saja (tanpa label teks). forwardRef agar bisa
+ *  dipakai sebagai trigger Radix `asChild` (mis. AlertDialog di ConfirmDelete). */
+export const ActionIcon = forwardRef<
+  HTMLButtonElement,
+  ActionIconProps & ComponentPropsWithoutRef<'button'>
+>(function ActionIcon({ id, title, onClick, className, children, ...rest }, ref) {
   return (
     <Button
+      ref={ref}
       id={id}
       title={title}
       aria-label={title}
@@ -24,11 +29,12 @@ export function ActionIcon({ id, title, onClick, className, children }: ActionIc
       size="icon-sm"
       onClick={onClick}
       className={cn('text-muted-foreground hover:text-foreground', className)}
+      {...rest}
     >
       {children}
     </Button>
   );
-}
+});
 
 export function ViewAction({ id, onClick }: { id: string; onClick: () => void }) {
   return (

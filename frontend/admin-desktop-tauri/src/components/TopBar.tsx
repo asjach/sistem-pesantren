@@ -151,9 +151,11 @@ const TABLE_ROUTES = [
 ];
 
 const navBase =
-  'flex items-center gap-2 rounded-md px-3 py-1.5 text-sm whitespace-nowrap transition-colors';
-const navIdle = 'text-[var(--sidebar-foreground)] hover:bg-white/10 hover:text-white';
-const navActive = 'bg-white/15 font-semibold text-white';
+  'flex items-center gap-2 rounded-md px-3 py-1.5 text-sm whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--sidebar-foreground)]/60';
+const navIdle =
+  'text-[var(--sidebar-foreground)] hover:bg-[color-mix(in_srgb,var(--sidebar-foreground)_14%,transparent)] hover:text-white';
+const navActive =
+  'bg-[color-mix(in_srgb,var(--sidebar-foreground)_22%,transparent)] font-semibold text-white';
 
 function clamp(n: number, lo: number, hi: number) {
   return Math.min(hi, Math.max(lo, Math.round(n)));
@@ -178,6 +180,15 @@ function SpinBox({
   onChange: (n: number) => void;
 }) {
   const [draft, setDraft] = useState<string | null>(null);
+  // Commit hanya saat blur/Enter/± agar mengetik tidak memicu re-render global
+  // dan AutoFit tiap karakter.
+  const commit = (raw: string | null) => {
+    setDraft(null);
+    if (raw === null || raw.trim() === '') return;
+    const n = Number(raw);
+    if (!Number.isFinite(n)) return;
+    onChange(clamp(n, min, max));
+  };
   const stepBy = (d: number) => {
     const typed = draft !== null && draft.trim() !== '' && Number.isFinite(Number(draft))
       ? Number(draft)
@@ -209,12 +220,8 @@ function SpinBox({
         aria-label={ariaLabel}
         className="h-full w-8 border-x border-white/20 bg-transparent px-0 text-center text-xs text-white outline-none"
         value={draft ?? String(value)}
-        onChange={(e) => {
-          setDraft(e.target.value);
-          const n = Number(e.target.value);
-          if (e.target.value.trim() !== '' && Number.isFinite(n)) onChange(clamp(n, min, max));
-        }}
-        onBlur={() => setDraft(null)}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={() => commit(draft)}
         onKeyDown={(e) => {
           if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
         }}
@@ -398,7 +405,7 @@ export default function TopBar() {
                 className="text-destructive focus:bg-destructive/10 focus:text-destructive"
                 onSelect={onLogout}
               >
-                <LogOut size={16} /> Keluar
+                <LogOut data-icon="inline-start" size={16} /> Keluar
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

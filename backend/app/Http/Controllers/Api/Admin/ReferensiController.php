@@ -94,6 +94,7 @@ class ReferensiController extends Controller
         }
 
         RefService::forget($targetLembaga);
+        RefService::forgetAlamat($targetLembaga);
         return response()->json(DB::table($table)->find($id), 201);
     }
 
@@ -134,6 +135,7 @@ class ReferensiController extends Controller
 
         DB::table($table)->where('id', $id)->update($upd);
         RefService::forget($row->lembaga_id);
+        RefService::forgetAlamat($row->lembaga_id);
 
         return response()->json(DB::table($table)->find($id));
     }
@@ -161,12 +163,14 @@ class ReferensiController extends Controller
                 $shadow
             );
             RefService::forget($targetLembaga);
+            RefService::forgetAlamat($targetLembaga);
             return response()->json(['pesan' => 'Data referensi berhasil dinonaktifkan']);
         }
 
         if (! $this->canLembaga($actor, (int) $row->lembaga_id)) abort(403);
         DB::table($table)->where('id', $id)->update(['is_active' => false]);
         RefService::forget($row->lembaga_id);
+        RefService::forgetAlamat($row->lembaga_id);
         return response()->json(['pesan' => 'Data referensi berhasil dinonaktifkan']);
     }
 

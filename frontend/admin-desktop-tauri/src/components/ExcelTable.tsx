@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   DynamicDataSheetGrid as DataSheetGrid,
   checkboxColumn,
@@ -36,6 +36,43 @@ function ToolbarGroup({
     >
       {children}
     </div>
+  );
+}
+
+/** Status "pilih semua" lewat context agar klik checkbox tidak membangun ulang
+ *  definisi kolom DSG (kolom tetap stabil, hanya header ini yang re-render). */
+interface CheckAllState {
+  ids: readonly (string | number)[];
+  checked: ReadonlySet<string | number>;
+  setChecked: (s: Set<string | number>) => void;
+}
+
+const CheckAllContext = createContext<CheckAllState | null>(null);
+
+function CheckAllCell() {
+  const ctx = useContext(CheckAllContext);
+  if (!ctx) return null;
+  const all = ctx.ids.length > 0 && ctx.ids.every((id) => ctx.checked.has(id));
+  const some = ctx.ids.some((id) => ctx.checked.has(id));
+  return (
+    <span className="flex w-full items-center justify-center">
+      <input
+        type="checkbox"
+        aria-label="Pilih semua baris"
+        className="simpes-dsg-checkall"
+        checked={all}
+        ref={(el) => {
+          if (el) el.indeterminate = some && !all;
+        }}
+        onChange={(e) => {
+          const next = new Set<string | number>();
+          if (e.target.checked) for (const id of ctx.ids) next.add(id);
+          ctx.setChecked(next);
+        }}
+        onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
+      />
+    </span>
   );
 }
 
@@ -369,6 +406,8 @@ export default function ExcelTable<T extends { id: string | number }>({
   const resizeRef = useRef<{ key: string; startX: number; startW: number; targets: string[] } | null>(
     null,
   );
+  /** Listener resize aktif (dibersihkan saat unmount bila masih menyeret). */
+  const resizeListenersRef = useRef<{ move: (ev: MouseEvent) => void; up: () => void } | null>(null);
   /** Antrean simpan otomatis per baris (id → field yang belum dikirim). */
   const queueRef = useRef<Map<string, Record<string, string | null>>>(new Map());
   const drainingRef = useRef(false);
@@ -456,12 +495,14 @@ export default function ExcelTable<T extends { id: string | number }>({
     [],
   );
 
-  // Seleksi + range mengikuti data aktif.
+  // Seleksi + range mengikuti data aktif. Hanya reset bila KUMPULAN ID berubah
+  // (bukan tiap identitas array rows baru, mis. hasil pencarian yang sama).
+  const rowsSig = useMemo(() => rows.map((r) => String(r.id)).join('|'), [rows]);
   useEffect(() => {
     setCheckedIds(new Set());
     setRange(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows]);
+  }, [rowsSig]);
 
   // Esc saat TIDAK sedang mengedit sel = keluar dari mode Edit.
   // Esc di dalam editor sel ditangani TextCell/SelectCell (tidak sampai ke sini).
@@ -538,15 +579,29 @@ export default function ExcelTable<T extends { id: string | number }>({
     const onUp = () => {
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
+      resizeListenersRef.current = null;
       resizeRef.current = null;
       setWidths((prev) => {
         persistWidths(prev);
         return prev;
       });
     };
+    resizeListenersRef.current = { move: onMove, up: onUp };
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
   }
+
+  // Unmount saat masih menyeret gagang → lepas listener agar tidak bocor.
+  useEffect(
+    () => () => {
+      const l = resizeListenersRef.current;
+      if (!l) return;
+      window.removeEventListener('mousemove', l.move);
+      window.removeEventListener('mouseup', l.up);
+      resizeListenersRef.current = null;
+    },
+    [],
+  );
 
   /** Ukur lebar teks memakai span tersembunyi dengan SELURUH properti font
    *  nyata dari sel. Canvas tidak cukup: `font-variant-numeric: tabular-nums`
@@ -786,29 +841,7 @@ export default function ExcelTable<T extends { id: string | number }>({
       {
         ...keyColumn<GridRow, 'checked'>('checked', checkboxColumn),
         id: 'check',
-        title: (
-          <span className="flex w-full items-center justify-center">
-            <input
-              type="checkbox"
-              aria-label="Pilih semua baris"
-              className="simpes-dsg-checkall"
-              checked={rows.length > 0 && rows.every((r) => checkedIds.has(r.id))}
-              ref={(el) => {
-                if (el) {
-                  el.indeterminate =
-                    rows.some((r) => checkedIds.has(r.id)) && !rows.every((r) => checkedIds.has(r.id));
-                }
-              }}
-              onChange={(e) => {
-                const next = new Set<T['id']>();
-                if (e.target.checked) rows.forEach((r) => next.add(r.id));
-                setCheckedIds(next);
-              }}
-              onClick={(e) => e.stopPropagation()}
-              onMouseDown={(e) => e.stopPropagation()}
-            />
-          </span>
-        ),
+        title: <CheckAllCell />,
         basis: 44,
         grow: 0,
         shrink: 0,
@@ -914,14 +947,43 @@ export default function ExcelTable<T extends { id: string | number }>({
     });
     return cols;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fields, editing, rows, checkedIds, renderActions, widths, autoWidths]);
+  }, [fields, editing, widths, autoWidths]);
 
-  /** Teks tampil (draft-merged) untuk TSV. */
+  /** Klik/pindah ke sel lain saat ada editor terbuka: tutup dulu editor lama
+   *  (memicu commit + auto-save), lalu DSG memindahkan sel aktif. Tanpa ini
+   *  input lama tetap fokus sehingga ketikan lanjut masuk ke sel sebelumnya. */
+  function closeEditorOnOtherCell(e: React.MouseEvent) {
+    if (!editing) return;
+    const input = wrapRef.current?.querySelector<HTMLElement>(
+      '.dsg-input, .simpes-dsg-select',
+    );
+    if (!input) return;
+    const targetCell = (e.target as HTMLElement).closest?.('.dsg-cell') ?? null;
+    if (targetCell && targetCell === input.closest('.dsg-cell')) return;
+    input.blur();
+  }
+
+  /** Teks tampil (draft-merged) untuk TSV — lookup O(1) via Map. */
+  const gridById = useMemo(() => {
+    const m = new Map<string, GridRow>();
+    for (const g of gridValue) m.set(String(g.id), g);
+    return m;
+  }, [gridValue]);
+
   function displayOf(id: string | number, key: string): string {
-    const g = gridValue.find((r) => String(r.id) === String(id));
-    const v = g?.[key];
+    const v = gridById.get(String(id))?.[key];
     return v == null ? '' : String(v);
   }
+
+  /** Status pilih-semua (context) — terpisah dari definisi kolom. */
+  const checkAllState = useMemo<CheckAllState>(
+    () => ({
+      ids: rows.map((r) => r.id),
+      checked: checkedIds as unknown as ReadonlySet<string | number>,
+      setChecked: (s) => setCheckedIds(s as unknown as Set<T['id']>),
+    }),
+    [rows, checkedIds],
+  );
 
   async function onCopy() {
     const checkedRows = rows.filter((r) => checkedIds.has(r.id));
@@ -1055,13 +1117,13 @@ export default function ExcelTable<T extends { id: string | number }>({
         <div
           id={`banner_mode_edit_${tableKey}`}
           role="status"
-          className="mb-2 flex flex-wrap items-center gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-700 dark:text-amber-300"
+          className="mb-2 flex flex-wrap items-center gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-1.5 text-xs text-warning-foreground"
         >
           <Pencil size={14} />
           <span className="font-semibold">Mode Edit aktif</span>
           <span>
             — tekan{' '}
-            <kbd className="rounded border border-amber-500/40 bg-background/60 px-1 font-mono text-[10px]">
+            <kbd className="rounded border border-warning/40 bg-background/60 px-1 font-mono text-[10px]">
               Esc
             </kbd>{' '}
             untuk keluar.
@@ -1070,7 +1132,7 @@ export default function ExcelTable<T extends { id: string | number }>({
             id={`btn_keluar_mode_edit_${tableKey}`}
             variant="outline"
             size="sm"
-            className="ml-auto border-amber-500/40 bg-transparent text-amber-700 hover:bg-amber-500/10 hover:text-amber-800 dark:text-amber-300 dark:hover:text-amber-200"
+            className="ml-auto border-warning/40 bg-transparent text-warning-foreground hover:bg-warning/10 hover:text-warning-foreground"
             onClick={() => setEditMode(false)}
           >
             Keluar mode Edit
@@ -1192,27 +1254,34 @@ export default function ExcelTable<T extends { id: string | number }>({
           } as React.CSSProperties
         }
         title="Seret untuk memblokir sel • Ctrl+C menyalin"
+        onMouseDownCapture={closeEditorOnOtherCell}
         className={cn(
           'simpes-dsg relative flex min-h-[280px] flex-1 flex-col overflow-hidden rounded-xl bg-card',
           !editing && 'simpes-dsg-readonly',
         )}
       >
-        <DataSheetGrid
-          value={gridValue}
-          onChange={handleChange}
-          columns={dsgColumns}
-          rowKey="id"
-          height={gridH}
-          rowHeight={effectiveH}
-          headerRowHeight={36}
-          lockRows
-          addRowsComponent={false}
-          rowClassName={({ rowIndex }) =>
-            rowIndex === gridValue.length - 1 ? 'simpes-dsg-row-last' : ''
-          }
-          onSelectionChange={({ selection }) => setRange(selection)}
-          onScroll={fitActionsIfNeeded}
-        />
+        <CheckAllContext.Provider value={checkAllState}>
+          <DataSheetGrid
+            value={gridValue}
+            onChange={handleChange}
+            columns={dsgColumns}
+            rowKey="id"
+            height={gridH}
+            rowHeight={effectiveH}
+            headerRowHeight={36}
+            lockRows
+            addRowsComponent={false}
+            rowClassName={({ rowIndex }) => {
+              const r = gridValue[rowIndex];
+              return cn(
+                rowIndex === gridValue.length - 1 && 'simpes-dsg-row-last',
+                r && checkedIds.has(r.id) && 'simpes-dsg-row-checked',
+              );
+            }}
+            onSelectionChange={({ selection }) => setRange(selection)}
+            onScroll={fitActionsIfNeeded}
+          />
+        </CheckAllContext.Provider>
         {gridValue.length === 0 && !loading && (
           <div className="pointer-events-none absolute inset-0 grid place-items-center">
             <p className="text-sm text-muted-foreground">{emptyText}</p>

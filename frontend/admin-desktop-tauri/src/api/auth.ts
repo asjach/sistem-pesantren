@@ -21,11 +21,22 @@ export interface Me {
   lembagas?: LembagaRingkas[];
 }
 
+/** Peran yang boleh memakai aplikasi desktop admin. */
+export const DESKTOP_ROLES = ['super_admin', 'admin'];
+
+export function isDesktopRoleAllowed(user: Pick<Me, 'roles'> | null | undefined): boolean {
+  return !!user?.roles?.some((r) => DESKTOP_ROLES.includes(r.name));
+}
+
 export async function login(identifier: string, password: string): Promise<Me> {
   const res = await api<{ user: Me; token: string }>('/auth/login', {
     method: 'POST',
     body: JSON.stringify({ identifier, password, device: 'admin-desktop-tauri' }),
   });
+  // Pagar kedua (backend juga menolak 403): jangan simpan sesi non-admin.
+  if (!isDesktopRoleAllowed(res.user)) {
+    throw new Error('Aplikasi desktop hanya untuk peran super_admin/admin.');
+  }
   await setSession(res.token, res.user);
   return res.user;
 }

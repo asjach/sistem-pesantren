@@ -2,8 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Exports\PsbTemplateExport;
 use App\Models\DokumenSantri;
 use App\Models\Lembaga;
+use App\Models\PengajuanBiodataSantri;
 use App\Models\PosKeuangan;
 use App\Models\PsbCalonSantri;
 use App\Models\PsbGelombang;
@@ -17,8 +19,11 @@ use App\Models\User;
 use App\Models\WaliSantriRelasi;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\DB;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Tests\TestCase;
 
 class PsbFlowTest extends TestCase
@@ -643,5 +648,185 @@ class PsbFlowTest extends TestCase
         $this->actingAs($admin, 'sanctum')->getJson('/api/psb/gelombang')
             ->assertStatus(200)
             ->assertJsonPath('data.0.id', $f['gel']->id);
+    }
+
+    // ---------- 15. jalur publik dilarang memakai santri_asal_id (IDOR) ----------
+
+    public function test_15_daftar_publik_menolak_santri_asal_id(): void
+    {
+        $f = $this->baseFixture();
+        $this->makeKuota($f['gel'], $f['mi'], $f['ta'], ['membutuhkan_seleksi' => false, 'nominal_paket' => 250000]);
+        $this->makeKuota($f['gel'], $f['md'], $f['ta'], ['membutuhkan_seleksi' => false]);
+
+        $korban = Santri::create([
+            'lembaga_id' => $f['mi']->id, 'nama_lengkap' => 'Korban IDOR', 'nik' => '1100000000000301',
+            'jk' => 'L', 'tgl_lahir' => '2014-01-01', 'status_global' => true,
+        ]);
+
+        $res = $this->postJson('/api/psb/daftar', $this->daftarPayload(
+            $f['gel'], $f['mi'], '1100000000000302', 'Anak Penyerang', 'ortu15@example.com', '081515151515',
+            ['santri_asal_id' => $korban->id]
+        ));
+        $res->assertStatus(422);
+        $res->assertJsonValidationErrors(['santri_asal_id']);
+
+        $this->assertEquals('Korban IDOR', $korban->fresh()->nama_lengkap);
+        $this->assertEquals(0, PsbCalonSantri::where('santri_asal_id', $korban->id)->count());
+        $this->assertDatabaseMissing('psb_calon_santri', ['nik' => '1100000000000302']);
+
+        $resPaket = $this->postJson('/api/psb/daftar-paket', $this->daftarPayload(
+            $f['gel'], $f['mi'], '1100000000000303', 'Paket Penyerang', 'ortu15b@example.com', '081515151516',
+            ['santri_asal_id' => $korban->id]
+        ));
+        $resPaket->assertStatus(422)->assertJsonValidationErrors(['santri_asal_id']);
+    }
+
+    // ---------- 16. portal riwayat tanpa email/phone/anak = kosong ----------
+
+    public function test_16_portal_riwayat_tanpa_kriteria_tidak_bocor(): void
+    {
+        $f = $this->baseFixture();
+        $this->makeKuota($f['gel'], $f['mi'], $f['ta'], ['membutuhkan_seleksi' => false]);
+        $this->postJson('/api/psb/daftar', $this->daftarPayload(
+            $f['gel'], $f['mi'], '1100000000000311', 'Calon Orang Lain', 'oranglain@example.com', '081616161611'
+        ))->assertStatus(201);
+
+        $ortu = User::create(['name' => 'Ortu Tanpa Kontak', 'password' => 'password']);
+        $ortu->assignRole('orang_tua');
+
+        $res = $this->actingAs($ortu, 'sanctum')->getJson('/api/portal/psb/riwayat');
+        $res->assertStatus(200)->assertJsonCount(0, 'data');
+        $this->assertDatabaseCount('psb_calon_santri', 1);
+    }
+
+    // ---------- 17. gelombang nonaktif ditolak ----------
+
+    public function test_17_gelombang_nonaktif_ditolak(): void
+    {
+        $f = $this->baseFixture();
+        $this->makeKuota($f['gel'], $f['mi'], $f['ta'], ['membutuhkan_seleksi' => false]);
+        $f['gel']->update(['is_aktif' => false]);
+
+        $this->postJson('/api/psb/daftar', $this->daftarPayload(
+            $f['gel'], $f['mi'], '1100000000000321', 'Gelombang Mati', 'ortu17@example.com', '081717171717'
+        ))->assertStatus(422)->assertJsonValidationErrors(['gelombang_id']);
+    }
+
+    // ---------- 18. nilai biodata divalidasi + batalkan aman ----------
+
+    public function test_18_biodata_validasi_nilai_setujui_cast_dan_batalkan(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeUser('admin', [$f['mi']->id]);
+        $ortu = $this->makeUser('orang_tua', [], 'ortu18@example.com', '081818181818');
+
+        $santri = Santri::create([
+            'lembaga_id' => $f['mi']->id, 'nama_lengkap' => 'Anak Biodata', 'jk' => 'L',
+            'tgl_lahir' => '2013-03-04', 'status_global' => true,
+        ]);
+        WaliSantriRelasi::create([
+            'user_id' => $ortu->id, 'santri_id' => $santri->id,
+            'hubungan' => 'ayah', 'is_utama' => true, 'is_active' => true,
+        ]);
+
+        // Nilai tidak valid per field -> 422.
+        $this->actingAs($ortu, 'sanctum')->postJson("/api/portal/santri/{$santri->id}/pengajuan-biodata", [
+            'diff' => ['nama_lengkap' => str_repeat('A', 150)],
+        ])->assertStatus(422)->assertJsonValidationErrors(['nama_lengkap']);
+
+        $this->actingAs($ortu, 'sanctum')->postJson("/api/portal/santri/{$santri->id}/pengajuan-biodata", [
+            'diff' => ['tgl_lahir' => 'bukan-tanggal'],
+        ])->assertStatus(422)->assertJsonValidationErrors(['tgl_lahir']);
+
+        $this->actingAs($ortu, 'sanctum')->postJson("/api/portal/santri/{$santri->id}/pengajuan-biodata", [
+            'diff' => ['status_global' => false],
+        ])->assertStatus(422);
+
+        // Pengajuan valid -> 201, lalu batalkan -> status dibatalkan.
+        $id = $this->actingAs($ortu, 'sanctum')->postJson("/api/portal/santri/{$santri->id}/pengajuan-biodata", [
+            'diff' => ['tgl_lahir' => '2012-02-03', 'alamat' => 'Jl. Biodata 18'],
+        ])->assertStatus(201)->json('data.id');
+        $this->assertNotEmpty($id);
+
+        $this->actingAs($ortu, 'sanctum')->deleteJson("/api/portal/pengajuan-biodata/{$id}/batal")
+            ->assertStatus(200);
+        $this->assertEquals('dibatalkan', PengajuanBiodataSantri::findOrFail($id)->status);
+
+        // Pengajuan baru + setujui: cast tanggal diterapkan ke santri.
+        $id2 = $this->actingAs($ortu, 'sanctum')->postJson("/api/portal/santri/{$santri->id}/pengajuan-biodata", [
+            'diff' => ['tgl_lahir' => '2012-02-03'],
+        ])->assertStatus(201)->json('data.id');
+        $this->actingAs($admin, 'sanctum')->postJson("/api/admin/pengajuan-biodata/{$id2}/setujui")
+            ->assertStatus(200);
+        $this->assertEquals('2012-02-03', Santri::findOrFail($santri->id)->tgl_lahir->toDateString());
+        $this->assertEquals('disetujui', PengajuanBiodataSantri::findOrFail($id2)->status);
+    }
+
+    // ---------- 19-20. import PSB: nomor kosong digenerate, duplikat ditolak ----------
+
+    protected function xlsxFile(array $rows): UploadedFile
+    {
+        $headings = (new PsbTemplateExport())->headings();
+        $data = [$headings];
+        foreach ($rows as $row) {
+            $data[] = array_map(fn ($h) => $row[$h] ?? '', $headings);
+        }
+
+        $spreadsheet = new Spreadsheet();
+        $spreadsheet->getActiveSheet()->fromArray($data, null, 'A1');
+        $path = tempnam(sys_get_temp_dir(), 'psbimport') . '.xlsx';
+        (new Xlsx($spreadsheet))->save($path);
+
+        return new UploadedFile(
+            $path, 'import-psb.xlsx',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            null, true
+        );
+    }
+
+    public function test_19_import_psb_tanpa_nomor_digenerate(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeUser('admin', [$f['mi']->id]);
+        $row = [
+            'nik' => '1100000000000401', 'nama_lengkap' => 'Import Satu', 'jk' => 'L',
+            'tgl_lahir' => '2015-01-01', 'tipe_santri' => 'non_asrama', 'no_pendaftaran' => '',
+        ];
+
+        $this->actingAs($admin, 'sanctum')->post('/api/psb/import', [
+            'gelombang_id' => $f['gel']->id,
+            'lembaga_id' => $f['mi']->id,
+            'file' => $this->xlsxFile([$row]),
+        ], ['Accept' => 'application/json'])->assertStatus(200);
+
+        $calon = PsbCalonSantri::where('nik', '1100000000000401')->firstOrFail();
+        $this->assertStringStartsWith('PSB_', (string) $calon->no_pendaftaran);
+        $this->assertEquals('baru', $calon->status_pendaftaran);
+    }
+
+    public function test_20_import_psb_nomor_duplikat_ditolak_rapi(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeUser('admin', [$f['mi']->id]);
+        $row = [
+            'nik' => '1100000000000411', 'nama_lengkap' => 'Import Satu', 'jk' => 'L',
+            'tgl_lahir' => '2015-01-01', 'tipe_santri' => 'non_asrama', 'no_pendaftaran' => 'PSB_MANUAL_0001',
+        ];
+        $this->actingAs($admin, 'sanctum')->post('/api/psb/import', [
+            'gelombang_id' => $f['gel']->id,
+            'lembaga_id' => $f['mi']->id,
+            'file' => $this->xlsxFile([$row]),
+        ], ['Accept' => 'application/json'])->assertStatus(200);
+
+        $row2 = array_merge($row, ['nik' => '1100000000000412', 'nama_lengkap' => 'Import Dua']);
+        $res = $this->actingAs($admin, 'sanctum')->post('/api/psb/import', [
+            'gelombang_id' => $f['gel']->id,
+            'lembaga_id' => $f['mi']->id,
+            'file' => $this->xlsxFile([$row2]),
+        ], ['Accept' => 'application/json']);
+
+        $res->assertStatus(422);
+        $this->assertNotEmpty($res->json('errors'));
+        $this->assertDatabaseMissing('psb_calon_santri', ['nik' => '1100000000000412']);
     }
 }

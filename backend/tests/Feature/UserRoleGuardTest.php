@@ -248,4 +248,27 @@ class UserRoleGuardTest extends TestCase
             DB::table('user_lembaga')->where('user_id', $super->id)->pluck('lembaga_id')->all()
         );
     }
+
+    // ---------- 13. detach lembaga di luar kewenangan ditolak ----------
+
+    public function test_13_admin_tidak_bisa_detach_lembaga_di_luar_kewenangan(): void
+    {
+        $f = $this->fixture();
+        $md = Lembaga::create([
+            'parent_id' => $f['root']->id, 'nama' => 'Madrasah Diniyah', 'kode' => 'MD',
+            'is_seleksi' => false, 'kelompok_psb' => 'combo_mi_md', 'is_active' => true,
+        ]);
+        $adminMi = $this->makeUser('admin', [$f['mi']->id]);
+        $target = $this->makeUser('kasir', [$f['mi']->id, $md->id]);
+
+        $this->actingAs($adminMi, 'sanctum')->deleteJson("/api/admin/users/{$target->id}/lembaga", [
+            'lembaga_id' => $md->id,
+        ])->assertStatus(403);
+        $this->assertContains($md->id, $this->pivotOf($target));
+
+        $this->actingAs($adminMi, 'sanctum')->deleteJson("/api/admin/users/{$target->id}/lembaga", [
+            'lembaga_id' => $f['mi']->id,
+        ])->assertStatus(200);
+        $this->assertNotContains($f['mi']->id, $this->pivotOf($target->fresh()));
+    }
 }

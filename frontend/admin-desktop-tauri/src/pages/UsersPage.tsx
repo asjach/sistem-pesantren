@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import {
   createUser,
@@ -11,11 +11,12 @@ import { listLembaga, type Lembaga } from '../api/master';
 import { errorMessage } from '../api/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -39,21 +40,65 @@ import { toast } from 'sonner';
 const ALL_ROLES = ['super_admin', 'admin', 'kasir', 'guru', 'orang_tua', 'santri'];
 const ADMIN_ROLES = ['kasir', 'guru', 'orang_tua', 'santri'];
 
+const emailRule = (v: string | null) =>
+  v && !v.includes('@') ? 'Email tidak valid.' : null;
+
+// Baris privileged (pemegang admin/super_admin) hanya bisa dimutasi super_admin.
+function privileged(u: AdminUser) {
+  return u.roles.some((r) => r.name === 'admin' || r.name === 'super_admin');
+}
+
+const USER_FIELDS: ExcelField[] = [
+  {
+    key: 'nama', label: 'Nama', width: 200, minWidth: 120, kind: 'text', maxLength: 255,
+    validate: (v) => (!v || !v.trim() ? 'Nama wajib diisi.' : null),
+  },
+  {
+    key: 'email', label: 'Email', width: 220, minWidth: 140, kind: 'text', maxLength: 255,
+    validate: emailRule,
+  },
+  {
+    key: 'phone', label: 'HP', width: 150, minWidth: 110, kind: 'text', maxLength: 20,
+  },
+  {
+    key: 'username', label: 'Username', width: 150, minWidth: 110, kind: 'text', maxLength: 50,
+  },
+  { key: 'peran', label: 'Peran', width: 200, minWidth: 120, kind: 'static' },
+  { key: 'lembaga', label: 'Lembaga', width: 200, minWidth: 120, kind: 'static' },
+];
+
+function userGridValues(u: AdminUser): Record<string, string | null> {
+  return {
+    nama: u.name,
+    email: u.email,
+    phone: u.phone,
+    username: u.username,
+    peran: u.roles.map((r) => r.name).join(', '),
+    lembaga: (u.lembagas ?? []).map((l) => l.nama).join(', '),
+  };
+}
+
+async function commitDraft(id: number, f: Record<string, string | null>) {
+  await updateUser(id, {
+    ...(f.nama !== undefined ? { name: f.nama ?? '' } : {}),
+    ...(f.email !== undefined ? { email: f.email || null } : {}),
+    ...(f.phone !== undefined ? { phone: f.phone || null } : {}),
+    ...(f.username !== undefined ? { username: f.username || null } : {}),
+  });
+}
+
 export default function UsersPage() {
   const { user: me } = useAuth();
   const isSuper = me?.roles.some((r) => r.name === 'super_admin') ?? false;
   const assignable = isSuper ? ALL_ROLES : ADMIN_ROLES;
-  const isSelf = (id: number) => me?.id === id;
-  // Baris privileged (pemegang admin/super_admin) hanya bisa dimutasi super_admin.
-  const privileged = (u: AdminUser) => u.roles.some((r) => r.name === 'admin' || r.name === 'super_admin');
-  const locked = (u: AdminUser) => !isSuper && privileged(u) && !isSelf(u.id);
-  const roleLocked = (u: AdminUser) => isSelf(u.id) || locked(u);
 
   const [rows, setRows] = useState<AdminUser[]>([]);
   const [lembagas, setLembagas] = useState<Lembaga[]>([]);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const pager = usePager('users');
+  const reqRef = useRef(0);
+  const lembagaReqRef = useRef(0);
   const [lastPage, setLastPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -70,79 +115,64 @@ export default function UsersPage() {
   const [editRoles, setEditRoles] = useState<string[]>([]);
   const [editLembaga, setEditLembaga] = useState<number[]>([]);
 
-  const emailRule = (v: string | null) =>
-    v && !v.includes('@') ? 'Email tidak valid.' : null;
+  const isSelf = useCallback((id: number) => me?.id === id, [me]);
+  const locked = useCallback(
+    (u: AdminUser) => !isSuper && privileged(u) && !isSelf(u.id),
+    [isSuper, isSelf],
+  );
+  const roleLocked = useCallback((u: AdminUser) => isSelf(u.id) || locked(u), [isSelf, locked]);
 
-  const fields: ExcelField[] = [
-    {
-      key: 'nama', label: 'Nama', width: 200, minWidth: 120, kind: 'text', maxLength: 255,
-      validate: (v) => (!v || !v.trim() ? 'Nama wajib diisi.' : null),
-    },
-    {
-      key: 'email', label: 'Email', width: 220, minWidth: 140, kind: 'text', maxLength: 255,
-      validate: emailRule,
-    },
-    {
-      key: 'phone', label: 'HP', width: 150, minWidth: 110, kind: 'text', maxLength: 20,
-    },
-    {
-      key: 'username', label: 'Username', width: 150, minWidth: 110, kind: 'text', maxLength: 50,
-    },
-    { key: 'peran', label: 'Peran', width: 200, minWidth: 120, kind: 'static' },
-    { key: 'lembaga', label: 'Lembaga', width: 200, minWidth: 120, kind: 'static' },
-  ];
+  const getValues = useCallback(userGridValues, []);
 
-  function gridValues(u: AdminUser): Record<string, string | null> {
-    return {
-      nama: u.name,
-      email: u.email,
-      phone: u.phone,
-      username: u.username,
-      peran: u.roles.map((r) => r.name).join(', '),
-      lembaga: (u.lembagas ?? []).map((l) => l.nama).join(', '),
-    };
-  }
-
-  async function commitDraft(id: number, f: Record<string, string | null>) {
-    await updateUser(id, {
-      ...(f.nama !== undefined ? { name: f.nama ?? '' } : {}),
-      ...(f.email !== undefined ? { email: f.email || null } : {}),
-      ...(f.phone !== undefined ? { phone: f.phone || null } : {}),
-      ...(f.username !== undefined ? { username: f.username || null } : {}),
-    });
-  }
-
-  function openEdit(u: AdminUser) {
-    setEditRow(u);
-    setEditRoles(u.roles.map((r) => r.name));
-    setEditLembaga((u.lembagas ?? []).map((l) => l.id));
-  }
-
-  async function load(p = pager.page, pp = pager.perPage) {
-    setErr('');
-    setLoading(true);
-    try {
-      const res = await listUsers({ search: search || undefined, role: roleFilter || undefined, page: p, per_page: pp });
-      const fix = pager.sync(res.current_page, res.last_page);
-      if (fix != null && fix !== p) {
-        await load(fix, pp);
-        return;
+  const load = useCallback(
+    async function loadPage(p = pager.page, pp = pager.perPage) {
+      const req = ++reqRef.current;
+      setErr('');
+      setLoading(true);
+      try {
+        const res = await listUsers({ search: search || undefined, role: roleFilter || undefined, page: p, per_page: pp });
+        if (req !== reqRef.current) return;
+        const fix = pager.sync(res.current_page, res.last_page);
+        if (fix != null && fix !== p) {
+          await loadPage(fix, pp);
+          return;
+        }
+        if (req !== reqRef.current) return;
+        setRows(res.data);
+        setLastPage(res.last_page);
+        setTotal(res.total);
+      } catch (e) {
+        if (req === reqRef.current) setErr(errorMessage(e));
+      } finally {
+        if (req === reqRef.current) setLoading(false);
       }
-      setRows(res.data);
-      setLastPage(res.last_page);
-      setTotal(res.total);
-    } catch (e) {
-      setErr(errorMessage(e));
-    } finally {
-      setLoading(false);
-    }
-  }
+    },
+    [pager.page, pager.perPage, pager.sync, search, roleFilter],
+  );
 
   useEffect(() => {
     if (pager.ready) load(pager.page);
-    listLembaga({ per_page: 100 }).then((p) => setLembagas(p.data)).catch((e) => setErr(errorMessage(e)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pager.ready]);
+  }, [pager.ready, search, roleFilter]);
+
+  useEffect(() => {
+    const req = ++lembagaReqRef.current;
+    listLembaga({ per_page: 100 })
+      .then((p) => {
+        if (req !== lembagaReqRef.current) return;
+        setLembagas(p.data);
+      })
+      .catch((e) => {
+        if (req !== lembagaReqRef.current) return;
+        setErr(errorMessage(e));
+      });
+  }, []);
+
+  const openEdit = useCallback((u: AdminUser) => {
+    setEditRow(u);
+    setEditRoles(u.roles.map((r) => r.name));
+    setEditLembaga((u.lembagas ?? []).map((l) => l.id));
+  }, []);
 
   function toggle(list: string[], v: string): string[] {
     return list.includes(v) ? list.filter((x) => x !== v) : [...list, v];
@@ -188,7 +218,7 @@ export default function UsersPage() {
     }
   }
 
-  async function onDelete(id: number) {
+  const onDelete = useCallback(async (id: number) => {
     try {
       await deleteUser(id);
       toast.success('Pengguna dihapus permanen.');
@@ -196,7 +226,35 @@ export default function UsersPage() {
     } catch (e) {
       setErr(errorMessage(e));
     }
-  }
+  }, [load]);
+
+  const onSaved = useCallback(() => load(), [load]);
+
+  const onSearchChange = useCallback((v: string) => {
+    setSearch(v);
+    pager.goFirst();
+  }, [pager.goFirst]);
+
+  const onSearchSubmit = useCallback(() => {
+    pager.goFirst();
+  }, [pager.goFirst]);
+
+  const renderActions = useCallback((u: AdminUser) => (
+    <>
+      <ViewAction id={`btn_lihat_user_${u.id}`} onClick={() => setViewRow(u)} />
+      {!roleLocked(u) && (
+        <EditAction id={`btn_ubah_user_${u.id}`} onClick={() => openEdit(u)} />
+      )}
+      {!isSelf(u.id) && !locked(u) && (
+        <DeleteAction
+          id={`btn_hapus_user_${u.id}`}
+          title="Hapus pengguna?"
+          description="Pengguna dihapus permanen dan semua sesinya dicabut."
+          onConfirm={() => onDelete(u.id)}
+        />
+      )}
+    </>
+  ), [openEdit, onDelete, roleLocked, isSelf, locked]);
 
   return (
     <div className={PAGE_SHELL}>
@@ -208,17 +266,17 @@ export default function UsersPage() {
       <ErrorNotice>{err}</ErrorNotice>
       <ExcelTable
         tableKey="users"
-        fields={fields}
+        fields={USER_FIELDS}
         rows={rows}
-        getValues={gridValues}
+        getValues={getValues}
         loading={loading}
         emptyText="Belum ada pengguna."
         canEdit={isSuper}
         onCommit={commitDraft}
-        onSaved={() => load()}
+        onSaved={onSaved}
         searchValue={search}
-        onSearchChange={setSearch}
-        onSearchSubmit={() => { pager.goFirst(); load(1); }}
+        onSearchChange={onSearchChange}
+        onSearchSubmit={onSearchSubmit}
         searchPlaceholder="Nama / email / HP / username"
         searchIds={{ form: 'form_cari_user', input: 'input_cari_user', button: 'btn_cari_user' }}
         addButton={(
@@ -227,32 +285,19 @@ export default function UsersPage() {
           </Button>
         )}
         filter={(
-          <Select value={roleFilter || '_semua'} onValueChange={(v) => setRoleFilter(v === '_semua' ? '' : v)}>
-            <SelectTrigger id="select_filter_role" title="Filter role" aria-label="Filter role" className="h-8 w-36">
+          <Select value={roleFilter || '_semua'} onValueChange={(v) => { setRoleFilter(v === '_semua' ? '' : v); pager.goFirst(); }}>
+            <SelectTrigger id="select_filter_role" title="Filter role" aria-label="Filter role" size="sm" className="w-36">
               <SelectValue placeholder="Semua" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="_semua">Semua</SelectItem>
-              {assignable.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+              <SelectGroup>
+                <SelectItem value="_semua">Semua</SelectItem>
+                {assignable.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+              </SelectGroup>
             </SelectContent>
           </Select>
         )}
-        renderActions={(u) => (
-          <>
-            <ViewAction id={`btn_lihat_user_${u.id}`} onClick={() => setViewRow(u)} />
-            {!roleLocked(u) && (
-              <EditAction id={`btn_ubah_user_${u.id}`} onClick={() => openEdit(u)} />
-            )}
-            {!isSelf(u.id) && !locked(u) && (
-              <DeleteAction
-                id={`btn_hapus_user_${u.id}`}
-                title="Hapus pengguna?"
-                description="Pengguna dihapus permanen dan semua sesinya dicabut."
-                onConfirm={() => onDelete(u.id)}
-              />
-            )}
-          </>
-        )}
+        renderActions={renderActions}
       />
       <Pager
         page={pager.page}
@@ -266,22 +311,25 @@ export default function UsersPage() {
         <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle>Tambah pengguna</DialogTitle>
+            <DialogDescription className="sr-only">
+              Buat akun pengguna baru beserta role dan lembaganya.
+            </DialogDescription>
           </DialogHeader>
-          <form id="form_tambah_user" onSubmit={onCreate} autoComplete="off" className="space-y-3">
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div className="grid gap-1.5">
-            <Label htmlFor="input_nama">Nama</Label>
+          <form id="form_tambah_user" onSubmit={onCreate} autoComplete="off" className="flex flex-col gap-3">
+        <FieldGroup className="grid gap-3 sm:grid-cols-3">
+          <Field>
+            <FieldLabel htmlFor="input_nama">Nama</FieldLabel>
             <Input id="input_nama" value={name} onChange={(e) => setName(e.target.value)} required autoComplete="off" />
-          </div>
-          <div className="grid gap-1.5">
-            <Label htmlFor="input_identitas">Email atau username</Label>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="input_identitas">Email atau username</FieldLabel>
             <Input id="input_identitas" value={identifier} onChange={(e) => setIdentifier(e.target.value)} required autoComplete="off" />
-          </div>
-          <div className="grid gap-1.5">
-            <Label htmlFor="input_password_baru">Kata sandi (min 8)</Label>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="input_password_baru">Kata sandi (min 8)</FieldLabel>
             <Input id="input_password_baru" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} autoComplete="new-password" />
-          </div>
-        </div>
+          </Field>
+        </FieldGroup>
         <div className="text-sm text-muted-foreground">Role {isSuper ? '(6 opsi)' : '(admin: 4 opsi — tanpa admin/super_admin)'}</div>
         <div id="group_role_baru" className="flex flex-wrap gap-2">
           {assignable.map((r) => (

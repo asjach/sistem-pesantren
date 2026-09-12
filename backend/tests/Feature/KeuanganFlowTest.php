@@ -496,4 +496,103 @@ class KeuanganFlowTest extends TestCase
         $this->assertStringContainsStringIgnoringCase('metode', (string) $res->getContent());
         $this->assertEquals(0, Pembayaran::count());
     }
+
+    // ---------- 11. void pembayaran dicek tenant ----------
+
+    public function test_11_void_lintas_lembaga_ditolak(): void
+    {
+        $f = $this->baseFixture();
+        $santri = $this->makeSantriAktif($f['mi'], $f['ta']);
+        $this->makePosTarif('SPP', $f['mi'], $f['ta'], 100000);
+        $kasirMi = $this->makeUser('kasir', [$f['mi']->id]);
+        $kas = $this->makeKas($f['mi']->id, 'KASMI');
+        $adminFull = $this->makeUser('admin');
+        $adminMi = $this->makeUser('admin', [$f['mi']->id]);
+        $adminMd = $this->makeUser('admin', [$f['md']->id]);
+
+        $this->actingAs($adminFull, 'sanctum')->postJson('/api/keuangan/tagihan/generate-bulanan', [
+            'lembaga_id' => $f['mi']->id, 'tahun_ajaran_id' => $f['ta']->id, 'periode' => '2026-08',
+        ])->assertStatus(200);
+        $t = Tagihan::where('santri_id', $santri->id)->firstOrFail();
+        $bayarId = $this->actingAs($kasirMi, 'sanctum')->postJson('/api/keuangan/bayar',
+            $this->bayarPayload($kas, [['tagihan_id' => $t->id, 'nominal_dibayar' => 100000]], 100000))
+            ->assertStatus(201)->json('data.id');
+
+        $this->actingAs($adminMd, 'sanctum')->postJson("/api/keuangan/pembayaran/{$bayarId}/void", ['alasan' => 'lintas tenant'])
+            ->assertStatus(403);
+        $this->assertNotNull(Pembayaran::find($bayarId));
+
+        $this->actingAs($adminMi, 'sanctum')->postJson("/api/keuangan/pembayaran/{$bayarId}/void", ['alasan' => 'salah input'])
+            ->assertStatus(200);
+        $this->assertEquals(0, (float) $kas->fresh()->saldo);
+    }
+
+    // ---------- 12. generate bulanan banyak santri (chunk) tetap lengkap ----------
+
+    public function test_12_generate_bulanan_banyak_santri_lengkap(): void
+    {
+        $f = $this->baseFixture();
+        $santriIds = [];
+        for ($i = 0; $i < 5; $i++) {
+            $santriIds[] = $this->makeSantriAktif($f['mi'], $f['ta'])->id;
+        }
+        $this->makePosTarif('SPP', $f['mi'], $f['ta'], 100000);
+        $this->makePosTarif('KGT', $f['mi'], $f['ta'], 50000);
+        $admin = $this->makeUser('admin');
+
+        $res = $this->actingAs($admin, 'sanctum')->postJson('/api/keuangan/tagihan/generate-bulanan', [
+            'lembaga_id' => $f['mi']->id, 'tahun_ajaran_id' => $f['ta']->id, 'periode' => '2026-09',
+        ]);
+        $res->assertStatus(200);
+        $this->assertEquals(10, $res->json('data.berhasil'));
+        $this->assertEmpty($res->json('data.gagal'));
+        foreach ($santriIds as $sid) {
+            $this->assertEquals(2, Tagihan::where('santri_id', $sid)->where('periode', '2026-09')->count());
+        }
+    }
+
+    // ---------- 13. idempotensi ter-scope tenant + relasi santri dicek ----------
+
+    public function test_13_client_op_id_lintas_lembaga_dan_santri_tidak_cocok_ditolak(): void
+    {
+        $f = $this->baseFixture();
+        $santriMi = $this->makeSantriAktif($f['mi'], $f['ta']);
+        $this->makePosTarif('SPP', $f['mi'], $f['ta'], 100000);
+        $santriMd = $this->makeSantriAktif($f['md'], $f['ta']);
+        $this->makePosTarif('SPPMD', $f['md'], $f['ta'], 100000);
+        $admin = $this->makeUser('admin');
+        $kasirMi = $this->makeUser('kasir', [$f['mi']->id]);
+        $kasirMd = $this->makeUser('kasir', [$f['md']->id]);
+        $kasMi = $this->makeKas($f['mi']->id, 'KASMI');
+        $kasMd = $this->makeKas($f['md']->id, 'KASMD');
+
+        foreach ([['mi', $f['mi']], ['md', $f['md']]] as [$jenis, $lembaga]) {
+            $this->actingAs($admin, 'sanctum')->postJson('/api/keuangan/tagihan/generate-bulanan', [
+                'lembaga_id' => $lembaga->id, 'tahun_ajaran_id' => $f['ta']->id, 'periode' => '2026-10',
+            ])->assertStatus(200);
+        }
+        $tMi = Tagihan::where('santri_id', $santriMi->id)->firstOrFail();
+        $tMd = Tagihan::where('santri_id', $santriMd->id)->firstOrFail();
+
+        // Pembayaran lembaga MD memakai client_op_id X.
+        $this->actingAs($kasirMd, 'sanctum')->postJson('/api/keuangan/bayar',
+            $this->bayarPayload($kasMd, [['tagihan_id' => $tMd->id, 'nominal_dibayar' => 100000]], 100000,
+                ['client_op_id' => 'op-lintas-001']))
+            ->assertStatus(201);
+
+        // Kasir MI kirim ulang client_op_id milik MD -> 422, tidak membocorkan data.
+        $res = $this->actingAs($kasirMi, 'sanctum')->postJson('/api/keuangan/bayar',
+            $this->bayarPayload($kasMi, [['tagihan_id' => $tMi->id, 'nominal_dibayar' => 100000]], 100000,
+                ['client_op_id' => 'op-lintas-001']));
+        $res->assertStatus(422);
+        $this->assertEquals(1, Pembayaran::count());
+
+        // santri_id tidak cocok dengan tagihan -> 422.
+        $santriLain = $this->makeSantriAktif($f['mi'], $f['ta']);
+        $this->actingAs($kasirMi, 'sanctum')->postJson('/api/keuangan/bayar',
+            $this->bayarPayload($kasMi, [['tagihan_id' => $tMi->id, 'nominal_dibayar' => 50000]], 50000,
+                ['santri_id' => $santriLain->id]))
+            ->assertStatus(422);
+        $this->assertEquals(0, (float) $kasMi->fresh()->saldo);
+    }
 }

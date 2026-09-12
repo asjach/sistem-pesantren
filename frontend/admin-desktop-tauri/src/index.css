@@ -27,6 +27,8 @@
   --color-accent-foreground: var(--accent-soft-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -80,6 +82,9 @@
   --accent-soft-foreground: color-mix(in srgb, var(--accent) 70%, var(--foreground));
   --destructive: #a12622;
   --destructive-foreground: #ffffff;
+  /* Warna peringatan (banner mode Edit, dsb) — bukan warna mentah Tailwind. */
+  --warning: #b45309;
+  --warning-foreground: #92400e;
   /* Border low-contrast: hanya 12% teks di atas latar (lembut, tidak "tebal"). */
   --border: color-mix(in srgb, var(--foreground) 12%, var(--background));
   --input: var(--border);
@@ -94,6 +99,8 @@
   --sidebar-deep: #0a180e;
   --destructive: #e0685f;
   --destructive-foreground: #1a0b0a;
+  --warning: #fbbf24;
+  --warning-foreground: #fcd34d;
 }
 
 @layer base {
@@ -266,6 +273,12 @@
   pointer-events: none;
   /* di atas kolom nomor baris yang sticky (z-index 30) */
   z-index: 35;
+}
+/* Baris tercentang: sorot lembut (ikut warna aksen tema) agar jelas
+   baris mana yang sedang dipilih lewat checklist. */
+.simpes-dsg .dsg-row.simpes-dsg-row-checked .dsg-cell,
+.simpes-dsg .dsg-row.simpes-dsg-row-checked .dsg-cell-gutter {
+  background-color: color-mix(in srgb, var(--accent) 14%, var(--card));
 }
 /* Sel header tanpa padding kanan agar gagang resize tepat di perbatasan kolom. */
 .simpes-dsg .dsg-row-header .dsg-cell {

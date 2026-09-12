@@ -186,7 +186,7 @@ class PsbController extends Controller
     }
 
     /** POST /api/psb/import — Excel kolom inti, NIK required -> create() langsung. */
-    public function import(Request $request): JsonResponse
+    public function import(Request $request, PsbService $psbService): JsonResponse
     {
         $data = $request->validate([
             'gelombang_id' => ['required', 'integer', 'exists:psb_gelombang,id'],
@@ -197,7 +197,7 @@ class PsbController extends Controller
 
         try {
             Excel::import(
-                new PsbImport((int) $data['gelombang_id'], (int) $data['lembaga_id']),
+                new PsbImport((int) $data['gelombang_id'], (int) $data['lembaga_id'], $psbService),
                 $request->file('file')
             );
 

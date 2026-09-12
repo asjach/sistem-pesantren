@@ -30,7 +30,7 @@ export default function Pager({ page, lastPage, total, onPage, perPage, onPerPag
         disabled={page <= 1}
         onClick={() => onPage(page - 1)}
       >
-        <ChevronLeft size={16} /> Sebelumnya
+        <ChevronLeft data-icon="inline-start" size={16} /> Sebelumnya
       </Button>
       <span className="text-sm text-muted-foreground">
         Hal {page} / {lastPage} · {total} data
@@ -59,7 +59,7 @@ export default function Pager({ page, lastPage, total, onPage, perPage, onPerPag
         disabled={page >= lastPage}
         onClick={() => onPage(page + 1)}
       >
-        Berikutnya <ChevronRight size={16} />
+        Berikutnya <ChevronRight data-icon="inline-end" size={16} />
       </Button>
     </div>
   );

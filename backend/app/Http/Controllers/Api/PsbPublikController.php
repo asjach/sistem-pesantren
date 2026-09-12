@@ -10,6 +10,7 @@ use App\Services\PsbService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Validation\ValidationException;
 
 class PsbPublikController extends Controller
 {
@@ -27,6 +28,7 @@ class PsbPublikController extends Controller
     public function store(PsbDaftarRequest $request, PsbService $service, PsbGelombangService $gelombang): JsonResponse
     {
         $data = $request->validated();
+        $this->tolakLanjutanPublik($data);
         $gelombang->cekBukaDanKuota((int) $data['gelombang_id'], (int) $data['lembaga_id']);
 
         $calon = $service->daftarPublik($data);
@@ -45,6 +47,7 @@ class PsbPublikController extends Controller
     public function storePaket(PsbDaftarRequest $request, PsbService $service, PsbGelombangService $gelombang): JsonResponse
     {
         $data = $request->validated();
+        $this->tolakLanjutanPublik($data);
         $gelombang->cekBukaDanKuota((int) $data['gelombang_id'], (int) $data['lembaga_id']);
 
         $hasil = $service->daftarPaket($data);
@@ -90,5 +93,14 @@ class PsbPublikController extends Controller
     protected function signedBukti(int $calonId): string
     {
         return URL::signedRoute('psb.bukti-pdf', ['calon' => $calonId], now()->addDays(7));
+    }
+
+    protected function tolakLanjutanPublik(array $data): void
+    {
+        if (! empty($data['santri_asal_id'])) {
+            throw ValidationException::withMessages([
+                'santri_asal_id' => 'Pendaftaran lanjutan hanya tersedia melalui portal orang tua.',
+            ]);
+        }
     }
 }

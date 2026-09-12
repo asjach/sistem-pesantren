@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { errorMessage } from '../api/client';
 import {
   bayarTagihan,
@@ -17,10 +17,11 @@ import {
 } from '../api/master';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -30,6 +31,7 @@ import PageHeader, { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -37,6 +39,28 @@ import {
 import { ActionIcon } from '@/components/RowActions';
 import { Wallet } from 'lucide-react';
 import { toast } from 'sonner';
+
+const KEUANGAN_FIELDS: ExcelField[] = [
+  { key: 'no', label: 'No. tagihan', width: 200, kind: 'static' },
+  { key: 'pos', label: 'Pos', width: 160, kind: 'static' },
+  { key: 'periode', label: 'Periode', width: 100, kind: 'static' },
+  { key: 'total', label: 'Total', width: 120, kind: 'static' },
+  { key: 'terbayar', label: 'Terbayar', width: 120, kind: 'static' },
+  { key: 'sisa', label: 'Sisa', width: 120, kind: 'static' },
+  { key: 'status', label: 'Status', width: 110, kind: 'static' },
+];
+
+function tagihanGridValues(t: Tagihan): Record<string, string | null> {
+  return {
+    no: t.no_tagihan,
+    pos: t.pos_keuangan?.nama_pos ?? String(t.pos_keuangan_id),
+    periode: t.periode,
+    total: String(t.nominal_total),
+    terbayar: String(t.nominal_terbayar),
+    sisa: String(t.sisa_tagihan),
+    status: t.status,
+  };
+}
 
 // 103 Keuangan: generate bulanan + tagihan santri + bayar + void.
 export default function KeuanganPage() {
@@ -66,41 +90,47 @@ export default function KeuanganPage() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
 
-  const fields: ExcelField[] = [
-    { key: 'no', label: 'No. tagihan', width: 200, kind: 'static' },
-    { key: 'pos', label: 'Pos', width: 160, kind: 'static' },
-    { key: 'periode', label: 'Periode', width: 100, kind: 'static' },
-    { key: 'total', label: 'Total', width: 120, kind: 'static' },
-    { key: 'terbayar', label: 'Terbayar', width: 120, kind: 'static' },
-    { key: 'sisa', label: 'Sisa', width: 120, kind: 'static' },
-    { key: 'status', label: 'Status', width: 110, kind: 'static' },
-  ];
+  const lembagaReqRef = useRef(0);
+  const metodeReqRef = useRef(0);
+  const taReqRef = useRef(0);
+  const tagihanReqRef = useRef(0);
 
-  function gridValues(t: Tagihan): Record<string, string | null> {
-    return {
-      no: t.no_tagihan,
-      pos: t.pos_keuangan?.nama_pos ?? String(t.pos_keuangan_id),
-      periode: t.periode,
-      total: String(t.nominal_total),
-      terbayar: String(t.nominal_terbayar),
-      sisa: String(t.sisa_tagihan),
-      status: t.status,
-    };
-  }
+  const getValues = useCallback(tagihanGridValues, []);
 
   useEffect(() => {
-    listLembaga({ per_page: 100 }).then((p) => setLembagas(p.data)).catch((e) => setErr(errorMessage(e)));
-    referensiList('metode_pembayaran').then(setMetode).catch(() => {});
+    const lembagaReq = ++lembagaReqRef.current;
+    listLembaga({ per_page: 100 })
+      .then((p) => {
+        if (lembagaReq !== lembagaReqRef.current) return;
+        setLembagas(p.data);
+      })
+      .catch((e) => {
+        if (lembagaReq !== lembagaReqRef.current) return;
+        setErr(errorMessage(e));
+      });
+    const metodeReq = ++metodeReqRef.current;
+    referensiList('metode_pembayaran')
+      .then((r) => {
+        if (metodeReq !== metodeReqRef.current) return;
+        setMetode(r);
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
+    const req = ++taReqRef.current;
     if (!genLembaga) {
       setTas([]);
       return;
     }
     listTahunAjaran({ lembaga_id: Number(genLembaga), per_page: 100 })
-      .then((p) => setTas(p.data))
-      .catch((e) => setErr(errorMessage(e)));
+      .then((p) => {
+        if (req !== taReqRef.current) return;
+        setTas(p.data);
+      })
+      .catch((e) => {
+        if (req === taReqRef.current) setErr(errorMessage(e));
+      });
   }, [genLembaga]);
 
   async function onGenerate(e: React.FormEvent) {
@@ -130,26 +160,37 @@ export default function KeuanganPage() {
   async function onMuatTagihan(e?: React.FormEvent) {
     e?.preventDefault();
     if (!santriId) return;
+    const req = ++tagihanReqRef.current;
     setErr('');
     setLoadingTagihan(true);
     try {
       const res = await tagihanSantri(Number(santriId));
+      if (req !== tagihanReqRef.current) return;
       setTagihan(res.data);
       if (res.data.length === 0) toast.info('Tidak ada tagihan terbuka.');
     } catch (e2) {
+      if (req !== tagihanReqRef.current) return;
       setTagihan([]);
       setErr(errorMessage(e2));
     } finally {
-      setLoadingTagihan(false);
+      if (req === tagihanReqRef.current) setLoadingTagihan(false);
     }
   }
 
-  function openBayar(t: Tagihan) {
+  const openBayar = useCallback((t: Tagihan) => {
     setBayarRow(t);
     setBayarNominal(String(t.sisa_tagihan));
     setBayarTanggal('');
     setBayarCatatan('');
-  }
+  }, []);
+
+  const onSaved = useCallback(async () => {}, []);
+  const onCommit = useCallback(async () => {}, []);
+  const renderActions = useCallback((t: Tagihan) => (
+    <ActionIcon id={`btn_bayar_tagihan_${t.id}`} title="Bayar" onClick={() => openBayar(t)}>
+      <Wallet size={16} />
+    </ActionIcon>
+  ), [openBayar]);
 
   async function onBayar(e: React.FormEvent) {
     e.preventDefault();
@@ -203,32 +244,38 @@ export default function KeuanganPage() {
         <div className="rounded-xl border bg-card p-4">
           <h2 className="mb-3 text-sm font-semibold">Generate tagihan bulanan</h2>
           <form id="form_generate_bulanan" onSubmit={onGenerate} className="grid gap-3">
-            <div className="grid gap-1.5">
-              <Label htmlFor="select_gen_lembaga">Lembaga</Label>
-              <Select value={genLembaga} onValueChange={(v) => { setGenLembaga(v); setGenTa(''); }}>
-                <SelectTrigger id="select_gen_lembaga" className="w-full">
-                  <SelectValue placeholder="Pilih lembaga" />
-                </SelectTrigger>
-                <SelectContent>
-                  {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.nama}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="select_gen_ta">Tahun ajaran</Label>
-              <Select value={genTa} onValueChange={setGenTa}>
-                <SelectTrigger id="select_gen_ta" className="w-full">
-                  <SelectValue placeholder="Pilih tahun ajaran" />
-                </SelectTrigger>
-                <SelectContent>
-                  {tas.map((t) => <SelectItem key={t.id} value={String(t.id)}>{t.nama}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="input_gen_periode">Periode (YYYY-MM)</Label>
-              <Input id="input_gen_periode" type="month" value={genPeriode} onChange={(e) => setGenPeriode(e.target.value)} required />
-            </div>
+            <FieldGroup className="gap-3">
+              <Field>
+                <FieldLabel htmlFor="select_gen_lembaga">Lembaga</FieldLabel>
+                <Select value={genLembaga} onValueChange={(v) => { setGenLembaga(v); setGenTa(''); }}>
+                  <SelectTrigger id="select_gen_lembaga" className="w-full">
+                    <SelectValue placeholder="Pilih lembaga" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.nama}</SelectItem>)}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="select_gen_ta">Tahun ajaran</FieldLabel>
+                <Select value={genTa} onValueChange={setGenTa}>
+                  <SelectTrigger id="select_gen_ta" className="w-full">
+                    <SelectValue placeholder="Pilih tahun ajaran" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {tas.map((t) => <SelectItem key={t.id} value={String(t.id)}>{t.nama}</SelectItem>)}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="input_gen_periode">Periode (YYYY-MM)</FieldLabel>
+                <Input id="input_gen_periode" type="month" value={genPeriode} onChange={(e) => setGenPeriode(e.target.value)} required />
+              </Field>
+            </FieldGroup>
             <Button id="btn_generate_bulanan" type="submit" disabled={busy || !genLembaga || !genTa || !genPeriode}>
               Generate
             </Button>
@@ -239,14 +286,16 @@ export default function KeuanganPage() {
         <div className="rounded-xl border bg-card p-4">
           <h2 className="mb-3 text-sm font-semibold">Void pembayaran (admin)</h2>
           <form id="form_void_pembayaran" onSubmit={onVoid} className="grid gap-3">
-            <div className="grid gap-1.5">
-              <Label htmlFor="input_void_id">ID pembayaran</Label>
-              <Input id="input_void_id" type="number" min={1} value={voidId} onChange={(e) => setVoidId(e.target.value)} required />
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="input_void_alasan">Alasan</Label>
-              <Input id="input_void_alasan" value={voidAlasan} onChange={(e) => setVoidAlasan(e.target.value)} required />
-            </div>
+            <FieldGroup className="gap-3">
+              <Field>
+                <FieldLabel htmlFor="input_void_id">ID pembayaran</FieldLabel>
+                <Input id="input_void_id" type="number" min={1} value={voidId} onChange={(e) => setVoidId(e.target.value)} required />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="input_void_alasan">Alasan</FieldLabel>
+                <Input id="input_void_alasan" value={voidAlasan} onChange={(e) => setVoidAlasan(e.target.value)} required />
+              </Field>
+            </FieldGroup>
             <Button id="btn_void_pembayaran" type="submit" variant="destructive" disabled={busy || !voidId || !voidAlasan}>
               Void
             </Button>
@@ -255,8 +304,8 @@ export default function KeuanganPage() {
       </div>
 
       <form id="form_tagihan_santri" onSubmit={onMuatTagihan} className="mt-4 flex flex-wrap items-end gap-2">
-        <div className="grid gap-1.5">
-          <Label htmlFor="input_santri_tagihan">ID santri</Label>
+        <Field className="w-36">
+          <FieldLabel htmlFor="input_santri_tagihan">ID santri</FieldLabel>
           <Input
             id="input_santri_tagihan"
             type="number"
@@ -266,7 +315,7 @@ export default function KeuanganPage() {
             className="h-8 w-32"
             required
           />
-        </div>
+        </Field>
         <Button id="btn_muat_tagihan" type="submit" variant="outline" disabled={loadingTagihan || !santriId}>
           Muat tagihan
         </Button>
@@ -275,19 +324,15 @@ export default function KeuanganPage() {
       <div className="mt-3">
         <ExcelTable
           tableKey="keuangan_tagihan"
-          fields={fields}
+          fields={KEUANGAN_FIELDS}
           rows={tagihan}
-          getValues={gridValues}
+          getValues={getValues}
           loading={loadingTagihan}
           emptyText="Belum ada tagihan dimuat."
           canEdit={false}
-          onCommit={async () => {}}
-          onSaved={async () => {}}
-          renderActions={(t) => (
-            <ActionIcon id={`btn_bayar_tagihan_${t.id}`} title="Bayar" onClick={() => openBayar(t)}>
-              <Wallet size={16} />
-            </ActionIcon>
-          )}
+          onCommit={onCommit}
+          onSaved={onSaved}
+          renderActions={renderActions}
         />
       </div>
 
@@ -295,44 +340,51 @@ export default function KeuanganPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Bayar: {bayarRow?.no_tagihan}</DialogTitle>
+            <DialogDescription className="sr-only">
+              Catat pembayaran untuk tagihan ini.
+            </DialogDescription>
           </DialogHeader>
-          <form id="form_bayar_tagihan" onSubmit={onBayar} className="space-y-3">
-            <div className="grid gap-1.5">
-              <Label htmlFor="input_bayar_kas">ID akun kas</Label>
-              <Input id="input_bayar_kas" type="number" min={1} value={bayarKas} onChange={(e) => setBayarKas(e.target.value)} required />
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="select_bayar_metode">Metode pembayaran</Label>
-              <Select value={bayarMetode} onValueChange={setBayarMetode}>
-                <SelectTrigger id="select_bayar_metode" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(metode.length > 0 ? metode.map((m) => String(m.nama ?? m.kode)) : ['tunai', 'transfer']).map((m) => (
-                    <SelectItem key={m} value={m}>{m}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="input_bayar_nominal">Nominal dibayar</Label>
-              <Input
-                id="input_bayar_nominal"
-                type="number"
-                min={1}
-                value={bayarNominal}
-                onChange={(e) => setBayarNominal(e.target.value)}
-                required
-              />
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="input_bayar_tanggal">Tanggal (opsional)</Label>
-              <Input id="input_bayar_tanggal" type="date" value={bayarTanggal} onChange={(e) => setBayarTanggal(e.target.value)} />
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="input_bayar_catatan">Catatan (opsional)</Label>
-              <Input id="input_bayar_catatan" value={bayarCatatan} onChange={(e) => setBayarCatatan(e.target.value)} />
-            </div>
+          <form id="form_bayar_tagihan" onSubmit={onBayar} className="flex flex-col gap-3">
+            <FieldGroup className="gap-3">
+              <Field>
+                <FieldLabel htmlFor="input_bayar_kas">ID akun kas</FieldLabel>
+                <Input id="input_bayar_kas" type="number" min={1} value={bayarKas} onChange={(e) => setBayarKas(e.target.value)} required />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="select_bayar_metode">Metode pembayaran</FieldLabel>
+                <Select value={bayarMetode} onValueChange={setBayarMetode}>
+                  <SelectTrigger id="select_bayar_metode" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {(metode.length > 0 ? metode.map((m) => String(m.nama ?? m.kode)) : ['tunai', 'transfer']).map((m) => (
+                        <SelectItem key={m} value={m}>{m}</SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="input_bayar_nominal">Nominal dibayar</FieldLabel>
+                <Input
+                  id="input_bayar_nominal"
+                  type="number"
+                  min={1}
+                  value={bayarNominal}
+                  onChange={(e) => setBayarNominal(e.target.value)}
+                  required
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="input_bayar_tanggal">Tanggal (opsional)</FieldLabel>
+                <Input id="input_bayar_tanggal" type="date" value={bayarTanggal} onChange={(e) => setBayarTanggal(e.target.value)} />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="input_bayar_catatan">Catatan (opsional)</FieldLabel>
+                <Input id="input_bayar_catatan" value={bayarCatatan} onChange={(e) => setBayarCatatan(e.target.value)} />
+              </Field>
+            </FieldGroup>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setBayarRow(null)}>Batal</Button>
               <Button id="btn_simpan_bayar" type="submit" disabled={busy || !bayarKas || !bayarNominal}>Bayar</Button>

@@ -2,7 +2,11 @@
 
 namespace App\Providers;
 
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Str;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -24,5 +28,19 @@ class AppServiceProvider extends ServiceProvider
             $helper = app_path('Helpers/TerbilangHelper.php');
             if (is_file($helper)) require_once $helper;
         }
+
+        RateLimiter::for('login', function (Request $request) {
+            $identifier = Str::transliterate(Str::lower((string) $request->input('identifier')));
+
+            return Limit::perMinute(6)->by($identifier.'|'.$request->ip());
+        });
+
+        RateLimiter::for('api_user', function (Request $request) {
+            return Limit::perMinute(120)->by($request->user()?->getAuthIdentifier() ?: $request->ip());
+        });
+
+        RateLimiter::for('imports', function (Request $request) {
+            return Limit::perMinute(10)->by($request->user()?->getAuthIdentifier() ?: $request->ip());
+        });
     }
 }

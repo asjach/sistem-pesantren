@@ -32,11 +32,37 @@ class KeuanganPolicy
     public function update(User $user, Pembayaran $pembayaran): bool
     {
         // Koreksi/void pembayaran: admin saja (kasir tidak boleh ubah/hapus)
-        return $user->hasAnyRole(['super_admin', 'admin']);
+        return $user->hasAnyRole(['super_admin', 'admin'])
+            && $this->viewPembayaran($user, $pembayaran);
     }
 
     public function delete(User $user, Pembayaran $pembayaran): bool
     {
-        return $user->hasAnyRole(['super_admin', 'admin']);
+        return $user->hasAnyRole(['super_admin', 'admin'])
+            && $this->viewPembayaran($user, $pembayaran);
+    }
+
+    protected function viewPembayaran(User $user, Pembayaran $pembayaran): bool
+    {
+        if ($user->hasRole('super_admin') || $user->isAdminFull()) {
+            return true;
+        }
+        $pembayaran->loadMissing('detail.tagihan');
+        $lembagaIds = $pembayaran->detail
+            ->map(fn ($d) => $d->tagihan?->lembaga_id)
+            ->filter()
+            ->unique();
+
+        if ($lembagaIds->isEmpty()) {
+            return false;
+        }
+
+        foreach ($lembagaIds as $lembagaId) {
+            if (! $user->canAccessLembaga((int) $lembagaId)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

@@ -658,6 +658,11 @@ class PsbService
         });
     }
 
+    public function nomorPendaftaranBerikutnya(int $gelombangId, int $lembagaId): string
+    {
+        return $this->generateNoPendaftaran($gelombangId, $lembagaId);
+    }
+
     protected function generateNoPendaftaran(int $gelombangId, int $lembagaId): string
     {
         // Format: PSB_{tahun}_{kodeLembaga}_{noGelombang}_{seq4}; seq reset per (lembaga,tahun); unique no_pendaftaran per lembaga

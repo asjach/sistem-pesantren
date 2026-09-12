@@ -17,6 +17,10 @@ Galeri pratinjau di Pengaturan > Tampilan.
 Shortcut **Ctrl/Cmd+B** menyembunyikan sidebar jadi ikon saja.
 Tambah tema = 1 objek di `src/themes.ts` (tanpa sentuh CSS).
 Tambah komponen: `npx shadcn@latest add <nama> --yes`.
+Catatan patch lokal (React 18): `DialogOverlay` & `AlertDialogOverlay` di-regenerate
+sebagai `forwardRef` (template registry default React-19), dan `Button`/`ActionIcon`
+sudah `forwardRef` agar aman dipakai sebagai trigger `asChild`. Sebelum update
+komponen dari registry, cek `shadcn add --diff` dulu.
 
 ## Grid data ala Excel (`src/components/ExcelTable.tsx`)
 
@@ -156,10 +160,72 @@ Catatan:
 - Belum di-sign: macOS Gatekeeper → buka via klik kanan > Open saat pertama kali.
 - Bila bundling DMG gagal karena volume lama masih ter-mount, lepas dulu:
   `hdiutil detach /Volumes/dmg.* -force` (atau `diskutil eject force`).
-- Token + base URL tersimpan di plugin-store
+- Token disimpan di **OS keychain** (Rust `secure_get`/`secure_set`/`secure_delete`,
+  crate `keyring`; `src/api/client.ts` otomatis pindah dari store lama saat pertama
+  dibaca). Base URL + preferensi lain tetap di plugin-store
   (`~/Library/Application Support/id.or.pesantren.simpes.admin/simpes.dat`).
 - Ganti backend tanpa rebuild: menu Pengaturan → isi URL API → Simpan & uji koneksi.
+  `http://` hanya diterima untuk localhost/127.0.0.1; host lain wajib `https://`.
 - CI Windows/Linux (Fase 5) belum dibuat — butuh GitHub Actions matrix.
+
+## Rilis & signing (rencana)
+
+Kunci signing/updater **belum dibuat** (tidak boleh ada kredensial di repo).
+Langkah konkret saat siap rilis publik:
+
+### 1. Kunci updater (sekali saja)
+
+```sh
+cargo tauri signer generate -w ~/.tauri/simpes.key
+# atau tanpa cargo-tauri: npx tauri signer generate -w ~/.tauri/simpes.key
+```
+
+- Simpan **private key** sebagai secret CI: `TAURI_SIGNING_PRIVATE_KEY`
+  (isi file atau path-nya) + `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` bila diberi sandi.
+- Simpan **public key** (tercetak oleh perintah) untuk `plugins.updater.pubkey`.
+- Jangan pernah commit private key; file `.sig` hasil build memang untuk server update.
+
+### 2. macOS — sign + notarize
+
+Butuh Apple Developer Program. Set env di CI:
+`APPLE_CERTIFICATE` (base64 `.p12`), `APPLE_CERTIFICATE_PASSWORD`,
+`APPLE_SIGNING_IDENTITY`, `APPLE_ID`, `APPLE_PASSWORD` (app-specific password),
+`APPLE_TEAM_ID`. `npm run tauri:build` akan sign + notarize otomatis. Tanpa ini
+Gatekeeper memblokir (pengguna harus klik kanan > Open).
+
+### 3. Windows — Authenticode
+
+Siapkan sertifikat code signing (OV/EV, `.pfx`). Isi
+`bundle.windows.certificateThumbprint` (+ `digestAlgorithm`/`timestampUrl`) di
+`tauri.conf.json`, atau pakai `bundle.windows.signCommand` kustom (mis. Azure
+Trusted Signing). Di CI: impor `.pfx` ke certificate store runner lalu set
+thumbprint. Tanpa sertifikat, SmartScreen memperingatkan pengguna.
+
+### 4. Mengaktifkan updater (saat server HTTPS siap)
+
+1. Di `tauri.conf.json`: set `"bundle": { "createUpdaterArtifacts": true, ... }`
+   dan blok plugin updater:
+   ```json
+   "plugins": {
+     "updater": {
+       "endpoints": ["https://<host>/updates/latest.json"],
+       "pubkey": "<public key dari langkah 1>"
+     }
+   }
+   ```
+2. Tambah `tauri-plugin-updater` di `src-tauri/Cargo.toml` +
+   `@tauri-apps/plugin-updater` di `package.json`, daftarkan
+   `.plugin(tauri_plugin_updater::Builder::new().build())` di
+   `src-tauri/src/lib.rs`, dan tambahkan `"updater:default"` ke
+   `src-tauri/capabilities/default.json`.
+3. Build dengan private key → installer (`.dmg`/`.exe`/`.msi`) + file `.sig`.
+4. Serve manifest `latest.json` dari HTTPS (versi, notes, pub_date, dan
+   `platforms[*].signature`/`url` yang menunjuk installer + `.sig` di host sama).
+5. Uji: install versi lama → cek update → installer terpasang & signature cocok.
+
+Catatan: endpoint updater **wajib HTTPS** di production dan artefak harus
+di-sign, jika tidak updater menolaknya. Checklist ini dijalankan saat CI
+Windows/Linux (Fase 5) dibuat.
 
 ## Font offline
 

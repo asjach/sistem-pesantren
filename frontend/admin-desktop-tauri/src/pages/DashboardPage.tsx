@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { ringkasan, type Ringkasan } from '../api/master';
 import { errorMessage } from '../api/client';
 import { Skeleton } from '@/components/ui/skeleton';
-import PageHeader from '@/components/PageHeader';
+import PageHeader, { ErrorNotice } from '@/components/PageHeader';
 import { BookOpen, CalendarCheck, Landmark, Users, type LucideIcon } from 'lucide-react';
 
 const STATS: {
@@ -21,14 +21,18 @@ export default function DashboardPage() {
   const [err, setErr] = useState('');
 
   useEffect(() => {
-    ringkasan().then(setData).catch((e) => setErr(errorMessage(e)));
+    let alive = true;
+    ringkasan()
+      .then((d) => { if (alive) setData(d); })
+      .catch((e) => { if (alive) setErr(errorMessage(e)); });
+    return () => { alive = false; };
   }, []);
 
   if (err) {
     return (
       <div>
         <PageHeader titleId="title_dashboard" title="Ringkasan" />
-        <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-3.5 py-2.5 text-sm text-destructive">{err}</p>
+        <ErrorNotice>{err}</ErrorNotice>
       </div>
     );
   }

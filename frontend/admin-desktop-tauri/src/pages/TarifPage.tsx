@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { errorMessage } from '../api/client';
 import {
   createTarif,
@@ -16,10 +16,11 @@ import {
 } from '../api/master';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -30,6 +31,7 @@ import { ViewDialog } from '@/components/ViewDialog';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -38,6 +40,45 @@ import Pager from '@/components/Pager';
 import { usePager } from '@/hooks/usePager';
 import { DeleteAction, EditAction, ViewAction } from '@/components/RowActions';
 import { toast } from 'sonner';
+
+const numRule = (label: string, required: boolean) => (v: string | null) => {
+  if (!v) return required ? `${label} wajib diisi.` : null;
+  const n = Number(v);
+  return !Number.isFinite(n) || n < 0 ? `${label} angka ≥ 0.` : null;
+};
+
+const FIELDS: ExcelField[] = [
+  { key: 'pos', label: 'Pos', width: 140, minWidth: 110, kind: 'static' },
+  { key: 'lembaga', label: 'Lembaga', width: 180, minWidth: 120, kind: 'static' },
+  { key: 'ta', label: 'TA', width: 140, minWidth: 110, kind: 'static' },
+  { key: 'tipe', label: 'Tipe santri', width: 130, minWidth: 100, kind: 'static' },
+  {
+    key: 'nominal', label: 'Nominal', width: 160, minWidth: 110, kind: 'text', maxLength: 20,
+    validate: numRule('Nominal', true),
+  },
+  {
+    key: 'paket', label: 'Paket', width: 160, minWidth: 110, kind: 'text', maxLength: 20,
+    validate: numRule('Nominal paket', false),
+  },
+];
+
+function gridValues(t: TarifBiaya): Record<string, string | null> {
+  return {
+    pos: t.pos?.kode_pos ?? String(t.pos_keuangan_id),
+    lembaga: t.lembaga?.nama ?? String(t.lembaga_id),
+    ta: t.tahunAjaran?.nama ?? t.tahun_ajaran?.nama ?? String(t.tahun_ajaran_id),
+    tipe: t.tipe_santri,
+    nominal: String(t.nominal),
+    paket: t.nominal_paket === null || t.nominal_paket === undefined ? '' : String(t.nominal_paket),
+  };
+}
+
+async function commitDraft(id: number, f: Record<string, string | null>) {
+  await updateTarif(id, {
+    ...(f.nominal !== undefined ? { nominal: Number(f.nominal) } : {}),
+    ...(f.paket !== undefined ? { nominal_paket: f.paket ? Number(f.paket) : null } : {}),
+  });
+}
 
 export default function TarifPage() {
   const [lembagas, setLembagas] = useState<Lembaga[]>([]);
@@ -52,6 +93,8 @@ export default function TarifPage() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
+  const reqRef = useRef(0);
+
   const [nominal, setNominal] = useState('');
   const [nominalPaket, setNominalPaket] = useState('');
   const [tipeSantri, setTipeSantri] = useState<TipeSantriTarif>('semua');
@@ -61,50 +104,37 @@ export default function TarifPage() {
   const [editNominal, setEditNominal] = useState('');
   const [editPaket, setEditPaket] = useState('');
 
-  const numRule = (label: string, required: boolean) => (v: string | null) => {
-    if (!v) return required ? `${label} wajib diisi.` : null;
-    const n = Number(v);
-    return !Number.isFinite(n) || n < 0 ? `${label} angka ≥ 0.` : null;
-  };
-
-  const fields: ExcelField[] = [
-    { key: 'pos', label: 'Pos', width: 140, minWidth: 110, kind: 'static' },
-    { key: 'lembaga', label: 'Lembaga', width: 180, minWidth: 120, kind: 'static' },
-    { key: 'ta', label: 'TA', width: 140, minWidth: 110, kind: 'static' },
-    { key: 'tipe', label: 'Tipe santri', width: 130, minWidth: 100, kind: 'static' },
-    {
-      key: 'nominal', label: 'Nominal', width: 160, minWidth: 110, kind: 'text', maxLength: 20,
-      validate: numRule('Nominal', true),
+  const load = useCallback(
+    async function loadPage(p = pager.page, pp = pager.perPage) {
+      const req = ++reqRef.current;
+      setErr('');
+      setLoading(true);
+      try {
+        const res = await listTarif({
+          lembaga_id: lembagaId === '' ? undefined : Number(lembagaId),
+          pos_keuangan_id: posId === '' ? undefined : Number(posId),
+          tahun_ajaran_id: taId === '' ? undefined : Number(taId),
+          page: p,
+          per_page: pp,
+        });
+        if (req !== reqRef.current) return;
+        const fix = pager.sync(res.current_page, res.last_page);
+        if (fix != null && fix !== p) {
+          await loadPage(fix, pp);
+          return;
+        }
+        if (req !== reqRef.current) return;
+        setRows(res.data);
+        setLastPage(res.last_page);
+        setTotal(res.total);
+      } catch (e) {
+        if (req === reqRef.current) setErr(errorMessage(e));
+      } finally {
+        if (req === reqRef.current) setLoading(false);
+      }
     },
-    {
-      key: 'paket', label: 'Paket', width: 160, minWidth: 110, kind: 'text', maxLength: 20,
-      validate: numRule('Nominal paket', false),
-    },
-  ];
-
-  function gridValues(t: TarifBiaya): Record<string, string | null> {
-    return {
-      pos: t.pos?.kode_pos ?? String(t.pos_keuangan_id),
-      lembaga: t.lembaga?.nama ?? String(t.lembaga_id),
-      ta: t.tahunAjaran?.nama ?? t.tahun_ajaran?.nama ?? String(t.tahun_ajaran_id),
-      tipe: t.tipe_santri,
-      nominal: String(t.nominal),
-      paket: t.nominal_paket === null || t.nominal_paket === undefined ? '' : String(t.nominal_paket),
-    };
-  }
-
-  async function commitDraft(id: number, f: Record<string, string | null>) {
-    await updateTarif(id, {
-      ...(f.nominal !== undefined ? { nominal: Number(f.nominal) } : {}),
-      ...(f.paket !== undefined ? { nominal_paket: f.paket ? Number(f.paket) : null } : {}),
-    });
-  }
-
-  function openEdit(t: TarifBiaya) {
-    setEditRow(t);
-    setEditNominal(String(t.nominal));
-    setEditPaket(t.nominal_paket === null || t.nominal_paket === undefined ? '' : String(t.nominal_paket));
-  }
+    [lembagaId, posId, taId, pager.page, pager.perPage, pager.sync],
+  );
 
   useEffect(() => {
     listLembaga().then((p) => setLembagas(p.data)).catch((e) => setErr(errorMessage(e)));
@@ -116,43 +146,25 @@ export default function TarifPage() {
       setTas([]);
       return;
     }
+    let alive = true;
     listTahunAjaran({ lembaga_id: Number(lembagaId) })
-      .then((p) => setTas(p.data))
-      .catch((e) => setErr(errorMessage(e)));
+      .then((p) => { if (alive) setTas(p.data); })
+      .catch((e) => { if (alive) setErr(errorMessage(e)); });
+    return () => { alive = false; };
   }, [lembagaId]);
-
-  async function load(p = pager.page, pp = pager.perPage) {
-    setErr('');
-    setLoading(true);
-    try {
-      const res = await listTarif({
-        lembaga_id: lembagaId === '' ? undefined : Number(lembagaId),
-        pos_keuangan_id: posId === '' ? undefined : Number(posId),
-        tahun_ajaran_id: taId === '' ? undefined : Number(taId),
-        page: p,
-        per_page: pp,
-      });
-      const fix = pager.sync(res.current_page, res.last_page);
-      if (fix != null && fix !== p) {
-        await load(fix, pp);
-        return;
-      }
-      setRows(res.data);
-      setLastPage(res.last_page);
-      setTotal(res.total);
-    } catch (e) {
-      setErr(errorMessage(e));
-    } finally {
-      setLoading(false);
-    }
-  }
 
   useEffect(() => {
     if (pager.ready) load(pager.page);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pager.ready]);
+  }, [pager.ready, lembagaId, posId, taId]);
 
-  async function onCreate(e: React.FormEvent) {
+  const openEdit = useCallback((t: TarifBiaya) => {
+    setEditRow(t);
+    setEditNominal(String(t.nominal));
+    setEditPaket(t.nominal_paket === null || t.nominal_paket === undefined ? '' : String(t.nominal_paket));
+  }, []);
+
+  const onCreate = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     setErr('');
     if (lembagaId === '' || posId === '' || taId === '') {
@@ -176,9 +188,9 @@ export default function TarifPage() {
     } catch (e2) {
       setErr(errorMessage(e2));
     }
-  }
+  }, [lembagaId, posId, taId, tipeSantri, nominal, nominalPaket, load, pager.goFirst]);
 
-  async function onUpdate() {
+  const onUpdate = useCallback(async () => {
     if (!editRow) return;
     try {
       await updateTarif(editRow.id, {
@@ -191,9 +203,9 @@ export default function TarifPage() {
     } catch (e) {
       setErr(errorMessage(e));
     }
-  }
+  }, [editRow, editNominal, editPaket, load]);
 
-  async function onDelete(id: number) {
+  const onDelete = useCallback(async (id: number) => {
     try {
       await deleteTarif(id);
       toast.success('Tarif dihapus.');
@@ -201,7 +213,26 @@ export default function TarifPage() {
     } catch (e) {
       setErr(errorMessage(e));
     }
-  }
+  }, [load]);
+
+  const onSearchSubmit = useCallback(() => {
+    pager.goFirst();
+  }, [pager.goFirst]);
+
+  const onSaved = useCallback(() => load(), [load]);
+
+  const renderActions = useCallback((t: TarifBiaya) => (
+    <>
+      <ViewAction id={`btn_lihat_tarif_${t.id}`} onClick={() => setViewRow(t)} />
+      <EditAction id={`btn_ubah_tarif_${t.id}`} onClick={() => openEdit(t)} />
+      <DeleteAction
+        id={`btn_hapus_tarif_${t.id}`}
+        title="Hapus tarif?"
+        description="Tarif akan dihapus permanen."
+        onConfirm={() => onDelete(t.id)}
+      />
+    </>
+  ), [openEdit, onDelete]);
 
   return (
     <div className={PAGE_SHELL}>
@@ -209,15 +240,15 @@ export default function TarifPage() {
       <ErrorNotice>{err}</ErrorNotice>
       <ExcelTable
         tableKey="tarif"
-        fields={fields}
+        fields={FIELDS}
         rows={rows}
         getValues={gridValues}
         loading={loading}
         emptyText="Belum ada tarif."
         canEdit
         onCommit={commitDraft}
-        onSaved={() => load()}
-        onSearchSubmit={() => { pager.goFirst(); load(1); }}
+        onSaved={onSaved}
+        onSearchSubmit={onSearchSubmit}
         searchIds={{ form: 'form_filter_tarif', button: 'btn_cari_tarif' }}
         addButton={(
           <Button id="btn_buka_tambah_tarif" onClick={() => setTambahOpen(true)}>
@@ -226,47 +257,51 @@ export default function TarifPage() {
         )}
         filter={(
           <>
-            <Select value={lembagaId === '' ? '_semua' : String(lembagaId)} onValueChange={(v) => { setLembagaId(v === '_semua' ? '' : Number(v)); setTaId(''); }}>
-              <SelectTrigger id="select_lembaga_tarif" title="Filter lembaga" aria-label="Filter lembaga" className="h-8 w-36">
+            <Select
+              value={lembagaId === '' ? '_semua' : String(lembagaId)}
+              onValueChange={(v) => { setLembagaId(v === '_semua' ? '' : Number(v)); setTaId(''); pager.goFirst(); }}
+            >
+              <SelectTrigger id="select_lembaga_tarif" title="Filter lembaga" aria-label="Filter lembaga" size="sm" className="w-36">
                 <SelectValue placeholder="Semua" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="_semua">Semua</SelectItem>
-                {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.nama}</SelectItem>)}
+                <SelectGroup>
+                  <SelectItem value="_semua">Semua</SelectItem>
+                  {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.nama}</SelectItem>)}
+                </SelectGroup>
               </SelectContent>
             </Select>
-            <Select value={posId === '' ? '_semua' : String(posId)} onValueChange={(v) => setPosId(v === '_semua' ? '' : Number(v))}>
-              <SelectTrigger id="select_pos_tarif" title="Filter pos" aria-label="Filter pos" className="h-8 w-36">
+            <Select
+              value={posId === '' ? '_semua' : String(posId)}
+              onValueChange={(v) => { setPosId(v === '_semua' ? '' : Number(v)); pager.goFirst(); }}
+            >
+              <SelectTrigger id="select_pos_tarif" title="Filter pos" aria-label="Filter pos" size="sm" className="w-36">
                 <SelectValue placeholder="Semua" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="_semua">Semua</SelectItem>
-                {posList.map((p) => <SelectItem key={p.id} value={String(p.id)}>{p.kode_pos} — {p.nama_pos}</SelectItem>)}
+                <SelectGroup>
+                  <SelectItem value="_semua">Semua</SelectItem>
+                  {posList.map((p) => <SelectItem key={p.id} value={String(p.id)}>{p.kode_pos} — {p.nama_pos}</SelectItem>)}
+                </SelectGroup>
               </SelectContent>
             </Select>
-            <Select value={taId === '' ? '_semua' : String(taId)} onValueChange={(v) => setTaId(v === '_semua' ? '' : Number(v))}>
-              <SelectTrigger id="select_ta_tarif" title="Filter tahun ajaran" aria-label="Filter tahun ajaran" className="h-8 w-36">
+            <Select
+              value={taId === '' ? '_semua' : String(taId)}
+              onValueChange={(v) => { setTaId(v === '_semua' ? '' : Number(v)); pager.goFirst(); }}
+            >
+              <SelectTrigger id="select_ta_tarif" title="Filter tahun ajaran" aria-label="Filter tahun ajaran" size="sm" className="w-36">
                 <SelectValue placeholder="Semua" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="_semua">Semua</SelectItem>
-                {tas.map((t) => <SelectItem key={t.id} value={String(t.id)}>{t.nama}</SelectItem>)}
+                <SelectGroup>
+                  <SelectItem value="_semua">Semua</SelectItem>
+                  {tas.map((t) => <SelectItem key={t.id} value={String(t.id)}>{t.nama}</SelectItem>)}
+                </SelectGroup>
               </SelectContent>
             </Select>
           </>
         )}
-        renderActions={(t) => (
-          <>
-            <ViewAction id={`btn_lihat_tarif_${t.id}`} onClick={() => setViewRow(t)} />
-            <EditAction id={`btn_ubah_tarif_${t.id}`} onClick={() => openEdit(t)} />
-            <DeleteAction
-              id={`btn_hapus_tarif_${t.id}`}
-              title="Hapus tarif?"
-              description="Tarif akan dihapus permanen."
-              onConfirm={() => onDelete(t.id)}
-            />
-          </>
-        )}
+        renderActions={renderActions}
       />
       <Pager
         page={pager.page}
@@ -280,38 +315,41 @@ export default function TarifPage() {
         <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle>Tambah tarif</DialogTitle>
+            <DialogDescription className="sr-only">Formulir penambahan tarif baru.</DialogDescription>
           </DialogHeader>
-          <form id="form_tambah_tarif" onSubmit={onCreate} className="space-y-3">
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div className="grid gap-1.5">
-            <Label htmlFor="select_tipe_santri_tarif">Tipe santri</Label>
-            <Select value={tipeSantri} onValueChange={(v) => setTipeSantri(v as TipeSantriTarif)}>
-              <SelectTrigger id="select_tipe_santri_tarif">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="semua">semua</SelectItem>
-                <SelectItem value="asrama">asrama</SelectItem>
-                <SelectItem value="non_asrama">non_asrama</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="grid gap-1.5">
-            <Label htmlFor="input_nominal_tarif">Nominal</Label>
-            <Input id="input_nominal_tarif" type="number" min={0} value={nominal} onChange={(e) => setNominal(e.target.value)} required />
-          </div>
-          <div className="grid gap-1.5">
-            <Label htmlFor="input_nominal_paket_tarif">Nominal paket (opsional, MI-MD)</Label>
-            <Input id="input_nominal_paket_tarif" type="number" min={0} value={nominalPaket} onChange={(e) => setNominalPaket(e.target.value)} />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setTambahOpen(false)}>Batal</Button>
-          <Button id="btn_tambah_tarif" type="submit">Tambah</Button>
-        </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+          <form id="form_tambah_tarif" onSubmit={onCreate} className="flex flex-col gap-3">
+            <FieldGroup className="grid gap-3 sm:grid-cols-3">
+              <Field>
+                <FieldLabel htmlFor="select_tipe_santri_tarif">Tipe santri</FieldLabel>
+                <Select value={tipeSantri} onValueChange={(v) => setTipeSantri(v as TipeSantriTarif)}>
+                  <SelectTrigger id="select_tipe_santri_tarif">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectItem value="semua">semua</SelectItem>
+                      <SelectItem value="asrama">asrama</SelectItem>
+                      <SelectItem value="non_asrama">non_asrama</SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="input_nominal_tarif">Nominal</FieldLabel>
+                <Input id="input_nominal_tarif" type="number" min={0} value={nominal} onChange={(e) => setNominal(e.target.value)} required />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="input_nominal_paket_tarif">Nominal paket (opsional, MI-MD)</FieldLabel>
+                <Input id="input_nominal_paket_tarif" type="number" min={0} value={nominalPaket} onChange={(e) => setNominalPaket(e.target.value)} />
+              </Field>
+            </FieldGroup>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setTambahOpen(false)}>Batal</Button>
+              <Button id="btn_tambah_tarif" type="submit">Tambah</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
       <ViewDialog
         open={viewRow !== null}
         onOpenChange={(o) => { if (!o) setViewRow(null); }}
@@ -322,17 +360,18 @@ export default function TarifPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Ubah tarif</DialogTitle>
+            <DialogDescription className="sr-only">Formulir perubahan tarif.</DialogDescription>
           </DialogHeader>
-          <div className="grid gap-3">
-            <div className="grid gap-1.5">
-              <Label htmlFor="input_ubah_nominal_tarif">Nominal</Label>
+          <FieldGroup className="gap-3">
+            <Field>
+              <FieldLabel htmlFor="input_ubah_nominal_tarif">Nominal</FieldLabel>
               <Input id="input_ubah_nominal_tarif" type="number" min={0} value={editNominal} onChange={(e) => setEditNominal(e.target.value)} required />
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="input_ubah_paket_tarif">Nominal paket (opsional, MI-MD)</Label>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="input_ubah_paket_tarif">Nominal paket (opsional, MI-MD)</FieldLabel>
               <Input id="input_ubah_paket_tarif" type="number" min={0} value={editPaket} onChange={(e) => setEditPaket(e.target.value)} />
-            </div>
-          </div>
+            </Field>
+          </FieldGroup>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditRow(null)}>Batal</Button>
             <Button id="btn_simpan_tarif" onClick={onUpdate}>Simpan</Button>
