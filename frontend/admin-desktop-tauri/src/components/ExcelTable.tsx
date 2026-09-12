@@ -135,6 +135,9 @@ interface ExcelTableProps<T extends { id: string | number }> {
   /** Tombol aksi utama halaman (mis. "+ Tambah X"): diletakkan sebaris
    *  dengan pencarian/filter, di sisi kanan. */
   addButton?: ReactNode;
+  /** Aksi massal untuk baris tercentang (mis. verifikasi/ACC/hapus).
+   *  `clearSelection` memanggil ulang setelah aksi selesai. */
+  renderBulkActions?: (checkedRows: T[], clearSelection: () => void) => ReactNode;
 }
 
 const MIN_COL_W = 50;
@@ -260,10 +263,11 @@ interface SelectColData {
 }
 
 /** Sel dropdown native (tanpa dependensi baru). */
-function SelectCell({ rowData, setRowData, columnData, stopEditing, disabled }: CellProps<GridRow, SelectColData>) {
+function SelectCell({ rowData, setRowData, columnData, focus, stopEditing, disabled }: CellProps<GridRow, SelectColData>) {
   const key = columnData.fieldKey;
   const cur = (rowData[key] as string) ?? '';
-  if (disabled) {
+  const label = columnData.choices.find((c) => c.value === cur)?.label ?? cur;
+  if (disabled || !focus) {
     return (
       <span
         className="simpes-dsg-fill"
@@ -274,7 +278,7 @@ function SelectCell({ rowData, setRowData, columnData, stopEditing, disabled }: 
           columnData.onClickCell?.(rowData.id);
         }}
       >
-        {cur}
+        {label}
       </span>
     );
   }
@@ -283,6 +287,7 @@ function SelectCell({ rowData, setRowData, columnData, stopEditing, disabled }: 
       className="simpes-dsg-select"
       aria-label={key}
       value={cur}
+      autoFocus
       onChange={(e) => {
         setRowData({ ...rowData, [key]: e.target.value });
         setTimeout(() => stopEditing(), 0);
@@ -386,6 +391,7 @@ export default function ExcelTable<T extends { id: string | number }>({
   searchIds,
   filter,
   addButton,
+  renderBulkActions,
 }: ExcelTableProps<T>) {
   const { density } = useTheme();
   const densityPx = DENSITY_PX[density];
@@ -396,6 +402,14 @@ export default function ExcelTable<T extends { id: string | number }>({
   const [drafts, setDrafts] = useState<Drafts>({});
   const [checkedIds, setCheckedIds] = useState<Set<T['id']>>(new Set());
   const [range, setRange] = useState<GridSelection | null>(null);
+
+  const checkedRows = useMemo(() => rows.filter((r) => checkedIds.has(r.id)), [rows, checkedIds]);
+  const clearSelection = useMemo(() => () => setCheckedIds(new Set<T['id']>()), []);
+
+  /** Seleksi bersifat per halaman/filter: baris berganti = seleksi dibersihkan. */
+  useEffect(() => {
+    setCheckedIds(new Set<T['id']>());
+  }, [rows]);
 
   const rowsRef = useRef(rows);
   rowsRef.current = rows;
@@ -810,7 +824,7 @@ export default function ExcelTable<T extends { id: string | number }>({
         return g;
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [rows, drafts, checkedIds, fields, getValues],
+    [rows, drafts, checkedIds, fields, getValues, editing],
   );
 
   function handleChange(newValue: GridRow[]) {
@@ -860,7 +874,10 @@ export default function ExcelTable<T extends { id: string | number }>({
         shrink: 0,
         minWidth: f.minWidth ?? 80,
         cellClassName: ({ rowData }: { rowData: GridRow }) =>
-          draftsRef.current[String(rowData.id)]?.[f.key] !== undefined ? 'simpes-dsg-dirty' : undefined,
+          cn(
+            draftsRef.current[String(rowData.id)]?.[f.key] !== undefined && 'simpes-dsg-dirty',
+            editing && (f.kind === 'static' ? 'simpes-dsg-readonly' : 'simpes-dsg-editable'),
+          ),
       };
       if (f.kind === 'static') {
         cols.push({
@@ -954,13 +971,13 @@ export default function ExcelTable<T extends { id: string | number }>({
    *  input lama tetap fokus sehingga ketikan lanjut masuk ke sel sebelumnya. */
   function closeEditorOnOtherCell(e: React.MouseEvent) {
     if (!editing) return;
-    const input = wrapRef.current?.querySelector<HTMLElement>(
-      '.dsg-input, .simpes-dsg-select',
-    );
-    if (!input) return;
+    const aktif = document.activeElement as HTMLElement | null;
+    if (!aktif || !(aktif.classList.contains('dsg-input') || aktif.classList.contains('simpes-dsg-select'))) {
+      return;
+    }
     const targetCell = (e.target as HTMLElement).closest?.('.dsg-cell') ?? null;
-    if (targetCell && targetCell === input.closest('.dsg-cell')) return;
-    input.blur();
+    if (targetCell && targetCell === aktif.closest('.dsg-cell')) return;
+    aktif.blur();
   }
 
   /** Teks tampil (draft-merged) untuk TSV — lookup O(1) via Map. */
@@ -1183,6 +1200,11 @@ export default function ExcelTable<T extends { id: string | number }>({
         >
           {checkedIds.size} baris dipilih
         </span>
+        {checkedRows.length > 0 && renderBulkActions ? (
+          <div className="flex flex-wrap items-center gap-1.5">
+            {renderBulkActions(checkedRows, clearSelection)}
+          </div>
+        ) : null}
         <div className="ml-auto flex flex-wrap items-center gap-2">
           {/* Grup 1 — gerbang mode edit (satu-satunya cara mengaktifkan ubah sel) */}
           {canEdit && (
@@ -1200,6 +1222,21 @@ export default function ExcelTable<T extends { id: string | number }>({
                 />
                 Edit
               </label>
+              {editing ? (
+                <span
+                  className="flex items-center gap-2 text-[11px] text-muted-foreground"
+                  title="Sel bertanda bawah = bisa diedit; sel berarsir = baca-saja."
+                >
+                  <span className="flex items-center gap-1">
+                    <span className="simpes-dsg-swatch-editable size-2.5 rounded-[3px]" />
+                    bisa diedit
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="simpes-dsg-swatch-readonly size-2.5 rounded-[3px]" />
+                    baca-saja
+                  </span>
+                </span>
+              ) : null}
             </ToolbarGroup>
           )}
 

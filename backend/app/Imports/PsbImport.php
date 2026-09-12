@@ -5,6 +5,7 @@ namespace App\Imports;
 use App\Models\PsbCalonSantri;
 use App\Models\PsbGelombang;
 use App\Models\PsbLogStatus;
+use App\Services\KeuanganService;
 use App\Services\PsbService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\QueryException;
@@ -19,6 +20,7 @@ class PsbImport implements ToModel, WithHeadingRow, WithValidation
         protected int $gelombangId,
         protected int $lembagaId,
         protected PsbService $psb,
+        protected KeuanganService $keuangan,
     ) {}
 
     /**
@@ -27,7 +29,8 @@ class PsbImport implements ToModel, WithHeadingRow, WithValidation
      */
     public function model(array $row): Model|null
     {
-        $gelombang = PsbGelombang::findOrFail($this->gelombangId);
+        $gelombang = PsbGelombang::with('kegiatan:id,tahun_ajaran_id')->findOrFail($this->gelombangId);
+        $tahunAjaranId = $gelombang->kegiatan?->tahun_ajaran_id;
         $noPendaftaran = trim((string) ($row['no_pendaftaran'] ?? ''));
         if ($noPendaftaran === '') {
             $noPendaftaran = $this->psb->nomorPendaftaranBerikutnya($this->gelombangId, $this->lembagaId);
@@ -39,7 +42,7 @@ class PsbImport implements ToModel, WithHeadingRow, WithValidation
                 $calon = PsbCalonSantri::create([
                     'lembaga_id' => $this->lembagaId,
                     'gelombang_id' => $this->gelombangId,
-                    'tahun_ajaran_id' => $gelombang->tahun_ajaran_id,
+                    'tahun_ajaran_id' => $tahunAjaranId,
                     'tipe_santri' => $row['tipe_santri'] ?? 'non_asrama',
                     'nik' => (string) $row['nik'],
                     'nama_lengkap' => $row['nama_lengkap'],
@@ -63,6 +66,14 @@ class PsbImport implements ToModel, WithHeadingRow, WithValidation
         }
 
         PsbLogStatus::create(['psb_calon_santri_id' => $calon->id, 'dari' => null, 'ke' => 'baru']);
+        $calon->lembagaDetail()->create(['lembaga_id' => $this->lembagaId, 'peran' => 'primer']);
+        if ($tahunAjaranId) {
+            $this->keuangan->createTagihanPendaftaranPsb(
+                $calon,
+                $this->psb->nominalPendaftaran($this->gelombangId, $this->lembagaId, $calon->tipe_santri),
+                (int) $tahunAjaranId
+            );
+        }
 
         return $calon;
     }
@@ -82,9 +93,7 @@ class PsbImport implements ToModel, WithHeadingRow, WithValidation
             'nama_ibu' => ['nullable', 'string', 'max:100'],
             'no_pendaftaran' => [
                 'nullable', 'string', 'max:50',
-                Rule::unique('psb_calon_santri', 'no_pendaftaran')->where(
-                    fn ($q) => $q->where('lembaga_id', $this->lembagaId)
-                ),
+                Rule::unique('psb_calon_santri', 'no_pendaftaran'),
             ],
         ];
     }

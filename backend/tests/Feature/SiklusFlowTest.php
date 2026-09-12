@@ -88,7 +88,7 @@ class SiklusFlowTest extends TestCase
         ]);
         $mts = Lembaga::create([
             'parent_id' => $root->id, 'nama' => 'Madrasah Tsanawiyah', 'kode' => 'MTS',
-            'is_seleksi' => true, 'kelompok_psb' => 'eksklusif_mts', 'is_active' => true,
+            'is_seleksi' => true, 'kelompok_psb' => 'eksklusif', 'is_active' => true,
         ]);
         $taLama = TahunAjaran::create([
             'lembaga_id' => $root->id, 'nama' => '2025/2026',

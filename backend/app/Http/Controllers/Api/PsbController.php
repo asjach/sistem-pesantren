@@ -10,11 +10,15 @@ use App\Exports\PsbTemplateExport;
 use App\Imports\PsbImport;
 use App\Models\PsbCalonSantri;
 use App\Models\PsbGelombang;
+use App\Models\User;
+use App\Services\KeuanganService;
 use App\Services\PsbService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Maatwebsite\Excel\Facades\Excel;
 use Maatwebsite\Excel\Validators\ValidationException as ExcelValidationException;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class PsbController extends Controller
 {
@@ -27,7 +31,7 @@ class PsbController extends Controller
         $status = (string) $request->input('status', 'ajukan_daftar_ulang');
         $statuses = array_values(array_filter(array_map('trim', explode(',', $status))));
 
-        $base = $this->scopeLembaga(PsbCalonSantri::query(), $request->user(), $request);
+        $base = $this->scopeLembagaRelasi(PsbCalonSantri::query(), $request->user(), $request);
 
         // Jumlah per status (tanpa filter status) untuk badge tahapan timeline.
         $badge = (clone $base)
@@ -37,8 +41,11 @@ class PsbController extends Controller
 
         $query = (clone $base)
             ->whereIn('status_pendaftaran', $statuses)
-            ->with(['lembagaTujuan:id,nama,kode', 'gelombang:id,nama'])
+            ->with(['lembagaTujuan:id,nama,kode', 'lembagaDetail.lembaga:id,nama,kode', 'gelombang:id,nama'])
             ->latest('id');
+        if ($request->boolean('terhapus')) {
+            $query->onlyTrashed();
+        }
 
         return response()->json([
             'pesan' => 'Antrean berhasil dimuat.',
@@ -47,10 +54,25 @@ class PsbController extends Controller
         ]);
     }
 
+    /** Aksi per calon: admin salah satu lembaga tujuan (paket: MI atau MD), admin full, atau super_admin. */
+    protected function authorizeCalon(User $auth, PsbCalonSantri $calon): void
+    {
+        if ($auth->hasRole('super_admin') || $auth->isAdminFull()) {
+            return;
+        }
+        $ids = $calon->lembagaDetail()->pluck('lembaga_id');
+        if ($ids->isEmpty()) {
+            $ids = collect([$calon->lembaga_id]);
+        }
+        if (! $ids->contains(fn ($id) => $auth->canAccessLembaga((int) $id))) {
+            abort(403, 'Akses ditolak.');
+        }
+    }
+
     /** POST /api/psb/{calon}/verifikasi — baru -> terverifikasi. */
     public function verifikasi(PsbCalonSantri $calon, PsbService $service): JsonResponse
     {
-        $this->authorizeLembaga(auth()->user(), (int) $calon->lembaga_id);
+        $this->authorizeCalon(auth()->user(), $calon);
 
         return response()->json([
             'pesan' => 'Calon terverifikasi.',
@@ -61,7 +83,7 @@ class PsbController extends Controller
     /** POST /api/psb/{calon}/seleksi — -> lolos/tidak_lolos (jalur langsung ditolak service). */
     public function seleksi(PsbSeleksiRequest $request, PsbCalonSantri $calon, PsbService $service): JsonResponse
     {
-        $this->authorizeLembaga(auth()->user(), (int) $calon->lembaga_id);
+        $this->authorizeCalon(auth()->user(), $calon);
         $data = $request->validated();
 
         return response()->json([
@@ -73,7 +95,7 @@ class PsbController extends Controller
     /** POST /api/psb/{calon}/acc-daftar-ulang — INSERT santri (atau reuse santri_asal_id). */
     public function acc(PsbCalonSantri $calon, PsbService $service): JsonResponse
     {
-        $this->authorizeLembaga(auth()->user(), (int) $calon->lembaga_id);
+        $this->authorizeCalon(auth()->user(), $calon);
 
         return response()->json([
             'pesan' => 'Daftar ulang disetujui.',
@@ -81,19 +103,10 @@ class PsbController extends Controller
         ], 201);
     }
 
-    /** POST /api/psb/paket/{grup}/acc — scope khusus paket dienforce service (salah satu lembaga / full). */
-    public function accPaket(string $grup, PsbService $service): JsonResponse
-    {
-        return response()->json([
-            'pesan' => 'Paket MI-MD disetujui.',
-            'data' => $service->accPaket($grup, auth()->user()),
-        ], 201);
-    }
-
     /** POST /api/psb/{calon}/promosi — waiting_list -> baru (kuota dicek service). */
     public function promosi(PsbCalonSantri $calon, PsbService $service): JsonResponse
     {
-        $this->authorizeLembaga(auth()->user(), (int) $calon->lembaga_id);
+        $this->authorizeCalon(auth()->user(), $calon);
 
         return response()->json([
             'pesan' => 'Calon dipromosikan dari waiting list.',
@@ -101,65 +114,153 @@ class PsbController extends Controller
         ]);
     }
 
-    /** POST /api/psb/paket/{grup}/verifikasi — 2 baris grup baru -> terverifikasi bersama. */
-    public function verifikasiPaket(string $grup, PsbService $service): JsonResponse
+    /** DELETE /api/psb/{calon} — soft delete calon (tagihan belum bayar dibatalkan). */
+    public function destroy(PsbCalonSantri $calon, PsbService $service): JsonResponse
     {
-        $baris = PsbCalonSantri::where('paket_grup_id', $grup)->get();
-        if ($baris->isEmpty()) {
-            abort(404, 'Grup paket tidak ditemukan.');
-        }
-        $admin = auth()->user();
-        $boleh = $admin->hasRole('super_admin') || $admin->isAdminFull()
-            || $baris->contains(fn ($b) => $admin->canAccessLembaga((int) $b->lembaga_id));
-        if (! $boleh) {
-            abort(403, 'Akses ditolak.');
-        }
+        $this->authorizeCalon(auth()->user(), $calon);
+        $service->hapusCalon($calon->id, auth()->id());
+
+        return response()->json(['pesan' => 'Calon dihapus.']);
+    }
+
+    /** POST /api/psb/{calon}/pulihkan — restore calon ter-soft delete + aktifkan tagihan kembali. */
+    public function pulihkan(int $id, PsbService $service): JsonResponse
+    {
+        $calon = PsbCalonSantri::withTrashed()->findOrFail($id);
+        $this->authorizeCalon(auth()->user(), $calon);
 
         return response()->json([
-            'pesan' => 'Paket terverifikasi.',
-            'data' => $service->verifikasiPaket($grup, $admin->id),
+            'pesan' => 'Calon dipulihkan.',
+            'data' => $service->pulihkanCalon($calon->id, auth()->id()),
         ]);
     }
 
-    /** POST /api/psb/{calon}/tolak — non-paket saja (paket via tolakPaket). */
-    public function tolak(Request $request, PsbCalonSantri $calon, PsbService $service): JsonResponse
+    /** POST /api/psb/bulk/verifikasi */
+    public function bulkVerifikasi(Request $request, PsbService $service): JsonResponse
     {
-        $this->authorizeLembaga(auth()->user(), (int) $calon->lembaga_id);
-        $data = $request->validate(['catatan' => ['nullable', 'string']]);
+        $data = $this->validasiBulkIds($request);
+
+        return $this->loopBulk($data['ids'], function (PsbCalonSantri $calon) use ($service) {
+            $service->verifikasi($calon->id, auth()->id());
+        });
+    }
+
+    /** POST /api/psb/bulk/seleksi */
+    public function bulkSeleksi(Request $request, PsbService $service): JsonResponse
+    {
+        $data = $request->validate(array_merge($this->aturanBulkIds(), [
+            'lolos' => ['required', 'boolean'],
+            'catatan' => ['nullable', 'string'],
+        ]));
+
+        return $this->loopBulk($data['ids'], function (PsbCalonSantri $calon) use ($service, $data) {
+            $service->setSeleksi($calon->id, (bool) $data['lolos'], auth()->id(), $data['catatan'] ?? null);
+        });
+    }
+
+    /** POST /api/psb/bulk/acc-daftar-ulang */
+    public function bulkAcc(Request $request, PsbService $service): JsonResponse
+    {
+        $data = $this->validasiBulkIds($request);
+
+        return $this->loopBulk($data['ids'], function (PsbCalonSantri $calon) use ($service) {
+            $service->accDaftarUlang($calon->id, auth()->id());
+        });
+    }
+
+    /** POST /api/psb/bulk/hapus */
+    public function bulkHapus(Request $request, PsbService $service): JsonResponse
+    {
+        $data = $this->validasiBulkIds($request);
+
+        return $this->loopBulk($data['ids'], function (PsbCalonSantri $calon) use ($service) {
+            $service->hapusCalon($calon->id, auth()->id());
+        }, izinkanTerhapus: false);
+    }
+
+    /** POST /api/psb/bulk/pulihkan */
+    public function bulkPulihkan(Request $request, PsbService $service): JsonResponse
+    {
+        $data = $this->validasiBulkIds($request);
+
+        return $this->loopBulk($data['ids'], function (PsbCalonSantri $calon) use ($service) {
+            $service->pulihkanCalon($calon->id, auth()->id());
+        }, izinkanTerhapus: true);
+    }
+
+    protected function aturanBulkIds(): array
+    {
+        return [
+            'ids' => ['required', 'array', 'min:1', 'max:200'],
+            'ids.*' => ['integer', 'distinct'],
+        ];
+    }
+
+    protected function validasiBulkIds(Request $request): array
+    {
+        return $request->validate($this->aturanBulkIds());
+    }
+
+    /** Aksi massal per calon: partial success + laporan kegagalan per baris. */
+    protected function loopBulk(array $ids, callable $aksi, bool $izinkanTerhapus = false): JsonResponse
+    {
+        $berhasil = [];
+        $gagal = [];
+        foreach ($ids as $id) {
+            $calon = PsbCalonSantri::withTrashed()->find((int) $id);
+            try {
+                if (! $calon) {
+                    throw ValidationException::withMessages(['calon' => 'Calon tidak ditemukan.']);
+                }
+                if ($calon->trashed() && ! $izinkanTerhapus) {
+                    throw ValidationException::withMessages(['calon' => 'Calon sudah dihapus.']);
+                }
+                $this->authorizeCalon(auth()->user(), $calon);
+                $aksi($calon);
+                $berhasil[] = (int) $id;
+            } catch (ValidationException $e) {
+                $gagal[] = $this->barisGagal($calon, (int) $id, collect($e->errors())->flatten()->first());
+            } catch (HttpException $e) {
+                $gagal[] = $this->barisGagal($calon, (int) $id, $e->getMessage() ?: 'Akses ditolak.');
+            } catch (\Throwable $e) {
+                $gagal[] = $this->barisGagal($calon, (int) $id, 'Gagal diproses.');
+            }
+        }
 
         return response()->json([
-            'pesan' => 'Calon ditolak.',
-            'data' => $service->tolak($calon->id, auth()->id(), $data['catatan'] ?? null),
+            'pesan' => count($berhasil) . ' calon berhasil, ' . count($gagal) . ' gagal.',
+            'data' => ['berhasil' => $berhasil, 'gagal' => $gagal],
         ]);
     }
 
-    /** POST /api/psb/paket/{grup}/tolak — atomik 2 baris (service tanpa enforce tenant, cek di sini). */
-    public function tolakPaket(Request $request, string $grup, PsbService $service): JsonResponse
+    protected function barisGagal(?PsbCalonSantri $calon, int $id, mixed $pesan): array
     {
-        $data = $request->validate(['catatan' => ['nullable', 'string']]);
-        $baris = PsbCalonSantri::where('paket_grup_id', $grup)->get();
-        if ($baris->isEmpty()) {
-            abort(404, 'Grup paket tidak ditemukan.');
-        }
-        $admin = auth()->user();
-        $boleh = $admin->hasRole('super_admin') || $admin->isAdminFull()
-            || $baris->contains(fn ($b) => $admin->canAccessLembaga((int) $b->lembaga_id));
-        if (! $boleh) {
-            abort(403, 'Hanya admin salah satu lembaga paket / admin full yang boleh menolak paket.');
-        }
-
-        $service->tolakPaket($grup, auth()->id(), $data['catatan'] ?? null);
-
-        return response()->json(['pesan' => 'Paket ditolak.']);
+        return [
+            'id' => $id,
+            'no_pendaftaran' => $calon?->no_pendaftaran,
+            'nama_lengkap' => $calon?->nama_lengkap,
+            'pesan' => is_string($pesan) && $pesan !== '' ? $pesan : 'Gagal diproses.',
+        ];
     }
 
-    /** GET /api/psb/gelombang — dropdown gelombang admin (opsional ?tahun_ajaran_id=). */
+    /** GET /api/psb/gelombang — dropdown gelombang admin (opsional ?kegiatan_id=/?tahun_ajaran_id=). */
     public function gelombang(Request $request): JsonResponse
     {
-        $rows = PsbGelombang::with('tahunAjaran:id,nama')
-            ->when($request->filled('tahun_ajaran_id'), fn ($q) => $q->where('tahun_ajaran_id', $request->integer('tahun_ajaran_id')))
+        $rows = PsbGelombang::with('kegiatan:id,nama,tahun_ajaran_id')
+            ->when($request->filled('kegiatan_id'), fn ($q) => $q->where('psb_kegiatan_id', $request->integer('kegiatan_id')))
+            ->when($request->filled('tahun_ajaran_id'), fn ($q) => $q->whereHas('kegiatan', fn ($qq) => $qq->where('tahun_ajaran_id', $request->integer('tahun_ajaran_id'))))
             ->orderByDesc('id')
-            ->get(['id', 'tahun_ajaran_id', 'nama', 'tgl_buka', 'tgl_tutup', 'is_aktif']);
+            ->get(['id', 'psb_kegiatan_id', 'nomor', 'nama', 'tgl_buka', 'tgl_tutup', 'is_aktif'])
+            ->map(fn (PsbGelombang $g) => [
+                'id' => $g->id,
+                'psb_kegiatan_id' => $g->psb_kegiatan_id,
+                'nomor' => $g->nomor,
+                'nama' => $g->nama,
+                'tgl_buka' => $g->tgl_buka?->toDateString(),
+                'tgl_tutup' => $g->tgl_tutup?->toDateString(),
+                'is_aktif' => $g->is_aktif,
+                'kegiatan' => $g->kegiatan,
+            ]);
 
         return response()->json(['pesan' => 'Gelombang dimuat.', 'data' => $rows]);
     }
@@ -197,7 +298,7 @@ class PsbController extends Controller
 
         try {
             Excel::import(
-                new PsbImport((int) $data['gelombang_id'], (int) $data['lembaga_id'], $psbService),
+                new PsbImport((int) $data['gelombang_id'], (int) $data['lembaga_id'], $psbService, app(KeuanganService::class)),
                 $request->file('file')
             );
 

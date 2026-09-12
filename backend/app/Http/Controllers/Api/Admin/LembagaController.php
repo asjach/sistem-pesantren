@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Lembaga;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Master lembaga (single-pesantren, 004).
@@ -48,7 +49,10 @@ class LembagaController extends Controller
             'npsn' => ['nullable', 'string', 'max:20', Rule::unique('lembaga', 'npsn')],
             'nsm' => ['nullable', 'string', 'max:30', Rule::unique('lembaga', 'nsm')],
             'is_active' => ['nullable', 'boolean'],
+            'kelompok_psb' => ['nullable', 'in:combo_mi_md,eksklusif'],
+            'is_seleksi' => ['nullable', 'boolean'],
         ]);
+        $this->pastikanKelompokSesuaiKode($data['kode'] ?? null, $data['kelompok_psb'] ?? null);
 
         if (! empty($data['parent_id'])) {
             $this->authorizeLembaga($auth, (int) $data['parent_id']);
@@ -63,16 +67,34 @@ class LembagaController extends Controller
     {
         $this->authorizeLembaga(auth()->user(), $lembaga->id);
 
-        $lembaga->update($request->validate([
+        $data = $request->validate([
             'parent_id' => ['nullable', 'exists:lembaga,id'],
             'nama' => ['sometimes', 'string', 'max:100'],
             'nama_singkat' => ['nullable', 'string', 'max:50'],
             'kode' => ['nullable', 'string', 'max:20', Rule::unique('lembaga', 'kode')->ignore($lembaga->id)],
             'mudir_am' => ['nullable', 'string', 'max:100'],
             'is_active' => ['nullable', 'boolean'],
-        ]));
+            'kelompok_psb' => ['nullable', 'in:combo_mi_md,eksklusif'],
+            'is_seleksi' => ['nullable', 'boolean'],
+        ]);
+        $this->pastikanKelompokSesuaiKode($data['kode'] ?? $lembaga->kode, $data['kelompok_psb'] ?? null);
+
+        $lembaga->update($data);
 
         return response()->json($lembaga);
+    }
+
+    /** Combo MI-MD hanya untuk lembaga berkode MI/MD; selain itu eksklusif. */
+    protected function pastikanKelompokSesuaiKode(?string $kode, ?string $kelompok): void
+    {
+        if ($kelompok !== 'combo_mi_md') {
+            return;
+        }
+        if (! in_array(strtoupper((string) $kode), ['MI', 'MD'], true)) {
+            throw ValidationException::withMessages([
+                'kelompok_psb' => 'Combo MI-MD hanya untuk lembaga berkode MI atau MD.',
+            ]);
+        }
     }
 
     public function destroy(Lembaga $lembaga)

@@ -2,20 +2,24 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { errorMessage } from '../api/client';
 import {
   accCalon,
-  accPaket,
+  bulkAcc,
+  bulkHapus,
+  bulkPulihkan,
+  bulkSeleksi,
+  bulkVerifikasi,
   createCalonPsb,
   downloadTemplatePsb,
+  hapusCalon,
   importPsb,
   listAntrean,
   listDokumenCalon,
   listGelombangPsb,
   promosiCalon,
+  pulihkanCalon,
   seleksiCalon,
-  tolakCalon,
-  tolakPaket,
   verifikasiCalon,
   verifikasiDokumen,
-  verifikasiPaket,
+  type BulkHasil,
   type PsbCalon,
   type PsbGelombang,
 } from '../api/psb';
@@ -46,18 +50,17 @@ import {
 } from '@/components/ui/dialog';
 import Pager from '@/components/Pager';
 import { usePager } from '@/hooks/usePager';
-import { ActionIcon } from '@/components/RowActions';
+import { ActionIcon, DeleteAction } from '@/components/RowActions';
 import { toast } from 'sonner';
 import {
   BadgeCheck,
   CheckCircle2,
   FolderOpen,
   Gavel,
-  PackageCheck,
-  PackageX,
+  RotateCcw,
+  Trash2,
   Upload,
   UserCheck,
-  XCircle,
 } from 'lucide-react';
 
 // Tahapan timeline PSB → kumpulan status_pendaftaran (nilai enum di DB).
@@ -82,18 +85,22 @@ const PSB_FIELDS: ExcelField[] = [
   { key: 'daftar', label: 'Tgl daftar', width: 110, kind: 'static' },
 ];
 
-const BOLEH_TOLAK = ['baru', 'terverifikasi', 'lolos', 'pemberkasan', 'ajukan_daftar_ulang', 'waiting_list'];
+type BulkAksi = 'verifikasi' | 'seleksi' | 'acc' | 'hapus' | 'pulihkan';
 
 function psbGridValues(c: PsbCalon): Record<string, string | null> {
+  const detail = c.lembaga_detail ?? [];
+  const namaLembaga = detail.length > 0
+    ? detail.map((d) => d.lembaga?.nama ?? String(d.lembaga_id)).join(' + ')
+    : (c.lembaga_tujuan?.nama ?? String(c.lembaga_id));
   return {
     no: c.no_pendaftaran,
     nama: c.nama_lengkap,
     nik: c.nik,
     tipe: c.tipe_santri,
-    lembaga: c.lembaga_tujuan?.nama ?? String(c.lembaga_id),
+    lembaga: namaLembaga,
     gelombang: c.gelombang?.nama ?? String(c.gelombang_id),
-    paket: c.paket_grup_id ? c.paket_grup_id : null,
-    status: c.status_pendaftaran,
+    paket: detail.length > 1 ? 'MI-MD' : null,
+    status: c.deleted_at ? 'terhapus' : c.status_pendaftaran,
     daftar: c.tanggal_daftar,
   };
 }
@@ -121,8 +128,13 @@ export default function PsbPage() {
   const [seleksiLolos, setSeleksiLolos] = useState('lolos');
   const [seleksiCatatan, setSeleksiCatatan] = useState('');
 
-  const [tolakRow, setTolakRow] = useState<PsbCalon | null>(null);
-  const [tolakCatatan, setTolakCatatan] = useState('');
+  const [tampilTerhapus, setTampilTerhapus] = useState(false);
+  const [bulkAksi, setBulkAksi] = useState<BulkAksi | null>(null);
+  const [bulkIds, setBulkIds] = useState<number[]>([]);
+  const [bulkLolos, setBulkLolos] = useState('lolos');
+  const [bulkCatatan, setBulkCatatan] = useState('');
+  const [bulkHasil, setBulkHasil] = useState<BulkHasil | null>(null);
+  const [bulkProses, setBulkProses] = useState(false);
 
   const [dokRow, setDokRow] = useState<PsbCalon | null>(null);
   const [dokumen, setDokumen] = useState<DokumenSantri[]>([]);
@@ -163,6 +175,7 @@ export default function PsbPage() {
         const res = await listAntrean({
           status: statuses.join(','),
           lembaga_id: lembagaId ? Number(lembagaId) : undefined,
+          terhapus: tampilTerhapus || undefined,
           page: p,
           per_page: pp,
         });
@@ -183,13 +196,13 @@ export default function PsbPage() {
         if (req === reqRef.current) setLoading(false);
       }
     },
-    [pager.page, pager.perPage, pager.sync, stage, subStatus, lembagaId],
+    [pager.page, pager.perPage, pager.sync, stage, subStatus, lembagaId, tampilTerhapus],
   );
 
   useEffect(() => {
     if (pager.ready) load(pager.page);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pager.ready, stage, subStatus, lembagaId]);
+  }, [pager.ready, stage, subStatus, lembagaId, tampilTerhapus]);
 
   useEffect(() => {
     const lembagaReq = ++lembagaReqRef.current;
@@ -289,14 +302,6 @@ export default function PsbPage() {
     setSeleksiCatatan('');
   }
 
-  async function onTolak(e: React.FormEvent) {
-    e.preventDefault();
-    if (!tolakRow) return;
-    await run(() => tolakCalon(tolakRow.id, tolakCatatan || undefined), 'Calon ditolak.');
-    setTolakRow(null);
-    setTolakCatatan('');
-  }
-
   async function onImport(e: React.FormEvent) {
     e.preventDefault();
     if (!importFile || !importGelombang || !importLembaga) return;
@@ -336,22 +341,77 @@ export default function PsbPage() {
   const onSaved = useCallback(() => load(), [load]);
   const onCommit = useCallback(async () => {}, []);
 
+  async function jalankanBulk() {
+    if (!bulkAksi || bulkIds.length === 0) return;
+    setBulkProses(true);
+    setErr('');
+    try {
+      const res = bulkAksi === 'verifikasi'
+        ? await bulkVerifikasi(bulkIds)
+        : bulkAksi === 'seleksi'
+          ? await bulkSeleksi(bulkIds, bulkLolos === 'lolos', bulkCatatan || undefined)
+          : bulkAksi === 'acc'
+            ? await bulkAcc(bulkIds)
+            : bulkAksi === 'hapus'
+              ? await bulkHapus(bulkIds)
+              : await bulkPulihkan(bulkIds);
+      setBulkAksi(null);
+      setBulkHasil(res.data);
+      if (res.data.gagal.length === 0) toast.success(res.pesan);
+      await load();
+    } catch (e) {
+      setErr(errorMessage(e));
+    } finally {
+      setBulkProses(false);
+    }
+  }
+
+  const bukaBulk = useCallback((aksi: BulkAksi, ids: number[]) => {
+    setBulkAksi(aksi);
+    setBulkIds(ids);
+    setBulkLolos('lolos');
+    setBulkCatatan('');
+    setBulkHasil(null);
+  }, []);
+
+  const renderBulkActions = useCallback((checked: PsbCalon[], clear: () => void) => {
+    const ids = checked.map((c) => c.id);
+    const tombol = (label: string, id: string, aksi: BulkAksi, variant: 'default' | 'outline' | 'destructive', icon: React.ReactNode) => (
+      <Button id={id} size="sm" variant={variant} onClick={() => { bukaBulk(aksi, ids); clear(); }}>
+        {icon}
+        {label}
+      </Button>
+    );
+
+    if (tampilTerhapus) {
+      return tombol('Pulihkan', 'btn_bulk_pulihkan_psb', 'pulihkan', 'outline', <RotateCcw size={14} />);
+    }
+    return (
+      <>
+        {stage === 'pendaftar' && tombol('Verifikasi', 'btn_bulk_verifikasi_psb', 'verifikasi', 'default', <CheckCircle2 size={14} />)}
+        {stage === 'terdaftar' && tombol('Seleksi', 'btn_bulk_seleksi_psb', 'seleksi', 'default', <Gavel size={14} />)}
+        {stage === 'daftar_ulang' && tombol('ACC jadi santri', 'btn_bulk_acc_psb', 'acc', 'default', <BadgeCheck size={14} />)}
+        {tombol('Hapus', 'btn_bulk_hapus_psb', 'hapus', 'destructive', <Trash2 size={14} />)}
+      </>
+    );
+  }, [stage, tampilTerhapus, bukaBulk]);
+
   const renderActions = useCallback((c: PsbCalon) => {
-    const paket = !!c.paket_grup_id;
+    if (c.deleted_at) {
+      return (
+        <ActionIcon id={`btn_pulihkan_psb_${c.id}`} title="Pulihkan" onClick={() => run(() => pulihkanCalon(c.id), 'Calon dipulihkan.')}>
+          <RotateCcw size={16} />
+        </ActionIcon>
+      );
+    }
     return (
       <>
         {c.status_pendaftaran === 'baru' && (
-          paket ? (
-            <ActionIcon id={`btn_verifikasi_paket_${c.id}`} title="Verifikasi paket (grup)" onClick={() => run(() => verifikasiPaket(c.paket_grup_id as string), 'Paket terverifikasi.')}>
-              <PackageCheck size={16} />
-            </ActionIcon>
-          ) : (
-            <ActionIcon id={`btn_verifikasi_psb_${c.id}`} title="Verifikasi" onClick={() => run(() => verifikasiCalon(c.id), 'Calon terverifikasi.')}>
-              <CheckCircle2 size={16} />
-            </ActionIcon>
-          )
+          <ActionIcon id={`btn_verifikasi_psb_${c.id}`} title="Verifikasi" onClick={() => run(() => verifikasiCalon(c.id), 'Calon terverifikasi.')}>
+            <CheckCircle2 size={16} />
+          </ActionIcon>
         )}
-        {c.status_pendaftaran === 'terverifikasi' && !paket && (
+        {c.status_pendaftaran === 'terverifikasi' && (
           <ActionIcon id={`btn_seleksi_psb_${c.id}`} title="Seleksi" onClick={() => { setSeleksiRow(c); setSeleksiLolos('lolos'); }}>
             <Gavel size={16} />
           </ActionIcon>
@@ -362,26 +422,17 @@ export default function PsbPage() {
           </ActionIcon>
         )}
         {c.status_pendaftaran === 'ajukan_daftar_ulang' && (
-          paket ? (
-            <ActionIcon id={`btn_acc_paket_${c.id}`} title="ACC paket (grup)" onClick={() => run(() => accPaket(c.paket_grup_id as string), 'Paket disetujui.')}>
-              <PackageCheck size={16} />
-            </ActionIcon>
-          ) : (
-            <ActionIcon id={`btn_acc_psb_${c.id}`} title="ACC daftar ulang" onClick={() => run(() => accCalon(c.id), 'Daftar ulang disetujui (santri dibuat).')}>
-              <BadgeCheck size={16} />
-            </ActionIcon>
-          )
+          <ActionIcon id={`btn_acc_psb_${c.id}`} title="ACC daftar ulang" onClick={() => run(() => accCalon(c.id), 'Daftar ulang disetujui (santri dibuat).')}>
+            <BadgeCheck size={16} />
+          </ActionIcon>
         )}
-        {BOLEH_TOLAK.includes(c.status_pendaftaran) && (
-          paket ? (
-            <ActionIcon id={`btn_tolak_paket_${c.id}`} title="Tolak paket (grup)" onClick={() => run(() => tolakPaket(c.paket_grup_id as string), 'Paket ditolak.')}>
-              <PackageX size={16} />
-            </ActionIcon>
-          ) : (
-            <ActionIcon id={`btn_tolak_psb_${c.id}`} title="Tolak" onClick={() => { setTolakRow(c); setTolakCatatan(''); }}>
-              <XCircle size={16} />
-            </ActionIcon>
-          )
+        {c.status_pendaftaran !== 'daftar_ulang' && (
+          <DeleteAction
+            id={`btn_hapus_psb_${c.id}`}
+            title="Hapus calon?"
+            description={`${c.nama_lengkap} akan dihapus (soft delete). Tagihan pendaftaran yang belum dibayar ikut dibatalkan.`}
+            onConfirm={() => run(() => hapusCalon(c.id), 'Calon dihapus.')}
+          />
         )}
         <ActionIcon id={`btn_dokumen_psb_${c.id}`} title="Dokumen" onClick={() => openDokumen(c)}>
           <FolderOpen size={16} />
@@ -465,6 +516,16 @@ export default function PsbPage() {
                 </SelectGroup>
               </SelectContent>
             </Select>
+            <label htmlFor="chk_tampil_terhapus_psb" className="flex cursor-pointer items-center gap-1.5 text-xs text-muted-foreground">
+              <input
+                id="chk_tampil_terhapus_psb"
+                type="checkbox"
+                checked={tampilTerhapus}
+                onChange={(e) => { setTampilTerhapus(e.target.checked); pager.goFirst(); }}
+                className="size-3.5 accent-[var(--accent)]"
+              />
+              Tampilkan terhapus
+            </label>
           </>
         )}
         addButton={stage === 'pendaftar' ? (
@@ -482,6 +543,7 @@ export default function PsbPage() {
           </>
         ) : undefined}
         renderActions={renderActions}
+        renderBulkActions={renderBulkActions}
       />
       <Pager
         page={pager.page}
@@ -527,26 +589,82 @@ export default function PsbPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={tolakRow !== null} onOpenChange={(o) => { if (!o) setTolakRow(null); }}>
+      <Dialog open={bulkAksi !== null} onOpenChange={(o) => { if (!o) setBulkAksi(null); }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Tolak: {tolakRow?.nama_lengkap}</DialogTitle>
-            <DialogDescription className="sr-only">
-              Catatan penolakan opsional; calon akan berstatus ditolak.
+            <DialogTitle>
+              {bulkAksi === 'verifikasi' ? 'Verifikasi massal'
+                : bulkAksi === 'seleksi' ? 'Seleksi massal'
+                  : bulkAksi === 'acc' ? 'ACC daftar ulang massal'
+                    : bulkAksi === 'hapus' ? 'Hapus massal'
+                      : 'Pulihkan massal'}
+            </DialogTitle>
+            <DialogDescription>
+              {bulkIds.length} calon terpilih akan diproses.
+              {bulkAksi === 'hapus' ? ' Calon dihapus (soft delete) dan tagihan pendaftaran yang belum dibayar dibatalkan.' : ''}
             </DialogDescription>
           </DialogHeader>
-          <form id="form_tolak_psb" onSubmit={onTolak} className="flex flex-col gap-3">
+          {bulkAksi === 'seleksi' ? (
             <FieldGroup className="gap-3">
               <Field>
-                <FieldLabel htmlFor="input_catatan_tolak">Catatan (opsional)</FieldLabel>
-                <Input id="input_catatan_tolak" value={tolakCatatan} onChange={(e) => setTolakCatatan(e.target.value)} />
+                <FieldLabel htmlFor="select_bulk_hasil_seleksi">Hasil</FieldLabel>
+                <Select value={bulkLolos} onValueChange={setBulkLolos}>
+                  <SelectTrigger id="select_bulk_hasil_seleksi" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectItem value="lolos">Lolos</SelectItem>
+                      <SelectItem value="tidak_lolos">Tidak lolos</SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="input_bulk_catatan_seleksi">Catatan (opsional)</FieldLabel>
+                <Input id="input_bulk_catatan_seleksi" value={bulkCatatan} onChange={(e) => setBulkCatatan(e.target.value)} />
               </Field>
             </FieldGroup>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setTolakRow(null)}>Batal</Button>
-              <Button id="btn_simpan_tolak" type="submit" variant="destructive" disabled={busy}>Tolak</Button>
-            </DialogFooter>
-          </form>
+          ) : null}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setBulkAksi(null)}>Batal</Button>
+            <Button
+              id="btn_proses_bulk_psb"
+              variant={bulkAksi === 'hapus' ? 'destructive' : 'default'}
+              disabled={bulkProses}
+              onClick={() => void jalankanBulk()}
+            >
+              {bulkProses ? 'Memproses…' : `Proses ${bulkIds.length} calon`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={bulkHasil !== null} onOpenChange={(o) => { if (!o) setBulkHasil(null); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Hasil proses massal</DialogTitle>
+            <DialogDescription>
+              {bulkHasil?.berhasil.length ?? 0} berhasil · {bulkHasil?.gagal.length ?? 0} gagal
+            </DialogDescription>
+          </DialogHeader>
+          {bulkHasil && bulkHasil.gagal.length > 0 ? (
+            <ul className="max-h-64 divide-y overflow-auto rounded-md border text-sm">
+              {bulkHasil.gagal.map((g) => (
+                <li key={g.id} className="flex flex-col gap-0.5 p-2">
+                  <span className="font-medium">
+                    {g.nama_lengkap ?? `#${g.id}`}{g.no_pendaftaran ? ` · ${g.no_pendaftaran}` : ''}
+                  </span>
+                  <span className="text-xs text-destructive">{g.pesan}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-muted-foreground">Semua calon berhasil diproses.</p>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkHasil(null)}>Tutup</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

@@ -21,7 +21,7 @@ class PsbDaftarRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'gelombang_id' => ['required', 'integer', 'exists:psb_gelombang,id'],
+            'gelombang_id' => ['nullable', 'integer', 'exists:psb_gelombang,id'], // kosong = otomatis gelombang aktif
             'lembaga_id' => ['required', 'integer', 'exists:lembaga,id'],
             'tahun_ajaran_id' => ['nullable', 'integer', 'exists:tahun_ajaran,id'], // null = ikut gelombang
             'tipe_santri' => ['required', 'in:asrama,non_asrama'],

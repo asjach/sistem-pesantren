@@ -4,7 +4,11 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\PsbDaftarRequest;
+use App\Models\Lembaga;
+use App\Models\PsbBiayaLembaga;
 use App\Models\PsbCalonSantri;
+use App\Models\PsbGelombang;
+use App\Models\PsbKuotaBiaya;
 use App\Services\PsbGelombangService;
 use App\Services\PsbService;
 use Illuminate\Http\JsonResponse;
@@ -24,44 +28,126 @@ class PsbPublikController extends Controller
         return response()->json(['terdaftar' => $service->cekNikTerdaftar($data['nik'])]);
     }
 
+    /**
+     * GET /api/psb/opsi (publik, throttle:30,1) — gelombang aktif otomatis (pendaftar tidak memilih)
+     * + lembaga yang dikonfigurasi di gelombang itu: biaya pendaftaran, sisa pool kuota,
+     * biaya masuk/asrama, matriks tingkat baru/pindahan.
+     */
+    public function opsi(PsbGelombangService $gelombang): JsonResponse
+    {
+        $gelombangAktif = $gelombang->gelombangAktif();
+        if (! $gelombangAktif) {
+            return response()->json([
+                'pesan' => 'Tidak ada gelombang pendaftaran yang dibuka.',
+                'data' => ['gelombang_aktif' => null, 'lembaga' => []],
+            ]);
+        }
+
+        $lembagas = Lembaga::where('is_active', true)
+            ->whereIn('kode', array_keys(PsbService::TINGKAT_MASUK_BARU))
+            ->orderBy('id')
+            ->get(['id', 'kode', 'nama', 'nama_singkat', 'kelompok_psb', 'is_seleksi']);
+
+        $biayaSemua = PsbKuotaBiaya::where('gelombang_id', $gelombangAktif->id)
+            ->whereIn('lembaga_id', $lembagas->pluck('id'))
+            ->get(['gelombang_id', 'lembaga_id', 'tipe_santri', 'nominal_pendaftaran', 'nominal_pendaftaran_lanjutan', 'nominal_paket']);
+
+        $biayaLembaga = PsbBiayaLembaga::whereIn('lembaga_id', $lembagas->pluck('id'))
+            ->get()
+            ->keyBy('lembaga_id');
+
+        $dataLembaga = $lembagas
+            ->map(function (Lembaga $l) use ($biayaSemua, $biayaLembaga, $gelombangAktif, $gelombang) {
+                $rows = $biayaSemua->where('lembaga_id', $l->id);
+                if ($rows->isEmpty()) {
+                    return null;
+                }
+                $biaya = $biayaLembaga->get($l->id);
+
+                return [
+                    'id' => $l->id,
+                    'kode' => $l->kode,
+                    'nama' => $l->nama,
+                    'nama_singkat' => $l->nama_singkat,
+                    'kelompok_psb' => $l->kelompok_psb,
+                    'is_seleksi' => (bool) $l->is_seleksi,
+                    'tingkat_baru' => PsbService::TINGKAT_MASUK_BARU[$l->kode] ?? null,
+                    'tingkat_pindahan' => PsbService::TINGKAT_PINDAHAN[$l->kode] ?? [],
+                    'biaya_masuk' => (float) ($biaya->biaya_masuk ?? 0),
+                    'biaya_asrama' => (float) ($biaya->biaya_asrama ?? 0),
+                    'kuota_biaya' => $rows->map(fn (PsbKuotaBiaya $k) => [
+                        'tipe_santri' => $k->tipe_santri,
+                        'nominal_pendaftaran' => (float) $k->nominal_pendaftaran,
+                        'nominal_pendaftaran_lanjutan' => $k->nominal_pendaftaran_lanjutan !== null ? (float) $k->nominal_pendaftaran_lanjutan : null,
+                        'nominal_paket' => $k->nominal_paket !== null ? (float) $k->nominal_paket : null,
+                        'sisa_kuota' => $gelombang->sisaKuota(
+                            $gelombangAktif->id,
+                            $l->id,
+                            $k->tipe_santri === 'semua' ? null : $k->tipe_santri
+                        ),
+                    ])->values(),
+                ];
+            })
+            ->filter()
+            ->values();
+
+        return response()->json([
+            'pesan' => 'Opsi pendaftaran dimuat.',
+            'data' => [
+                'gelombang_aktif' => [
+                    'id' => $gelombangAktif->id,
+                    'nama' => $gelombangAktif->nama,
+                    'nomor' => $gelombangAktif->nomor,
+                    'tgl_buka' => $gelombangAktif->tgl_buka?->toDateString(),
+                    'tgl_tutup' => $gelombangAktif->tgl_tutup?->toDateString(),
+                    'kegiatan' => $gelombangAktif->kegiatan?->only(['id', 'nama']),
+                ],
+                'lembaga' => $dataLembaga,
+            ],
+        ]);
+    }
+
     /** POST /api/psb/daftar (publik, throttle:10,1). */
     public function store(PsbDaftarRequest $request, PsbService $service, PsbGelombangService $gelombang): JsonResponse
     {
         $data = $request->validated();
         $this->tolakLanjutanPublik($data);
-        $gelombang->cekBukaDanKuota((int) $data['gelombang_id'], (int) $data['lembaga_id']);
+        $this->pastikanGelombangAktif($data, $gelombang);
 
         $calon = $service->daftarPublik($data);
 
         return response()->json([
-            'pesan' => 'Pendaftaran berhasil.',
+            'pesan' => $calon->status_pendaftaran === 'waiting_list'
+                ? 'Pendaftaran berhasil (waiting list).'
+                : 'Pendaftaran berhasil.',
             'data' => [
                 'calon' => $calon->fresh(),
                 'no_pendaftaran' => $calon->no_pendaftaran,
+                'waiting' => $calon->status_pendaftaran === 'waiting_list',
                 'signedUrlBukti' => $this->signedBukti($calon->id),
             ],
         ], 201);
     }
 
-    /** POST /api/psb/daftar-paket (publik, throttle:10,1, paket MI-MD atomik 2 baris). */
+    /** POST /api/psb/daftar-paket (publik, throttle:10,1) — 1 calon + baris anak MI & MD. */
     public function storePaket(PsbDaftarRequest $request, PsbService $service, PsbGelombangService $gelombang): JsonResponse
     {
         $data = $request->validated();
+        $data['paket'] = PsbService::PAKET_MI_MD['kode'];
         $this->tolakLanjutanPublik($data);
-        $gelombang->cekBukaDanKuota((int) $data['gelombang_id'], (int) $data['lembaga_id']);
+        $this->pastikanGelombangAktif($data, $gelombang);
 
-        $hasil = $service->daftarPaket($data);
+        $calon = $service->daftarPublik($data);
 
         return response()->json([
-            'pesan' => $hasil['waiting']
+            'pesan' => $calon->status_pendaftaran === 'waiting_list'
                 ? 'Pendaftaran paket berhasil (waiting list).'
                 : 'Pendaftaran paket berhasil.',
             'data' => [
-                'primer' => $hasil['primer'],
-                'sekunder' => $hasil['sekunder'],
-                'no_pendaftaran' => $hasil['primer']->no_pendaftaran,
-                'waiting' => $hasil['waiting'],
-                'signedUrlBukti' => $this->signedBukti($hasil['primer']->id),
+                'calon' => $calon->fresh(),
+                'no_pendaftaran' => $calon->no_pendaftaran,
+                'waiting' => $calon->status_pendaftaran === 'waiting_list',
+                'signedUrlBukti' => $this->signedBukti($calon->id),
             ],
         ], 201);
     }
@@ -102,5 +188,18 @@ class PsbPublikController extends Controller
                 'santri_asal_id' => 'Pendaftaran lanjutan hanya tersedia melalui portal orang tua.',
             ]);
         }
+    }
+
+    /** Isi gelombang otomatis (aktif) lalu pastikan sedang buka; admin manual boleh override. */
+    protected function pastikanGelombangAktif(array &$data, PsbGelombangService $gelombang): void
+    {
+        if (empty($data['gelombang_id'])) {
+            $aktif = $gelombang->gelombangAktif();
+            if (! $aktif) {
+                throw ValidationException::withMessages(['gelombang_id' => 'Pendaftaran sedang ditutup: tidak ada gelombang aktif.']);
+            }
+            $data['gelombang_id'] = $aktif->id;
+        }
+        $gelombang->cekBukaDanKuota((int) $data['gelombang_id'], (int) $data['lembaga_id']);
     }
 }

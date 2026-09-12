@@ -62,7 +62,7 @@ Tanpa kolom tenant — tenant = pivot `user_lembaga`.
 - `mode_rapor`: enum(terpisah|digabung) [default 'digabung'] — Kolom Modul 202 (mode rapor):
 - `template_rapor`: string [default 'default']
 - `psb_butuh_seleksi_default`: bool [default false] — Kolom Modul 100 PSB (konfigurasi jalur fleksibel): / false = jalur langsung (A), true = jalur seleksi (B)
-- `kelompok_psb`: enum(combo_mi_md|eksklusif_mts) [default 'combo_mi_md'] — aturan daftar ganda
+- `kelompok_psb`: enum(combo_mi_md|eksklusif) [default 'eksklusif'] — combo khusus MI/MD (pool kuota & daftar ganda gabungan); selain itu eksklusif (pool & aturan ganda sendiri)
 - `is_active`: bool [default true] — nonaktifkan tanpa hapus
 - `created_at`, `updated_at`
 
@@ -373,27 +373,43 @@ Tanpa kolom tenant — tenant = pivot `user_lembaga`.
 
 ## BLOK 3 — PSB (Modul 100 PSB Penerimaan)
 
+### `psb_kegiatan`
+- `id` PK
+- `tahun_ajaran_id`: FK → tahun_ajaran [cascade] — TA pesantren/root
+- `nama`: string — misal 'PSB 2026/2027'
+- `is_aktif`: bool [default true] — hanya satu kegiatan aktif (aturan aplikasi)
+- `created_at`, `updated_at`
+- UNIQUE(`tahun_ajaran_id`) — satu tahun ajaran hanya boleh punya satu kegiatan PSB
+
 ### `psb_gelombang`
 - `id` PK
-- `tahun_ajaran_id`: FK → tahun_ajaran [cascade]
+- `psb_kegiatan_id`: FK → psb_kegiatan [null, nullOnDelete]
+- `nomor`: int [null] — urutan gelombang dalam kegiatan (dipakai nomor pendaftaran)
 - `nama`: string — misal: 'Gelombang 1 2026/2027'
 - `tgl_buka`: date [null]
 - `tgl_tutup`: date [null]
 - `is_aktif`: bool [default true]
 - `created_at`, `updated_at`
+- Aturan: rentang gelombang dalam satu kegiatan tidak boleh tumpang tindih; gelombang aktif diisi otomatis saat pendaftaran (pendaftar tidak memilih)
+
+### `psb_biaya_lembaga`
+- `id` PK
+- `lembaga_id`: FK → lembaga [cascade]
+- `biaya_masuk`: decimal(12, 2) [default 0] — satu paket (bangunan, matsama, buku, lainnya); sama di semua gelombang
+- `biaya_asrama`: decimal(12, 2) [default 0] — terpisah dari biaya masuk; hanya ditagih untuk tipe asrama
+- `created_at`, `updated_at`
+- UNIQUE(`lembaga_id`)
 
 ### `psb_kuota_biaya`
 - `id` PK
 - `gelombang_id`: FK → psb_gelombang [cascade]
 - `lembaga_id`: FK → lembaga [cascade]
-- `tahun_ajaran_id`: FK → tahun_ajaran [cascade]
 - `tipe_santri`: enum(semua|asrama|non_asrama) [default 'semua']
-- `nominal_pendaftaran`: decimal(12, 2) [default 0]
+- `nominal_pendaftaran`: decimal(12, 2) [default 0] — biaya mendaftar (beda per gelombang)
 - `nominal_pendaftaran_lanjutan`: decimal(12, 2) [null] — null = ikut nominal_pendaftaran
 - `nominal_paket`: decimal(12, 2) [null] — harga paket MI-MD (di baris primer MI); null = paket tidak ditawarkan
-- `nominal_masuk`: decimal(12, 2) [default 0] — biaya daftar ulang / masuk, boleh 0
-- `kuota`: int [null]
-- `membutuhkan_seleksi`: bool [null] — null = ikut lembaga.psb_butuh_seleksi_default
+- `kuota`: int [null] — pool gabungan per kelompok PSB; hanya dibaca dari baris **lembaga primer kelompok** (combo_mi_md → MI). null = tanpa batas
+- `membutuhkan_seleksi`: bool [null] — null = ikut lembaga.is_seleksi
 - `membutuhkan_pemberkasan`: bool [default true]
 - `created_at`, `updated_at`
 - UNIQUE(`gelombang_id`, `lembaga_id`, `tipe_santri`)
@@ -406,8 +422,7 @@ Tanpa kolom tenant — tenant = pivot `user_lembaga`.
 - `kelas_id`: FK → kelas [null, nullOnDelete]
 - `santri_asal_id`: FK → santri [null, nullOnDelete] — Pendaftaran lanjutan (anak sudah santri): FK ke santri asal. Hasil konversi: santri_id.
 - `santri_id`: FK → santri [null, nullOnDelete]
-- `no_pendaftaran`: string — satuan: PSB_{tahun}_{kodeLembaga}_{noGelombang}_{seq4}; paket MI-MD: PSB_{tahun}_MIMD_{noGelombang}_{seq4} (1 nomor dipakai 2 baris MI+MD)
-- `paket_grup_id`: string(40) [null] — Paket MI-MD: 2 baris berbagi paket_grup_id, lifecycle bergerak bersama (status tidak pernah divergen)
+- `no_pendaftaran`: string — satuan: PSB_{tahun}_{kodeLembaga}_{noGelombang}_{seq4}; paket MI-MD: PSB_{tahun}_MIMD_{noGelombang}_{seq4} (1 calon = 1 nomor)
 - `nik`: string(16)
 - `nama_lengkap`: string
 - `nama_singkat`: string [null]
@@ -488,11 +503,24 @@ Tanpa kolom tenant — tenant = pivot `user_lembaga`.
 - `catatan`: text [null] — catatan admin (manual)
 - `catatan_sistem`: text [null] — auto: duplikat email/telp/nik
 - `catatan_admin`: text [null]
+- `deleted_at`: timestamp [null] — soft delete (hapus dari antrean/kuota; tagihan belum bayar dibatalkan)
+- `deleted_by`: bigint [null] — user yang menghapus (referensi lunak ke users)
 - `created_at`, `updated_at`
-- UNIQUE(`lembaga_id`, `no_pendaftaran`) — per-lembaga agar 1 nomor paket boleh dipakai 2 baris MI+MD
+- UNIQUE(`no_pendaftaran`) — 1 calon = 1 nomor
 - INDEX(`gelombang_id`, `nik`)
-- INDEX(`paket_grup_id`)
 - INDEX(`lembaga_id`, `status_pendaftaran`, `updated_at`)
+
+### `psb_calon_lembaga`
+Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; paket MI-MD 2 baris (`primer` MI + `anggota` MD).
+- `id` PK
+- `psb_calon_santri_id`: FK → psb_calon_santri [cascade]
+- `lembaga_id`: FK → lembaga [cascade]
+- `peran`: string(10) [default 'primer'] — primer | anggota
+- `masuk_tingkat`: string(2) [null] — tingkat per lembaga (paket MI-MD = 1 & 1)
+- `created_at`, `updated_at`
+- UNIQUE(`psb_calon_santri_id`, `lembaga_id`)
+- INDEX(`lembaga_id`)
+- Catatan kuota: angka pool gabungan dibaca dari `psb_kuota_biaya.kuota` baris **lembaga primer kelompok** (combo_mi_md → MI); pemakaian = calon aktif yang punya baris di kelompok tsb
 
 ### `dokumen_santri`
 - `id` PK
@@ -568,7 +596,7 @@ Tanpa kolom tenant — tenant = pivot `user_lembaga`.
 - `nominal_total`: decimal(12, 2) [default 0]
 - `nominal_terbayar`: decimal(12, 2) [default 0]
 - `sisa_tagihan`: decimal(12, 2) [default 0]
-- `status`: enum(belum_bayar|mencicil|lunas) [default 'belum_bayar'] — Tanpa jatuh tempo/denda (Q6 drop).
+- `status`: enum(belum_bayar|mencicil|lunas|dibatalkan) [default 'belum_bayar'] — Tanpa jatuh tempo/denda (Q6 drop). `dibatalkan` = tagihan PSB calon yang dihapus (soft delete).
 - `created_at`, `updated_at`
 - UNIQUE(`no_tagihan`)
 - UNIQUE(`santri_id`, `pos_keuangan_id`, `periode`) — Idempotensi generate bulanan (Q3): 1 santri + 1 pos + 1 periode.

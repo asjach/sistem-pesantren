@@ -5,6 +5,8 @@ export interface Lembaga {
   id: number;
   nama: string;
   kode: string | null;
+  kelompok_psb?: 'combo_mi_md' | 'eksklusif' | null;
+  is_seleksi?: boolean | null;
   parent?: { id: number; nama: string; kode: string | null } | null;
 }
 
@@ -35,6 +37,8 @@ export interface LembagaInput {
   npsn?: string;
   nsm?: string;
   is_active?: boolean;
+  kelompok_psb?: 'combo_mi_md' | 'eksklusif';
+  is_seleksi?: boolean;
 }
 
 export function createLembaga(input: LembagaInput) {

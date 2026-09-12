@@ -226,7 +226,7 @@ Aturan terkunci:
 
 | ID | Modul (kode + nama) | Aturan | Input, Proses, Output |
 |---|---|---|---|
-| 4.1 | 100 PSB Penerimaan | 2-jalur via `lembaga.is_seleksi` (override null ikut default); kuota kunci saat input (penuh ke waiting_list); paket MI-MD opsional atomik (2 baris, primer MI, non-asrama, 1 tagihan) | Input: NIK wajib (fiktif boleh), dokumen wajib per lembaga. Proses: cek-NIK ke daftar ke verifikasi ke seleksi opsional ke pemberkasan ke lengkapi ke ACC tunggal. Output: nomor `PSB_*`, `santri`, `riwayat_belajar` aktif, `tagihan` masuk |
+| 4.1 | 100 PSB Penerimaan | Master kegiatan → gelombang (anti-overlap, otomatis saat daftar) → kuota/biaya pendaftaran per lembaga; biaya masuk & asrama per lembaga; 2-jalur via `lembaga.is_seleksi` (override null ikut default); kuota pool gabungan per kelompok kunci saat input (penuh ke waiting_list); paket MI-MD opsional (1 calon + baris `psb_calon_lembaga`, primer MI, non-asrama, 1 tagihan) | Input: NIK wajib (fiktif boleh), dokumen wajib per lembaga. Proses: cek-NIK ke daftar ke verifikasi ke seleksi opsional ke pemberkasan ke lengkapi ke ACC tunggal; aksi massal verifikasi/seleksi/ACC/hapus (soft delete + restore). Output: nomor `PSB_*`, `santri`, `riwayat_belajar` aktif (1 per lembaga), `tagihan` masuk + asrama |
 | 4.2 | 101 Santri Master, 102 Siklus Santri | `id` stabil; `is_aktif` true iff aktif; `status_global` recalc; mutasi/lulus per lembaga | Input: biodata + `kelas`. Proses: salin ganjil ke genap; naik massal per-item (`kelas_id` null lalu penempatan); pindah/set validasi se-lembaga/tahun/tingkat. Output: `riwayat_belajar`, `mutasi_keluar`, `alumni` |
 | 4.3 | 103 Keuangan G1 dasar + G2 mobile | Idempoten `(santri,pos,periode)`; bayar `total==sum`, kunci baris; kuitansi retry; void reversal | Input G2 disederhanakan (tombol besar). Proses: generate ke bayar terkunci ke kuitansi ke void bila perlu. Output: `tagihan`, `pembayaran`, `jurnal_kas`, kuitansi |
 | 4.4 | 203 Portal Wali G3 | Daftar + history bayar + pengajuan (1 aktif/santri); envelope `pesan/data` | Input: akun `orang_tua` via `wali_santri_relasi`. Proses: list anak ke detail. Output: history, pengajuan |
@@ -620,16 +620,23 @@ Status: ✅ migrated + seeded (agama 6, tingkat 12, tugas 2, …).
 
 #### Phase 1 — Core operations 🟡 (spec locked, not implemented)
 
-**100 PSB (new-student admission).** Two flexible paths via
-`membutuhkan_seleksi` flag (direct vs selection); quota-at-input +
-`waiting_list`; MI-MD package (2 rows, 1 `paket_grup_id`, 1 grouped number
-`PSB_{tahun}_MIMD_{gel}_{seq}`, single ACC, single bill); identity
-`nik+nama+tgl_lahir` dedup (NIK may be fictitious); 9 statuses (no `seleksi`);
-`no_pendaftaran` race → catch 1062 regenerate (max 3×).
-Stories: public daftar (+paket), admin verify/ACC/tolak(+paket), wali portal
-lengkapi/ajukan-daftar-ulang, TU verifies `dokumen_santri`.
-Status: ✅ live (69 routes; 10 feature tests green). Tambahan vs vault: verifikasiPaket +
-promosi routes, notifications table, `lembaga.is_seleksi`. Captcha + PDF bukti ditunda.
+**100 PSB (new-student admission).** Master kegiatan → gelombang (tanggal shared,
+anti-overlap, satu kegiatan aktif; gelombang aktif diisi otomatis — pendaftar tidak
+memilih) → kuota/biaya pendaftaran per lembaga; biaya masuk (paket) & asrama per
+lembaga via `psb_biaya_lembaga` (`ASRAMA` pos terpisah saat ACC). Two flexible
+paths via `membutuhkan_seleksi` (direct vs selection); combined pool quota per
+`kelompok_psb` (combo khusus MI/MD; pool value on the primary lembaga's
+`psb_kuota_biaya` row) + `waiting_list`; MI-MD package (1 calon +
+`psb_calon_lembaga` child rows, 1 grouped number `PSB_{tahun}_MIMD_{gel}_{seq}`,
+single ACC → 1 santri + 2 riwayat, single bill); identity `nik+nama+tgl_lahir`
+dedup (NIK may be fictitious); 9 statuses (no `seleksi`); `no_pendaftaran` race →
+catch 1062 regenerate (max 3×). Bulk actions admin: verifikasi, seleksi,
+ACC, hapus; hapus = soft delete (block bila ada pembayaran; tagihan `PSB_REG`
+belum bayar → `dibatalkan`) + restore.
+Stories: public daftar (+paket) via gelombang aktif, admin verify/ACC/hapus,
+wali portal lengkapi/ajukan-daftar-ulang, TU verifies `dokumen_santri`. Import
+Excel ikut membuat tagihan pendaftaran.
+Status: ✅ live (fitur tests hijau). Captcha + PDF bukti ditunda.
 
 **101 Santri master.** 74-column EMIS profile; NIK/NISN index-only + service
 dedup; `updateOrCreate` only when NIK present (+ intra-file guard);

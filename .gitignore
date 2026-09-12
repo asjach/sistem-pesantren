@@ -4,6 +4,7 @@ backend/vendor/
 backend/node_modules/
 mobile/*/vendor/
 mobile/*/node_modules/
+mobile/*/dist/
 frontend/*/node_modules/
 frontend/*/dist/
 frontend/*/src-tauri/target/

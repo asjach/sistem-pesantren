@@ -19,6 +19,7 @@ const PosPage = lazy(() => import('./pages/PosPage'));
 const TarifPage = lazy(() => import('./pages/TarifPage'));
 const PengaturanPage = lazy(() => import('./pages/PengaturanPage'));
 const PsbPage = lazy(() => import('./pages/PsbPage'));
+const KegiatanPsbPage = lazy(() => import('./pages/KegiatanPsbPage'));
 const SantriPage = lazy(() => import('./pages/SantriPage'));
 const SiklusPage = lazy(() => import('./pages/SiklusPage'));
 const KeuanganPage = lazy(() => import('./pages/KeuanganPage'));
@@ -54,6 +55,7 @@ export default function App() {
             <Route path="/tarif" element={<Shell><TarifPage /></Shell>} />
             <Route path="/referensi" element={<Shell><ReferensiPage /></Shell>} />
             <Route path="/psb" element={<Shell><PsbPage /></Shell>} />
+            <Route path="/kegiatan-psb" element={<Shell><KegiatanPsbPage /></Shell>} />
             <Route path="/santri" element={<Shell><SantriPage /></Shell>} />
             <Route path="/siklus" element={<Shell><SiklusPage /></Shell>} />
             <Route path="/keuangan" element={<Shell><KeuanganPage /></Shell>} />

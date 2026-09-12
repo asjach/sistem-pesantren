@@ -48,9 +48,7 @@ return new class extends Migration
                     // Pendaftaran lanjutan (anak sudah santri): FK ke santri asal. Hasil konversi: santri_id.
                     $table->foreignId('santri_asal_id')->nullable()->constrained('santri')->nullOnDelete();
                     $table->foreignId('santri_id')->nullable()->constrained('santri')->nullOnDelete();
-                    $table->string('no_pendaftaran'); // satuan: PSB_{tahun}_{kodeLembaga}_{noGelombang}_{seq4}; paket MI-MD: PSB_{tahun}_MIMD_{noGelombang}_{seq4} (1 nomor dipakai 2 baris MI+MD)
-                    // Paket MI-MD: 2 baris berbagi paket_grup_id, lifecycle bergerak bersama (status tidak pernah divergen)
-                    $table->string('paket_grup_id', 40)->nullable();
+                    $table->string('no_pendaftaran'); // satuan: PSB_{tahun}_{kodeLembaga}_{noGelombang}_{seq4}; paket MI-MD: PSB_{tahun}_MIMD_{noGelombang}_{seq4} (1 nomor untuk 1 calon)
                     // Tahap 1 (inti, wajib): nik + nama. NIK boleh fiktif (tanpa flag); dedup identitas di service.
                     $table->string('nik', 16);
                     $table->string('nama_lengkap');
@@ -134,11 +132,25 @@ return new class extends Migration
                     $table->text('catatan_admin')->nullable();
                     $table->timestamps();
 
-                    $table->unique(['lembaga_id', 'no_pendaftaran']); // per-lembaga agar 1 nomor paket boleh dipakai 2 baris MI+MD
+                    $table->unique('no_pendaftaran'); // 1 calon = 1 nomor (paket MI-MD kini 1 baris calon)
                     // TANPA unique NIK: NIK boleh fiktif/ganda antar anak berbeda; dedup identitas (nik+nama+tgl_lahir) di service.
                     $table->index(['gelombang_id', 'nik']);
-                    $table->index(['paket_grup_id']);
                     $table->index(['lembaga_id', 'status_pendaftaran', 'updated_at']);
+                });
+
+                // Detail lembaga tujuan per calon (1 baris = 1 lembaga):
+                // satuan = 1 baris primer; paket MI-MD = 2 baris (MI primer + MD anggota).
+                // Kuota & scoping tenant dihitung dari tabel ini.
+                Schema::create('psb_calon_lembaga', function (Blueprint $table) {
+                    $table->id();
+                    $table->foreignId('psb_calon_santri_id')->constrained('psb_calon_santri')->cascadeOnDelete();
+                    $table->foreignId('lembaga_id')->constrained('lembaga')->cascadeOnDelete();
+                    $table->string('peran', 10)->default('primer'); // primer | anggota
+                    $table->string('masuk_tingkat', 2)->nullable(); // tingkat per lembaga (paket MI-MD = 1 & 1)
+                    $table->timestamps();
+
+                    $table->unique(['psb_calon_santri_id', 'lembaga_id']);
+                    $table->index('lembaga_id');
                 });
 
                 Schema::create('dokumen_santri', function (Blueprint $table) {
@@ -184,6 +196,7 @@ return new class extends Migration
         Schema::dropIfExists('psb_log_status');
         Schema::dropIfExists('dokumen_wajib_lembaga');
         Schema::dropIfExists('dokumen_santri');
+        Schema::dropIfExists('psb_calon_lembaga');
         Schema::dropIfExists('psb_calon_santri');
         Schema::dropIfExists('psb_kuota_biaya');
         Schema::dropIfExists('psb_gelombang');

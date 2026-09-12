@@ -12,7 +12,6 @@ class PsbKuotaBiaya extends Model
         'nominal_pendaftaran' => 'decimal:2',
         'nominal_pendaftaran_lanjutan' => 'decimal:2',
         'nominal_paket' => 'decimal:2',
-        'nominal_masuk' => 'decimal:2',
         'membutuhkan_seleksi' => 'boolean',
     ];
 

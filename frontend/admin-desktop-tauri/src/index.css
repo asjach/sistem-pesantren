@@ -338,6 +338,32 @@
 .simpes-dsg .simpes-dsg-dirty {
   background-color: color-mix(in srgb, var(--accent) 14%, var(--card));
 }
+/* Mode Edit aktif: sel yang bisa diedit diberi latar + garis bawah lembut,
+   sel baca-saja diberi arsir diagonal agar langsung terlihat perbedaannya. */
+.simpes-dsg .dsg-cell.simpes-dsg-editable {
+  background-color: color-mix(in srgb, var(--primary) 7%, var(--card));
+  box-shadow: inset 0 -2px 0 0 color-mix(in srgb, var(--primary) 30%, transparent);
+}
+.simpes-dsg .dsg-cell.simpes-dsg-readonly {
+  background-image: repeating-linear-gradient(
+    135deg,
+    transparent 0 5px,
+    color-mix(in srgb, var(--muted-foreground) 12%, transparent) 5px 6px
+  );
+  color: var(--muted-foreground);
+}
+.simpes-dsg-swatch-editable {
+  background-color: color-mix(in srgb, var(--primary) 12%, var(--card));
+  border: 1px solid color-mix(in srgb, var(--primary) 45%, transparent);
+}
+.simpes-dsg-swatch-readonly {
+  background-image: repeating-linear-gradient(
+    135deg,
+    transparent 0 3px,
+    color-mix(in srgb, var(--muted-foreground) 30%, transparent) 3px 4px
+  );
+  border: 1px solid color-mix(in srgb, var(--muted-foreground) 40%, transparent);
+}
 /* Checkbox kolom seleksi selalu center (header + body). */
 .simpes-dsg .dsg-cell:has(> input.dsg-checkbox) {
   justify-content: center;

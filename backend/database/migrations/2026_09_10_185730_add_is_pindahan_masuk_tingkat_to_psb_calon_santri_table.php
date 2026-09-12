@@ -13,10 +13,8 @@ return new class extends Migration
     {
         Schema::table('psb_calon_santri', function (Blueprint $table) {
             // Jenis PSB: false = santri baru, true = pindahan (root PRD: status_awal ACC).
+            // Tingkat masuk disimpan per lembaga di psb_calon_lembaga.masuk_tingkat.
             $table->boolean('is_pindahan')->default(false)->after('is_lanjutan');
-            // Tingkat masuk: baru = entry jenjang (MI/MD 1, MTS 7, MLN 10);
-            // pindahan = pilihan (MI/MD 2-6, MTS 8-9, MLN 11-12). Validasi di PsbService.
-            $table->string('masuk_tingkat', 2)->nullable()->after('is_pindahan');
         });
     }
 
@@ -26,7 +24,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('psb_calon_santri', function (Blueprint $table) {
-            $table->dropColumn(['is_pindahan', 'masuk_tingkat']);
+            $table->dropColumn('is_pindahan');
         });
     }
 };

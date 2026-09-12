@@ -3,6 +3,8 @@
 use App\Http\Controllers\Api\Admin\KelasController;
 use App\Http\Controllers\Api\Admin\LembagaController;
 use App\Http\Controllers\Api\Admin\PosKeuanganController;
+use App\Http\Controllers\Api\Admin\PsbBiayaController;
+use App\Http\Controllers\Api\Admin\PsbKegiatanController;
 use App\Http\Controllers\Api\Admin\ReferensiController;
 use App\Http\Controllers\Api\Admin\SantriController;
 use App\Http\Controllers\Api\Admin\SiklusController;
@@ -91,10 +93,26 @@ Route::middleware(['auth:sanctum', 'role:super_admin|admin', 'throttle:api_user'
         Route::get('dokumen-wajib', [PsbDokumenController::class, 'indexWajib']);
         Route::post('dokumen-wajib', [PsbDokumenController::class, 'storeWajib']);
         Route::delete('dokumen-wajib/{id}', [PsbDokumenController::class, 'destroyWajib']);
+
+        // Master modul PSB: kegiatan -> gelombang -> kuota/biaya pendaftaran per lembaga,
+        // plus biaya masuk/asrama per lembaga (lintas gelombang).
+        Route::get('psb/kegiatan', [PsbKegiatanController::class, 'index']);
+        Route::post('psb/kegiatan', [PsbKegiatanController::class, 'store']);
+        Route::put('psb/kegiatan/{kegiatan}', [PsbKegiatanController::class, 'update']);
+        Route::delete('psb/kegiatan/{kegiatan}', [PsbKegiatanController::class, 'destroy']);
+        Route::post('psb/gelombang', [PsbKegiatanController::class, 'storeGelombang']);
+        Route::put('psb/gelombang/{gelombang}', [PsbKegiatanController::class, 'updateGelombang']);
+        Route::delete('psb/gelombang/{gelombang}', [PsbKegiatanController::class, 'destroyGelombang']);
+        Route::get('psb/kuota-biaya', [PsbBiayaController::class, 'indexKuota']);
+        Route::post('psb/kuota-biaya', [PsbBiayaController::class, 'upsertKuota']);
+        Route::delete('psb/kuota-biaya/{kuota}', [PsbBiayaController::class, 'destroyKuota']);
+        Route::get('psb/biaya-lembaga', [PsbBiayaController::class, 'indexBiaya']);
+        Route::post('psb/biaya-lembaga', [PsbBiayaController::class, 'upsertBiaya']);
     });
 
 // PSB publik (tanpa auth; captcha SKIP — spec §5 hanya sebut sepintas tanpa implementasi).
 Route::prefix('psb')->group(function () {
+    Route::get('opsi', [PsbPublikController::class, 'opsi'])->middleware('throttle:30,1');
     Route::post('cek-nik', [PsbPublikController::class, 'cekNik'])->middleware('throttle:5,1');
     Route::post('daftar', [PsbPublikController::class, 'store'])->middleware('throttle:10,1');
     Route::post('daftar-paket', [PsbPublikController::class, 'storePaket'])->middleware('throttle:10,1');
@@ -110,14 +128,17 @@ Route::middleware(['auth:sanctum', 'role:super_admin|admin', 'throttle:api_user'
         Route::get('antrean-daftar-ulang', [PsbController::class, 'antrean']);
         Route::get('gelombang', [PsbController::class, 'gelombang']);
         Route::post('calon', [PsbController::class, 'storeCalon']);
+        Route::post('bulk/verifikasi', [PsbController::class, 'bulkVerifikasi']);
+        Route::post('bulk/seleksi', [PsbController::class, 'bulkSeleksi']);
+        Route::post('bulk/acc-daftar-ulang', [PsbController::class, 'bulkAcc']);
+        Route::post('bulk/hapus', [PsbController::class, 'bulkHapus']);
+        Route::post('bulk/pulihkan', [PsbController::class, 'bulkPulihkan']);
         Route::post('{calon}/verifikasi', [PsbController::class, 'verifikasi']);
         Route::post('{calon}/seleksi', [PsbController::class, 'seleksi']);
         Route::post('{calon}/acc-daftar-ulang', [PsbController::class, 'acc']);
-        Route::post('paket/{grup}/acc', [PsbController::class, 'accPaket']);
-        Route::post('paket/{grup}/verifikasi', [PsbController::class, 'verifikasiPaket']);
-        Route::post('{calon}/tolak', [PsbController::class, 'tolak']);
+        Route::post('{calon}/pulihkan', [PsbController::class, 'pulihkan']);
+        Route::delete('{calon}', [PsbController::class, 'destroy']);
         Route::post('{calon}/promosi', [PsbController::class, 'promosi']);
-        Route::post('paket/{grup}/tolak', [PsbController::class, 'tolakPaket']);
         Route::post('import', [PsbController::class, 'import'])->middleware('throttle:imports');
         Route::get('import-template', [PsbController::class, 'template']);
         Route::post('dokumen/{dokumen}/verifikasi', [PsbDokumenController::class, 'verifikasi']);

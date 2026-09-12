@@ -15,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Validation\ValidationException;
 
 class PsbPortalController extends Controller
 {
@@ -49,7 +50,7 @@ class PsbPortalController extends Controller
     {
         $data = $request->validate([
             'santri_id' => ['required', 'integer', 'exists:santri,id'],
-            'gelombang_id' => ['required', 'integer', 'exists:psb_gelombang,id'],
+            'gelombang_id' => ['nullable', 'integer', 'exists:psb_gelombang,id'], // kosong = gelombang aktif
             'lembaga_id' => ['required', 'integer', 'exists:lembaga,id'],
         ]);
 
@@ -61,6 +62,13 @@ class PsbPortalController extends Controller
             abort(403, 'Santri ini bukan tanggungan akun Anda.');
         }
 
+        if (empty($data['gelombang_id'])) {
+            $aktif = $gelombang->gelombangAktif();
+            if (! $aktif) {
+                throw ValidationException::withMessages(['gelombang_id' => 'Pendaftaran sedang ditutup: tidak ada gelombang aktif.']);
+            }
+            $data['gelombang_id'] = $aktif->id;
+        }
         $gelombang->cekBukaDanKuota((int) $data['gelombang_id'], (int) $data['lembaga_id']);
 
         $santri = Santri::findOrFail($data['santri_id']);

@@ -46,10 +46,22 @@ const FIELDS: ExcelField[] = [
     validate: (v) => (!v || !v.trim() ? 'Nama lembaga wajib diisi.' : null),
   },
   { key: 'induk', label: 'Induk', width: 220, minWidth: 120, kind: 'static' },
+  { key: 'kelompok', label: 'Kelompok PSB', width: 140, minWidth: 110, kind: 'static' },
+  { key: 'seleksi', label: 'Seleksi', width: 100, minWidth: 80, kind: 'static' },
 ];
 
 function gridValues(l: Lembaga): Record<string, string | null> {
-  return { kode: l.kode, nama: l.nama, induk: l.parent?.nama ?? '' };
+  return {
+    kode: l.kode,
+    nama: l.nama,
+    induk: l.parent?.nama ?? '',
+    kelompok: l.kelompok_psb === 'combo_mi_md' ? 'Combo MI-MD' : 'Eksklusif',
+    seleksi: l.is_seleksi ? 'Ya' : 'Tidak',
+  };
+}
+
+function bolehCombo(kode: string): boolean {
+  return ['MI', 'MD'].includes(kode.trim().toUpperCase());
 }
 
 async function commitDraft(id: number, f: Record<string, string | null>) {
@@ -75,11 +87,15 @@ export default function LembagaPage() {
   const [nama, setNama] = useState('');
   const [kode, setKode] = useState('');
   const [parentId, setParentId] = useState('');
+  const [kelompokPsb, setKelompokPsb] = useState<'combo_mi_md' | 'eksklusif'>('eksklusif');
+  const [isSeleksi, setIsSeleksi] = useState(false);
   const [tambahOpen, setTambahOpen] = useState(false);
   const [viewRow, setViewRow] = useState<Lembaga | null>(null);
   const [editRow, setEditRow] = useState<Lembaga | null>(null);
   const [editNama, setEditNama] = useState('');
   const [editKode, setEditKode] = useState('');
+  const [editKelompok, setEditKelompok] = useState<'combo_mi_md' | 'eksklusif'>('eksklusif');
+  const [editSeleksi, setEditSeleksi] = useState(false);
 
   const load = useCallback(
     async function loadPage(p = pager.page, pp = pager.perPage) {
@@ -120,6 +136,8 @@ export default function LembagaPage() {
     setEditRow(l);
     setEditNama(l.nama);
     setEditKode(l.kode ?? '');
+    setEditKelompok(l.kelompok_psb === 'combo_mi_md' ? 'combo_mi_md' : 'eksklusif');
+    setEditSeleksi(!!l.is_seleksi);
   }, []);
 
   const onCreate = useCallback(async (e: React.FormEvent) => {
@@ -130,9 +148,12 @@ export default function LembagaPage() {
         nama,
         kode: kode || undefined,
         parent_id: parentId ? Number(parentId) : undefined,
+        kelompok_psb: kelompokPsb,
+        is_seleksi: isSeleksi,
       });
       toast.success('Lembaga dibuat.');
       setNama(''); setKode(''); setParentId('');
+      setKelompokPsb('eksklusif'); setIsSeleksi(false);
       setTambahOpen(false);
       pager.goFirst();
       await load(1);
@@ -141,19 +162,24 @@ export default function LembagaPage() {
     } catch (e2) {
       setErr(errorMessage(e2));
     }
-  }, [nama, kode, parentId, load, pager.goFirst]);
+  }, [nama, kode, parentId, kelompokPsb, isSeleksi, load, pager.goFirst]);
 
   const onUpdate = useCallback(async () => {
     if (!editRow) return;
     try {
-      await updateLembaga(editRow.id, { nama: editNama, kode: editKode || undefined });
+      await updateLembaga(editRow.id, {
+        nama: editNama,
+        kode: editKode || undefined,
+        kelompok_psb: editKelompok,
+        is_seleksi: editSeleksi,
+      });
       toast.success('Lembaga diubah.');
       setEditRow(null);
       await load();
     } catch (e) {
       setErr(errorMessage(e));
     }
-  }, [editRow, editNama, editKode, load]);
+  }, [editRow, editNama, editKode, editKelompok, editSeleksi, load]);
 
   const onDelete = useCallback(async (id: number) => {
     try {
@@ -246,8 +272,26 @@ export default function LembagaPage() {
                 </Field>
                 <Field>
                   <FieldLabel htmlFor="input_kode_lembaga">Kode (unik global, opsional)</FieldLabel>
-                  <Input id="input_kode_lembaga" value={kode} onChange={(e) => setKode(e.target.value)} maxLength={20} placeholder="MI" autoComplete="off" />
+                  <Input id="input_kode_lembaga" value={kode} onChange={(e) => { const v = e.target.value; setKode(v); if (!bolehCombo(v)) setKelompokPsb('eksklusif'); }} maxLength={20} placeholder="MI" autoComplete="off" />
                 </Field>
+                <Field>
+                  <FieldLabel htmlFor="select_kelompok_psb_lembaga">Kelompok PSB</FieldLabel>
+                  <Select value={kelompokPsb} onValueChange={(v) => setKelompokPsb(v as 'combo_mi_md' | 'eksklusif')}>
+                    <SelectTrigger id="select_kelompok_psb_lembaga" className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectItem value="eksklusif">Eksklusif</SelectItem>
+                        <SelectItem value="combo_mi_md" disabled={!bolehCombo(kode)}>Combo MI-MD (khusus MI/MD)</SelectItem>
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <label htmlFor="chk_seleksi_lembaga" className="flex items-center gap-2 self-end pb-2 text-sm">
+                  <input id="chk_seleksi_lembaga" type="checkbox" checked={isSeleksi} onChange={(e) => setIsSeleksi(e.target.checked)} className="size-4 accent-[var(--accent)]" />
+                  Butuh seleksi
+                </label>
                 <Field>
                   <FieldLabel htmlFor="select_induk_lembaga">Induk (opsional)</FieldLabel>
                   <Select value={parentId || '_root'} onValueChange={(v) => setParentId(v === '_root' ? '' : v)}>
@@ -291,8 +335,26 @@ export default function LembagaPage() {
             </Field>
             <Field>
               <FieldLabel htmlFor="input_ubah_kode_lembaga">Kode (unik global, opsional)</FieldLabel>
-              <Input id="input_ubah_kode_lembaga" value={editKode} onChange={(e) => setEditKode(e.target.value)} maxLength={20} />
+              <Input id="input_ubah_kode_lembaga" value={editKode} onChange={(e) => { const v = e.target.value; setEditKode(v); if (!bolehCombo(v)) setEditKelompok('eksklusif'); }} maxLength={20} />
             </Field>
+            <Field>
+              <FieldLabel htmlFor="select_ubah_kelompok_psb">Kelompok PSB</FieldLabel>
+              <Select value={editKelompok} onValueChange={(v) => setEditKelompok(v as 'combo_mi_md' | 'eksklusif')}>
+                <SelectTrigger id="select_ubah_kelompok_psb" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value="eksklusif">Eksklusif</SelectItem>
+                    <SelectItem value="combo_mi_md" disabled={!bolehCombo(editKode)}>Combo MI-MD (khusus MI/MD)</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </Field>
+            <label htmlFor="chk_ubah_seleksi_lembaga" className="flex items-center gap-2 text-sm">
+              <input id="chk_ubah_seleksi_lembaga" type="checkbox" checked={editSeleksi} onChange={(e) => setEditSeleksi(e.target.checked)} className="size-4 accent-[var(--accent)]" />
+              Butuh seleksi
+            </label>
           </FieldGroup>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditRow(null)}>Batal</Button>

@@ -42,6 +42,7 @@ import {
   BookMarked,
   BookOpen,
   CalendarDays,
+  CalendarRange,
   ChevronDown,
   ClipboardList,
   Database,
@@ -113,6 +114,7 @@ const NAV: NavEntry[] = [
         label: 'PSB',
         items: [
           { to: '/psb', label: 'Antrean', icon: ClipboardList, id: 'nav_psb' },
+          { to: '/kegiatan-psb', label: 'Kegiatan PSB', icon: CalendarRange, id: 'nav_kegiatan_psb' },
           { to: '/dokumen-wajib', label: 'Dokumen Wajib', icon: FileCheck2, id: 'nav_dokumen_wajib' },
         ],
       },

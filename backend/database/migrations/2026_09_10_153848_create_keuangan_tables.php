@@ -63,7 +63,7 @@ return new class extends Migration
                     $table->decimal('nominal_terbayar', 12, 2)->default(0);
                     $table->decimal('sisa_tagihan', 12, 2)->default(0);
                     // Tanpa jatuh tempo/denda (Q6 drop).
-                    $table->enum('status', ['belum_bayar', 'mencicil', 'lunas'])->default('belum_bayar');
+                    $table->enum('status', ['belum_bayar', 'mencicil', 'lunas', 'dibatalkan'])->default('belum_bayar');
                     $table->timestamps();
 
                     $table->unique('no_tagihan');

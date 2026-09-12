@@ -4,9 +4,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class PsbCalonSantri extends Model
 {
+    use SoftDeletes;
+
     protected $table = 'psb_calon_santri';
     protected $guarded = ['id'];
     protected $casts = [
@@ -19,9 +22,18 @@ class PsbCalonSantri extends Model
 
     public function gelombang(): BelongsTo { return $this->belongsTo(PsbGelombang::class, 'gelombang_id'); }
     public function lembagaTujuan(): BelongsTo { return $this->belongsTo(Lembaga::class, 'lembaga_id'); }
+    public function lembagaDetail(): HasMany { return $this->hasMany(PsbCalonLembaga::class, 'psb_calon_santri_id'); }
     public function santriAsal(): BelongsTo { return $this->belongsTo(Santri::class, 'santri_asal_id'); }
     public function santriHasil(): BelongsTo { return $this->belongsTo(Santri::class, 'santri_id'); }
     public function berkas(): HasMany { return $this->hasMany(DokumenSantri::class, 'psb_calon_santri_id'); }
     public function logStatus(): HasMany { return $this->hasMany(PsbLogStatus::class, 'psb_calon_santri_id'); }
     public function tagihan(): HasMany { return $this->hasMany(Tagihan::class, 'psb_calon_santri_id'); }
+
+    /** Paket = calon mendaftar ke lebih dari satu lembaga (mis. MI-MD). */
+    public function isPaket(): bool
+    {
+        return $this->relationLoaded('lembagaDetail')
+            ? $this->lembagaDetail->count() > 1
+            : $this->lembagaDetail()->count() > 1;
+    }
 }

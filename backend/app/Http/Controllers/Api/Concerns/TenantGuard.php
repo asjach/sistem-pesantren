@@ -49,4 +49,33 @@ trait TenantGuard
 
         return $query->whereIn($column, $ids);
     }
+
+    /**
+     * Batasi query lewat relasi detail lembaga (mis. psb_calon_lembaga):
+     * admin MD melihat calon satuan MD + calon paket MI-MD (punya baris anak MD).
+     */
+    protected function scopeLembagaRelasi($query, User $auth, Request $request, string $relation = 'lembagaDetail')
+    {
+        $filter = fn ($q) => $q->where('lembaga_id', $request->integer('lembaga_id'));
+
+        if ($auth->hasRole('super_admin') || $auth->isAdminFull()) {
+            if ($request->filled('lembaga_id')) {
+                $query->whereHas($relation, $filter);
+            }
+
+            return $query;
+        }
+
+        $ids = $auth->lembagaIds();
+        if (empty($ids)) {
+            return $query->whereRaw('1 = 0');
+        }
+        if ($request->filled('lembaga_id')) {
+            $this->authorizeLembaga($auth, (int) $request->input('lembaga_id'));
+
+            return $query->whereHas($relation, $filter);
+        }
+
+        return $query->whereHas($relation, fn ($q) => $q->whereIn('lembaga_id', $ids));
+    }
 }

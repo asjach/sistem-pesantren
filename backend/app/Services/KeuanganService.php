@@ -8,8 +8,8 @@ use App\Models\Lembaga;
 use App\Models\Pembayaran;
 use App\Models\PembayaranDetail;
 use App\Models\PosKeuangan;
+use App\Models\PsbBiayaLembaga;
 use App\Models\PsbCalonSantri;
-use App\Models\PsbKuotaBiaya;
 use App\Models\Santri;
 use App\Models\Tagihan;
 use App\Models\TarifBiaya;
@@ -60,7 +60,7 @@ class KeuanganService
                         'tahun_ajaran_id' => $tahunAjaranId,
                         'lembaga_id' => $calon->lembaga_id,
                         'periode' => null,
-                        'paket_kode' => $calon->paket_grup_id ? 'MI-MD' : null,
+                        'paket_kode' => $calon->isPaket() ? 'MI-MD' : null,
                         'nominal_total' => $nominal,
                         'nominal_terbayar' => 0,
                         'sisa_tagihan' => $nominal,
@@ -78,15 +78,45 @@ class KeuanganService
     }
 
     /**
-     * Tagihan masuk/daftar ulang PSB (pos DFR_ULANG).
-     *
-     * Nominal dari nominal_masuk kuota primer (exact tipe dulu, fallback 'semua';
-     * tanpa baris kuota = 0). Idempoten per santri+pos: bila sudah ada,
-     * kembalikan baris yang ada.
-     *
-     * Paket: panggil HANYA untuk baris primer (accPaket menjamin ini).
-     * Bila baris sekunder yang masuk, kembalikan null (sekunder gratis,
-     * tanpa tagihan).
+     * Batalkan tagihan pendaftaran PSB (pos PSB_REG) milik calon.
+     * Hanya untuk baris belum terbayar; ada pembayaran = tolak (rekonsiliasi kas).
+     */
+    public function batalkanTagihanPsb(PsbCalonSantri $calon): void
+    {
+        $pos = PosKeuangan::where('kode_pos', 'PSB_REG')->first();
+        if (! $pos) {
+            return;
+        }
+        $tagihan = Tagihan::where('psb_calon_santri_id', $calon->id)
+            ->where('pos_keuangan_id', $pos->id)
+            ->get();
+        if ($tagihan->isEmpty()) {
+            return;
+        }
+        if ($tagihan->contains(fn ($t) => (float) $t->nominal_terbayar > 0)) {
+            throw ValidationException::withMessages([
+                'tagihan' => 'Tagihan pendaftaran sudah memiliki pembayaran; selesaikan di Keuangan terlebih dahulu.',
+            ]);
+        }
+        Tagihan::whereIn('id', $tagihan->pluck('id'))->update(['status' => 'dibatalkan']);
+    }
+
+    /** Pulihkan tagihan PSB_REG yang dibatalkan (saat calon di-restore). */
+    public function aktifkanKembaliTagihanPsb(PsbCalonSantri $calon): void
+    {
+        $pos = PosKeuangan::where('kode_pos', 'PSB_REG')->first();
+        if (! $pos) {
+            return;
+        }
+        Tagihan::where('psb_calon_santri_id', $calon->id)
+            ->where('pos_keuangan_id', $pos->id)
+            ->where('status', 'dibatalkan')
+            ->update(['status' => 'belum_bayar']);
+    }
+
+    /**
+     * Tagihan masuk/daftar ulang PSB (pos DFR_ULANG) + tagihan asrama terpisah (pos ASRAMA).
+     * Nominal dari psb_biaya_lembaga (bukan lagi per gelombang). Idempoten per santri+pos.
      */
     public function createTagihanMasukPsb(PsbCalonSantri $calon, Santri $santri): ?Tagihan
     {
@@ -97,11 +127,29 @@ class KeuanganService
             ]);
         }
 
-        if ($calon->paket_grup_id && ! $this->isPrimerPaket($calon)) {
-            return null;
+        $biaya = PsbBiayaLembaga::where('lembaga_id', $calon->lembaga_id)->first();
+        $tagihanMasuk = $this->buatTagihanDaftarUlang(
+            $calon,
+            $santri,
+            $pos,
+            (float) ($biaya->biaya_masuk ?? 0),
+            $calon->isPaket() ? 'MI-MD' : null
+        );
+
+        if ($calon->tipe_santri === 'asrama') {
+            $posAsrama = PosKeuangan::where('kode_pos', 'ASRAMA')->first();
+            $biayaAsrama = (float) ($biaya->biaya_asrama ?? 0);
+            if ($posAsrama && $biayaAsrama > 0) {
+                $this->buatTagihanDaftarUlang($calon, $santri, $posAsrama, $biayaAsrama, null);
+            }
         }
 
-        return DB::transaction(function () use ($calon, $santri, $pos) {
+        return $tagihanMasuk;
+    }
+
+    protected function buatTagihanDaftarUlang(PsbCalonSantri $calon, Santri $santri, PosKeuangan $pos, float $nominal, ?string $paketKode): Tagihan
+    {
+        return DB::transaction(function () use ($calon, $santri, $pos, $nominal, $paketKode) {
             $ada = Tagihan::where('santri_id', $santri->id)
                 ->where('pos_keuangan_id', $pos->id)
                 ->whereNull('periode')
@@ -111,12 +159,10 @@ class KeuanganService
                 return $ada;
             }
 
-            $nominal = $this->nominalMasuk($calon);
-
             $usaha = 0;
             while (true) {
                 try {
-                    $tagihan = Tagihan::create([
+                    return Tagihan::create([
                         'no_tagihan' => $this->generateNoTagihan((int) $calon->lembaga_id),
                         'santri_id' => $santri->id,
                         'psb_calon_santri_id' => $calon->id,
@@ -124,14 +170,12 @@ class KeuanganService
                         'tahun_ajaran_id' => $calon->tahun_ajaran_id,
                         'lembaga_id' => $calon->lembaga_id,
                         'periode' => null,
-                        'paket_kode' => $calon->paket_grup_id ? 'MI-MD' : null,
+                        'paket_kode' => $paketKode,
                         'nominal_total' => $nominal,
                         'nominal_terbayar' => 0,
                         'sisa_tagihan' => $nominal,
                         'status' => 'belum_bayar',
-                    ]);
-
-                    return $tagihan->fresh();
+                    ])->fresh();
                 } catch (QueryException $e) {
                     if (($e->errorInfo[1] ?? null) !== 1062 || ++$usaha >= 3) {
                         throw $e;
@@ -139,34 +183,6 @@ class KeuanganService
                 }
             }
         });
-    }
-
-    /**
-     * Baris paket primer = lembaga berkode MI (selaras PsbService::PAKET_MI_MD).
-     * Dibaca dari kolom kode agar KeuanganService tidak bergantung ke PsbService.
-     */
-    protected function isPrimerPaket(PsbCalonSantri $calon): bool
-    {
-        $lembaga = Lembaga::find($calon->lembaga_id);
-
-        return $lembaga && strtoupper((string) ($lembaga->kode ?? '')) === 'MI';
-    }
-
-    /**
-     * Nominal masuk dari kuota baris calon (exact tipe dulu, fallback 'semua').
-     */
-    protected function nominalMasuk(PsbCalonSantri $calon): float
-    {
-        $kuota = PsbKuotaBiaya::where('gelombang_id', $calon->gelombang_id)
-            ->where('lembaga_id', $calon->lembaga_id)
-            ->where('tipe_santri', $calon->tipe_santri)
-            ->first()
-            ?? PsbKuotaBiaya::where('gelombang_id', $calon->gelombang_id)
-                ->where('lembaga_id', $calon->lembaga_id)
-                ->where('tipe_santri', 'semua')
-                ->first();
-
-        return $kuota ? (float) $kuota->nominal_masuk : 0.0;
     }
 
     /**
@@ -328,6 +344,7 @@ class KeuanganService
                     if (! empty($data['psb_calon_santri_id']) && (int) $tagihan->psb_calon_santri_id !== (int) $data['psb_calon_santri_id']) {
                         abort(422, "Tagihan {$tagihan->no_tagihan} bukan milik calon yang dipilih.");
                     }
+                    if ($tagihan->status === 'dibatalkan') abort(409, "Tagihan {$tagihan->no_tagihan} sudah dibatalkan.");
                     if ($tagihan->status === 'lunas' || (float) $tagihan->sisa_tagihan <= 0) abort(409, "Tagihan {$tagihan->no_tagihan} sudah lunas.");
                     $bayar = (float) $item['nominal_dibayar'];
                     if ($bayar <= 0 || $bayar > (float) $tagihan->sisa_tagihan) abort(422, "Nominal melebihi sisa tagihan {$tagihan->no_tagihan}.");
