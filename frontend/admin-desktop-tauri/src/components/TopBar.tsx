@@ -322,6 +322,13 @@ export default function TopBar() {
                   </SelectGroup>
                   <SelectSeparator />
                   <SelectGroup>
+                    <SelectLabel>Font Aptos (bundel)</SelectLabel>
+                    {FONT_OPTIONS.filter((f) => f.group === 'aptos').map((f) => (
+                      <SelectItem key={f.label} value={f.value}>{f.label}</SelectItem>
+                    ))}
+                  </SelectGroup>
+                  <SelectSeparator />
+                  <SelectGroup>
                     <SelectLabel>Font Google (offline)</SelectLabel>
                     {FONT_OPTIONS.filter((f) => f.group === 'google').map((f) => (
                       <SelectItem key={f.label} value={f.value}>{f.label}</SelectItem>

@@ -22,7 +22,7 @@ export const FONT_FAMILY_DEFAULT = '_bawaan';
 export interface FontOption {
   value: string;
   label: string;
-  group: 'sistem' | 'google';
+  group: 'sistem' | 'google' | 'aptos';
 }
 
 /** Pilihan jenis huruf isi tabel — sans-serif (tanpa kaki), relatif ramping.
@@ -39,6 +39,11 @@ export const FONT_OPTIONS: FontOption[] = [
   { value: 'Tahoma, Geneva, sans-serif|400', label: 'Tahoma', group: 'sistem' },
   { value: '"Trebuchet MS", Tahoma, sans-serif|400', label: 'Trebuchet MS', group: 'sistem' },
   { value: '"Lucida Sans Unicode", "Lucida Grande", sans-serif|400', label: 'Lucida Sans', group: 'sistem' },
+  // Aptos & Aptos Narrow — dibundel lokal di src/assets/fonts (berjalan offline).
+  { value: '"Aptos", sans-serif|400', label: 'Aptos', group: 'aptos' },
+  { value: '"Aptos", sans-serif|700', label: 'Aptos Bold', group: 'aptos' },
+  { value: '"Aptos Narrow", sans-serif|400', label: 'Aptos Narrow', group: 'aptos' },
+  { value: '"Aptos Narrow", sans-serif|700', label: 'Aptos Narrow Bold', group: 'aptos' },
   // Google Fonts — sudah diunduh ke src/assets/fonts (berjalan offline).
   { value: '"Inter", sans-serif|300', label: 'Inter Light', group: 'google' },
   { value: '"Inter", sans-serif|400', label: 'Inter', group: 'google' },

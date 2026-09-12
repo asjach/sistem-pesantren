@@ -87,12 +87,17 @@ dan `react-data-table-component` sudah dicabut) lewat wrapper `ExcelTable`.
 
 **Jenis huruf (offline)**
 
-`FONT_OPTIONS` = 9 font sistem + 8 Google Fonts (Inter, Roboto, Open Sans,
-Lato, Noto Sans, Source Sans 3, Work Sans, Plus Jakarta Sans) masing-masing
-varian Light/Regular. Google Fonts **diunduh ke repo** (`src/assets/fonts`,
-32 `@font-face`, 1,4 MB) lewat `scripts/fonts-offline.py` — aplikasi tidak
-pernah menghubungi fonts.googleapis/gstatic. Berlaku untuk **isi tabel** saja;
-header kolom tetap `--font-display`.
+`FONT_OPTIONS` = 9 font sistem + 4 Aptos/Aptos Narrow + 8 Google Fonts (Inter,
+Roboto, Open Sans, Lato, Noto Sans, Source Sans 3, Work Sans, Plus Jakarta
+Sans) masing-masing varian Light/Regular. Google Fonts **diunduh ke repo**
+(`src/assets/fonts`, 32 `@font-face`, 1,4 MB) lewat `scripts/fonts-offline.py` —
+aplikasi tidak pernah menghubungi fonts.googleapis/gstatic. Aptos & Aptos Narrow
+dibundel dari instalasi lokal Office (`src/assets/fonts/aptos.css`, 16 WOFF2,
+364 KB, subset latin + latin-ext; buat ulang dengan `pyftsubset --flavor=woff2`)
+dan menjadi font bawaan UI (`--font-sans`, `--font-display`, `--font-narrow`).
+Catatan lisensi: file font Microsoft dilarang diredistribusi ke pihak ketiga,
+aman untuk pemakaian internal. Berlaku untuk **isi tabel** saja; header kolom
+tetap `--font-display`.
 
 Scope: login + dashboard ringkasan + pengguna (opsi role ikut peran login, kelola
 role/lembaga per baris; role diri terkunci; baris admin/super_admin hanya untuk

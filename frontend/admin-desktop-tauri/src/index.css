@@ -1,6 +1,8 @@
 @import "tailwindcss";
 /* Google Fonts disimpan lokal (offline) — lihat scripts/fonts-offline.py */
 @import "./assets/fonts/fonts-offline.css";
+/* Aptos & Aptos Narrow (bundel lokal, dari instalasi Office) — lihat src/assets/fonts/aptos.css */
+@import "./assets/fonts/aptos.css";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
@@ -8,6 +10,7 @@
   --font-sans: var(--font-sans);
   --font-display: var(--font-display);
   --font-mono: var(--font-mono);
+  --font-narrow: var(--font-narrow);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -45,12 +48,14 @@
 :root {
   --radius: 4px;
 
-  /* ---------- hierarki font (semua sans-serif sistem, tanpa unduhan) ----------
+  /* ---------- hierarki font (Aptos bundel lokal + fallback sistem) ----------
      --font-sans: isi/body, tabel, navigasi (netral).
-     --font-display: judul (h1–h3), brand sidebar, header grid (humanis, lebih lebar).
+     --font-display: judul (h1–h3), brand sidebar, header grid.
+     --font-narrow: heading/kolom rapat opsional (Aptos Narrow).
      --font-mono: kode, ID, hex, angka tabular bila perlu. */
-  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Helvetica Neue", Arial, sans-serif;
-  --font-display: "Trebuchet MS", "Lucida Grande", "Lucida Sans Unicode", Verdana, "Segoe UI", sans-serif;
+  --font-sans: "Aptos", system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Helvetica Neue", Arial, sans-serif;
+  --font-display: "Aptos", "Trebuchet MS", "Lucida Grande", "Lucida Sans Unicode", Verdana, "Segoe UI", sans-serif;
+  --font-narrow: "Aptos Narrow", "Aptos", system-ui, "Segoe UI", Roboto, Arial, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, "Cascadia Code", "JetBrains Mono", Menlo, Consolas, "Liberation Mono", monospace;
 
   --accent: #2c5c38;
