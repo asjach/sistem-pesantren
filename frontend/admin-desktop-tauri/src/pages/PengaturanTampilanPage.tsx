@@ -1,29 +1,16 @@
 import { useEffect, useState } from 'react';
-import {
-  DEFAULT_API_BASE_URL,
-  errorMessage,
-  getBaseUrl,
-  isTauri,
-  resetBaseUrl,
-  setBaseUrl,
-  api,
-} from '../api/client';
+import { isTauri } from '../api/client';
 import { useTheme, type DensityName, type ModeName, type ThemeName } from '@/theme';
 import { THEME_PRESETS } from '@/themes';
 import { normalizeHex, onAccentFor } from '@/prefs';
-import { Button } from '@/components/ui/button';
-import { Field, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field';
+import { FieldDescription, FieldLegend, FieldSet } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import PageHeader from '@/components/PageHeader';
 import { Check, Monitor, Moon, Sun } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { toast } from 'sonner';
 
-// Base URL backend bisa diganti runtime (lokal dulu, server belakangan)
-// tanpa rebuild binary. Disimpan di plugin-store (desktop) / localStorage (web).
 const MODES: { id: ModeName; nama: string; icon: typeof Sun }[] = [
   { id: 'terang', nama: 'Terang', icon: Sun },
   { id: 'gelap', nama: 'Gelap', icon: Moon },
@@ -36,43 +23,14 @@ const DENSITIES: { id: DensityName; nama: string }[] = [
   { id: 'nyaman', nama: 'Nyaman' },
 ];
 
-export default function PengaturanPage() {
-  const [url, setUrl] = useState('');
-  const [aktif, setAktif] = useState('');
-  const [err, setErr] = useState('');
+/** Pengaturan → Tampilan: tema, mode, kerapatan baris. */
+export default function PengaturanTampilanPage() {
   const { theme, mode, customHex, dark, density, setTheme, setMode, setCustomHex, setDensity } = useTheme();
   const [customInput, setCustomInput] = useState(customHex);
 
   useEffect(() => {
-    getBaseUrl().then((b) => { setAktif(b); setUrl(b); }).catch((e) => setErr(errorMessage(e)));
-  }, []);
-
-  useEffect(() => {
     setCustomInput(customHex);
   }, [customHex]);
-
-  async function onUji() {
-    setErr('');
-    try {
-      await setBaseUrl(url);
-      const me = await api<{ name: string }>('/auth/me');
-      setAktif(await getBaseUrl());
-      toast.success(`Terhubung sebagai ${me.name}.`);
-    } catch (e) {
-      setErr(errorMessage(e));
-    }
-  }
-
-  async function onReset() {
-    await resetBaseUrl();
-    const b = await getBaseUrl();
-    setAktif(b); setUrl(b);
-    toast.success(`Kembali ke bawaan (${DEFAULT_API_BASE_URL}).`);
-  }
-
-  function onPickTheme(t: string) {
-    setTheme(t as ThemeName);
-  }
 
   function onCustomColor(v: string) {
     setCustomInput(v);
@@ -81,45 +39,10 @@ export default function PengaturanPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader
-        titleId="title_pengaturan"
-        title="Pengaturan"
-        className="mb-0"
-        description={(
-          <>
-            Aktif: <b className="text-foreground">{aktif}</b> · Mode:{' '}
-            <Badge variant="secondary">{isTauri() ? 'desktop' : 'web'}</Badge>
-          </>
-        )}
-      />
-
-      <section className="flex w-full max-w-none flex-col gap-3 rounded-xl border bg-card p-5">
-        <h2 className="text-base font-semibold">Server backend</h2>
-        <p className="text-sm text-muted-foreground">Bawaan: {DEFAULT_API_BASE_URL}</p>
-        {err && (
-          <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">{err}</p>
-        )}
-        <form id="form_server" onSubmit={(e) => { e.preventDefault(); onUji(); }} className="flex flex-col gap-3">
-          <FieldGroup className="gap-3">
-            <Field>
-              <FieldLabel htmlFor="input_base_url">Alamat API backend (tanpa garis miring akhir)</FieldLabel>
-              <Input
-                id="input_base_url"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                placeholder="http://127.0.0.1:8000/api"
-                required
-              />
-            </Field>
-          </FieldGroup>
-          <div className="flex flex-wrap gap-2">
-            <Button id="btn_uji_server">Simpan & uji koneksi</Button>
-            <Button id="btn_reset_server" type="button" variant="outline" onClick={onReset}>
-              Kembalikan bawaan
-            </Button>
-          </div>
-        </form>
-      </section>
+      <p id="info_pengaturan" className="text-sm text-muted-foreground">
+        Tema aktif: <b className="text-foreground">{theme}</b> · Mode:{' '}
+        <Badge variant="secondary">{isTauri() ? 'desktop' : 'web'}</Badge>
+      </p>
 
       <section className="flex w-full max-w-none flex-col gap-4 rounded-xl border bg-card p-5">
         <h2 className="text-base font-semibold">Tampilan</h2>
@@ -135,7 +58,7 @@ export default function PengaturanPage() {
                   key={t.id}
                   id={`select_tema_${t.id}`}
                   type="button"
-                  onClick={() => onPickTheme(t.id)}
+                  onClick={() => setTheme(t.id as ThemeName)}
                   title={t.nama}
                   className={cn(
                     'overflow-hidden rounded-lg border text-left transition',
@@ -179,7 +102,7 @@ export default function PengaturanPage() {
               type="color"
               value={normalizeHex(customInput) ?? customHex}
               onChange={(e) => onCustomColor(e.target.value)}
-              className="h-6 w-14 cursor-pointer rounded-md border bg-card p-1"
+              className="h-[30px] w-14 cursor-pointer rounded-md border bg-card p-1"
             />
             <Input
               id="input_hex_kustom"

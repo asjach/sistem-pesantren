@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { ringkasan, type Ringkasan } from '../api/master';
 import { errorMessage } from '../api/client';
 import { Skeleton } from '@/components/ui/skeleton';
-import PageHeader, { ErrorNotice } from '@/components/PageHeader';
+import { ErrorNotice } from '@/components/PageHeader';
 import { BookOpen, CalendarCheck, Landmark, Users, type LucideIcon } from 'lucide-react';
 
 const STATS: {
@@ -31,7 +31,6 @@ export default function DashboardPage() {
   if (err) {
     return (
       <div>
-        <PageHeader titleId="title_dashboard" title="Ringkasan" />
         <ErrorNotice>{err}</ErrorNotice>
       </div>
     );
@@ -39,7 +38,6 @@ export default function DashboardPage() {
   if (!data) {
     return (
       <div>
-        <PageHeader titleId="title_dashboard" title="Ringkasan" />
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-20 rounded-xl" />)}
         </div>
@@ -49,7 +47,6 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <PageHeader titleId="title_dashboard" title="Ringkasan" />
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {STATS.map((s) => {
           const Icon = s.icon;

@@ -34,7 +34,7 @@ class PsbKegiatanController extends Controller
     /** POST /api/admin/psb/kegiatan */
     public function store(Request $request): JsonResponse
     {
-        $this->pastikanPusat();
+        $this->pastikanAdminPesantren();
         $data = $request->validate([
             'tahun_ajaran_id' => ['required', 'integer', 'exists:tahun_ajaran,id', 'unique:psb_kegiatan,tahun_ajaran_id'],
             'nama' => ['required', 'string', 'max:100'],
@@ -61,7 +61,7 @@ class PsbKegiatanController extends Controller
     /** PUT /api/admin/psb/kegiatan/{kegiatan} */
     public function update(Request $request, PsbKegiatan $kegiatan): JsonResponse
     {
-        $this->pastikanPusat();
+        $this->pastikanAdminPesantren();
         $data = $request->validate([
             'tahun_ajaran_id' => ['sometimes', 'integer', 'exists:tahun_ajaran,id', Rule::unique('psb_kegiatan', 'tahun_ajaran_id')->ignore($kegiatan->id)],
             'nama' => ['sometimes', 'string', 'max:100'],
@@ -83,7 +83,7 @@ class PsbKegiatanController extends Controller
     /** DELETE /api/admin/psb/kegiatan/{kegiatan} */
     public function destroy(PsbKegiatan $kegiatan): JsonResponse
     {
-        $this->pastikanPusat();
+        $this->pastikanAdminPesantren();
         $gelombangIds = $kegiatan->gelombang()->pluck('id');
         if (PsbCalonSantri::withTrashed()->whereIn('gelombang_id', $gelombangIds)->exists()) {
             throw ValidationException::withMessages(['kegiatan' => 'Kegiatan sudah memiliki pendaftar; tidak bisa dihapus.']);
@@ -96,13 +96,12 @@ class PsbKegiatanController extends Controller
     /** POST /api/admin/psb/gelombang */
     public function storeGelombang(Request $request): JsonResponse
     {
-        $this->pastikanPusat();
+        $this->pastikanAdminPesantren();
         $data = $request->validate([
             'psb_kegiatan_id' => ['required', 'integer', 'exists:psb_kegiatan,id'],
             'nama' => ['required', 'string', 'max:100'],
             'tgl_buka' => ['required', 'date'],
             'tgl_tutup' => ['required', 'date'],
-            'is_aktif' => ['nullable', 'boolean'],
         ]);
 
         $this->gelombang->validasiRentang(
@@ -118,7 +117,6 @@ class PsbKegiatanController extends Controller
             'nama' => $data['nama'],
             'tgl_buka' => $data['tgl_buka'],
             'tgl_tutup' => $data['tgl_tutup'],
-            'is_aktif' => (bool) ($data['is_aktif'] ?? true),
         ]);
 
         return response()->json(['pesan' => 'Gelombang dibuat.', 'data' => $gelombang], 201);
@@ -127,19 +125,18 @@ class PsbKegiatanController extends Controller
     /** PUT /api/admin/psb/gelombang/{gelombang} */
     public function updateGelombang(Request $request, PsbGelombang $gelombang): JsonResponse
     {
-        $this->pastikanPusat();
+        $this->pastikanAdminPesantren();
         $data = $request->validate([
             'nama' => ['sometimes', 'string', 'max:100'],
             'tgl_buka' => ['sometimes', 'date'],
             'tgl_tutup' => ['sometimes', 'date'],
-            'is_aktif' => ['nullable', 'boolean'],
         ]);
 
         $buka = $data['tgl_buka'] ?? $gelombang->tgl_buka?->toDateString();
         $tutup = $data['tgl_tutup'] ?? $gelombang->tgl_tutup?->toDateString();
         $this->gelombang->validasiRentang((int) $gelombang->psb_kegiatan_id, $buka, $tutup, $gelombang->id);
 
-        $gelombang->update(collect($data)->only(['nama', 'tgl_buka', 'tgl_tutup', 'is_aktif'])->filter(fn ($v) => $v !== null)->toArray());
+        $gelombang->update(collect($data)->only(['nama', 'tgl_buka', 'tgl_tutup'])->filter(fn ($v) => $v !== null)->toArray());
 
         return response()->json(['pesan' => 'Gelombang diubah.', 'data' => $gelombang->fresh()]);
     }
@@ -147,7 +144,7 @@ class PsbKegiatanController extends Controller
     /** DELETE /api/admin/psb/gelombang/{gelombang} */
     public function destroyGelombang(PsbGelombang $gelombang): JsonResponse
     {
-        $this->pastikanPusat();
+        $this->pastikanAdminPesantren();
         if (PsbCalonSantri::withTrashed()->where('gelombang_id', $gelombang->id)->exists()) {
             throw ValidationException::withMessages(['gelombang' => 'Gelombang sudah memiliki pendaftar; tidak bisa dihapus.']);
         }
@@ -156,11 +153,11 @@ class PsbKegiatanController extends Controller
         return response()->json(['pesan' => 'Gelombang dihapus.']);
     }
 
-    protected function pastikanPusat(): void
+    protected function pastikanAdminPesantren(): void
     {
         $u = auth()->user();
         if (! ($u->hasRole('super_admin') || $u->isAdminFull())) {
-            abort(403, 'Kegiatan & gelombang PSB hanya dikelola admin pusat.');
+            abort(403, 'Kegiatan & gelombang PSB hanya dikelola admin pesantren.');
         }
     }
 }

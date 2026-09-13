@@ -384,4 +384,84 @@ class SantriFlowTest extends TestCase
         $this->assertNotEmpty($res->json('errors'));
         $this->assertEquals(0, Santri::count());
     }
+
+    // ---------- 11. edit sel inline (PATCH) + NIS unik ----------
+
+    public function test_11_edit_santri_inline_dan_nis_unik(): void
+    {
+        $f = $this->baseFixture();
+        $adminMi = $this->makeUser('admin', [$f['mi']->id]);
+        $adminMd = $this->makeUser('admin', [$f['md']->id]);
+
+        $csv = $this->makeCsv([
+            [
+                'nama_lengkap' => 'Anak Edit Satu', 'jk' => 'L', 'kelas_id' => $f['kelasMi']->id,
+                'nik' => '1102020000000001', 'nis' => 'E1001', 'tgl_lahir' => '2015-03-03',
+            ],
+            [
+                'nama_lengkap' => 'Anak Edit Dua', 'jk' => 'P', 'kelas_id' => $f['kelasMi']->id,
+                'nik' => '1102020000000002', 'nis' => 'E1002', 'tgl_lahir' => '2015-04-04',
+            ],
+        ]);
+        $this->importCsv($adminMi, $f['ta']->id, $f['mi']->id, $csv)->assertStatus(200);
+
+        $s1 = Santri::where('nis', 'E1001')->firstOrFail();
+        $s2 = Santri::where('nis', 'E1002')->firstOrFail();
+
+        // Edit sebagian: nama + JK + tanggal lahir.
+        $this->actingAs($adminMi, 'sanctum')->patchJson("/api/admin/santri/{$s1->id}", [
+            'nama_lengkap' => 'Anak Edit Satu (Revisi)',
+            'jk' => 'P',
+            'tgl_lahir' => '2015-05-05',
+        ])->assertStatus(200)->assertJsonPath('data.nama_lengkap', 'Anak Edit Satu (Revisi)');
+        $s1->refresh();
+        $this->assertSame('P', $s1->jk);
+        $this->assertSame('2015-05-05', $s1->tgl_lahir?->format('Y-m-d'));
+
+        // NIS duplikat ditolak.
+        $this->actingAs($adminMi, 'sanctum')->patchJson("/api/admin/santri/{$s1->id}", ['nis' => 'E1002'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['nis']);
+
+        // NIS unik untuk dirinya sendiri + mirror ke riwayat aktif.
+        $this->actingAs($adminMi, 'sanctum')->patchJson("/api/admin/santri/{$s1->id}", ['nis' => 'E1009'])
+            ->assertStatus(200)
+            ->assertJsonPath('data.nis', 'E1009');
+        $this->assertDatabaseHas('riwayat_belajar', ['santri_id' => $s1->id, 'nis' => 'E1009', 'is_aktif' => true]);
+
+        // Validasi format: NIK non-16 digit & JK asing ditolak.
+        $this->actingAs($adminMi, 'sanctum')->patchJson("/api/admin/santri/{$s1->id}", ['nik' => '123'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['nik']);
+        $this->actingAs($adminMi, 'sanctum')->patchJson("/api/admin/santri/{$s1->id}", ['jk' => 'X'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['jk']);
+
+        // Profil lengkap (jalur utama): alamat, orang tua, wali, dll.
+        $this->actingAs($adminMi, 'sanctum')->patchJson("/api/admin/santri/{$s1->id}", [
+            'alamat' => 'Jl. Pesantren 1',
+            'provinsi' => 'Jawa Barat',
+            'kab_kota' => 'Bandung',
+            'ayah_nama' => 'Ayah Satu',
+            'ayah_pekerjaan' => 'Petani',
+            'ibu_nama' => 'Ibu Satu',
+            'wali_nama' => 'Wali Satu',
+            'yang_membiayai' => 'Ayah',
+            'tanggal_masuk' => '2026-07-01',
+        ])->assertStatus(200);
+        $s1->refresh();
+        $this->assertSame('Jl. Pesantren 1', $s1->alamat);
+        $this->assertSame('Ayah Satu', $s1->ayah_nama);
+        $this->assertSame('Wali Satu', $s1->wali_nama);
+        $this->assertSame('2026-07-01', $s1->tanggal_masuk?->format('Y-m-d'));
+
+        // Kolom di luar whitelist (relasional) diabaikan.
+        $this->actingAs($adminMi, 'sanctum')->patchJson("/api/admin/santri/{$s1->id}", ['lembaga_id' => 999])
+            ->assertStatus(200);
+        $this->assertNotSame(999, $s1->fresh()->lembaga_id);
+
+        // Admin lembaga lain tidak boleh mengedit.
+        $this->actingAs($adminMd, 'sanctum')->patchJson("/api/admin/santri/{$s2->id}", ['nama_lengkap' => 'Hack'])
+            ->assertStatus(403);
+    }
 }

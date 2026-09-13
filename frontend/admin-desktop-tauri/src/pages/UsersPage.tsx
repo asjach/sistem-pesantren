@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/select';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { ViewDialog } from '@/components/ViewDialog';
-import PageHeader, { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
+import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import {
   Dialog,
   DialogContent,
@@ -74,7 +74,7 @@ function userGridValues(u: AdminUser): Record<string, string | null> {
     phone: u.phone,
     username: u.username,
     peran: u.roles.map((r) => r.name).join(', '),
-    lembaga: (u.lembagas ?? []).map((l) => l.nama).join(', '),
+    lembaga: (u.lembagas ?? []).map((l) => l.kode ?? l.nama).join(', '),
   };
 }
 
@@ -258,11 +258,6 @@ export default function UsersPage() {
 
   return (
     <div className={PAGE_SHELL}>
-      <PageHeader
-        titleId="title_users"
-        title="Pengguna"
-        description="Role diri sendiri terkunci untuk semua peran. Baris pemegang admin/super_admin hanya bisa diubah super_admin; hanya super_admin yang dapat memberi role admin/super_admin."
-      />
       <ErrorNotice>{err}</ErrorNotice>
       <ExcelTable
         tableKey="users"
@@ -336,7 +331,7 @@ export default function UsersPage() {
             <label
               key={r}
               htmlFor={`check_role_baru_${r}`}
-              className="inline-flex cursor-pointer items-center gap-2 rounded-full border bg-card px-3.5 py-1.5 text-[13.5px] has-checked:border-primary has-checked:bg-accent has-checked:font-semibold"
+              className="inline-flex h-[30px] cursor-pointer items-center gap-2 rounded-full border bg-card px-3.5 py-0 text-[13.5px] has-checked:border-primary has-checked:bg-accent has-checked:font-semibold"
             >
               <Checkbox
                 id={`check_role_baru_${r}`}
@@ -352,13 +347,13 @@ export default function UsersPage() {
             <label
               key={l.id}
               htmlFor={`check_lembaga_baru_${l.id}`}
-              className="inline-flex cursor-pointer items-center gap-2 rounded-full border bg-card px-3.5 py-1.5 text-[13.5px] has-checked:border-primary has-checked:bg-accent has-checked:font-semibold"
+              className="inline-flex h-[30px] cursor-pointer items-center gap-2 rounded-full border bg-card px-3.5 py-0 text-[13.5px] has-checked:border-primary has-checked:bg-accent has-checked:font-semibold"
             >
               <Checkbox
                 id={`check_lembaga_baru_${l.id}`}
                 checked={newLembaga.includes(l.id)}
                 onCheckedChange={() => setNewLembaga((s) => toggleId(s, l.id))}
-              /> {l.nama}
+              /> {l.kode ?? l.nama}
             </label>
           ))}
         </div>
@@ -387,7 +382,7 @@ export default function UsersPage() {
               <label
                 key={r}
                 htmlFor={`check_ubah_role_${r}`}
-                className="inline-flex cursor-pointer items-center gap-2 rounded-full border bg-card px-3.5 py-1.5 text-[13.5px] has-checked:border-primary has-checked:bg-accent has-checked:font-semibold"
+                className="inline-flex h-[30px] cursor-pointer items-center gap-2 rounded-full border bg-card px-3.5 py-0 text-[13.5px] has-checked:border-primary has-checked:bg-accent has-checked:font-semibold"
               >
                 <Checkbox
                   id={`check_ubah_role_${r}`}
@@ -403,13 +398,13 @@ export default function UsersPage() {
               <label
                 key={l.id}
                 htmlFor={`check_ubah_lembaga_${l.id}`}
-                className="inline-flex cursor-pointer items-center gap-2 rounded-full border bg-card px-3.5 py-1.5 text-[13.5px] has-checked:border-primary has-checked:bg-accent has-checked:font-semibold"
+                className="inline-flex h-[30px] cursor-pointer items-center gap-2 rounded-full border bg-card px-3.5 py-0 text-[13.5px] has-checked:border-primary has-checked:bg-accent has-checked:font-semibold"
               >
                 <Checkbox
                   id={`check_ubah_lembaga_${l.id}`}
                   checked={editLembaga.includes(l.id)}
                   onCheckedChange={() => setEditLembaga((s) => toggleId(s, l.id))}
-                /> {l.nama}
+                /> {l.kode ?? l.nama}
               </label>
             ))}
           </div>

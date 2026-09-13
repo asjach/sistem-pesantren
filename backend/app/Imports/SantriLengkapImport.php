@@ -33,11 +33,24 @@ class SantriLengkapImport implements ToCollection, WithHeadingRow, WithValidatio
         // Race dua admin import bersamaan bisa create ganda — terima sebagai batasan operasional.
         DB::transaction(function () use ($rows) {
             $dilihat = []; // guard duplikat intra-file: kunci nik|nama|tgl
+            $no = 0;
             foreach ($rows as $row) {
+                $no++;
                 // Baris tanpa nama_lengkap dianggap baris kosong/pemisah, lewati
                 if (empty($row['nama_lengkap'])) {
                     continue;
                 }
+
+                // NIS wajib unik: catat sebagai failure baris (bukan menggagalkan file)
+                // bila sudah dipakai santri lain (master maupun arsip riwayat).
+                $pastikanNisUnik = function (?int $santriId) use ($row, $no): bool {
+                    $nis = $row['nis'] ?? null;
+                    if ($nis === null || trim((string) $nis) === '' || ! Santri::nisDipakai((string) $nis, $santriId)) {
+                        return true;
+                    }
+                    $this->failures[] = new Failure($no, 'nis', ['NIS sudah dipakai santri lain.'], []);
+                    return false;
+                };
 
                 $dataSantri = [
                     'lembaga_id'       => $this->lembagaId,
@@ -128,6 +141,9 @@ class SantriLengkapImport implements ToCollection, WithHeadingRow, WithValidatio
                     // Guard intra-file dulu (tanpa unique NIK, duplikat baris identik dalam file yang sama harus update, bukan create ganda).
                     $kunci = strtolower(trim((string) $row['nik'])).'|'.strtolower(trim((string) $dataSantri['nama_lengkap'])).'|'.(string) ($dataSantri['tgl_lahir'] ?? '');
                     if (isset($dilihat[$kunci])) {
+                        if (! $pastikanNisUnik($dilihat[$kunci]->id)) {
+                            continue;
+                        }
                         $dilihat[$kunci]->update($dataSantri);
                         $santri = $dilihat[$kunci];
                     } else {
@@ -146,6 +162,9 @@ class SantriLengkapImport implements ToCollection, WithHeadingRow, WithValidatio
 
                                 return $tglLama === $tglBaru;
                             });
+                        if (! $pastikanNisUnik($santri?->id)) {
+                            continue;
+                        }
                         if ($santri) {
                             $santri->update($dataSantri);
                         } else {
@@ -156,6 +175,9 @@ class SantriLengkapImport implements ToCollection, WithHeadingRow, WithValidatio
                         $dilihat[$kunci] = $santri;
                     }
                 } else {
+                    if (! $pastikanNisUnik(null)) {
+                        continue;
+                    }
                     $santri = Santri::create(array_merge($dataSantri, [
                         'nik'          => null,
                     ]));

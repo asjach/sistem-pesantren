@@ -14,7 +14,7 @@ export interface MutasiKeluar {
   nama_sekolah_tujuan: string | null;
   keterangan: string | null;
   santri?: { id: number; nama_lengkap: string; nis: string | null } | null;
-  lembaga?: { id: number; nama: string } | null;
+  lembaga?: { id: number; nama: string; kode: string | null } | null;
   kelas_terakhir?: { id: number; nama_kelas: string } | null;
 }
 
@@ -31,7 +31,7 @@ export interface Alumni {
   melanjutkan: string | null;
   catatan: string | null;
   santri?: { id: number; nama_lengkap: string; nis: string | null } | null;
-  lembaga_lulus?: { id: number; nama: string } | null;
+  lembaga_lulus?: { id: number; nama: string; kode: string | null } | null;
   tahun_ajaran_lulus?: { id: number; nama: string } | null;
 }
 

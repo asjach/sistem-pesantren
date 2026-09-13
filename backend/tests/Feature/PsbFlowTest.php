@@ -71,7 +71,6 @@ class PsbFlowTest extends TestCase
             'psb_kegiatan_id' => $keg->id, 'nomor' => 1, 'nama' => 'Gelombang 1 2026/2027',
             'tgl_buka' => now()->subDays(30)->toDateString(),
             'tgl_tutup' => now()->addDays(30)->toDateString(),
-            'is_aktif' => true,
         ]);
         PosKeuangan::create(['kode_pos' => 'PSB_REG', 'nama_pos' => 'Pendaftaran PSB', 'tipe' => 'sekali_bayar']);
         PosKeuangan::create(['kode_pos' => 'DFR_ULANG', 'nama_pos' => 'Daftar Ulang PSB', 'tipe' => 'sekali_bayar']);
@@ -729,6 +728,26 @@ class PsbFlowTest extends TestCase
         $this->actingAs($admin, 'sanctum')->getJson('/api/psb/gelombang')
             ->assertStatus(200)
             ->assertJsonPath('data.0.id', $f['gel']->id);
+
+        // Antrean menandai kebutuhan seleksi: MI tanpa seleksi, MTs dengan seleksi.
+        $this->makeKuota($f['gel'], $f['mts'], $f['ta'], ['membutuhkan_seleksi' => true]);
+        $adminMts = $this->makeUser('admin', [$f['mts']->id]);
+        $this->actingAs($adminMts, 'sanctum')->postJson('/api/psb/calon', [
+            'gelombang_id' => $f['gel']->id,
+            'lembaga_id' => $f['mts']->id,
+            'tipe_santri' => 'non_asrama',
+            'nik' => '1100000000000203',
+            'nama_lengkap' => 'Pendaftar MTs',
+        ])->assertStatus(201);
+
+        $antrean = $this->actingAs($admin, 'sanctum')->getJson('/api/psb/antrean-daftar-ulang?status=baru,terverifikasi');
+        $antrean->assertStatus(200);
+        $rows = collect($antrean->json('data.data'));
+        $this->assertFalse((bool) $rows->firstWhere('nik', '1100000000000201')['butuh_seleksi']);
+
+        $antreanMts = $this->actingAs($adminMts, 'sanctum')->getJson('/api/psb/antrean-daftar-ulang?status=baru,terverifikasi');
+        $rowsMts = collect($antreanMts->json('data.data'));
+        $this->assertTrue((bool) $rowsMts->firstWhere('nik', '1100000000000203')['butuh_seleksi']);
     }
 
     // ---------- 15. jalur publik dilarang memakai santri_asal_id (IDOR) ----------
@@ -780,16 +799,19 @@ class PsbFlowTest extends TestCase
         $this->assertDatabaseCount('psb_calon_santri', 1);
     }
 
-    // ---------- 17. gelombang nonaktif ditolak ----------
+    // ---------- 17. gelombang di luar rentang tanggal ditolak ----------
 
-    public function test_17_gelombang_nonaktif_ditolak(): void
+    public function test_17_gelombang_di_luar_rentang_ditolak(): void
     {
         $f = $this->baseFixture();
         $this->makeKuota($f['gel'], $f['mi'], $f['ta'], ['membutuhkan_seleksi' => false]);
-        $f['gel']->update(['is_aktif' => false]);
+        $f['gel']->update([
+            'tgl_buka' => now()->subDays(60)->toDateString(),
+            'tgl_tutup' => now()->subDay()->toDateString(),
+        ]);
 
         $this->postJson('/api/psb/daftar', $this->daftarPayload(
-            $f['gel'], $f['mi'], '1100000000000321', 'Gelombang Mati', 'ortu17@example.com', '081717171717'
+            $f['gel'], $f['mi'], '1100000000000321', 'Gelombang Tutup', 'ortu17@example.com', '081717171717'
         ))->assertStatus(422)->assertJsonValidationErrors(['gelombang_id']);
     }
 
@@ -911,29 +933,35 @@ class PsbFlowTest extends TestCase
         $this->assertDatabaseMissing('psb_calon_santri', ['nik' => '1100000000000412']);
     }
 
-    public function test_21_opsi_publik_gelombang_aktif_otomatis(): void
+    public function test_21_opsi_publik_gelombang_berdasarkan_tanggal(): void
     {
         $f = $this->baseFixture();
         $this->makeKuota($f['gel'], $f['mi'], $f['ta']);
         $this->makeKuota($f['gel'], $f['md'], $f['ta']);
         $this->makeBiayaLembaga($f['mi'], 1000000, 500000);
 
+        // Gelombang 1 & 2 ditutup (tanggal lewat) meski nomornya lebih dulu.
+        $f['gel']->update([
+            'tgl_buka' => now()->subDays(90)->toDateString(),
+            'tgl_tutup' => now()->subDays(60)->toDateString(),
+        ]);
         PsbGelombang::create([
             'psb_kegiatan_id' => $f['keg']->id, 'nomor' => 2, 'nama' => 'Gelombang Tertutup',
             'tgl_buka' => now()->subDays(90)->toDateString(),
             'tgl_tutup' => now()->subDays(60)->toDateString(),
-            'is_aktif' => true,
         ]);
-        PsbGelombang::create([
-            'psb_kegiatan_id' => $f['keg']->id, 'nomor' => 3, 'nama' => 'Gelombang Nonaktif',
+        // Hanya gelombang ini yang tanggalnya sedang berjalan -> dipakai publik.
+        $berjalan = PsbGelombang::create([
+            'psb_kegiatan_id' => $f['keg']->id, 'nomor' => 3, 'nama' => 'Gelombang Berjalan',
             'tgl_buka' => now()->subDays(30)->toDateString(),
             'tgl_tutup' => now()->addDays(30)->toDateString(),
-            'is_aktif' => false,
         ]);
+        $this->makeKuota($berjalan, $f['mi'], $f['ta']);
+        $this->makeKuota($berjalan, $f['md'], $f['ta']);
 
         $res = $this->getJson('/api/psb/opsi');
         $res->assertStatus(200);
-        $this->assertEquals($f['gel']->id, $res->json('data.gelombang_aktif.id'));
+        $this->assertEquals($berjalan->id, $res->json('data.gelombang_aktif.id'));
         $this->assertEquals($f['keg']->id, $res->json('data.gelombang_aktif.kegiatan.id'));
 
         $lembaga = collect($res->json('data.lembaga'));
@@ -1047,7 +1075,7 @@ class PsbFlowTest extends TestCase
         $res->assertStatus(201);
         $this->assertEquals($f['gel']->id, (int) PsbCalonSantri::find($res->json('data.calon.id'))->gelombang_id);
 
-        $f['gel']->update(['is_aktif' => false]);
+        $f['gel']->update(['tgl_tutup' => now()->subDay()->toDateString()]);
         $payload2 = $this->daftarPayload($f['gel'], $f['mi'], '1100000000000602', 'Tutup', 'ortu27b@example.com', '081827777772');
         unset($payload2['gelombang_id']);
         $this->postJson('/api/psb/daftar', $payload2)->assertStatus(422);
@@ -1119,15 +1147,23 @@ class PsbFlowTest extends TestCase
 
         $g1 = $this->actingAs($pusat, 'sanctum')->postJson('/api/admin/psb/gelombang', [
             'psb_kegiatan_id' => $kegId, 'nama' => 'Gelombang 1',
-            'tgl_buka' => '2027-01-01', 'tgl_tutup' => '2027-01-31', 'is_aktif' => true,
+            'tgl_buka' => '2027-01-01', 'tgl_tutup' => '2027-01-31',
         ]);
         $g1->assertStatus(201);
         $this->assertEquals(1, $g1->json('data.nomor'));
 
         $this->actingAs($pusat, 'sanctum')->postJson('/api/admin/psb/gelombang', [
             'psb_kegiatan_id' => $kegId, 'nama' => 'Gelombang Bentrok',
-            'tgl_buka' => '2027-01-15', 'tgl_tutup' => '2027-02-15', 'is_aktif' => true,
+            'tgl_buka' => '2027-01-15', 'tgl_tutup' => '2027-02-15',
         ])->assertStatus(422);
+
+        // Rentang tidak tumpang tindih -> boleh, nomor urut lanjut.
+        $g2 = $this->actingAs($pusat, 'sanctum')->postJson('/api/admin/psb/gelombang', [
+            'psb_kegiatan_id' => $kegId, 'nama' => 'Gelombang 2',
+            'tgl_buka' => '2027-02-01', 'tgl_tutup' => '2027-02-28',
+        ]);
+        $g2->assertStatus(201);
+        $this->assertEquals(2, $g2->json('data.nomor'));
     }
 
     public function test_30_kuota_biaya_upsert_tenant_dan_biaya_lembaga(): void
@@ -1163,5 +1199,369 @@ class PsbFlowTest extends TestCase
         $index = $this->actingAs($adminMi, 'sanctum')->getJson('/api/admin/psb/kuota-biaya?gelombang_id=' . $f['gel']->id);
         $index->assertStatus(200);
         $this->assertNotEmpty($index->json('data.rows'));
+    }
+
+    public function test_31_dokumen_per_kegiatan_checklist_santri_dan_tidak_memiliki(): void
+    {
+        Storage::fake('local');
+        $this->seed(\Database\Seeders\ReferensiSeeder::class);
+        $f = $this->baseFixture();
+        $admin = $this->makeUser('admin', [$f['mi']->id]);
+        $this->makeKuota($f['gel'], $f['mi'], $f['ta'], ['membutuhkan_seleksi' => false]);
+
+        // Ketentuan per kegiatan + lembaga: wajib (kk) & opsional (akta).
+        foreach ([['Kartu Keluarga', true], ['Akta Kelahiran', false]] as [$jenis, $wajib]) {
+            $this->actingAs($admin, 'sanctum')->postJson('/api/admin/dokumen-wajib', [
+                'psb_kegiatan_id' => $f['keg']->id, 'lembaga_id' => $f['mi']->id,
+                'jenis_dokumen_santri' => $jenis, 'is_wajib' => $wajib,
+            ])->assertStatus(200);
+        }
+        $index = $this->actingAs($admin, 'sanctum')->getJson(
+            "/api/admin/dokumen-wajib?psb_kegiatan_id={$f['keg']->id}&lembaga_id={$f['mi']->id}"
+        );
+        $index->assertStatus(200);
+        $this->assertCount(2, $index->json('data'));
+
+        // Tanpa filter lembaga: admin lembaga hanya melihat lembaganya; pusat melihat semua.
+        $pusat = $this->makeUser('admin');
+        $this->actingAs($pusat, 'sanctum')->postJson('/api/admin/dokumen-wajib', [
+            'psb_kegiatan_id' => $f['keg']->id, 'lembaga_id' => $f['mts']->id,
+            'jenis_dokumen_santri' => 'Pas Foto', 'is_wajib' => true,
+        ])->assertStatus(200);
+
+        $milikMi = $this->actingAs($admin, 'sanctum')->getJson("/api/admin/dokumen-wajib?psb_kegiatan_id={$f['keg']->id}");
+        $milikMi->assertStatus(200);
+        $this->assertCount(2, $milikMi->json('data'));
+        $this->assertEquals('Madrasah Ibtidaiyah', $milikMi->json('data.0.lembaga.nama'));
+
+        $semua = $this->actingAs($pusat, 'sanctum')->getJson("/api/admin/dokumen-wajib?psb_kegiatan_id={$f['keg']->id}");
+        $semua->assertStatus(200);
+        $this->assertCount(3, $semua->json('data'));
+
+        // Daftar -> verifikasi -> ajukan daftar ulang TANPA upload dokumen (tidak menahan).
+        $daftar = $this->postJson('/api/psb/daftar', $this->daftarPayload(
+            $f['gel'], $f['mi'], '1100000000000701', 'Checklist Anak', 'ortu31@example.com', '083131313131'
+        ));
+        $daftar->assertStatus(201);
+        $id = $daftar->json('data.calon.id');
+        $this->actingAs($admin, 'sanctum')->postJson("/api/psb/{$id}/verifikasi")->assertStatus(200);
+
+        $ortu = $this->makeUser('orang_tua', [], 'ortu31@example.com', '083131313131');
+        $this->actingAs($ortu, 'sanctum')->postJson("/api/portal/psb/{$id}/ajukan-daftar-ulang")->assertStatus(201);
+
+        $santriId = $this->actingAs($admin, 'sanctum')->postJson("/api/psb/{$id}/acc-daftar-ulang")->json('data.id');
+
+        // Checklist otomatis (wajib & opsional) dengan file kosong.
+        $rows = DokumenSantri::where('santri_id', $santriId)->get();
+        $this->assertEqualsCanonicalizing(['Kartu Keluarga', 'Akta Kelahiran'], $rows->pluck('jenis_dokumen_santri')->all());
+        $this->assertTrue($rows->every(fn ($r) => $r->path_file === null));
+
+        // Upload mengisi baris placeholder, bukan menambah baris baru.
+        $kk = $rows->firstWhere('jenis_dokumen_santri', 'Kartu Keluarga');
+        $this->actingAs($admin, 'sanctum')->post("/api/admin/santri/{$santriId}/dokumen", [
+            'jenis_dokumen_santri' => 'Kartu Keluarga',
+            'file' => UploadedFile::fake()->image('kk.jpg'),
+        ], ['Accept' => 'application/json'])->assertStatus(201);
+        $this->assertNotNull(DokumenSantri::find($kk->id)->path_file);
+        $this->assertEquals(2, DokumenSantri::where('santri_id', $santriId)->count());
+
+        // Cek box "tidak memiliki dokumen" — tersimpan, tanpa menahan proses apa pun.
+        $akta = DokumenSantri::where('santri_id', $santriId)->where('jenis_dokumen_santri', 'Akta Kelahiran')->firstOrFail();
+        $this->actingAs($admin, 'sanctum')->postJson("/api/admin/santri/{$santriId}/dokumen/{$akta->id}/tidak-memiliki", [
+            'tidak_memiliki' => true,
+        ])->assertStatus(200);
+        $this->assertTrue((bool) DokumenSantri::find($akta->id)->tidak_memiliki);
+
+        $list = $this->actingAs($admin, 'sanctum')->getJson("/api/admin/santri/{$santriId}/dokumen");
+        $list->assertStatus(200);
+        $this->assertCount(2, $list->json('data'));
+    }
+
+    public function test_32_masuk_daftar_ulang_oleh_admin(): void
+    {
+        $f = $this->baseFixture();
+        $this->makeKuota($f['gel'], $f['mi'], $f['ta'], ['membutuhkan_seleksi' => false, 'membutuhkan_pemberkasan' => true]);
+        $admin = $this->makeUser('admin', [$f['mi']->id]);
+
+        $daftar = $this->postJson('/api/psb/daftar', $this->daftarPayload(
+            $f['gel'], $f['mi'], '1100000000000801', 'Berkas Satu', 'ortu32@example.com', '083232323232'
+        ));
+        $daftar->assertStatus(201);
+        $id = $daftar->json('data.calon.id');
+        $this->actingAs($admin, 'sanctum')->postJson("/api/psb/{$id}/verifikasi")->assertStatus(200);
+
+        // Antrean menandai kebutuhan pemberkasan.
+        $antrean = $this->actingAs($admin, 'sanctum')->getJson('/api/psb/antrean-daftar-ulang?status=terverifikasi');
+        $row = collect($antrean->json('data.data'))->firstWhere('id', $id);
+        $this->assertFalse((bool) $row['butuh_seleksi']);
+        $this->assertTrue((bool) $row['butuh_pemberkasan']);
+
+        // Jalur langsung: terverifikasi -> pemberkasan (fase daftar ulang), lalu wali ajukan.
+        $this->actingAs($admin, 'sanctum')->postJson("/api/psb/{$id}/daftar-ulang")
+            ->assertStatus(200)
+            ->assertJsonPath('data.status_pendaftaran', 'pemberkasan');
+
+        $ortu = $this->makeUser('orang_tua', [], 'ortu32@example.com', '083232323232');
+        $this->actingAs($ortu, 'sanctum')->postJson("/api/portal/psb/{$id}/ajukan-daftar-ulang")->assertStatus(201);
+        $this->actingAs($admin, 'sanctum')->postJson("/api/psb/{$id}/acc-daftar-ulang")->assertStatus(201);
+
+        // Bulk masuk daftar ulang untuk calon kedua.
+        $daftar2 = $this->postJson('/api/psb/daftar', $this->daftarPayload(
+            $f['gel'], $f['mi'], '1100000000000802', 'Berkas Dua', 'ortu32b@example.com', '083232323233'
+        ));
+        $id2 = $daftar2->json('data.calon.id');
+        $this->actingAs($admin, 'sanctum')->postJson("/api/psb/{$id2}/verifikasi")->assertStatus(200);
+        $bulk = $this->actingAs($admin, 'sanctum')->postJson('/api/psb/bulk/daftar-ulang', ['ids' => [$id2]]);
+        $bulk->assertStatus(200);
+        $this->assertEquals('pemberkasan', PsbCalonSantri::findOrFail($id2)->status_pendaftaran);
+
+        // Admin boleh ACC langsung dari pemberkasan (tanpa menunggu ajuan wali).
+        $acc2 = $this->actingAs($admin, 'sanctum')->postJson("/api/psb/{$id2}/acc-daftar-ulang");
+        $acc2->assertStatus(201);
+        $this->assertEquals('daftar_ulang', PsbCalonSantri::findOrFail($id2)->status_pendaftaran);
+
+        // Lembaga ber-seleksi: wajib konfirmasi hasil; tanpa `lolos` ditolak.
+        $this->makeKuota($f['gel'], $f['mts'], $f['ta'], ['membutuhkan_seleksi' => true]);
+        $adminMts = $this->makeUser('admin', [$f['mts']->id]);
+        $daftar3 = $this->postJson('/api/psb/daftar', $this->daftarPayload(
+            $f['gel'], $f['mts'], '1100000000000803', 'Uji Seleksi Gagal', 'ortu32c@example.com', '083232323234'
+        ));
+        $id3 = $daftar3->json('data.calon.id');
+        $this->actingAs($adminMts, 'sanctum')->postJson("/api/psb/{$id3}/verifikasi")->assertStatus(200);
+        $this->actingAs($adminMts, 'sanctum')->postJson("/api/psb/{$id3}/daftar-ulang")
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['lolos']);
+        $this->actingAs($adminMts, 'sanctum')->postJson("/api/psb/{$id3}/daftar-ulang", ['lolos' => false])
+            ->assertStatus(200)
+            ->assertJsonPath('data.status_pendaftaran', 'tidak_lolos');
+
+        // Lolos seleksi -> langsung masuk fase daftar ulang.
+        $daftar4 = $this->postJson('/api/psb/daftar', $this->daftarPayload(
+            $f['gel'], $f['mts'], '1100000000000804', 'Uji Seleksi Lolos', 'ortu32d@example.com', '083232323235'
+        ));
+        $id4 = $daftar4->json('data.calon.id');
+        $this->actingAs($adminMts, 'sanctum')->postJson("/api/psb/{$id4}/verifikasi")->assertStatus(200);
+        $this->actingAs($adminMts, 'sanctum')->postJson("/api/psb/{$id4}/daftar-ulang", ['lolos' => true])
+            ->assertStatus(200)
+            ->assertJsonPath('data.status_pendaftaran', 'pemberkasan');
+    }
+
+    public function test_33_pengunduran_diri_dari_terdaftar_daftar_ulang_dan_diterima(): void
+    {
+        $f = $this->baseFixture();
+        $this->makeKuota($f['gel'], $f['mi'], $f['ta'], ['membutuhkan_seleksi' => false]);
+        $admin = $this->makeUser('admin', [$f['mi']->id]);
+
+        $daftar = fn (string $nik, string $nama, string $email, string $telp) => $this->postJson('/api/psb/daftar', $this->daftarPayload(
+            $f['gel'], $f['mi'], $nik, $nama, $email, $telp
+        ))->json('data.calon.id');
+
+        // Fase pendaftar (baru) belum boleh mengundurkan diri.
+        $id0 = $daftar('1100000000000901', 'Masih Baru', 'ortu33a@example.com', '083333333331');
+        $this->actingAs($admin, 'sanctum')->postJson("/api/psb/{$id0}/undur-diri")
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['status']);
+
+        // Fase terdaftar: terverifikasi -> mengundurkan_diri.
+        $id1 = $daftar('1100000000000902', 'Undur Terdaftar', 'ortu33b@example.com', '083333333332');
+        $this->actingAs($admin, 'sanctum')->postJson("/api/psb/{$id1}/verifikasi")->assertStatus(200);
+        $this->actingAs($admin, 'sanctum')->postJson("/api/psb/{$id1}/undur-diri", ['catatan' => 'Alasan keluarga'])
+            ->assertStatus(200)
+            ->assertJsonPath('data.status_pendaftaran', 'mengundurkan_diri');
+        $this->assertEquals('Alasan keluarga', PsbCalonSantri::findOrFail($id1)->catatan_admin);
+
+        // Fase daftar ulang (pemberkasan) via bulk undur diri.
+        $id2 = $daftar('1100000000000903', 'Undur Daftar Ulang', 'ortu33c@example.com', '083333333333');
+        $this->actingAs($admin, 'sanctum')->postJson("/api/psb/{$id2}/verifikasi")->assertStatus(200);
+        $this->actingAs($admin, 'sanctum')->postJson("/api/psb/{$id2}/daftar-ulang")->assertStatus(200);
+        $bulk = $this->actingAs($admin, 'sanctum')->postJson('/api/psb/bulk/undur-diri', [
+            'ids' => [$id2], 'catatan' => 'Pindah domisili',
+        ]);
+        $bulk->assertStatus(200);
+        $this->assertEquals('mengundurkan_diri', PsbCalonSantri::findOrFail($id2)->status_pendaftaran);
+
+        // Fase diterima (sudah ACC jadi santri) tetap bisa mengundurkan diri.
+        $id3 = $daftar('1100000000000904', 'Undur Diterima', 'ortu33d@example.com', '083333333334');
+        $this->actingAs($admin, 'sanctum')->postJson("/api/psb/{$id3}/verifikasi")->assertStatus(200);
+        $this->actingAs($admin, 'sanctum')->postJson("/api/psb/{$id3}/daftar-ulang")->assertStatus(200);
+        $this->actingAs($admin, 'sanctum')->postJson("/api/psb/{$id3}/acc-daftar-ulang")->assertStatus(201);
+        $this->actingAs($admin, 'sanctum')->postJson("/api/psb/{$id3}/undur-diri")
+            ->assertStatus(200)
+            ->assertJsonPath('data.status_pendaftaran', 'mengundurkan_diri');
+    }
+
+    public function test_34_batalkan_fase_kembali_ke_sebelumnya(): void
+    {
+        $f = $this->baseFixture();
+        $this->makeKuota($f['gel'], $f['mi'], $f['ta'], ['membutuhkan_seleksi' => false]);
+        $admin = $this->makeUser('admin', [$f['mi']->id]);
+
+        $seq = 0;
+        $daftar = function (string $nama) use ($f, &$seq) {
+            $seq++;
+
+            return $this->postJson('/api/psb/daftar', $this->daftarPayload(
+                $f['gel'], $f['mi'], '1100000000001' . str_pad((string) $seq, 3, '0', STR_PAD_LEFT),
+                $nama, "ortu34{$seq}@example.com", '0834343434' . str_pad((string) $seq, 2, '0', STR_PAD_LEFT),
+            ))->json('data.calon.id');
+        };
+
+        // baru -> terverifikasi -> batalkan = baru.
+        $id1 = $daftar('Batal Satu');
+        $this->actingAs($admin, 'sanctum')->postJson("/api/psb/{$id1}/verifikasi")->assertStatus(200);
+        $this->actingAs($admin, 'sanctum')->postJson("/api/psb/{$id1}/batalkan-fase")
+            ->assertStatus(200)
+            ->assertJsonPath('data.status_pendaftaran', 'baru');
+
+        // terverifikasi -> pemberkasan -> batalkan = terverifikasi.
+        $id2 = $daftar('Batal Dua');
+        $this->actingAs($admin, 'sanctum')->postJson("/api/psb/{$id2}/verifikasi")->assertStatus(200);
+        $this->actingAs($admin, 'sanctum')->postJson("/api/psb/{$id2}/daftar-ulang")->assertStatus(200);
+        $this->actingAs($admin, 'sanctum')->postJson("/api/psb/{$id2}/batalkan-fase")
+            ->assertStatus(200)
+            ->assertJsonPath('data.status_pendaftaran', 'terverifikasi');
+
+        // undur diri (mengundurkan_diri) -> batalkan = kembali ke pemberkasan.
+        $id3 = $daftar('Batal Tiga');
+        $this->actingAs($admin, 'sanctum')->postJson("/api/psb/{$id3}/verifikasi")->assertStatus(200);
+        $this->actingAs($admin, 'sanctum')->postJson("/api/psb/{$id3}/daftar-ulang")->assertStatus(200);
+        $this->actingAs($admin, 'sanctum')->postJson("/api/psb/{$id3}/undur-diri")->assertStatus(200);
+        $this->actingAs($admin, 'sanctum')->postJson("/api/psb/{$id3}/batalkan-fase")
+            ->assertStatus(200)
+            ->assertJsonPath('data.status_pendaftaran', 'pemberkasan');
+
+        // Fase diterima (santri sudah dibuat) tidak bisa dibatalkan.
+        $id4 = $daftar('Batal Empat');
+        $this->actingAs($admin, 'sanctum')->postJson("/api/psb/{$id4}/verifikasi")->assertStatus(200);
+        $this->actingAs($admin, 'sanctum')->postJson("/api/psb/{$id4}/daftar-ulang")->assertStatus(200);
+        $this->actingAs($admin, 'sanctum')->postJson("/api/psb/{$id4}/acc-daftar-ulang")->assertStatus(201);
+        $this->actingAs($admin, 'sanctum')->postJson("/api/psb/{$id4}/batalkan-fase")
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['status']);
+
+        // Bulk batalkan fase.
+        $id5 = $daftar('Batal Lima');
+        $id6 = $daftar('Batal Enam');
+        foreach ([$id5, $id6] as $id) {
+            $this->actingAs($admin, 'sanctum')->postJson("/api/psb/{$id}/verifikasi")->assertStatus(200);
+        }
+        $bulk = $this->actingAs($admin, 'sanctum')->postJson('/api/psb/bulk/batalkan-fase', ['ids' => [$id5, $id6]]);
+        $bulk->assertStatus(200);
+        $this->assertEquals('baru', PsbCalonSantri::findOrFail($id5)->status_pendaftaran);
+        $this->assertEquals('baru', PsbCalonSantri::findOrFail($id6)->status_pendaftaran);
+    }
+
+    public function test_35_isi_nis_saat_acc_tunggal_dan_bulk(): void
+    {
+        $f = $this->baseFixture();
+        $this->makeKuota($f['gel'], $f['mi'], $f['ta'], ['membutuhkan_seleksi' => false]);
+        $admin = $this->makeUser('admin', [$f['mi']->id]);
+
+        $seq = 0;
+        $daftar = function (string $nama) use ($f, &$seq) {
+            $seq++;
+
+            return $this->postJson('/api/psb/daftar', $this->daftarPayload(
+                $f['gel'], $f['mi'], '1100000000002' . str_pad((string) $seq, 3, '0', STR_PAD_LEFT),
+                $nama, "ortu35{$seq}@example.com", '0835353535' . str_pad((string) $seq, 2, '0', STR_PAD_LEFT),
+            ))->json('data.calon.id');
+        };
+        $siapAcc = function (int $id) use ($admin) {
+            $this->actingAs($admin, 'sanctum')->postJson("/api/psb/{$id}/verifikasi")->assertStatus(200);
+            $this->actingAs($admin, 'sanctum')->postJson("/api/psb/{$id}/daftar-ulang")->assertStatus(200);
+        };
+
+        // ACC tunggal dengan NIS → santri.nis + arsip riwayat_belajar.nis terisi.
+        $id1 = $daftar('Acc Nis Satu');
+        $siapAcc($id1);
+        $santri1 = $this->actingAs($admin, 'sanctum')
+            ->postJson("/api/psb/{$id1}/acc-daftar-ulang", ['nis' => '2400123'])
+            ->assertStatus(201)
+            ->json('data.id');
+        $this->assertSame('2400123', Santri::findOrFail($santri1)->nis);
+        $this->assertSame('2400123', RiwayatBelajar::where('santri_id', $santri1)->value('nis'));
+
+        // ACC tunggal tanpa NIS → tetap null (bisa menyusul via import).
+        $id2 = $daftar('Acc Nis Dua');
+        $siapAcc($id2);
+        $santri2 = $this->actingAs($admin, 'sanctum')
+            ->postJson("/api/psb/{$id2}/acc-daftar-ulang")
+            ->assertStatus(201)
+            ->json('data.id');
+        $this->assertNull(Santri::findOrFail($santri2)->nis);
+        $this->assertNull(RiwayatBelajar::where('santri_id', $santri2)->value('nis'));
+
+        // Bulk ACC: NIS per calon (map id → NIS); yang kosong tetap null.
+        $id3 = $daftar('Acc Nis Tiga');
+        $id4 = $daftar('Acc Nis Empat');
+        $siapAcc($id3);
+        $siapAcc($id4);
+        $bulk = $this->actingAs($admin, 'sanctum')->postJson('/api/psb/bulk/acc-daftar-ulang', [
+            'ids' => [$id3, $id4],
+            'nis' => [(string) $id3 => '2400456'],
+        ]);
+        $bulk->assertStatus(200)->assertJsonPath('data.gagal', []);
+        $this->assertSame('2400456', Santri::findOrFail(PsbCalonSantri::findOrFail($id3)->santri_id)->nis);
+        $this->assertNull(Santri::findOrFail(PsbCalonSantri::findOrFail($id4)->santri_id)->nis);
+
+        // Validasi panjang NIS (maks 10).
+        $id5 = $daftar('Acc Nis Lima');
+        $siapAcc($id5);
+        $this->actingAs($admin, 'sanctum')
+            ->postJson("/api/psb/{$id5}/acc-daftar-ulang", ['nis' => '12345678901'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['nis']);
+
+        // NIS wajib unik: duplikat ditolak (tunggal → 422, massal → gagal per baris).
+        $id6 = $daftar('Acc Nis Enam');
+        $siapAcc($id6);
+        $this->actingAs($admin, 'sanctum')
+            ->postJson("/api/psb/{$id6}/acc-daftar-ulang", ['nis' => '2400123'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['nis']);
+
+        $id7 = $daftar('Acc Nis Tujuh');
+        $siapAcc($id7);
+        $bulk2 = $this->actingAs($admin, 'sanctum')->postJson('/api/psb/bulk/acc-daftar-ulang', [
+            'ids' => [$id7],
+            'nis' => [(string) $id7 => '2400456'],
+        ]);
+        $bulk2->assertStatus(200);
+        $this->assertCount(1, $bulk2->json('data.gagal'));
+        $this->assertStringContainsString('NIS sudah dipakai santri lain', $bulk2->json('data.gagal.0.pesan'));
+        $this->assertSame('pemberkasan', PsbCalonSantri::findOrFail($id7)->status_pendaftaran);
+    }
+
+    public function test_36_undur_dari_diterima_menghapus_santri_dan_riwayat(): void
+    {
+        $f = $this->baseFixture();
+        $this->makeKuota($f['gel'], $f['mi'], $f['ta'], ['membutuhkan_seleksi' => false]);
+        $admin = $this->makeUser('admin', [$f['mi']->id]);
+
+        $id = $this->postJson('/api/psb/daftar', $this->daftarPayload(
+            $f['gel'], $f['mi'], '1100000000003001', 'Undur Diterima', 'ortu36@example.com', '083636363601'
+        ))->json('data.calon.id');
+
+        $this->actingAs($admin, 'sanctum')->postJson("/api/psb/{$id}/verifikasi")->assertStatus(200);
+        $this->actingAs($admin, 'sanctum')->postJson("/api/psb/{$id}/daftar-ulang")->assertStatus(200);
+        $santriId = $this->actingAs($admin, 'sanctum')
+            ->postJson("/api/psb/{$id}/acc-daftar-ulang", ['nis' => '36001'])
+            ->assertStatus(201)
+            ->json('data.id');
+        $this->assertDatabaseHas('santri', ['id' => $santriId, 'nis' => '36001']);
+        $this->assertDatabaseHas('riwayat_belajar', ['santri_id' => $santriId, 'nis' => '36001']);
+
+        // Mengundurkan diri dari fase diterima → santri + riwayat ditarik kembali.
+        $this->actingAs($admin, 'sanctum')->postJson("/api/psb/{$id}/undur-diri", ['catatan' => 'Pindah domisili'])
+            ->assertStatus(200)
+            ->assertJsonPath('data.status_pendaftaran', 'mengundurkan_diri');
+
+        $this->assertDatabaseMissing('santri', ['id' => $santriId]);
+        $this->assertDatabaseMissing('riwayat_belajar', ['santri_id' => $santriId]);
+        $calon = PsbCalonSantri::findOrFail($id);
+        $this->assertSame('mengundurkan_diri', $calon->status_pendaftaran);
+        $this->assertNull($calon->santri_id);
+        // NIS kembali bebas dipakai (santri sudah tidak ada).
+        $this->assertFalse(Santri::nisDipakai('36001'));
     }
 }

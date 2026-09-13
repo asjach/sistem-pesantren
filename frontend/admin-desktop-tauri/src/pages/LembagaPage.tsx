@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/select';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { ViewDialog } from '@/components/ViewDialog';
-import PageHeader, { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
+import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import {
   Dialog,
   DialogContent,
@@ -221,11 +221,6 @@ export default function LembagaPage() {
 
   return (
     <div className={PAGE_SHELL}>
-      <PageHeader
-        titleId="title_lembaga"
-        title="Lembaga"
-        description={!isSuper ? 'Tambah/ubah/hapus lembaga hanya super_admin.' : undefined}
-      />
       <ErrorNotice>{err}</ErrorNotice>
       <ExcelTable
         tableKey="lembaga"
@@ -302,7 +297,7 @@ export default function LembagaPage() {
                       <SelectGroup>
                         <SelectLabel>Induk lembaga</SelectLabel>
                         <SelectItem value="_root">Tanpa induk (root)</SelectItem>
-                        {all.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.nama} ({l.kode ?? '-'})</SelectItem>)}
+                        {all.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>)}
                       </SelectGroup>
                     </SelectContent>
                   </Select>

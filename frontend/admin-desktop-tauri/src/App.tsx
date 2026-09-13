@@ -17,7 +17,8 @@ const TahunAjaranPage = lazy(() => import('./pages/TahunAjaranPage'));
 const KelasPage = lazy(() => import('./pages/KelasPage'));
 const PosPage = lazy(() => import('./pages/PosPage'));
 const TarifPage = lazy(() => import('./pages/TarifPage'));
-const PengaturanPage = lazy(() => import('./pages/PengaturanPage'));
+const PengaturanTampilanPage = lazy(() => import('./pages/PengaturanTampilanPage'));
+const PengaturanServerPage = lazy(() => import('./pages/PengaturanServerPage'));
 const PsbPage = lazy(() => import('./pages/PsbPage'));
 const KegiatanPsbPage = lazy(() => import('./pages/KegiatanPsbPage'));
 const SantriPage = lazy(() => import('./pages/SantriPage'));
@@ -61,7 +62,9 @@ export default function App() {
             <Route path="/keuangan" element={<Shell><KeuanganPage /></Shell>} />
             <Route path="/pengajuan-biodata" element={<Shell><PengajuanBiodataPage /></Shell>} />
             <Route path="/dokumen-wajib" element={<Shell><DokumenWajibPage /></Shell>} />
-            <Route path="/pengaturan" element={<Shell><PengaturanPage /></Shell>} />
+            <Route path="/pengaturan" element={<Navigate to="/pengaturan/tampilan" replace />} />
+            <Route path="/pengaturan/tampilan" element={<Shell><PengaturanTampilanPage /></Shell>} />
+            <Route path="/pengaturan/server" element={<Shell><PengaturanServerPage /></Shell>} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>

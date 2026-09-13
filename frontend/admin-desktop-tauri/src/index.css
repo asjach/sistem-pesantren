@@ -229,9 +229,13 @@
   background: color-mix(in srgb, var(--foreground) 7%, var(--card));
 }
 /* Indikator sudut select-all ala Excel: DSG memberi `margin: auto` (tampak
-   berjarak ke semua sisi). Rapatkan tepat ke sudut kanan-bawah sel. */
+   berjarak ke semua sisi). Rapatkan tepat ke sudut kanan-bawah sel.
+   Gutter header tetap `sticky` (bukan relative) agar nomor baris + sudut ikut
+   menempel saat scroll horizontal — sticky juga jadi containing block. */
 .simpes-dsg .dsg-cell-gutter.dsg-cell-header {
-  position: relative;
+  position: sticky;
+  left: 0;
+  z-index: 32;
 }
 .simpes-dsg .dsg-cell-gutter.dsg-cell-header .dsg-corner-indicator {
   position: absolute;
@@ -368,6 +372,20 @@
 .simpes-dsg .dsg-cell:has(> input.dsg-checkbox) {
   justify-content: center;
 }
+/* Baris dibuat flex agar sel sticky-kanan (Aksi) berjajar horizontal dan
+   sejajar dengan barisnya; sel lain tetap absolute sehingga tak terpengaruh.
+   (Fitur freeze kiri dilepas — butuh patch library.) */
+.simpes-dsg .dsg-row {
+  display: flex;
+}
+/* Sel sticky-kanan (Aksi) di baris flex: cukup margin-left auto + sticky;
+   transform bawaan DSG (translateY(-100%)) menggesernya keluar baris. */
+.simpes-dsg .dsg-cell.dsg-cell-sticky-right {
+  transform: none;
+  margin-left: auto;
+  height: 100%;
+  z-index: 30;
+}
 .simpes-dsg .dsg-row-header .dsg-cell:has(input.simpes-dsg-checkall),
 .simpes-dsg .dsg-row:not(.dsg-row-header) .dsg-cell:has(> input.dsg-checkbox) {
   justify-content: center;
@@ -402,4 +420,32 @@
 }
 .dsg-context-menu-item:hover {
   background: color-mix(in srgb, var(--foreground) 6%, transparent);
+}
+:is(
+  [data-slot='input'],
+  [data-slot='select-trigger'],
+  [data-slot='button'],
+  [data-slot='toggle'],
+  [data-slot='toggle-group-item'],
+  [data-slot='alert-dialog-action'],
+  [data-slot='alert-dialog-cancel']
+) {
+  height: 30px;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+:is([data-slot='input'], [data-slot='select-trigger']) {
+  font-size: 14px;
+  font-weight: 500;
+}
+[data-slot='label'] {
+  font-size: 12px;
+}
+:is(
+  [data-slot='button'],
+  [data-slot='toggle'],
+  [data-slot='toggle-group-item']
+):is([class~='size-6'], [class~='size-8'], [class~='size-9']) {
+  width: 30px;
+  min-width: 30px;
 }

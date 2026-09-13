@@ -82,15 +82,21 @@ class PsbDokumenController extends Controller
         return response()->json(['pesan' => 'Verifikasi disimpan.', 'data' => $dokumen->fresh()]);
     }
 
-    /** GET /api/admin/dokumen-wajib?lembaga_id= (admin). */
+    /** GET /api/admin/dokumen-wajib?psb_kegiatan_id=&lembaga_id= (admin; lembaga_id opsional). */
     public function indexWajib(Request $request): JsonResponse
     {
-        $data = $request->validate(['lembaga_id' => ['required', 'integer', 'exists:lembaga,id']]);
-        $this->authorizeLembaga($request->user(), (int) $data['lembaga_id']);
+        $data = $request->validate([
+            'psb_kegiatan_id' => ['required', 'integer', 'exists:psb_kegiatan,id'],
+            'lembaga_id' => ['sometimes', 'integer', 'exists:lembaga,id'],
+        ]);
+
+        $query = DokumenWajibLembaga::with('lembaga:id,nama,kode')
+            ->where('psb_kegiatan_id', $data['psb_kegiatan_id']);
+        $query = $this->scopeLembaga($query, $request->user(), $request);
 
         return response()->json([
             'pesan' => 'Ketentuan dokumen wajib berhasil dimuat.',
-            'data' => DokumenWajibLembaga::where('lembaga_id', $data['lembaga_id'])->latest('id')->get(),
+            'data' => $query->latest('id')->get(),
         ]);
     }
 
@@ -98,6 +104,7 @@ class PsbDokumenController extends Controller
     public function storeWajib(Request $request): JsonResponse
     {
         $data = $request->validate([
+            'psb_kegiatan_id' => ['required', 'exists:psb_kegiatan,id'],
             'lembaga_id' => ['required', 'exists:lembaga,id'],
             'jenis_dokumen_santri' => ['required', 'string', 'max:50'],
             'is_wajib' => ['sometimes', 'boolean'],
@@ -105,7 +112,11 @@ class PsbDokumenController extends Controller
         $this->authorizeLembaga($request->user(), (int) $data['lembaga_id']);
 
         $row = DokumenWajibLembaga::updateOrCreate(
-            ['lembaga_id' => $data['lembaga_id'], 'jenis_dokumen_santri' => $data['jenis_dokumen_santri']],
+            [
+                'psb_kegiatan_id' => $data['psb_kegiatan_id'],
+                'lembaga_id' => $data['lembaga_id'],
+                'jenis_dokumen_santri' => $data['jenis_dokumen_santri'],
+            ],
             ['is_wajib' => $data['is_wajib'] ?? true]
         );
 

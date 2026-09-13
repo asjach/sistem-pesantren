@@ -13,9 +13,6 @@ class PsbGelombangService
     public function cekBukaDanKuota(int $gelombangId, int $lembagaId): void
     {
         $gelombang = PsbGelombang::findOrFail($gelombangId);
-        if (! $gelombang->is_aktif) {
-            throw ValidationException::withMessages(['gelombang_id' => 'Gelombang pendaftaran tidak aktif.']);
-        }
         $hariIni = now()->toDateString();
         $buka = $gelombang->tgl_buka ? $gelombang->tgl_buka->toDateString() : null;
         $tutup = $gelombang->tgl_tutup ? $gelombang->tgl_tutup->toDateString() : null;
@@ -29,22 +26,20 @@ class PsbGelombangService
     }
 
     /**
-     * Gelombang yang sedang aktif (kegiatan aktif + tanggal hari ini dalam rentang).
-     * Tanpa $kegiatanId, kegiatan aktif tunggal dipakai (aturan satu kegiatan aktif).
+     * Gelombang yang sedang dibuka MURNI berdasarkan tanggal (tgl_buka/tgl_tutup).
+     * Bila ada lebih dari satu (mis. lintas kegiatan), ambil kegiatan terbaru lalu nomor terkecil.
      */
     public function gelombangAktif(?int $kegiatanId = null): ?PsbGelombang
     {
         $hariIni = now()->toDateString();
         $q = PsbGelombang::query()
-            ->where('is_aktif', true)
-            ->whereHas('kegiatan', fn ($qq) => $qq->where('is_aktif', true))
             ->where(fn ($qq) => $qq->whereNull('tgl_buka')->orWhere('tgl_buka', '<=', $hariIni))
             ->where(fn ($qq) => $qq->whereNull('tgl_tutup')->orWhere('tgl_tutup', '>=', $hariIni));
         if ($kegiatanId) {
             $q->where('psb_kegiatan_id', $kegiatanId);
         }
 
-        return $q->orderBy('psb_kegiatan_id')->orderBy('nomor')->first();
+        return $q->orderByDesc('psb_kegiatan_id')->orderBy('nomor')->first();
     }
 
     /** Tolak rentang gelombang yang tumpang tindih dalam kegiatan yang sama. */
@@ -99,7 +94,7 @@ class PsbGelombangService
         $terpakai = PsbCalonSantri::where('gelombang_id', $gelombangId)
             ->whereHas('lembagaDetail', fn ($qq) => $qq->whereIn('lembaga_id', $anggotaIds))
             ->when($tipeSantri, fn ($qq) => $qq->where('tipe_santri', $tipeSantri))
-            ->whereNotIn('status_pendaftaran', ['ditolak', 'tidak_lolos', 'waiting_list'])
+            ->whereNotIn('status_pendaftaran', ['ditolak', 'tidak_lolos', 'mengundurkan_diri', 'waiting_list'])
             ->count();
 
         return max(0, (int) $kuota - $terpakai);

@@ -12,6 +12,7 @@ export const PSB_STATUS = [
   'pemberkasan',
   'ajukan_daftar_ulang',
   'daftar_ulang',
+  'mengundurkan_diri',
   'ditolak',
   'waiting_list',
 ] as const;
@@ -44,6 +45,8 @@ export interface PsbCalon {
   lembaga_tujuan?: { id: number; nama: string; kode: string | null } | null;
   lembaga_detail?: PsbCalonLembaga[];
   gelombang?: { id: number; nama: string } | null;
+  butuh_seleksi?: boolean;
+  butuh_pemberkasan?: boolean;
   deleted_at?: string | null;
 }
 
@@ -70,8 +73,32 @@ export function seleksiCalon(id: number, input: { lolos: boolean; catatan?: stri
   });
 }
 
-export function accCalon(id: number) {
-  return api<{ pesan: string; data: unknown }>(`/psb/${id}/acc-daftar-ulang`, { method: 'POST' });
+export function daftarUlangCalon(id: number, input: { lolos?: boolean; catatan?: string } = {}) {
+  return api<{ pesan: string; data: PsbCalon }>(`/psb/${id}/daftar-ulang`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export function undurDiriCalon(id: number, catatan?: string) {
+  return api<{ pesan: string; data: PsbCalon }>(`/psb/${id}/undur-diri`, {
+    method: 'POST',
+    body: JSON.stringify({ catatan }),
+  });
+}
+
+export function batalkanFaseCalon(id: number, catatan?: string) {
+  return api<{ pesan: string; data: PsbCalon }>(`/psb/${id}/batalkan-fase`, {
+    method: 'POST',
+    body: JSON.stringify({ catatan }),
+  });
+}
+
+export function accCalon(id: number, nis?: string) {
+  return api<{ pesan: string; data: unknown }>(`/psb/${id}/acc-daftar-ulang`, {
+    method: 'POST',
+    body: JSON.stringify({ nis: nis || null }),
+  });
 }
 
 export function hapusCalon(id: number) {
@@ -112,10 +139,34 @@ export function bulkSeleksi(ids: number[], lolos: boolean, catatan?: string) {
   });
 }
 
-export function bulkAcc(ids: number[]) {
+export function bulkAcc(ids: number[], nis?: Record<number, string>) {
+  const bersih = Object.fromEntries(
+    Object.entries(nis ?? {}).filter(([, v]) => (v ?? '').trim() !== ''),
+  );
   return api<{ pesan: string; data: BulkHasil }>('/psb/bulk/acc-daftar-ulang', {
     method: 'POST',
-    body: JSON.stringify({ ids }),
+    body: JSON.stringify(Object.keys(bersih).length > 0 ? { ids, nis: bersih } : { ids }),
+  });
+}
+
+export function bulkDaftarUlang(ids: number[], lolos?: boolean, catatan?: string) {
+  return api<{ pesan: string; data: BulkHasil }>('/psb/bulk/daftar-ulang', {
+    method: 'POST',
+    body: JSON.stringify({ ids, ...(lolos !== undefined ? { lolos } : {}), catatan }),
+  });
+}
+
+export function bulkUndurDiri(ids: number[], catatan?: string) {
+  return api<{ pesan: string; data: BulkHasil }>('/psb/bulk/undur-diri', {
+    method: 'POST',
+    body: JSON.stringify({ ids, catatan }),
+  });
+}
+
+export function bulkBatalkanFase(ids: number[], catatan?: string) {
+  return api<{ pesan: string; data: BulkHasil }>('/psb/bulk/batalkan-fase', {
+    method: 'POST',
+    body: JSON.stringify({ ids, catatan }),
   });
 }
 
@@ -152,7 +203,6 @@ export interface PsbGelombang {
   nama: string;
   tgl_buka: string | null;
   tgl_tutup: string | null;
-  is_aktif: boolean;
   kegiatan?: { id: number; nama: string; tahun_ajaran_id?: number } | null;
   tahun_ajaran?: { id: number; nama: string } | null;
 }
@@ -183,7 +233,6 @@ export interface PsbGelombangMaster {
   nama: string;
   tgl_buka: string | null;
   tgl_tutup: string | null;
-  is_aktif: boolean;
   kegiatan?: { id: number; nama: string } | null;
 }
 
@@ -238,12 +287,11 @@ export function createPsbGelombang(input: {
   nama: string;
   tgl_buka: string;
   tgl_tutup: string;
-  is_aktif?: boolean;
 }) {
   return api<{ pesan: string; data: PsbGelombangMaster }>('/admin/psb/gelombang', { method: 'POST', body: JSON.stringify(input) });
 }
 
-export function updatePsbGelombang(id: number, input: { nama?: string; tgl_buka?: string; tgl_tutup?: string; is_aktif?: boolean }) {
+export function updatePsbGelombang(id: number, input: { nama?: string; tgl_buka?: string; tgl_tutup?: string }) {
   return api<{ pesan: string; data: PsbGelombangMaster }>(`/admin/psb/gelombang/${id}`, { method: 'PUT', body: JSON.stringify(input) });
 }
 
@@ -325,16 +373,25 @@ export function verifikasiDokumen(dokumenId: number, input: { status: 'menunggu'
 
 export interface DokumenWajib {
   id: number;
+  psb_kegiatan_id: number;
   lembaga_id: number;
   jenis_dokumen_santri: string;
   is_wajib: boolean;
+  lembaga?: { id: number; nama: string; kode: string | null } | null;
 }
 
-export function listDokumenWajib(lembagaId: number) {
-  return api<{ pesan: string; data: DokumenWajib[] }>(`/admin/dokumen-wajib?lembaga_id=${lembagaId}`);
+export function listDokumenWajib(kegiatanId: number, lembagaId?: number) {
+  const q = new URLSearchParams({ psb_kegiatan_id: String(kegiatanId) });
+  if (lembagaId) q.set('lembaga_id', String(lembagaId));
+  return api<{ pesan: string; data: DokumenWajib[] }>(`/admin/dokumen-wajib?${q.toString()}`);
 }
 
-export function simpanDokumenWajib(input: { lembaga_id: number; jenis_dokumen_santri: string; is_wajib?: boolean }) {
+export function simpanDokumenWajib(input: {
+  psb_kegiatan_id: number;
+  lembaga_id: number;
+  jenis_dokumen_santri: string;
+  is_wajib?: boolean;
+}) {
   return api<{ pesan: string; data: DokumenWajib }>('/admin/dokumen-wajib', {
     method: 'POST',
     body: JSON.stringify(input),

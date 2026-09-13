@@ -1,12 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { logout } from '@/api/auth';
-import { isTauri } from '@/api/client';
+import { isTauri, prefGet, prefSet } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
 import { useTheme } from '@/theme';
 import { cn } from '@/lib/utils';
 import { DENSITY_PX } from '@/prefs';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
@@ -14,9 +13,6 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
@@ -45,7 +41,7 @@ import {
   CalendarRange,
   ChevronDown,
   ClipboardList,
-  Database,
+  Copy,
   FileCheck2,
   GraduationCap,
   History,
@@ -53,111 +49,28 @@ import {
   Landmark,
   LogOut,
   Minus,
+  MoveHorizontal,
   NotebookTabs,
+  Palette,
   Plus,
   ReceiptText,
-  Rows3,
+  RotateCcw,
   ScrollText,
-  Settings,
-  Type,
+  Server,
   Users,
   Wallet,
   type LucideIcon,
 } from 'lucide-react';
+import { useRibbonTable } from '@/components/RibbonTable';
+import { halamanDariPath } from '@/lib/halaman';
 
-interface NavItem {
-  to: string;
-  label: string;
-  icon: LucideIcon;
-  id: string;
-  /** Ikon saja tanpa teks (teks tetap dibaca screen reader & tooltip). */
-  iconOnly?: boolean;
+// ---------- Peta tab ribbon ← registri halaman ----------
+
+const RIBBON_LIPAT_KEY = 'simpes_ribbon_lipat';
+
+function pathAktif(pathname: string, to: string) {
+  return to === '/' ? pathname === '/' : pathname === to || pathname.startsWith(`${to}/`);
 }
-
-interface NavSubGroup {
-  label: string;
-  items: NavItem[];
-}
-
-interface NavGroup {
-  label: string;
-  icon: LucideIcon;
-  items: (NavItem | NavSubGroup)[];
-}
-
-function isSubGroup(item: NavItem | NavSubGroup): item is NavSubGroup {
-  return !('to' in item);
-}
-
-type NavEntry = ({ kind: 'link' } & NavItem) | ({ kind: 'group' } & NavGroup);
-
-const NAV: NavEntry[] = [
-  { kind: 'link', to: '/', label: 'Dashboard', icon: Home, id: 'nav_dashboard', iconOnly: true },
-  {
-    kind: 'group',
-    label: 'master',
-    icon: Database,
-    items: [
-      { to: '/users', label: 'user', icon: Users, id: 'nav_users' },
-      { to: '/lembaga', label: 'Lembaga', icon: Landmark, id: 'nav_lembaga' },
-      { to: '/tahun-ajaran', label: 'Tahun Ajaran', icon: CalendarDays, id: 'nav_tahun_ajaran' },
-      { to: '/kelas', label: 'Kelas', icon: BookOpen, id: 'nav_kelas' },
-      { to: '/referensi', label: 'Referensi', icon: BookMarked, id: 'nav_referensi' },
-    ],
-  },
-  {
-    kind: 'group',
-    label: 'Santri',
-    icon: GraduationCap,
-    items: [
-      {
-        label: 'PSB',
-        items: [
-          { to: '/psb', label: 'Antrean', icon: ClipboardList, id: 'nav_psb' },
-          { to: '/kegiatan-psb', label: 'Kegiatan PSB', icon: CalendarRange, id: 'nav_kegiatan_psb' },
-          { to: '/dokumen-wajib', label: 'Dokumen Wajib', icon: FileCheck2, id: 'nav_dokumen_wajib' },
-        ],
-      },
-      { to: '/santri', label: 'Data Santri', icon: Users, id: 'nav_santri' },
-      { to: '/siklus', label: 'Mutasi & Alumni', icon: History, id: 'nav_siklus' },
-      { to: '/pengajuan-biodata', label: 'Pengajuan Biodata', icon: NotebookTabs, id: 'nav_pengajuan_biodata' },
-    ],
-  },
-  {
-    kind: 'group',
-    label: 'Keuangan',
-    icon: Wallet,
-    items: [
-      { to: '/pos', label: 'Pos', icon: Wallet, id: 'nav_pos' },
-      { to: '/tarif', label: 'Tarif', icon: ReceiptText, id: 'nav_tarif' },
-      { to: '/keuangan', label: 'Tagihan & Bayar', icon: ScrollText, id: 'nav_keuangan' },
-    ],
-  },
-];
-
-/** Halaman yang memakai grid — kontrol tampilan tabel hanya relevan di sini. */
-const TABLE_ROUTES = [
-  '/users',
-  '/lembaga',
-  '/tahun-ajaran',
-  '/kelas',
-  '/pos',
-  '/tarif',
-  '/referensi',
-  '/psb',
-  '/santri',
-  '/siklus',
-  '/keuangan',
-  '/pengajuan-biodata',
-  '/dokumen-wajib',
-];
-
-const navBase =
-  'flex items-center gap-2 rounded-md px-3 py-1.5 text-sm whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--sidebar-foreground)]/60';
-const navIdle =
-  'text-[var(--sidebar-foreground)] hover:bg-[color-mix(in_srgb,var(--sidebar-foreground)_14%,transparent)] hover:text-white';
-const navActive =
-  'bg-[color-mix(in_srgb,var(--sidebar-foreground)_22%,transparent)] font-semibold text-white';
 
 function clamp(n: number, lo: number, hi: number) {
   return Math.min(hi, Math.max(lo, Math.round(n)));
@@ -203,7 +116,7 @@ function SpinBox({
   return (
     <div
       title={title}
-      className="flex h-6 items-stretch overflow-hidden rounded-md border border-white/20 bg-white/5 focus-within:ring-2 focus-within:ring-white/30"
+      className="flex h-[30px] items-stretch overflow-hidden rounded-md border border-white/20 bg-white/5 focus-within:ring-2 focus-within:ring-white/30"
     >
       <button
         type="button"
@@ -242,17 +155,149 @@ function SpinBox({
   );
 }
 
-/** Brand + navigasi berkelompok (dropdown) + kontrol tabel + pengguna. */
+/** Tombol besar ribbon: ikon di atas label (ala Office). */
+function RibbonBtn({
+  id,
+  to,
+  icon: Icon,
+  label,
+  aktif,
+}: {
+  id: string;
+  to: string;
+  icon: LucideIcon;
+  label: string;
+  aktif: boolean;
+}) {
+  return (
+    <NavLink
+      id={id}
+      to={to}
+      end={to === '/'}
+      title={label}
+      className={cn(
+        'flex h-[58px] w-[76px] flex-col items-center justify-center gap-1 rounded-md px-1 text-center text-[11px] leading-tight transition-colors',
+        aktif ? 'bg-white/20 font-semibold text-white' : 'text-white/85 hover:bg-white/10 hover:text-white',
+      )}
+    >
+      <Icon size={20} />
+      <span className="line-clamp-2">{label}</span>
+    </NavLink>
+  );
+}
+
+/** Tombol perintah ribbon (aksi, bukan navigasi). */
+function RibbonCmd({
+  id,
+  icon: Icon,
+  label,
+  onClick,
+  disabled,
+}: {
+  id: string;
+  icon: LucideIcon;
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      id={id}
+      type="button"
+      title={label}
+      disabled={disabled}
+      onClick={onClick}
+      className={cn(
+        'flex h-[58px] w-[76px] flex-col items-center justify-center gap-1 rounded-md px-1 text-center text-[11px] leading-tight transition-colors',
+        'text-white/85 hover:bg-white/10 hover:text-white disabled:pointer-events-none disabled:opacity-40',
+      )}
+    >
+      <Icon size={20} />
+      <span className="line-clamp-2">{label}</span>
+    </button>
+  );
+}
+
+/** Grup perintah ribbon + nama grup di bawahnya (ala Office). */
+function RibbonGroup({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex shrink-0 flex-col items-center gap-0.5 px-1.5">
+      <div className="flex flex-1 items-center gap-1">{children}</div>
+      <span className="text-[10px] uppercase tracking-wide text-white/50">{label}</span>
+    </div>
+  );
+}
+
+function RibbonPemisah() {
+  return <span aria-hidden className="mx-0.5 h-[54px] w-px self-center bg-white/15" />;
+}
+
+const navBase =
+  'flex items-center gap-2 rounded-md px-3 py-1.5 text-sm whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--sidebar-foreground)]/60';
+const navIdle =
+  'text-[var(--sidebar-foreground)] hover:bg-[color-mix(in_srgb,var(--sidebar-foreground)_14%,transparent)] hover:text-white';
+
+/** Ribbon menu (ala Word/Excel): tab + grup perintah + Quick Access. */
 export default function TopBar() {
   const { user, logoutLocal } = useAuth();
   const { density } = useTheme();
   const nav = useNavigate();
   const { pathname } = useLocation();
   const { rowH, fontPx, fontFamily, setRowH, setFontPx, setFontFamily } = useGridPrefs();
+  const ribbon = useRibbonTable();
+  const apiTabel = ribbon?.api ?? null;
 
   const effectiveH = rowH ?? DENSITY_PX[density];
   const effectiveFont = fontPx ?? DEFAULT_FONT_PX;
-  const showGrid = TABLE_ROUTES.some((r) => pathname === r || pathname.startsWith(`${r}/`));
+  const halaman = halamanDariPath(pathname);
+  const showGrid = halaman?.grid === true;
+
+  const [tab, setTab] = useState<string>(() => halamanDariPath(pathname)?.tab ?? 'beranda');
+  const [lipat, setLipat] = useState(false);
+
+  // Ribbon "diam": tab TIDAK ikut pindah saat navigasi — hanya berubah lewat
+  // klik tab. Satu-satunya pengecualian: tab "Tabel" hilang saat halaman aktif
+  // bukan halaman ber-grid (kembali ke tab kategori halaman itu).
+  useEffect(() => {
+    if (tab === 'tabel' && !showGrid) setTab(halamanDariPath(pathname)?.tab ?? 'beranda');
+  }, [pathname, showGrid, tab]);
+
+  useEffect(() => {
+    prefGet(RIBBON_LIPAT_KEY).then((v) => setLipat(v === '1')).catch(() => {});
+  }, []);
+
+  function togolLipat() {
+    setLipat((v) => {
+      prefSet(RIBBON_LIPAT_KEY, v ? '0' : '1').catch(() => {});
+      return !v;
+    });
+  }
+
+  /** Klik tab = pilih tab; klik lagi tab yang sedang aktif = lipat/buka panel. */
+  function pilihTab(id: string) {
+    if (id === tabAktif) {
+      togolLipat();
+      return;
+    }
+    setTab(id);
+    if (lipat) {
+      setLipat(false);
+      prefSet(RIBBON_LIPAT_KEY, '0').catch(() => {});
+    }
+  }
+
+  // Judul halaman → title bar jendela (hemat ruang di aplikasi). Di dev web
+  // memakai document.title; di Tauri sekalian set judul window native.
+  useEffect(() => {
+    const judul = halaman ? `${halaman.label} — SIMPES Admin` : 'SIMPES Admin';
+    document.title = judul;
+    if (isTauri()) {
+      import('@tauri-apps/api/window')
+        .then(({ getCurrentWindow }) => getCurrentWindow().setTitle(judul))
+        .catch(() => {});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
 
   async function onLogout() {
     await logout();
@@ -260,133 +305,63 @@ export default function TopBar() {
     nav('/login', { replace: true });
   }
 
+  const tabAktif = tab === 'tabel' && !showGrid ? (halaman?.tab ?? 'beranda') : tab;
+
+  const tabDef: { id: string; label: string }[] = [
+    { id: 'beranda', label: 'Beranda' },
+    { id: 'master', label: 'Master' },
+    { id: 'psb', label: 'PSB' },
+    { id: 'santri', label: 'Santri' },
+    { id: 'keuangan', label: 'Keuangan' },
+    { id: 'pengaturan', label: 'Pengaturan' },
+  ];
+  if (showGrid) tabDef.push({ id: 'tabel', label: 'Tabel' });
+
   return (
     <header
       className="sticky top-0 z-40 border-b border-white/10 text-white"
       style={{ background: 'linear-gradient(90deg, var(--sidebar-deep), var(--sidebar))' }}
     >
-      <div className="flex min-h-14 items-center gap-x-4 px-3 py-2 md:px-5">
-        <div className="shrink-0 font-display text-[17px] font-extrabold leading-tight">
-          SIMPES Admin
-          <small className="hidden text-[11px] font-normal text-white/60 sm:block">Sistem Pesantren</small>
-        </div>
+      {/* Judul halaman untuk pembaca layar (visual ada di title bar jendela). */}
+      <h1 id="judul_halaman_aktif" className="sr-only">
+        {halaman?.label ?? 'SIMPES Admin'}
+      </h1>
 
-        <nav className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
-          {NAV.map((entry) =>
-            entry.kind === 'link' ? (
-              <NavLink
-                key={entry.to}
-                id={entry.id}
-                to={entry.to}
-                end={entry.to === '/'}
-                title={entry.iconOnly ? entry.label : undefined}
-                aria-label={entry.iconOnly ? entry.label : undefined}
-                className={({ isActive }) => cn(navBase, entry.iconOnly && 'px-2', isActive ? navActive : navIdle)}
-              >
-                <entry.icon size={17} />
-                {entry.iconOnly ? <span className="sr-only">{entry.label}</span> : entry.label}
-              </NavLink>
-            ) : (
-              <NavGroupMenu key={entry.label} group={entry} pathname={pathname} />
-            ),
-          )}
-        </nav>
+      {/* Strip tab + pengguna (kanan) */}
+      <div className="flex items-end gap-0.5 px-3 pt-1.5 md:px-5">
+        {tabDef.map((t) => {
+          const aktif = tabAktif === t.id;
+          return (
+            <button
+              key={t.id}
+              id={`tab_ribbon_${t.id}`}
+              type="button"
+              aria-pressed={aktif}
+              aria-expanded={aktif ? !lipat : undefined}
+              title={aktif ? (lipat ? `Buka panel ${t.label}` : `Lipat panel ${t.label}`) : `Buka tab ${t.label}`}
+              onClick={() => pilihTab(t.id)}
+              className={cn(
+                'rounded-t-md px-3 py-1 text-xs transition-colors sm:text-sm',
+                aktif
+                  ? 'bg-white/15 font-semibold text-white'
+                  : 'text-white/75 hover:bg-white/10 hover:text-white',
+              )}
+            >
+              {t.label}
+            </button>
+          );
+        })}
 
-        <div className="flex shrink-0 items-center gap-2">
-          {showGrid && (
-            <>
-              <label
-                htmlFor="input_tinggi_top"
-                title="Tinggi baris (berlaku semua tabel)"
-                className="cursor-default text-white/70"
-              >
-                <Rows3 size={15} />
-                <span className="sr-only">Tinggi baris (semua tabel)</span>
-              </label>
-              <SpinBox
-                id="input_tinggi_top"
-                value={effectiveH}
-                min={MIN_ROW_H}
-                max={MAX_ROW_H}
-                title="Tinggi baris (berlaku semua tabel)"
-                ariaLabel="Tinggi baris (px)"
-                onChange={setRowH}
-              />
-
-              <Select value={fontFamily} onValueChange={setFontFamily}>
-                <SelectTrigger
-                  id="select_huruf_top"
-                  title="Jenis huruf isi tabel (berlaku semua tabel)"
-                  aria-label="Jenis huruf isi tabel"
-                  className="h-6 w-40 border-white/20 bg-white/5 text-white [&_svg]:text-white/70"
-                >
-                  <SelectValue placeholder="Bawaan" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectLabel>Font sistem</SelectLabel>
-                    {FONT_OPTIONS.filter((f) => f.group === 'sistem').map((f) => (
-                      <SelectItem key={f.label} value={f.value}>{f.label}</SelectItem>
-                    ))}
-                  </SelectGroup>
-                  <SelectSeparator />
-                  <SelectGroup>
-                    <SelectLabel>Font Aptos (bundel)</SelectLabel>
-                    {FONT_OPTIONS.filter((f) => f.group === 'aptos').map((f) => (
-                      <SelectItem key={f.label} value={f.value}>{f.label}</SelectItem>
-                    ))}
-                  </SelectGroup>
-                  <SelectSeparator />
-                  <SelectGroup>
-                    <SelectLabel>Font Google (offline)</SelectLabel>
-                    {FONT_OPTIONS.filter((f) => f.group === 'google').map((f) => (
-                      <SelectItem key={f.label} value={f.value}>{f.label}</SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-
-              <label
-                htmlFor="input_huruf_top"
-                title="Ukuran huruf (berlaku semua tabel)"
-                className="cursor-default text-white/70"
-              >
-                <Type size={15} />
-                <span className="sr-only">Ukuran huruf (semua tabel)</span>
-              </label>
-              <SpinBox
-                id="input_huruf_top"
-                value={effectiveFont}
-                min={MIN_FONT_PX}
-                max={MAX_FONT_PX}
-                title="Ukuran huruf (berlaku semua tabel)"
-                ariaLabel="Ukuran huruf (px)"
-                onChange={setFontPx}
-              />
-              <span aria-hidden className="h-6 w-px bg-white/20" />
-            </>
-          )}
-
-          <NavLink
-            id="nav_pengaturan"
-            to="/pengaturan"
-            title="Pengaturan"
-            aria-label="Pengaturan"
-            className={({ isActive }) => cn(navBase, 'px-2', isActive ? navActive : navIdle)}
-          >
-            <Settings size={17} />
-            <span className="sr-only">Pengaturan</span>
-          </NavLink>
-
+        <div className="ml-auto flex items-center gap-0.5 pl-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
                 id="btn_menu_pengguna"
-                className={cn(navBase, navIdle, 'data-[state=open]:bg-white/15')}
+                className={cn(navBase, navIdle, 'rounded-b-none px-2.5 py-1 text-xs data-[state=open]:bg-white/15')}
               >
-                <Users size={17} />
+                <Users size={15} />
                 <span className="hidden max-w-[9rem] truncate sm:inline">{user?.name}</span>
-                <ChevronDown size={14} className="opacity-70" />
+                <ChevronDown size={13} className="opacity-70" />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="min-w-[13rem]">
@@ -413,63 +388,159 @@ export default function TopBar() {
           </DropdownMenu>
         </div>
       </div>
-    </header>
-  );
-}
 
-function NavGroupMenu({ group, pathname }: { group: NavGroup; pathname: string }) {
-  const allItems = group.items.flatMap((i) => (isSubGroup(i) ? i.items : [i]));
-  const active = allItems.some((i) => pathname === i.to || pathname.startsWith(`${i.to}/`));
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button className={cn(navBase, active ? navActive : navIdle)}>
-          <group.icon size={17} />
-          {group.label}
-          <ChevronDown size={14} className="opacity-70" />
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start">
-        {group.items.map((item) =>
-          isSubGroup(item) ? (
-            <DropdownMenuSub key={item.label}>
-              <DropdownMenuSubTrigger
-                className={cn(
-                  item.items.some((i) => pathname === i.to || pathname.startsWith(`${i.to}/`)) &&
-                    'text-accent-foreground',
-                )}
-              >
-                {item.label}
-              </DropdownMenuSubTrigger>
-              <DropdownMenuSubContent>
-                {item.items.map((sub) => (
-                  <DropdownMenuItem key={sub.to} asChild>
-                    <NavLink
-                      id={sub.id}
-                      to={sub.to}
-                      className="flex cursor-pointer items-center gap-2"
+      {/* Panel grup perintah */}
+      {!lipat && (
+        <div className="border-t border-white/10 bg-white/5">
+          <div className="flex min-h-[76px] items-stretch overflow-x-auto px-3 py-1.5 md:px-5">
+            {tabAktif === 'beranda' && (
+              <>
+                <RibbonGroup label="Mulai">
+                  <RibbonBtn id="nav_dashboard" to="/" icon={Home} label="Dashboard" aktif={pathAktif(pathname, '/')} />
+                </RibbonGroup>
+                <RibbonPemisah />
+                <RibbonGroup label="Pintasan">
+                  <RibbonBtn id="nav_pintasan_psb" to="/psb" icon={ClipboardList} label="Antrean PSB" aktif={pathAktif(pathname, '/psb')} />
+                  <RibbonBtn id="nav_pintasan_santri" to="/santri" icon={GraduationCap} label="Data Santri" aktif={pathAktif(pathname, '/santri')} />
+                  <RibbonBtn id="nav_pintasan_keuangan" to="/keuangan" icon={ScrollText} label="Tagihan & Bayar" aktif={pathAktif(pathname, '/keuangan')} />
+                </RibbonGroup>
+              </>
+            )}
+
+            {tabAktif === 'master' && (
+              <RibbonGroup label="Data Induk">
+                <RibbonBtn id="nav_users" to="/users" icon={Users} label="Pengguna" aktif={pathAktif(pathname, '/users')} />
+                <RibbonBtn id="nav_lembaga" to="/lembaga" icon={Landmark} label="Lembaga" aktif={pathAktif(pathname, '/lembaga')} />
+                <RibbonBtn id="nav_tahun_ajaran" to="/tahun-ajaran" icon={CalendarDays} label="Tahun Ajaran" aktif={pathAktif(pathname, '/tahun-ajaran')} />
+                <RibbonBtn id="nav_kelas" to="/kelas" icon={BookOpen} label="Kelas" aktif={pathAktif(pathname, '/kelas')} />
+                <RibbonBtn id="nav_referensi" to="/referensi" icon={BookMarked} label="Referensi" aktif={pathAktif(pathname, '/referensi')} />
+              </RibbonGroup>
+            )}
+
+            {tabAktif === 'psb' && (
+              <RibbonGroup label="PSB">
+                <RibbonBtn id="nav_psb" to="/psb" icon={ClipboardList} label="Antrean" aktif={pathAktif(pathname, '/psb')} />
+                <RibbonBtn id="nav_kegiatan_psb" to="/kegiatan-psb" icon={CalendarRange} label="Kegiatan PSB" aktif={pathAktif(pathname, '/kegiatan-psb')} />
+                <RibbonBtn id="nav_dokumen_wajib" to="/dokumen-wajib" icon={FileCheck2} label="Dokumen Wajib" aktif={pathAktif(pathname, '/dokumen-wajib')} />
+              </RibbonGroup>
+            )}
+
+            {tabAktif === 'santri' && (
+              <RibbonGroup label="Kesiswaan">
+                <RibbonBtn id="nav_santri" to="/santri" icon={GraduationCap} label="Data Santri" aktif={pathAktif(pathname, '/santri')} />
+                <RibbonBtn id="nav_siklus" to="/siklus" icon={History} label="Mutasi & Alumni" aktif={pathAktif(pathname, '/siklus')} />
+                <RibbonBtn id="nav_pengajuan_biodata" to="/pengajuan-biodata" icon={NotebookTabs} label="Pengajuan Biodata" aktif={pathAktif(pathname, '/pengajuan-biodata')} />
+              </RibbonGroup>
+            )}
+
+            {tabAktif === 'keuangan' && (
+              <RibbonGroup label="Keuangan">
+                <RibbonBtn id="nav_pos" to="/pos" icon={Wallet} label="Pos" aktif={pathAktif(pathname, '/pos')} />
+                <RibbonBtn id="nav_tarif" to="/tarif" icon={ReceiptText} label="Tarif" aktif={pathAktif(pathname, '/tarif')} />
+                <RibbonBtn id="nav_keuangan" to="/keuangan" icon={ScrollText} label="Tagihan & Bayar" aktif={pathAktif(pathname, '/keuangan')} />
+              </RibbonGroup>
+            )}
+
+            {tabAktif === 'pengaturan' && (
+              <RibbonGroup label="Pengaturan">
+                <RibbonBtn id="nav_pengaturan_tampilan" to="/pengaturan/tampilan" icon={Palette} label="Tampilan" aktif={pathAktif(pathname, '/pengaturan/tampilan')} />
+                <RibbonBtn id="nav_pengaturan_server" to="/pengaturan/server" icon={Server} label="Server" aktif={pathAktif(pathname, '/pengaturan/server')} />
+              </RibbonGroup>
+            )}
+
+            {tabAktif === 'tabel' && showGrid && (
+              <>
+                <RibbonGroup label="Papan Klip">
+                  <RibbonCmd
+                    id="ribbon_btn_salin"
+                    icon={Copy}
+                    label="Salin TSV"
+                    disabled={!apiTabel}
+                    onClick={() => apiTabel?.salin()}
+                  />
+                </RibbonGroup>
+                <RibbonPemisah />
+                <RibbonGroup label="Kolom">
+                  <RibbonCmd
+                    id="ribbon_btn_autofit"
+                    icon={MoveHorizontal}
+                    label="Sesuaikan Lebar"
+                    disabled={!apiTabel}
+                    onClick={() => apiTabel?.autofit()}
+                  />
+                  <RibbonCmd
+                    id="ribbon_btn_reset"
+                    icon={RotateCcw}
+                    label="Reset Tampilan"
+                    disabled={!apiTabel}
+                    onClick={() => apiTabel?.reset()}
+                  />
+                </RibbonGroup>
+                <RibbonPemisah />
+                <RibbonGroup label="Ukuran">
+                  <div className="grid grid-cols-[auto_auto] items-center gap-x-2 gap-y-1.5">
+                    <span className="text-right text-[11px] text-white/70">Tinggi baris</span>
+                    <SpinBox
+                      id="input_tinggi_top"
+                      value={effectiveH}
+                      min={MIN_ROW_H}
+                      max={MAX_ROW_H}
+                      title="Tinggi baris (berlaku semua tabel)"
+                      ariaLabel="Tinggi baris (px)"
+                      onChange={setRowH}
+                    />
+                    <span className="text-right text-[11px] text-white/70">Ukuran huruf</span>
+                    <SpinBox
+                      id="input_huruf_top"
+                      value={effectiveFont}
+                      min={MIN_FONT_PX}
+                      max={MAX_FONT_PX}
+                      title="Ukuran huruf (berlaku semua tabel)"
+                      ariaLabel="Ukuran huruf (px)"
+                      onChange={setFontPx}
+                    />
+                  </div>
+                </RibbonGroup>
+                <RibbonPemisah />
+                <RibbonGroup label="Jenis Huruf">
+                  <Select value={fontFamily} onValueChange={setFontFamily}>
+                    <SelectTrigger
+                      id="select_huruf_top"
+                      title="Jenis huruf isi tabel (berlaku semua tabel)"
+                      aria-label="Jenis huruf isi tabel"
+                      className="h-8 w-44 border-white/20 bg-white/5 text-white [&_svg]:text-white/70"
                     >
-                      <sub.icon size={16} className="text-muted-foreground" />
-                      {sub.label}
-                    </NavLink>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuSubContent>
-            </DropdownMenuSub>
-          ) : (
-            <DropdownMenuItem key={item.to} asChild>
-              <NavLink
-                id={item.id}
-                to={item.to}
-                className="flex cursor-pointer items-center gap-2"
-              >
-                <item.icon size={16} className="text-muted-foreground" />
-                {item.label}
-              </NavLink>
-            </DropdownMenuItem>
-          ),
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
+                      <SelectValue placeholder="Bawaan" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectLabel>Font sistem</SelectLabel>
+                        {FONT_OPTIONS.filter((f) => f.group === 'sistem').map((f) => (
+                          <SelectItem key={f.label} value={f.value}>{f.label}</SelectItem>
+                        ))}
+                      </SelectGroup>
+                      <SelectSeparator />
+                      <SelectGroup>
+                        <SelectLabel>Font Aptos (bundel)</SelectLabel>
+                        {FONT_OPTIONS.filter((f) => f.group === 'aptos').map((f) => (
+                          <SelectItem key={f.label} value={f.value}>{f.label}</SelectItem>
+                        ))}
+                      </SelectGroup>
+                      <SelectSeparator />
+                      <SelectGroup>
+                        <SelectLabel>Font Google (offline)</SelectLabel>
+                        {FONT_OPTIONS.filter((f) => f.group === 'google').map((f) => (
+                          <SelectItem key={f.label} value={f.value}>{f.label}</SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </RibbonGroup>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </header>
   );
 }

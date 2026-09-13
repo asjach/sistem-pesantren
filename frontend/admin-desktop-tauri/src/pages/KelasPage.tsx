@@ -23,7 +23,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
-import PageHeader, { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
+import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { ViewDialog } from '@/components/ViewDialog';
 import {
   Dialog,
@@ -237,7 +237,6 @@ export default function KelasPage() {
 
   return (
     <div className={PAGE_SHELL}>
-      <PageHeader titleId="title_kelas" title="Kelas" />
       <ErrorNotice>{err}</ErrorNotice>
       <ExcelTable
         tableKey="kelas"
@@ -271,7 +270,7 @@ export default function KelasPage() {
               <SelectContent>
                 <SelectGroup>
                   <SelectItem value="_semua">Semua</SelectItem>
-                  {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.nama}</SelectItem>)}
+                  {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>)}
                 </SelectGroup>
               </SelectContent>
             </Select>

@@ -16,7 +16,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
-import PageHeader, { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
+import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import Pager from '@/components/Pager';
 import { usePager } from '@/hooks/usePager';
 
@@ -43,7 +43,7 @@ const ALUMNI_FIELDS: ExcelField[] = [
 function mutasiValues(m: MutasiKeluar): Record<string, string | null> {
   return {
     santri: m.santri?.nama_lengkap ?? String(m.santri_id),
-    lembaga: m.lembaga?.nama ?? String(m.lembaga_id),
+    lembaga: m.lembaga?.kode ?? m.lembaga?.nama ?? String(m.lembaga_id),
     kelas: m.kelas_terakhir?.nama_kelas ?? String(m.kelas_terakhir_id),
     tanggal: m.tanggal_mutasi,
     alasan: m.alasan_mutasi,
@@ -55,7 +55,7 @@ function mutasiValues(m: MutasiKeluar): Record<string, string | null> {
 function alumniValues(a: Alumni): Record<string, string | null> {
   return {
     santri: a.santri?.nama_lengkap ?? String(a.santri_id),
-    lembaga: a.lembaga_lulus?.nama ?? String(a.lembaga_lulus_id),
+    lembaga: a.lembaga_lulus?.kode ?? a.lembaga_lulus?.nama ?? String(a.lembaga_lulus_id),
     ta: a.tahun_ajaran_lulus?.nama ?? String(a.tahun_ajaran_lulus_id),
     ijazah: a.nomor_ijazah,
     tanggal: a.tanggal_lulus,
@@ -167,7 +167,6 @@ export default function SiklusPage() {
 
   return (
     <div className={PAGE_SHELL}>
-      <PageHeader titleId="title_siklus" title="Siklus Santri (Mutasi & Alumni)" />
       <ErrorNotice>{err}</ErrorNotice>
       <ExcelTable<MutasiKeluar | Alumni>
         key={view}
@@ -202,7 +201,7 @@ export default function SiklusPage() {
                 <SelectContent>
                   <SelectGroup>
                     <SelectItem value="_semua">Semua lembaga</SelectItem>
-                    {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.nama}</SelectItem>)}
+                    {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>)}
                   </SelectGroup>
                 </SelectContent>
               </Select>

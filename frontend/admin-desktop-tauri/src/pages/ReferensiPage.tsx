@@ -25,7 +25,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
-import PageHeader, { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
+import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import {
   Dialog,
   DialogContent,
@@ -118,7 +118,8 @@ export default function ReferensiPage() {
 
   const lembagaName = useCallback((id: number | null): string => {
     if (id === null) return 'Global';
-    return lembagas.find((l) => l.id === id)?.nama ?? `Lembaga #${id}`;
+    const l = lembagas.find((x) => x.id === id);
+    return l?.kode ?? l?.nama ?? `Lembaga #${id}`;
   }, [lembagas]);
 
   const canAccessRow = useCallback(
@@ -269,7 +270,6 @@ export default function ReferensiPage() {
 
   return (
     <div className={PAGE_SHELL}>
-      <PageHeader titleId="title_referensi" title="Referensi" />
       <ErrorNotice>{err}</ErrorNotice>
       <ExcelTable
         key={tipe}
@@ -311,7 +311,7 @@ export default function ReferensiPage() {
                   {isSuper && <SelectLabel>Global</SelectLabel>}
                   {isSuper && <SelectItem value="_global">Global (bawaan)</SelectItem>}
                   <SelectLabel>Per lembaga</SelectLabel>
-                  {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.nama}</SelectItem>)}
+                  {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>)}
                 </SelectGroup>
               </SelectContent>
             </Select>
@@ -343,7 +343,7 @@ export default function ReferensiPage() {
                       {isSuper && <SelectLabel>Global</SelectLabel>}
                       {isSuper && <SelectItem value="_global">Global (bawaan sistem)</SelectItem>}
                       <SelectLabel>Per lembaga</SelectLabel>
-                      {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.nama}</SelectItem>)}
+                      {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>)}
                     </SelectGroup>
                   </SelectContent>
                 </Select>

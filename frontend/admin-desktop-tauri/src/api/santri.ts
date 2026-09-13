@@ -27,8 +27,9 @@ export interface DokumenSantri {
   santri_id: number | null;
   psb_calon_santri_id: number | null;
   jenis_dokumen_santri: string;
-  path_file: string;
+  path_file: string | null;
   status_verifikasi: 'menunggu' | 'valid' | 'ditolak';
+  tidak_memiliki: boolean;
   catatan: string | null;
   file_url?: string;
 }
@@ -39,6 +40,13 @@ export function listSantri(params: { status_global?: boolean; page?: number; per
   q.set('page', String(params.page ?? 1));
   if (params.per_page) q.set('per_page', String(params.per_page));
   return api<Paginate<Santri>>(`/admin/santri?${q.toString()}`);
+}
+
+export function updateSantri(id: number, changes: Record<string, string | number | null>) {
+  return api<{ pesan: string; data: Santri }>(`/admin/santri/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(changes),
+  });
 }
 
 export function importSantri(input: { tahun_ajaran_id: number; lembaga_id?: number; file: File }) {
@@ -67,4 +75,15 @@ export function uploadDokumenSantri(
   fd.set('file', input.file);
   if (input.catatan) fd.set('catatan', input.catatan);
   return apiUpload<{ pesan: string; data: DokumenSantri }>(`/admin/santri/${santriId}/dokumen`, fd);
+}
+
+export function listDokumenSantri(santriId: number) {
+  return api<{ pesan: string; data: DokumenSantri[] }>(`/admin/santri/${santriId}/dokumen`);
+}
+
+export function tidakMemilikiDokumen(santriId: number, dokumenId: number, tidakMemiliki: boolean) {
+  return api<{ pesan: string; data: DokumenSantri }>(`/admin/santri/${santriId}/dokumen/${dokumenId}/tidak-memiliki`, {
+    method: 'POST',
+    body: JSON.stringify({ tidak_memiliki: tidakMemiliki }),
+  });
 }

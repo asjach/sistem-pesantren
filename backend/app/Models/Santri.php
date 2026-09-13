@@ -11,6 +11,27 @@ class Santri extends Model
 {
     protected $table = 'santri';
 
+    /** Kolom profil yang boleh diubah langsung (PATCH); lembaga/kelas/status/foto
+     *  tidak termasuk — relasional/turunan. */
+    public const KOLOM_PROFIL = [
+        'nama_lengkap', 'nama_singkat', 'nik', 'nisn', 'nis', 'tmp_lahir', 'tgl_lahir',
+        'jk', 'anak_ke', 'j_saudara', 'tipe_santri', 'no_hp_santri', 'email_santri',
+        'agama', 'cita_cita', 'hobi', 'kebutuhan_khusus', 'kebutuhan_disabilitas', 'nomor_kip',
+        'no_kk', 'kewarganegaraan', 'bahasa_sehari', 'status_tempat_tinggal',
+        'jarak_ke_pesantren', 'waktu_tempuh', 'transportasi', 'tanggal_masuk',
+        'alamat', 'rt', 'rw', 'kode_pos', 'provinsi', 'kab_kota', 'kecamatan', 'desa_kelurahan',
+        'ayah_nama', 'ayah_nik', 'ayah_tmp_lahir', 'ayah_tgl_lahir', 'ayah_status',
+        'ayah_pekerjaan', 'ayah_pendidikan', 'ayah_penghasilan', 'ayah_telp', 'ayah_alamat',
+        'ayah_status_tempat_tinggal',
+        'ibu_nama', 'ibu_nik', 'ibu_tmp_lahir', 'ibu_tgl_lahir', 'ibu_status',
+        'ibu_pekerjaan', 'ibu_pendidikan', 'ibu_penghasilan', 'ibu_telp', 'ibu_alamat',
+        'ibu_status_tempat_tinggal',
+        'wali_nama', 'wali_nik', 'wali_tmp_lahir', 'wali_tgl_lahir', 'wali_status',
+        'wali_pekerjaan', 'wali_pendidikan', 'wali_penghasilan', 'wali_telp', 'wali_alamat',
+        'wali_status_tempat_tinggal',
+        'yang_membiayai',
+    ];
+
     protected $fillable = [
         'lembaga_id',
         'kelas_id',
@@ -149,5 +170,26 @@ class Santri extends Model
 
         // Single-tenant: tenant = lembaga via pivot user_lembaga.
         return $query->whereIn('lembaga_id', $authUser->lembagaIds());
+    }
+
+    /** NIS WAJIB unik: dicek ke master santri + arsip riwayat_belajar santri lain.
+     *  $kecualiSantriId dipakai saat memperbarui santri yang sama (import/kenaikan). */
+    public static function nisDipakai(?string $nis, ?int $kecualiSantriId = null): bool
+    {
+        $nis = $nis !== null ? trim($nis) : '';
+        if ($nis === '') {
+            return false;
+        }
+
+        $dipakaiMaster = static::where('nis', $nis)
+            ->when($kecualiSantriId, fn (Builder $q) => $q->where('id', '!=', $kecualiSantriId))
+            ->exists();
+        if ($dipakaiMaster) {
+            return true;
+        }
+
+        return RiwayatBelajar::where('nis', $nis)
+            ->when($kecualiSantriId, fn (Builder $q) => $q->where('santri_id', '!=', $kecualiSantriId))
+            ->exists();
     }
 }

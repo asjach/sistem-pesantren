@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Children, createContext, Fragment, isValidElement, useContext, useEffect, useMemo, useRef, useState, type ReactElement, type ReactNode } from 'react';
 import {
   DynamicDataSheetGrid as DataSheetGrid,
   checkboxColumn,
@@ -10,11 +10,30 @@ import 'react-datasheet-grid/dist/style.css';
 import { DENSITY_PX } from '@/prefs';
 import { useTheme } from '@/theme';
 import { errorMessage, prefGet, prefSet } from '@/api/client';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DEFAULT_FONT_PX, FONT_FAMILY_DEFAULT, FONT_OPTIONS, useGridPrefs } from '@/components/GridPrefs';
-import { Copy, MoveHorizontal, Pencil, RotateCcw, Search } from 'lucide-react';
+import PresetKolom from '@/components/PresetKolom';
+import { useRibbonTable } from '@/components/RibbonTable';
+import { ActionIcon, DeleteAction, EditAction, SetAktifAction, ViewAction } from '@/components/RowActions';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Copy, Check, Eye, MoreVertical, MoveHorizontal, Pencil, RotateCcw, Search, Trash2 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { copyText, toTSV } from '@/lib/clipboard';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -32,7 +51,7 @@ function ToolbarGroup({
   return (
     <div
       title={title}
-      className={cn('flex h-8 items-center gap-1.5 rounded-lg border bg-card px-2', className)}
+      className={cn('flex h-[30px] items-center gap-1.5 rounded-lg border bg-card px-2', className)}
     >
       {children}
     </div>
@@ -138,6 +157,8 @@ interface ExcelTableProps<T extends { id: string | number }> {
   /** Aksi massal untuk baris tercentang (mis. verifikasi/ACC/hapus).
    *  `clearSelection` memanggil ulang setelah aksi selesai. */
   renderBulkActions?: (checkedRows: T[], clearSelection: () => void) => ReactNode;
+  /** Batasi tinggi grid maksimal N baris (tanpa flex-1, mengikuti isi). */
+  maxRows?: number;
 }
 
 const MIN_COL_W = 50;
@@ -145,13 +166,17 @@ const MIN_COL_W = 50;
 const AUTOFIT_MAX_W = 480;
 /** Ruang napas agar teks tidak menempel garis kolom saat AutoFit. */
 const AUTOFIT_BUFFER = 8;
-/** Lebar kolom Aksi saat belum terukur (3 tombol ikon + padding). */
-const ACTIONS_DEFAULT_W = 112;
+/** Lebar kolom Aksi saat belum terukur (3 tombol ikon + padding + napas). */
+const ACTIONS_DEFAULT_W = 124;
+/** Lebar kolom checklist (kolom data pertama). */
+const CHECK_W = 44;
 /** Lantai lebar kolom Aksi (1 tombol ikon + padding). */
 const ACTIONS_MIN_W = 56;
 
 function widthsKey(tableKey: string) {
-  return `simpes_grid_${tableKey}_w`;
+  // v2: hasil AutoFit tidak lagi disimpan (lihat onAutoFit). Kunci lama berisi
+  // lebar basi yang membekukan kolom dinamis (status/aksi) — diabaikan sekali.
+  return `simpes_grid_${tableKey}_w_v2`;
 }
 
 async function loadWidths(key: string): Promise<Record<string, number>> {
@@ -358,15 +383,120 @@ interface ActionsColData {
   render: (id: string | number) => ReactNode;
 }
 
-/** Sel Aksi: tombol ikon dialog (klik tidak mengubah seleksi grid). */
+/** Ratakan aksi (bisa berupa fragment/conditional) menjadi daftar elemen. */
+function flattenAksi(node: ReactNode): ReactElement[] {
+  const out: ReactElement[] = [];
+  Children.forEach(node, (child) => {
+    if (!isValidElement(child)) return;
+    if (child.type === Fragment) {
+      out.push(...flattenAksi((child.props as { children?: ReactNode }).children));
+      return;
+    }
+    out.push(child);
+  });
+  return out;
+}
+
+/** Data menu yang diekstrak dari elemen aksi (tanpa menyarangkan tombol asli). */
+interface AksiMenu {
+  label: string;
+  icon: ReactNode;
+  onClick?: () => void;
+  konfirmasi?: { title: string; description: string; onConfirm: () => void };
+}
+
+function metaAksi(el: ReactElement): AksiMenu {
+  const p = el.props as {
+    title?: string;
+    onClick?: () => void;
+    onConfirm?: () => void;
+    description?: string;
+    children?: ReactNode;
+  };
+  if (el.type === DeleteAction) {
+    return {
+      label: 'Hapus',
+      icon: <Trash2 size={16} />,
+      konfirmasi: { title: p.title ?? 'Hapus?', description: p.description ?? '', onConfirm: p.onConfirm ?? (() => {}) },
+    };
+  }
+  if (el.type === EditAction) return { label: 'Ubah', icon: <Pencil size={16} />, onClick: p.onClick };
+  if (el.type === ViewAction) return { label: 'Lihat', icon: <Eye size={16} />, onClick: p.onClick };
+  if (el.type === SetAktifAction) return { label: 'Set aktif', icon: <Check size={16} />, onClick: p.onClick };
+  const title = typeof p.title === 'string' ? p.title.replace(/\?$/, '') : 'Aksi';
+
+  return { label: title, icon: p.children, onClick: p.onClick };
+}
+
+/** Sel Aksi: tombol ikon dialog (klik tidak mengubah seleksi grid).
+ *  Bila aksi lebih dari 3, diringkas jadi dropdown titik-tiga vertikal. */
 function ActionsCell({ rowData, columnData }: CellProps<GridRow, ActionsColData>) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [konfirmasi, setKonfirmasi] = useState<AksiMenu['konfirmasi'] | null>(null);
+  const aksi = flattenAksi(columnData.render(rowData.id));
+  const stop = {
+    onMouseDown: (e: React.MouseEvent) => e.stopPropagation(),
+    onClick: (e: React.MouseEvent) => e.stopPropagation(),
+  };
+
+  if (aksi.length <= 3) {
+    return (
+      <div className="simpes-dsg-actions flex h-full flex-1 items-center justify-center gap-1" {...stop}>
+        {aksi.map((el, i) => (
+          <Fragment key={el.key ?? i}>{el}</Fragment>
+        ))}
+      </div>
+    );
+  }
+
   return (
-    <div
-      className="simpes-dsg-actions flex h-full items-center gap-1"
-      onMouseDown={(e) => e.stopPropagation()}
-      onClick={(e) => e.stopPropagation()}
-    >
-      {columnData.render(rowData.id)}
+    <div className="simpes-dsg-actions flex h-full flex-1 items-center justify-end gap-1" {...stop}>
+      <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+        <DropdownMenuTrigger asChild>
+          <ActionIcon id={`btn_aksi_lain_${rowData.id}`} title="Aksi lainnya">
+            <MoreVertical size={16} />
+          </ActionIcon>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="min-w-44">
+          {aksi.map((el, i) => {
+            const m = metaAksi(el);
+            return (
+              <DropdownMenuItem
+                key={el.key ?? i}
+                onSelect={() => {
+                  setMenuOpen(false);
+                  if (m.konfirmasi) setKonfirmasi(m.konfirmasi);
+                  else m.onClick?.();
+                }}
+              >
+                {m.icon}
+                <span>{m.label}</span>
+              </DropdownMenuItem>
+            );
+          })}
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <AlertDialog open={konfirmasi !== null} onOpenChange={(o) => { if (!o) setKonfirmasi(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{konfirmasi?.title}</AlertDialogTitle>
+            <AlertDialogDescription>{konfirmasi?.description}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              className={cn(buttonVariants({ variant: 'destructive' }))}
+              onClick={() => {
+                konfirmasi?.onConfirm();
+                setKonfirmasi(null);
+              }}
+            >
+              Hapus
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -392,6 +522,7 @@ export default function ExcelTable<T extends { id: string | number }>({
   filter,
   addButton,
   renderBulkActions,
+  maxRows,
 }: ExcelTableProps<T>) {
   const { density } = useTheme();
   const densityPx = DENSITY_PX[density];
@@ -443,8 +574,18 @@ export default function ExcelTable<T extends { id: string | number }>({
   autoWidthsRef.current = autoWidths;
   const [widthsReady, setWidthsReady] = useState(false);
   const fittedRef = useRef<string | null>(null);
+  /** Sedang mencoba mengukur kolom Aksi yang baru ter-render (hindari loop ganda). */
+  const aksiFitRef = useRef(false);
   const fieldsRef = useRef(fields);
   fieldsRef.current = fields;
+  const [presetKeys, setPresetKeys] = useState<string[] | null>(null);
+  const visibleFields = useMemo(() => {
+    if (presetKeys === null) return fields;
+    const terlihat = fields.filter((f) => presetKeys.includes(f.key));
+    return terlihat.length > 0 ? terlihat : fields;
+  }, [fields, presetKeys]);
+  const visibleFieldsRef = useRef(visibleFields);
+  visibleFieldsRef.current = visibleFields;
   const wrapRef = useRef<HTMLDivElement>(null);
   const [gridH, setGridH] = useState(() =>
     typeof window === 'undefined'
@@ -453,16 +594,21 @@ export default function ExcelTable<T extends { id: string | number }>({
   );
 
   // Tinggi grid mengikuti sisa ruang vertikal wrapper (flex-1 dari halaman).
+  // Efek dijalankan ulang saat loading/rows berubah: saat mount pertama tabel
+  // masih skeleton (wrapRef belum ada), jadi observer harus dipasang ulang
+  // begitu grid benar-benar dirender — kalau tidak, grid berhenti di tinggi awal.
   useEffect(() => {
     const el = wrapRef.current;
     if (!el || typeof ResizeObserver === 'undefined') return;
-    const ro = new ResizeObserver(() => {
+    const ukur = () => {
       const h = Math.floor(el.clientHeight);
       setGridH((prev) => (Math.abs(h - prev) < 1 || h <= 0 ? prev : h));
-    });
+    };
+    ukur();
+    const ro = new ResizeObserver(ukur);
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [loading, rows.length, tableKey]);
 
   useEffect(() => {
     setWidthsReady(false);
@@ -474,7 +620,8 @@ export default function ExcelTable<T extends { id: string | number }>({
 
   // Muat awal: kolom yang belum punya lebar tersimpan disesuaikan dengan isi
   // (judul dipakai bila lebih panjang dari data). Menunggu widthsReady supaya
-  // tidak menimpa sesaat lebar simpanan pengguna yang sedang dibaca.
+  // tidak menimpa sesaat lebar simpanan pengguna yang sedang dibaca, dan
+  // menunggu font selesai dimuat agar pengukuran teks akurat.
   useEffect(() => {
     if (fittedRef.current === tableKey) return;
     if (!widthsReady || loading || rows.length === 0) return;
@@ -482,23 +629,35 @@ export default function ExcelTable<T extends { id: string | number }>({
     // sampai sel data benar-benar ada di DOM sebelum mengukur teks.
     let tries = 0;
     let raf = 0;
+    let batal = false;
+    let batalFit: (() => void) | null = null;
     const attempt = () => {
-      if (fittedRef.current === tableKey) return;
+      if (batal || fittedRef.current === tableKey) return;
       const ready = !!wrapRef.current?.querySelector(
         '.dsg-row:not(.dsg-row-header) .dsg-cell:not(.dsg-cell-gutter)',
       );
       if (!ready) {
-        if (++tries < 30) raf = requestAnimationFrame(attempt);
+        if (++tries < 120) raf = requestAnimationFrame(attempt);
         return;
       }
       fittedRef.current = tableKey;
-      const auto = computeAutoWidths();
-      if (Object.keys(auto).length > 0) setAutoWidths(auto);
+      batalFit = scheduleAutoFit();
     };
-    raf = requestAnimationFrame(attempt);
-    return () => cancelAnimationFrame(raf);
+    const mulai = () => {
+      if (!batal) raf = requestAnimationFrame(attempt);
+    };
+    if (typeof document !== 'undefined' && document.fonts?.ready) {
+      document.fonts.ready.then(mulai).catch(mulai);
+    } else {
+      mulai();
+    }
+    return () => {
+      batal = true;
+      cancelAnimationFrame(raf);
+      batalFit?.();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tableKey, widthsReady, loading, rows, fields]);
+  }, [tableKey, widthsReady, loading, rows, fields, visibleFields]);
 
   // Bersihkan span pengukur teks saat tabel dilepas.
   useEffect(
@@ -518,6 +677,11 @@ export default function ExcelTable<T extends { id: string | number }>({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rowsSig]);
 
+  // Preset kolom berganti → seleksi kolom lama tidak relevan lagi.
+  useEffect(() => {
+    setRange(null);
+  }, [visibleFields]);
+
   // Esc saat TIDAK sedang mengedit sel = keluar dari mode Edit.
   // Esc di dalam editor sel ditangani TextCell/SelectCell (tidak sampai ke sini).
   useEffect(() => {
@@ -534,14 +698,37 @@ export default function ExcelTable<T extends { id: string | number }>({
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [canEdit, editMode]);
 
+  // Shortcut Ctrl/Cmd+C di grid ditangani DSG tanpa notifikasi — beri toast singkat.
+  // Kondisi: ada sel aktif grid & tidak sedang mengedit. Editor sel / input lain
+  // (termasuk fallback textarea toolbar) dilewati agar tidak dobel notifikasi.
+  useEffect(() => {
+    function saatSalin(e: ClipboardEvent) {
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
+      const root = wrapRef.current;
+      if (!root?.querySelector('.dsg-active-cell')) return;
+      if (root.querySelector('.dsg-active-cell-focus')) return; // sedang mengedit sel
+      toast.success('Telah disalin ke clipboard.');
+    }
+    document.addEventListener('copy', saatSalin);
+    return () => document.removeEventListener('copy', saatSalin);
+  }, []);
+
   // Ukuran/jenis huruf berubah → teks butuh lebar baru: hitung ulang AutoFit
   // (lebar yang sudah diatur pengguna tetap dipertahankan).
   useEffect(() => {
     if (fittedRef.current !== tableKey) return;
-    const raf = requestAnimationFrame(() => setAutoWidths(computeAutoWidths()));
-    return () => cancelAnimationFrame(raf);
+    return scheduleAutoFit();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fontPx, fontFamily]);
+
+  // Data berubah (ganti kegiatan/filter/muat ulang) → sesuaikan ulang lebar
+  // kolom yang belum diatur pengguna.
+  useEffect(() => {
+    if (fittedRef.current !== tableKey) return;
+    return scheduleAutoFit();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, fields, visibleFields]);
 
   function persistWidths(next: Record<string, number>) {
     prefSet(widthsKey(tableKey), JSON.stringify(next)).catch(() => {});
@@ -549,7 +736,7 @@ export default function ExcelTable<T extends { id: string | number }>({
 
   /** Urutan id kolom grid (tanpa gutter) — untuk memetakan indeks seleksi. */
   function gridColumnKeys(): string[] {
-    return ['check', ...fieldsRef.current.map((f) => f.key), '__aksi'];
+    return ['check', ...visibleFieldsRef.current.map((f) => f.key), '__aksi'];
   }
 
   /** Kolom-kolom yang sedang terseleksi, kolom checkbox dikecualikan karena
@@ -731,54 +918,101 @@ export default function ExcelTable<T extends { id: string | number }>({
    *  semua kolom dihitung ulang. */
   function computeAutoWidths(ignoreSaved = false): Record<string, number> {
     const out: Record<string, number> = {};
-    for (const key of [...fieldsRef.current.map((f) => f.key), '__aksi']) {
+    for (const key of [...visibleFieldsRef.current.map((f) => f.key), '__aksi']) {
       if (!ignoreSaved && widthsRef.current[key] !== undefined) continue;
-      const w = autoFitWidth(key);
+      // Bila pengukuran gagal sesaat (sel aksi/teks belum dirender virtualisasi),
+      // pertahankan hasil ukur terakhir — lebih baik daripada jatuh ke lebar bawaan.
+      const w = autoFitWidth(key) ?? autoWidthsRef.current[key] ?? null;
       if (w != null) out[key] = w;
     }
     return out;
   }
 
-  /** AutoFit satu kolom: klik 2× pada gagang tepi kanan judul (seperti Excel). */
+  /** Terapkan AutoFit kolom non-manual, diulang satu frame lagi supaya sel
+   *  yang telat dirender DSG ikut terukur (kolom Aksi paling sering telat). */
+  function scheduleAutoFit() {
+    let raf2 = 0;
+    const terapkan = () =>
+      setAutoWidths((prev) => {
+        const auto = computeAutoWidths();
+        const keys = Object.keys(auto);
+        if (keys.length === Object.keys(prev).length && keys.every((k) => prev[k] === auto[k])) return prev;
+        return auto;
+      });
+    const raf1 = requestAnimationFrame(() => {
+      terapkan();
+      raf2 = requestAnimationFrame(terapkan);
+    });
+    return () => {
+      cancelAnimationFrame(raf1);
+      cancelAnimationFrame(raf2);
+    };
+  }
+
+  /** AutoFit satu kolom: klik 2× pada gagang tepi kanan judul (seperti Excel).
+   *  Hasilnya TIDAK disimpan sebagai lebar pengguna: kolom dinamis (mis. Status,
+   *  Aksi) berubah isi kapan saja dan harus selalu dihitung ulang. Menekan
+   *  AutoFit pada kolom yang pernah diseret manual = melepas lebar manualnya. */
   function onAutoFit(key: string) {
     const w = autoFitWidth(key);
     if (w == null) return;
+    setAutoWidths((prev) => ({ ...prev, [key]: w }));
     setWidths((prev) => {
-      const next = { ...prev, [key]: w };
+      if (prev[key] === undefined) return prev;
+      const next = { ...prev };
+      delete next[key];
       persistWidths(next);
       return next;
     });
     toast.success('Lebar kolom disesuaikan dengan isi.');
   }
 
-  /** AutoFit seluruh kolom (tombol toolbar). */
+  /** AutoFit seluruh kolom (tombol toolbar). Sama: tidak disimpan permanen. */
   function onAutoFitAll() {
-    const next = { ...widthsRef.current };
+    const nextAuto: Record<string, number> = {};
     let n = 0;
-    for (const key of [...fieldsRef.current.map((f) => f.key), '__aksi']) {
+    for (const key of [...visibleFieldsRef.current.map((f) => f.key), '__aksi']) {
       const w = autoFitWidth(key);
       if (w != null) {
-        next[key] = w;
+        nextAuto[key] = w;
         n++;
       }
     }
-    setWidths(next);
-    persistWidths(next);
+    setAutoWidths(nextAuto);
+    setWidths((prev) => {
+      if (Object.keys(prev).length === 0) return prev;
+      persistWidths({});
+      return {};
+    });
     toast.success(n > 0 ? `${n} kolom disesuaikan lebarnya.` : 'Tidak ada kolom yang bisa disesuaikan.');
   }
 
-  /** Kolom Aksi hanya terender saat berada di viewport (virtualisasi), jadi
-   *  lebarnya dipaskan begitu grid digeser horizontal — selama pengguna
-   *  belum pernah mengatur lebarnya sendiri. */
+  /** Kolom Aksi hanya terender saat berada di viewport (virtualisasi kolom
+   *  DSG), jadi lebarnya dipaskan begitu grid digeser horizontal — selama
+   *  pengguna belum pernah mengatur lebarnya sendiri. Sel yang baru muncul
+   *  kadang belum ada saat event scroll tiba, jadi coba ulang beberapa frame. */
   function fitActionsIfNeeded() {
-    if (widthsRef.current.__aksi !== undefined) return;
-    const w = measureActionsWidth();
-    if (w == null) return;
-    setAutoWidths((prev) => (prev.__aksi === w ? prev : { ...prev, __aksi: w }));
+    if (aksiFitRef.current || widthsRef.current.__aksi !== undefined) return;
+    aksiFitRef.current = true;
+    let tries = 0;
+    const coba = () => {
+      const w = measureActionsWidth();
+      if (w != null) {
+        aksiFitRef.current = false;
+        setAutoWidths((prev) => (prev.__aksi === w ? prev : { ...prev, __aksi: w }));
+        return;
+      }
+      if (++tries < 12) requestAnimationFrame(coba);
+      else aksiFitRef.current = false;
+    };
+    requestAnimationFrame(coba);
   }
 
   const effectiveH = rowH ?? densityPx;
   const effectiveFont = fontPx ?? DEFAULT_FONT_PX;
+  const gridHeight = maxRows === undefined
+    ? gridH
+    : Math.min(gridH, 27 + Math.min(Math.max(rows.length, 1), maxRows) * effectiveH);
   // "keluarga|ketebalan"; bawaan = pakai font & ketebalan aplikasi.
   const fontChoice = FONT_OPTIONS.find((f) => f.value === fontFamily);
   const [fontStack, fontStackWeight] =
@@ -786,7 +1020,10 @@ export default function ExcelTable<T extends { id: string | number }>({
       ? fontChoice.value.split('|')
       : ['', ''];
   const editing = canEdit && editMode;
-  const editableKeys = useMemo(() => fields.filter((f) => f.kind !== 'static').map((f) => f.key), [fields]);
+  const editableKeys = useMemo(
+    () => visibleFields.filter((f) => f.kind !== 'static').map((f) => f.key),
+    [visibleFields],
+  );
 
   /** Buka editor untuk sel aktif (sinyal Enter ke DSG). Aman dipanggil ulang:
    *  bila editor sudah terbuka/fokus, tidak melakukan apa-apa. */
@@ -856,13 +1093,13 @@ export default function ExcelTable<T extends { id: string | number }>({
         ...keyColumn<GridRow, 'checked'>('checked', checkboxColumn),
         id: 'check',
         title: <CheckAllCell />,
-        basis: 44,
+        basis: CHECK_W,
         grow: 0,
         shrink: 0,
-        minWidth: 44,
+        minWidth: CHECK_W,
       },
     ];
-    for (const f of fields) {
+    for (const f of visibleFields) {
       const common = {
         id: f.key,
         title: <HeaderTitle label={f.label} colKey={f.key} onResizeStart={startResize} onAutoFit={onAutoFit} />,
@@ -936,35 +1173,39 @@ export default function ExcelTable<T extends { id: string | number }>({
         });
       }
     }
-    cols.push({
-      id: '__aksi',
-      title: <HeaderTitle label="Aksi" colKey="__aksi" onResizeStart={startResize} onAutoFit={onAutoFit} />,
-      basis: widths.__aksi ?? autoWidths.__aksi ?? ACTIONS_DEFAULT_W,
-      grow: 0,
-      shrink: 0,
-      minWidth: ACTIONS_MIN_W,
-      // Kolom terakhir: garis kanan digambar di dalam sel (lihat index.css)
-      // karena box-shadow DSG terpotong oleh tepi area scroll.
-      headerClassName: 'simpes-dsg-col-last',
-      cellClassName: 'simpes-dsg-col-last',
-      component: ActionsCell,
-      columnData: {
-        render: (id: string | number) => {
-          const d = rowsRef.current.find((r) => String(r.id) === String(id));
-          return d ? renderRef.current(d) : null;
-        },
-      },
-      disableKeys: true,
-      keepFocus: false,
-      disabled: true,
-      deleteValue: ({ rowData }: { rowData: GridRow }) => rowData,
-      copyValue: () => null,
-      pasteValue: ({ rowData }: { rowData: GridRow }) => rowData,
-      isCellEmpty: () => true,
-    });
     return cols;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fields, editing, widths, autoWidths]);
+  }, [fields, visibleFields, editing, widths, autoWidths]);
+
+  /** Kolom Aksi = kolom "sticky kanan" DSG: selalu ter-render & menempel di
+   *  kanan saat grid di-scroll horizontal (freeze pane sisi kanan). */
+  const aksiColumn: Column<GridRow> = useMemo(() => ({
+    id: '__aksi',
+    title: <HeaderTitle label="Aksi" colKey="__aksi" onResizeStart={startResize} onAutoFit={onAutoFit} />,
+    basis: widths.__aksi ?? autoWidths.__aksi ?? ACTIONS_DEFAULT_W,
+    grow: 0,
+    shrink: 0,
+    minWidth: ACTIONS_MIN_W,
+    // Kolom terakhir: garis kanan digambar di dalam sel (lihat index.css)
+    // karena box-shadow DSG terpotong oleh tepi area scroll.
+    headerClassName: 'simpes-dsg-col-last',
+    cellClassName: 'simpes-dsg-col-last',
+    component: ActionsCell,
+    columnData: {
+      render: (id: string | number) => {
+        const d = rowsRef.current.find((r) => String(r.id) === String(id));
+        return d ? renderRef.current(d) : null;
+      },
+    },
+    disableKeys: true,
+    keepFocus: false,
+    disabled: true,
+    deleteValue: ({ rowData }: { rowData: GridRow }) => rowData,
+    copyValue: () => null,
+    pasteValue: ({ rowData }: { rowData: GridRow }) => rowData,
+    isCellEmpty: () => true,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [widths, autoWidths]);
 
   /** Klik/pindah ke sel lain saat ada editor terbuka: tutup dulu editor lama
    *  (memicu commit + auto-save), lalu DSG memindahkan sel aktif. Tanpa ini
@@ -1007,23 +1248,23 @@ export default function ExcelTable<T extends { id: string | number }>({
     let header: string[];
     let body: string[][];
     if (checkedRows.length > 0) {
-      header = fields.map((f) => f.label);
-      body = checkedRows.map((r) => fields.map((f) => displayOf(r.id, f.key)));
+      header = visibleFields.map((f) => f.label);
+      body = checkedRows.map((r) => visibleFields.map((f) => displayOf(r.id, f.key)));
     } else if (range) {
       const r0 = Math.max(0, Math.min(range.min.row, range.max.row));
       const r1 = Math.min(gridValue.length - 1, Math.max(range.min.row, range.max.row));
       const idx: number[] = [];
       for (let c = Math.min(range.min.col, range.max.col); c <= Math.max(range.min.col, range.max.col); c++) {
-        // 0 = checklist, fields 1..n, terakhir = Aksi
-        if (c >= 1 && c <= fields.length) idx.push(c - 1);
+        // 0 = checklist, kolom terlihat 1..n, terakhir = Aksi
+        if (c >= 1 && c <= visibleFields.length) idx.push(c - 1);
       }
       if (r1 < r0 || idx.length === 0) return;
-      header = idx.map((i) => fields[i].label);
+      header = idx.map((i) => visibleFields[i].label);
       body = [];
       for (let r = r0; r <= r1; r++) {
         const g = gridValue[r];
         if (!g) continue;
-        body.push(idx.map((i) => displayOf(g.id, fields[i].key)));
+        body.push(idx.map((i) => displayOf(g.id, visibleFields[i].key)));
       }
     } else {
       return;
@@ -1116,6 +1357,26 @@ export default function ExcelTable<T extends { id: string | number }>({
     toast.success('Tampilan tabel dikembalikan bawaan.');
   }
 
+  // Publikasikan perintah tabel ke tab ribbon "Tabel" (tab memakai tabel
+  // pertama yang terdaftar di halaman; handler selalu versi terbaru via ref).
+  // Depend hanya pada callback registri yang stabil — objek context berubah
+  // identitas saat registri terisi dan akan memicu loop daftar/lepas.
+  const ribbon = useRibbonTable();
+  const ribbonDaftar = ribbon?.daftar;
+  const ribbonLepas = ribbon?.lepas;
+  const ribbonAksiRef = useRef({ salin: () => {}, autofit: () => {}, reset: () => {} });
+  ribbonAksiRef.current = { salin: onCopy, autofit: onAutoFitAll, reset: onResetView };
+  useEffect(() => {
+    if (!ribbonDaftar || !ribbonLepas) return;
+    ribbonDaftar(tableKey, {
+      tableKey,
+      salin: () => ribbonAksiRef.current.salin(),
+      autofit: () => ribbonAksiRef.current.autofit(),
+      reset: () => ribbonAksiRef.current.reset(),
+    });
+    return () => ribbonLepas(tableKey);
+  }, [ribbonDaftar, ribbonLepas, tableKey]);
+
   if (loading && rows.length === 0) {
     return <Skeleton className="h-40 w-full" />;
   }
@@ -1129,7 +1390,7 @@ export default function ExcelTable<T extends { id: string | number }>({
   const buttonId = searchIds?.button ?? `btn_cari_${tableKey}`;
 
   return (
-    <div className="flex flex-1 flex-col">
+    <div className={cn('flex flex-col', maxRows === undefined ? 'min-h-0 flex-1' : 'shrink-0')}>
       {editing && (
         <div
           id={`banner_mode_edit_${tableKey}`}
@@ -1240,6 +1501,11 @@ export default function ExcelTable<T extends { id: string | number }>({
             </ToolbarGroup>
           )}
 
+          {/* Grup preset kolom tampilan (tersimpan di DB per lembaga) */}
+          <ToolbarGroup title="Kolom tampilan">
+            <PresetKolom tableKey={tableKey} fields={fields} onApply={setPresetKeys} />
+          </ToolbarGroup>
+
           {/* Grup 2 — alat tabel: salin, sesuaikan lebar, reset */}
           <ToolbarGroup>
           <Button
@@ -1293,7 +1559,10 @@ export default function ExcelTable<T extends { id: string | number }>({
         title="Seret untuk memblokir sel • Ctrl+C menyalin"
         onMouseDownCapture={closeEditorOnOtherCell}
         className={cn(
-          'simpes-dsg relative flex min-h-[280px] flex-1 flex-col overflow-hidden rounded-xl bg-card',
+          // Grid full-bleed: menempel tepi kiri-kanan area konten (imbangi padding
+          // layout p-2 / md:px-4) tanpa sudut membulat; toolbar tetap berpadding.
+          'simpes-dsg relative -mx-2 flex flex-col overflow-hidden bg-card md:-mx-4',
+          maxRows === undefined ? 'min-h-[280px] flex-1' : 'shrink-0',
           !editing && 'simpes-dsg-readonly',
         )}
       >
@@ -1302,10 +1571,11 @@ export default function ExcelTable<T extends { id: string | number }>({
             value={gridValue}
             onChange={handleChange}
             columns={dsgColumns}
+            stickyRightColumn={aksiColumn}
             rowKey="id"
-            height={gridH}
+            height={gridHeight}
             rowHeight={effectiveH}
-            headerRowHeight={36}
+            headerRowHeight={26}
             lockRows
             addRowsComponent={false}
             rowClassName={({ rowIndex }) => {

@@ -27,7 +27,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
-import PageHeader, { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
+import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import {
   Dialog,
   DialogContent,
@@ -237,7 +237,6 @@ export default function KeuanganPage() {
 
   return (
     <div className={PAGE_SHELL}>
-      <PageHeader titleId="title_keuangan" title="Keuangan" />
       <ErrorNotice>{err}</ErrorNotice>
 
       <div className="grid gap-3 lg:grid-cols-2">
@@ -253,7 +252,7 @@ export default function KeuanganPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectGroup>
-                      {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.nama}</SelectItem>)}
+                      {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>)}
                     </SelectGroup>
                   </SelectContent>
                 </Select>
@@ -321,7 +320,7 @@ export default function KeuanganPage() {
         </Button>
       </form>
 
-      <div className="mt-3">
+      <div className="mt-3 flex min-h-0 flex-1 flex-col">
         <ExcelTable
           tableKey="keuangan_tagihan"
           fields={KEUANGAN_FIELDS}

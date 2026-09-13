@@ -9,7 +9,7 @@ class PsbGelombang extends Model
 {
     protected $table = 'psb_gelombang';
     protected $guarded = ['id'];
-    protected $casts = ['tgl_buka' => 'date', 'tgl_tutup' => 'date', 'is_aktif' => 'boolean'];
+    protected $casts = ['tgl_buka' => 'date', 'tgl_tutup' => 'date'];
 
     public function kegiatan(): BelongsTo { return $this->belongsTo(PsbKegiatan::class, 'psb_kegiatan_id'); }
     public function kuotaBiaya(): HasMany { return $this->hasMany(PsbKuotaBiaya::class, 'gelombang_id'); }

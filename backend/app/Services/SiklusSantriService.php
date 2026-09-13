@@ -94,6 +94,11 @@ class SiklusSantriService
     {
         return DB::transaction(function () use ($santri, $lembagaId, $tahunBaruId, $tingkat, $status, $nis, $tglMasuk, $noAbsen) {
             $santri = Santri::where('id', $santri->id)->lockForUpdate()->firstOrFail();
+            // NIS baru (opsional) wajib unik.
+            $nis = $nis !== null && trim($nis) !== '' ? trim($nis) : null;
+            if ($nis !== null && Santri::nisDipakai($nis, $santri->id)) {
+                throw ValidationException::withMessages(['nis' => 'NIS sudah dipakai santri lain.']);
+            }
             $lama = RiwayatBelajar::where('santri_id', $santri->id)
                 ->where('lembaga_id', $lembagaId)->where('is_aktif', true)
                 ->lockForUpdate()->latest('id')->first();

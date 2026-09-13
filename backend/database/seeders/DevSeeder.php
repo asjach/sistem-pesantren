@@ -79,13 +79,11 @@ class DevSeeder extends Seeder
                 'nama' => 'Gelombang 1 2026/2027',
                 'tgl_buka' => now()->subDays(30)->toDateString(),
                 'tgl_tutup' => now()->addDays(30)->toDateString(),
-                'is_aktif' => true,
             ],
         );
         $gelombang->update([
             'tgl_buka' => now()->subDays(30)->toDateString(),
             'tgl_tutup' => now()->addDays(30)->toDateString(),
-            'is_aktif' => true,
         ]);
 
         $biaya = [
@@ -104,7 +102,7 @@ class DevSeeder extends Seeder
                     'nominal_pendaftaran_lanjutan' => $lanjutan,
                     'nominal_paket' => $paket,
                     'kuota' => $kuota,
-                    'membutuhkan_seleksi' => false,
+                    'membutuhkan_seleksi' => null,
                     'membutuhkan_pemberkasan' => true,
                 ],
             );

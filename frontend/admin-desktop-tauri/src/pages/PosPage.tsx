@@ -21,7 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
-import PageHeader, { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
+import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { ViewDialog } from '@/components/ViewDialog';
 import {
   Dialog,
@@ -183,7 +183,6 @@ export default function PosPage() {
 
   return (
     <div className={PAGE_SHELL}>
-      <PageHeader titleId="title_pos" title="Pos Keuangan" />
       <ErrorNotice>{err}</ErrorNotice>
       <ExcelTable
         tableKey="pos"

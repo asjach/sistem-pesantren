@@ -131,7 +131,7 @@ export interface TahunAjaran {
   tanggal_mulai: string | null;
   tanggal_selesai: string | null;
   is_aktif: boolean;
-  lembaga?: { id: number; nama: string };
+  lembaga?: { id: number; nama: string; kode: string | null };
 }
 
 export function listTahunAjaran(params: { search?: string; lembaga_id?: number; page?: number; per_page?: number } = {}) {
@@ -263,7 +263,7 @@ export interface TarifBiaya {
   nominal: string | number;
   nominal_paket: string | number | null;
   pos?: { id: number; kode_pos: string; nama_pos: string };
-  lembaga?: { id: number; nama: string };
+  lembaga?: { id: number; nama: string; kode: string | null };
   tahun_ajaran?: { id: number; nama: string } | null;
   tahunAjaran?: { id: number; nama: string } | null;
 }

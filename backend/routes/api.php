@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\Admin\KelasController;
 use App\Http\Controllers\Api\Admin\LembagaController;
 use App\Http\Controllers\Api\Admin\PosKeuanganController;
+use App\Http\Controllers\Api\Admin\PresetTabelController;
 use App\Http\Controllers\Api\Admin\PsbBiayaController;
 use App\Http\Controllers\Api\Admin\PsbKegiatanController;
 use App\Http\Controllers\Api\Admin\ReferensiController;
@@ -60,9 +61,12 @@ Route::middleware(['auth:sanctum', 'role:super_admin|admin', 'throttle:api_user'
 
         // Data Santri (101: master profil + import PPDB massal + foto/dokumen)
         Route::get('santri', [SantriController::class, 'index']);
+        Route::patch('santri/{santri}', [SantriController::class, 'update']);
         Route::post('santri/import-lengkap', [SantriController::class, 'importLengkap'])->middleware('throttle:imports');
         Route::post('santri/{santri}/foto', [SantriController::class, 'uploadFoto']);
+        Route::get('santri/{santri}/dokumen', [SantriController::class, 'listDokumen']);
         Route::post('santri/{santri}/dokumen', [SantriController::class, 'uploadDokumen']);
+        Route::post('santri/{santri}/dokumen/{dokumen}/tidak-memiliki', [SantriController::class, 'tidakMemiliki']);
 
         // Siklus status santri (102: naik/tinggal/pindah kelas, mutasi, lulus, alumni)
         Route::post('akademik/naik-kelas', [SiklusController::class, 'naikKelasMassal']);
@@ -93,6 +97,13 @@ Route::middleware(['auth:sanctum', 'role:super_admin|admin', 'throttle:api_user'
         Route::get('dokumen-wajib', [PsbDokumenController::class, 'indexWajib']);
         Route::post('dokumen-wajib', [PsbDokumenController::class, 'storeWajib']);
         Route::delete('dokumen-wajib/{id}', [PsbDokumenController::class, 'destroyWajib']);
+
+        // Preset kolom tampilan tabel (per lembaga; global = admin pesantren).
+        Route::get('preset-tabel', [PresetTabelController::class, 'index']);
+        Route::post('preset-tabel', [PresetTabelController::class, 'store']);
+        Route::post('preset-tabel/aktif', [PresetTabelController::class, 'setAktif']);
+        Route::put('preset-tabel/{preset}', [PresetTabelController::class, 'update']);
+        Route::delete('preset-tabel/{preset}', [PresetTabelController::class, 'destroy']);
 
         // Master modul PSB: kegiatan -> gelombang -> kuota/biaya pendaftaran per lembaga,
         // plus biaya masuk/asrama per lembaga (lintas gelombang).
@@ -130,11 +141,17 @@ Route::middleware(['auth:sanctum', 'role:super_admin|admin', 'throttle:api_user'
         Route::post('calon', [PsbController::class, 'storeCalon']);
         Route::post('bulk/verifikasi', [PsbController::class, 'bulkVerifikasi']);
         Route::post('bulk/seleksi', [PsbController::class, 'bulkSeleksi']);
+        Route::post('bulk/daftar-ulang', [PsbController::class, 'bulkDaftarUlang']);
+        Route::post('bulk/undur-diri', [PsbController::class, 'bulkUndurDiri']);
+        Route::post('bulk/batalkan-fase', [PsbController::class, 'bulkBatalkanFase']);
         Route::post('bulk/acc-daftar-ulang', [PsbController::class, 'bulkAcc']);
         Route::post('bulk/hapus', [PsbController::class, 'bulkHapus']);
         Route::post('bulk/pulihkan', [PsbController::class, 'bulkPulihkan']);
         Route::post('{calon}/verifikasi', [PsbController::class, 'verifikasi']);
         Route::post('{calon}/seleksi', [PsbController::class, 'seleksi']);
+        Route::post('{calon}/daftar-ulang', [PsbController::class, 'daftarUlang']);
+        Route::post('{calon}/undur-diri', [PsbController::class, 'undurDiri']);
+        Route::post('{calon}/batalkan-fase', [PsbController::class, 'batalkanFase']);
         Route::post('{calon}/acc-daftar-ulang', [PsbController::class, 'acc']);
         Route::post('{calon}/pulihkan', [PsbController::class, 'pulihkan']);
         Route::delete('{calon}', [PsbController::class, 'destroy']);
@@ -162,7 +179,7 @@ Route::middleware(['auth:sanctum', 'role:orang_tua', 'throttle:api_user'])
     });
 
 // List dokumen calon: orang_tua pemilik + admin tenant.
-Route::middleware(['auth:sanctum', 'role:orang_tua|admin', 'throttle:api_user'])
+Route::middleware(['auth:sanctum', 'role:orang_tua|admin|super_admin', 'throttle:api_user'])
     ->prefix('portal/psb')
     ->group(function () {
         Route::get('{calon}/dokumen', [PsbDokumenController::class, 'listCalon']);

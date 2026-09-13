@@ -10,6 +10,7 @@ use App\Exports\PsbTemplateExport;
 use App\Imports\PsbImport;
 use App\Models\PsbCalonSantri;
 use App\Models\PsbGelombang;
+use App\Models\PsbKuotaBiaya;
 use App\Models\User;
 use App\Services\KeuanganService;
 use App\Services\PsbService;
@@ -47,9 +48,29 @@ class PsbController extends Controller
             $query->onlyTrashed();
         }
 
+        $page = $query->paginate($this->perPage($request));
+
+        // Tandai kebutuhan seleksi per calon (mengikuti kuota lembaga primer + tipe santri).
+        $items = collect($page->items());
+        $kuota = PsbKuotaBiaya::with('lembaga:id,is_seleksi')
+            ->whereIn('gelombang_id', $items->pluck('gelombang_id')->unique()->filter())
+            ->whereIn('lembaga_id', $items->pluck('lembaga_id')->unique()->filter())
+            ->get();
+        $page->getCollection()->transform(function (PsbCalonSantri $calon) use ($kuota) {
+            $cocok = fn (PsbKuotaBiaya $r) => (int) $r->gelombang_id === (int) $calon->gelombang_id
+                && (int) $r->lembaga_id === (int) $calon->lembaga_id;
+            $baris = $kuota->first(fn (PsbKuotaBiaya $r) => $cocok($r) && $r->tipe_santri === ($calon->tipe_santri ?? 'semua'))
+                ?? $kuota->first(fn (PsbKuotaBiaya $r) => $cocok($r) && $r->tipe_santri === 'semua');
+
+            return array_merge($calon->toArray(), [
+                'butuh_seleksi' => $baris ? $baris->butuhSeleksi() : false,
+                'butuh_pemberkasan' => $baris ? (bool) $baris->membutuhkan_pemberkasan : false,
+            ]);
+        });
+
         return response()->json([
             'pesan' => 'Antrean berhasil dimuat.',
-            'data' => $query->paginate($this->perPage($request)),
+            'data' => $page,
             'badge' => $badge,
         ]);
     }
@@ -92,14 +113,65 @@ class PsbController extends Controller
         ]);
     }
 
-    /** POST /api/psb/{calon}/acc-daftar-ulang — INSERT santri (atau reuse santri_asal_id). */
-    public function acc(PsbCalonSantri $calon, PsbService $service): JsonResponse
+    /** POST /api/psb/{calon}/undur-diri — pengunduran diri (terdaftar/daftar ulang/diterima). */
+    public function undurDiri(Request $request, PsbCalonSantri $calon, PsbService $service): JsonResponse
     {
         $this->authorizeCalon(auth()->user(), $calon);
+        $data = $request->validate(['catatan' => ['nullable', 'string']]);
+
+        return response()->json([
+            'pesan' => 'Pengunduran diri dicatat.',
+            'data' => $service->undurDiri($calon->id, auth()->id(), $data['catatan'] ?? null),
+        ]);
+    }
+
+    /** POST /api/psb/{calon}/batalkan-fase — kembali ke fase sebelumnya (log terakhir). */
+    public function batalkanFase(Request $request, PsbCalonSantri $calon, PsbService $service): JsonResponse
+    {
+        $this->authorizeCalon(auth()->user(), $calon);
+        $data = $request->validate(['catatan' => ['nullable', 'string']]);
+
+        $hasil = $service->batalkanFase($calon->id, auth()->id(), $data['catatan'] ?? null);
+
+        return response()->json([
+            'pesan' => 'Fase dibatalkan (kembali ke fase sebelumnya).',
+            'data' => $hasil,
+        ]);
+    }
+
+    /** POST /api/psb/{calon}/daftar-ulang — masuk fase daftar ulang (lembaga ber-seleksi wajib kirim lolos). */
+    public function daftarUlang(Request $request, PsbCalonSantri $calon, PsbService $service): JsonResponse
+    {
+        $this->authorizeCalon(auth()->user(), $calon);
+        $data = $request->validate([
+            'lolos' => ['nullable', 'boolean'],
+            'catatan' => ['nullable', 'string'],
+        ]);
+
+        $hasil = $service->masukDaftarUlang(
+            $calon->id,
+            auth()->id(),
+            array_key_exists('lolos', $data) ? (bool) $data['lolos'] : null,
+            $data['catatan'] ?? null,
+        );
+
+        return response()->json([
+            'pesan' => $hasil->status_pendaftaran === 'tidak_lolos'
+                ? 'Calon tidak lolos seleksi.'
+                : 'Calon masuk fase daftar ulang.',
+            'data' => $hasil,
+        ]);
+    }
+
+    /** POST /api/psb/{calon}/acc-daftar-ulang — INSERT santri (atau reuse santri_asal_id). */
+    public function acc(Request $request, PsbCalonSantri $calon, PsbService $service): JsonResponse
+    {
+        $this->authorizeCalon(auth()->user(), $calon);
+        $data = $request->validate(['nis' => ['nullable', 'string', 'max:10']]);
 
         return response()->json([
             'pesan' => 'Daftar ulang disetujui.',
-            'data' => $service->accDaftarUlang($calon->id, auth()->id()),
+            'data' => $service->accDaftarUlang($calon->id, auth()->id(), $data['nis'] ?? null),
         ], 201);
     }
 
@@ -158,13 +230,56 @@ class PsbController extends Controller
         });
     }
 
-    /** POST /api/psb/bulk/acc-daftar-ulang */
+    /** POST /api/psb/bulk/daftar-ulang */
+    public function bulkDaftarUlang(Request $request, PsbService $service): JsonResponse
+    {
+        $data = $request->validate(array_merge($this->aturanBulkIds(), [
+            'lolos' => ['nullable', 'boolean'],
+            'catatan' => ['nullable', 'string'],
+        ]));
+
+        $lolos = array_key_exists('lolos', $data) ? (bool) $data['lolos'] : null;
+
+        return $this->loopBulk($data['ids'], function (PsbCalonSantri $calon) use ($service, $lolos, $data) {
+            $service->masukDaftarUlang($calon->id, auth()->id(), $lolos, $data['catatan'] ?? null);
+        });
+    }
+
+    /** POST /api/psb/bulk/undur-diri */
+    public function bulkUndurDiri(Request $request, PsbService $service): JsonResponse
+    {
+        $data = $request->validate(array_merge($this->aturanBulkIds(), [
+            'catatan' => ['nullable', 'string'],
+        ]));
+
+        return $this->loopBulk($data['ids'], function (PsbCalonSantri $calon) use ($service, $data) {
+            $service->undurDiri($calon->id, auth()->id(), $data['catatan'] ?? null);
+        });
+    }
+
+    /** POST /api/psb/bulk/batalkan-fase */
+    public function bulkBatalkanFase(Request $request, PsbService $service): JsonResponse
+    {
+        $data = $request->validate(array_merge($this->aturanBulkIds(), [
+            'catatan' => ['nullable', 'string'],
+        ]));
+
+        return $this->loopBulk($data['ids'], function (PsbCalonSantri $calon) use ($service, $data) {
+            $service->batalkanFase($calon->id, auth()->id(), $data['catatan'] ?? null);
+        });
+    }
+
+    /** POST /api/psb/bulk/acc-daftar-ulang — `nis` opsional: {"<id>": "NIS"} per calon. */
     public function bulkAcc(Request $request, PsbService $service): JsonResponse
     {
-        $data = $this->validasiBulkIds($request);
+        $data = $request->validate(array_merge($this->aturanBulkIds(), [
+            'nis' => ['nullable', 'array'],
+            'nis.*' => ['nullable', 'string', 'max:10'],
+        ]));
+        $nisPer = $data['nis'] ?? [];
 
-        return $this->loopBulk($data['ids'], function (PsbCalonSantri $calon) use ($service) {
-            $service->accDaftarUlang($calon->id, auth()->id());
+        return $this->loopBulk($data['ids'], function (PsbCalonSantri $calon) use ($service, $nisPer) {
+            $service->accDaftarUlang($calon->id, auth()->id(), $nisPer[$calon->id] ?? null);
         });
     }
 
@@ -249,8 +364,9 @@ class PsbController extends Controller
         $rows = PsbGelombang::with('kegiatan:id,nama,tahun_ajaran_id')
             ->when($request->filled('kegiatan_id'), fn ($q) => $q->where('psb_kegiatan_id', $request->integer('kegiatan_id')))
             ->when($request->filled('tahun_ajaran_id'), fn ($q) => $q->whereHas('kegiatan', fn ($qq) => $qq->where('tahun_ajaran_id', $request->integer('tahun_ajaran_id'))))
-            ->orderByDesc('id')
-            ->get(['id', 'psb_kegiatan_id', 'nomor', 'nama', 'tgl_buka', 'tgl_tutup', 'is_aktif'])
+            ->orderBy('psb_kegiatan_id')
+            ->orderBy('nomor')
+            ->get(['id', 'psb_kegiatan_id', 'nomor', 'nama', 'tgl_buka', 'tgl_tutup'])
             ->map(fn (PsbGelombang $g) => [
                 'id' => $g->id,
                 'psb_kegiatan_id' => $g->psb_kegiatan_id,
@@ -258,7 +374,6 @@ class PsbController extends Controller
                 'nama' => $g->nama,
                 'tgl_buka' => $g->tgl_buka?->toDateString(),
                 'tgl_tutup' => $g->tgl_tutup?->toDateString(),
-                'is_aktif' => $g->is_aktif,
                 'kegiatan' => $g->kegiatan,
             ]);
 

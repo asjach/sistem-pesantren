@@ -252,7 +252,7 @@ Tanpa kolom tenant — tenant = pivot `user_lembaga`.
 - `nama_singkat`: string [null]
 - `nik`: string(16) [null]
 - `nisn`: string(10) [null]
-- `nis`: string [null] — NIS aktif terakhir (kuitansi/rapor/leger/portal)
+- `nis`: string [null, UNIQUE] — NIS aktif terakhir (kuitansi/rapor/leger/portal); wajib unik juga terhadap arsip `riwayat_belajar.nis` santri lain (dicek aplikasi)
 - `tmp_lahir`: string [null] — kamus ref_tmp_lahir
 - `tgl_lahir`: date [null]
 - `jk`: enum(L|P)
@@ -388,9 +388,8 @@ Tanpa kolom tenant — tenant = pivot `user_lembaga`.
 - `nama`: string — misal: 'Gelombang 1 2026/2027'
 - `tgl_buka`: date [null]
 - `tgl_tutup`: date [null]
-- `is_aktif`: bool [default true]
 - `created_at`, `updated_at`
-- Aturan: rentang gelombang dalam satu kegiatan tidak boleh tumpang tindih; gelombang aktif diisi otomatis saat pendaftaran (pendaftar tidak memilih)
+- Aturan: rentang gelombang dalam satu kegiatan tidak boleh tumpang tindih; gelombang untuk pendaftaran publik dipilih otomatis MURNI dari tanggal (`tgl_buka <= hari ini <= tgl_tutup`) — pendaftar tidak memilih, tidak ada kolom status
 
 ### `psb_biaya_lembaga`
 - `id` PK
@@ -494,7 +493,7 @@ Tanpa kolom tenant — tenant = pivot `user_lembaga`.
 - `email_ortu`: string [null]
 - `telp_ortu`: string [null]
 - `foto_url`: string [null]
-- `status_pendaftaran`: string [default 'baru'] — baru,terverifikasi,lolos,tidak_lolos,pemberkasan,ajukan_daftar_ulang,daftar_ulang,ditolak,waiting_list (tanpa status seleksi)
+- `status_pendaftaran`: string [default 'baru'] — baru,terverifikasi,lolos,tidak_lolos,pemberkasan,ajukan_daftar_ulang,daftar_ulang,mengundurkan_diri,ditolak,waiting_list (tanpa status seleksi)
 - `is_pendaftaran_paid`: bool [default false]
 - `is_daftar_ulang_paid`: bool [default false]
 - `is_duplikat_kontak`: bool [default false]
@@ -527,20 +526,23 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 - `santri_id`: FK → santri [null, cascade]
 - `psb_calon_santri_id`: FK → psb_calon_santri [null, cascade]
 - `jenis_dokumen_santri`: string [null] — ref_jenis_dokumen_santri
-- `path_file`: string
+- `path_file`: string [null] — null = baris checklist (belum ada file)
 - `status_verifikasi`: enum(menunggu|valid|ditolak) [default 'menunggu']
+- `tidak_memiliki`: bool [default false] — centang "tidak memiliki dokumen" (penekanan; tidak menahan proses)
 - `catatan`: text [null]
 - `created_at`, `updated_at`
 - INDEX(`santri_id`, `jenis_dokumen_santri`)
 - INDEX(`psb_calon_santri_id`, `jenis_dokumen_santri`)
+- Alur: file calon PINDAH ke santri saat ACC; baris checklist (path null) dibuat otomatis dari ketentuan kegiatan × lembaga (wajib & opsional)
 
 ### `dokumen_wajib_lembaga`
 - `id` PK
+- `psb_kegiatan_id`: FK → psb_kegiatan [cascade] — syarat diikat ke satu kegiatan PSB
 - `lembaga_id`: FK → lembaga [cascade]
 - `jenis_dokumen_santri`: string — ref_jenis_dokumen_santri
-- `is_wajib`: bool [default true]
+- `is_wajib`: bool [default true] — penekanan saja, TIDAK menahan pengajuan daftar ulang
 - `created_at`, `updated_at`
-- UNIQUE(`lembaga_id`, `jenis_dokumen_santri`)
+- UNIQUE(`psb_kegiatan_id`, `lembaga_id`, `jenis_dokumen_santri`)
 
 ### `psb_log_status`
 - `id` PK
@@ -550,6 +552,27 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 - `oleh_user_id`: FK → users [null, nullOnDelete]
 - `catatan`: text [null]
 - `created_at`, `updated_at`
+
+## BLOK 3b — Preset Tampilan Tabel (lintas modul)
+
+### `preset_tabel`
+- `id` PK
+- `lembaga_id`: FK → lembaga [null, cascade] — preset milik satu lembaga. Saat membuat, admin dapat men-generate ke satu/beberapa lembaga sekaligus; tiap lembaga dapat mengedit salinannya. `null` = sisa data lama (tidak dibuat lagi).
+- `table_key`: string(60) — kunci tabel (mis. `psb`, `kegiatan_psb_dokumen`)
+- `nama`: string(50) — nama preset (mis. 'default', 'nama saja'); 'lengkap' dipakai bawaan sistem
+- `kolom`: json — array key kolom yang ditampilkan (mis. `["nama","lembaga"]`)
+- `dibuat_oleh`: FK → users [null, nullOnDelete]
+- `created_at`, `updated_at`
+- INDEX(`lembaga_id`, `table_key`)
+- Unik `(lembaga_id, table_key, nama)` dicek di aplikasi (MySQL mengizinkan banyak NULL)
+
+### `preset_tabel_aktif`
+- `id` PK
+- `user_id`: FK → users [cascade]
+- `table_key`: string(60)
+- `preset_id`: FK → preset_tabel [null, cascade] — null = Lengkap
+- `created_at`, `updated_at`
+- UNIQUE(`user_id`, `table_key`) — ingatan pilihan preset terakhir per user per tabel
 
 ## BLOK 4 — Keuangan (Modul 103 Keuangan)
 

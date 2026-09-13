@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
-import PageHeader, { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
+import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import {
   Dialog,
   DialogContent,
@@ -150,7 +150,6 @@ export default function PengajuanBiodataPage() {
 
   return (
     <div className={PAGE_SHELL}>
-      <PageHeader titleId="title_pengajuan_biodata" title="Pengajuan Biodata" />
       <ErrorNotice>{err}</ErrorNotice>
       <ExcelTable
         tableKey="pengajuan_biodata"

@@ -128,7 +128,7 @@ class PsbService
             if (empty($data['gelombang_id'])) {
                 $gelombangAktif = $this->gelombang->gelombangAktif();
                 if (! $gelombangAktif) {
-                    throw ValidationException::withMessages(['gelombang_id' => 'Pendaftaran sedang ditutup: tidak ada gelombang aktif.']);
+                    throw ValidationException::withMessages(['gelombang_id' => 'Pendaftaran sedang ditutup: tidak ada gelombang yang sedang dibuka.']);
                 }
                 $data['gelombang_id'] = $gelombangAktif->id;
             }
@@ -140,7 +140,7 @@ class PsbService
 
             $kandidat = PsbCalonSantri::where('gelombang_id', $data['gelombang_id'])
                 ->where('nik', $data['nik'])
-                ->whereNotIn('status_pendaftaran', ['ditolak', 'tidak_lolos'])
+                ->whereNotIn('status_pendaftaran', ['ditolak', 'tidak_lolos', 'mengundurkan_diri'])
                 ->get(['nama_lengkap', 'tgl_lahir']);
 
             if (! $isLanjutan) {
@@ -353,6 +353,81 @@ class PsbService
         return $this->pindahStatus($id, $lolos ? 'lolos' : 'tidak_lolos', $adminId, ['terverifikasi'], $catatan);
     }
 
+    /**
+     * Admin memindahkan calon ke fase daftar ulang: terverifikasi/lolos -> pemberkasan.
+     * Lembaga ber-seleksi wajib menyertakan $lolos; false -> tidak_lolos.
+     */
+    public function masukDaftarUlang(int $id, int $adminId, ?bool $lolos = null, ?string $catatan = null): PsbCalonSantri
+    {
+        $calon = PsbCalonSantri::with('gelombang')->findOrFail($id);
+        $kuotaBiaya = $this->kuotaUntuk((int) $calon->gelombang_id, (int) $calon->lembaga_id, $calon->tipe_santri);
+        $butuhSeleksi = $kuotaBiaya ? $kuotaBiaya->butuhSeleksi() : false;
+
+        if ($butuhSeleksi) {
+            if ($lolos === null) {
+                throw ValidationException::withMessages(['lolos' => 'Lembaga ini memerlukan konfirmasi seleksi (lolos/tidak).']);
+            }
+            if (! $lolos) {
+                return $this->pindahStatus($id, 'tidak_lolos', $adminId, ['terverifikasi', 'lolos'], $catatan);
+            }
+        }
+
+        return $this->pindahStatus($id, 'pemberkasan', $adminId, ['terverifikasi', 'lolos'], $catatan);
+    }
+
+    /** Pengunduran diri: boleh dari fase terdaftar, daftar ulang, dan diterima.
+     *  Bila calon sudah diterima lewat pendaftaran INI (santri dibuat saat ACC),
+     *  data santri + arsip riwayatnya ditarik kembali — calon dianggap tidak pernah
+     *  menjadi santri. Pendaftaran lanjutan (santri lama) tidak menghapus santri. */
+    public function undurDiri(int $id, int $adminId, ?string $catatan = null): PsbCalonSantri
+    {
+        return DB::transaction(function () use ($id, $adminId, $catatan) {
+            $hasil = $this->pindahStatus($id, 'mengundurkan_diri', $adminId, [
+                'terverifikasi', 'lolos', 'pemberkasan', 'ajukan_daftar_ulang', 'daftar_ulang',
+            ], $catatan);
+
+            if ($hasil->santri_id && ! $hasil->santri_asal_id) {
+                // Lindungi riwayat keuangan: pembayaran tidak boleh ikut terhapus/lepas.
+                $adaBayar = DB::table('pembayaran')
+                    ->where('psb_calon_santri_id', $hasil->id)
+                    ->orWhere('santri_id', $hasil->santri_id)
+                    ->exists();
+                if ($adaBayar) {
+                    throw ValidationException::withMessages(['pembayaran' => 'Santri sudah memiliki pembayaran; selesaikan di Keuangan sebelum mengundurkan diri.']);
+                }
+                // Tagihan yang belum dibayar dibatalkan (santri batal diterima).
+                Tagihan::where('santri_id', $hasil->santri_id)
+                    ->where('nominal_terbayar', '<=', 0)
+                    ->update(['status' => 'dibatalkan']);
+                Tagihan::where('psb_calon_santri_id', $hasil->id)
+                    ->where('nominal_terbayar', '<=', 0)
+                    ->update(['status' => 'dibatalkan']);
+
+                // Hapus arsip riwayat + master santri (relasi lain ikut FK cascade).
+                RiwayatBelajar::where('santri_id', $hasil->santri_id)->delete();
+                Santri::where('id', $hasil->santri_id)->delete();
+                $hasil->forceFill(['santri_id' => null])->save();
+            }
+
+            return $hasil->fresh();
+        });
+    }
+
+    /** Batalkan fase: kembali ke status sebelumnya (log terakhir). Fase diterima tidak bisa dibatalkan. */
+    public function batalkanFase(int $id, int $adminId, ?string $catatan = null): PsbCalonSantri
+    {
+        $calon = PsbCalonSantri::findOrFail($id);
+        if ($calon->status_pendaftaran === 'daftar_ulang') {
+            throw ValidationException::withMessages(['status' => 'Fase diterima tidak bisa dibatalkan (santri sudah dibuat).']);
+        }
+        $log = PsbLogStatus::where('psb_calon_santri_id', $id)->latest('id')->first();
+        if (! $log || ! $log->dari) {
+            throw ValidationException::withMessages(['status' => 'Tidak ada fase sebelumnya untuk dibatalkan.']);
+        }
+
+        return $this->pindahStatus($id, $log->dari, $adminId, [$calon->status_pendaftaran], $catatan);
+    }
+
     public function lengkapiDaftarUlang(int $id, array $data): PsbCalonSantri
     {
         $calon = PsbCalonSantri::findOrFail($id);
@@ -387,41 +462,32 @@ class PsbService
         if (! in_array($calon->status_pendaftaran, $bolehDari, true)) {
             throw ValidationException::withMessages(['status' => 'Belum memenuhi syarat ajukan daftar ulang.']);
         }
-        $lembagaIds = $calon->lembagaDetail()->pluck('lembaga_id');
-        if ($lembagaIds->isEmpty()) {
-            $lembagaIds = collect([$calon->lembaga_id]);
-        }
-        $wajib = DokumenWajibLembaga::whereIn('lembaga_id', $lembagaIds)
-            ->where('is_wajib', true)->pluck('jenis_dokumen_santri')->unique()->values()->all();
-        if ($wajib) {
-            $ada = DokumenSantri::where('psb_calon_santri_id', $calon->id)
-                ->whereIn('jenis_dokumen_santri', $wajib)->pluck('jenis_dokumen_santri')->all();
-            $kurang = array_values(array_diff($wajib, $ada));
-            if ($kurang) {
-                throw ValidationException::withMessages(['dokumen' => 'Dokumen wajib belum diupload: ' . implode(', ', $kurang)]);
-            }
-        }
 
         return $this->pindahStatus($id, 'ajukan_daftar_ulang', null, $bolehDari);
     }
 
-    public function accDaftarUlang(int $id, int $adminId): Santri
+    public function accDaftarUlang(int $id, int $adminId, ?string $nis = null): Santri
     {
-        return DB::transaction(function () use ($id, $adminId) {
+        $nis = $nis !== null && trim($nis) !== '' ? trim($nis) : null;
+
+        return DB::transaction(function () use ($id, $adminId, $nis) {
             $calon = PsbCalonSantri::where('id', $id)->lockForUpdate()->firstOrFail();
-            if ($calon->status_pendaftaran !== 'ajukan_daftar_ulang') {
-                throw ValidationException::withMessages(['status' => 'Hanya status ajukan_daftar_ulang yang bisa di-ACC.']);
+            if (! in_array($calon->status_pendaftaran, ['pemberkasan', 'ajukan_daftar_ulang'], true)) {
+                throw ValidationException::withMessages(['status' => 'Hanya status pemberkasan/ajukan_daftar_ulang yang bisa di-ACC.']);
             }
             // Kuota sudah dikunci saat INPUT (kuotaPenuh), di sini tinggal reuse/buat santri.
             $santri = $calon->santri_asal_id
                 ? Santri::where('id', $calon->santri_asal_id)->lockForUpdate()->firstOrFail()
                 : null;
+            if ($nis !== null && Santri::nisDipakai($nis, $santri?->id)) {
+                throw ValidationException::withMessages(['nis' => 'NIS sudah dipakai santri lain.']);
+            }
             if (! $santri) {
                 $payload = ['lembaga_id' => $calon->lembaga_id, 'status_global' => true];
                 foreach (self::FIELD_MAP as $dari => $ke) {
                     $payload[$ke] = $calon->{$dari};
                 }
-                $payload['nis'] = null; // NIS diisi belakangan via import Excel
+                $payload['nis'] = $nis; // opsional: diisi saat ACC, atau menyusul via import Excel
                 $payload['kelas_id'] = null; // penempatan kelas menyusul
                 $santri = Santri::create($payload);
             } else {
@@ -432,6 +498,9 @@ class PsbService
                     }
                 }
                 $payload['lembaga_id'] = $calon->lembaga_id;
+                if ($nis !== null) {
+                    $payload['nis'] = $nis;
+                }
                 $santri->update($payload);
             }
             // Riwayat belajar menyusul boleh null kelas
@@ -441,10 +510,14 @@ class PsbService
                 }
                 foreach ($calon->lembagaDetail()->get() as $detail) {
                     [$awalAcc, $tingkatAcc] = $this->awalDanTingkat($calon, $detail);
-                    RiwayatBelajar::firstOrCreate(
+                    $riwayat = RiwayatBelajar::firstOrCreate(
                         ['santri_id' => $santri->id, 'tahun_ajaran_id' => $calon->tahun_ajaran_id, 'lembaga_id' => $detail->lembaga_id, 'semester' => '1'],
-                        ['status_awal' => $awalAcc, 'tingkat' => $tingkatAcc, 'status_akhir' => 'aktif', 'is_aktif' => true, 'tgl_masuk' => $calon->tanggal_masuk ?? null]
+                        ['nis' => $nis, 'status_awal' => $awalAcc, 'tingkat' => $tingkatAcc, 'status_akhir' => 'aktif', 'is_aktif' => true, 'tgl_masuk' => $calon->tanggal_masuk ?? null]
                     );
+                    // Riwayat sudah ada (mis. pendaftaran lanjutan) & NIS diisi saat ACC → perbarui arsipnya.
+                    if ($nis !== null && $riwayat->nis !== $nis) {
+                        $riwayat->update(['nis' => $nis]);
+                    }
                 }
             }
             // Backfill pembayaran: tagihan/pembayaran calon ikut santri_id (audit psb_calon_santri_id tetap)
@@ -453,6 +526,33 @@ class PsbService
             // PINDAH dokumen: milik santri penuh (jejak asal via santri_id hasil + psb_log_status).
             DokumenSantri::where('psb_calon_santri_id', $calon->id)
                 ->update(['santri_id' => $santri->id, 'psb_calon_santri_id' => null]);
+
+            // Checklist dokumen dari ketentuan kegiatan (wajib & opsional, tanpa file) — penekanan saja,
+            // tidak menahan proses. Centang "tidak memiliki" tersedia di UI.
+            $kegiatanId = $calon->gelombang?->psb_kegiatan_id;
+            if ($kegiatanId) {
+                $lembagaIds = $calon->lembagaDetail()->pluck('lembaga_id');
+                if ($lembagaIds->isEmpty()) {
+                    $lembagaIds = collect([$calon->lembaga_id]);
+                }
+                $syarat = DokumenWajibLembaga::where('psb_kegiatan_id', $kegiatanId)
+                    ->whereIn('lembaga_id', $lembagaIds)
+                    ->pluck('jenis_dokumen_santri')->unique();
+                $sudah = DokumenSantri::where('santri_id', $santri->id)
+                    ->whereNotNull('jenis_dokumen_santri')
+                    ->pluck('jenis_dokumen_santri')->all();
+                foreach ($syarat as $jenis) {
+                    if (! in_array($jenis, $sudah, true)) {
+                        DokumenSantri::create([
+                            'santri_id' => $santri->id,
+                            'jenis_dokumen_santri' => $jenis,
+                            'path_file' => null,
+                            'status_verifikasi' => 'menunggu',
+                            'tidak_memiliki' => false,
+                        ]);
+                    }
+                }
+            }
 
             // Tagihan masuk/daftar ulang (nominal dari psb_kuota_biaya.nominal_masuk, boleh 0)
             $this->keuangan->createTagihanMasukPsb($calon, $santri);
@@ -474,7 +574,7 @@ class PsbService
         $targetIds = $targetLembaga->pluck('id');
 
         $aktifLain = PsbCalonSantri::where('nik', $data['nik'])
-            ->whereNotIn('status_pendaftaran', ['ditolak', 'tidak_lolos', 'daftar_ulang'])
+            ->whereNotIn('status_pendaftaran', ['ditolak', 'tidak_lolos', 'mengundurkan_diri', 'daftar_ulang'])
             ->with('lembagaDetail.lembaga:id,kode,kelompok_psb')->get();
         $existingIds = $aktifLain->flatMap(fn ($c) => $c->lembagaDetail->pluck('lembaga_id'))->unique();
 

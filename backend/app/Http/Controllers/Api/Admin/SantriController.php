@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\ImportSantriRequest;
 use App\Imports\SantriLengkapImport;
 use App\Models\DokumenSantri;
+use App\Models\RiwayatBelajar;
 use App\Models\Santri;
 use App\Services\RefService;
 use Illuminate\Http\JsonResponse;
@@ -31,6 +32,54 @@ class SantriController extends Controller
             ->paginate(20);
 
         return response()->json($santri);
+    }
+
+    /** PATCH /api/admin/santri/{santri} — edit sel inline (partial update).
+     *  Seluruh kolom profil boleh diubah (jalur utama pengisian; import = alternatif).
+     *  NIS wajib unik; arsip riwayat aktif ikut disinkronkan saat NIS berubah. */
+    public function update(Request $request, Santri $santri): JsonResponse
+    {
+        $this->authorize('update', $santri);
+
+        $aturan = [];
+        foreach (Santri::KOLOM_PROFIL as $kolom) {
+            $aturan[$kolom] = ['sometimes', 'nullable', 'string', 'max:255'];
+        }
+        $aturan['nama_lengkap'] = ['sometimes', 'required', 'string', 'max:255'];
+        $aturan['alamat'] = ['sometimes', 'nullable', 'string', 'max:500'];
+        $aturan['nik'] = $aturan['ayah_nik'] = $aturan['ibu_nik'] = $aturan['wali_nik'] = ['sometimes', 'nullable', 'digits:16'];
+        $aturan['no_kk'] = ['sometimes', 'nullable', 'digits:16'];
+        $aturan['nisn'] = ['sometimes', 'nullable', 'digits:10'];
+        $aturan['nis'] = ['sometimes', 'nullable', 'string', 'max:10'];
+        $aturan['jk'] = ['sometimes', 'nullable', 'in:L,P'];
+        $aturan['tipe_santri'] = ['sometimes', 'nullable', 'in:asrama,non_asrama'];
+        $aturan['anak_ke'] = $aturan['j_saudara'] = ['sometimes', 'nullable', 'integer', 'min:0'];
+        $aturan['email_santri'] = ['sometimes', 'nullable', 'email', 'max:255'];
+        $aturan['no_hp_santri'] = $aturan['ayah_telp'] = $aturan['ibu_telp'] = $aturan['wali_telp'] = ['sometimes', 'nullable', 'string', 'max:20'];
+        $aturan['rt'] = $aturan['rw'] = ['sometimes', 'nullable', 'string', 'max:3'];
+        foreach (['tgl_lahir', 'ayah_tgl_lahir', 'ibu_tgl_lahir', 'wali_tgl_lahir', 'tanggal_masuk'] as $k) {
+            $aturan[$k] = ['sometimes', 'nullable', 'date'];
+        }
+
+        $data = $request->validate($aturan);
+
+        if ($data === []) {
+            return response()->json(['pesan' => 'Tidak ada perubahan.', 'data' => $santri->fresh()]);
+        }
+
+        if (array_key_exists('nis', $data) && Santri::nisDipakai($data['nis'], $santri->id)) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['nis' => 'NIS sudah dipakai santri lain.']);
+        }
+
+        $santri->update($data);
+
+        // Mirror NIS ke baris riwayat yang masih aktif (arsip lama dibiarkan historis).
+        if (array_key_exists('nis', $data)) {
+            RiwayatBelajar::where('santri_id', $santri->id)->where('is_aktif', true)
+                ->update(['nis' => $data['nis']]);
+        }
+
+        return response()->json(['pesan' => 'Data santri diperbarui.', 'data' => $santri->fresh()]);
     }
 
     // Upload foto profil santri. Storage: storage/app/santri/foto/* ; DB hanya path di santri.foto_url.
@@ -73,14 +122,54 @@ class SantriController extends Controller
             abort(422, 'Jenis dokumen tidak aktif di lembaga ini.');
         }
         $path = $request->file('file')->store('santri/dokumen', 'local');
-        $dok = DokumenSantri::create([
-            'santri_id' => $santri->id,
-            'jenis_dokumen_santri' => $data['jenis_dokumen_santri'],
-            'path_file' => $path,
-            'catatan' => $data['catatan'] ?? null,
-        ]);
+        $dok = DokumenSantri::where('santri_id', $santri->id)
+            ->where('jenis_dokumen_santri', $data['jenis_dokumen_santri'])
+            ->whereNull('path_file')
+            ->latest('id')
+            ->first();
+        if ($dok) {
+            $dok->update([
+                'path_file' => $path,
+                'catatan' => $data['catatan'] ?? $dok->catatan,
+                'tidak_memiliki' => false,
+            ]);
+        } else {
+            $dok = DokumenSantri::create([
+                'santri_id' => $santri->id,
+                'jenis_dokumen_santri' => $data['jenis_dokumen_santri'],
+                'path_file' => $path,
+                'catatan' => $data['catatan'] ?? null,
+            ]);
+        }
 
         return response()->json(['pesan' => 'Dokumen diupload.', 'data' => $dok], 201);
+    }
+
+    // Daftar dokumen santri (checklist termasuk baris tanpa file).
+    public function listDokumen(Request $request, Santri $santri): JsonResponse
+    {
+        $this->authorize('view', $santri);
+        $this->authorizeLembaga($request->user(), (int) $santri->lembaga_id);
+
+        return response()->json([
+            'pesan' => 'Dokumen santri berhasil dimuat.',
+            'data' => DokumenSantri::where('santri_id', $santri->id)->latest('id')->get(),
+        ]);
+    }
+
+    // Tandai "tidak memiliki dokumen" (tidak menghalangi proses apa pun).
+    public function tidakMemiliki(Request $request, Santri $santri, DokumenSantri $dokumen): JsonResponse
+    {
+        $this->authorize('update', $santri);
+        $this->authorizeLembaga($request->user(), (int) $santri->lembaga_id);
+
+        if ((int) $dokumen->santri_id !== (int) $santri->id) {
+            abort(404, 'Dokumen tidak tertaut ke santri ini.');
+        }
+        $data = $request->validate(['tidak_memiliki' => ['required', 'boolean']]);
+        $dokumen->update(['tidak_memiliki' => $data['tidak_memiliki']]);
+
+        return response()->json(['pesan' => 'Status dokumen diperbarui.', 'data' => $dokumen->fresh()]);
     }
 
     // Import PPDB massal via Excel/CSV

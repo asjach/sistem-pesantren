@@ -17,7 +17,7 @@ class TarifBiayaController extends Controller
 
     public function index(Request $request)
     {
-        $query = TarifBiaya::with(['pos:id,kode_pos,nama_pos', 'lembaga:id,nama', 'tahunAjaran:id,nama']);
+        $query = TarifBiaya::with(['pos:id,kode_pos,nama_pos', 'lembaga:id,nama,kode', 'tahunAjaran:id,nama']);
 
         if ($request->filled('pos_keuangan_id')) {
             $query->where('pos_keuangan_id', $request->input('pos_keuangan_id'));

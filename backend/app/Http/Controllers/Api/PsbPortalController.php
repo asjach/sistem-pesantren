@@ -65,7 +65,7 @@ class PsbPortalController extends Controller
         if (empty($data['gelombang_id'])) {
             $aktif = $gelombang->gelombangAktif();
             if (! $aktif) {
-                throw ValidationException::withMessages(['gelombang_id' => 'Pendaftaran sedang ditutup: tidak ada gelombang aktif.']);
+                throw ValidationException::withMessages(['gelombang_id' => 'Pendaftaran sedang ditutup: tidak ada gelombang yang sedang dibuka.']);
             }
             $data['gelombang_id'] = $aktif->id;
         }

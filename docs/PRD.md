@@ -226,7 +226,7 @@ Aturan terkunci:
 
 | ID | Modul (kode + nama) | Aturan | Input, Proses, Output |
 |---|---|---|---|
-| 4.1 | 100 PSB Penerimaan | Master kegiatan → gelombang (anti-overlap, otomatis saat daftar) → kuota/biaya pendaftaran per lembaga; biaya masuk & asrama per lembaga; 2-jalur via `lembaga.is_seleksi` (override null ikut default); kuota pool gabungan per kelompok kunci saat input (penuh ke waiting_list); paket MI-MD opsional (1 calon + baris `psb_calon_lembaga`, primer MI, non-asrama, 1 tagihan) | Input: NIK wajib (fiktif boleh), dokumen wajib per lembaga. Proses: cek-NIK ke daftar ke verifikasi ke seleksi opsional ke pemberkasan ke lengkapi ke ACC tunggal; aksi massal verifikasi/seleksi/ACC/hapus (soft delete + restore). Output: nomor `PSB_*`, `santri`, `riwayat_belajar` aktif (1 per lembaga), `tagihan` masuk + asrama |
+| 4.1 | 100 PSB Penerimaan | Master kegiatan → gelombang (anti-overlap, otomatis saat daftar) → kuota/biaya pendaftaran per lembaga; biaya masuk & asrama per lembaga; 2-jalur via `lembaga.is_seleksi` (override null ikut default); kuota pool gabungan per kelompok kunci saat input (penuh ke waiting_list); paket MI-MD opsional (1 calon + baris `psb_calon_lembaga`, primer MI, non-asrama, 1 tagihan) | Input: NIK wajib (fiktif boleh), dokumen wajib per lembaga. Proses: cek-NIK ke daftar ke verifikasi ke seleksi opsional ke pemberkasan ke lengkapi ke ACC tunggal; aksi massal verifikasi/masuk daftar ulang/ACC/undur diri/hapus (soft delete + restore). Output: nomor `PSB_*`, `santri`, `riwayat_belajar` aktif (1 per lembaga), `tagihan` masuk + asrama |
 | 4.2 | 101 Santri Master, 102 Siklus Santri | `id` stabil; `is_aktif` true iff aktif; `status_global` recalc; mutasi/lulus per lembaga | Input: biodata + `kelas`. Proses: salin ganjil ke genap; naik massal per-item (`kelas_id` null lalu penempatan); pindah/set validasi se-lembaga/tahun/tingkat. Output: `riwayat_belajar`, `mutasi_keluar`, `alumni` |
 | 4.3 | 103 Keuangan G1 dasar + G2 mobile | Idempoten `(santri,pos,periode)`; bayar `total==sum`, kunci baris; kuitansi retry; void reversal | Input G2 disederhanakan (tombol besar). Proses: generate ke bayar terkunci ke kuitansi ke void bila perlu. Output: `tagihan`, `pembayaran`, `jurnal_kas`, kuitansi |
 | 4.4 | 203 Portal Wali G3 | Daftar + history bayar + pengajuan (1 aktif/santri); envelope `pesan/data` | Input: akun `orang_tua` via `wali_santri_relasi`. Proses: list anak ke detail. Output: history, pengajuan |
@@ -621,8 +621,8 @@ Status: ✅ migrated + seeded (agama 6, tingkat 12, tugas 2, …).
 #### Phase 1 — Core operations 🟡 (spec locked, not implemented)
 
 **100 PSB (new-student admission).** Master kegiatan → gelombang (tanggal shared,
-anti-overlap, satu kegiatan aktif; gelombang aktif diisi otomatis — pendaftar tidak
-memilih) → kuota/biaya pendaftaran per lembaga; biaya masuk (paket) & asrama per
+anti-overlap, satu kegiatan aktif; tanpa status gelombang — gerbang pendaftaran publik
+otomatis murni dari tanggal buka/tutup) → kuota/biaya pendaftaran per lembaga; biaya masuk (paket) & asrama per
 lembaga via `psb_biaya_lembaga` (`ASRAMA` pos terpisah saat ACC). Two flexible
 paths via `membutuhkan_seleksi` (direct vs selection); combined pool quota per
 `kelompok_psb` (combo khusus MI/MD; pool value on the primary lembaga's
@@ -633,8 +633,27 @@ dedup (NIK may be fictitious); 9 statuses (no `seleksi`); `no_pendaftaran` race 
 catch 1062 regenerate (max 3×). Bulk actions admin: verifikasi, seleksi,
 ACC, hapus; hapus = soft delete (block bila ada pembayaran; tagihan `PSB_REG`
 belum bayar → `dibatalkan`) + restore.
-Stories: public daftar (+paket) via gelombang aktif, admin verify/ACC/hapus,
-wali portal lengkapi/ajukan-daftar-ulang, TU verifies `dokumen_santri`. Import
+Stories: public daftar (+paket) via gelombang yang sedang dibuka (tanggal), admin verify/ACC/hapus,
+wali portal lengkapi/ajukan-daftar-ulang, TU verifies `dokumen_santri`. Alur status admin:
+`baru` → verifikasi → `terverifikasi` → tombol "Masuk daftar ulang" (lembaga ber-seleksi
+meminta konfirmasi lolos/tidak lolos; tidak lolos → `tidak_lolos`) → status `pemberkasan` →
+wali ajukan daftar ulang (`ajukan_daftar_ulang`) **atau** admin boleh langsung ACC dari
+`pemberkasan` → status `daftar_ulang` + santri dibuat (NIS opsional diisi saat ACC —
+tunggal atau massal per calon — dan ikut tersimpan ke `santri.nis` + `riwayat_belajar.nis`;
+boleh dikosongkan lalu diisi menyusul lewat import). Pengunduran diri (status
+`mengundurkan_diri`, aksi baris + massal) tersedia dari fase terdaftar, daftar ulang, dan
+diterima; data lama berstatus `ditolak` dimigrasikan ke `mengundurkan_diri`. Bila calon yang
+sudah diterima (santri dibuat lewat ACC) mengundurkan diri, data `santri` + arsip
+`riwayat_belajar`-nya dihapus (tagihan belum bayar dibatalkan; pembayaran yang sudah ada
+menahan proses) dan calon kembali murni sebagai riwayat PSB. NIS wajib unik (master + arsip);
+diisi opsional saat ACC atau menyusul via import/kenaikan. Batalkan fase
+(kembali ke status sebelumnya dari log `psb_log_status`, aksi baris + massal) tersedia untuk
+semua fase kecuali fase diterima/`daftar_ulang` (santri sudah dibuat).
+`butuh_pemberkasan` hanya penanda
+lengkapi berkas. Ketentuan dokumen
+per kegiatan PSB × lembaga (`dokumen_wajib_lembaga`) bersifat penekanan — tidak menahan
+daftar ulang; saat ACC baris checklist dibuat di `dokumen_santri` (boleh ditandai
+"tidak memiliki"). Import
 Excel ikut membuat tagihan pendaftaran.
 Status: ✅ live (fitur tests hijau). Captcha + PDF bukti ditunda.
 
@@ -645,6 +664,18 @@ dedup; `updateOrCreate` only when NIK present (+ intra-file guard);
 Status: ✅ live (CRUD scoped, import-lengkap, kamus, foto/dokumen; 10 tests).
 Tambahan vs vault: mapping import penuh (tanpa drop diam-diam), `uploadFoto`,
 `tipe_santri` rule, `kewarganegaraan` default WNI. Recalc `status_global` tetap di 102.
+
+**Preset tampilan kolom tabel (lintas modul).** Combobox di toolbar setiap tabel
+(`ExcelTable`) berisi bawaan "Lengkap" + preset buatan user; preset menyimpan
+daftar kolom (`preset_tabel.kolom`) per tabel & per lembaga. Saat membuat preset,
+user dapat memilih satu atau beberapa lembaga tujuan (multi-generate); tiap lembaga
+lalu dapat mengedit salinannya sendiri. Pilihan terakhir per user per tabel diingat
+di `preset_tabel_aktif`. Salin TSV mengikuti kolom yang terlihat.
+Status: ✅ live.
+
+**Aksi baris tabel (lintas modul).** Bila jumlah tombol aksi baris lebih dari 3,
+otomatis diringkas menjadi dropdown (ikon titik-tiga vertikal) berisi seluruh aksi +
+labelnya; 1–3 aksi tetap tampil langsung. Berlaku di semua tabel `ExcelTable`.
 
 **102 Santri lifecycle.** `riwayat_belajar` (`status_awal`: santri_baru/
 mengulang/pindahan; `status_akhir`: aktif/naik/tidak_naik/pindah_keluar/

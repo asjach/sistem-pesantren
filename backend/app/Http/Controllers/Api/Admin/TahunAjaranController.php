@@ -18,7 +18,7 @@ class TahunAjaranController extends Controller
 
     public function index(Request $request)
     {
-        $query = $this->scopeLembaga(TahunAjaran::with('lembaga:id,nama'), auth()->user(), $request);
+        $query = $this->scopeLembaga(TahunAjaran::with('lembaga:id,nama,kode'), auth()->user(), $request);
 
         if ($request->filled('search')) {
             $s = $request->input('search');

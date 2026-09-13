@@ -3,8 +3,10 @@ import { errorMessage } from '../api/client';
 import {
   hapusDokumenWajib,
   listDokumenWajib,
+  listPsbKegiatan,
   simpanDokumenWajib,
   type DokumenWajib,
+  type PsbKegiatan,
 } from '../api/psb';
 import { listLembaga, referensiList, type Lembaga, type ReferensiRow } from '../api/master';
 import { Button } from '@/components/ui/button';
@@ -18,7 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
-import PageHeader, { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
+import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import {
   Dialog,
   DialogContent,
@@ -32,17 +34,23 @@ import { toast } from 'sonner';
 
 const FIELDS: ExcelField[] = [
   { key: 'jenis', label: 'Jenis dokumen', width: 260, kind: 'static' },
-  { key: 'wajib', label: 'Wajib', width: 100, kind: 'static' },
+  {
+    key: 'wajib', label: 'Sifat', width: 120, kind: 'select',
+    choices: [
+      { value: 'Ya', label: 'Wajib' },
+      { value: 'Tidak', label: 'Opsional' },
+    ],
+  },
 ];
 
 function gridValues(d: DokumenWajib): Record<string, string | null> {
   return { jenis: d.jenis_dokumen_santri, wajib: d.is_wajib ? 'Ya' : 'Tidak' };
 }
 
-async function noopCommit() {}
-
 // Ketentuan dokumen wajib per lembaga (dipakai verifikasi PSB/daftar ulang).
 export default function DokumenWajibPage() {
+  const [kegiatans, setKegiatans] = useState<PsbKegiatan[]>([]);
+  const [kegiatanId, setKegiatanId] = useState('');
   const [lembagas, setLembagas] = useState<Lembaga[]>([]);
   const [lembagaId, setLembagaId] = useState('');
   const [rows, setRows] = useState<DokumenWajib[]>([]);
@@ -52,15 +60,16 @@ export default function DokumenWajibPage() {
   const [busy, setBusy] = useState(false);
   const [tambahOpen, setTambahOpen] = useState(false);
   const [jenisBaru, setJenisBaru] = useState('');
+  const [sifatBaru, setSifatBaru] = useState<'wajib' | 'opsional'>('wajib');
   const reqRef = useRef(0);
 
   const load = useCallback(async () => {
-    if (!lembagaId) return;
+    if (!kegiatanId || !lembagaId) return;
     const req = ++reqRef.current;
     setErr('');
     setLoading(true);
     try {
-      const res = await listDokumenWajib(Number(lembagaId));
+      const res = await listDokumenWajib(Number(kegiatanId), Number(lembagaId));
       if (req !== reqRef.current) return;
       setRows(res.data);
     } catch (e) {
@@ -68,10 +77,16 @@ export default function DokumenWajibPage() {
     } finally {
       if (req === reqRef.current) setLoading(false);
     }
-  }, [lembagaId]);
+  }, [kegiatanId, lembagaId]);
 
   useEffect(() => {
     listLembaga({ per_page: 100 }).then((p) => setLembagas(p.data)).catch((e) => setErr(errorMessage(e)));
+    listPsbKegiatan()
+      .then((r) => {
+        setKegiatans(r.data);
+        setKegiatanId((cur) => cur || (r.data[0] ? String(r.data[0].id) : ''));
+      })
+      .catch((e) => setErr(errorMessage(e)));
   }, []);
 
   useEffect(() => {
@@ -92,14 +107,15 @@ export default function DokumenWajibPage() {
 
   const onTambah = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!lembagaId || !jenisBaru) return;
+    if (!kegiatanId || !lembagaId || !jenisBaru) return;
     setBusy(true);
     setErr('');
     try {
       await simpanDokumenWajib({
+        psb_kegiatan_id: Number(kegiatanId),
         lembaga_id: Number(lembagaId),
         jenis_dokumen_santri: jenisBaru,
-        is_wajib: true,
+        is_wajib: sifatBaru === 'wajib',
       });
       toast.success('Ketentuan disimpan.');
       setTambahOpen(false);
@@ -110,7 +126,7 @@ export default function DokumenWajibPage() {
     } finally {
       setBusy(false);
     }
-  }, [lembagaId, jenisBaru, load]);
+  }, [kegiatanId, lembagaId, jenisBaru, sifatBaru, load]);
 
   const onHapus = useCallback(async (id: number) => {
     setErr('');
@@ -123,6 +139,18 @@ export default function DokumenWajibPage() {
     }
   }, [load]);
 
+  const commitWajib = useCallback(async (id: string | number, f: Record<string, string | null>) => {
+    if (f.wajib === undefined || !kegiatanId || !lembagaId) return;
+    const row = rows.find((r) => String(r.id) === String(id));
+    if (!row) return;
+    await simpanDokumenWajib({
+      psb_kegiatan_id: row.psb_kegiatan_id,
+      lembaga_id: Number(lembagaId),
+      jenis_dokumen_santri: row.jenis_dokumen_santri,
+      is_wajib: f.wajib === 'Ya',
+    });
+  }, [rows, kegiatanId, lembagaId]);
+
   const renderActions = useCallback((d: DokumenWajib) => (
     <DeleteAction
       id={`btn_hapus_dokumen_wajib_${d.id}`}
@@ -134,7 +162,6 @@ export default function DokumenWajibPage() {
 
   return (
     <div className={PAGE_SHELL}>
-      <PageHeader titleId="title_dokumen_wajib" title="Dokumen Wajib per Lembaga" />
       <ErrorNotice>{err}</ErrorNotice>
       <ExcelTable
         tableKey="dokumen_wajib"
@@ -142,24 +169,36 @@ export default function DokumenWajibPage() {
         rows={rows}
         getValues={gridValues}
         loading={loading}
-        emptyText={lembagaId ? 'Belum ada ketentuan dokumen.' : 'Pilih lembaga dulu.'}
-        canEdit={false}
-        onCommit={noopCommit}
+        emptyText={kegiatanId && lembagaId ? 'Belum ada ketentuan dokumen.' : 'Pilih kegiatan & lembaga dulu.'}
+        canEdit
+        onCommit={commitWajib}
         onSaved={load}
         filter={(
-          <Select value={lembagaId} onValueChange={setLembagaId}>
-            <SelectTrigger id="select_lembaga_dokumen_wajib" title="Lembaga" aria-label="Lembaga" size="sm" className="w-44">
-              <SelectValue placeholder="Pilih lembaga" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.nama}</SelectItem>)}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
+          <>
+            <Select value={kegiatanId} onValueChange={setKegiatanId}>
+              <SelectTrigger id="select_kegiatan_dokumen_wajib" title="Kegiatan PSB" aria-label="Kegiatan PSB" className="w-52">
+                <SelectValue placeholder="Pilih kegiatan" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {kegiatans.map((k) => <SelectItem key={k.id} value={String(k.id)}>{k.nama}</SelectItem>)}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+            <Select value={lembagaId} onValueChange={setLembagaId}>
+              <SelectTrigger id="select_lembaga_dokumen_wajib" title="Lembaga" aria-label="Lembaga" className="w-44">
+                <SelectValue placeholder="Pilih lembaga" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>)}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </>
         )}
         addButton={(
-          <Button id="btn_buka_tambah_dokumen_wajib" onClick={() => { setJenisBaru(''); setTambahOpen(true); }} disabled={!lembagaId}>
+          <Button id="btn_buka_tambah_dokumen_wajib" onClick={() => { setJenisBaru(''); setSifatBaru('wajib'); setTambahOpen(true); }} disabled={!kegiatanId || !lembagaId}>
             + Ketentuan
           </Button>
         )}
@@ -187,6 +226,20 @@ export default function DokumenWajibPage() {
                           {String(r.nama ?? r.label ?? r.kode)}
                         </SelectItem>
                       ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="select_sifat_dokumen_wajib">Sifat dokumen</FieldLabel>
+                <Select value={sifatBaru} onValueChange={(v) => setSifatBaru(v as 'wajib' | 'opsional')}>
+                  <SelectTrigger id="select_sifat_dokumen_wajib" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectItem value="wajib">Wajib</SelectItem>
+                      <SelectItem value="opsional">Opsional</SelectItem>
                     </SelectGroup>
                   </SelectContent>
                 </Select>

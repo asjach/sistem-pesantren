@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
-import PageHeader, { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
+import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { ViewDialog } from '@/components/ViewDialog';
 import {
   Dialog,
@@ -60,7 +60,7 @@ const FIELDS: ExcelField[] = [
 function gridValues(t: TahunAjaran): Record<string, string | null> {
   return {
     nama: t.nama,
-    lembaga: t.lembaga?.nama ?? String(t.lembaga_id),
+    lembaga: t.lembaga?.kode ?? t.lembaga?.nama ?? String(t.lembaga_id),
     mulai: t.tanggal_mulai,
     selesai: t.tanggal_selesai,
     aktif: t.is_aktif ? 'aktif' : 'nonaktif',
@@ -231,7 +231,6 @@ export default function TahunAjaranPage() {
 
   return (
     <div className={PAGE_SHELL}>
-      <PageHeader titleId="title_tahun_ajaran" title="Tahun Ajaran" />
       <ErrorNotice>{err}</ErrorNotice>
       <ExcelTable
         tableKey="tahun_ajaran"
@@ -264,7 +263,7 @@ export default function TahunAjaranPage() {
             <SelectContent>
               <SelectGroup>
                 <SelectItem value="_semua">Semua (akses saya)</SelectItem>
-                {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.nama} ({l.kode ?? '-'})</SelectItem>)}
+                {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>)}
               </SelectGroup>
             </SelectContent>
           </Select>

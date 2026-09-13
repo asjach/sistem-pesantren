@@ -47,7 +47,6 @@ class PsbBiayaController extends Controller
                     'nama' => $gelombang->nama,
                     'tgl_buka' => $gelombang->tgl_buka?->toDateString(),
                     'tgl_tutup' => $gelombang->tgl_tutup?->toDateString(),
-                    'is_aktif' => $gelombang->is_aktif,
                     'kegiatan' => $gelombang->kegiatan,
                 ],
                 'lembaga' => $lembaga->map(fn (Lembaga $l) => [

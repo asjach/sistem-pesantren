@@ -26,7 +26,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
-import PageHeader, { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
+import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { ViewDialog } from '@/components/ViewDialog';
 import {
   Dialog,
@@ -65,7 +65,7 @@ const FIELDS: ExcelField[] = [
 function gridValues(t: TarifBiaya): Record<string, string | null> {
   return {
     pos: t.pos?.kode_pos ?? String(t.pos_keuangan_id),
-    lembaga: t.lembaga?.nama ?? String(t.lembaga_id),
+    lembaga: t.lembaga?.kode ?? t.lembaga?.nama ?? String(t.lembaga_id),
     ta: t.tahunAjaran?.nama ?? t.tahun_ajaran?.nama ?? String(t.tahun_ajaran_id),
     tipe: t.tipe_santri,
     nominal: String(t.nominal),
@@ -236,7 +236,6 @@ export default function TarifPage() {
 
   return (
     <div className={PAGE_SHELL}>
-      <PageHeader titleId="title_tarif" title="Tarif Biaya" />
       <ErrorNotice>{err}</ErrorNotice>
       <ExcelTable
         tableKey="tarif"
@@ -267,7 +266,7 @@ export default function TarifPage() {
               <SelectContent>
                 <SelectGroup>
                   <SelectItem value="_semua">Semua</SelectItem>
-                  {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.nama}</SelectItem>)}
+                  {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>)}
                 </SelectGroup>
               </SelectContent>
             </Select>
