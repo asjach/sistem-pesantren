@@ -12,7 +12,6 @@ import { useTheme } from '@/theme';
 import { errorMessage, prefGet, prefSet } from '@/api/client';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Skeleton } from '@/components/ui/skeleton';
 import { DEFAULT_FONT_PX, FONT_FAMILY_DEFAULT, FONT_OPTIONS, useGridPrefs } from '@/components/GridPrefs';
 import PresetKolom, { type PresetKolomApi } from '@/components/PresetKolom';
 import { useRibbonTable } from '@/components/RibbonTable';
@@ -63,6 +62,21 @@ function ToolbarGroup({
       className={cn('flex h-[30px] items-center gap-1.5 rounded-lg border bg-card px-2', className)}
     >
       {children}
+    </div>
+  );
+}
+
+/** Kerangka tabel saat memuat: menyerupai grid (baris header + baris data)
+ *  agar area tabel tidak tampak seperti blok abu-abu kosong. */
+function TabelMemuat({ rowH, baris = 14 }: { rowH: number; baris?: number }) {
+  return (
+    <div className="flex h-full w-full flex-col overflow-hidden bg-card" aria-hidden="true">
+      <div className="h-[26px] shrink-0 border-b bg-muted/60" />
+      <div className="flex min-h-0 flex-1 flex-col">
+        {Array.from({ length: baris }).map((_, i) => (
+          <div key={i} className="shrink-0 border-b border-border/50" style={{ height: rowH }} />
+        ))}
+      </div>
     </div>
   );
 }
@@ -737,10 +751,10 @@ export default function ExcelTable<T extends { id: string | number }>({
   );
 
   // Tinggi grid mengikuti sisa ruang vertikal wrapper (flex-1 dari halaman).
-  // Efek dijalankan ulang saat loading/rows berubah: saat mount pertama tabel
-  // masih skeleton (wrapRef belum ada), jadi observer harus dipasang ulang
-  // begitu grid benar-benar dirender — kalau tidak, grid berhenti di tinggi awal.
-  useEffect(() => {
+  // useLayoutEffect: diukur SEBELUM cat sehingga kartu tidak sempat tampil
+  // dengan tinggi tebakan awal lalu melompat ke tinggi asli. Observer dipasang
+  // ulang saat loading/rows berubah karena wrapper ikut dirender ulang.
+  useLayoutEffect(() => {
     const el = wrapRef.current;
     if (!el || typeof ResizeObserver === 'undefined') return;
     const ukur = () => {
@@ -2142,7 +2156,7 @@ export default function ExcelTable<T extends { id: string | number }>({
               onContextMenu={onGridContextMenu}
             >
               {loading && rows.length === 0 ? (
-                <Skeleton className="h-full w-full rounded-none" />
+                <TabelMemuat rowH={effectiveH} />
               ) : (
                 <CheckAllContext.Provider value={checkAllState}>
                   <DataSheetGrid
@@ -2270,11 +2284,10 @@ export default function ExcelTable<T extends { id: string | number }>({
         </ContextMenu>
 
         {/* Placeholder saat lebar kolom belum stabil (grid disembunyikan agar
-            tidak terlihat melompat). Menutupi area grid sekaligus menahan klik. */}
+            tidak terlihat melompat). Berbentuk tabel agar tidak tampak blok kosong. */}
         {!lebarStabil && !loading && (
-          <div className="absolute inset-0 z-10 flex flex-col gap-2 bg-card p-2" aria-hidden="true">
-            <Skeleton className="h-7 w-full" />
-            <Skeleton className="h-full w-full" />
+          <div className="absolute inset-0 z-10" aria-hidden="true">
+            <TabelMemuat rowH={effectiveH} />
           </div>
         )}
 
