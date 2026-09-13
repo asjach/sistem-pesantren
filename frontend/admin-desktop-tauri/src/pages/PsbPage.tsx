@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { errorMessage } from '../api/client';
 import { tanggal } from '../lib/tanggal';
 import {
@@ -43,7 +43,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import ExcelTable, { type ExcelChoice, type ExcelField } from '@/components/ExcelTable';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import {
   Dialog,
@@ -79,17 +79,37 @@ const STAGES: { id: string; label: string; statuses: string[] }[] = [
   { id: 'ditolak', label: 'Mengundurkan Diri / Ditolak', statuses: ['mengundurkan_diri', 'ditolak', 'tidak_lolos'] },
 ];
 
-const PSB_FIELDS: ExcelField[] = [
-  { key: 'no', label: 'No. pendaftaran', width: 190, kind: 'static' },
-  { key: 'nama', label: 'Nama', width: 200, kind: 'static' },
-  { key: 'nik', label: 'NIK', width: 160, kind: 'static' },
-  { key: 'tipe', label: 'Tipe', width: 110, kind: 'static' },
-  { key: 'lembaga', label: 'Lembaga', width: 180, kind: 'static' },
-  { key: 'gelombang', label: 'Gelombang', width: 140, kind: 'static' },
-  { key: 'paket', label: 'Paket', width: 120, kind: 'static' },
-  { key: 'status', label: 'Status', width: 150, kind: 'static' },
-  { key: 'daftar', label: 'Tgl daftar', width: 110, kind: 'static' },
-];
+/** Definisi kolom grid PSB; pilihan gelombang mengikuti data (mode Input). */
+function psbFields(gelombangChoices: ExcelChoice[]): ExcelField[] {
+  return [
+    { key: 'no', label: 'No. pendaftaran', width: 190, kind: 'static' },
+    {
+      key: 'nama', label: 'Nama', width: 200, kind: 'static',
+      inputKind: 'text', maxLength: 255, required: true,
+    },
+    {
+      key: 'nik', label: 'NIK', width: 160, kind: 'static',
+      inputKind: 'text', maxLength: 16, required: true,
+      validate: (v) => (!v || /^\d{16}$/.test(v.trim()) ? null : 'NIK harus 16 digit angka.'),
+    },
+    {
+      key: 'tipe', label: 'Tipe', width: 110, kind: 'static',
+      inputKind: 'select', required: true,
+      inputChoices: [
+        { value: 'asrama', label: 'asrama' },
+        { value: 'non_asrama', label: 'non_asrama' },
+      ],
+    },
+    { key: 'lembaga', label: 'Lembaga', width: 180, kind: 'static' },
+    {
+      key: 'gelombang', label: 'Gelombang', width: 140, kind: 'static',
+      inputKind: 'select', required: true, inputChoices: gelombangChoices,
+    },
+    { key: 'paket', label: 'Paket', width: 120, kind: 'static' },
+    { key: 'status', label: 'Status', width: 150, kind: 'static' },
+    { key: 'daftar', label: 'Tgl daftar', width: 110, kind: 'static' },
+  ];
+}
 
 type BulkAksi = 'verifikasi' | 'daftar_ulang' | 'acc' | 'undur' | 'batal' | 'hapus' | 'pulihkan';
 
@@ -200,6 +220,12 @@ export default function PsbPage() {
   const [tfTingkat, setTfTingkat] = useState('');
 
   const getValues = useCallback(psbGridValues, []);
+
+  /** Kolom grid PSB dengan pilihan gelombang dinamis (mode Input). */
+  const psbFieldsMemo = useMemo(
+    () => psbFields(gelombangs.map((g) => ({ value: String(g.id), label: g.nama }))),
+    [gelombangs],
+  );
 
   const load = useCallback(
     async function loadPage(p = pager.page, pp = pager.perPage) {
@@ -425,6 +451,30 @@ export default function PsbPage() {
 
   const onSaved = useCallback(() => load(), [load]);
   const onCommit = useCallback(async () => {}, []);
+
+  /** Mode Input (tahap pendaftar): daftarkan calon baru dari baris input. */
+  const createRow = useCallback(async (f: Record<string, string | null>) => {
+    if (!lembagaId) {
+      throw new Error('Pilih filter lembaga dulu untuk mode Input.');
+    }
+    if (!f.gelombang) {
+      throw new Error('Gelombang wajib diisi.');
+    }
+    await createCalonPsb({
+      gelombang_id: Number(f.gelombang),
+      lembaga_id: Number(lembagaId),
+      tipe_santri: f.tipe === 'asrama' ? 'asrama' : 'non_asrama',
+      nik: (f.nik ?? '').trim(),
+      nama_lengkap: (f.nama ?? '').trim(),
+    });
+    toast.success('Pendaftar dibuat.');
+    await load(1);
+  }, [lembagaId, load]);
+
+  const lembagaTerpilih = useMemo(() => {
+    const l = lembagas.find((x) => String(x.id) === String(lembagaId));
+    return l?.kode ?? l?.nama ?? '';
+  }, [lembagas, lembagaId]);
 
   async function jalankanBulk() {
     if (!bulkAksi || bulkIds.length === 0) return;
@@ -683,7 +733,7 @@ export default function PsbPage() {
 
       <ExcelTable
         tableKey="psb"
-        fields={PSB_FIELDS}
+        fields={psbFieldsMemo}
         rows={rows}
         getValues={getValues}
         loading={loading}
@@ -691,6 +741,8 @@ export default function PsbPage() {
         canEdit={false}
         onCommit={onCommit}
         onSaved={onSaved}
+        onCreateRow={stage === 'pendaftar' ? createRow : undefined}
+        inputRowValues={{ lembaga: lembagaTerpilih }}
         filter={(
           <>
             {stage === 'pendaftar' && (

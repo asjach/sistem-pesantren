@@ -39,13 +39,18 @@ import { toast } from 'sonner';
 const TIPE: TipePos[] = ['bulanan', 'sekali_bayar', 'semesteran', 'tahunan'];
 
 const FIELDS: ExcelField[] = [
-  { key: 'kode', label: 'Kode (global unik)', width: 170, minWidth: 120, kind: 'static' },
+  {
+    key: 'kode', label: 'Kode (global unik)', width: 170, minWidth: 120, kind: 'static',
+    inputKind: 'text', maxLength: 20, required: true,
+  },
   {
     key: 'nama', label: 'Nama', width: 260, minWidth: 120, kind: 'text', maxLength: 100,
+    required: true,
     validate: (v) => (!v || !v.trim() ? 'Nama pos wajib diisi.' : null),
   },
   {
     key: 'tipe', label: 'Tipe', width: 150, minWidth: 110, kind: 'select',
+    required: true,
     choices: TIPE.map((t) => ({ value: t, label: t })),
     validate: (v) => ((TIPE as string[]).includes(v ?? '') ? null : 'Tipe tidak valid.'),
   },
@@ -168,6 +173,17 @@ export default function PosPage() {
 
   const onSaved = useCallback(() => load(), [load]);
 
+  /** Mode Input: buat pos baru dari baris input. */
+  const createRow = useCallback(async (f: Record<string, string | null>) => {
+    await createPos({
+      kode_pos: (f.kode ?? '').trim(),
+      nama_pos: (f.nama ?? '').trim(),
+      tipe: (f.tipe ?? 'bulanan') as TipePos,
+    });
+    toast.success('Pos dibuat (kode unik global).');
+    await load(1);
+  }, [load]);
+
   const renderActions = useCallback((p: PosKeuangan) => (
     <>
       <ViewAction id={`btn_lihat_pos_${p.id}`} onClick={() => setViewRow(p)} />
@@ -194,6 +210,7 @@ export default function PosPage() {
         canEdit={canEdit}
         onCommit={commitDraft}
         onSaved={onSaved}
+        onCreateRow={canEdit ? createRow : undefined}
         searchValue={search}
         onSearchChange={onSearchChange}
         onSearchSubmit={onSearchSubmit}

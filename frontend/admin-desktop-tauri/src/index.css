@@ -249,14 +249,16 @@
   font-family: var(--font-display);
   font-weight: 500;
   font-size: var(--simpes-font-size, 13px);
+  /* Tanpa padding: judul memakai penuh lebar kolom & rata tengah. */
+  padding: 0;
   /* Sel header DSG adalah flex: buat wadah judul mengisi penuh agar gagang
      resize di tepi kanan jatuh di perbatasan kolom, bukan di akhir teks. */
   flex: 1;
   min-width: 0;
 }
 .simpes-dsg .dsg-cell {
-  padding-left: 12px;
-  padding-right: 12px;
+  padding-left: 8px;
+  padding-right: 8px;
   /* Ketebalan mengikuti pilihan di toolbar (mis. varian Light). */
   font-weight: var(--simpes-font-weight, 400);
   font-variant-numeric: tabular-nums;
@@ -292,8 +294,9 @@
 .simpes-dsg .dsg-row.simpes-dsg-row-checked .dsg-cell-gutter {
   background-color: color-mix(in srgb, var(--accent) 14%, var(--card));
 }
-/* Sel header tanpa padding kanan agar gagang resize tepat di perbatasan kolom. */
+/* Sel header tanpa padding agar judul rata tengah persis di lebar kolom. */
 .simpes-dsg .dsg-row-header .dsg-cell {
+  padding-left: 0;
   padding-right: 0;
 }
 /* Gagang seret pengubah lebar kolom di tepi kanan judul. */
@@ -304,11 +307,11 @@
   width: 100%;
 }
 /* Gagang resize mengangkangi garis perbatasan antar kolom: lebarnya 12px
-   dipusat tepat di garis batas (right:-16px mengimbangi padding 10px wadah
-   judul + padding kanan sel 0, sehingga gagang = batas-6 .. batas+6). */
+   dipusat tepat di garis batas (right:-6px; header tanpa padding sehingga
+   tepi kanan wadah judul = garis batas kolom). */
 .simpes-dsg-resizer {
   position: absolute;
-  right: -16px;
+  right: -6px;
   top: -6px;
   bottom: -6px;
   width: 12px;
@@ -325,6 +328,10 @@
   font-family: inherit;
   font-weight: inherit;
   color: var(--foreground);
+  /* Tanpa padding horizontal bawaan (10px): teks sejajar dengan isi
+     baca-saja pada padding sel (8px), tidak melompat saat mulai mengedit. */
+  padding-left: 0;
+  padding-right: 0;
 }
 /* Isi sel baca-saja mengisi penuh area sel (lebar DAN tinggi): sasaran klik
    1×/2× jadi seluruh sel, termasuk sel kosong yang tingginya 0 bila inline. */
@@ -363,11 +370,34 @@
 .simpes-dsg .dsg-cell.simpes-dsg-align-right .simpes-dsg-select {
   text-align: right;
 }
-.simpes-dsg .dsg-cell-header.simpes-dsg-align-center .simpes-dsg-headtitle {
+/* SELURUH judul header tabel rata tengah (perataan kolom hanya untuk isi). */
+.simpes-dsg .dsg-cell-header .simpes-dsg-headtitle {
   justify-content: center;
 }
-.simpes-dsg .dsg-cell-header.simpes-dsg-align-right .simpes-dsg-headtitle {
-  justify-content: flex-end;
+/* ---------- Mode Input (baris baru di paling bawah) ---------- */
+/* Bintang merah di header untuk kolom wajib. */
+.simpes-dsg .simpes-dsg-wajib-tanda {
+  margin-left: 2px;
+  color: var(--destructive);
+  font-weight: 700;
+}
+/* Ikon merah di header untuk kolom otomatis (tidak bisa diisi manual pada
+   mode Input, mis. nama lembaga/TA/gelombang yang mengikuti konteks). */
+.simpes-dsg .simpes-dsg-tak-input {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 4px;
+  color: var(--destructive);
+  opacity: 0.85;
+}
+/* Baris input diberi latar lembut agar jelas bukan data tersimpan. */
+.simpes-dsg .dsg-row.simpes-dsg-row-input .dsg-cell {
+  background-color: color-mix(in srgb, var(--primary) 6%, var(--card));
+}
+/* Kolom wajib yang masih kosong di baris input: garis kiri merah (kode warna).
+   Bayangan kanan tetap satu garis; baris input selalu baris terakhir. */
+.simpes-dsg .dsg-cell.simpes-dsg-wajib {
+  box-shadow: 1px 0 var(--dsg-border-color), inset 3px 0 0 var(--destructive);
 }
 /* Sel dengan draft belum disimpan. */
 .simpes-dsg .simpes-dsg-dirty {

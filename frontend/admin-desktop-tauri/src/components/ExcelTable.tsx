@@ -23,7 +23,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Copy, Check, Eye, MoreVertical, MoveHorizontal, Pencil, RotateCcw, Search, Trash2 } from 'lucide-react';
+import { Ban, Copy, Check, Eye, MoreVertical, MoveHorizontal, Pencil, PlusCircle, RotateCcw, Save, Search, Trash2 } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -111,6 +111,13 @@ export interface ExcelField {
   maxLength?: number;
   /** Kembalikan pesan galat bila nilai tidak valid, atau null bila OK. */
   validate?: (value: string | null) => string | null;
+  /** Wajib diisi pada mode Input (ditandai warna di header + sel baris input). */
+  required?: boolean;
+  /** Kolom static yang tetap bisa DIISI saat mode Input (mis. kode/nik yang
+   *  belum ada saat membuat record). Baris biasa tetap baca-saja. */
+  inputKind?: 'text' | 'select';
+  /** Pilihan dropdown untuk inputKind 'select' (bila beda dari `choices`). */
+  inputChoices?: ExcelChoice[];
 }
 
 /** Baris grid: id + checklist + nilai string per field. */
@@ -159,6 +166,11 @@ interface ExcelTableProps<T extends { id: string | number }> {
   renderBulkActions?: (checkedRows: T[], clearSelection: () => void) => ReactNode;
   /** Batasi tinggi grid maksimal N baris (tanpa flex-1, mengikuti isi). */
   maxRows?: number;
+  /** Buat record baru dari baris input paling bawah (mode Input). Bila tidak
+   *  diberikan, opsi mode Input tidak ditampilkan. Nilai memakai kunci field. */
+  onCreateRow?: (fields: Record<string, string | null>) => Promise<void>;
+  /** Nilai tampilan kolom statis pada baris input (mis. nama TA terpilih). */
+  inputRowValues?: Record<string, string | null>;
 }
 
 const MIN_COL_W = 50;
@@ -172,6 +184,8 @@ const ACTIONS_DEFAULT_W = 124;
 const CHECK_W = 44;
 /** Lantai lebar kolom Aksi (1 tombol ikon + padding). */
 const ACTIONS_MIN_W = 56;
+/** Id sintetis baris input paling bawah (mode Input). */
+const INPUT_ROW_ID = '__input__';
 
 function widthsKey(tableKey: string) {
   // v2: hasil AutoFit tidak lagi disimpan (lihat onAutoFit). Kunci lama berisi
@@ -348,22 +362,60 @@ function StaticCell({ rowData, columnData }: CellProps<GridRow, StaticColData>) 
   );
 }
 
+/** Kolom static + inputKind 'text': baca-saja untuk baris data, input teks
+ *  untuk baris input (mode Input). */
+function InputStaticTextCell(props: CellProps<GridRow, TextColData>) {
+  if (String(props.rowData.id) !== INPUT_ROW_ID) {
+    return <StaticCell {...(props as unknown as CellProps<GridRow, StaticColData>)} />;
+  }
+  return <TextCell {...props} />;
+}
+
+/** Kolom static + inputKind 'select': baca-saja untuk baris data, dropdown
+ *  untuk baris input (mode Input). */
+function InputStaticSelectCell(props: CellProps<GridRow, SelectColData>) {
+  if (String(props.rowData.id) !== INPUT_ROW_ID) {
+    return <StaticCell {...(props as unknown as CellProps<GridRow, StaticColData>)} />;
+  }
+  return <SelectCell {...props} />;
+}
+
 /** Judul kolom dengan gagang seret pengubah lebar (drag di tepi kanan).
- *  Klik 2× pada gagang = AutoFit lebar mengikuti isi (seperti Excel). */
+ *  Klik 2× pada gagang = AutoFit lebar mengikuti isi (seperti Excel).
+ *  Field wajib (mode Input) ditandai bintang merah; kolom otomatis (tidak
+ *  bisa diisi manual saat mode Input) ditandai ikon merah. */
 function HeaderTitle({
   label,
   colKey,
+  required,
+  noInput,
   onResizeStart,
   onAutoFit,
 }: {
   label: string;
   colKey: string;
+  required?: boolean;
+  noInput?: boolean;
   onResizeStart: (key: string, e: { preventDefault(): void; stopPropagation(): void; clientX: number }) => void;
   onAutoFit: (key: string) => void;
 }) {
   return (
     <span className="simpes-dsg-headtitle">
       {label}
+      {required ? (
+        <span className="simpes-dsg-wajib-tanda" title="Wajib diisi pada mode Input">
+          *
+        </span>
+      ) : null}
+      {noInput ? (
+        <span
+          className="simpes-dsg-tak-input"
+          title="Kolom otomatis — tidak bisa diisi manual pada mode Input"
+          aria-label="Tidak bisa diisi manual"
+        >
+          <Ban size={11} />
+        </span>
+      ) : null}
       <span
         className="simpes-dsg-resizer"
         title="Seret untuk ubah lebar • klik 2× untuk sesuaikan isi"
@@ -523,6 +575,8 @@ export default function ExcelTable<T extends { id: string | number }>({
   addButton,
   renderBulkActions,
   maxRows,
+  onCreateRow,
+  inputRowValues,
 }: ExcelTableProps<T>) {
   const { density } = useTheme();
   const densityPx = DENSITY_PX[density];
@@ -530,9 +584,14 @@ export default function ExcelTable<T extends { id: string | number }>({
   const { rowH, fontPx, fontFamily, align } = useGridPrefs();
 
   const [editMode, setEditMode] = useState(false);
+  const [inputMode, setInputMode] = useState(false);
   const [drafts, setDrafts] = useState<Drafts>({});
   const [checkedIds, setCheckedIds] = useState<Set<T['id']>>(new Set());
   const [range, setRange] = useState<GridSelection | null>(null);
+  /** Baris input hanya tersedia bila halaman menyediakan onCreateRow.
+   *  Tidak bergantung mode Edit: halaman boleh mendukung create saja. */
+  const inputEnabled = !!onCreateRow;
+  const showInput = inputEnabled && inputMode;
 
   const checkedRows = useMemo(() => rows.filter((r) => checkedIds.has(r.id)), [rows, checkedIds]);
   const clearSelection = useMemo(() => () => setCheckedIds(new Set<T['id']>()), []);
@@ -682,21 +741,43 @@ export default function ExcelTable<T extends { id: string | number }>({
     setRange(null);
   }, [visibleFields]);
 
-  // Esc saat TIDAK sedang mengedit sel = keluar dari mode Edit.
+  // Esc saat TIDAK sedang mengedit sel = keluar dari mode Edit / mode Input.
   // Esc di dalam editor sel ditangani TextCell/SelectCell (tidak sampai ke sini).
   useEffect(() => {
-    if (!(canEdit && editMode)) return;
+    if (!((canEdit && editMode) || showInput)) return;
     function onKeyDown(e: KeyboardEvent) {
       if (e.key !== 'Escape') return;
       const t = e.target as HTMLElement | null;
       if (t && ['INPUT', 'SELECT', 'TEXTAREA'].includes(t.tagName)) return;
       // Jangan ikut menutup saat Esc dipakai dialog/dropdown yang sedang terbuka.
       if (t?.closest?.('[role="dialog"], [role="listbox"], [role="menu"]')) return;
-      setEditMode(false);
+      if (canEdit && editMode) setEditMode(false);
+      if (showInput) setInputMode(false);
     }
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [canEdit, editMode]);
+  }, [canEdit, editMode, showInput]);
+
+  // Keluar dari mode Input → draft baris input dibuang (tidak tersimpan).
+  useEffect(() => {
+    if (showInput) return;
+    setDrafts((prev) => {
+      if (!(INPUT_ROW_ID in prev)) return prev;
+      const next = { ...prev };
+      delete next[INPUT_ROW_ID];
+      return next;
+    });
+  }, [showInput]);
+
+  // Mode Input menyala → gulir grid ke baris input (paling bawah).
+  useEffect(() => {
+    if (!showInput) return;
+    const raf = requestAnimationFrame(() => {
+      const scroller = wrapRef.current?.querySelector<HTMLElement>('.dsg-container');
+      if (scroller) scroller.scrollTop = scroller.scrollHeight;
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [showInput]);
 
   // Shortcut Ctrl/Cmd+C di grid ditangani DSG tanpa notifikasi — beri toast singkat.
   // Kondisi: ada sel aktif grid & tidak sedang mengedit. Editor sel / input lain
@@ -1012,13 +1093,16 @@ export default function ExcelTable<T extends { id: string | number }>({
   const effectiveFont = fontPx ?? DEFAULT_FONT_PX;
   // Tabel halaman (tanpa maxRows) mengisi penuh sisa tinggi wrapper sehingga
   // kartu menutupi seluruh area vertikal. Tabel kompak ber-maxRows berhenti
-  // tepat di baris terakhir; versi kompak yang kosong tetap tinggi layak agar
-  // pesan "Tidak ada …" terbaca.
+  // tepat di baris terakhir (+ baris input bila mode Input aktif); versi
+  // kompak yang kosong tetap tinggi layak agar pesan "Tidak ada …" terbaca.
+  const barisIsi = Math.min(Math.max(rows.length, 1), maxRows ?? 0);
   const gridHeight = maxRows === undefined
     ? gridH
     : Math.min(
         gridH,
-        rows.length === 0 ? 280 : 27 + Math.min(Math.max(rows.length, 1), maxRows) * effectiveH,
+        rows.length === 0 && !showInput
+          ? 280
+          : 27 + (barisIsi + (showInput ? 1 : 0)) * effectiveH,
       );
   // "keluarga|ketebalan"; bawaan = pakai font & ketebalan aplikasi.
   const fontChoice = FONT_OPTIONS.find((f) => f.value === fontFamily);
@@ -1055,21 +1139,29 @@ export default function ExcelTable<T extends { id: string | number }>({
     setTimeout(openEditorForActiveCell, 80);
   }
 
-  /** Nilai grid = baris server ditimpa draft lokal + checklist. */
-  const gridValue: GridRow[] = useMemo(
-    () =>
-      rows.map((r) => {
-        const base = getValues(r);
-        const d = drafts[String(r.id)] ?? {};
-        const g: GridRow = { id: r.id, checked: checkedIds.has(r.id) };
-        for (const f of fields) {
-          g[f.key] = d[f.key] !== undefined ? d[f.key] : (base[f.key] ?? null);
-        }
-        return g;
-      }),
+  /** Nilai grid = baris server ditimpa draft lokal + checklist. Baris input
+   *  (mode Input) ditambahkan sebagai baris terakhir dengan id sintetis. */
+  const gridValue: GridRow[] = useMemo(() => {
+    const out = rows.map((r) => {
+      const base = getValues(r);
+      const d = drafts[String(r.id)] ?? {};
+      const g: GridRow = { id: r.id, checked: checkedIds.has(r.id) };
+      for (const f of fields) {
+        g[f.key] = d[f.key] !== undefined ? d[f.key] : (base[f.key] ?? null);
+      }
+      return g;
+    });
+    if (showInput) {
+      const d = drafts[INPUT_ROW_ID] ?? {};
+      const g: GridRow = { id: INPUT_ROW_ID, checked: false };
+      for (const f of fields) {
+        g[f.key] = d[f.key] !== undefined ? d[f.key] : (inputRowValues?.[f.key] ?? null);
+      }
+      out.push(g);
+    }
+    return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [rows, drafts, checkedIds, fields, getValues, editing],
-  );
+  }, [rows, drafts, checkedIds, fields, getValues, editing, showInput, inputRowValues]);
 
   function handleChange(newValue: GridRow[]) {
     const base = new Map<string, T>(rowsRef.current.map((r) => [String(r.id), r]));
@@ -1077,6 +1169,18 @@ export default function ExcelTable<T extends { id: string | number }>({
     const nc = new Set<T['id']>();
     for (const g of newValue) {
       const id = g.id as T['id'];
+      // Baris input: simpan semua nilai terisi sebagai draft; TIDAK ikut
+      // auto-save (penyimpanan lewat tombol simpan di kolom Aksi).
+      if (String(g.id) === INPUT_ROW_ID) {
+        const d: Record<string, string | null> = {};
+        for (const f of fieldsRef.current) {
+          if (f.kind === 'static' && !f.inputKind) continue;
+          const cur = (g[f.key] as string | null) ?? null;
+          if (cur !== null && cur !== '') d[f.key] = cur;
+        }
+        if (Object.keys(d).length > 0) nd[INPUT_ROW_ID] = d;
+        continue;
+      }
       if (g.checked) nc.add(id);
       const b = base.get(String(g.id));
       if (!b) continue;
@@ -1091,7 +1195,10 @@ export default function ExcelTable<T extends { id: string | number }>({
     setCheckedIds(nc);
     setDrafts(nd);
     // Auto-save: setiap baris yang berubah langsung masuk antrean simpan.
-    for (const [idKey, flds] of Object.entries(nd)) enqueueSave(idKey, flds);
+    for (const [idKey, flds] of Object.entries(nd)) {
+      if (idKey === INPUT_ROW_ID) continue;
+      enqueueSave(idKey, flds);
+    }
   }
 
   const dsgColumns: Column<GridRow>[] = useMemo(() => {
@@ -1111,12 +1218,24 @@ export default function ExcelTable<T extends { id: string | number }>({
         grow: 0,
         shrink: 0,
         minWidth: CHECK_W,
+        // Baris input bukan data pengguna: tidak bisa dicentang.
+        disabled: ({ rowData }: { rowData: GridRow }) => String(rowData.id) === INPUT_ROW_ID,
       },
     ];
     for (const f of visibleFields) {
+      const isInputRow = (rowData: GridRow) => showInput && String(rowData.id) === INPUT_ROW_ID;
       const common = {
         id: f.key,
-        title: <HeaderTitle label={f.label} colKey={f.key} onResizeStart={startResize} onAutoFit={onAutoFit} />,
+        title: (
+          <HeaderTitle
+            label={f.label}
+            colKey={f.key}
+            required={f.required && showInput}
+            noInput={showInput && f.kind === 'static' && !f.inputKind}
+            onResizeStart={startResize}
+            onAutoFit={onAutoFit}
+          />
+        ),
         headerClassName: alignClass(f.key),
         basis: widths[f.key] ?? autoWidths[f.key] ?? f.width ?? 150,
         // Semua kolom fixed (grow 0): lebar hanya berubah saat digagang
@@ -1128,23 +1247,65 @@ export default function ExcelTable<T extends { id: string | number }>({
         cellClassName: ({ rowData }: { rowData: GridRow }) =>
           cn(
             alignClass(f.key),
+            isInputRow(rowData) && 'simpes-dsg-baris-input',
+            isInputRow(rowData) && f.required && !rowData[f.key] && 'simpes-dsg-wajib',
             draftsRef.current[String(rowData.id)]?.[f.key] !== undefined && 'simpes-dsg-dirty',
             editing && (f.kind === 'static' ? 'simpes-dsg-readonly' : 'simpes-dsg-editable'),
           ),
       };
       if (f.kind === 'static') {
-        cols.push({
-          ...common,
-          component: StaticCell,
-          columnData: { fieldKey: f.key, onDblClick: enableEditByDoubleClick },
-          disableKeys: false,
-          keepFocus: false,
-          disabled: true,
-          deleteValue: ({ rowData }) => rowData,
-          copyValue: ({ rowData }) => String(rowData[f.key] ?? ''),
-          pasteValue: ({ rowData }) => rowData,
-          isCellEmpty: ({ rowData }) => rowData[f.key] == null || rowData[f.key] === '',
-        });
+        // Static + inputKind: tetap baca-saja untuk baris data, tapi bisa
+        // diisi pada baris input (mode Input).
+        const isInputOnly = (rowData: GridRow) => String(rowData.id) === INPUT_ROW_ID;
+        if (f.inputKind === 'select') {
+          cols.push({
+            ...common,
+            component: InputStaticSelectCell,
+            columnData: {
+              fieldKey: f.key,
+              choices: f.inputChoices ?? f.choices ?? [],
+            },
+            disableKeys: true,
+            keepFocus: false,
+            disabled: ({ rowData }: { rowData: GridRow }) => !isInputOnly(rowData),
+            deleteValue: ({ rowData }) => rowData,
+            copyValue: ({ rowData }) => String(rowData[f.key] ?? ''),
+            pasteValue: ({ rowData }) => rowData,
+            isCellEmpty: ({ rowData }) => rowData[f.key] == null || rowData[f.key] === '',
+          });
+        } else if (f.inputKind === 'text') {
+          cols.push({
+            ...common,
+            component: InputStaticTextCell,
+            columnData: { fieldKey: f.key, maxLength: f.maxLength },
+            disableKeys: false,
+            keepFocus: false,
+            disabled: ({ rowData }: { rowData: GridRow }) => !isInputOnly(rowData),
+            deleteValue: ({ rowData }) => rowData,
+            copyValue: ({ rowData }) => String(rowData[f.key] ?? ''),
+            pasteValue: ({ rowData }) => rowData,
+            isCellEmpty: ({ rowData }) => rowData[f.key] == null || rowData[f.key] === '',
+          });
+        } else {
+          cols.push({
+            ...common,
+            component: StaticCell,
+            columnData: {
+              fieldKey: f.key,
+              // Mode Input aktif: klik 2× tidak menyalakan mode Edit.
+              onDblClick: () => {
+                if (!showInput) enableEditByDoubleClick();
+              },
+            },
+            disableKeys: false,
+            keepFocus: false,
+            disabled: true,
+            deleteValue: ({ rowData }) => rowData,
+            copyValue: ({ rowData }) => String(rowData[f.key] ?? ''),
+            pasteValue: ({ rowData }) => rowData,
+            isCellEmpty: ({ rowData }) => rowData[f.key] == null || rowData[f.key] === '',
+          });
+        }
       } else if (f.kind === 'select') {
         cols.push({
           ...common,
@@ -1152,16 +1313,24 @@ export default function ExcelTable<T extends { id: string | number }>({
           columnData: {
             fieldKey: f.key,
             choices: f.choices ?? [],
-            onDblClick: enableEditByDoubleClick,
-            onClickCell: openEditorByClick,
+            // Mode Input aktif: klik 2× tidak menyalakan mode Edit (baris
+            // input cukup buka editor sel).
+            onDblClick: (id: string | number) => {
+              if (!showInput && String(id) !== INPUT_ROW_ID) enableEditByDoubleClick();
+            },
+            onClickCell: (id: string | number) => {
+              if (String(id) === INPUT_ROW_ID) openEditorForActiveCell();
+              else openEditorByClick();
+            },
           },
           disableKeys: true,
           keepFocus: false,
-          disabled: !editing,
+          disabled: ({ rowData }: { rowData: GridRow }) =>
+            !(editing || isInputRow(rowData)),
           deleteValue: ({ rowData }) => (editing ? ({ ...rowData, [f.key]: null }) as GridRow : rowData),
           copyValue: ({ rowData }) => String(rowData[f.key] ?? ''),
           pasteValue: ({ rowData, value }: { rowData: GridRow; value: string }) => {
-            if (editing && (f.choices ?? []).some((c) => c.value === value)) {
+            if ((editing || isInputRow(rowData)) && (f.choices ?? []).some((c) => c.value === value)) {
               return { ...rowData, [f.key]: value } as GridRow;
             }
             return rowData;
@@ -1175,23 +1344,73 @@ export default function ExcelTable<T extends { id: string | number }>({
           columnData: {
             fieldKey: f.key,
             maxLength: f.maxLength,
-            onDblClick: enableEditByDoubleClick,
-            onClickCell: openEditorByClick,
+            // Mode Input aktif: klik 2× tidak menyalakan mode Edit (baris
+            // input cukup buka editor sel).
+            onDblClick: (id: string | number) => {
+              if (!showInput && String(id) !== INPUT_ROW_ID) enableEditByDoubleClick();
+            },
+            onClickCell: (id: string | number) => {
+              if (String(id) === INPUT_ROW_ID) openEditorForActiveCell();
+              else openEditorByClick();
+            },
           },
           disableKeys: false,
           keepFocus: false,
-          disabled: !editing,
+          disabled: ({ rowData }: { rowData: GridRow }) =>
+            !(editing || isInputRow(rowData)),
           deleteValue: ({ rowData }) => (editing ? ({ ...rowData, [f.key]: null }) as GridRow : rowData),
           copyValue: ({ rowData }) => String(rowData[f.key] ?? ''),
           pasteValue: ({ rowData, value }: { rowData: GridRow; value: string }) =>
-            (editing ? { ...rowData, [f.key]: value } : rowData) as GridRow,
+            (editing || isInputRow(rowData) ? { ...rowData, [f.key]: value } : rowData) as GridRow,
           isCellEmpty: ({ rowData }) => rowData[f.key] == null || rowData[f.key] === '',
         });
       }
     }
     return cols;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fields, visibleFields, editing, widths, autoWidths, align]);
+  }, [fields, visibleFields, editing, widths, autoWidths, align, showInput]);
+
+  /** Simpan baris input → buat record baru via onCreateRow halaman. Validasi
+   *  field wajib + validator kolom dulu; draft dibersihkan hanya bila sukses
+   *  (toast sukses menjadi tanggung jawab halaman). */
+  async function simpanInput() {
+    if (!onCreateRow) return;
+    const g = gridValue.find((r) => String(r.id) === INPUT_ROW_ID);
+    if (!g) return;
+    const flds: Record<string, string | null> = {};
+    for (const f of visibleFieldsRef.current) {
+      if (f.kind === 'static' && !f.inputKind) continue;
+      const raw = (g[f.key] as string | null) ?? null;
+      const v = raw == null || String(raw).trim() === '' ? null : String(raw);
+      flds[f.key] = v;
+      if (f.required && v === null) {
+        toast.error(`${f.label} wajib diisi.`);
+        return;
+      }
+      if (v !== null && f.validate) {
+        const blocked = f.validate(v);
+        if (blocked) {
+          toast.error(blocked);
+          return;
+        }
+      }
+    }
+    try {
+      await onCreateRow(flds);
+      setDrafts((prev) => {
+        if (!(INPUT_ROW_ID in prev)) return prev;
+        const next = { ...prev };
+        delete next[INPUT_ROW_ID];
+        return next;
+      });
+    } catch (e) {
+      toast.error(errorMessage(e));
+    }
+  }
+
+  /** Handler simpan baris input (dipakai tombol di kolom Aksi). */
+  const inputAksiRef = useRef<() => void>(() => {});
+  inputAksiRef.current = () => void simpanInput();
 
   /** Kolom Aksi = kolom "sticky kanan" DSG: selalu ter-render & menempel di
    *  kanan saat grid di-scroll horizontal (freeze pane sisi kanan). */
@@ -1209,6 +1428,18 @@ export default function ExcelTable<T extends { id: string | number }>({
     component: ActionsCell,
     columnData: {
       render: (id: string | number) => {
+        if (String(id) === INPUT_ROW_ID) {
+          return (
+            <ActionIcon
+              id={`btn_simpan_input_${tableKey}`}
+              title="Simpan baris baru"
+              className="text-primary hover:bg-primary/10 hover:text-primary"
+              onClick={() => inputAksiRef.current()}
+            >
+              <Save size={16} />
+            </ActionIcon>
+          );
+        }
         const d = rowsRef.current.find((r) => String(r.id) === String(id));
         return d ? renderRef.current(d) : null;
       },
@@ -1221,13 +1452,13 @@ export default function ExcelTable<T extends { id: string | number }>({
     pasteValue: ({ rowData }: { rowData: GridRow }) => rowData,
     isCellEmpty: () => true,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [widths, autoWidths]);
+  }), [widths, autoWidths, tableKey]);
 
   /** Klik/pindah ke sel lain saat ada editor terbuka: tutup dulu editor lama
    *  (memicu commit + auto-save), lalu DSG memindahkan sel aktif. Tanpa ini
    *  input lama tetap fokus sehingga ketikan lanjut masuk ke sel sebelumnya. */
   function closeEditorOnOtherCell(e: React.MouseEvent) {
-    if (!editing) return;
+    if (!editing && !showInput) return;
     const aktif = document.activeElement as HTMLElement | null;
     if (!aktif || !(aktif.classList.contains('dsg-input') || aktif.classList.contains('simpes-dsg-select'))) {
       return;
@@ -1433,6 +1664,32 @@ export default function ExcelTable<T extends { id: string | number }>({
           </Button>
         </div>
       )}
+      {showInput && (
+        <div
+          id={`banner_mode_input_${tableKey}`}
+          role="status"
+          className="mb-2 flex flex-wrap items-center gap-2 rounded-md border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs text-foreground"
+        >
+          <PlusCircle size={14} />
+          <span className="font-semibold">Mode Input aktif</span>
+          <span>
+            — isi baris paling bawah, lalu klik ikon simpan. Tekan{' '}
+            <kbd className="rounded border border-primary/40 bg-background/60 px-1 font-mono text-[10px]">
+              Esc
+            </kbd>{' '}
+            untuk keluar.
+          </span>
+          <Button
+            id={`btn_keluar_mode_input_${tableKey}`}
+            variant="outline"
+            size="sm"
+            className="ml-auto border-primary/40 bg-transparent hover:bg-primary/10"
+            onClick={() => setInputMode(false)}
+          >
+            Keluar mode Input
+          </Button>
+        </div>
+      )}
       {/* Satu baris: pencarian + filter (kiri), lalu kontrol tabel dan tombol
           tambah halaman (kanan), dikelompokkan menurut fungsi. */}
       <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -1513,6 +1770,28 @@ export default function ExcelTable<T extends { id: string | number }>({
                     baca-saja
                   </span>
                 </span>
+              ) : null}
+            </ToolbarGroup>
+          )}
+
+          {/* Grup mode input baris baru (hanya bila halaman mendukung create) */}
+          {inputEnabled && (
+            <ToolbarGroup title="Mode input baris baru di paling bawah">
+              <label
+                htmlFor={`chk_input_${tableKey}`}
+                className="flex cursor-pointer items-center gap-1.5 text-xs text-muted-foreground"
+              >
+                <input
+                  id={`chk_input_${tableKey}`}
+                  type="checkbox"
+                  checked={inputMode}
+                  onChange={(e) => setInputMode(e.target.checked)}
+                  className="size-3.5 accent-[var(--accent)]"
+                />
+                Input
+              </label>
+              {showInput ? (
+                <span className="text-[11px] text-muted-foreground">baris baru di bawah</span>
               ) : null}
             </ToolbarGroup>
           )}
@@ -1601,6 +1880,7 @@ export default function ExcelTable<T extends { id: string | number }>({
                 const r = gridValue[rowIndex];
                 return cn(
                   rowIndex === gridValue.length - 1 && 'simpes-dsg-row-last',
+                  r && String(r.id) === INPUT_ROW_ID && 'simpes-dsg-row-input',
                   r && checkedIds.has(r.id) && 'simpes-dsg-row-checked',
                 );
               }}

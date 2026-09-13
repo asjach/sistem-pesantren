@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { errorMessage } from '../api/client';
 import {
   createKelas,
@@ -41,6 +41,7 @@ import { toast } from 'sonner';
 const FIELDS: ExcelField[] = [
   {
     key: 'nama', label: 'Nama', width: 160, minWidth: 120, kind: 'text', maxLength: 50,
+    required: true,
     validate: (v) => (!v || !v.trim() ? 'Nama kelas wajib diisi.' : null),
   },
   {
@@ -89,6 +90,12 @@ export default function KelasPage() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
   const reqRef = useRef(0);
+
+  // Pilihan lembaga + TA khusus dialog Tambah (mandiri dari filter toolbar).
+  const [tambahLembagaId, setTambahLembagaId] = useState<number | ''>('');
+  const [tambahTaId, setTambahTaId] = useState<number | ''>('');
+  const [tambahTas, setTambahTas] = useState<TahunAjaran[]>([]);
+  const tambahTaReqRef = useRef(0);
 
   const [namaKelas, setNamaKelas] = useState('');
   const [tingkat, setTingkat] = useState('');
@@ -148,6 +155,40 @@ export default function KelasPage() {
     return () => { alive = false; };
   }, [lembagaId]);
 
+  // Dialog Tambah: muat TA milik lembaga terpilih; pilih TA aktif otomatis
+  // selama pilihan sebelumnya kosong/tidak lagi ada di daftar.
+  useEffect(() => {
+    const req = ++tambahTaReqRef.current;
+    if (tambahLembagaId === '') {
+      setTambahTas([]);
+      return;
+    }
+    listTahunAjaran({ lembaga_id: Number(tambahLembagaId), per_page: 100 })
+      .then((p) => {
+        if (req !== tambahTaReqRef.current) return;
+        setTambahTas(p.data);
+        setTambahTaId((prev) => {
+          if (prev !== '' && p.data.some((t) => String(t.id) === String(prev))) return prev;
+          const aktif = p.data.find((t) => t.is_aktif);
+          return aktif ? aktif.id : '';
+        });
+      })
+      .catch((e) => {
+        if (req !== tambahTaReqRef.current) return;
+        setTambahTas([]);
+        setErr(errorMessage(e));
+      });
+  }, [tambahLembagaId]);
+
+  const bukaTambah = useCallback(() => {
+    setTambahLembagaId(lembagaId);
+    // Utamakan TA filter; bila kosong pakai TA aktif dari daftar yang sudah ada
+    // (efek pemuat akan mengoreksi bila daftar itu milik lembaga lain).
+    const aktif = tambahTas.find((t) => t.is_aktif);
+    setTambahTaId(taId !== '' ? taId : (aktif ? aktif.id : ''));
+    setTambahOpen(true);
+  }, [lembagaId, taId, tambahTas]);
+
   useEffect(() => {
     if (pager.ready) load(pager.page);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -163,14 +204,14 @@ export default function KelasPage() {
   const onCreate = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     setErr('');
-    if (lembagaId === '' || taId === '') {
+    if (tambahLembagaId === '' || tambahTaId === '') {
       setErr('Lembaga + tahun ajaran wajib (kelas se-lembaga dengan TA).');
       return;
     }
     try {
       await createKelas({
-        lembaga_id: Number(lembagaId),
-        tahun_ajaran_id: Number(taId),
+        lembaga_id: Number(tambahLembagaId),
+        tahun_ajaran_id: Number(tambahTaId),
         nama_kelas: namaKelas,
         tingkat: tingkat || undefined,
         kapasitas: kapasitas ? Number(kapasitas) : undefined,
@@ -183,7 +224,28 @@ export default function KelasPage() {
     } catch (e2) {
       setErr(errorMessage(e2));
     }
-  }, [lembagaId, taId, namaKelas, tingkat, kapasitas, load, pager.goFirst]);
+  }, [tambahLembagaId, tambahTaId, namaKelas, tingkat, kapasitas, load, pager.goFirst]);
+
+  /** Mode Input: buat kelas baru dari baris input (butuh filter lembaga+TA). */
+  const createRow = useCallback(async (f: Record<string, string | null>) => {
+    if (lembagaId === '' || taId === '') {
+      throw new Error('Pilih filter lembaga & tahun ajaran dulu untuk mode Input.');
+    }
+    await createKelas({
+      lembaga_id: Number(lembagaId),
+      tahun_ajaran_id: Number(taId),
+      nama_kelas: (f.nama ?? '').trim(),
+      tingkat: f.tingkat || undefined,
+      kapasitas: f.kapasitas ? Number(f.kapasitas) : undefined,
+    });
+    toast.success('Kelas dibuat.');
+    await load(1);
+  }, [lembagaId, taId, load]);
+
+  const taTerpilih = useMemo(
+    () => tas.find((t) => String(t.id) === String(taId))?.nama ?? '',
+    [tas, taId],
+  );
 
   const onUpdate = useCallback(async () => {
     if (!editRow) return;
@@ -248,12 +310,14 @@ export default function KelasPage() {
         canEdit
         onCommit={commitDraft}
         onSaved={onSaved}
+        onCreateRow={createRow}
+        inputRowValues={{ ta: taTerpilih }}
         searchValue={search}
         onSearchChange={onSearchChange}
         onSearchSubmit={onSearchSubmit}
         searchPlaceholder="Nama kelas"
         addButton={(
-          <Button id="btn_buka_tambah_kelas" onClick={() => setTambahOpen(true)}>
+          <Button id="btn_buka_tambah_kelas" onClick={bukaTambah}>
             + Kelas
           </Button>
         )}
@@ -307,6 +371,44 @@ export default function KelasPage() {
             <DialogDescription className="sr-only">Formulir penambahan kelas baru.</DialogDescription>
           </DialogHeader>
           <form id="form_tambah_kelas" onSubmit={onCreate} className="flex flex-col gap-3">
+            <FieldGroup className="grid gap-3 sm:grid-cols-2">
+              <Field>
+                <FieldLabel htmlFor="select_tambah_lembaga_kelas">Lembaga</FieldLabel>
+                <Select
+                  value={tambahLembagaId === '' ? '' : String(tambahLembagaId)}
+                  onValueChange={(v) => { setTambahLembagaId(Number(v)); setTambahTaId(''); }}
+                >
+                  <SelectTrigger id="select_tambah_lembaga_kelas" className="w-full">
+                    <SelectValue placeholder="Pilih lembaga" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>)}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="select_tambah_ta_kelas">Tahun ajaran</FieldLabel>
+                <Select
+                  value={tambahTaId === '' ? '' : String(tambahTaId)}
+                  onValueChange={(v) => setTambahTaId(Number(v))}
+                  disabled={tambahLembagaId === ''}
+                >
+                  <SelectTrigger id="select_tambah_ta_kelas" className="w-full">
+                    <SelectValue placeholder={tambahLembagaId === '' ? 'Pilih lembaga dulu' : 'Pilih tahun ajaran'} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {tambahTas.map((t) => <SelectItem key={t.id} value={String(t.id)}>{t.nama}</SelectItem>)}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+                {tambahLembagaId !== '' && tambahTas.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">Belum ada tahun ajaran di lembaga ini.</p>
+                ) : null}
+              </Field>
+            </FieldGroup>
             <FieldGroup className="grid gap-3 sm:grid-cols-3">
               <Field>
                 <FieldLabel htmlFor="input_nama_kelas">Nama kelas</FieldLabel>
@@ -323,7 +425,13 @@ export default function KelasPage() {
             </FieldGroup>
             <DialogFooter>
               <Button variant="outline" onClick={() => setTambahOpen(false)}>Batal</Button>
-              <Button id="btn_tambah_kelas" type="submit">Tambah</Button>
+              <Button
+                id="btn_tambah_kelas"
+                type="submit"
+                disabled={tambahLembagaId === '' || tambahTaId === '' || !namaKelas.trim()}
+              >
+                Tambah
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>

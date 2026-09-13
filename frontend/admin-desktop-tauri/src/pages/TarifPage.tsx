@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { errorMessage } from '../api/client';
 import {
   createTarif,
@@ -51,9 +51,18 @@ const FIELDS: ExcelField[] = [
   { key: 'pos', label: 'Pos', width: 140, minWidth: 110, kind: 'static' },
   { key: 'lembaga', label: 'Lembaga', width: 180, minWidth: 120, kind: 'static' },
   { key: 'ta', label: 'TA', width: 140, minWidth: 110, kind: 'static' },
-  { key: 'tipe', label: 'Tipe santri', width: 130, minWidth: 100, kind: 'static' },
+  {
+    key: 'tipe', label: 'Tipe santri', width: 130, minWidth: 100, kind: 'static',
+    inputKind: 'select',
+    inputChoices: [
+      { value: 'semua', label: 'semua' },
+      { value: 'asrama', label: 'asrama' },
+      { value: 'non_asrama', label: 'non_asrama' },
+    ],
+  },
   {
     key: 'nominal', label: 'Nominal', width: 160, minWidth: 110, kind: 'text', maxLength: 20,
+    required: true,
     validate: numRule('Nominal', true),
   },
   {
@@ -221,6 +230,36 @@ export default function TarifPage() {
 
   const onSaved = useCallback(() => load(), [load]);
 
+  /** Mode Input: buat tarif baru dari baris input (butuh 3 filter terisi). */
+  const createRow = useCallback(async (f: Record<string, string | null>) => {
+    if (lembagaId === '' || posId === '' || taId === '') {
+      throw new Error('Pilih filter pos, lembaga, & tahun ajaran dulu untuk mode Input.');
+    }
+    await createTarif({
+      pos_keuangan_id: Number(posId),
+      lembaga_id: Number(lembagaId),
+      tahun_ajaran_id: Number(taId),
+      tipe_santri: (f.tipe ?? 'semua') as TipeSantriTarif,
+      nominal: Number(f.nominal),
+      nominal_paket: f.paket ? Number(f.paket) : undefined,
+    });
+    toast.success('Tarif dibuat.');
+    await load(1);
+  }, [lembagaId, posId, taId, load]);
+
+  const posTerpilih = useMemo(
+    () => posList.find((p) => String(p.id) === String(posId))?.kode_pos ?? '',
+    [posList, posId],
+  );
+  const lembagaTerpilih = useMemo(() => {
+    const l = lembagas.find((x) => String(x.id) === String(lembagaId));
+    return l?.kode ?? l?.nama ?? '';
+  }, [lembagas, lembagaId]);
+  const taTerpilih = useMemo(
+    () => tas.find((t) => String(t.id) === String(taId))?.nama ?? '',
+    [tas, taId],
+  );
+
   const renderActions = useCallback((t: TarifBiaya) => (
     <>
       <ViewAction id={`btn_lihat_tarif_${t.id}`} onClick={() => setViewRow(t)} />
@@ -247,6 +286,8 @@ export default function TarifPage() {
         canEdit
         onCommit={commitDraft}
         onSaved={onSaved}
+        onCreateRow={createRow}
+        inputRowValues={{ pos: posTerpilih, lembaga: lembagaTerpilih, ta: taTerpilih }}
         onSearchSubmit={onSearchSubmit}
         searchIds={{ form: 'form_filter_tarif', button: 'btn_cari_tarif' }}
         addButton={(

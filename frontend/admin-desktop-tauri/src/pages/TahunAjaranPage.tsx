@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { errorMessage } from '../api/client';
 import {
   createTahunAjaran,
@@ -43,6 +43,7 @@ const dateRule = (label: string) => (v: string | null) =>
 const FIELDS: ExcelField[] = [
   {
     key: 'nama', label: 'Nama', width: 160, minWidth: 120, kind: 'text', maxLength: 50,
+    required: true,
     validate: (v) => (!v || !v.trim() ? 'Nama tahun ajaran wajib diisi.' : null),
   },
   { key: 'lembaga', label: 'Lembaga', width: 200, minWidth: 120, kind: 'static' },
@@ -215,6 +216,26 @@ export default function TahunAjaranPage() {
 
   const onSaved = useCallback(() => load(), [load]);
 
+  /** Mode Input: buat TA baru dari baris input (butuh filter lembaga). */
+  const createRow = useCallback(async (f: Record<string, string | null>) => {
+    if (lembagaId === '') {
+      throw new Error('Pilih filter lembaga dulu untuk mode Input.');
+    }
+    await createTahunAjaran({
+      lembaga_id: Number(lembagaId),
+      nama: (f.nama ?? '').trim(),
+      tanggal_mulai: f.mulai || undefined,
+      tanggal_selesai: f.selesai || undefined,
+    });
+    toast.success('Tahun ajaran dibuat.');
+    await load(1);
+  }, [lembagaId, load]);
+
+  const lembagaTerpilih = useMemo(() => {
+    const l = lembagas.find((x) => String(x.id) === String(lembagaId));
+    return l?.kode ?? l?.nama ?? '';
+  }, [lembagas, lembagaId]);
+
   const renderActions = useCallback((t: TahunAjaran) => (
     <>
       <ViewAction id={`btn_lihat_ta_${t.id}`} onClick={() => setViewRow(t)} />
@@ -242,6 +263,8 @@ export default function TahunAjaranPage() {
         canEdit
         onCommit={commitDraft}
         onSaved={onSaved}
+        onCreateRow={createRow}
+        inputRowValues={{ lembaga: lembagaTerpilih }}
         searchValue={search}
         onSearchChange={onSearchChange}
         onSearchSubmit={onSearchSubmit}

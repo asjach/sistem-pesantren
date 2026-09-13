@@ -43,6 +43,7 @@ const FIELDS: ExcelField[] = [
   },
   {
     key: 'nama', label: 'Nama', width: 260, minWidth: 120, kind: 'text', maxLength: 100,
+    required: true,
     validate: (v) => (!v || !v.trim() ? 'Nama lembaga wajib diisi.' : null),
   },
   { key: 'induk', label: 'Induk', width: 220, minWidth: 120, kind: 'static' },
@@ -202,6 +203,16 @@ export default function LembagaPage() {
 
   const onSaved = useCallback(() => load(), [load]);
 
+  /** Mode Input: buat lembaga baru dari baris input (super_admin). */
+  const createRow = useCallback(async (f: Record<string, string | null>) => {
+    await createLembaga({
+      nama: (f.nama ?? '').trim(),
+      kode: (f.kode ?? '').trim() || undefined,
+    });
+    toast.success('Lembaga dibuat.');
+    await load(1);
+  }, [load]);
+
   const renderActions = useCallback((l: Lembaga) => (
     <>
       <ViewAction id={`btn_lihat_lembaga_${l.id}`} onClick={() => setViewRow(l)} />
@@ -232,6 +243,7 @@ export default function LembagaPage() {
         canEdit={isSuper}
         onCommit={commitDraft}
         onSaved={onSaved}
+        onCreateRow={isSuper ? createRow : undefined}
         searchValue={search}
         onSearchChange={onSearchChange}
         onSearchSubmit={onSearchSubmit}

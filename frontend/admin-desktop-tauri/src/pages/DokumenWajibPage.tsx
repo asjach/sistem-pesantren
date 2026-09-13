@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { errorMessage } from '../api/client';
 import {
   hapusDokumenWajib,
@@ -32,16 +32,23 @@ import {
 import { DeleteAction } from '@/components/RowActions';
 import { toast } from 'sonner';
 
-const FIELDS: ExcelField[] = [
-  { key: 'jenis', label: 'Jenis dokumen', width: 260, kind: 'static' },
-  {
-    key: 'wajib', label: 'Sifat', width: 120, kind: 'select',
-    choices: [
-      { value: 'Ya', label: 'Wajib' },
-      { value: 'Tidak', label: 'Opsional' },
-    ],
-  },
-];
+/** Kolom grid dokumen wajib; pilihan jenis mengikuti kamus aktif lembaga
+ *  (dipakai pada mode Input). */
+function dokumenFields(jenisOptions: { value: string; label: string }[]): ExcelField[] {
+  return [
+    {
+      key: 'jenis', label: 'Jenis dokumen', width: 260, kind: 'static',
+      inputKind: 'select', required: true, inputChoices: jenisOptions,
+    },
+    {
+      key: 'wajib', label: 'Sifat', width: 120, kind: 'select',
+      choices: [
+        { value: 'Ya', label: 'Wajib' },
+        { value: 'Tidak', label: 'Opsional' },
+      ],
+    },
+  ];
+}
 
 function gridValues(d: DokumenWajib): Record<string, string | null> {
   return { jenis: d.jenis_dokumen_santri, wajib: d.is_wajib ? 'Ya' : 'Tidak' };
@@ -151,6 +158,30 @@ export default function DokumenWajibPage() {
     });
   }, [rows, kegiatanId, lembagaId]);
 
+  /** Kolom grid dengan pilihan jenis dinamis + mode Input. */
+  const fields = useMemo(
+    () => dokumenFields(jenis.map((r) => ({
+      value: String(r.nama ?? r.kode),
+      label: String(r.nama ?? r.label ?? r.kode),
+    }))),
+    [jenis],
+  );
+
+  /** Mode Input: simpan ketentuan dokumen baru dari baris input. */
+  const createRow = useCallback(async (f: Record<string, string | null>) => {
+    if (!kegiatanId || !lembagaId) {
+      throw new Error('Pilih kegiatan & lembaga dulu untuk mode Input.');
+    }
+    await simpanDokumenWajib({
+      psb_kegiatan_id: Number(kegiatanId),
+      lembaga_id: Number(lembagaId),
+      jenis_dokumen_santri: (f.jenis ?? '').trim(),
+      is_wajib: f.wajib !== 'Tidak',
+    });
+    toast.success('Ketentuan disimpan.');
+    await load();
+  }, [kegiatanId, lembagaId, load]);
+
   const renderActions = useCallback((d: DokumenWajib) => (
     <DeleteAction
       id={`btn_hapus_dokumen_wajib_${d.id}`}
@@ -165,7 +196,7 @@ export default function DokumenWajibPage() {
       <ErrorNotice>{err}</ErrorNotice>
       <ExcelTable
         tableKey="dokumen_wajib"
-        fields={FIELDS}
+        fields={fields}
         rows={rows}
         getValues={gridValues}
         loading={loading}
@@ -173,6 +204,8 @@ export default function DokumenWajibPage() {
         canEdit
         onCommit={commitWajib}
         onSaved={load}
+        onCreateRow={kegiatanId && lembagaId ? createRow : undefined}
+        inputRowValues={{ wajib: 'Ya' }}
         filter={(
           <>
             <Select value={kegiatanId} onValueChange={setKegiatanId}>
