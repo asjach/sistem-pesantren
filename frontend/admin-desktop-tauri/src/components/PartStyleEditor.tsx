@@ -234,7 +234,11 @@ export default function PartStyleEditor() {
   const [cari, setCari] = useState('');
   const [tertutup, setTertutup] = useState<Record<string, boolean>>({});
   const [bawaan, setBawaan] = useState<Bawaan>({});
+  /** Tinggi kolom kanan (Pratinjau + Kontrol) — area accordion dibuat rata
+   *  atas-bawah dengan seluruh kolom sebelahnya di layar lebar. */
+  const [tinggiKanan, setTinggiKanan] = useState<number | null>(null);
   const refContoh = useRef<HTMLElement | null>(null);
+  const refKanan = useRef<HTMLDivElement | null>(null);
   const meta = PARTS.find((p) => p.id === aktif) ?? PARTS[0];
   const g = parts.gaya[aktif] ?? TANPA_GAYA;
   const w = parts[mode][aktif] ?? TANPA_WARNA;
@@ -263,6 +267,19 @@ export default function PartStyleEditor() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aktif, mode, theme, customHex, g, w]);
+
+  // Samakan tinggi area accordion dengan SELURUH kolom kanan (Pratinjau +
+  // Kontrol) supaya kedua kolom rata atas-bawah di layar lebar; ukuran
+  // menyesuaikan saat isi/tema/bagian berganti.
+  useLayoutEffect(() => {
+    const el = refKanan.current;
+    if (!el) return;
+    const ukur = () => setTinggiKanan(Math.round(el.getBoundingClientRect().height));
+    ukur();
+    const ro = new ResizeObserver(ukur);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   const grupTampil = useMemo(() => {
     const q = cari.trim().toLowerCase();
@@ -356,8 +373,11 @@ export default function PartStyleEditor() {
   return (
     <section className="flex w-full max-w-none flex-col gap-4">
       <div className="grid items-start gap-4 lg:grid-cols-[270px_minmax(0,1fr)]">
-        <aside className="flex flex-col gap-2 rounded-xl border bg-card p-3 lg:sticky lg:top-3 lg:max-h-[calc(100vh-120px)] lg:overflow-y-auto">
-          <div className="relative">
+        <aside
+          className="flex flex-col gap-2 rounded-xl border bg-card p-3 lg:h-[var(--tinggi-kolom)] lg:min-h-[200px] lg:overflow-y-auto"
+          style={tinggiKanan != null ? ({ '--tinggi-kolom': `${tinggiKanan}px` } as CSSProperties) : undefined}
+        >
+          <div className="relative lg:sticky lg:top-0 lg:z-10 lg:bg-card">
             <Search className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
               id="input_cari_bagian"
@@ -448,7 +468,7 @@ export default function PartStyleEditor() {
           )}
         </aside>
 
-        <div className="flex min-w-0 flex-col gap-4">
+        <div className="flex min-w-0 flex-col gap-4" ref={refKanan}>
           <div className="rounded-xl border bg-card p-4">
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
