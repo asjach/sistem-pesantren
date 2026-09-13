@@ -14,6 +14,9 @@ import {
 import { normalizeHex } from '@/prefs';
 import { bangunCssPratinjau, variabelBagian, variabelWajah } from '@/partStyles';
 import { contohBagian } from '@/components/PartContohBagian';
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { useDefaultLayout } from 'react-resizable-panels';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -234,11 +237,11 @@ export default function PartStyleEditor() {
   const [cari, setCari] = useState('');
   const [tertutup, setTertutup] = useState<Record<string, boolean>>({});
   const [bawaan, setBawaan] = useState<Bawaan>({});
-  /** Tinggi kolom kanan (Pratinjau + Kontrol) — area accordion dibuat rata
-   *  atas-bawah dengan seluruh kolom sebelahnya di layar lebar. */
-  const [tinggiKanan, setTinggiKanan] = useState<number | null>(null);
   const refContoh = useRef<HTMLElement | null>(null);
-  const refKanan = useRef<HTMLDivElement | null>(null);
+  /** Layar lebar (lg+): 2 kolom dengan pemisah yang bisa digeser. */
+  const lebarLg = useMediaQuery('(min-width: 1024px)');
+  const layoutH = useDefaultLayout({ id: 'simpes_bagian_ui_h', onlySaveAfterUserInteractions: true });
+  const layoutV = useDefaultLayout({ id: 'simpes_bagian_ui_v', onlySaveAfterUserInteractions: true });
   const meta = PARTS.find((p) => p.id === aktif) ?? PARTS[0];
   const g = parts.gaya[aktif] ?? TANPA_GAYA;
   const w = parts[mode][aktif] ?? TANPA_WARNA;
@@ -267,19 +270,6 @@ export default function PartStyleEditor() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aktif, mode, theme, customHex, g, w]);
-
-  // Samakan tinggi area accordion dengan SELURUH kolom kanan (Pratinjau +
-  // Kontrol) supaya kedua kolom rata atas-bawah di layar lebar; ukuran
-  // menyesuaikan saat isi/tema/bagian berganti.
-  useLayoutEffect(() => {
-    const el = refKanan.current;
-    if (!el) return;
-    const ukur = () => setTinggiKanan(Math.round(el.getBoundingClientRect().height));
-    ukur();
-    const ro = new ResizeObserver(ukur);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
 
   const grupTampil = useMemo(() => {
     const q = cari.trim().toLowerCase();
@@ -370,13 +360,9 @@ export default function PartStyleEditor() {
     </button>
   );
 
-  return (
-    <section className="flex w-full max-w-none flex-col gap-4">
-      <div className="grid items-start gap-4 lg:grid-cols-[270px_minmax(0,1fr)]">
-        <aside
-          className="flex flex-col gap-2 rounded-xl border bg-card p-3 lg:h-[var(--tinggi-kolom)] lg:min-h-[200px] lg:overflow-y-auto"
-          style={tinggiKanan != null ? ({ '--tinggi-kolom': `${tinggiKanan}px` } as CSSProperties) : undefined}
-        >
+  /** Isi daftar bagian (dipakai di panel resizable & tumpukan mobile). */
+  const daftarBagian = (
+    <>
           <div className="relative lg:sticky lg:top-0 lg:z-10 lg:bg-card">
             <Search className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -466,10 +452,11 @@ export default function PartStyleEditor() {
           {grupTampil.length === 0 && (
             <p className="px-1 py-2 text-xs text-muted-foreground">Tidak ada bagian yang cocok.</p>
           )}
-        </aside>
+    </>
+  );
 
-        <div className="flex min-w-0 flex-col gap-4" ref={refKanan}>
-          <div className="rounded-xl border bg-card p-4">
+  const kartuPratinjau = (
+    <div className="rounded-xl border bg-card p-4">
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium">Pratinjau</span>
@@ -518,10 +505,12 @@ export default function PartStyleEditor() {
               Kanvas mengikuti tab mode warna (Terang/Gelap) dan tema aktif. Tipografi
               & kotak berlaku kedua mode; warna dipisah per mode.
             </p>
-          </div>
+    </div>
+  );
 
-          <div className="rounded-xl border bg-card p-4">
-            <div className="flex flex-wrap items-start justify-between gap-2">
+  const kartuKontrol = (
+    <div className="rounded-xl border bg-card p-4">
+      <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
                 <div className="text-sm font-medium">{meta.label}</div>
                 <div className="text-xs text-muted-foreground">{meta.hint}</div>
@@ -651,9 +640,51 @@ export default function PartStyleEditor() {
               menimpa kontrol di dalamnya agar proporsi tetap. Padding Y dan radius
               pada bagian tabel mengikuti geometri grid (tidak berpengaruh).
             </FieldDescription>
-          </div>
+    </div>
+  );
+
+  return (
+    <section className="flex w-full max-w-none flex-col gap-4">
+      {lebarLg ? (
+        <div className="h-[calc(100vh-190px)] min-h-[420px]">
+          <ResizablePanelGroup
+            orientation="horizontal"
+            id="simpes_bagian_ui_h"
+            defaultLayout={layoutH.defaultLayout}
+            onLayoutChanged={layoutH.onLayoutChanged}
+          >
+            <ResizablePanel id="accordion" defaultSize="21%" minSize="14%" maxSize="45%">
+              <aside className="flex h-full min-h-0 flex-col gap-2 overflow-y-auto rounded-xl border bg-card p-3">
+                {daftarBagian}
+              </aside>
+            </ResizablePanel>
+            <ResizableHandle withHandle orientation="horizontal" />
+            <ResizablePanel id="kanan" minSize="40%">
+              <ResizablePanelGroup
+                orientation="vertical"
+                id="simpes_bagian_ui_v"
+                defaultLayout={layoutV.defaultLayout}
+                onLayoutChanged={layoutV.onLayoutChanged}
+                className="pl-4"
+              >
+                <ResizablePanel id="pratinjau" defaultSize="52%" minSize="18%" maxSize="82%">
+                  <div className="h-full min-h-0 overflow-y-auto pb-2">{kartuPratinjau}</div>
+                </ResizablePanel>
+                <ResizableHandle withHandle orientation="vertical" />
+                <ResizablePanel id="kontrol" minSize="22%">
+                  <div className="h-full min-h-0 overflow-y-auto pt-2">{kartuKontrol}</div>
+                </ResizablePanel>
+              </ResizablePanelGroup>
+            </ResizablePanel>
+          </ResizablePanelGroup>
         </div>
-      </div>
+      ) : (
+        <div className="flex flex-col gap-4">
+          <aside className="flex flex-col gap-2 rounded-xl border bg-card p-3">{daftarBagian}</aside>
+          {kartuPratinjau}
+          {kartuKontrol}
+        </div>
+      )}
     </section>
   );
 }

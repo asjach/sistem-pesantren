@@ -604,6 +604,17 @@
   "bi": "x-circle",
   "material": "x-circle"
  },
+ "GripVertical": {
+  "lucide": "grip-vertical",
+  "tabler": "grip-vertical",
+  "ph": null,
+  "heroicons": null,
+  "ri": null,
+  "iconoir": null,
+  "radix": "dots-vertical",
+  "bi": "grip-vertical",
+  "material": "drag-handle"
+ },
  "ChevronUp": {
   "lucide": "chevron-up",
   "tabler": "chevron-up",

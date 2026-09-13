@@ -84,6 +84,7 @@ const IKON = {
   Wallet: ['wallet', 'wallet-2', 'wallet-minimal', 'card-wallet', 'wallet-line', 'wallet-3', 'money-wallet'],
   X: ['x', 'cross', 'close', 'x-line', 'x-mark', 'cross-2', 'close-line', 'multiply', 'x-lg'],
   XCircle: ['circle-x', 'x-circle', 'close-circle', 'circle-close', 'xmark-circle', 'cross-circle', 'circle-xmark', 'cross-circled'],
+  GripVertical: ['grip-vertical', 'drag-vertical', 'drag-handle', 'handle-vertical', 'grip', 'dots-vertical'],
   ChevronUp: ['chevron-up', 'caret-up', 'chevron-top', 'angle-up', 'collapse-less', 'up', 'arrow-up-s-line', 'nav-arrow-up'],
   CircleCheck: ['circle-check', 'check-circle', 'checkmark-circle', 'check-circled', 'check-circle-fill', 'circle-check-big'],
   Info: ['info', 'information', 'info-circle', 'information-circle', 'info-filled'],

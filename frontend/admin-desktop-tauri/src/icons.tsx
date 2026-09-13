@@ -1,5 +1,5 @@
 /* AUTO-GENERATED oleh scripts/icons-gen.mjs — JANGAN edit manual.
- * 61 ikon × 9 set (Iconify/unplugin-icons). Set aktif dari prefs
+ * 62 ikon × 9 set (Iconify/unplugin-icons). Set aktif dari prefs
  * `iconSet`; nama yang tidak tersedia di suatu set jatuh ke Lucide.
  * Regenerasi: node scripts/icons-gen.mjs */
 import type { ComponentType, SVGProps } from 'react';
@@ -63,6 +63,7 @@ import IcUsersLucide from '~icons/lucide/users';
 import IcWalletLucide from '~icons/lucide/wallet';
 import IcXLucide from '~icons/lucide/x';
 import IcXCircleLucide from '~icons/lucide/circle-x';
+import IcGripVerticalLucide from '~icons/lucide/grip-vertical';
 import IcChevronUpLucide from '~icons/lucide/chevron-up';
 import IcCircleCheckLucide from '~icons/lucide/circle-check';
 import IcInfoLucide from '~icons/lucide/info';
@@ -126,6 +127,7 @@ import IcUsersTabler from '~icons/tabler/users';
 import IcWalletTabler from '~icons/tabler/wallet';
 import IcXTabler from '~icons/tabler/x';
 import IcXCircleTabler from '~icons/tabler/circle-x';
+import IcGripVerticalTabler from '~icons/tabler/grip-vertical';
 import IcChevronUpTabler from '~icons/tabler/chevron-up';
 import IcCircleCheckTabler from '~icons/tabler/circle-check';
 import IcInfoTabler from '~icons/tabler/info-circle';
@@ -394,6 +396,7 @@ import IcUploadRadix from '~icons/radix-icons/upload';
 import IcUsersRadix from '~icons/radix-icons/group';
 import IcXRadix from '~icons/radix-icons/cross-2';
 import IcXCircleRadix from '~icons/radix-icons/cross-circled';
+import IcGripVerticalRadix from '~icons/radix-icons/dots-vertical';
 import IcChevronUpRadix from '~icons/radix-icons/chevron-up';
 import IcCircleCheckRadix from '~icons/radix-icons/check-circled';
 
@@ -452,6 +455,7 @@ import IcUsersBi from '~icons/bi/people';
 import IcWalletBi from '~icons/bi/wallet';
 import IcXBi from '~icons/bi/x';
 import IcXCircleBi from '~icons/bi/x-circle';
+import IcGripVerticalBi from '~icons/bi/grip-vertical';
 import IcChevronUpBi from '~icons/bi/chevron-up';
 import IcCircleCheckBi from '~icons/bi/check-circle';
 import IcInfoBi from '~icons/bi/info';
@@ -512,6 +516,7 @@ import IcUsersMaterial from '~icons/material-symbols/group';
 import IcWalletMaterial from '~icons/material-symbols/wallet';
 import IcXMaterial from '~icons/material-symbols/close';
 import IcXCircleMaterial from '~icons/material-symbols/x-circle';
+import IcGripVerticalMaterial from '~icons/material-symbols/drag-handle';
 import IcCircleCheckMaterial from '~icons/material-symbols/check-circle';
 import IcInfoMaterial from '~icons/material-symbols/info';
 import IcLoader2Material from '~icons/material-symbols/refresh';
@@ -583,6 +588,7 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
     Wallet: IcWalletLucide,
     X: IcXLucide,
     XCircle: IcXCircleLucide,
+    GripVertical: IcGripVerticalLucide,
     ChevronUp: IcChevronUpLucide,
     CircleCheck: IcCircleCheckLucide,
     Info: IcInfoLucide,
@@ -646,6 +652,7 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
     Wallet: IcWalletTabler,
     X: IcXTabler,
     XCircle: IcXCircleTabler,
+    GripVertical: IcGripVerticalTabler,
     ChevronUp: IcChevronUpTabler,
     CircleCheck: IcCircleCheckTabler,
     Info: IcInfoTabler,
@@ -914,6 +921,7 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
     Users: IcUsersRadix,
     X: IcXRadix,
     XCircle: IcXCircleRadix,
+    GripVertical: IcGripVerticalRadix,
     ChevronUp: IcChevronUpRadix,
     CircleCheck: IcCircleCheckRadix,
   },
@@ -972,6 +980,7 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
     Wallet: IcWalletBi,
     X: IcXBi,
     XCircle: IcXCircleBi,
+    GripVertical: IcGripVerticalBi,
     ChevronUp: IcChevronUpBi,
     CircleCheck: IcCircleCheckBi,
     Info: IcInfoBi,
@@ -1032,6 +1041,7 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
     Wallet: IcWalletMaterial,
     X: IcXMaterial,
     XCircle: IcXCircleMaterial,
+    GripVertical: IcGripVerticalMaterial,
     CircleCheck: IcCircleCheckMaterial,
     Info: IcInfoMaterial,
     Loader2: IcLoader2Material,
@@ -1110,6 +1120,7 @@ export const Users = (p: IkonProps) => <IkonDinamis {...p} nama="Users" />;
 export const Wallet = (p: IkonProps) => <IkonDinamis {...p} nama="Wallet" />;
 export const X = (p: IkonProps) => <IkonDinamis {...p} nama="X" />;
 export const XCircle = (p: IkonProps) => <IkonDinamis {...p} nama="XCircle" />;
+export const GripVertical = (p: IkonProps) => <IkonDinamis {...p} nama="GripVertical" />;
 export const ChevronUp = (p: IkonProps) => <IkonDinamis {...p} nama="ChevronUp" />;
 export const CircleCheck = (p: IkonProps) => <IkonDinamis {...p} nama="CircleCheck" />;
 export const Info = (p: IkonProps) => <IkonDinamis {...p} nama="Info" />;
