@@ -49,7 +49,7 @@ class PresetTabelController extends Controller
             'nama' => ['required', 'string', 'max:50'],
             'lembaga_ids' => ['required', 'array', 'min:1', 'max:200'],
             'lembaga_ids.*' => ['integer', 'exists:lembaga,id'],
-            'kolom' => ['required', 'array', 'min:1', 'max:60'],
+            'kolom' => ['required', 'array', 'min:1', 'max:200'],
             'kolom.*' => ['string', 'max:60'],
         ]);
         $this->pastikanNamaBukanLengkap($data['nama']);
@@ -81,7 +81,7 @@ class PresetTabelController extends Controller
 
         $data = $request->validate([
             'nama' => ['sometimes', 'string', 'max:50'],
-            'kolom' => ['sometimes', 'array', 'min:1', 'max:60'],
+            'kolom' => ['sometimes', 'array', 'min:1', 'max:200'],
             'kolom.*' => ['string', 'max:60'],
         ]);
 

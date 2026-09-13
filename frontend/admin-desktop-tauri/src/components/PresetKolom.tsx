@@ -66,6 +66,10 @@ export default function PresetKolom({
   const [bolehUbah, setBolehUbah] = useState(true);
 
   const fieldKeys = useMemo(() => new Set(fields.map((f) => f.key)), [fields]);
+  const editPreset = useMemo(
+    () => (editId === null ? null : presets.find((p) => p.id === editId) ?? null),
+    [editId, presets],
+  );
 
   const terapkan = useCallback((preset: PresetTabel | null) => {
     if (!preset) {
@@ -127,7 +131,7 @@ export default function PresetKolom({
         : (isPesantren ? [] : lembagas.map((l) => String(l.id))),
     );
     setKolom(new Set(preset ? preset.kolom.filter((k) => fieldKeys.has(k)) : []));
-    setBolehUbah(isPesantren || (preset !== null && preset.lembaga_id !== null));
+    setBolehUbah(isPesantren || preset === null || preset.lembaga_id !== null);
     setDokOpen(true);
   }
 
@@ -211,7 +215,7 @@ export default function PresetKolom({
       </Select>
 
       <Dialog open={dokOpen} onOpenChange={setDokOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle>Kelola preset kolom</DialogTitle>
             <DialogDescription>
@@ -219,12 +223,12 @@ export default function PresetKolom({
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-3 sm:flex-row">
-            <div className="flex max-h-64 w-full flex-col gap-1 overflow-auto rounded-md border p-2 sm:w-56">
+            <div className="flex max-h-64 w-full flex-col gap-1 overflow-auto rounded-md border p-2 sm:max-h-none sm:w-60">
               <Button
                 id={`btn_preset_baru_${tableKey}`}
                 type="button"
                 variant="outline"
-                className="mb-1"
+                className="mb-1 shrink-0"
                 onClick={() => bukaKelola(null)}
               >
                 + Preset baru
@@ -259,7 +263,9 @@ export default function PresetKolom({
                 </Field>
                 <Field>
                   <div className="flex items-center justify-between">
-                    <FieldLabel htmlFor={`select_lembaga_preset_${tableKey}`}>Generate ke lembaga</FieldLabel>
+                    <FieldLabel htmlFor={`select_lembaga_preset_${tableKey}`}>
+                      {editId ? 'Lembaga' : 'Generate ke lembaga'}
+                    </FieldLabel>
                     {!editId && bolehUbah && lembagas.length > 1 ? (
                       <button
                         type="button"
@@ -272,18 +278,36 @@ export default function PresetKolom({
                       </button>
                     ) : null}
                   </div>
-                  <MultiSelect
-                    id={`select_lembaga_preset_${tableKey}`}
-                    title="Generate ke lembaga"
-                    values={lembagaIds}
-                    onChange={setLembagaIds}
-                    disabled={!bolehUbah || editId !== null}
-                    placeholder="Pilih satu atau beberapa lembaga"
-                    options={lembagas.map((l) => ({ value: String(l.id), label: l.kode ?? l.nama }))}
-                  />
+                  {editId ? (
+                    <Input
+                      id={`select_lembaga_preset_${tableKey}`}
+                      value={editPreset?.lembaga
+                        ? `${editPreset.lembaga.kode ?? editPreset.lembaga.nama}`
+                        : 'Global (semua lembaga)'}
+                      disabled
+                    />
+                  ) : (
+                    <MultiSelect
+                      id={`select_lembaga_preset_${tableKey}`}
+                      title="Generate ke lembaga"
+                      values={lembagaIds}
+                      onChange={setLembagaIds}
+                      disabled={!bolehUbah}
+                      placeholder="Pilih satu atau beberapa lembaga"
+                      options={lembagas.map((l) => ({ value: String(l.id), label: l.kode ?? l.nama }))}
+                    />
+                  )}
+                  {!editId && bolehUbah && lembagaIds.length === 0 ? (
+                    <p className="text-xs text-destructive">Pilih minimal satu lembaga tujuan.</p>
+                  ) : null}
                   {!editId && lembagaIds.length > 1 ? (
                     <p className="text-xs text-muted-foreground">
                       Preset digenerate ke {lembagaIds.length} lembaga; tiap lembaga dapat mengedit salinannya.
+                    </p>
+                  ) : null}
+                  {!bolehUbah ? (
+                    <p className="text-xs text-muted-foreground">
+                      Preset global hanya dapat diubah admin pesantren. Pilih “+ Preset baru” untuk membuat preset lembaga.
                     </p>
                   ) : null}
                 </Field>
@@ -339,7 +363,11 @@ export default function PresetKolom({
                 ) : null}
                 <Button type="button" variant="outline" onClick={() => setDokOpen(false)}>Tutup</Button>
                 {bolehUbah ? (
-                  <Button id={`btn_simpan_preset_${tableKey}`} type="submit" disabled={busy || !nama.trim() || kolom.size === 0}>
+                  <Button
+                    id={`btn_simpan_preset_${tableKey}`}
+                    type="submit"
+                    disabled={busy || !nama.trim() || kolom.size === 0 || (!editId && lembagaIds.length === 0)}
+                  >
                     Simpan
                   </Button>
                 ) : null}

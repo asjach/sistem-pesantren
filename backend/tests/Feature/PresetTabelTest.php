@@ -133,4 +133,23 @@ class PresetTabelTest extends TestCase
         ])->assertStatus(201);
         $this->assertEquals(['nama', 'status'], PresetTabel::findOrFail($miDefaultId)->kolom);
     }
+
+    public function test_preset_menerima_kolom_banyak_melebihi_60(): void
+    {
+        $root = Lembaga::create(['nama' => 'Pesantren', 'kode' => 'PESANTREN', 'is_active' => true]);
+        $pusat = $this->makeUser('admin');
+
+        // Tabel santri punya > 60 kolom (72) — tidak boleh ditolak batas lama.
+        $kolom = array_map(fn ($i) => "kolom_{$i}", range(1, 72));
+        $this->actingAs($pusat, 'sanctum')->postJson('/api/admin/preset-tabel', [
+            'table_key' => 'santri', 'nama' => 'semua kolom', 'lembaga_ids' => [$root->id], 'kolom' => $kolom,
+        ])->assertStatus(201);
+        $this->assertCount(72, PresetTabel::firstOrFail()->kolom);
+
+        // Batas aman tetap ada.
+        $this->actingAs($pusat, 'sanctum')->postJson('/api/admin/preset-tabel', [
+            'table_key' => 'santri', 'nama' => 'kebablasan', 'lembaga_ids' => [$root->id],
+            'kolom' => array_map(fn ($i) => "kolom_{$i}", range(1, 201)),
+        ])->assertStatus(422)->assertJsonValidationErrors(['kolom']);
+    }
 }
