@@ -456,8 +456,8 @@ export default function PartStyleEditor() {
   );
 
   const kartuPratinjau = (
-    <div className="rounded-xl border bg-card p-4">
-            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+    <div className="flex flex-col rounded-xl border bg-card p-4 lg:h-full lg:min-h-0">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium">Pratinjau</span>
                 <Badge variant="secondary">{gelap ? 'Mode Gelap' : 'Mode Terang'}</Badge>
@@ -493,7 +493,7 @@ export default function PartStyleEditor() {
             <div
               id="pratinjau_bagian"
               className={cn(
-                'grid min-h-[170px] place-items-center overflow-hidden rounded-lg border p-4',
+                'grid min-h-[170px] place-items-center overflow-hidden rounded-lg border p-4 lg:min-h-[120px] lg:flex-1',
                 gelap && 'dark',
               )}
               style={{ ...gayaWajah, background: 'var(--background)', color: 'var(--foreground)' }}
@@ -509,7 +509,7 @@ export default function PartStyleEditor() {
   );
 
   const kartuKontrol = (
-    <div className="rounded-xl border bg-card p-4">
+    <div className="flex flex-col rounded-xl border bg-card p-4 lg:h-full lg:min-h-0">
       <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
                 <div className="text-sm font-medium">{meta.label}</div>
@@ -526,7 +526,7 @@ export default function PartStyleEditor() {
                 <RotateCcw size={14} /> Reset bagian
               </Button>
             </div>
-            <div className="mt-3 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <div className="mt-3 grid gap-4 md:grid-cols-2 xl:grid-cols-3 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
               <FieldSet className="gap-2 rounded-lg border p-3">
                 <FieldLegend variant="label" className="mb-0">Tipografi</FieldLegend>
                 <div className="flex items-center gap-1.5">
@@ -668,11 +668,11 @@ export default function PartStyleEditor() {
                 className="pl-4"
               >
                 <ResizablePanel id="pratinjau" defaultSize="52%" minSize="18%" maxSize="82%">
-                  <div className="h-full min-h-0 overflow-y-auto pb-2">{kartuPratinjau}</div>
+                  <div className="h-full min-h-0">{kartuPratinjau}</div>
                 </ResizablePanel>
                 <ResizableHandle withHandle orientation="vertical" />
                 <ResizablePanel id="kontrol" minSize="22%">
-                  <div className="h-full min-h-0 overflow-y-auto pt-2">{kartuKontrol}</div>
+                  <div className="h-full min-h-0">{kartuKontrol}</div>
                 </ResizablePanel>
               </ResizablePanelGroup>
             </ResizablePanel>
