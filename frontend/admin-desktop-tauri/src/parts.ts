@@ -269,10 +269,10 @@ export const PARTS: PartMeta[] = [
   },
   {
     id: 'teks_isi',
-    label: 'Teks isi',
+    label: 'Area konten',
     grup: 'Teks',
     sub: 'Konten',
-    hint: 'Paragraf & teks konten halaman.',
+    hint: 'Area konten di bawah ribbon (paragraf & isi halaman).',
     sel: '#root main',
   },
   {
