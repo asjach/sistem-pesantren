@@ -36,7 +36,7 @@ import {
 import Pager from '@/components/Pager';
 import { usePager } from '@/hooks/usePager';
 import { ActionIcon } from '@/components/RowActions';
-import { FileUp, ImageUp, Upload } from 'lucide-react';
+import { FileUp, ImageUp, Upload } from '@/icons';
 import { toast } from 'sonner';
 
 /** Validator: tepat N digit angka (kosong = boleh). */

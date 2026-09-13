@@ -6,7 +6,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from '@/icons';
 import { PER_PAGE_OPTIONS, normalizePerPage, type PerPage } from '@/prefs';
 
 interface Props {

@@ -1,4 +1,4 @@
-import { Check, Eye, Pencil, Trash2 } from 'lucide-react';
+import { Check, Eye, Pencil, Trash2 } from '@/icons';
 import { forwardRef, type ComponentPropsWithoutRef, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import ConfirmDelete from '@/components/ConfirmDelete';

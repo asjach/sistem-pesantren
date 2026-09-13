@@ -32,7 +32,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { AlignCenter, AlignLeft, AlignRight, Ban, Copy, Check, Eye, MoreVertical, MoveHorizontal, Pencil, PlusCircle, RotateCcw, Save, Search, Trash2 } from 'lucide-react';
+import { AlignCenter, AlignLeft, AlignRight, Ban, Copy, Check, Eye, MoreVertical, MoveHorizontal, Pencil, PlusCircle, RotateCcw, Save, Search, Trash2 } from '@/icons';
 import {
   AlertDialog,
   AlertDialogAction,

@@ -25,7 +25,7 @@ import {
 import Pager from '@/components/Pager';
 import { usePager } from '@/hooks/usePager';
 import { ActionIcon, SetAktifAction } from '@/components/RowActions';
-import { XCircle } from 'lucide-react';
+import { XCircle } from '@/icons';
 import { toast } from 'sonner';
 
 const STATUS = ['diajukan', 'disetujui', 'ditolak'];

@@ -14,8 +14,12 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { ICON_SETS } from '@/iconSets';
 import {
   Select,
   SelectContent,
@@ -40,6 +44,7 @@ import {
   BookOpen,
   CalendarDays,
   CalendarRange,
+  Check,
   ChevronDown,
   ClipboardList,
   Copy,
@@ -64,8 +69,8 @@ import {
   Sun,
   Users,
   Wallet,
-  type LucideIcon,
-} from 'lucide-react';
+  type Ikon,
+} from '@/icons';
 import { useRibbonTable } from '@/components/RibbonTable';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { halamanDariPath } from '@/lib/halaman';
@@ -178,7 +183,7 @@ function RibbonBtn({
 }: {
   id: string;
   to: string;
-  icon: LucideIcon;
+  icon: Ikon;
   label: string;
   aktif: boolean;
 }) {
@@ -209,7 +214,7 @@ function RibbonCmd({
   disabled,
 }: {
   id: string;
-  icon: LucideIcon;
+  icon: Ikon;
   label: string;
   onClick: () => void;
   disabled?: boolean;
@@ -255,7 +260,7 @@ const navIdle =
 /** Ribbon menu (ala Word/Excel): tab + grup perintah + Quick Access. */
 export default function TopBar() {
   const { user, logoutLocal } = useAuth();
-  const { density, theme, mode, customHex, dark, setTheme, setMode } = useTheme();
+  const { density, theme, mode, customHex, dark, iconSet, setTheme, setMode, setIconSet } = useTheme();
   const nav = useNavigate();
   const { pathname } = useLocation();
   const { rowH, fontPx, fontFamily, setRowH, setFontPx, setFontFamily } = useGridPrefs();
@@ -391,6 +396,24 @@ export default function TopBar() {
                   </span>
                 </div>
               </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger id="menu_set_ikon">
+                  <Paintbrush data-icon="inline-start" size={16} />
+                  <span className="flex-1">Set ikon</span>
+                  <span className="text-xs text-muted-foreground">
+                    {ICON_SETS.find((s) => s.id === iconSet)?.nama}
+                  </span>
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent className="min-w-44">
+                  {ICON_SETS.map((s) => (
+                    <DropdownMenuItem key={s.id} id={`menu_ikon_${s.id}`} onSelect={() => setIconSet(s.id)}>
+                      <span className="flex-1">{s.nama}</span>
+                      {iconSet === s.id && <Check data-icon="inline-end" size={14} />}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 id="btn_logout"

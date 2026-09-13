@@ -3,12 +3,12 @@ import { ringkasan, type Ringkasan } from '../api/master';
 import { errorMessage } from '../api/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ErrorNotice } from '@/components/PageHeader';
-import { BookOpen, CalendarCheck, Landmark, Users, type LucideIcon } from 'lucide-react';
+import { BookOpen, CalendarCheck, Landmark, Users, type Ikon } from '@/icons';
 
 const STATS: {
   key: keyof Pick<Ringkasan, 'lembaga' | 'pengguna' | 'tahun_ajaran_aktif' | 'kelas'>;
   label: string;
-  icon: LucideIcon;
+  icon: Ikon;
 }[] = [
   { key: 'lembaga', label: 'Lembaga', icon: Landmark },
   { key: 'pengguna', label: 'Pengguna', icon: Users },

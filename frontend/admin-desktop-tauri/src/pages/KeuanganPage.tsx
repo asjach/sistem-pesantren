@@ -37,7 +37,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { ActionIcon } from '@/components/RowActions';
-import { Wallet } from 'lucide-react';
+import { Wallet } from '@/icons';
 import { toast } from 'sonner';
 
 const KEUANGAN_FIELDS: ExcelField[] = [

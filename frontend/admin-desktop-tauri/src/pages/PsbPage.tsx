@@ -68,7 +68,7 @@ import {
   Upload,
   UserCheck,
   UserX,
-} from 'lucide-react';
+} from '@/icons';
 
 // Tahapan timeline PSB → kumpulan status_pendaftaran (nilai enum di DB).
 const STAGES: { id: string; label: string; statuses: string[] }[] = [

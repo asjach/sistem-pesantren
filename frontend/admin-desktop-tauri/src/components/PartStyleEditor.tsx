@@ -29,7 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ChevronDown, Minus, Moon, Plus, RotateCcw, Search, Sun } from 'lucide-react';
+import { ChevronDown, Minus, Moon, Plus, RotateCcw, Search, Sun } from '@/icons';
 import { cn } from '@/lib/utils';
 
 /** Objek kosong stabil (menghindari efek pengukuran berulang tanpa henti). */

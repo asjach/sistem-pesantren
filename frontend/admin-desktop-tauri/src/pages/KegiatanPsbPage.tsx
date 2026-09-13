@@ -53,7 +53,7 @@ import { DeleteAction, EditAction } from '@/components/RowActions';
 import { useAuth } from '../auth/AuthContext';
 import { tanggal } from '../lib/tanggal';
 import { toast } from 'sonner';
-import { Plus } from 'lucide-react';
+import { Plus } from '@/icons';
 
 function angkaInput(label: string) {
   return (v: string | null) => {

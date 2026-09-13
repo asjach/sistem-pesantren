@@ -13,6 +13,7 @@ import {
 } from '@/prefs';
 import { findPreset } from '@/themes';
 import { FONT_FAMILY_DEFAULT, fontParts } from '@/fonts';
+import type { IconSetId } from '@/iconSets';
 import { terapkanGayaBagian } from './partStyles';
 import { gabungGaya, gabungWarna, type PartGaya, type PartId, type PartMode, type PartOverrides, type PartWarna } from './parts';
 
@@ -26,6 +27,8 @@ interface ThemeState extends Prefs {
   setDensity: (d: DensityName) => void;
   setFontUI: (v: string) => void;
   setWarnaUI: (w: WarnaUIName) => void;
+  /** Set ikon antarmuka (9 koleksi Iconify). */
+  setIconSet: (v: IconSetId) => void;
   /** Tipografi & kotak satu bagian (berlaku kedua mode; `undefined` = hapus). */
   setGayaBagian: (id: PartId, patch: Partial<PartGaya>) => void;
   /** Warna satu bagian untuk mode tertentu (`undefined` = hapus). */
@@ -131,6 +134,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       setDensity: (density) => update({ density }),
       setFontUI: (fontUI) => update({ fontUI }),
       setWarnaUI: (warnaUI) => update({ warnaUI }),
+      setIconSet: (iconSet) => update({ iconSet }),
       setGayaBagian: (id, patch) => updateParts((p) => {
         const map = { ...p.gaya };
         const g = gabungGaya(map[id], patch);

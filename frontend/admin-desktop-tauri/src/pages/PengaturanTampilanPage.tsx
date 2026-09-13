@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Monitor, Moon, Paintbrush, Sun } from 'lucide-react';
+import { Monitor, Moon, Paintbrush, Sun } from '@/icons';
 
 const MODES: { id: ModeName; nama: string; icon: typeof Sun }[] = [
   { id: 'terang', nama: 'Terang', icon: Sun },

@@ -1,5 +1,6 @@
 import { prefGet, prefSet } from '@/api/client';
 import { FONT_FAMILY_DEFAULT, FONT_OPTIONS } from './fonts';
+import { ICON_SET_DEFAULT, ICON_SETS, type IconSetId } from './iconSets';
 import { EMPTY_PARTS, normalizeParts, type PartOverrides } from './parts';
 import { PRESET_IDS, type ThemeName } from './themes';
 
@@ -39,6 +40,7 @@ const K = {
   fontUI: 'simpes_font_ui',
   warnaUI: 'simpes_warna_ui',
   parts: 'simpes_parts',
+  iconSet: 'simpes_icon_set',
 } as const;
 
 export interface Prefs {
@@ -53,6 +55,8 @@ export interface Prefs {
   warnaUI: WarnaUIName;
   /** Gaya atomik per bagian UI (terpisah mode terang/gelap). */
   parts: PartOverrides;
+  /** Set ikon antarmuka (9 koleksi, lihat src/iconSets.ts). */
+  iconSet: IconSetId;
 }
 
 export const DEFAULT_PREFS: Prefs = {
@@ -64,6 +68,7 @@ export const DEFAULT_PREFS: Prefs = {
   fontUI: FONT_FAMILY_DEFAULT,
   warnaUI: 'kaya',
   parts: EMPTY_PARTS,
+  iconSet: ICON_SET_DEFAULT,
 };
 
 /** Luminance relatif (WCAG) 0..1 untuk hex #rrggbb. */
@@ -94,7 +99,7 @@ export function normalizeHex(v: string): string | null {
 }
 
 export async function loadPrefs(): Promise<Prefs> {
-  const [theme, customHex, mode, sidebar, density, fontUI, warnaUI, partsRaw] = await Promise.all([
+  const [theme, customHex, mode, sidebar, density, fontUI, warnaUI, partsRaw, iconSetRaw] = await Promise.all([
     prefGet(K.theme),
     prefGet(K.customHex),
     prefGet(K.mode),
@@ -103,6 +108,7 @@ export async function loadPrefs(): Promise<Prefs> {
     prefGet(K.fontUI),
     prefGet(K.warnaUI),
     prefGet(K.parts),
+    prefGet(K.iconSet),
   ]);
   let parts = EMPTY_PARTS;
   try {
@@ -125,6 +131,7 @@ export async function loadPrefs(): Promise<Prefs> {
       ? (warnaUI as WarnaUIName)
       : DEFAULT_PREFS.warnaUI,
     parts,
+    iconSet: ICON_SETS.some((s) => s.id === iconSetRaw) ? (iconSetRaw as IconSetId) : ICON_SET_DEFAULT,
   };
 }
 
@@ -138,5 +145,6 @@ export async function savePrefs(p: Prefs): Promise<void> {
     prefSet(K.fontUI, p.fontUI),
     prefSet(K.warnaUI, p.warnaUI),
     prefSet(K.parts, JSON.stringify(p.parts)),
+    prefSet(K.iconSet, p.iconSet),
   ]);
 }

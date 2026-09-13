@@ -572,30 +572,30 @@
 [data-warna='kaya'] :is(h1, h2, h3) {
   color: var(--accent-readable);
 }
-[data-warna='aksen'] :where(svg.lucide),
-[data-warna='kaya'] :where(svg.lucide) {
+[data-warna='aksen'] :where(svg.simpes-ikon),
+[data-warna='kaya'] :where(svg.simpes-ikon) {
   color: var(--accent-readable);
 }
 /* Pengecualian (urutan SETELAH aturan pewarnaan — spesifisitas sama-sama nol). */
 [data-warna='aksen'] :where(
-  header svg.lucide,
-  [class*='text-primary-foreground'] svg.lucide,
-  [class*='text-accent-foreground'] svg.lucide,
-  [class*='text-secondary-foreground'] svg.lucide,
-  [class*='text-destructive'] svg.lucide,
-  [class*='text-warning'] svg.lucide,
-  [class*='text-success'] svg.lucide,
-  [class*='text-info'] svg.lucide
+  header svg.simpes-ikon,
+  [class*='text-primary-foreground'] svg.simpes-ikon,
+  [class*='text-accent-foreground'] svg.simpes-ikon,
+  [class*='text-secondary-foreground'] svg.simpes-ikon,
+  [class*='text-destructive'] svg.simpes-ikon,
+  [class*='text-warning'] svg.simpes-ikon,
+  [class*='text-success'] svg.simpes-ikon,
+  [class*='text-info'] svg.simpes-ikon
 ),
 [data-warna='kaya'] :where(
-  header svg.lucide,
-  [class*='text-primary-foreground'] svg.lucide,
-  [class*='text-accent-foreground'] svg.lucide,
-  [class*='text-secondary-foreground'] svg.lucide,
-  [class*='text-destructive'] svg.lucide,
-  [class*='text-warning'] svg.lucide,
-  [class*='text-success'] svg.lucide,
-  [class*='text-info'] svg.lucide
+  header svg.simpes-ikon,
+  [class*='text-primary-foreground'] svg.simpes-ikon,
+  [class*='text-accent-foreground'] svg.simpes-ikon,
+  [class*='text-secondary-foreground'] svg.simpes-ikon,
+  [class*='text-destructive'] svg.simpes-ikon,
+  [class*='text-warning'] svg.simpes-ikon,
+  [class*='text-success'] svg.simpes-ikon,
+  [class*='text-info'] svg.simpes-ikon
 ) {
   color: inherit;
 }

@@ -36,7 +36,7 @@ import ConfirmDelete from '@/components/ConfirmDelete';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useGridPrefs, type AlignName } from '@/components/GridPrefs';
 import { cn } from '@/lib/utils';
-import { AlignCenter, AlignLeft, AlignRight, X } from 'lucide-react';
+import { AlignCenter, AlignLeft, AlignRight, X } from '@/icons';
 import { toast } from 'sonner';
 
 const LENGKAP = '_lengkap';
