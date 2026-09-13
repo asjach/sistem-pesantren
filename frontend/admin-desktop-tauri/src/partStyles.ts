@@ -40,16 +40,13 @@ const TOLAK_WARNA =
   ":not(.text-primary-foreground):not(.text-accent-foreground):not(.text-secondary-foreground)" +
   ':not([data-part-abaikan]):not([data-part-abaikan] *)';
 
-/** Deklarasi tipografi & kotak (berlaku kedua mode). `tanpa` berisi dimensi
- *  yang dinonaktifkan untuk bagian struktural (mis. ribbon). */
-function deklGaya(g: PartGaya, tanpa?: readonly ('lebar' | 'tinggi')[]): { permukaan: string[]; teks: string[] } {
+/** Deklarasi tipografi & kotak (berlaku kedua mode). */
+function deklGaya(g: PartGaya): { permukaan: string[]; teks: string[] } {
   const permukaan: string[] = [];
   if (g.borderW != null) permukaan.push(`border-width:${g.borderW}px!important`, 'border-style:solid!important');
   if (g.radius != null) permukaan.push(`border-radius:${g.radius}px!important`);
   if (g.padX != null) permukaan.push(`padding-left:${g.padX}px!important`, `padding-right:${g.padX}px!important`);
   if (g.padY != null) permukaan.push(`padding-top:${g.padY}px!important`, `padding-bottom:${g.padY}px!important`);
-  if (g.lebar != null && !tanpa?.includes('lebar')) permukaan.push(`width:${g.lebar}px!important`);
-  if (g.tinggi != null && !tanpa?.includes('tinggi')) permukaan.push(`height:${g.tinggi}px!important`);
   const teks: string[] = [];
   if (g.font) {
     const { family, weight } = fontParts(g.font);
@@ -71,7 +68,6 @@ function deklWarna(w?: PartWarna): { permukaan: string[]; teks: string[] } {
 
 /** Peta variabel CSS `--part-<id>-*` (dipakai rantai fallback index.css). */
 export function variabelBagian(id: PartId, g?: PartGaya, w?: PartWarna): Record<string, string> {
-  const tanpa = PART_BY_ID.get(id)?.tanpaDimensi;
   const v: Record<string, string> = {};
   if (g?.font) {
     const { family, weight } = fontParts(g.font);
@@ -83,8 +79,6 @@ export function variabelBagian(id: PartId, g?: PartGaya, w?: PartWarna): Record<
   if (g?.radius != null) v[`--part-${id}-radius`] = `${g.radius}px`;
   if (g?.padX != null) v[`--part-${id}-padx`] = `${g.padX}px`;
   if (g?.padY != null) v[`--part-${id}-pady`] = `${g.padY}px`;
-  if (g?.lebar != null && !tanpa?.includes('lebar')) v[`--part-${id}-lebar`] = `${g.lebar}px`;
-  if (g?.tinggi != null && !tanpa?.includes('tinggi')) v[`--part-${id}-tinggi`] = `${g.tinggi}px`;
   if (w?.bg) v[`--part-${id}-bg`] = w.bg;
   if (w?.fg) v[`--part-${id}-fg`] = w.fg;
   if (w?.border) v[`--part-${id}-border`] = w.border;
@@ -95,7 +89,7 @@ export function variabelBagian(id: PartId, g?: PartGaya, w?: PartWarna): Record<
 function blokBagian(scope: string, id: PartId, g?: PartGaya, w?: PartWarna): string {
   const meta = PART_BY_ID.get(id);
   if (!meta) return '';
-  const gaya = deklGaya(g ?? {}, meta.tanpaDimensi);
+  const gaya = deklGaya(g ?? {});
   const warna = deklWarna(w);
   const permukaan = [...gaya.permukaan, ...warna.permukaan];
   const teks = [...gaya.teks, ...warna.teks];
@@ -165,7 +159,7 @@ export function terapkanGayaBagian(parts: PartOverrides): void {
 export function bangunCssPratinjau(id: PartId, g?: PartGaya, w?: PartWarna): string {
   const root = '#pratinjau_bagian [data-pratinjau-part]';
   const desc = `${root} *${tolakKontrol(PART_BY_ID.get(id)?.kendali)}`;
-  const gaya = deklGaya(g ?? {}, PART_BY_ID.get(id)?.tanpaDimensi);
+  const gaya = deklGaya(g ?? {});
   const warna = deklWarna(w);
   const permukaan = [...gaya.permukaan, ...warna.permukaan];
   const teks = [...gaya.teks, ...warna.teks];

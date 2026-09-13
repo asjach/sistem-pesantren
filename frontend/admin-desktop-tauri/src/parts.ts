@@ -80,9 +80,6 @@ export interface PartGaya {
   radius?: number;
   padX?: number;
   padY?: number;
-  /** Lebar & tinggi (px); kosong = bawaan komponen. */
-  lebar?: number;
-  tinggi?: number;
 }
 
 /** Warna — dipisah per mode. Field kosong = bawaan. */
@@ -116,11 +113,6 @@ export interface PartMeta {
   kendali?: boolean;
   /** Selektor elemen pengukuran nilai bawaan di pratinjau (opsional). */
   ukurSel?: string;
-  /** Dimensi yang dinonaktifkan untuk bagian ini (nilai tersimpan diabaikan
-   *  dan kontrolnya disembunyikan di editor). Dipakai untuk wadah struktural
-   *  penuh seperti bilah ribbon: `width`/`height` kaku merusak tata letak
-   *  (bilah menyempit/kepotong, mode lipat tak jalan). */
-  tanpaDimensi?: ('lebar' | 'tinggi')[];
   hint: string;
   /** Selektor akar bagian (digabung otomatis dengan scope mode terang/gelap). */
   sel: string;
@@ -133,8 +125,7 @@ export const PARTS: PartMeta[] = [
     label: 'Bilah ribbon',
     grup: 'Struktur',
     sub: 'Ribbon',
-    tanpaDimensi: ['lebar', 'tinggi'],
-    hint: 'Strip atas berisi tab & panel menu. Lebar & tinggi mengikuti isi (mode lipat tetap jalan).',
+    hint: 'Strip atas berisi tab & panel menu.',
     sel: '#root header',
   },
   {
@@ -659,14 +650,12 @@ export const EMPTY_PARTS: PartOverrides = { gaya: {}, terang: {}, gelap: {} };
 const HEX = /^#[0-9a-f]{6}$/i;
 const FONT_VALUES = new Set(FONT_OPTIONS.map((f) => f.value));
 /** Rentang aman tiap properti numerik (px). */
-export const RENTANG: Record<'size' | 'borderW' | 'radius' | 'padX' | 'padY' | 'lebar' | 'tinggi', [number, number]> = {
+export const RENTANG: Record<'size' | 'borderW' | 'radius' | 'padX' | 'padY', [number, number]> = {
   size: [8, 72],
   borderW: [0, 8],
   radius: [0, 32],
   padX: [0, 64],
   padY: [0, 64],
-  lebar: [8, 3840],
-  tinggi: [8, 2160],
 };
 
 function angka(v: unknown, kunci: keyof typeof RENTANG): number | undefined {
@@ -704,34 +693,18 @@ export function bersihkanWarna(v: unknown): PartWarna | undefined {
   return Object.keys(s).length ? s : undefined;
 }
 
-/** Buang dimensi yang dinonaktifkan (mis. lebar/tinggi ribbon lama) agar
- *  nilai basi tidak menandai bagian sebagai "diatur". */
-function buangDimensiMati(id: PartId, g?: PartGaya): PartGaya | undefined {
-  const tanpa = PART_BY_ID.get(id)?.tanpaDimensi;
-  if (!g || !tanpa?.length) return g;
-  const next = { ...g };
-  let berubah = false;
-  for (const k of tanpa) {
-    if (next[k] != null) {
-      delete next[k];
-      berubah = true;
-    }
-  }
-  if (!berubah) return g;
-  return Object.keys(next).length ? next : undefined;
-}
-
 /** Validasi `simpes_parts` dari penyimpanan (aman terhadap data rusak).
  *  Bentuk lama (semua properti terpisah per mode) dimigrasi: properti
  *  tipografi/kotak diambil dari mode terang (fallback gelap); warna tetap
- *  dipertahankan per mode masing-masing. */
+ *  dipertahankan per mode masing-masing. Properti usang (mis. lebar/tinggi)
+ *  otomatis dibuang karena tidak ada di RENTANG. */
 export function normalizeParts(v: unknown): PartOverrides {
   const hasil: PartOverrides = { gaya: {}, terang: {}, gelap: {} };
   if (!v || typeof v !== 'object') return hasil;
   const o = v as Record<string, unknown>;
   if (o.gaya && typeof o.gaya === 'object') {
     for (const id of PART_IDS) {
-      const g = buangDimensiMati(id, bersihkanGaya((o.gaya as Record<string, unknown>)[id]));
+      const g = bersihkanGaya((o.gaya as Record<string, unknown>)[id]);
       if (g) hasil.gaya[id] = g;
     }
     for (const mode of ['terang', 'gelap'] as PartMode[]) {
@@ -747,7 +720,7 @@ export function normalizeParts(v: unknown): PartOverrides {
   const lamaTerang = (o.terang && typeof o.terang === 'object' ? o.terang : {}) as Record<string, unknown>;
   const lamaGelap = (o.gelap && typeof o.gelap === 'object' ? o.gelap : {}) as Record<string, unknown>;
   for (const id of PART_IDS) {
-    const g = buangDimensiMati(id, bersihkanGaya({ ...(lamaGelap[id] as object), ...(lamaTerang[id] as object) }));
+    const g = bersihkanGaya({ ...(lamaGelap[id] as object), ...(lamaTerang[id] as object) });
     if (g) hasil.gaya[id] = g;
     const wt = bersihkanWarna(lamaTerang[id]);
     if (wt) hasil.terang[id] = wt;
