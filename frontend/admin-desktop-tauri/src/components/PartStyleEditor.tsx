@@ -644,28 +644,27 @@ export default function PartStyleEditor() {
   );
 
   return (
-    <section className="flex w-full max-w-none flex-col gap-4">
+    <section className={cn('flex w-full max-w-none flex-col gap-4', lebarLg && 'min-h-0 flex-1 lg:-mb-1.5')}>
       {lebarLg ? (
-        <div className="h-[calc(100vh-190px)] min-h-[420px]">
+        <div className="min-h-[360px] flex-1">
           <ResizablePanelGroup
             orientation="horizontal"
             id="simpes_bagian_ui_h"
             defaultLayout={layoutH.defaultLayout}
             onLayoutChanged={layoutH.onLayoutChanged}
           >
-            <ResizablePanel id="accordion" defaultSize="21%" minSize="14%" maxSize="45%">
+            <ResizablePanel id="accordion" defaultSize="20%" minSize="14%" maxSize="28%">
               <aside className="flex h-full min-h-0 flex-col gap-2 overflow-y-auto rounded-xl border bg-card p-3">
                 {daftarBagian}
               </aside>
             </ResizablePanel>
-            <ResizableHandle withHandle orientation="horizontal" />
+            <ResizableHandle withHandle orientation="horizontal" className="mx-2" />
             <ResizablePanel id="kanan" minSize="40%">
               <ResizablePanelGroup
                 orientation="vertical"
                 id="simpes_bagian_ui_v"
                 defaultLayout={layoutV.defaultLayout}
                 onLayoutChanged={layoutV.onLayoutChanged}
-                className="pl-4"
               >
                 <ResizablePanel id="pratinjau" defaultSize="52%" minSize="18%" maxSize="82%">
                   <div className="h-full min-h-0">{kartuPratinjau}</div>
