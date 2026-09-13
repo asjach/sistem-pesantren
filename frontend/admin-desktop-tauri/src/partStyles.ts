@@ -47,6 +47,8 @@ function deklGaya(g: PartGaya): { permukaan: string[]; teks: string[] } {
   if (g.radius != null) permukaan.push(`border-radius:${g.radius}px!important`);
   if (g.padX != null) permukaan.push(`padding-left:${g.padX}px!important`, `padding-right:${g.padX}px!important`);
   if (g.padY != null) permukaan.push(`padding-top:${g.padY}px!important`, `padding-bottom:${g.padY}px!important`);
+  if (g.lebar != null) permukaan.push(`width:${g.lebar}px!important`);
+  if (g.tinggi != null) permukaan.push(`height:${g.tinggi}px!important`);
   const teks: string[] = [];
   if (g.font) {
     const { family, weight } = fontParts(g.font);
@@ -79,6 +81,8 @@ export function variabelBagian(id: PartId, g?: PartGaya, w?: PartWarna): Record<
   if (g?.radius != null) v[`--part-${id}-radius`] = `${g.radius}px`;
   if (g?.padX != null) v[`--part-${id}-padx`] = `${g.padX}px`;
   if (g?.padY != null) v[`--part-${id}-pady`] = `${g.padY}px`;
+  if (g?.lebar != null) v[`--part-${id}-lebar`] = `${g.lebar}px`;
+  if (g?.tinggi != null) v[`--part-${id}-tinggi`] = `${g.tinggi}px`;
   if (w?.bg) v[`--part-${id}-bg`] = w.bg;
   if (w?.fg) v[`--part-${id}-fg`] = w.fg;
   if (w?.border) v[`--part-${id}-border`] = w.border;

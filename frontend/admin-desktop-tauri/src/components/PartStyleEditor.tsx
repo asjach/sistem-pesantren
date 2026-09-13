@@ -56,6 +56,8 @@ interface Bawaan {
   radius?: number;
   padX?: number;
   padY?: number;
+  lebar?: number;
+  tinggi?: number;
 }
 
 function px(v: string): number | undefined {
@@ -272,6 +274,8 @@ export default function PartStyleEditor() {
       radius: px(cs.borderTopLeftRadius),
       padX: px(cs.paddingLeft),
       padY: px(cs.paddingTop),
+      lebar: px(cs.width),
+      tinggi: px(cs.height),
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aktif, mode, theme, customHex, g, w]);
@@ -594,7 +598,7 @@ export default function PartStyleEditor() {
               </FieldSet>
 
               <FieldSet className="gap-2 rounded-lg border p-3 md:col-span-2 xl:col-span-1">
-                <FieldLegend variant="label" className="mb-0">Kotak</FieldLegend>
+                <FieldLegend variant="label" className="mb-0">Kotak & Dimensi</FieldLegend>
                 <AngkaField
                   id="input_borderw_bagian"
                   label="Tebal border"
@@ -631,7 +635,25 @@ export default function PartStyleEditor() {
                   max={RENTANG.padY[1]}
                   onChange={(v) => setGayaBagian(aktif, { padY: v })}
                 />
-                <FieldDescription>Berlaku untuk mode terang & gelap.</FieldDescription>
+                <AngkaField
+                  id="input_lebar_bagian"
+                  label="Lebar"
+                  nilai={g.lebar}
+                  bawaan={bawaan.lebar}
+                  min={RENTANG.lebar[0]}
+                  max={RENTANG.lebar[1]}
+                  onChange={(v) => setGayaBagian(aktif, { lebar: v })}
+                />
+                <AngkaField
+                  id="input_tinggi_bagian"
+                  label="Tinggi"
+                  nilai={g.tinggi}
+                  bawaan={bawaan.tinggi}
+                  min={RENTANG.tinggi[0]}
+                  max={RENTANG.tinggi[1]}
+                  onChange={(v) => setGayaBagian(aktif, { tinggi: v })}
+                />
+                <FieldDescription>Berlaku untuk mode terang & gelap. Kosong = bawaan komponen.</FieldDescription>
               </FieldSet>
             </div>
     </div>

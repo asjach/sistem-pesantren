@@ -80,6 +80,9 @@ export interface PartGaya {
   radius?: number;
   padX?: number;
   padY?: number;
+  /** Lebar & tinggi (px); kosong = bawaan komponen. */
+  lebar?: number;
+  tinggi?: number;
 }
 
 /** Warna — dipisah per mode. Field kosong = bawaan. */
@@ -650,12 +653,14 @@ export const EMPTY_PARTS: PartOverrides = { gaya: {}, terang: {}, gelap: {} };
 const HEX = /^#[0-9a-f]{6}$/i;
 const FONT_VALUES = new Set(FONT_OPTIONS.map((f) => f.value));
 /** Rentang aman tiap properti numerik (px). */
-export const RENTANG: Record<'size' | 'borderW' | 'radius' | 'padX' | 'padY', [number, number]> = {
+export const RENTANG: Record<'size' | 'borderW' | 'radius' | 'padX' | 'padY' | 'lebar' | 'tinggi', [number, number]> = {
   size: [8, 72],
   borderW: [0, 8],
   radius: [0, 32],
   padX: [0, 64],
   padY: [0, 64],
+  lebar: [8, 3840],
+  tinggi: [8, 2160],
 };
 
 function angka(v: unknown, kunci: keyof typeof RENTANG): number | undefined {
