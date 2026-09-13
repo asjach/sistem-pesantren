@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type MutableRefObject } from 'react';
 import { errorMessage } from '../api/client';
 import {
   createPresetTabel,
@@ -41,6 +41,13 @@ import { toast } from 'sonner';
 
 const LENGKAP = '_lengkap';
 const KELOLA = '_kelola';
+
+/** API imperatif PresetKolom untuk dipakai pemanggil (mis. context menu header
+ *  tabel: tampil/sembunyikan kolom pada preset tanpa membuka dialog). */
+export interface PresetKolomApi {
+  presets: PresetTabel[];
+  toggleKolom: (presetId: number, key: string, tampil: boolean) => Promise<void>;
+}
 
 /** Tombol segmented perataan kolom (kiri/tengah/kanan) untuk satu field.
  *  Perataan bersifat global per field (berlaku di semua tabel), jadi
@@ -90,10 +97,12 @@ export default function PresetKolom({
   tableKey,
   fields,
   onApply,
+  apiRef,
 }: {
   tableKey: string;
   fields: ExcelField[];
   onApply: (keys: string[] | null) => void;
+  apiRef?: MutableRefObject<PresetKolomApi | null>;
 }) {
   const { user: me } = useAuth();
   const isPesantren = me?.roles.some((r) => r.name === 'super_admin')
@@ -180,6 +189,32 @@ export default function PresetKolom({
     void muat();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tableKey]);
+
+  /** Tampilkan/sembunyikan satu kolom pada preset (dipakai context menu
+   *  header tabel): simpan langsung ke DB, lalu segarkan + terapkan ulang. */
+  const toggleKolomPreset = useCallback(async (presetId: number, key: string, tampil: boolean) => {
+    const p = presets.find((x) => x.id === presetId);
+    if (!p) return;
+    const next = new Set(p.kolom);
+    if (tampil) next.add(key);
+    else next.delete(key);
+    if (next.size === 0) {
+      toast.error('Preset harus menyisakan minimal satu kolom.');
+      return;
+    }
+    try {
+      await updatePresetTabel(presetId, { kolom: [...next] });
+      toast.success(tampil ? 'Kolom ditampilkan pada preset.' : 'Kolom disembunyikan dari preset.');
+      await muat(aktifId);
+    } catch (e) {
+      toast.error(errorMessage(e));
+    }
+  }, [presets, aktifId, muat]);
+
+  useEffect(() => {
+    if (!apiRef) return;
+    apiRef.current = { presets, toggleKolom: toggleKolomPreset };
+  }, [apiRef, presets, toggleKolomPreset]);
 
   useEffect(() => {
     listLembaga({ per_page: 100 }).then((p) => setLembagas(p.data)).catch(() => {});

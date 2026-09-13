@@ -14,8 +14,17 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DEFAULT_FONT_PX, FONT_FAMILY_DEFAULT, FONT_OPTIONS, useGridPrefs } from '@/components/GridPrefs';
-import PresetKolom from '@/components/PresetKolom';
+import PresetKolom, { type PresetKolomApi } from '@/components/PresetKolom';
 import { useRibbonTable } from '@/components/RibbonTable';
+import {
+  ContextMenu,
+  ContextMenuCheckboxItem,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuLabel,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu';
 import { ActionIcon, DeleteAction, EditAction, SetAktifAction, ViewAction } from '@/components/RowActions';
 import {
   DropdownMenu,
@@ -23,7 +32,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Ban, Copy, Check, Eye, MoreVertical, MoveHorizontal, Pencil, PlusCircle, RotateCcw, Save, Search, Trash2 } from 'lucide-react';
+import { AlignCenter, AlignLeft, AlignRight, Ban, Copy, Check, Eye, MoreVertical, MoveHorizontal, Pencil, PlusCircle, RotateCcw, Save, Search, Trash2 } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -236,6 +245,7 @@ function TextCell({ rowData, setRowData, columnData, focus, stopEditing }: CellP
     return (
       <span
         className="simpes-dsg-fill"
+        data-col-key={key}
         onDoubleClick={() => columnData.onDblClick?.(rowData.id)}
         onClick={(e) => {
           if (e.detail !== 1) return;
@@ -256,6 +266,7 @@ function TextCell({ rowData, setRowData, columnData, focus, stopEditing }: CellP
   return (
     <input
       className="dsg-input"
+      data-col-key={key}
       value={cur}
       maxLength={columnData.maxLength}
       // eslint-disable-next-line jsx-a11y/no-autofocus
@@ -310,6 +321,7 @@ function SelectCell({ rowData, setRowData, columnData, focus, stopEditing, disab
     return (
       <span
         className="simpes-dsg-fill"
+        data-col-key={key}
         onDoubleClick={() => columnData.onDblClick?.(rowData.id)}
         onClick={(e) => {
           if (e.detail !== 1) return;
@@ -324,6 +336,7 @@ function SelectCell({ rowData, setRowData, columnData, focus, stopEditing, disab
   return (
     <select
       className="simpes-dsg-select"
+      data-col-key={key}
       aria-label={key}
       value={cur}
       autoFocus
@@ -356,7 +369,11 @@ interface StaticColData {
 /** Sel baca-saja (teks polos). */
 function StaticCell({ rowData, columnData }: CellProps<GridRow, StaticColData>) {
   return (
-    <span className="simpes-dsg-fill" onDoubleClick={() => columnData.onDblClick?.()}>
+    <span
+      className="simpes-dsg-fill"
+      data-col-key={columnData.fieldKey}
+      onDoubleClick={() => columnData.onDblClick?.()}
+    >
       {String(rowData[columnData.fieldKey] ?? '')}
     </span>
   );
@@ -400,7 +417,7 @@ function HeaderTitle({
   onAutoFit: (key: string) => void;
 }) {
   return (
-    <span className="simpes-dsg-headtitle">
+    <span className="simpes-dsg-headtitle" data-col-key={colKey}>
       {label}
       {required ? (
         <span className="simpes-dsg-wajib-tanda" title="Wajib diisi pada mode Input">
@@ -581,13 +598,22 @@ export default function ExcelTable<T extends { id: string | number }>({
   const { density } = useTheme();
   const densityPx = DENSITY_PX[density];
   // Preferensi tampilan tabel global (dikontrol dari top bar).
-  const { rowH, fontPx, fontFamily, align } = useGridPrefs();
+  const { rowH, fontPx, fontFamily, align, setAlign } = useGridPrefs();
 
   const [editMode, setEditMode] = useState(false);
   const [inputMode, setInputMode] = useState(false);
   const [drafts, setDrafts] = useState<Drafts>({});
   const [checkedIds, setCheckedIds] = useState<Set<T['id']>>(new Set());
   const [range, setRange] = useState<GridSelection | null>(null);
+  /** Area yang diklik kanan (context menu beda per area tabel). */
+  const [ctx, setCtx] = useState<
+    | { area: 'header'; colKey: string }
+    | { area: 'row'; rowId: T['id']; rowLabel: string; colKey: string | null }
+    | { area: 'grid' }
+  >({ area: 'grid' });
+  const [ctxKonfirmasi, setCtxKonfirmasi] = useState<AksiMenu['konfirmasi'] | null>(null);
+  /** API preset kolom (dipakai menu klik kanan header: show/hide kolom). */
+  const presetApiRef = useRef<PresetKolomApi | null>(null);
   /** Baris input hanya tersedia bila halaman menyediakan onCreateRow.
    *  Tidak bergantung mode Edit: halaman boleh mendukung create saja. */
   const inputEnabled = !!onCreateRow;
@@ -1480,6 +1506,51 @@ export default function ExcelTable<T extends { id: string | number }>({
     return v == null ? '' : String(v);
   }
 
+  /** Klik kanan di tabel: tentukan area (header kolom / baris / kosong).
+   *  Area kosong tidak punya menu — preventDefault membatalkan penggeseran
+   *  menu (Radix maupun menu bawaan WebView). */
+  function onGridContextMenu(e: React.MouseEvent) {
+    const t = e.target as HTMLElement;
+    const colKey = t.closest('[data-col-key]')?.getAttribute('data-col-key') ?? null;
+    if (t.closest('.dsg-cell-header')) {
+      const f = colKey ? fieldsRef.current.find((x) => x.key === colKey) : null;
+      if (f) {
+        setCtx({ area: 'header', colKey: f.key });
+        return;
+      }
+      e.preventDefault();
+      return;
+    }
+    const rowEl = t.closest('.dsg-row:not(.dsg-row-header)') as HTMLElement | null;
+    if (rowEl) {
+      const idx = Math.round((parseFloat(rowEl.style.top || '0') || 0) / effectiveH);
+      const g = gridValue[idx];
+      if (g && String(g.id) !== INPUT_ROW_ID) {
+        const domain = rowsRef.current.find((r) => String(r.id) === String(g.id));
+        const rowLabel = domain ? displayOf(domain.id, visibleFieldsRef.current[0]?.key ?? '') || String(domain.id) : String(g.id);
+        setCtx({ area: 'row', rowId: g.id as T['id'], rowLabel, colKey });
+        return;
+      }
+    }
+    e.preventDefault();
+  }
+
+  /** Salin satu baris (kolom terlihat) sebagai TSV. */
+  async function salinBarisCtx(id: T['id']) {
+    const header = visibleFieldsRef.current.map((f) => f.label);
+    const body = [visibleFieldsRef.current.map((f) => displayOf(id, f.key))];
+    const ok = await copyText(toTSV(header, body));
+    if (ok) toast.success('Baris disalin (TSV).');
+    else toast.error('Gagal menyalin.');
+  }
+
+  /** Salin nilai satu sel. */
+  async function salinSelCtx(id: T['id'], key: string) {
+    const ok = await copyText(displayOf(id, key));
+    if (ok) toast.success('Nilai sel disalin.');
+    else toast.error('Gagal menyalin.');
+  }
+
   /** Status pilih-semua (context) — terpisah dari definisi kolom. */
   const checkAllState = useMemo<CheckAllState>(
     () => ({
@@ -1635,6 +1706,17 @@ export default function ExcelTable<T extends { id: string | number }>({
   const formId = searchIds?.form ?? `form_cari_${tableKey}`;
   const inputId = searchIds?.input ?? `input_cari_${tableKey}`;
   const buttonId = searchIds?.button ?? `btn_cari_${tableKey}`;
+
+  // Data context menu per area (header kolom / baris).
+  const ctxHeader = ctx.area === 'header' ? ctx : null;
+  const ctxRow = ctx.area === 'row' ? ctx : null;
+  const ctxRowDomain = ctxRow
+    ? rowsRef.current.find((r) => String(r.id) === String(ctxRow.rowId)) ?? null
+    : null;
+  const ctxRowAksi = ctxRowDomain ? flattenAksi(renderRef.current(ctxRowDomain)) : [];
+  const ctxHeaderLabel = ctxHeader
+    ? fieldsRef.current.find((f) => f.key === ctxHeader.colKey)?.label ?? ctxHeader.colKey
+    : '';
 
   return (
     <div className={cn('flex flex-col', maxRows === undefined ? 'min-h-0 flex-1' : 'shrink-0')}>
@@ -1798,7 +1880,7 @@ export default function ExcelTable<T extends { id: string | number }>({
 
           {/* Grup preset kolom tampilan (tersimpan di DB per lembaga) */}
           <ToolbarGroup title="Kolom tampilan">
-            <PresetKolom tableKey={tableKey} fields={fields} onApply={setPresetKeys} />
+            <PresetKolom tableKey={tableKey} fields={fields} onApply={setPresetKeys} apiRef={presetApiRef} />
           </ToolbarGroup>
 
           {/* Grup 2 — alat tabel: salin, sesuaikan lebar, reset */}
@@ -1863,37 +1945,158 @@ export default function ExcelTable<T extends { id: string | number }>({
       >
         {/* Kartu tabel setinggi gridHeight: tabel halaman mengisi penuh sisa
             area vertikal, tabel kompak (maxRows) berhenti di baris terakhir. */}
-        <div className="simpes-dsg-kartu relative flex flex-col overflow-hidden bg-card" style={{ height: gridHeight }}>
-          <CheckAllContext.Provider value={checkAllState}>
-            <DataSheetGrid
-              value={gridValue}
-              onChange={handleChange}
-              columns={dsgColumns}
-              stickyRightColumn={aksiColumn}
-              rowKey="id"
-              height={gridHeight}
-              rowHeight={effectiveH}
-              headerRowHeight={26}
-              lockRows
-              addRowsComponent={false}
-              rowClassName={({ rowIndex }) => {
-                const r = gridValue[rowIndex];
-                return cn(
-                  rowIndex === gridValue.length - 1 && 'simpes-dsg-row-last',
-                  r && String(r.id) === INPUT_ROW_ID && 'simpes-dsg-row-input',
-                  r && checkedIds.has(r.id) && 'simpes-dsg-row-checked',
-                );
-              }}
-              onSelectionChange={({ selection }) => setRange(selection)}
-              onScroll={fitActionsIfNeeded}
-            />
-          </CheckAllContext.Provider>
-          {gridValue.length === 0 && !loading && (
-            <div className="pointer-events-none absolute inset-0 grid place-items-center">
-              <p className="text-sm text-muted-foreground">{emptyText}</p>
+        <ContextMenu>
+          <ContextMenuTrigger asChild>
+            <div
+              className="simpes-dsg-kartu relative flex flex-col overflow-hidden bg-card"
+              style={{ height: gridHeight }}
+              onContextMenu={onGridContextMenu}
+            >
+              <CheckAllContext.Provider value={checkAllState}>
+                <DataSheetGrid
+                  value={gridValue}
+                  onChange={handleChange}
+                  columns={dsgColumns}
+                  stickyRightColumn={aksiColumn}
+                  rowKey="id"
+                  height={gridHeight}
+                  rowHeight={effectiveH}
+                  headerRowHeight={26}
+                  lockRows
+                  addRowsComponent={false}
+                  disableContextMenu
+                  rowClassName={({ rowIndex }) => {
+                    const r = gridValue[rowIndex];
+                    return cn(
+                      rowIndex === gridValue.length - 1 && 'simpes-dsg-row-last',
+                      r && String(r.id) === INPUT_ROW_ID && 'simpes-dsg-row-input',
+                      r && checkedIds.has(r.id) && 'simpes-dsg-row-checked',
+                    );
+                  }}
+                  onSelectionChange={({ selection }) => setRange(selection)}
+                  onScroll={fitActionsIfNeeded}
+                />
+              </CheckAllContext.Provider>
+              {gridValue.length === 0 && !loading && (
+                <div className="pointer-events-none absolute inset-0 grid place-items-center">
+                  <p className="text-sm text-muted-foreground">{emptyText}</p>
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          </ContextMenuTrigger>
+
+          <ContextMenuContent>
+            {/* Area header kolom: perataan + show/hide di preset. */}
+            {ctxHeader && (
+              <>
+                <ContextMenuLabel>Kolom: {ctxHeaderLabel}</ContextMenuLabel>
+                <div className="flex items-center gap-1 px-2 py-1">
+                  <span className="mr-auto text-xs text-muted-foreground">Perataan</span>
+                  {([
+                    { nilai: 'left' as const, label: 'Kiri', Icon: AlignLeft },
+                    { nilai: 'center' as const, label: 'Tengah', Icon: AlignCenter },
+                    { nilai: 'right' as const, label: 'Kanan', Icon: AlignRight },
+                  ]).map(({ nilai, label, Icon }) => {
+                    const aktif = (align[ctxHeader.colKey] ?? 'left') === nilai;
+                    return (
+                      <button
+                        key={nilai}
+                        type="button"
+                        id={`btn_ctx_align_${nilai}_${tableKey}`}
+                        title={`Rata ${label.toLowerCase()} (berlaku semua tabel)`}
+                        aria-label={`Rata ${label.toLowerCase()}`}
+                        aria-pressed={aktif}
+                        onClick={() => setAlign(ctxHeader.colKey, nilai)}
+                        className={cn(
+                          'grid size-6 place-items-center rounded border border-transparent text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
+                          aktif && 'border-border bg-accent text-foreground',
+                        )}
+                      >
+                        <Icon size={14} />
+                      </button>
+                    );
+                  })}
+                </div>
+                <ContextMenuSeparator />
+                <ContextMenuLabel>Tampilkan di preset</ContextMenuLabel>
+                {(presetApiRef.current?.presets.length ?? 0) === 0 ? (
+                  <ContextMenuItem disabled>Belum ada preset</ContextMenuItem>
+                ) : presetApiRef.current?.presets.map((p) => (
+                  <ContextMenuCheckboxItem
+                    key={p.id}
+                    checked={p.kolom.includes(ctxHeader.colKey)}
+                    onSelect={(e) => e.preventDefault()}
+                    onCheckedChange={(c) =>
+                      void presetApiRef.current?.toggleKolom(p.id, ctxHeader.colKey, !!c)
+                    }
+                  >
+                    {p.lembaga_id === null
+                      ? p.nama
+                      : `${p.nama} (${p.lembaga?.kode ?? p.lembaga?.nama ?? p.lembaga_id})`}
+                  </ContextMenuCheckboxItem>
+                ))}
+              </>
+            )}
+
+            {/* Area baris data: aksi halaman + salin. */}
+            {ctxRow && (
+              <>
+                <ContextMenuLabel>{ctxRow.rowLabel}</ContextMenuLabel>
+                {ctxRowAksi.map((el, i) => {
+                  const m = metaAksi(el);
+                  return (
+                    <ContextMenuItem
+                      key={el.key ?? i}
+                      onSelect={() => {
+                        if (m.konfirmasi) setCtxKonfirmasi(m.konfirmasi);
+                        else m.onClick?.();
+                      }}
+                    >
+                      {m.icon}
+                      <span>{m.label}</span>
+                    </ContextMenuItem>
+                  );
+                })}
+                {ctxRowAksi.length > 0 && <ContextMenuSeparator />}
+                <ContextMenuItem onSelect={() => void salinBarisCtx(ctxRow.rowId)}>
+                  <Copy size={16} />
+                  <span>Salin baris (TSV)</span>
+                </ContextMenuItem>
+                <ContextMenuItem
+                  disabled={!ctxRow.colKey}
+                  onSelect={() => {
+                    if (ctxRow.colKey) void salinSelCtx(ctxRow.rowId, ctxRow.colKey);
+                  }}
+                >
+                  <Copy size={16} />
+                  <span>Salin nilai sel</span>
+                </ContextMenuItem>
+              </>
+            )}
+          </ContextMenuContent>
+        </ContextMenu>
+
+        {/* Konfirmasi hapus dari context menu baris (pola sama ActionsCell). */}
+        <AlertDialog open={ctxKonfirmasi !== null} onOpenChange={(o) => { if (!o) setCtxKonfirmasi(null); }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{ctxKonfirmasi?.title}</AlertDialogTitle>
+              <AlertDialogDescription>{ctxKonfirmasi?.description}</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Batal</AlertDialogCancel>
+              <AlertDialogAction
+                className={cn(buttonVariants({ variant: 'destructive' }))}
+                onClick={() => {
+                  ctxKonfirmasi?.onConfirm();
+                  setCtxKonfirmasi(null);
+                }}
+              >
+                Hapus
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );
