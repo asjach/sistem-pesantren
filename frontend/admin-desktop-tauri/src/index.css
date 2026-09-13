@@ -346,6 +346,29 @@
   cursor: pointer;
   padding: 0;
 }
+/* Perataan isi kolom mengikuti data/field (diatur global dari dialog preset
+   kolom, bawaan rata kiri). Berlaku untuk sel baca-saja, editor input/select,
+   dan header kolomnya. */
+.simpes-dsg .dsg-cell.simpes-dsg-align-center .simpes-dsg-fill {
+  justify-content: center;
+}
+.simpes-dsg .dsg-cell.simpes-dsg-align-right .simpes-dsg-fill {
+  justify-content: flex-end;
+}
+.simpes-dsg .dsg-cell.simpes-dsg-align-center .dsg-input,
+.simpes-dsg .dsg-cell.simpes-dsg-align-center .simpes-dsg-select {
+  text-align: center;
+}
+.simpes-dsg .dsg-cell.simpes-dsg-align-right .dsg-input,
+.simpes-dsg .dsg-cell.simpes-dsg-align-right .simpes-dsg-select {
+  text-align: right;
+}
+.simpes-dsg .dsg-cell-header.simpes-dsg-align-center .simpes-dsg-headtitle {
+  justify-content: center;
+}
+.simpes-dsg .dsg-cell-header.simpes-dsg-align-right .simpes-dsg-headtitle {
+  justify-content: flex-end;
+}
 /* Sel dengan draft belum disimpan. */
 .simpes-dsg .simpes-dsg-dirty {
   background-color: color-mix(in srgb, var(--accent) 14%, var(--card));

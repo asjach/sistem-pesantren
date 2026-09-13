@@ -527,7 +527,7 @@ export default function ExcelTable<T extends { id: string | number }>({
   const { density } = useTheme();
   const densityPx = DENSITY_PX[density];
   // Preferensi tampilan tabel global (dikontrol dari top bar).
-  const { rowH, fontPx, fontFamily } = useGridPrefs();
+  const { rowH, fontPx, fontFamily, align } = useGridPrefs();
 
   const [editMode, setEditMode] = useState(false);
   const [drafts, setDrafts] = useState<Drafts>({});
@@ -1095,6 +1095,13 @@ export default function ExcelTable<T extends { id: string | number }>({
   }
 
   const dsgColumns: Column<GridRow>[] = useMemo(() => {
+    /** Kelas perataan kolom: mengikuti peta global per field (bawaan kiri). */
+    const alignClass = (key: string) =>
+      align[key] === 'center'
+        ? 'simpes-dsg-align-center'
+        : align[key] === 'right'
+          ? 'simpes-dsg-align-right'
+          : '';
     const cols: Column<GridRow>[] = [
       {
         ...keyColumn<GridRow, 'checked'>('checked', checkboxColumn),
@@ -1110,6 +1117,7 @@ export default function ExcelTable<T extends { id: string | number }>({
       const common = {
         id: f.key,
         title: <HeaderTitle label={f.label} colKey={f.key} onResizeStart={startResize} onAutoFit={onAutoFit} />,
+        headerClassName: alignClass(f.key),
         basis: widths[f.key] ?? autoWidths[f.key] ?? f.width ?? 150,
         // Semua kolom fixed (grow 0): lebar hanya berubah saat digagang
         // seret atau di-AutoFit, persis seperti Excel. Sisa ruang di kanan
@@ -1119,6 +1127,7 @@ export default function ExcelTable<T extends { id: string | number }>({
         minWidth: f.minWidth ?? 80,
         cellClassName: ({ rowData }: { rowData: GridRow }) =>
           cn(
+            alignClass(f.key),
             draftsRef.current[String(rowData.id)]?.[f.key] !== undefined && 'simpes-dsg-dirty',
             editing && (f.kind === 'static' ? 'simpes-dsg-readonly' : 'simpes-dsg-editable'),
           ),
@@ -1182,7 +1191,7 @@ export default function ExcelTable<T extends { id: string | number }>({
     }
     return cols;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fields, visibleFields, editing, widths, autoWidths]);
+  }, [fields, visibleFields, editing, widths, autoWidths, align]);
 
   /** Kolom Aksi = kolom "sticky kanan" DSG: selalu ter-render & menempel di
    *  kanan saat grid di-scroll horizontal (freeze pane sisi kanan). */

@@ -14,7 +14,7 @@ import type { ExcelField } from './ExcelTable';
 import MultiSelect from './MultiSelect';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
+import { Field, FieldLabel } from '@/components/ui/field';
 import {
   Select,
   SelectContent,
@@ -34,10 +34,56 @@ import {
 } from '@/components/ui/dialog';
 import ConfirmDelete from '@/components/ConfirmDelete';
 import { Checkbox } from '@/components/ui/checkbox';
+import { useGridPrefs, type AlignName } from '@/components/GridPrefs';
+import { cn } from '@/lib/utils';
+import { AlignCenter, AlignLeft, AlignRight, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 const LENGKAP = '_lengkap';
 const KELOLA = '_kelola';
+
+/** Tombol segmented perataan kolom (kiri/tengah/kanan) untuk satu field.
+ *  Perataan bersifat global per field (berlaku di semua tabel), jadi
+ *  langsung tersimpan saat diklik — tidak menunggu Simpan preset. */
+function AlignToggle({
+  fieldKey,
+  sumber,
+  align,
+  onSet,
+}: {
+  fieldKey: string;
+  /** Sumber kontrol (semua/terpilih) — bagian dari id agar unik di DOM. */
+  sumber: 'semua' | 'terpilih';
+  align: AlignName;
+  onSet: (fieldKey: string, a: AlignName) => void;
+}) {
+  const opsi = [
+    { nilai: 'left' as const, id: 'kiri', label: 'Kiri', Icon: AlignLeft },
+    { nilai: 'center' as const, id: 'tengah', label: 'Tengah', Icon: AlignCenter },
+    { nilai: 'right' as const, id: 'kanan', label: 'Kanan', Icon: AlignRight },
+  ];
+  return (
+    <div className="flex shrink-0 items-center gap-0.5" role="group" aria-label={`Perataan ${fieldKey}`}>
+      {opsi.map(({ nilai, id, label, Icon }) => (
+        <button
+          key={nilai}
+          id={`btn_align_${id}_${sumber}_${fieldKey}`}
+          type="button"
+          title={`Rata ${label.toLowerCase()} (berlaku semua tabel)`}
+          aria-label={`Rata ${label.toLowerCase()}`}
+          aria-pressed={align === nilai}
+          onClick={() => onSet(fieldKey, nilai)}
+          className={cn(
+            'grid size-6 place-items-center rounded border border-transparent text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
+            align === nilai && 'border-border bg-accent text-foreground',
+          )}
+        >
+          <Icon size={13} />
+        </button>
+      ))}
+    </div>
+  );
+}
 
 /** Combobox preset kolom tampilan tabel + dialog kelola (tersimpan di DB per lembaga). */
 export default function PresetKolom({
@@ -64,12 +110,45 @@ export default function PresetKolom({
   const [lembagaIds, setLembagaIds] = useState<string[]>([]);
   const [kolom, setKolom] = useState<Set<string>>(new Set());
   const [bolehUbah, setBolehUbah] = useState(true);
+  const [cariKolom, setCariKolom] = useState('');
 
   const fieldKeys = useMemo(() => new Set(fields.map((f) => f.key)), [fields]);
   const editPreset = useMemo(
     () => (editId === null ? null : presets.find((p) => p.id === editId) ?? null),
     [editId, presets],
   );
+  const { align, setAlign } = useGridPrefs();
+  /** Tabel berkolom sangat banyak (mis. Santri 72 kolom) memakai dialog tinggi
+   *  penuh agar panel-panelnya punya area gulir sendiri. */
+  const banyakKolom = fields.length > 30;
+  const kolomTampil = useMemo(() => {
+    const q = cariKolom.trim().toLowerCase();
+    if (!q) return fields;
+    return fields.filter((f) => f.label.toLowerCase().includes(q));
+  }, [fields, cariKolom]);
+  const terpilih = useMemo(() => fields.filter((f) => kolom.has(f.key)), [fields, kolom]);
+  const semuaTampilTerpilih = kolomTampil.length > 0 && kolomTampil.every((f) => kolom.has(f.key));
+
+  function togolKolom(key: string, aktif: boolean) {
+    setKolom((prev) => {
+      const next = new Set(prev);
+      if (aktif) next.add(key);
+      else next.delete(key);
+      return next;
+    });
+  }
+
+  function togolSemuaTampil() {
+    setKolom((prev) => {
+      const next = new Set(prev);
+      if (semuaTampilTerpilih) {
+        for (const f of kolomTampil) next.delete(f.key);
+      } else {
+        for (const f of kolomTampil) next.add(f.key);
+      }
+      return next;
+    });
+  }
 
   const terapkan = useCallback((preset: PresetTabel | null) => {
     if (!preset) {
@@ -132,6 +211,7 @@ export default function PresetKolom({
     );
     setKolom(new Set(preset ? preset.kolom.filter((k) => fieldKeys.has(k)) : []));
     setBolehUbah(isPesantren || preset === null || preset.lembaga_id !== null);
+    setCariKolom('');
     setDokOpen(true);
   }
 
@@ -215,165 +295,263 @@ export default function PresetKolom({
       </Select>
 
       <Dialog open={dokOpen} onOpenChange={setDokOpen}>
-        <DialogContent className="sm:max-w-3xl">
+        <DialogContent
+          className={cn(
+            'sm:max-w-4xl',
+            banyakKolom && 'lg:max-w-6xl lg:h-[85dvh] lg:grid-rows-[auto_minmax(0,1fr)] lg:overflow-hidden',
+          )}
+        >
           <DialogHeader>
             <DialogTitle>Kelola preset kolom</DialogTitle>
             <DialogDescription>
-              Preset menyimpan pilihan kolom untuk tabel ini. Pilih satu atau beberapa lembaga tujuan; tiap lembaga dapat mengedit salinannya.
+              Preset menyimpan pilihan kolom untuk tabel ini. Perataan kolom berlaku global untuk field
+              tersebut di semua halaman (bawaan: kiri).
             </DialogDescription>
           </DialogHeader>
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <div className="flex max-h-64 w-full flex-col gap-1 overflow-auto rounded-md border p-2 sm:max-h-none sm:w-60">
-              <Button
-                id={`btn_preset_baru_${tableKey}`}
-                type="button"
-                variant="outline"
-                className="mb-1 shrink-0"
-                onClick={() => bukaKelola(null)}
-              >
-                + Preset baru
-              </Button>
-              {presets.length === 0 ? (
-                <p className="px-1 text-xs text-muted-foreground">Belum ada preset.</p>
-              ) : presets.map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => bukaKelola(p)}
-                  className={`rounded-md px-2 py-1.5 text-left text-sm transition-colors ${
-                    editId === p.id ? 'bg-accent font-medium' : 'hover:bg-accent/60'
-                  }`}
-                >
-                  {labelPreset(p)}
-                </button>
-              ))}
-            </div>
-            <form id={`form_preset_kolom_${tableKey}`} onSubmit={simpan} className="flex flex-1 flex-col gap-3">
-              <FieldGroup className="gap-3">
-                <Field>
-                  <FieldLabel htmlFor={`input_nama_preset_${tableKey}`}>Nama preset</FieldLabel>
-                  <Input
-                    id={`input_nama_preset_${tableKey}`}
-                    value={nama}
-                    onChange={(e) => setNama(e.target.value)}
-                    maxLength={50}
-                    placeholder="mis. default"
-                    disabled={!bolehUbah}
-                  />
-                </Field>
-                <Field>
-                  <div className="flex items-center justify-between">
-                    <FieldLabel htmlFor={`select_lembaga_preset_${tableKey}`}>
-                      {editId ? 'Lembaga' : 'Generate ke lembaga'}
-                    </FieldLabel>
-                    {!editId && bolehUbah && lembagas.length > 1 ? (
-                      <button
-                        type="button"
-                        className="text-xs text-muted-foreground underline-offset-2 hover:underline"
-                        onClick={() => setLembagaIds(
-                          lembagaIds.length === lembagas.length ? [] : lembagas.map((l) => String(l.id)),
-                        )}
-                      >
-                        {lembagaIds.length === lembagas.length ? 'Kosongkan' : 'Pilih semua'}
-                      </button>
-                    ) : null}
-                  </div>
-                  {editId ? (
-                    <Input
-                      id={`select_lembaga_preset_${tableKey}`}
-                      value={editPreset?.lembaga
-                        ? `${editPreset.lembaga.kode ?? editPreset.lembaga.nama}`
-                        : 'Global (semua lembaga)'}
-                      disabled
-                    />
-                  ) : (
-                    <MultiSelect
-                      id={`select_lembaga_preset_${tableKey}`}
-                      title="Generate ke lembaga"
-                      values={lembagaIds}
-                      onChange={setLembagaIds}
-                      disabled={!bolehUbah}
-                      placeholder="Pilih satu atau beberapa lembaga"
-                      options={lembagas.map((l) => ({ value: String(l.id), label: l.kode ?? l.nama }))}
-                    />
-                  )}
-                  {!editId && bolehUbah && lembagaIds.length === 0 ? (
-                    <p className="text-xs text-destructive">Pilih minimal satu lembaga tujuan.</p>
-                  ) : null}
-                  {!editId && lembagaIds.length > 1 ? (
-                    <p className="text-xs text-muted-foreground">
-                      Preset digenerate ke {lembagaIds.length} lembaga; tiap lembaga dapat mengedit salinannya.
-                    </p>
-                  ) : null}
-                  {!bolehUbah ? (
-                    <p className="text-xs text-muted-foreground">
-                      Preset global hanya dapat diubah admin pesantren. Pilih “+ Preset baru” untuk membuat preset lembaga.
-                    </p>
-                  ) : null}
-                </Field>
-                <Field>
-                  <div className="flex items-center justify-between">
-                    <FieldLabel>Kolom ditampilkan</FieldLabel>
+
+          <form
+            id={`form_preset_kolom_${tableKey}`}
+            onSubmit={simpan}
+            className={cn('flex flex-col gap-3', banyakKolom && 'lg:min-h-0')}
+          >
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field>
+                <FieldLabel htmlFor={`input_nama_preset_${tableKey}`}>Nama preset</FieldLabel>
+                <Input
+                  id={`input_nama_preset_${tableKey}`}
+                  value={nama}
+                  onChange={(e) => setNama(e.target.value)}
+                  maxLength={50}
+                  placeholder="mis. default"
+                  disabled={!bolehUbah}
+                />
+              </Field>
+              <Field>
+                <div className="flex items-center justify-between">
+                  <FieldLabel htmlFor={`select_lembaga_preset_${tableKey}`}>
+                    {editId ? 'Lembaga' : 'Generate ke lembaga'}
+                  </FieldLabel>
+                  {!editId && bolehUbah && lembagas.length > 1 ? (
                     <button
                       type="button"
-                      disabled={!bolehUbah}
-                      className="text-xs text-muted-foreground underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
-                      onClick={() => setKolom(kolom.size === fieldKeys.size ? new Set() : new Set(fieldKeys))}
+                      className="text-xs text-muted-foreground underline-offset-2 hover:underline"
+                      onClick={() => setLembagaIds(
+                        lembagaIds.length === lembagas.length ? [] : lembagas.map((l) => String(l.id)),
+                      )}
                     >
-                      {kolom.size === fieldKeys.size ? 'Kosongkan' : 'Pilih semua'}
+                      {lembagaIds.length === lembagas.length ? 'Kosongkan' : 'Pilih semua'}
                     </button>
-                  </div>
-                  <div className="grid max-h-52 grid-cols-1 gap-1 overflow-auto rounded-md border p-2 sm:grid-cols-2">
-                    {fields.map((f) => (
+                  ) : null}
+                </div>
+                {editId ? (
+                  <Input
+                    id={`select_lembaga_preset_${tableKey}`}
+                    value={editPreset?.lembaga
+                      ? `${editPreset.lembaga.kode ?? editPreset.lembaga.nama}`
+                      : 'Global (semua lembaga)'}
+                    disabled
+                  />
+                ) : (
+                  <MultiSelect
+                    id={`select_lembaga_preset_${tableKey}`}
+                    title="Generate ke lembaga"
+                    values={lembagaIds}
+                    onChange={setLembagaIds}
+                    disabled={!bolehUbah}
+                    placeholder="Pilih satu atau beberapa lembaga"
+                    options={lembagas.map((l) => ({ value: String(l.id), label: l.kode ?? l.nama }))}
+                  />
+                )}
+                {!editId && bolehUbah && lembagaIds.length === 0 ? (
+                  <p className="text-xs text-destructive">Pilih minimal satu lembaga tujuan.</p>
+                ) : null}
+                {!editId && lembagaIds.length > 1 ? (
+                  <p className="text-xs text-muted-foreground">
+                    Preset digenerate ke {lembagaIds.length} lembaga; tiap lembaga dapat mengedit salinannya.
+                  </p>
+                ) : null}
+                {!bolehUbah ? (
+                  <p className="text-xs text-muted-foreground">
+                    Preset global hanya dapat diubah admin pesantren. Pilih “+ Preset baru” untuk membuat preset lembaga.
+                  </p>
+                ) : null}
+              </Field>
+            </div>
+
+            {/* Tiga panel: daftar preset (kiri), semua kolom (tengah), dan
+                kolom terpilih + perataan (kanan). */}
+            <div className={cn('flex flex-col gap-3 lg:flex-row', banyakKolom && 'lg:min-h-0 lg:flex-1')}>
+              {/* Panel 1 — preset */}
+              <section className="flex flex-col gap-2 lg:w-44 lg:shrink-0">
+                <FieldLabel>Preset</FieldLabel>
+                <Button
+                  id={`btn_preset_baru_${tableKey}`}
+                  type="button"
+                  variant="outline"
+                  className="shrink-0"
+                  onClick={() => bukaKelola(null)}
+                >
+                  + Preset baru
+                </Button>
+                <div
+                  className={cn(
+                    'flex flex-col gap-1 overflow-auto rounded-md border p-1',
+                    banyakKolom ? 'max-h-40 lg:max-h-none lg:min-h-0 lg:flex-1' : 'max-h-64',
+                  )}
+                >
+                  {presets.length === 0 ? (
+                    <p className="px-1 text-xs text-muted-foreground">Belum ada preset.</p>
+                  ) : presets.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => bukaKelola(p)}
+                      className={cn(
+                        'rounded-md px-2 py-1.5 text-left text-sm transition-colors',
+                        editId === p.id ? 'bg-accent font-medium' : 'hover:bg-accent/60',
+                      )}
+                    >
+                      {labelPreset(p)}
+                    </button>
+                  ))}
+                </div>
+              </section>
+
+              {/* Panel 2 — semua kolom (dengan pencarian + perataan global) */}
+              <section className="flex min-h-0 flex-col gap-2 lg:flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <FieldLabel>Kolom tersedia ({fields.length})</FieldLabel>
+                  <button
+                    type="button"
+                    disabled={!bolehUbah || kolomTampil.length === 0}
+                    className="text-xs text-muted-foreground underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+                    onClick={togolSemuaTampil}
+                  >
+                    {semuaTampilTerpilih ? 'Kosongkan' : cariKolom.trim() ? 'Pilih hasil' : 'Pilih semua'}
+                  </button>
+                </div>
+                <Input
+                  id={`input_cari_kolom_${tableKey}`}
+                  value={cariKolom}
+                  onChange={(e) => setCariKolom(e.target.value)}
+                  placeholder="Cari kolom…"
+                  aria-label="Cari kolom"
+                  className="h-8"
+                />
+                <div
+                  className={cn(
+                    'flex flex-col gap-0.5 overflow-auto rounded-md border p-1',
+                    banyakKolom ? 'max-h-64 lg:max-h-none lg:min-h-0 lg:flex-1' : 'max-h-64',
+                  )}
+                >
+                  {kolomTampil.length === 0 ? (
+                    <p className="px-1.5 py-1 text-xs text-muted-foreground">Tidak ada kolom cocok.</p>
+                  ) : kolomTampil.map((f) => (
+                    <div
+                      key={f.key}
+                      className="flex items-center gap-1 rounded-md px-1 py-0.5 hover:bg-accent/40"
+                    >
+                      <Checkbox
+                        id={`chk_kolom_${tableKey}_${f.key}`}
+                        checked={kolom.has(f.key)}
+                        disabled={!bolehUbah}
+                        onCheckedChange={(c) => togolKolom(f.key, !!c)}
+                      />
                       <label
-                        key={f.key}
                         htmlFor={`chk_kolom_${tableKey}_${f.key}`}
-                        className="flex cursor-pointer items-center gap-2 text-sm"
+                        className="min-w-0 flex-1 cursor-pointer truncate text-sm"
+                        title={f.label}
                       >
-                        <Checkbox
-                          id={`chk_kolom_${tableKey}_${f.key}`}
-                          checked={kolom.has(f.key)}
-                          disabled={!bolehUbah}
-                          onCheckedChange={(c) => {
-                            setKolom((prev) => {
-                              const next = new Set(prev);
-                              if (c) next.add(f.key);
-                              else next.delete(f.key);
-                              return next;
-                            });
-                          }}
-                        />
                         {f.label}
                       </label>
-                    ))}
-                  </div>
-                </Field>
-              </FieldGroup>
-              <DialogFooter className="mt-auto">
-                {editId && bolehUbah ? (
-                  <ConfirmDelete
-                    title="Hapus preset?"
-                    description={`Preset "${nama}" akan dihapus untuk tabel ini.`}
-                    onConfirm={() => void hapus()}
-                  >
-                    <Button id={`btn_hapus_preset_${tableKey}`} type="button" variant="outline" className="mr-auto text-destructive">
-                      Hapus
-                    </Button>
-                  </ConfirmDelete>
-                ) : null}
-                <Button type="button" variant="outline" onClick={() => setDokOpen(false)}>Tutup</Button>
-                {bolehUbah ? (
-                  <Button
-                    id={`btn_simpan_preset_${tableKey}`}
-                    type="submit"
-                    disabled={busy || !nama.trim() || kolom.size === 0 || (!editId && lembagaIds.length === 0)}
-                  >
-                    Simpan
+                      <AlignToggle
+                        fieldKey={f.key}
+                        sumber="semua"
+                        align={align[f.key] ?? 'left'}
+                        onSet={setAlign}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              {/* Panel 3 — kolom terpilih */}
+              <section className="flex min-h-0 flex-col gap-2 lg:w-72 lg:shrink-0">
+                <div className="flex items-center justify-between gap-2">
+                  <FieldLabel>Terpilih ({kolom.size})</FieldLabel>
+                  {kolom.size > 0 && bolehUbah ? (
+                    <button
+                      type="button"
+                      className="text-xs text-muted-foreground underline-offset-2 hover:underline"
+                      onClick={() => setKolom(new Set())}
+                    >
+                      Kosongkan
+                    </button>
+                  ) : null}
+                </div>
+                <div
+                  className={cn(
+                    'flex flex-col gap-0.5 overflow-auto rounded-md border p-1',
+                    banyakKolom ? 'max-h-64 lg:max-h-none lg:min-h-0 lg:flex-1' : 'max-h-64',
+                  )}
+                >
+                  {terpilih.length === 0 ? (
+                    <p className="px-1.5 py-1 text-xs text-muted-foreground">Belum ada kolom dipilih.</p>
+                  ) : terpilih.map((f) => (
+                    <div
+                      key={f.key}
+                      className="flex items-center gap-1 rounded-md px-1 py-0.5 hover:bg-accent/40"
+                    >
+                      <span className="min-w-0 flex-1 truncate text-sm" title={f.label}>
+                        {f.label}
+                      </span>
+                      <AlignToggle
+                        fieldKey={f.key}
+                        sumber="terpilih"
+                        align={align[f.key] ?? 'left'}
+                        onSet={setAlign}
+                      />
+                      <button
+                        id={`btn_keluar_kolom_${tableKey}_${f.key}`}
+                        type="button"
+                        title="Keluarkan dari pilihan"
+                        aria-label={`Keluarkan ${f.label} dari pilihan`}
+                        disabled={!bolehUbah}
+                        onClick={() => togolKolom(f.key, false)}
+                        className="grid size-6 shrink-0 place-items-center rounded text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            </div>
+
+            <DialogFooter className="mt-auto">
+              {editId && bolehUbah ? (
+                <ConfirmDelete
+                  title="Hapus preset?"
+                  description={`Preset "${nama}" akan dihapus untuk tabel ini.`}
+                  onConfirm={() => void hapus()}
+                >
+                  <Button id={`btn_hapus_preset_${tableKey}`} type="button" variant="outline" className="mr-auto text-destructive">
+                    Hapus
                   </Button>
-                ) : null}
-              </DialogFooter>
-            </form>
-          </div>
+                </ConfirmDelete>
+              ) : null}
+              <Button type="button" variant="outline" onClick={() => setDokOpen(false)}>Tutup</Button>
+              {bolehUbah ? (
+                <Button
+                  id={`btn_simpan_preset_${tableKey}`}
+                  type="submit"
+                  disabled={busy || !nama.trim() || kolom.size === 0 || (!editId && lembagaIds.length === 0)}
+                >
+                  Simpan
+                </Button>
+              ) : null}
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </>
