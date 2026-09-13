@@ -1,4 +1,4 @@
-import { Children, createContext, Fragment, isValidElement, useContext, useEffect, useMemo, useRef, useState, type ReactElement, type ReactNode } from 'react';
+import { Children, createContext, Fragment, isValidElement, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactElement, type ReactNode } from 'react';
 import {
   DynamicDataSheetGrid as DataSheetGrid,
   checkboxColumn,
@@ -214,6 +214,49 @@ async function loadWidths(key: string): Promise<Record<string, number>> {
   } catch {
     return {};
   }
+}
+
+/** Cache lebar kolom per tabel untuk SESI berjalan (di memori, tidak disimpan).
+ *  Kunjungan ulang ke halaman yang sama memakai lebar yang sudah final sehingga
+ *  grid dapat dirender sekali jadi — tata letak tidak bergeser lagi. */
+interface WidthCacheEntry {
+  widths: Record<string, number>;
+  autoWidths: Record<string, number>;
+}
+
+const widthCache = new Map<string, WidthCacheEntry>();
+
+function readWidthCache(tableKey: string): WidthCacheEntry | null {
+  return widthCache.get(tableKey) ?? null;
+}
+
+function writeWidthCache(tableKey: string, patch: Partial<WidthCacheEntry>) {
+  const prev = widthCache.get(tableKey) ?? { widths: {}, autoWidths: {} };
+  widthCache.set(tableKey, { ...prev, ...patch });
+}
+
+/** Host pengukuran offscreen: meniru struktur & kelas grid nyata sehingga
+ *  getComputedStyle memberi font/padding PERSIS seperti sel asli (termasuk
+ *  override gaya bagian). Dipakai menghitung lebar kolom secara sinkron pada
+ *  render pertama — tanpa menunggu DOM grid atau pemuatan font. */
+let ukurHostEl: HTMLDivElement | null = null;
+
+function hostUkur(): HTMLDivElement | null {
+  if (typeof document === 'undefined') return null;
+  if (!ukurHostEl) {
+    const h = document.createElement('div');
+    h.className = 'simpes-dsg';
+    h.setAttribute('aria-hidden', 'true');
+    h.style.cssText =
+      'position:fixed;left:-100000px;top:0;visibility:hidden;pointer-events:none;white-space:nowrap';
+    h.innerHTML =
+      '<div class="dsg-row dsg-row-header"><div class="dsg-cell dsg-cell-header">' +
+      '<div class="dsg-cell-header-container"><span data-ukur="head"></span></div></div></div>' +
+      '<div class="dsg-row"><div class="dsg-cell"><span data-ukur="cell"></span></div></div>';
+    document.body.appendChild(h);
+    ukurHostEl = h;
+  }
+  return ukurHostEl;
 }
 
 interface TextColData {
@@ -648,21 +691,34 @@ export default function ExcelTable<T extends { id: string | number }>({
   const measureCtxRef = useRef<CanvasRenderingContext2D | null>(null);
   const probeRef = useRef<HTMLSpanElement | null>(null);
 
-  const [widths, setWidths] = useState<Record<string, number>>({});
+  /** Cache sesi untuk tabel ini (bila ada): lebar langsung final di render
+   *  pertama sehingga tidak ada geseran saat kembali ke halaman. */
+  const cacheHit = readWidthCache(tableKey);
+  /** Ada cache SAAT render pertama (sebelum efek menulis apa pun) — dipakai
+   *  agar muat-lebar-dari-disk tidak dilewati keliru (mis. StrictMode). */
+  const cacheHadRef = useRef(!!cacheHit);
+  const [widths, setWidths] = useState<Record<string, number>>(() => cacheHit?.widths ?? {});
   const widthsRef = useRef(widths);
   widthsRef.current = widths;
   /** Lebar AutoFit bawaan — TIDAK disimpan, dipakai hanya untuk kolom yang
    *  belum pernah diatur lebarnya oleh pengguna. Dihitung ulang tiap muat
    *  awal supaya selalu pas dengan data aktual. */
-  const [autoWidths, setAutoWidths] = useState<Record<string, number>>({});
+  const [autoWidths, setAutoWidths] = useState<Record<string, number>>(() => cacheHit?.autoWidths ?? {});
   const autoWidthsRef = useRef(autoWidths);
   autoWidthsRef.current = autoWidths;
-  const [widthsReady, setWidthsReady] = useState(false);
-  const fittedRef = useRef<string | null>(null);
+  const [widthsReady, setWidthsReady] = useState(!!cacheHit);
+  /** Grid disembunyikan (space tetap dialokasikan) sampai lebar stabil, agar
+   *  pengguna tidak melihat kolom melompat dari lebar bawaan ke lebar final. */
+  const [lebarStabil, setLebarStabil] = useState(!!cacheHit);
+  /** Lewati AutoFit pada commit pertama: cache sudah memuat lebar final. */
+  const skipFitPertamaRef = useRef(!!cacheHit);
+  const fittedRef = useRef<string | null>(cacheHit ? tableKey : null);
   /** Sedang mencoba mengukur kolom Aksi yang baru ter-render (hindari loop ganda). */
   const aksiFitRef = useRef(false);
   const fieldsRef = useRef(fields);
   fieldsRef.current = fields;
+  const getValuesRef = useRef(getValues);
+  getValuesRef.current = getValues;
   const [presetKeys, setPresetKeys] = useState<string[] | null>(null);
   const visibleFields = useMemo(() => {
     if (presetKeys === null) return fields;
@@ -696,12 +752,50 @@ export default function ExcelTable<T extends { id: string | number }>({
   }, [loading, rows.length, tableKey]);
 
   useEffect(() => {
+    // Cache sesi: lebar sudah final, tidak perlu muat dari disk (menghindari
+    // render perantara yang menggeser kolom).
+    if (cacheHadRef.current) {
+      setWidthsReady(true);
+      return;
+    }
     setWidthsReady(false);
     loadWidths(widthsKey(tableKey)).then((w) => {
       setWidths(w);
       setWidthsReady(true);
     });
   }, [tableKey]);
+
+  // Simpan lebar terbaru ke cache sesi (dipakai kunjungan ulang).
+  useEffect(() => {
+    writeWidthCache(tableKey, { widths });
+  }, [tableKey, widths]);
+  useEffect(() => {
+    writeWidthCache(tableKey, { autoWidths });
+  }, [tableKey, autoWidths]);
+
+  // Lebar awal sudah dihitung sinkron (syncAutoWidths), jadi grid cukup
+  // menunggu lebar tersimpan selesai dibaca — tanpa menunggu AutoFit DOM.
+  // Cache sesi berarti lebar tersimpan sudah ada sejak render pertama.
+  useEffect(() => {
+    if (lebarStabil) return;
+    if (widthsReady) setLebarStabil(true);
+  }, [lebarStabil, widthsReady]);
+
+  useEffect(() => {
+    const t = setTimeout(() => setLebarStabil(true), 1500);
+    return () => clearTimeout(t);
+  }, [tableKey]);
+
+  // Ukur lebar kolom Aksi dari tombol yang benar-benar dirender SEBELUM cat
+  // (useLayoutEffect). Kolom teks sudah final dari syncAutoWidths; hanya Aksi
+  // yang tak bisa dihitung sinkron karena jumlah/isi tombol bergantung data.
+  useLayoutEffect(() => {
+    if (widthsRef.current.__aksi !== undefined) return;
+    const w = measureActionsWidth();
+    if (w == null) return;
+    setAutoWidths((prev) => (prev.__aksi === w ? prev : { ...prev, __aksi: w }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lebarStabil, rows, fields, visibleFields]);
 
   // Muat awal: kolom yang belum punya lebar tersimpan disesuaikan dengan isi
   // (judul dipakai bila lebih panjang dari data). Menunggu widthsReady supaya
@@ -726,6 +820,8 @@ export default function ExcelTable<T extends { id: string | number }>({
         return;
       }
       fittedRef.current = tableKey;
+      // Lebar sudah tampil dari syncAutoWidths; AutoFit DOM di sini hanya
+      // menyempurnakan kolom (mis. Aksi) tanpa menahan tampilnya grid.
       batalFit = scheduleAutoFit();
     };
     const mulai = () => {
@@ -824,6 +920,7 @@ export default function ExcelTable<T extends { id: string | number }>({
   // Ukuran/jenis huruf berubah → teks butuh lebar baru: hitung ulang AutoFit
   // (lebar yang sudah diatur pengguna tetap dipertahankan).
   useEffect(() => {
+    if (skipFitPertamaRef.current) return;
     if (fittedRef.current !== tableKey) return;
     return scheduleAutoFit();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -832,10 +929,18 @@ export default function ExcelTable<T extends { id: string | number }>({
   // Data berubah (ganti kegiatan/filter/muat ulang) → sesuaikan ulang lebar
   // kolom yang belum diatur pengguna.
   useEffect(() => {
+    if (skipFitPertamaRef.current) return;
     if (fittedRef.current !== tableKey) return;
     return scheduleAutoFit();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, fields, visibleFields]);
+
+  // Setelah commit pertama, AutoFit kembali normal (perubahan berikutnya —
+  // huruf/data/filter — boleh menyesuaikan lebar). Efek ini SENGAJA ditaruh
+  // setelah efek AutoFit agar urutan mount tidak melewati penjagaan cache.
+  useEffect(() => {
+    skipFitPertamaRef.current = false;
+  }, []);
 
   function persistWidths(next: Record<string, number>) {
     prefSet(widthsKey(tableKey), JSON.stringify(next)).catch(() => {});
@@ -1137,6 +1242,67 @@ export default function ExcelTable<T extends { id: string | number }>({
       ? fontChoice.value.split('|')
       : ['', ''];
   const editing = canEdit && editMode;
+
+  /** Lebar kolom awal yang dihitung SINKRON saat render (tanpa DOM grid/font
+   *  ready) memakai host pengukuran offscreen. Grid jadi bisa tampil langsung
+   *  dengan lebar final — tidak ada geseran, tidak ada jeda muat tambahan.
+   *  Hasil ini hanya dipakai untuk kolom yang belum punya lebar tersimpan;
+   *  AutoFit DOM (saat font/data berubah) tetap boleh menyempurnakan. */
+  const syncAutoWidths = useMemo<Record<string, number>>(() => {
+    const host = hostUkur();
+    if (!host) return {};
+    host.style.setProperty('--simpes-font-size', `${effectiveFont}px`);
+    if (fontStack) {
+      host.style.setProperty('--simpes-font-family', fontStack);
+      host.style.setProperty('--simpes-font-weight', fontStackWeight || '400');
+    } else {
+      host.style.removeProperty('--simpes-font-family');
+      host.style.removeProperty('--simpes-font-weight');
+    }
+    const cellEl = host.querySelector<HTMLElement>('.dsg-row:not(.dsg-row-header) .dsg-cell');
+    const headCellEl = host.querySelector<HTMLElement>('.dsg-row.dsg-row-header .dsg-cell');
+    const headContEl = host.querySelector<HTMLElement>('.dsg-cell-header-container');
+    const cellProbe = host.querySelector<HTMLElement>('[data-ukur="cell"]');
+    const headProbe = host.querySelector<HTMLElement>('[data-ukur="head"]');
+    if (!cellEl || !headCellEl || !headContEl || !cellProbe || !headProbe) return {};
+    const csCell = getComputedStyle(cellEl);
+    const csHeadCell = getComputedStyle(headCellEl);
+    const csHeadCont = getComputedStyle(headContEl);
+    const pasangFont = (probe: HTMLElement, cs: CSSStyleDeclaration) => {
+      probe.style.fontFamily = cs.fontFamily;
+      probe.style.fontSize = cs.fontSize;
+      probe.style.fontWeight = cs.fontWeight;
+      probe.style.fontStyle = cs.fontStyle;
+      probe.style.fontVariantNumeric = cs.fontVariantNumeric;
+      probe.style.fontFeatureSettings = cs.fontFeatureSettings;
+      probe.style.letterSpacing = cs.letterSpacing;
+      probe.style.whiteSpace = 'pre';
+    };
+    const lebar = (probe: HTMLElement, cs: CSSStyleDeclaration, text: string) => {
+      pasangFont(probe, cs);
+      probe.textContent = text;
+      return probe.getBoundingClientRect().width;
+    };
+    const padOf = (cs: CSSStyleDeclaration) =>
+      (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
+    const padCell = padOf(csCell);
+    const padHead = padOf(csHeadCell) + padOf(csHeadCont);
+    const out: Record<string, number> = {};
+    const values = rows.map((r) => getValuesRef.current(r) as Record<string, unknown>);
+    for (const f of visibleFields) {
+      let w = lebar(headProbe, csHeadCont, f.label) + padHead + AUTOFIT_BUFFER;
+      for (const v of values) {
+        const raw = v[f.key];
+        const s = raw == null ? '' : String(raw);
+        if (!s) continue;
+        w = Math.max(w, lebar(cellProbe, csCell, s) + padCell + AUTOFIT_BUFFER);
+      }
+      out[f.key] = Math.min(AUTOFIT_MAX_W, Math.max(MIN_COL_W, f.minWidth ?? MIN_COL_W, Math.ceil(w)));
+    }
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, visibleFields, effectiveFont, fontStack, fontStackWeight]);
+
   const editableKeys = useMemo(
     () => visibleFields.filter((f) => f.kind !== 'static').map((f) => f.key),
     [visibleFields],
@@ -1263,7 +1429,7 @@ export default function ExcelTable<T extends { id: string | number }>({
           />
         ),
         headerClassName: alignClass(f.key),
-        basis: widths[f.key] ?? autoWidths[f.key] ?? f.width ?? 150,
+        basis: widths[f.key] ?? autoWidths[f.key] ?? syncAutoWidths[f.key] ?? f.width ?? 150,
         // Semua kolom fixed (grow 0): lebar hanya berubah saat digagang
         // seret atau di-AutoFit, persis seperti Excel. Sisa ruang di kanan
         // dibiarkan kosong, bukan dibagi ke kolom elastis.
@@ -1394,7 +1560,7 @@ export default function ExcelTable<T extends { id: string | number }>({
     }
     return cols;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fields, visibleFields, editing, widths, autoWidths, align, showInput]);
+  }, [fields, visibleFields, editing, widths, autoWidths, syncAutoWidths, align, showInput]);
 
   /** Simpan baris input → buat record baru via onCreateRow halaman. Validasi
    *  field wajib + validator kolom dulu; draft dibersihkan hanya bila sukses
@@ -1949,7 +2115,7 @@ export default function ExcelTable<T extends { id: string | number }>({
           <ContextMenuTrigger asChild>
             <div
               className="simpes-dsg-kartu relative flex flex-col overflow-hidden bg-card"
-              style={{ height: gridHeight }}
+              style={{ height: gridHeight, visibility: lebarStabil ? undefined : 'hidden' }}
               onContextMenu={onGridContextMenu}
             >
               <CheckAllContext.Provider value={checkAllState}>
@@ -2075,6 +2241,15 @@ export default function ExcelTable<T extends { id: string | number }>({
             )}
           </ContextMenuContent>
         </ContextMenu>
+
+        {/* Placeholder saat lebar kolom belum stabil (grid disembunyikan agar
+            tidak terlihat melompat). Menutupi area grid sekaligus menahan klik. */}
+        {!lebarStabil && (
+          <div className="absolute inset-0 z-10 flex flex-col gap-2 bg-card p-2" aria-hidden="true">
+            <Skeleton className="h-7 w-full" />
+            <Skeleton className="h-full w-full" />
+          </div>
+        )}
 
         {/* Konfirmasi hapus dari context menu baris (pola sama ActionsCell). */}
         <AlertDialog open={ctxKonfirmasi !== null} onOpenChange={(o) => { if (!o) setCtxKonfirmasi(null); }}>

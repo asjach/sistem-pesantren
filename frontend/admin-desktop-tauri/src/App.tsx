@@ -1,5 +1,5 @@
 import { Suspense, lazy } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { Toaster } from '@/components/ui/sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AuthProvider } from './auth/AuthContext';
@@ -28,16 +28,28 @@ const KeuanganPage = lazy(() => import('./pages/KeuanganPage'));
 const PengajuanBiodataPage = lazy(() => import('./pages/PengajuanBiodataPage'));
 const DokumenWajibPage = lazy(() => import('./pages/DokumenWajibPage'));
 
-function Shell({ children }: { children: JSX.Element }) {
+// Shell dipasang SEKALI sebagai rute induk: TopBar/ribbon + provider tetap
+// mounted saat pindah halaman. Suspense ada di dalam area konten sehingga
+// memuat halaman lazy hanya menukar isi <main>, bukan seluruh kerangka.
+function Shell() {
   return (
     <ProtectedRoute>
-      <Layout>{children}</Layout>
+      <Layout>
+        <Suspense fallback={<PageFallback />}>
+          <Outlet />
+        </Suspense>
+      </Layout>
     </ProtectedRoute>
   );
 }
 
 function PageFallback() {
-  return <Skeleton className="h-64 w-full" />;
+  return (
+    <div className="flex min-h-0 flex-1 flex-col gap-3 p-2">
+      <Skeleton className="h-8 w-64" />
+      <Skeleton className="min-h-[280px] w-full flex-1" />
+    </div>
+  );
 }
 
 export default function App() {
@@ -45,31 +57,31 @@ export default function App() {
     <AuthProvider>
       <BrowserRouter>
         <Toaster richColors position="top-center" />
-        <Suspense fallback={<PageFallback />}>
-          <Routes>
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/" element={<Shell><DashboardPage /></Shell>} />
-            <Route path="/users" element={<Shell><UsersPage /></Shell>} />
-            <Route path="/lembaga" element={<Shell><LembagaPage /></Shell>} />
-            <Route path="/tahun-ajaran" element={<Shell><TahunAjaranPage /></Shell>} />
-            <Route path="/kelas" element={<Shell><KelasPage /></Shell>} />
-            <Route path="/pos" element={<Shell><PosPage /></Shell>} />
-            <Route path="/tarif" element={<Shell><TarifPage /></Shell>} />
-            <Route path="/referensi" element={<Shell><ReferensiPage /></Shell>} />
-            <Route path="/psb" element={<Shell><PsbPage /></Shell>} />
-            <Route path="/kegiatan-psb" element={<Shell><KegiatanPsbPage /></Shell>} />
-            <Route path="/santri" element={<Shell><SantriPage /></Shell>} />
-            <Route path="/siklus" element={<Shell><SiklusPage /></Shell>} />
-            <Route path="/keuangan" element={<Shell><KeuanganPage /></Shell>} />
-            <Route path="/pengajuan-biodata" element={<Shell><PengajuanBiodataPage /></Shell>} />
-            <Route path="/dokumen-wajib" element={<Shell><DokumenWajibPage /></Shell>} />
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route element={<Shell />}>
+            <Route path="/" element={<DashboardPage />} />
+            <Route path="/users" element={<UsersPage />} />
+            <Route path="/lembaga" element={<LembagaPage />} />
+            <Route path="/tahun-ajaran" element={<TahunAjaranPage />} />
+            <Route path="/kelas" element={<KelasPage />} />
+            <Route path="/pos" element={<PosPage />} />
+            <Route path="/tarif" element={<TarifPage />} />
+            <Route path="/referensi" element={<ReferensiPage />} />
+            <Route path="/psb" element={<PsbPage />} />
+            <Route path="/kegiatan-psb" element={<KegiatanPsbPage />} />
+            <Route path="/santri" element={<SantriPage />} />
+            <Route path="/siklus" element={<SiklusPage />} />
+            <Route path="/keuangan" element={<KeuanganPage />} />
+            <Route path="/pengajuan-biodata" element={<PengajuanBiodataPage />} />
+            <Route path="/dokumen-wajib" element={<DokumenWajibPage />} />
             <Route path="/pengaturan" element={<Navigate to="/pengaturan/tampilan" replace />} />
-            <Route path="/pengaturan/tampilan" element={<Shell><PengaturanTampilanPage /></Shell>} />
-            <Route path="/pengaturan/bagian" element={<Shell><PengaturanBagianPage /></Shell>} />
-            <Route path="/pengaturan/server" element={<Shell><PengaturanServerPage /></Shell>} />
+            <Route path="/pengaturan/tampilan" element={<PengaturanTampilanPage />} />
+            <Route path="/pengaturan/bagian" element={<PengaturanBagianPage />} />
+            <Route path="/pengaturan/server" element={<PengaturanServerPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Suspense>
+          </Route>
+        </Routes>
       </BrowserRouter>
     </AuthProvider>
   );
