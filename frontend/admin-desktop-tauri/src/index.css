@@ -218,8 +218,10 @@
   min-height: 0;
   width: 100%;
 }
-/* DSG membungkus container dalam div perantara: teruskan rantai flex. */
-.simpes-dsg > div:first-child {
+/* DSG membungkus container dalam div perantara: teruskan rantai flex.
+   Kartu tabel (.simpes-dsg-kartu) mengisi tinggi grid (gridHeight): penuh
+   sisa area untuk tabel halaman, mengikuti isi untuk tabel kompak. */
+.simpes-dsg > .simpes-dsg-kartu > div:first-child {
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
@@ -277,6 +279,12 @@
   pointer-events: none;
   /* di atas kolom nomor baris yang sticky (z-index 30) */
   z-index: 35;
+}
+/* Baris terakhir: garis bawah sudah digambar ::after di atas. Bayangan bawah
+   bawaan sel DSG (box-shadow 1px 1px, tidak lagi tertutup baris berikutnya)
+   dibuang agar tidak bertumpuk jadi garis 2px; bayangan kanan tetap. */
+.simpes-dsg .simpes-dsg-row-last .dsg-cell {
+  box-shadow: 1px 0 var(--dsg-border-color);
 }
 /* Baris tercentang: sorot lembut (ikut warna aksen tema) agar jelas
    baris mana yang sedang dipilih lewat checklist. */

@@ -1010,9 +1010,16 @@ export default function ExcelTable<T extends { id: string | number }>({
 
   const effectiveH = rowH ?? densityPx;
   const effectiveFont = fontPx ?? DEFAULT_FONT_PX;
+  // Tabel halaman (tanpa maxRows) mengisi penuh sisa tinggi wrapper sehingga
+  // kartu menutupi seluruh area vertikal. Tabel kompak ber-maxRows berhenti
+  // tepat di baris terakhir; versi kompak yang kosong tetap tinggi layak agar
+  // pesan "Tidak ada …" terbaca.
   const gridHeight = maxRows === undefined
     ? gridH
-    : Math.min(gridH, 27 + Math.min(Math.max(rows.length, 1), maxRows) * effectiveH);
+    : Math.min(
+        gridH,
+        rows.length === 0 ? 280 : 27 + Math.min(Math.max(rows.length, 1), maxRows) * effectiveH,
+      );
   // "keluarga|ketebalan"; bawaan = pakai font & ketebalan aplikasi.
   const fontChoice = FONT_OPTIONS.find((f) => f.value === fontFamily);
   const [fontStack, fontStackWeight] =
@@ -1561,39 +1568,43 @@ export default function ExcelTable<T extends { id: string | number }>({
         className={cn(
           // Grid full-bleed: menempel tepi kiri-kanan area konten (imbangi padding
           // layout p-2 / md:px-4) tanpa sudut membulat; toolbar tetap berpadding.
-          'simpes-dsg relative -mx-2 flex flex-col overflow-hidden bg-card md:-mx-4',
+          'simpes-dsg relative -mx-2 flex flex-col md:-mx-4',
           maxRows === undefined ? 'min-h-[280px] flex-1' : 'shrink-0',
           !editing && 'simpes-dsg-readonly',
         )}
       >
-        <CheckAllContext.Provider value={checkAllState}>
-          <DataSheetGrid
-            value={gridValue}
-            onChange={handleChange}
-            columns={dsgColumns}
-            stickyRightColumn={aksiColumn}
-            rowKey="id"
-            height={gridHeight}
-            rowHeight={effectiveH}
-            headerRowHeight={26}
-            lockRows
-            addRowsComponent={false}
-            rowClassName={({ rowIndex }) => {
-              const r = gridValue[rowIndex];
-              return cn(
-                rowIndex === gridValue.length - 1 && 'simpes-dsg-row-last',
-                r && checkedIds.has(r.id) && 'simpes-dsg-row-checked',
-              );
-            }}
-            onSelectionChange={({ selection }) => setRange(selection)}
-            onScroll={fitActionsIfNeeded}
-          />
-        </CheckAllContext.Provider>
-        {gridValue.length === 0 && !loading && (
-          <div className="pointer-events-none absolute inset-0 grid place-items-center">
-            <p className="text-sm text-muted-foreground">{emptyText}</p>
-          </div>
-        )}
+        {/* Kartu tabel setinggi gridHeight: tabel halaman mengisi penuh sisa
+            area vertikal, tabel kompak (maxRows) berhenti di baris terakhir. */}
+        <div className="simpes-dsg-kartu relative flex flex-col overflow-hidden bg-card" style={{ height: gridHeight }}>
+          <CheckAllContext.Provider value={checkAllState}>
+            <DataSheetGrid
+              value={gridValue}
+              onChange={handleChange}
+              columns={dsgColumns}
+              stickyRightColumn={aksiColumn}
+              rowKey="id"
+              height={gridHeight}
+              rowHeight={effectiveH}
+              headerRowHeight={26}
+              lockRows
+              addRowsComponent={false}
+              rowClassName={({ rowIndex }) => {
+                const r = gridValue[rowIndex];
+                return cn(
+                  rowIndex === gridValue.length - 1 && 'simpes-dsg-row-last',
+                  r && checkedIds.has(r.id) && 'simpes-dsg-row-checked',
+                );
+              }}
+              onSelectionChange={({ selection }) => setRange(selection)}
+              onScroll={fitActionsIfNeeded}
+            />
+          </CheckAllContext.Provider>
+          {gridValue.length === 0 && !loading && (
+            <div className="pointer-events-none absolute inset-0 grid place-items-center">
+              <p className="text-sm text-muted-foreground">{emptyText}</p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
