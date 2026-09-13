@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import { isTauri } from '../api/client';
-import { useTheme, type DensityName, type ModeName, type ThemeName, type WarnaUIName } from '@/theme';
-import { THEME_PRESETS } from '@/themes';
-import { normalizeHex, onAccentFor, DEFAULT_PREFS } from '@/prefs';
+import { useTheme, type DensityName, type ModeName, type WarnaUIName } from '@/theme';
+import { normalizeHex, DEFAULT_PREFS } from '@/prefs';
 import { FONT_FAMILY_DEFAULT, FONT_OPTIONS, fontParts, type FontOption } from '@/fonts';
 import { FieldDescription, FieldLegend, FieldSet } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
@@ -18,8 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Check, Monitor, Moon, Sun } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Monitor, Moon, Sun } from 'lucide-react';
 
 const MODES: { id: ModeName; nama: string; icon: typeof Sun }[] = [
   { id: 'terang', nama: 'Terang', icon: Sun },
@@ -49,7 +47,7 @@ const FONT_UI_GROUPS: { id: string; label: string; items: FontOption[] }[] = [
 
 /** Pengaturan → Tampilan: tema, mode, kerapatan baris. */
 export default function PengaturanTampilanPage() {
-  const { theme, mode, customHex, dark, density, fontUI, warnaUI, setTheme, setMode, setCustomHex, setDensity, setFontUI, setWarnaUI } = useTheme();
+  const { theme, mode, customHex, density, fontUI, warnaUI, setMode, setCustomHex, setDensity, setFontUI, setWarnaUI } = useTheme();
   const [customInput, setCustomInput] = useState(customHex);
   const fontUIParts = fontUI === FONT_FAMILY_DEFAULT ? null : fontParts(fontUI);
 
@@ -73,57 +71,11 @@ export default function PengaturanTampilanPage() {
       <section className="flex w-full max-w-none flex-col gap-4 rounded-xl border bg-card p-5">
         <h2 className="text-base font-semibold">Tampilan</h2>
         <div>
-          <div className="mb-2 text-sm font-medium">Tema warna ({THEME_PRESETS.length})</div>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {THEME_PRESETS.map((t) => {
-              const face = dark ? t.gelap : t.terang;
-              const teksAksen = onAccentFor(face.accent);
-              const aktif = theme === t.id;
-              return (
-                <button
-                  key={t.id}
-                  id={`select_tema_${t.id}`}
-                  type="button"
-                  onClick={() => setTheme(t.id as ThemeName)}
-                  title={t.nama}
-                  className={cn(
-                    'overflow-hidden rounded-lg border text-left transition',
-                    aktif ? 'border-primary ring-2 ring-primary/40' : 'hover:border-primary/50',
-                  )}
-                >
-                  {/* Pratinjau mini ala VSCode: strip sidebar + latar tema + contoh UI. */}
-                  <span className="flex" style={{ background: face.bg, color: face.fg }}>
-                    <span className="w-4 shrink-0" style={{ background: t.sidebar }} />
-                    <span className="flex flex-1 flex-col gap-1.5 p-3">
-                      <span className="flex items-center justify-between text-[11px] opacity-80">
-                        <span>
-                          {t.nama}
-                          {t.id === DEFAULT_PREFS.theme ? ' • bawaan' : ''}
-                        </span>
-                        {aktif && <Check size={13} />}
-                      </span>
-                      <span className="block h-1.5 w-3/4 rounded-full opacity-30" style={{ background: face.fg }} />
-                      <span className="block h-1.5 w-1/2 rounded-full opacity-20" style={{ background: face.fg }} />
-                      <span className="flex items-center gap-1.5 pt-1">
-                        <span
-                          className="inline-block rounded px-2 py-0.5 text-[10px] font-semibold"
-                          style={{ background: face.accent, color: teksAksen }}
-                        >
-                          Tombol
-                        </span>
-                        <span
-                          className="inline-block rounded px-2 py-0.5 text-[10px]"
-                          style={{ background: face.bg, color: face.fg, border: `1px solid ${face.accent}` }}
-                        >
-                          Badge
-                        </span>
-                      </span>
-                    </span>
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+          <div className="mb-2 text-sm font-medium">Tema warna</div>
+          <p className="text-sm text-muted-foreground">
+            Pilih tema dari ribbon: tab <b>Pengaturan → grup Tema</b> (Select tema +
+            tombol mode Terang/Gelap/Sistem).
+          </p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <Label htmlFor="input_warna_kustom">Warna kustom</Label>
             <input

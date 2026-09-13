@@ -3,9 +3,10 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { logout } from '@/api/auth';
 import { isTauri, prefGet, prefSet } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
-import { useTheme } from '@/theme';
+import { useTheme, type ModeName, type ThemeName } from '@/theme';
 import { cn } from '@/lib/utils';
-import { DENSITY_PX } from '@/prefs';
+import { DEFAULT_PREFS, DENSITY_PX } from '@/prefs';
+import { THEME_PRESETS } from '@/themes';
 import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
@@ -49,6 +50,8 @@ import {
   Landmark,
   LogOut,
   Minus,
+  Monitor,
+  Moon,
   MoveHorizontal,
   NotebookTabs,
   Palette,
@@ -57,12 +60,21 @@ import {
   RotateCcw,
   ScrollText,
   Server,
+  Sun,
   Users,
   Wallet,
   type LucideIcon,
 } from 'lucide-react';
 import { useRibbonTable } from '@/components/RibbonTable';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { halamanDariPath } from '@/lib/halaman';
+
+/** Mode tampilan untuk ribbon (ikon saja). */
+const MODE_RIBBON: { id: ModeName; nama: string; icon: typeof Sun }[] = [
+  { id: 'terang', nama: 'Terang', icon: Sun },
+  { id: 'gelap', nama: 'Gelap', icon: Moon },
+  { id: 'sistem', nama: 'Sistem', icon: Monitor },
+];
 
 // ---------- Peta tab ribbon ← registri halaman ----------
 
@@ -240,7 +252,7 @@ const navIdle =
 /** Ribbon menu (ala Word/Excel): tab + grup perintah + Quick Access. */
 export default function TopBar() {
   const { user, logoutLocal } = useAuth();
-  const { density } = useTheme();
+  const { density, theme, mode, customHex, dark, setTheme, setMode } = useTheme();
   const nav = useNavigate();
   const { pathname } = useLocation();
   const { rowH, fontPx, fontFamily, setRowH, setFontPx, setFontFamily } = useGridPrefs();
@@ -442,10 +454,75 @@ export default function TopBar() {
             )}
 
             {tabAktif === 'pengaturan' && (
-              <RibbonGroup label="Pengaturan">
-                <RibbonBtn id="nav_pengaturan_tampilan" to="/pengaturan/tampilan" icon={Palette} label="Tampilan" aktif={pathAktif(pathname, '/pengaturan/tampilan')} />
-                <RibbonBtn id="nav_pengaturan_server" to="/pengaturan/server" icon={Server} label="Server" aktif={pathAktif(pathname, '/pengaturan/server')} />
-              </RibbonGroup>
+              <>
+                <RibbonGroup label="Tema">
+                  <Select value={theme} onValueChange={(v) => setTheme(v as ThemeName)}>
+                    <SelectTrigger
+                      id="select_tema_ribbon"
+                      title="Tema warna"
+                      aria-label="Tema warna"
+                      className="h-8 w-56 border-white/20 bg-white/5 text-white [&_svg]:text-white/70"
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-80">
+                      <SelectGroup>
+                        <SelectLabel>Tema</SelectLabel>
+                        {THEME_PRESETS.map((t) => (
+                          <SelectItem key={t.id} value={t.id}>
+                            <span className="flex items-center gap-2">
+                              <span
+                                className="inline-block size-3 shrink-0 rounded-full border border-black/20"
+                                style={{ background: dark ? t.gelap.accent : t.terang.accent }}
+                              />
+                              {t.nama}
+                              {t.id === DEFAULT_PREFS.theme ? ' • bawaan' : ''}
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                      <SelectSeparator />
+                      <SelectGroup>
+                        <SelectLabel>Kustom</SelectLabel>
+                        <SelectItem value="kustom">
+                          <span className="flex items-center gap-2">
+                            <span
+                              className="inline-block size-3 shrink-0 rounded-full border border-black/20"
+                              style={{ background: customHex }}
+                            />
+                            Kustom (atur warna di Tampilan)
+                          </span>
+                        </SelectItem>
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                  <ToggleGroup
+                    type="single"
+                    spacing={0}
+                    value={mode}
+                    onValueChange={(v) => { if (v) setMode(v as ModeName); }}
+                    className="h-8 overflow-hidden rounded-md border border-white/20 bg-white/5"
+                  >
+                    {MODE_RIBBON.map((m) => (
+                      <ToggleGroupItem
+                        key={m.id}
+                        id={`ribbon_mode_${m.id}`}
+                        value={m.id}
+                        title={`Mode ${m.nama}`}
+                        aria-label={`Mode ${m.nama}`}
+                        className="h-8 w-8 rounded-none border-0 text-white/75 hover:bg-white/10 hover:text-white data-[state=on]:bg-white/20 data-[state=on]:text-white"
+                      >
+                        <m.icon size={14} />
+                      </ToggleGroupItem>
+                    ))}
+                  </ToggleGroup>
+                </RibbonGroup>
+                <RibbonPemisah />
+                <RibbonGroup label="Pengaturan">
+                  <RibbonBtn id="nav_pengaturan_tampilan" to="/pengaturan/tampilan" icon={Palette} label="Tampilan" aktif={pathAktif(pathname, '/pengaturan/tampilan')} />
+                  <RibbonBtn id="nav_pengaturan_server" to="/pengaturan/server" icon={Server} label="Server" aktif={pathAktif(pathname, '/pengaturan/server')} />
+                </RibbonGroup>
+              </>
             )}
 
             {tabAktif === 'tabel' && showGrid && (
