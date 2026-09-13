@@ -1,30 +1,73 @@
 import { FONT_FAMILY_DEFAULT, FONT_OPTIONS } from './fonts';
 
-/** 18 bagian UI yang bisa diatur atomik (Tampilan → Bagian UI).
+/** Bagian UI yang bisa diatur atomik (Pengaturan → Bagian UI). Mencakup
+ *  seluruh komponen shadcn/ui (dipakai maupun belum) + bagian struktural app.
  *  `font`, `size`, dan `kotak` (border/radius/padding) berlaku untuk KEDUA mode;
  *  hanya warna (bg/fg/border) yang dipisah per mode terang/gelap.
  *  Tiap bagian punya `sel` (selektor akar) untuk generator gaya runtime
  *  (src/partStyles.ts); sebagian memakai atribut `data-part` yang dipasang di
- *  komponen (TopBar, ExcelTable), sisanya selektor struktural yang sudah ada. */
+ *  komponen (TopBar, ExcelTable), sisanya `data-slot` komponen shadcn atau
+ *  selektor struktural yang sudah ada. */
 export type PartId =
   | 'ribbon'
   | 'tab_ribbon'
   | 'grup_ribbon'
   | 'menu_ribbon'
+  | 'separator'
+  | 'aspect_ratio'
+  | 'scroll_area'
+  | 'resizable'
+  | 'collapsible'
+  | 'tabs'
+  | 'breadcrumb'
+  | 'pagination'
+  | 'menubar'
+  | 'navigation_menu'
+  | 'sidebar'
   | 'judul_halaman'
   | 'subjudul'
   | 'teks_isi'
   | 'kartu'
   | 'badge'
+  | 'kbd'
+  | 'item'
+  | 'empty'
+  | 'accordion'
   | 'tabel_header'
   | 'tabel_sel'
+  | 'tabel'
   | 'pager'
   | 'toolbar_tabel'
-  | 'tombol'
   | 'label_form'
   | 'input_form'
+  | 'field'
+  | 'input_group'
+  | 'textarea'
+  | 'checkbox'
+  | 'radio'
+  | 'switch'
+  | 'slider'
+  | 'input_otp'
+  | 'calendar'
+  | 'tombol'
+  | 'toggle'
+  | 'button_group'
   | 'dropdown'
-  | 'dialog';
+  | 'popover'
+  | 'hover_card'
+  | 'tooltip'
+  | 'command'
+  | 'dialog'
+  | 'sheet'
+  | 'drawer'
+  | 'alert'
+  | 'progress'
+  | 'skeleton'
+  | 'spinner'
+  | 'toast'
+  | 'avatar'
+  | 'carousel'
+  | 'chart';
 
 export type PartMode = 'terang' | 'gelap';
 
@@ -76,6 +119,7 @@ export interface PartMeta {
 }
 
 export const PARTS: PartMeta[] = [
+  // ---------- Struktur ----------
   {
     id: 'ribbon',
     label: 'Bilah ribbon',
@@ -111,6 +155,103 @@ export const PARTS: PartMeta[] = [
     sel: "[data-part='menu_ribbon']",
   },
   {
+    id: 'separator',
+    label: 'Separator',
+    grup: 'Struktur',
+    sub: 'Bingkai',
+    hint: 'Garis pemisah antar seksi.',
+    sel: "[data-slot='separator']",
+  },
+  {
+    id: 'aspect_ratio',
+    label: 'Aspect Ratio',
+    grup: 'Struktur',
+    sub: 'Bingkai',
+    hint: 'Wadah rasio aspek (foto/media).',
+    sel: "[data-slot='aspect-ratio']",
+  },
+  {
+    id: 'scroll_area',
+    label: 'Scroll Area',
+    grup: 'Struktur',
+    sub: 'Bingkai',
+    hint: 'Wadah dengan scrollbar kustom.',
+    sel: "[data-slot='scroll-area']",
+  },
+  {
+    id: 'resizable',
+    label: 'Resizable',
+    grup: 'Struktur',
+    sub: 'Bingkai',
+    hint: 'Panel resizable (split view).',
+    sel: "[data-slot='resizable-panel-group']",
+  },
+  {
+    id: 'collapsible',
+    label: 'Collapsible',
+    grup: 'Struktur',
+    sub: 'Bingkai',
+    hint: 'Wadah konten yang bisa dilipat.',
+    sel: "[data-slot='collapsible']",
+  },
+
+  // ---------- Navigasi ----------
+  {
+    id: 'tabs',
+    label: 'Tabs',
+    grup: 'Navigasi',
+    sub: 'Menu',
+    kendali: true,
+    hint: 'Tab konten (list, trigger, isi).',
+    sel: "[data-slot='tabs'], [data-slot='tabs-list'], [data-slot='tabs-trigger'], [data-slot='tabs-content']",
+  },
+  {
+    id: 'breadcrumb',
+    label: 'Breadcrumb',
+    grup: 'Navigasi',
+    sub: 'Menu',
+    hint: 'Jejak navigasi halaman.',
+    sel: "[data-slot='breadcrumb']",
+  },
+  {
+    id: 'pagination',
+    label: 'Pagination',
+    grup: 'Navigasi',
+    sub: 'Menu',
+    kendali: true,
+    hint: 'Navigasi halaman (komponen pagination).',
+    sel: "[data-slot='pagination']",
+  },
+  {
+    id: 'menubar',
+    label: 'Menubar',
+    grup: 'Navigasi',
+    sub: 'Bilah',
+    kendali: true,
+    hint: 'Bilah menu aplikasi.',
+    sel: "[data-slot='menubar'], [data-slot='menubar-content']",
+  },
+  {
+    id: 'navigation_menu',
+    label: 'Navigation Menu',
+    grup: 'Navigasi',
+    sub: 'Bilah',
+    kendali: true,
+    hint: 'Menu navigasi dengan submenu.',
+    sel: "[data-slot='navigation-menu'], [data-slot='navigation-menu-viewport']",
+  },
+  {
+    id: 'sidebar',
+    label: 'Sidebar',
+    grup: 'Navigasi',
+    sub: 'Bilah',
+    kendali: true,
+    hint: 'Sidebar aplikasi (komponen sidebar).',
+    sel: "[data-slot='sidebar'], [data-slot='sidebar-container']",
+  },
+
+  // ---------- Teks ----------
+  {
     id: 'judul_halaman',
     label: 'Judul halaman',
     grup: 'Teks',
@@ -136,15 +277,15 @@ export const PARTS: PartMeta[] = [
   },
   {
     id: 'kartu',
-    label: 'Kartu / panel',
+    label: 'Card',
     grup: 'Teks',
     sub: 'Konten',
-    hint: 'Panel ber-border (seksi form, ringkasan).',
-    sel: '#root main section',
+    hint: 'Panel ber-border / komponen card.',
+    sel: "#root main section, [data-slot='card']",
   },
   {
     id: 'badge',
-    label: 'Badge / chip',
+    label: 'Badge',
     grup: 'Teks',
     sub: 'Konten',
     kendali: true,
@@ -152,22 +293,65 @@ export const PARTS: PartMeta[] = [
     sel: "[data-slot='badge']",
   },
   {
+    id: 'kbd',
+    label: 'Kbd',
+    grup: 'Teks',
+    sub: 'Konten',
+    hint: 'Label pintasan keyboard.',
+    sel: "[data-slot='kbd']",
+  },
+  {
+    id: 'item',
+    label: 'Item',
+    grup: 'Teks',
+    sub: 'Konten',
+    hint: 'Baris item serbaguna (item, media + aksi).',
+    sel: "[data-slot='item']",
+  },
+  {
+    id: 'empty',
+    label: 'Empty',
+    grup: 'Teks',
+    sub: 'Konten',
+    hint: 'Tampilan saat data kosong.',
+    sel: "[data-slot='empty']",
+  },
+  {
+    id: 'accordion',
+    label: 'Accordion',
+    grup: 'Teks',
+    sub: 'Konten',
+    kendali: true,
+    hint: 'Daftar lipat (item, header, isi).',
+    sel: "[data-slot='accordion-item'], [data-slot='accordion-trigger'], [data-slot='accordion-content']",
+  },
+
+  // ---------- Tabel ----------
+  {
     id: 'tabel_header',
-    label: 'Header tabel',
+    label: 'Header tabel grid',
     grup: 'Tabel',
     sub: 'Grid',
     ukurSel: '.dsg-cell-header-container',
-    hint: 'Baris judul kolom grid.',
+    hint: 'Baris judul kolom grid spreadsheet.',
     sel: '.simpes-dsg .dsg-row.dsg-row-header',
   },
   {
     id: 'tabel_sel',
-    label: 'Sel tabel',
+    label: 'Sel tabel grid',
     grup: 'Tabel',
     sub: 'Grid',
     ukurSel: '.dsg-cell',
-    hint: 'Isi sel (baca-saja & editor).',
+    hint: 'Isi sel grid (baca-saja & editor).',
     sel: '.simpes-dsg',
+  },
+  {
+    id: 'tabel',
+    label: 'Table',
+    grup: 'Tabel',
+    sub: 'Table',
+    hint: 'Komponen table (header, baris, sel).',
+    sel: "[data-slot='table']",
   },
   {
     id: 'pager',
@@ -185,9 +369,11 @@ export const PARTS: PartMeta[] = [
     hint: 'Bilah atas tabel (info baris, tombol aksi).',
     sel: "[data-part='toolbar_tabel']",
   },
+
+  // ---------- Kontrol ----------
   {
     id: 'label_form',
-    label: 'Label form',
+    label: 'Label',
     grup: 'Kontrol',
     sub: 'Form',
     kendali: true,
@@ -196,7 +382,7 @@ export const PARTS: PartMeta[] = [
   },
   {
     id: 'input_form',
-    label: 'Input / select',
+    label: 'Input / Select',
     grup: 'Kontrol',
     sub: 'Form',
     kendali: true,
@@ -204,8 +390,88 @@ export const PARTS: PartMeta[] = [
     sel: "[data-slot='input'], [data-slot='select-trigger']",
   },
   {
+    id: 'field',
+    label: 'Field',
+    grup: 'Kontrol',
+    sub: 'Form',
+    hint: 'Pembungkus field (label + kontrol + keterangan).',
+    sel: "[data-slot='field']",
+  },
+  {
+    id: 'input_group',
+    label: 'Input Group',
+    grup: 'Kontrol',
+    sub: 'Form',
+    kendali: true,
+    hint: 'Input dengan addon (ikon/teks) menyatu.',
+    sel: "[data-slot='input-group']",
+  },
+  {
+    id: 'textarea',
+    label: 'Textarea',
+    grup: 'Kontrol',
+    sub: 'Form',
+    kendali: true,
+    hint: 'Kotak isian multi-baris.',
+    sel: "[data-slot='textarea']",
+  },
+  {
+    id: 'checkbox',
+    label: 'Checkbox',
+    grup: 'Kontrol',
+    sub: 'Form',
+    kendali: true,
+    hint: 'Kotak centang.',
+    sel: "[data-slot='checkbox']",
+  },
+  {
+    id: 'radio',
+    label: 'Radio Group',
+    grup: 'Kontrol',
+    sub: 'Form',
+    kendali: true,
+    hint: 'Pilihan tunggal (radio group).',
+    sel: "[data-slot='radio-group'], [data-slot='radio-group-item']",
+  },
+  {
+    id: 'switch',
+    label: 'Switch',
+    grup: 'Kontrol',
+    sub: 'Form',
+    kendali: true,
+    hint: 'Sakelar on/off.',
+    sel: "[data-slot='switch']",
+  },
+  {
+    id: 'slider',
+    label: 'Slider',
+    grup: 'Kontrol',
+    sub: 'Form',
+    kendali: true,
+    hint: 'Penggeser nilai.',
+    sel: "[data-slot='slider']",
+  },
+  {
+    id: 'input_otp',
+    label: 'Input OTP',
+    grup: 'Kontrol',
+    sub: 'Form',
+    kendali: true,
+    hint: 'Isian kode sekali pakai.',
+    sel: "[data-slot='input-otp']",
+  },
+  {
+    id: 'calendar',
+    label: 'Calendar',
+    grup: 'Kontrol',
+    sub: 'Form',
+    kendali: true,
+    hint: 'Pemilih tanggal.',
+    sel: "[data-slot='calendar']",
+  },
+  {
     id: 'tombol',
-    label: 'Tombol',
+    label: 'Button',
     grup: 'Kontrol',
     sub: 'Aksi',
     kendali: true,
@@ -213,8 +479,28 @@ export const PARTS: PartMeta[] = [
     sel: "[data-slot='button']",
   },
   {
+    id: 'toggle',
+    label: 'Toggle',
+    grup: 'Kontrol',
+    sub: 'Aksi',
+    kendali: true,
+    hint: 'Tombol toggle & grup toggle.',
+    sel: "[data-slot='toggle'], [data-slot='toggle-group']",
+  },
+  {
+    id: 'button_group',
+    label: 'Button Group',
+    grup: 'Kontrol',
+    sub: 'Aksi',
+    kendali: true,
+    hint: 'Deretan tombol menyatu.',
+    sel: "[data-slot='button-group']",
+  },
+
+  // ---------- Overlay ----------
+  {
     id: 'dropdown',
-    label: 'Menu dropdown',
+    label: 'Dropdown Menu',
     grup: 'Overlay',
     sub: 'Melayang',
     kendali: true,
@@ -222,13 +508,137 @@ export const PARTS: PartMeta[] = [
     sel: "[data-slot='dropdown-menu-content'], [data-slot='context-menu-content'], [data-slot='select-content']",
   },
   {
-    id: 'dialog',
-    label: 'Dialog / modal',
+    id: 'popover',
+    label: 'Popover',
     grup: 'Overlay',
     sub: 'Melayang',
     kendali: true,
+    hint: 'Panel melayang yang bisa diisi apa pun.',
+    sel: "[data-slot='popover-content']",
+  },
+  {
+    id: 'hover_card',
+    label: 'Hover Card',
+    grup: 'Overlay',
+    sub: 'Melayang',
+    kendali: true,
+    hint: 'Kartu informasi saat kursor diarahkan.',
+    sel: "[data-slot='hover-card-content']",
+  },
+  {
+    id: 'tooltip',
+    label: 'Tooltip',
+    grup: 'Overlay',
+    sub: 'Melayang',
+    kendali: true,
+    hint: 'Keterangan singkat saat hover.',
+    sel: "[data-slot='tooltip-content']",
+  },
+  {
+    id: 'command',
+    label: 'Command',
+    grup: 'Overlay',
+    sub: 'Melayang',
+    kendali: true,
+    hint: 'Palet perintah / pencarian dengan daftar.',
+    sel: "[data-slot='command']",
+  },
+  {
+    id: 'dialog',
+    label: 'Dialog',
+    grup: 'Overlay',
+    sub: 'Panel',
+    kendali: true,
     hint: 'Jendela dialog & konfirmasi.',
     sel: "[data-slot='dialog-content'], [data-slot='alert-dialog-content']",
+  },
+  {
+    id: 'sheet',
+    label: 'Sheet',
+    grup: 'Overlay',
+    sub: 'Panel',
+    kendali: true,
+    hint: 'Panel geser dari tepi layar.',
+    sel: "[data-slot='sheet-content']",
+  },
+  {
+    id: 'drawer',
+    label: 'Drawer',
+    grup: 'Overlay',
+    sub: 'Panel',
+    kendali: true,
+    hint: 'Panel bawah ala mobile.',
+    sel: "[data-slot='drawer-content']",
+  },
+
+  // ---------- Umpan balik ----------
+  {
+    id: 'alert',
+    label: 'Alert',
+    grup: 'Umpan balik',
+    sub: 'Status',
+    hint: 'Pesan penting (info/peringatan/error).',
+    sel: "[data-slot='alert']",
+  },
+  {
+    id: 'progress',
+    label: 'Progress',
+    grup: 'Umpan balik',
+    sub: 'Status',
+    hint: 'Bilah kemajuan.',
+    sel: "[data-slot='progress']",
+  },
+  {
+    id: 'skeleton',
+    label: 'Skeleton',
+    grup: 'Umpan balik',
+    sub: 'Status',
+    hint: 'Placeholder saat memuat.',
+    sel: "[data-slot='skeleton']",
+  },
+  {
+    id: 'spinner',
+    label: 'Spinner',
+    grup: 'Umpan balik',
+    sub: 'Status',
+    hint: 'Indikator memuat berputar.',
+    sel: "[data-slot='spinner']",
+  },
+  {
+    id: 'toast',
+    label: 'Sonner',
+    grup: 'Umpan balik',
+    sub: 'Status',
+    kendali: true,
+    hint: 'Notifikasi mengambang (sonner).',
+    sel: '[data-sonner-toast]',
+  },
+
+  // ---------- Media ----------
+  {
+    id: 'avatar',
+    label: 'Avatar',
+    grup: 'Media',
+    sub: 'Media',
+    hint: 'Foto/inisial pengguna.',
+    sel: "[data-slot='avatar']",
+  },
+  {
+    id: 'carousel',
+    label: 'Carousel',
+    grup: 'Media',
+    sub: 'Media',
+    kendali: true,
+    hint: 'Slideshow geser.',
+    sel: "[data-slot='carousel']",
+  },
+  {
+    id: 'chart',
+    label: 'Chart',
+    grup: 'Media',
+    sub: 'Media',
+    hint: 'Wadah grafik.',
+    sel: "[data-slot='chart']",
   },
 ];
 
