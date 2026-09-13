@@ -36,24 +36,44 @@ function gayaTeks(s: PartStyle): string[] {
   return d;
 }
 
-/** Variabel --part-<id>-* (dipakai rantai fallback index.css untuk grid tabel). */
-function blokVariabel(scope: string, id: PartId, s: PartStyle): string {
-  const decls: string[] = [];
-  const v = (nama: string, nilai: string) => decls.push(`--part-${id}-${nama}:${nilai}`);
+/** Peta variabel CSS `--part-<id>-*` untuk satu gaya (dipakai stylesheet &
+ *  pratinjau editor; rantai fallback index.css mengonsumsi variabel ini). */
+export function variabelBagian(id: PartId, s: PartStyle): Record<string, string> {
+  const v: Record<string, string> = {};
   if (s.font) {
     const { family, weight } = fontParts(s.font);
-    v('font', family);
-    v('weight', weight);
+    v[`--part-${id}-font`] = family;
+    v[`--part-${id}-weight`] = weight;
   }
-  if (s.size != null) v('size', `${s.size}px`);
-  if (s.bg) v('bg', s.bg);
-  if (s.fg) v('fg', s.fg);
-  if (s.border) v('border', s.border);
-  if (s.borderW != null) v('bw', `${s.borderW}px`);
-  if (s.radius != null) v('radius', `${s.radius}px`);
-  if (s.padX != null) v('padx', `${s.padX}px`);
-  if (s.padY != null) v('pady', `${s.padY}px`);
+  if (s.size != null) v[`--part-${id}-size`] = `${s.size}px`;
+  if (s.bg) v[`--part-${id}-bg`] = s.bg;
+  if (s.fg) v[`--part-${id}-fg`] = s.fg;
+  if (s.border) v[`--part-${id}-border`] = s.border;
+  if (s.borderW != null) v[`--part-${id}-bw`] = `${s.borderW}px`;
+  if (s.radius != null) v[`--part-${id}-radius`] = `${s.radius}px`;
+  if (s.padX != null) v[`--part-${id}-padx`] = `${s.padX}px`;
+  if (s.padY != null) v[`--part-${id}-pady`] = `${s.padY}px`;
+  return v;
+}
+
+/** Blok `{ --part-… }` untuk scope mode terang/gelap. */
+function blokVariabel(scope: string, id: PartId, s: PartStyle): string {
+  const v = variabelBagian(id, s);
+  const decls = Object.entries(v).map(([k, val]) => `${k}:${val}`);
   return decls.length ? `${scope}{${decls.join(';')}}` : '';
+}
+
+/** CSS pratinjau editor: deklarasi sama seperti aslinya, tanpa scope mode
+ *  (mode dipilih lewat tab) dan tanpa pengecualian antar-bagian. */
+export function bangunCssPratinjau(id: PartId, s: PartStyle): string {
+  const root = '#pratinjau_bagian [data-pratinjau-part]';
+  const desc = `${root} *`;
+  const permukaan = gayaPermukaan(s);
+  const teks = gayaTeks(s);
+  let css = '';
+  if (permukaan.length || teks.length) css += `${root}{${[...permukaan, ...teks].join(';')}}\n`;
+  if (teks.length) css += `${desc}{${teks.join(';')}}\n`;
+  return css;
 }
 
 function aturanMode(scope: string, map: PartMap): string {

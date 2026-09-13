@@ -44,6 +44,7 @@ export const HALAMAN: HalamanDef[] = [
   { to: '/tarif', label: 'Tarif Biaya', tab: 'keuangan', grid: true },
   { to: '/keuangan', label: 'Keuangan', tab: 'keuangan', grid: true },
   { to: '/pengaturan/tampilan', label: 'Tampilan', tab: 'pengaturan' },
+  { to: '/pengaturan/bagian', label: 'Bagian UI', tab: 'pengaturan' },
   { to: '/pengaturan/server', label: 'Server', tab: 'pengaturan' },
 ];
 

@@ -18,6 +18,7 @@ const KelasPage = lazy(() => import('./pages/KelasPage'));
 const PosPage = lazy(() => import('./pages/PosPage'));
 const TarifPage = lazy(() => import('./pages/TarifPage'));
 const PengaturanTampilanPage = lazy(() => import('./pages/PengaturanTampilanPage'));
+const PengaturanBagianPage = lazy(() => import('./pages/PengaturanBagianPage'));
 const PengaturanServerPage = lazy(() => import('./pages/PengaturanServerPage'));
 const PsbPage = lazy(() => import('./pages/PsbPage'));
 const KegiatanPsbPage = lazy(() => import('./pages/KegiatanPsbPage'));
@@ -64,6 +65,7 @@ export default function App() {
             <Route path="/dokumen-wajib" element={<Shell><DokumenWajibPage /></Shell>} />
             <Route path="/pengaturan" element={<Navigate to="/pengaturan/tampilan" replace />} />
             <Route path="/pengaturan/tampilan" element={<Shell><PengaturanTampilanPage /></Shell>} />
+            <Route path="/pengaturan/bagian" element={<Shell><PengaturanBagianPage /></Shell>} />
             <Route path="/pengaturan/server" element={<Shell><PengaturanServerPage /></Shell>} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

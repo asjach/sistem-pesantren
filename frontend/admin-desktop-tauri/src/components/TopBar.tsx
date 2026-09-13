@@ -54,6 +54,7 @@ import {
   Moon,
   MoveHorizontal,
   NotebookTabs,
+  Paintbrush,
   Palette,
   Plus,
   ReceiptText,
@@ -522,6 +523,7 @@ export default function TopBar() {
                 <RibbonPemisah />
                 <RibbonGroup label="Pengaturan">
                   <RibbonBtn id="nav_pengaturan_tampilan" to="/pengaturan/tampilan" icon={Palette} label="Tampilan" aktif={pathAktif(pathname, '/pengaturan/tampilan')} />
+                  <RibbonBtn id="nav_pengaturan_bagian" to="/pengaturan/bagian" icon={Paintbrush} label="Bagian UI" aktif={pathAktif(pathname, '/pengaturan/bagian')} />
                   <RibbonBtn id="nav_pengaturan_server" to="/pengaturan/server" icon={Server} label="Server" aktif={pathAktif(pathname, '/pengaturan/server')} />
                 </RibbonGroup>
               </>

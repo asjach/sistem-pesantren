@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { useTheme } from '@/theme';
 import { FONT_FAMILY_DEFAULT, FONT_OPTIONS, type FontOption } from '@/fonts';
 import { PARTS, PART_GROUPS, RENTANG, type PartId, type PartMode } from '@/parts';
 import { normalizeHex } from '@/prefs';
+import { bangunCssPratinjau, variabelBagian } from '@/partStyles';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -25,6 +27,164 @@ const FONT_GROUPS: { id: string; label: string; items: FontOption[] }[] = [
   { id: 'aptos', label: 'Aptos (bundel offline)', items: FONT_OPTIONS.filter((f) => f.group === 'aptos') },
   { id: 'google', label: 'Google Fonts (bundel offline)', items: FONT_OPTIONS.filter((f) => f.group === 'google') },
 ];
+
+/** Contoh isi pratinjau per bagian (meniru markup asli agar gaya terbaca). */
+function ContohBagian({ id }: { id: PartId }) {
+  switch (id) {
+    case 'ribbon':
+    case 'tab_ribbon':
+      return (
+        <div className="flex gap-1 rounded bg-sidebar-deep p-2">
+          <span className="rounded-t-md bg-white/20 px-3 py-1 text-xs font-semibold text-white">Beranda</span>
+          <span className="rounded-t-md px-3 py-1 text-xs text-white/70">Master</span>
+          <span className="rounded-t-md px-3 py-1 text-xs text-white/70">PSB</span>
+        </div>
+      );
+    case 'grup_ribbon':
+    case 'menu_ribbon':
+      return (
+        <div className="flex items-end gap-2 rounded bg-sidebar-deep p-2">
+          <span className="flex h-[48px] w-[64px] items-center justify-center rounded bg-white/20 text-[11px] font-semibold text-white">Santri</span>
+          <span className="flex h-[48px] w-[64px] items-center justify-center rounded text-[11px] text-white/80">Kelas</span>
+          <span className="pb-1 text-[10px] uppercase tracking-wide text-white/50">Grup</span>
+        </div>
+      );
+    case 'judul_halaman':
+      return <h2 className="text-lg font-semibold">Data Santri</h2>;
+    case 'subjudul':
+      return <h3 className="text-sm font-semibold">Ringkasan Keuangan</h3>;
+    case 'teks_isi':
+      return (
+        <p className="text-sm">
+          Total santri aktif tahun ajaran ini bertambah 24 orang dari periode sebelumnya.
+        </p>
+      );
+    case 'kartu':
+      return (
+        <section className="w-full rounded-xl border bg-card p-3">
+          <div className="text-sm font-medium">Ringkasan</div>
+          <p className="text-sm text-muted-foreground">12 kelas · 345 santri aktif</p>
+        </section>
+      );
+    case 'badge':
+      return (
+        <div className="flex gap-1.5">
+          <Badge>Aktif</Badge>
+          <Badge variant="secondary">Sekunder</Badge>
+          <Badge variant="outline">Nonaktif</Badge>
+        </div>
+      );
+    case 'tabel_header':
+      return (
+        <div className="simpes-dsg w-full overflow-hidden rounded border">
+          <div className="dsg-row dsg-row-header flex">
+            {['Nama', 'Kelas', 'Status'].map((t) => (
+              <div
+                key={t}
+                className="dsg-cell dsg-cell-header flex flex-1 items-center justify-center"
+                style={{ borderRight: '1px solid var(--dsg-border-color)' }}
+              >
+                <div
+                  className="dsg-cell-header-container py-1"
+                  style={{ color: 'var(--dsg-header-text-color, var(--muted-foreground))' }}
+                >
+                  {t}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    case 'tabel_sel':
+      return (
+        <div className="simpes-dsg w-full overflow-hidden rounded border">
+          {[
+            ['Ahmad Fauzi', 'VII-A', 'Aktif'],
+            ['Siti Aminah', 'VIII-B', 'Aktif'],
+          ].map((baris) => (
+            <div key={baris[0]} className="dsg-row flex">
+              {baris.map((t) => (
+                <div
+                  key={t}
+                  className="dsg-cell simpes-dsg-fill flex-1 py-1"
+                  style={{
+                    background: 'var(--dsg-cell-background-color)',
+                    color: 'var(--part-tabel_sel-fg, var(--foreground))',
+                    borderTop: '1px solid var(--dsg-border-color)',
+                  }}
+                >
+                  {t}
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      );
+    case 'pager':
+      return (
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <span className="rounded border px-1.5 py-0.5">‹</span>
+          <span>Hal 1 / 4 · 345 data</span>
+          <span className="rounded border px-1.5 py-0.5">›</span>
+        </div>
+      );
+    case 'toolbar_tabel':
+      return (
+        <div className="flex w-full flex-wrap items-center gap-2 rounded border bg-card p-2">
+          <span className="rounded border px-2 py-1 text-xs">Cari…</span>
+          <span className="text-xs text-muted-foreground">2 baris dipilih</span>
+          <span className="ml-auto rounded border bg-primary px-2 py-1 text-xs text-primary-foreground">＋ Tambah</span>
+        </div>
+      );
+    case 'tombol':
+      return (
+        <div className="flex flex-wrap items-center gap-2">
+          <Button size="sm">Simpan</Button>
+          <Button size="sm" variant="secondary">Batal</Button>
+          <Button size="sm" variant="outline">Filter</Button>
+          <Button size="sm" variant="destructive">Hapus</Button>
+        </div>
+      );
+    case 'label_form':
+      return (
+        <div className="flex flex-col gap-1">
+          <Label>Nama lengkap</Label>
+          <span className="text-xs text-muted-foreground">Label di atas kotak isian.</span>
+        </div>
+      );
+    case 'input_form':
+      return (
+        <div className="flex w-full max-w-xs flex-col gap-2">
+          <Input placeholder="Nama santri" />
+          <div
+            data-slot="select-trigger"
+            className="flex h-[30px] items-center justify-between rounded-md border border-input bg-transparent px-3 text-sm"
+          >
+            VII-A <span className="text-muted-foreground">▾</span>
+          </div>
+        </div>
+      );
+    case 'dropdown':
+      return (
+        <div className="w-48 rounded-md border bg-popover p-1 text-popover-foreground shadow-md">
+          <div className="rounded px-2 py-1.5 text-sm">Ubah</div>
+          <div className="rounded bg-accent px-2 py-1.5 text-sm text-accent-foreground">Lihat detail</div>
+          <div className="rounded px-2 py-1.5 text-sm text-destructive">Hapus</div>
+        </div>
+      );
+    case 'dialog':
+      return (
+        <div className="w-full max-w-xs rounded-lg border bg-background p-4 shadow-lg">
+          <div className="font-semibold">Tambah Santri</div>
+          <p className="text-sm text-muted-foreground">Lengkapi data lalu simpan.</p>
+          <div className="mt-3 flex justify-end gap-2">
+            <Button size="sm" variant="outline">Batal</Button>
+            <Button size="sm">Simpan</Button>
+          </div>
+        </div>
+      );
+  }
+}
 
 /** Kontrol warna opsional: picker + hex + tombol kembali ke bawaan. */
 function WarnaField({
@@ -119,7 +279,7 @@ function AngkaField({
   );
 }
 
-/** Editor gaya atomik per bagian UI (terpisah mode terang/gelap). */
+/** Editor gaya atomik per bagian UI (terpisah mode terang/gelap) + pratinjau. */
 export default function PartStyleEditor() {
   const { parts, setPart, resetPart, resetParts } = useTheme();
   const [mode, setMode] = useState<PartMode>('terang');
@@ -205,6 +365,26 @@ export default function PartStyleEditor() {
             >
               <RotateCcw size={14} /> Reset bagian
             </Button>
+          </div>
+          <div>
+            <div className="mb-1 flex items-center gap-2 text-xs text-muted-foreground">
+              <span>Pratinjau</span>
+              <Badge variant="secondary">{mode === 'gelap' ? 'Gelap' : 'Terang'}</Badge>
+            </div>
+            <div id="pratinjau_bagian" className="grid min-h-[96px] place-items-center rounded-md border bg-background p-3">
+              <style>{bangunCssPratinjau(aktif, s)}</style>
+              <div
+                data-pratinjau-part
+                className="flex w-full justify-center"
+                style={variabelBagian(aktif, s) as unknown as CSSProperties}
+              >
+                <ContohBagian id={aktif} />
+              </div>
+            </div>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              Kanvas mengikuti tema & mode aktif aplikasi; gaya mengikuti tab mode
+              yang sedang diedit.
+            </p>
           </div>
           <div className="grid gap-2">
             <div className="flex items-center gap-2">

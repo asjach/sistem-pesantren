@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { isTauri } from '../api/client';
 import { useTheme, type DensityName, type ModeName, type WarnaUIName } from '@/theme';
 import { normalizeHex, DEFAULT_PREFS } from '@/prefs';
@@ -7,6 +8,7 @@ import { FieldDescription, FieldLegend, FieldSet } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import {
   Select,
@@ -17,8 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Monitor, Moon, Sun } from 'lucide-react';
-import PartStyleEditor from '@/components/PartStyleEditor';
+import { Monitor, Moon, Paintbrush, Sun } from 'lucide-react';
 
 const MODES: { id: ModeName; nama: string; icon: typeof Sun }[] = [
   { id: 'terang', nama: 'Terang', icon: Sun },
@@ -50,6 +51,7 @@ const FONT_UI_GROUPS: { id: string; label: string; items: FontOption[] }[] = [
 export default function PengaturanTampilanPage() {
   const { theme, mode, customHex, density, fontUI, warnaUI, setMode, setCustomHex, setDensity, setFontUI, setWarnaUI } = useTheme();
   const [customInput, setCustomInput] = useState(customHex);
+  const navigate = useNavigate();
   const fontUIParts = fontUI === FONT_FAMILY_DEFAULT ? null : fontParts(fontUI);
 
   useEffect(() => {
@@ -190,9 +192,25 @@ export default function PengaturanTampilanPage() {
             Berlaku untuk semua tabel. Tinggi tiap baris juga bisa diseret langsung di grid.
           </FieldDescription>
         </FieldSet>
+        <FieldSet className="gap-3">
+          <FieldLegend variant="label" className="mb-0">Per bagian (atomic)</FieldLegend>
+          <Button
+            id="btn_buka_pengaturan_bagian"
+            type="button"
+            variant="outline"
+            size="sm"
+            className="w-fit"
+            onClick={() => navigate('/pengaturan/bagian')}
+          >
+            <Paintbrush size={14} /> Buka pengaturan per bagian
+          </Button>
+          <FieldDescription>
+            Font, warna, border, radius, dan padding untuk 18 bagian UI — dipisah
+            mode terang/gelap. Halaman ini juga bisa dibuka dari ribbon:{' '}
+            <b>Pengaturan → grup Pengaturan → Bagian UI</b>.
+          </FieldDescription>
+        </FieldSet>
       </section>
-
-      <PartStyleEditor />
     </div>
   );
 }
