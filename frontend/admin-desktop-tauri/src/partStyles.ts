@@ -1,13 +1,35 @@
 import { fontParts } from './fonts';
 import { onAccentFor } from './prefs';
 import { findPreset, type ThemeName } from './themes';
-import { PARTS, type PartId, type PartMap, type PartMode, type PartOverrides, type PartStyle } from './parts';
+import {
+  PARTS,
+  PART_BY_ID,
+  type PartId,
+  type PartMap,
+  type PartMode,
+  type PartOverrides,
+  type PartStyle,
+} from './parts';
 
 /** Gaya per bagian di-generate runtime ke satu <style id> (urutan terakhir,
  *  menang atas utilitas Tailwind normal). Hanya properti yang DIISI yang
  *  ditulis — properti kosong tidak menyentuh tampilan bawaan komponen. */
 
 const STYLE_ID = 'simpes_part_styles';
+
+/** Kontrol yang TIDAK ikut ditimpa oleh bagian kontainer (tombol/input/label/
+ *  badge/overlay punya bagiannya sendiri) — menjaga proporsi antar kontrol. */
+const KONTROL =
+  "[data-slot='button'], [data-slot='input'], [data-slot='select-trigger'], [data-slot='label'], " +
+  "[data-slot='badge'], [data-slot='toggle'], [data-slot='toggle-group-item'], " +
+  "[data-slot='dropdown-menu-content'], [data-slot='context-menu-content'], [data-slot='select-content'], " +
+  "[data-slot='dialog-content'], [data-slot='alert-dialog-content'], [data-slot='checkbox'], " +
+  "[data-slot='switch'], [data-slot='slider-thumb'], button, input, select, textarea";
+
+/** Pengecualian kontrol (hanya untuk bagian kontainer, bukan bagian kendali). */
+function tolakKontrol(kendali?: boolean): string {
+  return kendali ? '' : `:not(:where(${KONTROL})):not(:where(${KONTROL}) *)`;
+}
 
 /** Aturan pewarnaan teks dimatikan untuk elemen dengan warna semantik
  *  (tombol hapus, peringatan, dsb.) dan penanda data-part-abaikan. */
@@ -112,7 +134,7 @@ export function variabelWajah(theme: ThemeName, gelap: boolean, customHex: strin
  *  (mode dipilih lewat tab) dan tanpa pengecualian antar-bagian. */
 export function bangunCssPratinjau(id: PartId, s: PartStyle): string {
   const root = '#pratinjau_bagian [data-pratinjau-part]';
-  const desc = `${root} *`;
+  const desc = `${root} *${tolakKontrol(PART_BY_ID.get(id)?.kendali)}`;
   const permukaan = gayaPermukaan(s);
   const teks = gayaTeks(s);
   let css = '';
@@ -134,6 +156,7 @@ function aturanMode(scope: string, map: PartMap): string {
       .join(',');
     const desc =
       `${scope} :is(${meta.sel}) :where(*)` +
+      tolakKontrol(meta.kendali) +
       `:not(:where(${lain})):not(:where(${lain}) *)` +
       TOLAK_WARNA;
     const permukaan = gayaPermukaan(s);

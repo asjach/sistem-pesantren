@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Moon, RotateCcw, Search, Sun } from 'lucide-react';
+import { ChevronDown, Moon, RotateCcw, Search, Sun } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const FONT_GROUPS: { id: string; label: string; items: FontOption[] }[] = [
@@ -285,6 +285,8 @@ export default function PartStyleEditor() {
   const [mode, setMode] = useState<PartMode>('terang');
   const [aktif, setAktif] = useState<PartId>('ribbon');
   const [cari, setCari] = useState('');
+  const [tertutup, setTertutup] = useState<Record<string, boolean>>({});
+  const alihGrup = (nama: string) => setTertutup((prev) => ({ ...prev, [nama]: !prev[nama] }));
   const meta = PARTS.find((p) => p.id === aktif) ?? PARTS[0];
   const s = parts[mode][aktif] ?? {};
   const angka = (k: keyof typeof RENTANG) =>
@@ -297,22 +299,63 @@ export default function PartStyleEditor() {
           (p) =>
             p.label.toLowerCase().includes(q) ||
             p.hint.toLowerCase().includes(q) ||
-            p.grup.toLowerCase().includes(q),
+            p.grup.toLowerCase().includes(q) ||
+            (p.sub ?? '').toLowerCase().includes(q),
         )
       : PARTS;
-    return PART_GROUPS.map((nama) => ({
-      nama,
-      items: cocok.filter((p) => p.grup === nama),
-      diatur: cocok.filter((p) => p.grup === nama && parts[mode][p.id]).length,
-    })).filter((g) => g.items.length > 0);
+    return PART_GROUPS.map((nama) => {
+      const items = cocok.filter((p) => p.grup === nama);
+      const subs: { nama: string; items: typeof items; diatur: number }[] = [];
+      for (const p of items) {
+        const namaSub = p.sub ?? 'Umum';
+        let s = subs.find((x) => x.nama === namaSub);
+        if (!s) {
+          s = { nama: namaSub, items: [], diatur: 0 };
+          subs.push(s);
+        }
+        s.items.push(p);
+        if (parts[mode][p.id]) s.diatur += 1;
+      }
+      return {
+        nama,
+        subs,
+        berlapis: subs.length > 1,
+        diatur: subs.reduce((n, s) => n + s.diatur, 0),
+      };
+    }).filter((g) => g.subs.length > 0);
   }, [cari, mode, parts]);
 
+  const mencari = cari.trim() !== '';
+  const slug = (v: string) => v.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
   const jumlahDiatur = Object.keys(parts[mode]).length;
   const gelap = mode === 'gelap';
   /** Wajah tema untuk kanvas pratinjau (mengikuti tab mode yang diedit). */
   const gayaWajah = {
     ...variabelWajah(theme, gelap, customHex),
   } as unknown as CSSProperties;
+
+  /** Tombol satu bagian (dipakai di dalam sub-kelompok). */
+  const tombolBagian = (p: (typeof PARTS)[number]) => {
+    const diatur = !!parts[mode][p.id];
+    return (
+      <button
+        key={p.id}
+        id={`btn_bagian_${p.id}`}
+        type="button"
+        title={p.hint}
+        onClick={() => setAktif(p.id)}
+        className={cn(
+          'flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm transition-colors',
+          p.id === aktif ? 'bg-accent font-medium text-accent-foreground' : 'hover:bg-muted',
+        )}
+      >
+        <span className="flex-1 truncate">{p.label}</span>
+        {diatur && (
+          <span className="size-1.5 shrink-0 rounded-full bg-primary" title="Ada pengaturan" />
+        )}
+      </button>
+    );
+  };
 
   return (
     <section className="flex w-full max-w-none flex-col gap-4">
@@ -329,45 +372,86 @@ export default function PartStyleEditor() {
               className="h-8 pl-7"
             />
           </div>
-          {grupTampil.map((g) => (
-            <div key={g.nama}>
-              <div className="flex items-center justify-between px-1 pb-1">
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  {g.nama}
-                </span>
-                {g.diatur > 0 && (
-                  <Badge variant="secondary" className="h-4 px-1 text-[10px] leading-none">
-                    {g.diatur}
-                  </Badge>
+          {grupTampil.map((g) => {
+            const kunciGrup = `grup:${g.nama}`;
+            const bukaGrup = mencari || !tertutup[kunciGrup];
+            return (
+              <div key={g.nama}>
+                <button
+                  id={`btn_grup_${slug(g.nama)}`}
+                  type="button"
+                  aria-expanded={bukaGrup}
+                  title={tertutup[kunciGrup] ? `Buka grup ${g.nama}` : `Tutup grup ${g.nama}`}
+                  onClick={() => alihGrup(kunciGrup)}
+                  className="flex w-full items-center gap-1 rounded px-1 py-1 text-left hover:bg-muted"
+                >
+                  <ChevronDown
+                    size={12}
+                    className={cn(
+                      'shrink-0 text-muted-foreground transition-transform',
+                      !bukaGrup && '-rotate-90',
+                    )}
+                  />
+                  <span className="flex-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    {g.nama}
+                  </span>
+                  {g.diatur > 0 && (
+                    <Badge variant="secondary" className="h-4 px-1 text-[10px] leading-none">
+                      {g.diatur}
+                    </Badge>
+                  )}
+                </button>
+                {bukaGrup && (
+                  <div className="flex flex-col gap-1 pl-2">
+                    {g.subs.map((sb) => {
+                      if (!g.berlapis) {
+                        return (
+                          <div key={sb.nama} className="flex flex-col gap-0.5">
+                            {sb.items.map(tombolBagian)}
+                          </div>
+                        );
+                      }
+                      const kunciSub = `sub:${g.nama}|${sb.nama}`;
+                      const bukaSub = mencari || !tertutup[kunciSub];
+                      return (
+                        <div key={sb.nama}>
+                          <button
+                            id={`btn_sub_${slug(g.nama)}_${slug(sb.nama)}`}
+                            type="button"
+                            aria-expanded={bukaSub}
+                            title={tertutup[kunciSub] ? `Buka sub ${sb.nama}` : `Tutup sub ${sb.nama}`}
+                            onClick={() => alihGrup(kunciSub)}
+                            className="flex w-full items-center gap-1 rounded px-1 py-0.5 text-left hover:bg-muted"
+                          >
+                            <ChevronDown
+                              size={11}
+                              className={cn(
+                                'shrink-0 text-muted-foreground/80 transition-transform',
+                                !bukaSub && '-rotate-90',
+                              )}
+                            />
+                            <span className="flex-1 text-[11px] font-medium text-muted-foreground">
+                              {sb.nama}
+                            </span>
+                            {sb.diatur > 0 && (
+                              <Badge variant="secondary" className="h-4 px-1 text-[10px] leading-none">
+                                {sb.diatur}
+                              </Badge>
+                            )}
+                          </button>
+                          {bukaSub && (
+                            <div className="flex flex-col gap-0.5 pl-3">
+                              {sb.items.map(tombolBagian)}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
-              <div className="flex flex-col gap-0.5">
-                {g.items.map((p) => {
-                  const diatur = !!parts[mode][p.id];
-                  return (
-                    <button
-                      key={p.id}
-                      id={`btn_bagian_${p.id}`}
-                      type="button"
-                      title={p.hint}
-                      onClick={() => setAktif(p.id)}
-                      className={cn(
-                        'flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm transition-colors',
-                        p.id === aktif
-                          ? 'bg-accent font-medium text-accent-foreground'
-                          : 'hover:bg-muted',
-                      )}
-                    >
-                      <span className="flex-1 truncate">{p.label}</span>
-                      {diatur && (
-                        <span className="size-1.5 shrink-0 rounded-full bg-primary" title="Ada pengaturan" />
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
+            );
+          })}
           {grupTampil.length === 0 && (
             <p className="px-1 py-2 text-xs text-muted-foreground">Tidak ada bagian yang cocok.</p>
           )}
@@ -527,8 +611,11 @@ export default function PartStyleEditor() {
             </div>
             <FieldDescription className="mt-3">
               Bagian bertingkat mengikuti yang paling spesifik: mis. gaya Tab ribbon
-              tidak tertimpa gaya Bilah ribbon. Padding Y dan radius pada bagian tabel
-              mengikuti geometri grid (tidak berpengaruh).
+              tidak tertimpa gaya Bilah ribbon. Bagian <b>kontainer</b> (mis. Ribbon,
+              Kartu, Teks isi) tidak menimpa ukuran/jenis huruf tombol, input, label,
+              dan badge di dalamnya — atur kontrol lewat bagian Kontrol/Overlay agar
+              proporsinya tetap. Padding Y dan radius pada bagian tabel mengikuti
+              geometri grid (tidak berpengaruh).
             </FieldDescription>
           </div>
         </div>
