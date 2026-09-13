@@ -11,6 +11,7 @@ import {
   type ThemeName,
 } from '@/prefs';
 import { findPreset } from '@/themes';
+import { FONT_FAMILY_DEFAULT, fontParts } from '@/fonts';
 
 interface ThemeState extends Prefs {
   /** true bila dark efektif (mode gelap, atau sistem + OS gelap). */
@@ -20,6 +21,7 @@ interface ThemeState extends Prefs {
   setMode: (m: ModeName) => void;
   setCollapsed: (c: boolean) => void;
   setDensity: (d: DensityName) => void;
+  setFontUI: (v: string) => void;
 }
 
 const Ctx = createContext<ThemeState | null>(null);
@@ -46,6 +48,18 @@ function applyPrefs(p: Prefs, osDark: boolean) {
     root.style.setProperty('--foreground', face.fg);
     root.style.setProperty('--sidebar', t.sidebar);
     root.style.setProperty('--sidebar-deep', t.sidebarDeep);
+  }
+  // Font antarmuka (UI/UX): ganti --font-sans/--font-display + bobot dasar body.
+  // `_bawaan` = ikut font bawaan aplikasi (Aptos) dari index.css.
+  if (p.fontUI === FONT_FAMILY_DEFAULT) {
+    root.style.removeProperty('--font-sans');
+    root.style.removeProperty('--font-display');
+    root.style.removeProperty('--font-ui-weight');
+  } else {
+    const { family, weight } = fontParts(p.fontUI);
+    root.style.setProperty('--font-sans', family);
+    root.style.setProperty('--font-display', family);
+    root.style.setProperty('--font-ui-weight', weight);
   }
 }
 
@@ -91,6 +105,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       setMode: (mode) => update({ mode }),
       setCollapsed: (collapsed) => update({ collapsed }),
       setDensity: (density) => update({ density }),
+      setFontUI: (fontUI) => update({ fontUI }),
     };
   }, [prefs, osDark, update]);
 

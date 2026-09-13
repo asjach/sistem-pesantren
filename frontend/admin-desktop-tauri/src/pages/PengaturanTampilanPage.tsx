@@ -2,12 +2,22 @@ import { useEffect, useState } from 'react';
 import { isTauri } from '../api/client';
 import { useTheme, type DensityName, type ModeName, type ThemeName } from '@/theme';
 import { THEME_PRESETS } from '@/themes';
-import { normalizeHex, onAccentFor } from '@/prefs';
+import { normalizeHex, onAccentFor, DEFAULT_PREFS } from '@/prefs';
+import { FONT_FAMILY_DEFAULT, FONT_OPTIONS, fontParts, type FontOption } from '@/fonts';
 import { FieldDescription, FieldLegend, FieldSet } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Check, Monitor, Moon, Sun } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -23,10 +33,19 @@ const DENSITIES: { id: DensityName; nama: string }[] = [
   { id: 'nyaman', nama: 'Nyaman' },
 ];
 
+/** Opsi font antarmuka: varian Bold dikecualikan (seluruh UI jadi tebal). */
+const FONT_UI: FontOption[] = FONT_OPTIONS.filter((f) => !f.value.endsWith('|700'));
+const FONT_UI_GROUPS: { id: string; label: string; items: FontOption[] }[] = [
+  { id: 'sistem', label: 'Sistem & bawaan', items: FONT_UI.filter((f) => f.group === 'sistem') },
+  { id: 'aptos', label: 'Aptos (bundel offline)', items: FONT_UI.filter((f) => f.group === 'aptos') },
+  { id: 'google', label: 'Google Fonts (bundel offline)', items: FONT_UI.filter((f) => f.group === 'google') },
+];
+
 /** Pengaturan → Tampilan: tema, mode, kerapatan baris. */
 export default function PengaturanTampilanPage() {
-  const { theme, mode, customHex, dark, density, setTheme, setMode, setCustomHex, setDensity } = useTheme();
+  const { theme, mode, customHex, dark, density, fontUI, setTheme, setMode, setCustomHex, setDensity, setFontUI } = useTheme();
   const [customInput, setCustomInput] = useState(customHex);
+  const fontUIParts = fontUI === FONT_FAMILY_DEFAULT ? null : fontParts(fontUI);
 
   useEffect(() => {
     setCustomInput(customHex);
@@ -40,7 +59,8 @@ export default function PengaturanTampilanPage() {
   return (
     <div className="flex flex-col gap-6">
       <p id="info_pengaturan" className="text-sm text-muted-foreground">
-        Tema aktif: <b className="text-foreground">{theme}</b> · Mode:{' '}
+        Tema aktif: <b className="text-foreground">{theme}</b> · Bawaan:{' '}
+        <b className="text-foreground">{DEFAULT_PREFS.theme}</b> · Mode:{' '}
         <Badge variant="secondary">{isTauri() ? 'desktop' : 'web'}</Badge>
       </p>
 
@@ -70,7 +90,10 @@ export default function PengaturanTampilanPage() {
                     <span className="w-4 shrink-0" style={{ background: t.sidebar }} />
                     <span className="flex flex-1 flex-col gap-1.5 p-3">
                       <span className="flex items-center justify-between text-[11px] opacity-80">
-                        <span>{t.nama}</span>
+                        <span>
+                          {t.nama}
+                          {t.id === DEFAULT_PREFS.theme ? ' • bawaan' : ''}
+                        </span>
                         {aktif && <Check size={13} />}
                       </span>
                       <span className="block h-1.5 w-3/4 rounded-full opacity-30" style={{ background: face.fg }} />
@@ -118,6 +141,39 @@ export default function PengaturanTampilanPage() {
             Kontras teks di atas aksen dijaga otomatis (≥4.5:1).
           </p>
         </div>
+        <FieldSet className="gap-3">
+          <FieldLegend variant="label" className="mb-0">Font antarmuka</FieldLegend>
+          <div className="flex flex-wrap items-center gap-3">
+            <Select value={fontUI} onValueChange={setFontUI}>
+              <SelectTrigger id="select_font_ui" title="Font antarmuka" aria-label="Font antarmuka" className="w-64">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="max-h-80">
+                {FONT_UI_GROUPS.map((g) => (
+                  <SelectGroup key={g.id}>
+                    <SelectLabel>{g.label}</SelectLabel>
+                    {g.items.map((f) => (
+                      <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
+                    ))}
+                  </SelectGroup>
+                ))}
+              </SelectContent>
+            </Select>
+            <span
+              id="pratinjau_font_ui"
+              className="rounded-md border bg-background px-3 py-1.5 text-sm"
+              style={fontUIParts
+                ? { fontFamily: fontUIParts.family, fontWeight: Number(fontUIParts.weight) || 400 }
+                : undefined}
+            >
+              Pratinjau: Data Santri 12.345 — SIMPES Admin
+            </span>
+          </div>
+          <FieldDescription>
+            Berlaku untuk seluruh antarmuka (menu, judul, tombol). Font isi tabel diatur
+            terpisah dari toolbar tabel.
+          </FieldDescription>
+        </FieldSet>
         <FieldSet className="gap-3">
           <FieldLegend variant="label" className="mb-0">Mode</FieldLegend>
           <ToggleGroup

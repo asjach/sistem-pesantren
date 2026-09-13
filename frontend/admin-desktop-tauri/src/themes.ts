@@ -1,4 +1,4 @@
-// Galeri 20 tema Top Populer ala VSCode — data-driven.
+// Galeri tema Top Populer ala VSCode — data-driven.
 // Tiap tema: 3 warna inti per wajah (latar, teks, aksen) + pasangan sidebar.
 // Kartu, border, secondary, muted DITURUNKAN via color-mix di index.css,
 // jadi menambah tema = 1 objek di sini (tanpa sentuh CSS).
@@ -29,6 +29,7 @@ export type ThemeName =
   | 'tokyo' | 'nightowl' | 'solarized' | 'github' | 'palenight'
   | 'gruvbox' | 'catppuccin' | 'ayu' | 'cobalt' | 'synthwave'
   | 'shadesofpurple' | 'tomorrow' | 'horizon' | 'panda' | 'winter'
+  | 'rosepine' | 'geist'
   | 'kustom';
 
 export const THEME_PRESETS: TemaPreset[] = [
@@ -151,6 +152,18 @@ export const THEME_PRESETS: TemaPreset[] = [
     terang: { bg: '#edf6fd', fg: '#0b2536', accent: '#03648a' },
     gelap: { bg: '#011627', fg: '#a7dbf7', accent: '#219fd5' },
     sidebar: '#011627', sidebarDeep: '#010e1a',
+  },
+  {
+    id: 'rosepine', nama: 'Rosé Pine',
+    terang: { bg: '#faf4ed', fg: '#575279', accent: '#907aa9' },
+    gelap: { bg: '#232136', fg: '#e0def4', accent: '#c4a7e7' },
+    sidebar: '#1f1d2e', sidebarDeep: '#191724',
+  },
+  {
+    id: 'geist', nama: 'Vercel Geist',
+    terang: { bg: '#ffffff', fg: '#09090b', accent: '#18181b' },
+    gelap: { bg: '#09090b', fg: '#fafafa', accent: '#e4e4e7' },
+    sidebar: '#0a0a0a', sidebarDeep: '#000000',
   },
 ];
 

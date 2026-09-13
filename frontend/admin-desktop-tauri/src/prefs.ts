@@ -1,4 +1,5 @@
 import { prefGet, prefSet } from '@/api/client';
+import { FONT_FAMILY_DEFAULT, FONT_OPTIONS } from './fonts';
 import { PRESET_IDS, type ThemeName } from './themes';
 
 export type { ThemeName };
@@ -29,6 +30,7 @@ const K = {
   mode: 'simpes_mode',
   sidebar: 'simpes_sidebar',
   density: 'simpes_density',
+  fontUI: 'simpes_font_ui',
 } as const;
 
 export interface Prefs {
@@ -37,14 +39,17 @@ export interface Prefs {
   mode: ModeName;
   collapsed: boolean;
   density: DensityName;
+  /** Jenis huruf antarmuka (nilai opsi src/fonts.ts; `_bawaan` = Aptos). */
+  fontUI: string;
 }
 
 export const DEFAULT_PREFS: Prefs = {
-  theme: 'hijau',
+  theme: 'geist',
   customHex: '#2c5c38',
   mode: 'sistem',
   collapsed: false,
   density: 'sedang',
+  fontUI: FONT_FAMILY_DEFAULT,
 };
 
 /** Luminance relatif (WCAG) 0..1 untuk hex #rrggbb. */
@@ -75,23 +80,25 @@ export function normalizeHex(v: string): string | null {
 }
 
 export async function loadPrefs(): Promise<Prefs> {
-  const [theme, customHex, mode, sidebar, density] = await Promise.all([
+  const [theme, customHex, mode, sidebar, density, fontUI] = await Promise.all([
     prefGet(K.theme),
     prefGet(K.customHex),
     prefGet(K.mode),
     prefGet(K.sidebar),
     prefGet(K.density),
+    prefGet(K.fontUI),
   ]);
   return {
     theme: PRESET_IDS.includes(theme ?? '') || theme === 'kustom'
       ? (theme as ThemeName)
-      : 'hijau',
+      : DEFAULT_PREFS.theme,
     customHex: customHex && normalizeHex(customHex) ? (normalizeHex(customHex) as string) : DEFAULT_PREFS.customHex,
     mode: mode === 'gelap' || mode === 'terang' ? mode : 'sistem',
     collapsed: sidebar === '1',
     density: (['ramping', 'sedang', 'nyaman'] as string[]).includes(density ?? '')
       ? (density as DensityName)
       : 'sedang',
+    fontUI: FONT_OPTIONS.some((f) => f.value === fontUI) ? (fontUI as string) : FONT_FAMILY_DEFAULT,
   };
 }
 
@@ -102,5 +109,6 @@ export async function savePrefs(p: Prefs): Promise<void> {
     prefSet(K.mode, p.mode),
     prefSet(K.sidebar, p.collapsed ? '1' : '0'),
     prefSet(K.density, p.density),
+    prefSet(K.fontUI, p.fontUI),
   ]);
 }

@@ -111,6 +111,8 @@
     background: var(--background);
     color: var(--foreground);
     font-family: var(--font-sans);
+    /* Bobot dasar mengikuti pilihan "Font antarmuka" (Light/Normal). */
+    font-weight: var(--font-ui-weight, 400);
     font-size: 14.5px;
     line-height: 1.5;
     margin: 0;
@@ -128,7 +130,7 @@
   }
 }
 
-/* ---------- Spreadsheet DSG (Pos): ikut 20 tema + dark via var aplikasi ---------- */
+/* ---------- Spreadsheet DSG (Pos): ikut semua tema + dark via var aplikasi ---------- */
 .simpes-dsg {
   --dsg-border-color: var(--border);
   --dsg-cell-background-color: var(--card);
