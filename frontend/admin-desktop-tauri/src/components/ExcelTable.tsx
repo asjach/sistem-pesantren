@@ -1861,10 +1861,6 @@ export default function ExcelTable<T extends { id: string | number }>({
     return () => ribbonLepas(tableKey);
   }, [ribbonDaftar, ribbonLepas, tableKey]);
 
-  if (loading && rows.length === 0) {
-    return <Skeleton className="h-40 w-full" />;
-  }
-
   const hasSearchInput = searchValue !== undefined && onSearchChange;
   const hasFilter = filter !== undefined;
   const showToolbar = hasSearchInput || hasFilter;
@@ -2115,34 +2111,38 @@ export default function ExcelTable<T extends { id: string | number }>({
           <ContextMenuTrigger asChild>
             <div
               className="simpes-dsg-kartu relative flex flex-col overflow-hidden bg-card"
-              style={{ height: gridHeight, visibility: lebarStabil ? undefined : 'hidden' }}
+              style={{ height: gridHeight, visibility: lebarStabil || loading ? undefined : 'hidden' }}
               onContextMenu={onGridContextMenu}
             >
-              <CheckAllContext.Provider value={checkAllState}>
-                <DataSheetGrid
-                  value={gridValue}
-                  onChange={handleChange}
-                  columns={dsgColumns}
-                  stickyRightColumn={aksiColumn}
-                  rowKey="id"
-                  height={gridHeight}
-                  rowHeight={effectiveH}
-                  headerRowHeight={26}
-                  lockRows
-                  addRowsComponent={false}
-                  disableContextMenu
-                  rowClassName={({ rowIndex }) => {
-                    const r = gridValue[rowIndex];
-                    return cn(
-                      rowIndex === gridValue.length - 1 && 'simpes-dsg-row-last',
-                      r && String(r.id) === INPUT_ROW_ID && 'simpes-dsg-row-input',
-                      r && checkedIds.has(r.id) && 'simpes-dsg-row-checked',
-                    );
-                  }}
-                  onSelectionChange={({ selection }) => setRange(selection)}
-                  onScroll={fitActionsIfNeeded}
-                />
-              </CheckAllContext.Provider>
+              {loading && rows.length === 0 ? (
+                <Skeleton className="h-full w-full rounded-none" />
+              ) : (
+                <CheckAllContext.Provider value={checkAllState}>
+                  <DataSheetGrid
+                    value={gridValue}
+                    onChange={handleChange}
+                    columns={dsgColumns}
+                    stickyRightColumn={aksiColumn}
+                    rowKey="id"
+                    height={gridHeight}
+                    rowHeight={effectiveH}
+                    headerRowHeight={26}
+                    lockRows
+                    addRowsComponent={false}
+                    disableContextMenu
+                    rowClassName={({ rowIndex }) => {
+                      const r = gridValue[rowIndex];
+                      return cn(
+                        rowIndex === gridValue.length - 1 && 'simpes-dsg-row-last',
+                        r && String(r.id) === INPUT_ROW_ID && 'simpes-dsg-row-input',
+                        r && checkedIds.has(r.id) && 'simpes-dsg-row-checked',
+                      );
+                    }}
+                    onSelectionChange={({ selection }) => setRange(selection)}
+                    onScroll={fitActionsIfNeeded}
+                  />
+                </CheckAllContext.Provider>
+              )}
               {gridValue.length === 0 && !loading && (
                 <div className="pointer-events-none absolute inset-0 grid place-items-center">
                   <p className="text-sm text-muted-foreground">{emptyText}</p>
@@ -2244,7 +2244,7 @@ export default function ExcelTable<T extends { id: string | number }>({
 
         {/* Placeholder saat lebar kolom belum stabil (grid disembunyikan agar
             tidak terlihat melompat). Menutupi area grid sekaligus menahan klik. */}
-        {!lebarStabil && (
+        {!lebarStabil && !loading && (
           <div className="absolute inset-0 z-10 flex flex-col gap-2 bg-card p-2" aria-hidden="true">
             <Skeleton className="h-7 w-full" />
             <Skeleton className="h-full w-full" />
