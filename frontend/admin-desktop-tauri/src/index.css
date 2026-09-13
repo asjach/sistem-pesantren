@@ -29,6 +29,10 @@
   --color-destructive-foreground: var(--destructive-foreground);
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -64,6 +68,14 @@
   --on-accent: #ffffff;
   --background: #f2f5f1;
   --foreground: #1d241e;
+  /* Aksen yang aman dibaca sebagai warna teks/ikon: dipadukan ke arah
+     teks tema sehingga tetap kontras di mode terang maupun gelap. */
+  --accent-readable: color-mix(in srgb, var(--accent) 72%, var(--foreground));
+  /* Warna semantik (dipakai level "kaya"): otomatis menyesuaikan mode. */
+  --success: color-mix(in srgb, #16a34a 72%, var(--foreground));
+  --success-foreground: #ffffff;
+  --info: color-mix(in srgb, #2563eb 72%, var(--foreground));
+  --info-foreground: #ffffff;
   --sidebar: #17351f;
   --sidebar-deep: #122b1a;
   --sidebar-foreground: #cfe0d3;
@@ -511,4 +523,61 @@
 ):is([class~='size-6'], [class~='size-8'], [class~='size-9']) {
   width: 30px;
   min-width: 30px;
+}
+
+/* ---------- Kaya warna UI (Pengaturan → Tampilan) ----------
+   `netral` = hemat warna (bawaan lama). `aksen` = judul & ikon memakai warna
+   aksen tema. `kaya` = aksen + tint permukaan + warna semantik.
+   Catatan: semua aturan memakai :where() agar spesifisitasnya nol — ikon yang
+   sudah punya warna eksplisit (hapus/peringatan/di atas tombol aksen/header
+   bersidebar) tidak ditimpa lewat aturan pengecualian di bawah. */
+[data-warna='aksen'] :is(h1, h2, h3),
+[data-warna='kaya'] :is(h1, h2, h3) {
+  color: var(--accent-readable);
+}
+[data-warna='aksen'] :where(svg.lucide),
+[data-warna='kaya'] :where(svg.lucide) {
+  color: var(--accent-readable);
+}
+/* Pengecualian (urutan SETELAH aturan pewarnaan — spesifisitas sama-sama nol). */
+[data-warna='aksen'] :where(
+  header svg.lucide,
+  [class*='text-primary-foreground'] svg.lucide,
+  [class*='text-accent-foreground'] svg.lucide,
+  [class*='text-secondary-foreground'] svg.lucide,
+  [class*='text-destructive'] svg.lucide,
+  [class*='text-warning'] svg.lucide,
+  [class*='text-success'] svg.lucide,
+  [class*='text-info'] svg.lucide
+),
+[data-warna='kaya'] :where(
+  header svg.lucide,
+  [class*='text-primary-foreground'] svg.lucide,
+  [class*='text-accent-foreground'] svg.lucide,
+  [class*='text-secondary-foreground'] svg.lucide,
+  [class*='text-destructive'] svg.lucide,
+  [class*='text-warning'] svg.lucide,
+  [class*='text-success'] svg.lucide,
+  [class*='text-info'] svg.lucide
+) {
+  color: inherit;
+}
+/* Header kolom tabel ikut berwarna di kedua level. */
+[data-warna='aksen'] .simpes-dsg .dsg-row-header .dsg-cell-header-container,
+[data-warna='kaya'] .simpes-dsg .dsg-row-header .dsg-cell-header-container {
+  color: var(--accent-readable);
+}
+/* Tint permukaan hanya pada level kaya. */
+[data-warna='kaya'] .simpes-dsg .dsg-row.dsg-row-header {
+  background: color-mix(in srgb, var(--accent) 14%, var(--card));
+}
+[data-warna='kaya'] .simpes-dsg .dsg-row:not(.dsg-row-header):hover .dsg-cell {
+  background-color: color-mix(in srgb, var(--accent) 6%, var(--card));
+}
+[data-warna='kaya'] .simpes-dsg .dsg-row.simpes-dsg-row-checked .dsg-cell,
+[data-warna='kaya'] .simpes-dsg .dsg-row.simpes-dsg-row-checked .dsg-cell-gutter {
+  background-color: color-mix(in srgb, var(--accent) 20%, var(--card));
+}
+[data-warna='kaya'] :is(section.rounded-xl, .rounded-xl.border) {
+  border-color: color-mix(in srgb, var(--accent) 26%, var(--border));
 }

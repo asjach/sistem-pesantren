@@ -9,6 +9,7 @@ import {
   type ModeName,
   type Prefs,
   type ThemeName,
+  type WarnaUIName,
 } from '@/prefs';
 import { findPreset } from '@/themes';
 import { FONT_FAMILY_DEFAULT, fontParts } from '@/fonts';
@@ -22,6 +23,7 @@ interface ThemeState extends Prefs {
   setCollapsed: (c: boolean) => void;
   setDensity: (d: DensityName) => void;
   setFontUI: (v: string) => void;
+  setWarnaUI: (w: WarnaUIName) => void;
 }
 
 const Ctx = createContext<ThemeState | null>(null);
@@ -29,6 +31,8 @@ const Ctx = createContext<ThemeState | null>(null);
 function applyPrefs(p: Prefs, osDark: boolean) {
   const root = document.documentElement;
   root.dataset.theme = p.theme;
+  // Tingkat "kaya warna" UI (dibaca aturan CSS [data-warna=…]).
+  root.dataset.warna = p.warnaUI;
   const dark = p.mode === 'gelap' || (p.mode === 'sistem' && osDark);
   root.classList.toggle('dark', dark);
   if (p.theme === 'kustom') {
@@ -106,6 +110,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       setCollapsed: (collapsed) => update({ collapsed }),
       setDensity: (density) => update({ density }),
       setFontUI: (fontUI) => update({ fontUI }),
+      setWarnaUI: (warnaUI) => update({ warnaUI }),
     };
   }, [prefs, osDark, update]);
 
@@ -119,4 +124,4 @@ export function useTheme() {
 }
 
 export { THEME_PRESETS } from '@/themes';
-export type { DensityName, ModeName, ThemeName };
+export type { DensityName, ModeName, ThemeName, WarnaUIName };

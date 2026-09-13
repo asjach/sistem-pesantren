@@ -82,7 +82,7 @@ export function SetAktifAction({ id, onClick }: { id: string; onClick: () => voi
       id={id}
       title="Set aktif"
       onClick={onClick}
-      className="text-primary/80 hover:text-primary"
+      className="text-success hover:bg-success/10 hover:text-success"
     >
       <Check size={16} />
     </ActionIcon>

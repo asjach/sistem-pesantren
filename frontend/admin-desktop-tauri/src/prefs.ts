@@ -5,6 +5,11 @@ import { PRESET_IDS, type ThemeName } from './themes';
 export type { ThemeName };
 export type ModeName = 'gelap' | 'terang' | 'sistem';
 
+/** Tingkat "kaya warna" UI: netral (hemat warna), aksen (judul+ikon),
+ *  kaya (aksen + tint permukaan + warna semantik). */
+export type WarnaUIName = 'netral' | 'aksen' | 'kaya';
+export const WARNA_UI: WarnaUIName[] = ['netral', 'aksen', 'kaya'];
+
 /** Kerapatan baris grid: ramping 30px, sedang 38px, nyaman 48px. */
 export type DensityName = 'ramping' | 'sedang' | 'nyaman';
 export const DENSITY_PX: Record<DensityName, number> = {
@@ -31,6 +36,7 @@ const K = {
   sidebar: 'simpes_sidebar',
   density: 'simpes_density',
   fontUI: 'simpes_font_ui',
+  warnaUI: 'simpes_warna_ui',
 } as const;
 
 export interface Prefs {
@@ -41,6 +47,8 @@ export interface Prefs {
   density: DensityName;
   /** Jenis huruf antarmuka (nilai opsi src/fonts.ts; `_bawaan` = Aptos). */
   fontUI: string;
+  /** Tingkat kekayaan warna UI (judul/ikon/permukaan/semantik). */
+  warnaUI: WarnaUIName;
 }
 
 export const DEFAULT_PREFS: Prefs = {
@@ -50,6 +58,7 @@ export const DEFAULT_PREFS: Prefs = {
   collapsed: false,
   density: 'sedang',
   fontUI: FONT_FAMILY_DEFAULT,
+  warnaUI: 'kaya',
 };
 
 /** Luminance relatif (WCAG) 0..1 untuk hex #rrggbb. */
@@ -80,13 +89,14 @@ export function normalizeHex(v: string): string | null {
 }
 
 export async function loadPrefs(): Promise<Prefs> {
-  const [theme, customHex, mode, sidebar, density, fontUI] = await Promise.all([
+  const [theme, customHex, mode, sidebar, density, fontUI, warnaUI] = await Promise.all([
     prefGet(K.theme),
     prefGet(K.customHex),
     prefGet(K.mode),
     prefGet(K.sidebar),
     prefGet(K.density),
     prefGet(K.fontUI),
+    prefGet(K.warnaUI),
   ]);
   return {
     theme: PRESET_IDS.includes(theme ?? '') || theme === 'kustom'
@@ -99,6 +109,9 @@ export async function loadPrefs(): Promise<Prefs> {
       ? (density as DensityName)
       : 'sedang',
     fontUI: FONT_OPTIONS.some((f) => f.value === fontUI) ? (fontUI as string) : FONT_FAMILY_DEFAULT,
+    warnaUI: (WARNA_UI as string[]).includes(warnaUI ?? '')
+      ? (warnaUI as WarnaUIName)
+      : DEFAULT_PREFS.warnaUI,
   };
 }
 
@@ -110,5 +123,6 @@ export async function savePrefs(p: Prefs): Promise<void> {
     prefSet(K.sidebar, p.collapsed ? '1' : '0'),
     prefSet(K.density, p.density),
     prefSet(K.fontUI, p.fontUI),
+    prefSet(K.warnaUI, p.warnaUI),
   ]);
 }

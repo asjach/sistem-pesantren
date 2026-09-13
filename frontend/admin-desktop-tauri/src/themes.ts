@@ -29,7 +29,7 @@ export type ThemeName =
   | 'tokyo' | 'nightowl' | 'solarized' | 'github' | 'palenight'
   | 'gruvbox' | 'catppuccin' | 'ayu' | 'cobalt' | 'synthwave'
   | 'shadesofpurple' | 'tomorrow' | 'horizon' | 'panda' | 'winter'
-  | 'rosepine' | 'geist'
+  | 'rosepine' | 'geist' | 'vercelbiru' | 'linear' | 'supabase'
   | 'kustom';
 
 export const THEME_PRESETS: TemaPreset[] = [
@@ -164,6 +164,24 @@ export const THEME_PRESETS: TemaPreset[] = [
     terang: { bg: '#ffffff', fg: '#09090b', accent: '#18181b' },
     gelap: { bg: '#09090b', fg: '#fafafa', accent: '#e4e4e7' },
     sidebar: '#0a0a0a', sidebarDeep: '#000000',
+  },
+  {
+    id: 'vercelbiru', nama: 'Vercel Blue',
+    terang: { bg: '#ffffff', fg: '#09090b', accent: '#0070f3' },
+    gelap: { bg: '#09090b', fg: '#fafafa', accent: '#2563eb' },
+    sidebar: '#000000', sidebarDeep: '#050505',
+  },
+  {
+    id: 'linear', nama: 'Linear Indigo',
+    terang: { bg: '#ffffff', fg: '#282a30', accent: '#5e6ad2' },
+    gelap: { bg: '#08090a', fg: '#f7f8f8', accent: '#7c8aff' },
+    sidebar: '#08090a', sidebarDeep: '#000000',
+  },
+  {
+    id: 'supabase', nama: 'Supabase Teal',
+    terang: { bg: '#ffffff', fg: '#171717', accent: '#24b47e' },
+    gelap: { bg: '#121212', fg: '#ededed', accent: '#3ecf8e' },
+    sidebar: '#121212', sidebarDeep: '#0a0a0a',
   },
 ];
 

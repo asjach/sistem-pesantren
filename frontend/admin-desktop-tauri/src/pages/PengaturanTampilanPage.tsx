@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { isTauri } from '../api/client';
-import { useTheme, type DensityName, type ModeName, type ThemeName } from '@/theme';
+import { useTheme, type DensityName, type ModeName, type ThemeName, type WarnaUIName } from '@/theme';
 import { THEME_PRESETS } from '@/themes';
 import { normalizeHex, onAccentFor, DEFAULT_PREFS } from '@/prefs';
 import { FONT_FAMILY_DEFAULT, FONT_OPTIONS, fontParts, type FontOption } from '@/fonts';
@@ -33,6 +33,12 @@ const DENSITIES: { id: DensityName; nama: string }[] = [
   { id: 'nyaman', nama: 'Nyaman' },
 ];
 
+const WARNA_UI_OPSI: { id: WarnaUIName; nama: string }[] = [
+  { id: 'netral', nama: 'Netral' },
+  { id: 'aksen', nama: 'Aksen' },
+  { id: 'kaya', nama: 'Kaya' },
+];
+
 /** Opsi font antarmuka: varian Bold dikecualikan (seluruh UI jadi tebal). */
 const FONT_UI: FontOption[] = FONT_OPTIONS.filter((f) => !f.value.endsWith('|700'));
 const FONT_UI_GROUPS: { id: string; label: string; items: FontOption[] }[] = [
@@ -43,7 +49,7 @@ const FONT_UI_GROUPS: { id: string; label: string; items: FontOption[] }[] = [
 
 /** Pengaturan → Tampilan: tema, mode, kerapatan baris. */
 export default function PengaturanTampilanPage() {
-  const { theme, mode, customHex, dark, density, fontUI, setTheme, setMode, setCustomHex, setDensity, setFontUI } = useTheme();
+  const { theme, mode, customHex, dark, density, fontUI, warnaUI, setTheme, setMode, setCustomHex, setDensity, setFontUI, setWarnaUI } = useTheme();
   const [customInput, setCustomInput] = useState(customHex);
   const fontUIParts = fontUI === FONT_FAMILY_DEFAULT ? null : fontParts(fontUI);
 
@@ -172,6 +178,27 @@ export default function PengaturanTampilanPage() {
           <FieldDescription>
             Berlaku untuk seluruh antarmuka (menu, judul, tombol). Font isi tabel diatur
             terpisah dari toolbar tabel.
+          </FieldDescription>
+        </FieldSet>
+        <FieldSet className="gap-3">
+          <FieldLegend variant="label" className="mb-0">Kaya warna UI</FieldLegend>
+          <ToggleGroup
+            type="single"
+            variant="outline"
+            spacing={0}
+            value={warnaUI}
+            onValueChange={(v) => { if (v) setWarnaUI(v as WarnaUIName); }}
+          >
+            {WARNA_UI_OPSI.map((w) => (
+              <ToggleGroupItem key={w.id} id={`btn_warna_${w.id}`} value={w.id}>
+                {w.nama}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+          <FieldDescription>
+            <b>Netral</b>: hemat warna. <b>Aksen</b>: judul & ikon memakai warna aksen tema.{' '}
+            <b>Kaya</b>: + tint header/baris tabel & warna semantik (sukses/info). Berlaku
+            untuk semua tema; ikon hapus/peringatan & header bersidebar tidak ikut berubah.
           </FieldDescription>
         </FieldSet>
         <FieldSet className="gap-3">
