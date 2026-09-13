@@ -29,7 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ChevronDown, Moon, RotateCcw, Search, Sun } from 'lucide-react';
+import { ChevronDown, Minus, Moon, Plus, RotateCcw, Search, Sun } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 /** Objek kosong stabil (menghindari efek pengukuran berulang tanpa henti). */
@@ -142,7 +142,8 @@ function WarnaField({
   );
 }
 
-/** Kontrol angka opsional (px); dikomit saat blur/Enter. */
+/** Kontrol angka opsional (px) bergaya stepper: tombol −/+, ketik manual,
+ *  dikomit saat blur/Enter, langkah dimulai dari nilai yang tampil (bawaan). */
 function AngkaField({
   id,
   label,
@@ -160,27 +161,65 @@ function AngkaField({
   max: number;
   onChange: (v: number | undefined) => void;
 }) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const basis = nilai ?? bawaan ?? min;
+  const commit = (raw: string) => {
+    setDraft(null);
+    const t = raw.trim();
+    if (t === '') return onChange(undefined);
+    const n = Number(t);
+    if (!Number.isFinite(n)) return;
+    onChange(Math.min(max, Math.max(min, Math.round(n))));
+  };
+  const langkah = (d: number) => {
+    setDraft(null);
+    onChange(Math.min(max, Math.max(min, Math.round(basis + d))));
+  };
+  const tampil = draft ?? (nilai != null ? String(nilai) : '');
+  const tombol =
+    'grid w-7 shrink-0 place-items-center text-muted-foreground transition-colors hover:bg-muted disabled:pointer-events-none disabled:opacity-40';
   return (
     <div className="flex items-center gap-1.5">
       <Label htmlFor={id} className="w-20 shrink-0">{label}</Label>
-      <Input
-        key={`${id}:${nilai ?? ''}`}
-        id={id}
-        type="number"
-        min={min}
-        max={max}
-        defaultValue={nilai ?? ''}
-        placeholder={bawaan != null ? String(bawaan) : 'bawaan'}
-        title={bawaan != null ? `Nilai bawaan: ${bawaan} px` : 'Nilai bawaan tidak terukur'}
-        className="h-8 w-full min-w-0"
-        onBlur={(e) => {
-          const v = e.target.value.trim();
-          onChange(v === '' ? undefined : Number(v));
-        }}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-        }}
-      />
+      <div className="flex h-[30px] min-w-0 flex-1 items-stretch overflow-hidden rounded-md border bg-transparent focus-within:ring-2 focus-within:ring-ring/40">
+        <button
+          type="button"
+          id={`${id}_kurang`}
+          aria-label={`${label} kurang`}
+          title={`${label} −1`}
+          disabled={basis <= min}
+          onClick={() => langkah(-1)}
+          className={tombol}
+        >
+          <Minus size={12} />
+        </button>
+        <input
+          id={id}
+          type="text"
+          inputMode="numeric"
+          value={tampil}
+          placeholder={bawaan != null ? String(bawaan) : 'bawaan'}
+          title={bawaan != null ? `Nilai bawaan: ${bawaan} px` : 'Nilai bawaan tidak terukur'}
+          aria-label={label}
+          className="h-full w-full min-w-0 border-x bg-transparent px-2 text-center text-sm outline-none placeholder:text-muted-foreground"
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={() => commit(draft ?? tampil)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+          }}
+        />
+        <button
+          type="button"
+          id={`${id}_tambah`}
+          aria-label={`${label} tambah`}
+          title={`${label} +1`}
+          disabled={basis >= max}
+          onClick={() => langkah(1)}
+          className={tombol}
+        >
+          <Plus size={12} />
+        </button>
+      </div>
       <span className="w-4 shrink-0 text-xs text-muted-foreground">px</span>
     </div>
   );

@@ -53,6 +53,8 @@
    Sisanya DITURUNKAN otomatis lewat color-mix — berlaku semua tema & mode. */
 :root {
   --radius: 4px;
+  /* Kontrol native (scrollbar, spinner input, date picker) ikut mode terang. */
+  color-scheme: light;
 
   /* ---------- hierarki font (Aptos bundel lokal + fallback sistem) ----------
      --font-sans: isi/body, tabel, navigasi (netral).
@@ -105,6 +107,8 @@
 
 /* ---------- dark: fallback aman (Hijau gelap) ---------- */
 .dark {
+  /* Scrollbar & kontrol native ikut mode gelap. */
+  color-scheme: dark;
   --background: #101511;
   --foreground: #e8ede8;
   --sidebar: #0d1f12;
