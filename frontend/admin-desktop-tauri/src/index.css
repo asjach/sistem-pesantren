@@ -146,6 +146,38 @@
   }
 }
 
+/* ---------- Scrollbar: track transparan, handle mengikuti tema ----------
+   Berlaku semua area gulir (halaman, sidebar, grid, dialog). Warna handle
+   diturunkan dari --foreground sehingga otomatis ikut tema & mode. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--foreground) 28%, transparent) transparent;
+}
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background-color: color-mix(in srgb, var(--foreground) 28%, transparent);
+  /* Border transparan + background-clip: handle tampak lebih ramping. */
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(in srgb, var(--foreground) 45%, transparent);
+}
+::-webkit-scrollbar-thumb:active {
+  background-color: color-mix(in srgb, var(--foreground) 60%, transparent);
+}
+::-webkit-scrollbar-button {
+  display: none;
+}
+
 /* ---------- Spreadsheet DSG (Pos): ikut semua tema + dark via var aplikasi ---------- */
 .simpes-dsg {
   --dsg-border-color: var(--part-tabel_sel-border, var(--border));
