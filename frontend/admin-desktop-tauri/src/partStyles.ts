@@ -4,16 +4,18 @@ import { findPreset, type ThemeName } from './themes';
 import {
   PARTS,
   PART_BY_ID,
+  type PartGaya,
   type PartId,
-  type PartMap,
-  type PartMode,
   type PartOverrides,
-  type PartStyle,
+  type PartWarna,
+  type PetaGaya,
+  type PetaWarna,
 } from './parts';
 
 /** Gaya per bagian di-generate runtime ke satu <style id> (urutan terakhir,
  *  menang atas utilitas Tailwind normal). Hanya properti yang DIISI yang
- *  ditulis — properti kosong tidak menyentuh tampilan bawaan komponen. */
+ *  ditulis — properti kosong tidak menyentuh tampilan bawaan komponen.
+ *  Tipografi/kotak berlaku untuk kedua mode; warna dipisah terang/gelap. */
 
 const STYLE_ID = 'simpes_part_styles';
 
@@ -38,53 +40,133 @@ const TOLAK_WARNA =
   ":not(.text-primary-foreground):not(.text-accent-foreground):not(.text-secondary-foreground)" +
   ':not([data-part-abaikan]):not([data-part-abaikan] *)';
 
-function gayaPermukaan(s: PartStyle): string[] {
-  const d: string[] = [];
-  if (s.bg) d.push(`background-color:${s.bg}!important`);
-  if (s.border) d.push(`border-color:${s.border}!important`);
-  if (s.borderW != null) d.push(`border-width:${s.borderW}px!important`, 'border-style:solid!important');
-  if (s.radius != null) d.push(`border-radius:${s.radius}px!important`);
-  if (s.padX != null) d.push(`padding-left:${s.padX}px!important`, `padding-right:${s.padX}px!important`);
-  if (s.padY != null) d.push(`padding-top:${s.padY}px!important`, `padding-bottom:${s.padY}px!important`);
-  return d;
-}
-
-function gayaTeks(s: PartStyle): string[] {
-  const d: string[] = [];
-  if (s.font) {
-    const { family, weight } = fontParts(s.font);
-    d.push(`font-family:${family}!important`, `font-weight:${weight}!important`);
+/** Deklarasi tipografi & kotak (berlaku kedua mode). */
+function deklGaya(g: PartGaya): { permukaan: string[]; teks: string[] } {
+  const permukaan: string[] = [];
+  if (g.borderW != null) permukaan.push(`border-width:${g.borderW}px!important`, 'border-style:solid!important');
+  if (g.radius != null) permukaan.push(`border-radius:${g.radius}px!important`);
+  if (g.padX != null) permukaan.push(`padding-left:${g.padX}px!important`, `padding-right:${g.padX}px!important`);
+  if (g.padY != null) permukaan.push(`padding-top:${g.padY}px!important`, `padding-bottom:${g.padY}px!important`);
+  const teks: string[] = [];
+  if (g.font) {
+    const { family, weight } = fontParts(g.font);
+    teks.push(`font-family:${family}!important`, `font-weight:${weight}!important`);
   }
-  if (s.size != null) d.push(`font-size:${s.size}px!important`);
-  if (s.fg) d.push(`color:${s.fg}!important`);
-  return d;
+  if (g.size != null) teks.push(`font-size:${g.size}px!important`);
+  return { permukaan, teks };
 }
 
-/** Peta variabel CSS `--part-<id>-*` untuk satu gaya (dipakai stylesheet &
- *  pratinjau editor; rantai fallback index.css mengonsumsi variabel ini). */
-export function variabelBagian(id: PartId, s: PartStyle): Record<string, string> {
+/** Deklarasi warna (per mode). */
+function deklWarna(w?: PartWarna): { permukaan: string[]; teks: string[] } {
+  const permukaan: string[] = [];
+  if (w?.bg) permukaan.push(`background-color:${w.bg}!important`);
+  if (w?.border) permukaan.push(`border-color:${w.border}!important`);
+  const teks: string[] = [];
+  if (w?.fg) teks.push(`color:${w.fg}!important`);
+  return { permukaan, teks };
+}
+
+/** Peta variabel CSS `--part-<id>-*` (dipakai rantai fallback index.css). */
+export function variabelBagian(id: PartId, g?: PartGaya, w?: PartWarna): Record<string, string> {
   const v: Record<string, string> = {};
-  if (s.font) {
-    const { family, weight } = fontParts(s.font);
+  if (g?.font) {
+    const { family, weight } = fontParts(g.font);
     v[`--part-${id}-font`] = family;
     v[`--part-${id}-weight`] = weight;
   }
-  if (s.size != null) v[`--part-${id}-size`] = `${s.size}px`;
-  if (s.bg) v[`--part-${id}-bg`] = s.bg;
-  if (s.fg) v[`--part-${id}-fg`] = s.fg;
-  if (s.border) v[`--part-${id}-border`] = s.border;
-  if (s.borderW != null) v[`--part-${id}-bw`] = `${s.borderW}px`;
-  if (s.radius != null) v[`--part-${id}-radius`] = `${s.radius}px`;
-  if (s.padX != null) v[`--part-${id}-padx`] = `${s.padX}px`;
-  if (s.padY != null) v[`--part-${id}-pady`] = `${s.padY}px`;
+  if (g?.size != null) v[`--part-${id}-size`] = `${g.size}px`;
+  if (g?.borderW != null) v[`--part-${id}-bw`] = `${g.borderW}px`;
+  if (g?.radius != null) v[`--part-${id}-radius`] = `${g.radius}px`;
+  if (g?.padX != null) v[`--part-${id}-padx`] = `${g.padX}px`;
+  if (g?.padY != null) v[`--part-${id}-pady`] = `${g.padY}px`;
+  if (w?.bg) v[`--part-${id}-bg`] = w.bg;
+  if (w?.fg) v[`--part-${id}-fg`] = w.fg;
+  if (w?.border) v[`--part-${id}-border`] = w.border;
   return v;
 }
 
-/** Blok `{ --part-… }` untuk scope mode terang/gelap. */
-function blokVariabel(scope: string, id: PartId, s: PartStyle): string {
-  const v = variabelBagian(id, s);
-  const decls = Object.entries(v).map(([k, val]) => `${k}:${val}`);
+/** Satu blok aturan untuk sebuah bagian dalam scope mode tertentu. */
+function blokBagian(scope: string, id: PartId, g?: PartGaya, w?: PartWarna): string {
+  const meta = PART_BY_ID.get(id);
+  if (!meta) return '';
+  const gaya = deklGaya(g ?? {});
+  const warna = deklWarna(w);
+  const permukaan = [...gaya.permukaan, ...warna.permukaan];
+  const teks = [...gaya.teks, ...warna.teks];
+  if (!permukaan.length && !teks.length) return '';
+  const root = `${scope} :is(${meta.sel})`;
+  let css = `${root}{${[...permukaan, ...teks].join(';')}}\n`;
+  if (teks.length) {
+    // Keturunan: kecuali elemen yang merupakan akar bagian LAIN (dan isinya) —
+    // supaya bagian bersarang (mis. tab di dalam ribbon) tidak saling timpa.
+    const lain = PARTS.filter((p) => p.id !== id)
+      .map((p) => p.sel)
+      .join(',');
+    const desc =
+      `${scope} :is(${meta.sel}) :where(*)` +
+      tolakKontrol(meta.kendali) +
+      `:not(:where(${lain})):not(:where(${lain}) *)` +
+      TOLAK_WARNA;
+    css += `${desc}{${teks.join(';')}}\n`;
+  }
+  return css;
+}
+
+/** Blok `{ --part-… }` untuk semua variabel bagian (gaya bersama + warna mode). */
+function blokVariabel(scope: string, map: { gaya: PetaGaya; warna: PetaWarna }): string {
+  const decls: string[] = [];
+  for (const id of Object.keys(map.gaya) as PartId[]) {
+    const v = variabelBagian(id, map.gaya[id], map.warna[id]);
+    for (const [k, val] of Object.entries(v)) decls.push(`${k}:${val}`);
+  }
+  for (const [id, w] of Object.entries(map.warna) as [PartId, PartWarna][]) {
+    if (map.gaya[id]) continue;
+    const v = variabelBagian(id, undefined, w);
+    for (const [k, val] of Object.entries(v)) decls.push(`${k}:${val}`);
+  }
   return decls.length ? `${scope}{${decls.join(';')}}` : '';
+}
+
+export function bangunCssBagian(parts: PartOverrides): string {
+  let css = '';
+  for (const meta of PARTS) {
+    const g = parts.gaya[meta.id];
+    const wt = parts.terang[meta.id];
+    const wg = parts.gelap[meta.id];
+    if (!g && !wt && !wg) continue;
+    css += blokBagian(':root:not(.dark)', meta.id, g, wt);
+    css += blokBagian('.dark', meta.id, g, wg);
+  }
+  css += blokVariabel(':root:not(.dark)', { gaya: parts.gaya, warna: parts.terang });
+  css += blokVariabel('.dark', { gaya: parts.gaya, warna: parts.gelap });
+  return css;
+}
+
+/** Tulis/ganti satu elemen <style> berisi seluruh aturan bagian. */
+export function terapkanGayaBagian(parts: PartOverrides): void {
+  if (typeof document === 'undefined') return;
+  let el = document.getElementById(STYLE_ID) as HTMLStyleElement | null;
+  if (!el) {
+    el = document.createElement('style');
+    el.id = STYLE_ID;
+    document.head.appendChild(el);
+  }
+  el.textContent = bangunCssBagian(parts);
+}
+
+/** CSS pratinjau editor: deklarasi sama seperti aslinya, tanpa scope mode
+ *  (mode dipilih lewat tab) dan tanpa pengecualian antar-bagian. */
+export function bangunCssPratinjau(id: PartId, g?: PartGaya, w?: PartWarna): string {
+  const root = '#pratinjau_bagian [data-pratinjau-part]';
+  const desc = `${root} *${tolakKontrol(PART_BY_ID.get(id)?.kendali)}`;
+  const gaya = deklGaya(g ?? {});
+  const warna = deklWarna(w);
+  const permukaan = [...gaya.permukaan, ...warna.permukaan];
+  const teks = [...gaya.teks, ...warna.teks];
+  let css = '';
+  if (permukaan.length || teks.length) css += `${root}{${[...permukaan, ...teks].join(';')}}\n`;
+  if (teks.length) css += `${desc}{${teks.join(';')}}\n`;
+  return css;
 }
 
 /** Variabel wajah tema (terang/gelap) untuk kanvas pratinjau editor — meniru
@@ -128,59 +210,4 @@ export function variabelWajah(theme: ThemeName, gelap: boolean, customHex: strin
     '--info': mix('#2563eb', 72, fg),
     '--info-foreground': '#ffffff',
   };
-}
-
-/** CSS pratinjau editor: deklarasi sama seperti aslinya, tanpa scope mode
- *  (mode dipilih lewat tab) dan tanpa pengecualian antar-bagian. */
-export function bangunCssPratinjau(id: PartId, s: PartStyle): string {
-  const root = '#pratinjau_bagian [data-pratinjau-part]';
-  const desc = `${root} *${tolakKontrol(PART_BY_ID.get(id)?.kendali)}`;
-  const permukaan = gayaPermukaan(s);
-  const teks = gayaTeks(s);
-  let css = '';
-  if (permukaan.length || teks.length) css += `${root}{${[...permukaan, ...teks].join(';')}}\n`;
-  if (teks.length) css += `${desc}{${teks.join(';')}}\n`;
-  return css;
-}
-
-function aturanMode(scope: string, map: PartMap): string {
-  let css = '';
-  for (const meta of PARTS) {
-    const s = map[meta.id];
-    if (!s) continue;
-    const root = `${scope} :is(${meta.sel})`;
-    // Keturunan: kecuali elemen yang merupakan akar bagian LAIN (dan isinya) —
-    // supaya bagian bersarang (mis. tab di dalam ribbon) tidak saling timpa.
-    const lain = PARTS.filter((p) => p.id !== meta.id)
-      .map((p) => p.sel)
-      .join(',');
-    const desc =
-      `${scope} :is(${meta.sel}) :where(*)` +
-      tolakKontrol(meta.kendali) +
-      `:not(:where(${lain})):not(:where(${lain}) *)` +
-      TOLAK_WARNA;
-    const permukaan = gayaPermukaan(s);
-    const teks = gayaTeks(s);
-    if (permukaan.length || teks.length) css += `${root}{${[...permukaan, ...teks].join(';')}}\n`;
-    if (teks.length) css += `${desc}{${teks.join(';')}}\n`;
-    const vars = blokVariabel(scope, meta.id, s);
-    if (vars) css += `${vars}\n`;
-  }
-  return css;
-}
-
-export function bangunCssBagian(parts: PartOverrides): string {
-  return aturanMode(':root:not(.dark)', parts.terang) + aturanMode('.dark', parts.gelap);
-}
-
-/** Tulis/ganti satu elemen <style> berisi seluruh aturan bagian. */
-export function terapkanGayaBagian(parts: PartOverrides): void {
-  if (typeof document === 'undefined') return;
-  let el = document.getElementById(STYLE_ID) as HTMLStyleElement | null;
-  if (!el) {
-    el = document.createElement('style');
-    el.id = STYLE_ID;
-    document.head.appendChild(el);
-  }
-  el.textContent = bangunCssBagian(parts);
 }

@@ -1,6 +1,8 @@
 import { FONT_FAMILY_DEFAULT, FONT_OPTIONS } from './fonts';
 
-/** 18 bagian UI yang bisa diatur atomik (Tampilan → Per bagian).
+/** 18 bagian UI yang bisa diatur atomik (Tampilan → Bagian UI).
+ *  `font`, `size`, dan `kotak` (border/radius/padding) berlaku untuk KEDUA mode;
+ *  hanya warna (bg/fg/border) yang dipisah per mode terang/gelap.
  *  Tiap bagian punya `sel` (selektor akar) untuk generator gaya runtime
  *  (src/partStyles.ts); sebagian memakai atribut `data-part` yang dipasang di
  *  komponen (TopBar, ExcelTable), sisanya selektor struktural yang sudah ada. */
@@ -26,25 +28,34 @@ export type PartId =
 
 export type PartMode = 'terang' | 'gelap';
 
-/** Gaya opsional per bagian. Field kosong = ikut komponen/tema (tidak ditimpa). */
-export interface PartStyle {
+/** Tipografi & kotak — SATU set untuk kedua mode. Field kosong = bawaan. */
+export interface PartGaya {
   /** Nilai opsi src/fonts.ts ("<family>|<weight>"); `_bawaan` tidak disimpan. */
   font?: string;
   size?: number;
-  bg?: string;
-  fg?: string;
-  border?: string;
   borderW?: number;
   radius?: number;
   padX?: number;
   padY?: number;
 }
 
-export type PartMap = Partial<Record<PartId, PartStyle>>;
+/** Warna — dipisah per mode. Field kosong = bawaan. */
+export interface PartWarna {
+  bg?: string;
+  fg?: string;
+  border?: string;
+}
+
+export type PetaGaya = Partial<Record<PartId, PartGaya>>;
+export type PetaWarna = Partial<Record<PartId, PartWarna>>;
 
 export interface PartOverrides {
-  terang: PartMap;
-  gelap: PartMap;
+  /** Tipografi & kotak (berlaku kedua mode). */
+  gaya: PetaGaya;
+  /** Warna mode terang. */
+  terang: PetaWarna;
+  /** Warna mode gelap. */
+  gelap: PetaWarna;
 }
 
 export interface PartMeta {
@@ -57,6 +68,8 @@ export interface PartMeta {
    *  Bagian kontainer tidak menimpa kontrol di dalamnya (tombol/input/label/
    *  badge/dropdown/dialog punya pengaturannya sendiri) agar proporsi terjaga. */
   kendali?: boolean;
+  /** Selektor elemen pengukuran nilai bawaan di pratinjau (opsional). */
+  ukurSel?: string;
   hint: string;
   /** Selektor akar bagian (digabung otomatis dengan scope mode terang/gelap). */
   sel: string;
@@ -143,6 +156,7 @@ export const PARTS: PartMeta[] = [
     label: 'Header tabel',
     grup: 'Tabel',
     sub: 'Grid',
+    ukurSel: '.dsg-cell-header-container',
     hint: 'Baris judul kolom grid.',
     sel: '.simpes-dsg .dsg-row.dsg-row-header',
   },
@@ -151,6 +165,7 @@ export const PARTS: PartMeta[] = [
     label: 'Sel tabel',
     grup: 'Tabel',
     sub: 'Grid',
+    ukurSel: '.dsg-cell',
     hint: 'Isi sel (baca-saja & editor).',
     sel: '.simpes-dsg',
   },
@@ -220,7 +235,7 @@ export const PARTS: PartMeta[] = [
 export const PART_IDS: PartId[] = PARTS.map((p) => p.id);
 export const PART_BY_ID = new Map<PartId, PartMeta>(PARTS.map((p) => [p.id, p]));
 export const PART_GROUPS: string[] = [...new Set(PARTS.map((p) => p.grup))];
-export const EMPTY_PARTS: PartOverrides = { terang: {}, gelap: {} };
+export const EMPTY_PARTS: PartOverrides = { gaya: {}, terang: {}, gelap: {} };
 
 const HEX = /^#[0-9a-f]{6}$/i;
 const FONT_VALUES = new Set(FONT_OPTIONS.map((f) => f.value));
@@ -241,11 +256,11 @@ function angka(v: unknown, kunci: keyof typeof RENTANG): number | undefined {
   return r < lo || r > hi ? undefined : r;
 }
 
-/** Validasi + bersihkan satu gaya bagian (nilai asing dibuang). */
-export function bersihkanGaya(v: unknown): PartStyle | undefined {
+/** Validasi + bersihkan gaya tipografi/kotak (nilai asing dibuang). */
+export function bersihkanGaya(v: unknown): PartGaya | undefined {
   if (!v || typeof v !== 'object') return undefined;
   const o = v as Record<string, unknown>;
-  const s: PartStyle = {};
+  const s: PartGaya = {};
   if (typeof o.font === 'string' && o.font !== FONT_FAMILY_DEFAULT && FONT_VALUES.has(o.font)) {
     s.font = o.font;
   }
@@ -253,36 +268,73 @@ export function bersihkanGaya(v: unknown): PartStyle | undefined {
     const n = angka(o[k], k);
     if (n != null) s[k] = n;
   }
+  return Object.keys(s).length ? s : undefined;
+}
+
+/** Validasi + bersihkan warna bagian (hex saja; nilai asing dibuang). */
+export function bersihkanWarna(v: unknown): PartWarna | undefined {
+  if (!v || typeof v !== 'object') return undefined;
+  const o = v as Record<string, unknown>;
+  const s: PartWarna = {};
   for (const k of ['bg', 'fg', 'border'] as const) {
-    const c = typeof o[k] === 'string' ? o[k].toLowerCase() : '';
+    const c = typeof o[k] === 'string' ? (o[k] as string).toLowerCase() : '';
     if (HEX.test(c)) s[k] = c;
   }
   return Object.keys(s).length ? s : undefined;
 }
 
-/** Validasi struktur `simpes_parts` dari penyimpanan (aman terhadap data rusak). */
+/** Validasi `simpes_parts` dari penyimpanan (aman terhadap data rusak).
+ *  Bentuk lama (semua properti terpisah per mode) dimigrasi: properti
+ *  tipografi/kotak diambil dari mode terang (fallback gelap); warna tetap
+ *  dipertahankan per mode masing-masing. */
 export function normalizeParts(v: unknown): PartOverrides {
-  const hasil: PartOverrides = { terang: {}, gelap: {} };
+  const hasil: PartOverrides = { gaya: {}, terang: {}, gelap: {} };
   if (!v || typeof v !== 'object') return hasil;
   const o = v as Record<string, unknown>;
-  for (const mode of ['terang', 'gelap'] as PartMode[]) {
-    const src = o[mode];
-    if (!src || typeof src !== 'object') continue;
+  if (o.gaya && typeof o.gaya === 'object') {
     for (const id of PART_IDS) {
-      const s = bersihkanGaya((src as Record<string, unknown>)[id]);
-      if (s) hasil[mode][id] = s;
+      const g = bersihkanGaya((o.gaya as Record<string, unknown>)[id]);
+      if (g) hasil.gaya[id] = g;
     }
+    for (const mode of ['terang', 'gelap'] as PartMode[]) {
+      const src = o[mode];
+      if (!src || typeof src !== 'object') continue;
+      for (const id of PART_IDS) {
+        const w = bersihkanWarna((src as Record<string, unknown>)[id]);
+        if (w) hasil[mode][id] = w;
+      }
+    }
+    return hasil;
+  }
+  const lamaTerang = (o.terang && typeof o.terang === 'object' ? o.terang : {}) as Record<string, unknown>;
+  const lamaGelap = (o.gelap && typeof o.gelap === 'object' ? o.gelap : {}) as Record<string, unknown>;
+  for (const id of PART_IDS) {
+    const g = bersihkanGaya({ ...(lamaGelap[id] as object), ...(lamaTerang[id] as object) });
+    if (g) hasil.gaya[id] = g;
+    const wt = bersihkanWarna(lamaTerang[id]);
+    if (wt) hasil.terang[id] = wt;
+    const wg = bersihkanWarna(lamaGelap[id]);
+    if (wg) hasil.gelap[id] = wg;
   }
   return hasil;
 }
 
-/** Gabung patch ke gaya bagian; nilai `undefined` menghapus field.
- *  Mengembalikan `undefined` bila hasilnya kosong (bagian dianggap bawaan). */
-export function gabungGaya(ada: PartStyle | undefined, patch: Partial<PartStyle>): PartStyle | undefined {
-  const next: PartStyle = { ...ada };
+/** Gabung patch ke gaya; nilai `undefined` menghapus field (kosong = undefined). */
+export function gabungGaya(ada: PartGaya | undefined, patch: Partial<PartGaya>): PartGaya | undefined {
+  const next: PartGaya = { ...ada };
   for (const [k, v] of Object.entries(patch)) {
-    if (v === undefined) delete next[k as keyof PartStyle];
+    if (v === undefined) delete next[k as keyof PartGaya];
     else (next as Record<string, unknown>)[k] = v;
   }
   return bersihkanGaya(next);
+}
+
+/** Gabung patch ke warna; nilai `undefined` menghapus field (kosong = undefined). */
+export function gabungWarna(ada: PartWarna | undefined, patch: Partial<PartWarna>): PartWarna | undefined {
+  const next: PartWarna = { ...ada };
+  for (const [k, v] of Object.entries(patch)) {
+    if (v === undefined) delete next[k as keyof PartWarna];
+    else (next as Record<string, unknown>)[k] = v;
+  }
+  return bersihkanWarna(next);
 }

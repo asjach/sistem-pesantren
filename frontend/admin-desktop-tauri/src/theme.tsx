@@ -14,7 +14,7 @@ import {
 import { findPreset } from '@/themes';
 import { FONT_FAMILY_DEFAULT, fontParts } from '@/fonts';
 import { terapkanGayaBagian } from './partStyles';
-import { gabungGaya, type PartId, type PartMode, type PartOverrides, type PartStyle } from './parts';
+import { gabungGaya, gabungWarna, type PartGaya, type PartId, type PartMode, type PartOverrides, type PartWarna } from './parts';
 
 interface ThemeState extends Prefs {
   /** true bila dark efektif (mode gelap, atau sistem + OS gelap). */
@@ -26,10 +26,13 @@ interface ThemeState extends Prefs {
   setDensity: (d: DensityName) => void;
   setFontUI: (v: string) => void;
   setWarnaUI: (w: WarnaUIName) => void;
-  /** Ubah gaya satu bagian UI (patch; `undefined` menghapus properti). */
-  setPart: (mode: PartMode, id: PartId, patch: Partial<PartStyle>) => void;
-  resetPart: (mode: PartMode, id: PartId) => void;
-  resetParts: () => void;
+  /** Tipografi & kotak satu bagian (berlaku kedua mode; `undefined` = hapus). */
+  setGayaBagian: (id: PartId, patch: Partial<PartGaya>) => void;
+  /** Warna satu bagian untuk mode tertentu (`undefined` = hapus). */
+  setWarnaBagian: (mode: PartMode, id: PartId, patch: Partial<PartWarna>) => void;
+  /** Hapus semua pengaturan (gaya + warna kedua mode) satu bagian. */
+  resetBagian: (id: PartId) => void;
+  resetSemuaBagian: () => void;
 }
 
 const Ctx = createContext<ThemeState | null>(null);
@@ -128,19 +131,30 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       setDensity: (density) => update({ density }),
       setFontUI: (fontUI) => update({ fontUI }),
       setWarnaUI: (warnaUI) => update({ warnaUI }),
-      setPart: (mode, id, patch) => updateParts((p) => {
+      setGayaBagian: (id, patch) => updateParts((p) => {
+        const map = { ...p.gaya };
+        const g = gabungGaya(map[id], patch);
+        if (g) map[id] = g;
+        else delete map[id];
+        return { ...p, gaya: map };
+      }),
+      setWarnaBagian: (mode, id, patch) => updateParts((p) => {
         const map = { ...p[mode] };
-        const s = gabungGaya(map[id], patch);
-        if (s) map[id] = s;
+        const w = gabungWarna(map[id], patch);
+        if (w) map[id] = w;
         else delete map[id];
         return { ...p, [mode]: map };
       }),
-      resetPart: (mode, id) => updateParts((p) => {
-        const map = { ...p[mode] };
-        delete map[id];
-        return { ...p, [mode]: map };
+      resetBagian: (id) => updateParts((p) => {
+        const gaya = { ...p.gaya };
+        delete gaya[id];
+        const terang = { ...p.terang };
+        delete terang[id];
+        const gelap = { ...p.gelap };
+        delete gelap[id];
+        return { gaya, terang, gelap };
       }),
-      resetParts: () => updateParts(() => ({ terang: {}, gelap: {} })),
+      resetSemuaBagian: () => updateParts(() => ({ gaya: {}, terang: {}, gelap: {} })),
     };
   }, [prefs, osDark, update, updateParts]);
 
