@@ -707,9 +707,11 @@ export default function ExcelTable<T extends { id: string | number }>({
   const autoWidthsRef = useRef(autoWidths);
   autoWidthsRef.current = autoWidths;
   const [widthsReady, setWidthsReady] = useState(!!cacheHit);
-  /** Grid disembunyikan (space tetap dialokasikan) sampai lebar stabil, agar
-   *  pengguna tidak melihat kolom melompat dari lebar bawaan ke lebar final. */
-  const [lebarStabil, setLebarStabil] = useState(!!cacheHit);
+  /** Grid disembunyikan (space tetap dialokasikan) sampai lebar kolom BENAR
+   *  diterapkan DSG. DSG merender semua kolom dengan lebar bawaan (100px) pada
+   *  frame pertama sebelum basis kita dipakai — tanpa penahan ini terlihat
+   *  header "melompat". Selalu mulai tersembunyi, termasuk saat cache ada. */
+  const [lebarStabil, setLebarStabil] = useState(false);
   /** Lewati AutoFit pada commit pertama: cache sudah memuat lebar final. */
   const skipFitPertamaRef = useRef(!!cacheHit);
   const fittedRef = useRef<string | null>(cacheHit ? tableKey : null);
@@ -773,13 +775,38 @@ export default function ExcelTable<T extends { id: string | number }>({
     writeWidthCache(tableKey, { autoWidths });
   }, [tableKey, autoWidths]);
 
-  // Lebar awal sudah dihitung sinkron (syncAutoWidths), jadi grid cukup
-  // menunggu lebar tersimpan selesai dibaca — tanpa menunggu AutoFit DOM.
-  // Cache sesi berarti lebar tersimpan sudah ada sejak render pertama.
+  // Tampilkan grid setelah DSG benar-benar memakai lebar basis kita. Pada frame
+  // pertama DSG merender semua kolom 100px (bawaan) sebelum basis diterapkan —
+  // tanpa penahan ini header tampak "melompat". Kolom pertama (checkbox) selalu
+  // CHECK_W, jadi kita tunggu sampai lebarnya bukan lagi 100 (bawaan DSG).
   useEffect(() => {
     if (lebarStabil) return;
-    if (widthsReady) setLebarStabil(true);
-  }, [lebarStabil, widthsReady]);
+    if (!widthsReady || loading) return;
+    if (rows.length === 0) {
+      setLebarStabil(true);
+      return;
+    }
+    let tries = 0;
+    let raf = 0;
+    let batal = false;
+    const cek = () => {
+      if (batal) return;
+      const head = wrapRef.current?.querySelector<HTMLElement>(
+        '.dsg-row-header .dsg-cell:not(.dsg-cell-gutter)',
+      );
+      const w = head ? Math.round(head.getBoundingClientRect().width) : 0;
+      if (Math.abs(w - CHECK_W) <= 1 || ++tries > 20) {
+        setLebarStabil(true);
+        return;
+      }
+      raf = requestAnimationFrame(cek);
+    };
+    raf = requestAnimationFrame(cek);
+    return () => {
+      batal = true;
+      cancelAnimationFrame(raf);
+    };
+  }, [lebarStabil, widthsReady, loading, rows.length, tableKey]);
 
   useEffect(() => {
     const t = setTimeout(() => setLebarStabil(true), 1500);
