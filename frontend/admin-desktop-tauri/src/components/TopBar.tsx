@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { logout } from '@/api/auth';
 import { isTauri, prefGet, prefSet } from '@/api/client';
@@ -274,6 +274,8 @@ export default function TopBar() {
 
   const [tab, setTab] = useState<string>(() => halamanDariPath(pathname)?.tab ?? 'beranda');
   const [lipat, setLipat] = useState(false);
+  const stripRef = useRef<HTMLDivElement | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
 
   // Ribbon "diam": tab TIDAK ikut pindah saat navigasi — hanya berubah lewat
   // klik tab. Satu-satunya pengecualian: tab "Tabel" hilang saat halaman aktif
@@ -326,7 +328,6 @@ export default function TopBar() {
   }
 
   const tabAktif = tab === 'tabel' && !showGrid ? (halaman?.tab ?? 'beranda') : tab;
-
   const tabDef: { id: string; label: string }[] = [
     { id: 'beranda', label: 'Beranda' },
     { id: 'master', label: 'Master' },
@@ -336,6 +337,17 @@ export default function TopBar() {
     { id: 'pengaturan', label: 'Pengaturan' },
   ];
   if (showGrid) tabDef.push({ id: 'tabel', label: 'Tabel' });
+
+  // Di layar sempit ribbon bisa menggulir: bawa tab & tombol halaman aktif
+  // ke tampilan setiap navigasi/tab berubah agar tidak tersembunyi di luar.
+  useEffect(() => {
+    stripRef.current
+      ?.querySelector<HTMLElement>(`#tab_ribbon_${tabAktif}`)
+      ?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
+    panelRef.current
+      ?.querySelector<HTMLElement>('[aria-current="page"]')
+      ?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
+  }, [tabAktif, pathname, lipat]);
 
   return (
     <header
@@ -348,7 +360,7 @@ export default function TopBar() {
       </h1>
 
       {/* Strip tab + pengguna (kanan) */}
-      <div className="flex items-end gap-0.5 px-3 pt-1.5 md:px-5">
+      <div ref={stripRef} className="flex items-end gap-0.5 overflow-x-auto px-3 pt-1.5 md:px-5">
         {tabDef.map((t) => {
           const aktif = tabAktif === t.id;
           return (
@@ -430,7 +442,7 @@ export default function TopBar() {
       {/* Panel grup perintah */}
       {!lipat && (
         <div className="border-t border-white/10 bg-white/5">
-          <div className="flex min-h-[76px] items-stretch overflow-x-auto px-3 py-1.5 md:px-5">
+          <div ref={panelRef} className="flex min-h-[76px] items-stretch overflow-x-auto px-3 py-1.5 md:px-5">
             {tabAktif === 'beranda' && (
               <>
                 <RibbonGroup label="Mulai">
