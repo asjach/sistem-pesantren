@@ -249,6 +249,10 @@ function writeWidthCache(tableKey: string, patch: Partial<WidthCacheEntry>) {
   widthCache.set(tableKey, { ...prev, ...patch });
 }
 
+/** Cache tinggi final tabel kompak per tabel (sesi). Dipakai sebagai tinggi
+ *  placeholder saat memuat ulang halaman agar tabel tidak berubah tinggi. */
+const tinggiCache = new Map<string, number>();
+
 /** Host pengukuran offscreen: meniru struktur & kelas grid nyata sehingga
  *  getComputedStyle memberi font/padding PERSIS seperti sel asli (termasuk
  *  override gaya bagian). Dipakai menghitung lebar kolom secara sinkron pada
@@ -1268,14 +1272,32 @@ export default function ExcelTable<T extends { id: string | number }>({
   // tepat di baris terakhir (+ baris input bila mode Input aktif); versi
   // kompak yang kosong tetap tinggi layak agar pesan "Tidak ada …" terbaca.
   const barisIsi = Math.min(Math.max(rows.length, 1), maxRows ?? 0);
+  // Tabel kompak saat halaman masih memuat: tinggi placeholder DIPATOK pada
+  // batas maksimum (maxRows) dan tidak ikut berubah saat data tiap seksi tiba,
+  // supaya tabel di bawahnya tidak bergeser berkali-kali. Tinggi final
+  // diterapkan sekali saat muat selesai.
+  const memuatKompak = loading && maxRows !== undefined;
+  /** Tampilkan kerangka tabel (bukan grid) selama data belum siap. */
+  const pakaiMemuat = memuatKompak || (loading && rows.length === 0);
   const gridHeight = maxRows === undefined
     ? gridH
-    : Math.min(
-        gridH,
-        rows.length === 0 && !showInput
-          ? 280
-          : 27 + (barisIsi + (showInput ? 1 : 0)) * effectiveH,
-      );
+    : memuatKompak
+      ? Math.min(gridH, tinggiCache.get(tableKey) ?? 27 + maxRows * effectiveH)
+      : Math.min(
+          gridH,
+          rows.length === 0 && !showInput
+            ? 280
+            : 27 + (barisIsi + (showInput ? 1 : 0)) * effectiveH,
+        );
+
+  // Simpan tinggi final tabel kompak untuk dipakai sebagai placeholder pada
+  // kunjungan berikutnya (tinggi placeholder = tinggi final → tanpa geseran).
+  useEffect(() => {
+    if (maxRows !== undefined && !loading && gridHeight > 0) {
+      tinggiCache.set(tableKey, gridHeight);
+    }
+  }, [tableKey, maxRows, loading, gridHeight]);
+
   // "keluarga|ketebalan"; bawaan = pakai font & ketebalan aplikasi.
   const fontChoice = FONT_OPTIONS.find((f) => f.value === fontFamily);
   const [fontStack, fontStackWeight] =
@@ -2151,12 +2173,16 @@ export default function ExcelTable<T extends { id: string | number }>({
         <ContextMenu>
           <ContextMenuTrigger asChild>
             <div
-              className="simpes-dsg-kartu relative flex flex-col overflow-hidden bg-card"
+              className={cn(
+                'simpes-dsg-kartu relative flex flex-col overflow-hidden bg-card',
+                // Tabel kompak: haluskan perubahan tinggi placeholder → final.
+                maxRows !== undefined && 'transition-[height] duration-200 ease-out',
+              )}
               style={{ height: gridHeight, visibility: lebarStabil || loading ? undefined : 'hidden' }}
               onContextMenu={onGridContextMenu}
             >
-              {loading && rows.length === 0 ? (
-                <TabelMemuat rowH={effectiveH} />
+              {pakaiMemuat ? (
+                <TabelMemuat rowH={effectiveH} baris={maxRows ?? 14} />
               ) : (
                 <CheckAllContext.Provider value={checkAllState}>
                   <DataSheetGrid
