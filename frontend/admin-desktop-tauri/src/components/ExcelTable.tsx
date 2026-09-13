@@ -1774,7 +1774,7 @@ export default function ExcelTable<T extends { id: string | number }>({
       )}
       {/* Satu baris: pencarian + filter (kiri), lalu kontrol tabel dan tombol
           tambah halaman (kanan), dikelompokkan menurut fungsi. */}
-      <div className="mb-3 flex flex-wrap items-center gap-2">
+      <div data-part="toolbar_tabel" className="mb-3 flex flex-wrap items-center gap-2">
         {showToolbar && (
           <form
             id={formId}

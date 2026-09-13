@@ -1,5 +1,6 @@
 import { prefGet, prefSet } from '@/api/client';
 import { FONT_FAMILY_DEFAULT, FONT_OPTIONS } from './fonts';
+import { EMPTY_PARTS, normalizeParts, type PartOverrides } from './parts';
 import { PRESET_IDS, type ThemeName } from './themes';
 
 export type { ThemeName };
@@ -37,6 +38,7 @@ const K = {
   density: 'simpes_density',
   fontUI: 'simpes_font_ui',
   warnaUI: 'simpes_warna_ui',
+  parts: 'simpes_parts',
 } as const;
 
 export interface Prefs {
@@ -49,6 +51,8 @@ export interface Prefs {
   fontUI: string;
   /** Tingkat kekayaan warna UI (judul/ikon/permukaan/semantik). */
   warnaUI: WarnaUIName;
+  /** Gaya atomik per bagian UI (terpisah mode terang/gelap). */
+  parts: PartOverrides;
 }
 
 export const DEFAULT_PREFS: Prefs = {
@@ -59,6 +63,7 @@ export const DEFAULT_PREFS: Prefs = {
   density: 'sedang',
   fontUI: FONT_FAMILY_DEFAULT,
   warnaUI: 'kaya',
+  parts: EMPTY_PARTS,
 };
 
 /** Luminance relatif (WCAG) 0..1 untuk hex #rrggbb. */
@@ -89,7 +94,7 @@ export function normalizeHex(v: string): string | null {
 }
 
 export async function loadPrefs(): Promise<Prefs> {
-  const [theme, customHex, mode, sidebar, density, fontUI, warnaUI] = await Promise.all([
+  const [theme, customHex, mode, sidebar, density, fontUI, warnaUI, partsRaw] = await Promise.all([
     prefGet(K.theme),
     prefGet(K.customHex),
     prefGet(K.mode),
@@ -97,7 +102,14 @@ export async function loadPrefs(): Promise<Prefs> {
     prefGet(K.density),
     prefGet(K.fontUI),
     prefGet(K.warnaUI),
+    prefGet(K.parts),
   ]);
+  let parts = EMPTY_PARTS;
+  try {
+    if (partsRaw) parts = normalizeParts(JSON.parse(partsRaw));
+  } catch {
+    parts = EMPTY_PARTS;
+  }
   return {
     theme: PRESET_IDS.includes(theme ?? '') || theme === 'kustom'
       ? (theme as ThemeName)
@@ -112,6 +124,7 @@ export async function loadPrefs(): Promise<Prefs> {
     warnaUI: (WARNA_UI as string[]).includes(warnaUI ?? '')
       ? (warnaUI as WarnaUIName)
       : DEFAULT_PREFS.warnaUI,
+    parts,
   };
 }
 
@@ -124,5 +137,6 @@ export async function savePrefs(p: Prefs): Promise<void> {
     prefSet(K.density, p.density),
     prefSet(K.fontUI, p.fontUI),
     prefSet(K.warnaUI, p.warnaUI),
+    prefSet(K.parts, JSON.stringify(p.parts)),
   ]);
 }

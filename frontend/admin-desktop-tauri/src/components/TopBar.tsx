@@ -187,6 +187,7 @@ function RibbonBtn({
       to={to}
       end={to === '/'}
       title={label}
+      data-part="menu_ribbon"
       className={cn(
         'flex h-[58px] w-[76px] flex-col items-center justify-center gap-1 rounded-md px-1 text-center text-[11px] leading-tight transition-colors',
         aktif ? 'bg-white/20 font-semibold text-white' : 'text-white/85 hover:bg-white/10 hover:text-white',
@@ -219,6 +220,7 @@ function RibbonCmd({
       title={label}
       disabled={disabled}
       onClick={onClick}
+      data-part="menu_ribbon"
       className={cn(
         'flex h-[58px] w-[76px] flex-col items-center justify-center gap-1 rounded-md px-1 text-center text-[11px] leading-tight transition-colors',
         'text-white/85 hover:bg-white/10 hover:text-white disabled:pointer-events-none disabled:opacity-40',
@@ -233,7 +235,7 @@ function RibbonCmd({
 /** Grup perintah ribbon + nama grup di bawahnya (ala Office). */
 function RibbonGroup({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex shrink-0 flex-col items-center gap-0.5 px-1.5">
+    <div data-part="grup_ribbon" className="flex shrink-0 flex-col items-center gap-0.5 px-1.5">
       <div className="flex flex-1 items-center gap-1">{children}</div>
       <span className="text-[10px] uppercase tracking-wide text-white/50">{label}</span>
     </div>

@@ -144,11 +144,11 @@
 
 /* ---------- Spreadsheet DSG (Pos): ikut semua tema + dark via var aplikasi ---------- */
 .simpes-dsg {
-  --dsg-border-color: var(--border);
-  --dsg-cell-background-color: var(--card);
-  --dsg-cell-disabled-background-color: var(--card);
-  --dsg-header-text-color: var(--muted-foreground);
-  --dsg-header-active-text-color: var(--foreground);
+  --dsg-border-color: var(--part-tabel_sel-border, var(--border));
+  --dsg-cell-background-color: var(--part-tabel_sel-bg, var(--card));
+  --dsg-cell-disabled-background-color: var(--part-tabel_sel-bg, var(--card));
+  --dsg-header-text-color: var(--part-tabel_header-fg, var(--muted-foreground));
+  --dsg-header-active-text-color: var(--part-tabel_header-fg, var(--foreground));
   --dsg-selection-border-color: var(--accent);
   --dsg-selection-border-width: 1px;
   --dsg-selection-background-color: color-mix(in srgb, var(--accent) 20%, transparent);
@@ -158,8 +158,8 @@
   /* Jenis & ukuran huruf ISI tabel: diatur dari toolbar tabel (berlaku semua
      tabel). Header kolom TIDAK mengikuti — lihat .dsg-cell-header-container
      yang memakai --font-display. */
-  font-family: var(--simpes-font-family, var(--font-sans));
-  font-size: var(--simpes-font-size, 13px);
+  font-family: var(--simpes-font-family, var(--part-tabel_sel-font, var(--font-sans)));
+  font-size: var(--simpes-font-size, var(--part-tabel_sel-size, 13px));
 }
 /* ---------- Seleksi gaya spreadsheet ----------
    Geometri rect bawaan DSG SUDAH tepat: rect membentang dari tepi kiri/atas
@@ -223,10 +223,10 @@
   color-scheme: dark;
 }
 .simpes-dsg .dsg-container {
-  color: var(--foreground);
-  background: var(--card);
+  color: var(--part-tabel_sel-fg, var(--foreground));
+  background: var(--part-tabel_sel-bg, var(--card));
   /* Ikut jenis huruf isi tabel; header kolom menimpanya sendiri. */
-  font-family: var(--simpes-font-family, var(--font-sans));
+  font-family: var(--simpes-font-family, var(--part-tabel_sel-font, var(--font-sans)));
   /* Isi sisa wrapper: basis flex, boleh menyusut (scroll internal) bila data banyak. */
   flex: 1 1 auto;
   min-height: 0;
@@ -242,7 +242,7 @@
   min-height: 0;
 }
 .simpes-dsg .dsg-row.dsg-row-header {
-  background: color-mix(in srgb, var(--foreground) 7%, var(--card));
+  background: var(--part-tabel_header-bg, color-mix(in srgb, var(--foreground) 7%, var(--card)));
 }
 /* Indikator sudut select-all ala Excel: DSG memberi `margin: auto` (tampak
    berjarak ke semua sisi). Rapatkan tepat ke sudut kanan-bawah sel.
@@ -260,9 +260,10 @@
   margin: 0;
 }
 .simpes-dsg .dsg-cell-header .dsg-cell-header-container {
-  font-family: var(--font-display);
-  font-weight: 500;
-  font-size: var(--simpes-font-size, 13px);
+  color: var(--part-tabel_header-fg, inherit);
+  font-family: var(--part-tabel_header-font, var(--font-display));
+  font-weight: var(--part-tabel_header-weight, 500);
+  font-size: var(--simpes-font-size, var(--part-tabel_header-size, 13px));
   /* Tanpa padding: judul memakai penuh lebar kolom & rata tengah. */
   padding: 0;
   /* Sel header DSG adalah flex: buat wadah judul mengisi penuh agar gagang
@@ -271,10 +272,10 @@
   min-width: 0;
 }
 .simpes-dsg .dsg-cell {
-  padding-left: 8px;
-  padding-right: 8px;
+  padding-left: var(--part-tabel_sel-padx, 8px);
+  padding-right: var(--part-tabel_sel-padx, 8px);
   /* Ketebalan mengikuti pilihan di toolbar (mis. varian Light). */
-  font-weight: var(--simpes-font-weight, 400);
+  font-weight: var(--simpes-font-weight, var(--part-tabel_sel-weight, 400));
   font-variant-numeric: tabular-nums;
 }
 /* Garis pemisah antar baris berasal dari border-top baris DI BAWAHNYA,

@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Monitor, Moon, Sun } from 'lucide-react';
+import PartStyleEditor from '@/components/PartStyleEditor';
 
 const MODES: { id: ModeName; nama: string; icon: typeof Sun }[] = [
   { id: 'terang', nama: 'Terang', icon: Sun },
@@ -190,6 +191,8 @@ export default function PengaturanTampilanPage() {
           </FieldDescription>
         </FieldSet>
       </section>
+
+      <PartStyleEditor />
     </div>
   );
 }
