@@ -635,6 +635,7 @@ export default function PartStyleEditor() {
                   max={RENTANG.padY[1]}
                   onChange={(v) => setGayaBagian(aktif, { padY: v })}
                 />
+                {!meta.tanpaDimensi?.includes('lebar') && (
                 <AngkaField
                   id="input_lebar_bagian"
                   label="Lebar"
@@ -644,6 +645,8 @@ export default function PartStyleEditor() {
                   max={RENTANG.lebar[1]}
                   onChange={(v) => setGayaBagian(aktif, { lebar: v })}
                 />
+                )}
+                {!meta.tanpaDimensi?.includes('tinggi') && (
                 <AngkaField
                   id="input_tinggi_bagian"
                   label="Tinggi"
@@ -653,6 +656,14 @@ export default function PartStyleEditor() {
                   max={RENTANG.tinggi[1]}
                   onChange={(v) => setGayaBagian(aktif, { tinggi: v })}
                 />
+                )}
+                {meta.tanpaDimensi && meta.tanpaDimensi.length > 0 && (
+                  <FieldDescription>
+                    Lebar & tinggi dinonaktifkan untuk bagian ini agar tata letak tidak rusak
+                    (mengikuti isi; mode lipat tetap jalan). Atur ukuran lewat Tab ribbon /
+                    Tombol menu ribbon.
+                  </FieldDescription>
+                )}
                 <FieldDescription>Berlaku untuk mode terang & gelap. Kosong = bawaan komponen.</FieldDescription>
               </FieldSet>
             </div>

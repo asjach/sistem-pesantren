@@ -116,6 +116,11 @@ export interface PartMeta {
   kendali?: boolean;
   /** Selektor elemen pengukuran nilai bawaan di pratinjau (opsional). */
   ukurSel?: string;
+  /** Dimensi yang dinonaktifkan untuk bagian ini (nilai tersimpan diabaikan
+   *  dan kontrolnya disembunyikan di editor). Dipakai untuk wadah struktural
+   *  penuh seperti bilah ribbon: `width`/`height` kaku merusak tata letak
+   *  (bilah menyempit/kepotong, mode lipat tak jalan). */
+  tanpaDimensi?: ('lebar' | 'tinggi')[];
   hint: string;
   /** Selektor akar bagian (digabung otomatis dengan scope mode terang/gelap). */
   sel: string;
@@ -128,7 +133,8 @@ export const PARTS: PartMeta[] = [
     label: 'Bilah ribbon',
     grup: 'Struktur',
     sub: 'Ribbon',
-    hint: 'Strip atas berisi tab & panel menu.',
+    tanpaDimensi: ['lebar', 'tinggi'],
+    hint: 'Strip atas berisi tab & panel menu. Lebar & tinggi mengikuti isi (mode lipat tetap jalan).',
     sel: '#root header',
   },
   {
@@ -698,6 +704,23 @@ export function bersihkanWarna(v: unknown): PartWarna | undefined {
   return Object.keys(s).length ? s : undefined;
 }
 
+/** Buang dimensi yang dinonaktifkan (mis. lebar/tinggi ribbon lama) agar
+ *  nilai basi tidak menandai bagian sebagai "diatur". */
+function buangDimensiMati(id: PartId, g?: PartGaya): PartGaya | undefined {
+  const tanpa = PART_BY_ID.get(id)?.tanpaDimensi;
+  if (!g || !tanpa?.length) return g;
+  const next = { ...g };
+  let berubah = false;
+  for (const k of tanpa) {
+    if (next[k] != null) {
+      delete next[k];
+      berubah = true;
+    }
+  }
+  if (!berubah) return g;
+  return Object.keys(next).length ? next : undefined;
+}
+
 /** Validasi `simpes_parts` dari penyimpanan (aman terhadap data rusak).
  *  Bentuk lama (semua properti terpisah per mode) dimigrasi: properti
  *  tipografi/kotak diambil dari mode terang (fallback gelap); warna tetap
@@ -708,7 +731,7 @@ export function normalizeParts(v: unknown): PartOverrides {
   const o = v as Record<string, unknown>;
   if (o.gaya && typeof o.gaya === 'object') {
     for (const id of PART_IDS) {
-      const g = bersihkanGaya((o.gaya as Record<string, unknown>)[id]);
+      const g = buangDimensiMati(id, bersihkanGaya((o.gaya as Record<string, unknown>)[id]));
       if (g) hasil.gaya[id] = g;
     }
     for (const mode of ['terang', 'gelap'] as PartMode[]) {
@@ -724,7 +747,7 @@ export function normalizeParts(v: unknown): PartOverrides {
   const lamaTerang = (o.terang && typeof o.terang === 'object' ? o.terang : {}) as Record<string, unknown>;
   const lamaGelap = (o.gelap && typeof o.gelap === 'object' ? o.gelap : {}) as Record<string, unknown>;
   for (const id of PART_IDS) {
-    const g = bersihkanGaya({ ...(lamaGelap[id] as object), ...(lamaTerang[id] as object) });
+    const g = buangDimensiMati(id, bersihkanGaya({ ...(lamaGelap[id] as object), ...(lamaTerang[id] as object) }));
     if (g) hasil.gaya[id] = g;
     const wt = bersihkanWarna(lamaTerang[id]);
     if (wt) hasil.terang[id] = wt;
