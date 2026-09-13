@@ -10,7 +10,7 @@ export default function Layout({ children }: { children: ReactNode }) {
       <RibbonTableProvider>
         <div className="flex h-screen flex-col overflow-hidden">
           <TopBar />
-          <main className="flex min-h-0 flex-1 flex-col overflow-y-auto p-2 md:px-4 md:py-3">
+          <main className="flex min-h-0 flex-1 flex-col overflow-y-auto p-1">
             {children}
           </main>
         </div>

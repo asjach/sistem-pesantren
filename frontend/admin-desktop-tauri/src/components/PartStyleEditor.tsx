@@ -638,7 +638,7 @@ export default function PartStyleEditor() {
   );
 
   return (
-    <section className={cn('flex w-full max-w-none flex-col gap-4', pakaiPanel && 'min-h-0 flex-1 md:-mb-1.5')}>
+    <section className={cn('flex w-full max-w-none flex-col gap-4', pakaiPanel && 'min-h-0 flex-1')}>
       {pakaiPanel ? (
         <div className="min-h-[360px] flex-1">
           <ResizablePanelGroup
@@ -652,7 +652,7 @@ export default function PartStyleEditor() {
                 {daftarBagian}
               </aside>
             </ResizablePanel>
-            <ResizableHandle withHandle orientation="horizontal" className="mx-2" />
+            <ResizableHandle withHandle orientation="horizontal" />
             <ResizablePanel id="kanan" minSize="40%">
               <ResizablePanelGroup
                 orientation="vertical"

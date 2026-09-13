@@ -1937,8 +1937,8 @@ export default function ExcelTable<T extends { id: string | number }>({
         onMouseDownCapture={closeEditorOnOtherCell}
         className={cn(
           // Grid full-bleed: menempel tepi kiri-kanan area konten (imbangi padding
-          // layout p-2 / md:px-4) tanpa sudut membulat; toolbar tetap berpadding.
-          'simpes-dsg relative -mx-2 flex flex-col md:-mx-4',
+          // layout p-1) tanpa sudut membulat; toolbar tetap berpadding.
+          'simpes-dsg relative -mx-1 flex flex-col',
           maxRows === undefined ? 'min-h-[280px] flex-1' : 'shrink-0',
           !editing && 'simpes-dsg-readonly',
         )}
