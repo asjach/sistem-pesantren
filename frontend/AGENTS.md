@@ -18,4 +18,4 @@
   permintaan yang mengubah file / sebelum perubahan besar).
 - Playwright / browser otomatis wajib minta persetujuan pengguna dulu.
 - Backend dev: `php artisan serve` (127.0.0.1:8000); frontend: `npm run dev`
-  (127.0.0.1:1420). Boleh dinyalakan/dimatikan tanpa konfirmasi.
+  (127.0.0.1:1420). Boleh dinyalakan/dimatikan dengan konfirmasi dari user.
