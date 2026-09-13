@@ -1,4 +1,6 @@
 import { fontParts } from './fonts';
+import { onAccentFor } from './prefs';
+import { findPreset, type ThemeName } from './themes';
 import { PARTS, type PartId, type PartMap, type PartMode, type PartOverrides, type PartStyle } from './parts';
 
 /** Gaya per bagian di-generate runtime ke satu <style id> (urutan terakhir,
@@ -61,6 +63,49 @@ function blokVariabel(scope: string, id: PartId, s: PartStyle): string {
   const v = variabelBagian(id, s);
   const decls = Object.entries(v).map(([k, val]) => `${k}:${val}`);
   return decls.length ? `${scope}{${decls.join(';')}}` : '';
+}
+
+/** Variabel wajah tema (terang/gelap) untuk kanvas pratinjau editor — meniru
+ *  yang dipasang `applyPrefs` di <html>, supaya pratinjau mengikuti mode yang
+ *  sedang diedit, bukan mode global aplikasi. */
+export function variabelWajah(theme: ThemeName, gelap: boolean, customHex: string): Record<string, string> {
+  const t = theme === 'kustom' ? null : findPreset(theme);
+  const bg = t ? (gelap ? t.gelap.bg : t.terang.bg) : gelap ? '#101511' : '#f2f5f1';
+  const fg = t ? (gelap ? t.gelap.fg : t.terang.fg) : gelap ? '#e8ede8' : '#1d241e';
+  const accent = theme === 'kustom' ? customHex : gelap ? t!.gelap.accent : t!.terang.accent;
+  const mix = (a: string, pa: number, b: string) => `color-mix(in srgb, ${a} ${pa}%, ${b})`;
+  return {
+    '--background': bg,
+    '--foreground': fg,
+    '--accent': accent,
+    '--on-accent': onAccentFor(accent),
+    '--sidebar': t ? t.sidebar : gelap ? '#0d1f12' : '#17351f',
+    '--sidebar-deep': t ? t.sidebarDeep : gelap ? '#0a180e' : '#122b1a',
+    '--accent-readable': mix(accent, 72, fg),
+    '--card': mix(fg, 5, bg),
+    '--card-foreground': fg,
+    '--popover': mix(fg, 5, bg),
+    '--popover-foreground': fg,
+    '--primary': accent,
+    '--primary-foreground': onAccentFor(accent),
+    '--secondary': mix(fg, 8, bg),
+    '--secondary-foreground': fg,
+    '--muted': mix(fg, 8, bg),
+    '--muted-foreground': mix(fg, 68, bg),
+    '--accent-soft': mix(accent, 16, bg),
+    '--accent-soft-foreground': mix(accent, 70, fg),
+    '--border': mix(fg, 12, bg),
+    '--input': mix(fg, 12, bg),
+    '--ring': accent,
+    '--destructive': gelap ? '#e0685f' : '#a12622',
+    '--destructive-foreground': gelap ? '#1a0b0a' : '#ffffff',
+    '--warning': gelap ? '#fbbf24' : '#b45309',
+    '--warning-foreground': gelap ? '#fcd34d' : '#92400e',
+    '--success': mix('#16a34a', 72, fg),
+    '--success-foreground': '#ffffff',
+    '--info': mix('#2563eb', 72, fg),
+    '--info-foreground': '#ffffff',
+  };
 }
 
 /** CSS pratinjau editor: deklarasi sama seperti aslinya, tanpa scope mode

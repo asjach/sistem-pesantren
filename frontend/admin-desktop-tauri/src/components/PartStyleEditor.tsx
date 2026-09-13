@@ -1,9 +1,9 @@
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { useTheme } from '@/theme';
 import { FONT_FAMILY_DEFAULT, FONT_OPTIONS, type FontOption } from '@/fonts';
 import { PARTS, PART_GROUPS, RENTANG, type PartId, type PartMode } from '@/parts';
 import { normalizeHex } from '@/prefs';
-import { bangunCssPratinjau, variabelBagian } from '@/partStyles';
+import { bangunCssPratinjau, variabelBagian, variabelWajah } from '@/partStyles';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Moon, RotateCcw, Sun } from 'lucide-react';
+import { Moon, RotateCcw, Search, Sun } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const FONT_GROUPS: { id: string; label: string; items: FontOption[] }[] = [
@@ -34,7 +34,7 @@ function ContohBagian({ id }: { id: PartId }) {
     case 'ribbon':
     case 'tab_ribbon':
       return (
-        <div className="flex gap-1 rounded bg-sidebar-deep p-2">
+        <div className="flex gap-1 rounded bg-[var(--sidebar-deep)] p-2">
           <span className="rounded-t-md bg-white/20 px-3 py-1 text-xs font-semibold text-white">Beranda</span>
           <span className="rounded-t-md px-3 py-1 text-xs text-white/70">Master</span>
           <span className="rounded-t-md px-3 py-1 text-xs text-white/70">PSB</span>
@@ -43,7 +43,7 @@ function ContohBagian({ id }: { id: PartId }) {
     case 'grup_ribbon':
     case 'menu_ribbon':
       return (
-        <div className="flex items-end gap-2 rounded bg-sidebar-deep p-2">
+        <div className="flex items-end gap-2 rounded bg-[var(--sidebar-deep)] p-2">
           <span className="flex h-[48px] w-[64px] items-center justify-center rounded bg-white/20 text-[11px] font-semibold text-white">Santri</span>
           <span className="flex h-[48px] w-[64px] items-center justify-center rounded text-[11px] text-white/80">Kelas</span>
           <span className="pb-1 text-[10px] uppercase tracking-wide text-white/50">Grup</span>
@@ -55,13 +55,13 @@ function ContohBagian({ id }: { id: PartId }) {
       return <h3 className="text-sm font-semibold">Ringkasan Keuangan</h3>;
     case 'teks_isi':
       return (
-        <p className="text-sm">
+        <p className="max-w-md text-center text-sm">
           Total santri aktif tahun ajaran ini bertambah 24 orang dari periode sebelumnya.
         </p>
       );
     case 'kartu':
       return (
-        <section className="w-full rounded-xl border bg-card p-3">
+        <section className="w-full max-w-sm rounded-xl border bg-card p-3">
           <div className="text-sm font-medium">Ringkasan</div>
           <p className="text-sm text-muted-foreground">12 kelas · 345 santri aktif</p>
         </section>
@@ -76,7 +76,7 @@ function ContohBagian({ id }: { id: PartId }) {
       );
     case 'tabel_header':
       return (
-        <div className="simpes-dsg w-full overflow-hidden rounded border">
+        <div className="simpes-dsg w-full max-w-sm overflow-hidden rounded border">
           <div className="dsg-row dsg-row-header flex">
             {['Nama', 'Kelas', 'Status'].map((t) => (
               <div
@@ -97,7 +97,7 @@ function ContohBagian({ id }: { id: PartId }) {
       );
     case 'tabel_sel':
       return (
-        <div className="simpes-dsg w-full overflow-hidden rounded border">
+        <div className="simpes-dsg w-full max-w-sm overflow-hidden rounded border">
           {[
             ['Ahmad Fauzi', 'VII-A', 'Aktif'],
             ['Siti Aminah', 'VIII-B', 'Aktif'],
@@ -130,7 +130,7 @@ function ContohBagian({ id }: { id: PartId }) {
       );
     case 'toolbar_tabel':
       return (
-        <div className="flex w-full flex-wrap items-center gap-2 rounded border bg-card p-2">
+        <div className="flex w-full max-w-md flex-wrap items-center gap-2 rounded border bg-card p-2">
           <span className="rounded border px-2 py-1 text-xs">Cari…</span>
           <span className="text-xs text-muted-foreground">2 baris dipilih</span>
           <span className="ml-auto rounded border bg-primary px-2 py-1 text-xs text-primary-foreground">＋ Tambah</span>
@@ -138,7 +138,7 @@ function ContohBagian({ id }: { id: PartId }) {
       );
     case 'tombol':
       return (
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center justify-center gap-2">
           <Button size="sm">Simpan</Button>
           <Button size="sm" variant="secondary">Batal</Button>
           <Button size="sm" variant="outline">Filter</Button>
@@ -201,22 +201,22 @@ function WarnaField({
   const [draft, setDraft] = useState(nilai ?? '');
   useEffect(() => setDraft(nilai ?? ''), [nilai]);
   return (
-    <div className="flex items-center gap-2">
-      <Label htmlFor={`${id}_picker`} className="w-20 shrink-0">{label}</Label>
+    <div className="flex items-center gap-1.5">
+      <Label htmlFor={`${id}_picker`} className="w-14 shrink-0">{label}</Label>
       <input
         id={`${id}_picker`}
         type="color"
         value={nilai ?? '#808080'}
         onChange={(e) => onChange(e.target.value)}
         title={label}
-        className="h-[30px] w-10 cursor-pointer rounded-md border bg-card p-1"
+        className="h-[30px] w-9 shrink-0 cursor-pointer rounded-md border bg-card p-1"
       />
       <Input
         id={`${id}_hex`}
         value={draft}
         placeholder="bawaan"
         maxLength={7}
-        className="w-24 font-mono"
+        className="h-8 w-full min-w-0 font-mono"
         onChange={(e) => {
           setDraft(e.target.value);
           const n = normalizeHex(e.target.value);
@@ -255,7 +255,7 @@ function AngkaField({
   onChange: (v: number | undefined) => void;
 }) {
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-1.5">
       <Label htmlFor={id} className="w-20 shrink-0">{label}</Label>
       <Input
         key={`${id}:${nilai ?? ''}`}
@@ -265,7 +265,7 @@ function AngkaField({
         max={max}
         defaultValue={nilai ?? ''}
         placeholder="bawaan"
-        className="w-24"
+        className="h-8 w-full min-w-0"
         onBlur={(e) => {
           const v = e.target.value.trim();
           onChange(v === '' ? undefined : Number(v));
@@ -274,59 +274,75 @@ function AngkaField({
           if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
         }}
       />
-      <span className="text-xs text-muted-foreground">px</span>
+      <span className="w-4 shrink-0 text-xs text-muted-foreground">px</span>
     </div>
   );
 }
 
 /** Editor gaya atomik per bagian UI (terpisah mode terang/gelap) + pratinjau. */
 export default function PartStyleEditor() {
-  const { parts, setPart, resetPart, resetParts } = useTheme();
+  const { parts, theme, customHex, setPart, resetPart, resetParts } = useTheme();
   const [mode, setMode] = useState<PartMode>('terang');
   const [aktif, setAktif] = useState<PartId>('ribbon');
+  const [cari, setCari] = useState('');
   const meta = PARTS.find((p) => p.id === aktif) ?? PARTS[0];
   const s = parts[mode][aktif] ?? {};
   const angka = (k: keyof typeof RENTANG) =>
     (v: number | undefined) => setPart(mode, aktif, { [k]: v });
 
+  const grupTampil = useMemo(() => {
+    const q = cari.trim().toLowerCase();
+    const cocok = q
+      ? PARTS.filter(
+          (p) =>
+            p.label.toLowerCase().includes(q) ||
+            p.hint.toLowerCase().includes(q) ||
+            p.grup.toLowerCase().includes(q),
+        )
+      : PARTS;
+    return PART_GROUPS.map((nama) => ({
+      nama,
+      items: cocok.filter((p) => p.grup === nama),
+      diatur: cocok.filter((p) => p.grup === nama && parts[mode][p.id]).length,
+    })).filter((g) => g.items.length > 0);
+  }, [cari, mode, parts]);
+
+  const jumlahDiatur = Object.keys(parts[mode]).length;
+  const gelap = mode === 'gelap';
+  /** Wajah tema untuk kanvas pratinjau (mengikuti tab mode yang diedit). */
+  const gayaWajah = {
+    ...variabelWajah(theme, gelap, customHex),
+  } as unknown as CSSProperties;
+
   return (
-    <section className="flex w-full max-w-none flex-col gap-4 rounded-xl border bg-card p-5">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-base font-semibold">Per bagian (atomic)</h2>
-        <div className="flex flex-wrap items-center gap-2">
-          <ToggleGroup
-            type="single"
-            variant="outline"
-            spacing={0}
-            value={mode}
-            onValueChange={(v) => { if (v) setMode(v as PartMode); }}
-          >
-            <ToggleGroupItem id="btn_bagian_terang" value="terang">
-              <Sun size={14} /> Terang
-            </ToggleGroupItem>
-            <ToggleGroupItem id="btn_bagian_gelap" value="gelap">
-              <Moon size={14} /> Gelap
-            </ToggleGroupItem>
-          </ToggleGroup>
-          <Button id="btn_reset_semua_bagian" type="button" variant="outline" size="sm" onClick={resetParts}>
-            <RotateCcw size={14} /> Reset semua
-          </Button>
-        </div>
-      </div>
-      <FieldDescription>
-        Atur font, warna, border, radius, dan padding untuk tiap bagian UI. Field
-        kosong = ikut tema/komponen (bawaan). Pengaturan dipisah untuk mode terang
-        dan gelap, dan langsung terlihat di antarmuka.
-      </FieldDescription>
-      <div className="grid gap-3 md:grid-cols-[240px_1fr]">
-        <div className="flex max-h-[460px] flex-col gap-3 overflow-y-auto rounded-md border p-2">
-          {PART_GROUPS.map((g) => (
-            <div key={g}>
-              <div className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                {g}
+    <section className="flex w-full max-w-none flex-col gap-4">
+      <div className="grid items-start gap-4 lg:grid-cols-[270px_minmax(0,1fr)]">
+        <aside className="flex flex-col gap-2 rounded-xl border bg-card p-3 lg:sticky lg:top-3 lg:max-h-[calc(100vh-120px)] lg:overflow-y-auto">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              id="input_cari_bagian"
+              value={cari}
+              onChange={(e) => setCari(e.target.value)}
+              placeholder="Cari bagian…"
+              aria-label="Cari bagian"
+              className="h-8 pl-7"
+            />
+          </div>
+          {grupTampil.map((g) => (
+            <div key={g.nama}>
+              <div className="flex items-center justify-between px-1 pb-1">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  {g.nama}
+                </span>
+                {g.diatur > 0 && (
+                  <Badge variant="secondary" className="h-4 px-1 text-[10px] leading-none">
+                    {g.diatur}
+                  </Badge>
+                )}
               </div>
               <div className="flex flex-col gap-0.5">
-                {PARTS.filter((p) => p.grup === g).map((p) => {
+                {g.items.map((p) => {
                   const diatur = !!parts[mode][p.id];
                   return (
                     <button
@@ -336,42 +352,70 @@ export default function PartStyleEditor() {
                       title={p.hint}
                       onClick={() => setAktif(p.id)}
                       className={cn(
-                        'flex items-center gap-2 rounded px-2 py-1 text-left text-sm transition-colors',
-                        p.id === aktif ? 'bg-accent font-medium text-accent-foreground' : 'hover:bg-muted',
+                        'flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm transition-colors',
+                        p.id === aktif
+                          ? 'bg-accent font-medium text-accent-foreground'
+                          : 'hover:bg-muted',
                       )}
                     >
                       <span className="flex-1 truncate">{p.label}</span>
-                      {diatur && <span className="size-1.5 shrink-0 rounded-full bg-primary" title="Ada pengaturan" />}
+                      {diatur && (
+                        <span className="size-1.5 shrink-0 rounded-full bg-primary" title="Ada pengaturan" />
+                      )}
                     </button>
                   );
                 })}
               </div>
             </div>
           ))}
-        </div>
-        <div className="flex flex-col gap-3 rounded-md border p-3">
-          <div className="flex flex-wrap items-start justify-between gap-2">
-            <div>
-              <div className="text-sm font-medium">{meta.label}</div>
-              <div className="text-xs text-muted-foreground">{meta.hint}</div>
+          {grupTampil.length === 0 && (
+            <p className="px-1 py-2 text-xs text-muted-foreground">Tidak ada bagian yang cocok.</p>
+          )}
+        </aside>
+
+        <div className="flex min-w-0 flex-col gap-4">
+          <div className="rounded-xl border bg-card p-4">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">Pratinjau</span>
+                <Badge variant="secondary">{mode === 'gelap' ? 'Mode Gelap' : 'Mode Terang'}</Badge>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs text-muted-foreground">Atur mode</span>
+                <ToggleGroup
+                  type="single"
+                  variant="outline"
+                  spacing={0}
+                  value={mode}
+                  onValueChange={(v) => { if (v) setMode(v as PartMode); }}
+                >
+                  <ToggleGroupItem id="btn_bagian_terang" value="terang" title="Atur mode terang">
+                    <Sun size={14} /> Terang
+                  </ToggleGroupItem>
+                  <ToggleGroupItem id="btn_bagian_gelap" value="gelap" title="Atur mode gelap">
+                    <Moon size={14} /> Gelap
+                  </ToggleGroupItem>
+                </ToggleGroup>
+                <Button
+                  id="btn_reset_semua_bagian"
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={jumlahDiatur === 0}
+                  onClick={resetParts}
+                >
+                  <RotateCcw size={14} /> Reset semua
+                </Button>
+              </div>
             </div>
-            <Button
-              id={`btn_reset_bagian_${meta.id}`}
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={!parts[mode][meta.id]}
-              onClick={() => resetPart(mode, meta.id)}
+            <div
+              id="pratinjau_bagian"
+              className={cn(
+                'grid min-h-[170px] place-items-center overflow-hidden rounded-lg border p-4',
+                gelap && 'dark',
+              )}
+              style={{ ...gayaWajah, background: 'var(--background)', color: 'var(--foreground)' }}
             >
-              <RotateCcw size={14} /> Reset bagian
-            </Button>
-          </div>
-          <div>
-            <div className="mb-1 flex items-center gap-2 text-xs text-muted-foreground">
-              <span>Pratinjau</span>
-              <Badge variant="secondary">{mode === 'gelap' ? 'Gelap' : 'Terang'}</Badge>
-            </div>
-            <div id="pratinjau_bagian" className="grid min-h-[96px] place-items-center rounded-md border bg-background p-3">
               <style>{bangunCssPratinjau(aktif, s)}</style>
               <div
                 data-pratinjau-part
@@ -382,90 +426,113 @@ export default function PartStyleEditor() {
               </div>
             </div>
             <p className="mt-1 text-[11px] text-muted-foreground">
-              Kanvas mengikuti tema & mode aktif aplikasi; gaya mengikuti tab mode
-              yang sedang diedit.
+              Pratinjau mengikuti tab mode yang sedang diedit dan tema aktif — kanvas
+              ikut mode Terang/Gelap, bukan mode global aplikasi.
             </p>
           </div>
-          <div className="grid gap-2">
-            <div className="flex items-center gap-2">
-              <Label htmlFor="select_font_bagian" className="w-20 shrink-0">Font</Label>
-              <Select
-                value={s.font ?? FONT_FAMILY_DEFAULT}
-                onValueChange={(v) => setPart(mode, aktif, { font: v === FONT_FAMILY_DEFAULT ? undefined : v })}
+
+          <div className="rounded-xl border bg-card p-4">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <div className="text-sm font-medium">{meta.label}</div>
+                <div className="text-xs text-muted-foreground">{meta.hint}</div>
+              </div>
+              <Button
+                id={`btn_reset_bagian_${meta.id}`}
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={!parts[mode][meta.id]}
+                onClick={() => resetPart(mode, meta.id)}
               >
-                <SelectTrigger id="select_font_bagian" title="Font bagian" className="w-56">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="max-h-80">
-                  {FONT_GROUPS.map((g) => (
-                    <SelectGroup key={g.id}>
-                      <SelectLabel>{g.label}</SelectLabel>
-                      {g.items.map((f) => (
-                        <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
-                      ))}
-                    </SelectGroup>
-                  ))}
-                </SelectContent>
-              </Select>
+                <RotateCcw size={14} /> Reset bagian
+              </Button>
             </div>
-            <AngkaField
-              id="input_size_bagian"
-              label="Ukuran font"
-              nilai={s.size}
-              min={RENTANG.size[0]}
-              max={RENTANG.size[1]}
-              onChange={angka('size')}
-            />
-          </div>
-          <div className="grid gap-2">
-            <WarnaField id="warna_bg_bagian" label="Latar" nilai={s.bg} onChange={(v) => setPart(mode, aktif, { bg: v })} />
-            <WarnaField id="warna_fg_bagian" label="Teks" nilai={s.fg} onChange={(v) => setPart(mode, aktif, { fg: v })} />
-            <WarnaField id="warna_border_bagian" label="Border" nilai={s.border} onChange={(v) => setPart(mode, aktif, { border: v })} />
-          </div>
-          <div className="grid gap-2">
-            <AngkaField
-              id="input_borderw_bagian"
-              label="Tebal border"
-              nilai={s.borderW}
-              min={RENTANG.borderW[0]}
-              max={RENTANG.borderW[1]}
-              onChange={angka('borderW')}
-            />
-            <AngkaField
-              id="input_radius_bagian"
-              label="Radius"
-              nilai={s.radius}
-              min={RENTANG.radius[0]}
-              max={RENTANG.radius[1]}
-              onChange={angka('radius')}
-            />
-            <AngkaField
-              id="input_padx_bagian"
-              label="Padding X"
-              nilai={s.padX}
-              min={RENTANG.padX[0]}
-              max={RENTANG.padX[1]}
-              onChange={angka('padX')}
-            />
-            <AngkaField
-              id="input_pady_bagian"
-              label="Padding Y"
-              nilai={s.padY}
-              min={RENTANG.padY[0]}
-              max={RENTANG.padY[1]}
-              onChange={angka('padY')}
-            />
+            <div className="mt-3 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              <FieldSet className="gap-2 rounded-lg border p-3">
+                <FieldLegend variant="label" className="mb-0">Tipografi</FieldLegend>
+                <div className="flex items-center gap-1.5">
+                  <Label htmlFor="select_font_bagian" className="w-20 shrink-0">Font</Label>
+                  <Select
+                    value={s.font ?? FONT_FAMILY_DEFAULT}
+                    onValueChange={(v) => setPart(mode, aktif, { font: v === FONT_FAMILY_DEFAULT ? undefined : v })}
+                  >
+                    <SelectTrigger id="select_font_bagian" title="Font bagian" className="w-full min-w-0">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-80">
+                      {FONT_GROUPS.map((g) => (
+                        <SelectGroup key={g.id}>
+                          <SelectLabel>{g.label}</SelectLabel>
+                          {g.items.map((f) => (
+                            <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
+                          ))}
+                        </SelectGroup>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <AngkaField
+                  id="input_size_bagian"
+                  label="Ukuran font"
+                  nilai={s.size}
+                  min={RENTANG.size[0]}
+                  max={RENTANG.size[1]}
+                  onChange={angka('size')}
+                />
+              </FieldSet>
+
+              <FieldSet className="gap-2 rounded-lg border p-3">
+                <FieldLegend variant="label" className="mb-0">Warna</FieldLegend>
+                <WarnaField id="warna_bg_bagian" label="Latar" nilai={s.bg} onChange={(v) => setPart(mode, aktif, { bg: v })} />
+                <WarnaField id="warna_fg_bagian" label="Teks" nilai={s.fg} onChange={(v) => setPart(mode, aktif, { fg: v })} />
+                <WarnaField id="warna_border_bagian" label="Border" nilai={s.border} onChange={(v) => setPart(mode, aktif, { border: v })} />
+              </FieldSet>
+
+              <FieldSet className="gap-2 rounded-lg border p-3 md:col-span-2 xl:col-span-1">
+                <FieldLegend variant="label" className="mb-0">Kotak</FieldLegend>
+                <AngkaField
+                  id="input_borderw_bagian"
+                  label="Tebal border"
+                  nilai={s.borderW}
+                  min={RENTANG.borderW[0]}
+                  max={RENTANG.borderW[1]}
+                  onChange={angka('borderW')}
+                />
+                <AngkaField
+                  id="input_radius_bagian"
+                  label="Radius"
+                  nilai={s.radius}
+                  min={RENTANG.radius[0]}
+                  max={RENTANG.radius[1]}
+                  onChange={angka('radius')}
+                />
+                <AngkaField
+                  id="input_padx_bagian"
+                  label="Padding X"
+                  nilai={s.padX}
+                  min={RENTANG.padX[0]}
+                  max={RENTANG.padX[1]}
+                  onChange={angka('padX')}
+                />
+                <AngkaField
+                  id="input_pady_bagian"
+                  label="Padding Y"
+                  nilai={s.padY}
+                  min={RENTANG.padY[0]}
+                  max={RENTANG.padY[1]}
+                  onChange={angka('padY')}
+                />
+              </FieldSet>
+            </div>
+            <FieldDescription className="mt-3">
+              Bagian bertingkat mengikuti yang paling spesifik: mis. gaya Tab ribbon
+              tidak tertimpa gaya Bilah ribbon. Padding Y dan radius pada bagian tabel
+              mengikuti geometri grid (tidak berpengaruh).
+            </FieldDescription>
           </div>
         </div>
       </div>
-      <FieldSet className="gap-0">
-        <FieldLegend variant="label" className="mb-0">Catatan</FieldLegend>
-        <FieldDescription>
-          Bagian bertingkat mengikuti yang paling spesifik: mis. gaya Tab ribbon
-          tidak tertimpa gaya Bilah ribbon. Padding Y dan radius pada bagian tabel
-          mengikuti geometri grid (tidak berpengaruh).
-        </FieldDescription>
-      </FieldSet>
     </section>
   );
 }
