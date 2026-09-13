@@ -108,8 +108,8 @@ function WarnaField({
   const [draft, setDraft] = useState(nilai ?? '');
   useEffect(() => setDraft(nilai ?? ''), [nilai]);
   return (
-    <div className="flex items-center gap-1.5">
-      <Label htmlFor={`${id}_picker`} className="w-14 shrink-0">{label}</Label>
+    <div className="flex flex-wrap items-center gap-1.5">
+      <Label htmlFor={`${id}_picker`} className="w-12 shrink-0">{label}</Label>
       <input
         id={`${id}_picker`}
         type="color"
@@ -123,7 +123,7 @@ function WarnaField({
         value={draft}
         placeholder={bawaan ?? 'bawaan'}
         maxLength={7}
-        className="h-8 w-full min-w-0 font-mono"
+        className="h-8 min-w-[6.5rem] flex-1 font-mono"
         onChange={(e) => {
           setDraft(e.target.value);
           const n = normalizeHex(e.target.value);
@@ -238,8 +238,13 @@ export default function PartStyleEditor() {
   const [tertutup, setTertutup] = useState<Record<string, boolean>>({});
   const [bawaan, setBawaan] = useState<Bawaan>({});
   const refContoh = useRef<HTMLElement | null>(null);
-  /** Layar lebar (lg+): 2 kolom dengan pemisah yang bisa digeser. */
+  /** Tablet & desktop (md+): 2 kolom dengan pemisah yang bisa digeser.
+   *  Desktop (lg+) memakai batas rasio; tablet memakai batas px agar tidak sempit. */
+  const pakaiPanel = useMediaQuery('(min-width: 768px)');
   const lebarLg = useMediaQuery('(min-width: 1024px)');
+  const ukuranAccordion = lebarLg
+    ? { defaultSize: '20%', minSize: '14%', maxSize: '28%' }
+    : { defaultSize: '260px', minSize: '200px', maxSize: '300px' };
   const layoutH = useDefaultLayout({ id: 'simpes_bagian_ui_h', onlySaveAfterUserInteractions: true });
   const layoutV = useDefaultLayout({ id: 'simpes_bagian_ui_v', onlySaveAfterUserInteractions: true });
   const meta = PARTS.find((p) => p.id === aktif) ?? PARTS[0];
@@ -363,7 +368,7 @@ export default function PartStyleEditor() {
   /** Isi daftar bagian (dipakai di panel resizable & tumpukan mobile). */
   const daftarBagian = (
     <>
-          <div className="relative lg:sticky lg:top-0 lg:z-10 lg:bg-card">
+          <div className="relative md:sticky md:top-0 md:z-10 md:bg-card">
             <Search className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
               id="input_cari_bagian"
@@ -456,7 +461,7 @@ export default function PartStyleEditor() {
   );
 
   const kartuPratinjau = (
-    <div className="flex flex-col rounded-xl border bg-card p-4 lg:h-full lg:min-h-0">
+    <div className="flex flex-col rounded-xl border bg-card p-4 md:h-full md:min-h-0">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium">Pratinjau</span>
@@ -493,7 +498,7 @@ export default function PartStyleEditor() {
             <div
               id="pratinjau_bagian"
               className={cn(
-                'grid min-h-[170px] place-items-center overflow-hidden rounded-lg border p-4 lg:min-h-[120px] lg:flex-1',
+                'grid min-h-[170px] place-items-center overflow-hidden rounded-lg border p-4 md:min-h-[120px] md:flex-1',
                 gelap && 'dark',
               )}
               style={{ ...gayaWajah, background: 'var(--background)', color: 'var(--foreground)' }}
@@ -501,15 +506,11 @@ export default function PartStyleEditor() {
               <style>{bangunCssPratinjau(aktif, g, w)}</style>
               {contoh}
             </div>
-            <p className="mt-1 text-[11px] text-muted-foreground">
-              Kanvas mengikuti tab mode warna (Terang/Gelap) dan tema aktif. Tipografi
-              & kotak berlaku kedua mode; warna dipisah per mode.
-            </p>
-    </div>
+          </div>
   );
 
   const kartuKontrol = (
-    <div className="flex flex-col rounded-xl border bg-card p-4 lg:h-full lg:min-h-0">
+    <div className="flex flex-col rounded-xl border bg-card p-4 md:h-full md:min-h-0">
       <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
                 <div className="text-sm font-medium">{meta.label}</div>
@@ -526,7 +527,7 @@ export default function PartStyleEditor() {
                 <RotateCcw size={14} /> Reset bagian
               </Button>
             </div>
-            <div className="mt-3 grid gap-4 md:grid-cols-2 xl:grid-cols-3 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
+            <div className="mt-3 grid gap-4 md:grid-cols-2 xl:grid-cols-3 md:min-h-0 md:flex-1 md:overflow-y-auto">
               <FieldSet className="gap-2 rounded-lg border p-3">
                 <FieldLegend variant="label" className="mb-0">Tipografi</FieldLegend>
                 <div className="flex items-center gap-1.5">
@@ -633,19 +634,12 @@ export default function PartStyleEditor() {
                 <FieldDescription>Berlaku untuk mode terang & gelap.</FieldDescription>
               </FieldSet>
             </div>
-            <FieldDescription className="mt-3">
-              Nilai abu-abu pada field kosong = nilai nyata saat ini (bawaan),
-              terukur dari pratinjau. Bagian bertingkat mengikuti yang paling
-              spesifik; bagian <b>kontainer</b> (mis. Ribbon, Kartu, Teks isi) tidak
-              menimpa kontrol di dalamnya agar proporsi tetap. Padding Y dan radius
-              pada bagian tabel mengikuti geometri grid (tidak berpengaruh).
-            </FieldDescription>
     </div>
   );
 
   return (
-    <section className={cn('flex w-full max-w-none flex-col gap-4', lebarLg && 'min-h-0 flex-1 lg:-mb-1.5')}>
-      {lebarLg ? (
+    <section className={cn('flex w-full max-w-none flex-col gap-4', pakaiPanel && 'min-h-0 flex-1 md:-mb-1.5')}>
+      {pakaiPanel ? (
         <div className="min-h-[360px] flex-1">
           <ResizablePanelGroup
             orientation="horizontal"
@@ -653,7 +647,7 @@ export default function PartStyleEditor() {
             defaultLayout={layoutH.defaultLayout}
             onLayoutChanged={layoutH.onLayoutChanged}
           >
-            <ResizablePanel id="accordion" defaultSize="20%" minSize="14%" maxSize="28%">
+            <ResizablePanel id="accordion" {...ukuranAccordion}>
               <aside className="flex h-full min-h-0 flex-col gap-2 overflow-y-auto rounded-xl border bg-card p-3">
                 {daftarBagian}
               </aside>
