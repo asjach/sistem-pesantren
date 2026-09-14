@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Admin;
 
+use App\Exports\SantriTemplateExport;
 use App\Http\Controllers\Api\Concerns\TenantGuard;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\ImportSantriRequest;
@@ -235,7 +236,15 @@ class SantriController extends Controller
         return response()->json(['pesan' => 'Status dokumen diperbarui.', 'data' => $dokumen->fresh()]);
     }
 
-    // Import PPDB massal via Excel/CSV
+    /** GET /api/admin/santri/import-template — template Excel (semua kolom profil + lembaga). */
+    public function template()
+    {
+        $this->authorize('create', Santri::class);
+
+        return Excel::download(new SantriTemplateExport(), 'template-import-santri.xlsx');
+    }
+
+    // Import massal via Excel/CSV
     public function importLengkap(ImportSantriRequest $request)
     {
         $this->authorize('create', Santri::class);

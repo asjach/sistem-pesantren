@@ -560,6 +560,17 @@
   "bi": "upload",
   "material": "upload"
  },
+ "Download": {
+  "lucide": "download",
+  "tabler": "download",
+  "ph": "download",
+  "heroicons": "arrow-down-tray",
+  "ri": "download-line",
+  "iconoir": "download",
+  "radix": "download",
+  "bi": "download",
+  "material": "download"
+ },
  "UserCheck": {
   "lucide": "user-check",
   "tabler": "user-check",

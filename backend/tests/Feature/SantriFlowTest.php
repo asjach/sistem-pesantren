@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Exports\SantriTemplateExport;
 use App\Models\Kelas;
 use App\Models\Lembaga;
 use App\Models\RiwayatBelajar;
@@ -14,6 +15,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Maatwebsite\Excel\Facades\Excel;
 use Tests\TestCase;
 
 class SantriFlowTest extends TestCase
@@ -565,5 +567,35 @@ class SantriFlowTest extends TestCase
         $this->assertEquals($f['mi']->id, (int) $berlembaga->lembaga_id);
         $this->assertTrue((bool) $berlembaga->status_global);
         $this->assertSame(1, RiwayatBelajar::where('santri_id', $berlembaga->id)->count());
+    }
+
+    // ---------- 15. template Excel selaras dengan import ----------
+
+    public function test_15_template_excel_selaras_import(): void
+    {
+        $f = $this->baseFixture();
+        $adminMi = $this->makeUser('admin', [$f['mi']->id]);
+
+        $export = new SantriTemplateExport();
+        $headings = $export->headings();
+        $contoh = $export->array()[0];
+        $this->assertSame(count($headings), count($contoh));
+        $this->assertContains('lembaga_id', $headings);
+
+        $tmp = tempnam(sys_get_temp_dir(), 'tmpl_santri').'.xlsx';
+        file_put_contents($tmp, Excel::raw($export, \Maatwebsite\Excel\Excel::XLSX));
+
+        // Baris contoh template harus lolos import tanpa penyesuaian kolom.
+        $this->actingAs($adminMi, 'sanctum')->post('/api/admin/santri/import-lengkap', [
+            'tahun_ajaran_id' => $f['ta']->id,
+            'file' => new UploadedFile($tmp, 'template-santri.xlsx', null, null, true),
+        ])->assertStatus(200);
+
+        $santri = Santri::where('nama_lengkap', 'Ahmad Fauzi')->firstOrFail();
+        $this->assertEquals($f['mi']->id, (int) $santri->lembaga_id);
+        $this->assertTrue((bool) $santri->status_global);
+
+        // Endpoint unduh template.
+        $this->actingAs($adminMi, 'sanctum')->get('/api/admin/santri/import-template')->assertStatus(200);
     }
 }

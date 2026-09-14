@@ -80,6 +80,7 @@ const IKON = {
   Trash2: ['trash-2', 'trash', 'delete', 'trash-bin', 'bin', 'trash-line', 'delete-2', 'garbage', 'delete-bin-line'],
   Undo2: ['undo-2', 'undo', 'arrow-u-left-top', 'arrow-go-back', 'rotate-left', 'corner-up-left', 'reply', 'arrow-uturn-left', 'arrow-u-up-left', 'arrow-go-back-line'],
   Upload: ['upload', 'cloud-upload', 'upload-2', 'upload-line', 'arrow-up-tray', 'upload-simple', 'file-upload'],
+  Download: ['download', 'arrow-down-to-line', 'download-2', 'arrow-down-tray', 'file-download', 'download-simple'],
   UserCheck: ['user-check', 'user-checked', 'person-check', 'user-follow', 'account-check', 'user-circle-check'],
   UserX: ['user-x', 'user-cancel', 'person-x', 'account-cancel', 'user-remove', 'user-cross', 'user-block', 'user-minus', 'user-unfollow-line', 'person-off'],
   Users: ['users', 'user-group', 'group', 'people', 'users-group', 'user-multiple', 'users-line', 'accounts'],

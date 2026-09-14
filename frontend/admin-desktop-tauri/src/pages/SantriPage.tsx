@@ -3,6 +3,7 @@ import { errorMessage } from '../api/client';
 import {
   importSantri,
   createSantri,
+  unduhTemplateSantri,
   listDokumenSantri,
   listSantri,
   tidakMemilikiDokumen,
@@ -37,7 +38,7 @@ import {
 import Pager from '@/components/Pager';
 import { usePager } from '@/hooks/usePager';
 import { ActionIcon } from '@/components/RowActions';
-import { FileUp, ImageUp, Plus, Upload } from '@/icons';
+import { Download, FileUp, ImageUp, Plus, Upload } from '@/icons';
 import { useAuth } from '../auth/AuthContext';
 import { toast } from 'sonner';
 
@@ -348,12 +349,12 @@ export default function SantriPage() {
 
   async function onImport(e: React.FormEvent) {
     e.preventDefault();
-    if (!importFile || !importTa) return;
+    if (!importFile || (effectiveImportLembaga !== '' && !importTa)) return;
     setBusy(true);
     setErr('');
     try {
       const res = await importSantri({
-        tahun_ajaran_id: Number(importTa),
+        tahun_ajaran_id: importTa ? Number(importTa) : undefined,
         lembaga_id: importLembaga ? Number(importLembaga) : undefined,
         file: importFile,
       });
@@ -600,6 +601,15 @@ export default function SantriPage() {
               onChange={(e) => setImportFile(e.target.files?.[0] ?? null)}
               required
             />
+            <Button
+              id="btn_unduh_template_santri"
+              type="button"
+              variant="link"
+              className="col-span-2 h-auto justify-start px-0"
+              onClick={() => void unduhTemplateSantri().catch((e) => setErr(errorMessage(e)))}
+            >
+              <Download data-icon="inline-start" size={16} /> Unduh template Excel (semua kolom)
+            </Button>
             <DialogFooter className="col-span-2">
               <Button type="button" variant="outline" onClick={() => setImportOpen(false)}>Batal</Button>
               <Button id="btn_import_santri" type="submit" disabled={busy || !importFile || (effectiveImportLembaga !== '' && !importTa)}>Import</Button>

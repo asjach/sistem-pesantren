@@ -1,4 +1,4 @@
-import { api, apiUpload } from './client';
+import { api, apiUpload, downloadFile } from './client';
 import type { Paginate } from './master';
 
 // ---------- Santri (101: master profil + import + foto/dokumen) ----------
@@ -58,9 +58,14 @@ export function createSantri(input: Record<string, string | number | null>) {
   });
 }
 
-export function importSantri(input: { tahun_ajaran_id: number; lembaga_id?: number; file: File }) {
+/** Unduh template Excel import santri (semua kolom profil + `lembaga_id`). */
+export function unduhTemplateSantri() {
+  return downloadFile('/admin/santri/import-template', 'template-import-santri.xlsx');
+}
+
+export function importSantri(input: { tahun_ajaran_id?: number; lembaga_id?: number; file: File }) {
   const fd = new FormData();
-  fd.set('tahun_ajaran_id', String(input.tahun_ajaran_id));
+  if (input.tahun_ajaran_id) fd.set('tahun_ajaran_id', String(input.tahun_ajaran_id));
   if (input.lembaga_id) fd.set('lembaga_id', String(input.lembaga_id));
   fd.set('file', input.file);
   return apiUpload<{ pesan: string; errors?: { row: number; attribute: string; errors: string[] }[] }>(

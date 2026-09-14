@@ -1,5 +1,5 @@
 /* AUTO-GENERATED oleh scripts/icons-gen.mjs — JANGAN edit manual.
- * 64 ikon × 9 set (Iconify/unplugin-icons). Set aktif dari prefs
+ * 65 ikon × 9 set (Iconify/unplugin-icons). Set aktif dari prefs
  * `iconSet`; nama yang tidak tersedia di suatu set jatuh ke Lucide.
  * Regenerasi: node scripts/icons-gen.mjs */
 import type { ComponentType, SVGProps } from 'react';
@@ -59,6 +59,7 @@ import IcSunLucide from '~icons/lucide/sun';
 import IcTrash2Lucide from '~icons/lucide/trash-2';
 import IcUndo2Lucide from '~icons/lucide/undo-2';
 import IcUploadLucide from '~icons/lucide/upload';
+import IcDownloadLucide from '~icons/lucide/download';
 import IcUserCheckLucide from '~icons/lucide/user-check';
 import IcUserXLucide from '~icons/lucide/user-x';
 import IcUsersLucide from '~icons/lucide/users';
@@ -124,6 +125,7 @@ import IcSunTabler from '~icons/tabler/sun';
 import IcTrash2Tabler from '~icons/tabler/trash';
 import IcUndo2Tabler from '~icons/tabler/corner-up-left';
 import IcUploadTabler from '~icons/tabler/upload';
+import IcDownloadTabler from '~icons/tabler/download';
 import IcUserCheckTabler from '~icons/tabler/user-check';
 import IcUserXTabler from '~icons/tabler/user-x';
 import IcUsersTabler from '~icons/tabler/users';
@@ -184,6 +186,7 @@ import IcSunPh from '~icons/ph/sun';
 import IcTrash2Ph from '~icons/ph/trash';
 import IcUndo2Ph from '~icons/ph/arrow-u-up-left';
 import IcUploadPh from '~icons/ph/upload';
+import IcDownloadPh from '~icons/ph/download';
 import IcUserCheckPh from '~icons/ph/user-check';
 import IcUserXPh from '~icons/ph/user-minus';
 import IcUsersPh from '~icons/ph/users';
@@ -240,6 +243,7 @@ import IcSunHeroicons from '~icons/heroicons/sun';
 import IcTrash2Heroicons from '~icons/heroicons/trash';
 import IcUndo2Heroicons from '~icons/heroicons/arrow-uturn-left';
 import IcUploadHeroicons from '~icons/heroicons/arrow-up-tray';
+import IcDownloadHeroicons from '~icons/heroicons/arrow-down-tray';
 import IcUserXHeroicons from '~icons/heroicons/user-minus';
 import IcUsersHeroicons from '~icons/heroicons/users';
 import IcWalletHeroicons from '~icons/heroicons/wallet';
@@ -300,6 +304,7 @@ import IcSunRi from '~icons/ri/sun-fill';
 import IcTrash2Ri from '~icons/ri/delete-bin-line';
 import IcUndo2Ri from '~icons/ri/arrow-go-back-line';
 import IcUploadRi from '~icons/ri/upload-line';
+import IcDownloadRi from '~icons/ri/download-line';
 import IcUserCheckRi from '~icons/ri/user-follow-line';
 import IcUserXRi from '~icons/ri/user-unfollow-line';
 import IcUsersRi from '~icons/ri/group-line';
@@ -357,6 +362,7 @@ import IcSunIconoir from '~icons/iconoir/brightness';
 import IcTrash2Iconoir from '~icons/iconoir/trash';
 import IcUndo2Iconoir from '~icons/iconoir/undo';
 import IcUploadIconoir from '~icons/iconoir/upload';
+import IcDownloadIconoir from '~icons/iconoir/download';
 import IcUsersIconoir from '~icons/iconoir/group';
 import IcWalletIconoir from '~icons/iconoir/wallet';
 import IcXIconoir from '~icons/iconoir/x';
@@ -399,6 +405,7 @@ import IcServerRadix from '~icons/radix-icons/server';
 import IcSunRadix from '~icons/radix-icons/sun';
 import IcTrash2Radix from '~icons/radix-icons/trash';
 import IcUploadRadix from '~icons/radix-icons/upload';
+import IcDownloadRadix from '~icons/radix-icons/download';
 import IcUsersRadix from '~icons/radix-icons/group';
 import IcXRadix from '~icons/radix-icons/cross-2';
 import IcXCircleRadix from '~icons/radix-icons/cross-circled';
@@ -456,6 +463,7 @@ import IcSunBi from '~icons/bi/sun';
 import IcTrash2Bi from '~icons/bi/trash';
 import IcUndo2Bi from '~icons/bi/reply';
 import IcUploadBi from '~icons/bi/upload';
+import IcDownloadBi from '~icons/bi/download';
 import IcUserCheckBi from '~icons/bi/person-check';
 import IcUserXBi from '~icons/bi/person-x';
 import IcUsersBi from '~icons/bi/people';
@@ -517,6 +525,7 @@ import IcSunMaterial from '~icons/material-symbols/light-mode';
 import IcTrash2Material from '~icons/material-symbols/delete';
 import IcUndo2Material from '~icons/material-symbols/undo';
 import IcUploadMaterial from '~icons/material-symbols/upload';
+import IcDownloadMaterial from '~icons/material-symbols/download';
 import IcUserCheckMaterial from '~icons/material-symbols/person-check';
 import IcUserXMaterial from '~icons/material-symbols/person-off';
 import IcUsersMaterial from '~icons/material-symbols/group';
@@ -591,6 +600,7 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
     Trash2: IcTrash2Lucide,
     Undo2: IcUndo2Lucide,
     Upload: IcUploadLucide,
+    Download: IcDownloadLucide,
     UserCheck: IcUserCheckLucide,
     UserX: IcUserXLucide,
     Users: IcUsersLucide,
@@ -656,6 +666,7 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
     Trash2: IcTrash2Tabler,
     Undo2: IcUndo2Tabler,
     Upload: IcUploadTabler,
+    Download: IcDownloadTabler,
     UserCheck: IcUserCheckTabler,
     UserX: IcUserXTabler,
     Users: IcUsersTabler,
@@ -716,6 +727,7 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
     Trash2: IcTrash2Ph,
     Undo2: IcUndo2Ph,
     Upload: IcUploadPh,
+    Download: IcDownloadPh,
     UserCheck: IcUserCheckPh,
     UserX: IcUserXPh,
     Users: IcUsersPh,
@@ -772,6 +784,7 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
     Trash2: IcTrash2Heroicons,
     Undo2: IcUndo2Heroicons,
     Upload: IcUploadHeroicons,
+    Download: IcDownloadHeroicons,
     UserX: IcUserXHeroicons,
     Users: IcUsersHeroicons,
     Wallet: IcWalletHeroicons,
@@ -832,6 +845,7 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
     Trash2: IcTrash2Ri,
     Undo2: IcUndo2Ri,
     Upload: IcUploadRi,
+    Download: IcDownloadRi,
     UserCheck: IcUserCheckRi,
     UserX: IcUserXRi,
     Users: IcUsersRi,
@@ -889,6 +903,7 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
     Trash2: IcTrash2Iconoir,
     Undo2: IcUndo2Iconoir,
     Upload: IcUploadIconoir,
+    Download: IcDownloadIconoir,
     Users: IcUsersIconoir,
     Wallet: IcWalletIconoir,
     X: IcXIconoir,
@@ -931,6 +946,7 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
     Sun: IcSunRadix,
     Trash2: IcTrash2Radix,
     Upload: IcUploadRadix,
+    Download: IcDownloadRadix,
     Users: IcUsersRadix,
     X: IcXRadix,
     XCircle: IcXCircleRadix,
@@ -988,6 +1004,7 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
     Trash2: IcTrash2Bi,
     Undo2: IcUndo2Bi,
     Upload: IcUploadBi,
+    Download: IcDownloadBi,
     UserCheck: IcUserCheckBi,
     UserX: IcUserXBi,
     Users: IcUsersBi,
@@ -1049,6 +1066,7 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
     Trash2: IcTrash2Material,
     Undo2: IcUndo2Material,
     Upload: IcUploadMaterial,
+    Download: IcDownloadMaterial,
     UserCheck: IcUserCheckMaterial,
     UserX: IcUserXMaterial,
     Users: IcUsersMaterial,
@@ -1130,6 +1148,7 @@ export const Sun = (p: IkonProps) => <IkonDinamis {...p} nama="Sun" />;
 export const Trash2 = (p: IkonProps) => <IkonDinamis {...p} nama="Trash2" />;
 export const Undo2 = (p: IkonProps) => <IkonDinamis {...p} nama="Undo2" />;
 export const Upload = (p: IkonProps) => <IkonDinamis {...p} nama="Upload" />;
+export const Download = (p: IkonProps) => <IkonDinamis {...p} nama="Download" />;
 export const UserCheck = (p: IkonProps) => <IkonDinamis {...p} nama="UserCheck" />;
 export const UserX = (p: IkonProps) => <IkonDinamis {...p} nama="UserX" />;
 export const Users = (p: IkonProps) => <IkonDinamis {...p} nama="Users" />;
