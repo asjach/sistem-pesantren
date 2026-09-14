@@ -117,6 +117,9 @@ export interface PartMeta {
   hint: string;
   /** Selektor akar bagian (digabung otomatis dengan scope mode terang/gelap). */
   sel: string;
+  /** Belum ada elemen/komponen nyata di aplikasi — pengaturan hanya tampak di
+   *  pratinjau editor, tidak berpengaruh ke halaman. */
+  belumDipakai?: boolean;
 }
 
 export const PARTS: PartMeta[] = [
@@ -652,8 +655,51 @@ export const PARTS: PartMeta[] = [
   },
 ];
 
-export const PART_IDS: PartId[] = PARTS.map((p) => p.id);
-export const PART_BY_ID = new Map<PartId, PartMeta>(PARTS.map((p) => [p.id, p]));
+/** Bagian yang belum punya komponen/elemen nyata di aplikasi (hanya contoh di
+ *  pratinjau). Ditandai di editor agar tidak menyesatkan. Perbarui daftar ini
+ *  saat komponennya mulai dipakai. */
+const BELUM_DIPAKAI = new Set<PartId>([
+  'aspect_ratio',
+  'scroll_area',
+  'collapsible',
+  'tabs',
+  'breadcrumb',
+  'pagination',
+  'menubar',
+  'navigation_menu',
+  'sidebar',
+  'subjudul',
+  'kbd',
+  'empty',
+  'field',
+  'separator',
+  'tabel',
+  'input_group',
+  'textarea',
+  'radio',
+  'switch',
+  'slider',
+  'input_otp',
+  'calendar',
+  'button_group',
+  'popover',
+  'hover_card',
+  'tooltip',
+  'command',
+  'sheet',
+  'drawer',
+  'alert',
+  'progress',
+  'spinner',
+  'avatar',
+  'carousel',
+  'chart',
+]);
+for (const p of PARTS) {
+  if (BELUM_DIPAKAI.has(p.id)) p.belumDipakai = true;
+}
+
+export const PART_IDS: PartId[] = PARTS.map((p) => p.id);export const PART_BY_ID = new Map<PartId, PartMeta>(PARTS.map((p) => [p.id, p]));
 export const PART_GROUPS: string[] = [...new Set(PARTS.map((p) => p.grup))];
 export const EMPTY_PARTS: PartOverrides = { gaya: {}, terang: {}, gelap: {} };
 

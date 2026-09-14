@@ -1,4 +1,4 @@
-import { cloneElement, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactElement } from 'react';
+import { cloneElement, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useTheme } from '@/theme';
 import { FONT_FAMILY_DEFAULT, FONT_OPTIONS, type FontOption } from '@/fonts';
 import {
@@ -237,7 +237,7 @@ export default function PartStyleEditor() {
   const [cari, setCari] = useState('');
   const [tertutup, setTertutup] = useState<Record<string, boolean>>({});
   const [bawaan, setBawaan] = useState<Bawaan>({});
-  const refContoh = useRef<HTMLElement | null>(null);
+  const refContoh = useRef<HTMLDivElement | null>(null);
   /** Tablet & desktop (md+): 2 kolom dengan pemisah yang bisa digeser.
    *  Desktop (lg+) memakai batas rasio; tablet memakai batas px agar tidak sempit. */
   const pakaiPanel = useMediaQuery('(min-width: 768px)');
@@ -340,10 +340,14 @@ export default function PartStyleEditor() {
     [bawaan.font],
   );
 
-  const contoh = useMemo(() => {
-    const el = contohBagian(aktif) as ReactElement<Record<string, unknown>>;
-    return cloneElement(el, { 'data-pratinjau-part': '', ref: refContoh });
-  }, [aktif]);
+  const contoh = useMemo(
+    () => (
+      <div ref={refContoh} className="contents">
+        {cloneElement(contohBagian(aktif), { 'data-pratinjau-part': '' })}
+      </div>
+    ),
+    [aktif],
+  );
 
   /** Tombol satu bagian (dipakai di dalam sub-kelompok). */
   const tombolBagian = (p: (typeof PARTS)[number]) => (
@@ -357,9 +361,18 @@ export default function PartStyleEditor() {
       className={cn(
         'flex items-center gap-2 rounded px-2 py-1.5 text-left text-xs transition-colors',
         p.id === aktif ? 'bg-accent font-medium text-accent-foreground' : 'hover:bg-muted',
+        p.belumDipakai && p.id !== aktif && 'text-muted-foreground',
       )}
     >
       <span className="flex-1 truncate">{p.label}</span>
+      {p.belumDipakai && (
+        <span
+          className="shrink-0 rounded-sm border px-1 text-[9px] leading-4 text-muted-foreground"
+          title="Belum dipakai di aplikasi — pengaturan hanya tampak di pratinjau"
+        >
+          belum
+        </span>
+      )}
       {diatur(p.id) && (
         <span className="size-1.5 shrink-0 rounded-full bg-primary" title="Ada pengaturan" />
       )}
@@ -514,7 +527,14 @@ export default function PartStyleEditor() {
     <div className="flex flex-col rounded-xl border bg-card p-4 md:h-full md:min-h-0">
       <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
-                <div className="text-sm font-medium">{meta.label}</div>
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  {meta.label}
+                  {meta.belumDipakai && (
+                    <Badge variant="secondary" className="h-5 px-1.5 text-[10px] font-normal">
+                      Belum dipakai di aplikasi
+                    </Badge>
+                  )}
+                </div>
                 <div className="text-xs text-muted-foreground">{meta.hint}</div>
               </div>
               <Button

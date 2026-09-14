@@ -1,9 +1,18 @@
 import type { ReactElement } from 'react';
 import type { PartId } from '@/parts';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Field, FieldDescription, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
+import { Item, ItemContent, ItemDescription, ItemMedia, ItemTitle } from '@/components/ui/item';
 import { Label } from '@/components/ui/label';
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
+import { Skeleton } from '@/components/ui/skeleton';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
 /** Contoh isi pratinjau per bagian (meniru markup asli agar gaya terbaca).
  *  Dipakai editor Bagian UI; bagian yang belum pernah dipakai di aplikasi
@@ -32,7 +41,7 @@ export function contohBagian(id: PartId): ReactElement {
       return (
         <div className="w-full max-w-xs">
           <div className="h-6 rounded bg-muted" />
-          <div className="my-2 h-px w-full bg-border" />
+          <Separator className="my-2" />
           <div className="h-6 rounded bg-muted" />
         </div>
       );
@@ -59,11 +68,18 @@ export function contohBagian(id: PartId): ReactElement {
       );
     case 'resizable':
       return (
-        <div className="flex h-20 w-56 overflow-hidden rounded border">
-          <div className="w-1/2 p-2 text-xs">Panel kiri</div>
-          <div className="w-1.5 bg-border" />
-          <div className="flex-1 p-2 text-xs">Panel kanan</div>
-        </div>
+        <ResizablePanelGroup
+          orientation="horizontal"
+          className="h-20 w-56 overflow-hidden rounded border"
+        >
+          <ResizablePanel id="pratinjau_resizable_kiri" className="p-2 text-xs">
+            Panel kiri
+          </ResizablePanel>
+          <ResizableHandle />
+          <ResizablePanel id="pratinjau_resizable_kanan" className="p-2 text-xs">
+            Panel kanan
+          </ResizablePanel>
+        </ResizablePanelGroup>
       );
     case 'collapsible':
       return (
@@ -167,13 +183,15 @@ export function contohBagian(id: PartId): ReactElement {
       );
     case 'item':
       return (
-        <div className="flex w-64 items-center gap-3 rounded-lg border p-3">
-          <span className="grid size-8 shrink-0 place-items-center rounded-full bg-muted text-xs font-medium">AF</span>
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-medium">Ahmad Fauzi</div>
-            <div className="text-xs text-muted-foreground">Kelas VII-A · Aktif</div>
-          </div>
-        </div>
+        <Item variant="outline" size="sm" className="w-64">
+          <ItemMedia className="grid size-8 shrink-0 place-items-center rounded-full bg-muted text-xs font-medium">
+            AF
+          </ItemMedia>
+          <ItemContent>
+            <ItemTitle>Ahmad Fauzi</ItemTitle>
+            <ItemDescription>Kelas VII-A · Aktif</ItemDescription>
+          </ItemContent>
+        </Item>
       );
     case 'empty':
       return (
@@ -184,15 +202,21 @@ export function contohBagian(id: PartId): ReactElement {
       );
     case 'accordion':
       return (
-        <div className="w-64 rounded-lg border">
-          <div className="flex items-center justify-between border-b px-3 py-2 text-xs font-medium">
-            Identitas <span className="text-muted-foreground">▾</span>
-          </div>
-          <div className="px-3 py-2 text-xs text-muted-foreground">Nama, NIS, jenis kelamin…</div>
-          <div className="flex items-center justify-between border-t px-3 py-2 text-xs font-medium">
-            Wali <span className="text-muted-foreground">▸</span>
-          </div>
-        </div>
+        <Accordion
+          type="single"
+          collapsible
+          defaultValue="identitas"
+          className="w-64 rounded-lg border px-3"
+        >
+          <AccordionItem value="identitas">
+            <AccordionTrigger className="py-2">Identitas</AccordionTrigger>
+            <AccordionContent className="pb-2">Nama, NIS, jenis kelamin…</AccordionContent>
+          </AccordionItem>
+          <AccordionItem value="wali">
+            <AccordionTrigger className="py-2">Wali</AccordionTrigger>
+            <AccordionContent className="pb-2">Nama & kontak wali santri.</AccordionContent>
+          </AccordionItem>
+        </Accordion>
       );
     case 'tabel_header':
       return (
@@ -288,23 +312,24 @@ export function contohBagian(id: PartId): ReactElement {
       return (
         <div className="flex w-full max-w-xs flex-col gap-2">
           <Input placeholder="Nama santri" />
-          <div
-            data-slot="select-trigger"
-            className="flex h-[30px] items-center justify-between rounded-md border border-input bg-transparent px-3 text-sm"
-          >
-            VII-A <span className="text-muted-foreground">▾</span>
-          </div>
+          <Select defaultValue="vii-a">
+            <SelectTrigger id="pratinjau_select_kelas" className="w-full">
+              <SelectValue placeholder="Pilih kelas" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="vii-a">VII-A</SelectItem>
+              <SelectItem value="viii-b">VIII-B</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       );
     case 'field':
       return (
-        <div className="flex w-56 flex-col gap-1.5">
-          <span className="text-xs font-medium">Nama santri</span>
-          <span className="flex h-[30px] items-center rounded-md border px-3 text-sm text-muted-foreground">
-            Ahmad Fauzi
-          </span>
-          <span className="text-xs text-muted-foreground">Sesuai akta kelahiran.</span>
-        </div>
+        <Field className="w-56">
+          <FieldLabel htmlFor="pratinjau_field_nama">Nama santri</FieldLabel>
+          <Input id="pratinjau_field_nama" placeholder="Ahmad Fauzi" />
+          <FieldDescription>Sesuai akta kelahiran.</FieldDescription>
+        </Field>
       );
     case 'input_group':
       return (
@@ -322,12 +347,12 @@ export function contohBagian(id: PartId): ReactElement {
     case 'checkbox':
       return (
         <div className="flex flex-col gap-1.5">
-          <span className="flex items-center gap-2 text-sm">
-            <span className="grid size-4 place-items-center rounded border text-[10px]">✓</span> Aktif
-          </span>
-          <span className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span className="size-4 rounded border" /> Nonaktif
-          </span>
+          <Label className="gap-2">
+            <Checkbox defaultChecked /> Aktif
+          </Label>
+          <Label className="gap-2 text-muted-foreground">
+            <Checkbox /> Nonaktif
+          </Label>
         </div>
       );
     case 'radio':
@@ -400,11 +425,11 @@ export function contohBagian(id: PartId): ReactElement {
       );
     case 'toggle':
       return (
-        <div className="flex gap-2">
-          <span className="rounded-md border bg-accent px-3 py-1 text-sm text-accent-foreground">Miring</span>
-          <span className="rounded-md border px-3 py-1 text-sm">Tebal</span>
-          <span className="rounded-md border px-3 py-1 text-sm">Garis bawah</span>
-        </div>
+        <ToggleGroup type="multiple" variant="outline" defaultValue={['miring']}>
+          <ToggleGroupItem value="miring">Miring</ToggleGroupItem>
+          <ToggleGroupItem value="tebal">Tebal</ToggleGroupItem>
+          <ToggleGroupItem value="garis">Garis bawah</ToggleGroupItem>
+        </ToggleGroup>
       );
     case 'button_group':
       return (
@@ -492,11 +517,11 @@ export function contohBagian(id: PartId): ReactElement {
     case 'skeleton':
       return (
         <div className="flex w-48 items-center gap-2">
-          <span className="size-8 rounded-full bg-muted" />
-          <span className="flex-1 space-y-1.5">
-            <span className="block h-3 w-3/4 rounded bg-muted" />
-            <span className="block h-3 w-1/2 rounded bg-muted" />
-          </span>
+          <Skeleton className="size-8 rounded-full" />
+          <div className="flex-1 space-y-1.5">
+            <Skeleton className="h-3 w-3/4" />
+            <Skeleton className="h-3 w-1/2" />
+          </div>
         </div>
       );
     case 'spinner':
