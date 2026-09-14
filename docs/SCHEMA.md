@@ -9,8 +9,16 @@
 
 Urutan CREATE: `lembaga` → `ref_*` → `users` → `user_lembaga` →
 `tahun_ajaran` → `pegawai` → `kelas` (`walas_id` inline) → santri/riwayat →
-PSB → keuangan → kepegawaian → akademik → nilai → presensi → tahfizh → portal.
+PSB → keuangan → kepegawaian → akademik → nilai → presensi → asrama → tahfizh → portal.
 `down()` sebaliknya (dependent dulu). `migrate:fresh` boleh pre-production.
+
+> Keputusan desain (v1.10, gambaran umum — masih bisa berubah):
+> 1. `santri.lembaga_id` boleh NULL (legacy tanpa track); sumber kebenaran
+>    lembaga = `riwayat_belajar`, kolom ini cache lembaga primer terakhir.
+> 2. `santri.status_global` turunan murni (default false): true iff punya ≥1
+>    `riwayat_belajar.is_aktif`.
+> 3. Asrama = entitas sendiri (BLOK 11), peran `asrama` (7 peran) + pivot
+>    `user_asrama`. Keuangan asrama ditandai lewat `pos_keuangan.kategori`.
 
 ## Auth bawaan Laravel (`0001_*_create_users_table.php`)
 
@@ -35,6 +43,7 @@ Tanpa kolom tenant — tenant = pivot `user_lembaga`.
 - `nsm`: string(30) [null, unique] — EMIS/Kemenag 12 digit, global unique
 - `npwp`: string [null] — EMIS/BOS
 - UNIQUE(`kode`) — kode lembaga unik global (single-pesantren)
+- CATATAN: asrama **bukan** lembaga — entitas + peran + pivot sendiri (BLOK 11).
 - `no_izin_operasional`: string [null] — Legalitas full EMIS:
 - `tgl_izin`: date [null]
 - `no_sk_pendirian`: string [null]
@@ -165,6 +174,14 @@ Tanpa kolom tenant — tenant = pivot `user_lembaga`.
 - `created_at`, `updated_at`
 - UNIQUE(`user_id`, `lembaga_id`)
 
+### `user_asrama`
+Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). Dibuat bersama BLOK 11 (setelah presensi).
+- `id` PK
+- `user_id`: FK → users [cascade]
+- `asrama_id`: FK → asrama [cascade]
+- `created_at`, `updated_at`
+- UNIQUE(`user_id`, `asrama_id`)
+
 ### `login_audits`
 - `id` PK
 - `user_id`: FK → users [null, nullOnDelete]
@@ -246,7 +263,7 @@ Tanpa kolom tenant — tenant = pivot `user_lembaga`.
 
 ### `santri`
 - `id` PK
-- `lembaga_id`: FK → lembaga [cascade] — Relasi Lembaga & Kelas Saat Ini (Kondisi Aktif Terakhir)
+- `lembaga_id`: FK → lembaga [null, nullOnDelete] — CACHE lembaga primer terakhir (kondisi aktif terakhir). Sumber kebenaran = `riwayat_belajar`. NULL = santri legacy tanpa track (belum/tidak punya riwayat, mutasi, kenaikan, pembayaran); diisi saat penempatan kelas/ACC (adopsi lembaga dari kelas).
 - `kelas_id`: FK → kelas [null, nullOnDelete]
 - `nama_lengkap`: string — Identitas Personal
 - `nama_singkat`: string [null]
@@ -317,8 +334,9 @@ Tanpa kolom tenant — tenant = pivot `user_lembaga`.
 - `rw`: string(3) [null]
 - `alamat`: text [null]
 - `kode_pos`: string [null]
-- `foto_url`: string [null] — Flag pesantren: true = masih aktif di pesantren ini, false = tidak aktif. / Lulus/mutasi TIDAK disimpan di sini — dibaca dari tabel alumni / mutasi_keluar.
-- `status_global`: bool [default true]
+- `foto_url`: string [null]
+- `status_global`: bool [default false] — TURUNAN murni: true iff punya ≥1 `riwayat_belajar.is_aktif`. Bukan input manual; dihitung ulang tiap transisi (ACC/penerimaan, penempatan kelas, naik, mutasi, lulus, berhenti). Lulus/mutasi tidak disimpan di sini — dibaca dari tabel alumni / mutasi_keluar. Santri legacy tanpa riwayat tetap false (nonaktif) sampai ditempatkan.
+- CATATAN visibilitas: santri legacy (`lembaga_id` NULL) boleh dilihat/dikelola **semua admin**; guru/wali/kasir tetap lewat jalur masing-masing (bukan endpoint admin).
 - `created_at`, `updated_at`
 - INDEX(`nik`)
 - INDEX(`nisn`)
@@ -578,9 +596,10 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 
 ### `pos_keuangan`
 - `id` PK
-- `kode_pos`: string — SPP, SRGM, PSB_REG, DFR_ULANG
+- `kode_pos`: string — SPP, SRGM, PSB_REG, DFR_ULANG, ASRAMA_BULANAN
 - `nama_pos`: string
 - `tipe`: enum(bulanan|sekali_bayar|semesteran|tahunan)
+- `kategori`: enum(akademik|asrama) [default 'akademik'] — penanda "berhubungan dengan asrama" untuk matriks izin keuangan (asrama: update hanya baris ber-pos kategori asrama; delete tetap admin lembaga).
 - `keterangan`: text [null]
 - `created_at`, `updated_at`
 - UNIQUE(`kode_pos`) — UNIK GLOBAL (single-pesantren)
@@ -595,6 +614,7 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 - `nominal_paket`: decimal(12, 2) [null]
 - `created_at`, `updated_at`
 - UNIQUE(`pos_keuangan_id`, `lembaga_id`, `tahun_ajaran_id`, `tipe_santri`, `uq_tarif_biaya_pltt`) — nama pendek: auto-name 73 char > limit MySQL 64
+- CATATAN asrama: tarif asrama mengikuti pola lama (per lembaga × `tipe_santri='asrama'`); beda tarif antar-asrama belum diakomodasi — sementara via `tarif_khusus_santri` (TBD Lampiran C).
 
 ### `tarif_khusus_santri`
 - `id` PK
@@ -848,6 +868,10 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 
 ## BLOK 8 — Presensi & Kedisiplinan (Modul 500 Presensi Santri)
 
+> TBD asrama: `sesi_presensi.kategori` sudah punya `kegiatan_asrama`, tetapi
+> `presensi_santri.kelas_id` masih NOT NULL — presensi asrama (tanpa kelas)
+> menunggu penyesuaian; lihat Lampiran C PRD. Ditunda dulu.
+
 ### `sesi_presensi`
 - `id` PK
 - `lembaga_id`: FK → lembaga [null, nullOnDelete]
@@ -957,4 +981,76 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 - Kolom: `id` PK; `lembaga_id`? FK → `lembaga` (null=global, terisi=milik lembaga); `nama`; `urutan` [default 0]; `is_active` [default true]; unique(`lembaga_id`,`nama`) — pitfall multi-NULL, dedup di `RefService`.
 - `ref_alamat` tambahan: wilayah free string + snapshot autofill. `ref_status_akhir`: `is_aktif_bawaan`, `terminal_ke`.
 - Tabel loop: `ref_penghasilan`, `ref_transportasi`, `ref_status_tinggal`, `ref_jarak`, `ref_waktu_tempuh`, `ref_bahasa_sehari_hari`, `ref_disabilitas`, `ref_tmp_lahir`, `ref_status_ortu`, `ref_yang_membiayai`, `ref_provinsi`, `ref_kecamatan`, `ref_desa_kelurahan`, `ref_alasan_mutasi`, `ref_jenis_dokumen_santri`, `ref_jenis_dokumen_pegawai`, `ref_status_pernikahan`, `ref_gol_darah`, `ref_jenis_ptk`, `ref_jenjang_sertifikasi`, `ref_tingkat`, `ref_tugas_utama`, `ref_tipe_pelanggaran`, `ref_kategori_kas`, `ref_metode_pembayaran`, `ref_jalur_sertifikasi`
+
+## BLOK 11 — Asrama (Modul 505 Asrama)
+
+> Asrama = entitas sendiri, **bukan** `lembaga`. Kepengurusan & gedung terpisah;
+> akses pengurus lewat peran `asrama` + pivot `user_asrama`. Daftar per jenjang /
+> jenis kelamin = query dari `asrama_penghuni` ⋈ `santri` ⋈ riwayat akademik
+> (tanpa kolom baru). `santri.tipe_santri` tetap sebagai flag kasar (PSB).
+> Presensi/kegiatan asrama ditunda — lihat catatan BLOK 8.
+
+### `asrama`
+- `id` PK
+- `kode`: string [null, unique] — mis. 'ASR_PA', 'ASR_PI'
+- `nama`: string
+- `jenis_kelamin`: enum(L|P) — putra/putri (beda gedung & pengurus); validasi aplikasi: harus cocok `santri.jk`
+- `gedung`: string [null] — lokasi/gedung
+- `pengasuh`: string [null] — nama pengasuh/mudir asrama
+- `telepon`: string [null]
+- `is_active`: bool [default true]
+- `created_at`, `updated_at`
+
+### `asrama_kamar`
+- `id` PK
+- `asrama_id`: FK → asrama [cascade]
+- `nama`: string — mis. 'Kamar 01'
+- `kapasitas`: int [null]
+- `is_active`: bool [default true]
+- `created_at`, `updated_at`
+- UNIQUE(`asrama_id`, `nama`)
+
+### `asrama_penghuni`
+Lifecycle mandiri (tidak lewat `riwayat_belajar`); masuk/keluar bisa kapan saja.
+- `id` PK
+- `santri_id`: FK → santri [cascade]
+- `asrama_id`: FK → asrama [cascade]
+- `kamar_id`: FK → asrama_kamar [null, nullOnDelete] — kamar boleh menyusul
+- `tanggal_masuk`: date
+- `tanggal_keluar`: date [null]
+- `status_akhir`: string [default 'aktif']
+- `is_aktif`: bool [default true] — INVARIANT: true iff `status_akhir='aktif'`
+- `catatan`: text [null]
+- `created_at`, `updated_at`
+- INDEX(`santri_id`, `is_aktif`); INDEX(`asrama_id`, `is_aktif`)
+
+### `asrama_izin_pulang`
+- `id` PK
+- `santri_id`: FK → santri [cascade]
+- `asrama_id`: FK → asrama [cascade]
+- `tanggal_keluar`: date — rencana pulang
+- `rencana_kembali`: date [null]
+- `kembali_pada`: date [null] — realisasi; null = belum kembali
+- `tujuan`: string [null]
+- `alasan`: text [null]
+- `status`: enum(diajukan|disetujui|ditolak|kembali) [default 'diajukan']
+- `diproses_oleh`: FK → users [null, nullOnDelete]
+- `catatan`: text [null]
+- `created_at`, `updated_at`
+- INDEX(`asrama_id`, `status`); INDEX(`santri_id`)
+
+### `asrama_kegiatan`
+- `id` PK
+- `asrama_id`: FK → asrama [cascade]
+- `nama`: string — mis. 'Shalat Subuh Jamaah', 'Muhadharah'
+- `jadwal`: string [null] — hari/jam bebas
+- `is_active`: bool [default true]
+- `created_at`, `updated_at`
+
+### Aturan izin keuangan asrama (mengacu `pos_keuangan.kategori`)
+- Generate tagihan: dari **lembaga** (pola 103 yang berlaku), termasuk pos kategori asrama untuk santri penghuni aktif.
+- Bayar: admin/kasir **lembaga** maupun pengurus **asrama** boleh membuat pembayaran.
+- Read: pengurus asrama boleh membaca keuangan di lembaga yang terikat ke santri asramanya.
+- Update: pengurus asrama hanya boleh mengubah baris keuangan ber-pos kategori `asrama`.
+- Delete: **hanya admin lembaga**.
 

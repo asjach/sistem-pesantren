@@ -37,6 +37,7 @@
 | 1.9.5 | 2026-09-11 | Pause desktop: hapus `src-tauri/target` (±1 GB) + `.app/.dmg`; source Tauri tersimpan, resume via `tauri:build`; percobaan web-only (patch, docs-only) |
 | 1.9.6 | 2026-09-11 | Migrasi FE v0.5.0 ke Tailwind v4 + shadcn (10 komponen Radix): galeri 20 tema Top Populer ala VSCode data-driven (`src/themes.ts`, palet resmi) + kustom, teks tombol otomatis via `onAccentFor` (40/40 pasang ≥4.5:1), border global lembut (12% via color-mix, tanpa shadow kartu) + mode Gelap/Terang/Sistem per perangkat, galeri kartu pratinjau, Ctrl/Cmd+B sidebar, grid Excel `react-data-grid` pin beta.40 (resize kolom persist, density + drag tinggi baris, checkbox + salin TSV, kolom Aksi Lihat/Ubah/Hapus role-gated, ikut 20 tema; sorting off, seleksi per halaman) untuk 6 tabel master, form tambah 6 halaman jadi modal + tombol kanan atas, pagination semua list, dialog/toast/skeleton, favicon, catch-all, min window; QA build + kontras + screenshot; tanpa ubah backend/API (patch) |
 | 1.9.7 | 2026-09-11 | Tabel master pindah ke `react-datasheet-grid` (wrapper `ExcelTable`, 6 halaman): 3 lib tabel lama + CSS-nya dicabut (react-data-grid/ag-grid/react-data-table-component) dan `ViewDialog` dipisah; seleksi gaya spreadsheet (outline 1px tunggal menimpa garis grid, tint, header kolom + nomor baris tersorot, lubang jangkar hanya saat edit); resize kolom 1:1 + AutoFit (klik 2× gagang, tombol semua kolom, otomatis saat muat & saat font berubah) + resize serentak untuk multi-kolom terseleksi; edit klik-2× langsung tersimpan (`quickEditRef` + simpan satu baris); toolbar satu baris (cari+filter+kontrol+tambah) dengan grup fungsi (mode edit/tampilan/alat/draft), petunjuk pindah ke tooltip; kontrol global ukuran huruf, tinggi baris, dan jenis huruf (9 font sistem + 8 Google Fonts **offline**: 32 `@font-face` dari `src/assets/fonts`, 1,4 MB, skrip `scripts/fonts-offline.py`; isi tabel saja, header tetap `--font-display`); garis kolom & baris terakhir digambar di dalam sel; label tombol jadi "+ Pengguna"/"+ Tahun Ajaran"/dst; desktop Tauri 0.5.0 dibangun ulang (`.app` 11 MB, `.dmg` 4 MB, font ter-embed); tanpa ubah backend/API (patch) |
+| 1.10 | 2026-09-14 | Desain (gambaran umum, bisa berubah; docs-only): `santri.lembaga_id` boleh NULL = legacy tanpa track (sumber kebenaran lembaga = `riwayat_belajar`, kolom jadi cache), terlihat semua admin; `santri.status_global` turunan murni default false (= punya ≥1 riwayat aktif); asrama = entitas sendiri (bukan `lembaga`) + peran `asrama` (7 peran) + pivot `user_asrama`; keuangan asrama ditandai lewat `pos_keuangan.kategori` (matriks izin: generate dari lembaga, update hanya pos asrama, delete admin lembaga); presensi/kegiatan asrama ditunda (TBD) |
 
 ## Daftar Isi
 
@@ -80,6 +81,10 @@ Pengelolaan santri, keuangan, akademik, dan operasional masih manual/spreadsheet
 
 Pesantren menaungi beberapa lembaga — MI, MD, MTs, Mu'allimin — dalam satu pesantren (root `lembaga kode=PESANTREN`). Tiap lembaga punya `tahun_ajaran`, `kurikulum`, `kelas`, pegawai, dan `tarif_biaya` sendiri; sebagian santri aktif di >1 lembaga (mis. MTS + MD, paket MI-MD).
 
+**Asrama bukan `lembaga`** (v1.10): asrama punya kepengurusan, gedung, kamar, dan siklus penghuni sendiri; didaftarkan sebagai entitas `asrama` + peran `asrama` + pivot `user_asrama` (Modul 505). Santri asrama tetap terikat lembaga akademiknya untuk urusan akademik/PSB; keuangan asrama ditandai lewat `pos_keuangan.kategori`.
+
+**Santri legacy:** `santri.lembaga_id` boleh NULL untuk data lama yang lembaganya tidak punya jejak `riwayat_belajar`/mutasi/kenaikan/pembayaran. Sumber kebenaran lembaga adalah `riwayat_belajar`; kolom ini cache terakhir dan diisi saat penempatan kelas. `status_global` bukan input manual — turunan "punya ≥1 riwayat aktif" (default nonaktif sampai ditempatkan).
+
 ### 1.3 Tujuan Proyek
 
 1. Sistem terpusat untuk santri, pegawai/guru, dan pengguna lintas lembaga via model single-pesantren (`lembaga`).
@@ -99,13 +104,13 @@ Pesantren menaungi beberapa lembaga — MI, MD, MTs, Mu'allimin — dalam satu p
 - G3: ortu mobile (daftar + history bayar; subset 100/103/203). Setelah ini production.
 
 **Pasca (detail ditunda, kecuali ada di arsip):**
-- G4: guru, dokumen guru/santri, absensi guru. G5: laporan keuangan, input nilai (tanpa rapor). G6: pengurus mobile (statistik). G7: absen santri, asrama, tahfizh, rapor. G8: notifikasi, pengumuman, gateway, fingerprint.
+- G4: guru, dokumen guru/santri, absensi guru. G5: laporan keuangan, input nilai (tanpa rapor). G6: pengurus mobile (statistik). G7: absen santri, asrama (**Modul 505 sudah digambarkan** — entitas+peran+pivot; UI/migrasi menyusul), tahfizh, rapor. G8: notifikasi, pengumuman, gateway, fingerprint.
 
 **Kurikulum/nilai:** dibangun belakangan (G5/G7), skema disiapkan sekarang (pivot, tingkat, mode_rapor) agar minim rombak.
 
 ### 1.5 Definisi Singkat
 
-Lihat Lampiran D. Inti: `lembaga` (root PESANTREN + MI/MD/MTS/MUA), `tahun_ajaran`, `kelas` (`walas_id→pegawai`), 6 peran (`super_admin, admin, kasir, guru, orang_tua, santri`), `tagihan/pembayaran`, `riwayat_belajar`.
+Lihat Lampiran D. Inti: `lembaga` (root PESANTREN + MI/MD/MTS/MUA), `tahun_ajaran`, `kelas` (`walas_id→pegawai`), 7 peran (`super_admin, admin, kasir, guru, orang_tua, santri, asrama`), `tagihan/pembayaran`, `riwayat_belajar`, `asrama` (entitas sendiri, bukan lembaga).
 
 ### 1.6 Referensi (arsip, read-only)
 
@@ -148,11 +153,12 @@ Aturan terkunci:
 | `guru` | Wajib pivot ≥1 | Modul 202 Nilai-Rapor: input miliknya/walasnya |
 | `orang_tua` | Wajib pivot, via `wali_santri_relasi` | Modul 203 Portal Wali + Modul 100 PSB Penerimaan daftar + Modul 103 history bayar + ajukan/batal (1 aktif/santri) |
 | `santri` | Wajib pivot | Portal terbatas |
+| `asrama` | Wajib pivot `user_asrama` (ditetapkan super_admin saja) | Modul 505 Asrama: penghuni/kamar/izin pulang/kegiatan; keuangan: baca lembaga terkait santri asramanya, update hanya baris ber-pos kategori asrama, tanpa delete |
 
 Aturan terkunci:
-- 6 peran final: `super_admin, admin, kasir, guru, orang_tua, santri`; guard wajib `sanctum`; multi-peran didukung. 4 peran lama (`admin_pesantren, admin_lembaga, kasir_pesantren, kasir_lembaga`) dihapus; gabung jadi `admin` / `kasir` (Modul 003 Auth Login).
-- Tenant satu-satunya pivot `user_lembaga`; `users` tanpa kolom tenant; 1 akun multi-lembaga via `lembaga_ids[]` (mis. 1 akun `admin` untuk MI+MD); non-admin tidak boleh list users.
-- Pemberian peran via `assignableRolesFor()`: `super_admin` ke semua 6; `admin` hanya `kasir,guru,orang_tua,santri` (tidak boleh buat sesama `admin/super_admin`); tambah lembaga via attach/detach oleh `super_admin`/admin full; larang hapus diri sendiri. **Pengecualian create**: saat *membuat user* saja, `admin` (full/scoped) boleh memberi role `admin` — batas lembaga ⊆ kewenangan pembuat (boleh subset; scoped tanpa `lembaga_ids` memakai pivot sendiri, sehingga tak bisa melahirkan admin global). Jalur `update`/`assignRole`/`removeRole`/`import` tetap tanpa role `admin`.
+- 7 peran final: `super_admin, admin, kasir, guru, orang_tua, santri, asrama`; guard wajib `sanctum`; multi-peran didukung. 4 peran lama (`admin_pesantren, admin_lembaga, kasir_pesantren, kasir_lembaga`) dihapus; gabung jadi `admin` / `kasir` (Modul 003 Auth Login).
+- Tenant pivot `user_lembaga`; `users` tanpa kolom tenant; 1 akun multi-lembaga via `lembaga_ids[]` (mis. 1 akun `admin` untuk MI+MD); non-admin tidak boleh list users. Peran `asrama` memakai pivot tambahan `user_asrama` (1 akun boleh multi-asrama) dan **tidak** memberi akses `user_lembaga`.
+- Pemberian peran via `assignableRolesFor()`: `super_admin` ke semua 7; `admin` hanya `kasir,guru,orang_tua,santri` (tidak boleh buat sesama `admin/super_admin`, dan **tidak boleh** memberi `asrama` — khusus super_admin); tambah lembaga via attach/detach oleh `super_admin`/admin full; larang hapus diri sendiri. **Pengecualian create**: saat *membuat user* saja, `admin` (full/scoped) boleh memberi role `admin` — batas lembaga ⊆ kewenangan pembuat (boleh subset; scoped tanpa `lembaga_ids` memakai pivot sendiri, sehingga tak bisa melahirkan admin global). Jalur `update`/`assignRole`/`removeRole`/`import` tetap tanpa role `admin`.
 - Login multi-identifier `email/phone/username` + `password`, throttle 6/mnt, tulis `login_audits` + `last_login_at`. Buat user hanya oleh admin manual atau Import Excel; register publik tidak dibuka.
 
 ### 2.4 Asumsi dan Batasan
@@ -176,7 +182,7 @@ Aturan terkunci:
 | B4 | UNIQUE nullable tidak cegah duplikat NULL MySQL; dedup wajib service (`RefService`, `KeuanganService`, import 101) (Modul 002) |
 | B5 | Kolom pemakai `ref_*` string tanpa FK; shadow global hanya `is_active` (Modul 004) |
 | B6 | Void hanya admin; kas pusat null hanya admin full; `kasir` hanya lembaganya (Modul 103) |
-| B7 | Scope G0-G3 production dulu; G4+ TBD; `500-504`, `900-901` ditutup sementara (Bab 1.4) |
+| B7 | Scope G0-G3 production dulu; G4+ TBD; `500-505`, `900-901` ditutup sementara (Bab 1.4) |
 
 ---
 
@@ -186,14 +192,15 @@ Aturan terkunci:
 
 | ID                     | Modul (kode + nama)                               | Functional Requirement                                                                                           | Status doc            |
 | ---------------------- | ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | --------------------- |
-| FR-003                 | 003 Auth Login                                    | Login multi-identifier, 6 peran, import, audit                                                                   | Detail (G0)           |
+| FR-003                 | 003 Auth Login                                    | Login multi-identifier, 7 peran, import, audit                                                                   | Detail (G0)           |
 | FR-004                 | 004 Referensi-Master                              | `lembaga`, `tahun_ajaran`, `kelas`, 36 `ref_*` via `RefService`                                                  | Detail (G0)           |
 | FR-100                 | 100 PSB Penerimaan Santri                         | 2-jalur via `is_seleksi` + override null ikut default, kuota saat input, waiting_list, paket MI-MD opsional, ACC | Detail (G1+G3 daftar) |
-| FR-101                 | 101 Santri Master                                 | `id` stabil; NIK fiktif boleh; dedup; status_global                                                              | Detail (G1)           |
+| FR-101                 | 101 Santri Master                                 | `id` stabil; NIK fiktif boleh; dedup; `status_global` turunan (default false); `lembaga_id` boleh NULL (legacy, terlihat semua admin) | Detail (G1)           |
 | FR-102                 | 102 Siklus Santri                                 | status_awal/akhir, naik/pindah/mutasi/lulus                                                                      | Detail (G1)           |
-| FR-103                 | 103 Keuangan                                      | Tagihan idempoten, bayar terkunci, kuitansi, void; subset mobile G2                                              | Detail (G1+G2)        |
+| FR-103                 | 103 Keuangan                                      | Tagihan idempoten, bayar terkunci, kuitansi, void; subset mobile G2; `pos_keuangan.kategori` (akademik/asrama)  | Detail (G1+G2)        |
 | FR-203                 | 203 Portal Wali subset                            | Daftar + history bayar + pengajuan                                                                               | Detail (G3)           |
 | FR-200, FR-201, FR-202 | 200 Pegawai, 201 Kurikulum-Mapel, 202 Nilai-Rapor | Skema siap, UI belakangan                                                                                        | Persiapan (G5/G7)     |
+| FR-505                 | 505 Asrama                                        | Entitas `asrama` (bukan lembaga)+`user_asrama`+peran `asrama`; kamar, penghuni, izin pulang, kegiatan; keuangan via pos asrama | Gambaran umum (G7, TBD sebagian) |
 
 ### 3.2 Non-Functional Requirement
 
@@ -218,7 +225,7 @@ Aturan terkunci:
 | UC-G1-03 | `admin` | Naik/pindah/mutasi/lulus (`riwayat_belajar`) | 102 Siklus Santri |
 | UC-G1-04 | `admin`, `kasir` | Generate/bayar/kuitansi/void (`tagihan`, `pembayaran`) + subset mobile G2 | 103 Keuangan |
 | UC-G3-01 | `orang_tua`, `santri` | Portal daftar + history bayar + pengajuan | 203 Portal Wali subset |
-| UC-Pasca | `guru` + pasca | Pegawai, kurikulum-mapel, nilai-rapor, `500-504` | 200, 201, 202, 500-504 TBD |
+| UC-Pasca | `guru` + pasca | Pegawai, kurikulum-mapel, nilai-rapor, `500-505` | 200, 201, 202, 500-505 TBD |
 
 ---
 
@@ -227,10 +234,11 @@ Aturan terkunci:
 | ID | Modul (kode + nama) | Aturan | Input, Proses, Output |
 |---|---|---|---|
 | 4.1 | 100 PSB Penerimaan | Master kegiatan → gelombang (anti-overlap, otomatis saat daftar) → kuota/biaya pendaftaran per lembaga; biaya masuk & asrama per lembaga; 2-jalur via `lembaga.is_seleksi` (override null ikut default); kuota pool gabungan per kelompok kunci saat input (penuh ke waiting_list); paket MI-MD opsional (1 calon + baris `psb_calon_lembaga`, primer MI, non-asrama, 1 tagihan) | Input: NIK wajib (fiktif boleh), dokumen wajib per lembaga. Proses: cek-NIK ke daftar ke verifikasi ke seleksi opsional ke pemberkasan ke lengkapi ke ACC tunggal; aksi massal verifikasi/masuk daftar ulang/ACC/undur diri/hapus (soft delete + restore). Output: nomor `PSB_*`, `santri`, `riwayat_belajar` aktif (1 per lembaga), `tagihan` masuk + asrama |
-| 4.2 | 101 Santri Master, 102 Siklus Santri | `id` stabil; `is_aktif` true iff aktif; `status_global` recalc; mutasi/lulus per lembaga | Input: biodata + `kelas`. Proses: salin ganjil ke genap; naik massal per-item (`kelas_id` null lalu penempatan); pindah/set validasi se-lembaga/tahun/tingkat. Output: `riwayat_belajar`, `mutasi_keluar`, `alumni` |
-| 4.3 | 103 Keuangan G1 dasar + G2 mobile | Idempoten `(santri,pos,periode)`; bayar `total==sum`, kunci baris; kuitansi retry; void reversal | Input G2 disederhanakan (tombol besar). Proses: generate ke bayar terkunci ke kuitansi ke void bila perlu. Output: `tagihan`, `pembayaran`, `jurnal_kas`, kuitansi |
+| 4.2 | 101 Santri Master, 102 Siklus Santri | `id` stabil; `is_aktif` true iff aktif; `status_global` TURUNAN murni (= punya ≥1 riwayat aktif, default false); `lembaga_id` boleh NULL = legacy tanpa track (cache; sumber kebenaran `riwayat_belajar`, terlihat semua admin); mutasi/lulus per lembaga | Input: biodata + `kelas`. Proses: salin ganjil ke genap; naik massal per-item (`kelas_id` null lalu penempatan); pindah/set validasi se-lembaga/tahun/tingkat; penempatan kelas mengadopsi lembaga saat `lembaga_id` NULL. Output: `riwayat_belajar`, `mutasi_keluar`, `alumni` |
+| 4.3 | 103 Keuangan G1 dasar + G2 mobile | Idempoten `(santri,pos,periode)`; bayar `total==sum`, kunci baris; kuitansi retry; void reversal; pos kategori `asrama` untuk keuangan asrama | Input G2 disederhanakan (tombol besar). Proses: generate ke bayar terkunci ke kuitansi ke void bila perlu. Output: `tagihan`, `pembayaran`, `jurnal_kas`, kuitansi |
 | 4.4 | 203 Portal Wali G3 | Daftar + history bayar + pengajuan (1 aktif/santri); envelope `pesan/data` | Input: akun `orang_tua` via `wali_santri_relasi`. Proses: list anak ke detail. Output: history, pengajuan |
 | 4.5 | 200 Pegawai, 201 Kurikulum-Mapel, 202 Nilai-Rapor persiapan | Skema siap: `kurikulum`, pivot `kurikulum_mapel` (tingkat/kkm/urutan), `pengampu` 4 lapis, `mode_rapor`, `semester` | Dibangun G5/G7; arsip 201/202 |
+| 4.6 | 505 Asrama (gambaran umum v1.10) | Asrama entitas sendiri (bukan `lembaga`); pengurus via peran `asrama` + `user_asrama`; kamar & penghuni punya siklus mandiri; daftar per jenjang/JK dari query (bukan kolom); keuangan asrama via pos kategori `asrama` | Input: `asrama` + `asrama_kamar`, penempatan `asrama_penghuni` (kamar menyusul), `asrama_izin_pulang`, `asrama_kegiatan`. Proses: izin pulang diajukan lalu diproses (setujui/tolak), penghuni keluar (tutup baris). Output: daftar penghuni per asrama/jenjang/JK, riwayat izin, tagihan ber-pos asrama. Presensi asrama & kegiatan harian detail ditunda (TBD) |
 
 ---
 
@@ -247,7 +255,7 @@ Service Layer + Policy + transaction; notifikasi DB agregat.
 
 | ID | Modul (kode + nama) | Tabel inti | Status |
 |---|---|---|---|
-| FR-003 | 003 Auth Login | `users`, `user_lembaga`, `login_audits` | Detail |
+| FR-003 | 003 Auth Login | `users`, `user_lembaga`, `user_asrama`, `login_audits` | Detail |
 | FR-004 | 004 Referensi-Master | `lembaga`, `tahun_ajaran`, `kelas`, 36 `ref_*` | Detail |
 | FR-100 | 100 PSB Penerimaan | `psb_*`, `dokumen_santri` | Detail |
 | FR-101 | 101 Santri Master | `santri` | Detail |
@@ -255,6 +263,7 @@ Service Layer + Policy + transaction; notifikasi DB agregat.
 | FR-103 | 103 Keuangan | `pos_keuangan`, `tarif_biaya`, `tagihan`, `pembayaran`, `akun_kas`, `jurnal_kas` | Detail |
 | FR-203 | 203 Portal Wali subset | `wali_*`, `pengajuan_biodata_santri` | Detail G3 |
 | FR-200, FR-201, FR-202 | 200 Pegawai, 201 Kurikulum-Mapel, 202 Nilai-Rapor | Lihat arsip | Persiapan |
+| FR-505 | 505 Asrama | `asrama`, `asrama_kamar`, `asrama_penghuni`, `asrama_izin_pulang`, `asrama_kegiatan`, `user_asrama` | Gambaran umum (G7) |
 
 ### 5.3 Alur Data Utama (G0–G3)
 
@@ -264,6 +273,7 @@ Service Layer + Policy + transaction; notifikasi DB agregat.
 | 5.3.2 | Siklus 102 | salin ganjil-genap ke naik massal ke penempatan ke mutasi/lulus |
 | 5.3.3 | Bayar 103 | generate ke bayar terkunci ke kuitansi ke void bila perlu |
 | 5.3.4 | Nilai 202 persiapan | simpan massal ke hitung ke portal (dibangun G5) |
+| 5.3.5 | Asrama 505 (gambaran umum) | daftar penghuni ke penempatan kamar ke izin pulang ke proses (setujui/tolak/kembali) |
 
 ---
 
@@ -274,15 +284,17 @@ Service Layer + Policy + transaction; notifikasi DB agregat.
 | ID | Modul (kode + nama) | Tabel inti | Relasi kunci |
 |---|---|---|---|
 | 6.1 | 003 Auth Login, 004 Referensi-Master | `lembaga`, 36 `ref_*`, `users`, `user_lembaga`, `tahun_ajaran`, `pegawai`, `kelas` | `lembaga 1—N tahun_ajaran/kelas`; `kelas.walas_id` inline; ref global + shadow lembaga |
-| 6.2 | 101 Santri Master, 102 Siklus Santri | `santri`, `riwayat_belajar`, `mutasi_keluar`, `alumni` | `santri 1—N riwayat_belajar`; `riwayat N—1 kelas`; `id` stabil, NIK index tanpa unique |
+| 6.2 | 101 Santri Master, 102 Siklus Santri | `santri`, `riwayat_belajar`, `mutasi_keluar`, `alumni` | `santri 1—N riwayat_belajar`; `riwayat N—1 kelas`; `id` stabil, NIK index tanpa unique; `santri.lembaga_id` nullable (cache, fallback riwayat), `status_global` turunan |
 | 6.3 | 100 PSB Penerimaan | `psb_*`, `dokumen_santri` | `calon` ke `santri` saat ACC; dokumen pindah ke santri |
-| 6.4 | 103 Keuangan | `pos_keuangan`, `tarif_biaya`, `tagihan`, `pembayaran`, `akun_kas`, `jurnal_kas` | `pos 1—N tagihan 1—N pembayaran` |
+| 6.4 | 103 Keuangan | `pos_keuangan`, `tarif_biaya`, `tagihan`, `pembayaran`, `akun_kas`, `jurnal_kas` | `pos 1—N tagihan 1—N pembayaran`; `pos_keuangan.kategori` menandai pos asrama |
 | 6.5 | 200 Pegawai, 201 Kurikulum-Mapel, 202 Nilai-Rapor, 203 Portal Wali | `kurikulum_mapel` pivot, `wali_*`, `pengajuan_biodata_santri` | `kurikulum N—M mapel` via `kurikulum_mapel`; wali via `wali_santri_relasi` |
+| 6.6 | 505 Asrama (gambaran umum) | `asrama`, `asrama_kamar`, `asrama_penghuni`, `asrama_izin_pulang`, `asrama_kegiatan`, `user_asrama` | `asrama 1—N kamar/penghuni/izin/kegiatan`; `santri 1—N penghuni`; pengurus via `user_asrama` (asrama bukan `lembaga`) |
 
 Contoh kamus ringkas:
 
-**`santri`:** `id INT PK`; `nik VARCHAR(16) INDEX nullable` (fiktif boleh, dedup service); `nis VARCHAR nullable`; `status_global BOOLEAN`; `lembaga_id, kelas_id INT FK`.
+**`santri`:** `id INT PK`; `nik VARCHAR(16) INDEX nullable` (fiktif boleh, dedup service); `nis VARCHAR nullable`; `status_global BOOLEAN DEFAULT false` (turunan: punya ≥1 riwayat aktif); `lembaga_id INT FK NULL` (legacy tanpa track; cache), `kelas_id INT FK NULL`.
 **`riwayat_belajar`:** `status_awal VARCHAR`; `status_akhir VARCHAR`; `is_aktif BOOLEAN` (tulis via service); `semester CHAR(1)`.
+**`asrama`:** `id INT PK`; `jenis_kelamin ENUM(L,P)`; `user_asrama(user_id, asrama_id)`; tidak memakai `riwayat_belajar`.
 
 ---
 
@@ -305,7 +317,7 @@ Laravel 13 / PHP 8.4+, Sanctum (`sanctum`), Spatie (`sanctum`), MySQL, Excel, Do
 
 ### 8.2 Strategi Migration (per alur, per-modul per-file)
 
-Migration per-modul (timestamp bawaan, urutan FK); spec di `docs/SCHEMA.md` (ditulis ulang dari vault 002). Urutan `lembaga` ke `ref_*` ke `users` (`0001` bawaan) ke `user_lembaga` ke `tahun_ajaran` ke `pegawai` ke `kelas` ke `santri` ke riwayat ke PSB ke keuangan ke lanjutan.
+Migration per-modul (timestamp bawaan, urutan FK); spec di `docs/SCHEMA.md` (ditulis ulang dari vault 002). Urutan `lembaga` ke `ref_*` ke `users` (`0001` bawaan) ke `user_lembaga` ke `tahun_ajaran` ke `pegawai` ke `kelas` ke `santri` ke riwayat ke PSB ke keuangan ke lanjutan; blok asrama (`asrama*`, `user_asrama`) menyusul setelah presensi.
 
 | ID | Alur (Bab 4) | Modul | Tabel (BLOK) |
 |---|---|---|---|
@@ -313,6 +325,7 @@ Migration per-modul (timestamp bawaan, urutan FK); spec di `docs/SCHEMA.md` (dit
 | 8.2.2 | Santri/Siklus | 101 Santri Master, 102 Siklus Santri | `santri`, `riwayat_belajar`, `mutasi_keluar`, `alumni` |
 | 8.2.3 | Keuangan | 103 Keuangan | `pos_keuangan`, `tarif_biaya`, `tagihan`, `akun_kas`, `pembayaran`, `jurnal_kas` |
 | 8.2.4 | Akademik/Nilai/Portal | 200, 201, 202, 203 | `kurikulum*`, `pengampu_mapel`, `nilai_santri`, `rapor_catatan_wali`, `wali_*` |
+| 8.2.5 | Asrama (gambaran umum) | 505 Asrama | `asrama`, `asrama_kamar`, `asrama_penghuni`, `asrama_izin_pulang`, `asrama_kegiatan`, `user_asrama`; perubahan `santri` (lembaga_id nullable, status_global default false) |
 
 ### 8.3 Konvensi Kode
 
@@ -340,7 +353,7 @@ Migration per-modul (timestamp bawaan, urutan FK); spec di `docs/SCHEMA.md` (dit
 | G1 | 100 PSB Penerimaan, 101 Santri Master, 102 Siklus Santri, 103 Keuangan dasar | Desktop | Production awal |
 | G2 | 103 Keuangan subset bayar | Mobile kasir | Production awal |
 | G3 | 100 daftar, 103 history, 203 Portal Wali subset | Mobile ortu | Production awal |
-| G4+ | 200 Pegawai, 201 Kurikulum-Mapel, 202 Nilai-Rapor, 500-504, notif/gateway | Menyusul | Pasca, TBD |
+| G4+ | 200 Pegawai, 201 Kurikulum-Mapel, 202 Nilai-Rapor, 500-505, notif/gateway | Menyusul | Pasca, TBD |
 
 Estimasi solo: G0 3–4 mgg; G1 4–5; G2 2–3; G3 3–4. Total G0–G3 ±4–5 bln.
 
@@ -392,7 +405,7 @@ Unit, integrasi (Modul 100 PSB Penerimaan ke 101 Santri Master ke 103 Keuangan),
 | C-01 | UAT lulus |
 | C-02 | `lembaga` / `tahun_ajaran` / `ref_*` / `kurikulum` / `tarif_biaya` terkonfigurasi |
 | C-03 | Paket MI-MD terverifikasi |
-| C-04 | Akun 6 peran teruji |
+| C-04 | Akun 7 peran teruji (termasuk `asrama` via `user_asrama`) |
 | C-05 | Training/backup/SSL selesai |
 
 ---
@@ -406,6 +419,7 @@ Unit, integrasi (Modul 100 PSB Penerimaan ke 101 Santri Master ke 103 Keuangan),
 | K-03 | Transaksi terkunci | 102, 103 |
 | K-04 | Audit (`login_audits`, `psb_log_status`, `wali_portal_logs`, jurnal) | 003, 100, 203, 103 |
 | K-05 | Backup offsite + SSL; privasi internal | 900/901 TBD |
+| K-06 | Izin asrama (v1.10): pengurus `asrama` baca keuangan lembaga terkait santri asramanya; update hanya baris ber-pos kategori `asrama`; delete hanya admin lembaga; generate tagihan dari lembaga | 505, 103 |
 
 ---
 
@@ -443,7 +457,7 @@ Diagram Crow's Foot diturunkan dari [[Step-By-Step Sistem Pesantren/Backend/002_
 | FR-103 | 103 Keuangan | [[Step-By-Step Sistem Pesantren/Backend/103_Modul Keuangan\|103]] |
 | FR-203 | 203 Portal Wali | [[Step-By-Step Sistem Pesantren/Backend/203_Modul Portal Orang Tua\|203]] |
 | FR-200, FR-201, FR-202 | 200 Pegawai, 201 Kurikulum-Mapel, 202 Nilai-Rapor | Persiapan, arsip 200/201/202 |
-| TBD-Pasca | 500 Presensi Santri, 501 Presensi Guru, 502 Jadwal, 503 Tahfizh, 504 Pimpinan | TBD pasca |
+| TBD-Pasca | 500 Presensi Santri, 501 Presensi Guru, 502 Jadwal, 503 Tahfizh, 504 Pimpinan, 505 Asrama | TBD pasca |
 | TBD-Infra | 900 Deploy VPS, 901 Konfigurasi Produksi | TBD infra |
 | FE-UI | Frontend LANGKAH UI | `Frontend/admin-flutter-desktop/docs/` |
 | DB-002 | Skema DB Bab 6 | [[Step-By-Step Sistem Pesantren/Backend/002_Skema_Database\|002]] |
@@ -451,11 +465,16 @@ Diagram Crow's Foot diturunkan dari [[Step-By-Step Sistem Pesantren/Backend/002_
 
 ## Lampiran C — Isu Terbuka / TBD
 
-G4: Modul Guru (pegawai), Dokumen Guru/Santri, Absensi Guru (Modul 501 stub). G5: Laporan Keuangan (jurnal 103), Input Nilai tanpa rapor (Modul 202 subset). G6: Statistik Pengurus (Modul 504 ringkas). G7: Absen Santri (500), Asrama (belum ada), Tahfizh (503), Rapor (202). G8: Notifikasi, Pengumuman, Gateway, Fingerprint (belum ada). Fase 3–4 cadangan.
+G4: Modul Guru (pegawai), Dokumen Guru/Santri, Absensi Guru (Modul 501 stub). G5: Laporan Keuangan (jurnal 103), Input Nilai tanpa rapor (Modul 202 subset). G6: Statistik Pengurus (Modul 504 ringkas). G7: Absen Santri (500), **Asrama (505 — gambaran umum v1.10: entitas `asrama`+`user_asrama`+peran `asrama`; UI/migrasi menyusul)**, Tahfizh (503), Rapor (202). G8: Notifikasi, Pengumuman, Gateway, Fingerprint (belum ada). Fase 3–4 cadangan.
+
+TBD khusus asrama (v1.10):
+- Presensi kegiatan asrama: `sesi_presensi.kategori` sudah ada, tetapi `presensi_santri.kelas_id` masih NOT NULL — perlu penyesuaian skema sebelum dipakai.
+- Tarif beda antar-asrama (putra/putri) belum diakomodasi `tarif_biaya` (per lembaga × tipe_santri); sementara lewat `tarif_khusus_santri`.
+- Bentuk tabel kamar/penghuni/izin/kegiatan masih **gambaran umum**, bisa berubah saat implementasi.
 
 ## Lampiran D — Glosarium (Opsi A)
 
-SIMPES; santri; lembaga (MI=SD formal, MD=SD non-formal paralel, MTS=SMP, MLN=Aliyah beda nama; kode hardcoded; PK id INT); tahun_ajaran; kelas; pegawai/guru; 6 peran; PSB (`is_seleksi`); tagihan/pembayaran; riwayat_belajar.
+SIMPES; santri; lembaga (MI=SD formal, MD=SD non-formal paralel, MTS=SMP, MLN=Aliyah beda nama; kode hardcoded; PK id INT); tahun_ajaran; kelas; pegawai/guru; 7 peran (`super_admin, admin, kasir, guru, orang_tua, santri, asrama`); PSB (`is_seleksi`); tagihan/pembayaran; riwayat_belajar; asrama (entitas sendiri — bukan `lembaga`; kamar, penghuni, izin pulang, kegiatan); pengurus asrama (peran `asrama` + pivot `user_asrama`); santri legacy (`santri.lembaga_id` NULL, tanpa track riwayat).
 
 ## Lampiran E — Catatan Perubahan Aturan
 
@@ -472,6 +491,7 @@ SIMPES; santri; lembaga (MI=SD formal, MD=SD non-formal paralel, MTS=SMP, MLN=Al
 | 2026-09-11 | auto-attach lembaga | Buat lembaga tanpa auto-akses ke scoped pembuat auto-attach pivot (full/super_admin tidak di-attach) | Lembaga baru langsung bisa dikelola pembuatnya | LembagaController, tests, FE lembaga |
 | 2026-09-11 | anti-eskalasi admin | Admin bisa hapus super_admin / tambah role ke super_admin / tambah lembaga ke tutup: mutasi target pemegang `admin/super_admin` (update/assign/remove/attach/detach/destroy) 403 bila actor bukan super_admin; `store` lembaga 403 bila bukan super_admin (gantikan auto-attach v1.9.1) | Hanya super_admin kelola admin & lembaga | UserManagement, LembagaController, tests, FE users/lembaga |
 | 2026-09-14 | buat admin oleh admin | Larangan role `admin` dilonggarkan **khusus create**: `admin` (full/scoped) boleh membuat user ber-role `admin`, lembaga ⊆ kewenangannya (boleh subset; scoped tanpa `lembaga_ids` = pivot sendiri, tak bisa jadi admin global). Jalur update/assignRole/removeRole/import tetap dilarang; admin tetap tak bisa memutasi sesama/admin | admin_lembaga bisa menambah admin di lembaganya tanpa menunggu super_admin | UserManagement (`creatableRolesFor`), UserRoleGuardTest, FE users |
+| 2026-09-14 | desain santri & asrama (v1.10, gambaran umum) | (1) `santri.lembaga_id` NOT NULL → **nullable** = legacy tanpa track, terlihat **semua admin**, sumber kebenaran lembaga = `riwayat_belajar`; (2) `status_global` default true + hardcode → **turunan murni** default false (= punya ≥1 riwayat aktif); (3) asrama dari flag biaya di lembaga → **entitas sendiri** (bukan `lembaga`) + peran `asrama` (6 → 7 peran) + pivot `user_asrama`, super_admin saja; (4) keuangan asrama ditandai lewat `pos_keuangan.kategori` | Data lama tanpa jejak riwayat/pembayaran perlu hidup tanpa tenant; kepengurusan asrama terpisah dari lembaga | SCHEMA (santri, pos_keuangan, BLOK 11), PRD 2.3/4.2/4.6/6/8.2/12, policy/tenant scope 101, seeder peran, tests |
 
 ## Lampiran F — Keputusan Offline (terkunci v1.4)
 
@@ -566,12 +586,14 @@ envelope `{pesan, data}` for portal endpoints, standard pagination elsewhere.
 
 ### 4. Actors & roles
 
-Six roles, hierarchical (decision no.40): `super_admin` → `admin` (full =
+Seven roles, hierarchical (decision no.40): `super_admin` → `admin` (full =
 no `user_lembaga` pivot; scoped = via pivot) → `kasir` / `guru` →
-`orang_tua` / `santri`. One user may hold multiple roles.
+`orang_tua` / `santri`. Plus `asrama` (pengurus asrama, pivot `user_asrama`,
+v1.10). One user may hold multiple roles.
 
-* `assignableRolesFor()`: super_admin grants all 6; admin grants
-  `kasir, guru, orang_tua, santri` (no privilege escalation).
+* `assignableRolesFor()`: super_admin grants all 7; admin grants
+  `kasir, guru, orang_tua, santri` (no privilege escalation; `asrama`
+  dan `admin` khusus super_admin, kecuali create-admin v1.9.x).
 * Tenant choke point: `User::lembagaIds()` (pivot `user_lembaga` only —
   `users` has NO tenant column), `canAccessLembaga()`, `isAdminFull()`.
 * Convention (locked): LIST may be wide (all accessible lembaga);
@@ -827,7 +849,7 @@ Status: 🔲 not scaffolded (backend 201/202 pending).
 | 101 Santri (CRUD, import, kamus, policy) | ✅ | ✅ | — | ✅ (10 tests) |
 | 102 Siklus (naik, pindah, mutasi, lulus, list) | ✅ | ✅ | — | ✅ (9 tests) |
 | 103-tx/200/201/202/203 | ✅ specs | ✅ tables | — | 🔲 |
-| Fase 5 (500–504), infra (900–901) | 🔲 drafts | ✅ tables | — | 🔲 |
+| Fase 5 (500–505), infra (900–901) | 🔲 drafts | ✅ tables | — | 🔲 |
 | 6 frontend apps | §6 above | n/a | n/a | 🔲 |
 
 ### 11. Roadmap
