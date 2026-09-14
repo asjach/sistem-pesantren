@@ -512,14 +512,9 @@ export default function PartStyleEditor() {
           >
             <MousePointerClick size={14} /> {picker.aktif ? 'Batal pilih (Esc)' : 'Pilih komponen'}
           </Button>
-          {picker.aktif ? (
+          {picker.aktif && (
             <p className="rounded-md border border-dashed px-2 py-1 text-[11px] text-muted-foreground">
-              Klik komponen mana pun untuk membukanya. Esc untuk batal. Untuk halaman lain,
-              pakai ikon cari di kanan atas ribbon.
-            </p>
-          ) : (
-            <p className="px-1 text-[11px] text-muted-foreground">
-              Atau aktifkan <b>ikon cari di kanan atas ribbon</b> saat berada di halaman lain.
+              Klik komponen mana pun untuk membukanya. Esc untuk batal.
             </p>
           )}
           {grupTampil.map((gr) => {
