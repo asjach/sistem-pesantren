@@ -311,7 +311,7 @@ export default function KeuanganPage() {
             min={1}
             value={santriId}
             onChange={(e) => setSantriId(e.target.value)}
-            className="h-8 w-32"
+            className="w-32"
             required
           />
         </Field>

@@ -132,14 +132,14 @@ function WarnaField({
         value={nilai ?? bawaan ?? '#808080'}
         onChange={(e) => onChange(e.target.value)}
         title={bawaan ? `Nilai bawaan: ${bawaan}` : 'Nilai bawaan: transparan'}
-        className="h-[30px] w-9 shrink-0 cursor-pointer rounded-md border bg-card p-1"
+        className="h-6 w-8 shrink-0 cursor-pointer rounded-md border bg-card p-1"
       />
       <Input
         id={`${id}_hex`}
         value={draft}
         placeholder={bawaan ?? 'bawaan'}
         maxLength={7}
-        className="h-8 min-w-[6.5rem] flex-1 font-mono"
+        className="min-w-[6.5rem] flex-1 font-mono"
         onChange={(e) => {
           setDraft(e.target.value);
           const n = normalizeHex(e.target.value);
@@ -200,7 +200,7 @@ function AngkaField({
   return (
     <div className="flex items-center gap-1.5">
       <Label htmlFor={id} className="w-20 shrink-0">{label}</Label>
-      <div className="flex h-[30px] min-w-0 flex-1 items-stretch overflow-hidden rounded-md border bg-transparent focus-within:ring-2 focus-within:ring-ring/40">
+      <div className="flex h-6 min-w-0 flex-1 items-stretch overflow-hidden rounded-md border bg-transparent focus-within:ring-2 focus-within:ring-ring/40">
         <button
           type="button"
           id={`${id}_kurang`}
@@ -220,7 +220,7 @@ function AngkaField({
           placeholder={bawaan != null ? String(bawaan) : 'bawaan'}
           title={bawaan != null ? `Nilai bawaan: ${bawaan} px` : 'Nilai bawaan tidak terukur'}
           aria-label={label}
-          className="h-full w-full min-w-0 border-x bg-transparent px-2 text-center text-sm outline-none placeholder:text-muted-foreground"
+          className="h-full w-full min-w-0 border-x bg-transparent px-2 text-center text-xs outline-none placeholder:text-muted-foreground"
           onChange={(e) => setDraft(e.target.value)}
           onBlur={() => commit(draft ?? tampil)}
           onKeyDown={(e) => {
@@ -531,7 +531,7 @@ export default function PartStyleEditor() {
               onChange={(e) => setCari(e.target.value)}
               placeholder="Cari bagian…"
               aria-label="Cari bagian"
-              className="h-8 pl-7"
+              className="pl-7"
             />
           </div>
           <div className="flex items-center gap-1.5 px-1 py-1">

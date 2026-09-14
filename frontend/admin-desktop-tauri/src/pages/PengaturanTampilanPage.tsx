@@ -93,7 +93,7 @@ export default function PengaturanTampilanPage() {
                     type="color"
                     value={normalizeHex(customInput) ?? customHex}
                     onChange={(e) => onCustomColor(e.target.value)}
-                    className="h-[30px] w-14 cursor-pointer rounded-md border bg-card p-1"
+                    className="h-6 w-12 cursor-pointer rounded-md border bg-card p-1"
                   />
                   <Input
                     id="input_hex_kustom"

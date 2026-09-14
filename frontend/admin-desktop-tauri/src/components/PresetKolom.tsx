@@ -471,7 +471,6 @@ export default function PresetKolom({
                   onChange={(e) => setCariKolom(e.target.value)}
                   placeholder="Cari kolom…"
                   aria-label="Cari kolom"
-                  className="h-8"
                 />
                 <div
                   className={cn(

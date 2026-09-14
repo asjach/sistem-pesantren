@@ -2031,7 +2031,7 @@ export default function ExcelTable<T extends { id: string | number }>({
                 placeholder={searchPlaceholder ?? 'Cari'}
                 value={searchValue}
                 onChange={(e) => onSearchChange?.(e.target.value)}
-                className="h-8 w-44 sm:w-48"
+                className="w-44 sm:w-48"
               />
             )}
             {filter}
@@ -2043,7 +2043,6 @@ export default function ExcelTable<T extends { id: string | number }>({
                 variant="outline"
                 title="Cari"
                 aria-label="Cari"
-                className="h-8 w-8"
               >
                 <Search size={16} />
               </Button>

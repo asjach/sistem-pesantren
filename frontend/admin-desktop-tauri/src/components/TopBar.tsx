@@ -187,7 +187,7 @@ export default function TopBar() {
                 value={m.id}
                 title={`Mode ${m.nama}`}
                 aria-label={`Mode ${m.nama}`}
-                className="h-7 w-7 rounded-md border-0 text-white/75 hover:bg-white/10 hover:text-white data-[state=on]:bg-white/20 data-[state=on]:text-white"
+                className="size-6 rounded-md border-0 text-white/75 hover:bg-white/10 hover:text-white data-[state=on]:bg-white/20 data-[state=on]:text-white"
               >
                 <m.icon size={14} />
               </ToggleGroupItem>
@@ -202,7 +202,7 @@ export default function TopBar() {
             aria-pressed={picker.aktif}
             onClick={() => (picker.aktif ? picker.batal() : picker.mulai())}
             className={cn(
-              'mr-1 grid size-7 place-items-center rounded-md text-white/75 transition-colors hover:bg-white/10 hover:text-white',
+              'mr-1 grid size-6 place-items-center rounded-md text-white/75 transition-colors hover:bg-white/10 hover:text-white',
               picker.aktif && 'bg-white/25 text-white',
             )}
           >
@@ -265,7 +265,13 @@ export default function TopBar() {
       {/* Panel grup perintah */}
       {!lipat && (
         <div className="border-t border-white/10 bg-white/5">
-          <div ref={panelRef} className="flex min-h-[76px] items-stretch overflow-x-auto px-3 py-1.5 md:px-5">
+          <div
+            ref={panelRef}
+            className={cn(
+              'flex items-stretch overflow-x-auto px-3 py-1.5 md:px-5',
+              tabAktif === 'tabel' ? 'min-h-0' : 'min-h-[76px]',
+            )}
+          >
             {tabAktif === 'beranda' && <RibbonBeranda pathname={pathname} />}
 
             {tabAktif === 'master' && <RibbonMaster pathname={pathname} />}

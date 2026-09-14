@@ -52,7 +52,7 @@ export function SpinBox({
     <div
       title={title}
       data-part="spinbox"
-      className="flex h-[30px] items-stretch overflow-hidden rounded-md border border-white/20 bg-white/5 focus-within:ring-2 focus-within:ring-white/30"
+      className="flex h-6 items-stretch overflow-hidden rounded-md border border-white/20 bg-white/5 focus-within:ring-2 focus-within:ring-white/30"
     >
       <button
         type="button"
@@ -149,15 +149,15 @@ export function RibbonCmd({
       onClick={onClick}
       data-part="menu_ribbon"
       className={cn(
-        'flex h-[58px] w-[76px] flex-col items-center justify-center gap-1 rounded-md px-1 text-center text-[11px] leading-tight transition-colors',
+        'flex h-6 items-center gap-1.5 rounded-md px-2 text-xs whitespace-nowrap transition-colors',
         aktif
           ? 'bg-white/20 font-semibold text-white'
           : 'text-white/85 hover:bg-white/10 hover:text-white',
         'disabled:pointer-events-none disabled:opacity-40',
       )}
     >
-      <Icon size={20} />
-      <span className="line-clamp-2">{label}</span>
+      <Icon size={14} />
+      <span>{label}</span>
     </button>
   );
 }

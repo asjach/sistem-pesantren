@@ -334,7 +334,7 @@ export default function UsersPage() {
                   <label
                     key={r}
                     htmlFor={`check_role_baru_${r}`}
-                    className="inline-flex h-[30px] cursor-pointer items-center gap-2 rounded-full border bg-card px-3.5 py-0 text-[13.5px] has-checked:border-primary has-checked:bg-accent has-checked:font-semibold"
+                    className="inline-flex h-6 cursor-pointer items-center gap-2 rounded-full border bg-card px-3 py-0 text-xs has-checked:border-primary has-checked:bg-accent has-checked:font-semibold"
                   >
                     <Checkbox
                       id={`check_role_baru_${r}`}
@@ -354,7 +354,7 @@ export default function UsersPage() {
                   <label
                     key={l.id}
                     htmlFor={`check_lembaga_baru_${l.id}`}
-                    className="inline-flex h-[30px] cursor-pointer items-center gap-2 rounded-full border bg-card px-3.5 py-0 text-[13.5px] has-checked:border-primary has-checked:bg-accent has-checked:font-semibold"
+                    className="inline-flex h-6 cursor-pointer items-center gap-2 rounded-full border bg-card px-3 py-0 text-xs has-checked:border-primary has-checked:bg-accent has-checked:font-semibold"
                   >
                     <Checkbox
                       id={`check_lembaga_baru_${l.id}`}
@@ -395,7 +395,7 @@ export default function UsersPage() {
                   <label
                     key={r}
                     htmlFor={`check_ubah_role_${r}`}
-                    className="inline-flex h-[30px] cursor-pointer items-center gap-2 rounded-full border bg-card px-3.5 py-0 text-[13.5px] has-checked:border-primary has-checked:bg-accent has-checked:font-semibold"
+                    className="inline-flex h-6 cursor-pointer items-center gap-2 rounded-full border bg-card px-3 py-0 text-xs has-checked:border-primary has-checked:bg-accent has-checked:font-semibold"
                   >
                     <Checkbox
                       id={`check_ubah_role_${r}`}

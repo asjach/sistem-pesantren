@@ -347,7 +347,7 @@ export function contohBagian(id: PartId): ReactElement {
       return (
         <div className="flex w-56 items-center gap-1 rounded-md border px-2">
           <span className="text-xs text-muted-foreground">Rp</span>
-          <span className="flex h-[30px] flex-1 items-center text-sm">150.000</span>
+          <span className="flex h-6 flex-1 items-center text-xs">150.000</span>
         </div>
       );
     case 'textarea':
@@ -626,9 +626,9 @@ export function contohBagian(id: PartId): ReactElement {
       );
     case 'spinbox':
       return (
-        <div className="flex h-[30px] w-32 items-stretch overflow-hidden rounded-md border">
+        <div className="flex h-6 w-32 items-stretch overflow-hidden rounded-md border">
           <span className="grid w-5 place-items-center text-muted-foreground">−</span>
-          <span className="grid flex-1 place-items-center border-x text-sm">38</span>
+          <span className="grid flex-1 place-items-center border-x text-xs">38</span>
           <span className="grid w-5 place-items-center text-muted-foreground">+</span>
         </div>
       );

@@ -715,7 +715,7 @@ export default function PsbPage() {
                 aria-pressed={aktif}
                 onClick={() => { setStage(s.id); setSubStatus(''); pager.goFirst(); }}
                 className={cn(
-                  'flex h-[30px] items-center gap-2 rounded-full border px-3 py-0 text-xs transition-colors',
+                  'flex h-6 items-center gap-2 rounded-full border px-3 py-0 text-xs transition-colors',
                   aktif
                     ? 'border-primary bg-primary/10 font-semibold text-primary'
                     : 'bg-card text-muted-foreground hover:bg-accent hover:text-foreground',
