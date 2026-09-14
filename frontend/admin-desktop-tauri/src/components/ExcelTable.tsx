@@ -513,7 +513,7 @@ interface AksiMenu {
   label: string;
   icon: ReactNode;
   onClick?: () => void;
-  konfirmasi?: { title: string; description: string; onConfirm: () => void };
+  konfirmasi?: { title: string; description: string; confirmLabel?: string; onConfirm: () => void };
 }
 
 function metaAksi(el: ReactElement): AksiMenu {
@@ -521,6 +521,7 @@ function metaAksi(el: ReactElement): AksiMenu {
     title?: string;
     onClick?: () => void;
     onConfirm?: () => void;
+    confirmLabel?: string;
     description?: string;
     children?: ReactNode;
   };
@@ -535,6 +536,19 @@ function metaAksi(el: ReactElement): AksiMenu {
   if (el.type === ViewAction) return { label: 'Lihat', icon: <Eye size={16} />, onClick: p.onClick };
   if (el.type === SetAktifAction) return { label: 'Set aktif', icon: <Check size={16} />, onClick: p.onClick };
   const title = typeof p.title === 'string' ? p.title.replace(/\?$/, '') : 'Aksi';
+  // Pembungkus konfirmasi umum (mis. ConfirmDelete): teruskan ke dialog konfirmasi menu.
+  if (typeof p.onConfirm === 'function') {
+    return {
+      label: title,
+      icon: p.children,
+      konfirmasi: {
+        title: p.title ?? 'Konfirmasi?',
+        description: p.description ?? '',
+        confirmLabel: p.confirmLabel,
+        onConfirm: p.onConfirm,
+      },
+    };
+  }
 
   return { label: title, icon: p.children, onClick: p.onClick };
 }
@@ -603,7 +617,7 @@ function ActionsCell({ rowData, columnData }: CellProps<GridRow, ActionsColData>
                 setKonfirmasi(null);
               }}
             >
-              Hapus
+              {konfirmasi?.confirmLabel ?? 'Hapus'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
