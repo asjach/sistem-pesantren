@@ -81,8 +81,8 @@ function AlignToggle({
           aria-pressed={align === nilai}
           onClick={() => onSet(fieldKey, nilai)}
           className={cn(
-            'grid size-6 place-items-center rounded border border-transparent text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
-            align === nilai && 'border-border bg-accent text-foreground',
+            'grid size-6 place-items-center rounded text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
+            align === nilai && 'bg-accent text-foreground',
           )}
         >
           <Icon size={13} />

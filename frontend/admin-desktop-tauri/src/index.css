@@ -356,6 +356,11 @@
   display: flex;
   align-items: center;
   width: 100%;
+  /* Padding header (8px) agar judul tidak menempel tepi kolom/gagang resize.
+     Ditaruh di wadah judul (bukan sel) supaya gagang resize tetap tepat di
+     garis batas kolom — padding box abs-positioning tidak ikut bergeser. */
+  padding-left: 8px;
+  padding-right: 8px;
 }
 /* Gagang resize mengangkangi garis perbatasan antar kolom: lebarnya 12px
    dipusat tepat di garis batas (right:-6px; header tanpa padding sehingga

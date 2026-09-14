@@ -46,26 +46,6 @@ import { copyText, toTSV } from '@/lib/clipboard';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
-/** Wadah kecil untuk mengelompokkan kontrol toolbar yang sejenis. */
-function ToolbarGroup({
-  children,
-  title,
-  className,
-}: {
-  children: ReactNode;
-  title?: string;
-  className?: string;
-}) {
-  return (
-    <div
-      title={title}
-      className={cn('flex h-[30px] items-center gap-1.5 rounded-lg border bg-card px-2', className)}
-    >
-      {children}
-    </div>
-  );
-}
-
 /** Kerangka tabel saat memuat: menyerupai grid (baris header + baris data)
  *  agar area tabel tidak tampak seperti blok abu-abu kosong. */
 function TabelMemuat({ rowH, baris = 14 }: { rowH: number; baris?: number }) {
@@ -2082,12 +2062,11 @@ export default function ExcelTable<T extends { id: string | number }>({
           </div>
         ) : null}
         <div className="ml-auto flex flex-wrap items-center gap-2">
-          {/* Preset kolom tampilan (tersimpan di DB per lembaga). Kontrol tabel
-              umum (mode edit/input, salin, autofit, reset) pindah ke ribbon tab
-              "Tabel" agar tak memakan ruang toolbar. */}
-          <ToolbarGroup title="Kolom tampilan">
-            <PresetKolom tableKey={tableKey} fields={fields} onApply={setPresetKeys} apiRef={presetApiRef} />
-          </ToolbarGroup>
+          {/* Preset kolom tampilan (tersimpan di DB per lembaga) — tanpa
+              pembungkus kotak agar tampil polos seperti kontrol lain. Kontrol
+              tabel umum (mode edit/input, salin, autofit, reset) pindah ke
+              ribbon tab "Tabel" agar tak memakan ruang toolbar. */}
+          <PresetKolom tableKey={tableKey} fields={fields} onApply={setPresetKeys} apiRef={presetApiRef} />
 
           {/* Tombol aksi utama halaman, sejajar dengan kontrol tabel. */}
           {addButton && <div className="flex items-center gap-2">{addButton}</div>}
@@ -2187,8 +2166,8 @@ export default function ExcelTable<T extends { id: string | number }>({
                         aria-pressed={aktif}
                         onClick={() => setAlign(ctxHeader.colKey, nilai)}
                         className={cn(
-                          'grid size-6 place-items-center rounded border border-transparent text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
-                          aktif && 'border-border bg-accent text-foreground',
+                          'grid size-6 place-items-center rounded text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
+                          aktif && 'bg-accent text-foreground',
                         )}
                       >
                         <Icon size={14} />
