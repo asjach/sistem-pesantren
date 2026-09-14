@@ -11,7 +11,7 @@ import { listLembaga, type Lembaga } from '../api/master';
 import { errorMessage } from '../api/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
+import { FieldLabel } from '@/components/ui/field';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
@@ -307,64 +307,69 @@ export default function UsersPage() {
         onPerPage={(pp) => { pager.setPerPage(pp); load(1, pp); }}
       />
       <Dialog open={tambahOpen} onOpenChange={setTambahOpen}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle>Tambah pengguna</DialogTitle>
             <DialogDescription className="sr-only">
               Buat akun pengguna baru beserta role dan lembaganya.
             </DialogDescription>
           </DialogHeader>
-          <form id="form_tambah_user" onSubmit={onCreate} autoComplete="off" className="flex flex-col gap-3">
-        <FieldGroup className="grid gap-3 sm:grid-cols-3">
-          <Field>
+          <form id="form_tambah_user" onSubmit={onCreate} autoComplete="off" className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4">
             <FieldLabel htmlFor="input_nama">Nama</FieldLabel>
             <Input id="input_nama" value={name} onChange={(e) => setName(e.target.value)} required autoComplete="off" />
-          </Field>
-          <Field>
+
             <FieldLabel htmlFor="input_identitas">Email atau username</FieldLabel>
             <Input id="input_identitas" value={identifier} onChange={(e) => setIdentifier(e.target.value)} required autoComplete="off" />
-          </Field>
-          <Field>
+
             <FieldLabel htmlFor="input_password_baru">Kata sandi (min 8)</FieldLabel>
             <Input id="input_password_baru" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} autoComplete="new-password" />
-          </Field>
-        </FieldGroup>
-        <div className="text-sm text-muted-foreground">Role {isSuper ? '(6 opsi)' : '(admin: 5 opsi — termasuk admin untuk lembaga Anda)'}</div>
-        <div id="group_role_baru" className="flex flex-wrap gap-2">
-          {creatable.map((r) => (
-            <label
-              key={r}
-              htmlFor={`check_role_baru_${r}`}
-              className="inline-flex h-[30px] cursor-pointer items-center gap-2 rounded-full border bg-card px-3.5 py-0 text-[13.5px] has-checked:border-primary has-checked:bg-accent has-checked:font-semibold"
-            >
-              <Checkbox
-                id={`check_role_baru_${r}`}
-                checked={newRoles.includes(r)}
-                onCheckedChange={() => setNewRoles((s) => toggle(s, r))}
-              /> {r}
-            </label>
-          ))}
-        </div>
-        <div className="text-sm text-muted-foreground">Lembaga (kosong = ikut pivot saya bila scoped)</div>
-        <div id="group_lembaga_baru" className="flex flex-wrap gap-2">
-          {lembagas.map((l) => (
-            <label
-              key={l.id}
-              htmlFor={`check_lembaga_baru_${l.id}`}
-              className="inline-flex h-[30px] cursor-pointer items-center gap-2 rounded-full border bg-card px-3.5 py-0 text-[13.5px] has-checked:border-primary has-checked:bg-accent has-checked:font-semibold"
-            >
-              <Checkbox
-                id={`check_lembaga_baru_${l.id}`}
-                checked={newLembaga.includes(l.id)}
-                onCheckedChange={() => setNewLembaga((s) => toggleId(s, l.id))}
-              /> {l.kode ?? l.nama}
-            </label>
-          ))}
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setTambahOpen(false)}>Batal</Button>
-          <Button id="btn_tambah_user" type="submit">Tambah</Button>
-        </DialogFooter>
+
+            <FieldLabel className="self-start pt-1.5">Role</FieldLabel>
+            <div className="flex flex-col gap-2">
+              <p className="text-sm text-muted-foreground">
+                {isSuper ? 'Pilih 1 atau lebih (6 opsi).' : 'Pilih 1 atau lebih (5 opsi — termasuk admin untuk lembaga Anda).'}
+              </p>
+              <div id="group_role_baru" className="flex flex-wrap gap-2">
+                {creatable.map((r) => (
+                  <label
+                    key={r}
+                    htmlFor={`check_role_baru_${r}`}
+                    className="inline-flex h-[30px] cursor-pointer items-center gap-2 rounded-full border bg-card px-3.5 py-0 text-[13.5px] has-checked:border-primary has-checked:bg-accent has-checked:font-semibold"
+                  >
+                    <Checkbox
+                      id={`check_role_baru_${r}`}
+                      checked={newRoles.includes(r)}
+                      onCheckedChange={() => setNewRoles((s) => toggle(s, r))}
+                    /> {r}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <FieldLabel className="self-start pt-1.5">Lembaga</FieldLabel>
+            <div className="flex flex-col gap-2">
+              <p className="text-sm text-muted-foreground">Kosong = ikut pivot saya bila scoped.</p>
+              <div id="group_lembaga_baru" className="flex flex-wrap gap-2">
+                {lembagas.map((l) => (
+                  <label
+                    key={l.id}
+                    htmlFor={`check_lembaga_baru_${l.id}`}
+                    className="inline-flex h-[30px] cursor-pointer items-center gap-2 rounded-full border bg-card px-3.5 py-0 text-[13.5px] has-checked:border-primary has-checked:bg-accent has-checked:font-semibold"
+                  >
+                    <Checkbox
+                      id={`check_lembaga_baru_${l.id}`}
+                      checked={newLembaga.includes(l.id)}
+                      onCheckedChange={() => setNewLembaga((s) => toggleId(s, l.id))}
+                    /> {l.kode ?? l.nama}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <DialogFooter className="col-span-2">
+              <Button type="button" variant="outline" onClick={() => setTambahOpen(false)}>Batal</Button>
+              <Button id="btn_tambah_user" type="submit">Tambah</Button>
+            </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
