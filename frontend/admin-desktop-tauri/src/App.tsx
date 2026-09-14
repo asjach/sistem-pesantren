@@ -24,6 +24,15 @@ const PsbPage = lazy(() => import('./pages/PsbPage'));
 const KegiatanPsbPage = lazy(() => import('./pages/KegiatanPsbPage'));
 const SantriPage = lazy(() => import('./pages/SantriPage'));
 const SiklusPage = lazy(() => import('./pages/SiklusPage'));
+const DaftarKelasPage = lazy(() => import('./pages/DaftarKelasPage'));
+const RosterKelasPage = lazy(() => import('./pages/RosterKelasPage'));
+const PenempatanKelasPage = lazy(() => import('./pages/PenempatanKelasPage'));
+const KenaikanKelasPage = lazy(() => import('./pages/KenaikanKelasPage'));
+const SalinGenapPage = lazy(() => import('./pages/SalinGenapPage'));
+const RekapPenempatanPage = lazy(() => import('./pages/RekapPenempatanPage'));
+const MutasiKeluarPage = lazy(() => import('./pages/MutasiKeluarPage'));
+const AlumniPage = lazy(() => import('./pages/AlumniPage'));
+const ArsipBerhentiPage = lazy(() => import('./pages/ArsipBerhentiPage'));
 const KeuanganPage = lazy(() => import('./pages/KeuanganPage'));
 const PengajuanBiodataPage = lazy(() => import('./pages/PengajuanBiodataPage'));
 const DokumenWajibPage = lazy(() => import('./pages/DokumenWajibPage'));
@@ -73,6 +82,15 @@ export default function App() {
             <Route path="/kegiatan-psb" element={<KegiatanPsbPage />} />
             <Route path="/santri" element={<SantriPage />} />
             <Route path="/siklus" element={<SiklusPage />} />
+            <Route path="/daftar-kelas" element={<DaftarKelasPage />} />
+            <Route path="/roster-kelas" element={<RosterKelasPage />} />
+            <Route path="/penempatan-kelas" element={<PenempatanKelasPage />} />
+            <Route path="/kenaikan-kelas" element={<KenaikanKelasPage />} />
+            <Route path="/salin-genap" element={<SalinGenapPage />} />
+            <Route path="/rekap-penempatan" element={<RekapPenempatanPage />} />
+            <Route path="/mutasi-keluar" element={<MutasiKeluarPage />} />
+            <Route path="/alumni" element={<AlumniPage />} />
+            <Route path="/arsip-berhenti" element={<ArsipBerhentiPage />} />
             <Route path="/keuangan" element={<KeuanganPage />} />
             <Route path="/pengajuan-biodata" element={<PengajuanBiodataPage />} />
             <Route path="/dokumen-wajib" element={<DokumenWajibPage />} />

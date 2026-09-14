@@ -12,7 +12,6 @@ export const BELUM_DIPAKAI: ReadonlySet<string> = new Set([
   'menubar',
   'navigation_menu',
   'sidebar',
-  'subjudul',
   'kbd',
   'empty',
   'tabel',

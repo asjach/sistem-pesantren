@@ -99,6 +99,10 @@ class SiklusController extends Controller
         if ($request->filled('kelas_id')) {
             $query->where('kelas_id', $request->input('kelas_id'));
         }
+        // Arsip: filter status_akhir (mis. 'aktif' = baris berhenti tertutup).
+        if ($request->filled('status_akhir')) {
+            $query->where('status_akhir', $request->input('status_akhir'));
+        }
         if ($request->boolean('tanpa_kelas')) {
             $query->whereNull('kelas_id');
         }
@@ -375,5 +379,81 @@ class SiklusController extends Controller
             ->paginate($this->perPage($request));
 
         return response()->json($alumni);
+    }
+
+    /**
+     * GET /api/admin/akademik/rekap-penempatan — isi vs kapasitas per kelas.
+     * Filter: lembaga_id, tahun_ajaran_id, semester. Terskop tenant.
+     */
+    public function rekapPenempatan(Request $request): JsonResponse
+    {
+        $this->authorize('viewAny', Santri::class);
+
+        $data = $request->validate([
+            'lembaga_id' => ['nullable', 'integer', 'exists:lembaga,id'],
+            'tahun_ajaran_id' => ['nullable', 'integer', 'exists:tahun_ajaran,id'],
+            'semester' => ['nullable', 'in:1,2'],
+        ]);
+
+        $kelasQuery = Kelas::query()->with(['lembaga:id,nama,kode', 'tahunAjaran:id,nama']);
+        $this->scopeLembaga($kelasQuery, $request->user(), $request, 'lembaga_id');
+        $kelasQuery
+            ->when(! empty($data['tahun_ajaran_id']), fn ($q) => $q->where('tahun_ajaran_id', $data['tahun_ajaran_id']))
+            ->orderBy('lembaga_id')->orderBy('tingkat')->orderBy('nama_kelas');
+
+        $kelas = $kelasQuery->get();
+
+        $terisi = RiwayatBelajar::query()
+            ->whereIn('kelas_id', $kelas->pluck('id'))
+            ->where('is_aktif', true)
+            ->when(! empty($data['semester']), fn ($q) => $q->where('semester', $data['semester']))
+            ->selectRaw('kelas_id, COUNT(*) as jumlah')
+            ->groupBy('kelas_id')
+            ->pluck('jumlah', 'kelas_id');
+
+        $hasil = $kelas->map(function (Kelas $k) use ($terisi) {
+            $isi = (int) ($terisi[$k->id] ?? 0);
+            $kapasitas = $k->kapasitas !== null ? (int) $k->kapasitas : null;
+
+            return [
+                'id' => $k->id,
+                'kelas' => $k->nama_kelas,
+                'lembaga' => $k->lembaga?->kode ?? $k->lembaga?->nama,
+                'tahun_ajaran' => $k->tahunAjaran?->nama,
+                'tingkat' => $k->tingkat,
+                'kapasitas' => $kapasitas,
+                'terisi' => $isi,
+                'sisa' => $kapasitas !== null ? max(0, $kapasitas - $isi) : null,
+            ];
+        })->values()->all();
+
+        return response()->json(['data' => $hasil]);
+    }
+
+    /**
+     * GET /api/admin/santri/{santri}/profil — identitas + riwayat + mutasi + alumni.
+     * Dipakai dialog "Profil Santri" (102). Terskop policy view santri.
+     */
+    public function profilSantri(Request $request, Santri $santri): JsonResponse
+    {
+        $this->authorize('view', $santri);
+
+        $santri->load(['lembaga:id,nama,kode', 'kelas:id,nama_kelas']);
+        $riwayat = RiwayatBelajar::where('santri_id', $santri->id)
+            ->with(['kelas:id,nama_kelas,tingkat', 'lembaga:id,nama,kode', 'tahunAjaran:id,nama'])
+            ->orderByDesc('id')->get();
+        $mutasi = MutasiKeluar::where('santri_id', $santri->id)
+            ->with(['lembaga:id,nama,kode', 'kelasTerakhir:id,nama_kelas'])
+            ->orderByDesc('id')->get();
+        $alumni = Alumni::where('santri_id', $santri->id)
+            ->with(['lembagaLulus:id,nama,kode', 'tahunAjaranLulus:id,nama'])
+            ->orderByDesc('id')->get();
+
+        return response()->json([
+            'santri' => $santri,
+            'riwayat' => $riwayat,
+            'mutasi' => $mutasi,
+            'alumni' => $alumni,
+        ]);
     }
 }

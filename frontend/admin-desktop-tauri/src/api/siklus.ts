@@ -1,5 +1,6 @@
 import { api } from './client';
 import type { Paginate } from './master';
+import type { Santri } from './santri';
 
 // ---------- Siklus santri (102: naik/pindah/mutasi/lulus + mutasi & alumni) ----------
 
@@ -80,6 +81,7 @@ export function listRiwayat(params: {
   tanpa_kelas?: boolean;
   q?: string;
   is_aktif?: boolean;
+  status_akhir?: string;
   page?: number;
   per_page?: number;
 } = {}) {
@@ -92,9 +94,46 @@ export function listRiwayat(params: {
   if (params.tanpa_kelas) q.set('tanpa_kelas', '1');
   if (params.q) q.set('q', params.q);
   if (params.is_aktif === false) q.set('is_aktif', '0');
+  if (params.status_akhir) q.set('status_akhir', params.status_akhir);
   q.set('page', String(params.page ?? 1));
   if (params.per_page) q.set('per_page', String(params.per_page));
   return api<Paginate<RiwayatRow>>(`/admin/riwayat?${q.toString()}`);
+}
+
+export interface RekapPenempatanRow {
+  id: number;
+  kelas: string;
+  lembaga: string | null;
+  tahun_ajaran: string | null;
+  tingkat: string | null;
+  kapasitas: number | null;
+  terisi: number;
+  sisa: number | null;
+}
+
+/** Rekap isi vs kapasitas per kelas (102). */
+export function rekapPenempatan(params: {
+  lembaga_id?: number;
+  tahun_ajaran_id?: number;
+  semester?: string;
+} = {}) {
+  const q = new URLSearchParams();
+  if (params.lembaga_id) q.set('lembaga_id', String(params.lembaga_id));
+  if (params.tahun_ajaran_id) q.set('tahun_ajaran_id', String(params.tahun_ajaran_id));
+  if (params.semester) q.set('semester', params.semester);
+  return api<{ data: RekapPenempatanRow[] }>(`/admin/akademik/rekap-penempatan?${q.toString()}`);
+}
+
+/** Profil santri: identitas + seluruh riwayat + mutasi + alumni (dialog Profil Santri). */
+export interface ProfilSantri {
+  santri: Santri;
+  riwayat: RiwayatRow[];
+  mutasi: MutasiKeluar[];
+  alumni: Alumni[];
+}
+
+export function profilSantri(santriId: number) {
+  return api<ProfilSantri>(`/admin/santri/${santriId}/profil`);
 }
 
 /** Salin ganjil→genap massal per lembaga; tanpa `siswa` = semua baris ganjil aktif. */

@@ -826,6 +826,93 @@ class SiklusFlowTest extends TestCase
             ->assertStatus(422)
             ->assertJsonValidationErrors(['tahun_ajaran_lulus_id']);
     }
+
+    // ---------- 16. rekap penempatan (isi vs kapasitas per kelas) ----------
+
+    public function test_16_rekap_penempatan_isi_dan_sisa(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeUser('super_admin', []);
+
+        $kelasA = $this->makeKelas($f['mi'], $f['taLama'], 'I-A', '1');
+        $kelasA->update(['kapasitas' => 2]);
+        $kelasB = $this->makeKelas($f['mi'], $f['taLama'], 'I-B', '1');
+
+        $s1 = $this->makeSantri($f['mi'], 'Rekap Satu');
+        $this->makeRiwayat($s1, $f['taLama'], $f['mi'], '1', ['kelas_id' => $kelasA->id, 'tingkat' => '1', 'is_aktif' => true]);
+        $s2 = $this->makeSantri($f['mi'], 'Rekap Dua');
+        $this->makeRiwayat($s2, $f['taLama'], $f['mi'], '1', ['kelas_id' => $kelasA->id, 'tingkat' => '1', 'is_aktif' => true]);
+        // Non-aktif tidak dihitung sebagai terisi.
+        $s3 = $this->makeSantri($f['mi'], 'Rekap Tiga');
+        $this->makeRiwayat($s3, $f['taLama'], $f['mi'], '1', ['kelas_id' => $kelasA->id, 'tingkat' => '1', 'is_aktif' => false]);
+
+        $data = collect($this->actingAs($admin, 'sanctum')
+            ->getJson("/api/admin/akademik/rekap-penempatan?lembaga_id={$f['mi']->id}")
+            ->assertStatus(200)
+            ->json('data'));
+
+        $rowA = $data->firstWhere('id', $kelasA->id);
+        $this->assertSame(2, $rowA['terisi']);
+        $this->assertSame(2, $rowA['kapasitas']);
+        $this->assertSame(0, $rowA['sisa']);
+
+        $rowB = $data->firstWhere('id', $kelasB->id);
+        $this->assertSame(0, $rowB['terisi']);
+        $this->assertNull($rowB['kapasitas']);
+        $this->assertNull($rowB['sisa']);
+    }
+
+    // ---------- 17. profil santri (riwayat + mutasi + alumni) ----------
+
+    public function test_17_profil_santri_memuat_riwayat_dan_alumni(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeUser('super_admin', []);
+
+        $kelas = $this->makeKelas($f['mi'], $f['taLama'], 'VI-A', '6');
+        $santri = $this->makeSantri($f['mi'], 'Profil Santri');
+        $this->makeRiwayat($santri, $f['taLama'], $f['mi'], '2', ['kelas_id' => $kelas->id, 'tingkat' => '6', 'is_aktif' => true]);
+
+        $res = $this->actingAs($admin, 'sanctum')
+            ->getJson("/api/admin/santri/{$santri->id}/profil")
+            ->assertStatus(200);
+        $res->assertJsonPath('santri.id', $santri->id);
+        $this->assertCount(1, $res->json('riwayat'));
+        $this->assertEquals($kelas->id, (int) $res->json('riwayat.0.kelas_id'));
+        $this->assertSame([], $res->json('mutasi'));
+        $this->assertSame([], $res->json('alumni'));
+
+        // Setelah lulus, profil memuat baris alumni.
+        $this->actingAs($admin, 'sanctum')->postJson(
+            "/api/admin/santri/{$santri->id}/lulus",
+            $this->lulusPayload($f['mi'], $f['taLama'])
+        )->assertStatus(200);
+        $ulang = $this->actingAs($admin, 'sanctum')
+            ->getJson("/api/admin/santri/{$santri->id}/profil")
+            ->assertStatus(200);
+        $this->assertCount(1, $ulang->json('alumni'));
+    }
+
+    // ---------- 18. arsip: filter status_akhir pada riwayat non-aktif ----------
+
+    public function test_18_riwayat_filter_status_akhir_arsip(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeUser('super_admin', []);
+
+        $sBerhenti = $this->makeSantri($f['mi'], 'Arsip Berhenti');
+        $this->makeRiwayat($sBerhenti, $f['taLama'], $f['mi'], '2', ['status_akhir' => 'aktif', 'is_aktif' => false]);
+        $sLulus = $this->makeSantri($f['mi'], 'Arsip Lulus');
+        $this->makeRiwayat($sLulus, $f['taLama'], $f['mi'], '2', ['status_akhir' => 'lulus', 'is_aktif' => false]);
+
+        $ids = collect($this->actingAs($admin, 'sanctum')
+            ->getJson("/api/admin/riwayat?is_aktif=0&status_akhir=aktif&lembaga_id={$f['mi']->id}")
+            ->assertStatus(200)
+            ->json('data'))->pluck('santri_id')->all();
+
+        $this->assertContains($sBerhenti->id, $ids);
+        $this->assertNotContains($sLulus->id, $ids);
+    }
 }
 
 /*

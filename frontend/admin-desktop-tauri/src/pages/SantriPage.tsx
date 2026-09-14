@@ -40,7 +40,8 @@ import {
 } from '@/components/ui/dialog';
 import Pager from '@/components/Pager';
 import { usePager } from '@/hooks/usePager';
-import { ActionIcon } from '@/components/RowActions';
+import { ActionIcon, ViewAction } from '@/components/RowActions';
+import { ProfilSantriDialog } from '@/components/ProfilSantriDialog';
 import { Download, FileUp, ImageUp, Plus, Upload } from '@/icons';
 import { useAuth } from '../auth/AuthContext';
 import { toast } from 'sonner';
@@ -236,6 +237,8 @@ export default function SantriPage() {
   const [dokFile, setDokFile] = useState<File | null>(null);
   const [dokCatatan, setDokCatatan] = useState('');
   const [busy, setBusy] = useState(false);
+
+  const [profilRow, setProfilRow] = useState<Santri | null>(null);
 
   // Input manual (legacy): admin scoped 1 lembaga → lembaga otomatis; lainnya opsional.
   const { user } = useAuth();
@@ -479,6 +482,7 @@ export default function SantriPage() {
   const onSaved = useCallback(() => load(), [load]);
   const renderActions = useCallback((s: Santri) => (
     <>
+      <ViewAction id={`btn_lihat_santri_${s.id}`} onClick={() => setProfilRow(s)} />
       <ActionIcon id={`btn_foto_santri_${s.id}`} title="Upload foto" onClick={() => setFotoRow(s)}>
         <ImageUp size={16} />
       </ActionIcon>
@@ -778,6 +782,12 @@ export default function SantriPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <ProfilSantriDialog
+        santriId={profilRow?.id ?? null}
+        open={profilRow !== null}
+        onOpenChange={(o) => { if (!o) setProfilRow(null); }}
+      />
     </div>
   );
 }
