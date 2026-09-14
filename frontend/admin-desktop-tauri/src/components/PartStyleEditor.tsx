@@ -22,6 +22,16 @@ import { useDefaultLayout } from 'react-resizable-panels';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { FieldDescription, FieldLegend, FieldSet } from '@/components/ui/field';
@@ -240,11 +250,15 @@ function AngkaField({
 /** Editor gaya atomik per bagian UI + pratinjau.
  *  Tipografi & kotak berlaku kedua mode; warna dipisah terang/gelap. */
 export default function PartStyleEditor() {
-  const { parts, theme, customHex, setGayaBagian, setWarnaBagian, resetBagian, resetSemuaBagian } = useTheme();
+  const { parts, theme, customHex, setGayaBagian, setWarnaBagian, resetBagian, resetBagianBanyak, resetSemuaBagian } = useTheme();
   const [mode, setMode] = useState<PartMode>('terang');
   const [aktif, setAktif] = useState<PartId>('ribbon');
   const [cari, setCari] = useState('');
   const [tampilBelum, setTampilBelum] = useState(true);
+  /** Konfirmasi Reset semua. */
+  const [konfirmReset, setKonfirmReset] = useState(false);
+  /** Info selektor target: teks selektor + jumlah elemen nyata (di luar pratinjau). */
+  const [infoSel, setInfoSel] = useState<{ sel: string; jumlah: number }>({ sel: '', jumlah: 0 });
   /** Selektor bagian yang cocok di pratinjau (null = pakai pembungkus). */
   const [selPratinjau, setSelPratinjau] = useState<string | null>(null);
   const [tertutup, setTertutup] = useState<Record<string, boolean>>({});
@@ -264,6 +278,10 @@ export default function PartStyleEditor() {
   const w = parts[mode][aktif] ?? TANPA_WARNA;
   const alihGrup = (nama: string) => setTertutup((prev) => ({ ...prev, [nama]: !prev[nama] }));
   const diatur = (id: PartId) => !!(parts.gaya[id] || parts.terang[id] || parts.gelap[id]);
+  /** Hapus semua pengaturan dalam satu grup (termasuk sub-komponennya). */
+  const resetGrup = (nama: string) => {
+    resetBagianBanyak(PARTS.filter((p) => p.grup === nama).map((p) => p.id));
+  };
 
   // Ukur nilai nyata elemen pratinjau → ditampilkan sebagai nilai "bawaan".
   useLayoutEffect(() => {
@@ -299,6 +317,22 @@ export default function PartStyleEditor() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aktif, mode, theme, customHex, g, w]);
+
+  // Info selektor target: jumlah elemen nyata yang cocok (di luar pratinjau).
+  useLayoutEffect(() => {
+    const m = PARTS.find((p) => p.id === aktif);
+    if (!m) return;
+    let jumlah = 0;
+    try {
+      for (const node of document.querySelectorAll(m.sel)) {
+        if (!node.closest('#pratinjau_bagian')) jumlah += 1;
+      }
+    } catch {
+      jumlah = 0;
+    }
+    setInfoSel({ sel: m.sel, jumlah });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aktif, parts]);
 
   const grupTampil = useMemo(() => {
     const q = cari.trim().toLowerCase();
@@ -354,11 +388,12 @@ export default function PartStyleEditor() {
     return ids.size;
   }, [parts]);
   const gelap = mode === 'gelap';
-  /** Wajah tema untuk kanvas pratinjau (mengikuti tab mode yang diedit). */
-  const gayaWajah = {
-    ...variabelWajah(theme, gelap, customHex),
-    ...variabelBagian(aktif, g, w),
-  } as unknown as CSSProperties;
+  /** Wajah tema untuk kanvas pratinjau (per mode, keduanya ditampilkan). */
+  const wajah = (modeGelap: boolean) =>
+    ({
+      ...variabelWajah(theme, modeGelap, customHex),
+      ...variabelBagian(aktif, g, w),
+    }) as unknown as CSSProperties;
 
   const fontGroups = useMemo(
     () =>
@@ -371,15 +406,6 @@ export default function PartStyleEditor() {
         ),
       })),
     [bawaan.font],
-  );
-
-  const contoh = useMemo(
-    () => (
-      <div ref={refContoh} className="contents">
-        {cloneElement(contohBagian(aktif), { 'data-pratinjau-part': '' })}
-      </div>
-    ),
-    [aktif],
   );
 
   /** Tombol satu bagian (dipakai di dalam sub-kelompok). */
@@ -469,27 +495,40 @@ export default function PartStyleEditor() {
             const bukaGrup = mencari || !tertutup[kunciGrup];
             return (
               <div key={gr.nama}>
-                <button
-                  id={`btn_grup_${slug(gr.nama)}`}
-                  type="button"
-                  aria-expanded={bukaGrup}
-                  title={tertutup[kunciGrup] ? `Buka grup ${gr.nama}` : `Tutup grup ${gr.nama}`}
-                  onClick={() => alihGrup(kunciGrup)}
-                  className="flex w-full items-center gap-1 rounded px-1 py-1 text-left hover:bg-muted"
-                >
-                  <ChevronDown
-                    size={12}
-                    className={cn('shrink-0 text-muted-foreground transition-transform', !bukaGrup && '-rotate-90')}
-                  />
-                  <span className="flex-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    {gr.nama}
-                  </span>
-                  {gr.diatur > 0 && (
-                    <Badge variant="secondary" className="h-4 px-1 text-[10px] leading-none">
-                      {gr.diatur}
-                    </Badge>
-                  )}
-                </button>
+                <div className="flex items-center gap-0.5">
+                  <button
+                    id={`btn_grup_${slug(gr.nama)}`}
+                    type="button"
+                    aria-expanded={bukaGrup}
+                    title={tertutup[kunciGrup] ? `Buka grup ${gr.nama}` : `Tutup grup ${gr.nama}`}
+                    onClick={() => alihGrup(kunciGrup)}
+                    className="flex w-full items-center gap-1 rounded px-1 py-1 text-left hover:bg-muted"
+                  >
+                    <ChevronDown
+                      size={12}
+                      className={cn('shrink-0 text-muted-foreground transition-transform', !bukaGrup && '-rotate-90')}
+                    />
+                    <span className="flex-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      {gr.nama}
+                    </span>
+                    {gr.diatur > 0 && (
+                      <Badge variant="secondary" className="h-4 px-1 text-[10px] leading-none">
+                        {gr.diatur}
+                      </Badge>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    id={`btn_reset_grup_${slug(gr.nama)}`}
+                    title={`Reset grup ${gr.nama}`}
+                    aria-label={`Reset grup ${gr.nama}`}
+                    disabled={gr.diatur === 0}
+                    onClick={() => resetGrup(gr.nama)}
+                    className="grid size-5 shrink-0 place-items-center rounded text-muted-foreground hover:bg-muted disabled:pointer-events-none disabled:opacity-30"
+                  >
+                    <RotateCcw size={11} />
+                  </button>
+                </div>
                 {bukaGrup && (
                   <div className="flex flex-col gap-1 pl-2">
                     {gr.subs.map((sb) => {
@@ -574,7 +613,7 @@ export default function PartStyleEditor() {
                   variant="outline"
                   size="sm"
                   disabled={jumlahDiatur === 0}
-                  onClick={resetSemuaBagian}
+                  onClick={() => setKonfirmReset(true)}
                   title="Reset semua"
                   aria-label="Reset semua"
                 >
@@ -582,16 +621,30 @@ export default function PartStyleEditor() {
                 </Button>
               </div>
             </div>
-            <div
-              id="pratinjau_bagian"
-              className={cn(
-                'grid min-h-[170px] place-items-center overflow-hidden rounded-lg border p-4 md:min-h-[120px] md:flex-1',
-                gelap && 'dark',
-              )}
-              style={{ ...gayaWajah, background: 'var(--background)', color: 'var(--foreground)' }}
-            >
+            <div id="pratinjau_bagian" className="grid gap-3 md:flex-1 md:grid-cols-2">
               <style>{bangunCssPratinjau(aktif, g, w, selPratinjau)}</style>
-              {contoh}
+              {[false, true].map((modeGelap) => (
+                <div key={modeGelap ? 'gelap' : 'terang'} className="flex min-w-0 flex-col gap-1">
+                  <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                    {modeGelap ? 'Gelap' : 'Terang'}
+                  </span>
+                  <div
+                    className={cn(
+                      'grid min-h-[130px] flex-1 place-items-center overflow-hidden rounded-lg border p-4',
+                      modeGelap && 'dark',
+                    )}
+                    style={{ ...wajah(modeGelap), background: 'var(--background)', color: 'var(--foreground)' }}
+                  >
+                    {modeGelap === gelap ? (
+                      <div ref={refContoh} className="contents">
+                        {cloneElement(contohBagian(aktif), { 'data-pratinjau-part': '' })}
+                      </div>
+                    ) : (
+                      cloneElement(contohBagian(aktif), { 'data-pratinjau-part': '' })
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
   );
@@ -609,6 +662,14 @@ export default function PartStyleEditor() {
                   )}
                 </div>
                 <div className="text-xs text-muted-foreground">{meta.hint}</div>
+                <div className="mt-1 flex min-w-0 items-center gap-1.5" title={`Selektor: ${infoSel.sel}`}>
+                  <code className="truncate rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+                    {infoSel.sel}
+                  </code>
+                  <Badge variant="outline" className="h-4 shrink-0 px-1 text-[10px] font-normal">
+                    {infoSel.jumlah} elemen
+                  </Badge>
+                </div>
               </div>
               <Button
                 id={`btn_reset_bagian_${meta.id}`}
@@ -796,6 +857,7 @@ export default function PartStyleEditor() {
   );
 
   return (
+    <>
     <section className={cn('flex w-full max-w-none flex-col gap-4', pakaiPanel && 'min-h-0 flex-1')}>
       {pakaiPanel ? (
         <div className="min-h-[360px] flex-1">
@@ -837,5 +899,23 @@ export default function PartStyleEditor() {
         </div>
       )}
     </section>
+      <AlertDialog open={konfirmReset} onOpenChange={setKonfirmReset}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset semua pengaturan bagian?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Seluruh pengaturan gaya & warna pada {jumlahDiatur} bagian akan dihapus
+              dan kembali ke bawaan. Tindakan ini tidak bisa dibatalkan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction id="btn_reset_semua_konfirmasi" onClick={resetSemuaBagian}>
+              Reset semua
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

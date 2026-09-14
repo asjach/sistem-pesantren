@@ -35,6 +35,8 @@ interface ThemeState extends Prefs {
   setWarnaBagian: (mode: PartMode, id: PartId, patch: Partial<PartWarna>) => void;
   /** Hapus semua pengaturan (gaya + warna kedua mode) satu bagian. */
   resetBagian: (id: PartId) => void;
+  /** Hapus semua pengaturan beberapa bagian sekaligus (mis. satu grup). */
+  resetBagianBanyak: (ids: PartId[]) => void;
   resetSemuaBagian: () => void;
 }
 
@@ -156,6 +158,17 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         delete terang[id];
         const gelap = { ...p.gelap };
         delete gelap[id];
+        return { gaya, terang, gelap };
+      }),
+      resetBagianBanyak: (ids) => updateParts((p) => {
+        const gaya = { ...p.gaya };
+        const terang = { ...p.terang };
+        const gelap = { ...p.gelap };
+        for (const id of ids) {
+          delete gaya[id];
+          delete terang[id];
+          delete gelap[id];
+        }
         return { gaya, terang, gelap };
       }),
       resetSemuaBagian: () => updateParts(() => ({ gaya: {}, terang: {}, gelap: {} })),
