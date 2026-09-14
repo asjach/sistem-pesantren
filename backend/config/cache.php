@@ -131,6 +131,11 @@ return [
     |
     */
 
-    'serializable_classes' => false,
+    'serializable_classes' => [
+        // RefService meng-cache baris kamus `Ref_*` sebagai stdClass. Tanpa izin ini
+        // (default framework: false) cache HIT mengembalikan __PHP_Incomplete_Class
+        // sehingga nilai referensi menjadi null / memicu warning.
+        stdClass::class,
+    ],
 
 ];

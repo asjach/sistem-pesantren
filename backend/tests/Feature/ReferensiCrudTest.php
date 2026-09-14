@@ -8,6 +8,7 @@ use App\Services\RefService;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\Middleware\ThrottleRequests;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
@@ -224,5 +225,22 @@ class ReferensiCrudTest extends TestCase
         $alamatBaru = array_map(fn ($r) => $r->nama, RefService::effectiveAlamat($f['mi']->id));
         $this->assertContains('Alamat Global Baru', $alamatBaru);
         $this->assertNotContains('Alamat Global Awal', $alamatBaru);
+    }
+
+    // Regresi: cache HIT RefService dulu mengembalikan __PHP_Incomplete_Class
+    // karena `cache.serializable_classes` = false (baris kamus di-cache sebagai stdClass).
+    public function test_cache_hit_referensi_tidak_rusak(): void
+    {
+        config(['cache.default' => 'database']);
+        Cache::clear();
+
+        DB::table('ref_agama')->insert([
+            'lembaga_id' => null, 'nama' => 'Islam', 'urutan' => 0, 'is_active' => true,
+        ]);
+        RefService::forget();
+
+        // Panggilan pertama mengisi cache; panggilan kedua membaca dari cache.
+        $this->assertSame(['Islam'], RefService::kodeAktif('agama', null));
+        $this->assertSame(['Islam'], RefService::kodeAktif('agama', null));
     }
 }
