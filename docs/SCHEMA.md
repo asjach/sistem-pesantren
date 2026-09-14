@@ -19,6 +19,8 @@ PSB → keuangan → kepegawaian → akademik → nilai → presensi → asrama 
 >    `riwayat_belajar.is_aktif`.
 > 3. Asrama = entitas sendiri (BLOK 11), peran `asrama` (7 peran) + pivot
 >    `user_asrama`. Keuangan asrama ditandai lewat `pos_keuangan.kategori`.
+>    **Implementasi asrama = pasca production** (belum dibuat sekarang);
+>    poin 1–2 (santri) dibahas terpisah dari asrama.
 
 ## Auth bawaan Laravel (`0001_*_create_users_table.php`)
 
@@ -175,7 +177,7 @@ Tanpa kolom tenant — tenant = pivot `user_lembaga`.
 - UNIQUE(`user_id`, `lembaga_id`)
 
 ### `user_asrama`
-Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). Dibuat bersama BLOK 11 (setelah presensi).
+Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca production — belum dibuat sekarang**; dibuat bersama BLOK 11 (setelah presensi).
 - `id` PK
 - `user_id`: FK → users [cascade]
 - `asrama_id`: FK → asrama [cascade]
@@ -599,7 +601,7 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 - `kode_pos`: string — SPP, SRGM, PSB_REG, DFR_ULANG, ASRAMA_BULANAN
 - `nama_pos`: string
 - `tipe`: enum(bulanan|sekali_bayar|semesteran|tahunan)
-- `kategori`: enum(akademik|asrama) [default 'akademik'] — penanda "berhubungan dengan asrama" untuk matriks izin keuangan (asrama: update hanya baris ber-pos kategori asrama; delete tetap admin lembaga).
+- `kategori`: enum(akademik|asrama) [default 'akademik'] — penanda "berhubungan dengan asrama" untuk matriks izin keuangan (asrama: update hanya baris ber-pos kategori asrama; delete tetap admin lembaga). Ditambahkan saat asrama dikerjakan (pasca production); sekarang belum ada.
 - `keterangan`: text [null]
 - `created_at`, `updated_at`
 - UNIQUE(`kode_pos`) — UNIK GLOBAL (single-pesantren)
@@ -984,6 +986,9 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 
 ## BLOK 11 — Asrama (Modul 505 Asrama)
 
+> **Pasca production** — tidak ada tabel/peran/pivot asrama yang dibuat sekarang.
+> Blok ini arah desain agar keputusan sekarang tidak menutup jalan.
+>
 > Asrama = entitas sendiri, **bukan** `lembaga`. Kepengurusan & gedung terpisah;
 > akses pengurus lewat peran `asrama` + pivot `user_asrama`. Daftar per jenjang /
 > jenis kelamin = query dari `asrama_penghuni` ⋈ `santri` ⋈ riwayat akademik
