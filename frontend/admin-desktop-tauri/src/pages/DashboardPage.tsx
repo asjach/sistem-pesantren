@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { ringkasan, type Ringkasan } from '../api/master';
 import { errorMessage } from '../api/client';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Item, ItemContent, ItemDescription, ItemMedia, ItemTitle } from '@/components/ui/item';
 import { ErrorNotice } from '@/components/PageHeader';
 import { BookOpen, CalendarCheck, Landmark, Users, type Ikon } from '@/icons';
 
@@ -69,8 +70,19 @@ export default function DashboardPage() {
       ) : (
         <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {data.tahun_aktif.map((t) => (
-            <li key={t.id} className="rounded-lg border bg-card px-4 py-2.5 text-sm">
-              <b>{t.nama}</b> <span className="text-muted-foreground">— {t.lembaga?.nama ?? t.lembaga_id}</span>
+            <li key={t.id}>
+              <Item variant="outline" size="sm" className="bg-card">
+                <ItemMedia
+                  variant="icon"
+                  className="grid size-8 place-items-center rounded-md bg-accent text-accent-foreground"
+                >
+                  <CalendarCheck size={16} />
+                </ItemMedia>
+                <ItemContent>
+                  <ItemTitle>{t.nama}</ItemTitle>
+                  <ItemDescription>{t.lembaga?.nama ?? t.lembaga_id}</ItemDescription>
+                </ItemContent>
+              </Item>
             </li>
           ))}
         </ul>

@@ -352,9 +352,10 @@ export default function PartStyleEditor() {
       id={`btn_bagian_${p.id}`}
       type="button"
       title={p.hint}
+      data-part="daftar_bagian"
       onClick={() => setAktif(p.id)}
       className={cn(
-        'flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm transition-colors',
+        'flex items-center gap-2 rounded px-2 py-1.5 text-left text-xs transition-colors',
         p.id === aktif ? 'bg-accent font-medium text-accent-foreground' : 'hover:bg-muted',
       )}
     >
