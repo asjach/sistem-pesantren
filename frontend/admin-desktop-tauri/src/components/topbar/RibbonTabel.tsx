@@ -80,13 +80,15 @@ export function RibbonTabel({ apiTabel }: { apiTabel: RibbonTableApi | null }) {
   const effectiveH = rowH ?? DENSITY_PX[density];
   const effectiveFont = fontPx ?? DEFAULT_FONT_PX;
 
-  // Pengaturan header tabel — tersimpan sebagai bagian UI `tabel_header`
-  // sehingga tersinkron dua arah dengan halaman Pengaturan > Bagian UI.
+  // Pengaturan header & sel tabel — tersimpan sebagai bagian UI `tabel_header`
+  // dan `tabel_sel` sehingga tersinkron dua arah dengan halaman Bagian UI.
   const mode = dark ? 'gelap' : 'terang';
   const gayaHeader = parts.gaya.tabel_header;
+  const warnaCell = parts[mode]?.tabel_sel;
   const warnaHeader = parts[mode]?.tabel_header;
   const headerFont = gayaHeader?.font ?? FONT_FAMILY_DEFAULT;
   const headerSize = gayaHeader?.size ?? effectiveFont;
+  const cellColor = warnaCell?.fg ?? '#9ca3af';
   const headerColor = warnaHeader?.fg ?? '#9ca3af';
 
   return (
@@ -137,82 +139,103 @@ export function RibbonTabel({ apiTabel }: { apiTabel: RibbonTableApi | null }) {
         />
       </RibbonGroup>
       <RibbonPemisah />
-      <RibbonGroup label="Ukuran">
-        <div className="grid grid-cols-[auto_auto] items-center gap-x-2 gap-y-1.5">
-          <span
-            className="flex justify-end text-white/70"
-            title="Tinggi baris (berlaku semua tabel)"
-            aria-label="Tinggi baris (px)"
-          >
-            <MoveVertical size={14} />
-          </span>
-          <SpinBox
-            id="input_tinggi_top"
-            value={effectiveH}
-            min={MIN_ROW_H}
-            max={MAX_ROW_H}
-            title="Tinggi baris (berlaku semua tabel)"
-            ariaLabel="Tinggi baris (px)"
-            onChange={setRowH}
+      <RibbonGroup label="Baris">
+        <span
+          className="text-white/70"
+          title="Tinggi baris (berlaku semua tabel)"
+          aria-label="Tinggi baris (px)"
+        >
+          <MoveVertical size={14} />
+        </span>
+        <SpinBox
+          id="input_tinggi_top"
+          value={effectiveH}
+          min={MIN_ROW_H}
+          max={MAX_ROW_H}
+          title="Tinggi baris (berlaku semua tabel)"
+          ariaLabel="Tinggi baris (px)"
+          onChange={setRowH}
+        />
+      </RibbonGroup>
+      <RibbonPemisah />
+      <RibbonGroup label="Teks">
+        <div className="grid grid-cols-[auto_auto_auto_auto] items-center gap-x-1.5 gap-y-1">
+          <span className="text-[10px] text-white/70">header</span>
+          <PilihFont
+            id="select_huruf_header_top"
+            value={headerFont}
+            onChange={(v) => setGayaBagian('tabel_header', { font: v === FONT_FAMILY_DEFAULT ? undefined : v })}
+            title="Jenis huruf header tabel"
+            ariaLabel="Jenis huruf header tabel"
           />
-          <span className="text-right text-[11px] text-white/70">Ukuran huruf</span>
+          <SpinBox
+            id="input_ukuran_header_top"
+            value={headerSize}
+            min={MIN_FONT_PX}
+            max={MAX_FONT_PX}
+            title="Ukuran huruf header tabel"
+            ariaLabel="Ukuran huruf header tabel (px)"
+            onChange={(n) => setGayaBagian('tabel_header', { size: n })}
+          />
+          <div className="flex items-center gap-1">
+            <input
+              id="input_warna_header_top"
+              type="color"
+              value={headerColor}
+              title="Warna huruf header tabel (mode aktif)"
+              aria-label="Warna huruf header tabel"
+              onChange={(e) => setWarnaBagian(mode, 'tabel_header', { fg: e.target.value })}
+              className="h-6 w-8 shrink-0 cursor-pointer rounded-md border border-white/20 bg-white/5 p-0.5"
+            />
+            {warnaHeader?.fg ? (
+              <RibbonCmd
+                id="btn_reset_warna_header_top"
+                icon={RotateCcw}
+                label="Kembalikan warna header ke bawaan"
+                iconOnly
+                onClick={() => setWarnaBagian(mode, 'tabel_header', { fg: undefined })}
+              />
+            ) : null}
+          </div>
+
+          <span className="text-[10px] text-white/70">cell</span>
+          <PilihFont
+            id="select_huruf_top"
+            value={fontFamily}
+            onChange={setFontFamily}
+            title="Jenis huruf sel tabel (berlaku semua tabel)"
+            ariaLabel="Jenis huruf sel tabel"
+          />
           <SpinBox
             id="input_huruf_top"
             value={effectiveFont}
             min={MIN_FONT_PX}
             max={MAX_FONT_PX}
-            title="Ukuran huruf (berlaku semua tabel)"
-            ariaLabel="Ukuran huruf (px)"
+            title="Ukuran huruf sel tabel (berlaku semua tabel)"
+            ariaLabel="Ukuran huruf sel tabel (px)"
             onChange={setFontPx}
           />
+          <div className="flex items-center gap-1">
+            <input
+              id="input_warna_cell_top"
+              type="color"
+              value={cellColor}
+              title="Warna huruf sel tabel (mode aktif)"
+              aria-label="Warna huruf sel tabel"
+              onChange={(e) => setWarnaBagian(mode, 'tabel_sel', { fg: e.target.value })}
+              className="h-6 w-8 shrink-0 cursor-pointer rounded-md border border-white/20 bg-white/5 p-0.5"
+            />
+            {warnaCell?.fg ? (
+              <RibbonCmd
+                id="btn_reset_warna_cell_top"
+                icon={RotateCcw}
+                label="Kembalikan warna sel ke bawaan"
+                iconOnly
+                onClick={() => setWarnaBagian(mode, 'tabel_sel', { fg: undefined })}
+              />
+            ) : null}
+          </div>
         </div>
-      </RibbonGroup>
-      <RibbonPemisah />
-      <RibbonGroup label="Huruf Isi">
-        <PilihFont
-          id="select_huruf_top"
-          value={fontFamily}
-          onChange={setFontFamily}
-          title="Jenis huruf isi tabel (berlaku semua tabel)"
-          ariaLabel="Jenis huruf isi tabel"
-        />
-      </RibbonGroup>
-      <RibbonPemisah />
-      <RibbonGroup label="Header Tabel">
-        <PilihFont
-          id="select_huruf_header_top"
-          value={headerFont}
-          onChange={(v) => setGayaBagian('tabel_header', { font: v === FONT_FAMILY_DEFAULT ? undefined : v })}
-          title="Jenis huruf header tabel"
-          ariaLabel="Jenis huruf header tabel"
-        />
-        <SpinBox
-          id="input_ukuran_header_top"
-          value={headerSize}
-          min={MIN_FONT_PX}
-          max={MAX_FONT_PX}
-          title="Ukuran huruf header tabel"
-          ariaLabel="Ukuran huruf header tabel (px)"
-          onChange={(n) => setGayaBagian('tabel_header', { size: n })}
-        />
-        <input
-          id="input_warna_header_top"
-          type="color"
-          value={headerColor}
-          title="Warna huruf header tabel (mode aktif)"
-          aria-label="Warna huruf header tabel"
-          onChange={(e) => setWarnaBagian(mode, 'tabel_header', { fg: e.target.value })}
-          className="h-6 w-8 shrink-0 cursor-pointer rounded-md border border-white/20 bg-white/5 p-0.5"
-        />
-        {warnaHeader?.fg ? (
-          <RibbonCmd
-            id="btn_reset_warna_header_top"
-            icon={RotateCcw}
-            label="Kembalikan warna header ke bawaan"
-            iconOnly
-            onClick={() => setWarnaBagian(mode, 'tabel_header', { fg: undefined })}
-          />
-        ) : null}
       </RibbonGroup>
     </>
   );
