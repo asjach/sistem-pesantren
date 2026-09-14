@@ -133,7 +133,9 @@ export default function TahunAjaranPage() {
   );
 
   useEffect(() => {
-    listLembaga().then((p) => setLembagas(p.data)).catch((e) => setErr(errorMessage(e)));
+    // Muat SEMUA lembaga terdaftar (batas maks backend) agar chip selalu
+    // mencakup lembaga baru di masa depan, bukan hanya halaman pertama.
+    listLembaga({ per_page: 1000 }).then((p) => setLembagas(p.data)).catch((e) => setErr(errorMessage(e)));
   }, []);
 
   useEffect(() => {
