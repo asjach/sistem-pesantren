@@ -1039,7 +1039,7 @@ export default function KegiatanPsbPage() {
                 <SelectGroup>
                   {dokJenisOpsi.map((r) => (
                     <SelectItem key={r.id} value={String(r.nama ?? r.kode)}>
-                      {String(r.nama ?? r.label ?? r.kode)}
+                      {String(r.nama ?? r.kode)}
                     </SelectItem>
                   ))}
                 </SelectGroup>

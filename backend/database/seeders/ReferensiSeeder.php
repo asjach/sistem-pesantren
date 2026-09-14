@@ -75,8 +75,8 @@ class ReferensiSeeder extends Seeder
         // Status siklus no.51 GANTI TOTAL (terkunci): awal 3 kode + 'kenaikan' (root PRD v1.7.1:
         // kenaikan kelas -> status_awal baris tapel-berikut), akhir 6 kode; is_aktif_bawaan=true HANYA untuk 'aktif' (invarian 102 terjaga).
         $awal = ['santri_baru' => 'Santri Baru', 'mengulang' => 'Mengulang', 'pindahan' => 'Pindahan', 'kenaikan' => 'Kenaikan Kelas'];
-        foreach (array_values($awal) as $i => $label) DB::table('ref_status_awal')->updateOrInsert(
-            ['lembaga_id' => null, 'kode' => array_keys($awal)[$i]], ['label' => $label, 'urutan' => $i, 'is_active' => true]);
+        foreach (array_values($awal) as $i => $nama) DB::table('ref_status_awal')->updateOrInsert(
+            ['lembaga_id' => null, 'kode' => array_keys($awal)[$i]], ['nama' => $nama, 'urutan' => $i, 'is_active' => true]);
 
         $akhir = [
             ['aktif', 'Aktif', true, null],
@@ -86,8 +86,8 @@ class ReferensiSeeder extends Seeder
             ['lulus', 'Lulus', false, null],
             ['tidak_lulus', 'Tidak Lulus', false, null],
         ];
-        foreach ($akhir as $i => [$kode, $label, $aktif, $term]) DB::table('ref_status_akhir')->updateOrInsert(
+        foreach ($akhir as $i => [$kode, $nama, $aktif, $term]) DB::table('ref_status_akhir')->updateOrInsert(
             ['lembaga_id' => null, 'kode' => $kode],
-            ['label' => $label, 'is_aktif_bawaan' => $aktif, 'terminal_ke' => $term, 'urutan' => $i, 'is_active' => true]);
+            ['nama' => $nama, 'is_aktif_bawaan' => $aktif, 'terminal_ke' => $term, 'urutan' => $i, 'is_active' => true]);
     }
 }

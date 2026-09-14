@@ -74,10 +74,9 @@ export function ringkasan(lembaga_id?: number) {
 export interface ReferensiRow {
   id: number;
   lembaga_id: number | null;
-  /** Kamus bebas memakai `nama`; status memakai `kode` + `label`. */
+  /** Semua tabel ref memakai `nama`; status juga punya `kode` (nilai yang disimpan). */
   nama?: string | null;
   kode?: string | null;
-  label?: string | null;
   urutan: number;
   is_active: boolean;
   is_aktif_bawaan?: boolean | null;
@@ -88,7 +87,6 @@ export interface ReferensiInput {
   lembaga_id?: number | null;
   nama?: string;
   kode?: string;
-  label?: string;
   urutan?: number;
 }
 

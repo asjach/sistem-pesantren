@@ -152,8 +152,8 @@ Tanpa kolom tenant — tenant = pivot `user_lembaga`.
 ### `ref_status_awal`
 - `id` PK
 - `lembaga_id`: FK → lembaga [null, nullOnDelete]
-- `kode`: string — santri_baru, naik_kelas, mengulang, pindahan (+ custom)
-- `label`: string
+- `kode`: string — santri_baru, naik_kelas, mengulang, pindahan (+ custom); NILAI yang disimpan konsumen
+- `nama`: string — teks tampilan (seragam dengan tabel ref lain; dulu bernama `label`)
 - `urutan`: int [default 0]
 - `is_active`: bool [default true]
 - UNIQUE(`lembaga_id`, `kode`)
@@ -161,8 +161,8 @@ Tanpa kolom tenant — tenant = pivot `user_lembaga`.
 ### `ref_status_akhir`
 - `id` PK
 - `lembaga_id`: FK → lembaga [null, nullOnDelete]
-- `kode`: string — aktif, naik, tidak_naik, pindah_keluar, lulus, tidak_lulus (+ custom, no.51)
-- `label`: string
+- `kode`: string — aktif, naik, tidak_naik, pindah_keluar, lulus, tidak_lulus (+ custom, no.51); NILAI yang disimpan konsumen
+- `nama`: string — teks tampilan (seragam dengan tabel ref lain; dulu bernama `label`)
 - `is_aktif_bawaan`: bool [default false] — Sifat logika (terkunci untuk baris sistem): / true HANYA untuk 'aktif' (is_aktif=true iff status_akhir aktif)
 - `terminal_ke`: string [null] — null = bukan terminal (custom baru selalu null = non-aktif netral)
 - `urutan`: int [default 0]
@@ -258,6 +258,7 @@ Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca
 
 ### Pola `ref_*` (26 tabel loop + eksplisit `ref_agama/cita_cita/hobi/pekerjaan/pendidikan/kebutuhan_khusus/kota/alamat/status_awal/status_akhir`)
 - Kolom: `id` PK; `lembaga_id`? FK → `lembaga` (null=global, terisi=milik lembaga); `nama`; `urutan` [default 0]; `is_active` [default true]; unique(`lembaga_id`,`nama`) — pitfall multi-NULL, dedup di `RefService`.
+- Urut tampil (v1.10.7): `urutan` ASC, tie-break `nama` ASC — termasuk `ref_status_awal/akhir` (kode = nilai, nama = tampilan).
 - `ref_alamat` tambahan: wilayah free string + snapshot autofill. `ref_status_akhir`: `is_aktif_bawaan`, `terminal_ke`.
 - Tabel loop: `ref_penghasilan`, `ref_transportasi`, `ref_status_tinggal`, `ref_jarak`, `ref_waktu_tempuh`, `ref_bahasa_sehari_hari`, `ref_disabilitas`, `ref_tmp_lahir`, `ref_status_ortu`, `ref_yang_membiayai`, `ref_provinsi`, `ref_kecamatan`, `ref_desa_kelurahan`, `ref_alasan_mutasi`, `ref_jenis_dokumen_santri`, `ref_jenis_dokumen_pegawai`, `ref_status_pernikahan`, `ref_gol_darah`, `ref_jenis_ptk`, `ref_jenjang_sertifikasi`, `ref_tingkat`, `ref_tugas_utama`, `ref_tipe_pelanggaran`, `ref_kategori_kas`, `ref_metode_pembayaran`, `ref_jalur_sertifikasi`
 
@@ -981,6 +982,7 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 
 ### Pola `ref_*` (26 tabel loop + eksplisit `ref_agama/cita_cita/hobi/pekerjaan/pendidikan/kebutuhan_khusus/kota/alamat/status_awal/status_akhir`)
 - Kolom: `id` PK; `lembaga_id`? FK → `lembaga` (null=global, terisi=milik lembaga); `nama`; `urutan` [default 0]; `is_active` [default true]; unique(`lembaga_id`,`nama`) — pitfall multi-NULL, dedup di `RefService`.
+- Urut tampil (v1.10.7): `urutan` ASC, tie-break `nama` ASC — termasuk `ref_status_awal/akhir` (kode = nilai, nama = tampilan).
 - `ref_alamat` tambahan: wilayah free string + snapshot autofill. `ref_status_akhir`: `is_aktif_bawaan`, `terminal_ke`.
 - Tabel loop: `ref_penghasilan`, `ref_transportasi`, `ref_status_tinggal`, `ref_jarak`, `ref_waktu_tempuh`, `ref_bahasa_sehari_hari`, `ref_disabilitas`, `ref_tmp_lahir`, `ref_status_ortu`, `ref_yang_membiayai`, `ref_provinsi`, `ref_kecamatan`, `ref_desa_kelurahan`, `ref_alasan_mutasi`, `ref_jenis_dokumen_santri`, `ref_jenis_dokumen_pegawai`, `ref_status_pernikahan`, `ref_gol_darah`, `ref_jenis_ptk`, `ref_jenjang_sertifikasi`, `ref_tingkat`, `ref_tugas_utama`, `ref_tipe_pelanggaran`, `ref_kategori_kas`, `ref_metode_pembayaran`, `ref_jalur_sertifikasi`
 

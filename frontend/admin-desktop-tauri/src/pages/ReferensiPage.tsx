@@ -42,9 +42,9 @@ const STATUS_TIPE = ['status_awal', 'status_akhir'];
 const NOOP = () => {};
 async function noopCommit() {}
 
-/** Nilai tampil baris: kamus bebas pakai `nama`, status pakai `label`/`kode`. */
+/** Nilai tampil baris: semua tabel ref memakai `nama` (status juga menyimpan `kode`). */
 function rowText(r: ReferensiRow): string {
-  return r.nama ?? r.label ?? r.kode ?? '';
+  return r.nama ?? r.kode ?? '';
 }
 
 /** Sifat logika status akhir (bawaan sistem / terminal / custom netral). */
@@ -76,12 +76,10 @@ export default function ReferensiPage() {
   const [scope, setScope] = useState('_global');
   const [fNama, setFNama] = useState('');
   const [fKode, setFKode] = useState('');
-  const [fLabel, setFLabel] = useState('');
   const [fUrutan, setFUrutan] = useState('0');
 
   const [editRow, setEditRow] = useState<ReferensiRow | null>(null);
   const [eNama, setENama] = useState('');
-  const [eLabel, setELabel] = useState('');
   const [eUrutan, setEUrutan] = useState('0');
 
   const isStatus = STATUS_TIPE.includes(tipe);
@@ -141,7 +139,7 @@ export default function ReferensiPage() {
     () => isStatus
       ? [
           { key: 'kode', label: 'Kode', width: 150, kind: 'static' },
-          { key: 'label', label: 'Label', width: 200, kind: 'static' },
+          { key: 'nama', label: 'Nama', width: 200, kind: 'static' },
           { key: 'urutan', label: 'Urutan', width: 80, kind: 'static' },
           ...(isStatusAkhir ? [{ key: 'sifat', label: 'Sifat', width: 170, kind: 'static' as const }] : []),
           { key: 'sumber', label: 'Sumber', width: 170, kind: 'static' },
@@ -157,7 +155,6 @@ export default function ReferensiPage() {
   const gridValues = useCallback((r: ReferensiRow): Record<string, string | null> => ({
     nama: r.nama ?? null,
     kode: r.kode ?? null,
-    label: r.label ?? null,
     urutan: String(r.urutan ?? 0),
     sifat: sifatOf(r),
     sumber: lembagaName(r.lembaga_id),
@@ -166,12 +163,12 @@ export default function ReferensiPage() {
   const q = search.trim().toLowerCase();
   const visibleRows = q
     ? rows.filter((r) =>
-        [r.nama, r.kode, r.label].some((v) => (v ?? '').toLowerCase().includes(q)),
+        [r.nama, r.kode].some((v) => (v ?? '').toLowerCase().includes(q)),
       )
     : rows;
 
   const openTambah = useCallback(() => {
-    setFNama(''); setFKode(''); setFLabel(''); setFUrutan('0');
+    setFNama(''); setFKode(''); setFUrutan('0');
     const fallback = lembagaId !== ''
       ? String(lembagaId)
       : (isSuper ? '_global' : (lembagas[0] ? String(lembagas[0].id) : ''));
@@ -192,7 +189,7 @@ export default function ReferensiPage() {
       if (scope !== '_global') payload.lembaga_id = Number(scope);
       if (isStatus) {
         payload.kode = fKode.trim();
-        payload.label = fLabel.trim() || fKode.trim();
+        payload.nama = fNama.trim() || fKode.trim();
       } else {
         payload.nama = fNama.trim();
       }
@@ -205,12 +202,11 @@ export default function ReferensiPage() {
     } finally {
       setSubmitting(false);
     }
-  }, [isSuper, scope, fUrutan, isStatus, fKode, fLabel, fNama, tipe, reload]);
+  }, [isSuper, scope, fUrutan, isStatus, fKode, fNama, tipe, reload]);
 
   const openEdit = useCallback((r: ReferensiRow) => {
     setEditRow(r);
     setENama(r.nama ?? '');
-    setELabel(r.label ?? '');
     setEUrutan(String(r.urutan ?? 0));
   }, []);
 
@@ -220,11 +216,7 @@ export default function ReferensiPage() {
     setSubmitting(true);
     try {
       const urutan = eUrutan === '' ? 0 : Number(eUrutan);
-      if (isStatus) {
-        await updateReferensi(tipe, editRow.id, { label: eLabel.trim(), urutan });
-      } else {
-        await updateReferensi(tipe, editRow.id, { nama: eNama.trim(), urutan });
-      }
+      await updateReferensi(tipe, editRow.id, { nama: eNama.trim(), urutan });
       toast.success('Entri referensi diubah.');
       setEditRow(null);
       reload();
@@ -233,7 +225,7 @@ export default function ReferensiPage() {
     } finally {
       setSubmitting(false);
     }
-  }, [editRow, isStatus, tipe, eLabel, eNama, eUrutan, reload]);
+  }, [editRow, tipe, eNama, eUrutan, reload]);
 
   const onDelete = useCallback(async (r: ReferensiRow) => {
     // Baris global: nonaktif per lembaga (shadow) — butuh konteks lembaga terpilih.
@@ -285,7 +277,7 @@ export default function ReferensiPage() {
         searchValue={search}
         onSearchChange={setSearch}
         onSearchSubmit={NOOP}
-        searchPlaceholder={isStatus ? 'Kode / label' : 'Nama'}
+        searchPlaceholder={isStatus ? 'Kode / nama' : 'Nama'}
         searchIds={{ form: 'form_cari_referensi', input: 'input_cari_referensi', button: 'btn_cari_referensi' }}
         filter={(
           <>
@@ -356,11 +348,11 @@ export default function ReferensiPage() {
                   maxLength={50}
                   placeholder="cuti_panjang"
                 />
-                <FieldLabel htmlFor="input_label_referensi">Label</FieldLabel>
+                <FieldLabel htmlFor="input_nama_status_referensi">Nama</FieldLabel>
                 <Input
-                  id="input_label_referensi"
-                  value={fLabel}
-                  onChange={(e) => setFLabel(e.target.value)}
+                  id="input_nama_status_referensi"
+                  value={fNama}
+                  onChange={(e) => setFNama(e.target.value)}
                   maxLength={100}
                   placeholder="Cuti Panjang"
                 />
@@ -401,11 +393,11 @@ export default function ReferensiPage() {
               <>
                 <FieldLabel htmlFor="input_kode_referensi_ubah">Kode (tidak dapat diubah)</FieldLabel>
                 <Input id="input_kode_referensi_ubah" value={editRow?.kode ?? ''} readOnly disabled />
-                <FieldLabel htmlFor="input_label_referensi_ubah">Label</FieldLabel>
+                <FieldLabel htmlFor="input_nama_status_referensi_ubah">Nama</FieldLabel>
                 <Input
-                  id="input_label_referensi_ubah"
-                  value={eLabel}
-                  onChange={(e) => setELabel(e.target.value)}
+                  id="input_nama_status_referensi_ubah"
+                  value={eNama}
+                  onChange={(e) => setENama(e.target.value)}
                   required
                   maxLength={100}
                 />
@@ -439,7 +431,7 @@ export default function ReferensiPage() {
             <Button
               id="btn_simpan_ubah_referensi"
               onClick={onUpdate}
-              disabled={submitting || (isStatus ? !eLabel.trim() : !eNama.trim())}
+              disabled={submitting || !eNama.trim()}
             >
               Simpan
             </Button>

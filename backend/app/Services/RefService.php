@@ -58,7 +58,8 @@ class RefService
             $rows = DB::table($table)
                 ->whereNull('lembaga_id')
                 ->when($lembagaId, fn ($q) => $q->orWhere('lembaga_id', $lembagaId))
-                ->orderBy('urutan')->get();
+                // Urut tampil: urutan ASC, tie-break nama ASC (seragam 36 tabel ref).
+                ->orderBy('urutan')->orderBy('nama')->get();
             $map = [];
             foreach ($rows as $r) $map[$r->{$key}] = $r;
             return array_values(array_filter($map, fn ($r) => (bool) $r->is_active));
@@ -97,7 +98,8 @@ class RefService
             $rows = DB::table('ref_alamat')
                 ->whereNull('lembaga_id')
                 ->when($lembagaId, fn ($q) => $q->orWhere('lembaga_id', $lembagaId))
-                ->orderBy('urutan')->get();
+                // Urut tampil: urutan ASC, tie-break nama ASC.
+                ->orderBy('urutan')->orderBy('nama')->get();
             $map = [];
             foreach ($rows as $r) $map[$r->nama] = $r;
             return array_values(array_filter($map, fn ($r) => (bool) $r->is_active));

@@ -40,27 +40,27 @@ class SiklusFlowTest extends TestCase
     protected function ensureRefs(): void
     {
         foreach ([
-            ['kode' => 'santri_baru', 'label' => 'Santri Baru'],
-            ['kode' => 'mengulang', 'label' => 'Mengulang'],
-            ['kode' => 'pindahan', 'label' => 'Pindahan'],
-            ['kode' => 'kenaikan', 'label' => 'Kenaikan Kelas'],
+            ['kode' => 'santri_baru', 'nama' => 'Santri Baru'],
+            ['kode' => 'mengulang', 'nama' => 'Mengulang'],
+            ['kode' => 'pindahan', 'nama' => 'Pindahan'],
+            ['kode' => 'kenaikan', 'nama' => 'Kenaikan Kelas'],
         ] as $i => $r) {
             DB::table('ref_status_awal')->updateOrInsert(
                 ['lembaga_id' => null, 'kode' => $r['kode']],
-                ['label' => $r['label'], 'urutan' => $i, 'is_active' => true]
+                ['nama' => $r['nama'], 'urutan' => $i, 'is_active' => true]
             );
         }
         foreach ([
-            ['kode' => 'aktif', 'label' => 'Aktif'],
-            ['kode' => 'naik', 'label' => 'Naik'],
-            ['kode' => 'tidak_naik', 'label' => 'Tidak Naik'],
-            ['kode' => 'pindah_keluar', 'label' => 'Pindah/Keluar'],
-            ['kode' => 'lulus', 'label' => 'Lulus'],
-            ['kode' => 'tidak_lulus', 'label' => 'Tidak Lulus'],
+            ['kode' => 'aktif', 'nama' => 'Aktif'],
+            ['kode' => 'naik', 'nama' => 'Naik'],
+            ['kode' => 'tidak_naik', 'nama' => 'Tidak Naik'],
+            ['kode' => 'pindah_keluar', 'nama' => 'Pindah/Keluar'],
+            ['kode' => 'lulus', 'nama' => 'Lulus'],
+            ['kode' => 'tidak_lulus', 'nama' => 'Tidak Lulus'],
         ] as $i => $r) {
             DB::table('ref_status_akhir')->updateOrInsert(
                 ['lembaga_id' => null, 'kode' => $r['kode']],
-                ['label' => $r['label'], 'is_aktif_bawaan' => $r['kode'] === 'aktif', 'terminal_ke' => null, 'urutan' => $i, 'is_active' => true]
+                ['nama' => $r['nama'], 'is_aktif_bawaan' => $r['kode'] === 'aktif', 'terminal_ke' => null, 'urutan' => $i, 'is_active' => true]
             );
         }
         foreach (['Ikut pindah orang tua', 'Lainnya'] as $i => $nama) {

@@ -44,6 +44,7 @@
 | 1.10.4 | 2026-09-14 | Import santri 2 langkah: **`POST /admin/santri/import-periksa`** (dry-run — transaksi di-rollback, ringkasan baris + daftar masalah) sebelum `import-lengkap`; tombol Import baru aktif bila periksa lolos; tambah cek kelas harus selembaga & setahun dengan baris; suite 117/117 hijau |
 | 1.10.5 | 2026-09-14 | Template import santri bergaya: header **kuning = wajib** / biru = opsional (dari `rules()` import), sel teks, dropdown data-validation untuk kolom enum + kamus dengan nilai **live `RefService`** per lembaga (sheet "Referensi" tersembunyi; unduh ulang setelah referensi berubah); import hanya membaca sheet pertama; perbaikan `config/cache.php` `serializable_classes` (cache kamus `stdClass` dulu rusak saat cache hit); suite 119/119 hijau |
 | 1.10.6 | 2026-09-14 | Perbaikan dropdown template: atribut OOXML `showDropDown` **inverted** — default PhpSpreadsheet menulis `1` sehingga Excel menyembunyikan panah dropdown; kini `setShowDropDown(true)` → XML `showDropDown="0"` (diverifikasi 37/37 dropdown + tes XML mentah); suite 119/119 hijau |
+| 1.10.7 | 2026-09-14 | Urut tampil kamus seragam: **`urutan` ASC, tie-break `nama` ASC** (`RefService::effective` & `effectiveAlamat`, berlaku juga dropdown template); `ref_status_awal`/`ref_status_akhir`: kolom `label` → **`nama`** (nilai tetap `kode`, tanpa FK) agar kolom seragam 36 tabel ref; controller/seeder/FE/tests/docs disesuaikan; suite 120/120 hijau |
 
 ## Daftar Isi
 

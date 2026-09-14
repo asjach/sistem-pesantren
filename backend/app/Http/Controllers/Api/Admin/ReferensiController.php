@@ -49,7 +49,6 @@ class ReferensiController extends Controller
             'lembaga_id' => 'nullable|exists:lembaga,id',
             'nama' => 'required_without:kode|string',
             'kode' => 'required_without:nama|string',
-            'label' => 'nullable|string',
             'urutan' => 'nullable|integer',
         ]);
 
@@ -75,10 +74,10 @@ class ReferensiController extends Controller
                 ? $q->whereNull('lembaga_id')
                 : $q->where('lembaga_id', $targetLembaga);
             if ($q->first()) abort(422, 'Kode sudah ada.');
-            // Custom lembaga: sifat netral (non-aktif, non-terminal); label/urutan ikut input.
+            // Custom lembaga: sifat netral (non-aktif, non-terminal); nama/urutan ikut input.
             $id = DB::table($table)->insertGetId([
                 'lembaga_id' => $targetLembaga, 'kode' => $data['kode'],
-                'label' => $data['label'] ?? $data['kode'],
+                'nama' => $data['nama'] ?? $data['kode'],
                 'is_aktif_bawaan' => false, 'terminal_ke' => null,
                 'urutan' => $data['urutan'] ?? 0, 'is_active' => true,
             ]);
@@ -114,15 +113,11 @@ class ReferensiController extends Controller
         }
 
         // Kode (status) TIDAK diubah: kunci yang dipakai data pemakai.
-        // Nama (kamus) boleh diubah walau konsumen string bebas tanpa FK.
-        $data = $isStatus
-            ? $request->validate(['label' => 'required|string', 'urutan' => 'nullable|integer'])
-            : $request->validate(['nama' => 'required|string', 'urutan' => 'nullable|integer']);
+        // Nama (status & kamus) boleh diubah walau konsumen string bebas tanpa FK.
+        $data = $request->validate(['nama' => 'required|string', 'urutan' => 'nullable|integer']);
 
         $upd = ['urutan' => $data['urutan'] ?? $row->urutan];
-        if ($isStatus) {
-            $upd['label'] = $data['label'];
-        } else {
+        if (! $isStatus) {
             // Cegah bentrok nama di scope yang sama (global + lembaga sendiri).
             $q = DB::table($table)->where('nama', $data['nama'])->where('id', '!=', $id)
                 ->where(function ($q) use ($row) {
@@ -130,8 +125,8 @@ class ReferensiController extends Controller
                     if (! is_null($row->lembaga_id)) $q->orWhere('lembaga_id', $row->lembaga_id);
                 });
             if ($q->exists()) abort(422, 'Nilai sudah ada.');
-            $upd['nama'] = $data['nama'];
         }
+        $upd['nama'] = $data['nama'];
 
         DB::table($table)->where('id', $id)->update($upd);
         RefService::forget($row->lembaga_id);
@@ -148,13 +143,10 @@ class ReferensiController extends Controller
         $row = DB::table($table)->find($id) ?? abort(404);
 
         if (is_null($row->lembaga_id)) {
-            // Baris global: shadow off di lembaga actor (label/urutan ikut global).
-            // Kolom label hanya ada di tabel status; generik pakai key saja.
+            // Baris global: shadow off di lembaga actor (nama/urutan ikut global).
+            // Semua tabel ref kini punya kolom `nama`; status memakai `kode` sebagai nilai.
             $targetLembaga = $this->mustLembaga($actor, $request->all());
-            $shadow = ['urutan' => $row->urutan ?? 0, 'is_active' => false];
-            if (in_array($tipe, ['status_awal', 'status_akhir'], true)) {
-                $shadow['label'] = $row->label ?? null;
-            }
+            $shadow = ['nama' => $row->nama ?? null, 'urutan' => $row->urutan ?? 0, 'is_active' => false];
             if ($tipe === 'status_akhir') {
                 $shadow += ['is_aktif_bawaan' => false, 'terminal_ke' => null];
             }

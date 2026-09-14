@@ -162,7 +162,7 @@ export default function DokumenWajibPage() {
   const fields = useMemo(
     () => dokumenFields(jenis.map((r) => ({
       value: String(r.nama ?? r.kode),
-      label: String(r.nama ?? r.label ?? r.kode),
+      label: String(r.nama ?? r.kode),
     }))),
     [jenis],
   );
@@ -254,7 +254,7 @@ export default function DokumenWajibPage() {
                 <SelectGroup>
                   {jenis.map((r) => (
                     <SelectItem key={r.id} value={String(r.nama ?? r.kode)}>
-                      {String(r.nama ?? r.label ?? r.kode)}
+                      {String(r.nama ?? r.kode)}
                     </SelectItem>
                   ))}
                 </SelectGroup>

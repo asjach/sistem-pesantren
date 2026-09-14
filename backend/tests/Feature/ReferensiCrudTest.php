@@ -167,25 +167,25 @@ class ReferensiCrudTest extends TestCase
             ->assertStatus(422);
     }
 
-    // ---------- 6. status: label/urutan berubah, kode tetap ----------
+    // ---------- 6. status: nama/urutan berubah, kode tetap ----------
 
-    public function test_06_status_hanya_label_dan_urutan(): void
+    public function test_06_status_hanya_nama_dan_urutan(): void
     {
         $f = $this->fixture();
         $adminMi = $this->makeUser('admin', [$f['mi']->id]);
 
         $id = $this->actingAs($adminMi, 'sanctum')->postJson('/api/admin/referensi/status_akhir', [
-            'kode' => 'cuti_panjang', 'label' => 'Cuti', 'lembaga_id' => $f['mi']->id,
+            'kode' => 'cuti_panjang', 'nama' => 'Cuti', 'lembaga_id' => $f['mi']->id,
         ])->assertStatus(201)->json('id');
 
         $this->actingAs($adminMi, 'sanctum')
-            ->putJson("/api/admin/referensi/status_akhir/{$id}", ['label' => 'Cuti Panjang', 'urutan' => 9])
+            ->putJson("/api/admin/referensi/status_akhir/{$id}", ['nama' => 'Cuti Panjang', 'urutan' => 9])
             ->assertStatus(200)
             ->assertJsonPath('kode', 'cuti_panjang')
-            ->assertJsonPath('label', 'Cuti Panjang');
+            ->assertJsonPath('nama', 'Cuti Panjang');
 
         $this->assertDatabaseHas('ref_status_akhir', [
-            'id' => $id, 'kode' => 'cuti_panjang', 'label' => 'Cuti Panjang', 'urutan' => 9,
+            'id' => $id, 'kode' => 'cuti_panjang', 'nama' => 'Cuti Panjang', 'urutan' => 9,
         ]);
     }
 
@@ -225,6 +225,30 @@ class ReferensiCrudTest extends TestCase
         $alamatBaru = array_map(fn ($r) => $r->nama, RefService::effectiveAlamat($f['mi']->id));
         $this->assertContains('Alamat Global Baru', $alamatBaru);
         $this->assertNotContains('Alamat Global Awal', $alamatBaru);
+    }
+
+    // ---------- 8. urut tampil: urutan ASC, tie-break nama ASC ----------
+
+    public function test_08_urut_tampil_urutan_lalu_nama(): void
+    {
+        $f = $this->fixture();
+
+        // Tiga baris urutan sama (default 0) → urut nama ASC; urutan lebih awal menang.
+        foreach (['Zuhud', 'Akhlak', 'Iman'] as $nama) {
+            DB::table('ref_agama')->insert(['lembaga_id' => null, 'nama' => $nama, 'urutan' => 0, 'is_active' => true]);
+        }
+        DB::table('ref_agama')->insert(['lembaga_id' => null, 'nama' => 'Awal', 'urutan' => -1, 'is_active' => true]);
+        RefService::forget();
+
+        $this->assertSame(['Awal', 'Akhlak', 'Iman', 'Zuhud'], RefService::kodeAktif('agama', $f['mi']->id));
+
+        // Status: nilai = kode, tie-break memakai kolom tampilan `nama`.
+        foreach ([['kode' => 'z_status', 'nama' => 'Zeta'], ['kode' => 'a_status', 'nama' => 'Alfa']] as $r) {
+            DB::table('ref_status_awal')->insert($r + ['lembaga_id' => null, 'urutan' => 0, 'is_active' => true]);
+        }
+        RefService::forget();
+
+        $this->assertSame(['a_status', 'z_status'], RefService::kodeAktif('status_awal', $f['mi']->id));
     }
 
     // Regresi: cache HIT RefService dulu mengembalikan __PHP_Incomplete_Class
