@@ -6,7 +6,9 @@ use App\Http\Controllers\Api\Concerns\TenantGuard;
 use App\Http\Controllers\Controller;
 use App\Models\Kelas;
 use App\Models\TahunAjaran;
+use App\Services\RefService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 /**
  * FB-004-01: CRUD kelas. tahun_ajaran wajib se-lembaga dengan kelas.
@@ -42,9 +44,14 @@ class KelasController extends Controller
         $data = $request->validate([
             'lembaga_id' => ['required', 'exists:lembaga,id'],
             'tahun_ajaran_id' => ['required', 'exists:tahun_ajaran,id'],
+            // Mode tunggal (kompatibel lama) atau bulk via items (sub-form dialog).
+            'nama_kelas' => ['required_without:items', 'string', 'max:50'],
             'tingkat' => ['nullable', 'string', 'max:20'],
-            'nama_kelas' => ['required', 'string', 'max:50'],
             'kapasitas' => ['nullable', 'integer', 'min:1'],
+            'items' => ['sometimes', 'array', 'min:1'],
+            'items.*.nama_kelas' => ['required', 'string', 'max:50'],
+            'items.*.tingkat' => ['nullable', 'string', 'max:20'],
+            'items.*.kapasitas' => ['nullable', 'integer', 'min:1'],
         ]);
 
         $auth = auth()->user();
@@ -55,16 +62,45 @@ class KelasController extends Controller
             return response()->json(['message' => 'Tahun ajaran tidak se-lembaga dengan kelas.'], 422);
         }
 
-        // Validasi kamus no.50: tingkat via RefService efektif (null = semua).
-        if (! empty($data['tingkat'] ?? null)
-            && ! in_array($data['tingkat'], \App\Services\RefService::kodeAktif('tingkat', (int) $data['lembaga_id']), true)
-            && ! in_array($data['tingkat'], \App\Services\RefService::kodeAktif('tingkat', null), true)) {
-            return response()->json(['message' => 'Tingkat tidak dikenal.'], 422);
+        $items = isset($data['items'])
+            ? array_values($data['items'])
+            : [[
+                'nama_kelas' => $data['nama_kelas'],
+                'tingkat' => $data['tingkat'] ?? null,
+                'kapasitas' => $data['kapasitas'] ?? null,
+            ]];
+
+        $dibuat = DB::transaction(function () use ($data, $items) {
+            $rows = [];
+            foreach ($items as $item) {
+                $this->cekTingkat((int) $data['lembaga_id'], $item['tingkat'] ?? null);
+                $rows[] = Kelas::create([
+                    'lembaga_id' => (int) $data['lembaga_id'],
+                    'tahun_ajaran_id' => (int) $data['tahun_ajaran_id'],
+                    'nama_kelas' => $item['nama_kelas'],
+                    'tingkat' => $item['tingkat'] ?? null,
+                    'kapasitas' => $item['kapasitas'] ?? null,
+                ]);
+            }
+
+            return $rows;
+        });
+
+        if (! isset($data['items'])) {
+            return response()->json($dibuat[0], 201);
         }
 
-        $kelas = Kelas::create($data);
+        return response()->json(['pesan' => count($dibuat).' kelas dibuat.', 'data' => $dibuat], 201);
+    }
 
-        return response()->json($kelas, 201);
+    /** Validasi kamus no.50: tingkat via RefService efektif (null = semua). */
+    protected function cekTingkat(int $lembagaId, ?string $tingkat): void
+    {
+        if (! empty($tingkat)
+            && ! in_array($tingkat, RefService::kodeAktif('tingkat', $lembagaId), true)
+            && ! in_array($tingkat, RefService::kodeAktif('tingkat', null), true)) {
+            abort(response()->json(['message' => 'Tingkat tidak dikenal.'], 422));
+        }
     }
 
     public function update(Request $request, Kelas $kela)

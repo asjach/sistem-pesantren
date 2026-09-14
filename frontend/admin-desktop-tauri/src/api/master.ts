@@ -196,14 +196,21 @@ export function listKelas(
   return api<Paginate<Kelas>>(`/admin/kelas?${q.toString()}`);
 }
 
+export interface KelasItem {
+  nama_kelas: string;
+  tingkat?: string;
+  kapasitas?: number;
+}
+
 export function createKelas(input: {
   lembaga_id: number;
   tahun_ajaran_id: number;
   tingkat?: string;
-  nama_kelas: string;
+  nama_kelas?: string;
   kapasitas?: number;
+  items?: KelasItem[];
 }) {
-  return api<Kelas>('/admin/kelas', { method: 'POST', body: JSON.stringify(input) });
+  return api<Kelas | { pesan: string; data: Kelas[] }>('/admin/kelas', { method: 'POST', body: JSON.stringify(input) });
 }
 
 export function updateKelas(

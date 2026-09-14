@@ -35,6 +35,7 @@ import {
 } from '@/components/ui/dialog';
 import Pager from '@/components/Pager';
 import { usePager } from '@/hooks/usePager';
+import { X } from '@/icons';
 import { DeleteAction, EditAction, ViewAction } from '@/components/RowActions';
 import { toast } from 'sonner';
 
@@ -58,8 +59,18 @@ const FIELDS: ExcelField[] = [
   },
 ];
 
-function gridValues(k: Kelas): Record<string, string | null> {
-  return {
+/** Satu sub-form baris tambah kelas (nama wajib, tingkat + kapasitas opsional). */
+interface BarisKelas {
+  nama: string;
+  tingkat: string;
+  kapasitas: string;
+}
+
+function barisKelasKosong(): BarisKelas {
+  return { nama: '', tingkat: '', kapasitas: '' };
+}
+
+function gridValues(k: Kelas): Record<string, string | null> {  return {
     nama: k.nama_kelas,
     tingkat: k.tingkat,
     ta: k.tahunAjaran?.nama ?? k.tahun_ajaran?.nama ?? String(k.tahun_ajaran_id),
@@ -97,11 +108,8 @@ export default function KelasPage() {
   const [tambahTas, setTambahTas] = useState<TahunAjaran[]>([]);
   const tambahTaReqRef = useRef(0);
 
-  const [namaKelas, setNamaKelas] = useState('');
-  const [tingkat, setTingkat] = useState('');
-  const [kapasitas, setKapasitas] = useState('');
-  const [tambahOpen, setTambahOpen] = useState(false);
-  const [viewRow, setViewRow] = useState<Kelas | null>(null);
+  const [barisKelas, setBarisKelas] = useState<BarisKelas[]>([barisKelasKosong()]);
+  const [tambahOpen, setTambahOpen] = useState(false);  const [viewRow, setViewRow] = useState<Kelas | null>(null);
   const [editRow, setEditRow] = useState<Kelas | null>(null);
   const [editNama, setEditNama] = useState('');
   const [editTingkat, setEditTingkat] = useState('');
@@ -186,6 +194,8 @@ export default function KelasPage() {
     // (efek pemuat akan mengoreksi bila daftar itu milik lembaga lain).
     const aktif = tambahTas.find((t) => t.is_aktif);
     setTambahTaId(taId !== '' ? taId : (aktif ? aktif.id : ''));
+    setBarisKelas([barisKelasKosong()]);
+    setErr('');
     setTambahOpen(true);
   }, [lembagaId, taId, tambahTas]);
 
@@ -201,6 +211,18 @@ export default function KelasPage() {
     setEditKapasitas(k.kapasitas === null || k.kapasitas === undefined ? '' : String(k.kapasitas));
   }, []);
 
+  const ubahBaris = useCallback((i: number, kunci: keyof BarisKelas, nilai: string) => {
+    setBarisKelas((prev) => prev.map((b, j) => (j === i ? { ...b, [kunci]: nilai } : b)));
+  }, []);
+
+  const tambahBaris = useCallback(() => {
+    setBarisKelas((prev) => [...prev, barisKelasKosong()]);
+  }, []);
+
+  const hapusBaris = useCallback((i: number) => {
+    setBarisKelas((prev) => (prev.length <= 1 ? prev : prev.filter((_, j) => j !== i)));
+  }, []);
+
   const onCreate = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     setErr('');
@@ -208,23 +230,59 @@ export default function KelasPage() {
       setErr('Lembaga + tahun ajaran wajib (kelas se-lembaga dengan TA).');
       return;
     }
+    const terisi = barisKelas
+      .map((b, i) => ({ ...b, baris: i + 1 }))
+      .filter((b) => b.nama.trim() !== '' || b.tingkat.trim() !== '' || b.kapasitas.trim() !== '');
+    if (terisi.length === 0) {
+      setErr('Isi minimal 1 baris kelas (nama wajib).');
+      return;
+    }
+    for (const b of terisi) {
+      if (b.nama.trim() === '') {
+        setErr(`Baris ${b.baris}: nama kelas wajib diisi.`);
+        return;
+      }
+      if (b.kapasitas.trim() !== '') {
+        const n = Number(b.kapasitas);
+        if (!Number.isInteger(n) || n < 1) {
+          setErr(`Baris ${b.baris}: kapasitas bilangan bulat ≥ 1.`);
+          return;
+        }
+      }
+    }
     try {
-      await createKelas({
-        lembaga_id: Number(tambahLembagaId),
-        tahun_ajaran_id: Number(tambahTaId),
-        nama_kelas: namaKelas,
-        tingkat: tingkat || undefined,
-        kapasitas: kapasitas ? Number(kapasitas) : undefined,
-      });
-      toast.success('Kelas dibuat.');
-      setNamaKelas(''); setTingkat(''); setKapasitas('');
+      const dasar = { lembaga_id: Number(tambahLembagaId), tahun_ajaran_id: Number(tambahTaId) };
+      if (terisi.length === 1) {
+        const [satu] = terisi;
+        await createKelas({
+          ...dasar,
+          nama_kelas: satu.nama.trim(),
+          tingkat: satu.tingkat.trim() || undefined,
+          kapasitas: satu.kapasitas.trim() ? Number(satu.kapasitas) : undefined,
+        });
+        toast.success('Kelas dibuat.');
+      } else {
+        const res = await createKelas({
+          ...dasar,
+          items: terisi.map((b) => ({
+            nama_kelas: b.nama.trim(),
+            ...(b.tingkat.trim() ? { tingkat: b.tingkat.trim() } : {}),
+            ...(b.kapasitas.trim() ? { kapasitas: Number(b.kapasitas) } : {}),
+          })),
+        });
+        const jumlah = Array.isArray((res as { data?: unknown }).data)
+          ? (res as { data: unknown[] }).data.length
+          : terisi.length;
+        toast.success(`${jumlah} kelas dibuat.`);
+      }
+      setBarisKelas([barisKelasKosong()]);
       setTambahOpen(false);
       pager.goFirst();
       await load(1);
     } catch (e2) {
       setErr(errorMessage(e2));
     }
-  }, [tambahLembagaId, tambahTaId, namaKelas, tingkat, kapasitas, load, pager.goFirst]);
+  }, [tambahLembagaId, tambahTaId, barisKelas, load, pager.goFirst]);
 
   /** Mode Input: buat kelas baru dari baris input (butuh filter lembaga+TA). */
   const createRow = useCallback(async (f: Record<string, string | null>) => {
@@ -405,18 +463,70 @@ export default function KelasPage() {
                 <p className="text-xs text-muted-foreground">Belum ada tahun ajaran di lembaga ini.</p>
               ) : null}
             </div>
-            <FieldLabel htmlFor="input_nama_kelas">Nama kelas</FieldLabel>
-            <Input id="input_nama_kelas" value={namaKelas} onChange={(e) => setNamaKelas(e.target.value)} required maxLength={50} placeholder="VII-A" />
-            <FieldLabel htmlFor="input_tingkat_kelas">Tingkat (kamus, opsional)</FieldLabel>
-            <Input id="input_tingkat_kelas" value={tingkat} onChange={(e) => setTingkat(e.target.value)} placeholder="7 / 8 / 9" />
-            <FieldLabel htmlFor="input_kapasitas_kelas">Kapasitas</FieldLabel>
-            <Input id="input_kapasitas_kelas" type="number" min={1} value={kapasitas} onChange={(e) => setKapasitas(e.target.value)} />
+            <FieldLabel htmlFor="input_nama_kelas_0">Daftar kelas</FieldLabel>
+            <div className="flex flex-col gap-2">
+              <div className="grid grid-cols-[1fr_110px_100px_32px] items-center gap-2 text-xs text-muted-foreground" aria-hidden="true">
+                <span>Nama kelas</span>
+                <span>Tingkat</span>
+                <span>Kapasitas</span>
+                <span />
+              </div>
+              {barisKelas.map((b, i) => (
+                <div key={i} className="grid grid-cols-[1fr_110px_100px_32px] items-center gap-2">
+                  <Input
+                    id={`input_nama_kelas_${i}`}
+                    aria-label={`Nama kelas baris ${i + 1}`}
+                    value={b.nama}
+                    onChange={(e) => ubahBaris(i, 'nama', e.target.value)}
+                    required={i === 0}
+                    maxLength={50}
+                  />
+                  <Input
+                    id={`input_tingkat_kelas_${i}`}
+                    aria-label={`Tingkat baris ${i + 1}`}
+                    value={b.tingkat}
+                    onChange={(e) => ubahBaris(i, 'tingkat', e.target.value)}
+                    maxLength={20}
+                  />
+                  <Input
+                    id={`input_kapasitas_kelas_${i}`}
+                    aria-label={`Kapasitas baris ${i + 1}`}
+                    type="number"
+                    min={1}
+                    value={b.kapasitas}
+                    onChange={(e) => ubahBaris(i, 'kapasitas', e.target.value)}
+                  />
+                  <Button
+                    id={`btn_hapus_baris_kelas_${i}`}
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    title="Hapus baris"
+                    aria-label={`Hapus baris ${i + 1}`}
+                    disabled={barisKelas.length <= 1}
+                    onClick={() => hapusBaris(i)}
+                  >
+                    <X size={16} />
+                  </Button>
+                </div>
+              ))}
+              <Button
+                id="btn_tambah_baris_kelas"
+                type="button"
+                variant="outline"
+                size="sm"
+                className="self-start"
+                onClick={tambahBaris}
+              >
+                + Tambah baris
+              </Button>
+            </div>
             <DialogFooter className="col-span-2">
               <Button type="button" variant="outline" onClick={() => setTambahOpen(false)}>Batal</Button>
               <Button
                 id="btn_tambah_kelas"
                 type="submit"
-                disabled={tambahLembagaId === '' || tambahTaId === '' || !namaKelas.trim()}
+                disabled={tambahLembagaId === '' || tambahTaId === '' || !barisKelas.some((b) => b.nama.trim())}
               >
                 Tambah
               </Button>
