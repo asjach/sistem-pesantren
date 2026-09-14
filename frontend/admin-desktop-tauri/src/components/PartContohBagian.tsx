@@ -646,6 +646,18 @@ export function contohBagian(id: PartId): ReactElement {
           <span className="rounded px-2 py-1 text-[11px] text-white/80">Kelas</span>
         </div>
       );
+    case 'area_akun':
+      return (
+        <div className="ml-auto flex items-center gap-1 rounded bg-[var(--sidebar-deep)] p-2">
+          <span className="grid size-6 place-items-center rounded-md text-white/75">☀</span>
+          <span className="grid size-6 place-items-center rounded-md bg-white/20 text-white">☾</span>
+          <span className="grid size-6 place-items-center rounded-md text-white/75">▮</span>
+          <span className="ml-1 flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-white">
+            <span className="grid size-4 place-items-center rounded-full bg-white/20">AF</span>
+            Reviewer
+          </span>
+        </div>
+      );
     default:
       return <div className="rounded border p-3 text-sm">{id}</div>;
   }

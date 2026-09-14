@@ -13,6 +13,7 @@ import { BELUM_DIPAKAI } from './parts-belum.gen';
 export type PartId =
   | 'ribbon'
   | 'tab_ribbon'
+  | 'area_akun'
   | 'grup_ribbon'
   | 'menu_ribbon'
   | 'separator'
@@ -175,6 +176,15 @@ export const PARTS: PartMeta[] = [
     kendali: true,
     hint: 'Tombol tab (Beranda, Master, …).',
     sel: "#root header button[id^='tab_ribbon_']",
+  },
+  {
+    id: 'area_akun',
+    label: 'Area akun (kanan atas)',
+    grup: 'Struktur',
+    sub: 'Ribbon',
+    kendali: true,
+    hint: 'Area kanan atas strip ribbon: tombol mode & menu akun.',
+    sel: "[data-part='area_akun']",
   },
   {
     id: 'grup_ribbon',
