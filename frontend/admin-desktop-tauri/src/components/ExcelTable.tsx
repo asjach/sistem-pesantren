@@ -1946,7 +1946,7 @@ export default function ExcelTable<T extends { id: string | number }>({
     : '';
 
   return (
-    <div className={cn('flex flex-col', maxRows === undefined ? 'min-h-0 flex-1' : 'shrink-0')}>
+    <div className={cn('mt-2 flex flex-col', maxRows === undefined ? 'min-h-0 flex-1' : 'shrink-0')}>
       {editing && (
         <div
           id={`banner_mode_edit_${tableKey}`}
