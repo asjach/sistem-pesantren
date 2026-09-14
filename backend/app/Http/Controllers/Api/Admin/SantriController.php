@@ -237,12 +237,18 @@ class SantriController extends Controller
         return response()->json(['pesan' => 'Status dokumen diperbarui.', 'data' => $dokumen->fresh()]);
     }
 
-    /** GET /api/admin/santri/import-template — template Excel (semua kolom profil + lembaga). */
-    public function template()
+    /** GET /api/admin/santri/import-template — template Excel (semua kolom profil + lembaga).
+     *  `lembaga_id` opsional: nilai dropdown kamus mengikuti referensi efektif lembaga tsb. */
+    public function template(Request $request)
     {
         $this->authorize('create', Santri::class);
 
-        return Excel::download(new SantriTemplateExport(), 'template-import-santri.xlsx');
+        $lembagaId = $this->resolveLembagaInput(
+            $request->user(),
+            $request->filled('lembaga_id') ? (int) $request->lembaga_id : null,
+        );
+
+        return Excel::download(new SantriTemplateExport($lembagaId), 'template-import-santri.xlsx');
     }
 
     /** POST /api/admin/santri/import-periksa — validasi file TANPA menulis (dry-run).

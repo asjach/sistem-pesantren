@@ -58,9 +58,11 @@ export function createSantri(input: Record<string, string | number | null>) {
   });
 }
 
-/** Unduh template Excel import santri (semua kolom profil + `lembaga_id`). */
-export function unduhTemplateSantri() {
-  return downloadFile('/admin/santri/import-template', 'template-import-santri.xlsx');
+/** Unduh template Excel import santri (semua kolom profil + `lembaga_id`).
+ *  `lembagaId` mengisi dropdown kamus dengan referensi efektif lembaga tersebut. */
+export function unduhTemplateSantri(lembagaId?: number) {
+  const q = lembagaId ? `?lembaga_id=${lembagaId}` : '';
+  return downloadFile(`/admin/santri/import-template${q}`, 'template-import-santri.xlsx');
 }
 
 export function importSantri(input: { tahun_ajaran_id?: number; lembaga_id?: number; file: File }) {

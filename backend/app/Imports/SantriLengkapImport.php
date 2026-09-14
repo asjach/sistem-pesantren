@@ -9,12 +9,14 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Concerns\SkipsOnFailure;
+use Maatwebsite\Excel\Concerns\SkipsUnknownSheets;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
+use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 use Maatwebsite\Excel\Concerns\WithValidation;
 use Maatwebsite\Excel\Validators\Failure;
 
-class SantriLengkapImport implements ToCollection, WithHeadingRow, WithValidation, SkipsOnFailure
+class SantriLengkapImport implements ToCollection, WithHeadingRow, WithValidation, SkipsOnFailure, WithMultipleSheets, SkipsUnknownSheets
 {
     protected ?int $tahunAjaranId;
     protected ?int $lembagaId;
@@ -39,6 +41,17 @@ class SantriLengkapImport implements ToCollection, WithHeadingRow, WithValidatio
             'baris_valid'    => $this->barisValid,
             'baris_gagal'    => count($this->failures),
         ];
+    }
+
+    /** Hanya sheet pertama yang diimport (template memuat sheet "Referensi" tersembunyi). */
+    public function sheets(): array
+    {
+        return [0 => $this];
+    }
+
+    public function onUnknownSheet(string|int $sheetName): void
+    {
+        // Sheet tambahan (mis. "Referensi") diabaikan.
     }
 
     public function collection(Collection $rows): void

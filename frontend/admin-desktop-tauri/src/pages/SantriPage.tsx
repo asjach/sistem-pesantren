@@ -634,9 +634,9 @@ export default function SantriPage() {
               type="button"
               variant="link"
               className="col-span-2 h-auto justify-start px-0"
-              onClick={() => void unduhTemplateSantri().catch((e) => setErr(errorMessage(e)))}
+              onClick={() => void unduhTemplateSantri(effectiveImportLembaga ? Number(effectiveImportLembaga) : undefined).catch((e) => setErr(errorMessage(e)))}
             >
-              <Download data-icon="inline-start" size={16} /> Unduh template Excel (semua kolom)
+              <Download data-icon="inline-start" size={16} /> Unduh template Excel (kuning = wajib, dropdown = pilihan)
             </Button>
             {periksaHasil ? (
               <div className="col-span-2 rounded-md border p-3 text-sm" id="hasil_periksa_import">

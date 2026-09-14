@@ -9,6 +9,7 @@ use App\Models\RiwayatBelajar;
 use App\Models\Santri;
 use App\Models\TahunAjaran;
 use App\Models\User;
+use App\Services\RefService;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -16,6 +17,10 @@ use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Facades\Excel;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use PhpOffice\PhpSpreadsheet\Cell\DataValidation;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use Tests\TestCase;
 
 class SantriFlowTest extends TestCase
@@ -640,5 +645,55 @@ class SantriFlowTest extends TestCase
         // Import nyata tetap berjalan setelah lolos periksa.
         $this->importCsv($adminMi, $f['ta']->id, null, $csvOk)->assertStatus(200);
         $this->assertSame(1, Santri::count());
+    }
+
+    // ---------- 17. template bergaya: warna wajib + dropdown ref ----------
+
+    public function test_17_template_bergaya_dan_dropdown_referensi(): void
+    {
+        $f = $this->baseFixture();
+        DB::table('ref_agama')->insert([
+            'lembaga_id' => null, 'nama' => 'Islam', 'urutan' => 0, 'is_active' => true,
+        ]);
+        RefService::forget();
+
+        $xlsx = Excel::raw(new SantriTemplateExport($f['mi']->id), \Maatwebsite\Excel\Excel::XLSX);
+        $tmp = tempnam(sys_get_temp_dir(), 'tmpl_style').'.xlsx';
+        file_put_contents($tmp, $xlsx);
+        $spreadsheet = IOFactory::load($tmp);
+        $sheet = $spreadsheet->getActiveSheet();
+
+        $kolom = SantriTemplateExport::kolom();
+        $colOf = fn (string $nama) => Coordinate::stringFromColumnIndex(array_search($nama, $kolom, true) + 1);
+
+        // Header: wajib kuning, opsional biru.
+        $this->assertSame('FFFFE699', $sheet->getStyle($colOf('nama_lengkap').'1')->getFill()->getStartColor()->getARGB());
+        $this->assertSame('FFDCE6F1', $sheet->getStyle($colOf('nama_singkat').'1')->getFill()->getStartColor()->getARGB());
+
+        // Dropdown enum jk.
+        $dvJk = $sheet->getDataValidation($colOf('jk').'2');
+        $this->assertSame(DataValidation::TYPE_LIST, $dvJk->getType());
+        $this->assertTrue($dvJk->getAllowBlank());
+
+        // Dropdown kamus agama (nilai live dari RefService) menunjuk sheet Referensi.
+        $dvAgama = $sheet->getDataValidation($colOf('agama').'2');
+        $this->assertSame(DataValidation::TYPE_LIST, $dvAgama->getType());
+        $this->assertStringContainsString('Referensi', $dvAgama->getFormula1());
+
+        $referensi = $spreadsheet->getSheetByName('Referensi');
+        $this->assertNotNull($referensi);
+        $this->assertSame(Worksheet::SHEETSTATE_HIDDEN, $referensi->getSheetState());
+
+        // Nilai referensi efektif tersimpan di sheet Referensi.
+        $colAgama = null;
+        for ($i = 1; $i <= 60; $i++) {
+            $col = Coordinate::stringFromColumnIndex($i);
+            if ($referensi->getCell($col.'1')->getValue() === 'pilihan_agama') {
+                $colAgama = $col;
+                break;
+            }
+        }
+        $this->assertNotNull($colAgama);
+        $this->assertSame('Islam', $referensi->getCell($colAgama.'2')->getValue());
     }
 }
