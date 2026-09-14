@@ -247,7 +247,7 @@ function AngkaField({
 /** Editor gaya atomik per bagian UI + pratinjau.
  *  Tipografi & kotak berlaku kedua mode; warna dipisah terang/gelap. */
 export default function PartStyleEditor() {
-  const { parts, theme, customHex, setGayaBagian, setWarnaBagian, resetBagian, resetBagianBanyak, resetSemuaBagian } = useTheme();
+  const { parts, theme, setGayaBagian, setWarnaBagian, resetBagian, resetBagianBanyak, resetSemuaBagian } = useTheme();
   const picker = usePicker();
   const [aktif, setAktif] = useState<PartId>('ribbon');
   const [cari, setCari] = useState('');
@@ -339,7 +339,7 @@ export default function PartStyleEditor() {
     };
     setBawaanWarna({ terang: warnaDari(elT), gelap: warnaDari(elG) });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aktif, parts, theme, customHex, g, wTerang, wGelap]);
+  }, [aktif, parts, theme, g, wTerang, wGelap]);
 
   // Info selektor target: jumlah elemen nyata yang cocok (di luar pratinjau).
   useLayoutEffect(() => {
@@ -413,7 +413,7 @@ export default function PartStyleEditor() {
   /** Wajah tema untuk kanvas pratinjau (per mode, keduanya ditampilkan). */
   const wajah = (modeGelap: boolean) =>
     ({
-      ...variabelWajah(theme, modeGelap, customHex),
+      ...variabelWajah(theme, modeGelap),
       ...variabelBagian(aktif, g, modeGelap ? wGelap : wTerang),
     }) as unknown as CSSProperties;
 

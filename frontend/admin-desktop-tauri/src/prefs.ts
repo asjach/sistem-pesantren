@@ -1,5 +1,4 @@
 import { prefGet, prefSet } from '@/api/client';
-import { FONT_FAMILY_DEFAULT, FONT_OPTIONS } from './fonts';
 import { ICON_SET_DEFAULT, ICON_SETS, type IconSetId } from './iconSets';
 import { EMPTY_PARTS, normalizeParts, type PartOverrides } from './parts';
 import { PRESET_IDS, type ThemeName } from './themes';
@@ -34,11 +33,9 @@ export function normalizePerPage(v: unknown): PerPage {
 
 const K = {
   theme: 'simpes_theme',
-  customHex: 'simpes_custom_hex',
   mode: 'simpes_mode',
   sidebar: 'simpes_sidebar',
   density: 'simpes_density',
-  fontUI: 'simpes_font_ui',
   warnaUI: 'simpes_warna_ui',
   parts: 'simpes_parts',
   iconSet: 'simpes_icon_set',
@@ -46,12 +43,9 @@ const K = {
 
 export interface Prefs {
   theme: ThemeName;
-  customHex: string;
   mode: ModeName;
   collapsed: boolean;
   density: DensityName;
-  /** Jenis huruf antarmuka (nilai opsi src/fonts.ts; `_bawaan` = Aptos). */
-  fontUI: string;
   /** Tingkat kekayaan warna UI (judul/ikon/permukaan/semantik). */
   warnaUI: WarnaUIName;
   /** Gaya atomik per bagian UI (terpisah mode terang/gelap). */
@@ -62,11 +56,9 @@ export interface Prefs {
 
 export const DEFAULT_PREFS: Prefs = {
   theme: 'geist',
-  customHex: '#2c5c38',
   mode: 'sistem',
   collapsed: false,
   density: 'sedang',
-  fontUI: FONT_FAMILY_DEFAULT,
   warnaUI: 'kaya',
   parts: EMPTY_PARTS,
   iconSet: ICON_SET_DEFAULT,
@@ -100,13 +92,11 @@ export function normalizeHex(v: string): string | null {
 }
 
 export async function loadPrefs(): Promise<Prefs> {
-  const [theme, customHex, mode, sidebar, density, fontUI, warnaUI, partsRaw, iconSetRaw] = await Promise.all([
+  const [theme, mode, sidebar, density, warnaUI, partsRaw, iconSetRaw] = await Promise.all([
     prefGet(K.theme),
-    prefGet(K.customHex),
     prefGet(K.mode),
     prefGet(K.sidebar),
     prefGet(K.density),
-    prefGet(K.fontUI),
     prefGet(K.warnaUI),
     prefGet(K.parts),
     prefGet(K.iconSet),
@@ -118,16 +108,14 @@ export async function loadPrefs(): Promise<Prefs> {
     parts = EMPTY_PARTS;
   }
   return {
-    theme: PRESET_IDS.includes(theme ?? '') || theme === 'kustom'
+    theme: PRESET_IDS.includes(theme ?? '')
       ? (theme as ThemeName)
       : DEFAULT_PREFS.theme,
-    customHex: customHex && normalizeHex(customHex) ? (normalizeHex(customHex) as string) : DEFAULT_PREFS.customHex,
     mode: mode === 'gelap' || mode === 'terang' ? mode : 'sistem',
     collapsed: sidebar === '1',
     density: (['ramping', 'sedang', 'nyaman'] as string[]).includes(density ?? '')
       ? (density as DensityName)
       : 'sedang',
-    fontUI: FONT_OPTIONS.some((f) => f.value === fontUI) ? (fontUI as string) : FONT_FAMILY_DEFAULT,
     warnaUI: (WARNA_UI as string[]).includes(warnaUI ?? '')
       ? (warnaUI as WarnaUIName)
       : DEFAULT_PREFS.warnaUI,
@@ -139,11 +127,9 @@ export async function loadPrefs(): Promise<Prefs> {
 export async function savePrefs(p: Prefs): Promise<void> {
   await Promise.all([
     prefSet(K.theme, p.theme),
-    prefSet(K.customHex, p.customHex),
     prefSet(K.mode, p.mode),
     prefSet(K.sidebar, p.collapsed ? '1' : '0'),
     prefSet(K.density, p.density),
-    prefSet(K.fontUI, p.fontUI),
     prefSet(K.warnaUI, p.warnaUI),
     prefSet(K.parts, JSON.stringify(p.parts)),
     prefSet(K.iconSet, p.iconSet),

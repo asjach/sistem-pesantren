@@ -1,4 +1,4 @@
-import { DENSITY_PX } from '@/prefs';
+import { DENSITY_PX, type DensityName } from '@/prefs';
 import { useTheme } from '@/theme';
 import {
   DEFAULT_FONT_PX,
@@ -74,8 +74,14 @@ function PilihFont({
   );
 }
 
+const KERAPATAN: { id: DensityName; nama: string }[] = [
+  { id: 'ramping', nama: 'Ramping' },
+  { id: 'sedang', nama: 'Sedang' },
+  { id: 'nyaman', nama: 'Nyaman' },
+];
+
 export function RibbonTabel({ apiTabel }: { apiTabel: RibbonTableApi | null }) {
-  const { density, dark, parts, setGayaBagian, setWarnaBagian } = useTheme();
+  const { density, dark, parts, setGayaBagian, setWarnaBagian, setDensity } = useTheme();
   const { rowH, fontPx, fontFamily, setRowH, setFontPx, setFontFamily } = useGridPrefs();
   const effectiveH = rowH ?? DENSITY_PX[density];
   const effectiveFont = fontPx ?? DEFAULT_FONT_PX;
@@ -156,6 +162,31 @@ export function RibbonTabel({ apiTabel }: { apiTabel: RibbonTableApi | null }) {
           ariaLabel="Tinggi baris (px)"
           onChange={setRowH}
         />
+        <Select
+          value={density}
+          onValueChange={(v) => {
+            setDensity(v as DensityName);
+            // Kosongkan tinggi baris manual agar preset kerapatan berlaku.
+            setRowH(null);
+          }}
+        >
+          <SelectTrigger
+            id="select_kerapatan_top"
+            title="Kerapatan baris tabel (berlaku semua tabel)"
+            aria-label="Kerapatan baris tabel"
+            className="h-6 w-28 border-white/20 bg-white/5 text-white [&_svg]:text-white/70"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              <SelectLabel>Kerapatan baris</SelectLabel>
+              {KERAPATAN.map((k) => (
+                <SelectItem key={k.id} value={k.id}>{k.nama}</SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
       </RibbonGroup>
       <RibbonPemisah />
       <RibbonGroup label="Teks">

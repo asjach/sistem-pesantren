@@ -54,6 +54,17 @@
   "bi": "ban",
   "material": "block"
  },
+ "Blend": {
+  "lucide": "blend",
+  "tabler": "color-filter",
+  "ph": null,
+  "heroicons": "swatch",
+  "ri": "color-filter-line",
+  "iconoir": "color-filter",
+  "radix": null,
+  "bi": "droplet",
+  "material": null
+ },
  "BookMarked": {
   "lucide": "book-marked",
   "tabler": "bookmark",

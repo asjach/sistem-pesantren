@@ -1,5 +1,5 @@
 /* AUTO-GENERATED oleh scripts/icons-gen.mjs — JANGAN edit manual.
- * 64 ikon × 9 set (Iconify/unplugin-icons). Set aktif dari prefs
+ * 65 ikon × 9 set (Iconify/unplugin-icons). Set aktif dari prefs
  * `iconSet`; nama yang tidak tersedia di suatu set jatuh ke Lucide.
  * Regenerasi: node scripts/icons-gen.mjs */
 import type { ComponentType, SVGProps } from 'react';
@@ -13,6 +13,7 @@ import IcAlignLeftLucide from '~icons/lucide/align-left';
 import IcAlignRightLucide from '~icons/lucide/align-right';
 import IcBadgeCheckLucide from '~icons/lucide/badge-check';
 import IcBanLucide from '~icons/lucide/ban';
+import IcBlendLucide from '~icons/lucide/blend';
 import IcBookMarkedLucide from '~icons/lucide/book-marked';
 import IcBookOpenLucide from '~icons/lucide/book-open';
 import IcCalendarCheckLucide from '~icons/lucide/calendar-check';
@@ -79,6 +80,7 @@ import IcAlignLeftTabler from '~icons/tabler/align-left';
 import IcAlignRightTabler from '~icons/tabler/align-right';
 import IcBadgeCheckTabler from '~icons/tabler/rosette-discount-check';
 import IcBanTabler from '~icons/tabler/ban';
+import IcBlendTabler from '~icons/tabler/color-filter';
 import IcBookMarkedTabler from '~icons/tabler/bookmark';
 import IcBookOpenTabler from '~icons/tabler/book';
 import IcCalendarCheckTabler from '~icons/tabler/calendar-check';
@@ -202,6 +204,7 @@ import IcTriangleAlertPh from '~icons/ph/warning';
 // heroicons
 import IcBadgeCheckHeroicons from '~icons/heroicons/check-badge';
 import IcBanHeroicons from '~icons/heroicons/no-symbol';
+import IcBlendHeroicons from '~icons/heroicons/swatch';
 import IcBookMarkedHeroicons from '~icons/heroicons/bookmark';
 import IcBookOpenHeroicons from '~icons/heroicons/book-open';
 import IcCalendarDaysHeroicons from '~icons/heroicons/calendar-days';
@@ -258,6 +261,7 @@ import IcAlignLeftRi from '~icons/ri/align-left';
 import IcAlignRightRi from '~icons/ri/align-right';
 import IcBadgeCheckRi from '~icons/ri/certificate-line';
 import IcBanRi from '~icons/ri/prohibited-line';
+import IcBlendRi from '~icons/ri/color-filter-line';
 import IcBookMarkedRi from '~icons/ri/book-marked-line';
 import IcBookOpenRi from '~icons/ri/book-open-line';
 import IcCalendarCheckRi from '~icons/ri/calendar-check-line';
@@ -319,6 +323,7 @@ import IcAlignLeftIconoir from '~icons/iconoir/align-left';
 import IcAlignRightIconoir from '~icons/iconoir/align-right';
 import IcBadgeCheckIconoir from '~icons/iconoir/badge-check';
 import IcBanIconoir from '~icons/iconoir/cancel';
+import IcBlendIconoir from '~icons/iconoir/color-filter';
 import IcBookMarkedIconoir from '~icons/iconoir/bookmark';
 import IcBookOpenIconoir from '~icons/iconoir/book';
 import IcCalendarCheckIconoir from '~icons/iconoir/calendar-check';
@@ -415,6 +420,7 @@ import IcAlignLeftBi from '~icons/bi/text-left';
 import IcAlignRightBi from '~icons/bi/text-right';
 import IcBadgeCheckBi from '~icons/bi/patch-check';
 import IcBanBi from '~icons/bi/ban';
+import IcBlendBi from '~icons/bi/droplet';
 import IcBookMarkedBi from '~icons/bi/bookmark';
 import IcBookOpenBi from '~icons/bi/book';
 import IcCalendarCheckBi from '~icons/bi/calendar-check';
@@ -550,6 +556,7 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
     AlignRight: IcAlignRightLucide,
     BadgeCheck: IcBadgeCheckLucide,
     Ban: IcBanLucide,
+    Blend: IcBlendLucide,
     BookMarked: IcBookMarkedLucide,
     BookOpen: IcBookOpenLucide,
     CalendarCheck: IcCalendarCheckLucide,
@@ -616,6 +623,7 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
     AlignRight: IcAlignRightTabler,
     BadgeCheck: IcBadgeCheckTabler,
     Ban: IcBanTabler,
+    Blend: IcBlendTabler,
     BookMarked: IcBookMarkedTabler,
     BookOpen: IcBookOpenTabler,
     CalendarCheck: IcCalendarCheckTabler,
@@ -739,6 +747,7 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
   heroicons: {
     BadgeCheck: IcBadgeCheckHeroicons,
     Ban: IcBanHeroicons,
+    Blend: IcBlendHeroicons,
     BookMarked: IcBookMarkedHeroicons,
     BookOpen: IcBookOpenHeroicons,
     CalendarDays: IcCalendarDaysHeroicons,
@@ -795,6 +804,7 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
     AlignRight: IcAlignRightRi,
     BadgeCheck: IcBadgeCheckRi,
     Ban: IcBanRi,
+    Blend: IcBlendRi,
     BookMarked: IcBookMarkedRi,
     BookOpen: IcBookOpenRi,
     CalendarCheck: IcCalendarCheckRi,
@@ -856,6 +866,7 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
     AlignRight: IcAlignRightIconoir,
     BadgeCheck: IcBadgeCheckIconoir,
     Ban: IcBanIconoir,
+    Blend: IcBlendIconoir,
     BookMarked: IcBookMarkedIconoir,
     BookOpen: IcBookOpenIconoir,
     CalendarCheck: IcCalendarCheckIconoir,
@@ -952,6 +963,7 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
     AlignRight: IcAlignRightBi,
     BadgeCheck: IcBadgeCheckBi,
     Ban: IcBanBi,
+    Blend: IcBlendBi,
     BookMarked: IcBookMarkedBi,
     BookOpen: IcBookOpenBi,
     CalendarCheck: IcCalendarCheckBi,
@@ -1094,6 +1106,7 @@ export const AlignLeft = (p: IkonProps) => <IkonDinamis {...p} nama="AlignLeft" 
 export const AlignRight = (p: IkonProps) => <IkonDinamis {...p} nama="AlignRight" />;
 export const BadgeCheck = (p: IkonProps) => <IkonDinamis {...p} nama="BadgeCheck" />;
 export const Ban = (p: IkonProps) => <IkonDinamis {...p} nama="Ban" />;
+export const Blend = (p: IkonProps) => <IkonDinamis {...p} nama="Blend" />;
 export const BookMarked = (p: IkonProps) => <IkonDinamis {...p} nama="BookMarked" />;
 export const BookOpen = (p: IkonProps) => <IkonDinamis {...p} nama="BookOpen" />;
 export const CalendarCheck = (p: IkonProps) => <IkonDinamis {...p} nama="CalendarCheck" />;

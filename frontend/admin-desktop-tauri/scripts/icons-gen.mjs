@@ -34,6 +34,7 @@ const IKON = {
   AlignRight: ['align-right', 'text-align-right', 'format-align-right', 'text-right'],
   BadgeCheck: ['badge-check', 'verified', 'seal-check', 'rosette-discount-check', 'certificate', 'verified-badge', 'check-badge', 'patch-check'],
   Ban: ['ban', 'block', 'prohibited', 'cancel', 'slash-circle', 'block-2', 'denied', 'prohibit', 'prohibit-inset', 'no-symbol'],
+  Blend: ['blend', 'color-filter', 'palette-2', 'swatch', 'droplet', 'droplets', 'color-mix'],
   BookMarked: ['book-marked', 'bookmark', 'book-bookmark', 'notebook', 'bookmark-filled'],
   BookOpen: ['book-open', 'book', 'book-2', 'reading', 'book-open-cover'],
   CalendarCheck: ['calendar-check', 'calendar-checkmark', 'calendar-ok', 'calendar-tick', 'calendar-done', 'calendar-event'],

@@ -21,8 +21,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { ICON_SETS } from '@/iconSets';
 import { THEME_PRESETS } from '@/themes';
-import { DEFAULT_PREFS } from '@/prefs';
-import { Check, ChevronDown, LogOut, Monitor, Moon, MousePointerClick, Paintbrush, Palette, Sun, Users } from '@/icons';
+import { DEFAULT_PREFS, WARNA_UI } from '@/prefs';
+import { Blend, Check, ChevronDown, LogOut, Monitor, Moon, MousePointerClick, Paintbrush, Palette, Sun, Users } from '@/icons';
 import { useRibbonTable } from '@/components/RibbonTable';
 import { halamanDariPath } from '@/lib/halaman';
 import { RibbonBeranda } from './topbar/RibbonBeranda';
@@ -52,7 +52,7 @@ const navIdle =
 /** Ribbon menu (ala Word/Excel): tab + grup perintah + Quick Access. */
 export default function TopBar() {
   const { user, logoutLocal } = useAuth();
-  const { theme, mode, customHex, dark, iconSet, setTheme, setMode, setIconSet } = useTheme();
+  const { theme, mode, dark, iconSet, warnaUI, setTheme, setMode, setIconSet, setWarnaUI } = useTheme();
   const picker = usePicker();
   const nav = useNavigate();
   const { pathname } = useLocation();
@@ -239,7 +239,7 @@ export default function TopBar() {
                   <Palette data-icon="inline-start" size={16} />
                   <span className="flex-1">Tema</span>
                   <span className="text-xs text-muted-foreground">
-                    {theme === 'kustom' ? 'Kustom' : THEME_PRESETS.find((t) => t.id === theme)?.nama}
+                    {THEME_PRESETS.find((t) => t.id === theme)?.nama}
                   </span>
                 </DropdownMenuSubTrigger>
                 <DropdownMenuSubContent className="max-h-80 min-w-52 overflow-y-auto">
@@ -256,17 +256,6 @@ export default function TopBar() {
                       {theme === t.id && <Check data-icon="inline-end" size={14} />}
                     </DropdownMenuItem>
                   ))}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem id="menu_tema_kustom" onSelect={() => setTheme('kustom')}>
-                    <span className="flex flex-1 items-center gap-2">
-                      <span
-                        className="inline-block size-3 shrink-0 rounded-full border border-black/20"
-                        style={{ background: customHex }}
-                      />
-                      Kustom (atur warna di Tampilan)
-                    </span>
-                    {theme === 'kustom' && <Check data-icon="inline-end" size={14} />}
-                  </DropdownMenuItem>
                 </DropdownMenuSubContent>
               </DropdownMenuSub>
               <DropdownMenuSub>
@@ -282,6 +271,21 @@ export default function TopBar() {
                     <DropdownMenuItem key={s.id} id={`menu_ikon_${s.id}`} onSelect={() => setIconSet(s.id)}>
                       <span className="flex-1">{s.nama}</span>
                       {iconSet === s.id && <Check data-icon="inline-end" size={14} />}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger id="menu_set_warna">
+                  <Blend data-icon="inline-start" size={16} />
+                  <span className="flex-1">Kaya warna UI</span>
+                  <span className="text-xs text-muted-foreground capitalize">{warnaUI}</span>
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent className="min-w-44">
+                  {WARNA_UI.map((w) => (
+                    <DropdownMenuItem key={w} id={`menu_warna_${w}`} onSelect={() => setWarnaUI(w)} className="capitalize">
+                      <span className="flex-1">{w}</span>
+                      {warnaUI === w && <Check data-icon="inline-end" size={14} />}
                     </DropdownMenuItem>
                   ))}
                 </DropdownMenuSubContent>

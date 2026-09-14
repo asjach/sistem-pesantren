@@ -29,8 +29,7 @@ export type ThemeName =
   | 'tokyo' | 'nightowl' | 'solarized' | 'github' | 'palenight'
   | 'gruvbox' | 'catppuccin' | 'ayu' | 'cobalt' | 'synthwave'
   | 'shadesofpurple' | 'tomorrow' | 'horizon' | 'panda' | 'winter'
-  | 'rosepine' | 'geist' | 'vercelbiru' | 'linear' | 'supabase'
-  | 'kustom';
+  | 'rosepine' | 'geist' | 'vercelbiru' | 'linear' | 'supabase';
 
 export const THEME_PRESETS: TemaPreset[] = [
   {

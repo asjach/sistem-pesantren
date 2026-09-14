@@ -115,7 +115,8 @@ export function GridPrefsProvider({ children }: { children: ReactNode }) {
 
   const setRowH = useCallback((n: number | null) => {
     setRowHState(n);
-    if (n != null) prefSet(GLOBAL_ROWH_KEY, String(n)).catch(() => {});
+    // `null` = kembali ke kerapatan bawaan → kosongkan nilai tersimpan.
+    prefSet(GLOBAL_ROWH_KEY, n != null ? String(n) : '').catch(() => {});
   }, []);
 
   const setFontPx = useCallback((n: number | null) => {

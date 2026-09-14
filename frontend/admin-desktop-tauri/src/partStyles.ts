@@ -208,19 +208,19 @@ export function bangunCssPratinjau(
 /** Variabel wajah tema (terang/gelap) untuk kanvas pratinjau editor — meniru
  *  yang dipasang `applyPrefs` di <html>, supaya pratinjau mengikuti mode yang
  *  sedang diedit, bukan mode global aplikasi. */
-export function variabelWajah(theme: ThemeName, gelap: boolean, customHex: string): Record<string, string> {
-  const t = theme === 'kustom' ? null : findPreset(theme);
-  const bg = t ? (gelap ? t.gelap.bg : t.terang.bg) : gelap ? '#101511' : '#f2f5f1';
-  const fg = t ? (gelap ? t.gelap.fg : t.terang.fg) : gelap ? '#e8ede8' : '#1d241e';
-  const accent = theme === 'kustom' ? customHex : gelap ? t!.gelap.accent : t!.terang.accent;
+export function variabelWajah(theme: ThemeName, gelap: boolean): Record<string, string> {
+  const t = findPreset(theme);
+  const bg = gelap ? t.gelap.bg : t.terang.bg;
+  const fg = gelap ? t.gelap.fg : t.terang.fg;
+  const accent = gelap ? t.gelap.accent : t.terang.accent;
   const mix = (a: string, pa: number, b: string) => `color-mix(in srgb, ${a} ${pa}%, ${b})`;
   return {
     '--background': bg,
     '--foreground': fg,
     '--accent': accent,
     '--on-accent': onAccentFor(accent),
-    '--sidebar': t ? t.sidebar : gelap ? '#0d1f12' : '#17351f',
-    '--sidebar-deep': t ? t.sidebarDeep : gelap ? '#0a180e' : '#122b1a',
+    '--sidebar': t.sidebar,
+    '--sidebar-deep': t.sidebarDeep,
     '--accent-readable': mix(accent, 72, fg),
     '--card': mix(fg, 5, bg),
     '--card-foreground': fg,
