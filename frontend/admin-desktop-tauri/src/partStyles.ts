@@ -4,6 +4,7 @@ import { findPreset, type ThemeName } from './themes';
 import {
   PARTS,
   PART_BY_ID,
+  type BayanganName,
   type PartGaya,
   type PartId,
   type PartOverrides,
@@ -40,6 +41,14 @@ const TOLAK_WARNA =
   ":not(.text-primary-foreground):not(.text-accent-foreground):not(.text-secondary-foreground)" +
   ':not([data-part-abaikan]):not([data-part-abaikan] *)';
 
+/** Nilai box-shadow untuk tiap preset bayangan. */
+const BAYANGAN_CSS: Record<BayanganName, string> = {
+  none: 'none',
+  sm: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
+  md: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
+  lg: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)',
+};
+
 /** Deklarasi tipografi & kotak (berlaku kedua mode). */
 function deklGaya(g: PartGaya): { permukaan: string[]; teks: string[] } {
   const permukaan: string[] = [];
@@ -47,6 +56,12 @@ function deklGaya(g: PartGaya): { permukaan: string[]; teks: string[] } {
   if (g.radius != null) permukaan.push(`border-radius:${g.radius}px!important`);
   if (g.padX != null) permukaan.push(`padding-left:${g.padX}px!important`, `padding-right:${g.padX}px!important`);
   if (g.padY != null) permukaan.push(`padding-top:${g.padY}px!important`, `padding-bottom:${g.padY}px!important`);
+  if (g.height != null) permukaan.push(`height:${g.height}px!important`);
+  if (g.minWidth != null) permukaan.push(`min-width:${g.minWidth}px!important`);
+  if (g.gap != null) permukaan.push(`gap:${g.gap}px!important`);
+  if (g.margin != null) permukaan.push(`margin:${g.margin}px!important`);
+  if (g.opacity != null) permukaan.push(`opacity:${g.opacity / 100}!important`);
+  if (g.shadow) permukaan.push(`box-shadow:${BAYANGAN_CSS[g.shadow]}!important`);
   const teks: string[] = [];
   if (g.font) {
     const { family, weight } = fontParts(g.font);
@@ -167,13 +182,18 @@ export function terapkanGayaBagian(parts: PartOverrides): void {
 }
 
 /** CSS pratinjau editor: deklarasi sama seperti aslinya, tanpa scope mode
- *  (mode dipilih lewat tab) dan tanpa pengecualian antar-bagian. */
-export function bangunCssPratinjau(id: PartId, g?: PartGaya, w?: PartWarna): string {
+ *  (mode dipilih lewat tab) dan tanpa pengecualian antar-bagian.
+ *  `sel` = selektor bagian yang cocok di markup pratinjau (sub-komponen selalu
+ *  memakainya); `null` = pakai pembungkus pratinjau sebagai fallback. */
+export function bangunCssPratinjau(
+  id: PartId,
+  g?: PartGaya,
+  w?: PartWarna,
+  sel?: string | null,
+): string {
   const meta = PART_BY_ID.get(id);
-  // Sub-komponen: scope ke slot aslinya di pratinjau (komponen nyata), agar
-  // hanya sub itu yang berubah. Bagian biasa memakai pembungkus pratinjau.
-  const akar = meta?.induk
-    ? `#pratinjau_bagian ${meta.sel}`
+  const akar = sel
+    ? `#pratinjau_bagian :is(${sel})`
     : '#pratinjau_bagian [data-pratinjau-part]';
   const desc = `${akar} *${tolakKontrol(meta?.kendali)}`;
   const gaya = deklGaya(g ?? {});

@@ -105,6 +105,15 @@ export type PartId =
 
 export type PartMode = 'terang' | 'gelap';
 
+/** Preset bayangan (box-shadow) untuk bagian. */
+export type BayanganName = 'none' | 'sm' | 'md' | 'lg';
+export const BAYANGAN: { id: BayanganName; label: string }[] = [
+  { id: 'none', label: 'Tanpa' },
+  { id: 'sm', label: 'Kecil' },
+  { id: 'md', label: 'Sedang' },
+  { id: 'lg', label: 'Besar' },
+];
+
 /** Tipografi & kotak — SATU set untuk kedua mode. Field kosong = bawaan. */
 export interface PartGaya {
   /** Nilai opsi src/fonts.ts ("<family>|<weight>"); `_bawaan` tidak disimpan. */
@@ -114,6 +123,15 @@ export interface PartGaya {
   radius?: number;
   padX?: number;
   padY?: number;
+  /** Kotak lanjutan (px) — hanya berlaku untuk elemen akar bagian. */
+  height?: number;
+  minWidth?: number;
+  gap?: number;
+  margin?: number;
+  /** Kelegapan 0–100 (%). */
+  opacity?: number;
+  /** Preset bayangan. */
+  shadow?: BayanganName;
 }
 
 /** Warna — dipisah per mode. Field kosong = bawaan. */
@@ -979,12 +997,29 @@ export const EMPTY_PARTS: PartOverrides = { gaya: {}, terang: {}, gelap: {} };
 const HEX = /^#[0-9a-f]{6}$/i;
 const FONT_VALUES = new Set(FONT_OPTIONS.map((f) => f.value));
 /** Rentang aman tiap properti numerik (px). */
-export const RENTANG: Record<'size' | 'borderW' | 'radius' | 'padX' | 'padY', [number, number]> = {
+export const RENTANG: Record<
+  | 'size'
+  | 'borderW'
+  | 'radius'
+  | 'padX'
+  | 'padY'
+  | 'height'
+  | 'minWidth'
+  | 'gap'
+  | 'margin'
+  | 'opacity',
+  [number, number]
+> = {
   size: [8, 72],
   borderW: [0, 8],
   radius: [0, 32],
   padX: [0, 64],
   padY: [0, 64],
+  height: [0, 200],
+  minWidth: [0, 800],
+  gap: [0, 64],
+  margin: [0, 64],
+  opacity: [0, 100],
 };
 
 function angka(v: unknown, kunci: keyof typeof RENTANG): number | undefined {
@@ -1006,6 +1041,9 @@ export function bersihkanGaya(v: unknown): PartGaya | undefined {
   for (const k of Object.keys(RENTANG) as (keyof typeof RENTANG)[]) {
     const n = angka(o[k], k);
     if (n != null) s[k] = n;
+  }
+  if (typeof o.shadow === 'string' && BAYANGAN.some((b) => b.id === o.shadow)) {
+    s.shadow = o.shadow as BayanganName;
   }
   return Object.keys(s).length ? s : undefined;
 }

@@ -2,10 +2,12 @@ import { cloneElement, useEffect, useLayoutEffect, useMemo, useRef, useState, ty
 import { useTheme } from '@/theme';
 import { FONT_FAMILY_DEFAULT, FONT_OPTIONS, type FontOption } from '@/fonts';
 import {
+  BAYANGAN,
   PARTS,
   PART_BY_ID,
   PART_GROUPS,
   RENTANG,
+  type BayanganName,
   type PartGaya,
   type PartId,
   type PartMode,
@@ -57,6 +59,12 @@ interface Bawaan {
   radius?: number;
   padX?: number;
   padY?: number;
+  height?: number;
+  minWidth?: number;
+  gap?: number;
+  margin?: number;
+  opacity?: number;
+  shadow?: BayanganName;
 }
 
 function px(v: string): number | undefined {
@@ -237,6 +245,8 @@ export default function PartStyleEditor() {
   const [aktif, setAktif] = useState<PartId>('ribbon');
   const [cari, setCari] = useState('');
   const [tampilBelum, setTampilBelum] = useState(true);
+  /** Selektor bagian yang cocok di pratinjau (null = pakai pembungkus). */
+  const [selPratinjau, setSelPratinjau] = useState<string | null>(null);
   const [tertutup, setTertutup] = useState<Record<string, boolean>>({});
   const [bawaan, setBawaan] = useState<Bawaan>({});
   const refContoh = useRef<HTMLDivElement | null>(null);
@@ -260,9 +270,12 @@ export default function PartStyleEditor() {
     const el = refContoh.current;
     if (!el) return;
     const m = PART_BY_ID.get(aktif);
-    // Bagian biasa diukur dari pembungkus pratinjau; sub-komponen diukur dari
-    // elemen slot-nya sendiri (komponen nyata).
-    const selUkur = m?.ukurSel ?? (m?.induk ? m?.sel : undefined);
+    // Tentukan titik ukur/pratinjau: sub-komponen selalu pakai slot-nya;
+    // bagian biasa pakai slot bila ada di markup pratinjau (agar gaya kotak
+    // seperti tinggi/bayangan kena elemen yang sama seperti di aplikasi).
+    const sel = m ? (m.induk ? m.sel : (el.querySelector(m.sel) ? m.sel : null)) : null;
+    setSelPratinjau(sel);
+    const selUkur = m?.ukurSel ?? sel ?? undefined;
     const t = (selUkur ? el.querySelector<HTMLElement>(selUkur) : el.querySelector<HTMLElement>('[class*="text-"]')) ?? el;
     const s = selUkur ? t : el;
     const cs = getComputedStyle(s);
@@ -277,6 +290,12 @@ export default function PartStyleEditor() {
       radius: px(cs.borderTopLeftRadius),
       padX: px(cs.paddingLeft),
       padY: px(cs.paddingTop),
+      height: px(cs.height),
+      minWidth: px(cs.minWidth),
+      gap: px(cs.gap),
+      margin: px(cs.marginTop),
+      opacity: Number.isFinite(parseFloat(cs.opacity)) ? Math.round(parseFloat(cs.opacity) * 100) : undefined,
+      shadow: cs.boxShadow === 'none' ? 'none' : undefined,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aktif, mode, theme, customHex, g, w]);
@@ -571,7 +590,7 @@ export default function PartStyleEditor() {
               )}
               style={{ ...gayaWajah, background: 'var(--background)', color: 'var(--foreground)' }}
             >
-              <style>{bangunCssPratinjau(aktif, g, w)}</style>
+              <style>{bangunCssPratinjau(aktif, g, w, selPratinjau)}</style>
               {contoh}
             </div>
           </div>
@@ -705,6 +724,70 @@ export default function PartStyleEditor() {
                   min={RENTANG.padY[0]}
                   max={RENTANG.padY[1]}
                   onChange={(v) => setGayaBagian(aktif, { padY: v })}
+                />
+                <AngkaField
+                  id="input_height_bagian"
+                  label="Tinggi"
+                  nilai={g.height}
+                  bawaan={bawaan.height}
+                  min={RENTANG.height[0]}
+                  max={RENTANG.height[1]}
+                  onChange={(v) => setGayaBagian(aktif, { height: v })}
+                />
+                <AngkaField
+                  id="input_minwidth_bagian"
+                  label="Lebar min"
+                  nilai={g.minWidth}
+                  bawaan={bawaan.minWidth}
+                  min={RENTANG.minWidth[0]}
+                  max={RENTANG.minWidth[1]}
+                  onChange={(v) => setGayaBagian(aktif, { minWidth: v })}
+                />
+                <AngkaField
+                  id="input_gap_bagian"
+                  label="Jarak"
+                  nilai={g.gap}
+                  bawaan={bawaan.gap}
+                  min={RENTANG.gap[0]}
+                  max={RENTANG.gap[1]}
+                  onChange={(v) => setGayaBagian(aktif, { gap: v })}
+                />
+                <AngkaField
+                  id="input_margin_bagian"
+                  label="Margin"
+                  nilai={g.margin}
+                  bawaan={bawaan.margin}
+                  min={RENTANG.margin[0]}
+                  max={RENTANG.margin[1]}
+                  onChange={(v) => setGayaBagian(aktif, { margin: v })}
+                />
+                <div className="flex items-center gap-1.5">
+                  <Label htmlFor="select_bayangan_bagian" className="w-20 shrink-0">Bayangan</Label>
+                  <Select
+                    value={g.shadow ?? '_bawaan'}
+                    onValueChange={(v) =>
+                      setGayaBagian(aktif, { shadow: v === '_bawaan' ? undefined : (v as BayanganName) })
+                    }
+                  >
+                    <SelectTrigger id="select_bayangan_bagian" title="Bayangan" className="w-full min-w-0">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="_bawaan">Bawaan</SelectItem>
+                      {BAYANGAN.map((b) => (
+                        <SelectItem key={b.id} value={b.id}>{b.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <AngkaField
+                  id="input_opacity_bagian"
+                  label="Opacity"
+                  nilai={g.opacity}
+                  bawaan={bawaan.opacity}
+                  min={RENTANG.opacity[0]}
+                  max={RENTANG.opacity[1]}
+                  onChange={(v) => setGayaBagian(aktif, { opacity: v })}
                 />
                 <FieldDescription>Berlaku untuk mode terang & gelap. Kosong = bawaan komponen.</FieldDescription>
               </FieldSet>
