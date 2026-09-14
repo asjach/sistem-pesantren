@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom
 import { Toaster } from '@/components/ui/sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AuthProvider } from './auth/AuthContext';
+import { PickerProvider } from './picker';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 import LoginPage from './pages/LoginPage';
@@ -56,8 +57,9 @@ export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <Toaster richColors position="top-center" />
-        <Routes>
+        <PickerProvider>
+          <Toaster richColors position="top-center" />
+          <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route element={<Shell />}>
             <Route path="/" element={<DashboardPage />} />
@@ -82,6 +84,7 @@ export default function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>
+        </PickerProvider>
       </BrowserRouter>
     </AuthProvider>
   );

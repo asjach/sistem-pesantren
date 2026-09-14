@@ -16,6 +16,7 @@ import {
 import { normalizeHex } from '@/prefs';
 import { bangunCssPratinjau, variabelBagian, variabelWajah } from '@/partStyles';
 import { contohBagian } from '@/components/PartContohBagian';
+import { usePicker } from '@/picker';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useDefaultLayout } from 'react-resizable-panels';
@@ -251,6 +252,7 @@ function AngkaField({
  *  Tipografi & kotak berlaku kedua mode; warna dipisah terang/gelap. */
 export default function PartStyleEditor() {
   const { parts, theme, customHex, setGayaBagian, setWarnaBagian, resetBagian, resetBagianBanyak, resetSemuaBagian } = useTheme();
+  const picker = usePicker();
   const [mode, setMode] = useState<PartMode>('terang');
   const [aktif, setAktif] = useState<PartId>('ribbon');
   const [cari, setCari] = useState('');
@@ -278,6 +280,14 @@ export default function PartStyleEditor() {
   const w = parts[mode][aktif] ?? TANPA_WARNA;
   const alihGrup = (nama: string) => setTertutup((prev) => ({ ...prev, [nama]: !prev[nama] }));
   const diatur = (id: PartId) => !!(parts.gaya[id] || parts.terang[id] || parts.gelap[id]);
+  // Bagian hasil "pilih komponen" → jadikan bagian aktif lalu bersihkan.
+  useEffect(() => {
+    if (picker.hasil) {
+      setAktif(picker.hasil);
+      picker.konsumsi();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [picker.hasil]);
   /** Hapus semua pengaturan dalam satu grup (termasuk sub-komponennya). */
   const resetGrup = (nama: string) => {
     resetBagianBanyak(PARTS.filter((p) => p.grup === nama).map((p) => p.id));
@@ -490,6 +500,28 @@ export default function PartStyleEditor() {
               Tampilkan yang belum dipakai
             </Label>
           </div>
+          <Button
+            id="btn_pilih_komponen"
+            type="button"
+            variant={picker.aktif ? 'default' : 'outline'}
+            size="sm"
+            className="w-full"
+            data-picker-abaikan
+            onClick={() => (picker.aktif ? picker.batal() : picker.mulai())}
+            title="Klik komponen mana pun di halaman ini untuk membuka pengaturannya"
+          >
+            <Search size={14} /> {picker.aktif ? 'Batal pilih (Esc)' : 'Pilih komponen'}
+          </Button>
+          {picker.aktif ? (
+            <p className="rounded-md border border-dashed px-2 py-1 text-[11px] text-muted-foreground">
+              Klik komponen mana pun untuk membukanya. Esc untuk batal. Untuk halaman lain,
+              pakai ikon cari di kanan atas ribbon.
+            </p>
+          ) : (
+            <p className="px-1 text-[11px] text-muted-foreground">
+              Atau aktifkan <b>ikon cari di kanan atas ribbon</b> saat berada di halaman lain.
+            </p>
+          )}
           {grupTampil.map((gr) => {
             const kunciGrup = `grup:${gr.nama}`;
             const bukaGrup = mencari || !tertutup[kunciGrup];

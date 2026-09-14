@@ -4,6 +4,7 @@ import { logout } from '@/api/auth';
 import { isTauri, prefGet, prefSet } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
 import { useTheme, type ModeName } from '@/theme';
+import { usePicker } from '@/picker';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
@@ -19,7 +20,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { ICON_SETS } from '@/iconSets';
-import { Check, ChevronDown, LogOut, Monitor, Moon, Paintbrush, Sun, Users } from '@/icons';
+import { Check, ChevronDown, LogOut, Monitor, Moon, Paintbrush, Search, Sun, Users } from '@/icons';
 import { useRibbonTable } from '@/components/RibbonTable';
 import { halamanDariPath } from '@/lib/halaman';
 import { RibbonBeranda } from './topbar/RibbonBeranda';
@@ -50,6 +51,7 @@ const navIdle =
 export default function TopBar() {
   const { user, logoutLocal } = useAuth();
   const { theme, mode, customHex, dark, iconSet, setTheme, setMode, setIconSet } = useTheme();
+  const picker = usePicker();
   const nav = useNavigate();
   const { pathname } = useLocation();
   const ribbon = useRibbonTable();
@@ -191,6 +193,21 @@ export default function TopBar() {
               </ToggleGroupItem>
             ))}
           </ToggleGroup>
+          <button
+            id="btn_pilih_komponen_global"
+            type="button"
+            data-picker-abaikan
+            title={picker.aktif ? 'Batal pilih komponen (Esc)' : 'Pilih komponen (klik komponen di halaman)'}
+            aria-label="Pilih komponen"
+            aria-pressed={picker.aktif}
+            onClick={() => (picker.aktif ? picker.batal() : picker.mulai())}
+            className={cn(
+              'mr-1 grid size-7 place-items-center rounded-md text-white/75 transition-colors hover:bg-white/10 hover:text-white',
+              picker.aktif && 'bg-white/25 text-white',
+            )}
+          >
+            <Search size={14} />
+          </button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button

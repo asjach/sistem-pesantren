@@ -537,6 +537,12 @@
    font/ukuran/warna/border per bagian dilakukan lewat Pengaturan → Bagian UI
    (src/partStyles.ts) yang menyuntik gaya runtime, bukan override global di sini. */
 
+/* Mode "pilih komponen" di Bagian UI: kursor bidik di seluruh aplikasi. */
+.simpes-picker,
+.simpes-picker * {
+  cursor: crosshair !important;
+}
+
 /* ---------- Kaya warna UI (Pengaturan → Tampilan) ----------
    `netral` = hemat warna (bawaan lama). `aksen` = judul & ikon memakai warna
    aksen tema. `kaya` = aksen + tint permukaan + warna semantik.
