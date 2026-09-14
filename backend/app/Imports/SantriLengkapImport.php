@@ -23,7 +23,6 @@ class SantriLengkapImport implements ToCollection, WithHeadingRow, WithValidatio
     protected array $failures = [];
 
     /** Ringkasan baris (dipakai mode periksa/dry-run). */
-    protected int $barisDiproses = 0;
     protected int $barisValid = 0;
 
     public function __construct(?int $tahunAjaranId, ?int $lembagaId = null)
@@ -32,11 +31,11 @@ class SantriLengkapImport implements ToCollection, WithHeadingRow, WithValidatio
         $this->lembagaId     = $lembagaId;
     }
 
-    /** Ringkasan hasil pemrosesan file. */
+    /** Ringkasan hasil pemrosesan file (baris gagal validasi tetap dihitung). */
     public function ringkasan(): array
     {
         return [
-            'baris_diproses' => $this->barisDiproses,
+            'baris_diproses' => $this->barisValid + count($this->failures),
             'baris_valid'    => $this->barisValid,
             'baris_gagal'    => count($this->failures),
         ];
@@ -55,7 +54,6 @@ class SantriLengkapImport implements ToCollection, WithHeadingRow, WithValidatio
                 if (empty($row['nama_lengkap'])) {
                     continue;
                 }
-                $this->barisDiproses++;
 
                 // Lembaga per baris (v1.10): kolom `lembaga_id` template menang;
                 // null = legacy tanpa track (tanpa riwayat, status_global nonaktif).
