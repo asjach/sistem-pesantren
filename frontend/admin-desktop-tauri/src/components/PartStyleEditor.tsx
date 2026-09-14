@@ -19,6 +19,7 @@ import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useDefaultLayout } from 'react-resizable-panels';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { FieldDescription, FieldLegend, FieldSet } from '@/components/ui/field';
@@ -235,6 +236,7 @@ export default function PartStyleEditor() {
   const [mode, setMode] = useState<PartMode>('terang');
   const [aktif, setAktif] = useState<PartId>('ribbon');
   const [cari, setCari] = useState('');
+  const [tampilBelum, setTampilBelum] = useState(true);
   const [tertutup, setTertutup] = useState<Record<string, boolean>>({});
   const [bawaan, setBawaan] = useState<Bawaan>({});
   const refContoh = useRef<HTMLDivElement | null>(null);
@@ -295,7 +297,9 @@ export default function PartStyleEditor() {
     for (const p of PARTS) {
       if (p.induk && cocokIds.has(p.id)) cocokIds.add(p.induk);
     }
-    const cocok = PARTS.filter((p) => cocokIds.has(p.id));
+    const cocok = PARTS.filter(
+      (p) => cocokIds.has(p.id) && (tampilBelum || !p.belumDipakai),
+    );
     return PART_GROUPS.map((nama) => {
       const items = cocok.filter((p) => p.grup === nama && !p.induk);
       const subs: { nama: string; items: typeof items; diatur: number }[] = [];
@@ -318,7 +322,7 @@ export default function PartStyleEditor() {
       };
     }).filter((g) => g.subs.length > 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cari, mode, parts]);
+  }, [cari, mode, parts, tampilBelum]);
 
   const mencari = cari.trim() !== '';
   const slug = (v: string) => v.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
@@ -430,6 +434,16 @@ export default function PartStyleEditor() {
               aria-label="Cari bagian"
               className="h-8 pl-7"
             />
+          </div>
+          <div className="flex items-center gap-1.5 px-1 py-1">
+            <Checkbox
+              id="cek_tampil_belum"
+              checked={tampilBelum}
+              onCheckedChange={(v) => setTampilBelum(v === true)}
+            />
+            <Label htmlFor="cek_tampil_belum" className="text-xs font-normal text-muted-foreground">
+              Tampilkan yang belum dipakai
+            </Label>
           </div>
           {grupTampil.map((gr) => {
             const kunciGrup = `grup:${gr.nama}`;
