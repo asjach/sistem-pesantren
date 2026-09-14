@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import {
   createUser,
@@ -51,9 +51,10 @@ function privileged(u: AdminUser) {
   return u.roles.some((r) => r.name === 'admin' || r.name === 'super_admin');
 }
 
-const USER_FIELDS: ExcelField[] = [
+const USER_FIELDS_BASE: ExcelField[] = [
   {
     key: 'nama', label: 'Nama', width: 200, minWidth: 120, kind: 'text', maxLength: 255,
+    required: true,
     validate: (v) => (!v || !v.trim() ? 'Nama wajib diisi.' : null),
   },
   {
@@ -66,9 +67,35 @@ const USER_FIELDS: ExcelField[] = [
   {
     key: 'username', label: 'Username', width: 150, minWidth: 110, kind: 'text', maxLength: 50,
   },
-  { key: 'peran', label: 'Peran', width: 200, minWidth: 120, kind: 'static' },
-  { key: 'lembaga', label: 'Lembaga', width: 200, minWidth: 120, kind: 'static' },
+  // Kolom khusus mode Input: kata sandi & peran/lembaga (baca-saja di mode
+  // biasa). Default peran = orang_tua (lihat inputRowValues).
+  {
+    key: 'sandi', label: 'Kata sandi', width: 150, minWidth: 120, kind: 'static',
+    inputKind: 'text', maxLength: 100, required: true,
+    validate: (v) => (!v || v.trim().length < 8 ? 'Kata sandi minimal 8 karakter.' : null),
+  },
+  { key: 'peran', label: 'Peran', width: 200, minWidth: 120, kind: 'static', inputKind: 'select' },
+  { key: 'lembaga', label: 'Lembaga', width: 200, minWidth: 120, kind: 'static', inputKind: 'select' },
 ];
+
+/** Kolom grid pengguna: pilihan peran (sesuai kewenangan) & lembaga disuntik. */
+function buatUserFields(creatable: string[], lembagas: Lembaga[]): ExcelField[] {
+  return USER_FIELDS_BASE.map((f) => {
+    if (f.key === 'peran') {
+      return { ...f, inputChoices: creatable.map((r) => ({ value: r, label: r })) };
+    }
+    if (f.key === 'lembaga') {
+      return {
+        ...f,
+        inputChoices: [
+          { value: '', label: '— tanpa lembaga —' },
+          ...lembagas.map((l) => ({ value: String(l.id), label: l.kode ?? l.nama })),
+        ],
+      };
+    }
+    return f;
+  });
+}
 
 function userGridValues(u: AdminUser): Record<string, string | null> {
   return {
@@ -93,11 +120,16 @@ async function commitDraft(id: number, f: Record<string, string | null>) {
 export default function UsersPage() {
   const { user: me } = useAuth();
   const isSuper = me?.roles.some((r) => r.name === 'super_admin') ?? false;
+  const isAdmin = me?.roles.some((r) => r.name === 'admin') ?? false;
+  // Admin & super_admin boleh mengubah pengguna (backend tetap menolak target
+  // privileged), dan boleh menambah baris lewat mode Input inline.
+  const canManage = isSuper || isAdmin;
   const assignable = isSuper ? ALL_ROLES : ADMIN_ROLES;
   const creatable = isSuper ? ALL_ROLES : ADMIN_CREATE_ROLES;
 
   const [rows, setRows] = useState<AdminUser[]>([]);
   const [lembagas, setLembagas] = useState<Lembaga[]>([]);
+  const fields = useMemo(() => buatUserFields(creatable, lembagas), [creatable, lembagas]);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const pager = usePager('users');
@@ -234,6 +266,26 @@ export default function UsersPage() {
 
   const onSaved = useCallback(() => load(), [load]);
 
+  /** Mode Input (admin & super_admin): buat pengguna baru dari baris input.
+   *  Peran default orang_tua, tanpa lembaga — ubah lewat tombol Ubah bila perlu. */
+  const createRow = useCallback(async (f: Record<string, string | null>) => {
+    const email = (f.email ?? '').trim();
+    const username = (f.username ?? '').trim();
+    if (!email && !username) throw new Error('Email atau username wajib diisi.');
+    const lembagaId = (f.lembaga ?? '').trim();
+    await createUser({
+      name: (f.nama ?? '').trim(),
+      password: (f.sandi ?? '').trim(),
+      roles: f.peran ? [f.peran] : ['orang_tua'],
+      lembaga_ids: lembagaId ? [Number(lembagaId)] : [],
+      phone: (f.phone ?? '').trim() || undefined,
+      ...(email ? { email } : {}),
+      ...(username ? { username } : {}),
+    });
+    toast.success('Pengguna dibuat.');
+    await load(1);
+  }, [load]);
+
   const onSearchChange = useCallback((v: string) => {
     setSearch(v);
     pager.goFirst();
@@ -265,14 +317,16 @@ export default function UsersPage() {
       <ErrorNotice>{err}</ErrorNotice>
       <ExcelTable
         tableKey="users"
-        fields={USER_FIELDS}
+        fields={fields}
         rows={rows}
         getValues={getValues}
         loading={loading}
         emptyText="Belum ada pengguna."
-        canEdit={isSuper}
+        canEdit={canManage}
         onCommit={commitDraft}
         onSaved={onSaved}
+        onCreateRow={canManage ? createRow : undefined}
+        inputRowValues={{ peran: 'orang_tua' }}
         searchValue={search}
         onSearchChange={onSearchChange}
         onSearchSubmit={onSearchSubmit}

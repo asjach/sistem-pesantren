@@ -123,7 +123,8 @@ export function RibbonBtn({
   );
 }
 
-/** Tombol perintah ribbon (aksi, bukan navigasi). `aktif` untuk tombol toggle. */
+/** Tombol perintah ribbon (aksi, bukan navigasi). `aktif` untuk tombol toggle.
+ *  `iconOnly` menyembunyikan label (label tetap jadi tooltip & aria-label). */
 export function RibbonCmd({
   id,
   icon: Icon,
@@ -131,6 +132,7 @@ export function RibbonCmd({
   onClick,
   disabled,
   aktif,
+  iconOnly,
 }: {
   id: string;
   icon: Ikon;
@@ -138,18 +140,21 @@ export function RibbonCmd({
   onClick: () => void;
   disabled?: boolean;
   aktif?: boolean;
+  iconOnly?: boolean;
 }) {
   return (
     <button
       id={id}
       type="button"
       title={label}
+      aria-label={label}
       aria-pressed={aktif}
       disabled={disabled}
       onClick={onClick}
       data-part="menu_ribbon"
       className={cn(
-        'flex h-6 items-center gap-1.5 rounded-md px-2 text-xs whitespace-nowrap transition-colors',
+        'flex h-6 items-center gap-1.5 rounded-md text-xs whitespace-nowrap transition-colors',
+        iconOnly ? 'w-6 justify-center' : 'px-2',
         aktif
           ? 'bg-white/20 font-semibold text-white'
           : 'text-white/85 hover:bg-white/10 hover:text-white',
@@ -157,7 +162,7 @@ export function RibbonCmd({
       )}
     >
       <Icon size={14} />
-      <span>{label}</span>
+      {!iconOnly && <span>{label}</span>}
     </button>
   );
 }

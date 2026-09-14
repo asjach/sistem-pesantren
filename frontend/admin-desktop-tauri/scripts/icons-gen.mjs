@@ -63,6 +63,7 @@ const IKON = {
   MoreVertical: ['more-vertical', 'ellipsis-vertical', 'dots-vertical', 'kebab', 'more-vertical-2', 'ellipsis-v', 'three-dots-vertical', 'dots-three-vertical', 'more-2-line', 'more-vert'],
   MousePointerClick: ['mouse-pointer-click', 'pointer', 'cursor-click', 'hand-pointer', 'click', 'touch-app', 'pointer-2', 'ads-click', 'select-cursor', 'mouse-pointer-2'],
   MoveHorizontal: ['move-horizontal', 'arrows-horizontal', 'arrow-left-right', 'arrows-right-left', 'horizontal-distribute', 'move-horizontal-2', 'arrow-horizontal', 'width'],
+  MoveVertical: ['move-vertical', 'arrows-vertical', 'arrow-up-down', 'arrows-up-down', 'vertical-distribute', 'move-vertical-2', 'arrow-vertical', 'height'],
   NotebookTabs: ['notebook-tabs', 'notebook', 'note', 'notebook-2', 'book-2', 'journal-page', 'journal-text'],
   Paintbrush: ['paintbrush', 'brush', 'paint-brush', 'paint', 'brush-line', 'paint-brush-line'],
   Palette: ['palette', 'color', 'color-filter', 'palette-2', 'swatch'],

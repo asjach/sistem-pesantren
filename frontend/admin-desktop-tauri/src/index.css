@@ -299,7 +299,8 @@
   color: var(--part-tabel_header-fg, inherit);
   font-family: var(--part-tabel_header-font, var(--font-display));
   font-weight: var(--part-tabel_header-weight, 500);
-  font-size: var(--simpes-font-size, var(--part-tabel_header-size, 13px));
+  /* Ukuran header: setelan Bagian UI / ribbon header menang atas ukuran isi. */
+  font-size: var(--part-tabel_header-size, var(--simpes-font-size, 13px));
   /* Tanpa padding: judul memakai penuh lebar kolom & rata tengah. */
   padding: 0;
   /* Sel header DSG adalah flex: buat wadah judul mengisi penuh agar gagang

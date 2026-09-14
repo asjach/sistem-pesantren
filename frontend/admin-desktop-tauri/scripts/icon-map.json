@@ -373,6 +373,17 @@
   "bi": "arrow-left-right",
   "material": "horizontal-distribute"
  },
+ "MoveVertical": {
+  "lucide": "move-vertical",
+  "tabler": "arrows-vertical",
+  "ph": "arrows-vertical",
+  "heroicons": "arrows-up-down",
+  "ri": "arrow-up-down-line",
+  "iconoir": null,
+  "radix": "height",
+  "bi": "arrows-vertical",
+  "material": "vertical-distribute"
+ },
  "NotebookTabs": {
   "lucide": "notebook-tabs",
   "tabler": "notebook",

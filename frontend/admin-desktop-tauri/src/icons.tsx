@@ -1,5 +1,5 @@
 /* AUTO-GENERATED oleh scripts/icons-gen.mjs — JANGAN edit manual.
- * 63 ikon × 9 set (Iconify/unplugin-icons). Set aktif dari prefs
+ * 64 ikon × 9 set (Iconify/unplugin-icons). Set aktif dari prefs
  * `iconSet`; nama yang tidak tersedia di suatu set jatuh ke Lucide.
  * Regenerasi: node scripts/icons-gen.mjs */
 import type { ComponentType, SVGProps } from 'react';
@@ -42,6 +42,7 @@ import IcMoonLucide from '~icons/lucide/moon';
 import IcMoreVerticalLucide from '~icons/lucide/more-vertical';
 import IcMousePointerClickLucide from '~icons/lucide/mouse-pointer-click';
 import IcMoveHorizontalLucide from '~icons/lucide/move-horizontal';
+import IcMoveVerticalLucide from '~icons/lucide/move-vertical';
 import IcNotebookTabsLucide from '~icons/lucide/notebook-tabs';
 import IcPaintbrushLucide from '~icons/lucide/paintbrush';
 import IcPaletteLucide from '~icons/lucide/palette';
@@ -107,6 +108,7 @@ import IcMoonTabler from '~icons/tabler/moon';
 import IcMoreVerticalTabler from '~icons/tabler/dots-vertical';
 import IcMousePointerClickTabler from '~icons/tabler/pointer';
 import IcMoveHorizontalTabler from '~icons/tabler/arrows-horizontal';
+import IcMoveVerticalTabler from '~icons/tabler/arrows-vertical';
 import IcNotebookTabsTabler from '~icons/tabler/notebook';
 import IcPaintbrushTabler from '~icons/tabler/brush';
 import IcPaletteTabler from '~icons/tabler/palette';
@@ -168,6 +170,7 @@ import IcMoonPh from '~icons/ph/moon';
 import IcMoreVerticalPh from '~icons/ph/dots-three-vertical';
 import IcMousePointerClickPh from '~icons/ph/cursor-click';
 import IcMoveHorizontalPh from '~icons/ph/arrows-horizontal';
+import IcMoveVerticalPh from '~icons/ph/arrows-vertical';
 import IcNotebookTabsPh from '~icons/ph/notebook';
 import IcPaintbrushPh from '~icons/ph/paint-brush';
 import IcPalettePh from '~icons/ph/palette';
@@ -225,6 +228,7 @@ import IcMonitorHeroicons from '~icons/heroicons/computer-desktop';
 import IcMoonHeroicons from '~icons/heroicons/moon';
 import IcMoreVerticalHeroicons from '~icons/heroicons/ellipsis-vertical';
 import IcMoveHorizontalHeroicons from '~icons/heroicons/arrows-right-left';
+import IcMoveVerticalHeroicons from '~icons/heroicons/arrows-up-down';
 import IcPaintbrushHeroicons from '~icons/heroicons/paint-brush';
 import IcPaletteHeroicons from '~icons/heroicons/swatch';
 import IcPencilHeroicons from '~icons/heroicons/pencil';
@@ -282,6 +286,7 @@ import IcMonitorRi from '~icons/ri/computer-line';
 import IcMoonRi from '~icons/ri/moon-fill';
 import IcMoreVerticalRi from '~icons/ri/more-2-line';
 import IcMoveHorizontalRi from '~icons/ri/arrow-left-right-line';
+import IcMoveVerticalRi from '~icons/ri/arrow-up-down-line';
 import IcNotebookTabsRi from '~icons/ri/book-2-line';
 import IcPaintbrushRi from '~icons/ri/brush-line';
 import IcPaletteRi from '~icons/ri/palette-line';
@@ -386,6 +391,7 @@ import IcMonitorRadix from '~icons/radix-icons/desktop';
 import IcMoonRadix from '~icons/radix-icons/moon';
 import IcMoreVerticalRadix from '~icons/radix-icons/dots-vertical';
 import IcMoveHorizontalRadix from '~icons/radix-icons/width';
+import IcMoveVerticalRadix from '~icons/radix-icons/height';
 import IcPencilRadix from '~icons/radix-icons/pencil-1';
 import IcPlusRadix from '~icons/radix-icons/plus';
 import IcPlusCircleRadix from '~icons/radix-icons/plus-circled';
@@ -436,6 +442,7 @@ import IcMonitorBi from '~icons/bi/display';
 import IcMoonBi from '~icons/bi/moon';
 import IcMoreVerticalBi from '~icons/bi/three-dots-vertical';
 import IcMoveHorizontalBi from '~icons/bi/arrow-left-right';
+import IcMoveVerticalBi from '~icons/bi/arrows-vertical';
 import IcNotebookTabsBi from '~icons/bi/journal-text';
 import IcPaintbrushBi from '~icons/bi/brush';
 import IcPaletteBi from '~icons/bi/palette';
@@ -498,6 +505,7 @@ import IcMoonMaterial from '~icons/material-symbols/dark-mode';
 import IcMoreVerticalMaterial from '~icons/material-symbols/more-vert';
 import IcMousePointerClickMaterial from '~icons/material-symbols/touch-app';
 import IcMoveHorizontalMaterial from '~icons/material-symbols/horizontal-distribute';
+import IcMoveVerticalMaterial from '~icons/material-symbols/vertical-distribute';
 import IcNotebookTabsMaterial from '~icons/material-symbols/note';
 import IcPaintbrushMaterial from '~icons/material-symbols/brush';
 import IcPaletteMaterial from '~icons/material-symbols/palette';
@@ -571,6 +579,7 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
     MoreVertical: IcMoreVerticalLucide,
     MousePointerClick: IcMousePointerClickLucide,
     MoveHorizontal: IcMoveHorizontalLucide,
+    MoveVertical: IcMoveVerticalLucide,
     NotebookTabs: IcNotebookTabsLucide,
     Paintbrush: IcPaintbrushLucide,
     Palette: IcPaletteLucide,
@@ -636,6 +645,7 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
     MoreVertical: IcMoreVerticalTabler,
     MousePointerClick: IcMousePointerClickTabler,
     MoveHorizontal: IcMoveHorizontalTabler,
+    MoveVertical: IcMoveVerticalTabler,
     NotebookTabs: IcNotebookTabsTabler,
     Paintbrush: IcPaintbrushTabler,
     Palette: IcPaletteTabler,
@@ -697,6 +707,7 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
     MoreVertical: IcMoreVerticalPh,
     MousePointerClick: IcMousePointerClickPh,
     MoveHorizontal: IcMoveHorizontalPh,
+    MoveVertical: IcMoveVerticalPh,
     NotebookTabs: IcNotebookTabsPh,
     Paintbrush: IcPaintbrushPh,
     Palette: IcPalettePh,
@@ -754,6 +765,7 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
     Moon: IcMoonHeroicons,
     MoreVertical: IcMoreVerticalHeroicons,
     MoveHorizontal: IcMoveHorizontalHeroicons,
+    MoveVertical: IcMoveVerticalHeroicons,
     Paintbrush: IcPaintbrushHeroicons,
     Palette: IcPaletteHeroicons,
     Pencil: IcPencilHeroicons,
@@ -811,6 +823,7 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
     Moon: IcMoonRi,
     MoreVertical: IcMoreVerticalRi,
     MoveHorizontal: IcMoveHorizontalRi,
+    MoveVertical: IcMoveVerticalRi,
     NotebookTabs: IcNotebookTabsRi,
     Paintbrush: IcPaintbrushRi,
     Palette: IcPaletteRi,
@@ -915,6 +928,7 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
     Moon: IcMoonRadix,
     MoreVertical: IcMoreVerticalRadix,
     MoveHorizontal: IcMoveHorizontalRadix,
+    MoveVertical: IcMoveVerticalRadix,
     Pencil: IcPencilRadix,
     Plus: IcPlusRadix,
     PlusCircle: IcPlusCircleRadix,
@@ -965,6 +979,7 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
     Moon: IcMoonBi,
     MoreVertical: IcMoreVerticalBi,
     MoveHorizontal: IcMoveHorizontalBi,
+    MoveVertical: IcMoveVerticalBi,
     NotebookTabs: IcNotebookTabsBi,
     Paintbrush: IcPaintbrushBi,
     Palette: IcPaletteBi,
@@ -1027,6 +1042,7 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
     MoreVertical: IcMoreVerticalMaterial,
     MousePointerClick: IcMousePointerClickMaterial,
     MoveHorizontal: IcMoveHorizontalMaterial,
+    MoveVertical: IcMoveVerticalMaterial,
     NotebookTabs: IcNotebookTabsMaterial,
     Paintbrush: IcPaintbrushMaterial,
     Palette: IcPaletteMaterial,
@@ -1107,6 +1123,7 @@ export const Moon = (p: IkonProps) => <IkonDinamis {...p} nama="Moon" />;
 export const MoreVertical = (p: IkonProps) => <IkonDinamis {...p} nama="MoreVertical" />;
 export const MousePointerClick = (p: IkonProps) => <IkonDinamis {...p} nama="MousePointerClick" />;
 export const MoveHorizontal = (p: IkonProps) => <IkonDinamis {...p} nama="MoveHorizontal" />;
+export const MoveVertical = (p: IkonProps) => <IkonDinamis {...p} nama="MoveVertical" />;
 export const NotebookTabs = (p: IkonProps) => <IkonDinamis {...p} nama="NotebookTabs" />;
 export const Paintbrush = (p: IkonProps) => <IkonDinamis {...p} nama="Paintbrush" />;
 export const Palette = (p: IkonProps) => <IkonDinamis {...p} nama="Palette" />;
