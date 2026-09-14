@@ -4,11 +4,12 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { PARTS, type PartId } from '@/parts';
+import { PARTS, PART_BY_ID, type PartId } from '@/parts';
 
 /** Mode "pilih komponen": klik elemen mana pun di aplikasi → buka bagian itu.
  *  Global (mounted sekali di App) agar tetap aktif saat berpindah halaman. */
@@ -50,6 +51,7 @@ export function PickerProvider({ children }: { children: ReactNode }) {
   const [hasil, setHasil] = useState<PartId | null>(null);
   const nav = useNavigate();
   const { pathname } = useLocation();
+  const tipRef = useRef<HTMLDivElement | null>(null);
 
   const mulai = useCallback(() => {
     setHasil(null);
@@ -69,8 +71,50 @@ export function PickerProvider({ children }: { children: ReactNode }) {
     if (!aktif) return;
     document.documentElement.classList.add('simpes-picker');
     let dipilih = false;
+    let outlineEl: HTMLElement | null = null;
+
+    /** Elemen akar bagian `id` di sekitar `el` (untuk sorot seluruh komponen). */
+    const elemenPart = (el: Element, id: PartId): HTMLElement | null => {
+      const meta = PART_BY_ID.get(id);
+      const root = meta ? el.closest(meta.sel) : null;
+      return (root as HTMLElement | null) ?? (el as HTMLElement);
+    };
+
+    /** Sorot elemen (atau bersihkan bila null) dengan outline aksen. */
+    const sorot = (el: HTMLElement | null) => {
+      if (outlineEl === el) return;
+      if (outlineEl) {
+        outlineEl.style.outline = '';
+        outlineEl.style.outlineOffset = '';
+      }
+      outlineEl = el;
+      if (outlineEl) {
+        outlineEl.style.outline = '2px solid var(--accent)';
+        outlineEl.style.outlineOffset = '1px';
+      }
+    };
+
+    /** Tampilkan tooltip nama komponen di dekat kursor (null = sembunyikan). */
+    const tampilTip = (teks: string | null, x: number, y: number) => {
+      const t = tipRef.current;
+      if (!t) return;
+      if (!teks) {
+        t.style.opacity = '0';
+        return;
+      }
+      t.textContent = teks;
+      t.style.transform = `translate(${x + 14}px, ${y + 16}px)`;
+      t.style.opacity = '1';
+    };
+
+    const bersih = () => {
+      sorot(null);
+      tampilTip(null, 0, 0);
+    };
+
     const ambil = (target: Element | null) => {
       const id = target ? cariBagian(target) : null;
+      bersih();
       setAktif(false);
       if (id) setHasil(id);
     };
@@ -94,16 +138,36 @@ export function PickerProvider({ children }: { children: ReactNode }) {
       }
       ambil(target);
     };
+    const onPointerMove = (e: PointerEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target || target.closest('[data-picker-abaikan]')) {
+        bersih();
+        return;
+      }
+      const id = cariBagian(target);
+      const meta = id ? PART_BY_ID.get(id) : null;
+      sorot(id ? elemenPart(target, id) : null);
+      tampilTip(meta?.label ?? null, e.clientX, e.clientY);
+    };
+    const onKeluar = () => bersih();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setAktif(false);
     };
     document.addEventListener('pointerdown', onPointerDown, true);
     document.addEventListener('click', onClick, true);
+    document.addEventListener('pointermove', onPointerMove, true);
+    document.addEventListener('mouseleave', onKeluar, true);
     document.addEventListener('keydown', onKey, true);
     return () => {
       document.documentElement.classList.remove('simpes-picker');
+      if (outlineEl) {
+        outlineEl.style.outline = '';
+        outlineEl.style.outlineOffset = '';
+      }
       document.removeEventListener('pointerdown', onPointerDown, true);
       document.removeEventListener('click', onClick, true);
+      document.removeEventListener('pointermove', onPointerMove, true);
+      document.removeEventListener('mouseleave', onKeluar, true);
       document.removeEventListener('keydown', onKey, true);
     };
   }, [aktif]);
@@ -112,7 +176,12 @@ export function PickerProvider({ children }: { children: ReactNode }) {
     () => ({ aktif, hasil, mulai, batal, konsumsi }),
     [aktif, hasil, mulai, batal, konsumsi],
   );
-  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+  return (
+    <Ctx.Provider value={value}>
+      {children}
+      {aktif && <div ref={tipRef} className="simpes-picker-tip" aria-hidden />}
+    </Ctx.Provider>
+  );
 }
 
 export function usePicker() {

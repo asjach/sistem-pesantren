@@ -543,10 +543,31 @@
    font/ukuran/warna/border per bagian dilakukan lewat Pengaturan → Bagian UI
    (src/partStyles.ts) yang menyuntik gaya runtime, bukan override global di sini. */
 
-/* Mode "pilih komponen" di Bagian UI: kursor bidik di seluruh aplikasi. */
+/* Mode "pilih komponen" di Tampilan: kursor bidik di seluruh aplikasi. */
 .simpes-picker,
 .simpes-picker * {
   cursor: crosshair !important;
+}
+
+/* Tooltip nama komponen saat mode "pilih komponen" aktif (posisi dari kursor). */
+.simpes-picker-tip {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 9999;
+  pointer-events: none;
+  max-width: 20rem;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--popover);
+  color: var(--popover-foreground);
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 80ms ease-out;
 }
 
 /* ---------- Kaya warna UI (Pengaturan → Tampilan) ----------
