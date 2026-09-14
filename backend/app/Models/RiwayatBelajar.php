@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
@@ -9,11 +10,28 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class RiwayatBelajar extends Model
 {
     protected $table = 'riwayat_belajar';
-    protected $guarded = ['id'];
-    protected $casts = ['tgl_masuk' => 'date', 'is_aktif' => 'boolean', 'no_absen' => 'integer'];
 
-    public function santri(): BelongsTo { return $this->belongsTo(Santri::class); }
-    public function lembaga(): BelongsTo { return $this->belongsTo(Lembaga::class); }
-    public function kelas(): BelongsTo { return $this->belongsTo(Kelas::class); }
-    public function tahunAjaran(): BelongsTo { return $this->belongsTo(TahunAjaran::class, 'tahun_ajaran_id'); }
+    protected $guarded = ['id'];
+
+    protected $casts = ['tgl_masuk' => 'date:Y-m-d', 'is_aktif' => 'boolean', 'no_absen' => 'integer'];
+
+    public function santri(): BelongsTo
+    {
+        return $this->belongsTo(Santri::class);
+    }
+
+    public function lembaga(): BelongsTo
+    {
+        return $this->belongsTo(Lembaga::class);
+    }
+
+    public function kelas(): BelongsTo
+    {
+        return $this->belongsTo(Kelas::class);
+    }
+
+    public function tahunAjaran(): BelongsTo
+    {
+        return $this->belongsTo(TahunAjaran::class, 'tahun_ajaran_id');
+    }
 }

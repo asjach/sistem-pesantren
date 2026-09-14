@@ -51,10 +51,70 @@ export function listAlumni(params: { tahun_ajaran_lulus_id?: number; page?: numb
   return api<Paginate<Alumni>>(`/admin/alumni?${q.toString()}`);
 }
 
+export interface RiwayatRow {
+  id: number;
+  santri_id: number;
+  tahun_ajaran_id: number;
+  lembaga_id: number;
+  kelas_id: number | null;
+  semester: string;
+  tgl_masuk: string | null;
+  no_absen: number | null;
+  nis: string | null;
+  tingkat: string | null;
+  status_awal: string | null;
+  status_akhir: string | null;
+  is_aktif: boolean;
+  santri?: { id: number; nama_lengkap: string; nis: string | null; jk: string | null } | null;
+  kelas?: { id: number; nama_kelas: string; tingkat: string | null } | null;
+  lembaga?: { id: number; nama: string; kode: string | null } | null;
+  tahun_ajaran?: { id: number; nama: string } | null;
+}
+
+export function listRiwayat(params: {
+  lembaga_id?: number;
+  tahun_ajaran_id?: number;
+  semester?: string;
+  tingkat?: string;
+  kelas_id?: number;
+  tanpa_kelas?: boolean;
+  q?: string;
+  is_aktif?: boolean;
+  page?: number;
+  per_page?: number;
+} = {}) {
+  const q = new URLSearchParams();
+  if (params.lembaga_id) q.set('lembaga_id', String(params.lembaga_id));
+  if (params.tahun_ajaran_id) q.set('tahun_ajaran_id', String(params.tahun_ajaran_id));
+  if (params.semester) q.set('semester', params.semester);
+  if (params.tingkat) q.set('tingkat', params.tingkat);
+  if (params.kelas_id) q.set('kelas_id', String(params.kelas_id));
+  if (params.tanpa_kelas) q.set('tanpa_kelas', '1');
+  if (params.q) q.set('q', params.q);
+  if (params.is_aktif === false) q.set('is_aktif', '0');
+  q.set('page', String(params.page ?? 1));
+  if (params.per_page) q.set('per_page', String(params.per_page));
+  return api<Paginate<RiwayatRow>>(`/admin/riwayat?${q.toString()}`);
+}
+
+/** Salin ganjil→genap massal per lembaga; tanpa `siswa` = semua baris ganjil aktif. */
+export function salinGenapMassal(input: {
+  lembaga_id: number;
+  tanggal_masuk: string;
+  siswa?: { santri_id: number; kelas_id?: number; no_absen?: number }[];
+}) {
+  return api<{ pesan: string; berhasil: number; gagal: { santri_id: number | null; pesan: string }[] }>(
+    '/admin/akademik/salin-genap',
+    { method: 'POST', body: JSON.stringify(input) },
+  );
+}
+
 export interface NaikKelasItem {
   santri_id: number;
   status: 'naik' | 'tidak_naik';
   nis?: string;
+  tgl_masuk?: string;
+  no_absen?: number;
 }
 
 export function naikKelasMassal(input: {

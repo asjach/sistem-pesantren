@@ -38,7 +38,7 @@ export const HALAMAN: HalamanDef[] = [
     grid: true,
   },
   { to: '/santri', label: 'Data Santri', tab: 'santri', grid: true },
-  { to: '/siklus', label: 'Siklus Santri (Mutasi & Alumni)', tab: 'santri', grid: true },
+  { to: '/siklus', label: 'Siklus Santri', tab: 'santri', grid: true },
   { to: '/pengajuan-biodata', label: 'Pengajuan Biodata', tab: 'santri', grid: true },
   { to: '/pos', label: 'Pos Keuangan', tab: 'keuangan', grid: true },
   { to: '/tarif', label: 'Tarif Biaya', tab: 'keuangan', grid: true },

@@ -45,6 +45,7 @@
 | 1.10.5 | 2026-09-14 | Template import santri bergaya: header **kuning = wajib** / biru = opsional (dari `rules()` import), sel teks, dropdown data-validation untuk kolom enum + kamus dengan nilai **live `RefService`** per lembaga (sheet "Referensi" tersembunyi; unduh ulang setelah referensi berubah); import hanya membaca sheet pertama; perbaikan `config/cache.php` `serializable_classes` (cache kamus `stdClass` dulu rusak saat cache hit); suite 119/119 hijau |
 | 1.10.6 | 2026-09-14 | Perbaikan dropdown template: atribut OOXML `showDropDown` **inverted** — default PhpSpreadsheet menulis `1` sehingga Excel menyembunyikan panah dropdown; kini `setShowDropDown(true)` → XML `showDropDown="0"` (diverifikasi 37/37 dropdown + tes XML mentah); suite 119/119 hijau |
 | 1.10.7 | 2026-09-14 | Urut tampil kamus seragam: **`urutan` ASC, tie-break `nama` ASC** (`RefService::effective` & `effectiveAlamat`, berlaku juga dropdown template); `ref_status_awal`/`ref_status_akhir`: kolom `label` → **`nama`** (nilai tetap `kode`, tanpa FK) agar kolom seragam 36 tabel ref; controller/seeder/FE/tests/docs disesuaikan; suite 120/120 hijau |
+| 1.11 | 2026-09-15 | Modul 102 **UI admin desktop**: halaman Siklus 6 view (santri aktif, salin ke genap, kenaikan kelas, belum ditempatkan, mutasi keluar, alumni) + dialog aksi (set/pindah/keluar kelas, salin genap, kenaikan, mutasi, kelulusan) dan aksi massal per baris tercentang; endpoint baru `GET /admin/riwayat` (roster baris riwayat + filter lembaga/TA/semester/tingkat/kelas/tanpa_kelas/q, terskop tenant) & `POST /admin/akademik/salin-genap` (massal per lembaga, partial per-item, tanpa `siswa` = semua ganjil aktif); `naik-kelas` menerima `tgl_masuk`/`no_absen` per item; fix serialisasi `riwayat_belajar.tgl_masuk` → `date:Y-m-d` (dulu ISO UTC sehingga tampil H-1 di WIB); suite 122/122 (SiklusFlowTest 14), typecheck lolos |
 
 ## Daftar Isi
 
@@ -773,7 +774,7 @@ views), pos/tarif, plus (when backend lands): PSB antrean (verify/ACC/tolak,
 paket ops), santri master + import, siklus (naik/pindah/mutasi/lulus),
 billing/pay/void + kuitansi print, pegawai + keaktifan/sertifikasi,
 kurikulum/mapel/pengampu, nilai massal + rapor print, wali proposals approval.
-Status: 🟢 shell v0.5.0 live (Tailwind+shadcn: 20 tema ala VSCode data-driven + kustom, Gelap/Terang/Sistem per perangkat, galeri pratinjau, border lembut tanpa shadow, sidebar rail + Ctrl/Cmd+B, pagination, dialog/toast/skeleton). Tabel master memakai `react-datasheet-grid` lewat wrapper `ExcelTable` (seleksi gaya spreadsheet, resize + AutoFit, edit klik-2× langsung simpan) dengan kontrol global ukuran/tinggi/jenis huruf; **Google Fonts disimpan lokal di repo** (`src/assets/fonts`, 8 keluarga × Light/Regular) sehingga aplikasi berjalan **tanpa internet** — dihasilkan ulang via `scripts/fonts-offline.py`. Desktop Tauri 0.5.0 dibangun (`.app` 11 MB, `.dmg` 4 MB, aarch64, belum ditandatangani); build desktop hanya dijalankan bila diminta. Belum: PSB/santri/siklus/keuangan transaksi, 200+.
+Status: 🟢 shell v0.5.0 live (Tailwind+shadcn: 20 tema ala VSCode data-driven + kustom, Gelap/Terang/Sistem per perangkat, galeri pratinjau, border lembut tanpa shadow, sidebar rail + Ctrl/Cmd+B, pagination, dialog/toast/skeleton). Tabel master memakai `react-datasheet-grid` lewat wrapper `ExcelTable` (seleksi gaya spreadsheet, resize + AutoFit, edit klik-2× langsung simpan) dengan kontrol global ukuran/tinggi/jenis huruf; **Google Fonts disimpan lokal di repo** (`src/assets/fonts`, 8 keluarga × Light/Regular) sehingga aplikasi berjalan **tanpa internet** — dihasilkan ulang via `scripts/fonts-offline.py`. Desktop Tauri 0.5.0 dibangun (`.app` 11 MB, `.dmg` 4 MB, aarch64, belum ditandatangani); build desktop hanya dijalankan bila diminta. Siklus santri (102) sudah live di UI: roster + salin genap + kenaikan/pindah/mutasi/lulus. Belum: modul 200+ (pegawai/kurikulum/nilai), Fase 5, portal ortu lanjutan.
 
 #### 6.2 `frontend/admin-desktop-pyside` (alternate admin)
 
@@ -858,7 +859,7 @@ Status: 🔲 not scaffolded (backend 201/202 pending).
 | 103 pos/tarif master | ✅ | ✅ | — | ✅ |
 | 100 PSB full (daftar, paket, verify/ACC, portal, dokumen, import) | ✅ | ✅ | — | ✅ (69 routes, 10 tests) |
 | 101 Santri (CRUD, import, kamus, policy) | ✅ | ✅ | — | ✅ (10 tests) |
-| 102 Siklus (naik, pindah, mutasi, lulus, list) | ✅ | ✅ | — | ✅ (9 tests) |
+| 102 Siklus (salin genap, naik, pindah, mutasi, lulus, roster + arsip) | ✅ | ✅ | — | ✅ (14 tests) |
 | 103-tx/200/201/202/203 | ✅ specs | ✅ tables | — | 🔲 |
 | Fase 5 (500–505), infra (900–901) | 🔲 drafts | ✅ tables | — | 🔲 |
 | 6 frontend apps | §6 above | n/a | n/a | 🔲 |
