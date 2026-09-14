@@ -181,8 +181,8 @@ export function terapkanGayaBagian(parts: PartOverrides): void {
   el.textContent = bangunCssBagian(parts);
 }
 
-/** CSS pratinjau editor: deklarasi sama seperti aslinya, tanpa scope mode
- *  (mode dipilih lewat tab) dan tanpa pengecualian antar-bagian.
+/** CSS pratinjau editor: deklarasi sama seperti aslinya, tanpa pengecualian
+ *  antar-bagian (mode dipisah lewat `scope` kanvas).
  *  `sel` = selektor bagian yang cocok di markup pratinjau (sub-komponen selalu
  *  memakainya); `null` = pakai pembungkus pratinjau sebagai fallback. */
 export function bangunCssPratinjau(
@@ -190,11 +190,10 @@ export function bangunCssPratinjau(
   g?: PartGaya,
   w?: PartWarna,
   sel?: string | null,
+  scope = '#pratinjau_bagian',
 ): string {
   const meta = PART_BY_ID.get(id);
-  const akar = sel
-    ? `#pratinjau_bagian :is(${sel})`
-    : '#pratinjau_bagian [data-pratinjau-part]';
+  const akar = sel ? `${scope} :is(${sel})` : `${scope} [data-pratinjau-part]`;
   const desc = `${akar} *${tolakKontrol(meta?.kendali)}`;
   const gaya = deklGaya(g ?? {});
   const warna = deklWarna(w);
