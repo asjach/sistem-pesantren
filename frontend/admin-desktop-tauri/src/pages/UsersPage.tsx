@@ -39,6 +39,9 @@ import { toast } from 'sonner';
 
 const ALL_ROLES = ['super_admin', 'admin', 'kasir', 'guru', 'orang_tua', 'santri'];
 const ADMIN_ROLES = ['kasir', 'guru', 'orang_tua', 'santri'];
+// Khusus dialog Tambah pengguna: admin boleh membuat role `admin` (lembaga
+// dibatasi backend). Dialog Ubah role & filter tetap memakai ADMIN_ROLES.
+const ADMIN_CREATE_ROLES = ['admin', ...ADMIN_ROLES];
 
 const emailRule = (v: string | null) =>
   v && !v.includes('@') ? 'Email tidak valid.' : null;
@@ -91,6 +94,7 @@ export default function UsersPage() {
   const { user: me } = useAuth();
   const isSuper = me?.roles.some((r) => r.name === 'super_admin') ?? false;
   const assignable = isSuper ? ALL_ROLES : ADMIN_ROLES;
+  const creatable = isSuper ? ALL_ROLES : ADMIN_CREATE_ROLES;
 
   const [rows, setRows] = useState<AdminUser[]>([]);
   const [lembagas, setLembagas] = useState<Lembaga[]>([]);
@@ -325,9 +329,9 @@ export default function UsersPage() {
             <Input id="input_password_baru" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} autoComplete="new-password" />
           </Field>
         </FieldGroup>
-        <div className="text-sm text-muted-foreground">Role {isSuper ? '(6 opsi)' : '(admin: 4 opsi — tanpa admin/super_admin)'}</div>
+        <div className="text-sm text-muted-foreground">Role {isSuper ? '(6 opsi)' : '(admin: 5 opsi — termasuk admin untuk lembaga Anda)'}</div>
         <div id="group_role_baru" className="flex flex-wrap gap-2">
-          {assignable.map((r) => (
+          {creatable.map((r) => (
             <label
               key={r}
               htmlFor={`check_role_baru_${r}`}

@@ -7,6 +7,7 @@ use App\Http\Requests\Admin\AssignRoleRequest;
 use App\Http\Requests\Admin\CreateUserRequest;
 use App\Http\Requests\Admin\ImportUserRequest;
 use App\Imports\UsersImport;
+use App\Models\Lembaga;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -25,6 +26,24 @@ class UserManagementController extends Controller
         }
 
         return [];
+    }
+
+    /**
+     * Role yang boleh diberikan saat MEMBUAT user (khusus create).
+     * Berbeda dari assignableRolesFor(): admin (full maupun scoped) boleh
+     * memberi role `admin` saat create. Batas lembaga dijamin resolveLembagaIds():
+     * admin scoped hanya boleh memakai lembaganya sendiri (boleh subset) dan
+     * tidak bisa melahirkan admin global. Jalur update/assignRole/import tetap
+     * memakai assignableRolesFor() (role `admin` dilarang di sana).
+     */
+    protected function creatableRolesFor(User $authUser): array
+    {
+        $roles = $this->assignableRolesFor($authUser);
+        if ($authUser->hasRole('admin') && ! in_array('admin', $roles, true)) {
+            $roles[] = 'admin';
+        }
+
+        return $roles;
     }
 
     /**
@@ -47,14 +66,22 @@ class UserManagementController extends Controller
     {
         $ids = array_values(array_unique(array_map('intval', $inputIds ?? [])));
         foreach ($ids as $lid) {
-            if (! \App\Models\Lembaga::whereKey($lid)->exists()) abort(422, "Lembaga $lid tidak ditemukan.");
-            if (! $authUser->canAccessLembaga($lid)) abort(403, 'Lembaga di luar kewenangan Anda.');
+            if (! Lembaga::whereKey($lid)->exists()) {
+                abort(422, "Lembaga $lid tidak ditemukan.");
+            }
+            if (! $authUser->canAccessLembaga($lid)) {
+                abort(403, 'Lembaga di luar kewenangan Anda.');
+            }
         }
         if (empty($ids) && ! $authUser->hasRole('super_admin') && ! $authUser->isAdminFull()) {
             $mine = $authUser->lembagaIds();
-            if (empty($mine)) abort(422, 'lembaga_ids wajib untuk admin non-global.');
+            if (empty($mine)) {
+                abort(422, 'lembaga_ids wajib untuk admin non-global.');
+            }
+
             return $mine;
         }
+
         return $ids;
     }
 
@@ -98,12 +125,12 @@ class UserManagementController extends Controller
     {
         $authUser = auth()->user();
         $this->authorize('create', User::class);
-        $allowedRoles = $this->assignableRolesFor($authUser);
+        $allowedRoles = $this->creatableRolesFor($authUser);
 
         $disallowed = array_diff($request->input('roles', []), $allowedRoles);
         if (! empty($disallowed)) {
             return response()->json([
-                'message' => 'Anda tidak berwenang memberikan role: ' . implode(', ', $disallowed),
+                'message' => 'Anda tidak berwenang memberikan role: '.implode(', ', $disallowed),
             ], 403);
         }
 
@@ -155,9 +182,9 @@ class UserManagementController extends Controller
 
         $data = $request->validate([
             'name' => ['sometimes', 'string', 'max:255'],
-            'email' => ['nullable', 'email', 'unique:users,email,' . $user->id],
-            'phone' => ['nullable', 'string', 'max:20', 'unique:users,phone,' . $user->id],
-            'username' => ['nullable', 'string', 'max:50', 'unique:users,username,' . $user->id],
+            'email' => ['nullable', 'email', 'unique:users,email,'.$user->id],
+            'phone' => ['nullable', 'string', 'max:20', 'unique:users,phone,'.$user->id],
+            'username' => ['nullable', 'string', 'max:50', 'unique:users,username,'.$user->id],
             'password' => ['nullable', 'string', 'min:8'],
             'lembaga_ids' => ['nullable', 'array'],
             'lembaga_ids.*' => ['integer', 'exists:lembaga,id'],
@@ -175,7 +202,7 @@ class UserManagementController extends Controller
             $disallowed = array_diff($data['roles'], $this->assignableRolesFor($authUser));
             if (! empty($disallowed)) {
                 return response()->json([
-                    'message' => 'Anda tidak berwenang memberikan role: ' . implode(', ', $disallowed),
+                    'message' => 'Anda tidak berwenang memberikan role: '.implode(', ', $disallowed),
                 ], 403);
             }
         }

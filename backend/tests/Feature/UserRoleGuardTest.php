@@ -10,8 +10,8 @@ use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
-// Kunci role diri + larangan buat admin (Lampiran E v1.9.1) +
-// auto-attach pivot saat admin buat lembaga.
+// Kunci role diri + admin boleh membuat user ber-role admin saat create
+// (lembaga ⊆ kewenangannya) + auto-attach pivot saat admin buat lembaga.
 class UserRoleGuardTest extends TestCase
 {
     use RefreshDatabase;
@@ -43,9 +43,9 @@ class UserRoleGuardTest extends TestCase
     {
         $this->userSeq++;
         $u = User::create([
-            'name' => ucfirst($role) . ' ' . $this->userSeq,
-            'email' => "roleguard_u{$this->userSeq}_" . uniqid() . '@example.com',
-            'phone' => '08' . str_pad((string) (9200000000 + $this->userSeq * 137 + random_int(0, 99)), 10, '0', STR_PAD_LEFT),
+            'name' => ucfirst($role).' '.$this->userSeq,
+            'email' => "roleguard_u{$this->userSeq}_".uniqid().'@example.com',
+            'phone' => '08'.str_pad((string) (9200000000 + $this->userSeq * 137 + random_int(0, 99)), 10, '0', STR_PAD_LEFT),
             'password' => 'password',
         ]);
         $u->assignRole($role);
@@ -64,19 +64,97 @@ class UserRoleGuardTest extends TestCase
         return DB::table('user_lembaga')->where('user_id', $u->id)->pluck('lembaga_id')->all();
     }
 
-    // ---------- 1. admin tidak bisa membuat user ber-role admin ----------
+    // ---------- 1. admin boleh membuat user ber-role admin (khusus create) ----------
 
-    public function test_01_admin_tidak_bisa_buat_user_role_admin(): void
+    public function test_01_admin_scoped_bisa_buat_admin_lembaganya(): void
     {
         $f = $this->fixture();
         $admin = $this->makeUser('admin', [$f['mi']->id]);
 
-        $this->actingAs($admin, 'sanctum')->postJson('/api/admin/users', [
+        $res = $this->actingAs($admin, 'sanctum')->postJson('/api/admin/users', [
             'name' => 'Calon Admin',
-            'email' => 'calonadmin_' . uniqid() . '@example.com',
+            'email' => 'calonadmin_'.uniqid().'@example.com',
             'password' => 'password',
             'roles' => ['admin'],
+        ])->assertStatus(201);
+
+        $baru = User::findOrFail($res->json('id'));
+        $this->assertTrue($baru->hasRole('admin'));
+        // Tanpa lembaga_ids -> fallback pivot milik pembuat (bukan admin global).
+        $this->assertSame([$f['mi']->id], array_map('intval', $this->pivotOf($baru)));
+    }
+
+    public function test_01b_admin_scoped_bisa_buat_admin_subset_lembaganya(): void
+    {
+        $f = $this->fixture();
+        $admin = $this->makeUser('admin', [$f['mi']->id, $f['root']->id]);
+
+        $res = $this->actingAs($admin, 'sanctum')->postJson('/api/admin/users', [
+            'name' => 'Admin Subset',
+            'email' => 'admin_subset_'.uniqid().'@example.com',
+            'password' => 'password',
+            'roles' => ['admin'],
+            'lembaga_ids' => [$f['mi']->id],
+        ])->assertStatus(201);
+
+        $baru = User::findOrFail($res->json('id'));
+        $this->assertTrue($baru->hasRole('admin'));
+        $this->assertSame([$f['mi']->id], array_map('intval', $this->pivotOf($baru)));
+    }
+
+    public function test_01c_admin_scoped_tidak_bisa_buat_admin_lembaga_luar(): void
+    {
+        $f = $this->fixture();
+        $md = Lembaga::create([
+            'parent_id' => $f['root']->id, 'nama' => 'Madrasah Diniyah', 'kode' => 'MD',
+            'is_seleksi' => false, 'kelompok_psb' => 'combo_mi_md', 'is_active' => true,
+        ]);
+        $admin = $this->makeUser('admin', [$f['mi']->id]);
+
+        $this->actingAs($admin, 'sanctum')->postJson('/api/admin/users', [
+            'name' => 'Admin MD',
+            'email' => 'admin_md_'.uniqid().'@example.com',
+            'password' => 'password',
+            'roles' => ['admin'],
+            'lembaga_ids' => [$md->id],
         ])->assertStatus(403);
+
+        $this->assertDatabaseMissing('users', ['name' => 'Admin MD']);
+    }
+
+    public function test_01d_admin_full_bisa_buat_admin(): void
+    {
+        $this->fixture();
+        $adminFull = $this->makeUser('admin');
+
+        $res = $this->actingAs($adminFull, 'sanctum')->postJson('/api/admin/users', [
+            'name' => 'Admin Global',
+            'email' => 'admin_global_'.uniqid().'@example.com',
+            'password' => 'password',
+            'roles' => ['admin'],
+        ])->assertStatus(201);
+
+        $baru = User::findOrFail($res->json('id'));
+        $this->assertTrue($baru->hasRole('admin'));
+        $this->assertTrue($baru->isAdminFull());
+        $this->assertSame([], $this->pivotOf($baru));
+    }
+
+    public function test_01e_admin_tetap_tidak_bisa_beri_role_admin_via_update_dan_assign(): void
+    {
+        $f = $this->fixture();
+        $admin = $this->makeUser('admin', [$f['mi']->id]);
+        $target = $this->makeUser('kasir', [$f['mi']->id]);
+
+        $this->actingAs($admin, 'sanctum')->putJson("/api/admin/users/{$target->id}", [
+            'roles' => ['admin'],
+        ])->assertStatus(403);
+
+        $this->actingAs($admin, 'sanctum')->postJson("/api/admin/users/{$target->id}/roles", [
+            'role' => 'admin',
+        ])->assertStatus(403);
+
+        $this->assertFalse($target->fresh()->hasRole('admin'));
     }
 
     // ---------- 2. admin tidak bisa sync role diri sendiri ----------
@@ -161,13 +239,13 @@ class UserRoleGuardTest extends TestCase
         $admin = $this->makeUser('admin', [$f['mi']->id]);
 
         $this->actingAs($admin, 'sanctum')->postJson('/api/admin/lembaga', [
-            'nama' => 'Unit Liar ' . uniqid(),
-            'kode' => 'LX' . strtoupper(substr(uniqid(), -6)),
+            'nama' => 'Unit Liar '.uniqid(),
+            'kode' => 'LX'.strtoupper(substr(uniqid(), -6)),
         ])->assertStatus(403);
 
         $this->actingAs($this->makeUser('admin'), 'sanctum')->postJson('/api/admin/lembaga', [
-            'nama' => 'Unit Full ' . uniqid(),
-            'kode' => 'LY' . strtoupper(substr(uniqid(), -6)),
+            'nama' => 'Unit Full '.uniqid(),
+            'kode' => 'LY'.strtoupper(substr(uniqid(), -6)),
         ])->assertStatus(403);
     }
 
@@ -177,8 +255,8 @@ class UserRoleGuardTest extends TestCase
         $super = $this->makeUser('super_admin');
 
         $this->actingAs($super, 'sanctum')->postJson('/api/admin/lembaga', [
-            'nama' => 'Unit Baru ' . uniqid(),
-            'kode' => 'LZ' . strtoupper(substr(uniqid(), -6)),
+            'nama' => 'Unit Baru '.uniqid(),
+            'kode' => 'LZ'.strtoupper(substr(uniqid(), -6)),
         ])->assertStatus(201);
     }
 
