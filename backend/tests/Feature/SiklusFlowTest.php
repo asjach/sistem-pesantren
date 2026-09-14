@@ -618,6 +618,34 @@ class SiklusFlowTest extends TestCase
             ->postJson("/api/admin/riwayat/{$riwayat->id}/keluar-kelas")
             ->assertStatus(422);
     }
+
+    // ---------- 12. santri legacy: adopsi lembaga + status turunan (v1.10) ----------
+
+    public function test_12_set_kelas_mengadopsi_lembaga_dan_status_global_turunan(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeUser('super_admin', []);
+
+        $s = Santri::create(['lembaga_id' => null, 'nama_lengkap' => 'Legacy Adopsi', 'jk' => 'L', 'status_global' => false]);
+        $kelas = $this->makeKelas($f['mi'], $f['taLama'], 'IV-A', '4');
+        $riwayat = $this->makeRiwayat($s, $f['taLama'], $f['mi'], '1');
+
+        // Penempatan kelas → lembaga diadopsi + status_global menyala (punya riwayat aktif).
+        $this->actingAs($admin, 'sanctum')
+            ->postJson("/api/admin/riwayat/{$riwayat->id}/set-kelas", ['kelas_id' => $kelas->id])
+            ->assertStatus(200);
+
+        $s->refresh();
+        $this->assertEquals($f['mi']->id, (int) $s->lembaga_id);
+        $this->assertEquals($kelas->id, (int) $s->kelas_id);
+        $this->assertTrue((bool) $s->status_global);
+
+        // Mutasi menutup satu-satunya riwayat aktif → status_global kembali nonaktif.
+        $this->actingAs($admin, 'sanctum')
+            ->postJson("/api/admin/santri/{$s->id}/mutasi", $this->mutasiPayload($f['mi'], $kelas))
+            ->assertStatus(200);
+        $this->assertFalse((bool) $s->fresh()->status_global);
+    }
 }
 
 /*

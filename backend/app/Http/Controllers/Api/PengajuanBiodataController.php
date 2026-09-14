@@ -51,6 +51,11 @@ class PengajuanBiodataController extends Controller
 
         $base = PengajuanBiodataSantri::query()->whereHas('santri', function ($q) use ($auth, $request) {
             $this->scopeLembaga($q, $auth, $request);
+            // Legacy (lembaga_id NULL) = arsip pusat → ikut terlihat admin scoped (v1.10);
+            // tidak berlaku saat filter lembaga eksplisit.
+            if (! $request->filled('lembaga_id') && ! $auth->hasRole('super_admin') && ! $auth->isAdminFull()) {
+                $q->orWhereNull('lembaga_id');
+            }
         });
 
         $badge = (clone $base)->selectRaw('status, COUNT(*) as jumlah')->groupBy('status')->pluck('jumlah', 'status');
@@ -71,7 +76,11 @@ class PengajuanBiodataController extends Controller
     public function setujui(int $id, PengajuanBiodataService $service): JsonResponse
     {
         $pengajuan = PengajuanBiodataSantri::with('santri:id,lembaga_id')->findOrFail($id);
-        $this->authorizeLembaga(auth()->user(), (int) $pengajuan->santri->lembaga_id);
+        // Legacy (lembaga_id NULL) = arsip pusat → boleh semua admin (v1.10).
+        $lembagaId = $pengajuan->santri->lembaga_id;
+        if ($lembagaId !== null) {
+            $this->authorizeLembaga(auth()->user(), (int) $lembagaId);
+        }
 
         $service->setujui($id, auth()->id(), $this->isFull(auth()->user()));
 
@@ -83,7 +92,11 @@ class PengajuanBiodataController extends Controller
     {
         $data = $request->validate(['catatan' => ['nullable', 'string']]);
         $pengajuan = PengajuanBiodataSantri::with('santri:id,lembaga_id')->findOrFail($id);
-        $this->authorizeLembaga(auth()->user(), (int) $pengajuan->santri->lembaga_id);
+        // Legacy (lembaga_id NULL) = arsip pusat → boleh semua admin (v1.10).
+        $lembagaId = $pengajuan->santri->lembaga_id;
+        if ($lembagaId !== null) {
+            $this->authorizeLembaga(auth()->user(), (int) $lembagaId);
+        }
 
         $service->tolak($id, auth()->id(), $data['catatan'] ?? null);
 

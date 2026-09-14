@@ -127,7 +127,7 @@ class SantriLengkapImport implements ToCollection, WithHeadingRow, WithValidatio
                     'kode_pos'         => $row['kode_pos'] ?? null,
                     'nis'              => $row['nis'] ?? null, // NIS aktif terakhir (kuitansi/rapor)
                     'tipe_santri'      => in_array($row['tipe_santri'] ?? null, ['asrama', 'non_asrama'], true) ? $row['tipe_santri'] : 'non_asrama',
-                    'status_global'    => true,
+                    // status_global TIDAK di-hardcode (v1.10): dihitung turunan dari riwayat di bawah.
                 ];
 
                 // PENTING: hanya pakai updateOrCreate() saat NIK terisi.
@@ -202,6 +202,11 @@ class SantriLengkapImport implements ToCollection, WithHeadingRow, WithValidatio
                         'is_aktif'     => true,
                     ]
                 );
+
+                // status_global turunan murni (v1.10): true iff ada riwayat aktif.
+                $santri->update([
+                    'status_global' => RiwayatBelajar::where('santri_id', $santri->id)->where('is_aktif', true)->exists(),
+                ]);
             }
         });
     }

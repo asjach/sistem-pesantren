@@ -82,11 +82,21 @@ class SantriController extends Controller
         return response()->json(['pesan' => 'Data santri diperbarui.', 'data' => $santri->fresh()]);
     }
 
+    /** Otorisasi per-santri: legacy (lembaga_id NULL) = arsip pusat, boleh semua admin (v1.10);
+     *  selain itu tetap tenant ketat per lembaga. */
+    private function authorizeSantri(Request $request, Santri $santri): void
+    {
+        if ($santri->lembaga_id === null) {
+            return;
+        }
+        $this->authorizeLembaga($request->user(), (int) $santri->lembaga_id);
+    }
+
     // Upload foto profil santri. Storage: storage/app/santri/foto/* ; DB hanya path di santri.foto_url.
     public function uploadFoto(Request $request, Santri $santri): JsonResponse
     {
         $this->authorize('update', $santri);
-        $this->authorizeLembaga($request->user(), (int) $santri->lembaga_id);
+        $this->authorizeSantri($request, $santri);
 
         $data = $request->validate([
             'foto' => ['required', 'file', 'mimes:jpg,jpeg,png', 'max:2048'],
@@ -111,7 +121,7 @@ class SantriController extends Controller
     public function uploadDokumen(Request $request, Santri $santri)
     {
         $this->authorize('update', $santri);
-        $this->authorizeLembaga($request->user(), (int) $santri->lembaga_id);
+        $this->authorizeSantri($request, $santri);
 
         $data = $request->validate([
             'jenis_dokumen_santri' => ['required', 'string', 'max:50'],
@@ -149,7 +159,7 @@ class SantriController extends Controller
     public function listDokumen(Request $request, Santri $santri): JsonResponse
     {
         $this->authorize('view', $santri);
-        $this->authorizeLembaga($request->user(), (int) $santri->lembaga_id);
+        $this->authorizeSantri($request, $santri);
 
         return response()->json([
             'pesan' => 'Dokumen santri berhasil dimuat.',
@@ -161,7 +171,7 @@ class SantriController extends Controller
     public function tidakMemiliki(Request $request, Santri $santri, DokumenSantri $dokumen): JsonResponse
     {
         $this->authorize('update', $santri);
-        $this->authorizeLembaga($request->user(), (int) $santri->lembaga_id);
+        $this->authorizeSantri($request, $santri);
 
         if ((int) $dokumen->santri_id !== (int) $santri->id) {
             abort(404, 'Dokumen tidak tertaut ke santri ini.');

@@ -191,7 +191,7 @@ function santriGridValues(s: Santri): Record<string, string | null> {
     out[f.key] = TGL_KEYS.has(f.key) ? str.slice(0, 10) : str;
   }
   out.kelas = s.kelas?.nama_kelas ?? null;
-  out.lembaga = s.lembaga?.kode ?? s.lembaga?.nama ?? String(s.lembaga_id);
+  out.lembaga = s.lembaga?.kode ?? s.lembaga?.nama ?? (s.lembaga_id != null ? String(s.lembaga_id) : '—');
   out.status = s.status_global ? 'aktif' : 'nonaktif';
   return out;
 }

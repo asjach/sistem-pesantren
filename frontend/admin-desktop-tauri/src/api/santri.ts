@@ -5,7 +5,8 @@ import type { Paginate } from './master';
 
 export interface Santri {
   id: number;
-  lembaga_id: number;
+  /** null = legacy tanpa track (lembaga ditentukan riwayat/penempatan kelas). */
+  lembaga_id: number | null;
   kelas_id: number | null;
   nama_lengkap: string;
   nama_singkat: string | null;

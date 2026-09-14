@@ -15,12 +15,12 @@ PSB → keuangan → kepegawaian → akademik → nilai → presensi → asrama 
 > Keputusan desain (v1.10, gambaran umum — masih bisa berubah):
 > 1. `santri.lembaga_id` boleh NULL (legacy tanpa track); sumber kebenaran
 >    lembaga = `riwayat_belajar`, kolom ini cache lembaga primer terakhir.
+>    **Sudah diimplementasikan (v1.10.2, FK nullOnDelete).**
 > 2. `santri.status_global` turunan murni (default false): true iff punya ≥1
->    `riwayat_belajar.is_aktif`.
+>    `riwayat_belajar.is_aktif`. **Sudah diimplementasikan (v1.10.2 + backfill).**
 > 3. Asrama = entitas sendiri (BLOK 11), peran `asrama` (7 peran) + pivot
 >    `user_asrama`. Keuangan asrama ditandai lewat `pos_keuangan.kategori`.
->    **Implementasi asrama = pasca production** (belum dibuat sekarang);
->    poin 1–2 (santri) dibahas terpisah dari asrama.
+>    **Implementasi asrama = pasca production** (belum dibuat sekarang).
 
 ## Auth bawaan Laravel (`0001_*_create_users_table.php`)
 

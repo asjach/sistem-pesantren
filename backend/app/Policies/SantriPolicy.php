@@ -21,6 +21,10 @@ class SantriPolicy
         // Wali: hanya anaknya sendiri
         if ($user->hasRole('orang_tua') && ! $this->isAnakWali($user, $santri)) return false;
         if ($user->hasRole('orang_tua')) return true;
+        // Santri legacy (lembaga_id NULL) = arsip pusat → semua admin (v1.10).
+        if ($santri->lembaga_id === null && $user->hasAnyRole(['super_admin', 'admin'])) {
+            return true;
+        }
         // Admin/guru/kasir: tenant lembaga (utama + pivot user_lembaga)
         return $user->canAccessLembaga((int) $santri->lembaga_id);
     }

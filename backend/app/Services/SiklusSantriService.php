@@ -142,9 +142,9 @@ class SiklusSantriService
                     if ($baru) break; // race dobel-klik → baca ulang, idempoten
                 }
             }
-            // Mirror master hanya untuk lembaga primer (santri.lembaga_id).
-            if ((int) $santri->lembaga_id === (int) $lembagaId) {
-                $santri->update(['nis' => $baru->nis, 'kelas_id' => null]);
+            // Mirror master untuk lembaga primer (santri.lembaga_id); legacy (NULL) mengadopsi (v1.10).
+            if ($santri->lembaga_id === null || (int) $santri->lembaga_id === (int) $lembagaId) {
+                $santri->update(['lembaga_id' => $lembagaId, 'nis' => $baru->nis, 'kelas_id' => null]);
             }
             $this->hitungUlangStatusGlobal($santri->fresh());
             return $baru;
@@ -195,7 +195,11 @@ class SiklusSantriService
             if ($riwayat->tingkat && $kelas->tingkat && $riwayat->tingkat !== $kelas->tingkat) abort(422, 'Tingkat kelas tidak cocok.');
             $riwayat->update(['kelas_id' => $kelas->id]);
             $santri = $riwayat->santri;
-            if ((int) $santri->lembaga_id === (int) $riwayat->lembaga_id) $santri->update(['kelas_id' => $kelas->id]);
+            // Mirror master: lembaga primer sama; legacy (NULL) mengadopsi lembaga dari penempatan (v1.10).
+            if ($santri->lembaga_id === null || (int) $santri->lembaga_id === (int) $riwayat->lembaga_id) {
+                $santri->update(['lembaga_id' => $riwayat->lembaga_id, 'kelas_id' => $kelas->id]);
+            }
+            $this->hitungUlangStatusGlobal($santri->fresh());
             return $riwayat->fresh();
         });
     }
@@ -217,7 +221,11 @@ class SiklusSantriService
             if (! $riwayat->is_aktif) abort(422, 'Riwayat tidak aktif.');
             $riwayat->update(['kelas_id' => null]);
             $santri = $riwayat->santri;
-            if ($santri && (int) $santri->lembaga_id === (int) $riwayat->lembaga_id) $santri->update(['kelas_id' => null]);
+            // Legacy (NULL) mengadopsi lembaga riwayat; lembaga primer lain tidak diubah (v1.10).
+            if ($santri && ($santri->lembaga_id === null || (int) $santri->lembaga_id === (int) $riwayat->lembaga_id)) {
+                $santri->update(['lembaga_id' => $riwayat->lembaga_id, 'kelas_id' => null]);
+            }
+            $this->hitungUlangStatusGlobal($santri->fresh());
             return $riwayat->fresh();
         });
     }

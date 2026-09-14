@@ -464,4 +464,31 @@ class SantriFlowTest extends TestCase
         $this->actingAs($adminMd, 'sanctum')->patchJson("/api/admin/santri/{$s2->id}", ['nama_lengkap' => 'Hack'])
             ->assertStatus(403);
     }
+
+    // ---------- 12. legacy tanpa lembaga (v1.10) ----------
+
+    public function test_12_santri_legacy_tanpa_lembaga_terlihat_semua_admin_dan_bisa_diedit(): void
+    {
+        $f = $this->baseFixture();
+        $adminMi = $this->makeUser('admin', [$f['mi']->id]);
+        $adminMd = $this->makeUser('admin', [$f['md']->id]);
+
+        $legacy = Santri::create(['lembaga_id' => null, 'nama_lengkap' => 'Santri Legacy', 'jk' => 'L']);
+        // Status turunan murni: default nonaktif sampai punya riwayat aktif.
+        $this->assertFalse((bool) $legacy->fresh()->status_global);
+
+        // Terlihat admin scoped mana pun (arsip pusat).
+        foreach ([$adminMi, $adminMd] as $admin) {
+            $this->actingAs($admin, 'sanctum')->getJson('/api/admin/santri')
+                ->assertStatus(200)
+                ->assertJsonFragment(['nama_lengkap' => 'Santri Legacy']);
+        }
+
+        // Edit + akses dokumen lintas-lembaga boleh (lembaga_id NULL).
+        $this->actingAs($adminMd, 'sanctum')->patchJson("/api/admin/santri/{$legacy->id}", ['nama_singkat' => 'Legacy'])
+            ->assertStatus(200);
+        $this->assertSame('Legacy', $legacy->fresh()->nama_singkat);
+        $this->actingAs($adminMi, 'sanctum')->getJson("/api/admin/santri/{$legacy->id}/dokumen")
+            ->assertStatus(200);
+    }
 }

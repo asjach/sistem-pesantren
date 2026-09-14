@@ -169,7 +169,10 @@ class Santri extends Model
         }
 
         // Single-tenant: tenant = lembaga via pivot user_lembaga.
-        return $query->whereIn('lembaga_id', $authUser->lembagaIds());
+        // Santri legacy (lembaga_id NULL) = arsip pusat → terlihat semua admin (v1.10).
+        return $query->where(fn (Builder $q) => $q
+            ->whereIn('lembaga_id', $authUser->lembagaIds())
+            ->orWhereNull('lembaga_id'));
     }
 
     /** NIS WAJIB unik: dicek ke master santri + arsip riwayat_belajar santri lain.
