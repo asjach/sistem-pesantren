@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
-import { ViewDialog } from '@/components/ViewDialog';
+import { UserViewDialog } from '@/components/UserViewDialog';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import {
   Dialog,
@@ -373,11 +373,10 @@ export default function UsersPage() {
           </form>
         </DialogContent>
       </Dialog>
-      <ViewDialog
+      <UserViewDialog
         open={viewRow !== null}
         onOpenChange={(o) => { if (!o) setViewRow(null); }}
-        title={viewRow ? `Pengguna: ${viewRow.name}` : 'Pengguna'}
-        row={viewRow as unknown as Record<string, unknown> | null}
+        user={viewRow}
       />
       <Dialog open={editRow !== null} onOpenChange={(o) => { if (!o) setEditRow(null); }}>
         <DialogContent className="max-w-xl">
