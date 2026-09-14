@@ -657,7 +657,7 @@ export default function PartStyleEditor() {
                   </span>
                   <div
                     className={cn(
-                      'grid min-h-[130px] flex-1 place-items-center overflow-hidden rounded-lg border p-4',
+                      'grid min-h-[100px] flex-1 place-items-center overflow-hidden rounded-lg border p-3',
                       modeGelap && 'dark',
                     )}
                     style={{ ...wajah(modeGelap), background: 'var(--background)', color: 'var(--foreground)' }}
@@ -709,7 +709,7 @@ export default function PartStyleEditor() {
                 <RotateCcw size={14} /> Reset bagian
               </Button>
             </div>
-            <div className="mt-3 grid gap-4 md:grid-cols-2 xl:grid-cols-3 md:min-h-0 md:flex-1 md:overflow-y-auto">
+            <div className="mt-3 grid gap-4 md:grid-cols-2 2xl:grid-cols-3 md:min-h-0 md:flex-1 md:overflow-y-auto">
               <FieldSet className="gap-2 rounded-lg border p-3">
                 <FieldLegend variant="label" className="mb-0">Tipografi</FieldLegend>
                 <div className="flex items-center gap-1.5">
@@ -775,8 +775,9 @@ export default function PartStyleEditor() {
                 </FieldDescription>
               </FieldSet>
 
-              <FieldSet className="gap-2 rounded-lg border p-3 md:col-span-2 xl:col-span-1">
+              <FieldSet className="gap-2 rounded-lg border p-3 md:col-span-2 2xl:col-span-1">
                 <FieldLegend variant="label" className="mb-0">Kotak</FieldLegend>
+                <div className="grid gap-2 sm:grid-cols-2 2xl:grid-cols-1">
                 <AngkaField
                   id="input_borderw_bagian"
                   label="Tebal border"
@@ -877,7 +878,10 @@ export default function PartStyleEditor() {
                   max={RENTANG.opacity[1]}
                   onChange={(v) => setGayaBagian(aktif, { opacity: v })}
                 />
-                <FieldDescription>Berlaku untuk mode terang & gelap. Kosong = bawaan komponen.</FieldDescription>
+                <FieldDescription className="sm:col-span-2 2xl:col-span-1">
+                  Berlaku untuk mode terang & gelap. Kosong = bawaan komponen.
+                </FieldDescription>
+                </div>
               </FieldSet>
             </div>
     </div>
@@ -907,7 +911,7 @@ export default function PartStyleEditor() {
                 defaultLayout={layoutV.defaultLayout}
                 onLayoutChanged={layoutV.onLayoutChanged}
               >
-                <ResizablePanel id="pratinjau" defaultSize="52%" minSize="18%" maxSize="82%">
+                <ResizablePanel id="pratinjau" defaultSize="38%" minSize="14%" maxSize="70%">
                   <div className="h-full min-h-0">{kartuPratinjau}</div>
                 </ResizablePanel>
                 <ResizableHandle withHandle orientation="vertical" />
