@@ -85,6 +85,16 @@ export function variabelBagian(id: PartId, g?: PartGaya, w?: PartWarna): Record<
   return v;
 }
 
+/** Apakah `anak` turunan (langsung/tidak) dari `induk`? */
+function turunanDari(anak: PartId, induk: PartId): boolean {
+  let p = PART_BY_ID.get(anak)?.induk;
+  while (p) {
+    if (p === induk) return true;
+    p = PART_BY_ID.get(p)?.induk;
+  }
+  return false;
+}
+
 /** Satu blok aturan untuk sebuah bagian dalam scope mode tertentu. */
 function blokBagian(scope: string, id: PartId, g?: PartGaya, w?: PartWarna): string {
   const meta = PART_BY_ID.get(id);
@@ -97,15 +107,17 @@ function blokBagian(scope: string, id: PartId, g?: PartGaya, w?: PartWarna): str
   const root = `${scope} :is(${meta.sel})`;
   let css = `${root}{${[...permukaan, ...teks].join(';')}}\n`;
   if (teks.length) {
-    // Keturunan: kecuali elemen yang merupakan akar bagian LAIN (dan isinya) —
-    // supaya bagian bersarang (mis. tab di dalam ribbon) tidak saling timpa.
-    const lain = PARTS.filter((p) => p.id !== id)
+    // Keturunan: kecuali elemen yang merupakan akar bagian LAIN — supaya bagian
+    // bersarang tidak saling timpa (mis. tab di dalam ribbon). Hanya elemen akar
+    // yang dikecualikan (bukan seluruh isinya) agar gaya teks bagian induk tetap
+    // turun ke anak-anaknya; setelan anak (ditulis setelah induk) tetap menang.
+    const lain = PARTS.filter((p) => p.id !== id && !turunanDari(p.id, id))
       .map((p) => p.sel)
       .join(',');
     const desc =
       `${scope} :is(${meta.sel}) :where(*)` +
       tolakKontrol(meta.kendali) +
-      `:not(:where(${lain})):not(:where(${lain}) *)` +
+      `:not(:where(${lain}))` +
       TOLAK_WARNA;
     css += `${desc}{${teks.join(';')}}\n`;
   }
