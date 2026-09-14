@@ -31,7 +31,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { AlignCenter, AlignLeft, AlignRight, Ban, Copy, Check, Eye, MoreVertical, MoveHorizontal, Pencil, PlusCircle, RotateCcw, Save, Search, Trash2 } from '@/icons';
+import { AlignCenter, AlignLeft, AlignRight, Ban, Copy, Check, Eye, MoreVertical, Pencil, PlusCircle, Save, Search, Trash2 } from '@/icons';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -1906,23 +1906,45 @@ export default function ExcelTable<T extends { id: string | number }>({
 
   // Publikasikan perintah tabel ke tab ribbon "Tabel" (tab memakai tabel
   // pertama yang terdaftar di halaman; handler selalu versi terbaru via ref).
-  // Depend hanya pada callback registri yang stabil — objek context berubah
-  // identitas saat registri terisi dan akan memicu loop daftar/lepas.
+  // Depend hanya pada callback registri yang stabil + status mode — objek context
+  // berubah identitas saat registri terisi dan akan memicu loop daftar/lepas.
   const ribbon = useRibbonTable();
   const ribbonDaftar = ribbon?.daftar;
   const ribbonLepas = ribbon?.lepas;
   const ribbonAksiRef = useRef({ salin: () => {}, autofit: () => {}, reset: () => {} });
   ribbonAksiRef.current = { salin: onCopy, autofit: onAutoFitAll, reset: onResetView };
+  // Lepas registri hanya saat tabel unmount/ganti key — bukan tiap status mode
+  // berubah (kalau tidak, ribbon sempat kosong lalu disabled sekilas).
   useEffect(() => {
     if (!ribbonDaftar || !ribbonLepas) return;
+    return () => ribbonLepas(tableKey);
+  }, [ribbonDaftar, ribbonLepas, tableKey]);
+  useEffect(() => {
+    if (!ribbonDaftar) return;
     ribbonDaftar(tableKey, {
       tableKey,
       salin: () => ribbonAksiRef.current.salin(),
       autofit: () => ribbonAksiRef.current.autofit(),
       reset: () => ribbonAksiRef.current.reset(),
+      canEdit,
+      editMode,
+      setEditMode,
+      editing,
+      inputEnabled,
+      inputMode,
+      setInputMode,
+      showInput,
     });
-    return () => ribbonLepas(tableKey);
-  }, [ribbonDaftar, ribbonLepas, tableKey]);
+  }, [
+    ribbonDaftar,
+    tableKey,
+    canEdit,
+    editMode,
+    editing,
+    inputEnabled,
+    inputMode,
+    showInput,
+  ]);
 
   const hasSearchInput = searchValue !== undefined && onSearchChange;
   const hasFilter = filter !== undefined;
@@ -1959,6 +1981,19 @@ export default function ExcelTable<T extends { id: string | number }>({
               Esc
             </kbd>{' '}
             untuk keluar.
+          </span>
+          <span
+            className="flex items-center gap-2 text-[11px]"
+            title="Sel bertanda bawah = bisa diedit; sel berarsir = baca-saja."
+          >
+            <span className="flex items-center gap-1">
+              <span className="simpes-dsg-swatch-editable size-2.5 rounded-[3px]" />
+              bisa diedit
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="simpes-dsg-swatch-readonly size-2.5 rounded-[3px]" />
+              baca-saja
+            </span>
           </span>
           <Button
             id={`btn_keluar_mode_edit_${tableKey}`}
@@ -2047,100 +2082,11 @@ export default function ExcelTable<T extends { id: string | number }>({
           </div>
         ) : null}
         <div className="ml-auto flex flex-wrap items-center gap-2">
-          {/* Grup 1 — gerbang mode edit (satu-satunya cara mengaktifkan ubah sel) */}
-          {canEdit && (
-            <ToolbarGroup title="Mode edit sel">
-              <label
-                htmlFor={`chk_edit_${tableKey}`}
-                className="flex cursor-pointer items-center gap-1.5 text-xs text-muted-foreground"
-              >
-                <input
-                  id={`chk_edit_${tableKey}`}
-                  type="checkbox"
-                  checked={editMode}
-                  onChange={(e) => setEditMode(e.target.checked)}
-                  className="size-3.5 accent-[var(--accent)]"
-                />
-                Edit
-              </label>
-              {editing ? (
-                <span
-                  className="flex items-center gap-2 text-[11px] text-muted-foreground"
-                  title="Sel bertanda bawah = bisa diedit; sel berarsir = baca-saja."
-                >
-                  <span className="flex items-center gap-1">
-                    <span className="simpes-dsg-swatch-editable size-2.5 rounded-[3px]" />
-                    bisa diedit
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <span className="simpes-dsg-swatch-readonly size-2.5 rounded-[3px]" />
-                    baca-saja
-                  </span>
-                </span>
-              ) : null}
-            </ToolbarGroup>
-          )}
-
-          {/* Grup mode input baris baru (hanya bila halaman mendukung create) */}
-          {inputEnabled && (
-            <ToolbarGroup title="Mode input baris baru di paling bawah">
-              <label
-                htmlFor={`chk_input_${tableKey}`}
-                className="flex cursor-pointer items-center gap-1.5 text-xs text-muted-foreground"
-              >
-                <input
-                  id={`chk_input_${tableKey}`}
-                  type="checkbox"
-                  checked={inputMode}
-                  onChange={(e) => setInputMode(e.target.checked)}
-                  className="size-3.5 accent-[var(--accent)]"
-                />
-                Input
-              </label>
-              {showInput ? (
-                <span className="text-[11px] text-muted-foreground">baris baru di bawah</span>
-              ) : null}
-            </ToolbarGroup>
-          )}
-
-          {/* Grup preset kolom tampilan (tersimpan di DB per lembaga) */}
+          {/* Preset kolom tampilan (tersimpan di DB per lembaga). Kontrol tabel
+              umum (mode edit/input, salin, autofit, reset) pindah ke ribbon tab
+              "Tabel" agar tak memakan ruang toolbar. */}
           <ToolbarGroup title="Kolom tampilan">
             <PresetKolom tableKey={tableKey} fields={fields} onApply={setPresetKeys} apiRef={presetApiRef} />
-          </ToolbarGroup>
-
-          {/* Grup 2 — alat tabel: salin, sesuaikan lebar, reset */}
-          <ToolbarGroup>
-          <Button
-            id={`btn_salin_${tableKey}`}
-            size="icon-sm"
-            variant="outline"
-            title="Salin TSV"
-            aria-label="Salin TSV"
-            disabled={checkedIds.size === 0 && !range}
-            onClick={onCopy}
-          >
-            <Copy size={16} />
-          </Button>
-          <Button
-            id={`btn_autofit_${tableKey}`}
-            size="icon-sm"
-            variant="outline"
-            title="Sesuaikan lebar semua kolom dengan isi"
-            aria-label="Sesuaikan lebar semua kolom dengan isi"
-            onClick={onAutoFitAll}
-          >
-            <MoveHorizontal size={16} />
-          </Button>
-          <Button
-            id={`btn_reset_${tableKey}`}
-            size="icon-sm"
-            variant="ghost"
-            title="Reset tampilan"
-            aria-label="Reset tampilan"
-            onClick={onResetView}
-          >
-            <RotateCcw size={16} />
-          </Button>
           </ToolbarGroup>
 
           {/* Tombol aksi utama halaman, sejajar dengan kontrol tabel. */}

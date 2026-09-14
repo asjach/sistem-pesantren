@@ -123,31 +123,37 @@ export function RibbonBtn({
   );
 }
 
-/** Tombol perintah ribbon (aksi, bukan navigasi). */
+/** Tombol perintah ribbon (aksi, bukan navigasi). `aktif` untuk tombol toggle. */
 export function RibbonCmd({
   id,
   icon: Icon,
   label,
   onClick,
   disabled,
+  aktif,
 }: {
   id: string;
   icon: Ikon;
   label: string;
   onClick: () => void;
   disabled?: boolean;
+  aktif?: boolean;
 }) {
   return (
     <button
       id={id}
       type="button"
       title={label}
+      aria-pressed={aktif}
       disabled={disabled}
       onClick={onClick}
       data-part="menu_ribbon"
       className={cn(
         'flex h-[58px] w-[76px] flex-col items-center justify-center gap-1 rounded-md px-1 text-center text-[11px] leading-tight transition-colors',
-        'text-white/85 hover:bg-white/10 hover:text-white disabled:pointer-events-none disabled:opacity-40',
+        aktif
+          ? 'bg-white/20 font-semibold text-white'
+          : 'text-white/85 hover:bg-white/10 hover:text-white',
+        'disabled:pointer-events-none disabled:opacity-40',
       )}
     >
       <Icon size={20} />

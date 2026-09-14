@@ -6,6 +6,16 @@ export interface RibbonTableApi {
   salin: () => void;
   autofit: () => void;
   reset: () => void;
+  /** Mode edit sel: kemampuan + status (dipakai tombol toggle di ribbon). */
+  canEdit: boolean;
+  editMode: boolean;
+  setEditMode: (v: boolean) => void;
+  editing: boolean;
+  /** Mode input baris baru: kemampuan + status. */
+  inputEnabled: boolean;
+  inputMode: boolean;
+  setInputMode: (v: boolean) => void;
+  showInput: boolean;
 }
 
 interface RibbonTableCtxValue {
@@ -17,13 +27,15 @@ interface RibbonTableCtxValue {
 const Ctx = createContext<RibbonTableCtxValue | null>(null);
 
 /** Registri tabel aktif: tabel pertama yang terdaftar (paling atas di halaman)
- *  dipakai sebagai sumber perintah ribbon. Tidak memicu re-render saat seleksi
- *  sel berubah — metode selalu membaca handler terbaru lewat ref di ExcelTable. */
+ *  dipakai sebagai sumber perintah ribbon. Objek api reaktif (memuat status mode
+ *  edit/input), tetapi pendaftaran ulang hanya terjadi saat status itu atau
+ *  kemampuan tabel berubah — bukan saat seleksi sel berubah; handler aksi selalu
+ *  membaca versi terbaru lewat ref di ExcelTable. */
 export function RibbonTableProvider({ children }: { children: ReactNode }) {
   const [apis, setApis] = useState<Record<string, RibbonTableApi>>({});
 
   const daftar = useCallback((key: string, api: RibbonTableApi) => {
-    setApis((prev) => (prev[key] ? prev : { ...prev, [key]: api }));
+    setApis((prev) => (prev[key] === api ? prev : { ...prev, [key]: api }));
   }, []);
   const lepas = useCallback((key: string) => {
     setApis((prev) => {

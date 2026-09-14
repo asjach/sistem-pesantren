@@ -10,7 +10,7 @@ import {
   useGridPrefs,
 } from '@/components/GridPrefs';
 import type { RibbonTableApi } from '@/components/RibbonTable';
-import { Copy, MoveHorizontal, RotateCcw } from '@/icons';
+import { Copy, MoveHorizontal, Pencil, PlusCircle, RotateCcw } from '@/icons';
 import {
   Select,
   SelectContent,
@@ -31,6 +31,25 @@ export function RibbonTabel({ apiTabel }: { apiTabel: RibbonTableApi | null }) {
 
   return (
     <>
+      <RibbonGroup label="Mode">
+        <RibbonCmd
+          id="ribbon_btn_edit"
+          icon={Pencil}
+          label="Edit Sel"
+          aktif={!!apiTabel?.editing}
+          disabled={!apiTabel?.canEdit}
+          onClick={() => apiTabel?.setEditMode(!apiTabel.editMode)}
+        />
+        <RibbonCmd
+          id="ribbon_btn_input"
+          icon={PlusCircle}
+          label="Input Baris"
+          aktif={!!apiTabel?.showInput}
+          disabled={!apiTabel?.inputEnabled}
+          onClick={() => apiTabel?.setInputMode(!apiTabel.inputMode)}
+        />
+      </RibbonGroup>
+      <RibbonPemisah />
       <RibbonGroup label="Papan Klip">
         <RibbonCmd
           id="ribbon_btn_salin"
