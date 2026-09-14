@@ -542,11 +542,11 @@ export default function PartStyleEditor() {
                   value={mode}
                   onValueChange={(v) => { if (v) setMode(v as PartMode); }}
                 >
-                  <ToggleGroupItem id="btn_bagian_terang" value="terang" title="Atur warna mode terang">
-                    <Sun size={14} /> Terang
+                  <ToggleGroupItem id="btn_bagian_terang" value="terang" title="Atur warna mode terang" aria-label="Mode terang">
+                    <Sun size={14} />
                   </ToggleGroupItem>
-                  <ToggleGroupItem id="btn_bagian_gelap" value="gelap" title="Atur warna mode gelap">
-                    <Moon size={14} /> Gelap
+                  <ToggleGroupItem id="btn_bagian_gelap" value="gelap" title="Atur warna mode gelap" aria-label="Mode gelap">
+                    <Moon size={14} />
                   </ToggleGroupItem>
                 </ToggleGroup>
                 <Button
@@ -556,8 +556,10 @@ export default function PartStyleEditor() {
                   size="sm"
                   disabled={jumlahDiatur === 0}
                   onClick={resetSemuaBagian}
+                  title="Reset semua"
+                  aria-label="Reset semua"
                 >
-                  <RotateCcw size={14} /> Reset semua
+                  <RotateCcw size={14} />
                 </Button>
               </div>
             </div>
