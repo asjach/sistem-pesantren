@@ -189,7 +189,7 @@ export const PARTS: PartMeta[] = [
     grup: 'Struktur',
     sub: 'Bingkai',
     hint: 'Panel resizable (split view).',
-    sel: "[data-slot='resizable-panel-group']",
+    sel: "[data-slot='resizable-panel-group'], [data-slot='resizable-panel'], [data-slot='resizable-handle']",
   },
   {
     id: 'collapsible',
@@ -320,7 +320,7 @@ export const PARTS: PartMeta[] = [
     grup: 'Teks',
     sub: 'Konten',
     hint: 'Baris item serbaguna (item, media + aksi).',
-    sel: "[data-slot='item']",
+    sel: "[data-slot='item'], [data-slot='item-group'], [data-slot='item-media'], [data-slot='item-content'], [data-slot='item-title'], [data-slot='item-description'], [data-slot='item-actions'], [data-slot='item-header'], [data-slot='item-footer']",
   },
   {
     id: 'empty',
@@ -337,7 +337,7 @@ export const PARTS: PartMeta[] = [
     sub: 'Konten',
     kendali: true,
     hint: 'Daftar lipat (item, header, isi).',
-    sel: "[data-slot='accordion-item'], [data-slot='accordion-trigger'], [data-slot='accordion-content']",
+    sel: "[data-slot='accordion'], [data-slot='accordion-item'], [data-slot='accordion-trigger'], [data-slot='accordion-content']",
   },
 
   // ---------- Tabel ----------
@@ -392,7 +392,7 @@ export const PARTS: PartMeta[] = [
     sub: 'Form',
     kendali: true,
     hint: 'Label di atas input.',
-    sel: "[data-slot='label']",
+    sel: "[data-slot='label'], [data-slot='field-label']",
   },
   {
     id: 'input_form',
@@ -401,7 +401,7 @@ export const PARTS: PartMeta[] = [
     sub: 'Form',
     kendali: true,
     hint: 'Kotak isian dan select.',
-    sel: "[data-slot='input'], [data-slot='select-trigger']",
+    sel: "[data-slot='input'], [data-slot='select-trigger'], [data-slot='select-value']",
   },
   {
     id: 'field',
@@ -409,7 +409,7 @@ export const PARTS: PartMeta[] = [
     grup: 'Kontrol',
     sub: 'Form',
     hint: 'Pembungkus field (label + kontrol + keterangan).',
-    sel: "[data-slot='field']",
+    sel: "[data-slot='field'], [data-slot='field-set'], [data-slot='field-legend'], [data-slot='field-group'], [data-slot='field-content'], [data-slot='field-title'], [data-slot='field-separator'], [data-slot='field-separator-content'], [data-slot='field-error']",
   },
   {
     id: 'keterangan_field',
@@ -507,7 +507,7 @@ export const PARTS: PartMeta[] = [
     sub: 'Aksi',
     kendali: true,
     hint: 'Tombol toggle & grup toggle.',
-    sel: "[data-slot='toggle'], [data-slot='toggle-group']",
+    sel: "[data-slot='toggle'], [data-slot='toggle-group'], [data-slot='toggle-group-item']",
   },
   {
     id: 'button_group',
@@ -527,7 +527,7 @@ export const PARTS: PartMeta[] = [
     sub: 'Melayang',
     kendali: true,
     hint: 'Menu melayang, pilihan select, menu klik-kanan.',
-    sel: "[data-slot='dropdown-menu-content'], [data-slot='context-menu-content'], [data-slot='select-content']",
+    sel: "[data-slot='dropdown-menu'], [data-slot='dropdown-menu-trigger'], [data-slot='dropdown-menu-content'], [data-slot='dropdown-menu-label'], [data-slot='dropdown-menu-item'], [data-slot='dropdown-menu-separator'], [data-slot='dropdown-menu-sub-trigger'], [data-slot='dropdown-menu-sub-content'], [data-slot='context-menu-content'], [data-slot='context-menu-label'], [data-slot='context-menu-item'], [data-slot='context-menu-checkbox-item'], [data-slot='context-menu-separator'], [data-slot='select-content'], [data-slot='select-group'], [data-slot='select-label'], [data-slot='select-item'], [data-slot='select-separator']",
   },
   {
     id: 'popover',
@@ -572,7 +572,7 @@ export const PARTS: PartMeta[] = [
     sub: 'Panel',
     kendali: true,
     hint: 'Jendela dialog & konfirmasi.',
-    sel: "[data-slot='dialog-content'], [data-slot='alert-dialog-content']",
+    sel: "[data-slot='dialog-content'], [data-slot='dialog-header'], [data-slot='dialog-title'], [data-slot='dialog-description'], [data-slot='dialog-footer'], [data-slot='dialog-close'], [data-slot='alert-dialog-content'], [data-slot='alert-dialog-header'], [data-slot='alert-dialog-title'], [data-slot='alert-dialog-description'], [data-slot='alert-dialog-footer'], [data-slot='alert-dialog-action'], [data-slot='alert-dialog-cancel']",
   },
   {
     id: 'sheet',
@@ -633,7 +633,7 @@ export const PARTS: PartMeta[] = [
     sub: 'Status',
     kendali: true,
     hint: 'Notifikasi mengambang (sonner).',
-    sel: '[data-sonner-toast]',
+    sel: '[data-sonner-toast], [data-sonner-toast] [data-title], [data-sonner-toast] [data-description], [data-sonner-toast] [data-button]',
   },
 
   // ---------- Media ----------
@@ -680,7 +680,6 @@ const BELUM_DIPAKAI = new Set<PartId>([
   'subjudul',
   'kbd',
   'empty',
-  'field',
   'separator',
   'tabel',
   'input_group',
