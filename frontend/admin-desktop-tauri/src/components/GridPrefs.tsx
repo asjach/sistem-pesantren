@@ -11,7 +11,7 @@ import { prefGet, prefSet } from '@/api/client';
 import { FONT_FAMILY_DEFAULT, FONT_OPTIONS } from '@/fonts';
 
 /** Tinggi baris grid (px). */
-export const MIN_ROW_H = 26;
+export const MIN_ROW_H = 20;
 export const MAX_ROW_H = 200;
 /** Ukuran huruf isi tabel (px). */
 export const MIN_FONT_PX = 9;
