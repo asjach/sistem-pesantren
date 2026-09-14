@@ -142,12 +142,13 @@ export function listTahunAjaran(params: { search?: string; lembaga_id?: number; 
 }
 
 export function createTahunAjaran(input: {
-  lembaga_id: number;
+  lembaga_id?: number;
+  lembaga_ids?: number[];
   nama: string;
   tanggal_mulai?: string;
   tanggal_selesai?: string;
 }) {
-  return api<TahunAjaran>('/admin/tahun-ajaran', { method: 'POST', body: JSON.stringify(input) });
+  return api<TahunAjaran | { pesan: string; data: TahunAjaran[] }>('/admin/tahun-ajaran', { method: 'POST', body: JSON.stringify(input) });
 }
 
 export function updateTahunAjaran(

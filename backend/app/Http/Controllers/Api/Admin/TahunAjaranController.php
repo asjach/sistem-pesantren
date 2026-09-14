@@ -8,6 +8,7 @@ use App\Models\TahunAjaran;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 /**
  * FB-004-01: CRUD tahun ajaran per lembaga + set aktif.
@@ -31,24 +32,48 @@ class TahunAjaranController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            // TA selalu milik lembaga operasional (parent_id NOT NULL); root PESANTREN bukan lembaga KBM.
-            'lembaga_id' => ['required', Rule::exists('lembaga', 'id')->whereNotNull('parent_id')],
-            'nama' => [
-                'required', 'string', 'max:50',
-                Rule::unique('tahun_ajaran')->where(fn ($q) => $q->where('lembaga_id', $request->input('lembaga_id'))),
-            ],
+            // Satu atau banyak lembaga (multi-chip di UI); minimal satu wajib ada.
+            'lembaga_id' => ['required_without:lembaga_ids', 'integer', Rule::exists('lembaga', 'id')->whereNotNull('parent_id')],
+            'lembaga_ids' => ['required_without:lembaga_id', 'array', 'min:1'],
+            'lembaga_ids.*' => ['integer', Rule::exists('lembaga', 'id')->whereNotNull('parent_id')],
+            'nama' => ['required', 'string', 'max:50'],
             'tanggal_mulai' => ['nullable', 'date'],
             'tanggal_selesai' => ['nullable', 'date', 'after_or_equal:tanggal_mulai'],
         ], [
             'lembaga_id.exists' => 'Lembaga harus lembaga operasional (bukan induk pesantren).',
+            'lembaga_ids.*.exists' => 'Lembaga harus lembaga operasional (bukan induk pesantren).',
         ]);
 
         $auth = auth()->user();
-        $this->authorizeLembaga($auth, (int) $data['lembaga_id']);
+        $ids = isset($data['lembaga_ids'])
+            ? collect($data['lembaga_ids'])->map(fn ($id) => (int) $id)->unique()->values()->all()
+            : [(int) $data['lembaga_id']];
 
-        $tahun = TahunAjaran::create($data);
+        $dibuat = DB::transaction(function () use ($auth, $ids, $data) {
+            $rows = [];
+            foreach ($ids as $lembagaId) {
+                $this->authorizeLembaga($auth, $lembagaId);
+                if (TahunAjaran::where('lembaga_id', $lembagaId)->where('nama', $data['nama'])->exists()) {
+                    throw ValidationException::withMessages([
+                        'nama' => "Nama tahun ajaran sudah dipakai di lembaga {$lembagaId}.",
+                    ]);
+                }
+                $rows[] = TahunAjaran::create([
+                    'lembaga_id' => $lembagaId,
+                    'nama' => $data['nama'],
+                    'tanggal_mulai' => $data['tanggal_mulai'] ?? null,
+                    'tanggal_selesai' => $data['tanggal_selesai'] ?? null,
+                ]);
+            }
 
-        return response()->json($tahun, 201);
+            return $rows;
+        });
+
+        if (! isset($data['lembaga_ids'])) {
+            return response()->json($dibuat[0], 201);
+        }
+
+        return response()->json(['pesan' => count($dibuat).' tahun ajaran dibuat.', 'data' => $dibuat], 201);
     }
 
     public function update(Request $request, TahunAjaran $tahunAjaran)

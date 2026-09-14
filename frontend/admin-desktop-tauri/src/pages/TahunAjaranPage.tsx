@@ -13,6 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/field';
+import MultiSelect from '@/components/MultiSelect';
 import {
   Select,
   SelectContent,
@@ -34,6 +35,7 @@ import {
 } from '@/components/ui/dialog';
 import Pager from '@/components/Pager';
 import { usePager } from '@/hooks/usePager';
+import { useAuth } from '../auth/AuthContext';
 import { DeleteAction, EditAction, SetAktifAction, ViewAction } from '@/components/RowActions';
 import { toast } from 'sonner';
 
@@ -91,6 +93,7 @@ export default function TahunAjaranPage() {
   const [nama, setNama] = useState('');
   const [mulai, setMulai] = useState('');
   const [selesai, setSelesai] = useState('');
+  const [tambahLembagas, setTambahLembagas] = useState<string[]>([]);
   const [tambahOpen, setTambahOpen] = useState(false);
   const [viewRow, setViewRow] = useState<TahunAjaran | null>(null);
   const [editRow, setEditRow] = useState<TahunAjaran | null>(null);
@@ -145,29 +148,41 @@ export default function TahunAjaranPage() {
     setEditSelesai(t.tanggal_selesai ?? '');
   }, []);
 
+  const { user } = useAuth();
+  const isSuper = !!user?.roles.some((r) => r.name === 'super_admin');
+  // Admin yang terhubung ke lembaga tidak memilih: pakai lembaganya sendiri.
+  const linkedLembagaIds = !isSuper ? (user?.lembagas ?? []).map((l) => l.id) : [];
+  const pilihLembagaSendiri = linkedLembagaIds.length === 0;
+  // Opsi chip: hanya lembaga operasional (induk pesantren tidak punya tahun ajaran).
+  const opsiLembaga = useMemo(
+    () => lembagas.filter((l) => l.parent != null).map((l) => ({ value: String(l.id), label: l.kode ?? l.nama })),
+    [lembagas],
+  );
+
   const onCreate = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     setErr('');
-    if (lembagaId === '') {
-      setErr('Pilih lembaga dulu (wajib, tenant per lembaga).');
+    const ids = pilihLembagaSendiri ? tambahLembagas.map(Number) : linkedLembagaIds;
+    if (ids.length === 0) {
+      setErr(pilihLembagaSendiri ? 'Pilih minimal 1 lembaga (wajib).' : 'Akun Anda tidak terhubung ke lembaga mana pun.');
       return;
     }
     try {
-      await createTahunAjaran({
-        lembaga_id: Number(lembagaId),
+      const res = await createTahunAjaran({
+        ...(ids.length === 1 ? { lembaga_id: ids[0] } : { lembaga_ids: ids }),
         nama,
         tanggal_mulai: mulai || undefined,
         tanggal_selesai: selesai || undefined,
       });
-      toast.success('Tahun ajaran dibuat.');
-      setNama(''); setMulai(''); setSelesai('');
+      toast.success(Array.isArray((res as { data?: unknown }).data) ? `${(res as { data: unknown[] }).data.length} tahun ajaran dibuat.` : 'Tahun ajaran dibuat.');
+      setNama(''); setMulai(''); setSelesai(''); setTambahLembagas([]);
       setTambahOpen(false);
       pager.goFirst();
       await load(1);
     } catch (e2) {
       setErr(errorMessage(e2));
     }
-  }, [lembagaId, nama, mulai, selesai, load, pager.goFirst]);
+  }, [pilihLembagaSendiri, tambahLembagas, linkedLembagaIds, nama, mulai, selesai, load, pager.goFirst]);
 
   const onSetAktif = useCallback(async (id: number) => {
     try {
@@ -310,13 +325,30 @@ export default function TahunAjaranPage() {
           <form id="form_tambah_ta" onSubmit={onCreate} className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4">
             <FieldLabel htmlFor="input_nama_ta">Nama (unik per lembaga)</FieldLabel>
             <Input id="input_nama_ta" value={nama} onChange={(e) => setNama(e.target.value)} required maxLength={50} placeholder="2026/2027" />
+            {pilihLembagaSendiri ? (
+              <>
+                <FieldLabel htmlFor="select_lembaga_ta_tambah">Lembaga (min. 1)</FieldLabel>
+                <MultiSelect
+                  id="select_lembaga_ta_tambah"
+                  title="Pilih lembaga"
+                  placeholder="Pilih lembaga…"
+                  options={opsiLembaga}
+                  values={tambahLembagas}
+                  onChange={setTambahLembagas}
+                />
+              </>
+            ) : (
+              <p className="col-span-2 text-sm text-muted-foreground">
+                Dibuat untuk: {linkedLembagaIds.map((id) => lembagas.find((l) => l.id === id)?.kode ?? `#${id}`).join(', ')}
+              </p>
+            )}
             <FieldLabel htmlFor="input_mulai_ta">Tanggal mulai</FieldLabel>
             <Input id="input_mulai_ta" type="date" value={mulai} onChange={(e) => setMulai(e.target.value)} />
             <FieldLabel htmlFor="input_selesai_ta">Tanggal selesai</FieldLabel>
             <Input id="input_selesai_ta" type="date" value={selesai} onChange={(e) => setSelesai(e.target.value)} />
             <DialogFooter className="col-span-2">
               <Button type="button" variant="outline" onClick={() => setTambahOpen(false)}>Batal</Button>
-              <Button id="btn_tambah_ta" type="submit">Tambah</Button>
+              <Button id="btn_tambah_ta" type="submit" disabled={pilihLembagaSendiri && tambahLembagas.length === 0}>Tambah</Button>
             </DialogFooter>
           </form>
         </DialogContent>
