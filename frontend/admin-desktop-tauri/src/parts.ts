@@ -2,7 +2,7 @@ import { FONT_FAMILY_DEFAULT, FONT_OPTIONS } from './fonts';
 /** Daftar "belum dipakai" dihasilkan otomatis (scripts/audit-bagian.mjs). */
 import { BELUM_DIPAKAI } from './parts-belum.gen';
 
-/** Bagian UI yang bisa diatur atomik (Pengaturan → Bagian UI). Mencakup
+/** Bagian UI yang bisa diatur atomik (Pengaturan → Tampilan). Mencakup
  *  seluruh komponen shadcn/ui (dipakai maupun belum) + bagian struktural app.
  *  `font`, `size`, dan `kotak` (border/radius/padding) berlaku untuk KEDUA mode;
  *  hanya warna (bg/fg/border) yang dipisah per mode terang/gelap.
@@ -157,7 +157,7 @@ export interface PartMeta {
   id: PartId;
   label: string;
   grup: string;
-  /** Sub-kelompok di dalam grup (dua tingkat di daftar Bagian UI). */
+  /** Sub-kelompok di dalam grup (dua tingkat di daftar Tampilan). */
   sub?: string;
   /** Bagian kontrol/overlay: boleh menimpa seluruh isinya (termasuk kontrol).
    *  Bagian kontainer tidak menimpa kontrol di dalamnya (tombol/input/label/
@@ -172,7 +172,7 @@ export interface PartMeta {
    *  pratinjau editor, tidak berpengaruh ke halaman. */
   belumDipakai?: boolean;
   /** Bagian induk (untuk sub-komponen). Anak ditampilkan bersarang di bawah
-   *  induknya pada daftar Bagian UI dan boleh diatur terpisah. */
+   *  induknya pada daftar Tampilan dan boleh diatur terpisah. */
   induk?: PartId;
 }
 
@@ -322,7 +322,7 @@ export const PARTS: PartMeta[] = [
     grup: 'Navigasi',
     sub: 'Bilah',
     kendali: true,
-    hint: 'Tombol daftar bagian di halaman Bagian UI (editor).',
+    hint: 'Tombol daftar bagian di halaman Tampilan (editor).',
     sel: "[data-part='daftar_bagian']",
   },
 

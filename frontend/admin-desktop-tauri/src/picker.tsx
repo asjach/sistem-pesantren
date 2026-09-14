@@ -14,7 +14,7 @@ import { PARTS, type PartId } from '@/parts';
  *  Global (mounted sekali di App) agar tetap aktif saat berpindah halaman. */
 interface PickerState {
   aktif: boolean;
-  /** Bagian yang baru dipilih (dikonsumsi oleh editor Bagian UI). */
+  /** Bagian yang baru dipilih (dikonsumsi oleh editor Tampilan). */
   hasil: PartId | null;
   mulai: () => void;
   batal: () => void;
@@ -23,7 +23,7 @@ interface PickerState {
 
 const Ctx = createContext<PickerState | null>(null);
 
-const HALAMAN_BAGIAN = '/pengaturan/bagian';
+const HALAMAN_TAMPILAN = '/pengaturan/tampilan';
 
 /** Bagian paling spesifik untuk sebuah elemen (menelusuri ke atas). */
 function cariBagian(el: Element): PartId | null {
@@ -58,9 +58,9 @@ export function PickerProvider({ children }: { children: ReactNode }) {
   const batal = useCallback(() => setAktif(false), []);
   const konsumsi = useCallback(() => setHasil(null), []);
 
-  // Kembali ke halaman Bagian UI begitu bagian terpilih.
+  // Kembali ke halaman Tampilan begitu bagian terpilih.
   useEffect(() => {
-    if (hasil && pathname !== HALAMAN_BAGIAN) nav(HALAMAN_BAGIAN);
+    if (hasil && pathname !== HALAMAN_TAMPILAN) nav(HALAMAN_TAMPILAN);
   }, [hasil, pathname, nav]);
 
   // Saat aktif: klik elemen mana pun → tentukan bagiannya. Ditangkap pada

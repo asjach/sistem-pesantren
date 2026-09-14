@@ -15,7 +15,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
 /** Contoh isi pratinjau per bagian (meniru markup asli agar gaya terbaca).
- *  Dipakai editor Bagian UI; bagian yang belum pernah dipakai di aplikasi
+ *  Dipakai editor Tampilan; bagian yang belum pernah dipakai di aplikasi
  *  tetap punya contoh agar pengaturannya bisa dinilai secara visual. */
 export function contohBagian(id: PartId): ReactElement {
   // Sub-komponen memakai contoh induknya (slot aslinya sudah ada di komponen

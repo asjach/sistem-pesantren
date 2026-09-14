@@ -87,7 +87,7 @@ export function RibbonTabel({ apiTabel }: { apiTabel: RibbonTableApi | null }) {
   const effectiveFont = fontPx ?? DEFAULT_FONT_PX;
 
   // Pengaturan header & sel tabel — tersimpan sebagai bagian UI `tabel_header`
-  // dan `tabel_sel` sehingga tersinkron dua arah dengan halaman Bagian UI.
+  // dan `tabel_sel` sehingga tersinkron dua arah dengan halaman Tampilan.
   const mode = dark ? 'gelap' : 'terang';
   const gayaHeader = parts.gaya.tabel_header;
   const warnaCell = parts[mode]?.tabel_sel;
