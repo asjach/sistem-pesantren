@@ -16,12 +16,12 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\KamusController;
 use App\Http\Controllers\Api\KeuanganController;
-use App\Http\Controllers\KuitansiController;
 use App\Http\Controllers\Api\PengajuanBiodataController;
 use App\Http\Controllers\Api\PsbController;
 use App\Http\Controllers\Api\PsbDokumenController;
 use App\Http\Controllers\Api\PsbPortalController;
 use App\Http\Controllers\Api\PsbPublikController;
+use App\Http\Controllers\KuitansiController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('auth')->group(function () {
@@ -72,7 +72,9 @@ Route::middleware(['auth:sanctum', 'role:super_admin|admin', 'throttle:api_user'
         Route::post('santri/{santri}/dokumen/{dokumen}/tidak-memiliki', [SantriController::class, 'tidakMemiliki']);
 
         // Siklus status santri (102: naik/tinggal/pindah kelas, mutasi, lulus, alumni)
+        Route::get('riwayat', [SiklusController::class, 'riwayatIndex']);
         Route::post('akademik/naik-kelas', [SiklusController::class, 'naikKelasMassal']);
+        Route::post('akademik/salin-genap', [SiklusController::class, 'salinGenapMassal']);
         Route::post('riwayat/{riwayat}/pindah-kelas', [SiklusController::class, 'pindahKelas']);
         Route::post('riwayat/{riwayat}/set-kelas', [SiklusController::class, 'setKelas']);
         Route::post('riwayat/{riwayat}/keluar-kelas', [SiklusController::class, 'keluarKelas']);

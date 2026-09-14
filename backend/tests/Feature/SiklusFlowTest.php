@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Models\Alumni;
 use App\Models\Kelas;
 use App\Models\Lembaga;
-use App\Models\MutasiKeluar;
 use App\Models\RiwayatBelajar;
 use App\Models\Santri;
 use App\Models\TahunAjaran;
@@ -645,6 +644,144 @@ class SiklusFlowTest extends TestCase
             ->postJson("/api/admin/santri/{$s->id}/mutasi", $this->mutasiPayload($f['mi'], $kelas))
             ->assertStatus(200);
         $this->assertFalse((bool) $s->fresh()->status_global);
+    }
+
+    // ---------- 13. roster riwayat: filter + tenant ----------
+
+    public function test_13_riwayat_index_filter_dan_tenant(): void
+    {
+        $f = $this->baseFixture();
+        $super = $this->makeUser('super_admin', []);
+        $adminMd = $this->makeUser('admin', [$f['md']->id]);
+
+        $kelasMi = $this->makeKelas($f['mi'], $f['taLama'], 'I-A', '1');
+        $s1 = $this->makeSantri($f['mi'], 'Roster Satu');
+        $r1 = $this->makeRiwayat($s1, $f['taLama'], $f['mi'], '1', [
+            'kelas_id' => $kelasMi->id, 'tingkat' => '1', 'no_absen' => 7, 'is_aktif' => true,
+        ]);
+        $s2 = $this->makeSantri($f['mi'], 'Roster Dua');
+        $this->makeRiwayat($s2, $f['taLama'], $f['mi'], '2', ['is_aktif' => true]);
+
+        // Filter semester + is_aktif default (aktif saja) + q nama.
+        $res = $this->actingAs($super, 'sanctum')
+            ->getJson("/api/admin/riwayat?lembaga_id={$f['mi']->id}&semester=1&q=Roster Satu")
+            ->assertStatus(200);
+        $this->assertEquals(1, $res->json('total'));
+        $this->assertEquals($r1->id, (int) $res->json('data.0.id'));
+        $this->assertEquals($kelasMi->id, (int) $res->json('data.0.kelas.id'));
+        $this->assertEquals(7, (int) $res->json('data.0.no_absen'));
+
+        // tanpa_kelas + tingkat + kelas_id.
+        $s3 = $this->makeSantri($f['mi'], 'Roster Tiga');
+        $this->makeRiwayat($s3, $f['taLama'], $f['mi'], '1', ['tingkat' => '1', 'is_aktif' => true]);
+        $this->assertEquals(1, $this->actingAs($super, 'sanctum')
+            ->getJson("/api/admin/riwayat?lembaga_id={$f['mi']->id}&semester=1&tingkat=1&tanpa_kelas=1")
+            ->json('total'));
+        $this->assertEquals(1, $this->actingAs($super, 'sanctum')
+            ->getJson("/api/admin/riwayat?lembaga_id={$f['mi']->id}&semester=1&kelas_id={$kelasMi->id}")
+            ->json('total'));
+
+        // Riwayat non-aktif hanya tampil bila diminta eksplisit.
+        $this->makeRiwayat($s3, $f['taLama'], $f['mi'], '2', ['is_aktif' => false]);
+        $this->assertEquals(1, $this->actingAs($super, 'sanctum')
+            ->getJson("/api/admin/riwayat?lembaga_id={$f['mi']->id}&is_aktif=0&semester=2")
+            ->json('total'));
+
+        // Tenant: admin MD-only tidak melihat baris MI; minta lembaga MI → 403.
+        $this->actingAs($adminMd, 'sanctum')
+            ->getJson('/api/admin/riwayat')
+            ->assertStatus(200)
+            ->assertJsonPath('total', 0);
+        $this->actingAs($adminMd, 'sanctum')
+            ->getJson("/api/admin/riwayat?lembaga_id={$f['mi']->id}")
+            ->assertStatus(403);
+    }
+
+    // ---------- 14. salin genap massal via API ----------
+
+    public function test_14_salin_genap_massal_api(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeUser('super_admin', []);
+
+        $kelasGanjil = $this->makeKelas($f['mi'], $f['taLama'], 'I-A', '1');
+        $s1 = $this->makeSantri($f['mi'], 'Salin Api Satu');
+        $r1 = $this->makeRiwayat($s1, $f['taLama'], $f['mi'], '1', [
+            'kelas_id' => $kelasGanjil->id, 'tingkat' => '1', 'is_aktif' => true,
+        ]);
+        $s2 = $this->makeSantri($f['mi'], 'Salin Api Dua');
+        $this->makeRiwayat($s2, $f['taLama'], $f['mi'], '1', ['tingkat' => '1', 'is_aktif' => true]);
+
+        // Tanpa `siswa` = semua ganjil aktif lembaga.
+        $res = $this->actingAs($admin, 'sanctum')->postJson('/api/admin/akademik/salin-genap', [
+            'lembaga_id' => $f['mi']->id,
+            'tanggal_masuk' => '2026-01-10',
+        ])->assertStatus(200);
+        $this->assertEquals(2, $res->json('berhasil'));
+        $this->assertSame([], $res->json('gagal'));
+
+        $this->assertFalse((bool) $r1->fresh()->is_aktif);
+        $genap1 = RiwayatBelajar::where('santri_id', $s1->id)->where('lembaga_id', $f['mi']->id)
+            ->where('semester', '2')->firstOrFail();
+        $this->assertEquals($kelasGanjil->id, (int) $genap1->kelas_id);
+        $this->assertEquals('2026-01-10', $genap1->tgl_masuk->format('Y-m-d'));
+        $this->assertTrue((bool) $genap1->is_aktif);
+
+        // Auto tanpa baris ganjil aktif tersisa → tidak ada yang diproses (idempoten).
+        $ulang = $this->actingAs($admin, 'sanctum')->postJson('/api/admin/akademik/salin-genap', [
+            'lembaga_id' => $f['mi']->id,
+            'tanggal_masuk' => '2026-01-11',
+        ])->assertStatus(200);
+        $this->assertEquals(0, $ulang->json('berhasil'));
+        $this->assertCount(0, $ulang->json('gagal'));
+
+        // Eksplisit saat ganjil sudah diarsipkan → gagal per-item, tanpa baris genap ganda.
+        $ulangEksplisit = $this->actingAs($admin, 'sanctum')->postJson('/api/admin/akademik/salin-genap', [
+            'lembaga_id' => $f['mi']->id,
+            'tanggal_masuk' => '2026-01-11',
+            'siswa' => [['santri_id' => $s1->id], ['santri_id' => $s2->id]],
+        ])->assertStatus(200);
+        $this->assertEquals(0, $ulangEksplisit->json('berhasil'));
+        $this->assertCount(2, $ulangEksplisit->json('gagal'));
+        $this->assertEquals(1, RiwayatBelajar::where('santri_id', $s1->id)->where('semester', '2')->count());
+
+        // Baris genap sudah ada padahal ganjil masih aktif → gagal "sudah ada".
+        $s5 = $this->makeSantri($f['mi'], 'Salin Api Lima');
+        $this->makeRiwayat($s5, $f['taLama'], $f['mi'], '2', ['tingkat' => '1', 'is_aktif' => false]);
+        $this->makeRiwayat($s5, $f['taLama'], $f['mi'], '1', ['tingkat' => '1', 'is_aktif' => true]);
+        $sudahAda = $this->actingAs($admin, 'sanctum')->postJson('/api/admin/akademik/salin-genap', [
+            'lembaga_id' => $f['mi']->id,
+            'tanggal_masuk' => '2026-01-11',
+            'siswa' => [['santri_id' => $s5->id]],
+        ])->assertStatus(200);
+        $this->assertEquals(0, $sudahAda->json('berhasil'));
+        $this->assertStringContainsString('sudah ada', (string) $sudahAda->json('gagal.0.pesan'));
+
+        // Eksplisit per-item: kelas pengganti + no_absen; kelas beda lembaga ditolak per-item.
+        $kelasGanjilBaru = $this->makeKelas($f['mi'], $f['taLama'], 'II-A', '2');
+        $kelasMd = $this->makeKelas($f['md'], $f['taLama'], 'II-MD', '2');
+        $s3 = $this->makeSantri($f['mi'], 'Salin Api Tiga');
+        $this->makeRiwayat($s3, $f['taLama'], $f['mi'], '1', ['tingkat' => '1', 'is_aktif' => true]);
+        $s4 = $this->makeSantri($f['mi'], 'Salin Api Empat');
+        $this->makeRiwayat($s4, $f['taLama'], $f['mi'], '1', ['tingkat' => '1', 'is_aktif' => true]);
+
+        $eksplisit = $this->actingAs($admin, 'sanctum')->postJson('/api/admin/akademik/salin-genap', [
+            'lembaga_id' => $f['mi']->id,
+            'tanggal_masuk' => '2026-01-12',
+            'siswa' => [
+                ['santri_id' => $s3->id, 'kelas_id' => $kelasGanjilBaru->id, 'no_absen' => 3],
+                ['santri_id' => $s4->id, 'kelas_id' => $kelasMd->id],
+            ],
+        ])->assertStatus(200);
+        $this->assertEquals(1, $eksplisit->json('berhasil'));
+        $this->assertCount(1, $eksplisit->json('gagal'));
+        $this->assertStringContainsString('lembaga', (string) $eksplisit->json('gagal.0.pesan'));
+
+        $genap3 = RiwayatBelajar::where('santri_id', $s3->id)->where('lembaga_id', $f['mi']->id)
+            ->where('semester', '2')->firstOrFail();
+        $this->assertEquals($kelasGanjilBaru->id, (int) $genap3->kelas_id);
+        $this->assertEquals(3, (int) $genap3->no_absen);
+        $this->assertTrue((bool) $s3->fresh()->status_global);
     }
 }
 
