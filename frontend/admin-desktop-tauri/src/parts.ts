@@ -1,4 +1,6 @@
 import { FONT_FAMILY_DEFAULT, FONT_OPTIONS } from './fonts';
+/** Daftar "belum dipakai" dihasilkan otomatis (scripts/audit-bagian.mjs). */
+import { BELUM_DIPAKAI } from './parts-belum.gen';
 
 /** Bagian UI yang bisa diatur atomik (Pengaturan → Bagian UI). Mencakup
  *  seluruh komponen shadcn/ui (dipakai maupun belum) + bagian struktural app.
@@ -93,7 +95,12 @@ export type PartId =
   | 'resizable_panel'
   | 'resizable_handle'
   | 'checkbox_indikator'
-  | 'select_value';
+  | 'select_value'
+  // Komponen khas aplikasi (bukan shadcn).
+  | 'multiselect'
+  | 'spinbox'
+  | 'pesan_galat'
+  | 'pemisah_ribbon';
 
 export type PartMode = 'terang' | 'gelap';
 
@@ -908,52 +915,54 @@ export const PARTS: PartMeta[] = [
     hint: 'Teks nilai yang tampil pada select.',
     sel: "[data-slot='select-value']",
   },
+
+  // ---------- Komponen khas aplikasi ----------
+  {
+    id: 'multiselect',
+    label: 'Multi select',
+    grup: 'Kontrol',
+    sub: 'Form',
+    kendali: true,
+    hint: 'Pilih banyak nilai (dropdown bercentang).',
+    sel: "[data-part='multiselect']",
+  },
+  {
+    id: 'spinbox',
+    label: 'Stepper angka (ribbon)',
+    grup: 'Kontrol',
+    sub: 'Form',
+    kendali: true,
+    hint: 'Spinbox −/+ untuk tinggi baris & ukuran huruf tabel.',
+    sel: "[data-part='spinbox']",
+  },
+  {
+    id: 'pesan_galat',
+    label: 'Pesan galat',
+    grup: 'Umpan balik',
+    sub: 'Status',
+    kendali: true,
+    hint: 'Kotak pesan galat seragam di seluruh halaman.',
+    sel: "[data-part='pesan_galat']",
+  },
+  {
+    id: 'pemisah_ribbon',
+    label: 'Pemisah ribbon',
+    grup: 'Struktur',
+    sub: 'Bingkai',
+    hint: 'Garis pemisah antar grup di ribbon.',
+    sel: "[data-part='pemisah_ribbon']",
+  },
 ];
 
 /** Bagian yang belum punya komponen/elemen nyata di aplikasi (hanya contoh di
- *  pratinjau). Ditandai di editor agar tidak menyesatkan. Perbarui daftar ini
- *  saat komponennya mulai dipakai. */
-const BELUM_DIPAKAI = new Set<PartId>([
-  'aspect_ratio',
-  'scroll_area',
-  'collapsible',
-  'tabs',
-  'breadcrumb',
-  'pagination',
-  'menubar',
-  'navigation_menu',
-  'sidebar',
-  'subjudul',
-  'kbd',
-  'empty',
-  'separator',
-  'tabel',
-  'input_group',
-  'textarea',
-  'radio',
-  'switch',
-  'slider',
-  'input_otp',
-  'calendar',
-  'button_group',
-  'popover',
-  'hover_card',
-  'tooltip',
-  'command',
-  'sheet',
-  'drawer',
-  'alert',
-  'progress',
-  'spinner',
-  'avatar',
-  'carousel',
-  'chart',
-]);
+ *  pratinjau) ditandai otomatis dari `scripts/audit-bagian.mjs`; lihat
+ *  `src/parts-belum.gen.ts` (jangan diedit manual). */
 for (const p of PARTS) {
   if (BELUM_DIPAKAI.has(p.id)) p.belumDipakai = true;
 }
 
-export const PART_IDS: PartId[] = PARTS.map((p) => p.id);export const PART_BY_ID = new Map<PartId, PartMeta>(PARTS.map((p) => [p.id, p]));
+export const PART_IDS: PartId[] = PARTS.map((p) => p.id);
+export const PART_BY_ID = new Map<PartId, PartMeta>(PARTS.map((p) => [p.id, p]));
 export const PART_GROUPS: string[] = [...new Set(PARTS.map((p) => p.grup))];
 export const EMPTY_PARTS: PartOverrides = { gaya: {}, terang: {}, gelap: {} };
 

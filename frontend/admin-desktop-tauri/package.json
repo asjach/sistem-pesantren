@@ -6,9 +6,13 @@
   "description": "SIMPES Admin Desktop (Tauri 2 shell) — super_admin/admin lawan API 003/004 live",
   "scripts": {
     "dev": "vite",
+    "predev": "node scripts/audit-bagian.mjs",
     "build": "tsc --noEmit && vite build",
+    "prebuild": "node scripts/audit-bagian.mjs",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
+    "pretypecheck": "node scripts/audit-bagian.mjs",
+    "audit:bagian": "node scripts/audit-bagian.mjs",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build"
   },

@@ -51,6 +51,7 @@ export function SpinBox({
   return (
     <div
       title={title}
+      data-part="spinbox"
       className="flex h-[30px] items-stretch overflow-hidden rounded-md border border-white/20 bg-white/5 focus-within:ring-2 focus-within:ring-white/30"
     >
       <button
@@ -166,5 +167,5 @@ export function RibbonGroup({ label, children }: { label: string; children: Reac
 }
 
 export function RibbonPemisah() {
-  return <span aria-hidden className="mx-0.5 h-[54px] w-px self-center bg-white/15" />;
+  return <span aria-hidden data-part="pemisah_ribbon" className="mx-0.5 h-[54px] w-px self-center bg-white/15" />;
 }

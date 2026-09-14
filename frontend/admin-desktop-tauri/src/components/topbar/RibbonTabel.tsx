@@ -89,7 +89,7 @@ export function RibbonTabel({ apiTabel }: { apiTabel: RibbonTableApi | null }) {
             id="select_huruf_top"
             title="Jenis huruf isi tabel (berlaku semua tabel)"
             aria-label="Jenis huruf isi tabel"
-            className="h-8 w-44 border-white/20 bg-white/5 text-white [&_svg]:text-white/70"
+            className="h-6 w-44 border-white/20 bg-white/5 text-white [&_svg]:text-white/70"
           >
             <SelectValue placeholder="Bawaan" />
           </SelectTrigger>

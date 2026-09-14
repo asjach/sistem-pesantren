@@ -615,6 +615,37 @@ export function contohBagian(id: PartId): ReactElement {
           ))}
         </div>
       );
+    case 'multiselect':
+      return (
+        <div className="w-52 rounded-md border px-2 py-1 text-sm">
+          <div className="flex items-center justify-between">
+            <span className="truncate">VII-A, VIII-B</span>
+            <span className="text-muted-foreground">▾</span>
+          </div>
+        </div>
+      );
+    case 'spinbox':
+      return (
+        <div className="flex h-[30px] w-32 items-stretch overflow-hidden rounded-md border">
+          <span className="grid w-5 place-items-center text-muted-foreground">−</span>
+          <span className="grid flex-1 place-items-center border-x text-sm">38</span>
+          <span className="grid w-5 place-items-center text-muted-foreground">+</span>
+        </div>
+      );
+    case 'pesan_galat':
+      return (
+        <p className="max-w-xs rounded-lg border border-destructive/30 bg-destructive/10 px-3.5 py-2.5 text-sm text-destructive">
+          Gagal memuat data. Coba lagi.
+        </p>
+      );
+    case 'pemisah_ribbon':
+      return (
+        <div className="flex h-16 items-center gap-2 rounded bg-[var(--sidebar-deep)] px-2">
+          <span className="rounded bg-white/20 px-2 py-1 text-[11px] text-white">Santri</span>
+          <span aria-hidden className="mx-0.5 h-10 w-px self-center bg-white/15" />
+          <span className="rounded px-2 py-1 text-[11px] text-white/80">Kelas</span>
+        </div>
+      );
     default:
       return <div className="rounded border p-3 text-sm">{id}</div>;
   }

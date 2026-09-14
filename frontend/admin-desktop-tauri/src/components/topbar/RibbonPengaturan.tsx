@@ -47,7 +47,7 @@ export function RibbonPengaturan({
             id="select_tema_ribbon"
             title="Tema warna"
             aria-label="Tema warna"
-            className="h-8 w-56 border-white/20 bg-white/5 text-white [&_svg]:text-white/70"
+            className="h-6 w-56 border-white/20 bg-white/5 text-white [&_svg]:text-white/70"
           >
             <SelectValue />
           </SelectTrigger>
