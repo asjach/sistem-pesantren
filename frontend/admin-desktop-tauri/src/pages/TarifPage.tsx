@@ -26,6 +26,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import FilterField from '@/components/FilterField';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { ViewDialog } from '@/components/ViewDialog';
 import {
@@ -297,6 +298,7 @@ export default function TarifPage() {
         )}
         filter={(
           <>
+            <FilterField label="Lembaga" htmlFor="select_lembaga_tarif">
             <Select
               value={lembagaId === '' ? '_semua' : String(lembagaId)}
               onValueChange={(v) => { setLembagaId(v === '_semua' ? '' : Number(v)); setTaId(''); pager.goFirst(); }}
@@ -311,6 +313,8 @@ export default function TarifPage() {
                 </SelectGroup>
               </SelectContent>
             </Select>
+            </FilterField>
+            <FilterField label="Pos" htmlFor="select_pos_tarif">
             <Select
               value={posId === '' ? '_semua' : String(posId)}
               onValueChange={(v) => { setPosId(v === '_semua' ? '' : Number(v)); pager.goFirst(); }}
@@ -325,6 +329,8 @@ export default function TarifPage() {
                 </SelectGroup>
               </SelectContent>
             </Select>
+            </FilterField>
+            <FilterField label="Tahun ajaran" htmlFor="select_ta_tarif">
             <Select
               value={taId === '' ? '_semua' : String(taId)}
               onValueChange={(v) => { setTaId(v === '_semua' ? '' : Number(v)); pager.goFirst(); }}
@@ -339,6 +345,7 @@ export default function TarifPage() {
                 </SelectGroup>
               </SelectContent>
             </Select>
+            </FilterField>
           </>
         )}
         renderActions={renderActions}

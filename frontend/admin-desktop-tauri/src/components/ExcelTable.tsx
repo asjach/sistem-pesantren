@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { DEFAULT_FONT_PX, FONT_FAMILY_DEFAULT, FONT_OPTIONS, useGridPrefs } from '@/components/GridPrefs';
 import PresetKolom, { type PresetKolomApi } from '@/components/PresetKolom';
+import FilterField from '@/components/FilterField';
 import { useRibbonTable } from '@/components/RibbonTable';
 import {
   ContextMenu,
@@ -2040,7 +2041,7 @@ export default function ExcelTable<T extends { id: string | number }>({
       {/* Satu baris: input cari → tombol cari → pemisah → filter (kiri), lalu
           kontrol tabel dan tombol tambah halaman (kanan), dikelompokkan
           menurut fungsi. */}
-      <div data-part="toolbar_tabel" className="mb-3 flex flex-wrap items-center gap-2">
+      <div data-part="toolbar_tabel" className="mb-3 flex flex-wrap items-end gap-2">
         {showToolbar && (
           <form
             id={formId}
@@ -2048,17 +2049,19 @@ export default function ExcelTable<T extends { id: string | number }>({
               e.preventDefault();
               onSearchSubmit?.();
             }}
-            className="flex flex-wrap items-center gap-1.5"
+            className="flex flex-wrap items-end gap-1.5"
           >
             {hasSearchInput && (
-              <Input
-                id={inputId}
-                aria-label="Cari"
-                placeholder={searchPlaceholder ?? 'Cari'}
-                value={searchValue}
-                onChange={(e) => onSearchChange?.(e.target.value)}
-                className="w-44 sm:w-48"
-              />
+              <FilterField label="Cari" htmlFor={inputId}>
+                <Input
+                  id={inputId}
+                  aria-label="Cari"
+                  placeholder={searchPlaceholder ?? 'Cari'}
+                  value={searchValue}
+                  onChange={(e) => onSearchChange?.(e.target.value)}
+                  className="w-44 sm:w-48"
+                />
+              </FilterField>
             )}
             {showSearchButton && (
               <Button
@@ -2073,7 +2076,7 @@ export default function ExcelTable<T extends { id: string | number }>({
               </Button>
             )}
             {hasFilter && (hasSearchInput || showSearchButton) && (
-              <Separator orientation="vertical" className="h-4" />
+              <Separator orientation="vertical" className="h-4 self-center" />
             )}
             {filter}
           </form>

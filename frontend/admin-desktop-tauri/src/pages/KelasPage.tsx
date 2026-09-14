@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import FilterField from '@/components/FilterField';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { ViewDialog } from '@/components/ViewDialog';
 import {
@@ -393,6 +394,7 @@ export default function KelasPage() {
         searchIds={{ form: 'form_filter_kelas', input: 'input_cari_kelas', button: 'btn_cari_kelas' }}
         filter={(
           <>
+            <FilterField label="Lembaga" htmlFor="select_lembaga_kelas">
             <Select
               value={lembagaId === '' ? '_semua' : String(lembagaId)}
               onValueChange={(v) => { setLembagaId(v === '_semua' ? '' : Number(v)); setTaId(''); pager.goFirst(); }}
@@ -407,6 +409,8 @@ export default function KelasPage() {
                 </SelectGroup>
               </SelectContent>
             </Select>
+            </FilterField>
+            <FilterField label="Tahun ajaran" htmlFor="select_ta_kelas">
             <Select
               value={taId === '' ? '_semua' : String(taId)}
               onValueChange={(v) => { setTaId(v === '_semua' ? '' : Number(v)); pager.goFirst(); }}
@@ -421,6 +425,7 @@ export default function KelasPage() {
                 </SelectGroup>
               </SelectContent>
             </Select>
+            </FilterField>
           </>
         )}
         renderActions={renderActions}

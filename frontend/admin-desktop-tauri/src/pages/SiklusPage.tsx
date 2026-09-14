@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import FilterField from '@/components/FilterField';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import Pager from '@/components/Pager';
 import { usePager } from '@/hooks/usePager';
@@ -434,6 +435,7 @@ export default function SiklusPage() {
         ) : undefined}
         filter={(
           <>
+            <FilterField label="Jenis data" htmlFor="select_jenis_siklus">
             <Select value={view} onValueChange={(v) => { setView(v as View); setSearch(''); setTerapkanCari(''); pager.goFirst(); }}>
               <SelectTrigger id="select_jenis_siklus" title="Jenis data" aria-label="Jenis data" size="sm" className="w-44">
                 <SelectValue />
@@ -449,7 +451,9 @@ export default function SiklusPage() {
                 </SelectGroup>
               </SelectContent>
             </Select>
+            </FilterField>
             {view !== 'alumni' && (
+              <FilterField label="Lembaga" htmlFor="select_lembaga_siklus">
               <Select
                 value={lembagaId === '' ? '_semua' : lembagaId}
                 onValueChange={(v) => { setLembagaId(v === '_semua' ? '' : v); setTaId(''); pager.goFirst(); }}
@@ -464,8 +468,10 @@ export default function SiklusPage() {
                   </SelectGroup>
                 </SelectContent>
               </Select>
+              </FilterField>
             )}
             {(view === 'alumni' || isRoster) && (
+              <FilterField label={view === 'alumni' ? 'Tahun lulus' : 'Tahun ajaran'} htmlFor="select_ta_siklus">
               <Select value={taId === '' ? '_semua' : taId} onValueChange={(v) => { setTaId(v === '_semua' ? '' : v); pager.goFirst(); }}>
                 <SelectTrigger id="select_ta_siklus" title={view === 'alumni' ? 'Filter tahun lulus' : 'Filter tahun ajaran'} aria-label="Filter tahun ajaran" size="sm" className="w-40">
                   <SelectValue placeholder="Semua" />
@@ -477,8 +483,10 @@ export default function SiklusPage() {
                   </SelectGroup>
                 </SelectContent>
               </Select>
+              </FilterField>
             )}
             {view === 'santri' && (
+              <FilterField label="Semester" htmlFor="select_semester_siklus">
               <Select value={semester === '' ? '_semua' : semester} onValueChange={(v) => { setSemester(v === '_semua' ? '' : v); pager.goFirst(); }}>
                 <SelectTrigger id="select_semester_siklus" title="Filter semester" aria-label="Filter semester" size="sm" className="w-32">
                   <SelectValue placeholder="Semua" />
@@ -491,6 +499,7 @@ export default function SiklusPage() {
                   </SelectGroup>
                 </SelectContent>
               </Select>
+              </FilterField>
             )}
           </>
         )}

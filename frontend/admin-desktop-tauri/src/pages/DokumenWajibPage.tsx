@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import FilterField from '@/components/FilterField';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import {
   Dialog,
@@ -208,6 +209,7 @@ export default function DokumenWajibPage() {
         inputRowValues={{ wajib: 'Ya' }}
         filter={(
           <>
+            <FilterField label="Kegiatan" htmlFor="select_kegiatan_dokumen_wajib">
             <Select value={kegiatanId} onValueChange={setKegiatanId}>
               <SelectTrigger id="select_kegiatan_dokumen_wajib" title="Kegiatan PSB" aria-label="Kegiatan PSB" className="w-52">
                 <SelectValue placeholder="Pilih kegiatan" />
@@ -218,6 +220,8 @@ export default function DokumenWajibPage() {
                 </SelectGroup>
               </SelectContent>
             </Select>
+            </FilterField>
+            <FilterField label="Lembaga" htmlFor="select_lembaga_dokumen_wajib">
             <Select value={lembagaId} onValueChange={setLembagaId}>
               <SelectTrigger id="select_lembaga_dokumen_wajib" title="Lembaga" aria-label="Lembaga" className="w-44">
                 <SelectValue placeholder="Pilih lembaga" />
@@ -228,6 +232,7 @@ export default function DokumenWajibPage() {
                 </SelectGroup>
               </SelectContent>
             </Select>
+            </FilterField>
           </>
         )}
         addButton={(

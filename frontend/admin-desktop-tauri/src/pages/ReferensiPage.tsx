@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import FilterField from '@/components/FilterField';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import {
   Dialog,
@@ -281,6 +282,7 @@ export default function ReferensiPage() {
         searchIds={{ form: 'form_cari_referensi', input: 'input_cari_referensi', button: 'btn_cari_referensi' }}
         filter={(
           <>
+            <FilterField label="Tipe kamus" htmlFor="select_tipe">
             <Select value={tipe} onValueChange={(v) => { setTipe(v); setSearch(''); }}>
               <SelectTrigger id="select_tipe" title="Tipe kamus" aria-label="Tipe kamus" size="sm" className="w-44">
                 <SelectValue placeholder="Pilih tipe" />
@@ -291,6 +293,8 @@ export default function ReferensiPage() {
                 </SelectGroup>
               </SelectContent>
             </Select>
+            </FilterField>
+            <FilterField label="Lembaga" htmlFor="select_lembaga_referensi">
             <Select
               value={lembagaId === '' ? '_global' : String(lembagaId)}
               onValueChange={(v) => setLembagaId(v === '_global' ? '' : Number(v))}
@@ -307,6 +311,7 @@ export default function ReferensiPage() {
                 </SelectGroup>
               </SelectContent>
             </Select>
+            </FilterField>
           </>
         )}
         addButton={(

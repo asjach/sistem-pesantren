@@ -37,7 +37,8 @@ class KelasController extends Controller
             $query->where('nama_kelas', 'like', "%{$s}%");
         }
 
-        return response()->json($query->latest('id')->paginate($this->perPage($request)));
+        // Urut default nama ascending agar no. urut grid mengikuti abjad.
+        return response()->json($query->orderBy('nama_kelas')->orderBy('id')->paginate($this->perPage($request)));
     }
 
     public function store(Request $request)

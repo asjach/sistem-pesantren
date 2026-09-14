@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import FilterField from '@/components/FilterField';
 import { UserViewDialog } from '@/components/UserViewDialog';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import {
@@ -338,6 +339,7 @@ export default function UsersPage() {
           </Button>
         )}
         filter={(
+          <FilterField label="Role" htmlFor="select_filter_role">
           <Select value={roleFilter || '_semua'} onValueChange={(v) => { setRoleFilter(v === '_semua' ? '' : v); pager.goFirst(); }}>
             <SelectTrigger id="select_filter_role" title="Filter role" aria-label="Filter role" size="sm" className="w-36">
               <SelectValue placeholder="Semua" />
@@ -349,6 +351,7 @@ export default function UsersPage() {
               </SelectGroup>
             </SelectContent>
           </Select>
+          </FilterField>
         )}
         renderActions={renderActions}
       />

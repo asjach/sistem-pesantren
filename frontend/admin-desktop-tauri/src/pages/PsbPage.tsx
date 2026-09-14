@@ -44,6 +44,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import ExcelTable, { type ExcelChoice, type ExcelField } from '@/components/ExcelTable';
+import FilterField from '@/components/FilterField';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import {
   Dialog,
@@ -746,6 +747,7 @@ export default function PsbPage() {
         filter={(
           <>
             {stage === 'pendaftar' && (
+              <FilterField label="Status pendaftar" htmlFor="select_substatus_pendaftar">
               <Select
                 value={subStatus === '' ? '_semua' : subStatus}
                 onValueChange={(v) => { setSubStatus(v === '_semua' ? '' : v); pager.goFirst(); }}
@@ -761,7 +763,9 @@ export default function PsbPage() {
                   </SelectGroup>
                 </SelectContent>
               </Select>
+              </FilterField>
             )}
+            <FilterField label="Lembaga" htmlFor="select_lembaga_psb">
             <Select value={lembagaId === '' ? '_semua' : lembagaId} onValueChange={(v) => { setLembagaId(v === '_semua' ? '' : v); pager.goFirst(); }}>
               <SelectTrigger id="select_lembaga_psb" title="Filter lembaga" aria-label="Filter lembaga" size="sm" className="w-40">
                 <SelectValue placeholder="Semua" />
@@ -773,6 +777,7 @@ export default function PsbPage() {
                 </SelectGroup>
               </SelectContent>
             </Select>
+            </FilterField>
             <label htmlFor="chk_tampil_terhapus_psb" className="flex cursor-pointer items-center gap-1.5 text-xs text-muted-foreground">
               <input
                 id="chk_tampil_terhapus_psb"

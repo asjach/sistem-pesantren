@@ -171,4 +171,23 @@ class KelasStoreTest extends TestCase
             ->assertJsonValidationErrors(['lembaga_id']);
         $this->assertSame(1, Kelas::count());
     }
+
+    public function test_06_daftar_urut_nama_ascending(): void
+    {
+        $f = $this->baseFixture();
+        foreach (['2B', '1A', '1B'] as $nama) {
+            Kelas::create([
+                'lembaga_id' => $f['mi']->id, 'tahun_ajaran_id' => $f['taMi']->id, 'nama_kelas' => $nama,
+            ]);
+        }
+
+        $res = $this->actingAs($f['super'], 'sanctum')
+            ->getJson('/api/admin/kelas?lembaga_id='.$f['mi']->id)
+            ->assertStatus(200);
+
+        $this->assertSame(
+            ['1A', '1B', '2B'],
+            collect($res->json('data'))->pluck('nama_kelas')->all()
+        );
+    }
 }

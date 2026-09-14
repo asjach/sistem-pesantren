@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import FilterField from '@/components/FilterField';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { ViewDialog } from '@/components/ViewDialog';
 import {
@@ -293,6 +294,7 @@ export default function TahunAjaranPage() {
         )}
         searchIds={{ form: 'form_filter_ta', input: 'input_cari_ta', button: 'btn_cari_ta' }}
         filter={(
+          <FilterField label="Lembaga" htmlFor="select_lembaga_ta">
           <Select
             value={lembagaId === '' ? '_semua' : String(lembagaId)}
             onValueChange={(v) => { setLembagaId(v === '_semua' ? '' : Number(v)); pager.goFirst(); }}
@@ -307,6 +309,7 @@ export default function TahunAjaranPage() {
               </SelectGroup>
             </SelectContent>
           </Select>
+          </FilterField>
         )}
         renderActions={renderActions}
       />

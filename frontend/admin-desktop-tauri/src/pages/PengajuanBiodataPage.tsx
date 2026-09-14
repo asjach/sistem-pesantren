@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import FilterField from '@/components/FilterField';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import {
   Dialog,
@@ -162,6 +163,7 @@ export default function PengajuanBiodataPage() {
         onCommit={noopCommit}
         onSaved={onSaved}
         filter={(
+          <FilterField label="Status" htmlFor="select_status_pengajuan">
           <Select value={status} onValueChange={(v) => { setStatus(v); pager.goFirst(); }}>
             <SelectTrigger id="select_status_pengajuan" title="Filter status" aria-label="Filter status" size="sm" className="w-40">
               <SelectValue placeholder="Status" />
@@ -176,6 +178,7 @@ export default function PengajuanBiodataPage() {
               </SelectGroup>
             </SelectContent>
           </Select>
+          </FilterField>
         )}
         renderActions={renderActions}
       />

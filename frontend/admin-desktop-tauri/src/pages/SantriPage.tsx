@@ -28,6 +28,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import FilterField from '@/components/FilterField';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import {
   Dialog,
@@ -501,6 +502,7 @@ export default function SantriPage() {
         onCommit={commitSantri}
         onSaved={onSaved}
         filter={(
+          <FilterField label="Status" htmlFor="select_status_santri">
           <Select value={statusGlobal} onValueChange={(v) => { setStatusGlobal(v); pager.goFirst(); }}>
             <SelectTrigger id="select_status_santri" title="Filter status" aria-label="Filter status" size="sm" className="w-36">
               <SelectValue placeholder="Semua" />
@@ -513,6 +515,7 @@ export default function SantriPage() {
               </SelectGroup>
             </SelectContent>
           </Select>
+          </FilterField>
         )}
         addButton={(
           <div className="flex items-center gap-2">
