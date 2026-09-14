@@ -525,6 +525,14 @@ interface AksiMenu {
   konfirmasi?: { title: string; description: string; confirmLabel?: string; onConfirm: () => void };
 }
 
+/** Ambil isi ikon dari elemen tombol aksi agar menu tidak menyarangkan button. */
+function ikonAksi(node: ReactNode): ReactNode {
+  if (isValidElement(node) && node.type === ActionIcon) {
+    return (node.props as { children?: ReactNode }).children;
+  }
+  return node;
+}
+
 function metaAksi(el: ReactElement): AksiMenu {
   const p = el.props as {
     title?: string;
@@ -549,7 +557,7 @@ function metaAksi(el: ReactElement): AksiMenu {
   if (typeof p.onConfirm === 'function') {
     return {
       label: title,
-      icon: p.children,
+      icon: ikonAksi(p.children),
       konfirmasi: {
         title: p.title ?? 'Konfirmasi?',
         description: p.description ?? '',
@@ -559,7 +567,7 @@ function metaAksi(el: ReactElement): AksiMenu {
     };
   }
 
-  return { label: title, icon: p.children, onClick: p.onClick };
+  return { label: title, icon: ikonAksi(p.children), onClick: p.onClick };
 }
 
 /** Sel Aksi: tombol ikon dialog (klik tidak mengubah seleksi grid).
