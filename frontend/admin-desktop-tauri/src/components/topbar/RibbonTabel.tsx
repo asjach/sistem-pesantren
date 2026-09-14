@@ -11,7 +11,7 @@ import {
   useGridPrefs,
 } from '@/components/GridPrefs';
 import type { RibbonTableApi } from '@/components/RibbonTable';
-import { Copy, MoveHorizontal, MoveVertical, Pencil, PlusCircle, RotateCcw } from '@/icons';
+import { Copy, MoveHorizontal, Pencil, PlusCircle, RotateCcw } from '@/icons';
 import {
   Select,
   SelectContent,
@@ -22,6 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { RibbonCmd, RibbonGroup, RibbonPemisah, SpinBox } from './primitives';
 
 /** Pemilih jenis huruf bergaya ribbon (dipakai isi tabel & header tabel). */
@@ -146,47 +147,43 @@ export function RibbonTabel({ apiTabel }: { apiTabel: RibbonTableApi | null }) {
       </RibbonGroup>
       <RibbonPemisah />
       <RibbonGroup label="Baris">
-        <span
-          className="text-white/70"
-          title="Tinggi baris (berlaku semua tabel)"
-          aria-label="Tinggi baris (px)"
-        >
-          <MoveVertical size={14} />
-        </span>
-        <SpinBox
-          id="input_tinggi_top"
-          value={effectiveH}
-          min={MIN_ROW_H}
-          max={MAX_ROW_H}
-          title="Tinggi baris (berlaku semua tabel)"
-          ariaLabel="Tinggi baris (px)"
-          onChange={setRowH}
-        />
-        <Select
-          value={density}
-          onValueChange={(v) => {
-            setDensity(v as DensityName);
-            // Kosongkan tinggi baris manual agar preset kerapatan berlaku.
-            setRowH(null);
-          }}
-        >
-          <SelectTrigger
-            id="select_kerapatan_top"
-            title="Kerapatan baris tabel (berlaku semua tabel)"
-            aria-label="Kerapatan baris tabel"
-            className="h-6 w-28 border-white/20 bg-white/5 text-white [&_svg]:text-white/70"
+        <div className="flex flex-col items-center gap-1">
+          <ToggleGroup
+            type="single"
+            spacing={0}
+            value={density}
+            onValueChange={(v) => {
+              if (!v) return;
+              setDensity(v as DensityName);
+              // Kosongkan tinggi baris manual agar preset kerapatan berlaku.
+              setRowH(null);
+            }}
           >
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              <SelectLabel>Kerapatan baris</SelectLabel>
-              {KERAPATAN.map((k) => (
-                <SelectItem key={k.id} value={k.id}>{k.nama}</SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
+            {KERAPATAN.map((k) => (
+              <ToggleGroupItem
+                key={k.id}
+                id={`btn_kerapatan_${k.id}`}
+                value={k.id}
+                title={`Kerapatan ${k.nama}`}
+                aria-label={`Kerapatan ${k.nama}`}
+                className="h-6 rounded-md border-0 px-2 text-[11px] text-white/75 hover:bg-white/10 hover:text-white data-[state=on]:bg-white/20 data-[state=on]:font-semibold data-[state=on]:text-white"
+              >
+                {k.nama}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+          <div className="flex items-center gap-1.5">
+            <SpinBox
+              id="input_tinggi_top"
+              value={effectiveH}
+              min={MIN_ROW_H}
+              max={MAX_ROW_H}
+              title="Tinggi baris (berlaku semua tabel)"
+              ariaLabel="Tinggi baris (px)"
+              onChange={setRowH}
+            />
+          </div>
+        </div>
       </RibbonGroup>
       <RibbonPemisah />
       <RibbonGroup label="Teks">
