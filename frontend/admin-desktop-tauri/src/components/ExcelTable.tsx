@@ -1,4 +1,4 @@
-import { Children, createContext, Fragment, isValidElement, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactElement, type ReactNode } from 'react';
+import { Children, createContext, Fragment, isValidElement, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactElement, type ReactNode } from 'react';
 import {
   DynamicDataSheetGrid as DataSheetGrid,
   checkboxColumn,
@@ -642,8 +642,18 @@ export default function ExcelTable<T extends { id: string | number }>({
   // Preferensi tampilan tabel global (dikontrol dari top bar).
   const { rowH, fontPx, fontFamily, align, setAlign } = useGridPrefs();
 
-  const [editMode, setEditMode] = useState(false);
-  const [inputMode, setInputMode] = useState(false);
+  const [editMode, setEditModeRaw] = useState(false);
+  const [inputMode, setInputModeRaw] = useState(false);
+  /** Mode tabel saling eksklusif: hanya satu boleh aktif. Mengaktifkan mode
+   *  Edit mematikan mode Input, dan sebaliknya. */
+  const setEditMode = useCallback((v: boolean) => {
+    setEditModeRaw(v);
+    if (v) setInputModeRaw(false);
+  }, []);
+  const setInputMode = useCallback((v: boolean) => {
+    setInputModeRaw(v);
+    if (v) setEditModeRaw(false);
+  }, []);
   const [drafts, setDrafts] = useState<Drafts>({});
   const [checkedIds, setCheckedIds] = useState<Set<T['id']>>(new Set());
   const [range, setRange] = useState<GridSelection | null>(null);
@@ -902,8 +912,8 @@ export default function ExcelTable<T extends { id: string | number }>({
       if (canEdit && editMode) setEditMode(false);
       if (showInput) setInputMode(false);
     }
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
+    document.addEventListener('keydown', onKeyDown, true);
+    return () => document.removeEventListener('keydown', onKeyDown, true);
   }, [canEdit, editMode, showInput]);
 
   // Keluar dari mode Input → draft baris input dibuang (tidak tersimpan).

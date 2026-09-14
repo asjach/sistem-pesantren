@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { logout } from '@/api/auth';
 import { isTauri, prefGet, prefSet } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
-import { useTheme, type ModeName } from '@/theme';
+import { useTheme, type ModeName, type ThemeName } from '@/theme';
 import { usePicker } from '@/picker';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -20,7 +20,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { ICON_SETS } from '@/iconSets';
-import { Check, ChevronDown, LogOut, Monitor, Moon, MousePointerClick, Paintbrush, Sun, Users } from '@/icons';
+import { THEME_PRESETS } from '@/themes';
+import { DEFAULT_PREFS } from '@/prefs';
+import { Check, ChevronDown, LogOut, Monitor, Moon, MousePointerClick, Paintbrush, Palette, Sun, Users } from '@/icons';
 import { useRibbonTable } from '@/components/RibbonTable';
 import { halamanDariPath } from '@/lib/halaman';
 import { RibbonBeranda } from './topbar/RibbonBeranda';
@@ -233,6 +235,41 @@ export default function TopBar() {
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuSub>
+                <DropdownMenuSubTrigger id="menu_set_tema">
+                  <Palette data-icon="inline-start" size={16} />
+                  <span className="flex-1">Tema</span>
+                  <span className="text-xs text-muted-foreground">
+                    {theme === 'kustom' ? 'Kustom' : THEME_PRESETS.find((t) => t.id === theme)?.nama}
+                  </span>
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent className="max-h-80 min-w-52 overflow-y-auto">
+                  {THEME_PRESETS.map((t) => (
+                    <DropdownMenuItem key={t.id} id={`menu_tema_${t.id}`} onSelect={() => setTheme(t.id as ThemeName)}>
+                      <span className="flex flex-1 items-center gap-2">
+                        <span
+                          className="inline-block size-3 shrink-0 rounded-full border border-black/20"
+                          style={{ background: dark ? t.gelap.accent : t.terang.accent }}
+                        />
+                        {t.nama}
+                        {t.id === DEFAULT_PREFS.theme ? ' • bawaan' : ''}
+                      </span>
+                      {theme === t.id && <Check data-icon="inline-end" size={14} />}
+                    </DropdownMenuItem>
+                  ))}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem id="menu_tema_kustom" onSelect={() => setTheme('kustom')}>
+                    <span className="flex flex-1 items-center gap-2">
+                      <span
+                        className="inline-block size-3 shrink-0 rounded-full border border-black/20"
+                        style={{ background: customHex }}
+                      />
+                      Kustom (atur warna di Tampilan)
+                    </span>
+                    {theme === 'kustom' && <Check data-icon="inline-end" size={14} />}
+                  </DropdownMenuItem>
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+              <DropdownMenuSub>
                 <DropdownMenuSubTrigger id="menu_set_ikon">
                   <Paintbrush data-icon="inline-start" size={16} />
                   <span className="flex-1">Set ikon</span>
@@ -282,15 +319,7 @@ export default function TopBar() {
 
             {tabAktif === 'keuangan' && <RibbonKeuangan pathname={pathname} />}
 
-            {tabAktif === 'pengaturan' && (
-              <RibbonPengaturan
-                pathname={pathname}
-                theme={theme}
-                customHex={customHex}
-                dark={dark}
-                setTheme={setTheme}
-              />
-            )}
+            {tabAktif === 'pengaturan' && <RibbonPengaturan pathname={pathname} />}
 
             {tabAktif === 'tabel' && showGrid && <RibbonTabel apiTabel={apiTabel} />}
           </div>
