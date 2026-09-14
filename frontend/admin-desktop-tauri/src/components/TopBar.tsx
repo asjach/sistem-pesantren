@@ -174,13 +174,13 @@ export default function TopBar() {
           );
         })}
 
-        <div data-part="area_akun" className="ml-auto flex items-center gap-0.5 pl-2">
+        <div data-part="area_akun" className="ml-auto flex items-stretch gap-0.5 self-stretch pl-2">
           <ToggleGroup
             type="single"
             spacing={0}
             value={mode}
             onValueChange={(v) => { if (v) setMode(v as ModeName); }}
-            className="mr-1"
+            className="mr-1 self-center"
           >
             {MODE_STRIP.map((m) => (
               <ToggleGroupItem
@@ -204,7 +204,7 @@ export default function TopBar() {
             aria-pressed={picker.aktif}
             onClick={() => (picker.aktif ? picker.batal() : picker.mulai())}
             className={cn(
-              'mr-1 grid size-6 place-items-center rounded-md text-white/75 transition-colors hover:bg-white/10 hover:text-white',
+              'mr-1 grid size-6 self-center place-items-center rounded-md text-white/75 transition-colors hover:bg-white/10 hover:text-white',
               picker.aktif && 'bg-white/25 text-white',
             )}
           >
@@ -214,7 +214,7 @@ export default function TopBar() {
             <DropdownMenuTrigger asChild>
               <button
                 id="btn_menu_pengguna"
-                className={cn(navBase, navIdle, 'rounded-b-none px-2.5 py-1 text-xs data-[state=open]:bg-white/15')}
+                className={cn(navBase, navIdle, 'self-end rounded-b-none px-2.5 py-1 text-xs data-[state=open]:bg-white/15')}
               >
                 <Users size={15} />
                 <span className="hidden max-w-[9rem] truncate sm:inline">{user?.name}</span>
