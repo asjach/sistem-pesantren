@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react';
-import type { PartId } from '@/parts';
+import { PART_BY_ID, type PartId } from '@/parts';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,10 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
  *  Dipakai editor Bagian UI; bagian yang belum pernah dipakai di aplikasi
  *  tetap punya contoh agar pengaturannya bisa dinilai secara visual. */
 export function contohBagian(id: PartId): ReactElement {
+  // Sub-komponen memakai contoh induknya (slot aslinya sudah ada di komponen
+  // nyata sehingga gaya sub bisa di-scope ke slot tersebut).
+  const meta = PART_BY_ID.get(id);
+  if (meta?.induk) return contohBagian(meta.induk);
   switch (id) {
     case 'ribbon':
     case 'tab_ribbon':
@@ -451,11 +455,41 @@ export function contohBagian(id: PartId): ReactElement {
     case 'popover':
     case 'command':
       return (
-        <div className="w-48 rounded-md border bg-popover p-1 text-popover-foreground shadow-md">
-          <div className="px-2 py-1 text-[10px] uppercase tracking-wide text-muted-foreground">Aksi</div>
-          <div className="rounded px-2 py-1.5 text-sm">Ubah</div>
-          <div className="rounded bg-accent px-2 py-1.5 text-sm text-accent-foreground">Lihat detail</div>
-          <div className="rounded px-2 py-1.5 text-sm text-destructive">Hapus</div>
+        <div className="flex w-48 flex-col gap-1">
+          <div
+            data-slot="dropdown-menu-trigger"
+            className="flex items-center justify-between rounded-md border px-2 py-1 text-sm"
+          >
+            Pilihan <span className="text-muted-foreground">▾</span>
+          </div>
+          <div
+            data-slot="dropdown-menu-content"
+            className="rounded-md border bg-popover p-1 text-popover-foreground shadow-md"
+          >
+            <div
+              data-slot="dropdown-menu-label"
+              className="px-2 py-1 text-[10px] uppercase tracking-wide text-muted-foreground"
+            >
+              Aksi
+            </div>
+            <div data-slot="dropdown-menu-item" className="rounded px-2 py-1.5 text-sm">Ubah</div>
+            <div
+              data-slot="dropdown-menu-item"
+              className="rounded bg-accent px-2 py-1.5 text-sm text-accent-foreground"
+            >
+              Lihat detail
+            </div>
+            <div
+              data-slot="dropdown-menu-sub-trigger"
+              className="flex items-center justify-between rounded px-2 py-1.5 text-sm"
+            >
+              Lainnya <span className="text-muted-foreground">▸</span>
+            </div>
+            <div data-slot="dropdown-menu-separator" className="my-1 h-px bg-border" />
+            <div data-slot="dropdown-menu-item" className="rounded px-2 py-1.5 text-sm text-destructive">
+              Hapus
+            </div>
+          </div>
         </div>
       );
     case 'hover_card':
@@ -476,12 +510,19 @@ export function contohBagian(id: PartId): ReactElement {
       );
     case 'dialog':
       return (
-        <div className="w-full max-w-xs rounded-lg border bg-background p-4 shadow-lg">
-          <div className="font-semibold">Tambah Santri</div>
-          <p className="text-sm text-muted-foreground">Lengkapi data lalu simpan.</p>
-          <div className="mt-3 flex justify-end gap-2">
-            <Button size="sm" variant="outline">Batal</Button>
-            <Button size="sm">Simpan</Button>
+        <div
+          data-slot="dialog-content"
+          className="w-full max-w-xs rounded-lg border bg-background p-4 shadow-lg"
+        >
+          <div data-slot="dialog-header">
+            <div data-slot="dialog-title" className="font-semibold">Tambah Santri</div>
+            <p data-slot="dialog-description" className="text-sm text-muted-foreground">
+              Lengkapi data lalu simpan.
+            </p>
+          </div>
+          <div data-slot="dialog-footer" className="mt-3 flex justify-end gap-2">
+            <Button size="sm" variant="outline" data-slot="alert-dialog-cancel">Batal</Button>
+            <Button size="sm" data-slot="alert-dialog-action">Simpan</Button>
           </div>
         </div>
       );

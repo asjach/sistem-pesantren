@@ -69,7 +69,31 @@ export type PartId =
   | 'toast'
   | 'avatar'
   | 'carousel'
-  | 'chart';
+  | 'chart'
+  // Sub-komponen (anak dari bagian induk — lihat `induk`).
+  | 'accordion_item'
+  | 'accordion_judul'
+  | 'accordion_isi'
+  | 'item_media'
+  | 'item_konten'
+  | 'item_judul'
+  | 'item_keterangan'
+  | 'item_aksi'
+  | 'dialog_header'
+  | 'dialog_judul'
+  | 'dialog_keterangan'
+  | 'dialog_footer'
+  | 'dialog_tombol'
+  | 'menu_pemicu'
+  | 'menu_item'
+  | 'menu_label'
+  | 'menu_separator'
+  | 'menu_sub'
+  | 'toggle_item'
+  | 'resizable_panel'
+  | 'resizable_handle'
+  | 'checkbox_indikator'
+  | 'select_value';
 
 export type PartMode = 'terang' | 'gelap';
 
@@ -121,6 +145,9 @@ export interface PartMeta {
   /** Belum ada elemen/komponen nyata di aplikasi — pengaturan hanya tampak di
    *  pratinjau editor, tidak berpengaruh ke halaman. */
   belumDipakai?: boolean;
+  /** Bagian induk (untuk sub-komponen). Anak ditampilkan bersarang di bawah
+   *  induknya pada daftar Bagian UI dan boleh diatur terpisah. */
+  induk?: PartId;
 }
 
 export const PARTS: PartMeta[] = [
@@ -189,7 +216,7 @@ export const PARTS: PartMeta[] = [
     grup: 'Struktur',
     sub: 'Bingkai',
     hint: 'Panel resizable (split view).',
-    sel: "[data-slot='resizable-panel-group'], [data-slot='resizable-panel'], [data-slot='resizable-handle']",
+    sel: "[data-slot='resizable-panel-group']",
   },
   {
     id: 'collapsible',
@@ -320,7 +347,7 @@ export const PARTS: PartMeta[] = [
     grup: 'Teks',
     sub: 'Konten',
     hint: 'Baris item serbaguna (item, media + aksi).',
-    sel: "[data-slot='item'], [data-slot='item-group'], [data-slot='item-media'], [data-slot='item-content'], [data-slot='item-title'], [data-slot='item-description'], [data-slot='item-actions'], [data-slot='item-header'], [data-slot='item-footer']",
+    sel: "[data-slot='item'], [data-slot='item-group']",
   },
   {
     id: 'empty',
@@ -337,7 +364,7 @@ export const PARTS: PartMeta[] = [
     sub: 'Konten',
     kendali: true,
     hint: 'Daftar lipat (item, header, isi).',
-    sel: "[data-slot='accordion'], [data-slot='accordion-item'], [data-slot='accordion-trigger'], [data-slot='accordion-content']",
+    sel: "[data-slot='accordion']",
   },
 
   // ---------- Tabel ----------
@@ -390,6 +417,7 @@ export const PARTS: PartMeta[] = [
     label: 'Label',
     grup: 'Kontrol',
     sub: 'Form',
+    induk: 'field',
     kendali: true,
     hint: 'Label di atas input.',
     sel: "[data-slot='label'], [data-slot='field-label']",
@@ -401,7 +429,7 @@ export const PARTS: PartMeta[] = [
     sub: 'Form',
     kendali: true,
     hint: 'Kotak isian dan select.',
-    sel: "[data-slot='input'], [data-slot='select-trigger'], [data-slot='select-value']",
+    sel: "[data-slot='input'], [data-slot='select-trigger']",
   },
   {
     id: 'field',
@@ -416,6 +444,7 @@ export const PARTS: PartMeta[] = [
     label: 'Keterangan field',
     grup: 'Kontrol',
     sub: 'Form',
+    induk: 'field',
     hint: 'Teks bantuan di bawah kotak isian (field description).',
     sel: "[data-slot='field-description']",
   },
@@ -507,7 +536,7 @@ export const PARTS: PartMeta[] = [
     sub: 'Aksi',
     kendali: true,
     hint: 'Tombol toggle & grup toggle.',
-    sel: "[data-slot='toggle'], [data-slot='toggle-group'], [data-slot='toggle-group-item']",
+    sel: "[data-slot='toggle'], [data-slot='toggle-group']",
   },
   {
     id: 'button_group',
@@ -527,7 +556,7 @@ export const PARTS: PartMeta[] = [
     sub: 'Melayang',
     kendali: true,
     hint: 'Menu melayang, pilihan select, menu klik-kanan.',
-    sel: "[data-slot='dropdown-menu'], [data-slot='dropdown-menu-trigger'], [data-slot='dropdown-menu-content'], [data-slot='dropdown-menu-label'], [data-slot='dropdown-menu-item'], [data-slot='dropdown-menu-separator'], [data-slot='dropdown-menu-sub-trigger'], [data-slot='dropdown-menu-sub-content'], [data-slot='context-menu-content'], [data-slot='context-menu-label'], [data-slot='context-menu-item'], [data-slot='context-menu-checkbox-item'], [data-slot='context-menu-separator'], [data-slot='select-content'], [data-slot='select-group'], [data-slot='select-label'], [data-slot='select-item'], [data-slot='select-separator']",
+    sel: "[data-slot='dropdown-menu-content'], [data-slot='context-menu-content'], [data-slot='select-content']",
   },
   {
     id: 'popover',
@@ -572,7 +601,7 @@ export const PARTS: PartMeta[] = [
     sub: 'Panel',
     kendali: true,
     hint: 'Jendela dialog & konfirmasi.',
-    sel: "[data-slot='dialog-content'], [data-slot='dialog-header'], [data-slot='dialog-title'], [data-slot='dialog-description'], [data-slot='dialog-footer'], [data-slot='dialog-close'], [data-slot='alert-dialog-content'], [data-slot='alert-dialog-header'], [data-slot='alert-dialog-title'], [data-slot='alert-dialog-description'], [data-slot='alert-dialog-footer'], [data-slot='alert-dialog-action'], [data-slot='alert-dialog-cancel']",
+    sel: "[data-slot='dialog-content'], [data-slot='alert-dialog-content'], [data-slot='dialog-close']",
   },
   {
     id: 'sheet',
@@ -661,6 +690,223 @@ export const PARTS: PartMeta[] = [
     sub: 'Media',
     hint: 'Wadah grafik.',
     sel: "[data-slot='chart']",
+  },
+
+  // ---------- Sub-komponen (anak dari induk di atas) ----------
+  // Accordion
+  {
+    id: 'accordion_item',
+    label: 'Item',
+    grup: 'Teks',
+    sub: 'Konten',
+    induk: 'accordion',
+    hint: 'Satu baris accordion.',
+    sel: "[data-slot='accordion-item']",
+  },
+  {
+    id: 'accordion_judul',
+    label: 'Judul (trigger)',
+    grup: 'Teks',
+    sub: 'Konten',
+    induk: 'accordion',
+    hint: 'Judul yang diklik untuk membuka/menutup.',
+    sel: "[data-slot='accordion-trigger']",
+  },
+  {
+    id: 'accordion_isi',
+    label: 'Isi',
+    grup: 'Teks',
+    sub: 'Konten',
+    induk: 'accordion',
+    hint: 'Isi yang dilipat.',
+    sel: "[data-slot='accordion-content']",
+  },
+  // Item
+  {
+    id: 'item_media',
+    label: 'Media',
+    grup: 'Teks',
+    sub: 'Konten',
+    induk: 'item',
+    hint: 'Ikon/avatar/foto di awal item.',
+    sel: "[data-slot='item-media']",
+  },
+  {
+    id: 'item_konten',
+    label: 'Isi',
+    grup: 'Teks',
+    sub: 'Konten',
+    induk: 'item',
+    hint: 'Wadah judul + keterangan item.',
+    sel: "[data-slot='item-content']",
+  },
+  {
+    id: 'item_judul',
+    label: 'Judul',
+    grup: 'Teks',
+    sub: 'Konten',
+    induk: 'item',
+    hint: 'Judul utama item.',
+    sel: "[data-slot='item-title']",
+  },
+  {
+    id: 'item_keterangan',
+    label: 'Keterangan',
+    grup: 'Teks',
+    sub: 'Konten',
+    induk: 'item',
+    hint: 'Baris keterangan di bawah judul item.',
+    sel: "[data-slot='item-description']",
+  },
+  {
+    id: 'item_aksi',
+    label: 'Aksi / header / footer',
+    grup: 'Teks',
+    sub: 'Konten',
+    induk: 'item',
+    hint: 'Area aksi, header, dan footer item.',
+    sel: "[data-slot='item-actions'], [data-slot='item-header'], [data-slot='item-footer'], [data-slot='item-group']",
+  },
+  // Dialog
+  {
+    id: 'dialog_header',
+    label: 'Header',
+    grup: 'Overlay',
+    sub: 'Panel',
+    induk: 'dialog',
+    hint: 'Area header dialog.',
+    sel: "[data-slot='dialog-header'], [data-slot='alert-dialog-header']",
+  },
+  {
+    id: 'dialog_judul',
+    label: 'Judul',
+    grup: 'Overlay',
+    sub: 'Panel',
+    induk: 'dialog',
+    hint: 'Judul dialog.',
+    sel: "[data-slot='dialog-title'], [data-slot='alert-dialog-title']",
+  },
+  {
+    id: 'dialog_keterangan',
+    label: 'Keterangan',
+    grup: 'Overlay',
+    sub: 'Panel',
+    induk: 'dialog',
+    hint: 'Deskripsi dialog.',
+    sel: "[data-slot='dialog-description'], [data-slot='alert-dialog-description']",
+  },
+  {
+    id: 'dialog_footer',
+    label: 'Footer',
+    grup: 'Overlay',
+    sub: 'Panel',
+    induk: 'dialog',
+    hint: 'Area tombol di bawah dialog.',
+    sel: "[data-slot='dialog-footer'], [data-slot='alert-dialog-footer']",
+  },
+  {
+    id: 'dialog_tombol',
+    label: 'Tombol aksi',
+    grup: 'Overlay',
+    sub: 'Panel',
+    induk: 'dialog',
+    hint: 'Tombol aksi/batal dialog konfirmasi.',
+    sel: "[data-slot='alert-dialog-action'], [data-slot='alert-dialog-cancel']",
+  },
+  // Dropdown / menu
+  {
+    id: 'menu_pemicu',
+    label: 'Pemicu',
+    grup: 'Overlay',
+    sub: 'Melayang',
+    induk: 'dropdown',
+    hint: 'Elemen yang diklik untuk membuka menu.',
+    sel: "[data-slot='dropdown-menu-trigger'], [data-slot='context-menu-trigger']",
+  },
+  {
+    id: 'menu_item',
+    label: 'Item',
+    grup: 'Overlay',
+    sub: 'Melayang',
+    induk: 'dropdown',
+    hint: 'Baris pilihan pada menu/select.',
+    sel: "[data-slot='dropdown-menu-item'], [data-slot='context-menu-item'], [data-slot='context-menu-checkbox-item'], [data-slot='select-item']",
+  },
+  {
+    id: 'menu_label',
+    label: 'Label',
+    grup: 'Overlay',
+    sub: 'Melayang',
+    induk: 'dropdown',
+    hint: 'Judul kelompok pada menu/select.',
+    sel: "[data-slot='dropdown-menu-label'], [data-slot='context-menu-label'], [data-slot='select-label'], [data-slot='select-group']",
+  },
+  {
+    id: 'menu_separator',
+    label: 'Pemisah',
+    grup: 'Overlay',
+    sub: 'Melayang',
+    induk: 'dropdown',
+    hint: 'Garis pemisah antar kelompok menu.',
+    sel: "[data-slot='dropdown-menu-separator'], [data-slot='context-menu-separator'], [data-slot='select-separator']",
+  },
+  {
+    id: 'menu_sub',
+    label: 'Sub-menu',
+    grup: 'Overlay',
+    sub: 'Melayang',
+    induk: 'dropdown',
+    hint: 'Pemicu & isi sub-menu bertingkat.',
+    sel: "[data-slot='dropdown-menu-sub-trigger'], [data-slot='dropdown-menu-sub-content']",
+  },
+  // Toggle
+  {
+    id: 'toggle_item',
+    label: 'Item toggle',
+    grup: 'Kontrol',
+    sub: 'Aksi',
+    induk: 'toggle',
+    hint: 'Tombol di dalam grup toggle.',
+    sel: "[data-slot='toggle-group-item']",
+  },
+  // Resizable
+  {
+    id: 'resizable_panel',
+    label: 'Panel',
+    grup: 'Struktur',
+    sub: 'Bingkai',
+    induk: 'resizable',
+    hint: 'Satu panel di dalam grup resizable.',
+    sel: "[data-slot='resizable-panel']",
+  },
+  {
+    id: 'resizable_handle',
+    label: 'Pegangan',
+    grup: 'Struktur',
+    sub: 'Bingkai',
+    induk: 'resizable',
+    hint: 'Garis geser antar panel.',
+    sel: "[data-slot='resizable-handle']",
+  },
+  // Checkbox
+  {
+    id: 'checkbox_indikator',
+    label: 'Indikator centang',
+    grup: 'Kontrol',
+    sub: 'Form',
+    induk: 'checkbox',
+    hint: 'Ikon centang di dalam kotak.',
+    sel: "[data-slot='checkbox-indicator']",
+  },
+  // Input / Select
+  {
+    id: 'select_value',
+    label: 'Nilai select',
+    grup: 'Kontrol',
+    sub: 'Form',
+    induk: 'input_form',
+    hint: 'Teks nilai yang tampil pada select.',
+    sel: "[data-slot='select-value']",
   },
 ];
 

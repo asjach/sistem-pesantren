@@ -258,8 +258,11 @@ export default function PartStyleEditor() {
     const el = refContoh.current;
     if (!el) return;
     const m = PART_BY_ID.get(aktif);
-    const t = (m?.ukurSel ? el.querySelector<HTMLElement>(m.ukurSel) : el.querySelector<HTMLElement>('[class*="text-"]')) ?? el;
-    const s = m?.ukurSel ? t : el;
+    // Bagian biasa diukur dari pembungkus pratinjau; sub-komponen diukur dari
+    // elemen slot-nya sendiri (komponen nyata).
+    const selUkur = m?.ukurSel ?? (m?.induk ? m?.sel : undefined);
+    const t = (selUkur ? el.querySelector<HTMLElement>(selUkur) : el.querySelector<HTMLElement>('[class*="text-"]')) ?? el;
+    const s = selUkur ? t : el;
     const cs = getComputedStyle(s);
     const ct = getComputedStyle(t);
     setBawaan({
@@ -278,7 +281,7 @@ export default function PartStyleEditor() {
 
   const grupTampil = useMemo(() => {
     const q = cari.trim().toLowerCase();
-    const cocok = q
+    const cocokAwal = q
       ? PARTS.filter(
           (p) =>
             p.label.toLowerCase().includes(q) ||
@@ -287,8 +290,14 @@ export default function PartStyleEditor() {
             (p.sub ?? '').toLowerCase().includes(q),
         )
       : PARTS;
+    const cocokIds = new Set(cocokAwal.map((p) => p.id));
+    // Sertakan induk bila salah satu anaknya cocok, agar anak tetap tampil.
+    for (const p of PARTS) {
+      if (p.induk && cocokIds.has(p.id)) cocokIds.add(p.induk);
+    }
+    const cocok = PARTS.filter((p) => cocokIds.has(p.id));
     return PART_GROUPS.map((nama) => {
-      const items = cocok.filter((p) => p.grup === nama);
+      const items = cocok.filter((p) => p.grup === nama && !p.induk);
       const subs: { nama: string; items: typeof items; diatur: number }[] = [];
       for (const p of items) {
         const namaSub = p.sub ?? 'Umum';
@@ -298,7 +307,8 @@ export default function PartStyleEditor() {
           subs.push(s);
         }
         s.items.push(p);
-        if (diatur(p.id)) s.diatur += 1;
+        const keluarga = [p, ...PARTS.filter((c) => c.induk === p.id)];
+        if (keluarga.some((x) => diatur(x.id))) s.diatur += 1;
       }
       return {
         nama,
@@ -359,7 +369,7 @@ export default function PartStyleEditor() {
       data-part="daftar_bagian"
       onClick={() => setAktif(p.id)}
       className={cn(
-        'flex items-center gap-2 rounded px-2 py-1.5 text-left text-xs transition-colors',
+        'flex min-w-0 flex-1 items-center gap-2 rounded px-2 py-1.5 text-left text-xs transition-colors',
         p.id === aktif ? 'bg-accent font-medium text-accent-foreground' : 'hover:bg-muted',
         p.belumDipakai && p.id !== aktif && 'text-muted-foreground',
       )}
@@ -378,6 +388,34 @@ export default function PartStyleEditor() {
       )}
     </button>
   );
+
+  /** Baris satu bagian; bila punya sub-komponen, tampilkan anak bersarang. */
+  const barisBagian = (p: (typeof PARTS)[number]) => {
+    const anak = PARTS.filter((c) => c.induk === p.id);
+    if (anak.length === 0) return tombolBagian(p);
+    const kunci = `anak:${p.id}`;
+    const buka = mencari || !tertutup[kunci];
+    return (
+      <div key={p.id} className="flex flex-col gap-0.5">
+        <div className="flex items-center gap-0.5">
+          <button
+            type="button"
+            id={`btn_sub_bagian_${p.id}`}
+            aria-expanded={buka}
+            title={tertutup[kunci] ? `Buka sub ${p.label}` : `Tutup sub ${p.label}`}
+            onClick={() => alihGrup(kunci)}
+            className="grid size-5 shrink-0 place-items-center rounded text-muted-foreground/80 hover:bg-muted"
+          >
+            <ChevronDown size={11} className={cn('transition-transform', !buka && '-rotate-90')} />
+          </button>
+          {tombolBagian(p)}
+        </div>
+        {buka && anak.length > 0 && (
+          <div className="flex flex-col gap-0.5 pl-4">{anak.map(tombolBagian)}</div>
+        )}
+      </div>
+    );
+  };
 
   /** Isi daftar bagian (dipakai di panel resizable & tumpukan mobile). */
   const daftarBagian = (
@@ -425,7 +463,7 @@ export default function PartStyleEditor() {
                       if (!gr.berlapis) {
                         return (
                           <div key={sb.nama} className="flex flex-col gap-0.5">
-                            {sb.items.map(tombolBagian)}
+                            {sb.items.map(barisBagian)}
                           </div>
                         );
                       }
@@ -458,7 +496,7 @@ export default function PartStyleEditor() {
                             )}
                           </button>
                           {bukaSub && (
-                            <div className="flex flex-col gap-0.5 pl-3">{sb.items.map(tombolBagian)}</div>
+                            <div className="flex flex-col gap-0.5 pl-3">{sb.items.map(barisBagian)}</div>
                           )}
                         </div>
                       );

@@ -157,14 +157,19 @@ export function terapkanGayaBagian(parts: PartOverrides): void {
 /** CSS pratinjau editor: deklarasi sama seperti aslinya, tanpa scope mode
  *  (mode dipilih lewat tab) dan tanpa pengecualian antar-bagian. */
 export function bangunCssPratinjau(id: PartId, g?: PartGaya, w?: PartWarna): string {
-  const root = '#pratinjau_bagian [data-pratinjau-part]';
-  const desc = `${root} *${tolakKontrol(PART_BY_ID.get(id)?.kendali)}`;
+  const meta = PART_BY_ID.get(id);
+  // Sub-komponen: scope ke slot aslinya di pratinjau (komponen nyata), agar
+  // hanya sub itu yang berubah. Bagian biasa memakai pembungkus pratinjau.
+  const akar = meta?.induk
+    ? `#pratinjau_bagian ${meta.sel}`
+    : '#pratinjau_bagian [data-pratinjau-part]';
+  const desc = `${akar} *${tolakKontrol(meta?.kendali)}`;
   const gaya = deklGaya(g ?? {});
   const warna = deklWarna(w);
   const permukaan = [...gaya.permukaan, ...warna.permukaan];
   const teks = [...gaya.teks, ...warna.teks];
   let css = '';
-  if (permukaan.length || teks.length) css += `${root}{${[...permukaan, ...teks].join(';')}}\n`;
+  if (permukaan.length || teks.length) css += `${akar}{${[...permukaan, ...teks].join(';')}}\n`;
   if (teks.length) css += `${desc}{${teks.join(';')}}\n`;
   return css;
 }
