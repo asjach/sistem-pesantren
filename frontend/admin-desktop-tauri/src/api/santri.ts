@@ -68,10 +68,29 @@ export function importSantri(input: { tahun_ajaran_id?: number; lembaga_id?: num
   if (input.tahun_ajaran_id) fd.set('tahun_ajaran_id', String(input.tahun_ajaran_id));
   if (input.lembaga_id) fd.set('lembaga_id', String(input.lembaga_id));
   fd.set('file', input.file);
-  return apiUpload<{ pesan: string; errors?: { row: number; attribute: string; errors: string[] }[] }>(
-    '/admin/santri/import-lengkap',
-    fd,
-  );
+  return apiUpload<{ pesan: string; errors?: ImportError[] }>('/admin/santri/import-lengkap', fd);
+}
+
+export interface ImportError {
+  row: number;
+  attribute: string;
+  errors: string[];
+}
+
+export interface ImportPeriksa {
+  pesan: string;
+  siap_import: boolean;
+  ringkasan: { baris_diproses: number; baris_valid: number; baris_gagal: number };
+  errors: ImportError[];
+}
+
+/** Validasi file import tanpa menulis (dry-run) — sumber tombol "Periksa". */
+export function periksaImportSantri(input: { tahun_ajaran_id?: number; lembaga_id?: number; file: File }) {
+  const fd = new FormData();
+  if (input.tahun_ajaran_id) fd.set('tahun_ajaran_id', String(input.tahun_ajaran_id));
+  if (input.lembaga_id) fd.set('lembaga_id', String(input.lembaga_id));
+  fd.set('file', input.file);
+  return apiUpload<ImportPeriksa>('/admin/santri/import-periksa', fd);
 }
 
 export function uploadFotoSantri(santriId: number, file: File) {

@@ -2,6 +2,7 @@
 
 namespace App\Imports;
 
+use App\Models\Kelas;
 use App\Models\RiwayatBelajar;
 use App\Models\Santri;
 use Illuminate\Support\Carbon;
@@ -21,10 +22,24 @@ class SantriLengkapImport implements ToCollection, WithHeadingRow, WithValidatio
     /** @var Failure[] */
     protected array $failures = [];
 
+    /** Ringkasan baris (dipakai mode periksa/dry-run). */
+    protected int $barisDiproses = 0;
+    protected int $barisValid = 0;
+
     public function __construct(?int $tahunAjaranId, ?int $lembagaId = null)
     {
         $this->tahunAjaranId = $tahunAjaranId;
         $this->lembagaId     = $lembagaId;
+    }
+
+    /** Ringkasan hasil pemrosesan file. */
+    public function ringkasan(): array
+    {
+        return [
+            'baris_diproses' => $this->barisDiproses,
+            'baris_valid'    => $this->barisValid,
+            'baris_gagal'    => count($this->failures),
+        ];
     }
 
     public function collection(Collection $rows): void
@@ -40,10 +55,25 @@ class SantriLengkapImport implements ToCollection, WithHeadingRow, WithValidatio
                 if (empty($row['nama_lengkap'])) {
                     continue;
                 }
+                $this->barisDiproses++;
 
                 // Lembaga per baris (v1.10): kolom `lembaga_id` template menang;
                 // null = legacy tanpa track (tanpa riwayat, status_global nonaktif).
                 $lembagaRow = ! empty($row['lembaga_id']) ? (int) $row['lembaga_id'] : $this->lembagaId;
+
+                // Kelas harus selembaga & setahun ajaran dengan baris (cegah penempatan silang).
+                $kelasId = ! empty($row['kelas_id']) ? (int) $row['kelas_id'] : null;
+                if ($kelasId !== null && $lembagaRow !== null) {
+                    $kelas = Kelas::find($kelasId);
+                    if (! $kelas || (int) $kelas->lembaga_id !== $lembagaRow) {
+                        $this->failures[] = new Failure($no, 'kelas_id', ['Kelas tidak berada di lembaga baris ini.'], []);
+                        continue;
+                    }
+                    if ($this->tahunAjaranId !== null && (int) $kelas->tahun_ajaran_id !== $this->tahunAjaranId) {
+                        $this->failures[] = new Failure($no, 'kelas_id', ['Kelas bukan milik tahun ajaran import.'], []);
+                        continue;
+                    }
+                }
 
                 // NIS wajib unik: catat sebagai failure baris (bukan menggagalkan file)
                 // bila sudah dipakai santri lain (master maupun arsip riwayat).
@@ -58,7 +88,7 @@ class SantriLengkapImport implements ToCollection, WithHeadingRow, WithValidatio
 
                 $dataSantri = [
                     'lembaga_id'       => $lembagaRow,
-                    'kelas_id'         => $row['kelas_id'] ?? null,
+                    'kelas_id'         => $kelasId,
                     'nama_lengkap'     => $row['nama_lengkap'],
                     'nama_singkat'     => $row['nama_singkat'] ?? null,
                     'nisn'             => $row['nisn'] ?? null,
@@ -198,7 +228,7 @@ class SantriLengkapImport implements ToCollection, WithHeadingRow, WithValidatio
                             'semester'        => '1',
                         ],
                         [
-                            'kelas_id'     => $row['kelas_id'] ?? null,
+                            'kelas_id'     => $kelasId,
                             'nis'          => $row['nis'] ?? null,
                             'tingkat'      => $row['tingkat'] ?? null,
                             'tgl_masuk'    => $row['tanggal_masuk'] ?? null,
@@ -214,6 +244,8 @@ class SantriLengkapImport implements ToCollection, WithHeadingRow, WithValidatio
                 $santri->update([
                     'status_global' => RiwayatBelajar::where('santri_id', $santri->id)->where('is_aktif', true)->exists(),
                 ]);
+
+                $this->barisValid++;
             }
         });
     }

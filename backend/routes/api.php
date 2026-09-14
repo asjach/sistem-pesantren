@@ -64,6 +64,7 @@ Route::middleware(['auth:sanctum', 'role:super_admin|admin', 'throttle:api_user'
         Route::post('santri', [SantriController::class, 'store']);
         Route::get('santri/import-template', [SantriController::class, 'template']);
         Route::patch('santri/{santri}', [SantriController::class, 'update']);
+        Route::post('santri/import-periksa', [SantriController::class, 'periksaImport'])->middleware('throttle:imports');
         Route::post('santri/import-lengkap', [SantriController::class, 'importLengkap'])->middleware('throttle:imports');
         Route::post('santri/{santri}/foto', [SantriController::class, 'uploadFoto']);
         Route::get('santri/{santri}/dokumen', [SantriController::class, 'listDokumen']);

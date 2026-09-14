@@ -3,7 +3,9 @@ import { errorMessage } from '../api/client';
 import {
   importSantri,
   createSantri,
+  periksaImportSantri,
   unduhTemplateSantri,
+  type ImportPeriksa,
   listDokumenSantri,
   listSantri,
   tidakMemilikiDokumen,
@@ -220,6 +222,8 @@ export default function SantriPage() {
   const [importLembaga, setImportLembaga] = useState('');
   const [importTa, setImportTa] = useState('');
   const [importFile, setImportFile] = useState<File | null>(null);
+  const [periksaHasil, setPeriksaHasil] = useState<ImportPeriksa | null>(null);
+  const [periksaBusy, setPeriksaBusy] = useState(false);
 
   const [fotoRow, setFotoRow] = useState<Santri | null>(null);
   const [fotoFile, setFotoFile] = useState<File | null>(null);
@@ -347,9 +351,31 @@ export default function SantriPage() {
     else setDokRows([]);
   }, [dokRow, loadDokumenList]);
 
-  async function onImport(e: React.FormEvent) {
+  async function onPeriksa(e: React.FormEvent) {
     e.preventDefault();
     if (!importFile || (effectiveImportLembaga !== '' && !importTa)) return;
+    setPeriksaBusy(true);
+    setErr('');
+    try {
+      const res = await periksaImportSantri({
+        tahun_ajaran_id: importTa ? Number(importTa) : undefined,
+        lembaga_id: importLembaga ? Number(importLembaga) : undefined,
+        file: importFile,
+      });
+      setPeriksaHasil(res);
+      if (res.siap_import) toast.success(res.pesan);
+      else toast.error(res.pesan);
+    } catch (e2) {
+      setPeriksaHasil(null);
+      setErr(errorMessage(e2));
+    } finally {
+      setPeriksaBusy(false);
+    }
+  }
+
+  async function onImport(e: React.FormEvent) {
+    e.preventDefault();
+    if (!importFile || !periksaHasil?.siap_import) return;
     setBusy(true);
     setErr('');
     try {
@@ -360,10 +386,12 @@ export default function SantriPage() {
       });
       if (res.errors?.length) {
         setErr(res.errors.map((x) => `Baris ${x.row} (${x.attribute}): ${x.errors.join(', ')}`).join(' · '));
+        setPeriksaHasil(null);
       } else {
         toast.success(res.pesan ?? 'Import selesai.');
         setImportOpen(false);
         setImportFile(null);
+        setPeriksaHasil(null);
         await load(1);
       }
     } catch (e2) {
@@ -500,7 +528,7 @@ export default function SantriPage() {
             >
               <Plus data-icon="inline-start" size={16} /> Tambah
             </Button>
-            <Button id="btn_buka_import_santri" variant="outline" onClick={() => setImportOpen(true)}>
+            <Button id="btn_buka_import_santri" variant="outline" onClick={() => { setErr(''); setPeriksaHasil(null); setImportOpen(true); }}>
               <Upload data-icon="inline-start" size={16} /> Import
             </Button>
           </div>
@@ -562,7 +590,7 @@ export default function SantriPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={importOpen} onOpenChange={setImportOpen}>
+      <Dialog open={importOpen} onOpenChange={(o) => { setImportOpen(o); if (!o) { setErr(''); setPeriksaHasil(null); } }}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Import data santri (Excel/CSV)</DialogTitle>
@@ -572,7 +600,7 @@ export default function SantriPage() {
           </DialogHeader>
           <form id="form_import_santri" onSubmit={onImport} className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4">
             <FieldLabel htmlFor="select_import_lembaga">Lembaga tujuan (opsional)</FieldLabel>
-            <Select value={importLembaga} onValueChange={(v) => { setImportLembaga(v); setImportTa(''); }}>
+            <Select value={importLembaga} onValueChange={(v) => { setImportLembaga(v); setImportTa(''); setPeriksaHasil(null); }}>
               <SelectTrigger id="select_import_lembaga" className="w-full">
                 <SelectValue placeholder="Pilih lembaga" />
               </SelectTrigger>
@@ -583,7 +611,7 @@ export default function SantriPage() {
               </SelectContent>
             </Select>
             <FieldLabel htmlFor="select_import_ta">Tahun ajaran (wajib bila lembaga diisi)</FieldLabel>
-            <Select value={importTa} onValueChange={setImportTa}>
+            <Select value={importTa} onValueChange={(v) => { setImportTa(v); setPeriksaHasil(null); }}>
               <SelectTrigger id="select_import_ta" className="w-full">
                 <SelectValue placeholder="Pilih tahun ajaran" />
               </SelectTrigger>
@@ -598,7 +626,7 @@ export default function SantriPage() {
               id="input_file_santri"
               type="file"
               accept=".xlsx,.xls,.csv"
-              onChange={(e) => setImportFile(e.target.files?.[0] ?? null)}
+              onChange={(e) => { setImportFile(e.target.files?.[0] ?? null); setPeriksaHasil(null); }}
               required
             />
             <Button
@@ -610,9 +638,38 @@ export default function SantriPage() {
             >
               <Download data-icon="inline-start" size={16} /> Unduh template Excel (semua kolom)
             </Button>
+            {periksaHasil ? (
+              <div className="col-span-2 rounded-md border p-3 text-sm" id="hasil_periksa_import">
+                <p className="font-medium">
+                  {periksaHasil.ringkasan.baris_diproses} baris diperiksa · {periksaHasil.ringkasan.baris_valid} valid · {periksaHasil.ringkasan.baris_gagal} bermasalah
+                </p>
+                {periksaHasil.errors.length > 0 ? (
+                  <ul className="mt-2 max-h-40 space-y-1 overflow-auto text-xs text-destructive">
+                    {periksaHasil.errors.slice(0, 50).map((x, i) => (
+                      <li key={`${x.row}-${x.attribute}-${i}`}>Baris {x.row} ({x.attribute}): {x.errors.join(', ')}</li>
+                    ))}
+                    {periksaHasil.errors.length > 50 ? <li>…dan {periksaHasil.errors.length - 50} masalah lain.</li> : null}
+                  </ul>
+                ) : (
+                  <p className="mt-1 text-xs text-emerald-600">Tidak ada masalah — siap diimport.</p>
+                )}
+              </div>
+            ) : null}
+            {err ? (
+              <p id="error_import_santri" className="col-span-2 text-sm text-destructive" role="alert">{err}</p>
+            ) : null}
             <DialogFooter className="col-span-2">
               <Button type="button" variant="outline" onClick={() => setImportOpen(false)}>Batal</Button>
-              <Button id="btn_import_santri" type="submit" disabled={busy || !importFile || (effectiveImportLembaga !== '' && !importTa)}>Import</Button>
+              <Button
+                id="btn_periksa_import_santri"
+                type="button"
+                variant="outline"
+                onClick={onPeriksa}
+                disabled={periksaBusy || busy || !importFile || (effectiveImportLembaga !== '' && !importTa)}
+              >
+                {periksaBusy ? 'Memeriksa…' : 'Periksa'}
+              </Button>
+              <Button id="btn_import_santri" type="submit" disabled={busy || periksaBusy || !periksaHasil?.siap_import}>Import</Button>
             </DialogFooter>
           </form>
         </DialogContent>

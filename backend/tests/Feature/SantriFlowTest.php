@@ -598,4 +598,47 @@ class SantriFlowTest extends TestCase
         // Endpoint unduh template.
         $this->actingAs($adminMi, 'sanctum')->get('/api/admin/santri/import-template')->assertStatus(200);
     }
+
+    // ---------- 16. periksa import (dry-run) sebelum import ----------
+
+    public function test_16_import_periksa_dry_run_tanpa_menulis(): void
+    {
+        $f = $this->baseFixture();
+        $adminMi = $this->makeUser('admin', [$f['mi']->id]);
+        $kelasMd = Kelas::create([
+            'lembaga_id' => $f['md']->id, 'tahun_ajaran_id' => $f['ta']->id, 'nama_kelas' => 'I-MD',
+        ]);
+
+        // 1 baris valid + 1 baris kelas beda lembaga.
+        $csv = $this->makeCsv([
+            ['nama_lengkap' => 'Valid Satu', 'jk' => 'L'],
+            ['nama_lengkap' => 'Salah Kelas', 'jk' => 'P', 'kelas_id' => (string) $kelasMd->id],
+        ]);
+
+        $res = $this->actingAs($adminMi, 'sanctum')->post('/api/admin/santri/import-periksa', [
+            'tahun_ajaran_id' => $f['ta']->id,
+            'file' => new UploadedFile($csv, 'periksa.csv', 'text/csv', null, true),
+        ])->assertStatus(200);
+
+        $res->assertJsonPath('siap_import', false)
+            ->assertJsonPath('ringkasan.baris_diproses', 2)
+            ->assertJsonPath('ringkasan.baris_valid', 1)
+            ->assertJsonPath('ringkasan.baris_gagal', 1);
+
+        // Dry-run tidak menulis apa pun.
+        $this->assertSame(0, Santri::count());
+        $this->assertSame(0, RiwayatBelajar::count());
+
+        // File bersih → siap_import true; tetap tanpa tulisan.
+        $csvOk = $this->makeCsv([['nama_lengkap' => 'Bersih', 'jk' => 'L']]);
+        $this->actingAs($adminMi, 'sanctum')->post('/api/admin/santri/import-periksa', [
+            'tahun_ajaran_id' => $f['ta']->id,
+            'file' => new UploadedFile($csvOk, 'bersih.csv', 'text/csv', null, true),
+        ])->assertStatus(200)->assertJsonPath('siap_import', true);
+        $this->assertSame(0, Santri::count());
+
+        // Import nyata tetap berjalan setelah lolos periksa.
+        $this->importCsv($adminMi, $f['ta']->id, null, $csvOk)->assertStatus(200);
+        $this->assertSame(1, Santri::count());
+    }
 }

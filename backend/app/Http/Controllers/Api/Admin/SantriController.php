@@ -14,6 +14,7 @@ use App\Models\User;
 use App\Services\RefService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Facades\Excel;
 use Maatwebsite\Excel\Validators\ValidationException;
@@ -244,8 +245,22 @@ class SantriController extends Controller
         return Excel::download(new SantriTemplateExport(), 'template-import-santri.xlsx');
     }
 
+    /** POST /api/admin/santri/import-periksa — validasi file TANPA menulis (dry-run).
+     *  Dipakai tombol "Periksa": hasil berisi ringkasan baris + daftar masalah. */
+    public function periksaImport(ImportSantriRequest $request): JsonResponse
+    {
+        return $this->prosesImport($request, periksa: true);
+    }
+
     // Import massal via Excel/CSV
-    public function importLengkap(ImportSantriRequest $request)
+    public function importLengkap(ImportSantriRequest $request): JsonResponse
+    {
+        return $this->prosesImport($request, periksa: false);
+    }
+
+    /** Alur bersama import: resolusi lembaga/tahun ajaran, eksekusi, laporan kegagalan.
+     *  Mode periksa: penulisan dijalankan dalam transaksi lalu SELALU di-rollback. */
+    private function prosesImport(ImportSantriRequest $request, bool $periksa): JsonResponse
     {
         $this->authorize('create', Santri::class);
 
@@ -260,42 +275,57 @@ class SantriController extends Controller
         }
 
         $import = new SantriLengkapImport($tahunAjaranId, $lembagaId);
+        $errors = [];
+
+        if ($periksa) {
+            DB::beginTransaction();
+        }
 
         try {
             Excel::import($import, $request->file('file'));
-
-            if (! empty($import->failures())) {
-                $errors = [];
-                foreach ($import->failures() as $failure) {
-                    $errors[] = [
-                        'row'       => $failure->row(),
-                        'attribute' => $failure->attribute(),
-                        'errors'    => $failure->errors(),
-                    ];
-                }
-
-                return response()->json([
-                    'pesan'  => 'Gagal mengimport beberapa data.',
-                    'errors' => $errors,
-                ], 422);
-            }
-
-            return response()->json(['pesan' => 'Data santri berhasil diimport.']);
         } catch (ValidationException $e) {
-            $errors = [];
-
-            foreach ($e->failures() as $failure) {
-                $errors[] = [
-                    'row'       => $failure->row(),
-                    'attribute' => $failure->attribute(),
-                    'errors'    => $failure->errors(),
-                ];
+            $errors = $this->formatFailures($e->failures());
+        } finally {
+            if ($periksa) {
+                DB::rollBack();
             }
+        }
 
+        if ($errors === []) {
+            $errors = $this->formatFailures($import->failures());
+        }
+
+        if ($periksa) {
+            return response()->json([
+                'pesan'       => $errors === [] ? 'Pengecekan selesai: file siap diimport.' : 'Pengecekan menemukan masalah.',
+                'siap_import' => $errors === [],
+                'ringkasan'   => $import->ringkasan(),
+                'errors'      => $errors,
+            ]);
+        }
+
+        if ($errors !== []) {
             return response()->json([
                 'pesan'  => 'Gagal mengimport beberapa data.',
                 'errors' => $errors,
             ], 422);
         }
+
+        return response()->json(['pesan' => 'Data santri berhasil diimport.']);
+    }
+
+    /** @param  iterable<\Maatwebsite\Excel\Validators\Failure>  $failures */
+    private function formatFailures(iterable $failures): array
+    {
+        $errors = [];
+        foreach ($failures as $failure) {
+            $errors[] = [
+                'row'       => $failure->row(),
+                'attribute' => $failure->attribute(),
+                'errors'    => $failure->errors(),
+            ];
+        }
+
+        return $errors;
     }
 }

@@ -41,6 +41,7 @@
 | 1.10.1 | 2026-09-14 | Klarifikasi lingkup (docs-only): **Asrama (505) = rencana PASCA PRODUCTION** (tidak dikerjakan dalam waktu dekat; tidak ada tabel/peran/pivot dibuat sekarang). Desain dicatat sebagai arah agar keputusan sekarang tidak menutup jalan; perubahan `santri` (legacy/`status_global`) dibahas terpisah dari asrama |
 | 1.10.2 | 2026-09-14 | Implementasi bagian **santri** v1.10 (bukan asrama): `santri.lembaga_id` nullable + FK nullOnDelete (legacy tanpa track), `status_global` turunan murni default false + backfill dari riwayat aktif, legacy terlihat semua admin (scope/policy/otorisasi), penempatan kelas & kenaikan mengadopsi lembaga saat NULL, import tidak hardcode `true`; tes baru legacy + adopsi; suite 113/113 hijau |
 | 1.10.3 | 2026-09-14 | Input manual santri (legacy) via `POST /admin/santri` + aturan lembaga: admin scoped 1 lembaga → otomatis, admin rangkap/full/super → opsional (null = legacy); import Excel mendukung `lembaga_id` per baris & tanpa lembaga (tanpa riwayat), tahun ajaran wajib hanya bila lembaga diisi; **template Excel** `GET /admin/santri/import-template` (semua kolom profil + `lembaga_id`, sel bertipe teks) + tombol unduh di dialog Import; FE dialog Tambah; suite 116/116 hijau |
+| 1.10.4 | 2026-09-14 | Import santri 2 langkah: **`POST /admin/santri/import-periksa`** (dry-run — transaksi di-rollback, ringkasan baris + daftar masalah) sebelum `import-lengkap`; tombol Import baru aktif bila periksa lolos; tambah cek kelas harus selembaga & setahun dengan baris; suite 117/117 hijau |
 
 ## Daftar Isi
 
