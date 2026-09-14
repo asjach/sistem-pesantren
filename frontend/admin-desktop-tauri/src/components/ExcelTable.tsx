@@ -189,6 +189,11 @@ const ACTIONS_DEFAULT_W = 124;
 const CHECK_W = 44;
 /** Lantai lebar kolom Aksi (1 tombol ikon + padding). */
 const ACTIONS_MIN_W = 56;
+/** Penanda "kapasitas aksi > 3" per tableKey; hanya tumbuh selama sesi (tidak
+ *  pernah turun) agar layout ikon vs hamburger tidak berubah-ubah mengikuti
+ *  data yang sedang tampil. Nilai = jumlah aksi maksimum yang pernah terlihat
+ *  pada tabel tersebut. */
+const AKSI_RINGKAS = new Map<string, number>();
 /** Id sintetis baris input paling bawah (mode Input). */
 const INPUT_ROW_ID = '__input__';
 
@@ -493,6 +498,9 @@ function HeaderTitle({
 
 interface ActionsColData {
   render: (id: string | number) => ReactNode;
+  /** True bila kapasitas aksi tabel pernah melebihi 3 (high-water mark) —
+   *  seluruh baris memakai dropdown hamburger walau aksi baris ini ≤ 3. */
+  ringkas: boolean;
 }
 
 /** Ratakan aksi (bisa berupa fragment/conditional) menjadi daftar elemen. */
@@ -565,7 +573,12 @@ function ActionsCell({ rowData, columnData }: CellProps<GridRow, ActionsColData>
     onClick: (e: React.MouseEvent) => e.stopPropagation(),
   };
 
-  if (aksi.length <= 3) {
+  if (columnData.ringkas) {
+    // Tabel berkapasitas > 3 aksi: selalu hamburger agar konsisten, walau baris
+    // ini sendiri beraksi ≤ 3. Baris tanpa aksi tidak menampilkan apa pun
+    // (fragment kosong: tipe component kolom DSG menolak null).
+    if (aksi.length === 0) return <></>;
+  } else if (aksi.length <= 3) {
     return (
       <div className="simpes-dsg-actions flex h-full flex-1 items-center justify-center gap-1" {...stop}>
         {aksi.map((el, i) => (
@@ -698,6 +711,20 @@ export default function ExcelTable<T extends { id: string | number }>({
   rowsRef.current = rows;
   const renderRef = useRef(renderActions);
   renderRef.current = renderActions;
+  /** Jumlah aksi maksimum pada data yang sedang dimuat (per baris, setelah
+   *  kondisi halaman disaring). Dipakai menaikkan high-water mark `ringkas`
+   *  di bawah — tidak untuk keputusan per baris. */
+  const aksiMaksBaris = useMemo(
+    () => rows.reduce((m, r) => Math.max(m, flattenAksi(renderActions(r)).length), 0),
+    [rows, renderActions],
+  );
+  const [aksiRingkas, setAksiRingkas] = useState(() => (AKSI_RINGKAS.get(tableKey) ?? 0) > 3);
+  useEffect(() => {
+    if (aksiMaksBaris > 3 && !aksiRingkas) {
+      AKSI_RINGKAS.set(tableKey, aksiMaksBaris);
+      setAksiRingkas(true);
+    }
+  }, [aksiMaksBaris, aksiRingkas, tableKey]);
   const draftsRef = useRef(drafts);
   draftsRef.current = drafts;
   const resizeRef = useRef<{ key: string; startX: number; startW: number; targets: string[] } | null>(
@@ -1688,6 +1715,7 @@ export default function ExcelTable<T extends { id: string | number }>({
     cellClassName: 'simpes-dsg-col-last',
     component: ActionsCell,
     columnData: {
+      ringkas: aksiRingkas,
       render: (id: string | number) => {
         if (String(id) === INPUT_ROW_ID) {
           return (
@@ -1713,7 +1741,7 @@ export default function ExcelTable<T extends { id: string | number }>({
     pasteValue: ({ rowData }: { rowData: GridRow }) => rowData,
     isCellEmpty: () => true,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [widths, autoWidths, tableKey]);
+  }), [widths, autoWidths, tableKey, aksiRingkas]);
 
   /** Klik/pindah ke sel lain saat ada editor terbuka: tutup dulu editor lama
    *  (memicu commit + auto-save), lalu DSG memindahkan sel aktif. Tanpa ini
