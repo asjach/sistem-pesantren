@@ -12,6 +12,7 @@ import { useTheme } from '@/theme';
 import { errorMessage, prefGet, prefSet } from '@/api/client';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Separator } from '@/components/ui/separator';
 import { DEFAULT_FONT_PX, FONT_FAMILY_DEFAULT, FONT_OPTIONS, useGridPrefs } from '@/components/GridPrefs';
 import PresetKolom, { type PresetKolomApi } from '@/components/PresetKolom';
 import { useRibbonTable } from '@/components/RibbonTable';
@@ -2012,8 +2013,9 @@ export default function ExcelTable<T extends { id: string | number }>({
           </Button>
         </div>
       )}
-      {/* Satu baris: pencarian + filter (kiri), lalu kontrol tabel dan tombol
-          tambah halaman (kanan), dikelompokkan menurut fungsi. */}
+      {/* Satu baris: input cari → tombol cari → pemisah → filter (kiri), lalu
+          kontrol tabel dan tombol tambah halaman (kanan), dikelompokkan
+          menurut fungsi. */}
       <div data-part="toolbar_tabel" className="mb-3 flex flex-wrap items-center gap-2">
         {showToolbar && (
           <form
@@ -2034,7 +2036,6 @@ export default function ExcelTable<T extends { id: string | number }>({
                 className="w-44 sm:w-48"
               />
             )}
-            {filter}
             {showSearchButton && (
               <Button
                 id={buttonId}
@@ -2047,6 +2048,10 @@ export default function ExcelTable<T extends { id: string | number }>({
                 <Search size={16} />
               </Button>
             )}
+            {hasFilter && (hasSearchInput || showSearchButton) && (
+              <Separator orientation="vertical" className="h-4" />
+            )}
+            {filter}
           </form>
         )}
         <span
