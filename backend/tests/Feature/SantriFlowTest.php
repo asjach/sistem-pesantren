@@ -54,12 +54,21 @@ class SantriFlowTest extends TestCase
             'lembaga_id' => $root->id, 'nama' => '2026/2027',
             'tanggal_mulai' => '2026-07-01', 'tanggal_selesai' => '2027-06-30', 'is_aktif' => true,
         ]);
+        // TA operasional per lembaga (aturan: TA tidak pernah milik root).
+        $taMi = TahunAjaran::create([
+            'lembaga_id' => $mi->id, 'nama' => '2026/2027',
+            'tanggal_mulai' => '2026-07-01', 'tanggal_selesai' => '2027-06-30', 'is_aktif' => true,
+        ]);
+        $taMd = TahunAjaran::create([
+            'lembaga_id' => $md->id, 'nama' => '2026/2027',
+            'tanggal_mulai' => '2026-07-01', 'tanggal_selesai' => '2027-06-30', 'is_aktif' => true,
+        ]);
         $kelasMi = Kelas::create([
-            'lembaga_id' => $mi->id, 'tahun_ajaran_id' => $ta->id,
+            'lembaga_id' => $mi->id, 'tahun_ajaran_id' => $taMi->id,
             'nama_kelas' => 'I-A',
         ]);
 
-        return compact('root', 'mi', 'md', 'ta', 'kelasMi');
+        return compact('root', 'mi', 'md', 'ta', 'taMi', 'taMd', 'kelasMi');
     }
 
     protected int $userSeq = 0;
@@ -68,9 +77,9 @@ class SantriFlowTest extends TestCase
     {
         $this->userSeq++;
         $u = User::create([
-            'name' => ucfirst($role) . ' ' . $this->userSeq,
-            'email' => "santri101_u{$this->userSeq}_" . uniqid() . '@example.com',
-            'phone' => '08' . str_pad((string) (9100000000 + $this->userSeq * 137 + random_int(0, 99)), 10, '0', STR_PAD_LEFT),
+            'name' => ucfirst($role).' '.$this->userSeq,
+            'email' => "santri101_u{$this->userSeq}_".uniqid().'@example.com',
+            'phone' => '08'.str_pad((string) (9100000000 + $this->userSeq * 137 + random_int(0, 99)), 10, '0', STR_PAD_LEFT),
             'password' => 'password',
         ]);
         $u->assignRole($role);
@@ -96,7 +105,7 @@ class SantriFlowTest extends TestCase
         // $row['kewarganegaraan'] ?? null (null eksplisit menimpa default DB),
         // sehingga kolom ini juga wajib ada di file bila ingin sukses.
         $headers = ['nama_lengkap', 'jk', 'kelas_id', 'nik', 'nis', 'nisn', 'tgl_lahir', 'hobi', 'tipe_santri', 'kewarganegaraan', 'lembaga_id'];
-        $tmp = tempnam(sys_get_temp_dir(), 'santri101') . '.csv';
+        $tmp = tempnam(sys_get_temp_dir(), 'santri101').'.csv';
         $h = fopen($tmp, 'w');
         fputcsv($h, $headers);
         foreach ($rows as $r) {
@@ -162,7 +171,7 @@ class SantriFlowTest extends TestCase
         // Filter ?lembaga_id= milik lembaga lain juga tidak membocorkan:
         // controller index tidak memakai filter lembaga_id (abaikan), tetap scope milik sendiri.
         $resCross = $this->actingAs($adminMd, 'sanctum')
-            ->getJson('/api/admin/santri?lembaga_id=' . $f['mi']->id);
+            ->getJson('/api/admin/santri?lembaga_id='.$f['mi']->id);
         $resCross->assertStatus(200);
         $namesCross = collect($resCross->json('data'))->pluck('nama_lengkap')->all();
         $this->assertNotContains('Santri MI Satu', $namesCross);
@@ -203,7 +212,7 @@ class SantriFlowTest extends TestCase
             ],
         ]);
 
-        $res = $this->importCsv($adminMi, $f['ta']->id, $f['mi']->id, $csv);
+        $res = $this->importCsv($adminMi, $f['taMi']->id, $f['mi']->id, $csv);
         $res->assertStatus(200);
         $res->assertJsonPath('pesan', 'Data santri berhasil diimport.');
 
@@ -218,7 +227,7 @@ class SantriFlowTest extends TestCase
         foreach (Santri::all() as $s) {
             $this->assertDatabaseHas('riwayat_belajar', [
                 'santri_id' => $s->id,
-                'tahun_ajaran_id' => $f['ta']->id,
+                'tahun_ajaran_id' => $f['taMi']->id,
                 'lembaga_id' => $f['mi']->id,
                 'semester' => '1',
                 'status_awal' => 'santri_baru',
@@ -246,7 +255,7 @@ class SantriFlowTest extends TestCase
             ],
         ]);
 
-        $res = $this->importCsv($adminMi, $f['ta']->id, $f['mi']->id, $csv);
+        $res = $this->importCsv($adminMi, $f['taMi']->id, $f['mi']->id, $csv);
         $res->assertStatus(422);
         $res->assertJsonPath('pesan', 'Gagal mengimport beberapa data.');
         $this->assertNotEmpty($res->json('errors'));
@@ -268,13 +277,13 @@ class SantriFlowTest extends TestCase
             'nik' => '1101010000000005', 'nis' => 'S5001', 'tgl_lahir' => '2015-06-06',
         ];
 
-        $this->importCsv($adminMi, $f['ta']->id, $f['mi']->id, $this->makeCsv([$row]))
+        $this->importCsv($adminMi, $f['taMi']->id, $f['mi']->id, $this->makeCsv([$row]))
             ->assertStatus(200);
         $this->assertEquals(1, Santri::count());
 
         // Import kedua: NIK + nama + tgl_lahir sama, NIS berbeda -> update, tetap 1 santri.
         $row['nis'] = 'S5002';
-        $this->importCsv($adminMi, $f['ta']->id, $f['mi']->id, $this->makeCsv([$row]))
+        $this->importCsv($adminMi, $f['taMi']->id, $f['mi']->id, $this->makeCsv([$row]))
             ->assertStatus(200);
         $this->assertEquals(1, Santri::where('nik', '1101010000000005')->count());
         $this->assertDatabaseHas('santri', [
@@ -294,7 +303,7 @@ class SantriFlowTest extends TestCase
             ['nama_lengkap' => 'Tanpa NIK B', 'jk' => 'P', 'kelas_id' => $f['kelasMi']->id, 'tgl_lahir' => '2015-08-08'],
         ]);
 
-        $this->importCsv($adminMi, $f['ta']->id, $f['mi']->id, $csv)->assertStatus(200);
+        $this->importCsv($adminMi, $f['taMi']->id, $f['mi']->id, $csv)->assertStatus(200);
 
         $this->assertEquals(2, Santri::count());
         $this->assertDatabaseHas('santri', ['nama_lengkap' => 'Tanpa NIK A']);
@@ -315,12 +324,12 @@ class SantriFlowTest extends TestCase
         ]);
         $store->assertStatus(201);
 
-        $diMi = $this->getJson('/api/kamus/hobi?lembaga_id=' . $f['mi']->id);
+        $diMi = $this->getJson('/api/kamus/hobi?lembaga_id='.$f['mi']->id);
         $diMi->assertStatus(200);
         $this->assertContains($nama, collect($diMi->json('data'))->pluck('nama')->all());
 
         // Lembaga lain tidak melihat baris khusus MI.
-        $diMd = $this->getJson('/api/kamus/hobi?lembaga_id=' . $f['md']->id);
+        $diMd = $this->getJson('/api/kamus/hobi?lembaga_id='.$f['md']->id);
         $diMd->assertStatus(200);
         $this->assertNotContains($nama, collect($diMd->json('data'))->pluck('nama')->all());
     }
@@ -388,7 +397,7 @@ class SantriFlowTest extends TestCase
 
         // Rules aktual import: 'nik' => nullable|digits:16 -> NIK fiktif BOLEH
         // selama 16 digit; non-16 digit -> 422.
-        $res = $this->importCsv($adminMi, $f['ta']->id, $f['mi']->id, $csv);
+        $res = $this->importCsv($adminMi, $f['taMi']->id, $f['mi']->id, $csv);
         $res->assertStatus(422);
         $res->assertJsonPath('pesan', 'Gagal mengimport beberapa data.');
         $this->assertNotEmpty($res->json('errors'));
@@ -413,7 +422,7 @@ class SantriFlowTest extends TestCase
                 'nik' => '1102020000000002', 'nis' => 'E1002', 'tgl_lahir' => '2015-04-04',
             ],
         ]);
-        $this->importCsv($adminMi, $f['ta']->id, $f['mi']->id, $csv)->assertStatus(200);
+        $this->importCsv($adminMi, $f['taMi']->id, $f['mi']->id, $csv)->assertStatus(200);
 
         $s1 = Santri::where('nis', 'E1001')->firstOrFail();
         $s2 = Santri::where('nis', 'E1002')->firstOrFail();
@@ -566,7 +575,7 @@ class SantriFlowTest extends TestCase
         $csvLembaga = $this->makeCsv([
             ['nama_lengkap' => 'Import Berlembaga', 'jk' => 'P', 'lembaga_id' => (string) $f['mi']->id],
         ]);
-        $this->importCsv($superAdmin, $f['ta']->id, null, $csvLembaga)->assertStatus(200);
+        $this->importCsv($superAdmin, $f['taMi']->id, null, $csvLembaga)->assertStatus(200);
 
         $berlembaga = Santri::where('nama_lengkap', 'Import Berlembaga')->firstOrFail();
         $this->assertEquals($f['mi']->id, (int) $berlembaga->lembaga_id);
@@ -581,7 +590,7 @@ class SantriFlowTest extends TestCase
         $f = $this->baseFixture();
         $adminMi = $this->makeUser('admin', [$f['mi']->id]);
 
-        $export = new SantriTemplateExport();
+        $export = new SantriTemplateExport;
         $headings = $export->headings();
         $contoh = $export->array()[0];
         $this->assertSame(count($headings), count($contoh));
@@ -592,7 +601,7 @@ class SantriFlowTest extends TestCase
 
         // Baris contoh template harus lolos import tanpa penyesuaian kolom.
         $this->actingAs($adminMi, 'sanctum')->post('/api/admin/santri/import-lengkap', [
-            'tahun_ajaran_id' => $f['ta']->id,
+            'tahun_ajaran_id' => $f['taMi']->id,
             'file' => new UploadedFile($tmp, 'template-santri.xlsx', null, null, true),
         ])->assertStatus(200);
 
@@ -611,7 +620,7 @@ class SantriFlowTest extends TestCase
         $f = $this->baseFixture();
         $adminMi = $this->makeUser('admin', [$f['mi']->id]);
         $kelasMd = Kelas::create([
-            'lembaga_id' => $f['md']->id, 'tahun_ajaran_id' => $f['ta']->id, 'nama_kelas' => 'I-MD',
+            'lembaga_id' => $f['md']->id, 'tahun_ajaran_id' => $f['taMd']->id, 'nama_kelas' => 'I-MD',
         ]);
 
         // 1 baris valid + 1 baris kelas beda lembaga.
@@ -621,7 +630,7 @@ class SantriFlowTest extends TestCase
         ]);
 
         $res = $this->actingAs($adminMi, 'sanctum')->post('/api/admin/santri/import-periksa', [
-            'tahun_ajaran_id' => $f['ta']->id,
+            'tahun_ajaran_id' => $f['taMi']->id,
             'file' => new UploadedFile($csv, 'periksa.csv', 'text/csv', null, true),
         ])->assertStatus(200);
 
@@ -637,13 +646,13 @@ class SantriFlowTest extends TestCase
         // File bersih → siap_import true; tetap tanpa tulisan.
         $csvOk = $this->makeCsv([['nama_lengkap' => 'Bersih', 'jk' => 'L']]);
         $this->actingAs($adminMi, 'sanctum')->post('/api/admin/santri/import-periksa', [
-            'tahun_ajaran_id' => $f['ta']->id,
+            'tahun_ajaran_id' => $f['taMi']->id,
             'file' => new UploadedFile($csvOk, 'bersih.csv', 'text/csv', null, true),
         ])->assertStatus(200)->assertJsonPath('siap_import', true);
         $this->assertSame(0, Santri::count());
 
         // Import nyata tetap berjalan setelah lolos periksa.
-        $this->importCsv($adminMi, $f['ta']->id, null, $csvOk)->assertStatus(200);
+        $this->importCsv($adminMi, $f['taMi']->id, null, $csvOk)->assertStatus(200);
         $this->assertSame(1, Santri::count());
     }
 
@@ -678,7 +687,7 @@ class SantriFlowTest extends TestCase
 
         // Excel hanya menampilkan panah dropdown bila XML berisi showDropDown="0"
         // (atribut OOXML inverted; default PhpSpreadsheet menulis "1" = tersembunyi).
-        $zip = new \ZipArchive();
+        $zip = new \ZipArchive;
         $this->assertTrue($zip->open($tmp));
         $xmlSheet = $zip->getFromName('xl/worksheets/sheet1.xml');
         $zip->close();
@@ -706,5 +715,54 @@ class SantriFlowTest extends TestCase
         }
         $this->assertNotNull($colAgama);
         $this->assertSame('Islam', $referensi->getCell($colAgama.'2')->getValue());
+    }
+
+    // ---------- 18. import menolak TA bukan milik lembaga baris ----------
+
+    public function test_18_import_ta_silang_lembaga_ditolak_per_baris(): void
+    {
+        $f = $this->baseFixture();
+        $adminMi = $this->makeUser('admin', [$f['mi']->id]);
+
+        // File ber-TA MD untuk baris MI (scoped otomatis MI) → gagal per baris.
+        $csv = $this->makeCsv([['nama_lengkap' => 'TA Silang', 'jk' => 'L']]);
+        $res = $this->actingAs($adminMi, 'sanctum')->post('/api/admin/santri/import-periksa', [
+            'tahun_ajaran_id' => $f['taMd']->id,
+            'file' => new UploadedFile($csv, 'silang.csv', 'text/csv', null, true),
+        ])->assertStatus(200);
+
+        $res->assertJsonPath('siap_import', false)
+            ->assertJsonPath('ringkasan.baris_gagal', 1);
+        $this->assertStringContainsString(
+            'Tahun ajaran',
+            (string) json_encode($res->json('errors'))
+        );
+        $this->assertSame(0, Santri::count());
+    }
+
+    // ---------- 19. import menolak lembaga root ----------
+
+    public function test_19_import_lembaga_root_ditolak(): void
+    {
+        $f = $this->baseFixture();
+        $superAdmin = $this->makeUser('super_admin', []);
+
+        // Kolom per baris berisi id root → gagal validasi baris.
+        $csv = $this->makeCsv([
+            ['nama_lengkap' => 'Root Baris', 'jk' => 'L', 'lembaga_id' => (string) $f['root']->id],
+        ]);
+        $this->actingAs($superAdmin, 'sanctum')->post('/api/admin/santri/import-periksa', [
+            'tahun_ajaran_id' => $f['taMi']->id,
+            'file' => new UploadedFile($csv, 'root.csv', 'text/csv', null, true),
+        ])->assertStatus(200)->assertJsonPath('siap_import', false);
+
+        // Level file berisi id root → 422 langsung (resolusi lembaga).
+        $csvOk = $this->makeCsv([['nama_lengkap' => 'Root File', 'jk' => 'L']]);
+        $this->actingAs($superAdmin, 'sanctum')->post('/api/admin/santri/import-lengkap', [
+            'tahun_ajaran_id' => $f['taMi']->id,
+            'lembaga_id' => $f['root']->id,
+            'file' => new UploadedFile($csvOk, 'root-file.csv', 'text/csv', null, true),
+        ])->assertStatus(422);
+        $this->assertSame(0, Santri::count());
     }
 }

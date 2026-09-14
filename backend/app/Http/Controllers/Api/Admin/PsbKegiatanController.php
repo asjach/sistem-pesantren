@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Api\Concerns\TenantGuard;
 use App\Http\Controllers\Controller;
+use App\Models\Lembaga;
 use App\Models\PsbCalonSantri;
 use App\Models\PsbGelombang;
 use App\Models\PsbKegiatan;
+use App\Models\TahunAjaran;
 use App\Services\PsbGelombangService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -42,6 +44,11 @@ class PsbKegiatanController extends Controller
         ], [
             'tahun_ajaran_id.unique' => 'Tahun ajaran ini sudah memiliki kegiatan PSB.',
         ]);
+        // TA acuan periode harus milik lembaga operasional (bukan root pesantren).
+        $indukTa = Lembaga::where('id', TahunAjaran::where('id', $data['tahun_ajaran_id'])->value('lembaga_id'))->value('parent_id');
+        if ($indukTa === null) {
+            throw ValidationException::withMessages(['tahun_ajaran_id' => 'Tahun ajaran harus milik lembaga operasional (bukan induk pesantren).']);
+        }
 
         $kegiatan = DB::transaction(function () use ($data) {
             if ((bool) ($data['is_aktif'] ?? false)) {
@@ -69,6 +76,12 @@ class PsbKegiatanController extends Controller
         ], [
             'tahun_ajaran_id.unique' => 'Tahun ajaran ini sudah memiliki kegiatan PSB.',
         ]);
+        if (array_key_exists('tahun_ajaran_id', $data)) {
+            $indukTa = Lembaga::where('id', TahunAjaran::where('id', $data['tahun_ajaran_id'])->value('lembaga_id'))->value('parent_id');
+            if ($indukTa === null) {
+                throw ValidationException::withMessages(['tahun_ajaran_id' => 'Tahun ajaran harus milik lembaga operasional (bukan induk pesantren).']);
+            }
+        }
 
         DB::transaction(function () use ($kegiatan, $data) {
             if (! empty($data['is_aktif'])) {

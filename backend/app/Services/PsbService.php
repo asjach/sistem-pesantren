@@ -13,6 +13,7 @@ use App\Models\PsbLogStatus;
 use App\Models\RiwayatBelajar;
 use App\Models\Santri;
 use App\Models\Tagihan;
+use App\Models\TahunAjaran;
 use App\Models\User;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\UploadedFile;
@@ -62,6 +63,7 @@ class PsbService
     ];
 
     protected KeuanganService $keuangan;
+
     protected PsbGelombangService $gelombang;
 
     public function __construct(KeuanganService $keuangan, PsbGelombangService $gelombang)
@@ -110,7 +112,7 @@ class PsbService
             throw ValidationException::withMessages(['lembaga_id' => "Kode lembaga {$kode} belum punya daftar tingkat pindahan."]);
         }
         if (! in_array((string) ($tingkat ?? ''), $boleh, true)) {
-            throw ValidationException::withMessages(['masuk_tingkat' => 'Pindahan ' . $kode . ' wajib tingkat ' . implode('/', $boleh) . '.']);
+            throw ValidationException::withMessages(['masuk_tingkat' => 'Pindahan '.$kode.' wajib tingkat '.implode('/', $boleh).'.']);
         }
 
         return (string) $tingkat;
@@ -150,8 +152,7 @@ class PsbService
                         'nik' => "NIK terdaftar sebagai santri aktif (NIS {$santriAktif->nis}). Gunakan Pendaftaran Lanjutan atau hubungi TU.",
                     ]);
                 }
-                $identik = $kandidat->contains(fn ($r) =>
-                    $r->nama_lengkap === $data['nama_lengkap']
+                $identik = $kandidat->contains(fn ($r) => $r->nama_lengkap === $data['nama_lengkap']
                     && $this->tglSama($r->tgl_lahir, $data['tgl_lahir'] ?? null));
                 if ($identik) {
                     throw ValidationException::withMessages(['nik' => 'Data ini sudah terdaftar di gelombang ini.']);
@@ -193,6 +194,12 @@ class PsbService
                 $targets = [['lembaga' => $lembagaDaftar, 'peran' => 'primer', 'tingkat' => $tingkat]];
             }
 
+            // TA calon = TA primer yang resolved se-lembaga (kegiatan hanya fallback bila se-lembaga).
+            $data['tahun_ajaran_id'] = TahunAjaran::resolveUntukLembaga(
+                (int) $targets[0]['lembaga']->id,
+                $data['tahun_ajaran_id'] ?? $gelombangModel->kegiatan?->tahun_ajaran_id
+            );
+
             $catatanSistem = [];
             if (! empty($data['email_ortu']) && PsbCalonSantri::where('email_ortu', $data['email_ortu'])->exists()) {
                 $catatanSistem[] = 'email sudah ada di calon lain';
@@ -200,8 +207,7 @@ class PsbService
             if (! empty($data['telp_ortu']) && PsbCalonSantri::where('telp_ortu', $data['telp_ortu'])->exists()) {
                 $catatanSistem[] = 'telp sudah ada di calon lain';
             }
-            $nikGanda = $kandidat->contains(fn ($r) =>
-                $r->nama_lengkap !== $data['nama_lengkap']
+            $nikGanda = $kandidat->contains(fn ($r) => $r->nama_lengkap !== $data['nama_lengkap']
                 || ! $this->tglSama($r->tgl_lahir, $data['tgl_lahir'] ?? null));
             if ($nikGanda) {
                 $catatanSistem[] = 'NIK ganda dengan calon lain (nama/tgl_lahir beda, kemungkinan NIK fiktif) — perlu verifikasi admin';
@@ -263,8 +269,8 @@ class PsbService
 
             PsbLogStatus::create(['psb_calon_santri_id' => $calon->id, 'dari' => null, 'ke' => $statusAwal]);
 
-            $tahunAjaranId = $data['tahun_ajaran_id'] ?? $calon->gelombang->kegiatan?->tahun_ajaran_id;
-            $this->keuangan->createTagihanPendaftaranPsb($calon, (float) $nominal, (int) $tahunAjaranId);
+            $tahunAjaranId = (int) $calon->tahun_ajaran_id;
+            $this->keuangan->createTagihanPendaftaranPsb($calon, (float) $nominal, $tahunAjaranId);
 
             return $calon->fresh();
         });
@@ -349,6 +355,7 @@ class PsbService
         if (! $butuhSeleksi) {
             throw ValidationException::withMessages(['status' => 'Gelombang ini jalur langsung, tanpa seleksi.']);
         }
+
         // Langsung terverifikasi -> lolos/tidak_lolos (TIDAK ada status 'seleksi')
         return $this->pindahStatus($id, $lolos ? 'lolos' : 'tidak_lolos', $adminId, ['terverifikasi'], $catatan);
     }
@@ -391,7 +398,9 @@ class PsbService
                 // keluarkan dulu dari kelas agar jejak penempatan tetap jelas.
                 $berkelas = RiwayatBelajar::where('santri_id', $hasil->santri_id)
                     ->where('is_aktif', true)->whereNotNull('kelas_id')->exists();
-                if ($berkelas) throw ValidationException::withMessages(['kelas' => 'Santri sudah ditempatkan di kelas; keluarkan dari kelas terlebih dahulu sebelum mengundurkan diri.']);
+                if ($berkelas) {
+                    throw ValidationException::withMessages(['kelas' => 'Santri sudah ditempatkan di kelas; keluarkan dari kelas terlebih dahulu sebelum mengundurkan diri.']);
+                }
                 // Lindungi riwayat keuangan: pembayaran tidak boleh ikut terhapus/lepas.
                 $adaBayar = DB::table('pembayaran')
                     ->where('psb_calon_santri_id', $hasil->id)
@@ -515,8 +524,11 @@ class PsbService
                 }
                 foreach ($calon->lembagaDetail()->get() as $detail) {
                     [$awalAcc, $tingkatAcc] = $this->awalDanTingkat($calon, $detail);
+                    // TA per lembaga detail (paket MI+MD bisa beda TA): TA calon bila
+                    // se-lembaga, bila tidak TA aktif milik lembaga itu.
+                    $taAcc = TahunAjaran::resolveUntukLembaga((int) $detail->lembaga_id, $calon->tahun_ajaran_id);
                     $riwayat = RiwayatBelajar::firstOrCreate(
-                        ['santri_id' => $santri->id, 'tahun_ajaran_id' => $calon->tahun_ajaran_id, 'lembaga_id' => $detail->lembaga_id, 'semester' => '1'],
+                        ['santri_id' => $santri->id, 'tahun_ajaran_id' => $taAcc, 'lembaga_id' => $detail->lembaga_id, 'semester' => '1'],
                         ['nis' => $nis, 'status_awal' => $awalAcc, 'tingkat' => $tingkatAcc, 'status_akhir' => 'aktif', 'is_aktif' => true, 'tgl_masuk' => $calon->tanggal_masuk ?? null]
                     );
                     // Riwayat sudah ada (mis. pendaftaran lanjutan) & NIS diisi saat ACC → perbarui arsipnya.
@@ -633,9 +645,9 @@ class PsbService
     protected function kuotaUntuk(int $gelombangId, int $lembagaId, ?string $tipeSantri): ?PsbKuotaBiaya
     {
         return PsbKuotaBiaya::where('gelombang_id', $gelombangId)
-                ->where('lembaga_id', $lembagaId)
-                ->where('tipe_santri', $tipeSantri ?? 'semua')
-                ->first()
+            ->where('lembaga_id', $lembagaId)
+            ->where('tipe_santri', $tipeSantri ?? 'semua')
+            ->first()
             ?? PsbKuotaBiaya::where('gelombang_id', $gelombangId)
                 ->where('lembaga_id', $lembagaId)
                 ->where('tipe_santri', 'semua')
@@ -680,7 +692,7 @@ class PsbService
         $noGelombang = (int) ($gelombang->nomor ?: (PsbGelombang::where('psb_kegiatan_id', $gelombang->psb_kegiatan_id)
             ->where('id', '<=', $gelombangId)->count() ?: 1));
         $prefix = sprintf('PSB_%s_MIMD_%d_', $tahun, $noGelombang);
-        $seq = PsbCalonSantri::withTrashed()->where('no_pendaftaran', 'like', $prefix . '%')
+        $seq = PsbCalonSantri::withTrashed()->where('no_pendaftaran', 'like', $prefix.'%')
             ->whereYear('created_at', $tahun)
             ->lockForUpdate()->count() + 1;
 

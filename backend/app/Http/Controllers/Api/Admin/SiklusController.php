@@ -6,9 +6,11 @@ use App\Http\Controllers\Api\Concerns\TenantGuard;
 use App\Http\Controllers\Controller;
 use App\Models\Alumni;
 use App\Models\Kelas;
+use App\Models\Lembaga;
 use App\Models\MutasiKeluar;
 use App\Models\RiwayatBelajar;
 use App\Models\Santri;
+use App\Models\TahunAjaran;
 use App\Services\SiklusSantriService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -46,6 +48,24 @@ class SiklusController extends Controller
             ->exists();
         if (! $punya) {
             abort(403, 'Akses ditolak.');
+        }
+    }
+
+    /** Target aksi siklus wajib lembaga operasional (bukan root pesantren). */
+    protected function tolakLembagaRoot(int $lembagaId): void
+    {
+        if (! Lembaga::where('id', $lembagaId)->whereNotNull('parent_id')->exists()) {
+            throw ValidationException::withMessages(['lembaga_id' => 'Lembaga harus lembaga operasional (bukan induk pesantren).']);
+        }
+    }
+
+    /** TA wajib milik lembaga target bila lembaga itu punya TA sendiri. */
+    protected function cekTaSelembaga(int $lembagaId, int $taId, string $field = 'tahun_ajaran_id'): void
+    {
+        if (TahunAjaran::where('lembaga_id', $lembagaId)->exists()
+            && ! TahunAjaran::where('id', $taId)->where('lembaga_id', $lembagaId)->exists()
+        ) {
+            throw ValidationException::withMessages([$field => 'Tahun ajaran bukan milik lembaga ini.']);
         }
     }
 
@@ -113,6 +133,7 @@ class SiklusController extends Controller
 
         $lembagaId = (int) $data['lembaga_id'];
         $this->authorizeLembaga($request->user(), $lembagaId);
+        $this->tolakLembagaRoot($lembagaId);
         $tanggal = (string) $data['tanggal_masuk'];
 
         $items = $data['siswa'] ?? RiwayatBelajar::where('lembaga_id', $lembagaId)
@@ -186,6 +207,8 @@ class SiklusController extends Controller
         $lembagaId = (int) $data['lembaga_id'];
         $tahunBaruId = (int) $data['tahun_ajaran_baru_id'];
         $tingkat = (string) $data['tingkat'];
+        $this->tolakLembagaRoot($lembagaId);
+        $this->cekTaSelembaga($lembagaId, $tahunBaruId, 'tahun_ajaran_baru_id');
 
         $ok = 0;
         $gagal = [];
@@ -254,6 +277,7 @@ class SiklusController extends Controller
     {
         $data = $request->validate(['lembaga_id' => 'required|exists:lembaga,id']);
 
+        $this->tolakLembagaRoot((int) $data['lembaga_id']);
         $this->authorizeAksiLembaga($request, $santri, (int) $data['lembaga_id']);
 
         $this->siklusService->nonAktifkanRiwayat($santri, (int) $data['lembaga_id']);
@@ -277,6 +301,7 @@ class SiklusController extends Controller
             'keterangan' => 'nullable|string',
         ]);
 
+        $this->tolakLembagaRoot((int) $data['lembaga_id']);
         $this->authorizeAksiLembaga($request, $santri, (int) $data['lembaga_id']);
 
         $mutasi = $this->siklusService->prosesMutasiPerLembaga($santri, (int) $data['lembaga_id'], $data);
@@ -302,6 +327,8 @@ class SiklusController extends Controller
             'melanjutkan' => ['nullable', 'in:ya,tidak'],
         ]);
 
+        $this->tolakLembagaRoot((int) $data['lembaga_id']);
+        $this->cekTaSelembaga((int) $data['lembaga_id'], (int) $data['tahun_ajaran_lulus_id'], 'tahun_ajaran_lulus_id');
         $this->authorizeAksiLembaga($request, $santri, (int) $data['lembaga_id']);
 
         if (($data['hasil'] ?? 'lulus') === 'tidak_lulus') {

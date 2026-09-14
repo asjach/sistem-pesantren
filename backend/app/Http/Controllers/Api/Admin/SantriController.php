@@ -8,15 +8,19 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\ImportSantriRequest;
 use App\Imports\SantriLengkapImport;
 use App\Models\DokumenSantri;
+use App\Models\Lembaga;
 use App\Models\RiwayatBelajar;
 use App\Models\Santri;
+use App\Models\TahunAjaran;
 use App\Models\User;
 use App\Services\RefService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException as ServiceValidationException;
 use Maatwebsite\Excel\Facades\Excel;
+use Maatwebsite\Excel\Validators\Failure;
 use Maatwebsite\Excel\Validators\ValidationException;
 
 class SantriController extends Controller
@@ -56,7 +60,7 @@ class SantriController extends Controller
             : null);
 
         if (array_key_exists('nis', $data) && Santri::nisDipakai($data['nis'])) {
-            throw \Illuminate\Validation\ValidationException::withMessages(['nis' => 'NIS sudah dipakai santri lain.']);
+            throw ServiceValidationException::withMessages(['nis' => 'NIS sudah dipakai santri lain.']);
         }
 
         unset($data['lembaga_id']);
@@ -95,17 +99,23 @@ class SantriController extends Controller
     }
 
     /** Resolusi lembaga input manual/import (v1.10): eksplisit → wajib boleh diakses;
-     *  admin scoped 1 lembaga → otomatis; multi/full/super tanpa pilihan → null (legacy). */
+     *  admin scoped 1 lembaga → otomatis; multi/full/super tanpa pilihan → null (legacy).
+     *  Lembaga root (induk pesantren) selalu ditolak — santri milik lembaga operasional. */
     private function resolveLembagaInput(User $auth, ?int $lembagaId): ?int
     {
         if ($lembagaId !== null) {
             $this->authorizeLembaga($auth, $lembagaId);
+            if (! Lembaga::where('id', $lembagaId)->whereNotNull('parent_id')->exists()) {
+                throw ServiceValidationException::withMessages(['lembaga_id' => 'Lembaga harus lembaga operasional (bukan induk pesantren).']);
+            }
+
             return $lembagaId;
         }
         if ($auth->hasRole('super_admin') || $auth->isAdminFull()) {
             return null;
         }
         $ids = $auth->lembagaIds();
+
         return count($ids) === 1 ? (int) $ids[0] : null;
     }
 
@@ -123,7 +133,7 @@ class SantriController extends Controller
         }
 
         if (array_key_exists('nis', $data) && Santri::nisDipakai($data['nis'], $santri->id)) {
-            throw \Illuminate\Validation\ValidationException::withMessages(['nis' => 'NIS sudah dipakai santri lain.']);
+            throw ServiceValidationException::withMessages(['nis' => 'NIS sudah dipakai santri lain.']);
         }
 
         $santri->update($data);
@@ -279,6 +289,8 @@ class SantriController extends Controller
         if ($lembagaId !== null && $tahunAjaranId === null) {
             return response()->json(['pesan' => 'Tahun ajaran wajib bila lembaga diisi.'], 422);
         }
+        // Ketidakcocokan TA vs lembaga dilaporkan per baris oleh import
+        // (berlaku untuk mode periksa maupun import, termasuk kolom per baris).
 
         $import = new SantriLengkapImport($tahunAjaranId, $lembagaId);
         $errors = [];
@@ -303,16 +315,16 @@ class SantriController extends Controller
 
         if ($periksa) {
             return response()->json([
-                'pesan'       => $errors === [] ? 'Pengecekan selesai: file siap diimport.' : 'Pengecekan menemukan masalah.',
+                'pesan' => $errors === [] ? 'Pengecekan selesai: file siap diimport.' : 'Pengecekan menemukan masalah.',
                 'siap_import' => $errors === [],
-                'ringkasan'   => $import->ringkasan(),
-                'errors'      => $errors,
+                'ringkasan' => $import->ringkasan(),
+                'errors' => $errors,
             ]);
         }
 
         if ($errors !== []) {
             return response()->json([
-                'pesan'  => 'Gagal mengimport beberapa data.',
+                'pesan' => 'Gagal mengimport beberapa data.',
                 'errors' => $errors,
             ], 422);
         }
@@ -320,15 +332,15 @@ class SantriController extends Controller
         return response()->json(['pesan' => 'Data santri berhasil diimport.']);
     }
 
-    /** @param  iterable<\Maatwebsite\Excel\Validators\Failure>  $failures */
+    /** @param  iterable<Failure>  $failures */
     private function formatFailures(iterable $failures): array
     {
         $errors = [];
         foreach ($failures as $failure) {
             $errors[] = [
-                'row'       => $failure->row(),
+                'row' => $failure->row(),
                 'attribute' => $failure->attribute(),
-                'errors'    => $failure->errors(),
+                'errors' => $failure->errors(),
             ];
         }
 

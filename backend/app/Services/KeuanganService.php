@@ -12,6 +12,7 @@ use App\Models\PsbBiayaLembaga;
 use App\Models\PsbCalonSantri;
 use App\Models\Santri;
 use App\Models\Tagihan;
+use App\Models\TahunAjaran;
 use App\Models\TarifBiaya;
 use App\Models\TarifKhususSantri;
 use Illuminate\Database\QueryException;
@@ -128,28 +129,30 @@ class KeuanganService
         }
 
         $biaya = PsbBiayaLembaga::where('lembaga_id', $calon->lembaga_id)->first();
+        $taMasuk = TahunAjaran::resolveUntukLembaga((int) $calon->lembaga_id, $calon->tahun_ajaran_id);
         $tagihanMasuk = $this->buatTagihanDaftarUlang(
             $calon,
             $santri,
             $pos,
             (float) ($biaya->biaya_masuk ?? 0),
-            $calon->isPaket() ? 'MI-MD' : null
+            $calon->isPaket() ? 'MI-MD' : null,
+            $taMasuk
         );
 
         if ($calon->tipe_santri === 'asrama') {
             $posAsrama = PosKeuangan::where('kode_pos', 'ASRAMA')->first();
             $biayaAsrama = (float) ($biaya->biaya_asrama ?? 0);
             if ($posAsrama && $biayaAsrama > 0) {
-                $this->buatTagihanDaftarUlang($calon, $santri, $posAsrama, $biayaAsrama, null);
+                $this->buatTagihanDaftarUlang($calon, $santri, $posAsrama, $biayaAsrama, null, $taMasuk);
             }
         }
 
         return $tagihanMasuk;
     }
 
-    protected function buatTagihanDaftarUlang(PsbCalonSantri $calon, Santri $santri, PosKeuangan $pos, float $nominal, ?string $paketKode): Tagihan
+    protected function buatTagihanDaftarUlang(PsbCalonSantri $calon, Santri $santri, PosKeuangan $pos, float $nominal, ?string $paketKode, ?int $tahunAjaranId = null): Tagihan
     {
-        return DB::transaction(function () use ($calon, $santri, $pos, $nominal, $paketKode) {
+        return DB::transaction(function () use ($calon, $santri, $pos, $nominal, $paketKode, $tahunAjaranId) {
             $ada = Tagihan::where('santri_id', $santri->id)
                 ->where('pos_keuangan_id', $pos->id)
                 ->whereNull('periode')
@@ -167,7 +170,7 @@ class KeuanganService
                         'santri_id' => $santri->id,
                         'psb_calon_santri_id' => $calon->id,
                         'pos_keuangan_id' => $pos->id,
-                        'tahun_ajaran_id' => $calon->tahun_ajaran_id,
+                        'tahun_ajaran_id' => $tahunAjaranId ?? $calon->tahun_ajaran_id,
                         'lembaga_id' => $calon->lembaga_id,
                         'periode' => null,
                         'paket_kode' => $paketKode,
@@ -210,7 +213,9 @@ class KeuanganService
     {
         $lembaga = Lembaga::where('id', $lembagaId)->firstOrFail();
         $posList = PosKeuangan::where('tipe', 'bulanan')->get();
-        $ok = 0; $gagal = []; $lewat = 0;
+        $ok = 0;
+        $gagal = [];
+        $lewat = 0;
 
         Santri::with(['lembaga', 'riwayatAktif.lembaga'])
             ->where('status_global', true)
@@ -223,7 +228,11 @@ class KeuanganService
                     $isPaket = in_array('MI', $kodeAktif, true) && in_array('MD', $kodeAktif, true)
                         && $santri->tipe_santri === 'non_asrama';
                     // Baris MD paket: generate milik MI saja (dilewati_paket, bukan gagal).
-                    if ($isPaket && $lembaga->kode === 'MD') { $lewat++; continue; }
+                    if ($isPaket && $lembaga->kode === 'MD') {
+                        $lewat++;
+
+                        continue;
+                    }
 
                     foreach ($posList as $pos) {
                         try {
@@ -243,17 +252,22 @@ class KeuanganService
         return DB::transaction(function () use ($santri, $lembaga, $pos, $tahunAjaranId, $periode, $isPaket) {
             $tarifKhusus = TarifKhususSantri::where('santri_id', $santri->id)->where('pos_keuangan_id', $pos->id)->first();
             if ($tarifKhusus) {
-                $nominal = $tarifKhusus->nominal_akhir; $paketKode = null;
+                $nominal = $tarifKhusus->nominal_akhir;
+                $paketKode = null;
             } else {
                 $tarif = TarifBiaya::where('pos_keuangan_id', $pos->id)->where('lembaga_id', $lembaga->id)
                     ->where('tahun_ajaran_id', $tahunAjaranId)
                     ->whereIn('tipe_santri', ['semua', $santri->tipe_santri])
                     ->orderByRaw('CASE WHEN tipe_santri = ? THEN 0 ELSE 1 END', [$santri->tipe_santri])
                     ->lockForUpdate()->first();
-                if (! $tarif || (float) $tarif->nominal <= 0) return false; // tanpa tarif = tidak ditagih (eksplisit, bukan 0 diam-diam)
-                $nominal = (float) $tarif->nominal; $paketKode = null;
+                if (! $tarif || (float) $tarif->nominal <= 0) {
+                    return false;
+                } // tanpa tarif = tidak ditagih (eksplisit, bukan 0 diam-diam)
+                $nominal = (float) $tarif->nominal;
+                $paketKode = null;
                 if ($isPaket && $tarif->nominal_paket !== null && $lembaga->kode === 'MI') {
-                    $nominal = (float) $tarif->nominal_paket; $paketKode = 'MI-MD';
+                    $nominal = (float) $tarif->nominal_paket;
+                    $paketKode = 'MI-MD';
                 }
             }
             // Idempoten: unique (santri,pos,periode) — race dobel generate ditangkap via unique-violation lalu re-read.
@@ -262,12 +276,14 @@ class KeuanganService
                 $tagihan = Tagihan::firstOrCreate(
                     ['santri_id' => $santri->id, 'pos_keuangan_id' => $pos->id, 'periode' => $periode],
                     ['no_tagihan' => sprintf('TGH/%s/%d/%d', str_replace('-', '', $periode), $santri->id, $pos->id),
-                     'lembaga_id' => $lembaga->id,
-                     'tahun_ajaran_id' => $tahunAjaranId, 'paket_kode' => $paketKode,
-                     'nominal_total' => $nominal, 'nominal_terbayar' => 0, 'sisa_tagihan' => $nominal, 'status' => 'belum_bayar']
+                        'lembaga_id' => $lembaga->id,
+                        'tahun_ajaran_id' => $tahunAjaranId, 'paket_kode' => $paketKode,
+                        'nominal_total' => $nominal, 'nominal_terbayar' => 0, 'sisa_tagihan' => $nominal, 'status' => 'belum_bayar']
                 );
             } catch (QueryException $e) {
-                if (($e->errorInfo[1] ?? null) !== 1062) throw $e;
+                if (($e->errorInfo[1] ?? null) !== 1062) {
+                    throw $e;
+                }
                 Tagihan::where('santri_id', $santri->id)->where('pos_keuangan_id', $pos->id)->where('periode', $periode)->firstOrFail();
 
                 return false;
@@ -286,7 +302,9 @@ class KeuanganService
     public function bayarTagihan(array $data)
     {
         $sum = array_sum(array_column($data['items'], 'nominal_dibayar'));
-        if (abs($sum - (float) $data['total_bayar']) > 0.01) abort(422, 'Total bayar harus sama dengan jumlah item.');
+        if (abs($sum - (float) $data['total_bayar']) > 0.01) {
+            abort(422, 'Total bayar harus sama dengan jumlah item.');
+        }
 
         return DB::transaction(function () use ($data) {
             $tenantLembagaIds = $data['tenant_lembaga_ids'] ?? null;
@@ -322,7 +340,9 @@ class KeuanganService
                     ]);
                     break;
                 } catch (QueryException $e) {
-                    if (($e->errorInfo[1] ?? null) !== 1062) throw $e;
+                    if (($e->errorInfo[1] ?? null) !== 1062) {
+                        throw $e;
+                    }
                     // Race kunci sama: baca ulang existing daripada dobel catat (tetap ter-scope tenant).
                     if (! empty($data['client_op_id'])) {
                         $lomba = $this->cariPembayaranIdempoten($data['client_op_id'], $tenantLembagaIds);
@@ -331,7 +351,9 @@ class KeuanganService
                         }
                         abort(422, 'client_op_id sudah dipakai pada transaksi lain.');
                     }
-                    if ($i === 3) throw new \Exception('Gagal menerbitkan nomor kuitansi, coba lagi.');
+                    if ($i === 3) {
+                        throw new \Exception('Gagal menerbitkan nomor kuitansi, coba lagi.');
+                    }
                 }
             }
 
@@ -344,10 +366,16 @@ class KeuanganService
                     if (! empty($data['psb_calon_santri_id']) && (int) $tagihan->psb_calon_santri_id !== (int) $data['psb_calon_santri_id']) {
                         abort(422, "Tagihan {$tagihan->no_tagihan} bukan milik calon yang dipilih.");
                     }
-                    if ($tagihan->status === 'dibatalkan') abort(409, "Tagihan {$tagihan->no_tagihan} sudah dibatalkan.");
-                    if ($tagihan->status === 'lunas' || (float) $tagihan->sisa_tagihan <= 0) abort(409, "Tagihan {$tagihan->no_tagihan} sudah lunas.");
+                    if ($tagihan->status === 'dibatalkan') {
+                        abort(409, "Tagihan {$tagihan->no_tagihan} sudah dibatalkan.");
+                    }
+                    if ($tagihan->status === 'lunas' || (float) $tagihan->sisa_tagihan <= 0) {
+                        abort(409, "Tagihan {$tagihan->no_tagihan} sudah lunas.");
+                    }
                     $bayar = (float) $item['nominal_dibayar'];
-                    if ($bayar <= 0 || $bayar > (float) $tagihan->sisa_tagihan) abort(422, "Nominal melebihi sisa tagihan {$tagihan->no_tagihan}.");
+                    if ($bayar <= 0 || $bayar > (float) $tagihan->sisa_tagihan) {
+                        abort(422, "Nominal melebihi sisa tagihan {$tagihan->no_tagihan}.");
+                    }
 
                     PembayaranDetail::create(['pembayaran_id' => $pembayaran->id, 'tagihan_id' => $tagihan->id, 'nominal_dibayar' => $bayar]);
                     $sisa = (float) $tagihan->sisa_tagihan - $bayar;
@@ -385,7 +413,10 @@ class KeuanganService
             ->lockForUpdate()->count() + 1 + $usaha;
         $no = sprintf('KWT/%s/%05d', $tahun, $seq);
         if (Pembayaran::where('no_kuitansi', $no)->exists()) {
-            if ($usaha > 3) throw new \Exception('Gagal menerbitkan nomor kuitansi, coba lagi.');
+            if ($usaha > 3) {
+                throw new \Exception('Gagal menerbitkan nomor kuitansi, coba lagi.');
+            }
+
             return $this->nomorKuitansiBerikutnya($usaha + 1);
         }
 
@@ -418,7 +449,7 @@ class KeuanganService
                 'pembayaran_id' => $pembayaran->id, 'tgl_transaksi' => now()->toDateString(), 'jenis' => 'keluar',
                 'nominal' => $pembayaran->total_bayar, 'kategori' => 'Void Pembayaran',
                 'keterangan' => "Void {$pembayaran->no_kuitansi} oleh {$olehUserId}: {$alasan}"]);
-            $pembayaran->update(['catatan' => '[VOID] ' . ($alasan ?? '')]);
+            $pembayaran->update(['catatan' => '[VOID] '.($alasan ?? '')]);
 
             return $pembayaran->fresh();
         });

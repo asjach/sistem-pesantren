@@ -62,12 +62,18 @@ class DevSeeder extends Seeder
         // Asrama hanya untuk lembaga yang menyediakannya (bukan MI/MD).
         PsbKuotaBiaya::whereIn('lembaga_id', [$mi->id, $md->id])->where('tipe_santri', 'asrama')->delete();
 
-        $ta = TahunAjaran::firstOrCreate(
-            ['lembaga_id' => $root->id, 'nama' => '2026/2027'],
-            ['tanggal_mulai' => '2026-07-01', 'tanggal_selesai' => '2027-06-30', 'is_aktif' => true],
-        );
+        // TA selalu milik lembaga operasional (bukan root): satu per lembaga.
+        $taPerLembaga = [];
+        foreach ([$mi, $md, $mts, $mln] as $l) {
+            $taPerLembaga[$l->kode] = TahunAjaran::firstOrCreate(
+                ['lembaga_id' => $l->id, 'nama' => '2026/2027'],
+                ['tanggal_mulai' => '2026-07-01', 'tanggal_selesai' => '2027-06-30', 'is_aktif' => true],
+            );
+        }
+        // Kegiatan PSB se-pesantren memakai TA MI sebagai acuan periode
+        // (resolusi TA per lembaga terjadi saat daftar/ACC, bukan di sini).
         $kegiatan = PsbKegiatan::firstOrCreate(
-            ['tahun_ajaran_id' => $ta->id, 'nama' => 'PSB 2026/2027'],
+            ['tahun_ajaran_id' => $taPerLembaga['MI']->id, 'nama' => 'PSB 2026/2027'],
             ['is_aktif' => true],
         );
         $kegiatan->update(['is_aktif' => true]);
@@ -125,6 +131,6 @@ class DevSeeder extends Seeder
         PosKeuangan::firstOrCreate(['kode_pos' => 'DFR_ULANG'], ['nama_pos' => 'Daftar Ulang PSB', 'tipe' => 'sekali_bayar']);
         PosKeuangan::firstOrCreate(['kode_pos' => 'ASRAMA'], ['nama_pos' => 'Biaya Asrama', 'tipe' => 'sekali_bayar']);
 
-        $this->command?->info('DevSeeder: 4 akun, ' . Lembaga::count() . ' lembaga, kegiatan #' . $kegiatan->id . ' gelombang #' . $gelombang->id . ' siap.');
+        $this->command?->info('DevSeeder: 4 akun, '.Lembaga::count().' lembaga, kegiatan #'.$kegiatan->id.' gelombang #'.$gelombang->id.' siap.');
     }
 }

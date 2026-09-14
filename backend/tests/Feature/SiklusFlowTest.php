@@ -783,6 +783,49 @@ class SiklusFlowTest extends TestCase
         $this->assertEquals(3, (int) $genap3->no_absen);
         $this->assertTrue((bool) $s3->fresh()->status_global);
     }
+
+    // ---------- 15. TA wajib se-lembaga bila lembaga punya TA sendiri ----------
+
+    public function test_15_naik_lulus_menolak_ta_bukan_milik_lembaga(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeUser('super_admin', []);
+        $taMiBaru = TahunAjaran::create([
+            'lembaga_id' => $f['mi']->id, 'nama' => '2026/2027',
+            'tanggal_mulai' => '2026-07-01', 'tanggal_selesai' => '2027-06-30', 'is_aktif' => true,
+        ]);
+
+        $s = $this->makeSantri($f['mi'], 'Naik TA Silang');
+        $this->makeRiwayat($s, $f['taLama'], $f['mi'], '2', ['tingkat' => '2', 'is_aktif' => true]);
+
+        // TA root untuk lembaga yang sudah punya TA sendiri → 422.
+        $this->actingAs($admin, 'sanctum')->postJson('/api/admin/akademik/naik-kelas', [
+            'lembaga_id' => $f['mi']->id,
+            'tahun_ajaran_baru_id' => $f['taBaru']->id,
+            'tingkat' => '3',
+            'siswa' => [['santri_id' => $s->id, 'status' => 'naik']],
+        ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['tahun_ajaran_baru_id']);
+
+        // TA milik MI → lolos.
+        $this->actingAs($admin, 'sanctum')->postJson('/api/admin/akademik/naik-kelas', [
+            'lembaga_id' => $f['mi']->id,
+            'tahun_ajaran_baru_id' => $taMiBaru->id,
+            'tingkat' => '3',
+            'siswa' => [['santri_id' => $s->id, 'status' => 'naik']],
+        ])->assertStatus(200)->assertJsonPath('berhasil', 1);
+
+        // Lulus dengan TA root untuk MI yang sudah punya TA → 422.
+        $s2 = $this->makeSantri($f['mi'], 'Lulus TA Silang');
+        $this->makeRiwayat($s2, $taMiBaru, $f['mi'], '2', ['tingkat' => '3', 'is_aktif' => true]);
+        $this->actingAs($admin, 'sanctum')->postJson(
+            "/api/admin/santri/{$s2->id}/lulus",
+            $this->lulusPayload($f['mi'], $f['taBaru'])
+        )
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['tahun_ajaran_lulus_id']);
+    }
 }
 
 /*

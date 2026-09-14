@@ -31,13 +31,16 @@ class TahunAjaranController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'lembaga_id' => ['required', 'exists:lembaga,id'],
+            // TA selalu milik lembaga operasional (parent_id NOT NULL); root PESANTREN bukan lembaga KBM.
+            'lembaga_id' => ['required', Rule::exists('lembaga', 'id')->whereNotNull('parent_id')],
             'nama' => [
                 'required', 'string', 'max:50',
                 Rule::unique('tahun_ajaran')->where(fn ($q) => $q->where('lembaga_id', $request->input('lembaga_id'))),
             ],
             'tanggal_mulai' => ['nullable', 'date'],
             'tanggal_selesai' => ['nullable', 'date', 'after_or_equal:tanggal_mulai'],
+        ], [
+            'lembaga_id.exists' => 'Lembaga harus lembaga operasional (bukan induk pesantren).',
         ]);
 
         $auth = auth()->user();
