@@ -379,47 +379,54 @@ export default function UsersPage() {
         user={viewRow}
       />
       <Dialog open={editRow !== null} onOpenChange={(o) => { if (!o) setEditRow(null); }}>
-        <DialogContent className="max-w-xl">
+        <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>Ubah role & lembaga{editRow ? `: ${editRow.name}` : ''}</DialogTitle>
             <DialogDescription>Menyimpan akan mencabut semua sesi pengguna tersebut.</DialogDescription>
           </DialogHeader>
-          <div className="text-sm text-muted-foreground">Role {isSuper ? '(6 opsi)' : '(admin: 4 opsi — tanpa admin/super_admin)'}</div>
-          <div id="group_ubah_role" className="flex flex-wrap gap-2">
-            {assignable.map((r) => (
-              <label
-                key={r}
-                htmlFor={`check_ubah_role_${r}`}
-                className="inline-flex h-[30px] cursor-pointer items-center gap-2 rounded-full border bg-card px-3.5 py-0 text-[13.5px] has-checked:border-primary has-checked:bg-accent has-checked:font-semibold"
-              >
-                <Checkbox
-                  id={`check_ubah_role_${r}`}
-                  checked={editRoles.includes(r)}
-                  onCheckedChange={() => setEditRoles((s) => toggle(s, r))}
-                /> {r}
-              </label>
-            ))}
+          <div className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4">
+            <FieldLabel className="self-start pt-1.5">Role</FieldLabel>
+            <div className="flex flex-col gap-2">
+              <p className="text-sm text-muted-foreground">
+                {isSuper ? 'Pilih 1 atau lebih (6 opsi).' : 'Pilih 1 atau lebih (4 opsi — tanpa admin/super_admin).'}
+              </p>
+              <div id="group_ubah_role" className="flex flex-wrap gap-2">
+                {assignable.map((r) => (
+                  <label
+                    key={r}
+                    htmlFor={`check_ubah_role_${r}`}
+                    className="inline-flex h-[30px] cursor-pointer items-center gap-2 rounded-full border bg-card px-3.5 py-0 text-[13.5px] has-checked:border-primary has-checked:bg-accent has-checked:font-semibold"
+                  >
+                    <Checkbox
+                      id={`check_ubah_role_${r}`}
+                      checked={editRoles.includes(r)}
+                      onCheckedChange={() => setEditRoles((s) => toggle(s, r))}
+                    /> {r}
+                  </label>
+                ))}
+              </div>
+            </div>
+            <FieldLabel className="self-start pt-1.5">Lembaga</FieldLabel>
+            <div id="group_ubah_lembaga" className="flex flex-wrap gap-2">
+              {lembagas.map((l) => (
+                <label
+                  key={l.id}
+                  htmlFor={`check_ubah_lembaga_${l.id}`}
+                  className="inline-flex h-[30px] cursor-pointer items-center gap-2 rounded-full border bg-card px-3.5 py-0 text-[13.5px] has-checked:border-primary has-checked:bg-accent has-checked:font-semibold"
+                >
+                  <Checkbox
+                    id={`check_ubah_lembaga_${l.id}`}
+                    checked={editLembaga.includes(l.id)}
+                    onCheckedChange={() => setEditLembaga((s) => toggleId(s, l.id))}
+                  /> {l.kode ?? l.nama}
+                </label>
+              ))}
+            </div>
+            <DialogFooter className="col-span-2">
+              <Button type="button" variant="outline" onClick={() => setEditRow(null)}>Batal</Button>
+              <Button id="btn_simpan_user" onClick={onUpdateRoles}>Simpan</Button>
+            </DialogFooter>
           </div>
-          <div className="text-sm text-muted-foreground">Lembaga</div>
-          <div id="group_ubah_lembaga" className="flex flex-wrap gap-2">
-            {lembagas.map((l) => (
-              <label
-                key={l.id}
-                htmlFor={`check_ubah_lembaga_${l.id}`}
-                className="inline-flex h-[30px] cursor-pointer items-center gap-2 rounded-full border bg-card px-3.5 py-0 text-[13.5px] has-checked:border-primary has-checked:bg-accent has-checked:font-semibold"
-              >
-                <Checkbox
-                  id={`check_ubah_lembaga_${l.id}`}
-                  checked={editLembaga.includes(l.id)}
-                  onCheckedChange={() => setEditLembaga((s) => toggleId(s, l.id))}
-                /> {l.kode ?? l.nama}
-              </label>
-            ))}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditRow(null)}>Batal</Button>
-            <Button id="btn_simpan_user" onClick={onUpdateRoles}>Simpan</Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

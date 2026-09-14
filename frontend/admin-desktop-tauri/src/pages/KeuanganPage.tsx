@@ -336,55 +336,43 @@ export default function KeuanganPage() {
       </div>
 
       <Dialog open={bayarRow !== null} onOpenChange={(o) => { if (!o) setBayarRow(null); }}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Bayar: {bayarRow?.no_tagihan}</DialogTitle>
             <DialogDescription className="sr-only">
               Catat pembayaran untuk tagihan ini.
             </DialogDescription>
           </DialogHeader>
-          <form id="form_bayar_tagihan" onSubmit={onBayar} className="flex flex-col gap-3">
-            <FieldGroup className="gap-3">
-              <Field>
-                <FieldLabel htmlFor="input_bayar_kas">ID akun kas</FieldLabel>
-                <Input id="input_bayar_kas" type="number" min={1} value={bayarKas} onChange={(e) => setBayarKas(e.target.value)} required />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="select_bayar_metode">Metode pembayaran</FieldLabel>
-                <Select value={bayarMetode} onValueChange={setBayarMetode}>
-                  <SelectTrigger id="select_bayar_metode" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {(metode.length > 0 ? metode.map((m) => String(m.nama ?? m.kode)) : ['tunai', 'transfer']).map((m) => (
-                        <SelectItem key={m} value={m}>{m}</SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="input_bayar_nominal">Nominal dibayar</FieldLabel>
-                <Input
-                  id="input_bayar_nominal"
-                  type="number"
-                  min={1}
-                  value={bayarNominal}
-                  onChange={(e) => setBayarNominal(e.target.value)}
-                  required
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="input_bayar_tanggal">Tanggal (opsional)</FieldLabel>
-                <Input id="input_bayar_tanggal" type="date" value={bayarTanggal} onChange={(e) => setBayarTanggal(e.target.value)} />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="input_bayar_catatan">Catatan (opsional)</FieldLabel>
-                <Input id="input_bayar_catatan" value={bayarCatatan} onChange={(e) => setBayarCatatan(e.target.value)} />
-              </Field>
-            </FieldGroup>
-            <DialogFooter>
+          <form id="form_bayar_tagihan" onSubmit={onBayar} className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4">
+            <FieldLabel htmlFor="input_bayar_kas">ID akun kas</FieldLabel>
+            <Input id="input_bayar_kas" type="number" min={1} value={bayarKas} onChange={(e) => setBayarKas(e.target.value)} required />
+            <FieldLabel htmlFor="select_bayar_metode">Metode pembayaran</FieldLabel>
+            <Select value={bayarMetode} onValueChange={setBayarMetode}>
+              <SelectTrigger id="select_bayar_metode" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {(metode.length > 0 ? metode.map((m) => String(m.nama ?? m.kode)) : ['tunai', 'transfer']).map((m) => (
+                    <SelectItem key={m} value={m}>{m}</SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+            <FieldLabel htmlFor="input_bayar_nominal">Nominal dibayar</FieldLabel>
+            <Input
+              id="input_bayar_nominal"
+              type="number"
+              min={1}
+              value={bayarNominal}
+              onChange={(e) => setBayarNominal(e.target.value)}
+              required
+            />
+            <FieldLabel htmlFor="input_bayar_tanggal">Tanggal (opsional)</FieldLabel>
+            <Input id="input_bayar_tanggal" type="date" value={bayarTanggal} onChange={(e) => setBayarTanggal(e.target.value)} />
+            <FieldLabel htmlFor="input_bayar_catatan">Catatan (opsional)</FieldLabel>
+            <Input id="input_bayar_catatan" value={bayarCatatan} onChange={(e) => setBayarCatatan(e.target.value)} />
+            <DialogFooter className="col-span-2">
               <Button type="button" variant="outline" onClick={() => setBayarRow(null)}>Batal</Button>
               <Button id="btn_simpan_bayar" type="submit" disabled={busy || !bayarKas || !bayarNominal}>Bayar</Button>
             </DialogFooter>

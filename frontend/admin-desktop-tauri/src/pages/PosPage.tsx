@@ -11,7 +11,7 @@ import {
 } from '../api/master';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
+import { FieldLabel } from '@/components/ui/field';
 import {
   Select,
   SelectContent,
@@ -231,37 +231,29 @@ export default function PosPage() {
         onPerPage={(pp) => { pager.setPerPage(pp); load(1, pp); }}
       />
       <Dialog open={tambahOpen} onOpenChange={setTambahOpen}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>Tambah pos keuangan</DialogTitle>
             <DialogDescription className="sr-only">Formulir penambahan pos keuangan baru.</DialogDescription>
           </DialogHeader>
-          <form id="form_tambah_pos" onSubmit={onCreate} className="flex flex-col gap-3">
-            <FieldGroup className="grid gap-3 sm:grid-cols-3">
-              <Field>
-                <FieldLabel htmlFor="input_kode_pos">Kode pos</FieldLabel>
-                <Input id="input_kode_pos" value={kode} onChange={(e) => setKode(e.target.value)} required maxLength={20} placeholder="SPP" />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="input_nama_pos">Nama pos</FieldLabel>
-                <Input id="input_nama_pos" value={nama} onChange={(e) => setNama(e.target.value)} required maxLength={100} />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="select_tipe_pos">Tipe</FieldLabel>
-                <Select value={tipe} onValueChange={(v) => setTipe(v as TipePos)}>
-                  <SelectTrigger id="select_tipe_pos">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {TIPE.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </Field>
-            </FieldGroup>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setTambahOpen(false)}>Batal</Button>
+          <form id="form_tambah_pos" onSubmit={onCreate} className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4">
+            <FieldLabel htmlFor="input_kode_pos">Kode pos</FieldLabel>
+            <Input id="input_kode_pos" value={kode} onChange={(e) => setKode(e.target.value)} required maxLength={20} placeholder="SPP" />
+            <FieldLabel htmlFor="input_nama_pos">Nama pos</FieldLabel>
+            <Input id="input_nama_pos" value={nama} onChange={(e) => setNama(e.target.value)} required maxLength={100} />
+            <FieldLabel htmlFor="select_tipe_pos">Tipe</FieldLabel>
+            <Select value={tipe} onValueChange={(v) => setTipe(v as TipePos)}>
+              <SelectTrigger id="select_tipe_pos" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {TIPE.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+            <DialogFooter className="col-span-2">
+              <Button type="button" variant="outline" onClick={() => setTambahOpen(false)}>Batal</Button>
               <Button id="btn_tambah_pos" type="submit">Tambah</Button>
             </DialogFooter>
           </form>
@@ -274,32 +266,28 @@ export default function PosPage() {
         row={viewRow as unknown as Record<string, unknown> | null}
       />
       <Dialog open={editRow !== null} onOpenChange={(o) => { if (!o) setEditRow(null); }}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>Ubah pos keuangan</DialogTitle>
             <DialogDescription className="sr-only">Formulir perubahan pos keuangan.</DialogDescription>
           </DialogHeader>
-          <FieldGroup className="gap-3">
-            <Field>
-              <FieldLabel htmlFor="input_ubah_nama_pos">Nama pos</FieldLabel>
-              <Input id="input_ubah_nama_pos" value={editNama} onChange={(e) => setEditNama(e.target.value)} required maxLength={100} />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="select_ubah_tipe_pos">Tipe</FieldLabel>
-              <Select value={editTipe} onValueChange={(v) => setEditTipe(v as TipePos)}>
-                <SelectTrigger id="select_ubah_tipe_pos">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    {TIPE.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </Field>
-          </FieldGroup>
+          <div className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4">
+            <FieldLabel htmlFor="input_ubah_nama_pos">Nama pos</FieldLabel>
+            <Input id="input_ubah_nama_pos" value={editNama} onChange={(e) => setEditNama(e.target.value)} required maxLength={100} />
+            <FieldLabel htmlFor="select_ubah_tipe_pos">Tipe</FieldLabel>
+            <Select value={editTipe} onValueChange={(v) => setEditTipe(v as TipePos)}>
+              <SelectTrigger id="select_ubah_tipe_pos" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {TIPE.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditRow(null)}>Batal</Button>
+            <Button type="button" variant="outline" onClick={() => setEditRow(null)}>Batal</Button>
             <Button id="btn_simpan_pos" onClick={onUpdate}>Simpan</Button>
           </DialogFooter>
         </DialogContent>

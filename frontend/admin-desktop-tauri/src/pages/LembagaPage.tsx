@@ -10,7 +10,7 @@ import {
 import { errorMessage } from '../api/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
+import { FieldLabel } from '@/components/ui/field';
 import {
   Select,
   SelectContent,
@@ -266,57 +266,47 @@ export default function LembagaPage() {
       />
       {isSuper && (
         <Dialog open={tambahOpen} onOpenChange={setTambahOpen}>
-          <DialogContent className="max-w-3xl">
+          <DialogContent className="sm:max-w-xl">
             <DialogHeader>
               <DialogTitle>Tambah lembaga</DialogTitle>
               <DialogDescription className="sr-only">Formulir penambahan lembaga baru.</DialogDescription>
             </DialogHeader>
-            <form id="form_tambah_lembaga" onSubmit={onCreate} autoComplete="off" className="flex flex-col gap-3">
-              <FieldGroup className="grid gap-3 sm:grid-cols-3">
-                <Field>
-                  <FieldLabel htmlFor="input_nama_lembaga">Nama</FieldLabel>
-                  <Input id="input_nama_lembaga" value={nama} onChange={(e) => setNama(e.target.value)} required maxLength={100} autoComplete="off" />
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="input_kode_lembaga">Kode (unik global, opsional)</FieldLabel>
-                  <Input id="input_kode_lembaga" value={kode} onChange={(e) => { const v = e.target.value; setKode(v); if (!bolehCombo(v)) setKelompokPsb('eksklusif'); }} maxLength={20} placeholder="MI" autoComplete="off" />
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="select_kelompok_psb_lembaga">Kelompok PSB</FieldLabel>
-                  <Select value={kelompokPsb} onValueChange={(v) => setKelompokPsb(v as 'combo_mi_md' | 'eksklusif')}>
-                    <SelectTrigger id="select_kelompok_psb_lembaga" className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        <SelectItem value="eksklusif">Eksklusif</SelectItem>
-                        <SelectItem value="combo_mi_md" disabled={!bolehCombo(kode)}>Combo MI-MD (khusus MI/MD)</SelectItem>
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <label htmlFor="chk_seleksi_lembaga" className="flex items-center gap-2 self-end pb-2 text-sm">
-                  <input id="chk_seleksi_lembaga" type="checkbox" checked={isSeleksi} onChange={(e) => setIsSeleksi(e.target.checked)} className="size-4 accent-[var(--accent)]" />
-                  Butuh seleksi
-                </label>
-                <Field>
-                  <FieldLabel htmlFor="select_induk_lembaga">Induk (opsional)</FieldLabel>
-                  <Select value={parentId || '_root'} onValueChange={(v) => setParentId(v === '_root' ? '' : v)}>
-                    <SelectTrigger id="select_induk_lembaga">
-                      <SelectValue placeholder="Tanpa induk (root)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        <SelectLabel>Induk lembaga</SelectLabel>
-                        <SelectItem value="_root">Tanpa induk (root)</SelectItem>
-                        {all.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>)}
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                </Field>
-              </FieldGroup>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setTambahOpen(false)}>Batal</Button>
+            <form id="form_tambah_lembaga" onSubmit={onCreate} autoComplete="off" className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4">
+              <FieldLabel htmlFor="input_nama_lembaga">Nama</FieldLabel>
+              <Input id="input_nama_lembaga" value={nama} onChange={(e) => setNama(e.target.value)} required maxLength={100} autoComplete="off" />
+              <FieldLabel htmlFor="input_kode_lembaga">Kode (unik global, opsional)</FieldLabel>
+              <Input id="input_kode_lembaga" value={kode} onChange={(e) => { const v = e.target.value; setKode(v); if (!bolehCombo(v)) setKelompokPsb('eksklusif'); }} maxLength={20} placeholder="MI" autoComplete="off" />
+              <FieldLabel htmlFor="select_kelompok_psb_lembaga">Kelompok PSB</FieldLabel>
+              <Select value={kelompokPsb} onValueChange={(v) => setKelompokPsb(v as 'combo_mi_md' | 'eksklusif')}>
+                <SelectTrigger id="select_kelompok_psb_lembaga" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value="eksklusif">Eksklusif</SelectItem>
+                    <SelectItem value="combo_mi_md" disabled={!bolehCombo(kode)}>Combo MI-MD (khusus MI/MD)</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+              <FieldLabel htmlFor="chk_seleksi_lembaga">Butuh seleksi</FieldLabel>
+              <label htmlFor="chk_seleksi_lembaga" className="flex w-fit items-center gap-2 text-sm">
+                <input id="chk_seleksi_lembaga" type="checkbox" checked={isSeleksi} onChange={(e) => setIsSeleksi(e.target.checked)} className="size-4 accent-[var(--accent)]" />
+              </label>
+              <FieldLabel htmlFor="select_induk_lembaga">Induk (opsional)</FieldLabel>
+              <Select value={parentId || '_root'} onValueChange={(v) => setParentId(v === '_root' ? '' : v)}>
+                <SelectTrigger id="select_induk_lembaga" className="w-full">
+                  <SelectValue placeholder="Tanpa induk (root)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectLabel>Induk lembaga</SelectLabel>
+                    <SelectItem value="_root">Tanpa induk (root)</SelectItem>
+                    {all.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>)}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+              <DialogFooter className="col-span-2">
+                <Button type="button" variant="outline" onClick={() => setTambahOpen(false)}>Batal</Button>
                 <Button id="btn_tambah_lembaga" type="submit">Tambah</Button>
               </DialogFooter>
             </form>
@@ -330,41 +320,35 @@ export default function LembagaPage() {
         row={viewRow as unknown as Record<string, unknown> | null}
       />
       <Dialog open={editRow !== null} onOpenChange={(o) => { if (!o) setEditRow(null); }}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>Ubah lembaga</DialogTitle>
             <DialogDescription className="sr-only">Formulir perubahan data lembaga.</DialogDescription>
           </DialogHeader>
-          <FieldGroup className="gap-3">
-            <Field>
-              <FieldLabel htmlFor="input_ubah_nama_lembaga">Nama</FieldLabel>
-              <Input id="input_ubah_nama_lembaga" value={editNama} onChange={(e) => setEditNama(e.target.value)} required maxLength={100} />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="input_ubah_kode_lembaga">Kode (unik global, opsional)</FieldLabel>
-              <Input id="input_ubah_kode_lembaga" value={editKode} onChange={(e) => { const v = e.target.value; setEditKode(v); if (!bolehCombo(v)) setEditKelompok('eksklusif'); }} maxLength={20} />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="select_ubah_kelompok_psb">Kelompok PSB</FieldLabel>
-              <Select value={editKelompok} onValueChange={(v) => setEditKelompok(v as 'combo_mi_md' | 'eksklusif')}>
-                <SelectTrigger id="select_ubah_kelompok_psb" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectItem value="eksklusif">Eksklusif</SelectItem>
-                    <SelectItem value="combo_mi_md" disabled={!bolehCombo(editKode)}>Combo MI-MD (khusus MI/MD)</SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </Field>
-            <label htmlFor="chk_ubah_seleksi_lembaga" className="flex items-center gap-2 text-sm">
+          <div className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4">
+            <FieldLabel htmlFor="input_ubah_nama_lembaga">Nama</FieldLabel>
+            <Input id="input_ubah_nama_lembaga" value={editNama} onChange={(e) => setEditNama(e.target.value)} required maxLength={100} />
+            <FieldLabel htmlFor="input_ubah_kode_lembaga">Kode (unik global, opsional)</FieldLabel>
+            <Input id="input_ubah_kode_lembaga" value={editKode} onChange={(e) => { const v = e.target.value; setEditKode(v); if (!bolehCombo(v)) setEditKelompok('eksklusif'); }} maxLength={20} />
+            <FieldLabel htmlFor="select_ubah_kelompok_psb">Kelompok PSB</FieldLabel>
+            <Select value={editKelompok} onValueChange={(v) => setEditKelompok(v as 'combo_mi_md' | 'eksklusif')}>
+              <SelectTrigger id="select_ubah_kelompok_psb" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value="eksklusif">Eksklusif</SelectItem>
+                  <SelectItem value="combo_mi_md" disabled={!bolehCombo(editKode)}>Combo MI-MD (khusus MI/MD)</SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+            <FieldLabel htmlFor="chk_ubah_seleksi_lembaga">Butuh seleksi</FieldLabel>
+            <label htmlFor="chk_ubah_seleksi_lembaga" className="flex w-fit items-center gap-2 text-sm">
               <input id="chk_ubah_seleksi_lembaga" type="checkbox" checked={editSeleksi} onChange={(e) => setEditSeleksi(e.target.checked)} className="size-4 accent-[var(--accent)]" />
-              Butuh seleksi
             </label>
-          </FieldGroup>
+          </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditRow(null)}>Batal</Button>
+            <Button type="button" variant="outline" onClick={() => setEditRow(null)}>Batal</Button>
             <Button id="btn_simpan_lembaga" onClick={onUpdate}>Simpan</Button>
           </DialogFooter>
         </DialogContent>

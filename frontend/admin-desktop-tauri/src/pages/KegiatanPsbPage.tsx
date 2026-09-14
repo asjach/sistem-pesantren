@@ -28,7 +28,7 @@ import {
 import { listTahunAjaran, referensiList, type ReferensiRow, type TahunAjaran } from '../api/master';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
+import { FieldLabel } from '@/components/ui/field';
 import { Badge } from '@/components/ui/badge';
 import {
   Select,
@@ -839,39 +839,36 @@ export default function KegiatanPsbPage() {
       )}
 
       <Dialog open={kegOpen} onOpenChange={setKegOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>{kegEdit ? 'Ubah kegiatan PSB' : 'Tambah kegiatan PSB'}</DialogTitle>
             <DialogDescription className="sr-only">Formulir kegiatan PSB.</DialogDescription>
           </DialogHeader>
-          <form id="form_kegiatan_psb" onSubmit={simpanKegiatan} className="flex flex-col gap-3">
-            <FieldGroup className="gap-3">
-              <Field>
-                <FieldLabel htmlFor="select_ta_kegiatan_psb">Tahun ajaran (pesantren)</FieldLabel>
-                <Select value={kegTa} onValueChange={pilihTahunAjaran} disabled={!!kegEdit}>
-                  <SelectTrigger id="select_ta_kegiatan_psb" className="w-full">
-                    <SelectValue placeholder="Pilih tahun ajaran" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {taTersedia.map((t) => (
-                        <SelectItem key={t.id} value={String(t.id)}>{t.nama} — {t.lembaga?.kode ?? ''}</SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">Satu tahun ajaran hanya untuk satu kegiatan PSB.</p>
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="input_nama_kegiatan_psb">Nama kegiatan (otomatis dari tahun ajaran)</FieldLabel>
-                <Input id="input_nama_kegiatan_psb" value={kegNama} onChange={(e) => setKegNama(e.target.value)} required maxLength={100} placeholder="PSB 2026/2027" disabled={!kegTa} />
-              </Field>
-              <label htmlFor="chk_aktif_kegiatan_psb" className="flex cursor-pointer items-center gap-2 text-sm">
-                <input id="chk_aktif_kegiatan_psb" type="checkbox" checked={kegAktif} onChange={(e) => setKegAktif(e.target.checked)} className="size-4 accent-[var(--accent)]" />
-                Jadikan kegiatan aktif (hanya satu kegiatan aktif)
-              </label>
-            </FieldGroup>
-            <DialogFooter>
+          <form id="form_kegiatan_psb" onSubmit={simpanKegiatan} className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4">
+            <FieldLabel htmlFor="select_ta_kegiatan_psb" className="self-start pt-1.5">Tahun ajaran (pesantren)</FieldLabel>
+            <div className="flex flex-col gap-1.5">
+              <Select value={kegTa} onValueChange={pilihTahunAjaran} disabled={!!kegEdit}>
+                <SelectTrigger id="select_ta_kegiatan_psb" className="w-full">
+                  <SelectValue placeholder="Pilih tahun ajaran" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {taTersedia.map((t) => (
+                      <SelectItem key={t.id} value={String(t.id)}>{t.nama} — {t.lembaga?.kode ?? ''}</SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">Satu tahun ajaran hanya untuk satu kegiatan PSB.</p>
+            </div>
+            <FieldLabel htmlFor="input_nama_kegiatan_psb">Nama kegiatan (otomatis dari tahun ajaran)</FieldLabel>
+            <Input id="input_nama_kegiatan_psb" value={kegNama} onChange={(e) => setKegNama(e.target.value)} required maxLength={100} placeholder="PSB 2026/2027" disabled={!kegTa} />
+            <FieldLabel htmlFor="chk_aktif_kegiatan_psb">Aktif</FieldLabel>
+            <label htmlFor="chk_aktif_kegiatan_psb" className="flex cursor-pointer items-center gap-2 text-sm">
+              <input id="chk_aktif_kegiatan_psb" type="checkbox" checked={kegAktif} onChange={(e) => setKegAktif(e.target.checked)} className="size-4 accent-[var(--accent)]" />
+              <span className="text-muted-foreground">Jadikan kegiatan aktif (hanya satu kegiatan aktif)</span>
+            </label>
+            <DialogFooter className="col-span-2">
               <Button type="button" variant="outline" onClick={() => setKegOpen(false)}>Batal</Button>
               <Button id="btn_simpan_kegiatan_psb" type="submit" disabled={busy || !kegTa}>Simpan</Button>
             </DialogFooter>
@@ -880,29 +877,19 @@ export default function KegiatanPsbPage() {
       </Dialog>
 
       <Dialog open={gelOpen} onOpenChange={setGelOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>{gelEdit ? 'Ubah gelombang' : 'Tambah gelombang'}</DialogTitle>
             <DialogDescription className="sr-only">Formulir gelombang PSB.</DialogDescription>
           </DialogHeader>
-          <form id="form_gelombang_psb" onSubmit={simpanGelombang} className="flex flex-col gap-3">
-            <FieldGroup className="gap-3">
-              <Field>
-                <FieldLabel htmlFor="input_nama_gelombang_psb">Nama gelombang</FieldLabel>
-                <Input id="input_nama_gelombang_psb" value={gelNama} onChange={(e) => setGelNama(e.target.value)} required maxLength={100} placeholder="Gelombang 1" />
-              </Field>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Field>
-                  <FieldLabel htmlFor="input_buka_gelombang_psb">Tanggal buka</FieldLabel>
-                  <Input id="input_buka_gelombang_psb" type="date" value={gelBuka} onChange={(e) => setGelBuka(e.target.value)} required />
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="input_tutup_gelombang_psb">Tanggal tutup</FieldLabel>
-                  <Input id="input_tutup_gelombang_psb" type="date" value={gelTutup} onChange={(e) => setGelTutup(e.target.value)} required />
-                </Field>
-              </div>
-            </FieldGroup>
-            <DialogFooter>
+          <form id="form_gelombang_psb" onSubmit={simpanGelombang} className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4">
+            <FieldLabel htmlFor="input_nama_gelombang_psb">Nama gelombang</FieldLabel>
+            <Input id="input_nama_gelombang_psb" value={gelNama} onChange={(e) => setGelNama(e.target.value)} required maxLength={100} placeholder="Gelombang 1" />
+            <FieldLabel htmlFor="input_buka_gelombang_psb">Tanggal buka</FieldLabel>
+            <Input id="input_buka_gelombang_psb" type="date" value={gelBuka} onChange={(e) => setGelBuka(e.target.value)} required />
+            <FieldLabel htmlFor="input_tutup_gelombang_psb">Tanggal tutup</FieldLabel>
+            <Input id="input_tutup_gelombang_psb" type="date" value={gelTutup} onChange={(e) => setGelTutup(e.target.value)} required />
+            <DialogFooter className="col-span-2">
               <Button type="button" variant="outline" onClick={() => setGelOpen(false)}>Batal</Button>
               <Button id="btn_simpan_gelombang_psb" type="submit" disabled={busy}>Simpan</Button>
             </DialogFooter>
@@ -911,87 +898,69 @@ export default function KegiatanPsbPage() {
       </Dialog>
 
       <Dialog open={kuotaOpen} onOpenChange={setKuotaOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>{kuotaEdit ? 'Ubah kuota & biaya' : 'Tambah kuota & biaya'}</DialogTitle>
             <DialogDescription className="sr-only">Formulir kuota dan biaya pendaftaran per lembaga.</DialogDescription>
           </DialogHeader>
-          <form id="form_kuota_psb" onSubmit={simpanKuota} className="flex flex-col gap-3">
-            <FieldGroup className="grid gap-3 sm:grid-cols-2">
-              <Field>
-                <FieldLabel htmlFor="select_lembaga_kuota">Lembaga (bisa pilih beberapa)</FieldLabel>
-                <MultiSelect
-                  id="select_lembaga_kuota"
-                  title="Lembaga"
-                  values={qLembagas}
-                  onChange={setQLembagas}
-                  disabled={!!kuotaEdit}
-                  placeholder="Pilih lembaga"
-                  options={lembagaTampil.map((l) => ({ value: String(l.id), label: l.kode ?? l.nama }))}
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="select_tipe_kuota">Tipe santri</FieldLabel>
-                <Select value={qTipe} onValueChange={(v) => setQTipe(v as 'semua' | 'asrama' | 'non_asrama')} disabled={!!kuotaEdit}>
-                  <SelectTrigger id="select_tipe_kuota" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      <SelectItem value="non_asrama">Non asrama</SelectItem>
-                      <SelectItem value="asrama">Asrama</SelectItem>
-                      <SelectItem value="semua">Semua tipe</SelectItem>
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="input_kuota_psb">Kuota pool (kosong = tanpa batas)</FieldLabel>
-                <Input id="input_kuota_psb" type="number" min={0} value={qKuota} onChange={(e) => setQKuota(e.target.value)} placeholder="100" />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="input_pendaftaran_psb">Biaya pendaftaran</FieldLabel>
-                <Input id="input_pendaftaran_psb" type="number" min={0} value={qPendaftaran} onChange={(e) => setQPendaftaran(e.target.value)} />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="input_lanjutan_psb">Biaya pendaftaran lanjutan (opsional)</FieldLabel>
-                <Input id="input_lanjutan_psb" type="number" min={0} value={qLanjutan} onChange={(e) => setQLanjutan(e.target.value)} />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="input_paket_psb">Biaya paket MI-MD (opsional, baris MI)</FieldLabel>
-                <Input id="input_paket_psb" type="number" min={0} value={qPaket} onChange={(e) => setQPaket(e.target.value)} />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="select_seleksi_psb">Membutuhkan seleksi</FieldLabel>
-                <Select value={qSeleksi} onValueChange={setQSeleksi}>
-                  <SelectTrigger id="select_seleksi_psb" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      <SelectItem value="default">Ikut lembaga</SelectItem>
-                      <SelectItem value="ya">Ya</SelectItem>
-                      <SelectItem value="tidak">Tidak</SelectItem>
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="select_pemberkasan_psb">Membutuhkan pemberkasan</FieldLabel>
-                <Select value={qPemberkasan} onValueChange={setQPemberkasan}>
-                  <SelectTrigger id="select_pemberkasan_psb" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      <SelectItem value="ya">Ya</SelectItem>
-                      <SelectItem value="tidak">Tidak</SelectItem>
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </Field>
-            </FieldGroup>
-            <DialogFooter>
+          <form id="form_kuota_psb" onSubmit={simpanKuota} className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4">
+            <FieldLabel htmlFor="select_lembaga_kuota">Lembaga (bisa pilih beberapa)</FieldLabel>
+            <MultiSelect
+              id="select_lembaga_kuota"
+              title="Lembaga"
+              values={qLembagas}
+              onChange={setQLembagas}
+              disabled={!!kuotaEdit}
+              placeholder="Pilih lembaga"
+              options={lembagaTampil.map((l) => ({ value: String(l.id), label: l.kode ?? l.nama }))}
+            />
+            <FieldLabel htmlFor="select_tipe_kuota">Tipe santri</FieldLabel>
+            <Select value={qTipe} onValueChange={(v) => setQTipe(v as 'semua' | 'asrama' | 'non_asrama')} disabled={!!kuotaEdit}>
+              <SelectTrigger id="select_tipe_kuota" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value="non_asrama">Non asrama</SelectItem>
+                  <SelectItem value="asrama">Asrama</SelectItem>
+                  <SelectItem value="semua">Semua tipe</SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+            <FieldLabel htmlFor="input_kuota_psb">Kuota pool (kosong = tanpa batas)</FieldLabel>
+            <Input id="input_kuota_psb" type="number" min={0} value={qKuota} onChange={(e) => setQKuota(e.target.value)} placeholder="100" />
+            <FieldLabel htmlFor="input_pendaftaran_psb">Biaya pendaftaran</FieldLabel>
+            <Input id="input_pendaftaran_psb" type="number" min={0} value={qPendaftaran} onChange={(e) => setQPendaftaran(e.target.value)} />
+            <FieldLabel htmlFor="input_lanjutan_psb">Biaya pendaftaran lanjutan (opsional)</FieldLabel>
+            <Input id="input_lanjutan_psb" type="number" min={0} value={qLanjutan} onChange={(e) => setQLanjutan(e.target.value)} />
+            <FieldLabel htmlFor="input_paket_psb">Biaya paket MI-MD (opsional, baris MI)</FieldLabel>
+            <Input id="input_paket_psb" type="number" min={0} value={qPaket} onChange={(e) => setQPaket(e.target.value)} />
+            <FieldLabel htmlFor="select_seleksi_psb">Membutuhkan seleksi</FieldLabel>
+            <Select value={qSeleksi} onValueChange={setQSeleksi}>
+              <SelectTrigger id="select_seleksi_psb" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value="default">Ikut lembaga</SelectItem>
+                  <SelectItem value="ya">Ya</SelectItem>
+                  <SelectItem value="tidak">Tidak</SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+            <FieldLabel htmlFor="select_pemberkasan_psb">Membutuhkan pemberkasan</FieldLabel>
+            <Select value={qPemberkasan} onValueChange={setQPemberkasan}>
+              <SelectTrigger id="select_pemberkasan_psb" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value="ya">Ya</SelectItem>
+                  <SelectItem value="tidak">Tidak</SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+            <DialogFooter className="col-span-2">
               <Button type="button" variant="outline" onClick={() => setKuotaOpen(false)}>Batal</Button>
               <Button id="btn_simpan_kuota_psb" type="submit" disabled={busy}>Simpan</Button>
             </DialogFooter>
@@ -1000,50 +969,44 @@ export default function KegiatanPsbPage() {
       </Dialog>
 
       <Dialog open={biayaOpen} onOpenChange={setBiayaOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>Biaya masuk & asrama</DialogTitle>
             <DialogDescription className="sr-only">Formulir biaya masuk dan biaya asrama per lembaga.</DialogDescription>
           </DialogHeader>
-          <form id="form_biaya_lembaga_psb" onSubmit={simpanBiaya} className="flex flex-col gap-3">
-            <FieldGroup className="gap-3">
-              <Field>
-                <FieldLabel htmlFor="select_lembaga_biaya">Lembaga</FieldLabel>
-                <Select value={biayaLembagaId} onValueChange={setBiayaLembagaId} disabled>
-                  <SelectTrigger id="select_lembaga_biaya" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {lembagaTampil.map((l) => (
-                        <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="input_biaya_masuk_psb">Biaya masuk (paket: bangunan, matsama, buku, lainnya)</FieldLabel>
-                <Input id="input_biaya_masuk_psb" type="number" min={0} value={biayaMasuk} onChange={(e) => setBiayaMasuk(e.target.value)} />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="input_biaya_asrama_psb">Biaya asrama (terpisah, hanya tipe asrama)</FieldLabel>
-                <Input
-                  id="input_biaya_asrama_psb"
-                  type="number"
-                  min={0}
-                  value={biayaAsrama}
-                  onChange={(e) => setBiayaAsrama(e.target.value)}
-                  disabled={!biayaLembagaTerpilih?.punya_asrama}
-                />
-                {!biayaLembagaTerpilih?.punya_asrama ? (
-                  <p className="text-xs text-muted-foreground">
-                    Lembaga ini tidak menyediakan asrama. Tambahkan baris kuota tipe asrama di gelombang untuk mengaktifkan.
-                  </p>
-                ) : null}
-              </Field>
-            </FieldGroup>
-            <DialogFooter>
+          <form id="form_biaya_lembaga_psb" onSubmit={simpanBiaya} className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4">
+            <FieldLabel htmlFor="select_lembaga_biaya">Lembaga</FieldLabel>
+            <Select value={biayaLembagaId} onValueChange={setBiayaLembagaId} disabled>
+              <SelectTrigger id="select_lembaga_biaya" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {lembagaTampil.map((l) => (
+                    <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+            <FieldLabel htmlFor="input_biaya_masuk_psb">Biaya masuk (paket: bangunan, matsama, buku, lainnya)</FieldLabel>
+            <Input id="input_biaya_masuk_psb" type="number" min={0} value={biayaMasuk} onChange={(e) => setBiayaMasuk(e.target.value)} />
+            <FieldLabel htmlFor="input_biaya_asrama_psb" className="self-start pt-1.5">Biaya asrama (terpisah, hanya tipe asrama)</FieldLabel>
+            <div className="flex flex-col gap-1.5">
+              <Input
+                id="input_biaya_asrama_psb"
+                type="number"
+                min={0}
+                value={biayaAsrama}
+                onChange={(e) => setBiayaAsrama(e.target.value)}
+                disabled={!biayaLembagaTerpilih?.punya_asrama}
+              />
+              {!biayaLembagaTerpilih?.punya_asrama ? (
+                <p className="text-xs text-muted-foreground">
+                  Lembaga ini tidak menyediakan asrama. Tambahkan baris kuota tipe asrama di gelombang untuk mengaktifkan.
+                </p>
+              ) : null}
+            </div>
+            <DialogFooter className="col-span-2">
               <Button type="button" variant="outline" onClick={() => setBiayaOpen(false)}>Batal</Button>
               <Button id="btn_simpan_biaya_lembaga_psb" type="submit" disabled={busy}>Simpan</Button>
             </DialogFooter>
@@ -1052,57 +1015,49 @@ export default function KegiatanPsbPage() {
       </Dialog>
 
       <Dialog open={dokOpen} onOpenChange={setDokOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Tambah ketentuan dokumen</DialogTitle>
             <DialogDescription>Jenis dokumen diambil dari kamus aktif lembaga terpilih.</DialogDescription>
           </DialogHeader>
-          <form id="form_dokumen_psb" onSubmit={simpanDokumenBaru} className="flex flex-col gap-3">
-            <FieldGroup className="gap-3">
-              <Field>
-                <FieldLabel htmlFor="select_lembaga_dokumen_psb">Lembaga (bisa pilih beberapa)</FieldLabel>
-                <MultiSelect
-                  id="select_lembaga_dokumen_psb"
-                  title="Lembaga"
-                  values={dokLembagas}
-                  onChange={(v) => void pilihLembagaDokumen(v)}
-                  placeholder="Pilih lembaga"
-                  options={lembagaTampil.map((l) => ({ value: String(l.id), label: l.kode ?? l.nama }))}
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="select_jenis_dokumen_psb">Jenis dokumen</FieldLabel>
-                <Select value={dokJenis} onValueChange={setDokJenis} disabled={dokLembagas.length === 0}>
-                  <SelectTrigger id="select_jenis_dokumen_psb" className="w-full">
-                    <SelectValue placeholder={dokLembagas.length > 0 ? 'Pilih jenis' : 'Pilih lembaga dulu'} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {dokJenisOpsi.map((r) => (
-                        <SelectItem key={r.id} value={String(r.nama ?? r.kode)}>
-                          {String(r.nama ?? r.label ?? r.kode)}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="select_sifat_dokumen_psb">Sifat dokumen</FieldLabel>
-                <Select value={dokSifat} onValueChange={(v) => setDokSifat(v as 'wajib' | 'opsional')}>
-                  <SelectTrigger id="select_sifat_dokumen_psb" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      <SelectItem value="wajib">Wajib</SelectItem>
-                      <SelectItem value="opsional">Opsional</SelectItem>
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </Field>
-            </FieldGroup>
-            <DialogFooter>
+          <form id="form_dokumen_psb" onSubmit={simpanDokumenBaru} className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4">
+            <FieldLabel htmlFor="select_lembaga_dokumen_psb">Lembaga (bisa pilih beberapa)</FieldLabel>
+            <MultiSelect
+              id="select_lembaga_dokumen_psb"
+              title="Lembaga"
+              values={dokLembagas}
+              onChange={(v) => void pilihLembagaDokumen(v)}
+              placeholder="Pilih lembaga"
+              options={lembagaTampil.map((l) => ({ value: String(l.id), label: l.kode ?? l.nama }))}
+            />
+            <FieldLabel htmlFor="select_jenis_dokumen_psb">Jenis dokumen</FieldLabel>
+            <Select value={dokJenis} onValueChange={setDokJenis} disabled={dokLembagas.length === 0}>
+              <SelectTrigger id="select_jenis_dokumen_psb" className="w-full">
+                <SelectValue placeholder={dokLembagas.length > 0 ? 'Pilih jenis' : 'Pilih lembaga dulu'} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {dokJenisOpsi.map((r) => (
+                    <SelectItem key={r.id} value={String(r.nama ?? r.kode)}>
+                      {String(r.nama ?? r.label ?? r.kode)}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+            <FieldLabel htmlFor="select_sifat_dokumen_psb">Sifat dokumen</FieldLabel>
+            <Select value={dokSifat} onValueChange={(v) => setDokSifat(v as 'wajib' | 'opsional')}>
+              <SelectTrigger id="select_sifat_dokumen_psb" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value="wajib">Wajib</SelectItem>
+                  <SelectItem value="opsional">Opsional</SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+            <DialogFooter className="col-span-2">
               <Button type="button" variant="outline" onClick={() => setDokOpen(false)}>Batal</Button>
               <Button id="btn_simpan_dokumen_psb" type="submit" disabled={busy || dokLembagas.length === 0 || !dokJenis}>Simpan</Button>
             </DialogFooter>

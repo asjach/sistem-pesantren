@@ -14,7 +14,7 @@ import { errorMessage } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field';
+import { FieldDescription, FieldLabel } from '@/components/ui/field';
 import {
   Select,
   SelectContent,
@@ -325,75 +325,65 @@ export default function ReferensiPage() {
         renderActions={renderActions}
       />
       <Dialog open={tambahOpen} onOpenChange={setTambahOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Tambah entri referensi</DialogTitle>
             <DialogDescription className="sr-only">Formulir penambahan entri referensi.</DialogDescription>
           </DialogHeader>
-          <form id="form_tambah_referensi" onSubmit={onCreate} className="flex flex-col gap-3">
-            <FieldGroup className="gap-3">
-              <Field>
-                <FieldLabel htmlFor="select_scope_referensi">Lembaga</FieldLabel>
-                <Select value={scope} onValueChange={setScope}>
-                  <SelectTrigger id="select_scope_referensi" className="w-full">
-                    <SelectValue placeholder="Pilih lembaga" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {isSuper && <SelectLabel>Global</SelectLabel>}
-                      {isSuper && <SelectItem value="_global">Global (bawaan sistem)</SelectItem>}
-                      <SelectLabel>Per lembaga</SelectLabel>
-                      {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>)}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </Field>
-              {isStatus ? (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <Field>
-                    <FieldLabel htmlFor="input_kode_referensi">Kode</FieldLabel>
-                    <Input
-                      id="input_kode_referensi"
-                      value={fKode}
-                      onChange={(e) => setFKode(e.target.value)}
-                      required
-                      maxLength={50}
-                      placeholder="cuti_panjang"
-                    />
-                  </Field>
-                  <Field>
-                    <FieldLabel htmlFor="input_label_referensi">Label</FieldLabel>
-                    <Input
-                      id="input_label_referensi"
-                      value={fLabel}
-                      onChange={(e) => setFLabel(e.target.value)}
-                      maxLength={100}
-                      placeholder="Cuti Panjang"
-                    />
-                  </Field>
-                </div>
-              ) : (
-                <Field>
-                  <FieldLabel htmlFor="input_nama_referensi">Nama</FieldLabel>
-                  <Input
-                    id="input_nama_referensi"
-                    value={fNama}
-                    onChange={(e) => setFNama(e.target.value)}
-                    required
-                  />
-                </Field>
-              )}
-              <Field>
-                <FieldLabel htmlFor="input_urutan_referensi">Urutan</FieldLabel>
+          <form id="form_tambah_referensi" onSubmit={onCreate} className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4">
+            <FieldLabel htmlFor="select_scope_referensi">Lembaga</FieldLabel>
+            <Select value={scope} onValueChange={setScope}>
+              <SelectTrigger id="select_scope_referensi" className="w-full">
+                <SelectValue placeholder="Pilih lembaga" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {isSuper && <SelectLabel>Global</SelectLabel>}
+                  {isSuper && <SelectItem value="_global">Global (bawaan sistem)</SelectItem>}
+                  <SelectLabel>Per lembaga</SelectLabel>
+                  {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>)}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+            {isStatus ? (
+              <>
+                <FieldLabel htmlFor="input_kode_referensi">Kode</FieldLabel>
                 <Input
-                  id="input_urutan_referensi"
-                  type="number"
-                  value={fUrutan}
-                  onChange={(e) => setFUrutan(e.target.value)}
+                  id="input_kode_referensi"
+                  value={fKode}
+                  onChange={(e) => setFKode(e.target.value)}
+                  required
+                  maxLength={50}
+                  placeholder="cuti_panjang"
                 />
-              </Field>
-            </FieldGroup>
-            <DialogFooter>
+                <FieldLabel htmlFor="input_label_referensi">Label</FieldLabel>
+                <Input
+                  id="input_label_referensi"
+                  value={fLabel}
+                  onChange={(e) => setFLabel(e.target.value)}
+                  maxLength={100}
+                  placeholder="Cuti Panjang"
+                />
+              </>
+            ) : (
+              <>
+                <FieldLabel htmlFor="input_nama_referensi">Nama</FieldLabel>
+                <Input
+                  id="input_nama_referensi"
+                  value={fNama}
+                  onChange={(e) => setFNama(e.target.value)}
+                  required
+                />
+              </>
+            )}
+            <FieldLabel htmlFor="input_urutan_referensi">Urutan</FieldLabel>
+            <Input
+              id="input_urutan_referensi"
+              type="number"
+              value={fUrutan}
+              onChange={(e) => setFUrutan(e.target.value)}
+            />
+            <DialogFooter className="col-span-2">
               <Button type="button" variant="outline" onClick={() => setTambahOpen(false)}>Batal</Button>
               <Button id="btn_simpan_tambah_referensi" type="submit" disabled={submitting}>Tambah</Button>
             </DialogFooter>
@@ -401,55 +391,51 @@ export default function ReferensiPage() {
         </DialogContent>
       </Dialog>
       <Dialog open={editRow !== null} onOpenChange={(o) => { if (!o) setEditRow(null); }}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Ubah entri referensi</DialogTitle>
             <DialogDescription className="sr-only">Formulir perubahan entri referensi.</DialogDescription>
           </DialogHeader>
-          <FieldGroup className="gap-3">
+          <div className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4">
             {isStatus ? (
               <>
-                <Field>
-                  <FieldLabel htmlFor="input_kode_referensi_ubah">Kode (tidak dapat diubah)</FieldLabel>
-                  <Input id="input_kode_referensi_ubah" value={editRow?.kode ?? ''} readOnly disabled />
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="input_label_referensi_ubah">Label</FieldLabel>
-                  <Input
-                    id="input_label_referensi_ubah"
-                    value={eLabel}
-                    onChange={(e) => setELabel(e.target.value)}
-                    required
-                    maxLength={100}
-                  />
-                </Field>
+                <FieldLabel htmlFor="input_kode_referensi_ubah">Kode (tidak dapat diubah)</FieldLabel>
+                <Input id="input_kode_referensi_ubah" value={editRow?.kode ?? ''} readOnly disabled />
+                <FieldLabel htmlFor="input_label_referensi_ubah">Label</FieldLabel>
+                <Input
+                  id="input_label_referensi_ubah"
+                  value={eLabel}
+                  onChange={(e) => setELabel(e.target.value)}
+                  required
+                  maxLength={100}
+                />
               </>
             ) : (
-              <Field>
-                <FieldLabel htmlFor="input_nama_referensi_ubah">Nama</FieldLabel>
-                <Input
-                  id="input_nama_referensi_ubah"
-                  value={eNama}
-                  onChange={(e) => setENama(e.target.value)}
-                  required
-                />
-                <FieldDescription>
-                  Mengubah nama tidak mengubah data lama yang sudah memakainya (kamus saran).
-                </FieldDescription>
-              </Field>
+              <>
+                <FieldLabel htmlFor="input_nama_referensi_ubah" className="self-start pt-1.5">Nama</FieldLabel>
+                <div className="flex flex-col gap-1.5">
+                  <Input
+                    id="input_nama_referensi_ubah"
+                    value={eNama}
+                    onChange={(e) => setENama(e.target.value)}
+                    required
+                  />
+                  <FieldDescription>
+                    Mengubah nama tidak mengubah data lama yang sudah memakainya (kamus saran).
+                  </FieldDescription>
+                </div>
+              </>
             )}
-            <Field>
-              <FieldLabel htmlFor="input_urutan_referensi_ubah">Urutan</FieldLabel>
-              <Input
-                id="input_urutan_referensi_ubah"
-                type="number"
-                value={eUrutan}
-                onChange={(e) => setEUrutan(e.target.value)}
-              />
-            </Field>
-          </FieldGroup>
+            <FieldLabel htmlFor="input_urutan_referensi_ubah">Urutan</FieldLabel>
+            <Input
+              id="input_urutan_referensi_ubah"
+              type="number"
+              value={eUrutan}
+              onChange={(e) => setEUrutan(e.target.value)}
+            />
+          </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditRow(null)}>Batal</Button>
+            <Button type="button" variant="outline" onClick={() => setEditRow(null)}>Batal</Button>
             <Button
               id="btn_simpan_ubah_referensi"
               onClick={onUpdate}

@@ -16,7 +16,7 @@ import {
 } from '../api/master';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
+import { FieldLabel } from '@/components/ui/field';
 import {
   Select,
   SelectContent,
@@ -352,39 +352,31 @@ export default function TarifPage() {
         onPerPage={(pp) => { pager.setPerPage(pp); load(1, pp); }}
       />
       <Dialog open={tambahOpen} onOpenChange={setTambahOpen}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>Tambah tarif</DialogTitle>
             <DialogDescription className="sr-only">Formulir penambahan tarif baru.</DialogDescription>
           </DialogHeader>
-          <form id="form_tambah_tarif" onSubmit={onCreate} className="flex flex-col gap-3">
-            <FieldGroup className="grid gap-3 sm:grid-cols-3">
-              <Field>
-                <FieldLabel htmlFor="select_tipe_santri_tarif">Tipe santri</FieldLabel>
-                <Select value={tipeSantri} onValueChange={(v) => setTipeSantri(v as TipeSantriTarif)}>
-                  <SelectTrigger id="select_tipe_santri_tarif">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      <SelectItem value="semua">semua</SelectItem>
-                      <SelectItem value="asrama">asrama</SelectItem>
-                      <SelectItem value="non_asrama">non_asrama</SelectItem>
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="input_nominal_tarif">Nominal</FieldLabel>
-                <Input id="input_nominal_tarif" type="number" min={0} value={nominal} onChange={(e) => setNominal(e.target.value)} required />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="input_nominal_paket_tarif">Nominal paket (opsional, MI-MD)</FieldLabel>
-                <Input id="input_nominal_paket_tarif" type="number" min={0} value={nominalPaket} onChange={(e) => setNominalPaket(e.target.value)} />
-              </Field>
-            </FieldGroup>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setTambahOpen(false)}>Batal</Button>
+          <form id="form_tambah_tarif" onSubmit={onCreate} className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4">
+            <FieldLabel htmlFor="select_tipe_santri_tarif">Tipe santri</FieldLabel>
+            <Select value={tipeSantri} onValueChange={(v) => setTipeSantri(v as TipeSantriTarif)}>
+              <SelectTrigger id="select_tipe_santri_tarif" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value="semua">semua</SelectItem>
+                  <SelectItem value="asrama">asrama</SelectItem>
+                  <SelectItem value="non_asrama">non_asrama</SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+            <FieldLabel htmlFor="input_nominal_tarif">Nominal</FieldLabel>
+            <Input id="input_nominal_tarif" type="number" min={0} value={nominal} onChange={(e) => setNominal(e.target.value)} required />
+            <FieldLabel htmlFor="input_nominal_paket_tarif">Nominal paket (opsional, MI-MD)</FieldLabel>
+            <Input id="input_nominal_paket_tarif" type="number" min={0} value={nominalPaket} onChange={(e) => setNominalPaket(e.target.value)} />
+            <DialogFooter className="col-span-2">
+              <Button type="button" variant="outline" onClick={() => setTambahOpen(false)}>Batal</Button>
               <Button id="btn_tambah_tarif" type="submit">Tambah</Button>
             </DialogFooter>
           </form>
@@ -397,23 +389,19 @@ export default function TarifPage() {
         row={viewRow as unknown as Record<string, unknown> | null}
       />
       <Dialog open={editRow !== null} onOpenChange={(o) => { if (!o) setEditRow(null); }}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>Ubah tarif</DialogTitle>
             <DialogDescription className="sr-only">Formulir perubahan tarif.</DialogDescription>
           </DialogHeader>
-          <FieldGroup className="gap-3">
-            <Field>
-              <FieldLabel htmlFor="input_ubah_nominal_tarif">Nominal</FieldLabel>
-              <Input id="input_ubah_nominal_tarif" type="number" min={0} value={editNominal} onChange={(e) => setEditNominal(e.target.value)} required />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="input_ubah_paket_tarif">Nominal paket (opsional, MI-MD)</FieldLabel>
-              <Input id="input_ubah_paket_tarif" type="number" min={0} value={editPaket} onChange={(e) => setEditPaket(e.target.value)} />
-            </Field>
-          </FieldGroup>
+          <div className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4">
+            <FieldLabel htmlFor="input_ubah_nominal_tarif">Nominal</FieldLabel>
+            <Input id="input_ubah_nominal_tarif" type="number" min={0} value={editNominal} onChange={(e) => setEditNominal(e.target.value)} required />
+            <FieldLabel htmlFor="input_ubah_paket_tarif">Nominal paket (opsional, MI-MD)</FieldLabel>
+            <Input id="input_ubah_paket_tarif" type="number" min={0} value={editPaket} onChange={(e) => setEditPaket(e.target.value)} />
+          </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditRow(null)}>Batal</Button>
+            <Button type="button" variant="outline" onClick={() => setEditRow(null)}>Batal</Button>
             <Button id="btn_simpan_tarif" onClick={onUpdate}>Simpan</Button>
           </DialogFooter>
         </DialogContent>

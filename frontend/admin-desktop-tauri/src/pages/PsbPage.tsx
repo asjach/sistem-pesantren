@@ -32,7 +32,7 @@ import { listLembaga, type Lembaga } from '../api/master';
 import type { DokumenSantri } from '../api/santri';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
+import { FieldLabel } from '@/components/ui/field';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import {
@@ -812,35 +812,29 @@ export default function PsbPage() {
       />
 
       <Dialog open={seleksiRow !== null} onOpenChange={(o) => { if (!o) setSeleksiRow(null); }}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Masuk daftar ulang: {seleksiRow?.nama_lengkap}</DialogTitle>
             <DialogDescription>
               Lembaga ini memiliki tes/seleksi — tentukan hasilnya. Lolos = masuk fase daftar ulang; tidak lolos = ditolak.
             </DialogDescription>
           </DialogHeader>
-          <form id="form_daftar_ulang_psb" onSubmit={onMasukDaftarUlang} className="flex flex-col gap-3">
-            <FieldGroup className="gap-3">
-              <Field>
-                <FieldLabel htmlFor="select_hasil_seleksi">Hasil seleksi</FieldLabel>
-                <Select value={seleksiLolos} onValueChange={setSeleksiLolos}>
-                  <SelectTrigger id="select_hasil_seleksi" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      <SelectItem value="lolos">Lolos</SelectItem>
-                      <SelectItem value="tidak_lolos">Tidak lolos</SelectItem>
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="input_catatan_seleksi">Catatan (opsional)</FieldLabel>
-                <Input id="input_catatan_seleksi" value={seleksiCatatan} onChange={(e) => setSeleksiCatatan(e.target.value)} />
-              </Field>
-            </FieldGroup>
-            <DialogFooter>
+          <form id="form_daftar_ulang_psb" onSubmit={onMasukDaftarUlang} className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4">
+            <FieldLabel htmlFor="select_hasil_seleksi">Hasil seleksi</FieldLabel>
+            <Select value={seleksiLolos} onValueChange={setSeleksiLolos}>
+              <SelectTrigger id="select_hasil_seleksi" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value="lolos">Lolos</SelectItem>
+                  <SelectItem value="tidak_lolos">Tidak lolos</SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+            <FieldLabel htmlFor="input_catatan_seleksi">Catatan (opsional)</FieldLabel>
+            <Input id="input_catatan_seleksi" value={seleksiCatatan} onChange={(e) => setSeleksiCatatan(e.target.value)} />
+            <DialogFooter className="col-span-2">
               <Button type="button" variant="outline" onClick={() => setSeleksiRow(null)}>Batal</Button>
               <Button id="btn_simpan_daftar_ulang_psb" type="submit" disabled={busy}>Simpan</Button>
             </DialogFooter>
@@ -849,21 +843,17 @@ export default function PsbPage() {
       </Dialog>
 
       <Dialog open={batalRow !== null} onOpenChange={(o) => { if (!o) setBatalRow(null); }}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Batalkan fase: {batalRow?.nama_lengkap}</DialogTitle>
             <DialogDescription className="sr-only">
               Calon dikembalikan ke fase sebelumnya berdasarkan riwayat status.
             </DialogDescription>
           </DialogHeader>
-          <form id="form_batal_fase_psb" onSubmit={onBatalkanFase} className="flex flex-col gap-3">
-            <FieldGroup className="gap-3">
-              <Field>
-                <FieldLabel htmlFor="input_catatan_batal_fase">Catatan (opsional)</FieldLabel>
-                <Input id="input_catatan_batal_fase" value={batalCatatan} onChange={(e) => setBatalCatatan(e.target.value)} maxLength={255} />
-              </Field>
-            </FieldGroup>
-            <DialogFooter>
+          <form id="form_batal_fase_psb" onSubmit={onBatalkanFase} className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4">
+            <FieldLabel htmlFor="input_catatan_batal_fase">Catatan (opsional)</FieldLabel>
+            <Input id="input_catatan_batal_fase" value={batalCatatan} onChange={(e) => setBatalCatatan(e.target.value)} maxLength={255} />
+            <DialogFooter className="col-span-2">
               <Button type="button" variant="outline" onClick={() => setBatalRow(null)}>Tutup</Button>
               <Button id="btn_simpan_batal_fase_psb" type="submit" disabled={busy}>Batalkan</Button>
             </DialogFooter>
@@ -872,21 +862,17 @@ export default function PsbPage() {
       </Dialog>
 
       <Dialog open={undurRow !== null} onOpenChange={(o) => { if (!o) setUndurRow(null); }}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Pengunduran diri: {undurRow?.nama_lengkap}</DialogTitle>
             <DialogDescription>
               Calon dipindahkan ke fase Mengundurkan Diri / Ditolak. Catatan/alasan bersifat opsional.
             </DialogDescription>
           </DialogHeader>
-          <form id="form_undur_diri_psb" onSubmit={onUndurDiri} className="flex flex-col gap-3">
-            <FieldGroup className="gap-3">
-              <Field>
-                <FieldLabel htmlFor="input_catatan_undur">Catatan / alasan (opsional)</FieldLabel>
-                <Input id="input_catatan_undur" value={undurCatatan} onChange={(e) => setUndurCatatan(e.target.value)} maxLength={255} />
-              </Field>
-            </FieldGroup>
-            <DialogFooter>
+          <form id="form_undur_diri_psb" onSubmit={onUndurDiri} className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4">
+            <FieldLabel htmlFor="input_catatan_undur">Catatan / alasan (opsional)</FieldLabel>
+            <Input id="input_catatan_undur" value={undurCatatan} onChange={(e) => setUndurCatatan(e.target.value)} maxLength={255} />
+            <DialogFooter className="col-span-2">
               <Button type="button" variant="outline" onClick={() => setUndurRow(null)}>Batal</Button>
               <Button id="btn_simpan_undur_psb" type="submit" variant="destructive" disabled={busy}>Mengundurkan Diri</Button>
             </DialogFooter>
@@ -955,9 +941,9 @@ export default function PsbPage() {
             </DialogDescription>
           </DialogHeader>
           {(bulkAksi === 'daftar_ulang' && bulkButuhSeleksi) || bulkAksi === 'undur' || bulkAksi === 'batal' ? (
-            <FieldGroup className="gap-3">
+            <div className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4">
               {bulkAksi === 'daftar_ulang' && bulkButuhSeleksi ? (
-                <Field>
+                <>
                   <FieldLabel htmlFor="select_bulk_hasil_seleksi">Hasil seleksi</FieldLabel>
                   <Select value={bulkLolos} onValueChange={setBulkLolos}>
                     <SelectTrigger id="select_bulk_hasil_seleksi" className="w-full">
@@ -970,13 +956,11 @@ export default function PsbPage() {
                       </SelectGroup>
                     </SelectContent>
                   </Select>
-                </Field>
+                </>
               ) : null}
-              <Field>
-                <FieldLabel htmlFor="input_bulk_catatan_psb">Catatan (opsional)</FieldLabel>
-                <Input id="input_bulk_catatan_psb" value={bulkCatatan} onChange={(e) => setBulkCatatan(e.target.value)} />
-              </Field>
-            </FieldGroup>
+              <FieldLabel htmlFor="input_bulk_catatan_psb">Catatan (opsional)</FieldLabel>
+              <Input id="input_bulk_catatan_psb" value={bulkCatatan} onChange={(e) => setBulkCatatan(e.target.value)} />
+            </div>
           ) : null}
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setBulkAksi(null)}>Batal</Button>
@@ -1067,66 +1051,60 @@ export default function PsbPage() {
       </Dialog>
 
       <Dialog open={importOpen} onOpenChange={setImportOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Import data PSB (Excel/CSV)</DialogTitle>
             <DialogDescription>
               Gelombang menentukan tahun ajaran calon. Pakai template agar nama kolom sesuai.
             </DialogDescription>
           </DialogHeader>
-          <form id="form_import_psb" onSubmit={onImport} className="flex flex-col gap-3">
-            <Button
-              id="btn_template_psb"
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={onTemplate}
-            >
-              Unduh template Excel
-            </Button>
-            <FieldGroup className="gap-3">
-              <Field>
-                <FieldLabel htmlFor="select_gelombang_psb">Gelombang</FieldLabel>
-                <Select value={importGelombang} onValueChange={setImportGelombang}>
-                  <SelectTrigger id="select_gelombang_psb" className="w-full">
-                    <SelectValue placeholder="Pilih gelombang" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {gelombangs.map((g) => (
-                        <SelectItem key={g.id} value={String(g.id)}>
-                          {g.nama}{g.tahun_ajaran ? ` — ${g.tahun_ajaran.nama}` : ''}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="select_import_psb_lembaga">Lembaga tujuan</FieldLabel>
-                <Select value={importLembaga} onValueChange={setImportLembaga}>
-                  <SelectTrigger id="select_import_psb_lembaga" className="w-full">
-                    <SelectValue placeholder="Pilih lembaga" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>)}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="input_file_psb">File (.xlsx/.xls/.csv, maks 5 MB)</FieldLabel>
-                <Input
-                  id="input_file_psb"
-                  type="file"
-                  accept=".xlsx,.xls,.csv"
-                  onChange={(e) => setImportFile(e.target.files?.[0] ?? null)}
-                  required
-                />
-              </Field>
-            </FieldGroup>
-            <DialogFooter>
+          <form id="form_import_psb" onSubmit={onImport} className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4">
+            <div className="col-span-2">
+              <Button
+                id="btn_template_psb"
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={onTemplate}
+              >
+                Unduh template Excel
+              </Button>
+            </div>
+            <FieldLabel htmlFor="select_gelombang_psb">Gelombang</FieldLabel>
+            <Select value={importGelombang} onValueChange={setImportGelombang}>
+              <SelectTrigger id="select_gelombang_psb" className="w-full">
+                <SelectValue placeholder="Pilih gelombang" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {gelombangs.map((g) => (
+                    <SelectItem key={g.id} value={String(g.id)}>
+                      {g.nama}{g.tahun_ajaran ? ` — ${g.tahun_ajaran.nama}` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+            <FieldLabel htmlFor="select_import_psb_lembaga">Lembaga tujuan</FieldLabel>
+            <Select value={importLembaga} onValueChange={setImportLembaga}>
+              <SelectTrigger id="select_import_psb_lembaga" className="w-full">
+                <SelectValue placeholder="Pilih lembaga" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>)}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+            <FieldLabel htmlFor="input_file_psb">File (.xlsx/.xls/.csv, maks 5 MB)</FieldLabel>
+            <Input
+              id="input_file_psb"
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              onChange={(e) => setImportFile(e.target.files?.[0] ?? null)}
+              required
+            />
+            <DialogFooter className="col-span-2">
               <Button type="button" variant="outline" onClick={() => setImportOpen(false)}>Batal</Button>
               <Button id="btn_import_psb" type="submit" disabled={busy || !importFile || !importGelombang || !importLembaga}>
                 Import
@@ -1137,136 +1115,111 @@ export default function PsbPage() {
       </Dialog>
 
       <Dialog open={tambahOpen} onOpenChange={setTambahOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Tambah pendaftar (input admin)</DialogTitle>
             <DialogDescription>
               Jalur manual tanpa pendaftaran publik. Kuota & dedup NIK tetap berlaku.
             </DialogDescription>
           </DialogHeader>
-          <form id="form_tambah_pendaftar" onSubmit={onCreateCalon} className="flex flex-col gap-3">
-            <FieldGroup className="grid gap-3 sm:grid-cols-2">
-              <Field>
-                <FieldLabel htmlFor="select_gelombang_pendaftar">Gelombang</FieldLabel>
-                <Select value={tfGelombang} onValueChange={setTfGelombang}>
-                  <SelectTrigger id="select_gelombang_pendaftar" className="w-full">
-                    <SelectValue placeholder="Pilih gelombang" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {gelombangs.map((g) => (
-                        <SelectItem key={g.id} value={String(g.id)}>
-                          {g.nama}{g.tahun_ajaran ? ` — ${g.tahun_ajaran.nama}` : ''}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="select_lembaga_pendaftar">Lembaga tujuan</FieldLabel>
-                <Select value={tfLembaga} onValueChange={setTfLembaga}>
-                  <SelectTrigger id="select_lembaga_pendaftar" className="w-full">
-                    <SelectValue placeholder="Pilih lembaga" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>)}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="select_tipe_pendaftar">Tipe santri</FieldLabel>
-                <Select value={tfTipe} onValueChange={(v) => setTfTipe(v as 'asrama' | 'non_asrama')}>
-                  <SelectTrigger id="select_tipe_pendaftar" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      <SelectItem value="non_asrama">Non asrama</SelectItem>
-                      <SelectItem value="asrama">Asrama</SelectItem>
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="input_nik_pendaftar">NIK (16 digit)</FieldLabel>
+          <form id="form_tambah_pendaftar" onSubmit={onCreateCalon} className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4">
+            <FieldLabel htmlFor="select_gelombang_pendaftar">Gelombang</FieldLabel>
+            <Select value={tfGelombang} onValueChange={setTfGelombang}>
+              <SelectTrigger id="select_gelombang_pendaftar" className="w-full">
+                <SelectValue placeholder="Pilih gelombang" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {gelombangs.map((g) => (
+                    <SelectItem key={g.id} value={String(g.id)}>
+                      {g.nama}{g.tahun_ajaran ? ` — ${g.tahun_ajaran.nama}` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+            <FieldLabel htmlFor="select_lembaga_pendaftar">Lembaga tujuan</FieldLabel>
+            <Select value={tfLembaga} onValueChange={setTfLembaga}>
+              <SelectTrigger id="select_lembaga_pendaftar" className="w-full">
+                <SelectValue placeholder="Pilih lembaga" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>)}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+            <FieldLabel htmlFor="select_tipe_pendaftar">Tipe santri</FieldLabel>
+            <Select value={tfTipe} onValueChange={(v) => setTfTipe(v as 'asrama' | 'non_asrama')}>
+              <SelectTrigger id="select_tipe_pendaftar" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value="non_asrama">Non asrama</SelectItem>
+                  <SelectItem value="asrama">Asrama</SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+            <FieldLabel htmlFor="input_nik_pendaftar">NIK (16 digit)</FieldLabel>
+            <Input
+              id="input_nik_pendaftar"
+              value={tfNik}
+              onChange={(e) => setTfNik(e.target.value)}
+              inputMode="numeric"
+              minLength={16}
+              maxLength={16}
+              required
+            />
+            <FieldLabel htmlFor="input_nama_pendaftar">Nama lengkap</FieldLabel>
+            <Input id="input_nama_pendaftar" value={tfNama} onChange={(e) => setTfNama(e.target.value)} required maxLength={100} />
+            <FieldLabel htmlFor="select_jk_pendaftar">Jenis kelamin</FieldLabel>
+            <Select value={tfJk === '' ? '_kosong' : tfJk} onValueChange={(v) => setTfJk(v === '_kosong' ? '' : v)}>
+              <SelectTrigger id="select_jk_pendaftar" className="w-full">
+                <SelectValue placeholder="-" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value="_kosong">-</SelectItem>
+                  <SelectItem value="L">Laki-laki</SelectItem>
+                  <SelectItem value="P">Perempuan</SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+            <FieldLabel htmlFor="input_tgl_lahir_pendaftar">Tanggal lahir</FieldLabel>
+            <Input id="input_tgl_lahir_pendaftar" type="date" value={tfTglLahir} onChange={(e) => setTfTglLahir(e.target.value)} />
+            <FieldLabel htmlFor="input_email_ortu_pendaftar">Email orang tua</FieldLabel>
+            <Input id="input_email_ortu_pendaftar" type="email" value={tfEmail} onChange={(e) => setTfEmail(e.target.value)} maxLength={100} />
+            <FieldLabel htmlFor="input_telp_ortu_pendaftar">No. HP orang tua</FieldLabel>
+            <Input id="input_telp_ortu_pendaftar" value={tfTelp} onChange={(e) => setTfTelp(e.target.value)} maxLength={20} />
+            <FieldLabel htmlFor="input_ayah_pendaftar">Nama ayah</FieldLabel>
+            <Input id="input_ayah_pendaftar" value={tfAyah} onChange={(e) => setTfAyah(e.target.value)} maxLength={100} />
+            <FieldLabel htmlFor="input_ibu_pendaftar">Nama ibu</FieldLabel>
+            <Input id="input_ibu_pendaftar" value={tfIbu} onChange={(e) => setTfIbu(e.target.value)} maxLength={100} />
+            <FieldLabel htmlFor="check_pindahan_pendaftar">Pindahan</FieldLabel>
+            <label htmlFor="check_pindahan_pendaftar" className="flex cursor-pointer items-center gap-2 text-sm">
+              <input
+                id="check_pindahan_pendaftar"
+                type="checkbox"
+                checked={tfPindahan}
+                onChange={(e) => setTfPindahan(e.target.checked)}
+                className="size-4 accent-[var(--accent)]"
+              />
+              <span className="text-muted-foreground">Bukan santri baru</span>
+            </label>
+            {tfPindahan && (
+              <>
+                <FieldLabel htmlFor="input_tingkat_pendaftar">Masuk tingkat</FieldLabel>
                 <Input
-                  id="input_nik_pendaftar"
-                  value={tfNik}
-                  onChange={(e) => setTfNik(e.target.value)}
-                  inputMode="numeric"
-                  minLength={16}
-                  maxLength={16}
-                  required
+                  id="input_tingkat_pendaftar"
+                  value={tfTingkat}
+                  onChange={(e) => setTfTingkat(e.target.value)}
+                  maxLength={2}
+                  placeholder="mis. 3"
                 />
-              </Field>
-              <Field className="sm:col-span-2">
-                <FieldLabel htmlFor="input_nama_pendaftar">Nama lengkap</FieldLabel>
-                <Input id="input_nama_pendaftar" value={tfNama} onChange={(e) => setTfNama(e.target.value)} required maxLength={100} />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="select_jk_pendaftar">Jenis kelamin</FieldLabel>
-                <Select value={tfJk === '' ? '_kosong' : tfJk} onValueChange={(v) => setTfJk(v === '_kosong' ? '' : v)}>
-                  <SelectTrigger id="select_jk_pendaftar" className="w-full">
-                    <SelectValue placeholder="-" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      <SelectItem value="_kosong">-</SelectItem>
-                      <SelectItem value="L">Laki-laki</SelectItem>
-                      <SelectItem value="P">Perempuan</SelectItem>
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="input_tgl_lahir_pendaftar">Tanggal lahir</FieldLabel>
-                <Input id="input_tgl_lahir_pendaftar" type="date" value={tfTglLahir} onChange={(e) => setTfTglLahir(e.target.value)} />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="input_email_ortu_pendaftar">Email orang tua</FieldLabel>
-                <Input id="input_email_ortu_pendaftar" type="email" value={tfEmail} onChange={(e) => setTfEmail(e.target.value)} maxLength={100} />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="input_telp_ortu_pendaftar">No. HP orang tua</FieldLabel>
-                <Input id="input_telp_ortu_pendaftar" value={tfTelp} onChange={(e) => setTfTelp(e.target.value)} maxLength={20} />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="input_ayah_pendaftar">Nama ayah</FieldLabel>
-                <Input id="input_ayah_pendaftar" value={tfAyah} onChange={(e) => setTfAyah(e.target.value)} maxLength={100} />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="input_ibu_pendaftar">Nama ibu</FieldLabel>
-                <Input id="input_ibu_pendaftar" value={tfIbu} onChange={(e) => setTfIbu(e.target.value)} maxLength={100} />
-              </Field>
-            </FieldGroup>
-            <div className="flex flex-wrap items-center gap-3">
-              <label htmlFor="check_pindahan_pendaftar" className="flex cursor-pointer items-center gap-2 text-sm">
-                <input
-                  id="check_pindahan_pendaftar"
-                  type="checkbox"
-                  checked={tfPindahan}
-                  onChange={(e) => setTfPindahan(e.target.checked)}
-                  className="size-4 accent-[var(--accent)]"
-                />
-                Pindahan (bukan santri baru)
-              </label>
-              {tfPindahan && (
-                <Field className="flex-1">
-                  <FieldLabel htmlFor="input_tingkat_pendaftar">Masuk tingkat</FieldLabel>
-                  <Input
-                    id="input_tingkat_pendaftar"
-                    value={tfTingkat}
-                    onChange={(e) => setTfTingkat(e.target.value)}
-                    maxLength={2}
-                    placeholder="mis. 3"
-                  />
-                </Field>
-              )}
-            </div>
-            <DialogFooter>
+              </>
+            )}
+            <DialogFooter className="col-span-2">
               <Button type="button" variant="outline" onClick={() => setTambahOpen(false)}>Batal</Button>
               <Button
                 id="btn_simpan_pendaftar"

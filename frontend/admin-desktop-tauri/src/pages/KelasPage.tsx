@@ -13,7 +13,7 @@ import {
 } from '../api/master';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
+import { FieldLabel } from '@/components/ui/field';
 import {
   Select,
   SelectContent,
@@ -365,66 +365,54 @@ export default function KelasPage() {
         onPerPage={(pp) => { pager.setPerPage(pp); load(1, pp); }}
       />
       <Dialog open={tambahOpen} onOpenChange={setTambahOpen}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Tambah kelas</DialogTitle>
             <DialogDescription className="sr-only">Formulir penambahan kelas baru.</DialogDescription>
           </DialogHeader>
-          <form id="form_tambah_kelas" onSubmit={onCreate} className="flex flex-col gap-3">
-            <FieldGroup className="grid gap-3 sm:grid-cols-2">
-              <Field>
-                <FieldLabel htmlFor="select_tambah_lembaga_kelas">Lembaga</FieldLabel>
-                <Select
-                  value={tambahLembagaId === '' ? '' : String(tambahLembagaId)}
-                  onValueChange={(v) => { setTambahLembagaId(Number(v)); setTambahTaId(''); }}
-                >
-                  <SelectTrigger id="select_tambah_lembaga_kelas" className="w-full">
-                    <SelectValue placeholder="Pilih lembaga" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>)}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="select_tambah_ta_kelas">Tahun ajaran</FieldLabel>
-                <Select
-                  value={tambahTaId === '' ? '' : String(tambahTaId)}
-                  onValueChange={(v) => setTambahTaId(Number(v))}
-                  disabled={tambahLembagaId === ''}
-                >
-                  <SelectTrigger id="select_tambah_ta_kelas" className="w-full">
-                    <SelectValue placeholder={tambahLembagaId === '' ? 'Pilih lembaga dulu' : 'Pilih tahun ajaran'} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {tambahTas.map((t) => <SelectItem key={t.id} value={String(t.id)}>{t.nama}</SelectItem>)}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-                {tambahLembagaId !== '' && tambahTas.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">Belum ada tahun ajaran di lembaga ini.</p>
-                ) : null}
-              </Field>
-            </FieldGroup>
-            <FieldGroup className="grid gap-3 sm:grid-cols-3">
-              <Field>
-                <FieldLabel htmlFor="input_nama_kelas">Nama kelas</FieldLabel>
-                <Input id="input_nama_kelas" value={namaKelas} onChange={(e) => setNamaKelas(e.target.value)} required maxLength={50} placeholder="VII-A" />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="input_tingkat_kelas">Tingkat (kamus, opsional)</FieldLabel>
-                <Input id="input_tingkat_kelas" value={tingkat} onChange={(e) => setTingkat(e.target.value)} placeholder="7 / 8 / 9" />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="input_kapasitas_kelas">Kapasitas</FieldLabel>
-                <Input id="input_kapasitas_kelas" type="number" min={1} value={kapasitas} onChange={(e) => setKapasitas(e.target.value)} />
-              </Field>
-            </FieldGroup>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setTambahOpen(false)}>Batal</Button>
+          <form id="form_tambah_kelas" onSubmit={onCreate} className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4">
+            <FieldLabel htmlFor="select_tambah_lembaga_kelas">Lembaga</FieldLabel>
+            <Select
+              value={tambahLembagaId === '' ? '' : String(tambahLembagaId)}
+              onValueChange={(v) => { setTambahLembagaId(Number(v)); setTambahTaId(''); }}
+            >
+              <SelectTrigger id="select_tambah_lembaga_kelas" className="w-full">
+                <SelectValue placeholder="Pilih lembaga" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>)}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+            <FieldLabel htmlFor="select_tambah_ta_kelas" className="self-start pt-1.5">Tahun ajaran</FieldLabel>
+            <div className="flex flex-col gap-1.5">
+              <Select
+                value={tambahTaId === '' ? '' : String(tambahTaId)}
+                onValueChange={(v) => setTambahTaId(Number(v))}
+                disabled={tambahLembagaId === ''}
+              >
+                <SelectTrigger id="select_tambah_ta_kelas" className="w-full">
+                  <SelectValue placeholder={tambahLembagaId === '' ? 'Pilih lembaga dulu' : 'Pilih tahun ajaran'} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {tambahTas.map((t) => <SelectItem key={t.id} value={String(t.id)}>{t.nama}</SelectItem>)}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+              {tambahLembagaId !== '' && tambahTas.length === 0 ? (
+                <p className="text-xs text-muted-foreground">Belum ada tahun ajaran di lembaga ini.</p>
+              ) : null}
+            </div>
+            <FieldLabel htmlFor="input_nama_kelas">Nama kelas</FieldLabel>
+            <Input id="input_nama_kelas" value={namaKelas} onChange={(e) => setNamaKelas(e.target.value)} required maxLength={50} placeholder="VII-A" />
+            <FieldLabel htmlFor="input_tingkat_kelas">Tingkat (kamus, opsional)</FieldLabel>
+            <Input id="input_tingkat_kelas" value={tingkat} onChange={(e) => setTingkat(e.target.value)} placeholder="7 / 8 / 9" />
+            <FieldLabel htmlFor="input_kapasitas_kelas">Kapasitas</FieldLabel>
+            <Input id="input_kapasitas_kelas" type="number" min={1} value={kapasitas} onChange={(e) => setKapasitas(e.target.value)} />
+            <DialogFooter className="col-span-2">
+              <Button type="button" variant="outline" onClick={() => setTambahOpen(false)}>Batal</Button>
               <Button
                 id="btn_tambah_kelas"
                 type="submit"
@@ -443,27 +431,21 @@ export default function KelasPage() {
         row={viewRow as unknown as Record<string, unknown> | null}
       />
       <Dialog open={editRow !== null} onOpenChange={(o) => { if (!o) setEditRow(null); }}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>Ubah kelas</DialogTitle>
             <DialogDescription className="sr-only">Formulir perubahan data kelas.</DialogDescription>
           </DialogHeader>
-          <FieldGroup className="gap-3">
-            <Field>
-              <FieldLabel htmlFor="input_ubah_nama_kelas">Nama kelas</FieldLabel>
-              <Input id="input_ubah_nama_kelas" value={editNama} onChange={(e) => setEditNama(e.target.value)} required maxLength={50} />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="input_ubah_tingkat_kelas">Tingkat (kamus, opsional)</FieldLabel>
-              <Input id="input_ubah_tingkat_kelas" value={editTingkat} onChange={(e) => setEditTingkat(e.target.value)} />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="input_ubah_kapasitas_kelas">Kapasitas</FieldLabel>
-              <Input id="input_ubah_kapasitas_kelas" type="number" min={1} value={editKapasitas} onChange={(e) => setEditKapasitas(e.target.value)} />
-            </Field>
-          </FieldGroup>
+          <div className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4">
+            <FieldLabel htmlFor="input_ubah_nama_kelas">Nama kelas</FieldLabel>
+            <Input id="input_ubah_nama_kelas" value={editNama} onChange={(e) => setEditNama(e.target.value)} required maxLength={50} />
+            <FieldLabel htmlFor="input_ubah_tingkat_kelas">Tingkat (kamus, opsional)</FieldLabel>
+            <Input id="input_ubah_tingkat_kelas" value={editTingkat} onChange={(e) => setEditTingkat(e.target.value)} />
+            <FieldLabel htmlFor="input_ubah_kapasitas_kelas">Kapasitas</FieldLabel>
+            <Input id="input_ubah_kapasitas_kelas" type="number" min={1} value={editKapasitas} onChange={(e) => setEditKapasitas(e.target.value)} />
+          </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditRow(null)}>Batal</Button>
+            <Button type="button" variant="outline" onClick={() => setEditRow(null)}>Batal</Button>
             <Button id="btn_simpan_kelas" onClick={onUpdate}>Simpan</Button>
           </DialogFooter>
         </DialogContent>

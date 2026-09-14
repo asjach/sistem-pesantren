@@ -3,7 +3,7 @@ import { errorMessage } from '../api/client';
 import { listPengajuan, setujuiPengajuan, tolakPengajuan, type PengajuanBiodata } from '../api/pengajuan';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
+import { FieldLabel } from '@/components/ui/field';
 import {
   Select,
   SelectContent,
@@ -189,19 +189,15 @@ export default function PengajuanBiodataPage() {
       />
 
       <Dialog open={tolakRow !== null} onOpenChange={(o) => { if (!o) setTolakRow(null); }}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Tolak pengajuan: {tolakRow?.santri?.nama_lengkap}</DialogTitle>
             <DialogDescription className="sr-only">Formulir penolakan pengajuan biodata.</DialogDescription>
           </DialogHeader>
-          <form id="form_tolak_pengajuan" onSubmit={onTolak} className="flex flex-col gap-3">
-            <FieldGroup className="gap-3">
-              <Field>
-                <FieldLabel htmlFor="input_catatan_pengajuan">Catatan (opsional)</FieldLabel>
-                <Input id="input_catatan_pengajuan" value={tolakCatatan} onChange={(e) => setTolakCatatan(e.target.value)} />
-              </Field>
-            </FieldGroup>
-            <DialogFooter>
+          <form id="form_tolak_pengajuan" onSubmit={onTolak} className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4">
+            <FieldLabel htmlFor="input_catatan_pengajuan">Catatan (opsional)</FieldLabel>
+            <Input id="input_catatan_pengajuan" value={tolakCatatan} onChange={(e) => setTolakCatatan(e.target.value)} />
+            <DialogFooter className="col-span-2">
               <Button type="button" variant="outline" onClick={() => setTolakRow(null)}>Batal</Button>
               <Button id="btn_simpan_tolak_pengajuan" type="submit" variant="destructive" disabled={busy}>Tolak</Button>
             </DialogFooter>

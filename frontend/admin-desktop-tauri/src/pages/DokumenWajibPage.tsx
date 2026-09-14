@@ -10,7 +10,7 @@ import {
 } from '../api/psb';
 import { listLembaga, referensiList, type Lembaga, type ReferensiRow } from '../api/master';
 import { Button } from '@/components/ui/button';
-import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
+import { FieldLabel } from '@/components/ui/field';
 import {
   Select,
   SelectContent,
@@ -239,46 +239,40 @@ export default function DokumenWajibPage() {
       />
 
       <Dialog open={tambahOpen} onOpenChange={setTambahOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Tambah ketentuan dokumen</DialogTitle>
             <DialogDescription>Jenis dokumen diambil dari kamus aktif lembaga.</DialogDescription>
           </DialogHeader>
-          <form id="form_tambah_dokumen_wajib" onSubmit={onTambah} className="flex flex-col gap-3">
-            <FieldGroup className="gap-3">
-              <Field>
-                <FieldLabel htmlFor="select_jenis_dokumen_wajib">Jenis dokumen</FieldLabel>
-                <Select value={jenisBaru} onValueChange={setJenisBaru}>
-                  <SelectTrigger id="select_jenis_dokumen_wajib" className="w-full">
-                    <SelectValue placeholder="Pilih jenis" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {jenis.map((r) => (
-                        <SelectItem key={r.id} value={String(r.nama ?? r.kode)}>
-                          {String(r.nama ?? r.label ?? r.kode)}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="select_sifat_dokumen_wajib">Sifat dokumen</FieldLabel>
-                <Select value={sifatBaru} onValueChange={(v) => setSifatBaru(v as 'wajib' | 'opsional')}>
-                  <SelectTrigger id="select_sifat_dokumen_wajib" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      <SelectItem value="wajib">Wajib</SelectItem>
-                      <SelectItem value="opsional">Opsional</SelectItem>
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </Field>
-            </FieldGroup>
-            <DialogFooter>
+          <form id="form_tambah_dokumen_wajib" onSubmit={onTambah} className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4">
+            <FieldLabel htmlFor="select_jenis_dokumen_wajib">Jenis dokumen</FieldLabel>
+            <Select value={jenisBaru} onValueChange={setJenisBaru}>
+              <SelectTrigger id="select_jenis_dokumen_wajib" className="w-full">
+                <SelectValue placeholder="Pilih jenis" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {jenis.map((r) => (
+                    <SelectItem key={r.id} value={String(r.nama ?? r.kode)}>
+                      {String(r.nama ?? r.label ?? r.kode)}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+            <FieldLabel htmlFor="select_sifat_dokumen_wajib">Sifat dokumen</FieldLabel>
+            <Select value={sifatBaru} onValueChange={(v) => setSifatBaru(v as 'wajib' | 'opsional')}>
+              <SelectTrigger id="select_sifat_dokumen_wajib" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value="wajib">Wajib</SelectItem>
+                  <SelectItem value="opsional">Opsional</SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+            <DialogFooter className="col-span-2">
               <Button type="button" variant="outline" onClick={() => setTambahOpen(false)}>Batal</Button>
               <Button id="btn_tambah_dokumen_wajib" type="submit" disabled={busy || !jenisBaru}>Simpan</Button>
             </DialogFooter>

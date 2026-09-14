@@ -14,7 +14,7 @@ import {
 import { listLembaga, listTahunAjaran, referensiList, type Lembaga, type ReferensiRow, type TahunAjaran } from '../api/master';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
+import { FieldLabel } from '@/components/ui/field';
 import {
   Select,
   SelectContent,
@@ -465,53 +465,45 @@ export default function SantriPage() {
       />
 
       <Dialog open={importOpen} onOpenChange={setImportOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Import data santri (Excel/CSV)</DialogTitle>
             <DialogDescription className="sr-only">
               Impor data santri dari berkas Excel/CSV sesuai template.
             </DialogDescription>
           </DialogHeader>
-          <form id="form_import_santri" onSubmit={onImport} className="flex flex-col gap-3">
-            <FieldGroup className="gap-3">
-              <Field>
-                <FieldLabel htmlFor="select_import_lembaga">Lembaga tujuan</FieldLabel>
-                <Select value={importLembaga} onValueChange={(v) => { setImportLembaga(v); setImportTa(''); }}>
-                  <SelectTrigger id="select_import_lembaga" className="w-full">
-                    <SelectValue placeholder="Pilih lembaga" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>)}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="select_import_ta">Tahun ajaran</FieldLabel>
-                <Select value={importTa} onValueChange={setImportTa}>
-                  <SelectTrigger id="select_import_ta" className="w-full">
-                    <SelectValue placeholder="Pilih tahun ajaran" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {tas.map((t) => <SelectItem key={t.id} value={String(t.id)}>{t.nama}</SelectItem>)}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="input_file_santri">File (.xlsx/.xls/.csv, maks 5 MB)</FieldLabel>
-                <Input
-                  id="input_file_santri"
-                  type="file"
-                  accept=".xlsx,.xls,.csv"
-                  onChange={(e) => setImportFile(e.target.files?.[0] ?? null)}
-                  required
-                />
-              </Field>
-            </FieldGroup>
-            <DialogFooter>
+          <form id="form_import_santri" onSubmit={onImport} className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4">
+            <FieldLabel htmlFor="select_import_lembaga">Lembaga tujuan</FieldLabel>
+            <Select value={importLembaga} onValueChange={(v) => { setImportLembaga(v); setImportTa(''); }}>
+              <SelectTrigger id="select_import_lembaga" className="w-full">
+                <SelectValue placeholder="Pilih lembaga" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>)}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+            <FieldLabel htmlFor="select_import_ta">Tahun ajaran</FieldLabel>
+            <Select value={importTa} onValueChange={setImportTa}>
+              <SelectTrigger id="select_import_ta" className="w-full">
+                <SelectValue placeholder="Pilih tahun ajaran" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {tas.map((t) => <SelectItem key={t.id} value={String(t.id)}>{t.nama}</SelectItem>)}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+            <FieldLabel htmlFor="input_file_santri">File (.xlsx/.xls/.csv, maks 5 MB)</FieldLabel>
+            <Input
+              id="input_file_santri"
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              onChange={(e) => setImportFile(e.target.files?.[0] ?? null)}
+              required
+            />
+            <DialogFooter className="col-span-2">
               <Button type="button" variant="outline" onClick={() => setImportOpen(false)}>Batal</Button>
               <Button id="btn_import_santri" type="submit" disabled={busy || !importFile || !importTa}>Import</Button>
             </DialogFooter>
@@ -520,27 +512,23 @@ export default function SantriPage() {
       </Dialog>
 
       <Dialog open={fotoRow !== null} onOpenChange={(o) => { if (!o) setFotoRow(null); }}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Upload foto: {fotoRow?.nama_lengkap}</DialogTitle>
             <DialogDescription className="sr-only">
               Unggah foto santri (jpg/png, maksimal 2 MB).
             </DialogDescription>
           </DialogHeader>
-          <form id="form_foto_santri" onSubmit={onUploadFoto} className="flex flex-col gap-3">
-            <FieldGroup className="gap-3">
-              <Field>
-                <FieldLabel htmlFor="input_file_foto">File (jpg/png, maks 2 MB)</FieldLabel>
-                <Input
-                  id="input_file_foto"
-                  type="file"
-                  accept=".jpg,.jpeg,.png"
-                  onChange={(e) => setFotoFile(e.target.files?.[0] ?? null)}
-                  required
-                />
-              </Field>
-            </FieldGroup>
-            <DialogFooter>
+          <form id="form_foto_santri" onSubmit={onUploadFoto} className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4">
+            <FieldLabel htmlFor="input_file_foto">File (jpg/png, maks 2 MB)</FieldLabel>
+            <Input
+              id="input_file_foto"
+              type="file"
+              accept=".jpg,.jpeg,.png"
+              onChange={(e) => setFotoFile(e.target.files?.[0] ?? null)}
+              required
+            />
+            <DialogFooter className="col-span-2">
               <Button type="button" variant="outline" onClick={() => setFotoRow(null)}>Batal</Button>
               <Button id="btn_upload_foto" type="submit" disabled={busy || !fotoFile}>Upload</Button>
             </DialogFooter>
@@ -549,7 +537,7 @@ export default function SantriPage() {
       </Dialog>
 
       <Dialog open={dokRow !== null} onOpenChange={(o) => { if (!o) setDokRow(null); }}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Dokumen: {dokRow?.nama_lengkap}</DialogTitle>
             <DialogDescription className="sr-only">
@@ -590,41 +578,33 @@ export default function SantriPage() {
               </ul>
             )}
           </div>
-          <form id="form_dokumen_santri" onSubmit={onUploadDokumen} className="flex flex-col gap-3">
-            <FieldGroup className="gap-3">
-              <Field>
-                <FieldLabel htmlFor="select_jenis_dokumen">Jenis dokumen</FieldLabel>
-                <Select value={dokJenis} onValueChange={setDokJenis}>
-                  <SelectTrigger id="select_jenis_dokumen" className="w-full">
-                    <SelectValue placeholder="Pilih jenis" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {jenisDokumen.map((r) => (
-                        <SelectItem key={r.id} value={String(r.nama ?? r.kode)}>
-                          {String(r.nama ?? r.label ?? r.kode)}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="input_file_dokumen">File (jpg/png/pdf, maks 5 MB)</FieldLabel>
-                <Input
-                  id="input_file_dokumen"
-                  type="file"
-                  accept=".jpg,.jpeg,.png,.pdf"
-                  onChange={(e) => setDokFile(e.target.files?.[0] ?? null)}
-                  required
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="input_catatan_dokumen">Catatan (opsional)</FieldLabel>
-                <Input id="input_catatan_dokumen" value={dokCatatan} onChange={(e) => setDokCatatan(e.target.value)} />
-              </Field>
-            </FieldGroup>
-            <DialogFooter>
+          <form id="form_dokumen_santri" onSubmit={onUploadDokumen} className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4">
+            <FieldLabel htmlFor="select_jenis_dokumen">Jenis dokumen</FieldLabel>
+            <Select value={dokJenis} onValueChange={setDokJenis}>
+              <SelectTrigger id="select_jenis_dokumen" className="w-full">
+                <SelectValue placeholder="Pilih jenis" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {jenisDokumen.map((r) => (
+                    <SelectItem key={r.id} value={String(r.nama ?? r.kode)}>
+                      {String(r.nama ?? r.label ?? r.kode)}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+            <FieldLabel htmlFor="input_file_dokumen">File (jpg/png/pdf, maks 5 MB)</FieldLabel>
+            <Input
+              id="input_file_dokumen"
+              type="file"
+              accept=".jpg,.jpeg,.png,.pdf"
+              onChange={(e) => setDokFile(e.target.files?.[0] ?? null)}
+              required
+            />
+            <FieldLabel htmlFor="input_catatan_dokumen">Catatan (opsional)</FieldLabel>
+            <Input id="input_catatan_dokumen" value={dokCatatan} onChange={(e) => setDokCatatan(e.target.value)} />
+            <DialogFooter className="col-span-2">
               <Button type="button" variant="outline" onClick={() => setDokRow(null)}>Batal</Button>
               <Button id="btn_upload_dokumen" type="submit" disabled={busy || !dokFile || !dokJenis}>Upload</Button>
             </DialogFooter>

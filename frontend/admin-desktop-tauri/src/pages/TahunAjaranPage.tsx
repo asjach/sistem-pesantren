@@ -12,7 +12,7 @@ import {
 } from '../api/master';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
+import { FieldLabel } from '@/components/ui/field';
 import {
   Select,
   SelectContent,
@@ -302,28 +302,20 @@ export default function TahunAjaranPage() {
         onPerPage={(pp) => { pager.setPerPage(pp); load(1, pp); }}
       />
       <Dialog open={tambahOpen} onOpenChange={setTambahOpen}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>Tambah tahun ajaran</DialogTitle>
             <DialogDescription className="sr-only">Formulir penambahan tahun ajaran baru.</DialogDescription>
           </DialogHeader>
-          <form id="form_tambah_ta" onSubmit={onCreate} className="flex flex-col gap-3">
-            <FieldGroup className="grid gap-3 sm:grid-cols-3">
-              <Field>
-                <FieldLabel htmlFor="input_nama_ta">Nama (unik per lembaga)</FieldLabel>
-                <Input id="input_nama_ta" value={nama} onChange={(e) => setNama(e.target.value)} required maxLength={50} placeholder="2026/2027" />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="input_mulai_ta">Tanggal mulai</FieldLabel>
-                <Input id="input_mulai_ta" type="date" value={mulai} onChange={(e) => setMulai(e.target.value)} />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="input_selesai_ta">Tanggal selesai</FieldLabel>
-                <Input id="input_selesai_ta" type="date" value={selesai} onChange={(e) => setSelesai(e.target.value)} />
-              </Field>
-            </FieldGroup>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setTambahOpen(false)}>Batal</Button>
+          <form id="form_tambah_ta" onSubmit={onCreate} className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4">
+            <FieldLabel htmlFor="input_nama_ta">Nama (unik per lembaga)</FieldLabel>
+            <Input id="input_nama_ta" value={nama} onChange={(e) => setNama(e.target.value)} required maxLength={50} placeholder="2026/2027" />
+            <FieldLabel htmlFor="input_mulai_ta">Tanggal mulai</FieldLabel>
+            <Input id="input_mulai_ta" type="date" value={mulai} onChange={(e) => setMulai(e.target.value)} />
+            <FieldLabel htmlFor="input_selesai_ta">Tanggal selesai</FieldLabel>
+            <Input id="input_selesai_ta" type="date" value={selesai} onChange={(e) => setSelesai(e.target.value)} />
+            <DialogFooter className="col-span-2">
+              <Button type="button" variant="outline" onClick={() => setTambahOpen(false)}>Batal</Button>
               <Button id="btn_tambah_ta" type="submit">Tambah</Button>
             </DialogFooter>
           </form>
@@ -336,27 +328,21 @@ export default function TahunAjaranPage() {
         row={viewRow as unknown as Record<string, unknown> | null}
       />
       <Dialog open={editRow !== null} onOpenChange={(o) => { if (!o) setEditRow(null); }}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>Ubah tahun ajaran</DialogTitle>
             <DialogDescription className="sr-only">Formulir perubahan tahun ajaran.</DialogDescription>
           </DialogHeader>
-          <FieldGroup className="gap-3">
-            <Field>
-              <FieldLabel htmlFor="input_ubah_nama_ta">Nama (unik per lembaga)</FieldLabel>
-              <Input id="input_ubah_nama_ta" value={editNama} onChange={(e) => setEditNama(e.target.value)} required maxLength={50} />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="input_ubah_mulai_ta">Tanggal mulai</FieldLabel>
-              <Input id="input_ubah_mulai_ta" type="date" value={editMulai} onChange={(e) => setEditMulai(e.target.value)} />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="input_ubah_selesai_ta">Tanggal selesai</FieldLabel>
-              <Input id="input_ubah_selesai_ta" type="date" value={editSelesai} onChange={(e) => setEditSelesai(e.target.value)} />
-            </Field>
-          </FieldGroup>
+          <div className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4">
+            <FieldLabel htmlFor="input_ubah_nama_ta">Nama (unik per lembaga)</FieldLabel>
+            <Input id="input_ubah_nama_ta" value={editNama} onChange={(e) => setEditNama(e.target.value)} required maxLength={50} />
+            <FieldLabel htmlFor="input_ubah_mulai_ta">Tanggal mulai</FieldLabel>
+            <Input id="input_ubah_mulai_ta" type="date" value={editMulai} onChange={(e) => setEditMulai(e.target.value)} />
+            <FieldLabel htmlFor="input_ubah_selesai_ta">Tanggal selesai</FieldLabel>
+            <Input id="input_ubah_selesai_ta" type="date" value={editSelesai} onChange={(e) => setEditSelesai(e.target.value)} />
+          </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditRow(null)}>Batal</Button>
+            <Button type="button" variant="outline" onClick={() => setEditRow(null)}>Batal</Button>
             <Button id="btn_simpan_ta" onClick={onUpdate}>Simpan</Button>
           </DialogFooter>
         </DialogContent>
