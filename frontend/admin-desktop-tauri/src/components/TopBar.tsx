@@ -3,9 +3,10 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { logout } from '@/api/auth';
 import { isTauri, prefGet, prefSet } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
-import { useTheme } from '@/theme';
+import { useTheme, type ModeName } from '@/theme';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,7 +19,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { ICON_SETS } from '@/iconSets';
-import { Check, ChevronDown, LogOut, Paintbrush, Users } from '@/icons';
+import { Check, ChevronDown, LogOut, Monitor, Moon, Paintbrush, Sun, Users } from '@/icons';
 import { useRibbonTable } from '@/components/RibbonTable';
 import { halamanDariPath } from '@/lib/halaman';
 import { RibbonBeranda } from './topbar/RibbonBeranda';
@@ -32,6 +33,13 @@ import { RibbonTabel } from './topbar/RibbonTabel';
 // ---------- Peta tab ribbon ← registri halaman ----------
 
 const RIBBON_LIPAT_KEY = 'simpes_ribbon_lipat';
+
+/** Mode tampilan terang/gelap/sistem (ikon saja) — di dekat akun pengguna. */
+const MODE_STRIP: { id: ModeName; nama: string; icon: typeof Sun }[] = [
+  { id: 'terang', nama: 'Terang', icon: Sun },
+  { id: 'gelap', nama: 'Gelap', icon: Moon },
+  { id: 'sistem', nama: 'Sistem', icon: Monitor },
+];
 
 const navBase =
   'flex items-center gap-2 rounded-md px-3 py-1.5 text-sm whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--sidebar-foreground)]/60';
@@ -162,7 +170,27 @@ export default function TopBar() {
           );
         })}
 
-        <div className="ml-auto flex items-center gap-0.5 pl-2">
+        <div data-part="area_akun" className="ml-auto flex items-center gap-0.5 pl-2">
+          <ToggleGroup
+            type="single"
+            spacing={0}
+            value={mode}
+            onValueChange={(v) => { if (v) setMode(v as ModeName); }}
+            className="mr-1"
+          >
+            {MODE_STRIP.map((m) => (
+              <ToggleGroupItem
+                key={m.id}
+                id={`strip_mode_${m.id}`}
+                value={m.id}
+                title={`Mode ${m.nama}`}
+                aria-label={`Mode ${m.nama}`}
+                className="h-7 w-7 rounded-md border-0 text-white/75 hover:bg-white/10 hover:text-white data-[state=on]:bg-white/20 data-[state=on]:text-white"
+              >
+                <m.icon size={14} />
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
@@ -235,11 +263,9 @@ export default function TopBar() {
               <RibbonPengaturan
                 pathname={pathname}
                 theme={theme}
-                mode={mode}
                 customHex={customHex}
                 dark={dark}
                 setTheme={setTheme}
-                setMode={setMode}
               />
             )}
 

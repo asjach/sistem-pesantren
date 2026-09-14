@@ -1,7 +1,7 @@
 import { DEFAULT_PREFS } from '@/prefs';
 import { THEME_PRESETS } from '@/themes';
-import type { ModeName, ThemeName } from '@/theme';
-import { Monitor, Moon, Paintbrush, Palette, Server, Sun } from '@/icons';
+import type { ThemeName } from '@/theme';
+import { Paintbrush, Palette, Server } from '@/icons';
 import {
   Select,
   SelectContent,
@@ -12,32 +12,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { RibbonBtn, RibbonGroup, RibbonPemisah, pathAktif } from './primitives';
-
-/** Mode tampilan untuk ribbon (ikon saja). */
-const MODE_RIBBON: { id: ModeName; nama: string; icon: typeof Sun }[] = [
-  { id: 'terang', nama: 'Terang', icon: Sun },
-  { id: 'gelap', nama: 'Gelap', icon: Moon },
-  { id: 'sistem', nama: 'Sistem', icon: Monitor },
-];
 
 export function RibbonPengaturan({
   pathname,
   theme,
-  mode,
   customHex,
   dark,
   setTheme,
-  setMode,
 }: {
   pathname: string;
   theme: ThemeName;
-  mode: ModeName;
   customHex: string;
   dark: boolean;
   setTheme: (t: ThemeName) => void;
-  setMode: (m: ModeName) => void;
 }) {
   return (
     <>
@@ -82,26 +70,6 @@ export function RibbonPengaturan({
             </SelectGroup>
           </SelectContent>
         </Select>
-        <ToggleGroup
-          type="single"
-          spacing={0}
-          value={mode}
-          onValueChange={(v) => { if (v) setMode(v as ModeName); }}
-          className="h-8 overflow-hidden rounded-md border border-white/20 bg-white/5"
-        >
-          {MODE_RIBBON.map((m) => (
-            <ToggleGroupItem
-              key={m.id}
-              id={`ribbon_mode_${m.id}`}
-              value={m.id}
-              title={`Mode ${m.nama}`}
-              aria-label={`Mode ${m.nama}`}
-              className="h-8 w-8 rounded-none border-0 text-white/75 hover:bg-white/10 hover:text-white data-[state=on]:bg-white/20 data-[state=on]:text-white"
-            >
-              <m.icon size={14} />
-            </ToggleGroupItem>
-          ))}
-        </ToggleGroup>
       </RibbonGroup>
       <RibbonPemisah />
       <RibbonGroup label="Pengaturan">
