@@ -12,12 +12,13 @@ export type ModeName = 'gelap' | 'terang' | 'sistem';
 export type WarnaUIName = 'netral' | 'aksen' | 'kaya';
 export const WARNA_UI: WarnaUIName[] = ['netral', 'aksen', 'kaya'];
 
-/** Kerapatan baris grid: ramping 30px, sedang 38px, nyaman 48px. */
+/** Kerapatan baris grid: ramping 20px, sedang 24px, nyaman 30px.
+ *  Bawaan 'sedang' (24px) — selaras tinggi kontrol. */
 export type DensityName = 'ramping' | 'sedang' | 'nyaman';
 export const DENSITY_PX: Record<DensityName, number> = {
-  ramping: 30,
-  sedang: 38,
-  nyaman: 48,
+  ramping: 20,
+  sedang: 24,
+  nyaman: 30,
 };
 
 /** Pagination bawaan SEMUA halaman tabel (baru maupun lama). */
