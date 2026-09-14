@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { errorMessage } from '../api/client';
 import {
   importSantri,
+  createSantri,
   listDokumenSantri,
   listSantri,
   tidakMemilikiDokumen,
@@ -36,7 +37,8 @@ import {
 import Pager from '@/components/Pager';
 import { usePager } from '@/hooks/usePager';
 import { ActionIcon } from '@/components/RowActions';
-import { FileUp, ImageUp, Upload } from '@/icons';
+import { FileUp, ImageUp, Plus, Upload } from '@/icons';
+import { useAuth } from '../auth/AuthContext';
 import { toast } from 'sonner';
 
 /** Validator: tepat N digit angka (kosong = boleh). */
@@ -229,6 +231,19 @@ export default function SantriPage() {
   const [dokCatatan, setDokCatatan] = useState('');
   const [busy, setBusy] = useState(false);
 
+  // Input manual (legacy): admin scoped 1 lembaga → lembaga otomatis; lainnya opsional.
+  const { user } = useAuth();
+  const singleLembagaId =
+    user && !user.roles.some((r) => r.name === 'super_admin') && (user.lembagas?.length ?? 0) === 1
+      ? user.lembagas![0].id
+      : null;
+  const effectiveImportLembaga = importLembaga || (singleLembagaId ? String(singleLembagaId) : '');
+
+  const [addOpen, setAddOpen] = useState(false);
+  const [addNama, setAddNama] = useState('');
+  const [addJk, setAddJk] = useState('');
+  const [addLembaga, setAddLembaga] = useState('');
+
   const getValues = useCallback(santriGridValues, []);
 
   const load = useCallback(
@@ -357,6 +372,28 @@ export default function SantriPage() {
     }
   }
 
+  async function onTambah(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setErr('');
+    try {
+      await createSantri({
+        nama_lengkap: addNama.trim(),
+        jk: addJk,
+        lembaga_id: addLembaga ? Number(addLembaga) : null,
+      });
+      toast.success('Santri ditambahkan.');
+      setAddOpen(false);
+      setAddNama('');
+      setAddJk('');
+      await load(1);
+    } catch (e2) {
+      setErr(errorMessage(e2));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function onUploadFoto(e: React.FormEvent) {
     e.preventDefault();
     if (!fotoRow || !fotoFile) return;
@@ -449,9 +486,23 @@ export default function SantriPage() {
           </Select>
         )}
         addButton={(
-          <Button id="btn_buka_import_santri" onClick={() => setImportOpen(true)}>
-            <Upload data-icon="inline-start" size={16} /> Import
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              id="btn_buka_tambah_santri"
+              onClick={() => {
+                setAddNama('');
+                setAddJk('');
+                setAddLembaga(singleLembagaId ? String(singleLembagaId) : '');
+                setErr('');
+                setAddOpen(true);
+              }}
+            >
+              <Plus data-icon="inline-start" size={16} /> Tambah
+            </Button>
+            <Button id="btn_buka_import_santri" variant="outline" onClick={() => setImportOpen(true)}>
+              <Upload data-icon="inline-start" size={16} /> Import
+            </Button>
+          </div>
         )}
         renderActions={renderActions}
       />
@@ -464,6 +515,52 @@ export default function SantriPage() {
         onPerPage={(pp) => { pager.setPerPage(pp); load(1, pp); }}
       />
 
+      <Dialog open={addOpen} onOpenChange={(o) => { if (!o) { setAddOpen(false); setErr(''); } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Tambah santri (input manual)</DialogTitle>
+            <DialogDescription>
+              Jalur legacy (bukan PSB). Lengkapi biodata lain langsung di tabel; status nonaktif sampai ditempatkan ke kelas.
+            </DialogDescription>
+          </DialogHeader>
+          <form id="form_tambah_santri" onSubmit={onTambah} className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4">
+            <FieldLabel htmlFor="input_nama_santri">Nama</FieldLabel>
+            <Input id="input_nama_santri" value={addNama} onChange={(e) => setAddNama(e.target.value)} required maxLength={255} />
+            <FieldLabel htmlFor="select_jk_santri">Jenis kelamin</FieldLabel>
+            <Select value={addJk} onValueChange={setAddJk}>
+              <SelectTrigger id="select_jk_santri" className="w-full">
+                <SelectValue placeholder="Pilih" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value="L">L</SelectItem>
+                  <SelectItem value="P">P</SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+            <FieldLabel htmlFor="select_lembaga_santri">Lembaga (opsional)</FieldLabel>
+            <Select value={addLembaga || '_kosong'} onValueChange={(v) => setAddLembaga(v === '_kosong' ? '' : v)} disabled={singleLembagaId !== null}>
+              <SelectTrigger id="select_lembaga_santri" className="w-full">
+                <SelectValue placeholder="Tanpa lembaga (legacy)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value="_kosong">Tanpa lembaga (legacy)</SelectItem>
+                  {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>)}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+            {err ? (
+              <p id="error_tambah_santri" className="col-span-2 text-sm text-destructive" role="alert">{err}</p>
+            ) : null}
+            <DialogFooter className="col-span-2">
+              <Button type="button" variant="outline" onClick={() => setAddOpen(false)}>Batal</Button>
+              <Button id="btn_simpan_tambah_santri" type="submit" disabled={busy || !addNama.trim() || !addJk}>Simpan</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={importOpen} onOpenChange={setImportOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
@@ -473,7 +570,7 @@ export default function SantriPage() {
             </DialogDescription>
           </DialogHeader>
           <form id="form_import_santri" onSubmit={onImport} className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4">
-            <FieldLabel htmlFor="select_import_lembaga">Lembaga tujuan</FieldLabel>
+            <FieldLabel htmlFor="select_import_lembaga">Lembaga tujuan (opsional)</FieldLabel>
             <Select value={importLembaga} onValueChange={(v) => { setImportLembaga(v); setImportTa(''); }}>
               <SelectTrigger id="select_import_lembaga" className="w-full">
                 <SelectValue placeholder="Pilih lembaga" />
@@ -484,7 +581,7 @@ export default function SantriPage() {
                 </SelectGroup>
               </SelectContent>
             </Select>
-            <FieldLabel htmlFor="select_import_ta">Tahun ajaran</FieldLabel>
+            <FieldLabel htmlFor="select_import_ta">Tahun ajaran (wajib bila lembaga diisi)</FieldLabel>
             <Select value={importTa} onValueChange={setImportTa}>
               <SelectTrigger id="select_import_ta" className="w-full">
                 <SelectValue placeholder="Pilih tahun ajaran" />
@@ -505,7 +602,7 @@ export default function SantriPage() {
             />
             <DialogFooter className="col-span-2">
               <Button type="button" variant="outline" onClick={() => setImportOpen(false)}>Batal</Button>
-              <Button id="btn_import_santri" type="submit" disabled={busy || !importFile || !importTa}>Import</Button>
+              <Button id="btn_import_santri" type="submit" disabled={busy || !importFile || (effectiveImportLembaga !== '' && !importTa)}>Import</Button>
             </DialogFooter>
           </form>
         </DialogContent>

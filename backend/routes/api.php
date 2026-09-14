@@ -61,6 +61,7 @@ Route::middleware(['auth:sanctum', 'role:super_admin|admin', 'throttle:api_user'
 
         // Data Santri (101: master profil + import PPDB massal + foto/dokumen)
         Route::get('santri', [SantriController::class, 'index']);
+        Route::post('santri', [SantriController::class, 'store']);
         Route::patch('santri/{santri}', [SantriController::class, 'update']);
         Route::post('santri/import-lengkap', [SantriController::class, 'importLengkap'])->middleware('throttle:imports');
         Route::post('santri/{santri}/foto', [SantriController::class, 'uploadFoto']);

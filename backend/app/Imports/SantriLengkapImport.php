@@ -15,16 +15,16 @@ use Maatwebsite\Excel\Validators\Failure;
 
 class SantriLengkapImport implements ToCollection, WithHeadingRow, WithValidation, SkipsOnFailure
 {
-    protected int $tahunAjaranId;
+    protected ?int $tahunAjaranId;
     protected ?int $lembagaId;
 
     /** @var Failure[] */
     protected array $failures = [];
 
-    public function __construct(int $tahunAjaranId, ?int $lembagaId = null)
+    public function __construct(?int $tahunAjaranId, ?int $lembagaId = null)
     {
         $this->tahunAjaranId = $tahunAjaranId;
-        $this->lembagaId     = $lembagaId ?? auth()->user()->lembagaIds()[0] ?? null;
+        $this->lembagaId     = $lembagaId;
     }
 
     public function collection(Collection $rows): void
@@ -41,6 +41,10 @@ class SantriLengkapImport implements ToCollection, WithHeadingRow, WithValidatio
                     continue;
                 }
 
+                // Lembaga per baris (v1.10): kolom `lembaga_id` template menang;
+                // null = legacy tanpa track (tanpa riwayat, status_global nonaktif).
+                $lembagaRow = ! empty($row['lembaga_id']) ? (int) $row['lembaga_id'] : $this->lembagaId;
+
                 // NIS wajib unik: catat sebagai failure baris (bukan menggagalkan file)
                 // bila sudah dipakai santri lain (master maupun arsip riwayat).
                 $pastikanNisUnik = function (?int $santriId) use ($row, $no): bool {
@@ -53,8 +57,8 @@ class SantriLengkapImport implements ToCollection, WithHeadingRow, WithValidatio
                 };
 
                 $dataSantri = [
-                    'lembaga_id'       => $this->lembagaId,
-                    'kelas_id'         => $row['kelas_id'],
+                    'lembaga_id'       => $lembagaRow,
+                    'kelas_id'         => $row['kelas_id'] ?? null,
                     'nama_lengkap'     => $row['nama_lengkap'],
                     'nama_singkat'     => $row['nama_singkat'] ?? null,
                     'nisn'             => $row['nisn'] ?? null,
@@ -183,25 +187,28 @@ class SantriLengkapImport implements ToCollection, WithHeadingRow, WithValidatio
                     ]));
                 }
 
-                // 2. Buat/Perbarui Record Riwayat Belajar Perdana
-                RiwayatBelajar::updateOrCreate(
-                    [
-                        'santri_id'       => $santri->id,
-                        'tahun_ajaran_id' => $this->tahunAjaranId,
-                        'lembaga_id'      => $this->lembagaId,
-                        'semester'        => '1',
-                    ],
-                    [
-                        'kelas_id'     => $row['kelas_id'],
-                        'nis'          => $row['nis'] ?? null,
-                        'tingkat'      => $row['tingkat'] ?? null,
-                        'tgl_masuk'    => $row['tanggal_masuk'] ?? null,
-                        'no_absen'     => $row['no_absen'] ?? null,
-                        'status_awal'  => 'santri_baru',
-                        'status_akhir' => 'aktif',
-                        'is_aktif'     => true,
-                    ]
-                );
+                // 2. Riwayat perdana hanya bila baris punya lembaga + tahun ajaran;
+                //    tanpa keduanya = legacy tanpa track (santri saja).
+                if ($lembagaRow !== null && $this->tahunAjaranId !== null) {
+                    RiwayatBelajar::updateOrCreate(
+                        [
+                            'santri_id'       => $santri->id,
+                            'tahun_ajaran_id' => $this->tahunAjaranId,
+                            'lembaga_id'      => $lembagaRow,
+                            'semester'        => '1',
+                        ],
+                        [
+                            'kelas_id'     => $row['kelas_id'] ?? null,
+                            'nis'          => $row['nis'] ?? null,
+                            'tingkat'      => $row['tingkat'] ?? null,
+                            'tgl_masuk'    => $row['tanggal_masuk'] ?? null,
+                            'no_absen'     => $row['no_absen'] ?? null,
+                            'status_awal'  => 'santri_baru',
+                            'status_akhir' => 'aktif',
+                            'is_aktif'     => true,
+                        ]
+                    );
+                }
 
                 // status_global turunan murni (v1.10): true iff ada riwayat aktif.
                 $santri->update([
@@ -237,7 +244,8 @@ class SantriLengkapImport implements ToCollection, WithHeadingRow, WithValidatio
         return [
             'nama_lengkap' => ['required', 'string', 'max:255'],
             'jk'           => ['required', 'in:L,P'],
-            'kelas_id'     => ['required', 'integer', 'exists:kelas,id'],
+            'kelas_id'     => ['nullable', 'integer', 'exists:kelas,id'],
+            'lembaga_id'   => ['nullable', 'integer', 'exists:lembaga,id'],
             'nik'          => ['nullable', 'digits:16'],
             'nis'           => ['nullable', 'string', 'max:10'],
             'tipe_santri'   => ['nullable', 'in:asrama,non_asrama'],

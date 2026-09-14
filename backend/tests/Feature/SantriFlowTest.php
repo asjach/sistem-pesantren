@@ -88,7 +88,7 @@ class SantriFlowTest extends TestCase
         // CATAT: 'kewarganegaraan' NOT NULL default 'WNI', tapi import menulis
         // $row['kewarganegaraan'] ?? null (null eksplisit menimpa default DB),
         // sehingga kolom ini juga wajib ada di file bila ingin sukses.
-        $headers = ['nama_lengkap', 'jk', 'kelas_id', 'nik', 'nis', 'nisn', 'tgl_lahir', 'hobi', 'tipe_santri', 'kewarganegaraan'];
+        $headers = ['nama_lengkap', 'jk', 'kelas_id', 'nik', 'nis', 'nisn', 'tgl_lahir', 'hobi', 'tipe_santri', 'kewarganegaraan', 'lembaga_id'];
         $tmp = tempnam(sys_get_temp_dir(), 'santri101') . '.csv';
         $h = fopen($tmp, 'w');
         fputcsv($h, $headers);
@@ -105,10 +105,13 @@ class SantriFlowTest extends TestCase
         return $tmp;
     }
 
-    protected function importCsv(User $admin, int $tahunAjaranId, ?int $lembagaId, string $csvPath)
+    protected function importCsv(User $admin, ?int $tahunAjaranId, ?int $lembagaId, string $csvPath)
     {
         $file = new UploadedFile($csvPath, 'santri.csv', 'text/csv', null, true);
-        $payload = ['tahun_ajaran_id' => $tahunAjaranId, 'file' => $file];
+        $payload = ['file' => $file];
+        if (! is_null($tahunAjaranId)) {
+            $payload['tahun_ajaran_id'] = $tahunAjaranId;
+        }
         if (! is_null($lembagaId)) {
             $payload['lembaga_id'] = $lembagaId;
         }
@@ -490,5 +493,77 @@ class SantriFlowTest extends TestCase
         $this->assertSame('Legacy', $legacy->fresh()->nama_singkat);
         $this->actingAs($adminMi, 'sanctum')->getJson("/api/admin/santri/{$legacy->id}/dokumen")
             ->assertStatus(200);
+    }
+
+    // ---------- 13. input manual: aturan lembaga (v1.10) ----------
+
+    public function test_13_store_manual_mengikuti_aturan_lembaga(): void
+    {
+        $f = $this->baseFixture();
+        $adminMi = $this->makeUser('admin', [$f['mi']->id]);
+        $adminRangkap = $this->makeUser('admin', [$f['mi']->id, $f['md']->id]);
+        $superAdmin = $this->makeUser('super_admin', []);
+
+        // Admin 1 lembaga → lembaga otomatis; legacy nonaktif (tanpa riwayat).
+        $this->actingAs($adminMi, 'sanctum')->postJson('/api/admin/santri', [
+            'nama_lengkap' => 'Input MI', 'jk' => 'L',
+        ])->assertStatus(201)
+            ->assertJsonPath('data.lembaga_id', $f['mi']->id)
+            ->assertJsonPath('data.status_global', false);
+
+        // Admin rangkap tanpa pilih lembaga → null (legacy).
+        $this->actingAs($adminRangkap, 'sanctum')->postJson('/api/admin/santri', [
+            'nama_lengkap' => 'Input Rangkap', 'jk' => 'P',
+        ])->assertStatus(201)
+            ->assertJsonPath('data.lembaga_id', null);
+
+        // Lembaga di luar kewenangan → 403; di dalam kewenangan → dipakai.
+        $this->actingAs($adminMi, 'sanctum')->postJson('/api/admin/santri', [
+            'nama_lengkap' => 'Input Luar', 'jk' => 'L', 'lembaga_id' => $f['md']->id,
+        ])->assertStatus(403);
+        $this->actingAs($adminRangkap, 'sanctum')->postJson('/api/admin/santri', [
+            'nama_lengkap' => 'Input Pilih', 'jk' => 'L', 'lembaga_id' => $f['md']->id,
+        ])->assertStatus(201)
+            ->assertJsonPath('data.lembaga_id', $f['md']->id);
+
+        // Super admin tanpa lembaga → null.
+        $this->actingAs($superAdmin, 'sanctum')->postJson('/api/admin/santri', [
+            'nama_lengkap' => 'Input Super', 'jk' => 'L',
+        ])->assertStatus(201)
+            ->assertJsonPath('data.lembaga_id', null);
+
+        // JK wajib.
+        $this->actingAs($adminMi, 'sanctum')->postJson('/api/admin/santri', ['nama_lengkap' => 'Tanpa JK'])
+            ->assertStatus(422)->assertJsonValidationErrors(['jk']);
+    }
+
+    // ---------- 14. import legacy: lembaga per baris / tanpa lembaga ----------
+
+    public function test_14_import_tanpa_lembaga_menjadi_legacy_tanpa_riwayat(): void
+    {
+        $f = $this->baseFixture();
+        $superAdmin = $this->makeUser('super_admin', []);
+
+        // Tanpa lembaga & tanpa TA → santri legacy (tanpa riwayat, nonaktif).
+        $csv = $this->makeCsv([
+            ['nama_lengkap' => 'Legacy Import', 'jk' => 'L'],
+        ]);
+        $this->importCsv($superAdmin, null, null, $csv)->assertStatus(200);
+
+        $legacy = Santri::where('nama_lengkap', 'Legacy Import')->firstOrFail();
+        $this->assertNull($legacy->lembaga_id);
+        $this->assertFalse((bool) $legacy->status_global);
+        $this->assertSame(0, RiwayatBelajar::where('santri_id', $legacy->id)->count());
+
+        // Kolom `lembaga_id` di template menang → riwayat terbentuk + status aktif.
+        $csvLembaga = $this->makeCsv([
+            ['nama_lengkap' => 'Import Berlembaga', 'jk' => 'P', 'lembaga_id' => (string) $f['mi']->id],
+        ]);
+        $this->importCsv($superAdmin, $f['ta']->id, null, $csvLembaga)->assertStatus(200);
+
+        $berlembaga = Santri::where('nama_lengkap', 'Import Berlembaga')->firstOrFail();
+        $this->assertEquals($f['mi']->id, (int) $berlembaga->lembaga_id);
+        $this->assertTrue((bool) $berlembaga->status_global);
+        $this->assertSame(1, RiwayatBelajar::where('santri_id', $berlembaga->id)->count());
     }
 }

@@ -9,6 +9,7 @@ use App\Imports\SantriLengkapImport;
 use App\Models\DokumenSantri;
 use App\Models\RiwayatBelajar;
 use App\Models\Santri;
+use App\Models\User;
 use App\Services\RefService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -34,13 +35,40 @@ class SantriController extends Controller
         return response()->json($santri);
     }
 
-    /** PATCH /api/admin/santri/{santri} — edit sel inline (partial update).
-     *  Seluruh kolom profil boleh diubah (jalur utama pengisian; import = alternatif).
-     *  NIS wajib unik; arsip riwayat aktif ikut disinkronkan saat NIS berubah. */
-    public function update(Request $request, Santri $santri): JsonResponse
+    /** POST /api/admin/santri — input manual (101). Santri tanpa riwayat = legacy:
+     *  `status_global` tetap nonaktif (turunan) sampai ditempatkan ke kelas.
+     *  Lembaga: admin scoped 1 lembaga → otomatis; multi/full/super → opsional (null = legacy murni). */
+    public function store(Request $request): JsonResponse
     {
-        $this->authorize('update', $santri);
+        $this->authorize('create', Santri::class);
 
+        $aturan = $this->aturanProfil();
+        $aturan['nama_lengkap'] = ['required', 'string', 'max:255'];
+        $aturan['jk'] = ['required', 'in:L,P'];
+        $aturan['lembaga_id'] = ['sometimes', 'nullable', 'exists:lembaga,id'];
+
+        $data = $request->validate($aturan);
+
+        $lembagaId = $this->resolveLembagaInput($request->user(), array_key_exists('lembaga_id', $data) && $data['lembaga_id'] !== null
+            ? (int) $data['lembaga_id']
+            : null);
+
+        if (array_key_exists('nis', $data) && Santri::nisDipakai($data['nis'])) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['nis' => 'NIS sudah dipakai santri lain.']);
+        }
+
+        unset($data['lembaga_id']);
+        $data['lembaga_id'] = $lembagaId;
+        $data['status_global'] = false; // turunan: tanpa riwayat = nonaktif
+
+        $santri = Santri::create($data);
+
+        return response()->json(['pesan' => 'Santri ditambahkan.', 'data' => $santri], 201);
+    }
+
+    /** Aturan validasi kolom profil (dipakai store & update). */
+    private function aturanProfil(): array
+    {
         $aturan = [];
         foreach (Santri::KOLOM_PROFIL as $kolom) {
             $aturan[$kolom] = ['sometimes', 'nullable', 'string', 'max:255'];
@@ -61,7 +89,32 @@ class SantriController extends Controller
             $aturan[$k] = ['sometimes', 'nullable', 'date'];
         }
 
-        $data = $request->validate($aturan);
+        return $aturan;
+    }
+
+    /** Resolusi lembaga input manual/import (v1.10): eksplisit → wajib boleh diakses;
+     *  admin scoped 1 lembaga → otomatis; multi/full/super tanpa pilihan → null (legacy). */
+    private function resolveLembagaInput(User $auth, ?int $lembagaId): ?int
+    {
+        if ($lembagaId !== null) {
+            $this->authorizeLembaga($auth, $lembagaId);
+            return $lembagaId;
+        }
+        if ($auth->hasRole('super_admin') || $auth->isAdminFull()) {
+            return null;
+        }
+        $ids = $auth->lembagaIds();
+        return count($ids) === 1 ? (int) $ids[0] : null;
+    }
+
+    /** PATCH /api/admin/santri/{santri} — edit sel inline (partial update).
+     *  Seluruh kolom profil boleh diubah (jalur utama pengisian; import = alternatif).
+     *  NIS wajib unik; arsip riwayat aktif ikut disinkronkan saat NIS berubah. */
+    public function update(Request $request, Santri $santri): JsonResponse
+    {
+        $this->authorize('update', $santri);
+
+        $data = $request->validate($this->aturanProfil());
 
         if ($data === []) {
             return response()->json(['pesan' => 'Tidak ada perubahan.', 'data' => $santri->fresh()]);
@@ -189,16 +242,15 @@ class SantriController extends Controller
 
         $authUser = auth()->user();
 
-        $lembagaId = $authUser->isAdminFull() || $authUser->hasRole('super_admin')
-            ? ($request->lembaga_id ?? ($authUser->lembagaIds()[0] ?? null))
-            : ($authUser->lembagaIds()[0] ?? null);
+        $lembagaId = $this->resolveLembagaInput($authUser, $request->filled('lembaga_id') ? (int) $request->lembaga_id : null);
+        $tahunAjaranId = $request->filled('tahun_ajaran_id') ? (int) $request->tahun_ajaran_id : null;
 
-        if (! $lembagaId) {
-            return response()->json(['pesan' => 'Lembaga tujuan import tidak ditemukan.'], 422);
+        // Tahun ajaran hanya diperlukan untuk membentuk riwayat (butuh lembaga).
+        if ($lembagaId !== null && $tahunAjaranId === null) {
+            return response()->json(['pesan' => 'Tahun ajaran wajib bila lembaga diisi.'], 422);
         }
-        $this->authorizeLembaga($authUser, (int) $lembagaId);
 
-        $import = new SantriLengkapImport((int) $request->tahun_ajaran_id, (int) $lembagaId);
+        $import = new SantriLengkapImport($tahunAjaranId, $lembagaId);
 
         try {
             Excel::import($import, $request->file('file'));

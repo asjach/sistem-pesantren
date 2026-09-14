@@ -50,6 +50,14 @@ export function updateSantri(id: number, changes: Record<string, string | number
   });
 }
 
+/** Input manual (101). `lembaga_id` opsional: kosong = legacy (mengikuti aturan peran admin). */
+export function createSantri(input: Record<string, string | number | null>) {
+  return api<{ pesan: string; data: Santri }>('/admin/santri', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
 export function importSantri(input: { tahun_ajaran_id: number; lembaga_id?: number; file: File }) {
   const fd = new FormData();
   fd.set('tahun_ajaran_id', String(input.tahun_ajaran_id));
