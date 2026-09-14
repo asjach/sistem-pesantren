@@ -111,7 +111,7 @@ export default function UsersPage() {
   const [name, setName] = useState('');
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
-  const [newRoles, setNewRoles] = useState<string[]>(['kasir']);
+  const [newRoles, setNewRoles] = useState<string[]>(['orang_tua']);
   const [newLembaga, setNewLembaga] = useState<number[]>([]);
   const [viewRow, setViewRow] = useState<AdminUser | null>(null);
   const [editRow, setEditRow] = useState<AdminUser | null>(null);
@@ -197,7 +197,7 @@ export default function UsersPage() {
       const field = identifier.includes('@') ? { email: identifier } : { username: identifier };
       await createUser({ name, password, roles: newRoles, lembaga_ids: newLembaga, ...field });
       toast.success(`Pengguna dibuat (${newRoles.join(', ')}).`);
-      setName(''); setIdentifier(''); setPassword(''); setNewRoles(['kasir']); setNewLembaga([]);
+      setName(''); setIdentifier(''); setPassword(''); setNewRoles(['orang_tua']); setNewLembaga([]);
       setTambahOpen(false);
       pager.goFirst();
       await load(1);
