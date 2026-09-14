@@ -542,24 +542,43 @@
   [data-slot='alert-dialog-action'],
   [data-slot='alert-dialog-cancel']
 ) {
-  height: 30px;
+  height: 24px;
   padding-top: 0;
   padding-bottom: 0;
 }
-:is([data-slot='input'], [data-slot='select-trigger']) {
-  font-size: 14px;
-  font-weight: 500;
-}
-[data-slot='label'] {
+/* Kontrol primitif: jenis huruf & ukuran seragam (Aptos Narrow 12px). */
+:is(
+  [data-slot='input'],
+  [data-slot='select-trigger'],
+  [data-slot='select-item'],
+  [data-slot='select-label'],
+  [data-slot='button'],
+  [data-slot='toggle'],
+  [data-slot='toggle-group-item'],
+  [data-slot='dropdown-menu-trigger'],
+  [data-slot='dropdown-menu-item'],
+  [data-slot='dropdown-menu-label'],
+  [data-slot='dropdown-menu-sub-trigger'],
+  [data-slot='context-menu-trigger'],
+  [data-slot='context-menu-item'],
+  [data-slot='context-menu-checkbox-item'],
+  [data-slot='context-menu-label'],
+  [data-slot='label'],
+  [data-slot='field-label'],
+  [data-slot='alert-dialog-action'],
+  [data-slot='alert-dialog-cancel']
+) {
+  font-family: var(--font-narrow);
   font-size: 12px;
+  font-weight: 500;
 }
 :is(
   [data-slot='button'],
   [data-slot='toggle'],
   [data-slot='toggle-group-item']
 ):is([class~='size-6'], [class~='size-8'], [class~='size-9']) {
-  width: 30px;
-  min-width: 30px;
+  width: 24px;
+  min-width: 24px;
 }
 
 /* ---------- Kaya warna UI (Pengaturan → Tampilan) ----------

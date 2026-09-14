@@ -185,11 +185,11 @@ export function contohBagian(id: PartId): ReactElement {
     case 'accordion':
       return (
         <div className="w-64 rounded-lg border">
-          <div className="flex items-center justify-between border-b px-3 py-2 text-sm font-medium">
+          <div className="flex items-center justify-between border-b px-3 py-2 text-xs font-medium">
             Identitas <span className="text-muted-foreground">▾</span>
           </div>
-          <div className="px-3 py-2 text-sm text-muted-foreground">Nama, NIS, jenis kelamin…</div>
-          <div className="flex items-center justify-between border-t px-3 py-2 text-sm font-medium">
+          <div className="px-3 py-2 text-xs text-muted-foreground">Nama, NIS, jenis kelamin…</div>
+          <div className="flex items-center justify-between border-t px-3 py-2 text-xs font-medium">
             Wali <span className="text-muted-foreground">▸</span>
           </div>
         </div>

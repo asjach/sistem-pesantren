@@ -668,7 +668,7 @@ export default function KegiatanPsbPage() {
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <div className="min-w-64">
           <Select value={kegiatanId ? String(kegiatanId) : ''} onValueChange={(v) => void pilihKegiatan(Number(v))}>
-            <SelectTrigger id="select_kegiatan_psb" className="w-full min-w-64 text-sm">
+            <SelectTrigger id="select_kegiatan_psb" className="w-full min-w-64">
               <SelectValue placeholder={loading ? 'Memuat…' : 'Pilih kegiatan'} />
             </SelectTrigger>
             <SelectContent>

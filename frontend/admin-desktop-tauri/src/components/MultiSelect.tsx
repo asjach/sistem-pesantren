@@ -47,7 +47,7 @@ export default function MultiSelect({
           aria-label={title}
           disabled={disabled}
           className={cn(
-            'flex h-[30px] w-full items-center justify-between gap-1 rounded-md border border-input bg-transparent px-2 text-sm whitespace-nowrap shadow-xs transition-[color,box-shadow] outline-none',
+            'flex h-6 w-full items-center justify-between gap-1 rounded-md border border-input bg-transparent px-2 text-xs whitespace-nowrap shadow-xs transition-[color,box-shadow] outline-none',
             'focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30',
           )}
         >
