@@ -674,6 +674,17 @@ class SantriFlowTest extends TestCase
         $dvJk = $sheet->getDataValidation($colOf('jk').'2');
         $this->assertSame(DataValidation::TYPE_LIST, $dvJk->getType());
         $this->assertTrue($dvJk->getAllowBlank());
+        $this->assertTrue($dvJk->getShowDropDown());
+
+        // Excel hanya menampilkan panah dropdown bila XML berisi showDropDown="0"
+        // (atribut OOXML inverted; default PhpSpreadsheet menulis "1" = tersembunyi).
+        $zip = new \ZipArchive();
+        $this->assertTrue($zip->open($tmp));
+        $xmlSheet = $zip->getFromName('xl/worksheets/sheet1.xml');
+        $zip->close();
+        $this->assertIsString($xmlSheet);
+        $this->assertStringContainsString('showDropDown="0"', $xmlSheet);
+        $this->assertStringNotContainsString('showDropDown="1"', $xmlSheet);
 
         // Dropdown kamus agama (nilai live dari RefService) menunjuk sheet Referensi.
         $dvAgama = $sheet->getDataValidation($colOf('agama').'2');
