@@ -41,7 +41,7 @@ import IcMinusLucide from '~icons/lucide/minus';
 import IcMonitorLucide from '~icons/lucide/monitor';
 import IcMoonLucide from '~icons/lucide/moon';
 import IcMoreVerticalLucide from '~icons/lucide/more-vertical';
-import IcMousePointerClickLucide from '~icons/lucide/mouse-pointer-click';
+import IcSquareMousePointerLucide from '~icons/lucide/square-mouse-pointer';
 import IcMoveHorizontalLucide from '~icons/lucide/move-horizontal';
 import IcMoveVerticalLucide from '~icons/lucide/move-vertical';
 import IcNotebookTabsLucide from '~icons/lucide/notebook-tabs';
@@ -108,7 +108,6 @@ import IcMinusTabler from '~icons/tabler/minus';
 import IcMonitorTabler from '~icons/tabler/device-desktop';
 import IcMoonTabler from '~icons/tabler/moon';
 import IcMoreVerticalTabler from '~icons/tabler/dots-vertical';
-import IcMousePointerClickTabler from '~icons/tabler/pointer';
 import IcMoveHorizontalTabler from '~icons/tabler/arrows-horizontal';
 import IcMoveVerticalTabler from '~icons/tabler/arrows-vertical';
 import IcNotebookTabsTabler from '~icons/tabler/notebook';
@@ -170,7 +169,6 @@ import IcMinusPh from '~icons/ph/minus';
 import IcMonitorPh from '~icons/ph/monitor';
 import IcMoonPh from '~icons/ph/moon';
 import IcMoreVerticalPh from '~icons/ph/dots-three-vertical';
-import IcMousePointerClickPh from '~icons/ph/cursor-click';
 import IcMoveHorizontalPh from '~icons/ph/arrows-horizontal';
 import IcMoveVerticalPh from '~icons/ph/arrows-vertical';
 import IcNotebookTabsPh from '~icons/ph/notebook';
@@ -509,7 +507,6 @@ import IcMinusMaterial from '~icons/material-symbols/remove';
 import IcMonitorMaterial from '~icons/material-symbols/monitor';
 import IcMoonMaterial from '~icons/material-symbols/dark-mode';
 import IcMoreVerticalMaterial from '~icons/material-symbols/more-vert';
-import IcMousePointerClickMaterial from '~icons/material-symbols/touch-app';
 import IcMoveHorizontalMaterial from '~icons/material-symbols/horizontal-distribute';
 import IcMoveVerticalMaterial from '~icons/material-symbols/vertical-distribute';
 import IcNotebookTabsMaterial from '~icons/material-symbols/note';
@@ -584,7 +581,7 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
     Monitor: IcMonitorLucide,
     Moon: IcMoonLucide,
     MoreVertical: IcMoreVerticalLucide,
-    MousePointerClick: IcMousePointerClickLucide,
+    SquareMousePointer: IcSquareMousePointerLucide,
     MoveHorizontal: IcMoveHorizontalLucide,
     MoveVertical: IcMoveVerticalLucide,
     NotebookTabs: IcNotebookTabsLucide,
@@ -651,7 +648,6 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
     Monitor: IcMonitorTabler,
     Moon: IcMoonTabler,
     MoreVertical: IcMoreVerticalTabler,
-    MousePointerClick: IcMousePointerClickTabler,
     MoveHorizontal: IcMoveHorizontalTabler,
     MoveVertical: IcMoveVerticalTabler,
     NotebookTabs: IcNotebookTabsTabler,
@@ -713,7 +709,6 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
     Monitor: IcMonitorPh,
     Moon: IcMoonPh,
     MoreVertical: IcMoreVerticalPh,
-    MousePointerClick: IcMousePointerClickPh,
     MoveHorizontal: IcMoveHorizontalPh,
     MoveVertical: IcMoveVerticalPh,
     NotebookTabs: IcNotebookTabsPh,
@@ -1052,7 +1047,6 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
     Monitor: IcMonitorMaterial,
     Moon: IcMoonMaterial,
     MoreVertical: IcMoreVerticalMaterial,
-    MousePointerClick: IcMousePointerClickMaterial,
     MoveHorizontal: IcMoveHorizontalMaterial,
     MoveVertical: IcMoveVerticalMaterial,
     NotebookTabs: IcNotebookTabsMaterial,
@@ -1134,7 +1128,7 @@ export const Minus = (p: IkonProps) => <IkonDinamis {...p} nama="Minus" />;
 export const Monitor = (p: IkonProps) => <IkonDinamis {...p} nama="Monitor" />;
 export const Moon = (p: IkonProps) => <IkonDinamis {...p} nama="Moon" />;
 export const MoreVertical = (p: IkonProps) => <IkonDinamis {...p} nama="MoreVertical" />;
-export const MousePointerClick = (p: IkonProps) => <IkonDinamis {...p} nama="MousePointerClick" />;
+export const SquareMousePointer = (p: IkonProps) => <IkonDinamis {...p} nama="SquareMousePointer" />;
 export const MoveHorizontal = (p: IkonProps) => <IkonDinamis {...p} nama="MoveHorizontal" />;
 export const MoveVertical = (p: IkonProps) => <IkonDinamis {...p} nama="MoveVertical" />;
 export const NotebookTabs = (p: IkonProps) => <IkonDinamis {...p} nama="NotebookTabs" />;

@@ -362,16 +362,16 @@
   "bi": "three-dots-vertical",
   "material": "more-vert"
  },
- "MousePointerClick": {
-  "lucide": "mouse-pointer-click",
-  "tabler": "pointer",
-  "ph": "cursor-click",
+ "SquareMousePointer": {
+  "lucide": "square-mouse-pointer",
+  "tabler": null,
+  "ph": null,
   "heroicons": null,
   "ri": null,
   "iconoir": null,
   "radix": null,
   "bi": null,
-  "material": "touch-app"
+  "material": null
  },
  "MoveHorizontal": {
   "lucide": "move-horizontal",

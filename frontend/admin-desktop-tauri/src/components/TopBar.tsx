@@ -22,7 +22,7 @@ import {
 import { ICON_SETS } from '@/iconSets';
 import { THEME_PRESETS } from '@/themes';
 import { DEFAULT_PREFS, WARNA_UI } from '@/prefs';
-import { Blend, Check, ChevronDown, LogOut, Monitor, Moon, MousePointerClick, Paintbrush, Palette, Sun, Users } from '@/icons';
+import { Blend, Check, ChevronDown, LogOut, Monitor, Moon, Paintbrush, Palette, SquareMousePointer, Sun, Users } from '@/icons';
 import { useRibbonTable } from '@/components/RibbonTable';
 import { halamanDariPath } from '@/lib/halaman';
 import { RibbonBeranda } from './topbar/RibbonBeranda';
@@ -208,7 +208,7 @@ export default function TopBar() {
               picker.aktif && 'bg-white/25 text-white',
             )}
           >
-            <MousePointerClick size={14} />
+            <SquareMousePointer size={14} />
           </button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
