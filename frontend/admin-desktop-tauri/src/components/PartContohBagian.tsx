@@ -331,6 +331,14 @@ export function contohBagian(id: PartId): ReactElement {
           <FieldDescription>Sesuai akta kelahiran.</FieldDescription>
         </Field>
       );
+    case 'keterangan_field':
+      return (
+        <Field className="w-56">
+          <FieldLabel htmlFor="pratinjau_ket_field">Nama santri</FieldLabel>
+          <Input id="pratinjau_ket_field" placeholder="Ahmad Fauzi" />
+          <FieldDescription>Sesuai akta kelahiran.</FieldDescription>
+        </Field>
+      );
     case 'input_group':
       return (
         <div className="flex w-56 items-center gap-1 rounded-md border px-2">

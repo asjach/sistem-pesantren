@@ -42,6 +42,7 @@ export type PartId =
   | 'label_form'
   | 'input_form'
   | 'field'
+  | 'keterangan_field'
   | 'input_group'
   | 'textarea'
   | 'checkbox'
@@ -409,6 +410,14 @@ export const PARTS: PartMeta[] = [
     sub: 'Form',
     hint: 'Pembungkus field (label + kontrol + keterangan).',
     sel: "[data-slot='field']",
+  },
+  {
+    id: 'keterangan_field',
+    label: 'Keterangan field',
+    grup: 'Kontrol',
+    sub: 'Form',
+    hint: 'Teks bantuan di bawah kotak isian (field description).',
+    sel: "[data-slot='field-description']",
   },
   {
     id: 'input_group',
