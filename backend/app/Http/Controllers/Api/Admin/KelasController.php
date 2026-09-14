@@ -9,6 +9,7 @@ use App\Models\TahunAjaran;
 use App\Services\RefService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 /**
  * FB-004-01: CRUD kelas. tahun_ajaran wajib se-lembaga dengan kelas.
@@ -42,7 +43,8 @@ class KelasController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'lembaga_id' => ['required', 'exists:lembaga,id'],
+            // Kelas selalu milik lembaga operasional (bukan root pesantren).
+            'lembaga_id' => ['required', Rule::exists('lembaga', 'id')->whereNotNull('parent_id')],
             'tahun_ajaran_id' => ['required', 'exists:tahun_ajaran,id'],
             // Mode tunggal (kompatibel lama) atau bulk via items (sub-form dialog).
             'nama_kelas' => ['required_without:items', 'string', 'max:50'],
@@ -52,6 +54,8 @@ class KelasController extends Controller
             'items.*.nama_kelas' => ['required', 'string', 'max:50'],
             'items.*.tingkat' => ['nullable', 'string', 'max:20'],
             'items.*.kapasitas' => ['nullable', 'integer', 'min:1'],
+        ], [
+            'lembaga_id.exists' => 'Lembaga harus lembaga operasional (bukan induk pesantren).',
         ]);
 
         $auth = auth()->user();

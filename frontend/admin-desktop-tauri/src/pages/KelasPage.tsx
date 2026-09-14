@@ -35,6 +35,7 @@ import {
 } from '@/components/ui/dialog';
 import Pager from '@/components/Pager';
 import { usePager } from '@/hooks/usePager';
+import { useAuth } from '../auth/AuthContext';
 import { X } from '@/icons';
 import { DeleteAction, EditAction, ViewAction } from '@/components/RowActions';
 import { toast } from 'sonner';
@@ -148,7 +149,9 @@ export default function KelasPage() {
   );
 
   useEffect(() => {
-    listLembaga().then((p) => setLembagas(p.data)).catch((e) => setErr(errorMessage(e)));
+    // Muat SEMUA lembaga terdaftar (batas maks backend) agar opsi selalu
+    // mencakup lembaga baru di masa depan, bukan hanya halaman pertama.
+    listLembaga({ per_page: 1000 }).then((p) => setLembagas(p.data)).catch((e) => setErr(errorMessage(e)));
   }, []);
 
   useEffect(() => {
@@ -188,8 +191,15 @@ export default function KelasPage() {
       });
   }, [tambahLembagaId]);
 
+  // Admin terhubung 1 lembaga: pilihannya dikunci (pola SantriPage).
+  const { user } = useAuth();
+  const singleLembagaId =
+    user && !user.roles.some((r) => r.name === 'super_admin') && (user.lembagas?.length ?? 0) === 1
+      ? user.lembagas![0].id
+      : null;
+
   const bukaTambah = useCallback(() => {
-    setTambahLembagaId(lembagaId);
+    setTambahLembagaId(singleLembagaId ?? lembagaId);
     // Utamakan TA filter; bila kosong pakai TA aktif dari daftar yang sudah ada
     // (efek pemuat akan mengoreksi bila daftar itu milik lembaga lain).
     const aktif = tambahTas.find((t) => t.is_aktif);
@@ -197,7 +207,7 @@ export default function KelasPage() {
     setBarisKelas([barisKelasKosong()]);
     setErr('');
     setTambahOpen(true);
-  }, [lembagaId, taId, tambahTas]);
+  }, [singleLembagaId, lembagaId, taId, tambahTas]);
 
   useEffect(() => {
     if (pager.ready) load(pager.page);
@@ -226,7 +236,8 @@ export default function KelasPage() {
   const onCreate = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     setErr('');
-    if (tambahLembagaId === '' || tambahTaId === '') {
+    const efektifLembagaId = singleLembagaId ?? tambahLembagaId;
+    if (efektifLembagaId === '' || tambahTaId === '') {
       setErr('Lembaga + tahun ajaran wajib (kelas se-lembaga dengan TA).');
       return;
     }
@@ -251,7 +262,7 @@ export default function KelasPage() {
       }
     }
     try {
-      const dasar = { lembaga_id: Number(tambahLembagaId), tahun_ajaran_id: Number(tambahTaId) };
+      const dasar = { lembaga_id: Number(efektifLembagaId), tahun_ajaran_id: Number(tambahTaId) };
       if (terisi.length === 1) {
         const [satu] = terisi;
         await createKelas({
@@ -282,7 +293,7 @@ export default function KelasPage() {
     } catch (e2) {
       setErr(errorMessage(e2));
     }
-  }, [tambahLembagaId, tambahTaId, barisKelas, load, pager.goFirst]);
+  }, [singleLembagaId, tambahLembagaId, tambahTaId, barisKelas, load, pager.goFirst]);
 
   /** Mode Input: buat kelas baru dari baris input (butuh filter lembaga+TA). */
   const createRow = useCallback(async (f: Record<string, string | null>) => {
@@ -430,19 +441,27 @@ export default function KelasPage() {
           </DialogHeader>
           <form id="form_tambah_kelas" onSubmit={onCreate} className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4">
             <FieldLabel htmlFor="select_tambah_lembaga_kelas">Lembaga</FieldLabel>
-            <Select
-              value={tambahLembagaId === '' ? '' : String(tambahLembagaId)}
-              onValueChange={(v) => { setTambahLembagaId(Number(v)); setTambahTaId(''); }}
-            >
-              <SelectTrigger id="select_tambah_lembaga_kelas" className="w-full">
-                <SelectValue placeholder="Pilih lembaga" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>)}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
+            {singleLembagaId !== null ? (
+              <p className="text-sm text-muted-foreground">
+                {lembagas.find((l) => l.id === singleLembagaId)?.kode
+                  ?? lembagas.find((l) => l.id === singleLembagaId)?.nama
+                  ?? `#${singleLembagaId}`} (otomatis)
+              </p>
+            ) : (
+              <Select
+                value={tambahLembagaId === '' ? '' : String(tambahLembagaId)}
+                onValueChange={(v) => { setTambahLembagaId(Number(v)); setTambahTaId(''); }}
+              >
+                <SelectTrigger id="select_tambah_lembaga_kelas" className="w-full">
+                  <SelectValue placeholder="Pilih lembaga" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>)}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            )}
             <FieldLabel htmlFor="select_tambah_ta_kelas" className="self-start pt-1.5">Tahun ajaran</FieldLabel>
             <div className="flex flex-col gap-1.5">
               <Select
@@ -526,7 +545,7 @@ export default function KelasPage() {
               <Button
                 id="btn_tambah_kelas"
                 type="submit"
-                disabled={tambahLembagaId === '' || tambahTaId === '' || !barisKelas.some((b) => b.nama.trim())}
+                disabled={(singleLembagaId ?? tambahLembagaId) === '' || tambahTaId === '' || !barisKelas.some((b) => b.nama.trim())}
               >
                 Tambah
               </Button>

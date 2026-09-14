@@ -10,6 +10,7 @@ use Database\Seeders\ReferensiSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\Middleware\ThrottleRequests;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 // Store kelas: mode tunggal (kompatibel) + bulk via items (sub-form dialog).
@@ -131,5 +132,43 @@ class KelasStoreTest extends TestCase
             'lembaga_id' => $f['mi']->id,
             'tahun_ajaran_id' => $f['taMi']->id,
         ])->assertStatus(422);
+    }
+
+    public function test_05_admin_scoped_dan_root_ditolak(): void
+    {
+        $f = $this->baseFixture();
+        $md = Lembaga::create([
+            'parent_id' => Lembaga::where('kode', 'PESANTREN')->firstOrFail()->id,
+            'nama' => 'Madrasah Diniyah', 'kode' => 'MD',
+            'is_seleksi' => false, 'kelompok_psb' => 'combo_mi_md', 'is_active' => true,
+        ]);
+        $adminMi = User::create([
+            'name' => 'Admin MI', 'email' => 'admin-mi-kelas@example.com',
+            'phone' => '081000000005', 'password' => 'password',
+        ]);
+        $adminMi->assignRole('admin');
+        DB::table('user_lembaga')->insert([
+            'user_id' => $adminMi->id, 'lembaga_id' => $f['mi']->id,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $payload = fn (?int $lembagaId) => [
+            'lembaga_id' => $lembagaId,
+            'tahun_ajaran_id' => $f['taMi']->id,
+            'nama_kelas' => 'I-A',
+        ];
+
+        // Lembaganya sendiri → lolos.
+        $this->actingAs($adminMi, 'sanctum')->postJson('/api/admin/kelas', $payload($f['mi']->id))
+            ->assertStatus(201);
+
+        // Luar scope → 403; root → 422; tanpa tulisan baru selain baris pertama.
+        $this->actingAs($adminMi, 'sanctum')->postJson('/api/admin/kelas', $payload($md->id))
+            ->assertStatus(403);
+        $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/kelas', $payload(
+            Lembaga::where('kode', 'PESANTREN')->firstOrFail()->id
+        ))
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['lembaga_id']);
+        $this->assertSame(1, Kelas::count());
     }
 }
