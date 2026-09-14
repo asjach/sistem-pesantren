@@ -387,6 +387,11 @@ class PsbService
             ], $catatan);
 
             if ($hasil->santri_id && ! $hasil->santri_asal_id) {
+                // Santri yang sudah ditempatkan di kelas tidak boleh dihapus lewat undur diri;
+                // keluarkan dulu dari kelas agar jejak penempatan tetap jelas.
+                $berkelas = RiwayatBelajar::where('santri_id', $hasil->santri_id)
+                    ->where('is_aktif', true)->whereNotNull('kelas_id')->exists();
+                if ($berkelas) throw ValidationException::withMessages(['kelas' => 'Santri sudah ditempatkan di kelas; keluarkan dari kelas terlebih dahulu sebelum mengundurkan diri.']);
                 // Lindungi riwayat keuangan: pembayaran tidak boleh ikut terhapus/lepas.
                 $adaBayar = DB::table('pembayaran')
                     ->where('psb_calon_santri_id', $hasil->id)

@@ -116,6 +116,17 @@ class SiklusController extends Controller
         ]);
     }
 
+    // POST /api/admin/riwayat/{riwayat}/keluar-kelas — batalkan penempatan (kelas_id=NULL).
+    public function keluarKelas(Request $request, RiwayatBelajar $riwayat): JsonResponse
+    {
+        $this->authorizeAksiLembaga($request, $riwayat->santri, (int) $riwayat->lembaga_id);
+
+        return response()->json([
+            'pesan' => 'Santri dikeluarkan dari kelas.',
+            'data' => $this->siklusService->keluarKelas($riwayat),
+        ]);
+    }
+
     // POST /api/admin/santri/{santri}/berhenti-jenjang — Body {"lembaga_id":3}.
     public function berhentiJenjang(Request $request, Santri $santri): JsonResponse
     {

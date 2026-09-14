@@ -72,6 +72,7 @@ Route::middleware(['auth:sanctum', 'role:super_admin|admin', 'throttle:api_user'
         Route::post('akademik/naik-kelas', [SiklusController::class, 'naikKelasMassal']);
         Route::post('riwayat/{riwayat}/pindah-kelas', [SiklusController::class, 'pindahKelas']);
         Route::post('riwayat/{riwayat}/set-kelas', [SiklusController::class, 'setKelas']);
+        Route::post('riwayat/{riwayat}/keluar-kelas', [SiklusController::class, 'keluarKelas']);
         Route::post('santri/{santri}/berhenti-jenjang', [SiklusController::class, 'berhentiJenjang']);
         Route::post('santri/{santri}/mutasi', [SiklusController::class, 'mutasiKeluar']);
         Route::post('santri/{santri}/lulus', [SiklusController::class, 'lulus']);

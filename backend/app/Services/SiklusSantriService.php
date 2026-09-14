@@ -206,6 +206,22 @@ class SiklusSantriService
         return $this->pindahKelas($riwayat, $kelasId);
     }
 
+    /**
+     * Keluarkan santri dari kelas (penempatan dibatalkan): kelas_id=NULL agar bisa
+     * ditempatkan ulang. Dipakai juga sebelum undur diri PSB (jejak kelas harus bersih).
+     */
+    public function keluarKelas(RiwayatBelajar $riwayat): RiwayatBelajar
+    {
+        return DB::transaction(function () use ($riwayat) {
+            $riwayat = RiwayatBelajar::where('id', $riwayat->id)->lockForUpdate()->firstOrFail();
+            if (! $riwayat->is_aktif) abort(422, 'Riwayat tidak aktif.');
+            $riwayat->update(['kelas_id' => null]);
+            $santri = $riwayat->santri;
+            if ($santri && (int) $santri->lembaga_id === (int) $riwayat->lembaga_id) $santri->update(['kelas_id' => null]);
+            return $riwayat->fresh();
+        });
+    }
+
     /** Mutasi per lembaga (paket: 1 jenjang keluar, lainnya jalan terus). */
     public function prosesMutasiPerLembaga(Santri $santri, int $lembagaId, array $dataMutasi): MutasiKeluar
     {

@@ -668,7 +668,7 @@ export default function PsbPage() {
           <ActionIcon
             id={`btn_undur_psb_${c.id}`}
             title="Mengundurkan Diri"
-            onClick={() => { setUndurRow(c); setUndurCatatan(''); }}
+            onClick={() => { setUndurRow(c); setUndurCatatan(''); setErr(''); }}
           >
             <UserX size={16} />
           </ActionIcon>
@@ -861,7 +861,7 @@ export default function PsbPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={undurRow !== null} onOpenChange={(o) => { if (!o) setUndurRow(null); }}>
+      <Dialog open={undurRow !== null} onOpenChange={(o) => { if (!o) { setUndurRow(null); setErr(''); } }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Pengunduran diri: {undurRow?.nama_lengkap}</DialogTitle>
@@ -872,6 +872,9 @@ export default function PsbPage() {
           <form id="form_undur_diri_psb" onSubmit={onUndurDiri} className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4">
             <FieldLabel htmlFor="input_catatan_undur">Catatan / alasan (opsional)</FieldLabel>
             <Input id="input_catatan_undur" value={undurCatatan} onChange={(e) => setUndurCatatan(e.target.value)} maxLength={255} />
+            {err ? (
+              <p id="error_undur_psb" className="col-span-2 text-sm text-destructive" role="alert">{err}</p>
+            ) : null}
             <DialogFooter className="col-span-2">
               <Button type="button" variant="outline" onClick={() => setUndurRow(null)}>Batal</Button>
               <Button id="btn_simpan_undur_psb" type="submit" variant="destructive" disabled={busy}>Mengundurkan Diri</Button>

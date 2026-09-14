@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Exports\PsbTemplateExport;
 use App\Models\DokumenSantri;
+use App\Models\Kelas;
 use App\Models\Lembaga;
 use App\Models\PengajuanBiodataSantri;
 use App\Models\PosKeuangan;
@@ -1563,5 +1564,52 @@ class PsbFlowTest extends TestCase
         $this->assertNull($calon->santri_id);
         // NIS kembali bebas dipakai (santri sudah tidak ada).
         $this->assertFalse(Santri::nisDipakai('36001'));
+    }
+
+    public function test_37_undur_diri_diblokir_saat_santri_sudah_di_kelas(): void
+    {
+        $f = $this->baseFixture();
+        $this->makeKuota($f['gel'], $f['mi'], $f['ta'], ['membutuhkan_seleksi' => false]);
+        $admin = $this->makeUser('admin', [$f['mi']->id]);
+
+        $id = $this->postJson('/api/psb/daftar', $this->daftarPayload(
+            $f['gel'], $f['mi'], '1100000000003701', 'Undur Berkelas', 'ortu37@example.com', '083737373701'
+        ))->json('data.calon.id');
+
+        $this->actingAs($admin, 'sanctum')->postJson("/api/psb/{$id}/verifikasi")->assertStatus(200);
+        $this->actingAs($admin, 'sanctum')->postJson("/api/psb/{$id}/daftar-ulang")->assertStatus(200);
+        $santriId = $this->actingAs($admin, 'sanctum')
+            ->postJson("/api/psb/{$id}/acc-daftar-ulang", ['nis' => '37001'])
+            ->assertStatus(201)
+            ->json('data.id');
+
+        // Penempatan kelas menyusul: riwayat aktif berisi kelas_id.
+        $riwayat = RiwayatBelajar::where('santri_id', $santriId)->where('is_aktif', true)->firstOrFail();
+        $kelas = Kelas::create([
+            'lembaga_id' => $f['mi']->id, 'tahun_ajaran_id' => $f['ta']->id, 'nama_kelas' => 'I-A',
+        ]);
+        $this->actingAs($admin, 'sanctum')->postJson("/api/admin/riwayat/{$riwayat->id}/set-kelas", [
+            'kelas_id' => $kelas->id,
+        ])->assertStatus(200);
+        $this->assertEquals($kelas->id, (int) $riwayat->fresh()->kelas_id);
+
+        // Sudah berkelas → undur diri ditolak; status calon & santri tidak berubah.
+        $this->actingAs($admin, 'sanctum')->postJson("/api/psb/{$id}/undur-diri")
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['kelas']);
+        $this->assertDatabaseHas('santri', ['id' => $santriId]);
+        $this->assertSame('daftar_ulang', PsbCalonSantri::findOrFail($id)->status_pendaftaran);
+
+        // Keluarkan dari kelas → undur diri berhasil dan santri + riwayat ditarik kembali.
+        $this->actingAs($admin, 'sanctum')->postJson("/api/admin/riwayat/{$riwayat->id}/keluar-kelas")
+            ->assertStatus(200);
+        $this->assertNull($riwayat->fresh()->kelas_id);
+        $this->assertNull(Santri::findOrFail($santriId)->kelas_id);
+
+        $this->actingAs($admin, 'sanctum')->postJson("/api/psb/{$id}/undur-diri")
+            ->assertStatus(200)
+            ->assertJsonPath('data.status_pendaftaran', 'mengundurkan_diri');
+        $this->assertDatabaseMissing('santri', ['id' => $santriId]);
+        $this->assertDatabaseMissing('riwayat_belajar', ['santri_id' => $santriId]);
     }
 }

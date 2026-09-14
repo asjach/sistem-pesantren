@@ -587,6 +587,37 @@ class SiklusFlowTest extends TestCase
         // Tanpa baris alumni (alumni hanya untuk lulusan).
         $this->assertEquals(0, Alumni::where('santri_id', $s->id)->count());
     }
+
+    // ---------- 11. keluar kelas (batalkan penempatan) ----------
+
+    public function test_11_keluar_kelas_nolkan_kelas_dan_tolak_riwayat_nonaktif(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeUser('super_admin', []);
+
+        $s = $this->makeSantri($f['mi'], 'Keluar Kelas');
+        $kelas = $this->makeKelas($f['mi'], $f['taLama'], 'III-A', '3');
+        $riwayat = $this->makeRiwayat($s, $f['taLama'], $f['mi'], '1', [
+            'kelas_id' => $kelas->id, 'tingkat' => '3', 'is_aktif' => true,
+        ]);
+        $s->update(['kelas_id' => $kelas->id]);
+
+        $res = $this->actingAs($admin, 'sanctum')
+            ->postJson("/api/admin/riwayat/{$riwayat->id}/keluar-kelas")
+            ->assertStatus(200);
+        $this->assertNull($res->json('data.kelas_id'));
+        $this->assertNull($riwayat->fresh()->kelas_id);
+        $this->assertNull($s->fresh()->kelas_id);
+        // Riwayat & santri tetap aktif — hanya penempatan kelas yang dibatalkan.
+        $this->assertTrue((bool) $riwayat->fresh()->is_aktif);
+        $this->assertTrue((bool) $s->fresh()->status_global);
+
+        // Riwayat non-aktif tidak boleh dikeluarkan dari kelas.
+        $riwayat->update(['is_aktif' => false]);
+        $this->actingAs($admin, 'sanctum')
+            ->postJson("/api/admin/riwayat/{$riwayat->id}/keluar-kelas")
+            ->assertStatus(422);
+    }
 }
 
 /*

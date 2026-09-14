@@ -83,6 +83,13 @@ export function setKelas(riwayatId: number, kelasId: number) {
   });
 }
 
+/** Batalkan penempatan kelas (kelas_id=NULL). */
+export function keluarKelas(riwayatId: number) {
+  return api<{ pesan: string; data: unknown }>(`/admin/riwayat/${riwayatId}/keluar-kelas`, {
+    method: 'POST',
+  });
+}
+
 export function berhentiJenjang(santriId: number, lembagaId: number) {
   return api<{ pesan: string; data: unknown }>(`/admin/santri/${santriId}/berhenti-jenjang`, {
     method: 'POST',
