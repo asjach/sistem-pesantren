@@ -351,6 +351,17 @@
   "bi": "three-dots-vertical",
   "material": "more-vert"
  },
+ "MousePointerClick": {
+  "lucide": "mouse-pointer-click",
+  "tabler": "pointer",
+  "ph": "cursor-click",
+  "heroicons": null,
+  "ri": null,
+  "iconoir": null,
+  "radix": null,
+  "bi": null,
+  "material": "touch-app"
+ },
  "MoveHorizontal": {
   "lucide": "move-horizontal",
   "tabler": "arrows-horizontal",

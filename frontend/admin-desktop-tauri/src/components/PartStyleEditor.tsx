@@ -46,7 +46,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ChevronDown, Minus, Moon, Plus, RotateCcw, Search, Sun } from '@/icons';
+import { ChevronDown, Minus, Moon, MousePointerClick, Plus, RotateCcw, Search, Sun } from '@/icons';
 import { cn } from '@/lib/utils';
 
 /** Objek kosong stabil (menghindari efek pengukuran berulang tanpa henti). */
@@ -510,7 +510,7 @@ export default function PartStyleEditor() {
             onClick={() => (picker.aktif ? picker.batal() : picker.mulai())}
             title="Klik komponen mana pun di halaman ini untuk membuka pengaturannya"
           >
-            <Search size={14} /> {picker.aktif ? 'Batal pilih (Esc)' : 'Pilih komponen'}
+            <MousePointerClick size={14} /> {picker.aktif ? 'Batal pilih (Esc)' : 'Pilih komponen'}
           </Button>
           {picker.aktif ? (
             <p className="rounded-md border border-dashed px-2 py-1 text-[11px] text-muted-foreground">

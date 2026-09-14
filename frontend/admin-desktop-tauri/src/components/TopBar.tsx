@@ -20,7 +20,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { ICON_SETS } from '@/iconSets';
-import { Check, ChevronDown, LogOut, Monitor, Moon, Paintbrush, Search, Sun, Users } from '@/icons';
+import { Check, ChevronDown, LogOut, Monitor, Moon, MousePointerClick, Paintbrush, Sun, Users } from '@/icons';
 import { useRibbonTable } from '@/components/RibbonTable';
 import { halamanDariPath } from '@/lib/halaman';
 import { RibbonBeranda } from './topbar/RibbonBeranda';
@@ -206,7 +206,7 @@ export default function TopBar() {
               picker.aktif && 'bg-white/25 text-white',
             )}
           >
-            <Search size={14} />
+            <MousePointerClick size={14} />
           </button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

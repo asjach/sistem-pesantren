@@ -61,6 +61,7 @@ const IKON = {
   Monitor: ['monitor', 'desktop', 'computer-desktop', 'screen', 'display', 'device-desktop', 'monitor-2', 'computer-line', 'computer'],
   Moon: ['moon', 'dark-mode', 'weather-night', 'night', 'moon-fill', 'moon-simple', 'moon-line', 'half-moon'],
   MoreVertical: ['more-vertical', 'ellipsis-vertical', 'dots-vertical', 'kebab', 'more-vertical-2', 'ellipsis-v', 'three-dots-vertical', 'dots-three-vertical', 'more-2-line', 'more-vert'],
+  MousePointerClick: ['mouse-pointer-click', 'pointer', 'cursor-click', 'hand-pointer', 'click', 'touch-app', 'pointer-2', 'ads-click', 'select-cursor', 'mouse-pointer-2'],
   MoveHorizontal: ['move-horizontal', 'arrows-horizontal', 'arrow-left-right', 'arrows-right-left', 'horizontal-distribute', 'move-horizontal-2', 'arrow-horizontal', 'width'],
   NotebookTabs: ['notebook-tabs', 'notebook', 'note', 'notebook-2', 'book-2', 'journal-page', 'journal-text'],
   Paintbrush: ['paintbrush', 'brush', 'paint-brush', 'paint', 'brush-line', 'paint-brush-line'],
