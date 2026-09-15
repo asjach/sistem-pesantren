@@ -5,7 +5,7 @@ import { PER_PAGE_DEFAULT, normalizePerPage, type PerPage } from '@/prefs';
 /**
  * Pagination bawaan SEMUA halaman tabel (baru maupun lama).
  *
- * - per_page default 100, pilihan 100/250/500/1000 (PER_PAGE_OPTIONS).
+ * - per_page default 50, pilihan 10/50/75/100/250/500/1000 (PER_PAGE_OPTIONS).
  * - page + perPage tersimpan permanen per tabel (per perangkat).
  * - Muat simpanan sekali saat mount; `ready` menandakan nilai final
  *   sehingga halaman bisa menunda fetch pertama sampai siap.

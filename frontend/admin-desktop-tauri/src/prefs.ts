@@ -20,9 +20,11 @@ export const DENSITY_PX: Record<DensityName, number> = {
   nyaman: 30,
 };
 
-/** Pagination bawaan SEMUA halaman tabel (baru maupun lama). */
-export const PER_PAGE_DEFAULT = 100;
-export const PER_PAGE_OPTIONS = [100, 250, 500, 1000] as const;
+/** Pagination bawaan SEMUA halaman tabel (baru maupun lama).
+ *  Bawaan 50/halaman; opsi kecil (10/50/75) untuk daftar pendek, opsi besar
+ *  untuk borongan (100/250/500/1000). */
+export const PER_PAGE_DEFAULT = 50;
+export const PER_PAGE_OPTIONS = [10, 50, 75, 100, 250, 500, 1000] as const;
 export type PerPage = (typeof PER_PAGE_OPTIONS)[number];
 
 /** Normalisasi nilai simpanan/URL menjadi salah satu opsi (jatuh ke bawaan). */

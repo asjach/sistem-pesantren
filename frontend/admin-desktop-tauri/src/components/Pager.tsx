@@ -18,9 +18,10 @@ interface Props {
   onPerPage: (pp: PerPage) => void;
 }
 
-/** Pagination bawaan semua halaman tabel (default 100/halaman, persisten). */
+/** Pagination bawaan semua halaman tabel (default 50/halaman, persisten).
+ *  Tak ditampilkan bila seluruh data masuk dalam satu halaman. */
 export default function Pager({ page, lastPage, total, onPage, perPage, onPerPage }: Props) {
-  if (total <= 100) return null;
+  if (total <= perPage) return null;
   return (
     <div id="pager" className="flex flex-wrap items-center gap-2 py-2">
       <Button
