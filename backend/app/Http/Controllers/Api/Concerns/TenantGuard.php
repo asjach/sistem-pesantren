@@ -2,8 +2,13 @@
 
 namespace App\Http\Controllers\Api\Concerns;
 
+use App\Models\Lembaga;
+use App\Models\RiwayatBelajar;
+use App\Models\Santri;
+use App\Models\TahunAjaran;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Helper tenant untuk controller admin.
@@ -35,6 +40,7 @@ trait TenantGuard
             if ($request->filled('lembaga_id')) {
                 $query->where($column, $request->input('lembaga_id'));
             }
+
             return $query;
         }
 
@@ -44,6 +50,7 @@ trait TenantGuard
         }
         if ($request->filled('lembaga_id')) {
             $this->authorizeLembaga($auth, (int) $request->input('lembaga_id'));
+
             return $query->where($column, $request->input('lembaga_id'));
         }
 
@@ -77,5 +84,43 @@ trait TenantGuard
         }
 
         return $query->whereHas($relation, fn ($q) => $q->whereIn('lembaga_id', $ids));
+    }
+
+    /**
+     * Aksi siklus per lembaga: admin scoped wajib punya riwayat aktif santri
+     * di lembaga target (aksi ketat AND per-lembaga).
+     */
+    protected function authorizeAksiLembaga(Request $request, Santri $santri, int $target): void
+    {
+        $this->authorizeLembaga($request->user(), $target);
+        $auth = $request->user();
+        if ($auth->hasRole('super_admin') || $auth->isAdminFull()) {
+            return;
+        }
+        $punya = RiwayatBelajar::where('santri_id', $santri->id)
+            ->where('lembaga_id', $target)
+            ->where('is_aktif', true)
+            ->exists();
+        if (! $punya) {
+            abort(403, 'Akses ditolak.');
+        }
+    }
+
+    /** Target aksi siklus wajib lembaga operasional (bukan root pesantren). */
+    protected function tolakLembagaRoot(int $lembagaId): void
+    {
+        if (! Lembaga::where('id', $lembagaId)->whereNotNull('parent_id')->exists()) {
+            throw ValidationException::withMessages(['lembaga_id' => 'Lembaga harus lembaga operasional (bukan induk pesantren).']);
+        }
+    }
+
+    /** TA wajib milik lembaga target bila lembaga itu punya TA sendiri. */
+    protected function cekTaSelembaga(int $lembagaId, int $taId, string $field = 'tahun_ajaran_id'): void
+    {
+        if (TahunAjaran::where('lembaga_id', $lembagaId)->exists()
+            && ! TahunAjaran::where('id', $taId)->where('lembaga_id', $lembagaId)->exists()
+        ) {
+            throw ValidationException::withMessages([$field => 'Tahun ajaran bukan milik lembaga ini.']);
+        }
     }
 }

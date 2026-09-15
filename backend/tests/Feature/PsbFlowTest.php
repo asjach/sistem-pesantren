@@ -6,6 +6,7 @@ use App\Exports\PsbTemplateExport;
 use App\Models\DokumenSantri;
 use App\Models\Kelas;
 use App\Models\Lembaga;
+use App\Models\LembagaSantri;
 use App\Models\PengajuanBiodataSantri;
 use App\Models\PosKeuangan;
 use App\Models\PsbBiayaLembaga;
@@ -1492,8 +1493,7 @@ class PsbFlowTest extends TestCase
             ->postJson("/api/psb/{$id1}/acc-daftar-ulang", ['nis' => '2400123'])
             ->assertStatus(201)
             ->json('data.id');
-        $this->assertSame('2400123', Santri::findOrFail($santri1)->nis);
-        $this->assertSame('2400123', RiwayatBelajar::where('santri_id', $santri1)->value('nis'));
+        $this->assertSame('2400123', LembagaSantri::where('santri_id', $santri1)->where('is_active', true)->value('nis_lokal'));
 
         // ACC tunggal tanpa NIS → tetap null (bisa menyusul via import).
         $id2 = $daftar('Acc Nis Dua');
@@ -1502,8 +1502,7 @@ class PsbFlowTest extends TestCase
             ->postJson("/api/psb/{$id2}/acc-daftar-ulang")
             ->assertStatus(201)
             ->json('data.id');
-        $this->assertNull(Santri::findOrFail($santri2)->nis);
-        $this->assertNull(RiwayatBelajar::where('santri_id', $santri2)->value('nis'));
+        $this->assertNull(LembagaSantri::where('santri_id', $santri2)->where('is_active', true)->value('nis_lokal'));
 
         // Bulk ACC: NIS per calon (map id → NIS); yang kosong tetap null.
         $id3 = $daftar('Acc Nis Tiga');
@@ -1515,8 +1514,8 @@ class PsbFlowTest extends TestCase
             'nis' => [(string) $id3 => '2400456'],
         ]);
         $bulk->assertStatus(200)->assertJsonPath('data.gagal', []);
-        $this->assertSame('2400456', Santri::findOrFail(PsbCalonSantri::findOrFail($id3)->santri_id)->nis);
-        $this->assertNull(Santri::findOrFail(PsbCalonSantri::findOrFail($id4)->santri_id)->nis);
+        $this->assertSame('2400456', LembagaSantri::where('santri_id', PsbCalonSantri::findOrFail($id3)->santri_id)->where('is_active', true)->value('nis_lokal'));
+        $this->assertNull(LembagaSantri::where('santri_id', PsbCalonSantri::findOrFail($id4)->santri_id)->where('is_active', true)->value('nis_lokal'));
 
         // Bulk: NIS panjang (16 karakter) diterima.
         $id4b = $daftar('Acc Nis Empat B');
@@ -1526,7 +1525,7 @@ class PsbFlowTest extends TestCase
             'nis' => [(string) $id4b => '2400456000000001'],
         ]);
         $bulkPanjang->assertStatus(200)->assertJsonPath('data.gagal', []);
-        $this->assertSame('2400456000000001', Santri::findOrFail(PsbCalonSantri::findOrFail($id4b)->santri_id)->nis);
+        $this->assertSame('2400456000000001', LembagaSantri::where('santri_id', PsbCalonSantri::findOrFail($id4b)->santri_id)->where('is_active', true)->value('nis_lokal'));
 
         // Validasi panjang NIS (maks 20): 21 karakter ditolak, 20 karakter diterima.
         $id5 = $daftar('Acc Nis Lima');
@@ -1575,8 +1574,9 @@ class PsbFlowTest extends TestCase
             ->postJson("/api/psb/{$id}/acc-daftar-ulang", ['nis' => '36001'])
             ->assertStatus(201)
             ->json('data.id');
-        $this->assertDatabaseHas('santri', ['id' => $santriId, 'nis' => '36001']);
-        $this->assertDatabaseHas('riwayat_belajar', ['santri_id' => $santriId, 'nis' => '36001']);
+        $this->assertDatabaseHas('santri', ['id' => $santriId]);
+        $this->assertDatabaseHas('lembaga_santri', ['santri_id' => $santriId, 'nis_lokal' => '36001', 'is_active' => true]);
+        $this->assertDatabaseHas('riwayat_belajar', ['santri_id' => $santriId, 'kelas_id' => null, 'is_aktif' => true]);
 
         // Mengundurkan diri dari fase diterima → santri + riwayat ditarik kembali.
         $this->actingAs($admin, 'sanctum')->postJson("/api/psb/{$id}/undur-diri", ['catatan' => 'Pindah domisili'])
@@ -1585,11 +1585,12 @@ class PsbFlowTest extends TestCase
 
         $this->assertDatabaseMissing('santri', ['id' => $santriId]);
         $this->assertDatabaseMissing('riwayat_belajar', ['santri_id' => $santriId]);
+        $this->assertDatabaseMissing('lembaga_santri', ['santri_id' => $santriId]);
         $calon = PsbCalonSantri::findOrFail($id);
         $this->assertSame('mengundurkan_diri', $calon->status_pendaftaran);
         $this->assertNull($calon->santri_id);
         // NIS kembali bebas dipakai (santri sudah tidak ada).
-        $this->assertFalse(Santri::nisDipakai('36001'));
+        $this->assertFalse(LembagaSantri::nisLokalDipakai((int) $f['mi']->id, '36001'));
     }
 
     public function test_37_undur_diri_diblokir_saat_santri_sudah_di_kelas(): void
@@ -1614,7 +1615,7 @@ class PsbFlowTest extends TestCase
         $kelas = Kelas::create([
             'lembaga_id' => $f['mi']->id, 'tahun_ajaran_id' => $f['taMi']->id, 'nama_kelas' => 'I-A',
         ]);
-        $this->actingAs($admin, 'sanctum')->postJson("/api/admin/riwayat/{$riwayat->id}/set-kelas", [
+        $this->actingAs($admin, 'sanctum')->postJson("/api/admin/riwayat-belajar/{$riwayat->id}/set-kelas", [
             'kelas_id' => $kelas->id,
         ])->assertStatus(200);
         $this->assertEquals($kelas->id, (int) $riwayat->fresh()->kelas_id);
@@ -1627,16 +1628,16 @@ class PsbFlowTest extends TestCase
         $this->assertSame('daftar_ulang', PsbCalonSantri::findOrFail($id)->status_pendaftaran);
 
         // Keluarkan dari kelas → undur diri berhasil dan santri + riwayat ditarik kembali.
-        $this->actingAs($admin, 'sanctum')->postJson("/api/admin/riwayat/{$riwayat->id}/keluar-kelas")
+        $this->actingAs($admin, 'sanctum')->postJson("/api/admin/riwayat-belajar/{$riwayat->id}/keluar-kelas")
             ->assertStatus(200);
         $this->assertNull($riwayat->fresh()->kelas_id);
-        $this->assertNull(Santri::findOrFail($santriId)->kelas_id);
 
         $this->actingAs($admin, 'sanctum')->postJson("/api/psb/{$id}/undur-diri")
             ->assertStatus(200)
             ->assertJsonPath('data.status_pendaftaran', 'mengundurkan_diri');
         $this->assertDatabaseMissing('santri', ['id' => $santriId]);
         $this->assertDatabaseMissing('riwayat_belajar', ['santri_id' => $santriId]);
+        $this->assertDatabaseMissing('lembaga_santri', ['santri_id' => $santriId]);
     }
 
     // ---------- 38. TA se-lembaga: ACC paket menulis TA per lembaga ----------

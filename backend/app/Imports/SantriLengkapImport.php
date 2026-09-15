@@ -2,14 +2,10 @@
 
 namespace App\Imports;
 
-use App\Models\Kelas;
-use App\Models\RiwayatBelajar;
 use App\Models\Santri;
-use App\Models\TahunAjaran;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
 use Maatwebsite\Excel\Concerns\SkipsOnFailure;
 use Maatwebsite\Excel\Concerns\SkipsUnknownSheets;
 use Maatwebsite\Excel\Concerns\ToCollection;
@@ -19,23 +15,20 @@ use Maatwebsite\Excel\Concerns\WithValidation;
 use Maatwebsite\Excel\Validators\Failure;
 use PhpOffice\PhpSpreadsheet\Shared\Date;
 
+/**
+ * Import BUKU INDUK: identitas santri saja (`santri`).
+ *
+ * Tidak menyentuh keanggotaan (`lembaga_santri`) maupun riwayat akademik
+ * (`riwayat_belajar`) — keduanya lewat halaman/import masing-masing.
+ * Kolom template = KOLOM_PROFIL (tanpa kolom penempatan/status).
+ */
 class SantriLengkapImport implements SkipsOnFailure, SkipsUnknownSheets, ToCollection, WithHeadingRow, WithMultipleSheets, WithValidation
 {
-    protected ?int $tahunAjaranId;
-
-    protected ?int $lembagaId;
-
     /** @var Failure[] */
     protected array $failures = [];
 
     /** Ringkasan baris (dipakai mode periksa/dry-run). */
     protected int $barisValid = 0;
-
-    public function __construct(?int $tahunAjaranId, ?int $lembagaId = null)
-    {
-        $this->tahunAjaranId = $tahunAjaranId;
-        $this->lembagaId = $lembagaId;
-    }
 
     /** Ringkasan hasil pemrosesan file (baris gagal validasi tetap dihitung). */
     public function ringkasan(): array
@@ -61,7 +54,6 @@ class SantriLengkapImport implements SkipsOnFailure, SkipsUnknownSheets, ToColle
     public function collection(Collection $rows): void
     {
         // Kunci konsistensi-03: import diasumsikan single-operator (satu admin satu file satu waktu).
-        // Race dua admin import bersamaan bisa create ganda — terima sebagai batasan operasional.
         DB::transaction(function () use ($rows) {
             $dilihat = []; // guard duplikat intra-file: kunci nik|nama|tgl
             $no = 0;
@@ -72,47 +64,7 @@ class SantriLengkapImport implements SkipsOnFailure, SkipsUnknownSheets, ToColle
                     continue;
                 }
 
-                // Lembaga per baris (v1.10): kolom `lembaga_id` template menang;
-                // null = legacy tanpa track (tanpa riwayat, status_global nonaktif).
-                $lembagaRow = ! empty($row['lembaga_id']) ? (int) $row['lembaga_id'] : $this->lembagaId;
-
-                // Kelas (v1.13): kolom `kelas_id` menerima NAMA kelas (diutamakan)
-                // atau id. Butuh lembaga + tahun ajaran; baris legacy tanpa lingkup
-                // hanya boleh memakai id (cache `santri.kelas_id`, tanpa riwayat).
-                $kelasId = null;
-                if (! empty($row['kelas_id'])) {
-                    $kelasId = $this->resolveKelasId($row['kelas_id'], $lembagaRow, $no);
-                    if ($kelasId === null) {
-                        continue; // failure sudah dicatat resolver
-                    }
-                }
-
-                // TA file wajib se-lembaga dengan baris bila lembaga baris punya TA
-                // sendiri (lembaga tanpa TA = boleh, diperbaiki setelah TA dibuat).
-                if ($lembagaRow !== null && $this->tahunAjaranId !== null
-                    && TahunAjaran::where('lembaga_id', $lembagaRow)->exists()
-                    && ! TahunAjaran::where('id', $this->tahunAjaranId)->where('lembaga_id', $lembagaRow)->exists()
-                ) {
-                    $this->failures[] = new Failure($no, 'tahun_ajaran_id', ['Tahun ajaran bukan milik lembaga baris ini.'], []);
-
-                    continue;
-                }
-
-                // NIS wajib unik: catat sebagai failure baris (bukan menggagalkan file)
-                // bila sudah dipakai santri lain (master maupun arsip riwayat).
-                $pastikanNisUnik = function (?int $santriId) use ($row, $no): bool {
-                    $nis = $row['nis'] ?? null;
-                    if ($nis === null || trim((string) $nis) === '' || ! Santri::nisDipakai((string) $nis, $santriId)) {
-                        return true;
-                    }
-                    $this->failures[] = new Failure($no, 'nis', ['NIS sudah dipakai santri lain.'], []);
-
-                    return false;
-                };
-
                 $dataSantri = [
-                    'lembaga_id' => $lembagaRow,
-                    'kelas_id' => $kelasId,
                     'nama_lengkap' => $row['nama_lengkap'],
                     'nama_singkat' => $row['nama_singkat'] ?? null,
                     'nisn' => $row['nisn'] ?? null,
@@ -121,11 +73,23 @@ class SantriLengkapImport implements SkipsOnFailure, SkipsUnknownSheets, ToColle
                     'jk' => $row['jk'] ?? null,
                     'anak_ke' => $row['anak_ke'] ?? null,
                     'j_saudara' => $row['j_saudara'] ?? null,
+                    'tipe_santri' => in_array($row['tipe_santri'] ?? null, ['asrama', 'non_asrama'], true) ? $row['tipe_santri'] : 'non_asrama',
+                    'no_hp_santri' => $row['no_hp_santri'] ?? null,
+                    'email_santri' => $row['email_santri'] ?? null,
                     'agama' => $row['agama'] ?? 'Islam',
                     'cita_cita' => $row['cita_cita'] ?? null,
                     'hobi' => $row['hobi'] ?? null,
                     'kebutuhan_khusus' => $row['kebutuhan_khusus'] ?? null,
+                    'kebutuhan_disabilitas' => $row['kebutuhan_disabilitas'] ?? null,
                     'nomor_kip' => $row['nomor_kip'] ?? null,
+                    'no_kk' => $row['no_kk'] ?? null,
+                    'kewarganegaraan' => ($row['kewarganegaraan'] ?? null) ?: 'WNI',
+                    'bahasa_sehari' => $row['bahasa_sehari'] ?? null,
+                    'status_tempat_tinggal' => $row['status_tempat_tinggal'] ?? null,
+                    'jarak_ke_pesantren' => $row['jarak_ke_pesantren'] ?? null,
+                    'waktu_tempuh' => $row['waktu_tempuh'] ?? null,
+                    'transportasi' => $row['transportasi'] ?? null,
+                    'tanggal_masuk' => $this->parseTanggal($row['tanggal_masuk'] ?? null),
 
                     // Data Orang Tua & Wali
                     'ayah_nama' => $row['ayah_nama'] ?? null,
@@ -162,51 +126,27 @@ class SantriLengkapImport implements SkipsOnFailure, SkipsUnknownSheets, ToColle
                     'wali_alamat' => $row['wali_alamat'] ?? null,
                     'wali_status_tempat_tinggal' => $row['wali_status_tempat_tinggal'] ?? null,
                     'yang_membiayai' => $row['yang_membiayai'] ?? null,
-                    'no_hp_santri' => $row['no_hp_santri'] ?? null,
-                    'email_santri' => $row['email_santri'] ?? null,
-                    'kebutuhan_disabilitas' => $row['kebutuhan_disabilitas'] ?? null,
-                    'no_kk' => $row['no_kk'] ?? null,
-                    'kewarganegaraan' => $row['kewarganegaraan'] ?: 'WNI',
-                    'bahasa_sehari' => $row['bahasa_sehari'] ?? null,
-                    'status_tempat_tinggal' => $row['status_tempat_tinggal'] ?? null,
-                    'jarak_ke_pesantren' => $row['jarak_ke_pesantren'] ?? null,
-                    'waktu_tempuh' => $row['waktu_tempuh'] ?? null,
-                    'transportasi' => $row['transportasi'] ?? null,
-                    'tanggal_masuk' => $this->parseTanggal($row['tanggal_masuk'] ?? null),
-                    'rt' => $row['rt'] ?? null,
-                    'rw' => $row['rw'] ?? null,
 
                     // Alamat
                     'provinsi' => $row['provinsi'] ?? null,
                     'kab_kota' => $row['kab_kota'] ?? null,
                     'kecamatan' => $row['kecamatan'] ?? null,
                     'desa_kelurahan' => $row['desa_kelurahan'] ?? null,
+                    'rt' => $row['rt'] ?? null,
+                    'rw' => $row['rw'] ?? null,
                     'alamat' => $row['alamat'] ?? null,
                     'kode_pos' => $row['kode_pos'] ?? null,
-                    'nis' => $row['nis'] ?? null, // NIS aktif terakhir (kuitansi/rapor)
-                    'tipe_santri' => in_array($row['tipe_santri'] ?? null, ['asrama', 'non_asrama'], true) ? $row['tipe_santri'] : 'non_asrama',
-                    // status_global TIDAK di-hardcode (v1.10): dihitung turunan dari riwayat di bawah.
                 ];
 
-                // PENTING: hanya pakai updateOrCreate() saat NIK terisi.
-                // Jika NIK kosong untuk beberapa baris, mencocokkan pada
-                // 'nik' => null akan membuat SEMUA baris tanpa NIK menimpa
-                // satu record yang sama — jadi baris tanpa NIK selalu di-create() baru.
-                // NIS belakangan: NIK yang cocok dengan santri existing (mis. hasil
-                // ACC PSB, nis null) -> update baris itu, bukan create ganda.
+                // PENTING: hanya pakai pencocokan NIK saat NIK terisi.
+                // NIK kosong → selalu create() baru (pitfall null = semua baris saling menimpa).
                 if (! empty($row['nik'])) {
-                    // Dedup identitas nik+nama+tgl_lahir (NIK boleh fiktif/ganda; nik sama nama/tgl beda = anak beda).
-                    // Guard intra-file dulu (tanpa unique NIK, duplikat baris identik dalam file yang sama harus update, bukan create ganda).
+                    // Dedup identitas nik+nama+tgl_lahir (NIK boleh fiktif/ganda).
                     $kunci = strtolower(trim((string) $row['nik'])).'|'.strtolower(trim((string) $dataSantri['nama_lengkap'])).'|'.(string) ($dataSantri['tgl_lahir'] ?? '');
                     if (isset($dilihat[$kunci])) {
-                        if (! $pastikanNisUnik($dilihat[$kunci]->id)) {
-                            continue;
-                        }
                         $dilihat[$kunci]->update($dataSantri);
-                        $santri = $dilihat[$kunci];
                     } else {
-                        // Banding tanggal di PHP (format Y-m-d) agar berlaku MySQL+SQLite:
-                        // ambil kandidat nik+nama lalu samakan tgl_lahir di PHP (termasuk null === null).
+                        // Banding tanggal di PHP (format Y-m-d) agar berlaku MySQL+SQLite.
                         $tglBaru = ! empty($dataSantri['tgl_lahir'])
                             ? Carbon::parse($dataSantri['tgl_lahir'])->format('Y-m-d')
                             : null;
@@ -220,122 +160,21 @@ class SantriLengkapImport implements SkipsOnFailure, SkipsUnknownSheets, ToColle
 
                                 return $tglLama === $tglBaru;
                             });
-                        if (! $pastikanNisUnik($santri?->id)) {
-                            continue;
-                        }
+
                         if ($santri) {
                             $santri->update($dataSantri);
                         } else {
-                            $santri = Santri::create(array_merge($dataSantri, [
-                                'nik' => $row['nik'],
-                            ]));
+                            $santri = Santri::create(array_merge($dataSantri, ['nik' => $row['nik']]));
                         }
                         $dilihat[$kunci] = $santri;
                     }
                 } else {
-                    if (! $pastikanNisUnik(null)) {
-                        continue;
-                    }
-                    $santri = Santri::create(array_merge($dataSantri, [
-                        'nik' => null,
-                    ]));
+                    Santri::create(array_merge($dataSantri, ['nik' => null]));
                 }
-
-                // 2. Riwayat perdana hanya bila baris punya lembaga + tahun ajaran;
-                //    tanpa keduanya = legacy tanpa track (santri saja).
-                if ($lembagaRow !== null && $this->tahunAjaranId !== null) {
-                    RiwayatBelajar::updateOrCreate(
-                        [
-                            'santri_id' => $santri->id,
-                            'tahun_ajaran_id' => $this->tahunAjaranId,
-                            'lembaga_id' => $lembagaRow,
-                            'semester' => '1',
-                        ],
-                        [
-                            'kelas_id' => $kelasId,
-                            'nis' => $row['nis'] ?? null,
-                            'tingkat' => $row['tingkat'] ?? null,
-                            'tgl_masuk' => $row['tanggal_masuk'] ?? null,
-                            'no_absen' => $row['no_absen'] ?? null,
-                            'status_awal' => 'santri_baru',
-                            'status_akhir' => 'aktif',
-                            'is_aktif' => true,
-                        ]
-                    );
-                }
-
-                // status_global turunan murni (v1.10): true iff ada riwayat aktif.
-                $santri->update([
-                    'status_global' => RiwayatBelajar::where('santri_id', $santri->id)->where('is_aktif', true)->exists(),
-                ]);
 
                 $this->barisValid++;
             }
         });
-    }
-
-    /**
-     * Resolusi kolom `kelas_id` (v1.13): nilai diutamakan sebagai NAMA kelas,
-     * baru dicoba sebagai id. Pencocokan case-insensitive mengikuti kolasi
-     * kolom; nama sudah dinormalisasi model Kelas (lembaga+TA+nama unik).
-     *
-     * Lingkup = lembaga baris + tahun ajaran import. Tanpa lingkup (legacy),
-     * hanya id yang diterima sebagai cache `santri.kelas_id` tanpa riwayat.
-     * Failure baris dicatat di sini; null = gagal (pemanggil `continue`).
-     */
-    protected function resolveKelasId(mixed $nilai, ?int $lembagaRow, int $no): ?int
-    {
-        $teks = Kelas::normalisasiNama((string) $nilai);
-        $angka = ctype_digit($teks) ? (int) $teks : null;
-
-        if ($lembagaRow !== null && $this->tahunAjaranId !== null) {
-            // Nama diutamakan: kelas bernama "1" menang atas kelas ber-id 1.
-            $namaCocok = Kelas::where('lembaga_id', $lembagaRow)
-                ->where('tahun_ajaran_id', $this->tahunAjaranId)
-                ->whereRaw('LOWER(nama_kelas) = ?', [mb_strtolower($teks)])
-                ->value('id');
-
-            if ($namaCocok !== null) {
-                return (int) $namaCocok;
-            }
-
-            if ($angka !== null) {
-                $kelas = Kelas::find($angka);
-
-                if ($kelas === null) {
-                    $this->failures[] = new Failure($no, 'kelas_id', ["Kelas \"{$teks}\" tidak ditemukan di lembaga + tahun ajaran ini."], []);
-
-                    return null;
-                }
-
-                if ((int) $kelas->lembaga_id !== $lembagaRow || (int) $kelas->tahun_ajaran_id !== $this->tahunAjaranId) {
-                    $this->failures[] = new Failure($no, 'kelas_id', ['ID kelas bukan milik lembaga + tahun ajaran baris ini.'], []);
-
-                    return null;
-                }
-
-                return (int) $kelas->id;
-            }
-
-            $this->failures[] = new Failure($no, 'kelas_id', ["Kelas \"{$teks}\" tidak ditemukan di lembaga + tahun ajaran ini."], []);
-
-            return null;
-        }
-
-        // Legacy tanpa lingkup: nama tidak bisa dipastikan → hanya id.
-        if ($angka === null) {
-            $this->failures[] = new Failure($no, 'kelas_id', ['Nama kelas butuh lembaga + tahun ajaran; isi id atau kosongkan.'], []);
-
-            return null;
-        }
-
-        if (! Kelas::whereKey($angka)->exists()) {
-            $this->failures[] = new Failure($no, 'kelas_id', ["ID kelas {$angka} tidak ditemukan."], []);
-
-            return null;
-        }
-
-        return $angka;
     }
 
     /**
@@ -364,19 +203,15 @@ class SantriLengkapImport implements SkipsOnFailure, SkipsUnknownSheets, ToColle
         return [
             'nama_lengkap' => ['required', 'string', 'max:255'],
             'jk' => ['required', 'in:L,P'],
-            // Nama kelas (diutamakan) atau id — resolusi di resolveKelasId().
-            'kelas_id' => ['nullable'],
-            // Lembaga baris wajib operasional (bukan root pesantren).
-            'lembaga_id' => ['nullable', 'integer', Rule::exists('lembaga', 'id')->whereNotNull('parent_id')],
             'nik' => ['nullable', 'digits:16'],
-            'nis' => ['nullable', 'string', 'max:20'],
-            'tipe_santri' => ['nullable', 'in:asrama,non_asrama'],
             'nisn' => ['nullable', 'string', 'max:10'],
+            'tipe_santri' => ['nullable', 'in:asrama,non_asrama'],
             // Kolom kamus: string bebas (tanpa exists)
             'agama' => ['nullable', 'string', 'max:50'],
             'hobi' => ['nullable', 'string', 'max:50'],
             'cita_cita' => ['nullable', 'string', 'max:50'],
             'kebutuhan_khusus' => ['nullable', 'string', 'max:50'],
+            'kebutuhan_disabilitas' => ['nullable', 'string', 'max:50'],
             'ayah_pekerjaan' => ['nullable', 'string', 'max:50'],
             'ayah_pendidikan' => ['nullable', 'string', 'max:50'],
             'ibu_pekerjaan' => ['nullable', 'string', 'max:50'],
@@ -404,7 +239,6 @@ class SantriLengkapImport implements SkipsOnFailure, SkipsUnknownSheets, ToColle
             'tmp_lahir' => ['nullable', 'string', 'max:50'],
             'no_hp_santri' => ['nullable', 'string', 'max:20'],
             'email_santri' => ['nullable', 'email', 'max:255'],
-            'kebutuhan_disabilitas' => ['nullable', 'string', 'max:50'],
             'no_kk' => ['nullable', 'digits:16'],
             'kewarganegaraan' => ['nullable', 'string', 'max:10'],
             'bahasa_sehari' => ['nullable', 'string', 'max:50'],
@@ -423,10 +257,8 @@ class SantriLengkapImport implements SkipsOnFailure, SkipsUnknownSheets, ToColle
     }
 
     /**
-     * NIS belakangan via import: jika NIK terisi dan cocok dengan santri existing
-     * (misal hasil ACC PSB yang nis-nya masih null), UPDATE baris itu
-     * (khususnya nis/kelas + riwayat) — jangan create ganda.
-     * NIK kosong -> selalu create() baru (pitfall updateOrCreate null).
+     * NIK yang cocok dengan santri existing (mis. hasil ACC PSB) → UPDATE baris
+     * itu, bukan create ganda. NIK kosong → selalu create() baru.
      */
     public function onFailure(Failure ...$failures): void
     {

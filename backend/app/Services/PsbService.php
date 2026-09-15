@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\DokumenSantri;
 use App\Models\DokumenWajibLembaga;
 use App\Models\Lembaga;
+use App\Models\LembagaSantri;
 use App\Models\PsbCalonLembaga;
 use App\Models\PsbCalonSantri;
 use App\Models\PsbGelombang;
@@ -148,8 +149,10 @@ class PsbService
             if (! $isLanjutan) {
                 $santriAktif = Santri::where('nik', $data['nik'])->where('status_global', true)->first();
                 if ($santriAktif) {
+                    $nisAktif = LembagaSantri::where('santri_id', $santriAktif->id)
+                        ->where('is_active', true)->value('nis_lokal');
                     throw ValidationException::withMessages([
-                        'nik' => "NIK terdaftar sebagai santri aktif (NIS {$santriAktif->nis}). Gunakan Pendaftaran Lanjutan atau hubungi TU.",
+                        'nik' => "NIK terdaftar sebagai santri aktif (NIS {$nisAktif}). Gunakan Pendaftaran Lanjutan atau hubungi TU.",
                     ]);
                 }
                 $identik = $kandidat->contains(fn ($r) => $r->nama_lengkap === $data['nama_lengkap']
@@ -493,16 +496,11 @@ class PsbService
             $santri = $calon->santri_asal_id
                 ? Santri::where('id', $calon->santri_asal_id)->lockForUpdate()->firstOrFail()
                 : null;
-            if ($nis !== null && Santri::nisDipakai($nis, $santri?->id)) {
-                throw ValidationException::withMessages(['nis' => 'NIS sudah dipakai santri lain.']);
-            }
             if (! $santri) {
-                $payload = ['lembaga_id' => $calon->lembaga_id, 'status_global' => true];
+                $payload = [];
                 foreach (self::FIELD_MAP as $dari => $ke) {
                     $payload[$ke] = $calon->{$dari};
                 }
-                $payload['nis'] = $nis; // opsional: diisi saat ACC, atau menyusul via import Excel
-                $payload['kelas_id'] = null; // penempatan kelas menyusul
                 $santri = Santri::create($payload);
             } else {
                 $payload = [];
@@ -511,29 +509,43 @@ class PsbService
                         $payload[$ke] = $calon->{$dari};
                     }
                 }
-                $payload['lembaga_id'] = $calon->lembaga_id;
-                if ($nis !== null) {
-                    $payload['nis'] = $nis;
-                }
                 $santri->update($payload);
             }
-            // Riwayat belajar menyusul boleh null kelas
+
+            // Keanggotaan (`lembaga_santri`) + riwayat perdana per lembaga detail.
             if ($calon->tahun_ajaran_id) {
                 if ($calon->lembagaDetail()->count() === 0) {
                     $calon->lembagaDetail()->create(['lembaga_id' => $calon->lembaga_id, 'peran' => 'primer']);
                 }
+                $penerimaan = app(PenerimaanService::class);
                 foreach ($calon->lembagaDetail()->get() as $detail) {
+                    $lembagaDetailId = (int) $detail->lembaga_id;
+                    if ($nis !== null && LembagaSantri::nisLokalDipakai($lembagaDetailId, $nis)) {
+                        throw ValidationException::withMessages(['nis' => 'NIS sudah dipakai santri lain di lembaga ini.']);
+                    }
                     [$awalAcc, $tingkatAcc] = $this->awalDanTingkat($calon, $detail);
                     // TA per lembaga detail (paket MI+MD bisa beda TA): TA calon bila
                     // se-lembaga, bila tidak TA aktif milik lembaga itu.
-                    $taAcc = TahunAjaran::resolveUntukLembaga((int) $detail->lembaga_id, $calon->tahun_ajaran_id);
-                    $riwayat = RiwayatBelajar::firstOrCreate(
-                        ['santri_id' => $santri->id, 'tahun_ajaran_id' => $taAcc, 'lembaga_id' => $detail->lembaga_id, 'semester' => '1'],
-                        ['nis' => $nis, 'status_awal' => $awalAcc, 'tingkat' => $tingkatAcc, 'status_akhir' => 'aktif', 'is_aktif' => true, 'tgl_masuk' => $calon->tanggal_masuk ?? null]
-                    );
-                    // Riwayat sudah ada (mis. pendaftaran lanjutan) & NIS diisi saat ACC → perbarui arsipnya.
-                    if ($nis !== null && $riwayat->nis !== $nis) {
-                        $riwayat->update(['nis' => $nis]);
+                    $taAcc = TahunAjaran::resolveUntukLembaga($lembagaDetailId, $calon->tahun_ajaran_id);
+
+                    $sudahAktif = RiwayatBelajar::where('santri_id', $santri->id)
+                        ->where('lembaga_id', $lembagaDetailId)
+                        ->where('is_aktif', true)
+                        ->exists();
+
+                    if ($sudahAktif) {
+                        // Pendaftaran lanjutan: cukup pastikan keanggotaan + NIS lokal.
+                        $penerimaan->pastikanKeanggotaan($santri, $lembagaDetailId, [
+                            'nis_lokal' => $nis,
+                            'tgl_mulai' => $calon->tanggal_masuk,
+                        ]);
+                    } else {
+                        $penerimaan->terima($santri, $lembagaDetailId, (int) $taAcc, [
+                            'nis_lokal' => $nis,
+                            'status_awal' => $awalAcc,
+                            'tingkat' => $tingkatAcc,
+                            'tgl_masuk' => $calon->tanggal_masuk,
+                        ]);
                     }
                 }
             }

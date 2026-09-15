@@ -217,7 +217,7 @@ class KeuanganService
         $gagal = [];
         $lewat = 0;
 
-        Santri::with(['lembaga', 'riwayatAktif.lembaga'])
+        Santri::with(['riwayatAktif.lembaga'])
             ->where('status_global', true)
             ->whereHas('riwayatAktif', fn ($q) => $q->where('lembaga_id', $lembagaId)->where('tahun_ajaran_id', $tahunAjaranId))
             ->chunkById(200, function ($santriList) use ($lembaga, $posList, $tahunAjaranId, $periode, &$ok, &$gagal, &$lewat) {

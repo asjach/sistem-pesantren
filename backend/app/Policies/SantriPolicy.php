@@ -17,16 +17,25 @@ class SantriPolicy
 
     public function view(User $user, Santri $santri): bool
     {
-        if ($user->hasRole('super_admin') || $user->isAdminFull()) return true;
-        // Wali: hanya anaknya sendiri
-        if ($user->hasRole('orang_tua') && ! $this->isAnakWali($user, $santri)) return false;
-        if ($user->hasRole('orang_tua')) return true;
-        // Santri legacy (lembaga_id NULL) = arsip pusat → semua admin (v1.10).
-        if ($santri->lembaga_id === null && $user->hasAnyRole(['super_admin', 'admin'])) {
+        if ($user->hasRole('super_admin') || $user->isAdminFull()) {
             return true;
         }
-        // Admin/guru/kasir: tenant lembaga (utama + pivot user_lembaga)
-        return $user->canAccessLembaga((int) $santri->lembaga_id);
+        // Wali: hanya anaknya sendiri
+        if ($user->hasRole('orang_tua') && ! $this->isAnakWali($user, $santri)) {
+            return false;
+        }
+        if ($user->hasRole('orang_tua')) {
+            return true;
+        }
+
+        // Tanpa keanggotaan (`lembaga_santri`) = arsip pusat/pra-penerimaan → semua admin.
+        $lembagaIds = $santri->lembagaSantri()->pluck('lembaga_id');
+        if ($lembagaIds->isEmpty()) {
+            return $user->hasAnyRole(['super_admin', 'admin']);
+        }
+
+        // Admin/guru/kasir: cukup punya akses ke salah satu lembaga keanggotaan.
+        return $lembagaIds->contains(fn ($id) => $user->canAccessLembaga((int) $id));
     }
 
     public function create(User $user): bool
@@ -37,7 +46,10 @@ class SantriPolicy
     public function update(User $user, Santri $santri): bool
     {
         // Wali TIDAK boleh edit langsung — via pengajuan_biodata_santri (approve admin)
-        if ($user->hasRole('orang_tua') && ! $user->hasAnyRole(['super_admin', 'admin'])) return false;
+        if ($user->hasRole('orang_tua') && ! $user->hasAnyRole(['super_admin', 'admin'])) {
+            return false;
+        }
+
         return $this->view($user, $santri);
     }
 

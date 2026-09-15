@@ -2,19 +2,25 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * Buku induk: identitas santri murni.
+ *
+ * TIDAK menyimpan relasi riwayat (`lembaga_id`, `kelas_id`, `tahun_ajaran_id`).
+ * - Keanggotaan per lembaga (NIS lokal/kemenag, status aktif) → `lembaga_santri`.
+ * - Jejak akademik per TA/semester → `riwayat_belajar`.
+ * - `status_global` = turunan: ada ≥1 `riwayat_belajar.is_aktif` (default false).
+ */
 class Santri extends Model
 {
     protected $table = 'santri';
 
-    /** Kolom profil yang boleh diubah langsung (PATCH); lembaga/kelas/status/foto
-     *  tidak termasuk — relasional/turunan. */
+    /** Kolom profil identitas yang boleh diubah langsung; status/foto di luar ini. */
     public const KOLOM_PROFIL = [
-        'nama_lengkap', 'nama_singkat', 'nik', 'nisn', 'nis', 'tmp_lahir', 'tgl_lahir',
+        'nama_lengkap', 'nama_singkat', 'nik', 'nisn', 'tmp_lahir', 'tgl_lahir',
         'jk', 'anak_ke', 'j_saudara', 'tipe_santri', 'no_hp_santri', 'email_santri',
         'agama', 'cita_cita', 'hobi', 'kebutuhan_khusus', 'kebutuhan_disabilitas', 'nomor_kip',
         'no_kk', 'kewarganegaraan', 'bahasa_sehari', 'status_tempat_tinggal',
@@ -33,13 +39,10 @@ class Santri extends Model
     ];
 
     protected $fillable = [
-        'lembaga_id',
-        'kelas_id',
         'nama_lengkap',
         'nama_singkat',
         'nik',
         'nisn',
-        'nis',
         'tmp_lahir', // ref_tmp_lahir
         'tgl_lahir',
         'jk',
@@ -105,19 +108,21 @@ class Santri extends Model
         'alamat',
         'kode_pos',
         'foto_url',
-        'status_global', // boolean: true=aktif, false=non-aktif
+        'status_global', // turunan: ada riwayat aktif
     ];
 
     protected $casts = ['status_global' => 'boolean', 'tgl_lahir' => 'date', 'ayah_tgl_lahir' => 'date', 'ibu_tgl_lahir' => 'date', 'wali_tgl_lahir' => 'date', 'tanggal_masuk' => 'date'];
 
-    public function lembaga(): BelongsTo
+    /** Keanggotaan per lembaga (semua baris, termasuk riwayat lama). */
+    public function lembagaSantri(): HasMany
     {
-        return $this->belongsTo(Lembaga::class, 'lembaga_id');
+        return $this->hasMany(LembagaSantri::class, 'santri_id');
     }
 
-    public function kelas(): BelongsTo
+    /** Keanggotaan yang sedang aktif. */
+    public function lembagaAktif(): HasMany
     {
-        return $this->belongsTo(Kelas::class, 'kelas_id');
+        return $this->hasMany(LembagaSantri::class, 'santri_id')->where('is_active', true);
     }
 
     public function riwayatBelajar(): HasMany
@@ -125,7 +130,7 @@ class Santri extends Model
         return $this->hasMany(RiwayatBelajar::class, 'santri_id')->orderBy('id', 'desc');
     }
 
-    // Dipakai authorizeTenant 102 (riwayat berjalan di lembaga admin).
+    /** Dipakai otorisasi aksi per lembaga (riwayat berjalan di lembaga admin). */
     public function riwayatAktif(): HasMany
     {
         return $this->hasMany(RiwayatBelajar::class, 'santri_id')->where('is_aktif', true);
@@ -153,9 +158,10 @@ class Santri extends Model
         return $this->hasMany(Alumni::class, 'santri_id');
     }
 
-    // Konvensi terkunci: LIST boleh lebar se-pesantren (= semua lembaga), AKSI ketat AND per-lembaga (102/200).
-    // Guard: guru/orang_tua/santri/kasir tidak boleh list santri via endpoint admin (akses via endpoint khusus relasi).
-    // Kasir hanya lembaganya untuk pembayaran (cek via canAccessLembaga di 103); admin full + super_admin semua.
+    /**
+     * Scope tenant: admin scoped melihat santri yang punya keanggotaan di
+     * lembaganya + santri tanpa keanggotaan sama sekali (arsip pusat/belum diterima).
+     */
     public function scopeTenantScope(Builder $query): Builder
     {
         $authUser = auth()->user();
@@ -168,31 +174,18 @@ class Santri extends Model
             return $query->whereRaw('1 = 0');
         }
 
-        // Single-tenant: tenant = lembaga via pivot user_lembaga.
-        // Santri legacy (lembaga_id NULL) = arsip pusat → terlihat semua admin (v1.10).
+        $ids = $authUser->lembagaIds();
+
         return $query->where(fn (Builder $q) => $q
-            ->whereIn('lembaga_id', $authUser->lembagaIds())
-            ->orWhereNull('lembaga_id'));
+            ->whereHas('lembagaSantri', fn (Builder $ls) => $ls->whereIn('lembaga_id', $ids))
+            ->orWhereDoesntHave('lembagaSantri'));
     }
 
-    /** NIS WAJIB unik: dicek ke master santri + arsip riwayat_belajar santri lain.
-     *  $kecualiSantriId dipakai saat memperbarui santri yang sama (import/kenaikan). */
-    public static function nisDipakai(?string $nis, ?int $kecualiSantriId = null): bool
+    /** Hitung ulang `status_global` dari riwayat aktif (invariant turunan). */
+    public function hitungUlangStatusGlobal(): void
     {
-        $nis = $nis !== null ? trim($nis) : '';
-        if ($nis === '') {
-            return false;
-        }
-
-        $dipakaiMaster = static::where('nis', $nis)
-            ->when($kecualiSantriId, fn (Builder $q) => $q->where('id', '!=', $kecualiSantriId))
-            ->exists();
-        if ($dipakaiMaster) {
-            return true;
-        }
-
-        return RiwayatBelajar::where('nis', $nis)
-            ->when($kecualiSantriId, fn (Builder $q) => $q->where('santri_id', '!=', $kecualiSantriId))
-            ->exists();
+        $this->update([
+            'status_global' => RiwayatBelajar::where('santri_id', $this->id)->where('is_aktif', true)->exists(),
+        ]);
     }
 }

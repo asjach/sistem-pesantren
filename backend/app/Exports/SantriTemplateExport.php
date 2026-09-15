@@ -3,7 +3,6 @@
 namespace App\Exports;
 
 use App\Imports\SantriLengkapImport;
-use App\Models\Kelas;
 use App\Models\Santri;
 use App\Services\RefService;
 use Maatwebsite\Excel\Concerns\FromArray;
@@ -77,7 +76,7 @@ class SantriTemplateExport extends DefaultValueBinder implements FromArray, With
         'desa_kelurahan' => 'desa_kelurahan',
     ];
 
-    public function __construct(private ?int $lembagaId = null, private ?int $tahunAjaranId = null) {}
+    public function __construct(private ?int $lembagaId = null) {}
 
     public function bindValue(Cell $cell, $value): bool
     {
@@ -89,17 +88,15 @@ class SantriTemplateExport extends DefaultValueBinder implements FromArray, With
     /** Satu sumber daftar kolom (dipakai heading, baris contoh, & validasi). */
     public static function kolom(): array
     {
-        return array_merge(
-            ['lembaga_id', 'kelas_id', 'tingkat', 'no_absen'],
-            Santri::KOLOM_PROFIL,
-        );
+        // Buku induk: identitas saja — tanpa kolom penempatan/status.
+        return Santri::KOLOM_PROFIL;
     }
 
     /** Kolom wajib = rule import bertanda `required` (satu sumber kebenaran). */
     public static function kolomWajib(): array
     {
         $wajib = [];
-        foreach ((new SantriLengkapImport(null))->rules() as $kolom => $aturan) {
+        foreach ((new SantriLengkapImport)->rules() as $kolom => $aturan) {
             if (in_array('required', $aturan, true)) {
                 $wajib[] = $kolom;
             }
@@ -127,15 +124,6 @@ class SantriTemplateExport extends DefaultValueBinder implements FromArray, With
             }
         }
 
-        // Dropdown nama kelas: hanya bila lingkup (lembaga + tahun ajaran)
-        // diketahui — kolom `kelas_id` menerima nama kelas atau id.
-        if ($this->lembagaId !== null && $this->tahunAjaranId !== null) {
-            $pilihan['kelas_id'] = Kelas::where('lembaga_id', $this->lembagaId)
-                ->where('tahun_ajaran_id', $this->tahunAjaranId)
-                ->orderBy('tingkat')->orderBy('nama_kelas')
-                ->pluck('nama_kelas')->unique()->values()->all();
-        }
-
         return $pilihan;
     }
 
@@ -156,7 +144,6 @@ class SantriTemplateExport extends DefaultValueBinder implements FromArray, With
             'nama_singkat' => 'Ahmad',
             'nik' => '1234567890123456',
             'nisn' => '1234567890',
-            'nis' => '26001',
             'jk' => 'L',
             'tgl_lahir' => '2015-07-01',
             'tmp_lahir' => 'Bangkalan',

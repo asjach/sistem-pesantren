@@ -3,10 +3,14 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\AkunKas;
 use App\Models\Pembayaran;
+use App\Models\Santri;
 use App\Models\Tagihan;
 use App\Services\KeuanganService;
+use App\Services\RefService;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class KeuanganController extends Controller
 {
@@ -20,15 +24,19 @@ class KeuanganController extends Controller
     // List Tagihan Aktif Per Santri — cek tenant lembaga via policy.
     public function getTagihanSantri(Request $request, $santriId)
     {
-        $santri = \App\Models\Santri::findOrFail($santriId);
+        $santri = Santri::findOrFail($santriId);
         $contoh = Tagihan::where('santri_id', $santriId)->first();
         if ($contoh) {
             $this->authorize('view', $contoh);
         } else {
-            // Belum ada tagihan: tenant via lembaga santri (tanpa pesantren_id).
+            // Belum ada tagihan: tenant via keanggotaan santri (lembaga_santri).
             $actor = $request->user();
             if (! $actor->hasRole('super_admin') && ! $actor->isAdminFull()) {
-                if (! $santri->lembaga_id || ! $actor->canAccessLembaga((int) $santri->lembaga_id)) abort(403);
+                $boleh = $santri->lembagaSantri()->pluck('lembaga_id')
+                    ->contains(fn ($id) => $actor->canAccessLembaga((int) $id));
+                if (! $boleh) {
+                    abort(403);
+                }
             }
         }
         $tagihan = Tagihan::with('posKeuangan')
@@ -77,23 +85,27 @@ class KeuanganController extends Controller
         $data['user_id'] = $actor->id;
         // Validasi kamus: metode + kategori kas via RefService efektif (fallback string bebas bila ragu).
         try {
-            if (class_exists(\App\Services\RefService::class)) {
-                $lembagaKas = \App\Models\AkunKas::findOrFail($data['akun_kas_id'])->lembaga_id;
+            if (class_exists(RefService::class)) {
+                $lembagaKas = AkunKas::findOrFail($data['akun_kas_id'])->lembaga_id;
                 $daftar = array_merge(
-                    \App\Services\RefService::kodeAktif('metode_pembayaran', $lembagaKas ? (int) $lembagaKas : null),
-                    \App\Services\RefService::kodeAktif('metode_pembayaran', null)
+                    RefService::kodeAktif('metode_pembayaran', $lembagaKas ? (int) $lembagaKas : null),
+                    RefService::kodeAktif('metode_pembayaran', null)
                 );
-                if (! in_array($data['metode_pembayaran'], $daftar, true)) abort(422, 'Metode pembayaran tidak dikenal.');
+                if (! in_array($data['metode_pembayaran'], $daftar, true)) {
+                    abort(422, 'Metode pembayaran tidak dikenal.');
+                }
             }
-        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+        } catch (HttpException $e) {
             throw $e;
         } catch (\Throwable $e) {
             // Ragu (kamus tidak tersedia) → string bebas max 50 (sudah divalidasi di atas).
         }
         // Kasir hanya kas lembaganya; kas pusat (lembaga_id null) hanya admin full.
-        $kas = \App\Models\AkunKas::findOrFail($data['akun_kas_id']);
+        $kas = AkunKas::findOrFail($data['akun_kas_id']);
         if (! $actor->hasRole('super_admin') && ! $actor->isAdminFull()) {
-            if (is_null($kas->lembaga_id) || ! $this->canLembaga($actor, (int) $kas->lembaga_id)) abort(403, 'Kas di luar lembaga Anda.');
+            if (is_null($kas->lembaga_id) || ! $this->canLembaga($actor, (int) $kas->lembaga_id)) {
+                abort(403, 'Kas di luar lembaga Anda.');
+            }
         }
         foreach ($data['items'] as $item) {
             $this->authorize('bayar', Tagihan::findOrFail($item['tagihan_id']));
@@ -122,7 +134,9 @@ class KeuanganController extends Controller
     // Choke point tenant: alias resmi canAccessLembaga (admin full/super_admin semua).
     protected function canLembaga($actor, int $lembagaId): bool
     {
-        if ($actor->hasRole('super_admin') || $actor->isAdminFull()) return true;
+        if ($actor->hasRole('super_admin') || $actor->isAdminFull()) {
+            return true;
+        }
 
         return $actor->canAccessLembaga($lembagaId);
     }

@@ -2,11 +2,13 @@
 
 use App\Http\Controllers\Api\Admin\KelasController;
 use App\Http\Controllers\Api\Admin\LembagaController;
+use App\Http\Controllers\Api\Admin\LembagaSantriController;
 use App\Http\Controllers\Api\Admin\PosKeuanganController;
 use App\Http\Controllers\Api\Admin\PresetTabelController;
 use App\Http\Controllers\Api\Admin\PsbBiayaController;
 use App\Http\Controllers\Api\Admin\PsbKegiatanController;
 use App\Http\Controllers\Api\Admin\ReferensiController;
+use App\Http\Controllers\Api\Admin\RiwayatBelajarController;
 use App\Http\Controllers\Api\Admin\SantriController;
 use App\Http\Controllers\Api\Admin\SiklusController;
 use App\Http\Controllers\Api\Admin\TahunAjaranController;
@@ -71,17 +73,31 @@ Route::middleware(['auth:sanctum', 'role:super_admin|admin', 'throttle:api_user'
         Route::post('santri/{santri}/dokumen', [SantriController::class, 'uploadDokumen']);
         Route::post('santri/{santri}/dokumen/{dokumen}/tidak-memiliki', [SantriController::class, 'tidakMemiliki']);
 
-        // Siklus status santri (102: naik/tinggal/pindah kelas, mutasi, lulus, alumni)
-        Route::get('riwayat', [SiklusController::class, 'riwayatIndex']);
+        // Keanggotaan per lembaga (buku induk: NIS lokal/kemenag, status, tanggal)
+        Route::get('santri/{santri}/lembaga', [LembagaSantriController::class, 'index']);
+        Route::post('santri/{santri}/lembaga', [LembagaSantriController::class, 'store']);
+        Route::patch('lembaga-santri/{lembagaSantri}', [LembagaSantriController::class, 'update']);
+        Route::post('lembaga-santri/{lembagaSantri}/generate-nisk', [LembagaSantriController::class, 'generateNisk']);
+
+        // Riwayat belajar (102): roster + dialog input + import terpisah
+        Route::get('riwayat-belajar', [RiwayatBelajarController::class, 'index']);
+        Route::post('riwayat-belajar', [RiwayatBelajarController::class, 'store']);
+        Route::get('riwayat-belajar/import-template', [RiwayatBelajarController::class, 'template']);
+        Route::post('riwayat-belajar/import-periksa', [RiwayatBelajarController::class, 'periksaImport'])->middleware('throttle:imports');
+        Route::post('riwayat-belajar/import-lengkap', [RiwayatBelajarController::class, 'importLengkap'])->middleware('throttle:imports');
+        Route::post('riwayat-belajar/{riwayat}/pindah-kelas', [RiwayatBelajarController::class, 'pindahKelas']);
+        Route::post('riwayat-belajar/{riwayat}/set-kelas', [RiwayatBelajarController::class, 'setKelas']);
+        Route::post('riwayat-belajar/{riwayat}/keluar-kelas', [RiwayatBelajarController::class, 'keluarKelas']);
+
+        // Siklus akademik (kenaikan, kelulusan, mutasi keluar, rekap)
         Route::post('akademik/naik-kelas', [SiklusController::class, 'naikKelasMassal']);
         Route::post('akademik/salin-genap', [SiklusController::class, 'salinGenapMassal']);
-        Route::get('akademik/rekap-penempatan', [SiklusController::class, 'rekapPenempatan']);
-        Route::post('riwayat/{riwayat}/pindah-kelas', [SiklusController::class, 'pindahKelas']);
-        Route::post('riwayat/{riwayat}/set-kelas', [SiklusController::class, 'setKelas']);
-        Route::post('riwayat/{riwayat}/keluar-kelas', [SiklusController::class, 'keluarKelas']);
-        Route::post('santri/{santri}/berhenti-jenjang', [SiklusController::class, 'berhentiJenjang']);
-        Route::post('santri/{santri}/mutasi', [SiklusController::class, 'mutasiKeluar']);
+        Route::get('akademik/daftar-kelas', [SiklusController::class, 'daftarKelas']);
+        Route::get('akademik/rekap-santri', [SiklusController::class, 'rekapSantri']);
         Route::post('santri/{santri}/lulus', [SiklusController::class, 'lulus']);
+        Route::post('santri/{santri}/tidak-lulus', [SiklusController::class, 'tidakLulus']);
+        Route::post('santri/{santri}/mutasi', [SiklusController::class, 'mutasiKeluar']);
+        Route::post('santri/{santri}/berhenti-jenjang', [SiklusController::class, 'berhentiJenjang']);
         Route::get('santri/{santri}/profil', [SiklusController::class, 'profilSantri']);
         Route::get('mutasi-keluar', [SiklusController::class, 'getMutasiKeluar']);
         Route::get('alumni', [SiklusController::class, 'getAlumni']);

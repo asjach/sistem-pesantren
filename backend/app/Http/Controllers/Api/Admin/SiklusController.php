@@ -6,7 +6,6 @@ use App\Http\Controllers\Api\Concerns\TenantGuard;
 use App\Http\Controllers\Controller;
 use App\Models\Alumni;
 use App\Models\Kelas;
-use App\Models\Lembaga;
 use App\Models\MutasiKeluar;
 use App\Models\RiwayatBelajar;
 use App\Models\Santri;
@@ -16,112 +15,19 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
-// 102 Fase C: HTTP tipis di atas SiklusSantriService (Fase B, jangan diubah).
-// Tenant AND ketat per aksi: canAccessLembaga(target) + riwayat aktif santri di target
-// (keputusan: aksi per-lembaga, bukan per primer santri — admin sekunder paket sah memproses
-// baris lembaganya). Routes di belakang middleware role:super_admin|admin.
+/**
+ * Siklus akademik santri: salin genap, kenaikan, kelulusan, mutasi keluar,
+ * berhenti jenjang, daftar kelas, rekap, dan profil santri.
+ */
 class SiklusController extends Controller
 {
     use TenantGuard;
 
-    protected SiklusSantriService $siklusService;
+    public function __construct(private SiklusSantriService $siklusService) {}
 
-    public function __construct(SiklusSantriService $siklusService)
-    {
-        $this->siklusService = $siklusService;
-    }
+    // ---------------- Salin genap ----------------
 
-    /**
-     * Gerbang AND per-lembaga: actor boleh akses target + (full/super Admin
-     * atau santri punya riwayat aktif di target). Primer santri tidak dipakai.
-     */
-    protected function authorizeAksiLembaga(Request $request, Santri $santri, int $target): void
-    {
-        $this->authorizeLembaga($request->user(), $target);
-        $auth = $request->user();
-        if ($auth->hasRole('super_admin') || $auth->isAdminFull()) {
-            return;
-        }
-        $punya = RiwayatBelajar::where('santri_id', $santri->id)
-            ->where('lembaga_id', $target)
-            ->where('is_aktif', true)
-            ->exists();
-        if (! $punya) {
-            abort(403, 'Akses ditolak.');
-        }
-    }
-
-    /** Target aksi siklus wajib lembaga operasional (bukan root pesantren). */
-    protected function tolakLembagaRoot(int $lembagaId): void
-    {
-        if (! Lembaga::where('id', $lembagaId)->whereNotNull('parent_id')->exists()) {
-            throw ValidationException::withMessages(['lembaga_id' => 'Lembaga harus lembaga operasional (bukan induk pesantren).']);
-        }
-    }
-
-    /** TA wajib milik lembaga target bila lembaga itu punya TA sendiri. */
-    protected function cekTaSelembaga(int $lembagaId, int $taId, string $field = 'tahun_ajaran_id'): void
-    {
-        if (TahunAjaran::where('lembaga_id', $lembagaId)->exists()
-            && ! TahunAjaran::where('id', $taId)->where('lembaga_id', $lembagaId)->exists()
-        ) {
-            throw ValidationException::withMessages([$field => 'Tahun ajaran bukan milik lembaga ini.']);
-        }
-    }
-
-    // GET /api/admin/riwayat — roster baris riwayat untuk layar siklus (default hanya aktif).
-    // Filter: lembaga_id, tahun_ajaran_id, semester, tingkat, kelas_id, tanpa_kelas=1, q (nama/NIS).
-    public function riwayatIndex(Request $request): JsonResponse
-    {
-        $this->authorize('viewAny', Santri::class);
-
-        $query = $this->scopeLembaga(
-            RiwayatBelajar::with([
-                'santri:id,nama_lengkap,nis,jk',
-                'kelas:id,nama_kelas,tingkat',
-                'lembaga:id,nama,kode',
-                'tahunAjaran:id,nama',
-            ]),
-            $request->user(),
-            $request
-        );
-
-        $query->where('is_aktif', $request->boolean('is_aktif', true));
-        if ($request->filled('tahun_ajaran_id')) {
-            $query->where('tahun_ajaran_id', $request->input('tahun_ajaran_id'));
-        }
-        if ($request->filled('semester')) {
-            $query->where('semester', $request->input('semester'));
-        }
-        if ($request->filled('tingkat')) {
-            $query->where('tingkat', $request->input('tingkat'));
-        }
-        if ($request->filled('kelas_id')) {
-            $query->where('kelas_id', $request->input('kelas_id'));
-        }
-        // Arsip: filter status_akhir (mis. 'aktif' = baris berhenti tertutup).
-        if ($request->filled('status_akhir')) {
-            $query->where('status_akhir', $request->input('status_akhir'));
-        }
-        if ($request->boolean('tanpa_kelas')) {
-            $query->whereNull('kelas_id');
-        }
-        if ($request->filled('q')) {
-            $q = $request->input('q');
-            $query->whereHas('santri', fn ($s) => $s
-                ->where('nama_lengkap', 'like', "%{$q}%")
-                ->orWhere('nis', 'like', "%{$q}%"));
-        }
-
-        return response()->json(
-            $query->orderBy('lembaga_id')->orderBy('tingkat')->orderBy('kelas_id')
-                ->orderBy('no_absen')->orderBy('santri_id')
-                ->paginate($this->perPage($request))
-        );
-    }
-
-    // POST /api/admin/akademik/salin-genap — salin ganjil→genap massal per lembaga.
-    // Tanpa `siswa` = semua baris ganjil aktif di lembaga; per-item partial seperti naik-kelas.
+    /** POST /api/admin/akademik/salin-genap — massal per lembaga (partial per-item). */
     public function salinGenapMassal(Request $request): JsonResponse
     {
         $this->authorize('viewAny', Santri::class);
@@ -170,7 +76,7 @@ class SiklusController extends Controller
         return response()->json(['pesan' => 'Salin ke genap selesai.', 'berhasil' => $ok, 'gagal' => $gagal]);
     }
 
-    /** Guard kelas pengganti salin genap: wajib se-lembaga & se-tahun dengan baris ganjil aktif. */
+    /** Guard kelas pengganti salin genap: wajib se-lembaga & se-tahun dengan baris aktif. */
     protected function cekKelasGenap(Santri $santri, int $lembagaId, ?int $kelasId): void
     {
         if ($kelasId === null) {
@@ -188,10 +94,9 @@ class SiklusController extends Controller
         }
     }
 
-    // ---------- Siklus status santri ----------
+    // ---------------- Kenaikan / kelulusan ----------------
 
-    // POST /api/admin/akademik/naik-kelas — satu batch = 1 lembaga + 1 tahun + 1 tingkat.
-    // Per-item partial: gagal satu tidak menggagalkan lainnya.
+    /** POST /api/admin/akademik/naik-kelas — batch = 1 lembaga + 1 tahun + 1 tingkat. */
     public function naikKelasMassal(Request $request): JsonResponse
     {
         $this->authorize('viewAny', Santri::class);
@@ -202,7 +107,6 @@ class SiklusController extends Controller
             'tingkat' => 'required|string',
             'siswa' => 'required|array|min:1',
             'siswa.*.santri_id' => 'required|exists:santri,id',
-            'siswa.*.nis' => 'nullable|string|max:20',
             'siswa.*.status' => 'required|in:naik,tidak_naik',
             'siswa.*.tgl_masuk' => 'nullable|date',
             'siswa.*.no_absen' => 'nullable|integer|min:1',
@@ -226,7 +130,6 @@ class SiklusController extends Controller
                     $tahunBaruId,
                     $tingkat,
                     $item['status'],
-                    $item['nis'] ?? null,
                     $item['tgl_masuk'] ?? null,
                     isset($item['no_absen']) ? (int) $item['no_absen'] : null
                 );
@@ -239,64 +142,57 @@ class SiklusController extends Controller
         return response()->json(['pesan' => 'Proses kenaikan selesai.', 'berhasil' => $ok, 'gagal' => $gagal]);
     }
 
-    // POST /api/admin/riwayat/{riwayat}/pindah-kelas — Body {"kelas_baru_id":6}.
-    public function pindahKelas(Request $request, RiwayatBelajar $riwayat): JsonResponse
+    /** POST /api/admin/santri/{santri}/lulus — kelulusan per lembaga (+arsip alumni). */
+    public function lulus(Request $request, Santri $santri): JsonResponse
     {
-        $this->authorizeAksiLembaga($request, $riwayat->santri, (int) $riwayat->lembaga_id);
+        $data = $request->validate([
+            'lembaga_id' => 'required|exists:lembaga,id',
+            'tahun_ajaran_lulus_id' => 'required|exists:tahun_ajaran,id',
+            'tanggal_lulus' => 'required|date',
+            'nomor_ijazah' => ['nullable', 'string'],
+            'no_surat_ijazah' => ['nullable', 'string', 'max:50'],
+            'kegiatan_setelah_lulus' => ['nullable', 'string'],
+            'penyerahan_ijazah' => ['nullable', 'in:sudah,belum'],
+            'melanjutkan' => ['nullable', 'in:ya,tidak'],
+        ]);
 
-        $data = $request->validate(['kelas_baru_id' => 'required|exists:kelas,id']);
+        $this->tolakLembagaRoot((int) $data['lembaga_id']);
+        $this->cekTaSelembaga((int) $data['lembaga_id'], (int) $data['tahun_ajaran_lulus_id'], 'tahun_ajaran_lulus_id');
+        $this->authorizeAksiLembaga($request, $santri, (int) $data['lembaga_id']);
+
+        $alumni = $this->siklusService->prosesLulusPerLembaga($santri, (int) $data['lembaga_id'], $data);
 
         return response()->json([
-            'pesan' => 'Santri berhasil dipindah kelas.',
-            'data' => $this->siklusService->pindahKelas($riwayat, (int) $data['kelas_baru_id']),
+            'pesan' => 'Santri dinyatakan lulus dan masuk data alumni.',
+            'data' => $alumni,
         ]);
     }
 
-    // POST /api/admin/riwayat/{riwayat}/set-kelas — Body {"kelas_id":6} (penempatan menyusul).
-    public function setKelas(Request $request, RiwayatBelajar $riwayat): JsonResponse
-    {
-        $this->authorizeAksiLembaga($request, $riwayat->santri, (int) $riwayat->lembaga_id);
-
-        $data = $request->validate(['kelas_id' => 'required|exists:kelas,id']);
-
-        return response()->json([
-            'pesan' => 'Kelas berhasil ditetapkan.',
-            'data' => $this->siklusService->setKelas($riwayat, (int) $data['kelas_id']),
-        ]);
-    }
-
-    // POST /api/admin/riwayat/{riwayat}/keluar-kelas — batalkan penempatan (kelas_id=NULL).
-    public function keluarKelas(Request $request, RiwayatBelajar $riwayat): JsonResponse
-    {
-        $this->authorizeAksiLembaga($request, $riwayat->santri, (int) $riwayat->lembaga_id);
-
-        return response()->json([
-            'pesan' => 'Santri dikeluarkan dari kelas.',
-            'data' => $this->siklusService->keluarKelas($riwayat),
-        ]);
-    }
-
-    // POST /api/admin/santri/{santri}/berhenti-jenjang — Body {"lembaga_id":3}.
-    public function berhentiJenjang(Request $request, Santri $santri): JsonResponse
+    /** POST /api/admin/santri/{santri}/tidak-lulus — buka riwayat mengulang TA berikut. */
+    public function tidakLulus(Request $request, Santri $santri): JsonResponse
     {
         $data = $request->validate(['lembaga_id' => 'required|exists:lembaga,id']);
 
         $this->tolakLembagaRoot((int) $data['lembaga_id']);
         $this->authorizeAksiLembaga($request, $santri, (int) $data['lembaga_id']);
 
-        $this->siklusService->nonAktifkanRiwayat($santri, (int) $data['lembaga_id']);
+        $riwayat = $this->siklusService->prosesTidakLulus($santri, (int) $data['lembaga_id']);
 
-        return response()->json(['pesan' => 'Riwayat jenjang dinonaktifkan.', 'data' => $santri->fresh()]);
+        return response()->json([
+            'pesan' => 'Santri tidak lulus; riwayat mengulang tapel berikut dibuka.',
+            'data' => $riwayat,
+        ]);
     }
 
-    // POST /api/admin/santri/{santri}/mutasi — mutasi keluar per lembaga.
+    // ---------------- Mutasi / berhenti ----------------
+
+    /** POST /api/admin/santri/{santri}/mutasi — mutasi keluar per lembaga. */
     public function mutasiKeluar(Request $request, Santri $santri): JsonResponse
     {
         $data = $request->validate([
             'lembaga_id' => 'required|exists:lembaga,id',
-            'kelas_terakhir_id' => 'required|exists:kelas,id',
             'tanggal_mutasi' => 'required|date',
-            'alasan_mutasi' => 'required|string|max:50',
+            'alasan_mutasi' => 'required|string|max:100',
             'no_surat' => 'nullable|string|max:50',
             'nama_sekolah_tujuan' => 'nullable|string|max:255',
             'npsn_sekolah_tujuan' => 'nullable|string|max:20',
@@ -316,65 +212,44 @@ class SiklusController extends Controller
         ]);
     }
 
-    // POST /api/admin/santri/{santri}/lulus — kelulusan per lembaga + baris alumni.
-    public function lulus(Request $request, Santri $santri): JsonResponse
+    /** POST /api/admin/santri/{santri}/berhenti-jenjang — tutup satu jenjang (paket). */
+    public function berhentiJenjang(Request $request, Santri $santri): JsonResponse
     {
-        $data = $request->validate([
-            'lembaga_id' => 'required|exists:lembaga,id',
-            'tahun_ajaran_lulus_id' => 'required|exists:tahun_ajaran,id',
-            'tanggal_lulus' => 'required|date',
-            'hasil' => ['nullable', 'in:lulus,tidak_lulus'], // absen = lulus
-            'nomor_ijazah' => ['nullable', 'required_if:hasil,lulus', 'string'],
-            'no_surat_ijazah' => ['nullable', 'string', 'max:50'],
-            'kegiatan_setelah_lulus' => ['nullable', 'string'],
-            'penyerahan_ijazah' => ['nullable', 'in:sudah,belum'],
-            'melanjutkan' => ['nullable', 'in:ya,tidak'],
-        ]);
+        $data = $request->validate(['lembaga_id' => 'required|exists:lembaga,id']);
 
         $this->tolakLembagaRoot((int) $data['lembaga_id']);
-        $this->cekTaSelembaga((int) $data['lembaga_id'], (int) $data['tahun_ajaran_lulus_id'], 'tahun_ajaran_lulus_id');
         $this->authorizeAksiLembaga($request, $santri, (int) $data['lembaga_id']);
 
-        if (($data['hasil'] ?? 'lulus') === 'tidak_lulus') {
-            // Tidak lulus: tutup baris + buka baris tapel-berikut mengulang (tanpa baris alumni).
-            $riwayat = $this->siklusService->prosesTidakLulus($santri, (int) $data['lembaga_id'], $data);
+        $this->siklusService->nonAktifkanRiwayat($santri, (int) $data['lembaga_id']);
 
-            return response()->json([
-                'pesan' => 'Santri tidak lulus; riwayat mengulang tapel berikut dibuka.',
-                'data' => $riwayat,
-            ]);
-        }
-
-        $alumni = $this->siklusService->prosesLulusPerLembaga($santri, (int) $data['lembaga_id'], $data);
-
-        return response()->json([
-            'pesan' => 'Santri berhasil diproses lulus dan masuk ke data Alumni.',
-            'data' => $alumni,
-        ]);
+        return response()->json(['pesan' => 'Riwayat jenjang dinonaktifkan.', 'data' => $santri->fresh()]);
     }
 
-    // GET /api/admin/mutasi-keluar — terskop tenant lembaga via scopeTenantScope.
+    // ---------------- Daftar & arsip ----------------
+
+    /** GET /api/admin/mutasi-keluar — arsip mutasi (terskop tenant). */
     public function getMutasiKeluar(Request $request): JsonResponse
     {
         $this->authorize('viewAny', Santri::class);
 
         $mutasi = MutasiKeluar::tenantScope()
-            ->with(['santri', 'lembaga', 'kelasTerakhir'])
-            ->when($request->filled('lembaga_id'), fn ($q) => $q->where('lembaga_id', $request->input('lembaga_id')))
+            ->with(['santri:id,nama_lengkap,nisn', 'lembaga:id,nama,kode', 'kelasTerakhir:id,nama_kelas'])
+            ->when($request->filled('lembaga_id'), fn ($q) => $q->where('lembaga_id', $request->integer('lembaga_id')))
             ->latest('id')
             ->paginate($this->perPage($request));
 
         return response()->json($mutasi);
     }
 
-    // GET /api/admin/alumni — terskop tenant lembaga via scopeTenantScope (kolom lembaga_lulus_id).
+    /** GET /api/admin/alumni — arsip alumni (terskop tenant via lembaga lulus). */
     public function getAlumni(Request $request): JsonResponse
     {
         $this->authorize('viewAny', Santri::class);
 
         $alumni = Alumni::tenantScope()
-            ->with(['santri', 'lembagaLulus', 'tahunAjaranLulus'])
-            ->when($request->filled('tahun_ajaran_lulus_id'), fn ($q) => $q->where('tahun_ajaran_lulus_id', $request->input('tahun_ajaran_lulus_id')))
+            ->with(['santri:id,nama_lengkap,nisn', 'lembagaLulus:id,nama,kode', 'tahunAjaranLulus:id,nama'])
+            ->when($request->filled('lembaga_id'), fn ($q) => $q->where('lembaga_lulus_id', $request->integer('lembaga_id')))
+            ->when($request->filled('tahun_ajaran_lulus_id'), fn ($q) => $q->where('tahun_ajaran_lulus_id', $request->integer('tahun_ajaran_lulus_id')))
             ->latest('id')
             ->paginate($this->perPage($request));
 
@@ -382,63 +257,186 @@ class SiklusController extends Controller
     }
 
     /**
-     * GET /api/admin/akademik/rekap-penempatan — isi vs kapasitas per kelas.
-     * Filter: lembaga_id, tahun_ajaran_id, semester. Terskop tenant.
+     * GET /api/admin/akademik/daftar-kelas — santri aktif pada TA (default TA aktif
+     * lembaga) dan semester (default semester berjalan) — sumber halaman Daftar Kelas.
      */
-    public function rekapPenempatan(Request $request): JsonResponse
+    public function daftarKelas(Request $request): JsonResponse
+    {
+        $this->authorize('viewAny', Santri::class);
+
+        $data = $request->validate([
+            'lembaga_id' => ['required', 'integer', 'exists:lembaga,id'],
+            'tahun_ajaran_id' => ['nullable', 'integer', 'exists:tahun_ajaran,id'],
+            'semester' => ['nullable', 'in:1,2'],
+            'kelas_id' => ['nullable', 'integer', 'exists:kelas,id'],
+            'tingkat' => ['nullable', 'string'],
+        ]);
+        $lembagaId = (int) $data['lembaga_id'];
+        $this->authorizeLembaga($request->user(), $lembagaId);
+
+        $taId = isset($data['tahun_ajaran_id'])
+            ? (int) $data['tahun_ajaran_id']
+            : (int) (TahunAjaran::where('lembaga_id', $lembagaId)->where('is_aktif', true)->value('id') ?? 0);
+        if ($taId === 0) {
+            return response()->json(['pesan' => 'Tahun ajaran aktif belum ada di lembaga ini.', 'data' => []]);
+        }
+
+        $semester = $data['semester'] ?? (string) (RiwayatBelajar::where('lembaga_id', $lembagaId)
+            ->where('tahun_ajaran_id', $taId)->where('is_aktif', true)
+            ->orderByDesc('semester')->value('semester') ?? '1');
+
+        $query = RiwayatBelajar::with(['santri:id,nama_lengkap,jk', 'kelas:id,nama_kelas,tingkat'])
+            ->where('lembaga_id', $lembagaId)
+            ->where('tahun_ajaran_id', $taId)
+            ->where('semester', $semester)
+            ->where('is_aktif', true);
+
+        if (! empty($data['kelas_id'])) {
+            $query->where('kelas_id', (int) $data['kelas_id']);
+        }
+        if (! empty($data['tingkat'])) {
+            $query->where('tingkat', $data['tingkat']);
+        }
+
+        return response()->json([
+            'lembaga_id' => $lembagaId,
+            'tahun_ajaran_id' => $taId,
+            'semester' => $semester,
+            'data' => $query->orderBy('kelas_id')->orderBy('no_absen')->orderBy('santri_id')->get(),
+        ]);
+    }
+
+    /**
+     * GET /api/admin/akademik/rekap-santri — rekap jumlah santri per tahun ajaran,
+     * per tingkat, per kelas, plus usia per kelas.
+     */
+    public function rekapSantri(Request $request): JsonResponse
     {
         $this->authorize('viewAny', Santri::class);
 
         $data = $request->validate([
             'lembaga_id' => ['nullable', 'integer', 'exists:lembaga,id'],
             'tahun_ajaran_id' => ['nullable', 'integer', 'exists:tahun_ajaran,id'],
-            'semester' => ['nullable', 'in:1,2'],
         ]);
+
+        $riwayatQuery = function () use ($request, $data) {
+            $q = RiwayatBelajar::query()->where('is_aktif', true);
+            $this->scopeLembaga($q, $request->user(), $request, 'lembaga_id');
+            if (! empty($data['tahun_ajaran_id'])) {
+                $q->where('tahun_ajaran_id', (int) $data['tahun_ajaran_id']);
+            }
+
+            return $q;
+        };
+
+        $perTingkat = (clone $riwayatQuery())
+            ->selectRaw('lembaga_id, tingkat, COUNT(*) as jumlah')
+            ->groupBy('lembaga_id', 'tingkat')
+            ->with('lembaga:id,nama,kode')
+            ->get()
+            ->map(fn ($r) => [
+                'lembaga' => $r->lembaga?->kode ?? $r->lembaga?->nama,
+                'tingkat' => $r->tingkat,
+                'jumlah' => (int) $r->jumlah,
+            ])->values()->all();
 
         $kelasQuery = Kelas::query()->with(['lembaga:id,nama,kode', 'tahunAjaran:id,nama']);
         $this->scopeLembaga($kelasQuery, $request->user(), $request, 'lembaga_id');
-        $kelasQuery
-            ->when(! empty($data['tahun_ajaran_id']), fn ($q) => $q->where('tahun_ajaran_id', $data['tahun_ajaran_id']))
-            ->orderBy('lembaga_id')->orderBy('tingkat')->orderBy('nama_kelas');
+        if (! empty($data['tahun_ajaran_id'])) {
+            $kelasQuery->where('tahun_ajaran_id', (int) $data['tahun_ajaran_id']);
+        }
+        $kelas = $kelasQuery->orderBy('lembaga_id')->orderBy('tingkat')->orderBy('nama_kelas')->get();
 
-        $kelas = $kelasQuery->get();
-
-        $terisi = RiwayatBelajar::query()
+        $terisi = (clone $riwayatQuery())
             ->whereIn('kelas_id', $kelas->pluck('id'))
-            ->where('is_aktif', true)
-            ->when(! empty($data['semester']), fn ($q) => $q->where('semester', $data['semester']))
             ->selectRaw('kelas_id, COUNT(*) as jumlah')
             ->groupBy('kelas_id')
             ->pluck('jumlah', 'kelas_id');
 
-        $hasil = $kelas->map(function (Kelas $k) use ($terisi) {
-            $isi = (int) ($terisi[$k->id] ?? 0);
-            $kapasitas = $k->kapasitas !== null ? (int) $k->kapasitas : null;
+        $perKelas = $kelas->map(fn (Kelas $k) => [
+            'kelas_id' => $k->id,
+            'kelas' => $k->nama_kelas,
+            'tingkat' => $k->tingkat,
+            'lembaga' => $k->lembaga?->kode ?? $k->lembaga?->nama,
+            'tahun_ajaran' => $k->tahunAjaran?->nama,
+            'kapasitas' => $k->kapasitas !== null ? (int) $k->kapasitas : null,
+            'terisi' => (int) ($terisi[$k->id] ?? 0),
+            'sisa' => $k->kapasitas !== null ? max(0, (int) $k->kapasitas - (int) ($terisi[$k->id] ?? 0)) : null,
+        ])->values()->all();
 
-            return [
-                'id' => $k->id,
-                'kelas' => $k->nama_kelas,
-                'lembaga' => $k->lembaga?->kode ?? $k->lembaga?->nama,
-                'tahun_ajaran' => $k->tahunAjaran?->nama,
-                'tingkat' => $k->tingkat,
-                'kapasitas' => $kapasitas,
-                'terisi' => $isi,
-                'sisa' => $kapasitas !== null ? max(0, $kapasitas - $isi) : null,
+        // Usia per kelas: rata-rata + sebaran kelompok umur (dari tgl_lahir santri).
+        $usiaPerKelas = [];
+        $riwayatKelas = (clone $riwayatQuery())
+            ->whereNotNull('kelas_id')
+            ->with(['santri:id,tgl_lahir', 'kelas:id,nama_kelas'])
+            ->get()
+            ->groupBy('kelas_id');
+
+        foreach ($riwayatKelas as $kelasId => $baris) {
+            $usia = $baris->map(function (RiwayatBelajar $r) {
+                if (! $r->santri?->tgl_lahir) {
+                    return null;
+                }
+
+                return $r->santri->tgl_lahir->age;
+            })->filter(fn ($u) => $u !== null);
+
+            if ($usia->isEmpty()) {
+                continue;
+            }
+            $kelompok = ['<7' => 0, '7-9' => 0, '10-12' => 0, '13-15' => 0, '>=16' => 0];
+            foreach ($usia as $u) {
+                if ($u < 7) {
+                    $kelompok['<7']++;
+                } elseif ($u <= 9) {
+                    $kelompok['7-9']++;
+                } elseif ($u <= 12) {
+                    $kelompok['10-12']++;
+                } elseif ($u <= 15) {
+                    $kelompok['13-15']++;
+                } else {
+                    $kelompok['>=16']++;
+                }
+            }
+            $usiaPerKelas[] = [
+                'kelas_id' => (int) $kelasId,
+                'kelas' => $baris->first()->kelas?->nama_kelas,
+                'jumlah' => $usia->count(),
+                'rata_usia' => round($usia->avg(), 1),
+                'min' => $usia->min(),
+                'max' => $usia->max(),
+                'kelompok' => $kelompok,
             ];
-        })->values()->all();
+        }
 
-        return response()->json(['data' => $hasil]);
+        $perTahunAjaran = (clone $riwayatQuery())
+            ->selectRaw('tahun_ajaran_id, COUNT(*) as jumlah')
+            ->groupBy('tahun_ajaran_id')
+            ->with('tahunAjaran:id,nama')
+            ->get()
+            ->map(fn ($r) => [
+                'tahun_ajaran_id' => (int) $r->tahun_ajaran_id,
+                'tahun_ajaran' => $r->tahunAjaran?->nama,
+                'jumlah_riwayat_aktif' => (int) $r->jumlah,
+            ])->values()->all();
+
+        return response()->json([
+            'total_aktif' => (int) (clone $riwayatQuery())->count(),
+            'per_tahun_ajaran' => $perTahunAjaran,
+            'per_tingkat' => $perTingkat,
+            'per_kelas' => $perKelas,
+            'usia_per_kelas' => $usiaPerKelas,
+        ]);
     }
 
-    /**
-     * GET /api/admin/santri/{santri}/profil — identitas + riwayat + mutasi + alumni.
-     * Dipakai dialog "Profil Santri" (102). Terskop policy view santri.
-     */
+    /** GET /api/admin/santri/{santri}/profil — identitas + keanggotaan + riwayat + arsip. */
     public function profilSantri(Request $request, Santri $santri): JsonResponse
     {
         $this->authorize('view', $santri);
 
-        $santri->load(['lembaga:id,nama,kode', 'kelas:id,nama_kelas']);
+        $santri->load([
+            'lembagaSantri.lembaga:id,nama,kode,nsm',
+        ]);
         $riwayat = RiwayatBelajar::where('santri_id', $santri->id)
             ->with(['kelas:id,nama_kelas,tingkat', 'lembaga:id,nama,kode', 'tahunAjaran:id,nama'])
             ->orderByDesc('id')->get();
@@ -451,6 +449,7 @@ class SiklusController extends Controller
 
         return response()->json([
             'santri' => $santri,
+            'keanggotaan' => $santri->lembagaSantri,
             'riwayat' => $riwayat,
             'mutasi' => $mutasi,
             'alumni' => $alumni,
