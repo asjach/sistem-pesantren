@@ -15,7 +15,7 @@ import {
   useGridPrefs,
 } from '@/components/GridPrefs';
 import type { RibbonTableApi } from '@/components/RibbonTable';
-import { Copy, MoveHorizontal, Pencil, PlusCircle, RotateCcw } from '@/icons';
+import { MoveHorizontal, Pencil, PlusCircle, RotateCcw } from '@/icons';
 import {
   Select,
   SelectContent,
@@ -141,39 +141,25 @@ export function RibbonTabel({ apiTabel }: { apiTabel: RibbonTableApi | null }) {
 
   return (
     <>
-      <RibbonGroup label="Tabel">
-        <RibbonCmd
-          id="ribbon_btn_input"
-          icon={PlusCircle}
-          label="Input Baris"
-          aktif={!!apiTabel?.showInput}
-          disabled={!apiTabel?.inputEnabled}
-          onClick={() => apiTabel?.setInputMode(!apiTabel.inputMode)}
-        />
-        <RibbonCmd
-          id="ribbon_btn_edit"
-          icon={Pencil}
-          label="Edit Sel"
-          aktif={!!apiTabel?.editing}
-          disabled={!apiTabel?.canEdit}
-          onClick={() => apiTabel?.setEditMode(!apiTabel.editMode)}
-        />
-        <RibbonCmd
-          id="ribbon_btn_salin"
-          icon={Copy}
-          label="Salin TSV"
-          iconOnly
-          disabled={!apiTabel}
-          onClick={() => apiTabel?.salin()}
-        />
-        <RibbonCmd
-          id="ribbon_btn_reset"
-          icon={RotateCcw}
-          label="Reset Tampilan"
-          iconOnly
-          disabled={!apiTabel}
-          onClick={() => apiTabel?.reset()}
-        />
+      <RibbonGroup label="Mode">
+        <div className="flex flex-col items-start gap-1">
+          <RibbonCmd
+            id="ribbon_btn_input"
+            icon={PlusCircle}
+            label="Mode Input"
+            aktif={!!apiTabel?.showInput}
+            disabled={!apiTabel?.inputEnabled}
+            onClick={() => apiTabel?.setInputMode(!apiTabel.inputMode)}
+          />
+          <RibbonCmd
+            id="ribbon_btn_edit"
+            icon={Pencil}
+            label="Mode Edit"
+            aktif={!!apiTabel?.editing}
+            disabled={!apiTabel?.canEdit}
+            onClick={() => apiTabel?.setEditMode(!apiTabel.editMode)}
+          />
+        </div>
       </RibbonGroup>
       <RibbonPemisah />
       <RibbonGroup label="Kolom">

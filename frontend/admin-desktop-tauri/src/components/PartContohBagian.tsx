@@ -35,10 +35,14 @@ export function contohBagian(id: PartId): ReactElement {
     case 'grup_ribbon':
     case 'menu_ribbon':
       return (
-        <div className="flex items-end gap-2 rounded bg-[var(--sidebar-deep)] p-2">
-          <span className="flex h-6 items-center gap-1.5 rounded-md bg-white/20 px-2 text-xs font-semibold text-white">Input Baris</span>
-          <span className="flex h-6 items-center gap-1.5 rounded-md px-2 text-xs text-white/80">Salin TSV</span>
-          <span className="pb-1 text-[10px] uppercase tracking-wide text-white/50">Grup</span>
+        <div className="flex items-start gap-2 rounded bg-[var(--sidebar-deep)] p-2">
+          <div className="flex flex-col items-center gap-1.5">
+            <span className="w-full pb-1 text-center text-[10px] uppercase tracking-wide text-white/50">Grup</span>
+            <div className="flex flex-col items-start gap-1">
+              <span className="flex h-6 items-center rounded-md bg-white/20 px-2 text-xs font-semibold text-white">Mode Input</span>
+              <span className="flex h-6 items-center rounded-md px-2 text-xs text-white/80">Mode Edit</span>
+            </div>
+          </div>
         </div>
       );
     case 'separator':

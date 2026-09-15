@@ -301,7 +301,7 @@ export default function TopBar() {
               ))}
             </div>
           )}
-          <div className="flex min-h-[76px] flex-wrap items-stretch gap-y-1 px-3 py-1.5 md:px-5">
+          <div className="flex min-h-[76px] flex-wrap items-stretch gap-y-2 px-3 py-3 md:px-5">
             {(!banyakTab || tabTools === 'halaman') && <div ref={hostRef} className="contents" />}
             {(!banyakTab || tabTools === 'tabel') && apiTabel && <RibbonTabel apiTabel={apiTabel} />}
           </div>
