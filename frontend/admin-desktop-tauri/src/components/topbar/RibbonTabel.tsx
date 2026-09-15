@@ -1,5 +1,4 @@
 import { DENSITY_PX, type DensityName } from '@/prefs';
-import { cn } from '@/lib/utils';
 import { useTheme } from '@/theme';
 import {
   DEFAULT_FONT_PX,
@@ -16,7 +15,7 @@ import {
   useGridPrefs,
 } from '@/components/GridPrefs';
 import type { RibbonTableApi } from '@/components/RibbonTable';
-import { Pencil, PlusCircle, RotateCcw } from '@/icons';
+import { DensityLarge, DensityMedium, DensitySmall, Pencil, PlusCircle, RotateCcw, type Ikon } from '@/icons';
 import {
   Select,
   SelectContent,
@@ -107,12 +106,12 @@ function WarnaInput({
   );
 }
 
-/** Tinggi tiap item kerapatan dibuat sejajar dengan bagian stepper vertikal
- *  tinggi baris: Ramping ↔ tombol −, Sedang ↔ nilai, Nyaman ↔ tombol +. */
-const KERAPATAN: { id: DensityName; nama: string; tinggi: string }[] = [
-  { id: 'ramping', nama: 'Ramping', tinggi: 'h-4' },
-  { id: 'sedang', nama: 'Sedang', tinggi: 'h-6' },
-  { id: 'nyaman', nama: 'Nyaman', tinggi: 'h-4' },
+/** Item kerapatan (ikon saja — label jadi tooltip). Tinggi seragam `h-6`,
+ *  sejajar dengan tiap baris stepper vertikal. Rapat = banyak baris. */
+const KERAPATAN: { id: DensityName; nama: string; icon: Ikon }[] = [
+  { id: 'ramping', nama: 'Ramping', icon: DensitySmall },
+  { id: 'sedang', nama: 'Sedang', icon: DensityMedium },
+  { id: 'nyaman', nama: 'Nyaman', icon: DensityLarge },
 ];
 
 export function RibbonTabel({ apiTabel }: { apiTabel: RibbonTableApi | null }) {
@@ -166,30 +165,59 @@ export function RibbonTabel({ apiTabel }: { apiTabel: RibbonTableApi | null }) {
       </RibbonGroup>
       <RibbonPemisah />
       <RibbonGroup label="Kolom">
-        <div className="flex items-end gap-1">
-          <div className="flex flex-col items-center gap-1">
-            <span id="label_bekukan_kolom_top" className="text-[10px] leading-none text-white/70">
-              Bekukan kolom
-            </span>
-            <SpinBox
-              id="input_bekukan_kolom_top"
-              value={apiTabel?.freeze ?? 0}
-              min={0}
-              max={apiTabel?.freezeMax ?? 0}
-              title="Bekukan N kolom pertama di kiri (termasuk kolom centang)"
-              ariaLabel="Jumlah kolom beku"
-              onChange={(v) => apiTabel?.setFreeze(v)}
-            />
-          </div>
-          {(apiTabel?.freeze ?? 0) > 0 ? (
+        <div className="flex flex-col items-center gap-1.5">
+          <div className="flex items-end gap-1">
+            <div className="flex flex-col items-center gap-1">
+              <span id="label_bekukan_kolom_top" className="text-[10px] leading-none text-white/70">
+                Bekukan kolom
+              </span>
+              <SpinBox
+                id="input_bekukan_kolom_top"
+                value={apiTabel?.freeze ?? 0}
+                min={0}
+                max={apiTabel?.freezeMax ?? 0}
+                title="Bekukan N kolom pertama di kiri (termasuk kolom centang)"
+                ariaLabel="Jumlah kolom beku"
+                onChange={(v) => apiTabel?.setFreeze(v)}
+              />
+            </div>
+            {/* Selalu tampil; nonaktif bila tidak ada kolom beku (seragam dengan
+                tombol reset lain di grup ini). */}
             <RibbonCmd
               id="btn_lepas_bekukan_kolom_top"
               icon={RotateCcw}
               label="Lepas semua kolom beku"
               iconOnly
+              disabled={(apiTabel?.freeze ?? 0) === 0}
               onClick={() => apiTabel?.setFreeze(0)}
             />
-          ) : null}
+          </div>
+          {/* Tinggi baris header */}
+          <div className="flex flex-col items-center gap-1">
+            <span className="text-[10px] leading-none text-white/70">Tinggi header</span>
+            <div className="flex items-center gap-1">
+              <SpinBox
+                id="input_tinggi_header_top"
+                value={effectiveHeaderH}
+                min={MIN_HEADER_H}
+                max={MAX_HEADER_H}
+                title={headerHManual
+                  ? 'Tinggi baris header (manual, berlaku semua tabel)'
+                  : 'Tinggi baris header (otomatis mengikuti judul)'}
+                ariaLabel="Tinggi baris header (px)"
+                disabled={!apiTabel}
+                onChange={setHeaderH}
+              />
+              <RibbonCmd
+                id="btn_reset_tinggi_header_top"
+                icon={RotateCcw}
+                label="Kembalikan tinggi header ke otomatis"
+                iconOnly
+                disabled={!headerHManual}
+                onClick={() => setHeaderH(null)}
+              />
+            </div>
+          </div>
         </div>
       </RibbonGroup>
       <RibbonPemisah />
@@ -215,12 +243,9 @@ export function RibbonTabel({ apiTabel }: { apiTabel: RibbonTableApi | null }) {
                 value={k.id}
                 title={`Kerapatan ${k.nama}`}
                 aria-label={`Kerapatan ${k.nama}`}
-                className={cn(
-                  'rounded-md border-0 px-2 text-[11px] text-white/75 hover:bg-white/10 hover:text-white data-[state=on]:bg-white/20 data-[state=on]:font-semibold data-[state=on]:text-white',
-                  k.tinggi,
-                )}
+                className="h-6 w-8 rounded-md border-0 px-0 text-white/75 hover:bg-white/10 hover:text-white data-[state=on]:bg-white/20 data-[state=on]:text-white data-[spacing=0]:rounded-md data-[spacing=0]:first:rounded-md data-[spacing=0]:last:rounded-md"
               >
-                {k.nama}
+                <k.icon size={14} />
               </ToggleGroupItem>
             ))}
           </ToggleGroup>
@@ -238,8 +263,20 @@ export function RibbonTabel({ apiTabel }: { apiTabel: RibbonTableApi | null }) {
         </div>
       </RibbonGroup>
       <RibbonPemisah />
-      <RibbonGroup label="Header" disabled={!apiTabel}>
-        <div className="flex flex-col items-center gap-1">
+      <RibbonGroup label="Font & Warna" disabled={!apiTabel}>
+        {/* Kolom stepper & tombol reset dipisah agar judul "Font Size"
+            center tepat di atas stepper-nya, bukan gabungan stepper+reset. */}
+        <div className="grid grid-cols-[auto_11rem_auto_auto_auto_auto] items-center gap-x-3 gap-y-1">
+          {/* Judul kolom */}
+          <span aria-hidden />
+          <span className="text-[10px] uppercase tracking-wide text-white/50">Font</span>
+          <span className="text-center text-[10px] uppercase tracking-wide text-white/50">Font Size</span>
+          <span aria-hidden />
+          <span className="text-center text-[10px] uppercase tracking-wide text-white/50">Color</span>
+          <span className="text-center text-[10px] uppercase tracking-wide text-white/50">Bg-Color</span>
+
+          {/* Header */}
+          <span className="pr-1 text-xs text-white/80">Header</span>
           <PilihFont
             id="select_huruf_header_top"
             value={headerFont}
@@ -247,54 +284,36 @@ export function RibbonTabel({ apiTabel }: { apiTabel: RibbonTableApi | null }) {
             title="Jenis huruf header tabel"
             ariaLabel="Jenis huruf header tabel"
           />
-          <div className="flex items-center gap-1.5">
-            <SpinBox
-              id="input_ukuran_header_top"
-              value={headerSize}
-              min={MIN_FONT_PX}
-              max={MAX_FONT_PX}
-              title="Ukuran huruf header tabel"
-              ariaLabel="Ukuran huruf header tabel (px)"
-              disabled={!apiTabel}
-              onChange={(n) => setGayaBagian('tabel_header', { size: n })}
+          <SpinBox
+            id="input_ukuran_header_top"
+            value={headerSize}
+            min={MIN_FONT_PX}
+            max={MAX_FONT_PX}
+            title="Ukuran huruf header tabel"
+            ariaLabel="Ukuran huruf header tabel (px)"
+            disabled={!apiTabel}
+            onChange={(n) => setGayaBagian('tabel_header', { size: n })}
+          />
+          {/* Tombol reset selalu tampil; nonaktif bila bukan nilai manual.
+              Margin kiri negatif merapatkan ke stepper (kolom terpisah). */}
+          <span className="-ml-2 inline-flex">
+            <RibbonCmd
+              id="btn_reset_ukuran_header_top"
+              icon={RotateCcw}
+              label="Kembalikan ukuran huruf header ke bawaan"
+              iconOnly
+              disabled={!headerSizeManual}
+              onClick={() => setGayaBagian('tabel_header', { size: undefined })}
             />
-            <WarnaInput
-              id="input_warna_header_top"
-              value={headerColor}
-              title="Warna huruf header tabel (mode aktif)"
-              ariaLabel="Warna huruf header tabel"
-              onChange={(v) => setWarnaBagian(mode, 'tabel_header', { fg: v })}
-            />
-            <SpinBox
-              id="input_tinggi_header_top"
-              value={effectiveHeaderH}
-              min={MIN_HEADER_H}
-              max={MAX_HEADER_H}
-              title={headerHManual
-                ? 'Tinggi baris header (manual, berlaku semua tabel)'
-                : 'Tinggi baris header (otomatis mengikuti judul)'}
-              ariaLabel="Tinggi baris header (px)"
-              disabled={!apiTabel}
-              onChange={setHeaderH}
-            />
-            {headerHManual ? (
-              <RibbonCmd
-                id="btn_reset_tinggi_header_top"
-                icon={RotateCcw}
-                label="Kembalikan tinggi header ke otomatis"
-                iconOnly
-                onClick={() => setHeaderH(null)}
-              />
-            ) : null}
-            {headerSizeManual ? (
-              <RibbonCmd
-                id="btn_reset_ukuran_header_top"
-                icon={RotateCcw}
-                label="Kembalikan ukuran huruf header ke bawaan"
-                iconOnly
-                onClick={() => setGayaBagian('tabel_header', { size: undefined })}
-              />
-            ) : null}
+          </span>
+          <WarnaInput
+            id="input_warna_header_top"
+            value={headerColor}
+            title="Warna huruf header tabel (mode aktif)"
+            ariaLabel="Warna huruf header tabel"
+            onChange={(v) => setWarnaBagian(mode, 'tabel_header', { fg: v })}
+          />
+          <div className="flex items-center gap-1">
             <WarnaInput
               id="input_warna_bg_header_top"
               value={headerBg}
@@ -302,21 +321,18 @@ export function RibbonTabel({ apiTabel }: { apiTabel: RibbonTableApi | null }) {
               ariaLabel="Warna latar header tabel"
               onChange={(v) => setWarnaBagian(mode, 'tabel_header', { bg: v })}
             />
-            {headerWarnaDiatur ? (
-              <RibbonCmd
-                id="btn_reset_warna_header_top"
-                icon={RotateCcw}
-                label="Kembalikan warna header ke bawaan"
-                iconOnly
-                onClick={() => setWarnaBagian(mode, 'tabel_header', { fg: undefined, bg: undefined })}
-              />
-            ) : null}
+            <RibbonCmd
+              id="btn_reset_warna_header_top"
+              icon={RotateCcw}
+              label="Kembalikan warna header ke bawaan"
+              iconOnly
+              disabled={!headerWarnaDiatur}
+              onClick={() => setWarnaBagian(mode, 'tabel_header', { fg: undefined, bg: undefined })}
+            />
           </div>
-        </div>
-      </RibbonGroup>
-      <RibbonPemisah />
-      <RibbonGroup label="Cell" disabled={!apiTabel}>
-        <div className="flex flex-col items-center gap-1">
+
+          {/* Cell */}
+          <span className="pr-1 text-xs text-white/80">Cell</span>
           <PilihFont
             id="select_huruf_top"
             value={fontFamily}
@@ -324,24 +340,36 @@ export function RibbonTabel({ apiTabel }: { apiTabel: RibbonTableApi | null }) {
             title="Jenis huruf sel tabel (berlaku semua tabel)"
             ariaLabel="Jenis huruf sel tabel"
           />
-          <div className="flex items-center gap-1.5">
-            <SpinBox
-              id="input_huruf_top"
-              value={effectiveFont}
-              min={MIN_FONT_PX}
-              max={MAX_FONT_PX}
-              title="Ukuran huruf sel tabel (berlaku semua tabel)"
-              ariaLabel="Ukuran huruf sel tabel (px)"
-              disabled={!apiTabel}
-              onChange={setFontPx}
+          <SpinBox
+            id="input_huruf_top"
+            value={effectiveFont}
+            min={MIN_FONT_PX}
+            max={MAX_FONT_PX}
+            title="Ukuran huruf sel tabel (berlaku semua tabel)"
+            ariaLabel="Ukuran huruf sel tabel (px)"
+            disabled={!apiTabel}
+            onChange={setFontPx}
+          />
+          {/* Tombol reset selalu tampil; nonaktif bila bukan nilai manual.
+              Margin kiri negatif merapatkan ke stepper (kolom terpisah). */}
+          <span className="-ml-2 inline-flex">
+            <RibbonCmd
+              id="btn_reset_ukuran_cell_top"
+              icon={RotateCcw}
+              label="Kembalikan ukuran huruf sel ke bawaan"
+              iconOnly
+              disabled={fontPx == null}
+              onClick={() => setFontPx(null)}
             />
-            <WarnaInput
-              id="input_warna_cell_top"
-              value={cellColor}
-              title="Warna huruf sel tabel (mode aktif)"
-              ariaLabel="Warna huruf sel tabel"
-              onChange={(v) => setWarnaBagian(mode, 'tabel_sel', { fg: v })}
-            />
+          </span>
+          <WarnaInput
+            id="input_warna_cell_top"
+            value={cellColor}
+            title="Warna huruf sel tabel (mode aktif)"
+            ariaLabel="Warna huruf sel tabel"
+            onChange={(v) => setWarnaBagian(mode, 'tabel_sel', { fg: v })}
+          />
+          <div className="flex items-center gap-1">
             <WarnaInput
               id="input_warna_bg_cell_top"
               value={cellBg}
@@ -349,15 +377,14 @@ export function RibbonTabel({ apiTabel }: { apiTabel: RibbonTableApi | null }) {
               ariaLabel="Warna latar sel tabel"
               onChange={(v) => setWarnaBagian(mode, 'tabel_sel', { bg: v })}
             />
-            {cellWarnaDiatur ? (
-              <RibbonCmd
-                id="btn_reset_warna_cell_top"
-                icon={RotateCcw}
-                label="Kembalikan warna sel ke bawaan"
-                iconOnly
-                onClick={() => setWarnaBagian(mode, 'tabel_sel', { fg: undefined, bg: undefined })}
-              />
-            ) : null}
+            <RibbonCmd
+              id="btn_reset_warna_cell_top"
+              icon={RotateCcw}
+              label="Kembalikan warna sel ke bawaan"
+              iconOnly
+              disabled={!cellWarnaDiatur}
+              onClick={() => setWarnaBagian(mode, 'tabel_sel', { fg: undefined, bg: undefined })}
+            />
           </div>
         </div>
       </RibbonGroup>

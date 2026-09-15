@@ -195,7 +195,7 @@
      tabel). Header kolom TIDAK mengikuti — lihat .dsg-cell-header-container
      yang memakai --font-display. */
   font-family: var(--simpes-font-family, var(--part-tabel_sel-font, var(--font-sans)));
-  font-size: var(--simpes-font-size, var(--part-tabel_sel-size, 13px));
+  font-size: var(--simpes-font-size, var(--part-tabel_sel-size, 11px));
 }
 /* ---------- Seleksi gaya spreadsheet ----------
    Geometri rect bawaan DSG SUDAH tepat: rect membentang dari tepi kiri/atas
@@ -394,7 +394,7 @@
   background: color-mix(in srgb, var(--accent) 35%, transparent);
 }
 .simpes-dsg .dsg-input {
-  font-size: var(--simpes-font-size, 13px);
+  font-size: var(--simpes-font-size, 11px);
   /* Input edit ikut jenis & ketebalan huruf selnya. */
   font-family: inherit;
   font-weight: inherit;
@@ -610,8 +610,9 @@
    `netral` = hemat warna (bawaan lama). `aksen` = judul & ikon memakai warna
    aksen tema. `kaya` = aksen + tint permukaan + warna semantik.
    Catatan: semua aturan memakai :where() agar spesifisitasnya nol — ikon yang
-   sudah punya warna eksplisit (hapus/peringatan/di atas tombol aksen/header
-   bersidebar) tidak ditimpa lewat aturan pengecualian di bawah. */
+   sudah punya warna eksplisit (hapus/peringatan/di atas tombol aksen) tidak
+   ditimpa lewat aturan pengecualian di bawah. Ikon di `header` (ribbon) ikut
+   warna aksen seperti ikon sidebar. */
 [data-warna='aksen'] :is(h1, h2, h3),
 [data-warna='kaya'] :is(h1, h2, h3) {
   color: var(--accent-readable);
@@ -622,7 +623,6 @@
 }
 /* Pengecualian (urutan SETELAH aturan pewarnaan — spesifisitas sama-sama nol). */
 [data-warna='aksen'] :where(
-  header svg.simpes-ikon,
   [class*='text-primary-foreground'] svg.simpes-ikon,
   [class*='text-accent-foreground'] svg.simpes-ikon,
   [class*='text-secondary-foreground'] svg.simpes-ikon,
@@ -632,7 +632,6 @@
   [class*='text-info'] svg.simpes-ikon
 ),
 [data-warna='kaya'] :where(
-  header svg.simpes-ikon,
   [class*='text-primary-foreground'] svg.simpes-ikon,
   [class*='text-accent-foreground'] svg.simpes-ikon,
   [class*='text-secondary-foreground'] svg.simpes-ikon,

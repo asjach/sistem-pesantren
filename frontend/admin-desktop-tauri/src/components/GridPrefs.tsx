@@ -20,7 +20,7 @@ export const DEFAULT_HEADER_H = 26;
 /** Ukuran huruf isi tabel (px). */
 export const MIN_FONT_PX = 9;
 export const MAX_FONT_PX = 24;
-export const DEFAULT_FONT_PX = 13;
+export const DEFAULT_FONT_PX = 11;
 /** Ukuran huruf baris HEADER tabel (px) — mandiri dari ukuran isi sel. */
 export const DEFAULT_HEADER_FONT_PX = 11;
 

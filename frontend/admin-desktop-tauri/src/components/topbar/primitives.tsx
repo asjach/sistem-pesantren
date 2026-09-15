@@ -50,7 +50,7 @@ export function SpinBox({
   };
   const btn = cn(
     'shrink-0 place-items-center text-white/70 transition-colors hover:bg-white/10 hover:text-white disabled:pointer-events-none disabled:opacity-40 grid',
-    vertikal ? 'h-4' : 'w-5',
+    vertikal ? 'h-6' : 'w-5',
   );
   return (
     <div
@@ -70,7 +70,7 @@ export function SpinBox({
         className={btn}
         onClick={() => stepBy(-1)}
       >
-        <Minus size={vertikal ? 11 : 12} />
+        <Minus size={12} />
       </button>
       <input
         id={id}
@@ -97,7 +97,7 @@ export function SpinBox({
         className={btn}
         onClick={() => stepBy(1)}
       >
-        <Plus size={vertikal ? 11 : 12} />
+        <Plus size={12} />
       </button>
     </div>
   );
@@ -154,7 +154,7 @@ export function RibbonGroup({ label, children, disabled }: { label: string; chil
     <div
       data-part="grup_ribbon"
       aria-disabled={disabled || undefined}
-      className={cn('flex shrink-0 flex-col items-center gap-1.5 px-1.5', disabled && 'pointer-events-none opacity-40')}
+      className={cn('flex shrink-0 flex-col items-center gap-1.5 px-3', disabled && 'pointer-events-none opacity-40')}
     >
       <span className="w-full pb-1 text-center text-[10px] uppercase tracking-wide text-white/50">
         {label}
@@ -164,6 +164,8 @@ export function RibbonGroup({ label, children, disabled }: { label: string; chil
   );
 }
 
+/** Garis pemisah antar grup: setinggi penuh baris ribbon (menembus padding
+ *  vertikal baris) sehingga menyentuh border atas/bawah bilah ribbon. */
 export function RibbonPemisah() {
-  return <span aria-hidden data-part="pemisah_ribbon" className="mx-0.5 h-[54px] w-px self-center bg-white/15" />;
+  return <span aria-hidden data-part="pemisah_ribbon" className="-my-3 mx-0.5 w-px shrink-0 self-stretch bg-white/15" />;
 }

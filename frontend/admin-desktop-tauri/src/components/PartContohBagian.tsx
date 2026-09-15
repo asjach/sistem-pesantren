@@ -644,10 +644,10 @@ export function contohBagian(id: PartId): ReactElement {
       );
     case 'pemisah_ribbon':
       return (
-        <div className="flex h-16 items-center gap-2 rounded bg-[var(--sidebar-deep)] px-2">
-          <span className="rounded bg-white/20 px-2 py-1 text-[11px] text-white">Santri</span>
-          <span aria-hidden className="mx-0.5 h-10 w-px self-center bg-white/15" />
-          <span className="rounded px-2 py-1 text-[11px] text-white/80">Kelas</span>
+        <div className="flex h-16 items-stretch gap-2 rounded bg-[var(--sidebar-deep)] px-2">
+          <span className="my-1 flex items-center rounded bg-white/20 px-2 py-1 text-[11px] text-white">Santri</span>
+          <span aria-hidden className="mx-0.5 w-px self-stretch bg-white/15" />
+          <span className="my-1 flex items-center rounded px-2 py-1 text-[11px] text-white/80">Kelas</span>
         </div>
       );
     case 'area_akun':

@@ -94,6 +94,9 @@ const IKON = {
   Loader2: ['loader-circle', 'loader-2', 'loader', 'spinner', 'loading', 'spinner-2', 'refresh'],
   OctagonX: ['octagon-x', 'x-octagon', 'octagon-close', 'close-octagon', 'octagon-xmark'],
   TriangleAlert: ['triangle-alert', 'alert-triangle', 'warning', 'triangle-warning', 'alert-triangle-fill'],
+  DensitySmall: ['density-small', 'rows-4'],
+  DensityMedium: ['density-medium', 'rows-3'],
+  DensityLarge: ['density-large', 'rows-2'],
 };
 
 const NAMA = Object.keys(IKON);

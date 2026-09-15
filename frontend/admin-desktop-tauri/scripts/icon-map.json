@@ -713,5 +713,38 @@
   "radix": null,
   "bi": null,
   "material": "warning"
+ },
+ "DensitySmall": {
+  "lucide": "rows-4",
+  "tabler": null,
+  "ph": null,
+  "heroicons": null,
+  "ri": null,
+  "iconoir": null,
+  "radix": null,
+  "bi": null,
+  "material": "density-small"
+ },
+ "DensityMedium": {
+  "lucide": "rows-3",
+  "tabler": null,
+  "ph": null,
+  "heroicons": null,
+  "ri": null,
+  "iconoir": null,
+  "radix": null,
+  "bi": null,
+  "material": "density-medium"
+ },
+ "DensityLarge": {
+  "lucide": "rows-2",
+  "tabler": null,
+  "ph": null,
+  "heroicons": null,
+  "ri": null,
+  "iconoir": null,
+  "radix": null,
+  "bi": null,
+  "material": "density-large"
  }
 }

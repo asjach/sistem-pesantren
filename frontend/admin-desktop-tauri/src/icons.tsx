@@ -1,5 +1,5 @@
 /* AUTO-GENERATED oleh scripts/icons-gen.mjs — JANGAN edit manual.
- * 65 ikon × 9 set (Iconify/unplugin-icons). Set aktif dari prefs
+ * 68 ikon × 9 set (Iconify/unplugin-icons). Set aktif dari prefs
  * `iconSet`; nama yang tidak tersedia di suatu set jatuh ke Lucide.
  * Regenerasi: node scripts/icons-gen.mjs */
 import type { ComponentType, SVGProps } from 'react';
@@ -73,6 +73,9 @@ import IcInfoLucide from '~icons/lucide/info';
 import IcLoader2Lucide from '~icons/lucide/loader-circle';
 import IcOctagonXLucide from '~icons/lucide/octagon-x';
 import IcTriangleAlertLucide from '~icons/lucide/triangle-alert';
+import IcDensitySmallLucide from '~icons/lucide/rows-4';
+import IcDensityMediumLucide from '~icons/lucide/rows-3';
+import IcDensityLargeLucide from '~icons/lucide/rows-2';
 
 // tabler
 import IcAlignCenterTabler from '~icons/tabler/align-center';
@@ -537,6 +540,9 @@ import IcCircleCheckMaterial from '~icons/material-symbols/check-circle';
 import IcInfoMaterial from '~icons/material-symbols/info';
 import IcLoader2Material from '~icons/material-symbols/refresh';
 import IcTriangleAlertMaterial from '~icons/material-symbols/warning';
+import IcDensitySmallMaterial from '~icons/material-symbols/density-small';
+import IcDensityMediumMaterial from '~icons/material-symbols/density-medium';
+import IcDensityLargeMaterial from '~icons/material-symbols/density-large';
 
 /* ---------- API publik ---------- */
 
@@ -614,6 +620,9 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
     Loader2: IcLoader2Lucide,
     OctagonX: IcOctagonXLucide,
     TriangleAlert: IcTriangleAlertLucide,
+    DensitySmall: IcDensitySmallLucide,
+    DensityMedium: IcDensityMediumLucide,
+    DensityLarge: IcDensityLargeLucide,
   },
   tabler: {
     AlignCenter: IcAlignCenterTabler,
@@ -1078,6 +1087,9 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
     Info: IcInfoMaterial,
     Loader2: IcLoader2Material,
     TriangleAlert: IcTriangleAlertMaterial,
+    DensitySmall: IcDensitySmallMaterial,
+    DensityMedium: IcDensityMediumMaterial,
+    DensityLarge: IcDensityLargeMaterial,
   },
 };
 
@@ -1162,3 +1174,6 @@ export const Info = (p: IkonProps) => <IkonDinamis {...p} nama="Info" />;
 export const Loader2 = (p: IkonProps) => <IkonDinamis {...p} nama="Loader2" />;
 export const OctagonX = (p: IkonProps) => <IkonDinamis {...p} nama="OctagonX" />;
 export const TriangleAlert = (p: IkonProps) => <IkonDinamis {...p} nama="TriangleAlert" />;
+export const DensitySmall = (p: IkonProps) => <IkonDinamis {...p} nama="DensitySmall" />;
+export const DensityMedium = (p: IkonProps) => <IkonDinamis {...p} nama="DensityMedium" />;
+export const DensityLarge = (p: IkonProps) => <IkonDinamis {...p} nama="DensityLarge" />;
