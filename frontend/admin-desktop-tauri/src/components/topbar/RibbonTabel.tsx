@@ -182,27 +182,31 @@ export function RibbonTabel({ apiTabel }: { apiTabel: RibbonTableApi | null }) {
           disabled={!apiTabel}
           onClick={() => apiTabel?.autofit()}
         />
-        <span id="label_bekukan_kolom_top" className="text-[10px] leading-none text-white/70">
-          Bekukan kolom
-        </span>
-        <SpinBox
-          id="input_bekukan_kolom_top"
-          value={apiTabel?.freeze ?? 0}
-          min={0}
-          max={apiTabel?.freezeMax ?? 0}
-          title="Bekukan N kolom pertama di kiri (termasuk kolom centang)"
-          ariaLabel="Jumlah kolom beku"
-          onChange={(v) => apiTabel?.setFreeze(v)}
-        />
-        {(apiTabel?.freeze ?? 0) > 0 ? (
-          <RibbonCmd
-            id="btn_lepas_bekukan_kolom_top"
-            icon={RotateCcw}
-            label="Lepas semua kolom beku"
-            iconOnly
-            onClick={() => apiTabel?.setFreeze(0)}
-          />
-        ) : null}
+        <div className="flex items-end gap-1">
+          <div className="flex flex-col items-center gap-1">
+            <span id="label_bekukan_kolom_top" className="text-[10px] leading-none text-white/70">
+              Bekukan kolom
+            </span>
+            <SpinBox
+              id="input_bekukan_kolom_top"
+              value={apiTabel?.freeze ?? 0}
+              min={0}
+              max={apiTabel?.freezeMax ?? 0}
+              title="Bekukan N kolom pertama di kiri (termasuk kolom centang)"
+              ariaLabel="Jumlah kolom beku"
+              onChange={(v) => apiTabel?.setFreeze(v)}
+            />
+          </div>
+          {(apiTabel?.freeze ?? 0) > 0 ? (
+            <RibbonCmd
+              id="btn_lepas_bekukan_kolom_top"
+              icon={RotateCcw}
+              label="Lepas semua kolom beku"
+              iconOnly
+              onClick={() => apiTabel?.setFreeze(0)}
+            />
+          ) : null}
+        </div>
       </RibbonGroup>
       <RibbonPemisah />
       <RibbonGroup label="Baris">
