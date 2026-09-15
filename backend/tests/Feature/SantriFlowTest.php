@@ -448,6 +448,13 @@ class SantriFlowTest extends TestCase
             ->assertJsonPath('data.nis', 'E1009');
         $this->assertDatabaseHas('riwayat_belajar', ['santri_id' => $s1->id, 'nis' => 'E1009', 'is_aktif' => true]);
 
+        // NIS panjang (>10, ≤20) diterima + mirror ke riwayat aktif.
+        $nisPanjang = 'E1009000000000001';
+        $this->actingAs($adminMi, 'sanctum')->patchJson("/api/admin/santri/{$s1->id}", ['nis' => $nisPanjang])
+            ->assertStatus(200)
+            ->assertJsonPath('data.nis', $nisPanjang);
+        $this->assertDatabaseHas('riwayat_belajar', ['santri_id' => $s1->id, 'nis' => $nisPanjang, 'is_aktif' => true]);
+
         // Validasi format: NIK non-16 digit & JK asing ditolak.
         $this->actingAs($adminMi, 'sanctum')->patchJson("/api/admin/santri/{$s1->id}", ['nik' => '123'])
             ->assertStatus(422)
@@ -653,6 +660,19 @@ class SantriFlowTest extends TestCase
 
         // Import nyata tetap berjalan setelah lolos periksa.
         $this->importCsv($adminMi, $f['taMi']->id, null, $csvOk)->assertStatus(200);
+        $this->assertSame(1, Santri::count());
+
+        // Batas panjang NIS (≤20): 20 karakter valid, 21 karakter gagal — tetap tanpa tulisan.
+        $csvNis = $this->makeCsv([
+            ['nama_lengkap' => 'Nis Batas', 'jk' => 'L', 'nis' => str_repeat('7', 20)],
+            ['nama_lengkap' => 'Nis Lewat', 'jk' => 'L', 'nis' => str_repeat('7', 21)],
+        ]);
+        $resNis = $this->actingAs($adminMi, 'sanctum')->post('/api/admin/santri/import-periksa', [
+            'tahun_ajaran_id' => $f['taMi']->id,
+            'file' => new UploadedFile($csvNis, 'nis.csv', 'text/csv', null, true),
+        ])->assertStatus(200);
+        $resNis->assertJsonPath('ringkasan.baris_valid', 1)
+            ->assertJsonPath('ringkasan.baris_gagal', 1);
         $this->assertSame(1, Santri::count());
     }
 

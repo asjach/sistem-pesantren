@@ -910,7 +910,7 @@ export default function PsbPage() {
                   <Input
                     id={`input_nis_acc_${c.id}`}
                     className="w-36"
-                    maxLength={10}
+                    maxLength={20}
                     placeholder="NIS (opsional)"
                     value={accNis[String(c.id)] ?? ''}
                     onChange={(e) => setAccNis((prev) => ({ ...prev, [String(c.id)]: e.target.value }))}

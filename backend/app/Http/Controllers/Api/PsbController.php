@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Exports\PsbTemplateExport;
 use App\Http\Controllers\Api\Concerns\TenantGuard;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\PsbDaftarRequest;
 use App\Http\Requests\PsbSeleksiRequest;
-use App\Exports\PsbTemplateExport;
 use App\Imports\PsbImport;
 use App\Models\PsbCalonSantri;
 use App\Models\PsbGelombang;
@@ -167,7 +167,7 @@ class PsbController extends Controller
     public function acc(Request $request, PsbCalonSantri $calon, PsbService $service): JsonResponse
     {
         $this->authorizeCalon(auth()->user(), $calon);
-        $data = $request->validate(['nis' => ['nullable', 'string', 'max:10']]);
+        $data = $request->validate(['nis' => ['nullable', 'string', 'max:20']]);
 
         return response()->json([
             'pesan' => 'Daftar ulang disetujui.',
@@ -274,7 +274,7 @@ class PsbController extends Controller
     {
         $data = $request->validate(array_merge($this->aturanBulkIds(), [
             'nis' => ['nullable', 'array'],
-            'nis.*' => ['nullable', 'string', 'max:10'],
+            'nis.*' => ['nullable', 'string', 'max:20'],
         ]));
         $nisPer = $data['nis'] ?? [];
 
@@ -343,7 +343,7 @@ class PsbController extends Controller
         }
 
         return response()->json([
-            'pesan' => count($berhasil) . ' calon berhasil, ' . count($gagal) . ' gagal.',
+            'pesan' => count($berhasil).' calon berhasil, '.count($gagal).' gagal.',
             'data' => ['berhasil' => $berhasil, 'gagal' => $gagal],
         ]);
     }
@@ -398,7 +398,7 @@ class PsbController extends Controller
     /** GET /api/psb/import-template — unduh template Excel (kolom = rules PsbImport). */
     public function template()
     {
-        return Excel::download(new PsbTemplateExport(), 'template-import-psb.xlsx');
+        return Excel::download(new PsbTemplateExport, 'template-import-psb.xlsx');
     }
 
     /** POST /api/psb/import — Excel kolom inti, NIK required -> create() langsung. */

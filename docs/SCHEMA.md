@@ -273,7 +273,7 @@ Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca
 - `nama_singkat`: string [null]
 - `nik`: string(16) [null]
 - `nisn`: string(10) [null]
-- `nis`: string [null, UNIQUE] — NIS aktif terakhir (kuitansi/rapor/leger/portal); wajib unik juga terhadap arsip `riwayat_belajar.nis` santri lain (dicek aplikasi)
+- `nis`: string(20) [null, UNIQUE] — NIS aktif terakhir (kuitansi/rapor/leger/portal), maks 20 karakter; wajib unik juga terhadap arsip `riwayat_belajar.nis` santri lain (dicek aplikasi)
 - `tmp_lahir`: string [null] — kamus ref_tmp_lahir
 - `tgl_lahir`: date [null]
 - `jk`: enum(L|P)
@@ -354,7 +354,7 @@ Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca
 - `semester`: string(2) [default '1'] — '1' ganjil, '2' genap (selaras nilai_santri)
 - `tgl_masuk`: date [null] — mulai per semester (ganjil=awal tahun, genap=awal semester 2)
 - `no_absen`: int [null] — no urut rombel per semester; unique per kelas dicek di service
-- `nis`: string [null] — arsip per tahun/lembaga; santri.nis = mirror terakhir lembaga primer
+- `nis`: string(20) [null] — arsip per tahun/lembaga (maks 20 karakter); santri.nis = mirror terakhir lembaga primer
 - `tingkat`: string [null] — ref_tingkat: target jenjang tahun ini ('7','8','9'); grouping saat kelas_id null
 - `status_awal`: string [default 'santri_baru'] — Sumber masuk (string bebas, validasi ke ref_status_awal efektif per lembaga). / TERKUNCI: sama antara ganjil-genap dalam 1 tahun (genap copy ganjil).
 - `status_akhir`: string [default 'aktif'] — Hasil semester ini (string bebas, validasi ke ref_status_akhir efektif).

@@ -202,7 +202,7 @@ class SiklusController extends Controller
             'tingkat' => 'required|string',
             'siswa' => 'required|array|min:1',
             'siswa.*.santri_id' => 'required|exists:santri,id',
-            'siswa.*.nis' => 'nullable|string',
+            'siswa.*.nis' => 'nullable|string|max:20',
             'siswa.*.status' => 'required|in:naik,tidak_naik',
             'siswa.*.tgl_masuk' => 'nullable|date',
             'siswa.*.no_absen' => 'nullable|integer|min:1',

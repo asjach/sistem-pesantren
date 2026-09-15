@@ -102,7 +102,7 @@ const SANTRI_FIELDS: ExcelField[] = [
   teks('nama_singkat', 'Nama singkat', 140),
   { key: 'nik', label: 'NIK', width: 160, kind: 'text', maxLength: 16, validate: digitValidator(16, 'NIK') },
   { key: 'nisn', label: 'NISN', width: 120, kind: 'text', maxLength: 10, validate: digitValidator(10, 'NISN') },
-  { key: 'nis', label: 'NIS', width: 100, kind: 'text', maxLength: 10 },
+  { key: 'nis', label: 'NIS', width: 100, kind: 'text', maxLength: 20 },
   {
     key: 'jk',
     label: 'JK',

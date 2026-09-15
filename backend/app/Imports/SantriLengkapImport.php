@@ -309,7 +309,7 @@ class SantriLengkapImport implements SkipsOnFailure, SkipsUnknownSheets, ToColle
             // Lembaga baris wajib operasional (bukan root pesantren).
             'lembaga_id' => ['nullable', 'integer', Rule::exists('lembaga', 'id')->whereNotNull('parent_id')],
             'nik' => ['nullable', 'digits:16'],
-            'nis' => ['nullable', 'string', 'max:10'],
+            'nis' => ['nullable', 'string', 'max:20'],
             'tipe_santri' => ['nullable', 'in:asrama,non_asrama'],
             'nisn' => ['nullable', 'string', 'max:10'],
             // Kolom kamus: string bebas (tanpa exists)

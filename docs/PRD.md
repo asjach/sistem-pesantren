@@ -48,6 +48,7 @@
 | 1.11 | 2026-09-15 | Modul 102 **UI admin desktop**: halaman Siklus 6 view (santri aktif, salin ke genap, kenaikan kelas, belum ditempatkan, mutasi keluar, alumni) + dialog aksi (set/pindah/keluar kelas, salin genap, kenaikan, mutasi, kelulusan) dan aksi massal per baris tercentang; endpoint baru `GET /admin/riwayat` (roster baris riwayat + filter lembaga/TA/semester/tingkat/kelas/tanpa_kelas/q, terskop tenant) & `POST /admin/akademik/salin-genap` (massal per lembaga, partial per-item, tanpa `siswa` = semua ganjil aktif); `naik-kelas` menerima `tgl_masuk`/`no_absen` per item; fix serialisasi `riwayat_belajar.tgl_masuk` → `date:Y-m-d` (dulu ISO UTC sehingga tampil H-1 di WIB); suite 122/122 (SiklusFlowTest 14), typecheck lolos |
 | 1.12 | 2026-09-15 | Aturan **TA selalu milik lembaga operasional** (root tidak boleh punya TA): `TahunAjaran::resolveUntukLembaga()` dipakai daftar/ACC/tagihan PSB per lembaga (paket MI+MD → TA masing-masing; tanpa TA aktif → 422); guard tolak root di store TA, kegiatan PSB, import santri (level file + per baris), dan target aksi siklus; TA silang lembaga ditolak di import/naik-kelas/lulus; `DevSeeder` selaras (TA per MI/MD/MTS/MLN, kegiatan acuan TA MI, gelombang aktif, kuota); portal PSB publik (:1421) aktif & terverifikasi end-to-end (opsi → daftar paket → ACC → riwayat/tagihan TA benar, data uji dibersihkan); suite 131/131 |
 | 1.13 | 2026-09-15 | **Kelas unik per lembaga + tahun ajaran** (FB-004-01): nama dinormalisasi (trim + rapat spasi) di model `Kelas`; migrasi dedupe otomatis (keeper id terkecil, referensi 8 tabel dipindah termasuk unique terdampak `kelas_kurikulum`/`pengampu_mapel`/`rapor_catatan_wali`) lalu `UNIQUE(lembaga_id, tahun_ajaran_id, nama_kelas)`; `store`/`update` menolak duplikat case-insensitive dengan pesan Indonesia + tangkap race 1062; dialog Tambah/Ubah di FE memuat nama lingkup lembaga+TA dan menolak duplikat sebelum submit; KelasStoreTest 6→10 hijau |
+| 1.14 | 2026-09-15 | Koreksi panjang **NIS = maks 20 karakter** (dulu validasi 10): kolom `santri.nis` & `riwayat_belajar.nis` jadi `VARCHAR(20)`; validasi `max:20` di store/update santri, ACC PSB (tunggal + bulk), import Excel, dan naik-kelas; input FE `maxLength` 20; tes batas 20/21 di PsbFlowTest (tunggal + bulk 16 karakter) dan SantriFlowTest (update + dry-run import) |
 
 ## Daftar Isi
 
@@ -302,7 +303,7 @@ Service Layer + Policy + transaction; notifikasi DB agregat.
 
 Contoh kamus ringkas:
 
-**`santri`:** `id INT PK`; `nik VARCHAR(16) INDEX nullable` (fiktif boleh, dedup service); `nis VARCHAR nullable`; `status_global BOOLEAN DEFAULT false` (turunan: punya ≥1 riwayat aktif); `lembaga_id INT FK NULL` (legacy tanpa track; cache), `kelas_id INT FK NULL`.
+**`santri`:** `id INT PK`; `nik VARCHAR(16) INDEX nullable` (fiktif boleh, dedup service); `nis VARCHAR(20) nullable` (maks 20 karakter); `status_global BOOLEAN DEFAULT false` (turunan: punya ≥1 riwayat aktif); `lembaga_id INT FK NULL` (legacy tanpa track; cache), `kelas_id INT FK NULL`.
 **`riwayat_belajar`:** `status_awal VARCHAR`; `status_akhir VARCHAR`; `is_aktif BOOLEAN` (tulis via service); `semester CHAR(1)`.
 **`asrama`:** `id INT PK`; `jenis_kelamin ENUM(L,P)`; `user_asrama(user_id, asrama_id)`; tidak memakai `riwayat_belajar`.
 

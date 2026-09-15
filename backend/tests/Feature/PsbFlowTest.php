@@ -1518,13 +1518,26 @@ class PsbFlowTest extends TestCase
         $this->assertSame('2400456', Santri::findOrFail(PsbCalonSantri::findOrFail($id3)->santri_id)->nis);
         $this->assertNull(Santri::findOrFail(PsbCalonSantri::findOrFail($id4)->santri_id)->nis);
 
-        // Validasi panjang NIS (maks 10).
+        // Bulk: NIS panjang (16 karakter) diterima.
+        $id4b = $daftar('Acc Nis Empat B');
+        $siapAcc($id4b);
+        $bulkPanjang = $this->actingAs($admin, 'sanctum')->postJson('/api/psb/bulk/acc-daftar-ulang', [
+            'ids' => [$id4b],
+            'nis' => [(string) $id4b => '2400456000000001'],
+        ]);
+        $bulkPanjang->assertStatus(200)->assertJsonPath('data.gagal', []);
+        $this->assertSame('2400456000000001', Santri::findOrFail(PsbCalonSantri::findOrFail($id4b)->santri_id)->nis);
+
+        // Validasi panjang NIS (maks 20): 21 karakter ditolak, 20 karakter diterima.
         $id5 = $daftar('Acc Nis Lima');
         $siapAcc($id5);
         $this->actingAs($admin, 'sanctum')
-            ->postJson("/api/psb/{$id5}/acc-daftar-ulang", ['nis' => '12345678901'])
+            ->postJson("/api/psb/{$id5}/acc-daftar-ulang", ['nis' => '123456789012345678901'])
             ->assertStatus(422)
             ->assertJsonValidationErrors(['nis']);
+        $this->actingAs($admin, 'sanctum')
+            ->postJson("/api/psb/{$id5}/acc-daftar-ulang", ['nis' => '12345678901234567890'])
+            ->assertStatus(201);
 
         // NIS wajib unik: duplikat ditolak (tunggal → 422, massal → gagal per baris).
         $id6 = $daftar('Acc Nis Enam');

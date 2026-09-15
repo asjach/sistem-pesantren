@@ -11,7 +11,6 @@ use App\Models\DokumenSantri;
 use App\Models\Lembaga;
 use App\Models\RiwayatBelajar;
 use App\Models\Santri;
-use App\Models\TahunAjaran;
 use App\Models\User;
 use App\Services\RefService;
 use Illuminate\Http\JsonResponse;
@@ -84,7 +83,7 @@ class SantriController extends Controller
         $aturan['nik'] = $aturan['ayah_nik'] = $aturan['ibu_nik'] = $aturan['wali_nik'] = ['sometimes', 'nullable', 'digits:16'];
         $aturan['no_kk'] = ['sometimes', 'nullable', 'digits:16'];
         $aturan['nisn'] = ['sometimes', 'nullable', 'digits:10'];
-        $aturan['nis'] = ['sometimes', 'nullable', 'string', 'max:10'];
+        $aturan['nis'] = ['sometimes', 'nullable', 'string', 'max:20'];
         $aturan['jk'] = ['sometimes', 'nullable', 'in:L,P'];
         $aturan['tipe_santri'] = ['sometimes', 'nullable', 'in:asrama,non_asrama'];
         $aturan['anak_ke'] = $aturan['j_saudara'] = ['sometimes', 'nullable', 'integer', 'min:0'];
