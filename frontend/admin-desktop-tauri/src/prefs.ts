@@ -1,4 +1,5 @@
 import { prefGet, prefSet } from '@/api/client';
+import { FONT_OPTIONS } from './fonts';
 import { ICON_SET_DEFAULT, ICON_SETS, type IconSetId } from './iconSets';
 import { EMPTY_PARTS, normalizeParts, type PartOverrides } from './parts';
 import { PRESET_IDS, type ThemeName } from './themes';
@@ -45,6 +46,10 @@ const K = {
   warnaUI: 'simpes_warna_ui',
   parts: 'simpes_parts',
   iconSet: 'simpes_icon_set',
+  // Preferensi lama (sebelum font sel disatukan ke bagian `tabel_sel`) — hanya
+  // dibaca sekali untuk migrasi, lalu dihapus.
+  fontLama: 'simpes_grid_font',
+  fontFamilyLama: 'simpes_grid_font_family',
 } as const;
 
 export interface Prefs {
@@ -98,7 +103,7 @@ export function normalizeHex(v: string): string | null {
 }
 
 export async function loadPrefs(): Promise<Prefs> {
-  const [theme, mode, sidebar, density, warnaUI, partsRaw, iconSetRaw] = await Promise.all([
+  const [theme, mode, sidebar, density, warnaUI, partsRaw, iconSetRaw, fontLama, fontFamilyLama] = await Promise.all([
     prefGet(K.theme),
     prefGet(K.mode),
     prefGet(K.sidebar),
@@ -106,6 +111,8 @@ export async function loadPrefs(): Promise<Prefs> {
     prefGet(K.warnaUI),
     prefGet(K.parts),
     prefGet(K.iconSet),
+    prefGet(K.fontLama),
+    prefGet(K.fontFamilyLama),
   ]);
   let parts = EMPTY_PARTS;
   try {
@@ -113,6 +120,30 @@ export async function loadPrefs(): Promise<Prefs> {
   } catch {
     parts = EMPTY_PARTS;
   }
+
+  // Migrasi sekali-jalan: jenis & ukuran huruf sel dulu disimpan di pref
+  // terpisah; kini memakai bagian UI `tabel_sel`. Pindahkan bila bagian itu
+  // belum diatur, lalu hapus pref lama (berlaku juga di perangkat tanpa nilai).
+  if (fontLama != null || fontFamilyLama != null) {
+    const sel = { ...(parts.gaya.tabel_sel ?? {}) };
+    if (sel.size == null && fontLama != null && fontLama.trim() !== '') {
+      const n = Math.round(Number(fontLama));
+      if (Number.isFinite(n)) sel.size = n;
+    }
+    if (
+      sel.font == null &&
+      fontFamilyLama != null &&
+      FONT_OPTIONS.some((f) => f.value === fontFamilyLama)
+    ) {
+      sel.font = fontFamilyLama;
+    }
+    if (Object.keys(sel).length > 0) {
+      parts = { ...parts, gaya: { ...parts.gaya, tabel_sel: sel } };
+      await prefSet(K.parts, JSON.stringify(parts));
+    }
+    await Promise.all([prefSet(K.fontLama, ''), prefSet(K.fontFamilyLama, '')]);
+  }
+
   return {
     theme: PRESET_IDS.includes(theme ?? '')
       ? (theme as ThemeName)
