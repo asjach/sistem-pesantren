@@ -7,7 +7,9 @@ import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/field';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import ExcelTable from '@/components/ExcelTable';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
+import TabelRingkas from '@/components/TabelRingkas';
 import Pager from '@/components/Pager';
 import { usePager } from '@/hooks/usePager';
 import { FilterLembaga, useLembagaTa } from '@/components/siklus/bersama';
@@ -93,43 +95,49 @@ export default function MutasiKeluarPage() {
       <div className="grid grid-cols-2 gap-4">
         <section className="rounded-md border">
           <header className="border-b bg-muted/40 px-3 py-2 text-sm font-medium">Santri aktif ({kiri.length})</header>
-          <div className="max-h-[64vh] overflow-auto">
-            <table className="w-full text-sm">
-              <thead className="text-left text-xs text-muted-foreground"><tr><th className="p-2">Nama</th><th className="p-2">Kelas</th><th className="p-2" /></tr></thead>
-              <tbody>
-                {kiri.length === 0 ? <tr><td colSpan={3} className="p-3 text-center text-muted-foreground">Pilih lembaga dulu.</td></tr> : kiri.map((r) => (
-                  <tr key={r.id} className="border-t">
-                    <td className="p-2">{r.santri?.nama_lengkap}</td>
-                    <td className="p-2 text-muted-foreground">{r.kelas?.nama_kelas ?? '—'}</td>
-                    <td className="p-2 text-right">
-                      <Button id={`btn_mutasi_${r.id}`} size="sm" variant="outline" onClick={() => { setBaris(r); setTanggal(''); setAlasan(''); setNoSurat(''); setTujuan(''); setNpsn(''); setNsm(''); setKeterangan(''); }}>
-                        Mutasi
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="px-2 pb-1">
+            <ExcelTable
+              tableKey="mutasi_santri_aktif"
+              fields={[
+                { key: 'nama', label: 'Nama', kind: 'static' },
+                { key: 'kelas', label: 'Kelas', kind: 'static' },
+              ]}
+              rows={kiri}
+              getValues={(r) => ({ nama: r.santri?.nama_lengkap ?? null, kelas: r.kelas?.nama_kelas ?? null })}
+              canEdit={false}
+              onCommit={async () => {}}
+              onSaved={() => {}}
+              renderActions={(r) => (
+                <Button id={`btn_mutasi_${r.id}`} size="sm" variant="outline" onClick={() => { setBaris(r); setTanggal(''); setAlasan(''); setNoSurat(''); setTujuan(''); setNpsn(''); setNsm(''); setKeterangan(''); }}>
+                  Mutasi
+                </Button>
+              )}
+              hideCheckbox
+              maxRows={12}
+              emptyText="Pilih lembaga dulu."
+            />
           </div>
         </section>
 
         <section className="rounded-md border">
-          <header className="border-b bg-muted/40 px-3 py-2 text-sm font-medium">Arsip mutasi keluar</header>
-          <div className="max-h-[60vh] overflow-auto">
-            <table className="w-full text-sm">
-              <thead className="text-left text-xs text-muted-foreground"><tr><th className="p-2">Nama</th><th className="p-2">Tanggal</th><th className="p-2">Alasan</th><th className="p-2">Tujuan</th></tr></thead>
-              <tbody>
-                {arsip.length === 0 ? <tr><td colSpan={4} className="p-3 text-center text-muted-foreground">Belum ada arsip mutasi.</td></tr> : arsip.map((m) => (
-                  <tr key={m.id} className="border-t">
-                    <td className="p-2">{m.santri?.nama_lengkap}</td>
-                    <td className="p-2">{m.tanggal_mutasi?.slice(0, 10) ?? '—'}</td>
-                    <td className="p-2">{m.alasan_mutasi ?? '—'}</td>
-                    <td className="p-2">{m.nama_sekolah_tujuan ?? '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <TabelRingkas
+            tableKey="mutasi_arsip"
+            judul="Arsip mutasi keluar"
+            maxRows={8}
+            emptyText="Belum ada arsip mutasi."
+            kolom={[
+              { key: 'nama', label: 'Nama' },
+              { key: 'tanggal', label: 'Tanggal' },
+              { key: 'alasan', label: 'Alasan' },
+              { key: 'tujuan', label: 'Tujuan' },
+            ]}
+            baris={arsip.map((m) => [
+              m.santri?.nama_lengkap ?? '—',
+              m.tanggal_mutasi?.slice(0, 10) ?? '—',
+              m.alasan_mutasi ?? '—',
+              m.nama_sekolah_tujuan ?? '—',
+            ])}
+          />
           <Pager page={pager.page} lastPage={lastPage} total={total} perPage={pager.perPage} onPage={(p) => { pager.setPage(p); void loadArsip(p); }} onPerPage={(pp) => { pager.setPerPage(pp); void loadArsip(1, pp); }} />
         </section>
       </div>

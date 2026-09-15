@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { errorMessage } from '../api/client';
 import { listRiwayatBelajar, naikKelasMassal, type RiwayatRow } from '../api/siklus';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/field';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import ExcelTable from '@/components/ExcelTable';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { FilterLembaga, FilterTahunAjaran, useLembagaTa } from '@/components/siklus/bersama';
 import { toast } from 'sonner';
@@ -72,7 +73,6 @@ export default function KenaikanKelasPage() {
     } catch (e) { toast.error(errorMessage(e)); } finally { setBusy(false); }
   };
 
-  const semuaTerpilih = useMemo(() => kiri.length > 0 && pilih.size === kiri.length, [kiri, pilih]);
 
   return (
     <div className={PAGE_SHELL}>
@@ -98,33 +98,32 @@ export default function KenaikanKelasPage() {
           <header className="flex items-center justify-between border-b bg-muted/40 px-3 py-2 text-sm font-medium">
             <span>Santri semester genap ({kiri.length})</span>
             <div className="flex gap-2">
-              <Button id="btn_pilih_semua_kenaikan" size="sm" variant="outline" onClick={() => setPilih(semuaTerpilih ? new Set() : new Set(kiri.map((r) => r.santri_id)))}>
-                {semuaTerpilih ? 'Kosongkan' : 'Pilih semua'}
-              </Button>
               <Button id="btn_ke_naik" size="sm" onClick={() => ke('naik')}>→ Naik</Button>
               <Button id="btn_ke_tidak_naik" size="sm" variant="outline" onClick={() => ke('tidak')}>→ Tidak naik</Button>
             </div>
           </header>
-          <div className="max-h-[60vh] overflow-auto">
-            <table className="w-full text-sm">
-              <thead className="text-left text-xs text-muted-foreground"><tr><th className="p-2">Pilih</th><th className="p-2">Nama</th><th className="p-2">Kelas</th><th className="p-2">Tingkat</th></tr></thead>
-              <tbody>
-                {kiri.length === 0 ? <tr><td colSpan={4} className="p-3 text-center text-muted-foreground">Tidak ada santri semester genap pada filter ini.</td></tr> : kiri.map((r) => (
-                  <tr key={r.id} className="border-t">
-                    <td className="p-2">
-                      <input id={`cek_kenaikan_${r.id}`} type="checkbox" checked={pilih.has(r.santri_id)} onChange={(e) => setPilih((prev) => {
-                        const next = new Set(prev);
-                        if (e.target.checked) next.add(r.santri_id); else next.delete(r.santri_id);
-                        return next;
-                      })} />
-                    </td>
-                    <td className="p-2">{r.santri?.nama_lengkap}</td>
-                    <td className="p-2">{r.kelas?.nama_kelas ?? '—'}</td>
-                    <td className="p-2">{r.tingkat ?? '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="px-2 pb-1">
+            <ExcelTable
+              tableKey="kenaikan_santri_genap"
+              fields={[
+                { key: 'nama', label: 'Nama', kind: 'static' },
+                { key: 'kelas', label: 'Kelas', kind: 'static' },
+                { key: 'tingkat', label: 'Tingkat', kind: 'static' },
+              ]}
+              rows={kiri}
+              getValues={(r) => ({
+                nama: r.santri?.nama_lengkap ?? null,
+                kelas: r.kelas?.nama_kelas ?? null,
+                tingkat: r.tingkat ?? null,
+              })}
+              canEdit={false}
+              onCommit={async () => {}}
+              onSaved={() => {}}
+              renderActions={() => null}
+              onCheckedChange={(rows) => setPilih(new Set(rows.map((r) => r.santri_id)))}
+              maxRows={12}
+              emptyText="Tidak ada santri semester genap pada filter ini."
+            />
           </div>
         </section>
 
@@ -141,20 +140,25 @@ function PanelDaftar({ idPrefix, judul, baris, onKembalikan }: { idPrefix: strin
   return (
     <section className="rounded-md border">
       <header className="border-b bg-muted/40 px-3 py-2 text-sm font-medium">{judul}</header>
-      <div className="max-h-[28vh] overflow-auto">
-        <table className="w-full text-sm">
-          <tbody>
-            {baris.length === 0 ? <tr><td className="p-3 text-center text-muted-foreground">Belum ada.</td></tr> : baris.map((b) => (
-              <tr key={b.santri_id} className="border-t">
-                <td className="p-2">{b.nama}</td>
-                <td className="p-2 text-muted-foreground">{b.kelas ?? '—'}</td>
-                <td className="p-2 text-right">
-                  <Button id={`btn_kembalikan_${idPrefix}_${b.santri_id}`} size="sm" variant="ghost" onClick={() => onKembalikan(b)}>Kembalikan</Button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="px-2 pb-1">
+        <ExcelTable
+          tableKey={`kenaikan_${idPrefix}`}
+          fields={[
+            { key: 'nama', label: 'Nama', kind: 'static' },
+            { key: 'kelas', label: 'Kelas', kind: 'static' },
+          ]}
+          rows={baris.map((b) => ({ ...b, id: b.santri_id }))}
+          getValues={(b) => ({ nama: b.nama, kelas: b.kelas })}
+          canEdit={false}
+          onCommit={async () => {}}
+          onSaved={() => {}}
+          renderActions={(b) => (
+            <Button id={`btn_kembalikan_${idPrefix}_${b.santri_id}`} size="sm" variant="ghost" onClick={() => onKembalikan(b)}>Kembalikan</Button>
+          )}
+          hideCheckbox
+          maxRows={6}
+          emptyText="Belum ada."
+        />
       </div>
     </section>
   );

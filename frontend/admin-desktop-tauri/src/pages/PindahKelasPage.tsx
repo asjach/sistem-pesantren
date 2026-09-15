@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/field';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import ExcelTable from '@/components/ExcelTable';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { FilterLembaga, FilterSemester, FilterTahunAjaran, useLembagaTa } from '@/components/siklus/bersama';
 import { toast } from 'sonner';
@@ -87,21 +88,31 @@ export default function PindahKelasPage() {
             <span>Kelas {g.kelas}</span>
             <span className="text-xs text-muted-foreground">Tingkat {g.tingkat ?? '—'} · {g.baris.length} santri</span>
           </header>
-          <table className="w-full text-sm">
-            <thead className="text-left text-xs text-muted-foreground"><tr><th className="p-2">Nama</th><th className="p-2">NIS lokal</th><th className="p-2">Absen</th><th className="p-2">Pindah ke</th></tr></thead>
-            <tbody>
-              {g.baris.map((r) => (
-                <tr key={r.id} className="border-t">
-                  <td className="p-2">{r.santri?.nama_lengkap}</td>
-                  <td className="p-2">{r.nis_lokal ?? '—'}</td>
-                  <td className="p-2">{r.no_absen ?? '—'}</td>
-                  <td className="p-2">
-                    <PindahSelect idPrefix={`pindah_${r.id}`} kelas={kelas} disabled={busy} onPilih={(v) => void pindah(r, v)} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="px-2 pb-1">
+            <ExcelTable
+              tableKey={`pindah_kelas_${g.tingkat ?? 'tanpa'}_${g.kelasId ?? 'tanpa'}`}
+              fields={[
+                { key: 'nama', label: 'Nama', kind: 'static' },
+                { key: 'nis_lokal', label: 'NIS lokal', kind: 'static' },
+                { key: 'no_absen', label: 'Absen', kind: 'static' },
+              ]}
+              rows={g.baris}
+              getValues={(r) => ({
+                nama: r.santri?.nama_lengkap ?? null,
+                nis_lokal: r.nis_lokal ?? null,
+                no_absen: r.no_absen != null ? String(r.no_absen) : null,
+              })}
+              canEdit={false}
+              onCommit={async () => {}}
+              onSaved={() => {}}
+              renderActions={(r) => (
+                <PindahSelect idPrefix={`pindah_${r.id}`} kelas={kelas} disabled={busy} onPilih={(v) => void pindah(r, v)} />
+              )}
+              hideCheckbox
+              maxRows={12}
+              emptyText="Tidak ada santri pada kelas ini."
+            />
+          </div>
         </section>
       ))}
 

@@ -209,7 +209,7 @@ export function RibbonTabel({ apiTabel }: { apiTabel: RibbonTableApi | null }) {
         </div>
       </RibbonGroup>
       <RibbonPemisah />
-      <RibbonGroup label="Baris">
+      <RibbonGroup label="Baris" disabled={!apiTabel}>
         <div className="flex flex-col items-center gap-1">
           <ToggleGroup
             type="single"
@@ -243,13 +243,14 @@ export function RibbonTabel({ apiTabel }: { apiTabel: RibbonTableApi | null }) {
               max={MAX_ROW_H}
               title="Tinggi baris (berlaku semua tabel)"
               ariaLabel="Tinggi baris (px)"
+              disabled={!apiTabel}
               onChange={setRowH}
             />
           </div>
         </div>
       </RibbonGroup>
       <RibbonPemisah />
-      <RibbonGroup label="Header">
+      <RibbonGroup label="Header" disabled={!apiTabel}>
         <div className="flex flex-col items-center gap-1">
           <PilihFont
             id="select_huruf_header_top"
@@ -266,6 +267,7 @@ export function RibbonTabel({ apiTabel }: { apiTabel: RibbonTableApi | null }) {
               max={MAX_FONT_PX}
               title="Ukuran huruf header tabel"
               ariaLabel="Ukuran huruf header tabel (px)"
+              disabled={!apiTabel}
               onChange={(n) => setGayaBagian('tabel_header', { size: n })}
             />
             <WarnaInput
@@ -284,6 +286,7 @@ export function RibbonTabel({ apiTabel }: { apiTabel: RibbonTableApi | null }) {
                 ? 'Tinggi baris header (manual, berlaku semua tabel)'
                 : 'Tinggi baris header (otomatis mengikuti judul)'}
               ariaLabel="Tinggi baris header (px)"
+              disabled={!apiTabel}
               onChange={setHeaderH}
             />
             {headerHManual ? (
@@ -315,7 +318,7 @@ export function RibbonTabel({ apiTabel }: { apiTabel: RibbonTableApi | null }) {
         </div>
       </RibbonGroup>
       <RibbonPemisah />
-      <RibbonGroup label="Cell">
+      <RibbonGroup label="Cell" disabled={!apiTabel}>
         <div className="flex flex-col items-center gap-1">
           <PilihFont
             id="select_huruf_top"
@@ -332,6 +335,7 @@ export function RibbonTabel({ apiTabel }: { apiTabel: RibbonTableApi | null }) {
               max={MAX_FONT_PX}
               title="Ukuran huruf sel tabel (berlaku semua tabel)"
               ariaLabel="Ukuran huruf sel tabel (px)"
+              disabled={!apiTabel}
               onChange={setFontPx}
             />
             <WarnaInput

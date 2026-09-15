@@ -5,7 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/field';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import ExcelTable from '@/components/ExcelTable';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
+import TabelRingkas from '@/components/TabelRingkas';
 import { FilterLembaga, FilterTahunAjaran, useLembagaTa } from '@/components/siklus/bersama';
 import { toast } from 'sonner';
 
@@ -104,7 +106,6 @@ export default function KelulusanPage() {
           <header className="flex items-center justify-between border-b bg-muted/40 px-3 py-2 text-sm font-medium">
             <span>Santri tingkat akhir ({kiri.length})</span>
             <div className="flex gap-2">
-              <Button id="btn_pilih_semua_kelulusan" size="sm" variant="outline" onClick={() => setPilih(new Set(kiri.map((r) => r.santri_id)))}>Pilih semua</Button>
               <Button id="btn_ke_tidak_lulus" size="sm" variant="outline" disabled={pilih.size === 0} onClick={() => {
                 const baris = kiri.filter((r) => pilih.has(r.santri_id)).map((r) => ({ santri_id: r.santri_id, nama: r.santri?.nama_lengkap ?? String(r.santri_id), kelas: r.kelas?.nama_kelas ?? null }));
                 setTidakLulus((prev) => [...prev, ...baris]);
@@ -113,58 +114,66 @@ export default function KelulusanPage() {
               }}>→ Tidak lulus</Button>
             </div>
           </header>
-          <div className="max-h-[58vh] overflow-auto">
-            <table className="w-full text-sm">
-              <thead className="text-left text-xs text-muted-foreground"><tr><th className="p-2">Pilih</th><th className="p-2">Nama</th><th className="p-2">Kelas</th></tr></thead>
-              <tbody>
-                {kiri.length === 0 ? <tr><td colSpan={3} className="p-3 text-center text-muted-foreground">Tidak ada santri aktif.</td></tr> : kiri.map((r) => (
-                  <tr key={r.id} className="border-t">
-                    <td className="p-2"><input id={`cek_kelulusan_${r.id}`} type="checkbox" checked={pilih.has(r.santri_id)} onChange={(e) => setPilih((prev) => {
-                      const next = new Set(prev);
-                      if (e.target.checked) next.add(r.santri_id); else next.delete(r.santri_id);
-                      return next;
-                    })} /></td>
-                    <td className="p-2">{r.santri?.nama_lengkap}</td>
-                    <td className="p-2">{r.kelas?.nama_kelas ?? '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="px-2 pb-1">
+            <ExcelTable
+              tableKey="kelulusan_santri_akhir"
+              fields={[
+                { key: 'nama', label: 'Nama', kind: 'static' },
+                { key: 'kelas', label: 'Kelas', kind: 'static' },
+              ]}
+              rows={kiri}
+              getValues={(r) => ({ nama: r.santri?.nama_lengkap ?? null, kelas: r.kelas?.nama_kelas ?? null })}
+              canEdit={false}
+              onCommit={async () => {}}
+              onSaved={() => {}}
+              renderActions={() => null}
+              onCheckedChange={(rows) => setPilih(new Set(rows.map((r) => r.santri_id)))}
+              maxRows={12}
+              emptyText="Tidak ada santri aktif."
+            />
           </div>
         </section>
 
         <div className="grid grid-rows-2 gap-4">
           <section className="rounded-md border">
-            <header className="border-b bg-muted/40 px-3 py-2 text-sm font-medium">Alumni ({alumni.length})</header>
-            <div className="max-h-[28vh] overflow-auto">
-              <table className="w-full text-sm">
-                <thead className="text-left text-xs text-muted-foreground"><tr><th className="p-2">Nama</th><th className="p-2">TA lulus</th><th className="p-2">No. ijazah</th></tr></thead>
-                <tbody>
-                  {alumni.length === 0 ? <tr><td colSpan={3} className="p-3 text-center text-muted-foreground">Belum ada alumni.</td></tr> : alumni.map((a) => (
-                    <tr key={a.id} className="border-t">
-                      <td className="p-2">{a.santri?.nama_lengkap}</td>
-                      <td className="p-2">{a.tahun_ajaran_lulus?.nama ?? '—'}</td>
-                      <td className="p-2">{a.nomor_ijazah ?? '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <TabelRingkas
+              tableKey="kelulusan_alumni"
+              judul={`Alumni (${alumni.length})`}
+              maxRows={6}
+              emptyText="Belum ada alumni."
+              kolom={[
+                { key: 'nama', label: 'Nama' },
+                { key: 'ta', label: 'TA lulus' },
+                { key: 'ijazah', label: 'No. ijazah' },
+              ]}
+              baris={alumni.map((a) => [
+                a.santri?.nama_lengkap ?? '—',
+                a.tahun_ajaran_lulus?.nama ?? '—',
+                a.nomor_ijazah ?? '—',
+              ])}
+            />
           </section>
           <section className="rounded-md border">
             <header className="border-b bg-muted/40 px-3 py-2 text-sm font-medium">Santri tidak lulus ({tidakLulus.length})</header>
-            <div className="max-h-[28vh] overflow-auto">
-              <table className="w-full text-sm">
-                <tbody>
-                  {tidakLulus.length === 0 ? <tr><td className="p-3 text-center text-muted-foreground">Belum ada.</td></tr> : tidakLulus.map((b) => (
-                    <tr key={b.santri_id} className="border-t">
-                      <td className="p-2">{b.nama}</td>
-                      <td className="p-2 text-muted-foreground">{b.kelas ?? '—'}</td>
-                      <td className="p-2 text-right"><Button id={`btn_kembalikan_tidak_lulus_${b.santri_id}`} size="sm" variant="ghost" onClick={() => setTidakLulus((prev) => prev.filter((x) => x.santri_id !== b.santri_id))}>Kembalikan</Button></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="px-2 pb-1">
+              <ExcelTable
+                tableKey="kelulusan_tidak_lulus"
+                fields={[
+                  { key: 'nama', label: 'Nama', kind: 'static' },
+                  { key: 'kelas', label: 'Kelas', kind: 'static' },
+                ]}
+                rows={tidakLulus.map((b) => ({ ...b, id: b.santri_id }))}
+                getValues={(b) => ({ nama: b.nama, kelas: b.kelas })}
+                canEdit={false}
+                onCommit={async () => {}}
+                onSaved={() => {}}
+                renderActions={(b) => (
+                  <Button id={`btn_kembalikan_tidak_lulus_${b.santri_id}`} size="sm" variant="ghost" onClick={() => setTidakLulus((prev) => prev.filter((x) => x.santri_id !== b.santri_id))}>Kembalikan</Button>
+                )}
+                hideCheckbox
+                maxRows={6}
+                emptyText="Belum ada."
+              />
             </div>
           </section>
         </div>

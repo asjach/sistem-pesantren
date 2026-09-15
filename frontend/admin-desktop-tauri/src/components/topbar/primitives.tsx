@@ -20,6 +20,7 @@ export function SpinBox({
   title,
   ariaLabel,
   onChange,
+  disabled = false,
 }: {
   id: string;
   value: number;
@@ -28,6 +29,8 @@ export function SpinBox({
   title: string;
   ariaLabel: string;
   onChange: (n: number) => void;
+  /** Nonaktifkan seluruh kontrol (mis. halaman ini tidak punya tabel grid). */
+  disabled?: boolean;
 }) {
   const [draft, setDraft] = useState<string | null>(null);
   // Commit hanya saat blur/Enter/± agar mengetik tidak memicu re-render global
@@ -52,13 +55,16 @@ export function SpinBox({
     <div
       title={title}
       data-part="spinbox"
-      className="flex h-6 items-stretch overflow-hidden rounded-md border border-white/20 bg-white/5 focus-within:ring-2 focus-within:ring-white/30"
+      className={cn(
+        'flex h-6 items-stretch overflow-hidden rounded-md border border-white/20 bg-white/5 focus-within:ring-2 focus-within:ring-white/30',
+        disabled && 'pointer-events-none opacity-40',
+      )}
     >
       <button
         type="button"
         id={`${id}_kurang`}
         aria-label={`${ariaLabel} kurang`}
-        disabled={value <= min}
+        disabled={disabled || value <= min}
         className={btn}
         onClick={() => stepBy(-1)}
       >
@@ -69,6 +75,7 @@ export function SpinBox({
         type="text"
         inputMode="numeric"
         aria-label={ariaLabel}
+        disabled={disabled}
         className="h-full w-8 border-x border-white/20 bg-transparent px-0 text-center text-xs text-white outline-none"
         value={draft ?? String(value)}
         onChange={(e) => setDraft(e.target.value)}
@@ -81,7 +88,7 @@ export function SpinBox({
         type="button"
         id={`${id}_tambah`}
         aria-label={`${ariaLabel} tambah`}
-        disabled={value >= max}
+        disabled={disabled || value >= max}
         className={btn}
         onClick={() => stepBy(1)}
       >
@@ -167,10 +174,15 @@ export function RibbonCmd({
   );
 }
 
-/** Grup perintah ribbon + nama grup di bawahnya (ala Office). */
-export function RibbonGroup({ label, children }: { label: string; children: ReactNode }) {
+/** Grup perintah ribbon + nama grup di bawahnya (ala Office).
+ *  `disabled` mematikan seluruh isi grup (mis. tidak ada tabel pada halaman). */
+export function RibbonGroup({ label, children, disabled }: { label: string; children: ReactNode; disabled?: boolean }) {
   return (
-    <div data-part="grup_ribbon" className="flex shrink-0 flex-col items-center gap-0.5 px-1.5">
+    <div
+      data-part="grup_ribbon"
+      aria-disabled={disabled || undefined}
+      className={cn('flex shrink-0 flex-col items-center gap-0.5 px-1.5', disabled && 'pointer-events-none opacity-40')}
+    >
       <div className="flex flex-1 items-center gap-1">{children}</div>
       <span className="text-[10px] uppercase tracking-wide text-white/50">{label}</span>
     </div>

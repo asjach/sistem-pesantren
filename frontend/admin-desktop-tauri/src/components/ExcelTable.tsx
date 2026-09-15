@@ -176,6 +176,14 @@ interface ExcelTableProps<T extends { id: string | number }> {
   onCreateRow?: (fields: Record<string, string | null>) => Promise<void>;
   /** Nilai tampilan kolom statis pada baris input (mis. nama TA terpilih). */
   inputRowValues?: Record<string, string | null>;
+  /** Tabel ringkas baca-saja: sembunyikan kolom centang (tanpa seleksi baris). */
+  hideCheckbox?: boolean;
+  /** Tabel ringkas baca-saja: sembunyikan kolom Aksi. */
+  hideActions?: boolean;
+  /** Tabel ringkas baca-saja: sembunyikan pemilih preset kolom di toolbar. */
+  hidePreset?: boolean;
+  /** Kabarkan baris tercentang setiap seleksi berubah (opsional). */
+  onCheckedChange?: (rows: T[]) => void;
 }
 
 const MIN_COL_W = 50;
@@ -721,6 +729,10 @@ export default function ExcelTable<T extends { id: string | number }>({
   maxRows,
   onCreateRow,
   inputRowValues,
+  hideCheckbox = false,
+  hideActions = false,
+  hidePreset = false,
+  onCheckedChange,
 }: ExcelTableProps<T>) {
   const { density } = useTheme();
   const densityPx = DENSITY_PX[density];
@@ -766,6 +778,8 @@ export default function ExcelTable<T extends { id: string | number }>({
 
   const rowsRef = useRef(rows);
   rowsRef.current = rows;
+  const onCheckedChangeRef = useRef<((rows: T[]) => void) | undefined>(undefined);
+  onCheckedChangeRef.current = onCheckedChange;
   const renderRef = useRef(renderActions);
   renderRef.current = renderActions;
   /** Jumlah aksi maksimum pada data yang sedang dimuat (per baris, setelah
@@ -933,6 +947,12 @@ export default function ExcelTable<T extends { id: string | number }>({
   // CHECK_W, jadi kita tunggu sampai lebarnya bukan lagi 100 (bawaan DSG).
   useEffect(() => {
     if (lebarStabil) return;
+    // Tanpa kolom centang tak ada penanda lebar basis pertama → tunggu lebar
+    // basis kolom data siap, lalu tampilkan.
+    if (hideCheckbox) {
+      if (widthsReady && !loading) setLebarStabil(true);
+      return;
+    }
     if (!widthsReady || loading) return;
     if (rows.length === 0) {
       setLebarStabil(true);
@@ -958,7 +978,7 @@ export default function ExcelTable<T extends { id: string | number }>({
       batal = true;
       cancelAnimationFrame(raf);
     };
-  }, [lebarStabil, widthsReady, loading, rows.length, tableKey]);
+  }, [lebarStabil, widthsReady, loading, rows.length, tableKey, hideCheckbox]);
 
   useEffect(() => {
     const t = setTimeout(() => setLebarStabil(true), 1500);
@@ -969,6 +989,7 @@ export default function ExcelTable<T extends { id: string | number }>({
   // (useLayoutEffect). Kolom teks sudah final dari syncAutoWidths; hanya Aksi
   // yang tak bisa dihitung sinkron karena jumlah/isi tombol bergantung data.
   useLayoutEffect(() => {
+    if (hideActions) return;
     if (widthsRef.current.__aksi !== undefined) return;
     const w = measureActionsWidth();
     if (w == null) return;
@@ -1036,6 +1057,12 @@ export default function ExcelTable<T extends { id: string | number }>({
     setRange(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rowsSig]);
+
+  // Kabarkan baris tercentang ke halaman (mis. daftar pilihan klasifikasi
+  // santri pada halaman siklus) tanpa harus mengelola centang sendiri.
+  useEffect(() => {
+    onCheckedChangeRef.current?.(rowsRef.current.filter((r) => checkedIds.has(r.id)));
+  }, [checkedIds]);
 
   // Preset kolom berganti → seleksi kolom lama tidak relevan lagi.
   useEffect(() => {
@@ -1127,7 +1154,11 @@ export default function ExcelTable<T extends { id: string | number }>({
 
   /** Urutan id kolom grid (tanpa gutter) — untuk memetakan indeks seleksi. */
   function gridColumnKeys(): string[] {
-    return ['check', ...visibleFieldsRef.current.map((f) => f.key), '__aksi'];
+    return [
+      ...(hideCheckbox ? [] : ['check']),
+      ...visibleFieldsRef.current.map((f) => f.key),
+      ...(hideActions ? [] : ['__aksi']),
+    ];
   }
 
   /** Kolom-kolom yang sedang terseleksi, kolom checkbox dikecualikan karena
@@ -1309,7 +1340,11 @@ export default function ExcelTable<T extends { id: string | number }>({
    *  semua kolom dihitung ulang. */
   function computeAutoWidths(ignoreSaved = false): Record<string, number> {
     const out: Record<string, number> = {};
-    for (const key of [...visibleFieldsRef.current.map((f) => f.key), '__aksi']) {
+    const keys = [
+      ...visibleFieldsRef.current.map((f) => f.key),
+      ...(hideActions ? [] : ['__aksi']),
+    ];
+    for (const key of keys) {
       if (!ignoreSaved && widthsRef.current[key] !== undefined) continue;
       // Bila pengukuran gagal sesaat (sel aksi/teks belum dirender virtualisasi),
       // pertahankan hasil ukur terakhir — lebih baik daripada jatuh ke lebar bawaan.
@@ -1383,6 +1418,7 @@ export default function ExcelTable<T extends { id: string | number }>({
    *  pengguna belum pernah mengatur lebarnya sendiri. Sel yang baru muncul
    *  kadang belum ada saat event scroll tiba, jadi coba ulang beberapa frame. */
   function fitActionsIfNeeded() {
+    if (hideActions) return;
     if (aksiFitRef.current || widthsRef.current.__aksi !== undefined) return;
     aksiFitRef.current = true;
     let tries = 0;
@@ -1598,19 +1634,21 @@ export default function ExcelTable<T extends { id: string | number }>({
         : align[key] === 'right'
           ? 'simpes-dsg-align-right'
           : '';
-    const cols: Column<GridRow>[] = [
-      {
-        ...keyColumn<GridRow, 'checked'>('checked', checkboxColumn),
-        id: 'check',
-        title: <CheckAllCell />,
-        basis: CHECK_W,
-        grow: 0,
-        shrink: 0,
-        minWidth: CHECK_W,
-        // Baris input bukan data pengguna: tidak bisa dicentang.
-        disabled: ({ rowData }: { rowData: GridRow }) => String(rowData.id) === INPUT_ROW_ID,
-      },
-    ];
+    const cols: Column<GridRow>[] = hideCheckbox
+      ? []
+      : [
+          {
+            ...keyColumn<GridRow, 'checked'>('checked', checkboxColumn),
+            id: 'check',
+            title: <CheckAllCell />,
+            basis: CHECK_W,
+            grow: 0,
+            shrink: 0,
+            minWidth: CHECK_W,
+            // Baris input bukan data pengguna: tidak bisa dicentang.
+            disabled: ({ rowData }: { rowData: GridRow }) => String(rowData.id) === INPUT_ROW_ID,
+          },
+        ];
     let idxData = 0;
     for (const f of visibleFields) {
       const iData = idxData++;
@@ -1768,7 +1806,7 @@ export default function ExcelTable<T extends { id: string | number }>({
     }
     return cols;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fields, visibleFields, editing, widths, autoWidths, syncAutoWidths, align, showInput, freezeAktif]);
+  }, [fields, visibleFields, editing, widths, autoWidths, syncAutoWidths, align, showInput, freezeAktif, hideCheckbox]);
 
   /** Simpan baris input → buat record baru via onCreateRow halaman. Validasi
    *  field wajib + validator kolom dulu; draft dibersihkan hanya bila sukses
@@ -2196,7 +2234,10 @@ export default function ExcelTable<T extends { id: string | number }>({
       {/* Satu baris: input cari → tombol cari → pemisah → filter (kiri), lalu
           kontrol tabel dan tombol tambah halaman (kanan), dikelompokkan
           menurut fungsi. */}
-      <div data-part="toolbar_tabel" className="mb-3 flex flex-wrap items-end gap-2">
+      <div
+        data-part="toolbar_tabel"
+        className={cn('flex flex-wrap items-end gap-2', showToolbar || addButton || !hidePreset ? 'mb-3' : 'mb-0')}
+      >
         {showToolbar && (
           <form
             id={formId}
@@ -2252,7 +2293,9 @@ export default function ExcelTable<T extends { id: string | number }>({
               pembungkus kotak agar tampil polos seperti kontrol lain. Kontrol
               tabel umum (mode edit/input, salin, autofit, reset) pindah ke
               ribbon tab "Tabel" agar tak memakan ruang toolbar. */}
-          <PresetKolom tableKey={tableKey} fields={fields} onApply={setPresetKeys} apiRef={presetApiRef} />
+          {!hidePreset && (
+            <PresetKolom tableKey={tableKey} fields={fields} onApply={setPresetKeys} apiRef={presetApiRef} />
+          )}
 
           {/* Tombol aksi utama halaman, sejajar dengan kontrol tabel. */}
           {addButton && <div className="flex items-center gap-2">{addButton}</div>}
@@ -2304,8 +2347,8 @@ export default function ExcelTable<T extends { id: string | number }>({
                     value={gridValue}
                     onChange={handleChange}
                     columns={dsgColumns}
-                    stickyLeftColumnCount={freezeAktif > 0 ? freezeAktif + 1 : 0}
-                    stickyRightColumn={aksiColumn}
+                    stickyLeftColumnCount={freezeAktif > 0 ? freezeAktif + (hideCheckbox ? 0 : 1) : 0}
+                    stickyRightColumn={hideActions ? undefined : aksiColumn}
                     rowKey="id"
                     height={gridHeight}
                     rowHeight={effectiveH}
