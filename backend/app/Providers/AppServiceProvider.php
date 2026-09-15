@@ -26,20 +26,39 @@ class AppServiceProvider extends ServiceProvider
         // Fallback pemuat helper global (utama via composer.json "files" + dump-autoload).
         if (! function_exists('terbilang')) {
             $helper = app_path('Helpers/TerbilangHelper.php');
-            if (is_file($helper)) require_once $helper;
+            if (is_file($helper)) {
+                require_once $helper;
+            }
         }
 
-        RateLimiter::for('login', function (Request $request) {
+        // Di lingkungan local throttle dilepas agar siklus kerja dev (refresh
+        // berkali-kali demi cek tampilan, uji import berulang) tidak mentok 429.
+        // Gate hanya 'local': produksi & testing tetap memakai batas normal.
+        $longgar = app()->isLocal();
+
+        RateLimiter::for('login', function (Request $request) use ($longgar) {
+            if ($longgar) {
+                return Limit::none();
+            }
+
             $identifier = Str::transliterate(Str::lower((string) $request->input('identifier')));
 
             return Limit::perMinute(6)->by($identifier.'|'.$request->ip());
         });
 
-        RateLimiter::for('api_user', function (Request $request) {
+        RateLimiter::for('api_user', function (Request $request) use ($longgar) {
+            if ($longgar) {
+                return Limit::none();
+            }
+
             return Limit::perMinute(120)->by($request->user()?->getAuthIdentifier() ?: $request->ip());
         });
 
-        RateLimiter::for('imports', function (Request $request) {
+        RateLimiter::for('imports', function (Request $request) use ($longgar) {
+            if ($longgar) {
+                return Limit::none();
+            }
+
             return Limit::perMinute(10)->by($request->user()?->getAuthIdentifier() ?: $request->ip());
         });
     }
