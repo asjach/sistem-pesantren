@@ -1,7 +1,7 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { logout } from '@/api/auth';
-import { isTauri } from '@/api/client';
+import { isTauri, prefGet, prefSet } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
 import { useTheme, type ModeName, type ThemeName } from '@/theme';
 import { usePicker } from '@/picker';
@@ -22,7 +22,7 @@ import {
 import { ICON_SETS } from '@/iconSets';
 import { THEME_PRESETS } from '@/themes';
 import { DEFAULT_PREFS, WARNA_UI } from '@/prefs';
-import { Blend, Check, ChevronDown, LogOut, Monitor, Moon, Paintbrush, Palette, SquareMousePointer, Sun, Users } from '@/icons';
+import { Blend, Check, ChevronDown, ChevronUp, LogOut, Monitor, Moon, Paintbrush, Palette, SquareMousePointer, Sun, Users } from '@/icons';
 import { useRibbonTable } from '@/components/RibbonTable';
 import { useRibbonSlotCtx } from '@/components/RibbonSlot';
 import { halamanDariPath } from '@/lib/halaman';
@@ -42,6 +42,9 @@ const navBase =
 const navIdle =
   'text-[var(--sidebar-foreground)] hover:bg-[color-mix(in_srgb,var(--sidebar-foreground)_14%,transparent)] hover:text-white';
 
+/** Preferensi tampil/sembunyi baris toolbar (per perangkat). */
+const TOOLS_TAMPIL_KEY = 'simpes_tools_tampil';
+
 /** Header aplikasi: bar judul halaman + area akun, lalu baris ribbon tools
  *  (kontrol tabel aktif atau tools yang disumbang halaman lewat `RibbonSlot`).
  *  Navigasi halaman ada di Sidebar, bukan di sini. */
@@ -58,10 +61,23 @@ export default function TopBar() {
   const slotAda = slot?.ada ?? false;
 
   const halaman = halamanDariPath(pathname);
-  const tampilTools = apiTabel !== null || slotAda;
+  const [toolsTampil, setToolsTampil] = useState(true);
+  const adaTools = apiTabel !== null || slotAda;
+  const tampilTools = adaTools && toolsTampil;
 
   // Elemen target portal tools halaman (lihat `RibbonSlot`).
   const hostRef = useCallback((el: HTMLDivElement | null) => setSlotEl?.(el), [setSlotEl]);
+
+  useEffect(() => {
+    prefGet(TOOLS_TAMPIL_KEY).then((v) => setToolsTampil(v !== '0')).catch(() => {});
+  }, []);
+
+  function togolTools() {
+    setToolsTampil((v) => {
+      prefSet(TOOLS_TAMPIL_KEY, v ? '0' : '1').catch(() => {});
+      return !v;
+    });
+  }
 
   // Judul halaman → title bar jendela (hemat ruang di aplikasi). Di dev web
   // memakai document.title; di Tauri sekalian set judul window native.
@@ -99,6 +115,22 @@ export default function TopBar() {
         </span>
 
         <div data-part="area_akun" className="ml-auto flex items-center gap-0.5">
+          {adaTools && (
+            <button
+              id="btn_tampil_tools"
+              type="button"
+              title={toolsTampil ? 'Sembunyikan toolbar' : 'Tampilkan toolbar'}
+              aria-label={toolsTampil ? 'Sembunyikan toolbar' : 'Tampilkan toolbar'}
+              aria-pressed={toolsTampil}
+              onClick={togolTools}
+              className={cn(
+                'mr-1 grid size-6 place-items-center rounded-md text-white/75 transition-colors hover:bg-white/10 hover:text-white',
+                toolsTampil && 'bg-white/15 text-white',
+              )}
+            >
+              {toolsTampil ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </button>
+          )}
           <ToggleGroup
             type="single"
             spacing={0}
