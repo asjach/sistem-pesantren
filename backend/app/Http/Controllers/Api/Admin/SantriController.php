@@ -109,7 +109,7 @@ class SantriController extends Controller
 
             return $lembagaId;
         }
-        if ($auth->hasRole('super_admin') || $auth->isAdminFull()) {
+        if ($auth->bolehPesantren()) {
             return null;
         }
         $ids = $auth->lembagaIds();

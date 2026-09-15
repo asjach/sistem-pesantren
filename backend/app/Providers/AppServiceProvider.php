@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Konteks\LembagaAktif;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -15,7 +16,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Konteks act-as per request: satu instance per request.
+        $this->app->singleton(LembagaAktif::class);
     }
 
     /**

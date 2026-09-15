@@ -31,7 +31,7 @@ class KeuanganController extends Controller
         } else {
             // Belum ada tagihan: tenant via keanggotaan santri (lembaga_santri).
             $actor = $request->user();
-            if (! $actor->hasRole('super_admin') && ! $actor->isAdminFull()) {
+            if (! $actor->bolehPesantren()) {
                 $boleh = $santri->lembagaSantri()->pluck('lembaga_id')
                     ->contains(fn ($id) => $actor->canAccessLembaga((int) $id));
                 if (! $boleh) {
@@ -56,7 +56,7 @@ class KeuanganController extends Controller
             'tahun_ajaran_id' => 'required|exists:tahun_ajaran,id',
             'periode' => 'required|regex:/^\d{4}-\d{2}$/', // YYYY-MM
         ]);
-        if (! $actor->hasRole('super_admin') && ! $actor->isAdminFull()) {
+        if (! $actor->bolehPesantren()) {
             $this->canLembaga($actor, (int) $data['lembaga_id']) || abort(403);
         }
 
@@ -102,7 +102,7 @@ class KeuanganController extends Controller
         }
         // Kasir hanya kas lembaganya; kas pusat (lembaga_id null) hanya admin full.
         $kas = AkunKas::findOrFail($data['akun_kas_id']);
-        if (! $actor->hasRole('super_admin') && ! $actor->isAdminFull()) {
+        if (! $actor->bolehPesantren()) {
             if (is_null($kas->lembaga_id) || ! $this->canLembaga($actor, (int) $kas->lembaga_id)) {
                 abort(403, 'Kas di luar lembaga Anda.');
             }
@@ -110,7 +110,7 @@ class KeuanganController extends Controller
         foreach ($data['items'] as $item) {
             $this->authorize('bayar', Tagihan::findOrFail($item['tagihan_id']));
         }
-        if (! $actor->hasRole('super_admin') && ! $actor->isAdminFull()) {
+        if (! $actor->bolehPesantren()) {
             $data['tenant_lembaga_ids'] = $actor->lembagaIds();
         }
 
@@ -134,7 +134,7 @@ class KeuanganController extends Controller
     // Choke point tenant: alias resmi canAccessLembaga (admin full/super_admin semua).
     protected function canLembaga($actor, int $lembagaId): bool
     {
-        if ($actor->hasRole('super_admin') || $actor->isAdminFull()) {
+        if ($actor->bolehPesantren()) {
             return true;
         }
 

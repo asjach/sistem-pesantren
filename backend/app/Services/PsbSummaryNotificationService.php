@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\PsbCalonSantri;
 use App\Models\User;
+use App\Notifications\RingkasanAntreanNotification;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -43,16 +44,16 @@ class PsbSummaryNotificationService
 
     protected function kirim(User $admin, string $type, int $count, string $url): void
     {
-        if (! class_exists(\App\Notifications\RingkasanAntreanNotification::class)) {
+        if (! class_exists(RingkasanAntreanNotification::class)) {
             return;
         }
-        $admin->notify(new \App\Notifications\RingkasanAntreanNotification($type, $count, $url));
+        $admin->notify(new RingkasanAntreanNotification($type, $count, $url));
     }
 
     // Setara scopeTenantScope/tenantScope (void helper karena dipakai di whereHas/where notifikasi).
     protected function scopeTenant($q, User $admin): void
     {
-        if ($admin->hasRole('super_admin') || $admin->isAdminFull()) {
+        if ($admin->bolehPesantren()) {
             return;
         }
         // Single-tenant: tenant = lembaga via pivot user_lembaga.
@@ -63,7 +64,7 @@ class PsbSummaryNotificationService
     // Alias scopeTenant untuk query PsbCalonSantri langsung (pola sama, nama beda agar jelas di refreshDaftarUlang).
     protected function scopeCalon($q, User $admin): void
     {
-        if ($admin->hasRole('super_admin') || $admin->isAdminFull()) {
+        if ($admin->bolehPesantren()) {
             return;
         }
         $q->whereIn('lembaga_id', $admin->lembagaIds() ?: [-1]);

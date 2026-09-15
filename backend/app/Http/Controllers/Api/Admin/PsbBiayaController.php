@@ -107,7 +107,7 @@ class PsbBiayaController extends Controller
     {
         $auth = $request->user();
         $query = PsbBiayaLembaga::with('lembaga:id,nama,kode')->orderBy('lembaga_id');
-        if (! ($auth->hasRole('super_admin') || $auth->isAdminFull())) {
+        if (! $auth->bolehPesantren()) {
             $ids = $auth->lembagaIds();
             $query->whereIn('lembaga_id', $ids ?: [0]);
         }

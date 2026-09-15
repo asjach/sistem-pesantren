@@ -34,7 +34,7 @@ class LembagaController extends Controller
     {
         $auth = auth()->user();
         // Tambah lembaga hanya super_admin (Lampiran E v1.9.2).
-        if (! $auth->hasRole('super_admin')) {
+        if (! $auth->bolehSuperAdmin()) {
             return response()->json(['message' => 'Hanya super_admin yang dapat menambah lembaga.'], 403);
         }
 

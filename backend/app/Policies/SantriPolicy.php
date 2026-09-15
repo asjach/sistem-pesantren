@@ -17,7 +17,7 @@ class SantriPolicy
 
     public function view(User $user, Santri $santri): bool
     {
-        if ($user->hasRole('super_admin') || $user->isAdminFull()) {
+        if ($user->bolehPesantren()) {
             return true;
         }
         // Wali: hanya anaknya sendiri

@@ -19,10 +19,13 @@ class ReferensiController extends Controller
     {
         if (! empty($data['lembaga_id'])) {
             $this->canLembaga($actor, (int) $data['lembaga_id']) || abort(403, 'Di luar lembaga Anda.');
+
             return (int) $data['lembaga_id'];
         }
         $ids = $actor->lembagaIds();
-        if (count($ids) === 1) return (int) $ids[0];
+        if (count($ids) === 1) {
+            return (int) $ids[0];
+        }
         abort(422, 'lembaga_id wajib untuk admin non-global (nol/lebih dari satu akses).');
     }
 
@@ -35,7 +38,10 @@ class ReferensiController extends Controller
     {
         $actor = $request->user();
         $lembagaId = $request->integer('lembaga_id') ?: ($actor->lembagaIds()[0] ?? null);
-        if (! is_null($lembagaId) && ! $this->canLembaga($actor, (int) $lembagaId)) abort(403);
+        if (! is_null($lembagaId) && ! $this->canLembaga($actor, (int) $lembagaId)) {
+            abort(403);
+        }
+
         return response()->json(RefService::effective($tipe, $lembagaId));
     }
 
@@ -52,14 +58,14 @@ class ReferensiController extends Controller
             'urutan' => 'nullable|integer',
         ]);
 
-        if ($isStatus && $request->hasAny(['is_aktif_bawaan', 'terminal_ke']) && ! $actor->hasRole('super_admin')) {
+        if ($isStatus && $request->hasAny(['is_aktif_bawaan', 'terminal_ke']) && ! $actor->bolehSuperAdmin()) {
             abort(403, 'Sifat status hanya super_admin global.');
         }
 
         // super_admin tanpa lembaga_id = baris global; lainnya wajib lembaganya.
         $targetLembaga = $data['lembaga_id'] ?? null;
         if (is_null($targetLembaga)) {
-            if (! $actor->hasRole('super_admin')) {
+            if (! $actor->bolehSuperAdmin()) {
                 $targetLembaga = $this->mustLembaga($actor, $data);
             }
         } elseif (! $this->canLembaga($actor, (int) $targetLembaga)) {
@@ -73,7 +79,9 @@ class ReferensiController extends Controller
             is_null($targetLembaga)
                 ? $q->whereNull('lembaga_id')
                 : $q->where('lembaga_id', $targetLembaga);
-            if ($q->first()) abort(422, 'Kode sudah ada.');
+            if ($q->first()) {
+                abort(422, 'Kode sudah ada.');
+            }
             // Custom lembaga: sifat netral (non-aktif, non-terminal); nama/urutan ikut input.
             $id = DB::table($table)->insertGetId([
                 'lembaga_id' => $targetLembaga, 'kode' => $data['kode'],
@@ -94,6 +102,7 @@ class ReferensiController extends Controller
 
         RefService::forget($targetLembaga);
         RefService::forgetAlamat($targetLembaga);
+
         return response()->json(DB::table($table)->find($id), 201);
     }
 
@@ -107,7 +116,9 @@ class ReferensiController extends Controller
 
         if (is_null($row->lembaga_id)) {
             // Ubah baris global hanya super_admin; lembaga hanya boleh shadow on/off.
-            if (! $actor->hasRole('super_admin')) abort(403, 'Baris global hanya super_admin.');
+            if (! $actor->bolehSuperAdmin()) {
+                abort(403, 'Baris global hanya super_admin.');
+            }
         } elseif (! $this->canLembaga($actor, (int) $row->lembaga_id)) {
             abort(403, 'Di luar lembaga Anda.');
         }
@@ -122,9 +133,13 @@ class ReferensiController extends Controller
             $q = DB::table($table)->where('nama', $data['nama'])->where('id', '!=', $id)
                 ->where(function ($q) use ($row) {
                     $q->whereNull('lembaga_id');
-                    if (! is_null($row->lembaga_id)) $q->orWhere('lembaga_id', $row->lembaga_id);
+                    if (! is_null($row->lembaga_id)) {
+                        $q->orWhere('lembaga_id', $row->lembaga_id);
+                    }
                 });
-            if ($q->exists()) abort(422, 'Nilai sudah ada.');
+            if ($q->exists()) {
+                abort(422, 'Nilai sudah ada.');
+            }
         }
         $upd['nama'] = $data['nama'];
 
@@ -156,13 +171,17 @@ class ReferensiController extends Controller
             );
             RefService::forget($targetLembaga);
             RefService::forgetAlamat($targetLembaga);
+
             return response()->json(['pesan' => 'Data referensi berhasil dinonaktifkan']);
         }
 
-        if (! $this->canLembaga($actor, (int) $row->lembaga_id)) abort(403);
+        if (! $this->canLembaga($actor, (int) $row->lembaga_id)) {
+            abort(403);
+        }
         DB::table($table)->where('id', $id)->update(['is_active' => false]);
         RefService::forget($row->lembaga_id);
         RefService::forgetAlamat($row->lembaga_id);
+
         return response()->json(['pesan' => 'Data referensi berhasil dinonaktifkan']);
     }
 

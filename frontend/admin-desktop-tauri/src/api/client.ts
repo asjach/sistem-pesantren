@@ -18,6 +18,18 @@ const TOKEN_KEY = 'simpes_token';
 const USER_KEY = 'simpes_user';
 const BASE_URL_KEY = 'simpes_base_url';
 
+/** Lembaga yang sedang "diperankan" (mode bertindak sebagai lembaga) — dikirim
+ *  sebagai header X-Lembaga-Aktif. `null` = mode penuh. */
+let lembagaAktifId: number | null = null;
+
+export function setLembagaAktifHeader(id: number | null): void {
+  lembagaAktifId = id;
+}
+
+function headerLembaga(): Record<string, string> {
+  return lembagaAktifId != null ? { 'X-Lembaga-Aktif': String(lembagaAktifId) } : {};
+}
+
 /** Event global saat sesi kedaluwarsa (401) — didengar AuthProvider. */
 export const AUTH_EXPIRED_EVENT = 'simpes:unauthorized';
 
@@ -230,6 +242,7 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
         'Content-Type': 'application/json',
         Accept: 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...headerLembaga(),
         ...(init.headers ?? {}),
       },
     });
@@ -250,6 +263,7 @@ export async function apiUpload<T>(path: string, body: FormData): Promise<T> {
       headers: {
         Accept: 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...headerLembaga(),
       },
     });
   } catch {
@@ -280,6 +294,7 @@ export async function downloadFile(path: string, fallbackName: string): Promise<
       headers: {
         Accept: '*/*',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...headerLembaga(),
       },
     });
   } catch {

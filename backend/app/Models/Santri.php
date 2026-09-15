@@ -166,7 +166,7 @@ class Santri extends Model
     {
         $authUser = auth()->user();
 
-        if ($authUser->hasRole('super_admin') || $authUser->isAdminFull()) {
+        if ($authUser->bolehPesantren()) {
             return $query;
         }
 

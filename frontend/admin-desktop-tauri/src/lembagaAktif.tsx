@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { prefGet, prefSet } from '@/api/client';
+import { prefGet, prefSet, setLembagaAktifHeader } from '@/api/client';
 import { listLembaga } from '@/api/master';
 import { useAuth } from '@/auth/AuthContext';
 
@@ -78,6 +78,11 @@ export function LembagaAktifProvider({ children }: { children: ReactNode }) {
     setLembagaId(id);
     prefSet(KEY, id == null ? '0' : String(id)).catch(() => {});
   }, []);
+
+  // Mode "bertindak sebagai lembaga" hanya untuk super_admin: header act-as
+  // dipasang sinkron saat render agar request anak (halaman) memakainya.
+  const superAdmin = !!user?.roles.some((r) => r.name === 'super_admin');
+  setLembagaAktifHeader(superAdmin && lembagaId != null ? lembagaId : null);
 
   const value = useMemo<LembagaAktifState>(() => ({
     loading,

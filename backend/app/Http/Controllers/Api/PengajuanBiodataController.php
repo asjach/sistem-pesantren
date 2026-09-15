@@ -52,7 +52,7 @@ class PengajuanBiodataController extends Controller
         $base = PengajuanBiodataSantri::query()->whereHas('santri', function ($q) use ($auth, $request) {
             $filterLembaga = $request->filled('lembaga_id') ? $request->integer('lembaga_id') : null;
 
-            if ($auth->hasRole('super_admin') || $auth->isAdminFull()) {
+            if ($auth->bolehPesantren()) {
                 if ($filterLembaga !== null) {
                     $q->whereHas('lembagaSantri', fn ($ls) => $ls->where('lembaga_id', $filterLembaga));
                 }
@@ -120,6 +120,6 @@ class PengajuanBiodataController extends Controller
 
     protected function isFull($admin): bool
     {
-        return $admin->hasRole('super_admin') || $admin->isAdminFull();
+        return $admin->bolehPesantren();
     }
 }

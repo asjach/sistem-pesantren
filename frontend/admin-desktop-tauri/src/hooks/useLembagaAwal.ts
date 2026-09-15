@@ -9,7 +9,7 @@ import { useLembagaAktif } from '@/lembagaAktif';
 export function useLembagaAwalString(set: (v: string) => void): void {
   const { lembagaId } = useLembagaAktif();
   useEffect(() => {
-    if (lembagaId != null) set(String(lembagaId));
+    set(lembagaId != null ? String(lembagaId) : '');
   }, [lembagaId, set]);
 }
 
@@ -17,6 +17,6 @@ export function useLembagaAwalString(set: (v: string) => void): void {
 export function useLembagaAwalNumber(set: (v: number | '') => void): void {
   const { lembagaId } = useLembagaAktif();
   useEffect(() => {
-    if (lembagaId != null) set(lembagaId);
+    set(lembagaId ?? '');
   }, [lembagaId, set]);
 }

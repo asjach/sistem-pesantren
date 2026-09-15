@@ -13,7 +13,10 @@ class UserPolicy
 
     public function view(User $user, User $target): bool
     {
-        if ($user->hasRole('super_admin') || $user->isAdminFull()) return true;
+        if ($user->bolehPesantren()) {
+            return true;
+        }
+
         return $user->isSameTenant($target);
     }
 

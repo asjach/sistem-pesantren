@@ -45,14 +45,11 @@ class Kelas extends Model
     public function scopeTenantScope(Builder $query): Builder
     {
         $user = auth()->user();
-        if ($user->hasRole('super_admin')) {
+        if ($user->bolehPesantren()) {
             return $query;
         }
         if ($user->hasAnyRole(['orang_tua', 'guru', 'santri'])) {
             return $query->whereRaw('1 = 0');
-        }
-        if ($user->hasRole('admin') && $user->isAdminFull()) {
-            return $query;
         }
         $ids = $user->lembagaIds();
         if (empty($ids)) {

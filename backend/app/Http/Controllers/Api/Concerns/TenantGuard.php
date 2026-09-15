@@ -33,7 +33,7 @@ trait TenantGuard
      */
     protected function scopeLembaga($query, User $auth, Request $request, string $column = 'lembaga_id')
     {
-        if ($auth->hasRole('super_admin') || $auth->isAdminFull()) {
+        if ($auth->bolehPesantren()) {
             if ($request->filled('lembaga_id')) {
                 $query->where($column, $request->input('lembaga_id'));
             }
@@ -62,7 +62,7 @@ trait TenantGuard
     {
         $filter = fn ($q) => $q->where('lembaga_id', $request->integer('lembaga_id'));
 
-        if ($auth->hasRole('super_admin') || $auth->isAdminFull()) {
+        if ($auth->bolehPesantren()) {
             if ($request->filled('lembaga_id')) {
                 $query->whereHas($relation, $filter);
             }
@@ -91,7 +91,7 @@ trait TenantGuard
     {
         $this->authorizeLembaga($request->user(), $target);
         $auth = $request->user();
-        if ($auth->hasRole('super_admin') || $auth->isAdminFull()) {
+        if ($auth->bolehPesantren()) {
             return;
         }
         $punya = RiwayatBelajar::where('santri_id', $santri->id)

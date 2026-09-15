@@ -21,7 +21,7 @@ class UserManagementController extends Controller
 
     protected function assignableRolesFor(User $authUser): array
     {
-        if ($authUser->hasRole('super_admin')) {
+        if ($authUser->bolehSuperAdmin()) {
             return ['super_admin', 'admin', 'kasir', 'guru', 'orang_tua', 'santri'];
         }
         if ($authUser->hasRole('admin')) {
@@ -56,7 +56,7 @@ class UserManagementController extends Controller
      */
     protected function blocksPrivilegedTarget(User $authUser, User $target): bool
     {
-        return ! $authUser->hasRole('super_admin')
+        return ! $authUser->bolehSuperAdmin()
             && $authUser->id !== $target->id
             && $target->hasAnyRole(['admin', 'super_admin']);
     }
@@ -76,7 +76,7 @@ class UserManagementController extends Controller
                 abort(403, 'Lembaga di luar kewenangan Anda.');
             }
         }
-        if (empty($ids) && ! $authUser->hasRole('super_admin') && ! $authUser->isAdminFull()) {
+        if (empty($ids) && ! $authUser->bolehPesantren()) {
             $mine = $authUser->lembagaIds();
             if (empty($mine)) {
                 abort(422, 'lembaga_ids wajib untuk admin non-global.');
@@ -170,7 +170,7 @@ class UserManagementController extends Controller
             return response()->json(['message' => 'Tidak boleh mengubah role diri sendiri.'], 403);
         }
 
-        if (! $authUser->hasRole('super_admin')) {
+        if (! $authUser->bolehSuperAdmin()) {
             $above = array_values(array_filter(array_diff(
                 $user->roles->pluck('name')->all(),
                 $this->assignableRolesFor($authUser),
@@ -228,7 +228,7 @@ class UserManagementController extends Controller
         $this->authorize('create', User::class);
         $allowedRoles = $this->assignableRolesFor($authUser);
 
-        $isFull = $authUser->hasRole('super_admin') || $authUser->isAdminFull();
+        $isFull = $authUser->bolehPesantren();
         $lembagaIds = $request->input('lembaga_ids');
         if (! $isFull && empty($lembagaIds)) {
             return response()->json(['message' => 'lembaga_ids wajib untuk admin non-global.'], 422);
@@ -319,7 +319,7 @@ class UserManagementController extends Controller
         if (! $authUser->isSameTenant($user)) {
             return response()->json(['message' => 'Akses ditolak.'], 403);
         }
-        if (! $authUser->hasRole('super_admin')) {
+        if (! $authUser->bolehSuperAdmin()) {
             $above = array_values(array_filter(array_diff(
                 $user->roles->pluck('name')->all(),
                 $this->assignableRolesFor($authUser),
@@ -352,7 +352,7 @@ class UserManagementController extends Controller
             'lembaga_id' => ['required', 'integer', 'exists:lembaga,id'],
         ]);
 
-        if (! $authUser->isSameTenant($user) && ! $authUser->hasRole('super_admin')) {
+        if (! $authUser->isSameTenant($user) && ! $authUser->bolehPesantren()) {
             // Target di luar tenant hanya boleh bila user baru tanpa pivot (attach pertama).
             if (! empty($user->lembagaIds())) {
                 return response()->json(['message' => 'Akses ditolak.'], 403);

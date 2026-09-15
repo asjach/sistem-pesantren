@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Lembaga;
 use App\Models\Pembayaran;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
@@ -11,11 +12,15 @@ class KuitansiController extends Controller
     protected function authorizeTenant(Request $request, Pembayaran $pembayaran): void
     {
         $actor = $request->user();
-        if ($actor->hasRole('super_admin') || $actor->isAdminFull()) return;
+        if ($actor->bolehPesantren()) {
+            return;
+        }
         $pembayaran->loadMissing('detail.tagihan');
         $lembagaIds = $pembayaran->detail->map(fn ($d) => $d->tagihan?->lembaga_id)->filter()->unique()->all();
         foreach ($lembagaIds as $lid) {
-            if (! $actor->canAccessLembaga((int) $lid)) abort(403);
+            if (! $actor->canAccessLembaga((int) $lid)) {
+                abort(403);
+            }
         }
     }
 
@@ -31,7 +36,7 @@ class KuitansiController extends Controller
         if ($lembaga?->nama) {
             return $lembaga->nama;
         }
-        $root = \App\Models\Lembaga::where('kode', 'PESANTREN')->first();
+        $root = Lembaga::where('kode', 'PESANTREN')->first();
 
         return $root?->nama ?? 'PESANTREN';
     }

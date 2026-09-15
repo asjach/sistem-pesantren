@@ -78,7 +78,7 @@ class PsbController extends Controller
     /** Aksi per calon: admin salah satu lembaga tujuan (paket: MI atau MD), admin full, atau super_admin. */
     protected function authorizeCalon(User $auth, PsbCalonSantri $calon): void
     {
-        if ($auth->hasRole('super_admin') || $auth->isAdminFull()) {
+        if ($auth->bolehPesantren()) {
             return;
         }
         $ids = $calon->lembagaDetail()->pluck('lembaga_id');

@@ -169,7 +169,7 @@ class PsbKegiatanController extends Controller
     protected function pastikanAdminPesantren(): void
     {
         $u = auth()->user();
-        if (! ($u->hasRole('super_admin') || $u->isAdminFull())) {
+        if (! $u->bolehPesantren()) {
             abort(403, 'Kegiatan & gelombang PSB hanya dikelola admin pesantren.');
         }
     }

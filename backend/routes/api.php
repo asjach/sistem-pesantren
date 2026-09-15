@@ -37,10 +37,10 @@ Route::prefix('auth')->group(function () {
     });
 });
 
-Route::middleware(['auth:sanctum', 'role:super_admin|admin', 'throttle:api_user'])
+Route::middleware(['auth:sanctum', 'role:super_admin|admin', 'lembaga_aktif', 'throttle:api_user'])
     ->get('dashboard/ringkasan', [DashboardController::class, 'ringkasan']);
 
-Route::middleware(['auth:sanctum', 'role:super_admin|admin', 'throttle:api_user'])
+Route::middleware(['auth:sanctum', 'role:super_admin|admin', 'lembaga_aktif', 'throttle:api_user'])
     ->prefix('admin')
     ->group(function () {
         Route::get('lembaga', [LembagaController::class, 'index']);
@@ -164,7 +164,7 @@ Route::prefix('psb')->group(function () {
 });
 
 // PSB admin (auth + role super_admin|admin, scope tenant lembaga per aksi).
-Route::middleware(['auth:sanctum', 'role:super_admin|admin', 'throttle:api_user'])
+Route::middleware(['auth:sanctum', 'role:super_admin|admin', 'lembaga_aktif', 'throttle:api_user'])
     ->prefix('psb')
     ->group(function () {
         Route::get('antrean-daftar-ulang', [PsbController::class, 'antrean']);
@@ -210,7 +210,7 @@ Route::middleware(['auth:sanctum', 'role:orang_tua', 'throttle:api_user'])
     });
 
 // List dokumen calon: orang_tua pemilik + admin tenant.
-Route::middleware(['auth:sanctum', 'role:orang_tua|admin|super_admin', 'throttle:api_user'])
+Route::middleware(['auth:sanctum', 'role:orang_tua|admin|super_admin', 'lembaga_aktif', 'throttle:api_user'])
     ->prefix('portal/psb')
     ->group(function () {
         Route::get('{calon}/dokumen', [PsbDokumenController::class, 'listCalon']);
@@ -222,7 +222,7 @@ Route::middleware('throttle:30,1')->prefix('kamus')->group(function () {
 });
 
 // Keuangan 103-B: transaksi kasir (auth + role super_admin|admin|kasir, tenant per aksi).
-Route::middleware(['auth:sanctum', 'role:super_admin|admin|kasir', 'throttle:api_user'])
+Route::middleware(['auth:sanctum', 'role:super_admin|admin|kasir', 'lembaga_aktif', 'throttle:api_user'])
     ->prefix('keuangan')
     ->group(function () {
         Route::get('/santri/{santriId}/tagihan', [KeuanganController::class, 'getTagihanSantri']);
@@ -232,7 +232,7 @@ Route::middleware(['auth:sanctum', 'role:super_admin|admin|kasir', 'throttle:api
     });
 
 // Kuitansi 103-C: PDF dompdf + HTML thermal (auth + role super_admin|admin|kasir).
-Route::middleware(['auth:sanctum', 'role:super_admin|admin|kasir', 'throttle:api_user'])
+Route::middleware(['auth:sanctum', 'role:super_admin|admin|kasir', 'lembaga_aktif', 'throttle:api_user'])
     ->prefix('kuitansi')
     ->group(function () {
         Route::get('/{pembayaranId}/pdf', [KuitansiController::class, 'cetakPdf']);

@@ -17,8 +17,12 @@ class KeuanganPolicy
     public function view(User $user, Tagihan $tagihan): bool
     {
         // Tagihan punya lembaga_id sendiri (diisi santri primer / calon.lembaga / paket=primer).
-        if ($user->hasRole('super_admin') || $user->isAdminFull()) return true;
-        if (! $tagihan->lembaga_id) return false;
+        if ($user->bolehPesantren()) {
+            return true;
+        }
+        if (! $tagihan->lembaga_id) {
+            return false;
+        }
 
         return $user->canAccessLembaga((int) $tagihan->lembaga_id);
     }
@@ -44,7 +48,7 @@ class KeuanganPolicy
 
     protected function viewPembayaran(User $user, Pembayaran $pembayaran): bool
     {
-        if ($user->hasRole('super_admin') || $user->isAdminFull()) {
+        if ($user->bolehPesantren()) {
             return true;
         }
         $pembayaran->loadMissing('detail.tagihan');

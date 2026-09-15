@@ -164,7 +164,7 @@ class PresetTabelController extends Controller
 
     protected function isAdminPesantren(User $user): bool
     {
-        return $user->hasRole('super_admin') || $user->isAdminFull();
+        return $user->bolehPesantren();
     }
 
     protected function pastikanNamaBukanLengkap(string $nama): void
