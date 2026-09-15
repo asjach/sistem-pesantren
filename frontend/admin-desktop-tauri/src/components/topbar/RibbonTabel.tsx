@@ -166,22 +166,25 @@ export function RibbonTabel({ apiTabel }: { apiTabel: RibbonTableApi | null }) {
       </RibbonGroup>
       <RibbonPemisah />
       <RibbonGroup label="Kolom">
-        <div className="flex flex-col items-center gap-1.5">
-          <div className="flex items-end gap-1">
-            <div className="flex flex-col items-center gap-1">
-              <span id="label_bekukan_kolom_top" className="text-[10px] leading-none text-white/70">
-                Bekukan kolom
-              </span>
-              <SpinBox
-                id="input_bekukan_kolom_top"
-                value={apiTabel?.freeze ?? 0}
-                min={0}
-                max={apiTabel?.freezeMax ?? 0}
-                title="Bekukan N kolom pertama di kiri (termasuk kolom centang)"
-                ariaLabel="Jumlah kolom beku"
-                onChange={(v) => apiTabel?.setFreeze(v)}
-              />
-            </div>
+        <div className="flex flex-col items-start gap-1.5">
+          {/* Label di samping stepper; lebar label dikunci agar kedua stepper
+              sejajar dalam satu kolom. */}
+          <div className="flex items-center gap-1.5">
+            <span
+              id="label_bekukan_kolom_top"
+              className="min-w-[86px] whitespace-nowrap text-xs text-white/80"
+            >
+              Freeze Kolom
+            </span>
+            <SpinBox
+              id="input_bekukan_kolom_top"
+              value={apiTabel?.freeze ?? 0}
+              min={0}
+              max={apiTabel?.freezeMax ?? 0}
+              title="Bekukan N kolom pertama di kiri (termasuk kolom centang)"
+              ariaLabel="Jumlah kolom beku"
+              onChange={(v) => apiTabel?.setFreeze(v)}
+            />
             {/* Selalu tampil; nonaktif bila tidak ada kolom beku (seragam dengan
                 tombol reset lain di grup ini). */}
             <RibbonCmd
@@ -194,30 +197,28 @@ export function RibbonTabel({ apiTabel }: { apiTabel: RibbonTableApi | null }) {
             />
           </div>
           {/* Tinggi baris header */}
-          <div className="flex flex-col items-center gap-1">
-            <span className="text-[10px] leading-none text-white/70">Tinggi header</span>
-            <div className="flex items-center gap-1">
-              <SpinBox
-                id="input_tinggi_header_top"
-                value={effectiveHeaderH}
-                min={MIN_HEADER_H}
-                max={MAX_HEADER_H}
-                title={headerHManual
-                  ? 'Tinggi baris header (manual, berlaku semua tabel)'
-                  : 'Tinggi baris header (otomatis mengikuti judul)'}
-                ariaLabel="Tinggi baris header (px)"
-                disabled={!apiTabel}
-                onChange={setHeaderH}
-              />
-              <RibbonCmd
-                id="btn_reset_tinggi_header_top"
-                icon={RotateCcw}
-                label="Kembalikan tinggi header ke otomatis"
-                iconOnly
-                disabled={!headerHManual}
-                onClick={() => setHeaderH(null)}
-              />
-            </div>
+          <div className="flex items-center gap-1.5">
+            <span className="min-w-[86px] whitespace-nowrap text-xs text-white/80">Tinggi header</span>
+            <SpinBox
+              id="input_tinggi_header_top"
+              value={effectiveHeaderH}
+              min={MIN_HEADER_H}
+              max={MAX_HEADER_H}
+              title={headerHManual
+                ? 'Tinggi baris header (manual, berlaku semua tabel)'
+                : 'Tinggi baris header (otomatis mengikuti judul)'}
+              ariaLabel="Tinggi baris header (px)"
+              disabled={!apiTabel}
+              onChange={setHeaderH}
+            />
+            <RibbonCmd
+              id="btn_reset_tinggi_header_top"
+              icon={RotateCcw}
+              label="Kembalikan tinggi header ke otomatis"
+              iconOnly
+              disabled={!headerHManual}
+              onClick={() => setHeaderH(null)}
+            />
           </div>
         </div>
       </RibbonGroup>
