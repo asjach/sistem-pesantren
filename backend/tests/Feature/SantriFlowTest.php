@@ -616,8 +616,15 @@ class SantriFlowTest extends TestCase
         $this->assertEquals($f['mi']->id, (int) $santri->lembaga_id);
         $this->assertTrue((bool) $santri->status_global);
 
-        // Endpoint unduh template.
+        // Endpoint unduh template: lingkup lembaga + TA ikut menentukan dropdown kelas.
         $this->actingAs($adminMi, 'sanctum')->get('/api/admin/santri/import-template')->assertStatus(200);
+        $this->actingAs($adminMi, 'sanctum')
+            ->get('/api/admin/santri/import-template?lembaga_id='.$f['mi']->id.'&tahun_ajaran_id='.$f['taMi']->id)
+            ->assertStatus(200);
+        // TA lembaga lain → 422 (dropdown tidak boleh menyilang lingkup).
+        $this->actingAs($adminMi, 'sanctum')
+            ->get('/api/admin/santri/import-template?tahun_ajaran_id='.$f['taMd']->id)
+            ->assertStatus(422);
     }
 
     // ---------- 16. periksa import (dry-run) sebelum import ----------
@@ -784,5 +791,97 @@ class SantriFlowTest extends TestCase
             'file' => new UploadedFile($csvOk, 'root-file.csv', 'text/csv', null, true),
         ])->assertStatus(422);
         $this->assertSame(0, Santri::count());
+    }
+
+    // ---------- 20. import: kolom kelas menerima nama (nama dulu), id, atau kosong ----------
+
+    public function test_20_import_kelas_boleh_nama_id_atau_kosong(): void
+    {
+        $f = $this->baseFixture();
+        $adminMi = $this->makeUser('admin', [$f['mi']->id]);
+
+        // Kelas bernama "1" dibuat setelah kelas lain agar id-nya bukan 1 —
+        // membuktikan nama diutamakan atas id.
+        $kelasX = Kelas::create([
+            'lembaga_id' => $f['mi']->id, 'tahun_ajaran_id' => $f['taMi']->id, 'nama_kelas' => 'X',
+        ]);
+        $kelasSatu = Kelas::create([
+            'lembaga_id' => $f['mi']->id, 'tahun_ajaran_id' => $f['taMi']->id, 'nama_kelas' => '1',
+        ]);
+
+        $csv = $this->makeCsv([
+            ['nama_lengkap' => 'Lewat Nama', 'jk' => 'L', 'kelas_id' => '1'],
+            ['nama_lengkap' => 'Lewat Id', 'jk' => 'L', 'kelas_id' => (string) $kelasX->id],
+            ['nama_lengkap' => 'Tanpa Kelas', 'jk' => 'L'],
+        ]);
+        $this->importCsv($adminMi, $f['taMi']->id, $f['mi']->id, $csv)->assertStatus(200);
+
+        // Nama menang: "1" = kelas bernama "1", bukan kelas ber-id 1.
+        $lewatNama = Santri::where('nama_lengkap', 'Lewat Nama')->firstOrFail();
+        $this->assertSame($kelasSatu->id, (int) $lewatNama->kelas_id);
+        $this->assertSame($kelasSatu->id, (int) RiwayatBelajar::where('santri_id', $lewatNama->id)->value('kelas_id'));
+
+        // Angka tanpa nama yang cocok → jatuh ke id.
+        $lewatId = Santri::where('nama_lengkap', 'Lewat Id')->firstOrFail();
+        $this->assertSame($kelasX->id, (int) $lewatId->kelas_id);
+
+        // Kosong → santri tanpa kelas (riwayat tetap terbentuk).
+        $tanpaKelas = Santri::where('nama_lengkap', 'Tanpa Kelas')->firstOrFail();
+        $this->assertNull($tanpaKelas->kelas_id);
+        $this->assertSame(1, RiwayatBelajar::where('santri_id', $tanpaKelas->id)->count());
+    }
+
+    // ---------- 21. import: kelas lintas lingkup ditolak, legacy hanya boleh id ----------
+
+    public function test_21_import_kelas_lintas_lingkup_dan_legacy(): void
+    {
+        $f = $this->baseFixture();
+        $adminMi = $this->makeUser('admin', [$f['mi']->id]);
+        $superAdmin = $this->makeUser('super_admin', []);
+
+        $kelasMd = Kelas::create([
+            'lembaga_id' => $f['md']->id, 'tahun_ajaran_id' => $f['taMd']->id, 'nama_kelas' => 'I-MD',
+        ]);
+
+        // Nama kelas lembaga lain → gagal per baris.
+        $csvNama = $this->makeCsv([['nama_lengkap' => 'Salah Nama', 'jk' => 'L', 'kelas_id' => 'I-MD']]);
+        $res = $this->importCsv($adminMi, $f['taMi']->id, $f['mi']->id, $csvNama)->assertStatus(422);
+        $this->assertStringContainsString('kelas_id', (string) json_encode($res->json('errors')));
+        $this->assertSame(0, Santri::count());
+
+        // Id kelas lembaga lain → gagal (tidak diam-diam dipakai walau id-nya valid).
+        $csvId = $this->makeCsv([['nama_lengkap' => 'Salah Id', 'jk' => 'L', 'kelas_id' => (string) $kelasMd->id]]);
+        $this->importCsv($adminMi, $f['taMi']->id, $f['mi']->id, $csvId)->assertStatus(422);
+        $this->assertSame(0, Santri::count());
+
+        // Legacy tanpa lembaga/TA: id diterima sebagai cache, tanpa riwayat.
+        $csvLegacyId = $this->makeCsv([['nama_lengkap' => 'Legacy Id', 'jk' => 'L', 'kelas_id' => (string) $f['kelasMi']->id]]);
+        $this->importCsv($superAdmin, null, null, $csvLegacyId)->assertStatus(200);
+        $legacy = Santri::where('nama_lengkap', 'Legacy Id')->firstOrFail();
+        $this->assertSame($f['kelasMi']->id, (int) $legacy->kelas_id);
+        $this->assertSame(0, RiwayatBelajar::where('santri_id', $legacy->id)->count());
+
+        // Legacy tanpa lingkup: nama tidak bisa dipastikan → gagal.
+        $csvLegacyNama = $this->makeCsv([['nama_lengkap' => 'Legacy Nama', 'jk' => 'L', 'kelas_id' => 'I-A']]);
+        $this->importCsv($superAdmin, null, null, $csvLegacyNama)->assertStatus(422);
+    }
+
+    // ---------- 22. template: dropdown nama kelas per lingkup lembaga + TA ----------
+
+    public function test_22_template_dropdown_kelas_mengikuti_lingkup(): void
+    {
+        $f = $this->baseFixture();
+
+        // Tanpa TA: dropdown kelas tidak dibuat (kolom tetap menerima teks bebas).
+        $tanpaTa = new SantriTemplateExport($f['mi']->id);
+        $this->assertArrayNotHasKey('kelas_id', $tanpaTa->pilihan());
+
+        // Lingkup lengkap: daftar nama kelas urut tingkat lalu nama.
+        Kelas::create([
+            'lembaga_id' => $f['mi']->id, 'tahun_ajaran_id' => $f['taMi']->id,
+            'nama_kelas' => '2A', 'tingkat' => '2',
+        ]);
+        $pilihan = (new SantriTemplateExport($f['mi']->id, $f['taMi']->id))->pilihan();
+        $this->assertSame(['I-A', '2A'], $pilihan['kelas_id']);
     }
 }

@@ -76,19 +76,14 @@ class SantriLengkapImport implements SkipsOnFailure, SkipsUnknownSheets, ToColle
                 // null = legacy tanpa track (tanpa riwayat, status_global nonaktif).
                 $lembagaRow = ! empty($row['lembaga_id']) ? (int) $row['lembaga_id'] : $this->lembagaId;
 
-                // Kelas harus selembaga & setahun ajaran dengan baris (cegah penempatan silang).
-                $kelasId = ! empty($row['kelas_id']) ? (int) $row['kelas_id'] : null;
-                if ($kelasId !== null && $lembagaRow !== null) {
-                    $kelas = Kelas::find($kelasId);
-                    if (! $kelas || (int) $kelas->lembaga_id !== $lembagaRow) {
-                        $this->failures[] = new Failure($no, 'kelas_id', ['Kelas tidak berada di lembaga baris ini.'], []);
-
-                        continue;
-                    }
-                    if ($this->tahunAjaranId !== null && (int) $kelas->tahun_ajaran_id !== $this->tahunAjaranId) {
-                        $this->failures[] = new Failure($no, 'kelas_id', ['Kelas bukan milik tahun ajaran import.'], []);
-
-                        continue;
+                // Kelas (v1.13): kolom `kelas_id` menerima NAMA kelas (diutamakan)
+                // atau id. Butuh lembaga + tahun ajaran; baris legacy tanpa lingkup
+                // hanya boleh memakai id (cache `santri.kelas_id`, tanpa riwayat).
+                $kelasId = null;
+                if (! empty($row['kelas_id'])) {
+                    $kelasId = $this->resolveKelasId($row['kelas_id'], $lembagaRow, $no);
+                    if ($kelasId === null) {
+                        continue; // failure sudah dicatat resolver
                     }
                 }
 
@@ -280,6 +275,70 @@ class SantriLengkapImport implements SkipsOnFailure, SkipsUnknownSheets, ToColle
     }
 
     /**
+     * Resolusi kolom `kelas_id` (v1.13): nilai diutamakan sebagai NAMA kelas,
+     * baru dicoba sebagai id. Pencocokan case-insensitive mengikuti kolasi
+     * kolom; nama sudah dinormalisasi model Kelas (lembaga+TA+nama unik).
+     *
+     * Lingkup = lembaga baris + tahun ajaran import. Tanpa lingkup (legacy),
+     * hanya id yang diterima sebagai cache `santri.kelas_id` tanpa riwayat.
+     * Failure baris dicatat di sini; null = gagal (pemanggil `continue`).
+     */
+    protected function resolveKelasId(mixed $nilai, ?int $lembagaRow, int $no): ?int
+    {
+        $teks = Kelas::normalisasiNama((string) $nilai);
+        $angka = ctype_digit($teks) ? (int) $teks : null;
+
+        if ($lembagaRow !== null && $this->tahunAjaranId !== null) {
+            // Nama diutamakan: kelas bernama "1" menang atas kelas ber-id 1.
+            $namaCocok = Kelas::where('lembaga_id', $lembagaRow)
+                ->where('tahun_ajaran_id', $this->tahunAjaranId)
+                ->whereRaw('LOWER(nama_kelas) = ?', [mb_strtolower($teks)])
+                ->value('id');
+
+            if ($namaCocok !== null) {
+                return (int) $namaCocok;
+            }
+
+            if ($angka !== null) {
+                $kelas = Kelas::find($angka);
+
+                if ($kelas === null) {
+                    $this->failures[] = new Failure($no, 'kelas_id', ["Kelas \"{$teks}\" tidak ditemukan di lembaga + tahun ajaran ini."], []);
+
+                    return null;
+                }
+
+                if ((int) $kelas->lembaga_id !== $lembagaRow || (int) $kelas->tahun_ajaran_id !== $this->tahunAjaranId) {
+                    $this->failures[] = new Failure($no, 'kelas_id', ['ID kelas bukan milik lembaga + tahun ajaran baris ini.'], []);
+
+                    return null;
+                }
+
+                return (int) $kelas->id;
+            }
+
+            $this->failures[] = new Failure($no, 'kelas_id', ["Kelas \"{$teks}\" tidak ditemukan di lembaga + tahun ajaran ini."], []);
+
+            return null;
+        }
+
+        // Legacy tanpa lingkup: nama tidak bisa dipastikan → hanya id.
+        if ($angka === null) {
+            $this->failures[] = new Failure($no, 'kelas_id', ['Nama kelas butuh lembaga + tahun ajaran; isi id atau kosongkan.'], []);
+
+            return null;
+        }
+
+        if (! Kelas::whereKey($angka)->exists()) {
+            $this->failures[] = new Failure($no, 'kelas_id', ["ID kelas {$angka} tidak ditemukan."], []);
+
+            return null;
+        }
+
+        return $angka;
+    }
+
+    /**
      * Nilai tanggal dari Excel bisa berupa serial number ATAU string
      * tanggal biasa (tergantung format cell di file sumber).
      */
@@ -305,7 +364,8 @@ class SantriLengkapImport implements SkipsOnFailure, SkipsUnknownSheets, ToColle
         return [
             'nama_lengkap' => ['required', 'string', 'max:255'],
             'jk' => ['required', 'in:L,P'],
-            'kelas_id' => ['nullable', 'integer', 'exists:kelas,id'],
+            // Nama kelas (diutamakan) atau id — resolusi di resolveKelasId().
+            'kelas_id' => ['nullable'],
             // Lembaga baris wajib operasional (bukan root pesantren).
             'lembaga_id' => ['nullable', 'integer', Rule::exists('lembaga', 'id')->whereNotNull('parent_id')],
             'nik' => ['nullable', 'digits:16'],

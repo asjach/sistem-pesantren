@@ -641,10 +641,16 @@ export default function SantriPage() {
               type="button"
               variant="link"
               className="col-span-2 h-auto justify-start px-0"
-              onClick={() => void unduhTemplateSantri(effectiveImportLembaga ? Number(effectiveImportLembaga) : undefined).catch((e) => setErr(errorMessage(e)))}
+              onClick={() => void unduhTemplateSantri(
+                effectiveImportLembaga ? Number(effectiveImportLembaga) : undefined,
+                importTa ? Number(importTa) : undefined,
+              ).catch((e) => setErr(errorMessage(e)))}
             >
               <Download data-icon="inline-start" size={16} /> Unduh template Excel (kuning = wajib, dropdown = pilihan)
             </Button>
+            <p className="col-span-2 text-xs text-muted-foreground">
+              Kolom <span className="font-medium">kelas_id</span> boleh diisi nama kelas (dropdown mengikuti lembaga + TA terpilih), boleh id, atau dikosongkan.
+            </p>
             {periksaHasil ? (
               <div className="col-span-2 rounded-md border p-3 text-sm" id="hasil_periksa_import">
                 <p className="font-medium">

@@ -3,6 +3,7 @@
 namespace App\Exports;
 
 use App\Imports\SantriLengkapImport;
+use App\Models\Kelas;
 use App\Models\Santri;
 use App\Services\RefService;
 use Maatwebsite\Excel\Concerns\FromArray;
@@ -33,7 +34,7 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
  * - Daftar nilai dropdown disimpan di sheet tersembunyi "Referensi"
  *   (import hanya membaca sheet pertama — lihat SantriLengkapImport::sheets()).
  */
-class SantriTemplateExport extends DefaultValueBinder implements FromArray, WithHeadings, WithCustomValueBinder, WithEvents, WithTitle
+class SantriTemplateExport extends DefaultValueBinder implements FromArray, WithCustomValueBinder, WithEvents, WithHeadings, WithTitle
 {
     /** Batas baris data yang diberi dropdown/border (baris 2–1001). */
     private const BARIS_TERAKHIR = 1001;
@@ -76,7 +77,7 @@ class SantriTemplateExport extends DefaultValueBinder implements FromArray, With
         'desa_kelurahan' => 'desa_kelurahan',
     ];
 
-    public function __construct(private ?int $lembagaId = null) {}
+    public function __construct(private ?int $lembagaId = null, private ?int $tahunAjaranId = null) {}
 
     public function bindValue(Cell $cell, $value): bool
     {
@@ -124,6 +125,15 @@ class SantriTemplateExport extends DefaultValueBinder implements FromArray, With
             if (! array_key_exists($kolom, $pilihan)) {
                 $pilihan[$kolom] = RefService::kodeAktif($tipe, $this->lembagaId);
             }
+        }
+
+        // Dropdown nama kelas: hanya bila lingkup (lembaga + tahun ajaran)
+        // diketahui — kolom `kelas_id` menerima nama kelas atau id.
+        if ($this->lembagaId !== null && $this->tahunAjaranId !== null) {
+            $pilihan['kelas_id'] = Kelas::where('lembaga_id', $this->lembagaId)
+                ->where('tahun_ajaran_id', $this->tahunAjaranId)
+                ->orderBy('tingkat')->orderBy('nama_kelas')
+                ->pluck('nama_kelas')->unique()->values()->all();
         }
 
         return $pilihan;
@@ -230,7 +240,7 @@ class SantriTemplateExport extends DefaultValueBinder implements FromArray, With
 
             $target = Coordinate::stringFromColumnIndex($posisi + 1);
             $batas = count($nilai) + 1;
-            $validasi = new DataValidation();
+            $validasi = new DataValidation;
             // CATAT: atribut OOXML `showDropDown` INVERTED — writer PhpSpreadsheet menulis
             // "0" saat properti true. Tanpa setShowDropDown(true), XML berisi "1" dan Excel
             // MENGSEMBUNYIKAN panah dropdown (Reader/Xlsx/DataValidations.php:45).
@@ -241,7 +251,7 @@ class SantriTemplateExport extends DefaultValueBinder implements FromArray, With
                 ->setShowErrorMessage(true)
                 ->setErrorTitle('Nilai tidak valid')
                 ->setError('Pilih nilai dari daftar. Unduh ulang template bila referensi baru saja berubah.')
-                ->setFormula1("'Referensi'!$".$sumber."$2:$".$sumber."$".$batas);
+                ->setFormula1("'Referensi'!$".$sumber.'$2:$'.$sumber.'$'.$batas);
             $sheet->setDataValidation("{$target}2:{$target}{$lastRow}", $validasi);
 
             $colSumber++;

@@ -11,6 +11,7 @@ use App\Models\DokumenSantri;
 use App\Models\Lembaga;
 use App\Models\RiwayatBelajar;
 use App\Models\Santri;
+use App\Models\TahunAjaran;
 use App\Models\User;
 use App\Services\RefService;
 use Illuminate\Http\JsonResponse;
@@ -247,7 +248,8 @@ class SantriController extends Controller
     }
 
     /** GET /api/admin/santri/import-template — template Excel (semua kolom profil + lembaga).
-     *  `lembaga_id` opsional: nilai dropdown kamus mengikuti referensi efektif lembaga tsb. */
+     *  `lembaga_id` + `tahun_ajaran_id` opsional: dropdown kamus & nama kelas
+     *  mengikuti referensi efektif lingkup tsb (lihat SantriTemplateExport). */
     public function template(Request $request)
     {
         $this->authorize('create', Santri::class);
@@ -257,7 +259,20 @@ class SantriController extends Controller
             $request->filled('lembaga_id') ? (int) $request->lembaga_id : null,
         );
 
-        return Excel::download(new SantriTemplateExport($lembagaId), 'template-import-santri.xlsx');
+        $tahunAjaranId = $request->filled('tahun_ajaran_id') ? (int) $request->tahun_ajaran_id : null;
+        $tahun = $tahunAjaranId !== null ? TahunAjaran::find($tahunAjaranId) : null;
+
+        if ($tahunAjaranId !== null && $tahun === null) {
+            return response()->json(['pesan' => 'Tahun ajaran tidak ditemukan.'], 422);
+        }
+        if ($tahun !== null && $lembagaId !== null && (int) $tahun->lembaga_id !== $lembagaId) {
+            return response()->json(['pesan' => 'Tahun ajaran bukan milik lembaga terpilih.'], 422);
+        }
+
+        // TA tanpa lembaga (mis. super_admin) → lingkup dropdown dari lembaga TA.
+        $lingkupLembagaId = $lembagaId ?? ($tahun !== null ? (int) $tahun->lembaga_id : null);
+
+        return Excel::download(new SantriTemplateExport($lingkupLembagaId, $tahunAjaranId), 'template-import-santri.xlsx');
     }
 
     /** POST /api/admin/santri/import-periksa — validasi file TANPA menulis (dry-run).
