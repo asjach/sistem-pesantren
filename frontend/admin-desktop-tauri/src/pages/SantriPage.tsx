@@ -205,6 +205,9 @@ export default function SantriPage() {
   const [addNisLokal, setAddNisLokal] = useState('');
   const [busy, setBusy] = useState(false);
 
+  // Hanya lembaga operasional (root pesantren tidak bisa menjadi keanggotaan).
+  const lembagaOperasional = lembagas.filter((l) => l.parent);
+
   const { user } = useAuth();
   const singleLembagaId =
     user && !user.roles.some((r) => r.name === 'super_admin') && (user.lembagas?.length ?? 0) === 1
@@ -423,7 +426,7 @@ export default function SantriPage() {
               <SelectContent>
                 <SelectGroup>
                   <SelectItem value="_kosong">Tanpa lembaga</SelectItem>
-                  {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>)}
+                  {lembagaOperasional.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>)}
                 </SelectGroup>
               </SelectContent>
             </Select>
@@ -491,7 +494,7 @@ export default function SantriPage() {
               <SelectContent>
                 <SelectGroup>
                   <SelectItem value="_kosong">Pilih lembaga</SelectItem>
-                  {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>)}
+                  {lembagaOperasional.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>)}
                 </SelectGroup>
               </SelectContent>
             </Select>
