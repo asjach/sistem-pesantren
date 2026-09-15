@@ -262,7 +262,7 @@ export default function TopBar() {
       {/* Baris 2: ribbon tools kontekstual (kontrol tabel / tools halaman). */}
       {tampilTools && (
         <div className="border-t border-white/10 bg-white/5">
-          <div className="flex min-h-[76px] items-stretch overflow-x-auto px-3 py-1.5 md:px-5">
+          <div className="flex min-h-[76px] flex-wrap items-stretch gap-y-1 px-3 py-1.5 md:px-5">
             <div ref={hostRef} className="contents" />
             {apiTabel && <RibbonTabel apiTabel={apiTabel} />}
           </div>

@@ -34,7 +34,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/field';
 import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
 import {
   Select,
   SelectContent,
@@ -45,6 +44,8 @@ import {
 } from '@/components/ui/select';
 import ExcelTable, { type ExcelChoice, type ExcelField } from '@/components/ExcelTable';
 import FilterField from '@/components/FilterField';
+import { RibbonSlot } from '@/components/RibbonSlot';
+import { RibbonCmd, RibbonGroup, RibbonPemisah } from '@/components/topbar/primitives';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import {
   Dialog,
@@ -63,6 +64,7 @@ import {
   CheckCircle2,
   ClipboardCheck,
   FolderOpen,
+  PlusCircle,
   RotateCcw,
   Trash2,
   Undo2,
@@ -702,35 +704,59 @@ export default function PsbPage() {
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
 
-      {/* Timeline tahapan (pengganti combobox status) */}
-      <ol id="timeline_psb" className="mb-3 flex flex-wrap items-center gap-y-2">
-        {STAGES.map((s, i) => {
-          const aktif = s.id === stage;
-          const jumlah = s.statuses.reduce((n, st) => n + (badge[st] ?? 0), 0);
-          return (
-            <li key={s.id} className="flex items-center">
-              {i > 0 && <span aria-hidden className="mx-2 h-px w-5 bg-border sm:w-8" />}
-              <button
-                id={`stage_psb_${s.id}`}
-                type="button"
-                aria-pressed={aktif}
-                onClick={() => { setStage(s.id); setSubStatus(''); pager.goFirst(); }}
-                className={cn(
-                  'flex h-6 items-center gap-2 rounded-full border px-3 py-0 text-xs transition-colors',
-                  aktif
-                    ? 'border-primary bg-primary/10 font-semibold text-primary'
-                    : 'bg-card text-muted-foreground hover:bg-accent hover:text-foreground',
-                )}
-              >
-                <span className="whitespace-nowrap">{i + 1}. {s.label}</span>
-                <Badge variant={aktif ? 'default' : 'secondary'} className="px-1.5 text-[10px]">
-                  {jumlah}
-                </Badge>
-              </button>
-            </li>
-          );
-        })}
-      </ol>
+      {/* Tools halaman di ribbon: pemilih tahap + aksi pendaftar. */}
+      <RibbonSlot>
+        <RibbonGroup label="Tahap">
+          <Select
+            value={stage}
+            onValueChange={(v) => {
+              setStage(v);
+              setSubStatus('');
+              pager.goFirst();
+            }}
+          >
+            <SelectTrigger
+              id="select_tahap_psb"
+              title="Tahap PSB"
+              aria-label="Tahap PSB"
+              className="h-6 w-48 border-white/20 bg-white/5 text-xs text-white [&_svg]:text-white/70"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {STAGES.map((s) => {
+                  const jumlah = s.statuses.reduce((n, st) => n + (badge[st] ?? 0), 0);
+                  return (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.label} ({jumlah})
+                    </SelectItem>
+                  );
+                })}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </RibbonGroup>
+        {stage === 'pendaftar' && (
+          <>
+            <RibbonPemisah />
+            <RibbonGroup label="Pendaftar">
+              <RibbonCmd
+                id="btn_buka_tambah_pendaftar"
+                icon={PlusCircle}
+                label="Tambah"
+                onClick={() => { resetTambah(); setTambahOpen(true); }}
+              />
+              <RibbonCmd
+                id="btn_buka_import_psb"
+                icon={Upload}
+                label="Import"
+                onClick={() => setImportOpen(true)}
+              />
+            </RibbonGroup>
+          </>
+        )}
+      </RibbonSlot>
 
       <ExcelTable
         tableKey="psb"
@@ -790,20 +816,6 @@ export default function PsbPage() {
             </label>
           </>
         )}
-        addButton={stage === 'pendaftar' ? (
-          <>
-            <Button
-              id="btn_buka_tambah_pendaftar"
-              variant="outline"
-              onClick={() => { resetTambah(); setTambahOpen(true); }}
-            >
-              + Pendaftar
-            </Button>
-            <Button id="btn_buka_import_psb" onClick={() => setImportOpen(true)}>
-              <Upload data-icon="inline-start" size={16} /> Import
-            </Button>
-          </>
-        ) : undefined}
         renderActions={renderActions}
         renderBulkActions={renderBulkActions}
       />

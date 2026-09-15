@@ -8,14 +8,17 @@ import {
   setBaseUrl,
   api,
 } from '../api/client';
-import { Button } from '@/components/ui/button';
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { RibbonSlot } from '@/components/RibbonSlot';
+import { RibbonCmd, RibbonGroup } from '@/components/topbar/primitives';
+import { RotateCcw, Server } from '@/icons';
 import { toast } from 'sonner';
 
 // Base URL backend bisa diganti runtime (lokal dulu, server belakangan)
 // tanpa rebuild binary. Disimpan di plugin-store (desktop) / localStorage (web).
+// Aksi server dipindah ke baris tools ribbon (RibbonSlot).
 export default function PengaturanServerPage() {
   const [url, setUrl] = useState('');
   const [aktif, setAktif] = useState('');
@@ -27,6 +30,10 @@ export default function PengaturanServerPage() {
 
   async function onUji() {
     setErr('');
+    if (!url.trim()) {
+      setErr('Alamat API wajib diisi.');
+      return;
+    }
     try {
       await setBaseUrl(url);
       const me = await api<{ name: string }>('/auth/me');
@@ -46,6 +53,13 @@ export default function PengaturanServerPage() {
 
   return (
     <div className="flex flex-col gap-6">
+      <RibbonSlot>
+        <RibbonGroup label="Server">
+          <RibbonCmd id="btn_uji_server" icon={Server} label="Uji koneksi" onClick={() => void onUji()} />
+          <RibbonCmd id="btn_reset_server" icon={RotateCcw} label="Kembalikan bawaan" onClick={() => void onReset()} />
+        </RibbonGroup>
+      </RibbonSlot>
+
       <p id="info_server" className="text-sm text-muted-foreground">
         Aktif: <b className="text-foreground">{aktif}</b> · Mode:{' '}
         <Badge variant="secondary">{isTauri() ? 'desktop' : 'web'}</Badge>
@@ -70,12 +84,6 @@ export default function PengaturanServerPage() {
               />
             </Field>
           </FieldGroup>
-          <div className="flex flex-wrap gap-2">
-            <Button id="btn_uji_server">Simpan & uji koneksi</Button>
-            <Button id="btn_reset_server" type="button" variant="outline" onClick={onReset}>
-              Kembalikan bawaan
-            </Button>
-          </div>
         </form>
       </section>
     </div>
