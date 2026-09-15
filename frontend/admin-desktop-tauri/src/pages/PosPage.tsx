@@ -40,16 +40,16 @@ const TIPE: TipePos[] = ['bulanan', 'sekali_bayar', 'semesteran', 'tahunan'];
 
 const FIELDS: ExcelField[] = [
   {
-    key: 'kode', label: 'Kode (global unik)', width: 170, minWidth: 120, kind: 'static',
+    key: 'kode', label: 'Kode (global unik)', width: 170, kind: 'static',
     inputKind: 'text', maxLength: 20, required: true,
   },
   {
-    key: 'nama', label: 'Nama', width: 260, minWidth: 120, kind: 'text', maxLength: 100,
+    key: 'nama', label: 'Nama', width: 260, kind: 'text', maxLength: 100,
     required: true,
     validate: (v) => (!v || !v.trim() ? 'Nama pos wajib diisi.' : null),
   },
   {
-    key: 'tipe', label: 'Tipe', width: 150, minWidth: 110, kind: 'select',
+    key: 'tipe', label: 'Tipe', width: 150, kind: 'select',
     required: true,
     choices: TIPE.map((t) => ({ value: t, label: t })),
     validate: (v) => ((TIPE as string[]).includes(v ?? '') ? null : 'Tipe tidak valid.'),

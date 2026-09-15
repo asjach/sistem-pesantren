@@ -45,20 +45,20 @@ const dateRule = (label: string) => (v: string | null) =>
 
 const FIELDS: ExcelField[] = [
   {
-    key: 'nama', label: 'Nama', width: 160, minWidth: 120, kind: 'text', maxLength: 50,
+    key: 'nama', label: 'Nama', width: 160, kind: 'text', maxLength: 50,
     required: true,
     validate: (v) => (!v || !v.trim() ? 'Nama tahun ajaran wajib diisi.' : null),
   },
-  { key: 'lembaga', label: 'Lembaga', width: 200, minWidth: 120, kind: 'static' },
+  { key: 'lembaga', label: 'Lembaga', width: 200, kind: 'static' },
   {
-    key: 'mulai', label: 'Mulai', width: 130, minWidth: 110, kind: 'text', maxLength: 10,
+    key: 'mulai', label: 'Mulai', width: 130, kind: 'text', maxLength: 10,
     validate: dateRule('Tanggal mulai'),
   },
   {
-    key: 'selesai', label: 'Selesai', width: 130, minWidth: 110, kind: 'text', maxLength: 10,
+    key: 'selesai', label: 'Selesai', width: 130, kind: 'text', maxLength: 10,
     validate: dateRule('Tanggal selesai'),
   },
-  { key: 'aktif', label: 'Aktif', width: 120, minWidth: 90, kind: 'static' },
+  { key: 'aktif', label: 'Aktif', width: 120, kind: 'static' },
 ];
 
 function gridValues(t: TahunAjaran): Record<string, string | null> {

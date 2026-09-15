@@ -22,7 +22,7 @@ class KelasController extends Controller
     public function index(Request $request)
     {
         $query = $this->scopeLembaga(
-            Kelas::with(['lembaga:id,nama', 'tahunAjaran:id,nama']),
+            Kelas::with(['lembaga:id,nama,kode', 'tahunAjaran:id,nama']),
             auth()->user(),
             $request
         );

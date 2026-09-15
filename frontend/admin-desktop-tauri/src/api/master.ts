@@ -178,7 +178,7 @@ export interface Kelas {
   tingkat: string | null;
   nama_kelas: string;
   kapasitas: number | null;
-  lembaga?: { id: number; nama: string };
+  lembaga?: { id: number; nama: string; kode: string | null };
   tahun_ajaran?: { id: number; nama: string } | null;
   tahunAjaran?: { id: number; nama: string } | null;
 }

@@ -49,11 +49,11 @@ const numRule = (label: string, required: boolean) => (v: string | null) => {
 };
 
 const FIELDS: ExcelField[] = [
-  { key: 'pos', label: 'Pos', width: 140, minWidth: 110, kind: 'static' },
-  { key: 'lembaga', label: 'Lembaga', width: 180, minWidth: 120, kind: 'static' },
-  { key: 'ta', label: 'TA', width: 140, minWidth: 110, kind: 'static' },
+  { key: 'pos', label: 'Pos', width: 140, kind: 'static' },
+  { key: 'lembaga', label: 'Lembaga', width: 180, kind: 'static' },
+  { key: 'ta', label: 'TA', width: 140, kind: 'static' },
   {
-    key: 'tipe', label: 'Tipe santri', width: 130, minWidth: 100, kind: 'static',
+    key: 'tipe', label: 'Tipe santri', width: 130, kind: 'static',
     inputKind: 'select',
     inputChoices: [
       { value: 'semua', label: 'semua' },
@@ -62,12 +62,12 @@ const FIELDS: ExcelField[] = [
     ],
   },
   {
-    key: 'nominal', label: 'Nominal', width: 160, minWidth: 110, kind: 'text', maxLength: 20,
+    key: 'nominal', label: 'Nominal', width: 160, kind: 'text', maxLength: 20,
     required: true,
     validate: numRule('Nominal', true),
   },
   {
-    key: 'paket', label: 'Paket', width: 160, minWidth: 110, kind: 'text', maxLength: 20,
+    key: 'paket', label: 'Paket', width: 160, kind: 'text', maxLength: 20,
     validate: numRule('Nominal paket', false),
   },
 ];

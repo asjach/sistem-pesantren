@@ -38,17 +38,17 @@ import { toast } from 'sonner';
 
 const FIELDS: ExcelField[] = [
   {
-    key: 'kode', label: 'Kode', width: 130, minWidth: 100, kind: 'text', maxLength: 20,
+    key: 'kode', label: 'Kode', width: 130, kind: 'text', maxLength: 20,
     validate: (v) => (v && v.length > 20 ? 'Kode maksimal 20 karakter.' : null),
   },
   {
-    key: 'nama', label: 'Nama', width: 260, minWidth: 120, kind: 'text', maxLength: 100,
+    key: 'nama', label: 'Nama', width: 260, kind: 'text', maxLength: 100,
     required: true,
     validate: (v) => (!v || !v.trim() ? 'Nama lembaga wajib diisi.' : null),
   },
-  { key: 'induk', label: 'Induk', width: 220, minWidth: 120, kind: 'static' },
-  { key: 'kelompok', label: 'Kelompok PSB', width: 140, minWidth: 110, kind: 'static' },
-  { key: 'seleksi', label: 'Seleksi', width: 100, minWidth: 80, kind: 'static' },
+  { key: 'induk', label: 'Induk', width: 220, kind: 'static' },
+  { key: 'kelompok', label: 'Kelompok PSB', width: 140, kind: 'static' },
+  { key: 'seleksi', label: 'Seleksi', width: 100, kind: 'static' },
 ];
 
 function gridValues(l: Lembaga): Record<string, string | null> {

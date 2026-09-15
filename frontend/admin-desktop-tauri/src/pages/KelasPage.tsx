@@ -43,16 +43,17 @@ import { toast } from 'sonner';
 
 const FIELDS: ExcelField[] = [
   {
-    key: 'nama', label: 'Nama', width: 160, minWidth: 120, kind: 'text', maxLength: 50,
+    key: 'nama', label: 'Nama', width: 160, kind: 'text', maxLength: 50,
     required: true,
     validate: (v) => (!v || !v.trim() ? 'Nama kelas wajib diisi.' : null),
   },
+  { key: 'lembaga', label: 'Lembaga', width: 110, kind: 'static' },
+  { key: 'ta', label: 'TA', width: 160, kind: 'static' },
   {
-    key: 'tingkat', label: 'Tingkat', width: 120, minWidth: 90, kind: 'text', maxLength: 20,
+    key: 'tingkat', label: 'Tingkat', width: 120, kind: 'text', maxLength: 20,
   },
-  { key: 'ta', label: 'TA', width: 160, minWidth: 120, kind: 'static' },
   {
-    key: 'kapasitas', label: 'Kapasitas', width: 120, minWidth: 90, kind: 'text', maxLength: 10,
+    key: 'kapasitas', label: 'Kapasitas', width: 120, kind: 'text', maxLength: 10,
     validate: (v) => {
       if (!v) return null;
       const n = Number(v);
@@ -79,8 +80,9 @@ function normKelas(nama: string): string {
 
 function gridValues(k: Kelas): Record<string, string | null> {  return {
     nama: k.nama_kelas,
-    tingkat: k.tingkat,
+    lembaga: k.lembaga?.kode ?? k.lembaga?.nama ?? String(k.lembaga_id),
     ta: k.tahunAjaran?.nama ?? k.tahun_ajaran?.nama ?? String(k.tahun_ajaran_id),
+    tingkat: k.tingkat,
     kapasitas: k.kapasitas === null || k.kapasitas === undefined ? '' : String(k.kapasitas),
   };
 }
@@ -363,6 +365,21 @@ export default function KelasPage() {
     [tas, taId],
   );
 
+  const lembagaTerpilih = useMemo(() => {
+    const l = lembagas.find((x) => String(x.id) === String(lembagaId));
+    return l?.kode ?? l?.nama ?? '';
+  }, [lembagas, lembagaId]);
+
+  /** Row dialog Lihat: tampilkan nama/kode lembaga, sembunyikan lembaga_id mentah. */
+  const viewRowTampil = useMemo(() => {
+    if (!viewRow) return null;
+    const { lembaga_id: _lembagaId, ...rest } = viewRow;
+    return {
+      ...rest,
+      lembaga: viewRow.lembaga?.kode ?? viewRow.lembaga?.nama ?? String(_lembagaId),
+    } as unknown as Record<string, unknown>;
+  }, [viewRow]);
+
   const onUpdate = useCallback(async () => {
     if (!editRow) return;
     const namaRapi = normKelas(editNama);
@@ -441,7 +458,7 @@ export default function KelasPage() {
         onCommit={commitDraft}
         onSaved={onSaved}
         onCreateRow={createRow}
-        inputRowValues={{ ta: taTerpilih }}
+        inputRowValues={{ ta: taTerpilih, lembaga: lembagaTerpilih }}
         searchValue={search}
         onSearchChange={onSearchChange}
         onSearchSubmit={onSearchSubmit}
@@ -622,7 +639,7 @@ export default function KelasPage() {
         open={viewRow !== null}
         onOpenChange={(o) => { if (!o) setViewRow(null); }}
         title={viewRow ? `Kelas: ${viewRow.nama_kelas}` : 'Kelas'}
-        row={viewRow as unknown as Record<string, unknown> | null}
+        row={viewRowTampil}
       />
       <Dialog open={editRow !== null} onOpenChange={(o) => { if (!o) setEditRow(null); }}>
         <DialogContent className="sm:max-w-xl">

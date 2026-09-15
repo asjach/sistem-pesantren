@@ -121,8 +121,8 @@ function teksTampilSel(f: ExcelField, raw: unknown): string {
 export interface ExcelField {
   key: string;
   label: string;
+  /** Lebar cadangan bila pengukuran konten gagal; lebar normal mengikuti AutoFit. */
   width?: number;
-  minWidth?: number;
   /** text/select bisa diedit saat mode Edit aktif; static selalu baca-saja. */
   kind: 'text' | 'select' | 'static';
   choices?: ExcelChoice[];
@@ -1345,7 +1345,7 @@ export default function ExcelTable<T extends { id: string | number }>({
       if (cw < maxCw - CANDIDATE_MARGIN) continue;
       w = Math.max(w, measureTextWidth(v, csCell) + padCell + AUTOFIT_BUFFER);
     }
-    return Math.min(AUTOFIT_MAX_W, Math.max(MIN_COL_W, f.minWidth ?? MIN_COL_W, Math.ceil(w)));
+    return Math.min(AUTOFIT_MAX_W, Math.max(MIN_COL_W, Math.ceil(w)));
   }
 
   /** AutoFit semua kolom yang belum punya lebar tersimpan (muat awal).
@@ -1547,7 +1547,7 @@ export default function ExcelTable<T extends { id: string | number }>({
         if (!s) continue;
         w = Math.max(w, lebar(cellProbe, csCell, s) + padCell + AUTOFIT_BUFFER);
       }
-      out[f.key] = Math.min(AUTOFIT_MAX_W, Math.max(MIN_COL_W, f.minWidth ?? MIN_COL_W, Math.ceil(w)));
+      out[f.key] = Math.min(AUTOFIT_MAX_W, Math.max(MIN_COL_W, Math.ceil(w)));
     }
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1696,7 +1696,7 @@ export default function ExcelTable<T extends { id: string | number }>({
         // dibiarkan kosong, bukan dibagi ke kolom elastis.
         grow: 0,
         shrink: 0,
-        minWidth: f.minWidth ?? 80,
+        minWidth: MIN_COL_W,
         cellClassName: ({ rowData }: { rowData: GridRow }) =>
           cn(
             alignClass(f.key),
