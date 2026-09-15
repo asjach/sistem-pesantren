@@ -369,6 +369,12 @@
   padding-top: 4px;
   padding-bottom: 4px;
 }
+/* Gagang resize tepi kiri: khusus kolom beku, untuk mengubah lebar kolom di
+   sebelah kirinya (gagang kanan kolom itu tertutup oleh sel beku berikutnya). */
+.simpes-dsg-resizer.simpes-dsg-resizer-kiri {
+  left: -6px;
+  right: auto;
+}
 /* Gagang resize mengangkangi garis perbatasan antar kolom: lebarnya 12px
    dipusat tepat di garis batas (right:-6px; header tanpa padding sehingga
    tepi kanan wadah judul = garis batas kolom). */
@@ -496,9 +502,9 @@
 .simpes-dsg .dsg-cell:has(> input.dsg-checkbox) {
   justify-content: center;
 }
-/* Baris dibuat flex agar sel sticky-kanan (Aksi) berjajar horizontal dan
-   sejajar dengan barisnya; sel lain tetap absolute sehingga tak terpengaruh.
-   (Fitur freeze kiri dilepas — butuh patch library.) */
+/* Baris dibuat flex agar sel sticky (kanan Aksi & kiri beku) berjajar
+   horizontal dan sejajar dengan barisnya; sel lain tetap absolute sehingga
+   tak terpengaruh. Kolom beku kiri memakai patch DSG (stickyLeftColumnCount). */
 .simpes-dsg .dsg-row {
   display: flex;
 }
@@ -509,6 +515,28 @@
   margin-left: auto;
   height: 100%;
   z-index: 30;
+}
+/* Kolom beku kiri (freeze pane, hasil patch DSG `stickyLeftColumnCount`):
+   sel memakai offset `left` inline dari DSG sebagai posisi sticky, sehingga
+   menempel di kiri tanpa perhitungan offset manual. Kolom terdepan dipaksa
+   selalu dirender oleh patch agar tidak hilang saat scroll horizontal. */
+.simpes-dsg .dsg-cell.dsg-cell-sticky-left {
+  position: sticky;
+  z-index: 20;
+}
+.simpes-dsg .dsg-row-header .dsg-cell.dsg-cell-sticky-left {
+  z-index: 42;
+}
+/* Pembatas kanan di tepi area beku (kolom beku terakhir). */
+.simpes-dsg .dsg-cell.dsg-cell-sticky-left.simpes-dsg-beku-tepi {
+  border-right: 1px solid var(--dsg-border-color);
+  box-shadow: 1px 0 var(--dsg-border-color), 0 1px var(--dsg-border-color);
+}
+/* Kotak seleksi DSG tidak ikut menempel di area beku → beri aksen sel aktif. */
+.simpes-dsg .dsg-cell.dsg-cell-sticky-left.dsg-cell-active {
+  outline: 2px solid var(--dsg-selection-border-color);
+  outline-offset: -2px;
+  border-radius: var(--dsg-selection-border-radius);
 }
 .simpes-dsg .dsg-row-header .dsg-cell:has(input.simpes-dsg-checkall),
 .simpes-dsg .dsg-row:not(.dsg-row-header) .dsg-cell:has(> input.dsg-checkbox) {

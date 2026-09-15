@@ -203,6 +203,21 @@ function widthsKey(tableKey: string) {
   return `simpes_grid_${tableKey}_w_v2`;
 }
 
+/** Pref jumlah kolom beku (freeze pane kiri) per tabel; 0 = tanpa beku. */
+function freezeKey(tableKey: string) {
+  return `simpes_grid_${tableKey}_freeze`;
+}
+
+async function loadFreeze(key: string): Promise<number> {
+  try {
+    const v = await prefGet(key);
+    const n = Number(v);
+    return Number.isFinite(n) && n > 0 ? Math.round(n) : 0;
+  } catch {
+    return 0;
+  }
+}
+
 async function loadWidths(key: string): Promise<Record<string, number>> {
   try {
     const v = await prefGet(key);
@@ -455,6 +470,7 @@ function HeaderTitle({
   required,
   noInput,
   onResizeStart,
+  onResizePrev,
   onAutoFit,
 }: {
   label: string;
@@ -462,6 +478,9 @@ function HeaderTitle({
   required?: boolean;
   noInput?: boolean;
   onResizeStart: (key: string, e: { preventDefault(): void; stopPropagation(): void; clientX: number }) => void;
+  /** Kolom beku: gagang tepi KIRI untuk mengubah lebar kolom sebelumnya
+   *  (gagang kanan tertutup oleh sel beku di sebelahnya). */
+  onResizePrev?: (e: { preventDefault(): void; stopPropagation(): void; clientX: number }) => void;
   onAutoFit: (key: string) => void;
 }) {
   return (
@@ -480,6 +499,14 @@ function HeaderTitle({
         >
           <Ban size={11} />
         </span>
+      ) : null}
+      {onResizePrev ? (
+        <span
+          className="simpes-dsg-resizer simpes-dsg-resizer-kiri"
+          title="Seret untuk ubah lebar kolom di kiri"
+          onMouseDown={(e) => onResizePrev(e)}
+          onClick={(e) => e.stopPropagation()}
+        />
       ) : null}
       <span
         className="simpes-dsg-resizer"
@@ -796,6 +823,8 @@ export default function ExcelTable<T extends { id: string | number }>({
   /** Tinggi header otomatis (konten-driven) — dari judul terpanjang yang
    *  membungkus; dipakai bila pengguna tidak mengunci tinggi manual. */
   const [headerAutoH, setHeaderAutoH] = useState<number | null>(null);
+  /** Jumlah kolom DATA pertama yang dibekukan (freeze pane kiri), per tabel. */
+  const [freeze, setFreeze] = useState(0);
   /** Lewati AutoFit pada commit pertama: cache sudah memuat lebar final. */
   const skipFitPertamaRef = useRef(!!cacheHit);
   const fittedRef = useRef<string | null>(cacheHit ? tableKey : null);
@@ -812,6 +841,27 @@ export default function ExcelTable<T extends { id: string | number }>({
     return terlihat.length > 0 ? terlihat : fields;
   }, [fields, presetKeys]);
   const visibleFieldsRef = useRef(visibleFields);
+
+  // Muat jumlah kolom beku tabel ini; clamp bila preset menyembunyikan kolom.
+  useEffect(() => {
+    let batal = false;
+    loadFreeze(freezeKey(tableKey)).then((n) => {
+      if (!batal) setFreeze(n);
+    });
+    return () => {
+      batal = true;
+    };
+  }, [tableKey]);
+
+  const freezeAktif = Math.min(freeze, visibleFields.length);
+  const ubahFreeze = useCallback(
+    (n: number) => {
+      const v = Math.max(0, Math.min(visibleFields.length, Math.round(n)));
+      setFreeze(v);
+      prefSet(freezeKey(tableKey), String(v)).catch(() => {});
+    },
+    [tableKey, visibleFields.length],
+  );
   visibleFieldsRef.current = visibleFields;
   const wrapRef = useRef<HTMLDivElement>(null);
   const [gridH, setGridH] = useState(() =>
@@ -1561,7 +1611,11 @@ export default function ExcelTable<T extends { id: string | number }>({
         disabled: ({ rowData }: { rowData: GridRow }) => String(rowData.id) === INPUT_ROW_ID,
       },
     ];
+    let idxData = 0;
     for (const f of visibleFields) {
+      const iData = idxData++;
+      const bekuCls = iData < freezeAktif ? ' simpes-dsg-beku' : '';
+      const tepiCls = iData === freezeAktif - 1 ? ' simpes-dsg-beku-tepi' : '';
       const isInputRow = (rowData: GridRow) => showInput && String(rowData.id) === INPUT_ROW_ID;
       const common = {
         id: f.key,
@@ -1572,10 +1626,15 @@ export default function ExcelTable<T extends { id: string | number }>({
             required={f.required && showInput}
             noInput={showInput && f.kind === 'static' && !f.inputKind}
             onResizeStart={startResize}
+            onResizePrev={
+              iData > 0 && iData < freezeAktif
+                ? (e) => startResize(visibleFields[iData - 1].key, e)
+                : undefined
+            }
             onAutoFit={onAutoFit}
           />
         ),
-        headerClassName: alignClass(f.key),
+        headerClassName: cn(alignClass(f.key), bekuCls, tepiCls),
         basis: widths[f.key] ?? autoWidths[f.key] ?? syncAutoWidths[f.key] ?? f.width ?? 150,
         // Semua kolom fixed (grow 0): lebar hanya berubah saat digagang
         // seret atau di-AutoFit, persis seperti Excel. Sisa ruang di kanan
@@ -1586,6 +1645,8 @@ export default function ExcelTable<T extends { id: string | number }>({
         cellClassName: ({ rowData }: { rowData: GridRow }) =>
           cn(
             alignClass(f.key),
+            bekuCls,
+            tepiCls,
             isInputRow(rowData) && 'simpes-dsg-baris-input',
             isInputRow(rowData) && f.required && !rowData[f.key] && 'simpes-dsg-wajib',
             draftsRef.current[String(rowData.id)]?.[f.key] !== undefined && 'simpes-dsg-dirty',
@@ -1707,7 +1768,7 @@ export default function ExcelTable<T extends { id: string | number }>({
     }
     return cols;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fields, visibleFields, editing, widths, autoWidths, syncAutoWidths, align, showInput]);
+  }, [fields, visibleFields, editing, widths, autoWidths, syncAutoWidths, align, showInput, freezeAktif]);
 
   /** Simpan baris input → buat record baru via onCreateRow halaman. Validasi
    *  field wajib + validator kolom dulu; draft dibersihkan hanya bila sukses
@@ -2020,6 +2081,9 @@ export default function ExcelTable<T extends { id: string | number }>({
       setInputMode,
       showInput,
       headerHeight: headerH ?? headerAutoH ?? DEFAULT_HEADER_H,
+      freeze: freezeAktif,
+      freezeMax: visibleFields.length,
+      setFreeze: ubahFreeze,
     });
   }, [
     ribbonDaftar,
@@ -2032,6 +2096,9 @@ export default function ExcelTable<T extends { id: string | number }>({
     showInput,
     headerH,
     headerAutoH,
+    freezeAktif,
+    visibleFields.length,
+    ubahFreeze,
   ]);
 
   const hasSearchInput = searchValue !== undefined && onSearchChange;
@@ -2227,6 +2294,7 @@ export default function ExcelTable<T extends { id: string | number }>({
                     value={gridValue}
                     onChange={handleChange}
                     columns={dsgColumns}
+                    stickyLeftColumnCount={freezeAktif > 0 ? freezeAktif + 1 : 0}
                     stickyRightColumn={aksiColumn}
                     rowKey="id"
                     height={gridHeight}

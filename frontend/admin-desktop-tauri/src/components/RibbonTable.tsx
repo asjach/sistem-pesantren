@@ -19,6 +19,11 @@ export interface RibbonTableApi {
   /** Tinggi baris header EFEKTIF tabel aktif (hasil auto atau manual) — agar
    *  spinner di ribbon selalu sama dengan tinggi riil yang dirender. */
   headerHeight: number;
+  /** Jumlah kolom DATA pertama yang dibekukan (freeze pane kiri; kolom centang
+   *  ikut) + batas maksimum = jumlah kolom terlihat. */
+  freeze: number;
+  freezeMax: number;
+  setFreeze: (n: number) => void;
 }
 
 interface RibbonTableCtxValue {

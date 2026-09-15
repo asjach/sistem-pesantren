@@ -182,6 +182,24 @@ export function RibbonTabel({ apiTabel }: { apiTabel: RibbonTableApi | null }) {
           disabled={!apiTabel}
           onClick={() => apiTabel?.autofit()}
         />
+        <SpinBox
+          id="input_bekukan_kolom_top"
+          value={apiTabel?.freeze ?? 0}
+          min={0}
+          max={apiTabel?.freezeMax ?? 0}
+          title="Bekukan N kolom pertama di kiri (termasuk kolom centang)"
+          ariaLabel="Jumlah kolom beku"
+          onChange={(v) => apiTabel?.setFreeze(v)}
+        />
+        {(apiTabel?.freeze ?? 0) > 0 ? (
+          <RibbonCmd
+            id="btn_lepas_bekukan_kolom_top"
+            icon={RotateCcw}
+            label="Lepas semua kolom beku"
+            iconOnly
+            onClick={() => apiTabel?.setFreeze(0)}
+          />
+        ) : null}
       </RibbonGroup>
       <RibbonPemisah />
       <RibbonGroup label="Baris">

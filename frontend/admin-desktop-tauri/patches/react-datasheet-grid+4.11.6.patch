@@ -1,0 +1,116 @@
+diff --git a/node_modules/react-datasheet-grid/dist/components/Cell.js b/node_modules/react-datasheet-grid/dist/components/Cell.js
+index 269dc59..418a795 100644
+--- a/node_modules/react-datasheet-grid/dist/components/Cell.js
++++ b/node_modules/react-datasheet-grid/dist/components/Cell.js
+@@ -6,8 +6,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
+ exports.Cell = void 0;
+ const react_1 = __importDefault(require("react"));
+ const classnames_1 = __importDefault(require("classnames"));
+-const Cell = ({ children, gutter, stickyRight, active, disabled, className, width, left, }) => {
+-    return (react_1.default.createElement("div", { className: (0, classnames_1.default)('dsg-cell', gutter && 'dsg-cell-gutter', disabled && 'dsg-cell-disabled', gutter && active && 'dsg-cell-gutter-active', stickyRight && 'dsg-cell-sticky-right', className), style: {
++const Cell = ({ children, gutter, stickyLeft, stickyRight, active, disabled, className, width, left, }) => {
++    return (react_1.default.createElement("div", { className: (0, classnames_1.default)('dsg-cell', gutter && 'dsg-cell-gutter', stickyLeft && 'dsg-cell-sticky-left', active && 'dsg-cell-active', disabled && 'dsg-cell-disabled', gutter && active && 'dsg-cell-gutter-active', stickyRight && 'dsg-cell-sticky-right', className), style: {
+             width,
+             left: stickyRight ? undefined : left,
+         } }, children));
+diff --git a/node_modules/react-datasheet-grid/dist/components/DataSheetGrid.js b/node_modules/react-datasheet-grid/dist/components/DataSheetGrid.js
+index ec561f6..e16305a 100644
+--- a/node_modules/react-datasheet-grid/dist/components/DataSheetGrid.js
++++ b/node_modules/react-datasheet-grid/dist/components/DataSheetGrid.js
+@@ -60,7 +60,7 @@ const DEFAULT_CREATE_ROW = () => ({});
+ const DEFAULT_EMPTY_CALLBACK = () => null;
+ const DEFAULT_DUPLICATE_ROW = ({ rowData, }) => (Object.assign({}, rowData));
+ // eslint-disable-next-line react/display-name
+-exports.DataSheetGrid = react_1.default.memo(react_1.default.forwardRef(({ value: data = DEFAULT_DATA, className, style, height: maxHeight = 400, onChange = DEFAULT_EMPTY_CALLBACK, columns: rawColumns = DEFAULT_COLUMNS, rowHeight = 40, headerRowHeight = typeof rowHeight === 'number' ? rowHeight : 40, gutterColumn, stickyRightColumn, rowKey, addRowsComponent: AddRowsComponent = AddRows_1.AddRows, createRow = DEFAULT_CREATE_ROW, autoAddRow = false, lockRows = false, disableExpandSelection = false, disableSmartDelete = false, duplicateRow = DEFAULT_DUPLICATE_ROW, contextMenuComponent: ContextMenuComponent = ContextMenu_1.ContextMenu, disableContextMenu: disableContextMenuRaw = false, onFocus = DEFAULT_EMPTY_CALLBACK, onBlur = DEFAULT_EMPTY_CALLBACK, onActiveCellChange = DEFAULT_EMPTY_CALLBACK, onSelectionChange = DEFAULT_EMPTY_CALLBACK, rowClassName, cellClassName, onScroll, }, ref) => {
++exports.DataSheetGrid = react_1.default.memo(react_1.default.forwardRef(({ value: data = DEFAULT_DATA, className, style, height: maxHeight = 400, onChange = DEFAULT_EMPTY_CALLBACK, columns: rawColumns = DEFAULT_COLUMNS, rowHeight = 40, headerRowHeight = typeof rowHeight === 'number' ? rowHeight : 40, gutterColumn, stickyRightColumn, stickyLeftColumnCount = 0, rowKey, addRowsComponent: AddRowsComponent = AddRows_1.AddRows, createRow = DEFAULT_CREATE_ROW, autoAddRow = false, lockRows = false, disableExpandSelection = false, disableSmartDelete = false, duplicateRow = DEFAULT_DUPLICATE_ROW, contextMenuComponent: ContextMenuComponent = ContextMenu_1.ContextMenu, disableContextMenu: disableContextMenuRaw = false, onFocus = DEFAULT_EMPTY_CALLBACK, onBlur = DEFAULT_EMPTY_CALLBACK, onActiveCellChange = DEFAULT_EMPTY_CALLBACK, onSelectionChange = DEFAULT_EMPTY_CALLBACK, rowClassName, cellClassName, onScroll, }, ref) => {
+     var _a, _b, _c, _d, _e, _f;
+     const lastEditingCellRef = (0, react_1.useRef)(null);
+     const disableContextMenu = disableContextMenuRaw || lockRows;
+@@ -167,6 +167,12 @@ exports.DataSheetGrid = react_1.default.memo(react_1.default.forwardRef(({ value
+                         columnWidths[columnWidths.length - 1]) {
+                     x = columnRights[columnRights.length - 2] + 1;
+                 }
++                if (stickyLeftColumnCount > 0 &&
++                    event.clientX - outerBoundingClientRect.left <
++                        columnWidths.slice(0, 1 + stickyLeftColumnCount).reduce((a, b) => a + b, 0)) {
++                    // Kolom beku kiri: posisi di viewport = koordinat konten kolom tsb.
++                    x = event.clientX - outerBoundingClientRect.left;
++                }
+             }
+             return {
+                 col: columnRights.findIndex((right) => x < right) - 1,
+@@ -182,6 +188,7 @@ exports.DataSheetGrid = react_1.default.memo(react_1.default.forwardRef(({ value
+         getOuterBoundingClientRect,
+         headerRowHeight,
+         hasStickyRightColumn,
++        stickyLeftColumnCount,
+         getRowIndex,
+     ]);
+     const dataRef = (0, react_1.useRef)(data);
+@@ -1319,7 +1326,7 @@ exports.DataSheetGrid = react_1.default.memo(react_1.default.forwardRef(({ value
+                 e.target.blur();
+                 setActiveCell({ col: 0, row: 0 });
+             } }),
+-        react_1.default.createElement(Grid_1.Grid, { columns: columns, outerRef: outerRef, columnWidths: columnWidths, hasStickyRightColumn: hasStickyRightColumn, displayHeight: displayHeight, data: data, fullWidth: fullWidth, headerRowHeight: headerRowHeight, activeCell: activeCell, innerRef: innerRef, rowHeight: getRowSize, rowKey: rowKey, selection: selection, rowClassName: rowClassName, editing: editing, getContextMenuItems: getContextMenuItems, setRowData: setRowData, deleteRows: deleteRows, insertRowAfter: insertRowAfter, duplicateRows: duplicateRows, stopEditing: stopEditing, cellClassName: cellClassName, onScroll: onScroll },
++        react_1.default.createElement(Grid_1.Grid, { columns: columns, outerRef: outerRef, columnWidths: columnWidths, hasStickyRightColumn: hasStickyRightColumn, stickyLeftColumnCount: stickyLeftColumnCount, displayHeight: displayHeight, data: data, fullWidth: fullWidth, headerRowHeight: headerRowHeight, activeCell: activeCell, innerRef: innerRef, rowHeight: getRowSize, rowKey: rowKey, selection: selection, rowClassName: rowClassName, editing: editing, getContextMenuItems: getContextMenuItems, setRowData: setRowData, deleteRows: deleteRows, insertRowAfter: insertRowAfter, duplicateRows: duplicateRows, stopEditing: stopEditing, cellClassName: cellClassName, onScroll: onScroll },
+             react_1.default.createElement(SelectionRect_1.SelectionRect, { columnRights: columnRights, columnWidths: columnWidths, activeCell: activeCell, selection: selection, headerRowHeight: headerRowHeight, rowHeight: getRowSize, hasStickyRightColumn: hasStickyRightColumn, dataLength: data.length, viewHeight: height, viewWidth: width, contentWidth: fullWidth ? undefined : contentWidth, edges: edges, editing: editing, isCellDisabled: isCellDisabled, expandSelection: expandSelection })),
+         react_1.default.createElement("div", { ref: afterTabIndexRef, tabIndex: rawColumns.length && data.length ? 0 : undefined, onFocus: (e) => {
+                 e.target.blur();
+diff --git a/node_modules/react-datasheet-grid/dist/components/Grid.js b/node_modules/react-datasheet-grid/dist/components/Grid.js
+index bff6879..5ff8a78 100644
+--- a/node_modules/react-datasheet-grid/dist/components/Grid.js
++++ b/node_modules/react-datasheet-grid/dist/components/Grid.js
+@@ -32,7 +32,7 @@ const react_1 = __importStar(require("react"));
+ const classnames_1 = __importDefault(require("classnames"));
+ const Cell_1 = require("./Cell");
+ const useMemoizedIndexCallback_1 = require("../hooks/useMemoizedIndexCallback");
+-const Grid = ({ data, columns, outerRef, innerRef, columnWidths, hasStickyRightColumn, displayHeight, headerRowHeight, rowHeight, rowKey, fullWidth, selection, activeCell, rowClassName, cellClassName, children, editing, getContextMenuItems, setRowData, deleteRows, duplicateRows, insertRowAfter, stopEditing, onScroll, }) => {
++const Grid = ({ data, columns, outerRef, innerRef, columnWidths, hasStickyRightColumn, stickyLeftColumnCount = 0, displayHeight, headerRowHeight, rowHeight, rowKey, fullWidth, selection, activeCell, rowClassName, cellClassName, children, editing, getContextMenuItems, setRowData, deleteRows, duplicateRows, insertRowAfter, stopEditing, onScroll, }) => {
+     var _a, _b, _c, _d;
+     const rowVirtualizer = (0, react_virtual_1.useVirtualizer)({
+         count: data.length,
+@@ -67,6 +67,13 @@ const Grid = ({ data, columns, outerRef, innerRef, columnWidths, hasStickyRightC
+         overscan: 1,
+         rangeExtractor: (range) => {
+             const result = (0, react_virtual_1.defaultRangeExtractor)(range);
++            if (stickyLeftColumnCount > 0) {
++                for (let i = stickyLeftColumnCount; i >= 1; i--) {
++                    if (!result.includes(i)) {
++                        result.unshift(i);
++                    }
++                }
++            }
+             if (result[0] !== 0) {
+                 result.unshift(0);
+             }
+@@ -96,7 +103,7 @@ const Grid = ({ data, columns, outerRef, innerRef, columnWidths, hasStickyRightC
+             headerRowHeight > 0 && (react_1.default.createElement("div", { className: (0, classnames_1.default)('dsg-row', 'dsg-row-header'), style: {
+                     width: fullWidth ? '100%' : colVirtualizer.getTotalSize(),
+                     height: headerRowHeight,
+-                } }, colVirtualizer.getVirtualItems().map((col) => (react_1.default.createElement(Cell_1.Cell, { key: col.key, gutter: col.index === 0, stickyRight: hasStickyRightColumn && col.index === columns.length - 1, width: col.size, left: col.start, className: (0, classnames_1.default)('dsg-cell-header', selectionColMin !== undefined &&
++                } }, colVirtualizer.getVirtualItems().map((col) => (react_1.default.createElement(Cell_1.Cell, { key: col.key, gutter: col.index === 0, stickyLeft: stickyLeftColumnCount > 0 && col.index >= 1 && col.index <= stickyLeftColumnCount, stickyRight: hasStickyRightColumn && col.index === columns.length - 1, width: col.size, left: col.start, className: (0, classnames_1.default)('dsg-cell-header', selectionColMin !== undefined &&
+                     selectionColMax !== undefined &&
+                     selectionColMin <= col.index - 1 &&
+                     selectionColMax >= col.index - 1 &&
+@@ -126,7 +133,7 @@ const Grid = ({ data, columns, outerRef, innerRef, columnWidths, hasStickyRightC
+                             }));
+                     const cellIsActive = (activeCell === null || activeCell === void 0 ? void 0 : activeCell.row) === row.index &&
+                         activeCell.col === col.index - 1;
+-                    return (react_1.default.createElement(Cell_1.Cell, { key: col.key, gutter: col.index === 0, stickyRight: hasStickyRightColumn && col.index === columns.length - 1, active: col.index === 0 && rowActive, disabled: cellDisabled, className: (0, classnames_1.default)(typeof colCellClassName === 'function'
++                    return (react_1.default.createElement(Cell_1.Cell, { key: col.key, gutter: col.index === 0, stickyLeft: stickyLeftColumnCount > 0 && col.index >= 1 && col.index <= stickyLeftColumnCount, stickyRight: hasStickyRightColumn && col.index === columns.length - 1, active: cellIsActive || (col.index === 0 && rowActive), disabled: cellDisabled, className: (0, classnames_1.default)(typeof colCellClassName === 'function'
+                             ? colCellClassName({
+                                 rowData: data[row.index],
+                                 rowIndex: row.index,
+diff --git a/node_modules/react-datasheet-grid/dist/types.d.ts b/node_modules/react-datasheet-grid/dist/types.d.ts
+index 52c4b80..f839a92 100644
+--- a/node_modules/react-datasheet-grid/dist/types.d.ts
++++ b/node_modules/react-datasheet-grid/dist/types.d.ts
+@@ -135,6 +135,8 @@ export type DataSheetGridProps<T> = {
+     columns?: Partial<Column<T, any, any>>[];
+     gutterColumn?: SimpleColumn<T, any> | false;
+     stickyRightColumn?: SimpleColumn<T, any>;
++    /** Jumlah kolom DATA pertama (setelah gutter) yang selalu dirender & menempel kiri. */
++    stickyLeftColumnCount?: number;
+     rowKey?: string | ((opts: {
+         rowData: T;
+         rowIndex: number;
