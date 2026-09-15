@@ -105,6 +105,19 @@ export interface ExcelChoice {
   label: string;
 }
 
+/** Teks yang BENAR-BENAR dirender sel untuk sebuah nilai grid. Kolom `select`
+ *  menampilkan label pilihannya (`Ikut lembaga`), bukan nilai mentahnya
+ *  (`default`) — pengukuran lebar kolom (AutoFit & lebar awal) wajib memakai
+ *  teks ini, kalau tidak kolom jadi sempit dan label terpotong/terbungkus. */
+function teksTampilSel(f: ExcelField, raw: unknown): string {
+  if (raw == null) return '';
+  const s = String(raw);
+  if (f.kind === 'select') {
+    return (f.choices ?? []).find((c) => c.value === s)?.label ?? s;
+  }
+  return s;
+}
+
 export interface ExcelField {
   key: string;
   label: string;
@@ -1320,7 +1333,7 @@ export default function ExcelTable<T extends { id: string | number }>({
     const values: { v: string; cw: number }[] = [];
     let maxCw = 0;
     for (const r of rowsRef.current) {
-      const v = displayOf(r.id, key);
+      const v = teksTampilSel(f, gridById.get(String(r.id))?.[key]);
       if (!v) continue;
       const cw = ctx.measureText(v).width;
       if (cw > maxCw) maxCw = cw;
@@ -1530,8 +1543,7 @@ export default function ExcelTable<T extends { id: string | number }>({
     for (const f of visibleFields) {
       let w = lebar(headProbe, csHeadCont, f.label) + padHead + AUTOFIT_BUFFER;
       for (const v of values) {
-        const raw = v[f.key];
-        const s = raw == null ? '' : String(raw);
+        const s = teksTampilSel(f, v[f.key]);
         if (!s) continue;
         w = Math.max(w, lebar(cellProbe, csCell, s) + padCell + AUTOFIT_BUFFER);
       }
