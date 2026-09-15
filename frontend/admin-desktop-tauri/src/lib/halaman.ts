@@ -14,6 +14,7 @@ import {
   LogOut,
   MoveHorizontal,
   NotebookTabs,
+  Paintbrush,
   Palette,
   ReceiptText,
   ScrollText,
@@ -82,6 +83,13 @@ export const HALAMAN: HalamanDef[] = [
   { to: '/tarif', label: 'Tarif Biaya', tab: 'keuangan', grid: true, icon: ReceiptText },
   { to: '/keuangan', label: 'Keuangan', tab: 'keuangan', grid: true, icon: ScrollText },
   { to: '/pengaturan/tampilan', label: 'Tampilan', tab: 'pengaturan', icon: Palette },
+  {
+    to: '/pengaturan/tampilan-standar',
+    label: 'Tampilan Standar',
+    deskripsi: 'Super admin menyebar standar tampilan ke seluruh lembaga; admin lembaga mengatur salinan lembaganya.',
+    tab: 'pengaturan',
+    icon: Paintbrush,
+  },
   { to: '/pengaturan/server', label: 'Server', tab: 'pengaturan', icon: Server },
 ];
 
