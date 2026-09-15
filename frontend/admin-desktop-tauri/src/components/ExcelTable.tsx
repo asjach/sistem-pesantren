@@ -2383,6 +2383,21 @@ export default function ExcelTable<T extends { id: string | number }>({
               <>
                 <ContextMenuLabel>Kolom: {ctxHeaderLabel}</ContextMenuLabel>
                 <ContextMenuItem
+                  id={`btn_ctx_autofit_kolom_${tableKey}`}
+                  onSelect={() => onAutoFit(ctxHeader.colKey)}
+                >
+                  <MoveHorizontal size={14} />
+                  <span>Sesuaikan lebar kolom ini</span>
+                </ContextMenuItem>
+                <ContextMenuItem
+                  id={`btn_ctx_autofit_semua_${tableKey}`}
+                  onSelect={() => onAutoFitAll()}
+                >
+                  <MoveHorizontal size={14} />
+                  <span>Sesuaikan lebar semua kolom</span>
+                </ContextMenuItem>
+                <ContextMenuSeparator />
+                <ContextMenuItem
                   id={`btn_ctx_bekukan_${tableKey}`}
                   disabled={ctxHeaderIdx < 0 || freezeAktif >= ctxHeaderIdx + 1}
                   onSelect={() => ctxHeaderIdx >= 0 && ubahFreeze(ctxHeaderIdx + 1)}

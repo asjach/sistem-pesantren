@@ -15,7 +15,7 @@ import {
   useGridPrefs,
 } from '@/components/GridPrefs';
 import type { RibbonTableApi } from '@/components/RibbonTable';
-import { MoveHorizontal, Pencil, PlusCircle, RotateCcw } from '@/icons';
+import { Pencil, PlusCircle, RotateCcw } from '@/icons';
 import {
   Select,
   SelectContent,
@@ -163,14 +163,6 @@ export function RibbonTabel({ apiTabel }: { apiTabel: RibbonTableApi | null }) {
       </RibbonGroup>
       <RibbonPemisah />
       <RibbonGroup label="Kolom">
-        <RibbonCmd
-          id="ribbon_btn_autofit"
-          icon={MoveHorizontal}
-          label="Sesuaikan Lebar"
-          iconOnly
-          disabled={!apiTabel}
-          onClick={() => apiTabel?.autofit()}
-        />
         <div className="flex items-end gap-1">
           <div className="flex flex-col items-center gap-1">
             <span id="label_bekukan_kolom_top" className="text-[10px] leading-none text-white/70">
