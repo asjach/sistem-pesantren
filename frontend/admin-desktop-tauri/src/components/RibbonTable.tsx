@@ -16,6 +16,9 @@ export interface RibbonTableApi {
   inputMode: boolean;
   setInputMode: (v: boolean) => void;
   showInput: boolean;
+  /** Tinggi baris header EFEKTIF tabel aktif (hasil auto atau manual) — agar
+   *  spinner di ribbon selalu sama dengan tinggi riil yang dirender. */
+  headerHeight: number;
 }
 
 interface RibbonTableCtxValue {

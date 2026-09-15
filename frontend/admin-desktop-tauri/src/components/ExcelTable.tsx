@@ -2019,6 +2019,7 @@ export default function ExcelTable<T extends { id: string | number }>({
       inputMode,
       setInputMode,
       showInput,
+      headerHeight: headerH ?? headerAutoH ?? DEFAULT_HEADER_H,
     });
   }, [
     ribbonDaftar,
@@ -2029,6 +2030,8 @@ export default function ExcelTable<T extends { id: string | number }>({
     inputEnabled,
     inputMode,
     showInput,
+    headerH,
+    headerAutoH,
   ]);
 
   const hasSearchInput = searchValue !== undefined && onSearchChange;

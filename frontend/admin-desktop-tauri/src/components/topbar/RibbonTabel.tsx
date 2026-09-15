@@ -116,7 +116,10 @@ export function RibbonTabel({ apiTabel }: { apiTabel: RibbonTableApi | null }) {
   const { rowH, headerH, fontPx, fontFamily, setRowH, setHeaderH, setFontPx, setFontFamily } = useGridPrefs();
   const effectiveH = rowH ?? DENSITY_PX[density];
   const effectiveFont = fontPx ?? DEFAULT_FONT_PX;
-  const effectiveHeaderH = headerH ?? DEFAULT_HEADER_H;
+  /** Tinggi header efektif: nilai riil tabel aktif (auto/manual) agar spinner
+   *  tidak menampilkan angka yang berbeda dari yang dirender. */
+  const effectiveHeaderH = apiTabel?.headerHeight ?? headerH ?? DEFAULT_HEADER_H;
+  const headerHManual = headerH != null;
 
   // Pengaturan header & sel tabel — tersimpan sebagai bagian UI `tabel_header`
   // dan `tabel_sel` sehingga tersinkron dua arah dengan halaman Tampilan.
@@ -252,10 +255,21 @@ export function RibbonTabel({ apiTabel }: { apiTabel: RibbonTableApi | null }) {
               value={effectiveHeaderH}
               min={MIN_HEADER_H}
               max={MAX_HEADER_H}
-              title="Tinggi baris header (berlaku semua tabel)"
+              title={headerHManual
+                ? 'Tinggi baris header (manual, berlaku semua tabel)'
+                : 'Tinggi baris header (otomatis mengikuti judul)'}
               ariaLabel="Tinggi baris header (px)"
               onChange={setHeaderH}
             />
+            {headerHManual ? (
+              <RibbonCmd
+                id="btn_reset_tinggi_header_top"
+                icon={RotateCcw}
+                label="Kembalikan tinggi header ke otomatis"
+                iconOnly
+                onClick={() => setHeaderH(null)}
+              />
+            ) : null}
             <WarnaInput
               id="input_warna_bg_header_top"
               value={headerBg}
