@@ -6,15 +6,20 @@
 ## Aturan commit (pengingat otomatis)
 Latar: pengguna mudah lupa commit — agen wajib menawarkan commit, bukan menunggu
 diminta. Tawarkan lewat tool question (tampilkan daftar file berubah + usulan
-pesan commit) hanya bila `git status` kotor dan salah satu pemicu ini terjadi:
-1. Sudah **5 permintaan pengguna yang mengubah file** sejak commit terakhir
-   (hitung hanya permintaan yang menghasilkan edit/tulis file, bukan tanya-jawab
-   biasa; tawarkan sebelum melanjutkan permintaan berikutnya yang mengubah file).
-2. Akan dimulai **perubahan besar**: > 5 file, diff besar (±150 baris),
+pesan commit) hanya bila `git status` kotor DAN salah satu pemicu ini terjadi:
+1. **Pindah topik pembahasan**: pengguna mulai membahas/mengerjakan hal baru
+   yang berbeda dari topik perubahan terakhir (mis. dari ribbon → tabel
+   halaman). Tawarkan commit pekerjaan topik sebelumnya **sebelum mengeksekusi
+   topik baru** — bukan di akhir tiap tugas.
+2. Sudah **±5 permintaan pengguna yang mengubah file** dalam topik berjalan
+   sejak commit terakhir (jaring pengaman bila satu topik panjang).
+3. Akan dimulai **perubahan besar**: > 5 file, diff besar (±150 baris),
    fitur/refactor baru, perubahan migrasi/skema/API, atau lintas modul.
-3. Awal sesi baru masih ada perubahan belum ter-commit dari sesi sebelumnya
+4. Awal sesi baru masih ada perubahan belum ter-commit dari sesi sebelumnya
    (commit checkpoint dulu agar tidak tercampur pekerjaan baru).
-4. Tugas selesai dan verifikasi lolos.
+
+- **Jangan** tawarkan commit di akhir tiap tugas bila topik belum berganti;
+  tahan sampai pindah topik (atau pemicu 2–4).
 
 - Opsi tawaran: **Commit sekarang** (agen `git add` file terkait + commit dengan
   pesan usulan, lalu laporkan hash) atau **Nanti** (lanjut; hitungan direset 0).
