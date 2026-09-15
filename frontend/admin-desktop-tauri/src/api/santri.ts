@@ -1,26 +1,35 @@
 import { api, apiUpload, downloadFile } from './client';
 import type { Paginate } from './master';
 
-// ---------- Santri (101: master profil + import + foto/dokumen) ----------
+// ---------- Buku Induk santri (identitas murni) + keanggotaan per lembaga ----------
 
+/** Keanggotaan santri di satu lembaga (`lembaga_santri`). */
+export interface LembagaSantri {
+  id: number;
+  santri_id: number;
+  lembaga_id: number;
+  nis_lokal: string | null;
+  nis_kemenag: string | null;
+  is_active: boolean;
+  tgl_mulai: string | null;
+  tgl_selesai: string | null;
+  lembaga?: { id: number; nama: string; kode: string | null; nsm?: string | null } | null;
+}
+
+/** Identitas santri — tanpa kolom relasional (lembaga/kelas ada di keanggotaan/riwayat). */
 export interface Santri {
   id: number;
-  /** null = legacy tanpa track (lembaga ditentukan riwayat/penempatan kelas). */
-  lembaga_id: number | null;
-  kelas_id: number | null;
   nama_lengkap: string;
   nama_singkat: string | null;
   nik: string | null;
   nisn: string | null;
-  nis: string | null;
   tmp_lahir: string | null;
   tgl_lahir: string | null;
   jk: string | null;
   tipe_santri: string | null;
   status_global: boolean;
   foto_url?: string | null;
-  lembaga?: { id: number; nama: string; kode: string | null } | null;
-  kelas?: { id: number; nama_kelas: string } | null;
+  lembaga_aktif?: LembagaSantri[];
 }
 
 export interface DokumenSantri {
@@ -35,12 +44,23 @@ export interface DokumenSantri {
   file_url?: string;
 }
 
-export function listSantri(params: { status_global?: boolean; page?: number; per_page?: number } = {}) {
+export function listSantri(
+  params: { status_global?: boolean; lembaga_id?: number; q?: string; page?: number; per_page?: number } = {},
+) {
   const q = new URLSearchParams();
   if (params.status_global !== undefined) q.set('status_global', params.status_global ? '1' : '0');
+  if (params.lembaga_id) q.set('lembaga_id', String(params.lembaga_id));
+  if (params.q) q.set('q', params.q);
   q.set('page', String(params.page ?? 1));
   if (params.per_page) q.set('per_page', String(params.per_page));
   return api<Paginate<Santri>>(`/admin/santri?${q.toString()}`);
+}
+
+export function createSantri(input: Record<string, string | number | null>) {
+  return api<{ pesan: string; data: Santri }>('/admin/santri', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
 }
 
 export function updateSantri(id: number, changes: Record<string, string | number | null>) {
@@ -50,29 +70,14 @@ export function updateSantri(id: number, changes: Record<string, string | number
   });
 }
 
-/** Input manual (101). `lembaga_id` opsional: kosong = legacy (mengikuti aturan peran admin). */
-export function createSantri(input: Record<string, string | number | null>) {
-  return api<{ pesan: string; data: Santri }>('/admin/santri', {
-    method: 'POST',
-    body: JSON.stringify(input),
-  });
+/** Unduh template import identitas (buku induk). `lembagaId` hanya lingkup kamus dropdown. */
+export function unduhTemplateSantri(lembagaId?: number) {
+  const q = lembagaId ? `?lembaga_id=${lembagaId}` : '';
+  return downloadFile(`/admin/santri/import-template${q}`, 'template-import-santri.xlsx');
 }
 
-/** Unduh template Excel import santri (semua kolom profil + `lembaga_id`).
- *  `lembagaId` mengisi dropdown kamus & `taId` melengkapi dropdown nama kelas
- *  (kolom `kelas_id` menerima nama kelas atau id). */
-export function unduhTemplateSantri(lembagaId?: number, taId?: number) {
-  const q = new URLSearchParams();
-  if (lembagaId) q.set('lembaga_id', String(lembagaId));
-  if (taId) q.set('tahun_ajaran_id', String(taId));
-  const s = q.toString();
-  return downloadFile(`/admin/santri/import-template${s ? `?${s}` : ''}`, 'template-import-santri.xlsx');
-}
-
-export function importSantri(input: { tahun_ajaran_id?: number; lembaga_id?: number; file: File }) {
+export function importSantri(input: { file: File }) {
   const fd = new FormData();
-  if (input.tahun_ajaran_id) fd.set('tahun_ajaran_id', String(input.tahun_ajaran_id));
-  if (input.lembaga_id) fd.set('lembaga_id', String(input.lembaga_id));
   fd.set('file', input.file);
   return apiUpload<{ pesan: string; errors?: ImportError[] }>('/admin/santri/import-lengkap', fd);
 }
@@ -91,13 +96,46 @@ export interface ImportPeriksa {
 }
 
 /** Validasi file import tanpa menulis (dry-run) — sumber tombol "Periksa". */
-export function periksaImportSantri(input: { tahun_ajaran_id?: number; lembaga_id?: number; file: File }) {
+export function periksaImportSantri(input: { file: File }) {
   const fd = new FormData();
-  if (input.tahun_ajaran_id) fd.set('tahun_ajaran_id', String(input.tahun_ajaran_id));
-  if (input.lembaga_id) fd.set('lembaga_id', String(input.lembaga_id));
   fd.set('file', input.file);
   return apiUpload<ImportPeriksa>('/admin/santri/import-periksa', fd);
 }
+
+// ---------- Keanggotaan per lembaga ----------
+
+export function listLembagaSantri(santriId: number) {
+  return api<{ pesan: string; data: LembagaSantri[] }>(`/admin/santri/${santriId}/lembaga`);
+}
+
+export function createLembagaSantri(
+  santriId: number,
+  input: { lembaga_id: number; nis_lokal?: string | null; tgl_mulai?: string | null },
+) {
+  return api<{ pesan: string; data: LembagaSantri }>(`/admin/santri/${santriId}/lembaga`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export function updateLembagaSantri(
+  id: number,
+  input: { nis_lokal?: string | null; is_active?: boolean; tgl_mulai?: string | null; tgl_selesai?: string | null },
+) {
+  return api<{ pesan: string; data: LembagaSantri }>(`/admin/lembaga-santri/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(input),
+  });
+}
+
+/** Generate NIS Kemenag manual: NSM(12) + YY tahun diterima + 4 digit akhir NIS lokal. */
+export function generateNisk(id: number) {
+  return api<{ pesan: string; data: LembagaSantri }>(`/admin/lembaga-santri/${id}/generate-nisk`, {
+    method: 'POST',
+  });
+}
+
+// ---------- Foto & dokumen ----------
 
 export function uploadFotoSantri(santriId: number, file: File) {
   const fd = new FormData();

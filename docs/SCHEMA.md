@@ -266,14 +266,12 @@ Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca
 ## BLOK 2 — Santri & Riwayat (Modul 101 Santri Master + 102 Siklus Santri)
 
 ### `santri`
+**Buku induk: identitas murni** — tanpa relasi riwayat (lembaga/kelas/TA tidak ada di sini).
 - `id` PK
-- `lembaga_id`: FK → lembaga [null, nullOnDelete] — CACHE lembaga primer terakhir (kondisi aktif terakhir). Sumber kebenaran = `riwayat_belajar`. NULL = santri legacy tanpa track (belum/tidak punya riwayat, mutasi, kenaikan, pembayaran); diisi saat penempatan kelas/ACC (adopsi lembaga dari kelas).
-- `kelas_id`: FK → kelas [null, nullOnDelete]
 - `nama_lengkap`: string — Identitas Personal
 - `nama_singkat`: string [null]
-- `nik`: string(16) [null]
-- `nisn`: string(10) [null]
-- `nis`: string(20) [null, UNIQUE] — NIS aktif terakhir (kuitansi/rapor/leger/portal), maks 20 karakter; wajib unik juga terhadap arsip `riwayat_belajar.nis` santri lain (dicek aplikasi)
+- `nik`: string(16) [null] — index (boleh fiktif/ganda; dedup nik+nama+tgl_lahir di service)
+- `nisn`: string(10) [null] — berlaku RA–S3 (nasional)
 - `tmp_lahir`: string [null] — kamus ref_tmp_lahir
 - `tgl_lahir`: date [null]
 - `jk`: enum(L|P)
@@ -345,6 +343,19 @@ Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca
 - INDEX(`nik`)
 - INDEX(`nisn`)
 
+### `lembaga_santri`
+**Keanggotaan santri per lembaga** (bukan pivot murni): NIS lokal/kemenag + status + rentang keanggotaan. Multi-lembaga paralel diizinkan (mis. MI+MD); maks 1 baris `is_active` per (santri, lembaga) — invariant aplikasi.
+- `id` PK
+- `santri_id`: FK → santri [cascade]
+- `lembaga_id`: FK → lembaga [cascade]
+- `nis_lokal`: string(20) [null] — NIS per lembaga, unik per lembaga
+- `nis_kemenag`: string(20) [null] — NISK manual: 12 digit NSM lembaga + 2 digit tahun diterima + 4 digit akhir `nis_lokal`; unik per lembaga
+- `is_active`: bool [default true]
+- `tgl_mulai`: date [null] — saat diterima (PSB/dialog/import)
+- `tgl_selesai`: date [null] — saat kelulusan/mutasi
+- `created_at`, `updated_at`
+- UNIQUE(`lembaga_id`, `nis_lokal`) · UNIQUE(`lembaga_id`, `nis_kemenag`) [multi-NULL boleh] · INDEX(`santri_id`,`is_active`) · INDEX(`lembaga_id`,`is_active`)
+
 ### `riwayat_belajar`
 - `id` PK
 - `santri_id`: FK → santri [cascade]
@@ -354,7 +365,6 @@ Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca
 - `semester`: string(2) [default '1'] — '1' ganjil, '2' genap (selaras nilai_santri)
 - `tgl_masuk`: date [null] — mulai per semester (ganjil=awal tahun, genap=awal semester 2)
 - `no_absen`: int [null] — no urut rombel per semester; unique per kelas dicek di service
-- `nis`: string(20) [null] — arsip per tahun/lembaga (maks 20 karakter); santri.nis = mirror terakhir lembaga primer
 - `tingkat`: string [null] — ref_tingkat: target jenjang tahun ini ('7','8','9'); grouping saat kelas_id null
 - `status_awal`: string [default 'santri_baru'] — Sumber masuk (string bebas, validasi ke ref_status_awal efektif per lembaga). / TERKUNCI: sama antara ganjil-genap dalam 1 tahun (genap copy ganjil).
 - `status_akhir`: string [default 'aktif'] — Hasil semester ini (string bebas, validasi ke ref_status_akhir efektif).

@@ -23,16 +23,13 @@ const PengaturanServerPage = lazy(() => import('./pages/PengaturanServerPage'));
 const PsbPage = lazy(() => import('./pages/PsbPage'));
 const KegiatanPsbPage = lazy(() => import('./pages/KegiatanPsbPage'));
 const SantriPage = lazy(() => import('./pages/SantriPage'));
-const SiklusPage = lazy(() => import('./pages/SiklusPage'));
+const RiwayatBelajarPage = lazy(() => import('./pages/RiwayatBelajarPage'));
 const DaftarKelasPage = lazy(() => import('./pages/DaftarKelasPage'));
-const RosterKelasPage = lazy(() => import('./pages/RosterKelasPage'));
-const PenempatanKelasPage = lazy(() => import('./pages/PenempatanKelasPage'));
+const PindahKelasPage = lazy(() => import('./pages/PindahKelasPage'));
 const KenaikanKelasPage = lazy(() => import('./pages/KenaikanKelasPage'));
-const SalinGenapPage = lazy(() => import('./pages/SalinGenapPage'));
-const RekapPenempatanPage = lazy(() => import('./pages/RekapPenempatanPage'));
+const KelulusanPage = lazy(() => import('./pages/KelulusanPage'));
+const RekapSantriPage = lazy(() => import('./pages/RekapSantriPage'));
 const MutasiKeluarPage = lazy(() => import('./pages/MutasiKeluarPage'));
-const AlumniPage = lazy(() => import('./pages/AlumniPage'));
-const ArsipBerhentiPage = lazy(() => import('./pages/ArsipBerhentiPage'));
 const KeuanganPage = lazy(() => import('./pages/KeuanganPage'));
 const PengajuanBiodataPage = lazy(() => import('./pages/PengajuanBiodataPage'));
 const DokumenWajibPage = lazy(() => import('./pages/DokumenWajibPage'));
@@ -81,16 +78,14 @@ export default function App() {
             <Route path="/psb" element={<PsbPage />} />
             <Route path="/kegiatan-psb" element={<KegiatanPsbPage />} />
             <Route path="/santri" element={<SantriPage />} />
-            <Route path="/siklus" element={<SiklusPage />} />
+            <Route path="/riwayat-belajar" element={<RiwayatBelajarPage />} />
             <Route path="/daftar-kelas" element={<DaftarKelasPage />} />
-            <Route path="/roster-kelas" element={<RosterKelasPage />} />
-            <Route path="/penempatan-kelas" element={<PenempatanKelasPage />} />
-            <Route path="/kenaikan-kelas" element={<KenaikanKelasPage />} />
-            <Route path="/salin-genap" element={<SalinGenapPage />} />
-            <Route path="/rekap-penempatan" element={<RekapPenempatanPage />} />
+            <Route path="/pindah-kelas" element={<PindahKelasPage />} />
+            <Route path="/kenaikan" element={<KenaikanKelasPage />} />
+            <Route path="/kelulusan" element={<KelulusanPage />} />
+            <Route path="/rekap-santri" element={<RekapSantriPage />} />
             <Route path="/mutasi-keluar" element={<MutasiKeluarPage />} />
-            <Route path="/alumni" element={<AlumniPage />} />
-            <Route path="/arsip-berhenti" element={<ArsipBerhentiPage />} />
+            <Route path="/siklus" element={<Navigate to="/riwayat-belajar" replace />} />
             <Route path="/keuangan" element={<KeuanganPage />} />
             <Route path="/pengajuan-biodata" element={<PengajuanBiodataPage />} />
             <Route path="/dokumen-wajib" element={<DokumenWajibPage />} />

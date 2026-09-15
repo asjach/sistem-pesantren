@@ -12,10 +12,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
-/** Kolom grid roster riwayat (dipakai Daftar Kelas, Roster, Penempatan, Kenaikan, Salin, Arsip). */
+/** Kolom grid roster riwayat (Daftar Kelas, Riwayat Belajar, Kenaikan, Pindah Kelas). */
 export const ROSTER_FIELDS: ExcelField[] = [
   { key: 'santri', label: 'Santri', width: 200, kind: 'static' },
-  { key: 'nis', label: 'NIS', width: 100, kind: 'static' },
+  { key: 'nis', label: 'NIS lokal', width: 110, kind: 'static' },
   { key: 'lembaga', label: 'Lembaga', width: 110, kind: 'static' },
   { key: 'smt', label: 'Smt', width: 60, kind: 'static' },
   { key: 'tingkat', label: 'Tingkat', width: 80, kind: 'static' },
@@ -28,7 +28,7 @@ export const ROSTER_FIELDS: ExcelField[] = [
 export function riwayatValues(r: RiwayatRow): Record<string, string | null> {
   return {
     santri: r.santri?.nama_lengkap ?? String(r.santri_id),
-    nis: r.nis ?? r.santri?.nis ?? null,
+    nis: r.nis_lokal ?? null,
     lembaga: r.lembaga?.kode ?? r.lembaga?.nama ?? String(r.lembaga_id),
     smt: r.semester,
     tingkat: r.tingkat,

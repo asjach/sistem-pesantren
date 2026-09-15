@@ -34,6 +34,25 @@ export function ProfilSantriDialog({ santriId, open, onOpenChange }: {
   const sections: ViewDialogSection[] = profil
     ? [
         {
+          title: 'Keanggotaan lembaga',
+          columns: [
+            { key: 'lembaga', label: 'Lembaga' },
+            { key: 'nis_lokal', label: 'NIS lokal' },
+            { key: 'nis_kemenag', label: 'NIS Kemenag' },
+            { key: 'mulai', label: 'Mulai' },
+            { key: 'selesai', label: 'Selesai' },
+            { key: 'aktif', label: 'Aktif' },
+          ],
+          rows: profil.keanggotaan.map((k) => ({
+            lembaga: k.lembaga?.kode ?? k.lembaga?.nama ?? '',
+            nis_lokal: k.nis_lokal ?? '',
+            nis_kemenag: k.nis_kemenag ?? '',
+            mulai: ymd(k.tgl_mulai),
+            selesai: ymd(k.tgl_selesai),
+            aktif: k.is_active ? 'Ya' : 'Tidak',
+          })),
+        },
+        {
           title: 'Riwayat belajar',
           columns: [
             { key: 'tahun', label: 'Tahun ajaran' },

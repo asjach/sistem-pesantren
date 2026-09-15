@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\Concerns\TenantGuard;
 use App\Http\Controllers\Controller;
 use App\Models\Alumni;
 use App\Models\Kelas;
+use App\Models\LembagaSantri;
 use App\Models\MutasiKeluar;
 use App\Models\RiwayatBelajar;
 use App\Models\Santri;
@@ -298,11 +299,17 @@ class SiklusController extends Controller
             $query->where('tingkat', $data['tingkat']);
         }
 
+        $baris = $query->orderBy('kelas_id')->orderBy('no_absen')->orderBy('santri_id')->get();
+        $peta = LembagaSantri::whereIn('santri_id', $baris->pluck('santri_id')->unique())
+            ->where('lembaga_id', $lembagaId)
+            ->pluck('nis_lokal', 'santri_id');
+        $baris->each(fn ($r) => $r->setAttribute('nis_lokal', $peta[$r->santri_id] ?? null));
+
         return response()->json([
             'lembaga_id' => $lembagaId,
             'tahun_ajaran_id' => $taId,
             'semester' => $semester,
-            'data' => $query->orderBy('kelas_id')->orderBy('no_absen')->orderBy('santri_id')->get(),
+            'data' => $baris,
         ]);
     }
 

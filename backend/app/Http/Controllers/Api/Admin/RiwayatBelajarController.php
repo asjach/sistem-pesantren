@@ -6,10 +6,12 @@ use App\Exports\RiwayatBelajarTemplateExport;
 use App\Http\Controllers\Api\Concerns\TenantGuard;
 use App\Http\Controllers\Controller;
 use App\Imports\RiwayatBelajarImport;
+use App\Models\LembagaSantri;
 use App\Models\RiwayatBelajar;
 use App\Models\Santri;
 use App\Services\PenerimaanService;
 use App\Services\SiklusSantriService;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -71,11 +73,13 @@ class RiwayatBelajarController extends Controller
                 ->orWhere('nik', 'like', "%{$q}%"));
         }
 
-        return response()->json(
-            $query->orderBy('lembaga_id')->orderBy('tingkat')->orderBy('kelas_id')
-                ->orderBy('no_absen')->orderBy('santri_id')
-                ->paginate($this->perPage($request))
-        );
+        $hasil = $query->orderBy('lembaga_id')->orderBy('tingkat')->orderBy('kelas_id')
+            ->orderBy('no_absen')->orderBy('santri_id')
+            ->paginate($this->perPage($request));
+
+        $this->lampirkanNisLokal($hasil);
+
+        return response()->json($hasil);
     }
 
     /**
@@ -215,6 +219,21 @@ class RiwayatBelajarController extends Controller
         }
 
         return response()->json(['pesan' => 'Riwayat belajar berhasil diimport.']);
+    }
+
+    /** Lampirkan NIS lokal (dari keanggotaan) ke tiap baris riwayat. */
+    private function lampirkanNisLokal(LengthAwarePaginator $hasil): void
+    {
+        $santriIds = $hasil->getCollection()->pluck('santri_id')->unique()->values();
+        $peta = LembagaSantri::whereIn('santri_id', $santriIds)
+            ->get(['santri_id', 'lembaga_id', 'nis_lokal'])
+            ->mapWithKeys(fn (LembagaSantri $ls) => [$ls->santri_id.':'.$ls->lembaga_id => $ls->nis_lokal]);
+
+        $hasil->getCollection()->transform(function (RiwayatBelajar $row) use ($peta) {
+            $row->setAttribute('nis_lokal', $peta[$row->santri_id.':'.$row->lembaga_id] ?? null);
+
+            return $row;
+        });
     }
 
     /** @param  iterable<Failure>  $failures */
