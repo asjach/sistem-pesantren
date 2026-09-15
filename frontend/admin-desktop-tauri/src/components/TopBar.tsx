@@ -59,10 +59,16 @@ export default function TopBar() {
   const slot = useRibbonSlotCtx();
   const setSlotEl = slot?.setEl;
   const slotAda = slot?.ada ?? false;
+  const slotLabel = slot?.label ?? null;
 
   const halaman = halamanDariPath(pathname);
   const [toolsTampil, setToolsTampil] = useState(true);
-  const adaTools = apiTabel !== null || slotAda;
+  const [tabTools, setTabTools] = useState<'halaman' | 'tabel'>('halaman');
+  const adaToolsHalaman = slotAda;
+  const adaToolsTabel = apiTabel !== null;
+  const adaTools = adaToolsHalaman || adaToolsTabel;
+  // Dua sumber tools (halaman + tabel) → baris tools memakai tab agar ringkas.
+  const banyakTab = adaToolsHalaman && adaToolsTabel;
   const tampilTools = adaTools && toolsTampil;
 
   // Elemen target portal tools halaman (lihat `RibbonSlot`).
@@ -71,6 +77,15 @@ export default function TopBar() {
   useEffect(() => {
     prefGet(TOOLS_TAMPIL_KEY).then((v) => setToolsTampil(v !== '0')).catch(() => {});
   }, []);
+
+  // Jaga tab aktif tetap valid saat ketersediaan tools berubah (navigasi).
+  // Halaman tanpa tools sama sekali tidak menyentuh state (hindari bolak-balik).
+  useEffect(() => {
+    if (tabTools === 'halaman' && adaToolsHalaman) return;
+    if (tabTools === 'tabel' && adaToolsTabel) return;
+    if (adaToolsHalaman) setTabTools('halaman');
+    else if (adaToolsTabel) setTabTools('tabel');
+  }, [tabTools, adaToolsHalaman, adaToolsTabel]);
 
   function togolTools() {
     setToolsTampil((v) => {
@@ -262,9 +277,33 @@ export default function TopBar() {
       {/* Baris 2: ribbon tools kontekstual (kontrol tabel / tools halaman). */}
       {tampilTools && (
         <div className="border-t border-white/10 bg-white/5">
+          {banyakTab && (
+            <div className="flex items-center gap-0.5 border-b border-white/10 px-3 pt-1 md:px-5">
+              {([
+                { id: 'halaman' as const, label: slotLabel ?? 'Halaman' },
+                { id: 'tabel' as const, label: 'Tabel' },
+              ]).map((t) => (
+                <button
+                  key={t.id}
+                  id={`tab_tools_${t.id}`}
+                  type="button"
+                  aria-pressed={tabTools === t.id}
+                  onClick={() => setTabTools(t.id)}
+                  className={cn(
+                    'rounded-t-md px-3 py-0.5 text-[11px] transition-colors',
+                    tabTools === t.id
+                      ? 'bg-white/15 font-semibold text-white'
+                      : 'text-white/70 hover:bg-white/10 hover:text-white',
+                  )}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          )}
           <div className="flex min-h-[76px] flex-wrap items-stretch gap-y-1 px-3 py-1.5 md:px-5">
-            <div ref={hostRef} className="contents" />
-            {apiTabel && <RibbonTabel apiTabel={apiTabel} />}
+            {(!banyakTab || tabTools === 'halaman') && <div ref={hostRef} className="contents" />}
+            {(!banyakTab || tabTools === 'tabel') && apiTabel && <RibbonTabel apiTabel={apiTabel} />}
           </div>
         </div>
       )}

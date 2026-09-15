@@ -53,7 +53,7 @@ export default function PengaturanServerPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <RibbonSlot>
+      <RibbonSlot label="Server">
         <RibbonGroup label="Server">
           <RibbonCmd id="btn_uji_server" icon={Server} label="Uji koneksi" onClick={() => void onUji()} />
           <RibbonCmd id="btn_reset_server" icon={RotateCcw} label="Kembalikan bawaan" onClick={() => void onReset()} />

@@ -34,6 +34,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/field';
 import { Badge } from '@/components/ui/badge';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import {
   Select,
   SelectContent,
@@ -705,37 +706,35 @@ export default function PsbPage() {
       <ErrorNotice>{err}</ErrorNotice>
 
       {/* Tools halaman di ribbon: pemilih tahap + aksi pendaftar. */}
-      <RibbonSlot>
+      <RibbonSlot label="PSB">
         <RibbonGroup label="Tahap">
-          <Select
+          <ToggleGroup
+            type="single"
+            spacing={0}
             value={stage}
             onValueChange={(v) => {
+              if (!v) return;
               setStage(v);
               setSubStatus('');
               pager.goFirst();
             }}
           >
-            <SelectTrigger
-              id="select_tahap_psb"
-              title="Tahap PSB"
-              aria-label="Tahap PSB"
-              className="h-6 w-48 border-white/20 bg-white/5 text-xs text-white [&_svg]:text-white/70"
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {STAGES.map((s) => {
-                  const jumlah = s.statuses.reduce((n, st) => n + (badge[st] ?? 0), 0);
-                  return (
-                    <SelectItem key={s.id} value={s.id}>
-                      {s.label} ({jumlah})
-                    </SelectItem>
-                  );
-                })}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
+            {STAGES.map((s) => {
+              const jumlah = s.statuses.reduce((n, st) => n + (badge[st] ?? 0), 0);
+              return (
+                <ToggleGroupItem
+                  key={s.id}
+                  id={`stage_psb_${s.id}`}
+                  value={s.id}
+                  title={`Tahap ${s.label}`}
+                  aria-label={`Tahap ${s.label}`}
+                  className="h-6 rounded-md border-0 px-2 text-[11px] text-white/75 hover:bg-white/10 hover:text-white data-[state=on]:bg-white/20 data-[state=on]:font-semibold data-[state=on]:text-white"
+                >
+                  {s.label} <span className="ml-1 text-white/50">({jumlah})</span>
+                </ToggleGroupItem>
+              );
+            })}
+          </ToggleGroup>
         </RibbonGroup>
         {stage === 'pendaftar' && (
           <>
