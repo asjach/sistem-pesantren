@@ -13,7 +13,7 @@ import { errorMessage, prefGet, prefSet } from '@/api/client';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
-import { DEFAULT_FONT_PX, DEFAULT_HEADER_H, FONT_FAMILY_DEFAULT, FONT_OPTIONS, useGridPrefs } from '@/components/GridPrefs';
+import { DEFAULT_FONT_PX, DEFAULT_HEADER_H, FONT_FAMILY_DEFAULT, FONT_OPTIONS, MAX_HEADER_H, useGridPrefs } from '@/components/GridPrefs';
 import PresetKolom, { type PresetKolomApi } from '@/components/PresetKolom';
 import FilterField from '@/components/FilterField';
 import { useRibbonTable } from '@/components/RibbonTable';
@@ -570,6 +570,28 @@ function metaAksi(el: ReactElement): AksiMenu {
   return { label: title, icon: ikonAksi(p.children), onClick: p.onClick };
 }
 
+/** Tinggi minimum baris header agar judul (termasuk yang membungkus beberapa
+ *  baris) tidak meluber: hitung jumlah baris teks × line-height + padding judul.
+ *  Tidak bergantung tinggi baris saat ini sehingga stabil (tidak loop). */
+function ukurPerluTinggiHeader(akar: HTMLElement): number {
+  let maks = 0;
+  akar.querySelectorAll<HTMLElement>('.dsg-row-header .simpes-dsg-headtitle').forEach((ht) => {
+    const cs = getComputedStyle(ht);
+    const lh = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.2 || 15;
+    const pad = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
+    let baris = 1;
+    const node = ht.firstChild;
+    if (node && node.nodeType === Node.TEXT_NODE && (node.textContent ?? '').trim() !== '') {
+      const r = document.createRange();
+      r.setStart(node, 0);
+      r.setEnd(node, (node.textContent ?? '').length);
+      baris = Math.max(1, r.getClientRects().length);
+    }
+    maks = Math.max(maks, Math.ceil(baris * lh + pad));
+  });
+  return maks;
+}
+
 /** Sel Aksi: tombol ikon dialog (klik tidak mengubah seleksi grid).
  *  Bila aksi lebih dari 3, diringkas jadi dropdown titik-tiga vertikal. */
 function ActionsCell({ rowData, columnData }: CellProps<GridRow, ActionsColData>) {
@@ -771,6 +793,9 @@ export default function ExcelTable<T extends { id: string | number }>({
    *  frame pertama sebelum basis kita dipakai — tanpa penahan ini terlihat
    *  header "melompat". Selalu mulai tersembunyi, termasuk saat cache ada. */
   const [lebarStabil, setLebarStabil] = useState(false);
+  /** Tinggi header otomatis (konten-driven) — dari judul terpanjang yang
+   *  membungkus; dipakai bila pengguna tidak mengunci tinggi manual. */
+  const [headerAutoH, setHeaderAutoH] = useState<number | null>(null);
   /** Lewati AutoFit pada commit pertama: cache sudah memuat lebar final. */
   const skipFitPertamaRef = useRef(!!cacheHit);
   const fittedRef = useRef<string | null>(cacheHit ? tableKey : null);
@@ -811,6 +836,24 @@ export default function ExcelTable<T extends { id: string | number }>({
     ro.observe(el);
     return () => ro.disconnect();
   }, [loading, rows.length, tableKey]);
+
+  // Tinggi header otomatis: judul yang membungkus beberapa baris butuh baris
+  // header lebih tinggi agar tidak meluber. Manual (pref headerH) menang;
+  // observer memantau perubahan lebar kolom/font yang mengubah jumlah baris.
+  useLayoutEffect(() => {
+    if (headerH != null || !lebarStabil) return;
+    const el = wrapRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ukur = () => {
+      const perlu = Math.min(MAX_HEADER_H, Math.max(DEFAULT_HEADER_H, ukurPerluTinggiHeader(el)));
+      setHeaderAutoH((prev) => (prev === perlu ? prev : perlu));
+    };
+    ukur();
+    const ro = new ResizeObserver(ukur);
+    const barisHeader = el.querySelector<HTMLElement>('.dsg-row.dsg-row-header');
+    ro.observe(barisHeader ?? el);
+    return () => ro.disconnect();
+  }, [headerH, lebarStabil, tableKey, visibleFields, fontPx, fontFamily]);
 
   useEffect(() => {
     // Cache sesi: lebar sudah final, tidak perlu muat dari disk (menghindari
@@ -2185,7 +2228,7 @@ export default function ExcelTable<T extends { id: string | number }>({
                     rowKey="id"
                     height={gridHeight}
                     rowHeight={effectiveH}
-                    headerRowHeight={headerH ?? DEFAULT_HEADER_H}
+                    headerRowHeight={headerH ?? headerAutoH ?? DEFAULT_HEADER_H}
                     lockRows
                     addRowsComponent={false}
                     disableContextMenu
