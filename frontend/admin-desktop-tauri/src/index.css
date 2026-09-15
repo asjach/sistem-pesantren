@@ -357,11 +357,17 @@
   display: flex;
   align-items: center;
   width: 100%;
-  /* Padding header (8px) agar judul tidak menempel tepi kolom/gagang resize.
-     Ditaruh di wadah judul (bukan sel) supaya gagang resize tetap tepat di
-     garis batas kolom — padding box abs-positioning tidak ikut bergeser. */
+  /* Judul bisa membungkus ke beberapa baris di kolom sempit: rata-kanan-kiri
+     tiap baris agar tetap center (justify-content hanya memusatkan blok). */
+  text-align: center;
+  /* Padding header (8px kiri/kanan, 4px atas/bawah) agar judul tidak menempel
+     tepi kolom/gagang resize. Ditaruh di wadah judul (bukan sel) supaya gagang
+     resize tetap tepat di garis batas kolom — padding box abs-positioning tidak
+     ikut bergeser. */
   padding-left: 8px;
   padding-right: 8px;
+  padding-top: 4px;
+  padding-bottom: 4px;
 }
 /* Gagang resize mengangkangi garis perbatasan antar kolom: lebarnya 12px
    dipusat tepat di garis batas (right:-6px; header tanpa padding sehingga
@@ -607,14 +613,15 @@
 ) {
   color: inherit;
 }
-/* Header kolom tabel ikut berwarna di kedua level. */
+/* Header kolom tabel ikut berwarna di kedua level. Warna eksplisit dari
+   kontrol Bagian (--part-tabel_header-*) menang bila diatur. */
 [data-warna='aksen'] .simpes-dsg .dsg-row-header .dsg-cell-header-container,
 [data-warna='kaya'] .simpes-dsg .dsg-row-header .dsg-cell-header-container {
-  color: var(--accent-readable);
+  color: var(--part-tabel_header-fg, var(--accent-readable));
 }
 /* Tint permukaan hanya pada level kaya. */
 [data-warna='kaya'] .simpes-dsg .dsg-row.dsg-row-header {
-  background: color-mix(in srgb, var(--accent) 14%, var(--card));
+  background: var(--part-tabel_header-bg, color-mix(in srgb, var(--accent) 14%, var(--card)));
 }
 [data-warna='kaya'] .simpes-dsg .dsg-row:not(.dsg-row-header):hover .dsg-cell {
   background-color: color-mix(in srgb, var(--accent) 6%, var(--card));
