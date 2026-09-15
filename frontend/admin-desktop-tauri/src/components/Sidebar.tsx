@@ -31,18 +31,21 @@ export default function Sidebar() {
       data-slot="sidebar"
       aria-label="Navigasi utama"
       className={cn(
-        'flex h-full shrink-0 flex-col border-r border-white/10 text-white transition-[width] duration-200',
+        'flex h-full shrink-0 flex-col overflow-hidden border-r border-white/10 text-white transition-[width] duration-200',
         collapsed ? 'w-14' : 'w-60',
       )}
       style={{ background: 'linear-gradient(180deg, var(--sidebar-deep), var(--sidebar))' }}
     >
-      <div className={cn('flex items-center gap-2 px-3 py-3', collapsed && 'justify-center px-2')}>
-        <span
-          className="truncate text-sm font-semibold tracking-wide"
-          style={{ fontFamily: 'var(--font-display)' }}
-        >
-          {collapsed ? 'S' : 'SIMPES'}
-        </span>
+      <div className={cn('flex items-center py-3', collapsed ? 'justify-center px-1' : 'gap-2 px-3')}>
+        {/* Brand disembunyikan saat dilipat (rail hanya menampilkan tombol). */}
+        {!collapsed && (
+          <span
+            className="truncate text-sm font-semibold tracking-wide"
+            style={{ fontFamily: 'var(--font-display)' }}
+          >
+            SIMPES
+          </span>
+        )}
         <button
           id="btn_lipat_sidebar"
           type="button"
