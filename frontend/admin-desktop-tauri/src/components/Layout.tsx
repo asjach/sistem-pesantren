@@ -1,19 +1,24 @@
 import type { ReactNode } from 'react';
 import { GridPrefsProvider } from '@/components/GridPrefs';
 import { RibbonTableProvider } from '@/components/RibbonTable';
+import { RibbonSlotProvider } from '@/components/RibbonSlot';
+import Sidebar from '@/components/Sidebar';
 import TopBar from '@/components/TopBar';
 
-/** Shell aplikasi: ribbon + konten (judul halaman ada di title bar jendela). */
+/** Shell aplikasi: sidebar navigasi + kolom (ribbon tools + konten). */
 export default function Layout({ children }: { children: ReactNode }) {
   return (
     <GridPrefsProvider>
       <RibbonTableProvider>
-        <div className="flex h-screen flex-col overflow-hidden">
-          <TopBar />
-          <main className="flex min-h-0 flex-1 flex-col overflow-y-auto p-1">
-            {children}
-          </main>
-        </div>
+        <RibbonSlotProvider>
+          <div className="flex h-screen overflow-hidden">
+            <Sidebar />
+            <div className="flex min-w-0 flex-1 flex-col">
+              <TopBar />
+              <main className="flex min-h-0 flex-1 flex-col overflow-y-auto p-1">{children}</main>
+            </div>
+          </div>
+        </RibbonSlotProvider>
       </RibbonTableProvider>
     </GridPrefsProvider>
   );

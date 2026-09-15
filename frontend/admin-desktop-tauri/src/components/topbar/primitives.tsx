@@ -1,11 +1,6 @@
 import { useState, type ReactNode } from 'react';
-import { NavLink } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Minus, Plus, type Ikon } from '@/icons';
-
-export function pathAktif(pathname: string, to: string) {
-  return to === '/' ? pathname === '/' : pathname === to || pathname.startsWith(`${to}/`);
-}
 
 export function clamp(n: number, lo: number, hi: number) {
   return Math.min(hi, Math.max(lo, Math.round(n)));
@@ -95,38 +90,6 @@ export function SpinBox({
         <Plus size={12} />
       </button>
     </div>
-  );
-}
-
-/** Tombol besar ribbon: ikon di atas label (ala Office). */
-export function RibbonBtn({
-  id,
-  to,
-  icon: Icon,
-  label,
-  aktif,
-}: {
-  id: string;
-  to: string;
-  icon: Ikon;
-  label: string;
-  aktif: boolean;
-}) {
-  return (
-    <NavLink
-      id={id}
-      to={to}
-      end={to === '/'}
-      title={label}
-      data-part="menu_ribbon"
-      className={cn(
-        'flex h-[58px] w-[76px] flex-col items-center justify-center gap-1 rounded-md px-1 text-center text-[11px] leading-tight transition-colors',
-        aktif ? 'bg-white/20 font-semibold text-white' : 'text-white/85 hover:bg-white/10 hover:text-white',
-      )}
-    >
-      <Icon size={20} />
-      <span className="line-clamp-2">{label}</span>
-    </NavLink>
   );
 }
 

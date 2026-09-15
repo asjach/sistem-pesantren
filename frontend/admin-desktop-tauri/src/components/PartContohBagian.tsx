@@ -36,8 +36,8 @@ export function contohBagian(id: PartId): ReactElement {
     case 'menu_ribbon':
       return (
         <div className="flex items-end gap-2 rounded bg-[var(--sidebar-deep)] p-2">
-          <span className="flex h-[48px] w-[64px] items-center justify-center rounded bg-white/20 text-[11px] font-semibold text-white">Santri</span>
-          <span className="flex h-[48px] w-[64px] items-center justify-center rounded text-[11px] text-white/80">Kelas</span>
+          <span className="flex h-6 items-center gap-1.5 rounded-md bg-white/20 px-2 text-xs font-semibold text-white">Input Baris</span>
+          <span className="flex h-6 items-center gap-1.5 rounded-md px-2 text-xs text-white/80">Salin TSV</span>
           <span className="pb-1 text-[10px] uppercase tracking-wide text-white/50">Grup</span>
         </div>
       );

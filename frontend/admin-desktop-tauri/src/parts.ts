@@ -183,7 +183,7 @@ export const PARTS: PartMeta[] = [
     label: 'Bilah ribbon',
     grup: 'Struktur',
     sub: 'Ribbon',
-    hint: 'Strip atas berisi tab & panel menu.',
+    hint: 'Header aplikasi: bar judul + baris tools kontekstual.',
     sel: '#root header',
   },
   {
@@ -214,11 +214,11 @@ export const PARTS: PartMeta[] = [
   },
   {
     id: 'menu_ribbon',
-    label: 'Tombol menu ribbon',
+    label: 'Tombol alat ribbon',
     grup: 'Struktur',
     sub: 'Grup & menu',
     kendali: true,
-    hint: 'Tombol besar navigasi per halaman.',
+    hint: 'Tombol aksi/alat di baris ribbon (bukan navigasi halaman).',
     sel: "[data-part='menu_ribbon']",
   },
   {

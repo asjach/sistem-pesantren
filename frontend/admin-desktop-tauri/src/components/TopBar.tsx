@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { logout } from '@/api/auth';
-import { isTauri, prefGet, prefSet } from '@/api/client';
+import { isTauri } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
 import { useTheme, type ModeName, type ThemeName } from '@/theme';
 import { usePicker } from '@/picker';
@@ -24,18 +24,11 @@ import { THEME_PRESETS } from '@/themes';
 import { DEFAULT_PREFS, WARNA_UI } from '@/prefs';
 import { Blend, Check, ChevronDown, LogOut, Monitor, Moon, Paintbrush, Palette, SquareMousePointer, Sun, Users } from '@/icons';
 import { useRibbonTable } from '@/components/RibbonTable';
+import { useRibbonSlotCtx } from '@/components/RibbonSlot';
 import { halamanDariPath } from '@/lib/halaman';
-import { RibbonBeranda } from './topbar/RibbonBeranda';
-import { RibbonMaster } from './topbar/RibbonMaster';
-import { RibbonPsb } from './topbar/RibbonPsb';
-import { RibbonSantri } from './topbar/RibbonSantri';
-import { RibbonKeuangan } from './topbar/RibbonKeuangan';
-import { RibbonPengaturan } from './topbar/RibbonPengaturan';
 import { RibbonTabel } from './topbar/RibbonTabel';
 
-// ---------- Peta tab ribbon ← registri halaman ----------
-
-const RIBBON_LIPAT_KEY = 'simpes_ribbon_lipat';
+// ---------- Header: judul halaman + area akun (atas) & baris tools (bawah) ----------
 
 /** Mode tampilan terang/gelap/sistem (ikon saja) — di dekat akun pengguna. */
 const MODE_STRIP: { id: ModeName; nama: string; icon: typeof Sun }[] = [
@@ -45,11 +38,13 @@ const MODE_STRIP: { id: ModeName; nama: string; icon: typeof Sun }[] = [
 ];
 
 const navBase =
-  'flex items-center gap-2 rounded-md px-3 py-1.5 text-sm whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--sidebar-foreground)]/60';
+  'flex items-center gap-2 rounded-md px-2.5 py-1 text-xs whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--sidebar-foreground)]/60';
 const navIdle =
   'text-[var(--sidebar-foreground)] hover:bg-[color-mix(in_srgb,var(--sidebar-foreground)_14%,transparent)] hover:text-white';
 
-/** Ribbon menu (ala Word/Excel): tab + grup perintah + Quick Access. */
+/** Header aplikasi: bar judul halaman + area akun, lalu baris ribbon tools
+ *  (kontrol tabel aktif atau tools yang disumbang halaman lewat `RibbonSlot`).
+ *  Navigasi halaman ada di Sidebar, bukan di sini. */
 export default function TopBar() {
   const { user, logoutLocal } = useAuth();
   const { theme, mode, dark, iconSet, warnaUI, setTheme, setMode, setIconSet, setWarnaUI } = useTheme();
@@ -58,45 +53,15 @@ export default function TopBar() {
   const { pathname } = useLocation();
   const ribbon = useRibbonTable();
   const apiTabel = ribbon?.api ?? null;
+  const slot = useRibbonSlotCtx();
+  const setSlotEl = slot?.setEl;
+  const slotAda = slot?.ada ?? false;
 
   const halaman = halamanDariPath(pathname);
-  const showGrid = halaman?.grid === true;
+  const tampilTools = apiTabel !== null || slotAda;
 
-  const [tab, setTab] = useState<string>(() => halamanDariPath(pathname)?.tab ?? 'beranda');
-  const [lipat, setLipat] = useState(false);
-  const stripRef = useRef<HTMLDivElement | null>(null);
-  const panelRef = useRef<HTMLDivElement | null>(null);
-
-  // Ribbon "diam": tab TIDAK ikut pindah saat navigasi — hanya berubah lewat
-  // klik tab. Satu-satunya pengecualian: tab "Tabel" hilang saat halaman aktif
-  // bukan halaman ber-grid (kembali ke tab kategori halaman itu).
-  useEffect(() => {
-    if (tab === 'tabel' && !showGrid) setTab(halamanDariPath(pathname)?.tab ?? 'beranda');
-  }, [pathname, showGrid, tab]);
-
-  useEffect(() => {
-    prefGet(RIBBON_LIPAT_KEY).then((v) => setLipat(v === '1')).catch(() => {});
-  }, []);
-
-  function togolLipat() {
-    setLipat((v) => {
-      prefSet(RIBBON_LIPAT_KEY, v ? '0' : '1').catch(() => {});
-      return !v;
-    });
-  }
-
-  /** Klik tab = pilih tab; klik lagi tab yang sedang aktif = lipat/buka panel. */
-  function pilihTab(id: string) {
-    if (id === tabAktif) {
-      togolLipat();
-      return;
-    }
-    setTab(id);
-    if (lipat) {
-      setLipat(false);
-      prefSet(RIBBON_LIPAT_KEY, '0').catch(() => {});
-    }
-  }
+  // Elemen target portal tools halaman (lihat `RibbonSlot`).
+  const hostRef = useCallback((el: HTMLDivElement | null) => setSlotEl?.(el), [setSlotEl]);
 
   // Judul halaman → title bar jendela (hemat ruang di aplikasi). Di dev web
   // memakai document.title; di Tauri sekalian set judul window native.
@@ -117,70 +82,29 @@ export default function TopBar() {
     nav('/login', { replace: true });
   }
 
-  const tabAktif = tab === 'tabel' && !showGrid ? (halaman?.tab ?? 'beranda') : tab;
-  const tabDef: { id: string; label: string }[] = [
-    { id: 'beranda', label: 'Beranda' },
-    { id: 'master', label: 'Master' },
-    { id: 'psb', label: 'PSB' },
-    { id: 'santri', label: 'Santri' },
-    { id: 'keuangan', label: 'Keuangan' },
-    { id: 'pengaturan', label: 'Pengaturan' },
-  ];
-  if (showGrid) tabDef.push({ id: 'tabel', label: 'Tabel' });
-
-  // Di layar sempit ribbon bisa menggulir: bawa tab & tombol halaman aktif
-  // ke tampilan setiap navigasi/tab berubah agar tidak tersembunyi di luar.
-  useEffect(() => {
-    stripRef.current
-      ?.querySelector<HTMLElement>(`#tab_ribbon_${tabAktif}`)
-      ?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
-    panelRef.current
-      ?.querySelector<HTMLElement>('[aria-current="page"]')
-      ?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
-  }, [tabAktif, pathname, lipat]);
-
   return (
     <header
-      className="sticky top-0 z-40 border-b border-white/10 text-white"
+      className="shrink-0 border-b border-white/10 text-white"
       style={{ background: 'linear-gradient(90deg, var(--sidebar-deep), var(--sidebar))' }}
     >
-      {/* Judul halaman untuk pembaca layar (visual ada di title bar jendela). */}
+      {/* Judul halaman untuk pembaca layar (visual tampil di bar judul). */}
       <h1 id="judul_halaman_aktif" className="sr-only">
         {halaman?.label ?? 'SIMPES Admin'}
       </h1>
 
-      {/* Strip tab + pengguna (kanan) */}
-      <div ref={stripRef} className="flex items-end gap-0.5 overflow-x-auto px-3 pt-1.5 md:px-5">
-        {tabDef.map((t) => {
-          const aktif = tabAktif === t.id;
-          return (
-            <button
-              key={t.id}
-              id={`tab_ribbon_${t.id}`}
-              type="button"
-              aria-pressed={aktif}
-              aria-expanded={aktif ? !lipat : undefined}
-              title={aktif ? (lipat ? `Buka panel ${t.label}` : `Lipat panel ${t.label}`) : `Buka tab ${t.label}`}
-              onClick={() => pilihTab(t.id)}
-              className={cn(
-                'rounded-t-md px-3 py-1 text-xs transition-colors sm:text-sm',
-                aktif
-                  ? 'bg-white/15 font-semibold text-white'
-                  : 'text-white/75 hover:bg-white/10 hover:text-white',
-              )}
-            >
-              {t.label}
-            </button>
-          );
-        })}
+      {/* Baris 1: judul halaman (kiri) + area akun (kanan). */}
+      <div className="flex items-center gap-2 px-3 py-1.5 md:px-5">
+        <span id="judul_bar_halaman" className="truncate text-sm font-semibold">
+          {halaman?.label ?? 'SIMPES Admin'}
+        </span>
 
-        <div data-part="area_akun" className="ml-auto flex items-stretch gap-0.5 self-stretch pl-2">
+        <div data-part="area_akun" className="ml-auto flex items-center gap-0.5">
           <ToggleGroup
             type="single"
             spacing={0}
             value={mode}
             onValueChange={(v) => { if (v) setMode(v as ModeName); }}
-            className="mr-1 self-center"
+            className="mr-1"
           >
             {MODE_STRIP.map((m) => (
               <ToggleGroupItem
@@ -204,7 +128,7 @@ export default function TopBar() {
             aria-pressed={picker.aktif}
             onClick={() => (picker.aktif ? picker.batal() : picker.mulai())}
             className={cn(
-              'mr-1 grid size-6 self-center place-items-center rounded-md text-white/75 transition-colors hover:bg-white/10 hover:text-white',
+              'mr-1 grid size-6 place-items-center rounded-md text-white/75 transition-colors hover:bg-white/10 hover:text-white',
               picker.aktif && 'bg-white/25 text-white',
             )}
           >
@@ -214,7 +138,7 @@ export default function TopBar() {
             <DropdownMenuTrigger asChild>
               <button
                 id="btn_menu_pengguna"
-                className={cn(navBase, navIdle, 'self-end rounded-b-none px-2.5 py-1 text-xs data-[state=open]:bg-white/15')}
+                className={cn(navBase, navIdle, 'data-[state=open]:bg-white/15')}
               >
                 <Users size={15} />
                 <span className="hidden max-w-[9rem] truncate sm:inline">{user?.name}</span>
@@ -303,29 +227,12 @@ export default function TopBar() {
         </div>
       </div>
 
-      {/* Panel grup perintah */}
-      {!lipat && (
+      {/* Baris 2: ribbon tools kontekstual (kontrol tabel / tools halaman). */}
+      {tampilTools && (
         <div className="border-t border-white/10 bg-white/5">
-          <div
-            ref={panelRef}
-            className={cn(
-              'flex items-stretch overflow-x-auto px-3 py-1.5 md:px-5',
-              tabAktif === 'tabel' ? 'min-h-0' : 'min-h-[76px]',
-            )}
-          >
-            {tabAktif === 'beranda' && <RibbonBeranda pathname={pathname} />}
-
-            {tabAktif === 'master' && <RibbonMaster pathname={pathname} />}
-
-            {tabAktif === 'psb' && <RibbonPsb pathname={pathname} />}
-
-            {tabAktif === 'santri' && <RibbonSantri pathname={pathname} />}
-
-            {tabAktif === 'keuangan' && <RibbonKeuangan pathname={pathname} />}
-
-            {tabAktif === 'pengaturan' && <RibbonPengaturan pathname={pathname} />}
-
-            {tabAktif === 'tabel' && showGrid && <RibbonTabel apiTabel={apiTabel} />}
+          <div className="flex min-h-[76px] items-stretch overflow-x-auto px-3 py-1.5 md:px-5">
+            <div ref={hostRef} className="contents" />
+            {apiTabel && <RibbonTabel apiTabel={apiTabel} />}
           </div>
         </div>
       )}
