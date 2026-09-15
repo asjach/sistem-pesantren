@@ -13,7 +13,7 @@ import { errorMessage, prefGet, prefSet } from '@/api/client';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
-import { DEFAULT_FONT_PX, FONT_FAMILY_DEFAULT, FONT_OPTIONS, useGridPrefs } from '@/components/GridPrefs';
+import { DEFAULT_FONT_PX, DEFAULT_HEADER_H, FONT_FAMILY_DEFAULT, FONT_OPTIONS, useGridPrefs } from '@/components/GridPrefs';
 import PresetKolom, { type PresetKolomApi } from '@/components/PresetKolom';
 import FilterField from '@/components/FilterField';
 import { useRibbonTable } from '@/components/RibbonTable';
@@ -676,7 +676,7 @@ export default function ExcelTable<T extends { id: string | number }>({
   const { density } = useTheme();
   const densityPx = DENSITY_PX[density];
   // Preferensi tampilan tabel global (dikontrol dari top bar).
-  const { rowH, fontPx, fontFamily, align, setAlign } = useGridPrefs();
+  const { rowH, headerH, fontPx, fontFamily, align, setAlign } = useGridPrefs();
 
   const [editMode, setEditModeRaw] = useState(false);
   const [inputMode, setInputModeRaw] = useState(false);
@@ -2185,7 +2185,7 @@ export default function ExcelTable<T extends { id: string | number }>({
                     rowKey="id"
                     height={gridHeight}
                     rowHeight={effectiveH}
-                    headerRowHeight={26}
+                    headerRowHeight={headerH ?? DEFAULT_HEADER_H}
                     lockRows
                     addRowsComponent={false}
                     disableContextMenu

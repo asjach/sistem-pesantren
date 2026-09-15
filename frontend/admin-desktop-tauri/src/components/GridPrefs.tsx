@@ -13,6 +13,10 @@ import { FONT_FAMILY_DEFAULT, FONT_OPTIONS } from '@/fonts';
 /** Tinggi baris grid (px). */
 export const MIN_ROW_H = 20;
 export const MAX_ROW_H = 200;
+/** Tinggi baris header grid (px) — dipakai prop `headerRowHeight` DSG. */
+export const MIN_HEADER_H = 20;
+export const MAX_HEADER_H = 120;
+export const DEFAULT_HEADER_H = 26;
 /** Ukuran huruf isi tabel (px). */
 export const MIN_FONT_PX = 9;
 export const MAX_FONT_PX = 24;
@@ -24,6 +28,8 @@ export type { FontOption } from '@/fonts';
 
 /** Tinggi baris tunggal untuk SELURUH tabel (bukan per tabel). */
 const GLOBAL_ROWH_KEY = 'simpes_grid_rowh';
+/** Tinggi baris header tunggal untuk SELURUH tabel (bukan per tabel). */
+const GLOBAL_HEADER_H_KEY = 'simpes_grid_headerh';
 /** Ukuran huruf tunggal untuk SELURUH tabel (bukan per tabel). */
 const GLOBAL_FONT_KEY = 'simpes_grid_font';
 /** Jenis huruf ISI tabel, tunggal untuk SELURUH tabel. */
@@ -43,6 +49,18 @@ async function loadRowH(): Promise<number | null> {
     const n = Number(v);
     if (!Number.isFinite(n)) return null;
     return Math.min(MAX_ROW_H, Math.max(MIN_ROW_H, Math.round(n)));
+  } catch {
+    return null;
+  }
+}
+
+async function loadHeaderH(): Promise<number | null> {
+  try {
+    const v = await prefGet(GLOBAL_HEADER_H_KEY);
+    if (v == null || v.trim() === '') return null;
+    const n = Number(v);
+    if (!Number.isFinite(n)) return null;
+    return Math.min(MAX_HEADER_H, Math.max(MIN_HEADER_H, Math.round(n)));
   } catch {
     return null;
   }
@@ -87,10 +105,12 @@ async function loadAlign(): Promise<AlignMap> {
 
 interface GridPrefsState {
   rowH: number | null;
+  headerH: number | null;
   fontPx: number | null;
   fontFamily: string;
   align: AlignMap;
   setRowH: (n: number | null) => void;
+  setHeaderH: (n: number | null) => void;
   setFontPx: (n: number | null) => void;
   setFontFamily: (v: string) => void;
   setAlign: (fieldKey: string, a: AlignName) => void;
@@ -102,12 +122,14 @@ const Ctx = createContext<GridPrefsState | null>(null);
  *  Disediakan di Layout agar kontrol di top bar dan grid berbagi state sama. */
 export function GridPrefsProvider({ children }: { children: ReactNode }) {
   const [rowH, setRowHState] = useState<number | null>(null);
+  const [headerH, setHeaderHState] = useState<number | null>(null);
   const [fontPx, setFontPxState] = useState<number | null>(null);
   const [fontFamily, setFontFamilyState] = useState(FONT_FAMILY_DEFAULT);
   const [align, setAlignState] = useState<AlignMap>({});
 
   useEffect(() => {
     loadRowH().then(setRowHState);
+    loadHeaderH().then(setHeaderHState);
     loadFontPx().then(setFontPxState);
     loadFontFamily().then(setFontFamilyState);
     loadAlign().then(setAlignState);
@@ -117,6 +139,11 @@ export function GridPrefsProvider({ children }: { children: ReactNode }) {
     setRowHState(n);
     // `null` = kembali ke kerapatan bawaan → kosongkan nilai tersimpan.
     prefSet(GLOBAL_ROWH_KEY, n != null ? String(n) : '').catch(() => {});
+  }, []);
+
+  const setHeaderH = useCallback((n: number | null) => {
+    setHeaderHState(n);
+    prefSet(GLOBAL_HEADER_H_KEY, n != null ? String(n) : '').catch(() => {});
   }, []);
 
   const setFontPx = useCallback((n: number | null) => {
@@ -140,8 +167,8 @@ export function GridPrefsProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<GridPrefsState>(
-    () => ({ rowH, fontPx, fontFamily, align, setRowH, setFontPx, setFontFamily, setAlign }),
-    [rowH, fontPx, fontFamily, align, setRowH, setFontPx, setFontFamily, setAlign],
+    () => ({ rowH, headerH, fontPx, fontFamily, align, setRowH, setHeaderH, setFontPx, setFontFamily, setAlign }),
+    [rowH, headerH, fontPx, fontFamily, align, setRowH, setHeaderH, setFontPx, setFontFamily, setAlign],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
