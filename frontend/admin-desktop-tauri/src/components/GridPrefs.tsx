@@ -8,7 +8,8 @@ import {
   type ReactNode,
 } from 'react';
 import { prefGet, prefSet } from '@/api/client';
-import { FONT_FAMILY_DEFAULT, FONT_OPTIONS } from '@/fonts';
+import { useTheme } from '@/theme';
+import { FONT_FAMILY_DEFAULT, FONT_OPTIONS, FONT_TABEL_DEFAULT } from '@/fonts';
 
 /** Tinggi baris grid (px). */
 export const MIN_ROW_H = 20;
@@ -25,17 +26,13 @@ export const DEFAULT_FONT_PX = 11;
 export const DEFAULT_HEADER_FONT_PX = 11;
 
 // Katalog jenis huruf dipakai bersama grid & antarmuka — sumber di src/fonts.ts.
-export { FONT_OPTIONS, FONT_FAMILY_DEFAULT };
+export { FONT_OPTIONS, FONT_FAMILY_DEFAULT, FONT_TABEL_DEFAULT };
 export type { FontOption } from '@/fonts';
 
 /** Tinggi baris tunggal untuk SELURUH tabel (bukan per tabel). */
 const GLOBAL_ROWH_KEY = 'simpes_grid_rowh';
 /** Tinggi baris header tunggal untuk SELURUH tabel (bukan per tabel). */
 const GLOBAL_HEADER_H_KEY = 'simpes_grid_headerh';
-/** Ukuran huruf tunggal untuk SELURUH tabel (bukan per tabel). */
-const GLOBAL_FONT_KEY = 'simpes_grid_font';
-/** Jenis huruf ISI tabel, tunggal untuk SELURUH tabel. */
-const GLOBAL_FONT_FAMILY_KEY = 'simpes_grid_font_family';
 /** Perataan kolom per field (kunci field, bukan per tabel): berlaku di semua
  *  halaman. Hanya nilai bukan-bawaan (center/right) yang disimpan. */
 const GLOBAL_ALIGN_KEY = 'simpes_grid_align';
@@ -65,28 +62,6 @@ async function loadHeaderH(): Promise<number | null> {
     return Math.min(MAX_HEADER_H, Math.max(MIN_HEADER_H, Math.round(n)));
   } catch {
     return null;
-  }
-}
-
-async function loadFontPx(): Promise<number | null> {
-  try {
-    const v = await prefGet(GLOBAL_FONT_KEY);
-    if (v == null || v.trim() === '') return null;
-    const n = Number(v);
-    if (!Number.isFinite(n)) return null;
-    return Math.min(MAX_FONT_PX, Math.max(MIN_FONT_PX, Math.round(n)));
-  } catch {
-    return null;
-  }
-}
-
-async function loadFontFamily(): Promise<string> {
-  try {
-    const v = await prefGet(GLOBAL_FONT_FAMILY_KEY);
-    if (v == null || v === '') return FONT_FAMILY_DEFAULT;
-    return FONT_OPTIONS.some((f) => f.value === v) ? v : FONT_FAMILY_DEFAULT;
-  } catch {
-    return FONT_FAMILY_DEFAULT;
   }
 }
 
@@ -123,17 +98,21 @@ const Ctx = createContext<GridPrefsState | null>(null);
 /** Preferensi tampilan tabel global (berlaku semua tabel, tersimpan perangkat).
  *  Disediakan di Layout agar kontrol di top bar dan grid berbagi state sama. */
 export function GridPrefsProvider({ children }: { children: ReactNode }) {
+  const { parts, setGayaBagian } = useTheme();
   const [rowH, setRowHState] = useState<number | null>(null);
   const [headerH, setHeaderHState] = useState<number | null>(null);
-  const [fontPx, setFontPxState] = useState<number | null>(null);
-  const [fontFamily, setFontFamilyState] = useState(FONT_FAMILY_DEFAULT);
   const [align, setAlignState] = useState<AlignMap>({});
+
+  // Jenis & ukuran huruf sel memakai SATU sumber dengan halaman Tampilan:
+  // bagian UI `tabel_sel` (bukan preferensi terpisah), sehingga perubahan di
+  // ribbon maupun di Tampilan selalu sinkron.
+  const selGaya = parts.gaya.tabel_sel;
+  const fontPx = selGaya?.size ?? null;
+  const fontFamily = selGaya?.font ?? FONT_TABEL_DEFAULT;
 
   useEffect(() => {
     loadRowH().then(setRowHState);
     loadHeaderH().then(setHeaderHState);
-    loadFontPx().then(setFontPxState);
-    loadFontFamily().then(setFontFamilyState);
     loadAlign().then(setAlignState);
   }, []);
 
@@ -148,15 +127,14 @@ export function GridPrefsProvider({ children }: { children: ReactNode }) {
     prefSet(GLOBAL_HEADER_H_KEY, n != null ? String(n) : '').catch(() => {});
   }, []);
 
+  // Menulis ke bagian `tabel_sel`: `null`/`_bawaan` = hapus override → bawaan.
   const setFontPx = useCallback((n: number | null) => {
-    setFontPxState(n);
-    if (n != null) prefSet(GLOBAL_FONT_KEY, String(n)).catch(() => {});
-  }, []);
+    setGayaBagian('tabel_sel', { size: n == null ? undefined : n });
+  }, [setGayaBagian]);
 
   const setFontFamily = useCallback((v: string) => {
-    setFontFamilyState(v);
-    prefSet(GLOBAL_FONT_FAMILY_KEY, v).catch(() => {});
-  }, []);
+    setGayaBagian('tabel_sel', { font: v === FONT_FAMILY_DEFAULT ? undefined : v });
+  }, [setGayaBagian]);
 
   const setAlign = useCallback((fieldKey: string, a: AlignName) => {
     setAlignState((prev) => {

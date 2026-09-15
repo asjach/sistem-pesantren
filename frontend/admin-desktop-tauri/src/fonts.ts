@@ -6,6 +6,10 @@
 /** Nilai SelectItem "ikut bawaan" (Radix tidak mengizinkan string kosong). */
 export const FONT_FAMILY_DEFAULT = '_bawaan';
 
+/** Font bawaan Tabel (header kolom & isi sel) bila pengguna belum memilih:
+ *  Roboto Light (300) — dibundel lokal, berjalan offline. */
+export const FONT_TABEL_DEFAULT = '"Roboto", sans-serif|300';
+
 export interface FontOption {
   value: string;
   label: string;

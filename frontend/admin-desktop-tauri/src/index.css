@@ -192,9 +192,9 @@
   --dsg-selection-disabled-border-color: var(--accent);
   color-scheme: light;
   /* Jenis & ukuran huruf ISI tabel: diatur dari toolbar tabel (berlaku semua
-     tabel). Header kolom TIDAK mengikuti — lihat .dsg-cell-header-container
-     yang memakai --font-display. */
-  font-family: var(--simpes-font-family, var(--part-tabel_sel-font, var(--font-sans)));
+     tabel). Bawaan = Roboto Light (dibundel lokal); header kolom punya
+     setelannya sendiri di .dsg-cell-header-container. */
+  font-family: var(--simpes-font-family, var(--part-tabel_sel-font, "Roboto", sans-serif));
   font-size: var(--simpes-font-size, var(--part-tabel_sel-size, 11px));
 }
 /* ---------- Seleksi gaya spreadsheet ----------
@@ -261,8 +261,8 @@
 .simpes-dsg .dsg-container {
   color: var(--part-tabel_sel-fg, var(--foreground));
   background: var(--part-tabel_sel-bg, var(--card));
-  /* Ikut jenis huruf isi tabel; header kolom menimpanya sendiri. */
-  font-family: var(--simpes-font-family, var(--part-tabel_sel-font, var(--font-sans)));
+  /* Ikut jenis huruf isi tabel (bawaan Roboto Light); header menimpanya sendiri. */
+  font-family: var(--simpes-font-family, var(--part-tabel_sel-font, "Roboto", sans-serif));
   /* Isi sisa wrapper: basis flex, boleh menyusut (scroll internal) bila data banyak. */
   flex: 1 1 auto;
   min-height: 0;
@@ -297,8 +297,10 @@
 }
 .simpes-dsg .dsg-cell-header .dsg-cell-header-container {
   color: var(--part-tabel_header-fg, inherit);
-  font-family: var(--part-tabel_header-font, var(--font-display));
-  font-weight: var(--part-tabel_header-weight, 500);
+  /* Bawaan header tabel: Roboto Light (dibundel lokal). Diatur dari ribbon
+     grup Font & Warna / setelan bagian; `--part-tabel_header-font` menang. */
+  font-family: var(--part-tabel_header-font, "Roboto", sans-serif);
+  font-weight: var(--part-tabel_header-weight, 300);
   /* Ukuran header MANDIRI (bawaan 11px, ala Excel): stepper "Ukuran huruf sel"
      di grup Cell hanya mengatur isi sel dan tidak lagi mempengaruhi header —
      setelan bagian UI / ribbon grup Header yang berlaku. */
@@ -313,8 +315,8 @@
 .simpes-dsg .dsg-cell {
   padding-left: var(--part-tabel_sel-padx, 8px);
   padding-right: var(--part-tabel_sel-padx, 8px);
-  /* Ketebalan mengikuti pilihan di toolbar (mis. varian Light). */
-  font-weight: var(--simpes-font-weight, var(--part-tabel_sel-weight, 400));
+  /* Ketebalan mengikuti pilihan di toolbar (bawaan Roboto Light = 300). */
+  font-weight: var(--simpes-font-weight, var(--part-tabel_sel-weight, 300));
   font-variant-numeric: tabular-nums;
 }
 /* Garis pemisah antar baris berasal dari border-top baris DI BAWAHNYA,

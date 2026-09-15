@@ -6,6 +6,7 @@ import {
   DEFAULT_HEADER_H,
   FONT_FAMILY_DEFAULT,
   FONT_OPTIONS,
+  FONT_TABEL_DEFAULT,
   MAX_FONT_PX,
   MAX_HEADER_H,
   MAX_ROW_H,
@@ -130,7 +131,7 @@ export function RibbonTabel({ apiTabel }: { apiTabel: RibbonTableApi | null }) {
   const gayaHeader = parts.gaya.tabel_header;
   const warnaCell = parts[mode]?.tabel_sel;
   const warnaHeader = parts[mode]?.tabel_header;
-  const headerFont = gayaHeader?.font ?? FONT_FAMILY_DEFAULT;
+  const headerFont = gayaHeader?.font ?? FONT_TABEL_DEFAULT;
   // Ukuran huruf header MANDIRI dari ukuran isi sel (stepper grup Header).
   const headerSize = gayaHeader?.size ?? DEFAULT_HEADER_FONT_PX;
   const headerSizeManual = gayaHeader?.size != null;
