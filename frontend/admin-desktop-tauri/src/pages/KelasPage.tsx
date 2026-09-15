@@ -72,6 +72,11 @@ function barisKelasKosong(): BarisKelas {
   return { nama: '', tingkat: '', kapasitas: '' };
 }
 
+/** Normalisasi nama untuk pembanding duplikat (samakan dengan backend). */
+function normKelas(nama: string): string {
+  return nama.trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
 function gridValues(k: Kelas): Record<string, string | null> {  return {
     nama: k.nama_kelas,
     tingkat: k.tingkat,
@@ -116,6 +121,8 @@ export default function KelasPage() {
   const [editNama, setEditNama] = useState('');
   const [editTingkat, setEditTingkat] = useState('');
   const [editKapasitas, setEditKapasitas] = useState('');
+  /** Nama kelas yang sudah ada pada satu lingkup (lembaga+TA) — cek duplikat di klien. */
+  const [namaTerpakai, setNamaTerpakai] = useState<{ kunci: string; nama: string[] }>({ kunci: '', nama: [] });
 
   const load = useCallback(
     async function loadPage(p = pager.page, pp = pager.perPage) {
@@ -234,6 +241,32 @@ export default function KelasPage() {
     setBarisKelas((prev) => (prev.length <= 1 ? prev : prev.filter((_, j) => j !== i)));
   }, []);
 
+  /** Muat nama kelas aktif lingkup (lembaga+TA) untuk cek duplikat di klien. */
+  const muatNamaTerpakai = useCallback(async (lembaga: number | '', ta: number | '') => {
+    if (lembaga === '' || ta === '') {
+      setNamaTerpakai({ kunci: '', nama: [] });
+      return;
+    }
+    const kunci = `${lembaga}:${ta}`;
+    try {
+      const res = await listKelas({ lembaga_id: Number(lembaga), tahun_ajaran_id: Number(ta), per_page: 1000 });
+      setNamaTerpakai({ kunci, nama: res.data.map((k) => normKelas(k.nama_kelas)) });
+    } catch {
+      // Gagal memuat → biarkan validasi server (422) yang menjaga.
+      setNamaTerpakai({ kunci, nama: [] });
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!tambahOpen) return;
+    void muatNamaTerpakai(singleLembagaId ?? tambahLembagaId, tambahTaId);
+  }, [tambahOpen, singleLembagaId, tambahLembagaId, tambahTaId, muatNamaTerpakai]);
+
+  useEffect(() => {
+    if (!editRow) return;
+    void muatNamaTerpakai(editRow.lembaga_id, editRow.tahun_ajaran_id);
+  }, [editRow, muatNamaTerpakai]);
+
   const onCreate = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     setErr('');
@@ -249,11 +282,24 @@ export default function KelasPage() {
       setErr('Isi minimal 1 baris kelas (nama wajib).');
       return;
     }
+    const kunciLingkup = `${Number(efektifLembagaId)}:${Number(tambahTaId)}`;
+    const terpakai = namaTerpakai.kunci === kunciLingkup ? new Set(namaTerpakai.nama) : new Set<string>();
+    const dalamPayload = new Set<string>();
     for (const b of terisi) {
       if (b.nama.trim() === '') {
         setErr(`Baris ${b.baris}: nama kelas wajib diisi.`);
         return;
       }
+      const namaRapi = normKelas(b.nama);
+      if (dalamPayload.has(namaRapi)) {
+        setErr(`Baris ${b.baris}: nama kelas "${b.nama.trim()}" duplikat di daftar ini.`);
+        return;
+      }
+      if (terpakai.has(namaRapi)) {
+        setErr(`Baris ${b.baris}: kelas "${b.nama.trim()}" sudah ada di lembaga + tahun ajaran ini.`);
+        return;
+      }
+      dalamPayload.add(namaRapi);
       if (b.kapasitas.trim() !== '') {
         const n = Number(b.kapasitas);
         if (!Number.isInteger(n) || n < 1) {
@@ -319,9 +365,23 @@ export default function KelasPage() {
 
   const onUpdate = useCallback(async () => {
     if (!editRow) return;
+    const namaRapi = normKelas(editNama);
+    if (namaRapi === '') {
+      setErr('Nama kelas wajib diisi.');
+      return;
+    }
+    const kunciLingkup = `${editRow.lembaga_id}:${editRow.tahun_ajaran_id}`;
+    if (
+      namaTerpakai.kunci === kunciLingkup
+      && namaTerpakai.nama.includes(namaRapi)
+      && namaRapi !== normKelas(editRow.nama_kelas)
+    ) {
+      setErr(`Kelas "${editNama.trim()}" sudah ada di lembaga + tahun ajaran ini.`);
+      return;
+    }
     try {
       await updateKelas(editRow.id, {
-        nama_kelas: editNama,
+        nama_kelas: editNama.trim(),
         tingkat: editTingkat || null,
         kapasitas: editKapasitas ? Number(editKapasitas) : null,
       });
@@ -331,7 +391,7 @@ export default function KelasPage() {
     } catch (e) {
       setErr(errorMessage(e));
     }
-  }, [editRow, editNama, editTingkat, editKapasitas, load]);
+  }, [editRow, editNama, editTingkat, editKapasitas, namaTerpakai, load]);
 
   const onDelete = useCallback(async (id: number) => {
     try {

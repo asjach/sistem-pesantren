@@ -190,4 +190,96 @@ class KelasStoreTest extends TestCase
             collect($res->json('data'))->pluck('nama_kelas')->all()
         );
     }
+
+    // ---------- 07. duplikat: dalam satu payload, DB, & update ----------
+
+    public function test_07_duplikat_dalam_satu_payload_ditolak(): void
+    {
+        $f = $this->baseFixture();
+
+        $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/kelas', [
+            'lembaga_id' => $f['mi']->id,
+            'tahun_ajaran_id' => $f['taMi']->id,
+            'items' => [
+                ['nama_kelas' => '1A', 'tingkat' => '1'],
+                ['nama_kelas' => ' 1a ', 'tingkat' => '1'],
+            ],
+        ])->assertStatus(422);
+
+        $this->assertSame(0, Kelas::count());
+    }
+
+    public function test_08_duplikat_beda_huruf_besar_kecil_ditolak(): void
+    {
+        $f = $this->baseFixture();
+
+        $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/kelas', [
+            'lembaga_id' => $f['mi']->id,
+            'tahun_ajaran_id' => $f['taMi']->id,
+            'nama_kelas' => '1A',
+            'tingkat' => '1',
+        ])->assertStatus(201);
+
+        // Nama duplikat (beda kapital + spasi berlebih) → 422, nama tersimpan tetap rapi.
+        $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/kelas', [
+            'lembaga_id' => $f['mi']->id,
+            'tahun_ajaran_id' => $f['taMi']->id,
+            'nama_kelas' => '  1a  ',
+            'tingkat' => '1',
+        ])->assertStatus(422);
+
+        $this->assertSame(1, Kelas::count());
+        $this->assertSame('1A', Kelas::firstOrFail()->nama_kelas);
+    }
+
+    public function test_09_nama_sama_di_ta_atau_lembaga_berbeda_diizinkan(): void
+    {
+        $f = $this->baseFixture();
+        $md = Lembaga::create([
+            'parent_id' => $f['root']->id, 'nama' => 'Madrasah Diniyah', 'kode' => 'MD',
+            'is_seleksi' => false, 'kelompok_psb' => 'combo_mi_md', 'is_active' => true,
+        ]);
+        $taMiBerikut = TahunAjaran::create([
+            'lembaga_id' => $f['mi']->id, 'nama' => '2027/2028',
+            'tanggal_mulai' => '2027-07-01', 'tanggal_selesai' => '2028-06-30', 'is_aktif' => false,
+        ]);
+        $taMd = TahunAjaran::create([
+            'lembaga_id' => $md->id, 'nama' => '2026/2027',
+            'tanggal_mulai' => '2026-07-01', 'tanggal_selesai' => '2027-06-30', 'is_aktif' => true,
+        ]);
+        $payload = fn (int $lembagaId, int $taId) => [
+            'lembaga_id' => $lembagaId, 'tahun_ajaran_id' => $taId, 'nama_kelas' => '1A',
+        ];
+
+        $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/kelas', $payload($f['mi']->id, $f['taMi']->id))->assertStatus(201);
+        $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/kelas', $payload($f['mi']->id, $taMiBerikut->id))->assertStatus(201);
+        $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/kelas', $payload($md->id, $taMd->id))->assertStatus(201);
+
+        $this->assertSame(3, Kelas::count());
+    }
+
+    public function test_10_update_nama_duplikat_ditolak(): void
+    {
+        $f = $this->baseFixture();
+        $kelasA = Kelas::create([
+            'lembaga_id' => $f['mi']->id, 'tahun_ajaran_id' => $f['taMi']->id, 'nama_kelas' => '1A',
+        ]);
+        $kelasB = Kelas::create([
+            'lembaga_id' => $f['mi']->id, 'tahun_ajaran_id' => $f['taMi']->id, 'nama_kelas' => '1B',
+        ]);
+
+        // Ubah B → nama A (beda kapital) → 422, nama lama tidak berubah.
+        $this->actingAs($f['super'], 'sanctum')->putJson("/api/admin/kelas/{$kelasB->id}", ['nama_kelas' => '1a'])
+            ->assertStatus(422);
+        $this->assertSame('1B', $kelasB->fresh()->nama_kelas);
+
+        // Nama sendiri + kapasitas → tetap boleh (dikecualikan dari cek duplikat).
+        $this->actingAs($f['super'], 'sanctum')->putJson("/api/admin/kelas/{$kelasB->id}", ['nama_kelas' => '1B', 'kapasitas' => 28])
+            ->assertStatus(200);
+        $this->assertSame(28, (int) $kelasB->fresh()->kapasitas);
+
+        // Nama kosong saat diisi → 422.
+        $this->actingAs($f['super'], 'sanctum')->putJson("/api/admin/kelas/{$kelasA->id}", ['nama_kelas' => '   '])
+            ->assertStatus(422);
+    }
 }

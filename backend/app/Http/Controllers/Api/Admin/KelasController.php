@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Kelas;
 use App\Models\TahunAjaran;
 use App\Services\RefService;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -75,21 +76,40 @@ class KelasController extends Controller
                 'kapasitas' => $data['kapasitas'] ?? null,
             ]];
 
-        $dibuat = DB::transaction(function () use ($data, $items) {
-            $rows = [];
-            foreach ($items as $item) {
-                $this->cekTingkat((int) $data['lembaga_id'], $item['tingkat'] ?? null);
-                $rows[] = Kelas::create([
-                    'lembaga_id' => (int) $data['lembaga_id'],
-                    'tahun_ajaran_id' => (int) $data['tahun_ajaran_id'],
-                    'nama_kelas' => $item['nama_kelas'],
-                    'tingkat' => $item['tingkat'] ?? null,
-                    'kapasitas' => $item['kapasitas'] ?? null,
-                ]);
+        try {
+            $dibuat = DB::transaction(function () use ($data, $items) {
+                $rows = [];
+                $namaPayload = [];
+                foreach ($items as $item) {
+                    $nama = Kelas::normalisasiNama($item['nama_kelas']);
+                    $kunci = mb_strtolower($nama);
+
+                    if (isset($namaPayload[$kunci])) {
+                        abort(response()->json(['message' => "Nama kelas \"{$nama}\" duplikat di daftar yang dikirim."], 422));
+                    }
+                    $namaPayload[$kunci] = true;
+
+                    $this->cekTingkat((int) $data['lembaga_id'], $item['tingkat'] ?? null);
+                    $this->pastikanNamaUnik((int) $data['lembaga_id'], (int) $data['tahun_ajaran_id'], $nama);
+
+                    $rows[] = Kelas::create([
+                        'lembaga_id' => (int) $data['lembaga_id'],
+                        'tahun_ajaran_id' => (int) $data['tahun_ajaran_id'],
+                        'nama_kelas' => $nama,
+                        'tingkat' => $item['tingkat'] ?? null,
+                        'kapasitas' => $item['kapasitas'] ?? null,
+                    ]);
+                }
+
+                return $rows;
+            });
+        } catch (QueryException $e) {
+            if (! $this->pelanggaranUnik($e)) {
+                throw $e;
             }
 
-            return $rows;
-        });
+            return response()->json(['message' => 'Nama kelas sudah dipakai di lembaga + tahun ajaran ini.'], 422);
+        }
 
         if (! isset($data['items'])) {
             return response()->json($dibuat[0], 201);
@@ -108,17 +128,61 @@ class KelasController extends Controller
         }
     }
 
+    /**
+     * Nama kelas wajib unik per lembaga + tahun ajaran (mengikuti kolasi kolom
+     * yang case-insensitive). Dipanggil sebelum tulis untuk pesan yang jelas.
+     */
+    protected function pastikanNamaUnik(int $lembagaId, int $tahunAjaranId, string $nama, ?int $kecualikanId = null): void
+    {
+        $query = Kelas::where('lembaga_id', $lembagaId)
+            ->where('tahun_ajaran_id', $tahunAjaranId)
+            // LOWER() agar perbandingan case-insensitive di semua driver (DB uji SQLite).
+            ->whereRaw('LOWER(nama_kelas) = ?', [mb_strtolower($nama)]);
+
+        if ($kecualikanId !== null) {
+            $query->whereKeyNot($kecualikanId);
+        }
+
+        if ($query->exists()) {
+            abort(response()->json(['message' => "Kelas \"{$nama}\" sudah ada di lembaga + tahun ajaran ini."], 422));
+        }
+    }
+
+    /** Deteksi pelanggaran unique MySQL (race dua penulis nama yang sama). */
+    protected function pelanggaranUnik(QueryException $e): bool
+    {
+        return (int) ($e->errorInfo[1] ?? 0) === 1062;
+    }
+
     public function update(Request $request, Kelas $kela)
     {
         $this->authorizeLembaga(auth()->user(), $kela->lembaga_id);
 
         $data = $request->validate([
             'tingkat' => ['nullable', 'string', 'max:20'],
-            'nama_kelas' => ['sometimes', 'string', 'max:50'],
+            'nama_kelas' => ['sometimes', 'required', 'string', 'max:50'],
             'kapasitas' => ['nullable', 'integer', 'min:1'],
         ]);
 
-        $kela->update($data);
+        if (array_key_exists('nama_kelas', $data)) {
+            $data['nama_kelas'] = Kelas::normalisasiNama($data['nama_kelas']);
+            $this->pastikanNamaUnik(
+                (int) $kela->lembaga_id,
+                (int) $kela->tahun_ajaran_id,
+                $data['nama_kelas'],
+                (int) $kela->id
+            );
+        }
+
+        try {
+            $kela->update($data);
+        } catch (QueryException $e) {
+            if (! $this->pelanggaranUnik($e)) {
+                throw $e;
+            }
+
+            return response()->json(['message' => 'Nama kelas sudah dipakai di lembaga + tahun ajaran ini.'], 422);
+        }
 
         return response()->json($kela);
     }

@@ -252,9 +252,10 @@ Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca
 - `tahun_ajaran_id`: FK → tahun_ajaran [cascade]
 - `walas_id`: FK → pegawai [null, nullOnDelete] — wali kelas → pegawai
 - `tingkat`: string [null] — ref_tingkat ('7','8','9'); grouping saat kelas_id null di riwayat
-- `nama_kelas`: string — 'VII-A'
+- `nama_kelas`: string — 'VII-A'; dinormalisasi model (trim + rapat spasi)
 - `kapasitas`: int [null]
 - `created_at`, `updated_at`
+- UNIQUE(`lembaga_id`, `tahun_ajaran_id`, `nama_kelas`) — satu nama kelas hanya sekali per lembaga + tahun ajaran (kolasi CI; migrasi mem-dedupe + merapikan spasi lebih dulu)
 
 ### Pola `ref_*` (26 tabel loop + eksplisit `ref_agama/cita_cita/hobi/pekerjaan/pendidikan/kebutuhan_khusus/kota/alamat/status_awal/status_akhir`)
 - Kolom: `id` PK; `lembaga_id`? FK → `lembaga` (null=global, terisi=milik lembaga); `nama`; `urutan` [default 0]; `is_active` [default true]; unique(`lembaga_id`,`nama`) — pitfall multi-NULL, dedup di `RefService`.
