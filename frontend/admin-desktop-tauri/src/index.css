@@ -355,6 +355,14 @@
   padding-left: 0;
   padding-right: 0;
 }
+/* Tabel tanpa baris data: garis bawah header tidak tergambar karena garis
+   normal berasal dari border-top baris data di bawahnya (tidak ada) dan sel
+   header menutupi shadow baris. Gambar garis bawah pada sel header — kecuali
+   gutter (sudut) & kolom sticky yang sudah punya sendiri. Hanya saat tak ada
+   baris data agar tidak dobel dengan tabel berisi. */
+.simpes-dsg:not(:has(.dsg-row:not(.dsg-row-header))) .dsg-row-header .dsg-cell:not(.dsg-cell-gutter) {
+  box-shadow: 0 1px var(--dsg-border-color);
+}
 /* Gagang seret pengubah lebar kolom di tepi kanan judul. */
 .simpes-dsg-headtitle {
   position: relative;
@@ -503,6 +511,14 @@
   border: 1px solid color-mix(in srgb, var(--muted-foreground) 40%, transparent);
 }
 /* Checkbox kolom seleksi selalu center (header + body). */
+/* Sel DATA dipotong pada tinggi baris: isi yang membungkus (mis. opsi select
+   panjang di kolom sempit) tidak meluber ke bawah menambah scrollHeight tabel
+   kompak. Hanya sel data — sel header dibiarkan agar judul membungkus utuh
+   (tinggi baris header sudah otomatis). Box-shadow garis grid sel sendiri tidak
+   terpengaruh oleh overflow elemen. */
+.simpes-dsg .dsg-row:not(.dsg-row-header) .dsg-cell {
+  overflow: hidden;
+}
 .simpes-dsg .dsg-cell:has(> input.dsg-checkbox) {
   justify-content: center;
 }

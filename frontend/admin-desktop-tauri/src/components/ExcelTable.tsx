@@ -1437,6 +1437,10 @@ export default function ExcelTable<T extends { id: string | number }>({
 
   const effectiveH = rowH ?? densityPx;
   const effectiveFont = fontPx ?? DEFAULT_FONT_PX;
+  // Tinggi header efektif (manual → terukur → bawaan). Dipakai untuk tinggi
+  // tabel kompak agar header yang membungkus 2 baris (judul panjang) ikut
+  // terhitung — dulu dipatok 1 baris sehingga tabel kompak kena scrollbar.
+  const headerEfektifH = headerH ?? headerAutoH ?? DEFAULT_HEADER_H;
   // Tabel halaman (tanpa maxRows) mengisi penuh sisa tinggi wrapper sehingga
   // kartu menutupi seluruh area vertikal. Tabel kompak ber-maxRows berhenti
   // tepat di baris terakhir (+ baris input bila mode Input aktif); versi
@@ -1449,16 +1453,17 @@ export default function ExcelTable<T extends { id: string | number }>({
   const memuatKompak = loading && maxRows !== undefined;
   /** Tampilkan kerangka tabel (bukan grid) selama data belum siap. */
   const pakaiMemuat = memuatKompak || (loading && rows.length === 0);
+  // Tabel kompak TIDAK dibatasi `gridH`: tinggi wrapper kompak mengikuti isi
+  // kartu, sehingga memakai `gridH` sebagai batas menciptakan umpan balik yang
+  // membuat tinggi terpaku saat header membungkus (needed naik, gridH tertinggal
+  // → scrollbar). Kebutuhan sudah dibatasi `maxRows`.
   const gridHeight = maxRows === undefined
     ? gridH
     : memuatKompak
-      ? Math.min(gridH, tinggiCache.get(tableKey) ?? 27 + maxRows * effectiveH)
-      : Math.min(
-          gridH,
-          rows.length === 0 && !showInput
-            ? 280
-            : 27 + (barisIsi + (showInput ? 1 : 0)) * effectiveH,
-        );
+      ? tinggiCache.get(tableKey) ?? headerEfektifH + 1 + maxRows * effectiveH
+      : rows.length === 0 && !showInput
+        ? 280
+        : headerEfektifH + 1 + (barisIsi + (showInput ? 1 : 0)) * effectiveH;
 
   // Simpan tinggi final tabel kompak untuk dipakai sebagai placeholder pada
   // kunjungan berikutnya (tinggi placeholder = tinggi final → tanpa geseran).
