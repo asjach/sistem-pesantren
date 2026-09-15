@@ -7,7 +7,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { ChevronLeft, ChevronRight } from '@/icons';
-import { PER_PAGE_OPTIONS, normalizePerPage, type PerPage } from '@/prefs';
+import { PER_PAGE_ALL, PER_PAGE_OPTIONS, normalizePerPage, type PerPage } from '@/prefs';
 
 interface Props {
   page: number;
@@ -19,9 +19,10 @@ interface Props {
 }
 
 /** Pagination bawaan semua halaman tabel (default 50/halaman, persisten).
- *  Tak ditampilkan bila seluruh data masuk dalam satu halaman. */
+ *  Tak ditampilkan bila seluruh data masuk dalam satu halaman — kecuali pada
+ *  pilihan "Semua", kontrol tetap tampil agar bisa dikembalikan. */
 export default function Pager({ page, lastPage, total, onPage, perPage, onPerPage }: Props) {
-  if (total <= perPage) return null;
+  if (perPage !== PER_PAGE_ALL && total <= perPage) return null;
   return (
     <div id="pager" className="flex flex-wrap items-center gap-2 py-2">
       <Button
@@ -48,7 +49,7 @@ export default function Pager({ page, lastPage, total, onPage, perPage, onPerPag
         <SelectContent>
           {PER_PAGE_OPTIONS.map((o) => (
             <SelectItem key={o} value={String(o)}>
-              {o} / hal
+              {o === PER_PAGE_ALL ? 'Semua' : `${o} / hal`}
             </SelectItem>
           ))}
         </SelectContent>

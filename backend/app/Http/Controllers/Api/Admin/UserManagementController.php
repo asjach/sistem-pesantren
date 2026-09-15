@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Admin;
 
+use App\Http\Controllers\Api\Concerns\PerPageLimit;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\AssignRoleRequest;
 use App\Http\Requests\Admin\CreateUserRequest;
@@ -16,6 +17,8 @@ use Maatwebsite\Excel\Validators\ValidationException;
 
 class UserManagementController extends Controller
 {
+    use PerPageLimit;
+
     protected function assignableRolesFor(User $authUser): array
     {
         if ($authUser->hasRole('super_admin')) {
@@ -116,9 +119,7 @@ class UserManagementController extends Controller
             $query->role($request->input('role'));
         }
 
-        $perPage = max(1, min((int) $request->input('per_page', 100), 1000));
-
-        return response()->json($query->latest('id')->paginate($perPage));
+        return response()->json($query->latest('id')->paginate($this->perPage($request)));
     }
 
     public function store(CreateUserRequest $request)

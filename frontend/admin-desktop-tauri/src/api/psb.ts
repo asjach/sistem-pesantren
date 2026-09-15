@@ -56,7 +56,7 @@ export function listAntrean(params: { status: string; lembaga_id?: number; page?
   if (params.lembaga_id) q.set('lembaga_id', String(params.lembaga_id));
   if (params.terhapus) q.set('terhapus', '1');
   q.set('page', String(params.page ?? 1));
-  if (params.per_page) q.set('per_page', String(params.per_page));
+  if (params.per_page != null) q.set('per_page', String(params.per_page));
   return api<{ pesan: string; data: Paginate<PsbCalon>; badge: Record<string, number> }>(
     `/psb/antrean-daftar-ulang?${q.toString()}`,
   );

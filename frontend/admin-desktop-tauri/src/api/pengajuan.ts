@@ -20,7 +20,7 @@ export function listPengajuan(params: { status?: string; page?: number; per_page
   const q = new URLSearchParams();
   if (params.status) q.set('status', params.status);
   q.set('page', String(params.page ?? 1));
-  if (params.per_page) q.set('per_page', String(params.per_page));
+  if (params.per_page != null) q.set('per_page', String(params.per_page));
   return api<{ pesan: string; data: Paginate<PengajuanBiodata>; badge: Record<string, number> }>(
     `/admin/pengajuan-biodata?${q.toString()}`,
   );

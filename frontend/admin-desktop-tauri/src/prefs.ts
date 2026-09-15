@@ -20,11 +20,15 @@ export const DENSITY_PX: Record<DensityName, number> = {
   nyaman: 30,
 };
 
+/** Nilai "Semua" pada pilihan baris per halaman: dikirim sebagai `per_page=0`
+ *  dan diartikan backend sebagai tanpa batas (semua baris dalam satu halaman). */
+export const PER_PAGE_ALL = 0;
+
 /** Pagination bawaan SEMUA halaman tabel (baru maupun lama).
- *  Bawaan 50/halaman; opsi kecil (10/50/75) untuk daftar pendek, opsi besar
- *  untuk borongan (100/250/500/1000). */
+ *  Bawaan 50/halaman; opsi kecil (10) untuk daftar pendek, besar (500) untuk
+ *  borongan, dan "Semua" (0) untuk menampilkan seluruh baris. */
 export const PER_PAGE_DEFAULT = 50;
-export const PER_PAGE_OPTIONS = [10, 50, 75, 100, 250, 500, 1000] as const;
+export const PER_PAGE_OPTIONS = [10, 50, 100, 500, PER_PAGE_ALL] as const;
 export type PerPage = (typeof PER_PAGE_OPTIONS)[number];
 
 /** Normalisasi nilai simpanan/URL menjadi salah satu opsi (jatuh ke bawaan). */

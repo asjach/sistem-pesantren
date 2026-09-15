@@ -52,7 +52,7 @@ export function listSantri(
   if (params.lembaga_id) q.set('lembaga_id', String(params.lembaga_id));
   if (params.q) q.set('q', params.q);
   q.set('page', String(params.page ?? 1));
-  if (params.per_page) q.set('per_page', String(params.per_page));
+  if (params.per_page != null) q.set('per_page', String(params.per_page));
   return api<Paginate<Santri>>(`/admin/santri?${q.toString()}`);
 }
 

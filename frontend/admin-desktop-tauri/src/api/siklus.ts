@@ -82,7 +82,7 @@ export function listRiwayatBelajar(params: {
   if (params.is_aktif !== undefined) q.set('is_aktif', params.is_aktif ? '1' : '0');
   if (params.status_akhir) q.set('status_akhir', params.status_akhir);
   q.set('page', String(params.page ?? 1));
-  if (params.per_page) q.set('per_page', String(params.per_page));
+  if (params.per_page != null) q.set('per_page', String(params.per_page));
   return api<Paginate<RiwayatRow>>(`/admin/riwayat-belajar?${q.toString()}`);
 }
 
@@ -200,7 +200,7 @@ export function listMutasiKeluar(params: { lembaga_id?: number; page?: number; p
   const q = new URLSearchParams();
   if (params.lembaga_id) q.set('lembaga_id', String(params.lembaga_id));
   q.set('page', String(params.page ?? 1));
-  if (params.per_page) q.set('per_page', String(params.per_page));
+  if (params.per_page != null) q.set('per_page', String(params.per_page));
   return api<Paginate<MutasiKeluar>>(`/admin/mutasi-keluar?${q.toString()}`);
 }
 
@@ -211,7 +211,7 @@ export function listAlumni(
   if (params.lembaga_id) q.set('lembaga_id', String(params.lembaga_id));
   if (params.tahun_ajaran_lulus_id) q.set('tahun_ajaran_lulus_id', String(params.tahun_ajaran_lulus_id));
   q.set('page', String(params.page ?? 1));
-  if (params.per_page) q.set('per_page', String(params.per_page));
+  if (params.per_page != null) q.set('per_page', String(params.per_page));
   return api<Paginate<Alumni>>(`/admin/alumni?${q.toString()}`);
 }
 

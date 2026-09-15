@@ -17,10 +17,7 @@ use Illuminate\Validation\ValidationException;
  */
 trait TenantGuard
 {
-    protected function perPage(Request $request): int
-    {
-        return max(1, min((int) $request->input('per_page', 100), 1000));
-    }
+    use PerPageLimit;
 
     protected function authorizeLembaga(User $auth, int $lembagaId): void
     {

@@ -434,4 +434,30 @@ class SantriFlowTest extends TestCase
             'foto' => UploadedFile::fake()->image('foto2.jpg'),
         ])->assertStatus(403);
     }
+
+    public function test_16_daftar_santri_per_page_semua(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeUser('admin', [$f['mi']->id]);
+
+        // 105 baris: melewati bawaan 100 sehingga terlihat bila batas dipakai.
+        for ($i = 1; $i <= 105; $i++) {
+            $this->makeSantri('Santri List '.$i);
+        }
+
+        $bawaan = $this->actingAs($admin, 'sanctum')->getJson('/api/admin/santri')->assertStatus(200);
+        $this->assertCount(100, $bawaan->json('data'));
+
+        // per_page=0 ("Semua") → seluruh baris dalam satu halaman.
+        $semua = $this->actingAs($admin, 'sanctum')->getJson('/api/admin/santri?per_page=0')->assertStatus(200);
+        $this->assertCount(105, $semua->json('data'));
+        $this->assertSame(1, $semua->json('last_page'));
+
+        // Nilai tak sah (`per_page=all` versi huruf besar, `-5`) juga = semua.
+        $all = $this->actingAs($admin, 'sanctum')->getJson('/api/admin/santri?per_page=ALL')->assertStatus(200);
+        $this->assertCount(105, $all->json('data'));
+
+        $negatif = $this->actingAs($admin, 'sanctum')->getJson('/api/admin/santri?per_page=-5')->assertStatus(200);
+        $this->assertCount(105, $negatif->json('data'));
+    }
 }
