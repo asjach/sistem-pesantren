@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import { useLembagaAwalNumber } from '@/hooks/useLembagaAwal';
 import FilterField from '@/components/FilterField';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { ViewDialog } from '@/components/ViewDialog';
@@ -101,6 +102,7 @@ export default function KelasPage() {
   const [lembagas, setLembagas] = useState<Lembaga[]>([]);
   const [tas, setTas] = useState<TahunAjaran[]>([]);
   const [lembagaId, setLembagaId] = useState<number | ''>('');
+  useLembagaAwalNumber(setLembagaId);
   const [taId, setTaId] = useState<number | ''>('');
   const [search, setSearch] = useState('');
   const [rows, setRows] = useState<Kelas[]>([]);

@@ -7,6 +7,7 @@ import { FieldLabel } from '@/components/ui/field';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import ExcelTable from '@/components/ExcelTable';
+import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { ActionIcon } from '@/components/RowActions';
 import { MoveHorizontal, SquareMousePointer } from '@/icons';
@@ -16,6 +17,7 @@ import { toast } from 'sonner';
 /** Daftar Kelas: santri aktif pada TA aktif & semester berjalan (baca + pindah/keluar kelas). */
 export default function DaftarKelasPage() {
   const [lembagaId, setLembagaId] = useState('');
+  useLembagaAwalString(setLembagaId);
   const [taId, setTaId] = useState('');
   const [semester, setSemester] = useState('');
   const [rows, setRows] = useState<RiwayatRow[]>([]);

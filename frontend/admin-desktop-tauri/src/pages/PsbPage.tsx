@@ -44,6 +44,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import ExcelTable, { type ExcelChoice, type ExcelField } from '@/components/ExcelTable';
+import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
 import FilterField from '@/components/FilterField';
 import { RibbonSlot } from '@/components/RibbonSlot';
 import { RibbonCmd, RibbonGroup, RibbonPemisah } from '@/components/topbar/primitives';
@@ -163,6 +164,7 @@ export default function PsbPage() {
   const [subStatus, setSubStatus] = useState('');
   const [badge, setBadge] = useState<Record<string, number>>({});
   const [lembagaId, setLembagaId] = useState('');
+  useLembagaAwalString(setLembagaId);
   const [rows, setRows] = useState<PsbCalon[]>([]);
   const pager = usePager('psb');
   const reqRef = useRef(0);

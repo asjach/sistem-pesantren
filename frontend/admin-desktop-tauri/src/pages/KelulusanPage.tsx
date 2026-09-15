@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/field';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import ExcelTable from '@/components/ExcelTable';
+import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import TabelRingkas from '@/components/TabelRingkas';
 import { FilterLembaga, FilterTahunAjaran, useLembagaTa } from '@/components/siklus/bersama';
@@ -14,6 +15,7 @@ import { toast } from 'sonner';
 /** Kelulusan: kiri santri tingkat akhir → kanan alumni & santri tidak lulus. */
 export default function KelulusanPage() {
   const [lembagaId, setLembagaId] = useState('');
+  useLembagaAwalString(setLembagaId);
   const [tingkat, setTingkat] = useState('');
   const [taLulus, setTaLulus] = useState('');
   const [kiri, setKiri] = useState<RiwayatRow[]>([]);

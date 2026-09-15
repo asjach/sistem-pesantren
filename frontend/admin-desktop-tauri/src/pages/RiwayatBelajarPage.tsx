@@ -19,6 +19,7 @@ import { FieldLabel } from '@/components/ui/field';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import ExcelTable from '@/components/ExcelTable';
+import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import Pager from '@/components/Pager';
 import { usePager } from '@/hooks/usePager';
@@ -46,6 +47,7 @@ export default function RiwayatBelajarPage() {
   const [total, setTotal] = useState(0);
 
   const [lembagaId, setLembagaId] = useState('');
+  useLembagaAwalString(setLembagaId);
   const [taId, setTaId] = useState('');
   const [semester, setSemester] = useState('');
   const [tanpaKelas, setTanpaKelas] = useState(false);

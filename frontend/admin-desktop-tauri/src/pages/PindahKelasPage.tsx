@@ -8,6 +8,7 @@ import { FieldLabel } from '@/components/ui/field';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import ExcelTable from '@/components/ExcelTable';
+import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { FilterLembaga, FilterSemester, FilterTahunAjaran, useLembagaTa } from '@/components/siklus/bersama';
 import { toast } from 'sonner';
@@ -17,6 +18,7 @@ interface Kelompok { kelasId: number | null; kelas: string; tingkat: string | nu
 /** Pindah Kelas: tabel per kelas (dikelompokkan per tingkat) + salin ganjil→genap. */
 export default function PindahKelasPage() {
   const [lembagaId, setLembagaId] = useState('');
+  useLembagaAwalString(setLembagaId);
   const [taId, setTaId] = useState('');
   const [semester, setSemester] = useState('');
   const [rows, setRows] = useState<RiwayatRow[]>([]);

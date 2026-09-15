@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import { useLembagaAwalNumber } from '@/hooks/useLembagaAwal';
 import FilterField from '@/components/FilterField';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { ViewDialog } from '@/components/ViewDialog';
@@ -82,6 +83,7 @@ async function commitDraft(id: number, f: Record<string, string | null>) {
 export default function TahunAjaranPage() {
   const [lembagas, setLembagas] = useState<Lembaga[]>([]);
   const [lembagaId, setLembagaId] = useState<number | ''>('');
+  useLembagaAwalNumber(setLembagaId);
   const [search, setSearch] = useState('');
   const [rows, setRows] = useState<TahunAjaran[]>([]);
   const pager = usePager('tahun_ajaran');

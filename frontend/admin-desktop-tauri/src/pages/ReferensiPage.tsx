@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import { useLembagaAwalNumber } from '@/hooks/useLembagaAwal';
 import FilterField from '@/components/FilterField';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import {
@@ -66,6 +67,7 @@ export default function ReferensiPage() {
   const [tipe, setTipe] = useState('');
   const [lembagas, setLembagas] = useState<Lembaga[]>([]);
   const [lembagaId, setLembagaId] = useState<number | ''>('');
+  useLembagaAwalNumber(setLembagaId);
   const [rows, setRows] = useState<ReferensiRow[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);

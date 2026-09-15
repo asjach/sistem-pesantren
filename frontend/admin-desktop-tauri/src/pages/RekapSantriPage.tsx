@@ -4,10 +4,12 @@ import { rekapSantri, type RekapSantri } from '../api/siklus';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import TabelRingkas from '@/components/TabelRingkas';
 import { FilterLembaga, FilterTahunAjaran, useLembagaTa } from '@/components/siklus/bersama';
+import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
 
 /** Rekap Santri: jumlah per tahun ajaran/tingkat/kelas + usia per kelas. */
 export default function RekapSantriPage() {
   const [lembagaId, setLembagaId] = useState('');
+  useLembagaAwalString(setLembagaId);
   const [taId, setTaId] = useState('');
   const [data, setData] = useState<RekapSantri | null>(null);
   const [err, setErr] = useState('');

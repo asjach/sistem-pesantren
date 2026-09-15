@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/field';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import ExcelTable from '@/components/ExcelTable';
+import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { FilterLembaga, FilterTahunAjaran, useLembagaTa } from '@/components/siklus/bersama';
 import { toast } from 'sonner';
@@ -15,6 +16,7 @@ interface Baris { santri_id: number; nama: string; kelas: string | null; }
 /** Kenaikan: kiri santri semester genap (non-tingkat-akhir) → kanan daftar naik / tidak naik. */
 export default function KenaikanKelasPage() {
   const [lembagaId, setLembagaId] = useState('');
+  useLembagaAwalString(setLembagaId);
   const [tingkat, setTingkat] = useState('');
   const [taBaru, setTaBaru] = useState('');
   const [tingkatBaru, setTingkatBaru] = useState('');

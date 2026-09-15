@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
 import FilterField from '@/components/FilterField';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import {
@@ -61,6 +62,7 @@ export default function DokumenWajibPage() {
   const [kegiatanId, setKegiatanId] = useState('');
   const [lembagas, setLembagas] = useState<Lembaga[]>([]);
   const [lembagaId, setLembagaId] = useState('');
+  useLembagaAwalString(setLembagaId);
   const [rows, setRows] = useState<DokumenWajib[]>([]);
   const [jenis, setJenis] = useState<ReferensiRow[]>([]);
   const [loading, setLoading] = useState(false);

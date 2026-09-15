@@ -8,6 +8,7 @@ import { FieldLabel } from '@/components/ui/field';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import ExcelTable from '@/components/ExcelTable';
+import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import TabelRingkas from '@/components/TabelRingkas';
 import Pager from '@/components/Pager';
@@ -18,6 +19,7 @@ import { toast } from 'sonner';
 /** Mutasi Keluar: kiri santri aktif (nama + kelas) → kanan arsip mutasi. */
 export default function MutasiKeluarPage() {
   const [lembagaId, setLembagaId] = useState('');
+  useLembagaAwalString(setLembagaId);
   const [kiri, setKiri] = useState<RiwayatRow[]>([]);
   const [arsip, setArsip] = useState<MutasiKeluar[]>([]);
   const [alasanOpsi, setAlasanOpsi] = useState<{ value: string; label: string }[]>([]);
