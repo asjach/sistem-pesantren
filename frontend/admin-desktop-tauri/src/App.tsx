@@ -3,6 +3,9 @@ import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom
 import { Toaster } from '@/components/ui/sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AuthProvider } from './auth/AuthContext';
+import { LembagaAktifProvider } from './lembagaAktif';
+import { StandarTampilanProvider } from './standarTampilan';
+import { ThemeProvider } from './theme';
 import { PickerProvider } from './picker';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -61,43 +64,49 @@ function PageFallback() {
 export default function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <PickerProvider>
-          <Toaster richColors position="top-center" />
-          <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route element={<Shell />}>
-            <Route path="/" element={<DashboardPage />} />
-            <Route path="/users" element={<UsersPage />} />
-            <Route path="/lembaga" element={<LembagaPage />} />
-            <Route path="/tahun-ajaran" element={<TahunAjaranPage />} />
-            <Route path="/kelas" element={<KelasPage />} />
-            <Route path="/pos" element={<PosPage />} />
-            <Route path="/tarif" element={<TarifPage />} />
-            <Route path="/referensi" element={<ReferensiPage />} />
-            <Route path="/psb" element={<PsbPage />} />
-            <Route path="/kegiatan-psb" element={<KegiatanPsbPage />} />
-            <Route path="/santri" element={<SantriPage />} />
-            <Route path="/riwayat-belajar" element={<RiwayatBelajarPage />} />
-            <Route path="/daftar-kelas" element={<DaftarKelasPage />} />
-            <Route path="/pindah-kelas" element={<PindahKelasPage />} />
-            <Route path="/kenaikan" element={<KenaikanKelasPage />} />
-            <Route path="/kelulusan" element={<KelulusanPage />} />
-            <Route path="/rekap-santri" element={<RekapSantriPage />} />
-            <Route path="/mutasi-keluar" element={<MutasiKeluarPage />} />
-            <Route path="/siklus" element={<Navigate to="/riwayat-belajar" replace />} />
-            <Route path="/keuangan" element={<KeuanganPage />} />
-            <Route path="/pengajuan-biodata" element={<PengajuanBiodataPage />} />
-            <Route path="/dokumen-wajib" element={<DokumenWajibPage />} />
-            <Route path="/pengaturan" element={<Navigate to="/pengaturan/tampilan" replace />} />
-            <Route path="/pengaturan/tampilan" element={<PengaturanTampilanPage />} />
-            <Route path="/pengaturan/bagian" element={<Navigate to="/pengaturan/tampilan" replace />} />
-            <Route path="/pengaturan/server" element={<PengaturanServerPage />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Route>
-        </Routes>
-        </PickerProvider>
-      </BrowserRouter>
+      <LembagaAktifProvider>
+        <StandarTampilanProvider>
+          <ThemeProvider>
+            <BrowserRouter>
+              <PickerProvider>
+                <Toaster richColors position="top-center" />
+                <Routes>
+                  <Route path="/login" element={<LoginPage />} />
+                  <Route element={<Shell />}>
+                    <Route path="/" element={<DashboardPage />} />
+                    <Route path="/users" element={<UsersPage />} />
+                    <Route path="/lembaga" element={<LembagaPage />} />
+                    <Route path="/tahun-ajaran" element={<TahunAjaranPage />} />
+                    <Route path="/kelas" element={<KelasPage />} />
+                    <Route path="/pos" element={<PosPage />} />
+                    <Route path="/tarif" element={<TarifPage />} />
+                    <Route path="/referensi" element={<ReferensiPage />} />
+                    <Route path="/psb" element={<PsbPage />} />
+                    <Route path="/kegiatan-psb" element={<KegiatanPsbPage />} />
+                    <Route path="/santri" element={<SantriPage />} />
+                    <Route path="/riwayat-belajar" element={<RiwayatBelajarPage />} />
+                    <Route path="/daftar-kelas" element={<DaftarKelasPage />} />
+                    <Route path="/pindah-kelas" element={<PindahKelasPage />} />
+                    <Route path="/kenaikan" element={<KenaikanKelasPage />} />
+                    <Route path="/kelulusan" element={<KelulusanPage />} />
+                    <Route path="/rekap-santri" element={<RekapSantriPage />} />
+                    <Route path="/mutasi-keluar" element={<MutasiKeluarPage />} />
+                    <Route path="/siklus" element={<Navigate to="/riwayat-belajar" replace />} />
+                    <Route path="/keuangan" element={<KeuanganPage />} />
+                    <Route path="/pengajuan-biodata" element={<PengajuanBiodataPage />} />
+                    <Route path="/dokumen-wajib" element={<DokumenWajibPage />} />
+                    <Route path="/pengaturan" element={<Navigate to="/pengaturan/tampilan" replace />} />
+                    <Route path="/pengaturan/tampilan" element={<PengaturanTampilanPage />} />
+                    <Route path="/pengaturan/bagian" element={<Navigate to="/pengaturan/tampilan" replace />} />
+                    <Route path="/pengaturan/server" element={<PengaturanServerPage />} />
+                    <Route path="*" element={<Navigate to="/" replace />} />
+                  </Route>
+                </Routes>
+              </PickerProvider>
+            </BrowserRouter>
+          </ThemeProvider>
+        </StandarTampilanProvider>
+      </LembagaAktifProvider>
     </AuthProvider>
   );
 }

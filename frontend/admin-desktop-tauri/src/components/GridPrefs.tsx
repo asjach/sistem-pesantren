@@ -10,6 +10,7 @@ import {
 import { prefGet, prefSet } from '@/api/client';
 import { useTheme } from '@/theme';
 import { FONT_FAMILY_DEFAULT, FONT_OPTIONS, FONT_TABEL_DEFAULT } from '@/fonts';
+import { useStandarTampilan } from '@/standarTampilan';
 
 /** Tinggi baris grid (px). */
 export const MIN_ROW_H = 20;
@@ -34,12 +35,19 @@ const GLOBAL_ROWH_KEY = 'simpes_grid_rowh';
 /** Tinggi baris header tunggal untuk SELURUH tabel (bukan per tabel). */
 const GLOBAL_HEADER_H_KEY = 'simpes_grid_headerh';
 /** Perataan kolom per field (kunci field, bukan per tabel): berlaku di semua
- *  halaman. Hanya nilai bukan-bawaan (center/right) yang disimpan. */
-const GLOBAL_ALIGN_KEY = 'simpes_grid_align';
+ *  halaman. Bawaan (tidak tersimpan) = tengah; standar lembaga bisa menimpanya. */
+const GLOBAL_ALIGN_KEY = 'simpes_grid_align_v2';
+/** Kunci preset perataan lama (berbawaan kiri) — dibersihkan sekali agar
+ *  pilihan lama tidak mewarisi bawaan baru (tengah). */
+const GLOBAL_ALIGN_KEY_LAMA = 'simpes_grid_align';
 
-/** Perataan isi kolom. Bawaan (tidak tersimpan) = kiri. */
 export type AlignName = 'left' | 'center' | 'right';
 export type AlignMap = Record<string, AlignName>;
+
+/** Kunci pribadi untuk tinggi/perataan (menang atas standar lembaga). */
+const PRIBADI_ROWH = 'grid.rowH';
+const PRIBADI_HEADERH = 'grid.headerH';
+const pribadiAlign = (fieldKey: string) => `grid.align.${fieldKey}`;
 
 async function loadRowH(): Promise<number | null> {
   try {
@@ -68,11 +76,16 @@ async function loadHeaderH(): Promise<number | null> {
 async function loadAlign(): Promise<AlignMap> {
   try {
     const v = await prefGet(GLOBAL_ALIGN_KEY);
-    if (v == null || v.trim() === '') return {};
+    if (v == null || v.trim() === '') {
+      // Reset sekali: buang preset perataan lama agar semua kolom memakai
+      // bawaan baru (tengah) — bukan mewarisi pilihan sebelum perubahan.
+      prefSet(GLOBAL_ALIGN_KEY_LAMA, '').catch(() => {});
+      return {};
+    }
     const o = JSON.parse(v) as Record<string, unknown>;
     const out: AlignMap = {};
     for (const [k, a] of Object.entries(o)) {
-      if (a === 'center' || a === 'right') out[k] = a;
+      if (a === 'left' || a === 'center' || a === 'right') out[k] = a;
     }
     return out;
   } catch {
@@ -99,9 +112,10 @@ const Ctx = createContext<GridPrefsState | null>(null);
  *  Disediakan di Layout agar kontrol di top bar dan grid berbagi state sama. */
 export function GridPrefsProvider({ children }: { children: ReactNode }) {
   const { parts, setGayaBagian } = useTheme();
-  const [rowH, setRowHState] = useState<number | null>(null);
-  const [headerH, setHeaderHState] = useState<number | null>(null);
-  const [align, setAlignState] = useState<AlignMap>({});
+  const { tampilan: standar, isPribadi, tandai, hapus } = useStandarTampilan();
+  const [rowHDevice, setRowHState] = useState<number | null>(null);
+  const [headerHDevice, setHeaderHState] = useState<number | null>(null);
+  const [alignDevice, setAlignState] = useState<AlignMap>({});
 
   // Jenis & ukuran huruf sel memakai SATU sumber dengan halaman Tampilan:
   // bagian UI `tabel_sel` (bukan preferensi terpisah), sehingga perubahan di
@@ -116,16 +130,39 @@ export function GridPrefsProvider({ children }: { children: ReactNode }) {
     loadAlign().then(setAlignState);
   }, []);
 
+  // ---- Gabungan pribadi ⊕ standar ----
+  const rowH = isPribadi(PRIBADI_ROWH) || standar?.grid?.rowH == null
+    ? rowHDevice
+    : standar.grid.rowH;
+  const headerH = isPribadi(PRIBADI_HEADERH) || standar?.grid?.headerH == null
+    ? headerHDevice
+    : standar.grid.headerH;
+
+  const align = useMemo<AlignMap>(() => {
+    const out: AlignMap = { ...(standar?.grid?.align ?? {}) };
+    for (const k of Object.keys(out)) {
+      if (isPribadi(pribadiAlign(k))) delete out[k];
+    }
+    for (const [k, v] of Object.entries(alignDevice)) {
+      if (isPribadi(pribadiAlign(k))) out[k] = v;
+    }
+    return out;
+  }, [standar, alignDevice, isPribadi]);
+
   const setRowH = useCallback((n: number | null) => {
     setRowHState(n);
-    // `null` = kembali ke kerapatan bawaan → kosongkan nilai tersimpan.
+    // `null` = kembali ke standar/bawaan → lepas penanda pribadi.
     prefSet(GLOBAL_ROWH_KEY, n != null ? String(n) : '').catch(() => {});
-  }, []);
+    if (n != null) tandai(PRIBADI_ROWH);
+    else hapus(PRIBADI_ROWH);
+  }, [tandai, hapus]);
 
   const setHeaderH = useCallback((n: number | null) => {
     setHeaderHState(n);
     prefSet(GLOBAL_HEADER_H_KEY, n != null ? String(n) : '').catch(() => {});
-  }, []);
+    if (n != null) tandai(PRIBADI_HEADERH);
+    else hapus(PRIBADI_HEADERH);
+  }, [tandai, hapus]);
 
   // Menulis ke bagian `tabel_sel`: `null`/`_bawaan` = hapus override → bawaan.
   const setFontPx = useCallback((n: number | null) => {
@@ -138,13 +175,12 @@ export function GridPrefsProvider({ children }: { children: ReactNode }) {
 
   const setAlign = useCallback((fieldKey: string, a: AlignName) => {
     setAlignState((prev) => {
-      const next = { ...prev };
-      if (a === 'left') delete next[fieldKey];
-      else next[fieldKey] = a;
+      const next = { ...prev, [fieldKey]: a };
       prefSet(GLOBAL_ALIGN_KEY, JSON.stringify(next)).catch(() => {});
       return next;
     });
-  }, []);
+    tandai(pribadiAlign(fieldKey));
+  }, [tandai]);
 
   const value = useMemo<GridPrefsState>(
     () => ({ rowH, headerH, fontPx, fontFamily, align, setRowH, setHeaderH, setFontPx, setFontFamily, setAlign }),

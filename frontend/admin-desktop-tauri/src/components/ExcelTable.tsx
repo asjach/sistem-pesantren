@@ -14,6 +14,7 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { DEFAULT_FONT_PX, DEFAULT_HEADER_H, FONT_FAMILY_DEFAULT, FONT_OPTIONS, MAX_HEADER_H, useGridPrefs } from '@/components/GridPrefs';
+import { useStandarTampilan } from '@/standarTampilan';
 import PresetKolom, { type PresetKolomApi } from '@/components/PresetKolom';
 import FilterField from '@/components/FilterField';
 import { useRibbonTable } from '@/components/RibbonTable';
@@ -751,6 +752,8 @@ export default function ExcelTable<T extends { id: string | number }>({
   const densityPx = DENSITY_PX[density];
   // Preferensi tampilan tabel global (dikontrol dari top bar).
   const { rowH, headerH, fontPx, fontFamily, align, setAlign } = useGridPrefs();
+  // Standar tampilan lembaga: lebar & kolom beku bawaan (bisa ditimpa user).
+  const { tampilan: standar, isPribadi, tandai, hapus } = useStandarTampilan();
 
   const [editMode, setEditModeRaw] = useState(false);
   const [inputMode, setInputModeRaw] = useState(false);
@@ -869,6 +872,10 @@ export default function ExcelTable<T extends { id: string | number }>({
   }, [fields, presetKeys]);
   const visibleFieldsRef = useRef(visibleFields);
 
+  // Standar lembaga untuk tabel ini (diabaikan bila user menyesuaikan sendiri).
+  const stdLebar = isPribadi(`lebar.${tableKey}`) ? undefined : standar?.lebar?.[tableKey];
+  const stdBeku = isPribadi(`beku.${tableKey}`) ? undefined : standar?.beku?.[tableKey];
+
   // Muat jumlah kolom beku tabel ini; clamp bila preset menyembunyikan kolom.
   useEffect(() => {
     let batal = false;
@@ -880,14 +887,16 @@ export default function ExcelTable<T extends { id: string | number }>({
     };
   }, [tableKey]);
 
-  const freezeAktif = Math.min(freeze, visibleFields.length);
+  const freezeEfektif = stdBeku != null && !isPribadi(`beku.${tableKey}`) ? stdBeku : freeze;
+  const freezeAktif = Math.min(freezeEfektif, visibleFields.length);
   const ubahFreeze = useCallback(
     (n: number) => {
       const v = Math.max(0, Math.min(visibleFields.length, Math.round(n)));
       setFreeze(v);
       prefSet(freezeKey(tableKey), String(v)).catch(() => {});
+      tandai(`beku.${tableKey}`);
     },
-    [tableKey, visibleFields.length],
+    [tableKey, visibleFields.length, tandai],
   );
   visibleFieldsRef.current = visibleFields;
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -1221,6 +1230,7 @@ export default function ExcelTable<T extends { id: string | number }>({
         persistWidths(prev);
         return prev;
       });
+      tandai(`lebar.${tableKey}`);
     };
     resizeListenersRef.current = { move: onMove, up: onUp };
     window.addEventListener('mousemove', onMove);
@@ -1403,6 +1413,8 @@ export default function ExcelTable<T extends { id: string | number }>({
       persistWidths(next);
       return next;
     });
+    // AutoFit = user menentukan lebar sendiri → lepas dari standar lembaga.
+    tandai(`lebar.${tableKey}`);
     toast.success('Lebar kolom disesuaikan dengan isi.');
   }
 
@@ -1423,6 +1435,7 @@ export default function ExcelTable<T extends { id: string | number }>({
       persistWidths({});
       return {};
     });
+    tandai(`lebar.${tableKey}`);
     toast.success(n > 0 ? `${n} kolom disesuaikan lebarnya.` : 'Tidak ada kolom yang bisa disesuaikan.');
   }
 
@@ -1646,11 +1659,11 @@ export default function ExcelTable<T extends { id: string | number }>({
   const dsgColumns: Column<GridRow>[] = useMemo(() => {
     /** Kelas perataan kolom: mengikuti peta global per field (bawaan kiri). */
     const alignClass = (key: string) =>
-      align[key] === 'center'
-        ? 'simpes-dsg-align-center'
-        : align[key] === 'right'
-          ? 'simpes-dsg-align-right'
-          : '';
+      align[key] === 'right'
+        ? 'simpes-dsg-align-right'
+        : align[key] === 'left'
+          ? ''
+          : 'simpes-dsg-align-center';
     const cols: Column<GridRow>[] = hideCheckbox
       ? []
       : [
@@ -1690,7 +1703,7 @@ export default function ExcelTable<T extends { id: string | number }>({
           />
         ),
         headerClassName: cn(alignClass(f.key), bekuCls, tepiCls),
-        basis: widths[f.key] ?? autoWidths[f.key] ?? syncAutoWidths[f.key] ?? f.width ?? 150,
+        basis: widths[f.key] ?? stdLebar?.[f.key] ?? autoWidths[f.key] ?? syncAutoWidths[f.key] ?? f.width ?? 150,
         // Semua kolom fixed (grow 0): lebar hanya berubah saat digagang
         // seret atau di-AutoFit, persis seperti Excel. Sisa ruang di kanan
         // dibiarkan kosong, bukan dibagi ke kolom elastis.
@@ -1823,7 +1836,7 @@ export default function ExcelTable<T extends { id: string | number }>({
     }
     return cols;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fields, visibleFields, editing, widths, autoWidths, syncAutoWidths, align, showInput, freezeAktif, hideCheckbox]);
+  }, [fields, visibleFields, editing, widths, stdLebar, autoWidths, syncAutoWidths, align, showInput, freezeAktif, hideCheckbox]);
 
   /** Simpan baris input → buat record baru via onCreateRow halaman. Validasi
    *  field wajib + validator kolom dulu; draft dibersihkan hanya bila sukses
@@ -2097,7 +2110,8 @@ export default function ExcelTable<T extends { id: string | number }>({
   function onResetView() {
     setWidths({});
     prefSet(widthsKey(tableKey), '{}').catch(() => {});
-    // Kembali ke bawaan = lebar menyesuaikan isi (dihitung ulang).
+    // Kembali ke standar/bawaan = lebar menyesuaikan isi (dihitung ulang).
+    hapus(`lebar.${tableKey}`);
     fittedRef.current = null;
     setAutoWidths(computeAutoWidths(true));
     setCheckedIds(new Set());
@@ -2439,7 +2453,7 @@ export default function ExcelTable<T extends { id: string | number }>({
                     { nilai: 'center' as const, label: 'Tengah', Icon: AlignCenter },
                     { nilai: 'right' as const, label: 'Kanan', Icon: AlignRight },
                   ]).map(({ nilai, label, Icon }) => {
-                    const aktif = (align[ctxHeader.colKey] ?? 'left') === nilai;
+                    const aktif = (align[ctxHeader.colKey] ?? 'center') === nilai;
                     return (
                       <button
                         key={nilai}

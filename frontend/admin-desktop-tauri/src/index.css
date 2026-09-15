@@ -435,7 +435,7 @@
   padding: 0;
 }
 /* Perataan isi kolom mengikuti data/field (diatur global dari dialog preset
-   kolom, bawaan rata kiri). Berlaku untuk sel baca-saja, editor input/select,
+   kolom, bawaan rata tengah). Berlaku untuk sel baca-saja, editor input/select,
    dan header kolomnya. */
 .simpes-dsg .dsg-cell.simpes-dsg-align-center .simpes-dsg-fill {
   justify-content: center;

@@ -14,6 +14,8 @@ import { findPreset } from '@/themes';
 import type { IconSetId } from '@/iconSets';
 import { terapkanGayaBagian } from './partStyles';
 import { gabungGaya, gabungWarna, type PartGaya, type PartId, type PartMode, type PartOverrides, type PartWarna } from './parts';
+import type { TampilanData } from '@/api/tampilan';
+import { useStandarTampilan, type PribadiMap } from '@/standarTampilan';
 
 interface ThemeState extends Prefs {
   /** true bila dark efektif (mode gelap, atau sistem + OS gelap). */
@@ -29,14 +31,57 @@ interface ThemeState extends Prefs {
   setGayaBagian: (id: PartId, patch: Partial<PartGaya>) => void;
   /** Warna satu bagian untuk mode tertentu (`undefined` = hapus). */
   setWarnaBagian: (mode: PartMode, id: PartId, patch: Partial<PartWarna>) => void;
-  /** Hapus semua pengaturan (gaya + warna kedua mode) satu bagian. */
+  /** Kembalikan satu bagian ke standar/bawaan (hapus centang pribadi). */
   resetBagian: (id: PartId) => void;
-  /** Hapus semua pengaturan beberapa bagian sekaligus (mis. satu grup). */
+  /** Kembalikan beberapa bagian sekaligus ke standar (mis. satu grup). */
   resetBagianBanyak: (ids: PartId[]) => void;
   resetSemuaBagian: () => void;
 }
 
 const Ctx = createContext<ThemeState | null>(null);
+
+/** Setelan pribadi yang tersimpan di perangkat. */
+type DevicePrefs = Prefs;
+
+/** Nilai dari standar dipakai bila user belum menandai setelan itu sebagai pribadi. */
+function pilihStd(key: string, dev: string, stdVal: string | null | undefined, pribadi: PribadiMap): string {
+  return pribadi[key] || stdVal == null || stdVal === '' ? dev : stdVal;
+}
+
+function gabungParts(dev: PartOverrides, std: TampilanData['parts'] | undefined, pribadi: PribadiMap): PartOverrides {
+  const out: PartOverrides = { gaya: {}, terang: {}, gelap: {} };
+  const perMode = (m: 'gaya' | 'terang' | 'gelap') => {
+    const stdMap = (std?.[m] ?? {}) as Record<string, object>;
+    const devMap = (dev[m] ?? {}) as Record<string, object>;
+    const target = out[m] as unknown as Record<string, object>;
+    for (const [id, val] of Object.entries(stdMap)) {
+      if (val && !pribadi[`parts.${m}.${id}`]) target[id] = val;
+    }
+    for (const [id, val] of Object.entries(devMap)) {
+      if (val && pribadi[`parts.${m}.${id}`]) target[id] = val;
+    }
+  };
+  perMode('gaya');
+  perMode('terang');
+  perMode('gelap');
+
+  return out;
+}
+
+/** Preferensi efektif = pribadi (jika ada) ⊕ standar lembaga ⊕ bawaan aplikasi. */
+function gabungPrefs(dev: DevicePrefs, std: TampilanData | null, pribadi: PribadiMap): Prefs {
+  const t = std?.tema ?? {};
+  return {
+    theme: pilihStd('tema.theme', dev.theme, t.theme, pribadi) as ThemeName,
+    mode: pilihStd('tema.mode', dev.mode, t.mode, pribadi) as ModeName,
+    density: pilihStd('tema.density', dev.density, t.density, pribadi) as DensityName,
+    warnaUI: pilihStd('tema.warnaUI', dev.warnaUI, t.warnaUI, pribadi) as WarnaUIName,
+    iconSet: pilihStd('tema.iconSet', dev.iconSet, t.iconSet, pribadi) as IconSetId,
+    // Tata letak sidebar selalu milik perangkat, bukan standar.
+    collapsed: dev.collapsed,
+    parts: gabungParts(dev.parts, std?.parts, pribadi),
+  };
+}
 
 function applyPrefs(p: Prefs, osDark: boolean) {
   const root = document.documentElement;
@@ -59,13 +104,14 @@ function applyPrefs(p: Prefs, osDark: boolean) {
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [prefs, setPrefs] = useState<Prefs>(DEFAULT_PREFS);
+  const { tampilan: standar, pribadi, tandai, hapus } = useStandarTampilan();
+  const [device, setDevice] = useState<DevicePrefs>(DEFAULT_PREFS);
   const [osDark, setOsDark] = useState(
     () => typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches,
   );
 
   useEffect(() => {
-    loadPrefs().then(setPrefs).catch(() => {});
+    loadPrefs().then(setDevice).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -75,75 +121,89 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     return () => mq.removeEventListener('change', onChange);
   }, []);
 
+  const prefs = useMemo(() => gabungPrefs(device, standar, pribadi), [device, standar, pribadi]);
+
   useEffect(() => {
     applyPrefs(prefs, osDark);
   }, [prefs, osDark]);
 
-  const update = useCallback((patch: Partial<Prefs>) => {
-    setPrefs((prev) => {
+  /** Simpan setelan pribadi + tandai agar tidak ditimpa standar. */
+  const update = useCallback((patch: Partial<Prefs>, kunci: string[]) => {
+    setDevice((prev) => {
       const next = { ...prev, ...patch };
       savePrefs(next).catch(() => {});
       return next;
     });
-  }, []);
+    if (kunci.length > 0) tandai(...kunci);
+  }, [tandai]);
 
   /** Ubah `parts` berbasis state terbaru (aman untuk perubahan beruntun). */
-  const updateParts = useCallback((fn: (p: PartOverrides) => PartOverrides) => {
-    setPrefs((prev) => {
+  const updateParts = useCallback((fn: (p: PartOverrides) => PartOverrides, kunci: string[]) => {
+    setDevice((prev) => {
       const next = { ...prev, parts: fn(prev.parts) };
       savePrefs(next).catch(() => {});
       return next;
     });
-  }, []);
+    if (kunci.length > 0) tandai(...kunci);
+  }, [tandai]);
 
   const value = useMemo<ThemeState>(() => {
     const dark = prefs.mode === 'gelap' || (prefs.mode === 'sistem' && osDark);
     return {
       ...prefs,
       dark,
-      setTheme: (theme) => update({ theme }),
-      setMode: (mode) => update({ mode }),
-      setCollapsed: (collapsed) => update({ collapsed }),
-      setDensity: (density) => update({ density }),
-      setWarnaUI: (warnaUI) => update({ warnaUI }),
-      setIconSet: (iconSet) => update({ iconSet }),
+      setTheme: (theme) => update({ theme }, ['tema.theme']),
+      setMode: (mode) => update({ mode }, ['tema.mode']),
+      setCollapsed: (collapsed) => update({ collapsed }, []),
+      setDensity: (density) => update({ density }, ['tema.density']),
+      setWarnaUI: (warnaUI) => update({ warnaUI }, ['tema.warnaUI']),
+      setIconSet: (iconSet) => update({ iconSet }, ['tema.iconSet']),
       setGayaBagian: (id, patch) => updateParts((p) => {
         const map = { ...p.gaya };
         const g = gabungGaya(map[id], patch);
         if (g) map[id] = g;
         else delete map[id];
         return { ...p, gaya: map };
-      }),
+      }, [`parts.gaya.${id}`]),
       setWarnaBagian: (mode, id, patch) => updateParts((p) => {
         const map = { ...p[mode] };
         const w = gabungWarna(map[id], patch);
         if (w) map[id] = w;
         else delete map[id];
         return { ...p, [mode]: map };
-      }),
-      resetBagian: (id) => updateParts((p) => {
-        const gaya = { ...p.gaya };
-        delete gaya[id];
-        const terang = { ...p.terang };
-        delete terang[id];
-        const gelap = { ...p.gelap };
-        delete gelap[id];
-        return { gaya, terang, gelap };
-      }),
-      resetBagianBanyak: (ids) => updateParts((p) => {
-        const gaya = { ...p.gaya };
-        const terang = { ...p.terang };
-        const gelap = { ...p.gelap };
-        for (const id of ids) {
+      }, [`parts.${mode}.${id}`]),
+      resetBagian: (id) => {
+        updateParts((p) => {
+          const gaya = { ...p.gaya };
           delete gaya[id];
+          const terang = { ...p.terang };
           delete terang[id];
+          const gelap = { ...p.gelap };
           delete gelap[id];
-        }
-        return { gaya, terang, gelap };
-      }),
-      resetSemuaBagian: () => updateParts(() => ({ gaya: {}, terang: {}, gelap: {} })),
+          return { gaya, terang, gelap };
+        }, []);
+        hapus(`parts.gaya.${id}`, `parts.terang.${id}`, `parts.gelap.${id}`);
+      },
+      resetBagianBanyak: (ids) => {
+        updateParts((p) => {
+          const gaya = { ...p.gaya };
+          const terang = { ...p.terang };
+          const gelap = { ...p.gelap };
+          for (const id of ids) {
+            delete gaya[id];
+            delete terang[id];
+            delete gelap[id];
+          }
+          return { gaya, terang, gelap };
+        }, []);
+        hapus(...ids.flatMap((id) => [`parts.gaya.${id}`, `parts.terang.${id}`, `parts.gelap.${id}`]));
+      },
+      resetSemuaBagian: () => {
+        updateParts(() => ({ gaya: {}, terang: {}, gelap: {} }), []);
+        hapus(...Object.keys(pribadi).filter((k) => k.startsWith('parts.')));
+      },
     };
-  }, [prefs, osDark, update, updateParts]);
+  }, [prefs, osDark, update, updateParts, hapus, pribadi]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

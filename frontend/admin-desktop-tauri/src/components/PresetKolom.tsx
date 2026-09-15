@@ -35,6 +35,7 @@ import {
 import ConfirmDelete from '@/components/ConfirmDelete';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useGridPrefs, type AlignName } from '@/components/GridPrefs';
+import { useStandarTampilan } from '@/standarTampilan';
 import { cn } from '@/lib/utils';
 import { AlignCenter, AlignLeft, AlignRight, X } from '@/icons';
 import { toast } from 'sonner';
@@ -127,6 +128,9 @@ export default function PresetKolom({
     [editId, presets],
   );
   const { align, setAlign } = useGridPrefs();
+  const { tampilan: standar, isPribadi, tandai } = useStandarTampilan();
+  /** Preset aktif bawaan dari standar lembaga (nama), bila user belum memilih. */
+  const stdNama = standar?.presetAktif?.[tableKey] ?? null;
   /** Tabel berkolom sangat banyak (mis. Santri 72 kolom) memakai dialog tinggi
    *  penuh agar panel-panelnya punya area gulir sendiri. */
   const banyakKolom = fields.length > 30;
@@ -174,7 +178,11 @@ export default function PresetKolom({
       const daftar = res.data.presets;
       setPresets(daftar);
       const targetId = pilihId !== undefined ? pilihId : res.data.aktif_preset_id;
-      const target = targetId === null ? null : daftar.find((p) => p.id === targetId) ?? null;
+      let target = targetId === null ? null : daftar.find((p) => p.id === targetId) ?? null;
+      // Belum dipilih user → pakai preset aktif dari standar lembaga (bila ada).
+      if (target === null && stdNama && !isPribadi(`preset.${tableKey}`)) {
+        target = daftar.find((p) => p.nama === stdNama) ?? null;
+      }
       setAktifId(target?.id ?? null);
       terapkan(target);
     } catch (e) {
@@ -183,12 +191,18 @@ export default function PresetKolom({
       terapkan(null);
       toast.error(errorMessage(e));
     }
-  }, [tableKey, terapkan]);
+  }, [tableKey, terapkan, stdNama, isPribadi]);
 
   useEffect(() => {
     void muat();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tableKey]);
+
+  // Standar lembaga datang belakangan (setelah muat awal) → terapkan ulang.
+  useEffect(() => {
+    if (stdNama) void muat();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stdNama]);
 
   /** Tampilkan/sembunyikan satu kolom pada preset (dipakai context menu
    *  header tabel): simpan langsung ke DB, lalu segarkan + terapkan ulang. */
@@ -229,6 +243,8 @@ export default function PresetKolom({
     const target = id === null ? null : presets.find((p) => p.id === id) ?? null;
     setAktifId(target?.id ?? null);
     terapkan(target);
+    // Pilihan user menang atas preset aktif dari standar lembaga.
+    tandai(`preset.${tableKey}`);
     try {
       await setPresetAktif(tableKey, target?.id ?? null);
     } catch (e) {
@@ -501,7 +517,7 @@ export default function PresetKolom({
                       <AlignToggle
                         fieldKey={f.key}
                         sumber="semua"
-                        align={align[f.key] ?? 'left'}
+                        align={align[f.key] ?? 'center'}
                         onSet={setAlign}
                       />
                     </div>
@@ -542,7 +558,7 @@ export default function PresetKolom({
                       <AlignToggle
                         fieldKey={f.key}
                         sumber="terpilih"
-                        align={align[f.key] ?? 'left'}
+                        align={align[f.key] ?? 'center'}
                         onSet={setAlign}
                       />
                       <button

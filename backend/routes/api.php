@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\Admin\KelasController;
 use App\Http\Controllers\Api\Admin\LembagaController;
 use App\Http\Controllers\Api\Admin\LembagaSantriController;
+use App\Http\Controllers\Api\Admin\PengaturanTampilanController;
 use App\Http\Controllers\Api\Admin\PosKeuanganController;
 use App\Http\Controllers\Api\Admin\PresetTabelController;
 use App\Http\Controllers\Api\Admin\PsbBiayaController;
@@ -128,6 +129,12 @@ Route::middleware(['auth:sanctum', 'role:super_admin|admin', 'throttle:api_user'
         Route::post('preset-tabel/aktif', [PresetTabelController::class, 'setAktif']);
         Route::put('preset-tabel/{preset}', [PresetTabelController::class, 'update']);
         Route::delete('preset-tabel/{preset}', [PresetTabelController::class, 'destroy']);
+
+        // Standar tampilan per lembaga (super_admin sebar ke semua; admin lembaga salinannya).
+        Route::get('pengaturan-tampilan', [PengaturanTampilanController::class, 'show']);
+        Route::get('pengaturan-tampilan/versi', [PengaturanTampilanController::class, 'versi']);
+        Route::put('pengaturan-tampilan', [PengaturanTampilanController::class, 'upsert']);
+        Route::delete('pengaturan-tampilan', [PengaturanTampilanController::class, 'destroy']);
 
         // Master modul PSB: kegiatan -> gelombang -> kuota/biaya pendaftaran per lembaga,
         // plus biaya masuk/asrama per lembaga (lintas gelombang).
