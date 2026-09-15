@@ -21,6 +21,8 @@ export const DEFAULT_HEADER_H = 26;
 export const MIN_FONT_PX = 9;
 export const MAX_FONT_PX = 24;
 export const DEFAULT_FONT_PX = 13;
+/** Ukuran huruf baris HEADER tabel (px) — mandiri dari ukuran isi sel. */
+export const DEFAULT_HEADER_FONT_PX = 11;
 
 // Katalog jenis huruf dipakai bersama grid & antarmuka — sumber di src/fonts.ts.
 export { FONT_OPTIONS, FONT_FAMILY_DEFAULT };
