@@ -1,4 +1,5 @@
 import { DENSITY_PX, type DensityName } from '@/prefs';
+import { cn } from '@/lib/utils';
 import { useTheme } from '@/theme';
 import {
   DEFAULT_FONT_PX,
@@ -106,10 +107,12 @@ function WarnaInput({
   );
 }
 
-const KERAPATAN: { id: DensityName; nama: string }[] = [
-  { id: 'ramping', nama: 'Ramping' },
-  { id: 'sedang', nama: 'Sedang' },
-  { id: 'nyaman', nama: 'Nyaman' },
+/** Tinggi tiap item kerapatan dibuat sejajar dengan bagian stepper vertikal
+ *  tinggi baris: Ramping ↔ tombol −, Sedang ↔ nilai, Nyaman ↔ tombol +. */
+const KERAPATAN: { id: DensityName; nama: string; tinggi: string }[] = [
+  { id: 'ramping', nama: 'Ramping', tinggi: 'h-4' },
+  { id: 'sedang', nama: 'Sedang', tinggi: 'h-6' },
+  { id: 'nyaman', nama: 'Nyaman', tinggi: 'h-4' },
 ];
 
 export function RibbonTabel({ apiTabel }: { apiTabel: RibbonTableApi | null }) {
@@ -191,9 +194,10 @@ export function RibbonTabel({ apiTabel }: { apiTabel: RibbonTableApi | null }) {
       </RibbonGroup>
       <RibbonPemisah />
       <RibbonGroup label="Baris" disabled={!apiTabel}>
-        <div className="flex flex-col items-center gap-1">
+        <div className="flex items-start gap-1.5">
           <ToggleGroup
             type="single"
+            orientation="vertical"
             spacing={0}
             value={density}
             onValueChange={(v) => {
@@ -202,6 +206,7 @@ export function RibbonTabel({ apiTabel }: { apiTabel: RibbonTableApi | null }) {
               // Kosongkan tinggi baris manual agar preset kerapatan berlaku.
               setRowH(null);
             }}
+            className="flex-col items-stretch pt-px"
           >
             {KERAPATAN.map((k) => (
               <ToggleGroupItem
@@ -210,24 +215,26 @@ export function RibbonTabel({ apiTabel }: { apiTabel: RibbonTableApi | null }) {
                 value={k.id}
                 title={`Kerapatan ${k.nama}`}
                 aria-label={`Kerapatan ${k.nama}`}
-                className="h-6 rounded-md border-0 px-2 text-[11px] text-white/75 hover:bg-white/10 hover:text-white data-[state=on]:bg-white/20 data-[state=on]:font-semibold data-[state=on]:text-white"
+                className={cn(
+                  'rounded-md border-0 px-2 text-[11px] text-white/75 hover:bg-white/10 hover:text-white data-[state=on]:bg-white/20 data-[state=on]:font-semibold data-[state=on]:text-white',
+                  k.tinggi,
+                )}
               >
                 {k.nama}
               </ToggleGroupItem>
             ))}
           </ToggleGroup>
-          <div className="flex items-center gap-1.5">
-            <SpinBox
-              id="input_tinggi_top"
-              value={effectiveH}
-              min={MIN_ROW_H}
-              max={MAX_ROW_H}
-              title="Tinggi baris (berlaku semua tabel)"
-              ariaLabel="Tinggi baris (px)"
-              disabled={!apiTabel}
-              onChange={setRowH}
-            />
-          </div>
+          <SpinBox
+            id="input_tinggi_top"
+            vertikal
+            value={effectiveH}
+            min={MIN_ROW_H}
+            max={MAX_ROW_H}
+            title="Tinggi baris (berlaku semua tabel)"
+            ariaLabel="Tinggi baris (px)"
+            disabled={!apiTabel}
+            onChange={setRowH}
+          />
         </div>
       </RibbonGroup>
       <RibbonPemisah />

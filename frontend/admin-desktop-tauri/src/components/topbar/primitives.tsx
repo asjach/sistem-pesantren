@@ -16,6 +16,7 @@ export function SpinBox({
   ariaLabel,
   onChange,
   disabled = false,
+  vertikal = false,
 }: {
   id: string;
   value: number;
@@ -26,6 +27,9 @@ export function SpinBox({
   onChange: (n: number) => void;
   /** Nonaktifkan seluruh kontrol (mis. halaman ini tidak punya tabel grid). */
   disabled?: boolean;
+  /** Tata letak tombol: `false` (bawaan) horizontal −/nilai/+;
+   *  `true` vertikal (− di atas, nilai, + di bawah). */
+  vertikal?: boolean;
 }) {
   const [draft, setDraft] = useState<string | null>(null);
   // Commit hanya saat blur/Enter/± agar mengetik tidak memicu re-render global
@@ -44,14 +48,17 @@ export function SpinBox({
     setDraft(null);
     onChange(clamp(typed + d, min, max));
   };
-  const btn =
-    'grid w-5 shrink-0 place-items-center text-white/70 transition-colors hover:bg-white/10 hover:text-white disabled:pointer-events-none disabled:opacity-40';
+  const btn = cn(
+    'shrink-0 place-items-center text-white/70 transition-colors hover:bg-white/10 hover:text-white disabled:pointer-events-none disabled:opacity-40 grid',
+    vertikal ? 'h-4' : 'w-5',
+  );
   return (
     <div
       title={title}
       data-part="spinbox"
       className={cn(
-        'flex h-6 items-stretch overflow-hidden rounded-md border border-white/20 bg-white/5 focus-within:ring-2 focus-within:ring-white/30',
+        'flex items-stretch overflow-hidden rounded-md border border-white/20 bg-white/5 focus-within:ring-2 focus-within:ring-white/30',
+        vertikal ? 'w-8 flex-col' : 'h-6',
         disabled && 'pointer-events-none opacity-40',
       )}
     >
@@ -63,7 +70,7 @@ export function SpinBox({
         className={btn}
         onClick={() => stepBy(-1)}
       >
-        <Minus size={12} />
+        <Minus size={vertikal ? 11 : 12} />
       </button>
       <input
         id={id}
@@ -71,7 +78,10 @@ export function SpinBox({
         inputMode="numeric"
         aria-label={ariaLabel}
         disabled={disabled}
-        className="h-full w-8 border-x border-white/20 bg-transparent px-0 text-center text-xs text-white outline-none"
+        className={cn(
+          'border-white/20 bg-transparent px-0 text-center text-xs text-white outline-none',
+          vertikal ? 'h-6 w-full border-y' : 'h-full w-8 border-x',
+        )}
         value={draft ?? String(value)}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={() => commit(draft)}
@@ -87,7 +97,7 @@ export function SpinBox({
         className={btn}
         onClick={() => stepBy(1)}
       >
-        <Plus size={12} />
+        <Plus size={vertikal ? 11 : 12} />
       </button>
     </div>
   );
