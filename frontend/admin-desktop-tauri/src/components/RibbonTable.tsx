@@ -30,6 +30,9 @@ interface RibbonTableCtxValue {
   api: RibbonTableApi | null;
   daftar: (key: string, api: RibbonTableApi) => void;
   lepas: (key: string) => void;
+  /** Tandai tabel yang sedang aktif (dipakai halaman multi-tabel: ribbon
+   *  mengikuti tabel yang terakhir berinteraksi). */
+  aktif: (key: string) => void;
 }
 
 const Ctx = createContext<RibbonTableCtxValue | null>(null);
@@ -41,6 +44,7 @@ const Ctx = createContext<RibbonTableCtxValue | null>(null);
  *  membaca versi terbaru lewat ref di ExcelTable. */
 export function RibbonTableProvider({ children }: { children: ReactNode }) {
   const [apis, setApis] = useState<Record<string, RibbonTableApi>>({});
+  const [aktifKey, setAktifKey] = useState<string | null>(null);
 
   const daftar = useCallback((key: string, api: RibbonTableApi) => {
     setApis((prev) => (prev[key] === api ? prev : { ...prev, [key]: api }));
@@ -52,10 +56,19 @@ export function RibbonTableProvider({ children }: { children: ReactNode }) {
       delete next[key];
       return next;
     });
+    setAktifKey((prev) => (prev === key ? null : prev));
+  }, []);
+  const aktif = useCallback((key: string) => {
+    setAktifKey((prev) => (prev === key ? prev : key));
   }, []);
 
-  const api = useMemo(() => Object.values(apis)[0] ?? null, [apis]);
-  const value = useMemo(() => ({ api, daftar, lepas }), [api, daftar, lepas]);
+  // Halaman multi-tabel: pakai tabel yang terakhir berinteraksi; fallback tabel
+  // pertama yang terdaftar (paling atas).
+  const api = useMemo(
+    () => (aktifKey != null ? apis[aktifKey] : undefined) ?? Object.values(apis)[0] ?? null,
+    [apis, aktifKey],
+  );
+  const value = useMemo(() => ({ api, daftar, lepas, aktif }), [api, daftar, lepas, aktif]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

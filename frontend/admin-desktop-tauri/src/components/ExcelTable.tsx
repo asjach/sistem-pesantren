@@ -33,7 +33,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { AlignCenter, AlignLeft, AlignRight, Ban, Copy, Check, Eye, MoreVertical, Pencil, PlusCircle, Save, Search, Trash2 } from '@/icons';
+import { AlignCenter, AlignLeft, AlignRight, Ban, Copy, Check, Eye, MoreVertical, MoveHorizontal, Pencil, PlusCircle, RotateCcw, Save, Search, Trash2 } from '@/icons';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -2057,6 +2057,7 @@ export default function ExcelTable<T extends { id: string | number }>({
   const ribbon = useRibbonTable();
   const ribbonDaftar = ribbon?.daftar;
   const ribbonLepas = ribbon?.lepas;
+  const ribbonAktif = ribbon?.aktif;
   const ribbonAksiRef = useRef({ salin: () => {}, autofit: () => {}, reset: () => {} });
   ribbonAksiRef.current = { salin: onCopy, autofit: onAutoFitAll, reset: onResetView };
   // Lepas registri hanya saat tabel unmount/ganti key — bukan tiap status mode
@@ -2119,6 +2120,11 @@ export default function ExcelTable<T extends { id: string | number }>({
   const ctxHeaderLabel = ctxHeader
     ? fieldsRef.current.find((f) => f.key === ctxHeader.colKey)?.label ?? ctxHeader.colKey
     : '';
+  // Indeks kolom yang di-klik kanan pada daftar kolom tampil (untuk bekukan
+  // "sampai kolom ini"); -1 = kolom non-data (centang/Aksi).
+  const ctxHeaderIdx = ctxHeader
+    ? visibleFields.findIndex((f) => f.key === ctxHeader.colKey)
+    : -1;
 
   return (
     <div className={cn('mt-2 flex flex-col', maxRows === undefined ? 'min-h-0 flex-1' : 'shrink-0')}>
@@ -2264,7 +2270,11 @@ export default function ExcelTable<T extends { id: string | number }>({
           } as React.CSSProperties
         }
         title="Seret untuk memblokir sel • Ctrl+C menyalin"
-        onMouseDownCapture={closeEditorOnOtherCell}
+        onMouseDownCapture={(e) => {
+          closeEditorOnOtherCell(e);
+          // Halaman multi-tabel: tabel yang disentuh jadi sumber perintah ribbon.
+          ribbonAktif?.(tableKey);
+        }}
         className={cn(
           // Grid full-bleed: menempel tepi kiri-kanan area konten (imbangi padding
           // layout p-1) tanpa sudut membulat; toolbar tetap berpadding.
@@ -2329,6 +2339,24 @@ export default function ExcelTable<T extends { id: string | number }>({
             {ctxHeader && (
               <>
                 <ContextMenuLabel>Kolom: {ctxHeaderLabel}</ContextMenuLabel>
+                <ContextMenuItem
+                  id={`btn_ctx_bekukan_${tableKey}`}
+                  disabled={ctxHeaderIdx < 0 || freezeAktif >= ctxHeaderIdx + 1}
+                  onSelect={() => ctxHeaderIdx >= 0 && ubahFreeze(ctxHeaderIdx + 1)}
+                >
+                  <MoveHorizontal size={14} />
+                  <span>Bekukan sampai kolom ini</span>
+                </ContextMenuItem>
+                {freezeAktif > 0 && (
+                  <ContextMenuItem
+                    id={`btn_ctx_lepas_bekukan_${tableKey}`}
+                    onSelect={() => ubahFreeze(0)}
+                  >
+                    <RotateCcw size={14} />
+                    <span>Lepas semua kolom beku</span>
+                  </ContextMenuItem>
+                )}
+                <ContextMenuSeparator />
                 <div className="flex items-center gap-1 px-2 py-1">
                   <span className="mr-auto text-xs text-muted-foreground">Perataan</span>
                   {([

@@ -182,6 +182,9 @@ export function RibbonTabel({ apiTabel }: { apiTabel: RibbonTableApi | null }) {
           disabled={!apiTabel}
           onClick={() => apiTabel?.autofit()}
         />
+        <span id="label_bekukan_kolom_top" className="text-[10px] leading-none text-white/70">
+          Bekukan kolom
+        </span>
         <SpinBox
           id="input_bekukan_kolom_top"
           value={apiTabel?.freeze ?? 0}
