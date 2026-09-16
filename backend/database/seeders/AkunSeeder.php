@@ -2,8 +2,10 @@
 
 namespace Database\Seeders;
 
+use App\Models\Lembaga;
 use App\Models\User;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Akun bawaan (dev): reviewer lintas sesi + akun dev. Idempoten
@@ -25,6 +27,31 @@ class AkunSeeder extends Seeder
                 ['name' => $nama, 'phone' => $phone, 'password' => $password],
             );
             $user->syncRoles([$role]);
+        }
+
+        // Admin pesantren: role admin tanpa pivot (akses semua lembaga).
+        User::updateOrCreate(
+            ['email' => 'admin.pesantren@simpes.local'],
+            ['name' => 'Admin Pesantren', 'phone' => '081200000005', 'password' => 'password'],
+        )->syncRoles(['admin']);
+
+        // Admin lembaga: role admin + satu pivot (lembaga unit pertama yang ada).
+        $adminLembaga = User::updateOrCreate(
+            ['email' => 'admin.lembaga@simpes.local'],
+            ['name' => 'Admin Lembaga', 'phone' => '081200000006', 'password' => 'password'],
+        );
+        $adminLembaga->syncRoles(['admin']);
+        $lembaga = Lembaga::where('kode', 'MTS')->first()
+            ?? Lembaga::whereNotNull('parent_id')->orderBy('id')->first()
+            ?? Lembaga::orderBy('id')->first();
+        if ($lembaga) {
+            DB::table('user_lembaga')->updateOrInsert(
+                ['user_id' => $adminLembaga->id, 'lembaga_id' => $lembaga->id],
+                ['created_at' => now(), 'updated_at' => now()],
+            );
+            $this->command?->info("Admin Lembaga terhubung ke {$lembaga->nama} ({$lembaga->kode}).");
+        } else {
+            $this->command?->warn('Belum ada lembaga: Admin Lembaga dibuat tanpa pivot (jadi admin-full sementara).');
         }
     }
 }
