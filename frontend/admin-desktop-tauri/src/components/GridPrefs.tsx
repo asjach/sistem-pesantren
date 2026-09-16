@@ -112,7 +112,7 @@ const Ctx = createContext<GridPrefsState | null>(null);
  *  Disediakan di Layout agar kontrol di top bar dan grid berbagi state sama. */
 export function GridPrefsProvider({ children }: { children: ReactNode }) {
   const { parts, setGayaBagian } = useTheme();
-  const { tampilan: standar, isPribadi, tandai, hapus, bertindak, simpanKeStandar } = useStandarTampilan();
+  const { tampilan: standar, isPribadi, tandai, hapus, merekam, simpanKeStandar } = useStandarTampilan();
   const [rowHDevice, setRowHState] = useState<number | null>(null);
   const [headerHDevice, setHeaderHState] = useState<number | null>(null);
   const [alignDevice, setAlignState] = useState<AlignMap>({});
@@ -131,7 +131,7 @@ export function GridPrefsProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // Saat bertindak sebagai lembaga, override pribadi diabaikan (murni standar).
-  const pribadiAktif = useCallback((key: string) => (bertindak ? false : isPribadi(key)), [bertindak, isPribadi]);
+  const pribadiAktif = useCallback((key: string) => (merekam ? false : isPribadi(key)), [merekam, isPribadi]);
 
   // ---- Gabungan pribadi ⊕ standar ----
   const rowH = pribadiAktif(PRIBADI_ROWH) || standar?.grid?.rowH == null
@@ -153,7 +153,7 @@ export function GridPrefsProvider({ children }: { children: ReactNode }) {
   }, [standar, alignDevice, pribadiAktif]);
 
   const setRowH = useCallback((n: number | null) => {
-    if (bertindak) {
+    if (merekam) {
       hapus(PRIBADI_ROWH);
       simpanKeStandar({ grid: { rowH: n } });
       return;
@@ -163,10 +163,10 @@ export function GridPrefsProvider({ children }: { children: ReactNode }) {
     prefSet(GLOBAL_ROWH_KEY, n != null ? String(n) : '').catch(() => {});
     if (n != null) tandai(PRIBADI_ROWH);
     else hapus(PRIBADI_ROWH);
-  }, [bertindak, simpanKeStandar, tandai, hapus]);
+  }, [merekam, simpanKeStandar, tandai, hapus]);
 
   const setHeaderH = useCallback((n: number | null) => {
-    if (bertindak) {
+    if (merekam) {
       hapus(PRIBADI_HEADERH);
       simpanKeStandar({ grid: { headerH: n } });
       return;
@@ -175,7 +175,7 @@ export function GridPrefsProvider({ children }: { children: ReactNode }) {
     prefSet(GLOBAL_HEADER_H_KEY, n != null ? String(n) : '').catch(() => {});
     if (n != null) tandai(PRIBADI_HEADERH);
     else hapus(PRIBADI_HEADERH);
-  }, [bertindak, simpanKeStandar, tandai, hapus]);
+  }, [merekam, simpanKeStandar, tandai, hapus]);
 
   // Menulis ke bagian `tabel_sel`: `null`/`_bawaan` = hapus override → bawaan.
   const setFontPx = useCallback((n: number | null) => {
@@ -187,7 +187,7 @@ export function GridPrefsProvider({ children }: { children: ReactNode }) {
   }, [setGayaBagian]);
 
   const setAlign = useCallback((fieldKey: string, a: AlignName) => {
-    if (bertindak) {
+    if (merekam) {
       hapus(pribadiAlign(fieldKey));
       simpanKeStandar({ grid: { align: { [fieldKey]: a } } });
       return;
@@ -198,7 +198,7 @@ export function GridPrefsProvider({ children }: { children: ReactNode }) {
       return next;
     });
     tandai(pribadiAlign(fieldKey));
-  }, [bertindak, simpanKeStandar, tandai, hapus]);
+  }, [merekam, simpanKeStandar, tandai, hapus]);
 
   const value = useMemo<GridPrefsState>(
     () => ({ rowH, headerH, fontPx, fontFamily, align, setRowH, setHeaderH, setFontPx, setFontFamily, setAlign }),

@@ -753,7 +753,7 @@ export default function ExcelTable<T extends { id: string | number }>({
   // Preferensi tampilan tabel global (dikontrol dari top bar).
   const { rowH, headerH, fontPx, fontFamily, align, setAlign } = useGridPrefs();
   // Standar tampilan lembaga: lebar & kolom beku bawaan (bisa ditimpa user).
-  const { tampilan: standar, isPribadi, tandai, hapus, bertindak, simpanKeStandar } = useStandarTampilan();
+  const { tampilan: standar, isPribadi, tandai, hapus, merekam, simpanKeStandar } = useStandarTampilan();
 
   const [editMode, setEditModeRaw] = useState(false);
   const [inputMode, setInputModeRaw] = useState(false);
@@ -873,10 +873,10 @@ export default function ExcelTable<T extends { id: string | number }>({
   const visibleFieldsRef = useRef(visibleFields);
 
   // Standar lembaga untuk tabel ini (diabaikan bila user menyesuaikan sendiri).
-  const stdLebar = bertindak
+  const stdLebar = merekam
     ? (standar?.lebar?.[tableKey] ?? undefined)
     : (isPribadi(`lebar.${tableKey}`) ? undefined : standar?.lebar?.[tableKey] ?? undefined);
-  const stdBeku = bertindak
+  const stdBeku = merekam
     ? (standar?.beku?.[tableKey] ?? undefined)
     : (isPribadi(`beku.${tableKey}`) ? undefined : standar?.beku?.[tableKey] ?? undefined);
 
@@ -896,7 +896,7 @@ export default function ExcelTable<T extends { id: string | number }>({
   const ubahFreeze = useCallback(
     (n: number) => {
       const v = Math.max(0, Math.min(visibleFields.length, Math.round(n)));
-      if (bertindak) {
+      if (merekam) {
         hapus(`beku.${tableKey}`);
         simpanKeStandar({ beku: { [tableKey]: v } });
         return;
@@ -905,7 +905,7 @@ export default function ExcelTable<T extends { id: string | number }>({
       prefSet(freezeKey(tableKey), String(v)).catch(() => {});
       tandai(`beku.${tableKey}`);
     },
-    [tableKey, visibleFields.length, tandai, hapus, bertindak, simpanKeStandar],
+    [tableKey, visibleFields.length, tandai, hapus, merekam, simpanKeStandar],
   );
   visibleFieldsRef.current = visibleFields;
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -1235,7 +1235,7 @@ export default function ExcelTable<T extends { id: string | number }>({
       window.removeEventListener('mouseup', onUp);
       resizeListenersRef.current = null;
       resizeRef.current = null;
-      if (bertindak) {
+      if (merekam) {
         // Bertindak sebagai lembaga → lebar kolom disimpan ke standar lembaga.
         const map = { ...(stdLebar ?? {}), ...widthsRef.current };
         hapus(`lebar.${tableKey}`);
@@ -1424,7 +1424,7 @@ export default function ExcelTable<T extends { id: string | number }>({
     const w = autoFitWidth(key);
     if (w == null) return;
     setAutoWidths((prev) => ({ ...prev, [key]: w }));
-    if (bertindak) {
+    if (merekam) {
       // Bertindak sebagai lembaga → lepas lebar kolom itu dari standar lembaga.
       const map = { ...(stdLebar ?? {}) };
       delete map[key];
@@ -1461,7 +1461,7 @@ export default function ExcelTable<T extends { id: string | number }>({
       }
     }
     setAutoWidths(nextAuto);
-    if (bertindak) {
+    if (merekam) {
       hapus(`lebar.${tableKey}`);
       simpanKeStandar({ lebar: { [tableKey]: null } });
       setWidths({});
@@ -2151,7 +2151,7 @@ export default function ExcelTable<T extends { id: string | number }>({
     prefSet(widthsKey(tableKey), '{}').catch(() => {});
     // Kembali ke standar/bawaan = lebar menyesuaikan isi (dihitung ulang).
     hapus(`lebar.${tableKey}`);
-    if (bertindak) simpanKeStandar({ lebar: { [tableKey]: null } });
+    if (merekam) simpanKeStandar({ lebar: { [tableKey]: null } });
     fittedRef.current = null;
     setAutoWidths(computeAutoWidths(true));
     setCheckedIds(new Set());

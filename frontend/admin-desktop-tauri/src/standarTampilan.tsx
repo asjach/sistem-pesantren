@@ -21,8 +21,59 @@ const PERSONAL_KEY = 'simpes_personal_tampilan';
 const POLL_MS = 60_000;
 /** Tunda penyimpanan standar saat bertindak (ms) agar tidak spam request. */
 const SIMPAN_MS = 800;
+/** Tombol "rekam visual" (per perangkat; default mati = hanya berperan). */
+const REKAM_KEY = 'simpes_rekam_visual';
 
 export type PribadiMap = Record<string, true>;
+
+/**
+ * Kunci penanda pribadi yang nilainya BERUBAH antara standar lama & baru.
+ * Dipakai agar perubahan standar oleh super_admin berlaku untuk kunci itu,
+ * tanpa menghapus penyesuaian pribadi user pada kunci lain.
+ */
+export function kunciStandarBerubah(lama: TampilanData | null, baru: TampilanData | null): string[] {
+  if (!lama || !baru) return [];
+  const out: string[] = [];
+  const beda = (a: unknown, b: unknown) => JSON.stringify(a ?? null) !== JSON.stringify(b ?? null);
+
+  const t1 = lama.tema ?? {};
+  const t2 = baru.tema ?? {};
+  for (const k of ['theme', 'mode', 'warnaUI', 'iconSet', 'density'] as const) {
+    if (beda(t1[k], t2[k])) out.push(`tema.${k}`);
+  }
+
+  for (const m of ['gaya', 'terang', 'gelap'] as const) {
+    const g1 = (lama.parts?.[m] ?? {}) as Record<string, unknown>;
+    const g2 = (baru.parts?.[m] ?? {}) as Record<string, unknown>;
+    for (const id of new Set([...Object.keys(g1), ...Object.keys(g2)])) {
+      if (beda(g1[id], g2[id])) out.push(`parts.${m}.${id}`);
+    }
+  }
+
+  const gr1 = lama.grid ?? {};
+  const gr2 = baru.grid ?? {};
+  if (beda(gr1.rowH, gr2.rowH)) out.push('grid.rowH');
+  if (beda(gr1.headerH, gr2.headerH)) out.push('grid.headerH');
+  const a1 = gr1.align ?? {};
+  const a2 = gr2.align ?? {};
+  for (const k of new Set([...Object.keys(a1), ...Object.keys(a2)])) {
+    if (beda(a1[k], a2[k])) out.push(`grid.align.${k}`);
+  }
+
+  const kunci = (k: 'lebar' | 'beku' | 'presetAktif') => {
+    const o1 = (lama[k] ?? {}) as Record<string, unknown>;
+    const o2 = (baru[k] ?? {}) as Record<string, unknown>;
+    const prefiks = k === 'presetAktif' ? 'preset' : k;
+    for (const t of new Set([...Object.keys(o1), ...Object.keys(o2)])) {
+      if (beda(o1[t], o2[t])) out.push(`${prefiks}.${t}`);
+    }
+  };
+  kunci('lebar');
+  kunci('beku');
+  kunci('presetAktif');
+
+  return out;
+}
 
 /** Gabung bagian JSON: nilai null/undefined menghapus kunci; objek digabung dangkal. */
 function gabungSection<T extends Record<string, unknown>>(
@@ -68,6 +119,11 @@ interface StandarState {
   tampilan: TampilanData | null;
   /** Sedang "bertindak sebagai lembaga" (super_admin + lembaga aktif). */
   bertindak: boolean;
+  /** Mode rekam visual aktif (bertindak + tombol rekam menyala). */
+  merekam: boolean;
+  /** Status tombol rekam visual (per perangkat). */
+  rekam: boolean;
+  setRekam: (v: boolean) => void;
   /** Sedang menyimpan standar ke server. */
   menyimpan: boolean;
   /** Muat ulang standar aktif (mis. setelah versi berubah). */
@@ -94,15 +150,30 @@ export function StandarTampilanProvider({ children }: { children: ReactNode }) {
   const [versi, setVersi] = useState(0);
   const [loading, setLoading] = useState(false);
   const [menyimpan, setMenyimpan] = useState(false);
+  const [rekam, setRekamState] = useState(false);
   const [pribadi, setPribadi] = useState<PribadiMap>({});
   const versiRef = useRef(0);
   versiRef.current = versi;
   const tampilanRef = useRef<TampilanData | null>(null);
   tampilanRef.current = tampilan;
   const simpanTimerRef = useRef<number | null>(null);
+  /** Lembaga pemilik `tampilan` saat ini (hindari dif saat ganti lembaga). */
+  const tampilanLembagaRef = useRef<number | null>(null);
+  /** Penghapus penanda pribadi (diisi setelah callback `hapus` siap). */
+  const hapusRef = useRef<(...keys: string[]) => void>(() => {});
 
   const superAdmin = !!user?.roles.some((r) => r.name === 'super_admin');
   const bertindak = superAdmin && lembagaId != null;
+  const merekam = bertindak && rekam;
+
+  useEffect(() => {
+    prefGet(REKAM_KEY).then((v) => setRekamState(v === '1')).catch(() => {});
+  }, []);
+
+  const setRekam = useCallback((v: boolean) => {
+    setRekamState(v);
+    prefSet(REKAM_KEY, v ? '1' : '0').catch(() => {});
+  }, []);
 
   useEffect(() => {
     prefGet(PERSONAL_KEY)
@@ -119,6 +190,14 @@ export function StandarTampilanProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     try {
       const res = await getPengaturanTampilan(lembagaId);
+      // Standar berubah (versi baru): lepas penanda pribadi untuk kunci yang
+      // diubah super_admin agar standar baru berlaku, tanpa mengganggu
+      // penyesuaian pribadi user pada kunci lain.
+      if (tampilanLembagaRef.current === lembagaId) {
+        const berubah = kunciStandarBerubah(tampilanRef.current, res.data.tampilan);
+        if (berubah.length > 0) hapusRef.current(...berubah);
+      }
+      tampilanLembagaRef.current = lembagaId;
       setTampilan(res.data.tampilan);
       setVersi(res.data.versi);
       prefSet(
@@ -137,12 +216,14 @@ export function StandarTampilanProvider({ children }: { children: ReactNode }) {
     if (lembagaId == null) {
       setTampilan(null);
       setVersi(0);
+      tampilanLembagaRef.current = null;
       return;
     }
     prefGet(`${CACHE_PREFIX}${lembagaId}`)
       .then((raw) => {
         if (!raw) return;
         const c = JSON.parse(raw) as { versi?: number; tampilan?: TampilanData | null };
+        tampilanLembagaRef.current = lembagaId;
         setTampilan(c.tampilan ?? null);
         setVersi(c.versi ?? 0);
       })
@@ -197,6 +278,7 @@ export function StandarTampilanProvider({ children }: { children: ReactNode }) {
       return next;
     });
   }, [simpanPribadi]);
+  hapusRef.current = hapus;
 
   const isPribadi = useCallback((key: string) => !!pribadi[key], [pribadi]);
 
@@ -226,15 +308,15 @@ export function StandarTampilanProvider({ children }: { children: ReactNode }) {
     }
   }, [lembagaId]);
 
-  /** Terapkan perubahan ke standar lembaga aktif (mode bertindak). */
+  /** Terapkan perubahan ke standar lembaga aktif (hanya saat mode rekam aktif). */
   const simpanKeStandar = useCallback((patch: TampilanData) => {
-    if (!(superAdmin && lembagaId != null)) return;
+    if (!(superAdmin && lembagaId != null && rekam)) return;
     const next = gabungTampilan(tampilanRef.current, patch);
     tampilanRef.current = next;
     setTampilan(next);
     if (simpanTimerRef.current) window.clearTimeout(simpanTimerRef.current);
     simpanTimerRef.current = window.setTimeout(() => { void kirimStandar(next); }, SIMPAN_MS);
-  }, [superAdmin, lembagaId, kirimStandar]);
+  }, [superAdmin, lembagaId, rekam, kirimStandar]);
 
   useEffect(() => () => {
     if (simpanTimerRef.current) window.clearTimeout(simpanTimerRef.current);
@@ -245,6 +327,9 @@ export function StandarTampilanProvider({ children }: { children: ReactNode }) {
     versi,
     tampilan,
     bertindak,
+    merekam,
+    rekam,
+    setRekam,
     menyimpan,
     muatUlang: () => void muat(),
     simpanKeStandar,
@@ -252,7 +337,7 @@ export function StandarTampilanProvider({ children }: { children: ReactNode }) {
     isPribadi,
     tandai,
     hapus,
-  }), [loading, versi, tampilan, bertindak, menyimpan, muat, simpanKeStandar, pribadi, isPribadi, tandai, hapus]);
+  }), [loading, versi, tampilan, bertindak, merekam, rekam, setRekam, menyimpan, muat, simpanKeStandar, pribadi, isPribadi, tandai, hapus]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

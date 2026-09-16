@@ -104,7 +104,7 @@ function applyPrefs(p: Prefs, osDark: boolean) {
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const { tampilan: standar, pribadi, tandai, hapus, bertindak, simpanKeStandar } = useStandarTampilan();
+  const { tampilan: standar, pribadi, tandai, hapus, merekam, simpanKeStandar } = useStandarTampilan();
   const [device, setDevice] = useState<DevicePrefs>(DEFAULT_PREFS);
   const [osDark, setOsDark] = useState(
     () => typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches,
@@ -124,8 +124,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   // Saat bertindak sebagai lembaga, tampilan murni mengikuti standar lembaga
   // (override pribadi diabaikan) agar yang terlihat = yang sedang diatur.
   const prefs = useMemo(
-    () => gabungPrefs(device, standar, bertindak ? {} : pribadi),
-    [device, standar, pribadi, bertindak],
+    () => gabungPrefs(device, standar, merekam ? {} : pribadi),
+    [device, standar, pribadi, merekam],
   );
 
   useEffect(() => {
@@ -135,7 +135,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   /** Simpan setelan pribadi + tandai agar tidak ditimpa standar. Saat bertindak
    *  sebagai lembaga, perubahan langsung disimpan ke standar lembaga itu. */
   const update = useCallback((patch: Partial<Prefs>, kunci: string[]) => {
-    if (bertindak && kunci.length > 0) {
+    if (merekam && kunci.length > 0) {
       hapus(...kunci);
       const tema: TampilanData['tema'] = {};
       if ('theme' in patch) tema.theme = patch.theme;
@@ -152,7 +152,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       return next;
     });
     if (kunci.length > 0) tandai(...kunci);
-  }, [bertindak, hapus, simpanKeStandar, tandai]);
+  }, [merekam, hapus, simpanKeStandar, tandai]);
 
   /** Ubah `parts` berbasis state terbaru (aman untuk perubahan beruntun). */
   const updateParts = useCallback((fn: (p: PartOverrides) => PartOverrides, kunci: string[]) => {
@@ -176,7 +176,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       setWarnaUI: (warnaUI) => update({ warnaUI }, ['tema.warnaUI']),
       setIconSet: (iconSet) => update({ iconSet }, ['tema.iconSet']),
       setGayaBagian: (id, patch) => {
-        if (bertindak) {
+        if (merekam) {
           hapus(`parts.gaya.${id}`);
           const g = gabungGaya(standar?.parts?.gaya?.[id] as PartGaya | undefined, patch);
           simpanKeStandar({
@@ -193,7 +193,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         }, [`parts.gaya.${id}`]);
       },
       setWarnaBagian: (mode, id, patch) => {
-        if (bertindak) {
+        if (merekam) {
           hapus(`parts.${mode}.${id}`);
           const w = gabungWarna(standar?.parts?.[mode]?.[id] as PartWarna | undefined, patch);
           simpanKeStandar({
@@ -211,7 +211,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       },
       resetBagian: (id) => {
         hapus(`parts.gaya.${id}`, `parts.terang.${id}`, `parts.gelap.${id}`);
-        if (bertindak) {
+        if (merekam) {
           simpanKeStandar({ parts: { gaya: { [id]: null }, terang: { [id]: null }, gelap: { [id]: null } } });
           return;
         }
@@ -227,7 +227,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       },
       resetBagianBanyak: (ids) => {
         hapus(...ids.flatMap((id) => [`parts.gaya.${id}`, `parts.terang.${id}`, `parts.gelap.${id}`]));
-        if (bertindak) {
+        if (merekam) {
           const nullMap = () => Object.fromEntries(ids.map((id) => [id, null]));
           simpanKeStandar({ parts: { gaya: nullMap(), terang: nullMap(), gelap: nullMap() } });
           return;
@@ -246,7 +246,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       },
       resetSemuaBagian: () => {
         hapus(...Object.keys(pribadi).filter((k) => k.startsWith('parts.')));
-        if (bertindak) {
+        if (merekam) {
           const kumpul = new Set([
             ...Object.keys(standar?.parts?.gaya ?? {}),
             ...Object.keys(standar?.parts?.terang ?? {}),
@@ -259,7 +259,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         updateParts(() => ({ gaya: {}, terang: {}, gelap: {} }), []);
       },
     };
-  }, [prefs, osDark, update, updateParts, hapus, pribadi, bertindak, simpanKeStandar, standar]);
+  }, [prefs, osDark, update, updateParts, hapus, pribadi, merekam, simpanKeStandar, standar]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

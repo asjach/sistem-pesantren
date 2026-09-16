@@ -6,11 +6,12 @@ import { RotateCcw, TriangleAlert } from '@/icons';
 /**
  * Banner peringatan saat super_admin "bertindak sebagai lembaga" (act-as).
  * Selalu terlihat (di atas ribbon) + tombol kembali ke mode penuh.
+ * Tombol "Rekam visual" menentukan perubahan tampilan ikut mengubah lembaga.
  */
 export default function BannerBertindak() {
   const { user } = useAuth();
   const { lembagaId, lembaga, pilih } = useLembagaAktif();
-  const { menyimpan } = useStandarTampilan();
+  const { rekam, setRekam, menyimpan } = useStandarTampilan();
 
   const superAdmin = !!user?.roles.some((r) => r.name === 'super_admin');
   if (!superAdmin || lembagaId == null) return null;
@@ -30,9 +31,29 @@ export default function BannerBertindak() {
       <span>
         Anda sedang bertindak sebagai <b>{label}</b>
       </span>
+
+      <label
+        htmlFor="chk_rekam_visual"
+        className="ml-1 inline-flex cursor-pointer items-center gap-1.5 rounded-md bg-black/10 px-2 py-0.5 font-medium dark:bg-white/15"
+        title="Jika aktif, perubahan tampilan ikut mengubah standar lembaga ini."
+      >
+        <input
+          id="chk_rekam_visual"
+          type="checkbox"
+          checked={rekam}
+          onChange={(e) => setRekam(e.target.checked)}
+          className="size-3.5 accent-current"
+          style={{ accentColor: 'currentColor' }}
+        />
+        Rekam visual
+      </label>
+
       <span className="opacity-80">
-        {menyimpan ? '· menyimpan standar…' : '· perubahan tampilan otomatis tersimpan ke standar lembaga ini'}
+        {rekam
+          ? (menyimpan ? '· menyimpan standar…' : '· perubahan tampilan tersimpan ke standar lembaga ini')
+          : '· hanya berperan, tampilan lembaga tidak diubah'}
       </span>
+
       <button
         id="btn_kembali_dari_bertindak"
         type="button"
