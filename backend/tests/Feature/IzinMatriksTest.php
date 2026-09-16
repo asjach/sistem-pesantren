@@ -9,8 +9,10 @@ use App\Models\User;
 use App\Services\IzinKatalog;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Route;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
 class IzinMatriksTest extends TestCase
@@ -63,7 +65,7 @@ class IzinMatriksTest extends TestCase
 
     protected function segarkanIzin(User $u): void
     {
-        app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
         $u->unsetRelation('permissions')->unsetRelation('roles');
     }
 
@@ -119,7 +121,7 @@ class IzinMatriksTest extends TestCase
             ->deleteJson("/api/admin/kelas/{$kelas->id}")
             ->assertStatus(200);
         $kelas = $this->fixtureKelas();
-        \Illuminate\Support\Facades\DB::table('user_lembaga')->insert([
+        DB::table('user_lembaga')->insert([
             'user_id' => $admin->id, 'lembaga_id' => $kelas->lembaga_id,
             'created_at' => now(), 'updated_at' => now(),
         ]);
@@ -158,5 +160,38 @@ class IzinMatriksTest extends TestCase
         ])->assertStatus(200);
 
         $this->assertSame(['santri.lihat'], $res->json('data.permissions'));
+    }
+
+    /**
+     * Setiap endpoint ber-auth di luar portal/kamus/publik wajib punya
+     * middleware `permission:` — route admin baru tanpa izin = suite merah.
+     */
+    public function test_07_semua_route_admin_bermiddleware_permission(): void
+    {
+        $terkecuali = ['api/auth', 'api/portal', 'api/kamus', 'api/psb/opsi', 'api/psb/cek-nik', 'api/psb/daftar', 'api/psb/daftar-paket'];
+        $tanpaIzin = [];
+        foreach (Route::getRoutes() as $route) {
+            $uri = $route->uri();
+            $mw = $route->gatherMiddleware();
+            if (! in_array('auth:sanctum', $mw, true)) {
+                continue;
+            }
+            $skip = false;
+            foreach ($terkecuali as $prefix) {
+                if (str_starts_with($uri, $prefix)) {
+                    $skip = true;
+                    break;
+                }
+            }
+            if ($skip) {
+                continue;
+            }
+            $ada = collect($mw)->contains(fn ($m) => is_string($m) && str_starts_with($m, 'permission:'));
+            if (! $ada) {
+                $tanpaIzin[] = implode('|', $route->methods())." {$uri}";
+            }
+        }
+
+        $this->assertSame([], $tanpaIzin);
     }
 }
