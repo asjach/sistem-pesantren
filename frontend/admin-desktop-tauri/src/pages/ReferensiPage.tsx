@@ -3,6 +3,7 @@ import {
   createReferensi,
   deleteReferensi,
   listLembaga,
+  pulihkanReferensi,
   referensiList,
   referensiTypes,
   updateReferensi,
@@ -37,7 +38,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { DeleteAction, EditAction } from '@/components/RowActions';
+import { ActionIcon, DeleteAction, EditAction } from '@/components/RowActions';
+import { Undo2 } from '@/icons';
 import { toast } from 'sonner';
 
 const STATUS_TIPE = ['status_awal', 'status_akhir'];
@@ -108,7 +110,7 @@ export default function ReferensiPage() {
     let alive = true;
     setErr('');
     setLoading(true);
-    referensiList(tipe, lembagaId === '' ? undefined : lembagaId)
+    referensiList(tipe, lembagaId === '' ? undefined : lembagaId, lembagaId !== '')
       .then((r) => { if (alive) setRows(r); })
       .catch((e) => { if (alive) setErr(errorMessage(e)); })
       .finally(() => { if (alive) setLoading(false); });
@@ -148,11 +150,13 @@ export default function ReferensiPage() {
           { key: 'urutan', label: 'Urutan', width: 80, kind: 'static' },
           ...(isStatusAkhir ? [{ key: 'sifat', label: 'Sifat', width: 170, kind: 'static' as const }] : []),
           { key: 'sumber', label: 'Sumber', width: 170, kind: 'static' },
+          { key: 'tampil', label: 'Tampil', width: 130, kind: 'static' },
         ]
       : [
           { key: 'nama', label: 'Nama', width: 220, kind: 'static' },
           { key: 'urutan', label: 'Urutan', width: 80, kind: 'static' },
           { key: 'sumber', label: 'Sumber', width: 170, kind: 'static' },
+          { key: 'tampil', label: 'Tampil', width: 130, kind: 'static' },
         ],
     [isStatus, isStatusAkhir],
   );
@@ -163,6 +167,7 @@ export default function ReferensiPage() {
     urutan: String(r.urutan ?? 0),
     sifat: sifatOf(r),
     sumber: lembagaName(r.lembaga_id),
+    tampil: r.is_active === false ? 'disembunyikan' : '',
   }), [lembagaName]);
 
   const q = search.trim().toLowerCase();
@@ -244,7 +249,30 @@ export default function ReferensiPage() {
     }
   }, [tipe, lembagaId, reload]);
 
+  const onPulihkan = useCallback(async (r: ReferensiRow) => {
+    try {
+      await pulihkanReferensi(tipe, r.id);
+      toast.success('Entri referensi ditampilkan kembali.');
+      reload();
+    } catch (e) {
+      setErr(errorMessage(e));
+    }
+  }, [tipe, reload]);
+
   const renderActions = useCallback((r: ReferensiRow) => {
+    // Baris lembaga nonaktif → tombol "Tampilkan kembali".
+    if (r.is_active === false && r.lembaga_id !== null) {
+      if (!canAccessRow(r.lembaga_id)) return null;
+      return (
+        <ActionIcon
+          id={`btn_pulihkan_referensi_${r.id}`}
+          title="Tampilkan kembali"
+          onClick={() => onPulihkan(r)}
+        >
+          <Undo2 size={16} />
+        </ActionIcon>
+      );
+    }
     const bolehUbah = canUbahRow(r);
     const bolehNonaktif = canNonaktifRow(r);
     if (!bolehUbah && !bolehNonaktif) return null;
@@ -263,7 +291,7 @@ export default function ReferensiPage() {
         )}
       </>
     );
-  }, [canUbahRow, canNonaktifRow, openEdit, onDelete, lembagaName, lembagaId]);
+  }, [canUbahRow, canNonaktifRow, canAccessRow, openEdit, onDelete, onPulihkan, lembagaName, lembagaId]);
 
   return (
     <div className={PAGE_SHELL}>

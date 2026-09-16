@@ -28,8 +28,11 @@ class RefService
 
     public static function table(string $tipe): string
     {
-        if (! isset(self::KEY[$tipe])) abort(422, "Tipe referensi tidak valid: $tipe.");
-        return 'ref_' . $tipe;
+        if (! isset(self::KEY[$tipe])) {
+            abort(422, "Tipe referensi tidak valid: $tipe.");
+        }
+
+        return 'ref_'.$tipe;
     }
 
     public const VERSI_KEY = 'ref:versi_global';
@@ -46,7 +49,7 @@ class RefService
 
     public static function kunci(string $tipe, ?int $lembagaId): string
     {
-        return "ref:$tipe:$lembagaId:v" . self::versiGlobal();
+        return "ref:$tipe:$lembagaId:v".self::versiGlobal();
     }
 
     // Gabung baris global (lembaga null) + baris lembaga; baris lembaga menang per kunci.
@@ -54,6 +57,7 @@ class RefService
     {
         $table = self::table($tipe);
         $key = self::KEY[$tipe];
+
         return Cache::remember(self::kunci($tipe, $lembagaId), 300, function () use ($table, $key, $lembagaId) {
             $rows = DB::table($table)
                 ->whereNull('lembaga_id')
@@ -61,22 +65,49 @@ class RefService
                 // Urut tampil: urutan ASC, tie-break nama ASC (seragam 36 tabel ref).
                 ->orderBy('urutan')->orderBy('nama')->get();
             $map = [];
-            foreach ($rows as $r) $map[$r->{$key}] = $r;
+            foreach ($rows as $r) {
+                $map[$r->{$key}] = $r;
+            }
+
             return array_values(array_filter($map, fn ($r) => (bool) $r->is_active));
         });
+    }
+
+    /** Gabungan global + lembaga TANPA buang baris nonaktif (untuk "Tampilkan kembali"). */
+    public static function semua(string $tipe, ?int $lembagaId): array
+    {
+        $table = self::table($tipe);
+        $key = self::KEY[$tipe];
+
+        $global = DB::table($table)->whereNull('lembaga_id')->get();
+        $milik = $lembagaId === null ? collect() : DB::table($table)->where('lembaga_id', $lembagaId)->get();
+
+        $map = [];
+        foreach ($global as $r) {
+            $map[$r->{$key}] = $r;
+        }
+        foreach ($milik as $r) {
+            $map[$r->{$key}] = $r;
+        }
+
+        return collect($map)->sortBy([['urutan', 'asc'], ['nama', 'asc']])->values()->all();
     }
 
     public static function kodeAktif(string $tipe, ?int $lembagaId): array
     {
         $key = self::KEY[$tipe];
+
         return array_map(fn ($r) => $r->{$key}, self::effective($tipe, $lembagaId));
     }
 
     public static function sifatStatusAkhir(string $kode, ?int $lembagaId): ?object
     {
         foreach (self::effective('status_akhir', $lembagaId) as $r) {
-            if ($r->kode === $kode) return $r;
+            if ($r->kode === $kode) {
+                return $r;
+            }
         }
+
         return null;
     }
 
@@ -94,14 +125,17 @@ class RefService
 
     public static function effectiveAlamat(?int $lembagaId): array
     {
-        return Cache::remember('ref:alamat:' . $lembagaId . ':v' . self::versiGlobal(), 300, function () use ($lembagaId) {
+        return Cache::remember('ref:alamat:'.$lembagaId.':v'.self::versiGlobal(), 300, function () use ($lembagaId) {
             $rows = DB::table('ref_alamat')
                 ->whereNull('lembaga_id')
                 ->when($lembagaId, fn ($q) => $q->orWhere('lembaga_id', $lembagaId))
                 // Urut tampil: urutan ASC, tie-break nama ASC.
                 ->orderBy('urutan')->orderBy('nama')->get();
             $map = [];
-            foreach ($rows as $r) $map[$r->nama] = $r;
+            foreach ($rows as $r) {
+                $map[$r->nama] = $r;
+            }
+
             return array_values(array_filter($map, fn ($r) => (bool) $r->is_active));
         });
     }
@@ -113,7 +147,7 @@ class RefService
 
             return;
         }
-        Cache::forget('ref:alamat:' . $lembagaId . ':v' . self::versiGlobal());
+        Cache::forget('ref:alamat:'.$lembagaId.':v'.self::versiGlobal());
     }
 
     // Alias lama (kompatibilitas sementara): efektif() => effective().

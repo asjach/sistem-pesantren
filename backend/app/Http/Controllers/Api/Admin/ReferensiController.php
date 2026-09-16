@@ -42,7 +42,34 @@ class ReferensiController extends Controller
             abort(403);
         }
 
+        if ($request->boolean('termasuk_nonaktif')) {
+            // Sertakan baris nonaktif (shadow/custom) agar UI bisa menawarkan pulihkan.
+            return response()->json(RefService::semua($tipe, $lembagaId));
+        }
+
         return response()->json(RefService::effective($tipe, $lembagaId));
+    }
+
+    /** Pulihkan baris lembaga yang nonaktif ("Tampilkan kembali"). */
+    public function pulihkan(Request $request, string $tipe, int $id)
+    {
+        $actor = $request->user();
+        RefService::KEY[$tipe] ?? abort(422, 'Tipe tidak valid.');
+        $table = RefService::table($tipe);
+        $row = DB::table($table)->find($id) ?? abort(404);
+
+        if (is_null($row->lembaga_id)) {
+            abort(422, 'Baris global selalu tampil; tidak ada yang perlu dipulihkan.');
+        }
+        if (! $this->canLembaga($actor, (int) $row->lembaga_id)) {
+            abort(403, 'Di luar lembaga Anda.');
+        }
+
+        DB::table($table)->where('id', $id)->update(['is_active' => true]);
+        RefService::forget($row->lembaga_id);
+        RefService::forgetAlamat($row->lembaga_id);
+
+        return response()->json(DB::table($table)->find($id));
     }
 
     public function store(Request $request, string $tipe)

@@ -49,9 +49,9 @@ class ReferensiCrudTest extends TestCase
     {
         $this->userSeq++;
         $u = User::create([
-            'name' => ucfirst($role) . ' ' . $this->userSeq,
-            'email' => "refcrud_u{$this->userSeq}_" . uniqid() . '@example.com',
-            'phone' => '08' . str_pad((string) (9300000000 + $this->userSeq * 137 + random_int(0, 99)), 10, '0', STR_PAD_LEFT),
+            'name' => ucfirst($role).' '.$this->userSeq,
+            'email' => "refcrud_u{$this->userSeq}_".uniqid().'@example.com',
+            'phone' => '08'.str_pad((string) (9300000000 + $this->userSeq * 137 + random_int(0, 99)), 10, '0', STR_PAD_LEFT),
             'password' => 'password',
         ]);
         $u->assignRole($role);
@@ -266,5 +266,44 @@ class ReferensiCrudTest extends TestCase
         // Panggilan pertama mengisi cache; panggilan kedua membaca dari cache.
         $this->assertSame(['Islam'], RefService::kodeAktif('agama', null));
         $this->assertSame(['Islam'], RefService::kodeAktif('agama', null));
+    }
+
+    // ---------- 09. Tampilkan kembali baris lembaga yang nonaktif ----------
+
+    public function test_09_pulihkan_baris_lembaga_nonaktif(): void
+    {
+        $f = $this->fixture();
+        $admin = $this->makeUser('admin', [$f['mi']->id]);
+
+        DB::table('ref_agama')->insert(['lembaga_id' => null, 'nama' => 'Islam', 'urutan' => 0, 'is_active' => true]);
+        $idGlobal = (int) DB::table('ref_agama')->where('nama', 'Islam')->value('id');
+
+        // MI menyembunyikan entri global (shadow nonaktif).
+        $this->actingAs($admin, 'sanctum')->deleteJson('/api/admin/referensi/agama/'.$idGlobal)
+            ->assertStatus(200);
+        $this->assertSame([], $this->namaEfektif('agama', $f['mi']->id));
+
+        // Daftar default tidak memuat yang tersembunyi; termasuk_nonaktif memuatnya.
+        $default = $this->actingAs($admin, 'sanctum')
+            ->getJson('/api/admin/referensi/agama?lembaga_id='.$f['mi']->id)->assertStatus(200);
+        $this->assertSame([], array_column($default->json(), 'nama'));
+
+        $dengan = $this->actingAs($admin, 'sanctum')
+            ->getJson('/api/admin/referensi/agama?lembaga_id='.$f['mi']->id.'&termasuk_nonaktif=1')->assertStatus(200);
+        $bayangan = collect($dengan->json())->firstWhere('nama', 'Islam');
+        $this->assertNotNull($bayangan);
+        $this->assertFalse((bool) $bayangan['is_active']);
+
+        // Pulihkan → entri tampil lagi; baris global tidak bisa dipulihkan.
+        $this->actingAs($admin, 'sanctum')
+            ->postJson('/api/admin/referensi/agama/'.$bayangan['id'].'/pulihkan')->assertStatus(200);
+        $this->assertSame(['Islam'], $this->namaEfektif('agama', $f['mi']->id));
+        $this->actingAs($admin, 'sanctum')
+            ->postJson('/api/admin/referensi/agama/'.$idGlobal.'/pulihkan')->assertStatus(422);
+
+        // Lembaga lain tidak boleh memulihkan baris milik MI.
+        $adminMd = $this->makeUser('admin', [$f['md']->id]);
+        $this->actingAs($adminMd, 'sanctum')
+            ->postJson('/api/admin/referensi/agama/'.$bayangan['id'].'/pulihkan')->assertStatus(403);
     }
 }
