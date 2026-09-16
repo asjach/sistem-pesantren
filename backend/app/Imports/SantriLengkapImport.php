@@ -59,122 +59,152 @@ class SantriLengkapImport implements SkipsOnFailure, SkipsUnknownSheets, ToColle
             $no = 0;
             foreach ($rows as $row) {
                 $no++;
+                $baris = $row instanceof Collection ? $row->toArray() : $row;
                 // Baris tanpa nama_lengkap dianggap baris kosong/pemisah, lewati
-                if (empty($row['nama_lengkap'])) {
+                if (empty($baris['nama_lengkap'])) {
                     continue;
                 }
 
-                $dataSantri = [
-                    'nama_lengkap' => $row['nama_lengkap'],
-                    'nama_singkat' => $row['nama_singkat'] ?? null,
-                    'nisn' => $row['nisn'] ?? null,
-                    'tmp_lahir' => $row['tmp_lahir'] ?? null,
-                    'tgl_lahir' => $this->parseTanggal($row['tgl_lahir'] ?? null),
-                    'jk' => $row['jk'] ?? null,
-                    'anak_ke' => $row['anak_ke'] ?? null,
-                    'j_saudara' => $row['j_saudara'] ?? null,
-                    'tipe_santri' => in_array($row['tipe_santri'] ?? null, ['asrama', 'non_asrama'], true) ? $row['tipe_santri'] : 'non_asrama',
-                    'no_hp_santri' => $row['no_hp_santri'] ?? null,
-                    'email_santri' => $row['email_santri'] ?? null,
-                    'agama' => $row['agama'] ?? 'Islam',
-                    'cita_cita' => $row['cita_cita'] ?? null,
-                    'hobi' => $row['hobi'] ?? null,
-                    'kebutuhan_khusus' => $row['kebutuhan_khusus'] ?? null,
-                    'kebutuhan_disabilitas' => $row['kebutuhan_disabilitas'] ?? null,
-                    'nomor_kip' => $row['nomor_kip'] ?? null,
-                    'no_kk' => $row['no_kk'] ?? null,
-                    'kewarganegaraan' => ($row['kewarganegaraan'] ?? null) ?: 'WNI',
-                    'bahasa_sehari' => $row['bahasa_sehari'] ?? null,
-                    'status_tempat_tinggal' => $row['status_tempat_tinggal'] ?? null,
-                    'jarak_ke_pesantren' => $row['jarak_ke_pesantren'] ?? null,
-                    'waktu_tempuh' => $row['waktu_tempuh'] ?? null,
-                    'transportasi' => $row['transportasi'] ?? null,
-                    'tanggal_masuk' => $this->parseTanggal($row['tanggal_masuk'] ?? null),
-
-                    // Data Orang Tua & Wali
-                    'ayah_nama' => $row['ayah_nama'] ?? null,
-                    'ayah_nik' => $row['ayah_nik'] ?? null,
-                    'ayah_tmp_lahir' => $row['ayah_tmp_lahir'] ?? null,
-                    'ayah_tgl_lahir' => $this->parseTanggal($row['ayah_tgl_lahir'] ?? null),
-                    'ayah_status' => $row['ayah_status'] ?? null,
-                    'ayah_pendidikan' => $row['ayah_pendidikan'] ?? null,
-                    'ayah_pekerjaan' => $row['ayah_pekerjaan'] ?? null,
-                    'ayah_penghasilan' => $row['ayah_penghasilan'] ?? null,
-                    'ayah_telp' => $row['ayah_telp'] ?? null,
-                    'ayah_alamat' => $row['ayah_alamat'] ?? null,
-                    'ayah_status_tempat_tinggal' => $row['ayah_status_tempat_tinggal'] ?? null,
-                    'ibu_nama' => $row['ibu_nama'] ?? null,
-                    'ibu_nik' => $row['ibu_nik'] ?? null,
-                    'ibu_tmp_lahir' => $row['ibu_tmp_lahir'] ?? null,
-                    'ibu_tgl_lahir' => $this->parseTanggal($row['ibu_tgl_lahir'] ?? null),
-                    'ibu_status' => $row['ibu_status'] ?? null,
-                    'ibu_pendidikan' => $row['ibu_pendidikan'] ?? null,
-                    'ibu_pekerjaan' => $row['ibu_pekerjaan'] ?? null,
-                    'ibu_penghasilan' => $row['ibu_penghasilan'] ?? null,
-                    'ibu_telp' => $row['ibu_telp'] ?? null,
-                    'ibu_alamat' => $row['ibu_alamat'] ?? null,
-                    'ibu_status_tempat_tinggal' => $row['ibu_status_tempat_tinggal'] ?? null,
-                    'wali_nama' => $row['wali_nama'] ?? null,
-                    'wali_nik' => $row['wali_nik'] ?? null,
-                    'wali_tmp_lahir' => $row['wali_tmp_lahir'] ?? null,
-                    'wali_tgl_lahir' => $this->parseTanggal($row['wali_tgl_lahir'] ?? null),
-                    'wali_status' => $row['wali_status'] ?? null,
-                    'wali_pendidikan' => $row['wali_pendidikan'] ?? null,
-                    'wali_pekerjaan' => $row['wali_pekerjaan'] ?? null,
-                    'wali_penghasilan' => $row['wali_penghasilan'] ?? null,
-                    'wali_telp' => $row['wali_telp'] ?? null,
-                    'wali_alamat' => $row['wali_alamat'] ?? null,
-                    'wali_status_tempat_tinggal' => $row['wali_status_tempat_tinggal'] ?? null,
-                    'yang_membiayai' => $row['yang_membiayai'] ?? null,
-
-                    // Alamat
-                    'provinsi' => $row['provinsi'] ?? null,
-                    'kab_kota' => $row['kab_kota'] ?? null,
-                    'kecamatan' => $row['kecamatan'] ?? null,
-                    'desa_kelurahan' => $row['desa_kelurahan'] ?? null,
-                    'rt' => $row['rt'] ?? null,
-                    'rw' => $row['rw'] ?? null,
-                    'alamat' => $row['alamat'] ?? null,
-                    'kode_pos' => $row['kode_pos'] ?? null,
-                ];
-
-                // PENTING: hanya pakai pencocokan NIK saat NIK terisi.
-                // NIK kosong → selalu create() baru (pitfall null = semua baris saling menimpa).
-                if (! empty($row['nik'])) {
-                    // Dedup identitas nik+nama+tgl_lahir (NIK boleh fiktif/ganda).
-                    $kunci = strtolower(trim((string) $row['nik'])).'|'.strtolower(trim((string) $dataSantri['nama_lengkap'])).'|'.(string) ($dataSantri['tgl_lahir'] ?? '');
-                    if (isset($dilihat[$kunci])) {
-                        $dilihat[$kunci]->update($dataSantri);
-                    } else {
-                        // Banding tanggal di PHP (format Y-m-d) agar berlaku MySQL+SQLite.
-                        $tglBaru = ! empty($dataSantri['tgl_lahir'])
-                            ? Carbon::parse($dataSantri['tgl_lahir'])->format('Y-m-d')
-                            : null;
-                        $santri = Santri::where('nik', $row['nik'])
-                            ->where('nama_lengkap', $dataSantri['nama_lengkap'])
-                            ->get()
-                            ->first(function (Santri $s) use ($tglBaru) {
-                                $tglLama = ! empty($s->tgl_lahir)
-                                    ? Carbon::parse($s->tgl_lahir)->format('Y-m-d')
-                                    : null;
-
-                                return $tglLama === $tglBaru;
-                            });
-
-                        if ($santri) {
-                            $santri->update($dataSantri);
-                        } else {
-                            $santri = Santri::create(array_merge($dataSantri, ['nik' => $row['nik']]));
-                        }
-                        $dilihat[$kunci] = $santri;
-                    }
-                } else {
-                    Santri::create(array_merge($dataSantri, ['nik' => null]));
-                }
+                $this->simpanDenganNik($baris, $this->buatDataSantri($baris), $dilihat);
 
                 $this->barisValid++;
             }
         });
+    }
+
+    /**
+     * Bangun array kolom `santri` dari satu baris file (dipakai ulang import gabungan).
+     *
+     * @param  array<string, mixed>  $row
+     * @return array<string, mixed>
+     */
+    protected function buatDataSantri(array $row): array
+    {
+        return [
+            'nama_lengkap' => $row['nama_lengkap'],
+            'nama_singkat' => $row['nama_singkat'] ?? null,
+            'nisn' => $row['nisn'] ?? null,
+            'tmp_lahir' => $row['tmp_lahir'] ?? null,
+            'tgl_lahir' => $this->parseTanggal($row['tgl_lahir'] ?? null),
+            'jk' => $row['jk'] ?? null,
+            'anak_ke' => $row['anak_ke'] ?? null,
+            'j_saudara' => $row['j_saudara'] ?? null,
+            'tipe_santri' => in_array($row['tipe_santri'] ?? null, ['asrama', 'non_asrama'], true) ? $row['tipe_santri'] : 'non_asrama',
+            'no_hp_santri' => $row['no_hp_santri'] ?? null,
+            'email_santri' => $row['email_santri'] ?? null,
+            'agama' => $row['agama'] ?? 'Islam',
+            'cita_cita' => $row['cita_cita'] ?? null,
+            'hobi' => $row['hobi'] ?? null,
+            'kebutuhan_khusus' => $row['kebutuhan_khusus'] ?? null,
+            'kebutuhan_disabilitas' => $row['kebutuhan_disabilitas'] ?? null,
+            'nomor_kip' => $row['nomor_kip'] ?? null,
+            'no_kk' => $row['no_kk'] ?? null,
+            'kewarganegaraan' => ($row['kewarganegaraan'] ?? null) ?: 'WNI',
+            'bahasa_sehari' => $row['bahasa_sehari'] ?? null,
+            'status_tempat_tinggal' => $row['status_tempat_tinggal'] ?? null,
+            'jarak_ke_pesantren' => $row['jarak_ke_pesantren'] ?? null,
+            'waktu_tempuh' => $row['waktu_tempuh'] ?? null,
+            'transportasi' => $row['transportasi'] ?? null,
+            'tanggal_masuk' => $this->parseTanggal($row['tanggal_masuk'] ?? null),
+
+            // Data Orang Tua & Wali
+            'ayah_nama' => $row['ayah_nama'] ?? null,
+            'ayah_nik' => $row['ayah_nik'] ?? null,
+            'ayah_tmp_lahir' => $row['ayah_tmp_lahir'] ?? null,
+            'ayah_tgl_lahir' => $this->parseTanggal($row['ayah_tgl_lahir'] ?? null),
+            'ayah_status' => $row['ayah_status'] ?? null,
+            'ayah_pendidikan' => $row['ayah_pendidikan'] ?? null,
+            'ayah_pekerjaan' => $row['ayah_pekerjaan'] ?? null,
+            'ayah_penghasilan' => $row['ayah_penghasilan'] ?? null,
+            'ayah_telp' => $row['ayah_telp'] ?? null,
+            'ayah_alamat' => $row['ayah_alamat'] ?? null,
+            'ayah_status_tempat_tinggal' => $row['ayah_status_tempat_tinggal'] ?? null,
+            'ibu_nama' => $row['ibu_nama'] ?? null,
+            'ibu_nik' => $row['ibu_nik'] ?? null,
+            'ibu_tmp_lahir' => $row['ibu_tmp_lahir'] ?? null,
+            'ibu_tgl_lahir' => $this->parseTanggal($row['ibu_tgl_lahir'] ?? null),
+            'ibu_status' => $row['ibu_status'] ?? null,
+            'ibu_pendidikan' => $row['ibu_pendidikan'] ?? null,
+            'ibu_pekerjaan' => $row['ibu_pekerjaan'] ?? null,
+            'ibu_penghasilan' => $row['ibu_penghasilan'] ?? null,
+            'ibu_telp' => $row['ibu_telp'] ?? null,
+            'ibu_alamat' => $row['ibu_alamat'] ?? null,
+            'ibu_status_tempat_tinggal' => $row['ibu_status_tempat_tinggal'] ?? null,
+            'wali_nama' => $row['wali_nama'] ?? null,
+            'wali_nik' => $row['wali_nik'] ?? null,
+            'wali_tmp_lahir' => $row['wali_tmp_lahir'] ?? null,
+            'wali_tgl_lahir' => $this->parseTanggal($row['wali_tgl_lahir'] ?? null),
+            'wali_status' => $row['wali_status'] ?? null,
+            'wali_pendidikan' => $row['wali_pendidikan'] ?? null,
+            'wali_pekerjaan' => $row['wali_pekerjaan'] ?? null,
+            'wali_penghasilan' => $row['wali_penghasilan'] ?? null,
+            'wali_telp' => $row['wali_telp'] ?? null,
+            'wali_alamat' => $row['wali_alamat'] ?? null,
+            'wali_status_tempat_tinggal' => $row['wali_status_tempat_tinggal'] ?? null,
+            'yang_membiayai' => $row['yang_membiayai'] ?? null,
+
+            // Alamat
+            'provinsi' => $row['provinsi'] ?? null,
+            'kab_kota' => $row['kab_kota'] ?? null,
+            'kecamatan' => $row['kecamatan'] ?? null,
+            'desa_kelurahan' => $row['desa_kelurahan'] ?? null,
+            'rt' => $row['rt'] ?? null,
+            'rw' => $row['rw'] ?? null,
+            'alamat' => $row['alamat'] ?? null,
+            'kode_pos' => $row['kode_pos'] ?? null,
+        ];
+    }
+
+    /**
+     * Upsert identitas via kunci NIK (dipakai ulang import gabungan).
+     * NIK kosong → selalu create() baru (pitfall null = semua baris saling menimpa).
+     *
+     * @param  array<string, mixed>  $row
+     * @param  array<string, mixed>  $dataSantri
+     * @param  array<string, Santri>  $dilihat  guard duplikat intra-file (kunci nik|nama|tgl)
+     */
+    protected function simpanDenganNik(array $row, array $dataSantri, array &$dilihat): Santri
+    {
+        // PENTING: hanya pakai pencocokan NIK saat NIK terisi.
+        if (! empty($row['nik'])) {
+            // Dedup identitas nik+nama+tgl_lahir (NIK boleh fiktif/ganda).
+            $kunci = strtolower(trim((string) $row['nik'])).'|'.strtolower(trim((string) $dataSantri['nama_lengkap'])).'|'.(string) ($dataSantri['tgl_lahir'] ?? '');
+            if (isset($dilihat[$kunci])) {
+                $dilihat[$kunci]->update($dataSantri);
+
+                return $dilihat[$kunci];
+            }
+            // Banding tanggal di PHP (format Y-m-d) agar berlaku MySQL+SQLite.
+            $tglBaru = ! empty($dataSantri['tgl_lahir'])
+                ? Carbon::parse($dataSantri['tgl_lahir'])->format('Y-m-d')
+                : null;
+            $santri = Santri::where('nik', $row['nik'])
+                ->where('nama_lengkap', $dataSantri['nama_lengkap'])
+                ->get()
+                ->first(function (Santri $s) use ($tglBaru) {
+                    $tglLama = ! empty($s->tgl_lahir)
+                        ? Carbon::parse($s->tgl_lahir)->format('Y-m-d')
+                        : null;
+
+                    return $tglLama === $tglBaru;
+                });
+
+            if ($santri) {
+                $santri->update($dataSantri);
+            } else {
+                $santri = Santri::create(array_merge($dataSantri, ['nik' => $row['nik']]));
+            }
+            $dilihat[$kunci] = $santri;
+
+            return $santri;
+        }
+
+        return Santri::create(array_merge($dataSantri, ['nik' => null]));
+    }
+
+    protected function fail(int $no, string $attribute, string $pesan): void
+    {
+        $this->failures[] = new Failure($no, $attribute, [$pesan], []);
     }
 
     /**

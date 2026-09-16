@@ -11,7 +11,7 @@ class ImportSantriRequest extends FormRequest
         return true;
     }
 
-    /** Import buku induk: hanya file. Keanggotaan/riwayat punya import terpisah. */
+    /** Import buku induk & gabungan: hanya file. Riwayat akademik punya import terpisah. */
     public function rules(): array
     {
         return [

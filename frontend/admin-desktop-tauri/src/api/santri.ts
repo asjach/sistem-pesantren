@@ -91,7 +91,7 @@ export interface ImportError {
 export interface ImportPeriksa {
   pesan: string;
   siap_import: boolean;
-  ringkasan: { baris_diproses: number; baris_valid: number; baris_gagal: number };
+  ringkasan: { baris_diproses: number; baris_valid: number; baris_gagal: number; baris_diperbarui?: number };
   errors: ImportError[];
 }
 
@@ -100,6 +100,34 @@ export function periksaImportSantri(input: { file: File }) {
   const fd = new FormData();
   fd.set('file', input.file);
   return apiUpload<ImportPeriksa>('/admin/santri/import-periksa', fd);
+}
+
+// ---------- Import gabungan siswa (identitas + keanggotaan) ----------
+
+/** Unduh template gabungan: blok keanggotaan dulu, lalu seluruh kolom profil. */
+export function unduhTemplateSantriGabungan() {
+  return downloadFile('/admin/santri/import-template-gabungan', 'template-import-siswa-gabungan.xlsx');
+}
+
+/** Unduh data existing satu lembaga (pra-isi santri_id) untuk round-trip update. */
+export function unduhDataSantriGabungan(lembagaId: number) {
+  return downloadFile(
+    `/admin/santri/data-gabungan?lembaga_id=${lembagaId}`,
+    `data-siswa-${lembagaId}.xlsx`,
+  );
+}
+
+export function importSantriGabungan(input: { file: File }) {
+  const fd = new FormData();
+  fd.set('file', input.file);
+  return apiUpload<{ pesan: string; errors?: ImportError[] }>('/admin/santri/import-gabungan', fd);
+}
+
+/** Validasi file gabungan tanpa menulis (dry-run). */
+export function periksaImportSantriGabungan(input: { file: File }) {
+  const fd = new FormData();
+  fd.set('file', input.file);
+  return apiUpload<ImportPeriksa>('/admin/santri/import-periksa-gabungan', fd);
 }
 
 // ---------- Keanggotaan per lembaga ----------

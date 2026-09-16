@@ -7,6 +7,8 @@
 > 34 `ref_*` global+shadow (no.50); seed no.51; pitfall multi-NULL MySQL →
 > dedup di service, bukan index (`002` catatan 9). Matriks izin (v2.38):
 > aksi = `permissions`/`role_has_permissions`, cakupan tetap pivot.
+> Import gabungan siswa (v2.39): satu file menulis `santri` + `lembaga_santri`
+> (tanpa migrasi; cocok `santri_id`/NIK/NIS, baris luar tenant ditolak).
 
 Urutan CREATE: `lembaga` → `ref_*` → `users` → `user_lembaga` →
 `tahun_ajaran` → `pegawai` → `kelas` (`walas_id` inline) → santri/riwayat →

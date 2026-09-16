@@ -5,12 +5,16 @@ import {
   createSantri,
   generateNisk,
   importSantri,
+  importSantriGabungan,
   listDokumenSantri,
   listLembagaSantri,
   listSantri,
   periksaImportSantri,
+  periksaImportSantriGabungan,
   tidakMemilikiDokumen,
+  unduhDataSantriGabungan,
   unduhTemplateSantri,
+  unduhTemplateSantriGabungan,
   updateLembagaSantri,
   updateSantri,
   uploadDokumenSantri,
@@ -176,6 +180,7 @@ export default function SantriPage() {
   const [terapkanCari, setTerapkanCari] = useState('');
 
   const [importOpen, setImportOpen] = useState(false);
+  const [importMode, setImportMode] = useState<'identitas' | 'gabungan'>('identitas');
   const [importFile, setImportFile] = useState<File | null>(null);
   const [periksaHasil, setPeriksaHasil] = useState<ImportPeriksa | null>(null);
   const [periksaBusy, setPeriksaBusy] = useState(false);
@@ -508,15 +513,21 @@ export default function SantriPage() {
       <Dialog open={importOpen} onOpenChange={setImportOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Import identitas santri</DialogTitle>
-            <DialogDescription>Buku induk: hanya identitas. Keanggotaan/riwayat lewat halaman masing-masing.</DialogDescription>
+            <DialogTitle>{importMode === 'gabungan' ? 'Import gabungan siswa' : 'Import identitas santri'}</DialogTitle>
+            <DialogDescription>
+              {importMode === 'gabungan'
+                ? 'Satu file: keanggotaan (blok awal) + identitas. Cocok santri_id / NIK / NIS; baris baru otomatis dibuat.'
+                : 'Buku induk: hanya identitas. Keanggotaan/riwayat lewat halaman masing-masing.'}
+            </DialogDescription>
           </DialogHeader>
           <form className="grid grid-cols-2 gap-3" onSubmit={async (e) => {
             e.preventDefault();
             if (!importFile || !periksaHasil?.siap_import) return;
             setBusy(true);
             try {
-              const res = await importSantri({ file: importFile });
+              const res = importMode === 'gabungan'
+                ? await importSantriGabungan({ file: importFile })
+                : await importSantri({ file: importFile });
               if (res.errors?.length) {
                 toast.error(res.errors.map((x) => `Baris ${x.row} (${x.attribute}): ${x.errors.join(', ')}`).join(' · '));
               } else {
@@ -530,15 +541,61 @@ export default function SantriPage() {
               setBusy(false);
             }
           }}>
-            <Button
-              id="btn_unduh_template_santri"
-              type="button"
-              variant="link"
-              className="col-span-2 h-auto justify-start px-0"
-              onClick={() => void unduhTemplateSantri(singleLembagaId ?? undefined).catch((e) => toast.error(errorMessage(e)))}
-            >
-              <Download data-icon="inline-start" size={16} /> Unduh template Excel identitas
-            </Button>
+            <div className="col-span-2 flex gap-1.5" role="group" aria-label="Mode import">
+              {(['identitas', 'gabungan'] as const).map((m) => (
+                (m === 'identitas' || bisa(user, 'santri.ubah')) && (
+                  <Button
+                    key={m}
+                    id={`btn_mode_import_${m}`}
+                    type="button"
+                    size="sm"
+                    variant={importMode === m ? 'default' : 'outline'}
+                    onClick={() => { setImportMode(m); setImportFile(null); setPeriksaHasil(null); }}
+                  >
+                    {m === 'identitas' ? 'Identitas saja' : 'Gabungan + keanggotaan'}
+                  </Button>
+                )
+              ))}
+            </div>
+            {importMode === 'identitas' ? (
+              <Button
+                id="btn_unduh_template_santri"
+                type="button"
+                variant="link"
+                className="col-span-2 h-auto justify-start px-0"
+                onClick={() => void unduhTemplateSantri(singleLembagaId ?? undefined).catch((e) => toast.error(errorMessage(e)))}
+              >
+                <Download data-icon="inline-start" size={16} /> Unduh template Excel identitas
+              </Button>
+            ) : (
+              <>
+                <Button
+                  id="btn_unduh_template_gabungan"
+                  type="button"
+                  variant="link"
+                  className="h-auto justify-start px-0"
+                  onClick={() => void unduhTemplateSantriGabungan().catch((e) => toast.error(errorMessage(e)))}
+                >
+                  <Download data-icon="inline-start" size={16} /> Template gabungan
+                </Button>
+                <Button
+                  id="btn_unduh_data_gabungan"
+                  type="button"
+                  variant="link"
+                  className="h-auto justify-start px-0"
+                  onClick={() => {
+                    const idLembaga = lembagaId ? Number(lembagaId) : singleLembagaId;
+                    if (!idLembaga) {
+                      toast.error('Pilih lembaga dulu (filter) untuk mengunduh data existing.');
+                      return;
+                    }
+                    void unduhDataSantriGabungan(idLembaga).catch((e) => toast.error(errorMessage(e)));
+                  }}
+                >
+                  <Download data-icon="inline-start" size={16} /> Data existing (update)
+                </Button>
+              </>
+            )}
             <Input
               id="input_file_import_santri"
               className="col-span-2"
@@ -551,6 +608,7 @@ export default function SantriPage() {
               <div className="col-span-2 rounded-md border p-3 text-sm" id="hasil_periksa_import_santri">
                 <p className="font-medium">
                   {periksaHasil.ringkasan.baris_diproses} baris diperiksa · {periksaHasil.ringkasan.baris_valid} valid · {periksaHasil.ringkasan.baris_gagal} bermasalah
+                  {(periksaHasil.ringkasan.baris_diperbarui ?? 0) > 0 ? ` · ${periksaHasil.ringkasan.baris_diperbarui} pembaruan` : ''}
                 </p>
                 {periksaHasil.errors.length > 0 ? (
                   <ul className="mt-2 max-h-40 space-y-1 overflow-auto text-xs text-destructive">
@@ -567,7 +625,9 @@ export default function SantriPage() {
                 if (!importFile) return;
                 setPeriksaBusy(true);
                 try {
-                  const res = await periksaImportSantri({ file: importFile });
+                  const res = importMode === 'gabungan'
+                    ? await periksaImportSantriGabungan({ file: importFile })
+                    : await periksaImportSantri({ file: importFile });
                   setPeriksaHasil(res);
                   if (res.siap_import) toast.success(res.pesan); else toast.error(res.pesan);
                 } catch (e2) {

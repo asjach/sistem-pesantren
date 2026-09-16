@@ -2,10 +2,13 @@
 
 namespace App\Http\Controllers\Api\Admin;
 
+use App\Exports\SantriLembagaDataExport;
+use App\Exports\SantriLembagaTemplateExport;
 use App\Exports\SantriTemplateExport;
 use App\Http\Controllers\Api\Concerns\TenantGuard;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\ImportSantriRequest;
+use App\Imports\SantriLembagaImport;
 use App\Imports\SantriLengkapImport;
 use App\Models\DokumenSantri;
 use App\Models\Lembaga;
@@ -20,11 +23,12 @@ use Illuminate\Validation\ValidationException as ServiceValidationException;
 use Maatwebsite\Excel\Facades\Excel;
 use Maatwebsite\Excel\Validators\Failure;
 use Maatwebsite\Excel\Validators\ValidationException;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 
 /**
  * Buku Induk santri — identitas murni (`santri`).
- * Keanggotaan per lembaga (`lembaga_santri`) dan riwayat akademik
- * (`riwayat_belajar`) dikelola controller terpisah.
+ * Keanggotaan per lembaga (`lembaga_santri`): dikelola endpoint khusus +
+ * import gabungan siswa; riwayat akademik (`riwayat_belajar`) controller terpisah.
  */
 class SantriController extends Controller
 {
@@ -303,5 +307,172 @@ class SantriController extends Controller
         }
 
         return $errors;
+    }
+
+    /** Izin tulis gabungan: tambah (santri baru) DAN ubah (update + keanggotaan). */
+    private function authorizeTulisGabungan(Request $request): void
+    {
+        $auth = $request->user();
+        if (! $auth || ! $auth->can('santri.tambah') || ! $auth->can('santri.ubah')) {
+            abort(403, 'Akses ditolak.');
+        }
+    }
+
+    /** Lembaga operasional yang boleh diakses pengunduh (dropdown kode template). */
+    private function lembagaDiizinkan(User $auth): array
+    {
+        if ($auth->bolehPesantren()) {
+            return Lembaga::whereNotNull('parent_id')->pluck('id')->map(fn ($v) => (int) $v)->all();
+        }
+
+        return array_values(array_filter(
+            $auth->lembagaIds(),
+            fn (int $id) => Lembaga::where('id', $id)->whereNotNull('parent_id')->exists(),
+        ));
+    }
+
+    /** GET /api/admin/santri/import-template-gabungan — template Excel siswa (keanggotaan + identitas). */
+    public function templateGabungan(Request $request)
+    {
+        $this->authorize('create', Santri::class);
+
+        $auth = $request->user();
+        $boleh = $this->lembagaDiizinkan($auth);
+        $tunggal = count($boleh) === 1 ? $boleh[0] : null;
+        $kode = $tunggal !== null
+            ? Lembaga::whereKey($tunggal)->pluck('kode')->filter()->all()
+            : Lembaga::whereIn('id', $boleh)->whereNotNull('kode')->orderBy('kode')->pluck('kode')->all();
+
+        return Excel::download(
+            new SantriLembagaTemplateExport($tunggal, array_values($kode)),
+            'template-import-siswa-gabungan.xlsx',
+        );
+    }
+
+    /** GET /api/admin/santri/data-gabungan — pra-isi data existing satu lembaga (round-trip update). */
+    public function dataGabungan(Request $request)
+    {
+        $this->authorize('viewAny', Santri::class);
+
+        $lembagaId = $this->resolveLembagaGabungan($request);
+        $kode = Lembaga::whereKey($lembagaId)->value('kode');
+
+        return Excel::download(new SantriLembagaDataExport($lembagaId), "data-siswa-{$kode}-{$lembagaId}.xlsx");
+    }
+
+    /** Resolusi lembaga wajib untuk unduh data & validasi tenant (kode/id, operasional). */
+    private function resolveLembagaGabungan(Request $request): int
+    {
+        $kode = trim((string) $request->input('kode_lembaga', ''));
+        if ($kode !== '') {
+            $lembaga = Lembaga::whereRaw('UPPER(kode) = ?', [mb_strtoupper($kode)])->first();
+            if (! $lembaga || $lembaga->parent_id === null) {
+                abort(422, 'Kode lembaga tidak valid.');
+            }
+            $this->authorizeLembaga($request->user(), (int) $lembaga->id);
+
+            return (int) $lembaga->id;
+        }
+
+        $lembagaId = $request->filled('lembaga_id') ? (int) $request->lembaga_id : null;
+        if ($lembagaId === null) {
+            $boleh = $this->lembagaDiizinkan($request->user());
+            if (count($boleh) !== 1) {
+                abort(422, 'Pilih satu lembaga (kode_lembaga / lembaga_id).');
+            }
+            $lembagaId = $boleh[0];
+        }
+        $this->authorizeLembaga($request->user(), $lembagaId);
+        if (! Lembaga::where('id', $lembagaId)->whereNotNull('parent_id')->exists()) {
+            abort(422, 'Lembaga harus operasional (bukan induk pesantren).');
+        }
+
+        return $lembagaId;
+    }
+
+    /** POST /api/admin/santri/import-periksa-gabungan — validasi file TANPA menulis (dry-run). */
+    public function periksaImportGabungan(ImportSantriRequest $request): JsonResponse
+    {
+        return $this->prosesImportGabungan($request, periksa: true);
+    }
+
+    /** POST /api/admin/santri/import-gabungan — import siswa massal (identitas + keanggotaan). */
+    public function importGabungan(ImportSantriRequest $request): JsonResponse
+    {
+        return $this->prosesImportGabungan($request, periksa: false);
+    }
+
+    /** Alur bersama import gabungan. Mode periksa: transaksi selalu di-rollback. */
+    private function prosesImportGabungan(ImportSantriRequest $request, bool $periksa): JsonResponse
+    {
+        $this->authorizeTulisGabungan($request);
+
+        $salah = $this->cekHeadingGabungan($request->file('file'));
+        if ($salah !== null) {
+            return response()->json(['pesan' => $salah, 'siap_import' => false, 'errors' => []], 422);
+        }
+
+        $import = new SantriLembagaImport;
+        $errors = [];
+
+        if ($periksa) {
+            DB::beginTransaction();
+        }
+
+        try {
+            Excel::import($import, $request->file('file'));
+        } catch (ValidationException $e) {
+            $errors = $this->formatFailures($e->failures());
+        } finally {
+            if ($periksa) {
+                DB::rollBack();
+            }
+        }
+
+        if ($errors === []) {
+            $errors = $this->formatFailures($import->failures());
+        }
+
+        if ($periksa) {
+            return response()->json([
+                'pesan' => $errors === [] ? 'Pengecekan selesai: file siap diimport.' : 'Pengecekan menemukan masalah.',
+                'siap_import' => $errors === [],
+                'ringkasan' => $import->ringkasan(),
+                'errors' => $errors,
+            ]);
+        }
+
+        if ($errors !== []) {
+            return response()->json([
+                'pesan' => 'Gagal mengimport beberapa data.',
+                'errors' => $errors,
+            ], 422);
+        }
+
+        return response()->json(['pesan' => 'Data siswa berhasil diimport.']);
+    }
+
+    /**
+     * Penjaga salah-template: file identitas (tanpa blok keanggotaan) ditolak
+     * dengan pesan jelas sebelum validasi per baris.
+     */
+    private function cekHeadingGabungan($file): ?string
+    {
+        try {
+            $sheet = IOFactory::load($file->getRealPath())->getSheet(0);
+            $baris = $sheet->rangeToArray('A1:ZZ1', null, true, false)[0] ?? [];
+        } catch (\Throwable $e) {
+            return 'File tidak dapat dibaca sebagai Excel.';
+        }
+
+        $judul = array_map(fn ($v) => strtolower(trim((string) $v)), $baris);
+        if (! in_array('kode_lembaga', $judul, true) && ! in_array('lembaga_id', $judul, true)) {
+            return 'File bukan template gabungan (kolom kode_lembaga/lembaga_id tidak ada). Unduh template gabungan dulu.';
+        }
+        if (! in_array('nama_lengkap', $judul, true)) {
+            return 'File bukan template siswa (kolom nama_lengkap tidak ada).';
+        }
+
+        return null;
     }
 }

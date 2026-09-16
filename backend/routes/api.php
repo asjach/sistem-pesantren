@@ -74,6 +74,11 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::patch('santri/{santri}', [SantriController::class, 'update'])->middleware('permission:santri.ubah');
         Route::post('santri/import-periksa', [SantriController::class, 'periksaImport'])->middleware(['permission:santri.tambah', 'throttle:imports']);
         Route::post('santri/import-lengkap', [SantriController::class, 'importLengkap'])->middleware(['permission:santri.tambah', 'throttle:imports']);
+        // Import gabungan siswa (identitas + keanggotaan): dua middleware = AND (tambah DAN ubah).
+        Route::get('santri/import-template-gabungan', [SantriController::class, 'templateGabungan'])->middleware('permission:santri.lihat');
+        Route::get('santri/data-gabungan', [SantriController::class, 'dataGabungan'])->middleware('permission:santri.lihat');
+        Route::post('santri/import-periksa-gabungan', [SantriController::class, 'periksaImportGabungan'])->middleware(['permission:santri.tambah', 'permission:santri.ubah', 'throttle:imports']);
+        Route::post('santri/import-gabungan', [SantriController::class, 'importGabungan'])->middleware(['permission:santri.tambah', 'permission:santri.ubah', 'throttle:imports']);
         Route::post('santri/{santri}/foto', [SantriController::class, 'uploadFoto'])->middleware('permission:santri.tambah');
         Route::get('santri/{santri}/dokumen', [SantriController::class, 'listDokumen'])->middleware('permission:santri.lihat');
         Route::post('santri/{santri}/dokumen', [SantriController::class, 'uploadDokumen'])->middleware('permission:santri.tambah');
