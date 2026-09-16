@@ -110,11 +110,11 @@ export function unduhTemplateSantriGabungan() {
 }
 
 /** Unduh data existing (pra-isi santri_id) untuk round-trip update. Tanpa argumen = semua lingkup. */
-export function unduhDataSantriGabungan(lembagaId?: number) {
-  const q = lembagaId ? `?lembaga_id=${lembagaId}` : '';
+export function unduhDataSantriGabungan(ids?: number[]) {
+  const q = ids?.length ? `?${ids.map((id) => `lembaga_id[]=${id}`).join('&')}` : '';
   return downloadFile(
     `/admin/santri/data-gabungan${q}`,
-    lembagaId ? `data-siswa-${lembagaId}.xlsx` : 'data-siswa-semua.xlsx',
+    ids?.length === 1 ? `data-siswa-${ids[0]}.xlsx` : 'data-siswa-pilihan.xlsx',
   );
 }
 

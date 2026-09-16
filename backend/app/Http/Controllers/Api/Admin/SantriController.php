@@ -350,8 +350,8 @@ class SantriController extends Controller
     }
 
     /** GET /api/admin/santri/data-gabungan — pra-isi data existing (round-trip update).
-     *  Satu lembaga via `kode_lembaga`/`lembaga_id`; tanpa parameter → semua
-     *  lembaga dalam lingkup pengunduh (file campuran tetap valid untuk import). */
+     *  Satu lembaga via `kode_lembaga`/`lembaga_id`, beberapa via `lembaga_id[]`;
+     *  tanpa parameter → semua lembaga dalam lingkup pengunduh. */
     public function dataGabungan(Request $request)
     {
         $this->authorize('viewAny', Santri::class);
@@ -363,14 +363,30 @@ class SantriController extends Controller
             return Excel::download(new SantriLembagaDataExport($ids), "data-siswa-{$kode}-{$ids[0]}.xlsx");
         }
 
-        return Excel::download(new SantriLembagaDataExport($ids), 'data-siswa-semua.xlsx');
+        return Excel::download(new SantriLembagaDataExport($ids), 'data-siswa-pilihan.xlsx');
     }
 
-    /** Daftar lembaga untuk unduh data: eksplisit satu, atau semua dalam lingkup. */
+    /** Daftar lembaga untuk unduh data: eksplisit (satu/lebih) atau semua dalam lingkup. */
     private function resolveDaftarLembagaGabungan(Request $request): array
     {
-        if (trim((string) $request->input('kode_lembaga', '')) !== '' || $request->filled('lembaga_id')) {
+        if (trim((string) $request->input('kode_lembaga', '')) !== '') {
             return [$this->resolveLembagaGabungan($request)];
+        }
+
+        $mentah = $request->input('lembaga_id');
+        $ids = array_values(array_unique(array_filter(
+            array_map('intval', is_array($mentah) ? $mentah : [$mentah]),
+            fn (int $id) => $id > 0,
+        )));
+        if ($ids !== []) {
+            foreach ($ids as $id) {
+                $this->authorizeLembaga($request->user(), $id);
+                if (! Lembaga::where('id', $id)->whereNotNull('parent_id')->exists()) {
+                    abort(422, 'Lembaga harus operasional (bukan induk pesantren).');
+                }
+            }
+
+            return $ids;
         }
 
         $boleh = $this->lembagaDiizinkan($request->user());

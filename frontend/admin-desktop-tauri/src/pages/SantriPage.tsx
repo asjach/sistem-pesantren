@@ -23,6 +23,7 @@ import {
 } from '../api/santri';
 import { listLembaga, type Lembaga } from '../api/master';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/field';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -180,8 +181,8 @@ export default function SantriPage() {
   const [importFile, setImportFile] = useState<File | null>(null);
   const [periksaHasil, setPeriksaHasil] = useState<ImportPeriksa | null>(null);
   const [periksaBusy, setPeriksaBusy] = useState(false);
-  // Lembaga sumber "Data existing": '_semua' = semua dalam lingkup.
-  const [dataLembaga, setDataLembaga] = useState('_semua');
+  // Lembaga sumber "Data existing": multi-pilih (satu/lebih/semua).
+  const [dataIds, setDataIds] = useState<number[]>([]);
 
   const [fotoRow, setFotoRow] = useState<Santri | null>(null);
   const [fotoFile, setFotoFile] = useState<File | null>(null);
@@ -221,19 +222,21 @@ export default function SantriPage() {
       : null;
 
   // Dropdown sumber "Data existing": admin tak rangkap terkunci ke 1 lembaganya;
-  // selain itu bawaan filter aktif → lembaga tunggal di daftar → semua.
+  // selain itu bawaan filter aktif → semua tercentang (tinggal kurangi).
   const opsiDataLembaga = lembagaOperasional;
   const dataTerkunci = opsiDataLembaga.length === 1 || singleLembagaId !== null;
+  const toggleDataId = (id: number) =>
+    setDataIds((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
   useEffect(() => {
     if (!importOpen) return;
     if (singleLembagaId !== null && opsiDataLembaga.some((l) => l.id === singleLembagaId)) {
-      setDataLembaga(String(singleLembagaId));
+      setDataIds([singleLembagaId]);
       return;
     }
     const dariFilter = lembagaId && opsiDataLembaga.some((l) => String(l.id) === lembagaId)
-      ? lembagaId
+      ? [Number(lembagaId)]
       : null;
-    setDataLembaga(dariFilter ?? (opsiDataLembaga.length === 1 ? String(opsiDataLembaga[0].id) : '_semua'));
+    setDataIds(dariFilter ?? opsiDataLembaga.map((l) => l.id));
   }, [importOpen, lembagaId, opsiDataLembaga, singleLembagaId]);
 
   const load = useCallback(
@@ -527,7 +530,7 @@ export default function SantriPage() {
       <Dialog open={importOpen} onOpenChange={setImportOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Import siswa</DialogTitle>
+            <DialogTitle>Import santri</DialogTitle>
             <DialogDescription>
               Satu file: keanggotaan (blok awal) + identitas. Tanpa blok lembaga → hanya identitas.
               Cocok santri_id / NIK / NIS; baris baru otomatis dibuat.
@@ -552,48 +555,62 @@ export default function SantriPage() {
               setBusy(false);
             }
           }}>
+            <div className="col-span-2 flex flex-col gap-2">
+              <Button
+                id="btn_unduh_template_gabungan"
+                type="button"
+                variant="link"
+                className="h-auto justify-start px-0"
+                onClick={() => void unduhTemplateSantriGabungan().catch((e) => toast.error(errorMessage(e)))}
+              >
+                <Download data-icon="inline-start" size={16} /> Template gabungan (keanggotaan + identitas)
+              </Button>
+              <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Lembaga sumber data existing">
+                <FieldLabel className="shrink-0">Data existing:</FieldLabel>
+                {!dataTerkunci && opsiDataLembaga.length > 1 && (
+                  <label
+                    className="inline-flex h-6 cursor-pointer items-center gap-1.5 rounded-full border bg-card px-2.5 text-xs has-checked:border-primary has-checked:bg-accent has-checked:font-semibold"
+                  >
+                    <Checkbox
+                      id="check_data_semua"
+                      checked={dataIds.length === opsiDataLembaga.length && opsiDataLembaga.length > 0}
+                      onCheckedChange={() => setDataIds((s) =>
+                        s.length === opsiDataLembaga.length ? [] : opsiDataLembaga.map((l) => l.id),
+                      )}
+                    /> Semua
+                  </label>
+                )}
+                {opsiDataLembaga.map((l) => (
+                  <label
+                    key={l.id}
+                    className="inline-flex h-6 cursor-pointer items-center gap-1.5 rounded-full border bg-card px-2.5 text-xs has-checked:border-primary has-checked:bg-accent has-checked:font-semibold"
+                    title={dataTerkunci ? 'Satu-satunya lembaga Anda (otomatis)' : l.nama}
+                  >
+                    <Checkbox
+                      id={`check_data_lembaga_${l.id}`}
+                      checked={dataIds.includes(l.id)}
+                      disabled={dataTerkunci}
+                      onCheckedChange={() => toggleDataId(l.id)}
+                    /> {l.kode ?? l.nama}
+                  </label>
+                ))}
                 <Button
-                  id="btn_unduh_template_gabungan"
+                  id="btn_unduh_data_gabungan"
                   type="button"
                   variant="link"
-                  className="h-auto justify-start px-0"
-                  onClick={() => void unduhTemplateSantriGabungan().catch((e) => toast.error(errorMessage(e)))}
+                  className="h-auto shrink-0 px-0"
+                  disabled={dataIds.length === 0}
+                  title="Unduh data existing (pra-isi santri_id) untuk update via Excel"
+                  onClick={() => {
+                    // Pilihan penuh = semua lingkup (tanpa parameter).
+                    const ids = dataIds.length === opsiDataLembaga.length ? undefined : dataIds;
+                    void unduhDataSantriGabungan(ids).catch((e) => toast.error(errorMessage(e)));
+                  }}
                 >
-                  <Download data-icon="inline-start" size={16} /> Template gabungan
+                  <Download data-icon="inline-start" size={16} /> Unduh{dataIds.length > 0 && dataIds.length < opsiDataLembaga.length ? ` (${dataIds.length})` : ''}
                 </Button>
-                <div className="flex items-center gap-1.5">
-                  <Select
-                    value={dataLembaga}
-                    onValueChange={setDataLembaga}
-                    disabled={dataTerkunci || opsiDataLembaga.length === 0}
-                  >
-                    <SelectTrigger id="input_pilih_lembaga_data" className="h-8 flex-1 text-xs" title={dataTerkunci ? 'Satu-satunya lembaga Anda (otomatis)' : 'Lembaga sumber data existing'}>
-                      <SelectValue placeholder="Pilih lembaga" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {opsiDataLembaga.length > 1 && <SelectItem value="_semua">Semua (lingkup saya)</SelectItem>}
-                      {opsiDataLembaga.map((l) => (
-                        <SelectItem key={l.id} value={String(l.id)}>
-                          {l.kode ? `${l.kode} — ` : ''}{l.nama}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    id="btn_unduh_data_gabungan"
-                    type="button"
-                    variant="link"
-                    className="h-auto shrink-0 px-0"
-                    disabled={opsiDataLembaga.length === 0}
-                    title="Unduh data existing (pra-isi santri_id) untuk update via Excel"
-                    onClick={() => {
-                      const id = dataLembaga === '_semua' ? undefined : Number(dataLembaga);
-                      void unduhDataSantriGabungan(id).catch((e) => toast.error(errorMessage(e)));
-                    }}
-                  >
-                    <Download data-icon="inline-start" size={16} /> Data existing
-                  </Button>
-                </div>
+              </div>
+            </div>
             <Input
               id="input_file_import_santri"
               className="col-span-2"

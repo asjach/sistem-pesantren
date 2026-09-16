@@ -404,7 +404,7 @@ class SantriLembagaImportTest extends TestCase
         $this->actingAs($super, 'sanctum')
             ->get('/api/admin/santri/data-gabungan')
             ->assertStatus(200)
-            ->assertHeader('content-disposition', 'attachment; filename=data-siswa-semua.xlsx');
+            ->assertHeader('content-disposition', 'attachment; filename=data-siswa-pilihan.xlsx');
         $semua = (new SantriLembagaDataExport([$f['mi']->id, $f['md']->id]))->array();
         $this->assertCount(2, $semua);
         $this->assertSame(['MI', 'MD'], array_map(fn ($r) => $r[1], $semua));
@@ -422,6 +422,17 @@ class SantriLembagaImportTest extends TestCase
         ])->assertStatus(200);
         $this->assertSame('26102', LembagaSantri::where('santri_id', $a->id)->firstOrFail()->nis_lokal);
         $this->assertSame('26202', LembagaSantri::where('santri_id', $b->id)->firstOrFail()->nis_lokal);
+
+        // Multi ID eksplisit → hanya yang dipilih; id luar lingkup → 422.
+        $isi = (new SantriLembagaDataExport([$f['md']->id]))->array();
+        $this->assertCount(1, $isi);
+        $this->assertSame('MD', $isi[0][1]);
+        $this->actingAs($super, 'sanctum')
+            ->get("/api/admin/santri/data-gabungan?lembaga_id[]={$f['mi']->id}&lembaga_id[]={$f['md']->id}")
+            ->assertStatus(200);
+        $this->actingAs($adminMi, 'sanctum')
+            ->get("/api/admin/santri/data-gabungan?lembaga_id[]={$f['mi']->id}&lembaga_id[]={$f['md']->id}")
+            ->assertStatus(403);
     }
 
     // ---------- 12. file ketikan manual: sel numerik + tanggal serial ----------
