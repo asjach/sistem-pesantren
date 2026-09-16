@@ -9,7 +9,7 @@ class DevSeeder extends Seeder
 {
     public function run(): void
     {
-        $this->call(AkunSeeder::class);
+        $this->call([PermissionSeeder::class, AkunSeeder::class]);
 
         $root = Lembaga::firstOrCreate(
             ['kode' => 'PESANTREN'],

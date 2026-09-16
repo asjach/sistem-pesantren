@@ -5,7 +5,8 @@
 > untuk tabel auth bawaan). Bahasa Indonesia persis DB. Tipe logis umum.
 > Keputusan: single-pesantren via `lembaga` + pivot `user_lembaga` (no.40);
 > 34 `ref_*` global+shadow (no.50); seed no.51; pitfall multi-NULL MySQL →
-> dedup di service, bukan index (`002` catatan 9).
+> dedup di service, bukan index (`002` catatan 9). Matriks izin (v2.38):
+> aksi = `permissions`/`role_has_permissions`, cakupan tetap pivot.
 
 Urutan CREATE: `lembaga` → `ref_*` → `users` → `user_lembaga` →
 `tahun_ajaran` → `pegawai` → `kelas` (`walas_id` inline) → santri/riwayat →
@@ -177,6 +178,12 @@ Tanpa kolom tenant — tenant = pivot `user_lembaga`.
 - `created_at`, `updated_at`
 - UNIQUE(`user_id`, `lembaga_id`)
 
+### Izin matriks (Spatie, guard `sanctum`)
+Izin = AKSI (`modul.aksi`, katalog `IzinKatalog::MODUL_AKSI`); pivot `user_lembaga` = CAKUPAN data.
+- `permissions`: `id` PK — `name` string (unik per guard) — `guard_name` string
+- `role_has_permissions`: `permission_id` FK [cascade] — `role_id` FK [cascade] — PRIMARY(`permission_id`, `role_id`)
+- `model_has_permissions`: penugasan izin langsung ke user (tak dipakai; izin selalu lewat role) — `permission_id` FK [cascade] — `model_type` — `model_id` [bigint] — PRIMARY(`permission_id`, `model_id`, `model_type`)
+
 ### `user_asrama`
 Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca production — belum dibuat sekarang**; dibuat bersama BLOK 10 (setelah presensi).
 - `id` PK
@@ -339,7 +346,7 @@ Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca
 - `kode_pos`: string [null]
 - `foto_url`: string [null]
 - `status_global`: bool [default false] — TURUNAN murni: true iff punya ≥1 `riwayat_belajar.is_aktif`. Bukan input manual; dihitung ulang tiap transisi (ACC/penerimaan, penempatan kelas, naik, mutasi, lulus, berhenti). Lulus/mutasi tidak disimpan di sini — dibaca dari tabel alumni / mutasi_keluar. Santri legacy tanpa riwayat tetap false (nonaktif) sampai ditempatkan.
-- CATATAN visibilitas: santri legacy (`lembaga_id` NULL) boleh dilihat/dikelola **semua admin**; guru/wali/kasir tetap lewat jalur masing-masing (bukan endpoint admin).
+- CATATAN visibilitas: santri legacy (`lembaga_id` NULL) boleh dilihat/dikelola pemegang `santri.lihat`; guru/wali tetap lewat jalur masing-masing (bukan endpoint admin).
 - `created_at`, `updated_at`
 - INDEX(`nik`)
 - INDEX(`nisn`)

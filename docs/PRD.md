@@ -2,7 +2,7 @@
 
 | Atribut | Keterangan |
 |---|---|
-| Versi Dokumen | 2.37 (hapus sisa keuangan di PSB: flag paid, master biaya, paket_tersedia) |
+| Versi Dokumen | 2.38 (matriks izin Kelola Izin + hapus sementara role kasir) |
 | Tanggal | 10 September 2026 |
 | Status | Proyek ini = menyusun dokumentasi, bukan coding app. G0–G3 didetailkan; G4+ roadmap |
 | Penyusun | Solo dev + Yayasan |
@@ -50,6 +50,7 @@
 | 1.13 | 2026-09-15 | **Kelas unik per lembaga + tahun ajaran** (FB-004-01): nama dinormalisasi (trim + rapat spasi) di model `Kelas`; migrasi dedupe otomatis (keeper id terkecil, referensi 8 tabel dipindah termasuk unique terdampak `kelas_kurikulum`/`pengampu_mapel`/`rapor_catatan_wali`) lalu `UNIQUE(lembaga_id, tahun_ajaran_id, nama_kelas)`; `store`/`update` menolak duplikat case-insensitive dengan pesan Indonesia + tangkap race 1062; dialog Tambah/Ubah di FE memuat nama lingkup lembaga+TA dan menolak duplikat sebelum submit; KelasStoreTest 6→10 hijau |
 | 1.14 | 2026-09-15 | Koreksi panjang **NIS = maks 20 karakter** (dulu validasi 10): kolom `santri.nis` & `riwayat_belajar.nis` jadi `VARCHAR(20)`; validasi `max:20` di store/update santri, ACC PSB (tunggal + bulk), import Excel, dan naik-kelas; input FE `maxLength` 20; tes batas 20/21 di PsbFlowTest (tunggal + bulk 16 karakter) dan SantriFlowTest (update + dry-run import) |
 | 1.15 | 2026-09-15 | Import santri: kolom **`kelas_id` menerima nama kelas** (diutamakan — kini deterministik karena `(lembaga, TA, nama)` unik), id numerik, atau kosong; butuh lembaga+TA kecuali id pada baris legacy (cache `santri.kelas_id`, tanpa riwayat); template Excel memuat **dropdown nama kelas** per lingkup via `GET /admin/santri/import-template?lembaga_id=&tahun_ajaran_id=`; dialog import ikut mengirim TA + teks bantuan; tes 20–22 baru (SantriFlowTest 19→22), suite penuh hijau |
+| 2.38 | 2026-09-17 | **Matriks izin Kelola Izin + hapus sementara role `kasir`**: kewenangan aksi pindah dari role hardcoded ke izin `modul.aksi` (katalog `IzinKatalog`, tabel Spatie `permissions`/`role_has_permissions` yang sudah ada); halaman Kelola Izin (super_admin saja, matriks checkbox role × izin + simpan per role, anti-lockout super_admin); endpoint admin bermiddleware `permission:` per aksi, policy Santri/User berbasis izin, cakupan data tetap pivot `user_lembaga`; FE `bisa()` + guard halaman + tombol aksi per izin + `audit-izin.mjs` cegah drift; portal tetap role-based; role `kasir` dihapus dari seeder/kode/test (kembali saat modul keuangan dirumuskan ulang; 6→5 peran efektif); suite 155/155 hijau |
 | 2.37 | 2026-09-16 | **Hapus sisa keuangan di PSB**: flag mati `is_pendaftaran_paid`/`is_daftar_ulang_paid` (kolom + casts), method yatim `nominalPendaftaran(+Efektif)`, master biaya (`psb_biaya_lembaga` utuh + kolom nominal kuota + endpoint `biaya-lembaga` + tampilan biaya di `opsi`); sinyal paket baru `paket_tersedia` (boolean, opsi a) menggantikan `nominal_paket !== null`; FE kuota tanpa input nominal + checkbox paket, tabel biaya dihapus; seeder/test/SCHEMA/PRD disesuaikan; suite 148/148 hijau |
 | 2.36 | 2026-09-16 | **Hapus total modul keuangan (BE/FE/docs)**: 21 file backend (service, 4 controller, policy, 10 model, 2 view, 1 test, 2 migrasi) + bedah PSB (tanpa tagihan: daftar/ACC/hapus/pulihkan/undur-diri/import), portal (riwayat-pembayaran), policy, routes, 2 ref kas (`ref_kategori_kas`, `ref_metode_pembayaran`), seeder; FE: 3 halaman + `api/keuangan` + seksi pos/tarif + nav; SCHEMA BLOK 4 dihapus (BLOK 5–11 jadi 4–10); PRD normatif keuangan dihapus (riwayat changelog tetap); `migrate:fresh` + suite hijau tanpa KeuanganFlowTest |
 | 2.35 | 2026-09-16 | **Ribbon grup Kolom: label di samping stepper (FE)**: label "Freeze Kolom" (dulu "Bekukan kolom") dan "Tinggi header" dipindah dari atas stepper ke sampingnya; lebar label dikunci `min-w-[86px]` agar kedua stepper sejajar satu kolom, font disamakan dengan label di samping kontrol lain (`text-xs text-white/80`, seragam dengan "Header"/"Cell" di grup Font & Warna); urutan tombol reset tetap; `typecheck` lolos |
@@ -160,7 +161,7 @@ Pesantren menaungi beberapa lembaga — MI, MD, MTs, Mu'allimin — dalam satu p
 
 ### 1.5 Definisi Singkat
 
-Lihat Lampiran D. Inti: `lembaga` (root PESANTREN + MI/MD/MTS/MUA), `tahun_ajaran`, `kelas` (`walas_id→pegawai`), 7 peran (`super_admin, admin, kasir, guru, orang_tua, santri, asrama` — `asrama` pasca production), `riwayat_belajar`, `asrama` (entitas sendiri, bukan lembaga; pasca production).
+Lihat Lampiran D. Inti: `lembaga` (root PESANTREN + MI/MD/MTS/MUA), `tahun_ajaran`, `kelas` (`walas_id→pegawai`), 6 peran (`super_admin, admin, guru, orang_tua, santri, asrama` — `asrama` pasca production; `kasir` dihapus sementara v2.38), matriks izin (`IzinKatalog`), `riwayat_belajar`, `asrama` (entitas sendiri, bukan lembaga; pasca production).
 
 ### 1.6 Referensi (arsip, read-only)
 
@@ -197,19 +198,32 @@ Aturan terkunci:
 
 | Peran | Tenant | Hak utama |
 |---|---|---|
-| `super_admin` | Semua, tanpa pivot | Semua; tulis global `ref_*`; buat semua peran |
-| `admin` | Full tanpa pivot = semua; scoped dengan pivot = subset via `isAdminFull()` | CRUD `001–004` (kecuali tambah lembaga = super_admin), `100–102`, attach/detach `user_lembaga`; tak boleh mutasi/hapus pemegang `admin/super_admin` maupun role diri sendiri |
-| `kasir` | Wajib pivot ≥1, hanya lembaganya via `canAccessLembaga()` | Menunggu modul keuangan (dihapus total, dirumuskan ulang dari awal) |
+| `super_admin` | Semua, tanpa pivot | Semua izin (terkunci di matriks); tulis global `ref_*`; buat semua peran; kelola matriks izin |
+| `admin` | Full tanpa pivot = semua; scoped dengan pivot = subset via `isAdminFull()` | Semua izin kecuali `izin.*`, `tampilan_standar.lihat`, `server.lihat`, `lembaga.tambah`; CRUD `001–004` (kecuali tambah lembaga = super_admin), `100–102`, attach/detach `user_lembaga`; tak boleh mutasi/hapus pemegang `admin/super_admin` maupun role diri sendiri |
 | `guru` | Wajib pivot ≥1 | Modul 202 Nilai-Rapor: input miliknya/walasnya |
 | `orang_tua` | Wajib pivot, via `wali_santri_relasi` | Modul 203 Portal Wali + Modul 100 PSB Penerimaan daftar + ajukan/batal (1 aktif/santri) |
 | `santri` | Wajib pivot | Portal terbatas |
 | `asrama` | Wajib pivot `user_asrama` (ditetapkan super_admin saja) | Modul 505 Asrama (**pasca production**; peran belum di-seed sekarang): penghuni/kamar/izin pulang/kegiatan; keuangan mengikuti perumusan ulang modul keuangan |
+| (`kasir` — dihapus sementara; kembali saat modul keuangan dirumuskan ulang) | Wajib pivot ≥1 | Menunggu modul keuangan |
 
 Aturan terkunci:
-- 7 peran final: `super_admin, admin, kasir, guru, orang_tua, santri, asrama`; **efektif sekarang 6** — `asrama` menyusul pasca production (Modul 505); guard wajib `sanctum`; multi-peran didukung. 4 peran lama (`admin_pesantren, admin_lembaga, kasir_pesantren, kasir_lembaga`) dihapus; gabung jadi `admin` / `kasir` (Modul 003 Auth Login).
+- 6 peran final: `super_admin, admin, guru, orang_tua, santri, asrama`; **efektif sekarang 5** — `asrama` menyusul pasca production (Modul 505); guard wajib `sanctum`; multi-peran didukung. 4 peran lama (`admin_pesantren, admin_lembaga, kasir_pesantren, kasir_lembaga`) dihapus; gabung jadi `admin` / `kasir` (Modul 003 Auth Login). Role `kasir` dihapus sementara dari seed/kode (v2.38); riwayatnya tetap di changelog.
 - Tenant pivot `user_lembaga`; `users` tanpa kolom tenant; 1 akun multi-lembaga via `lembaga_ids[]` (mis. 1 akun `admin` untuk MI+MD); non-admin tidak boleh list users. Peran `asrama` memakai pivot tambahan `user_asrama` (1 akun boleh multi-asrama) dan **tidak** memberi akses `user_lembaga`.
-- Pemberian peran via `assignableRolesFor()`: `super_admin` ke semua 7; `admin` hanya `kasir,guru,orang_tua,santri` (tidak boleh buat sesama `admin/super_admin`, dan **tidak boleh** memberi `asrama` — khusus super_admin); tambah lembaga via attach/detach oleh `super_admin`/admin full; larang hapus diri sendiri. **Pengecualian create**: saat *membuat user* saja, `admin` (full/scoped) boleh memberi role `admin` — batas lembaga ⊆ kewenangan pembuat (boleh subset; scoped tanpa `lembaga_ids` memakai pivot sendiri, sehingga tak bisa melahirkan admin global). Jalur `update`/`assignRole`/`removeRole`/`import` tetap tanpa role `admin`.
+- Pemberian peran via `assignableRolesFor()`: `super_admin` ke semua 6; `admin` hanya `guru,orang_tua,santri` (tidak boleh buat sesama `admin/super_admin`, dan **tidak boleh** memberi `asrama` — khusus super_admin); tambah lembaga via attach/detach oleh `super_admin`/admin full; larang hapus diri sendiri. **Pengecualian create**: saat *membuat user* saja, `admin` (full/scoped) boleh memberi role `admin` — batas lembaga ⊆ kewenangan pembuat (boleh subset; scoped tanpa `lembaga_ids` memakai pivot sendiri, sehingga tak bisa melahirkan admin global). Jalur `update`/`assignRole`/`removeRole`/`import` tetap tanpa role `admin`.
 - Login multi-identifier `email/phone/username` + `password`, throttle 6/mnt, tulis `login_audits` + `last_login_at`. Buat user hanya oleh admin manual atau Import Excel; register publik tidak dibuka.
+
+### 2.3.x Matriks Izin (Kelola Izin)
+
+Kewenangan terdiri dari dua dimensi yang dikombinasikan (AND):
+- **Aksi** — izin `modul.aksi` (`lihat/tambah/ubah/hapus` per modul + izin halaman pseudo `daftar_kelas/pindah_kelas/kenaikan/kelulusan/rekap_santri/mutasi_keluar/tampilan_standar/server/izin`), dikelola super_admin lewat halaman Kelola Izin (matriks checkbox role × izin, simpan per role). Katalog kanonis: `IzinKatalog::MODUL_AKSI` (satu sumber kebenaran untuk seeder, validasi API, dan audit FE).
+- **Cakupan data** — pivot `user_lembaga` (`bolehPesantren()`/`canAccessLembaga()`); tidak berubah oleh matriks.
+
+Aturan terkunci:
+- Role `super_admin` selalu full (barisnya terkunci di matriks; API menolak `PUT` untuknya) — anti-lockout.
+- Halaman Kelola Izin + endpoint `/api/admin/izin` hanya pemilik `izin.*` (= super_admin).
+- Portal orang_tua/santri dan grup campuran (`portal/psb/{calon}/dokumen`) tetap role-based (pengecualian terdokumentasi, di luar matriks).
+- Aturan struktural tetap di kode (bukan matriks): tambah lembaga, sebar standar tampilan, mutasi target privileged, dan kunci role diri = super_admin saja.
+- Halaman baru wajib didaftarkan di katalog + `HALAMAN.permission`; `audit-izin.mjs` (predev/prebuild/pretypecheck) dan test pengerasan route menggagalkan drift.
 
 ### 2.4 Asumsi dan Batasan
 
@@ -228,7 +242,7 @@ Aturan terkunci:
 |---|---|
 | B1 | Migration per-modul per-file (timestamp bawaan, urutan FK); spec di `docs/SCHEMA.md`; file besar single-file lama dihapus (v1.3.1) |
 | B2 | Register publik ditutup; buat user hanya admin manual/import (Modul 003) |
-| B3 | Guard wajib `sanctum`; throttle login 6/mnt; `authorize` + `canAccessLembaga` wajib (Modul 003) |
+| B3 | Guard wajib `sanctum`; throttle login 6/mnt; middleware `permission:` + `authorize` + `canAccessLembaga` wajib (Modul 003) |
 | B4 | UNIQUE nullable tidak cegah duplikat NULL MySQL; dedup wajib service (`RefService`, import 101) (Modul 002) |
 | B5 | Kolom pemakai `ref_*` string tanpa FK; shadow global hanya `is_active` (Modul 004) |
 | B7 | Scope G0-G3 production dulu; G4+ TBD; `500-505`, `900-901` ditutup sementara (Bab 1.4) |
@@ -241,7 +255,7 @@ Aturan terkunci:
 
 | ID                     | Modul (kode + nama)                               | Functional Requirement                                                                                           | Status doc            |
 | ---------------------- | ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | --------------------- |
-| FR-003                 | 003 Auth Login                                    | Login multi-identifier, 7 peran (efektif 6; `asrama` pasca production), import, audit                             | Detail (G0)           |
+| FR-003                 | 003 Auth Login                                    | Login multi-identifier, 6 peran (efektif 5; `asrama` pasca production, `kasir` dihapus sementara v2.38), import, audit, matriks izin Kelola Izin (super_admin) | Detail (G0)           |
 | FR-004                 | 004 Referensi-Master                              | `lembaga`, `tahun_ajaran`, `kelas`, 34 `ref_*` via `RefService`                                                  | Detail (G0)           |
 | FR-100                 | 100 PSB Penerimaan Santri                         | 2-jalur via `is_seleksi` + override null ikut default, kuota saat input, waiting_list, paket MI-MD opsional, ACC | Detail (G1+G3 daftar) |
 | FR-101                 | 101 Santri Master                                 | `id` stabil; NIK fiktif boleh; dedup; `status_global` turunan (default false); `lembaga_id` boleh NULL (legacy, terlihat semua admin) | Detail (G1)           |
@@ -267,6 +281,7 @@ Aturan terkunci:
 | ID | Actor | Functional Requirement | Modul |
 |---|---|---|---|
 | UC-G0-01 | `super_admin`, `admin` | Login + kelola `users` (import, audit) | 003 Auth Login |
+| UC-G0-00 | `super_admin` | Kelola matriks izin role × modul (Kelola Izin) | 003 Auth Login |
 | UC-G0-02 | `super_admin`, `admin` | Kelola `lembaga`, `tahun_ajaran`, `kelas`, `ref_*` | 004 Referensi-Master |
 | UC-G1-01 | `admin`, `orang_tua` | PSB daftar, verifikasi, seleksi opsional, ACC + paket MI-MD | 100 PSB Penerimaan |
 | UC-G1-02 | `admin` | Kelola `santri` + import dedup | 101 Santri Master |
@@ -302,7 +317,7 @@ Service Layer + Policy + transaction; notifikasi DB agregat.
 
 | ID | Modul (kode + nama) | Tabel inti | Status |
 |---|---|---|---|
-| FR-003 | 003 Auth Login | `users`, `user_lembaga`, `user_asrama`, `login_audits` | Detail |
+| FR-003 | 003 Auth Login | `users`, `user_lembaga`, `user_asrama`, `login_audits`, `permissions`, `role_has_permissions` | Detail |
 | FR-004 | 004 Referensi-Master | `lembaga`, `tahun_ajaran`, `kelas`, 34 `ref_*` | Detail |
 | FR-100 | 100 PSB Penerimaan | `psb_*`, `dokumen_santri` | Detail |
 | FR-101 | 101 Santri Master | `santri` | Detail |
@@ -374,7 +389,7 @@ Migration per-modul (timestamp bawaan, urutan FK); spec di `docs/SCHEMA.md` (dit
 
 | ID | Aturan Kode | Modul |
 |---|---|---|
-| 8.3.1 | Guard `sanctum` + `canAccessLembaga` / `isAdminFull` | 003 Auth Login |
+| 8.3.1 | Guard `sanctum` + middleware `permission:` + `canAccessLembaga` / `isAdminFull` | 003 Auth Login |
 | 8.3.2 | `DB::transaction` + `lockForUpdate` | 102 |
 | 8.3.3 | Key Excel flat; NIK null ke `create()` | 003, 101 |
 | 8.3.4 | `latest('id')` | Semua list |
@@ -404,7 +419,7 @@ Estimasi solo: G0 3–4 mgg; G1 4–5; G2 2–3; G3 3–4. Total G0–G3 ±4–5
 |---|---|
 | `super_admin` | A global |
 | `admin` scoped | R lembaganya |
-| `kasir`, `guru`, `orang_tua` | R input miliknya |
+| `guru`, `orang_tua` | R input miliknya |
 | Solo dev + QA | R bangun/uji |
 
 | ID | Risiko | Mitigasi (kode) |
@@ -445,7 +460,7 @@ Unit, integrasi (Modul 100 PSB Penerimaan ke 101 Santri Master), sistem, UAT.
 | C-01 | UAT lulus |
 | C-02 | `lembaga` / `tahun_ajaran` / `ref_*` / `kurikulum` terkonfigurasi |
 | C-03 | Paket MI-MD terverifikasi |
-| C-04 | Akun 6 peran sekarang teruji (peran `asrama` diuji saat Modul 505 / pasca production) |
+| C-04 | Akun 5 peran sekarang teruji (peran `asrama` diuji saat Modul 505 / pasca production) |
 | C-05 | Training/backup/SSL selesai |
 
 ---
@@ -455,7 +470,7 @@ Unit, integrasi (Modul 100 PSB Penerimaan ke 101 Santri Master), sistem, UAT.
 | ID | Kontrol | Modul |
 |---|---|---|
 | K-01 | Bcrypt/argon2 | 003 Auth Login |
-| K-02 | Guard `sanctum` + tenant `canAccessLembaga` | 003 |
+| K-02 | Guard `sanctum` + middleware `permission:` + tenant `canAccessLembaga` | 003 |
 | K-03 | Transaksi terkunci | 102 |
 | K-04 | Audit (`login_audits`, `psb_log_status`, `wali_portal_logs`) | 003, 100, 203 |
 | K-05 | Backup offsite + SSL; privasi internal | 900/901 TBD |
@@ -516,7 +531,7 @@ TBD khusus asrama (v1.10 — semua pasca production):
 
 ## Lampiran D — Glosarium (Opsi A)
 
-SIMPES; santri; lembaga (MI=SD formal, MD=SD non-formal paralel, MTS=SMP, MLN=Aliyah beda nama; kode hardcoded; PK id INT); tahun_ajaran; kelas; pegawai/guru; 7 peran (`super_admin, admin, kasir, guru, orang_tua, santri, asrama` — efektif 6 sekarang; `asrama` pasca production); PSB (`is_seleksi`); riwayat_belajar; asrama (entitas sendiri — bukan `lembaga`; kamar, penghuni, izin pulang, kegiatan; pasca production); pengurus asrama (peran `asrama` + pivot `user_asrama`); santri legacy (`santri.lembaga_id` NULL, tanpa track riwayat).
+SIMPES; santri; lembaga (MI=SD formal, MD=SD non-formal paralel, MTS=SMP, MLN=Aliyah beda nama; kode hardcoded; PK id INT); tahun_ajaran; kelas; pegawai/guru; 6 peran (`super_admin, admin, guru, orang_tua, santri, asrama` — efektif 5 sekarang; `asrama` pasca production, `kasir` dihapus sementara v2.38); PSB (`is_seleksi`); riwayat_belajar; asrama (entitas sendiri — bukan `lembaga`; kamar, penghuni, izin pulang, kegiatan; pasca production); pengurus asrama (peran `asrama` + pivot `user_asrama`); santri legacy (`santri.lembaga_id` NULL, tanpa track riwayat).
 
 ## Lampiran E — Catatan Perubahan Aturan
 
@@ -629,14 +644,18 @@ envelope `{pesan, data}` for portal endpoints, standard pagination elsewhere.
 
 ### 4. Actors & roles
 
-Seven roles, hierarchical (decision no.40): `super_admin` → `admin` (full =
-no `user_lembaga` pivot; scoped = via pivot) → `kasir` / `guru` →
+Six roles, hierarchical (decision no.40): `super_admin` → `admin` (full =
+no `user_lembaga` pivot; scoped = via pivot) → `guru` →
 `orang_tua` / `santri`. Plus `asrama` (pengurus asrama, pivot `user_asrama`,
-v1.10; **pasca production** — efektif sekarang 6 peran). One user may hold multiple roles.
+v1.10; **pasca production** — efektif sekarang 5 peran; `kasir` dihapus
+sementara v2.38). One user may hold multiple roles.
 
-* `assignableRolesFor()`: super_admin grants all 7; admin grants
-  `kasir, guru, orang_tua, santri` (no privilege escalation; `asrama`
+* `assignableRolesFor()`: super_admin grants all 6; admin grants
+  `guru, orang_tua, santri` (no privilege escalation; `asrama`
   dan `admin` khusus super_admin, kecuali create-admin v1.9.x).
+* Aksi vs cakupan (v2.38): *boleh melakukan apa* = izin matriks
+  (`IzinKatalog`, `permission:` middleware, policy); *milik lembaga mana* =
+  pivot (`User::lembagaIds()`, `canAccessLembaga()`, `isAdminFull()`).
 * Tenant choke point: `User::lembagaIds()` (pivot `user_lembaga` only —
   `users` has NO tenant column), `canAccessLembaga()`, `isAdminFull()`.
 * Convention (locked): LIST may be wide (all accessible lembaga);
