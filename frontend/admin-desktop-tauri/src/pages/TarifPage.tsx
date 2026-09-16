@@ -27,7 +27,7 @@ import {
 } from '@/components/ui/select';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { useLembagaAwalNumber } from '@/hooks/useLembagaAwal';
-import { useLembagaAktif } from '@/lembagaAktif';
+import { useTahunAjaranAwalNumber } from '@/hooks/useTahunAjaranAwal';
 import FilterField from '@/components/FilterField';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { ViewDialog } from '@/components/ViewDialog';
@@ -98,9 +98,9 @@ export default function TarifPage() {
   const [tas, setTas] = useState<TahunAjaran[]>([]);
   const [lembagaId, setLembagaId] = useState<number | ''>('');
   useLembagaAwalNumber(setLembagaId);
-  const { terkunci } = useLembagaAktif();
   const [posId, setPosId] = useState<number | ''>('');
   const [taId, setTaId] = useState<number | ''>('');
+  useTahunAjaranAwalNumber(setTaId);
   const [rows, setRows] = useState<TarifBiaya[]>([]);
   const pager = usePager('tarif');
   const [lastPage, setLastPage] = useState(1);
@@ -302,23 +302,6 @@ export default function TarifPage() {
         )}
         filter={(
           <>
-            <FilterField label="Lembaga" htmlFor="select_lembaga_tarif">
-            <Select
-              value={lembagaId === '' ? '_semua' : String(lembagaId)}
-              onValueChange={(v) => { setLembagaId(v === '_semua' ? '' : Number(v)); setTaId(''); pager.goFirst(); }}
-              disabled={terkunci}
-            >
-              <SelectTrigger id="select_lembaga_tarif" title="Filter lembaga" aria-label="Filter lembaga" size="sm" className="w-36">
-                <SelectValue placeholder="Semua" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {!terkunci && <SelectItem value="_semua">Semua</SelectItem>}
-                  {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>)}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-            </FilterField>
             <FilterField label="Pos" htmlFor="select_pos_tarif">
             <Select
               value={posId === '' ? '_semua' : String(posId)}
@@ -331,22 +314,6 @@ export default function TarifPage() {
                 <SelectGroup>
                   <SelectItem value="_semua">Semua</SelectItem>
                   {posList.map((p) => <SelectItem key={p.id} value={String(p.id)}>{p.kode_pos} — {p.nama_pos}</SelectItem>)}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-            </FilterField>
-            <FilterField label="Tahun ajaran" htmlFor="select_ta_tarif">
-            <Select
-              value={taId === '' ? '_semua' : String(taId)}
-              onValueChange={(v) => { setTaId(v === '_semua' ? '' : Number(v)); pager.goFirst(); }}
-            >
-              <SelectTrigger id="select_ta_tarif" title="Filter tahun ajaran" aria-label="Filter tahun ajaran" size="sm" className="w-36">
-                <SelectValue placeholder="Semua" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectItem value="_semua">Semua</SelectItem>
-                  {tas.map((t) => <SelectItem key={t.id} value={String(t.id)}>{t.nama}</SelectItem>)}
                 </SelectGroup>
               </SelectContent>
             </Select>

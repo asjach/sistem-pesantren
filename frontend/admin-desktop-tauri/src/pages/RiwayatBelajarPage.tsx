@@ -20,19 +20,17 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import ExcelTable from '@/components/ExcelTable';
 import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
+import { useTahunAjaranAwalString } from '@/hooks/useTahunAjaranAwal';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import Pager from '@/components/Pager';
 import { usePager } from '@/hooks/usePager';
 import { ActionIcon } from '@/components/RowActions';
 import { MoveHorizontal, Plus, SquareMousePointer, FileUp, Download } from '@/icons';
 import {
-  FilterLembaga,
   FilterSemester,
-  FilterTahunAjaran,
   ROSTER_FIELDS,
   noopCommit,
   riwayatValues,
-  useLembagaTa,
 } from '@/components/siklus/bersama';
 import { toast } from 'sonner';
 
@@ -49,12 +47,12 @@ export default function RiwayatBelajarPage() {
   const [lembagaId, setLembagaId] = useState('');
   useLembagaAwalString(setLembagaId);
   const [taId, setTaId] = useState('');
+  useTahunAjaranAwalString(setTaId);
   const [semester, setSemester] = useState('');
   const [tanpaKelas, setTanpaKelas] = useState(false);
   const [arsip, setArsip] = useState(false);
   const [search, setSearch] = useState('');
   const [terapkanCari, setTerapkanCari] = useState('');
-  const { lembagas, tas } = useLembagaTa(lembagaId);
   const [kelas, setKelasOpsi] = useState<Kelas[]>([]);
 
   const [inputOpen, setInputOpen] = useState(false);
@@ -153,8 +151,6 @@ export default function RiwayatBelajarPage() {
         searchIds={{ form: 'form_cari_riwayat_belajar', input: 'input_cari_riwayat_belajar', button: 'btn_cari_riwayat_belajar' }}
         filter={(
           <>
-            <FilterLembaga id="select_lembaga_riwayat_belajar" value={lembagaId} onChange={(v) => { setLembagaId(v); setTaId(''); pager.goFirst(); }} lembagas={lembagas} />
-            <FilterTahunAjaran id="select_ta_riwayat_belajar" value={taId} onChange={(v) => { setTaId(v); pager.goFirst(); }} tas={tas} />
             <FilterSemester id="select_semester_riwayat_belajar" value={semester} onChange={(v) => { setSemester(v); pager.goFirst(); }} />
             <Button id="btn_buka_input_riwayat" size="sm" onClick={() => { setKelasPilih(''); setInputOpen(true); }}>
               <Plus data-icon="inline-start" size={16} /> Riwayat

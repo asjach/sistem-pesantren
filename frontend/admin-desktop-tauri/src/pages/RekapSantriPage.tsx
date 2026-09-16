@@ -3,17 +3,17 @@ import { errorMessage } from '../api/client';
 import { rekapSantri, type RekapSantri } from '../api/siklus';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import TabelRingkas from '@/components/TabelRingkas';
-import { FilterLembaga, FilterTahunAjaran, useLembagaTa } from '@/components/siklus/bersama';
 import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
+import { useTahunAjaranAwalString } from '@/hooks/useTahunAjaranAwal';
 
 /** Rekap Santri: jumlah per tahun ajaran/tingkat/kelas + usia per kelas. */
 export default function RekapSantriPage() {
   const [lembagaId, setLembagaId] = useState('');
   useLembagaAwalString(setLembagaId);
   const [taId, setTaId] = useState('');
+  useTahunAjaranAwalString(setTaId);
   const [data, setData] = useState<RekapSantri | null>(null);
   const [err, setErr] = useState('');
-  const { lembagas, tas } = useLembagaTa(lembagaId);
 
   const load = useCallback(async () => {
     setErr('');
@@ -29,8 +29,6 @@ export default function RekapSantriPage() {
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
       <div className="flex flex-wrap items-end gap-3">
-        <FilterLembaga id="select_lembaga_rekap" value={lembagaId} onChange={(v) => { setLembagaId(v); setTaId(''); }} lembagas={lembagas} />
-        <FilterTahunAjaran id="select_ta_rekap" value={taId} onChange={setTaId} tas={tas} />
         <span className="rounded-md border px-3 py-2 text-sm">Total santri aktif: <strong>{data?.total_aktif ?? 0}</strong></span>
       </div>
 

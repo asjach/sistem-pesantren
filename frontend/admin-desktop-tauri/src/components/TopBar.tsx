@@ -4,6 +4,7 @@ import { logout } from '@/api/auth';
 import { isTauri, prefGet, prefSet } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
 import { useLembagaAktif } from '@/lembagaAktif';
+import { useTahunAjaranAktif } from '@/tahunAjaranAktif';
 import { useTheme, type ModeName, type ThemeName } from '@/theme';
 import { usePicker } from '@/picker';
 import { cn } from '@/lib/utils';
@@ -23,7 +24,7 @@ import {
 import { ICON_SETS } from '@/iconSets';
 import { THEME_PRESETS } from '@/themes';
 import { DEFAULT_PREFS, WARNA_UI } from '@/prefs';
-import { Blend, Check, ChevronDown, ChevronUp, Landmark, LogOut, Monitor, Moon, Paintbrush, Palette, SquareMousePointer, Sun, Users } from '@/icons';
+import { Blend, CalendarDays, Check, ChevronDown, ChevronUp, Landmark, LogOut, Monitor, Moon, Paintbrush, Palette, SquareMousePointer, Sun, Users } from '@/icons';
 import { useRibbonTable } from '@/components/RibbonTable';
 import { useRibbonSlotCtx } from '@/components/RibbonSlot';
 import BannerBertindak from '@/components/BannerBertindak';
@@ -53,6 +54,7 @@ const TOOLS_TAMPIL_KEY = 'simpes_tools_tampil';
 export default function TopBar() {
   const { user, logoutLocal } = useAuth();
   const { lembagaId, lembaga, pilihan, adaSemua, banyakPilihan, bertindak, pilih, loading: lembagaLoading } = useLembagaAktif();
+  const { tahunAjaranId, tahunAjaran, pilihan: taPilihan, pilih: taPilih, loading: taLoading } = useTahunAjaranAktif();
   // Saat bertindak sebagai lembaga, dropdown hanya menampilkan lembaga itu;
   // kembali ke mode penuh → seluruh daftar tampil lagi (tanpa muat ulang).
   const daftarLembaga = bertindak ? pilihan.filter((l) => l.id === lembagaId) : pilihan;
@@ -167,6 +169,41 @@ export default function TopBar() {
                   <DropdownMenuItem key={l.id} id={`menu_lembaga_aktif_${l.id}`} onSelect={() => pilih(l.id)}>
                     <span className="flex-1 truncate">{l.kode ? `${l.kode} — ${l.nama}` : l.nama}</span>
                     {lembagaId === l.id && <Check data-icon="inline-end" size={14} />}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+          {!taLoading && taPilihan.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  id="btn_menu_tahun_ajaran_aktif"
+                  title="Tahun ajaran aktif"
+                  aria-label="Pilih tahun ajaran aktif"
+                  className={cn(navBase, navIdle, 'mr-1 data-[state=open]:bg-white/15')}
+                >
+                  <CalendarDays size={14} />
+                  <span className="hidden max-w-[9rem] truncate sm:inline">
+                    {tahunAjaran?.nama ?? 'Semua tahun'}
+                  </span>
+                  <ChevronDown size={13} className="opacity-70" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="max-h-80 min-w-[12rem] overflow-y-auto">
+                <DropdownMenuLabel className="text-foreground">Tahun ajaran aktif</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem id="menu_ta_aktif_semua" onSelect={() => taPilih(null)}>
+                  <span className="flex-1">Semua tahun</span>
+                  {tahunAjaranId === null && <Check data-icon="inline-end" size={14} />}
+                </DropdownMenuItem>
+                {taPilihan.map((t) => (
+                  <DropdownMenuItem key={t.id} id={`menu_ta_aktif_${t.id}`} onSelect={() => taPilih(t.id)}>
+                    <span className="flex-1 truncate">
+                      {/* Mode "Semua lembaga": nama TA dibedakan per lembaga. */}
+                      {t.lembaga ? `${t.lembaga.kode ?? t.lembaga.nama} — ${t.nama}` : t.nama}
+                    </span>
+                    {tahunAjaranId === t.id && <Check data-icon="inline-end" size={14} />}
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>

@@ -8,10 +8,11 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import ExcelTable from '@/components/ExcelTable';
 import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
+import { useTahunAjaranAwalString } from '@/hooks/useTahunAjaranAwal';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { ActionIcon } from '@/components/RowActions';
 import { MoveHorizontal, SquareMousePointer } from '@/icons';
-import { FilterLembaga, FilterSemester, FilterTahunAjaran, ROSTER_FIELDS, noopCommit, riwayatValues, useLembagaTa } from '@/components/siklus/bersama';
+import { FilterSemester, ROSTER_FIELDS, noopCommit, riwayatValues, useLembagaTa } from '@/components/siklus/bersama';
 import { toast } from 'sonner';
 
 /** Daftar Kelas: santri aktif pada TA aktif & semester berjalan (baca + pindah/keluar kelas). */
@@ -19,12 +20,13 @@ export default function DaftarKelasPage() {
   const [lembagaId, setLembagaId] = useState('');
   useLembagaAwalString(setLembagaId);
   const [taId, setTaId] = useState('');
+  useTahunAjaranAwalString(setTaId);
   const [semester, setSemester] = useState('');
   const [rows, setRows] = useState<RiwayatRow[]>([]);
   const [info, setInfo] = useState<{ tahun_ajaran_id: number; semester: string } | null>(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
-  const { lembagas, tas } = useLembagaTa(lembagaId);
+  const { tas } = useLembagaTa(lembagaId);
 
   const [kelas, setKelas] = useState<Kelas[]>([]);
   const [pindahRow, setPindahRow] = useState<RiwayatRow | null>(null);
@@ -83,8 +85,6 @@ export default function DaftarKelasPage() {
         )}
         filter={(
           <>
-            <FilterLembaga id="select_lembaga_daftar_kelas" value={lembagaId} onChange={(v) => { setLembagaId(v); setTaId(''); }} lembagas={lembagas} />
-            <FilterTahunAjaran id="select_ta_daftar_kelas" value={taId} onChange={setTaId} tas={tas} />
             <FilterSemester id="select_semester_daftar_kelas" value={semester} onChange={setSemester} />
             {info ? (
               <span className="text-xs text-muted-foreground">

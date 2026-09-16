@@ -7,9 +7,9 @@ import { FieldLabel } from '@/components/ui/field';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import ExcelTable from '@/components/ExcelTable';
 import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
+import { useTahunAjaranAwalString } from '@/hooks/useTahunAjaranAwal';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import TabelRingkas from '@/components/TabelRingkas';
-import { FilterLembaga, FilterTahunAjaran, useLembagaTa } from '@/components/siklus/bersama';
 import { toast } from 'sonner';
 
 /** Kelulusan: kiri santri tingkat akhir → kanan alumni & santri tidak lulus. */
@@ -18,13 +18,13 @@ export default function KelulusanPage() {
   useLembagaAwalString(setLembagaId);
   const [tingkat, setTingkat] = useState('');
   const [taLulus, setTaLulus] = useState('');
+  useTahunAjaranAwalString(setTaLulus);
   const [kiri, setKiri] = useState<RiwayatRow[]>([]);
   const [pilih, setPilih] = useState<Set<number>>(new Set());
   const [tidakLulus, setTidakLulus] = useState<{ santri_id: number; nama: string; kelas: string | null }[]>([]);
   const [alumni, setAlumni] = useState<Alumni[]>([]);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
-  const { lembagas, tas } = useLembagaTa(lembagaId);
 
   const [lulusOpen, setLulusOpen] = useState(false);
   const [tanggalLulus, setTanggalLulus] = useState('');
@@ -89,12 +89,10 @@ export default function KelulusanPage() {
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
       <div className="flex flex-wrap items-end gap-3">
-        <FilterLembaga id="select_lembaga_kelulusan" value={lembagaId} onChange={(v) => { setLembagaId(v); setTingkat(''); setTaLulus(''); }} lembagas={lembagas} />
         <div>
           <FieldLabel htmlFor="input_tingkat_kelulusan">Tingkat akhir</FieldLabel>
           <Input id="input_tingkat_akhir_kelulusan" value={tingkat} onChange={(e) => setTingkat(e.target.value)} placeholder="mis. 6" className="w-28" />
         </div>
-        <FilterTahunAjaran id="select_ta_lulus_kelulusan" label="TA lulus" value={taLulus} onChange={setTaLulus} tas={tas} />
         <Button id="btn_buka_luluskan" disabled={namaTerpilih.length === 0} onClick={() => { setTanggalLulus(''); setNoIjazah(''); setNoSurat(''); setLulusOpen(true); }}>
           Luluskan ({namaTerpilih.length})
         </Button>

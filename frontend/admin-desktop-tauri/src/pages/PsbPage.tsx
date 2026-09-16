@@ -45,7 +45,6 @@ import {
 } from '@/components/ui/select';
 import ExcelTable, { type ExcelChoice, type ExcelField } from '@/components/ExcelTable';
 import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
-import { useLembagaAktif } from '@/lembagaAktif';
 import FilterField from '@/components/FilterField';
 import { RibbonSlot } from '@/components/RibbonSlot';
 import { RibbonCmd, RibbonGroup, RibbonPemisah } from '@/components/topbar/primitives';
@@ -166,7 +165,6 @@ export default function PsbPage() {
   const [badge, setBadge] = useState<Record<string, number>>({});
   const [lembagaId, setLembagaId] = useState('');
   useLembagaAwalString(setLembagaId);
-  const { terkunci } = useLembagaAktif();
   const [rows, setRows] = useState<PsbCalon[]>([]);
   const pager = usePager('psb');
   const reqRef = useRef(0);
@@ -794,19 +792,6 @@ export default function PsbPage() {
               </Select>
               </FilterField>
             )}
-            <FilterField label="Lembaga" htmlFor="select_lembaga_psb">
-            <Select value={lembagaId === '' ? '_semua' : lembagaId} onValueChange={(v) => { setLembagaId(v === '_semua' ? '' : v); pager.goFirst(); }} disabled={terkunci}>
-              <SelectTrigger id="select_lembaga_psb" title="Filter lembaga" aria-label="Filter lembaga" size="sm" className="w-40">
-                <SelectValue placeholder="Semua" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {!terkunci && <SelectItem value="_semua">Semua lembaga</SelectItem>}
-                  {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>)}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-            </FilterField>
             <label htmlFor="chk_tampil_terhapus_psb" className="flex cursor-pointer items-center gap-1.5 text-xs text-muted-foreground">
               <input
                 id="chk_tampil_terhapus_psb"

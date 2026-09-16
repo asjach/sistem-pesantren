@@ -8,7 +8,7 @@ import {
   type DokumenWajib,
   type PsbKegiatan,
 } from '../api/psb';
-import { listLembaga, referensiList, type Lembaga, type ReferensiRow } from '../api/master';
+import { referensiList, type ReferensiRow } from '../api/master';
 import { Button } from '@/components/ui/button';
 import { FieldLabel } from '@/components/ui/field';
 import {
@@ -21,7 +21,6 @@ import {
 } from '@/components/ui/select';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
-import { useLembagaAktif } from '@/lembagaAktif';
 import FilterField from '@/components/FilterField';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import {
@@ -61,10 +60,8 @@ function gridValues(d: DokumenWajib): Record<string, string | null> {
 export default function DokumenWajibPage() {
   const [kegiatans, setKegiatans] = useState<PsbKegiatan[]>([]);
   const [kegiatanId, setKegiatanId] = useState('');
-  const [lembagas, setLembagas] = useState<Lembaga[]>([]);
   const [lembagaId, setLembagaId] = useState('');
   useLembagaAwalString(setLembagaId);
-  const { terkunci } = useLembagaAktif();
   const [rows, setRows] = useState<DokumenWajib[]>([]);
   const [jenis, setJenis] = useState<ReferensiRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -92,7 +89,6 @@ export default function DokumenWajibPage() {
   }, [kegiatanId, lembagaId]);
 
   useEffect(() => {
-    listLembaga({ per_page: 100 }).then((p) => setLembagas(p.data)).catch((e) => setErr(errorMessage(e)));
     listPsbKegiatan()
       .then((r) => {
         setKegiatans(r.data);
@@ -205,7 +201,9 @@ export default function DokumenWajibPage() {
         rows={rows}
         getValues={gridValues}
         loading={loading}
-        emptyText={kegiatanId && lembagaId ? 'Belum ada ketentuan dokumen.' : 'Pilih kegiatan & lembaga dulu.'}
+        emptyText={!lembagaId
+          ? 'Pilih lembaga aktif di TopBar dulu.'
+          : (kegiatanId ? 'Belum ada ketentuan dokumen.' : 'Pilih kegiatan dulu.')}
         canEdit
         onCommit={commitWajib}
         onSaved={load}
@@ -221,18 +219,6 @@ export default function DokumenWajibPage() {
               <SelectContent>
                 <SelectGroup>
                   {kegiatans.map((k) => <SelectItem key={k.id} value={String(k.id)}>{k.nama}</SelectItem>)}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-            </FilterField>
-            <FilterField label="Lembaga" htmlFor="select_lembaga_dokumen_wajib">
-            <Select value={lembagaId} onValueChange={setLembagaId} disabled={terkunci}>
-              <SelectTrigger id="select_lembaga_dokumen_wajib" title="Lembaga" aria-label="Lembaga" className="w-44">
-                <SelectValue placeholder="Pilih lembaga" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>)}
                 </SelectGroup>
               </SelectContent>
             </Select>

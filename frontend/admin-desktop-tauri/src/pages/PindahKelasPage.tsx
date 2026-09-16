@@ -9,8 +9,9 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import ExcelTable from '@/components/ExcelTable';
 import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
+import { useTahunAjaranAwalString } from '@/hooks/useTahunAjaranAwal';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
-import { FilterLembaga, FilterSemester, FilterTahunAjaran, useLembagaTa } from '@/components/siklus/bersama';
+import { FilterSemester } from '@/components/siklus/bersama';
 import { toast } from 'sonner';
 
 interface Kelompok { kelasId: number | null; kelas: string; tingkat: string | null; baris: RiwayatRow[]; }
@@ -20,12 +21,12 @@ export default function PindahKelasPage() {
   const [lembagaId, setLembagaId] = useState('');
   useLembagaAwalString(setLembagaId);
   const [taId, setTaId] = useState('');
+  useTahunAjaranAwalString(setTaId);
   const [semester, setSemester] = useState('');
   const [rows, setRows] = useState<RiwayatRow[]>([]);
   const [kelas, setKelas] = useState<Kelas[]>([]);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
-  const { lembagas, tas } = useLembagaTa(lembagaId);
 
   const [salinOpen, setSalinOpen] = useState(false);
   const [tanggalSalin, setTanggalSalin] = useState('');
@@ -74,8 +75,6 @@ export default function PindahKelasPage() {
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
       <div className="flex flex-wrap items-end gap-3">
-        <FilterLembaga id="select_lembaga_pindah_kelas" value={lembagaId} onChange={(v) => { setLembagaId(v); setTaId(''); }} lembagas={lembagas} />
-        <FilterTahunAjaran id="select_ta_pindah_kelas" value={taId} onChange={setTaId} tas={tas} />
         <FilterSemester id="select_semester_pindah_kelas" value={semester} onChange={setSemester} />
         <Button id="btn_buka_salin_genap" variant="outline" disabled={!lembagaId} onClick={() => { setTanggalSalin(''); setSalinOpen(true); }}>
           Salin ke genap

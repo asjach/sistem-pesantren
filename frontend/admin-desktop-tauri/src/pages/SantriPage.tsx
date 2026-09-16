@@ -27,7 +27,6 @@ import { FieldLabel } from '@/components/ui/field';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
-import { useLembagaAktif } from '@/lembagaAktif';
 import FilterField from '@/components/FilterField';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -172,7 +171,6 @@ export default function SantriPage() {
   const [statusGlobal, setStatusGlobal] = useState('_semua');
   const [lembagaId, setLembagaId] = useState('');
   useLembagaAwalString(setLembagaId);
-  const { terkunci } = useLembagaAktif();
   const [search, setSearch] = useState('');
   const [terapkanCari, setTerapkanCari] = useState('');
 
@@ -346,19 +344,6 @@ export default function SantriPage() {
         searchIds={{ form: 'form_cari_santri', input: 'input_cari_santri', button: 'btn_cari_santri' }}
         filter={(
           <>
-            <FilterField label="Lembaga" htmlFor="select_lembaga_santri">
-              <Select value={lembagaId === '' ? '_semua' : lembagaId} onValueChange={(v) => { setLembagaId(v === '_semua' ? '' : v); pager.goFirst(); }} disabled={terkunci}>
-                <SelectTrigger id="select_lembaga_santri" title="Filter lembaga" aria-label="Filter lembaga" size="sm" className="w-40">
-                  <SelectValue placeholder="Semua" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    {!terkunci && <SelectItem value="_semua">Semua lembaga</SelectItem>}
-                    {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>)}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </FilterField>
             <FilterField label="Status" htmlFor="select_status_santri">
               <Select value={statusGlobal} onValueChange={(v) => { setStatusGlobal(v); pager.goFirst(); }}>
                 <SelectTrigger id="select_status_santri" title="Filter status" aria-label="Filter status" size="sm" className="w-36">

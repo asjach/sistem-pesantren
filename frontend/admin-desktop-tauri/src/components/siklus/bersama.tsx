@@ -3,7 +3,6 @@ import { listLembaga, listTahunAjaran, type Lembaga, type TahunAjaran } from '@/
 import type { RiwayatRow } from '@/api/siklus';
 import type { ExcelField } from '@/components/ExcelTable';
 import FilterField from '@/components/FilterField';
-import { useLembagaAktif } from '@/lembagaAktif';
 import {
   Select,
   SelectContent,
@@ -66,62 +65,6 @@ export function useLembagaTa(lembagaId: string) {
   }, [lembagaId]);
 
   return { lembagas, tas };
-}
-
-/** Filter Lembaga (opsional "Semua lembaga"; default semua untuk admin full). */
-export function FilterLembaga({ id, value, onChange, lembagas }: {
-  id: string;
-  value: string;
-  onChange: (v: string) => void;
-  lembagas: Lembaga[];
-}) {
-  const { terkunci } = useLembagaAktif();
-
-  return (
-    <FilterField label="Lembaga" htmlFor={id}>
-      <Select
-        value={value === '' ? '_semua' : value}
-        onValueChange={(v) => onChange(v === '_semua' ? '' : v)}
-        disabled={terkunci}
-      >
-        <SelectTrigger id={id} title="Filter lembaga" aria-label="Filter lembaga" size="sm" className="w-40">
-          <SelectValue placeholder="Semua" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectGroup>
-            {/* Terkunci (bertindak / hanya 1 lembaga): opsi "Semua" disembunyikan. */}
-            {!terkunci && <SelectItem value="_semua">Semua lembaga</SelectItem>}
-            {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>)}
-          </SelectGroup>
-        </SelectContent>
-      </Select>
-    </FilterField>
-  );
-}
-
-/** Filter Tahun ajaran (label bisa disesuaikan, mis. "Tahun lulus"). */
-export function FilterTahunAjaran({ id, value, onChange, tas, label = 'Tahun ajaran' }: {
-  id: string;
-  value: string;
-  onChange: (v: string) => void;
-  tas: TahunAjaran[];
-  label?: string;
-}) {
-  return (
-    <FilterField label={label} htmlFor={id}>
-      <Select value={value === '' ? '_semua' : value} onValueChange={(v) => onChange(v === '_semua' ? '' : v)}>
-        <SelectTrigger id={id} title={`Filter ${label.toLowerCase()}`} aria-label={`Filter ${label.toLowerCase()}`} size="sm" className="w-40">
-          <SelectValue placeholder="Semua" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectGroup>
-            <SelectItem value="_semua">Semua tahun</SelectItem>
-            {tas.map((t) => <SelectItem key={t.id} value={String(t.id)}>{t.nama}</SelectItem>)}
-          </SelectGroup>
-        </SelectContent>
-      </Select>
-    </FilterField>
-  );
 }
 
 /** Filter semester (1/2). */

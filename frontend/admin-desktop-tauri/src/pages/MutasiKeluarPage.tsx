@@ -13,7 +13,6 @@ import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import TabelRingkas from '@/components/TabelRingkas';
 import Pager from '@/components/Pager';
 import { usePager } from '@/hooks/usePager';
-import { FilterLembaga, useLembagaTa } from '@/components/siklus/bersama';
 import { toast } from 'sonner';
 
 /** Mutasi Keluar: kiri santri aktif (nama + kelas) → kanan arsip mutasi. */
@@ -28,7 +27,6 @@ export default function MutasiKeluarPage() {
   const pager = usePager('mutasi_keluar');
   const [lastPage, setLastPage] = useState(1);
   const [total, setTotal] = useState(0);
-  const { lembagas } = useLembagaTa(lembagaId);
 
   const [baris, setBaris] = useState<RiwayatRow | null>(null);
   const [tanggal, setTanggal] = useState('');
@@ -92,8 +90,6 @@ export default function MutasiKeluarPage() {
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
-      <FilterLembaga id="select_lembaga_mutasi" value={lembagaId} onChange={setLembagaId} lembagas={lembagas} />
-
       <div className="grid grid-cols-2 gap-4">
         <section className="rounded-md border">
           <header className="border-b bg-muted/40 px-3 py-2 text-sm font-medium">Santri aktif ({kiri.length})</header>

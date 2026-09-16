@@ -7,8 +7,8 @@ import { FieldLabel } from '@/components/ui/field';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import ExcelTable from '@/components/ExcelTable';
 import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
+import { useTahunAjaranAwalString } from '@/hooks/useTahunAjaranAwal';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
-import { FilterLembaga, FilterTahunAjaran, useLembagaTa } from '@/components/siklus/bersama';
 import { toast } from 'sonner';
 
 interface Baris { santri_id: number; nama: string; kelas: string | null; }
@@ -19,6 +19,7 @@ export default function KenaikanKelasPage() {
   useLembagaAwalString(setLembagaId);
   const [tingkat, setTingkat] = useState('');
   const [taBaru, setTaBaru] = useState('');
+  useTahunAjaranAwalString(setTaBaru);
   const [tingkatBaru, setTingkatBaru] = useState('');
   const [kiri, setKiri] = useState<RiwayatRow[]>([]);
   const [pilih, setPilih] = useState<Set<number>>(new Set());
@@ -26,7 +27,6 @@ export default function KenaikanKelasPage() {
   const [tidakNaik, setTidakNaik] = useState<Baris[]>([]);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
-  const { lembagas, tas } = useLembagaTa(lembagaId);
 
   const load = useCallback(async () => {
     if (!lembagaId) { setKiri([]); return; }
@@ -80,12 +80,10 @@ export default function KenaikanKelasPage() {
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
       <div className="flex flex-wrap items-end gap-3">
-        <FilterLembaga id="select_lembaga_kenaikan" value={lembagaId} onChange={(v) => { setLembagaId(v); setTaBaru(''); setTingkat(''); }} lembagas={lembagas} />
         <div>
           <FieldLabel htmlFor="input_tingkat_kenaikan">Tingkat asal (smstr 2)</FieldLabel>
           <Input id="input_tingkat_kenaikan" value={tingkat} onChange={(e) => setTingkat(e.target.value)} placeholder="mis. 5" className="w-28" />
         </div>
-        <FilterTahunAjaran id="select_ta_baru_kenaikan" label="TA baru" value={taBaru} onChange={setTaBaru} tas={tas} />
         <div>
           <FieldLabel htmlFor="input_tingkat_baru_kenaikan">Tingkat baru</FieldLabel>
           <Input id="input_tingkat_baru_kenaikan" value={tingkatBaru} onChange={(e) => setTingkatBaru(e.target.value)} placeholder="mis. 6" className="w-28" />
