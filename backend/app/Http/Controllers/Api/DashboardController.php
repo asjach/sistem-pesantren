@@ -28,10 +28,9 @@ class DashboardController extends Controller
         }
         $lembagaIds = $lembagaQuery->pluck('id');
 
-        $tahunAktif = TahunAjaran::whereIn('lembaga_id', $lembagaIds)
-            ->where('is_aktif', true)
-            ->with('lembaga:id,nama')
-            ->get(['id', 'lembaga_id', 'nama']);
+        // TA kini data pesantren (global): tampilkan satu TA aktif yang berlaku.
+        $taAktif = TahunAjaran::aktif($lembagaIds->count() === 1 ? (int) $lembagaIds->first() : null);
+        $tahunAktif = $taAktif ? collect([$taAktif->only(['id', 'lembaga_id', 'nama'])]) : collect();
 
         return response()->json([
             'lembaga' => $lembagaIds->count(),

@@ -197,8 +197,8 @@ class PsbService
                 $targets = [['lembaga' => $lembagaDaftar, 'peran' => 'primer', 'tingkat' => $tingkat]];
             }
 
-            // TA calon = TA primer yang resolved se-lembaga (kegiatan hanya fallback bila se-lembaga).
-            $data['tahun_ajaran_id'] = TahunAjaran::resolveUntukLembaga(
+            // TA calon = TA yang berlaku untuk lembaga primer (kegiatan hanya fallback).
+            $data['tahun_ajaran_id'] = TahunAjaran::resolve(
                 (int) $targets[0]['lembaga']->id,
                 $data['tahun_ajaran_id'] ?? $gelombangModel->kegiatan?->tahun_ajaran_id
             );
@@ -525,8 +525,8 @@ class PsbService
                     }
                     [$awalAcc, $tingkatAcc] = $this->awalDanTingkat($calon, $detail);
                     // TA per lembaga detail (paket MI+MD bisa beda TA): TA calon bila
-                    // se-lembaga, bila tidak TA aktif milik lembaga itu.
-                    $taAcc = TahunAjaran::resolveUntukLembaga($lembagaDetailId, $calon->tahun_ajaran_id);
+                    // bila tidak berlaku, pakai TA aktif yang berlaku untuk lembaga itu.
+                    $taAcc = TahunAjaran::resolve($lembagaDetailId, $calon->tahun_ajaran_id);
 
                     $sudahAktif = RiwayatBelajar::where('santri_id', $santri->id)
                         ->where('lembaga_id', $lembagaDetailId)

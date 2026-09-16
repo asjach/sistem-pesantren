@@ -80,8 +80,8 @@ class PenerimaanService
             if (! $tahun) {
                 throw ValidationException::withMessages(['tahun_ajaran_id' => 'Tahun ajaran tidak ditemukan.']);
             }
-            if ((int) $tahun->lembaga_id !== $lembagaId) {
-                throw ValidationException::withMessages(['tahun_ajaran_id' => 'Tahun ajaran bukan milik lembaga ini.']);
+            if (! TahunAjaran::efektif($lembagaId)->contains('id', $tahun->id)) {
+                throw ValidationException::withMessages(['tahun_ajaran_id' => 'Tahun ajaran tidak berlaku untuk lembaga ini.']);
             }
 
             $kelasId = ! empty($data['kelas_id']) ? (int) $data['kelas_id'] : null;
@@ -145,8 +145,9 @@ class PenerimaanService
     {
         $taLama = TahunAjaran::find($lama->tahun_ajaran_id);
 
-        return TahunAjaran::where('lembaga_id', $lembagaId)
-            ->when($taLama?->tanggal_mulai, fn ($q, $mulai) => $q->where('tanggal_mulai', '>', $mulai))
-            ->orderBy('tanggal_mulai')->orderBy('id')->first();
+        return TahunAjaran::efektif($lembagaId)
+            ->when($taLama?->tanggal_mulai, fn ($rows, $mulai) => $rows->filter(fn ($t) => ($t->tanggal_mulai ?? '') > $mulai))
+            ->sortBy(fn ($t) => ($t->tanggal_mulai ?? '').'|'.str_pad((string) $t->id, 10, '0', STR_PAD_LEFT))
+            ->first();
     }
 }

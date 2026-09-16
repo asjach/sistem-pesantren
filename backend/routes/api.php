@@ -52,10 +52,12 @@ Route::middleware(['auth:sanctum', 'role:super_admin|admin', 'lembaga_aktif', 't
         Route::get('referensi/{tipe}', [ReferensiController::class, 'index']);
         Route::post('referensi/{tipe}', [ReferensiController::class, 'store']);
         Route::match(['put', 'patch'], 'referensi/{tipe}/{id}', [ReferensiController::class, 'update']);
+        Route::post('referensi/{tipe}/{id}/pulihkan', [ReferensiController::class, 'pulihkan']);
         Route::delete('referensi/{tipe}/{id}', [ReferensiController::class, 'destroy']);
 
         Route::apiResource('tahun-ajaran', TahunAjaranController::class)->only(['index', 'store', 'update', 'destroy']);
         Route::post('tahun-ajaran/{tahunAjaran}/set-aktif', [TahunAjaranController::class, 'setAktif']);
+        Route::post('tahun-ajaran/{tahunAjaran}/sembunyikan', [TahunAjaranController::class, 'sembunyikan']);
 
         Route::apiResource('kelas', KelasController::class)->only(['index', 'store', 'update', 'destroy']);
 

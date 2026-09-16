@@ -4,11 +4,9 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Api\Concerns\TenantGuard;
 use App\Http\Controllers\Controller;
-use App\Models\Lembaga;
 use App\Models\PsbCalonSantri;
 use App\Models\PsbGelombang;
 use App\Models\PsbKegiatan;
-use App\Models\TahunAjaran;
 use App\Services\PsbGelombangService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -23,14 +21,15 @@ class PsbKegiatanController extends Controller
     public function __construct(protected PsbGelombangService $gelombang) {}
 
     /** GET /api/admin/psb/kegiatan */
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        $rows = PsbKegiatan::with('tahunAjaran:id,nama')
-            ->withCount('gelombang')
-            ->orderByDesc('id')
-            ->get();
+        $query = $this->scopeLembaga(
+            PsbKegiatan::with('tahunAjaran:id,nama')->with('lembaga:id,nama,kode')->withCount('gelombang'),
+            $request->user(),
+            $request
+        );
 
-        return response()->json(['pesan' => 'Kegiatan PSB dimuat.', 'data' => $rows]);
+        return response()->json(['pesan' => 'Kegiatan PSB dimuat.', 'data' => $query->orderByDesc('id')->get()]);
     }
 
     /** POST /api/admin/psb/kegiatan */
@@ -38,31 +37,33 @@ class PsbKegiatanController extends Controller
     {
         $this->pastikanAdminPesantren();
         $data = $request->validate([
-            'tahun_ajaran_id' => ['required', 'integer', 'exists:tahun_ajaran,id', 'unique:psb_kegiatan,tahun_ajaran_id'],
+            'lembaga_id' => ['required', 'integer', Rule::exists('lembaga', 'id')->whereNotNull('parent_id')],
+            'tahun_ajaran_id' => ['required', 'integer', 'exists:tahun_ajaran,id',
+                Rule::unique('psb_kegiatan', 'tahun_ajaran_id')->where(fn ($q) => $q->where('lembaga_id', $request->input('lembaga_id')))],
             'nama' => ['required', 'string', 'max:100'],
             'is_aktif' => ['nullable', 'boolean'],
         ], [
-            'tahun_ajaran_id.unique' => 'Tahun ajaran ini sudah memiliki kegiatan PSB.',
+            'lembaga_id.exists' => 'Lembaga harus lembaga operasional (bukan induk pesantren).',
+            'tahun_ajaran_id.unique' => 'Lembaga ini sudah memiliki kegiatan PSB untuk tahun ajaran tersebut.',
         ]);
-        // TA acuan periode harus milik lembaga operasional (bukan root pesantren).
-        $indukTa = Lembaga::where('id', TahunAjaran::where('id', $data['tahun_ajaran_id'])->value('lembaga_id'))->value('parent_id');
-        if ($indukTa === null) {
-            throw ValidationException::withMessages(['tahun_ajaran_id' => 'Tahun ajaran harus milik lembaga operasional (bukan induk pesantren).']);
-        }
+        $lembagaId = (int) $data['lembaga_id'];
+        $this->authorizeLembaga($request->user(), $lembagaId);
+        $this->cekTaEfektif($lembagaId, (int) $data['tahun_ajaran_id']);
 
-        $kegiatan = DB::transaction(function () use ($data) {
+        $kegiatan = DB::transaction(function () use ($data, $lembagaId) {
             if ((bool) ($data['is_aktif'] ?? false)) {
                 PsbKegiatan::where('is_aktif', true)->update(['is_aktif' => false]);
             }
 
             return PsbKegiatan::create([
+                'lembaga_id' => $lembagaId,
                 'tahun_ajaran_id' => $data['tahun_ajaran_id'],
                 'nama' => $data['nama'],
                 'is_aktif' => (bool) ($data['is_aktif'] ?? false),
             ]);
         });
 
-        return response()->json(['pesan' => 'Kegiatan PSB dibuat.', 'data' => $kegiatan->fresh('tahunAjaran')], 201);
+        return response()->json(['pesan' => 'Kegiatan PSB dibuat.', 'data' => $kegiatan->fresh(['tahunAjaran', 'lembaga'])], 201);
     }
 
     /** PUT /api/admin/psb/kegiatan/{kegiatan} */
@@ -70,27 +71,31 @@ class PsbKegiatanController extends Controller
     {
         $this->pastikanAdminPesantren();
         $data = $request->validate([
-            'tahun_ajaran_id' => ['sometimes', 'integer', 'exists:tahun_ajaran,id', Rule::unique('psb_kegiatan', 'tahun_ajaran_id')->ignore($kegiatan->id)],
+            'lembaga_id' => ['sometimes', 'integer', Rule::exists('lembaga', 'id')->whereNotNull('parent_id')],
+            'tahun_ajaran_id' => ['sometimes', 'integer', 'exists:tahun_ajaran,id',
+                Rule::unique('psb_kegiatan', 'tahun_ajaran_id')
+                    ->where(fn ($q) => $q->where('lembaga_id', $request->input('lembaga_id', $kegiatan->lembaga_id)))
+                    ->ignore($kegiatan->id)],
             'nama' => ['sometimes', 'string', 'max:100'],
             'is_aktif' => ['nullable', 'boolean'],
         ], [
-            'tahun_ajaran_id.unique' => 'Tahun ajaran ini sudah memiliki kegiatan PSB.',
+            'lembaga_id.exists' => 'Lembaga harus lembaga operasional (bukan induk pesantren).',
+            'tahun_ajaran_id.unique' => 'Lembaga ini sudah memiliki kegiatan PSB untuk tahun ajaran tersebut.',
         ]);
+        $lembagaId = (int) ($data['lembaga_id'] ?? $kegiatan->lembaga_id);
+        $this->authorizeLembaga($request->user(), $lembagaId);
         if (array_key_exists('tahun_ajaran_id', $data)) {
-            $indukTa = Lembaga::where('id', TahunAjaran::where('id', $data['tahun_ajaran_id'])->value('lembaga_id'))->value('parent_id');
-            if ($indukTa === null) {
-                throw ValidationException::withMessages(['tahun_ajaran_id' => 'Tahun ajaran harus milik lembaga operasional (bukan induk pesantren).']);
-            }
+            $this->cekTaEfektif($lembagaId, (int) $data['tahun_ajaran_id']);
         }
 
         DB::transaction(function () use ($kegiatan, $data) {
             if (! empty($data['is_aktif'])) {
                 PsbKegiatan::where('id', '!=', $kegiatan->id)->where('is_aktif', true)->update(['is_aktif' => false]);
             }
-            $kegiatan->update(collect($data)->only(['tahun_ajaran_id', 'nama', 'is_aktif'])->filter(fn ($v) => $v !== null)->toArray());
+            $kegiatan->update(collect($data)->only(['lembaga_id', 'tahun_ajaran_id', 'nama', 'is_aktif'])->filter(fn ($v) => $v !== null)->toArray());
         });
 
-        return response()->json(['pesan' => 'Kegiatan PSB diubah.', 'data' => $kegiatan->fresh('tahunAjaran')]);
+        return response()->json(['pesan' => 'Kegiatan PSB diubah.', 'data' => $kegiatan->fresh(['tahunAjaran', 'lembaga'])]);
     }
 
     /** DELETE /api/admin/psb/kegiatan/{kegiatan} */

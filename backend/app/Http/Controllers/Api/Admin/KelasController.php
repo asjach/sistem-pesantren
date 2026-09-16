@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api\Admin;
 use App\Http\Controllers\Api\Concerns\TenantGuard;
 use App\Http\Controllers\Controller;
 use App\Models\Kelas;
-use App\Models\TahunAjaran;
 use App\Services\RefService;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
@@ -13,7 +12,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 /**
- * FB-004-01: CRUD kelas. tahun_ajaran wajib se-lembaga dengan kelas.
+ * FB-004-01: CRUD kelas. tahun_ajaran wajib berlaku untuk lembaga kelas (TA global).
  */
 class KelasController extends Controller
 {
@@ -63,10 +62,7 @@ class KelasController extends Controller
         $auth = auth()->user();
         $this->authorizeLembaga($auth, (int) $data['lembaga_id']);
 
-        $tahun = TahunAjaran::findOrFail($data['tahun_ajaran_id']);
-        if ((int) $tahun->lembaga_id !== (int) $data['lembaga_id']) {
-            return response()->json(['message' => 'Tahun ajaran tidak se-lembaga dengan kelas.'], 422);
-        }
+        $this->cekTaEfektif((int) $data['lembaga_id'], (int) $data['tahun_ajaran_id']);
 
         $items = isset($data['items'])
             ? array_values($data['items'])

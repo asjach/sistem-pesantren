@@ -95,8 +95,8 @@ class RiwayatBelajarImport implements SkipsOnFailure, SkipsUnknownSheets, ToColl
         }
 
         $tahun = TahunAjaran::find($taId);
-        if (! $tahun || (int) $tahun->lembaga_id !== $lembagaId) {
-            $this->fail($no, 'tahun_ajaran_id', 'Tahun ajaran tidak ditemukan / bukan milik lembaga ini.');
+        if (! $tahun || ! TahunAjaran::efektif($lembagaId)->contains('id', $tahun->id)) {
+            $this->fail($no, 'tahun_ajaran_id', 'Tahun ajaran tidak berlaku untuk lembaga ini.');
 
             return false;
         }

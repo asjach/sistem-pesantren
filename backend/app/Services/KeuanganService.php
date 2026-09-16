@@ -129,7 +129,7 @@ class KeuanganService
         }
 
         $biaya = PsbBiayaLembaga::where('lembaga_id', $calon->lembaga_id)->first();
-        $taMasuk = TahunAjaran::resolveUntukLembaga((int) $calon->lembaga_id, $calon->tahun_ajaran_id);
+        $taMasuk = TahunAjaran::resolve((int) $calon->lembaga_id, $calon->tahun_ajaran_id);
         $tagihanMasuk = $this->buatTagihanDaftarUlang(
             $calon,
             $santri,

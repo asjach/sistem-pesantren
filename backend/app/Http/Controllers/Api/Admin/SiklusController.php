@@ -117,7 +117,7 @@ class SiklusController extends Controller
         $tahunBaruId = (int) $data['tahun_ajaran_baru_id'];
         $tingkat = (string) $data['tingkat'];
         $this->tolakLembagaRoot($lembagaId);
-        $this->cekTaSelembaga($lembagaId, $tahunBaruId, 'tahun_ajaran_baru_id');
+        $this->cekTaEfektif($lembagaId, $tahunBaruId, 'tahun_ajaran_baru_id');
 
         $ok = 0;
         $gagal = [];
@@ -158,7 +158,7 @@ class SiklusController extends Controller
         ]);
 
         $this->tolakLembagaRoot((int) $data['lembaga_id']);
-        $this->cekTaSelembaga((int) $data['lembaga_id'], (int) $data['tahun_ajaran_lulus_id'], 'tahun_ajaran_lulus_id');
+        $this->cekTaEfektif((int) $data['lembaga_id'], (int) $data['tahun_ajaran_lulus_id'], 'tahun_ajaran_lulus_id');
         $this->authorizeAksiLembaga($request, $santri, (int) $data['lembaga_id']);
 
         $alumni = $this->siklusService->prosesLulusPerLembaga($santri, (int) $data['lembaga_id'], $data);
@@ -277,7 +277,7 @@ class SiklusController extends Controller
 
         $taId = isset($data['tahun_ajaran_id'])
             ? (int) $data['tahun_ajaran_id']
-            : (int) (TahunAjaran::where('lembaga_id', $lembagaId)->where('is_aktif', true)->value('id') ?? 0);
+            : (int) (TahunAjaran::aktif($lembagaId)?->id ?? 0);
         if ($taId === 0) {
             return response()->json(['pesan' => 'Tahun ajaran aktif belum ada di lembaga ini.', 'data' => []]);
         }

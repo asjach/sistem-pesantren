@@ -80,7 +80,7 @@ class PsbFlowTest extends TestCase
             'tanggal_mulai' => '2026-07-01', 'tanggal_selesai' => '2027-06-30', 'is_aktif' => true,
         ]);
         $keg = PsbKegiatan::create([
-            'tahun_ajaran_id' => $ta->id, 'nama' => 'PSB 2026/2027', 'is_aktif' => true,
+            'lembaga_id' => $mi->id, 'tahun_ajaran_id' => $ta->id, 'nama' => 'PSB 2026/2027', 'is_aktif' => true,
         ]);
         $gel = PsbGelombang::create([
             'psb_kegiatan_id' => $keg->id, 'nomor' => 1, 'nama' => 'Gelombang 1 2026/2027',
@@ -1141,12 +1141,12 @@ class PsbFlowTest extends TestCase
         $adminLembaga = $this->makeUser('admin', [$f['mi']->id]);
 
         $this->actingAs($adminLembaga, 'sanctum')->postJson('/api/admin/psb/kegiatan', [
-            'tahun_ajaran_id' => $f['ta']->id, 'nama' => 'PSB X', 'is_aktif' => true,
+            'lembaga_id' => $f['mi']->id, 'tahun_ajaran_id' => $f['ta']->id, 'nama' => 'PSB X', 'is_aktif' => true,
         ])->assertStatus(403);
 
-        // Satu tahun ajaran sudah punya kegiatan -> ditolak.
+        // Lembaga + tahun ajaran itu sudah punya kegiatan -> ditolak.
         $this->actingAs($pusat, 'sanctum')->postJson('/api/admin/psb/kegiatan', [
-            'tahun_ajaran_id' => $f['ta']->id, 'nama' => 'PSB Duplikat', 'is_aktif' => false,
+            'lembaga_id' => $f['mi']->id, 'tahun_ajaran_id' => $f['ta']->id, 'nama' => 'PSB Duplikat', 'is_aktif' => false,
         ])->assertStatus(422);
 
         $ta2 = TahunAjaran::create([
@@ -1154,7 +1154,7 @@ class PsbFlowTest extends TestCase
             'tanggal_mulai' => '2027-07-01', 'tanggal_selesai' => '2028-06-30', 'is_aktif' => true,
         ]);
         $keg = $this->actingAs($pusat, 'sanctum')->postJson('/api/admin/psb/kegiatan', [
-            'tahun_ajaran_id' => $ta2->id, 'nama' => 'PSB 2027/2028', 'is_aktif' => true,
+            'lembaga_id' => $f['mi']->id, 'tahun_ajaran_id' => $ta2->id, 'nama' => 'PSB 2027/2028', 'is_aktif' => true,
         ]);
         $keg->assertStatus(201);
         $kegId = $keg->json('data.id');
