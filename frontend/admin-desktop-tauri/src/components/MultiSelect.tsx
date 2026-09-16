@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Check, ChevronDown } from '@/icons';
 import {
   DropdownMenu,
@@ -32,6 +33,14 @@ export default function MultiSelect({
   const toggle = (value: string) => {
     onChange(values.includes(value) ? values.filter((v) => v !== value) : [...values, value]);
   };
+  // Default: bila pilihan hanya satu, nilainya dipakai otomatis — pengguna tak
+  // perlu membukanya dulu. Hanya saat belum ada nilai & tidak nonaktif.
+  const opsi = options.map((o) => o.value).join('|');
+  useEffect(() => {
+    if (disabled || values.length > 0 || options.length !== 1) return;
+    onChange([options[0].value]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [disabled, values.length, opsi]);
   const teks = options
     .filter((o) => values.includes(o.value))
     .map((o) => o.label)

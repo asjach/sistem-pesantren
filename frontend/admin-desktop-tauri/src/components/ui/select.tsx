@@ -5,10 +5,48 @@ import { cn } from "@/lib/utils"
 import { Check as CheckIcon, ChevronDown as ChevronDownIcon, ChevronUp as ChevronUpIcon } from '@/icons'
 import { Select as SelectPrimitive } from "radix-ui"
 
+/** Nilai semua SelectItem di dalam subtree children (untuk auto-pilih). */
+function kumpulkanNilaiOpsi(node: React.ReactNode, hasil: string[] = []): string[] {
+  React.Children.forEach(node, (anak) => {
+    if (!React.isValidElement(anak)) return
+    if (anak.type === SelectItem) {
+      const p = anak.props as { value?: unknown; disabled?: boolean }
+      if (!p.disabled && typeof p.value === 'string') hasil.push(p.value)
+      return
+    }
+    kumpulkanNilaiOpsi((anak.props as { children?: React.ReactNode }).children, hasil)
+  })
+  return hasil
+}
+
 function Select({
+  value,
+  onValueChange,
+  children,
+  disabled,
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Root>) {
-  return <SelectPrimitive.Root data-slot="select" {...props} />
+  // Default: bila pilihan hanya satu, nilainya dipakai otomatis — pengguna tak
+  // perlu memilih dulu. Hanya saat belum ada nilai & pilihan tidak nonaktif.
+  const opsi = React.useMemo(() => kumpulkanNilaiOpsi(children), [children])
+  const kunciOpsi = opsi.join('|')
+  React.useEffect(() => {
+    if (disabled || value !== '' || opsi.length !== 1) return
+    if (opsi[0] === '') return
+    onValueChange?.(opsi[0])
+  }, [value, kunciOpsi, disabled, onValueChange])
+
+  return (
+    <SelectPrimitive.Root
+      data-slot="select"
+      value={value}
+      onValueChange={onValueChange}
+      disabled={disabled}
+      {...props}
+    >
+      {children}
+    </SelectPrimitive.Root>
+  )
 }
 
 function SelectGroup({
