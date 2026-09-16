@@ -12,7 +12,6 @@ use App\Services\PsbGelombangService;
 use App\Services\PsbService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Validation\ValidationException;
@@ -127,20 +126,6 @@ class PsbPortalController extends Controller
         }
 
         return response()->json(['pesan' => 'Riwayat pendaftaran berhasil dimuat.', 'data' => $list]);
-    }
-
-    /** GET /api/portal/santri/{santri}/riwayat-pembayaran — WHERE santri_id (pra+pasca ACC via backfill). */
-    public function riwayatPembayaran(Request $request, Santri $santri): JsonResponse
-    {
-        $this->assertAnak($request->user()->id, $santri->id);
-
-        $tagihan = \App\Models\Tagihan::where('santri_id', $santri->id)->latest('id')->get();
-        $pembayaran = DB::table('pembayaran')->where('santri_id', $santri->id)->orderByDesc('id')->get();
-
-        return response()->json([
-            'pesan' => 'Riwayat pembayaran berhasil dimuat.',
-            'data' => ['tagihan' => $tagihan, 'pembayaran' => $pembayaran],
-        ]);
     }
 
     /** GET /api/portal/riwayat-keluarga — list anak -> klik detail. */

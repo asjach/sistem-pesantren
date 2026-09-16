@@ -19,8 +19,6 @@ return new class extends Migration
     private const REFERENSI = [
         ['kelas', 'tahun_ajaran_id'],
         ['riwayat_belajar', 'tahun_ajaran_id'],
-        ['tarif_biaya', 'tahun_ajaran_id'],
-        ['tagihan', 'tahun_ajaran_id'],
         ['nilai_santri', 'tahun_ajaran_id'],
         ['rapor_catatan_wali', 'tahun_ajaran_id'],
         ['keaktifan_pegawai', 'tahun_ajaran_id'],

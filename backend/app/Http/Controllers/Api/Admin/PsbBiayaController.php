@@ -5,13 +5,11 @@ namespace App\Http\Controllers\Api\Admin;
 use App\Http\Controllers\Api\Concerns\TenantGuard;
 use App\Http\Controllers\Controller;
 use App\Models\Lembaga;
-use App\Models\PsbBiayaLembaga;
 use App\Models\PsbGelombang;
 use App\Models\PsbKuotaBiaya;
 use App\Services\PsbService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\ValidationException;
 
 class PsbBiayaController extends Controller
 {
@@ -31,7 +29,7 @@ class PsbBiayaController extends Controller
             ->get();
 
         return response()->json([
-            'pesan' => 'Kuota & biaya pendaftaran dimuat.',
+            'pesan' => 'Kuota dimuat.',
             'data' => [
                 'gelombang' => [
                     'id' => $gelombang->id,
@@ -92,9 +90,7 @@ class PsbBiayaController extends Controller
             'lembaga_id' => ['required', 'integer', 'exists:lembaga,id'],
             'tipe_santri' => ['required', 'in:semua,asrama,non_asrama'],
             'kuota' => ['nullable', 'integer', 'min:0'],
-            'nominal_pendaftaran' => ['nullable', 'numeric', 'min:0'],
-            'nominal_pendaftaran_lanjutan' => ['nullable', 'numeric', 'min:0'],
-            'nominal_paket' => ['nullable', 'numeric', 'min:0'],
+            'paket_tersedia' => ['nullable', 'boolean'],
             'membutuhkan_seleksi' => ['nullable', 'boolean'],
             'membutuhkan_pemberkasan' => ['nullable', 'boolean'],
         ]);
@@ -107,12 +103,11 @@ class PsbBiayaController extends Controller
                 'tipe_santri' => $data['tipe_santri'],
             ],
             collect($data)->only([
-                'kuota', 'nominal_pendaftaran', 'nominal_pendaftaran_lanjutan',
-                'nominal_paket', 'membutuhkan_seleksi', 'membutuhkan_pemberkasan',
+                'kuota', 'paket_tersedia', 'membutuhkan_seleksi', 'membutuhkan_pemberkasan',
             ])->toArray()
         );
 
-        return response()->json(['pesan' => 'Kuota & biaya tersimpan.', 'data' => $row->fresh()]);
+        return response()->json(['pesan' => 'Kuota tersimpan.', 'data' => $row->fresh()]);
     }
 
     /** DELETE /api/admin/psb/kuota-biaya/{kuota} */
@@ -121,44 +116,7 @@ class PsbBiayaController extends Controller
         $this->authorizeLembaga(auth()->user(), (int) $kuota->lembaga_id);
         $kuota->delete();
 
-        return response()->json(['pesan' => 'Baris kuota & biaya dihapus.']);
-    }
-
-    /** GET /api/admin/psb/biaya-lembaga — biaya masuk & asrama per lembaga (lintas gelombang). */
-    public function indexBiaya(Request $request): JsonResponse
-    {
-        $auth = $request->user();
-        $query = PsbBiayaLembaga::with('lembaga:id,nama,kode')->orderBy('lembaga_id');
-        if (! $auth->bolehPesantren()) {
-            $ids = $auth->lembagaIds();
-            $query->whereIn('lembaga_id', $ids ?: [0]);
-        }
-
-        return response()->json(['pesan' => 'Biaya lembaga dimuat.', 'data' => $query->get()]);
-    }
-
-    /** POST /api/admin/psb/biaya-lembaga — upsert biaya masuk & asrama satu lembaga. */
-    public function upsertBiaya(Request $request): JsonResponse
-    {
-        $data = $request->validate([
-            'lembaga_id' => ['required', 'integer', 'exists:lembaga,id'],
-            'biaya_masuk' => ['required', 'numeric', 'min:0'],
-            'biaya_asrama' => ['required', 'numeric', 'min:0'],
-        ]);
-        $this->authorizeLembaga($request->user(), (int) $data['lembaga_id']);
-
-        if ((float) $data['biaya_asrama'] > 0 && ! in_array((int) $data['lembaga_id'], $this->lembagaPunyaAsrama(), true)) {
-            throw ValidationException::withMessages([
-                'biaya_asrama' => 'Lembaga ini tidak menyediakan asrama. Tambahkan baris kuota tipe asrama terlebih dahulu.',
-            ]);
-        }
-
-        $row = PsbBiayaLembaga::updateOrCreate(
-            ['lembaga_id' => $data['lembaga_id']],
-            ['biaya_masuk' => $data['biaya_masuk'], 'biaya_asrama' => $data['biaya_asrama']]
-        );
-
-        return response()->json(['pesan' => 'Biaya lembaga tersimpan.', 'data' => $row->fresh('lembaga')]);
+        return response()->json(['pesan' => 'Baris kuota dihapus.']);
     }
 
     /** Id lembaga yang menyediakan asrama (punya baris kuota tipe asrama/semua). */

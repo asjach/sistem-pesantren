@@ -8,19 +8,16 @@ import {
   deletePsbGelombang,
   deletePsbKegiatan,
   getKuotaBiaya,
-  listBiayaLembaga,
   listDokumenWajib,
   listGelombangPsb,
   listLembagaPsb,
   listPsbKegiatan,
   simpanDokumenWajib,
-  upsertBiayaLembaga,
   upsertKuotaBiaya,
   updatePsbGelombang,
   updatePsbKegiatan,
   type DokumenWajib,
   type KuotaBiayaInput,
-  type PsbBiayaLembagaRow,
   type PsbGelombangMaster,
   type PsbKegiatan,
   type PsbKuotaBiayaRow,
@@ -88,9 +85,13 @@ const KUOTA_FIELDS: ExcelField[] = [
   { key: 'lembaga', label: 'Lembaga', width: 180, kind: 'static' },
   { key: 'tipe', label: 'Tipe', width: 110, kind: 'static' },
   { key: 'kuota', label: 'Kuota pool', width: 130, kind: 'text', maxLength: 9, validate: angkaInput('Kuota') },
-  { key: 'pendaftaran', label: 'Biaya pendaftaran', width: 150, kind: 'text', maxLength: 15, validate: angkaInput('Biaya pendaftaran') },
-  { key: 'lanjutan', label: 'Biaya lanjutan', width: 140, kind: 'text', maxLength: 15, validate: angkaInput('Biaya lanjutan') },
-  { key: 'paket', label: 'Biaya paket', width: 130, kind: 'text', maxLength: 15, validate: angkaInput('Biaya paket') },
+  {
+    key: 'paket', label: 'Paket MI-MD', width: 130, kind: 'select',
+    choices: [
+      { value: 'ya', label: 'Ya' },
+      { value: 'tidak', label: 'Tidak' },
+    ],
+  },
   {
     key: 'seleksi', label: 'Seleksi', width: 120, kind: 'select',
     choices: [
@@ -106,12 +107,6 @@ const KUOTA_FIELDS: ExcelField[] = [
       { value: 'tidak', label: 'Tidak' },
     ],
   },
-];
-
-const BIAYA_FIELDS: ExcelField[] = [
-  { key: 'lembaga', label: 'Lembaga', width: 220, kind: 'static' },
-  { key: 'masuk', label: 'Biaya masuk (paket)', width: 170, kind: 'text', maxLength: 15, validate: angkaInput('Biaya masuk') },
-  { key: 'asrama', label: 'Biaya asrama (hanya lembaga penyedia)', width: 200, kind: 'text', maxLength: 15, validate: angkaInput('Biaya asrama') },
 ];
 
 const DOKUMEN_FIELDS: ExcelField[] = [
@@ -142,7 +137,6 @@ export default function KegiatanPsbPage() {
   const [gelombangId, setGelombangId] = useState<number | null>(null);
   const [lembagaOpsi, setLembagaOpsi] = useState<PsbLembagaOpsi[]>([]);
   const [kuotaRows, setKuotaRows] = useState<PsbKuotaBiayaRow[]>([]);
-  const [biayaRows, setBiayaRows] = useState<PsbBiayaLembagaRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
@@ -164,16 +158,9 @@ export default function KegiatanPsbPage() {
   const [qLembagas, setQLembagas] = useState<string[]>([]);
   const [qTipe, setQTipe] = useState<'semua' | 'asrama' | 'non_asrama'>('non_asrama');
   const [qKuota, setQKuota] = useState('');
-  const [qPendaftaran, setQPendaftaran] = useState('');
-  const [qLanjutan, setQLanjutan] = useState('');
-  const [qPaket, setQPaket] = useState('');
+  const [qPaketTersedia, setQPaketTersedia] = useState(false);
   const [qSeleksi, setQSeleksi] = useState('default');
   const [qPemberkasan, setQPemberkasan] = useState('ya');
-
-  const [biayaOpen, setBiayaOpen] = useState(false);
-  const [biayaLembagaId, setBiayaLembagaId] = useState('');
-  const [biayaMasuk, setBiayaMasuk] = useState('');
-  const [biayaAsrama, setBiayaAsrama] = useState('');
 
   const [dokumenRows, setDokumenRows] = useState<DokumenWajib[]>([]);
   const [dokOpen, setDokOpen] = useState(false);
@@ -245,11 +232,6 @@ export default function KegiatanPsbPage() {
     setLembagaOpsi(res.data);
   }, []);
 
-  const loadBiaya = useCallback(async () => {
-    const res = await listBiayaLembaga();
-    setBiayaRows(res.data);
-  }, []);
-
   const loadDokumen = useCallback(async (kid: number | null) => {
     if (!kid) {
       setDokumenRows([]);
@@ -268,7 +250,6 @@ export default function KegiatanPsbPage() {
           loadKegiatan(),
           listTahunAjaran({ per_page: 100 }).then((r) => setTahunAjarans(r.data)),
           loadLembaga(),
-          loadBiaya(),
         ]);
         if (kegId) {
           const gid = await loadGelombang(kegId);
@@ -413,9 +394,7 @@ export default function KegiatanPsbPage() {
     setQLembagas(row ? [String(row.lembaga_id)] : (lembagaAwalDialog ? [lembagaAwalDialog] : []));
     setQTipe((row?.tipe_santri as 'semua' | 'asrama' | 'non_asrama') ?? 'non_asrama');
     setQKuota(row?.kuota !== null && row?.kuota !== undefined ? String(row.kuota) : '');
-    setQPendaftaran(row ? String(Number(row.nominal_pendaftaran)) : '');
-    setQLanjutan(row?.nominal_pendaftaran_lanjutan !== null && row?.nominal_pendaftaran_lanjutan !== undefined ? String(Number(row.nominal_pendaftaran_lanjutan)) : '');
-    setQPaket(row?.nominal_paket !== null && row?.nominal_paket !== undefined ? String(Number(row.nominal_paket)) : '');
+    setQPaketTersedia(row ? !!row.paket_tersedia : false);
     setQSeleksi(nilaiSelect(row?.membutuhkan_seleksi));
     setQPemberkasan(row ? (row.membutuhkan_pemberkasan ? 'ya' : 'tidak') : 'ya');
     setKuotaOpen(true);
@@ -431,9 +410,7 @@ export default function KegiatanPsbPage() {
         gelombang_id: gelombangId,
         tipe_santri: qTipe,
         kuota: qKuota === '' ? null : Number(qKuota),
-        nominal_pendaftaran: qPendaftaran === '' ? 0 : Number(qPendaftaran),
-        nominal_pendaftaran_lanjutan: qLanjutan === '' ? null : Number(qLanjutan),
-        nominal_paket: qPaket === '' ? null : Number(qPaket),
+        paket_tersedia: qPaketTersedia,
         membutuhkan_seleksi: qSeleksi === 'default' ? null : qSeleksi === 'ya',
         membutuhkan_pemberkasan: qPemberkasan === 'ya',
       };
@@ -442,8 +419,8 @@ export default function KegiatanPsbPage() {
       }
       toast.success(
         qLembagas.length > 1
-          ? `Kuota & biaya tersimpan untuk ${qLembagas.length} lembaga.`
-          : 'Kuota & biaya tersimpan.',
+          ? `Kuota tersimpan untuk ${qLembagas.length} lembaga.`
+          : 'Kuota tersimpan.',
       );
       setKuotaOpen(false);
       await loadKuota(gelombangId);
@@ -457,38 +434,10 @@ export default function KegiatanPsbPage() {
   async function hapusKuota(row: PsbKuotaBiayaRow) {
     try {
       await deleteKuotaBiaya(row.id);
-      toast.success('Baris kuota & biaya dihapus.');
+      toast.success('Baris kuota dihapus.');
       await loadKuota(gelombangId);
     } catch (e) {
       setErr(errorMessage(e));
-    }
-  }
-
-  function bukaBiaya(row: PsbBiayaLembagaRow | null, lembagaId: number) {
-    setBiayaLembagaId(String(row?.lembaga_id ?? lembagaId));
-    setBiayaMasuk(row ? String(Number(row.biaya_masuk)) : '');
-    setBiayaAsrama(row?.biaya_asrama && Number(row.biaya_asrama) > 0 ? String(Number(row.biaya_asrama)) : '');
-    setBiayaOpen(true);
-  }
-
-  async function simpanBiaya(e: React.FormEvent) {
-    e.preventDefault();
-    if (!biayaLembagaId) return;
-    setBusy(true);
-    setErr('');
-    try {
-      await upsertBiayaLembaga({
-        lembaga_id: Number(biayaLembagaId),
-        biaya_masuk: biayaMasuk === '' ? 0 : Number(biayaMasuk),
-        biaya_asrama: biayaLembagaTerpilih?.punya_asrama && biayaAsrama !== '' ? Number(biayaAsrama) : 0,
-      });
-      toast.success('Biaya lembaga tersimpan.');
-      setBiayaOpen(false);
-      await loadBiaya();
-    } catch (e2) {
-      setErr(errorMessage(e2));
-    } finally {
-      setBusy(false);
     }
   }
 
@@ -504,37 +453,16 @@ export default function KegiatanPsbPage() {
       lembaga: l?.kode ?? l?.nama ?? String(r.lembaga_id),
       tipe: r.tipe_santri,
       kuota: r.kuota === null || r.kuota === undefined ? '' : angka(r.kuota),
-      pendaftaran: angka(r.nominal_pendaftaran),
-      lanjutan: r.nominal_pendaftaran_lanjutan === null ? '' : angka(r.nominal_pendaftaran_lanjutan),
-      paket: r.nominal_paket === null ? '' : angka(r.nominal_paket),
+      paket: r.paket_tersedia ? 'ya' : 'tidak',
       seleksi: nilaiSelect(r.membutuhkan_seleksi),
       pemberkasan: r.membutuhkan_pemberkasan ? 'ya' : 'tidak',
     };
   }, [lembagaOpsi]);
 
-  const biayaGridRows = useMemo(
-    () => lembagaDialog.map((l) => {
-      const row = biayaRows.find((b) => b.lembaga_id === l.id) ?? null;
-      return { ...l, biaya: row };
-    }),
-    [lembagaDialog, biayaRows],
-  );
-
-  const biayaLembagaTerpilih = useMemo(
-    () => lembagaDialog.find((l) => String(l.id) === biayaLembagaId) ?? null,
-    [lembagaDialog, biayaLembagaId],
-  );
-
   const taTersedia = useMemo(
     () => (kegEdit ? tahunAjarans : tahunAjarans.filter((t) => !kegiatans.some((k) => k.tahun_ajaran_id === t.id))),
     [kegEdit, tahunAjarans, kegiatans],
   );
-
-  const getBiayaValues = useCallback((r: PsbLembagaOpsi & { biaya: PsbBiayaLembagaRow | null }) => ({
-    lembaga: r.kode ?? r.nama,
-    masuk: angka(r.biaya?.biaya_masuk ?? 0),
-    asrama: r.punya_asrama ? angka(r.biaya?.biaya_asrama ?? 0) : '',
-  }), []);
 
   const commitGelombang = useCallback(async (id: string | number, f: Record<string, string | null>) => {
     const payload: { nama?: string } = {};
@@ -551,25 +479,11 @@ export default function KegiatanPsbPage() {
       tipe_santri: row.tipe_santri,
     };
     if (f.kuota !== undefined) payload.kuota = (f.kuota ?? '').trim() === '' ? null : parseAngka(f.kuota);
-    if (f.pendaftaran !== undefined) payload.nominal_pendaftaran = parseAngka(f.pendaftaran);
-    if (f.lanjutan !== undefined) payload.nominal_pendaftaran_lanjutan = (f.lanjutan ?? '').trim() === '' ? null : parseAngka(f.lanjutan);
-    if (f.paket !== undefined) payload.nominal_paket = (f.paket ?? '').trim() === '' ? null : parseAngka(f.paket);
+    if (f.paket !== undefined) payload.paket_tersedia = f.paket === 'ya';
     if (f.seleksi !== undefined) payload.membutuhkan_seleksi = f.seleksi === 'default' ? null : f.seleksi === 'ya';
     if (f.pemberkasan !== undefined) payload.membutuhkan_pemberkasan = f.pemberkasan === 'ya';
     await upsertKuotaBiaya(payload);
   }, [kuotaRows]);
-
-  const commitBiaya = useCallback(async (id: string | number, f: Record<string, string | null>) => {
-    const lembagaId = Number(id);
-    const row = biayaRows.find((b) => b.lembaga_id === lembagaId);
-    const lembaga = lembagaTampil.find((l) => l.id === lembagaId);
-    const masuk = f.masuk !== undefined ? parseAngka(f.masuk) : Number(row?.biaya_masuk ?? 0);
-    const asrama = f.asrama !== undefined ? parseAngka(f.asrama) : Number(row?.biaya_asrama ?? 0);
-    if (asrama > 0 && !lembaga?.punya_asrama) {
-      throw new Error('Lembaga ini tidak menyediakan asrama. Tambahkan baris kuota tipe asrama di gelombang terlebih dahulu.');
-    }
-    await upsertBiayaLembaga({ lembaga_id: lembagaId, biaya_masuk: masuk, biaya_asrama: asrama });
-  }, [biayaRows, lembagaTampil]);
 
   const reloadGelombang = useCallback(async () => {
     await loadGelombang(kegiatanId, gelombangId ?? undefined);
@@ -578,10 +492,6 @@ export default function KegiatanPsbPage() {
   const reloadKuota = useCallback(async () => {
     await loadKuota(gelombangId);
   }, [gelombangId, loadKuota]);
-
-  const reloadBiaya = useCallback(async () => {
-    await loadBiaya();
-  }, [loadBiaya]);
 
   const dokumenGridRows = useMemo(() => {
     const peta = new Map<number, { id: number; lembaga: string; wajib: string[]; opsional: string[] }>();
@@ -791,7 +701,7 @@ export default function KegiatanPsbPage() {
           />
 
           <div className="mb-2 mt-6 flex flex-wrap items-center gap-3">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Kuota & biaya pendaftaran</h2>
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Kuota pendaftaran</h2>
             <div className="min-w-56">
               <Select value={gelombangId ? String(gelombangId) : ''} onValueChange={(v) => void pilihGelombang(Number(v))}>
                 <SelectTrigger id="select_gelombang_psb" className="w-full">
@@ -821,7 +731,7 @@ export default function KegiatanPsbPage() {
             rows={kuotaTampil}
             getValues={getKuotaValues}
             loading={loading}
-            emptyText="Belum ada konfigurasi kuota & biaya di gelombang ini."
+            emptyText="Belum ada konfigurasi kuota di gelombang ini."
             canEdit
             onCommit={commitKuota}
             onSaved={reloadKuota}
@@ -834,29 +744,10 @@ export default function KegiatanPsbPage() {
                 <DeleteAction
                   id={`btn_hapus_kuota_${r.id}`}
                   title="Hapus baris?"
-                  description="Konfigurasi kuota & biaya baris ini akan dihapus."
+                  description="Konfigurasi kuota baris ini akan dihapus."
                   onConfirm={() => hapusKuota(r)}
                 />
               </>
-            )}
-          />
-
-          <h2 className="mb-2 mt-6 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            Biaya masuk & asrama per lembaga (berlaku semua gelombang)
-          </h2>
-          <ExcelTable
-            tableKey="kegiatan_psb_biaya"
-            maxRows={8}
-            fields={BIAYA_FIELDS}
-            rows={biayaGridRows}
-            getValues={getBiayaValues}
-            loading={loading}
-            emptyText="Belum ada lembaga."
-            canEdit
-            onCommit={commitBiaya}
-            onSaved={reloadBiaya}
-            renderActions={(r) => (
-              <EditAction id={`btn_ubah_biaya_${r.id}`} onClick={() => bukaBiaya(r.biaya, r.id)} />
             )}
           />
         </>
@@ -926,8 +817,8 @@ export default function KegiatanPsbPage() {
       <Dialog open={kuotaOpen} onOpenChange={setKuotaOpen}>
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>{kuotaEdit ? 'Ubah kuota & biaya' : 'Tambah kuota & biaya'}</DialogTitle>
-            <DialogDescription className="sr-only">Formulir kuota dan biaya pendaftaran per lembaga.</DialogDescription>
+            <DialogTitle>{kuotaEdit ? 'Ubah kuota' : 'Tambah kuota'}</DialogTitle>
+            <DialogDescription className="sr-only">Formulir kuota per lembaga.</DialogDescription>
           </DialogHeader>
           <form id="form_kuota_psb" onSubmit={simpanKuota} className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4">
             <FieldLabel htmlFor="select_lembaga_kuota">Lembaga (bisa pilih beberapa)</FieldLabel>
@@ -955,12 +846,11 @@ export default function KegiatanPsbPage() {
             </Select>
             <FieldLabel htmlFor="input_kuota_psb">Kuota pool (kosong = tanpa batas)</FieldLabel>
             <Input id="input_kuota_psb" type="number" min={0} value={qKuota} onChange={(e) => setQKuota(e.target.value)} placeholder="100" />
-            <FieldLabel htmlFor="input_pendaftaran_psb">Biaya pendaftaran</FieldLabel>
-            <Input id="input_pendaftaran_psb" type="number" min={0} value={qPendaftaran} onChange={(e) => setQPendaftaran(e.target.value)} />
-            <FieldLabel htmlFor="input_lanjutan_psb">Biaya pendaftaran lanjutan (opsional)</FieldLabel>
-            <Input id="input_lanjutan_psb" type="number" min={0} value={qLanjutan} onChange={(e) => setQLanjutan(e.target.value)} />
-            <FieldLabel htmlFor="input_paket_psb">Biaya paket MI-MD (opsional, baris MI)</FieldLabel>
-            <Input id="input_paket_psb" type="number" min={0} value={qPaket} onChange={(e) => setQPaket(e.target.value)} />
+            <FieldLabel htmlFor="chk_paket_psb">Paket MI-MD</FieldLabel>
+            <label htmlFor="chk_paket_psb" className="flex cursor-pointer items-center gap-2 text-sm">
+              <input id="chk_paket_psb" type="checkbox" checked={qPaketTersedia} onChange={(e) => setQPaketTersedia(e.target.checked)} className="size-4 accent-[var(--accent)]" />
+              <span className="text-muted-foreground">Tawarkan paket MI-MD (baris primer MI)</span>
+            </label>
             <FieldLabel htmlFor="select_seleksi_psb">Membutuhkan seleksi</FieldLabel>
             <Select value={qSeleksi} onValueChange={setQSeleksi}>
               <SelectTrigger id="select_seleksi_psb" className="w-full">
@@ -989,52 +879,6 @@ export default function KegiatanPsbPage() {
             <DialogFooter className="col-span-2">
               <Button type="button" variant="outline" onClick={() => setKuotaOpen(false)}>Batal</Button>
               <Button id="btn_simpan_kuota_psb" type="submit" disabled={busy}>Simpan</Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={biayaOpen} onOpenChange={setBiayaOpen}>
-        <DialogContent className="sm:max-w-xl">
-          <DialogHeader>
-            <DialogTitle>Biaya masuk & asrama</DialogTitle>
-            <DialogDescription className="sr-only">Formulir biaya masuk dan biaya asrama per lembaga.</DialogDescription>
-          </DialogHeader>
-          <form id="form_biaya_lembaga_psb" onSubmit={simpanBiaya} className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4">
-            <FieldLabel htmlFor="select_lembaga_biaya">Lembaga</FieldLabel>
-            <Select value={biayaLembagaId} onValueChange={setBiayaLembagaId} disabled>
-              <SelectTrigger id="select_lembaga_biaya" className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {lembagaDialog.map((l) => (
-                    <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-            <FieldLabel htmlFor="input_biaya_masuk_psb">Biaya masuk (paket: bangunan, matsama, buku, lainnya)</FieldLabel>
-            <Input id="input_biaya_masuk_psb" type="number" min={0} value={biayaMasuk} onChange={(e) => setBiayaMasuk(e.target.value)} />
-            <FieldLabel htmlFor="input_biaya_asrama_psb" className="self-start pt-1.5">Biaya asrama (terpisah, hanya tipe asrama)</FieldLabel>
-            <div className="flex flex-col gap-1.5">
-              <Input
-                id="input_biaya_asrama_psb"
-                type="number"
-                min={0}
-                value={biayaAsrama}
-                onChange={(e) => setBiayaAsrama(e.target.value)}
-                disabled={!biayaLembagaTerpilih?.punya_asrama}
-              />
-              {!biayaLembagaTerpilih?.punya_asrama ? (
-                <p className="text-xs text-muted-foreground">
-                  Lembaga ini tidak menyediakan asrama. Tambahkan baris kuota tipe asrama di gelombang untuk mengaktifkan.
-                </p>
-              ) : null}
-            </div>
-            <DialogFooter className="col-span-2">
-              <Button type="button" variant="outline" onClick={() => setBiayaOpen(false)}>Batal</Button>
-              <Button id="btn_simpan_biaya_lembaga_psb" type="submit" disabled={busy}>Simpan</Button>
             </DialogFooter>
           </form>
         </DialogContent>

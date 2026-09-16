@@ -17,15 +17,13 @@ import {
   Paintbrush,
   Palette,
   ReceiptText,
-  ScrollText,
   Server,
   Users,
-  Wallet,
   type Ikon,
 } from '@/icons';
 
 /** Kategori navigasi (grup di sidebar). */
-export type TabKategori = 'beranda' | 'master' | 'psb' | 'santri' | 'keuangan' | 'pengaturan';
+export type TabKategori = 'beranda' | 'master' | 'psb' | 'santri' | 'pengaturan';
 
 export interface HalamanDef {
   to: string;
@@ -81,9 +79,6 @@ export const HALAMAN: HalamanDef[] = [
   { to: '/rekap-santri', label: 'Rekap Santri', tab: 'santri', grid: true, icon: ReceiptText },
   { to: '/mutasi-keluar', label: 'Mutasi Keluar', tab: 'santri', grid: true, icon: LogOut },
   { to: '/pengajuan-biodata', label: 'Pengajuan Biodata', tab: 'santri', grid: true, icon: NotebookTabs },
-  { to: '/pos', label: 'Pos Keuangan', tab: 'keuangan', grid: true, icon: Wallet },
-  { to: '/tarif', label: 'Tarif Biaya', tab: 'keuangan', grid: true, icon: ReceiptText },
-  { to: '/keuangan', label: 'Keuangan', tab: 'keuangan', grid: true, icon: ScrollText },
   { to: '/pengaturan/tampilan', label: 'Tampilan', tab: 'pengaturan', icon: Palette },
   {
     to: '/pengaturan/tampilan-standar',
@@ -109,7 +104,6 @@ export const NAV_GRUP: { id: TabKategori; label: string }[] = [
   { id: 'master', label: 'Data Induk' },
   { id: 'psb', label: 'PSB' },
   { id: 'santri', label: 'Kesiswaan' },
-  { id: 'keuangan', label: 'Keuangan' },
   { id: 'pengaturan', label: 'Pengaturan' },
 ];
 

@@ -5,7 +5,6 @@ namespace App\Imports;
 use App\Models\PsbCalonSantri;
 use App\Models\PsbGelombang;
 use App\Models\PsbLogStatus;
-use App\Services\KeuanganService;
 use App\Services\PsbService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\QueryException;
@@ -20,14 +19,13 @@ class PsbImport implements ToModel, WithHeadingRow, WithValidation
         protected int $gelombangId,
         protected int $lembagaId,
         protected PsbService $psb,
-        protected KeuanganService $keuangan,
     ) {}
 
     /**
      * NIK required -> PsbCalonSantri::create() langsung
      * (hindari pitfall updateOrCreate dengan NIK null).
      */
-    public function model(array $row): Model|null
+    public function model(array $row): ?Model
     {
         $gelombang = PsbGelombang::with('kegiatan:id,tahun_ajaran_id')->findOrFail($this->gelombangId);
         $tahunAjaranId = $gelombang->kegiatan?->tahun_ajaran_id;
@@ -67,13 +65,6 @@ class PsbImport implements ToModel, WithHeadingRow, WithValidation
 
         PsbLogStatus::create(['psb_calon_santri_id' => $calon->id, 'dari' => null, 'ke' => 'baru']);
         $calon->lembagaDetail()->create(['lembaga_id' => $this->lembagaId, 'peran' => 'primer']);
-        if ($tahunAjaranId) {
-            $this->keuangan->createTagihanPendaftaranPsb(
-                $calon,
-                $this->psb->nominalPendaftaran($this->gelombangId, $this->lembagaId, $calon->tipe_santri),
-                (int) $tahunAjaranId
-            );
-        }
 
         return $calon;
     }

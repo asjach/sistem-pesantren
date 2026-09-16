@@ -11,138 +11,138 @@ return new class extends Migration
      */
     public function up(): void
     {
-                Schema::create('ref_agama', function (Blueprint $table) {
-                    $table->id();
-                    // null = baris global (seed bawaan); terisi = baris khusus lembaga (tambah/shadow, tanpa ganggu lembaga lain)
-                    $table->foreignId('lembaga_id')->nullable()->constrained('lembaga')->nullOnDelete();
-                    $table->string('nama');
-                    $table->integer('urutan')->default(0);
-                    $table->boolean('is_active')->default(true);
+        Schema::create('ref_agama', function (Blueprint $table) {
+            $table->id();
+            // null = baris global (seed bawaan); terisi = baris khusus lembaga (tambah/shadow, tanpa ganggu lembaga lain)
+            $table->foreignId('lembaga_id')->nullable()->constrained('lembaga')->nullOnDelete();
+            $table->string('nama');
+            $table->integer('urutan')->default(0);
+            $table->boolean('is_active')->default(true);
 
-                    $table->unique(['lembaga_id', 'nama']); // PITFALL: MySQL unique membolehkan duplikat NULL — duplikasi baris global dicegah di service (RefService), bukan andalkan index
-                });
+            $table->unique(['lembaga_id', 'nama']); // PITFALL: MySQL unique membolehkan duplikat NULL — duplikasi baris global dicegah di service (RefService), bukan andalkan index
+        });
 
-                Schema::create('ref_cita_cita', function (Blueprint $table) {
-                    $table->id();
-                    // null = baris global (seed bawaan); terisi = baris khusus lembaga (tambah/shadow, tanpa ganggu lembaga lain)
-                    $table->foreignId('lembaga_id')->nullable()->constrained('lembaga')->nullOnDelete();
-                    $table->string('nama');
-                    $table->integer('urutan')->default(0);
-                    $table->boolean('is_active')->default(true);
+        Schema::create('ref_cita_cita', function (Blueprint $table) {
+            $table->id();
+            // null = baris global (seed bawaan); terisi = baris khusus lembaga (tambah/shadow, tanpa ganggu lembaga lain)
+            $table->foreignId('lembaga_id')->nullable()->constrained('lembaga')->nullOnDelete();
+            $table->string('nama');
+            $table->integer('urutan')->default(0);
+            $table->boolean('is_active')->default(true);
 
-                    $table->unique(['lembaga_id', 'nama']); // PITFALL: MySQL unique membolehkan duplikat NULL — duplikasi baris global dicegah di service (RefService), bukan andalkan index
-                });
+            $table->unique(['lembaga_id', 'nama']); // PITFALL: MySQL unique membolehkan duplikat NULL — duplikasi baris global dicegah di service (RefService), bukan andalkan index
+        });
 
-                Schema::create('ref_hobi', function (Blueprint $table) {
-                    $table->id();
-                    // null = baris global (seed bawaan); terisi = baris khusus lembaga (tambah/shadow, tanpa ganggu lembaga lain)
-                    $table->foreignId('lembaga_id')->nullable()->constrained('lembaga')->nullOnDelete();
-                    $table->string('nama');
-                    $table->integer('urutan')->default(0);
-                    $table->boolean('is_active')->default(true);
+        Schema::create('ref_hobi', function (Blueprint $table) {
+            $table->id();
+            // null = baris global (seed bawaan); terisi = baris khusus lembaga (tambah/shadow, tanpa ganggu lembaga lain)
+            $table->foreignId('lembaga_id')->nullable()->constrained('lembaga')->nullOnDelete();
+            $table->string('nama');
+            $table->integer('urutan')->default(0);
+            $table->boolean('is_active')->default(true);
 
-                    $table->unique(['lembaga_id', 'nama']); // PITFALL: MySQL unique membolehkan duplikat NULL — duplikasi baris global dicegah di service (RefService), bukan andalkan index
-                });
+            $table->unique(['lembaga_id', 'nama']); // PITFALL: MySQL unique membolehkan duplikat NULL — duplikasi baris global dicegah di service (RefService), bukan andalkan index
+        });
 
-                Schema::create('ref_pekerjaan', function (Blueprint $table) {
-                    $table->id();
-                    // null = baris global (seed bawaan); terisi = baris khusus lembaga (tambah/shadow, tanpa ganggu lembaga lain)
-                    $table->foreignId('lembaga_id')->nullable()->constrained('lembaga')->nullOnDelete();
-                    $table->string('nama');
-                    $table->integer('urutan')->default(0);
-                    $table->boolean('is_active')->default(true);
+        Schema::create('ref_pekerjaan', function (Blueprint $table) {
+            $table->id();
+            // null = baris global (seed bawaan); terisi = baris khusus lembaga (tambah/shadow, tanpa ganggu lembaga lain)
+            $table->foreignId('lembaga_id')->nullable()->constrained('lembaga')->nullOnDelete();
+            $table->string('nama');
+            $table->integer('urutan')->default(0);
+            $table->boolean('is_active')->default(true);
 
-                    $table->unique(['lembaga_id', 'nama']); // PITFALL: MySQL unique membolehkan duplikat NULL — duplikasi baris global dicegah di service (RefService), bukan andalkan index
-                });
+            $table->unique(['lembaga_id', 'nama']); // PITFALL: MySQL unique membolehkan duplikat NULL — duplikasi baris global dicegah di service (RefService), bukan andalkan index
+        });
 
-                Schema::create('ref_pendidikan', function (Blueprint $table) {
-                    $table->id();
-                    // null = baris global (seed bawaan); terisi = baris khusus lembaga (tambah/shadow, tanpa ganggu lembaga lain)
-                    $table->foreignId('lembaga_id')->nullable()->constrained('lembaga')->nullOnDelete();
-                    $table->string('nama');
-                    $table->integer('urutan')->default(0);
-                    $table->boolean('is_active')->default(true);
+        Schema::create('ref_pendidikan', function (Blueprint $table) {
+            $table->id();
+            // null = baris global (seed bawaan); terisi = baris khusus lembaga (tambah/shadow, tanpa ganggu lembaga lain)
+            $table->foreignId('lembaga_id')->nullable()->constrained('lembaga')->nullOnDelete();
+            $table->string('nama');
+            $table->integer('urutan')->default(0);
+            $table->boolean('is_active')->default(true);
 
-                    $table->unique(['lembaga_id', 'nama']); // PITFALL: MySQL unique membolehkan duplikat NULL — duplikasi baris global dicegah di service (RefService), bukan andalkan index
-                });
+            $table->unique(['lembaga_id', 'nama']); // PITFALL: MySQL unique membolehkan duplikat NULL — duplikasi baris global dicegah di service (RefService), bukan andalkan index
+        });
 
-                Schema::create('ref_kebutuhan_khusus', function (Blueprint $table) {
-                    $table->id();
-                    // null = baris global (seed bawaan); terisi = baris khusus lembaga (tambah/shadow, tanpa ganggu lembaga lain)
-                    $table->foreignId('lembaga_id')->nullable()->constrained('lembaga')->nullOnDelete();
-                    $table->string('nama');
-                    $table->integer('urutan')->default(0);
-                    $table->boolean('is_active')->default(true);
+        Schema::create('ref_kebutuhan_khusus', function (Blueprint $table) {
+            $table->id();
+            // null = baris global (seed bawaan); terisi = baris khusus lembaga (tambah/shadow, tanpa ganggu lembaga lain)
+            $table->foreignId('lembaga_id')->nullable()->constrained('lembaga')->nullOnDelete();
+            $table->string('nama');
+            $table->integer('urutan')->default(0);
+            $table->boolean('is_active')->default(true);
 
-                    $table->unique(['lembaga_id', 'nama']); // PITFALL: MySQL unique membolehkan duplikat NULL — duplikasi baris global dicegah di service (RefService), bukan andalkan index
-                });
+            $table->unique(['lembaga_id', 'nama']); // PITFALL: MySQL unique membolehkan duplikat NULL — duplikasi baris global dicegah di service (RefService), bukan andalkan index
+        });
 
-                Schema::create('ref_kota', function (Blueprint $table) {
-                    $table->id();
-                    // null = baris global (seed bawaan); terisi = baris khusus lembaga (tambah/shadow, tanpa ganggu lembaga lain)
-                    $table->foreignId('lembaga_id')->nullable()->constrained('lembaga')->nullOnDelete();
-                    $table->string('nama');
-                    $table->integer('urutan')->default(0);
-                    $table->boolean('is_active')->default(true);
+        Schema::create('ref_kota', function (Blueprint $table) {
+            $table->id();
+            // null = baris global (seed bawaan); terisi = baris khusus lembaga (tambah/shadow, tanpa ganggu lembaga lain)
+            $table->foreignId('lembaga_id')->nullable()->constrained('lembaga')->nullOnDelete();
+            $table->string('nama');
+            $table->integer('urutan')->default(0);
+            $table->boolean('is_active')->default(true);
 
-                    $table->unique(['lembaga_id', 'nama']); // PITFALL: MySQL unique membolehkan duplikat NULL — duplikasi baris global dicegah di service (RefService), bukan andalkan index
-                });
+            $table->unique(['lembaga_id', 'nama']); // PITFALL: MySQL unique membolehkan duplikat NULL — duplikasi baris global dicegah di service (RefService), bukan andalkan index
+        });
 
-                Schema::create('ref_alamat', function (Blueprint $table) {
-                    $table->id();
-                    // null = global (contoh bawaan); terisi = milik lembaga itu
-                    $table->foreignId('lembaga_id')->nullable()->constrained('lembaga')->nullOnDelete();
-                    $table->string('nama'); // mis. 'Sekebolek'
-                    $table->string('provinsi')->nullable();
-                    $table->string('kab_kota')->nullable();
-                    $table->string('kecamatan')->nullable();
-                    $table->string('desa_kelurahan')->nullable();
-                    $table->text('alamat')->nullable();
-                    $table->string('rt', 3)->nullable();
-                    $table->string('rw', 3)->nullable();
-                    $table->string('kode_pos', 10)->nullable();
-                    $table->integer('urutan')->default(0);
-                    $table->boolean('is_active')->default(true);
+        Schema::create('ref_alamat', function (Blueprint $table) {
+            $table->id();
+            // null = global (contoh bawaan); terisi = milik lembaga itu
+            $table->foreignId('lembaga_id')->nullable()->constrained('lembaga')->nullOnDelete();
+            $table->string('nama'); // mis. 'Sekebolek'
+            $table->string('provinsi')->nullable();
+            $table->string('kab_kota')->nullable();
+            $table->string('kecamatan')->nullable();
+            $table->string('desa_kelurahan')->nullable();
+            $table->text('alamat')->nullable();
+            $table->string('rt', 3)->nullable();
+            $table->string('rw', 3)->nullable();
+            $table->string('kode_pos', 10)->nullable();
+            $table->integer('urutan')->default(0);
+            $table->boolean('is_active')->default(true);
 
-                    $table->unique(['lembaga_id', 'nama']); // scope LEMBAGA, pola KEY sama dengan ref lain
-                });
+            $table->unique(['lembaga_id', 'nama']); // scope LEMBAGA, pola KEY sama dengan ref lain
+        });
 
-                Schema::create('ref_status_awal', function (Blueprint $table) {
-                    $table->id();
-                    $table->foreignId('lembaga_id')->nullable()->constrained('lembaga')->nullOnDelete();
-                    $table->string('kode'); // santri_baru, naik_kelas, mengulang, pindahan (+ custom)
-                    $table->string('label');
-                    $table->integer('urutan')->default(0);
-                    $table->boolean('is_active')->default(true);
+        Schema::create('ref_status_awal', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('lembaga_id')->nullable()->constrained('lembaga')->nullOnDelete();
+            $table->string('kode'); // santri_baru, naik_kelas, mengulang, pindahan (+ custom)
+            $table->string('label');
+            $table->integer('urutan')->default(0);
+            $table->boolean('is_active')->default(true);
 
-                    $table->unique(['lembaga_id', 'kode']);
-                });
+            $table->unique(['lembaga_id', 'kode']);
+        });
 
-                Schema::create('ref_status_akhir', function (Blueprint $table) {
-                    $table->id();
-                    $table->foreignId('lembaga_id')->nullable()->constrained('lembaga')->nullOnDelete();
-                    $table->string('kode'); // aktif, naik, tidak_naik, pindah_keluar, lulus, tidak_lulus (+ custom, no.51)
-                    $table->string('label');
-                    // Sifat logika (terkunci untuk baris sistem):
-                    $table->boolean('is_aktif_bawaan')->default(false); // true HANYA untuk 'aktif' (is_aktif=true iff status_akhir aktif)
-                    $table->string('terminal_ke')->nullable(); // null = bukan terminal (custom baru selalu null = non-aktif netral)
-                    $table->integer('urutan')->default(0);
-                    $table->boolean('is_active')->default(true);
+        Schema::create('ref_status_akhir', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('lembaga_id')->nullable()->constrained('lembaga')->nullOnDelete();
+            $table->string('kode'); // aktif, naik, tidak_naik, pindah_keluar, lulus, tidak_lulus (+ custom, no.51)
+            $table->string('label');
+            // Sifat logika (terkunci untuk baris sistem):
+            $table->boolean('is_aktif_bawaan')->default(false); // true HANYA untuk 'aktif' (is_aktif=true iff status_akhir aktif)
+            $table->string('terminal_ke')->nullable(); // null = bukan terminal (custom baru selalu null = non-aktif netral)
+            $table->integer('urutan')->default(0);
+            $table->boolean('is_active')->default(true);
 
-                    $table->unique(['lembaga_id', 'kode']);
-                });
+            $table->unique(['lembaga_id', 'kode']);
+        });
 
-                foreach (['ref_penghasilan', 'ref_transportasi', 'ref_status_tinggal', 'ref_jarak', 'ref_waktu_tempuh', 'ref_bahasa_sehari_hari', 'ref_disabilitas', 'ref_tmp_lahir', 'ref_status_ortu', 'ref_yang_membiayai', 'ref_provinsi', 'ref_kecamatan', 'ref_desa_kelurahan', 'ref_alasan_mutasi', 'ref_jenis_dokumen_santri', 'ref_jenis_dokumen_pegawai', 'ref_status_pernikahan', 'ref_gol_darah', 'ref_jenis_ptk', 'ref_jenjang_sertifikasi', 'ref_tingkat', 'ref_tugas_utama', 'ref_tipe_pelanggaran', 'ref_kategori_kas', 'ref_metode_pembayaran', 'ref_jalur_sertifikasi'] as $refTabel) {
-                    Schema::create($refTabel, function (Blueprint $table) {
-                        $table->id();
-                        $table->foreignId('lembaga_id')->nullable()->constrained('lembaga')->nullOnDelete();
-                        $table->string('nama');
-                        $table->integer('urutan')->default(0);
-                        $table->boolean('is_active')->default(true);
+        foreach (['ref_penghasilan', 'ref_transportasi', 'ref_status_tinggal', 'ref_jarak', 'ref_waktu_tempuh', 'ref_bahasa_sehari_hari', 'ref_disabilitas', 'ref_tmp_lahir', 'ref_status_ortu', 'ref_yang_membiayai', 'ref_provinsi', 'ref_kecamatan', 'ref_desa_kelurahan', 'ref_alasan_mutasi', 'ref_jenis_dokumen_santri', 'ref_jenis_dokumen_pegawai', 'ref_status_pernikahan', 'ref_gol_darah', 'ref_jenis_ptk', 'ref_jenjang_sertifikasi', 'ref_tingkat', 'ref_tugas_utama', 'ref_tipe_pelanggaran', 'ref_jalur_sertifikasi'] as $refTabel) {
+            Schema::create($refTabel, function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('lembaga_id')->nullable()->constrained('lembaga')->nullOnDelete();
+                $table->string('nama');
+                $table->integer('urutan')->default(0);
+                $table->boolean('is_active')->default(true);
 
-                        $table->unique(['lembaga_id', 'nama']);
-                    });
-                }
+                $table->unique(['lembaga_id', 'nama']);
+            });
+        }
     }
 
     /**
@@ -151,8 +151,6 @@ return new class extends Migration
     public function down(): void
     {
         Schema::dropIfExists('ref_jalur_sertifikasi');
-        Schema::dropIfExists('ref_metode_pembayaran');
-        Schema::dropIfExists('ref_kategori_kas');
         Schema::dropIfExists('ref_tipe_pelanggaran');
         Schema::dropIfExists('ref_tugas_utama');
         Schema::dropIfExists('ref_tingkat');

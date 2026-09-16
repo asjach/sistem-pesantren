@@ -692,7 +692,7 @@ export default function PsbPage() {
           <DeleteAction
             id={`btn_hapus_psb_${c.id}`}
             title="Hapus calon?"
-            description={`${c.nama_lengkap} akan dihapus (soft delete). Tagihan pendaftaran yang belum dibayar ikut dibatalkan.`}
+            description={`${c.nama_lengkap} akan dihapus (soft delete).`}
             onConfirm={() => run(() => hapusCalon(c.id), 'Calon dihapus.')}
           />
         )}
@@ -942,7 +942,7 @@ export default function PsbPage() {
             </DialogTitle>
             <DialogDescription>
               {bulkIds.length} calon terpilih akan diproses.
-              {bulkAksi === 'hapus' ? ' Calon dihapus (soft delete) dan tagihan pendaftaran yang belum dibayar dibatalkan.' : ''}
+              {bulkAksi === 'hapus' ? ' Calon dihapus (soft delete).' : ''}
               {bulkAksi === 'undur' ? ' Calon dipindahkan ke fase Mengundurkan Diri / Ditolak.' : ''}
               {bulkAksi === 'batal' ? ' Calon dikembalikan ke fase sebelumnya (fase diterima tidak bisa dibatalkan).' : ''}
               {bulkAksi === 'daftar_ulang' && bulkButuhSeleksi ? ' Sebagian lembaga memiliki seleksi — tentukan hasilnya.' : ''}

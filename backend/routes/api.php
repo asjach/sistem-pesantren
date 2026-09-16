@@ -4,7 +4,6 @@ use App\Http\Controllers\Api\Admin\KelasController;
 use App\Http\Controllers\Api\Admin\LembagaController;
 use App\Http\Controllers\Api\Admin\LembagaSantriController;
 use App\Http\Controllers\Api\Admin\PengaturanTampilanController;
-use App\Http\Controllers\Api\Admin\PosKeuanganController;
 use App\Http\Controllers\Api\Admin\PresetTabelController;
 use App\Http\Controllers\Api\Admin\PsbBiayaController;
 use App\Http\Controllers\Api\Admin\PsbKegiatanController;
@@ -13,18 +12,15 @@ use App\Http\Controllers\Api\Admin\RiwayatBelajarController;
 use App\Http\Controllers\Api\Admin\SantriController;
 use App\Http\Controllers\Api\Admin\SiklusController;
 use App\Http\Controllers\Api\Admin\TahunAjaranController;
-use App\Http\Controllers\Api\Admin\TarifBiayaController;
 use App\Http\Controllers\Api\Admin\UserManagementController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\KamusController;
-use App\Http\Controllers\Api\KeuanganController;
 use App\Http\Controllers\Api\PengajuanBiodataController;
 use App\Http\Controllers\Api\PsbController;
 use App\Http\Controllers\Api\PsbDokumenController;
 use App\Http\Controllers\Api\PsbPortalController;
 use App\Http\Controllers\Api\PsbPublikController;
-use App\Http\Controllers\KuitansiController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('auth')->group(function () {
@@ -60,9 +56,6 @@ Route::middleware(['auth:sanctum', 'role:super_admin|admin', 'lembaga_aktif', 't
         Route::post('tahun-ajaran/{tahunAjaran}/sembunyikan', [TahunAjaranController::class, 'sembunyikan']);
 
         Route::apiResource('kelas', KelasController::class)->only(['index', 'store', 'update', 'destroy']);
-
-        Route::apiResource('pos-keuangan', PosKeuanganController::class)->only(['index', 'store', 'update', 'destroy']);
-        Route::apiResource('tarif-biaya', TarifBiayaController::class)->only(['index', 'store', 'update', 'destroy']);
 
         // Data Santri (101: master profil + import PPDB massal + foto/dokumen)
         Route::get('santri', [SantriController::class, 'index']);
@@ -151,8 +144,6 @@ Route::middleware(['auth:sanctum', 'role:super_admin|admin', 'lembaga_aktif', 't
         Route::get('psb/kuota-biaya', [PsbBiayaController::class, 'indexKuota']);
         Route::post('psb/kuota-biaya', [PsbBiayaController::class, 'upsertKuota']);
         Route::delete('psb/kuota-biaya/{kuota}', [PsbBiayaController::class, 'destroyKuota']);
-        Route::get('psb/biaya-lembaga', [PsbBiayaController::class, 'indexBiaya']);
-        Route::post('psb/biaya-lembaga', [PsbBiayaController::class, 'upsertBiaya']);
     });
 
 // PSB publik (tanpa auth; captcha SKIP — spec §5 hanya sebut sepintas tanpa implementasi).
@@ -206,7 +197,6 @@ Route::middleware(['auth:sanctum', 'role:orang_tua', 'throttle:api_user'])
             Route::get('riwayat', [PsbPortalController::class, 'riwayat']);
             Route::post('{calon}/dokumen', [PsbDokumenController::class, 'uploadCalon']);
         });
-        Route::get('santri/{santri}/riwayat-pembayaran', [PsbPortalController::class, 'riwayatPembayaran']);
         Route::get('riwayat-keluarga', [PsbPortalController::class, 'riwayatKeluarga']);
         Route::post('santri/{santri}/pengajuan-biodata', [PengajuanBiodataController::class, 'ajukan']);
         Route::delete('pengajuan-biodata/{id}/batal', [PengajuanBiodataController::class, 'batalkan']);
@@ -223,21 +213,3 @@ Route::middleware(['auth:sanctum', 'role:orang_tua|admin|super_admin', 'lembaga_
 Route::middleware('throttle:30,1')->prefix('kamus')->group(function () {
     Route::get('/{jenis}', [KamusController::class, 'saran']);
 });
-
-// Keuangan 103-B: transaksi kasir (auth + role super_admin|admin|kasir, tenant per aksi).
-Route::middleware(['auth:sanctum', 'role:super_admin|admin|kasir', 'lembaga_aktif', 'throttle:api_user'])
-    ->prefix('keuangan')
-    ->group(function () {
-        Route::get('/santri/{santriId}/tagihan', [KeuanganController::class, 'getTagihanSantri']);
-        Route::post('/tagihan/generate-bulanan', [KeuanganController::class, 'generateBulanan']);
-        Route::post('/bayar', [KeuanganController::class, 'bayar']);
-        Route::post('/pembayaran/{pembayaran}/void', [KeuanganController::class, 'void']);
-    });
-
-// Kuitansi 103-C: PDF dompdf + HTML thermal (auth + role super_admin|admin|kasir).
-Route::middleware(['auth:sanctum', 'role:super_admin|admin|kasir', 'lembaga_aktif', 'throttle:api_user'])
-    ->prefix('kuitansi')
-    ->group(function () {
-        Route::get('/{pembayaranId}/pdf', [KuitansiController::class, 'cetakPdf']);
-        Route::get('/{pembayaranId}/thermal', [KuitansiController::class, 'cetakThermal']);
-    });

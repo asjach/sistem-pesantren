@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\DB;
 class RefService
 {
     // Kunci nilai untuk kamus bebas (kolom 'nama'), status (kolom 'kode').
-    // 33 kamus bebas + 2 status = 35 tipe di KEY; + ref_alamat terpisah = 36 ref total.
+    // 31 kamus bebas + 2 status = 33 tipe di KEY; + ref_alamat terpisah = 34 ref total.
     public const KEY = [
         'agama' => 'nama', 'cita_cita' => 'nama', 'hobi' => 'nama',
         'pekerjaan' => 'nama', 'pendidikan' => 'nama',
@@ -22,7 +22,7 @@ class RefService
         'status_pernikahan' => 'nama', 'gol_darah' => 'nama',
         'jenis_ptk' => 'nama', 'jenjang_sertifikasi' => 'nama',
         'tingkat' => 'nama', 'tugas_utama' => 'nama', 'tipe_pelanggaran' => 'nama',
-        'kategori_kas' => 'nama', 'metode_pembayaran' => 'nama', 'jalur_sertifikasi' => 'nama',
+        'jalur_sertifikasi' => 'nama',
         'status_awal' => 'kode', 'status_akhir' => 'kode',
     ];
 

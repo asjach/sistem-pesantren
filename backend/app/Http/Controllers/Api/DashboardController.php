@@ -38,9 +38,8 @@ class DashboardController extends Controller
             'tahun_ajaran_aktif' => $tahunAktif->count(),
             'kelas' => Kelas::whereIn('lembaga_id', $lembagaIds)->count(),
             'tahun_aktif' => $tahunAktif,
-            // Placeholder modul lanjutan (santri/tagihan/psb menyusul):
+            // Placeholder modul lanjutan (santri/psb menyusul):
             'santri' => null,
-            'tagihan_terbuka' => null,
             'antrean_psb' => null,
         ]);
     }

@@ -11,22 +11,34 @@ class ReferensiSeeder extends Seeder
     {
         // Baris global: lembaga_id = null (seed sekali untuk semua lembaga). No.51: nilai per-tabel.
         $agama = ['Islam', 'Kristen Protestan', 'Katolik', 'Buddha', 'Hindu', 'Kong Hu Cu'];
-        foreach ($agama as $i => $a) DB::table('ref_agama')->updateOrInsert(['lembaga_id' => null, 'nama' => $a], ['urutan' => $i, 'is_active' => true]);
+        foreach ($agama as $i => $a) {
+            DB::table('ref_agama')->updateOrInsert(['lembaga_id' => null, 'nama' => $a], ['urutan' => $i, 'is_active' => true]);
+        }
 
         $pendidikan = ['Tidak Sekolah', 'SD/MI', 'SMP/MTs', 'SMA/MA/SMK', 'D1/D2/D3', 'S1/D4', 'S2', 'S3'];
-        foreach ($pendidikan as $i => $p) DB::table('ref_pendidikan')->updateOrInsert(['lembaga_id' => null, 'nama' => $p], ['urutan' => $i, 'is_active' => true]);
+        foreach ($pendidikan as $i => $p) {
+            DB::table('ref_pendidikan')->updateOrInsert(['lembaga_id' => null, 'nama' => $p], ['urutan' => $i, 'is_active' => true]);
+        }
 
         $pekerjaan = ['Tidak Bekerja', 'Pensiunan', 'PNS', 'TNI/Polisi', 'Guru/Dosen', 'Wiraswasta', 'Pengacara/Jaksa/Hakim/Notaris', 'Dokter/Bidan/Perawat', 'Pilot/Pramugara/Pramugari', 'Pedagang', 'Petani/Peternak', 'Nelayan', 'Buruh (Tani/Pabrik/Bangunan)', 'Sopir/Masinis/Kondektur', 'Politikus', 'Lainnya'];
-        foreach ($pekerjaan as $i => $p) DB::table('ref_pekerjaan')->updateOrInsert(['lembaga_id' => null, 'nama' => $p], ['urutan' => $i, 'is_active' => true]);
+        foreach ($pekerjaan as $i => $p) {
+            DB::table('ref_pekerjaan')->updateOrInsert(['lembaga_id' => null, 'nama' => $p], ['urutan' => $i, 'is_active' => true]);
+        }
 
         $hobi = ['Olahraga', 'Kesenian', 'Membaca', 'Menulis', 'Jalan-jalan', 'Lainnya'];
-        foreach ($hobi as $i => $h) DB::table('ref_hobi')->updateOrInsert(['lembaga_id' => null, 'nama' => $h], ['urutan' => $i, 'is_active' => true]);
+        foreach ($hobi as $i => $h) {
+            DB::table('ref_hobi')->updateOrInsert(['lembaga_id' => null, 'nama' => $h], ['urutan' => $i, 'is_active' => true]);
+        }
 
         $cita_cita = ['PNS', 'TNI/Polri', 'Guru/Dosen', 'Dokter', 'Politikus', 'Wiraswasta', 'Seniman/Artis', 'Ilmuwan', 'Agamawan', 'Lainnya'];
-        foreach ($cita_cita as $i => $c) DB::table('ref_cita_cita')->updateOrInsert(['lembaga_id' => null, 'nama' => $c], ['urutan' => $i, 'is_active' => true]);
+        foreach ($cita_cita as $i => $c) {
+            DB::table('ref_cita_cita')->updateOrInsert(['lembaga_id' => null, 'nama' => $c], ['urutan' => $i, 'is_active' => true]);
+        }
 
         $kebutuhan = ['Tidak Ada', 'Lamban Belajar', 'Kesulitan Belajar Spesifik', 'Gangguan Komunikasi', 'Berbakat/memiliki kemampuan dan kecerdasan luar biasa', 'Lainnya'];
-        foreach ($kebutuhan as $i => $k) DB::table('ref_kebutuhan_khusus')->updateOrInsert(['lembaga_id' => null, 'nama' => $k], ['urutan' => $i, 'is_active' => true]);
+        foreach ($kebutuhan as $i => $k) {
+            DB::table('ref_kebutuhan_khusus')->updateOrInsert(['lembaga_id' => null, 'nama' => $k], ['urutan' => $i, 'is_active' => true]);
+        }
 
         // 20 kamus EMIS + dokumen + pegawai + 6 no.50 (global; lembaga tambah/shadow via controller). No.51: nilai per-tabel.
         $baru = [
@@ -53,12 +65,12 @@ class ReferensiSeeder extends Seeder
             'ref_tingkat' => ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'],
             'ref_tugas_utama' => ['Guru Mapel', 'Guru Kelas'],
             'ref_tipe_pelanggaran' => ['ringan', 'sedang', 'berat'],
-            'ref_kategori_kas' => ['operasional', 'bos', 'spp'],
-            'ref_metode_pembayaran' => ['Tunai', 'Transfer'],
             'ref_jalur_sertifikasi' => ['PSPL/PF/PLPG', 'PPG SM-3T', 'PPG S1 Basic Science Berasrama', 'PPG S1 PPGD Berasrama', 'PPG SMK Kolaboratif', 'PPG Terintegrasi', 'PPG Sertifikasi Jalur Pendidikan', 'PPG Kemenag', 'PLPG 2015', 'PPGJ 2015', 'PLPG 2016', 'PLPG 2017', 'PPG Pra Jabatan', 'PPG Dalam Jabatan'],
         ];
         foreach ($baru as $tabel => $daftar) {
-            foreach ($daftar as $i => $nama) DB::table($tabel)->updateOrInsert(['lembaga_id' => null, 'nama' => $nama], ['urutan' => $i, 'is_active' => true]);
+            foreach ($daftar as $i => $nama) {
+                DB::table($tabel)->updateOrInsert(['lembaga_id' => null, 'nama' => $nama], ['urutan' => $i, 'is_active' => true]);
+            }
         }
 
         // Seed kota no.51: Kab. Bandung, Kota Bandung, Bandung.
@@ -69,14 +81,16 @@ class ReferensiSeeder extends Seeder
         // Preset alamat global (contoh Bandung Raya; lembaga tambah miliknya via controller).
         DB::table('ref_alamat')->updateOrInsert(['lembaga_id' => null, 'nama' => 'Sekebolek'],
             ['provinsi' => 'Jawa Barat', 'kab_kota' => 'Kabupaten Bandung', 'kecamatan' => 'Margaasih',
-             'desa_kelurahan' => 'Rahayu', 'alamat' => 'Kp. Kumambang', 'rt' => '05', 'rw' => '08',
-             'kode_pos' => '40218', 'urutan' => 0, 'is_active' => true]);
+                'desa_kelurahan' => 'Rahayu', 'alamat' => 'Kp. Kumambang', 'rt' => '05', 'rw' => '08',
+                'kode_pos' => '40218', 'urutan' => 0, 'is_active' => true]);
 
         // Status siklus no.51 GANTI TOTAL (terkunci): awal 3 kode + 'kenaikan' (root PRD v1.7.1:
         // kenaikan kelas -> status_awal baris tapel-berikut), akhir 6 kode; is_aktif_bawaan=true HANYA untuk 'aktif' (invarian 102 terjaga).
         $awal = ['santri_baru' => 'Santri Baru', 'mengulang' => 'Mengulang', 'pindahan' => 'Pindahan', 'kenaikan' => 'Kenaikan Kelas'];
-        foreach (array_values($awal) as $i => $nama) DB::table('ref_status_awal')->updateOrInsert(
-            ['lembaga_id' => null, 'kode' => array_keys($awal)[$i]], ['nama' => $nama, 'urutan' => $i, 'is_active' => true]);
+        foreach (array_values($awal) as $i => $nama) {
+            DB::table('ref_status_awal')->updateOrInsert(
+                ['lembaga_id' => null, 'kode' => array_keys($awal)[$i]], ['nama' => $nama, 'urutan' => $i, 'is_active' => true]);
+        }
 
         $akhir = [
             ['aktif', 'Aktif', true, null],
@@ -86,8 +100,10 @@ class ReferensiSeeder extends Seeder
             ['lulus', 'Lulus', false, null],
             ['tidak_lulus', 'Tidak Lulus', false, null],
         ];
-        foreach ($akhir as $i => [$kode, $nama, $aktif, $term]) DB::table('ref_status_akhir')->updateOrInsert(
-            ['lembaga_id' => null, 'kode' => $kode],
-            ['nama' => $nama, 'is_aktif_bawaan' => $aktif, 'terminal_ke' => $term, 'urutan' => $i, 'is_active' => true]);
+        foreach ($akhir as $i => [$kode, $nama, $aktif, $term]) {
+            DB::table('ref_status_akhir')->updateOrInsert(
+                ['lembaga_id' => null, 'kode' => $kode],
+                ['nama' => $nama, 'is_aktif_bawaan' => $aktif, 'terminal_ke' => $term, 'urutan' => $i, 'is_active' => true]);
+        }
     }
 }

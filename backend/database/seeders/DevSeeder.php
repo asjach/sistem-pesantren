@@ -3,8 +3,6 @@
 namespace Database\Seeders;
 
 use App\Models\Lembaga;
-use App\Models\PosKeuangan;
-use App\Models\PsbBiayaLembaga;
 use App\Models\PsbGelombang;
 use App\Models\PsbKegiatan;
 use App\Models\PsbKuotaBiaya;
@@ -93,44 +91,25 @@ class DevSeeder extends Seeder
             'tgl_tutup' => now()->addDays(30)->toDateString(),
         ]);
 
-        $biaya = [
-            [$mi, 'non_asrama', 150000, 50000, 250000, 100],
-            [$md, 'non_asrama', 100000, null, null, null],
-            [$mts, 'non_asrama', 175000, null, null, 120],
-            [$mts, 'asrama', 175000, null, null, 60],
-            [$mln, 'non_asrama', 175000, null, null, 100],
-            [$mln, 'asrama', 175000, null, null, 60],
+        $kuota = [
+            [$mi, 'non_asrama', true, 100],
+            [$md, 'non_asrama', false, null],
+            [$mts, 'non_asrama', false, 120],
+            [$mts, 'asrama', false, 60],
+            [$mln, 'non_asrama', false, 100],
+            [$mln, 'asrama', false, 60],
         ];
-        foreach ($biaya as [$lembaga, $tipe, $pendaftaran, $lanjutan, $paket, $kuota]) {
+        foreach ($kuota as [$lembaga, $tipe, $paket, $jumlah]) {
             PsbKuotaBiaya::updateOrCreate(
                 ['gelombang_id' => $gelombang->id, 'lembaga_id' => $lembaga->id, 'tipe_santri' => $tipe],
                 [
-                    'nominal_pendaftaran' => $pendaftaran,
-                    'nominal_pendaftaran_lanjutan' => $lanjutan,
-                    'nominal_paket' => $paket,
-                    'kuota' => $kuota,
+                    'paket_tersedia' => $paket,
+                    'kuota' => $jumlah,
                     'membutuhkan_seleksi' => null,
                     'membutuhkan_pemberkasan' => true,
                 ],
             );
         }
-
-        $biayaLembaga = [
-            [$mi, 1000000, 0],
-            [$md, 500000, 0],
-            [$mts, 1500000, 750000],
-            [$mln, 1500000, 750000],
-        ];
-        foreach ($biayaLembaga as [$lembaga, $masuk, $asrama]) {
-            PsbBiayaLembaga::updateOrCreate(
-                ['lembaga_id' => $lembaga->id],
-                ['biaya_masuk' => $masuk, 'biaya_asrama' => $asrama],
-            );
-        }
-
-        PosKeuangan::firstOrCreate(['kode_pos' => 'PSB_REG'], ['nama_pos' => 'Pendaftaran PSB', 'tipe' => 'sekali_bayar']);
-        PosKeuangan::firstOrCreate(['kode_pos' => 'DFR_ULANG'], ['nama_pos' => 'Daftar Ulang PSB', 'tipe' => 'sekali_bayar']);
-        PosKeuangan::firstOrCreate(['kode_pos' => 'ASRAMA'], ['nama_pos' => 'Biaya Asrama', 'tipe' => 'sekali_bayar']);
 
         $this->command?->info('DevSeeder: 4 akun, '.Lembaga::count().' lembaga, kegiatan #'.$kegiatan->id.' gelombang #'.$gelombang->id.' siap.');
     }

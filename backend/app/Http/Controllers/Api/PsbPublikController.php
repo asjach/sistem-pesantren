@@ -5,9 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\PsbDaftarRequest;
 use App\Models\Lembaga;
-use App\Models\PsbBiayaLembaga;
 use App\Models\PsbCalonSantri;
-use App\Models\PsbGelombang;
 use App\Models\PsbKuotaBiaya;
 use App\Services\PsbGelombangService;
 use App\Services\PsbService;
@@ -30,8 +28,7 @@ class PsbPublikController extends Controller
 
     /**
      * GET /api/psb/opsi (publik, throttle:30,1) — gelombang aktif otomatis (pendaftar tidak memilih)
-     * + lembaga yang dikonfigurasi di gelombang itu: biaya pendaftaran, sisa pool kuota,
-     * biaya masuk/asrama, matriks tingkat baru/pindahan.
+     * + lembaga yang dikonfigurasi di gelombang itu: kuota, matriks tingkat baru/pindahan.
      */
     public function opsi(PsbGelombangService $gelombang): JsonResponse
     {
@@ -48,21 +45,16 @@ class PsbPublikController extends Controller
             ->orderBy('id')
             ->get(['id', 'kode', 'nama', 'nama_singkat', 'kelompok_psb', 'is_seleksi']);
 
-        $biayaSemua = PsbKuotaBiaya::where('gelombang_id', $gelombangAktif->id)
+        $kuotaSemua = PsbKuotaBiaya::where('gelombang_id', $gelombangAktif->id)
             ->whereIn('lembaga_id', $lembagas->pluck('id'))
-            ->get(['gelombang_id', 'lembaga_id', 'tipe_santri', 'nominal_pendaftaran', 'nominal_pendaftaran_lanjutan', 'nominal_paket']);
-
-        $biayaLembaga = PsbBiayaLembaga::whereIn('lembaga_id', $lembagas->pluck('id'))
-            ->get()
-            ->keyBy('lembaga_id');
+            ->get(['gelombang_id', 'lembaga_id', 'tipe_santri', 'paket_tersedia']);
 
         $dataLembaga = $lembagas
-            ->map(function (Lembaga $l) use ($biayaSemua, $biayaLembaga, $gelombangAktif, $gelombang) {
-                $rows = $biayaSemua->where('lembaga_id', $l->id);
+            ->map(function (Lembaga $l) use ($kuotaSemua, $gelombangAktif, $gelombang) {
+                $rows = $kuotaSemua->where('lembaga_id', $l->id);
                 if ($rows->isEmpty()) {
                     return null;
                 }
-                $biaya = $biayaLembaga->get($l->id);
 
                 return [
                     'id' => $l->id,
@@ -73,13 +65,9 @@ class PsbPublikController extends Controller
                     'is_seleksi' => (bool) $l->is_seleksi,
                     'tingkat_baru' => PsbService::TINGKAT_MASUK_BARU[$l->kode] ?? null,
                     'tingkat_pindahan' => PsbService::TINGKAT_PINDAHAN[$l->kode] ?? [],
-                    'biaya_masuk' => (float) ($biaya->biaya_masuk ?? 0),
-                    'biaya_asrama' => (float) ($biaya->biaya_asrama ?? 0),
-                    'kuota_biaya' => $rows->map(fn (PsbKuotaBiaya $k) => [
+                    'kuota' => $rows->map(fn (PsbKuotaBiaya $k) => [
                         'tipe_santri' => $k->tipe_santri,
-                        'nominal_pendaftaran' => (float) $k->nominal_pendaftaran,
-                        'nominal_pendaftaran_lanjutan' => $k->nominal_pendaftaran_lanjutan !== null ? (float) $k->nominal_pendaftaran_lanjutan : null,
-                        'nominal_paket' => $k->nominal_paket !== null ? (float) $k->nominal_paket : null,
+                        'paket_tersedia' => (bool) $k->paket_tersedia,
                         'sisa_kuota' => $gelombang->sisaKuota(
                             $gelombangAktif->id,
                             $l->id,
@@ -154,8 +142,7 @@ class PsbPublikController extends Controller
 
     /**
      * GET /api/psb/{calon}/bukti-pdf (signed, expiry 7 hari).
-     * SKIP PDF: spec §5 hanya menyebut "DomPDF kuitansi pendaftaran" tanpa isi/view
-     * konkret + package dompdf tidak ada di composer — kembalikan JSON ringkasan.
+     * Kembalikan JSON ringkasan (tanpa render PDF).
      */
     public function bukti(PsbCalonSantri $calon): JsonResponse
     {

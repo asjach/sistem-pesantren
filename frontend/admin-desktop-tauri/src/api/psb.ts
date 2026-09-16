@@ -215,11 +215,11 @@ export function listGelombangPsb(params: { kegiatan_id?: number; tahun_ajaran_id
   return api<{ pesan: string; data: PsbGelombang[] }>(`/psb/gelombang${suffix}`);
 }
 
-// ---------- Master modul PSB: kegiatan, gelombang, kuota/biaya, biaya lembaga ----------
+// ---------- Master modul PSB: kegiatan, gelombang, kuota ----------
 
 export interface PsbKegiatan {
   id: number;
-  /** Kegiatan PSB se-pesantren: satu per tahun ajaran, kuota/biaya per lembaga. */
+  /** Kegiatan PSB se-pesantren: satu per tahun ajaran, kuota per lembaga. */
   tahun_ajaran_id: number;
   nama: string;
   is_aktif: boolean;
@@ -243,9 +243,7 @@ export interface PsbKuotaBiayaRow {
   lembaga_id: number;
   tipe_santri: 'semua' | 'asrama' | 'non_asrama';
   kuota: number | null;
-  nominal_pendaftaran: string | number;
-  nominal_pendaftaran_lanjutan: string | number | null;
-  nominal_paket: string | number | null;
+  paket_tersedia: boolean;
   membutuhkan_seleksi: boolean | null;
   membutuhkan_pemberkasan: boolean;
 }
@@ -257,14 +255,6 @@ export interface PsbLembagaOpsi {
   kelompok_psb: string | null;
   is_seleksi: boolean;
   punya_asrama?: boolean;
-}
-
-export interface PsbBiayaLembagaRow {
-  id: number;
-  lembaga_id: number;
-  biaya_masuk: string | number;
-  biaya_asrama: string | number;
-  lembaga?: { id: number; nama: string; kode: string | null } | null;
 }
 
 export function listPsbKegiatan() {
@@ -317,9 +307,7 @@ export interface KuotaBiayaInput {
   lembaga_id: number;
   tipe_santri: 'semua' | 'asrama' | 'non_asrama';
   kuota?: number | null;
-  nominal_pendaftaran?: number | null;
-  nominal_pendaftaran_lanjutan?: number | null;
-  nominal_paket?: number | null;
+  paket_tersedia?: boolean;
   membutuhkan_seleksi?: boolean | null;
   membutuhkan_pemberkasan?: boolean;
 }
@@ -330,14 +318,6 @@ export function upsertKuotaBiaya(input: KuotaBiayaInput) {
 
 export function deleteKuotaBiaya(id: number) {
   return api<{ pesan: string }>(`/admin/psb/kuota-biaya/${id}`, { method: 'DELETE' });
-}
-
-export function listBiayaLembaga() {
-  return api<{ pesan: string; data: PsbBiayaLembagaRow[] }>('/admin/psb/biaya-lembaga');
-}
-
-export function upsertBiayaLembaga(input: { lembaga_id: number; biaya_masuk: number; biaya_asrama: number }) {
-  return api<{ pesan: string; data: PsbBiayaLembagaRow }>('/admin/psb/biaya-lembaga', { method: 'POST', body: JSON.stringify(input) });
 }
 
 export interface PsbCalonInput {

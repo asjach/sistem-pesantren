@@ -144,7 +144,7 @@ export function contohBagian(id: PartId): ReactElement {
           <span className="flex items-center gap-1 rounded px-2 py-1 text-muted-foreground">
             PSB <span className="text-[10px]">▾</span>
           </span>
-          <span className="rounded px-2 py-1 text-muted-foreground">Keuangan</span>
+          <span className="rounded px-2 py-1 text-muted-foreground">Laporan</span>
         </div>
       );
     case 'sidebar':
@@ -158,7 +158,7 @@ export function contohBagian(id: PartId): ReactElement {
     case 'judul_halaman':
       return <h2 className="text-lg font-semibold">Data Santri</h2>;
     case 'subjudul':
-      return <h3 className="text-sm font-semibold">Ringkasan Keuangan</h3>;
+      return <h3 className="text-sm font-semibold">Ringkasan Data</h3>;
     case 'teks_isi':
       return (
         <p className="max-w-md text-center text-sm">

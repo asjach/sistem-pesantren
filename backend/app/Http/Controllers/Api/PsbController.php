@@ -12,7 +12,6 @@ use App\Models\PsbCalonSantri;
 use App\Models\PsbGelombang;
 use App\Models\PsbKuotaBiaya;
 use App\Models\User;
-use App\Services\KeuanganService;
 use App\Services\PsbService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -186,7 +185,7 @@ class PsbController extends Controller
         ]);
     }
 
-    /** DELETE /api/psb/{calon} — soft delete calon (tagihan belum bayar dibatalkan). */
+    /** DELETE /api/psb/{calon} — soft delete calon. */
     public function destroy(PsbCalonSantri $calon, PsbService $service): JsonResponse
     {
         $this->authorizeCalon(auth()->user(), $calon);
@@ -195,7 +194,7 @@ class PsbController extends Controller
         return response()->json(['pesan' => 'Calon dihapus.']);
     }
 
-    /** POST /api/psb/{calon}/pulihkan — restore calon ter-soft delete + aktifkan tagihan kembali. */
+    /** POST /api/psb/{calon}/pulihkan — restore calon ter-soft delete. */
     public function pulihkan(int $id, PsbService $service): JsonResponse
     {
         $calon = PsbCalonSantri::withTrashed()->findOrFail($id);
@@ -413,7 +412,7 @@ class PsbController extends Controller
 
         try {
             Excel::import(
-                new PsbImport((int) $data['gelombang_id'], (int) $data['lembaga_id'], $psbService, app(KeuanganService::class)),
+                new PsbImport((int) $data['gelombang_id'], (int) $data['lembaga_id'], $psbService),
                 $request->file('file')
             );
 

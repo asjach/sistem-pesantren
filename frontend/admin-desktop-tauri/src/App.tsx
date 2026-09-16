@@ -21,8 +21,6 @@ const LembagaPage = lazy(() => import('./pages/LembagaPage'));
 const ReferensiPage = lazy(() => import('./pages/ReferensiPage'));
 const TahunAjaranPage = lazy(() => import('./pages/TahunAjaranPage'));
 const KelasPage = lazy(() => import('./pages/KelasPage'));
-const PosPage = lazy(() => import('./pages/PosPage'));
-const TarifPage = lazy(() => import('./pages/TarifPage'));
 const PengaturanTampilanPage = lazy(() => import('./pages/PengaturanTampilanPage'));
 const PengaturanTampilanStandarPage = lazy(() => import('./pages/PengaturanTampilanStandarPage'));
 const PengaturanServerPage = lazy(() => import('./pages/PengaturanServerPage'));
@@ -36,7 +34,6 @@ const KenaikanKelasPage = lazy(() => import('./pages/KenaikanKelasPage'));
 const KelulusanPage = lazy(() => import('./pages/KelulusanPage'));
 const RekapSantriPage = lazy(() => import('./pages/RekapSantriPage'));
 const MutasiKeluarPage = lazy(() => import('./pages/MutasiKeluarPage'));
-const KeuanganPage = lazy(() => import('./pages/KeuanganPage'));
 const PengajuanBiodataPage = lazy(() => import('./pages/PengajuanBiodataPage'));
 const DokumenWajibPage = lazy(() => import('./pages/DokumenWajibPage'));
 
@@ -93,8 +90,6 @@ export default function App() {
                       <Route path="/lembaga" element={<LembagaPage />} />
                       <Route path="/tahun-ajaran" element={<TahunAjaranPage />} />
                       <Route path="/kelas" element={<KelasPage />} />
-                      <Route path="/pos" element={<PosPage />} />
-                      <Route path="/tarif" element={<TarifPage />} />
                       <Route path="/referensi" element={<ReferensiPage />} />
                       <Route path="/psb" element={<PsbPage />} />
                       <Route path="/kegiatan-psb" element={<KegiatanPsbPage />} />
@@ -107,7 +102,6 @@ export default function App() {
                       <Route path="/rekap-santri" element={<RekapSantriPage />} />
                       <Route path="/mutasi-keluar" element={<MutasiKeluarPage />} />
                       <Route path="/siklus" element={<Navigate to="/riwayat-belajar" replace />} />
-                      <Route path="/keuangan" element={<KeuanganPage />} />
                       <Route path="/pengajuan-biodata" element={<PengajuanBiodataPage />} />
                       <Route path="/dokumen-wajib" element={<DokumenWajibPage />} />
                       <Route path="/pengaturan" element={<Navigate to="/pengaturan/tampilan" replace />} />

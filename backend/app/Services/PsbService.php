@@ -13,7 +13,6 @@ use App\Models\PsbKuotaBiaya;
 use App\Models\PsbLogStatus;
 use App\Models\RiwayatBelajar;
 use App\Models\Santri;
-use App\Models\Tagihan;
 use App\Models\TahunAjaran;
 use App\Models\User;
 use Illuminate\Database\QueryException;
@@ -63,13 +62,10 @@ class PsbService
         'yang_membiayai' => 'yang_membiayai', 'foto_url' => 'foto_url',
     ];
 
-    protected KeuanganService $keuangan;
-
     protected PsbGelombangService $gelombang;
 
-    public function __construct(KeuanganService $keuangan, PsbGelombangService $gelombang)
+    public function __construct(PsbGelombangService $gelombang)
     {
-        $this->keuangan = $keuangan;
         $this->gelombang = $gelombang;
     }
 
@@ -170,7 +166,6 @@ class PsbService
             $lembagaDaftar = Lembaga::findOrFail($data['lembaga_id']);
             $isPindahan = (bool) ($data['is_pindahan'] ?? false);
             $targets = [];
-            $nominal = 0.0;
 
             if ($isPaket) {
                 if (($data['tipe_santri'] ?? 'non_asrama') !== 'non_asrama') {
@@ -179,21 +174,18 @@ class PsbService
                 $lembagaPrimer = Lembaga::where('kode', self::PAKET_MI_MD['primer'])->firstOrFail();
                 $lembagaSekunder = Lembaga::where('kode', 'MD')->firstOrFail();
                 $kuotaBiaya = $this->kuotaUntuk((int) $data['gelombang_id'], $lembagaPrimer->id, 'non_asrama');
-                if (! $kuotaBiaya || $kuotaBiaya->nominal_paket === null) {
+                if (! $kuotaBiaya || ! $kuotaBiaya->paket_tersedia) {
                     throw ValidationException::withMessages(['paket' => 'Paket MI-MD tidak ditawarkan di gelombang ini.']);
                 }
                 $this->validasiMasukTingkat($lembagaPrimer, false, '1');
                 $this->validasiMasukTingkat($lembagaSekunder, false, '1');
                 $isPindahan = false;
-                $nominal = (float) $kuotaBiaya->nominal_paket;
                 $targets = [
                     ['lembaga' => $lembagaPrimer, 'peran' => 'primer', 'tingkat' => '1'],
                     ['lembaga' => $lembagaSekunder, 'peran' => 'anggota', 'tingkat' => '1'],
                 ];
             } else {
                 $tingkat = $this->validasiMasukTingkat($lembagaDaftar, $isPindahan, $data['masuk_tingkat'] ?? null);
-                $kuotaBiaya = $this->kuotaUntuk((int) $data['gelombang_id'], (int) $data['lembaga_id'], $data['tipe_santri'] ?? null);
-                $nominal = $kuotaBiaya ? $kuotaBiaya->nominalPendaftaranEfektif($isLanjutan) : 0.0;
                 $targets = [['lembaga' => $lembagaDaftar, 'peran' => 'primer', 'tingkat' => $tingkat]];
             }
 
@@ -272,9 +264,6 @@ class PsbService
 
             PsbLogStatus::create(['psb_calon_santri_id' => $calon->id, 'dari' => null, 'ke' => $statusAwal]);
 
-            $tahunAjaranId = (int) $calon->tahun_ajaran_id;
-            $this->keuangan->createTagihanPendaftaranPsb($calon, (float) $nominal, $tahunAjaranId);
-
             return $calon->fresh();
         });
     }
@@ -306,7 +295,7 @@ class PsbService
         return $this->pindahStatus($id, 'terverifikasi', $adminId, ['baru']);
     }
 
-    /** Hapus (soft delete) calon: blokir bila sudah ada pembayaran atau sudah jadi santri. */
+    /** Hapus (soft delete) calon: blokir bila sudah jadi santri. */
     public function hapusCalon(int $id, int $adminId): void
     {
         DB::transaction(function () use ($id, $adminId) {
@@ -314,10 +303,6 @@ class PsbService
             if ($calon->status_pendaftaran === 'daftar_ulang') {
                 throw ValidationException::withMessages(['status' => 'Calon sudah menjadi santri; kelola lewat data santri, bukan PSB.']);
             }
-            if (DB::table('pembayaran')->where('psb_calon_santri_id', $calon->id)->exists()) {
-                throw ValidationException::withMessages(['pembayaran' => 'Calon sudah memiliki pembayaran; selesaikan di Keuangan sebelum menghapus.']);
-            }
-            $this->keuangan->batalkanTagihanPsb($calon);
             $this->tulisLog($calon->id, $calon->status_pendaftaran, 'dihapus', $adminId, 'Calon dihapus (soft delete)');
             $calon->forceFill(['deleted_by' => $adminId])->save();
             $calon->delete();
@@ -331,7 +316,6 @@ class PsbService
             if (! $calon->trashed()) {
                 return $calon;
             }
-            $this->keuangan->aktifkanKembaliTagihanPsb($calon);
             $calon->restore();
             $calon->forceFill(['deleted_by' => null])->save();
             $this->tulisLog($calon->id, 'dihapus', $calon->status_pendaftaran, $adminId, 'Calon dipulihkan');
@@ -404,21 +388,6 @@ class PsbService
                 if ($berkelas) {
                     throw ValidationException::withMessages(['kelas' => 'Santri sudah ditempatkan di kelas; keluarkan dari kelas terlebih dahulu sebelum mengundurkan diri.']);
                 }
-                // Lindungi riwayat keuangan: pembayaran tidak boleh ikut terhapus/lepas.
-                $adaBayar = DB::table('pembayaran')
-                    ->where('psb_calon_santri_id', $hasil->id)
-                    ->orWhere('santri_id', $hasil->santri_id)
-                    ->exists();
-                if ($adaBayar) {
-                    throw ValidationException::withMessages(['pembayaran' => 'Santri sudah memiliki pembayaran; selesaikan di Keuangan sebelum mengundurkan diri.']);
-                }
-                // Tagihan yang belum dibayar dibatalkan (santri batal diterima).
-                Tagihan::where('santri_id', $hasil->santri_id)
-                    ->where('nominal_terbayar', '<=', 0)
-                    ->update(['status' => 'dibatalkan']);
-                Tagihan::where('psb_calon_santri_id', $hasil->id)
-                    ->where('nominal_terbayar', '<=', 0)
-                    ->update(['status' => 'dibatalkan']);
 
                 // Hapus arsip riwayat + master santri (relasi lain ikut FK cascade).
                 RiwayatBelajar::where('santri_id', $hasil->santri_id)->delete();
@@ -549,9 +518,6 @@ class PsbService
                     }
                 }
             }
-            // Backfill pembayaran: tagihan/pembayaran calon ikut santri_id (audit psb_calon_santri_id tetap)
-            Tagihan::where('psb_calon_santri_id', $calon->id)->update(['santri_id' => $santri->id]);
-            DB::table('pembayaran')->where('psb_calon_santri_id', $calon->id)->update(['santri_id' => $santri->id]);
             // PINDAH dokumen: milik santri penuh (jejak asal via santri_id hasil + psb_log_status).
             DokumenSantri::where('psb_calon_santri_id', $calon->id)
                 ->update(['santri_id' => $santri->id, 'psb_calon_santri_id' => null]);
@@ -582,9 +548,6 @@ class PsbService
                     }
                 }
             }
-
-            // Tagihan masuk/daftar ulang (nominal dari psb_kuota_biaya.nominal_masuk, boleh 0)
-            $this->keuangan->createTagihanMasukPsb($calon, $santri);
 
             $calon->update(['santri_id' => $santri->id, 'status_pendaftaran' => 'daftar_ulang']);
             $this->tulisLog($id, 'ajukan_daftar_ulang', 'daftar_ulang', $adminId, null);
@@ -669,13 +632,6 @@ class PsbService
     public function nomorPendaftaranBerikutnya(int $gelombangId, int $lembagaId): string
     {
         return $this->generateNoPendaftaran($gelombangId, $lembagaId);
-    }
-
-    public function nominalPendaftaran(int $gelombangId, int $lembagaId, ?string $tipeSantri, bool $lanjutan = false): float
-    {
-        $kuota = $this->kuotaUntuk($gelombangId, $lembagaId, $tipeSantri);
-
-        return $kuota ? $kuota->nominalPendaftaranEfektif($lanjutan) : 0.0;
     }
 
     protected function generateNoPendaftaran(int $gelombangId, int $lembagaId): string
