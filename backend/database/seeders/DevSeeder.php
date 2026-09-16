@@ -3,7 +3,6 @@
 namespace Database\Seeders;
 
 use App\Models\Lembaga;
-use App\Models\TahunAjaran;
 use Illuminate\Database\Seeder;
 
 class DevSeeder extends Seeder
@@ -41,15 +40,6 @@ class DevSeeder extends Seeder
             $l->update(['kelompok_psb' => 'eksklusif']);
         }
 
-        // TA data pesantren (global, `lembaga_id` NULL) dan hanya satu yang aktif.
-        $ta = TahunAjaran::firstOrCreate(
-            ['lembaga_id' => null, 'nama' => '2026/2027'],
-            ['tanggal_mulai' => '2026-07-01', 'tanggal_selesai' => '2027-06-30', 'is_active' => true],
-        );
-        $ta->update(['tanggal_mulai' => '2026-07-01', 'tanggal_selesai' => '2027-06-30', 'is_active' => true]);
-        TahunAjaran::where('id', '!=', $ta->id)->update(['is_aktif' => false]);
-        TahunAjaran::where('id', $ta->id)->update(['is_aktif' => true]);
-
-        $this->command?->info('DevSeeder: akun, '.Lembaga::count().' lembaga, TA '.$ta->nama.' siap.');
+        $this->command?->info('DevSeeder: akun, '.Lembaga::count().' lembaga siap.');
     }
 }
