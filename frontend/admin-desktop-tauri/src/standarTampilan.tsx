@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from 'react';
 import { prefGet, prefSet } from '@/api/client';
-import { getPengaturanTampilan, getVersiTampilan, type TampilanData } from '@/api/tampilan';
+import { getPengaturanTampilan, getVersiTampilan, putPengaturanTampilan, type TampilanData } from '@/api/tampilan';
 import { useLembagaAktif } from '@/lembagaAktif';
 import { useAuth } from '@/auth/AuthContext';
 
@@ -19,15 +19,64 @@ const CACHE_PREFIX = 'simpes_std_';
 const PERSONAL_KEY = 'simpes_personal_tampilan';
 /** Selang pemantauan versi standar (ms). */
 const POLL_MS = 60_000;
+/** Tunda penyimpanan standar saat bertindak (ms) agar tidak spam request. */
+const SIMPAN_MS = 800;
 
 export type PribadiMap = Record<string, true>;
+
+/** Gabung bagian JSON: nilai null/undefined menghapus kunci; objek digabung dangkal. */
+function gabungSection<T extends Record<string, unknown>>(
+  prev: T | undefined,
+  patch: T | undefined,
+): T | undefined {
+  if (!patch) return prev;
+  const out: Record<string, unknown> = { ...(prev ?? {}) };
+  for (const [k, v] of Object.entries(patch)) {
+    if (v === null || v === undefined) delete out[k];
+    else if (typeof v === 'object' && !Array.isArray(v) && out[k] && typeof out[k] === 'object') {
+      out[k] = { ...(out[k] as Record<string, unknown>), ...(v as Record<string, unknown>) };
+    } else {
+      out[k] = v;
+    }
+  }
+  return out as T;
+}
+
+/** Gabung standar lama dengan perubahan (per bagian). */
+export function gabungTampilan(prev: TampilanData | null, patch: TampilanData): TampilanData {
+  const base: TampilanData = prev ?? {};
+  return {
+    tema: gabungSection(base.tema, patch.tema),
+    parts: {
+      gaya: gabungSection(base.parts?.gaya, patch.parts?.gaya),
+      terang: gabungSection(base.parts?.terang, patch.parts?.terang),
+      gelap: gabungSection(base.parts?.gelap, patch.parts?.gelap),
+    },
+    grid: {
+      ...gabungSection(base.grid, patch.grid ? { rowH: patch.grid.rowH, headerH: patch.grid.headerH } : undefined),
+      align: gabungSection(base.grid?.align, patch.grid?.align),
+    },
+    presetAktif: gabungSection(base.presetAktif, patch.presetAktif),
+    lebar: gabungSection(base.lebar, patch.lebar),
+    beku: gabungSection(base.beku, patch.beku),
+  };
+}
 
 interface StandarState {
   loading: boolean;
   versi: number;
   tampilan: TampilanData | null;
+  /** Sedang "bertindak sebagai lembaga" (super_admin + lembaga aktif). */
+  bertindak: boolean;
+  /** Sedang menyimpan standar ke server. */
+  menyimpan: boolean;
   /** Muat ulang standar aktif (mis. setelah versi berubah). */
   muatUlang: () => void;
+  /**
+   * Simpan perubahan tampilan langsung ke standar lembaga aktif (mode bertindak);
+   * diabaikan saat tidak bertindak. Debounce agar hemat request.
+   */
+  simpanKeStandar: (patch: TampilanData) => void;
   /** Setelan yang diubah user sendiri (mengalahkan standar). */
   pribadi: PribadiMap;
   isPribadi: (key: string) => boolean;
@@ -44,9 +93,16 @@ export function StandarTampilanProvider({ children }: { children: ReactNode }) {
   const [tampilan, setTampilan] = useState<TampilanData | null>(null);
   const [versi, setVersi] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [menyimpan, setMenyimpan] = useState(false);
   const [pribadi, setPribadi] = useState<PribadiMap>({});
   const versiRef = useRef(0);
   versiRef.current = versi;
+  const tampilanRef = useRef<TampilanData | null>(null);
+  tampilanRef.current = tampilan;
+  const simpanTimerRef = useRef<number | null>(null);
+
+  const superAdmin = !!user?.roles.some((r) => r.name === 'super_admin');
+  const bertindak = superAdmin && lembagaId != null;
 
   useEffect(() => {
     prefGet(PERSONAL_KEY)
@@ -144,16 +200,59 @@ export function StandarTampilanProvider({ children }: { children: ReactNode }) {
 
   const isPribadi = useCallback((key: string) => !!pribadi[key], [pribadi]);
 
+  // Simpan standar lembaga aktif (mode bertindak) — langsung ke DB, debounce.
+  const kirimStandar = useCallback(async (data: TampilanData) => {
+    if (lembagaId == null) return;
+    setMenyimpan(true);
+    try {
+      const res = await putPengaturanTampilan({
+        lembaga_ids: [lembagaId],
+        sumber_lembaga_id: lembagaId,
+        data,
+      });
+      const row = res.data?.[0];
+      if (row) {
+        setTampilan(row.tampilan);
+        setVersi(row.versi);
+        prefSet(
+          `${CACHE_PREFIX}${lembagaId}`,
+          JSON.stringify({ versi: row.versi, tampilan: row.tampilan, ts: Date.now() }),
+        ).catch(() => {});
+      }
+    } catch {
+      // Gagal simpan: biarkan nilai lokal; perubahan berikutnya mencoba lagi.
+    } finally {
+      setMenyimpan(false);
+    }
+  }, [lembagaId]);
+
+  /** Terapkan perubahan ke standar lembaga aktif (mode bertindak). */
+  const simpanKeStandar = useCallback((patch: TampilanData) => {
+    if (!(superAdmin && lembagaId != null)) return;
+    const next = gabungTampilan(tampilanRef.current, patch);
+    tampilanRef.current = next;
+    setTampilan(next);
+    if (simpanTimerRef.current) window.clearTimeout(simpanTimerRef.current);
+    simpanTimerRef.current = window.setTimeout(() => { void kirimStandar(next); }, SIMPAN_MS);
+  }, [superAdmin, lembagaId, kirimStandar]);
+
+  useEffect(() => () => {
+    if (simpanTimerRef.current) window.clearTimeout(simpanTimerRef.current);
+  }, []);
+
   const value = useMemo<StandarState>(() => ({
     loading,
     versi,
     tampilan,
+    bertindak,
+    menyimpan,
     muatUlang: () => void muat(),
+    simpanKeStandar,
     pribadi,
     isPribadi,
     tandai,
     hapus,
-  }), [loading, versi, tampilan, muat, pribadi, isPribadi, tandai, hapus]);
+  }), [loading, versi, tampilan, bertindak, menyimpan, muat, simpanKeStandar, pribadi, isPribadi, tandai, hapus]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

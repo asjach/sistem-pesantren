@@ -70,10 +70,10 @@ class PengaturanTampilanController extends Controller
             'data.presetAktif' => ['sometimes', 'array'],
             'data.presetAktif.*' => ['nullable', 'string', 'max:50'],
             'data.lebar' => ['sometimes', 'array'],
-            'data.lebar.*' => ['array'],
+            'data.lebar.*' => ['nullable', 'array'],
             'data.lebar.*.*' => ['integer', 'between:20,2000'],
             'data.beku' => ['sometimes', 'array'],
-            'data.beku.*' => ['integer', 'between:0,20'],
+            'data.beku.*' => ['nullable', 'integer', 'between:0,20'],
             'sumber_lembaga_id' => ['sometimes', 'nullable', 'integer', 'exists:lembaga,id'],
         ]);
 

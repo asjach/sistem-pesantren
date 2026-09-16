@@ -128,7 +128,7 @@ export default function PresetKolom({
     [editId, presets],
   );
   const { align, setAlign } = useGridPrefs();
-  const { tampilan: standar, isPribadi, tandai } = useStandarTampilan();
+  const { tampilan: standar, isPribadi, tandai, hapus: hapusPribadi, bertindak, simpanKeStandar } = useStandarTampilan();
   /** Preset aktif bawaan dari standar lembaga (nama), bila user belum memilih. */
   const stdNama = standar?.presetAktif?.[tableKey] ?? null;
   /** Tabel berkolom sangat banyak (mis. Santri 72 kolom) memakai dialog tinggi
@@ -243,6 +243,12 @@ export default function PresetKolom({
     const target = id === null ? null : presets.find((p) => p.id === id) ?? null;
     setAktifId(target?.id ?? null);
     terapkan(target);
+    if (bertindak) {
+      // Bertindak sebagai lembaga → preset aktif ikut disimpan ke standar lembaga.
+      hapusPribadi(`preset.${tableKey}`);
+      simpanKeStandar({ presetAktif: { [tableKey]: target?.nama ?? null } });
+      return;
+    }
     // Pilihan user menang atas preset aktif dari standar lembaga.
     tandai(`preset.${tableKey}`);
     try {

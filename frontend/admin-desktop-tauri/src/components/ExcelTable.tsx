@@ -753,7 +753,7 @@ export default function ExcelTable<T extends { id: string | number }>({
   // Preferensi tampilan tabel global (dikontrol dari top bar).
   const { rowH, headerH, fontPx, fontFamily, align, setAlign } = useGridPrefs();
   // Standar tampilan lembaga: lebar & kolom beku bawaan (bisa ditimpa user).
-  const { tampilan: standar, isPribadi, tandai, hapus } = useStandarTampilan();
+  const { tampilan: standar, isPribadi, tandai, hapus, bertindak, simpanKeStandar } = useStandarTampilan();
 
   const [editMode, setEditModeRaw] = useState(false);
   const [inputMode, setInputModeRaw] = useState(false);
@@ -873,8 +873,12 @@ export default function ExcelTable<T extends { id: string | number }>({
   const visibleFieldsRef = useRef(visibleFields);
 
   // Standar lembaga untuk tabel ini (diabaikan bila user menyesuaikan sendiri).
-  const stdLebar = isPribadi(`lebar.${tableKey}`) ? undefined : standar?.lebar?.[tableKey];
-  const stdBeku = isPribadi(`beku.${tableKey}`) ? undefined : standar?.beku?.[tableKey];
+  const stdLebar = bertindak
+    ? (standar?.lebar?.[tableKey] ?? undefined)
+    : (isPribadi(`lebar.${tableKey}`) ? undefined : standar?.lebar?.[tableKey] ?? undefined);
+  const stdBeku = bertindak
+    ? (standar?.beku?.[tableKey] ?? undefined)
+    : (isPribadi(`beku.${tableKey}`) ? undefined : standar?.beku?.[tableKey] ?? undefined);
 
   // Muat jumlah kolom beku tabel ini; clamp bila preset menyembunyikan kolom.
   useEffect(() => {
@@ -892,11 +896,16 @@ export default function ExcelTable<T extends { id: string | number }>({
   const ubahFreeze = useCallback(
     (n: number) => {
       const v = Math.max(0, Math.min(visibleFields.length, Math.round(n)));
+      if (bertindak) {
+        hapus(`beku.${tableKey}`);
+        simpanKeStandar({ beku: { [tableKey]: v } });
+        return;
+      }
       setFreeze(v);
       prefSet(freezeKey(tableKey), String(v)).catch(() => {});
       tandai(`beku.${tableKey}`);
     },
-    [tableKey, visibleFields.length, tandai],
+    [tableKey, visibleFields.length, tandai, hapus, bertindak, simpanKeStandar],
   );
   visibleFieldsRef.current = visibleFields;
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -1226,6 +1235,15 @@ export default function ExcelTable<T extends { id: string | number }>({
       window.removeEventListener('mouseup', onUp);
       resizeListenersRef.current = null;
       resizeRef.current = null;
+      if (bertindak) {
+        // Bertindak sebagai lembaga → lebar kolom disimpan ke standar lembaga.
+        const map = { ...(stdLebar ?? {}), ...widthsRef.current };
+        hapus(`lebar.${tableKey}`);
+        simpanKeStandar({ lebar: { [tableKey]: map } });
+        setWidths({});
+        prefSet(widthsKey(tableKey), '{}').catch(() => {});
+        return;
+      }
       setWidths((prev) => {
         persistWidths(prev);
         return prev;
@@ -1406,6 +1424,19 @@ export default function ExcelTable<T extends { id: string | number }>({
     const w = autoFitWidth(key);
     if (w == null) return;
     setAutoWidths((prev) => ({ ...prev, [key]: w }));
+    if (bertindak) {
+      // Bertindak sebagai lembaga → lepas lebar kolom itu dari standar lembaga.
+      const map = { ...(stdLebar ?? {}) };
+      delete map[key];
+      hapus(`lebar.${tableKey}`);
+      simpanKeStandar({
+        lebar: { [tableKey]: Object.keys(map).length > 0 ? map : null },
+      });
+      setWidths({});
+      prefSet(widthsKey(tableKey), '{}').catch(() => {});
+      toast.success('Lebar kolom disesuaikan dengan isi.');
+      return;
+    }
     setWidths((prev) => {
       if (prev[key] === undefined) return prev;
       const next = { ...prev };
@@ -1430,6 +1461,14 @@ export default function ExcelTable<T extends { id: string | number }>({
       }
     }
     setAutoWidths(nextAuto);
+    if (bertindak) {
+      hapus(`lebar.${tableKey}`);
+      simpanKeStandar({ lebar: { [tableKey]: null } });
+      setWidths({});
+      prefSet(widthsKey(tableKey), '{}').catch(() => {});
+      toast.success(n > 0 ? `${n} kolom disesuaikan lebarnya.` : 'Tidak ada kolom yang bisa disesuaikan.');
+      return;
+    }
     setWidths((prev) => {
       if (Object.keys(prev).length === 0) return prev;
       persistWidths({});
@@ -2112,6 +2151,7 @@ export default function ExcelTable<T extends { id: string | number }>({
     prefSet(widthsKey(tableKey), '{}').catch(() => {});
     // Kembali ke standar/bawaan = lebar menyesuaikan isi (dihitung ulang).
     hapus(`lebar.${tableKey}`);
+    if (bertindak) simpanKeStandar({ lebar: { [tableKey]: null } });
     fittedRef.current = null;
     setAutoWidths(computeAutoWidths(true));
     setCheckedIds(new Set());

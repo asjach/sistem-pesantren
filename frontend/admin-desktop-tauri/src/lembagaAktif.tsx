@@ -22,6 +22,8 @@ interface LembagaAktifState {
   banyakPilihan: boolean;
   /** Sedang "bertindak sebagai lembaga" (super_admin + lembaga aktif terpilih). */
   bertindak: boolean;
+  /** Filter lembaga halaman terkunci (satu pilihan saja): bertindak / hanya 1 lembaga. */
+  terkunci: boolean;
   pilih: (id: number | null) => void;
 }
 
@@ -94,6 +96,9 @@ export function LembagaAktifProvider({ children }: { children: ReactNode }) {
     adaSemua,
     banyakPilihan: pilihan.length > 1,
     bertindak: superAdmin && lembagaId != null,
+    // Satu pilihan (atau sedang bertindak) → filter lembaga tak perlu dipilih:
+    // nilainya sudah lembaga aktif. Super_admin/admin pesantren tetap bebas.
+    terkunci: (superAdmin && lembagaId != null) || (!adaSemua && pilihan.length === 1),
     pilih,
   }), [loading, lembagaId, pilihan, adaSemua, superAdmin, pilih]);
 

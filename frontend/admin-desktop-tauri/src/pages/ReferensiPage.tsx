@@ -69,7 +69,7 @@ export default function ReferensiPage() {
   const [lembagas, setLembagas] = useState<Lembaga[]>([]);
   const [lembagaId, setLembagaId] = useState<number | ''>('');
   useLembagaAwalNumber(setLembagaId);
-  const { bertindak } = useLembagaAktif();
+  const { terkunci } = useLembagaAktif();
   const [rows, setRows] = useState<ReferensiRow[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -302,14 +302,15 @@ export default function ReferensiPage() {
             <Select
               value={lembagaId === '' ? '_global' : String(lembagaId)}
               onValueChange={(v) => setLembagaId(v === '_global' ? '' : Number(v))}
+              disabled={terkunci}
             >
               <SelectTrigger id="select_lembaga_referensi" title="Filter lembaga" aria-label="Filter lembaga" size="sm" className="w-40">
                 <SelectValue placeholder="Semua" />
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  {isSuper && !bertindak && <SelectLabel>Global</SelectLabel>}
-                  {isSuper && !bertindak && <SelectItem value="_global">Global (bawaan)</SelectItem>}
+                  {isSuper && !terkunci && <SelectLabel>Global</SelectLabel>}
+                  {isSuper && !terkunci && <SelectItem value="_global">Global (bawaan)</SelectItem>}
                   <SelectLabel>Per lembaga</SelectLabel>
                   {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>)}
                 </SelectGroup>

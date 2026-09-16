@@ -166,7 +166,7 @@ export default function PsbPage() {
   const [badge, setBadge] = useState<Record<string, number>>({});
   const [lembagaId, setLembagaId] = useState('');
   useLembagaAwalString(setLembagaId);
-  const { bertindak } = useLembagaAktif();
+  const { terkunci } = useLembagaAktif();
   const [rows, setRows] = useState<PsbCalon[]>([]);
   const pager = usePager('psb');
   const reqRef = useRef(0);
@@ -795,13 +795,13 @@ export default function PsbPage() {
               </FilterField>
             )}
             <FilterField label="Lembaga" htmlFor="select_lembaga_psb">
-            <Select value={lembagaId === '' ? '_semua' : lembagaId} onValueChange={(v) => { setLembagaId(v === '_semua' ? '' : v); pager.goFirst(); }}>
+            <Select value={lembagaId === '' ? '_semua' : lembagaId} onValueChange={(v) => { setLembagaId(v === '_semua' ? '' : v); pager.goFirst(); }} disabled={terkunci}>
               <SelectTrigger id="select_lembaga_psb" title="Filter lembaga" aria-label="Filter lembaga" size="sm" className="w-40">
                 <SelectValue placeholder="Semua" />
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  {!bertindak && <SelectItem value="_semua">Semua lembaga</SelectItem>}
+                  {!terkunci && <SelectItem value="_semua">Semua lembaga</SelectItem>}
                   {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>)}
                 </SelectGroup>
               </SelectContent>

@@ -75,18 +75,22 @@ export function FilterLembaga({ id, value, onChange, lembagas }: {
   onChange: (v: string) => void;
   lembagas: Lembaga[];
 }) {
-  const { bertindak } = useLembagaAktif();
+  const { terkunci } = useLembagaAktif();
 
   return (
     <FilterField label="Lembaga" htmlFor={id}>
-      <Select value={value === '' ? '_semua' : value} onValueChange={(v) => onChange(v === '_semua' ? '' : v)}>
+      <Select
+        value={value === '' ? '_semua' : value}
+        onValueChange={(v) => onChange(v === '_semua' ? '' : v)}
+        disabled={terkunci}
+      >
         <SelectTrigger id={id} title="Filter lembaga" aria-label="Filter lembaga" size="sm" className="w-40">
           <SelectValue placeholder="Semua" />
         </SelectTrigger>
         <SelectContent>
           <SelectGroup>
-            {/* Saat bertindak sebagai lembaga, opsi "Semua" disembunyikan. */}
-            {!bertindak && <SelectItem value="_semua">Semua lembaga</SelectItem>}
+            {/* Terkunci (bertindak / hanya 1 lembaga): opsi "Semua" disembunyikan. */}
+            {!terkunci && <SelectItem value="_semua">Semua lembaga</SelectItem>}
             {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>)}
           </SelectGroup>
         </SelectContent>

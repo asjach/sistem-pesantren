@@ -160,6 +160,34 @@ class PengaturanTampilanTest extends TestCase
         $this->assertSame(1, PresetTabel::where('lembaga_id', $md->id)->count());
     }
 
+    public function test_lebar_dan_beku_menerima_nilai_null_untuk_menghapus(): void
+    {
+        [, $mi] = $this->lembaga();
+        $pusat = $this->makeUser('admin');
+
+        // Nilai lebar/beku per tabel.
+        $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/pengaturan-tampilan', [
+            'lembaga_ids' => [$mi->id],
+            'data' => [
+                'lebar' => ['kelas' => ['nama' => 160]],
+                'beku' => ['kelas' => 2],
+            ],
+        ])->assertStatus(201);
+
+        // null = hapus lebar/beku tabel itu (dipakai tombol Reset/AutoFit).
+        $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/pengaturan-tampilan', [
+            'lembaga_ids' => [$mi->id],
+            'data' => [
+                'lebar' => ['kelas' => null],
+                'beku' => ['kelas' => null],
+            ],
+        ])->assertStatus(201);
+
+        $data = PengaturanTampilan::where('lembaga_id', $mi->id)->firstOrFail()->data;
+        $this->assertSame(['kelas' => null], $data['lebar']);
+        $this->assertSame(['kelas' => null], $data['beku']);
+    }
+
     public function test_validasi_data_dan_reset_ke_bawaan(): void
     {
         [, $mi] = $this->lembaga();

@@ -104,7 +104,7 @@ export default function KelasPage() {
   const [tas, setTas] = useState<TahunAjaran[]>([]);
   const [lembagaId, setLembagaId] = useState<number | ''>('');
   useLembagaAwalNumber(setLembagaId);
-  const { bertindak } = useLembagaAktif();
+  const { terkunci } = useLembagaAktif();
   const [taId, setTaId] = useState<number | ''>('');
   const [search, setSearch] = useState('');
   const [rows, setRows] = useState<Kelas[]>([]);
@@ -479,13 +479,14 @@ export default function KelasPage() {
             <Select
               value={lembagaId === '' ? '_semua' : String(lembagaId)}
               onValueChange={(v) => { setLembagaId(v === '_semua' ? '' : Number(v)); setTaId(''); pager.goFirst(); }}
+              disabled={terkunci}
             >
               <SelectTrigger id="select_lembaga_kelas" title="Filter lembaga" aria-label="Filter lembaga" size="sm" className="w-36">
                 <SelectValue placeholder="Semua" />
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  {!bertindak && <SelectItem value="_semua">Semua</SelectItem>}
+                  {!terkunci && <SelectItem value="_semua">Semua</SelectItem>}
                   {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>)}
                 </SelectGroup>
               </SelectContent>

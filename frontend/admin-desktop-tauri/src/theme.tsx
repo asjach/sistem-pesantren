@@ -104,7 +104,7 @@ function applyPrefs(p: Prefs, osDark: boolean) {
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const { tampilan: standar, pribadi, tandai, hapus } = useStandarTampilan();
+  const { tampilan: standar, pribadi, tandai, hapus, bertindak, simpanKeStandar } = useStandarTampilan();
   const [device, setDevice] = useState<DevicePrefs>(DEFAULT_PREFS);
   const [osDark, setOsDark] = useState(
     () => typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches,
@@ -121,21 +121,38 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     return () => mq.removeEventListener('change', onChange);
   }, []);
 
-  const prefs = useMemo(() => gabungPrefs(device, standar, pribadi), [device, standar, pribadi]);
+  // Saat bertindak sebagai lembaga, tampilan murni mengikuti standar lembaga
+  // (override pribadi diabaikan) agar yang terlihat = yang sedang diatur.
+  const prefs = useMemo(
+    () => gabungPrefs(device, standar, bertindak ? {} : pribadi),
+    [device, standar, pribadi, bertindak],
+  );
 
   useEffect(() => {
     applyPrefs(prefs, osDark);
   }, [prefs, osDark]);
 
-  /** Simpan setelan pribadi + tandai agar tidak ditimpa standar. */
+  /** Simpan setelan pribadi + tandai agar tidak ditimpa standar. Saat bertindak
+   *  sebagai lembaga, perubahan langsung disimpan ke standar lembaga itu. */
   const update = useCallback((patch: Partial<Prefs>, kunci: string[]) => {
+    if (bertindak && kunci.length > 0) {
+      hapus(...kunci);
+      const tema: TampilanData['tema'] = {};
+      if ('theme' in patch) tema.theme = patch.theme;
+      if ('mode' in patch) tema.mode = patch.mode;
+      if ('density' in patch) tema.density = patch.density;
+      if ('warnaUI' in patch) tema.warnaUI = patch.warnaUI;
+      if ('iconSet' in patch) tema.iconSet = patch.iconSet;
+      if (Object.keys(tema).length > 0) simpanKeStandar({ tema });
+      return;
+    }
     setDevice((prev) => {
       const next = { ...prev, ...patch };
       savePrefs(next).catch(() => {});
       return next;
     });
     if (kunci.length > 0) tandai(...kunci);
-  }, [tandai]);
+  }, [bertindak, hapus, simpanKeStandar, tandai]);
 
   /** Ubah `parts` berbasis state terbaru (aman untuk perubahan beruntun). */
   const updateParts = useCallback((fn: (p: PartOverrides) => PartOverrides, kunci: string[]) => {
@@ -158,21 +175,46 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       setDensity: (density) => update({ density }, ['tema.density']),
       setWarnaUI: (warnaUI) => update({ warnaUI }, ['tema.warnaUI']),
       setIconSet: (iconSet) => update({ iconSet }, ['tema.iconSet']),
-      setGayaBagian: (id, patch) => updateParts((p) => {
-        const map = { ...p.gaya };
-        const g = gabungGaya(map[id], patch);
-        if (g) map[id] = g;
-        else delete map[id];
-        return { ...p, gaya: map };
-      }, [`parts.gaya.${id}`]),
-      setWarnaBagian: (mode, id, patch) => updateParts((p) => {
-        const map = { ...p[mode] };
-        const w = gabungWarna(map[id], patch);
-        if (w) map[id] = w;
-        else delete map[id];
-        return { ...p, [mode]: map };
-      }, [`parts.${mode}.${id}`]),
+      setGayaBagian: (id, patch) => {
+        if (bertindak) {
+          hapus(`parts.gaya.${id}`);
+          const g = gabungGaya(standar?.parts?.gaya?.[id] as PartGaya | undefined, patch);
+          simpanKeStandar({
+            parts: { gaya: { [id]: g as unknown as Record<string, unknown> } },
+          });
+          return;
+        }
+        updateParts((p) => {
+          const map = { ...p.gaya };
+          const g = gabungGaya(map[id], patch);
+          if (g) map[id] = g;
+          else delete map[id];
+          return { ...p, gaya: map };
+        }, [`parts.gaya.${id}`]);
+      },
+      setWarnaBagian: (mode, id, patch) => {
+        if (bertindak) {
+          hapus(`parts.${mode}.${id}`);
+          const w = gabungWarna(standar?.parts?.[mode]?.[id] as PartWarna | undefined, patch);
+          simpanKeStandar({
+            parts: { [mode]: { [id]: w as unknown as Record<string, unknown> } },
+          });
+          return;
+        }
+        updateParts((p) => {
+          const map = { ...p[mode] };
+          const w = gabungWarna(map[id], patch);
+          if (w) map[id] = w;
+          else delete map[id];
+          return { ...p, [mode]: map };
+        }, [`parts.${mode}.${id}`]);
+      },
       resetBagian: (id) => {
+        hapus(`parts.gaya.${id}`, `parts.terang.${id}`, `parts.gelap.${id}`);
+        if (bertindak) {
+          simpanKeStandar({ parts: { gaya: { [id]: null }, terang: { [id]: null }, gelap: { [id]: null } } });
+          return;
+        }
         updateParts((p) => {
           const gaya = { ...p.gaya };
           delete gaya[id];
@@ -182,9 +224,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
           delete gelap[id];
           return { gaya, terang, gelap };
         }, []);
-        hapus(`parts.gaya.${id}`, `parts.terang.${id}`, `parts.gelap.${id}`);
       },
       resetBagianBanyak: (ids) => {
+        hapus(...ids.flatMap((id) => [`parts.gaya.${id}`, `parts.terang.${id}`, `parts.gelap.${id}`]));
+        if (bertindak) {
+          const nullMap = () => Object.fromEntries(ids.map((id) => [id, null]));
+          simpanKeStandar({ parts: { gaya: nullMap(), terang: nullMap(), gelap: nullMap() } });
+          return;
+        }
         updateParts((p) => {
           const gaya = { ...p.gaya };
           const terang = { ...p.terang };
@@ -196,14 +243,23 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
           }
           return { gaya, terang, gelap };
         }, []);
-        hapus(...ids.flatMap((id) => [`parts.gaya.${id}`, `parts.terang.${id}`, `parts.gelap.${id}`]));
       },
       resetSemuaBagian: () => {
-        updateParts(() => ({ gaya: {}, terang: {}, gelap: {} }), []);
         hapus(...Object.keys(pribadi).filter((k) => k.startsWith('parts.')));
+        if (bertindak) {
+          const kumpul = new Set([
+            ...Object.keys(standar?.parts?.gaya ?? {}),
+            ...Object.keys(standar?.parts?.terang ?? {}),
+            ...Object.keys(standar?.parts?.gelap ?? {}),
+          ]);
+          const nullMap = () => Object.fromEntries([...kumpul].map((id) => [id, null]));
+          simpanKeStandar({ parts: { gaya: nullMap(), terang: nullMap(), gelap: nullMap() } });
+          return;
+        }
+        updateParts(() => ({ gaya: {}, terang: {}, gelap: {} }), []);
       },
     };
-  }, [prefs, osDark, update, updateParts, hapus, pribadi]);
+  }, [prefs, osDark, update, updateParts, hapus, pribadi, bertindak, simpanKeStandar, standar]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

@@ -26,6 +26,7 @@ import { DEFAULT_PREFS, WARNA_UI } from '@/prefs';
 import { Blend, Check, ChevronDown, ChevronUp, Landmark, LogOut, Monitor, Moon, Paintbrush, Palette, SquareMousePointer, Sun, Users } from '@/icons';
 import { useRibbonTable } from '@/components/RibbonTable';
 import { useRibbonSlotCtx } from '@/components/RibbonSlot';
+import BannerBertindak from '@/components/BannerBertindak';
 import { halamanDariPath } from '@/lib/halaman';
 import { RibbonTabel } from './topbar/RibbonTabel';
 
@@ -51,7 +52,10 @@ const TOOLS_TAMPIL_KEY = 'simpes_tools_tampil';
  *  Navigasi halaman ada di Sidebar, bukan di sini. */
 export default function TopBar() {
   const { user, logoutLocal } = useAuth();
-  const { lembagaId, lembaga, pilihan, adaSemua, banyakPilihan, pilih, loading: lembagaLoading } = useLembagaAktif();
+  const { lembagaId, lembaga, pilihan, adaSemua, banyakPilihan, bertindak, pilih, loading: lembagaLoading } = useLembagaAktif();
+  // Saat bertindak sebagai lembaga, dropdown hanya menampilkan lembaga itu;
+  // kembali ke mode penuh → seluruh daftar tampil lagi (tanpa muat ulang).
+  const daftarLembaga = bertindak ? pilihan.filter((l) => l.id === lembagaId) : pilihan;
   const { theme, mode, dark, iconSet, warnaUI, setTheme, setMode, setIconSet, setWarnaUI } = useTheme();
   const picker = usePicker();
   const nav = useNavigate();
@@ -132,7 +136,7 @@ export default function TopBar() {
         </span>
 
         <div data-part="area_akun" className="ml-auto flex items-center gap-0.5">
-          {!lembagaLoading && (adaSemua || banyakPilihan) && pilihan.length > 0 && (
+          {!lembagaLoading && (adaSemua || banyakPilihan) && daftarLembaga.length > 0 && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
@@ -159,7 +163,7 @@ export default function TopBar() {
                     <Check data-icon="inline-end" size={14} />
                   </DropdownMenuItem>
                 )}
-                {pilihan.map((l) => (
+                {daftarLembaga.map((l) => (
                   <DropdownMenuItem key={l.id} id={`menu_lembaga_aktif_${l.id}`} onSelect={() => pilih(l.id)}>
                     <span className="flex-1 truncate">{l.kode ? `${l.kode} — ${l.nama}` : l.nama}</span>
                     {lembagaId === l.id && <Check data-icon="inline-end" size={14} />}
@@ -311,6 +315,9 @@ export default function TopBar() {
           </DropdownMenu>
         </div>
       </div>
+
+      {/* Banner "bertindak sebagai lembaga": di atas ribbon agar selalu terlihat. */}
+      <BannerBertindak />
 
       {/* Baris 2: ribbon tools kontekstual (kontrol tabel / tools halaman). */}
       {tampilTools && (

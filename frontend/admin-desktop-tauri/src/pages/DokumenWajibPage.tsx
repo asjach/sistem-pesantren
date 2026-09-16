@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/select';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
+import { useLembagaAktif } from '@/lembagaAktif';
 import FilterField from '@/components/FilterField';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import {
@@ -63,6 +64,7 @@ export default function DokumenWajibPage() {
   const [lembagas, setLembagas] = useState<Lembaga[]>([]);
   const [lembagaId, setLembagaId] = useState('');
   useLembagaAwalString(setLembagaId);
+  const { terkunci } = useLembagaAktif();
   const [rows, setRows] = useState<DokumenWajib[]>([]);
   const [jenis, setJenis] = useState<ReferensiRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -224,7 +226,7 @@ export default function DokumenWajibPage() {
             </Select>
             </FilterField>
             <FilterField label="Lembaga" htmlFor="select_lembaga_dokumen_wajib">
-            <Select value={lembagaId} onValueChange={setLembagaId}>
+            <Select value={lembagaId} onValueChange={setLembagaId} disabled={terkunci}>
               <SelectTrigger id="select_lembaga_dokumen_wajib" title="Lembaga" aria-label="Lembaga" className="w-44">
                 <SelectValue placeholder="Pilih lembaga" />
               </SelectTrigger>

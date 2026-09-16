@@ -172,7 +172,7 @@ export default function SantriPage() {
   const [statusGlobal, setStatusGlobal] = useState('_semua');
   const [lembagaId, setLembagaId] = useState('');
   useLembagaAwalString(setLembagaId);
-  const { bertindak } = useLembagaAktif();
+  const { terkunci } = useLembagaAktif();
   const [search, setSearch] = useState('');
   const [terapkanCari, setTerapkanCari] = useState('');
 
@@ -347,13 +347,13 @@ export default function SantriPage() {
         filter={(
           <>
             <FilterField label="Lembaga" htmlFor="select_lembaga_santri">
-              <Select value={lembagaId === '' ? '_semua' : lembagaId} onValueChange={(v) => { setLembagaId(v === '_semua' ? '' : v); pager.goFirst(); }}>
+              <Select value={lembagaId === '' ? '_semua' : lembagaId} onValueChange={(v) => { setLembagaId(v === '_semua' ? '' : v); pager.goFirst(); }} disabled={terkunci}>
                 <SelectTrigger id="select_lembaga_santri" title="Filter lembaga" aria-label="Filter lembaga" size="sm" className="w-40">
                   <SelectValue placeholder="Semua" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
-                    {!bertindak && <SelectItem value="_semua">Semua lembaga</SelectItem>}
+                    {!terkunci && <SelectItem value="_semua">Semua lembaga</SelectItem>}
                     {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>)}
                   </SelectGroup>
                 </SelectContent>

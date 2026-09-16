@@ -85,7 +85,7 @@ export default function TahunAjaranPage() {
   const [lembagas, setLembagas] = useState<Lembaga[]>([]);
   const [lembagaId, setLembagaId] = useState<number | ''>('');
   useLembagaAwalNumber(setLembagaId);
-  const { bertindak } = useLembagaAktif();
+  const { terkunci } = useLembagaAktif();
   const [search, setSearch] = useState('');
   const [rows, setRows] = useState<TahunAjaran[]>([]);
   const pager = usePager('tahun_ajaran');
@@ -302,13 +302,14 @@ export default function TahunAjaranPage() {
           <Select
             value={lembagaId === '' ? '_semua' : String(lembagaId)}
             onValueChange={(v) => { setLembagaId(v === '_semua' ? '' : Number(v)); pager.goFirst(); }}
+            disabled={terkunci}
           >
             <SelectTrigger id="select_lembaga_ta" title="Filter lembaga" aria-label="Filter lembaga" size="sm" className="w-36">
               <SelectValue placeholder="Semua (akses saya)" />
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
-                {!bertindak && <SelectItem value="_semua">Semua (akses saya)</SelectItem>}
+                {!terkunci && <SelectItem value="_semua">Semua (akses saya)</SelectItem>}
                 {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>)}
               </SelectGroup>
             </SelectContent>

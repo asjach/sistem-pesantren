@@ -13,9 +13,10 @@ export interface TampilanData {
     density?: string;
   };
   parts?: {
-    gaya?: Record<string, Record<string, unknown>>;
-    terang?: Record<string, Record<string, unknown>>;
-    gelap?: Record<string, Record<string, unknown>>;
+    /** Kunci bagian → properti gaya/warna; null = hapus bagian itu dari standar. */
+    gaya?: Record<string, Record<string, unknown> | null>;
+    terang?: Record<string, Record<string, unknown> | null>;
+    gelap?: Record<string, Record<string, unknown> | null>;
   };
   grid?: {
     rowH?: number | null;
@@ -24,10 +25,10 @@ export interface TampilanData {
   };
   /** table_key → nama preset kolom yang aktif (null/'Lengkap' = semua kolom). */
   presetAktif?: Record<string, string | null>;
-  /** table_key → (field → lebar px). */
-  lebar?: Record<string, Record<string, number>>;
-  /** table_key → jumlah kolom beku. */
-  beku?: Record<string, number>;
+  /** table_key → (field → lebar px); null = hapus lebar standar tabel itu. */
+  lebar?: Record<string, Record<string, number> | null>;
+  /** table_key → jumlah kolom beku; null = hapus. */
+  beku?: Record<string, number | null>;
 }
 
 export interface TampilanRespon {
