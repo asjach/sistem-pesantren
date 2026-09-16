@@ -58,7 +58,7 @@ export default function TopBar() {
   // Saat bertindak sebagai lembaga, dropdown hanya menampilkan lembaga itu;
   // kembali ke mode penuh → seluruh daftar tampil lagi (tanpa muat ulang).
   const daftarLembaga = bertindak ? pilihan.filter((l) => l.id === lembagaId) : pilihan;
-  const { theme, mode, dark, iconSet, warnaUI, setTheme, setMode, setIconSet, setWarnaUI } = useTheme();
+  const { theme, mode, dark, iconSet, warnaUI, navigasi, setTheme, setMode, setIconSet, setWarnaUI, setNavigasi } = useTheme();
   const picker = usePicker();
   const nav = useNavigate();
   const { pathname } = useLocation();
@@ -336,6 +336,21 @@ export default function TopBar() {
                     <DropdownMenuItem key={w} id={`menu_warna_${w}`} onSelect={() => setWarnaUI(w)} className="capitalize">
                       <span className="flex-1">{w}</span>
                       {warnaUI === w && <Check data-icon="inline-end" size={14} />}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger id="menu_set_navigasi">
+                  <Monitor data-icon="inline-start" size={16} />
+                  <span className="flex-1">Navigasi</span>
+                  <span className="text-xs text-muted-foreground capitalize">{navigasi === 'menubar' ? 'Menubar' : 'Sidebar'}</span>
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent className="min-w-44">
+                  {(['sidebar', 'menubar'] as const).map((m) => (
+                    <DropdownMenuItem key={m} id={`menu_navigasi_${m}`} onSelect={() => setNavigasi(m)}>
+                      <span className="flex-1">{m === 'sidebar' ? 'Sidebar' : 'Menubar'}</span>
+                      {navigasi === m && <Check data-icon="inline-end" size={14} />}
                     </DropdownMenuItem>
                   ))}
                 </DropdownMenuSubContent>
