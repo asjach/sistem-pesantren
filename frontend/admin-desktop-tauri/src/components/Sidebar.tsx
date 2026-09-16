@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { NAV_GRUP, halamanPerGrup } from '@/lib/halaman';
+import { useAuth } from '@/auth/AuthContext';
 import { useTheme } from '@/theme';
 import { cn } from '@/lib/utils';
 import { ChevronLeft, ChevronRight } from '@/icons';
@@ -13,6 +14,8 @@ const itemBase =
  *  `simpes_sidebar`. Tautan halaman terpisah dari tools di ribbon. */
 export default function Sidebar() {
   const { collapsed, setCollapsed } = useTheme();
+  const { user } = useAuth();
+  const peran = user?.roles.map((r) => r.name) ?? [];
 
   // Ctrl/Cmd+B: lipat/buka sidebar (ala editor kode).
   useEffect(() => {
@@ -64,7 +67,8 @@ export default function Sidebar() {
 
       <nav className="flex-1 overflow-x-hidden overflow-y-auto px-2 pb-3">
         {NAV_GRUP.map((g) => {
-          const items = halamanPerGrup(g.id);
+          const items = halamanPerGrup(g.id)
+            .filter((h) => !h.roles || h.roles.some((r) => peran.includes(r)));
           if (items.length === 0) return null;
           return (
             <div key={g.id} className="mb-1.5">

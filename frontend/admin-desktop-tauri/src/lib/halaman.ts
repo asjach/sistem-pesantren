@@ -37,6 +37,8 @@ export interface HalamanDef {
   grid?: boolean;
   /** Ikon di sidebar. */
   icon: Ikon;
+  /** Batasi halaman ke peran tertentu (mis. `['super_admin']`); kosong = semua. */
+  roles?: string[];
 }
 
 export const HALAMAN: HalamanDef[] = [
@@ -89,6 +91,7 @@ export const HALAMAN: HalamanDef[] = [
     deskripsi: 'Super admin menyebar standar tampilan ke seluruh lembaga; admin lembaga mengatur salinan lembaganya.',
     tab: 'pengaturan',
     icon: Paintbrush,
+    roles: ['super_admin'],
   },
   { to: '/pengaturan/server', label: 'Server', tab: 'pengaturan', icon: Server },
 ];

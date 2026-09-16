@@ -1,8 +1,8 @@
-import { Suspense, lazy } from 'react';
+import { Suspense, lazy, type ReactNode } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { Toaster } from '@/components/ui/sonner';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AuthProvider } from './auth/AuthContext';
+import { AuthProvider, useAuth } from './auth/AuthContext';
 import { LembagaAktifProvider } from './lembagaAktif';
 import { StandarTampilanProvider } from './standarTampilan';
 import { ThemeProvider } from './theme';
@@ -53,6 +53,13 @@ function Shell() {
   );
 }
 
+/** Batasi halaman ke peran tertentu; peran lain dialihkan ke beranda. */
+function KhususPeran({ roles, children }: { roles: string[]; children: ReactNode }) {
+  const { user } = useAuth();
+  if (!user?.roles.some((r) => roles.includes(r.name))) return <Navigate to="/" replace />;
+  return <>{children}</>;
+}
+
 function PageFallback() {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 p-2">
@@ -98,7 +105,14 @@ export default function App() {
                     <Route path="/dokumen-wajib" element={<DokumenWajibPage />} />
                     <Route path="/pengaturan" element={<Navigate to="/pengaturan/tampilan" replace />} />
                     <Route path="/pengaturan/tampilan" element={<PengaturanTampilanPage />} />
-                    <Route path="/pengaturan/tampilan-standar" element={<PengaturanTampilanStandarPage />} />
+                    <Route
+                      path="/pengaturan/tampilan-standar"
+                      element={(
+                        <KhususPeran roles={['super_admin']}>
+                          <PengaturanTampilanStandarPage />
+                        </KhususPeran>
+                      )}
+                    />
                     <Route path="/pengaturan/bagian" element={<Navigate to="/pengaturan/tampilan" replace />} />
                     <Route path="/pengaturan/server" element={<PengaturanServerPage />} />
                     <Route path="*" element={<Navigate to="/" replace />} />
