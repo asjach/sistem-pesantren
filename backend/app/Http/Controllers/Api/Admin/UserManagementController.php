@@ -22,10 +22,10 @@ class UserManagementController extends Controller
     protected function assignableRolesFor(User $authUser): array
     {
         if ($authUser->bolehSuperAdmin()) {
-            return ['super_admin', 'admin', 'kasir', 'guru', 'orang_tua', 'santri'];
+            return ['super_admin', 'admin', 'guru', 'orang_tua', 'santri'];
         }
         if ($authUser->hasRole('admin')) {
-            return ['kasir', 'guru', 'orang_tua', 'santri'];
+            return ['guru', 'orang_tua', 'santri'];
         }
 
         return [];

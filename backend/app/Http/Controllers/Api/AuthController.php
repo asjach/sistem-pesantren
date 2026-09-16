@@ -47,7 +47,7 @@ class AuthController extends Controller
             ], 403);
         }
 
-        $staff = $user->hasAnyRole(['super_admin', 'admin', 'kasir', 'guru']);
+        $staff = $user->hasAnyRole(['super_admin', 'admin', 'guru']);
         $token = $user->createToken($device, ['*'], now()->addDays($staff ? 30 : 365))->plainTextToken;
 
         return response()->json([

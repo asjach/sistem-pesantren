@@ -147,7 +147,7 @@ class User extends Authenticatable
      * Filter query hanya untuk tenant milik user yang sedang login.
      * - super_admin / admin full: semua (kecuali sedang bertindak → lembaga peran).
      * - admin subset: users yang pivot-nya beririsan (whereExists user_lembaga).
-     * - non-admin (kasir/guru/orang_tua/santri): kosong (tidak boleh list users).
+     * - non-admin (guru/orang_tua/santri): kosong (tidak boleh list users).
      */
     public function scopeTenantScope(Builder $query): Builder
     {

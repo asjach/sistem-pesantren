@@ -38,8 +38,8 @@ import { usePager } from '@/hooks/usePager';
 import { DeleteAction, EditAction, ViewAction } from '@/components/RowActions';
 import { toast } from 'sonner';
 
-const ALL_ROLES = ['super_admin', 'admin', 'kasir', 'guru', 'orang_tua', 'santri'];
-const ADMIN_ROLES = ['kasir', 'guru', 'orang_tua', 'santri'];
+const ALL_ROLES = ['super_admin', 'admin', 'guru', 'orang_tua', 'santri'];
+const ADMIN_ROLES = ['guru', 'orang_tua', 'santri'];
 // Khusus dialog Tambah pengguna: admin boleh membuat role `admin` (lembaga
 // dibatasi backend). Dialog Ubah role & filter tetap memakai ADMIN_ROLES.
 const ADMIN_CREATE_ROLES = ['admin', ...ADMIN_ROLES];

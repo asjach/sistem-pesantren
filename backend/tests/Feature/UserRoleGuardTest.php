@@ -144,7 +144,7 @@ class UserRoleGuardTest extends TestCase
     {
         $f = $this->fixture();
         $admin = $this->makeUser('admin', [$f['mi']->id]);
-        $target = $this->makeUser('kasir', [$f['mi']->id]);
+        $target = $this->makeUser('guru', [$f['mi']->id]);
 
         $this->actingAs($admin, 'sanctum')->putJson("/api/admin/users/{$target->id}", [
             'roles' => ['admin'],
@@ -165,7 +165,7 @@ class UserRoleGuardTest extends TestCase
         $admin = $this->makeUser('admin', [$f['mi']->id]);
 
         $this->actingAs($admin, 'sanctum')->putJson("/api/admin/users/{$admin->id}", [
-            'roles' => ['kasir'],
+            'roles' => ['guru'],
         ])->assertStatus(403);
 
         $this->assertTrue($admin->fresh()->hasRole('admin'));
@@ -197,7 +197,7 @@ class UserRoleGuardTest extends TestCase
         ])->assertStatus(403);
 
         $this->actingAs($super, 'sanctum')->postJson("/api/admin/users/{$super->id}/roles", [
-            'role' => 'kasir',
+            'role' => 'guru',
         ])->assertStatus(403);
 
         $this->assertTrue($super->fresh()->hasRole('super_admin'));
@@ -209,7 +209,7 @@ class UserRoleGuardTest extends TestCase
     {
         $f = $this->fixture();
         $super = $this->makeUser('super_admin');
-        $target = $this->makeUser('kasir', [$f['mi']->id]);
+        $target = $this->makeUser('guru', [$f['mi']->id]);
 
         $this->actingAs($super, 'sanctum')->postJson("/api/admin/users/{$target->id}/roles", [
             'role' => 'guru',
@@ -218,17 +218,17 @@ class UserRoleGuardTest extends TestCase
         $this->assertTrue($target->fresh()->hasRole('guru'));
     }
 
-    public function test_06_admin_bisa_assign_kasir_ke_orang_lain_setenant(): void
+    public function test_06_admin_bisa_assign_guru_ke_orang_lain_setenant(): void
     {
         $f = $this->fixture();
         $admin = $this->makeUser('admin', [$f['mi']->id]);
         $target = $this->makeUser('orang_tua', [$f['mi']->id]);
 
         $this->actingAs($admin, 'sanctum')->postJson("/api/admin/users/{$target->id}/roles", [
-            'role' => 'kasir',
+            'role' => 'guru',
         ])->assertStatus(200);
 
-        $this->assertTrue($target->fresh()->hasRole('kasir'));
+        $this->assertTrue($target->fresh()->hasRole('guru'));
     }
 
     // ---------- 7-8. tambah lembaga hanya super_admin (v1.9.2) ----------
@@ -284,10 +284,10 @@ class UserRoleGuardTest extends TestCase
         $super = $this->makeUser('super_admin');
 
         $this->actingAs($adminFull, 'sanctum')->postJson("/api/admin/users/{$super->id}/roles", [
-            'role' => 'kasir',
+            'role' => 'guru',
         ])->assertStatus(403);
 
-        $this->assertFalse($super->fresh()->hasRole('kasir'));
+        $this->assertFalse($super->fresh()->hasRole('guru'));
     }
 
     // ---------- 11. admin tidak bisa ubah role / cabut role sesama admin ----------
@@ -299,7 +299,7 @@ class UserRoleGuardTest extends TestCase
         $sesama = $this->makeUser('admin', [$f['mi']->id]);
 
         $this->actingAs($admin, 'sanctum')->putJson("/api/admin/users/{$sesama->id}", [
-            'roles' => ['kasir'],
+            'roles' => ['guru'],
         ])->assertStatus(403);
 
         $this->actingAs($admin, 'sanctum')->deleteJson("/api/admin/users/{$sesama->id}/roles", [
@@ -337,7 +337,7 @@ class UserRoleGuardTest extends TestCase
             'is_seleksi' => false, 'kelompok_psb' => 'combo_mi_md', 'is_active' => true,
         ]);
         $adminMi = $this->makeUser('admin', [$f['mi']->id]);
-        $target = $this->makeUser('kasir', [$f['mi']->id, $md->id]);
+        $target = $this->makeUser('guru', [$f['mi']->id, $md->id]);
 
         $this->actingAs($adminMi, 'sanctum')->deleteJson("/api/admin/users/{$target->id}/lembaga", [
             'lembaga_id' => $md->id,

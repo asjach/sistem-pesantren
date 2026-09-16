@@ -6,6 +6,7 @@ use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\Middleware\ThrottleRequests;
+use Illuminate\Testing\TestResponse;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -27,8 +28,8 @@ class SessionFlowTest extends TestCase
     {
         $this->seq++;
         $u = User::create([
-            'name' => 'Sesi ' . $this->seq,
-            'email' => $email ?? "sesi{$this->seq}_" . uniqid() . '@example.com',
+            'name' => 'Sesi '.$this->seq,
+            'email' => $email ?? "sesi{$this->seq}_".uniqid().'@example.com',
             'password' => 'password123',
         ]);
         $u->assignRole($roles);
@@ -36,7 +37,7 @@ class SessionFlowTest extends TestCase
         return $u;
     }
 
-    protected function login(string $identifier, array $extra = []): \Illuminate\Testing\TestResponse
+    protected function login(string $identifier, array $extra = []): TestResponse
     {
         return $this->postJson('/api/auth/login', array_merge([
             'identifier' => $identifier, 'password' => 'password123',
@@ -112,7 +113,7 @@ class SessionFlowTest extends TestCase
     public function test_ganti_peran_mencabut_token_target(): void
     {
         $sa = $this->makeUser(['super_admin']);
-        $target = $this->makeUser(['kasir']);
+        $target = $this->makeUser(['orang_tua']);
         $tok = $this->login($target->email)->json('token');
         $this->assertEquals(1, $target->tokens()->count());
 

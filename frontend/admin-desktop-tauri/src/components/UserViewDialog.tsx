@@ -15,7 +15,6 @@ import type { AdminUser } from '@/api/users';
 const LABEL_ROLE: Record<string, string> = {
   super_admin: 'Super Admin',
   admin: 'Admin',
-  kasir: 'Kasir',
   guru: 'Guru',
   orang_tua: 'Orang Tua',
   santri: 'Santri',

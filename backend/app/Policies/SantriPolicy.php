@@ -34,7 +34,7 @@ class SantriPolicy
             return $user->hasAnyRole(['super_admin', 'admin']);
         }
 
-        // Admin/guru/kasir: cukup punya akses ke salah satu lembaga keanggotaan.
+        // Admin/guru: cukup punya akses ke salah satu lembaga keanggotaan.
         return $lembagaIds->contains(fn ($id) => $user->canAccessLembaga((int) $id));
     }
 
