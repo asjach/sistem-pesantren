@@ -477,6 +477,11 @@ class SantriController extends Controller
      * Penjaga salah-template: file identitas (tanpa blok keanggotaan) ditolak
      * dengan pesan jelas sebelum validasi per baris.
      */
+    /**
+     * Penjaga salah-file: endpoint gabungan menerima file gabungan maupun
+     * identitas (tanpa blok lembaga → hanya santri). Syarat minimal hanya
+     * kolom identitas kunci.
+     */
     private function cekHeadingGabungan($file): ?string
     {
         try {
@@ -487,9 +492,6 @@ class SantriController extends Controller
         }
 
         $judul = array_map(fn ($v) => strtolower(trim((string) $v)), $baris);
-        if (! in_array('kode_lembaga', $judul, true) && ! in_array('lembaga_id', $judul, true)) {
-            return 'File bukan template gabungan (kolom kode_lembaga/lembaga_id tidak ada). Unduh template gabungan dulu.';
-        }
         if (! in_array('nama_lengkap', $judul, true)) {
             return 'File bukan template siswa (kolom nama_lengkap tidak ada).';
         }

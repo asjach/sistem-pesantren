@@ -24,12 +24,16 @@ use Maatwebsite\Excel\Validators\Failure;
  * Keanggotaan: belum ada → create (`is_active` bawaan true); sudah ada baris
  * untuk pasangan santri+lembaga → update (hanya nilai non-kosong yang menimpa,
  * agar sel kosong di Excel tidak menghapus data lama).
+ * Tanpa info lembaga (file identitas) → hanya identitas, tanpa keanggotaan.
  * Baris di luar lingkup tenant pengimport → gagal per baris (bukan 403).
  */
 class SantriLembagaImport extends SantriLengkapImport
 {
     /** Baris yang memutakhirkan santri/keanggotaan yang sudah ada. */
     protected int $barisUpdate = 0;
+
+    /** Baris tanpa info lembaga → hanya identitas, tanpa keanggotaan. */
+    protected int $barisTanpaAnggota = 0;
 
     /** @var array<int, int> */
     protected array $tersentuh = [];
@@ -38,6 +42,7 @@ class SantriLembagaImport extends SantriLengkapImport
     {
         return array_merge(parent::ringkasan(), [
             'baris_diperbarui' => $this->barisUpdate,
+            'baris_tanpa_keanggotaan' => $this->barisTanpaAnggota,
         ]);
     }
 
@@ -74,6 +79,22 @@ class SantriLembagaImport extends SantriLengkapImport
      */
     protected function prosesBaris(array $baris, int $no, array &$dilihatNik, array &$dilihatNis): bool
     {
+        // Tanpa info lembaga (kolom tak ada / nilai kosong) → santri saja.
+        if (! $this->adaInfoLembaga($baris)) {
+            $dataSantri = $this->buatDataSantri($baris);
+            $santri = $this->cocokkanSantri($baris, $dataSantri, $no, null, $dilihatNik, $dilihatNis, $sudahAda);
+            if ($santri === null) {
+                return false;
+            }
+            if ($sudahAda) {
+                $this->barisUpdate++;
+            }
+            $this->barisTanpaAnggota++;
+            $this->tersentuh[] = (int) $santri->id;
+
+            return true;
+        }
+
         $lembagaId = $this->resolveLembagaId($baris, $no);
         if ($lembagaId === null) {
             return false;
@@ -102,6 +123,18 @@ class SantriLembagaImport extends SantriLengkapImport
         $this->tersentuh[] = (int) $santri->id;
 
         return true;
+    }
+
+    /**
+     * Ada info lembaga bila salah satu kolom terisi (nilai). Kolom tak ada
+     * (file identitas lama) juga berarti tidak ada.
+     *
+     * @param  array<string, mixed>  $baris
+     */
+    protected function adaInfoLembaga(array $baris): bool
+    {
+        return trim((string) ($baris['kode_lembaga'] ?? '')) !== ''
+            || trim((string) ($baris['lembaga_id'] ?? '')) !== '';
     }
 
     /**
@@ -136,13 +169,14 @@ class SantriLembagaImport extends SantriLengkapImport
 
     /**
      * Cocokkan santri 4 lapis; $sudahAda true bila baris menimpa santri lama.
+     * $lembagaId null (file identitas) → lapis (c) dilewati.
      *
      * @param  array<string, mixed>  $baris
      * @param  array<string, mixed>  $dataSantri
      * @param  array<string, Santri>  $dilihatNik
      * @param  array<string, Santri>  $dilihatNis
      */
-    protected function cocokkanSantri(array $baris, array $dataSantri, int $no, int $lembagaId, array &$dilihatNik, array &$dilihatNis, ?bool &$sudahAda): ?Santri
+    protected function cocokkanSantri(array $baris, array $dataSantri, int $no, ?int $lembagaId, array &$dilihatNik, array &$dilihatNis, ?bool &$sudahAda): ?Santri
     {
         $sudahAda = false;
 
@@ -177,8 +211,9 @@ class SantriLembagaImport extends SantriLengkapImport
             return $santri;
         }
 
-        // (c) Fallback NIS lokal + lembaga (+ guard intra-file).
-        if ($nisTerisi) {
+        // (c) Fallback NIS lokal + lembaga (+ guard intra-file). Dilewati bila
+        // file identitas (tanpa lembaga) — NIS tanpa lembaga tak bisa dicocokkan.
+        if ($nisTerisi && $lembagaId !== null) {
             $nis = trim((string) $baris['nis_lokal']);
             $kunci = $lembagaId.'|'.mb_strtolower($nis);
             if (isset($dilihatNis[$kunci])) {
@@ -344,10 +379,11 @@ class SantriLembagaImport extends SantriLengkapImport
             // hindari rule `string`/`max` ketat di kolom kunci (pola RiwayatBelajarImport).
             'nik' => ['required_without_all:nis_lokal,santri_id', 'nullable', 'digits:16'],
             'nis_lokal' => ['required_without_all:nik,santri_id', 'nullable'],
-            // Blok keanggotaan: kode kunci utama, id sebagai fallback.
+            // Blok keanggotaan: opsional. Tanpa info lembaga → santri saja
+            // (file identitas lama tetap diterima endpoint gabungan).
             'santri_id' => ['nullable', 'integer'],
-            'kode_lembaga' => ['required_without:lembaga_id', 'nullable'],
-            'lembaga_id' => ['required_without:kode_lembaga', 'nullable', 'integer'],
+            'kode_lembaga' => ['nullable'],
+            'lembaga_id' => ['nullable', 'integer'],
             'nis_kemenag' => ['nullable'],
             'is_active' => ['nullable'],
             'tgl_mulai' => ['nullable', 'date'],

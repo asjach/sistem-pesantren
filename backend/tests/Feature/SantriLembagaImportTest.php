@@ -307,9 +307,9 @@ class SantriLembagaImportTest extends TestCase
         ]]))->assertStatus(403);
     }
 
-    // ---------- 10. salah template ditolak jelas ----------
+    // ---------- 10. file identitas diterima: santri saja, tanpa anggota ----------
 
-    public function test_10_file_identitas_ditolak_di_endpoint_gabungan(): void
+    public function test_10_file_identitas_jadi_santri_saja(): void
     {
         $f = $this->baseFixture();
         $admin = $this->makeAdmin([$f['mi']->id]);
@@ -317,12 +317,40 @@ class SantriLembagaImportTest extends TestCase
         $tmp = tempnam(sys_get_temp_dir(), 'identitas').'.csv';
         $h = fopen($tmp, 'w');
         fputcsv($h, ['nama_lengkap', 'jk', 'nik']);
-        fputcsv($h, ['Salah Template', 'L', '1101010000000008']);
+        fputcsv($h, ['Hanya Identitas', 'L', '1101010000000008']);
         fclose($h);
 
-        $res = $this->upload($admin, $tmp)->assertStatus(422);
-        $this->assertStringContainsString('bukan template gabungan', (string) $res->json('pesan'));
-        $this->assertNull(Santri::where('nik', '1101010000000008')->first());
+        $res = $this->upload($admin, $tmp)->assertStatus(200);
+        $santri = Santri::where('nik', '1101010000000008')->firstOrFail();
+        $this->assertSame(0, LembagaSantri::where('santri_id', $santri->id)->count());
+
+        // Periksa melaporkan baris tanpa keanggotaan.
+        $cek = $this->upload($admin, $tmp, 'import-periksa-gabungan')->assertStatus(200);
+        $this->assertTrue((bool) $cek->json('siap_import'));
+        $this->assertSame(1, (int) $cek->json('ringkasan.baris_tanpa_keanggotaan'));
+    }
+
+    // ---------- 14. file campuran: baris berlembaga + tanpa lembaga ----------
+
+    public function test_14_file_campuran_pasangan_tepat(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeAdmin([$f['mi']->id]);
+
+        $this->upload($admin, $this->makeCsv([
+            [
+                'kode_lembaga' => 'MI', 'nis_lokal' => '26401',
+                'nama_lengkap' => 'Campur Anggota', 'nik' => '1101010000000009', 'jk' => 'L',
+            ],
+            [
+                'nama_lengkap' => 'Campur Identitas', 'nik' => '1101010000000010', 'jk' => 'P',
+            ],
+        ]))->assertStatus(200);
+
+        $dengan = Santri::where('nik', '1101010000000009')->firstOrFail();
+        $tanpa = Santri::where('nik', '1101010000000010')->firstOrFail();
+        $this->assertSame(1, LembagaSantri::where('santri_id', $dengan->id)->count());
+        $this->assertSame(0, LembagaSantri::where('santri_id', $tanpa->id)->count());
     }
 
     // ---------- 11. template & data-gabungan bisa diunduh ----------

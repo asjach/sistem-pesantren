@@ -4,16 +4,13 @@ import {
   createLembagaSantri,
   createSantri,
   generateNisk,
-  importSantri,
   importSantriGabungan,
   listDokumenSantri,
   listLembagaSantri,
   listSantri,
-  periksaImportSantri,
   periksaImportSantriGabungan,
   tidakMemilikiDokumen,
   unduhDataSantriGabungan,
-  unduhTemplateSantri,
   unduhTemplateSantriGabungan,
   updateLembagaSantri,
   updateSantri,
@@ -180,7 +177,6 @@ export default function SantriPage() {
   const [terapkanCari, setTerapkanCari] = useState('');
 
   const [importOpen, setImportOpen] = useState(false);
-  const [importMode, setImportMode] = useState<'identitas' | 'gabungan'>('identitas');
   const [importFile, setImportFile] = useState<File | null>(null);
   const [periksaHasil, setPeriksaHasil] = useState<ImportPeriksa | null>(null);
   const [periksaBusy, setPeriksaBusy] = useState(false);
@@ -224,17 +220,21 @@ export default function SantriPage() {
       ? user.lembagas![0].id
       : null;
 
-  // Dropdown sumber "Data existing": bawaan filter aktif → lembaga tunggal → semua.
-  // Terkunci bila cuma 1 pilihan (admin lembaga tak rangkap).
+  // Dropdown sumber "Data existing": admin tak rangkap terkunci ke 1 lembaganya;
+  // selain itu bawaan filter aktif → lembaga tunggal di daftar → semua.
   const opsiDataLembaga = lembagaOperasional;
-  const dataTerkunci = opsiDataLembaga.length === 1;
+  const dataTerkunci = opsiDataLembaga.length === 1 || singleLembagaId !== null;
   useEffect(() => {
     if (!importOpen) return;
+    if (singleLembagaId !== null && opsiDataLembaga.some((l) => l.id === singleLembagaId)) {
+      setDataLembaga(String(singleLembagaId));
+      return;
+    }
     const dariFilter = lembagaId && opsiDataLembaga.some((l) => String(l.id) === lembagaId)
       ? lembagaId
       : null;
-    setDataLembaga(dariFilter ?? (dataTerkunci ? String(opsiDataLembaga[0].id) : '_semua'));
-  }, [importOpen, lembagaId, opsiDataLembaga, dataTerkunci]);
+    setDataLembaga(dariFilter ?? (opsiDataLembaga.length === 1 ? String(opsiDataLembaga[0].id) : '_semua'));
+  }, [importOpen, lembagaId, opsiDataLembaga, singleLembagaId]);
 
   const load = useCallback(
     async function loadPage(p = pager.page, pp = pager.perPage) {
@@ -527,11 +527,10 @@ export default function SantriPage() {
       <Dialog open={importOpen} onOpenChange={setImportOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>{importMode === 'gabungan' ? 'Import gabungan siswa' : 'Import identitas santri'}</DialogTitle>
+            <DialogTitle>Import siswa</DialogTitle>
             <DialogDescription>
-              {importMode === 'gabungan'
-                ? 'Satu file: keanggotaan (blok awal) + identitas. Cocok santri_id / NIK / NIS; baris baru otomatis dibuat.'
-                : 'Buku induk: hanya identitas. Keanggotaan/riwayat lewat halaman masing-masing.'}
+              Satu file: keanggotaan (blok awal) + identitas. Tanpa blok lembaga → hanya identitas.
+              Cocok santri_id / NIK / NIS; baris baru otomatis dibuat.
             </DialogDescription>
           </DialogHeader>
           <form className="grid grid-cols-2 gap-3" onSubmit={async (e) => {
@@ -539,9 +538,7 @@ export default function SantriPage() {
             if (!importFile || !periksaHasil?.siap_import) return;
             setBusy(true);
             try {
-              const res = importMode === 'gabungan'
-                ? await importSantriGabungan({ file: importFile })
-                : await importSantri({ file: importFile });
+              const res = await importSantriGabungan({ file: importFile });
               if (res.errors?.length) {
                 toast.error(res.errors.map((x) => `Baris ${x.row} (${x.attribute}): ${x.errors.join(', ')}`).join(' · '));
               } else {
@@ -555,34 +552,6 @@ export default function SantriPage() {
               setBusy(false);
             }
           }}>
-            <div className="col-span-2 flex gap-1.5" role="group" aria-label="Mode import">
-              {(['identitas', 'gabungan'] as const).map((m) => (
-                (m === 'identitas' || bisa(user, 'santri.ubah')) && (
-                  <Button
-                    key={m}
-                    id={`btn_mode_import_${m}`}
-                    type="button"
-                    size="sm"
-                    variant={importMode === m ? 'default' : 'outline'}
-                    onClick={() => { setImportMode(m); setImportFile(null); setPeriksaHasil(null); }}
-                  >
-                    {m === 'identitas' ? 'Identitas saja' : 'Gabungan + keanggotaan'}
-                  </Button>
-                )
-              ))}
-            </div>
-            {importMode === 'identitas' ? (
-              <Button
-                id="btn_unduh_template_santri"
-                type="button"
-                variant="link"
-                className="col-span-2 h-auto justify-start px-0"
-                onClick={() => void unduhTemplateSantri(singleLembagaId ?? undefined).catch((e) => toast.error(errorMessage(e)))}
-              >
-                <Download data-icon="inline-start" size={16} /> Unduh template Excel identitas
-              </Button>
-            ) : (
-              <>
                 <Button
                   id="btn_unduh_template_gabungan"
                   type="button"
@@ -625,8 +594,6 @@ export default function SantriPage() {
                     <Download data-icon="inline-start" size={16} /> Data existing
                   </Button>
                 </div>
-              </>
-            )}
             <Input
               id="input_file_import_santri"
               className="col-span-2"
@@ -640,6 +607,7 @@ export default function SantriPage() {
                 <p className="font-medium">
                   {periksaHasil.ringkasan.baris_diproses} baris diperiksa · {periksaHasil.ringkasan.baris_valid} valid · {periksaHasil.ringkasan.baris_gagal} bermasalah
                   {(periksaHasil.ringkasan.baris_diperbarui ?? 0) > 0 ? ` · ${periksaHasil.ringkasan.baris_diperbarui} pembaruan` : ''}
+                  {(periksaHasil.ringkasan.baris_tanpa_keanggotaan ?? 0) > 0 ? ` · ${periksaHasil.ringkasan.baris_tanpa_keanggotaan} hanya identitas` : ''}
                 </p>
                 {periksaHasil.errors.length > 0 ? (
                   <ul className="mt-2 max-h-40 space-y-1 overflow-auto text-xs text-destructive">
@@ -656,9 +624,7 @@ export default function SantriPage() {
                 if (!importFile) return;
                 setPeriksaBusy(true);
                 try {
-                  const res = importMode === 'gabungan'
-                    ? await periksaImportSantriGabungan({ file: importFile })
-                    : await periksaImportSantri({ file: importFile });
+                  const res = await periksaImportSantriGabungan({ file: importFile });
                   setPeriksaHasil(res);
                   if (res.siap_import) toast.success(res.pesan); else toast.error(res.pesan);
                 } catch (e2) {
