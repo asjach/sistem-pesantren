@@ -59,7 +59,11 @@ class TahunAjaranController extends Controller
             $query->where('is_active', true);
         }
 
-        return response()->json($query->orderByDesc('tanggal_mulai')->orderByDesc('id')->paginate($this->perPage($request)));
+        // TA aktif selalu di urutan pertama, lalu tanggal_mulai terbaru.
+        return response()->json(
+            $query->orderByDesc('is_aktif')->orderByDesc('tanggal_mulai')->orderByDesc('id')
+                ->paginate($this->perPage($request))
+        );
     }
 
     public function store(Request $request)

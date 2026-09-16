@@ -129,6 +129,8 @@ export default function KelasPage() {
   const [tambahLembagaId, setTambahLembagaId] = useState<number | ''>('');
   const [tambahTaId, setTambahTaId] = useState<number | ''>('');
   const [tambahTas, setTambahTas] = useState<TahunAjaran[]>([]);
+  /** Lembaga pemilik `tambahTas` (agar tahu daftar mana yang sudah termuat). */
+  const [tambahTasUntuk, setTambahTasUntuk] = useState<number | ''>('');
   const tambahTaReqRef = useRef(0);
 
   const [barisKelas, setBarisKelas] = useState<BarisKelas[]>([barisKelasKosong()]);
@@ -191,27 +193,31 @@ export default function KelasPage() {
     return () => { alive = false; };
   }, [lembagaId]);
 
-  // Dialog Tambah: muat TA milik lembaga terpilih; pilih TA aktif otomatis
-  // selama pilihan sebelumnya kosong/tidak lagi ada di daftar.
+  // Dialog Tambah: muat TA milik lembaga terpilih; **selalu** mengutamakan
+  // tahun ajaran aktif (bila belum ada, pertahankan pilihan yang masih valid).
   useEffect(() => {
     const req = ++tambahTaReqRef.current;
     if (tambahLembagaId === '') {
       setTambahTas([]);
+      setTambahTasUntuk('');
       return;
     }
     listTahunAjaran({ lembaga_id: Number(tambahLembagaId), per_page: 100 })
       .then((p) => {
         if (req !== tambahTaReqRef.current) return;
         setTambahTas(p.data);
+        setTambahTasUntuk(Number(tambahLembagaId));
         setTambahTaId((prev) => {
-          if (prev !== '' && p.data.some((t) => String(t.id) === String(prev))) return prev;
           const aktif = p.data.find((t) => t.is_aktif);
-          return aktif ? aktif.id : '';
+          if (aktif) return aktif.id;
+          if (prev !== '' && p.data.some((t) => String(t.id) === String(prev))) return prev;
+          return p.data[0] ? p.data[0].id : '';
         });
       })
       .catch((e) => {
         if (req !== tambahTaReqRef.current) return;
         setTambahTas([]);
+        setTambahTasUntuk('');
         setErr(errorMessage(e));
       });
   }, [tambahLembagaId]);
@@ -224,15 +230,19 @@ export default function KelasPage() {
       : null;
 
   const bukaTambah = useCallback(() => {
-    setTambahLembagaId(singleLembagaId ?? lembagaId);
-    // Utamakan TA filter; bila kosong pakai TA aktif dari daftar yang sudah ada
-    // (efek pemuat akan mengoreksi bila daftar itu milik lembaga lain).
-    const aktif = tambahTas.find((t) => t.is_aktif);
-    setTambahTaId(taId !== '' ? taId : (aktif ? aktif.id : ''));
+    const targetLembaga = singleLembagaId ?? lembagaId;
+    setTambahLembagaId(targetLembaga);
+    // Nilai awal: tahun ajaran aktif lembaga tujuan. Daftar toolbar dipakai
+    // sebagai cadangan saat daftar dialog belum termuat (efek pemuat mengoreksi).
+    const daftar = tambahTasUntuk === Number(targetLembaga)
+      ? tambahTas
+      : (Number(targetLembaga) === Number(lembagaId) ? tas : []);
+    const aktif = daftar.find((t) => t.is_aktif);
+    setTambahTaId(aktif ? aktif.id : '');
     setBarisKelas([barisKelasKosong()]);
     setErr('');
     setTambahOpen(true);
-  }, [singleLembagaId, lembagaId, taId, tambahTas]);
+  }, [singleLembagaId, lembagaId, tambahTas, tambahTasUntuk, tas]);
 
   useEffect(() => {
     if (pager.ready) load(pager.page);
