@@ -28,6 +28,7 @@ import IcClipboardCheckLucide from '~icons/lucide/clipboard-check';
 import IcClipboardListLucide from '~icons/lucide/clipboard-list';
 import IcCopyLucide from '~icons/lucide/copy';
 import IcEyeLucide from '~icons/lucide/eye';
+import IcEyeOffLucide from '~icons/lucide/eye-off';
 import IcFileCheck2Lucide from '~icons/lucide/file-check-2';
 import IcFileUpLucide from '~icons/lucide/file-up';
 import IcFolderOpenLucide from '~icons/lucide/folder-open';
@@ -98,6 +99,7 @@ import IcClipboardCheckTabler from '~icons/tabler/clipboard-check';
 import IcClipboardListTabler from '~icons/tabler/clipboard-list';
 import IcCopyTabler from '~icons/tabler/copy';
 import IcEyeTabler from '~icons/tabler/eye';
+import IcEyeOffTabler from '~icons/tabler/eye-off';
 import IcFileCheck2Tabler from '~icons/tabler/file-check';
 import IcFileUpTabler from '~icons/tabler/file-upload';
 import IcFolderOpenTabler from '~icons/tabler/folder-open';
@@ -161,6 +163,7 @@ import IcChevronRightPh from '~icons/ph/caret-right';
 import IcClipboardListPh from '~icons/ph/clipboard';
 import IcCopyPh from '~icons/ph/copy';
 import IcEyePh from '~icons/ph/eye';
+import IcEyeOffPh from '~icons/ph/eye-slash';
 import IcFileUpPh from '~icons/ph/file-arrow-up';
 import IcFolderOpenPh from '~icons/ph/folder-open';
 import IcGraduationCapPh from '~icons/ph/graduation-cap';
@@ -219,6 +222,7 @@ import IcClipboardCheckHeroicons from '~icons/heroicons/clipboard-document-check
 import IcClipboardListHeroicons from '~icons/heroicons/clipboard';
 import IcCopyHeroicons from '~icons/heroicons/document-duplicate';
 import IcEyeHeroicons from '~icons/heroicons/eye';
+import IcEyeOffHeroicons from '~icons/heroicons/eye-slash';
 import IcFileCheck2Heroicons from '~icons/heroicons/document-check';
 import IcFileUpHeroicons from '~icons/heroicons/document-arrow-up';
 import IcFolderOpenHeroicons from '~icons/heroicons/folder-open';
@@ -277,6 +281,7 @@ import IcClipboardCheckRi from '~icons/ri/task-line';
 import IcClipboardListRi from '~icons/ri/clipboard-line';
 import IcCopyRi from '~icons/ri/file-copy-line';
 import IcEyeRi from '~icons/ri/eye-line';
+import IcEyeOffRi from '~icons/ri/eye-off-line';
 import IcFileCheck2Ri from '~icons/ri/file-check-line';
 import IcFileUpRi from '~icons/ri/file-upload-line';
 import IcFolderOpenRi from '~icons/ri/folder-open-line';
@@ -339,6 +344,7 @@ import IcClipboardCheckIconoir from '~icons/iconoir/clipboard-check';
 import IcClipboardListIconoir from '~icons/iconoir/task-list';
 import IcCopyIconoir from '~icons/iconoir/copy';
 import IcEyeIconoir from '~icons/iconoir/eye';
+import IcEyeOffIconoir from '~icons/iconoir/eye-off';
 import IcFolderOpenIconoir from '~icons/iconoir/folder';
 import IcGraduationCapIconoir from '~icons/iconoir/graduation-cap';
 import IcHistoryIconoir from '~icons/iconoir/clock';
@@ -390,6 +396,7 @@ import IcChevronRightRadix from '~icons/radix-icons/chevron-right';
 import IcClipboardListRadix from '~icons/radix-icons/clipboard';
 import IcCopyRadix from '~icons/radix-icons/copy';
 import IcEyeRadix from '~icons/radix-icons/eye-open';
+import IcEyeOffRadix from '~icons/radix-icons/eye-closed';
 import IcHistoryRadix from '~icons/radix-icons/clock';
 import IcHomeRadix from '~icons/radix-icons/home';
 import IcLogOutRadix from '~icons/radix-icons/exit';
@@ -437,6 +444,7 @@ import IcClipboardCheckBi from '~icons/bi/clipboard-check';
 import IcClipboardListBi from '~icons/bi/clipboard';
 import IcCopyBi from '~icons/bi/copy';
 import IcEyeBi from '~icons/bi/eye';
+import IcEyeOffBi from '~icons/bi/eye-slash';
 import IcFileCheck2Bi from '~icons/bi/file-check';
 import IcFileUpBi from '~icons/bi/file-arrow-up';
 import IcFolderOpenBi from '~icons/bi/folder';
@@ -499,6 +507,7 @@ import IcClipboardCheckMaterial from '~icons/material-symbols/task';
 import IcClipboardListMaterial from '~icons/material-symbols/assignment';
 import IcCopyMaterial from '~icons/material-symbols/content-copy';
 import IcEyeMaterial from '~icons/material-symbols/visibility';
+import IcEyeOffMaterial from '~icons/material-symbols/visibility-off';
 import IcFileUpMaterial from '~icons/material-symbols/upload-file';
 import IcFolderOpenMaterial from '~icons/material-symbols/folder-open';
 import IcGraduationCapMaterial from '~icons/material-symbols/school';
@@ -575,6 +584,7 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
     ClipboardList: IcClipboardListLucide,
     Copy: IcCopyLucide,
     Eye: IcEyeLucide,
+    EyeOff: IcEyeOffLucide,
     FileCheck2: IcFileCheck2Lucide,
     FileUp: IcFileUpLucide,
     FolderOpen: IcFolderOpenLucide,
@@ -645,6 +655,7 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
     ClipboardList: IcClipboardListTabler,
     Copy: IcCopyTabler,
     Eye: IcEyeTabler,
+    EyeOff: IcEyeOffTabler,
     FileCheck2: IcFileCheck2Tabler,
     FileUp: IcFileUpTabler,
     FolderOpen: IcFolderOpenTabler,
@@ -708,6 +719,7 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
     ClipboardList: IcClipboardListPh,
     Copy: IcCopyPh,
     Eye: IcEyePh,
+    EyeOff: IcEyeOffPh,
     FileUp: IcFileUpPh,
     FolderOpen: IcFolderOpenPh,
     GraduationCap: IcGraduationCapPh,
@@ -766,6 +778,7 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
     ClipboardList: IcClipboardListHeroicons,
     Copy: IcCopyHeroicons,
     Eye: IcEyeHeroicons,
+    EyeOff: IcEyeOffHeroicons,
     FileCheck2: IcFileCheck2Heroicons,
     FileUp: IcFileUpHeroicons,
     FolderOpen: IcFolderOpenHeroicons,
@@ -824,6 +837,7 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
     ClipboardList: IcClipboardListRi,
     Copy: IcCopyRi,
     Eye: IcEyeRi,
+    EyeOff: IcEyeOffRi,
     FileCheck2: IcFileCheck2Ri,
     FileUp: IcFileUpRi,
     FolderOpen: IcFolderOpenRi,
@@ -886,6 +900,7 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
     ClipboardList: IcClipboardListIconoir,
     Copy: IcCopyIconoir,
     Eye: IcEyeIconoir,
+    EyeOff: IcEyeOffIconoir,
     FolderOpen: IcFolderOpenIconoir,
     GraduationCap: IcGraduationCapIconoir,
     History: IcHistoryIconoir,
@@ -937,6 +952,7 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
     ClipboardList: IcClipboardListRadix,
     Copy: IcCopyRadix,
     Eye: IcEyeRadix,
+    EyeOff: IcEyeOffRadix,
     History: IcHistoryRadix,
     Home: IcHomeRadix,
     LogOut: IcLogOutRadix,
@@ -984,6 +1000,7 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
     ClipboardList: IcClipboardListBi,
     Copy: IcCopyBi,
     Eye: IcEyeBi,
+    EyeOff: IcEyeOffBi,
     FileCheck2: IcFileCheck2Bi,
     FileUp: IcFileUpBi,
     FolderOpen: IcFolderOpenBi,
@@ -1046,6 +1063,7 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
     ClipboardList: IcClipboardListMaterial,
     Copy: IcCopyMaterial,
     Eye: IcEyeMaterial,
+    EyeOff: IcEyeOffMaterial,
     FileUp: IcFileUpMaterial,
     FolderOpen: IcFolderOpenMaterial,
     GraduationCap: IcGraduationCapMaterial,
@@ -1129,6 +1147,7 @@ export const ClipboardCheck = (p: IkonProps) => <IkonDinamis {...p} nama="Clipbo
 export const ClipboardList = (p: IkonProps) => <IkonDinamis {...p} nama="ClipboardList" />;
 export const Copy = (p: IkonProps) => <IkonDinamis {...p} nama="Copy" />;
 export const Eye = (p: IkonProps) => <IkonDinamis {...p} nama="Eye" />;
+export const EyeOff = (p: IkonProps) => <IkonDinamis {...p} nama="EyeOff" />;
 export const FileCheck2 = (p: IkonProps) => <IkonDinamis {...p} nama="FileCheck2" />;
 export const FileUp = (p: IkonProps) => <IkonDinamis {...p} nama="FileUp" />;
 export const FolderOpen = (p: IkonProps) => <IkonDinamis {...p} nama="FolderOpen" />;

@@ -29,7 +29,7 @@ import Pager from '@/components/Pager';
 import { usePager } from '@/hooks/usePager';
 import { useAuth } from '../auth/AuthContext';
 import { ActionIcon, DeleteAction, EditAction, SetAktifAction, ViewAction } from '@/components/RowActions';
-import { Eye, Undo2 } from '@/icons';
+import { Ban, Undo2 } from '@/icons';
 import { toast } from 'sonner';
 
 const dateRule = (label: string) => (v: string | null) =>
@@ -257,7 +257,7 @@ export default function TahunAjaranPage() {
           title="Sembunyikan dari lembaga ini"
           onClick={() => onSembunyikan(t.id)}
         >
-          <Eye size={16} />
+          <Ban size={16} />
         </ActionIcon>
       )}
       {bolehSembunyi && t.lembaga_id !== null && !t.is_active && (
