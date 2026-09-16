@@ -54,6 +54,14 @@ const FIELDS: ExcelField[] = [
     key: 'tingkat', label: 'Tingkat', width: 120, kind: 'text', maxLength: 20,
   },
   {
+    key: 'urutan', label: 'Urutan', width: 90, kind: 'text', maxLength: 6,
+    validate: (v) => {
+      if (v === null || v === undefined || v.trim() === '') return null;
+      const n = Number(v);
+      return !Number.isInteger(n) || n < 0 ? 'Urutan bilangan bulat ≥ 0.' : null;
+    },
+  },
+  {
     key: 'kapasitas', label: 'Kapasitas', width: 120, kind: 'text', maxLength: 10,
     validate: (v) => {
       if (!v) return null;
@@ -67,11 +75,12 @@ const FIELDS: ExcelField[] = [
 interface BarisKelas {
   nama: string;
   tingkat: string;
+  urutan: string;
   kapasitas: string;
 }
 
 function barisKelasKosong(): BarisKelas {
-  return { nama: '', tingkat: '', kapasitas: '' };
+  return { nama: '', tingkat: '', urutan: '', kapasitas: '' };
 }
 
 /** Normalisasi nama untuk pembanding duplikat (samakan dengan backend). */
@@ -84,6 +93,7 @@ function gridValues(k: Kelas): Record<string, string | null> {  return {
     lembaga: k.lembaga?.kode ?? k.lembaga?.nama ?? String(k.lembaga_id),
     ta: k.tahunAjaran?.nama ?? k.tahun_ajaran?.nama ?? String(k.tahun_ajaran_id),
     tingkat: k.tingkat,
+    urutan: String(k.urutan ?? 0),
     kapasitas: k.kapasitas === null || k.kapasitas === undefined ? '' : String(k.kapasitas),
   };
 }
@@ -92,6 +102,7 @@ async function commitDraft(id: number, f: Record<string, string | null>) {
   await updateKelas(id, {
     ...(f.nama !== undefined ? { nama_kelas: f.nama ?? '' } : {}),
     ...(f.tingkat !== undefined ? { tingkat: f.tingkat || null } : {}),
+    ...(f.urutan !== undefined ? { urutan: f.urutan ? Number(f.urutan) : 0 } : {}),
     ...(f.kapasitas !== undefined
       ? { kapasitas: f.kapasitas ? Number(f.kapasitas) : null }
       : {}),
@@ -125,6 +136,7 @@ export default function KelasPage() {
   const [editRow, setEditRow] = useState<Kelas | null>(null);
   const [editNama, setEditNama] = useState('');
   const [editTingkat, setEditTingkat] = useState('');
+  const [editUrutan, setEditUrutan] = useState('');
   const [editKapasitas, setEditKapasitas] = useState('');
   /** Nama kelas yang sudah ada pada satu lingkup (lembaga+TA) — cek duplikat di klien. */
   const [namaTerpakai, setNamaTerpakai] = useState<{ kunci: string; nama: string[] }>({ kunci: '', nama: [] });
@@ -231,6 +243,7 @@ export default function KelasPage() {
     setEditRow(k);
     setEditNama(k.nama_kelas);
     setEditTingkat(k.tingkat ?? '');
+    setEditUrutan(String(k.urutan ?? 0));
     setEditKapasitas(k.kapasitas === null || k.kapasitas === undefined ? '' : String(k.kapasitas));
   }, []);
 
@@ -282,7 +295,7 @@ export default function KelasPage() {
     }
     const terisi = barisKelas
       .map((b, i) => ({ ...b, baris: i + 1 }))
-      .filter((b) => b.nama.trim() !== '' || b.tingkat.trim() !== '' || b.kapasitas.trim() !== '');
+      .filter((b) => b.nama.trim() !== '' || b.tingkat.trim() !== '' || b.urutan.trim() !== '' || b.kapasitas.trim() !== '');
     if (terisi.length === 0) {
       setErr('Isi minimal 1 baris kelas (nama wajib).');
       return;
@@ -305,6 +318,13 @@ export default function KelasPage() {
         return;
       }
       dalamPayload.add(namaRapi);
+      if (b.urutan.trim() !== '') {
+        const u = Number(b.urutan);
+        if (!Number.isInteger(u) || u < 0) {
+          setErr(`Baris ${b.baris}: urutan bilangan bulat ≥ 0.`);
+          return;
+        }
+      }
       if (b.kapasitas.trim() !== '') {
         const n = Number(b.kapasitas);
         if (!Number.isInteger(n) || n < 1) {
@@ -321,6 +341,7 @@ export default function KelasPage() {
           ...dasar,
           nama_kelas: satu.nama.trim(),
           tingkat: satu.tingkat.trim() || undefined,
+          urutan: satu.urutan.trim() ? Number(satu.urutan) : undefined,
           kapasitas: satu.kapasitas.trim() ? Number(satu.kapasitas) : undefined,
         });
         toast.success('Kelas dibuat.');
@@ -330,6 +351,7 @@ export default function KelasPage() {
           items: terisi.map((b) => ({
             nama_kelas: b.nama.trim(),
             ...(b.tingkat.trim() ? { tingkat: b.tingkat.trim() } : {}),
+            ...(b.urutan.trim() ? { urutan: Number(b.urutan) } : {}),
             ...(b.kapasitas.trim() ? { kapasitas: Number(b.kapasitas) } : {}),
           })),
         });
@@ -357,6 +379,7 @@ export default function KelasPage() {
       tahun_ajaran_id: Number(taId),
       nama_kelas: (f.nama ?? '').trim(),
       tingkat: f.tingkat || undefined,
+      urutan: f.urutan ? Number(f.urutan) : undefined,
       kapasitas: f.kapasitas ? Number(f.kapasitas) : undefined,
     });
     toast.success('Kelas dibuat.');
@@ -403,6 +426,7 @@ export default function KelasPage() {
       await updateKelas(editRow.id, {
         nama_kelas: editNama.trim(),
         tingkat: editTingkat || null,
+        urutan: editUrutan ? Number(editUrutan) : 0,
         kapasitas: editKapasitas ? Number(editKapasitas) : null,
       });
       toast.success('Kelas diubah.');
@@ -411,7 +435,7 @@ export default function KelasPage() {
     } catch (e) {
       setErr(errorMessage(e));
     }
-  }, [editRow, editNama, editTingkat, editKapasitas, namaTerpakai, load]);
+  }, [editRow, editNama, editTingkat, editUrutan, editKapasitas, namaTerpakai, load]);
 
   const onDelete = useCallback(async (id: number) => {
     try {
@@ -461,7 +485,7 @@ export default function KelasPage() {
         onCommit={commitDraft}
         onSaved={onSaved}
         onCreateRow={createRow}
-        inputRowValues={{ ta: taTerpilih, lembaga: lembagaTerpilih }}
+        inputRowValues={{ ta: taTerpilih, lembaga: lembagaTerpilih, urutan: '0' }}
         searchValue={search}
         onSearchChange={onSearchChange}
         onSearchSubmit={onSearchSubmit}
@@ -533,14 +557,15 @@ export default function KelasPage() {
             </div>
             <FieldLabel htmlFor="input_nama_kelas_0">Daftar kelas</FieldLabel>
             <div className="flex flex-col gap-2">
-              <div className="grid grid-cols-[1fr_110px_100px_32px] items-center gap-2 text-xs text-muted-foreground" aria-hidden="true">
+              <div className="grid grid-cols-[1fr_100px_80px_100px_32px] items-center gap-2 text-xs text-muted-foreground" aria-hidden="true">
                 <span>Nama kelas</span>
                 <span>Tingkat</span>
+                <span>Urutan</span>
                 <span>Kapasitas</span>
                 <span />
               </div>
               {barisKelas.map((b, i) => (
-                <div key={i} className="grid grid-cols-[1fr_110px_100px_32px] items-center gap-2">
+                <div key={i} className="grid grid-cols-[1fr_100px_80px_100px_32px] items-center gap-2">
                   <Input
                     id={`input_nama_kelas_${i}`}
                     aria-label={`Nama kelas baris ${i + 1}`}
@@ -555,6 +580,14 @@ export default function KelasPage() {
                     value={b.tingkat}
                     onChange={(e) => ubahBaris(i, 'tingkat', e.target.value)}
                     maxLength={20}
+                  />
+                  <Input
+                    id={`input_urutan_kelas_${i}`}
+                    aria-label={`Urutan baris ${i + 1}`}
+                    type="number"
+                    min={0}
+                    value={b.urutan}
+                    onChange={(e) => ubahBaris(i, 'urutan', e.target.value)}
                   />
                   <Input
                     id={`input_kapasitas_kelas_${i}`}
@@ -619,6 +652,8 @@ export default function KelasPage() {
             <Input id="input_ubah_nama_kelas" value={editNama} onChange={(e) => setEditNama(e.target.value)} required maxLength={50} />
             <FieldLabel htmlFor="input_ubah_tingkat_kelas">Tingkat (kamus, opsional)</FieldLabel>
             <Input id="input_ubah_tingkat_kelas" value={editTingkat} onChange={(e) => setEditTingkat(e.target.value)} />
+            <FieldLabel htmlFor="input_ubah_urutan_kelas">Urutan tampil</FieldLabel>
+            <Input id="input_ubah_urutan_kelas" type="number" min={0} value={editUrutan} onChange={(e) => setEditUrutan(e.target.value)} />
             <FieldLabel htmlFor="input_ubah_kapasitas_kelas">Kapasitas</FieldLabel>
             <Input id="input_ubah_kapasitas_kelas" type="number" min={1} value={editKapasitas} onChange={(e) => setEditKapasitas(e.target.value)} />
           </div>

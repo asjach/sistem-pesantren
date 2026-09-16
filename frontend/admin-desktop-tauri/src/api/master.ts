@@ -200,6 +200,8 @@ export interface Kelas {
   lembaga_id: number;
   tahun_ajaran_id: number;
   tingkat: string | null;
+  /** Urutan tampil kelas dalam lingkup lembaga + tahun ajaran. */
+  urutan: number;
   nama_kelas: string;
   kapasitas: number | null;
   lembaga?: { id: number; nama: string; kode: string | null };
@@ -224,6 +226,7 @@ export interface KelasItem {
   nama_kelas: string;
   tingkat?: string;
   kapasitas?: number;
+  urutan?: number;
 }
 
 export function createKelas(input: {
@@ -232,6 +235,7 @@ export function createKelas(input: {
   tingkat?: string;
   nama_kelas?: string;
   kapasitas?: number;
+  urutan?: number;
   items?: KelasItem[];
 }) {
   return api<Kelas | { pesan: string; data: Kelas[] }>('/admin/kelas', { method: 'POST', body: JSON.stringify(input) });
@@ -239,7 +243,7 @@ export function createKelas(input: {
 
 export function updateKelas(
   id: number,
-  input: { tingkat?: string | null; nama_kelas?: string; kapasitas?: number | null },
+  input: { tingkat?: string | null; nama_kelas?: string; kapasitas?: number | null; urutan?: number },
 ) {
   return api<Kelas>(`/admin/kelas/${id}`, { method: 'PUT', body: JSON.stringify(input) });
 }

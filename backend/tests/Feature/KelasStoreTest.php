@@ -282,4 +282,39 @@ class KelasStoreTest extends TestCase
         $this->actingAs($f['super'], 'sanctum')->putJson("/api/admin/kelas/{$kelasA->id}", ['nama_kelas' => '   '])
             ->assertStatus(422);
     }
+
+    public function test_11_urutan_disimpan_dan_mengurutkan_daftar(): void
+    {
+        $f = $this->baseFixture();
+
+        // Bulk: urutan ikut tersimpan (default 0 bila kosong).
+        $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/kelas', [
+            'lembaga_id' => $f['mi']->id,
+            'tahun_ajaran_id' => $f['taMi']->id,
+            'items' => [
+                ['nama_kelas' => '1C', 'urutan' => 3],
+                ['nama_kelas' => '1A', 'urutan' => 1],
+                ['nama_kelas' => '1B'],
+            ],
+        ])->assertStatus(201);
+
+        $this->assertSame(3, (int) Kelas::where('nama_kelas', '1C')->value('urutan'));
+        $this->assertSame(0, (int) Kelas::where('nama_kelas', '1B')->value('urutan'));
+
+        // Daftar diurutkan `urutan` dulu, lalu nama kelas.
+        $res = $this->actingAs($f['super'], 'sanctum')
+            ->getJson('/api/admin/kelas?lembaga_id='.$f['mi']->id.'&tahun_ajaran_id='.$f['taMi']->id)
+            ->assertStatus(200);
+        $this->assertSame(['1B', '1A', '1C'], array_column($res->json('data'), 'nama_kelas'));
+
+        // Update urutan lewat grid (PUT).
+        $idA = (int) Kelas::where('nama_kelas', '1A')->value('id');
+        $this->actingAs($f['super'], 'sanctum')->putJson("/api/admin/kelas/{$idA}", ['urutan' => 9])
+            ->assertStatus(200);
+        $this->assertSame(9, (int) Kelas::find($idA)->urutan);
+
+        // Urutan negatif ditolak.
+        $this->actingAs($f['super'], 'sanctum')->putJson("/api/admin/kelas/{$idA}", ['urutan' => -1])
+            ->assertStatus(422)->assertJsonValidationErrors(['urutan']);
+    }
 }

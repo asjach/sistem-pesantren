@@ -37,8 +37,10 @@ class KelasController extends Controller
             $query->where('nama_kelas', 'like', "%{$s}%");
         }
 
-        // Urut default nama ascending agar no. urut grid mengikuti abjad.
-        return response()->json($query->orderBy('nama_kelas')->orderBy('id')->paginate($this->perPage($request)));
+        // Urut default: `urutan` (diatur admin) lalu nama kelas.
+        return response()->json(
+            $query->orderBy('urutan')->orderBy('nama_kelas')->orderBy('id')->paginate($this->perPage($request))
+        );
     }
 
     public function store(Request $request)
@@ -51,10 +53,12 @@ class KelasController extends Controller
             'nama_kelas' => ['required_without:items', 'string', 'max:50'],
             'tingkat' => ['nullable', 'string', 'max:20'],
             'kapasitas' => ['nullable', 'integer', 'min:1'],
+            'urutan' => ['nullable', 'integer', 'min:0'],
             'items' => ['sometimes', 'array', 'min:1'],
             'items.*.nama_kelas' => ['required', 'string', 'max:50'],
             'items.*.tingkat' => ['nullable', 'string', 'max:20'],
             'items.*.kapasitas' => ['nullable', 'integer', 'min:1'],
+            'items.*.urutan' => ['nullable', 'integer', 'min:0'],
         ], [
             'lembaga_id.exists' => 'Lembaga harus lembaga operasional (bukan induk pesantren).',
         ]);
@@ -70,6 +74,7 @@ class KelasController extends Controller
                 'nama_kelas' => $data['nama_kelas'],
                 'tingkat' => $data['tingkat'] ?? null,
                 'kapasitas' => $data['kapasitas'] ?? null,
+                'urutan' => $data['urutan'] ?? 0,
             ]];
 
         try {
@@ -94,6 +99,7 @@ class KelasController extends Controller
                         'nama_kelas' => $nama,
                         'tingkat' => $item['tingkat'] ?? null,
                         'kapasitas' => $item['kapasitas'] ?? null,
+                        'urutan' => (int) ($item['urutan'] ?? 0),
                     ]);
                 }
 
@@ -158,7 +164,13 @@ class KelasController extends Controller
             'tingkat' => ['nullable', 'string', 'max:20'],
             'nama_kelas' => ['sometimes', 'required', 'string', 'max:50'],
             'kapasitas' => ['nullable', 'integer', 'min:1'],
+            'urutan' => ['nullable', 'integer', 'min:0'],
         ]);
+
+        if (array_key_exists('urutan', $data) && $data['urutan'] === null) {
+            // Kolom NOT NULL default 0: null dari form dianggap 0.
+            $data['urutan'] = 0;
+        }
 
         if (array_key_exists('nama_kelas', $data)) {
             $data['nama_kelas'] = Kelas::normalisasiNama($data['nama_kelas']);

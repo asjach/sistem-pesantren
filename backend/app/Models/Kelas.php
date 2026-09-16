@@ -10,7 +10,9 @@ class Kelas extends Model
 {
     protected $table = 'kelas';
 
-    protected $fillable = ['lembaga_id', 'tahun_ajaran_id', 'walas_id', 'tingkat', 'nama_kelas', 'kapasitas'];
+    protected $fillable = ['lembaga_id', 'tahun_ajaran_id', 'walas_id', 'tingkat', 'nama_kelas', 'kapasitas', 'urutan'];
+
+    protected $casts = ['urutan' => 'integer'];
 
     /**
      * Normalisasi nama kelas (trim + rapatkan spasi ganda).
