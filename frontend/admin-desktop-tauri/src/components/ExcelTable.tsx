@@ -304,6 +304,8 @@ function hostUkur(): HTMLDivElement | null {
 interface TextColData {
   fieldKey: string;
   maxLength?: number;
+  /** Enter saat mengedit baris input = simpan baris (mode Input). */
+  onEnter?: () => void;
   /** Klik 2× sel (mode view): nyalakan checkbox Edit. */
   onDblClick?: (id: string | number) => void;
   /** Klik 1× sel (mode Edit): buka editor sel ini. */
@@ -376,6 +378,13 @@ function TextCell({ rowData, setRowData, columnData, focus, stopEditing }: CellP
         if (e.key === 'Enter') {
           commit(cur);
           setVal(null);
+          // Baris input (mode Input): Enter = simpan baris (validasi + pesan
+          // di simpanInput); tetap di sel yang sama agar bisa lanjut mengisi.
+          if (String(rowData.id) === INPUT_ROW_ID && columnData.onEnter) {
+            stopEditing({ nextRow: false });
+            columnData.onEnter();
+            return;
+          }
           // stopEditing bawaan DSG = tutup edit + aktif turun 1 baris (kolom sama).
           stopEditing();
         } else if (e.key === 'Escape') {
@@ -391,6 +400,8 @@ function TextCell({ rowData, setRowData, columnData, focus, stopEditing }: CellP
 interface SelectColData {
   fieldKey: string;
   choices: ExcelChoice[];
+  /** Enter saat mengedit baris input = simpan baris (mode Input). */
+  onEnter?: () => void;
   /** Klik 2× sel (mode view): nyalakan checkbox Edit. */
   onDblClick?: (id: string | number) => void;
   /** Klik 1× sel (mode Edit): buka editor sel ini. */
@@ -434,6 +445,11 @@ function SelectCell({ rowData, setRowData, columnData, focus, stopEditing, disab
         if (e.key === 'Tab') return;
         e.stopPropagation();
         if (e.key === 'Escape') stopEditing();
+        if (e.key === 'Enter' && String(rowData.id) === INPUT_ROW_ID && columnData.onEnter) {
+          e.preventDefault();
+          stopEditing({ nextRow: false });
+          columnData.onEnter();
+        }
       }}
     >
       {columnData.choices.map((c) => (
@@ -871,6 +887,9 @@ export default function ExcelTable<T extends { id: string | number }>({
     return terlihat.length > 0 ? terlihat : fields;
   }, [fields, presetKeys]);
   const visibleFieldsRef = useRef(visibleFields);
+  /** Nilai TERBARU baris input (ditulis handleChange) — dipakai saat Enter
+   *  agar simpan tidak membaca state yang belum ter-flush. */
+  const inputDraftRef = useRef<Record<string, string | null>>({});
 
   // Standar lembaga untuk tabel ini (diabaikan bila user menyesuaikan sendiri).
   const stdLebar = merekam
@@ -1672,6 +1691,7 @@ export default function ExcelTable<T extends { id: string | number }>({
           const cur = (g[f.key] as string | null) ?? null;
           if (cur !== null && cur !== '') d[f.key] = cur;
         }
+        inputDraftRef.current = d;
         if (Object.keys(d).length > 0) nd[INPUT_ROW_ID] = d;
         continue;
       }
@@ -1771,6 +1791,7 @@ export default function ExcelTable<T extends { id: string | number }>({
             columnData: {
               fieldKey: f.key,
               choices: f.inputChoices ?? f.choices ?? [],
+              onEnter: () => inputAksiRef.current(),
             },
             disableKeys: true,
             keepFocus: false,
@@ -1784,7 +1805,11 @@ export default function ExcelTable<T extends { id: string | number }>({
           cols.push({
             ...common,
             component: InputStaticTextCell,
-            columnData: { fieldKey: f.key, maxLength: f.maxLength },
+            columnData: {
+              fieldKey: f.key,
+              maxLength: f.maxLength,
+              onEnter: () => inputAksiRef.current(),
+            },
             disableKeys: false,
             keepFocus: false,
             disabled: ({ rowData }: { rowData: GridRow }) => !isInputOnly(rowData),
@@ -1820,6 +1845,7 @@ export default function ExcelTable<T extends { id: string | number }>({
           columnData: {
             fieldKey: f.key,
             choices: f.choices ?? [],
+            onEnter: () => inputAksiRef.current(),
             // Mode Input aktif: klik 2× tidak menyalakan mode Edit (baris
             // input cukup buka editor sel).
             onDblClick: (id: string | number) => {
@@ -1851,6 +1877,7 @@ export default function ExcelTable<T extends { id: string | number }>({
           columnData: {
             fieldKey: f.key,
             maxLength: f.maxLength,
+            onEnter: () => inputAksiRef.current(),
             // Mode Input aktif: klik 2× tidak menyalakan mode Edit (baris
             // input cukup buka editor sel).
             onDblClick: (id: string | number) => {
@@ -1882,17 +1909,18 @@ export default function ExcelTable<T extends { id: string | number }>({
    *  (toast sukses menjadi tanggung jawab halaman). */
   async function simpanInput() {
     if (!onCreateRow) return;
-    const g = gridValue.find((r) => String(r.id) === INPUT_ROW_ID);
-    if (!g) return;
+    // Sumber nilai: ref draft baris input (paling mutakhir) + nilai bawaan kolom.
+    const d = inputDraftRef.current;
     const flds: Record<string, string | null> = {};
+    const kurang: string[] = [];
     for (const f of visibleFieldsRef.current) {
       if (f.kind === 'static' && !f.inputKind) continue;
-      const raw = (g[f.key] as string | null) ?? null;
+      const raw = d[f.key] ?? inputRowValues?.[f.key] ?? null;
       const v = raw == null || String(raw).trim() === '' ? null : String(raw);
       flds[f.key] = v;
       if (f.required && v === null) {
-        toast.error(`${f.label} wajib diisi.`);
-        return;
+        kurang.push(f.label);
+        continue;
       }
       if (v !== null && f.validate) {
         const blocked = f.validate(v);
@@ -1902,8 +1930,14 @@ export default function ExcelTable<T extends { id: string | number }>({
         }
       }
     }
+    // Semua kolom wajib harus terisi dulu sebelum baris boleh disimpan.
+    if (kurang.length > 0) {
+      toast.error('Kolom wajib harus diisi terlebih dahulu.', { description: kurang.join(', ') });
+      return;
+    }
     try {
       await onCreateRow(flds);
+      inputDraftRef.current = {};
       setDrafts((prev) => {
         if (!(INPUT_ROW_ID in prev)) return prev;
         const next = { ...prev };
@@ -1915,9 +1949,10 @@ export default function ExcelTable<T extends { id: string | number }>({
     }
   }
 
-  /** Handler simpan baris input (dipakai tombol di kolom Aksi). */
+  /** Handler simpan baris input (dipakai tombol di kolom Aksi & Enter). */
   const inputAksiRef = useRef<() => void>(() => {});
   inputAksiRef.current = () => void simpanInput();
+
 
   /** Kolom Aksi = kolom "sticky kanan" DSG: selalu ter-render & menempel di
    *  kanan saat grid di-scroll horizontal (freeze pane sisi kanan). */
