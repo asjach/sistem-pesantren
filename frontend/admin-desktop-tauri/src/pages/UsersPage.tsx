@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
+import { bisa } from '../api/auth';
 import {
   createUser,
   deleteUser,
@@ -121,10 +122,10 @@ async function commitDraft(id: number, f: Record<string, string | null>) {
 export default function UsersPage() {
   const { user: me } = useAuth();
   const isSuper = me?.roles.some((r) => r.name === 'super_admin') ?? false;
-  const isAdmin = me?.roles.some((r) => r.name === 'admin') ?? false;
-  // Admin & super_admin boleh mengubah pengguna (backend tetap menolak target
-  // privileged), dan boleh menambah baris lewat mode Input inline.
-  const canManage = isSuper || isAdmin;
+  // Gerbang aksi = izin matriks (backend menegakkan yang sama).
+  const canUbah = bisa(me, 'pengguna.ubah');
+  const canTambah = bisa(me, 'pengguna.tambah');
+  const canHapus = bisa(me, 'pengguna.hapus');
   const assignable = isSuper ? ALL_ROLES : ADMIN_ROLES;
   const creatable = isSuper ? ALL_ROLES : ADMIN_CREATE_ROLES;
 
@@ -299,10 +300,10 @@ export default function UsersPage() {
   const renderActions = useCallback((u: AdminUser) => (
     <>
       <ViewAction id={`btn_lihat_user_${u.id}`} onClick={() => setViewRow(u)} />
-      {!roleLocked(u) && (
+      {canUbah && !roleLocked(u) && (
         <EditAction id={`btn_ubah_user_${u.id}`} onClick={() => openEdit(u)} />
       )}
-      {!isSelf(u.id) && !locked(u) && (
+      {canHapus && !isSelf(u.id) && !locked(u) && (
         <DeleteAction
           id={`btn_hapus_user_${u.id}`}
           title="Hapus pengguna?"
@@ -311,7 +312,7 @@ export default function UsersPage() {
         />
       )}
     </>
-  ), [openEdit, onDelete, roleLocked, isSelf, locked]);
+  ), [openEdit, onDelete, roleLocked, isSelf, locked, canUbah, canHapus]);
 
   return (
     <div className={PAGE_SHELL}>
@@ -323,21 +324,21 @@ export default function UsersPage() {
         getValues={getValues}
         loading={loading}
         emptyText="Belum ada pengguna."
-        canEdit={canManage}
+        canEdit={canUbah}
         onCommit={commitDraft}
         onSaved={onSaved}
-        onCreateRow={canManage ? createRow : undefined}
+        onCreateRow={canTambah ? createRow : undefined}
         inputRowValues={{ peran: 'orang_tua' }}
         searchValue={search}
         onSearchChange={onSearchChange}
         onSearchSubmit={onSearchSubmit}
         searchPlaceholder="Nama / email / HP / username"
         searchIds={{ form: 'form_cari_user', input: 'input_cari_user', button: 'btn_cari_user' }}
-        addButton={(
+        addButton={canTambah ? (
           <Button id="btn_buka_tambah_user" onClick={() => setTambahOpen(true)}>
             + Pengguna
           </Button>
-        )}
+        ) : undefined}
         filter={(
           <FilterField label="Role" htmlFor="select_filter_role">
           <Select value={roleFilter || '_semua'} onValueChange={(v) => { setRoleFilter(v === '_semua' ? '' : v); pager.goFirst(); }}>
@@ -384,7 +385,7 @@ export default function UsersPage() {
             <FieldLabel className="self-start pt-1.5">Role</FieldLabel>
             <div className="flex flex-col gap-2">
               <p className="text-sm text-muted-foreground">
-                {isSuper ? 'Pilih 1 atau lebih (6 opsi).' : 'Pilih 1 atau lebih (5 opsi — termasuk admin untuk lembaga Anda).'}
+                {isSuper ? 'Pilih 1 atau lebih (5 opsi).' : 'Pilih 1 atau lebih (5 opsi — termasuk admin untuk lembaga Anda).'}
               </p>
               <div id="group_role_baru" className="flex flex-wrap gap-2">
                 {creatable.map((r) => (

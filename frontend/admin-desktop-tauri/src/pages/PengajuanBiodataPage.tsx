@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useAuth } from '../auth/AuthContext';
+import { bisa } from '../api/auth';
 import { errorMessage } from '../api/client';
 import { listPengajuan, setujuiPengajuan, tolakPengajuan, type PengajuanBiodata } from '../api/pengajuan';
 import { Button } from '@/components/ui/button';
@@ -60,6 +62,8 @@ async function noopCommit() {}
 
 // Verifikasi pengajuan biodata dari portal wali.
 export default function PengajuanBiodataPage() {
+  const { user } = useAuth();
+  const canProses = bisa(user, 'pengajuan_biodata.ubah');
   const [status, setStatus] = useState('diajukan');
   const [rows, setRows] = useState<PengajuanBiodata[]>([]);
   const [badge, setBadge] = useState<Record<string, number>>({});
@@ -131,7 +135,7 @@ export default function PengajuanBiodataPage() {
   const onSaved = useCallback(() => load(), [load]);
 
   const renderActions = useCallback((p: PengajuanBiodata) => (
-    p.status === 'diajukan' ? (
+    p.status === 'diajukan' && canProses ? (
       <>
         <SetAktifAction
           id={`btn_setujui_pengajuan_${p.id}`}
@@ -147,7 +151,7 @@ export default function PengajuanBiodataPage() {
         </ActionIcon>
       </>
     ) : null
-  ), [run]);
+  ), [run, canProses]);
 
   return (
     <div className={PAGE_SHELL}>

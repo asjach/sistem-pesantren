@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useAuth } from '../auth/AuthContext';
+import { bisa } from '../api/auth';
 import { errorMessage } from '../api/client';
 import { daftarKelas, listMutasiKeluar, mutasiSantri, type MutasiKeluar, type RiwayatRow } from '../api/siklus';
 import { referensiList } from '../api/master';
@@ -17,6 +19,7 @@ import { toast } from 'sonner';
 
 /** Mutasi Keluar: kiri santri aktif (nama + kelas) → kanan arsip mutasi. */
 export default function MutasiKeluarPage() {
+  const { user } = useAuth();
   const [lembagaId, setLembagaId] = useState('');
   useLembagaAwalString(setLembagaId);
   const [kiri, setKiri] = useState<RiwayatRow[]>([]);
@@ -106,9 +109,11 @@ export default function MutasiKeluarPage() {
               onCommit={async () => {}}
               onSaved={() => {}}
               renderActions={(r) => (
-                <Button id={`btn_mutasi_${r.id}`} size="sm" variant="outline" onClick={() => { setBaris(r); setTanggal(''); setAlasan(''); setNoSurat(''); setTujuan(''); setNpsn(''); setNsm(''); setKeterangan(''); }}>
-                  Mutasi
-                </Button>
+                bisa(user, 'mutasi_keluar.ubah') ? (
+                  <Button id={`btn_mutasi_${r.id}`} size="sm" variant="outline" onClick={() => { setBaris(r); setTanggal(''); setAlasan(''); setNoSurat(''); setTujuan(''); setNpsn(''); setNsm(''); setKeterangan(''); }}>
+                    Mutasi
+                  </Button>
+                ) : null
               )}
               hideCheckbox
               maxRows={12}

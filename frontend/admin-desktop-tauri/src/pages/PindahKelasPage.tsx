@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useAuth } from '../auth/AuthContext';
+import { bisa } from '../api/auth';
 import { errorMessage } from '../api/client';
 import { daftarKelas, pindahKelas, salinGenapMassal, type RiwayatRow } from '../api/siklus';
 import { listKelas, type Kelas } from '../api/master';
@@ -18,6 +20,8 @@ interface Kelompok { kelasId: number | null; kelas: string; tingkat: string | nu
 
 /** Pindah Kelas: tabel per kelas (dikelompokkan per tingkat) + salin ganjil→genap. */
 export default function PindahKelasPage() {
+  const { user } = useAuth();
+  const canSalin = bisa(user, 'kenaikan.ubah');
   const [lembagaId, setLembagaId] = useState('');
   useLembagaAwalString(setLembagaId);
   const [taId, setTaId] = useState('');
@@ -76,9 +80,11 @@ export default function PindahKelasPage() {
       <ErrorNotice>{err}</ErrorNotice>
       <div className="flex flex-wrap items-end gap-3">
         <FilterSemester id="select_semester_pindah_kelas" value={semester} onChange={setSemester} />
+        {canSalin && (
         <Button id="btn_buka_salin_genap" variant="outline" disabled={!lembagaId} onClick={() => { setTanggalSalin(''); setSalinOpen(true); }}>
           Salin ke genap
         </Button>
+        )}
       </div>
 
       {kelompok.length === 0 ? (

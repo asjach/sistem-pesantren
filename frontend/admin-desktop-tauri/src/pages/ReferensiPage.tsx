@@ -13,6 +13,7 @@ import {
 } from '../api/master';
 import { errorMessage } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
+import { bisa } from '../api/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { FieldDescription, FieldLabel } from '@/components/ui/field';
@@ -62,7 +63,8 @@ function sifatOf(r: ReferensiRow): string {
 export default function ReferensiPage() {
   const { user: me } = useAuth();
   const isSuper = !!me?.roles.some((r) => r.name === 'super_admin');
-  const canManage = !!me?.roles.some((r) => r.name === 'super_admin' || r.name === 'admin');
+  // Baris global tetap struktural super_admin; baris lembaga mengikuti izin matriks.
+  const canManage = bisa(me, 'referensi.ubah');
   const myLembagaIds = useMemo(() => me?.lembagas?.map((l) => l.id) ?? [], [me]);
   const adminFull = canManage && !isSuper && myLembagaIds.length === 0;
 
@@ -347,11 +349,11 @@ export default function ReferensiPage() {
             </FilterField>
           </>
         )}
-        addButton={(
+        addButton={bisa(me, 'referensi.tambah') ? (
           <Button id="btn_tambah_referensi" onClick={openTambah} disabled={!tipe}>
             + Entri
           </Button>
-        )}
+        ) : undefined}
         renderActions={renderActions}
       />
       <Dialog open={tambahOpen} onOpenChange={setTambahOpen}>

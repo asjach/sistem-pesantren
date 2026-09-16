@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useAuth } from '../auth/AuthContext';
+import { bisa } from '../api/auth';
 import { errorMessage } from '../api/client';
 import {
   createRiwayatBelajar,
@@ -36,6 +38,9 @@ import { toast } from 'sonner';
 
 /** Riwayat Belajar: tabel + dialog input + import Excel terpisah dari buku induk. */
 export default function RiwayatBelajarPage() {
+  const { user } = useAuth();
+  const canTambah = bisa(user, 'riwayat_belajar.tambah');
+  const canPindah = bisa(user, 'pindah_kelas.ubah');
   const pager = usePager('riwayat_belajar');
   const reqRef = useRef(0);
   const [rows, setRows] = useState<RiwayatRow[]>([]);
@@ -131,6 +136,7 @@ export default function RiwayatBelajarPage() {
         onCommit={noopCommit}
         onSaved={noopCommit}
         renderActions={(r) => (
+          canPindah ? (
           <>
             <ActionIcon id={`btn_pindah_kelas_${r.id}`} title="Pindah / set kelas" onClick={() => bukaPindah(r)}><MoveHorizontal size={16} /></ActionIcon>
             {r.kelas_id ? (
@@ -143,6 +149,7 @@ export default function RiwayatBelajarPage() {
               }}><SquareMousePointer size={16} /></ActionIcon>
             ) : null}
           </>
+          ) : null
         )}
         searchValue={search}
         onSearchChange={setSearch}
@@ -152,12 +159,16 @@ export default function RiwayatBelajarPage() {
         filter={(
           <>
             <FilterSemester id="select_semester_riwayat_belajar" value={semester} onChange={(v) => { setSemester(v); pager.goFirst(); }} />
+            {canTambah && (
             <Button id="btn_buka_input_riwayat" size="sm" onClick={() => { setKelasPilih(''); setInputOpen(true); }}>
               <Plus data-icon="inline-start" size={16} /> Riwayat
             </Button>
+            )}
+            {canTambah && (
             <Button id="btn_buka_import_riwayat" size="sm" variant="outline" onClick={() => { setImportFile(null); setPeriksaHasil(null); setImportOpen(true); }}>
               <FileUp data-icon="inline-start" size={16} /> Import
             </Button>
+            )}
             <Button id="btn_toggle_tanpa_kelas" size="sm" variant={tanpaKelas ? 'default' : 'outline'} onClick={() => { setTanpaKelas((v) => !v); pager.goFirst(); }}>
               Tanpa kelas
             </Button>

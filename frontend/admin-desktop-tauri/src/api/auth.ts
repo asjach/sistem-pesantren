@@ -19,6 +19,13 @@ export interface Me {
   username: string | null;
   roles: Role[];
   lembagas?: LembagaRingkas[];
+  /** Izin matriks dari backend (`modul.aksi`); sumber dochaya visibilitas & tombol aksi. */
+  permissions?: string[];
+}
+
+/** Cek satu izin matriks. */
+export function bisa(user: Pick<Me, 'permissions'> | null | undefined, izin: string): boolean {
+  return !!user?.permissions?.includes(izin);
 }
 
 /** Peran yang boleh memakai aplikasi desktop admin. */
@@ -29,7 +36,7 @@ export function isDesktopRoleAllowed(user: Pick<Me, 'roles'> | null | undefined)
 }
 
 export async function login(identifier: string, password: string): Promise<Me> {
-  const res = await api<{ user: Me; token: string }>('/auth/login', {
+  const res = await api<{ user: Me; permissions: string[]; token: string }>('/auth/login', {
     method: 'POST',
     body: JSON.stringify({ identifier, password, device: 'admin-desktop-tauri' }),
   });
@@ -37,8 +44,9 @@ export async function login(identifier: string, password: string): Promise<Me> {
   if (!isDesktopRoleAllowed(res.user)) {
     throw new Error('Aplikasi desktop hanya untuk peran super_admin/admin.');
   }
-  await setSession(res.token, res.user);
-  return res.user;
+  const user: Me = { ...res.user, permissions: res.permissions };
+  await setSession(res.token, user);
+  return user;
 }
 
 export function me(): Promise<Me> {

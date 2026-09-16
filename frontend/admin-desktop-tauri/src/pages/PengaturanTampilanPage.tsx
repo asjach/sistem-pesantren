@@ -2,13 +2,27 @@ import PartStyleEditor from '@/components/PartStyleEditor';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useStandarTampilan } from '@/standarTampilan';
+import { useAuth } from '../auth/AuthContext';
+import { bisa } from '../api/auth';
 import { toast } from 'sonner';
 
 /** Pengaturan → Tampilan: gaya atomik per bagian UI (font, warna, border,
  *  radius, padding) — dipisah mode terang/gelap. */
 export default function PengaturanTampilanPage() {
+  const { user } = useAuth();
   const { tampilan, versi, pribadi, hapus } = useStandarTampilan();
   const kunci = Object.keys(pribadi);
+
+  // Tanpa izin ubah: halaman hanya informatif (backend menolak simpan).
+  if (!bisa(user, 'tampilan.ubah')) {
+    return (
+      <div className="flex min-h-0 flex-col gap-4">
+        <p className="rounded-lg border bg-card px-4 py-2.5 text-sm text-muted-foreground">
+          Anda hanya dapat melihat tampilan. Perubahan memerlukan izin mengubah tampilan.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-0 flex-col gap-4">

@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom
 import { Toaster } from '@/components/ui/sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AuthProvider, useAuth } from './auth/AuthContext';
+import { bisa } from './api/auth';
 import { useLembagaAktif } from './lembagaAktif';
 import { LembagaAktifProvider } from './lembagaAktif';
 import { TahunAjaranAktifProvider } from './tahunAjaranAktif';
@@ -36,6 +37,7 @@ const RekapSantriPage = lazy(() => import('./pages/RekapSantriPage'));
 const MutasiKeluarPage = lazy(() => import('./pages/MutasiKeluarPage'));
 const PengajuanBiodataPage = lazy(() => import('./pages/PengajuanBiodataPage'));
 const DokumenWajibPage = lazy(() => import('./pages/DokumenWajibPage'));
+const KelolaIzinPage = lazy(() => import('./pages/KelolaIzinPage'));
 
 // Shell dipasang SEKALI sebagai rute induk: TopBar/ribbon + provider tetap
 // mounted saat pindah halaman. Suspense ada di dalam area konten sehingga
@@ -52,14 +54,14 @@ function Shell() {
   );
 }
 
-/** Batasi halaman ke peran tertentu; peran lain dialihkan ke beranda.
- *  Saat bertindak sebagai lembaga, kemampuan super_admin dianggap nonaktif. */
-function KhususPeran({ roles, children }: { roles: string[]; children: ReactNode }) {
+/** Batasi halaman ke satu izin matriks; tanpa izin dialihkan ke beranda.
+ *  Saat bertindak sebagai lembaga, izin khusus super_admin dianggap nonaktif. */
+const IZIN_TERKUNCI = new Set(['izin.lihat', 'tampilan_standar.lihat', 'server.lihat']);
+
+function KhususIzin({ izin, children }: { izin: string; children: ReactNode }) {
   const { user } = useAuth();
   const { bertindak } = useLembagaAktif();
-  const peran = (user?.roles.map((r) => r.name) ?? [])
-    .filter((r) => !(bertindak && r === 'super_admin'));
-  if (!peran.some((r) => roles.includes(r))) return <Navigate to="/" replace />;
+  if (!bisa(user, izin) || (bertindak && IZIN_TERKUNCI.has(izin))) return <Navigate to="/" replace />;
   return <>{children}</>;
 }
 
@@ -85,42 +87,50 @@ export default function App() {
                   <Routes>
                     <Route path="/login" element={<LoginPage />} />
                     <Route element={<Shell />}>
-                      <Route path="/" element={<DashboardPage />} />
-                      <Route path="/users" element={<UsersPage />} />
-                      <Route path="/lembaga" element={<LembagaPage />} />
-                      <Route path="/tahun-ajaran" element={<TahunAjaranPage />} />
-                      <Route path="/kelas" element={<KelasPage />} />
-                      <Route path="/referensi" element={<ReferensiPage />} />
-                      <Route path="/psb" element={<PsbPage />} />
-                      <Route path="/kegiatan-psb" element={<KegiatanPsbPage />} />
-                      <Route path="/santri" element={<SantriPage />} />
-                      <Route path="/riwayat-belajar" element={<RiwayatBelajarPage />} />
-                      <Route path="/daftar-kelas" element={<DaftarKelasPage />} />
-                      <Route path="/pindah-kelas" element={<PindahKelasPage />} />
-                      <Route path="/kenaikan" element={<KenaikanKelasPage />} />
-                      <Route path="/kelulusan" element={<KelulusanPage />} />
-                      <Route path="/rekap-santri" element={<RekapSantriPage />} />
-                      <Route path="/mutasi-keluar" element={<MutasiKeluarPage />} />
+                      <Route path="/" element={<KhususIzin izin="dashboard.lihat"><DashboardPage /></KhususIzin>} />
+                      <Route path="/users" element={<KhususIzin izin="pengguna.lihat"><UsersPage /></KhususIzin>} />
+                      <Route path="/lembaga" element={<KhususIzin izin="lembaga.lihat"><LembagaPage /></KhususIzin>} />
+                      <Route path="/tahun-ajaran" element={<KhususIzin izin="tahun_ajaran.lihat"><TahunAjaranPage /></KhususIzin>} />
+                      <Route path="/kelas" element={<KhususIzin izin="kelas.lihat"><KelasPage /></KhususIzin>} />
+                      <Route path="/referensi" element={<KhususIzin izin="referensi.lihat"><ReferensiPage /></KhususIzin>} />
+                      <Route path="/psb" element={<KhususIzin izin="psb.lihat"><PsbPage /></KhususIzin>} />
+                      <Route path="/kegiatan-psb" element={<KhususIzin izin="kegiatan_psb.lihat"><KegiatanPsbPage /></KhususIzin>} />
+                      <Route path="/santri" element={<KhususIzin izin="santri.lihat"><SantriPage /></KhususIzin>} />
+                      <Route path="/riwayat-belajar" element={<KhususIzin izin="riwayat_belajar.lihat"><RiwayatBelajarPage /></KhususIzin>} />
+                      <Route path="/daftar-kelas" element={<KhususIzin izin="daftar_kelas.lihat"><DaftarKelasPage /></KhususIzin>} />
+                      <Route path="/pindah-kelas" element={<KhususIzin izin="pindah_kelas.lihat"><PindahKelasPage /></KhususIzin>} />
+                      <Route path="/kenaikan" element={<KhususIzin izin="kenaikan.lihat"><KenaikanKelasPage /></KhususIzin>} />
+                      <Route path="/kelulusan" element={<KhususIzin izin="kelulusan.lihat"><KelulusanPage /></KhususIzin>} />
+                      <Route path="/rekap-santri" element={<KhususIzin izin="rekap_santri.lihat"><RekapSantriPage /></KhususIzin>} />
+                      <Route path="/mutasi-keluar" element={<KhususIzin izin="mutasi_keluar.lihat"><MutasiKeluarPage /></KhususIzin>} />
                       <Route path="/siklus" element={<Navigate to="/riwayat-belajar" replace />} />
-                      <Route path="/pengajuan-biodata" element={<PengajuanBiodataPage />} />
-                      <Route path="/dokumen-wajib" element={<DokumenWajibPage />} />
+                      <Route path="/pengajuan-biodata" element={<KhususIzin izin="pengajuan_biodata.lihat"><PengajuanBiodataPage /></KhususIzin>} />
+                      <Route path="/dokumen-wajib" element={<KhususIzin izin="dokumen_wajib.lihat"><DokumenWajibPage /></KhususIzin>} />
                       <Route path="/pengaturan" element={<Navigate to="/pengaturan/tampilan" replace />} />
-                      <Route path="/pengaturan/tampilan" element={<PengaturanTampilanPage />} />
+                      <Route path="/pengaturan/tampilan" element={<KhususIzin izin="tampilan.lihat"><PengaturanTampilanPage /></KhususIzin>} />
                       <Route
                         path="/pengaturan/tampilan-standar"
                         element={(
-                          <KhususPeran roles={['super_admin']}>
+                          <KhususIzin izin="tampilan_standar.lihat">
                             <PengaturanTampilanStandarPage />
-                          </KhususPeran>
+                          </KhususIzin>
                         )}
                       />
                       <Route path="/pengaturan/bagian" element={<Navigate to="/pengaturan/tampilan" replace />} />
                       <Route
                         path="/pengaturan/server"
                         element={(
-                          <KhususPeran roles={['super_admin']}>
+                          <KhususIzin izin="server.lihat">
                             <PengaturanServerPage />
-                          </KhususPeran>
+                          </KhususIzin>
+                        )}
+                      />
+                      <Route
+                        path="/pengaturan/izin"
+                        element={(
+                          <KhususIzin izin="izin.lihat">
+                            <KelolaIzinPage />
+                          </KhususIzin>
                         )}
                       />
                       <Route path="*" element={<Navigate to="/" replace />} />

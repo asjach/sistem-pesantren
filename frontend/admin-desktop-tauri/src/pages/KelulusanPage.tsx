@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useAuth } from '../auth/AuthContext';
+import { bisa } from '../api/auth';
 import { errorMessage } from '../api/client';
 import { daftarKelas, listAlumni, lulusSantri, tidakLulusSantri, type Alumni, type RiwayatRow } from '../api/siklus';
 import { Button } from '@/components/ui/button';
@@ -14,6 +16,8 @@ import { toast } from 'sonner';
 
 /** Kelulusan: kiri santri tingkat akhir → kanan alumni & santri tidak lulus. */
 export default function KelulusanPage() {
+  const { user } = useAuth();
+  const canUbah = bisa(user, 'kelulusan.ubah');
   const [lembagaId, setLembagaId] = useState('');
   useLembagaAwalString(setLembagaId);
   const [tingkat, setTingkat] = useState('');
@@ -93,12 +97,16 @@ export default function KelulusanPage() {
           <FieldLabel htmlFor="input_tingkat_kelulusan">Tingkat akhir</FieldLabel>
           <Input id="input_tingkat_akhir_kelulusan" value={tingkat} onChange={(e) => setTingkat(e.target.value)} placeholder="mis. 6" className="w-28" />
         </div>
+        {canUbah && (
         <Button id="btn_buka_luluskan" disabled={namaTerpilih.length === 0} onClick={() => { setTanggalLulus(''); setNoIjazah(''); setNoSurat(''); setLulusOpen(true); }}>
           Luluskan ({namaTerpilih.length})
         </Button>
+        )}
+        {canUbah && (
         <Button id="btn_proses_tidak_lulus" variant="outline" disabled={busy || tidakLulus.length === 0} onClick={() => void prosesTidakLulus()}>
           Tandai tidak lulus ({tidakLulus.length})
         </Button>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-4">

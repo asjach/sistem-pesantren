@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
+import { bisa } from '../api/auth';
 import {
   createLembaga,
   deleteLembaga,
@@ -74,7 +75,9 @@ async function commitDraft(id: number, f: Record<string, string | null>) {
 
 export default function LembagaPage() {
   const { user: me } = useAuth();
-  const isSuper = me?.roles.some((r) => r.name === 'super_admin') ?? false;
+  const canUbah = bisa(me, 'lembaga.ubah');
+  const canTambah = bisa(me, 'lembaga.tambah');
+  const canHapus = bisa(me, 'lembaga.hapus');
   const [rows, setRows] = useState<Lembaga[]>([]);
   const [all, setAll] = useState<Lembaga[]>([]);
   const [search, setSearch] = useState('');
@@ -216,9 +219,11 @@ export default function LembagaPage() {
   const renderActions = useCallback((l: Lembaga) => (
     <>
       <ViewAction id={`btn_lihat_lembaga_${l.id}`} onClick={() => setViewRow(l)} />
-      {isSuper && (
+      {canUbah && (
+        <EditAction id={`btn_ubah_lembaga_${l.id}`} onClick={() => openEdit(l)} />
+      )}
+      {canHapus && (
         <>
-          <EditAction id={`btn_ubah_lembaga_${l.id}`} onClick={() => openEdit(l)} />
           <DeleteAction
             id={`btn_hapus_lembaga_${l.id}`}
             title="Hapus lembaga?"
@@ -228,7 +233,7 @@ export default function LembagaPage() {
         </>
       )}
     </>
-  ), [isSuper, openEdit, onDelete]);
+  ), [canUbah, canHapus, openEdit, onDelete]);
 
   return (
     <div className={PAGE_SHELL}>
@@ -240,15 +245,15 @@ export default function LembagaPage() {
         getValues={gridValues}
         loading={loading}
         emptyText="Belum ada lembaga."
-        canEdit={isSuper}
+        canEdit={canUbah}
         onCommit={commitDraft}
         onSaved={onSaved}
-        onCreateRow={isSuper ? createRow : undefined}
+        onCreateRow={canTambah ? createRow : undefined}
         searchValue={search}
         onSearchChange={onSearchChange}
         onSearchSubmit={onSearchSubmit}
         searchPlaceholder="Nama / kode"
-        addButton={isSuper ? (
+        addButton={canTambah ? (
           <Button id="btn_buka_tambah_lembaga" onClick={() => setTambahOpen(true)}>
             + Lembaga
           </Button>
@@ -264,7 +269,7 @@ export default function LembagaPage() {
         onPage={(p) => { pager.setPage(p); load(p); }}
         onPerPage={(pp) => { pager.setPerPage(pp); load(1, pp); }}
       />
-      {isSuper && (
+      {canTambah && (
         <Dialog open={tambahOpen} onOpenChange={setTambahOpen}>
           <DialogContent className="sm:max-w-xl">
             <DialogHeader>

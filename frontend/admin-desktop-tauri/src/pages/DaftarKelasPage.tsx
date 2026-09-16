@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useAuth } from '../auth/AuthContext';
+import { bisa } from '../api/auth';
 import { errorMessage } from '../api/client';
 import { daftarKelas, keluarKelas, pindahKelas, type RiwayatRow } from '../api/siklus';
 import { listKelas, type Kelas } from '../api/master';
@@ -17,6 +19,8 @@ import { toast } from 'sonner';
 
 /** Daftar Kelas: santri aktif pada TA aktif & semester berjalan (baca + pindah/keluar kelas). */
 export default function DaftarKelasPage() {
+  const { user } = useAuth();
+  const canPindah = bisa(user, 'pindah_kelas.ubah');
   const [lembagaId, setLembagaId] = useState('');
   useLembagaAwalString(setLembagaId);
   const [taId, setTaId] = useState('');
@@ -75,6 +79,7 @@ export default function DaftarKelasPage() {
         onCommit={noopCommit}
         onSaved={noopCommit}
         renderActions={(r) => (
+          canPindah ? (
           <>
             <ActionIcon id={`btn_pindah_kelas_daftar_${r.id}`} title="Pindah kelas" onClick={() => { setPindahRow(r); setPindahKe(r.kelas_id ? String(r.kelas_id) : ''); }}><MoveHorizontal size={16} /></ActionIcon>
             <ActionIcon id={`btn_keluar_kelas_daftar_${r.id}`} title="Keluarkan dari kelas" onClick={async () => {
@@ -82,6 +87,7 @@ export default function DaftarKelasPage() {
               catch (e) { toast.error(errorMessage(e)); }
             }}><SquareMousePointer size={16} /></ActionIcon>
           </>
+          ) : null
         )}
         filter={(
           <>

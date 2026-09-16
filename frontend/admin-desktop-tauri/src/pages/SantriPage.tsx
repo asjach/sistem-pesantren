@@ -36,6 +36,7 @@ import { ActionIcon } from '@/components/RowActions';
 import { ProfilSantriDialog } from '@/components/ProfilSantriDialog';
 import { Download, FileUp, ImageUp, Plus, Upload } from '@/icons';
 import { useAuth } from '../auth/AuthContext';
+import { bisa } from '../api/auth';
 import { toast } from 'sonner';
 
 const digitValidator = (len: number, nama: string) => (v: string | null) =>
@@ -326,15 +327,19 @@ export default function SantriPage() {
         getValues={santriGridValues}
         loading={loading}
         emptyText="Belum ada santri pada filter ini."
-        canEdit
+        canEdit={bisa(user, 'santri.ubah')}
         onCommit={commitSantri}
         onSaved={() => load()}
         renderActions={(s) => (
           <>
+            {bisa(user, 'santri.tambah') && (
+            <>
             <ActionIcon id={`btn_anggota_santri_${s.id}`} title="Keanggotaan lembaga" onClick={() => void bukaAnggota(s)}><Plus size={16} /></ActionIcon>
             <ActionIcon id={`btn_foto_santri_${s.id}`} title="Upload foto" onClick={() => { setFotoRow(s); setFotoFile(null); }}><ImageUp size={16} /></ActionIcon>
-            <ActionIcon id={`btn_profil_santri_${s.id}`} title="Profil santri" onClick={() => setProfilRow(s)}><FileUp size={16} /></ActionIcon>
             <ActionIcon id={`btn_dokumen_santri_${s.id}`} title="Dokumen santri" onClick={() => { setDokRow(s); setDokJenis(''); setDokFile(null); void muatDokumen(s); }}><Upload size={16} /></ActionIcon>
+            </>
+            )}
+            <ActionIcon id={`btn_profil_santri_${s.id}`} title="Profil santri" onClick={() => setProfilRow(s)}><FileUp size={16} /></ActionIcon>
           </>
         )}
         searchValue={search}
@@ -358,12 +363,12 @@ export default function SantriPage() {
                 </SelectContent>
               </Select>
             </FilterField>
-            <Button id="btn_buka_tambah_santri" size="sm" onClick={() => { setAddNama(''); setAddJk('L'); setAddNik(''); setAddNisn(''); setAddLembaga(''); setAddNisLokal(''); setTambahOpen(true); }}>
+            {bisa(user, 'santri.tambah') && <Button id="btn_buka_tambah_santri" size="sm" onClick={() => { setAddNama(''); setAddJk('L'); setAddNik(''); setAddNisn(''); setAddLembaga(''); setAddNisLokal(''); setTambahOpen(true); }}>
               <Plus data-icon="inline-start" size={16} /> Santri
-            </Button>
-            <Button id="btn_buka_import_santri" size="sm" variant="outline" onClick={() => { setImportFile(null); setPeriksaHasil(null); setImportOpen(true); }}>
+            </Button>}
+            {bisa(user, 'santri.tambah') && <Button id="btn_buka_import_santri" size="sm" variant="outline" onClick={() => { setImportFile(null); setPeriksaHasil(null); setImportOpen(true); }}>
               <FileUp data-icon="inline-start" size={16} /> Import
-            </Button>
+            </Button>}
           </>
         )}
       />

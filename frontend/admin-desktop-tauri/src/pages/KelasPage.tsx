@@ -38,6 +38,7 @@ import {
 import Pager from '@/components/Pager';
 import { usePager } from '@/hooks/usePager';
 import { useAuth } from '../auth/AuthContext';
+import { bisa } from '../api/auth';
 import { X } from '@/icons';
 import { DeleteAction, EditAction, ViewAction } from '@/components/RowActions';
 import { toast } from 'sonner';
@@ -224,6 +225,9 @@ export default function KelasPage() {
 
   // Admin terhubung 1 lembaga: pilihannya dikunci (pola SantriPage).
   const { user } = useAuth();
+  const canUbahKelas = bisa(user, 'kelas.ubah');
+  const canTambahKelas = bisa(user, 'kelas.tambah');
+  const canHapusKelas = bisa(user, 'kelas.hapus');
   const singleLembagaId =
     user && !user.roles.some((r) => r.name === 'super_admin') && (user.lembagas?.length ?? 0) === 1
       ? user.lembagas![0].id
@@ -471,15 +475,17 @@ export default function KelasPage() {
   const renderActions = useCallback((k: Kelas) => (
     <>
       <ViewAction id={`btn_lihat_kelas_${k.id}`} onClick={() => setViewRow(k)} />
-      <EditAction id={`btn_ubah_kelas_${k.id}`} onClick={() => openEdit(k)} />
+      {canUbahKelas && <EditAction id={`btn_ubah_kelas_${k.id}`} onClick={() => openEdit(k)} />}
+      {canHapusKelas && (
       <DeleteAction
         id={`btn_hapus_kelas_${k.id}`}
         title="Hapus kelas?"
         description={`${k.nama_kelas} akan dihapus permanen.`}
         onConfirm={() => onDelete(k.id)}
       />
+      )}
     </>
-  ), [openEdit, onDelete]);
+  ), [openEdit, onDelete, canUbahKelas, canHapusKelas]);
 
   return (
     <div className={PAGE_SHELL}>
@@ -491,20 +497,20 @@ export default function KelasPage() {
         getValues={gridValues}
         loading={loading}
         emptyText="Belum ada kelas."
-        canEdit
+        canEdit={canUbahKelas}
         onCommit={commitDraft}
         onSaved={onSaved}
-        onCreateRow={createRow}
+        onCreateRow={canTambahKelas ? createRow : undefined}
         inputRowValues={{ ta: taTerpilih, lembaga: lembagaTerpilih, urutan: '0' }}
         searchValue={search}
         onSearchChange={onSearchChange}
         onSearchSubmit={onSearchSubmit}
         searchPlaceholder="Nama kelas"
-        addButton={(
+        addButton={canTambahKelas ? (
           <Button id="btn_buka_tambah_kelas" onClick={bukaTambah}>
             + Kelas
           </Button>
-        )}
+        ) : undefined}
         searchIds={{ form: 'form_filter_kelas', input: 'input_cari_kelas', button: 'btn_cari_kelas' }}
         renderActions={renderActions}
       />

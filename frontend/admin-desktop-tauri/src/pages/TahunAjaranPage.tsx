@@ -28,6 +28,7 @@ import {
 import Pager from '@/components/Pager';
 import { usePager } from '@/hooks/usePager';
 import { useAuth } from '../auth/AuthContext';
+import { bisa } from '../api/auth';
 import { ActionIcon, DeleteAction, EditAction, SetAktifAction, ViewAction } from '@/components/RowActions';
 import { Ban, Undo2 } from '@/icons';
 import { toast } from 'sonner';
@@ -97,9 +98,8 @@ export default function TahunAjaranPage() {
 
   const { user } = useAuth();
   const { bertindak } = useLembagaAktif();
-  const isSuper = !!user?.roles.some((r) => r.name === 'super_admin');
-  // Saat berperan sebagai lembaga, kemampuan super_admin nonaktif (hanya sembunyikan).
-  const bolehKelola = isSuper && !bertindak;
+  // Saat berperan sebagai lembaga, izin kelola super_admin nonaktif (hanya sembunyikan).
+  const bolehKelola = bisa(user, 'tahun_ajaran.ubah') && !bertindak;
   // Lembaga untuk aksi sembunyikan: lembaga aktif (perangkat) atau lembaga user.
   const lembagaAksi = lembagaId === '' ? (user?.lembagas?.[0]?.id ?? null) : Number(lembagaId);
   const bolehSembunyi = !bolehKelola && lembagaAksi !== null;
@@ -296,7 +296,7 @@ export default function TahunAjaranPage() {
         rows={rows}
         getValues={gridValues}
         loading={loading}
-        emptyText={isSuper ? 'Belum ada tahun ajaran.' : 'Lembaga ini belum memakai tahun ajaran mana pun.'}
+        emptyText={bolehKelola ? 'Belum ada tahun ajaran.' : 'Lembaga ini belum memakai tahun ajaran mana pun.'}
         canEdit={bolehKelola}
         onCommit={commitDraft}
         onSaved={onSaved}

@@ -50,6 +50,7 @@ import {
 } from '@/components/ui/dialog';
 import { DeleteAction, EditAction } from '@/components/RowActions';
 import { useAuth } from '../auth/AuthContext';
+import { bisa } from '../api/auth';
 import { tanggal } from '../lib/tanggal';
 import { toast } from 'sonner';
 import { Plus } from '@/icons';
@@ -657,16 +658,18 @@ export default function KegiatanPsbPage() {
             canEdit={false}
             onCommit={noopCommit}
             onSaved={reloadDokumen}
-            addButton={(
+            addButton={bisa(me, 'dokumen_wajib.tambah') ? (
               <Button id="btn_tambah_dokumen_psb" onClick={bukaDokumen} disabled={!kegiatanId}>+ Dokumen</Button>
-            )}
+            ) : undefined}
             renderActions={(r) => (
+              bisa(me, 'dokumen_wajib.hapus') ? (
               <DeleteAction
                 id={`btn_hapus_dokumen_psb_${r.id}`}
                 title="Hapus ketentuan dokumen lembaga ini?"
                 description={`Semua ketentuan dokumen ${r.lembaga} di kegiatan ini akan dihapus.`}
                 onConfirm={() => hapusDokumenLembaga(r)}
               />
+              ) : null
             )}
           />
 
@@ -732,21 +735,23 @@ export default function KegiatanPsbPage() {
             getValues={getKuotaValues}
             loading={loading}
             emptyText="Belum ada konfigurasi kuota di gelombang ini."
-            canEdit
+            canEdit={bisa(me, 'kegiatan_psb.tambah')}
             onCommit={commitKuota}
             onSaved={reloadKuota}
-            addButton={(
+            addButton={bisa(me, 'kegiatan_psb.tambah') ? (
               <Button id="btn_tambah_kuota_psb" onClick={() => bukaKuota(null)} disabled={!gelombangId}>+ Baris</Button>
-            )}
+            ) : undefined}
             renderActions={(r) => (
               <>
-                <EditAction id={`btn_ubah_kuota_${r.id}`} onClick={() => bukaKuota(r)} />
+                {bisa(me, 'kegiatan_psb.tambah') && <EditAction id={`btn_ubah_kuota_${r.id}`} onClick={() => bukaKuota(r)} />}
+                {bisa(me, 'kegiatan_psb.hapus') && (
                 <DeleteAction
                   id={`btn_hapus_kuota_${r.id}`}
                   title="Hapus baris?"
                   description="Konfigurasi kuota baris ini akan dihapus."
                   onConfirm={() => hapusKuota(r)}
                 />
+                )}
               </>
             )}
           />

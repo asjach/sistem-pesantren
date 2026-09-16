@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useAuth } from '../auth/AuthContext';
+import { bisa } from '../api/auth';
 import { errorMessage } from '../api/client';
 import {
   hapusDokumenWajib,
@@ -58,6 +60,9 @@ function gridValues(d: DokumenWajib): Record<string, string | null> {
 
 // Ketentuan dokumen wajib per lembaga (dipakai verifikasi PSB/daftar ulang).
 export default function DokumenWajibPage() {
+  const { user } = useAuth();
+  const canUbah = bisa(user, 'dokumen_wajib.ubah');
+  const canTambah = bisa(user, 'dokumen_wajib.tambah');
   const [kegiatans, setKegiatans] = useState<PsbKegiatan[]>([]);
   const [kegiatanId, setKegiatanId] = useState('');
   const [lembagaId, setLembagaId] = useState('');
@@ -184,13 +189,15 @@ export default function DokumenWajibPage() {
   }, [kegiatanId, lembagaId, load]);
 
   const renderActions = useCallback((d: DokumenWajib) => (
+    bisa(user, 'dokumen_wajib.hapus') ? (
     <DeleteAction
       id={`btn_hapus_dokumen_wajib_${d.id}`}
       title="Hapus ketentuan?"
       description={`${d.jenis_dokumen_santri} tidak lagi menjadi syarat dokumen.`}
       onConfirm={() => onHapus(d.id)}
     />
-  ), [onHapus]);
+    ) : null
+  ), [onHapus, user]);
 
   return (
     <div className={PAGE_SHELL}>
@@ -204,10 +211,10 @@ export default function DokumenWajibPage() {
         emptyText={!lembagaId
           ? 'Pilih lembaga aktif di TopBar dulu.'
           : (kegiatanId ? 'Belum ada ketentuan dokumen.' : 'Pilih kegiatan dulu.')}
-        canEdit
+        canEdit={canUbah}
         onCommit={commitWajib}
         onSaved={load}
-        onCreateRow={kegiatanId && lembagaId ? createRow : undefined}
+        onCreateRow={kegiatanId && lembagaId && canTambah ? createRow : undefined}
         inputRowValues={{ wajib: 'Ya' }}
         filter={(
           <>
@@ -225,11 +232,11 @@ export default function DokumenWajibPage() {
             </FilterField>
           </>
         )}
-        addButton={(
+        addButton={canTambah ? (
           <Button id="btn_buka_tambah_dokumen_wajib" onClick={() => { setJenisBaru(''); setSifatBaru('wajib'); setTambahOpen(true); }} disabled={!kegiatanId || !lembagaId}>
             + Ketentuan
           </Button>
-        )}
+        ) : undefined}
         renderActions={renderActions}
       />
 

@@ -35,12 +35,12 @@ export interface HalamanDef {
   grid?: boolean;
   /** Ikon di sidebar. */
   icon: Ikon;
-  /** Batasi halaman ke peran tertentu (mis. `['super_admin']`); kosong = semua. */
-  roles?: string[];
+  /** Izin matriks untuk melihat halaman (`modul.lihat`). */
+  permission: string;
 }
 
 export const HALAMAN: HalamanDef[] = [
-  { to: '/', label: 'Dashboard', deskripsi: 'Ringkasan data pesantren.', tab: 'beranda', icon: Home },
+  { to: '/', label: 'Dashboard', deskripsi: 'Ringkasan data pesantren.', tab: 'beranda', icon: Home, permission: 'dashboard.lihat' },
   {
     to: '/users',
     label: 'Pengguna',
@@ -48,6 +48,7 @@ export const HALAMAN: HalamanDef[] = [
     tab: 'master',
     grid: true,
     icon: Users,
+    permission: 'pengguna.lihat',
   },
   {
     to: '/lembaga',
@@ -56,12 +57,13 @@ export const HALAMAN: HalamanDef[] = [
     tab: 'master',
     grid: true,
     icon: Landmark,
+    permission: 'lembaga.lihat',
   },
-  { to: '/tahun-ajaran', label: 'Tahun Ajaran', tab: 'master', grid: true, icon: CalendarDays },
-  { to: '/kelas', label: 'Kelas', tab: 'master', grid: true, icon: BookOpen },
-  { to: '/referensi', label: 'Referensi', tab: 'master', grid: true, icon: BookMarked },
-  { to: '/psb', label: 'PSB — Antrean Pendaftaran', tab: 'psb', grid: true, icon: ClipboardList },
-  { to: '/kegiatan-psb', label: 'Kegiatan PSB', tab: 'psb', grid: true, icon: CalendarRange },
+  { to: '/tahun-ajaran', label: 'Tahun Ajaran', tab: 'master', grid: true, icon: CalendarDays, permission: 'tahun_ajaran.lihat' },
+  { to: '/kelas', label: 'Kelas', tab: 'master', grid: true, icon: BookOpen, permission: 'kelas.lihat' },
+  { to: '/referensi', label: 'Referensi', tab: 'master', grid: true, icon: BookMarked, permission: 'referensi.lihat' },
+  { to: '/psb', label: 'PSB — Antrean Pendaftaran', tab: 'psb', grid: true, icon: ClipboardList, permission: 'psb.lihat' },
+  { to: '/kegiatan-psb', label: 'Kegiatan PSB', tab: 'psb', grid: true, icon: CalendarRange, permission: 'kegiatan_psb.lihat' },
   {
     to: '/dokumen-wajib',
     label: 'Dokumen Wajib per Lembaga',
@@ -69,24 +71,34 @@ export const HALAMAN: HalamanDef[] = [
     tab: 'psb',
     grid: true,
     icon: FileCheck2,
+    permission: 'dokumen_wajib.lihat',
   },
-  { to: '/santri', label: 'Data Santri', tab: 'santri', grid: true, icon: GraduationCap },
-  { to: '/riwayat-belajar', label: 'Riwayat Belajar', tab: 'santri', grid: true, icon: History },
-  { to: '/daftar-kelas', label: 'Daftar Kelas', tab: 'santri', grid: true, icon: ClipboardList },
-  { to: '/pindah-kelas', label: 'Pindah Kelas', tab: 'santri', grid: true, icon: MoveHorizontal },
-  { to: '/kenaikan', label: 'Kenaikan Kelas', tab: 'santri', grid: true, icon: ChevronUp },
-  { to: '/kelulusan', label: 'Kelulusan', tab: 'santri', grid: true, icon: GraduationCap },
-  { to: '/rekap-santri', label: 'Rekap Santri', tab: 'santri', grid: true, icon: ReceiptText },
-  { to: '/mutasi-keluar', label: 'Mutasi Keluar', tab: 'santri', grid: true, icon: LogOut },
-  { to: '/pengajuan-biodata', label: 'Pengajuan Biodata', tab: 'santri', grid: true, icon: NotebookTabs },
-  { to: '/pengaturan/tampilan', label: 'Tampilan', tab: 'pengaturan', icon: Palette },
+  { to: '/santri', label: 'Data Santri', tab: 'santri', grid: true, icon: GraduationCap, permission: 'santri.lihat' },
+  { to: '/riwayat-belajar', label: 'Riwayat Belajar', tab: 'santri', grid: true, icon: History, permission: 'riwayat_belajar.lihat' },
+  { to: '/daftar-kelas', label: 'Daftar Kelas', tab: 'santri', grid: true, icon: ClipboardList, permission: 'daftar_kelas.lihat' },
+  { to: '/pindah-kelas', label: 'Pindah Kelas', tab: 'santri', grid: true, icon: MoveHorizontal, permission: 'pindah_kelas.lihat' },
+  { to: '/kenaikan', label: 'Kenaikan Kelas', tab: 'santri', grid: true, icon: ChevronUp, permission: 'kenaikan.lihat' },
+  { to: '/kelulusan', label: 'Kelulusan', tab: 'santri', grid: true, icon: GraduationCap, permission: 'kelulusan.lihat' },
+  { to: '/rekap-santri', label: 'Rekap Santri', tab: 'santri', grid: true, icon: ReceiptText, permission: 'rekap_santri.lihat' },
+  { to: '/mutasi-keluar', label: 'Mutasi Keluar', tab: 'santri', grid: true, icon: LogOut, permission: 'mutasi_keluar.lihat' },
+  { to: '/pengajuan-biodata', label: 'Pengajuan Biodata', tab: 'santri', grid: true, icon: NotebookTabs, permission: 'pengajuan_biodata.lihat' },
+  { to: '/pengaturan/tampilan', label: 'Tampilan', tab: 'pengaturan', icon: Palette, permission: 'tampilan.lihat' },
   {
     to: '/pengaturan/tampilan-standar',
     label: 'Tampilan Standar',
     deskripsi: 'Super admin menyebar standar tampilan ke seluruh lembaga; admin lembaga mengatur salinan lembaganya.',
     tab: 'pengaturan',
     icon: Paintbrush,
-    roles: ['super_admin'],
+    permission: 'tampilan_standar.lihat',
+  },
+  {
+    to: '/pengaturan/izin',
+    label: 'Kelola Izin',
+    deskripsi: 'Matriks izin role × modul. Hanya super_admin.',
+    tab: 'pengaturan',
+    grid: true,
+    icon: FileCheck2,
+    permission: 'izin.lihat',
   },
   {
     to: '/pengaturan/server',
@@ -94,7 +106,7 @@ export const HALAMAN: HalamanDef[] = [
     deskripsi: 'Alamat backend untuk perangkat ini. Hanya super_admin.',
     tab: 'pengaturan',
     icon: Server,
-    roles: ['super_admin'],
+    permission: 'server.lihat',
   },
 ];
 

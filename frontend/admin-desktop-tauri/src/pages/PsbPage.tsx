@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useAuth } from '../auth/AuthContext';
+import { bisa } from '../api/auth';
 import { errorMessage } from '../api/client';
 import { tanggal } from '../lib/tanggal';
 import {
@@ -159,6 +161,10 @@ function psbGridValues(c: PsbCalon): Record<string, string | null> {
 
 // 100 PSB: antrean per tahapan timeline + verifikasi/seleksi/ACC/tolak/promosi + dokumen + import.
 export default function PsbPage() {
+  const { user: me } = useAuth();
+  const canUbahPsb = bisa(me, 'psb.ubah');
+  const canHapusPsb = bisa(me, 'psb.hapus');
+  const canTambahPsb = bisa(me, 'psb.tambah');
   const [lembagas, setLembagas] = useState<Lembaga[]>([]);
   const [stage, setStage] = useState('daftar_ulang');
   const [subStatus, setSubStatus] = useState('');
@@ -563,14 +569,15 @@ export default function PsbPage() {
     );
 
     if (tampilTerhapus) {
-      return tombol('Pulihkan', 'btn_bulk_pulihkan_psb', 'pulihkan', 'outline', <RotateCcw size={14} />);
+      return canUbahPsb ? tombol('Pulihkan', 'btn_bulk_pulihkan_psb', 'pulihkan', 'outline', <RotateCcw size={14} />) : null;
     }
+    if (!canUbahPsb && !canHapusPsb) return null;
     return (
       <>
-        {stage === 'pendaftar' && tombol('Verifikasi', 'btn_bulk_verifikasi_psb', 'verifikasi', 'default', <CheckCircle2 size={14} />)}
-        {stage === 'terdaftar'
+        {canUbahPsb && stage === 'pendaftar' && tombol('Verifikasi', 'btn_bulk_verifikasi_psb', 'verifikasi', 'default', <CheckCircle2 size={14} />)}
+        {canUbahPsb && stage === 'terdaftar'
           && tombol('Masuk daftar ulang', 'btn_bulk_daftar_ulang_psb', 'daftar_ulang', 'default', <ClipboardCheck size={14} />)}
-        {stage === 'daftar_ulang' && checked.some((c) => c.status_pendaftaran === 'lolos')
+        {canUbahPsb && stage === 'daftar_ulang' && checked.some((c) => c.status_pendaftaran === 'lolos')
           && tombol(
             'Masuk daftar ulang',
             'btn_bulk_daftar_ulang_psb',
@@ -579,7 +586,7 @@ export default function PsbPage() {
             <ClipboardCheck size={14} />,
             checked.filter((c) => c.status_pendaftaran === 'lolos').map((c) => c.id),
           )}
-        {stage === 'daftar_ulang' && checked.some((c) => c.status_pendaftaran === 'pemberkasan' || c.status_pendaftaran === 'ajukan_daftar_ulang')
+        {canUbahPsb && stage === 'daftar_ulang' && checked.some((c) => c.status_pendaftaran === 'pemberkasan' || c.status_pendaftaran === 'ajukan_daftar_ulang')
           && (
             <Button
               id="btn_bulk_acc_psb"
@@ -594,7 +601,7 @@ export default function PsbPage() {
               ACC jadi santri
             </Button>
           )}
-        {['terdaftar', 'daftar_ulang', 'diterima'].includes(stage) && checked.some((c) => BISA_UNDUR.includes(c.status_pendaftaran))
+        {canUbahPsb && ['terdaftar', 'daftar_ulang', 'diterima'].includes(stage) && checked.some((c) => BISA_UNDUR.includes(c.status_pendaftaran))
           && tombol(
             'Mengundurkan Diri',
             'btn_bulk_undur_psb',
@@ -603,7 +610,7 @@ export default function PsbPage() {
             <UserX size={14} />,
             checked.filter((c) => BISA_UNDUR.includes(c.status_pendaftaran)).map((c) => c.id),
           )}
-        {checked.some((c) => BISA_BATAL.includes(c.status_pendaftaran))
+        {canUbahPsb && checked.some((c) => BISA_BATAL.includes(c.status_pendaftaran))
           && tombol(
             'Batalkan',
             'btn_bulk_batal_fase_psb',
@@ -612,21 +619,23 @@ export default function PsbPage() {
             <Undo2 size={14} />,
             checked.filter((c) => BISA_BATAL.includes(c.status_pendaftaran)).map((c) => c.id),
           )}
-        {tombol('Hapus', 'btn_bulk_hapus_psb', 'hapus', 'destructive', <Trash2 size={14} />)}
+        {canHapusPsb && tombol('Hapus', 'btn_bulk_hapus_psb', 'hapus', 'destructive', <Trash2 size={14} />)}
       </>
     );
-  }, [stage, tampilTerhapus, bukaBulk, bukaAcc]);
+  }, [stage, tampilTerhapus, bukaBulk, bukaAcc, canUbahPsb, canHapusPsb]);
 
   const renderActions = useCallback((c: PsbCalon) => {
     if (c.deleted_at) {
-      return (
+      return canUbahPsb ? (
         <ActionIcon id={`btn_pulihkan_psb_${c.id}`} title="Pulihkan" onClick={() => run(() => pulihkanCalon(c.id), 'Calon dipulihkan.')}>
           <RotateCcw size={16} />
         </ActionIcon>
-      );
+      ) : null;
     }
     return (
       <>
+        {canUbahPsb && (
+        <>
         {c.status_pendaftaran === 'baru' && (
           <ActionIcon id={`btn_verifikasi_psb_${c.id}`} title="Verifikasi" onClick={() => run(() => verifikasiCalon(c.id), 'Calon terverifikasi.')}>
             <CheckCircle2 size={16} />
@@ -688,7 +697,9 @@ export default function PsbPage() {
             <Undo2 size={16} />
           </ActionIcon>
         )}
-        {c.status_pendaftaran !== 'daftar_ulang' && (
+        </>
+        )}
+        {canHapusPsb && c.status_pendaftaran !== 'daftar_ulang' && (
           <DeleteAction
             id={`btn_hapus_psb_${c.id}`}
             title="Hapus calon?"
@@ -701,7 +712,7 @@ export default function PsbPage() {
         </ActionIcon>
       </>
     );
-  }, [run, openDokumen, bukaAcc]);
+  }, [run, openDokumen, bukaAcc, canUbahPsb, canHapusPsb]);
 
   return (
     <div className={PAGE_SHELL}>
@@ -738,7 +749,7 @@ export default function PsbPage() {
             })}
           </ToggleGroup>
         </RibbonGroup>
-        {stage === 'pendaftar' && (
+        {stage === 'pendaftar' && canTambahPsb && (
           <>
             <RibbonPemisah />
             <RibbonGroup label="Pendaftar">
@@ -769,7 +780,7 @@ export default function PsbPage() {
         canEdit={false}
         onCommit={onCommit}
         onSaved={onSaved}
-        onCreateRow={stage === 'pendaftar' ? createRow : undefined}
+        onCreateRow={stage === 'pendaftar' && canTambahPsb ? createRow : undefined}
         inputRowValues={{ lembaga: lembagaTerpilih }}
         filter={(
           <>

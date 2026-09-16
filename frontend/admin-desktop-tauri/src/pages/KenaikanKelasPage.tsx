@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useAuth } from '../auth/AuthContext';
+import { bisa } from '../api/auth';
 import { errorMessage } from '../api/client';
 import { listRiwayatBelajar, naikKelasMassal, type RiwayatRow } from '../api/siklus';
 import { Button } from '@/components/ui/button';
@@ -15,6 +17,8 @@ interface Baris { santri_id: number; nama: string; kelas: string | null; }
 
 /** Kenaikan: kiri santri semester genap (non-tingkat-akhir) → kanan daftar naik / tidak naik. */
 export default function KenaikanKelasPage() {
+  const { user } = useAuth();
+  const canUbah = bisa(user, 'kenaikan.ubah');
   const [lembagaId, setLembagaId] = useState('');
   useLembagaAwalString(setLembagaId);
   const [tingkat, setTingkat] = useState('');
@@ -88,9 +92,11 @@ export default function KenaikanKelasPage() {
           <FieldLabel htmlFor="input_tingkat_baru_kenaikan">Tingkat baru</FieldLabel>
           <Input id="input_tingkat_baru_kenaikan" value={tingkatBaru} onChange={(e) => setTingkatBaru(e.target.value)} placeholder="mis. 6" className="w-28" />
         </div>
+        {canUbah && (
         <Button id="btn_proses_kenaikan" disabled={busy || totalTerpilih === 0 || !taBaru || !tingkatBaru.trim()} onClick={() => void proses()}>
           Proses kenaikan ({totalTerpilih})
         </Button>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-4">
