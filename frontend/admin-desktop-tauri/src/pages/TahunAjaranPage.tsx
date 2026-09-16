@@ -236,6 +236,21 @@ export default function TahunAjaranPage() {
 
   const onSaved = useCallback(() => load(), [load]);
 
+  /** Mode Input: buat TA global baru dari baris input (super_admin). */
+  const createRow = useCallback(async (f: Record<string, string | null>) => {
+    const namaRapi = (f.nama ?? '').trim();
+    if (namaRapi === '') {
+      throw new Error('Nama tahun ajaran wajib diisi.');
+    }
+    await createTahunAjaran({
+      nama: namaRapi,
+      tanggal_mulai: f.mulai || undefined,
+      tanggal_selesai: f.selesai || undefined,
+    });
+    toast.success('Tahun ajaran dibuat.');
+    await load(1);
+  }, [load]);
+
   const renderActions = useCallback((t: TahunAjaran) => (
     <>
       <ViewAction id={`btn_lihat_ta_${t.id}`} onClick={() => setViewRow(t)} />
@@ -285,6 +300,8 @@ export default function TahunAjaranPage() {
         canEdit={bolehKelola}
         onCommit={commitDraft}
         onSaved={onSaved}
+        onCreateRow={bolehKelola ? createRow : undefined}
+        inputRowValues={{ aktif: 'nonaktif', tampil: 'global (semua)' }}
         searchValue={search}
         onSearchChange={onSearchChange}
         onSearchSubmit={onSearchSubmit}
