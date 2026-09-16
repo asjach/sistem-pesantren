@@ -62,21 +62,25 @@ class DevSeeder extends Seeder
         // Asrama hanya untuk lembaga yang menyediakannya (bukan MI/MD).
         PsbKuotaBiaya::whereIn('lembaga_id', [$mi->id, $md->id])->where('tipe_santri', 'asrama')->delete();
 
-        // TA selalu milik lembaga operasional (bukan root): satu per lembaga.
-        $taPerLembaga = [];
-        foreach ([$mi, $md, $mts, $mln] as $l) {
-            $taPerLembaga[$l->kode] = TahunAjaran::firstOrCreate(
-                ['lembaga_id' => $l->id, 'nama' => '2026/2027'],
-                ['tanggal_mulai' => '2026-07-01', 'tanggal_selesai' => '2027-06-30', 'is_aktif' => true],
-            );
-        }
-        // Kegiatan PSB se-pesantren memakai TA MI sebagai acuan periode
-        // (resolusi TA per lembaga terjadi saat daftar/ACC, bukan di sini).
-        $kegiatan = PsbKegiatan::firstOrCreate(
-            ['tahun_ajaran_id' => $taPerLembaga['MI']->id, 'nama' => 'PSB 2026/2027'],
-            ['is_aktif' => true],
+        // TA kini data pesantren (global, `lembaga_id` NULL) dan hanya satu yang aktif.
+        $ta = TahunAjaran::firstOrCreate(
+            ['lembaga_id' => null, 'nama' => '2026/2027'],
+            ['tanggal_mulai' => '2026-07-01', 'tanggal_selesai' => '2027-06-30', 'is_active' => true],
         );
-        $kegiatan->update(['is_aktif' => true]);
+        $ta->update(['tanggal_mulai' => '2026-07-01', 'tanggal_selesai' => '2027-06-30', 'is_active' => true]);
+        TahunAjaran::where('id', '!=', $ta->id)->update(['is_aktif' => false]);
+        TahunAjaran::where('id', $ta->id)->update(['is_aktif' => true]);
+
+        // Kegiatan PSB se-pesantren memakai TA global; `lembaga_id` hanya penanda
+        // lembaga acuan (resolusi TA per lembaga terjadi saat daftar/ACC).
+        $kegiatan = PsbKegiatan::firstOrCreate(
+            ['tahun_ajaran_id' => $ta->id, 'nama' => 'PSB 2026/2027'],
+            ['lembaga_id' => $mi->id, 'is_aktif' => true],
+        );
+        $kegiatan->update([
+            'lembaga_id' => $kegiatan->lembaga_id ?? $mi->id,
+            'is_aktif' => true,
+        ]);
         PsbKegiatan::where('id', '!=', $kegiatan->id)->update(['is_aktif' => false]);
 
         $gelombang = PsbGelombang::firstOrCreate(
