@@ -15,7 +15,7 @@ class DevPendaftarSeeder extends Seeder
     {
         $gelombang = app(PsbGelombangService::class)->gelombangAktif();
         if (! $gelombang) {
-            $this->command?->error('Tidak ada gelombang yang sedang dibuka. Jalankan DevSeeder dulu.');
+            $this->command?->error('Tidak ada gelombang yang sedang dibuka. Buat kegiatan + gelombang dulu (halaman Kegiatan PSB).');
 
             return;
         }
@@ -36,11 +36,12 @@ class DevPendaftarSeeder extends Seeder
         $nomor = 1;
         foreach ($rencana as [$jenis, $asrama]) {
             $seq = str_pad((string) $nomor, 2, '0', STR_PAD_LEFT);
-            $nik = '3200' . str_pad((string) $nomor, 12, '0', STR_PAD_LEFT);
+            $nik = '3200'.str_pad((string) $nomor, 12, '0', STR_PAD_LEFT);
             $nomor++;
 
             if (PsbCalonSantri::withTrashed()->where('nik', $nik)->exists()) {
                 $dilewati++;
+
                 continue;
             }
 
@@ -64,8 +65,8 @@ class DevPendaftarSeeder extends Seeder
                 'nama_lengkap' => "Uji {$jenis} {$seq}",
                 'jk' => $nomor % 2 === 0 ? 'L' : 'P',
                 'tgl_lahir' => $tglLahir,
-                'email_ortu' => 'uji.' . strtolower(str_replace('-', '', $jenis)) . ".{$seq}@example.com",
-                'telp_ortu' => '0855' . str_pad((string) $nomor, 8, '0', STR_PAD_LEFT),
+                'email_ortu' => 'uji.'.strtolower(str_replace('-', '', $jenis)).".{$seq}@example.com",
+                'telp_ortu' => '0855'.str_pad((string) $nomor, 8, '0', STR_PAD_LEFT),
                 'nama_ayah' => "Ayah Uji {$seq}",
                 'nama_ibu' => "Ibu Uji {$seq}",
             ];
@@ -77,6 +78,6 @@ class DevPendaftarSeeder extends Seeder
             $dibuat++;
         }
 
-        $this->command?->info("Pendaftar uji dibuat: {$dibuat}" . ($dilewati ? ", dilewati (sudah ada): {$dilewati}" : '') . '.');
+        $this->command?->info("Pendaftar uji dibuat: {$dibuat}".($dilewati ? ", dilewati (sudah ada): {$dilewati}" : '').'.');
     }
 }
