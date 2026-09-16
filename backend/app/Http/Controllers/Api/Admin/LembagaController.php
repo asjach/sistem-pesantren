@@ -100,7 +100,7 @@ class LembagaController extends Controller
     public function destroy(Lembaga $lembaga)
     {
         $auth = auth()->user();
-        if (! $auth->hasAnyRole(['super_admin', 'admin'])) {
+        if (! $auth->can('lembaga.hapus')) {
             return response()->json(['message' => 'Akses ditolak.'], 403);
         }
         $this->authorizeLembaga($auth, $lembaga->id);

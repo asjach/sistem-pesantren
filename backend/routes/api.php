@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Admin\IzinController;
 use App\Http\Controllers\Api\Admin\KelasController;
 use App\Http\Controllers\Api\Admin\LembagaController;
 use App\Http\Controllers\Api\Admin\LembagaSantriController;
@@ -33,117 +34,130 @@ Route::prefix('auth')->group(function () {
     });
 });
 
-Route::middleware(['auth:sanctum', 'role:super_admin|admin', 'lembaga_aktif', 'throttle:api_user'])
-    ->get('dashboard/ringkasan', [DashboardController::class, 'ringkasan']);
+// Gerbang aksi = izin matriks (`permission:`); cakupan data = pivot
+// `user_lembaga` di controller/policy (`lembaga_aktif`, TenantGuard).
+Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
+    ->get('dashboard/ringkasan', [DashboardController::class, 'ringkasan'])
+    ->middleware('permission:dashboard.lihat');
 
-Route::middleware(['auth:sanctum', 'role:super_admin|admin', 'lembaga_aktif', 'throttle:api_user'])
+Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
     ->prefix('admin')
     ->group(function () {
-        Route::get('lembaga', [LembagaController::class, 'index']);
-        Route::post('lembaga', [LembagaController::class, 'store']);
-        Route::match(['put', 'patch'], 'lembaga/{lembaga}', [LembagaController::class, 'update']);
-        Route::delete('lembaga/{lembaga}', [LembagaController::class, 'destroy']);
+        Route::get('lembaga', [LembagaController::class, 'index'])->middleware('permission:lembaga.lihat');
+        Route::post('lembaga', [LembagaController::class, 'store'])->middleware('permission:lembaga.tambah');
+        Route::match(['put', 'patch'], 'lembaga/{lembaga}', [LembagaController::class, 'update'])->middleware('permission:lembaga.ubah');
+        Route::delete('lembaga/{lembaga}', [LembagaController::class, 'destroy'])->middleware('permission:lembaga.hapus');
 
-        Route::get('referensi/types', [ReferensiController::class, 'types']);
-        Route::get('referensi/{tipe}', [ReferensiController::class, 'index']);
-        Route::post('referensi/{tipe}', [ReferensiController::class, 'store']);
-        Route::match(['put', 'patch'], 'referensi/{tipe}/{id}', [ReferensiController::class, 'update']);
-        Route::post('referensi/{tipe}/{id}/pulihkan', [ReferensiController::class, 'pulihkan']);
-        Route::delete('referensi/{tipe}/{id}', [ReferensiController::class, 'destroy']);
+        Route::get('referensi/types', [ReferensiController::class, 'types'])->middleware('permission:referensi.lihat');
+        Route::get('referensi/{tipe}', [ReferensiController::class, 'index'])->middleware('permission:referensi.lihat');
+        Route::post('referensi/{tipe}', [ReferensiController::class, 'store'])->middleware('permission:referensi.tambah');
+        Route::match(['put', 'patch'], 'referensi/{tipe}/{id}', [ReferensiController::class, 'update'])->middleware('permission:referensi.ubah');
+        Route::post('referensi/{tipe}/{id}/pulihkan', [ReferensiController::class, 'pulihkan'])->middleware('permission:referensi.ubah');
+        Route::delete('referensi/{tipe}/{id}', [ReferensiController::class, 'destroy'])->middleware('permission:referensi.hapus');
 
-        Route::apiResource('tahun-ajaran', TahunAjaranController::class)->only(['index', 'store', 'update', 'destroy']);
-        Route::post('tahun-ajaran/{tahunAjaran}/set-aktif', [TahunAjaranController::class, 'setAktif']);
-        Route::post('tahun-ajaran/{tahunAjaran}/sembunyikan', [TahunAjaranController::class, 'sembunyikan']);
+        Route::get('tahun-ajaran', [TahunAjaranController::class, 'index'])->middleware('permission:tahun_ajaran.lihat');
+        Route::post('tahun-ajaran', [TahunAjaranController::class, 'store'])->middleware('permission:tahun_ajaran.tambah');
+        Route::match(['put', 'patch'], 'tahun-ajaran/{tahunAjaran}', [TahunAjaranController::class, 'update'])->middleware('permission:tahun_ajaran.ubah');
+        Route::delete('tahun-ajaran/{tahunAjaran}', [TahunAjaranController::class, 'destroy'])->middleware('permission:tahun_ajaran.hapus');
+        Route::post('tahun-ajaran/{tahunAjaran}/set-aktif', [TahunAjaranController::class, 'setAktif'])->middleware('permission:tahun_ajaran.ubah');
+        Route::post('tahun-ajaran/{tahunAjaran}/sembunyikan', [TahunAjaranController::class, 'sembunyikan'])->middleware('permission:tahun_ajaran.ubah');
 
-        Route::apiResource('kelas', KelasController::class)->only(['index', 'store', 'update', 'destroy']);
+        Route::get('kelas', [KelasController::class, 'index'])->middleware('permission:kelas.lihat');
+        Route::post('kelas', [KelasController::class, 'store'])->middleware('permission:kelas.tambah');
+        Route::match(['put', 'patch'], 'kelas/{kela}', [KelasController::class, 'update'])->middleware('permission:kelas.ubah');
+        Route::delete('kelas/{kela}', [KelasController::class, 'destroy'])->middleware('permission:kelas.hapus');
 
         // Data Santri (101: master profil + import PPDB massal + foto/dokumen)
-        Route::get('santri', [SantriController::class, 'index']);
-        Route::post('santri', [SantriController::class, 'store']);
-        Route::get('santri/import-template', [SantriController::class, 'template']);
-        Route::patch('santri/{santri}', [SantriController::class, 'update']);
-        Route::post('santri/import-periksa', [SantriController::class, 'periksaImport'])->middleware('throttle:imports');
-        Route::post('santri/import-lengkap', [SantriController::class, 'importLengkap'])->middleware('throttle:imports');
-        Route::post('santri/{santri}/foto', [SantriController::class, 'uploadFoto']);
-        Route::get('santri/{santri}/dokumen', [SantriController::class, 'listDokumen']);
-        Route::post('santri/{santri}/dokumen', [SantriController::class, 'uploadDokumen']);
-        Route::post('santri/{santri}/dokumen/{dokumen}/tidak-memiliki', [SantriController::class, 'tidakMemiliki']);
+        Route::get('santri', [SantriController::class, 'index'])->middleware('permission:santri.lihat');
+        Route::post('santri', [SantriController::class, 'store'])->middleware('permission:santri.tambah');
+        Route::get('santri/import-template', [SantriController::class, 'template'])->middleware('permission:santri.lihat');
+        Route::patch('santri/{santri}', [SantriController::class, 'update'])->middleware('permission:santri.ubah');
+        Route::post('santri/import-periksa', [SantriController::class, 'periksaImport'])->middleware(['permission:santri.tambah', 'throttle:imports']);
+        Route::post('santri/import-lengkap', [SantriController::class, 'importLengkap'])->middleware(['permission:santri.tambah', 'throttle:imports']);
+        Route::post('santri/{santri}/foto', [SantriController::class, 'uploadFoto'])->middleware('permission:santri.tambah');
+        Route::get('santri/{santri}/dokumen', [SantriController::class, 'listDokumen'])->middleware('permission:santri.lihat');
+        Route::post('santri/{santri}/dokumen', [SantriController::class, 'uploadDokumen'])->middleware('permission:santri.tambah');
+        Route::post('santri/{santri}/dokumen/{dokumen}/tidak-memiliki', [SantriController::class, 'tidakMemiliki'])->middleware('permission:santri.ubah');
 
         // Keanggotaan per lembaga (buku induk: NIS lokal/kemenag, status, tanggal)
-        Route::get('santri/{santri}/lembaga', [LembagaSantriController::class, 'index']);
-        Route::post('santri/{santri}/lembaga', [LembagaSantriController::class, 'store']);
-        Route::patch('lembaga-santri/{lembagaSantri}', [LembagaSantriController::class, 'update']);
-        Route::post('lembaga-santri/{lembagaSantri}/generate-nisk', [LembagaSantriController::class, 'generateNisk']);
+        Route::get('santri/{santri}/lembaga', [LembagaSantriController::class, 'index'])->middleware('permission:santri.lihat');
+        Route::post('santri/{santri}/lembaga', [LembagaSantriController::class, 'store'])->middleware('permission:santri.tambah');
+        Route::patch('lembaga-santri/{lembagaSantri}', [LembagaSantriController::class, 'update'])->middleware('permission:santri.ubah');
+        Route::post('lembaga-santri/{lembagaSantri}/generate-nisk', [LembagaSantriController::class, 'generateNisk'])->middleware('permission:santri.ubah');
 
         // Riwayat belajar (102): roster + dialog input + import terpisah
-        Route::get('riwayat-belajar', [RiwayatBelajarController::class, 'index']);
-        Route::post('riwayat-belajar', [RiwayatBelajarController::class, 'store']);
-        Route::get('riwayat-belajar/import-template', [RiwayatBelajarController::class, 'template']);
-        Route::post('riwayat-belajar/import-periksa', [RiwayatBelajarController::class, 'periksaImport'])->middleware('throttle:imports');
-        Route::post('riwayat-belajar/import-lengkap', [RiwayatBelajarController::class, 'importLengkap'])->middleware('throttle:imports');
-        Route::post('riwayat-belajar/{riwayat}/pindah-kelas', [RiwayatBelajarController::class, 'pindahKelas']);
-        Route::post('riwayat-belajar/{riwayat}/set-kelas', [RiwayatBelajarController::class, 'setKelas']);
-        Route::post('riwayat-belajar/{riwayat}/keluar-kelas', [RiwayatBelajarController::class, 'keluarKelas']);
+        Route::get('riwayat-belajar', [RiwayatBelajarController::class, 'index'])->middleware('permission:riwayat_belajar.lihat');
+        Route::post('riwayat-belajar', [RiwayatBelajarController::class, 'store'])->middleware('permission:riwayat_belajar.tambah');
+        Route::get('riwayat-belajar/import-template', [RiwayatBelajarController::class, 'template'])->middleware('permission:riwayat_belajar.lihat');
+        Route::post('riwayat-belajar/import-periksa', [RiwayatBelajarController::class, 'periksaImport'])->middleware(['permission:riwayat_belajar.tambah', 'throttle:imports']);
+        Route::post('riwayat-belajar/import-lengkap', [RiwayatBelajarController::class, 'importLengkap'])->middleware(['permission:riwayat_belajar.tambah', 'throttle:imports']);
+        Route::post('riwayat-belajar/{riwayat}/pindah-kelas', [RiwayatBelajarController::class, 'pindahKelas'])->middleware('permission:pindah_kelas.ubah');
+        Route::post('riwayat-belajar/{riwayat}/set-kelas', [RiwayatBelajarController::class, 'setKelas'])->middleware('permission:pindah_kelas.ubah');
+        Route::post('riwayat-belajar/{riwayat}/keluar-kelas', [RiwayatBelajarController::class, 'keluarKelas'])->middleware('permission:pindah_kelas.ubah');
 
         // Siklus akademik (kenaikan, kelulusan, mutasi keluar, rekap)
-        Route::post('akademik/naik-kelas', [SiklusController::class, 'naikKelasMassal']);
-        Route::post('akademik/salin-genap', [SiklusController::class, 'salinGenapMassal']);
-        Route::get('akademik/daftar-kelas', [SiklusController::class, 'daftarKelas']);
-        Route::get('akademik/rekap-santri', [SiklusController::class, 'rekapSantri']);
-        Route::post('santri/{santri}/lulus', [SiklusController::class, 'lulus']);
-        Route::post('santri/{santri}/tidak-lulus', [SiklusController::class, 'tidakLulus']);
-        Route::post('santri/{santri}/mutasi', [SiklusController::class, 'mutasiKeluar']);
-        Route::post('santri/{santri}/berhenti-jenjang', [SiklusController::class, 'berhentiJenjang']);
-        Route::get('santri/{santri}/profil', [SiklusController::class, 'profilSantri']);
-        Route::get('mutasi-keluar', [SiklusController::class, 'getMutasiKeluar']);
-        Route::get('alumni', [SiklusController::class, 'getAlumni']);
+        Route::post('akademik/naik-kelas', [SiklusController::class, 'naikKelasMassal'])->middleware('permission:kenaikan.ubah');
+        Route::post('akademik/salin-genap', [SiklusController::class, 'salinGenapMassal'])->middleware('permission:kenaikan.ubah');
+        Route::get('akademik/daftar-kelas', [SiklusController::class, 'daftarKelas'])->middleware('permission:daftar_kelas.lihat');
+        Route::get('akademik/rekap-santri', [SiklusController::class, 'rekapSantri'])->middleware('permission:rekap_santri.lihat');
+        Route::post('santri/{santri}/lulus', [SiklusController::class, 'lulus'])->middleware('permission:kelulusan.ubah');
+        Route::post('santri/{santri}/tidak-lulus', [SiklusController::class, 'tidakLulus'])->middleware('permission:kelulusan.ubah');
+        Route::post('santri/{santri}/mutasi', [SiklusController::class, 'mutasiKeluar'])->middleware('permission:mutasi_keluar.ubah');
+        Route::post('santri/{santri}/berhenti-jenjang', [SiklusController::class, 'berhentiJenjang'])->middleware('permission:mutasi_keluar.ubah');
+        Route::get('santri/{santri}/profil', [SiklusController::class, 'profilSantri'])->middleware('permission:santri.lihat');
+        Route::get('mutasi-keluar', [SiklusController::class, 'getMutasiKeluar'])->middleware('permission:mutasi_keluar.lihat');
+        Route::get('alumni', [SiklusController::class, 'getAlumni'])->middleware('permission:kelulusan.lihat');
 
         Route::prefix('users')->group(function () {
-            Route::get('/', [UserManagementController::class, 'index']);
-            Route::post('/', [UserManagementController::class, 'store']);
-            Route::match(['put', 'patch'], '/{user}', [UserManagementController::class, 'update']);
-            Route::delete('/{user}', [UserManagementController::class, 'destroy']);
-            Route::post('/import', [UserManagementController::class, 'import'])->middleware('throttle:imports');
-            Route::post('/{user}/roles', [UserManagementController::class, 'assignRole']);
-            Route::delete('/{user}/roles', [UserManagementController::class, 'removeRole']);
-            Route::post('/{user}/lembaga', [UserManagementController::class, 'attachLembaga']);
-            Route::delete('/{user}/lembaga', [UserManagementController::class, 'detachLembaga']);
+            Route::get('/', [UserManagementController::class, 'index'])->middleware('permission:pengguna.lihat');
+            Route::post('/', [UserManagementController::class, 'store'])->middleware('permission:pengguna.tambah');
+            Route::match(['put', 'patch'], '/{user}', [UserManagementController::class, 'update'])->middleware('permission:pengguna.ubah');
+            Route::delete('/{user}', [UserManagementController::class, 'destroy'])->middleware('permission:pengguna.hapus');
+            Route::post('/import', [UserManagementController::class, 'import'])->middleware(['permission:pengguna.tambah', 'throttle:imports']);
+            Route::post('/{user}/roles', [UserManagementController::class, 'assignRole'])->middleware('permission:pengguna.ubah');
+            Route::delete('/{user}/roles', [UserManagementController::class, 'removeRole'])->middleware('permission:pengguna.ubah');
+            Route::post('/{user}/lembaga', [UserManagementController::class, 'attachLembaga'])->middleware('permission:pengguna.ubah');
+            Route::delete('/{user}/lembaga', [UserManagementController::class, 'detachLembaga'])->middleware('permission:pengguna.ubah');
         });
 
-        Route::get('pengajuan-biodata', [PengajuanBiodataController::class, 'index']);
-        Route::post('pengajuan-biodata/{id}/setujui', [PengajuanBiodataController::class, 'setujui']);
-        Route::post('pengajuan-biodata/{id}/tolak', [PengajuanBiodataController::class, 'tolak']);
+        Route::get('pengajuan-biodata', [PengajuanBiodataController::class, 'index'])->middleware('permission:pengajuan_biodata.lihat');
+        Route::post('pengajuan-biodata/{id}/setujui', [PengajuanBiodataController::class, 'setujui'])->middleware('permission:pengajuan_biodata.ubah');
+        Route::post('pengajuan-biodata/{id}/tolak', [PengajuanBiodataController::class, 'tolak'])->middleware('permission:pengajuan_biodata.ubah');
 
-        Route::get('dokumen-wajib', [PsbDokumenController::class, 'indexWajib']);
-        Route::post('dokumen-wajib', [PsbDokumenController::class, 'storeWajib']);
-        Route::delete('dokumen-wajib/{id}', [PsbDokumenController::class, 'destroyWajib']);
+        Route::get('dokumen-wajib', [PsbDokumenController::class, 'indexWajib'])->middleware('permission:dokumen_wajib.lihat');
+        Route::post('dokumen-wajib', [PsbDokumenController::class, 'storeWajib'])->middleware('permission:dokumen_wajib.tambah');
+        Route::delete('dokumen-wajib/{id}', [PsbDokumenController::class, 'destroyWajib'])->middleware('permission:dokumen_wajib.hapus');
 
         // Preset kolom tampilan tabel (per lembaga; global = admin pesantren).
-        Route::get('preset-tabel', [PresetTabelController::class, 'index']);
-        Route::post('preset-tabel', [PresetTabelController::class, 'store']);
-        Route::post('preset-tabel/aktif', [PresetTabelController::class, 'setAktif']);
-        Route::put('preset-tabel/{preset}', [PresetTabelController::class, 'update']);
-        Route::delete('preset-tabel/{preset}', [PresetTabelController::class, 'destroy']);
+        Route::get('preset-tabel', [PresetTabelController::class, 'index'])->middleware('permission:preset_tabel.lihat');
+        Route::post('preset-tabel', [PresetTabelController::class, 'store'])->middleware('permission:preset_tabel.tambah');
+        Route::post('preset-tabel/aktif', [PresetTabelController::class, 'setAktif'])->middleware('permission:preset_tabel.ubah');
+        Route::put('preset-tabel/{preset}', [PresetTabelController::class, 'update'])->middleware('permission:preset_tabel.ubah');
+        Route::delete('preset-tabel/{preset}', [PresetTabelController::class, 'destroy'])->middleware('permission:preset_tabel.hapus');
 
         // Standar tampilan per lembaga (super_admin sebar ke semua; admin lembaga salinannya).
-        Route::get('pengaturan-tampilan', [PengaturanTampilanController::class, 'show']);
-        Route::get('pengaturan-tampilan/versi', [PengaturanTampilanController::class, 'versi']);
-        Route::put('pengaturan-tampilan', [PengaturanTampilanController::class, 'upsert']);
-        Route::delete('pengaturan-tampilan', [PengaturanTampilanController::class, 'destroy']);
+        Route::get('pengaturan-tampilan', [PengaturanTampilanController::class, 'show'])->middleware('permission:tampilan.lihat');
+        Route::get('pengaturan-tampilan/versi', [PengaturanTampilanController::class, 'versi'])->middleware('permission:tampilan.lihat');
+        Route::put('pengaturan-tampilan', [PengaturanTampilanController::class, 'upsert'])->middleware('permission:tampilan.ubah');
+        Route::delete('pengaturan-tampilan', [PengaturanTampilanController::class, 'destroy'])->middleware('permission:tampilan.hapus');
 
         // Master modul PSB: kegiatan -> gelombang -> kuota/biaya pendaftaran per lembaga,
         // plus biaya masuk/asrama per lembaga (lintas gelombang).
-        Route::get('psb/kegiatan', [PsbKegiatanController::class, 'index']);
-        Route::post('psb/kegiatan', [PsbKegiatanController::class, 'store']);
-        Route::put('psb/kegiatan/{kegiatan}', [PsbKegiatanController::class, 'update']);
-        Route::delete('psb/kegiatan/{kegiatan}', [PsbKegiatanController::class, 'destroy']);
-        Route::post('psb/gelombang', [PsbKegiatanController::class, 'storeGelombang']);
-        Route::put('psb/gelombang/{gelombang}', [PsbKegiatanController::class, 'updateGelombang']);
-        Route::delete('psb/gelombang/{gelombang}', [PsbKegiatanController::class, 'destroyGelombang']);
-        Route::get('psb/lembaga', [PsbBiayaController::class, 'indexLembaga']);
-        Route::get('psb/kuota-biaya', [PsbBiayaController::class, 'indexKuota']);
-        Route::post('psb/kuota-biaya', [PsbBiayaController::class, 'upsertKuota']);
-        Route::delete('psb/kuota-biaya/{kuota}', [PsbBiayaController::class, 'destroyKuota']);
+        Route::get('psb/kegiatan', [PsbKegiatanController::class, 'index'])->middleware('permission:kegiatan_psb.lihat');
+        Route::post('psb/kegiatan', [PsbKegiatanController::class, 'store'])->middleware('permission:kegiatan_psb.tambah');
+        Route::put('psb/kegiatan/{kegiatan}', [PsbKegiatanController::class, 'update'])->middleware('permission:kegiatan_psb.ubah');
+        Route::delete('psb/kegiatan/{kegiatan}', [PsbKegiatanController::class, 'destroy'])->middleware('permission:kegiatan_psb.hapus');
+        Route::post('psb/gelombang', [PsbKegiatanController::class, 'storeGelombang'])->middleware('permission:kegiatan_psb.tambah');
+        Route::put('psb/gelombang/{gelombang}', [PsbKegiatanController::class, 'updateGelombang'])->middleware('permission:kegiatan_psb.ubah');
+        Route::delete('psb/gelombang/{gelombang}', [PsbKegiatanController::class, 'destroyGelombang'])->middleware('permission:kegiatan_psb.hapus');
+        Route::get('psb/lembaga', [PsbBiayaController::class, 'indexLembaga'])->middleware('permission:kegiatan_psb.lihat');
+        Route::get('psb/kuota-biaya', [PsbBiayaController::class, 'indexKuota'])->middleware('permission:kegiatan_psb.lihat');
+        Route::post('psb/kuota-biaya', [PsbBiayaController::class, 'upsertKuota'])->middleware('permission:kegiatan_psb.tambah');
+        Route::delete('psb/kuota-biaya/{kuota}', [PsbBiayaController::class, 'destroyKuota'])->middleware('permission:kegiatan_psb.hapus');
+
+        // Matriks izin (Kelola Izin): hanya pemilik izin terkait (= super_admin).
+        Route::get('izin', [IzinController::class, 'index'])->middleware('permission:izin.lihat');
+        Route::put('izin', [IzinController::class, 'update'])->middleware('permission:izin.ubah');
     });
 
 // PSB publik (tanpa auth; captcha SKIP — spec §5 hanya sebut sepintas tanpa implementasi).
@@ -157,36 +171,37 @@ Route::prefix('psb')->group(function () {
         ->name('psb.bukti-pdf');
 });
 
-// PSB admin (auth + role super_admin|admin, scope tenant lembaga per aksi).
-Route::middleware(['auth:sanctum', 'role:super_admin|admin', 'lembaga_aktif', 'throttle:api_user'])
+// PSB admin (auth + izin matriks, scope tenant lembaga per aksi).
+Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
     ->prefix('psb')
     ->group(function () {
-        Route::get('antrean-daftar-ulang', [PsbController::class, 'antrean']);
-        Route::get('gelombang', [PsbController::class, 'gelombang']);
-        Route::post('calon', [PsbController::class, 'storeCalon']);
-        Route::post('bulk/verifikasi', [PsbController::class, 'bulkVerifikasi']);
-        Route::post('bulk/seleksi', [PsbController::class, 'bulkSeleksi']);
-        Route::post('bulk/daftar-ulang', [PsbController::class, 'bulkDaftarUlang']);
-        Route::post('bulk/undur-diri', [PsbController::class, 'bulkUndurDiri']);
-        Route::post('bulk/batalkan-fase', [PsbController::class, 'bulkBatalkanFase']);
-        Route::post('bulk/acc-daftar-ulang', [PsbController::class, 'bulkAcc']);
-        Route::post('bulk/hapus', [PsbController::class, 'bulkHapus']);
-        Route::post('bulk/pulihkan', [PsbController::class, 'bulkPulihkan']);
-        Route::post('{calon}/verifikasi', [PsbController::class, 'verifikasi']);
-        Route::post('{calon}/seleksi', [PsbController::class, 'seleksi']);
-        Route::post('{calon}/daftar-ulang', [PsbController::class, 'daftarUlang']);
-        Route::post('{calon}/undur-diri', [PsbController::class, 'undurDiri']);
-        Route::post('{calon}/batalkan-fase', [PsbController::class, 'batalkanFase']);
-        Route::post('{calon}/acc-daftar-ulang', [PsbController::class, 'acc']);
-        Route::post('{calon}/pulihkan', [PsbController::class, 'pulihkan']);
-        Route::delete('{calon}', [PsbController::class, 'destroy']);
-        Route::post('{calon}/promosi', [PsbController::class, 'promosi']);
-        Route::post('import', [PsbController::class, 'import'])->middleware('throttle:imports');
-        Route::get('import-template', [PsbController::class, 'template']);
-        Route::post('dokumen/{dokumen}/verifikasi', [PsbDokumenController::class, 'verifikasi']);
+        Route::get('antrean-daftar-ulang', [PsbController::class, 'antrean'])->middleware('permission:psb.lihat');
+        Route::get('gelombang', [PsbController::class, 'gelombang'])->middleware('permission:psb.lihat');
+        Route::post('calon', [PsbController::class, 'storeCalon'])->middleware('permission:psb.tambah');
+        Route::post('bulk/verifikasi', [PsbController::class, 'bulkVerifikasi'])->middleware('permission:psb.ubah');
+        Route::post('bulk/seleksi', [PsbController::class, 'bulkSeleksi'])->middleware('permission:psb.ubah');
+        Route::post('bulk/daftar-ulang', [PsbController::class, 'bulkDaftarUlang'])->middleware('permission:psb.ubah');
+        Route::post('bulk/undur-diri', [PsbController::class, 'bulkUndurDiri'])->middleware('permission:psb.ubah');
+        Route::post('bulk/batalkan-fase', [PsbController::class, 'bulkBatalkanFase'])->middleware('permission:psb.ubah');
+        Route::post('bulk/acc-daftar-ulang', [PsbController::class, 'bulkAcc'])->middleware('permission:psb.ubah');
+        Route::post('bulk/hapus', [PsbController::class, 'bulkHapus'])->middleware('permission:psb.hapus');
+        Route::post('bulk/pulihkan', [PsbController::class, 'bulkPulihkan'])->middleware('permission:psb.ubah');
+        Route::post('{calon}/verifikasi', [PsbController::class, 'verifikasi'])->middleware('permission:psb.ubah');
+        Route::post('{calon}/seleksi', [PsbController::class, 'seleksi'])->middleware('permission:psb.ubah');
+        Route::post('{calon}/daftar-ulang', [PsbController::class, 'daftarUlang'])->middleware('permission:psb.ubah');
+        Route::post('{calon}/undur-diri', [PsbController::class, 'undurDiri'])->middleware('permission:psb.ubah');
+        Route::post('{calon}/batalkan-fase', [PsbController::class, 'batalkanFase'])->middleware('permission:psb.ubah');
+        Route::post('{calon}/acc-daftar-ulang', [PsbController::class, 'acc'])->middleware('permission:psb.ubah');
+        Route::post('{calon}/pulihkan', [PsbController::class, 'pulihkan'])->middleware('permission:psb.ubah');
+        Route::delete('{calon}', [PsbController::class, 'destroy'])->middleware('permission:psb.hapus');
+        Route::post('{calon}/promosi', [PsbController::class, 'promosi'])->middleware('permission:psb.ubah');
+        Route::post('import', [PsbController::class, 'import'])->middleware(['permission:psb.tambah', 'throttle:imports']);
+        Route::get('import-template', [PsbController::class, 'template'])->middleware('permission:psb.lihat');
+        Route::post('dokumen/{dokumen}/verifikasi', [PsbDokumenController::class, 'verifikasi'])->middleware('permission:psb.ubah');
     });
 
 // Portal orang tua (auth + role orang_tua, envelope pesan/data, cek pemilik B5).
+// Pengecualian matriks: portal tetap role-based (di luar cakupan Kelola Izin).
 Route::middleware(['auth:sanctum', 'role:orang_tua', 'throttle:api_user'])
     ->prefix('portal')
     ->group(function () {
@@ -203,6 +218,7 @@ Route::middleware(['auth:sanctum', 'role:orang_tua', 'throttle:api_user'])
     });
 
 // List dokumen calon: orang_tua pemilik + admin tenant.
+// Pengecualian matriks: grup campuran peran, tetap role-based + cek pemilik di controller.
 Route::middleware(['auth:sanctum', 'role:orang_tua|admin|super_admin', 'lembaga_aktif', 'throttle:api_user'])
     ->prefix('portal/psb')
     ->group(function () {

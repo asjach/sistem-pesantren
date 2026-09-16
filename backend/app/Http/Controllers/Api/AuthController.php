@@ -52,6 +52,7 @@ class AuthController extends Controller
 
         return response()->json([
             'user' => $user->load('roles'),
+            'permissions' => $user->getAllPermissions()->pluck('name')->values()->all(),
             'token' => $token,
         ]);
     }
@@ -73,6 +74,11 @@ class AuthController extends Controller
 
     public function me()
     {
-        return response()->json(request()->user()->load(['roles', 'lembagas:id,nama,kode']));
+        $user = request()->user();
+
+        return response()->json(array_merge(
+            $user->load(['roles', 'lembagas:id,nama,kode'])->toArray(),
+            ['permissions' => $user->getAllPermissions()->pluck('name')->values()->all()],
+        ));
     }
 }
