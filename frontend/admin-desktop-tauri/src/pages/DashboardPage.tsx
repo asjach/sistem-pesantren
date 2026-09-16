@@ -80,7 +80,7 @@ export default function DashboardPage() {
                 </ItemMedia>
                 <ItemContent>
                   <ItemTitle>{t.nama}</ItemTitle>
-                  <ItemDescription>{t.lembaga?.nama ?? t.lembaga_id}</ItemDescription>
+                  <ItemDescription>{t.lembaga?.nama ?? (t.lembaga_id ? String(t.lembaga_id) : 'Semua lembaga')}</ItemDescription>
                 </ItemContent>
               </Item>
             </li>

@@ -58,7 +58,7 @@ export interface Ringkasan {
   pengguna: number;
   tahun_ajaran_aktif: number;
   kelas: number;
-  tahun_aktif: { id: number; lembaga_id: number; nama: string; lembaga?: { id: number; nama: string } }[];
+  tahun_aktif: { id: number; lembaga_id: number | null; nama: string; lembaga?: { id: number; nama: string } }[];
   santri: null;
   tagihan_terbuka: null;
   antrean_psb: null;
@@ -94,9 +94,17 @@ export function referensiTypes() {
   return api<string[]>('/admin/referensi/types');
 }
 
-export function referensiList(tipe: string, lembaga_id?: number) {
-  const q = lembaga_id ? `?lembaga_id=${lembaga_id}` : '';
-  return api<ReferensiRow[]>(`/admin/referensi/${encodeURIComponent(tipe)}${q}`);
+export function referensiList(tipe: string, lembaga_id?: number, termasukNonaktif = false) {
+  const q = new URLSearchParams();
+  if (lembaga_id) q.set('lembaga_id', String(lembaga_id));
+  if (termasukNonaktif) q.set('termasuk_nonaktif', '1');
+  const qs = q.toString();
+  return api<ReferensiRow[]>(`/admin/referensi/${encodeURIComponent(tipe)}${qs ? `?${qs}` : ''}`);
+}
+
+/** Pulihkan baris lembaga yang nonaktif ("Tampilkan kembali"). */
+export function pulihkanReferensi(tipe: string, id: number) {
+  return api<ReferensiRow>(`/admin/referensi/${encodeURIComponent(tipe)}/${id}/pulihkan`, { method: 'POST' });
 }
 
 export function createReferensi(tipe: string, input: ReferensiInput) {
@@ -124,31 +132,47 @@ export function deleteReferensi(tipe: string, id: number, lembaga_id?: number) {
 
 export interface TahunAjaran {
   id: number;
-  lembaga_id: number;
+  /** NULL = TA global (berlaku semua lembaga); terisi = baris bayangan lembaga. */
+  lembaga_id: number | null;
   nama: string;
   tanggal_mulai: string | null;
   tanggal_selesai: string | null;
   is_aktif: boolean;
+  /** Tampil/tidak untuk lembaga (baris bayangan nonaktif = disembunyikan). */
+  is_active: boolean;
   lembaga?: { id: number; nama: string; kode: string | null };
 }
 
-export function listTahunAjaran(params: { search?: string; lembaga_id?: number; page?: number; per_page?: number } = {}) {
+export function listTahunAjaran(params: {
+  search?: string;
+  lembaga_id?: number;
+  termasuk_nonaktif?: boolean;
+  page?: number;
+  per_page?: number;
+} = {}) {
   const q = new URLSearchParams();
   if (params.search) q.set('search', params.search);
   if (params.lembaga_id) q.set('lembaga_id', String(params.lembaga_id));
+  if (params.termasuk_nonaktif) q.set('termasuk_nonaktif', '1');
   q.set('page', String(params.page ?? 1));
   q.set('per_page', String(params.per_page ?? PER_PAGE_DEFAULT));
   return api<Paginate<TahunAjaran>>(`/admin/tahun-ajaran?${q.toString()}`);
 }
 
 export function createTahunAjaran(input: {
-  lembaga_id?: number;
-  lembaga_ids?: number[];
   nama: string;
   tanggal_mulai?: string;
   tanggal_selesai?: string;
 }) {
-  return api<TahunAjaran | { pesan: string; data: TahunAjaran[] }>('/admin/tahun-ajaran', { method: 'POST', body: JSON.stringify(input) });
+  return api<TahunAjaran>('/admin/tahun-ajaran', { method: 'POST', body: JSON.stringify(input) });
+}
+
+/** Sembunyikan TA global untuk satu lembaga (baris bayangan). */
+export function sembunyikanTahunAjaran(id: number, lembaga_id?: number) {
+  return api<{ message: string }>(`/admin/tahun-ajaran/${id}/sembunyikan`, {
+    method: 'POST',
+    body: JSON.stringify(lembaga_id ? { lembaga_id } : {}),
+  });
 }
 
 export function updateTahunAjaran(

@@ -19,11 +19,11 @@ interface TahunAjaranAktifState {
 
 const Ctx = createContext<TahunAjaranAktifState | null>(null);
 
-/** Bawaan: TA `is_aktif` milik lembaga; jika tak ada → tanggal_mulai terbaru.
- *  Tanpa lembaga tunggal (mode "Semua lembaga") → "Semua tahun". */
+/** Bawaan: TA aktif (global atau milik lembaga); jika tak ada → tanggal_mulai
+ *  terbaru. Tanpa lembaga tunggal (mode "Semua lembaga") → "Semua tahun". */
 function bawaan(daftar: TahunAjaran[], lembagaId: number | null): number | null {
   if (lembagaId == null) return null;
-  const milik = daftar.filter((t) => t.lembaga_id === lembagaId);
+  const milik = daftar.filter((t) => t.lembaga_id === null || t.lembaga_id === lembagaId);
   const aktif = milik.find((t) => t.is_aktif);
   if (aktif) return aktif.id;
   const urut = [...milik].sort((a, b) =>
