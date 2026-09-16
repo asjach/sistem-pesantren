@@ -147,6 +147,7 @@ Route::middleware(['auth:sanctum', 'role:super_admin|admin', 'lembaga_aktif', 't
         Route::post('psb/gelombang', [PsbKegiatanController::class, 'storeGelombang']);
         Route::put('psb/gelombang/{gelombang}', [PsbKegiatanController::class, 'updateGelombang']);
         Route::delete('psb/gelombang/{gelombang}', [PsbKegiatanController::class, 'destroyGelombang']);
+        Route::get('psb/lembaga', [PsbBiayaController::class, 'indexLembaga']);
         Route::get('psb/kuota-biaya', [PsbBiayaController::class, 'indexKuota']);
         Route::post('psb/kuota-biaya', [PsbBiayaController::class, 'upsertKuota']);
         Route::delete('psb/kuota-biaya/{kuota}', [PsbBiayaController::class, 'destroyKuota']);

@@ -1723,4 +1723,21 @@ class PsbFlowTest extends TestCase
             ->assertStatus(422)
             ->assertJsonValidationErrors(['tahun_ajaran_id']);
     }
+
+    public function test_41_daftar_lembaga_psb_tanpa_parameter_gelombang(): void
+    {
+        $f = $this->baseFixture();
+        $this->makeKuota($f['gel'], $f['mi'], $f['ta'], ['tipe_santri' => 'asrama']);
+        $adminMi = $this->makeUser('admin', [$f['mi']->id]);
+
+        // Pemilih lembaga di UI (mis. ketentuan dokumen) tidak boleh bergantung
+        // gelombang — kegiatan baru belum punya gelombang.
+        $res = $this->actingAs($adminMi, 'sanctum')->getJson('/api/admin/psb/lembaga');
+        $res->assertStatus(200);
+
+        $kode = collect($res->json('data'))->pluck('kode')->all();
+        $this->assertEqualsCanonicalizing(['MI', 'MD', 'MTS'], $kode);
+        $this->assertTrue((bool) collect($res->json('data'))->firstWhere('kode', 'MI')['punya_asrama']);
+        $this->assertFalse((bool) collect($res->json('data'))->firstWhere('kode', 'MD')['punya_asrama']);
+    }
 }

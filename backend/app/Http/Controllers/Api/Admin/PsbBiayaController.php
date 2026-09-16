@@ -25,13 +25,6 @@ class PsbBiayaController extends Controller
         ]);
         $gelombang = PsbGelombang::with('kegiatan:id,nama')->findOrFail($data['gelombang_id']);
 
-        $lembaga = Lembaga::where('is_active', true)
-            ->whereIn('kode', array_keys(PsbService::TINGKAT_MASUK_BARU))
-            ->orderBy('id')
-            ->get(['id', 'kode', 'nama', 'kelompok_psb', 'is_seleksi']);
-
-        $punyaAsrama = $this->lembagaPunyaAsrama();
-
         $rows = PsbKuotaBiaya::where('gelombang_id', $gelombang->id)
             ->orderBy('lembaga_id')
             ->orderBy('tipe_santri')
@@ -49,17 +42,46 @@ class PsbBiayaController extends Controller
                     'tgl_tutup' => $gelombang->tgl_tutup?->toDateString(),
                     'kegiatan' => $gelombang->kegiatan,
                 ],
-                'lembaga' => $lembaga->map(fn (Lembaga $l) => [
-                    'id' => $l->id,
-                    'kode' => $l->kode,
-                    'nama' => $l->nama,
-                    'kelompok_psb' => $l->kelompok_psb,
-                    'is_seleksi' => (bool) $l->is_seleksi,
-                    'punya_asrama' => in_array($l->id, $punyaAsrama, true),
-                ])->values(),
+                'lembaga' => $this->lembagaPsb(),
                 'rows' => $rows,
             ],
         ]);
+    }
+
+    /**
+     * GET /api/admin/psb/lembaga — lembaga penerima santri baru.
+     *
+     * Tidak bergantung gelombang: dipakai pemilih lembaga di luar konteks
+     * kuota (mis. ketentuan dokumen) sehingga tetap terisi pada kegiatan yang
+     * belum punya gelombang.
+     */
+    public function indexLembaga(): JsonResponse
+    {
+        return response()->json([
+            'pesan' => 'Lembaga PSB dimuat.',
+            'data' => $this->lembagaPsb(),
+        ]);
+    }
+
+    /** @return array<int, array<string, mixed>> */
+    protected function lembagaPsb(): array
+    {
+        $punyaAsrama = $this->lembagaPunyaAsrama();
+
+        return Lembaga::where('is_active', true)
+            ->whereIn('kode', array_keys(PsbService::TINGKAT_MASUK_BARU))
+            ->orderBy('id')
+            ->get(['id', 'kode', 'nama', 'kelompok_psb', 'is_seleksi'])
+            ->map(fn (Lembaga $l) => [
+                'id' => $l->id,
+                'kode' => $l->kode,
+                'nama' => $l->nama,
+                'kelompok_psb' => $l->kelompok_psb,
+                'is_seleksi' => (bool) $l->is_seleksi,
+                'punya_asrama' => in_array($l->id, $punyaAsrama, true),
+            ])
+            ->values()
+            ->all();
     }
 
     /** POST /api/admin/psb/kuota-biaya — upsert satu baris (gelombang, lembaga, tipe). */

@@ -300,6 +300,11 @@ export function deletePsbGelombang(id: number) {
   return api<{ pesan: string }>(`/admin/psb/gelombang/${id}`, { method: 'DELETE' });
 }
 
+/** Lembaga penerima santri baru (untuk pemilih lembaga lintas tab PSB). */
+export function listLembagaPsb() {
+  return api<{ pesan: string; data: PsbLembagaOpsi[] }>('/admin/psb/lembaga');
+}
+
 export function getKuotaBiaya(gelombangId: number) {
   return api<{
     pesan: string;
