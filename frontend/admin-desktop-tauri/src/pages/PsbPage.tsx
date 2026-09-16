@@ -45,6 +45,7 @@ import {
 } from '@/components/ui/select';
 import ExcelTable, { type ExcelChoice, type ExcelField } from '@/components/ExcelTable';
 import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
+import { useLembagaAktif } from '@/lembagaAktif';
 import FilterField from '@/components/FilterField';
 import { RibbonSlot } from '@/components/RibbonSlot';
 import { RibbonCmd, RibbonGroup, RibbonPemisah } from '@/components/topbar/primitives';
@@ -165,6 +166,7 @@ export default function PsbPage() {
   const [badge, setBadge] = useState<Record<string, number>>({});
   const [lembagaId, setLembagaId] = useState('');
   useLembagaAwalString(setLembagaId);
+  const { bertindak } = useLembagaAktif();
   const [rows, setRows] = useState<PsbCalon[]>([]);
   const pager = usePager('psb');
   const reqRef = useRef(0);
@@ -799,7 +801,7 @@ export default function PsbPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  <SelectItem value="_semua">Semua lembaga</SelectItem>
+                  {!bertindak && <SelectItem value="_semua">Semua lembaga</SelectItem>}
                   {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>)}
                 </SelectGroup>
               </SelectContent>

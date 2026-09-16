@@ -27,6 +27,7 @@ import { FieldLabel } from '@/components/ui/field';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
+import { useLembagaAktif } from '@/lembagaAktif';
 import FilterField from '@/components/FilterField';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -171,6 +172,7 @@ export default function SantriPage() {
   const [statusGlobal, setStatusGlobal] = useState('_semua');
   const [lembagaId, setLembagaId] = useState('');
   useLembagaAwalString(setLembagaId);
+  const { bertindak } = useLembagaAktif();
   const [search, setSearch] = useState('');
   const [terapkanCari, setTerapkanCari] = useState('');
 
@@ -351,7 +353,7 @@ export default function SantriPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
-                    <SelectItem value="_semua">Semua lembaga</SelectItem>
+                    {!bertindak && <SelectItem value="_semua">Semua lembaga</SelectItem>}
                     {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>)}
                   </SelectGroup>
                 </SelectContent>

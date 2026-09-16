@@ -20,6 +20,8 @@ interface LembagaAktifState {
   /** Boleh memilih "Semua lembaga" (super_admin / admin tanpa pivot). */
   adaSemua: boolean;
   banyakPilihan: boolean;
+  /** Sedang "bertindak sebagai lembaga" (super_admin + lembaga aktif terpilih). */
+  bertindak: boolean;
   pilih: (id: number | null) => void;
 }
 
@@ -91,8 +93,9 @@ export function LembagaAktifProvider({ children }: { children: ReactNode }) {
     pilihan,
     adaSemua,
     banyakPilihan: pilihan.length > 1,
+    bertindak: superAdmin && lembagaId != null,
     pilih,
-  }), [loading, lembagaId, pilihan, adaSemua, pilih]);
+  }), [loading, lembagaId, pilihan, adaSemua, superAdmin, pilih]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

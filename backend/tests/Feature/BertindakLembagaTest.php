@@ -119,6 +119,12 @@ class BertindakLembagaTest extends TestCase
             ->assertStatus(200)
             ->assertJsonCount(1, 'data');
 
+        // Daftar lembaga (sumber opsi filter) hanya berisi lembaga aktif.
+        $this->actingAs($pusat, 'sanctum')->withHeaders($hdr)->getJson('/api/admin/lembaga')
+            ->assertStatus(200)
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $l['mi']->id);
+
         // Standar tampilan lembaga lain ditolak; sebar "semua" ditolak.
         $this->actingAs($pusat, 'sanctum')->withHeaders($hdr)
             ->getJson("/api/admin/pengaturan-tampilan?lembaga_id={$l['md']->id}")->assertStatus(403);

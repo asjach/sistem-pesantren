@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/select';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { useLembagaAwalNumber } from '@/hooks/useLembagaAwal';
+import { useLembagaAktif } from '@/lembagaAktif';
 import FilterField from '@/components/FilterField';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { ViewDialog } from '@/components/ViewDialog';
@@ -84,6 +85,7 @@ export default function TahunAjaranPage() {
   const [lembagas, setLembagas] = useState<Lembaga[]>([]);
   const [lembagaId, setLembagaId] = useState<number | ''>('');
   useLembagaAwalNumber(setLembagaId);
+  const { bertindak } = useLembagaAktif();
   const [search, setSearch] = useState('');
   const [rows, setRows] = useState<TahunAjaran[]>([]);
   const pager = usePager('tahun_ajaran');
@@ -306,7 +308,7 @@ export default function TahunAjaranPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
-                <SelectItem value="_semua">Semua (akses saya)</SelectItem>
+                {!bertindak && <SelectItem value="_semua">Semua (akses saya)</SelectItem>}
                 {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>)}
               </SelectGroup>
             </SelectContent>

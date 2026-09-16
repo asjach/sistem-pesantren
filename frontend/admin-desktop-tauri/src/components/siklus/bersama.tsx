@@ -3,6 +3,7 @@ import { listLembaga, listTahunAjaran, type Lembaga, type TahunAjaran } from '@/
 import type { RiwayatRow } from '@/api/siklus';
 import type { ExcelField } from '@/components/ExcelTable';
 import FilterField from '@/components/FilterField';
+import { useLembagaAktif } from '@/lembagaAktif';
 import {
   Select,
   SelectContent,
@@ -74,6 +75,8 @@ export function FilterLembaga({ id, value, onChange, lembagas }: {
   onChange: (v: string) => void;
   lembagas: Lembaga[];
 }) {
+  const { bertindak } = useLembagaAktif();
+
   return (
     <FilterField label="Lembaga" htmlFor={id}>
       <Select value={value === '' ? '_semua' : value} onValueChange={(v) => onChange(v === '_semua' ? '' : v)}>
@@ -82,7 +85,8 @@ export function FilterLembaga({ id, value, onChange, lembagas }: {
         </SelectTrigger>
         <SelectContent>
           <SelectGroup>
-            <SelectItem value="_semua">Semua lembaga</SelectItem>
+            {/* Saat bertindak sebagai lembaga, opsi "Semua" disembunyikan. */}
+            {!bertindak && <SelectItem value="_semua">Semua lembaga</SelectItem>}
             {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>)}
           </SelectGroup>
         </SelectContent>

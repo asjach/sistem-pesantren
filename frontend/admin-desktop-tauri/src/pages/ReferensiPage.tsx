@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/select';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { useLembagaAwalNumber } from '@/hooks/useLembagaAwal';
+import { useLembagaAktif } from '@/lembagaAktif';
 import FilterField from '@/components/FilterField';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import {
@@ -68,6 +69,7 @@ export default function ReferensiPage() {
   const [lembagas, setLembagas] = useState<Lembaga[]>([]);
   const [lembagaId, setLembagaId] = useState<number | ''>('');
   useLembagaAwalNumber(setLembagaId);
+  const { bertindak } = useLembagaAktif();
   const [rows, setRows] = useState<ReferensiRow[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -306,8 +308,8 @@ export default function ReferensiPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  {isSuper && <SelectLabel>Global</SelectLabel>}
-                  {isSuper && <SelectItem value="_global">Global (bawaan)</SelectItem>}
+                  {isSuper && !bertindak && <SelectLabel>Global</SelectLabel>}
+                  {isSuper && !bertindak && <SelectItem value="_global">Global (bawaan)</SelectItem>}
                   <SelectLabel>Per lembaga</SelectLabel>
                   {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>)}
                 </SelectGroup>
