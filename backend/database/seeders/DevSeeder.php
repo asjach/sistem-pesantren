@@ -7,26 +7,13 @@ use App\Models\PsbGelombang;
 use App\Models\PsbKegiatan;
 use App\Models\PsbKuotaBiaya;
 use App\Models\TahunAjaran;
-use App\Models\User;
 use Illuminate\Database\Seeder;
 
 class DevSeeder extends Seeder
 {
     public function run(): void
     {
-        $akun = [
-            ['Reviewer Sementara', 'reviewer.tmp@example.com', '081200000001', 'password', 'super_admin'],
-            ['Asjach', 'asjach@gmail.com', '081200000002', 'rahayu45', 'super_admin'],
-            ['Reviewer Orang Tua', 'reviewer.orangtua@simpes.local', '081200000003', 'password', 'orang_tua'],
-            ['Reviewer Santri', 'reviewer.santri@simpes.local', '081200000004', 'password', 'santri'],
-        ];
-        foreach ($akun as [$nama, $email, $phone, $password, $role]) {
-            $user = User::updateOrCreate(
-                ['email' => $email],
-                ['name' => $nama, 'phone' => $phone, 'password' => $password],
-            );
-            $user->syncRoles([$role]);
-        }
+        $this->call(AkunSeeder::class);
 
         $root = Lembaga::firstOrCreate(
             ['kode' => 'PESANTREN'],
