@@ -27,19 +27,23 @@ class PsbGelombangService
 
     /**
      * Gelombang yang sedang dibuka MURNI berdasarkan tanggal (tgl_buka/tgl_tutup).
-     * Bila ada lebih dari satu (mis. lintas kegiatan), ambil kegiatan terbaru lalu nomor terkecil.
+     * Kegiatan PSB se-pesantren: dahulukan kegiatan yang ditandai aktif, lalu
+     * kegiatan terbaru, lalu nomor gelombang terkecil.
      */
     public function gelombangAktif(?int $kegiatanId = null): ?PsbGelombang
     {
         $hariIni = now()->toDateString();
-        $q = PsbGelombang::query()
-            ->where(fn ($qq) => $qq->whereNull('tgl_buka')->orWhere('tgl_buka', '<=', $hariIni))
-            ->where(fn ($qq) => $qq->whereNull('tgl_tutup')->orWhere('tgl_tutup', '>=', $hariIni));
-        if ($kegiatanId) {
-            $q->where('psb_kegiatan_id', $kegiatanId);
-        }
 
-        return $q->orderByDesc('psb_kegiatan_id')->orderBy('nomor')->first();
+        return PsbGelombang::query()
+            ->join('psb_kegiatan', 'psb_kegiatan.id', '=', 'psb_gelombang.psb_kegiatan_id')
+            ->where(fn ($qq) => $qq->whereNull('psb_gelombang.tgl_buka')->orWhere('psb_gelombang.tgl_buka', '<=', $hariIni))
+            ->where(fn ($qq) => $qq->whereNull('psb_gelombang.tgl_tutup')->orWhere('psb_gelombang.tgl_tutup', '>=', $hariIni))
+            ->when($kegiatanId, fn ($q) => $q->where('psb_gelombang.psb_kegiatan_id', $kegiatanId))
+            ->orderByDesc('psb_kegiatan.is_aktif')
+            ->orderByDesc('psb_gelombang.psb_kegiatan_id')
+            ->orderBy('psb_gelombang.nomor')
+            ->select('psb_gelombang.*')
+            ->first();
     }
 
     /** Tolak rentang gelombang yang tumpang tindih dalam kegiatan yang sama. */
@@ -59,7 +63,7 @@ class PsbGelombangService
             ->first();
         if ($bentrok) {
             throw ValidationException::withMessages([
-                'tgl_buka' => "Rentang bertabrakan dengan gelombang lain ({$bentrok->nama}: " . $bentrok->tgl_buka?->toDateString() . ' s.d. ' . $bentrok->tgl_tutup?->toDateString() . ').',
+                'tgl_buka' => "Rentang bertabrakan dengan gelombang lain ({$bentrok->nama}: ".$bentrok->tgl_buka?->toDateString().' s.d. '.$bentrok->tgl_tutup?->toDateString().').',
             ]);
         }
     }

@@ -219,14 +219,12 @@ export function listGelombangPsb(params: { kegiatan_id?: number; tahun_ajaran_id
 
 export interface PsbKegiatan {
   id: number;
-  /** Kegiatan PSB milik satu lembaga operasional untuk satu tahun ajaran global. */
-  lembaga_id: number;
+  /** Kegiatan PSB se-pesantren: satu per tahun ajaran, kuota/biaya per lembaga. */
   tahun_ajaran_id: number;
   nama: string;
   is_aktif: boolean;
   gelombang_count?: number;
   tahun_ajaran?: { id: number; nama: string } | null;
-  lembaga?: { id: number; nama: string; kode: string | null } | null;
 }
 
 export interface PsbGelombangMaster {
@@ -273,11 +271,11 @@ export function listPsbKegiatan() {
   return api<{ pesan: string; data: PsbKegiatan[] }>('/admin/psb/kegiatan');
 }
 
-export function createPsbKegiatan(input: { lembaga_id: number; tahun_ajaran_id: number; nama: string; is_aktif?: boolean }) {
+export function createPsbKegiatan(input: { tahun_ajaran_id: number; nama: string; is_aktif?: boolean }) {
   return api<{ pesan: string; data: PsbKegiatan }>('/admin/psb/kegiatan', { method: 'POST', body: JSON.stringify(input) });
 }
 
-export function updatePsbKegiatan(id: number, input: { lembaga_id?: number; tahun_ajaran_id?: number; nama?: string; is_aktif?: boolean }) {
+export function updatePsbKegiatan(id: number, input: { tahun_ajaran_id?: number; nama?: string; is_aktif?: boolean }) {
   return api<{ pesan: string; data: PsbKegiatan }>(`/admin/psb/kegiatan/${id}`, { method: 'PUT', body: JSON.stringify(input) });
 }
 

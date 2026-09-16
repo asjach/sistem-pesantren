@@ -71,16 +71,13 @@ class DevSeeder extends Seeder
         TahunAjaran::where('id', '!=', $ta->id)->update(['is_aktif' => false]);
         TahunAjaran::where('id', $ta->id)->update(['is_aktif' => true]);
 
-        // Kegiatan PSB se-pesantren memakai TA global; `lembaga_id` hanya penanda
-        // lembaga acuan (resolusi TA per lembaga terjadi saat daftar/ACC).
+        // Kegiatan PSB se-pesantren: satu kegiatan per tahun ajaran (kuota/biaya
+        // per lembaga diisi di dalam gelombangnya).
         $kegiatan = PsbKegiatan::firstOrCreate(
             ['tahun_ajaran_id' => $ta->id, 'nama' => 'PSB 2026/2027'],
-            ['lembaga_id' => $mi->id, 'is_aktif' => true],
+            ['is_aktif' => true],
         );
-        $kegiatan->update([
-            'lembaga_id' => $kegiatan->lembaga_id ?? $mi->id,
-            'is_aktif' => true,
-        ]);
+        $kegiatan->update(['is_aktif' => true]);
         PsbKegiatan::where('id', '!=', $kegiatan->id)->update(['is_aktif' => false]);
 
         $gelombang = PsbGelombang::firstOrCreate(

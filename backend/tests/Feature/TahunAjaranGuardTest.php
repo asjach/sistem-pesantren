@@ -86,36 +86,39 @@ class TahunAjaranGuardTest extends TestCase
         $this->assertSame(0, TahunAjaran::where('nama', '2028/2029')->count());
     }
 
-    public function test_02_kegiatan_butuh_lembaga_operasional_dan_unik_per_lembaga(): void
+    public function test_02_kegiatan_se_pesantren_unik_per_ta_dan_terlihat_admin_lembaga(): void
     {
         $f = $this->baseFixture();
-        $md = Lembaga::create([
-            'parent_id' => $f['root']->id, 'nama' => 'Madrasah Diniyah', 'kode' => 'MD',
-            'is_seleksi' => false, 'kelompok_psb' => 'combo_mi_md', 'is_active' => true,
-        ]);
+        $admin = $this->adminMi($f['root'], $f['mi']);
 
-        // Tanpa lembaga_id → wajib diisi.
-        $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/psb/kegiatan', [
-            'tahun_ajaran_id' => $f['ta']->id, 'nama' => 'PSB',
-        ])->assertStatus(422)->assertJsonValidationErrors(['lembaga_id']);
+        // Hanya admin pesantren yang boleh mengelola kegiatan PSB.
+        $this->actingAs($admin, 'sanctum')->postJson('/api/admin/psb/kegiatan', [
+            'tahun_ajaran_id' => $f['ta']->id, 'nama' => 'PSB MI',
+        ])->assertStatus(403);
 
-        // Lembaga root pesantren ditolak.
+        // Kegiatan se-pesantren: tanpa lembaga_id, TA cukup ada.
         $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/psb/kegiatan', [
-            'lembaga_id' => $f['root']->id, 'tahun_ajaran_id' => $f['ta']->id, 'nama' => 'PSB Root',
-        ])->assertStatus(422)->assertJsonValidationErrors(['lembaga_id']);
-
-        // MI boleh; lembaga lain dengan TA yang sama juga boleh (dulu tidak bisa).
-        $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/psb/kegiatan', [
-            'lembaga_id' => $f['mi']->id, 'tahun_ajaran_id' => $f['ta']->id, 'nama' => 'PSB MI',
+            'tahun_ajaran_id' => $f['ta']->id, 'nama' => 'PSB 2026/2027', 'is_aktif' => true,
         ])->assertStatus(201);
-        $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/psb/kegiatan', [
-            'lembaga_id' => $md->id, 'tahun_ajaran_id' => $f['ta']->id, 'nama' => 'PSB MD',
-        ])->assertStatus(201);
+        $this->assertDatabaseHas('psb_kegiatan', ['tahun_ajaran_id' => $f['ta']->id, 'nama' => 'PSB 2026/2027']);
 
-        // Duplikat untuk lembaga + TA yang sama ditolak.
+        // Satu kegiatan per tahun ajaran: duplikat ditolak.
         $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/psb/kegiatan', [
-            'lembaga_id' => $f['mi']->id, 'tahun_ajaran_id' => $f['ta']->id, 'nama' => 'PSB MI 2',
+            'tahun_ajaran_id' => $f['ta']->id, 'nama' => 'PSB Duplikat',
         ])->assertStatus(422)->assertJsonValidationErrors(['tahun_ajaran_id']);
+
+        // TA berbeda → boleh (mis. menyiapkan tahun berikutnya).
+        $taBerikut = TahunAjaran::create([
+            'lembaga_id' => null, 'nama' => '2027/2028',
+            'tanggal_mulai' => '2027-07-01', 'tanggal_selesai' => '2028-06-30',
+        ]);
+        $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/psb/kegiatan', [
+            'tahun_ajaran_id' => $taBerikut->id, 'nama' => 'PSB 2027/2028',
+        ])->assertStatus(201);
+
+        // Kegiatan terlihat oleh admin lembaga (halaman Dokumen Wajib/Kegiatan PSB).
+        $res = $this->actingAs($admin, 'sanctum')->getJson('/api/admin/psb/kegiatan')->assertStatus(200);
+        $this->assertCount(2, $res->json('data'));
     }
 
     public function test_03_aksi_siklus_menolak_target_root(): void

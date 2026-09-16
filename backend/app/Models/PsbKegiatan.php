@@ -19,11 +19,6 @@ class PsbKegiatan extends Model
         return $this->belongsTo(TahunAjaran::class);
     }
 
-    public function lembaga(): BelongsTo
-    {
-        return $this->belongsTo(Lembaga::class);
-    }
-
     public function gelombang(): HasMany
     {
         return $this->hasMany(PsbGelombang::class, 'psb_kegiatan_id');

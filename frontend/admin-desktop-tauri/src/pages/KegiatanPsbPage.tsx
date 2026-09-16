@@ -147,7 +147,6 @@ export default function KegiatanPsbPage() {
   const [kegOpen, setKegOpen] = useState(false);
   const [kegEdit, setKegEdit] = useState<PsbKegiatan | null>(null);
   const [kegNama, setKegNama] = useState('');
-  const [kegLembaga, setKegLembaga] = useState('');
   const [kegTa, setKegTa] = useState('');
   const [kegAktif, setKegAktif] = useState(true);
 
@@ -286,19 +285,9 @@ export default function KegiatanPsbPage() {
   function bukaKegiatan(k: PsbKegiatan | null) {
     setKegEdit(k);
     setKegNama(k?.nama ?? '');
-    setKegLembaga(k ? String(k.lembaga_id) : (lembagaTampil[0] ? String(lembagaTampil[0].id) : ''));
     setKegTa(k ? String(k.tahun_ajaran_id) : '');
     setKegAktif(k ? k.is_aktif : true);
     setKegOpen(true);
-  }
-
-  /** Ganti lembaga → TA yang sudah dipakai lembaga itu tidak lagi ditawarkan. */
-  function pilihLembagaKegiatan(v: string) {
-    setKegLembaga(v);
-    if (kegTa && kegiatans.some((k) => k.tahun_ajaran_id === Number(kegTa) && k.id !== (kegEdit?.id ?? -1) && k.lembaga_id === Number(v))) {
-      setKegTa('');
-      setKegNama('');
-    }
   }
 
   /** Pilih TA dulu; nama kegiatan otomatis memakai pola "PSB {tahun ajaran}". */
@@ -310,20 +299,16 @@ export default function KegiatanPsbPage() {
 
   async function simpanKegiatan(e: React.FormEvent) {
     e.preventDefault();
-    if (!kegNama.trim() || !kegTa || !kegLembaga) return;
+    if (!kegNama.trim() || !kegTa) return;
     setBusy(true);
     setErr('');
     try {
       let targetId = kegEdit?.id ?? null;
       if (kegEdit) {
-        await updatePsbKegiatan(kegEdit.id, {
-          nama: kegNama.trim(), lembaga_id: Number(kegLembaga), tahun_ajaran_id: Number(kegTa), is_aktif: kegAktif,
-        });
+        await updatePsbKegiatan(kegEdit.id, { nama: kegNama.trim(), tahun_ajaran_id: Number(kegTa), is_aktif: kegAktif });
         toast.success('Kegiatan PSB diubah.');
       } else {
-        const res = await createPsbKegiatan({
-          nama: kegNama.trim(), lembaga_id: Number(kegLembaga), tahun_ajaran_id: Number(kegTa), is_aktif: kegAktif,
-        });
+        const res = await createPsbKegiatan({ nama: kegNama.trim(), tahun_ajaran_id: Number(kegTa), is_aktif: kegAktif });
         targetId = res.data.id;
         toast.success('Kegiatan PSB dibuat.');
       }
@@ -519,10 +504,8 @@ export default function KegiatanPsbPage() {
   );
 
   const taTersedia = useMemo(
-    () => tahunAjarans.filter((t) => !kegiatans.some(
-      (k) => k.tahun_ajaran_id === t.id && k.lembaga_id === Number(kegLembaga) && k.id !== (kegEdit?.id ?? -1),
-    )),
-    [tahunAjarans, kegiatans, kegLembaga, kegEdit],
+    () => (kegEdit ? tahunAjarans : tahunAjarans.filter((t) => !kegiatans.some((k) => k.tahun_ajaran_id === t.id))),
+    [kegEdit, tahunAjarans, kegiatans],
   );
 
   const getBiayaValues = useCallback((r: PsbLembagaOpsi & { biaya: PsbBiayaLembagaRow | null }) => ({
@@ -862,22 +845,9 @@ export default function KegiatanPsbPage() {
             <DialogDescription className="sr-only">Formulir kegiatan PSB.</DialogDescription>
           </DialogHeader>
           <form id="form_kegiatan_psb" onSubmit={simpanKegiatan} className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4">
-            <FieldLabel htmlFor="select_lembaga_kegiatan_psb">Lembaga</FieldLabel>
-            <Select value={kegLembaga} onValueChange={pilihLembagaKegiatan} disabled={!!kegEdit}>
-              <SelectTrigger id="select_lembaga_kegiatan_psb" className="w-full">
-                <SelectValue placeholder="Pilih lembaga" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {lembagaTampil.map((l) => (
-                    <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
             <FieldLabel htmlFor="select_ta_kegiatan_psb" className="self-start pt-1.5">Tahun ajaran (pesantren)</FieldLabel>
             <div className="flex flex-col gap-1.5">
-              <Select value={kegTa} onValueChange={pilihTahunAjaran} disabled={!!kegEdit || !kegLembaga}>
+              <Select value={kegTa} onValueChange={pilihTahunAjaran} disabled={!!kegEdit}>
                 <SelectTrigger id="select_ta_kegiatan_psb" className="w-full">
                   <SelectValue placeholder="Pilih tahun ajaran" />
                 </SelectTrigger>
@@ -889,7 +859,7 @@ export default function KegiatanPsbPage() {
                   </SelectGroup>
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground">Satu lembaga hanya boleh punya satu kegiatan PSB per tahun ajaran.</p>
+              <p className="text-xs text-muted-foreground">Satu tahun ajaran hanya untuk satu kegiatan PSB (se-pesantren).</p>
             </div>
             <FieldLabel htmlFor="input_nama_kegiatan_psb">Nama kegiatan (otomatis dari tahun ajaran)</FieldLabel>
             <Input id="input_nama_kegiatan_psb" value={kegNama} onChange={(e) => setKegNama(e.target.value)} required maxLength={100} placeholder="PSB 2026/2027" disabled={!kegTa} />
@@ -900,7 +870,7 @@ export default function KegiatanPsbPage() {
             </label>
             <DialogFooter className="col-span-2">
               <Button type="button" variant="outline" onClick={() => setKegOpen(false)}>Batal</Button>
-              <Button id="btn_simpan_kegiatan_psb" type="submit" disabled={busy || !kegTa || !kegLembaga}>Simpan</Button>
+              <Button id="btn_simpan_kegiatan_psb" type="submit" disabled={busy || !kegTa}>Simpan</Button>
             </DialogFooter>
           </form>
         </DialogContent>
