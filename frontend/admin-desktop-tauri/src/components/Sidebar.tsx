@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { NAV_GRUP, halamanPerGrup } from '@/lib/halaman';
 import { useAuth } from '@/auth/AuthContext';
+import { useLembagaAktif } from '@/lembagaAktif';
 import { useTheme } from '@/theme';
 import { cn } from '@/lib/utils';
 import { ChevronLeft, ChevronRight } from '@/icons';
@@ -15,7 +16,11 @@ const itemBase =
 export default function Sidebar() {
   const { collapsed, setCollapsed } = useTheme();
   const { user } = useAuth();
-  const peran = user?.roles.map((r) => r.name) ?? [];
+  const { bertindak } = useLembagaAktif();
+  // Saat bertindak sebagai lembaga, kemampuan super_admin dianggap nonaktif
+  // (halaman khusus super_admin ikut disembunyikan).
+  const peran = (user?.roles.map((r) => r.name) ?? [])
+    .filter((r) => !(bertindak && r === 'super_admin'));
 
   // Ctrl/Cmd+B: lipat/buka sidebar (ala editor kode).
   useEffect(() => {

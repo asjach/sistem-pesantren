@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom
 import { Toaster } from '@/components/ui/sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AuthProvider, useAuth } from './auth/AuthContext';
+import { useLembagaAktif } from './lembagaAktif';
 import { LembagaAktifProvider } from './lembagaAktif';
 import { StandarTampilanProvider } from './standarTampilan';
 import { ThemeProvider } from './theme';
@@ -53,10 +54,14 @@ function Shell() {
   );
 }
 
-/** Batasi halaman ke peran tertentu; peran lain dialihkan ke beranda. */
+/** Batasi halaman ke peran tertentu; peran lain dialihkan ke beranda.
+ *  Saat bertindak sebagai lembaga, kemampuan super_admin dianggap nonaktif. */
 function KhususPeran({ roles, children }: { roles: string[]; children: ReactNode }) {
   const { user } = useAuth();
-  if (!user?.roles.some((r) => roles.includes(r.name))) return <Navigate to="/" replace />;
+  const { bertindak } = useLembagaAktif();
+  const peran = (user?.roles.map((r) => r.name) ?? [])
+    .filter((r) => !(bertindak && r === 'super_admin'));
+  if (!peran.some((r) => roles.includes(r))) return <Navigate to="/" replace />;
   return <>{children}</>;
 }
 
@@ -114,7 +119,14 @@ export default function App() {
                       )}
                     />
                     <Route path="/pengaturan/bagian" element={<Navigate to="/pengaturan/tampilan" replace />} />
-                    <Route path="/pengaturan/server" element={<PengaturanServerPage />} />
+                    <Route
+                      path="/pengaturan/server"
+                      element={(
+                        <KhususPeran roles={['super_admin']}>
+                          <PengaturanServerPage />
+                        </KhususPeran>
+                      )}
+                    />
                     <Route path="*" element={<Navigate to="/" replace />} />
                   </Route>
                 </Routes>

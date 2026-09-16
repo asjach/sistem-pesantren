@@ -93,7 +93,14 @@ export const HALAMAN: HalamanDef[] = [
     icon: Paintbrush,
     roles: ['super_admin'],
   },
-  { to: '/pengaturan/server', label: 'Server', tab: 'pengaturan', icon: Server },
+  {
+    to: '/pengaturan/server',
+    label: 'Server',
+    deskripsi: 'Alamat backend untuk perangkat ini. Hanya super_admin.',
+    tab: 'pengaturan',
+    icon: Server,
+    roles: ['super_admin'],
+  },
 ];
 
 /** Urutan & label grup sidebar (hanya grup yang punya halaman yang tampil). */
