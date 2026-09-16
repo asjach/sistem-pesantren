@@ -5,6 +5,7 @@ import {
   keyColumn,
   type CellProps,
   type Column,
+  type DataSheetGridRef,
 } from 'react-datasheet-grid';
 import 'react-datasheet-grid/dist/style.css';
 import { DENSITY_PX } from '@/prefs';
@@ -304,8 +305,9 @@ function hostUkur(): HTMLDivElement | null {
 interface TextColData {
   fieldKey: string;
   maxLength?: number;
-  /** Enter saat mengedit baris input = simpan baris (mode Input). */
-  onEnter?: () => void;
+  /** Enter saat mengedit baris input = simpan baris (mode Input).
+   *  Kembalikan true bila baris boleh pindah ke bawah (kolom wajib lengkap). */
+  onEnter?: (columnIndex: number) => boolean;
   /** Klik 2× sel (mode view): nyalakan checkbox Edit. */
   onDblClick?: (id: string | number) => void;
   /** Klik 1× sel (mode Edit): buka editor sel ini. */
@@ -319,7 +321,7 @@ function hasOpenEditor(): boolean {
 }
 
 /** Sel teks: span saat baca-saja, input saat fokus edit. */
-function TextCell({ rowData, setRowData, columnData, focus, stopEditing }: CellProps<GridRow, TextColData>) {
+function TextCell({ rowData, setRowData, columnData, focus, stopEditing, columnIndex }: CellProps<GridRow, TextColData>) {
   const key = columnData.fieldKey;
   const committed = (rowData[key] as string) ?? '';
   const [val, setVal] = useState<string | null>(null);
@@ -378,11 +380,11 @@ function TextCell({ rowData, setRowData, columnData, focus, stopEditing }: CellP
         if (e.key === 'Enter') {
           commit(cur);
           setVal(null);
-          // Baris input (mode Input): Enter = simpan baris (validasi + pesan
-          // di simpanInput); tetap di sel yang sama agar bisa lanjut mengisi.
+          // Baris input (mode Input): Enter = simpan baris. Kursor pindah ke
+          // baris bawah (baris input berikutnya) hanya bila kolom wajib lengkap.
           if (String(rowData.id) === INPUT_ROW_ID && columnData.onEnter) {
-            stopEditing({ nextRow: false });
-            columnData.onEnter();
+            const bolehPindah = columnData.onEnter(columnIndex);
+            stopEditing({ nextRow: bolehPindah });
             return;
           }
           // stopEditing bawaan DSG = tutup edit + aktif turun 1 baris (kolom sama).
@@ -400,8 +402,9 @@ function TextCell({ rowData, setRowData, columnData, focus, stopEditing }: CellP
 interface SelectColData {
   fieldKey: string;
   choices: ExcelChoice[];
-  /** Enter saat mengedit baris input = simpan baris (mode Input). */
-  onEnter?: () => void;
+  /** Enter saat mengedit baris input = simpan baris (mode Input).
+   *  Kembalikan true bila baris boleh pindah ke bawah (kolom wajib lengkap). */
+  onEnter?: (columnIndex: number) => boolean;
   /** Klik 2× sel (mode view): nyalakan checkbox Edit. */
   onDblClick?: (id: string | number) => void;
   /** Klik 1× sel (mode Edit): buka editor sel ini. */
@@ -409,7 +412,7 @@ interface SelectColData {
 }
 
 /** Sel dropdown native (tanpa dependensi baru). */
-function SelectCell({ rowData, setRowData, columnData, focus, stopEditing, disabled }: CellProps<GridRow, SelectColData>) {
+function SelectCell({ rowData, setRowData, columnData, focus, stopEditing, disabled, columnIndex }: CellProps<GridRow, SelectColData>) {
   const key = columnData.fieldKey;
   const cur = (rowData[key] as string) ?? '';
   const label = columnData.choices.find((c) => c.value === cur)?.label ?? cur;
@@ -447,8 +450,8 @@ function SelectCell({ rowData, setRowData, columnData, focus, stopEditing, disab
         if (e.key === 'Escape') stopEditing();
         if (e.key === 'Enter' && String(rowData.id) === INPUT_ROW_ID && columnData.onEnter) {
           e.preventDefault();
-          stopEditing({ nextRow: false });
-          columnData.onEnter();
+          const bolehPindah = columnData.onEnter(columnIndex);
+          stopEditing({ nextRow: bolehPindah });
         }
       }}
     >
@@ -890,6 +893,10 @@ export default function ExcelTable<T extends { id: string | number }>({
   /** Nilai TERBARU baris input (ditulis handleChange) — dipakai saat Enter
    *  agar simpan tidak membaca state yang belum ter-flush. */
   const inputDraftRef = useRef<Record<string, string | null>>({});
+  /** Indeks kolom yang ditinggalkan & penanda kursor harus turun ke baris input. */
+  const inputKolomRef = useRef(0);
+  const pindahKeInputRef = useRef(false);
+  const gridRef = useRef<DataSheetGridRef>(null);
 
   // Standar lembaga untuk tabel ini (diabaikan bila user menyesuaikan sendiri).
   const stdLebar = merekam
@@ -1791,7 +1798,7 @@ export default function ExcelTable<T extends { id: string | number }>({
             columnData: {
               fieldKey: f.key,
               choices: f.inputChoices ?? f.choices ?? [],
-              onEnter: () => inputAksiRef.current(),
+              onEnter: (col: number) => inputEnterRef.current(col),
             },
             disableKeys: true,
             keepFocus: false,
@@ -1808,7 +1815,7 @@ export default function ExcelTable<T extends { id: string | number }>({
             columnData: {
               fieldKey: f.key,
               maxLength: f.maxLength,
-              onEnter: () => inputAksiRef.current(),
+              onEnter: (col: number) => inputEnterRef.current(col),
             },
             disableKeys: false,
             keepFocus: false,
@@ -1845,7 +1852,7 @@ export default function ExcelTable<T extends { id: string | number }>({
           columnData: {
             fieldKey: f.key,
             choices: f.choices ?? [],
-            onEnter: () => inputAksiRef.current(),
+            onEnter: (col: number) => inputEnterRef.current(col),
             // Mode Input aktif: klik 2× tidak menyalakan mode Edit (baris
             // input cukup buka editor sel).
             onDblClick: (id: string | number) => {
@@ -1877,7 +1884,7 @@ export default function ExcelTable<T extends { id: string | number }>({
           columnData: {
             fieldKey: f.key,
             maxLength: f.maxLength,
-            onEnter: () => inputAksiRef.current(),
+            onEnter: (col: number) => inputEnterRef.current(col),
             // Mode Input aktif: klik 2× tidak menyalakan mode Edit (baris
             // input cukup buka editor sel).
             onDblClick: (id: string | number) => {
@@ -1907,12 +1914,12 @@ export default function ExcelTable<T extends { id: string | number }>({
   /** Simpan baris input → buat record baru via onCreateRow halaman. Validasi
    *  field wajib + validator kolom dulu; draft dibersihkan hanya bila sukses
    *  (toast sukses menjadi tanggung jawab halaman). */
-  async function simpanInput() {
-    if (!onCreateRow) return;
-    // Sumber nilai: ref draft baris input (paling mutakhir) + nilai bawaan kolom.
+  /** Periksa baris input tanpa efek samping: nilai, kolom kurang, pesan. */
+  function periksaInput() {
     const d = inputDraftRef.current;
     const flds: Record<string, string | null> = {};
     const kurang: string[] = [];
+    let pesan: string | null = null;
     for (const f of visibleFieldsRef.current) {
       if (f.kind === 'static' && !f.inputKind) continue;
       const raw = d[f.key] ?? inputRowValues?.[f.key] ?? null;
@@ -1924,20 +1931,26 @@ export default function ExcelTable<T extends { id: string | number }>({
       }
       if (v !== null && f.validate) {
         const blocked = f.validate(v);
-        if (blocked) {
-          toast.error(blocked);
-          return;
-        }
+        if (blocked && pesan === null) pesan = blocked;
       }
     }
-    // Semua kolom wajib harus terisi dulu sebelum baris boleh disimpan.
-    if (kurang.length > 0) {
-      toast.error('Kolom wajib harus diisi terlebih dahulu.', { description: kurang.join(', ') });
+    return { flds, kurang, pesan, valid: kurang.length === 0 && pesan === null };
+  }
+
+  async function simpanInput() {
+    if (!onCreateRow) return;
+    const { flds, kurang, pesan, valid } = periksaInput();
+    if (!valid) {
+      // Kolom wajib belum lengkap → tidak ada yang disimpan.
+      if (pesan) toast.error(pesan);
+      else toast.error('Kolom wajib harus diisi terlebih dahulu.', { description: kurang.join(', ') });
       return;
     }
     try {
       await onCreateRow(flds);
       inputDraftRef.current = {};
+      // Kursor pindah ke baris bawah (baris input) setelah data dimuat.
+      pindahKeInputRef.current = true;
       setDrafts((prev) => {
         if (!(INPUT_ROW_ID in prev)) return prev;
         const next = { ...prev };
@@ -1948,6 +1961,28 @@ export default function ExcelTable<T extends { id: string | number }>({
       toast.error(errorMessage(e));
     }
   }
+
+  /** Enter pada baris input: simpan bila kolom wajib lengkap. Kembalikan true
+   *  bila kursor boleh turun ke baris bawah (baris input berikutnya). */
+  function enterInputRow(columnIndex: number): boolean {
+    if (!onCreateRow) return false;
+    inputKolomRef.current = columnIndex;
+    const { valid } = periksaInput();
+    void simpanInput();
+    return valid;
+  }
+  const inputEnterRef = useRef(enterInputRow);
+  inputEnterRef.current = enterInputRow;
+
+  /** Setelah simpan sukses: pindahkan kursor ke baris input (baris di bawah
+   *  data yang baru dibuat) begitu daftar selesai dimuat. */
+  useEffect(() => {
+    if (!pindahKeInputRef.current || loading) return;
+    const idx = gridValue.findIndex((r) => String(r.id) === INPUT_ROW_ID);
+    if (idx < 0) return;
+    pindahKeInputRef.current = false;
+    gridRef.current?.setActiveCell({ col: inputKolomRef.current, row: idx });
+  }, [gridValue, loading]);
 
   /** Handler simpan baris input (dipakai tombol di kolom Aksi & Enter). */
   const inputAksiRef = useRef<() => void>(() => {});
@@ -2450,6 +2485,7 @@ export default function ExcelTable<T extends { id: string | number }>({
               ) : (
                 <CheckAllContext.Provider value={checkAllState}>
                   <DataSheetGrid
+                    ref={gridRef}
                     value={gridValue}
                     onChange={handleChange}
                     columns={dsgColumns}
