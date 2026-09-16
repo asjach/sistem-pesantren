@@ -111,7 +111,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('lembaga_id')->nullable()->constrained('lembaga')->nullOnDelete();
             $table->string('kode'); // santri_baru, naik_kelas, mengulang, pindahan (+ custom)
-            $table->string('label');
+            $table->string('nama'); // seragam dengan tabel ref lain (pengurutan: urutan ASC, nama ASC)
             $table->integer('urutan')->default(0);
             $table->boolean('is_active')->default(true);
 
@@ -122,7 +122,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('lembaga_id')->nullable()->constrained('lembaga')->nullOnDelete();
             $table->string('kode'); // aktif, naik, tidak_naik, pindah_keluar, lulus, tidak_lulus (+ custom, no.51)
-            $table->string('label');
+            $table->string('nama'); // seragam dengan tabel ref lain (nilai konsumen tetap `kode`)
             // Sifat logika (terkunci untuk baris sistem):
             $table->boolean('is_aktif_bawaan')->default(false); // true HANYA untuk 'aktif' (is_aktif=true iff status_akhir aktif)
             $table->string('terminal_ke')->nullable(); // null = bukan terminal (custom baru selalu null = non-aktif netral)
