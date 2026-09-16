@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Exports\SantriLembagaDataExport;
 use App\Exports\SantriLembagaTemplateExport;
+use App\Imports\SantriLengkapImport;
 use App\Models\Lembaga;
 use App\Models\LembagaSantri;
 use App\Models\Santri;
@@ -13,6 +14,9 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\DB;
+use PhpOffice\PhpSpreadsheet\Shared\Date;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Tests\TestCase;
 
 /**
@@ -347,5 +351,48 @@ class SantriLembagaImportTest extends TestCase
         $this->assertSame('MI', $isi[0][1]);
         $this->assertSame('25601', $isi[0][3]);
         $this->assertSame('Unduh Saya', $isi[0][8]);
+    }
+
+    // ---------- 12. file ketikan manual: sel numerik + tanggal serial ----------
+
+    public function test_12_xlsx_manual_sel_numerik_lolos(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeAdmin([$f['mi']->id]);
+
+        // Tiru file ketikan manual: NISN & NIS sebagai ANGKA, tanggal sebagai serial.
+        $sheet = (new Spreadsheet)->getActiveSheet();
+        $judul = [
+            'santri_id', 'kode_lembaga', 'lembaga_id', 'nis_lokal', 'nis_kemenag',
+            'is_active', 'tgl_mulai', 'tgl_selesai', 'nama_lengkap', 'nik', 'jk',
+            'tgl_lahir', 'nisn', 'rt',
+        ];
+        foreach ($judul as $c => $nama) {
+            $sheet->setCellValue([$c + 1, 1], $nama);
+        }
+        $sheet->setCellValue([2, 2], 'MI');
+        $sheet->setCellValue([4, 2], 26001); // numerik, bukan teks
+        $sheet->setCellValue([9, 2], 'Manual Angka');
+        $sheet->setCellValue([10, 2], '1101010000000009');
+        $sheet->setCellValue([11, 2], 'L');
+        $sheet->setCellValue([12, 2], Date::dateTimeToExcel(new \DateTimeImmutable('2015-07-01')));
+        $sheet->setCellValue([13, 2], 1234567890); // NISN numerik
+        $sheet->setCellValue([14, 2], 7); // RT numerik
+        $path = tempnam(sys_get_temp_dir(), 'manual').'.xlsx';
+        (new Xlsx($sheet->getParent()))->save($path);
+
+        $res = $this->actingAs($admin, 'sanctum')->post('/api/admin/santri/import-periksa-gabungan', [
+            'file' => new UploadedFile($path, 'manual.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', null, true),
+        ])->assertStatus(200);
+
+        $this->assertTrue((bool) $res->json('siap_import'), json_encode($res->json('errors')));
+        $this->assertSame(0, Santri::count()); // dry-run tidak menulis
+
+        // Unit map(): cast angka → string, serial → Y-m-d.
+        $import = new SantriLengkapImport;
+        $dipetakan = $import->map(['nisn' => 1234567890, 'rt' => 7, 'tgl_lahir' => 42186, 'nama_lengkap' => 'X']);
+        $this->assertSame('1234567890', $dipetakan['nisn']);
+        $this->assertSame('7', $dipetakan['rt']);
+        $this->assertSame('2015-07-01', $dipetakan['tgl_lahir']);
     }
 }

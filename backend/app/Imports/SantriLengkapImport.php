@@ -10,6 +10,7 @@ use Maatwebsite\Excel\Concerns\SkipsOnFailure;
 use Maatwebsite\Excel\Concerns\SkipsUnknownSheets;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
+use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 use Maatwebsite\Excel\Concerns\WithValidation;
 use Maatwebsite\Excel\Validators\Failure;
@@ -22,10 +23,26 @@ use PhpOffice\PhpSpreadsheet\Shared\Date;
  * (`riwayat_belajar`) — keduanya lewat halaman/import masing-masing.
  * Kolom template = KOLOM_PROFIL (tanpa kolom penempatan/status).
  */
-class SantriLengkapImport implements SkipsOnFailure, SkipsUnknownSheets, ToCollection, WithHeadingRow, WithMultipleSheets, WithValidation
+class SantriLengkapImport implements SkipsOnFailure, SkipsUnknownSheets, ToCollection, WithHeadingRow, WithMapping, WithMultipleSheets, WithValidation
 {
     /** @var Failure[] */
     protected array $failures = [];
+
+    /**
+     * Kolom teks yang rawan terbaca sebagai angka dari sel numerik Excel/CSV
+     * (NISN `1234567890` tiba sebagai int → gagal rule `string`).
+     */
+    protected const KOLOM_TEKS = [
+        'nik', 'nisn', 'no_kk', 'ayah_nik', 'ibu_nik', 'wali_nik',
+        'rt', 'rw', 'kode_pos', 'no_hp_santri', 'ayah_telp', 'ibu_telp', 'wali_telp',
+        'nomor_kip', 'nis_lokal', 'nis_kemenag', 'kode_lembaga',
+    ];
+
+    /** Kolom tanggal: serial number Excel → `Y-m-d` (string teks lolos apa adanya). */
+    protected const KOLOM_TANGGAL = [
+        'tgl_lahir', 'tanggal_masuk', 'ayah_tgl_lahir', 'ibu_tgl_lahir',
+        'wali_tgl_lahir', 'tgl_mulai', 'tgl_selesai',
+    ];
 
     /** Ringkasan baris (dipakai mode periksa/dry-run). */
     protected int $barisValid = 0;
@@ -44,6 +61,39 @@ class SantriLengkapImport implements SkipsOnFailure, SkipsUnknownSheets, ToColle
     public function sheets(): array
     {
         return [0 => $this];
+    }
+
+    /**
+     * Normalisasi baris SEBELUM validasi (maatwebsite: map → validate → collection).
+     * Berlaku untuk import identitas DAN gabungan (diwariskan).
+     *
+     * @param  array<string, mixed>  $row
+     * @return array<string, mixed>
+     */
+    public function map($row): array
+    {
+        $baris = (array) $row;
+
+        foreach (static::KOLOM_TEKS as $kolom) {
+            if (isset($baris[$kolom]) && (is_int($baris[$kolom]) || is_float($baris[$kolom]))) {
+                // 26001.0 → '26001' (bukan '26001.0'); pecahan tak wajar dibiarkan string.
+                $baris[$kolom] = fmod((float) $baris[$kolom], 1.0) === 0.0
+                    ? (string) (int) $baris[$kolom]
+                    : (string) $baris[$kolom];
+            }
+        }
+
+        foreach (static::KOLOM_TANGGAL as $kolom) {
+            if (isset($baris[$kolom]) && (is_int($baris[$kolom]) || is_float($baris[$kolom]))) {
+                try {
+                    $baris[$kolom] = Date::excelToDateTimeObject($baris[$kolom])->format('Y-m-d');
+                } catch (\Throwable $e) {
+                    // Biarkan apa adanya agar validasi `date` menolak dengan pesan jelas.
+                }
+            }
+        }
+
+        return $baris;
     }
 
     public function onUnknownSheet(string|int $sheetName): void
@@ -234,7 +284,7 @@ class SantriLengkapImport implements SkipsOnFailure, SkipsUnknownSheets, ToColle
             'nama_lengkap' => ['required', 'string', 'max:255'],
             'jk' => ['required', 'in:L,P'],
             'nik' => ['nullable', 'digits:16'],
-            'nisn' => ['nullable', 'string', 'max:10'],
+            'nisn' => ['nullable', 'digits:10'],
             'tipe_santri' => ['nullable', 'in:asrama,non_asrama'],
             // Kolom kamus: string bebas (tanpa exists)
             'agama' => ['nullable', 'string', 'max:50'],
