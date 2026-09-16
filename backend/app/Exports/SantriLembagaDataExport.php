@@ -25,7 +25,8 @@ use PhpOffice\PhpSpreadsheet\Cell\DefaultValueBinder;
  */
 class SantriLembagaDataExport extends DefaultValueBinder implements FromArray, WithCustomValueBinder, WithHeadings, WithTitle
 {
-    public function __construct(private int $lembagaId) {}
+    /** @param  list<int>  $lembagaIds */
+    public function __construct(private array $lembagaIds) {}
 
     public function bindValue(Cell $cell, $value): bool
     {
@@ -46,10 +47,11 @@ class SantriLembagaDataExport extends DefaultValueBinder implements FromArray, W
 
     public function array(): array
     {
-        $kode = Lembaga::whereKey($this->lembagaId)->value('kode');
+        $kode = Lembaga::whereIn('id', $this->lembagaIds)->pluck('kode', 'id');
 
-        return LembagaSantri::where('lembaga_id', $this->lembagaId)
+        return LembagaSantri::whereIn('lembaga_id', $this->lembagaIds)
             ->with('santri')
+            ->orderBy('lembaga_id')
             ->orderBy('santri_id')
             ->get()
             ->filter(fn (LembagaSantri $ls) => $ls->santri !== null)
@@ -57,7 +59,7 @@ class SantriLembagaDataExport extends DefaultValueBinder implements FromArray, W
                 $s = $ls->santri;
                 $baris = [
                     'santri_id' => (string) $s->id,
-                    'kode_lembaga' => (string) ($kode ?? ''),
+                    'kode_lembaga' => (string) ($kode[$ls->lembaga_id] ?? ''),
                     'lembaga_id' => (string) $ls->lembaga_id,
                     'nis_lokal' => (string) ($ls->nis_lokal ?? ''),
                     'nis_kemenag' => (string) ($ls->nis_kemenag ?? ''),

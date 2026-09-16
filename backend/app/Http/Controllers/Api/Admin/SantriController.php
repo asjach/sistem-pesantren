@@ -349,15 +349,36 @@ class SantriController extends Controller
         );
     }
 
-    /** GET /api/admin/santri/data-gabungan — pra-isi data existing satu lembaga (round-trip update). */
+    /** GET /api/admin/santri/data-gabungan — pra-isi data existing (round-trip update).
+     *  Satu lembaga via `kode_lembaga`/`lembaga_id`; tanpa parameter → semua
+     *  lembaga dalam lingkup pengunduh (file campuran tetap valid untuk import). */
     public function dataGabungan(Request $request)
     {
         $this->authorize('viewAny', Santri::class);
 
-        $lembagaId = $this->resolveLembagaGabungan($request);
-        $kode = Lembaga::whereKey($lembagaId)->value('kode');
+        $ids = $this->resolveDaftarLembagaGabungan($request);
+        if (count($ids) === 1) {
+            $kode = Lembaga::whereKey($ids[0])->value('kode');
 
-        return Excel::download(new SantriLembagaDataExport($lembagaId), "data-siswa-{$kode}-{$lembagaId}.xlsx");
+            return Excel::download(new SantriLembagaDataExport($ids), "data-siswa-{$kode}-{$ids[0]}.xlsx");
+        }
+
+        return Excel::download(new SantriLembagaDataExport($ids), 'data-siswa-semua.xlsx');
+    }
+
+    /** Daftar lembaga untuk unduh data: eksplisit satu, atau semua dalam lingkup. */
+    private function resolveDaftarLembagaGabungan(Request $request): array
+    {
+        if (trim((string) $request->input('kode_lembaga', '')) !== '' || $request->filled('lembaga_id')) {
+            return [$this->resolveLembagaGabungan($request)];
+        }
+
+        $boleh = $this->lembagaDiizinkan($request->user());
+        if ($boleh === []) {
+            abort(422, 'Tidak ada lembaga operasional dalam lingkup akses Anda.');
+        }
+
+        return $boleh;
     }
 
     /** Resolusi lembaga wajib untuk unduh data & validasi tenant (kode/id, operasional). */

@@ -184,6 +184,8 @@ export default function SantriPage() {
   const [importFile, setImportFile] = useState<File | null>(null);
   const [periksaHasil, setPeriksaHasil] = useState<ImportPeriksa | null>(null);
   const [periksaBusy, setPeriksaBusy] = useState(false);
+  // Lembaga sumber "Data existing": '_semua' = semua dalam lingkup.
+  const [dataLembaga, setDataLembaga] = useState('_semua');
 
   const [fotoRow, setFotoRow] = useState<Santri | null>(null);
   const [fotoFile, setFotoFile] = useState<File | null>(null);
@@ -221,6 +223,18 @@ export default function SantriPage() {
     user && !user.roles.some((r) => r.name === 'super_admin') && (user.lembagas?.length ?? 0) === 1
       ? user.lembagas![0].id
       : null;
+
+  // Dropdown sumber "Data existing": bawaan filter aktif → lembaga tunggal → semua.
+  // Terkunci bila cuma 1 pilihan (admin lembaga tak rangkap).
+  const opsiDataLembaga = lembagaOperasional;
+  const dataTerkunci = opsiDataLembaga.length === 1;
+  useEffect(() => {
+    if (!importOpen) return;
+    const dariFilter = lembagaId && opsiDataLembaga.some((l) => String(l.id) === lembagaId)
+      ? lembagaId
+      : null;
+    setDataLembaga(dariFilter ?? (dataTerkunci ? String(opsiDataLembaga[0].id) : '_semua'));
+  }, [importOpen, lembagaId, opsiDataLembaga, dataTerkunci]);
 
   const load = useCallback(
     async function loadPage(p = pager.page, pp = pager.perPage) {
@@ -578,22 +592,39 @@ export default function SantriPage() {
                 >
                   <Download data-icon="inline-start" size={16} /> Template gabungan
                 </Button>
-                <Button
-                  id="btn_unduh_data_gabungan"
-                  type="button"
-                  variant="link"
-                  className="h-auto justify-start px-0"
-                  onClick={() => {
-                    const idLembaga = lembagaId ? Number(lembagaId) : singleLembagaId;
-                    if (!idLembaga) {
-                      toast.error('Pilih lembaga dulu (filter) untuk mengunduh data existing.');
-                      return;
-                    }
-                    void unduhDataSantriGabungan(idLembaga).catch((e) => toast.error(errorMessage(e)));
-                  }}
-                >
-                  <Download data-icon="inline-start" size={16} /> Data existing (update)
-                </Button>
+                <div className="flex items-center gap-1.5">
+                  <Select
+                    value={dataLembaga}
+                    onValueChange={setDataLembaga}
+                    disabled={dataTerkunci || opsiDataLembaga.length === 0}
+                  >
+                    <SelectTrigger id="input_pilih_lembaga_data" className="h-8 flex-1 text-xs" title={dataTerkunci ? 'Satu-satunya lembaga Anda (otomatis)' : 'Lembaga sumber data existing'}>
+                      <SelectValue placeholder="Pilih lembaga" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {opsiDataLembaga.length > 1 && <SelectItem value="_semua">Semua (lingkup saya)</SelectItem>}
+                      {opsiDataLembaga.map((l) => (
+                        <SelectItem key={l.id} value={String(l.id)}>
+                          {l.kode ? `${l.kode} — ` : ''}{l.nama}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    id="btn_unduh_data_gabungan"
+                    type="button"
+                    variant="link"
+                    className="h-auto shrink-0 px-0"
+                    disabled={opsiDataLembaga.length === 0}
+                    title="Unduh data existing (pra-isi santri_id) untuk update via Excel"
+                    onClick={() => {
+                      const id = dataLembaga === '_semua' ? undefined : Number(dataLembaga);
+                      void unduhDataSantriGabungan(id).catch((e) => toast.error(errorMessage(e)));
+                    }}
+                  >
+                    <Download data-icon="inline-start" size={16} /> Data existing
+                  </Button>
+                </div>
               </>
             )}
             <Input

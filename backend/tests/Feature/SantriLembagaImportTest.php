@@ -345,12 +345,55 @@ class SantriLembagaImportTest extends TestCase
             ->assertHeader('content-disposition', 'attachment; filename=data-siswa-MI-'.$f['mi']->id.'.xlsx');
 
         // Isi pra-isi: santri_id + kode + nis di posisi blok lembaga.
-        $isi = (new SantriLembagaDataExport($f['mi']->id))->array();
+        $isi = (new SantriLembagaDataExport([$f['mi']->id]))->array();
         $this->assertCount(1, $isi);
         $this->assertSame((string) $santri->id, $isi[0][0]);
         $this->assertSame('MI', $isi[0][1]);
         $this->assertSame('25601', $isi[0][3]);
         $this->assertSame('Unduh Saya', $isi[0][8]);
+    }
+
+    // ---------- 13. unduh semua lingkup + round-trip campuran ----------
+
+    public function test_13_data_semua_lingkup_dan_roundtrip(): void
+    {
+        $f = $this->baseFixture();
+        $super = User::create([
+            'name' => 'Super Unduh',
+            'email' => 'super_unduh_'.uniqid().'@example.com',
+            'phone' => '089000000001',
+            'password' => 'password',
+        ]);
+        $super->assignRole('super_admin');
+        $adminMi = $this->makeAdmin([$f['mi']->id]);
+
+        $a = Santri::create(['nama_lengkap' => 'Anak MI', 'jk' => 'L']);
+        LembagaSantri::create(['santri_id' => $a->id, 'lembaga_id' => $f['mi']->id, 'nis_lokal' => '26101', 'is_active' => true]);
+        $b = Santri::create(['nama_lengkap' => 'Anak MD', 'jk' => 'P']);
+        LembagaSantri::create(['santri_id' => $b->id, 'lembaga_id' => $f['md']->id, 'nis_lokal' => '26201', 'is_active' => true]);
+
+        // Super admin tanpa parameter → semua operasional (MI + MD).
+        $this->actingAs($super, 'sanctum')
+            ->get('/api/admin/santri/data-gabungan')
+            ->assertStatus(200)
+            ->assertHeader('content-disposition', 'attachment; filename=data-siswa-semua.xlsx');
+        $semua = (new SantriLembagaDataExport([$f['mi']->id, $f['md']->id]))->array();
+        $this->assertCount(2, $semua);
+        $this->assertSame(['MI', 'MD'], array_map(fn ($r) => $r[1], $semua));
+
+        // Admin MI tanpa parameter → hanya MI (lingkup sendiri).
+        $isi = (new SantriLembagaDataExport([$f['mi']->id]))->array();
+        $this->assertCount(1, $isi);
+
+        // Round-trip campuran sebagai super admin: cocok keduanya via santri_id.
+        $this->actingAs($super, 'sanctum')->post('/api/admin/santri/import-gabungan', [
+            'file' => new UploadedFile($this->makeCsv([
+                ['santri_id' => (string) $a->id, 'kode_lembaga' => 'MI', 'nis_lokal' => '26102'],
+                ['santri_id' => (string) $b->id, 'kode_lembaga' => 'MD', 'nis_lokal' => '26202'],
+            ]), 'campuran.csv', 'text/csv', null, true),
+        ])->assertStatus(200);
+        $this->assertSame('26102', LembagaSantri::where('santri_id', $a->id)->firstOrFail()->nis_lokal);
+        $this->assertSame('26202', LembagaSantri::where('santri_id', $b->id)->firstOrFail()->nis_lokal);
     }
 
     // ---------- 12. file ketikan manual: sel numerik + tanggal serial ----------
