@@ -21,6 +21,10 @@ export const DENSITY_PX: Record<DensityName, number> = {
   nyaman: 30,
 };
 
+/** Mode navigasi utama: rail kiri atau bar menu atas. */
+export type NavigasiName = 'sidebar' | 'menubar';
+export const NAVIGASI: NavigasiName[] = ['sidebar', 'menubar'];
+
 /** Nilai "Semua" pada pilihan baris per halaman: dikirim sebagai `per_page=0`
  *  dan diartikan backend sebagai tanpa batas (semua baris dalam satu halaman). */
 export const PER_PAGE_ALL = 0;
@@ -46,6 +50,7 @@ const K = {
   warnaUI: 'simpes_warna_ui',
   parts: 'simpes_parts',
   iconSet: 'simpes_icon_set',
+  navigasi: 'simpes_navigasi',
   // Preferensi lama (sebelum font sel disatukan ke bagian `tabel_sel`) — hanya
   // dibaca sekali untuk migrasi, lalu dihapus.
   fontLama: 'simpes_grid_font',
@@ -59,6 +64,8 @@ export interface Prefs {
   density: DensityName;
   /** Tingkat kekayaan warna UI (judul/ikon/permukaan/semantik). */
   warnaUI: WarnaUIName;
+  /** Mode navigasi utama (milik perangkat, bukan standar). */
+  navigasi: NavigasiName;
   /** Gaya atomik per bagian UI (terpisah mode terang/gelap). */
   parts: PartOverrides;
   /** Set ikon antarmuka (9 koleksi, lihat src/iconSets.ts). */
@@ -71,6 +78,7 @@ export const DEFAULT_PREFS: Prefs = {
   collapsed: false,
   density: 'sedang',
   warnaUI: 'kaya',
+  navigasi: 'sidebar',
   parts: EMPTY_PARTS,
   iconSet: ICON_SET_DEFAULT,
 };
@@ -103,7 +111,7 @@ export function normalizeHex(v: string): string | null {
 }
 
 export async function loadPrefs(): Promise<Prefs> {
-  const [theme, mode, sidebar, density, warnaUI, partsRaw, iconSetRaw, fontLama, fontFamilyLama] = await Promise.all([
+  const [theme, mode, sidebar, density, warnaUI, partsRaw, iconSetRaw, navigasiRaw, fontLama, fontFamilyLama] = await Promise.all([
     prefGet(K.theme),
     prefGet(K.mode),
     prefGet(K.sidebar),
@@ -111,6 +119,7 @@ export async function loadPrefs(): Promise<Prefs> {
     prefGet(K.warnaUI),
     prefGet(K.parts),
     prefGet(K.iconSet),
+    prefGet(K.navigasi),
     prefGet(K.fontLama),
     prefGet(K.fontFamilyLama),
   ]);
@@ -158,6 +167,7 @@ export async function loadPrefs(): Promise<Prefs> {
       : DEFAULT_PREFS.warnaUI,
     parts,
     iconSet: ICON_SETS.some((s) => s.id === iconSetRaw) ? (iconSetRaw as IconSetId) : ICON_SET_DEFAULT,
+    navigasi: navigasiRaw === 'menubar' ? 'menubar' : 'sidebar',
   };
 }
 
@@ -170,5 +180,6 @@ export async function savePrefs(p: Prefs): Promise<void> {
     prefSet(K.warnaUI, p.warnaUI),
     prefSet(K.parts, JSON.stringify(p.parts)),
     prefSet(K.iconSet, p.iconSet),
+    prefSet(K.navigasi, p.navigasi),
   ]);
 }

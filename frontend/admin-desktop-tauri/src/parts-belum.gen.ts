@@ -10,7 +10,6 @@ export const BELUM_DIPAKAI: ReadonlySet<string> = new Set([
   'tabs',
   'breadcrumb',
   'pagination',
-  'menubar',
   'navigation_menu',
   'kbd',
   'empty',

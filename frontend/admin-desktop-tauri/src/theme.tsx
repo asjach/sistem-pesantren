@@ -6,6 +6,7 @@ import {
   savePrefs,
   type DensityName,
   type ModeName,
+  type NavigasiName,
   type Prefs,
   type ThemeName,
   type WarnaUIName,
@@ -23,6 +24,8 @@ interface ThemeState extends Prefs {
   setTheme: (t: ThemeName) => void;
   setMode: (m: ModeName) => void;
   setCollapsed: (c: boolean) => void;
+  /** Mode navigasi utama (milik perangkat, bukan standar). */
+  setNavigasi: (n: NavigasiName) => void;
   setDensity: (d: DensityName) => void;
   setWarnaUI: (w: WarnaUIName) => void;
   /** Set ikon antarmuka (9 koleksi Iconify). */
@@ -77,8 +80,9 @@ function gabungPrefs(dev: DevicePrefs, std: TampilanData | null, pribadi: Pribad
     density: pilihStd('tema.density', dev.density, t.density, pribadi) as DensityName,
     warnaUI: pilihStd('tema.warnaUI', dev.warnaUI, t.warnaUI, pribadi) as WarnaUIName,
     iconSet: pilihStd('tema.iconSet', dev.iconSet, t.iconSet, pribadi) as IconSetId,
-    // Tata letak sidebar selalu milik perangkat, bukan standar.
+    // Tata letak sidebar & mode navigasi selalu milik perangkat, bukan standar.
     collapsed: dev.collapsed,
+    navigasi: dev.navigasi,
     parts: gabungParts(dev.parts, std?.parts, pribadi),
   };
 }
@@ -172,6 +176,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       setTheme: (theme) => update({ theme }, ['tema.theme']),
       setMode: (mode) => update({ mode }, ['tema.mode']),
       setCollapsed: (collapsed) => update({ collapsed }, []),
+      setNavigasi: (navigasi) => update({ navigasi }, []),
       setDensity: (density) => update({ density }, ['tema.density']),
       setWarnaUI: (warnaUI) => update({ warnaUI }, ['tema.warnaUI']),
       setIconSet: (iconSet) => update({ iconSet }, ['tema.iconSet']),
