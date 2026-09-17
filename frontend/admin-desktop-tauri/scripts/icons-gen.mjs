@@ -2,7 +2,7 @@
 // - Memvalidasi setiap nama terhadap node_modules/@iconify-json/<set>/icons.json
 //   (icons + aliases); yang tidak ada → null → façade memakai ikon Lucide.
 // - Menulis scripts/icon-map.json (hasil pemetaan, untuk audit) dan
-//   src/icons.tsx (komponen terbangkit, JANGAN diedit manual).
+//   src/icons/ (satu modul per set + barrel index.tsx, JANGAN diedit manual).
 // Jalankan: node scripts/icons-gen.mjs
 import fs from 'node:fs';
 import path from 'node:path';
@@ -132,8 +132,35 @@ console.log('=== fallback per set (memakai ikon Lucide) ===');
 for (const [set, list] of Object.entries(jatuh)) console.log(`${set} (${list.length}): ${list.join(', ')}`);
 console.log(`total: ${Object.values(hasil).reduce((n, p) => n + Object.values(p).filter(Boolean).length, 0)}/${NAMA.length * SET_IDS.length}`);
 
-// --- Bangkitkan src/icons.tsx ---
+// --- Bangkitkan src/icons/ (satu modul per set + barrel index) ---
 const alias = (nama, set) => `Ic${nama}${set[0].toUpperCase()}${set.slice(1)}`;
+const DIR_IKON = path.join(AKAR, 'src', 'icons');
+fs.rmSync(DIR_IKON, { recursive: true, force: true });
+fs.mkdirSync(DIR_IKON, { recursive: true });
+fs.rmSync(path.join(AKAR, 'src', 'icons.tsx'), { force: true });
+
+const kepala = (set) => `/* AUTO-GENERATED oleh scripts/icons-gen.mjs — JANGAN edit manual.
+ * Set "${set}" (${PREFIX[set]}): impor ikon Iconify/unplugin-icons + peta nama.
+ * Regenerasi: node scripts/icons-gen.mjs */
+import type { ComponentType, SVGProps } from 'react';
+
+`;
+for (const set of SET_IDS) {
+  let out = kepala(set);
+  for (const nama of NAMA) {
+    const ikon = hasil[nama][set];
+    if (ikon) out += `import ${alias(nama, set)} from '~icons/${PREFIX[set]}/${ikon}';\n`;
+  }
+  out += `\nconst set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {\n`;
+  for (const nama of NAMA) {
+    const ikon = hasil[nama][set];
+    if (ikon) out += `  ${nama}: ${alias(nama, set)},\n`;
+  }
+  out += '};\n\nexport default set;\n';
+  fs.writeFileSync(path.join(DIR_IKON, `${set}.ts`), out);
+  console.log(`src/icons/${set}.ts ditulis`);
+}
+
 let out = `/* AUTO-GENERATED oleh scripts/icons-gen.mjs — JANGAN edit manual.
  * ${NAMA.length} ikon × ${SET_IDS.length} set (Iconify/unplugin-icons). Set aktif dari prefs
  * \`iconSet\`; nama yang tidak tersedia di suatu set jatuh ke Lucide.
@@ -141,18 +168,10 @@ let out = `/* AUTO-GENERATED oleh scripts/icons-gen.mjs — JANGAN edit manual.
 import type { ComponentType, SVGProps } from 'react';
 import { useTheme } from '@/theme';
 import type { IconSetId } from '@/iconSets';
-
-/* ---------- impor ikon per set ---------- */
 `;
-for (const set of SET_IDS) {
-  out += `// ${PREFIX[set]}\n`;
-  for (const nama of NAMA) {
-    const ikon = hasil[nama][set];
-    if (ikon) out += `import ${alias(nama, set)} from '~icons/${PREFIX[set]}/${ikon}';\n`;
-  }
-  out += '\n';
-}
-out += `/* ---------- API publik ---------- */
+for (const set of SET_IDS) out += `import set${set[0].toUpperCase()}${set.slice(1)} from './${set}';\n`;
+out += `
+/* ---------- API publik ---------- */
 
 export interface IkonProps extends Omit<SVGProps<SVGSVGElement>, 'ref'> {
   /** Ukuran sisi ikon (px). Bawaan 24. */
@@ -163,14 +182,7 @@ type IkonDasar = ComponentType<SVGProps<SVGSVGElement>>;
 
 const SET: Record<IconSetId, Record<string, IkonDasar>> = {
 `;
-for (const set of SET_IDS) {
-  out += `  ${set}: {\n`;
-  for (const nama of NAMA) {
-    const ikon = hasil[nama][set];
-    if (ikon) out += `    ${nama}: ${alias(nama, set)},\n`;
-  }
-  out += '  },\n';
-}
+for (const set of SET_IDS) out += `  ${set}: set${set[0].toUpperCase()}${set.slice(1)},\n`;
 out += `};
 
 function IkonDinamis({ nama, size = 24, className, ...rest }: IkonProps & { nama: string }) {
@@ -193,5 +205,5 @@ function IkonDinamis({ nama, size = 24, className, ...rest }: IkonProps & { nama
 for (const nama of NAMA) {
   out += `export const ${nama} = (p: IkonProps) => <IkonDinamis {...p} nama="${nama}" />;\n`;
 }
-fs.writeFileSync(path.join(AKAR, 'src', 'icons.tsx'), out);
-console.log('src/icons.tsx ditulis');
+fs.writeFileSync(path.join(DIR_IKON, 'index.tsx'), out);
+console.log('src/icons/index.tsx ditulis');
