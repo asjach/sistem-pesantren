@@ -122,6 +122,7 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::get('mi-md', [MiMdController::class, 'index'])->middleware('permission:rekap_santri.lihat');
         Route::post('mi-md/samakan-kelas', [MiMdController::class, 'samakanKelas'])->middleware('permission:pindah_kelas.ubah');
         Route::post('mi-md/daftarkan-md', [MiMdController::class, 'daftarkanMd'])->middleware('permission:santri.tambah');
+        Route::post('mi-md/hapus-md', [MiMdController::class, 'hapusMd'])->middleware('permission:santri.ubah');
 
         Route::prefix('users')->group(function () {
             Route::get('/', [UserManagementController::class, 'index'])->middleware('permission:pengguna.lihat');

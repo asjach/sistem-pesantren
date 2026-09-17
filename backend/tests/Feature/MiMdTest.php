@@ -164,6 +164,36 @@ class MiMdTest extends TestCase
         $this->assertSame([], $resMts->json('beda_kelas'));
     }
 
+    public function test_hapus_md_fisik_tanpa_arsip(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeUser('admin', [$f['mi']->id, $f['md']->id]);
+
+        $s = Santri::create(['nama_lengkap' => 'Hapus MD', 'jk' => 'L']);
+        LembagaSantri::create(['santri_id' => $s->id, 'lembaga_id' => $f['mi']->id, 'nis_lokal' => '29501', 'is_active' => true]);
+        LembagaSantri::create(['santri_id' => $s->id, 'lembaga_id' => $f['md']->id, 'nis_lokal' => '29501', 'is_active' => true]);
+        $this->tempatkan($s, $f['md']->id, $f['taMd']->id, '1A');
+
+        $res = $this->actingAs($admin, 'sanctum')->postJson('/api/admin/mi-md/hapus-md', [
+            'items' => [['santri_id' => $s->id]],
+        ])->assertStatus(200);
+        $this->assertSame(1, (int) $res->json('berhasil'));
+
+        // Fisik hilang: anggota + riwayat MD lenyap, MI utuh.
+        $this->assertSame(0, LembagaSantri::where('santri_id', $s->id)->where('lembaga_id', $f['md']->id)->count());
+        $this->assertSame(0, RiwayatBelajar::where('santri_id', $s->id)->where('lembaga_id', $f['md']->id)->count());
+        $this->assertSame(1, LembagaSantri::where('santri_id', $s->id)->where('lembaga_id', $f['mi']->id)->count());
+
+        // Murni MD (tanpa MI aktif) ditolak.
+        $murni = Santri::create(['nama_lengkap' => 'Murni MD', 'jk' => 'L']);
+        LembagaSantri::create(['santri_id' => $murni->id, 'lembaga_id' => $f['md']->id, 'nis_lokal' => '29502', 'is_active' => true]);
+        $res2 = $this->actingAs($admin, 'sanctum')->postJson('/api/admin/mi-md/hapus-md', [
+            'items' => [['santri_id' => $murni->id]],
+        ])->assertStatus(200);
+        $this->assertSame(0, (int) $res2->json('berhasil'));
+        $this->assertCount(1, $res2->json('gagal'));
+    }
+
     public function test_x_lalu_daftar_lagi_mereaktivasi_arsip(): void
     {
         $f = $this->baseFixture();

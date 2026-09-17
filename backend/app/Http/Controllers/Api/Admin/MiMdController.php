@@ -13,6 +13,7 @@ use App\Services\PenerimaanService;
 use App\Services\SiklusSantriService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -281,6 +282,75 @@ class MiMdController extends Controller
 
         return response()->json([
             'pesan' => "Pendaftaran ke MD selesai: {$berhasil} berhasil, ".count($gagal).' gagal.',
+            'berhasil' => $berhasil,
+            'gagal' => $gagal,
+        ]);
+    }
+
+    /** POST /api/admin/mi-md/hapus-md — hapus FISIK jejak MD (anggota + riwayat).
+     *  Halaman ini khusus tambah/hapus tanpa histori; pengarsipan ranah mutasi.
+     *  Ditolak bila sudah ada arsip alumni/mutasi MD (pakai halaman mutasi). */
+    public function hapusMd(Request $request): JsonResponse
+    {
+        $pasangan = $this->resolvePasangan();
+        if (! $pasangan) {
+            return response()->json(['pesan' => 'Lembaga MI/MD tidak ditemukan.'], 422);
+        }
+        ['mi_id' => $miId, 'md_id' => $mdId] = $pasangan;
+
+        $data = $request->validate([
+            'items' => ['required', 'array', 'min:1', 'max:100'],
+            'items.*.santri_id' => ['required', 'integer', 'exists:santri,id'],
+        ]);
+
+        $auth = $request->user();
+        $berhasil = 0;
+        $gagal = [];
+
+        foreach ($data['items'] as $item) {
+            try {
+                $santri = Santri::findOrFail((int) $item['santri_id']);
+
+                if (! $auth->canAccessLembaga($mdId)
+                    || (! $auth->canAccessLembaga($miId) && ! $auth->canAccessLembaga($mdId))) {
+                    throw ValidationException::withMessages(['santri_id' => 'Akses ditolak.']);
+                }
+
+                // Hanya yang masih MI aktif (kembali menjadi MI Only).
+                $miAktif = LembagaSantri::where('santri_id', $santri->id)
+                    ->where('lembaga_id', $miId)
+                    ->where('is_active', true)
+                    ->exists();
+                if (! $miAktif) {
+                    throw ValidationException::withMessages(['santri_id' => 'Bukan anggota aktif MI.']);
+                }
+                if (! LembagaSantri::where('santri_id', $santri->id)->where('lembaga_id', $mdId)->exists()) {
+                    throw ValidationException::withMessages(['santri_id' => 'Tidak ada keanggotaan MD.']);
+                }
+
+                // Arsip resmi ada → lewat halaman mutasi, bukan X.
+                $adaArsip = $santri->alumni()->where('lembaga_lulus_id', $mdId)->exists()
+                    || $santri->mutasiKeluar()->where('lembaga_id', $mdId)->exists();
+                if ($adaArsip) {
+                    throw ValidationException::withMessages(['santri_id' => 'Sudah ada arsip MD — hapus via mutasi.']);
+                }
+
+                DB::transaction(function () use ($santri, $mdId) {
+                    RiwayatBelajar::where('santri_id', $santri->id)->where('lembaga_id', $mdId)->delete();
+                    LembagaSantri::where('santri_id', $santri->id)->where('lembaga_id', $mdId)->delete();
+                    $santri->hitungUlangStatusGlobal();
+                });
+                $berhasil++;
+            } catch (ValidationException $e) {
+                $gagal[] = [
+                    'santri_id' => (int) ($item['santri_id'] ?? 0),
+                    'pesan' => collect($e->errors())->flatten()->first(),
+                ];
+            }
+        }
+
+        return response()->json([
+            'pesan' => "Hapus dari MD selesai: {$berhasil} berhasil, ".count($gagal).' gagal.',
             'berhasil' => $berhasil,
             'gagal' => $gagal,
         ]);

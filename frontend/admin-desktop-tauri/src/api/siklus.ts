@@ -55,6 +55,14 @@ export function daftarkanMdMiMd(items: Array<{ santri_id: number }>) {
   );
 }
 
+/** Hapus FISIK jejak MD (anggota + riwayat); tanpa arsip. */
+export function hapusMdMiMd(items: Array<{ santri_id: number }>) {
+  return api<{ pesan: string; berhasil: number; gagal: Array<{ santri_id: number; pesan: string }> }>(
+    '/admin/mi-md/hapus-md',
+    { method: 'POST', body: JSON.stringify({ items }) },
+  );
+}
+
 export interface MutasiKeluar {
   id: number;
   santri_id: number;
