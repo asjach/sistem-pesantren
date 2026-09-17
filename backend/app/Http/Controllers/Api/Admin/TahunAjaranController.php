@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Api\Concerns\TenantGuard;
+use App\Http\Controllers\Api\Concerns\UrutDaftar;
 use App\Http\Controllers\Controller;
 use App\Models\TahunAjaran;
 use Illuminate\Http\Request;
@@ -18,9 +19,25 @@ use Illuminate\Validation\ValidationException;
 class TahunAjaranController extends Controller
 {
     use TenantGuard;
+    use UrutDaftar;
+
+    private const SORT_PETA = [
+        'nama' => ['tahun_ajaran.nama'],
+        'mulai' => ['tahun_ajaran.tanggal_mulai'],
+        'selesai' => ['tahun_ajaran.tanggal_selesai'],
+        'aktif' => ['tahun_ajaran.is_aktif'],
+        'lembaga' => ['lembaga.kode'],
+        'id' => ['tahun_ajaran.id'],
+    ];
+
+    private const SORT_NULLABLE = [
+        'tahun_ajaran.tanggal_mulai', 'tahun_ajaran.tanggal_selesai', 'lembaga.kode',
+    ];
 
     public function index(Request $request)
     {
+        $urut = $this->parseUrut($request, self::SORT_PETA);
+
         $auth = $request->user();
         $lembagaId = $request->filled('lembaga_id') ? (int) $request->input('lembaga_id') : null;
         if ($lembagaId !== null) {
@@ -56,14 +73,19 @@ class TahunAjaranController extends Controller
         // `termasuk_nonaktif`: sertakan baris bayangan (tersembunyi) agar halaman
         // bisa menampilkan tombol "Tampilkan kembali".
         if (! $termasukNonaktif) {
-            $query->where('is_active', true);
+            $query->where('tahun_ajaran.is_active', true);
         }
 
         // TA aktif selalu di urutan pertama, lalu tanggal_mulai terbaru.
-        return response()->json(
-            $query->orderByDesc('is_aktif')->orderByDesc('tanggal_mulai')->orderByDesc('id')
-                ->paginate($this->perPage($request))
-        );
+        if ($urut !== null) {
+            $query->select('tahun_ajaran.*')
+                ->leftJoin('lembaga', 'lembaga.id', '=', 'tahun_ajaran.lembaga_id');
+        }
+        $this->terapkanUrut($query, $urut, [
+            ['tahun_ajaran.is_aktif', 'turun'], ['tahun_ajaran.tanggal_mulai', 'turun'], ['tahun_ajaran.id', 'turun'],
+        ], self::SORT_NULLABLE);
+
+        return response()->json($query->paginate($this->perPage($request)));
     }
 
     public function store(Request $request)

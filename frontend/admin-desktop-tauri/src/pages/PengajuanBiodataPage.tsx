@@ -67,6 +67,9 @@ export default function PengajuanBiodataPage() {
   const [status, setStatus] = useState('diajukan');
   const [rows, setRows] = useState<PengajuanBiodata[]>([]);
   const [badge, setBadge] = useState<Record<string, number>>({});
+  /** Urut header: daftar nilai allowlist + arah global (maks 3 kunci). */
+  const [urut, setUrut] = useState<string[]>([]);
+  const [arahUrut, setArahUrut] = useState<'naik' | 'turun'>('naik');
   const pager = usePager('pengajuan_biodata');
   const [lastPage, setLastPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -79,12 +82,23 @@ export default function PengajuanBiodataPage() {
   const [tolakCatatan, setTolakCatatan] = useState('');
 
   const load = useCallback(
-    async function loadPage(p = pager.page, pp = pager.perPage) {
+    async function loadPage(
+      p = pager.page, pp = pager.perPage,
+      f?: { status?: string; urut?: string[]; arah?: 'naik' | 'turun' },
+    ) {
       const req = ++reqRef.current;
       setErr('');
       setLoading(true);
       try {
-        const res = await listPengajuan({ status, page: p, per_page: pp });
+        const st = f?.status ?? status;
+        const u = f?.urut ?? urut;
+        const a = f?.arah ?? arahUrut;
+        const res = await listPengajuan({
+          status: st,
+          sort: u.length ? u : undefined,
+          arah: u.length ? a : undefined,
+          page: p, per_page: pp,
+        });
         if (req !== reqRef.current) return;
         const fix = pager.sync(res.data.current_page, res.data.last_page);
         if (fix != null && fix !== p) {
@@ -102,8 +116,16 @@ export default function PengajuanBiodataPage() {
         if (req === reqRef.current) setLoading(false);
       }
     },
-    [status, pager.page, pager.perPage, pager.sync],
+    [status, pager.page, pager.perPage, pager.sync, urut, arahUrut],
   );
+
+  /** Klik header: simpan urut baru lalu muat ulang dari halaman 1. */
+  function terapkanUrut(nilai: string[], arah: 'naik' | 'turun') {
+    setUrut(nilai);
+    setArahUrut(arah);
+    pager.goFirst();
+    void load(1, pager.perPage, { status, urut: nilai, arah });
+  }
 
   useEffect(() => {
     if (pager.ready) load(pager.page);
@@ -166,6 +188,13 @@ export default function PengajuanBiodataPage() {
         canEdit={false}
         onCommit={noopCommit}
         onSaved={onSaved}
+        opsiUrut={[
+          { kunci: 'santri', nilai: 'santri' },
+          { kunci: 'status', nilai: 'status' },
+        ]}
+        urutAktif={urut}
+        arahUrut={arahUrut}
+        onUrut={terapkanUrut}
         filter={(
           <FilterField label="Status" htmlFor="select_status_pengajuan">
           <Select value={status} onValueChange={(v) => { setStatus(v); pager.goFirst(); }}>

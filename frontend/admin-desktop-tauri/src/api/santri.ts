@@ -69,12 +69,14 @@ export interface DokumenSantri {
 }
 
 export function listSantri(
-  params: { status_global?: boolean; lembaga_id?: number; q?: string; page?: number; per_page?: number } = {},
+  params: { status_global?: boolean; lembaga_id?: number; q?: string; sort?: string[]; arah?: 'naik' | 'turun'; page?: number; per_page?: number } = {},
 ) {
   const q = new URLSearchParams();
   if (params.status_global !== undefined) q.set('status_global', params.status_global ? '1' : '0');
   if (params.lembaga_id) q.set('lembaga_id', String(params.lembaga_id));
   if (params.q) q.set('q', params.q);
+  if (params.sort?.length) q.set('sort', params.sort.join(','));
+  if (params.arah) q.set('arah', params.arah);
   q.set('page', String(params.page ?? 1));
   if (params.per_page != null) q.set('per_page', String(params.per_page));
   return api<Paginate<Santri>>(`/admin/santri?${q.toString()}`);

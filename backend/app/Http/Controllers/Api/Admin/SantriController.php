@@ -6,6 +6,7 @@ use App\Exports\SantriLembagaDataExport;
 use App\Exports\SantriLembagaTemplateExport;
 use App\Exports\SantriTemplateExport;
 use App\Http\Controllers\Api\Concerns\TenantGuard;
+use App\Http\Controllers\Api\Concerns\UrutDaftar;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\ImportSantriRequest;
 use App\Imports\SantriLembagaImport;
@@ -34,11 +35,26 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
 class SantriController extends Controller
 {
     use TenantGuard;
+    use UrutDaftar;
+
+    private const SORT_PETA = [
+        'nama' => ['santri.nama_lengkap'],
+        'nik' => ['santri.nik'],
+        'nisn' => ['santri.nisn'],
+        'jk' => ['santri.jk'],
+        'tipe' => ['santri.tipe_santri'],
+        'status' => ['santri.status_global'],
+        'id' => ['santri.id'],
+    ];
+
+    private const SORT_NULLABLE = ['santri.nik', 'santri.nisn'];
 
     /** GET /api/admin/santri — daftar buku induk (identitas + keanggotaan aktif). */
     public function index(Request $request)
     {
         $this->authorize('viewAny', Santri::class);
+
+        $urut = $this->parseUrut($request, self::SORT_PETA);
 
         $query = Santri::tenantScope()
             ->with(['lembagaAktif:id,santri_id,lembaga_id,nis_lokal,nis_kemenag', 'lembagaAktif.lembaga:id,nama,kode']);
@@ -59,7 +75,9 @@ class SantriController extends Controller
                 ->orWhere('nisn', 'like', "%{$q}%"));
         }
 
-        return response()->json($query->latest('id')->paginate($this->perPage($request)));
+        $this->terapkanUrut($query, $urut, [['santri.id', 'turun']], self::SORT_NULLABLE);
+
+        return response()->json($query->paginate($this->perPage($request)));
     }
 
     /** POST /api/admin/santri — input manual identitas (buku induk). */

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Exports\RiwayatBelajarTemplateExport;
 use App\Http\Controllers\Api\Concerns\TenantGuard;
+use App\Http\Controllers\Api\Concerns\UrutDaftar;
 use App\Http\Controllers\Controller;
 use App\Imports\RiwayatBelajarImport;
 use App\Models\LembagaSantri;
@@ -26,11 +27,28 @@ use Maatwebsite\Excel\Validators\ValidationException;
 class RiwayatBelajarController extends Controller
 {
     use TenantGuard;
+    use UrutDaftar;
+
+    private const SORT_PETA = [
+        'santri' => ['santri.nama_lengkap'],
+        'kelas' => ['kelas.nama_kelas'],
+        'lembaga' => ['lembaga.kode'],
+        'ta' => ['tahun_ajaran.nama'],
+        'tingkat' => ['riwayat_belajar.tingkat'],
+        'semester' => ['riwayat_belajar.semester'],
+        'absen' => ['riwayat_belajar.no_absen'],
+        'id' => ['riwayat_belajar.id'],
+    ];
+
+    private const SORT_NULLABLE = [
+        'kelas.nama_kelas', 'riwayat_belajar.tingkat', 'riwayat_belajar.no_absen',
+    ];
 
     /** GET /api/admin/riwayat-belajar — roster riwayat (default hanya aktif). */
     public function index(Request $request): JsonResponse
     {
         $this->authorize('viewAny', Santri::class);
+        $urut = $this->parseUrut($request, self::SORT_PETA);
 
         $query = $this->scopeLembaga(
             RiwayatBelajar::with([
@@ -44,9 +62,9 @@ class RiwayatBelajarController extends Controller
         );
 
         if ($request->has('is_aktif')) {
-            $query->where('is_aktif', $request->boolean('is_aktif'));
+            $query->where('riwayat_belajar.is_aktif', $request->boolean('is_aktif'));
         } else {
-            $query->where('is_aktif', true);
+            $query->where('riwayat_belajar.is_aktif', true);
         }
         if ($request->filled('tahun_ajaran_id')) {
             $query->where('tahun_ajaran_id', $request->integer('tahun_ajaran_id'));
@@ -73,9 +91,20 @@ class RiwayatBelajarController extends Controller
                 ->orWhere('nik', 'like', "%{$q}%"));
         }
 
-        $hasil = $query->orderBy('lembaga_id')->orderBy('tingkat')->orderBy('kelas_id')
-            ->orderBy('no_absen')->orderBy('santri_id')
-            ->paginate($this->perPage($request));
+        if ($urut !== null) {
+            $query->select('riwayat_belajar.*')
+                ->leftJoin('santri', 'santri.id', '=', 'riwayat_belajar.santri_id')
+                ->leftJoin('kelas', 'kelas.id', '=', 'riwayat_belajar.kelas_id')
+                ->leftJoin('lembaga', 'lembaga.id', '=', 'riwayat_belajar.lembaga_id')
+                ->leftJoin('tahun_ajaran', 'tahun_ajaran.id', '=', 'riwayat_belajar.tahun_ajaran_id');
+        }
+        $this->terapkanUrut($query, $urut, [
+            ['riwayat_belajar.lembaga_id', 'naik'], ['riwayat_belajar.tingkat', 'naik'],
+            ['riwayat_belajar.kelas_id', 'naik'], ['riwayat_belajar.no_absen', 'naik'],
+            ['riwayat_belajar.santri_id', 'naik'],
+        ], self::SORT_NULLABLE);
+
+        $hasil = $query->paginate($this->perPage($request));
 
         $this->lampirkanNisLokal($hasil);
 

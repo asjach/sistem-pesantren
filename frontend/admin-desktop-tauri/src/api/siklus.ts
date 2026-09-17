@@ -129,6 +129,8 @@ export function listRiwayatBelajar(params: {
   q?: string;
   is_aktif?: boolean;
   status_akhir?: string;
+  sort?: string[];
+  arah?: 'naik' | 'turun';
   page?: number;
   per_page?: number;
 } = {}) {
@@ -142,6 +144,8 @@ export function listRiwayatBelajar(params: {
   if (params.q) q.set('q', params.q);
   if (params.is_aktif !== undefined) q.set('is_aktif', params.is_aktif ? '1' : '0');
   if (params.status_akhir) q.set('status_akhir', params.status_akhir);
+  if (params.sort?.length) q.set('sort', params.sort.join(','));
+  if (params.arah) q.set('arah', params.arah);
   q.set('page', String(params.page ?? 1));
   if (params.per_page != null) q.set('per_page', String(params.per_page));
   return api<Paginate<RiwayatRow>>(`/admin/riwayat-belajar?${q.toString()}`);
@@ -257,20 +261,24 @@ export function rekapSantri(params: { lembaga_id?: number; tahun_ajaran_id?: num
 
 // ---------- Aksi siklus ----------
 
-export function listMutasiKeluar(params: { lembaga_id?: number; page?: number; per_page?: number } = {}) {
+export function listMutasiKeluar(params: { lembaga_id?: number; sort?: string[]; arah?: 'naik' | 'turun'; page?: number; per_page?: number } = {}) {
   const q = new URLSearchParams();
   if (params.lembaga_id) q.set('lembaga_id', String(params.lembaga_id));
+  if (params.sort?.length) q.set('sort', params.sort.join(','));
+  if (params.arah) q.set('arah', params.arah);
   q.set('page', String(params.page ?? 1));
   if (params.per_page != null) q.set('per_page', String(params.per_page));
   return api<Paginate<MutasiKeluar>>(`/admin/mutasi-keluar?${q.toString()}`);
 }
 
 export function listAlumni(
-  params: { lembaga_id?: number; tahun_ajaran_lulus_id?: number; page?: number; per_page?: number } = {},
+  params: { lembaga_id?: number; tahun_ajaran_lulus_id?: number; sort?: string[]; arah?: 'naik' | 'turun'; page?: number; per_page?: number } = {},
 ) {
   const q = new URLSearchParams();
   if (params.lembaga_id) q.set('lembaga_id', String(params.lembaga_id));
   if (params.tahun_ajaran_lulus_id) q.set('tahun_ajaran_lulus_id', String(params.tahun_ajaran_lulus_id));
+  if (params.sort?.length) q.set('sort', params.sort.join(','));
+  if (params.arah) q.set('arah', params.arah);
   q.set('page', String(params.page ?? 1));
   if (params.per_page != null) q.set('per_page', String(params.per_page));
   return api<Paginate<Alumni>>(`/admin/alumni?${q.toString()}`);

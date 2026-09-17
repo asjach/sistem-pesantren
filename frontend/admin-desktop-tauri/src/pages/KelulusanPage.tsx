@@ -11,7 +11,6 @@ import ExcelTable from '@/components/ExcelTable';
 import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
 import { useTahunAjaranAwalString } from '@/hooks/useTahunAjaranAwal';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
-import TabelRingkas from '@/components/TabelRingkas';
 import { toast } from 'sonner';
 
 /** Kelulusan: kiri santri tingkat akhir → kanan alumni & santri tidak lulus. */
@@ -27,6 +26,9 @@ export default function KelulusanPage() {
   const [pilih, setPilih] = useState<Set<number>>(new Set());
   const [tidakLulus, setTidakLulus] = useState<{ santri_id: number; nama: string; kelas: string | null }[]>([]);
   const [alumni, setAlumni] = useState<Alumni[]>([]);
+  /** Urut header alumni: daftar nilai allowlist + arah global (maks 3 kunci). */
+  const [urut, setUrut] = useState<string[]>([]);
+  const [arahUrut, setArahUrut] = useState<'naik' | 'turun'>('naik');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -44,13 +46,27 @@ export default function KelulusanPage() {
     } catch (e) { setErr(errorMessage(e)); }
   }, [lembagaId, tingkat]);
 
-  const loadArsip = useCallback(async () => {
+  const loadArsip = useCallback(async (f?: { urut?: string[]; arah?: 'naik' | 'turun' }) => {
     if (!lembagaId) { setAlumni([]); return; }
     try {
-      const res = await listAlumni({ lembaga_id: Number(lembagaId), per_page: 100 });
+      const u = f?.urut ?? urut;
+      const a = f?.arah ?? arahUrut;
+      const res = await listAlumni({
+        lembaga_id: Number(lembagaId),
+        sort: u.length ? u : undefined,
+        arah: u.length ? a : undefined,
+        per_page: 100,
+      });
       setAlumni(res.data);
     } catch (e) { setErr(errorMessage(e)); }
-  }, [lembagaId]);
+  }, [lembagaId, urut, arahUrut]);
+
+  /** Klik header: simpan urut baru lalu muat ulang arsip alumni. */
+  function terapkanUrut(nilai: string[], arah: 'naik' | 'turun') {
+    setUrut(nilai);
+    setArahUrut(arah);
+    void loadArsip({ urut: nilai, arah });
+  }
 
   useEffect(() => { void loadKiri(); }, [loadKiri]);
   useEffect(() => { void loadArsip(); }, [loadArsip]);
@@ -144,24 +160,42 @@ export default function KelulusanPage() {
 
         <div className="grid grid-rows-2 gap-4">
           <section className="rounded-md border">
-            <TabelRingkas
-              tableKey="kelulusan_alumni"
-              judul={`Alumni (${alumni.length})`}
-              maxRows={6}
-              emptyText="Belum ada alumni."
-              kolom={[
-                { key: 'nama', label: 'Nama' },
-                { key: 'kelas', label: 'Kelas lulus' },
-                { key: 'ta', label: 'TA lulus' },
-                { key: 'ijazah', label: 'No. ijazah' },
-              ]}
-              baris={alumni.map((a) => [
-                a.santri?.nama_lengkap ?? '—',
-                a.kelas_lulus?.nama_kelas ?? '—',
-                a.tahun_ajaran_lulus?.nama ?? '—',
-                a.nomor_ijazah ?? '—',
-              ])}
-            />
+            <header className="border-b bg-muted/40 px-3 py-2 text-sm font-medium">{`Alumni (${alumni.length})`}</header>
+            <div className="px-2 pb-1">
+              <ExcelTable
+                tableKey="kelulusan_alumni"
+                fields={[
+                  { key: 'santri', label: 'Nama', kind: 'static' },
+                  { key: 'kelas', label: 'Kelas lulus', kind: 'static' },
+                  { key: 'ta', label: 'TA lulus', kind: 'static' },
+                  { key: 'ijazah', label: 'No. ijazah', kind: 'static' },
+                ]}
+                rows={alumni}
+                getValues={(a) => ({
+                  santri: a.santri?.nama_lengkap ?? '—',
+                  kelas: a.kelas_lulus?.nama_kelas ?? '—',
+                  ta: a.tahun_ajaran_lulus?.nama ?? '—',
+                  ijazah: a.nomor_ijazah ?? '—',
+                })}
+                opsiUrut={[
+                  { kunci: 'santri', nilai: 'santri' },
+                  { kunci: 'ta', nilai: 'ta' },
+                  { kunci: 'kelas', nilai: 'kelas' },
+                ]}
+                urutAktif={urut}
+                arahUrut={arahUrut}
+                onUrut={terapkanUrut}
+                canEdit={false}
+                onCommit={async () => {}}
+                onSaved={() => {}}
+                renderActions={() => null}
+                hideCheckbox
+                hideActions
+                hidePreset
+                maxRows={6}
+                emptyText="Belum ada alumni."
+              />
+            </div>
           </section>
           <section className="rounded-md border">
             <header className="border-b bg-muted/40 px-3 py-2 text-sm font-medium">Santri tidak lulus ({tidakLulus.length})</header>

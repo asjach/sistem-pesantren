@@ -134,6 +134,9 @@ export default function UsersPage() {
   const fields = useMemo(() => buatUserFields(creatable, lembagas), [creatable, lembagas]);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
+  /** Urut header: daftar nilai allowlist + arah global (maks 3 kunci). */
+  const [urut, setUrut] = useState<string[]>([]);
+  const [arahUrut, setArahUrut] = useState<'naik' | 'turun'>('naik');
   const pager = usePager('users');
   const reqRef = useRef(0);
   const lembagaReqRef = useRef(0);
@@ -163,16 +166,25 @@ export default function UsersPage() {
   const getValues = useCallback(userGridValues, []);
 
   const load = useCallback(
-    async function loadPage(p = pager.page, pp = pager.perPage) {
+    async function loadPage(p = pager.page, pp = pager.perPage, f?: { urut?: string[]; arah?: 'naik' | 'turun' }) {
       const req = ++reqRef.current;
       setErr('');
       setLoading(true);
+      const urutPakai = f?.urut ?? urut;
+      const arahPakai = f?.arah ?? arahUrut;
       try {
-        const res = await listUsers({ search: search || undefined, role: roleFilter || undefined, page: p, per_page: pp });
+        const res = await listUsers({
+          search: search || undefined,
+          role: roleFilter || undefined,
+          sort: urutPakai.length ? urutPakai : undefined,
+          arah: urutPakai.length ? arahPakai : undefined,
+          page: p,
+          per_page: pp,
+        });
         if (req !== reqRef.current) return;
         const fix = pager.sync(res.current_page, res.last_page);
         if (fix != null && fix !== p) {
-          await loadPage(fix, pp);
+          await loadPage(fix, pp, f);
           return;
         }
         if (req !== reqRef.current) return;
@@ -185,7 +197,7 @@ export default function UsersPage() {
         if (req === reqRef.current) setLoading(false);
       }
     },
-    [pager.page, pager.perPage, pager.sync, search, roleFilter],
+    [pager.page, pager.perPage, pager.sync, search, roleFilter, urut, arahUrut],
   );
 
   useEffect(() => {
@@ -288,6 +300,14 @@ export default function UsersPage() {
     await load(1);
   }, [load]);
 
+  /** Klik header: simpan urut baru lalu muat ulang dari halaman 1. */
+  function terapkanUrut(nilai: string[], arah: 'naik' | 'turun') {
+    setUrut(nilai);
+    setArahUrut(arah);
+    pager.goFirst();
+    void load(1, pager.perPage, { urut: nilai, arah });
+  }
+
   const onSearchChange = useCallback((v: string) => {
     setSearch(v);
     pager.goFirst();
@@ -334,6 +354,15 @@ export default function UsersPage() {
         onSearchSubmit={onSearchSubmit}
         searchPlaceholder="Nama / email / HP / username"
         searchIds={{ form: 'form_cari_user', input: 'input_cari_user', button: 'btn_cari_user' }}
+        opsiUrut={[
+          { kunci: 'nama', nilai: 'nama' },
+          { kunci: 'email', nilai: 'email' },
+          { kunci: 'phone', nilai: 'hp' },
+          { kunci: 'username', nilai: 'username' },
+        ]}
+        urutAktif={urut}
+        arahUrut={arahUrut}
+        onUrut={terapkanUrut}
         addButton={canTambah ? (
           <Button id="btn_buka_tambah_user" onClick={() => setTambahOpen(true)}>
             + Pengguna

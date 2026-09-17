@@ -58,6 +58,9 @@ export default function RiwayatBelajarPage() {
   const [arsip, setArsip] = useState(false);
   const [search, setSearch] = useState('');
   const [terapkanCari, setTerapkanCari] = useState('');
+  /** Urut header: daftar nilai allowlist + arah global (maks 3 kunci). */
+  const [urut, setUrut] = useState<string[]>([]);
+  const [arahUrut, setArahUrut] = useState<'naik' | 'turun'>('naik');
   const [kelas, setKelasOpsi] = useState<Kelas[]>([]);
 
   const [inputOpen, setInputOpen] = useState(false);
@@ -71,10 +74,12 @@ export default function RiwayatBelajarPage() {
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(
-    async function loadPage(p = pager.page, pp = pager.perPage) {
+    async function loadPage(p = pager.page, pp = pager.perPage, f?: { urut?: string[]; arah?: 'naik' | 'turun' }) {
       const req = ++reqRef.current;
       setErr('');
       setLoading(true);
+      const urutPakai = f?.urut ?? urut;
+      const arahPakai = f?.arah ?? arahUrut;
       try {
         const res = await listRiwayatBelajar({
           lembaga_id: lembagaId ? Number(lembagaId) : undefined,
@@ -83,13 +88,15 @@ export default function RiwayatBelajarPage() {
           tanpa_kelas: tanpaKelas || undefined,
           is_aktif: arsip ? false : true,
           q: terapkanCari || undefined,
+          sort: urutPakai.length ? urutPakai : undefined,
+          arah: urutPakai.length ? arahPakai : undefined,
           page: p,
           per_page: pp,
         });
         if (req !== reqRef.current) return;
         const fix = pager.sync(res.current_page, res.last_page);
         if (fix != null && fix !== p) {
-          await loadPage(fix, pp);
+          await loadPage(fix, pp, f);
           return;
         }
         if (req !== reqRef.current) return;
@@ -102,8 +109,16 @@ export default function RiwayatBelajarPage() {
         if (req === reqRef.current) setLoading(false);
       }
     },
-    [pager.page, pager.perPage, pager.sync, lembagaId, taId, semester, tanpaKelas, arsip, terapkanCari],
+    [pager.page, pager.perPage, pager.sync, lembagaId, taId, semester, tanpaKelas, arsip, terapkanCari, urut, arahUrut],
   );
+
+  /** Klik header: simpan urut baru lalu muat ulang dari halaman 1. */
+  function terapkanUrut(nilai: string[], arah: 'naik' | 'turun') {
+    setUrut(nilai);
+    setArahUrut(arah);
+    pager.goFirst();
+    void load(1, pager.perPage, { urut: nilai, arah });
+  }
 
   useEffect(() => {
     if (pager.ready) load(pager.page);
@@ -156,6 +171,16 @@ export default function RiwayatBelajarPage() {
         onSearchSubmit={() => { setTerapkanCari(search.trim()); pager.goFirst(); }}
         searchPlaceholder="Nama / NIK"
         searchIds={{ form: 'form_cari_riwayat_belajar', input: 'input_cari_riwayat_belajar', button: 'btn_cari_riwayat_belajar' }}
+        opsiUrut={[
+          { kunci: 'santri', nilai: 'santri' },
+          { kunci: 'kelas', nilai: 'kelas' },
+          { kunci: 'lembaga', nilai: 'lembaga' },
+          { kunci: 'tingkat', nilai: 'tingkat' },
+          { kunci: 'absen', nilai: 'absen' },
+        ]}
+        urutAktif={urut}
+        arahUrut={arahUrut}
+        onUrut={terapkanUrut}
         filter={(
           <>
             <FilterSemester id="select_semester_riwayat_belajar" value={semester} onChange={(v) => { setSemester(v); pager.goFirst(); }} />

@@ -173,6 +173,9 @@ export default function PsbPage() {
   useLembagaAwalString(setLembagaId);
   const [rows, setRows] = useState<PsbCalon[]>([]);
   const pager = usePager('psb');
+  /** Urut header antrean: daftar nilai allowlist + arah global (maks 3 kunci). */
+  const [urut, setUrut] = useState<string[]>([]);
+  const [arahUrut, setArahUrut] = useState<'naik' | 'turun'>('naik');
   const reqRef = useRef(0);
   const lembagaReqRef = useRef(0);
   const gelombangReqRef = useRef(0);
@@ -240,7 +243,10 @@ export default function PsbPage() {
   );
 
   const load = useCallback(
-    async function loadPage(p = pager.page, pp = pager.perPage) {
+    async function loadPage(
+      p = pager.page, pp = pager.perPage,
+      f?: { urut?: string[]; arah?: 'naik' | 'turun' },
+    ) {
       const req = ++reqRef.current;
       setErr('');
       setLoading(true);
@@ -249,9 +255,13 @@ export default function PsbPage() {
         let statuses = stageDef?.statuses ?? [];
         // Tahap Pendaftar dipisah: baru vs waiting_list.
         if (stage === 'pendaftar' && subStatus) statuses = [subStatus];
+        const u = f?.urut ?? urut;
+        const a = f?.arah ?? arahUrut;
         const res = await listAntrean({
           status: statuses.join(','),
           lembaga_id: lembagaId ? Number(lembagaId) : undefined,
+          sort: u.length ? u : undefined,
+          arah: u.length ? a : undefined,
           terhapus: tampilTerhapus || undefined,
           page: p,
           per_page: pp,
@@ -273,8 +283,16 @@ export default function PsbPage() {
         if (req === reqRef.current) setLoading(false);
       }
     },
-    [pager.page, pager.perPage, pager.sync, stage, subStatus, lembagaId, tampilTerhapus],
+    [pager.page, pager.perPage, pager.sync, stage, subStatus, lembagaId, tampilTerhapus, urut, arahUrut],
   );
+
+  /** Klik header: simpan urut baru lalu muat ulang antrean dari halaman 1. */
+  function terapkanUrut(nilai: string[], arah: 'naik' | 'turun') {
+    setUrut(nilai);
+    setArahUrut(arah);
+    pager.goFirst();
+    void load(1, pager.perPage, { urut: nilai, arah });
+  }
 
   useEffect(() => {
     if (pager.ready) load(pager.page);
@@ -780,6 +798,16 @@ export default function PsbPage() {
         canEdit={false}
         onCommit={onCommit}
         onSaved={onSaved}
+        opsiUrut={[
+          { kunci: 'nama', nilai: 'nama' },
+          { kunci: 'nik', nilai: 'nik' },
+          { kunci: 'gelombang', nilai: 'gelombang' },
+          { kunci: 'lembaga', nilai: 'lembaga' },
+          { kunci: 'status', nilai: 'status' },
+        ]}
+        urutAktif={urut}
+        arahUrut={arahUrut}
+        onUrut={terapkanUrut}
         onCreateRow={stage === 'pendaftar' && canTambahPsb ? createRow : undefined}
         inputRowValues={{ lembaga: lembagaTerpilih }}
         filter={(

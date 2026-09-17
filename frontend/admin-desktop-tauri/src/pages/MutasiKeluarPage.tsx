@@ -12,7 +12,6 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import ExcelTable from '@/components/ExcelTable';
 import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
-import TabelRingkas from '@/components/TabelRingkas';
 import Pager from '@/components/Pager';
 import { usePager } from '@/hooks/usePager';
 import { toast } from 'sonner';
@@ -30,6 +29,9 @@ export default function MutasiKeluarPage() {
   const pager = usePager('mutasi_keluar');
   const [lastPage, setLastPage] = useState(1);
   const [total, setTotal] = useState(0);
+  /** Urut header arsip: daftar nilai allowlist + arah global (maks 3 kunci). */
+  const [urut, setUrut] = useState<string[]>([]);
+  const [arahUrut, setArahUrut] = useState<'naik' | 'turun'>('naik');
 
   const [baris, setBaris] = useState<RiwayatRow | null>(null);
   const [tanggal, setTanggal] = useState('');
@@ -49,15 +51,33 @@ export default function MutasiKeluarPage() {
     } catch (e) { setErr(errorMessage(e)); }
   }, [lembagaId]);
 
-  const loadArsip = useCallback(async (p = pager.page, pp = pager.perPage) => {
+  const loadArsip = useCallback(async (
+    p = pager.page, pp = pager.perPage,
+    f?: { urut?: string[]; arah?: 'naik' | 'turun' },
+  ) => {
     if (!lembagaId) { setArsip([]); return; }
     try {
-      const res = await listMutasiKeluar({ lembaga_id: Number(lembagaId), page: p, per_page: pp });
+      const u = f?.urut ?? urut;
+      const a = f?.arah ?? arahUrut;
+      const res = await listMutasiKeluar({
+        lembaga_id: Number(lembagaId),
+        sort: u.length ? u : undefined,
+        arah: u.length ? a : undefined,
+        page: p, per_page: pp,
+      });
       setArsip(res.data);
       setLastPage(res.last_page);
       setTotal(res.total);
     } catch (e) { setErr(errorMessage(e)); }
-  }, [lembagaId, pager.page, pager.perPage]);
+  }, [lembagaId, pager.page, pager.perPage, urut, arahUrut]);
+
+  /** Klik header: simpan urut baru lalu muat ulang arsip dari halaman 1. */
+  function terapkanUrut(nilai: string[], arah: 'naik' | 'turun') {
+    setUrut(nilai);
+    setArahUrut(arah);
+    pager.goFirst();
+    void loadArsip(1, pager.perPage, { urut: nilai, arah });
+  }
 
   useEffect(() => { void loadKiri(); }, [loadKiri]);
   useEffect(() => { void loadArsip(); }, [loadArsip]);
@@ -123,24 +143,41 @@ export default function MutasiKeluarPage() {
         </section>
 
         <section className="rounded-md border">
-          <TabelRingkas
-            tableKey="mutasi_arsip"
-            judul="Arsip mutasi keluar"
-            maxRows={8}
-            emptyText="Belum ada arsip mutasi."
-            kolom={[
-              { key: 'nama', label: 'Nama' },
-              { key: 'tanggal', label: 'Tanggal' },
-              { key: 'alasan', label: 'Alasan' },
-              { key: 'tujuan', label: 'Tujuan' },
-            ]}
-            baris={arsip.map((m) => [
-              m.santri?.nama_lengkap ?? '—',
-              m.tanggal_mutasi?.slice(0, 10) ?? '—',
-              m.alasan_mutasi ?? '—',
-              m.nama_sekolah_tujuan ?? '—',
-            ])}
-          />
+          <header className="border-b bg-muted/40 px-3 py-2 text-sm font-medium">Arsip mutasi keluar</header>
+          <div className="px-2 pb-1">
+            <ExcelTable
+              tableKey="mutasi_arsip"
+              fields={[
+                { key: 'santri', label: 'Nama', kind: 'static' },
+                { key: 'tanggal', label: 'Tanggal', kind: 'static' },
+                { key: 'alasan', label: 'Alasan', kind: 'static' },
+                { key: 'tujuan', label: 'Tujuan', kind: 'static' },
+              ]}
+              rows={arsip}
+              getValues={(m) => ({
+                santri: m.santri?.nama_lengkap ?? '—',
+                tanggal: m.tanggal_mutasi?.slice(0, 10) ?? '—',
+                alasan: m.alasan_mutasi ?? '—',
+                tujuan: m.nama_sekolah_tujuan ?? '—',
+              })}
+              opsiUrut={[
+                { kunci: 'santri', nilai: 'santri' },
+                { kunci: 'tanggal', nilai: 'tanggal' },
+              ]}
+              urutAktif={urut}
+              arahUrut={arahUrut}
+              onUrut={terapkanUrut}
+              canEdit={false}
+              onCommit={async () => {}}
+              onSaved={() => {}}
+              renderActions={() => null}
+              hideCheckbox
+              hideActions
+              hidePreset
+              maxRows={8}
+              emptyText="Belum ada arsip mutasi."
+            />
+          </div>
           <Pager page={pager.page} lastPage={lastPage} total={total} perPage={pager.perPage} onPage={(p) => { pager.setPage(p); void loadArsip(p); }} onPerPage={(pp) => { pager.setPerPage(pp); void loadArsip(1, pp); }} />
         </section>
       </div>

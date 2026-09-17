@@ -16,9 +16,11 @@ export interface PengajuanBiodata {
   wali?: { id: number; name: string } | null;
 }
 
-export function listPengajuan(params: { status?: string; page?: number; per_page?: number } = {}) {
+export function listPengajuan(params: { status?: string; sort?: string[]; arah?: 'naik' | 'turun'; page?: number; per_page?: number } = {}) {
   const q = new URLSearchParams();
   if (params.status) q.set('status', params.status);
+  if (params.sort?.length) q.set('sort', params.sort.join(','));
+  if (params.arah) q.set('arah', params.arah);
   q.set('page', String(params.page ?? 1));
   if (params.per_page != null) q.set('per_page', String(params.per_page));
   return api<{ pesan: string; data: Paginate<PengajuanBiodata>; badge: Record<string, number> }>(

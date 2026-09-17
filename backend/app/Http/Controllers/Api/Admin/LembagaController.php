@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Api\Concerns\TenantGuard;
+use App\Http\Controllers\Api\Concerns\UrutDaftar;
 use App\Http\Controllers\Controller;
 use App\Models\Lembaga;
 use Illuminate\Http\Request;
@@ -17,9 +18,23 @@ use Illuminate\Validation\ValidationException;
 class LembagaController extends Controller
 {
     use TenantGuard;
+    use UrutDaftar;
+
+    private const SORT_PETA = [
+        'kode' => ['lembaga.kode'],
+        'nama' => ['lembaga.nama'],
+        'induk' => ['induk.nama'],
+        'kelompok' => ['lembaga.kelompok_psb'],
+        'seleksi' => ['lembaga.is_seleksi'],
+        'id' => ['lembaga.id'],
+    ];
+
+    private const SORT_NULLABLE = ['lembaga.kode', 'induk.nama'];
 
     public function index(Request $request)
     {
+        $urut = $this->parseUrut($request, self::SORT_PETA);
+
         $query = Lembaga::tenantScope()->with('parent:id,nama,kode');
 
         if ($request->filled('search')) {
@@ -27,7 +42,13 @@ class LembagaController extends Controller
             $query->where(fn ($q) => $q->where('nama', 'like', "%{$s}%")->orWhere('kode', 'like', "%{$s}%"));
         }
 
-        return response()->json($query->orderBy('nama')->paginate($this->perPage($request)));
+        if ($urut !== null) {
+            $query->select('lembaga.*')
+                ->leftJoin('lembaga as induk', 'induk.id', '=', 'lembaga.parent_id');
+        }
+        $this->terapkanUrut($query, $urut, [['lembaga.nama', 'naik']], self::SORT_NULLABLE);
+
+        return response()->json($query->paginate($this->perPage($request)));
     }
 
     public function store(Request $request)

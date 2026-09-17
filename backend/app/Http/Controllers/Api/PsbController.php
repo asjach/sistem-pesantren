@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Exports\PsbTemplateExport;
 use App\Http\Controllers\Api\Concerns\TenantGuard;
+use App\Http\Controllers\Api\Concerns\UrutDaftar;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\PsbDaftarRequest;
 use App\Http\Requests\PsbSeleksiRequest;
@@ -23,6 +24,18 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 class PsbController extends Controller
 {
     use TenantGuard;
+    use UrutDaftar;
+
+    private const SORT_PETA = [
+        'nama' => ['psb_calon_santri.nama_lengkap'],
+        'nik' => ['psb_calon_santri.nik'],
+        'gelombang' => ['psb_gelombang.nama'],
+        'lembaga' => ['lembaga.kode'],
+        'status' => ['psb_calon_santri.status_pendaftaran'],
+        'id' => ['psb_calon_santri.id'],
+    ];
+
+    private const SORT_NULLABLE = ['psb_calon_santri.nik', 'psb_gelombang.nama'];
 
     /** GET /api/psb/antrean-daftar-ulang?status=ajukan_daftar_ulang (scope tenant).
      *  `status` boleh beberapa dipisah koma (dipakai tahapan timeline FE). */
@@ -41,8 +54,14 @@ class PsbController extends Controller
 
         $query = (clone $base)
             ->whereIn('status_pendaftaran', $statuses)
-            ->with(['lembagaTujuan:id,nama,kode', 'lembagaDetail.lembaga:id,nama,kode', 'gelombang:id,nama'])
-            ->latest('id');
+            ->with(['lembagaTujuan:id,nama,kode', 'lembagaDetail.lembaga:id,nama,kode', 'gelombang:id,nama']);
+        $urut = $this->parseUrut($request, self::SORT_PETA);
+        if ($urut !== null) {
+            $query->select('psb_calon_santri.*')
+                ->leftJoin('lembaga', 'lembaga.id', '=', 'psb_calon_santri.lembaga_id')
+                ->leftJoin('psb_gelombang', 'psb_gelombang.id', '=', 'psb_calon_santri.gelombang_id');
+        }
+        $this->terapkanUrut($query, $urut, [['psb_calon_santri.id', 'turun']], self::SORT_NULLABLE);
         if ($request->boolean('terhapus')) {
             $query->onlyTrashed();
         }

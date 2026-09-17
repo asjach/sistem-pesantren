@@ -53,9 +53,11 @@ export interface Paginate<T> {
   total: number;
 }
 
-export function listLembaga(params: { search?: string; page?: number; per_page?: number } = {}) {
+export function listLembaga(params: { search?: string; sort?: string[]; arah?: 'naik' | 'turun'; page?: number; per_page?: number } = {}) {
   const q = new URLSearchParams();
   if (params.search) q.set('search', params.search);
+  if (params.sort?.length) q.set('sort', params.sort.join(','));
+  if (params.arah) q.set('arah', params.arah);
   q.set('page', String(params.page ?? 1));
   q.set('per_page', String(params.per_page ?? PER_PAGE_DEFAULT));
   return api<Paginate<Lembaga>>(`/admin/lembaga?${q.toString()}`);
@@ -208,6 +210,8 @@ export function listTahunAjaran(params: {
   search?: string;
   lembaga_id?: number;
   termasuk_nonaktif?: boolean;
+  sort?: string[];
+  arah?: 'naik' | 'turun';
   page?: number;
   per_page?: number;
 } = {}) {
@@ -215,6 +219,8 @@ export function listTahunAjaran(params: {
   if (params.search) q.set('search', params.search);
   if (params.lembaga_id) q.set('lembaga_id', String(params.lembaga_id));
   if (params.termasuk_nonaktif) q.set('termasuk_nonaktif', '1');
+  if (params.sort?.length) q.set('sort', params.sort.join(','));
+  if (params.arah) q.set('arah', params.arah);
   q.set('page', String(params.page ?? 1));
   q.set('per_page', String(params.per_page ?? PER_PAGE_DEFAULT));
   return api<Paginate<TahunAjaran>>(`/admin/tahun-ajaran?${q.toString()}`);
@@ -271,13 +277,15 @@ export interface Kelas {
 }
 
 export function listKelas(
-  params: { search?: string; lembaga_id?: number; tahun_ajaran_id?: number; tingkat?: string; page?: number; per_page?: number } = {},
+  params: { search?: string; lembaga_id?: number; tahun_ajaran_id?: number; tingkat?: string; sort?: string[]; arah?: 'naik' | 'turun'; page?: number; per_page?: number } = {},
 ) {
   const q = new URLSearchParams();
   if (params.search) q.set('search', params.search);
   if (params.lembaga_id) q.set('lembaga_id', String(params.lembaga_id));
   if (params.tahun_ajaran_id) q.set('tahun_ajaran_id', String(params.tahun_ajaran_id));
   if (params.tingkat) q.set('tingkat', params.tingkat);
+  if (params.sort?.length) q.set('sort', params.sort.join(','));
+  if (params.arah) q.set('arah', params.arah);
   q.set('page', String(params.page ?? 1));
   q.set('per_page', String(params.per_page ?? PER_PAGE_DEFAULT));
   return api<Paginate<Kelas>>(`/admin/kelas?${q.toString()}`);

@@ -81,6 +81,9 @@ export default function LembagaPage() {
   const [rows, setRows] = useState<Lembaga[]>([]);
   const [all, setAll] = useState<Lembaga[]>([]);
   const [search, setSearch] = useState('');
+  /** Urut header: daftar nilai allowlist + arah global (maks 3 kunci). */
+  const [urut, setUrut] = useState<string[]>([]);
+  const [arahUrut, setArahUrut] = useState<'naik' | 'turun'>('naik');
   const pager = usePager('lembaga');
   const [lastPage, setLastPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -114,12 +117,20 @@ export default function LembagaPage() {
   );
 
   const load = useCallback(
-    async function loadPage(p = pager.page, pp = pager.perPage) {
+    async function loadPage(p = pager.page, pp = pager.perPage, o?: { urut?: string[]; arah?: 'naik' | 'turun' }) {
       const req = ++reqRef.current;
       setErr('');
       setLoading(true);
       try {
-        const res = await listLembaga({ search: search || undefined, page: p, per_page: pp });
+        const u = o?.urut ?? urut;
+        const a = o?.arah ?? arahUrut;
+        const res = await listLembaga({
+          search: search || undefined,
+          sort: u.length ? u : undefined,
+          arah: u.length ? a : undefined,
+          page: p,
+          per_page: pp,
+        });
         if (req !== reqRef.current) return;
         const fix = pager.sync(res.current_page, res.last_page);
         if (fix != null && fix !== p) {
@@ -136,8 +147,16 @@ export default function LembagaPage() {
         if (req === reqRef.current) setLoading(false);
       }
     },
-    [search, pager.page, pager.perPage, pager.sync],
+    [search, urut, arahUrut, pager.page, pager.perPage, pager.sync],
   );
+
+  /** Klik header: simpan urut baru lalu muat ulang dari halaman 1. */
+  function terapkanUrut(nilai: string[], arah: 'naik' | 'turun') {
+    setUrut(nilai);
+    setArahUrut(arah);
+    pager.goFirst();
+    void load(1, pager.perPage, { urut: nilai, arah });
+  }
 
   useEffect(() => {
     if (pager.ready) load(pager.page);
@@ -383,6 +402,16 @@ export default function LembagaPage() {
         canEdit={canUbah}
         onCommit={commitDraft}
         onSaved={onSaved}
+        opsiUrut={[
+          { kunci: 'kode', nilai: 'kode' },
+          { kunci: 'nama', nilai: 'nama' },
+          { kunci: 'induk', nilai: 'induk' },
+          { kunci: 'kelompok', nilai: 'kelompok' },
+          { kunci: 'seleksi', nilai: 'seleksi' },
+        ]}
+        urutAktif={urut}
+        arahUrut={arahUrut}
+        onUrut={terapkanUrut}
         onCreateRow={canTambah ? createRow : undefined}
         searchValue={search}
         onSearchChange={onSearchChange}

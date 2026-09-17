@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Exports\KelasNamaExport;
 use App\Http\Controllers\Api\Concerns\TenantGuard;
+use App\Http\Controllers\Api\Concerns\UrutDaftar;
 use App\Http\Controllers\Controller;
 use App\Models\Kelas;
 use App\Models\Lembaga;
@@ -22,9 +23,24 @@ use Maatwebsite\Excel\Facades\Excel;
 class KelasController extends Controller
 {
     use TenantGuard;
+    use UrutDaftar;
+
+    private const SORT_PETA = [
+        'nama' => ['kelas.nama_kelas'],
+        'tingkat' => ['kelas.tingkat'],
+        'urutan' => ['kelas.urutan'],
+        'kapasitas' => ['kelas.kapasitas'],
+        'lembaga' => ['lembaga.kode'],
+        'ta' => ['tahun_ajaran.nama'],
+        'id' => ['kelas.id'],
+    ];
+
+    private const SORT_NULLABLE = ['kelas.tingkat', 'kelas.kapasitas'];
 
     public function index(Request $request)
     {
+        $urut = $this->parseUrut($request, self::SORT_PETA);
+
         $query = $this->scopeLembaga(
             Kelas::with(['lembaga:id,nama,kode', 'tahunAjaran:id,nama']),
             auth()->user(),
@@ -43,9 +59,16 @@ class KelasController extends Controller
         }
 
         // Urut default: `urutan` (diatur admin) lalu nama kelas.
-        return response()->json(
-            $query->orderBy('urutan')->orderBy('nama_kelas')->orderBy('id')->paginate($this->perPage($request))
-        );
+        if ($urut !== null) {
+            $query->select('kelas.*')
+                ->leftJoin('lembaga', 'lembaga.id', '=', 'kelas.lembaga_id')
+                ->leftJoin('tahun_ajaran', 'tahun_ajaran.id', '=', 'kelas.tahun_ajaran_id');
+        }
+        $this->terapkanUrut($query, $urut, [
+            ['kelas.urutan', 'naik'], ['kelas.nama_kelas', 'naik'], ['kelas.id', 'naik'],
+        ], self::SORT_NULLABLE);
+
+        return response()->json($query->paginate($this->perPage($request)));
     }
 
     public function store(Request $request)

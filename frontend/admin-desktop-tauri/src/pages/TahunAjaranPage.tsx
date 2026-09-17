@@ -78,6 +78,9 @@ export default function TahunAjaranPage() {
   const [lembagaId, setLembagaId] = useState<number | ''>('');
   useLembagaAwalNumber(setLembagaId);
   const [search, setSearch] = useState('');
+  /** Urut header: daftar nilai allowlist + arah global (maks 3 kunci). */
+  const [urut, setUrut] = useState<string[]>([]);
+  const [arahUrut, setArahUrut] = useState<'naik' | 'turun'>('naik');
   const [rows, setRows] = useState<TahunAjaran[]>([]);
   const pager = usePager('tahun_ajaran');
   const [lastPage, setLastPage] = useState(1);
@@ -105,16 +108,20 @@ export default function TahunAjaranPage() {
   const bolehSembunyi = !bolehKelola && lembagaAksi !== null;
 
   const load = useCallback(
-    async function loadPage(p = pager.page, pp = pager.perPage) {
+    async function loadPage(p = pager.page, pp = pager.perPage, o?: { urut?: string[]; arah?: 'naik' | 'turun' }) {
       const req = ++reqRef.current;
       setErr('');
       setLoading(true);
       try {
+        const u = o?.urut ?? urut;
+        const a = o?.arah ?? arahUrut;
         const res = await listTahunAjaran({
           search: search || undefined,
           lembaga_id: lembagaId === '' ? undefined : Number(lembagaId),
           // Baris tersembunyi ikut dimuat agar bisa ditampilkan kembali.
           termasuk_nonaktif: lembagaId !== '',
+          sort: u.length ? u : undefined,
+          arah: u.length ? a : undefined,
           page: p,
           per_page: pp,
         });
@@ -134,8 +141,16 @@ export default function TahunAjaranPage() {
         if (req === reqRef.current) setLoading(false);
       }
     },
-    [search, lembagaId, pager.page, pager.perPage, pager.sync],
+    [search, lembagaId, urut, arahUrut, pager.page, pager.perPage, pager.sync],
   );
+
+  /** Klik header: simpan urut baru lalu muat ulang dari halaman 1. */
+  function terapkanUrut(nilai: string[], arah: 'naik' | 'turun') {
+    setUrut(nilai);
+    setArahUrut(arah);
+    pager.goFirst();
+    void load(1, pager.perPage, { urut: nilai, arah });
+  }
 
   useEffect(() => {
     if (pager.ready) load(pager.page);
@@ -300,6 +315,15 @@ export default function TahunAjaranPage() {
         canEdit={bolehKelola}
         onCommit={commitDraft}
         onSaved={onSaved}
+        opsiUrut={[
+          { kunci: 'nama', nilai: 'nama' },
+          { kunci: 'mulai', nilai: 'mulai' },
+          { kunci: 'selesai', nilai: 'selesai' },
+          { kunci: 'aktif', nilai: 'aktif' },
+        ]}
+        urutAktif={urut}
+        arahUrut={arahUrut}
+        onUrut={terapkanUrut}
         onCreateRow={bolehKelola ? createRow : undefined}
         inputRowValues={{ aktif: 'nonaktif', tampil: 'global (semua)' }}
         searchValue={search}

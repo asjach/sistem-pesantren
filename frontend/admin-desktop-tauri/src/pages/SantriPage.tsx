@@ -202,6 +202,9 @@ export default function SantriPage() {
   useLembagaAwalString(setLembagaId);
   const [search, setSearch] = useState('');
   const [terapkanCari, setTerapkanCari] = useState('');
+  /** Urut header: daftar nilai allowlist + arah global (maks 3 kunci). */
+  const [urut, setUrut] = useState<string[]>([]);
+  const [arahUrut, setArahUrut] = useState<'naik' | 'turun'>('naik');
 
   const [importOpen, setImportOpen] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
@@ -317,15 +320,19 @@ export default function SantriPage() {
   }, [importOpen, lembagaId, opsiDataLembaga, singleLembagaId]);
 
   const load = useCallback(
-    async function loadPage(p = pager.page, pp = pager.perPage) {
+    async function loadPage(p = pager.page, pp = pager.perPage, o?: { urut?: string[]; arah?: 'naik' | 'turun' }) {
       const req = ++reqRef.current;
       setErr('');
       setLoading(true);
       try {
+        const u = o?.urut ?? urut;
+        const a = o?.arah ?? arahUrut;
         const res = await listSantri({
           status_global: statusGlobal === '_semua' ? undefined : statusGlobal === 'aktif',
           lembaga_id: lembagaId ? Number(lembagaId) : undefined,
           q: terapkanCari || undefined,
+          sort: u.length ? u : undefined,
+          arah: u.length ? a : undefined,
           page: p,
           per_page: pp,
         });
@@ -345,8 +352,16 @@ export default function SantriPage() {
         if (req === reqRef.current) setLoading(false);
       }
     },
-    [pager.page, pager.perPage, pager.sync, statusGlobal, lembagaId, terapkanCari],
+    [pager.page, pager.perPage, pager.sync, statusGlobal, lembagaId, terapkanCari, urut, arahUrut],
   );
+
+  /** Klik header: simpan urut baru lalu muat ulang dari halaman 1. */
+  function terapkanUrut(nilai: string[], arah: 'naik' | 'turun') {
+    setUrut(nilai);
+    setArahUrut(arah);
+    pager.goFirst();
+    void load(1, pager.perPage, { urut: nilai, arah });
+  }
 
   useEffect(() => {
     listLembaga({ per_page: 1000 }).then((p) => setLembagas(p.data)).catch(() => {});
@@ -429,6 +444,17 @@ export default function SantriPage() {
         canEdit={bisa(user, 'santri.ubah')}
         onCommit={commitBaris}
         onSaved={() => load()}
+        opsiUrut={[
+          { kunci: 'nama', nilai: 'nama' },
+          { kunci: 'nik', nilai: 'nik' },
+          { kunci: 'nisn', nilai: 'nisn' },
+          { kunci: 'jk', nilai: 'jk' },
+          { kunci: 'tipe_santri', nilai: 'tipe' },
+          { kunci: 'status', nilai: 'status' },
+        ]}
+        urutAktif={urut}
+        arahUrut={arahUrut}
+        onUrut={terapkanUrut}
         renderActions={(s) => (
           <>
             {bisa(user, 'santri.tambah') && (

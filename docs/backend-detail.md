@@ -394,11 +394,14 @@ Status: 🔲 not scaffolded (backend 201/202 pending).
   `role:super_admin|admin`; portal group `role:orang_tua`.
 * Service layer (thin controllers); policies per model; `latest('id')`;
   Excel imports use flat keys; NIK-null uses `create()`.
-* Urut daftar (v2.62): param `sort` (satu nilai / koma / array, maks 3 kunci)
-  + `arah` (`naik`/`turun`, bawaan `naik`); tiap nilai harus ada di allowlist
-  endpoint (`SORT_PETA`), sisanya 422; tanpa sort = urutan lama. Pilot:
-  `GET /api/admin/lembaga-santri` (nama, jk, lembaga, nis_lokal, nis_kemenag,
-  aktif, mulai, selesai, id).
+* Urut daftar (v2.62–2.63, trait `UrutDaftar`): param `sort` (satu nilai /
+  koma / array, maks 3 kunci) + `arah` (`naik`/`turun`, bawaan `naik`); tiap
+  nilai harus ada di allowlist endpoint (`SORT_PETA`), sisanya 422; tanpa sort
+  = urutan lama; NULL selalu di bawah. Berlaku di: santri, kelas, lembaga,
+  users, tahun-ajaran, riwayat-belajar, mutasi-keluar, alumni,
+  pengajuan-biodata, antrean PSB, lembaga-santri. Tabel kecil non-halaman
+  (referensi, kegiatan, kuota, grup MI-MD, tabel kerja daftar-kelas) tetap
+  urutan bawaan.
 * See live contract: `php artisan route:list --path=api` (144 routes, 101 di grup admin).
 
 ### 9. Non-functional requirements

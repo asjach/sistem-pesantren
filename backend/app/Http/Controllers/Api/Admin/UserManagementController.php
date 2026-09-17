@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Api\Concerns\PerPageLimit;
+use App\Http\Controllers\Api\Concerns\UrutDaftar;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\AssignRoleRequest;
 use App\Http\Requests\Admin\CreateUserRequest;
@@ -18,6 +19,17 @@ use Maatwebsite\Excel\Validators\ValidationException;
 class UserManagementController extends Controller
 {
     use PerPageLimit;
+    use UrutDaftar;
+
+    private const SORT_PETA = [
+        'nama' => ['users.name'],
+        'email' => ['users.email'],
+        'hp' => ['users.phone'],
+        'username' => ['users.username'],
+        'id' => ['users.id'],
+    ];
+
+    private const SORT_NULLABLE = ['users.phone', 'users.username'];
 
     protected function assignableRolesFor(User $authUser): array
     {
@@ -102,6 +114,7 @@ class UserManagementController extends Controller
     public function index(Request $request)
     {
         $this->authorize('viewAny', User::class);
+        $urut = $this->parseUrut($request, self::SORT_PETA);
         $query = User::tenantScope()->with(['roles', 'lembagas:id,nama,kode']);
 
         if ($request->filled('role')
@@ -119,7 +132,9 @@ class UserManagementController extends Controller
             $query->role($request->input('role'));
         }
 
-        return response()->json($query->latest('id')->paginate($this->perPage($request)));
+        $this->terapkanUrut($query, $urut, [['users.id', 'turun']], self::SORT_NULLABLE);
+
+        return response()->json($query->paginate($this->perPage($request)));
     }
 
     public function store(CreateUserRequest $request)

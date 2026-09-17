@@ -21,10 +21,12 @@ export interface Paginate<T> {
 }
 
 // Pagination bawaan tabel: PER_PAGE_DEFAULT (lihat prefs.ts).
-export function listUsers(params: { search?: string; role?: string; page?: number; per_page?: number } = {}) {
+export function listUsers(params: { search?: string; role?: string; sort?: string[]; arah?: 'naik' | 'turun'; page?: number; per_page?: number } = {}) {
   const q = new URLSearchParams();
   if (params.search) q.set('search', params.search);
   if (params.role) q.set('role', params.role);
+  if (params.sort?.length) q.set('sort', params.sort.join(','));
+  if (params.arah) q.set('arah', params.arah);
   q.set('page', String(params.page ?? 1));
   q.set('per_page', String(params.per_page ?? PER_PAGE_DEFAULT));
   return api<Paginate<AdminUser>>(`/admin/users?${q.toString()}`);

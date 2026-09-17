@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Api\Concerns\TenantGuard;
+use App\Http\Controllers\Api\Concerns\UrutDaftar;
 use App\Http\Controllers\Controller;
 use App\Models\PengajuanBiodataSantri;
 use App\Models\Santri;
@@ -14,6 +15,13 @@ use Illuminate\Http\Request;
 class PengajuanBiodataController extends Controller
 {
     use TenantGuard;
+    use UrutDaftar;
+
+    private const SORT_PETA = [
+        'santri' => ['santri.nama_lengkap'],
+        'status' => ['pengajuan_biodata_santri.status'],
+        'id' => ['pengajuan_biodata_santri.id'],
+    ];
 
     /** POST /api/portal/santri/{santri}/pengajuan-biodata (orang_tua, maks 1 aktif). */
     public function ajukan(Request $request, Santri $santri, PengajuanBiodataService $service): JsonResponse
@@ -47,6 +55,7 @@ class PengajuanBiodataController extends Controller
     public function index(Request $request): JsonResponse
     {
         $status = $request->input('status', 'diajukan');
+        $urut = $this->parseUrut($request, self::SORT_PETA);
         $auth = $request->user();
 
         $base = PengajuanBiodataSantri::query()->whereHas('santri', function ($q) use ($auth, $request) {
@@ -74,9 +83,13 @@ class PengajuanBiodataController extends Controller
         $badge = (clone $base)->selectRaw('status, COUNT(*) as jumlah')->groupBy('status')->pluck('jumlah', 'status');
 
         $list = (clone $base)->where('status', $status)
-            ->with(['santri:id,nama_lengkap,nik', 'wali:id,name'])
-            ->latest('id')
-            ->paginate($this->perPage($request));
+            ->with(['santri:id,nama_lengkap,nik', 'wali:id,name']);
+        if ($urut !== null) {
+            $list->select('pengajuan_biodata_santri.*')
+                ->leftJoin('santri', 'santri.id', '=', 'pengajuan_biodata_santri.santri_id');
+        }
+        $this->terapkanUrut($list, $urut, [['pengajuan_biodata_santri.id', 'turun']]);
+        $list = $list->paginate($this->perPage($request));
 
         return response()->json([
             'pesan' => 'Antrean pengajuan biodata berhasil dimuat.',

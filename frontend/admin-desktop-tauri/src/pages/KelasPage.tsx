@@ -122,6 +122,9 @@ export default function KelasPage() {
   useTahunAjaranAwalNumber(setTaId);
   const [search, setSearch] = useState('');
   const [rows, setRows] = useState<Kelas[]>([]);
+  /** Urut header: daftar nilai allowlist + arah global (maks 3 kunci). */
+  const [urut, setUrut] = useState<string[]>([]);
+  const [arahUrut, setArahUrut] = useState<'naik' | 'turun'>('naik');
   const pager = usePager('kelas');
   const [lastPage, setLastPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -199,15 +202,19 @@ export default function KelasPage() {
   const [namaTerpakai, setNamaTerpakai] = useState<{ kunci: string; nama: string[] }>({ kunci: '', nama: [] });
 
   const load = useCallback(
-    async function loadPage(p = pager.page, pp = pager.perPage) {
+    async function loadPage(p = pager.page, pp = pager.perPage, o?: { urut?: string[]; arah?: 'naik' | 'turun' }) {
       const req = ++reqRef.current;
       setErr('');
       setLoading(true);
       try {
+        const u = o?.urut ?? urut;
+        const a = o?.arah ?? arahUrut;
         const res = await listKelas({
           search: search || undefined,
           lembaga_id: lembagaId === '' ? undefined : Number(lembagaId),
           tahun_ajaran_id: taId === '' ? undefined : Number(taId),
+          sort: u.length ? u : undefined,
+          arah: u.length ? a : undefined,
           page: p,
           per_page: pp,
         });
@@ -227,8 +234,16 @@ export default function KelasPage() {
         if (req === reqRef.current) setLoading(false);
       }
     },
-    [search, lembagaId, taId, pager.page, pager.perPage, pager.sync],
+    [search, lembagaId, taId, urut, arahUrut, pager.page, pager.perPage, pager.sync],
   );
+
+  /** Klik header: simpan urut baru lalu muat ulang dari halaman 1. */
+  function terapkanUrut(nilai: string[], arah: 'naik' | 'turun') {
+    setUrut(nilai);
+    setArahUrut(arah);
+    pager.goFirst();
+    void load(1, pager.perPage, { urut: nilai, arah });
+  }
 
   useEffect(() => {
     // Muat SEMUA lembaga terdaftar (batas maks backend) agar opsi selalu
@@ -554,6 +569,17 @@ export default function KelasPage() {
         canEdit={canUbahKelas}
         onCommit={commitDraft}
         onSaved={onSaved}
+        opsiUrut={[
+          { kunci: 'nama', nilai: 'nama' },
+          { kunci: 'lembaga', nilai: 'lembaga' },
+          { kunci: 'ta', nilai: 'ta' },
+          { kunci: 'tingkat', nilai: 'tingkat' },
+          { kunci: 'urutan', nilai: 'urutan' },
+          { kunci: 'kapasitas', nilai: 'kapasitas' },
+        ]}
+        urutAktif={urut}
+        arahUrut={arahUrut}
+        onUrut={terapkanUrut}
         onCreateRow={canTambahKelas ? createRow : undefined}
         inputRowValues={{ ta: taTerpilih, lembaga: lembagaTerpilih, urutan: '0' }}
         searchValue={search}

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Api\Concerns\TenantGuard;
+use App\Http\Controllers\Api\Concerns\UrutDaftar;
 use App\Http\Controllers\Controller;
 use App\Models\Alumni;
 use App\Models\Kelas;
@@ -23,6 +24,29 @@ use Illuminate\Validation\ValidationException;
 class SiklusController extends Controller
 {
     use TenantGuard;
+    use UrutDaftar;
+
+    private const SORT_MUTASI = [
+        'santri' => ['santri.nama_lengkap'],
+        'tanggal' => ['mutasi_keluar.tanggal_mutasi'],
+        'lembaga' => ['lembaga.kode'],
+        'kelas' => ['kelas.nama_kelas'],
+        'id' => ['mutasi_keluar.id'],
+    ];
+
+    private const SORT_ALUMNI = [
+        'santri' => ['santri.nama_lengkap'],
+        'tanggal' => ['alumni.tanggal_lulus'],
+        'lembaga' => ['lembaga.kode'],
+        'ta' => ['tahun_ajaran.nama'],
+        'kelas' => ['kelas.nama_kelas'],
+        'id' => ['alumni.id'],
+    ];
+
+    private const SORT_NULLABLE_ARSIP = [
+        'mutasi_keluar.tanggal_mutasi', 'alumni.tanggal_lulus',
+        'kelas.nama_kelas', 'tahun_ajaran.nama',
+    ];
 
     public function __construct(private SiklusSantriService $siklusService) {}
 
@@ -233,12 +257,19 @@ class SiklusController extends Controller
     public function getMutasiKeluar(Request $request): JsonResponse
     {
         $this->authorize('viewAny', Santri::class);
+        $urut = $this->parseUrut($request, self::SORT_MUTASI);
 
         $mutasi = MutasiKeluar::tenantScope()
             ->with(['santri:id,nama_lengkap,nisn', 'lembaga:id,nama,kode', 'kelasTerakhir:id,nama_kelas'])
-            ->when($request->filled('lembaga_id'), fn ($q) => $q->where('lembaga_id', $request->integer('lembaga_id')))
-            ->latest('id')
-            ->paginate($this->perPage($request));
+            ->when($request->filled('lembaga_id'), fn ($q) => $q->where('lembaga_id', $request->integer('lembaga_id')));
+        if ($urut !== null) {
+            $mutasi->select('mutasi_keluar.*')
+                ->leftJoin('santri', 'santri.id', '=', 'mutasi_keluar.santri_id')
+                ->leftJoin('lembaga', 'lembaga.id', '=', 'mutasi_keluar.lembaga_id')
+                ->leftJoin('kelas', 'kelas.id', '=', 'mutasi_keluar.kelas_terakhir_id');
+        }
+        $this->terapkanUrut($mutasi, $urut, [['mutasi_keluar.id', 'turun']], self::SORT_NULLABLE_ARSIP);
+        $mutasi = $mutasi->paginate($this->perPage($request));
 
         return response()->json($mutasi);
     }
@@ -247,13 +278,21 @@ class SiklusController extends Controller
     public function getAlumni(Request $request): JsonResponse
     {
         $this->authorize('viewAny', Santri::class);
+        $urut = $this->parseUrut($request, self::SORT_ALUMNI);
 
         $alumni = Alumni::tenantScope()
             ->with(['santri:id,nama_lengkap,nisn', 'lembagaLulus:id,nama,kode', 'tahunAjaranLulus:id,nama', 'kelasLulus:id,nama_kelas'])
             ->when($request->filled('lembaga_id'), fn ($q) => $q->where('lembaga_lulus_id', $request->integer('lembaga_id')))
-            ->when($request->filled('tahun_ajaran_lulus_id'), fn ($q) => $q->where('tahun_ajaran_lulus_id', $request->integer('tahun_ajaran_lulus_id')))
-            ->latest('id')
-            ->paginate($this->perPage($request));
+            ->when($request->filled('tahun_ajaran_lulus_id'), fn ($q) => $q->where('tahun_ajaran_lulus_id', $request->integer('tahun_ajaran_lulus_id')));
+        if ($urut !== null) {
+            $alumni->select('alumni.*')
+                ->leftJoin('santri', 'santri.id', '=', 'alumni.santri_id')
+                ->leftJoin('lembaga', 'lembaga.id', '=', 'alumni.lembaga_lulus_id')
+                ->leftJoin('tahun_ajaran', 'tahun_ajaran.id', '=', 'alumni.tahun_ajaran_lulus_id')
+                ->leftJoin('kelas', 'kelas.id', '=', 'alumni.kelas_lulus_id');
+        }
+        $this->terapkanUrut($alumni, $urut, [['alumni.id', 'turun']], self::SORT_NULLABLE_ARSIP);
+        $alumni = $alumni->paginate($this->perPage($request));
 
         return response()->json($alumni);
     }

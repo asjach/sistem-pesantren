@@ -25,6 +25,9 @@ export default function KenaikanKelasPage() {
   const [taBaru, setTaBaru] = useState('');
   useTahunAjaranAwalString(setTaBaru);
   const [tingkatBaru, setTingkatBaru] = useState('');
+  /** Urut header: daftar nilai allowlist + arah global (maks 3 kunci). */
+  const [urut, setUrut] = useState<string[]>([]);
+  const [arahUrut, setArahUrut] = useState<'naik' | 'turun'>('naik');
   const [kiri, setKiri] = useState<RiwayatRow[]>([]);
   const [pilih, setPilih] = useState<Set<number>>(new Set());
   const [naik, setNaik] = useState<Baris[]>([]);
@@ -32,17 +35,34 @@ export default function KenaikanKelasPage() {
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (f?: { urut?: string[]; arah?: 'naik' | 'turun' }) => {
     if (!lembagaId) { setKiri([]); return; }
     setErr('');
+    const urutPakai = f?.urut ?? urut;
+    const arahPakai = f?.arah ?? arahUrut;
     try {
-      const res = await listRiwayatBelajar({ lembaga_id: Number(lembagaId), semester: '2', is_aktif: true, tingkat: tingkat || undefined, per_page: 500 });
+      const res = await listRiwayatBelajar({
+        lembaga_id: Number(lembagaId),
+        semester: '2',
+        is_aktif: true,
+        tingkat: tingkat || undefined,
+        sort: urutPakai.length ? urutPakai : undefined,
+        arah: urutPakai.length ? arahPakai : undefined,
+        per_page: 500,
+      });
       setKiri(res.data);
       setPilih(new Set());
       setNaik([]);
       setTidakNaik([]);
     } catch (e) { setErr(errorMessage(e)); }
-  }, [lembagaId, tingkat]);
+  }, [lembagaId, tingkat, urut, arahUrut]);
+
+  /** Klik header: simpan urut baru lalu muat ulang. */
+  function terapkanUrut(nilai: string[], arah: 'naik' | 'turun') {
+    setUrut(nilai);
+    setArahUrut(arah);
+    void load({ urut: nilai, arah });
+  }
 
   useEffect(() => { void load(); }, [load]);
 
@@ -122,6 +142,14 @@ export default function KenaikanKelasPage() {
                 kelas: r.kelas?.nama_kelas ?? null,
                 tingkat: r.tingkat ?? null,
               })}
+              opsiUrut={[
+                { kunci: 'nama', nilai: 'santri' },
+                { kunci: 'kelas', nilai: 'kelas' },
+                { kunci: 'tingkat', nilai: 'tingkat' },
+              ]}
+              urutAktif={urut}
+              arahUrut={arahUrut}
+              onUrut={terapkanUrut}
               canEdit={false}
               onCommit={async () => {}}
               onSaved={() => {}}
