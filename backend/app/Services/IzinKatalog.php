@@ -38,6 +38,7 @@ class IzinKatalog
         'mutasi_keluar' => ['lihat', 'ubah'],
         'pengajuan_biodata' => ['lihat', 'ubah'],
         'preset_tabel' => ['lihat', 'tambah', 'ubah', 'hapus'],
+        'kamus_label' => ['lihat', 'tambah', 'ubah', 'hapus'],
         'tampilan' => ['lihat', 'ubah', 'hapus'],
         'server' => ['lihat'],
         'izin' => ['lihat', 'ubah'],

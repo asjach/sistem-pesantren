@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\Admin\IzinController;
+use App\Http\Controllers\Api\Admin\KamusLabelController;
 use App\Http\Controllers\Api\Admin\KelasController;
 use App\Http\Controllers\Api\Admin\LembagaController;
 use App\Http\Controllers\Api\Admin\LembagaSantriController;
@@ -151,6 +152,15 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::post('preset-tabel/aktif', [PresetTabelController::class, 'setAktif'])->middleware('permission:preset_tabel.ubah');
         Route::put('preset-tabel/{preset}', [PresetTabelController::class, 'update'])->middleware('permission:preset_tabel.ubah');
         Route::delete('preset-tabel/{preset}', [PresetTabelController::class, 'destroy'])->middleware('permission:preset_tabel.hapus');
+
+        Route::get('kamus-kolom', [KamusLabelController::class, 'index'])->middleware('permission:kamus_label.lihat');
+        Route::get('kamus-kolom/peta', [KamusLabelController::class, 'peta'])->middleware('permission:kamus_label.lihat');
+        Route::get('kamus-kolom/urut', [KamusLabelController::class, 'indexUrut'])->middleware('permission:kamus_label.lihat');
+        Route::post('kamus-kolom/urut', [KamusLabelController::class, 'simpanUrut'])->middleware('permission:kamus_label.ubah');
+        Route::delete('kamus-kolom/urut/{urutBawaan}', [KamusLabelController::class, 'hapusUrut'])->middleware('permission:kamus_label.ubah');
+        Route::post('kamus-kolom', [KamusLabelController::class, 'store'])->middleware('permission:kamus_label.tambah');
+        Route::match(['put', 'patch'], 'kamus-kolom/{labelKolom}', [KamusLabelController::class, 'update'])->middleware('permission:kamus_label.ubah');
+        Route::delete('kamus-kolom/{labelKolom}', [KamusLabelController::class, 'destroy'])->middleware('permission:kamus_label.hapus');
 
         // Standar tampilan per lembaga (super_admin sebar ke semua; admin lembaga salinannya).
         Route::get('pengaturan-tampilan', [PengaturanTampilanController::class, 'show'])->middleware('permission:tampilan.lihat');

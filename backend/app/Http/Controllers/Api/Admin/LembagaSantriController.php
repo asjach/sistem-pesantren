@@ -78,22 +78,23 @@ class LembagaSantriController extends Controller
             });
         }
 
-        if ($urut === null) {
-            $query->orderByDesc('is_active')->latest('id');
-        } else {
-            $butuhSantri = $this->urutButuhAwalan($urut, 'santri.');
-            $butuhLembaga = $this->urutButuhAwalan($urut, 'lembaga.');
-            if ($butuhSantri || $butuhLembaga) {
-                $query->select('lembaga_santri.*');
-            }
-            if ($butuhSantri) {
-                $query->leftJoin('santri', 'santri.id', '=', 'lembaga_santri.santri_id');
-            }
-            if ($butuhLembaga) {
-                $query->leftJoin('lembaga', 'lembaga.id', '=', 'lembaga_santri.lembaga_id');
-            }
-            $this->terapkanUrut($query, $urut, [], self::SORT_NULLABLE);
+        $bawaan = $this->bawaanKamus('admin/lembaga-santri', self::SORT_PETA, [
+            ['lembaga_santri.is_active', 'turun'], ['lembaga_santri.id', 'turun'],
+        ]);
+        // Join relasi hanya bila ada kunci urut (eksplisit atau bawaan) yang butuh.
+        $kunciEfektif = ['kunci' => $urut !== null ? $urut['kunci'] : array_map(fn ($p) => $p[0], $bawaan)];
+        $butuhSantri = $this->urutButuhAwalan($kunciEfektif, 'santri.');
+        $butuhLembaga = $this->urutButuhAwalan($kunciEfektif, 'lembaga.');
+        if ($butuhSantri || $butuhLembaga) {
+            $query->select('lembaga_santri.*');
         }
+        if ($butuhSantri) {
+            $query->leftJoin('santri', 'santri.id', '=', 'lembaga_santri.santri_id');
+        }
+        if ($butuhLembaga) {
+            $query->leftJoin('lembaga', 'lembaga.id', '=', 'lembaga_santri.lembaga_id');
+        }
+        $this->terapkanUrut($query, $urut, $bawaan, self::SORT_NULLABLE);
 
         return response()->json(
             $query->paginate($this->perPage($request))

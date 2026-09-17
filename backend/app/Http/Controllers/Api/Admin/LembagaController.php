@@ -46,7 +46,9 @@ class LembagaController extends Controller
             $query->select('lembaga.*')
                 ->leftJoin('lembaga as induk', 'induk.id', '=', 'lembaga.parent_id');
         }
-        $this->terapkanUrut($query, $urut, [['lembaga.nama', 'naik']], self::SORT_NULLABLE);
+        $this->terapkanUrut($query, $urut, $this->bawaanKamus('admin/lembaga', self::SORT_PETA, [
+            ['lembaga.nama', 'naik'],
+        ]), self::SORT_NULLABLE);
 
         return response()->json($query->paginate($this->perPage($request)));
     }

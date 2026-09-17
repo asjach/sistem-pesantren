@@ -268,7 +268,9 @@ class SiklusController extends Controller
                 ->leftJoin('lembaga', 'lembaga.id', '=', 'mutasi_keluar.lembaga_id')
                 ->leftJoin('kelas', 'kelas.id', '=', 'mutasi_keluar.kelas_terakhir_id');
         }
-        $this->terapkanUrut($mutasi, $urut, [['mutasi_keluar.id', 'turun']], self::SORT_NULLABLE_ARSIP);
+        $this->terapkanUrut($mutasi, $urut, $this->bawaanKamus('admin/mutasi-keluar', self::SORT_MUTASI, [
+            ['mutasi_keluar.id', 'turun'],
+        ]), self::SORT_NULLABLE_ARSIP);
         $mutasi = $mutasi->paginate($this->perPage($request));
 
         return response()->json($mutasi);
@@ -291,7 +293,9 @@ class SiklusController extends Controller
                 ->leftJoin('tahun_ajaran', 'tahun_ajaran.id', '=', 'alumni.tahun_ajaran_lulus_id')
                 ->leftJoin('kelas', 'kelas.id', '=', 'alumni.kelas_lulus_id');
         }
-        $this->terapkanUrut($alumni, $urut, [['alumni.id', 'turun']], self::SORT_NULLABLE_ARSIP);
+        $this->terapkanUrut($alumni, $urut, $this->bawaanKamus('admin/alumni', self::SORT_ALUMNI, [
+            ['alumni.id', 'turun'],
+        ]), self::SORT_NULLABLE_ARSIP);
         $alumni = $alumni->paginate($this->perPage($request));
 
         return response()->json($alumni);

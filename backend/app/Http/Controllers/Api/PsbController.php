@@ -61,7 +61,9 @@ class PsbController extends Controller
                 ->leftJoin('lembaga', 'lembaga.id', '=', 'psb_calon_santri.lembaga_id')
                 ->leftJoin('psb_gelombang', 'psb_gelombang.id', '=', 'psb_calon_santri.gelombang_id');
         }
-        $this->terapkanUrut($query, $urut, [['psb_calon_santri.id', 'turun']], self::SORT_NULLABLE);
+        $this->terapkanUrut($query, $urut, $this->bawaanKamus('psb/antrean-daftar-ulang', self::SORT_PETA, [
+            ['psb_calon_santri.id', 'turun'],
+        ]), self::SORT_NULLABLE);
         if ($request->boolean('terhapus')) {
             $query->onlyTrashed();
         }
