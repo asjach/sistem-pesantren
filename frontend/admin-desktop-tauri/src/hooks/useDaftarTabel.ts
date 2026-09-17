@@ -31,18 +31,21 @@ export interface OpsiMuatUrut {
  * });
  * ```
  */
-export function useDaftarTabel<T>({
+export function useDaftarTabel<T, R extends Paginate<T> = Paginate<T>>({
   tableKey,
   ambil,
   deps = [],
   awalUrut = [],
   awalArah = 'naik',
+  onData,
 }: {
   tableKey: string;
-  ambil: (a: ArgsMuat) => Promise<Paginate<T>>;
+  ambil: (a: ArgsMuat) => Promise<R>;
   deps?: unknown[];
   awalUrut?: string[];
   awalArah?: 'naik' | 'turun';
+  /** Data tambahan dari respons (mis. `badge`), dipanggil setelah req valid. */
+  onData?: (res: R) => void;
 }) {
   const [search, setSearch] = useState('');
   const [urut, setUrut] = useState<string[]>(awalUrut);
@@ -56,6 +59,8 @@ export function useDaftarTabel<T>({
   const reqRef = useRef(0);
   const ambilRef = useRef(ambil);
   ambilRef.current = ambil;
+  const onDataRef = useRef(onData);
+  onDataRef.current = onData;
 
   const load = useCallback(
     async function loadPage(p = pager.page, pp = pager.perPage, o?: OpsiMuatUrut) {
@@ -74,6 +79,7 @@ export function useDaftarTabel<T>({
         }
         if (req !== reqRef.current) return;
         setRows(res.data);
+        onDataRef.current?.(res);
         setLastPage(res.last_page);
         setTotal(res.total);
       } catch (e) {

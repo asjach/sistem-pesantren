@@ -30,12 +30,11 @@ import {
   type PsbCalon,
   type PsbGelombang,
 } from '../api/psb';
-import { listLembaga, type Lembaga } from '../api/master';
+import { listLembaga, type Lembaga, type Paginate } from '../api/master';
 import type { DokumenSantri } from '../api/santri';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/field';
-import { Badge } from '@/components/ui/badge';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import {
   Select,
@@ -60,7 +59,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import Pager from '@/components/Pager';
-import { usePager } from '@/hooks/usePager';
+import { useDaftarTabel } from '@/hooks/useDaftarTabel';
 import { ActionIcon, DeleteAction } from '@/components/RowActions';
 import { toast } from 'sonner';
 import {
@@ -175,20 +174,43 @@ export default function PsbPage() {
   const [badge, setBadge] = useState<Record<string, number>>({});
   const [lembagaId, setLembagaId] = useState('');
   useLembagaAwalString(setLembagaId);
-  const [rows, setRows] = useState<PsbCalon[]>([]);
-  const pager = usePager('psb');
-  /** Urut header antrean: daftar nilai allowlist + arah global (maks 3 kunci). */
-  const [urut, setUrut] = useState<string[]>([]);
-  const [arahUrut, setArahUrut] = useState<'naik' | 'turun'>('naik');
-  const reqRef = useRef(0);
   const lembagaReqRef = useRef(0);
   const gelombangReqRef = useRef(0);
   const dokumenReqRef = useRef(0);
-  const [lastPage, setLastPage] = useState(1);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
+  const [tampilTerhapus, setTampilTerhapus] = useState(false);
+  const {
+    rows,
+    loading,
+    err,
+    setErr,
+    urut,
+    arahUrut,
+    terapkanUrut,
+    load,
+    lastPage,
+    total,
+    pager,
+  } = useDaftarTabel<PsbCalon, Paginate<PsbCalon> & { badge?: Record<string, number> }>({
+    tableKey: 'psb',
+    ambil: (a) => {
+      const stageDef = STAGES.find((x) => x.id === stage);
+      let statuses = stageDef?.statuses ?? [];
+      // Tahap Pendaftar dipisah: baru vs waiting_list.
+      if (stage === 'pendaftar' && subStatus) statuses = [subStatus];
+      return listAntrean({
+        status: statuses.join(','),
+        lembaga_id: lembagaId ? Number(lembagaId) : undefined,
+        sort: a.urut.length ? a.urut : undefined,
+        arah: a.urut.length ? a.arah : undefined,
+        terhapus: tampilTerhapus || undefined,
+        page: a.page,
+        per_page: a.perPage,
+      }).then((r) => ({ ...r.data, badge: r.badge }));
+    },
+    onData: (res) => setBadge(res.badge ?? {}),
+    deps: [stage, subStatus, lembagaId, tampilTerhapus],
+  });
 
   const [seleksiRow, setSeleksiRow] = useState<PsbCalon | null>(null);
   const [seleksiLolos, setSeleksiLolos] = useState('lolos');
@@ -205,7 +227,6 @@ export default function PsbPage() {
   const [accNis, setAccNis] = useState<Record<string, string>>({});
   const [accProses, setAccProses] = useState(false);
 
-  const [tampilTerhapus, setTampilTerhapus] = useState(false);
   const [bulkAksi, setBulkAksi] = useState<BulkAksi | null>(null);
   const [bulkIds, setBulkIds] = useState<number[]>([]);
   const [bulkLolos, setBulkLolos] = useState('lolos');
@@ -245,63 +266,6 @@ export default function PsbPage() {
     () => psbFields(gelombangs.map((g) => ({ value: String(g.id), label: g.nama }))),
     [gelombangs],
   );
-
-  const load = useCallback(
-    async function loadPage(
-      p = pager.page, pp = pager.perPage,
-      f?: { urut?: string[]; arah?: 'naik' | 'turun' },
-    ) {
-      const req = ++reqRef.current;
-      setErr('');
-      setLoading(true);
-      try {
-        const stageDef = STAGES.find((s) => s.id === stage);
-        let statuses = stageDef?.statuses ?? [];
-        // Tahap Pendaftar dipisah: baru vs waiting_list.
-        if (stage === 'pendaftar' && subStatus) statuses = [subStatus];
-        const u = f?.urut ?? urut;
-        const a = f?.arah ?? arahUrut;
-        const res = await listAntrean({
-          status: statuses.join(','),
-          lembaga_id: lembagaId ? Number(lembagaId) : undefined,
-          sort: u.length ? u : undefined,
-          arah: u.length ? a : undefined,
-          terhapus: tampilTerhapus || undefined,
-          page: p,
-          per_page: pp,
-        });
-        if (req !== reqRef.current) return;
-        const fix = pager.sync(res.data.current_page, res.data.last_page);
-        if (fix != null && fix !== p) {
-          await loadPage(fix, pp);
-          return;
-        }
-        if (req !== reqRef.current) return;
-        setRows(res.data.data);
-        setBadge(res.badge ?? {});
-        setLastPage(res.data.last_page);
-        setTotal(res.data.total);
-      } catch (e) {
-        if (req === reqRef.current) setErr(errorMessage(e));
-      } finally {
-        if (req === reqRef.current) setLoading(false);
-      }
-    },
-    [pager.page, pager.perPage, pager.sync, stage, subStatus, lembagaId, tampilTerhapus, urut, arahUrut],
-  );
-
-  /** Klik header: simpan urut baru lalu muat ulang antrean dari halaman 1. */
-  function terapkanUrut(nilai: string[], arah: 'naik' | 'turun') {
-    setUrut(nilai);
-    setArahUrut(arah);
-    pager.goFirst();
-    void load(1, pager.perPage, { urut: nilai, arah });
-  }
-
-  useEffect(() => {
-    if (pager.ready) load(pager.page);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pager.ready, stage, subStatus, lembagaId, tampilTerhapus]);
 
   useEffect(() => {
     const lembagaReq = ++lembagaReqRef.current;

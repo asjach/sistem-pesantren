@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { bisa } from '../api/auth';
 import { errorMessage } from '../api/client';
 import { listPengajuan, setujuiPengajuan, tolakPengajuan, type PengajuanBiodata } from '../api/pengajuan';
+import type { Paginate } from '../api/master';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/field';
@@ -26,7 +27,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import Pager from '@/components/Pager';
-import { usePager } from '@/hooks/usePager';
+import { useDaftarTabel } from '@/hooks/useDaftarTabel';
 import { ActionIcon, SetAktifAction } from '@/components/RowActions';
 import { XCircle } from '@/icons';
 import { toast } from 'sonner';
@@ -65,72 +66,35 @@ export default function PengajuanBiodataPage() {
   const { user } = useAuth();
   const canProses = bisa(user, 'pengajuan_biodata.ubah');
   const [status, setStatus] = useState('diajukan');
-  const [rows, setRows] = useState<PengajuanBiodata[]>([]);
   const [badge, setBadge] = useState<Record<string, number>>({});
-  /** Urut header: daftar nilai allowlist + arah global (maks 3 kunci). */
-  const [urut, setUrut] = useState<string[]>([]);
-  const [arahUrut, setArahUrut] = useState<'naik' | 'turun'>('naik');
-  const pager = usePager('pengajuan_biodata');
-  const [lastPage, setLastPage] = useState(1);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
-  const reqRef = useRef(0);
+  const {
+    rows,
+    loading,
+    err,
+    setErr,
+    urut,
+    arahUrut,
+    terapkanUrut,
+    load,
+    lastPage,
+    total,
+    pager,
+  } = useDaftarTabel<PengajuanBiodata, Paginate<PengajuanBiodata> & { badge?: Record<string, number> }>({
+    tableKey: 'pengajuan_biodata',
+    ambil: (a) => listPengajuan({
+      status,
+      sort: a.urut.length ? a.urut : undefined,
+      arah: a.urut.length ? a.arah : undefined,
+      page: a.page,
+      per_page: a.perPage,
+    }).then((r) => ({ ...r.data, badge: r.badge })),
+    onData: (res) => setBadge(res.badge ?? {}),
+    deps: [status],
+  });
 
   const [tolakRow, setTolakRow] = useState<PengajuanBiodata | null>(null);
   const [tolakCatatan, setTolakCatatan] = useState('');
-
-  const load = useCallback(
-    async function loadPage(
-      p = pager.page, pp = pager.perPage,
-      f?: { status?: string; urut?: string[]; arah?: 'naik' | 'turun' },
-    ) {
-      const req = ++reqRef.current;
-      setErr('');
-      setLoading(true);
-      try {
-        const st = f?.status ?? status;
-        const u = f?.urut ?? urut;
-        const a = f?.arah ?? arahUrut;
-        const res = await listPengajuan({
-          status: st,
-          sort: u.length ? u : undefined,
-          arah: u.length ? a : undefined,
-          page: p, per_page: pp,
-        });
-        if (req !== reqRef.current) return;
-        const fix = pager.sync(res.data.current_page, res.data.last_page);
-        if (fix != null && fix !== p) {
-          await loadPage(fix, pp);
-          return;
-        }
-        if (req !== reqRef.current) return;
-        setRows(res.data.data);
-        setBadge(res.badge ?? {});
-        setLastPage(res.data.last_page);
-        setTotal(res.data.total);
-      } catch (e) {
-        if (req === reqRef.current) setErr(errorMessage(e));
-      } finally {
-        if (req === reqRef.current) setLoading(false);
-      }
-    },
-    [status, pager.page, pager.perPage, pager.sync, urut, arahUrut],
-  );
-
-  /** Klik header: simpan urut baru lalu muat ulang dari halaman 1. */
-  function terapkanUrut(nilai: string[], arah: 'naik' | 'turun') {
-    setUrut(nilai);
-    setArahUrut(arah);
-    pager.goFirst();
-    void load(1, pager.perPage, { status, urut: nilai, arah });
-  }
-
-  useEffect(() => {
-    if (pager.ready) load(pager.page);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pager.ready, status]);
 
   const run = useCallback(async (fn: () => Promise<{ pesan?: string }>, sukses: string) => {
     setBusy(true);
