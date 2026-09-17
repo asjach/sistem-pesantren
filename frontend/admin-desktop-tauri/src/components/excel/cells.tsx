@@ -140,14 +140,15 @@ export function SelectCell({ rowData, setRowData, columnData, focus, stopEditing
 }
 
 /** Sel boolean (Switch ON/OFF) — langsung mengubah nilai tanpa mode Edit.
- *  Nilai grid tetap string 'ya'/'tidak' agar pipeline data tak berubah. */
+ *  Nilai grid tetap string 'ya'/'tidak' agar pipeline data tak berubah.
+ *  mousedown sengaja TIDAK dihentikan agar sel tetap bisa diseleksi/aktif
+ *  di grid; klik Switch tetap dihentikan agar tidak memicu aksi grid. */
 export function ToggleCell({ rowData, setRowData, columnData, disabled }: CellProps<GridRow, ToggleColData>) {
   const key = columnData.fieldKey;
   return (
     <span
       className="simpes-dsg-fill flex items-center justify-center"
       data-col-key={key}
-      onMouseDown={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}
     >
       <Switch
