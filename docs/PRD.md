@@ -1019,7 +1019,11 @@ Status: 🔲 not scaffolded (backend 201/202 pending).
 1. Inti ✅ live (100/101/102 + matriks izin + import satu pintu + halaman MI-MD): pemeliharaan + pengerasan (audit log review, load test, runbook backup/restore).
 2. Berikutnya bila diminta: modul 200 → 201 → 202 → 203 (tiap modul: service + policy + controller + tests), lalu Fase 5 + infra (500–505, 900–901).
 3. Aplikasi admin desktop tetap satu (`admin-desktop-tauri`); 5 aplikasi lain dibuka sesuai modul backend-nya.
-4. `kelas_lulus_id` alumni + `kasir`/keuangan hanya saat dirumuskan ulang.
+4. `kelas_lulus_id` alumni sudah live (v2.52). **Modul keuangan (termasuk peran
+`kasir`) dirumuskan ulang dari nol dan dikerjakan PALING AKHIR — tahap terakhir
+sebelum production** (cakupan: jenis transaksi, metode bayar, peran loket
+ditentukan saat tahap itu dimulai; tidak dibahas sekarang agar tidak merusak
+susunan yang berjalan).
 
 ### 12. Out of scope
 
