@@ -705,11 +705,11 @@ web session UI (API-first, token auth only).
                         │  Backend (Laravel 13 API)   │  backend/
                         │  Sanctum tokens, /api/*     │
                         └──────────────┬──────────────┘
-           ┌───────────────┬───────────┼───────────┬───────────────┐
-           ▼               ▼           ▼           ▼               ▼
-   admin-desktop   admin-desktop  kasir      orangtua      pimpinan     guru
-   -tauri          -pyside        -mobile    -mobile       -mobile      -mobile
-   (Tauri 2)       (PySide6)      (RN)       (RN)          (RN)         (RN)
+           ┌───────────┬───────────┬───────────────┐
+           ▼           ▼           ▼               ▼
+   admin-desktop  kasir      orangtua      pimpinan     guru
+   -tauri         -mobile    -mobile       -mobile      -mobile
+   (Tauri 2)      (RN)       (RN)          (RN)         (RN)
 ```
 
 All frontends are separate projects under `frontend/` (never merged):
@@ -717,7 +717,6 @@ All frontends are separate projects under `frontend/` (never merged):
 | App | Folder | Stack | Users |
 |---|---|---|---|
 | Admin desktop (primary) | `frontend/admin-desktop-tauri` | Tauri 2 | super_admin, admin |
-| Admin desktop (alt) | `frontend/admin-desktop-pyside` | PySide6 | super_admin, admin |
 | Kasir mobile | `frontend/kasir-mobile-react-native` | React Native | kasir (+admin) |
 | Orang tua mobile | `frontend/orangtua-mobile-react-native` | React Native | orang_tua |
 | Pimpinan mobile | `frontend/pimpinan-mobile-react-native` | React Native | pimpinan (reads executive aggregates) |
@@ -736,7 +735,6 @@ envelope `{pesan, data}` for portal endpoints, standard pagination elsewhere.
   (`guard_name: sanctum`), MySQL, Maatwebsite Excel, DomPDF (rapor),
   Service Layer pattern, `DB::transaction()` + `lockForUpdate()` for critical ops.
 * Admin Tauri: Tauri 2 + frontend webview (to be decided: React/Vue/Svelte).
-* Admin PySide: PySide6 (Qt for Python), desktop offline-tolerant forms.
 * Mobile (×4): React Native (shared API client design, separate apps/releases).
 * Infra: single VPS deployment (docs `900`–`901`, currently closed).
 
@@ -1011,19 +1009,13 @@ rekap, halaman MI-MD (tambah/hapus massal, samakan kelas), pengajuan biodata (se
 dokumen wajib, preset tabel, pengaturan server/tampilan.
 Status: 🟢 shell v0.5.0 live (Tailwind+shadcn: 20 tema ala VSCode data-driven + kustom, Gelap/Terang/Sistem per perangkat, galeri pratinjau, border lembut tanpa shadow, navigasi menubar/ribbon/sidebar per perangkat, pagination 10/50/100/500 + "Semua", dialog/toast/skeleton). Tabel master memakai `react-datasheet-grid` lewat wrapper `ExcelTable` (seleksi gaya spreadsheet, resize + AutoFit, edit klik-2× langsung simpan, aksi baris >3 jadi dropdown, preset kolom per tabel) dengan kontrol global ukuran/tinggi/jenis huruf; **Google Fonts disimpan lokal di repo** (`src/assets/fonts`, 8 keluarga × Light/Regular) sehingga aplikasi berjalan **tanpa internet** — dihasilkan ulang via `scripts/fonts-offline.py`. Desktop Tauri 0.5.0 dibangun (`.app` 11 MB, `.dmg` 4 MB, aarch64, belum ditandatangani); build desktop hanya dijalankan bila diminta. Belum: modul 200+ (pegawai/kurikulum/nilai), Fase 5, portal ortu lanjutan.
 
-#### 6.2 `frontend/admin-desktop-pyside` (alternate admin)
-
-Same scope as 6.1 (feature parity target), PySide6 implementation for
-environments preferring Qt/Python (bulk Excel import, PDF printing).
-Status: 🔲 not scaffolded.
-
-#### 6.3 `frontend/kasir-mobile-react-native`
+#### 6.2 `frontend/kasir-mobile-react-native`
 
 Users: kasir (+admin). Scope: DITUNDA — menunggu perumusan ulang modul keuangan dari awal.
 Offline: queue-and-sync for payments is OUT (online only, race safety).
 Status: 🔲 not scaffolded.
 
-#### 6.4 `frontend/orangtua-mobile-react-native`
+#### 6.3 `frontend/orangtua-mobile-react-native`
 
 Users: orang_tua. Scope (203): children list → detail (profil, kelas,
 nilai/rapor, presensi poin, tahfizh rekap), ajukan/batalkan
@@ -1031,7 +1023,7 @@ biodata edits (whitelist fields, NIK needs full-admin), PSB lanjutan for
 registered NIK, document upload status. Read-only except proposals/uploads.
 Status: 🔲 not scaffolded (backend 203 pending).
 
-#### 6.5 `frontend/pimpinan-mobile-react-native`
+#### 6.4 `frontend/pimpinan-mobile-react-native`
 
 Users: pimpinan. This is NOT an admin app — it is a read-only statistics app
 for strategic decisions. Scope (504): total santri keseluruhan, santri per
@@ -1040,7 +1032,7 @@ lembaga, enrollment per gelombang, jumlah guru, kehadiran guru, keuangan
 progress, alumni/mutasi counts. No mutations whatsoever.
 Status: 🔲 not scaffolded (backend 504 closed).
 
-#### 6.6 `frontend/guru-mobile-react-native`
+#### 6.5 `frontend/guru-mobile-react-native`
 
 Users: guru. Scope: my classes (walas + pengampu), anggota kelas
 (from active riwayat), nilai input per pengampu (massal per-item),
@@ -1096,7 +1088,7 @@ Status: 🔲 not scaffolded (backend 201/202 pending).
 | 102 Siklus (salin genap, naik, pindah, mutasi, lulus, roster + arsip, halaman MI-MD, beku kelas) | ✅ | ✅ | — | ✅ (suite 186/186) |
 | 200/201/202/203 | ✅ specs | ✅ tables | — | 🔲 |
 | Fase 5 (500–505), infra (900–901) | 🔲 drafts | ✅ tables | — | 🔲 |
-| 6 frontend apps | §6 above | n/a | n/a | ✅ 1 live (`admin-desktop-tauri`), 5 🔲 |
+| 5 frontend apps | §6 above | n/a | n/a | ✅ 1 live (`admin-desktop-tauri`), 4 🔲 |
 
 ### 11. Roadmap
 
