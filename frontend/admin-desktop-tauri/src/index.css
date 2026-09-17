@@ -274,6 +274,15 @@
   border-right: none;
   border-bottom: none;
 }
+/* Lapisan scroll DSG menggambar bingkai atas/kiri + bayangan gulir selebar
+   VIEWPORT (bukan lebar tabel), sehingga tampak "lewat" dari tabel saat kolom
+   sedikit. Buang bingkai & bayangannya; tepi tabel sudah digambar per sel
+   (.simpes-dsg-col-last) dan indikator gulir tetap ada lewat scrollbar. */
+.simpes-dsg .dsg-scrollable-view {
+  border-top: none;
+  border-left: none;
+  box-shadow: none;
+}
 /* DSG membungkus container dalam div perantara: teruskan rantai flex.
    Kartu tabel (.simpes-dsg-kartu) mengisi tinggi grid (gridHeight): penuh
    sisa area untuk tabel halaman, mengikuti isi untuk tabel kompak. */
