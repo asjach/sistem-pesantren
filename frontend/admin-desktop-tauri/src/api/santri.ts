@@ -14,6 +14,26 @@ export interface LembagaSantri {
   tgl_mulai: string | null;
   tgl_selesai: string | null;
   lembaga?: { id: number; nama: string; kode: string | null; nsm?: string | null } | null;
+  santri?: { id: number; nama_lengkap: string; jk: string | null } | null;
+}
+
+/** Daftar keanggotaan lintas santri (halaman Keanggotaan terpusat). */
+export function listKeanggotaan(params: {
+  lembaga_id?: number | null;
+  is_active?: boolean | null;
+  tanpa_nis?: boolean;
+  search?: string;
+  page?: number;
+  per_page?: number;
+} = {}) {
+  const q = new URLSearchParams();
+  if (params.lembaga_id != null) q.set('lembaga_id', String(params.lembaga_id));
+  if (params.is_active != null) q.set('is_active', params.is_active ? '1' : '0');
+  if (params.tanpa_nis) q.set('tanpa_nis', '1');
+  if (params.search) q.set('search', params.search);
+  q.set('page', String(params.page ?? 1));
+  q.set('per_page', String(params.per_page ?? 50));
+  return api<Paginate<LembagaSantri>>(`/admin/lembaga-santri?${q.toString()}`);
 }
 
 /** Identitas santri — tanpa kolom relasional (lembaga/kelas ada di keanggotaan/riwayat). */

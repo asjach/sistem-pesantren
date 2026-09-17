@@ -2,7 +2,7 @@
 
 | Atribut | Keterangan |
 |---|---|
-| Versi Dokumen | 2.59 (detail lembaga lengkap) |
+| Versi Dokumen | 2.60 (halaman Keanggotaan) |
 | Tanggal | 17 September 2026 |
 | Status | PRD produk SIMPES — acuan tunggal kebutuhan, rancangan, dan status implementasi aplikasi yang sedang dibangun |
 | Penyusun | Solo dev + Yayasan |
@@ -110,7 +110,8 @@
 | 2.56 | 2026-09-17 | Pecah PRD jadi 4 file tanpa ubah isi (docs-only) |
 | 2.57 | 2026-09-17 | Lepas referensi arsip (docs-only) |
 | 2.58 | 2026-09-17 | Hapus halaman Tampilan Standar + kunci sebar super_admin |
-| 2.59 | 2026-09-17 | Detail lembaga lengkap: update/store terima seluruh kolom tabel (validasi + unik + induk terotorisasi); dialog Ubah 4 seksi (identitas, legalitas, alamat, operasional); suite 189/189, typecheck + build lolos |
+| 2.59 | 2026-09-17 | Detail lembaga lengkap |
+| 2.60 | 2026-09-17 | Halaman Keanggotaan terpusat (/keanggotaan): tabel lintas santri + filter lembaga/status/cari/tanpa-NIS + tambah/ubah/aktif-nonaktif/generate NISK; izin pakai ulang santri.lihat/tambah/ubah; suite 190/190, typecheck + build + uji browser lolos |
 ## Daftar Isi
 
 > Rujukan antar-file: "Bab 2–8" → `arsitektur.md`; "Bab 9–14 + Lampiran" → `operasi.md`; "§N / Part B" → `backend-detail.md`.

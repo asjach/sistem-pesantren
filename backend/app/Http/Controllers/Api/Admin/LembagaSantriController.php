@@ -20,6 +20,43 @@ class LembagaSantriController extends Controller
 {
     use TenantGuard;
 
+    /** GET /api/admin/lembaga-santri — daftar lintas santri (halaman Keanggotaan terpusat). */
+    public function daftar(Request $request): JsonResponse
+    {
+        $this->authorize('viewAny', Santri::class);
+
+        $query = $this->scopeLembaga(
+            LembagaSantri::with([
+                'santri:id,nama_lengkap,jk',
+                'lembaga:id,nama,kode',
+            ]),
+            $request->user(),
+            $request
+        );
+
+        if ($request->filled('lembaga_id')) {
+            $query->where('lembaga_id', $request->integer('lembaga_id'));
+        }
+        if ($request->has('is_active')) {
+            $query->where('is_active', $request->boolean('is_active'));
+        }
+        if ($request->filled('tanpa_nis')) {
+            $query->whereNull('nis_lokal');
+        }
+        if ($request->filled('search')) {
+            $s = $request->input('search');
+            $query->where(function ($q) use ($s) {
+                $q->whereHas('santri', fn ($qq) => $qq->where('nama_lengkap', 'like', "%{$s}%"))
+                    ->orWhere('nis_lokal', 'like', "%{$s}%")
+                    ->orWhere('nis_kemenag', 'like', "%{$s}%");
+            });
+        }
+
+        return response()->json(
+            $query->orderByDesc('is_active')->latest('id')->paginate($this->perPage($request))
+        );
+    }
+
     /** GET /api/admin/santri/{santri}/lembaga — daftar keanggotaan santri. */
     public function index(Request $request, Santri $santri): JsonResponse
     {

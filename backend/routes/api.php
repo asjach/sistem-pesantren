@@ -90,6 +90,7 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::post('santri/{santri}/dokumen/{dokumen}/tidak-memiliki', [SantriController::class, 'tidakMemiliki'])->middleware('permission:santri.ubah');
 
         // Keanggotaan per lembaga (buku induk: NIS lokal/kemenag, status, tanggal)
+        Route::get('lembaga-santri', [LembagaSantriController::class, 'daftar'])->middleware('permission:santri.lihat');
         Route::get('santri/{santri}/lembaga', [LembagaSantriController::class, 'index'])->middleware('permission:santri.lihat');
         Route::post('santri/{santri}/lembaga', [LembagaSantriController::class, 'store'])->middleware('permission:santri.tambah');
         Route::patch('lembaga-santri/{lembagaSantri}', [LembagaSantriController::class, 'update'])->middleware('permission:santri.ubah');

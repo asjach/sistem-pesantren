@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\Lembaga;
+use App\Models\LembagaSantri;
+use App\Models\Santri;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -97,5 +99,32 @@ class LembagaDetailTest extends TestCase
 
         $this->assertSame('MB', $b->fresh()->kode);
         $this->assertNull($a->fresh()->email);
+    }
+
+    public function test_daftar_keanggotaan_lintas_santri_dengan_filter(): void
+    {
+        $super = $this->makeSuperAdmin();
+        $mi = Lembaga::create(['nama' => 'MI', 'kode' => 'MI']);
+        $md = Lembaga::create(['nama' => 'MD', 'kode' => 'MD']);
+
+        $s1 = Santri::create(['nama_lengkap' => 'Anggota Satu', 'jk' => 'L']);
+        $s2 = Santri::create(['nama_lengkap' => 'Anggota Dua', 'jk' => 'P']);
+        LembagaSantri::create(['santri_id' => $s1->id, 'lembaga_id' => $mi->id, 'nis_lokal' => '10001', 'is_active' => true]);
+        LembagaSantri::create(['santri_id' => $s2->id, 'lembaga_id' => $md->id, 'nis_lokal' => null, 'is_active' => true]);
+        LembagaSantri::create(['santri_id' => $s2->id, 'lembaga_id' => $mi->id, 'nis_lokal' => '10002', 'is_active' => false]);
+
+        // Semua (tanpa filter status).
+        $res = $this->actingAs($super, 'sanctum')->getJson('/api/admin/lembaga-santri?per_page=50')->assertStatus(200);
+        $this->assertSame(3, $res->json('total'));
+
+        // Filter lembaga + tanpa NIS.
+        $res = $this->actingAs($super, 'sanctum')->getJson("/api/admin/lembaga-santri?lembaga_id={$md->id}&tanpa_nis=1")->assertStatus(200);
+        $this->assertSame(1, $res->json('total'));
+        $this->assertSame('Anggota Dua', $res->json('data.0.santri.nama_lengkap'));
+
+        // Filter nonaktif + cari nama.
+        $res = $this->actingAs($super, 'sanctum')->getJson('/api/admin/lembaga-santri?is_active=0&search=Dua')->assertStatus(200);
+        $this->assertSame(1, $res->json('total'));
+        $this->assertSame('10002', $res->json('data.0.nis_lokal'));
     }
 }

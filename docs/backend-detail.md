@@ -333,7 +333,7 @@ tenant-aware lists (filter by accessible `lembaga`), Indonesian UI.
 Users: super_admin, admin. Full CRUD: users/roles (+ matriks Kelola Izin), lembaga, tahun ajaran,
 kelas (Ambil/Copy antar lembaga, import/export nama), 34 kamus (global vs lembaga
 views), PSB antrean (verify/seleksi/ACC/tolak/paket), santri master + import satu pintu
-(kolom NIS per lembaga, samakan NIS MI↔MD), siklus (roster, salin genap, naik/pindah/mutasi/lulus/berhenti),
+(kolom NIS per lembaga, samakan NIS MI↔MD) + keanggotaan terpusat, siklus (roster, salin genap, naik/pindah/mutasi/lulus/berhenti),
 rekap, halaman MI-MD (tambah/hapus massal, samakan kelas), pengajuan biodata (setujui/tolak),
 dokumen wajib, preset tabel, pengaturan server/tampilan.
 Status: 🟢 shell v0.5.0 live (Tailwind+shadcn: 25 tema ala VSCode data-driven + kustom, Gelap/Terang/Sistem per perangkat, galeri pratinjau, border lembut tanpa shadow, navigasi menubar/ribbon/sidebar per perangkat, pagination 10/50/100/500 + "Semua", dialog/toast/skeleton). Tabel master memakai `react-datasheet-grid` lewat wrapper `ExcelTable` (seleksi gaya spreadsheet, resize + AutoFit, edit klik-2× langsung simpan, aksi baris >3 jadi dropdown, preset kolom per tabel) dengan kontrol global ukuran/tinggi/jenis huruf; **Google Fonts disimpan lokal di repo** (`frontend/admin-desktop-tauri/src/assets/fonts`, 8 keluarga × Light/Regular) sehingga aplikasi berjalan **tanpa internet** — dihasilkan ulang via `frontend/admin-desktop-tauri/scripts/fonts-offline.py`. Desktop Tauri 0.5.0 dibangun (`.app` 11 MB, `.dmg` 4 MB, aarch64, belum ditandatangani); build desktop hanya dijalankan bila diminta. Belum: modul 200+ (pegawai/kurikulum/nilai), Fase 5, portal ortu lanjutan.

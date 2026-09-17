@@ -1,5 +1,6 @@
 /** Registri halaman: sumber tunggal judul/deskripsi/ikon untuk sidebar & judul. */
 import {
+  BadgeCheck,
   BookMarked,
   BookOpen,
   CalendarDays,
@@ -73,6 +74,7 @@ export const HALAMAN: HalamanDef[] = [
     permission: 'dokumen_wajib.lihat',
   },
   { to: '/santri', label: 'Data Santri', tab: 'santri', grid: true, icon: GraduationCap, permission: 'santri.lihat' },
+  { to: '/keanggotaan', label: 'Keanggotaan', tab: 'santri', grid: true, icon: BadgeCheck, permission: 'santri.lihat' },
   { to: '/riwayat-belajar', label: 'Riwayat Belajar', tab: 'santri', grid: true, icon: History, permission: 'riwayat_belajar.lihat' },
   { to: '/daftar-kelas', label: 'Daftar Kelas', tab: 'santri', grid: true, icon: ClipboardList, permission: 'daftar_kelas.lihat' },
   { to: '/pindah-kelas', label: 'Pindah Kelas', tab: 'santri', grid: true, icon: MoveHorizontal, permission: 'pindah_kelas.lihat' },
