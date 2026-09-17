@@ -9,6 +9,11 @@ use App\Http\Controllers\Api\Concerns\TenantGuard;
 use App\Http\Controllers\Api\Concerns\UrutDaftar;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\ImportSantriRequest;
+use App\Http\Requests\Admin\SantriDokumenRequest;
+use App\Http\Requests\Admin\SantriFotoRequest;
+use App\Http\Requests\Admin\SantriStoreRequest;
+use App\Http\Requests\Admin\SantriTidakMemilikiRequest;
+use App\Http\Requests\Admin\SantriUpdateRequest;
 use App\Imports\SantriLembagaImport;
 use App\Imports\SantriLengkapImport;
 use App\Models\DokumenSantri;
@@ -74,44 +79,13 @@ class SantriController extends Controller
     }
 
     /** POST /api/admin/santri — input manual identitas (buku induk). */
-    public function store(Request $request): JsonResponse
+    public function store(SantriStoreRequest $request): JsonResponse
     {
-        $this->authorize('create', Santri::class);
-
-        $aturan = $this->aturanProfil();
-        $aturan['nama_lengkap'] = ['required', 'string', 'max:255'];
-        $aturan['jk'] = ['required', 'in:L,P'];
-
-        $data = $request->validate($aturan);
+        $data = $request->validated();
 
         $santri = Santri::create($data);
 
         return response()->json(['pesan' => 'Santri ditambahkan.', 'data' => $santri], 201);
-    }
-
-    /** Aturan validasi kolom profil identitas (dipakai store & update). */
-    private function aturanProfil(): array
-    {
-        $aturan = [];
-        foreach (Santri::KOLOM_PROFIL as $kolom) {
-            $aturan[$kolom] = ['sometimes', 'nullable', 'string', 'max:255'];
-        }
-        $aturan['nama_lengkap'] = ['sometimes', 'required', 'string', 'max:255'];
-        $aturan['alamat'] = ['sometimes', 'nullable', 'string', 'max:500'];
-        $aturan['nik'] = $aturan['ayah_nik'] = $aturan['ibu_nik'] = $aturan['wali_nik'] = ['sometimes', 'nullable', 'digits:16'];
-        $aturan['no_kk'] = ['sometimes', 'nullable', 'digits:16'];
-        $aturan['nisn'] = ['sometimes', 'nullable', 'digits:10'];
-        $aturan['jk'] = ['sometimes', 'nullable', 'in:L,P'];
-        $aturan['tipe_santri'] = ['sometimes', 'nullable', 'in:asrama,non_asrama'];
-        $aturan['anak_ke'] = $aturan['j_saudara'] = ['sometimes', 'nullable', 'integer', 'min:0'];
-        $aturan['email_santri'] = ['sometimes', 'nullable', 'email', 'max:255'];
-        $aturan['no_hp_santri'] = $aturan['ayah_telp'] = $aturan['ibu_telp'] = $aturan['wali_telp'] = ['sometimes', 'nullable', 'string', 'max:20'];
-        $aturan['rt'] = $aturan['rw'] = ['sometimes', 'nullable', 'string', 'max:3'];
-        foreach (['tgl_lahir', 'ayah_tgl_lahir', 'ibu_tgl_lahir', 'wali_tgl_lahir', 'tanggal_masuk'] as $k) {
-            $aturan[$k] = ['sometimes', 'nullable', 'date'];
-        }
-
-        return $aturan;
     }
 
     /** Resolusi lembaga untuk lingkup kamus efektif (template import). */
@@ -134,11 +108,9 @@ class SantriController extends Controller
     }
 
     /** PATCH /api/admin/santri/{santri} — edit kolom identitas (partial). */
-    public function update(Request $request, Santri $santri): JsonResponse
+    public function update(SantriUpdateRequest $request, Santri $santri): JsonResponse
     {
-        $this->authorize('update', $santri);
-
-        $data = $request->validate($this->aturanProfil());
+        $data = $request->validated();
 
         if ($data === []) {
             return response()->json(['pesan' => 'Tidak ada perubahan.', 'data' => $santri->fresh()]);
@@ -150,14 +122,8 @@ class SantriController extends Controller
     }
 
     // Upload foto profil santri. Storage: storage/app/santri/foto/* ; DB hanya path di santri.foto_url.
-    public function uploadFoto(Request $request, Santri $santri): JsonResponse
+    public function uploadFoto(SantriFotoRequest $request, Santri $santri): JsonResponse
     {
-        $this->authorize('update', $santri);
-
-        $request->validate([
-            'foto' => ['required', 'file', 'mimes:jpg,jpeg,png', 'max:2048'],
-        ]);
-
         $path = $request->file('foto')->store('santri/foto', 'local');
 
         if ($santri->foto_url && Storage::disk('local')->exists($santri->foto_url)) {
@@ -173,15 +139,9 @@ class SantriController extends Controller
     }
 
     // Upload dokumen milik santri (pasca-ACC; pola sama dengan calon di 100).
-    public function uploadDokumen(Request $request, Santri $santri)
+    public function uploadDokumen(SantriDokumenRequest $request, Santri $santri)
     {
-        $this->authorize('update', $santri);
-
-        $data = $request->validate([
-            'jenis_dokumen_santri' => ['required', 'string', 'max:50'],
-            'file' => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
-            'catatan' => ['nullable', 'string'],
-        ]);
+        $data = $request->validated();
         $lembagaUntukKamus = $santri->lembagaAktif()->value('lembaga_id');
         if (! in_array($data['jenis_dokumen_santri'], RefService::kodeAktif('jenis_dokumen_santri', $lembagaUntukKamus), true)) {
             abort(422, 'Jenis dokumen tidak aktif di lembaga ini.');
@@ -222,14 +182,12 @@ class SantriController extends Controller
     }
 
     // Tandai "tidak memiliki dokumen" (tidak menghalangi proses apa pun).
-    public function tidakMemiliki(Request $request, Santri $santri, DokumenSantri $dokumen): JsonResponse
+    public function tidakMemiliki(SantriTidakMemilikiRequest $request, Santri $santri, DokumenSantri $dokumen): JsonResponse
     {
-        $this->authorize('update', $santri);
-
         if ((int) $dokumen->santri_id !== (int) $santri->id) {
             abort(404, 'Dokumen tidak tertaut ke santri ini.');
         }
-        $data = $request->validate(['tidak_memiliki' => ['required', 'boolean']]);
+        $data = $request->validated();
         $dokumen->update(['tidak_memiliki' => $data['tidak_memiliki']]);
 
         return response()->json(['pesan' => 'Status dokumen diperbarui.', 'data' => $dokumen->fresh()]);
