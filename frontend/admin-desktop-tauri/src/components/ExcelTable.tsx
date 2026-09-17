@@ -80,6 +80,8 @@ import {
   ToggleCell,
 } from './excel/cells';
 import { HeaderTitle, ukurPerluTinggiHeader } from './excel/header';
+import { bersihkanProbe, measureActionsWidth, measureTextWidth } from './excel/measure';
+import { useAntreanSimpan } from './excel/useAntreanSimpan';
 import ToolbarTabel from './excel/toolbar';
 import { ActionsCell, flattenAksi, metaAksi } from './excel/actions';
 import type { AksiMenu, CheckAllState, ExcelField, GridRow, GridSelection } from './excel/types';
@@ -344,14 +346,9 @@ export default function ExcelTable<T extends { id: string | number }>({
   /** Listener resize aktif (dibersihkan saat unmount bila masih menyeret). */
   const resizeListenersRef = useRef<{ move: (ev: MouseEvent) => void; up: () => void } | null>(null);
   /** Antrean simpan otomatis per baris (id → field yang belum dikirim). */
-  const queueRef = useRef<Map<string, Record<string, string | null>>>(new Map());
-  const drainingRef = useRef(false);
-  /** Baris yang sukses tersimpan pada siklus drain berjalan. */
-  const savedRef = useRef<{ id: string; keys: string[] }[]>([]);
   const rangeRef = useRef(range);
   rangeRef.current = range;
   const measureCtxRef = useRef<CanvasRenderingContext2D | null>(null);
-  const probeRef = useRef<HTMLSpanElement | null>(null);
 
   /** Cache sesi untuk tabel ini (bila ada): lebar langsung final di render
    *  pertama sehingga tidak ada geseran saat kembali ke halaman. */
@@ -385,6 +382,12 @@ export default function ExcelTable<T extends { id: string | number }>({
   /** Sedang mencoba mengukur kolom Aksi yang baru ter-render (hindari loop ganda). */
   const aksiFitRef = useRef(false);
   const fieldsRef = useRef(fields);
+  const onCommitRef = useRef(onCommit);
+  onCommitRef.current = onCommit;
+  const onSavedRef = useRef(onSaved);
+  onSavedRef.current = onSaved;
+  const dropDraftRef = useRef<(idKey: string, keys: string[]) => void>(() => {});
+  const { enqueueSave } = useAntreanSimpan<T>({ rowsRef, fieldsRef, onCommitRef, onSavedRef, dropDraftRef });
   fieldsRef.current = fields;
   const getValuesRef = useRef(getValues);
   getValuesRef.current = getValues;
@@ -552,7 +555,7 @@ export default function ExcelTable<T extends { id: string | number }>({
   useLayoutEffect(() => {
     if (hideActions) return;
     if (widthsRef.current.__aksi !== undefined) return;
-    const w = measureActionsWidth();
+    const w = measureActionsWidth(wrapRef.current);
     if (w == null) return;
     setAutoWidths((prev) => (prev.__aksi === w ? prev : { ...prev, __aksi: w }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -604,8 +607,7 @@ export default function ExcelTable<T extends { id: string | number }>({
   // Bersihkan span pengukur teks saat tabel dilepas.
   useEffect(
     () => () => {
-      probeRef.current?.remove();
-      probeRef.current = null;
+      bersihkanProbe();
     },
     [],
   );
@@ -797,66 +799,11 @@ export default function ExcelTable<T extends { id: string | number }>({
     [],
   );
 
-  /** Ukur lebar teks memakai span tersembunyi dengan SELURUH properti font
-   *  nyata dari sel. Canvas tidak cukup: `font-variant-numeric: tabular-nums`
-   *  (dipakai sel) tidak bisa direpresentasikan canvas sehingga hasilnya
-   *  ~8px lebih sempit dan teks panjang (mis. email) jadi terpotong. */
-  function measureTextWidth(text: string, cs: CSSStyleDeclaration): number {
-    let probe = probeRef.current;
-    if (!probe) {
-      probe = document.createElement('span');
-      probe.setAttribute('aria-hidden', 'true');
-      probe.style.position = 'absolute';
-      probe.style.left = '-10000px';
-      probe.style.top = '0';
-      probe.style.whiteSpace = 'pre';
-      probe.style.pointerEvents = 'none';
-      document.body.appendChild(probe);
-      probeRef.current = probe;
-    }
-    probe.style.fontFamily = cs.fontFamily;
-    probe.style.fontSize = cs.fontSize;
-    probe.style.fontWeight = cs.fontWeight;
-    probe.style.fontStyle = cs.fontStyle;
-    probe.style.fontVariantNumeric = cs.fontVariantNumeric;
-    probe.style.fontFeatureSettings = cs.fontFeatureSettings;
-    probe.style.letterSpacing = cs.letterSpacing;
-    probe.textContent = text;
-    return probe.getBoundingClientRect().width;
-  }
-
-  /** Lebar kolom Aksi diukur dari tombol yang benar-benar dirender — jumlah
-   *  tombol bergantung role/baris sehingga tidak bisa dihitung dari data.
-   *  Mengembalikan null bila kolom Aksi sedang tidak dirender (virtualisasi). */
-  function measureActionsWidth(): number | null {
-    const root = wrapRef.current;
-    if (!root) return null;
-    let content = 0;
-    let pad = 24;
-    for (const box of Array.from(root.querySelectorAll<HTMLElement>('.simpes-dsg-actions'))) {
-      const kids = Array.from(box.children) as HTMLElement[];
-      if (kids.length === 0) continue;
-      const first = kids[0].getBoundingClientRect();
-      const last = kids[kids.length - 1].getBoundingClientRect();
-      content = Math.max(content, last.right - first.left);
-      const cell = box.closest<HTMLElement>('.dsg-cell');
-      if (cell) {
-        const cs = getComputedStyle(cell);
-        pad = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
-      }
-    }
-    if (content <= 0) return null;
-    return Math.min(
-      AUTOFIT_MAX_W,
-      Math.max(ACTIONS_MIN_W, Math.ceil(content) + pad + AUTOFIT_BUFFER),
-    );
-  }
-
   /** Ukur lebar teks dengan font & padding nyata dari DOM (akurat ikut tema). */
   function autoFitWidth(key: string): number | null {
     const root = wrapRef.current;
     if (!root) return null;
-    if (key === '__aksi') return measureActionsWidth();
+    if (key === '__aksi') return measureActionsWidth(root);
     const f = fieldsRef.current.find((x) => x.key === key);
     if (!f) return null;
     // Ambil sel data TEKS: bukan gutter (padding 5px) dan bukan sel checkbox
@@ -1018,7 +965,7 @@ export default function ExcelTable<T extends { id: string | number }>({
     aksiFitRef.current = true;
     let tries = 0;
     const coba = () => {
-      const w = measureActionsWidth();
+      const w = measureActionsWidth(wrapRef.current);
       if (w != null) {
         aksiFitRef.current = false;
         setAutoWidths((prev) => (prev.__aksi === w ? prev : { ...prev, __aksi: w }));
@@ -1689,68 +1636,7 @@ export default function ExcelTable<T extends { id: string | number }>({
       return next;
     });
   }
-
-  /** Simpan satu baris; ditolak validasi / gagal API → nilai kembali + toast. */
-  async function saveRow(idKey: string, flds: Record<string, string | null>) {
-    const domain = rowsRef.current.find((r) => String(r.id) === idKey);
-    if (!domain) {
-      dropDraft(idKey, Object.keys(flds));
-      return;
-    }
-    for (const f of fields) {
-      if (flds[f.key] !== undefined && f.validate) {
-        const blocked = f.validate(flds[f.key]);
-        if (blocked) {
-          dropDraft(idKey, Object.keys(flds));
-          toast.error(blocked);
-          return;
-        }
-      }
-    }
-    try {
-      await onCommit(domain.id, flds);
-      savedRef.current.push({ id: idKey, keys: Object.keys(flds) });
-    } catch (e) {
-      dropDraft(idKey, Object.keys(flds));
-      toast.error(`Gagal menyimpan. ${errorMessage(e)}`);
-    }
-  }
-
-  /** Antrean simpan per baris: perubahan beruntun di baris yang sama digabung. */
-  function enqueueSave(idKey: string, flds: Record<string, string | null>) {
-    const prev = queueRef.current.get(idKey) ?? {};
-    queueRef.current.set(idKey, { ...prev, ...flds });
-    void drain();
-  }
-
-  /** Proses antrean berurutan; satu reload server + satu toast setelah antrean
-   *  habis (bukan per baris) dan hanya bila memang ada yang tersimpan. */
-  async function drain() {
-    if (drainingRef.current) return;
-    drainingRef.current = true;
-    try {
-      while (queueRef.current.size > 0) {
-        const [idKey, flds] = [...queueRef.current.entries()][0];
-        queueRef.current.delete(idKey);
-        await saveRow(idKey, flds);
-      }
-      const tersimpan = savedRef.current.length;
-      if (tersimpan > 0) {
-        try {
-          await onSaved();
-        } catch {
-          // Reload gagal: draft sukses tetap dibuang (data sudah tersimpan di server).
-        }
-        for (const s of savedRef.current) dropDraft(s.id, s.keys);
-        savedRef.current = [];
-        toast.success(tersimpan === 1 ? 'Perubahan tersimpan.' : `${tersimpan} baris tersimpan.`);
-      }
-    } finally {
-      drainingRef.current = false;
-    }
-    // Ada perubahan baru saat reload berjalan → proses lagi.
-    if (queueRef.current.size > 0) void drain();
-  }
+  dropDraftRef.current = dropDraft;
 
   function onResetView() {
     setWidths({});
