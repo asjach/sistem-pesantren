@@ -9,8 +9,8 @@
 ## Sistem Pesantren — Product Requirements Document (PRD)
 
 > Scope: entire system (backend + all frontends).
-> Source of truth for backend behavior: step-by-step build guides in the docs vault
-> (`Backend/001`–`004`, `100`–`102`, `200`–`203`; decisions `000` no.1–51).
+> Source of truth for backend behavior: this repo (`arsitektur.md`, `operasi.md`,
+> `SCHEMA.md`, code + tests). Original vault guides (2026-09-09) retired in v2.57.
 > Status as of 2026-09-09. Language: English.
 
 ### 1. Overview
@@ -97,7 +97,7 @@ Status legend: ✅ implemented & migrated · 🟡 spec locked, not implemented �
 Status: ✅ project exists.
 
 **002 Database schema.** Per-module migration files (default timestamps, FK order;
-spec in `docs/SCHEMA.md`, rewritten from vault single-file spec): `lembaga` (root `kode=PESANTREN` + units via `parent_id`) → 36 `ref_*`
+spec in `docs/SCHEMA.md`, rewritten from the original single-file spec): `lembaga` (root `kode=PESANTREN` + units via `parent_id`) → 36 `ref_*`
 → `users` (+pivot/audit) → `tahun_ajaran` → `pegawai` → `kelas`
 (`walas_id → pegawai` inline) → santri/riwayat → PSB → finance →
 HR-academic → grades → presensi → tahfizh → wali portal (23 file hasil squash).
@@ -117,7 +117,7 @@ API: `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me`,
 `POST|DELETE /api/admin/users/{user}/lembaga` (attach/detach, multi-lembaga).
 Status: ✅ live.
 
-**Dashboard (ekstra, di luar vault — didokumentasikan v1.3.2).**
+**Dashboard (ekstra — didokumentasikan v1.3.2).**
 `GET /api/dashboard/ringkasan` (`auth:sanctum`, semua peran, scope tenant +
 opsional `?lembaga_id=`): hitungan `lembaga/pengguna/tahun_ajaran_aktif/kelas`
 + daftar tahun aktif. Bukan executive dashboard 504. Slot `santri`,
@@ -206,7 +206,7 @@ validasi; hanya sheet pertama (sheet Referensi diabaikan).
 Samakan NIS MI↔MD: salin hanya bila tepat satu sisi bernomor + sisi tujuan tak
 tabrakan; beda dua sisi / tabrakan hanya dilaporkan (tanpa auto-copy).
 Status: ✅ live (CRUD scoped, import satu pintu identitas+gabungan, kamus, foto/dokumen, kolom NIS per lembaga, samakan NIS MI↔MD; suite 186/186).
-Tambahan vs vault: mapping import penuh (tanpa drop diam-diam), `uploadFoto`,
+Tambahan: mapping import penuh (tanpa drop diam-diam), `uploadFoto`,
 `tipe_santri` rule, `kewarganegaraan` default WNI, kolom `kelas_id` menerima
 nama kelas/id (dropdown template per lembaga+TA). Recalc `status_global` tetap di 102.
 

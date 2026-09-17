@@ -243,7 +243,7 @@ Laravel 13 / PHP 8.4+, Sanctum (`sanctum`), Spatie (`sanctum`), MySQL, Excel, Do
 
 ### 8.2 Strategi Migration (per alur, per-modul per-file)
 
-Migration per-modul (timestamp bawaan, urutan FK); spec di `docs/SCHEMA.md` (ditulis ulang dari vault 002). Urutan `lembaga` ke `ref_*` ke `users` (`0001` bawaan) ke `user_lembaga` ke `tahun_ajaran` ke `pegawai` ke `kelas` ke `santri` ke riwayat ke PSB ke lanjutan; blok asrama (`asrama*`, `user_asrama`) menyusul setelah presensi.
+Migration per-modul (timestamp bawaan, urutan FK); spec di `docs/SCHEMA.md`. Urutan `lembaga` ke `ref_*` ke `users` (`0001` bawaan) ke `user_lembaga` ke `tahun_ajaran` ke `pegawai` ke `kelas` ke `santri` ke riwayat ke PSB ke lanjutan; blok asrama (`asrama*`, `user_asrama`) menyusul setelah presensi.
 
 | ID | Alur (Bab 4) | Modul | Tabel (BLOK) |
 |---|---|---|---|

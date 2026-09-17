@@ -1,8 +1,7 @@
 # Skema Database — SIMPES (dokumentasi, bukan kode)
 
-> Sumber: vault `Backend/002_Skema_Database.md` + 23 migrasi per-modul hasil
-> squash (+ `lembaga_santri`, `preset_tabel`, `pengaturan_tampilan`,
-> `alumni.kelas_lulus_id`). Bahasa Indonesia persis DB. Tipe logis umum.
+> Sumber: 23 migrasi per-modul hasil squash (+ `lembaga_santri`, `preset_tabel`,
+> `pengaturan_tampilan`, `alumni.kelas_lulus_id`). Bahasa Indonesia persis DB. Tipe logis umum.
 > Keputusan: single-pesantren via `lembaga` + pivot `user_lembaga` (no.40);
 > 34 `ref_*` global+shadow (no.50); seed no.51; pitfall multi-NULL MySQL →
 > dedup di service, bukan index (`002` catatan 9). Matriks izin (v2.38):

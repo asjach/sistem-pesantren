@@ -106,24 +106,7 @@ Garansi 3 bln; respons 1×24 jam. G4+ dibuka setelah G0–G3 stabil production.
 
 ## Lampiran A — ERD (Sumber Kebenaran)
 
-Diagram Crow's Foot diturunkan dari [[Step-By-Step Sistem Pesantren/Backend/002_Skema_Database|002]] dan diringkas di Bab 6. File visual menyusul; hingga ada, tabel Bab 6 + arsip 002 berlaku dengan interpretasi tipe logis.
-
-## Lampiran B — Matriks Ketertelusuran ke Arsip (read-only)
-
-| ID | Modul (kode + nama) | Arsip |
-|---|---|---|
-| FR-003 | 003 Auth Login | [[Step-By-Step Sistem Pesantren/Backend/003_Authentication\|003]] |
-| FR-004 | 004 Referensi-Master | [[Step-By-Step Sistem Pesantren/Backend/004_Modul Referensi dan Master Data\|004]] |
-| FR-100 | 100 PSB Penerimaan | [[Step-By-Step Sistem Pesantren/Backend/100_Modul PSB\|100]] |
-| FR-101 | 101 Santri Master | [[Step-By-Step Sistem Pesantren/Backend/101_Modul Santri\|101]] |
-| FR-102 | 102 Siklus Santri | [[Step-By-Step Sistem Pesantren/Backend/102_Modul Riwayat Santri\|102]] |
-| FR-203 | 203 Portal Wali | [[Step-By-Step Sistem Pesantren/Backend/203_Modul Portal Orang Tua\|203]] |
-| FR-200, FR-201, FR-202 | 200 Pegawai, 201 Kurikulum-Mapel, 202 Nilai-Rapor | Persiapan, arsip 200/201/202 |
-| TBD-Pasca | 500 Presensi Santri, 501 Presensi Guru, 502 Jadwal, 503 Tahfizh, 504 Pimpinan, 505 Asrama | TBD pasca |
-| TBD-Infra | 900 Deploy VPS, 901 Konfigurasi Produksi | TBD infra |
-| FE-UI | Frontend LANGKAH UI | `Frontend/admin-flutter-desktop/docs/` |
-| DB-002 | Skema DB Bab 6 | [[Step-By-Step Sistem Pesantren/Backend/002_Skema_Database\|002]] |
-| KONV | Konvensi Bab 8 | [[Step-By-Step Sistem Pesantren/Backend/AGENTS\|AGENTS]], [[Step-By-Step Sistem Pesantren/Backend/000_Catatan Pembahasan\|000]] |
+Diagram Crow's Foot diringkas di Bab 6 (`arsitektur.md`) dan `docs/SCHEMA.md`. File visual menyusul; hingga ada, keduanya berlaku dengan interpretasi tipe logis.
 
 ## Lampiran C — Isu Terbuka / TBD
 

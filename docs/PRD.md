@@ -2,11 +2,10 @@
 
 | Atribut | Keterangan |
 |---|---|
-| Versi Dokumen | 2.56 (pecah 4 file) |
+| Versi Dokumen | 2.57 (lepas referensi arsip) |
 | Tanggal | 17 September 2026 |
 | Status | PRD produk SIMPES — acuan tunggal kebutuhan, rancangan, dan status implementasi aplikasi yang sedang dibangun |
 | Penyusun | Solo dev + Yayasan |
-| Arsip acuan (read-only) | `Step-By-Step Sistem Pesantren/Backend/` + `Frontend/admin-flutter-desktop/docs/` |
 | Skema versi | Major restruktur = X.0; final 1 bab = X.Y; kecil docs = X.Y.Z |
 
 > **Konvensi.** Bahasa Indonesia persis DB. Logika saja, tanpa kode mentah, format kode + nama modul. Tanpa asumsi umum. Aturan bisa berubah via Lampiran E. Penulisan Bab 3 (tanpa simbol paragraf).
@@ -108,7 +107,8 @@
 | 2.53 | 2026-09-17 | §7 dokumentasi desain UI (docs-only) |
 | 2.54 | 2026-09-17 | Lampiran G operasional agen (docs-only) |
 | 2.55 | 2026-09-17 | PRD sebagai dasar proyek (docs-only) |
-| 2.56 | 2026-09-17 | Pecah PRD jadi 4 file tanpa ubah isi (docs-only): PRD.md (sampul + changelog + §1), arsitektur.md (Bab 2–8), operasi.md (Bab 9–14 + Lampiran + Pembahasan), backend-detail.md (Part B) |
+| 2.56 | 2026-09-17 | Pecah PRD jadi 4 file tanpa ubah isi (docs-only) |
+| 2.57 | 2026-09-17 | Lepas referensi arsip (docs-only): hapus Lampiran B + §1.6 arsip + baris header arsip; arsitektur, backend-detail, SCHEMA mandiri dari repo |
 ## Daftar Isi
 
 > Rujukan antar-file: "Bab 2–8" → `arsitektur.md`; "Bab 9–14 + Lampiran" → `operasi.md`; "§N / Part B" → `backend-detail.md`.
@@ -116,14 +116,14 @@
 - [1. Pendahuluan](#1-pendahuluan) (file ini)
 - [2. Gambaran Sistem](arsitektur.md#2-gambaran-sistem) … [8. Implementasi](arsitektur.md#8-implementasi)
 - [9. Manajemen Proyek](operasi.md#9-manajemen-proyek-hybrid-solo) … [14. Pemeliharaan dan Dukungan](operasi.md#14-pemeliharaan-dan-dukungan)
-- [Lampiran A–H](operasi.md#lampiran-a--erd-sumber-kebenaran) + Pembahasan Selanjutnya
+- [Lampiran A, C–H](operasi.md#lampiran-a--erd-sumber-kebenaran) + Pembahasan Selanjutnya
 - [Part B — Detail Backend (EN)](backend-detail.md#part-b--detail-backend-en-dari-backenddocsprdmd-2026-09-09)
 
 ## 1. Pendahuluan
 
 ### 1.1 Tujuan Dokumen
 
-Dokumen ini adalah PRD produk SIMPES — dasar pembangunan dan pemeliharaan aplikasi. Acuan tunggal: kebutuhan, proses, rancangan, rencana uji/penyebaran, status implementasi, plus lampiran ketertelusuran. Kriteria selesai per bab: ringkas, tercermin di kode + test, TBD eksplisit.
+Dokumen ini adalah PRD produk SIMPES — dasar pembangunan dan pemeliharaan aplikasi. Acuan tunggal: kebutuhan, proses, rancangan, rencana uji/penyebaran, status implementasi, plus lampiran. Kriteria selesai per bab: ringkas, tercermin di kode + test, TBD eksplisit.
 
 ### 1.2 Latar Belakang
 
@@ -167,11 +167,8 @@ Pesantren menaungi beberapa lembaga — MI, MD, MTs, Mu'allimin — dalam satu p
 
 Lihat Lampiran D. Inti: `lembaga` (root PESANTREN + MI/MD/MTS/MUA), `tahun_ajaran`, `kelas` (`walas_id→pegawai`), 6 peran (`super_admin, admin, guru, orang_tua, santri, asrama` — `asrama` pasca production; `kasir` dihapus sementara v2.38), matriks izin (`IzinKatalog`), `riwayat_belajar`, `asrama` (entitas sendiri, bukan lembaga; pasca production).
 
-### 1.6 Referensi (arsip, read-only)
+### 1.6 Referensi
 
-- [[Step-By-Step Sistem Pesantren/Backend/AGENTS|AGENTS — Konvensi]]
-- [[Step-By-Step Sistem Pesantren/Backend/000_Catatan Pembahasan|000 Keputusan Terkunci]]
-- [[Step-By-Step Sistem Pesantren/Backend/002_Skema_Database|002 Skema (implementasi)]]
 - Wawancara pengurus (Agu 2026), kurikulum 2026/2027, tata tertib.
 
 ---
