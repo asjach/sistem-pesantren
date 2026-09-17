@@ -131,6 +131,7 @@ export default function KelasPage() {
 
   // Import nama kelas pasangan MI↔MD (pratinjau → eksekusi).
   const [imporOpen, setImporOpen] = useState(false);
+  const [imporArah, setImporArah] = useState<'ambil' | 'copy'>('ambil');
   const [imporHasil, setImporHasil] = useState<ImportNamaHasil | null>(null);
   const [imporBusy, setImporBusy] = useState(false);
 
@@ -141,16 +142,25 @@ export default function KelasPage() {
   }, [lembagas, lembagaId]);
   const dariKode = kodeFilter === 'MI' ? 'MD' : kodeFilter === 'MD' ? 'MI' : null;
 
-  async function muatImpor(periksa: boolean) {
+  async function muatImpor(periksa: boolean, arah: 'ambil' | 'copy' = imporArah) {
     if (lembagaId === '' || taId === '' || !dariKode) return;
     setImporBusy(true);
     try {
-      const res = await importNamaKelas({
-        lembaga_id: Number(lembagaId),
-        tahun_ajaran_id: Number(taId),
-        dari_kode: dariKode,
-        periksa,
-      });
+      const res = await importNamaKelas(
+        arah === 'ambil'
+          ? {
+              lembaga_id: Number(lembagaId),
+              tahun_ajaran_id: Number(taId),
+              dari_kode: dariKode,
+              periksa,
+            }
+          : {
+              dari_lembaga_id: Number(lembagaId),
+              dari_tahun_ajaran_id: Number(taId),
+              ke_kode: dariKode,
+              periksa,
+            },
+      );
       setImporHasil(res);
       if (!periksa) {
         toast.success(res.pesan);
@@ -163,10 +173,11 @@ export default function KelasPage() {
     }
   }
 
-  function bukaImpor() {
+  function bukaImpor(arah: 'ambil' | 'copy') {
+    setImporArah(arah);
     setImporHasil(null);
     setImporOpen(true);
-    void muatImpor(true);
+    void muatImpor(true, arah);
   }
 
   // Pilihan lembaga + TA khusus dialog Tambah (mandiri dari filter toolbar).
@@ -552,9 +563,14 @@ export default function KelasPage() {
         addButton={canTambahKelas ? (
           <>
             {dariKode && (
-              <Button id="btn_buka_import_nama_kelas" variant="outline" onClick={bukaImpor}>
-                Import nama kelas dari {dariKode}
-              </Button>
+              <>
+                <Button id="btn_ambil_nama_kelas" variant="outline" onClick={() => bukaImpor('ambil')}>
+                  Ambil dari {dariKode}
+                </Button>
+                <Button id="btn_copy_nama_kelas" variant="outline" onClick={() => bukaImpor('copy')}>
+                  Copy ke {dariKode}
+                </Button>
+              </>
             )}
             <Button
               id="btn_unduh_daftar_kelas"
@@ -723,7 +739,9 @@ export default function KelasPage() {
       <Dialog open={imporOpen} onOpenChange={setImporOpen}>
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
-            <DialogTitle>Import nama kelas dari {dariKode}</DialogTitle>
+            <DialogTitle>
+              {imporArah === 'ambil' ? `Ambil nama kelas dari ${dariKode}` : `Copy nama kelas ke ${dariKode}`}
+            </DialogTitle>
             <DialogDescription>
               Menyalin nama + tingkat kelas. Nama yang sudah ada dilewati (tidak digandakan).
             </DialogDescription>
@@ -731,7 +749,8 @@ export default function KelasPage() {
           {imporHasil ? (
             <div className="flex flex-col gap-3 text-sm" id="hasil_import_nama_kelas">
               <p className="font-medium">
-                Sumber {imporHasil.sumber.kode} ({imporHasil.sumber.tahun_ajaran ?? '—'}): {imporHasil.ringkasan.sumber} kelas ·{' '}
+                {imporHasil.sumber.kode} ({imporHasil.sumber.tahun_ajaran ?? '—'}) → {imporHasil.tujuan.kode} ({imporHasil.tujuan.tahun_ajaran ?? '—'}):{' '}
+                {imporHasil.ringkasan.sumber} kelas ·{' '}
                 {imporHasil.ringkasan.dibuat} dibuat · {imporHasil.ringkasan.dilewati} dilewati
               </p>
               {imporHasil.rincian.length > 0 ? (

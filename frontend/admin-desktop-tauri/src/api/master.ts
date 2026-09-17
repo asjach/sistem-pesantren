@@ -263,12 +263,17 @@ export interface ImportNamaHasil {
   pesan: string;
   periksa: boolean;
   sumber: { kode: string; tahun_ajaran: string | null };
+  tujuan: { kode: string; tahun_ajaran: string | null };
   ringkasan: { sumber: number; dibuat: number; dilewati: number };
   rincian: ImportNamaRincian[];
 }
 
-/** Pratinjau (periksa=true) atau eksekusi salin nama+tingkat kelas MI↔MD. */
-export function importNamaKelas(input: { lembaga_id: number; tahun_ajaran_id: number; dari_kode: 'MI' | 'MD'; periksa: boolean }) {
+/** Pratinjau (periksa=true) atau eksekusi salin nama+tingkat kelas MI↔MD (ambil/copy). */
+export function importNamaKelas(
+  input:
+    | { lembaga_id: number; tahun_ajaran_id: number; dari_kode: 'MI' | 'MD'; periksa: boolean }
+    | { dari_lembaga_id: number; dari_tahun_ajaran_id: number; ke_kode: 'MI' | 'MD'; periksa: boolean },
+) {
   return api<ImportNamaHasil>('/admin/kelas/import-nama', {
     method: 'POST',
     body: JSON.stringify(input),

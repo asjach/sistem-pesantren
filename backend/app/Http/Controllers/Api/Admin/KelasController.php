@@ -185,48 +185,89 @@ class KelasController extends Controller
         );
     }
 
-    /** POST /api/admin/kelas/import-nama — salin nama+tingkat kelas pasangan MI↔MD. */
+    /** POST /api/admin/kelas/import-nama — salin nama+tingkat kelas pasangan MI↔MD.
+     *  Dua mode: ambil (`lembaga_id` + `tahun_ajaran_id` target, `dari_kode` sumber)
+     *  atau copy (`dari_lembaga_id` + `dari_tahun_ajaran_id` sumber, `ke_kode` target
+     *  + TA target = nama sama, fallback aktif). */
     public function importNama(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'lembaga_id' => ['required', Rule::exists('lembaga', 'id')->whereNotNull('parent_id')],
-            'tahun_ajaran_id' => ['required', 'exists:tahun_ajaran,id'],
-            'dari_kode' => ['required', 'in:MI,MD'],
+            'lembaga_id' => ['nullable', Rule::exists('lembaga', 'id')->whereNotNull('parent_id')],
+            'tahun_ajaran_id' => ['nullable', 'exists:tahun_ajaran,id'],
+            'dari_kode' => ['nullable', 'in:MI,MD'],
+            'dari_lembaga_id' => ['nullable', Rule::exists('lembaga', 'id')->whereNotNull('parent_id')],
+            'dari_tahun_ajaran_id' => ['nullable', 'exists:tahun_ajaran,id'],
+            'ke_kode' => ['nullable', 'in:MI,MD'],
             'periksa' => ['nullable', 'boolean'],
         ], [
             'lembaga_id.exists' => 'Lembaga harus lembaga operasional (bukan induk pesantren).',
+            'dari_lembaga_id.exists' => 'Lembaga harus lembaga operasional (bukan induk pesantren).',
         ]);
         $periksa = (bool) ($data['periksa'] ?? true);
 
-        $targetId = (int) $data['lembaga_id'];
-        $taId = (int) $data['tahun_ajaran_id'];
-        $this->authorizeLembaga($request->user(), $targetId);
-        $this->cekTaEfektif($targetId, $taId);
+        if (! empty($data['ke_kode'])) {
+            // Mode copy: sumber eksplisit, target via kode + TA otomatis.
+            if (empty($data['dari_lembaga_id']) || empty($data['dari_tahun_ajaran_id'])) {
+                return response()->json(['pesan' => 'Mode copy butuh dari_lembaga_id + dari_tahun_ajaran_id.'], 422);
+            }
+            $sumberId = (int) $data['dari_lembaga_id'];
+            $taSumber = TahunAjaran::find((int) $data['dari_tahun_ajaran_id']);
+            if (! $taSumber) {
+                return response()->json(['pesan' => 'Tahun ajaran sumber tidak ditemukan.'], 422);
+            }
+            $this->cekTaEfektif($sumberId, (int) $taSumber->id);
+            $sumberKode = Lembaga::whereKey($sumberId)->value('kode');
+            $targetKode = $data['ke_kode'];
+            if (! in_array($sumberKode, ['MI', 'MD'], true) || $sumberKode === $targetKode) {
+                return response()->json(['pesan' => 'Copy nama hanya untuk pasangan MI↔MD.'], 422);
+            }
+            $target = Lembaga::where('kode', $targetKode)->whereNotNull('parent_id')->first();
+            if (! $target) {
+                return response()->json(['pesan' => "Lembaga tujuan {$targetKode} tidak ditemukan."], 422);
+            }
+            $targetId = (int) $target->id;
+            $this->authorizeLembaga($request->user(), $targetId);
+            $taId = TahunAjaran::efektif($targetId)->firstWhere('nama', $taSumber->nama)?->id
+                ?? TahunAjaran::aktif($targetId)?->id;
+            if (! $taId) {
+                return response()->json(['pesan' => "Tidak ada tahun ajaran acuan di {$targetKode}."], 422);
+            }
+            $sumber = Lembaga::find($sumberId);
+        } else {
+            // Mode ambil: target eksplisit, sumber via kode.
+            if (empty($data['lembaga_id']) || empty($data['tahun_ajaran_id']) || empty($data['dari_kode'])) {
+                return response()->json(['pesan' => 'Pilih mode ambil atau copy.'], 422);
+            }
+            $targetId = (int) $data['lembaga_id'];
+            $taId = (int) $data['tahun_ajaran_id'];
+            $this->authorizeLembaga($request->user(), $targetId);
+            $this->cekTaEfektif($targetId, $taId);
 
-        $targetKode = Lembaga::whereKey($targetId)->value('kode');
-        $sumberKode = $data['dari_kode'];
-        // Pasangan MI↔MD dua arah: target salah satu, sumber yang lain.
-        if (! in_array($targetKode, ['MI', 'MD'], true) || $targetKode === $sumberKode) {
-            return response()->json(['pesan' => 'Import nama hanya untuk pasangan MI↔MD.'], 422);
+            $targetKode = Lembaga::whereKey($targetId)->value('kode');
+            $sumberKode = $data['dari_kode'];
+            // Pasangan MI↔MD dua arah: target salah satu, sumber yang lain.
+            if (! in_array($targetKode, ['MI', 'MD'], true) || $targetKode === $sumberKode) {
+                return response()->json(['pesan' => 'Import nama hanya untuk pasangan MI↔MD.'], 422);
+            }
+            $sumber = Lembaga::where('kode', $sumberKode)->whereNotNull('parent_id')->first();
+            if (! $sumber) {
+                return response()->json(['pesan' => "Lembaga sumber {$sumberKode} tidak ditemukan."], 422);
+            }
+            // TA sumber: nama sama → fallback TA aktif sumber.
+            $taTarget = TahunAjaran::find($taId);
+            $taSumber = TahunAjaran::efektif((int) $sumber->id)->firstWhere('nama', $taTarget?->nama)
+                ?? TahunAjaran::aktif((int) $sumber->id);
+            if (! $taSumber) {
+                return response()->json(['pesan' => "Tidak ada tahun ajaran acuan di {$sumberKode}."], 422);
+            }
         }
-        $sumber = Lembaga::where('kode', $sumberKode)->whereNotNull('parent_id')->first();
-        if (! $sumber) {
-            return response()->json(['pesan' => "Lembaga sumber {$sumberKode} tidak ditemukan."], 422);
-        }
+
         // Pengecualian pasangan MI↔MD: sumber boleh dibaca bila pemanggil boleh
         // akses target (sudah diauthorize di atas); tulis tetap target saja.
         // Tanpa ini admin satu lembaga selalu 403 saat import dari pasangannya.
         if (! $request->user()->canAccessLembaga((int) $sumber->id)
             && ! $request->user()->canAccessLembaga($targetId)) {
             return response()->json(['pesan' => 'Akses ditolak.'], 403);
-        }
-
-        // TA sumber: nama sama → fallback TA aktif sumber.
-        $taTarget = TahunAjaran::find($taId);
-        $taSumber = TahunAjaran::efektif((int) $sumber->id)->firstWhere('nama', $taTarget?->nama)
-            ?? TahunAjaran::aktif((int) $sumber->id);
-        if (! $taSumber) {
-            return response()->json(['pesan' => "Tidak ada tahun ajaran acuan di {$sumberKode}."], 422);
         }
 
         $sudahAda = Kelas::where('lembaga_id', $targetId)
@@ -270,6 +311,7 @@ class KelasController extends Controller
                 : 'Import nama kelas selesai.',
             'periksa' => $periksa,
             'sumber' => ['kode' => $sumberKode, 'tahun_ajaran' => $taSumber->nama],
+            'tujuan' => ['kode' => $targetKode, 'tahun_ajaran' => TahunAjaran::find($taId)?->nama],
             'ringkasan' => [
                 'sumber' => count($sumberKelas),
                 'dibuat' => $hitung('dibuat'),

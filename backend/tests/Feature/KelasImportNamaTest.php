@@ -92,6 +92,29 @@ class KelasImportNamaTest extends TestCase
         $this->assertSame('1', $dibuat->tingkat);
     }
 
+    public function test_mode_copy_ke_kode_target_otomatis(): void
+    {
+        $f = $this->baseFixture();
+        Kelas::create(['lembaga_id' => $f['mi']->id, 'tahun_ajaran_id' => $f['taMi']->id, 'nama_kelas' => '2A', 'tingkat' => '2', 'urutan' => 1]);
+
+        // Copy MI → MD: target + TA diselesaikan server.
+        $res = $this->panggil($f['super'], [
+            'dari_lembaga_id' => $f['mi']->id, 'dari_tahun_ajaran_id' => $f['taMi']->id,
+            'ke_kode' => 'MD', 'periksa' => true,
+        ])->assertStatus(200);
+        $this->assertSame('MD', $res->json('tujuan.kode'));
+        $this->assertSame('2026/2027', $res->json('tujuan.tahun_ajaran'));
+        $this->assertSame(1, (int) $res->json('ringkasan.dibuat'));
+
+        $this->panggil($f['super'], [
+            'dari_lembaga_id' => $f['mi']->id, 'dari_tahun_ajaran_id' => $f['taMi']->id,
+            'ke_kode' => 'MD', 'periksa' => false,
+        ])->assertStatus(200);
+        $this->assertDatabaseHas('kelas', [
+            'lembaga_id' => $f['md']->id, 'tahun_ajaran_id' => $f['taMd']->id, 'nama_kelas' => '2A',
+        ]);
+    }
+
     public function test_bukan_pasangan_ditolak(): void
     {
         $f = $this->baseFixture();
