@@ -64,6 +64,7 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
 
         Route::get('kelas', [KelasController::class, 'index'])->middleware('permission:kelas.lihat');
         Route::post('kelas', [KelasController::class, 'store'])->middleware('permission:kelas.tambah');
+        Route::post('kelas/import-nama', [KelasController::class, 'importNama'])->middleware('permission:kelas.tambah');
         Route::match(['put', 'patch'], 'kelas/{kela}', [KelasController::class, 'update'])->middleware('permission:kelas.ubah');
         Route::delete('kelas/{kela}', [KelasController::class, 'destroy'])->middleware('permission:kelas.hapus');
 

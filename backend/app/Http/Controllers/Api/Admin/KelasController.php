@@ -5,8 +5,11 @@ namespace App\Http\Controllers\Api\Admin;
 use App\Http\Controllers\Api\Concerns\TenantGuard;
 use App\Http\Controllers\Controller;
 use App\Models\Kelas;
+use App\Models\Lembaga;
+use App\Models\TahunAjaran;
 use App\Services\RefService;
 use Illuminate\Database\QueryException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -154,6 +157,97 @@ class KelasController extends Controller
     protected function pelanggaranUnik(QueryException $e): bool
     {
         return (int) ($e->errorInfo[1] ?? 0) === 1062;
+    }
+
+    /** POST /api/admin/kelas/import-nama — salin nama+tingkat kelas pasangan MI↔MD. */
+    public function importNama(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'lembaga_id' => ['required', Rule::exists('lembaga', 'id')->whereNotNull('parent_id')],
+            'tahun_ajaran_id' => ['required', 'exists:tahun_ajaran,id'],
+            'dari_kode' => ['required', 'in:MI,MD'],
+            'periksa' => ['nullable', 'boolean'],
+        ], [
+            'lembaga_id.exists' => 'Lembaga harus lembaga operasional (bukan induk pesantren).',
+        ]);
+        $periksa = (bool) ($data['periksa'] ?? true);
+
+        $targetId = (int) $data['lembaga_id'];
+        $taId = (int) $data['tahun_ajaran_id'];
+        $this->authorizeLembaga($request->user(), $targetId);
+        $this->cekTaEfektif($targetId, $taId);
+
+        $targetKode = Lembaga::whereKey($targetId)->value('kode');
+        $sumberKode = $data['dari_kode'];
+        // Pasangan MI↔MD dua arah: target salah satu, sumber yang lain.
+        if (! in_array($targetKode, ['MI', 'MD'], true) || $targetKode === $sumberKode) {
+            return response()->json(['pesan' => 'Import nama hanya untuk pasangan MI↔MD.'], 422);
+        }
+        $sumber = Lembaga::where('kode', $sumberKode)->whereNotNull('parent_id')->first();
+        if (! $sumber) {
+            return response()->json(['pesan' => "Lembaga sumber {$sumberKode} tidak ditemukan."], 422);
+        }
+        // Sumber boleh dibaca bila pemanggil boleh akses target pasangannya.
+        if (! $request->user()->canAccessLembaga((int) $sumber->id)) {
+            return response()->json(['pesan' => 'Akses ditolak.'], 403);
+        }
+
+        // TA sumber: nama sama → fallback TA aktif sumber.
+        $taTarget = TahunAjaran::find($taId);
+        $taSumber = TahunAjaran::efektif((int) $sumber->id)->firstWhere('nama', $taTarget?->nama)
+            ?? TahunAjaran::aktif((int) $sumber->id);
+        if (! $taSumber) {
+            return response()->json(['pesan' => "Tidak ada tahun ajaran acuan di {$sumberKode}."], 422);
+        }
+
+        $sudahAda = Kelas::where('lembaga_id', $targetId)
+            ->where('tahun_ajaran_id', $taId)
+            ->pluck('nama_kelas')
+            ->map(fn ($n) => mb_strtolower(Kelas::normalisasiNama((string) $n)))
+            ->all();
+
+        $sumberKelas = Kelas::where('lembaga_id', $sumber->id)
+            ->where('tahun_ajaran_id', $taSumber->id)
+            ->orderBy('urutan')->orderBy('nama_kelas')
+            ->get(['id', 'nama_kelas', 'tingkat', 'urutan']);
+
+        $rincian = [];
+        foreach ($sumberKelas as $k) {
+            $nama = Kelas::normalisasiNama($k->nama_kelas);
+            if (in_array(mb_strtolower($nama), $sudahAda, true)) {
+                $rincian[] = ['nama' => $nama, 'tingkat' => $k->tingkat, 'status' => 'dilewati'];
+
+                continue;
+            }
+            $sudahAda[] = mb_strtolower($nama);
+            if (! $periksa) {
+                $this->cekTingkat($targetId, $k->tingkat);
+                Kelas::create([
+                    'lembaga_id' => $targetId,
+                    'tahun_ajaran_id' => $taId,
+                    'nama_kelas' => $nama,
+                    'tingkat' => $k->tingkat,
+                    'urutan' => (int) $k->urutan,
+                ]);
+            }
+            $rincian[] = ['nama' => $nama, 'tingkat' => $k->tingkat, 'status' => 'dibuat'];
+        }
+
+        $hitung = fn (string $s) => count(array_filter($rincian, fn ($r) => $r['status'] === $s));
+
+        return response()->json([
+            'pesan' => $periksa
+                ? 'Pratinjau selesai: eksekusi untuk menyalin.'
+                : 'Import nama kelas selesai.',
+            'periksa' => $periksa,
+            'sumber' => ['kode' => $sumberKode, 'tahun_ajaran' => $taSumber->nama],
+            'ringkasan' => [
+                'sumber' => count($sumberKelas),
+                'dibuat' => $hitung('dibuat'),
+                'dilewati' => $hitung('dilewati'),
+            ],
+            'rincian' => array_slice($rincian, 0, 200),
+        ]);
     }
 
     public function update(Request $request, Kelas $kela)

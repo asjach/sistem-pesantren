@@ -3,10 +3,12 @@ import { errorMessage } from '../api/client';
 import {
   createKelas,
   deleteKelas,
+  importNamaKelas,
   listKelas,
   listLembaga,
   listTahunAjaran,
   updateKelas,
+  type ImportNamaHasil,
   type Kelas,
   type Lembaga,
   type TahunAjaran,
@@ -125,6 +127,46 @@ export default function KelasPage() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
   const reqRef = useRef(0);
+
+  // Import nama kelas pasangan MI↔MD (pratinjau → eksekusi).
+  const [imporOpen, setImporOpen] = useState(false);
+  const [imporHasil, setImporHasil] = useState<ImportNamaHasil | null>(null);
+  const [imporBusy, setImporBusy] = useState(false);
+
+  /** Kode lembaga filter saat ini; tombol import hanya untuk MI/MD. */
+  const kodeFilter = useMemo(() => {
+    const l = lembagas.find((x) => String(x.id) === String(lembagaId));
+    return l?.kode ?? null;
+  }, [lembagas, lembagaId]);
+  const dariKode = kodeFilter === 'MI' ? 'MD' : kodeFilter === 'MD' ? 'MI' : null;
+
+  async function muatImpor(periksa: boolean) {
+    if (lembagaId === '' || taId === '' || !dariKode) return;
+    setImporBusy(true);
+    try {
+      const res = await importNamaKelas({
+        lembaga_id: Number(lembagaId),
+        tahun_ajaran_id: Number(taId),
+        dari_kode: dariKode,
+        periksa,
+      });
+      setImporHasil(res);
+      if (!periksa) {
+        toast.success(res.pesan);
+        await load(1);
+      }
+    } catch (e) {
+      toast.error(errorMessage(e));
+    } finally {
+      setImporBusy(false);
+    }
+  }
+
+  function bukaImpor() {
+    setImporHasil(null);
+    setImporOpen(true);
+    void muatImpor(true);
+  }
 
   // Pilihan lembaga + TA khusus dialog Tambah (mandiri dari filter toolbar).
   const [tambahLembagaId, setTambahLembagaId] = useState<number | ''>('');
@@ -507,9 +549,16 @@ export default function KelasPage() {
         onSearchSubmit={onSearchSubmit}
         searchPlaceholder="Nama kelas"
         addButton={canTambahKelas ? (
-          <Button id="btn_buka_tambah_kelas" onClick={bukaTambah}>
-            + Kelas
-          </Button>
+          <>
+            {dariKode && (
+              <Button id="btn_buka_import_nama_kelas" variant="outline" onClick={bukaImpor}>
+                Import nama kelas dari {dariKode}
+              </Button>
+            )}
+            <Button id="btn_buka_tambah_kelas" onClick={bukaTambah}>
+              + Kelas
+            </Button>
+          </>
         ) : undefined}
         searchIds={{ form: 'form_filter_kelas', input: 'input_cari_kelas', button: 'btn_cari_kelas' }}
         renderActions={renderActions}
@@ -657,6 +706,51 @@ export default function KelasPage() {
         title={viewRow ? `Kelas: ${viewRow.nama_kelas}` : 'Kelas'}
         row={viewRowTampil}
       />
+      {/* Import nama kelas pasangan MI↔MD */}
+      <Dialog open={imporOpen} onOpenChange={setImporOpen}>
+        <DialogContent className="sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Import nama kelas dari {dariKode}</DialogTitle>
+            <DialogDescription>
+              Menyalin nama + tingkat kelas. Nama yang sudah ada dilewati (tidak digandakan).
+            </DialogDescription>
+          </DialogHeader>
+          {imporHasil ? (
+            <div className="flex flex-col gap-3 text-sm" id="hasil_import_nama_kelas">
+              <p className="font-medium">
+                Sumber {imporHasil.sumber.kode} ({imporHasil.sumber.tahun_ajaran ?? '—'}): {imporHasil.ringkasan.sumber} kelas ·{' '}
+                {imporHasil.ringkasan.dibuat} dibuat · {imporHasil.ringkasan.dilewati} dilewati
+              </p>
+              {imporHasil.rincian.length > 0 ? (
+                <ul className="max-h-64 space-y-1.5 overflow-auto text-xs">
+                  {imporHasil.rincian.slice(0, 100).map((r) => (
+                    <li key={r.nama}>
+                      {r.nama}{r.tingkat ? ` (tingkat ${r.tingkat})` : ''} —{' '}
+                      {r.status === 'dibuat'
+                        ? <span className="text-emerald-600">dibuat</span>
+                        : <span className="text-muted-foreground">sudah ada, dilewati</span>}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-xs text-muted-foreground">Tidak ada kelas di sumber.</p>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">{imporBusy ? 'Memuat pratinjau…' : '—'}</p>
+          )}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setImporOpen(false)}>Tutup</Button>
+            <Button
+              id="btn_eksekusi_import_nama_kelas"
+              disabled={imporBusy || !imporHasil?.periksa || (imporHasil?.ringkasan.dibuat ?? 0) === 0}
+              onClick={() => void muatImpor(false)}
+            >
+              {imporBusy ? 'Memproses…' : `Eksekusi (${imporHasil?.ringkasan.dibuat ?? 0})`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <Dialog open={editRow !== null} onOpenChange={(o) => { if (!o) setEditRow(null); }}>
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
