@@ -100,6 +100,18 @@ export default function LembagaPage() {
   const [editKode, setEditKode] = useState('');
   const [editKelompok, setEditKelompok] = useState<'combo_mi_md' | 'eksklusif'>('eksklusif');
   const [editSeleksi, setEditSeleksi] = useState(false);
+  const [editAktif, setEditAktif] = useState(true);
+  const [editParent, setEditParent] = useState('');
+  const [editForm, setEditForm] = useState<Record<string, string>>({});
+  const setF = useCallback(
+    (kunci: string) => (e: { target: { value: string } }) =>
+      setEditForm((f) => ({ ...f, [kunci]: e.target.value })),
+    [],
+  );
+  const setFS = useCallback(
+    (kunci: string) => (v: string) => setEditForm((f) => ({ ...f, [kunci]: v })),
+    [],
+  );
 
   const load = useCallback(
     async function loadPage(p = pager.page, pp = pager.perPage) {
@@ -142,6 +154,44 @@ export default function LembagaPage() {
     setEditKode(l.kode ?? '');
     setEditKelompok(l.kelompok_psb === 'combo_mi_md' ? 'combo_mi_md' : 'eksklusif');
     setEditSeleksi(!!l.is_seleksi);
+    setEditAktif(l.is_active ?? true);
+    setEditParent(l.parent_id != null ? String(l.parent_id) : '');
+    const teks = (v: unknown) => (v == null ? '' : String(v));
+    setEditForm({
+      nama_singkat: l.nama_singkat ?? '',
+      mudir_am: l.mudir_am ?? '',
+      jenjang: l.jenjang ?? '',
+      status: l.status ?? '',
+      npsn: l.npsn ?? '',
+      nsm: l.nsm ?? '',
+      npwp: l.npwp ?? '',
+      no_izin_operasional: l.no_izin_operasional ?? '',
+      tgl_izin: (l.tgl_izin ?? '').slice(0, 10),
+      no_sk_pendirian: l.no_sk_pendirian ?? '',
+      tgl_sk_pendirian: (l.tgl_sk_pendirian ?? '').slice(0, 10),
+      tahun_berdiri: teks(l.tahun_berdiri),
+      no_sk_kemenkumham: l.no_sk_kemenkumham ?? '',
+      akreditasi: l.akreditasi ?? '',
+      tgl_akreditasi: (l.tgl_akreditasi ?? '').slice(0, 10),
+      penyelenggara: l.penyelenggara ?? '',
+      provinsi: l.provinsi ?? '',
+      kab_kota: l.kab_kota ?? '',
+      kecamatan: l.kecamatan ?? '',
+      desa: l.desa ?? '',
+      rt: l.rt ?? '',
+      rw: l.rw ?? '',
+      kode_pos: l.kode_pos ?? '',
+      alamat: l.alamat ?? '',
+      lintang: teks(l.lintang),
+      bujur: teks(l.bujur),
+      telepon: l.telepon ?? '',
+      email: l.email ?? '',
+      website: l.website ?? '',
+      logo_url: l.logo_url ?? '',
+      waktu_belajar: l.waktu_belajar ?? '',
+      mode_rapor: l.mode_rapor ?? '',
+      template_rapor: l.template_rapor ?? '',
+    });
   }, []);
 
   const onCreate = useCallback(async (e: React.FormEvent) => {
@@ -171,11 +221,58 @@ export default function LembagaPage() {
   const onUpdate = useCallback(async () => {
     if (!editRow) return;
     try {
+      const f = editForm;
+      const teks = (v: string | undefined) => {
+        const t = (v ?? '').trim();
+        return t === '' ? null : t;
+      };
+      const angka = (v: string | undefined): number | string | null => {
+        const t = (v ?? '').trim();
+        if (t === '') return null;
+        const n = Number(t.replace(',', '.'));
+        // Tak valid: kirim mentah agar validasi backend menolak dengan pesan jelas.
+        return Number.isNaN(n) ? t : n;
+      };
       await updateLembaga(editRow.id, {
         nama: editNama,
         kode: editKode || undefined,
+        parent_id: editParent ? Number(editParent) : null,
         kelompok_psb: editKelompok,
         is_seleksi: editSeleksi,
+        is_active: editAktif,
+        nama_singkat: teks(f.nama_singkat),
+        mudir_am: teks(f.mudir_am),
+        jenjang: teks(f.jenjang),
+        status: (f.status || null) as 'negeri' | 'swasta' | null,
+        npsn: teks(f.npsn),
+        nsm: teks(f.nsm),
+        npwp: teks(f.npwp),
+        no_izin_operasional: teks(f.no_izin_operasional),
+        tgl_izin: teks(f.tgl_izin),
+        no_sk_pendirian: teks(f.no_sk_pendirian),
+        tgl_sk_pendirian: teks(f.tgl_sk_pendirian),
+        tahun_berdiri: angka(f.tahun_berdiri) == null ? null : Number(angka(f.tahun_berdiri)),
+        no_sk_kemenkumham: teks(f.no_sk_kemenkumham),
+        akreditasi: (f.akreditasi || null) as 'A' | 'B' | 'C' | 'belum' | null,
+        tgl_akreditasi: teks(f.tgl_akreditasi),
+        penyelenggara: teks(f.penyelenggara),
+        provinsi: teks(f.provinsi),
+        kab_kota: teks(f.kab_kota),
+        kecamatan: teks(f.kecamatan),
+        desa: teks(f.desa),
+        rt: teks(f.rt),
+        rw: teks(f.rw),
+        kode_pos: teks(f.kode_pos),
+        alamat: teks(f.alamat),
+        lintang: angka(f.lintang) == null ? null : Number(angka(f.lintang)),
+        bujur: angka(f.bujur) == null ? null : Number(angka(f.bujur)),
+        telepon: teks(f.telepon),
+        email: teks(f.email),
+        website: teks(f.website),
+        logo_url: teks(f.logo_url),
+        waktu_belajar: (f.waktu_belajar || null) as 'pagi' | 'siang' | 'pagi_siang' | null,
+        mode_rapor: (f.mode_rapor || null) as 'terpisah' | 'digabung' | null,
+        template_rapor: teks(f.template_rapor),
       });
       toast.success('Lembaga diubah.');
       setEditRow(null);
@@ -183,7 +280,7 @@ export default function LembagaPage() {
     } catch (e) {
       setErr(errorMessage(e));
     }
-  }, [editRow, editNama, editKode, editKelompok, editSeleksi, load]);
+  }, [editRow, editNama, editKode, editParent, editKelompok, editSeleksi, editAktif, editForm, load]);
 
   const onDelete = useCallback(async (id: number) => {
     try {
@@ -234,6 +331,44 @@ export default function LembagaPage() {
       )}
     </>
   ), [canUbah, canHapus, openEdit, onDelete]);
+
+  const medan = (
+    id: string, label: string, kunci: string,
+    opts?: { type?: string; maxLength?: number; placeholder?: string },
+  ) => (
+    <>
+      <FieldLabel htmlFor={id}>{label}</FieldLabel>
+      <Input
+        id={id} type={opts?.type ?? 'text'} value={editForm[kunci] ?? ''} onChange={setF(kunci)}
+        maxLength={opts?.maxLength} placeholder={opts?.placeholder} autoComplete="off"
+      />
+    </>
+  );
+
+  const pilihan = (
+    id: string, label: string, kunci: string, items: Array<{ nilai: string; label: string; mati?: boolean }>,
+  ) => (
+    <>
+      <FieldLabel htmlFor={id}>{label}</FieldLabel>
+      <Select value={editForm[kunci] ?? ''} onValueChange={setFS(kunci)}>
+        <SelectTrigger id={id} className="w-full">
+          <SelectValue placeholder="—" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectGroup>
+            <SelectItem value="">—</SelectItem>
+            {items.map((o) => (
+              <SelectItem key={o.nilai} value={o.nilai} disabled={o.mati}>{o.label}</SelectItem>
+            ))}
+          </SelectGroup>
+        </SelectContent>
+      </Select>
+    </>
+  );
+
+  const seksi = (judul: string) => (
+    <div className="col-span-2 border-b pb-1 pt-2 text-sm font-semibold">{judul}</div>
+  );
 
   return (
     <div className={PAGE_SHELL}>
@@ -325,16 +460,86 @@ export default function LembagaPage() {
         row={viewRow as unknown as Record<string, unknown> | null}
       />
       <Dialog open={editRow !== null} onOpenChange={(o) => { if (!o) setEditRow(null); }}>
-        <DialogContent className="sm:max-w-xl">
+        <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Ubah lembaga</DialogTitle>
             <DialogDescription className="sr-only">Formulir perubahan data lembaga.</DialogDescription>
           </DialogHeader>
           <div className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4">
+            {seksi('Identitas')}
             <FieldLabel htmlFor="input_ubah_nama_lembaga">Nama</FieldLabel>
             <Input id="input_ubah_nama_lembaga" value={editNama} onChange={(e) => setEditNama(e.target.value)} required maxLength={100} />
+            {medan('input_ubah_nama_singkat_lembaga', 'Nama singkat', 'nama_singkat', { maxLength: 50 })}
             <FieldLabel htmlFor="input_ubah_kode_lembaga">Kode (unik global, opsional)</FieldLabel>
             <Input id="input_ubah_kode_lembaga" value={editKode} onChange={(e) => { const v = e.target.value; setEditKode(v); if (!bolehCombo(v)) setEditKelompok('eksklusif'); }} maxLength={20} />
+            {medan('input_ubah_mudir_lembaga', 'Mudir / Kepala', 'mudir_am', { maxLength: 100 })}
+            {medan('input_ubah_jenjang_lembaga', 'Jenjang', 'jenjang', { maxLength: 50 })}
+            {pilihan('select_ubah_status_lembaga', 'Status', 'status', [
+              { nilai: 'negeri', label: 'Negeri' },
+              { nilai: 'swasta', label: 'Swasta' },
+            ])}
+            <FieldLabel htmlFor="select_ubah_induk_lembaga">Induk</FieldLabel>
+            <Select value={editParent || '_root'} onValueChange={(v) => setEditParent(v === '_root' ? '' : v)}>
+              <SelectTrigger id="select_ubah_induk_lembaga" className="w-full">
+                <SelectValue placeholder="Tanpa induk (root)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value="_root">Tanpa induk (root)</SelectItem>
+                  {all.filter((l) => editRow == null || l.id !== editRow.id).map((l) => (
+                    <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+            <FieldLabel htmlFor="chk_ubah_aktif_lembaga">Aktif</FieldLabel>
+            <label htmlFor="chk_ubah_aktif_lembaga" className="flex w-fit items-center gap-2 text-sm">
+              <input id="chk_ubah_aktif_lembaga" type="checkbox" checked={editAktif} onChange={(e) => setEditAktif(e.target.checked)} className="size-4 accent-[var(--accent)]" />
+            </label>
+            {seksi('Legalitas & Akreditasi')}
+            {medan('input_ubah_npsn_lembaga', 'NPSN', 'npsn', { maxLength: 20 })}
+            {medan('input_ubah_nsm_lembaga', 'NSM', 'nsm', { maxLength: 30 })}
+            {medan('input_ubah_npwp_lembaga', 'NPWP', 'npwp', { maxLength: 30 })}
+            {medan('input_ubah_izin_lembaga', 'No. izin operasional', 'no_izin_operasional', { maxLength: 100 })}
+            {medan('input_ubah_tgl_izin_lembaga', 'Tgl. izin', 'tgl_izin', { type: 'date' })}
+            {medan('input_ubah_sk_pendirian_lembaga', 'No. SK pendirian', 'no_sk_pendirian', { maxLength: 100 })}
+            {medan('input_ubah_tgl_sk_lembaga', 'Tgl. SK pendirian', 'tgl_sk_pendirian', { type: 'date' })}
+            {medan('input_ubah_tahun_berdiri_lembaga', 'Tahun berdiri', 'tahun_berdiri', { type: 'number', placeholder: '1998' })}
+            {medan('input_ubah_sk_kemenkumham_lembaga', 'No. SK Kemenkumham', 'no_sk_kemenkumham', { maxLength: 100 })}
+            {pilihan('select_ubah_akreditasi_lembaga', 'Akreditasi', 'akreditasi', [
+              { nilai: 'A', label: 'A' },
+              { nilai: 'B', label: 'B' },
+              { nilai: 'C', label: 'C' },
+              { nilai: 'belum', label: 'Belum' },
+            ])}
+            {medan('input_ubah_tgl_akreditasi_lembaga', 'Tgl. akreditasi', 'tgl_akreditasi', { type: 'date' })}
+            {medan('input_ubah_penyelenggara_lembaga', 'Penyelenggara', 'penyelenggara', { maxLength: 100 })}
+            {seksi('Alamat & Kontak')}
+            {medan('input_ubah_alamat_lembaga', 'Alamat', 'alamat')}
+            {medan('input_ubah_desa_lembaga', 'Desa', 'desa', { maxLength: 100 })}
+            {medan('input_ubah_kecamatan_lembaga', 'Kecamatan', 'kecamatan', { maxLength: 100 })}
+            {medan('input_ubah_kab_kota_lembaga', 'Kab/Kota', 'kab_kota', { maxLength: 100 })}
+            {medan('input_ubah_provinsi_lembaga', 'Provinsi', 'provinsi', { maxLength: 100 })}
+            {medan('input_ubah_rt_lembaga', 'RT', 'rt', { maxLength: 3 })}
+            {medan('input_ubah_rw_lembaga', 'RW', 'rw', { maxLength: 3 })}
+            {medan('input_ubah_kode_pos_lembaga', 'Kode pos', 'kode_pos', { maxLength: 10 })}
+            {medan('input_ubah_lintang_lembaga', 'Lintang', 'lintang', { placeholder: '-6.89' })}
+            {medan('input_ubah_bujur_lembaga', 'Bujur', 'bujur', { placeholder: '107.61' })}
+            {medan('input_ubah_telepon_lembaga', 'Telepon', 'telepon', { maxLength: 30 })}
+            {medan('input_ubah_email_lembaga', 'Email', 'email', { maxLength: 100 })}
+            {medan('input_ubah_website_lembaga', 'Website', 'website', { maxLength: 100 })}
+            {medan('input_ubah_logo_lembaga', 'Logo URL', 'logo_url', { maxLength: 255 })}
+            {seksi('Operasional & PSB')}
+            {pilihan('select_ubah_waktu_lembaga', 'Waktu belajar', 'waktu_belajar', [
+              { nilai: 'pagi', label: 'Pagi' },
+              { nilai: 'siang', label: 'Siang' },
+              { nilai: 'pagi_siang', label: 'Pagi dan siang' },
+            ])}
+            {pilihan('select_ubah_rapor_lembaga', 'Mode rapor', 'mode_rapor', [
+              { nilai: 'terpisah', label: 'Terpisah' },
+              { nilai: 'digabung', label: 'Digabung' },
+            ])}
+            {medan('input_ubah_template_rapor_lembaga', 'Template rapor', 'template_rapor', { maxLength: 50 })}
             <FieldLabel htmlFor="select_ubah_kelompok_psb">Kelompok PSB</FieldLabel>
             <Select value={editKelompok} onValueChange={(v) => setEditKelompok(v as 'combo_mi_md' | 'eksklusif')}>
               <SelectTrigger id="select_ubah_kelompok_psb" className="w-full">
