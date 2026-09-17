@@ -140,6 +140,11 @@ export interface ExcelField {
   inputChoices?: ExcelChoice[];
 }
 
+/** Satu entri urut: kunci = key kolom grid, nilai = kode untuk backend (allowlist). */
+export interface OpsiUrutKolom {
+  kunci: string;
+  nilai: string;
+}
 /** Baris grid: id + checklist + nilai string per field. */
 export interface GridRow {
   id: string | number;
@@ -199,6 +204,14 @@ interface ExcelTableProps<T extends { id: string | number }> {
   hidePreset?: boolean;
   /** Kabarkan baris tercentang setiap seleksi berubah (opsional). */
   onCheckedChange?: (rows: T[]) => void;
+  /** Pendaftaran kolom yang bisa diurutkan (kunci = key kolom grid).
+   *  Kolom tanpa entri = header biasa. Urut dieksekusi halaman (server-side). */
+  opsiUrut?: OpsiUrutKolom[];
+  /** Daftar nilai urut aktif berurutan (maks 3) + arah global. */
+  urutAktif?: string[];
+  arahUrut?: 'naik' | 'turun';
+  /** Niat urut dari klik header: halaman me-refetch lalu mengisi urutAktif. */
+  onUrut?: (nilai: string[], arah: 'naik' | 'turun') => void;
 }
 
 const MIN_COL_W = 50;
@@ -513,6 +526,10 @@ function HeaderTitle({
   onResizeStart,
   onResizePrev,
   onAutoFit,
+  bisaUrut = false,
+  tandaUrut = null,
+  idUrut,
+  onUrutKlik,
 }: {
   label: string;
   colKey: string;
@@ -523,10 +540,35 @@ function HeaderTitle({
    *  (gagang kanan tertutup oleh sel beku di sebelahnya). */
   onResizePrev?: (e: { preventDefault(): void; stopPropagation(): void; clientX: number }) => void;
   onAutoFit: (key: string) => void;
+  /** Kolom terdaftar di opsiUrut: judul bisa diklik (Shift+Klik = tambah kunci). */
+  bisaUrut?: boolean;
+  /** Indikator aktif: mis. "▲", "▼2". */
+  tandaUrut?: string | null;
+  idUrut?: string;
+  onUrutKlik?: (geser: boolean) => void;
 }) {
   return (
-    <span className="simpes-dsg-headtitle" data-col-key={colKey}>
+    <span
+      className={cn('simpes-dsg-headtitle', bisaUrut && 'simpes-dsg-bisa-urut')}
+      data-col-key={colKey}
+      {...(bisaUrut
+        ? {
+            id: idUrut,
+            role: 'button',
+            title: 'Klik untuk mengurutkan • Shift+Klik untuk tambah kunci',
+            onClick: (e: { shiftKey: boolean; stopPropagation(): void }) => {
+              e.stopPropagation();
+              onUrutKlik?.(e.shiftKey);
+            },
+          }
+        : {})}
+    >
       {label}
+      {tandaUrut ? (
+        <span className="simpes-dsg-tanda-urut" aria-label={`Urutan ${tandaUrut}`}>
+          {tandaUrut}
+        </span>
+      ) : null}
       {required ? (
         <span className="simpes-dsg-wajib-tanda" title="Wajib diisi pada mode Input">
           *
@@ -766,6 +808,10 @@ export default function ExcelTable<T extends { id: string | number }>({
   hideActions = false,
   hidePreset = false,
   onCheckedChange,
+  opsiUrut,
+  urutAktif,
+  arahUrut = 'naik',
+  onUrut,
 }: ExcelTableProps<T>) {
   const { density } = useTheme();
   const densityPx = DENSITY_PX[density];
@@ -805,6 +851,35 @@ export default function ExcelTable<T extends { id: string | number }>({
 
   const checkedRows = useMemo(() => rows.filter((r) => checkedIds.has(r.id)), [rows, checkedIds]);
   const clearSelection = useMemo(() => () => setCheckedIds(new Set<T['id']>()), []);
+
+  /** Peta kunci kolom grid → nilai urut backend + status terbaru untuk handler klik. */
+  const petaUrut = useMemo(() => new Map((opsiUrut ?? []).map((o) => [o.kunci, o.nilai])), [opsiUrut]);
+  const urutAktifRef = useRef<string[] | undefined>(urutAktif);
+  urutAktifRef.current = urutAktif;
+  const arahUrutRef = useRef(arahUrut);
+  arahUrutRef.current = arahUrut;
+  const onUrutRef = useRef(onUrut);
+  onUrutRef.current = onUrut;
+  /** Klik header: biasa = urut tunggal (klik ulang memutar arah);
+   *  Shift+Klik = tambah kunci (maks 3). */
+  const klikUrut = useCallback((kunci: string, geser: boolean) => {
+    const nilai = petaUrut.get(kunci);
+    const kirim = onUrutRef.current;
+    if (!nilai || !kirim) return;
+    const aktif = urutAktifRef.current ?? [];
+    const arah = arahUrutRef.current;
+    const balik: 'naik' | 'turun' = arah === 'naik' ? 'turun' : 'naik';
+    const pos = aktif.indexOf(nilai);
+    if (!geser) {
+      kirim([nilai], aktif.length === 1 && pos === 0 ? balik : 'naik');
+    } else if (pos >= 0) {
+      kirim(aktif, balik);
+    } else if (aktif.length >= 3) {
+      toast.info('Maksimal 3 kunci urut.');
+    } else {
+      kirim([...aktif, nilai], arah);
+    }
+  }, [petaUrut]);
 
   /** Seleksi bersifat per halaman/filter: baris berganti = seleksi dibersihkan. */
   useEffect(() => {
@@ -1750,6 +1825,12 @@ export default function ExcelTable<T extends { id: string | number }>({
       const iData = idxData++;
       const bekuCls = iData < freezeAktif ? ' simpes-dsg-beku' : '';
       const tepiCls = iData === freezeAktif - 1 ? ' simpes-dsg-beku-tepi' : '';
+      const nilaiUrut = petaUrut.get(f.key);
+      const posUrut = nilaiUrut != null ? (urutAktif ?? []).indexOf(nilaiUrut) : -1;
+      const tandaUrut =
+        posUrut < 0
+          ? null
+          : `${arahUrut === 'naik' ? '▲' : '▼'}${(urutAktif ?? []).length > 1 ? posUrut + 1 : ''}`;
       const isInputRow = (rowData: GridRow) => showInput && String(rowData.id) === INPUT_ROW_ID;
       const common = {
         id: f.key,
@@ -1766,6 +1847,10 @@ export default function ExcelTable<T extends { id: string | number }>({
                 : undefined
             }
             onAutoFit={onAutoFit}
+            bisaUrut={nilaiUrut != null && !!onUrut}
+            tandaUrut={tandaUrut}
+            idUrut={`head_urut_${tableKey}_${f.key}`}
+            onUrutKlik={(geser) => klikUrut(f.key, geser)}
           />
         ),
         headerClassName: cn(alignClass(f.key), bekuCls, tepiCls),
@@ -1909,7 +1994,7 @@ export default function ExcelTable<T extends { id: string | number }>({
     }
     return cols;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fields, visibleFields, editing, widths, stdLebar, autoWidths, syncAutoWidths, align, showInput, freezeAktif, hideCheckbox]);
+  }, [fields, visibleFields, editing, widths, stdLebar, autoWidths, syncAutoWidths, align, showInput, freezeAktif, hideCheckbox, petaUrut, urutAktif, arahUrut, klikUrut]);
 
   /** Simpan baris input → buat record baru via onCreateRow halaman. Validasi
    *  field wajib + validator kolom dulu; draft dibersihkan hanya bila sukses

@@ -34,6 +34,9 @@ export default function KeanggotaanPage() {
   const [status, setStatus] = useState('');
   const [cari, setCari] = useState('');
   const [tanpaNis, setTanpaNis] = useState(false);
+  /** Urut header: daftar nilai allowlist + arah global (maks 3 kunci). */
+  const [urut, setUrut] = useState<string[]>([]);
+  const [arahUrut, setArahUrut] = useState<'naik' | 'turun'>('naik');
   const [lembagaOpsi, setLembagaOpsi] = useState<Lembaga[]>([]);
   const [rows, setRows] = useState<LembagaSantri[]>([]);
   const [lastPage, setLastPage] = useState(1);
@@ -56,16 +59,18 @@ export default function KeanggotaanPage() {
 
   const load = useCallback(async (
     p = pager.page, pp = pager.perPage,
-    f?: { lembagaId?: string; status?: string; cari?: string; tanpaNis?: boolean },
+    f?: { lembagaId?: string; status?: string; cari?: string; tanpaNis?: boolean; urut?: string[]; arah?: 'naik' | 'turun' },
   ) => {
     setErr('');
     try {
-      const fl = f ?? { lembagaId, status, cari, tanpaNis };
+      const fl = f ?? { lembagaId, status, cari, tanpaNis, urut, arah: arahUrut };
       const res = await listKeanggotaan({
         lembaga_id: fl.lembagaId ? Number(fl.lembagaId) : null,
         is_active: fl.status === '' ? null : fl.status === '1',
         tanpa_nis: fl.tanpaNis,
         search: fl.cari || undefined,
+        sort: fl.urut?.length ? fl.urut : undefined,
+        arah: fl.urut?.length ? (fl.arah ?? 'naik') : undefined,
         page: p,
         per_page: pp,
       });
@@ -74,7 +79,15 @@ export default function KeanggotaanPage() {
       setLastPage(res.last_page);
       setTotal(res.total);
     } catch (e) { setErr(errorMessage(e)); }
-  }, [pager, lembagaId, status, cari, tanpaNis]);
+  }, [pager, lembagaId, status, cari, tanpaNis, urut, arahUrut]);
+
+  /** Klik header: simpan urut baru lalu muat ulang dari halaman 1. */
+  function terapkanUrut(nilai: string[], arah: 'naik' | 'turun') {
+    setUrut(nilai);
+    setArahUrut(arah);
+    pager.goFirst();
+    void load(1, pager.perPage, { lembagaId, status, cari, tanpaNis, urut: nilai, arah });
+  }
 
   useEffect(() => { void listLembaga({ per_page: 100 }).then((r) => setLembagaOpsi(r.data)).catch(() => {}); }, []);
   useEffect(() => { if (pager.ready) void load(pager.page); }, [pager.ready]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -197,6 +210,7 @@ export default function KeanggotaanPage() {
         tableKey="keanggotaan"
         fields={[
           { key: 'santri', label: 'Santri', kind: 'static' },
+          { key: 'jk', label: 'JK', kind: 'static', width: 60 },
           { key: 'lembaga', label: 'Lembaga', kind: 'static' },
           { key: 'nis_lokal', label: 'NIS Lokal', kind: 'text', maxLength: 20 },
           { key: 'nis_kemenag', label: 'NIS Kemenag', kind: 'static' },
@@ -207,6 +221,7 @@ export default function KeanggotaanPage() {
         rows={rows}
         getValues={(r) => ({
           santri: r.santri?.nama_lengkap ?? null,
+          jk: r.santri?.jk ?? null,
           lembaga: r.lembaga ? `${r.lembaga.kode ?? r.lembaga.nama}` : null,
           nis_lokal: r.nis_lokal,
           nis_kemenag: r.nis_kemenag,
@@ -214,6 +229,19 @@ export default function KeanggotaanPage() {
           mulai: r.tgl_mulai?.slice(0, 10) ?? null,
           selesai: r.tgl_selesai?.slice(0, 10) ?? null,
         })}
+        opsiUrut={[
+          { kunci: 'santri', nilai: 'nama' },
+          { kunci: 'jk', nilai: 'jk' },
+          { kunci: 'lembaga', nilai: 'lembaga' },
+          { kunci: 'nis_lokal', nilai: 'nis_lokal' },
+          { kunci: 'nis_kemenag', nilai: 'nis_kemenag' },
+          { kunci: 'aktif', nilai: 'aktif' },
+          { kunci: 'mulai', nilai: 'mulai' },
+          { kunci: 'selesai', nilai: 'selesai' },
+        ]}
+        urutAktif={urut}
+        arahUrut={arahUrut}
+        onUrut={terapkanUrut}
         canEdit={canUbah}
         onCommit={commitNis}
         onSaved={() => void load()}

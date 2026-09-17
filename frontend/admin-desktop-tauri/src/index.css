@@ -381,6 +381,18 @@
   padding-top: 4px;
   padding-bottom: 4px;
 }
+/* Judul kolom yang bisa diurutkan: kursor tunjuk + indikator arah/nomor. */
+.simpes-dsg-bisa-urut {
+  cursor: pointer;
+}
+.simpes-dsg-bisa-urut:hover {
+  text-decoration: underline;
+}
+.simpes-dsg-tanda-urut {
+  margin-left: 4px;
+  font-size: 0.85em;
+  white-space: nowrap;
+}
 /* Gagang resize tepi kiri: khusus kolom beku, untuk mengubah lebar kolom di
    sebelah kirinya (gagang kanan kolom itu tertutup oleh sel beku berikutnya). */
 .simpes-dsg-resizer.simpes-dsg-resizer-kiri {

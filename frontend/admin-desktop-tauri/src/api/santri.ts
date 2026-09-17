@@ -23,6 +23,8 @@ export function listKeanggotaan(params: {
   is_active?: boolean | null;
   tanpa_nis?: boolean;
   search?: string;
+  sort?: string[];
+  arah?: 'naik' | 'turun';
   page?: number;
   per_page?: number;
 } = {}) {
@@ -31,6 +33,8 @@ export function listKeanggotaan(params: {
   if (params.is_active != null) q.set('is_active', params.is_active ? '1' : '0');
   if (params.tanpa_nis) q.set('tanpa_nis', '1');
   if (params.search) q.set('search', params.search);
+  if (params.sort?.length) q.set('sort', params.sort.join(','));
+  if (params.arah) q.set('arah', params.arah);
   q.set('page', String(params.page ?? 1));
   q.set('per_page', String(params.per_page ?? 50));
   return api<Paginate<LembagaSantri>>(`/admin/lembaga-santri?${q.toString()}`);

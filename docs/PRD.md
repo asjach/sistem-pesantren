@@ -2,7 +2,7 @@
 
 | Atribut | Keterangan |
 |---|---|
-| Versi Dokumen | 2.61 (pasangan MI-MD global) |
+| Versi Dokumen | 2.62 (urut header tabel) |
 | Tanggal | 17 September 2026 |
 | Status | PRD produk SIMPES — acuan tunggal kebutuhan, rancangan, dan status implementasi aplikasi yang sedang dibangun |
 | Penyusun | Solo dev + Yayasan |
@@ -112,7 +112,8 @@
 | 2.58 | 2026-09-17 | Hapus halaman Tampilan Standar + kunci sebar super_admin |
 | 2.59 | 2026-09-17 | Detail lembaga lengkap |
 | 2.60 | 2026-09-17 | Halaman Keanggotaan terpusat (/keanggotaan) |
-| 2.61 | 2026-09-17 | Pengecualian pasangan MI-MD global timbal-balik: admin MI kelola data MD dan sebaliknya di semua endpoint (daftar, tulis, impor, PSB, kamus, preset, pengguna); khusus admin scoped, act-as ketat, MTS terisolasi; 20 test disesuaikan; suite 191/191 |
+| 2.61 | 2026-09-17 | Pengecualian pasangan MI-MD global timbal-balik |
+| 2.62 | 2026-09-17 | Urut header tabel (klik = tunggal, Shift+Klik = multi maks 3, server-side via sort+arah + allowlist per endpoint); pilot Keanggotaan (kolom JK baru + 8 kunci urut); suite 197/197, typecheck + build lolos |
 ## Daftar Isi
 
 > Rujukan antar-file: "Bab 2–8" → `arsitektur.md`; "Bab 9–14 + Lampiran" → `operasi.md`; "§N / Part B" → `backend-detail.md`.
