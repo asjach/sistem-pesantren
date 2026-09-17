@@ -17,6 +17,9 @@ export interface KonteksHeader {
   colKey: string;
 }
 
+/** Gaya tombol ikon dalam baris menu header (tanpa label teks). */
+const ikonBtn = 'grid size-6 place-items-center rounded text-muted-foreground transition-colors hover:bg-accent hover:text-foreground';
+
 export interface KonteksRow {
   rowId: string | number;
   rowLabel: string;
@@ -64,13 +67,12 @@ export default function MenuKonteksGrid({
 }: MenuKonteksGridProps) {
   return (
     <ContextMenuContent>
-      {/* Area header kolom: perataan + lebar (satu grup, pemisah tanpa judul),
-          lalu beku dan preset. */}
+      {/* Area header kolom: semua tombol dalam SATU baris ikon tanpa label
+          (perataan | lebar | beku); preset tetap daftar centang. */}
       {header && (
         <>
           <ContextMenuLabel>KOLOM: {headerLabel}</ContextMenuLabel>
-          <ContextMenuSeparator />
-          <div className="flex items-center gap-1 px-2 pb-1">
+          <div className="flex items-center gap-1 px-2 pb-1 pt-0.5">
             {([
               { nilai: 'left' as const, label: 'Kiri', Icon: AlignLeft },
               { nilai: 'center' as const, label: 'Tengah', Icon: AlignCenter },
@@ -86,49 +88,58 @@ export default function MenuKonteksGrid({
                   aria-label={`Rata ${label.toLowerCase()}`}
                   aria-pressed={aktif}
                   onClick={() => setAlign(header.colKey, nilai)}
-                  className={cn(
-                    'grid size-6 place-items-center rounded text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
-                    aktif && 'bg-accent text-foreground',
-                  )}
+                  className={cn(ikonBtn, aktif && 'bg-accent text-foreground')}
                 >
                   <Icon size={16} />
                 </button>
               );
             })}
+            <span className="mx-0.5 h-5 w-px bg-border" aria-hidden="true" />
+            <button
+              type="button"
+              id={`btn_ctx_autofit_kolom_${tableKey}`}
+              title="Sesuaikan lebar kolom ini"
+              aria-label="Sesuaikan lebar kolom ini"
+              onClick={() => onAutoFit(header.colKey)}
+              className={ikonBtn}
+            >
+              <MoveHorizontal size={16} />
+            </button>
+            <button
+              type="button"
+              id={`btn_ctx_autofit_semua_${tableKey}`}
+              title="Sesuaikan lebar semua kolom"
+              aria-label="Sesuaikan lebar semua kolom"
+              onClick={() => onAutoFitAll()}
+              className={ikonBtn}
+            >
+              <StretchHorizontal size={16} />
+            </button>
+            <span className="mx-0.5 h-5 w-px bg-border" aria-hidden="true" />
+            <button
+              type="button"
+              id={`btn_ctx_bekukan_${tableKey}`}
+              title="Freeze Column"
+              aria-label="Freeze Column"
+              disabled={headerIdx < 0 || freezeAktif >= headerIdx + 1}
+              onClick={() => headerIdx >= 0 && ubahFreeze(headerIdx + 1)}
+              className={cn(ikonBtn, 'disabled:pointer-events-none disabled:opacity-40')}
+            >
+              <Pin size={16} />
+            </button>
+            {freezeAktif > 0 && (
+              <button
+                type="button"
+                id={`btn_ctx_lepas_bekukan_${tableKey}`}
+                title="Lepas Semua Beku"
+                aria-label="Lepas Semua Beku"
+                onClick={() => ubahFreeze(0)}
+                className={ikonBtn}
+              >
+                <PinOff size={16} />
+              </button>
+            )}
           </div>
-          <ContextMenuSeparator />
-          <ContextMenuItem
-            id={`btn_ctx_autofit_kolom_${tableKey}`}
-            title="Sesuaikan lebar kolom ini"
-            aria-label="Sesuaikan lebar kolom ini"
-            onSelect={() => onAutoFit(header.colKey)}
-          >
-            <MoveHorizontal size={16} />
-          </ContextMenuItem>
-          <ContextMenuItem
-            id={`btn_ctx_autofit_semua_${tableKey}`}
-            title="Sesuaikan lebar semua kolom"
-            aria-label="Sesuaikan lebar semua kolom"
-            onSelect={() => onAutoFitAll()}
-          >
-            <StretchHorizontal size={16} />
-          </ContextMenuItem>
-          <ContextMenuSeparator />
-          <ContextMenuLabel>BEKU</ContextMenuLabel>
-          <ContextMenuItem
-            id={`btn_ctx_bekukan_${tableKey}`}
-            disabled={headerIdx < 0 || freezeAktif >= headerIdx + 1}
-            onSelect={() => headerIdx >= 0 && ubahFreeze(headerIdx + 1)}
-          >
-            <Pin size={16} />
-            <span>Freeze Column</span>
-          </ContextMenuItem>
-          {freezeAktif > 0 && (
-            <ContextMenuItem id={`btn_ctx_lepas_bekukan_${tableKey}`} onSelect={() => ubahFreeze(0)}>
-              <PinOff size={16} />
-              <span>Lepas Semua Beku</span>
-            </ContextMenuItem>
-          )}
           <ContextMenuSeparator />
           <ContextMenuLabel>TAMPILKAN DI PRESET</ContextMenuLabel>
           {(presetApiRef.current?.presets.length ?? 0) === 0 ? (
