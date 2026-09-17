@@ -4,6 +4,10 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Api\Concerns\TenantGuard;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\PresetTabelAktifRequest;
+use App\Http\Requests\Admin\PresetTabelIndexRequest;
+use App\Http\Requests\Admin\PresetTabelStoreRequest;
+use App\Http\Requests\Admin\PresetTabelUpdateRequest;
 use App\Models\PresetTabel;
 use App\Models\PresetTabelAktif;
 use App\Models\User;
@@ -16,9 +20,9 @@ class PresetTabelController extends Controller
     use TenantGuard;
 
     /** GET /api/admin/preset-tabel?table_key=psb */
-    public function index(Request $request): JsonResponse
+    public function index(PresetTabelIndexRequest $request): JsonResponse
     {
-        $data = $request->validate(['table_key' => ['required', 'string', 'max:60']]);
+        $data = $request->validated();
         $user = $request->user();
 
         $presets = $this->queryEfektif($user, $data['table_key'])
@@ -42,18 +46,9 @@ class PresetTabelController extends Controller
     }
 
     /** POST /api/admin/preset-tabel — generate ke lembaga yang dipilih (boleh lebih dari satu). */
-    public function store(Request $request): JsonResponse
+    public function store(PresetTabelStoreRequest $request): JsonResponse
     {
-        $data = $request->validate([
-            'table_key' => ['required', 'string', 'max:60'],
-            'nama' => ['required', 'string', 'max:50'],
-            'lembaga_ids' => ['required', 'array', 'min:1', 'max:200'],
-            'lembaga_ids.*' => ['integer', 'exists:lembaga,id'],
-            'kolom' => ['required', 'array', 'min:1', 'max:200'],
-            'kolom.*' => ['string', 'max:60'],
-            'label' => ['nullable', 'array', 'max:200'],
-            'label.*' => ['nullable', 'string', 'max:60'],
-        ]);
+        $data = $request->validated();
         $this->pastikanNamaBukanLengkap($data['nama']);
         foreach (array_unique($data['lembaga_ids']) as $lembagaId) {
             $this->authorizePreset($request->user(), (int) $lembagaId);
@@ -78,17 +73,11 @@ class PresetTabelController extends Controller
     }
 
     /** PUT /api/admin/preset-tabel/{preset} — ubah nama/kolom milik satu lembaga. */
-    public function update(Request $request, PresetTabel $preset): JsonResponse
+    public function update(PresetTabelUpdateRequest $request, PresetTabel $preset): JsonResponse
     {
         $this->authorizePreset($request->user(), $preset->lembaga_id);
 
-        $data = $request->validate([
-            'nama' => ['sometimes', 'string', 'max:50'],
-            'kolom' => ['sometimes', 'array', 'min:1', 'max:200'],
-            'kolom.*' => ['string', 'max:60'],
-            'label' => ['sometimes', 'nullable', 'array', 'max:200'],
-            'label.*' => ['nullable', 'string', 'max:60'],
-        ]);
+        $data = $request->validated();
 
         $nama = $data['nama'] ?? $preset->nama;
         $this->pastikanNamaBukanLengkap($nama);
@@ -119,12 +108,9 @@ class PresetTabelController extends Controller
     }
 
     /** POST /api/admin/preset-tabel/aktif — simpan pilihan terakhir (null = Lengkap). */
-    public function setAktif(Request $request): JsonResponse
+    public function setAktif(PresetTabelAktifRequest $request): JsonResponse
     {
-        $data = $request->validate([
-            'table_key' => ['required', 'string', 'max:60'],
-            'preset_id' => ['nullable', 'integer', 'exists:preset_tabel,id'],
-        ]);
+        $data = $request->validated();
 
         $presetId = $data['preset_id'] ?? null;
         if ($presetId !== null) {

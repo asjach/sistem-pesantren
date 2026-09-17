@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\ReferensiStoreRequest;
+use App\Http\Requests\Admin\ReferensiUpdateRequest;
 use App\Services\RefService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -72,18 +74,13 @@ class ReferensiController extends Controller
         return response()->json(DB::table($table)->find($id));
     }
 
-    public function store(Request $request, string $tipe)
+    public function store(ReferensiStoreRequest $request, string $tipe)
     {
         $actor = $request->user();
         $isStatus = in_array($tipe, ['status_awal', 'status_akhir'], true);
         $key = RefService::KEY[$tipe] ?? abort(422, 'Tipe tidak valid.');
 
-        $data = $request->validate([
-            'lembaga_id' => 'nullable|exists:lembaga,id',
-            'nama' => 'required_without:kode|string',
-            'kode' => 'required_without:nama|string',
-            'urutan' => 'nullable|integer',
-        ]);
+        $data = $request->validated();
 
         if ($isStatus && $request->hasAny(['is_aktif_bawaan', 'terminal_ke']) && ! $actor->bolehSuperAdmin()) {
             abort(403, 'Sifat status hanya super_admin global.');
@@ -133,7 +130,7 @@ class ReferensiController extends Controller
         return response()->json(DB::table($table)->find($id), 201);
     }
 
-    public function update(Request $request, string $tipe, int $id)
+    public function update(ReferensiUpdateRequest $request, string $tipe, int $id)
     {
         $actor = $request->user();
         $isStatus = in_array($tipe, ['status_awal', 'status_akhir'], true);
@@ -152,7 +149,7 @@ class ReferensiController extends Controller
 
         // Kode (status) TIDAK diubah: kunci yang dipakai data pemakai.
         // Nama (status & kamus) boleh diubah walau konsumen string bebas tanpa FK.
-        $data = $request->validate(['nama' => 'required|string', 'urutan' => 'nullable|integer']);
+        $data = $request->validated();
 
         $upd = ['urutan' => $data['urutan'] ?? $row->urutan];
         if (! $isStatus) {
