@@ -9,6 +9,7 @@ use App\Models\Lembaga;
 use App\Models\LembagaSantri;
 use App\Models\RiwayatBelajar;
 use App\Models\Santri;
+use App\Services\PenerimaanService;
 use App\Services\SiklusSantriService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -24,7 +25,10 @@ class MiMdController extends Controller
 {
     use TenantGuard;
 
-    public function __construct(private SiklusSantriService $siklusService) {}
+    public function __construct(
+        private SiklusSantriService $siklusService,
+        private PenerimaanService $penerimaanService,
+    ) {}
 
     /** @return array{mi_id: int, md_id: int}|null */
     protected function resolvePasangan(): ?array
@@ -220,6 +224,63 @@ class MiMdController extends Controller
 
         return response()->json([
             'pesan' => "Penyamaan selesai: {$berhasil} berhasil, ".count($gagal).' gagal.',
+            'berhasil' => $berhasil,
+            'gagal' => $gagal,
+        ]);
+    }
+
+    /** POST /api/admin/mi-md/daftarkan-md — input santri MI Only ke keanggotaan MD. */
+    public function daftarkanMd(Request $request): JsonResponse
+    {
+        $pasangan = $this->resolvePasangan();
+        if (! $pasangan) {
+            return response()->json(['pesan' => 'Lembaga MI/MD tidak ditemukan.'], 422);
+        }
+        ['mi_id' => $miId, 'md_id' => $mdId] = $pasangan;
+
+        $data = $request->validate([
+            'items' => ['required', 'array', 'min:1', 'max:100'],
+            'items.*.santri_id' => ['required', 'integer', 'exists:santri,id'],
+        ]);
+
+        $auth = $request->user();
+        $berhasil = 0;
+        $gagal = [];
+
+        foreach ($data['items'] as $item) {
+            try {
+                $santri = Santri::findOrFail((int) $item['santri_id']);
+
+                // Tulis ke MD; baca MI via pengecualian pasangan.
+                if (! $auth->canAccessLembaga($mdId)
+                    || (! $auth->canAccessLembaga($miId) && ! $auth->canAccessLembaga($mdId))) {
+                    throw ValidationException::withMessages(['santri_id' => 'Akses ditolak.']);
+                }
+
+                $mi = LembagaSantri::where('santri_id', $santri->id)
+                    ->where('lembaga_id', $miId)
+                    ->where('is_active', true)
+                    ->first();
+                if (! $mi) {
+                    throw ValidationException::withMessages(['santri_id' => 'Bukan anggota aktif MI.']);
+                }
+
+                // NIS mewarisi MI (kebijakan satu nomor); tgl_mulai hari ini.
+                $this->penerimaanService->pastikanKeanggotaan($santri, $mdId, [
+                    'nis_lokal' => $mi->nis_lokal,
+                    'tgl_mulai' => now()->format('Y-m-d'),
+                ]);
+                $berhasil++;
+            } catch (ValidationException $e) {
+                $gagal[] = [
+                    'santri_id' => (int) ($item['santri_id'] ?? 0),
+                    'pesan' => collect($e->errors())->flatten()->first(),
+                ];
+            }
+        }
+
+        return response()->json([
+            'pesan' => "Pendaftaran ke MD selesai: {$berhasil} berhasil, ".count($gagal).' gagal.',
             'berhasil' => $berhasil,
             'gagal' => $gagal,
         ]);

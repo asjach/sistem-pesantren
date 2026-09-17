@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { errorMessage } from '../api/client';
 import {
+  daftarkanMdMiMd,
   listMiMd,
   samakanKelasMiMd,
   type MiMdBarisBeda,
@@ -12,6 +13,8 @@ import { bisa } from '../api/auth';
 import { useAuth } from '../auth/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { ActionIcon } from '@/components/RowActions';
+import { ArrowRight } from '@/icons';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { toast } from 'sonner';
@@ -20,6 +23,7 @@ import { toast } from 'sonner';
 export default function MiMdPage() {
   const { user } = useAuth();
   const canSamakan = bisa(user, 'pindah_kelas.ubah');
+  const canDaftar = bisa(user, 'santri.tambah');
   const [data, setData] = useState<MiMdData | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
@@ -75,6 +79,23 @@ export default function MiMdPage() {
     }
   }
 
+  async function daftarkanKeMd(santriId: number) {
+    setBusyId(santriId);
+    try {
+      const res = await daftarkanMdMiMd([{ santri_id: santriId }]);
+      if (res.gagal.length > 0) {
+        toast.error(res.gagal.map((g) => g.pesan).join(' · '));
+      } else {
+        toast.success(res.pesan);
+      }
+      await load();
+    } catch (e) {
+      toast.error(errorMessage(e));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   const FIELDS_MI: ExcelField[] = useMemo(() => ([
     { key: 'nama', label: 'Nama', width: 200, kind: 'static' },
     { key: 'nis_mi', label: 'NIS MI', width: 110, kind: 'static' },
@@ -103,7 +124,7 @@ export default function MiMdPage() {
     getValues: (r: Baris) => Record<string, string | null>,
     aksi?: (r: Baris) => ReactNode,
   ) => (
-    <section className="flex min-w-0 flex-col rounded-md border">
+    <section className="flex min-h-0 min-w-0 flex-col rounded-md border">
       <header className="flex items-center justify-between gap-2 border-b bg-muted/40 px-3 py-2 text-sm font-medium">
         <span>{judul} ({jumlah})</span>
       </header>
@@ -115,7 +136,7 @@ export default function MiMdPage() {
           onChange={(e) => setCari(e.target.value)}
         />
       </div>
-      <div className="px-2 pb-1">
+      <div className="flex min-h-0 flex-1 flex-col px-2 pb-2">
         <ExcelTable
           tableKey={`mi_md_${key}`}
           fields={fields}
@@ -125,7 +146,6 @@ export default function MiMdPage() {
           onCommit={async () => {}}
           onSaved={() => {}}
           renderActions={aksi ? (r) => aksi(r) : () => null}
-          maxRows={14}
           emptyText="Tidak ada data."
         />
       </div>
@@ -147,8 +167,20 @@ export default function MiMdPage() {
       {loading && !data ? (
         <p className="text-sm text-muted-foreground">Memuat…</p>
       ) : (
-        <div className="grid gap-4 xl:grid-cols-3">
-          {panel('mi', 'MI Only', data?.mi_only.length ?? 0, cariMi, setCariMi, FIELDS_MI, rowsMi, nilaiStatis)}
+        <div className="grid min-h-0 flex-1 grid-cols-[repeat(auto-fit,minmax(min(360px,100%),1fr))] gap-4">
+          {panel('mi', 'MI Only', data?.mi_only.length ?? 0, cariMi, setCariMi, FIELDS_MI, rowsMi, nilaiStatis,
+            canDaftar
+              ? (r) => (
+                <ActionIcon
+                  id={`btn_daftar_md_${r.santri_id}`}
+                  title="Masukkan ke MD (buat keanggotaan, NIS mewarisi MI)"
+                  onClick={() => { if (busyId !== r.santri_id) void daftarkanKeMd(r.santri_id); }}
+                >
+                  <ArrowRight size={16} />
+                </ActionIcon>
+              )
+              : undefined,
+          )}
           {panel('md', 'MD Semua', data?.md_semua.length ?? 0, cariMd, setCariMd, FIELDS_MD, rowsMd, nilaiStatis)}
           {panel(
             'beda',

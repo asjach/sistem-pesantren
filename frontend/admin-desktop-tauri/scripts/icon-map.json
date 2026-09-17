@@ -32,6 +32,17 @@
   "bi": "text-right",
   "material": "format-align-right"
  },
+ "ArrowRight": {
+  "lucide": "arrow-right",
+  "tabler": "arrow-right",
+  "ph": "arrow-right",
+  "heroicons": "arrow-right",
+  "ri": "arrow-right-line",
+  "iconoir": "arrow-right",
+  "radix": "arrow-right",
+  "bi": "arrow-right",
+  "material": "arrow-right"
+ },
  "BadgeCheck": {
   "lucide": "badge-check",
   "tabler": "rosette-discount-check",

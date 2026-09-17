@@ -47,6 +47,14 @@ export function samakanKelasMiMd(items: Array<{ santri_id: number; arah: 'ke_mi'
   );
 }
 
+/** Daftarkan santri MI Only ke keanggotaan MD (NIS mewarisi MI). */
+export function daftarkanMdMiMd(items: Array<{ santri_id: number }>) {
+  return api<{ pesan: string; berhasil: number; gagal: Array<{ santri_id: number; pesan: string }> }>(
+    '/admin/mi-md/daftarkan-md',
+    { method: 'POST', body: JSON.stringify({ items }) },
+  );
+}
+
 export interface MutasiKeluar {
   id: number;
   santri_id: number;

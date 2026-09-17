@@ -1,5 +1,5 @@
 /* AUTO-GENERATED oleh scripts/icons-gen.mjs — JANGAN edit manual.
- * 68 ikon × 9 set (Iconify/unplugin-icons). Set aktif dari prefs
+ * 69 ikon × 9 set (Iconify/unplugin-icons). Set aktif dari prefs
  * `iconSet`; nama yang tidak tersedia di suatu set jatuh ke Lucide.
  * Regenerasi: node scripts/icons-gen.mjs */
 import type { ComponentType, SVGProps } from 'react';
@@ -11,6 +11,7 @@ import type { IconSetId } from '@/iconSets';
 import IcAlignCenterLucide from '~icons/lucide/align-center';
 import IcAlignLeftLucide from '~icons/lucide/align-left';
 import IcAlignRightLucide from '~icons/lucide/align-right';
+import IcArrowRightLucide from '~icons/lucide/arrow-right';
 import IcBadgeCheckLucide from '~icons/lucide/badge-check';
 import IcBanLucide from '~icons/lucide/ban';
 import IcBlendLucide from '~icons/lucide/blend';
@@ -28,7 +29,6 @@ import IcClipboardCheckLucide from '~icons/lucide/clipboard-check';
 import IcClipboardListLucide from '~icons/lucide/clipboard-list';
 import IcCopyLucide from '~icons/lucide/copy';
 import IcEyeLucide from '~icons/lucide/eye';
-import IcEyeOffLucide from '~icons/lucide/eye-off';
 import IcFileCheck2Lucide from '~icons/lucide/file-check-2';
 import IcFileUpLucide from '~icons/lucide/file-up';
 import IcFolderOpenLucide from '~icons/lucide/folder-open';
@@ -82,6 +82,7 @@ import IcDensityLargeLucide from '~icons/lucide/rows-2';
 import IcAlignCenterTabler from '~icons/tabler/align-center';
 import IcAlignLeftTabler from '~icons/tabler/align-left';
 import IcAlignRightTabler from '~icons/tabler/align-right';
+import IcArrowRightTabler from '~icons/tabler/arrow-right';
 import IcBadgeCheckTabler from '~icons/tabler/rosette-discount-check';
 import IcBanTabler from '~icons/tabler/ban';
 import IcBlendTabler from '~icons/tabler/color-filter';
@@ -99,7 +100,6 @@ import IcClipboardCheckTabler from '~icons/tabler/clipboard-check';
 import IcClipboardListTabler from '~icons/tabler/clipboard-list';
 import IcCopyTabler from '~icons/tabler/copy';
 import IcEyeTabler from '~icons/tabler/eye';
-import IcEyeOffTabler from '~icons/tabler/eye-off';
 import IcFileCheck2Tabler from '~icons/tabler/file-check';
 import IcFileUpTabler from '~icons/tabler/file-upload';
 import IcFolderOpenTabler from '~icons/tabler/folder-open';
@@ -148,6 +148,7 @@ import IcTriangleAlertTabler from '~icons/tabler/alert-triangle';
 import IcAlignCenterPh from '~icons/ph/text-align-center';
 import IcAlignLeftPh from '~icons/ph/align-left';
 import IcAlignRightPh from '~icons/ph/align-right';
+import IcArrowRightPh from '~icons/ph/arrow-right';
 import IcBadgeCheckPh from '~icons/ph/seal-check';
 import IcBanPh from '~icons/ph/prohibit';
 import IcBookMarkedPh from '~icons/ph/bookmark';
@@ -163,7 +164,6 @@ import IcChevronRightPh from '~icons/ph/caret-right';
 import IcClipboardListPh from '~icons/ph/clipboard';
 import IcCopyPh from '~icons/ph/copy';
 import IcEyePh from '~icons/ph/eye';
-import IcEyeOffPh from '~icons/ph/eye-slash';
 import IcFileUpPh from '~icons/ph/file-arrow-up';
 import IcFolderOpenPh from '~icons/ph/folder-open';
 import IcGraduationCapPh from '~icons/ph/graduation-cap';
@@ -206,6 +206,7 @@ import IcLoader2Ph from '~icons/ph/spinner';
 import IcTriangleAlertPh from '~icons/ph/warning';
 
 // heroicons
+import IcArrowRightHeroicons from '~icons/heroicons/arrow-right';
 import IcBadgeCheckHeroicons from '~icons/heroicons/check-badge';
 import IcBanHeroicons from '~icons/heroicons/no-symbol';
 import IcBlendHeroicons from '~icons/heroicons/swatch';
@@ -222,7 +223,6 @@ import IcClipboardCheckHeroicons from '~icons/heroicons/clipboard-document-check
 import IcClipboardListHeroicons from '~icons/heroicons/clipboard';
 import IcCopyHeroicons from '~icons/heroicons/document-duplicate';
 import IcEyeHeroicons from '~icons/heroicons/eye';
-import IcEyeOffHeroicons from '~icons/heroicons/eye-slash';
 import IcFileCheck2Heroicons from '~icons/heroicons/document-check';
 import IcFileUpHeroicons from '~icons/heroicons/document-arrow-up';
 import IcFolderOpenHeroicons from '~icons/heroicons/folder-open';
@@ -264,6 +264,7 @@ import IcInfoHeroicons from '~icons/heroicons/information-circle';
 import IcAlignCenterRi from '~icons/ri/align-center';
 import IcAlignLeftRi from '~icons/ri/align-left';
 import IcAlignRightRi from '~icons/ri/align-right';
+import IcArrowRightRi from '~icons/ri/arrow-right-line';
 import IcBadgeCheckRi from '~icons/ri/certificate-line';
 import IcBanRi from '~icons/ri/prohibited-line';
 import IcBlendRi from '~icons/ri/color-filter-line';
@@ -281,7 +282,6 @@ import IcClipboardCheckRi from '~icons/ri/task-line';
 import IcClipboardListRi from '~icons/ri/clipboard-line';
 import IcCopyRi from '~icons/ri/file-copy-line';
 import IcEyeRi from '~icons/ri/eye-line';
-import IcEyeOffRi from '~icons/ri/eye-off-line';
 import IcFileCheck2Ri from '~icons/ri/file-check-line';
 import IcFileUpRi from '~icons/ri/file-upload-line';
 import IcFolderOpenRi from '~icons/ri/folder-open-line';
@@ -327,6 +327,7 @@ import IcLoader2Ri from '~icons/ri/loader-2-line';
 import IcAlignCenterIconoir from '~icons/iconoir/align-center';
 import IcAlignLeftIconoir from '~icons/iconoir/align-left';
 import IcAlignRightIconoir from '~icons/iconoir/align-right';
+import IcArrowRightIconoir from '~icons/iconoir/arrow-right';
 import IcBadgeCheckIconoir from '~icons/iconoir/badge-check';
 import IcBanIconoir from '~icons/iconoir/cancel';
 import IcBlendIconoir from '~icons/iconoir/color-filter';
@@ -344,7 +345,6 @@ import IcClipboardCheckIconoir from '~icons/iconoir/clipboard-check';
 import IcClipboardListIconoir from '~icons/iconoir/task-list';
 import IcCopyIconoir from '~icons/iconoir/copy';
 import IcEyeIconoir from '~icons/iconoir/eye';
-import IcEyeOffIconoir from '~icons/iconoir/eye-off';
 import IcFolderOpenIconoir from '~icons/iconoir/folder';
 import IcGraduationCapIconoir from '~icons/iconoir/graduation-cap';
 import IcHistoryIconoir from '~icons/iconoir/clock';
@@ -385,6 +385,7 @@ import IcLoader2Iconoir from '~icons/iconoir/refresh';
 import IcAlignCenterRadix from '~icons/radix-icons/align-center';
 import IcAlignLeftRadix from '~icons/radix-icons/align-left';
 import IcAlignRightRadix from '~icons/radix-icons/align-right';
+import IcArrowRightRadix from '~icons/radix-icons/arrow-right';
 import IcBookMarkedRadix from '~icons/radix-icons/bookmark';
 import IcCalendarDaysRadix from '~icons/radix-icons/calendar';
 import IcCalendarRangeRadix from '~icons/radix-icons/calendar';
@@ -396,7 +397,6 @@ import IcChevronRightRadix from '~icons/radix-icons/chevron-right';
 import IcClipboardListRadix from '~icons/radix-icons/clipboard';
 import IcCopyRadix from '~icons/radix-icons/copy';
 import IcEyeRadix from '~icons/radix-icons/eye-open';
-import IcEyeOffRadix from '~icons/radix-icons/eye-closed';
 import IcHistoryRadix from '~icons/radix-icons/clock';
 import IcHomeRadix from '~icons/radix-icons/home';
 import IcLogOutRadix from '~icons/radix-icons/exit';
@@ -427,6 +427,7 @@ import IcCircleCheckRadix from '~icons/radix-icons/check-circled';
 import IcAlignCenterBi from '~icons/bi/align-center';
 import IcAlignLeftBi from '~icons/bi/text-left';
 import IcAlignRightBi from '~icons/bi/text-right';
+import IcArrowRightBi from '~icons/bi/arrow-right';
 import IcBadgeCheckBi from '~icons/bi/patch-check';
 import IcBanBi from '~icons/bi/ban';
 import IcBlendBi from '~icons/bi/droplet';
@@ -444,7 +445,6 @@ import IcClipboardCheckBi from '~icons/bi/clipboard-check';
 import IcClipboardListBi from '~icons/bi/clipboard';
 import IcCopyBi from '~icons/bi/copy';
 import IcEyeBi from '~icons/bi/eye';
-import IcEyeOffBi from '~icons/bi/eye-slash';
 import IcFileCheck2Bi from '~icons/bi/file-check';
 import IcFileUpBi from '~icons/bi/file-arrow-up';
 import IcFolderOpenBi from '~icons/bi/folder';
@@ -491,6 +491,7 @@ import IcOctagonXBi from '~icons/bi/x-octagon';
 import IcAlignCenterMaterial from '~icons/material-symbols/align-center';
 import IcAlignLeftMaterial from '~icons/material-symbols/format-align-left';
 import IcAlignRightMaterial from '~icons/material-symbols/format-align-right';
+import IcArrowRightMaterial from '~icons/material-symbols/arrow-right';
 import IcBadgeCheckMaterial from '~icons/material-symbols/verified';
 import IcBanMaterial from '~icons/material-symbols/block';
 import IcBookMarkedMaterial from '~icons/material-symbols/bookmark';
@@ -507,7 +508,6 @@ import IcClipboardCheckMaterial from '~icons/material-symbols/task';
 import IcClipboardListMaterial from '~icons/material-symbols/assignment';
 import IcCopyMaterial from '~icons/material-symbols/content-copy';
 import IcEyeMaterial from '~icons/material-symbols/visibility';
-import IcEyeOffMaterial from '~icons/material-symbols/visibility-off';
 import IcFileUpMaterial from '~icons/material-symbols/upload-file';
 import IcFolderOpenMaterial from '~icons/material-symbols/folder-open';
 import IcGraduationCapMaterial from '~icons/material-symbols/school';
@@ -567,6 +567,7 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
     AlignCenter: IcAlignCenterLucide,
     AlignLeft: IcAlignLeftLucide,
     AlignRight: IcAlignRightLucide,
+    ArrowRight: IcArrowRightLucide,
     BadgeCheck: IcBadgeCheckLucide,
     Ban: IcBanLucide,
     Blend: IcBlendLucide,
@@ -584,7 +585,6 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
     ClipboardList: IcClipboardListLucide,
     Copy: IcCopyLucide,
     Eye: IcEyeLucide,
-    EyeOff: IcEyeOffLucide,
     FileCheck2: IcFileCheck2Lucide,
     FileUp: IcFileUpLucide,
     FolderOpen: IcFolderOpenLucide,
@@ -638,6 +638,7 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
     AlignCenter: IcAlignCenterTabler,
     AlignLeft: IcAlignLeftTabler,
     AlignRight: IcAlignRightTabler,
+    ArrowRight: IcArrowRightTabler,
     BadgeCheck: IcBadgeCheckTabler,
     Ban: IcBanTabler,
     Blend: IcBlendTabler,
@@ -655,7 +656,6 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
     ClipboardList: IcClipboardListTabler,
     Copy: IcCopyTabler,
     Eye: IcEyeTabler,
-    EyeOff: IcEyeOffTabler,
     FileCheck2: IcFileCheck2Tabler,
     FileUp: IcFileUpTabler,
     FolderOpen: IcFolderOpenTabler,
@@ -704,6 +704,7 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
     AlignCenter: IcAlignCenterPh,
     AlignLeft: IcAlignLeftPh,
     AlignRight: IcAlignRightPh,
+    ArrowRight: IcArrowRightPh,
     BadgeCheck: IcBadgeCheckPh,
     Ban: IcBanPh,
     BookMarked: IcBookMarkedPh,
@@ -719,7 +720,6 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
     ClipboardList: IcClipboardListPh,
     Copy: IcCopyPh,
     Eye: IcEyePh,
-    EyeOff: IcEyeOffPh,
     FileUp: IcFileUpPh,
     FolderOpen: IcFolderOpenPh,
     GraduationCap: IcGraduationCapPh,
@@ -762,6 +762,7 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
     TriangleAlert: IcTriangleAlertPh,
   },
   heroicons: {
+    ArrowRight: IcArrowRightHeroicons,
     BadgeCheck: IcBadgeCheckHeroicons,
     Ban: IcBanHeroicons,
     Blend: IcBlendHeroicons,
@@ -778,7 +779,6 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
     ClipboardList: IcClipboardListHeroicons,
     Copy: IcCopyHeroicons,
     Eye: IcEyeHeroicons,
-    EyeOff: IcEyeOffHeroicons,
     FileCheck2: IcFileCheck2Heroicons,
     FileUp: IcFileUpHeroicons,
     FolderOpen: IcFolderOpenHeroicons,
@@ -820,6 +820,7 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
     AlignCenter: IcAlignCenterRi,
     AlignLeft: IcAlignLeftRi,
     AlignRight: IcAlignRightRi,
+    ArrowRight: IcArrowRightRi,
     BadgeCheck: IcBadgeCheckRi,
     Ban: IcBanRi,
     Blend: IcBlendRi,
@@ -837,7 +838,6 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
     ClipboardList: IcClipboardListRi,
     Copy: IcCopyRi,
     Eye: IcEyeRi,
-    EyeOff: IcEyeOffRi,
     FileCheck2: IcFileCheck2Ri,
     FileUp: IcFileUpRi,
     FolderOpen: IcFolderOpenRi,
@@ -883,6 +883,7 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
     AlignCenter: IcAlignCenterIconoir,
     AlignLeft: IcAlignLeftIconoir,
     AlignRight: IcAlignRightIconoir,
+    ArrowRight: IcArrowRightIconoir,
     BadgeCheck: IcBadgeCheckIconoir,
     Ban: IcBanIconoir,
     Blend: IcBlendIconoir,
@@ -900,7 +901,6 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
     ClipboardList: IcClipboardListIconoir,
     Copy: IcCopyIconoir,
     Eye: IcEyeIconoir,
-    EyeOff: IcEyeOffIconoir,
     FolderOpen: IcFolderOpenIconoir,
     GraduationCap: IcGraduationCapIconoir,
     History: IcHistoryIconoir,
@@ -941,6 +941,7 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
     AlignCenter: IcAlignCenterRadix,
     AlignLeft: IcAlignLeftRadix,
     AlignRight: IcAlignRightRadix,
+    ArrowRight: IcArrowRightRadix,
     BookMarked: IcBookMarkedRadix,
     CalendarDays: IcCalendarDaysRadix,
     CalendarRange: IcCalendarRangeRadix,
@@ -952,7 +953,6 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
     ClipboardList: IcClipboardListRadix,
     Copy: IcCopyRadix,
     Eye: IcEyeRadix,
-    EyeOff: IcEyeOffRadix,
     History: IcHistoryRadix,
     Home: IcHomeRadix,
     LogOut: IcLogOutRadix,
@@ -983,6 +983,7 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
     AlignCenter: IcAlignCenterBi,
     AlignLeft: IcAlignLeftBi,
     AlignRight: IcAlignRightBi,
+    ArrowRight: IcArrowRightBi,
     BadgeCheck: IcBadgeCheckBi,
     Ban: IcBanBi,
     Blend: IcBlendBi,
@@ -1000,7 +1001,6 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
     ClipboardList: IcClipboardListBi,
     Copy: IcCopyBi,
     Eye: IcEyeBi,
-    EyeOff: IcEyeOffBi,
     FileCheck2: IcFileCheck2Bi,
     FileUp: IcFileUpBi,
     FolderOpen: IcFolderOpenBi,
@@ -1047,6 +1047,7 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
     AlignCenter: IcAlignCenterMaterial,
     AlignLeft: IcAlignLeftMaterial,
     AlignRight: IcAlignRightMaterial,
+    ArrowRight: IcArrowRightMaterial,
     BadgeCheck: IcBadgeCheckMaterial,
     Ban: IcBanMaterial,
     BookMarked: IcBookMarkedMaterial,
@@ -1063,7 +1064,6 @@ const SET: Record<IconSetId, Record<string, IkonDasar>> = {
     ClipboardList: IcClipboardListMaterial,
     Copy: IcCopyMaterial,
     Eye: IcEyeMaterial,
-    EyeOff: IcEyeOffMaterial,
     FileUp: IcFileUpMaterial,
     FolderOpen: IcFolderOpenMaterial,
     GraduationCap: IcGraduationCapMaterial,
@@ -1130,6 +1130,7 @@ function IkonDinamis({ nama, size = 24, className, ...rest }: IkonProps & { nama
 export const AlignCenter = (p: IkonProps) => <IkonDinamis {...p} nama="AlignCenter" />;
 export const AlignLeft = (p: IkonProps) => <IkonDinamis {...p} nama="AlignLeft" />;
 export const AlignRight = (p: IkonProps) => <IkonDinamis {...p} nama="AlignRight" />;
+export const ArrowRight = (p: IkonProps) => <IkonDinamis {...p} nama="ArrowRight" />;
 export const BadgeCheck = (p: IkonProps) => <IkonDinamis {...p} nama="BadgeCheck" />;
 export const Ban = (p: IkonProps) => <IkonDinamis {...p} nama="Ban" />;
 export const Blend = (p: IkonProps) => <IkonDinamis {...p} nama="Blend" />;
@@ -1147,7 +1148,6 @@ export const ClipboardCheck = (p: IkonProps) => <IkonDinamis {...p} nama="Clipbo
 export const ClipboardList = (p: IkonProps) => <IkonDinamis {...p} nama="ClipboardList" />;
 export const Copy = (p: IkonProps) => <IkonDinamis {...p} nama="Copy" />;
 export const Eye = (p: IkonProps) => <IkonDinamis {...p} nama="Eye" />;
-export const EyeOff = (p: IkonProps) => <IkonDinamis {...p} nama="EyeOff" />;
 export const FileCheck2 = (p: IkonProps) => <IkonDinamis {...p} nama="FileCheck2" />;
 export const FileUp = (p: IkonProps) => <IkonDinamis {...p} nama="FileUp" />;
 export const FolderOpen = (p: IkonProps) => <IkonDinamis {...p} nama="FolderOpen" />;

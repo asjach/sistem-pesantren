@@ -32,6 +32,7 @@ const IKON = {
   AlignCenter: ['align-center', 'text-align-center', 'format-align-center'],
   AlignLeft: ['align-left', 'text-align-left', 'format-align-left', 'text-left'],
   AlignRight: ['align-right', 'text-align-right', 'format-align-right', 'text-right'],
+  ArrowRight: ['arrow-right'],
   BadgeCheck: ['badge-check', 'verified', 'seal-check', 'rosette-discount-check', 'certificate', 'verified-badge', 'check-badge', 'patch-check'],
   Ban: ['ban', 'block', 'prohibited', 'cancel', 'slash-circle', 'block-2', 'denied', 'prohibit', 'prohibit-inset', 'no-symbol'],
   Blend: ['blend', 'color-filter', 'palette-2', 'swatch', 'droplet', 'droplets', 'color-mix'],

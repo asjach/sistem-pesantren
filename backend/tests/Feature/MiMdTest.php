@@ -164,6 +164,38 @@ class MiMdTest extends TestCase
         $this->assertSame([], $resMts->json('beda_kelas'));
     }
 
+    public function test_daftarkan_md_warisi_nis(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeUser('admin', [$f['mi']->id, $f['md']->id]);
+
+        $s = Santri::create(['nama_lengkap' => 'MI Saja', 'jk' => 'L']);
+        LembagaSantri::create(['santri_id' => $s->id, 'lembaga_id' => $f['mi']->id, 'nis_lokal' => '28001', 'is_active' => true]);
+
+        $res = $this->actingAs($admin, 'sanctum')->postJson('/api/admin/mi-md/daftarkan-md', [
+            'items' => [['santri_id' => $s->id]],
+        ])->assertStatus(200);
+        $this->assertSame(1, (int) $res->json('berhasil'));
+
+        $md = LembagaSantri::where('santri_id', $s->id)->where('lembaga_id', $f['md']->id)->firstOrFail();
+        $this->assertSame('28001', $md->nis_lokal);
+        $this->assertTrue((bool) $md->is_active);
+
+        // Idempoten: daftar ulang tetap 1 baris MD.
+        $this->actingAs($admin, 'sanctum')->postJson('/api/admin/mi-md/daftarkan-md', [
+            'items' => [['santri_id' => $s->id]],
+        ])->assertStatus(200);
+        $this->assertSame(1, LembagaSantri::where('santri_id', $s->id)->where('lembaga_id', $f['md']->id)->count());
+
+        // Bukan anggota MI → gagal jelas.
+        $luar = Santri::create(['nama_lengkap' => 'Luar', 'jk' => 'L']);
+        $res2 = $this->actingAs($admin, 'sanctum')->postJson('/api/admin/mi-md/daftarkan-md', [
+            'items' => [['santri_id' => $luar->id]],
+        ])->assertStatus(200);
+        $this->assertSame(0, (int) $res2->json('berhasil'));
+        $this->assertCount(1, $res2->json('gagal'));
+    }
+
     public function test_samakan_dua_arah_dan_gagal_jelas(): void
     {
         $f = $this->baseFixture();
