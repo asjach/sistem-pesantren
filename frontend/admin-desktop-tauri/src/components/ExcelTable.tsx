@@ -75,7 +75,8 @@ import {
   ToggleCell,
 } from './excel/cells';
 import { HeaderTitle, ukurPerluTinggiHeader } from './excel/header';
-import { bersihkanProbe, measureActionsWidth, measureTextWidth } from './excel/measure';
+import { bersihkanProbe, measureActionsWidth } from './excel/measure';
+import { ukurAutoFit } from './excel/autofit';
 import { useAntreanSimpan } from './excel/useAntreanSimpan';
 import ToolbarTabel from './excel/toolbar';
 import { ActionsCell, flattenAksi } from './excel/actions';
@@ -797,56 +798,14 @@ export default function ExcelTable<T extends { id: string | number }>({
 
   /** Ukur lebar teks dengan font & padding nyata dari DOM (akurat ikut tema). */
   function autoFitWidth(key: string): number | null {
-    const root = wrapRef.current;
-    if (!root) return null;
-    if (key === '__aksi') return measureActionsWidth(root);
-    const f = fieldsRef.current.find((x) => x.key === key);
-    if (!f) return null;
-    // Ambil sel data TEKS: bukan gutter (padding 5px) dan bukan sel checkbox
-    // (padding 0) — keduanya punya padding berbeda dari sel isi sehingga
-    // lebar hasil AutoFit jadi kurang.
-    const cellEl =
-      root.querySelector<HTMLElement>(
-        '.dsg-row:not(.dsg-row-header) .dsg-cell:not(.dsg-cell-gutter):not(:has(> input.dsg-checkbox))',
-      ) ??
-      root.querySelector<HTMLElement>('.dsg-row:not(.dsg-row-header) .dsg-cell:not(.dsg-cell-gutter)');
-    const headEl = root.querySelector<HTMLElement>('.dsg-row-header .dsg-cell');
-    if (!cellEl || !headEl) return null;
-    const ctx = (measureCtxRef.current ??= document.createElement('canvas').getContext('2d'));
-    if (!ctx) return null;
-
-    const fontOf = (cs: CSSStyleDeclaration) =>
-      `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
-    const padOf = (cs: CSSStyleDeclaration) =>
-      (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
-
-    const csHead = getComputedStyle(headEl);
-    const headCont = headEl.querySelector<HTMLElement>('.dsg-cell-header-container');
-    const padHead = padOf(csHead) + (headCont ? padOf(getComputedStyle(headCont)) : 0);
-    const csCell = getComputedStyle(cellEl);
-    const padCell = padOf(csCell);
-
-    // Canvas dipakai hanya untuk MENYARING kandidat terlebar (cepat), lalu
-    // kandidat itu diukur presisi dengan span DOM. Selisih canvas vs DOM
-    // berasal dari tabular-nums/kerning, jadi ambil margin lebar.
-    const CANDIDATE_MARGIN = 40;
-    ctx.font = fontOf(csCell);
-    const values: { v: string; cw: number }[] = [];
-    let maxCw = 0;
-    for (const r of rowsRef.current) {
-      const v = teksTampilSel(f, gridById.get(String(r.id))?.[key], attrByKey.get(key)?.format);
-      if (!v) continue;
-      const cw = ctx.measureText(v).width;
-      if (cw > maxCw) maxCw = cw;
-      values.push({ v, cw });
-    }
-
-    let w = measureTextWidth(labelKolom(f.key, f.label), csHead) + padHead + AUTOFIT_BUFFER;
-    for (const { v, cw } of values) {
-      if (cw < maxCw - CANDIDATE_MARGIN) continue;
-      w = Math.max(w, measureTextWidth(v, csCell) + padCell + AUTOFIT_BUFFER);
-    }
-    return Math.min(AUTOFIT_MAX_W, Math.max(MIN_COL_W, Math.ceil(w)));
+    return ukurAutoFit(wrapRef.current, key, {
+      fields: fieldsRef.current,
+      rows: rowsRef.current,
+      labelKolom,
+      teksSel: (f, rowId, k) =>
+        teksTampilSel(f, gridById.get(rowId)?.[k], attrByKey.get(k)?.format),
+      dapatkanCtx: () => (measureCtxRef.current ??= document.createElement('canvas').getContext('2d')),
+    });
   }
 
   /** AutoFit semua kolom yang belum punya lebar tersimpan (muat awal).
