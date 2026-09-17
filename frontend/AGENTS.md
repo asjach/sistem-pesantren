@@ -2,7 +2,7 @@
 
 ## Akun reviewer (AKTIF — jangan dibuat ulang/dihapus)
 - Email: `reviewer.tmp@example.com`
-- Password: `password`
+- Password: `rahayu45` (sama seperti seeder `AkunSeeder`; semua akun dev memakai ini)
 - Nama: `Reviewer Sementara` — role `super_admin` (akses semua halaman).
 - Status: **AKTIF** selama project belum production. Pakai untuk uji manual /
   Playwright lintas sesi; jangan buat/hapus tiap sesi.
