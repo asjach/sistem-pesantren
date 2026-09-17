@@ -5,6 +5,13 @@ namespace App\Http\Controllers\Api\Admin;
 use App\Http\Controllers\Api\Concerns\TenantGuard;
 use App\Http\Controllers\Api\Concerns\UrutDaftar;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\SiklusDaftarKelasRequest;
+use App\Http\Requests\Admin\SiklusLembagaRequest;
+use App\Http\Requests\Admin\SiklusLulusRequest;
+use App\Http\Requests\Admin\SiklusMutasiKeluarRequest;
+use App\Http\Requests\Admin\SiklusNaikKelasRequest;
+use App\Http\Requests\Admin\SiklusRekapRequest;
+use App\Http\Requests\Admin\SiklusSalinGenapRequest;
 use App\Models\Alumni;
 use App\Models\Kelas;
 use App\Models\LembagaSantri;
@@ -37,18 +44,11 @@ class SiklusController extends Controller
     // ---------------- Salin genap ----------------
 
     /** POST /api/admin/akademik/salin-genap — massal per lembaga (partial per-item). */
-    public function salinGenapMassal(Request $request): JsonResponse
+    public function salinGenapMassal(SiklusSalinGenapRequest $request): JsonResponse
     {
         $this->authorize('viewAny', Santri::class);
 
-        $data = $request->validate([
-            'lembaga_id' => 'required|exists:lembaga,id',
-            'tanggal_masuk' => 'required|date',
-            'siswa' => 'nullable|array|min:1',
-            'siswa.*.santri_id' => 'required|exists:santri,id',
-            'siswa.*.kelas_id' => 'nullable|exists:kelas,id',
-            'siswa.*.no_absen' => 'nullable|integer|min:1',
-        ]);
+        $data = $request->validated();
 
         $lembagaId = (int) $data['lembaga_id'];
         $this->authorizeLembaga($request->user(), $lembagaId);
@@ -106,20 +106,11 @@ class SiklusController extends Controller
     // ---------------- Kenaikan / kelulusan ----------------
 
     /** POST /api/admin/akademik/naik-kelas — batch = 1 lembaga + 1 tahun + 1 tingkat. */
-    public function naikKelasMassal(Request $request): JsonResponse
+    public function naikKelasMassal(SiklusNaikKelasRequest $request): JsonResponse
     {
         $this->authorize('viewAny', Santri::class);
 
-        $data = $request->validate([
-            'lembaga_id' => 'required|exists:lembaga,id',
-            'tahun_ajaran_baru_id' => 'required|exists:tahun_ajaran,id',
-            'tingkat' => 'required|string',
-            'siswa' => 'required|array|min:1',
-            'siswa.*.santri_id' => 'required|exists:santri,id',
-            'siswa.*.status' => 'required|in:naik,tidak_naik',
-            'siswa.*.tgl_masuk' => 'nullable|date',
-            'siswa.*.no_absen' => 'nullable|integer|min:1',
-        ]);
+        $data = $request->validated();
 
         $lembagaId = (int) $data['lembaga_id'];
         $tahunBaruId = (int) $data['tahun_ajaran_baru_id'];
@@ -152,18 +143,9 @@ class SiklusController extends Controller
     }
 
     /** POST /api/admin/santri/{santri}/lulus — kelulusan per lembaga (+arsip alumni). */
-    public function lulus(Request $request, Santri $santri): JsonResponse
+    public function lulus(SiklusLulusRequest $request, Santri $santri): JsonResponse
     {
-        $data = $request->validate([
-            'lembaga_id' => 'required|exists:lembaga,id',
-            'tahun_ajaran_lulus_id' => 'required|exists:tahun_ajaran,id',
-            'tanggal_lulus' => 'required|date',
-            'nomor_ijazah' => ['nullable', 'string'],
-            'no_surat_ijazah' => ['nullable', 'string', 'max:50'],
-            'kegiatan_setelah_lulus' => ['nullable', 'string'],
-            'penyerahan_ijazah' => ['nullable', 'in:sudah,belum'],
-            'melanjutkan' => ['nullable', 'in:ya,tidak'],
-        ]);
+        $data = $request->validated();
 
         $this->tolakLembagaRoot((int) $data['lembaga_id']);
         $this->cekTaEfektif((int) $data['lembaga_id'], (int) $data['tahun_ajaran_lulus_id'], 'tahun_ajaran_lulus_id');
@@ -178,9 +160,9 @@ class SiklusController extends Controller
     }
 
     /** POST /api/admin/santri/{santri}/tidak-lulus — buka riwayat mengulang TA berikut. */
-    public function tidakLulus(Request $request, Santri $santri): JsonResponse
+    public function tidakLulus(SiklusLembagaRequest $request, Santri $santri): JsonResponse
     {
-        $data = $request->validate(['lembaga_id' => 'required|exists:lembaga,id']);
+        $data = $request->validated();
 
         $this->tolakLembagaRoot((int) $data['lembaga_id']);
         $this->authorizeAksiLembaga($request, $santri, (int) $data['lembaga_id']);
@@ -196,20 +178,9 @@ class SiklusController extends Controller
     // ---------------- Mutasi / berhenti ----------------
 
     /** POST /api/admin/santri/{santri}/mutasi — mutasi keluar per lembaga. */
-    public function mutasiKeluar(Request $request, Santri $santri): JsonResponse
+    public function mutasiKeluar(SiklusMutasiKeluarRequest $request, Santri $santri): JsonResponse
     {
-        $data = $request->validate([
-            'lembaga_id' => 'required|exists:lembaga,id',
-            'tanggal_mutasi' => 'required|date',
-            'alasan_mutasi' => 'required|string|max:100',
-            'kelas_terakhir_id' => 'nullable|exists:kelas,id',
-            'no_surat' => 'nullable|string|max:50',
-            'nama_sekolah_tujuan' => 'nullable|string|max:255',
-            'npsn_sekolah_tujuan' => 'nullable|string|max:20',
-            'nsm_sekolah_tujuan' => 'nullable|string|max:30',
-            'alamat_sekolah_tujuan' => 'nullable|string',
-            'keterangan' => 'nullable|string',
-        ]);
+        $data = $request->validated();
 
         $this->tolakLembagaRoot((int) $data['lembaga_id']);
         $this->authorizeAksiLembaga($request, $santri, (int) $data['lembaga_id']);
@@ -223,9 +194,9 @@ class SiklusController extends Controller
     }
 
     /** POST /api/admin/santri/{santri}/berhenti-jenjang — tutup satu jenjang (paket). */
-    public function berhentiJenjang(Request $request, Santri $santri): JsonResponse
+    public function berhentiJenjang(SiklusLembagaRequest $request, Santri $santri): JsonResponse
     {
-        $data = $request->validate(['lembaga_id' => 'required|exists:lembaga,id']);
+        $data = $request->validated();
 
         $this->tolakLembagaRoot((int) $data['lembaga_id']);
         $this->authorizeAksiLembaga($request, $santri, (int) $data['lembaga_id']);
@@ -285,17 +256,11 @@ class SiklusController extends Controller
      * GET /api/admin/akademik/daftar-kelas — santri aktif pada TA (default TA aktif
      * lembaga) dan semester (default semester berjalan) — sumber halaman Daftar Kelas.
      */
-    public function daftarKelas(Request $request): JsonResponse
+    public function daftarKelas(SiklusDaftarKelasRequest $request): JsonResponse
     {
         $this->authorize('viewAny', Santri::class);
 
-        $data = $request->validate([
-            'lembaga_id' => ['required', 'integer', 'exists:lembaga,id'],
-            'tahun_ajaran_id' => ['nullable', 'integer', 'exists:tahun_ajaran,id'],
-            'semester' => ['nullable', 'in:1,2'],
-            'kelas_id' => ['nullable', 'integer', 'exists:kelas,id'],
-            'tingkat' => ['nullable', 'string'],
-        ]);
+        $data = $request->validated();
         $lembagaId = (int) $data['lembaga_id'];
         $this->authorizeLembaga($request->user(), $lembagaId);
 
@@ -341,14 +306,11 @@ class SiklusController extends Controller
      * GET /api/admin/akademik/rekap-santri — rekap jumlah santri per tahun ajaran,
      * per tingkat, per kelas, plus usia per kelas.
      */
-    public function rekapSantri(Request $request): JsonResponse
+    public function rekapSantri(SiklusRekapRequest $request): JsonResponse
     {
         $this->authorize('viewAny', Santri::class);
 
-        $data = $request->validate([
-            'lembaga_id' => ['nullable', 'integer', 'exists:lembaga,id'],
-            'tahun_ajaran_id' => ['nullable', 'integer', 'exists:tahun_ajaran,id'],
-        ]);
+        $data = $request->validated();
 
         $riwayatQuery = function () use ($request, $data) {
             $q = RiwayatBelajar::query()->where('is_aktif', true);
