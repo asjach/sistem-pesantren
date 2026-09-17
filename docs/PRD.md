@@ -1,4 +1,4 @@
-# Dokumentasi Proyek — Sistem Informasi Manajemen Pesantren (SIMPES)
+# Part A — Dokumentasi Proyek (ID) — Sistem Informasi Manajemen Pesantren (SIMPES)
 
 | Atribut | Keterangan |
 |---|---|
