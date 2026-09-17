@@ -1,0 +1,196 @@
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { errorMessage } from '../api/client';
+import {
+  listMiMd,
+  samakanKelasMiMd,
+  type MiMdBarisBeda,
+  type MiMdBarisMd,
+  type MiMdBarisMi,
+  type MiMdData,
+} from '../api/siklus';
+import { bisa } from '../api/auth';
+import { useAuth } from '../auth/AuthContext';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
+import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import { toast } from 'sonner';
+
+/** Halaman MI-MD: MI saja | MD semua | beda kelas by-nama + aksi samakan dua arah. */
+export default function MiMdPage() {
+  const { user } = useAuth();
+  const canSamakan = bisa(user, 'pindah_kelas.ubah');
+  const [data, setData] = useState<MiMdData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState('');
+  const [cariMi, setCariMi] = useState('');
+  const [cariMd, setCariMd] = useState('');
+  const [cariBeda, setCariBeda] = useState('');
+  const [busyId, setBusyId] = useState<number | null>(null);
+
+  const load = useCallback(async () => {
+    setErr('');
+    setLoading(true);
+    try {
+      setData(await listMiMd());
+    } catch (e) {
+      setErr(errorMessage(e));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  type Baris = { id: number; santri_id: number } & Record<string, string | boolean | number | null>;
+
+  const saring = useCallback(
+    <T extends { nama: string; santri_id: number }>(rows: T[], q: string): Baris[] =>
+      rows
+        .filter((r) => r.nama.toLowerCase().includes(q.trim().toLowerCase()))
+        .map((r) => ({ ...(r as unknown as Record<string, string | boolean | number | null>), id: r.santri_id, santri_id: r.santri_id })),
+    [],
+  );
+
+  const rowsMi = useMemo(() => saring(data?.mi_only ?? [], cariMi), [data, cariMi, saring]);
+  const rowsMd = useMemo(() => saring(data?.md_semua ?? [], cariMd), [data, cariMd, saring]);
+  const rowsBeda = useMemo(() => saring(data?.beda_kelas ?? [], cariBeda), [data, cariBeda, saring]);
+
+  async function samakan(santriId: number, arah: 'ke_mi' | 'ke_md') {
+    setBusyId(santriId);
+    try {
+      const res = await samakanKelasMiMd([{ santri_id: santriId, arah }]);
+      if (res.gagal.length > 0) {
+        toast.error(res.gagal.map((g) => g.pesan).join(' · '));
+      } else {
+        toast.success(res.pesan);
+      }
+      await load();
+    } catch (e) {
+      toast.error(errorMessage(e));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  const FIELDS_MI: ExcelField[] = useMemo(() => ([
+    { key: 'nama', label: 'Nama', width: 200, kind: 'static' },
+    { key: 'nis_mi', label: 'NIS MI', width: 110, kind: 'static' },
+    { key: 'kelas_mi', label: 'Kelas MI', width: 100, kind: 'static' },
+  ]), []);
+  const FIELDS_MD: ExcelField[] = useMemo(() => ([
+    { key: 'nama', label: 'Nama', width: 200, kind: 'static' },
+    { key: 'nis_md', label: 'NIS MD', width: 110, kind: 'static' },
+    { key: 'kelas_md', label: 'Kelas MD', width: 100, kind: 'static' },
+    { key: 'juga_mi', label: 'Juga MI', width: 80, kind: 'static' },
+  ]), []);
+  const FIELDS_BEDA: ExcelField[] = useMemo(() => ([
+    { key: 'nama', label: 'Nama', width: 200, kind: 'static' },
+    { key: 'kelas_mi', label: 'Kelas MI', width: 100, kind: 'static' },
+    { key: 'kelas_md', label: 'Kelas MD', width: 100, kind: 'static' },
+  ]), []);
+
+  const panel = (
+    key: string,
+    judul: string,
+    jumlah: number,
+    cari: string,
+    setCari: (v: string) => void,
+    fields: ExcelField[],
+    rows: Baris[],
+    getValues: (r: Baris) => Record<string, string | null>,
+    aksi?: (r: Baris) => ReactNode,
+  ) => (
+    <section className="flex min-w-0 flex-col rounded-md border">
+      <header className="flex items-center justify-between gap-2 border-b bg-muted/40 px-3 py-2 text-sm font-medium">
+        <span>{judul} ({jumlah})</span>
+      </header>
+      <div className="px-2 pt-2">
+        <Input
+          id={`input_cari_${key}`}
+          placeholder="Cari nama…"
+          value={cari}
+          onChange={(e) => setCari(e.target.value)}
+        />
+      </div>
+      <div className="px-2 pb-1">
+        <ExcelTable
+          tableKey={`mi_md_${key}`}
+          fields={fields}
+          rows={rows}
+          getValues={getValues}
+          canEdit={false}
+          onCommit={async () => {}}
+          onSaved={() => {}}
+          renderActions={aksi ? (r) => aksi(r) : () => null}
+          maxRows={14}
+          emptyText="Tidak ada data."
+        />
+      </div>
+    </section>
+  );
+
+  const nilaiStatis = (r: Record<string, unknown>): Record<string, string | null> => {
+    const out: Record<string, string | null> = {};
+    for (const [k, v] of Object.entries(r)) {
+      if (k === 'id' || k === 'santri_id') continue;
+      out[k] = typeof v === 'boolean' ? (v ? 'Ya' : '—') : (v as string | null) ?? '—';
+    }
+    return out;
+  };
+
+  return (
+    <div className={PAGE_SHELL}>
+      <ErrorNotice>{err}</ErrorNotice>
+      {loading && !data ? (
+        <p className="text-sm text-muted-foreground">Memuat…</p>
+      ) : (
+        <div className="grid gap-4 xl:grid-cols-3">
+          {panel('mi', 'MI Only', data?.mi_only.length ?? 0, cariMi, setCariMi, FIELDS_MI, rowsMi, nilaiStatis)}
+          {panel('md', 'MD Semua', data?.md_semua.length ?? 0, cariMd, setCariMd, FIELDS_MD, rowsMd, nilaiStatis)}
+          {panel(
+            'beda',
+            'Perbandingan Kelas',
+            data?.beda_kelas.length ?? 0,
+            cariBeda,
+            setCariBeda,
+            FIELDS_BEDA,
+            rowsBeda,
+            nilaiStatis,
+            canSamakan
+              ? (r) => (
+                <div className="flex gap-1">
+                  <Button
+                    id={`btn_samakan_mi_${r.santri_id}`}
+                    size="sm"
+                    variant="outline"
+                    disabled={busyId === r.santri_id}
+                    title="Pindahkan MD ke kelas senama MI"
+                    onClick={() => void samakan(r.santri_id, 'ke_md')}
+                  >
+                    Samakan dengan MI
+                  </Button>
+                  <Button
+                    id={`btn_samakan_md_${r.santri_id}`}
+                    size="sm"
+                    variant="outline"
+                    disabled={busyId === r.santri_id}
+                    title="Pindahkan MI ke kelas senama MD"
+                    onClick={() => void samakan(r.santri_id, 'ke_mi')}
+                  >
+                    Samakan dengan MD
+                  </Button>
+                </div>
+              )
+              : undefined,
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Re-ekspor tipe agar konsisten dengan pola halaman lain.
+export type { MiMdBarisMi, MiMdBarisMd, MiMdBarisBeda };

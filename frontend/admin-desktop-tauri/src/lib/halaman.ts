@@ -80,6 +80,7 @@ export const HALAMAN: HalamanDef[] = [
   { to: '/kenaikan', label: 'Kenaikan Kelas', tab: 'santri', grid: true, icon: ChevronUp, permission: 'kenaikan.lihat' },
   { to: '/kelulusan', label: 'Kelulusan', tab: 'santri', grid: true, icon: GraduationCap, permission: 'kelulusan.lihat' },
   { to: '/rekap-santri', label: 'Rekap Santri', tab: 'santri', grid: true, icon: ReceiptText, permission: 'rekap_santri.lihat' },
+  { to: '/mi-md', label: 'MI-MD', tab: 'santri', grid: true, icon: MoveHorizontal, permission: 'rekap_santri.lihat' },
   { to: '/mutasi-keluar', label: 'Mutasi Keluar', tab: 'santri', grid: true, icon: LogOut, permission: 'mutasi_keluar.lihat' },
   { to: '/pengajuan-biodata', label: 'Pengajuan Biodata', tab: 'santri', grid: true, icon: NotebookTabs, permission: 'pengajuan_biodata.lihat' },
   { to: '/pengaturan/tampilan', label: 'Tampilan', tab: 'pengaturan', icon: Palette, permission: 'tampilan.lihat' },

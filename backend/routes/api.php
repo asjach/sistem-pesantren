@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\Admin\IzinController;
 use App\Http\Controllers\Api\Admin\KelasController;
 use App\Http\Controllers\Api\Admin\LembagaController;
 use App\Http\Controllers\Api\Admin\LembagaSantriController;
+use App\Http\Controllers\Api\Admin\MiMdController;
 use App\Http\Controllers\Api\Admin\PengaturanTampilanController;
 use App\Http\Controllers\Api\Admin\PresetTabelController;
 use App\Http\Controllers\Api\Admin\PsbBiayaController;
@@ -116,6 +117,10 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::get('santri/{santri}/profil', [SiklusController::class, 'profilSantri'])->middleware('permission:santri.lihat');
         Route::get('mutasi-keluar', [SiklusController::class, 'getMutasiKeluar'])->middleware('permission:mutasi_keluar.lihat');
         Route::get('alumni', [SiklusController::class, 'getAlumni'])->middleware('permission:kelulusan.lihat');
+
+        // Halaman MI-MD: 3 tabel berdampingan + samakan kelas by-nama.
+        Route::get('mi-md', [MiMdController::class, 'index'])->middleware('permission:rekap_santri.lihat');
+        Route::post('mi-md/samakan-kelas', [MiMdController::class, 'samakanKelas'])->middleware('permission:pindah_kelas.ubah');
 
         Route::prefix('users')->group(function () {
             Route::get('/', [UserManagementController::class, 'index'])->middleware('permission:pengguna.lihat');

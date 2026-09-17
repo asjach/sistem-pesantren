@@ -4,6 +4,49 @@ import type { ImportError, ImportPeriksa, Santri } from './santri';
 
 // ---------- Riwayat belajar (102) + siklus akademik ----------
 
+// ---------- Halaman MI-MD (3 tabel berdampingan) ----------
+
+export interface MiMdBarisMi {
+  santri_id: number;
+  nama: string;
+  nis_mi: string | null;
+  kelas_mi: string | null;
+}
+
+export interface MiMdBarisMd {
+  santri_id: number;
+  nama: string;
+  nis_md: string | null;
+  kelas_md: string | null;
+  juga_mi: boolean;
+}
+
+export interface MiMdBarisBeda {
+  santri_id: number;
+  nama: string;
+  kelas_mi: string | null;
+  kelas_md: string | null;
+}
+
+export interface MiMdData {
+  lembaga: { mi_id: number; md_id: number };
+  mi_only: MiMdBarisMi[];
+  md_semua: MiMdBarisMd[];
+  beda_kelas: MiMdBarisBeda[];
+}
+
+export function listMiMd() {
+  return api<MiMdData>('/admin/mi-md');
+}
+
+/** Sejajarkan kelas by-nama dua arah; hasil per item berhasil/gagal. */
+export function samakanKelasMiMd(items: Array<{ santri_id: number; arah: 'ke_mi' | 'ke_md' }>) {
+  return api<{ pesan: string; berhasil: number; gagal: Array<{ santri_id: number; pesan: string }> }>(
+    '/admin/mi-md/samakan-kelas',
+    { method: 'POST', body: JSON.stringify({ items }) },
+  );
+}
+
 export interface MutasiKeluar {
   id: number;
   santri_id: number;
