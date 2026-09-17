@@ -576,6 +576,7 @@ function ToggleCell({ rowData, setRowData, columnData, disabled }: CellProps<Gri
       onClick={(e) => e.stopPropagation()}
     >
       <Switch
+        size="xs"
         checked={rowData[key] === 'ya'}
         disabled={disabled || !columnData.bisaEdit}
         aria-label={columnData.label}
