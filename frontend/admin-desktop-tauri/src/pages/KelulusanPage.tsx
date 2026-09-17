@@ -151,11 +151,13 @@ export default function KelulusanPage() {
               emptyText="Belum ada alumni."
               kolom={[
                 { key: 'nama', label: 'Nama' },
+                { key: 'kelas', label: 'Kelas lulus' },
                 { key: 'ta', label: 'TA lulus' },
                 { key: 'ijazah', label: 'No. ijazah' },
               ]}
               baris={alumni.map((a) => [
                 a.santri?.nama_lengkap ?? '—',
+                a.kelas_lulus?.nama_kelas ?? '—',
                 a.tahun_ajaran_lulus?.nama ?? '—',
                 a.nomor_ijazah ?? '—',
               ])}

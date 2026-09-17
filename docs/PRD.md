@@ -2,7 +2,7 @@
 
 | Atribut | Keterangan |
 |---|---|
-| Versi Dokumen | 2.51 (PRD mencatat semua aturan) |
+| Versi Dokumen | 2.52 (beku kelas arsip lulus/mutasi) |
 | Tanggal | 17 September 2026 |
 | Status | Proyek ini = menyusun dokumentasi, bukan coding app. G0–G3 didetailkan; G4+ roadmap |
 | Penyusun | Solo dev + Yayasan |
@@ -50,6 +50,7 @@
 | 1.13 | 2026-09-15 | **Kelas unik per lembaga + tahun ajaran** (FB-004-01): nama dinormalisasi (trim + rapat spasi) di model `Kelas`; migrasi dedupe otomatis (keeper id terkecil, referensi 8 tabel dipindah termasuk unique terdampak `kelas_kurikulum`/`pengampu_mapel`/`rapor_catatan_wali`) lalu `UNIQUE(lembaga_id, tahun_ajaran_id, nama_kelas)`; `store`/`update` menolak duplikat case-insensitive dengan pesan Indonesia + tangkap race 1062; dialog Tambah/Ubah di FE memuat nama lingkup lembaga+TA dan menolak duplikat sebelum submit; KelasStoreTest 6→10 hijau |
 | 1.14 | 2026-09-15 | Koreksi panjang **NIS = maks 20 karakter** (dulu validasi 10): kolom `santri.nis` & `riwayat_belajar.nis` jadi `VARCHAR(20)`; validasi `max:20` di store/update santri, ACC PSB (tunggal + bulk), import Excel, dan naik-kelas; input FE `maxLength` 20; tes batas 20/21 di PsbFlowTest (tunggal + bulk 16 karakter) dan SantriFlowTest (update + dry-run import) |
 | 1.15 | 2026-09-15 | Import santri: kolom **`kelas_id` menerima nama kelas** (diutamakan — kini deterministik karena `(lembaga, TA, nama)` unik), id numerik, atau kosong; butuh lembaga+TA kecuali id pada baris legacy (cache `santri.kelas_id`, tanpa riwayat); template Excel memuat **dropdown nama kelas** per lingkup via `GET /admin/santri/import-template?lembaga_id=&tahun_ajaran_id=`; dialog import ikut mengirim TA + teks bantuan; tes 20–22 baru (SantriFlowTest 19→22), suite penuh hijau |
+| 2.52 | 2026-09-17 | **Beku kelas arsip lulus/mutasi**: kolom baru `alumni.kelas_lulus_id` (FK nullOnDelete) terisi otomatis dari riwayat aktif terakhir saat lulus (tampil di tabel Alumni); `mutasi_keluar.kelas_terakhir_id` beku otomatis bila input kosong, input manual menang (perbaikan: validasi controller kini teruskan `kelas_terakhir_id` — sebelumnya selalu terbuang); suite 186/186, typecheck + build lolos |
 | 2.51 | 2026-09-17 | **PRD mencatat semua aturan** (docs-only): angka basi disegarkan (144 route API / 101 admin, suite 185/185, 5 peran efektif, 23 migrasi; §10–§11 + §6.1 ditulis ulang); sub-bagian §5 baru (pengajuan biodata admin, dokumen wajib, perilaku tahun ajaran + bayangan, `per_page=0` "Semua", pengaturan server, tampilan standar, halaman MI-MD); promosi changelog → normatif (X hapus fisik vs arsip, pengecualian tenant MI↔MD, by-nama + samakan NIS, kelas unik, NIS 20/NISN digits:10, 4-lapis + `kode_lembaga`, anti-eskalasi + kunci diri); aturan atomik disebar (format NIK/KK, NISK, batas berkas, password min 8, act-as, kamus/lembaga/kelas, PSB entry/kombo/waiting, rombel/salin/naik, import riwayat) |
 | 2.50 | 2026-09-17 | **X hapus fisik jejak MD**: `POST /api/admin/mi-md/hapus-md` (izin `santri.ubah`; hapus anggota + riwayat MD se-santri, hitung ulang status; ditolak bila bukan-MI-aktif / tanpa anggota MD / ada arsip alumni-mutasi MD) — halaman ini tambah/hapus tanpa histori, arsip tetap ranah mutasi; suite 185/185, typecheck + build lolos |
 | 2.49 | 2026-09-17 | **Aksi panah MI Only → MD**: ikon panah-kanan per baris panel MI Only → `POST /api/admin/mi-md/daftarkan-md` (izin `santri.tambah`; NIS mewarisi MI, tgl_mulai hari ini, idempoten; bulk per-item) + ikon `ArrowRight` 9 set via generator; suite 183/183, typecheck + build lolos |
@@ -772,7 +773,7 @@ waiting→baru hanya bila kuota tersisa. Aturan kegiatan-gelombang: 1 kegiatan
 per tahun ajaran, satu kegiatan aktif (aktifkan = matikan lainnya); gelombang
 `tgl_tutup` ≥ `tgl_buka`, anti-overlap dalam kegiatan yang sama; hapus
 kegiatan/gelombang ditolak bila sudah ada pendaftar. Status: ✅ live
-(fitur tests hijau, suite 185/185). Captcha + PDF bukti ditunda.
+(fitur tests hijau, suite 186/186). Captcha + PDF bukti ditunda.
 
 **101 Santri master.** 74-column EMIS profile; NIK/NISN index-only + service
 dedup; `updateOrCreate` only when NIK present (+ intra-file guard);
@@ -794,7 +795,7 @@ per baris (bukan 403); sel numerik/serial tanggal dinormalisasi sebelum
 validasi; hanya sheet pertama (sheet Referensi diabaikan).
 Samakan NIS MI↔MD: salin hanya bila tepat satu sisi bernomor + sisi tujuan tak
 tabrakan; beda dua sisi / tabrakan hanya dilaporkan (tanpa auto-copy).
-Status: ✅ live (CRUD scoped, import satu pintu identitas+gabungan, kamus, foto/dokumen, kolom NIS per lembaga, samakan NIS MI↔MD; suite 185/185).
+Status: ✅ live (CRUD scoped, import satu pintu identitas+gabungan, kamus, foto/dokumen, kolom NIS per lembaga, samakan NIS MI↔MD; suite 186/186).
 Tambahan vs vault: mapping import penuh (tanpa drop diam-diam), `uploadFoto`,
 `tipe_santri` rule, `kewarganegaraan` default WNI, kolom `kelas_id` menerima
 nama kelas/id (dropdown template per lembaga+TA). Recalc `status_global` tetap di 102.
@@ -830,11 +831,15 @@ mengulang/pindahan; `status_akhir`: aktif/naik/tidak_naik/pindah_keluar/
 lulus/tidak_lulus; `is_aktif` true iff `aktif`; semester 1/2; per-item mass
 promotion with `{berhasil, gagal[]}`); graduation via `alumni` (last-wins),
 exit via `mutasi_keluar`; package-aware (`nonAktifkanRiwayat`).
-Status: ✅ live (salin genap, naik/pindah/mutasi/lulus/berhenti massal per-item, halaman MI-MD tambah/hapus massal; suite 185/185). Gerbang AND per-lembaga target
+Status: ✅ live (salin genap, naik/pindah/mutasi/lulus/berhenti massal per-item, halaman MI-MD tambah/hapus massal, beku kelas arsip; suite 186/186). Gerbang AND per-lembaga target
 (canAccess + riwayat-aktif). `pindah_keluar` ikut seeder no.51; `tidak_lulus`
 buka baris mengulang tapel-berikut (tanpa alumni).
 Aturan penghapus: **X di halaman MI-MD = hapus fisik** jejak MD (anggota +
 riwayat) tanpa arsip; pengarsipan resmi hanya lewat mutasi/kelulusan.
+Aturan beku kelas arsip: `alumni.kelas_lulus_id` terisi otomatis dari riwayat
+aktif terakhir saat lulus; `mutasi_keluar.kelas_terakhir_id` beku otomatis
+dari riwayat aktif terakhir, input manual menang bila diisi (validasi
+`nullable|exists:kelas,id` — sebelumnya input selalu terbuang).
 Aturan rombel: `no_absen` unik per (kelas, tahun ajaran, semester), minimal 1;
 kelas tujuan se-lembaga + se-TA, tingkat cocok bila keduanya terisi; hanya
 riwayat aktif yang bisa diset/dipindah/dikosongkan kelasnya.
@@ -1002,9 +1007,9 @@ Status: 🔲 not scaffolded (backend 201/202 pending).
 | 002 schema (23 migrasi hasil squash) | ✅ | ✅ | n/a | n/a |
 | 003 auth/users | ✅ | ✅ | ✅ roles | ✅ |
 | 004 ref/master (34 kamus, lembaga/TA/kelas) | ✅ | ✅ | ✅ no.51 | ✅ |
-| 100 PSB full (daftar, paket MI-MD, verify/seleksi/ACC, portal, dokumen, import) | ✅ | ✅ | ✅ no.51 | ✅ (publik + admin + portal; suite 185/185) |
-| 101 Santri (CRUD, import satu pintu, kamus, policy, kolom NIS, samakan NIS) | ✅ | ✅ | — | ✅ (suite 185/185) |
-| 102 Siklus (salin genap, naik, pindah, mutasi, lulus, roster + arsip, halaman MI-MD) | ✅ | ✅ | — | ✅ (suite 185/185) |
+| 100 PSB full (daftar, paket MI-MD, verify/seleksi/ACC, portal, dokumen, import) | ✅ | ✅ | ✅ no.51 | ✅ (publik + admin + portal; suite 186/186) |
+| 101 Santri (CRUD, import satu pintu, kamus, policy, kolom NIS, samakan NIS) | ✅ | ✅ | — | ✅ (suite 186/186) |
+| 102 Siklus (salin genap, naik, pindah, mutasi, lulus, roster + arsip, halaman MI-MD, beku kelas) | ✅ | ✅ | — | ✅ (suite 186/186) |
 | 200/201/202/203 | ✅ specs | ✅ tables | — | 🔲 |
 | Fase 5 (500–505), infra (900–901) | 🔲 drafts | ✅ tables | — | 🔲 |
 | 6 frontend apps | §6 above | n/a | n/a | ✅ 1 live (`admin-desktop-tauri`), 5 🔲 |

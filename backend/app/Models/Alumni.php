@@ -31,6 +31,12 @@ class Alumni extends Model
         return $this->belongsTo(TahunAjaran::class, 'tahun_ajaran_lulus_id');
     }
 
+    /** Kelas terakhir saat lulus — snapshot beku, tidak mengikuti perubahan kelas. */
+    public function kelasLulus(): BelongsTo
+    {
+        return $this->belongsTo(Kelas::class, 'kelas_lulus_id');
+    }
+
     // Tenant lembaga via lembaga_lulus_id (pola Kelas): super_admin/admin full semua;
     // guru/orang_tua/santri kosong; lainnya via pivot user_lembaga.
     public function scopeTenantScope(Builder $query): Builder

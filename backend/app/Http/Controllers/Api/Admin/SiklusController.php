@@ -194,6 +194,7 @@ class SiklusController extends Controller
             'lembaga_id' => 'required|exists:lembaga,id',
             'tanggal_mutasi' => 'required|date',
             'alasan_mutasi' => 'required|string|max:100',
+            'kelas_terakhir_id' => 'nullable|exists:kelas,id',
             'no_surat' => 'nullable|string|max:50',
             'nama_sekolah_tujuan' => 'nullable|string|max:255',
             'npsn_sekolah_tujuan' => 'nullable|string|max:20',
@@ -248,7 +249,7 @@ class SiklusController extends Controller
         $this->authorize('viewAny', Santri::class);
 
         $alumni = Alumni::tenantScope()
-            ->with(['santri:id,nama_lengkap,nisn', 'lembagaLulus:id,nama,kode', 'tahunAjaranLulus:id,nama'])
+            ->with(['santri:id,nama_lengkap,nisn', 'lembagaLulus:id,nama,kode', 'tahunAjaranLulus:id,nama', 'kelasLulus:id,nama_kelas'])
             ->when($request->filled('lembaga_id'), fn ($q) => $q->where('lembaga_lulus_id', $request->integer('lembaga_id')))
             ->when($request->filled('tahun_ajaran_lulus_id'), fn ($q) => $q->where('tahun_ajaran_lulus_id', $request->integer('tahun_ajaran_lulus_id')))
             ->latest('id')

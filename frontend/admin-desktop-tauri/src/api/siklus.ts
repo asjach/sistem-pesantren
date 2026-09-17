@@ -90,9 +90,11 @@ export interface Alumni {
   penyerahan_ijazah: string | null;
   melanjutkan: string | null;
   catatan: string | null;
+  kelas_lulus_id: number | null;
   santri?: { id: number; nama_lengkap: string; nisn: string | null } | null;
   lembaga_lulus?: { id: number; nama: string; kode: string | null } | null;
   tahun_ajaran_lulus?: { id: number; nama: string } | null;
+  kelas_lulus?: { id: number; nama_kelas: string } | null;
 }
 
 /** Baris riwayat belajar — tanpa `nis` (NIS ada di keanggotaan). */

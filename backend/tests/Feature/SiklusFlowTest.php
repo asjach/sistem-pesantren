@@ -318,6 +318,7 @@ class SiklusFlowTest extends TestCase
         ])->assertStatus(200);
 
         $this->assertSame(1, Alumni::count());
+        $this->assertDatabaseHas('alumni', ['santri_id' => $santri->id, 'kelas_lulus_id' => $kelas->id]);
         $this->assertDatabaseHas('riwayat_belajar', ['santri_id' => $santri->id, 'status_akhir' => 'lulus', 'is_aktif' => false]);
         $this->assertDatabaseHas('lembaga_santri', ['santri_id' => $santri->id, 'is_active' => false, 'tgl_selesai' => '2026-06-20']);
         $this->assertFalse((bool) $santri->fresh()->status_global);
@@ -518,5 +519,38 @@ class SiklusFlowTest extends TestCase
         $this->assertSame('25014', $res->json('keanggotaan.0.nis_lokal'));
         $this->assertNotEmpty($res->json('riwayat'));
         $this->assertCount(1, $res->json('alumni'));
+    }
+
+    // ---------- 13. beku kelas: mutasi otomatis, input manual menang ----------
+
+    public function test_13_mutasi_beku_kelas_otomatis_dan_override_manual(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeUser('admin', [$f['mi']->id]);
+        $kelasA = $this->makeKelas($f['mi'], $f['taLama'], '3A', '3');
+        $kelasB = $this->makeKelas($f['mi'], $f['taLama'], '3B', '3');
+
+        // Tanpa input → beku dari riwayat aktif terakhir.
+        $s1 = $this->makeSantri('Beku Otomatis');
+        $this->makeKeanggotaan($s1, $f['mi'], '25015');
+        $this->makeRiwayat($s1, $f['taLama'], $f['mi'], '1', ['kelas_id' => $kelasA->id]);
+        $this->actingAs($admin, 'sanctum')->postJson("/api/admin/santri/{$s1->id}/mutasi", [
+            'lembaga_id' => $f['mi']->id,
+            'tanggal_mutasi' => '2026-05-01',
+            'alasan_mutasi' => 'Ikut pindah orang tua',
+        ])->assertStatus(200);
+        $this->assertDatabaseHas('mutasi_keluar', ['santri_id' => $s1->id, 'kelas_terakhir_id' => $kelasA->id]);
+
+        // Input manual → menang atas snapshot.
+        $s2 = $this->makeSantri('Beku Override');
+        $this->makeKeanggotaan($s2, $f['mi'], '25016');
+        $this->makeRiwayat($s2, $f['taLama'], $f['mi'], '1', ['kelas_id' => $kelasA->id]);
+        $this->actingAs($admin, 'sanctum')->postJson("/api/admin/santri/{$s2->id}/mutasi", [
+            'lembaga_id' => $f['mi']->id,
+            'kelas_terakhir_id' => $kelasB->id,
+            'tanggal_mutasi' => '2026-05-01',
+            'alasan_mutasi' => 'Ikut pindah orang tua',
+        ])->assertStatus(200);
+        $this->assertDatabaseHas('mutasi_keluar', ['santri_id' => $s2->id, 'kelas_terakhir_id' => $kelasB->id]);
     }
 }

@@ -388,7 +388,7 @@ Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca
 - `id` PK
 - `santri_id`: FK → santri [cascade]
 - `lembaga_id`: FK → lembaga [cascade]
-- `kelas_terakhir_id`: FK → kelas [null, nullOnDelete]
+- `kelas_terakhir_id`: FK → kelas [null, nullOnDelete] — beku otomatis dari riwayat aktif terakhir; input manual menang bila diisi
 - `tanggal_mutasi`: date
 - `alasan_mutasi`: string [null] — kamus ref_alasan_mutasi (string bebas, tanpa FK)
 - `no_surat`: string [null] — nomor surat keterangan pindah/keluar (arsip EMIS)
@@ -403,6 +403,7 @@ Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca
 - `id` PK
 - `santri_id`: FK → santri [cascade]
 - `lembaga_lulus_id`: FK → lembaga [cascade]
+- `kelas_lulus_id`: FK → kelas [null, nullOnDelete] — snapshot beku kelas terakhir saat lulus
 - `tahun_ajaran_lulus_id`: FK → tahun_ajaran [cascade]
 - `nomor_ijazah`: string [null]
 - `no_surat_ijazah`: string [null] — nomor surat pengantar/SKHU

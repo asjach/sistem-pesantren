@@ -233,7 +233,12 @@ class SiklusSantriService
             $mutasi = MutasiKeluar::create([
                 'santri_id' => $santri->id,
                 'lembaga_id' => $lembagaId,
-                'kelas_terakhir_id' => $dataMutasi['kelas_terakhir_id'] ?? null,
+                // Beku otomatis dari riwayat terakhir; input manual tetap menang bila diisi.
+                'kelas_terakhir_id' => $dataMutasi['kelas_terakhir_id']
+                    ?? RiwayatBelajar::where('santri_id', $santri->id)
+                        ->where('lembaga_id', $lembagaId)
+                        ->where('status_akhir', 'pindah_keluar')
+                        ->latest('id')->value('kelas_id'),
                 'tanggal_mutasi' => $dataMutasi['tanggal_mutasi'],
                 'alasan_mutasi' => $dataMutasi['alasan_mutasi'],
                 'no_surat' => $dataMutasi['no_surat'] ?? null,
@@ -268,6 +273,10 @@ class SiklusSantriService
 
             $atribut = [
                 'lembaga_lulus_id' => $lembagaId,
+                'kelas_lulus_id' => RiwayatBelajar::where('santri_id', $santri->id)
+                    ->where('lembaga_id', $lembagaId)
+                    ->where('status_akhir', 'lulus')
+                    ->latest('id')->value('kelas_id'),
                 'tahun_ajaran_lulus_id' => $dataLulus['tahun_ajaran_lulus_id'],
                 'nomor_ijazah' => $dataLulus['nomor_ijazah'] ?? null,
                 'no_surat_ijazah' => $dataLulus['no_surat_ijazah'] ?? null,
