@@ -2,7 +2,7 @@
 
 | Atribut | Keterangan |
 |---|---|
-| Versi Dokumen | 2.52 (beku kelas arsip lulus/mutasi) |
+| Versi Dokumen | 2.53 (§7 dokumentasi desain UI) |
 | Tanggal | 17 September 2026 |
 | Status | Proyek ini = menyusun dokumentasi, bukan coding app. G0–G3 didetailkan; G4+ roadmap |
 | Penyusun | Solo dev + Yayasan |
@@ -50,6 +50,7 @@
 | 1.13 | 2026-09-15 | **Kelas unik per lembaga + tahun ajaran** (FB-004-01): nama dinormalisasi (trim + rapat spasi) di model `Kelas`; migrasi dedupe otomatis (keeper id terkecil, referensi 8 tabel dipindah termasuk unique terdampak `kelas_kurikulum`/`pengampu_mapel`/`rapor_catatan_wali`) lalu `UNIQUE(lembaga_id, tahun_ajaran_id, nama_kelas)`; `store`/`update` menolak duplikat case-insensitive dengan pesan Indonesia + tangkap race 1062; dialog Tambah/Ubah di FE memuat nama lingkup lembaga+TA dan menolak duplikat sebelum submit; KelasStoreTest 6→10 hijau |
 | 1.14 | 2026-09-15 | Koreksi panjang **NIS = maks 20 karakter** (dulu validasi 10): kolom `santri.nis` & `riwayat_belajar.nis` jadi `VARCHAR(20)`; validasi `max:20` di store/update santri, ACC PSB (tunggal + bulk), import Excel, dan naik-kelas; input FE `maxLength` 20; tes batas 20/21 di PsbFlowTest (tunggal + bulk 16 karakter) dan SantriFlowTest (update + dry-run import) |
 | 1.15 | 2026-09-15 | Import santri: kolom **`kelas_id` menerima nama kelas** (diutamakan — kini deterministik karena `(lembaga, TA, nama)` unik), id numerik, atau kosong; butuh lembaga+TA kecuali id pada baris legacy (cache `santri.kelas_id`, tanpa riwayat); template Excel memuat **dropdown nama kelas** per lingkup via `GET /admin/santri/import-template?lembaga_id=&tahun_ajaran_id=`; dialog import ikut mengirim TA + teks bantuan; tes 20–22 baru (SantriFlowTest 19→22), suite penuh hijau |
+| 2.53 | 2026-09-17 | **§7 dokumentasi desain UI** (docs-only): perluas Perancangan Antarmuka — prinsip (Indonesia, snake_case, id-ID), 25 tema + mode + token runtime, navigasi ganda, pola tabel Excel, komponen & umpan balik, font offline, pengaturan tampilan pribadi + standar |
 | 2.52 | 2026-09-17 | **Beku kelas arsip lulus/mutasi**: kolom baru `alumni.kelas_lulus_id` (FK nullOnDelete) terisi otomatis dari riwayat aktif terakhir saat lulus (tampil di tabel Alumni); `mutasi_keluar.kelas_terakhir_id` beku otomatis bila input kosong, input manual menang (perbaikan: validasi controller kini teruskan `kelas_terakhir_id` — sebelumnya selalu terbuang); suite 186/186, typecheck + build lolos |
 | 2.51 | 2026-09-17 | **PRD mencatat semua aturan** (docs-only): angka basi disegarkan (144 route API / 101 admin, suite 185/185, 5 peran efektif, 23 migrasi; §10–§11 + §6.1 ditulis ulang); sub-bagian §5 baru (pengajuan biodata admin, dokumen wajib, perilaku tahun ajaran + bayangan, `per_page=0` "Semua", pengaturan server, tampilan standar, halaman MI-MD); promosi changelog → normatif (X hapus fisik vs arsip, pengecualian tenant MI↔MD, by-nama + samakan NIS, kelas unik, NIS 20/NISN digits:10, 4-lapis + `kode_lembaga`, anti-eskalasi + kunci diri); aturan atomik disebar (format NIK/KK, NISK, batas berkas, password min 8, act-as, kamus/lembaga/kelas, PSB entry/kombo/waiting, rombel/salin/naik, import riwayat) |
 | 2.50 | 2026-09-17 | **X hapus fisik jejak MD**: `POST /api/admin/mi-md/hapus-md` (izin `santri.ubah`; hapus anggota + riwayat MD se-santri, hitung ulang status; ditolak bila bukan-MI-aktif / tanpa anggota MD / ada arsip alumni-mutasi MD) — halaman ini tambah/hapus tanpa histori, arsip tetap ranah mutasi; suite 185/185, typecheck + build lolos |
@@ -375,10 +376,45 @@ Contoh kamus ringkas:
 
 | App | Modul (kode + nama) | Fitur | Kontrak |
 |---|---|---|---|
-| Desktop Admin G0-G1 | 001-004, 100 PSB Penerimaan, 101 Santri Master, 102 Siklus Santri | CRUD penuh referensi, PSB, santri/siklus | `control id snake_case`, `per_page=20`, tangani 401/403/422/429 |
+| Desktop Admin G0-G1 | 001-004, 100 PSB Penerimaan, 101 Santri Master, 102 Siklus Santri | CRUD penuh referensi, PSB, santri/siklus | `control id snake_case`, `per_page=50` + "Semua", tangani 401/403/422/429 |
 | Mobile Kasir G2 | DITUNDA — menunggu perumusan ulang modul keuangan | — | Sama |
 | Mobile Ortu G3 | 100 daftar, 203 Portal Wali subset | Daftar + ajukan/batal | Sama |
 | Pasca TBD | 200 Pegawai, 201 Kurikulum-Mapel, 202 Nilai-Rapor, 500+ | Pegawai, nilai, presensi | TBD |
+
+### 7.1 Prinsip
+- Bahasa Indonesia di seluruh label, toast, dan aria; `id` elemen `snake_case` (NFR-05); nilai DB snake_case dipetakan ke label tampil (mis. status PSB).
+- Angka memakai format Indonesia (`id-ID`); tanggal memakai locale `id-ID`.
+- Tanpa internet: font dibundel lokal, token dihitung runtime — tambah tema tanpa sentuh CSS.
+
+### 7.2 Tema, mode, dan token
+- 25 preset tema (termasuk Hijau Pesantren bawaan dan set populer ala VSCode); tiap tema berisi palet terang + gelap + warna sidebar.
+- Mode Terang/Gelap/Sistem (sistem mengikuti OS) + varian Kaya warna (netral/aksen/kaya); bawaan: tema `geist`, mode sistem, warna kaya.
+- Teks tombol dihitung otomatis (kontras ≥4,5:1); ikon header/ribbon/sidebar/akun mengikuti warna aksen; border global lembut (12% via color-mix, tanpa shadow kartu); radius seragam 4 px.
+- Token runtime per bagian (~100 id: tabel, form, dialog, toast, sidebar, dsb.) — font, ukuran, radius, padding, warna per mode; fallback CSS bila standar belum diatur.
+
+### 7.3 Navigasi
+- Dua mode per perangkat: sidebar rail (lipat ke ikon via tombol & Ctrl/Cmd+B, 5 grup) atau menubar; pemilih di submenu Navigasi pada menu akun, sejajar submenu Tema (25 pilihan), Set ikon (9 set), dan Kaya warna.
+- Menu akun kanan atas: pengalih lembaga aktif, tahun ajaran aktif, strip mode terang/gelap/sistem, lalu keluar.
+- Bar judul halaman + baris tools kontekstual; halaman menyumbang tools via slot (tab ganda bila halaman + tabel sama-sama punya tools); tombol lipat baris tools per perangkat.
+
+### 7.4 Tabel (pola Excel)
+- Wrapper tunggal `ExcelTable`: seleksi gaya spreadsheet, resize kolom drag, AutoFit (klik-2× gagang, klik-kanan header, atau semua kolom), edit klik-2× langsung simpan, salin blok TSV siap tempel ke Excel.
+- Kerapatan Ramping/Sedang/Nyaman (20/24/30 px) + tinggi baris manual; bekukan N kolom; tinggi header otomatis mengikuti judul multibaris; ukuran huruf sel (bawaan 11 px) dan header (bawaan 11 px) mandiri.
+- Preset kolom per tabel (bawaan "Lengkap" terkunci + buatan user, multi-generate per lembaga); pilihan terakhir diingat per user.
+- Aksi baris ≤3 tampil langsung, >3 diringkas ke dropdown titik-tiga; pagination 10/50/100/500 + "Semua"; skeleton saat muat, teks "Belum ada data." saat kosong.
+
+### 7.5 Komponen dan umpan balik
+- Basis Radix + shadcn (tombol, dialog, dropdown, select, checkbox, tooltip, skeleton, dsb.); stepper vertikal/horizontal untuk angka; combobox preset kolom dengan dialog kelola.
+- Dialog konfirmasi hapus, dialog pratinjau (import/samakan), toast sukses/gagal Bahasa Indonesia di tengah atas.
+- Form tambah/ubah berupa modal; tombol utama kanan atas halaman.
+
+### 7.6 Font
+- Bawaan tabel: Roboto Light (300), sel dan header masing-masing 11 px; UI: Aptos (isi), display (judul), Aptos Narrow, monospace kode.
+- 29 opsi font (sistem + Aptos + Google Fonts yang disimpan lokal sehingga offline); pilihan tersimpan per perangkat dan tersinkron antara ribbon dan halaman Tampilan.
+
+### 7.7 Pengaturan tampilan
+- Halaman Tampilan (pribadi): cari bagian, pratinjau langsung, reset per bagian/banyak/semua; badge "Standar lembaga · versi N" + tombol kembali ke standar bila admin menyebar standar.
+- Halaman Standar (super_admin): sebar satu paket tampilan ke lembaga terpilih; klien memantau versi dan memuat ulang otomatis.
 
 ---
 
