@@ -6,6 +6,10 @@ use App\Exports\KelasNamaExport;
 use App\Http\Controllers\Api\Concerns\TenantGuard;
 use App\Http\Controllers\Api\Concerns\UrutDaftar;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\KelasExportNamaRequest;
+use App\Http\Requests\Admin\KelasImportNamaRequest;
+use App\Http\Requests\Admin\KelasStoreRequest;
+use App\Http\Requests\Admin\KelasUpdateRequest;
 use App\Models\Kelas;
 use App\Models\Lembaga;
 use App\Models\TahunAjaran;
@@ -15,7 +19,6 @@ use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
 use Maatwebsite\Excel\Facades\Excel;
 
 /**
@@ -62,25 +65,9 @@ class KelasController extends Controller
         return response()->json($query->paginate($this->perPage($request)));
     }
 
-    public function store(Request $request)
+    public function store(KelasStoreRequest $request)
     {
-        $data = $request->validate([
-            // Kelas selalu milik lembaga operasional (bukan root pesantren).
-            'lembaga_id' => ['required', Rule::exists('lembaga', 'id')->whereNotNull('parent_id')],
-            'tahun_ajaran_id' => ['required', 'exists:tahun_ajaran,id'],
-            // Mode tunggal (kompatibel lama) atau bulk via items (sub-form dialog).
-            'nama_kelas' => ['required_without:items', 'string', 'max:50'],
-            'tingkat' => ['nullable', 'string', 'max:20'],
-            'kapasitas' => ['nullable', 'integer', 'min:1'],
-            'urutan' => ['nullable', 'integer', 'min:0'],
-            'items' => ['sometimes', 'array', 'min:1'],
-            'items.*.nama_kelas' => ['required', 'string', 'max:50'],
-            'items.*.tingkat' => ['nullable', 'string', 'max:20'],
-            'items.*.kapasitas' => ['nullable', 'integer', 'min:1'],
-            'items.*.urutan' => ['nullable', 'integer', 'min:0'],
-        ], [
-            'lembaga_id.exists' => 'Lembaga harus lembaga operasional (bukan induk pesantren).',
-        ]);
+        $data = $request->validated();
 
         $auth = auth()->user();
         $this->authorizeLembaga($auth, (int) $data['lembaga_id']);
@@ -176,14 +163,9 @@ class KelasController extends Controller
     }
 
     /** GET /api/admin/kelas/export-nama — unduh daftar nama kelas (pasangan import-nama). */
-    public function exportNama(Request $request)
+    public function exportNama(KelasExportNamaRequest $request)
     {
-        $data = $request->validate([
-            'lembaga_id' => ['required', Rule::exists('lembaga', 'id')->whereNotNull('parent_id')],
-            'tahun_ajaran_id' => ['required', 'exists:tahun_ajaran,id'],
-        ], [
-            'lembaga_id.exists' => 'Lembaga harus lembaga operasional (bukan induk pesantren).',
-        ]);
+        $data = $request->validated();
 
         $lembagaId = (int) $data['lembaga_id'];
         $taId = (int) $data['tahun_ajaran_id'];
@@ -203,20 +185,10 @@ class KelasController extends Controller
      *  Dua mode: ambil (`lembaga_id` + `tahun_ajaran_id` target, `dari_kode` sumber)
      *  atau copy (`dari_lembaga_id` + `dari_tahun_ajaran_id` sumber, `ke_kode` target
      *  + TA target = nama sama, fallback aktif). */
-    public function importNama(Request $request): JsonResponse
+    public function importNama(KelasImportNamaRequest $request): JsonResponse
     {
-        $data = $request->validate([
-            'lembaga_id' => ['nullable', Rule::exists('lembaga', 'id')->whereNotNull('parent_id')],
-            'tahun_ajaran_id' => ['nullable', 'exists:tahun_ajaran,id'],
-            'dari_kode' => ['nullable', 'in:MI,MD'],
-            'dari_lembaga_id' => ['nullable', Rule::exists('lembaga', 'id')->whereNotNull('parent_id')],
-            'dari_tahun_ajaran_id' => ['nullable', 'exists:tahun_ajaran,id'],
-            'ke_kode' => ['nullable', 'in:MI,MD'],
-            'periksa' => ['nullable', 'boolean'],
-        ], [
-            'lembaga_id.exists' => 'Lembaga harus lembaga operasional (bukan induk pesantren).',
-            'dari_lembaga_id.exists' => 'Lembaga harus lembaga operasional (bukan induk pesantren).',
-        ]);
+        $data = $request->validated();
+
         $periksa = (bool) ($data['periksa'] ?? true);
 
         if (! empty($data['ke_kode'])) {
@@ -335,16 +307,11 @@ class KelasController extends Controller
         ]);
     }
 
-    public function update(Request $request, Kelas $kela)
+    public function update(KelasUpdateRequest $request, Kelas $kela)
     {
         $this->authorizeLembaga(auth()->user(), $kela->lembaga_id);
 
-        $data = $request->validate([
-            'tingkat' => ['nullable', 'string', 'max:20'],
-            'nama_kelas' => ['sometimes', 'required', 'string', 'max:50'],
-            'kapasitas' => ['nullable', 'integer', 'min:1'],
-            'urutan' => ['nullable', 'integer', 'min:0'],
-        ]);
+        $data = $request->validated();
 
         if (array_key_exists('urutan', $data) && $data['urutan'] === null) {
             // Kolom NOT NULL default 0: null dari form dianggap 0.
