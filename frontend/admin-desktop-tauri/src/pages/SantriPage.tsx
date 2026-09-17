@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { errorMessage } from '../api/client';
 import {
   createLembagaSantri,
@@ -77,7 +77,7 @@ function pihakFields(prefix: 'ayah' | 'ibu' | 'wali', judul: string): ExcelField
   ];
 }
 
-/** Kolom buku induk: identitas murni + ringkasan keanggotaan (bukan kolom DB). */
+/** Kolom buku induk: identitas murni + Status turunan (kolom NIS per lembaga dinamis di komponen). */
 const SANTRI_FIELDS: ExcelField[] = [
   { key: 'nama', label: 'Nama', width: 220, kind: 'text', maxLength: 255, validate: (v) => (v && v.trim() ? null : 'Nama wajib diisi.') },
   teks('nama_singkat', 'Nama singkat', 140),
@@ -117,12 +117,14 @@ const SANTRI_FIELDS: ExcelField[] = [
   ...pihakFields('ibu', 'Ibu'),
   ...pihakFields('wali', 'Wali'),
   teks('yang_membiayai', 'Yang membiayai', 140),
-  { key: 'keanggotaan', label: 'Keanggotaan', width: 180, kind: 'static' },
   { key: 'status', label: 'Status', width: 100, kind: 'static' },
 ];
 
+/** Prefiks kunci kolom NIS per lembaga (kolom dinamis cerminan `lembaga_santri`). */
+const NIS_PREFIX = 'nis_anggota_';
+
 const TGL_KEYS = new Set(['tgl_lahir', 'ayah_tgl_lahir', 'ibu_tgl_lahir', 'wali_tgl_lahir', 'tanggal_masuk']);
-const TURUNAN_KEYS = new Set(['keanggotaan', 'status']);
+const TURUNAN_KEYS = new Set(['status']);
 
 function santriGridValues(s: Santri): Record<string, string | null> {
   const sumber = s as unknown as Record<string, unknown>;
@@ -138,27 +140,49 @@ function santriGridValues(s: Santri): Record<string, string | null> {
     const str = String(raw);
     out[f.key] = TGL_KEYS.has(f.key) ? str.slice(0, 10) : str;
   }
-  const aktif = s.lembaga_aktif ?? [];
-  out.keanggotaan = aktif.length
-    ? aktif.map((ls) => `${ls.lembaga?.kode ?? ls.lembaga_id}${ls.nis_lokal ? `/${ls.nis_lokal}` : ''}`).join(', ')
-    : '—';
   out.status = s.status_global ? 'aktif' : 'nonaktif';
   return out;
 }
 
-async function commitSantri(id: number, f: Record<string, string | null>) {
-  const body: Record<string, string | null> = {};
-  for (const [k, v] of Object.entries(f)) {
-    if (v === undefined) continue;
-    if (TURUNAN_KEYS.has(k)) continue;
-    if (k === 'nama') {
-      body.nama_lengkap = (v ?? '').trim();
-      continue;
+/** Simpan baris: profil via PATCH santri, kolom NIS via endpoint keanggotaan. */
+function pakaiCommitBaris(rows: Santri[]) {
+  return async function commitBaris(id: number, f: Record<string, string | null>) {
+    const body: Record<string, string | null> = {};
+    const nis: Array<[number, string | null]> = [];
+    for (const [k, v] of Object.entries(f)) {
+      if (v === undefined) continue;
+      if (TURUNAN_KEYS.has(k)) continue;
+      if (k.startsWith(NIS_PREFIX)) {
+        const lembagaId = Number(k.slice(NIS_PREFIX.length));
+        if (Number.isInteger(lembagaId)) {
+          nis.push([lembagaId, v === null || String(v).trim() === '' ? null : String(v).trim()]);
+        }
+        continue;
+      }
+      if (k === 'nama') {
+        body.nama_lengkap = (v ?? '').trim();
+        continue;
+      }
+      body[k] = v === null || String(v).trim() === '' ? null : String(v).trim();
     }
-    body[k] = v === null || String(v).trim() === '' ? null : String(v).trim();
-  }
-  if (Object.keys(body).length === 0) return;
-  await updateSantri(id, body);
+    if (Object.keys(body).length > 0) {
+      await updateSantri(id, body);
+    }
+    if (nis.length > 0) {
+      const baris = rows.find((r) => r.id === id);
+      const aktif = baris?.lembaga_aktif ?? [];
+      for (const [lembagaId, nilai] of nis) {
+        const ada = aktif.find((ls) => ls.lembaga_id === lembagaId);
+        if (ada) {
+          if ((ada.nis_lokal ?? null) !== nilai) {
+            await updateLembagaSantri(ada.id, { nis_lokal: nilai });
+          }
+        } else if (nilai !== null) {
+          await createLembagaSantri(id, { lembaga_id: lembagaId, nis_lokal: nilai });
+        }
+      }
+    }
+  };
 }
 
 /** Buku Induk: identitas santri (buku induk) + panel keanggotaan per lembaga + import identitas. */
@@ -215,6 +239,28 @@ export default function SantriPage() {
   // Hanya lembaga operasional (root pesantren tidak bisa menjadi keanggotaan).
   const lembagaOperasional = lembagas.filter((l) => l.parent);
 
+  // Kolom NIS per lembaga — cerminan `lembaga_santri`, bisa diketik langsung.
+  const nisFields: ExcelField[] = useMemo(
+    () => lembagaOperasional.map((l) => ({
+      key: `${NIS_PREFIX}${l.id}`,
+      label: `NIS ${l.kode ?? l.nama}`,
+      width: 110,
+      kind: 'text' as const,
+      maxLength: 20,
+    })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [lembagas],
+  );
+  const semuaFields: ExcelField[] = useMemo(() => [...SANTRI_FIELDS, ...nisFields], [nisFields]);
+  const getNilai = useCallback((s: Santri): Record<string, string | null> => {
+    const out = santriGridValues(s);
+    for (const ls of s.lembaga_aktif ?? []) {
+      out[`${NIS_PREFIX}${ls.lembaga_id}`] = ls.nis_lokal ?? null;
+    }
+    return out;
+  }, []);
+  const commitBaris = useMemo(() => pakaiCommitBaris(rows), [rows]);
+
   const { user } = useAuth();
   const singleLembagaId =
     user && !user.roles.some((r) => r.name === 'super_admin') && (user.lembagas?.length ?? 0) === 1
@@ -223,7 +269,9 @@ export default function SantriPage() {
 
   // Dropdown sumber "Data existing": admin tak rangkap terkunci ke 1 lembaganya;
   // selain itu bawaan filter aktif → semua tercentang (tinggal kurangi).
-  const opsiDataLembaga = lembagaOperasional;
+  // Referensi stabil: filter() bikin array baru tiap render — tanpa memo,
+  // efek bawaan di bawah me-reset pilihan user ke "semua" setiap render ulang.
+  const opsiDataLembaga = useMemo(() => lembagaOperasional, [lembagas]);
   const dataTerkunci = opsiDataLembaga.length === 1 || singleLembagaId !== null;
   const toggleDataId = (id: number) =>
     setDataIds((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
@@ -344,13 +392,13 @@ export default function SantriPage() {
       <ErrorNotice>{err}</ErrorNotice>
       <ExcelTable<Santri>
         tableKey="santri"
-        fields={SANTRI_FIELDS}
+        fields={semuaFields}
         rows={rows}
-        getValues={santriGridValues}
+        getValues={getNilai}
         loading={loading}
         emptyText="Belum ada santri pada filter ini."
         canEdit={bisa(user, 'santri.ubah')}
-        onCommit={commitSantri}
+        onCommit={commitBaris}
         onSaved={() => load()}
         renderActions={(s) => (
           <>
@@ -526,9 +574,9 @@ export default function SantriPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Import identitas */}
+      {/* Import santri */}
       <Dialog open={importOpen} onOpenChange={setImportOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>Import santri</DialogTitle>
             <DialogDescription>
@@ -536,7 +584,7 @@ export default function SantriPage() {
               Cocok santri_id / NIK / NIS; baris baru otomatis dibuat.
             </DialogDescription>
           </DialogHeader>
-          <form className="grid grid-cols-2 gap-3" onSubmit={async (e) => {
+          <form className="grid grid-cols-2 gap-4" onSubmit={async (e) => {
             e.preventDefault();
             if (!importFile || !periksaHasil?.siap_import) return;
             setBusy(true);
@@ -555,7 +603,10 @@ export default function SantriPage() {
               setBusy(false);
             }
           }}>
-            <div className="col-span-2 flex flex-col gap-2">
+            <div className="col-span-2 grid gap-3 sm:grid-cols-2">
+              <div className="flex flex-col gap-2 rounded-lg border bg-muted/40 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Template kosong</p>
+                <p className="text-xs text-muted-foreground">Mulai dari nol: blok keanggotaan + identitas.</p>
               <Button
                 id="btn_unduh_template_gabungan"
                 type="button"
@@ -563,13 +614,16 @@ export default function SantriPage() {
                 className="h-auto justify-start px-0"
                 onClick={() => void unduhTemplateSantriGabungan().catch((e) => toast.error(errorMessage(e)))}
               >
-                <Download data-icon="inline-start" size={16} /> Template gabungan (keanggotaan + identitas)
+                <Download data-icon="inline-start" size={16} /> Template gabungan
               </Button>
-              <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Lembaga sumber data existing">
-                <FieldLabel className="shrink-0">Data existing:</FieldLabel>
+              </div>
+              <div className="flex flex-col gap-2 rounded-lg border bg-muted/40 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Data existing (update)</p>
+                <p className="text-xs text-muted-foreground">Terisi santri_id — edit lalu upload untuk update.</p>
+              <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Lembaga sumber data existing">
                 {!dataTerkunci && opsiDataLembaga.length > 1 && (
                   <label
-                    className="inline-flex h-6 cursor-pointer items-center gap-1.5 rounded-full border bg-card px-2.5 text-xs has-checked:border-primary has-checked:bg-accent has-checked:font-semibold"
+                    className="inline-flex h-7 cursor-pointer items-center gap-2 rounded-full border bg-card px-3 text-xs has-checked:border-primary has-checked:bg-accent has-checked:font-semibold"
                   >
                     <Checkbox
                       id="check_data_semua"
@@ -583,7 +637,7 @@ export default function SantriPage() {
                 {opsiDataLembaga.map((l) => (
                   <label
                     key={l.id}
-                    className="inline-flex h-6 cursor-pointer items-center gap-1.5 rounded-full border bg-card px-2.5 text-xs has-checked:border-primary has-checked:bg-accent has-checked:font-semibold"
+                    className="inline-flex h-7 cursor-pointer items-center gap-2 rounded-full border bg-card px-3 text-xs has-checked:border-primary has-checked:bg-accent has-checked:font-semibold"
                     title={dataTerkunci ? 'Satu-satunya lembaga Anda (otomatis)' : l.nama}
                   >
                     <Checkbox
@@ -610,24 +664,40 @@ export default function SantriPage() {
                   <Download data-icon="inline-start" size={16} /> Unduh{dataIds.length > 0 && dataIds.length < opsiDataLembaga.length ? ` (${dataIds.length})` : ''}
                 </Button>
               </div>
+              </div>
             </div>
-            <Input
-              id="input_file_import_santri"
-              className="col-span-2"
-              type="file"
-              accept=".xlsx,.xls,.csv"
-              onChange={(e) => { setImportFile(e.target.files?.[0] ?? null); setPeriksaHasil(null); }}
-              required
-            />
+            <div className="col-span-2 flex flex-col gap-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Langkah 2 — Upload & periksa</p>
+              <div className="flex items-center gap-2">
+                <input
+                  id="input_file_import_santri"
+                  type="file"
+                  accept=".xlsx,.xls,.csv"
+                  className="hidden"
+                  onChange={(e) => { setImportFile(e.target.files?.[0] ?? null); setPeriksaHasil(null); }}
+                />
+                <Button
+                  id="btn_pilih_file_import_santri"
+                  type="button"
+                  variant="outline"
+                  onClick={() => document.getElementById('input_file_import_santri')?.click()}
+                >
+                  <Upload data-icon="inline-start" size={16} /> Pilih file
+                </Button>
+                <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground" title={importFile?.name ?? ''}>
+                  {importFile?.name ?? 'Belum ada file dipilih (.xlsx, .xls, .csv)'}
+                </span>
+              </div>
+            </div>
             {periksaHasil ? (
-              <div className="col-span-2 rounded-md border p-3 text-sm" id="hasil_periksa_import_santri">
+              <div className="col-span-2 rounded-md border p-4 text-sm" id="hasil_periksa_import_santri">
                 <p className="font-medium">
                   {periksaHasil.ringkasan.baris_diproses} baris diperiksa · {periksaHasil.ringkasan.baris_valid} valid · {periksaHasil.ringkasan.baris_gagal} bermasalah
                   {(periksaHasil.ringkasan.baris_diperbarui ?? 0) > 0 ? ` · ${periksaHasil.ringkasan.baris_diperbarui} pembaruan` : ''}
                   {(periksaHasil.ringkasan.baris_tanpa_keanggotaan ?? 0) > 0 ? ` · ${periksaHasil.ringkasan.baris_tanpa_keanggotaan} hanya identitas` : ''}
                 </p>
                 {periksaHasil.errors.length > 0 ? (
-                  <ul className="mt-2 max-h-40 space-y-1 overflow-auto text-xs text-destructive">
+                  <ul className="mt-3 max-h-48 space-y-1.5 overflow-auto text-xs text-destructive">
                     {periksaHasil.errors.slice(0, 50).map((x, i) => <li key={`${x.row}-${x.attribute}-${i}`}>Baris {x.row} ({x.attribute}): {x.errors.join(', ')}</li>)}
                   </ul>
                 ) : (
