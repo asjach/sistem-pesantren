@@ -199,7 +199,7 @@ export default function KamusLabelPage() {
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
-      <div className="mb-2 flex flex-wrap items-end gap-2">
+      <div className="mb-2 flex shrink-0 flex-wrap items-end gap-2">
         <FilterField label="Tabel" htmlFor="select_tabel_kamus">
           <Select value={tabel || '_pilih'} onValueChange={(v) => setTabel(v === '_pilih' ? '' : v)}>
             <SelectTrigger id="select_tabel_kamus" className="w-56">
@@ -246,11 +246,10 @@ export default function KamusLabelPage() {
           ) : null
         )}
         hidePreset
-        maxRows={16}
       />
 
       {!canTambah && !canUbah ? (
-        <p className="mt-2 text-xs text-muted-foreground">
+        <p className="mt-2 shrink-0 text-xs text-muted-foreground">
           Hanya admin pesantren yang dapat mengubah kamus label.
         </p>
       ) : null}
