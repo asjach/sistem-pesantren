@@ -110,6 +110,15 @@ class TabelUrutTest extends TestCase
             ->assertStatus(422);
     }
 
+    public function test_santri_bawaan_jk_lalu_nama(): void
+    {
+        $this->santriTiga();
+        $this->assertSame(
+            ['Budi', 'Candra', 'Ahmad'],
+            $this->kolom($this->super(), '/api/admin/santri?per_page=50', 'nama_lengkap')
+        );
+    }
+
     // ---------- kelas ----------
 
     public function test_kelas_urut_nama(): void

@@ -2,7 +2,7 @@
 
 | Atribut | Keterangan |
 |---|---|
-| Versi Dokumen | 2.63 (urut semua tabel) |
+| Versi Dokumen | 2.64 (default urut santri) |
 | Tanggal | 17 September 2026 |
 | Status | PRD produk SIMPES — acuan tunggal kebutuhan, rancangan, dan status implementasi aplikasi yang sedang dibangun |
 | Penyusun | Solo dev + Yayasan |
@@ -114,7 +114,8 @@
 | 2.60 | 2026-09-17 | Halaman Keanggotaan terpusat (/keanggotaan) |
 | 2.61 | 2026-09-17 | Pengecualian pasangan MI-MD global timbal-balik |
 | 2.62 | 2026-09-17 | Urut header tabel (klik = tunggal, Shift+Klik = multi maks 3) |
-| 2.63 | 2026-09-17 | Urut header ke semua tabel daftar via trait UrutDaftar: santri, kelas, lembaga, users, TA, riwayat, mutasi, alumni, pengajuan, antrean PSB; TabelUrutTest 20 test; suite 217/217, typecheck + build lolos |
+| 2.63 | 2026-09-17 | Urut header ke semua tabel daftar via trait UrutDaftar |
+| 2.64 | 2026-09-17 | Default urut santri = JK lalu Nama ($bawaan + state awal page disamakan); pola default didokumentasikan di backend-detail §8 |
 ## Daftar Isi
 
 > Rujukan antar-file: "Bab 2–8" → `arsitektur.md`; "Bab 9–14 + Lampiran" → `operasi.md`; "§N / Part B" → `backend-detail.md`.

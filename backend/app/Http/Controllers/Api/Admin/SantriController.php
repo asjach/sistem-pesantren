@@ -75,7 +75,7 @@ class SantriController extends Controller
                 ->orWhere('nisn', 'like', "%{$q}%"));
         }
 
-        $this->terapkanUrut($query, $urut, [['santri.id', 'turun']], self::SORT_NULLABLE);
+        $this->terapkanUrut($query, $urut, [['santri.jk', 'naik'], ['santri.nama_lengkap', 'naik']], self::SORT_NULLABLE);
 
         return response()->json($query->paginate($this->perPage($request)));
     }
