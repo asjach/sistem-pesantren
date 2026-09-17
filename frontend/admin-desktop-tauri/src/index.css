@@ -267,6 +267,12 @@
   flex: 1 1 auto;
   min-height: 0;
   width: 100%;
+  /* DSG menggambar border kanan & bawah di container (selebar area kartu),
+     sehingga tampak "lewat" dari tabel saat kolom sedikit. Tepi tabel
+     digambar per sel kolom terakhir (.simpes-dsg-col-last) + garis baris
+     terakhir, jadi border container dibuang. */
+  border-right: none;
+  border-bottom: none;
 }
 /* DSG membungkus container dalam div perantara: teruskan rantai flex.
    Kartu tabel (.simpes-dsg-kartu) mengisi tinggi grid (gridHeight): penuh

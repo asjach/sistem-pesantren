@@ -1163,6 +1163,8 @@ export default function ExcelTable<T extends { id: string | number }>({
       const iData = idxData++;
       const bekuCls = iData < freezeAktif ? ' simpes-dsg-beku' : '';
       const tepiCls = iData === freezeAktif - 1 ? ' simpes-dsg-beku-tepi' : '';
+      // Tanpa kolom Aksi, kolom data terakhir yang menggambar tepi kanan tabel.
+      const lastCls = hideActions && iData === visibleFields.length - 1 ? ' simpes-dsg-col-last' : '';
       const isInputRow = (rowData: GridRow) => showInput && String(rowData.id) === INPUT_ROW_ID;
       const lebarTerkunci = lebarKunci(f.key);
       const common = {
@@ -1184,7 +1186,7 @@ export default function ExcelTable<T extends { id: string | number }>({
             terkunci={lebarTerkunci != null}
           />
         ),
-        headerClassName: cn(alignClass(f.key), bekuCls, tepiCls),
+        headerClassName: cn(alignClass(f.key), bekuCls, tepiCls, lastCls),
         basis: lebarTerkunci ?? widths[f.key] ?? stdLebar?.[f.key] ?? autoWidths[f.key] ?? syncAutoWidths[f.key] ?? f.width ?? 150,
         // Semua kolom fixed (grow 0): lebar hanya berubah saat digagang
         // seret atau di-AutoFit, persis seperti Excel. Sisa ruang di kanan
@@ -1197,6 +1199,7 @@ export default function ExcelTable<T extends { id: string | number }>({
             alignClass(f.key),
             bekuCls,
             tepiCls,
+            lastCls,
             isInputRow(rowData) && 'simpes-dsg-baris-input',
             isInputRow(rowData) && f.required && !rowData[f.key] && 'simpes-dsg-wajib',
             draftsRef.current[String(rowData.id)]?.[f.key] !== undefined && 'simpes-dsg-dirty',
