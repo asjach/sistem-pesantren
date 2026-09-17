@@ -290,7 +290,6 @@ export default function KamusLabelPage() {
         }
         searchValue={cari}
         onSearchChange={setCari}
-        onSearchSubmit={() => {}}
         searchPlaceholder="Cari kolom"
         searchIds={{ form: 'form_cari_kamus_kolom', input: 'input_cari_kamus_kolom', button: 'btn_cari_kamus_kolom' }}
         renderActions={(r) => (

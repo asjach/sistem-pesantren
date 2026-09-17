@@ -45,7 +45,6 @@ import { toast } from 'sonner';
 
 const STATUS_TIPE = ['status_awal', 'status_akhir'];
 
-const NOOP = () => {};
 async function noopCommit() {}
 
 /** Nilai tampil baris: semua tabel ref memakai `nama` (status juga menyimpan `kode`). */
@@ -311,7 +310,6 @@ export default function ReferensiPage() {
         onSaved={reload}
         searchValue={search}
         onSearchChange={setSearch}
-        onSearchSubmit={NOOP}
         searchPlaceholder={isStatus ? 'Kode / nama' : 'Nama'}
         searchIds={{ form: 'form_cari_referensi', input: 'input_cari_referensi', button: 'btn_cari_referensi' }}
         filter={(
