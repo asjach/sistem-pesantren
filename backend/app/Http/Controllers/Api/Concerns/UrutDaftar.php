@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Api\Concerns;
 
-use App\Services\KamusKolomService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -49,35 +48,6 @@ trait UrutDaftar
         $arah = $request->input('arah', 'naik');
 
         return ['kunci' => $kunci, 'arah' => $arah];
-    }
-
-    /**
-     * Urut bawaan dari kamus (kode allowlist) yang dipetakan ke kolom ORDER BY.
-     * Jatuh ke $fallback bila kamus belum mengatur/menyisakan kolom tak dikenal.
-     *
-     * @param  array<string, string[]>  $peta
-     * @param  array<int, array{0: string, 1: 'naik'|'turun'}>  $fallback
-     * @return array<int, array{0: string, 1: 'naik'|'turun'}>
-     */
-    protected function bawaanKamus(string $endpoint, array $peta, array $fallback): array
-    {
-        $row = KamusKolomService::urutBawaan($endpoint);
-        if ($row === null || $row['kunci'] === []) {
-            return $fallback;
-        }
-        $kolom = [];
-        foreach ($row['kunci'] as $nilai) {
-            foreach ($peta[$nilai] ?? [] as $k) {
-                if (! in_array($k, $kolom, true)) {
-                    $kolom[] = $k;
-                }
-            }
-        }
-        if ($kolom === []) {
-            return $fallback;
-        }
-
-        return array_map(fn (string $k) => [$k, $row['arah']], $kolom);
     }
 
     /**

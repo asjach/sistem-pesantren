@@ -342,7 +342,6 @@ export default function UsersPage() {
       <ExcelTable
         tableKey="users"
         sumberTabel="users"
-        endpointUrut="admin/users"
         fields={fields}
         rows={rows}
         getValues={getValues}

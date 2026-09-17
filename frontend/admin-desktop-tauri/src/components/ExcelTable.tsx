@@ -20,7 +20,7 @@ import { useStandarTampilan } from '@/standarTampilan';
 import PresetKolom, { type PresetKolomApi } from '@/components/PresetKolom';
 import FilterField from '@/components/FilterField';
 import { useKamusPeta } from '@/components/useKamusPeta';
-import { urutBawaanEndpoint, type KamusKolomAttr } from '@/api/kamusLabel';
+import { type KamusKolomAttr } from '@/api/kamusLabel';
 import { formatNilai } from '@/lib/nilaiTampil';
 import { useRibbonTable } from '@/components/RibbonTable';
 import {
@@ -225,9 +225,6 @@ interface ExcelTableProps<T extends { id: string | number }> {
   arahUrut?: 'naik' | 'turun';
   /** Niat urut dari klik header: halaman me-refetch lalu mengisi urutAktif. */
   onUrut?: (nilai: string[], arah: 'naik' | 'turun') => void;
-  /** Sumber urut bawaan dari kamus (mis. 'admin/santri'). Bila diisi dan
-   *  halaman belum punya urutan, default kamus diterapkan sekali saat muat. */
-  endpointUrut?: string;
   /** Tabel database utama grid ini: kolom tanpa `sumber` dianggap berasal dari
    *  tabel ini (nama kolom = key-nya), kecuali `sumber: null`. */
   sumberTabel?: string;
@@ -831,7 +828,6 @@ export default function ExcelTable<T extends { id: string | number }>({
   urutAktif,
   arahUrut = 'naik',
   onUrut,
-  endpointUrut,
   sumberTabel,
 }: ExcelTableProps<T>) {
   const { density } = useTheme();
@@ -978,27 +974,6 @@ export default function ExcelTable<T extends { id: string | number }>({
     if (aktif.length === 0 || !onUrutRef.current) return;
     onUrutRef.current(aktif, arahUrutRef.current === 'naik' ? 'turun' : 'naik');
   }, []);
-  /** Urut bawaan dari kamus: diterapkan sekali saat halaman belum punya urutan. */
-  const bawaanDipakaiRef = useRef(false);
-  useEffect(() => {
-    if (!endpointUrut) return;
-    if ((urutAktifRef.current ?? []).length > 0) {
-      bawaanDipakaiRef.current = true;
-      return;
-    }
-    if (bawaanDipakaiRef.current) return;
-    let hidup = true;
-    void urutBawaanEndpoint(endpointUrut).then((row) => {
-      if (!hidup || !row || row.kunci.length === 0) return;
-      bawaanDipakaiRef.current = true;
-      if ((urutAktifRef.current ?? []).length === 0) {
-        onUrutRef.current?.(row.kunci, row.arah);
-      }
-    });
-    return () => {
-      hidup = false;
-    };
-  }, [endpointUrut]);
 
   /** Seleksi bersifat per halaman/filter: baris berganti = seleksi dibersihkan. */
   useEffect(() => {

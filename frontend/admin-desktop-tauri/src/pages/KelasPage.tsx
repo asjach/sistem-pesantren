@@ -563,7 +563,6 @@ export default function KelasPage() {
       <ExcelTable
         tableKey="kelas"
         sumberTabel="kelas"
-        endpointUrut="admin/kelas"
         fields={FIELDS}
         rows={rows}
         getValues={gridValues}

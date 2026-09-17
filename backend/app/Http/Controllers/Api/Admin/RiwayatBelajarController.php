@@ -98,11 +98,11 @@ class RiwayatBelajarController extends Controller
                 ->leftJoin('lembaga', 'lembaga.id', '=', 'riwayat_belajar.lembaga_id')
                 ->leftJoin('tahun_ajaran', 'tahun_ajaran.id', '=', 'riwayat_belajar.tahun_ajaran_id');
         }
-        $this->terapkanUrut($query, $urut, $this->bawaanKamus('admin/riwayat-belajar', self::SORT_PETA, [
+        $this->terapkanUrut($query, $urut, [
             ['riwayat_belajar.lembaga_id', 'naik'], ['riwayat_belajar.tingkat', 'naik'],
             ['riwayat_belajar.kelas_id', 'naik'], ['riwayat_belajar.no_absen', 'naik'],
             ['riwayat_belajar.santri_id', 'naik'],
-        ]), self::SORT_NULLABLE);
+        ], self::SORT_NULLABLE);
 
         $hasil = $query->paginate($this->perPage($request));
 

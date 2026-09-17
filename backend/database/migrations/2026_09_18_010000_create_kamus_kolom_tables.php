@@ -30,19 +30,10 @@ return new class extends Migration
 
             $table->unique(['tabel', 'kolom']);
         });
-
-        Schema::create('urut_bawaan', function (Blueprint $table) {
-            $table->id();
-            $table->string('endpoint', 120)->unique();
-            $table->json('kunci');
-            $table->string('arah', 8)->default('naik');
-            $table->timestamps();
-        });
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('urut_bawaan');
         Schema::dropIfExists('label_kolom');
     }
 };

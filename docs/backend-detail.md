@@ -408,19 +408,19 @@ Status: 🔲 not scaffolded (backend 201/202 pending).
   pengajuan-biodata, antrean PSB, lembaga-santri. Tabel kecil non-halaman
   (referensi, kegiatan, kuota, grup MI-MD, tabel kerja daftar-kelas) tetap
   urutan bawaan.
-* Kamus kolom level tabel database (v2.68, `label_kolom` + `urut_bawaan`,
-  halaman Kamus Label): nama header, perataan, lebar (+`kunci_lebar`), tooltip,
-  format tampil, dan kontrol urut (`bisa_urut`, `arah_bawaan`) diatur SEKALI per
-  pasangan tabel+kolom — berlaku di semua halaman yang menampilkannya. Grid
-  mengikat kolomnya lewat `ExcelField.sumber` (atau `sumberTabel` untuk kolom
-  yang namanya sama dengan kolom DB). Presedensi: kamus DB → preset
+* Kamus kolom level tabel database (v2.68–2.70, `label_kolom`, halaman Kamus
+  Label): nama header, perataan, lebar (+`kunci_lebar`), tooltip, format tampil,
+  dan kontrol urut (`bisa_urut`, `arah_bawaan`) diatur SEKALI per pasangan
+  tabel+kolom — berlaku di semua halaman yang menampilkannya. Grid mengikat
+  kolomnya lewat `ExcelField.sumber` (atau `sumberTabel` untuk kolom yang
+  namanya sama dengan kolom DB). Presedensi: kamus DB → preset
   halaman/preferensi perangkat → bawaan kode; visibilitas kolom tetap preset
-  per halaman. Urut bawaan per endpoint dibaca dari `urut_bawaan` (baca-cache,
-  invalidasi versi) dengan fallback `$bawaan` controller; default arah `naik`.
-  Baca bebas (izin `kamus_label.lihat`), tulis khusus admin pesantren.
-  `GET kamus-kolom/skema` menyediakan daftar tabel + kolom nyata (dari
-  `Schema::getTables/getColumns`, tanpa tabel infra) untuk pemilih otomatis;
-  pasangan tabel+kolom divalidasi ada di DB saat simpan.
+  per halaman. Urut bawaan daftar tetap di kode (`$bawaan` per endpoint,
+  default arah naik). Baca bebas (izin `kamus_label.lihat`), tulis khusus admin
+  pesantren. Halaman menampilkan dropdown tabel + grid berisi satu baris per
+  kolom tabel itu; `GET kamus-kolom/skema` menyediakan daftar tabel + kolom
+  nyata (dari `Schema::getTables/getColumns`, tanpa tabel infra) dan pasangan
+  tabel+kolom divalidasi ada di DB saat simpan.
 * See live contract: `php artisan route:list --path=api` (144 routes, 101 di grup admin).
 
 ### 9. Non-functional requirements

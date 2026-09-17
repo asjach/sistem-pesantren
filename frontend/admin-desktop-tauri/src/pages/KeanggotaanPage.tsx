@@ -208,7 +208,6 @@ export default function KeanggotaanPage() {
 
       <ExcelTable
         tableKey="keanggotaan"
-        endpointUrut="admin/lembaga-santri"
         fields={[
           { key: 'santri', label: 'santri.nama_lengkap', kind: 'static', sumber: { tabel: 'santri', kolom: 'nama_lengkap' } },
           { key: 'jk', label: 'santri.jk', kind: 'static', width: 60, sumber: { tabel: 'santri', kolom: 'jk' } },

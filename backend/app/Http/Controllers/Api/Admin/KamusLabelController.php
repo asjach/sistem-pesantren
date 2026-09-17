@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\LabelKolom;
-use App\Models\UrutBawaan;
 use App\Services\KamusKolomService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -14,7 +13,7 @@ use Illuminate\Validation\ValidationException;
 
 /**
  * Kamus kolom level tabel database (global se-pesantren): nama header,
- * perataan, lebar, tooltip, format, kontrol urut + urut bawaan per endpoint.
+ * perataan, lebar, tooltip, format, dan kontrol urut per kolom.
  * Baca bebas (semua admin); tulis hanya admin pesantren (pola TA global).
  */
 class KamusLabelController extends Controller
@@ -27,7 +26,7 @@ class KamusLabelController extends Controller
         'migrations', 'cache', 'cache_locks', 'jobs', 'job_batches', 'failed_jobs',
         'sessions', 'password_reset_tokens', 'personal_access_tokens',
         'permissions', 'roles', 'model_has_permissions', 'model_has_roles',
-        'role_has_permissions', 'label_kolom', 'urut_bawaan',
+        'role_has_permissions', 'label_kolom',
         'preset_tabel', 'preset_tabel_aktif', 'pengaturan_tampilan', 'sqlite_sequence',
     ];
 
@@ -131,57 +130,6 @@ class KamusLabelController extends Controller
         KamusKolomService::bump();
 
         return response()->json(['pesan' => 'Kolom kamus dihapus.']);
-    }
-
-    /** GET /api/admin/kamus-kolom/urut — daftar urut bawaan. */
-    public function indexUrut(): JsonResponse
-    {
-        return response()->json([
-            'pesan' => 'Urut bawaan dimuat.',
-            'data' => UrutBawaan::orderBy('endpoint')->get(),
-        ]);
-    }
-
-    /** POST /api/admin/kamus-kolom/urut — upsert urut bawaan satu endpoint. */
-    public function simpanUrut(Request $request): JsonResponse
-    {
-        $this->pastikanAdminPesantren();
-        $data = $request->validate([
-            'endpoint' => ['required', 'string', 'max:120'],
-            'kunci' => ['nullable', 'array', 'max:3'],
-            'kunci.*' => ['string', 'max:60'],
-            'arah' => ['nullable', Rule::in(['naik', 'turun'])],
-        ]);
-
-        $kunci = array_values(array_filter(array_map(
-            fn ($v) => trim((string) $v),
-            $data['kunci'] ?? [],
-        )));
-
-        if ($kunci === []) {
-            UrutBawaan::where('endpoint', $data['endpoint'])->delete();
-            KamusKolomService::bump();
-
-            return response()->json(['pesan' => 'Urut bawaan dikembalikan ke bawaan sistem.', 'data' => null]);
-        }
-
-        $row = UrutBawaan::updateOrCreate(
-            ['endpoint' => $data['endpoint']],
-            ['kunci' => $kunci, 'arah' => $data['arah'] ?? 'naik'],
-        );
-        KamusKolomService::bump();
-
-        return response()->json(['pesan' => 'Urut bawaan disimpan.', 'data' => $row]);
-    }
-
-    /** DELETE /api/admin/kamus-kolom/urut/{urutBawaan} */
-    public function hapusUrut(UrutBawaan $urutBawaan): JsonResponse
-    {
-        $this->pastikanAdminPesantren();
-        $urutBawaan->delete();
-        KamusKolomService::bump();
-
-        return response()->json(['pesan' => 'Urut bawaan dihapus.']);
     }
 
     /** @return array<string, mixed> */

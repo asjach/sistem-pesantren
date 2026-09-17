@@ -64,9 +64,9 @@ class KelasController extends Controller
                 ->leftJoin('lembaga', 'lembaga.id', '=', 'kelas.lembaga_id')
                 ->leftJoin('tahun_ajaran', 'tahun_ajaran.id', '=', 'kelas.tahun_ajaran_id');
         }
-        $this->terapkanUrut($query, $urut, $this->bawaanKamus('admin/kelas', self::SORT_PETA, [
+        $this->terapkanUrut($query, $urut, [
             ['kelas.urutan', 'naik'], ['kelas.nama_kelas', 'naik'], ['kelas.id', 'naik'],
-        ]), self::SORT_NULLABLE);
+        ], self::SORT_NULLABLE);
 
         return response()->json($query->paginate($this->perPage($request)));
     }

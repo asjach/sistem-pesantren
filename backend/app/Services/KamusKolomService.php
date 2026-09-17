@@ -3,13 +3,12 @@
 namespace App\Services;
 
 use App\Models\LabelKolom;
-use App\Models\UrutBawaan;
 use Illuminate\Support\Facades\Cache;
 
 /**
  * Kamus kolom level tabel database (global se-pesantren): nama header,
- * perataan, lebar, tooltip, format, kontrol urut, plus urut bawaan per
- * endpoint. Dibaca lintas halaman; invalidasi via versi global (pola RefService).
+ * perataan, lebar, tooltip, format, dan kontrol urut per kolom.
+ * Dibaca lintas halaman; invalidasi via versi global (pola RefService).
  */
 class KamusKolomService
 {
@@ -59,28 +58,6 @@ class KamusKolomService
             }
 
             return $peta;
-        });
-    }
-
-    /**
-     * Urut bawaan sebuah endpoint daftar (kode allowlist, null bila belum diatur).
-     *
-     * @return array{kunci: string[], arah: 'naik'|'turun'}|null
-     */
-    public static function urutBawaan(string $endpoint): ?array
-    {
-        $kunci = 'kamus_kolom:urut:'.md5($endpoint).':v'.self::versi();
-
-        return Cache::remember($kunci, 600, function () use ($endpoint) {
-            $row = UrutBawaan::where('endpoint', $endpoint)->first();
-            if (! $row) {
-                return null;
-            }
-
-            return [
-                'kunci' => array_values(array_filter((array) $row->kunci)),
-                'arah' => $row->arah === 'turun' ? 'turun' : 'naik',
-            ];
         });
     }
 }

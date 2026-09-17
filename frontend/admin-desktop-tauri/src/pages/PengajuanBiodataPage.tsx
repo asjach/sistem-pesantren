@@ -180,7 +180,6 @@ export default function PengajuanBiodataPage() {
       <ErrorNotice>{err}</ErrorNotice>
       <ExcelTable
         tableKey="pengajuan_biodata"
-        endpointUrut="admin/pengajuan-biodata"
         fields={FIELDS}
         rows={rows}
         getValues={gridValues}

@@ -164,7 +164,6 @@ export default function KelulusanPage() {
             <div className="px-2 pb-1">
               <ExcelTable
                 tableKey="kelulusan_alumni"
-                endpointUrut="admin/alumni"
                 fields={[
                   { key: 'santri', label: 'santri.nama_lengkap', kind: 'static', sumber: { tabel: 'santri', kolom: 'nama_lengkap' } },
                   { key: 'kelas', label: 'kelas.nama_kelas', kind: 'static', sumber: { tabel: 'kelas', kolom: 'nama_kelas' } },

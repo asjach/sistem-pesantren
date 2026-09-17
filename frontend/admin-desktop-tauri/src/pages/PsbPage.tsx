@@ -794,7 +794,6 @@ export default function PsbPage() {
 
       <ExcelTable
         tableKey="psb"
-        endpointUrut="psb/antrean-daftar-ulang"
         fields={psbFieldsMemo}
         rows={rows}
         getValues={getValues}

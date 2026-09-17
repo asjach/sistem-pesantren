@@ -4,8 +4,6 @@ namespace Tests\Feature;
 
 use App\Models\LabelKolom;
 use App\Models\Lembaga;
-use App\Models\Santri;
-use App\Models\UrutBawaan;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -139,41 +137,5 @@ class KamusLabelTest extends TestCase
             'tabel' => 'santri', 'kolom' => 'nama_lengkap', 'label' => 'X',
         ])->assertStatus(403);
         $this->assertSame(0, LabelKolom::count());
-    }
-
-    public function test_urut_bawaan_seed_dan_ubah_lewat_kamus(): void
-    {
-        $pusat = $this->makeUser('admin');
-
-        // Seed migrasi menyediakan default santri.
-        $list = $this->actingAs($pusat, 'sanctum')->getJson('/api/admin/kamus-kolom/urut');
-        $list->assertStatus(200);
-        $this->assertContains('admin/santri', array_column($list->json('data'), 'endpoint'));
-
-        // Ubah default santri → urut Nama saja (naik), hasil daftar ikut berubah.
-        $this->actingAs($pusat, 'sanctum')->postJson('/api/admin/kamus-kolom/urut', [
-            'endpoint' => 'admin/santri', 'kunci' => ['nama'], 'arah' => 'naik',
-        ])->assertStatus(200);
-
-        $ahmad = Santri::create(['nama_lengkap' => 'Ahmad', 'jk' => 'P']);
-        Santri::create(['nama_lengkap' => 'Budi', 'jk' => 'L']);
-
-        $res = $this->actingAs($pusat, 'sanctum')->getJson('/api/admin/santri?per_page=50')->assertStatus(200);
-        $this->assertSame(['Ahmad', 'Budi'], array_column($res->json('data'), 'nama_lengkap'));
-        $this->assertNotNull($ahmad);
-
-        // Kosongkan → kembali ke bawaan sistem (JK lalu Nama).
-        $this->actingAs($pusat, 'sanctum')->postJson('/api/admin/kamus-kolom/urut', [
-            'endpoint' => 'admin/santri', 'kunci' => [],
-        ])->assertStatus(200);
-        $this->assertFalse(UrutBawaan::where('endpoint', 'admin/santri')->exists());
-
-        $res2 = $this->actingAs($pusat, 'sanctum')->getJson('/api/admin/santri?per_page=50')->assertStatus(200);
-        $this->assertSame(['Budi', 'Ahmad'], array_column($res2->json('data'), 'nama_lengkap'));
-
-        // Di luar batas 3 kunci ditolak.
-        $this->actingAs($pusat, 'sanctum')->postJson('/api/admin/kamus-kolom/urut', [
-            'endpoint' => 'admin/santri', 'kunci' => ['nama', 'jk', 'nik', 'nisn'],
-        ])->assertStatus(422);
     }
 }

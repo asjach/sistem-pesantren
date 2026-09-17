@@ -203,8 +203,8 @@ export default function SantriPage() {
   const [search, setSearch] = useState('');
   const [terapkanCari, setTerapkanCari] = useState('');
   /** Urut header: daftar nilai allowlist + arah global (maks 3 kunci). */
-  /** Urut awal dari kamus (endpointUrut) — dikosongkan sampai kamus memuat. */
-  const [urut, setUrut] = useState<string[]>([]);
+  /** Urut bawaan: JK lalu Nama (sama dengan $bawaan SantriController@index). */
+  const [urut, setUrut] = useState<string[]>(['jk', 'nama']);
   const [arahUrut, setArahUrut] = useState<'naik' | 'turun'>('naik');
 
   const [importOpen, setImportOpen] = useState(false);
@@ -439,7 +439,6 @@ export default function SantriPage() {
       <ExcelTable<Santri>
         tableKey="santri"
         sumberTabel="santri"
-        endpointUrut="admin/santri"
         fields={semuaFields}
         rows={rows}
         getValues={getNilai}

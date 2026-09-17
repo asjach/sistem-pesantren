@@ -88,9 +88,7 @@ class PengajuanBiodataController extends Controller
             $list->select('pengajuan_biodata_santri.*')
                 ->leftJoin('santri', 'santri.id', '=', 'pengajuan_biodata_santri.santri_id');
         }
-        $this->terapkanUrut($list, $urut, $this->bawaanKamus('admin/pengajuan-biodata', self::SORT_PETA, [
-            ['pengajuan_biodata_santri.id', 'turun'],
-        ]));
+        $this->terapkanUrut($list, $urut, [['pengajuan_biodata_santri.id', 'turun']]);
         $list = $list->paginate($this->perPage($request));
 
         return response()->json([

@@ -147,7 +147,6 @@ export default function MutasiKeluarPage() {
           <div className="px-2 pb-1">
             <ExcelTable
               tableKey="mutasi_arsip"
-              endpointUrut="admin/mutasi-keluar"
               fields={[
                 { key: 'santri', label: 'santri.nama_lengkap', kind: 'static', sumber: { tabel: 'santri', kolom: 'nama_lengkap' } },
                 { key: 'tanggal', label: 'tanggal_mutasi', kind: 'static', sumber: { tabel: 'mutasi_keluar', kolom: 'tanggal_mutasi' } },

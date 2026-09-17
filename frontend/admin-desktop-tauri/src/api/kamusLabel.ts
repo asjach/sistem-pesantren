@@ -31,13 +31,6 @@ export interface LabelKolom {
   format: string | null;
 }
 
-export interface UrutBawaan {
-  id: number;
-  endpoint: string;
-  kunci: string[];
-  arah: ArahUrut;
-}
-
 /** Satu tabel database + daftar kolomnya (untuk pemilih otomatis). */
 export interface TabelSkema {
   tabel: string;
@@ -77,25 +70,4 @@ export function updateKamusKolom(id: number, input: Omit<LabelKolom, 'id'>) {
 
 export function deleteKamusKolom(id: number) {
   return api<{ pesan: string }>(`/admin/kamus-kolom/${id}`, { method: 'DELETE' });
-}
-
-export function listUrutBawaan() {
-  return api<{ pesan: string; data: UrutBawaan[] }>('/admin/kamus-kolom/urut');
-}
-
-export function simpanUrutBawaan(input: { endpoint: string; kunci: string[]; arah?: ArahUrut }) {
-  return api<{ pesan: string; data: UrutBawaan | null }>('/admin/kamus-kolom/urut', {
-    method: 'POST',
-    body: JSON.stringify(input),
-  });
-}
-
-export function hapusUrutBawaan(id: number) {
-  return api<{ pesan: string }>(`/admin/kamus-kolom/urut/${id}`, { method: 'DELETE' });
-}
-
-/** Urut bawaan satu endpoint (null bila belum diatur di kamus). */
-export async function urutBawaanEndpoint(endpoint: string): Promise<UrutBawaan | null> {
-  const res = await listUrutBawaan();
-  return res.data.find((r) => r.endpoint === endpoint) ?? null;
 }

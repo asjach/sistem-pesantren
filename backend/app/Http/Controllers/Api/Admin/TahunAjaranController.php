@@ -81,9 +81,9 @@ class TahunAjaranController extends Controller
             $query->select('tahun_ajaran.*')
                 ->leftJoin('lembaga', 'lembaga.id', '=', 'tahun_ajaran.lembaga_id');
         }
-        $this->terapkanUrut($query, $urut, $this->bawaanKamus('admin/tahun-ajaran', self::SORT_PETA, [
+        $this->terapkanUrut($query, $urut, [
             ['tahun_ajaran.is_aktif', 'turun'], ['tahun_ajaran.tanggal_mulai', 'turun'], ['tahun_ajaran.id', 'turun'],
-        ]), self::SORT_NULLABLE);
+        ], self::SORT_NULLABLE);
 
         return response()->json($query->paginate($this->perPage($request)));
     }

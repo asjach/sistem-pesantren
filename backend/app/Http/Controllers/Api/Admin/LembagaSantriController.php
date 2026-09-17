@@ -78,9 +78,9 @@ class LembagaSantriController extends Controller
             });
         }
 
-        $bawaan = $this->bawaanKamus('admin/lembaga-santri', self::SORT_PETA, [
+        $bawaan = [
             ['lembaga_santri.is_active', 'turun'], ['lembaga_santri.id', 'turun'],
-        ]);
+        ];
         // Join relasi hanya bila ada kunci urut (eksplisit atau bawaan) yang butuh.
         $kunciEfektif = ['kunci' => $urut !== null ? $urut['kunci'] : array_map(fn ($p) => $p[0], $bawaan)];
         $butuhSantri = $this->urutButuhAwalan($kunciEfektif, 'santri.');

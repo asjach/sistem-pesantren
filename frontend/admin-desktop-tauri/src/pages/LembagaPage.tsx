@@ -395,7 +395,6 @@ export default function LembagaPage() {
       <ExcelTable
         tableKey="lembaga"
         sumberTabel="lembaga"
-        endpointUrut="admin/lembaga"
         fields={FIELDS}
         rows={rows}
         getValues={gridValues}

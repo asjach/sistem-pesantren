@@ -132,9 +132,7 @@ class UserManagementController extends Controller
             $query->role($request->input('role'));
         }
 
-        $this->terapkanUrut($query, $urut, $this->bawaanKamus('admin/users', self::SORT_PETA, [
-            ['users.id', 'turun'],
-        ]), self::SORT_NULLABLE);
+        $this->terapkanUrut($query, $urut, [['users.id', 'turun']], self::SORT_NULLABLE);
 
         return response()->json($query->paginate($this->perPage($request)));
     }

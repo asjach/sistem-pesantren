@@ -310,7 +310,6 @@ export default function TahunAjaranPage() {
       <ExcelTable
         tableKey="tahun_ajaran"
         sumberTabel="tahun_ajaran"
-        endpointUrut="admin/tahun-ajaran"
         fields={FIELDS}
         rows={rows}
         getValues={gridValues}
