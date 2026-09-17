@@ -6,6 +6,7 @@ use App\Exports\PsbTemplateExport;
 use App\Http\Controllers\Api\Concerns\TenantGuard;
 use App\Http\Controllers\Api\Concerns\UrutDaftar;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\PsbAccDaftarUlangRequest;
 use App\Http\Requests\PsbBulkAccRequest;
 use App\Http\Requests\PsbBulkCatatanRequest;
 use App\Http\Requests\PsbBulkDaftarUlangRequest;
@@ -13,6 +14,7 @@ use App\Http\Requests\PsbBulkIdsRequest;
 use App\Http\Requests\PsbBulkSeleksiRequest;
 use App\Http\Requests\PsbCatatanRequest;
 use App\Http\Requests\PsbDaftarRequest;
+use App\Http\Requests\PsbDaftarUlangRequest;
 use App\Http\Requests\PsbImportRequest;
 use App\Http\Requests\PsbSeleksiRequest;
 use App\Imports\PsbImport;
@@ -95,14 +97,7 @@ class PsbController extends Controller
     /** Aksi per calon: admin salah satu lembaga tujuan (paket: MI atau MD), admin full, atau super_admin. */
     protected function authorizeCalon(User $auth, PsbCalonSantri $calon): void
     {
-        if ($auth->bolehPesantren()) {
-            return;
-        }
-        $ids = $calon->lembagaDetail()->pluck('lembaga_id');
-        if ($ids->isEmpty()) {
-            $ids = collect([$calon->lembaga_id]);
-        }
-        if (! $ids->contains(fn ($id) => $auth->canAccessLembaga((int) $id))) {
+        if (! $calon->bolehDiaksesOleh($auth)) {
             abort(403, 'Akses ditolak.');
         }
     }
@@ -157,13 +152,9 @@ class PsbController extends Controller
     }
 
     /** POST /api/psb/{calon}/daftar-ulang — masuk fase daftar ulang (lembaga ber-seleksi wajib kirim lolos). */
-    public function daftarUlang(Request $request, PsbCalonSantri $calon, PsbService $service): JsonResponse
+    public function daftarUlang(PsbDaftarUlangRequest $request, PsbCalonSantri $calon, PsbService $service): JsonResponse
     {
-        $this->authorizeCalon(auth()->user(), $calon);
-        $data = $request->validate([
-            'lolos' => ['nullable', 'boolean'],
-            'catatan' => ['nullable', 'string'],
-        ]);
+        $data = $request->validated();
 
         $hasil = $service->masukDaftarUlang(
             $calon->id,
@@ -181,10 +172,9 @@ class PsbController extends Controller
     }
 
     /** POST /api/psb/{calon}/acc-daftar-ulang — INSERT santri (atau reuse santri_asal_id). */
-    public function acc(Request $request, PsbCalonSantri $calon, PsbService $service): JsonResponse
+    public function acc(PsbAccDaftarUlangRequest $request, PsbCalonSantri $calon, PsbService $service): JsonResponse
     {
-        $this->authorizeCalon(auth()->user(), $calon);
-        $data = $request->validate(['nis' => ['nullable', 'string', 'max:20']]);
+        $data = $request->validated();
 
         return response()->json([
             'pesan' => 'Daftar ulang disetujui.',

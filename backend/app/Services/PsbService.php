@@ -436,10 +436,7 @@ class PsbService
     public function ajukanDaftarUlang(int $id, User $wali): PsbCalonSantri
     {
         $calon = PsbCalonSantri::findOrFail($id);
-        $milik = ($calon->email_ortu && $calon->email_ortu === $wali->email)
-            || ($calon->telp_ortu && $this->normalTelp($calon->telp_ortu) === $this->normalTelp($wali->phone ?? ''))
-            || ($calon->santri_asal_id && DB::table('wali_santri_relasi')->where('user_id', $wali->id)->where('santri_id', $calon->santri_asal_id)->exists());
-        if (! $milik) {
+        if (! $calon->milikWali($wali, false)) {
             abort(403, 'Calon ini bukan tanggungan akun Anda.');
         }
         $kuotaBiaya = $this->kuotaUntuk((int) $calon->gelombang_id, (int) $calon->lembaga_id, $calon->tipe_santri);
@@ -582,13 +579,6 @@ class PsbService
         if ($diCombo->count() > 2) {
             throw ValidationException::withMessages(['lembaga_id' => 'Maksimal 2 pendaftaran aktif (MI + MD).']);
         }
-    }
-
-    protected function normalTelp(?string $telp): string
-    {
-        $t = preg_replace('/\D/', '', $telp ?? '');
-
-        return preg_replace('/^(0|62)/', '62', $t);
     }
 
     /**

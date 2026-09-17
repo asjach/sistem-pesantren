@@ -37,6 +37,55 @@ class PsbCalonSantri extends Model
         return $this->hasMany(PsbCalonLembaga::class, 'psb_calon_santri_id');
     }
 
+    /**
+     * Admin salah satu lembaga tujuan (paket MI/MD), admin full, atau super_admin.
+     * Cermin otorisasi aksi per calon di PsbController.
+     */
+    public function bolehDiaksesOleh(User $auth): bool
+    {
+        if ($auth->bolehPesantren()) {
+            return true;
+        }
+        $ids = $this->lembagaDetail()->pluck('lembaga_id');
+        if ($ids->isEmpty()) {
+            $ids = collect([$this->lembaga_id]);
+        }
+
+        return $ids->contains(fn ($id) => $auth->canAccessLembaga((int) $id));
+    }
+
+    /**
+     * Calon ini tanggungan wali? Cocok via email ortu, telp ortu ternormalisasi,
+     * atau relasi wali ke santri asal. $hanyaRelasiAktif=false meniru cek lama
+     * PsbService::ajukanDaftarUlang (tanpa filter is_active).
+     */
+    public function milikWali(User $wali, bool $hanyaRelasiAktif = true): bool
+    {
+        if ($this->email_ortu && $this->email_ortu === $wali->email) {
+            return true;
+        }
+        if ($this->telp_ortu && self::normalTelp($this->telp_ortu) === self::normalTelp($wali->phone ?? '')) {
+            return true;
+        }
+        if (! $this->santri_asal_id) {
+            return false;
+        }
+        $q = WaliSantriRelasi::where('user_id', $wali->id)->where('santri_id', $this->santri_asal_id);
+        if ($hanyaRelasiAktif) {
+            $q->where('is_active', true);
+        }
+
+        return $q->exists();
+    }
+
+    /** Normalisasi nomor telepon Indonesia: buang non-digit, 0/62 → 62. */
+    public static function normalTelp(?string $telp): string
+    {
+        $t = preg_replace('/\D/', '', $telp ?? '');
+
+        return preg_replace('/^(0|62)/', '62', $t);
+    }
+
     public function santriAsal(): BelongsTo
     {
         return $this->belongsTo(Santri::class, 'santri_asal_id');

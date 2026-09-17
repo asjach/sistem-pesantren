@@ -146,13 +146,7 @@ class PsbPortalController extends Controller
      */
     protected function assertPemilik(User $wali, PsbCalonSantri $calon): void
     {
-        $milik = ($calon->email_ortu && $calon->email_ortu === $wali->email)
-            || ($calon->telp_ortu && $this->normalTelp($calon->telp_ortu) === $this->normalTelp($wali->phone ?? ''))
-            || ($calon->santri_asal_id && WaliSantriRelasi::where('user_id', $wali->id)
-                ->where('santri_id', $calon->santri_asal_id)
-                ->where('is_active', true)
-                ->exists());
-        if (! $milik) {
+        if (! $calon->milikWali($wali)) {
             abort(403, 'Calon ini bukan tanggungan akun Anda.');
         }
     }
@@ -166,12 +160,5 @@ class PsbPortalController extends Controller
         if (! $milik) {
             abort(403, 'Santri ini bukan tanggungan akun Anda.');
         }
-    }
-
-    protected function normalTelp(?string $telp): string
-    {
-        $t = preg_replace('/\D/', '', $telp ?? '');
-
-        return preg_replace('/^(0|62)/', '62', $t);
     }
 }

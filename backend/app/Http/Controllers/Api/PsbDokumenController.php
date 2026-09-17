@@ -6,12 +6,12 @@ use App\Http\Controllers\Api\Concerns\TenantGuard;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\PsbDokumenIndexWajibRequest;
 use App\Http\Requests\PsbDokumenStoreWajibRequest;
+use App\Http\Requests\PsbDokumenUploadCalonRequest;
 use App\Http\Requests\PsbDokumenVerifikasiRequest;
 use App\Models\DokumenSantri;
 use App\Models\DokumenWajibLembaga;
 use App\Models\PsbCalonSantri;
 use App\Models\User;
-use App\Models\WaliSantriRelasi;
 use App\Services\RefService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -22,15 +22,9 @@ class PsbDokumenController extends Controller
     use TenantGuard;
 
     /** POST /api/portal/psb/{calon}/dokumen (orang_tua, cek pemilik + jenis dari ref efektif). */
-    public function uploadCalon(Request $request, PsbCalonSantri $calon): JsonResponse
+    public function uploadCalon(PsbDokumenUploadCalonRequest $request, PsbCalonSantri $calon): JsonResponse
     {
-        $this->assertPemilik($request->user(), $calon);
-
-        $data = $request->validate([
-            'jenis_dokumen_santri' => ['required', 'string', 'max:50'],
-            'file' => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
-            'catatan' => ['nullable', 'string'],
-        ]);
+        $data = $request->validated();
         if (! in_array($data['jenis_dokumen_santri'], RefService::kodeAktif('jenis_dokumen_santri', $calon->lembaga_id), true)) {
             abort(422, 'Jenis dokumen tidak aktif di lembaga ini.');
         }
@@ -127,21 +121,8 @@ class PsbDokumenController extends Controller
     /** Cek pemilik B5 (mirror PsbService::ajukanDaftarUlang). */
     protected function assertPemilik(User $wali, PsbCalonSantri $calon): void
     {
-        $milik = ($calon->email_ortu && $calon->email_ortu === $wali->email)
-            || ($calon->telp_ortu && $this->normalTelp($calon->telp_ortu) === $this->normalTelp($wali->phone ?? ''))
-            || ($calon->santri_asal_id && WaliSantriRelasi::where('user_id', $wali->id)
-                ->where('santri_id', $calon->santri_asal_id)
-                ->where('is_active', true)
-                ->exists());
-        if (! $milik) {
+        if (! $calon->milikWali($wali)) {
             abort(403, 'Calon ini bukan tanggungan akun Anda.');
         }
-    }
-
-    protected function normalTelp(?string $telp): string
-    {
-        $t = preg_replace('/\D/', '', $telp ?? '');
-
-        return preg_replace('/^(0|62)/', '62', $t);
     }
 }
