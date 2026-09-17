@@ -2,6 +2,8 @@ import { api } from './client';
 
 export type AlignKolom = 'left' | 'center' | 'right';
 export type ArahUrut = 'naik' | 'turun';
+/** Gaya penulisan label otomatis dari nama kolom. */
+export type ModeLabel = 'upper' | 'proper' | 'lower';
 
 /** Atribut kamus satu kolom (kunci peta: "tabel.kolom"). */
 export interface KamusKolomAttr {
@@ -70,4 +72,13 @@ export function updateKamusKolom(id: number, input: Omit<LabelKolom, 'id'>) {
 
 export function deleteKamusKolom(id: number) {
   return api<{ pesan: string }>(`/admin/kamus-kolom/${id}`, { method: 'DELETE' });
+}
+
+/** Isi label SEMUA kolom (seluruh tabel, kolom teknis dilewati) dari nama
+ *  kolom + underscore → spasi, sesuai gaya `mode`. Label lama ditimpa. */
+export function generasiLabel(mode: ModeLabel) {
+  return api<{ pesan: string; data: { jumlah: number; tabel: number } }>('/admin/kamus-kolom/generasi', {
+    method: 'POST',
+    body: JSON.stringify({ mode }),
+  });
 }

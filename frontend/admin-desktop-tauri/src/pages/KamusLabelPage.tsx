@@ -5,37 +5,49 @@ import { bisa } from '../api/auth';
 import {
   createKamusKolom,
   deleteKamusKolom,
+  generasiLabel,
   listKamusKolom,
   skemaKolom,
   updateKamusKolom,
   type ArahUrut,
   type LabelKolom,
+  type ModeLabel,
   type TabelSkema,
 } from '../api/kamusLabel';
 import { bersihkanCacheKamus } from '@/components/useKamusPeta';
+import ComboCari from '@/components/ComboCari';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { DeleteAction } from '@/components/RowActions';
 import FilterField from '@/components/FilterField';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 
 const BAWAAN = '_bawaan';
 
+/** Glyph perataan: – bawaan, ← kiri, ↔ tengah, → kanan. */
 const ALIGN_CHOICES = [
-  { value: BAWAAN, label: '(tengah)' },
-  { value: 'left', label: 'KIRI' },
-  { value: 'center', label: 'TENGAH' },
-  { value: 'right', label: 'KANAN' },
+  { value: BAWAAN, label: '–' },
+  { value: 'left', label: '←' },
+  { value: 'center', label: '↔' },
+  { value: 'right', label: '→' },
 ];
-const YA_TIDAK = [
-  { value: 'ya', label: 'YA' },
-  { value: 'tidak', label: 'TIDAK' },
-];
+/** Glyph arah bawaan urut kolom: – bawaan, ▲ naik, ▼ turun. */
 const ARAH_CHOICES = [
-  { value: BAWAAN, label: '(naik)' },
-  { value: 'naik', label: 'NAIK' },
-  { value: 'turun', label: 'TURUN' },
+  { value: BAWAAN, label: '–' },
+  { value: 'naik', label: '▲' },
+  { value: 'turun', label: '▼' },
 ];
 const FORMAT_CHOICES = [
   { value: BAWAAN, label: '(teks)' },
@@ -45,10 +57,19 @@ const FORMAT_CHOICES = [
   { value: 'ya_tidak', label: 'YA/TIDAK' },
 ];
 
+/** Nama gaya tombol generate, dipakai di dialog konfirmasi. */
+const MODE_LABEL: Record<ModeLabel, string> = {
+  upper: 'UPPERCASE',
+  proper: 'Proper Case',
+  lower: 'lower case',
+};
+
 const FIELDS: ExcelField[] = [
   { key: 'kolom', label: 'kolom', width: 190, kind: 'static' },
   { key: 'label', label: 'label', width: 200, kind: 'text', maxLength: 100 },
-  { key: 'align', label: 'align', width: 110, kind: 'select', choices: ALIGN_CHOICES },
+  { key: 'align', label: 'align', width: 70, kind: 'select', choices: ALIGN_CHOICES },
+  { key: 'tooltip', label: 'tooltip', width: 220, kind: 'text', maxLength: 200 },
+  { key: 'format', label: 'format', width: 120, kind: 'select', choices: FORMAT_CHOICES },
   {
     key: 'lebar', label: 'lebar', width: 90, kind: 'text', maxLength: 3,
     validate: (v) => {
@@ -57,11 +78,9 @@ const FIELDS: ExcelField[] = [
       return Number.isInteger(n) && n >= 40 && n <= 600 ? null : 'Lebar 40–600 px.';
     },
   },
-  { key: 'kunci', label: 'kunci_lebar', width: 100, kind: 'select', choices: YA_TIDAK },
-  { key: 'bisa', label: 'bisa_urut', width: 100, kind: 'select', choices: YA_TIDAK },
-  { key: 'arah', label: 'arah_bawaan', width: 120, kind: 'select', choices: ARAH_CHOICES },
-  { key: 'tooltip', label: 'tooltip', width: 220, kind: 'text', maxLength: 200 },
-  { key: 'format', label: 'format', width: 120, kind: 'select', choices: FORMAT_CHOICES },
+  { key: 'kunci', label: 'kunci_lebar', width: 90, kind: 'toggle' },
+  { key: 'bisa', label: 'bisa_urut', width: 90, kind: 'toggle' },
+  { key: 'arah', label: 'arah_bawaan', width: 80, kind: 'select', choices: ARAH_CHOICES },
 ];
 
 interface BarisKamus {
@@ -76,12 +95,12 @@ function barisValues(r: BarisKamus): Record<string, string | null> {
     kolom: r.kolom,
     label: e?.label ?? '',
     align: e?.align ?? BAWAAN,
+    tooltip: e?.tooltip ?? '',
+    format: e?.format ?? BAWAAN,
     lebar: e?.lebar === null || e?.lebar === undefined ? '' : String(e.lebar),
     kunci: e?.kunci_lebar ? 'ya' : 'tidak',
     bisa: e && !e.bisa_urut ? 'tidak' : 'ya',
     arah: e?.arah_bawaan ?? BAWAAN,
-    tooltip: e?.tooltip ?? '',
-    format: e?.format ?? BAWAAN,
   };
 }
 
@@ -100,6 +119,9 @@ export default function KamusLabelPage() {
   const [cari, setCari] = useState('');
   const [err, setErr] = useState('');
   const [loading, setLoading] = useState(true);
+  /** Mode label yang menunggu konfirmasi timpa; null = dialog tertutup. */
+  const [modeTunggu, setModeTunggu] = useState<ModeLabel | null>(null);
+  const [sedangGenerasi, setSedangGenerasi] = useState(false);
   /** id entri yang baru dibuat (agar edit sel berikutnya memakai PUT). */
   const idBaruRef = useRef(new Map<string, number>());
 
@@ -155,6 +177,9 @@ export default function KamusLabelPage() {
     return q === '' ? rows : rows.filter((r) => r.kolom.toLowerCase().includes(q));
   }, [rows, cari]);
 
+  const totalKolom = useMemo(() => skema.reduce((n, s) => n + s.kolom.length, 0), [skema]);
+  const bolehGenerate = canTambah && canUbah && !sedangGenerasi;
+
   /** Simpan satu baris (auto-save per sel): POST bila entri belum ada, PUT bila sudah. */
   async function commitBaris(id: string | number, f: Record<string, string | null>) {
     const baris = rowsRef.current.find((r) => r.kolom === id);
@@ -196,30 +221,27 @@ export default function KamusLabelPage() {
     }
   }
 
+  /** Jalankan generasi label untuk mode yang sudah dikonfirmasi. */
+  async function prosesGenerasi() {
+    const mode = modeTunggu;
+    if (!mode || sedangGenerasi) return;
+    setSedangGenerasi(true);
+    try {
+      const res = await generasiLabel(mode);
+      bersihkanCacheKamus();
+      await muatRows(tabel);
+      toast.success(`${res.data.jumlah} label kolom diperbarui.`);
+    } catch (e) {
+      toast.error(errorMessage(e));
+    } finally {
+      setSedangGenerasi(false);
+      setModeTunggu(null);
+    }
+  }
+
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
-      <div className="mb-2 flex shrink-0 flex-wrap items-end gap-2">
-        <FilterField label="Tabel" htmlFor="select_tabel_kamus">
-          <Select value={tabel || '_pilih'} onValueChange={(v) => setTabel(v === '_pilih' ? '' : v)}>
-            <SelectTrigger id="select_tabel_kamus" className="w-56">
-              <SelectValue placeholder="Pilih tabel" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectItem value="_pilih">Pilih tabel…</SelectItem>
-                {skema.map((s) => (
-                  <SelectItem key={s.tabel} value={s.tabel}>{s.tabel}</SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </FilterField>
-        <p className="pb-2 text-xs text-muted-foreground">
-          Atur sekali di sini — berlaku di SEMUA halaman yang menampilkan kolom itu.
-        </p>
-      </div>
-
       <ExcelTable
         tableKey="kamus_label_kolom"
         fields={FIELDS}
@@ -230,6 +252,55 @@ export default function KamusLabelPage() {
         canEdit={canUbah}
         onCommit={commitBaris}
         onSaved={() => void muatRows(tabel)}
+        awalanToolbar={
+          <FilterField label="Tabel" htmlFor="select_tabel_kamus">
+            <ComboCari
+              id="select_tabel_kamus"
+              inputId="input_cari_tabel_kamus"
+              className="w-56"
+              value={tabel}
+              onChange={setTabel}
+              placeholder="Pilih tabel…"
+              kosongText="Tidak ada tabel cocok."
+              options={skema.map((s) => ({ value: s.tabel, label: s.tabel }))}
+            />
+          </FilterField>
+        }
+        akhirToolbar={
+          <div className="flex items-center gap-1.5">
+            <Separator orientation="vertical" className="h-5" />
+            <Button
+              id="btn_label_upper"
+              variant="outline"
+              size="sm"
+              title="Isi label semua kolom dengan huruf kapital (underscore → spasi)"
+              disabled={!bolehGenerate}
+              onClick={() => setModeTunggu('upper')}
+            >
+              UPPERCASE
+            </Button>
+            <Button
+              id="btn_label_proper"
+              variant="outline"
+              size="sm"
+              title="Isi label semua kolom dengan huruf awal kapital (underscore → spasi)"
+              disabled={!bolehGenerate}
+              onClick={() => setModeTunggu('proper')}
+            >
+              Proper Case
+            </Button>
+            <Button
+              id="btn_label_lower"
+              variant="outline"
+              size="sm"
+              title="Isi label semua kolom dengan huruf kecil (underscore → spasi)"
+              disabled={!bolehGenerate}
+              onClick={() => setModeTunggu('lower')}
+            >
+              lower case
+            </Button>
+          </div>
+        }
         searchValue={cari}
         onSearchChange={setCari}
         onSearchSubmit={() => {}}
@@ -253,6 +324,30 @@ export default function KamusLabelPage() {
           Hanya admin pesantren yang dapat mengubah kamus label.
         </p>
       ) : null}
+
+      <AlertDialog
+        open={modeTunggu !== null}
+        onOpenChange={(o) => {
+          if (!o) setModeTunggu(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Buat label otomatis?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Label untuk SEMUA kolom di {skema.length} tabel ({totalKolom} kolom) akan ditulis ulang
+              dari nama kolom dengan gaya {modeTunggu ? MODE_LABEL[modeTunggu] : ''}, underscore jadi
+              spasi. Kolom teknis (id, *_id, *_at, dst.) dilewati. Label yang sudah ada akan DITIMPA.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction disabled={sedangGenerasi} onClick={() => void prosesGenerasi()}>
+              {sedangGenerasi ? 'Memproses…' : 'Lanjut'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

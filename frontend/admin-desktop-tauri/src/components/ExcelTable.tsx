@@ -12,6 +12,7 @@ import { DENSITY_PX } from '@/prefs';
 import { useTheme } from '@/theme';
 import { errorMessage, prefGet, prefSet } from '@/api/client';
 import { Button, buttonVariants } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
@@ -167,6 +168,7 @@ export interface ExcelChoice {
  *  teks ini, kalau tidak kolom jadi sempit dan label terpotong/terbungkus. */
 function teksTampilSel(f: ExcelField, raw: unknown): string {
   if (raw == null) return '';
+  if (f.kind === 'toggle') return '';
   const s = String(raw);
   if (f.kind === 'select') {
     return (f.choices ?? []).find((c) => c.value === s)?.label ?? s;
@@ -179,8 +181,9 @@ export interface ExcelField {
   label: string;
   /** Lebar cadangan bila pengukuran konten gagal; lebar normal mengikuti AutoFit. */
   width?: number;
-  /** text/select bisa diedit saat mode Edit aktif; static selalu baca-saja. */
-  kind: 'text' | 'select' | 'static';
+  /** text/select bisa diedit saat mode Edit aktif; static selalu baca-saja;
+   *  toggle = switch ON/OFF yang langsung tersimpan (nilai 'ya'/'tidak'). */
+  kind: 'text' | 'select' | 'static' | 'toggle';
   choices?: ExcelChoice[];
   maxLength?: number;
   /** Kembalikan pesan galat bila nilai tidak valid, atau null bila OK. */
@@ -246,6 +249,11 @@ interface ExcelTableProps<T extends { id: string | number }> {
   searchPlaceholder?: string;
   searchIds?: { form?: string; input?: string; button?: string };
   filter?: ReactNode;
+  /** Kontrol di awal toolbar, diletakkan SEBELUM kotak Cari (mis. pemilih
+   *  tabel pada halaman Kamus Label). */
+  awalanToolbar?: ReactNode;
+  /** Kontrol di ujung KANAN toolbar (setelah tombol aksi utama halaman). */
+  akhirToolbar?: ReactNode;
   /** Tombol aksi utama halaman (mis. "+ Tambah X"): diletakkan sebaris
    *  dengan pencarian/filter, di sisi kanan. */
   addButton?: ReactNode;
@@ -545,6 +553,35 @@ function SelectCell({ rowData, setRowData, columnData, focus, stopEditing, disab
         </option>
       ))}
     </select>
+  );
+}
+
+interface ToggleColData {
+  fieldKey: string;
+  /** Label kolom (untuk aria). */
+  label: string;
+  /** Gerbang izin halaman; false = switch selalu nonaktif. */
+  bisaEdit: boolean;
+}
+
+/** Sel boolean (Switch ON/OFF) — langsung mengubah nilai tanpa mode Edit.
+ *  Nilai grid tetap string 'ya'/'tidak' agar pipeline data tak berubah. */
+function ToggleCell({ rowData, setRowData, columnData, disabled }: CellProps<GridRow, ToggleColData>) {
+  const key = columnData.fieldKey;
+  return (
+    <span
+      className="simpes-dsg-fill flex items-center justify-center"
+      data-col-key={key}
+      onMouseDown={(e) => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <Switch
+        checked={rowData[key] === 'ya'}
+        disabled={disabled || !columnData.bisaEdit}
+        aria-label={columnData.label}
+        onCheckedChange={(v) => setRowData({ ...rowData, [key]: v ? 'ya' : 'tidak' })}
+      />
+    </span>
   );
 }
 
@@ -865,6 +902,8 @@ export default function ExcelTable<T extends { id: string | number }>({
   searchPlaceholder,
   searchIds,
   filter,
+  awalanToolbar,
+  akhirToolbar,
   addButton,
   renderBulkActions,
   maxRows,
@@ -2110,6 +2149,24 @@ export default function ExcelTable<T extends { id: string | number }>({
           },
           isCellEmpty: ({ rowData }) => rowData[f.key] == null || rowData[f.key] === '',
         });
+      } else if (f.kind === 'toggle') {
+        cols.push({
+          ...common,
+          component: ToggleCell,
+          columnData: { fieldKey: f.key, label: f.label, bisaEdit: canEdit },
+          disableKeys: true,
+          keepFocus: false,
+          disabled: ({ rowData }: { rowData: GridRow }) =>
+            !canEdit || String(rowData.id) === INPUT_ROW_ID,
+          deleteValue: ({ rowData }) => ({ ...rowData, [f.key]: 'tidak' }) as GridRow,
+          copyValue: ({ rowData }) => (rowData[f.key] === 'ya' ? 'ya' : 'tidak'),
+          pasteValue: ({ rowData, value }: { rowData: GridRow; value: string }) =>
+            ({
+              ...rowData,
+              [f.key]: ['', 'tidak', 'no', 'false', '0'].includes(value.trim().toLowerCase()) ? 'tidak' : 'ya',
+            }) as GridRow,
+          isCellEmpty: ({ rowData }) => rowData[f.key] == null || rowData[f.key] === '',
+        });
       } else {
         cols.push({
           ...common,
@@ -2519,7 +2576,7 @@ export default function ExcelTable<T extends { id: string | number }>({
   const hasSearchInput = searchValue !== undefined && onSearchChange;
   const hasFilter = filter !== undefined;
   const hasUrut = itemUrut.length > 0 && !!onUrut;
-  const showToolbar = hasSearchInput || hasFilter || hasUrut;
+  const showToolbar = hasSearchInput || hasFilter || hasUrut || awalanToolbar !== undefined || akhirToolbar !== undefined;
   const showSearchButton = !!onSearchSubmit;
   const formId = searchIds?.form ?? `form_cari_${tableKey}`;
   const inputId = searchIds?.input ?? `input_cari_${tableKey}`;
@@ -2550,7 +2607,8 @@ export default function ExcelTable<T extends { id: string | number }>({
         data-part="toolbar_tabel"
         className={cn('flex flex-wrap items-end gap-2', showToolbar || addButton || !hidePreset ? 'mb-3' : 'mb-0')}
       >
-        {showToolbar && (
+        {awalanToolbar}
+        {(hasSearchInput || hasFilter || hasUrut) && (
           <form
             id={formId}
             onSubmit={(e) => {
@@ -2646,6 +2704,7 @@ export default function ExcelTable<T extends { id: string | number }>({
 
           {/* Tombol aksi utama halaman, sejajar dengan kontrol tabel. */}
           {addButton && <div className="flex items-center gap-2">{addButton}</div>}
+          {akhirToolbar}
         </div>
       </div>
 

@@ -138,4 +138,106 @@ class KamusLabelTest extends TestCase
         ])->assertStatus(403);
         $this->assertSame(0, LabelKolom::count());
     }
+
+    public function test_generasi_upper_mengganti_underscore_dan_melewati_kolom_teknis(): void
+    {
+        $pusat = $this->makeUser('admin');
+
+        $res = $this->actingAs($pusat, 'sanctum')->postJson('/api/admin/kamus-kolom/generasi', [
+            'mode' => 'upper',
+        ]);
+        $res->assertStatus(200);
+        $this->assertGreaterThan(0, (int) $res->json('data.jumlah'));
+
+        $this->assertSame(
+            'NAMA LENGKAP',
+            LabelKolom::where('tabel', 'santri')->where('kolom', 'nama_lengkap')->value('label'),
+        );
+        $this->assertSame(
+            'NO HP SANTRI',
+            LabelKolom::where('tabel', 'santri')->where('kolom', 'no_hp_santri')->value('label'),
+        );
+
+        // Generasi berlaku lintas tabel, bukan hanya tabel tertentu.
+        $this->assertTrue(LabelKolom::where('tabel', 'lembaga')->exists());
+
+        // Kolom teknis/audit tidak dibuatkan label.
+        $this->assertFalse(LabelKolom::where('kolom', 'id')->exists());
+        $this->assertFalse(LabelKolom::where('kolom', 'created_at')->exists());
+        $this->assertFalse(LabelKolom::where('kolom', 'deleted_at')->exists());
+        $this->assertSame(0, LabelKolom::where('kolom', 'like', '%\_id')->count());
+    }
+
+    public function test_generasi_proper_dan_lower(): void
+    {
+        $pusat = $this->makeUser('admin');
+
+        $this->actingAs($pusat, 'sanctum')
+            ->postJson('/api/admin/kamus-kolom/generasi', ['mode' => 'proper'])
+            ->assertStatus(200);
+        $this->assertSame(
+            'Nama Lengkap',
+            LabelKolom::where('tabel', 'santri')->where('kolom', 'nama_lengkap')->value('label'),
+        );
+
+        $this->actingAs($pusat, 'sanctum')
+            ->postJson('/api/admin/kamus-kolom/generasi', ['mode' => 'lower'])
+            ->assertStatus(200);
+        $this->assertSame(
+            'nama lengkap',
+            LabelKolom::where('tabel', 'santri')->where('kolom', 'nama_lengkap')->value('label'),
+        );
+    }
+
+    public function test_generasi_menjaga_atribut_lain_dan_menimpa_label(): void
+    {
+        $pusat = $this->makeUser('admin');
+        LabelKolom::create([
+            'tabel' => 'santri', 'kolom' => 'nama_lengkap', 'label' => 'NAMA KUSTOM',
+            'align' => 'left', 'lebar' => 220, 'kunci_lebar' => true, 'bisa_urut' => false,
+            'tooltip' => 'Nama lengkap santri', 'format' => 'teks',
+        ]);
+
+        $this->actingAs($pusat, 'sanctum')
+            ->postJson('/api/admin/kamus-kolom/generasi', ['mode' => 'upper'])
+            ->assertStatus(200);
+
+        $row = LabelKolom::where('tabel', 'santri')->where('kolom', 'nama_lengkap')->first();
+        $this->assertSame('NAMA LENGKAP', $row->label);
+        $this->assertSame('left', $row->align);
+        $this->assertSame(220, $row->lebar);
+        $this->assertTrue($row->kunci_lebar);
+        $this->assertFalse($row->bisa_urut);
+        $this->assertSame('Nama lengkap santri', $row->tooltip);
+        $this->assertSame('teks', $row->format);
+    }
+
+    public function test_generasi_mode_tidak_valid_ditolak(): void
+    {
+        $pusat = $this->makeUser('admin');
+
+        $this->actingAs($pusat, 'sanctum')
+            ->postJson('/api/admin/kamus-kolom/generasi', ['mode' => 'kapital'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['mode']);
+        $this->assertSame(0, LabelKolom::count());
+    }
+
+    public function test_generasi_ditolak_untuk_admin_scoped(): void
+    {
+        $root = Lembaga::create([
+            'nama' => 'Pesantren', 'kode' => 'PESANTREN',
+            'is_seleksi' => false, 'kelompok_psb' => 'combo_mi_md', 'is_active' => true,
+        ]);
+        $mi = Lembaga::create([
+            'parent_id' => $root->id, 'nama' => 'Madrasah Ibtidaiyah', 'kode' => 'MI',
+            'is_seleksi' => false, 'kelompok_psb' => 'combo_mi_md', 'is_active' => true,
+        ]);
+        $scoped = $this->makeUser('admin', [$mi->id]);
+
+        $this->actingAs($scoped, 'sanctum')
+            ->postJson('/api/admin/kamus-kolom/generasi', ['mode' => 'upper'])
+            ->assertStatus(403);
+        $this->assertSame(0, LabelKolom::count());
+    }
 }

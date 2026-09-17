@@ -408,7 +408,7 @@ Status: 🔲 not scaffolded (backend 201/202 pending).
   pengajuan-biodata, antrean PSB, lembaga-santri. Tabel kecil non-halaman
   (referensi, kegiatan, kuota, grup MI-MD, tabel kerja daftar-kelas) tetap
   urutan bawaan.
-* Kamus kolom level tabel database (v2.68–2.70, `label_kolom`, halaman Kamus
+* Kamus kolom level tabel database (v2.68–2.72, `label_kolom`, halaman Kamus
   Label): nama header, perataan, lebar (+`kunci_lebar`), tooltip, format tampil,
   dan kontrol urut (`bisa_urut`, `arah_bawaan`) diatur SEKALI per pasangan
   tabel+kolom — berlaku di semua halaman yang menampilkannya. Grid mengikat
@@ -420,8 +420,12 @@ Status: 🔲 not scaffolded (backend 201/202 pending).
   pesantren. Halaman menampilkan dropdown tabel + grid berisi satu baris per
   kolom tabel itu; `GET kamus-kolom/skema` menyediakan daftar tabel + kolom
   nyata (dari `Schema::getTables/getColumns`, tanpa tabel infra) dan pasangan
-  tabel+kolom divalidasi ada di DB saat simpan.
-* See live contract: `php artisan route:list --path=api` (144 routes, 101 di grup admin).
+  tabel+kolom divalidasi ada di DB saat simpan. `POST kamus-kolom/generasi`
+  mengisi label SELURUH kolom semua tabel dari nama kolom (underscore → spasi;
+  mode `upper`/`proper`/`lower`), melewati kolom teknis (`id`, `*_id`, `*_at`,
+  `*_by`, `password`, `remember_token`) dan menimpa label lama lewat upsert
+  massal tanpa menyentuh atribut lain.
+* See live contract: `php artisan route:list --path=api` (152 routes, 109 di grup admin).
 
 ### 9. Non-functional requirements
 

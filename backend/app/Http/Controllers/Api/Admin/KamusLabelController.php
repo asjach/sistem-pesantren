@@ -7,6 +7,7 @@ use App\Models\LabelKolom;
 use App\Services\KamusKolomService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -21,6 +22,9 @@ class KamusLabelController extends Controller
     /** Format tampil yang didukung kolom. */
     public const FORMAT = ['teks', 'angka', 'tanggal', 'ya_tidak'];
 
+    /** Gaya penulisan label otomatis dari nama kolom database. */
+    public const MODE_LABEL = ['upper', 'proper', 'lower'];
+
     /** Tabel infrastruktur/kamus (bukan data bisnis) yang tak perlu diatur. */
     private const TABEL_DIABAIKAN = [
         'migrations', 'cache', 'cache_locks', 'jobs', 'job_batches', 'failed_jobs',
@@ -32,6 +36,16 @@ class KamusLabelController extends Controller
 
     /** GET /api/admin/kamus-kolom/skema — tabel + kolomnya untuk pemilih otomatis. */
     public function skema(): JsonResponse
+    {
+        return response()->json(['pesan' => 'Skema kolom dimuat.', 'data' => $this->daftarTabelKolom()]);
+    }
+
+    /**
+     * Semua tabel data + kolomnya (tabel infra dikecualikan, duplikat dibuang).
+     *
+     * @return list<array{tabel: string, kolom: list<string>}>
+     */
+    protected function daftarTabelKolom(): array
     {
         $tabel = [];
         $sudah = [];
@@ -51,7 +65,75 @@ class KamusLabelController extends Controller
         }
         usort($tabel, fn ($a, $b) => strcmp($a['tabel'], $b['tabel']));
 
-        return response()->json(['pesan' => 'Skema kolom dimuat.', 'data' => $tabel]);
+        return $tabel;
+    }
+
+    /**
+     * Kolom teknis/audit yang tak perlu diberi label (dilewati saat generasi).
+     */
+    protected function kolomTeknis(string $kolom): bool
+    {
+        return $kolom === 'id'
+            || $kolom === 'password'
+            || $kolom === 'remember_token'
+            || str_ends_with($kolom, '_id')
+            || str_ends_with($kolom, '_at')
+            || str_ends_with($kolom, '_by');
+    }
+
+    /** Label dari nama kolom: underscore → spasi lalu digayakan sesuai mode. */
+    protected function labelDariKolom(string $kolom, string $mode): string
+    {
+        $teks = trim((string) preg_replace('/_+/', ' ', $kolom));
+
+        return match ($mode) {
+            'upper' => mb_strtoupper($teks),
+            'lower' => mb_strtolower($teks),
+            default => mb_convert_case($teks, MB_CASE_TITLE, 'UTF-8'),
+        };
+    }
+
+    /**
+     * POST /api/admin/kamus-kolom/generasi — isi label semua kolom (seluruh
+     * tabel, kolom teknis dilewati) dari nama kolom; label lama ditimpa,
+     * atribut lain (perataan, lebar, tooltip, dst) dibiarkan.
+     */
+    public function generasi(Request $request): JsonResponse
+    {
+        $this->pastikanAdminPesantren();
+        $data = $request->validate([
+            'mode' => ['required', Rule::in(self::MODE_LABEL)],
+        ]);
+
+        $tabel = $this->daftarTabelKolom();
+        $sekarang = now();
+        $baris = [];
+        foreach ($tabel as $t) {
+            foreach ($t['kolom'] as $kolom) {
+                if ($this->kolomTeknis($kolom)) {
+                    continue;
+                }
+                $baris[] = [
+                    'tabel' => $t['tabel'],
+                    'kolom' => $kolom,
+                    'label' => $this->labelDariKolom($kolom, $data['mode']),
+                    'created_at' => $sekarang,
+                    'updated_at' => $sekarang,
+                ];
+            }
+        }
+
+        DB::transaction(function () use ($baris) {
+            foreach (array_chunk($baris, 500) as $chunk) {
+                LabelKolom::upsert($chunk, ['tabel', 'kolom'], ['label', 'updated_at']);
+            }
+        });
+        KamusKolomService::bump();
+
+        return response()->json([
+            'pesan' => count($baris).' label kolom dibuat.',
+            'data' => ['jumlah' => count($baris), 'tabel' => count($tabel)],
+        ]);
     }
 
     /** GET /api/admin/kamus-kolom — daftar baris kamus (kelola). */

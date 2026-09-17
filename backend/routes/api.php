@@ -156,6 +156,7 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::get('kamus-kolom', [KamusLabelController::class, 'index'])->middleware('permission:kamus_label.lihat');
         Route::get('kamus-kolom/peta', [KamusLabelController::class, 'peta'])->middleware('permission:kamus_label.lihat');
         Route::get('kamus-kolom/skema', [KamusLabelController::class, 'skema'])->middleware('permission:kamus_label.lihat');
+        Route::post('kamus-kolom/generasi', [KamusLabelController::class, 'generasi'])->middleware(['permission:kamus_label.tambah', 'permission:kamus_label.ubah']);
         Route::post('kamus-kolom', [KamusLabelController::class, 'store'])->middleware('permission:kamus_label.tambah');
         Route::match(['put', 'patch'], 'kamus-kolom/{labelKolom}', [KamusLabelController::class, 'update'])->middleware('permission:kamus_label.ubah');
         Route::delete('kamus-kolom/{labelKolom}', [KamusLabelController::class, 'destroy'])->middleware('permission:kamus_label.hapus');
