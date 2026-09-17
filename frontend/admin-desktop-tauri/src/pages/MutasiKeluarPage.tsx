@@ -120,8 +120,8 @@ export default function MutasiKeluarPage() {
             <ExcelTable
               tableKey="mutasi_santri_aktif"
               fields={[
-                { key: 'nama', label: 'Nama', kind: 'static' },
-                { key: 'kelas', label: 'Kelas', kind: 'static' },
+                { key: 'nama', label: 'santri.nama_lengkap', kind: 'static' },
+                { key: 'kelas', label: 'kelas.nama_kelas', kind: 'static' },
               ]}
               rows={kiri}
               getValues={(r) => ({ nama: r.santri?.nama_lengkap ?? null, kelas: r.kelas?.nama_kelas ?? null })}
@@ -148,10 +148,10 @@ export default function MutasiKeluarPage() {
             <ExcelTable
               tableKey="mutasi_arsip"
               fields={[
-                { key: 'santri', label: 'Nama', kind: 'static' },
-                { key: 'tanggal', label: 'Tanggal', kind: 'static' },
-                { key: 'alasan', label: 'Alasan', kind: 'static' },
-                { key: 'tujuan', label: 'Tujuan', kind: 'static' },
+                { key: 'santri', label: 'santri.nama_lengkap', kind: 'static' },
+                { key: 'tanggal', label: 'tanggal_mutasi', kind: 'static' },
+                { key: 'alasan', label: 'alasan_mutasi', kind: 'static' },
+                { key: 'tujuan', label: 'nama_sekolah_tujuan', kind: 'static' },
               ]}
               rows={arsip}
               getValues={(m) => ({

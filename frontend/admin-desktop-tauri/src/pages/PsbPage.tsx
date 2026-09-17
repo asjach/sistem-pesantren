@@ -89,32 +89,32 @@ const STAGES: { id: string; label: string; statuses: string[] }[] = [
 /** Definisi kolom grid PSB; pilihan gelombang mengikuti data (mode Input). */
 function psbFields(gelombangChoices: ExcelChoice[]): ExcelField[] {
   return [
-    { key: 'no', label: 'No. pendaftaran', width: 190, kind: 'static' },
+    { key: 'no', label: 'no_pendaftaran', width: 190, kind: 'static' },
     {
-      key: 'nama', label: 'Nama', width: 200, kind: 'static',
+      key: 'nama', label: 'nama_lengkap', width: 200, kind: 'static',
       inputKind: 'text', maxLength: 255, required: true,
     },
     {
-      key: 'nik', label: 'NIK', width: 160, kind: 'static',
+      key: 'nik', label: 'nik', width: 160, kind: 'static',
       inputKind: 'text', maxLength: 16, required: true,
       validate: (v) => (!v || /^\d{16}$/.test(v.trim()) ? null : 'NIK harus 16 digit angka.'),
     },
     {
-      key: 'tipe', label: 'Tipe', width: 110, kind: 'static',
+      key: 'tipe', label: 'tipe_santri', width: 110, kind: 'static',
       inputKind: 'select', required: true,
       inputChoices: [
         { value: 'asrama', label: 'asrama' },
         { value: 'non_asrama', label: 'non_asrama' },
       ],
     },
-    { key: 'lembaga', label: 'Lembaga', width: 180, kind: 'static' },
+    { key: 'lembaga', label: 'lembaga.kode', width: 180, kind: 'static' },
     {
-      key: 'gelombang', label: 'Gelombang', width: 140, kind: 'static',
+      key: 'gelombang', label: 'psb_gelombang.nama', width: 140, kind: 'static',
       inputKind: 'select', required: true, inputChoices: gelombangChoices,
     },
     { key: 'paket', label: 'Paket', width: 120, kind: 'static' },
-    { key: 'status', label: 'Status', width: 150, kind: 'static' },
-    { key: 'daftar', label: 'Tgl daftar', width: 110, kind: 'static' },
+    { key: 'status', label: 'status_pendaftaran', width: 150, kind: 'static' },
+    { key: 'daftar', label: 'tanggal_daftar', width: 110, kind: 'static' },
   ];
 }
 

@@ -48,17 +48,17 @@ import { toast } from 'sonner';
 
 const FIELDS: ExcelField[] = [
   {
-    key: 'nama', label: 'Nama', width: 160, kind: 'text', maxLength: 50,
+    key: 'nama', label: 'nama_kelas', width: 160, kind: 'text', maxLength: 50,
     required: true,
     validate: (v) => (!v || !v.trim() ? 'Nama kelas wajib diisi.' : null),
   },
-  { key: 'lembaga', label: 'Lembaga', width: 110, kind: 'static' },
-  { key: 'ta', label: 'TA', width: 160, kind: 'static' },
+  { key: 'lembaga', label: 'lembaga.kode', width: 110, kind: 'static' },
+  { key: 'ta', label: 'tahun_ajaran.nama', width: 160, kind: 'static' },
   {
-    key: 'tingkat', label: 'Tingkat', width: 120, kind: 'text', maxLength: 20,
+    key: 'tingkat', label: 'tingkat', width: 120, kind: 'text', maxLength: 20,
   },
   {
-    key: 'urutan', label: 'Urutan', width: 90, kind: 'text', maxLength: 6,
+    key: 'urutan', label: 'urutan', width: 90, kind: 'text', maxLength: 6,
     validate: (v) => {
       if (v === null || v === undefined || v.trim() === '') return null;
       const n = Number(v);
@@ -66,7 +66,7 @@ const FIELDS: ExcelField[] = [
     },
   },
   {
-    key: 'kapasitas', label: 'Kapasitas', width: 120, kind: 'text', maxLength: 10,
+    key: 'kapasitas', label: 'kapasitas', width: 120, kind: 'text', maxLength: 10,
     validate: (v) => {
       if (!v) return null;
       const n = Number(v);

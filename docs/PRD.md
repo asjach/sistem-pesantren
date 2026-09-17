@@ -2,7 +2,7 @@
 
 | Atribut | Keterangan |
 |---|---|
-| Versi Dokumen | 2.66 (label header via preset) |
+| Versi Dokumen | 2.67 (label header nama DB) |
 | Tanggal | 17 September 2026 |
 | Status | PRD produk SIMPES — acuan tunggal kebutuhan, rancangan, dan status implementasi aplikasi yang sedang dibangun |
 | Penyusun | Solo dev + Yayasan |
@@ -117,7 +117,8 @@
 | 2.63 | 2026-09-17 | Urut header ke semua tabel daftar via trait UrutDaftar |
 | 2.64 | 2026-09-17 | Default urut santri = JK lalu Nama |
 | 2.65 | 2026-09-17 | Urut pindah ke dropdown toolbar + item gabungan |
-| 2.66 | 2026-09-17 | Nama header kustom via preset (kolom label di preset_tabel + input per kolom di dialog kelola); berlaku di header, dropdown urut, menu klik kanan; suite 219/219, typecheck + build lolos |
+| 2.66 | 2026-09-17 | Nama header kustom via preset |
+| 2.67 | 2026-09-17 | Label bawaan semua header grid = nama kolom database (relasi: tabel.kolom); kolom hitung-tanpa-kolom (Juga MI, Paket, Periode, rekap) tetap; typecheck + build lolos |
 ## Daftar Isi
 
 > Rujukan antar-file: "Bab 2–8" → `arsitektur.md`; "Bab 9–14 + Lampiran" → `operasi.md`; "§N / Part B" → `backend-detail.md`.

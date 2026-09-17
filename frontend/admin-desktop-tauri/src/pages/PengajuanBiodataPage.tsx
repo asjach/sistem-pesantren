@@ -34,12 +34,12 @@ import { toast } from 'sonner';
 const STATUS = ['diajukan', 'disetujui', 'ditolak'];
 
 const FIELDS: ExcelField[] = [
-  { key: 'santri', label: 'Santri', width: 200, kind: 'static' },
-  { key: 'nik', label: 'NIK', width: 160, kind: 'static' },
-  { key: 'wali', label: 'Wali', width: 160, kind: 'static' },
-  { key: 'perubahan', label: 'Perubahan', width: 320, kind: 'static' },
-  { key: 'status', label: 'Status', width: 110, kind: 'static' },
-  { key: 'tanggal', label: 'Diajukan', width: 110, kind: 'static' },
+  { key: 'santri', label: 'santri.nama_lengkap', width: 200, kind: 'static' },
+  { key: 'nik', label: 'santri.nik', width: 160, kind: 'static' },
+  { key: 'wali', label: 'users.name', width: 160, kind: 'static' },
+  { key: 'perubahan', label: 'perubahan_json', width: 320, kind: 'static' },
+  { key: 'status', label: 'status', width: 110, kind: 'static' },
+  { key: 'tanggal', label: 'created_at', width: 110, kind: 'static' },
 ];
 
 function gridValues(p: PengajuanBiodata): Record<string, string | null> {

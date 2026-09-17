@@ -38,19 +38,19 @@ const dateRule = (label: string) => (v: string | null) =>
 
 const FIELDS: ExcelField[] = [
   {
-    key: 'nama', label: 'Nama', width: 160, kind: 'text', maxLength: 50,
+    key: 'nama', label: 'nama', width: 160, kind: 'text', maxLength: 50,
     required: true,
     validate: (v) => (!v || !v.trim() ? 'Nama tahun ajaran wajib diisi.' : null),
   },
   {
-    key: 'mulai', label: 'Mulai', width: 130, kind: 'text', maxLength: 10,
+    key: 'mulai', label: 'tanggal_mulai', width: 130, kind: 'text', maxLength: 10,
     validate: dateRule('Tanggal mulai'),
   },
   {
-    key: 'selesai', label: 'Selesai', width: 130, kind: 'text', maxLength: 10,
+    key: 'selesai', label: 'tanggal_selesai', width: 130, kind: 'text', maxLength: 10,
     validate: dateRule('Tanggal selesai'),
   },
-  { key: 'aktif', label: 'Aktif', width: 100, kind: 'static' },
+  { key: 'aktif', label: 'is_aktif', width: 100, kind: 'static' },
   { key: 'tampil', label: 'Tampil lembaga', width: 150, kind: 'static' },
 ];
 

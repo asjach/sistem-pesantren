@@ -132,9 +132,9 @@ export default function KenaikanKelasPage() {
             <ExcelTable
               tableKey="kenaikan_santri_genap"
               fields={[
-                { key: 'nama', label: 'Nama', kind: 'static' },
-                { key: 'kelas', label: 'Kelas', kind: 'static' },
-                { key: 'tingkat', label: 'Tingkat', kind: 'static' },
+                { key: 'nama', label: 'santri.nama_lengkap', kind: 'static' },
+                { key: 'kelas', label: 'kelas.nama_kelas', kind: 'static' },
+                { key: 'tingkat', label: 'tingkat', kind: 'static' },
               ]}
               rows={kiri}
               getValues={(r) => ({
@@ -178,8 +178,8 @@ function PanelDaftar({ idPrefix, judul, baris, onKembalikan }: { idPrefix: strin
         <ExcelTable
           tableKey={`kenaikan_${idPrefix}`}
           fields={[
-            { key: 'nama', label: 'Nama', kind: 'static' },
-            { key: 'kelas', label: 'Kelas', kind: 'static' },
+            { key: 'nama', label: 'santri.nama_lengkap', kind: 'static' },
+            { key: 'kelas', label: 'kelas.nama_kelas', kind: 'static' },
           ]}
           rows={baris.map((b) => ({ ...b, id: b.santri_id }))}
           getValues={(b) => ({ nama: b.nama, kelas: b.kelas })}

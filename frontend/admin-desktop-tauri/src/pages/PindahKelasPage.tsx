@@ -99,9 +99,9 @@ export default function PindahKelasPage() {
             <ExcelTable
               tableKey={`pindah_kelas_${g.tingkat ?? 'tanpa'}_${g.kelasId ?? 'tanpa'}`}
               fields={[
-                { key: 'nama', label: 'Nama', kind: 'static' },
-                { key: 'nis_lokal', label: 'NIS lokal', kind: 'static' },
-                { key: 'no_absen', label: 'Absen', kind: 'static' },
+                { key: 'nama', label: 'santri.nama_lengkap', kind: 'static' },
+                { key: 'nis_lokal', label: 'nis_lokal', kind: 'static' },
+                { key: 'no_absen', label: 'no_absen', kind: 'static' },
               ]}
               rows={g.baris}
               getValues={(r) => ({

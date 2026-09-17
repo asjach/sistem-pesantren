@@ -52,21 +52,21 @@ const tglValidator = (v: string | null) =>
 const angkaValidator = (v: string | null) => (!v || v.trim() === '' || /^\d+$/.test(v.trim()) ? null : 'Harus angka.');
 
 function teks(key: string, label: string, width = 140, maxLength = 255): ExcelField {
-  return { key, label, width, kind: 'text', maxLength };
+  return { key, label: key, width, kind: 'text', maxLength };
 }
 
 function tgl(key: string, label: string, width = 110): ExcelField {
-  return { key, label, width, kind: 'text', maxLength: 10, validate: tglValidator };
+  return { key, label: key, width, kind: 'text', maxLength: 10, validate: tglValidator };
 }
 
 function angka(key: string, label: string, width = 90): ExcelField {
-  return { key, label, width, kind: 'text', maxLength: 4, validate: angkaValidator };
+  return { key, label: key, width, kind: 'text', maxLength: 4, validate: angkaValidator };
 }
 
 function pihakFields(prefix: 'ayah' | 'ibu' | 'wali', judul: string): ExcelField[] {
   return [
     teks(`${prefix}_nama`, `${judul} — Nama`, 160),
-    { key: `${prefix}_nik`, label: `${judul} — NIK`, width: 150, kind: 'text', maxLength: 16, validate: digitValidator(16, 'NIK') },
+    { key: `${prefix}_nik`, label: `${prefix}_nik`, width: 150, kind: 'text', maxLength: 16, validate: digitValidator(16, 'NIK') },
     teks(`${prefix}_tmp_lahir`, `${judul} — Tempat lahir`, 140),
     tgl(`${prefix}_tgl_lahir`, `${judul} — Tgl lahir`, 120),
     teks(`${prefix}_status`, `${judul} — Status`, 110),
@@ -81,25 +81,25 @@ function pihakFields(prefix: 'ayah' | 'ibu' | 'wali', judul: string): ExcelField
 
 /** Kolom buku induk: identitas murni + Status turunan (kolom NIS per lembaga dinamis di komponen). */
 const SANTRI_FIELDS: ExcelField[] = [
-  { key: 'nama', label: 'Nama', width: 220, kind: 'text', maxLength: 255, validate: (v) => (v && v.trim() ? null : 'Nama wajib diisi.') },
+  { key: 'nama', label: 'nama_lengkap', width: 220, kind: 'text', maxLength: 255, validate: (v) => (v && v.trim() ? null : 'Nama wajib diisi.') },
   teks('nama_singkat', 'Nama singkat', 140),
-  { key: 'nik', label: 'NIK', width: 160, kind: 'text', maxLength: 16, validate: digitValidator(16, 'NIK') },
-  { key: 'nisn', label: 'NISN', width: 120, kind: 'text', maxLength: 10, validate: digitValidator(10, 'NISN') },
-  { key: 'jk', label: 'JK', width: 60, kind: 'select', choices: [{ value: 'L', label: 'L' }, { value: 'P', label: 'P' }] },
+  { key: 'nik', label: 'nik', width: 160, kind: 'text', maxLength: 16, validate: digitValidator(16, 'NIK') },
+  { key: 'nisn', label: 'nisn', width: 120, kind: 'text', maxLength: 10, validate: digitValidator(10, 'NISN') },
+  { key: 'jk', label: 'jk', width: 60, kind: 'select', choices: [{ value: 'L', label: 'L' }, { value: 'P', label: 'P' }] },
   teks('tmp_lahir', 'Tempat lahir', 140),
   tgl('tgl_lahir', 'Tgl lahir', 110),
   angka('anak_ke', 'Anak ke', 80),
   angka('j_saudara', 'Jml saudara', 100),
-  { key: 'tipe_santri', label: 'Tipe', width: 120, kind: 'select', choices: [{ value: 'asrama', label: 'asrama' }, { value: 'non_asrama', label: 'non_asrama' }] },
+  { key: 'tipe_santri', label: 'tipe_santri', width: 120, kind: 'select', choices: [{ value: 'asrama', label: 'asrama' }, { value: 'non_asrama', label: 'non_asrama' }] },
   teks('no_hp_santri', 'HP santri', 130, 20),
-  { key: 'email_santri', label: 'Email santri', width: 180, kind: 'text', maxLength: 255, validate: (v) => (!v || v.trim() === '' || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()) ? null : 'Format email tidak valid.') },
+  { key: 'email_santri', label: 'email_santri', width: 180, kind: 'text', maxLength: 255, validate: (v) => (!v || v.trim() === '' || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()) ? null : 'Format email tidak valid.') },
   teks('agama', 'Agama', 100),
   teks('cita_cita', 'Cita-cita', 130),
   teks('hobi', 'Hobi', 130),
   teks('kebutuhan_khusus', 'Kebutuhan khusus', 150),
   teks('kebutuhan_disabilitas', 'Disabilitas', 130),
   teks('nomor_kip', 'No. KIP', 130),
-  { key: 'no_kk', label: 'No. KK', width: 150, kind: 'text', maxLength: 16, validate: digitValidator(16, 'No. KK') },
+  { key: 'no_kk', label: 'no_kk', width: 150, kind: 'text', maxLength: 16, validate: digitValidator(16, 'No. KK') },
   teks('kewarganegaraan', 'Kewarganegaraan', 130),
   teks('bahasa_sehari', 'Bahasa sehari-hari', 150),
   teks('status_tempat_tinggal', 'Tempat tinggal', 150),
@@ -119,7 +119,7 @@ const SANTRI_FIELDS: ExcelField[] = [
   ...pihakFields('ibu', 'Ibu'),
   ...pihakFields('wali', 'Wali'),
   teks('yang_membiayai', 'Yang membiayai', 140),
-  { key: 'status', label: 'Status', width: 100, kind: 'static' },
+  { key: 'status', label: 'status_global', width: 100, kind: 'static' },
 ];
 
 /** Prefiks kunci kolom NIS per lembaga (kolom dinamis cerminan `lembaga_santri`). */

@@ -142,8 +142,8 @@ export default function KelulusanPage() {
             <ExcelTable
               tableKey="kelulusan_santri_akhir"
               fields={[
-                { key: 'nama', label: 'Nama', kind: 'static' },
-                { key: 'kelas', label: 'Kelas', kind: 'static' },
+                { key: 'nama', label: 'santri.nama_lengkap', kind: 'static' },
+                { key: 'kelas', label: 'kelas.nama_kelas', kind: 'static' },
               ]}
               rows={kiri}
               getValues={(r) => ({ nama: r.santri?.nama_lengkap ?? null, kelas: r.kelas?.nama_kelas ?? null })}
@@ -165,10 +165,10 @@ export default function KelulusanPage() {
               <ExcelTable
                 tableKey="kelulusan_alumni"
                 fields={[
-                  { key: 'santri', label: 'Nama', kind: 'static' },
-                  { key: 'kelas', label: 'Kelas lulus', kind: 'static' },
-                  { key: 'ta', label: 'TA lulus', kind: 'static' },
-                  { key: 'ijazah', label: 'No. ijazah', kind: 'static' },
+                  { key: 'santri', label: 'santri.nama_lengkap', kind: 'static' },
+                  { key: 'kelas', label: 'kelas.nama_kelas', kind: 'static' },
+                  { key: 'ta', label: 'tahun_ajaran.nama', kind: 'static' },
+                  { key: 'ijazah', label: 'nomor_ijazah', kind: 'static' },
                 ]}
                 rows={alumni}
                 getValues={(a) => ({
@@ -203,8 +203,8 @@ export default function KelulusanPage() {
               <ExcelTable
                 tableKey="kelulusan_tidak_lulus"
                 fields={[
-                  { key: 'nama', label: 'Nama', kind: 'static' },
-                  { key: 'kelas', label: 'Kelas', kind: 'static' },
+                  { key: 'nama', label: 'santri.nama_lengkap', kind: 'static' },
+                  { key: 'kelas', label: 'kelas.nama_kelas', kind: 'static' },
                 ]}
                 rows={tidakLulus.map((b) => ({ ...b, id: b.santri_id }))}
                 getValues={(b) => ({ nama: b.nama, kelas: b.kelas })}

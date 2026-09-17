@@ -75,26 +75,26 @@ function parseAngka(s: string | null | undefined): number {
 
 const KEGIATAN_FIELDS: ExcelField[] = [
   {
-    key: 'nama', label: 'Gelombang', width: 220, kind: 'text', maxLength: 100,
+    key: 'nama', label: 'nama', width: 220, kind: 'text', maxLength: 100,
     validate: (v) => (!v || !v.trim() ? 'Nama gelombang wajib diisi.' : null),
   },
-  { key: 'nomor', label: 'Nomor', width: 80, kind: 'static' },
+  { key: 'nomor', label: 'nomor', width: 80, kind: 'static' },
   { key: 'periode', label: 'Periode (tanggal lewat dialog Ubah)', width: 260, kind: 'static' },
 ];
 
 const KUOTA_FIELDS: ExcelField[] = [
-  { key: 'lembaga', label: 'Lembaga', width: 180, kind: 'static' },
-  { key: 'tipe', label: 'Tipe', width: 110, kind: 'static' },
-  { key: 'kuota', label: 'Kuota pool', width: 130, kind: 'text', maxLength: 9, validate: angkaInput('Kuota') },
+  { key: 'lembaga', label: 'lembaga.kode', width: 180, kind: 'static' },
+  { key: 'tipe', label: 'tipe_santri', width: 110, kind: 'static' },
+  { key: 'kuota', label: 'kuota', width: 130, kind: 'text', maxLength: 9, validate: angkaInput('Kuota') },
   {
-    key: 'paket', label: 'Paket MI-MD', width: 130, kind: 'select',
+    key: 'paket', label: 'paket_tersedia', width: 130, kind: 'select',
     choices: [
       { value: 'ya', label: 'Ya' },
       { value: 'tidak', label: 'Tidak' },
     ],
   },
   {
-    key: 'seleksi', label: 'Seleksi', width: 120, kind: 'select',
+    key: 'seleksi', label: 'membutuhkan_seleksi', width: 120, kind: 'select',
     choices: [
       { value: 'default', label: 'Ikut lembaga' },
       { value: 'ya', label: 'Ya' },
@@ -102,7 +102,7 @@ const KUOTA_FIELDS: ExcelField[] = [
     ],
   },
   {
-    key: 'pemberkasan', label: 'Pemberkasan', width: 120, kind: 'select',
+    key: 'pemberkasan', label: 'membutuhkan_pemberkasan', width: 120, kind: 'select',
     choices: [
       { value: 'ya', label: 'Ya' },
       { value: 'tidak', label: 'Tidak' },

@@ -41,11 +41,11 @@ import { toast } from 'sonner';
 function dokumenFields(jenisOptions: { value: string; label: string }[]): ExcelField[] {
   return [
     {
-      key: 'jenis', label: 'Jenis dokumen', width: 260, kind: 'static',
+      key: 'jenis', label: 'jenis_dokumen_santri', width: 260, kind: 'static',
       inputKind: 'select', required: true, inputChoices: jenisOptions,
     },
     {
-      key: 'wajib', label: 'Sifat', width: 120, kind: 'select',
+      key: 'wajib', label: 'is_wajib', width: 120, kind: 'select',
       choices: [
         { value: 'Ya', label: 'Wajib' },
         { value: 'Tidak', label: 'Opsional' },

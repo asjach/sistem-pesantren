@@ -14,15 +14,15 @@ import {
 
 /** Kolom grid roster riwayat (Daftar Kelas, Riwayat Belajar, Kenaikan, Pindah Kelas). */
 export const ROSTER_FIELDS: ExcelField[] = [
-  { key: 'santri', label: 'Santri', width: 200, kind: 'static' },
-  { key: 'nis', label: 'NIS lokal', width: 110, kind: 'static' },
-  { key: 'lembaga', label: 'Lembaga', width: 110, kind: 'static' },
-  { key: 'smt', label: 'Smt', width: 60, kind: 'static' },
-  { key: 'tingkat', label: 'Tingkat', width: 80, kind: 'static' },
-  { key: 'kelas', label: 'Kelas', width: 140, kind: 'static' },
-  { key: 'absen', label: 'Absen', width: 70, kind: 'static' },
-  { key: 'status', label: 'Status awal', width: 130, kind: 'static' },
-  { key: 'masuk', label: 'Tgl masuk', width: 110, kind: 'static' },
+  { key: 'santri', label: 'santri.nama_lengkap', width: 200, kind: 'static' },
+  { key: 'nis', label: 'nis_lokal', width: 110, kind: 'static' },
+  { key: 'lembaga', label: 'lembaga.kode', width: 110, kind: 'static' },
+  { key: 'smt', label: 'semester', width: 60, kind: 'static' },
+  { key: 'tingkat', label: 'tingkat', width: 80, kind: 'static' },
+  { key: 'kelas', label: 'kelas.nama_kelas', width: 140, kind: 'static' },
+  { key: 'absen', label: 'no_absen', width: 70, kind: 'static' },
+  { key: 'status', label: 'status_awal', width: 130, kind: 'static' },
+  { key: 'masuk', label: 'tgl_masuk', width: 110, kind: 'static' },
 ];
 
 export function riwayatValues(r: RiwayatRow): Record<string, string | null> {

@@ -209,14 +209,14 @@ export default function KeanggotaanPage() {
       <ExcelTable
         tableKey="keanggotaan"
         fields={[
-          { key: 'santri', label: 'Santri', kind: 'static' },
-          { key: 'jk', label: 'JK', kind: 'static', width: 60 },
-          { key: 'lembaga', label: 'Lembaga', kind: 'static' },
-          { key: 'nis_lokal', label: 'NIS Lokal', kind: 'text', maxLength: 20 },
-          { key: 'nis_kemenag', label: 'NIS Kemenag', kind: 'static' },
-          { key: 'aktif', label: 'Aktif', kind: 'static' },
-          { key: 'mulai', label: 'Tgl. mulai', kind: 'static' },
-          { key: 'selesai', label: 'Tgl. selesai', kind: 'static' },
+          { key: 'santri', label: 'santri.nama_lengkap', kind: 'static' },
+          { key: 'jk', label: 'santri.jk', kind: 'static', width: 60 },
+          { key: 'lembaga', label: 'lembaga.kode', kind: 'static' },
+          { key: 'nis_lokal', label: 'nis_lokal', kind: 'text', maxLength: 20 },
+          { key: 'nis_kemenag', label: 'nis_kemenag', kind: 'static' },
+          { key: 'aktif', label: 'is_active', kind: 'static' },
+          { key: 'mulai', label: 'tgl_mulai', kind: 'static' },
+          { key: 'selesai', label: 'tgl_selesai', kind: 'static' },
         ]}
         rows={rows}
         getValues={(r) => ({
