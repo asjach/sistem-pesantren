@@ -1,14 +1,16 @@
 # Skema Database — SIMPES (dokumentasi, bukan kode)
 
-> Sumber: vault `Backend/002_Skema_Database.md` + migration
-> `2026_09_09_000001_create_all_tables_v1.php` (+ `0001_*_create_users_table.php`
-> untuk tabel auth bawaan). Bahasa Indonesia persis DB. Tipe logis umum.
+> Sumber: vault `Backend/002_Skema_Database.md` + 23 migrasi per-modul hasil
+> squash (+ `lembaga_santri`, `preset_tabel`, `pengaturan_tampilan`,
+> `alumni.kelas_lulus_id`). Bahasa Indonesia persis DB. Tipe logis umum.
 > Keputusan: single-pesantren via `lembaga` + pivot `user_lembaga` (no.40);
 > 34 `ref_*` global+shadow (no.50); seed no.51; pitfall multi-NULL MySQL →
 > dedup di service, bukan index (`002` catatan 9). Matriks izin (v2.38):
 > aksi = `permissions`/`role_has_permissions`, cakupan tetap pivot.
 > Import gabungan siswa (v2.39): satu file menulis `santri` + `lembaga_santri`
 > (tanpa migrasi; cocok `santri_id`/NIK/NIS, baris luar tenant ditolak).
+> Beku kelas arsip (v2.52): `alumni.kelas_lulus_id` + `mutasi_keluar.kelas_terakhir_id`
+> snapshot dari riwayat aktif terakhir.
 
 Urutan CREATE: `lembaga` → `ref_*` → `users` → `user_lembaga` →
 `tahun_ajaran` → `pegawai` → `kelas` (`walas_id` inline) → santri/riwayat →
@@ -18,7 +20,7 @@ PSB → kepegawaian → akademik → nilai → presensi → asrama → tahfizh �
 > Keputusan desain (v1.10, gambaran umum — masih bisa berubah):
 > 1. `santri.lembaga_id` boleh NULL (legacy tanpa track); sumber kebenaran
 >    lembaga = `riwayat_belajar`, kolom ini cache lembaga primer terakhir.
->    **Sudah diimplementasikan (v1.10.2, FK nullOnDelete).**
+>    **Batal di v2.0: kolom dihapus total — legacy = santri tanpa riwayat.**
 > 2. `santri.status_global` turunan murni (default false): true iff punya ≥1
 >    `riwayat_belajar.is_aktif`. **Sudah diimplementasikan (v1.10.2 + backfill).**
 > 3. Asrama = entitas sendiri (BLOK 10), peran `asrama` (7 peran) + pivot
@@ -77,6 +79,7 @@ Tanpa kolom tenant — tenant = pivot `user_lembaga`.
 - `mode_rapor`: enum(terpisah|digabung) [default 'digabung'] — Kolom Modul 202 (mode rapor):
 - `template_rapor`: string [default 'default']
 - `psb_butuh_seleksi_default`: bool [default false] — Kolom Modul 100 PSB (konfigurasi jalur fleksibel): / false = jalur langsung (A), true = jalur seleksi (B)
+- `is_seleksi`: bool [default false] — lembaga ber-seleksi (kuota `membutuhkan_seleksi` null ikut nilai ini; daftar ulang wajib kirim status lolos)
 - `kelompok_psb`: enum(combo_mi_md|eksklusif) [default 'eksklusif'] — combo khusus MI/MD (pool kuota & daftar ganda gabungan); selain itu eksklusif (pool & aturan ganda sendiri)
 - `is_active`: bool [default true] — nonaktifkan tanpa hapus
 - `created_at`, `updated_at`
@@ -205,13 +208,14 @@ Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca
 
 ### `tahun_ajaran`
 - `id` PK
-- `lembaga_id`: FK → lembaga [cascade]
+- `lembaga_id`: FK → lembaga [null, nullOnDelete] — null = TA global/pesantren
 - `nama`: string — misal: '2025/2026' (PENYATUAN: bukan 'nama_tahun_ajaran')
 - `tanggal_mulai`: date [null]
 - `tanggal_selesai`: date [null]
-- `is_aktif`: bool [default false]
+- `is_aktif`: bool [default false] — TA berjalan (satu, global); hanya TA global bisa diaktifkan
+- `is_active`: bool [default true] — tampil/tidak per lembaga (mekanisme bayangan: sembunyikan = baris bayangan nonaktif)
 - `created_at`, `updated_at`
-- UNIQUE(`lembaga_id`, `nama`) — nama tahun unik per lembaga
+- UNIQUE(`lembaga_id`, `nama`) di DB + `nama` unik global di aplikasi (validasi tolak duplikat nama lintas lembaga)
 
 ### `pegawai`
 - `id` PK
@@ -348,7 +352,7 @@ Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca
 - `kode_pos`: string [null]
 - `foto_url`: string [null]
 - `status_global`: bool [default false] — TURUNAN murni: true iff punya ≥1 `riwayat_belajar.is_aktif`. Bukan input manual; dihitung ulang tiap transisi (ACC/penerimaan, penempatan kelas, naik, mutasi, lulus, berhenti). Lulus/mutasi tidak disimpan di sini — dibaca dari tabel alumni / mutasi_keluar. Santri legacy tanpa riwayat tetap false (nonaktif) sampai ditempatkan.
-- CATATAN visibilitas: santri legacy (`lembaga_id` NULL) boleh dilihat/dikelola pemegang `santri.lihat`; guru/wali tetap lewat jalur masing-masing (bukan endpoint admin).
+- CATATAN visibilitas: santri legacy (tanpa riwayat) boleh dilihat/dikelola pemegang `santri.lihat`; guru/wali tetap lewat jalur masing-masing (bukan endpoint admin).
 - `created_at`, `updated_at`
 - INDEX(`nik`)
 - INDEX(`nisn`)
@@ -605,6 +609,15 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 - `preset_id`: FK → preset_tabel [null, cascade] — null = Lengkap
 - `created_at`, `updated_at`
 - UNIQUE(`user_id`, `table_key`) — ingatan pilihan preset terakhir per user per tabel
+
+### `pengaturan_tampilan`
+Standar tampilan per lembaga (tema/tipografi/grid/preset aktif), disebar super_admin; `versi` naik tiap perubahan agar klien memantau & memuat ulang.
+- `id` PK
+- `lembaga_id`: FK → lembaga [unique, cascade] — satu baris per lembaga
+- `data`: json — isi standar tampilan
+- `versi`: int unsigned [default 1]
+- `diubah_oleh`: FK → users [null, nullOnDelete]
+- `created_at`, `updated_at`
 
 ## BLOK 4 — Kepegawaian lanjutan (Modul 200 Kepegawaian)
 
