@@ -2,9 +2,9 @@
 
 | Atribut | Keterangan |
 |---|---|
-| Versi Dokumen | 2.54 (Lampiran G operasional agen) |
+| Versi Dokumen | 2.55 (PRD sebagai dasar proyek) |
 | Tanggal | 17 September 2026 |
-| Status | Proyek ini = menyusun dokumentasi, bukan coding app. G0–G3 didetailkan; G4+ roadmap |
+| Status | PRD produk SIMPES — acuan tunggal kebutuhan, rancangan, dan status implementasi aplikasi yang sedang dibangun |
 | Penyusun | Solo dev + Yayasan |
 | Arsip acuan (read-only) | `Step-By-Step Sistem Pesantren/Backend/` + `Frontend/admin-flutter-desktop/docs/` |
 | Skema versi | Major restruktur = X.0; final 1 bab = X.Y; kecil docs = X.Y.Z |
@@ -106,6 +106,7 @@
 | 2.52 | 2026-09-17 | **Beku kelas arsip lulus/mutasi**: kolom baru `alumni.kelas_lulus_id` (FK nullOnDelete) terisi otomatis dari riwayat aktif terakhir saat lulus (tampil di tabel Alumni); `mutasi_keluar.kelas_terakhir_id` beku otomatis bila input kosong, input manual menang (perbaikan: validasi controller kini teruskan `kelas_terakhir_id` — sebelumnya selalu terbuang); suite 186/186, typecheck + build lolos |
 | 2.53 | 2026-09-17 | **§7 dokumentasi desain UI** (docs-only): perluas Perancangan Antarmuka — prinsip (Indonesia, snake_case, id-ID), 25 tema + mode + token runtime, navigasi ganda, pola tabel Excel, komponen & umpan balik, font offline, pengaturan tampilan pribadi + standar |
 | 2.54 | 2026-09-17 | **Lampiran G operasional agen** (docs-only): pindahkan perintah/aturan agen ke PRD — aturan tetap (commit, reviewer, Playwright, server), slash command `/ui-review`, tabel 12 skills + pemicunya; catat `.opencode/` gitignore sehingga lampiran ini jadi arsip ikut repo |
+| 2.55 | 2026-09-17 | **PRD sebagai dasar proyek** (docs-only): tujuan dokumen diubah — dari "menyusun dokumentasi" menjadi PRD produk (dasar pembangunan + pemeliharaan); selaraskan 4 titik (SPP keluar dari latar belakang, legacy = tanpa riwayat, keuangan tahap akhir di tujuan, definisi legacy di glosarium) |
 
 ## Daftar Isi
 
@@ -135,14 +136,13 @@
 
 ### 1.1 Tujuan Dokumen
 
-Proyek ini menyusun Project Documentation SIMPES (bukan coding app). Dokumen ini acuan tunggal: kebutuhan, proses, rancangan, rencana uji/penyebaran, plus lampiran ketertelusuran ke arsip. Kriteria selesai per bab: ringkas, logika terverifikasi ke arsip/keputusan, TBD eksplisit.
+Dokumen ini adalah PRD produk SIMPES — dasar pembangunan dan pemeliharaan aplikasi. Acuan tunggal: kebutuhan, proses, rancangan, rencana uji/penyebaran, status implementasi, plus lampiran ketertelusuran. Kriteria selesai per bab: ringkas, tercermin di kode + test, TBD eksplisit.
 
 ### 1.2 Latar Belakang
 
 Pengelolaan santri, keuangan, akademik, dan operasional masih manual/spreadsheet:
 
 - Data santri (biodata, dokumen, riwayat belajar) tersebar.
-- Tagihan SPP dan pembayaran rawan salah catat.
 - Nilai, kurikulum, dan induk santri tidak terintegrasi per lembaga.
 - Komunikasi orang_tua/wali tidak real-time.
 - Pimpinan sulit mendapat laporan per lembaga maupun gabungan.
@@ -151,12 +151,12 @@ Pesantren menaungi beberapa lembaga — MI, MD, MTs, Mu'allimin — dalam satu p
 
 **Asrama bukan `lembaga`** (v1.10, **implementasi pasca production**): asrama punya kepengurusan, gedung, kamar, dan siklus penghuni sendiri; didaftarkan sebagai entitas `asrama` + peran `asrama` + pivot `user_asrama` (Modul 505). Santri asrama tetap terikat lembaga akademiknya untuk urusan akademik/PSB; penanda keuangan asrama ditetapkan saat modul keuangan dirumuskan ulang. Tidak ada tabel/role/pivot asrama yang dibuat sekarang — desain ini arah agar sistem sekarang mendekati bentuk akhirnya.
 
-**Santri legacy:** `santri.lembaga_id` boleh NULL untuk data lama yang lembaganya tidak punya jejak `riwayat_belajar`/mutasi/kenaikan/pembayaran. Sumber kebenaran lembaga adalah `riwayat_belajar`; kolom ini cache terakhir dan diisi saat penempatan kelas. `status_global` bukan input manual — turunan "punya ≥1 riwayat aktif" (default nonaktif sampai ditempatkan).
+**Santri legacy:** santri lama tanpa jejak `riwayat_belajar`. Sumber kebenaran lembaga adalah `riwayat_belajar`. `status_global` bukan input manual — turunan "punya ≥1 riwayat aktif" (default nonaktif sampai ditempatkan).
 
 ### 1.3 Tujuan Proyek
 
 1. Sistem terpusat untuk santri, pegawai/guru, dan pengguna lintas lembaga via model single-pesantren (`lembaga`).
-2. Digitalisasi PSB 2-jalur, santri, siklus/riwayat, dan keuangan per lembaga.
+2. Digitalisasi PSB 2-jalur, santri, dan siklus/riwayat per lembaga (keuangan tahap terakhir sebelum production).
 3. Akademik (kurikulum, mapel, pengampu, nilai, rapor) dengan pivot `kurikulum_mapel`.
 4. Kepegawaian (master, keaktifan, walas, sertifikasi).
 5. Portal wali read-only + pengajuan.
@@ -583,7 +583,7 @@ TBD khusus asrama (v1.10 — semua pasca production):
 
 ## Lampiran D — Glosarium (Opsi A)
 
-SIMPES; santri; lembaga (MI=SD formal, MD=SD non-formal paralel, MTS=SMP, MLN=Aliyah beda nama; kode hardcoded; PK id INT); tahun_ajaran; kelas; pegawai/guru; 6 peran (`super_admin, admin, guru, orang_tua, santri, asrama` — efektif 5 sekarang; `asrama` pasca production, `kasir` dihapus sementara v2.38); PSB (`is_seleksi`); riwayat_belajar; asrama (entitas sendiri — bukan `lembaga`; kamar, penghuni, izin pulang, kegiatan; pasca production); pengurus asrama (peran `asrama` + pivot `user_asrama`); santri legacy (`santri.lembaga_id` NULL, tanpa track riwayat).
+SIMPES; santri; lembaga (MI=SD formal, MD=SD non-formal paralel, MTS=SMP, MLN=Aliyah beda nama; kode hardcoded; PK id INT); tahun_ajaran; kelas; pegawai/guru; 6 peran (`super_admin, admin, guru, orang_tua, santri, asrama` — efektif 5 sekarang; `asrama` pasca production, `kasir` dihapus sementara v2.38); PSB (`is_seleksi`); riwayat_belajar; asrama (entitas sendiri — bukan `lembaga`; kamar, penghuni, izin pulang, kegiatan; pasca production); pengurus asrama (peran `asrama` + pivot `user_asrama`); santri legacy (tanpa jejak riwayat).
 
 ## Lampiran E — Catatan Perubahan Aturan
 
