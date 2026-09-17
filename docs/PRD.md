@@ -2,7 +2,7 @@
 
 | Atribut | Keterangan |
 |---|---|
-| Versi Dokumen | 2.53 (§7 dokumentasi desain UI) |
+| Versi Dokumen | 2.54 (Lampiran G operasional agen) |
 | Tanggal | 17 September 2026 |
 | Status | Proyek ini = menyusun dokumentasi, bukan coding app. G0–G3 didetailkan; G4+ roadmap |
 | Penyusun | Solo dev + Yayasan |
@@ -50,6 +50,7 @@
 | 1.13 | 2026-09-15 | **Kelas unik per lembaga + tahun ajaran** (FB-004-01): nama dinormalisasi (trim + rapat spasi) di model `Kelas`; migrasi dedupe otomatis (keeper id terkecil, referensi 8 tabel dipindah termasuk unique terdampak `kelas_kurikulum`/`pengampu_mapel`/`rapor_catatan_wali`) lalu `UNIQUE(lembaga_id, tahun_ajaran_id, nama_kelas)`; `store`/`update` menolak duplikat case-insensitive dengan pesan Indonesia + tangkap race 1062; dialog Tambah/Ubah di FE memuat nama lingkup lembaga+TA dan menolak duplikat sebelum submit; KelasStoreTest 6→10 hijau |
 | 1.14 | 2026-09-15 | Koreksi panjang **NIS = maks 20 karakter** (dulu validasi 10): kolom `santri.nis` & `riwayat_belajar.nis` jadi `VARCHAR(20)`; validasi `max:20` di store/update santri, ACC PSB (tunggal + bulk), import Excel, dan naik-kelas; input FE `maxLength` 20; tes batas 20/21 di PsbFlowTest (tunggal + bulk 16 karakter) dan SantriFlowTest (update + dry-run import) |
 | 1.15 | 2026-09-15 | Import santri: kolom **`kelas_id` menerima nama kelas** (diutamakan — kini deterministik karena `(lembaga, TA, nama)` unik), id numerik, atau kosong; butuh lembaga+TA kecuali id pada baris legacy (cache `santri.kelas_id`, tanpa riwayat); template Excel memuat **dropdown nama kelas** per lingkup via `GET /admin/santri/import-template?lembaga_id=&tahun_ajaran_id=`; dialog import ikut mengirim TA + teks bantuan; tes 20–22 baru (SantriFlowTest 19→22), suite penuh hijau |
+| 2.54 | 2026-09-17 | **Lampiran G operasional agen** (docs-only): pindahkan perintah/aturan agen ke PRD — aturan tetap (commit, reviewer, Playwright, server), slash command `/ui-review`, tabel 12 skills + pemicunya; catat `.opencode/` gitignore sehingga lampiran ini jadi arsip ikut repo |
 | 2.53 | 2026-09-17 | **§7 dokumentasi desain UI** (docs-only): perluas Perancangan Antarmuka — prinsip (Indonesia, snake_case, id-ID), 25 tema + mode + token runtime, navigasi ganda, pola tabel Excel, komponen & umpan balik, font offline, pengaturan tampilan pribadi + standar |
 | 2.52 | 2026-09-17 | **Beku kelas arsip lulus/mutasi**: kolom baru `alumni.kelas_lulus_id` (FK nullOnDelete) terisi otomatis dari riwayat aktif terakhir saat lulus (tampil di tabel Alumni); `mutasi_keluar.kelas_terakhir_id` beku otomatis bila input kosong, input manual menang (perbaikan: validasi controller kini teruskan `kelas_terakhir_id` — sebelumnya selalu terbuang); suite 186/186, typecheck + build lolos |
 | 2.51 | 2026-09-17 | **PRD mencatat semua aturan** (docs-only): angka basi disegarkan (144 route API / 101 admin, suite 185/185, 5 peran efektif, 23 migrasi; §10–§11 + §6.1 ditulis ulang); sub-bagian §5 baru (pengajuan biodata admin, dokumen wajib, perilaku tahun ajaran + bayangan, `per_page=0` "Semua", pengaturan server, tampilan standar, halaman MI-MD); promosi changelog → normatif (X hapus fisik vs arsip, pengecualian tenant MI↔MD, by-nama + samakan NIS, kelas unik, NIS 20/NISN digits:10, 4-lapis + `kode_lembaga`, anti-eskalasi + kunci diri); aturan atomik disebar (format NIK/KK, NISK, batas berkas, password min 8, act-as, kamus/lembaga/kelas, PSB entry/kombo/waiting, rombel/salin/naik, import riwayat) |
@@ -619,6 +620,51 @@ Scope: desktop admin + kasir (nanti). Mobile ortu wajib online (tanpa lapisan of
 | OFF-10 | Validasi server tak berubah (tenant, peran, ref efektif, kuota, kunci billing, counter) |
 
 TBD (tidak dikunci): enkripsi SQLite, bentuk endpoint delta, LAN-fallback, UAT chaos.
+
+## Lampiran G — Operasional Agen (indeks; salinan dari AGENTS.md + `.opencode/`)
+
+> Catatan penyimpanan: `AGENTS.md` (root/backend/frontend) ikut repo; `.opencode/`
+> masuk `.gitignore` (konfigurasi lokal — tidak terbawa clone). Lampiran ini
+> memastikan isi operasional penting tetap terdokumentasi di PRD.
+
+### G.1 Aturan tetap agen
+- UI & docs Bahasa Indonesia; `id` elemen `snake_case` (NFR-05).
+- Commit: agen wajib menawarkan (bukan menunggu diminta) hanya bila `git status`
+  kotor DAN salah satu pemicu: (1) pindah topik — tawarkan SEBELUM eksekusi topik
+  baru; (2) ±5 permintaan berfile sejak commit terakhir; (3) akan ada perubahan
+  besar (>5 file / ±150 baris / fitur-migrasi-API / lintas modul); (4) sisa kotor
+  sesi sebelumnya di awal sesi baru. Format `<tipe>: <ringkasan Indonesia>`,
+  satu commit = satu perubahan logis; tanpa rahasia/artefak.
+- Akun reviewer `super_admin` AKTIF selama pra-production (detail kredensial di
+  `AGENTS.md` root; dibuat ulang bila hilang akibat reset DB; dinonaktifkan
+  permanen saat production).
+- Playwright/browser otomatis wajib persetujuan pengguna; nyala/mati
+  `artisan serve` + `vite dev` boleh tanpa konfirmasi; hapus screenshot
+  sementara di root repo boleh tanpa konfirmasi.
+- Backend: ikuti panduan Laravel Boost (`backend/AGENTS.md`); migrasi via
+  `php artisan make:*`; gaya via Pint; uji via PHPUnit (narrowest dulu).
+
+### G.2 Slash command lokal (`command/`)
+- `/ui-review` — proses anotasi visual UI + console error lalu perbaiki per nomor;
+  input berupa JSON anotasi tempelan (`elemen[]` + `gambar[]`); verifikasi
+  `typecheck` + `build` (+ test backend bila tersentuh); tutup dengan ringkasan
+  selesai vs butuh klarifikasi.
+
+### G.3 Skills aktif (`skills/`) — dipakai saat pemicunya muncul
+| Skill | Dipakai saat |
+|---|---|
+| `laravel-best-practices` | Tulis/review/refactor kode Laravel (controller, model, migrasi, policy, job, query) |
+| `shadcn` | Tambah/cari/perbaiki komponen shadcn, registri, preset |
+| `ui-styling` | Bangun UI shadcn/Tailwind, tema, dark mode, layout responsif |
+| `ui-ux-pro-max` | Desain/review/perbaiki antarmuka + aksesibilitas + tipografi + chart |
+| `design-system` | Token desain, spesifikasi komponen, slide strategis |
+| `design` | Logo, CIP + mockup, slide, banner, ikon, foto sosial |
+| `banner-design` | Banner sosmed/iklan/hero/cetak |
+| `slides` | Presentasi HTML + Chart.js |
+| `brand` | Voice, identitas visual, kepatuhan brand |
+| `tauri-v2` | Konfigurasi Tauri, command Rust, IPC, permissions, build desktop/mobile |
+| `vercel-react-best-practices` | Optimasi performa React/Next.js |
+| `find-skills` | Cari/install skill baru saat butuh kemampuan tambahan |
 
 ## Pembahasan Selanjutnya (sesi baru)
 
