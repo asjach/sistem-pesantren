@@ -6,7 +6,14 @@ use App\Exports\PsbTemplateExport;
 use App\Http\Controllers\Api\Concerns\TenantGuard;
 use App\Http\Controllers\Api\Concerns\UrutDaftar;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\PsbBulkAccRequest;
+use App\Http\Requests\PsbBulkCatatanRequest;
+use App\Http\Requests\PsbBulkDaftarUlangRequest;
+use App\Http\Requests\PsbBulkIdsRequest;
+use App\Http\Requests\PsbBulkSeleksiRequest;
+use App\Http\Requests\PsbCatatanRequest;
 use App\Http\Requests\PsbDaftarRequest;
+use App\Http\Requests\PsbImportRequest;
 use App\Http\Requests\PsbSeleksiRequest;
 use App\Imports\PsbImport;
 use App\Models\PsbCalonSantri;
@@ -124,10 +131,10 @@ class PsbController extends Controller
     }
 
     /** POST /api/psb/{calon}/undur-diri — pengunduran diri (terdaftar/daftar ulang/diterima). */
-    public function undurDiri(Request $request, PsbCalonSantri $calon, PsbService $service): JsonResponse
+    public function undurDiri(PsbCatatanRequest $request, PsbCalonSantri $calon, PsbService $service): JsonResponse
     {
         $this->authorizeCalon(auth()->user(), $calon);
-        $data = $request->validate(['catatan' => ['nullable', 'string']]);
+        $data = $data = $request->validated();
 
         return response()->json([
             'pesan' => 'Pengunduran diri dicatat.',
@@ -136,10 +143,10 @@ class PsbController extends Controller
     }
 
     /** POST /api/psb/{calon}/batalkan-fase — kembali ke fase sebelumnya (log terakhir). */
-    public function batalkanFase(Request $request, PsbCalonSantri $calon, PsbService $service): JsonResponse
+    public function batalkanFase(PsbCatatanRequest $request, PsbCalonSantri $calon, PsbService $service): JsonResponse
     {
         $this->authorizeCalon(auth()->user(), $calon);
-        $data = $request->validate(['catatan' => ['nullable', 'string']]);
+        $data = $data = $request->validated();
 
         $hasil = $service->batalkanFase($calon->id, auth()->id(), $data['catatan'] ?? null);
 
@@ -218,9 +225,9 @@ class PsbController extends Controller
     }
 
     /** POST /api/psb/bulk/verifikasi */
-    public function bulkVerifikasi(Request $request, PsbService $service): JsonResponse
+    public function bulkVerifikasi(PsbBulkIdsRequest $request, PsbService $service): JsonResponse
     {
-        $data = $this->validasiBulkIds($request);
+        $data = $request->validated();
 
         return $this->loopBulk($data['ids'], function (PsbCalonSantri $calon) use ($service) {
             $service->verifikasi($calon->id, auth()->id());
@@ -228,12 +235,9 @@ class PsbController extends Controller
     }
 
     /** POST /api/psb/bulk/seleksi */
-    public function bulkSeleksi(Request $request, PsbService $service): JsonResponse
+    public function bulkSeleksi(PsbBulkSeleksiRequest $request, PsbService $service): JsonResponse
     {
-        $data = $request->validate(array_merge($this->aturanBulkIds(), [
-            'lolos' => ['required', 'boolean'],
-            'catatan' => ['nullable', 'string'],
-        ]));
+        $data = $request->validated();
 
         return $this->loopBulk($data['ids'], function (PsbCalonSantri $calon) use ($service, $data) {
             $service->setSeleksi($calon->id, (bool) $data['lolos'], auth()->id(), $data['catatan'] ?? null);
@@ -241,12 +245,9 @@ class PsbController extends Controller
     }
 
     /** POST /api/psb/bulk/daftar-ulang */
-    public function bulkDaftarUlang(Request $request, PsbService $service): JsonResponse
+    public function bulkDaftarUlang(PsbBulkDaftarUlangRequest $request, PsbService $service): JsonResponse
     {
-        $data = $request->validate(array_merge($this->aturanBulkIds(), [
-            'lolos' => ['nullable', 'boolean'],
-            'catatan' => ['nullable', 'string'],
-        ]));
+        $data = $request->validated();
 
         $lolos = array_key_exists('lolos', $data) ? (bool) $data['lolos'] : null;
 
@@ -256,11 +257,9 @@ class PsbController extends Controller
     }
 
     /** POST /api/psb/bulk/undur-diri */
-    public function bulkUndurDiri(Request $request, PsbService $service): JsonResponse
+    public function bulkUndurDiri(PsbBulkCatatanRequest $request, PsbService $service): JsonResponse
     {
-        $data = $request->validate(array_merge($this->aturanBulkIds(), [
-            'catatan' => ['nullable', 'string'],
-        ]));
+        $data = $request->validated();
 
         return $this->loopBulk($data['ids'], function (PsbCalonSantri $calon) use ($service, $data) {
             $service->undurDiri($calon->id, auth()->id(), $data['catatan'] ?? null);
@@ -268,11 +267,9 @@ class PsbController extends Controller
     }
 
     /** POST /api/psb/bulk/batalkan-fase */
-    public function bulkBatalkanFase(Request $request, PsbService $service): JsonResponse
+    public function bulkBatalkanFase(PsbBulkCatatanRequest $request, PsbService $service): JsonResponse
     {
-        $data = $request->validate(array_merge($this->aturanBulkIds(), [
-            'catatan' => ['nullable', 'string'],
-        ]));
+        $data = $request->validated();
 
         return $this->loopBulk($data['ids'], function (PsbCalonSantri $calon) use ($service, $data) {
             $service->batalkanFase($calon->id, auth()->id(), $data['catatan'] ?? null);
@@ -280,12 +277,9 @@ class PsbController extends Controller
     }
 
     /** POST /api/psb/bulk/acc-daftar-ulang — `nis` opsional: {"<id>": "NIS"} per calon. */
-    public function bulkAcc(Request $request, PsbService $service): JsonResponse
+    public function bulkAcc(PsbBulkAccRequest $request, PsbService $service): JsonResponse
     {
-        $data = $request->validate(array_merge($this->aturanBulkIds(), [
-            'nis' => ['nullable', 'array'],
-            'nis.*' => ['nullable', 'string', 'max:20'],
-        ]));
+        $data = $request->validated();
         $nisPer = $data['nis'] ?? [];
 
         return $this->loopBulk($data['ids'], function (PsbCalonSantri $calon) use ($service, $nisPer) {
@@ -294,9 +288,9 @@ class PsbController extends Controller
     }
 
     /** POST /api/psb/bulk/hapus */
-    public function bulkHapus(Request $request, PsbService $service): JsonResponse
+    public function bulkHapus(PsbBulkIdsRequest $request, PsbService $service): JsonResponse
     {
-        $data = $this->validasiBulkIds($request);
+        $data = $request->validated();
 
         return $this->loopBulk($data['ids'], function (PsbCalonSantri $calon) use ($service) {
             $service->hapusCalon($calon->id, auth()->id());
@@ -304,26 +298,13 @@ class PsbController extends Controller
     }
 
     /** POST /api/psb/bulk/pulihkan */
-    public function bulkPulihkan(Request $request, PsbService $service): JsonResponse
+    public function bulkPulihkan(PsbBulkIdsRequest $request, PsbService $service): JsonResponse
     {
-        $data = $this->validasiBulkIds($request);
+        $data = $request->validated();
 
         return $this->loopBulk($data['ids'], function (PsbCalonSantri $calon) use ($service) {
             $service->pulihkanCalon($calon->id, auth()->id());
         }, izinkanTerhapus: true);
-    }
-
-    protected function aturanBulkIds(): array
-    {
-        return [
-            'ids' => ['required', 'array', 'min:1', 'max:200'],
-            'ids.*' => ['integer', 'distinct'],
-        ];
-    }
-
-    protected function validasiBulkIds(Request $request): array
-    {
-        return $request->validate($this->aturanBulkIds());
     }
 
     /** Aksi massal per calon: partial success + laporan kegagalan per baris. */
@@ -412,13 +393,9 @@ class PsbController extends Controller
     }
 
     /** POST /api/psb/import — Excel kolom inti, NIK required -> create() langsung. */
-    public function import(Request $request, PsbService $psbService): JsonResponse
+    public function import(PsbImportRequest $request, PsbService $psbService): JsonResponse
     {
-        $data = $request->validate([
-            'gelombang_id' => ['required', 'integer', 'exists:psb_gelombang,id'],
-            'lembaga_id' => ['required', 'integer', 'exists:lembaga,id'],
-            'file' => ['required', 'file', 'mimes:xlsx,xls,csv', 'max:5120'],
-        ]);
+        $data = $request->validated();
         $this->authorizeLembaga(auth()->user(), (int) $data['lembaga_id']);
 
         try {
