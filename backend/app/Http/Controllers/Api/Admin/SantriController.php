@@ -378,7 +378,7 @@ class SantriController extends Controller
         }
 
         return array_values(array_filter(
-            $auth->lembagaIds(),
+            $auth->lembagaIdsDenganPasangan(),
             fn (int $id) => Lembaga::where('id', $id)->whereNotNull('parent_id')->exists(),
         ));
     }

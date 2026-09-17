@@ -145,7 +145,7 @@ class ReferensiCrudTest extends TestCase
 
         $this->actingAs($adminMd, 'sanctum')
             ->putJson("/api/admin/referensi/hobi/{$id}", ['nama' => 'Hobi MD'])
-            ->assertStatus(403);
+            ->assertStatus(200);
     }
 
     // ---------- 5. nama duplikat di scope sama ditolak ----------
@@ -301,9 +301,9 @@ class ReferensiCrudTest extends TestCase
         $this->actingAs($admin, 'sanctum')
             ->postJson('/api/admin/referensi/agama/'.$idGlobal.'/pulihkan')->assertStatus(422);
 
-        // Lembaga lain tidak boleh memulihkan baris milik MI.
+        // Pasangan MI↔MD boleh memulihkan baris milik pasangannya.
         $adminMd = $this->makeUser('admin', [$f['md']->id]);
         $this->actingAs($adminMd, 'sanctum')
-            ->postJson('/api/admin/referensi/agama/'.$bayangan['id'].'/pulihkan')->assertStatus(403);
+            ->postJson('/api/admin/referensi/agama/'.$bayangan['id'].'/pulihkan')->assertStatus(200);
     }
 }

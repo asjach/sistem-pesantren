@@ -164,6 +164,42 @@ class MiMdTest extends TestCase
         $this->assertSame([], $resMts->json('beda_kelas'));
     }
 
+    public function test_pengecualian_pasangan_global_timbal_balik(): void
+    {
+        $f = $this->baseFixture();
+        $s = Santri::create(['nama_lengkap' => 'Global Ganda', 'jk' => 'L']);
+        LembagaSantri::create(['santri_id' => $s->id, 'lembaga_id' => $f['mi']->id, 'nis_lokal' => '40001', 'is_active' => true]);
+        $mdRow = LembagaSantri::create(['santri_id' => $s->id, 'lembaga_id' => $f['md']->id, 'nis_lokal' => '40002', 'is_active' => true]);
+
+        $adminMi = $this->makeUser('admin', [$f['mi']->id]);
+        $adminMd = $this->makeUser('admin', [$f['md']->id]);
+        $adminMts = $this->makeUser('admin', [$f['mts']->id]);
+
+        // Admin MI: daftar keanggotaan global memuat baris MD.
+        $res = $this->actingAs($adminMi, 'sanctum')->getJson('/api/admin/lembaga-santri?per_page=50')->assertStatus(200);
+        $this->assertSame(2, $res->json('total'));
+
+        // Admin MI: ubah + nonaktifkan baris MD.
+        $this->actingAs($adminMi, 'sanctum')->patchJson("/api/admin/lembaga-santri/{$mdRow->id}", [
+            'nis_lokal' => '40009',
+        ])->assertStatus(200);
+        $this->actingAs($adminMi, 'sanctum')->patchJson("/api/admin/lembaga-santri/{$mdRow->id}", [
+            'is_active' => false,
+        ])->assertStatus(200);
+        $this->assertFalse((bool) $mdRow->fresh()->is_active);
+
+        // Sebaliknya: admin MD membaca baris MI.
+        $resMd = $this->actingAs($adminMd, 'sanctum')->getJson('/api/admin/lembaga-santri?per_page=50')->assertStatus(200);
+        $this->assertSame(2, $resMd->json('total'));
+
+        // Admin MTS: tetap buta + ditolak tulis.
+        $resMts = $this->actingAs($adminMts, 'sanctum')->getJson('/api/admin/lembaga-santri?per_page=50')->assertStatus(200);
+        $this->assertSame(0, $resMts->json('total'));
+        $this->actingAs($adminMts, 'sanctum')->patchJson("/api/admin/lembaga-santri/{$mdRow->id}", [
+            'nis_lokal' => '40099',
+        ])->assertStatus(403);
+    }
+
     public function test_hapus_md_fisik_tanpa_arsip(): void
     {
         $f = $this->baseFixture();

@@ -126,11 +126,36 @@ class User extends Authenticatable
             if ($this->isAdminFull()) {
                 return Lembaga::whereKey($lembagaId)->exists();
             }
+            if (in_array((int) $lembagaId, $this->lembagaIds(), true)) {
+                return true;
+            }
+            // Pengecualian pasangan MI↔MD (timbal-balik, global).
+            $pasangan = Lembaga::pasanganId((int) $lembagaId);
 
-            return in_array((int) $lembagaId, $this->lembagaIds(), true);
+            return $pasangan !== null && in_array($pasangan, $this->lembagaIds(), true);
         }
 
         return in_array((int) $lembagaId, $this->lembagaIds(), true);
+    }
+
+    /**
+     * Pivot + pasangan MI↔MD (khusus admin scoped; act-as/super/full tak berubah).
+     * Dipakai semua scope daftar agar baris counterpart ikut tampil.
+     */
+    public function lembagaIdsDenganPasangan(): array
+    {
+        $ids = $this->lembagaIds();
+        if ($this->lembagaPeran() !== null || ! $this->hasRole('admin') || $this->isAdminFull()) {
+            return $ids;
+        }
+        foreach ($ids as $id) {
+            $pasangan = Lembaga::pasanganId((int) $id);
+            if ($pasangan !== null && ! in_array($pasangan, $ids, true)) {
+                $ids[] = $pasangan;
+            }
+        }
+
+        return $ids;
     }
 
     /** Cek tenant via lembaga/pivot saja (tanpa kolom di users). */

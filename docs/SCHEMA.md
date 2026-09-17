@@ -368,7 +368,7 @@ Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca
 - `tgl_selesai`: date [null] — saat kelulusan/mutasi
 - `created_at`, `updated_at`
 - UNIQUE(`lembaga_id`, `nis_lokal`) · UNIQUE(`lembaga_id`, `nis_kemenag`) [multi-NULL boleh] · INDEX(`santri_id`,`is_active`) · INDEX(`lembaga_id`,`is_active`)
-- PENGECUALIAN TENANT (v2.48, sadar): halaman MI-MD (`GET /api/admin/mi-md`) membuka kedua sisi bagi pemegang akses MI *atau* MD. Endpoint lain tetap normal.
+- PENGECUALIAN PASANGAN MI↔MD (global sejak v2.61, timbal-balik): admin scoped pemegang MI/MD bisa baca-tulis sisi pasangannya di semua endpoint; non-pasangan tetap terisolasi, act-as tetap ketat.
 
 ### `riwayat_belajar`
 - `id` PK

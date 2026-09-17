@@ -41,7 +41,7 @@ trait TenantGuard
             return $query;
         }
 
-        $ids = $auth->lembagaIds();
+        $ids = $auth->lembagaIdsDenganPasangan();
         if (empty($ids)) {
             return $query->whereRaw('1 = 0');
         }
@@ -70,7 +70,7 @@ trait TenantGuard
             return $query;
         }
 
-        $ids = $auth->lembagaIds();
+        $ids = $auth->lembagaIdsDenganPasangan();
         if (empty($ids)) {
             return $query->whereRaw('1 = 0');
         }

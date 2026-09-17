@@ -174,7 +174,7 @@ class Santri extends Model
             return $query->whereRaw('1 = 0');
         }
 
-        $ids = $authUser->lembagaIds();
+        $ids = $authUser->lembagaIdsDenganPasangan();
 
         return $query->where(fn (Builder $q) => $q
             ->whereHas('lembagaSantri', fn (Builder $ls) => $ls->whereIn('lembaga_id', $ids))

@@ -26,9 +26,9 @@ class PresetTabelTest extends TestCase
     {
         $this->userSeq++;
         $u = User::create([
-            'name' => ucfirst($role) . ' ' . $this->userSeq,
-            'email' => "preset{$this->userSeq}_" . uniqid() . '@example.com',
-            'phone' => '08' . str_pad((string) (9000000000 + $this->userSeq * 137), 10, '0', STR_PAD_LEFT),
+            'name' => ucfirst($role).' '.$this->userSeq,
+            'email' => "preset{$this->userSeq}_".uniqid().'@example.com',
+            'phone' => '08'.str_pad((string) (9000000000 + $this->userSeq * 137), 10, '0', STR_PAD_LEFT),
             'password' => 'password',
         ]);
         $u->assignRole($role);
@@ -52,10 +52,10 @@ class PresetTabelTest extends TestCase
         $adminMi = $this->makeUser('admin', [$mi->id]);
         $adminMd = $this->makeUser('admin', [$md->id]);
 
-        // Admin lembaga tidak boleh men-generate ke lembaga luar aksesnya.
+        // Admin lembaga boleh men-generate ke pasangan MI↔MD.
         $this->actingAs($adminMi, 'sanctum')->postJson('/api/admin/preset-tabel', [
             'table_key' => 'psb', 'nama' => 'default', 'lembaga_ids' => [$mi->id, $md->id], 'kolom' => ['nama'],
-        ])->assertStatus(403);
+        ])->assertStatus(201);
 
         // Admin pesantren generate ke beberapa lembaga sekaligus.
         $generate = $this->actingAs($pusat, 'sanctum')->postJson('/api/admin/preset-tabel', [
@@ -106,15 +106,15 @@ class PresetTabelTest extends TestCase
         $listPusat = $this->actingAs($pusat, 'sanctum')->getJson('/api/admin/preset-tabel?table_key=psb');
         $this->assertCount(5, $listPusat->json('data.presets'));
 
-        // Salinan lembaga bisa diedit admin lembaga tsb; lembaga lain 403.
+        // Salinan lembaga bisa diedit admin lembaga tsb; pasangan MI↔MD ikut boleh.
         $this->actingAs($adminMi, 'sanctum')->putJson("/api/admin/preset-tabel/{$miDefaultId}", [
             'kolom' => ['nama', 'nik'],
         ])->assertStatus(200);
         $this->assertEquals(['nama', 'nik'], PresetTabel::findOrFail($miDefaultId)->kolom);
 
         $this->actingAs($adminMd, 'sanctum')->putJson("/api/admin/preset-tabel/{$miDefaultId}", [
-            'nama' => 'bukan milikku',
-        ])->assertStatus(403);
+            'nama' => 'edit pasangan',
+        ])->assertStatus(200);
 
         // Simpan pilihan terakhir + hapus preset → kembali Lengkap (null).
         $this->actingAs($adminMi, 'sanctum')->postJson('/api/admin/preset-tabel/aktif', [
@@ -131,7 +131,7 @@ class PresetTabelTest extends TestCase
         $this->actingAs($pusat, 'sanctum')->postJson('/api/admin/preset-tabel', [
             'table_key' => 'psb', 'nama' => 'default', 'lembaga_ids' => [$mi->id], 'kolom' => ['nama', 'status'],
         ])->assertStatus(201);
-        $this->assertEquals(['nama', 'status'], PresetTabel::findOrFail($miDefaultId)->kolom);
+        $this->assertEquals(['nama', 'status'], PresetTabel::where('lembaga_id', $mi->id)->where('table_key', 'psb')->where('nama', 'default')->firstOrFail()->kolom);
     }
 
     public function test_preset_menerima_kolom_banyak_melebihi_60(): void

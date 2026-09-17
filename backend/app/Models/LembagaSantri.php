@@ -56,7 +56,7 @@ class LembagaSantri extends Model
             return $query->whereRaw('1 = 0');
         }
 
-        return $query->whereIn('lembaga_id', $authUser->lembagaIds());
+        return $query->whereIn('lembaga_id', $authUser->lembagaIdsDenganPasangan());
     }
 
     /** NIS lokal wajib unik per lembaga. */

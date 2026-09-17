@@ -142,6 +142,15 @@ class KelasStoreTest extends TestCase
             'nama' => 'Madrasah Diniyah', 'kode' => 'MD',
             'is_seleksi' => false, 'kelompok_psb' => 'combo_mi_md', 'is_active' => true,
         ]);
+        $mts = Lembaga::create([
+            'parent_id' => Lembaga::where('kode', 'PESANTREN')->firstOrFail()->id,
+            'nama' => 'Tsanawiyah', 'kode' => 'MTS',
+            'is_seleksi' => false, 'kelompok_psb' => 'eksklusif', 'is_active' => true,
+        ]);
+        $taMd = TahunAjaran::create([
+            'lembaga_id' => $md->id, 'nama' => '2026/2027',
+            'tanggal_mulai' => '2026-07-01', 'tanggal_selesai' => '2027-06-30', 'is_aktif' => true,
+        ]);
         $adminMi = User::create([
             'name' => 'Admin MI', 'email' => 'admin-mi-kelas@example.com',
             'phone' => '081000000005', 'password' => 'password',
@@ -161,15 +170,25 @@ class KelasStoreTest extends TestCase
         $this->actingAs($adminMi, 'sanctum')->postJson('/api/admin/kelas', $payload($f['mi']->id))
             ->assertStatus(201);
 
-        // Luar scope → 403; root → 422; tanpa tulisan baru selain baris pertama.
-        $this->actingAs($adminMi, 'sanctum')->postJson('/api/admin/kelas', $payload($md->id))
-            ->assertStatus(403);
+        // Pasangan MD → lolos (pengecualian timbal-balik).
+        $this->actingAs($adminMi, 'sanctum')->postJson('/api/admin/kelas', [
+            'lembaga_id' => $md->id,
+            'tahun_ajaran_id' => $taMd->id,
+            'nama_kelas' => 'I-A',
+        ])->assertStatus(201);
+
+        // Non-pasangan (MTS) → 403; root → 422; tanpa tulisan baru selain dua baris.
+        $this->actingAs($adminMi, 'sanctum')->postJson('/api/admin/kelas', [
+            'lembaga_id' => $mts->id,
+            'tahun_ajaran_id' => $f['taMi']->id,
+            'nama_kelas' => 'VII-A',
+        ])->assertStatus(403);
         $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/kelas', $payload(
             Lembaga::where('kode', 'PESANTREN')->firstOrFail()->id
         ))
             ->assertStatus(422)
             ->assertJsonValidationErrors(['lembaga_id']);
-        $this->assertSame(1, Kelas::count());
+        $this->assertSame(2, Kelas::count());
     }
 
     public function test_06_daftar_urut_nama_ascending(): void

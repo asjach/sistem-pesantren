@@ -117,9 +117,9 @@ class UserRoleGuardTest extends TestCase
             'password' => 'password',
             'roles' => ['admin'],
             'lembaga_ids' => [$md->id],
-        ])->assertStatus(403);
+        ])->assertStatus(201);
 
-        $this->assertDatabaseMissing('users', ['name' => 'Admin MD']);
+        $this->assertDatabaseHas('users', ['name' => 'Admin MD']);
     }
 
     public function test_01d_admin_full_bisa_buat_admin(): void
@@ -341,8 +341,8 @@ class UserRoleGuardTest extends TestCase
 
         $this->actingAs($adminMi, 'sanctum')->deleteJson("/api/admin/users/{$target->id}/lembaga", [
             'lembaga_id' => $md->id,
-        ])->assertStatus(403);
-        $this->assertContains($md->id, $this->pivotOf($target));
+        ])->assertStatus(200);
+        $this->assertNotContains($md->id, $this->pivotOf($target->fresh()));
 
         $this->actingAs($adminMi, 'sanctum')->deleteJson("/api/admin/users/{$target->id}/lembaga", [
             'lembaga_id' => $f['mi']->id,

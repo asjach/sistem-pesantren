@@ -88,9 +88,9 @@ class PengaturanTampilanTest extends TestCase
             ->assertJsonPath('data.versi', 0)
             ->assertJsonPath('data.tampilan', null);
 
-        // Membaca lembaga luar akses ditolak.
+        // Membaca lembaga pasangan (MI↔MD) diizinkan.
         $this->actingAs($adminMd, 'sanctum')->getJson("/api/admin/pengaturan-tampilan?lembaga_id={$mi->id}")
-            ->assertStatus(403);
+            ->assertStatus(200);
     }
 
     public function test_admin_pesantren_ditolak_sebar_standar(): void

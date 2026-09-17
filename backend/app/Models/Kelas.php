@@ -53,7 +53,7 @@ class Kelas extends Model
         if ($user->hasAnyRole(['orang_tua', 'guru', 'santri'])) {
             return $query->whereRaw('1 = 0');
         }
-        $ids = $user->lembagaIds();
+        $ids = $user->lembagaIdsDenganPasangan();
         if (empty($ids)) {
             return $query->whereRaw('1 = 0');
         }

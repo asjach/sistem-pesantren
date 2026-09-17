@@ -42,6 +42,23 @@ class Lembaga extends Model
         });
     }
 
+    /** Pasangan MI↔MD (pengecualian timbal-balik): id counterpart operasional, else null. */
+    public static function pasanganId(int $id): ?int
+    {
+        static $cache = [];
+        if (array_key_exists($id, $cache)) {
+            return $cache[$id];
+        }
+        $kode = static::whereKey($id)->whereNotNull('parent_id')->value('kode');
+        $lawan = $kode === 'MI' ? 'MD' : ($kode === 'MD' ? 'MI' : null);
+        $cache[$id] = $lawan === null
+            ? null
+            : static::where('kode', $lawan)->whereNotNull('parent_id')->value('id');
+        $cache[$id] = $cache[$id] === null ? null : (int) $cache[$id];
+
+        return $cache[$id];
+    }
+
     public function scopeTenantScope(Builder $query): Builder
     {
         $user = auth()->user();
@@ -51,7 +68,7 @@ class Lembaga extends Model
         if ($user->hasAnyRole(['orang_tua', 'guru', 'santri'])) {
             return $query->whereRaw('1 = 0');
         }
-        $ids = $user->lembagaIds();
+        $ids = $user->lembagaIdsDenganPasangan();
         if (empty($ids)) {
             return $query->whereRaw('1 = 0');
         }

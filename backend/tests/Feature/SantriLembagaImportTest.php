@@ -265,6 +265,10 @@ class SantriLembagaImportTest extends TestCase
     {
         $f = $this->baseFixture();
         $adminMi = $this->makeAdmin([$f['mi']->id]);
+        $mts = Lembaga::create([
+            'parent_id' => $f['mi']->parent_id, 'nama' => 'Tsanawiyah', 'kode' => 'MTS',
+            'is_seleksi' => false, 'kelompok_psb' => 'eksklusif', 'is_active' => true,
+        ]);
 
         $res = $this->upload($adminMi, $this->makeCsv([
             [
@@ -275,10 +279,15 @@ class SantriLembagaImportTest extends TestCase
                 'kode_lembaga' => 'MD', 'nis_lokal' => '25402',
                 'nama_lengkap' => 'Anak MD', 'nik' => '1101010000000006', 'jk' => 'L',
             ],
+            [
+                'kode_lembaga' => 'MTS', 'nis_lokal' => '25403',
+                'nama_lengkap' => 'Anak MTS', 'nik' => '1101010000000007', 'jk' => 'L',
+            ],
         ]))->assertStatus(422);
 
         $this->assertNotNull(Santri::where('nik', '1101010000000005')->first());
-        $this->assertNull(Santri::where('nik', '1101010000000006')->first());
+        $this->assertNotNull(Santri::where('nik', '1101010000000006')->first());
+        $this->assertNull(Santri::where('nik', '1101010000000007')->first());
         $attrs = collect($res->json('errors'))->pluck('attribute')->all();
         $this->assertContains('kode_lembaga', $attrs);
     }
@@ -432,7 +441,7 @@ class SantriLembagaImportTest extends TestCase
             ->assertStatus(200);
         $this->actingAs($adminMi, 'sanctum')
             ->get("/api/admin/santri/data-gabungan?lembaga_id[]={$f['mi']->id}&lembaga_id[]={$f['md']->id}")
-            ->assertStatus(403);
+            ->assertStatus(200);
     }
 
     // ---------- 12. file ketikan manual: sel numerik + tanggal serial ----------

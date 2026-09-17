@@ -128,7 +128,7 @@ class SantriFlowTest extends TestCase
 
         $this->assertContains($santriMi->nama_lengkap, $nama);
         $this->assertContains($tanpaKeanggotaan->nama_lengkap, $nama);
-        $this->assertNotContains($santriMd->nama_lengkap, $nama);
+        $this->assertContains($santriMd->nama_lengkap, $nama);
     }
 
     public function test_02_guru_akses_index_ditolak(): void
@@ -397,10 +397,10 @@ class SantriFlowTest extends TestCase
         $santriMi = $this->makeSantri('Milik MI');
         LembagaSantri::create(['santri_id' => $santriMi->id, 'lembaga_id' => $f['mi']->id, 'is_active' => true]);
 
-        // Admin MD tidak boleh mengubah santri yang hanya berkeanggotaan MI.
+        // Admin MD boleh mengubah santri berkeanggotaan MI (pengecualian pasangan).
         $this->actingAs($adminMd, 'sanctum')->patchJson("/api/admin/santri/{$santriMi->id}", [
             'nama_singkat' => 'X',
-        ])->assertStatus(403);
+        ])->assertStatus(200);
 
         // Santri tanpa keanggotaan = arsip pusat → boleh admin mana pun.
         $tanpa = $this->makeSantri('Arsip Pusat');
@@ -429,10 +429,10 @@ class SantriFlowTest extends TestCase
         ])->assertStatus(201);
         $this->assertNotNull($santri->fresh()->foto_url);
 
-        // Admin lembaga lain ditolak.
+        // Admin pasangan (MD) diizinkan.
         $this->actingAs($adminMd, 'sanctum')->post("/api/admin/santri/{$santri->id}/foto", [
             'foto' => UploadedFile::fake()->image('foto2.jpg'),
-        ])->assertStatus(403);
+        ])->assertStatus(201);
     }
 
     public function test_16_daftar_santri_per_page_semua(): void

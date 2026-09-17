@@ -172,23 +172,37 @@ class KelasImportNamaTest extends TestCase
         ]);
         $this->actingAs($adminMi, 'sanctum')
             ->get("/api/admin/kelas/export-nama?lembaga_id={$f['md']->id}&tahun_ajaran_id={$f['taMd']->id}")
+            ->assertStatus(200);
+
+        // Non-pasangan (MTS) tetap ditolak.
+        $adminMts = User::create([
+            'name' => 'Admin MTS', 'email' => 'adminmts-ekspor@example.com',
+            'phone' => '081000000013', 'password' => 'password',
+        ]);
+        $adminMts->assignRole('admin');
+        DB::table('user_lembaga')->insert([
+            'user_id' => $adminMts->id, 'lembaga_id' => $f['mts']->id,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $this->actingAs($adminMts, 'sanctum')
+            ->get("/api/admin/kelas/export-nama?lembaga_id={$f['md']->id}&tahun_ajaran_id={$f['taMd']->id}")
             ->assertStatus(403);
     }
 
     public function test_target_luar_lingkup_ditolak(): void
     {
         $f = $this->baseFixture();
-        $adminMi = User::create([
-            'name' => 'Admin MI', 'email' => 'adminmi-impor@example.com',
-            'phone' => '081000000010', 'password' => 'password',
+        $adminMts = User::create([
+            'name' => 'Admin MTS', 'email' => 'adminmts-impor@example.com',
+            'phone' => '081000000014', 'password' => 'password',
         ]);
-        $adminMi->assignRole('admin');
+        $adminMts->assignRole('admin');
         DB::table('user_lembaga')->insert([
-            'user_id' => $adminMi->id, 'lembaga_id' => $f['mi']->id,
+            'user_id' => $adminMts->id, 'lembaga_id' => $f['mts']->id,
             'created_at' => now(), 'updated_at' => now(),
         ]);
 
-        $this->panggil($adminMi, [
+        $this->panggil($adminMts, [
             'lembaga_id' => $f['md']->id, 'tahun_ajaran_id' => $f['taMd']->id,
             'dari_kode' => 'MI', 'periksa' => true,
         ])->assertStatus(403);

@@ -286,9 +286,8 @@ Status: ✅ live.
 (NIS warisi MI, `tgl_mulai` hari ini, idempoten), hapus fisik jejak MD
 (izin `santri.ubah`; ditolak bila bukan-MI-aktif / tanpa anggota MD / ada arsip
 alumni-mutasi MD), samakan kelas (pindah ke kelas senama di TA berjalan sisi
-tujuan, butuh akses tulis tujuan). **Pengecualian tenant sadar**: akses MI atau
-MD membuka kedua sisi — hanya di endpoint halaman ini; tulis tetap sisi target.
-Izin halaman memakai ulang `rekap_santri.lihat`. Status: ✅ live.
+tujuan, butuh akses tulis tujuan). Izin halaman memakai ulang `rekap_santri.lihat`. Status: ✅ live.
+Aturan pasangan kini global (v2.61) — lihat butir Tenant di §7.
 
 #### Phase 2 — Academic 🟡 (spec locked, not implemented)
 
@@ -371,11 +370,15 @@ Status: 🔲 not scaffolded (backend 201/202 pending).
 
 ### 7. Data model summary
 
-* Tenant: `lembaga` tree (`parent_id`, root `kode=PESANTREN`); `user_lembaga`
-  pivot is the ONLY tenant store. Pengecualian tunggal: pasangan MI↔MD di
-  halaman MI-MD (akses salah satu membuka kedua sisi baca; tulis tetap sisi
-  target). Tulis gabungan butuh `santri.tambah` DAN `santri.ubah` (dua
-  middleware = AND).
+* Tenant: `lembaga` tree (`parent_id`, `kode=PESANTREN`); `user_lembaga`
+  pivot is the ONLY tenant store. **Pengecualian pasangan MI↔MD (global,
+  timbal-balik)**: admin scoped pemegang MI bisa lihat/ubah/hapus data MD dan
+  sebaliknya — di semua endpoint (daftar, tulis, impor, PSB, kamus, preset,
+  pengguna). Berlaku khusus role `admin` scoped; super_admin/admin-full tak
+  berubah; act-as tetap ketat; non-pasangan (mis. MTS) tetap terisolasi.
+  Implementasi: `Lembaga::pasanganId` + `User::lembagaIdsDenganPasangan` di
+  semua scope daftar + fallback `canAccessLembaga`. Tulis gabungan butuh
+  `santri.tambah` DAN `santri.ubah` (dua middleware = AND).
 * Kamus pattern: consumer columns are free strings (no FK); `ref_*` tables
   provide suggestions via `RefService::effective(tipe, lembagaId)`; global
   rows shadowable on/off per lembaga.

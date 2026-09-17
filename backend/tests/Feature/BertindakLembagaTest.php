@@ -162,11 +162,10 @@ class BertindakLembagaTest extends TestCase
         $this->siapkanKelas($l['mi'], $l['md']);
         $adminMi = $this->makeUser('admin', [$l['mi']->id]);
 
-        // Header act-as diabaikan untuk non-super_admin → tetap hanya MI.
+        // Header act-as diabaikan untuk non-super_admin; pasangan MI↔MD ikut tampil.
         $this->actingAs($adminMi, 'sanctum')->withHeaders(['X-Lembaga-Aktif' => (string) $l['md']->id])
             ->getJson('/api/admin/kelas')
             ->assertStatus(200)
-            ->assertJsonCount(1, 'data')
-            ->assertJsonPath('data.0.lembaga_id', $l['mi']->id);
+            ->assertJsonCount(2, 'data');
     }
 }

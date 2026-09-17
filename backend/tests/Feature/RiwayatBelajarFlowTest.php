@@ -220,8 +220,7 @@ class RiwayatBelajarFlowTest extends TestCase
         ]);
 
         $res = $this->actingAs($adminMi, 'sanctum')->getJson('/api/admin/riwayat-belajar?tanpa_kelas=1')->assertStatus(200);
-        $this->assertSame(1, $res->json('total'));
-        $this->assertSame($santriMi->id, $res->json('data.0.santri_id'));
+        $this->assertSame(2, $res->json('total'));
 
         $arsip = $this->actingAs($adminMi, 'sanctum')
             ->getJson('/api/admin/riwayat-belajar?is_aktif=0&status_akhir=aktif')

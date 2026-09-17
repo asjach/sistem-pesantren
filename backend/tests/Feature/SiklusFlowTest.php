@@ -421,14 +421,17 @@ class SiklusFlowTest extends TestCase
         $this->assertSame(1, $listMi->json('total'));
 
         $listMd = $this->actingAs($adminMd, 'sanctum')->getJson('/api/admin/mutasi-keluar')->assertStatus(200);
-        $this->assertSame(0, $listMd->json('total'));
+        $this->assertSame(1, $listMd->json('total'));
 
-        // Aksi lintas lembaga ditolak.
-        $this->actingAs($adminMd, 'sanctum')->postJson("/api/admin/santri/{$santriMi->id}/mutasi", [
+        // Aksi pasangan MI↔MD diizinkan (santri lain ber-riwayat MI aktif).
+        $santriBaru = $this->makeSantri('Arsip MI Dua');
+        $this->makeKeanggotaan($santriBaru, $f['mi'], '25011');
+        $this->makeRiwayat($santriBaru, $f['taLama'], $f['mi'], '1');
+        $this->actingAs($adminMd, 'sanctum')->postJson("/api/admin/santri/{$santriBaru->id}/mutasi", [
             'lembaga_id' => $f['mi']->id,
             'tanggal_mutasi' => '2026-05-01',
             'alasan_mutasi' => 'Ikut pindah orang tua',
-        ])->assertStatus(403);
+        ])->assertStatus(200);
     }
 
     // ---------- 10. pindah/set/keluar kelas ----------

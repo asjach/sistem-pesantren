@@ -142,10 +142,10 @@ class SamakanNisTest extends TestCase
         $this->anggota($s, $f['mi']->id, '27401');
         $this->anggota($s, $f['md']->id, null);
 
-        // Admin MI saja tak bisa menulis MD → kandidat dikecualikan.
+        // Admin MI bisa menulis MD (pengecualian pasangan) → kandidat disamakan.
         $res = $this->panggil($adminMi, false)->assertStatus(200);
-        $this->assertSame(0, (int) $res->json('ringkasan.disamakan'));
-        $this->assertNull(LembagaSantri::where('santri_id', $s->id)->where('lembaga_id', $f['md']->id)->firstOrFail()->nis_lokal);
+        $this->assertSame(1, (int) $res->json('ringkasan.disamakan'));
+        $this->assertSame('27401', LembagaSantri::where('santri_id', $s->id)->where('lembaga_id', $f['md']->id)->firstOrFail()->nis_lokal);
 
         $tanpaIzin = User::create([
             'name' => 'Tanpa Izin', 'email' => 'tanpa_'.uniqid().'@example.com',

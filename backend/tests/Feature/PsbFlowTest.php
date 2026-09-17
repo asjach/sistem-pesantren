@@ -702,15 +702,15 @@ class PsbFlowTest extends TestCase
             'nik' => '1100000000000201', 'status_pendaftaran' => 'baru', 'lembaga_id' => $f['mi']->id,
         ]);
 
-        // Tenant: admin lembaga lain tidak boleh input ke MI.
+        // Tenant: pasangan MI↔MD boleh input lintas (pengecualian timbal-balik).
         $adminMd = $this->makeUser('admin', [$f['md']->id]);
         $this->actingAs($adminMd, 'sanctum')->postJson('/api/psb/calon', [
             'gelombang_id' => $f['gel']->id,
             'lembaga_id' => $f['mi']->id,
             'tipe_santri' => 'non_asrama',
             'nik' => '1100000000000202',
-            'nama_lengkap' => 'Salah Lembaga',
-        ])->assertStatus(403);
+            'nama_lengkap' => 'Lintas Pasangan',
+        ])->assertStatus(201);
 
         // Dropdown gelombang admin.
         $this->actingAs($admin, 'sanctum')->getJson('/api/psb/gelombang')
@@ -1164,7 +1164,7 @@ class PsbFlowTest extends TestCase
 
         $this->actingAs($adminMi, 'sanctum')->postJson('/api/admin/psb/kuota-biaya', [
             'gelombang_id' => $f['gel']->id, 'lembaga_id' => $f['md']->id, 'tipe_santri' => 'non_asrama',
-        ])->assertStatus(403);
+        ])->assertStatus(200);
 
         $index = $this->actingAs($adminMi, 'sanctum')->getJson('/api/admin/psb/kuota-biaya?gelombang_id='.$f['gel']->id);
         $index->assertStatus(200);
