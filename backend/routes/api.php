@@ -79,6 +79,8 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::get('santri/data-gabungan', [SantriController::class, 'dataGabungan'])->middleware('permission:santri.lihat');
         Route::post('santri/import-periksa-gabungan', [SantriController::class, 'periksaImportGabungan'])->middleware(['permission:santri.tambah', 'permission:santri.ubah', 'throttle:imports']);
         Route::post('santri/import-gabungan', [SantriController::class, 'importGabungan'])->middleware(['permission:santri.tambah', 'permission:santri.ubah', 'throttle:imports']);
+        // Samakan NIS paket MI↔MD (pratinjau + eksekusi).
+        Route::post('santri/samakan-nis', [SantriController::class, 'samakanNis'])->middleware('permission:santri.ubah');
         Route::post('santri/{santri}/foto', [SantriController::class, 'uploadFoto'])->middleware('permission:santri.tambah');
         Route::get('santri/{santri}/dokumen', [SantriController::class, 'listDokumen'])->middleware('permission:santri.lihat');
         Route::post('santri/{santri}/dokumen', [SantriController::class, 'uploadDokumen'])->middleware('permission:santri.tambah');

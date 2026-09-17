@@ -164,7 +164,33 @@ export function generateNisk(id: number) {
   });
 }
 
-// ---------- Foto & dokumen ----------
+// ---------- Samakan NIS paket MI↔MD ----------
+
+export interface SamakanNisRincian {
+  santri_id: number;
+  nama: string;
+  status: 'disamakan' | 'beda' | 'tabrakan';
+  dari?: string;
+  ke?: string;
+  nis?: string;
+  mi?: string;
+  md?: string;
+}
+
+export interface SamakanNisHasil {
+  pesan: string;
+  periksa: boolean;
+  ringkasan: { kandidat: number; disamakan: number; beda: number; tabrakan: number };
+  rincian: SamakanNisRincian[];
+}
+
+/** Pratinjau (periksa=true, tanpa menulis) atau eksekusi penyamaan NIS MI↔MD. */
+export function samakanNis(periksa: boolean) {
+  return api<SamakanNisHasil>('/admin/santri/samakan-nis', {
+    method: 'POST',
+    body: JSON.stringify({ periksa }),
+  });
+}
 
 export function uploadFotoSantri(santriId: number, file: File) {
   const fd = new FormData();

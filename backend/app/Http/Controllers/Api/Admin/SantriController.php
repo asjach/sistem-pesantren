@@ -14,6 +14,7 @@ use App\Models\DokumenSantri;
 use App\Models\Lembaga;
 use App\Models\Santri;
 use App\Models\User;
+use App\Services\PenerimaanService;
 use App\Services\RefService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -316,6 +317,57 @@ class SantriController extends Controller
         if (! $auth || ! $auth->can('santri.tambah') || ! $auth->can('santri.ubah')) {
             abort(403, 'Akses ditolak.');
         }
+    }
+
+    /** POST /api/admin/santri/samakan-nis — samakan NIS paket MI↔MD (pratinjau/tulis). */
+    public function samakanNis(Request $request): JsonResponse
+    {
+        $this->authorize('update', new Santri);
+        $periksa = $request->boolean('periksa', true);
+
+        $miId = Lembaga::where('kode', 'MI')->value('id');
+        $mdId = Lembaga::where('kode', 'MD')->value('id');
+        if (! $miId || ! $mdId) {
+            return response()->json(['pesan' => 'Lembaga MI/MD tidak ditemukan.'], 422);
+        }
+
+        $auth = $request->user();
+        $kandidat = Santri::tenantScope()
+            ->whereHas('lembagaAktif', fn ($q) => $q->where('lembaga_id', $miId))
+            ->whereHas('lembagaAktif', fn ($q) => $q->where('lembaga_id', $mdId))
+            ->pluck('id');
+
+        $layanan = app(PenerimaanService::class);
+        $rincian = [];
+        foreach ($kandidat as $id) {
+            if (! $auth->canAccessLembaga((int) $miId) || ! $auth->canAccessLembaga((int) $mdId)) {
+                continue;
+            }
+            $santri = Santri::find($id);
+            if (! $santri) {
+                continue;
+            }
+            $hasil = $layanan->samakanNisSatu($santri, (int) $miId, (int) $mdId, ! $periksa);
+            if ($hasil !== null) {
+                $rincian[] = array_merge(['santri_id' => (int) $id, 'nama' => $santri->nama_lengkap], $hasil);
+            }
+        }
+
+        $hitung = fn (string $s) => count(array_filter($rincian, fn ($r) => $r['status'] === $s));
+
+        return response()->json([
+            'pesan' => $periksa
+                ? 'Pratinjau selesai: centang dan eksekusi untuk menyamakan.'
+                : 'Penyamaan NIS selesai.',
+            'periksa' => $periksa,
+            'ringkasan' => [
+                'kandidat' => count($kandidat),
+                'disamakan' => $hitung('disamakan'),
+                'beda' => $hitung('beda'),
+                'tabrakan' => $hitung('tabrakan'),
+            ],
+            'rincian' => array_slice($rincian, 0, 200),
+        ]);
     }
 
     /** Lembaga operasional yang boleh diakses pengunduh (dropdown kode template). */

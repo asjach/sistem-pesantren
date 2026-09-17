@@ -20,6 +20,60 @@ use Illuminate\Validation\ValidationException;
 class PenerimaanService
 {
     /**
+     * Samakan NIS paket MI↔MD dua arah untuk satu santri: bila tepat satu sisi
+     * (keanggotaan aktif) bernomor dan sisi lain kosong → salin. Kedua sisi
+     * beda → laporkan tanpa menyentuh. Tabrakan (nomor dipakai santri lain di
+     * sisi tujuan) → lewati + laporkan. Mode pratinjau: tanpa menulis.
+     *
+     * @return null|array{status: string, ...} null = tidak ada yang perlu dilakukan
+     */
+    public function samakanNisSatu(Santri $santri, int $miId, int $mdId, bool $eksekusi): ?array
+    {
+        return DB::transaction(function () use ($santri, $miId, $mdId, $eksekusi) {
+            $anggota = LembagaSantri::where('santri_id', $santri->id)
+                ->whereIn('lembaga_id', [$miId, $mdId])
+                ->where('is_active', true)
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('lembaga_id');
+
+            $mi = $anggota->get($miId);
+            $md = $anggota->get($mdId);
+            if (! $mi || ! $md) {
+                return null;
+            }
+
+            $nisMi = trim((string) ($mi->nis_lokal ?? ''));
+            $nisMd = trim((string) ($md->nis_lokal ?? ''));
+
+            if ($nisMi !== '' && $nisMd === '') {
+                return $this->salinNis($md, $nisMi, 'MI', 'MD', $eksekusi);
+            }
+            if ($nisMi === '' && $nisMd !== '') {
+                return $this->salinNis($mi, $nisMd, 'MD', 'MI', $eksekusi);
+            }
+            if ($nisMi !== '' && $nisMd !== '' && $nisMi !== $nisMd) {
+                return ['status' => 'beda', 'mi' => $nisMi, 'md' => $nisMd];
+            }
+
+            return null;
+        });
+    }
+
+    /** @return array{status: string, ...} */
+    protected function salinNis(LembagaSantri $tujuan, string $nis, string $dari, string $ke, bool $eksekusi): array
+    {
+        if (LembagaSantri::nisLokalDipakai((int) $tujuan->lembaga_id, $nis, (int) $tujuan->id)) {
+            return ['status' => 'tabrakan', 'dari' => $dari, 'ke' => $ke, 'nis' => $nis];
+        }
+        if ($eksekusi) {
+            $tujuan->update(['nis_lokal' => $nis]);
+        }
+
+        return ['status' => 'disamakan', 'dari' => $dari, 'ke' => $ke, 'nis' => $nis];
+    }
+
+    /**
      * Pastikan ada keanggotaan AKTIF santri di lembaga (buat baru bila belum ada).
      * Baris lama yang nonaktif tidak diaktifkan ulang — dibuat baris baru agar
      * jejak keanggotaan (tgl_mulai/tgl_selesai) tetap utuh.
