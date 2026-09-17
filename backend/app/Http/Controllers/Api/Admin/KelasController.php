@@ -187,8 +187,11 @@ class KelasController extends Controller
         if (! $sumber) {
             return response()->json(['pesan' => "Lembaga sumber {$sumberKode} tidak ditemukan."], 422);
         }
-        // Sumber boleh dibaca bila pemanggil boleh akses target pasangannya.
-        if (! $request->user()->canAccessLembaga((int) $sumber->id)) {
+        // Pengecualian pasangan MI↔MD: sumber boleh dibaca bila pemanggil boleh
+        // akses target (sudah diauthorize di atas); tulis tetap target saja.
+        // Tanpa ini admin satu lembaga selalu 403 saat import dari pasangannya.
+        if (! $request->user()->canAccessLembaga((int) $sumber->id)
+            && ! $request->user()->canAccessLembaga($targetId)) {
             return response()->json(['pesan' => 'Akses ditolak.'], 403);
         }
 

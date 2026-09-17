@@ -101,6 +101,29 @@ class KelasImportNamaTest extends TestCase
         ])->assertStatus(422);
     }
 
+    public function test_admin_satu_lembaga_bisa_baca_pasangan(): void
+    {
+        $f = $this->baseFixture();
+        Kelas::create(['lembaga_id' => $f['md']->id, 'tahun_ajaran_id' => $f['taMd']->id, 'nama_kelas' => '1A', 'tingkat' => '1', 'urutan' => 1]);
+
+        $adminMi = User::create([
+            'name' => 'Admin MI', 'email' => 'adminmi-baca@example.com',
+            'phone' => '081000000011', 'password' => 'password',
+        ]);
+        $adminMi->assignRole('admin');
+        DB::table('user_lembaga')->insert([
+            'user_id' => $adminMi->id, 'lembaga_id' => $f['mi']->id,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        // Target MI miliknya, sumber MD terbaca via pengecualian pasangan.
+        $this->panggil($adminMi, [
+            'lembaga_id' => $f['mi']->id, 'tahun_ajaran_id' => $f['taMi']->id,
+            'dari_kode' => 'MD', 'periksa' => false,
+        ])->assertStatus(200);
+        $this->assertDatabaseHas('kelas', ['lembaga_id' => $f['mi']->id, 'nama_kelas' => '1A']);
+    }
+
     public function test_target_luar_lingkup_ditolak(): void
     {
         $f = $this->baseFixture();
