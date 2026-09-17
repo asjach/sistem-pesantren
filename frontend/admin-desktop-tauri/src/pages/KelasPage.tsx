@@ -49,11 +49,12 @@ import { toast } from 'sonner';
 const FIELDS: ExcelField[] = [
   {
     key: 'nama', label: 'nama_kelas', width: 160, kind: 'text', maxLength: 50,
+    sumber: { tabel: 'kelas', kolom: 'nama_kelas' },
     required: true,
     validate: (v) => (!v || !v.trim() ? 'Nama kelas wajib diisi.' : null),
   },
-  { key: 'lembaga', label: 'lembaga.kode', width: 110, kind: 'static' },
-  { key: 'ta', label: 'tahun_ajaran.nama', width: 160, kind: 'static' },
+  { key: 'lembaga', label: 'lembaga.kode', width: 110, kind: 'static', sumber: { tabel: 'lembaga', kolom: 'kode' } },
+  { key: 'ta', label: 'tahun_ajaran.nama', width: 160, kind: 'static', sumber: { tabel: 'tahun_ajaran', kolom: 'nama' } },
   {
     key: 'tingkat', label: 'tingkat', width: 120, kind: 'text', maxLength: 20,
   },
@@ -561,6 +562,8 @@ export default function KelasPage() {
       <ErrorNotice>{err}</ErrorNotice>
       <ExcelTable
         tableKey="kelas"
+        sumberTabel="kelas"
+        endpointUrut="admin/kelas"
         fields={FIELDS}
         rows={rows}
         getValues={gridValues}

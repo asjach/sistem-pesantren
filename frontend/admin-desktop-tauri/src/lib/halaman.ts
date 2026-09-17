@@ -62,6 +62,15 @@ export const HALAMAN: HalamanDef[] = [
   { to: '/tahun-ajaran', label: 'Tahun Ajaran', tab: 'master', grid: true, icon: CalendarDays, permission: 'tahun_ajaran.lihat' },
   { to: '/kelas', label: 'Kelas', tab: 'master', grid: true, icon: BookOpen, permission: 'kelas.lihat' },
   { to: '/referensi', label: 'Referensi', tab: 'master', grid: true, icon: BookMarked, permission: 'referensi.lihat' },
+  {
+    to: '/kamus-label',
+    label: 'Kamus Label',
+    deskripsi: 'Satu acuan nama header, perataan, dan lebar kolom untuk semua halaman (berbasis tabel database). Urut bawaan per endpoint juga diatur di sini.',
+    tab: 'master',
+    grid: true,
+    icon: NotebookTabs,
+    permission: 'kamus_label.lihat',
+  },
   { to: '/psb', label: 'PSB — Antrean Pendaftaran', tab: 'psb', grid: true, icon: ClipboardList, permission: 'psb.lihat' },
   { to: '/kegiatan-psb', label: 'Kegiatan PSB', tab: 'psb', grid: true, icon: CalendarRange, permission: 'kegiatan_psb.lihat' },
   {

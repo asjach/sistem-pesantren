@@ -1,0 +1,91 @@
+import { api } from './client';
+
+export type AlignKolom = 'left' | 'center' | 'right';
+export type ArahUrut = 'naik' | 'turun';
+
+/** Atribut kamus satu kolom (kunci peta: "tabel.kolom"). */
+export interface KamusKolomAttr {
+  label: string | null;
+  align: AlignKolom | null;
+  lebar: number | null;
+  kunci_lebar: boolean;
+  bisa_urut: boolean;
+  arah_bawaan: ArahUrut | null;
+  tooltip: string | null;
+  format: string | null;
+}
+
+export type KamusPeta = Record<string, KamusKolomAttr>;
+
+export interface LabelKolom {
+  id: number;
+  tabel: string;
+  kolom: string;
+  label: string | null;
+  align: AlignKolom | null;
+  lebar: number | null;
+  kunci_lebar: boolean;
+  bisa_urut: boolean;
+  arah_bawaan: ArahUrut | null;
+  tooltip: string | null;
+  format: string | null;
+}
+
+export interface UrutBawaan {
+  id: number;
+  endpoint: string;
+  kunci: string[];
+  arah: ArahUrut;
+}
+
+export function petaKolom(tabel: string[]) {
+  const q = new URLSearchParams({ tabel: tabel.join(',') });
+  return api<{ pesan: string; data: KamusPeta }>(`/admin/kamus-kolom/peta?${q.toString()}`);
+}
+
+export function listKamusKolom(params: { tabel?: string; search?: string } = {}) {
+  const q = new URLSearchParams();
+  if (params.tabel) q.set('tabel', params.tabel);
+  if (params.search) q.set('search', params.search);
+  const s = q.toString();
+  return api<{ pesan: string; data: LabelKolom[] }>(`/admin/kamus-kolom${s ? `?${s}` : ''}`);
+}
+
+export function createKamusKolom(input: Omit<LabelKolom, 'id'>) {
+  return api<{ pesan: string; data: LabelKolom }>('/admin/kamus-kolom', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export function updateKamusKolom(id: number, input: Omit<LabelKolom, 'id'>) {
+  return api<{ pesan: string; data: LabelKolom }>(`/admin/kamus-kolom/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(input),
+  });
+}
+
+export function deleteKamusKolom(id: number) {
+  return api<{ pesan: string }>(`/admin/kamus-kolom/${id}`, { method: 'DELETE' });
+}
+
+export function listUrutBawaan() {
+  return api<{ pesan: string; data: UrutBawaan[] }>('/admin/kamus-kolom/urut');
+}
+
+export function simpanUrutBawaan(input: { endpoint: string; kunci: string[]; arah?: ArahUrut }) {
+  return api<{ pesan: string; data: UrutBawaan | null }>('/admin/kamus-kolom/urut', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export function hapusUrutBawaan(id: number) {
+  return api<{ pesan: string }>(`/admin/kamus-kolom/urut/${id}`, { method: 'DELETE' });
+}
+
+/** Urut bawaan satu endpoint (null bila belum diatur di kamus). */
+export async function urutBawaanEndpoint(endpoint: string): Promise<UrutBawaan | null> {
+  const res = await listUrutBawaan();
+  return res.data.find((r) => r.endpoint === endpoint) ?? null;
+}

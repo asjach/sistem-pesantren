@@ -44,14 +44,16 @@ const FIELDS: ExcelField[] = [
   },
   {
     key: 'mulai', label: 'tanggal_mulai', width: 130, kind: 'text', maxLength: 10,
+    sumber: { tabel: 'tahun_ajaran', kolom: 'tanggal_mulai' },
     validate: dateRule('Tanggal mulai'),
   },
   {
     key: 'selesai', label: 'tanggal_selesai', width: 130, kind: 'text', maxLength: 10,
+    sumber: { tabel: 'tahun_ajaran', kolom: 'tanggal_selesai' },
     validate: dateRule('Tanggal selesai'),
   },
-  { key: 'aktif', label: 'is_aktif', width: 100, kind: 'static' },
-  { key: 'tampil', label: 'Tampil lembaga', width: 150, kind: 'static' },
+  { key: 'aktif', label: 'is_aktif', width: 100, kind: 'static', sumber: { tabel: 'tahun_ajaran', kolom: 'is_aktif' } },
+  { key: 'tampil', label: 'Tampil lembaga', width: 150, kind: 'static', sumber: null },
 ];
 
 function gridValues(t: TahunAjaran): Record<string, string | null> {
@@ -307,6 +309,8 @@ export default function TahunAjaranPage() {
       <ErrorNotice>{err}</ErrorNotice>
       <ExcelTable
         tableKey="tahun_ajaran"
+        sumberTabel="tahun_ajaran"
+        endpointUrut="admin/tahun-ajaran"
         fields={FIELDS}
         rows={rows}
         getValues={gridValues}

@@ -47,9 +47,9 @@ const FIELDS: ExcelField[] = [
     required: true,
     validate: (v) => (!v || !v.trim() ? 'Nama lembaga wajib diisi.' : null),
   },
-  { key: 'induk', label: 'induk.nama', width: 220, kind: 'static' },
-  { key: 'kelompok', label: 'kelompok_psb', width: 140, kind: 'static' },
-  { key: 'seleksi', label: 'is_seleksi', width: 100, kind: 'static' },
+  { key: 'induk', label: 'induk.nama', width: 220, kind: 'static', sumber: null },
+  { key: 'kelompok', label: 'kelompok_psb', width: 140, kind: 'static', sumber: { tabel: 'lembaga', kolom: 'kelompok_psb' } },
+  { key: 'seleksi', label: 'is_seleksi', width: 100, kind: 'static', sumber: { tabel: 'lembaga', kolom: 'is_seleksi' } },
 ];
 
 function gridValues(l: Lembaga): Record<string, string | null> {
@@ -394,6 +394,8 @@ export default function LembagaPage() {
       <ErrorNotice>{err}</ErrorNotice>
       <ExcelTable
         tableKey="lembaga"
+        sumberTabel="lembaga"
+        endpointUrut="admin/lembaga"
         fields={FIELDS}
         rows={rows}
         getValues={gridValues}

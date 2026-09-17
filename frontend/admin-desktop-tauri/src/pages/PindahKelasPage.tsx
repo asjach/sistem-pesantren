@@ -99,9 +99,9 @@ export default function PindahKelasPage() {
             <ExcelTable
               tableKey={`pindah_kelas_${g.tingkat ?? 'tanpa'}_${g.kelasId ?? 'tanpa'}`}
               fields={[
-                { key: 'nama', label: 'santri.nama_lengkap', kind: 'static' },
-                { key: 'nis_lokal', label: 'nis_lokal', kind: 'static' },
-                { key: 'no_absen', label: 'no_absen', kind: 'static' },
+                { key: 'nama', label: 'santri.nama_lengkap', kind: 'static', sumber: { tabel: 'santri', kolom: 'nama_lengkap' } },
+                { key: 'nis_lokal', label: 'nis_lokal', kind: 'static', sumber: { tabel: 'lembaga_santri', kolom: 'nis_lokal' } },
+                { key: 'no_absen', label: 'no_absen', kind: 'static', sumber: { tabel: 'riwayat_belajar', kolom: 'no_absen' } },
               ]}
               rows={g.baris}
               getValues={(r) => ({

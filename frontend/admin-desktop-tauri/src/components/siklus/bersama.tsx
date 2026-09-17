@@ -14,15 +14,15 @@ import {
 
 /** Kolom grid roster riwayat (Daftar Kelas, Riwayat Belajar, Kenaikan, Pindah Kelas). */
 export const ROSTER_FIELDS: ExcelField[] = [
-  { key: 'santri', label: 'santri.nama_lengkap', width: 200, kind: 'static' },
-  { key: 'nis', label: 'nis_lokal', width: 110, kind: 'static' },
-  { key: 'lembaga', label: 'lembaga.kode', width: 110, kind: 'static' },
-  { key: 'smt', label: 'semester', width: 60, kind: 'static' },
-  { key: 'tingkat', label: 'tingkat', width: 80, kind: 'static' },
-  { key: 'kelas', label: 'kelas.nama_kelas', width: 140, kind: 'static' },
-  { key: 'absen', label: 'no_absen', width: 70, kind: 'static' },
-  { key: 'status', label: 'status_awal', width: 130, kind: 'static' },
-  { key: 'masuk', label: 'tgl_masuk', width: 110, kind: 'static' },
+  { key: 'santri', label: 'santri.nama_lengkap', width: 200, kind: 'static', sumber: { tabel: 'santri', kolom: 'nama_lengkap' } },
+  { key: 'nis', label: 'nis_lokal', width: 110, kind: 'static', sumber: { tabel: 'lembaga_santri', kolom: 'nis_lokal' } },
+  { key: 'lembaga', label: 'lembaga.kode', width: 110, kind: 'static', sumber: { tabel: 'lembaga', kolom: 'kode' } },
+  { key: 'smt', label: 'semester', width: 60, kind: 'static', sumber: { tabel: 'riwayat_belajar', kolom: 'semester' } },
+  { key: 'tingkat', label: 'tingkat', width: 80, kind: 'static', sumber: { tabel: 'riwayat_belajar', kolom: 'tingkat' } },
+  { key: 'kelas', label: 'kelas.nama_kelas', width: 140, kind: 'static', sumber: { tabel: 'kelas', kolom: 'nama_kelas' } },
+  { key: 'absen', label: 'no_absen', width: 70, kind: 'static', sumber: { tabel: 'riwayat_belajar', kolom: 'no_absen' } },
+  { key: 'status', label: 'status_awal', width: 130, kind: 'static', sumber: { tabel: 'riwayat_belajar', kolom: 'status_awal' } },
+  { key: 'masuk', label: 'tgl_masuk', width: 110, kind: 'static', sumber: { tabel: 'riwayat_belajar', kolom: 'tgl_masuk' } },
 ];
 
 export function riwayatValues(r: RiwayatRow): Record<string, string | null> {

@@ -56,6 +56,7 @@ function privileged(u: AdminUser) {
 const USER_FIELDS_BASE: ExcelField[] = [
   {
     key: 'nama', label: 'name', width: 200, kind: 'text', maxLength: 255,
+    sumber: { tabel: 'users', kolom: 'name' },
     required: true,
     validate: (v) => (!v || !v.trim() ? 'Nama wajib diisi.' : null),
   },
@@ -73,11 +74,12 @@ const USER_FIELDS_BASE: ExcelField[] = [
   // biasa). Default peran = orang_tua (lihat inputRowValues).
   {
     key: 'sandi', label: 'password', width: 150, kind: 'static',
+    sumber: null,
     inputKind: 'text', maxLength: 100, required: true,
     validate: (v) => (!v || v.trim().length < 8 ? 'Kata sandi minimal 8 karakter.' : null),
   },
-  { key: 'peran', label: 'roles.name', width: 200, kind: 'static', inputKind: 'select' },
-  { key: 'lembaga', label: 'lembaga.kode', width: 200, kind: 'static', inputKind: 'select' },
+  { key: 'peran', label: 'roles.name', width: 200, kind: 'static', inputKind: 'select', sumber: { tabel: 'roles', kolom: 'name' } },
+  { key: 'lembaga', label: 'lembaga.kode', width: 200, kind: 'static', inputKind: 'select', sumber: { tabel: 'lembaga', kolom: 'kode' } },
 ];
 
 /** Kolom grid pengguna: pilihan peran (sesuai kewenangan) & lembaga disuntik. */
@@ -339,6 +341,8 @@ export default function UsersPage() {
       <ErrorNotice>{err}</ErrorNotice>
       <ExcelTable
         tableKey="users"
+        sumberTabel="users"
+        endpointUrut="admin/users"
         fields={fields}
         rows={rows}
         getValues={getValues}

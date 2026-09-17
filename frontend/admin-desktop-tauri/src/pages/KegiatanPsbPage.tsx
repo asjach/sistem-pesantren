@@ -76,18 +76,20 @@ function parseAngka(s: string | null | undefined): number {
 const KEGIATAN_FIELDS: ExcelField[] = [
   {
     key: 'nama', label: 'nama', width: 220, kind: 'text', maxLength: 100,
+    sumber: { tabel: 'psb_gelombang', kolom: 'nama' },
     validate: (v) => (!v || !v.trim() ? 'Nama gelombang wajib diisi.' : null),
   },
-  { key: 'nomor', label: 'nomor', width: 80, kind: 'static' },
-  { key: 'periode', label: 'Periode (tanggal lewat dialog Ubah)', width: 260, kind: 'static' },
+  { key: 'nomor', label: 'nomor', width: 80, kind: 'static', sumber: { tabel: 'psb_gelombang', kolom: 'nomor' } },
+  { key: 'periode', label: 'Periode (tanggal lewat dialog Ubah)', width: 260, kind: 'static', sumber: null },
 ];
 
 const KUOTA_FIELDS: ExcelField[] = [
-  { key: 'lembaga', label: 'lembaga.kode', width: 180, kind: 'static' },
-  { key: 'tipe', label: 'tipe_santri', width: 110, kind: 'static' },
-  { key: 'kuota', label: 'kuota', width: 130, kind: 'text', maxLength: 9, validate: angkaInput('Kuota') },
+  { key: 'lembaga', label: 'lembaga.kode', width: 180, kind: 'static', sumber: { tabel: 'lembaga', kolom: 'kode' } },
+  { key: 'tipe', label: 'tipe_santri', width: 110, kind: 'static', sumber: { tabel: 'psb_kuota_biaya', kolom: 'tipe_santri' } },
+  { key: 'kuota', label: 'kuota', width: 130, kind: 'text', maxLength: 9, validate: angkaInput('Kuota'), sumber: { tabel: 'psb_kuota_biaya', kolom: 'kuota' } },
   {
     key: 'paket', label: 'paket_tersedia', width: 130, kind: 'select',
+    sumber: { tabel: 'psb_kuota_biaya', kolom: 'paket_tersedia' },
     choices: [
       { value: 'ya', label: 'Ya' },
       { value: 'tidak', label: 'Tidak' },
@@ -95,6 +97,7 @@ const KUOTA_FIELDS: ExcelField[] = [
   },
   {
     key: 'seleksi', label: 'membutuhkan_seleksi', width: 120, kind: 'select',
+    sumber: { tabel: 'psb_kuota_biaya', kolom: 'membutuhkan_seleksi' },
     choices: [
       { value: 'default', label: 'Ikut lembaga' },
       { value: 'ya', label: 'Ya' },
@@ -103,6 +106,7 @@ const KUOTA_FIELDS: ExcelField[] = [
   },
   {
     key: 'pemberkasan', label: 'membutuhkan_pemberkasan', width: 120, kind: 'select',
+    sumber: { tabel: 'psb_kuota_biaya', kolom: 'membutuhkan_pemberkasan' },
     choices: [
       { value: 'ya', label: 'Ya' },
       { value: 'tidak', label: 'Tidak' },
@@ -111,9 +115,9 @@ const KUOTA_FIELDS: ExcelField[] = [
 ];
 
 const DOKUMEN_FIELDS: ExcelField[] = [
-  { key: 'lembaga', label: 'Lembaga', width: 200, kind: 'static' },
-  { key: 'wajib', label: 'Dokumen wajib', width: 300, kind: 'static' },
-  { key: 'opsional', label: 'Dokumen opsional', width: 300, kind: 'static' },
+  { key: 'lembaga', label: 'lembaga.kode', width: 200, kind: 'static', sumber: { tabel: 'lembaga', kolom: 'kode' } },
+  { key: 'wajib', label: 'Dokumen wajib', width: 300, kind: 'static', sumber: null },
+  { key: 'opsional', label: 'Dokumen opsional', width: 300, kind: 'static', sumber: null },
 ];
 
 async function noopCommit() {}

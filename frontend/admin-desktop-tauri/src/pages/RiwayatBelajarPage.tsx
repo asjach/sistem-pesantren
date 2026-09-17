@@ -142,6 +142,7 @@ export default function RiwayatBelajarPage() {
       <ErrorNotice>{err}</ErrorNotice>
       <ExcelTable<RiwayatRow>
         tableKey="riwayat_belajar"
+        endpointUrut="admin/riwayat-belajar"
         fields={ROSTER_FIELDS}
         rows={rows}
         getValues={riwayatValues}

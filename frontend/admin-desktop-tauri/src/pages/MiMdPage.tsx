@@ -184,20 +184,20 @@ export default function MiMdPage() {
   }
 
   const FIELDS_MI: ExcelField[] = useMemo(() => ([
-    { key: 'nama', label: 'santri.nama_lengkap', width: 200, kind: 'static' },
-    { key: 'nis_mi', label: 'mi.nis_lokal', width: 110, kind: 'static' },
-    { key: 'kelas_mi', label: 'mi.nama_kelas', width: 100, kind: 'static' },
+    { key: 'nama', label: 'santri.nama_lengkap', width: 200, kind: 'static', sumber: { tabel: 'santri', kolom: 'nama_lengkap' } },
+    { key: 'nis_mi', label: 'mi.nis_lokal', width: 110, kind: 'static', sumber: { tabel: 'lembaga_santri', kolom: 'nis_lokal' } },
+    { key: 'kelas_mi', label: 'mi.nama_kelas', width: 100, kind: 'static', sumber: { tabel: 'kelas', kolom: 'nama_kelas' } },
   ]), []);
   const FIELDS_MD: ExcelField[] = useMemo(() => ([
-    { key: 'nama', label: 'santri.nama_lengkap', width: 200, kind: 'static' },
-    { key: 'nis_md', label: 'md.nis_lokal', width: 110, kind: 'static' },
-    { key: 'kelas_md', label: 'md.nama_kelas', width: 100, kind: 'static' },
-    { key: 'juga_mi', label: 'Juga MI', width: 80, kind: 'static' },
+    { key: 'nama', label: 'santri.nama_lengkap', width: 200, kind: 'static', sumber: { tabel: 'santri', kolom: 'nama_lengkap' } },
+    { key: 'nis_md', label: 'md.nis_lokal', width: 110, kind: 'static', sumber: { tabel: 'lembaga_santri', kolom: 'nis_lokal' } },
+    { key: 'kelas_md', label: 'md.nama_kelas', width: 100, kind: 'static', sumber: { tabel: 'kelas', kolom: 'nama_kelas' } },
+    { key: 'juga_mi', label: 'Juga MI', width: 80, kind: 'static', sumber: null },
   ]), []);
   const FIELDS_BEDA: ExcelField[] = useMemo(() => ([
-    { key: 'nama', label: 'santri.nama_lengkap', width: 200, kind: 'static' },
-    { key: 'kelas_mi', label: 'mi.nama_kelas', width: 100, kind: 'static' },
-    { key: 'kelas_md', label: 'md.nama_kelas', width: 100, kind: 'static' },
+    { key: 'nama', label: 'santri.nama_lengkap', width: 200, kind: 'static', sumber: { tabel: 'santri', kolom: 'nama_lengkap' } },
+    { key: 'kelas_mi', label: 'mi.nama_kelas', width: 100, kind: 'static', sumber: { tabel: 'kelas', kolom: 'nama_kelas' } },
+    { key: 'kelas_md', label: 'md.nama_kelas', width: 100, kind: 'static', sumber: { tabel: 'kelas', kolom: 'nama_kelas' } },
   ]), []);
 
   const panel = (

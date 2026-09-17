@@ -42,10 +42,12 @@ function dokumenFields(jenisOptions: { value: string; label: string }[]): ExcelF
   return [
     {
       key: 'jenis', label: 'jenis_dokumen_santri', width: 260, kind: 'static',
+      sumber: { tabel: 'dokumen_wajib_lembaga', kolom: 'jenis_dokumen_santri' },
       inputKind: 'select', required: true, inputChoices: jenisOptions,
     },
     {
       key: 'wajib', label: 'is_wajib', width: 120, kind: 'select',
+      sumber: { tabel: 'dokumen_wajib_lembaga', kolom: 'is_wajib' },
       choices: [
         { value: 'Ya', label: 'Wajib' },
         { value: 'Tidak', label: 'Opsional' },

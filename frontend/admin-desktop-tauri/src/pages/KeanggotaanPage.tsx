@@ -208,15 +208,16 @@ export default function KeanggotaanPage() {
 
       <ExcelTable
         tableKey="keanggotaan"
+        endpointUrut="admin/lembaga-santri"
         fields={[
-          { key: 'santri', label: 'santri.nama_lengkap', kind: 'static' },
-          { key: 'jk', label: 'santri.jk', kind: 'static', width: 60 },
-          { key: 'lembaga', label: 'lembaga.kode', kind: 'static' },
-          { key: 'nis_lokal', label: 'nis_lokal', kind: 'text', maxLength: 20 },
-          { key: 'nis_kemenag', label: 'nis_kemenag', kind: 'static' },
-          { key: 'aktif', label: 'is_active', kind: 'static' },
-          { key: 'mulai', label: 'tgl_mulai', kind: 'static' },
-          { key: 'selesai', label: 'tgl_selesai', kind: 'static' },
+          { key: 'santri', label: 'santri.nama_lengkap', kind: 'static', sumber: { tabel: 'santri', kolom: 'nama_lengkap' } },
+          { key: 'jk', label: 'santri.jk', kind: 'static', width: 60, sumber: { tabel: 'santri', kolom: 'jk' } },
+          { key: 'lembaga', label: 'lembaga.kode', kind: 'static', sumber: { tabel: 'lembaga', kolom: 'kode' } },
+          { key: 'nis_lokal', label: 'nis_lokal', kind: 'text', maxLength: 20, sumber: { tabel: 'lembaga_santri', kolom: 'nis_lokal' } },
+          { key: 'nis_kemenag', label: 'nis_kemenag', kind: 'static', sumber: { tabel: 'lembaga_santri', kolom: 'nis_kemenag' } },
+          { key: 'aktif', label: 'is_active', kind: 'static', sumber: { tabel: 'lembaga_santri', kolom: 'is_active' } },
+          { key: 'mulai', label: 'tgl_mulai', kind: 'static', sumber: { tabel: 'lembaga_santri', kolom: 'tgl_mulai' } },
+          { key: 'selesai', label: 'tgl_selesai', kind: 'static', sumber: { tabel: 'lembaga_santri', kolom: 'tgl_selesai' } },
         ]}
         rows={rows}
         getValues={(r) => ({

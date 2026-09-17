@@ -142,8 +142,8 @@ export default function KelulusanPage() {
             <ExcelTable
               tableKey="kelulusan_santri_akhir"
               fields={[
-                { key: 'nama', label: 'santri.nama_lengkap', kind: 'static' },
-                { key: 'kelas', label: 'kelas.nama_kelas', kind: 'static' },
+                { key: 'nama', label: 'santri.nama_lengkap', kind: 'static', sumber: { tabel: 'santri', kolom: 'nama_lengkap' } },
+                { key: 'kelas', label: 'kelas.nama_kelas', kind: 'static', sumber: { tabel: 'kelas', kolom: 'nama_kelas' } },
               ]}
               rows={kiri}
               getValues={(r) => ({ nama: r.santri?.nama_lengkap ?? null, kelas: r.kelas?.nama_kelas ?? null })}
@@ -164,11 +164,12 @@ export default function KelulusanPage() {
             <div className="px-2 pb-1">
               <ExcelTable
                 tableKey="kelulusan_alumni"
+                endpointUrut="admin/alumni"
                 fields={[
-                  { key: 'santri', label: 'santri.nama_lengkap', kind: 'static' },
-                  { key: 'kelas', label: 'kelas.nama_kelas', kind: 'static' },
-                  { key: 'ta', label: 'tahun_ajaran.nama', kind: 'static' },
-                  { key: 'ijazah', label: 'nomor_ijazah', kind: 'static' },
+                  { key: 'santri', label: 'santri.nama_lengkap', kind: 'static', sumber: { tabel: 'santri', kolom: 'nama_lengkap' } },
+                  { key: 'kelas', label: 'kelas.nama_kelas', kind: 'static', sumber: { tabel: 'kelas', kolom: 'nama_kelas' } },
+                  { key: 'ta', label: 'tahun_ajaran.nama', kind: 'static', sumber: { tabel: 'tahun_ajaran', kolom: 'nama' } },
+                  { key: 'ijazah', label: 'nomor_ijazah', kind: 'static', sumber: { tabel: 'alumni', kolom: 'nomor_ijazah' } },
                 ]}
                 rows={alumni}
                 getValues={(a) => ({
@@ -203,8 +204,8 @@ export default function KelulusanPage() {
               <ExcelTable
                 tableKey="kelulusan_tidak_lulus"
                 fields={[
-                  { key: 'nama', label: 'santri.nama_lengkap', kind: 'static' },
-                  { key: 'kelas', label: 'kelas.nama_kelas', kind: 'static' },
+                  { key: 'nama', label: 'santri.nama_lengkap', kind: 'static', sumber: { tabel: 'santri', kolom: 'nama_lengkap' } },
+                  { key: 'kelas', label: 'kelas.nama_kelas', kind: 'static', sumber: { tabel: 'kelas', kolom: 'nama_kelas' } },
                 ]}
                 rows={tidakLulus.map((b) => ({ ...b, id: b.santri_id }))}
                 getValues={(b) => ({ nama: b.nama, kelas: b.kelas })}

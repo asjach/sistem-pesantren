@@ -15,10 +15,13 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { DEFAULT_FONT_PX, DEFAULT_HEADER_H, FONT_FAMILY_DEFAULT, FONT_OPTIONS, MAX_HEADER_H, useGridPrefs } from '@/components/GridPrefs';
+import { DEFAULT_FONT_PX, DEFAULT_HEADER_H, FONT_FAMILY_DEFAULT, FONT_OPTIONS, MAX_HEADER_H, useGridPrefs, type AlignName } from '@/components/GridPrefs';
 import { useStandarTampilan } from '@/standarTampilan';
 import PresetKolom, { type PresetKolomApi } from '@/components/PresetKolom';
 import FilterField from '@/components/FilterField';
+import { useKamusPeta } from '@/components/useKamusPeta';
+import { urutBawaanEndpoint, type KamusKolomAttr } from '@/api/kamusLabel';
+import { formatNilai } from '@/lib/nilaiTampil';
 import { useRibbonTable } from '@/components/RibbonTable';
 import {
   ContextMenu,
@@ -139,6 +142,10 @@ export interface ExcelField {
   inputKind?: 'text' | 'select';
   /** Pilihan dropdown untuk inputKind 'select' (bila beda dari `choices`). */
   inputChoices?: ExcelChoice[];
+  /** Sumber kolom database: mengikat kolom grid ke kamus label
+   *  (nama header, perataan, lebar, tooltip, format, kontrol urut global).
+   *  `null` = kolom sengaja tidak terikat kamus. */
+  sumber?: { tabel: string; kolom: string } | null;
 }
 
 /** Satu entri urut dropdown: nilai = kode backend (string) atau gabungan
@@ -217,6 +224,12 @@ interface ExcelTableProps<T extends { id: string | number }> {
   arahUrut?: 'naik' | 'turun';
   /** Niat urut dari klik header: halaman me-refetch lalu mengisi urutAktif. */
   onUrut?: (nilai: string[], arah: 'naik' | 'turun') => void;
+  /** Sumber urut bawaan dari kamus (mis. 'admin/santri'). Bila diisi dan
+   *  halaman belum punya urutan, default kamus diterapkan sekali saat muat. */
+  endpointUrut?: string;
+  /** Tabel database utama grid ini: kolom tanpa `sumber` dianggap berasal dari
+   *  tabel ini (nama kolom = key-nya), kecuali `sumber: null`. */
+  sumberTabel?: string;
 }
 
 const MIN_COL_W = 50;
@@ -532,6 +545,8 @@ function HeaderTitle({
   onResizePrev,
   onAutoFit,
   tandaUrut = null,
+  tooltip = null,
+  terkunci = false,
 }: {
   label: string;
   colKey: string;
@@ -544,9 +559,13 @@ function HeaderTitle({
   onAutoFit: (key: string) => void;
   /** Indikator urut pasif (mis. "▲", "▼2") — dikontrol dari dropdown toolbar. */
   tandaUrut?: string | null;
+  /** Teks bantuan dari kamus kolom (hover header). */
+  tooltip?: string | null;
+  /** Lebar dikunci kamus: gagang seret/AutoFit disembunyikan. */
+  terkunci?: boolean;
 }) {
   return (
-    <span className="simpes-dsg-headtitle" data-col-key={colKey}>
+    <span className="simpes-dsg-headtitle" data-col-key={colKey} title={tooltip ?? undefined}>
       {label}
       {tandaUrut ? (
         <span className="simpes-dsg-tanda-urut" aria-label={`Urutan ${tandaUrut}`}>
@@ -567,7 +586,7 @@ function HeaderTitle({
           <Ban size={11} />
         </span>
       ) : null}
-      {onResizePrev ? (
+      {onResizePrev && !terkunci ? (
         <span
           className="simpes-dsg-resizer simpes-dsg-resizer-kiri"
           title="Seret untuk ubah lebar kolom di kiri"
@@ -575,17 +594,27 @@ function HeaderTitle({
           onClick={(e) => e.stopPropagation()}
         />
       ) : null}
-      <span
-        className="simpes-dsg-resizer"
-        title="Seret untuk ubah lebar • klik 2× untuk sesuaikan isi"
-        onMouseDown={(e) => onResizeStart(colKey, e)}
-        onDoubleClick={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          onAutoFit(colKey);
-        }}
-        onClick={(e) => e.stopPropagation()}
-      />
+      {terkunci ? (
+        <span
+          className="simpes-dsg-tak-input"
+          title="Lebar dikunci kamus kolom"
+          aria-label="Lebar dikunci kamus"
+        >
+          🔒
+        </span>
+      ) : (
+        <span
+          className="simpes-dsg-resizer"
+          title="Seret untuk ubah lebar • klik 2× untuk sesuaikan isi"
+          onMouseDown={(e) => onResizeStart(colKey, e)}
+          onDoubleClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onAutoFit(colKey);
+          }}
+          onClick={(e) => e.stopPropagation()}
+        />
+      )}
     </span>
   );
 }
@@ -796,6 +825,8 @@ export default function ExcelTable<T extends { id: string | number }>({
   urutAktif,
   arahUrut = 'naik',
   onUrut,
+  endpointUrut,
+  sumberTabel,
 }: ExcelTableProps<T>) {
   const { density } = useTheme();
   const densityPx = DENSITY_PX[density];
@@ -844,6 +875,32 @@ export default function ExcelTable<T extends { id: string | number }>({
     setPresetLabel(label ?? null);
   }, []);
 
+  /** Sumber efektif sebuah kolom: `sumber` eksplisit, atau tabel utama grid
+   *  dengan nama kolom = key (kecuali `sumber: null`). */
+  const sumberField = useCallback((f: ExcelField): { tabel: string; kolom: string } | null => {
+    if (f.sumber === null) return null;
+    if (f.sumber) return f.sumber;
+    return sumberTabel ? { tabel: sumberTabel, kolom: f.key } : null;
+  }, [sumberTabel]);
+  /** Kamus kolom level tabel database (global): label, perataan, lebar,
+   *  tooltip, format, kontrol urut. Dibaca sekali per kombinasi tabel. */
+  const tabelKamus = useMemo(
+    () => [...new Set(fields.map((f) => sumberField(f)?.tabel).filter((t): t is string => !!t))],
+    [fields, sumberField],
+  );
+  const kamus = useKamusPeta(tabelKamus);
+  /** Atribut kamus per key kolom grid. */
+  const attrByKey = useMemo(() => {
+    const m = new Map<string, KamusKolomAttr>();
+    for (const f of fields) {
+      const s = sumberField(f);
+      if (!s) continue;
+      const a = kamus[`${s.tabel}.${s.kolom}`];
+      if (a) m.set(f.key, a);
+    }
+    return m;
+  }, [fields, kamus, sumberField]);
+
   /** Peta kunci kolom grid → nilai urut backend (untuk indikator header pasif). */
   const petaUrut = useMemo(
     () =>
@@ -860,37 +917,52 @@ export default function ExcelTable<T extends { id: string | number }>({
   arahUrutRef.current = arahUrut;
   const onUrutRef = useRef(onUrut);
   onUrutRef.current = onUrut;
-  /** Nama tampil kolom: label kustom preset aktif menang atas label bawaan field. */
+  /** Nama tampil kolom: kamus DB > label preset > label bawaan field. */
   const labelKolom = useCallback((key: string, bawaan: string) => {
+    const dariKamus = attrByKey.get(key)?.label?.trim();
+    if (dariKamus) return dariKamus;
     const kustom = presetLabel?.[key]?.trim();
     return kustom ? kustom : bawaan;
-  }, [presetLabel]);
-  /** Item dropdown: label + daftar nilai (tunggal/gabungan). */
+  }, [presetLabel, attrByKey]);
+  /** Perataan efektif: kamus DB > preferensi pribadi > tengah. */
+  const alignEfektif = useCallback((key: string): AlignName => (
+    attrByKey.get(key)?.align ?? align[key] ?? 'center'
+  ), [attrByKey, align]);
+  /** Lebar terkunci kamus (kolom tidak bisa diseret/di-AutoFit). */
+  const lebarKunci = useCallback((key: string): number | null => {
+    const a = attrByKey.get(key);
+    return a?.kunci_lebar && a.lebar ? a.lebar : null;
+  }, [attrByKey]);
+  /** Item dropdown: label + daftar nilai (tunggal/gabungan), disaring kamus
+   *  (`bisa_urut = false` menghapus kolom itu dari penawaran semua halaman). */
   const itemUrut = useMemo(
     () =>
       (opsiUrut ?? [])
         .map((o) => {
-          const bawaan = o.kunci != null ? fields.find((f) => f.key === o.kunci)?.label : undefined;
+          const kunci = Array.isArray(o.nilai) ? o.nilai : [o.nilai];
+          const keyAwal = kunci.find((k) => fields.some((f) => f.key === k));
+          const attr = keyAwal ? attrByKey.get(keyAwal) : undefined;
+          const bawaan = keyAwal ? fields.find((f) => f.key === keyAwal)?.label : undefined;
           return {
-            label:
-              o.label ?? (bawaan != null && o.kunci != null ? labelKolom(o.kunci, bawaan) : undefined) ??
-              (Array.isArray(o.nilai) ? o.nilai.join('+') : o.nilai),
-            kunci: Array.isArray(o.nilai) ? o.nilai : [o.nilai],
+            label: o.label ?? (keyAwal && bawaan != null ? labelKolom(keyAwal, bawaan) : undefined) ?? kunci.join('+'),
+            kunci,
+            arah: attr?.arah_bawaan ?? null,
           };
         })
-        .filter((it) => it.kunci.length > 0),
-    [opsiUrut, fields, labelKolom],
+        .filter((it) => it.kunci.length > 0)
+        .filter((it) => it.kunci.every((k) => attrByKey.get(k)?.bisa_urut !== false)),
+    [opsiUrut, fields, labelKolom, attrByKey],
   );
   const idxUrutAktif = useMemo(() => {
     const aktif = (urutAktif ?? []).join(',');
     return itemUrut.findIndex((it) => it.kunci.join(',') === aktif);
   }, [itemUrut, urutAktif]);
-  /** Pilih dari dropdown: kirim daftar nilai + arah saat ini. */
+  /** Pilih dari dropdown: kirim daftar nilai + arah (bawaan kamus kolom bila ada). */
   const pilihUrut = useCallback(
     (idx: number) => {
       const it = itemUrut[idx];
       if (!it || !onUrutRef.current) return;
-      onUrutRef.current(it.kunci, arahUrutRef.current);
+      onUrutRef.current(it.kunci, it.arah ?? arahUrutRef.current);
     },
     [itemUrut],
   );
@@ -900,6 +972,27 @@ export default function ExcelTable<T extends { id: string | number }>({
     if (aktif.length === 0 || !onUrutRef.current) return;
     onUrutRef.current(aktif, arahUrutRef.current === 'naik' ? 'turun' : 'naik');
   }, []);
+  /** Urut bawaan dari kamus: diterapkan sekali saat halaman belum punya urutan. */
+  const bawaanDipakaiRef = useRef(false);
+  useEffect(() => {
+    if (!endpointUrut) return;
+    if ((urutAktifRef.current ?? []).length > 0) {
+      bawaanDipakaiRef.current = true;
+      return;
+    }
+    if (bawaanDipakaiRef.current) return;
+    let hidup = true;
+    void urutBawaanEndpoint(endpointUrut).then((row) => {
+      if (!hidup || !row || row.kunci.length === 0) return;
+      bawaanDipakaiRef.current = true;
+      if ((urutAktifRef.current ?? []).length === 0) {
+        onUrutRef.current?.(row.kunci, row.arah);
+      }
+    });
+    return () => {
+      hidup = false;
+    };
+  }, [endpointUrut]);
 
   /** Seleksi bersifat per halaman/filter: baris berganti = seleksi dibersihkan. */
   useEffect(() => {
@@ -1817,11 +1910,11 @@ export default function ExcelTable<T extends { id: string | number }>({
   }
 
   const dsgColumns: Column<GridRow>[] = useMemo(() => {
-    /** Kelas perataan kolom: mengikuti peta global per field (bawaan kiri). */
+    /** Kelas perataan kolom: kamus DB > preferensi pribadi (bawaan tengah). */
     const alignClass = (key: string) =>
-      align[key] === 'right'
+      alignEfektif(key) === 'right'
         ? 'simpes-dsg-align-right'
-        : align[key] === 'left'
+        : alignEfektif(key) === 'left'
           ? ''
           : 'simpes-dsg-align-center';
     const cols: Column<GridRow>[] = hideCheckbox
@@ -1851,6 +1944,7 @@ export default function ExcelTable<T extends { id: string | number }>({
           ? null
           : `${arahUrut === 'naik' ? '▲' : '▼'}${(urutAktif ?? []).length > 1 ? posUrut + 1 : ''}`;
       const isInputRow = (rowData: GridRow) => showInput && String(rowData.id) === INPUT_ROW_ID;
+      const lebarTerkunci = lebarKunci(f.key);
       const common = {
         id: f.key,
         title: (
@@ -1867,10 +1961,12 @@ export default function ExcelTable<T extends { id: string | number }>({
             }
             onAutoFit={onAutoFit}
             tandaUrut={tandaUrut}
+            tooltip={attrByKey.get(f.key)?.tooltip ?? null}
+            terkunci={lebarTerkunci != null}
           />
         ),
         headerClassName: cn(alignClass(f.key), bekuCls, tepiCls),
-        basis: widths[f.key] ?? stdLebar?.[f.key] ?? autoWidths[f.key] ?? syncAutoWidths[f.key] ?? f.width ?? 150,
+        basis: lebarTerkunci ?? widths[f.key] ?? stdLebar?.[f.key] ?? autoWidths[f.key] ?? syncAutoWidths[f.key] ?? f.width ?? 150,
         // Semua kolom fixed (grow 0): lebar hanya berubah saat digagang
         // seret atau di-AutoFit, persis seperti Excel. Sisa ruang di kanan
         // dibiarkan kosong, bukan dibagi ke kolom elastis.
@@ -2010,7 +2106,7 @@ export default function ExcelTable<T extends { id: string | number }>({
     }
     return cols;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fields, visibleFields, editing, widths, stdLebar, autoWidths, syncAutoWidths, align, showInput, freezeAktif, hideCheckbox, petaUrut, urutAktif, arahUrut, labelKolom]);
+  }, [fields, visibleFields, editing, widths, stdLebar, autoWidths, syncAutoWidths, align, showInput, freezeAktif, hideCheckbox, petaUrut, urutAktif, arahUrut, labelKolom, attrByKey, alignEfektif, lebarKunci]);
 
   /** Simpan baris input → buat record baru via onCreateRow halaman. Validasi
    *  field wajib + validator kolom dulu; draft dibersihkan hanya bila sukses
@@ -2156,7 +2252,9 @@ export default function ExcelTable<T extends { id: string | number }>({
 
   function displayOf(id: string | number, key: string): string {
     const v = gridById.get(String(id))?.[key];
-    return v == null ? '' : String(v);
+    if (v == null) return '';
+    const format = attrByKey.get(key)?.format;
+    return format ? formatNilai(String(v), format) : String(v);
   }
 
   /** Klik kanan di tabel: tentukan area (header kolom / baris / kosong).

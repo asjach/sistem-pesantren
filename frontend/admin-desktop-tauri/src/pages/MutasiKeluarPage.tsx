@@ -120,8 +120,8 @@ export default function MutasiKeluarPage() {
             <ExcelTable
               tableKey="mutasi_santri_aktif"
               fields={[
-                { key: 'nama', label: 'santri.nama_lengkap', kind: 'static' },
-                { key: 'kelas', label: 'kelas.nama_kelas', kind: 'static' },
+                { key: 'nama', label: 'santri.nama_lengkap', kind: 'static', sumber: { tabel: 'santri', kolom: 'nama_lengkap' } },
+                { key: 'kelas', label: 'kelas.nama_kelas', kind: 'static', sumber: { tabel: 'kelas', kolom: 'nama_kelas' } },
               ]}
               rows={kiri}
               getValues={(r) => ({ nama: r.santri?.nama_lengkap ?? null, kelas: r.kelas?.nama_kelas ?? null })}
@@ -147,11 +147,12 @@ export default function MutasiKeluarPage() {
           <div className="px-2 pb-1">
             <ExcelTable
               tableKey="mutasi_arsip"
+              endpointUrut="admin/mutasi-keluar"
               fields={[
-                { key: 'santri', label: 'santri.nama_lengkap', kind: 'static' },
-                { key: 'tanggal', label: 'tanggal_mutasi', kind: 'static' },
-                { key: 'alasan', label: 'alasan_mutasi', kind: 'static' },
-                { key: 'tujuan', label: 'nama_sekolah_tujuan', kind: 'static' },
+                { key: 'santri', label: 'santri.nama_lengkap', kind: 'static', sumber: { tabel: 'santri', kolom: 'nama_lengkap' } },
+                { key: 'tanggal', label: 'tanggal_mutasi', kind: 'static', sumber: { tabel: 'mutasi_keluar', kolom: 'tanggal_mutasi' } },
+                { key: 'alasan', label: 'alasan_mutasi', kind: 'static', sumber: { tabel: 'mutasi_keluar', kolom: 'alasan_mutasi' } },
+                { key: 'tujuan', label: 'nama_sekolah_tujuan', kind: 'static', sumber: { tabel: 'mutasi_keluar', kolom: 'nama_sekolah_tujuan' } },
               ]}
               rows={arsip}
               getValues={(m) => ({

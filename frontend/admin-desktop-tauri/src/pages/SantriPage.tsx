@@ -81,7 +81,7 @@ function pihakFields(prefix: 'ayah' | 'ibu' | 'wali', judul: string): ExcelField
 
 /** Kolom buku induk: identitas murni + Status turunan (kolom NIS per lembaga dinamis di komponen). */
 const SANTRI_FIELDS: ExcelField[] = [
-  { key: 'nama', label: 'nama_lengkap', width: 220, kind: 'text', maxLength: 255, validate: (v) => (v && v.trim() ? null : 'Nama wajib diisi.') },
+  { key: 'nama', label: 'nama_lengkap', width: 220, kind: 'text', maxLength: 255, sumber: { tabel: 'santri', kolom: 'nama_lengkap' }, validate: (v) => (v && v.trim() ? null : 'Nama wajib diisi.') },
   teks('nama_singkat', 'Nama singkat', 140),
   { key: 'nik', label: 'nik', width: 160, kind: 'text', maxLength: 16, validate: digitValidator(16, 'NIK') },
   { key: 'nisn', label: 'nisn', width: 120, kind: 'text', maxLength: 10, validate: digitValidator(10, 'NISN') },
@@ -119,7 +119,7 @@ const SANTRI_FIELDS: ExcelField[] = [
   ...pihakFields('ibu', 'Ibu'),
   ...pihakFields('wali', 'Wali'),
   teks('yang_membiayai', 'Yang membiayai', 140),
-  { key: 'status', label: 'status_global', width: 100, kind: 'static' },
+  { key: 'status', label: 'status_global', width: 100, kind: 'static', sumber: { tabel: 'santri', kolom: 'status_global' } },
 ];
 
 /** Prefiks kunci kolom NIS per lembaga (kolom dinamis cerminan `lembaga_santri`). */
@@ -203,8 +203,8 @@ export default function SantriPage() {
   const [search, setSearch] = useState('');
   const [terapkanCari, setTerapkanCari] = useState('');
   /** Urut header: daftar nilai allowlist + arah global (maks 3 kunci). */
-  /** Urut bawaan: JK lalu Nama (sama dengan $bawaan SantriController@index). */
-  const [urut, setUrut] = useState<string[]>(['jk', 'nama']);
+  /** Urut awal dari kamus (endpointUrut) — dikosongkan sampai kamus memuat. */
+  const [urut, setUrut] = useState<string[]>([]);
   const [arahUrut, setArahUrut] = useState<'naik' | 'turun'>('naik');
 
   const [importOpen, setImportOpen] = useState(false);
@@ -280,6 +280,7 @@ export default function SantriPage() {
       width: 110,
       kind: 'text' as const,
       maxLength: 20,
+      sumber: { tabel: 'lembaga_santri', kolom: 'nis_lokal' },
     })),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [lembagas],
@@ -437,6 +438,8 @@ export default function SantriPage() {
       <ErrorNotice>{err}</ErrorNotice>
       <ExcelTable<Santri>
         tableKey="santri"
+        sumberTabel="santri"
+        endpointUrut="admin/santri"
         fields={semuaFields}
         rows={rows}
         getValues={getNilai}

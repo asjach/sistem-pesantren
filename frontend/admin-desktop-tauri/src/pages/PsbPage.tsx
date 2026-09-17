@@ -89,32 +89,36 @@ const STAGES: { id: string; label: string; statuses: string[] }[] = [
 /** Definisi kolom grid PSB; pilihan gelombang mengikuti data (mode Input). */
 function psbFields(gelombangChoices: ExcelChoice[]): ExcelField[] {
   return [
-    { key: 'no', label: 'no_pendaftaran', width: 190, kind: 'static' },
+    { key: 'no', label: 'no_pendaftaran', width: 190, kind: 'static', sumber: { tabel: 'psb_calon_santri', kolom: 'no_pendaftaran' } },
     {
       key: 'nama', label: 'nama_lengkap', width: 200, kind: 'static',
+      sumber: { tabel: 'psb_calon_santri', kolom: 'nama_lengkap' },
       inputKind: 'text', maxLength: 255, required: true,
     },
     {
       key: 'nik', label: 'nik', width: 160, kind: 'static',
+      sumber: { tabel: 'psb_calon_santri', kolom: 'nik' },
       inputKind: 'text', maxLength: 16, required: true,
       validate: (v) => (!v || /^\d{16}$/.test(v.trim()) ? null : 'NIK harus 16 digit angka.'),
     },
     {
       key: 'tipe', label: 'tipe_santri', width: 110, kind: 'static',
+      sumber: { tabel: 'psb_calon_santri', kolom: 'tipe_santri' },
       inputKind: 'select', required: true,
       inputChoices: [
         { value: 'asrama', label: 'asrama' },
         { value: 'non_asrama', label: 'non_asrama' },
       ],
     },
-    { key: 'lembaga', label: 'lembaga.kode', width: 180, kind: 'static' },
+    { key: 'lembaga', label: 'lembaga.kode', width: 180, kind: 'static', sumber: { tabel: 'lembaga', kolom: 'kode' } },
     {
       key: 'gelombang', label: 'psb_gelombang.nama', width: 140, kind: 'static',
+      sumber: { tabel: 'psb_gelombang', kolom: 'nama' },
       inputKind: 'select', required: true, inputChoices: gelombangChoices,
     },
-    { key: 'paket', label: 'Paket', width: 120, kind: 'static' },
-    { key: 'status', label: 'status_pendaftaran', width: 150, kind: 'static' },
-    { key: 'daftar', label: 'tanggal_daftar', width: 110, kind: 'static' },
+    { key: 'paket', label: 'Paket', width: 120, kind: 'static', sumber: null },
+    { key: 'status', label: 'status_pendaftaran', width: 150, kind: 'static', sumber: { tabel: 'psb_calon_santri', kolom: 'status_pendaftaran' } },
+    { key: 'daftar', label: 'tanggal_daftar', width: 110, kind: 'static', sumber: { tabel: 'psb_calon_santri', kolom: 'tanggal_daftar' } },
   ];
 }
 
@@ -790,6 +794,7 @@ export default function PsbPage() {
 
       <ExcelTable
         tableKey="psb"
+        endpointUrut="psb/antrean-daftar-ulang"
         fields={psbFieldsMemo}
         rows={rows}
         getValues={getValues}
