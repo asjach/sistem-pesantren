@@ -2,8 +2,8 @@
 
 | Atribut | Keterangan |
 |---|---|
-| Versi Dokumen | 2.50 (X hapus fisik jejak MD) |
-| Tanggal | 10 September 2026 |
+| Versi Dokumen | 2.51 (PRD mencatat semua aturan) |
+| Tanggal | 17 September 2026 |
 | Status | Proyek ini = menyusun dokumentasi, bukan coding app. G0–G3 didetailkan; G4+ roadmap |
 | Penyusun | Solo dev + Yayasan |
 | Arsip acuan (read-only) | `Step-By-Step Sistem Pesantren/Backend/` + `Frontend/admin-flutter-desktop/docs/` |
@@ -50,6 +50,7 @@
 | 1.13 | 2026-09-15 | **Kelas unik per lembaga + tahun ajaran** (FB-004-01): nama dinormalisasi (trim + rapat spasi) di model `Kelas`; migrasi dedupe otomatis (keeper id terkecil, referensi 8 tabel dipindah termasuk unique terdampak `kelas_kurikulum`/`pengampu_mapel`/`rapor_catatan_wali`) lalu `UNIQUE(lembaga_id, tahun_ajaran_id, nama_kelas)`; `store`/`update` menolak duplikat case-insensitive dengan pesan Indonesia + tangkap race 1062; dialog Tambah/Ubah di FE memuat nama lingkup lembaga+TA dan menolak duplikat sebelum submit; KelasStoreTest 6→10 hijau |
 | 1.14 | 2026-09-15 | Koreksi panjang **NIS = maks 20 karakter** (dulu validasi 10): kolom `santri.nis` & `riwayat_belajar.nis` jadi `VARCHAR(20)`; validasi `max:20` di store/update santri, ACC PSB (tunggal + bulk), import Excel, dan naik-kelas; input FE `maxLength` 20; tes batas 20/21 di PsbFlowTest (tunggal + bulk 16 karakter) dan SantriFlowTest (update + dry-run import) |
 | 1.15 | 2026-09-15 | Import santri: kolom **`kelas_id` menerima nama kelas** (diutamakan — kini deterministik karena `(lembaga, TA, nama)` unik), id numerik, atau kosong; butuh lembaga+TA kecuali id pada baris legacy (cache `santri.kelas_id`, tanpa riwayat); template Excel memuat **dropdown nama kelas** per lingkup via `GET /admin/santri/import-template?lembaga_id=&tahun_ajaran_id=`; dialog import ikut mengirim TA + teks bantuan; tes 20–22 baru (SantriFlowTest 19→22), suite penuh hijau |
+| 2.51 | 2026-09-17 | **PRD mencatat semua aturan** (docs-only): angka basi disegarkan (144 route API / 101 admin, suite 185/185, 5 peran efektif, 23 migrasi; §10–§11 + §6.1 ditulis ulang); sub-bagian §5 baru (pengajuan biodata admin, dokumen wajib, perilaku tahun ajaran + bayangan, `per_page=0` "Semua", pengaturan server, tampilan standar, halaman MI-MD); promosi changelog → normatif (X hapus fisik vs arsip, pengecualian tenant MI↔MD, by-nama + samakan NIS, kelas unik, NIS 20/NISN digits:10, 4-lapis + `kode_lembaga`, anti-eskalasi + kunci diri); aturan atomik disebar (format NIK/KK, NISK, batas berkas, password min 8, act-as, kamus/lembaga/kelas, PSB entry/kombo/waiting, rombel/salin/naik, import riwayat) |
 | 2.50 | 2026-09-17 | **X hapus fisik jejak MD**: `POST /api/admin/mi-md/hapus-md` (izin `santri.ubah`; hapus anggota + riwayat MD se-santri, hitung ulang status; ditolak bila bukan-MI-aktif / tanpa anggota MD / ada arsip alumni-mutasi MD) — halaman ini tambah/hapus tanpa histori, arsip tetap ranah mutasi; suite 185/185, typecheck + build lolos |
 | 2.49 | 2026-09-17 | **Aksi panah MI Only → MD**: ikon panah-kanan per baris panel MI Only → `POST /api/admin/mi-md/daftarkan-md` (izin `santri.tambah`; NIS mewarisi MI, tgl_mulai hari ini, idempoten; bulk per-item) + ikon `ArrowRight` 9 set via generator; suite 183/183, typecheck + build lolos |
 | 2.48 | 2026-09-17 | **Halaman MI-MD** (`/mi-md`, izin pakai ulang `rekap_santri.lihat`): 3 panel berdampingan — MI Only (anggota MI tanpa MD), MD Semua (semua anggota MD + flag juga-MI), Perbandingan Kelas by-nama (id jelas beda; null='') + 2 aksi per baris ("Samakan dengan MI/MD" → pindah ke kelas senama di TA berjalan sisi tujuan, izin `pindah_kelas.ubah`, gagal jelas); **pengecualian tenant sadar**: akses MI atau MD membuka kedua sisi hanya di endpoint ini; suite 182/182 (3 test baru), typecheck + build lolos |
@@ -281,7 +282,7 @@ Aturan terkunci:
 | ID | Non-Functional Requirement |
 |---|---|
 | NFR-01 | <3 dtk; cache `RefService` 300 dtk |
-| NFR-02 | 3.000 santri aktif; `per_page=20` |
+| NFR-02 | 3.000 santri aktif; `per_page=50` + opsi "Semua" (`per_page=0`, batas 100.000) |
 | NFR-03 | Bcrypt/argon2, throttle login 6/mnt, `lockForUpdate`, `latest('id')` |
 | NFR-04 | Uptime 99%/bulan |
 | NFR-05 | Sederhana; `control id snake_case` |
@@ -688,18 +689,22 @@ Status: ✅ project exists.
 spec in `docs/SCHEMA.md`, rewritten from vault single-file spec): `lembaga` (root `kode=PESANTREN` + units via `parent_id`) → 36 `ref_*`
 → `users` (+pivot/audit) → `tahun_ajaran` → `pegawai` → `kelas`
 (`walas_id → pegawai` inline) → santri/riwayat → PSB → finance →
-HR-academic → grades → presensi → tahfizh → wali portal. ~80 tables.
+HR-academic → grades → presensi → tahfizh → wali portal (23 file hasil squash).
 MySQL 64-char index pitfall: 4 composite uniques use short `uq_*` names.
 Status: ✅ `migrate:fresh` green (100 tables incl. framework/package tables).
 
 **003 Authentication & users.** Multi-identifier login (email/phone/username),
-throttle + `login_audits`, 6 roles, `UsersImport` (flat keys, intra-file
+password minimal 8 karakter, throttle + `login_audits`, 5 peran efektif (`kasir` dihapus sementara),
+kunci diri (tak boleh ubah/cabut role sendiri, tak boleh hapus diri sendiri),
+ganti role mencabut semua token (wajib login ulang), anti-eskalasi
+(non-`super_admin` 403 memutasi/menghapus pemegang `admin`/`super_admin`),
+act-as lembaga via header `X-Lembaga-Aktif`, `UsersImport` (flat keys, intra-file
 dedup, `lembaga_ids[]` pivot sync), `UserPolicy`.
 API: `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me`,
 `GET|POST /api/admin/users`, `PUT|DELETE /api/admin/users/{user}`,
 `POST /api/admin/users/import`, role assign/remove,
 `POST|DELETE /api/admin/users/{user}/lembaga` (attach/detach, multi-lembaga).
-Status: ✅ 36 routes live.
+Status: ✅ live.
 
 **Dashboard (ekstra, di luar vault — didokumentasikan v1.3.2).**
 `GET /api/dashboard/ringkasan` (`auth:sanctum`, semua peran, scope tenant +
@@ -709,8 +714,19 @@ opsional `?lembaga_id=`): hitungan `lembaga/pengguna/tahun_ajaran_aktif/kelas`
 
 **004 Reference & master data.** 34 kamus tables (global row
 `lembaga_id=null` + per-lembaga rows; shadow = on/off only for globals),
-`RefService::effective()/kodeAktif()/forget()` (cached), `ReferensiSeeder`
+`RefService::effective()/kodeAktif()/forget()` (cached), urut tampil
+`urutan` ASC tie-break `nama` ASC, `ReferensiSeeder`
 (decision no.51 values), `Lembaga/TahunAjaran/Kelas` CRUD with tenant scope.
+Aturan kamus: baris global diubah hanya `super_admin`; baris lembaga hanya
+tenant pemilik; `kode` tak boleh diubah (kunci data), `nama` boleh; duplikat
+kode/nama per scope → 422; global dihapus = shadow off per lembaga (bukan
+fisik), milik lembaga = nonaktif, pulihkan hanya baris lembaga.
+Aturan lembaga: tambah hanya `super_admin`; `kode/npsn/nsm` unik;
+`kelompok_psb` combo hanya untuk kode MI/MD.
+Aturan kelas: nama dinormalisasi (trim + rapat spasi), unik per
+lembaga+tahun ajaran (case-insensitive, pre-check + tangkap 1062);
+`kapasitas` minimal 1; `tingkat` harus dikenal di kamus efektif;
+TA harus efektif; `kelas_id` menerima nama/id.
 API: `GET /api/admin/referensi/types`, `GET|POST /api/admin/referensi/{tipe}`,
 `DELETE /api/admin/referensi/{tipe}/{id}`, lembaga/TA/kelas CRUD.
 Status: ✅ migrated + seeded (agama 6, tingkat 12, tugas 2, …).
@@ -747,13 +763,38 @@ semua fase kecuali fase diterima/`daftar_ulang` (santri sudah dibuat).
 lengkapi berkas. Ketentuan dokumen
 per kegiatan PSB × lembaga (`dokumen_wajib_lembaga`) bersifat penekanan — tidak menahan
 daftar ulang; saat ACC baris checklist dibuat di `dokumen_santri` (boleh ditandai
-"tidak memiliki"). Status: ✅ live (fitur tests hijau). Captcha + PDF bukti ditunda.
+"tidak memiliki"). Aturan pendaftaran: santri baru wajib tingkat entry
+(MI/MD = 1, MTS = 7, MLN = 10), pindahan dari daftar tingkat yang diizinkan;
+eksklusif (non-combo) tak boleh daftar ganda aktif, combo MI/MD maks 2
+pendaftaran aktif; `no_pendaftaran` unik global (gagal 1062 generate ulang,
+maks 3×); `cekNik` mengembalikan boolean saja (anti enumerasi); promosi
+waiting→baru hanya bila kuota tersisa. Aturan kegiatan-gelombang: 1 kegiatan
+per tahun ajaran, satu kegiatan aktif (aktifkan = matikan lainnya); gelombang
+`tgl_tutup` ≥ `tgl_buka`, anti-overlap dalam kegiatan yang sama; hapus
+kegiatan/gelombang ditolak bila sudah ada pendaftar. Status: ✅ live
+(fitur tests hijau, suite 185/185). Captcha + PDF bukti ditunda.
 
 **101 Santri master.** 74-column EMIS profile; NIK/NISN index-only + service
 dedup; `updateOrCreate` only when NIK present (+ intra-file guard);
 `status_global` bool (false iff ALL riwayat non-active);
 `SantriPolicy` (guru excluded from admin list).
-Status: ✅ live (CRUD scoped, import-lengkap, kamus, foto/dokumen; 10 tests).
+Aturan identitas: `nama_lengkap` + `jk` (L/P) wajib; NIK/No.KK/NIK ortu-wali
+`digits:16`; NISN `digits:10`; NIS/nis_lokal maks 20 karakter; `nis_lokal` dan
+`nis_kemenag` unik per lembaga (string kosong diabaikan); maks 1 baris aktif
+per santri+lembaga. NISK: pola NSM(12 digit)+YY+4 digit akhir `nis_lokal`,
+butuh `nis_lokal` terisi + tahun diterima, unik per lembaga.
+Foto profil `jpg/jpeg/png` maks 2.048 KB.
+Import satu pintu: template-data-periksa-eksekusi; berkas `xlsx/xls/csv` maks
+10.240 KB; tulis gabungan butuh
+`santri.tambah` DAN `santri.ubah`; pencocokan 4 lapis (santri_id eksak → NIK →
+nis+lembaga → create wajib nama); sel kosong = pertahankan (tanpa pengosongan
+via file); NIK kosong selalu create; kunci lembaga `kode_lembaga`
+(case-insensitive) prioritas, fallback `lembaga_id`; baris luar tenant gagal
+per baris (bukan 403); sel numerik/serial tanggal dinormalisasi sebelum
+validasi; hanya sheet pertama (sheet Referensi diabaikan).
+Samakan NIS MI↔MD: salin hanya bila tepat satu sisi bernomor + sisi tujuan tak
+tabrakan; beda dua sisi / tabrakan hanya dilaporkan (tanpa auto-copy).
+Status: ✅ live (CRUD scoped, import satu pintu identitas+gabungan, kamus, foto/dokumen, kolom NIS per lembaga, samakan NIS MI↔MD; suite 185/185).
 Tambahan vs vault: mapping import penuh (tanpa drop diam-diam), `uploadFoto`,
 `tipe_santri` rule, `kewarganegaraan` default WNI, kolom `kelas_id` menerima
 nama kelas/id (dropdown template per lembaga+TA). Recalc `status_global` tetap di 102.
@@ -763,21 +804,75 @@ nama kelas/id (dropdown template per lembaga+TA). Recalc `status_global` tetap d
 daftar kolom (`preset_tabel.kolom`) per tabel & per lembaga. Saat membuat preset,
 user dapat memilih satu atau beberapa lembaga tujuan (multi-generate); tiap lembaga
 lalu dapat mengedit salinannya sendiri. Pilihan terakhir per user per tabel diingat
-di `preset_tabel_aktif`. Salin TSV mengikuti kolom yang terlihat.
+di `preset_tabel_aktif`. Salin TSV mengikuti kolom yang terlihat. Preset
+`lengkap` dikunci sistem; preset global hanya admin pesantren; nama unik per
+tabel+lembaga.
 Status: ✅ live.
 
 **Aksi baris tabel (lintas modul).** Bila jumlah tombol aksi baris lebih dari 3,
 otomatis diringkas menjadi dropdown (ikon titik-tiga vertikal) berisi seluruh aksi +
 labelnya; 1–3 aksi tetap tampil langsung. Berlaku di semua tabel `ExcelTable`.
 
+**Baris per halaman + "Semua" (lintas modul).** Opsi 10/50/100/500 + "Semua",
+bawaan 50 per tabel; "Semua" dikirim `per_page=0` (batas 100.000), pager tetap
+tampil agar bisa dikembalikan. Status: ✅ live.
+
+**Pengaturan server (lintas modul).** Halaman pengaturan ganti base-URL backend
+tanpa rebuild (token/base-URL via plugin-store di desktop); aksi uji koneksi +
+kembalikan bawaan; izin `server.lihat` eksklusif `super_admin`. Status: ✅ live.
+
+**Tampilan standar (lintas modul).** Sebaran standar tampilan ke lembaga
+(`lembaga_ids` wajib; lembaga tak teresolusi → 422); izin `tampilan_standar.lihat`
+eksklusif `super_admin`. Status: ✅ live.
+
 **102 Santri lifecycle.** `riwayat_belajar` (`status_awal`: santri_baru/
 mengulang/pindahan; `status_akhir`: aktif/naik/tidak_naik/pindah_keluar/
 lulus/tidak_lulus; `is_aktif` true iff `aktif`; semester 1/2; per-item mass
 promotion with `{berhasil, gagal[]}`); graduation via `alumni` (last-wins),
 exit via `mutasi_keluar`; package-aware (`nonAktifkanRiwayat`).
-Status: ✅ live (8 endpoints, 10 tests). Gerbang AND per-lembaga target
+Status: ✅ live (salin genap, naik/pindah/mutasi/lulus/berhenti massal per-item, halaman MI-MD tambah/hapus massal; suite 185/185). Gerbang AND per-lembaga target
 (canAccess + riwayat-aktif). `pindah_keluar` ikut seeder no.51; `tidak_lulus`
 buka baris mengulang tapel-berikut (tanpa alumni).
+Aturan penghapus: **X di halaman MI-MD = hapus fisik** jejak MD (anggota +
+riwayat) tanpa arsip; pengarsipan resmi hanya lewat mutasi/kelulusan.
+Aturan rombel: `no_absen` unik per (kelas, tahun ajaran, semester), minimal 1;
+kelas tujuan se-lembaga + se-TA, tingkat cocok bila keduanya terisi; hanya
+riwayat aktif yang bisa diset/dipindah/dikosongkan kelasnya.
+Aturan salin genap: wajib dari baris aktif semester 1; tolak bila baris
+semester 2 tahun sama sudah ada. Aturan kenaikan: wajib dari semester 2 aktif;
+`tidak_lulus` wajib TA berikut sudah ada (tingkat diwarisi, keanggotaan tetap
+aktif). Daftar ulang jenjang: baris nonaktif lama tak diaktifkan ulang (buat
+baris baru) kecuali reaktivasi arsip sendiri ber-NIS sama.
+Import riwayat: upsert kunci (santri, TA, lembaga, semester); semester hanya
+1/2; kelas by-nama (case-insensitive) atau id se-lembaga+TA; `status_awal`
+bawaan `santri_baru`, `status_akhir` bawaan `aktif`; keanggotaan auto-create
+(NIS unik); `is_active` parsing `1/0/aktif/ya/…`, tak dikenal = gagal baris.
+
+**Pengajuan biodata (admin).** Antrean pengajuan perbaikan biodata dari wali:
+setujui/tolak hanya untuk status `diajukan`; whitelist 17 field (luar daftar
+ditolak); maks 1 antrean per santri; NIK hanya boleh diproses admin full;
+setujui NIK didedup `nik+nama+tgl_lahir` kecualikan diri sendiri; batal hanya
+oleh pemilik saat masih `diajukan`. Status: ✅ live (terpisah dari portal 203 🟡).
+
+**Dokumen wajib.** Ketentuan dokumen per kegiatan PSB × lembaga; bersifat
+penekanan — tidak menahan daftar ulang; saat ACC baris checklist dibuat
+(boleh ditandai "tidak memiliki"). Jenis dokumen harus aktif di kamus lembaga;
+berkas calon/santri `mimes:jpg,jpeg,png,pdf` maks 5.120 KB. Status: ✅ live.
+
+**Tahun ajaran (perilaku).** Selalu milik lembaga operasional (root ditolak di
+store/aksi/import); `nama` unik global; TA aktif tak boleh dihapus/disembunyikan;
+hanya TA global bisa diaktifkan (satu aktif per transaksi); sembunyikan = baris
+bayangan nonaktif per lembaga. Set-aktif/sembunyikan global hanya `super_admin`.
+Status: ✅ live.
+
+**Halaman MI-MD.** Tiga panel: MI Only, MD Semua (+ flag juga-MI), Beda Kelas
+(perbandingan by-nama case-insensitive, null = ''). Aksi: daftarkan ke MD
+(NIS warisi MI, `tgl_mulai` hari ini, idempoten), hapus fisik jejak MD
+(izin `santri.ubah`; ditolak bila bukan-MI-aktif / tanpa anggota MD / ada arsip
+alumni-mutasi MD), samakan kelas (pindah ke kelas senama di TA berjalan sisi
+tujuan, butuh akses tulis tujuan). **Pengecualian tenant sadar**: akses MI atau
+MD membuka kedua sisi — hanya di endpoint halaman ini; tulis tetap sisi target.
+Izin halaman memakai ulang `rekap_santri.lihat`. Status: ✅ live.
 
 #### Phase 2 — Academic 🟡 (spec locked, not implemented)
 
@@ -819,13 +914,13 @@ tenant-aware lists (filter by accessible `lembaga`), Indonesian UI.
 
 #### 6.1 `frontend/admin-desktop-tauri` (primary admin)
 
-Users: super_admin, admin. Full CRUD: users/roles, lembaga, tahun ajaran,
-kelas (+`setWalas` picker from active keaktifan), 34 kamus (global vs lembaga
-views), plus (when backend lands): PSB antrean (verify/ACC/tolak,
-paket ops), santri master + import, siklus (naik/pindah/mutasi/lulus),
-pegawai + keaktifan/sertifikasi,
-kurikulum/mapel/pengampu, nilai massal + rapor print, wali proposals approval.
-Status: 🟢 shell v0.5.0 live (Tailwind+shadcn: 20 tema ala VSCode data-driven + kustom, Gelap/Terang/Sistem per perangkat, galeri pratinjau, border lembut tanpa shadow, sidebar rail + Ctrl/Cmd+B, pagination, dialog/toast/skeleton). Tabel master memakai `react-datasheet-grid` lewat wrapper `ExcelTable` (seleksi gaya spreadsheet, resize + AutoFit, edit klik-2× langsung simpan) dengan kontrol global ukuran/tinggi/jenis huruf; **Google Fonts disimpan lokal di repo** (`src/assets/fonts`, 8 keluarga × Light/Regular) sehingga aplikasi berjalan **tanpa internet** — dihasilkan ulang via `scripts/fonts-offline.py`. Desktop Tauri 0.5.0 dibangun (`.app` 11 MB, `.dmg` 4 MB, aarch64, belum ditandatangani); build desktop hanya dijalankan bila diminta. Siklus santri (102) sudah live di UI: roster + salin genap + kenaikan/pindah/mutasi/lulus. Belum: modul 200+ (pegawai/kurikulum/nilai), Fase 5, portal ortu lanjutan.
+Users: super_admin, admin. Full CRUD: users/roles (+ matriks Kelola Izin), lembaga, tahun ajaran,
+kelas (Ambil/Copy antar lembaga, import/export nama), 34 kamus (global vs lembaga
+views), PSB antrean (verify/seleksi/ACC/tolak/paket), santri master + import satu pintu
+(kolom NIS per lembaga, samakan NIS MI↔MD), siklus (roster, salin genap, naik/pindah/mutasi/lulus/berhenti),
+rekap, halaman MI-MD (tambah/hapus massal, samakan kelas), pengajuan biodata (setujui/tolak),
+dokumen wajib, preset tabel, pengaturan server/tampilan.
+Status: 🟢 shell v0.5.0 live (Tailwind+shadcn: 20 tema ala VSCode data-driven + kustom, Gelap/Terang/Sistem per perangkat, galeri pratinjau, border lembut tanpa shadow, navigasi menubar/ribbon/sidebar per perangkat, pagination 10/50/100/500 + "Semua", dialog/toast/skeleton). Tabel master memakai `react-datasheet-grid` lewat wrapper `ExcelTable` (seleksi gaya spreadsheet, resize + AutoFit, edit klik-2× langsung simpan, aksi baris >3 jadi dropdown, preset kolom per tabel) dengan kontrol global ukuran/tinggi/jenis huruf; **Google Fonts disimpan lokal di repo** (`src/assets/fonts`, 8 keluarga × Light/Regular) sehingga aplikasi berjalan **tanpa internet** — dihasilkan ulang via `scripts/fonts-offline.py`. Desktop Tauri 0.5.0 dibangun (`.app` 11 MB, `.dmg` 4 MB, aarch64, belum ditandatangani); build desktop hanya dijalankan bila diminta. Belum: modul 200+ (pegawai/kurikulum/nilai), Fase 5, portal ortu lanjutan.
 
 #### 6.2 `frontend/admin-desktop-pyside` (alternate admin)
 
@@ -867,7 +962,10 @@ Status: 🔲 not scaffolded (backend 201/202 pending).
 ### 7. Data model summary
 
 * Tenant: `lembaga` tree (`parent_id`, root `kode=PESANTREN`); `user_lembaga`
-  pivot is the ONLY tenant store.
+  pivot is the ONLY tenant store. Pengecualian tunggal: pasangan MI↔MD di
+  halaman MI-MD (akses salah satu membuka kedua sisi baca; tulis tetap sisi
+  target). Tulis gabungan butuh `santri.tambah` DAN `santri.ubah` (dua
+  middleware = AND).
 * Kamus pattern: consumer columns are free strings (no FK); `ref_*` tables
   provide suggestions via `RefService::effective(tipe, lembagaId)`; global
   rows shadowable on/off per lembaga.
@@ -883,7 +981,7 @@ Status: 🔲 not scaffolded (backend 201/202 pending).
   `role:super_admin|admin`; portal group `role:orang_tua`.
 * Service layer (thin controllers); policies per model; `latest('id')`;
   Excel imports use flat keys; NIK-null uses `create()`.
-* See live contract: `php artisan route:list --path=api` (36 routes).
+* See live contract: `php artisan route:list --path=api` (144 routes, 101 di grup admin).
 
 ### 9. Non-functional requirements
 
@@ -892,7 +990,7 @@ Status: 🔲 not scaffolded (backend 201/202 pending).
 * Security: Sanctum tokens, throttle login (6/min) + `login_audits`,
   no privilege escalation (`assignableRolesFor`), tenant AND-checks on writes.
 * Data: `migrate:fresh` allowed pre-production (no backfill); seeds via
-  `ReferensiSeeder` (no.51) + `RoleSeeder` (6 roles).
+  `ReferensiSeeder` (no.51) + `RoleSeeder` (5 roles efektif; `kasir` dihapus sementara).
 * MySQL: index names ≤64 chars (`uq_*` short names); multi-NULL uniques
   guarded in service, not relied on.
 
@@ -901,23 +999,22 @@ Status: 🔲 not scaffolded (backend 201/202 pending).
 | Area | Spec | Migrated | Seeded | API live |
 |---|---|---|---|---|
 | 001 setup | ✅ | n/a | n/a | n/a |
-| 002 schema (~80 tables) | ✅ | ✅ | n/a | n/a |
+| 002 schema (23 migrasi hasil squash) | ✅ | ✅ | n/a | n/a |
 | 003 auth/users | ✅ | ✅ | ✅ roles | ✅ |
 | 004 ref/master (34 kamus, lembaga/TA/kelas) | ✅ | ✅ | ✅ no.51 | ✅ |
-| 100 PSB full (daftar, paket, verify/ACC, portal, dokumen, import) | ✅ | ✅ | — | ✅ (69 routes, 10 tests) |
-| 101 Santri (CRUD, import, kamus, policy) | ✅ | ✅ | — | ✅ (10 tests) |
-| 102 Siklus (salin genap, naik, pindah, mutasi, lulus, roster + arsip) | ✅ | ✅ | — | ✅ (14 tests) |
+| 100 PSB full (daftar, paket MI-MD, verify/seleksi/ACC, portal, dokumen, import) | ✅ | ✅ | ✅ no.51 | ✅ (publik + admin + portal; suite 185/185) |
+| 101 Santri (CRUD, import satu pintu, kamus, policy, kolom NIS, samakan NIS) | ✅ | ✅ | — | ✅ (suite 185/185) |
+| 102 Siklus (salin genap, naik, pindah, mutasi, lulus, roster + arsip, halaman MI-MD) | ✅ | ✅ | — | ✅ (suite 185/185) |
 | 200/201/202/203 | ✅ specs | ✅ tables | — | 🔲 |
 | Fase 5 (500–505), infra (900–901) | 🔲 drafts | ✅ tables | — | 🔲 |
-| 6 frontend apps | §6 above | n/a | n/a | 🔲 |
+| 6 frontend apps | §6 above | n/a | n/a | ✅ 1 live (`admin-desktop-tauri`), 5 🔲 |
 
 ### 11. Roadmap
 
-1. Backend services in vault order: 100 → 101 → 102 → 200 → 201 → 202 → 203 (each: service + policy + controller + tests).
-2. Scaffold `admin-desktop-tauri` auth/users shell against live 003/004 APIs.
-3. Scaffold remaining frontends as their backend slices land.
-4. Reactivate Fase 5 + infra when core is live.
-5. Harden: load test, audit logs review, backup/restore runbook.
+1. Inti ✅ live (100/101/102 + matriks izin + import satu pintu + halaman MI-MD): pemeliharaan + pengerasan (audit log review, load test, runbook backup/restore).
+2. Berikutnya bila diminta: modul 200 → 201 → 202 → 203 (tiap modul: service + policy + controller + tests), lalu Fase 5 + infra (500–505, 900–901).
+3. Aplikasi admin desktop tetap satu (`admin-desktop-tauri`); 5 aplikasi lain dibuka sesuai modul backend-nya.
+4. `kelas_lulus_id` alumni + `kasir`/keuangan hanya saat dirumuskan ulang.
 
 ### 12. Out of scope
 
