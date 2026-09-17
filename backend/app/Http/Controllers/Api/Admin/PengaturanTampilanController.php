@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Api\Concerns\TenantGuard;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\PengaturanTampilanUpsertRequest;
 use App\Models\Lembaga;
 use App\Models\PengaturanTampilan;
 use App\Models\PresetTabel;
@@ -11,7 +12,6 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
 
 /**
  * Standar tampilan per lembaga: super_admin menyebar ke semua lembaga, admin
@@ -46,39 +46,9 @@ class PengaturanTampilanController extends Controller
     }
 
     /** PUT /api/admin/pengaturan-tampilan — simpan/sebar standar ke lembaga terpilih. */
-    public function upsert(Request $request): JsonResponse
+    public function upsert(PengaturanTampilanUpsertRequest $request): JsonResponse
     {
-        // Sebar standar = super_admin saja (Rekam Visual + API langsung ikut terkunci).
-        abort_unless($request->user()->hasRole('super_admin'), 403, 'Hanya super_admin.');
-
-        $request->validate(['lembaga_ids' => ['required']]);
-
-        $data = $request->validate([
-            'data' => ['required', 'array'],
-            'data.tema' => ['sometimes', 'array'],
-            'data.tema.theme' => ['sometimes', 'nullable', 'string', 'max:40'],
-            'data.tema.mode' => ['sometimes', 'nullable', Rule::in(['terang', 'gelap', 'sistem'])],
-            'data.tema.warnaUI' => ['sometimes', 'nullable', Rule::in(['netral', 'aksen', 'kaya'])],
-            'data.tema.iconSet' => ['sometimes', 'nullable', 'string', 'max:40'],
-            'data.tema.density' => ['sometimes', 'nullable', Rule::in(['ramping', 'sedang', 'nyaman'])],
-            'data.parts' => ['sometimes', 'array'],
-            'data.parts.gaya' => ['sometimes', 'array'],
-            'data.parts.terang' => ['sometimes', 'array'],
-            'data.parts.gelap' => ['sometimes', 'array'],
-            'data.grid' => ['sometimes', 'array'],
-            'data.grid.rowH' => ['sometimes', 'nullable', 'integer', 'between:20,200'],
-            'data.grid.headerH' => ['sometimes', 'nullable', 'integer', 'between:20,120'],
-            'data.grid.align' => ['sometimes', 'array'],
-            'data.grid.align.*' => [Rule::in(['left', 'center', 'right'])],
-            'data.presetAktif' => ['sometimes', 'array'],
-            'data.presetAktif.*' => ['nullable', 'string', 'max:50'],
-            'data.lebar' => ['sometimes', 'array'],
-            'data.lebar.*' => ['nullable', 'array'],
-            'data.lebar.*.*' => ['integer', 'between:20,2000'],
-            'data.beku' => ['sometimes', 'array'],
-            'data.beku.*' => ['nullable', 'integer', 'between:0,20'],
-            'sumber_lembaga_id' => ['sometimes', 'nullable', 'integer', 'exists:lembaga,id'],
-        ]);
+        $data = $request->validated();
 
         $auth = $request->user();
         $ids = $this->resolveLembagaIds($request->input('lembaga_ids'), $auth);

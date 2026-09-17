@@ -6,8 +6,11 @@ use App\Http\Controllers\Api\Concerns\PerPageLimit;
 use App\Http\Controllers\Api\Concerns\UrutDaftar;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\AssignRoleRequest;
+use App\Http\Requests\Admin\AttachLembagaRequest;
 use App\Http\Requests\Admin\CreateUserRequest;
+use App\Http\Requests\Admin\DetachLembagaRequest;
 use App\Http\Requests\Admin\ImportUserRequest;
+use App\Http\Requests\Admin\UpdateUserRequest;
 use App\Imports\UsersImport;
 use App\Models\Lembaga;
 use App\Models\User;
@@ -26,32 +29,13 @@ class UserManagementController extends Controller
 
     protected function assignableRolesFor(User $authUser): array
     {
-        if ($authUser->bolehSuperAdmin()) {
-            return ['super_admin', 'admin', 'guru', 'orang_tua', 'santri'];
-        }
-        if ($authUser->hasRole('admin')) {
-            return ['guru', 'orang_tua', 'santri'];
-        }
-
-        return [];
+        return $authUser->assignableRoles();
     }
 
-    /**
-     * Role yang boleh diberikan saat MEMBUAT user (khusus create).
-     * Berbeda dari assignableRolesFor(): admin (full maupun scoped) boleh
-     * memberi role `admin` saat create. Batas lembaga dijamin resolveLembagaIds():
-     * admin scoped hanya boleh memakai lembaganya sendiri (boleh subset) dan
-     * tidak bisa melahirkan admin global. Jalur update/assignRole/import tetap
-     * memakai assignableRolesFor() (role `admin` dilarang di sana).
-     */
+    /** Role yang boleh diberikan saat MEMBUAT user (khusus create). */
     protected function creatableRolesFor(User $authUser): array
     {
-        $roles = $this->assignableRolesFor($authUser);
-        if ($authUser->hasRole('admin') && ! in_array('admin', $roles, true)) {
-            $roles[] = 'admin';
-        }
-
-        return $roles;
+        return $authUser->creatableRoles();
     }
 
     /**
@@ -61,9 +45,7 @@ class UserManagementController extends Controller
      */
     protected function blocksPrivilegedTarget(User $authUser, User $target): bool
     {
-        return ! $authUser->bolehSuperAdmin()
-            && $authUser->id !== $target->id
-            && $target->hasAnyRole(['admin', 'super_admin']);
+        return ! $target->bolehDimutasiOleh($authUser);
     }
 
     /**
@@ -159,47 +141,11 @@ class UserManagementController extends Controller
         return response()->json($user->load('roles'), 201);
     }
 
-    public function update(Request $request, User $user)
+    public function update(UpdateUserRequest $request, User $user)
     {
         $authUser = auth()->user();
 
-        if (! $authUser->isSameTenant($user)) {
-            return response()->json(['message' => 'Akses ditolak.'], 403);
-        }
-
-        // Target privileged (admin/super_admin) hanya boleh dimutasi super_admin.
-        if ($this->blocksPrivilegedTarget($authUser, $user)) {
-            return response()->json(['message' => 'Hanya super_admin yang dapat mengelola admin.'], 403);
-        }
-
-        // Kunci role diri: siapapun (termasuk super_admin) tidak boleh
-        // mengubah role akunnya sendiri via update (Lampiran E v1.9.1).
-        if ($authUser->id === $user->id && $request->exists('roles')) {
-            return response()->json(['message' => 'Tidak boleh mengubah role diri sendiri.'], 403);
-        }
-
-        if (! $authUser->bolehSuperAdmin()) {
-            $above = array_values(array_filter(array_diff(
-                $user->roles->pluck('name')->all(),
-                $this->assignableRolesFor($authUser),
-                ['admin', 'super_admin']
-            )));
-            if (! empty($above)) {
-                return response()->json(['message' => 'Akses ditolak.'], 403);
-            }
-        }
-
-        $data = $request->validate([
-            'name' => ['sometimes', 'string', 'max:255'],
-            'email' => ['nullable', 'email', 'unique:users,email,'.$user->id],
-            'phone' => ['nullable', 'string', 'max:20', 'unique:users,phone,'.$user->id],
-            'username' => ['nullable', 'string', 'max:50', 'unique:users,username,'.$user->id],
-            'password' => ['nullable', 'string', 'min:8'],
-            'lembaga_ids' => ['nullable', 'array'],
-            'lembaga_ids.*' => ['integer', 'exists:lembaga,id'],
-            'roles' => ['sometimes', 'array', 'min:1'],
-            'roles.*' => ['string', 'exists:roles,name,guard_name,sanctum'],
-        ]);
+        $data = $request->validated();
 
         if (array_key_exists('lembaga_ids', $data)) {
             $ids = $this->resolveLembagaIds($authUser, $data['lembaga_ids']);
@@ -346,19 +292,11 @@ class UserManagementController extends Controller
     }
 
     /** Tambah 1 lembaga ke user (multi-lembaga, vault 003 v5). */
-    public function attachLembaga(Request $request, User $user)
+    public function attachLembaga(AttachLembagaRequest $request, User $user)
     {
-        $this->authorize('update', $user);
         $authUser = auth()->user();
 
-        // Target privileged (admin/super_admin) hanya boleh dimutasi super_admin.
-        if ($this->blocksPrivilegedTarget($authUser, $user)) {
-            return response()->json(['message' => 'Hanya super_admin yang dapat mengelola admin.'], 403);
-        }
-
-        $data = $request->validate([
-            'lembaga_id' => ['required', 'integer', 'exists:lembaga,id'],
-        ]);
+        $data = $request->validated();
 
         if (! $authUser->isSameTenant($user) && ! $authUser->bolehPesantren()) {
             // Target di luar tenant hanya boleh bila user baru tanpa pivot (attach pertama).
@@ -382,18 +320,9 @@ class UserManagementController extends Controller
     }
 
     /** Lepas 1 lembaga dari user (vault 003 v5). */
-    public function detachLembaga(Request $request, User $user)
+    public function detachLembaga(DetachLembagaRequest $request, User $user)
     {
-        $this->authorize('update', $user);
-
-        // Target privileged (admin/super_admin) hanya boleh dimutasi super_admin.
-        if ($this->blocksPrivilegedTarget(auth()->user(), $user)) {
-            return response()->json(['message' => 'Hanya super_admin yang dapat mengelola admin.'], 403);
-        }
-
-        $data = $request->validate([
-            'lembaga_id' => ['required', 'integer', 'exists:lembaga,id'],
-        ]);
+        $data = $request->validated();
 
         if (! auth()->user()->canAccessLembaga((int) $data['lembaga_id'])) {
             return response()->json(['message' => 'Akses ditolak untuk lembaga ini.'], 403);

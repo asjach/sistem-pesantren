@@ -112,6 +112,52 @@ class User extends Authenticatable
         return $this->hasRole('admin') && empty($this->lembagaIds());
     }
 
+    /**
+     * Role yang boleh diberikan aktor ini (create/update/assign/import).
+     * super_admin: semua role; admin: guru/orang_tua/santri (role `admin`
+     * hanya lewat creatableRoles()); lainnya: tidak ada.
+     *
+     * @return list<string>
+     */
+    public function assignableRoles(): array
+    {
+        if ($this->bolehSuperAdmin()) {
+            return ['super_admin', 'admin', 'guru', 'orang_tua', 'santri'];
+        }
+        if ($this->hasRole('admin')) {
+            return ['guru', 'orang_tua', 'santri'];
+        }
+
+        return [];
+    }
+
+    /**
+     * Role yang boleh diberikan saat MEMBUAT user: admin (full/scoped) boleh
+     * memberi role `admin` saat create; batas lembaga dijamin pemanggil.
+     *
+     * @return list<string>
+     */
+    public function creatableRoles(): array
+    {
+        $roles = $this->assignableRoles();
+        if ($this->hasRole('admin') && ! in_array('admin', $roles, true)) {
+            $roles[] = 'admin';
+        }
+
+        return $roles;
+    }
+
+    /**
+     * Target pemegang role admin/super_admin hanya boleh dimutasi super_admin
+     * (akun sendiri dikecualikan; aturan kunci-diri diatur per aksi).
+     */
+    public function bolehDimutasiOleh(User $auth): bool
+    {
+        return $auth->bolehSuperAdmin()
+            || $auth->id === $this->id
+            || ! $this->hasAnyRole(['admin', 'super_admin']);
+    }
+
     public function canAccessLembaga(int $lembagaId): bool
     {
         // Mode bertindak: hanya lembaga yang sedang diperankan.
