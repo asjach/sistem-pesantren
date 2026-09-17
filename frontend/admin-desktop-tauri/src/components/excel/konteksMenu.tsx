@@ -64,12 +64,12 @@ export default function MenuKonteksGrid({
 }: MenuKonteksGridProps) {
   return (
     <ContextMenuContent>
-      {/* Area header kolom: perataan (paling atas), lebar, beku, lalu preset. */}
+      {/* Area header kolom: perataan + lebar (satu grup, pemisah tanpa judul),
+          lalu beku dan preset. */}
       {header && (
         <>
           <ContextMenuLabel>KOLOM: {headerLabel}</ContextMenuLabel>
           <ContextMenuSeparator />
-          <ContextMenuLabel>PERATAAN</ContextMenuLabel>
           <div className="flex items-center gap-1 px-2 pb-1">
             {([
               { nilai: 'left' as const, label: 'Kiri', Icon: AlignLeft },
@@ -97,7 +97,6 @@ export default function MenuKonteksGrid({
             })}
           </div>
           <ContextMenuSeparator />
-          <ContextMenuLabel>LEBAR</ContextMenuLabel>
           <ContextMenuItem
             id={`btn_ctx_autofit_kolom_${tableKey}`}
             title="Sesuaikan lebar kolom ini"
