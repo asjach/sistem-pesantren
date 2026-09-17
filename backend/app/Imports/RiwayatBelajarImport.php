@@ -9,7 +9,7 @@ use App\Models\RiwayatBelajar;
 use App\Models\Santri;
 use App\Models\TahunAjaran;
 use App\Services\RefService;
-use Illuminate\Support\Carbon;
+use App\Support\Tanggal;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Concerns\SkipsOnFailure;
@@ -19,7 +19,6 @@ use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 use Maatwebsite\Excel\Concerns\WithValidation;
 use Maatwebsite\Excel\Validators\Failure;
-use PhpOffice\PhpSpreadsheet\Shared\Date;
 
 /**
  * Import riwayat belajar (`riwayat_belajar`) — terpisah dari import identitas.
@@ -142,7 +141,7 @@ class RiwayatBelajarImport implements SkipsOnFailure, SkipsUnknownSheets, ToColl
         }
 
         $noAbsen = isset($row['no_absen']) && $row['no_absen'] !== '' ? (int) $row['no_absen'] : null;
-        $tglMasuk = $this->parseTanggal($row['tgl_masuk'] ?? null);
+        $tglMasuk = Tanggal::parse($row['tgl_masuk'] ?? null);
         $tingkat = trim((string) ($row['tingkat'] ?? '')) ?: null;
 
         $kunci = [
@@ -273,23 +272,6 @@ class RiwayatBelajarImport implements SkipsOnFailure, SkipsUnknownSheets, ToColl
     }
 
     /** Tanggal Excel: serial number atau string tanggal. */
-    protected function parseTanggal($value): ?string
-    {
-        if (empty($value)) {
-            return null;
-        }
-
-        if (is_numeric($value)) {
-            return Date::excelToDateTimeObject($value)->format('Y-m-d');
-        }
-
-        try {
-            return Carbon::parse($value)->format('Y-m-d');
-        } catch (\Exception $e) {
-            return null;
-        }
-    }
-
     public function rules(): array
     {
         return [

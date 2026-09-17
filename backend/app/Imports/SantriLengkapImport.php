@@ -3,6 +3,7 @@
 namespace App\Imports;
 
 use App\Models\Santri;
+use App\Support\Tanggal;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -135,7 +136,7 @@ class SantriLengkapImport implements SkipsOnFailure, SkipsUnknownSheets, ToColle
             'nama_singkat' => $row['nama_singkat'] ?? null,
             'nisn' => $row['nisn'] ?? null,
             'tmp_lahir' => $row['tmp_lahir'] ?? null,
-            'tgl_lahir' => $this->parseTanggal($row['tgl_lahir'] ?? null),
+            'tgl_lahir' => Tanggal::parse($row['tgl_lahir'] ?? null),
             'jk' => $row['jk'] ?? null,
             'anak_ke' => $row['anak_ke'] ?? null,
             'j_saudara' => $row['j_saudara'] ?? null,
@@ -155,13 +156,13 @@ class SantriLengkapImport implements SkipsOnFailure, SkipsUnknownSheets, ToColle
             'jarak_ke_pesantren' => $row['jarak_ke_pesantren'] ?? null,
             'waktu_tempuh' => $row['waktu_tempuh'] ?? null,
             'transportasi' => $row['transportasi'] ?? null,
-            'tanggal_masuk' => $this->parseTanggal($row['tanggal_masuk'] ?? null),
+            'tanggal_masuk' => Tanggal::parse($row['tanggal_masuk'] ?? null),
 
             // Data Orang Tua & Wali
             'ayah_nama' => $row['ayah_nama'] ?? null,
             'ayah_nik' => $row['ayah_nik'] ?? null,
             'ayah_tmp_lahir' => $row['ayah_tmp_lahir'] ?? null,
-            'ayah_tgl_lahir' => $this->parseTanggal($row['ayah_tgl_lahir'] ?? null),
+            'ayah_tgl_lahir' => Tanggal::parse($row['ayah_tgl_lahir'] ?? null),
             'ayah_status' => $row['ayah_status'] ?? null,
             'ayah_pendidikan' => $row['ayah_pendidikan'] ?? null,
             'ayah_pekerjaan' => $row['ayah_pekerjaan'] ?? null,
@@ -172,7 +173,7 @@ class SantriLengkapImport implements SkipsOnFailure, SkipsUnknownSheets, ToColle
             'ibu_nama' => $row['ibu_nama'] ?? null,
             'ibu_nik' => $row['ibu_nik'] ?? null,
             'ibu_tmp_lahir' => $row['ibu_tmp_lahir'] ?? null,
-            'ibu_tgl_lahir' => $this->parseTanggal($row['ibu_tgl_lahir'] ?? null),
+            'ibu_tgl_lahir' => Tanggal::parse($row['ibu_tgl_lahir'] ?? null),
             'ibu_status' => $row['ibu_status'] ?? null,
             'ibu_pendidikan' => $row['ibu_pendidikan'] ?? null,
             'ibu_pekerjaan' => $row['ibu_pekerjaan'] ?? null,
@@ -183,7 +184,7 @@ class SantriLengkapImport implements SkipsOnFailure, SkipsUnknownSheets, ToColle
             'wali_nama' => $row['wali_nama'] ?? null,
             'wali_nik' => $row['wali_nik'] ?? null,
             'wali_tmp_lahir' => $row['wali_tmp_lahir'] ?? null,
-            'wali_tgl_lahir' => $this->parseTanggal($row['wali_tgl_lahir'] ?? null),
+            'wali_tgl_lahir' => Tanggal::parse($row['wali_tgl_lahir'] ?? null),
             'wali_status' => $row['wali_status'] ?? null,
             'wali_pendidikan' => $row['wali_pendidikan'] ?? null,
             'wali_pekerjaan' => $row['wali_pekerjaan'] ?? null,
@@ -261,23 +262,6 @@ class SantriLengkapImport implements SkipsOnFailure, SkipsUnknownSheets, ToColle
      * Nilai tanggal dari Excel bisa berupa serial number ATAU string
      * tanggal biasa (tergantung format cell di file sumber).
      */
-    protected function parseTanggal($value): ?string
-    {
-        if (empty($value)) {
-            return null;
-        }
-
-        if (is_numeric($value)) {
-            return Date::excelToDateTimeObject($value)->format('Y-m-d');
-        }
-
-        try {
-            return Carbon::parse($value)->format('Y-m-d');
-        } catch (\Exception $e) {
-            return null;
-        }
-    }
-
     public function rules(): array
     {
         return [

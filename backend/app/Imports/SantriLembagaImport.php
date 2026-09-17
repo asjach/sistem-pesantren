@@ -5,6 +5,7 @@ namespace App\Imports;
 use App\Models\Lembaga;
 use App\Models\LembagaSantri;
 use App\Models\Santri;
+use App\Support\Tanggal;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Validators\Failure;
@@ -260,8 +261,8 @@ class SantriLembagaImport extends SantriLengkapImport
         if ($aktif === null && array_key_exists('is_active', $baris) && trim((string) $baris['is_active']) !== '') {
             return false; // failure sudah dicatat parseAktif
         }
-        $tglMulai = $this->parseTanggal($baris['tgl_mulai'] ?? null);
-        $tglSelesai = $this->parseTanggal($baris['tgl_selesai'] ?? null);
+        $tglMulai = Tanggal::parse($baris['tgl_mulai'] ?? null);
+        $tglSelesai = Tanggal::parse($baris['tgl_selesai'] ?? null);
 
         $ada = LembagaSantri::where('santri_id', $santri->id)
             ->where('lembaga_id', $lembagaId)
