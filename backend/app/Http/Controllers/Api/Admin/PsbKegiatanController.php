@@ -3,14 +3,16 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\PsbGelombangStoreRequest;
+use App\Http\Requests\Admin\PsbGelombangUpdateRequest;
+use App\Http\Requests\Admin\PsbKegiatanStoreRequest;
+use App\Http\Requests\Admin\PsbKegiatanUpdateRequest;
 use App\Models\PsbCalonSantri;
 use App\Models\PsbGelombang;
 use App\Models\PsbKegiatan;
 use App\Services\PsbGelombangService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class PsbKegiatanController extends Controller
@@ -29,16 +31,10 @@ class PsbKegiatanController extends Controller
     }
 
     /** POST /api/admin/psb/kegiatan */
-    public function store(Request $request): JsonResponse
+    public function store(PsbKegiatanStoreRequest $request): JsonResponse
     {
         $this->pastikanAdminPesantren();
-        $data = $request->validate([
-            'tahun_ajaran_id' => ['required', 'integer', 'exists:tahun_ajaran,id', 'unique:psb_kegiatan,tahun_ajaran_id'],
-            'nama' => ['required', 'string', 'max:100'],
-            'is_aktif' => ['nullable', 'boolean'],
-        ], [
-            'tahun_ajaran_id.unique' => 'Tahun ajaran ini sudah memiliki kegiatan PSB.',
-        ]);
+        $data = $request->validated();
 
         $kegiatan = DB::transaction(function () use ($data) {
             if ((bool) ($data['is_aktif'] ?? false)) {
@@ -56,17 +52,10 @@ class PsbKegiatanController extends Controller
     }
 
     /** PUT /api/admin/psb/kegiatan/{kegiatan} */
-    public function update(Request $request, PsbKegiatan $kegiatan): JsonResponse
+    public function update(PsbKegiatanUpdateRequest $request, PsbKegiatan $kegiatan): JsonResponse
     {
         $this->pastikanAdminPesantren();
-        $data = $request->validate([
-            'tahun_ajaran_id' => ['sometimes', 'integer', 'exists:tahun_ajaran,id',
-                Rule::unique('psb_kegiatan', 'tahun_ajaran_id')->ignore($kegiatan->id)],
-            'nama' => ['sometimes', 'string', 'max:100'],
-            'is_aktif' => ['nullable', 'boolean'],
-        ], [
-            'tahun_ajaran_id.unique' => 'Tahun ajaran ini sudah memiliki kegiatan PSB.',
-        ]);
+        $data = $request->validated();
 
         DB::transaction(function () use ($kegiatan, $data) {
             if (! empty($data['is_aktif'])) {
@@ -92,15 +81,10 @@ class PsbKegiatanController extends Controller
     }
 
     /** POST /api/admin/psb/gelombang */
-    public function storeGelombang(Request $request): JsonResponse
+    public function storeGelombang(PsbGelombangStoreRequest $request): JsonResponse
     {
         $this->pastikanAdminPesantren();
-        $data = $request->validate([
-            'psb_kegiatan_id' => ['required', 'integer', 'exists:psb_kegiatan,id'],
-            'nama' => ['required', 'string', 'max:100'],
-            'tgl_buka' => ['required', 'date'],
-            'tgl_tutup' => ['required', 'date'],
-        ]);
+        $data = $request->validated();
 
         $this->gelombang->validasiRentang(
             (int) $data['psb_kegiatan_id'],
@@ -121,14 +105,10 @@ class PsbKegiatanController extends Controller
     }
 
     /** PUT /api/admin/psb/gelombang/{gelombang} */
-    public function updateGelombang(Request $request, PsbGelombang $gelombang): JsonResponse
+    public function updateGelombang(PsbGelombangUpdateRequest $request, PsbGelombang $gelombang): JsonResponse
     {
         $this->pastikanAdminPesantren();
-        $data = $request->validate([
-            'nama' => ['sometimes', 'string', 'max:100'],
-            'tgl_buka' => ['sometimes', 'date'],
-            'tgl_tutup' => ['sometimes', 'date'],
-        ]);
+        $data = $request->validated();
 
         $buka = $data['tgl_buka'] ?? $gelombang->tgl_buka?->toDateString();
         $tutup = $data['tgl_tutup'] ?? $gelombang->tgl_tutup?->toDateString();

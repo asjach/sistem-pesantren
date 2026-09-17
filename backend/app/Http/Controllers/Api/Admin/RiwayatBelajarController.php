@@ -6,6 +6,9 @@ use App\Exports\RiwayatBelajarTemplateExport;
 use App\Http\Controllers\Api\Concerns\TenantGuard;
 use App\Http\Controllers\Api\Concerns\UrutDaftar;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\RiwayatImportRequest;
+use App\Http\Requests\Admin\RiwayatKelasRequest;
+use App\Http\Requests\Admin\RiwayatStoreRequest;
 use App\Imports\RiwayatBelajarImport;
 use App\Models\LembagaSantri;
 use App\Models\RiwayatBelajar;
@@ -105,21 +108,11 @@ class RiwayatBelajarController extends Controller
      * POST /api/admin/riwayat-belajar — dialog input riwayat / penerimaan santri:
      * santri + lembaga + tahun ajaran (+ kelas/tingkat/status awal opsional).
      */
-    public function store(Request $request, PenerimaanService $penerimaan): JsonResponse
+    public function store(RiwayatStoreRequest $request, PenerimaanService $penerimaan): JsonResponse
     {
         $this->authorize('viewAny', Santri::class);
 
-        $data = $request->validate([
-            'santri_id' => ['required', 'exists:santri,id'],
-            'lembaga_id' => ['required', 'exists:lembaga,id'],
-            'tahun_ajaran_id' => ['required', 'exists:tahun_ajaran,id'],
-            'kelas_id' => ['nullable', 'exists:kelas,id'],
-            'tingkat' => ['nullable', 'string', 'max:20'],
-            'no_absen' => ['nullable', 'integer', 'min:1'],
-            'status_awal' => ['nullable', 'string', 'max:50'],
-            'tgl_masuk' => ['nullable', 'date'],
-            'nis_lokal' => ['nullable', 'string', 'max:20'],
-        ]);
+        $data = $request->validated();
 
         $santri = Santri::findOrFail($data['santri_id']);
         $this->authorize('update', $santri);
@@ -139,10 +132,10 @@ class RiwayatBelajarController extends Controller
     }
 
     /** POST /api/admin/riwayat-belajar/{riwayat}/set-kelas — penempatan kelas menyusul. */
-    public function setKelas(Request $request, RiwayatBelajar $riwayat, SiklusSantriService $siklus): JsonResponse
+    public function setKelas(RiwayatKelasRequest $request, RiwayatBelajar $riwayat, SiklusSantriService $siklus): JsonResponse
     {
         $this->authorizeAksiLembaga($request, $riwayat->santri, (int) $riwayat->lembaga_id);
-        $data = $request->validate(['kelas_id' => ['required', 'exists:kelas,id']]);
+        $data = $request->validated();
 
         return response()->json([
             'pesan' => 'Kelas berhasil ditetapkan.',
@@ -151,10 +144,10 @@ class RiwayatBelajarController extends Controller
     }
 
     /** POST /api/admin/riwayat-belajar/{riwayat}/pindah-kelas. */
-    public function pindahKelas(Request $request, RiwayatBelajar $riwayat, SiklusSantriService $siklus): JsonResponse
+    public function pindahKelas(RiwayatKelasRequest $request, RiwayatBelajar $riwayat, SiklusSantriService $siklus): JsonResponse
     {
         $this->authorizeAksiLembaga($request, $riwayat->santri, (int) $riwayat->lembaga_id);
-        $data = $request->validate(['kelas_id' => ['required', 'exists:kelas,id']]);
+        $data = $request->validated();
 
         return response()->json([
             'pesan' => 'Santri dipindah kelas.',
@@ -184,24 +177,22 @@ class RiwayatBelajarController extends Controller
     }
 
     /** POST /api/admin/riwayat-belajar/import-periksa — dry-run tanpa menulis. */
-    public function periksaImport(Request $request): JsonResponse
+    public function periksaImport(RiwayatImportRequest $request): JsonResponse
     {
         return $this->prosesImport($request, periksa: true);
     }
 
     /** POST /api/admin/riwayat-belajar/import-lengkap */
-    public function importLengkap(Request $request): JsonResponse
+    public function importLengkap(RiwayatImportRequest $request): JsonResponse
     {
         return $this->prosesImport($request, periksa: false);
     }
 
-    private function prosesImport(Request $request, bool $periksa): JsonResponse
+    private function prosesImport(RiwayatImportRequest $request, bool $periksa): JsonResponse
     {
         $this->authorize('viewAny', Santri::class);
 
-        $request->validate([
-            'file' => ['required', 'file', 'mimes:xlsx,xls,csv', 'max:10240'],
-        ]);
+        $request->validated();
 
         $import = new RiwayatBelajarImport;
         $errors = [];
