@@ -164,6 +164,31 @@ class MiMdTest extends TestCase
         $this->assertSame([], $resMts->json('beda_kelas'));
     }
 
+    public function test_x_lalu_daftar_lagi_mereaktivasi_arsip(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeUser('admin', [$f['mi']->id, $f['md']->id]);
+
+        $s = Santri::create(['nama_lengkap' => 'Keluar Masuk', 'jk' => 'L']);
+        LembagaSantri::create(['santri_id' => $s->id, 'lembaga_id' => $f['mi']->id, 'nis_lokal' => '29001', 'is_active' => true]);
+        LembagaSantri::create(['santri_id' => $s->id, 'lembaga_id' => $f['md']->id, 'nis_lokal' => '29001', 'is_active' => true]);
+        $this->tempatkan($s, $f['md']->id, $f['taMd']->id, '1A');
+
+        // X: tutup jenjang MD (arsip nonaktif bernomor sama tetap ada).
+        $this->actingAs($admin, 'sanctum')->postJson("/api/admin/santri/{$s->id}/berhenti-jenjang", [
+            'lembaga_id' => $f['md']->id,
+        ])->assertStatus(200);
+
+        // Panah lagi: reaktivasi, bukan 422; tetap 1 baris MD.
+        $this->actingAs($admin, 'sanctum')->postJson('/api/admin/mi-md/daftarkan-md', [
+            'items' => [['santri_id' => $s->id]],
+        ])->assertStatus(200);
+        $baris = LembagaSantri::where('santri_id', $s->id)->where('lembaga_id', $f['md']->id)->get();
+        $this->assertCount(1, $baris);
+        $this->assertTrue((bool) $baris->first()->is_active);
+        $this->assertSame('29001', $baris->first()->nis_lokal);
+    }
+
     public function test_daftarkan_md_warisi_nis(): void
     {
         $f = $this->baseFixture();

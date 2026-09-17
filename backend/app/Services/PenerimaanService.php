@@ -106,6 +106,24 @@ class PenerimaanService
             return $aktif->fresh();
         }
 
+        // Reaktivasi arsip sendiri: keluar lalu masuk lagi dengan NIS yang sama
+        // (mis. X di halaman MI-MD lalu panah lagi) — aktifkan baris lamanya
+        // agar tidak menabrak cek dipakai/unique di bawah.
+        $arsip = LembagaSantri::where('santri_id', $santri->id)
+            ->where('lembaga_id', $lembagaId)
+            ->where('is_active', false)
+            ->orderByDesc('id')
+            ->first();
+        if ($arsip && ($arsip->nis_lokal ?? null) === $nisLokal) {
+            $arsip->update([
+                'is_active' => true,
+                'tgl_selesai' => null,
+                'tgl_mulai' => $data['tgl_mulai'] ?? $arsip->tgl_mulai,
+            ]);
+
+            return $arsip->fresh();
+        }
+
         if ($nisLokal !== null && LembagaSantri::nisLokalDipakai($lembagaId, $nisLokal)) {
             throw ValidationException::withMessages(['nis_lokal' => 'NIS lokal sudah dipakai santri lain di lembaga ini.']);
         }
