@@ -1523,7 +1523,7 @@ export default function ExcelTable<T extends { id: string | number }>({
 
   /** Salin satu baris (kolom terlihat) sebagai TSV. */
   async function salinBarisCtx(id: T['id']) {
-    const header = visibleFieldsRef.current.map((f) => f.label);
+    const header = visibleFieldsRef.current.map((f) => labelKolom(f.key, f.label));
     const body = [visibleFieldsRef.current.map((f) => displayOf(id, f.key))];
     const ok = await copyText(toTSV(header, body));
     if (ok) toast.success('Baris disalin (TSV).');
@@ -1552,23 +1552,26 @@ export default function ExcelTable<T extends { id: string | number }>({
     let header: string[];
     let body: string[][];
     if (checkedRows.length > 0) {
-      header = visibleFields.map((f) => f.label);
+      header = visibleFields.map((f) => labelKolom(f.key, f.label));
       body = checkedRows.map((r) => visibleFields.map((f) => displayOf(r.id, f.key)));
     } else if (range) {
       const r0 = Math.max(0, Math.min(range.min.row, range.max.row));
       const r1 = Math.min(gridValue.length - 1, Math.max(range.min.row, range.max.row));
-      const idx: number[] = [];
+      const keys = gridColumnKeys();
+      const picked: { key: string; label: string }[] = [];
       for (let c = Math.min(range.min.col, range.max.col); c <= Math.max(range.min.col, range.max.col); c++) {
-        // 0 = checklist, kolom terlihat 1..n, terakhir = Aksi
-        if (c >= 1 && c <= visibleFields.length) idx.push(c - 1);
+        const k = keys[c];
+        if (!k || k === 'check' || k === '__aksi') continue;
+        const f = visibleFields.find((v) => v.key === k);
+        if (f) picked.push({ key: f.key, label: labelKolom(f.key, f.label) });
       }
-      if (r1 < r0 || idx.length === 0) return;
-      header = idx.map((i) => visibleFields[i].label);
+      if (r1 < r0 || picked.length === 0) return;
+      header = picked.map((p) => p.label);
       body = [];
       for (let r = r0; r <= r1; r++) {
         const g = gridValue[r];
         if (!g) continue;
-        body.push(idx.map((i) => displayOf(g.id, visibleFields[i].key)));
+        body.push(picked.map((p) => displayOf(g.id, p.key)));
       }
     } else {
       return;
