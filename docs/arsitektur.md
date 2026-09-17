@@ -31,7 +31,7 @@ Aturan terkunci:
 | Peran | Tenant | Hak utama |
 |---|---|---|
 | `super_admin` | Semua, tanpa pivot | Semua izin (terkunci di matriks); tulis global `ref_*`; buat semua peran; kelola matriks izin |
-| `admin` | Full tanpa pivot = semua; scoped dengan pivot = subset via `isAdminFull()` | Semua izin kecuali `izin.*`, `tampilan_standar.lihat`, `server.lihat`, `lembaga.tambah`; CRUD `001–004` (kecuali tambah lembaga = super_admin), `100–102`, attach/detach `user_lembaga`; tak boleh mutasi/hapus pemegang `admin/super_admin` maupun role diri sendiri |
+| `admin` | Full tanpa pivot = semua; scoped dengan pivot = subset via `isAdminFull()` | Semua izin kecuali `izin.*`, `server.lihat`, `lembaga.tambah`; CRUD `001–004` (kecuali tambah lembaga = super_admin), `100–102`, attach/detach `user_lembaga`; tak boleh mutasi/hapus pemegang `admin/super_admin` maupun role diri sendiri |
 | `guru` | Wajib pivot ≥1 | Modul 202 Nilai-Rapor: input miliknya/walasnya |
 | `orang_tua` | Wajib pivot, via `wali_santri_relasi` | Modul 203 Portal Wali + Modul 100 PSB Penerimaan daftar + ajukan/batal (1 aktif/santri) |
 | `santri` | Wajib pivot | Portal terbatas |
@@ -47,7 +47,7 @@ Aturan terkunci:
 ### 2.3.x Matriks Izin (Kelola Izin)
 
 Kewenangan terdiri dari dua dimensi yang dikombinasikan (AND):
-- **Aksi** — izin `modul.aksi` (`lihat/tambah/ubah/hapus` per modul + izin halaman pseudo `daftar_kelas/pindah_kelas/kenaikan/kelulusan/rekap_santri/mutasi_keluar/tampilan_standar/server/izin`), dikelola super_admin lewat halaman Kelola Izin (matriks checkbox role × izin, simpan per role). Katalog kanonis: `IzinKatalog::MODUL_AKSI` (satu sumber kebenaran untuk seeder, validasi API, dan audit FE).
+- **Aksi** — izin `modul.aksi` (`lihat/tambah/ubah/hapus` per modul + izin halaman pseudo `daftar_kelas/pindah_kelas/kenaikan/kelulusan/rekap_santri/mutasi_keluar/server/izin`), dikelola super_admin lewat halaman Kelola Izin (matriks checkbox role × izin, simpan per role). Katalog kanonis: `IzinKatalog::MODUL_AKSI` (satu sumber kebenaran untuk seeder, validasi API, dan audit FE).
 - **Cakupan data** — pivot `user_lembaga` (`bolehPesantren()`/`canAccessLembaga()`); tidak berubah oleh matriks.
 
 Aturan terkunci:
@@ -230,8 +230,8 @@ Contoh kamus ringkas:
 - 29 opsi font (sistem + Aptos + Google Fonts yang disimpan lokal sehingga offline); pilihan tersimpan per perangkat dan tersinkron antara ribbon dan halaman Tampilan.
 
 ### 7.7 Pengaturan tampilan
-- Halaman Tampilan (pribadi): cari bagian, pratinjau langsung, reset per bagian/banyak/semua; badge "Standar lembaga · versi N" + tombol kembali ke standar bila admin menyebar standar.
-- Halaman Standar (super_admin): sebar satu paket tampilan ke lembaga terpilih; klien memantau versi dan memuat ulang otomatis.
+- Halaman Tampilan (pribadi): cari bagian, pratinjau langsung, reset per bagian/banyak/semua; badge "Standar lembaga · versi N" + tombol kembali ke standar bila super_admin menyebar standar.
+- Rekam Visual (super_admin bertindak + tombol rekam): ubahan lewat UI normal tersimpan otomatis ke standar lembaga aktif (tema, gaya bagian, grid, preset, lebar/beku) via endpoint sebar yang sama; halaman sebar terpisah dihapus (Rekam mencakupnya).
 
 ---
 

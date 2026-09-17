@@ -14,7 +14,6 @@ import {
   LogOut,
   MoveHorizontal,
   NotebookTabs,
-  Paintbrush,
   Palette,
   ReceiptText,
   Server,
@@ -84,14 +83,6 @@ export const HALAMAN: HalamanDef[] = [
   { to: '/mutasi-keluar', label: 'Mutasi Keluar', tab: 'santri', grid: true, icon: LogOut, permission: 'mutasi_keluar.lihat' },
   { to: '/pengajuan-biodata', label: 'Pengajuan Biodata', tab: 'santri', grid: true, icon: NotebookTabs, permission: 'pengajuan_biodata.lihat' },
   { to: '/pengaturan/tampilan', label: 'Tampilan', tab: 'pengaturan', icon: Palette, permission: 'tampilan.lihat' },
-  {
-    to: '/pengaturan/tampilan-standar',
-    label: 'Tampilan Standar',
-    deskripsi: 'Super admin menyebar standar tampilan ke seluruh lembaga; admin lembaga mengatur salinan lembaganya.',
-    tab: 'pengaturan',
-    icon: Paintbrush,
-    permission: 'tampilan_standar.lihat',
-  },
   {
     to: '/pengaturan/izin',
     label: 'Kelola Izin',

@@ -232,9 +232,10 @@ tampil agar bisa dikembalikan. Status: ✅ live.
 tanpa rebuild (token/base-URL via plugin-store di desktop); aksi uji koneksi +
 kembalikan bawaan; izin `server.lihat` eksklusif `super_admin`. Status: ✅ live.
 
-**Tampilan standar (lintas modul).** Sebaran standar tampilan ke lembaga
-(`lembaga_ids` wajib; lembaga tak teresolusi → 422); izin `tampilan_standar.lihat`
-eksklusif `super_admin`. Status: ✅ live.
+**Sebar standar tampilan (lintas modul).** Endpoint sebar ke lembaga
+(`lembaga_ids` wajib; lembaga tak teresolusi → 422) dikunci super_admin
+(Rekam Visual + API langsung ikut terkunci); halaman sebar terpisah dihapus,
+Rekam Visual (bertindak + tombol rekam) mencakupnya. Status: ✅ live.
 
 **102 Santri lifecycle.** `riwayat_belajar` (`status_awal`: santri_baru/
 mengulang/pindahan; `status_akhir`: aktif/naik/tidak_naik/pindah_keluar/

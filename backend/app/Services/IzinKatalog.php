@@ -11,7 +11,7 @@ namespace App\Services;
  *   tetap diatur pivot `user_lembaga` (`bolehPesantren()`), bukan izin.
  * - Modul pseudo (tanpa endpoint sendiri) memakai `lihat` untuk
  *   visibilitas halaman: daftar_kelas, pindah_kelas, kenaikan, kelulusan,
- *   rekap_santri, mutasi_keluar, tampilan_standar, server, izin —
+ *   rekap_santri, mutasi_keluar, server, izin —
  *   sebagian plus `ubah` untuk aksinya (pindah_kelas, kenaikan, kelulusan,
  *   mutasi_keluar, izin).
  */
@@ -39,7 +39,6 @@ class IzinKatalog
         'pengajuan_biodata' => ['lihat', 'ubah'],
         'preset_tabel' => ['lihat', 'tambah', 'ubah', 'hapus'],
         'tampilan' => ['lihat', 'ubah', 'hapus'],
-        'tampilan_standar' => ['lihat'],
         'server' => ['lihat'],
         'izin' => ['lihat', 'ubah'],
     ];
@@ -47,7 +46,6 @@ class IzinKatalog
     /** Izin yang tidak diberikan ke role `admin` (eksklusif super_admin). */
     public const EKSKLUSIF_SUPER_ADMIN = [
         'lembaga.tambah',
-        'tampilan_standar.lihat',
         'server.lihat',
         'izin.lihat',
         'izin.ubah',

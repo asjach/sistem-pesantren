@@ -48,6 +48,9 @@ class PengaturanTampilanController extends Controller
     /** PUT /api/admin/pengaturan-tampilan — simpan/sebar standar ke lembaga terpilih. */
     public function upsert(Request $request): JsonResponse
     {
+        // Sebar standar = super_admin saja (Rekam Visual + API langsung ikut terkunci).
+        abort_unless($request->user()->hasRole('super_admin'), 403, 'Hanya super_admin.');
+
         $request->validate(['lembaga_ids' => ['required']]);
 
         $data = $request->validate([

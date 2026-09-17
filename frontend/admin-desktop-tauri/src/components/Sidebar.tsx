@@ -20,7 +20,7 @@ export default function Sidebar() {
   const { bertindak } = useLembagaAktif();
   // Saat bertindak sebagai lembaga, kemampuan super_admin dianggap nonaktif
   // (halaman khusus super_admin ikut disembunyikan).
-  const terkunci = new Set(['izin.lihat', 'tampilan_standar.lihat', 'server.lihat']);
+  const terkunci = new Set(['izin.lihat', 'server.lihat']);
 
   // Ctrl/Cmd+B: lipat/buka sidebar (ala editor kode).
   useEffect(() => {

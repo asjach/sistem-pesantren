@@ -2,7 +2,7 @@
 
 | Atribut | Keterangan |
 |---|---|
-| Versi Dokumen | 2.57 (lepas referensi arsip) |
+| Versi Dokumen | 2.58 (hapus halaman Standar + kunci sebar) |
 | Tanggal | 17 September 2026 |
 | Status | PRD produk SIMPES — acuan tunggal kebutuhan, rancangan, dan status implementasi aplikasi yang sedang dibangun |
 | Penyusun | Solo dev + Yayasan |
@@ -108,7 +108,8 @@
 | 2.54 | 2026-09-17 | Lampiran G operasional agen (docs-only) |
 | 2.55 | 2026-09-17 | PRD sebagai dasar proyek (docs-only) |
 | 2.56 | 2026-09-17 | Pecah PRD jadi 4 file tanpa ubah isi (docs-only) |
-| 2.57 | 2026-09-17 | Lepas referensi arsip (docs-only): hapus Lampiran B + §1.6 arsip + baris header arsip; arsitektur, backend-detail, SCHEMA mandiri dari repo |
+| 2.57 | 2026-09-17 | Lepas referensi arsip (docs-only) |
+| 2.58 | 2026-09-17 | Hapus halaman Tampilan Standar + kunci sebar super_admin: hapus halaman/route/nav + izin katalog; upsert 403 non-super_admin (tutup celah admin-full via Rekam/API); Rekam Visual mencakup sebar; suite 187/187, typecheck + build lolos |
 ## Daftar Isi
 
 > Rujukan antar-file: "Bab 2–8" → `arsitektur.md`; "Bab 9–14 + Lampiran" → `operasi.md`; "§N / Part B" → `backend-detail.md`.

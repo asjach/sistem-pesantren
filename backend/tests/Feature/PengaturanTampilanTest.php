@@ -59,7 +59,7 @@ class PengaturanTampilanTest extends TestCase
         $adminMi = $this->makeUser('admin', [$mi->id]);
         $adminMd = $this->makeUser('admin', [$md->id]);
 
-        // Lintas lembaga ditolak.
+        // Sebar standar = super_admin saja: lintas lembaga ditolak.
         $this->actingAs($adminMi, 'sanctum')->putJson('/api/admin/pengaturan-tampilan', [
             'lembaga_ids' => [$mi->id, $md->id],
             'data' => ['tema' => ['theme' => 'geist']],
@@ -71,19 +71,17 @@ class PengaturanTampilanTest extends TestCase
             'data' => ['tema' => ['theme' => 'geist']],
         ])->assertStatus(403);
 
-        // Lembaganya sendiri boleh.
+        // Lembaganya sendiri pun ditolak (hanya super_admin).
         $this->actingAs($adminMi, 'sanctum')->putJson('/api/admin/pengaturan-tampilan', [
             'lembaga_ids' => [$mi->id],
             'data' => ['tema' => ['theme' => 'nusantara', 'mode' => 'gelap']],
-        ])->assertStatus(201);
+        ])->assertStatus(403);
 
-        // show tanpa param: otomatis lembaga tunggal.
+        // show tanpa param: otomatis lembaga tunggal (belum ada standar).
         $this->actingAs($adminMi, 'sanctum')->getJson('/api/admin/pengaturan-tampilan')
             ->assertStatus(200)
             ->assertJsonPath('data.lembaga_id', $mi->id)
-            ->assertJsonPath('data.versi', 1)
-            ->assertJsonPath('data.tampilan.tema.theme', 'nusantara')
-            ->assertJsonPath('data.tampilan.tema.mode', 'gelap');
+            ->assertJsonPath('data.versi', 0);
 
         // Lembaga lain belum diatur.
         $this->actingAs($adminMd, 'sanctum')->getJson('/api/admin/pengaturan-tampilan')
@@ -95,10 +93,24 @@ class PengaturanTampilanTest extends TestCase
             ->assertStatus(403);
     }
 
+    public function test_admin_pesantren_ditolak_sebar_standar(): void
+    {
+        [, $mi] = $this->lembaga();
+        $adminFull = $this->makeUser('admin');
+
+        // Admin pesantren (tanpa pivot, akses semua lembaga) tetap bukan super_admin.
+        $this->actingAs($adminFull, 'sanctum')->putJson('/api/admin/pengaturan-tampilan', [
+            'lembaga_ids' => [$mi->id],
+            'data' => ['tema' => ['theme' => 'geist']],
+        ])->assertStatus(403);
+
+        $this->assertSame(0, PengaturanTampilan::count());
+    }
+
     public function test_super_admin_sebar_ke_semua_dan_versi_naik(): void
     {
         [$root, $mi, $md] = $this->lembaga();
-        $pusat = $this->makeUser('admin');
+        $pusat = $this->makeUser('super_admin');
 
         $res = $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/pengaturan-tampilan', [
             'lembaga_ids' => 'semua',
@@ -135,7 +147,7 @@ class PengaturanTampilanTest extends TestCase
     public function test_preset_aktif_disarikan_ke_lembaga_target(): void
     {
         [, $mi, $md] = $this->lembaga();
-        $pusat = $this->makeUser('admin');
+        $pusat = $this->makeUser('super_admin');
 
         PresetTabel::create([
             'lembaga_id' => $mi->id, 'table_key' => 'kelas', 'nama' => 'Ringkas',
@@ -163,7 +175,7 @@ class PengaturanTampilanTest extends TestCase
     public function test_lebar_dan_beku_menerima_nilai_null_untuk_menghapus(): void
     {
         [, $mi] = $this->lembaga();
-        $pusat = $this->makeUser('admin');
+        $pusat = $this->makeUser('super_admin');
 
         // Nilai lebar/beku per tabel.
         $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/pengaturan-tampilan', [
@@ -192,18 +204,19 @@ class PengaturanTampilanTest extends TestCase
     {
         [, $mi] = $this->lembaga();
         $adminMi = $this->makeUser('admin', [$mi->id]);
+        $super = $this->makeUser('super_admin');
 
-        $this->actingAs($adminMi, 'sanctum')->putJson('/api/admin/pengaturan-tampilan', [
+        $this->actingAs($super, 'sanctum')->putJson('/api/admin/pengaturan-tampilan', [
             'lembaga_ids' => [$mi->id],
             'data' => ['grid' => ['rowH' => 5]],
         ])->assertStatus(422)->assertJsonValidationErrors(['data.grid.rowH']);
 
-        $this->actingAs($adminMi, 'sanctum')->putJson('/api/admin/pengaturan-tampilan', [
+        $this->actingAs($super, 'sanctum')->putJson('/api/admin/pengaturan-tampilan', [
             'lembaga_ids' => [$mi->id],
             'data' => ['tema' => ['mode' => 'senja']],
         ])->assertStatus(422)->assertJsonValidationErrors(['data.tema.mode']);
 
-        $this->actingAs($adminMi, 'sanctum')->putJson('/api/admin/pengaturan-tampilan', [
+        $this->actingAs($super, 'sanctum')->putJson('/api/admin/pengaturan-tampilan', [
             'lembaga_ids' => [$mi->id],
             'data' => ['tema' => ['theme' => 'geist']],
         ])->assertStatus(201);

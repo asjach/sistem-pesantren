@@ -23,7 +23,6 @@ const ReferensiPage = lazy(() => import('./pages/ReferensiPage'));
 const TahunAjaranPage = lazy(() => import('./pages/TahunAjaranPage'));
 const KelasPage = lazy(() => import('./pages/KelasPage'));
 const PengaturanTampilanPage = lazy(() => import('./pages/PengaturanTampilanPage'));
-const PengaturanTampilanStandarPage = lazy(() => import('./pages/PengaturanTampilanStandarPage'));
 const PengaturanServerPage = lazy(() => import('./pages/PengaturanServerPage'));
 const PsbPage = lazy(() => import('./pages/PsbPage'));
 const KegiatanPsbPage = lazy(() => import('./pages/KegiatanPsbPage'));
@@ -57,7 +56,7 @@ function Shell() {
 
 /** Batasi halaman ke satu izin matriks; tanpa izin dialihkan ke beranda.
  *  Saat bertindak sebagai lembaga, izin khusus super_admin dianggap nonaktif. */
-const IZIN_TERKUNCI = new Set(['izin.lihat', 'tampilan_standar.lihat', 'server.lihat']);
+const IZIN_TERKUNCI = new Set(['izin.lihat', 'server.lihat']);
 
 function KhususIzin({ izin, children }: { izin: string; children: ReactNode }) {
   const { user } = useAuth();
@@ -110,14 +109,7 @@ export default function App() {
                       <Route path="/dokumen-wajib" element={<KhususIzin izin="dokumen_wajib.lihat"><DokumenWajibPage /></KhususIzin>} />
                       <Route path="/pengaturan" element={<Navigate to="/pengaturan/tampilan" replace />} />
                       <Route path="/pengaturan/tampilan" element={<KhususIzin izin="tampilan.lihat"><PengaturanTampilanPage /></KhususIzin>} />
-                      <Route
-                        path="/pengaturan/tampilan-standar"
-                        element={(
-                          <KhususIzin izin="tampilan_standar.lihat">
-                            <PengaturanTampilanStandarPage />
-                          </KhususIzin>
-                        )}
-                      />
+                      <Route path="/pengaturan/izin" element={<KhususIzin izin="izin.lihat"><KelolaIzinPage /></KhususIzin>} />
                       <Route path="/pengaturan/bagian" element={<Navigate to="/pengaturan/tampilan" replace />} />
                       <Route
                         path="/pengaturan/server"

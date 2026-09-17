@@ -22,7 +22,7 @@ const LABEL_MENU: Record<TabKategori, string> = {
 };
 
 /** Izin halaman khusus super_admin: disembunyikan saat bertindak sebagai lembaga. */
-const TERKUNCI = new Set(['izin.lihat', 'tampilan_standar.lihat', 'server.lihat']);
+const TERKUNCI = new Set(['izin.lihat', 'server.lihat']);
 
 /** Bar menu ala aplikasi desktop: pengganti Sidebar bila pref `navigasi`
  *  bernilai `menubar`. Sumber halaman sama (`HALAMAN` + izin matriks). */
