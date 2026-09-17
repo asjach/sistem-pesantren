@@ -381,13 +381,7 @@
   padding-top: 4px;
   padding-bottom: 4px;
 }
-/* Judul kolom yang bisa diurutkan: kursor tunjuk + indikator arah/nomor. */
-.simpes-dsg-bisa-urut {
-  cursor: pointer;
-}
-.simpes-dsg-bisa-urut:hover {
-  text-decoration: underline;
-}
+/* Indikator urutan aktif di judul kolom (pasif — dikontrol dropdown toolbar). */
 .simpes-dsg-tanda-urut {
   margin-left: 4px;
   font-size: 0.85em;

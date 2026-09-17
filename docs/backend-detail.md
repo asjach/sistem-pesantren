@@ -394,12 +394,16 @@ Status: 🔲 not scaffolded (backend 201/202 pending).
   `role:super_admin|admin`; portal group `role:orang_tua`.
 * Service layer (thin controllers); policies per model; `latest('id')`;
   Excel imports use flat keys; NIK-null uses `create()`.
-* Urut daftar (v2.62–2.63, trait `UrutDaftar`): param `sort` (satu nilai /
+* Urut daftar (v2.62–2.65, trait `UrutDaftar`): param `sort` (satu nilai /
   koma / array, maks 3 kunci) + `arah` (`naik`/`turun`, bawaan `naik`); tiap
   nilai harus ada di allowlist endpoint (`SORT_PETA`), sisanya 422; tanpa sort
-  = urutan lama; NULL selalu di bawah. Default per tabel = `$bawaan`
-  controller + nilai awal state `urut`/`arahUrut` di page (keduanya wajib sama
-  agar indikator header cocok dengan data; mis. santri: JK lalu Nama). Berlaku di: santri, kelas, lembaga,
+  = urutan lama; NULL selalu di bawah. Kontrol di dropdown toolbar
+  (`select_urut_*` + tombol arah `btn_arah_urut_*`); indikator header pasif
+  (▲/▼ + nomor). Item dropdown terdaftar per halaman via `opsiUrut`
+  (`kunci` = kolom grid untuk indikator, `nilai` = kode backend, boleh
+  gabungan mis. JK-Nama = `['jk','nama']`). Default per tabel = `$bawaan`
+  controller + nilai awal state `urut`/`arahUrut` di page (keduanya wajib sama;
+  mis. santri: JK lalu Nama). Berlaku di: santri, kelas, lembaga,
   users, tahun-ajaran, riwayat-belajar, mutasi-keluar, alumni,
   pengajuan-biodata, antrean PSB, lembaga-santri. Tabel kecil non-halaman
   (referensi, kegiatan, kuota, grup MI-MD, tabel kerja daftar-kelas) tetap
