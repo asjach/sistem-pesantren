@@ -701,15 +701,15 @@ web session UI (API-first, token auth only).
 ### 2. System architecture
 
 ```
-                        ┌─────────────────────────────┐
-                        │  Backend (Laravel 13 API)   │  backend/
-                        │  Sanctum tokens, /api/*     │
-                        └──────────────┬──────────────┘
-           ┌───────────┬───────────┬───────────────┐
-           ▼           ▼           ▼               ▼
-   admin-desktop  kasir      orangtua      pimpinan     guru
-   -tauri         -mobile    -mobile       -mobile      -mobile
-   (Tauri 2)      (RN)       (RN)          (RN)         (RN)
+                      ┌─────────────────────────────┐  backend/
+                      │   Backend (Laravel 13 API)  │
+                      │    Sanctum tokens, /api/*   │
+                      └──────────────┬──────────────┘
+       ┬──────────────┬──────────────┼──────────────┬──────────────┬
+       ▼              ▼              ▼              ▼              ▼
+ admin-desktop      kasir         orangtua       pimpinan         guru
+     -tauri        -mobile        -mobile        -mobile        -mobile
+   (Tauri 2)         (RN)           (RN)           (RN)          (RN)
 ```
 
 All frontends are separate projects under `frontend/` (never merged):
