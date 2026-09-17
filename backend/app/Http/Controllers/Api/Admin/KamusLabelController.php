@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\KamusGenerasiRequest;
+use App\Http\Requests\Admin\KamusPetaRequest;
 use App\Models\LabelKolom;
 use App\Services\KamusKolomService;
 use Illuminate\Http\JsonResponse;
@@ -98,12 +100,10 @@ class KamusLabelController extends Controller
      * tabel, kolom teknis dilewati) dari nama kolom; label lama ditimpa,
      * atribut lain (perataan, lebar, tooltip, dst) dibiarkan.
      */
-    public function generasi(Request $request): JsonResponse
+    public function generasi(KamusGenerasiRequest $request): JsonResponse
     {
         $this->pastikanAdminPesantren();
-        $data = $request->validate([
-            'mode' => ['required', Rule::in(self::MODE_LABEL)],
-        ]);
+        $data = $request->validated();
 
         $tabel = $this->daftarTabelKolom();
         $sekarang = now();
@@ -158,11 +158,9 @@ class KamusLabelController extends Controller
     }
 
     /** GET /api/admin/kamus-kolom/peta?tabel=santri,lembaga — peta untuk grid. */
-    public function peta(Request $request): JsonResponse
+    public function peta(KamusPetaRequest $request): JsonResponse
     {
-        $data = $request->validate([
-            'tabel' => ['required', 'string', 'max:2000'],
-        ]);
+        $data = $request->validated();
         $tabel = array_filter(array_map('trim', explode(',', $data['tabel'])));
 
         return response()->json([

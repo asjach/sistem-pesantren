@@ -3,11 +3,12 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\UrutPresetHapusRequest;
+use App\Http\Requests\Admin\UrutPresetIndexRequest;
+use App\Http\Requests\Admin\UrutPresetSimpanRequest;
 use App\Models\UrutPreset;
 use App\Services\UrutKatalog;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -19,9 +20,9 @@ use Illuminate\Validation\ValidationException;
 class UrutPresetController extends Controller
 {
     /** GET /api/admin/urut-preset?table_key=santri */
-    public function index(Request $request): JsonResponse
+    public function index(UrutPresetIndexRequest $request): JsonResponse
     {
-        $data = $request->validate(['table_key' => ['required', 'string', 'max:60']]);
+        $data = $request->validated();
         $this->pastikanTableKeyDikenal($data['table_key']);
 
         $row = UrutPreset::where('table_key', $data['table_key'])->first();
@@ -37,18 +38,10 @@ class UrutPresetController extends Controller
     }
 
     /** PUT /api/admin/urut-preset — upsert daftar opsi satu tabel. */
-    public function simpan(Request $request): JsonResponse
+    public function simpan(UrutPresetSimpanRequest $request): JsonResponse
     {
         $this->pastikanAdminPesantren();
-        $data = $request->validate([
-            'table_key' => ['required', 'string', 'max:60'],
-            'opsi' => ['present', 'array', 'max:100'],
-            'opsi.*.kode' => ['required', 'array', 'min:1', 'max:3'],
-            'opsi.*.kode.*' => ['string', 'max:60'],
-            'opsi.*.label' => ['required', 'string', 'max:60'],
-            'opsi.*.arah' => ['nullable', Rule::in(['naik', 'turun'])],
-            'opsi.*.bawaan' => ['sometimes', 'boolean'],
-        ]);
+        $data = $request->validated();
         $this->pastikanTableKeyDikenal($data['table_key']);
 
         $sah = array_keys(UrutKatalog::peta($data['table_key']));
@@ -82,10 +75,10 @@ class UrutPresetController extends Controller
     }
 
     /** DELETE /api/admin/urut-preset?table_key=santri — kosongkan preset. */
-    public function hapus(Request $request): JsonResponse
+    public function hapus(UrutPresetHapusRequest $request): JsonResponse
     {
         $this->pastikanAdminPesantren();
-        $data = $request->validate(['table_key' => ['required', 'string', 'max:60']]);
+        $data = $request->validated();
         $this->pastikanTableKeyDikenal($data['table_key']);
 
         UrutPreset::where('table_key', $data['table_key'])->delete();

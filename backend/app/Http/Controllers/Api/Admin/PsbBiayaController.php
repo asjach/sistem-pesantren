@@ -4,23 +4,22 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Api\Concerns\TenantGuard;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\PsbKuotaIndexRequest;
+use App\Http\Requests\Admin\PsbKuotaUpsertRequest;
 use App\Models\Lembaga;
 use App\Models\PsbGelombang;
 use App\Models\PsbKuotaBiaya;
 use App\Services\PsbService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 class PsbBiayaController extends Controller
 {
     use TenantGuard;
 
     /** GET /api/admin/psb/kuota-biaya?gelombang_id= — isian per lembaga untuk satu gelombang. */
-    public function indexKuota(Request $request): JsonResponse
+    public function indexKuota(PsbKuotaIndexRequest $request): JsonResponse
     {
-        $data = $request->validate([
-            'gelombang_id' => ['required', 'integer', 'exists:psb_gelombang,id'],
-        ]);
+        $data = $request->validated();
         $gelombang = PsbGelombang::with('kegiatan:id,nama')->findOrFail($data['gelombang_id']);
 
         $rows = PsbKuotaBiaya::where('gelombang_id', $gelombang->id)
@@ -83,17 +82,9 @@ class PsbBiayaController extends Controller
     }
 
     /** POST /api/admin/psb/kuota-biaya — upsert satu baris (gelombang, lembaga, tipe). */
-    public function upsertKuota(Request $request): JsonResponse
+    public function upsertKuota(PsbKuotaUpsertRequest $request): JsonResponse
     {
-        $data = $request->validate([
-            'gelombang_id' => ['required', 'integer', 'exists:psb_gelombang,id'],
-            'lembaga_id' => ['required', 'integer', 'exists:lembaga,id'],
-            'tipe_santri' => ['required', 'in:semua,asrama,non_asrama'],
-            'kuota' => ['nullable', 'integer', 'min:0'],
-            'paket_tersedia' => ['nullable', 'boolean'],
-            'membutuhkan_seleksi' => ['nullable', 'boolean'],
-            'membutuhkan_pemberkasan' => ['nullable', 'boolean'],
-        ]);
+        $data = $request->validated();
         $this->authorizeLembaga($request->user(), (int) $data['lembaga_id']);
 
         $row = PsbKuotaBiaya::updateOrCreate(

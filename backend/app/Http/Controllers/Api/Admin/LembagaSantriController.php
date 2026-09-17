@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api\Admin;
 use App\Http\Controllers\Api\Concerns\TenantGuard;
 use App\Http\Controllers\Api\Concerns\UrutDaftar;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\LembagaSantriStoreRequest;
+use App\Http\Requests\Admin\LembagaSantriUpdateRequest;
 use App\Models\LembagaSantri;
 use App\Models\Santri;
 use App\Services\NisKemenagService;
@@ -12,7 +14,6 @@ use App\Services\PenerimaanService;
 use App\Services\UrutKatalog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 /**
  * Keanggotaan santri per lembaga (`lembaga_santri`) — panel Buku Induk:
@@ -118,15 +119,11 @@ class LembagaSantriController extends Controller
     }
 
     /** POST /api/admin/santri/{santri}/lembaga — buat/aktifkan keanggotaan. */
-    public function store(Request $request, Santri $santri, PenerimaanService $penerimaan): JsonResponse
+    public function store(LembagaSantriStoreRequest $request, Santri $santri, PenerimaanService $penerimaan): JsonResponse
     {
         $this->authorize('update', $santri);
 
-        $data = $request->validate([
-            'lembaga_id' => ['required', Rule::exists('lembaga', 'id')->whereNotNull('parent_id')],
-            'nis_lokal' => ['nullable', 'string', 'max:20'],
-            'tgl_mulai' => ['nullable', 'date'],
-        ]);
+        $data = $request->validated();
         $this->authorizeLembaga($request->user(), (int) $data['lembaga_id']);
 
         $keanggotaan = $penerimaan->pastikanKeanggotaan($santri, (int) $data['lembaga_id'], [
@@ -138,16 +135,11 @@ class LembagaSantriController extends Controller
     }
 
     /** PATCH /api/admin/lembaga-santri/{lembagaSantri} — NIS/status/tanggal. */
-    public function update(Request $request, LembagaSantri $lembagaSantri): JsonResponse
+    public function update(LembagaSantriUpdateRequest $request, LembagaSantri $lembagaSantri): JsonResponse
     {
         $this->authorizeLembaga($request->user(), (int) $lembagaSantri->lembaga_id);
 
-        $data = $request->validate([
-            'nis_lokal' => ['sometimes', 'nullable', 'string', 'max:20'],
-            'is_active' => ['sometimes', 'boolean'],
-            'tgl_mulai' => ['sometimes', 'nullable', 'date'],
-            'tgl_selesai' => ['sometimes', 'nullable', 'date'],
-        ]);
+        $data = $request->validated();
 
         if (array_key_exists('nis_lokal', $data)) {
             $nis = trim((string) $data['nis_lokal']) ?: null;
