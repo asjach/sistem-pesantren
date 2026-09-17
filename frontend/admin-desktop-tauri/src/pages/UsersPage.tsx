@@ -35,7 +35,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import Pager from '@/components/Pager';
-import { usePager } from '@/hooks/usePager';
+import { useDaftarTabel } from '@/hooks/useDaftarTabel';
 import { DeleteAction, EditAction, ViewAction } from '@/components/RowActions';
 import { toast } from 'sonner';
 
@@ -131,21 +131,38 @@ export default function UsersPage() {
   const assignable = isSuper ? ALL_ROLES : ADMIN_ROLES;
   const creatable = isSuper ? ALL_ROLES : ADMIN_CREATE_ROLES;
 
-  const [rows, setRows] = useState<AdminUser[]>([]);
   const [lembagas, setLembagas] = useState<Lembaga[]>([]);
   const fields = useMemo(() => buatUserFields(creatable, lembagas), [creatable, lembagas]);
-  const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
-  /** Urut header: daftar nilai allowlist + arah global (maks 3 kunci). */
-  const [urut, setUrut] = useState<string[]>([]);
-  const [arahUrut, setArahUrut] = useState<'naik' | 'turun'>('naik');
-  const pager = usePager('users');
-  const reqRef = useRef(0);
   const lembagaReqRef = useRef(0);
-  const [lastPage, setLastPage] = useState(1);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState('');
+  const {
+    rows,
+    loading,
+    err,
+    setErr,
+    search,
+    urut,
+    arahUrut,
+    terapkanUrut,
+    load,
+    lastPage,
+    total,
+    pager,
+    onSearchChange,
+    onSearchSubmit,
+    onSaved,
+  } = useDaftarTabel<AdminUser>({
+    tableKey: 'users',
+    ambil: (a) => listUsers({
+      search: a.search || undefined,
+      role: roleFilter || undefined,
+      sort: a.urut.length ? a.urut : undefined,
+      arah: a.urut.length ? a.arah : undefined,
+      page: a.page,
+      per_page: a.perPage,
+    }),
+    deps: [roleFilter],
+  });
 
   const [name, setName] = useState('');
   const [identifier, setIdentifier] = useState('');
@@ -166,46 +183,6 @@ export default function UsersPage() {
   const roleLocked = useCallback((u: AdminUser) => isSelf(u.id) || locked(u), [isSelf, locked]);
 
   const getValues = useCallback(userGridValues, []);
-
-  const load = useCallback(
-    async function loadPage(p = pager.page, pp = pager.perPage, f?: { urut?: string[]; arah?: 'naik' | 'turun' }) {
-      const req = ++reqRef.current;
-      setErr('');
-      setLoading(true);
-      const urutPakai = f?.urut ?? urut;
-      const arahPakai = f?.arah ?? arahUrut;
-      try {
-        const res = await listUsers({
-          search: search || undefined,
-          role: roleFilter || undefined,
-          sort: urutPakai.length ? urutPakai : undefined,
-          arah: urutPakai.length ? arahPakai : undefined,
-          page: p,
-          per_page: pp,
-        });
-        if (req !== reqRef.current) return;
-        const fix = pager.sync(res.current_page, res.last_page);
-        if (fix != null && fix !== p) {
-          await loadPage(fix, pp, f);
-          return;
-        }
-        if (req !== reqRef.current) return;
-        setRows(res.data);
-        setLastPage(res.last_page);
-        setTotal(res.total);
-      } catch (e) {
-        if (req === reqRef.current) setErr(errorMessage(e));
-      } finally {
-        if (req === reqRef.current) setLoading(false);
-      }
-    },
-    [pager.page, pager.perPage, pager.sync, search, roleFilter, urut, arahUrut],
-  );
-
-  useEffect(() => {
-    if (pager.ready) load(pager.page);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pager.ready, search, roleFilter]);
 
   useEffect(() => {
     const req = ++lembagaReqRef.current;
@@ -280,8 +257,6 @@ export default function UsersPage() {
     }
   }, [load]);
 
-  const onSaved = useCallback(() => load(), [load]);
-
   /** Mode Input (admin & super_admin): buat pengguna baru dari baris input.
    *  Peran default orang_tua, tanpa lembaga — ubah lewat tombol Ubah bila perlu. */
   const createRow = useCallback(async (f: Record<string, string | null>) => {
@@ -301,23 +276,6 @@ export default function UsersPage() {
     toast.success('Pengguna dibuat.');
     await load(1);
   }, [load]);
-
-  /** Klik header: simpan urut baru lalu muat ulang dari halaman 1. */
-  function terapkanUrut(nilai: string[], arah: 'naik' | 'turun') {
-    setUrut(nilai);
-    setArahUrut(arah);
-    pager.goFirst();
-    void load(1, pager.perPage, { urut: nilai, arah });
-  }
-
-  const onSearchChange = useCallback((v: string) => {
-    setSearch(v);
-    pager.goFirst();
-  }, [pager.goFirst]);
-
-  const onSearchSubmit = useCallback(() => {
-    pager.goFirst();
-  }, [pager.goFirst]);
 
   const renderActions = useCallback((u: AdminUser) => (
     <>
