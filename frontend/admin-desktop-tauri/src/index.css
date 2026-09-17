@@ -504,18 +504,6 @@
   );
   color: var(--muted-foreground);
 }
-.simpes-dsg-swatch-editable {
-  background-color: color-mix(in srgb, var(--primary) 12%, var(--card));
-  border: 1px solid color-mix(in srgb, var(--primary) 45%, transparent);
-}
-.simpes-dsg-swatch-readonly {
-  background-image: repeating-linear-gradient(
-    135deg,
-    transparent 0 3px,
-    color-mix(in srgb, var(--muted-foreground) 30%, transparent) 3px 4px
-  );
-  border: 1px solid color-mix(in srgb, var(--muted-foreground) 40%, transparent);
-}
 /* Checkbox kolom seleksi selalu center (header + body). */
 /* Sel DATA dipotong pada tinggi baris: isi yang membungkus (mis. opsi select
    panjang di kolom sempit) tidak meluber ke bawah menambah scrollHeight tabel

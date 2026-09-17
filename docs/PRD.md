@@ -2,8 +2,8 @@
 
 | Atribut | Keterangan |
 |---|---|
-| Versi Dokumen | 2.70 (kamus: pilih tabel → baris per kolom) |
-| Tanggal | 17 September 2026 |
+| Versi Dokumen | 2.71 (bilah status mode di bawah tabel) |
+| Tanggal | 18 September 2026 |
 | Status | PRD produk SIMPES — acuan tunggal kebutuhan, rancangan, dan status implementasi aplikasi yang sedang dibangun |
 | Penyusun | Solo dev + Yayasan |
 | Skema versi | Major restruktur = X.0; final 1 bab = X.Y; kecil docs = X.Y.Z |
@@ -121,7 +121,9 @@
 | 2.67 | 2026-09-17 | Label bawaan semua header grid = nama kolom database |
 | 2.68 | 2026-09-17 | Halaman Kamus Label: acuan global per tabel.kolom |
 | 2.69 | 2026-09-17 | Kamus Label: pilihan tabel + kolom otomatis dari skema database |
-| 2.70 | 2026-09-17 | Kamus Label final: dropdown Tabel + grid satu baris per kolom tabel itu (kolom read-only, isi label/perataan/lebar/dll); auto-save POST/PUT + Reset ke bawaan; seksi "urut bawaan per endpoint" & fitur `urut_bawaan` dihapus (default urut kembali ke kode); suite 222/222, typecheck + build lolos |
+| 2.70 | 2026-09-17 | Kamus Label: dropdown Tabel + satu baris per kolom (auto-save POST/PUT + Reset); fitur `urut_bawaan` dihapus |
+| 2.71 | 2026-09-18 | Penanda Mode Edit/Input jadi bilah status ringkas di bawah tabel (ikon + judul + tombol keluar; keterangan di tooltip) sehingga tidak menutupi isi grid; Esc sekali langsung keluar mode (termasuk saat fokus di editor sel); berlaku semua tabel; typecheck + build lolos |
+
 ## Daftar Isi
 
 > Rujukan antar-file: "Bab 2–8" → `arsitektur.md`; "Bab 9–14 + Lampiran" → `operasi.md`; "§N / Part B" → `backend-detail.md`.

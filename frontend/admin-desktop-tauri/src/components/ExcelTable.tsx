@@ -54,6 +54,56 @@ import { copyText, toTSV } from '@/lib/clipboard';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
+/** Penanda mode (Edit/Input) bergaya bilah status di badan halaman (bawah
+ *  tabel): ikon + judul + tombol keluar; keterangan lengkap ada di tooltip. */
+function PillMode({
+  id,
+  btnId,
+  aksen,
+  ikon,
+  judul,
+  petunjuk,
+  onKeluar,
+}: {
+  id: string;
+  btnId: string;
+  aksen: 'warning' | 'primary';
+  ikon: ReactNode;
+  judul: string;
+  petunjuk: string;
+  onKeluar: () => void;
+}) {
+  const warn = aksen === 'warning';
+  return (
+    <div
+      id={id}
+      role="status"
+      title={petunjuk}
+      className={cn(
+        'inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs',
+        warn ? 'border-warning/40 bg-warning/10 text-warning-foreground' : 'border-primary/40 bg-primary/10 text-foreground',
+      )}
+    >
+      {ikon}
+      <span className="font-semibold">{judul}</span>
+      <Button
+        id={btnId}
+        variant="outline"
+        size="sm"
+        className={cn(
+          'h-6 px-2',
+          warn
+            ? 'border-warning/40 bg-transparent text-warning-foreground hover:bg-warning/10 hover:text-warning-foreground'
+            : 'border-primary/40 bg-transparent hover:bg-primary/10',
+        )}
+        onClick={onKeluar}
+      >
+        Keluar mode
+      </Button>
+    </div>
+  );
+}
+
 /** Kerangka tabel saat memuat: menyerupai grid (baris header + baris data)
  *  agar area tabel tidak tampak seperti blok abu-abu kosong. */
 function TabelMemuat({ rowH, baris = 14 }: { rowH: number; baris?: number }) {
@@ -1294,15 +1344,15 @@ export default function ExcelTable<T extends { id: string | number }>({
     setRange(null);
   }, [visibleFields]);
 
-  // Esc saat TIDAK sedang mengedit sel = keluar dari mode Edit / mode Input.
-  // Esc di dalam editor sel ditangani TextCell/SelectCell (tidak sampai ke sini).
+  // Esc = langsung keluar dari mode Edit / mode Input (satu kali tekan), baik
+  // saat fokus di grid maupun di editor sel (input/select) — listener capture
+  // berjalan sebelum handler editor, lalu editor ikut ditutup komponennya.
+  // Dialog/dropdown yang sedang terbuka tetap dikecualikan agar Esc menutupnya.
   useEffect(() => {
     if (!((canEdit && editMode) || showInput)) return;
     function onKeyDown(e: KeyboardEvent) {
       if (e.key !== 'Escape') return;
       const t = e.target as HTMLElement | null;
-      if (t && ['INPUT', 'SELECT', 'TEXTAREA'].includes(t.tagName)) return;
-      // Jangan ikut menutup saat Esc dipakai dialog/dropdown yang sedang terbuka.
       if (t?.closest?.('[role="dialog"], [role="listbox"], [role="menu"]')) return;
       if (canEdit && editMode) setEditMode(false);
       if (showInput) setInputMode(false);
@@ -2493,71 +2543,6 @@ export default function ExcelTable<T extends { id: string | number }>({
 
   return (
     <div className={cn('mt-2 flex flex-col', maxRows === undefined ? 'min-h-0 flex-1' : 'shrink-0')}>
-      {editing && (
-        <div
-          id={`banner_mode_edit_${tableKey}`}
-          role="status"
-          className="mb-2 flex flex-wrap items-center gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-1.5 text-xs text-warning-foreground"
-        >
-          <Pencil size={14} />
-          <span className="font-semibold">Mode Edit aktif</span>
-          <span>
-            — tekan{' '}
-            <kbd className="rounded border border-warning/40 bg-background/60 px-1 font-mono text-[10px]">
-              Esc
-            </kbd>{' '}
-            untuk keluar.
-          </span>
-          <span
-            className="flex items-center gap-2 text-[11px]"
-            title="Sel bertanda bawah = bisa diedit; sel berarsir = baca-saja."
-          >
-            <span className="flex items-center gap-1">
-              <span className="simpes-dsg-swatch-editable size-2.5 rounded-[3px]" />
-              bisa diedit
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="simpes-dsg-swatch-readonly size-2.5 rounded-[3px]" />
-              baca-saja
-            </span>
-          </span>
-          <Button
-            id={`btn_keluar_mode_edit_${tableKey}`}
-            variant="outline"
-            size="sm"
-            className="ml-auto border-warning/40 bg-transparent text-warning-foreground hover:bg-warning/10 hover:text-warning-foreground"
-            onClick={() => setEditMode(false)}
-          >
-            Keluar mode Edit
-          </Button>
-        </div>
-      )}
-      {showInput && (
-        <div
-          id={`banner_mode_input_${tableKey}`}
-          role="status"
-          className="mb-2 flex flex-wrap items-center gap-2 rounded-md border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs text-foreground"
-        >
-          <PlusCircle size={14} />
-          <span className="font-semibold">Mode Input aktif</span>
-          <span>
-            — isi baris paling bawah, lalu klik ikon simpan. Tekan{' '}
-            <kbd className="rounded border border-primary/40 bg-background/60 px-1 font-mono text-[10px]">
-              Esc
-            </kbd>{' '}
-            untuk keluar.
-          </span>
-          <Button
-            id={`btn_keluar_mode_input_${tableKey}`}
-            variant="outline"
-            size="sm"
-            className="ml-auto border-primary/40 bg-transparent hover:bg-primary/10"
-            onClick={() => setInputMode(false)}
-          >
-            Keluar mode Input
-          </Button>
-        </div>
-      )}
       {/* Satu baris: input cari → tombol cari → pemisah → filter (kiri), lalu
           kontrol tabel dan tombol tambah halaman (kanan), dikelompokkan
           menurut fungsi. */}
@@ -2894,6 +2879,35 @@ export default function ExcelTable<T extends { id: string | number }>({
           </AlertDialogContent>
         </AlertDialog>
       </div>
+
+      {/* Bilah status mode di bawah tabel (bagian badan halaman): menandai Mode
+          Edit/Input aktif + tombol keluar; tidak menutupi isi grid. */}
+      {(editing || showInput) && (
+        <div className="mt-2 flex shrink-0 flex-wrap items-center justify-center gap-1.5">
+          {editing && (
+            <PillMode
+              id={`banner_mode_edit_${tableKey}`}
+              btnId={`btn_keluar_mode_edit_${tableKey}`}
+              aksen="warning"
+              ikon={<Pencil size={14} />}
+              judul="Mode Edit aktif"
+              petunjuk="Sel bertanda bawah = bisa diedit; sel berarsir = baca-saja. Tekan Esc untuk keluar."
+              onKeluar={() => setEditMode(false)}
+            />
+          )}
+          {showInput && (
+            <PillMode
+              id={`banner_mode_input_${tableKey}`}
+              btnId={`btn_keluar_mode_input_${tableKey}`}
+              aksen="primary"
+              ikon={<PlusCircle size={14} />}
+              judul="Mode Input aktif"
+              petunjuk="Isi baris paling bawah, lalu klik ikon simpan. Tekan Esc untuk keluar."
+              onKeluar={() => setInputMode(false)}
+            />
+          )}
+        </div>
+      )}
     </div>
   );
 }
