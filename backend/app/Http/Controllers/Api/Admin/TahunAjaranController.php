@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api\Admin;
 use App\Http\Controllers\Api\Concerns\TenantGuard;
 use App\Http\Controllers\Api\Concerns\UrutDaftar;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\TahunAjaranStoreRequest;
+use App\Http\Requests\Admin\TahunAjaranUpdateRequest;
 use App\Models\TahunAjaran;
 use App\Services\UrutKatalog;
 use Illuminate\Http\Request;
@@ -80,18 +82,14 @@ class TahunAjaranController extends Controller
         return response()->json($query->paginate($this->perPage($request)));
     }
 
-    public function store(Request $request)
+    public function store(TahunAjaranStoreRequest $request)
     {
         $auth = $request->user();
         if (! $auth->bolehSuperAdmin()) {
             abort(403, 'Tahun ajaran hanya super_admin.');
         }
 
-        $data = $request->validate([
-            'nama' => ['required', 'string', 'max:50'],
-            'tanggal_mulai' => ['nullable', 'date'],
-            'tanggal_selesai' => ['nullable', 'date', 'after_or_equal:tanggal_mulai'],
-        ]);
+        $data = $request->validated();
 
         if (TahunAjaran::global()->where('nama', $data['nama'])->exists()) {
             throw ValidationException::withMessages(['nama' => 'Nama tahun ajaran sudah ada.']);
@@ -107,18 +105,14 @@ class TahunAjaranController extends Controller
         return response()->json($row, 201);
     }
 
-    public function update(Request $request, TahunAjaran $tahunAjaran)
+    public function update(TahunAjaranUpdateRequest $request, TahunAjaran $tahunAjaran)
     {
         $auth = $request->user();
         if ($tahunAjaran->lembaga_id !== null || ! $auth->bolehSuperAdmin()) {
             abort(403, 'Tahun ajaran global hanya super_admin.');
         }
 
-        $data = $request->validate([
-            'nama' => ['sometimes', 'string', 'max:50'],
-            'tanggal_mulai' => ['nullable', 'date'],
-            'tanggal_selesai' => ['nullable', 'date'],
-        ]);
+        $data = $request->validated();
 
         if (isset($data['nama']) && $data['nama'] !== $tahunAjaran->nama
             && TahunAjaran::global()->where('nama', $data['nama'])->whereKeyNot($tahunAjaran->id)->exists()
