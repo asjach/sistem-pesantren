@@ -68,7 +68,7 @@ import IcInfoTabler from '~icons/tabler/info-circle';
 import IcLoader2Tabler from '~icons/tabler/loader-2';
 import IcTriangleAlertTabler from '~icons/tabler/alert-triangle';
 import IcPinTabler from '~icons/tabler/pin';
-import IcStretchHorizontalTabler from '~icons/tabler/arrows-horizontal';
+import IcColumns3Tabler from '~icons/tabler/columns-3';
 
 const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   AlignCenter: IcAlignCenterTabler,
@@ -136,7 +136,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   Loader2: IcLoader2Tabler,
   TriangleAlert: IcTriangleAlertTabler,
   Pin: IcPinTabler,
-  StretchHorizontal: IcStretchHorizontalTabler,
+  Columns3: IcColumns3Tabler,
 };
 
 export default set;

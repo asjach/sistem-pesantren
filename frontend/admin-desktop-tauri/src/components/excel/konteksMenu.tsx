@@ -9,7 +9,7 @@ import {
 import type { PresetKolomApi } from '@/components/PresetKolom';
 import type { AlignName } from '@/components/GridPrefs';
 import { cn } from '@/lib/utils';
-import { AlignCenter, AlignLeft, AlignRight, Copy, MoveHorizontal, Pin, PinOff, StretchHorizontal } from '@/icons';
+import { AlignCenter, AlignLeft, AlignRight, Columns3, Copy, MoveHorizontal, Pin, PinOff } from '@/icons';
 import { flattenAksi, metaAksi } from './actions';
 import type { AksiMenu } from './types';
 
@@ -115,7 +115,7 @@ export default function MenuKonteksGrid({
               onClick={() => onAutoFitAll()}
               className={ikonBtn}
             >
-              <StretchHorizontal size={16} />
+              <Columns3 size={16} />
             </button>
             <span className="mx-0.5 h-5 w-px bg-border" aria-hidden="true" />
             <button

@@ -780,15 +780,15 @@
   "bi": null,
   "material": "unpin"
  },
- "StretchHorizontal": {
-  "lucide": "stretch-horizontal",
-  "tabler": "arrows-horizontal",
-  "ph": "arrows-horizontal",
-  "heroicons": null,
-  "ri": "arrow-left-right-line",
-  "iconoir": null,
-  "radix": null,
-  "bi": "arrow-left-right",
-  "material": "horizontal-distribute"
+ "Columns3": {
+  "lucide": "columns-3",
+  "tabler": "columns-3",
+  "ph": "columns",
+  "heroicons": "view-columns",
+  "ri": null,
+  "iconoir": "view-columns-2",
+  "radix": "columns",
+  "bi": "columns",
+  "material": null
  }
 }

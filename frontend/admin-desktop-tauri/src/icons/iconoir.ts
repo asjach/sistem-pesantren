@@ -61,6 +61,7 @@ import IcInfoIconoir from '~icons/iconoir/info-circle';
 import IcLoader2Iconoir from '~icons/iconoir/refresh';
 import IcPinIconoir from '~icons/iconoir/pin';
 import IcPinOffIconoir from '~icons/iconoir/pin-slash';
+import IcColumns3Iconoir from '~icons/iconoir/view-columns-2';
 
 const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   AlignCenter: IcAlignCenterIconoir,
@@ -121,6 +122,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   Loader2: IcLoader2Iconoir,
   Pin: IcPinIconoir,
   PinOff: IcPinOffIconoir,
+  Columns3: IcColumns3Iconoir,
 };
 
 export default set;

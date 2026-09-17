@@ -63,7 +63,7 @@ import IcInfoPh from '~icons/ph/info';
 import IcLoader2Ph from '~icons/ph/spinner';
 import IcTriangleAlertPh from '~icons/ph/warning';
 import IcPinPh from '~icons/ph/push-pin';
-import IcStretchHorizontalPh from '~icons/ph/arrows-horizontal';
+import IcColumns3Ph from '~icons/ph/columns';
 
 const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   AlignCenter: IcAlignCenterPh,
@@ -126,7 +126,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   Loader2: IcLoader2Ph,
   TriangleAlert: IcTriangleAlertPh,
   Pin: IcPinPh,
-  StretchHorizontal: IcStretchHorizontalPh,
+  Columns3: IcColumns3Ph,
 };
 
 export default set;

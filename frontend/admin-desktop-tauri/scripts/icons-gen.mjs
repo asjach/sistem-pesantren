@@ -100,7 +100,7 @@ const IKON = {
   DensityLarge: ['density-large', 'rows-2'],
   Pin: ['pin', 'push-pin', 'pushpin', 'thumbtack', 'pin-2', 'pin-line', 'attachment', 'map-pin'],
   PinOff: ['pin-off', 'pushpin-off', 'unpin', 'pin-off-line', 'pin-slash'],
-  StretchHorizontal: ['stretch-horizontal', 'unfold-horizontal', 'arrows-horizontal', 'arrow-left-right', 'horizontal-distribute', 'move-horizontal', 'arrow-horizontal'],
+  Columns3: ['columns-3', 'columns-2', 'columns', 'view-columns', 'layout-columns', 'table-columns', 'gallery-horizontal'],
 };
 
 const NAMA = Object.keys(IKON);

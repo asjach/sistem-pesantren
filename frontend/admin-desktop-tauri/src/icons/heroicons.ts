@@ -57,6 +57,7 @@ import IcChevronUpHeroicons from '~icons/heroicons/chevron-up';
 import IcCircleCheckHeroicons from '~icons/heroicons/check-circle';
 import IcInfoHeroicons from '~icons/heroicons/information-circle';
 import IcPinHeroicons from '~icons/heroicons/map-pin';
+import IcColumns3Heroicons from '~icons/heroicons/view-columns';
 
 const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   ArrowRight: IcArrowRightHeroicons,
@@ -113,6 +114,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   CircleCheck: IcCircleCheckHeroicons,
   Info: IcInfoHeroicons,
   Pin: IcPinHeroicons,
+  Columns3: IcColumns3Heroicons,
 };
 
 export default set;

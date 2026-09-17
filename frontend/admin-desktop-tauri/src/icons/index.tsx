@@ -123,4 +123,4 @@ export const DensityMedium = (p: IkonProps) => <IkonDinamis {...p} nama="Density
 export const DensityLarge = (p: IkonProps) => <IkonDinamis {...p} nama="DensityLarge" />;
 export const Pin = (p: IkonProps) => <IkonDinamis {...p} nama="Pin" />;
 export const PinOff = (p: IkonProps) => <IkonDinamis {...p} nama="PinOff" />;
-export const StretchHorizontal = (p: IkonProps) => <IkonDinamis {...p} nama="StretchHorizontal" />;
+export const Columns3 = (p: IkonProps) => <IkonDinamis {...p} nama="Columns3" />;

@@ -74,7 +74,7 @@ import IcDensityMediumLucide from '~icons/lucide/rows-3';
 import IcDensityLargeLucide from '~icons/lucide/rows-2';
 import IcPinLucide from '~icons/lucide/pin';
 import IcPinOffLucide from '~icons/lucide/pin-off';
-import IcStretchHorizontalLucide from '~icons/lucide/stretch-horizontal';
+import IcColumns3Lucide from '~icons/lucide/columns-3';
 
 const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   AlignCenter: IcAlignCenterLucide,
@@ -148,7 +148,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   DensityLarge: IcDensityLargeLucide,
   Pin: IcPinLucide,
   PinOff: IcPinOffLucide,
-  StretchHorizontal: IcStretchHorizontalLucide,
+  Columns3: IcColumns3Lucide,
 };
 
 export default set;

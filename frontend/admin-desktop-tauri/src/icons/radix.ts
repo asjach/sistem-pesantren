@@ -43,6 +43,7 @@ import IcXCircleRadix from '~icons/radix-icons/cross-circled';
 import IcGripVerticalRadix from '~icons/radix-icons/dots-vertical';
 import IcChevronUpRadix from '~icons/radix-icons/chevron-up';
 import IcCircleCheckRadix from '~icons/radix-icons/check-circled';
+import IcColumns3Radix from '~icons/radix-icons/columns';
 
 const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   AlignCenter: IcAlignCenterRadix,
@@ -85,6 +86,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   GripVertical: IcGripVerticalRadix,
   ChevronUp: IcChevronUpRadix,
   CircleCheck: IcCircleCheckRadix,
+  Columns3: IcColumns3Radix,
 };
 
 export default set;
