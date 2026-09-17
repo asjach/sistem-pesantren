@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Api\Concerns\TenantGuard;
 use App\Http\Controllers\Api\Concerns\UrutDaftar;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\PengajuanAjukanRequest;
+use App\Http\Requests\PengajuanTolakRequest;
 use App\Models\PengajuanBiodataSantri;
 use App\Models\Santri;
 use App\Models\WaliSantriRelasi;
@@ -19,11 +21,9 @@ class PengajuanBiodataController extends Controller
     use UrutDaftar;
 
     /** POST /api/portal/santri/{santri}/pengajuan-biodata (orang_tua, maks 1 aktif). */
-    public function ajukan(Request $request, Santri $santri, PengajuanBiodataService $service): JsonResponse
+    public function ajukan(PengajuanAjukanRequest $request, Santri $santri, PengajuanBiodataService $service): JsonResponse
     {
-        $data = $request->validate([
-            'diff' => ['required', 'array', 'min:1'],
-        ]);
+        $data = $request->validated();
         $milik = WaliSantriRelasi::where('user_id', $request->user()->id)
             ->where('santri_id', $santri->id)
             ->where('is_active', true)
@@ -110,9 +110,9 @@ class PengajuanBiodataController extends Controller
     }
 
     /** POST /api/admin/pengajuan-biodata/{id}/tolak. */
-    public function tolak(Request $request, int $id, PengajuanBiodataService $service): JsonResponse
+    public function tolak(PengajuanTolakRequest $request, int $id, PengajuanBiodataService $service): JsonResponse
     {
-        $data = $request->validate(['catatan' => ['nullable', 'string']]);
+        $data = $request->validated();
         $pengajuan = PengajuanBiodataSantri::with('santri:id')->findOrFail($id);
         // Tanpa keanggotaan = arsip pusat/pra-penerimaan → boleh semua admin.
         $lembagaId = $pengajuan->santri->lembagaAktif()->value('lembaga_id')

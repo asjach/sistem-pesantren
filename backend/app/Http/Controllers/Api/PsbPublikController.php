@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\PsbCekNikRequest;
 use App\Http\Requests\PsbDaftarRequest;
 use App\Models\Lembaga;
 use App\Models\PsbCalonSantri;
@@ -10,18 +11,15 @@ use App\Models\PsbKuotaBiaya;
 use App\Services\PsbGelombangService;
 use App\Services\PsbService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Validation\ValidationException;
 
 class PsbPublikController extends Controller
 {
     /** POST /api/psb/cek-nik (publik, throttle:5,1) -> {terdaftar: bool} SAJA. */
-    public function cekNik(Request $request, PsbService $service): JsonResponse
+    public function cekNik(PsbCekNikRequest $request, PsbService $service): JsonResponse
     {
-        $data = $request->validate([
-            'nik' => ['required', 'digits:16'],
-        ]);
+        $data = $request->validated();
 
         return response()->json(['terdaftar' => $service->cekNikTerdaftar($data['nik'])]);
     }

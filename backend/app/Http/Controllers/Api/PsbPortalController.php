@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\PsbLengkapiRequest;
+use App\Http\Requests\PsbPortalLanjutanRequest;
 use App\Models\PsbCalonSantri;
 use App\Models\Santri;
 use App\Models\User;
@@ -45,13 +46,9 @@ class PsbPortalController extends Controller
      * Adaptasi: repo belum punya PsbService::daftarLanjutan, disusun dari
      * daftarPublik (pintu lanjutan via santri_asal_id) + cek relasi wali.
      */
-    public function daftarLanjutan(Request $request, PsbService $service, PsbGelombangService $gelombang): JsonResponse
+    public function daftarLanjutan(PsbPortalLanjutanRequest $request, PsbService $service, PsbGelombangService $gelombang): JsonResponse
     {
-        $data = $request->validate([
-            'santri_id' => ['required', 'integer', 'exists:santri,id'],
-            'gelombang_id' => ['nullable', 'integer', 'exists:psb_gelombang,id'], // kosong = gelombang aktif
-            'lembaga_id' => ['required', 'integer', 'exists:lembaga,id'],
-        ]);
+        $data = $request->validated();
 
         $milik = WaliSantriRelasi::where('user_id', $request->user()->id)
             ->where('santri_id', $data['santri_id'])

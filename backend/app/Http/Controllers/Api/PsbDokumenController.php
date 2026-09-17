@@ -4,6 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Api\Concerns\TenantGuard;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\PsbDokumenIndexWajibRequest;
+use App\Http\Requests\PsbDokumenStoreWajibRequest;
+use App\Http\Requests\PsbDokumenVerifikasiRequest;
 use App\Models\DokumenSantri;
 use App\Models\DokumenWajibLembaga;
 use App\Models\PsbCalonSantri;
@@ -64,7 +67,7 @@ class PsbDokumenController extends Controller
      * Deviasi spec snippet: $this->authorize('verifikasi', $dokumen) diganti cek
      * canAccessLembaga — tidak ada DokumenSantriPolicy terdaftar di repo.
      */
-    public function verifikasi(Request $request, DokumenSantri $dokumen): JsonResponse
+    public function verifikasi(PsbDokumenVerifikasiRequest $request, DokumenSantri $dokumen): JsonResponse
     {
         $dokumen->load(['calon:id,lembaga_id', 'santri:id,lembaga_id']);
         $lembagaId = $dokumen->calon?->lembaga_id ?? $dokumen->santri?->lembaga_id;
@@ -73,22 +76,16 @@ class PsbDokumenController extends Controller
         }
         $this->authorizeLembaga($request->user(), (int) $lembagaId);
 
-        $data = $request->validate([
-            'status' => ['required', 'in:menunggu,valid,ditolak'],
-            'catatan' => ['nullable', 'string'],
-        ]);
+        $data = $request->validated();
         $dokumen->update(['status_verifikasi' => $data['status'], 'catatan' => $data['catatan'] ?? $dokumen->catatan]);
 
         return response()->json(['pesan' => 'Verifikasi disimpan.', 'data' => $dokumen->fresh()]);
     }
 
     /** GET /api/admin/dokumen-wajib?psb_kegiatan_id=&lembaga_id= (admin; lembaga_id opsional). */
-    public function indexWajib(Request $request): JsonResponse
+    public function indexWajib(PsbDokumenIndexWajibRequest $request): JsonResponse
     {
-        $data = $request->validate([
-            'psb_kegiatan_id' => ['required', 'integer', 'exists:psb_kegiatan,id'],
-            'lembaga_id' => ['sometimes', 'integer', 'exists:lembaga,id'],
-        ]);
+        $data = $request->validated();
 
         $query = DokumenWajibLembaga::with('lembaga:id,nama,kode')
             ->where('psb_kegiatan_id', $data['psb_kegiatan_id']);
@@ -101,14 +98,9 @@ class PsbDokumenController extends Controller
     }
 
     /** POST /api/admin/dokumen-wajib (admin). */
-    public function storeWajib(Request $request): JsonResponse
+    public function storeWajib(PsbDokumenStoreWajibRequest $request): JsonResponse
     {
-        $data = $request->validate([
-            'psb_kegiatan_id' => ['required', 'exists:psb_kegiatan,id'],
-            'lembaga_id' => ['required', 'exists:lembaga,id'],
-            'jenis_dokumen_santri' => ['required', 'string', 'max:50'],
-            'is_wajib' => ['sometimes', 'boolean'],
-        ]);
+        $data = $request->validated();
         $this->authorizeLembaga($request->user(), (int) $data['lembaga_id']);
 
         $row = DokumenWajibLembaga::updateOrCreate(
