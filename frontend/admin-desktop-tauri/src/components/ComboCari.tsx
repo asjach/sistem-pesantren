@@ -66,14 +66,14 @@ export default function ComboCari({
           aria-haspopup="listbox"
           disabled={disabled}
           className={cn(
-            'flex h-9 w-56 items-center justify-between gap-2 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50',
+            'flex h-6 w-56 items-center justify-between gap-2 rounded-md border border-input bg-transparent px-2 py-0.5 text-xs shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50',
             className,
           )}
         >
           <span className={cn('truncate', !terpilih && 'text-muted-foreground')}>
             {terpilih?.label ?? placeholder}
           </span>
-          <ChevronDownIcon className="size-4 shrink-0 opacity-60" />
+          <ChevronDownIcon className="size-3 shrink-0 opacity-60" />
         </button>
       </PopoverTrigger>
       <PopoverContent
@@ -91,7 +91,7 @@ export default function ComboCari({
           onChange={(e) => setCari(e.target.value)}
           placeholder="Cari…"
           aria-label="Cari pilihan"
-          className="mb-1 h-8 w-full min-w-0 rounded-md border border-input bg-transparent px-2 text-xs shadow-xs outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+          className="mb-1 h-6 w-full min-w-0 rounded-md border border-input bg-transparent px-2 text-xs shadow-xs outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
         />
         <div role="listbox" className="max-h-64 overflow-y-auto">
           {hasil.length === 0 ? (
