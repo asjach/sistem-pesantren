@@ -632,13 +632,16 @@ export default function ExcelTable<T extends { id: string | number }>({
   // Esc = langsung keluar dari mode Edit / mode Input (satu kali tekan), baik
   // saat fokus di grid maupun di editor sel (input/select) — listener capture
   // berjalan sebelum handler editor, lalu editor ikut ditutup komponennya.
-  // Dialog/dropdown yang sedang terbuka tetap dikecualikan agar Esc menutupnya.
+  // Dialog/dropdown yang sedang terbuka tetap dikecualikan agar Esc menutupnya;
+  // kotak cari/filter di toolbar juga dikecualikan agar Esc saat mengetik tidak
+  // keluar dari mode Edit/Input.
   useEffect(() => {
     if (!((canEdit && editMode) || showInput)) return;
     function onKeyDown(e: KeyboardEvent) {
       if (e.key !== 'Escape') return;
       const t = e.target as HTMLElement | null;
       if (t?.closest?.('[role="dialog"], [role="listbox"], [role="menu"]')) return;
+      if (t?.closest?.('[data-part="toolbar_tabel"]')) return;
       if (canEdit && editMode) setEditMode(false);
       if (showInput) setInputMode(false);
     }
