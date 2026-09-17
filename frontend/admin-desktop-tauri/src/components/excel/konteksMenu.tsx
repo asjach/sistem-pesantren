@@ -98,13 +98,21 @@ export default function MenuKonteksGrid({
           </div>
           <ContextMenuSeparator />
           <ContextMenuLabel>LEBAR</ContextMenuLabel>
-          <ContextMenuItem id={`btn_ctx_autofit_kolom_${tableKey}`} onSelect={() => onAutoFit(header.colKey)}>
+          <ContextMenuItem
+            id={`btn_ctx_autofit_kolom_${tableKey}`}
+            title="Sesuaikan lebar kolom ini"
+            aria-label="Sesuaikan lebar kolom ini"
+            onSelect={() => onAutoFit(header.colKey)}
+          >
             <MoveHorizontal size={16} />
-            <span>Sesuaikan lebar kolom ini</span>
           </ContextMenuItem>
-          <ContextMenuItem id={`btn_ctx_autofit_semua_${tableKey}`} onSelect={() => onAutoFitAll()}>
+          <ContextMenuItem
+            id={`btn_ctx_autofit_semua_${tableKey}`}
+            title="Sesuaikan lebar semua kolom"
+            aria-label="Sesuaikan lebar semua kolom"
+            onSelect={() => onAutoFitAll()}
+          >
             <StretchHorizontal size={16} />
-            <span>Sesuaikan lebar semua kolom</span>
           </ContextMenuItem>
           <ContextMenuSeparator />
           <ContextMenuLabel>BEKU</ContextMenuLabel>
@@ -114,12 +122,12 @@ export default function MenuKonteksGrid({
             onSelect={() => headerIdx >= 0 && ubahFreeze(headerIdx + 1)}
           >
             <Pin size={16} />
-            <span>Bekukan sampai kolom ini</span>
+            <span>Freeze Column</span>
           </ContextMenuItem>
           {freezeAktif > 0 && (
             <ContextMenuItem id={`btn_ctx_lepas_bekukan_${tableKey}`} onSelect={() => ubahFreeze(0)}>
               <PinOff size={16} />
-              <span>Lepas semua kolom beku</span>
+              <span>Lepas Semua Beku</span>
             </ContextMenuItem>
           )}
           <ContextMenuSeparator />
