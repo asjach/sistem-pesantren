@@ -9,9 +9,11 @@ namespace App\Services;
  *   + audit FE semuanya diturunkan dari sini.
  * - Izin = AKSI (boleh melakukan apa). Cakupan DATA (lembaga mana)
  *   tetap diatur pivot `user_lembaga` (`bolehPesantren()`), bukan izin.
- * - Modul pseudo (tanpa endpoint sendiri) hanya punya `lihat` untuk
+ * - Modul pseudo (tanpa endpoint sendiri) memakai `lihat` untuk
  *   visibilitas halaman: daftar_kelas, pindah_kelas, kenaikan, kelulusan,
- *   rekap_santri, mutasi_keluar, tampilan_standar, server, izin.
+ *   rekap_santri, mutasi_keluar, tampilan_standar, server, izin —
+ *   sebagian plus `ubah` untuk aksinya (pindah_kelas, kenaikan, kelulusan,
+ *   mutasi_keluar, izin).
  */
 class IzinKatalog
 {

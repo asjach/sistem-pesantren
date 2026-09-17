@@ -62,7 +62,7 @@ class RefService
             $rows = DB::table($table)
                 ->whereNull('lembaga_id')
                 ->when($lembagaId, fn ($q) => $q->orWhere('lembaga_id', $lembagaId))
-                // Urut tampil: urutan ASC, tie-break nama ASC (seragam 36 tabel ref).
+                // Urut tampil: urutan ASC, tie-break nama ASC (seragam 34 tabel ref).
                 ->orderBy('urutan')->orderBy('nama')->get();
             $map = [];
             foreach ($rows as $r) {

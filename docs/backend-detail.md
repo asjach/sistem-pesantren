@@ -51,8 +51,8 @@ All frontends are separate projects under `frontend/` (never merged):
 | Guru mobile | `frontend/guru-mobile-react-native` | React Native | guru |
 
 > Note: the legacy Flutter `desktop/` project was deleted 2026-09-09 and is
-> superseded by `frontend/*` above. The empty workspace `mobile/` folder is
-> unrelated to this layout.
+> superseded by `frontend/*` above. The workspace `mobile/` folder (currently only
+> `psb-preview`) is unrelated to this layout.
 
 Backend ↔ frontend contract: JSON over HTTPS, `Authorization: Bearer <sanctum>`,
 envelope `{pesan, data}` for portal endpoints, standard pagination elsewhere.
@@ -97,10 +97,10 @@ Status legend: ✅ implemented & migrated · 🟡 spec locked, not implemented �
 Status: ✅ project exists.
 
 **002 Database schema.** Per-module migration files (default timestamps, FK order;
-spec in `docs/SCHEMA.md`, rewritten from the original single-file spec): `lembaga` (root `kode=PESANTREN` + units via `parent_id`) → 36 `ref_*`
+spec in `docs/SCHEMA.md`, rewritten from the original single-file spec): `lembaga` (root `kode=PESANTREN` + units via `parent_id`) → 34 `ref_*`
 → `users` (+pivot/audit) → `tahun_ajaran` → `pegawai` → `kelas`
 (`walas_id → pegawai` inline) → santri/riwayat → PSB → finance →
-HR-academic → grades → presensi → tahfizh → wali portal (23 file hasil squash).
+HR-academic → grades → presensi → tahfizh → wali portal (34 `ref_*`, 24 file migrasi).
 MySQL 64-char index pitfall: 4 composite uniques use short `uq_*` names.
 Status: ✅ `migrate:fresh` green (100 tables incl. framework/package tables).
 
@@ -335,7 +335,7 @@ views), PSB antrean (verify/seleksi/ACC/tolak/paket), santri master + import sat
 (kolom NIS per lembaga, samakan NIS MI↔MD), siklus (roster, salin genap, naik/pindah/mutasi/lulus/berhenti),
 rekap, halaman MI-MD (tambah/hapus massal, samakan kelas), pengajuan biodata (setujui/tolak),
 dokumen wajib, preset tabel, pengaturan server/tampilan.
-Status: 🟢 shell v0.5.0 live (Tailwind+shadcn: 20 tema ala VSCode data-driven + kustom, Gelap/Terang/Sistem per perangkat, galeri pratinjau, border lembut tanpa shadow, navigasi menubar/ribbon/sidebar per perangkat, pagination 10/50/100/500 + "Semua", dialog/toast/skeleton). Tabel master memakai `react-datasheet-grid` lewat wrapper `ExcelTable` (seleksi gaya spreadsheet, resize + AutoFit, edit klik-2× langsung simpan, aksi baris >3 jadi dropdown, preset kolom per tabel) dengan kontrol global ukuran/tinggi/jenis huruf; **Google Fonts disimpan lokal di repo** (`src/assets/fonts`, 8 keluarga × Light/Regular) sehingga aplikasi berjalan **tanpa internet** — dihasilkan ulang via `scripts/fonts-offline.py`. Desktop Tauri 0.5.0 dibangun (`.app` 11 MB, `.dmg` 4 MB, aarch64, belum ditandatangani); build desktop hanya dijalankan bila diminta. Belum: modul 200+ (pegawai/kurikulum/nilai), Fase 5, portal ortu lanjutan.
+Status: 🟢 shell v0.5.0 live (Tailwind+shadcn: 25 tema ala VSCode data-driven + kustom, Gelap/Terang/Sistem per perangkat, galeri pratinjau, border lembut tanpa shadow, navigasi menubar/ribbon/sidebar per perangkat, pagination 10/50/100/500 + "Semua", dialog/toast/skeleton). Tabel master memakai `react-datasheet-grid` lewat wrapper `ExcelTable` (seleksi gaya spreadsheet, resize + AutoFit, edit klik-2× langsung simpan, aksi baris >3 jadi dropdown, preset kolom per tabel) dengan kontrol global ukuran/tinggi/jenis huruf; **Google Fonts disimpan lokal di repo** (`frontend/admin-desktop-tauri/src/assets/fonts`, 8 keluarga × Light/Regular) sehingga aplikasi berjalan **tanpa internet** — dihasilkan ulang via `frontend/admin-desktop-tauri/scripts/fonts-offline.py`. Desktop Tauri 0.5.0 dibangun (`.app` 11 MB, `.dmg` 4 MB, aarch64, belum ditandatangani); build desktop hanya dijalankan bila diminta. Belum: modul 200+ (pegawai/kurikulum/nilai), Fase 5, portal ortu lanjutan.
 
 #### 6.2 `frontend/kasir-mobile-react-native`
 
@@ -408,7 +408,7 @@ Status: 🔲 not scaffolded (backend 201/202 pending).
 | Area | Spec | Migrated | Seeded | API live |
 |---|---|---|---|---|
 | 001 setup | ✅ | n/a | n/a | n/a |
-| 002 schema (23 migrasi hasil squash) | ✅ | ✅ | n/a | n/a |
+| 002 schema (24 file migrasi) | ✅ | ✅ | n/a | n/a |
 | 003 auth/users | ✅ | ✅ | ✅ roles | ✅ |
 | 004 ref/master (34 kamus, lembaga/TA/kelas) | ✅ | ✅ | ✅ no.51 | ✅ |
 | 100 PSB full (daftar, paket MI-MD, verify/seleksi/ACC, portal, dokumen, import) | ✅ | ✅ | ✅ no.51 | ✅ (publik + admin + portal; suite 186/186) |

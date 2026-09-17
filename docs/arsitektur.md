@@ -55,7 +55,7 @@ Aturan terkunci:
 - Halaman Kelola Izin + endpoint `/api/admin/izin` hanya pemilik `izin.*` (= super_admin).
 - Portal orang_tua/santri dan grup campuran (`portal/psb/{calon}/dokumen`) tetap role-based (pengecualian terdokumentasi, di luar matriks).
 - Aturan struktural tetap di kode (bukan matriks): tambah lembaga, sebar standar tampilan, mutasi target privileged, dan kunci role diri = super_admin saja.
-- Halaman baru wajib didaftarkan di katalog + `HALAMAN.permission`; `audit-izin.mjs` (predev/prebuild/pretypecheck) dan test pengerasan route menggagalkan drift.
+- Halaman baru wajib didaftarkan di katalog + `HALAMAN.permission`; `frontend/admin-desktop-tauri/scripts/audit-izin.mjs` (predev/prebuild/pretypecheck) dan test pengerasan route menggagalkan drift.
 
 ### 2.4 Asumsi dan Batasan
 

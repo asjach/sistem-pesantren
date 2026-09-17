@@ -165,7 +165,7 @@ Pesantren menaungi beberapa lembaga — MI, MD, MTs, Mu'allimin — dalam satu p
 
 ### 1.5 Definisi Singkat
 
-Lihat Lampiran D. Inti: `lembaga` (root PESANTREN + MI/MD/MTS/MUA), `tahun_ajaran`, `kelas` (`walas_id→pegawai`), 6 peran (`super_admin, admin, guru, orang_tua, santri, asrama` — `asrama` pasca production; `kasir` dihapus sementara v2.38), matriks izin (`IzinKatalog`), `riwayat_belajar`, `asrama` (entitas sendiri, bukan lembaga; pasca production).
+Lihat Lampiran D. Inti: `lembaga` (root PESANTREN + MI/MD/MTS/MLN), `tahun_ajaran`, `kelas` (`walas_id→pegawai`), 6 peran (`super_admin, admin, guru, orang_tua, santri, asrama` — `asrama` pasca production; `kasir` dihapus sementara v2.38), matriks izin (`IzinKatalog`), `riwayat_belajar`, `asrama` (entitas sendiri, bukan lembaga; pasca production).
 
 ### 1.6 Referensi
 
