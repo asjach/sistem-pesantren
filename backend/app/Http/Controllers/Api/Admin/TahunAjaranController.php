@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\Concerns\TenantGuard;
 use App\Http\Controllers\Api\Concerns\UrutDaftar;
 use App\Http\Controllers\Controller;
 use App\Models\TahunAjaran;
+use App\Services\UrutKatalog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -21,22 +22,13 @@ class TahunAjaranController extends Controller
     use TenantGuard;
     use UrutDaftar;
 
-    private const SORT_PETA = [
-        'nama' => ['tahun_ajaran.nama'],
-        'mulai' => ['tahun_ajaran.tanggal_mulai'],
-        'selesai' => ['tahun_ajaran.tanggal_selesai'],
-        'aktif' => ['tahun_ajaran.is_aktif'],
-        'lembaga' => ['lembaga.kode'],
-        'id' => ['tahun_ajaran.id'],
-    ];
-
     private const SORT_NULLABLE = [
         'tahun_ajaran.tanggal_mulai', 'tahun_ajaran.tanggal_selesai', 'lembaga.kode',
     ];
 
     public function index(Request $request)
     {
-        $urut = $this->parseUrut($request, self::SORT_PETA);
+        $urut = $this->parseUrut($request, UrutKatalog::peta('tahun_ajaran'));
 
         $auth = $request->user();
         $lembagaId = $request->filled('lembaga_id') ? (int) $request->input('lembaga_id') : null;

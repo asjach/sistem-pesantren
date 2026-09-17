@@ -1,7 +1,7 @@
 # Skema Database — SIMPES (dokumentasi, bukan kode)
 
-> Sumber: 24 file migrasi (+ `lembaga_santri`, `preset_tabel`,
-> `pengaturan_tampilan`, `alumni.kelas_lulus_id`). Bahasa Indonesia persis DB. Tipe logis umum.
+> Sumber: 29 file migrasi (+ `lembaga_santri`, `preset_tabel`,
+> `pengaturan_tampilan`, `alumni.kelas_lulus_id`, `label_kolom`, `urut_preset`). Bahasa Indonesia persis DB. Tipe logis umum.
 > Keputusan: single-pesantren via `lembaga` + pivot `user_lembaga` (no.40);
 > 34 `ref_*` global+shadow (no.50); seed no.51; pitfall multi-NULL MySQL →
 > dedup di service, bukan index (`002` catatan 9). Matriks izin (v2.38):
@@ -608,6 +608,14 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 - `preset_id`: FK → preset_tabel [null, cascade] — null = Lengkap
 - `created_at`, `updated_at`
 - UNIQUE(`user_id`, `table_key`) — ingatan pilihan preset terakhir per user per tabel
+
+### `urut_preset`
+- `id` PK
+- `table_key`: string(60) [unik] — kunci tabel grid (mis. `santri`, `keanggotaan`)
+- `opsi`: json — daftar opsi urut `[{ kode: string[], label, arah: 'naik'|'turun'|null, bawaan: bool }]`; `kode` = allowlist backend (`UrutKatalog`), `bawaan` maks satu
+- `dibuat_oleh`: FK → users [null, nullOnDelete]
+- `created_at`, `updated_at`
+- UNIQUE(`table_key`) — satu daftar opsi global per tabel
 
 ### `pengaturan_tampilan`
 Standar tampilan per lembaga (tema/tipografi/grid/preset aktif), disebar super_admin; `versi` naik tiap perubahan agar klien memantau & memuat ulang.

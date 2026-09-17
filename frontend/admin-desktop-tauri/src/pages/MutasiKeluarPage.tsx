@@ -160,10 +160,6 @@ export default function MutasiKeluarPage() {
                 alasan: m.alasan_mutasi ?? '—',
                 tujuan: m.nama_sekolah_tujuan ?? '—',
               })}
-              opsiUrut={[
-                { kunci: 'santri', nilai: 'santri' },
-                { kunci: 'tanggal', nilai: 'tanggal' },
-              ]}
               urutAktif={urut}
               arahUrut={arahUrut}
               onUrut={terapkanUrut}

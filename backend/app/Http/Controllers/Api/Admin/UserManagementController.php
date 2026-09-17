@@ -11,6 +11,7 @@ use App\Http\Requests\Admin\ImportUserRequest;
 use App\Imports\UsersImport;
 use App\Models\Lembaga;
 use App\Models\User;
+use App\Services\UrutKatalog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
@@ -20,14 +21,6 @@ class UserManagementController extends Controller
 {
     use PerPageLimit;
     use UrutDaftar;
-
-    private const SORT_PETA = [
-        'nama' => ['users.name'],
-        'email' => ['users.email'],
-        'hp' => ['users.phone'],
-        'username' => ['users.username'],
-        'id' => ['users.id'],
-    ];
 
     private const SORT_NULLABLE = ['users.phone', 'users.username'];
 
@@ -114,7 +107,7 @@ class UserManagementController extends Controller
     public function index(Request $request)
     {
         $this->authorize('viewAny', User::class);
-        $urut = $this->parseUrut($request, self::SORT_PETA);
+        $urut = $this->parseUrut($request, UrutKatalog::peta('users'));
         $query = User::tenantScope()->with(['roles', 'lembagas:id,nama,kode']);
 
         if ($request->filled('role')

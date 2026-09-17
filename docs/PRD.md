@@ -2,7 +2,7 @@
 
 | Atribut | Keterangan |
 |---|---|
-| Versi Dokumen | 2.72 (generate label kamus) |
+| Versi Dokumen | 2.73 (preset urut global) |
 | Tanggal | 18 September 2026 |
 | Status | PRD produk SIMPES — acuan tunggal kebutuhan, rancangan, dan status implementasi aplikasi yang sedang dibangun |
 | Penyusun | Solo dev + Yayasan |
@@ -123,7 +123,8 @@
 | 2.69 | 2026-09-17 | Kamus Label: pilihan tabel + kolom otomatis dari skema database |
 | 2.70 | 2026-09-17 | Kamus Label: dropdown Tabel + satu baris per kolom (auto-save POST/PUT + Reset); fitur `urut_bawaan` dihapus |
 | 2.71 | 2026-09-18 | Status Mode Edit/Input jadi bilah di bawah tabel; Esc sekali keluar mode |
-| 2.72 | 2026-09-18 | Kamus Label: tombol generate label UPPERCASE / Proper Case / lower case untuk semua tabel (`POST kamus-kolom/generasi`, underscore → spasi, kolom teknis dilewati, label lama ditimpa setelah konfirmasi); dropdown Tabel ber-search; align & arah_bawaan pakai glyph; kunci_lebar & bisa_urut pakai switch; urutan kolom tooltip+format setelah align |
+| 2.72 | 2026-09-18 | Kamus Label: tombol generate label massal (upper/proper/lower) + dropdown tabel ber-search + ikon align & switch kolom |
+| 2.73 | 2026-09-18 | Urutan pindah ke Preset Urut global per tabel (`urut_preset`): dialog "Kelola urutan" memilih kode sah dari `UrutKatalog`, atur label/arah/opsi bawaan; seed dari opsi lama; halaman tak lagi hardcode `opsiUrut`; `bisa_urut` & `arah_bawaan` di-drop dari kamus label; izin `urut_preset.*`; suite 233/233, typecheck + build lolos |
 
 ## Daftar Isi
 

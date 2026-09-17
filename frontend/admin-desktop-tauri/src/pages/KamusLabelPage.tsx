@@ -9,7 +9,6 @@ import {
   listKamusKolom,
   skemaKolom,
   updateKamusKolom,
-  type ArahUrut,
   type LabelKolom,
   type ModeLabel,
   type TabelSkema,
@@ -43,12 +42,6 @@ const ALIGN_CHOICES = [
   { value: 'center', label: '↔' },
   { value: 'right', label: '→' },
 ];
-/** Glyph arah bawaan urut kolom: – bawaan, ▲ naik, ▼ turun. */
-const ARAH_CHOICES = [
-  { value: BAWAAN, label: '–' },
-  { value: 'naik', label: '▲' },
-  { value: 'turun', label: '▼' },
-];
 const FORMAT_CHOICES = [
   { value: BAWAAN, label: '(teks)' },
   { value: 'teks', label: 'TEKS' },
@@ -79,8 +72,6 @@ const FIELDS: ExcelField[] = [
     },
   },
   { key: 'kunci', label: 'kunci_lebar', width: 90, kind: 'toggle' },
-  { key: 'bisa', label: 'bisa_urut', width: 90, kind: 'toggle' },
-  { key: 'arah', label: 'arah_bawaan', width: 80, kind: 'select', choices: ARAH_CHOICES },
 ];
 
 interface BarisKamus {
@@ -99,8 +90,6 @@ function barisValues(r: BarisKamus): Record<string, string | null> {
     format: e?.format ?? BAWAAN,
     lebar: e?.lebar === null || e?.lebar === undefined ? '' : String(e.lebar),
     kunci: e?.kunci_lebar ? 'ya' : 'tidak',
-    bisa: e && !e.bisa_urut ? 'tidak' : 'ya',
-    arah: e?.arah_bawaan ?? BAWAAN,
   };
 }
 
@@ -192,8 +181,6 @@ export default function KamusLabelPage() {
       align: gab.align && gab.align !== BAWAAN ? (gab.align as LabelKolom['align']) : null,
       lebar: gab.lebar ? Number(gab.lebar) : null,
       kunci_lebar: gab.kunci === 'ya',
-      bisa_urut: gab.bisa !== 'tidak',
-      arah_bawaan: gab.arah && gab.arah !== BAWAAN ? (gab.arah as ArahUrut) : null,
       tooltip: gab.tooltip?.trim() ? gab.tooltip.trim() : null,
       format: gab.format && gab.format !== BAWAAN ? gab.format : null,
     };

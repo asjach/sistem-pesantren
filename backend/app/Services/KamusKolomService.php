@@ -50,8 +50,6 @@ class KamusKolomService
                     'align' => $row->align,
                     'lebar' => $row->lebar,
                     'kunci_lebar' => $row->kunci_lebar,
-                    'bisa_urut' => $row->bisa_urut,
-                    'arah_bawaan' => $row->arah_bawaan,
                     'tooltip' => $row->tooltip,
                     'format' => $row->format,
                 ];

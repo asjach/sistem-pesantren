@@ -14,11 +14,11 @@ import { errorMessage, prefGet, prefSet } from '@/api/client';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { DEFAULT_FONT_PX, DEFAULT_HEADER_H, FONT_FAMILY_DEFAULT, FONT_OPTIONS, MAX_HEADER_H, useGridPrefs, type AlignName } from '@/components/GridPrefs';
 import { useStandarTampilan } from '@/standarTampilan';
 import PresetKolom, { type PresetKolomApi } from '@/components/PresetKolom';
+import PresetUrut from '@/components/PresetUrut';
 import FilterField from '@/components/FilterField';
 import { useKamusPeta } from '@/components/useKamusPeta';
 import { type KamusKolomAttr } from '@/api/kamusLabel';
@@ -164,16 +164,17 @@ export interface ExcelChoice {
 
 /** Teks yang BENAR-BENAR dirender sel untuk sebuah nilai grid. Kolom `select`
  *  menampilkan label pilihannya (`Ikut lembaga`), bukan nilai mentahnya
- *  (`default`) — pengukuran lebar kolom (AutoFit & lebar awal) wajib memakai
- *  teks ini, kalau tidak kolom jadi sempit dan label terpotong/terbungkus. */
-function teksTampilSel(f: ExcelField, raw: unknown): string {
+ *  (`default`), dan kolom ber-format kamus (angka/tanggal/ya_tidak) memakai
+ *  hasil `formatNilai` — pengukuran lebar kolom (AutoFit & lebar awal) wajib
+ *  memakai teks ini, kalau tidak kolom jadi sempit dan isi terpotong. */
+function teksTampilSel(f: ExcelField, raw: unknown, format?: string | null): string {
   if (raw == null) return '';
   if (f.kind === 'toggle') return '';
   const s = String(raw);
   if (f.kind === 'select') {
     return (f.choices ?? []).find((c) => c.value === s)?.label ?? s;
   }
-  return s;
+  return format ? formatNilai(s, format) : s;
 }
 
 export interface ExcelField {
@@ -202,15 +203,6 @@ export interface ExcelField {
   sumber?: { tabel: string; kolom: string } | null;
 }
 
-/** Satu entri urut dropdown: nilai = kode backend (string) atau gabungan
- *  beberapa kode (mis. JK-Nama = ['jk','nama'], satu arah toggle).
- *  `kunci` (opsional) = key kolom grid untuk indikator header pasif;
- *  `label` (opsional) = teks dropdown (bawaan: label kolom `kunci`). */
-export interface OpsiUrutKolom {
-  kunci?: string;
-  nilai: string | string[];
-  label?: string;
-}
 /** Baris grid: id + checklist + nilai string per field. */
 export interface GridRow {
   id: string | number;
@@ -275,9 +267,6 @@ interface ExcelTableProps<T extends { id: string | number }> {
   hidePreset?: boolean;
   /** Kabarkan baris tercentang setiap seleksi berubah (opsional). */
   onCheckedChange?: (rows: T[]) => void;
-  /** Pendaftaran kolom yang bisa diurutkan (kunci = key kolom grid).
-   *  Kolom tanpa entri = header biasa. Urut dieksekusi halaman (server-side). */
-  opsiUrut?: OpsiUrutKolom[];
   /** Daftar nilai urut aktif berurutan (maks 3) + arah global. */
   urutAktif?: string[];
   arahUrut?: 'naik' | 'turun';
@@ -292,7 +281,7 @@ const MIN_COL_W = 50;
 /** Batas lebar hasil AutoFit (Excel juga membatasi, ~255 karakter). */
 const AUTOFIT_MAX_W = 480;
 /** Ruang napas agar teks tidak menempel garis kolom saat AutoFit. */
-const AUTOFIT_BUFFER = 8;
+const AUTOFIT_BUFFER = 16;
 /** Lebar kolom Aksi saat belum terukur (3 tombol ikon + padding + napas). */
 const ACTIONS_DEFAULT_W = 124;
 /** Lebar kolom checklist (kolom data pertama). */
@@ -635,7 +624,6 @@ function HeaderTitle({
   onResizeStart,
   onResizePrev,
   onAutoFit,
-  tandaUrut = null,
   tooltip = null,
   terkunci = false,
 }: {
@@ -648,8 +636,6 @@ function HeaderTitle({
    *  (gagang kanan tertutup oleh sel beku di sebelahnya). */
   onResizePrev?: (e: { preventDefault(): void; stopPropagation(): void; clientX: number }) => void;
   onAutoFit: (key: string) => void;
-  /** Indikator urut pasif (mis. "▲", "▼2") — dikontrol dari dropdown toolbar. */
-  tandaUrut?: string | null;
   /** Teks bantuan dari kamus kolom (hover header). */
   tooltip?: string | null;
   /** Lebar dikunci kamus: gagang seret/AutoFit disembunyikan. */
@@ -658,11 +644,6 @@ function HeaderTitle({
   return (
     <span className="simpes-dsg-headtitle" data-col-key={colKey} title={tooltip ?? undefined}>
       {label}
-      {tandaUrut ? (
-        <span className="simpes-dsg-tanda-urut" aria-label={`Urutan ${tandaUrut}`}>
-          {tandaUrut}
-        </span>
-      ) : null}
       {required ? (
         <span className="simpes-dsg-wajib-tanda" title="Wajib diisi pada mode Input">
           *
@@ -914,7 +895,6 @@ export default function ExcelTable<T extends { id: string | number }>({
   hideActions = false,
   hidePreset = false,
   onCheckedChange,
-  opsiUrut,
   urutAktif,
   arahUrut = 'naik',
   onUrut,
@@ -993,22 +973,6 @@ export default function ExcelTable<T extends { id: string | number }>({
     return m;
   }, [fields, kamus, sumberField]);
 
-  /** Peta kunci kolom grid → nilai urut backend (untuk indikator header pasif). */
-  const petaUrut = useMemo(
-    () =>
-      new Map(
-        (opsiUrut ?? [])
-          .filter((o) => o.kunci != null && typeof o.nilai === 'string')
-          .map((o) => [o.kunci as string, o.nilai as string]),
-      ),
-    [opsiUrut],
-  );
-  const urutAktifRef = useRef<string[] | undefined>(urutAktif);
-  urutAktifRef.current = urutAktif;
-  const arahUrutRef = useRef(arahUrut);
-  arahUrutRef.current = arahUrut;
-  const onUrutRef = useRef(onUrut);
-  onUrutRef.current = onUrut;
   /** Nama tampil kolom: kamus DB > label preset > label bawaan field. */
   const labelKolom = useCallback((key: string, bawaan: string) => {
     const dariKamus = attrByKey.get(key)?.label?.trim();
@@ -1025,46 +989,6 @@ export default function ExcelTable<T extends { id: string | number }>({
     const a = attrByKey.get(key);
     return a?.kunci_lebar && a.lebar ? a.lebar : null;
   }, [attrByKey]);
-  /** Item dropdown: label + daftar nilai (tunggal/gabungan), disaring kamus
-   *  (`bisa_urut = false` menghapus kolom itu dari penawaran semua halaman). */
-  const itemUrut = useMemo(
-    () =>
-      (opsiUrut ?? [])
-        .map((o) => {
-          const kunci = Array.isArray(o.nilai) ? o.nilai : [o.nilai];
-          const keyAwal = kunci.find((k) => fields.some((f) => f.key === k));
-          const attr = keyAwal ? attrByKey.get(keyAwal) : undefined;
-          const bawaan = keyAwal ? fields.find((f) => f.key === keyAwal)?.label : undefined;
-          return {
-            label: o.label ?? (keyAwal && bawaan != null ? labelKolom(keyAwal, bawaan) : undefined) ?? kunci.join('+'),
-            kunci,
-            arah: attr?.arah_bawaan ?? null,
-          };
-        })
-        .filter((it) => it.kunci.length > 0)
-        .filter((it) => it.kunci.every((k) => attrByKey.get(k)?.bisa_urut !== false)),
-    [opsiUrut, fields, labelKolom, attrByKey],
-  );
-  const idxUrutAktif = useMemo(() => {
-    const aktif = (urutAktif ?? []).join(',');
-    return itemUrut.findIndex((it) => it.kunci.join(',') === aktif);
-  }, [itemUrut, urutAktif]);
-  /** Pilih dari dropdown: kirim daftar nilai + arah (bawaan kamus kolom bila ada). */
-  const pilihUrut = useCallback(
-    (idx: number) => {
-      const it = itemUrut[idx];
-      if (!it || !onUrutRef.current) return;
-      onUrutRef.current(it.kunci, it.arah ?? arahUrutRef.current);
-    },
-    [itemUrut],
-  );
-  /** Tombol arah: putar arah urutan aktif (nonaktif bila belum ada urutan). */
-  const balikArahUrut = useCallback(() => {
-    const aktif = urutAktifRef.current ?? [];
-    if (aktif.length === 0 || !onUrutRef.current) return;
-    onUrutRef.current(aktif, arahUrutRef.current === 'naik' ? 'turun' : 'naik');
-  }, []);
-
   /** Seleksi bersifat per halaman/filter: baris berganti = seleksi dibersihkan. */
   useEffect(() => {
     setCheckedIds(new Set<T['id']>());
@@ -1645,14 +1569,14 @@ export default function ExcelTable<T extends { id: string | number }>({
     const values: { v: string; cw: number }[] = [];
     let maxCw = 0;
     for (const r of rowsRef.current) {
-      const v = teksTampilSel(f, gridById.get(String(r.id))?.[key]);
+      const v = teksTampilSel(f, gridById.get(String(r.id))?.[key], attrByKey.get(key)?.format);
       if (!v) continue;
       const cw = ctx.measureText(v).width;
       if (cw > maxCw) maxCw = cw;
       values.push({ v, cw });
     }
 
-    let w = measureTextWidth(f.label, csHead) + padHead + AUTOFIT_BUFFER;
+    let w = measureTextWidth(labelKolom(f.key, f.label), csHead) + padHead + AUTOFIT_BUFFER;
     for (const { v, cw } of values) {
       if (cw < maxCw - CANDIDATE_MARGIN) continue;
       w = Math.max(w, measureTextWidth(v, csCell) + padCell + AUTOFIT_BUFFER);
@@ -1877,9 +1801,9 @@ export default function ExcelTable<T extends { id: string | number }>({
     const out: Record<string, number> = {};
     const values = rows.map((r) => getValuesRef.current(r) as Record<string, unknown>);
     for (const f of visibleFields) {
-      let w = lebar(headProbe, csHeadCont, f.label) + padHead + AUTOFIT_BUFFER;
+      let w = lebar(headProbe, csHeadCont, labelKolom(f.key, f.label)) + padHead + AUTOFIT_BUFFER;
       for (const v of values) {
-        const s = teksTampilSel(f, v[f.key]);
+        const s = teksTampilSel(f, v[f.key], attrByKey.get(f.key)?.format);
         if (!s) continue;
         w = Math.max(w, lebar(cellProbe, csCell, s) + padCell + AUTOFIT_BUFFER);
       }
@@ -1887,7 +1811,7 @@ export default function ExcelTable<T extends { id: string | number }>({
     }
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, visibleFields, effectiveFont, fontStack, fontStackWeight]);
+  }, [rows, visibleFields, effectiveFont, fontStack, fontStackWeight, labelKolom, attrByKey]);
 
   const editableKeys = useMemo(
     () => visibleFields.filter((f) => f.kind !== 'static').map((f) => f.key),
@@ -2008,12 +1932,6 @@ export default function ExcelTable<T extends { id: string | number }>({
       const iData = idxData++;
       const bekuCls = iData < freezeAktif ? ' simpes-dsg-beku' : '';
       const tepiCls = iData === freezeAktif - 1 ? ' simpes-dsg-beku-tepi' : '';
-      const nilaiUrut = petaUrut.get(f.key);
-      const posUrut = nilaiUrut != null ? (urutAktif ?? []).indexOf(nilaiUrut) : -1;
-      const tandaUrut =
-        posUrut < 0
-          ? null
-          : `${arahUrut === 'naik' ? '▲' : '▼'}${(urutAktif ?? []).length > 1 ? posUrut + 1 : ''}`;
       const isInputRow = (rowData: GridRow) => showInput && String(rowData.id) === INPUT_ROW_ID;
       const lebarTerkunci = lebarKunci(f.key);
       const common = {
@@ -2031,7 +1949,6 @@ export default function ExcelTable<T extends { id: string | number }>({
                 : undefined
             }
             onAutoFit={onAutoFit}
-            tandaUrut={tandaUrut}
             tooltip={attrByKey.get(f.key)?.tooltip ?? null}
             terkunci={lebarTerkunci != null}
           />
@@ -2200,7 +2117,7 @@ export default function ExcelTable<T extends { id: string | number }>({
     }
     return cols;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fields, visibleFields, editing, widths, stdLebar, autoWidths, syncAutoWidths, align, showInput, freezeAktif, hideCheckbox, petaUrut, urutAktif, arahUrut, labelKolom, attrByKey, alignEfektif, lebarKunci, drafts]);
+  }, [fields, visibleFields, editing, widths, stdLebar, autoWidths, syncAutoWidths, align, showInput, freezeAktif, hideCheckbox, labelKolom, attrByKey, alignEfektif, lebarKunci, drafts]);
 
   /** Simpan baris input → buat record baru via onCreateRow halaman. Validasi
    *  field wajib + validator kolom dulu; draft dibersihkan hanya bila sukses
@@ -2471,7 +2388,6 @@ export default function ExcelTable<T extends { id: string | number }>({
     try {
       await onCommit(domain.id, flds);
       savedRef.current.push({ id: idKey, keys: Object.keys(flds) });
-      toast.success('Perubahan tersimpan.');
     } catch (e) {
       dropDraft(idKey, Object.keys(flds));
       toast.error(`Gagal menyimpan. ${errorMessage(e)}`);
@@ -2485,7 +2401,8 @@ export default function ExcelTable<T extends { id: string | number }>({
     void drain();
   }
 
-  /** Proses antrean berurutan; satu reload server setelah antrean habis. */
+  /** Proses antrean berurutan; satu reload server + satu toast setelah antrean
+   *  habis (bukan per baris) dan hanya bila memang ada yang tersimpan. */
   async function drain() {
     if (drainingRef.current) return;
     drainingRef.current = true;
@@ -2495,13 +2412,17 @@ export default function ExcelTable<T extends { id: string | number }>({
         queueRef.current.delete(idKey);
         await saveRow(idKey, flds);
       }
-      try {
-        await onSaved();
-      } catch {
-        // Reload gagal: draft sukses tetap dibuang (data sudah tersimpan di server).
+      const tersimpan = savedRef.current.length;
+      if (tersimpan > 0) {
+        try {
+          await onSaved();
+        } catch {
+          // Reload gagal: draft sukses tetap dibuang (data sudah tersimpan di server).
+        }
+        for (const s of savedRef.current) dropDraft(s.id, s.keys);
+        savedRef.current = [];
+        toast.success(tersimpan === 1 ? 'Perubahan tersimpan.' : `${tersimpan} baris tersimpan.`);
       }
-      for (const s of savedRef.current) dropDraft(s.id, s.keys);
-      savedRef.current = [];
     } finally {
       drainingRef.current = false;
     }
@@ -2576,7 +2497,7 @@ export default function ExcelTable<T extends { id: string | number }>({
 
   const hasSearchInput = searchValue !== undefined && onSearchChange;
   const hasFilter = filter !== undefined;
-  const hasUrut = itemUrut.length > 0 && !!onUrut;
+  const hasUrut = !!onUrut;
   const showToolbar = hasSearchInput || hasFilter || hasUrut || awalanToolbar !== undefined || akhirToolbar !== undefined;
   const showSearchButton = !!onSearchSubmit;
   const formId = searchIds?.form ?? `form_cari_${tableKey}`;
@@ -2660,40 +2581,15 @@ export default function ExcelTable<T extends { id: string | number }>({
           </div>
         ) : null}
         <div className="ml-auto flex flex-wrap items-center gap-2">
-          {/* Urutan tabel: dropdown kunci + tombol arah (server-side). */}
-          {hasUrut && (
-            <span className="flex items-end gap-1.5">
-              <FilterField label="Urutkan" htmlFor={`select_urut_${tableKey}`}>
-                <Select
-                  value={idxUrutAktif >= 0 ? String(idxUrutAktif) : ''}
-                  onValueChange={(v) => pilihUrut(Number(v))}
-                >
-                  <SelectTrigger id={`select_urut_${tableKey}`} className="w-40">
-                    <SelectValue placeholder="Urutkan…" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {itemUrut.map((it, i) => (
-                        <SelectItem key={it.kunci.join(',')} value={String(i)}>
-                          {it.label}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </FilterField>
-              <Button
-                id={`btn_arah_urut_${tableKey}`}
-                variant="outline"
-                size="sm"
-                title="Balik arah urutan"
-                aria-label={`Arah urutan: ${arahUrut === 'naik' ? 'naik' : 'turun'}`}
-                disabled={(urutAktif ?? []).length === 0}
-                onClick={balikArahUrut}
-              >
-                {arahUrut === 'naik' ? '▲ Naik' : '▼ Turun'}
-              </Button>
-            </span>
+          {/* Urutan tabel: dropdown dari Preset Urut (DB, per tabel) + tombol
+              arah. Kelola opsi lewat item "Kelola urutan…" di dropdown. */}
+          {onUrut && (
+            <PresetUrut
+              tableKey={tableKey}
+              urutAktif={urutAktif}
+              arahUrut={arahUrut}
+              onUrut={onUrut}
+            />
           )}
           {/* Preset kolom tampilan (tersimpan di DB per lembaga) — tanpa
               pembungkus kotak agar tampil polos seperti kontrol lain. Kontrol

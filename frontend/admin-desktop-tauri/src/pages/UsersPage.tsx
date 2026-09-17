@@ -357,12 +357,6 @@ export default function UsersPage() {
         onSearchSubmit={onSearchSubmit}
         searchPlaceholder="Nama / email / HP / username"
         searchIds={{ form: 'form_cari_user', input: 'input_cari_user', button: 'btn_cari_user' }}
-        opsiUrut={[
-          { kunci: 'nama', nilai: 'nama' },
-          { kunci: 'email', nilai: 'email' },
-          { kunci: 'phone', nilai: 'hp' },
-          { kunci: 'username', nilai: 'username' },
-        ]}
         urutAktif={urut}
         arahUrut={arahUrut}
         onUrut={terapkanUrut}

@@ -229,17 +229,6 @@ export default function KeanggotaanPage() {
           mulai: r.tgl_mulai?.slice(0, 10) ?? null,
           selesai: r.tgl_selesai?.slice(0, 10) ?? null,
         })}
-        opsiUrut={[
-          { kunci: 'santri', nilai: 'nama' },
-          { kunci: 'jk', nilai: 'jk' },
-          { label: 'JK-Nama', nilai: ['jk', 'nama'] },
-          { kunci: 'lembaga', nilai: 'lembaga' },
-          { kunci: 'nis_lokal', nilai: 'nis_lokal' },
-          { kunci: 'nis_kemenag', nilai: 'nis_kemenag' },
-          { kunci: 'aktif', nilai: 'aktif' },
-          { kunci: 'mulai', nilai: 'mulai' },
-          { kunci: 'selesai', nilai: 'selesai' },
-        ]}
         urutAktif={urut}
         arahUrut={arahUrut}
         onUrut={terapkanUrut}

@@ -224,8 +224,6 @@ class KamusLabelController extends Controller
             'align' => ['nullable', Rule::in(['left', 'center', 'right'])],
             'lebar' => ['nullable', 'integer', 'min:40', 'max:600'],
             'kunci_lebar' => ['sometimes', 'boolean'],
-            'bisa_urut' => ['sometimes', 'boolean'],
-            'arah_bawaan' => ['nullable', Rule::in(['naik', 'turun'])],
             'tooltip' => ['nullable', 'string', 'max:200'],
             'format' => ['nullable', Rule::in(self::FORMAT)],
         ]);
@@ -246,10 +244,8 @@ class KamusLabelController extends Controller
         $data['label'] = $teks($data['label'] ?? null);
         $data['tooltip'] = $teks($data['tooltip'] ?? null);
         $data['align'] = $data['align'] ?? null;
-        $data['arah_bawaan'] = $data['arah_bawaan'] ?? null;
         $data['format'] = $data['format'] ?? null;
         $data['kunci_lebar'] = (bool) ($data['kunci_lebar'] ?? false);
-        $data['bisa_urut'] = (bool) ($data['bisa_urut'] ?? true);
 
         return $data;
     }

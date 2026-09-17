@@ -12,6 +12,7 @@ use App\Models\RiwayatBelajar;
 use App\Models\Santri;
 use App\Services\PenerimaanService;
 use App\Services\SiklusSantriService;
+use App\Services\UrutKatalog;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -29,17 +30,6 @@ class RiwayatBelajarController extends Controller
     use TenantGuard;
     use UrutDaftar;
 
-    private const SORT_PETA = [
-        'santri' => ['santri.nama_lengkap'],
-        'kelas' => ['kelas.nama_kelas'],
-        'lembaga' => ['lembaga.kode'],
-        'ta' => ['tahun_ajaran.nama'],
-        'tingkat' => ['riwayat_belajar.tingkat'],
-        'semester' => ['riwayat_belajar.semester'],
-        'absen' => ['riwayat_belajar.no_absen'],
-        'id' => ['riwayat_belajar.id'],
-    ];
-
     private const SORT_NULLABLE = [
         'kelas.nama_kelas', 'riwayat_belajar.tingkat', 'riwayat_belajar.no_absen',
     ];
@@ -48,7 +38,7 @@ class RiwayatBelajarController extends Controller
     public function index(Request $request): JsonResponse
     {
         $this->authorize('viewAny', Santri::class);
-        $urut = $this->parseUrut($request, self::SORT_PETA);
+        $urut = $this->parseUrut($request, UrutKatalog::peta('riwayat_belajar'));
 
         $query = $this->scopeLembaga(
             RiwayatBelajar::with([

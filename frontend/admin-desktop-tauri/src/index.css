@@ -381,12 +381,6 @@
   padding-top: 4px;
   padding-bottom: 4px;
 }
-/* Indikator urutan aktif di judul kolom (pasif — dikontrol dropdown toolbar). */
-.simpes-dsg-tanda-urut {
-  margin-left: 4px;
-  font-size: 0.85em;
-  white-space: nowrap;
-}
 /* Gagang resize tepi kiri: khusus kolom beku, untuk mengubah lebar kolom di
    sebelah kirinya (gagang kanan kolom itu tertutup oleh sel beku berikutnya). */
 .simpes-dsg-resizer.simpes-dsg-resizer-kiri {

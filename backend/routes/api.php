@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\Admin\RiwayatBelajarController;
 use App\Http\Controllers\Api\Admin\SantriController;
 use App\Http\Controllers\Api\Admin\SiklusController;
 use App\Http\Controllers\Api\Admin\TahunAjaranController;
+use App\Http\Controllers\Api\Admin\UrutPresetController;
 use App\Http\Controllers\Api\Admin\UserManagementController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DashboardController;
@@ -160,6 +161,9 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::post('kamus-kolom', [KamusLabelController::class, 'store'])->middleware('permission:kamus_label.tambah');
         Route::match(['put', 'patch'], 'kamus-kolom/{labelKolom}', [KamusLabelController::class, 'update'])->middleware('permission:kamus_label.ubah');
         Route::delete('kamus-kolom/{labelKolom}', [KamusLabelController::class, 'destroy'])->middleware('permission:kamus_label.hapus');
+        Route::get('urut-preset', [UrutPresetController::class, 'index'])->middleware('permission:urut_preset.lihat');
+        Route::put('urut-preset', [UrutPresetController::class, 'simpan'])->middleware('permission:urut_preset.tambah|urut_preset.ubah');
+        Route::delete('urut-preset', [UrutPresetController::class, 'hapus'])->middleware('permission:urut_preset.hapus');
 
         // Standar tampilan per lembaga (super_admin sebar ke semua; admin lembaga salinannya).
         Route::get('pengaturan-tampilan', [PengaturanTampilanController::class, 'show'])->middleware('permission:tampilan.lihat');

@@ -171,13 +171,6 @@ export default function RiwayatBelajarPage() {
         onSearchSubmit={() => { setTerapkanCari(search.trim()); pager.goFirst(); }}
         searchPlaceholder="Nama / NIK"
         searchIds={{ form: 'form_cari_riwayat_belajar', input: 'input_cari_riwayat_belajar', button: 'btn_cari_riwayat_belajar' }}
-        opsiUrut={[
-          { kunci: 'santri', nilai: 'santri' },
-          { kunci: 'kelas', nilai: 'kelas' },
-          { kunci: 'lembaga', nilai: 'lembaga' },
-          { kunci: 'tingkat', nilai: 'tingkat' },
-          { kunci: 'absen', nilai: 'absen' },
-        ]}
         urutAktif={urut}
         arahUrut={arahUrut}
         onUrut={terapkanUrut}

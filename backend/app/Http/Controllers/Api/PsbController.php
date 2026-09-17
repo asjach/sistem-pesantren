@@ -14,6 +14,7 @@ use App\Models\PsbGelombang;
 use App\Models\PsbKuotaBiaya;
 use App\Models\User;
 use App\Services\PsbService;
+use App\Services\UrutKatalog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -25,15 +26,6 @@ class PsbController extends Controller
 {
     use TenantGuard;
     use UrutDaftar;
-
-    private const SORT_PETA = [
-        'nama' => ['psb_calon_santri.nama_lengkap'],
-        'nik' => ['psb_calon_santri.nik'],
-        'gelombang' => ['psb_gelombang.nama'],
-        'lembaga' => ['lembaga.kode'],
-        'status' => ['psb_calon_santri.status_pendaftaran'],
-        'id' => ['psb_calon_santri.id'],
-    ];
 
     private const SORT_NULLABLE = ['psb_calon_santri.nik', 'psb_gelombang.nama'];
 
@@ -55,7 +47,7 @@ class PsbController extends Controller
         $query = (clone $base)
             ->whereIn('status_pendaftaran', $statuses)
             ->with(['lembagaTujuan:id,nama,kode', 'lembagaDetail.lembaga:id,nama,kode', 'gelombang:id,nama']);
-        $urut = $this->parseUrut($request, self::SORT_PETA);
+        $urut = $this->parseUrut($request, UrutKatalog::peta('psb'));
         if ($urut !== null) {
             $query->select('psb_calon_santri.*')
                 ->leftJoin('lembaga', 'lembaga.id', '=', 'psb_calon_santri.lembaga_id')

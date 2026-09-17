@@ -142,11 +142,6 @@ export default function KenaikanKelasPage() {
                 kelas: r.kelas?.nama_kelas ?? null,
                 tingkat: r.tingkat ?? null,
               })}
-              opsiUrut={[
-                { kunci: 'nama', nilai: 'santri' },
-                { kunci: 'kelas', nilai: 'kelas' },
-                { kunci: 'tingkat', nilai: 'tingkat' },
-              ]}
               urutAktif={urut}
               arahUrut={arahUrut}
               onUrut={terapkanUrut}

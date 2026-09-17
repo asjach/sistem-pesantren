@@ -39,6 +39,7 @@ class IzinKatalog
         'pengajuan_biodata' => ['lihat', 'ubah'],
         'preset_tabel' => ['lihat', 'tambah', 'ubah', 'hapus'],
         'kamus_label' => ['lihat', 'tambah', 'ubah', 'hapus'],
+        'urut_preset' => ['lihat', 'tambah', 'ubah', 'hapus'],
         'tampilan' => ['lihat', 'ubah', 'hapus'],
         'server' => ['lihat'],
         'izin' => ['lihat', 'ubah'],

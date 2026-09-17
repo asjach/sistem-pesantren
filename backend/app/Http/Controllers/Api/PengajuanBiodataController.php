@@ -9,6 +9,7 @@ use App\Models\PengajuanBiodataSantri;
 use App\Models\Santri;
 use App\Models\WaliSantriRelasi;
 use App\Services\PengajuanBiodataService;
+use App\Services\UrutKatalog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -16,12 +17,6 @@ class PengajuanBiodataController extends Controller
 {
     use TenantGuard;
     use UrutDaftar;
-
-    private const SORT_PETA = [
-        'santri' => ['santri.nama_lengkap'],
-        'status' => ['pengajuan_biodata_santri.status'],
-        'id' => ['pengajuan_biodata_santri.id'],
-    ];
 
     /** POST /api/portal/santri/{santri}/pengajuan-biodata (orang_tua, maks 1 aktif). */
     public function ajukan(Request $request, Santri $santri, PengajuanBiodataService $service): JsonResponse
@@ -55,7 +50,7 @@ class PengajuanBiodataController extends Controller
     public function index(Request $request): JsonResponse
     {
         $status = $request->input('status', 'diajukan');
-        $urut = $this->parseUrut($request, self::SORT_PETA);
+        $urut = $this->parseUrut($request, UrutKatalog::peta('pengajuan_biodata'));
         $auth = $request->user();
 
         $base = PengajuanBiodataSantri::query()->whereHas('santri', function ($q) use ($auth, $request) {

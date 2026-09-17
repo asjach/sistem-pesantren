@@ -403,13 +403,6 @@ export default function LembagaPage() {
         canEdit={canUbah}
         onCommit={commitDraft}
         onSaved={onSaved}
-        opsiUrut={[
-          { kunci: 'kode', nilai: 'kode' },
-          { kunci: 'nama', nilai: 'nama' },
-          { kunci: 'induk', nilai: 'induk' },
-          { kunci: 'kelompok', nilai: 'kelompok' },
-          { kunci: 'seleksi', nilai: 'seleksi' },
-        ]}
         urutAktif={urut}
         arahUrut={arahUrut}
         onUrut={terapkanUrut}

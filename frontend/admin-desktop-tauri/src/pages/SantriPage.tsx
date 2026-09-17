@@ -203,8 +203,8 @@ export default function SantriPage() {
   const [search, setSearch] = useState('');
   const [terapkanCari, setTerapkanCari] = useState('');
   /** Urut header: daftar nilai allowlist + arah global (maks 3 kunci). */
-  /** Urut bawaan: JK lalu Nama (sama dengan $bawaan SantriController@index). */
-  const [urut, setUrut] = useState<string[]>(['jk', 'nama']);
+  /** Urutan awal: kosong = ikut opsi bawaan Preset Urut (global per tabel). */
+  const [urut, setUrut] = useState<string[]>([]);
   const [arahUrut, setArahUrut] = useState<'naik' | 'turun'>('naik');
 
   const [importOpen, setImportOpen] = useState(false);
@@ -447,14 +447,6 @@ export default function SantriPage() {
         canEdit={bisa(user, 'santri.ubah')}
         onCommit={commitBaris}
         onSaved={() => load()}
-        opsiUrut={[
-          { kunci: 'nama', nilai: 'nama' },
-          { kunci: 'nik', nilai: 'nik' },
-          { kunci: 'nisn', nilai: 'nisn' },
-          { kunci: 'jk', nilai: 'jk' },
-          { kunci: 'tipe_santri', nilai: 'tipe' },
-          { kunci: 'status', nilai: 'status' },
-        ]}
         urutAktif={urut}
         arahUrut={arahUrut}
         onUrut={terapkanUrut}

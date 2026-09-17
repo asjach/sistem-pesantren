@@ -802,13 +802,6 @@ export default function PsbPage() {
         canEdit={false}
         onCommit={onCommit}
         onSaved={onSaved}
-        opsiUrut={[
-          { kunci: 'nama', nilai: 'nama' },
-          { kunci: 'nik', nilai: 'nik' },
-          { kunci: 'gelombang', nilai: 'gelombang' },
-          { kunci: 'lembaga', nilai: 'lembaga' },
-          { kunci: 'status', nilai: 'status' },
-        ]}
         urutAktif={urut}
         arahUrut={arahUrut}
         onUrut={terapkanUrut}

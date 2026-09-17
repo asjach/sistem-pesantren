@@ -571,14 +571,6 @@ export default function KelasPage() {
         canEdit={canUbahKelas}
         onCommit={commitDraft}
         onSaved={onSaved}
-        opsiUrut={[
-          { kunci: 'nama', nilai: 'nama' },
-          { kunci: 'lembaga', nilai: 'lembaga' },
-          { kunci: 'ta', nilai: 'ta' },
-          { kunci: 'tingkat', nilai: 'tingkat' },
-          { kunci: 'urutan', nilai: 'urutan' },
-          { kunci: 'kapasitas', nilai: 'kapasitas' },
-        ]}
         urutAktif={urut}
         arahUrut={arahUrut}
         onUrut={terapkanUrut}

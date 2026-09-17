@@ -13,6 +13,7 @@ use App\Models\RiwayatBelajar;
 use App\Models\Santri;
 use App\Models\TahunAjaran;
 use App\Services\SiklusSantriService;
+use App\Services\UrutKatalog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -25,23 +26,6 @@ class SiklusController extends Controller
 {
     use TenantGuard;
     use UrutDaftar;
-
-    private const SORT_MUTASI = [
-        'santri' => ['santri.nama_lengkap'],
-        'tanggal' => ['mutasi_keluar.tanggal_mutasi'],
-        'lembaga' => ['lembaga.kode'],
-        'kelas' => ['kelas.nama_kelas'],
-        'id' => ['mutasi_keluar.id'],
-    ];
-
-    private const SORT_ALUMNI = [
-        'santri' => ['santri.nama_lengkap'],
-        'tanggal' => ['alumni.tanggal_lulus'],
-        'lembaga' => ['lembaga.kode'],
-        'ta' => ['tahun_ajaran.nama'],
-        'kelas' => ['kelas.nama_kelas'],
-        'id' => ['alumni.id'],
-    ];
 
     private const SORT_NULLABLE_ARSIP = [
         'mutasi_keluar.tanggal_mutasi', 'alumni.tanggal_lulus',
@@ -257,7 +241,7 @@ class SiklusController extends Controller
     public function getMutasiKeluar(Request $request): JsonResponse
     {
         $this->authorize('viewAny', Santri::class);
-        $urut = $this->parseUrut($request, self::SORT_MUTASI);
+        $urut = $this->parseUrut($request, UrutKatalog::peta('mutasi_arsip'));
 
         $mutasi = MutasiKeluar::tenantScope()
             ->with(['santri:id,nama_lengkap,nisn', 'lembaga:id,nama,kode', 'kelasTerakhir:id,nama_kelas'])
@@ -278,7 +262,7 @@ class SiklusController extends Controller
     public function getAlumni(Request $request): JsonResponse
     {
         $this->authorize('viewAny', Santri::class);
-        $urut = $this->parseUrut($request, self::SORT_ALUMNI);
+        $urut = $this->parseUrut($request, UrutKatalog::peta('kelulusan_alumni'));
 
         $alumni = Alumni::tenantScope()
             ->with(['santri:id,nama_lengkap,nisn', 'lembagaLulus:id,nama,kode', 'tahunAjaranLulus:id,nama', 'kelasLulus:id,nama_kelas'])

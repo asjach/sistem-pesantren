@@ -1,7 +1,6 @@
 import { api } from './client';
 
 export type AlignKolom = 'left' | 'center' | 'right';
-export type ArahUrut = 'naik' | 'turun';
 /** Gaya penulisan label otomatis dari nama kolom. */
 export type ModeLabel = 'upper' | 'proper' | 'lower';
 
@@ -11,8 +10,6 @@ export interface KamusKolomAttr {
   align: AlignKolom | null;
   lebar: number | null;
   kunci_lebar: boolean;
-  bisa_urut: boolean;
-  arah_bawaan: ArahUrut | null;
   tooltip: string | null;
   format: string | null;
 }
@@ -27,8 +24,6 @@ export interface LabelKolom {
   align: AlignKolom | null;
   lebar: number | null;
   kunci_lebar: boolean;
-  bisa_urut: boolean;
-  arah_bawaan: ArahUrut | null;
   tooltip: string | null;
   format: string | null;
 }

@@ -177,11 +177,6 @@ export default function KelulusanPage() {
                   ta: a.tahun_ajaran_lulus?.nama ?? '—',
                   ijazah: a.nomor_ijazah ?? '—',
                 })}
-                opsiUrut={[
-                  { kunci: 'santri', nilai: 'santri' },
-                  { kunci: 'ta', nilai: 'ta' },
-                  { kunci: 'kelas', nilai: 'kelas' },
-                ]}
                 urutAktif={urut}
                 arahUrut={arahUrut}
                 onUrut={terapkanUrut}

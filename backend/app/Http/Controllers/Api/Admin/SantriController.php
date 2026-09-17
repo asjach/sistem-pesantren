@@ -17,6 +17,7 @@ use App\Models\Santri;
 use App\Models\User;
 use App\Services\PenerimaanService;
 use App\Services\RefService;
+use App\Services\UrutKatalog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -37,16 +38,6 @@ class SantriController extends Controller
     use TenantGuard;
     use UrutDaftar;
 
-    private const SORT_PETA = [
-        'nama' => ['santri.nama_lengkap'],
-        'nik' => ['santri.nik'],
-        'nisn' => ['santri.nisn'],
-        'jk' => ['santri.jk'],
-        'tipe' => ['santri.tipe_santri'],
-        'status' => ['santri.status_global'],
-        'id' => ['santri.id'],
-    ];
-
     private const SORT_NULLABLE = ['santri.nik', 'santri.nisn'];
 
     /** GET /api/admin/santri — daftar buku induk (identitas + keanggotaan aktif). */
@@ -54,7 +45,7 @@ class SantriController extends Controller
     {
         $this->authorize('viewAny', Santri::class);
 
-        $urut = $this->parseUrut($request, self::SORT_PETA);
+        $urut = $this->parseUrut($request, UrutKatalog::peta('santri'));
 
         $query = Santri::tenantScope()
             ->with(['lembagaAktif:id,santri_id,lembaga_id,nis_lokal,nis_kemenag', 'lembagaAktif.lembaga:id,nama,kode']);

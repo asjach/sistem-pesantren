@@ -55,7 +55,7 @@ class KamusLabelTest extends TestCase
         $res = $this->actingAs($pusat, 'sanctum')->postJson('/api/admin/kamus-kolom', [
             'tabel' => 'santri', 'kolom' => 'nama_lengkap',
             'label' => 'NAMA LENGKAP', 'align' => 'left', 'lebar' => 220,
-            'kunci_lebar' => true, 'bisa_urut' => true, 'arah_bawaan' => 'naik',
+            'kunci_lebar' => true,
             'tooltip' => 'Nama lengkap santri', 'format' => 'teks',
         ]);
         $res->assertStatus(201);
@@ -194,7 +194,7 @@ class KamusLabelTest extends TestCase
         $pusat = $this->makeUser('admin');
         LabelKolom::create([
             'tabel' => 'santri', 'kolom' => 'nama_lengkap', 'label' => 'NAMA KUSTOM',
-            'align' => 'left', 'lebar' => 220, 'kunci_lebar' => true, 'bisa_urut' => false,
+            'align' => 'left', 'lebar' => 220, 'kunci_lebar' => true,
             'tooltip' => 'Nama lengkap santri', 'format' => 'teks',
         ]);
 
@@ -207,7 +207,6 @@ class KamusLabelTest extends TestCase
         $this->assertSame('left', $row->align);
         $this->assertSame(220, $row->lebar);
         $this->assertTrue($row->kunci_lebar);
-        $this->assertFalse($row->bisa_urut);
         $this->assertSame('Nama lengkap santri', $row->tooltip);
         $this->assertSame('teks', $row->format);
     }

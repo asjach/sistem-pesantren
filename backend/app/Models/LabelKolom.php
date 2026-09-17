@@ -6,8 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 /**
  * Kamus kolom level tabel database (global). Dipakai untuk menentukan nama
- * header, perataan, lebar, tooltip, format, dan kontrol urut sebuah kolom di
- * SELURUH halaman yang menampilkannya.
+ * header, perataan, lebar, tooltip, dan format tampil sebuah kolom di SELURUH
+ * halaman yang menampilkannya.
  */
 class LabelKolom extends Model
 {
@@ -18,6 +18,5 @@ class LabelKolom extends Model
     protected $casts = [
         'lebar' => 'integer',
         'kunci_lebar' => 'boolean',
-        'bisa_urut' => 'boolean',
     ];
 }

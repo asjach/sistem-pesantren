@@ -188,10 +188,6 @@ export default function PengajuanBiodataPage() {
         canEdit={false}
         onCommit={noopCommit}
         onSaved={onSaved}
-        opsiUrut={[
-          { kunci: 'santri', nilai: 'santri' },
-          { kunci: 'status', nilai: 'status' },
-        ]}
         urutAktif={urut}
         arahUrut={arahUrut}
         onUrut={terapkanUrut}

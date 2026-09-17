@@ -10,6 +10,7 @@ use App\Models\Kelas;
 use App\Models\Lembaga;
 use App\Models\TahunAjaran;
 use App\Services\RefService;
+use App\Services\UrutKatalog;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -25,21 +26,11 @@ class KelasController extends Controller
     use TenantGuard;
     use UrutDaftar;
 
-    private const SORT_PETA = [
-        'nama' => ['kelas.nama_kelas'],
-        'tingkat' => ['kelas.tingkat'],
-        'urutan' => ['kelas.urutan'],
-        'kapasitas' => ['kelas.kapasitas'],
-        'lembaga' => ['lembaga.kode'],
-        'ta' => ['tahun_ajaran.nama'],
-        'id' => ['kelas.id'],
-    ];
-
     private const SORT_NULLABLE = ['kelas.tingkat', 'kelas.kapasitas'];
 
     public function index(Request $request)
     {
-        $urut = $this->parseUrut($request, self::SORT_PETA);
+        $urut = $this->parseUrut($request, UrutKatalog::peta('kelas'));
 
         $query = $this->scopeLembaga(
             Kelas::with(['lembaga:id,nama,kode', 'tahunAjaran:id,nama']),

@@ -318,12 +318,6 @@ export default function TahunAjaranPage() {
         canEdit={bolehKelola}
         onCommit={commitDraft}
         onSaved={onSaved}
-        opsiUrut={[
-          { kunci: 'nama', nilai: 'nama' },
-          { kunci: 'mulai', nilai: 'mulai' },
-          { kunci: 'selesai', nilai: 'selesai' },
-          { kunci: 'aktif', nilai: 'aktif' },
-        ]}
         urutAktif={urut}
         arahUrut={arahUrut}
         onUrut={terapkanUrut}

@@ -9,6 +9,7 @@ use App\Models\LembagaSantri;
 use App\Models\Santri;
 use App\Services\NisKemenagService;
 use App\Services\PenerimaanService;
+use App\Services\UrutKatalog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -23,18 +24,6 @@ class LembagaSantriController extends Controller
     use UrutDaftar;
 
     /** Peta allowlist sort: nilai => kolom ORDER BY (berurutan bila lebih dari satu). */
-    private const SORT_PETA = [
-        'nama' => ['santri.nama_lengkap'],
-        'jk' => ['santri.jk'],
-        'lembaga' => ['lembaga.kode'],
-        'nis_lokal' => ['lembaga_santri.nis_lokal'],
-        'nis_kemenag' => ['lembaga_santri.nis_kemenag'],
-        'aktif' => ['lembaga_santri.is_active'],
-        'mulai' => ['lembaga_santri.tgl_mulai'],
-        'selesai' => ['lembaga_santri.tgl_selesai'],
-        'id' => ['lembaga_santri.id'],
-    ];
-
     /** Kolom yang boleh NULL: NULL selalu di bawah (tak mengambang di atas). */
     private const SORT_NULLABLE = [
         'lembaga_santri.nis_lokal',
@@ -49,7 +38,7 @@ class LembagaSantriController extends Controller
     {
         $this->authorize('viewAny', Santri::class);
 
-        $urut = $this->parseUrut($request, self::SORT_PETA);
+        $urut = $this->parseUrut($request, UrutKatalog::peta('keanggotaan'));
 
         $query = $this->scopeLembaga(
             LembagaSantri::with([

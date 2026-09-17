@@ -408,24 +408,31 @@ Status: 🔲 not scaffolded (backend 201/202 pending).
   pengajuan-biodata, antrean PSB, lembaga-santri. Tabel kecil non-halaman
   (referensi, kegiatan, kuota, grup MI-MD, tabel kerja daftar-kelas) tetap
   urutan bawaan.
-* Kamus kolom level tabel database (v2.68–2.72, `label_kolom`, halaman Kamus
-  Label): nama header, perataan, lebar (+`kunci_lebar`), tooltip, format tampil,
-  dan kontrol urut (`bisa_urut`, `arah_bawaan`) diatur SEKALI per pasangan
-  tabel+kolom — berlaku di semua halaman yang menampilkannya. Grid mengikat
-  kolomnya lewat `ExcelField.sumber` (atau `sumberTabel` untuk kolom yang
-  namanya sama dengan kolom DB). Presedensi: kamus DB → preset
-  halaman/preferensi perangkat → bawaan kode; visibilitas kolom tetap preset
-  per halaman. Urut bawaan daftar tetap di kode (`$bawaan` per endpoint,
-  default arah naik). Baca bebas (izin `kamus_label.lihat`), tulis khusus admin
-  pesantren. Halaman menampilkan dropdown tabel + grid berisi satu baris per
-  kolom tabel itu; `GET kamus-kolom/skema` menyediakan daftar tabel + kolom
-  nyata (dari `Schema::getTables/getColumns`, tanpa tabel infra) dan pasangan
-  tabel+kolom divalidasi ada di DB saat simpan. `POST kamus-kolom/generasi`
-  mengisi label SELURUH kolom semua tabel dari nama kolom (underscore → spasi;
-  mode `upper`/`proper`/`lower`), melewati kolom teknis (`id`, `*_id`, `*_at`,
-  `*_by`, `password`, `remember_token`) dan menimpa label lama lewat upsert
-  massal tanpa menyentuh atribut lain.
-* See live contract: `php artisan route:list --path=api` (152 routes, 109 di grup admin).
+* Kamus kolom level tabel database (v2.68–2.73, `label_kolom`, halaman Kamus
+  Label): nama header, perataan, lebar (+`kunci_lebar`), tooltip, dan format
+  tampil diatur SEKALI per pasangan tabel+kolom — berlaku di semua halaman yang
+  menampilkannya. Grid mengikat kolomnya lewat `ExcelField.sumber` (atau
+  `sumberTabel` untuk kolom yang namanya sama dengan kolom DB). Presedensi:
+  kamus DB → preset halaman/preferensi perangkat → bawaan kode; visibilitas
+  kolom tetap preset per halaman. Baca bebas (izin `kamus_label.lihat`), tulis
+  khusus admin pesantren. Halaman menampilkan dropdown tabel + grid berisi satu
+  baris per kolom tabel itu; `GET kamus-kolom/skema` menyediakan daftar tabel +
+  kolom nyata (dari `Schema::getTables/getColumns`, tanpa tabel infra) dan
+  pasangan tabel+kolom divalidasi ada di DB saat simpan. `POST kamus-kolom/
+  generasi` mengisi label SELURUH kolom semua tabel dari nama kolom (underscore
+  → spasi; mode `upper`/`proper`/`lower`), melewati kolom teknis (`id`, `*_id`,
+  `*_at`, `*_by`, `password`, `remember_token`) dan menimpa label lama lewat
+  upsert massal tanpa menyentuh atribut lain.
+* Preset urut daftar (v2.73): allowlist kode urut = satu sumber di
+  `App\Services\UrutKatalog` (`table_key` grid → `kode` → kolom ORDER BY),
+  dipakai `UrutDaftar::parseUrut` semua controller sekaligus endpoint
+  `GET/PUT/DELETE /api/admin/urut-preset` (`urut_preset`, global satu baris per
+  `table_key`; `opsi` json = kode+label+arah+`bawaan`). Baca bebas
+  (`urut_preset.lihat`), tulis admin pesantren (PUT `urut_preset.tambah|ubah`,
+  DELETE `urut_preset.hapus`). Kode di luar katalog → 422. Urutan tanpa `sort`
+  tetap `$bawaan` literal controller; opsi `bawaan` diterapkan frontend sekali
+  saat halaman dibuka.
+* See live contract: `php artisan route:list --path=api` (155 routes, 112 di grup admin).
 
 ### 9. Non-functional requirements
 
