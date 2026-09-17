@@ -2,7 +2,7 @@
 
 | Atribut | Keterangan |
 |---|---|
-| Versi Dokumen | 2.68 (halaman Kamus Label) |
+| Versi Dokumen | 2.69 (tabel/kolom otomatis di kamus) |
 | Tanggal | 17 September 2026 |
 | Status | PRD produk SIMPES — acuan tunggal kebutuhan, rancangan, dan status implementasi aplikasi yang sedang dibangun |
 | Penyusun | Solo dev + Yayasan |
@@ -119,7 +119,8 @@
 | 2.65 | 2026-09-17 | Urut pindah ke dropdown toolbar + item gabungan |
 | 2.66 | 2026-09-17 | Nama header kustom via preset |
 | 2.67 | 2026-09-17 | Label bawaan semua header grid = nama kolom database |
-| 2.68 | 2026-09-17 | Halaman Kamus Label: acuan global per tabel.kolom (nama header, perataan, lebar+gembok, tooltip, format, bisa_urut, arah_bawaan) + urut bawaan per endpoint; grid terhubung via sumber/sumberTabel; visibilitas tetap per halaman; suite 222/222, typecheck + build lolos, 22 izin halaman |
+| 2.68 | 2026-09-17 | Halaman Kamus Label: acuan global per tabel.kolom |
+| 2.69 | 2026-09-17 | Kamus Label: pilihan tabel + kolom otomatis dari skema database (endpoint /kamus-kolom/skema; kolom mengikuti tabel terpilih); pasangan tabel.kolom divalidasi ada di DB; suite 223/223, typecheck + build lolos |
 ## Daftar Isi
 
 > Rujukan antar-file: "Bab 2–8" → `arsitektur.md`; "Bab 9–14 + Lampiran" → `operasi.md`; "§N / Part B" → `backend-detail.md`.

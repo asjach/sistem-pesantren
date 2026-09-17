@@ -418,6 +418,9 @@ Status: 🔲 not scaffolded (backend 201/202 pending).
   per halaman. Urut bawaan per endpoint dibaca dari `urut_bawaan` (baca-cache,
   invalidasi versi) dengan fallback `$bawaan` controller; default arah `naik`.
   Baca bebas (izin `kamus_label.lihat`), tulis khusus admin pesantren.
+  `GET kamus-kolom/skema` menyediakan daftar tabel + kolom nyata (dari
+  `Schema::getTables/getColumns`, tanpa tabel infra) untuk pemilih otomatis;
+  pasangan tabel+kolom divalidasi ada di DB saat simpan.
 * See live contract: `php artisan route:list --path=api` (144 routes, 101 di grup admin).
 
 ### 9. Non-functional requirements

@@ -97,6 +97,28 @@ class KamusLabelTest extends TestCase
         $this->assertSame(0, LabelKolom::count());
     }
 
+    public function test_skema_menyediakan_tabel_dan_kolom(): void
+    {
+        $pusat = $this->makeUser('admin');
+
+        $res = $this->actingAs($pusat, 'sanctum')->getJson('/api/admin/kamus-kolom/skema');
+        $res->assertStatus(200);
+
+        $data = collect($res->json('data'));
+        $santri = $data->firstWhere('tabel', 'santri');
+        $this->assertNotNull($santri);
+        $this->assertContains('nama_lengkap', $santri['kolom']);
+
+        // Tabel infrastruktur tidak ditawarkan.
+        $this->assertNull($data->firstWhere('tabel', 'migrations'));
+        $this->assertNull($data->firstWhere('tabel', 'label_kolom'));
+
+        // Kolom di luar skema ditolak.
+        $this->actingAs($pusat, 'sanctum')->postJson('/api/admin/kamus-kolom', [
+            'tabel' => 'santri', 'kolom' => 'kolom_karangan',
+        ])->assertStatus(422)->assertJsonValidationErrors(['kolom']);
+    }
+
     public function test_admin_scoped_hanya_boleh_membaca(): void
     {
         $root = Lembaga::create([

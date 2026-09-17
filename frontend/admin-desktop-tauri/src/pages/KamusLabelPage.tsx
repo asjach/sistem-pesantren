@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { errorMessage } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { bisa } from '../api/auth';
@@ -9,9 +9,11 @@ import {
   listKamusKolom,
   listUrutBawaan,
   simpanUrutBawaan,
+  skemaKolom,
   updateKamusKolom,
   type ArahUrut,
   type LabelKolom,
+  type TabelSkema,
   type UrutBawaan,
 } from '../api/kamusLabel';
 import { bersihkanCacheKamus } from '@/components/useKamusPeta';
@@ -45,9 +47,7 @@ const FORMAT_CHOICES = [
   { value: 'ya_tidak', label: 'YA/TIDAK' },
 ];
 
-const FIELDS: ExcelField[] = [
-  { key: 'tabel', label: 'tabel', width: 120, kind: 'text', maxLength: 64, required: true },
-  { key: 'kolom', label: 'kolom', width: 150, kind: 'text', maxLength: 64, required: true },
+const TAIL_FIELDS: ExcelField[] = [
   { key: 'label', label: 'label', width: 180, kind: 'text', maxLength: 100 },
   { key: 'align', label: 'align', width: 110, kind: 'select', choices: ALIGN_CHOICES },
   {
@@ -116,6 +116,7 @@ export default function KamusLabelPage() {
 
   const [rows, setRows] = useState<LabelKolom[]>([]);
   const [urut, setUrut] = useState<UrutBawaan[]>([]);
+  const [skema, setSkema] = useState<TabelSkema[]>([]);
   const [err, setErr] = useState('');
   const [loading, setLoading] = useState(true);
 
@@ -123,9 +124,10 @@ export default function KamusLabelPage() {
     setErr('');
     setLoading(true);
     try {
-      const [k, u] = await Promise.all([listKamusKolom(), listUrutBawaan()]);
+      const [k, u, s] = await Promise.all([listKamusKolom(), listUrutBawaan(), skemaKolom()]);
       setRows(k.data);
       setUrut(u.data);
+      setSkema(s.data);
     } catch (e) {
       setErr(errorMessage(e));
     } finally {
@@ -136,6 +138,37 @@ export default function KamusLabelPage() {
   useEffect(() => {
     void muat();
   }, [muat]);
+
+  /** Pilihan tabel + kolom otomatis dari skema database (tanpa ketik manual). */
+  const tabelOpsi = useMemo(
+    () => skema.map((s) => ({ value: s.tabel, label: s.tabel })),
+    [skema],
+  );
+  const kolomUntuk = useCallback(
+    (tabel?: string | null) => {
+      const t = skema.find((s) => s.tabel === tabel);
+      if (!t) return [];
+      return t.kolom.map((k) => ({ value: k, label: k }));
+    },
+    [skema],
+  );
+  const kolomSemua = useMemo(() => {
+    const set = new Set<string>();
+    for (const s of skema) for (const k of s.kolom) set.add(k);
+    return [...set].sort().map((k) => ({ value: k, label: k }));
+  }, [skema]);
+  const fields = useMemo<ExcelField[]>(() => [
+    {
+      key: 'tabel', label: 'tabel', width: 190, kind: 'select', required: true,
+      choices: tabelOpsi, inputChoices: tabelOpsi,
+    },
+    {
+      key: 'kolom', label: 'kolom', width: 190, kind: 'select', required: true,
+      choices: kolomSemua,
+      inputChoices: (draft) => kolomUntuk(draft.tabel),
+    },
+    ...TAIL_FIELDS,
+  ], [tabelOpsi, kolomSemua, kolomUntuk]);
 
   async function commitKolom(id: number, f: Record<string, string | null>) {
     const lama = rows.find((r) => r.id === id);
@@ -243,13 +276,14 @@ export default function KamusLabelPage() {
       <ErrorNotice>{err}</ErrorNotice>
       <p className="mb-2 text-xs text-muted-foreground">
         Kamus kolom berlaku untuk SEMUA halaman yang menampilkan kolom itu (satu acuan).
-        Kosongkan sebuah isian untuk memakai bawaan (perangkat/AutoFit).
+        Daftar tabel dan kolom diambil otomatis dari database. Kosongkan sebuah isian
+        untuk memakai bawaan (perangkat/AutoFit).
       </p>
 
       <h2 className="mb-1 mt-2 text-sm font-medium">Kamus kolom (nama header, perataan, lebar, kontrol urut)</h2>
       <ExcelTable
         tableKey="kamus_label_kolom"
-        fields={FIELDS}
+        fields={fields}
         rows={rows}
         getValues={kolomValues}
         loading={loading}

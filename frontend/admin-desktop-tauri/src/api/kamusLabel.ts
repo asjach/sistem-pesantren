@@ -38,9 +38,19 @@ export interface UrutBawaan {
   arah: ArahUrut;
 }
 
+/** Satu tabel database + daftar kolomnya (untuk pemilih otomatis). */
+export interface TabelSkema {
+  tabel: string;
+  kolom: string[];
+}
+
 export function petaKolom(tabel: string[]) {
   const q = new URLSearchParams({ tabel: tabel.join(',') });
   return api<{ pesan: string; data: KamusPeta }>(`/admin/kamus-kolom/peta?${q.toString()}`);
+}
+
+export function skemaKolom() {
+  return api<{ pesan: string; data: TabelSkema[] }>('/admin/kamus-kolom/skema');
 }
 
 export function listKamusKolom(params: { tabel?: string; search?: string } = {}) {

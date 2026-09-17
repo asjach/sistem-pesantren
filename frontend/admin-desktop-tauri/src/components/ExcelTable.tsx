@@ -140,8 +140,9 @@ export interface ExcelField {
   /** Kolom static yang tetap bisa DIISI saat mode Input (mis. kode/nik yang
    *  belum ada saat membuat record). Baris biasa tetap baca-saja. */
   inputKind?: 'text' | 'select';
-  /** Pilihan dropdown untuk inputKind 'select' (bila beda dari `choices`). */
-  inputChoices?: ExcelChoice[];
+  /** Pilihan dropdown untuk inputKind 'select' (bila beda dari `choices`).
+   *  Boleh fungsi atas nilai baris input — mis. kolom mengikuti tabel terpilih. */
+  inputChoices?: ExcelChoice[] | ((draft: Record<string, string | null>) => ExcelChoice[]);
   /** Sumber kolom database: mengikat kolom grid ke kamus label
    *  (nama header, perataan, lebar, tooltip, format, kontrol urut global).
    *  `null` = kolom sengaja tidak terikat kamus. */
@@ -433,6 +434,8 @@ function TextCell({ rowData, setRowData, columnData, focus, stopEditing, columnI
 interface SelectColData {
   fieldKey: string;
   choices: ExcelChoice[];
+  /** Pilihan khusus baris input (mode Input) — mis. kolom mengikuti tabel terpilih. */
+  choicesInput?: ExcelChoice[];
   /** Enter saat mengedit baris input = simpan baris (mode Input).
    *  Kembalikan true bila baris boleh pindah ke bawah (kolom wajib lengkap). */
   onEnter?: (columnIndex: number) => boolean;
@@ -446,7 +449,10 @@ interface SelectColData {
 function SelectCell({ rowData, setRowData, columnData, focus, stopEditing, disabled, columnIndex }: CellProps<GridRow, SelectColData>) {
   const key = columnData.fieldKey;
   const cur = (rowData[key] as string) ?? '';
-  const label = columnData.choices.find((c) => c.value === cur)?.label ?? cur;
+  const opsi = String(rowData.id) === INPUT_ROW_ID && columnData.choicesInput
+    ? columnData.choicesInput
+    : columnData.choices;
+  const label = opsi.find((c) => c.value === cur)?.label ?? cur;
   if (disabled || !focus) {
     return (
       <span
@@ -486,7 +492,7 @@ function SelectCell({ rowData, setRowData, columnData, focus, stopEditing, disab
         }
       }}
     >
-      {columnData.choices.map((c) => (
+      {opsi.map((c) => (
         <option key={c.value} value={c.value}>
           {c.label}
         </option>
@@ -1994,7 +2000,9 @@ export default function ExcelTable<T extends { id: string | number }>({
             component: InputStaticSelectCell,
             columnData: {
               fieldKey: f.key,
-              choices: f.inputChoices ?? f.choices ?? [],
+              choices: typeof f.inputChoices === 'function'
+                ? f.inputChoices(drafts[INPUT_ROW_ID] ?? {})
+                : (f.inputChoices ?? f.choices ?? []),
               onEnter: (col: number) => inputEnterRef.current(col),
             },
             disableKeys: true,
@@ -2049,6 +2057,9 @@ export default function ExcelTable<T extends { id: string | number }>({
           columnData: {
             fieldKey: f.key,
             choices: f.choices ?? [],
+            choicesInput: typeof f.inputChoices === 'function'
+              ? f.inputChoices(drafts[INPUT_ROW_ID] ?? {})
+              : (f.inputChoices ?? undefined),
             onEnter: (col: number) => inputEnterRef.current(col),
             // Mode Input aktif: klik 2× tidak menyalakan mode Edit (baris
             // input cukup buka editor sel).
@@ -2106,7 +2117,7 @@ export default function ExcelTable<T extends { id: string | number }>({
     }
     return cols;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fields, visibleFields, editing, widths, stdLebar, autoWidths, syncAutoWidths, align, showInput, freezeAktif, hideCheckbox, petaUrut, urutAktif, arahUrut, labelKolom, attrByKey, alignEfektif, lebarKunci]);
+  }, [fields, visibleFields, editing, widths, stdLebar, autoWidths, syncAutoWidths, align, showInput, freezeAktif, hideCheckbox, petaUrut, urutAktif, arahUrut, labelKolom, attrByKey, alignEfektif, lebarKunci, drafts]);
 
   /** Simpan baris input → buat record baru via onCreateRow halaman. Validasi
    *  field wajib + validator kolom dulu; draft dibersihkan hanya bila sukses

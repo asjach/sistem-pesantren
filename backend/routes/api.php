@@ -155,6 +155,7 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
 
         Route::get('kamus-kolom', [KamusLabelController::class, 'index'])->middleware('permission:kamus_label.lihat');
         Route::get('kamus-kolom/peta', [KamusLabelController::class, 'peta'])->middleware('permission:kamus_label.lihat');
+        Route::get('kamus-kolom/skema', [KamusLabelController::class, 'skema'])->middleware('permission:kamus_label.lihat');
         Route::get('kamus-kolom/urut', [KamusLabelController::class, 'indexUrut'])->middleware('permission:kamus_label.lihat');
         Route::post('kamus-kolom/urut', [KamusLabelController::class, 'simpanUrut'])->middleware('permission:kamus_label.ubah');
         Route::delete('kamus-kolom/urut/{urutBawaan}', [KamusLabelController::class, 'hapusUrut'])->middleware('permission:kamus_label.ubah');

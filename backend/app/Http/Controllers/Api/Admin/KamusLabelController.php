@@ -8,6 +8,7 @@ use App\Models\UrutBawaan;
 use App\Services\KamusKolomService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -20,6 +21,39 @@ class KamusLabelController extends Controller
 {
     /** Format tampil yang didukung kolom. */
     public const FORMAT = ['teks', 'angka', 'tanggal', 'ya_tidak'];
+
+    /** Tabel infrastruktur/kamus (bukan data bisnis) yang tak perlu diatur. */
+    private const TABEL_DIABAIKAN = [
+        'migrations', 'cache', 'cache_locks', 'jobs', 'job_batches', 'failed_jobs',
+        'sessions', 'password_reset_tokens', 'personal_access_tokens',
+        'permissions', 'roles', 'model_has_permissions', 'model_has_roles',
+        'role_has_permissions', 'label_kolom', 'urut_bawaan',
+        'preset_tabel', 'preset_tabel_aktif', 'pengaturan_tampilan', 'sqlite_sequence',
+    ];
+
+    /** GET /api/admin/kamus-kolom/skema — tabel + kolomnya untuk pemilih otomatis. */
+    public function skema(): JsonResponse
+    {
+        $tabel = [];
+        $sudah = [];
+        foreach (Schema::getTables() as $t) {
+            $nama = $t['name'] ?? null;
+            if (! $nama || isset($sudah[$nama]) || in_array($nama, self::TABEL_DIABAIKAN, true)) {
+                continue;
+            }
+            $kolom = array_values(array_unique(array_map(
+                fn ($c) => $c['name'],
+                Schema::getColumns($nama),
+            )));
+            if ($kolom !== []) {
+                $sudah[$nama] = true;
+                $tabel[] = ['tabel' => $nama, 'kolom' => $kolom];
+            }
+        }
+        usort($tabel, fn ($a, $b) => strcmp($a['tabel'], $b['tabel']));
+
+        return response()->json(['pesan' => 'Skema kolom dimuat.', 'data' => $tabel]);
+    }
 
     /** GET /api/admin/kamus-kolom — daftar baris kamus (kelola). */
     public function index(Request $request): JsonResponse
@@ -153,7 +187,7 @@ class KamusLabelController extends Controller
     /** @return array<string, mixed> */
     protected function validasi(Request $request): array
     {
-        return $request->validate([
+        $data = $request->validate([
             'tabel' => ['required', 'string', 'max:64'],
             'kolom' => ['required', 'string', 'max:64'],
             'label' => ['nullable', 'string', 'max:100'],
@@ -165,6 +199,14 @@ class KamusLabelController extends Controller
             'tooltip' => ['nullable', 'string', 'max:200'],
             'format' => ['nullable', Rule::in(self::FORMAT)],
         ]);
+
+        if (! Schema::hasTable($data['tabel']) || ! Schema::hasColumn($data['tabel'], $data['kolom'])) {
+            throw ValidationException::withMessages([
+                'kolom' => 'Kolom ini tidak ada di tabel database.',
+            ]);
+        }
+
+        return $data;
     }
 
     /** @param array<string, mixed> $data */
