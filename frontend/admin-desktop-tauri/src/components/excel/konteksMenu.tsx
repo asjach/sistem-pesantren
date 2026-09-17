@@ -42,6 +42,7 @@ export interface MenuKonteksGridProps {
   presetApiRef: MutableRefObject<PresetKolomApi | null>;
   salinBaris: (id: string | number) => void;
   salinSel: (id: string | number, key: string) => void;
+  salinKolom: (key: string) => void;
   onKonfirmasi: (konfirmasi: AksiMenu['konfirmasi']) => void;
 }
 
@@ -63,6 +64,7 @@ export default function MenuKonteksGrid({
   presetApiRef,
   salinBaris,
   salinSel,
+  salinKolom,
   onKonfirmasi,
 }: MenuKonteksGridProps) {
   return (
@@ -139,6 +141,17 @@ export default function MenuKonteksGrid({
                 <PinOff size={16} />
               </button>
             )}
+            <span className="mx-0.5 h-5 w-px bg-border" aria-hidden="true" />
+            <button
+              type="button"
+              id={`btn_ctx_salin_kolom_${tableKey}`}
+              title="Salin kolom (TSV)"
+              aria-label="Salin kolom (TSV)"
+              onClick={() => salinKolom(header.colKey)}
+              className={ikonBtn}
+            >
+              <Copy size={16} />
+            </button>
           </div>
           <ContextMenuSeparator />
           <ContextMenuLabel>TAMPILKAN DI PRESET</ContextMenuLabel>

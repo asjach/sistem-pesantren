@@ -1544,6 +1544,17 @@ export default function ExcelTable<T extends { id: string | number }>({
     else toast.error('Gagal menyalin.');
   }
 
+  /** Salin seluruh kolom (label header + nilai semua baris) sebagai TSV. */
+  async function salinKolomCtx(key: string) {
+    const f = fieldsRef.current.find((x) => x.key === key);
+    if (!f) return;
+    const header = [labelKolom(key, f.label)];
+    const body = rowsRef.current.map((r) => [displayOf(r.id, key)]);
+    const ok = await copyText(toTSV(header, body));
+    if (ok) toast.success(`${body.length} baris kolom disalin (TSV).`);
+    else toast.error('Gagal menyalin.');
+  }
+
   /** Status pilih-semua (context) — terpisah dari definisi kolom. */
   const checkAllState = useMemo<CheckAllState>(
     () => ({
@@ -1817,6 +1828,7 @@ export default function ExcelTable<T extends { id: string | number }>({
             presetApiRef={presetApiRef}
             salinBaris={(id) => void salinBarisCtx(id as T['id'])}
             salinSel={(id, key) => void salinSelCtx(id as T['id'], key)}
+            salinKolom={(key) => void salinKolomCtx(key)}
             onKonfirmasi={setCtxKonfirmasi}
           />
         </ContextMenu>
