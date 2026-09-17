@@ -9,9 +9,18 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class PresetTabel extends Model
 {
     protected $table = 'preset_tabel';
-    protected $guarded = ['id'];
-    protected $casts = ['kolom' => 'array'];
 
-    public function lembaga(): BelongsTo { return $this->belongsTo(Lembaga::class, 'lembaga_id'); }
-    public function pembuat(): BelongsTo { return $this->belongsTo(User::class, 'dibuat_oleh'); }
+    protected $guarded = ['id'];
+
+    protected $casts = ['kolom' => 'array', 'label' => 'array'];
+
+    public function lembaga(): BelongsTo
+    {
+        return $this->belongsTo(Lembaga::class, 'lembaga_id');
+    }
+
+    public function pembuat(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'dibuat_oleh');
+    }
 }

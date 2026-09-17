@@ -836,6 +836,14 @@ export default function ExcelTable<T extends { id: string | number }>({
   const checkedRows = useMemo(() => rows.filter((r) => checkedIds.has(r.id)), [rows, checkedIds]);
   const clearSelection = useMemo(() => () => setCheckedIds(new Set<T['id']>()), []);
 
+  const [presetKeys, setPresetKeys] = useState<string[] | null>(null);
+  /** Nama header kustom dari preset aktif (key kolom → nama tampil). */
+  const [presetLabel, setPresetLabel] = useState<Record<string, string> | null>(null);
+  const terapkanPreset = useCallback((keys: string[] | null, label?: Record<string, string> | null) => {
+    setPresetKeys(keys);
+    setPresetLabel(label ?? null);
+  }, []);
+
   /** Peta kunci kolom grid → nilai urut backend (untuk indikator header pasif). */
   const petaUrut = useMemo(
     () =>
@@ -852,19 +860,26 @@ export default function ExcelTable<T extends { id: string | number }>({
   arahUrutRef.current = arahUrut;
   const onUrutRef = useRef(onUrut);
   onUrutRef.current = onUrut;
+  /** Nama tampil kolom: label kustom preset aktif menang atas label bawaan field. */
+  const labelKolom = useCallback((key: string, bawaan: string) => {
+    const kustom = presetLabel?.[key]?.trim();
+    return kustom ? kustom : bawaan;
+  }, [presetLabel]);
   /** Item dropdown: label + daftar nilai (tunggal/gabungan). */
   const itemUrut = useMemo(
     () =>
       (opsiUrut ?? [])
-        .map((o) => ({
-          label:
-            o.label ??
-            (o.kunci != null ? fields.find((f) => f.key === o.kunci)?.label : undefined) ??
-            (Array.isArray(o.nilai) ? o.nilai.join('+') : o.nilai),
-          kunci: Array.isArray(o.nilai) ? o.nilai : [o.nilai],
-        }))
+        .map((o) => {
+          const bawaan = o.kunci != null ? fields.find((f) => f.key === o.kunci)?.label : undefined;
+          return {
+            label:
+              o.label ?? (bawaan != null && o.kunci != null ? labelKolom(o.kunci, bawaan) : undefined) ??
+              (Array.isArray(o.nilai) ? o.nilai.join('+') : o.nilai),
+            kunci: Array.isArray(o.nilai) ? o.nilai : [o.nilai],
+          };
+        })
         .filter((it) => it.kunci.length > 0),
-    [opsiUrut, fields],
+    [opsiUrut, fields, labelKolom],
   );
   const idxUrutAktif = useMemo(() => {
     const aktif = (urutAktif ?? []).join(',');
@@ -963,7 +978,6 @@ export default function ExcelTable<T extends { id: string | number }>({
   fieldsRef.current = fields;
   const getValuesRef = useRef(getValues);
   getValuesRef.current = getValues;
-  const [presetKeys, setPresetKeys] = useState<string[] | null>(null);
   const visibleFields = useMemo(() => {
     if (presetKeys === null) return fields;
     const terlihat = fields.filter((f) => presetKeys.includes(f.key));
@@ -1841,7 +1855,7 @@ export default function ExcelTable<T extends { id: string | number }>({
         id: f.key,
         title: (
           <HeaderTitle
-            label={f.label}
+            label={labelKolom(f.key, f.label)}
             colKey={f.key}
             required={f.required && showInput}
             noInput={showInput && f.kind === 'static' && !f.inputKind}
@@ -1996,7 +2010,7 @@ export default function ExcelTable<T extends { id: string | number }>({
     }
     return cols;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fields, visibleFields, editing, widths, stdLebar, autoWidths, syncAutoWidths, align, showInput, freezeAktif, hideCheckbox, petaUrut, urutAktif, arahUrut]);
+  }, [fields, visibleFields, editing, widths, stdLebar, autoWidths, syncAutoWidths, align, showInput, freezeAktif, hideCheckbox, petaUrut, urutAktif, arahUrut, labelKolom]);
 
   /** Simpan baris input → buat record baru via onCreateRow halaman. Validasi
    *  field wajib + validator kolom dulu; draft dibersihkan hanya bila sukses
@@ -2385,7 +2399,7 @@ export default function ExcelTable<T extends { id: string | number }>({
     : null;
   const ctxRowAksi = ctxRowDomain ? flattenAksi(renderRef.current(ctxRowDomain)) : [];
   const ctxHeaderLabel = ctxHeader
-    ? fieldsRef.current.find((f) => f.key === ctxHeader.colKey)?.label ?? ctxHeader.colKey
+    ? labelKolom(ctxHeader.colKey, fieldsRef.current.find((f) => f.key === ctxHeader.colKey)?.label ?? ctxHeader.colKey)
     : '';
   // Indeks kolom yang di-klik kanan pada daftar kolom tampil (untuk bekukan
   // "sampai kolom ini"); -1 = kolom non-data (centang/Aksi).
@@ -2558,7 +2572,7 @@ export default function ExcelTable<T extends { id: string | number }>({
               tabel umum (mode edit/input, salin, autofit, reset) pindah ke
               ribbon tab "Tabel" agar tak memakan ruang toolbar. */}
           {!hidePreset && (
-            <PresetKolom tableKey={tableKey} fields={fields} onApply={setPresetKeys} apiRef={presetApiRef} />
+            <PresetKolom tableKey={tableKey} fields={fields} onApply={terapkanPreset} apiRef={presetApiRef} />
           )}
 
           {/* Tombol aksi utama halaman, sejajar dengan kontrol tabel. */}

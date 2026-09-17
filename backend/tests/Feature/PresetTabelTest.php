@@ -152,4 +152,33 @@ class PresetTabelTest extends TestCase
             'kolom' => array_map(fn ($i) => "kolom_{$i}", range(1, 201)),
         ])->assertStatus(422)->assertJsonValidationErrors(['kolom']);
     }
+
+    public function test_preset_menyimpan_label_kustom_per_kolom(): void
+    {
+        $root = Lembaga::create(['nama' => 'Pesantren', 'kode' => 'PESANTREN', 'is_active' => true]);
+        $mi = Lembaga::create(['parent_id' => $root->id, 'nama' => 'Madrasah Ibtidaiyah', 'kode' => 'MI', 'is_active' => true]);
+        $pusat = $this->makeUser('admin');
+
+        // Label tersimpan; key di luar kolom + string kosong dibuang.
+        $res = $this->actingAs($pusat, 'sanctum')->postJson('/api/admin/preset-tabel', [
+            'table_key' => 'keanggotaan', 'nama' => 'ringkas', 'lembaga_ids' => [$mi->id],
+            'kolom' => ['santri', 'jk'],
+            'label' => ['santri' => 'Nama Santri', 'jk' => '  ', 'kolom_asing' => 'X'],
+        ]);
+        $res->assertStatus(201);
+        $id = (int) $res->json('data.0.id');
+        $this->assertEquals(['santri' => 'Nama Santri'], PresetTabel::findOrFail($id)->label);
+
+        // Index memuat label; ubah via PUT (null = hapus semua label kustom).
+        $this->actingAs($pusat, 'sanctum')->getJson('/api/admin/preset-tabel?table_key=keanggotaan')
+            ->assertJsonPath('data.presets.0.label', ['santri' => 'Nama Santri']);
+        $this->actingAs($pusat, 'sanctum')->putJson("/api/admin/preset-tabel/{$id}", [
+            'label' => ['jk' => 'Jenis Kelamin'],
+        ])->assertStatus(200);
+        $this->assertEquals(['jk' => 'Jenis Kelamin'], PresetTabel::findOrFail($id)->label);
+        $this->actingAs($pusat, 'sanctum')->putJson("/api/admin/preset-tabel/{$id}", [
+            'label' => null,
+        ])->assertStatus(200);
+        $this->assertNull(PresetTabel::findOrFail($id)->label);
+    }
 }

@@ -51,6 +51,8 @@ class PresetTabelController extends Controller
             'lembaga_ids.*' => ['integer', 'exists:lembaga,id'],
             'kolom' => ['required', 'array', 'min:1', 'max:200'],
             'kolom.*' => ['string', 'max:60'],
+            'label' => ['nullable', 'array', 'max:200'],
+            'label.*' => ['nullable', 'string', 'max:60'],
         ]);
         $this->pastikanNamaBukanLengkap($data['nama']);
         foreach (array_unique($data['lembaga_ids']) as $lembagaId) {
@@ -58,11 +60,12 @@ class PresetTabelController extends Controller
         }
 
         $kolom = array_values(array_unique($data['kolom']));
+        $label = $this->bersihkanLabel($data['label'] ?? null, $kolom);
         $presets = collect();
         foreach (array_unique($data['lembaga_ids']) as $lembagaId) {
             $presets->push(PresetTabel::updateOrCreate(
                 ['lembaga_id' => (int) $lembagaId, 'table_key' => $data['table_key'], 'nama' => $data['nama']],
-                ['kolom' => $kolom, 'dibuat_oleh' => $request->user()->id],
+                ['kolom' => $kolom, 'label' => $label, 'dibuat_oleh' => $request->user()->id],
             )->load('lembaga:id,nama,kode'));
         }
 
@@ -83,15 +86,21 @@ class PresetTabelController extends Controller
             'nama' => ['sometimes', 'string', 'max:50'],
             'kolom' => ['sometimes', 'array', 'min:1', 'max:200'],
             'kolom.*' => ['string', 'max:60'],
+            'label' => ['sometimes', 'nullable', 'array', 'max:200'],
+            'label.*' => ['nullable', 'string', 'max:60'],
         ]);
 
         $nama = $data['nama'] ?? $preset->nama;
         $this->pastikanNamaBukanLengkap($nama);
         $this->pastikanNamaUnik($preset->table_key, $nama, $preset->lembaga_id, $preset->id);
 
+        $kolom = array_values(array_unique($data['kolom'] ?? $preset->kolom));
         $preset->update([
             'nama' => $nama,
-            'kolom' => array_values(array_unique($data['kolom'] ?? $preset->kolom)),
+            'kolom' => $kolom,
+            'label' => array_key_exists('label', $data)
+                ? $this->bersihkanLabel($data['label'], $kolom)
+                : $this->bersihkanLabel($preset->label, $kolom),
         ]);
 
         return response()->json([
@@ -185,5 +194,32 @@ class PresetTabelController extends Controller
         if ($q->exists()) {
             throw ValidationException::withMessages(['nama' => 'Nama preset sudah dipakai untuk tabel & lembaga ini.']);
         }
+    }
+
+    /**
+     * Bersihkan peta label kustom: hanya key yang ada di kolom, trim, buang
+     * yang kosong. Mengembalikan null bila tak ada label kustom tersisa.
+     *
+     * @param  array<string, string|null>|null  $label
+     * @param  string[]  $kolom
+     */
+    protected function bersihkanLabel(mixed $label, array $kolom): ?array
+    {
+        if (! is_array($label)) {
+            return null;
+        }
+        $boleh = array_flip($kolom);
+        $bersih = [];
+        foreach ($label as $key => $nama) {
+            if (! isset($boleh[$key])) {
+                continue;
+            }
+            $nama = trim((string) $nama);
+            if ($nama !== '') {
+                $bersih[$key] = mb_substr($nama, 0, 60);
+            }
+        }
+
+        return $bersih === [] ? null : $bersih;
     }
 }

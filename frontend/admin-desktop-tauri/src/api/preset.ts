@@ -6,6 +6,8 @@ export interface PresetTabel {
   table_key: string;
   nama: string;
   kolom: string[];
+  /** Nama header kustom per key kolom; kosong = label bawaan. */
+  label?: Record<string, string> | null;
   lembaga?: { id: number; nama: string; kode: string | null } | null;
 }
 
@@ -20,6 +22,7 @@ export function createPresetTabel(input: {
   nama: string;
   lembaga_ids: number[];
   kolom: string[];
+  label?: Record<string, string> | null;
 }) {
   return api<{ pesan: string; data: PresetTabel[] }>('/admin/preset-tabel', {
     method: 'POST',
@@ -29,7 +32,7 @@ export function createPresetTabel(input: {
 
 export function updatePresetTabel(
   id: number,
-  input: { nama?: string; lembaga_id?: number | null; kolom?: string[] },
+  input: { nama?: string; lembaga_id?: number | null; kolom?: string[]; label?: Record<string, string> | null },
 ) {
   return api<{ pesan: string; data: PresetTabel[] }>(`/admin/preset-tabel/${id}`, {
     method: 'PUT',

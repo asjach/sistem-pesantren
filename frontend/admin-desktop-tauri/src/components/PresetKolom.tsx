@@ -102,7 +102,7 @@ export default function PresetKolom({
 }: {
   tableKey: string;
   fields: ExcelField[];
-  onApply: (keys: string[] | null) => void;
+  onApply: (keys: string[] | null, label?: Record<string, string> | null) => void;
   apiRef?: MutableRefObject<PresetKolomApi | null>;
 }) {
   const { user: me } = useAuth();
@@ -119,6 +119,8 @@ export default function PresetKolom({
   const [nama, setNama] = useState('');
   const [lembagaIds, setLembagaIds] = useState<string[]>([]);
   const [kolom, setKolom] = useState<Set<string>>(new Set());
+  /** Nama header kustom per key kolom (kosong = label bawaan). */
+  const [labelKustom, setLabelKustom] = useState<Record<string, string>>({});
   const [bolehUbah, setBolehUbah] = useState(true);
   const [cariKolom, setCariKolom] = useState('');
 
@@ -165,11 +167,15 @@ export default function PresetKolom({
 
   const terapkan = useCallback((preset: PresetTabel | null) => {
     if (!preset) {
-      onApply(null);
+      onApply(null, null);
       return;
     }
     const keys = preset.kolom.filter((k) => fieldKeys.has(k));
-    onApply(keys.length > 0 ? keys : null);
+    const label: Record<string, string> = {};
+    for (const [k, v] of Object.entries(preset.label ?? {})) {
+      if (fieldKeys.has(k) && v.trim() !== '') label[k] = v.trim();
+    }
+    onApply(keys.length > 0 ? keys : null, Object.keys(label).length > 0 ? label : null);
   }, [fieldKeys, onApply]);
 
   const muat = useCallback(async (pilihId?: number | null) => {
@@ -267,6 +273,11 @@ export default function PresetKolom({
         : (isPesantren ? [] : lembagas.map((l) => String(l.id))),
     );
     setKolom(new Set(preset ? preset.kolom.filter((k) => fieldKeys.has(k)) : []));
+    const awal: Record<string, string> = {};
+    for (const [k, v] of Object.entries(preset?.label ?? {})) {
+      if (fieldKeys.has(k)) awal[k] = v;
+    }
+    setLabelKustom(awal);
     setBolehUbah(isPesantren || preset === null || preset.lembaga_id !== null);
     setCariKolom('');
     setDokOpen(true);
@@ -283,10 +294,15 @@ export default function PresetKolom({
     if (lembagaIds.length === 0) return;
     setBusy(true);
     try {
+      const label: Record<string, string> = {};
+      for (const [k, v] of Object.entries(labelKustom)) {
+        if (kolom.has(k) && v.trim() !== '') label[k] = v.trim().slice(0, 60);
+      }
+      const labelKirim = Object.keys(label).length > 0 ? label : null;
       let saved: PresetTabel | undefined;
       let pesan = 'Preset kolom disimpan.';
       if (editId) {
-        const res = await updatePresetTabel(editId, { nama: nama.trim(), kolom: [...kolom] });
+        const res = await updatePresetTabel(editId, { nama: nama.trim(), kolom: [...kolom], label: labelKirim });
         saved = res.data[0];
         pesan = res.pesan;
       } else {
@@ -295,6 +311,7 @@ export default function PresetKolom({
           nama: nama.trim(),
           lembaga_ids: lembagaIds.map(Number),
           kolom: [...kolom],
+          label: labelKirim,
         });
         saved = res.data[0];
         pesan = res.pesan;
@@ -321,6 +338,7 @@ export default function PresetKolom({
       setEditId(null);
       setNama('');
       setKolom(new Set());
+      setLabelKustom({});
       await muat(null);
       await setPresetAktif(tableKey, null);
     } catch (e2) {
@@ -361,8 +379,9 @@ export default function PresetKolom({
           <DialogHeader>
             <DialogTitle>Kelola preset kolom</DialogTitle>
             <DialogDescription>
-              Preset menyimpan pilihan kolom untuk tabel ini. Perataan kolom berlaku global untuk field
-              tersebut di semua halaman (bawaan: kiri).
+              Preset menyimpan pilihan kolom untuk tabel ini. Isi nama header pada kolom terpilih
+              untuk mengganti tampilannya (kosongkan = nama bawaan). Perataan kolom berlaku global
+              untuk field tersebut di semua halaman (bawaan: kiri).
             </DialogDescription>
           </DialogHeader>
 
@@ -556,28 +575,40 @@ export default function PresetKolom({
                   ) : terpilih.map((f) => (
                     <div
                       key={f.key}
-                      className="flex items-center gap-1 rounded-md px-1 py-0.5 hover:bg-accent/40"
+                      className="flex flex-col gap-1 rounded-md px-1 py-1 hover:bg-accent/40"
                     >
-                      <span className="min-w-0 flex-1 truncate text-sm" title={f.label}>
-                        {f.label}
-                      </span>
-                      <AlignToggle
-                        fieldKey={f.key}
-                        sumber="terpilih"
-                        align={align[f.key] ?? 'center'}
-                        onSet={setAlign}
-                      />
-                      <button
-                        id={`btn_keluar_kolom_${tableKey}_${f.key}`}
-                        type="button"
-                        title="Keluarkan dari pilihan"
-                        aria-label={`Keluarkan ${f.label} dari pilihan`}
+                      <div className="flex items-center gap-1">
+                        <span className="min-w-0 flex-1 truncate text-sm" title={f.label}>
+                          {f.label}
+                        </span>
+                        <AlignToggle
+                          fieldKey={f.key}
+                          sumber="terpilih"
+                          align={align[f.key] ?? 'center'}
+                          onSet={setAlign}
+                        />
+                        <button
+                          id={`btn_keluar_kolom_${tableKey}_${f.key}`}
+                          type="button"
+                          title="Keluarkan dari pilihan"
+                          aria-label={`Keluarkan ${f.label} dari pilihan`}
+                          disabled={!bolehUbah}
+                          onClick={() => togolKolom(f.key, false)}
+                          className="grid size-6 shrink-0 place-items-center rounded text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                      <Input
+                        id={`input_label_${tableKey}_${f.key}`}
+                        value={labelKustom[f.key] ?? ''}
+                        onChange={(e) => setLabelKustom((prev) => ({ ...prev, [f.key]: e.target.value }))}
+                        maxLength={60}
+                        placeholder={`Nama header (bawaan: ${f.label})`}
+                        aria-label={`Nama header kustom untuk ${f.label}`}
                         disabled={!bolehUbah}
-                        onClick={() => togolKolom(f.key, false)}
-                        className="grid size-6 shrink-0 place-items-center rounded text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        <X size={14} />
-                      </button>
+                        className="h-7 text-xs"
+                      />
                     </div>
                   ))}
                 </div>
