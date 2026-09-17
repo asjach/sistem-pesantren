@@ -21,11 +21,6 @@ import { type KamusKolomAttr } from '@/api/kamusLabel';
 import { useRibbonTable } from '@/components/RibbonTable';
 import {
   ContextMenu,
-  ContextMenuCheckboxItem,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuLabel,
-  ContextMenuSeparator,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
 import { ActionIcon } from '@/components/RowActions';
@@ -35,7 +30,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { AlignCenter, AlignLeft, AlignRight, Copy, MoveHorizontal, Pencil, PlusCircle, RotateCcw, Save } from '@/icons';
+import { Pencil, PlusCircle, Save } from '@/icons';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -83,7 +78,8 @@ import { HeaderTitle, ukurPerluTinggiHeader } from './excel/header';
 import { bersihkanProbe, measureActionsWidth, measureTextWidth } from './excel/measure';
 import { useAntreanSimpan } from './excel/useAntreanSimpan';
 import ToolbarTabel from './excel/toolbar';
-import { ActionsCell, flattenAksi, metaAksi } from './excel/actions';
+import { ActionsCell, flattenAksi } from './excel/actions';
+import MenuKonteksGrid from './excel/konteksMenu';
 import type { AksiMenu, CheckAllState, ExcelField, GridRow, GridSelection } from './excel/types';
 
 export type { ExcelChoice, ExcelField, GridRow, GridSelection } from './excel/types';
@@ -1836,128 +1832,24 @@ export default function ExcelTable<T extends { id: string | number }>({
             </div>
           </ContextMenuTrigger>
 
-          <ContextMenuContent>
-            {/* Area header kolom: perataan + show/hide di preset. */}
-            {ctxHeader && (
-              <>
-                <ContextMenuLabel>Kolom: {ctxHeaderLabel}</ContextMenuLabel>
-                <ContextMenuItem
-                  id={`btn_ctx_autofit_kolom_${tableKey}`}
-                  onSelect={() => onAutoFit(ctxHeader.colKey)}
-                >
-                  <MoveHorizontal size={14} />
-                  <span>Sesuaikan lebar kolom ini</span>
-                </ContextMenuItem>
-                <ContextMenuItem
-                  id={`btn_ctx_autofit_semua_${tableKey}`}
-                  onSelect={() => onAutoFitAll()}
-                >
-                  <MoveHorizontal size={14} />
-                  <span>Sesuaikan lebar semua kolom</span>
-                </ContextMenuItem>
-                <ContextMenuSeparator />
-                <ContextMenuItem
-                  id={`btn_ctx_bekukan_${tableKey}`}
-                  disabled={ctxHeaderIdx < 0 || freezeAktif >= ctxHeaderIdx + 1}
-                  onSelect={() => ctxHeaderIdx >= 0 && ubahFreeze(ctxHeaderIdx + 1)}
-                >
-                  <MoveHorizontal size={14} />
-                  <span>Bekukan sampai kolom ini</span>
-                </ContextMenuItem>
-                {freezeAktif > 0 && (
-                  <ContextMenuItem
-                    id={`btn_ctx_lepas_bekukan_${tableKey}`}
-                    onSelect={() => ubahFreeze(0)}
-                  >
-                    <RotateCcw size={14} />
-                    <span>Lepas semua kolom beku</span>
-                  </ContextMenuItem>
-                )}
-                <ContextMenuSeparator />
-                <div className="flex items-center gap-1 px-2 py-1">
-                  <span className="mr-auto text-xs text-muted-foreground">Perataan</span>
-                  {([
-                    { nilai: 'left' as const, label: 'Kiri', Icon: AlignLeft },
-                    { nilai: 'center' as const, label: 'Tengah', Icon: AlignCenter },
-                    { nilai: 'right' as const, label: 'Kanan', Icon: AlignRight },
-                  ]).map(({ nilai, label, Icon }) => {
-                    const aktif = (align[ctxHeader.colKey] ?? 'center') === nilai;
-                    return (
-                      <button
-                        key={nilai}
-                        type="button"
-                        id={`btn_ctx_align_${nilai}_${tableKey}`}
-                        title={`Rata ${label.toLowerCase()} (berlaku semua tabel)`}
-                        aria-label={`Rata ${label.toLowerCase()}`}
-                        aria-pressed={aktif}
-                        onClick={() => setAlign(ctxHeader.colKey, nilai)}
-                        className={cn(
-                          'grid size-6 place-items-center rounded text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
-                          aktif && 'bg-accent text-foreground',
-                        )}
-                      >
-                        <Icon size={14} />
-                      </button>
-                    );
-                  })}
-                </div>
-                <ContextMenuSeparator />
-                <ContextMenuLabel>Tampilkan di preset</ContextMenuLabel>
-                {(presetApiRef.current?.presets.length ?? 0) === 0 ? (
-                  <ContextMenuItem disabled>Belum ada preset</ContextMenuItem>
-                ) : presetApiRef.current?.presets.map((p) => (
-                  <ContextMenuCheckboxItem
-                    key={p.id}
-                    checked={p.kolom.includes(ctxHeader.colKey)}
-                    onSelect={(e) => e.preventDefault()}
-                    onCheckedChange={(c) =>
-                      void presetApiRef.current?.toggleKolom(p.id, ctxHeader.colKey, !!c)
-                    }
-                  >
-                    {p.lembaga_id === null
-                      ? p.nama
-                      : `${p.nama} (${p.lembaga?.kode ?? p.lembaga?.nama ?? p.lembaga_id})`}
-                  </ContextMenuCheckboxItem>
-                ))}
-              </>
-            )}
-
-            {/* Area baris data: aksi halaman + salin. */}
-            {ctxRow && (
-              <>
-                <ContextMenuLabel>{ctxRow.rowLabel}</ContextMenuLabel>
-                {ctxRowAksi.map((el, i) => {
-                  const m = metaAksi(el);
-                  return (
-                    <ContextMenuItem
-                      key={el.key ?? i}
-                      onSelect={() => {
-                        if (m.konfirmasi) setCtxKonfirmasi(m.konfirmasi);
-                        else m.onClick?.();
-                      }}
-                    >
-                      {m.icon}
-                      <span>{m.label}</span>
-                    </ContextMenuItem>
-                  );
-                })}
-                {ctxRowAksi.length > 0 && <ContextMenuSeparator />}
-                <ContextMenuItem onSelect={() => void salinBarisCtx(ctxRow.rowId)}>
-                  <Copy size={16} />
-                  <span>Salin baris (TSV)</span>
-                </ContextMenuItem>
-                <ContextMenuItem
-                  disabled={!ctxRow.colKey}
-                  onSelect={() => {
-                    if (ctxRow.colKey) void salinSelCtx(ctxRow.rowId, ctxRow.colKey);
-                  }}
-                >
-                  <Copy size={16} />
-                  <span>Salin nilai sel</span>
-                </ContextMenuItem>
-              </>
-            )}
-          </ContextMenuContent>
+          <MenuKonteksGrid
+            tableKey={tableKey}
+            header={ctxHeader}
+            headerLabel={ctxHeaderLabel}
+            headerIdx={ctxHeaderIdx}
+            row={ctxRow}
+            rowAksi={ctxRowAksi}
+            freezeAktif={freezeAktif}
+            ubahFreeze={ubahFreeze}
+            onAutoFit={onAutoFit}
+            onAutoFitAll={onAutoFitAll}
+            align={align}
+            setAlign={setAlign}
+            presetApiRef={presetApiRef}
+            salinBaris={(id) => void salinBarisCtx(id as T['id'])}
+            salinSel={(id, key) => void salinSelCtx(id as T['id'], key)}
+            onKonfirmasi={setCtxKonfirmasi}
+          />
         </ContextMenu>
 
         {/* Placeholder saat lebar kolom belum stabil (grid disembunyikan agar
