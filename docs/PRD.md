@@ -2,7 +2,7 @@
 
 | Atribut | Keterangan |
 |---|---|
-| Versi Dokumen | 2.73 (preset urut global) |
+| Versi Dokumen | 2.74 (header KAPITAL) |
 | Tanggal | 18 September 2026 |
 | Status | PRD produk SIMPES — acuan tunggal kebutuhan, rancangan, dan status implementasi aplikasi yang sedang dibangun |
 | Penyusun | Solo dev + Yayasan |
@@ -125,6 +125,7 @@
 | 2.71 | 2026-09-18 | Status Mode Edit/Input jadi bilah di bawah tabel; Esc sekali keluar mode |
 | 2.72 | 2026-09-18 | Kamus Label: tombol generate label massal (upper/proper/lower) + dropdown tabel ber-search + ikon align & switch kolom |
 | 2.73 | 2026-09-18 | Urutan pindah ke Preset Urut global per tabel (`urut_preset`): dialog "Kelola urutan" memilih kode sah dari `UrutKatalog`, atur label/arah/opsi bawaan; seed dari opsi lama; halaman tak lagi hardcode `opsiUrut`; `bisa_urut` & `arah_bawaan` di-drop dari kamus label; izin `urut_preset.*`; suite 233/233, typecheck + build lolos |
+| 2.74 | 2026-09-18 | Semua header grid tampil KAPITAL (underscore→spasi; placeholder `tabel.kolom` dipangkas jadi nama kolom) — nilai kamus/preset tersimpan tak berubah, hanya tampilan; Opsi A label beda akhiran untuk 3 kolom tabrakan (`NAMA INDUK`, `KELAS MI`, `KELAS MD`) |
 
 ## Daftar Isi
 

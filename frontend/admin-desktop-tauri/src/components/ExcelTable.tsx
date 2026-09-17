@@ -294,12 +294,16 @@ export default function ExcelTable<T extends { id: string | number }>({
     return m;
   }, [fields, kamus, sumberField]);
 
-  /** Nama tampil kolom: kamus DB > label preset > label bawaan field. */
+  /** Nama tampil kolom: kamus DB > label preset > label bawaan field.
+   *  Semua header ditampilkan KAPITAL dan underscore jadi spasi (aturan v2.74);
+   *  label placeholder bertipe `tabel.kolom` dipangkas jadi nama kolomnya saja.
+   *  Nilai tersimpan kamus/preset tidak diubah, hanya tampilan. */
   const labelKolom = useCallback((key: string, bawaan: string) => {
     const dariKamus = attrByKey.get(key)?.label?.trim();
-    if (dariKamus) return dariKamus;
     const kustom = presetLabel?.[key]?.trim();
-    return kustom ? kustom : bawaan;
+    const teks = dariKamus || kustom || bawaan;
+    const dasar = /^[a-z0-9_]+\.[a-z0-9_]+$/.test(teks) ? teks.slice(teks.indexOf('.') + 1) : teks;
+    return dasar.replace(/_+/g, ' ').toUpperCase();
   }, [presetLabel, attrByKey]);
   /** Perataan efektif: kamus DB > preferensi pribadi > tengah. */
   const alignEfektif = useCallback((key: string): AlignName => (
@@ -1428,7 +1432,7 @@ export default function ExcelTable<T extends { id: string | number }>({
    *  kanan saat grid di-scroll horizontal (freeze pane sisi kanan). */
   const aksiColumn: Column<GridRow> = useMemo(() => ({
     id: '__aksi',
-    title: <HeaderTitle label="Aksi" colKey="__aksi" onResizeStart={startResize} onAutoFit={onAutoFit} />,
+    title: <HeaderTitle label="AKSI" colKey="__aksi" onResizeStart={startResize} onAutoFit={onAutoFit} />,
     basis: widths.__aksi ?? autoWidths.__aksi ?? ACTIONS_DEFAULT_W,
     grow: 0,
     shrink: 0,
