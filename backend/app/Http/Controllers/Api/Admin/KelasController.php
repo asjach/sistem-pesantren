@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Admin;
 
+use App\Exports\KelasNamaExport;
 use App\Http\Controllers\Api\Concerns\TenantGuard;
 use App\Http\Controllers\Controller;
 use App\Models\Kelas;
@@ -13,6 +14,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Maatwebsite\Excel\Facades\Excel;
 
 /**
  * FB-004-01: CRUD kelas. tahun_ajaran wajib berlaku untuk lembaga kelas (TA global).
@@ -157,6 +159,30 @@ class KelasController extends Controller
     protected function pelanggaranUnik(QueryException $e): bool
     {
         return (int) ($e->errorInfo[1] ?? 0) === 1062;
+    }
+
+    /** GET /api/admin/kelas/export-nama — unduh daftar nama kelas (pasangan import-nama). */
+    public function exportNama(Request $request)
+    {
+        $data = $request->validate([
+            'lembaga_id' => ['required', Rule::exists('lembaga', 'id')->whereNotNull('parent_id')],
+            'tahun_ajaran_id' => ['required', 'exists:tahun_ajaran,id'],
+        ], [
+            'lembaga_id.exists' => 'Lembaga harus lembaga operasional (bukan induk pesantren).',
+        ]);
+
+        $lembagaId = (int) $data['lembaga_id'];
+        $taId = (int) $data['tahun_ajaran_id'];
+        $this->authorizeLembaga($request->user(), $lembagaId);
+        $this->cekTaEfektif($lembagaId, $taId);
+
+        $kode = Lembaga::whereKey($lembagaId)->value('kode');
+        $ta = TahunAjaran::find($taId);
+
+        return Excel::download(
+            new KelasNamaExport($lembagaId, $taId),
+            "daftar-kelas-{$kode}-".preg_replace('/[^0-9]/', '', (string) ($ta?->nama ?? $taId)).'.xlsx',
+        );
     }
 
     /** POST /api/admin/kelas/import-nama — salin nama+tingkat kelas pasangan MI↔MD. */

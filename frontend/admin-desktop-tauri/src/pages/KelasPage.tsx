@@ -7,6 +7,7 @@ import {
   listKelas,
   listLembaga,
   listTahunAjaran,
+  unduhDaftarKelas,
   updateKelas,
   type ImportNamaHasil,
   type Kelas,
@@ -555,6 +556,18 @@ export default function KelasPage() {
                 Import nama kelas dari {dariKode}
               </Button>
             )}
+            <Button
+              id="btn_unduh_daftar_kelas"
+              variant="outline"
+              disabled={lembagaId === '' || taId === ''}
+              title="Unduh daftar nama kelas filter saat ini"
+              onClick={() => {
+                if (lembagaId === '' || taId === '') return;
+                void unduhDaftarKelas(Number(lembagaId), Number(taId)).catch((e) => toast.error(errorMessage(e)));
+              }}
+            >
+              Export nama kelas
+            </Button>
             <Button id="btn_buka_tambah_kelas" onClick={bukaTambah}>
               + Kelas
             </Button>

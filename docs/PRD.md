@@ -2,7 +2,7 @@
 
 | Atribut | Keterangan |
 |---|---|
-| Versi Dokumen | 2.45 (import nama kelas MI↔MD) |
+| Versi Dokumen | 2.46 (export daftar nama kelas) |
 | Tanggal | 10 September 2026 |
 | Status | Proyek ini = menyusun dokumentasi, bukan coding app. G0–G3 didetailkan; G4+ roadmap |
 | Penyusun | Solo dev + Yayasan |
@@ -50,6 +50,7 @@
 | 1.13 | 2026-09-15 | **Kelas unik per lembaga + tahun ajaran** (FB-004-01): nama dinormalisasi (trim + rapat spasi) di model `Kelas`; migrasi dedupe otomatis (keeper id terkecil, referensi 8 tabel dipindah termasuk unique terdampak `kelas_kurikulum`/`pengampu_mapel`/`rapor_catatan_wali`) lalu `UNIQUE(lembaga_id, tahun_ajaran_id, nama_kelas)`; `store`/`update` menolak duplikat case-insensitive dengan pesan Indonesia + tangkap race 1062; dialog Tambah/Ubah di FE memuat nama lingkup lembaga+TA dan menolak duplikat sebelum submit; KelasStoreTest 6→10 hijau |
 | 1.14 | 2026-09-15 | Koreksi panjang **NIS = maks 20 karakter** (dulu validasi 10): kolom `santri.nis` & `riwayat_belajar.nis` jadi `VARCHAR(20)`; validasi `max:20` di store/update santri, ACC PSB (tunggal + bulk), import Excel, dan naik-kelas; input FE `maxLength` 20; tes batas 20/21 di PsbFlowTest (tunggal + bulk 16 karakter) dan SantriFlowTest (update + dry-run import) |
 | 1.15 | 2026-09-15 | Import santri: kolom **`kelas_id` menerima nama kelas** (diutamakan — kini deterministik karena `(lembaga, TA, nama)` unik), id numerik, atau kosong; butuh lembaga+TA kecuali id pada baris legacy (cache `santri.kelas_id`, tanpa riwayat); template Excel memuat **dropdown nama kelas** per lingkup via `GET /admin/santri/import-template?lembaga_id=&tahun_ajaran_id=`; dialog import ikut mengirim TA + teks bantuan; tes 20–22 baru (SantriFlowTest 19→22), suite penuh hijau |
+| 2.46 | 2026-09-17 | **Export daftar nama kelas**: `GET /admin/kelas/export-nama` (izin `kelas.lihat`, tenant target + TA efektif; kolom nama/tingkat/urutan, sel teks) + tombol di halaman Kelas mengikuti filter; suite 178/178, typecheck + build lolos |
 | 2.45 | 2026-09-17 | **Import nama kelas MI↔MD**: `POST /admin/kelas/import-nama` (izin `kelas.tambah`, pratinjau bawaan; TA sumber = nama sama fallback aktif; salin nama+tingkat+urutan, duplikat dilewati; pasangan MI↔MD dua arah, sumber terbaca via pengecualian pasangan) + tombol dinamis di halaman Kelas (hanya filter MI/MD + pemegang tambah; jenjang lain hide) + dialog pratinjau; suite 176/176 (3 test baru), typecheck + build lolos |
 | 2.44 | 2026-09-17 | **Samakan NIS paket MI↔MD**: `PenerimaanService::samakanNisSatu` dua arah (satu sisi bernomor → salin ke sisi kosong; beda dua sisi / tabrakan dilaporkan tanpa disentuh; transaksi per santri) + endpoint `POST /admin/santri/samakan-nis` (izin `santri.ubah`, pratinjau bawaan + eksekusi, kandidat se-lingkup) + tombol & dialog pratinjau di Data Santri; suite 173/173 (4 test baru), typecheck + build lolos |
 | 2.43 | 2026-09-17 | **Data existing multi-pilih**: `data-gabungan` menerima `lembaga_id[]` (satu/lebih; tiap id dicek operasional + tenant, luar lingkup 403); dialog memakai check-pills (pola UsersPage) + pil "Semua" — super_admin/admin pesantren/multi-lembaga bebas pilih 1/lebih/semua, admin tunggal terkunci otomatis; suite 169/169, typecheck + build lolos |

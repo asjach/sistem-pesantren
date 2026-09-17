@@ -1,4 +1,4 @@
-import { api } from './client';
+import { api, downloadFile } from './client';
 import { PER_PAGE_DEFAULT } from '@/prefs';
 
 export interface Lembaga {
@@ -273,4 +273,12 @@ export function importNamaKelas(input: { lembaga_id: number; tahun_ajaran_id: nu
     method: 'POST',
     body: JSON.stringify(input),
   });
+}
+
+/** Unduh daftar nama kelas satu lembaga + TA (pasangan import-nama). */
+export function unduhDaftarKelas(lembagaId: number, tahunAjaranId: number) {
+  return downloadFile(
+    `/admin/kelas/export-nama?lembaga_id=${lembagaId}&tahun_ajaran_id=${tahunAjaranId}`,
+    `daftar-kelas-${lembagaId}.xlsx`,
+  );
 }

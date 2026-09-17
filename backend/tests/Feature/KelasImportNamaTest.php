@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Exports\KelasNamaExport;
 use App\Models\Kelas;
 use App\Models\Lembaga;
 use App\Models\TahunAjaran;
@@ -122,6 +123,33 @@ class KelasImportNamaTest extends TestCase
             'dari_kode' => 'MD', 'periksa' => false,
         ])->assertStatus(200);
         $this->assertDatabaseHas('kelas', ['lembaga_id' => $f['mi']->id, 'nama_kelas' => '1A']);
+    }
+
+    public function test_export_nama_kelas(): void
+    {
+        $f = $this->baseFixture();
+        Kelas::create(['lembaga_id' => $f['mi']->id, 'tahun_ajaran_id' => $f['taMi']->id, 'nama_kelas' => '1A', 'tingkat' => '1', 'urutan' => 1]);
+
+        $this->actingAs($f['super'], 'sanctum')
+            ->get("/api/admin/kelas/export-nama?lembaga_id={$f['mi']->id}&tahun_ajaran_id={$f['taMi']->id}")
+            ->assertStatus(200)
+            ->assertHeader('content-disposition', 'attachment; filename=daftar-kelas-MI-20262027.xlsx');
+
+        $isi = (new KelasNamaExport($f['mi']->id, $f['taMi']->id))->array();
+        $this->assertSame([['1A', '1', '1']], $isi);
+
+        $adminMi = User::create([
+            'name' => 'Admin MI', 'email' => 'adminmi-ekspor@example.com',
+            'phone' => '081000000012', 'password' => 'password',
+        ]);
+        $adminMi->assignRole('admin');
+        DB::table('user_lembaga')->insert([
+            'user_id' => $adminMi->id, 'lembaga_id' => $f['mi']->id,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $this->actingAs($adminMi, 'sanctum')
+            ->get("/api/admin/kelas/export-nama?lembaga_id={$f['md']->id}&tahun_ajaran_id={$f['taMd']->id}")
+            ->assertStatus(403);
     }
 
     public function test_target_luar_lingkup_ditolak(): void
