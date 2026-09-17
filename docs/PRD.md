@@ -11,9 +11,10 @@
 
 > **Konvensi.** Bahasa Indonesia persis DB. Logika saja, tanpa kode mentah, format kode + nama modul. Tanpa asumsi umum. Aturan bisa berubah via Lampiran E. Penulisan Bab 3 (tanpa simbol paragraf).
 
+<!-- Konvensi changelog: urut menaik (terlama di atas); entri baru selalu ditambahkan di BAWAH. -->
+
 | Versi | Tanggal | Perubahan |
 |---|---|---|
-<!-- Konvensi changelog: urut menaik (terlama di atas); entri baru selalu ditambahkan di BAWAH. -->
 | 1.0 | 2026-09-10 | Baseline restrukturisasi; arsip dibekukan; G0–G3 production |
 | 1.1 | 2026-09-10 | Final Bab 2–7 (tabel ID-Modul, FR/NFR English, UC, asumsi/batasan) |
 | 1.1.1 | 2026-09-10 | Bab 8 ke tabel ID-Modul (kecil docs) |
