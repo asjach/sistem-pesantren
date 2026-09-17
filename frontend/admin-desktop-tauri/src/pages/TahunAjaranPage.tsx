@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { errorMessage } from '../api/client';
 import {
   createTahunAjaran,
@@ -26,7 +26,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import Pager from '@/components/Pager';
-import { usePager } from '@/hooks/usePager';
+import { useDaftarTabel } from '@/hooks/useDaftarTabel';
 import { useAuth } from '../auth/AuthContext';
 import { bisa } from '../api/auth';
 import { ActionIcon, DeleteAction, EditAction, SetAktifAction, ViewAction } from '@/components/RowActions';
@@ -79,17 +79,36 @@ async function commitDraft(id: number, f: Record<string, string | null>) {
 export default function TahunAjaranPage() {
   const [lembagaId, setLembagaId] = useState<number | ''>('');
   useLembagaAwalNumber(setLembagaId);
-  const [search, setSearch] = useState('');
-  /** Urut header: daftar nilai allowlist + arah global (maks 3 kunci). */
-  const [urut, setUrut] = useState<string[]>([]);
-  const [arahUrut, setArahUrut] = useState<'naik' | 'turun'>('naik');
-  const [rows, setRows] = useState<TahunAjaran[]>([]);
-  const pager = usePager('tahun_ajaran');
-  const [lastPage, setLastPage] = useState(1);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState('');
-  const reqRef = useRef(0);
+  const {
+    rows,
+    loading,
+    err,
+    setErr,
+    search,
+    urut,
+    arahUrut,
+    terapkanUrut,
+    load,
+    lastPage,
+    total,
+    pager,
+    onSearchChange,
+    onSearchSubmit,
+    onSaved,
+  } = useDaftarTabel<TahunAjaran>({
+    tableKey: 'tahun_ajaran',
+    ambil: (a) => listTahunAjaran({
+      search: a.search || undefined,
+      lembaga_id: lembagaId === '' ? undefined : Number(lembagaId),
+      // Baris tersembunyi ikut dimuat agar bisa ditampilkan kembali.
+      termasuk_nonaktif: lembagaId !== '',
+      sort: a.urut.length ? a.urut : undefined,
+      arah: a.urut.length ? a.arah : undefined,
+      page: a.page,
+      per_page: a.perPage,
+    }),
+    deps: [lembagaId],
+  });
 
   const [nama, setNama] = useState('');
   const [mulai, setMulai] = useState('');
@@ -108,56 +127,6 @@ export default function TahunAjaranPage() {
   // Lembaga untuk aksi sembunyikan: lembaga aktif (perangkat) atau lembaga user.
   const lembagaAksi = lembagaId === '' ? (user?.lembagas?.[0]?.id ?? null) : Number(lembagaId);
   const bolehSembunyi = !bolehKelola && lembagaAksi !== null;
-
-  const load = useCallback(
-    async function loadPage(p = pager.page, pp = pager.perPage, o?: { urut?: string[]; arah?: 'naik' | 'turun' }) {
-      const req = ++reqRef.current;
-      setErr('');
-      setLoading(true);
-      try {
-        const u = o?.urut ?? urut;
-        const a = o?.arah ?? arahUrut;
-        const res = await listTahunAjaran({
-          search: search || undefined,
-          lembaga_id: lembagaId === '' ? undefined : Number(lembagaId),
-          // Baris tersembunyi ikut dimuat agar bisa ditampilkan kembali.
-          termasuk_nonaktif: lembagaId !== '',
-          sort: u.length ? u : undefined,
-          arah: u.length ? a : undefined,
-          page: p,
-          per_page: pp,
-        });
-        if (req !== reqRef.current) return;
-        const fix = pager.sync(res.current_page, res.last_page);
-        if (fix != null && fix !== p) {
-          await loadPage(fix, pp);
-          return;
-        }
-        if (req !== reqRef.current) return;
-        setRows(res.data);
-        setLastPage(res.last_page);
-        setTotal(res.total);
-      } catch (e) {
-        if (req === reqRef.current) setErr(errorMessage(e));
-      } finally {
-        if (req === reqRef.current) setLoading(false);
-      }
-    },
-    [search, lembagaId, urut, arahUrut, pager.page, pager.perPage, pager.sync],
-  );
-
-  /** Klik header: simpan urut baru lalu muat ulang dari halaman 1. */
-  function terapkanUrut(nilai: string[], arah: 'naik' | 'turun') {
-    setUrut(nilai);
-    setArahUrut(arah);
-    pager.goFirst();
-    void load(1, pager.perPage, { urut: nilai, arah });
-  }
-
-  useEffect(() => {
-    if (pager.ready) load(pager.page);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pager.ready, search, lembagaId]);
 
   const openEdit = useCallback((t: TahunAjaran) => {
     setEditRow(t);
@@ -241,17 +210,6 @@ export default function TahunAjaranPage() {
       setErr(errorMessage(e));
     }
   }, [load]);
-
-  const onSearchChange = useCallback((v: string) => {
-    setSearch(v);
-    pager.goFirst();
-  }, [pager.goFirst]);
-
-  const onSearchSubmit = useCallback(() => {
-    pager.goFirst();
-  }, [pager.goFirst]);
-
-  const onSaved = useCallback(() => load(), [load]);
 
   /** Mode Input: buat TA global baru dari baris input (super_admin). */
   const createRow = useCallback(async (f: Record<string, string | null>) => {
