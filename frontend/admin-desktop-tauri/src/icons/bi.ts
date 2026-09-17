@@ -65,6 +65,8 @@ import IcChevronUpBi from '~icons/bi/chevron-up';
 import IcCircleCheckBi from '~icons/bi/check-circle';
 import IcInfoBi from '~icons/bi/info';
 import IcOctagonXBi from '~icons/bi/x-octagon';
+import IcPinBi from '~icons/bi/pin';
+import IcStretchHorizontalBi from '~icons/bi/arrow-left-right';
 
 const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   AlignCenter: IcAlignCenterBi,
@@ -129,6 +131,8 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   CircleCheck: IcCircleCheckBi,
   Info: IcInfoBi,
   OctagonX: IcOctagonXBi,
+  Pin: IcPinBi,
+  StretchHorizontal: IcStretchHorizontalBi,
 };
 
 export default set;

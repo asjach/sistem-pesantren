@@ -64,6 +64,9 @@ import IcXCircleRi from '~icons/ri/close-circle-line';
 import IcChevronUpRi from '~icons/ri/arrow-up-s-line';
 import IcInfoRi from '~icons/ri/information-line';
 import IcLoader2Ri from '~icons/ri/loader-2-line';
+import IcPinRi from '~icons/ri/pushpin-line';
+import IcPinOffRi from '~icons/ri/unpin-line';
+import IcStretchHorizontalRi from '~icons/ri/arrow-left-right-line';
 
 const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   AlignCenter: IcAlignCenterRi,
@@ -127,6 +130,9 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   ChevronUp: IcChevronUpRi,
   Info: IcInfoRi,
   Loader2: IcLoader2Ri,
+  Pin: IcPinRi,
+  PinOff: IcPinOffRi,
+  StretchHorizontal: IcStretchHorizontalRi,
 };
 
 export default set;

@@ -9,7 +9,7 @@ import {
 import type { PresetKolomApi } from '@/components/PresetKolom';
 import type { AlignName } from '@/components/GridPrefs';
 import { cn } from '@/lib/utils';
-import { AlignCenter, AlignLeft, AlignRight, Copy, MoveHorizontal, RotateCcw } from '@/icons';
+import { AlignCenter, AlignLeft, AlignRight, Copy, MoveHorizontal, Pin, PinOff, StretchHorizontal } from '@/icons';
 import { flattenAksi, metaAksi } from './actions';
 import type { AksiMenu } from './types';
 
@@ -64,36 +64,13 @@ export default function MenuKonteksGrid({
 }: MenuKonteksGridProps) {
   return (
     <ContextMenuContent>
-      {/* Area header kolom: perataan + show/hide di preset. */}
+      {/* Area header kolom: perataan (paling atas), lebar, beku, lalu preset. */}
       {header && (
         <>
-          <ContextMenuLabel>Kolom: {headerLabel}</ContextMenuLabel>
-          <ContextMenuItem id={`btn_ctx_autofit_kolom_${tableKey}`} onSelect={() => onAutoFit(header.colKey)}>
-            <MoveHorizontal size={14} />
-            <span>Sesuaikan lebar kolom ini</span>
-          </ContextMenuItem>
-          <ContextMenuItem id={`btn_ctx_autofit_semua_${tableKey}`} onSelect={() => onAutoFitAll()}>
-            <MoveHorizontal size={14} />
-            <span>Sesuaikan lebar semua kolom</span>
-          </ContextMenuItem>
+          <ContextMenuLabel>KOLOM: {headerLabel}</ContextMenuLabel>
           <ContextMenuSeparator />
-          <ContextMenuItem
-            id={`btn_ctx_bekukan_${tableKey}`}
-            disabled={headerIdx < 0 || freezeAktif >= headerIdx + 1}
-            onSelect={() => headerIdx >= 0 && ubahFreeze(headerIdx + 1)}
-          >
-            <MoveHorizontal size={14} />
-            <span>Bekukan sampai kolom ini</span>
-          </ContextMenuItem>
-          {freezeAktif > 0 && (
-            <ContextMenuItem id={`btn_ctx_lepas_bekukan_${tableKey}`} onSelect={() => ubahFreeze(0)}>
-              <RotateCcw size={14} />
-              <span>Lepas semua kolom beku</span>
-            </ContextMenuItem>
-          )}
-          <ContextMenuSeparator />
-          <div className="flex items-center gap-1 px-2 py-1">
-            <span className="mr-auto text-xs text-muted-foreground">Perataan</span>
+          <ContextMenuLabel>PERATAAN</ContextMenuLabel>
+          <div className="flex items-center gap-1 px-2 pb-1">
             {([
               { nilai: 'left' as const, label: 'Kiri', Icon: AlignLeft },
               { nilai: 'center' as const, label: 'Tengah', Icon: AlignCenter },
@@ -114,13 +91,39 @@ export default function MenuKonteksGrid({
                     aktif && 'bg-accent text-foreground',
                   )}
                 >
-                  <Icon size={14} />
+                  <Icon size={16} />
                 </button>
               );
             })}
           </div>
           <ContextMenuSeparator />
-          <ContextMenuLabel>Tampilkan di preset</ContextMenuLabel>
+          <ContextMenuLabel>LEBAR</ContextMenuLabel>
+          <ContextMenuItem id={`btn_ctx_autofit_kolom_${tableKey}`} onSelect={() => onAutoFit(header.colKey)}>
+            <MoveHorizontal size={16} />
+            <span>Sesuaikan lebar kolom ini</span>
+          </ContextMenuItem>
+          <ContextMenuItem id={`btn_ctx_autofit_semua_${tableKey}`} onSelect={() => onAutoFitAll()}>
+            <StretchHorizontal size={16} />
+            <span>Sesuaikan lebar semua kolom</span>
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuLabel>BEKU</ContextMenuLabel>
+          <ContextMenuItem
+            id={`btn_ctx_bekukan_${tableKey}`}
+            disabled={headerIdx < 0 || freezeAktif >= headerIdx + 1}
+            onSelect={() => headerIdx >= 0 && ubahFreeze(headerIdx + 1)}
+          >
+            <Pin size={16} />
+            <span>Bekukan sampai kolom ini</span>
+          </ContextMenuItem>
+          {freezeAktif > 0 && (
+            <ContextMenuItem id={`btn_ctx_lepas_bekukan_${tableKey}`} onSelect={() => ubahFreeze(0)}>
+              <PinOff size={16} />
+              <span>Lepas semua kolom beku</span>
+            </ContextMenuItem>
+          )}
+          <ContextMenuSeparator />
+          <ContextMenuLabel>TAMPILKAN DI PRESET</ContextMenuLabel>
           {(presetApiRef.current?.presets.length ?? 0) === 0 ? (
             <ContextMenuItem disabled>Belum ada preset</ContextMenuItem>
           ) : presetApiRef.current?.presets.map((p) => (
@@ -144,22 +147,29 @@ export default function MenuKonteksGrid({
       {row && (
         <>
           <ContextMenuLabel>{row.rowLabel}</ContextMenuLabel>
-          {rowAksi.map((el, i) => {
-            const m = metaAksi(el);
-            return (
-              <ContextMenuItem
-                key={el.key ?? i}
-                onSelect={() => {
-                  if (m.konfirmasi) onKonfirmasi(m.konfirmasi);
-                  else m.onClick?.();
-                }}
-              >
-                {m.icon}
-                <span>{m.label}</span>
-              </ContextMenuItem>
-            );
-          })}
-          {rowAksi.length > 0 && <ContextMenuSeparator />}
+          {rowAksi.length > 0 && (
+            <>
+              <ContextMenuSeparator />
+              <ContextMenuLabel>AKSI</ContextMenuLabel>
+              {rowAksi.map((el, i) => {
+                const m = metaAksi(el);
+                return (
+                  <ContextMenuItem
+                    key={el.key ?? i}
+                    onSelect={() => {
+                      if (m.konfirmasi) onKonfirmasi(m.konfirmasi);
+                      else m.onClick?.();
+                    }}
+                  >
+                    {m.icon}
+                    <span>{m.label}</span>
+                  </ContextMenuItem>
+                );
+              })}
+            </>
+          )}
+          <ContextMenuSeparator />
+          <ContextMenuLabel>SALIN</ContextMenuLabel>
           <ContextMenuItem onSelect={() => salinBaris(row.rowId)}>
             <Copy size={16} />
             <span>Salin baris (TSV)</span>

@@ -757,5 +757,38 @@
   "radix": null,
   "bi": null,
   "material": "density-large"
+ },
+ "Pin": {
+  "lucide": "pin",
+  "tabler": "pin",
+  "ph": "push-pin",
+  "heroicons": "map-pin",
+  "ri": "pushpin-line",
+  "iconoir": "pin",
+  "radix": null,
+  "bi": "pin",
+  "material": "pin"
+ },
+ "PinOff": {
+  "lucide": "pin-off",
+  "tabler": null,
+  "ph": null,
+  "heroicons": null,
+  "ri": "unpin-line",
+  "iconoir": "pin-slash",
+  "radix": null,
+  "bi": null,
+  "material": "unpin"
+ },
+ "StretchHorizontal": {
+  "lucide": "stretch-horizontal",
+  "tabler": "arrows-horizontal",
+  "ph": "arrows-horizontal",
+  "heroicons": null,
+  "ri": "arrow-left-right-line",
+  "iconoir": null,
+  "radix": null,
+  "bi": "arrow-left-right",
+  "material": "horizontal-distribute"
  }
 }

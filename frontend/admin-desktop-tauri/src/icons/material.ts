@@ -67,6 +67,9 @@ import IcTriangleAlertMaterial from '~icons/material-symbols/warning';
 import IcDensitySmallMaterial from '~icons/material-symbols/density-small';
 import IcDensityMediumMaterial from '~icons/material-symbols/density-medium';
 import IcDensityLargeMaterial from '~icons/material-symbols/density-large';
+import IcPinMaterial from '~icons/material-symbols/pin';
+import IcPinOffMaterial from '~icons/material-symbols/unpin';
+import IcStretchHorizontalMaterial from '~icons/material-symbols/horizontal-distribute';
 
 const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   AlignCenter: IcAlignCenterMaterial,
@@ -133,6 +136,9 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   DensitySmall: IcDensitySmallMaterial,
   DensityMedium: IcDensityMediumMaterial,
   DensityLarge: IcDensityLargeMaterial,
+  Pin: IcPinMaterial,
+  PinOff: IcPinOffMaterial,
+  StretchHorizontal: IcStretchHorizontalMaterial,
 };
 
 export default set;

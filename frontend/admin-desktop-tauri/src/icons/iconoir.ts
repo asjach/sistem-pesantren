@@ -59,6 +59,8 @@ import IcChevronUpIconoir from '~icons/iconoir/nav-arrow-up';
 import IcCircleCheckIconoir from '~icons/iconoir/check-circle';
 import IcInfoIconoir from '~icons/iconoir/info-circle';
 import IcLoader2Iconoir from '~icons/iconoir/refresh';
+import IcPinIconoir from '~icons/iconoir/pin';
+import IcPinOffIconoir from '~icons/iconoir/pin-slash';
 
 const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   AlignCenter: IcAlignCenterIconoir,
@@ -117,6 +119,8 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   CircleCheck: IcCircleCheckIconoir,
   Info: IcInfoIconoir,
   Loader2: IcLoader2Iconoir,
+  Pin: IcPinIconoir,
+  PinOff: IcPinOffIconoir,
 };
 
 export default set;
