@@ -5,10 +5,11 @@ namespace App\Http\Controllers\Api\Admin;
 use App\Http\Controllers\Api\Concerns\TenantGuard;
 use App\Http\Controllers\Api\Concerns\UrutDaftar;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\LembagaStoreRequest;
+use App\Http\Requests\Admin\LembagaUpdateRequest;
 use App\Models\Lembaga;
 use App\Services\UrutKatalog;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -43,7 +44,7 @@ class LembagaController extends Controller
         return response()->json($query->paginate($this->perPage($request)));
     }
 
-    public function store(Request $request)
+    public function store(LembagaStoreRequest $request)
     {
         $auth = auth()->user();
         // Tambah lembaga hanya super_admin (Lampiran E v1.9.2).
@@ -51,47 +52,7 @@ class LembagaController extends Controller
             return response()->json(['message' => 'Hanya super_admin yang dapat menambah lembaga.'], 403);
         }
 
-        $data = $request->validate([
-            'parent_id' => ['nullable', 'exists:lembaga,id'],
-            'nama' => ['required', 'string', 'max:100'],
-            'nama_singkat' => ['nullable', 'string', 'max:50'],
-            'kode' => ['nullable', 'string', 'max:20', Rule::unique('lembaga', 'kode')],
-            'mudir_am' => ['nullable', 'string', 'max:100'],
-            'jenjang' => ['nullable', 'string', 'max:50'],
-            'status' => ['nullable', 'in:negeri,swasta'],
-            'npsn' => ['nullable', 'string', 'max:20', Rule::unique('lembaga', 'npsn')],
-            'nsm' => ['nullable', 'string', 'max:30', Rule::unique('lembaga', 'nsm')],
-            'npwp' => ['nullable', 'string', 'max:30'],
-            'no_izin_operasional' => ['nullable', 'string', 'max:100'],
-            'tgl_izin' => ['nullable', 'date'],
-            'no_sk_pendirian' => ['nullable', 'string', 'max:100'],
-            'tgl_sk_pendirian' => ['nullable', 'date'],
-            'tahun_berdiri' => ['nullable', 'integer', 'min:1800', 'max:2100'],
-            'no_sk_kemenkumham' => ['nullable', 'string', 'max:100'],
-            'akreditasi' => ['nullable', 'in:A,B,C,belum'],
-            'tgl_akreditasi' => ['nullable', 'date'],
-            'penyelenggara' => ['nullable', 'string', 'max:100'],
-            'provinsi' => ['nullable', 'string', 'max:100'],
-            'kab_kota' => ['nullable', 'string', 'max:100'],
-            'kecamatan' => ['nullable', 'string', 'max:100'],
-            'desa' => ['nullable', 'string', 'max:100'],
-            'rt' => ['nullable', 'string', 'max:3'],
-            'rw' => ['nullable', 'string', 'max:3'],
-            'kode_pos' => ['nullable', 'string', 'max:10'],
-            'alamat' => ['nullable', 'string'],
-            'lintang' => ['nullable', 'numeric', 'between:-90,90'],
-            'bujur' => ['nullable', 'numeric', 'between:-180,180'],
-            'telepon' => ['nullable', 'string', 'max:30'],
-            'email' => ['nullable', 'email', 'max:100'],
-            'website' => ['nullable', 'string', 'max:100'],
-            'logo_url' => ['nullable', 'string', 'max:255'],
-            'waktu_belajar' => ['nullable', 'in:pagi,siang,pagi_siang'],
-            'mode_rapor' => ['nullable', 'in:terpisah,digabung'],
-            'template_rapor' => ['nullable', 'string', 'max:50'],
-            'is_active' => ['nullable', 'boolean'],
-            'kelompok_psb' => ['nullable', 'in:combo_mi_md,eksklusif'],
-            'is_seleksi' => ['nullable', 'boolean'],
-        ]);
+        $data = $request->validated();
         $this->pastikanKelompokSesuaiKode($data['kode'] ?? null, $data['kelompok_psb'] ?? null);
 
         if (! empty($data['parent_id'])) {
@@ -103,51 +64,12 @@ class LembagaController extends Controller
         return response()->json($lembaga->load('parent:id,nama,kode'), 201);
     }
 
-    public function update(Request $request, Lembaga $lembaga)
+    public function update(LembagaUpdateRequest $request, Lembaga $lembaga)
     {
         $this->authorizeLembaga(auth()->user(), $lembaga->id);
 
-        $data = $request->validate([
-            'parent_id' => ['nullable', 'exists:lembaga,id'],
-            'nama' => ['sometimes', 'string', 'max:100'],
-            'nama_singkat' => ['nullable', 'string', 'max:50'],
-            'kode' => ['nullable', 'string', 'max:20', Rule::unique('lembaga', 'kode')->ignore($lembaga->id)],
-            'mudir_am' => ['nullable', 'string', 'max:100'],
-            'jenjang' => ['nullable', 'string', 'max:50'],
-            'status' => ['nullable', 'in:negeri,swasta'],
-            'npsn' => ['nullable', 'string', 'max:20', Rule::unique('lembaga', 'npsn')->ignore($lembaga->id)],
-            'nsm' => ['nullable', 'string', 'max:30', Rule::unique('lembaga', 'nsm')->ignore($lembaga->id)],
-            'npwp' => ['nullable', 'string', 'max:30'],
-            'no_izin_operasional' => ['nullable', 'string', 'max:100'],
-            'tgl_izin' => ['nullable', 'date'],
-            'no_sk_pendirian' => ['nullable', 'string', 'max:100'],
-            'tgl_sk_pendirian' => ['nullable', 'date'],
-            'tahun_berdiri' => ['nullable', 'integer', 'min:1800', 'max:2100'],
-            'no_sk_kemenkumham' => ['nullable', 'string', 'max:100'],
-            'akreditasi' => ['nullable', 'in:A,B,C,belum'],
-            'tgl_akreditasi' => ['nullable', 'date'],
-            'penyelenggara' => ['nullable', 'string', 'max:100'],
-            'provinsi' => ['nullable', 'string', 'max:100'],
-            'kab_kota' => ['nullable', 'string', 'max:100'],
-            'kecamatan' => ['nullable', 'string', 'max:100'],
-            'desa' => ['nullable', 'string', 'max:100'],
-            'rt' => ['nullable', 'string', 'max:3'],
-            'rw' => ['nullable', 'string', 'max:3'],
-            'kode_pos' => ['nullable', 'string', 'max:10'],
-            'alamat' => ['nullable', 'string'],
-            'lintang' => ['nullable', 'numeric', 'between:-90,90'],
-            'bujur' => ['nullable', 'numeric', 'between:-180,180'],
-            'telepon' => ['nullable', 'string', 'max:30'],
-            'email' => ['nullable', 'email', 'max:100'],
-            'website' => ['nullable', 'string', 'max:100'],
-            'logo_url' => ['nullable', 'string', 'max:255'],
-            'waktu_belajar' => ['nullable', 'in:pagi,siang,pagi_siang'],
-            'mode_rapor' => ['nullable', 'in:terpisah,digabung'],
-            'template_rapor' => ['nullable', 'string', 'max:50'],
-            'is_active' => ['nullable', 'boolean'],
-            'kelompok_psb' => ['nullable', 'in:combo_mi_md,eksklusif'],
-            'is_seleksi' => ['nullable', 'boolean'],
-        ]);
+        $data = $request->validated();
+
         $this->pastikanKelompokSesuaiKode($data['kode'] ?? $lembaga->kode, $data['kelompok_psb'] ?? null);
 
         if (! empty($data['parent_id'])) {
