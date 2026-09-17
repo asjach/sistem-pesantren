@@ -1,4 +1,4 @@
-import { Children, createContext, Fragment, isValidElement, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactElement, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   DynamicDataSheetGrid as DataSheetGrid,
   checkboxColumn,
@@ -10,19 +10,14 @@ import {
 import 'react-datasheet-grid/dist/style.css';
 import { DENSITY_PX } from '@/prefs';
 import { useTheme } from '@/theme';
-import { errorMessage, prefGet, prefSet } from '@/api/client';
-import { Button, buttonVariants } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
-import { Input } from '@/components/ui/input';
-import { Separator } from '@/components/ui/separator';
+import { errorMessage, prefSet } from '@/api/client';
+import { formatNilai } from '@/lib/nilaiTampil';
+import { buttonVariants } from '@/components/ui/button';
 import { DEFAULT_FONT_PX, DEFAULT_HEADER_H, FONT_FAMILY_DEFAULT, FONT_OPTIONS, MAX_HEADER_H, useGridPrefs, type AlignName } from '@/components/GridPrefs';
 import { useStandarTampilan } from '@/standarTampilan';
-import PresetKolom, { type PresetKolomApi } from '@/components/PresetKolom';
-import PresetUrut from '@/components/PresetUrut';
-import FilterField from '@/components/FilterField';
+import { type PresetKolomApi } from '@/components/PresetKolom';
 import { useKamusPeta } from '@/components/useKamusPeta';
 import { type KamusKolomAttr } from '@/api/kamusLabel';
-import { formatNilai } from '@/lib/nilaiTampil';
 import { useRibbonTable } from '@/components/RibbonTable';
 import {
   ContextMenu,
@@ -33,14 +28,14 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
-import { ActionIcon, DeleteAction, EditAction, SetAktifAction, ViewAction } from '@/components/RowActions';
+import { ActionIcon } from '@/components/RowActions';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { AlignCenter, AlignLeft, AlignRight, Ban, Copy, Check, Eye, MoreVertical, MoveHorizontal, Pencil, PlusCircle, RotateCcw, Save, Search, Trash2 } from '@/icons';
+import { AlignCenter, AlignLeft, AlignRight, Copy, MoveHorizontal, Pencil, PlusCircle, RotateCcw, Save } from '@/icons';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -55,166 +50,51 @@ import { copyText, toTSV } from '@/lib/clipboard';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
-/** Penanda mode (Edit/Input) bergaya bilah status di badan halaman (bawah
- *  tabel): ikon + judul + tombol keluar; keterangan lengkap ada di tooltip. */
-function PillMode({
-  id,
-  btnId,
-  aksen,
-  ikon,
-  judul,
-  petunjuk,
-  onKeluar,
-}: {
-  id: string;
-  btnId: string;
-  aksen: 'warning' | 'primary';
-  ikon: ReactNode;
-  judul: string;
-  petunjuk: string;
-  onKeluar: () => void;
-}) {
-  const warn = aksen === 'warning';
-  return (
-    <div
-      id={id}
-      role="status"
-      title={petunjuk}
-      className={cn(
-        'inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs',
-        warn ? 'border-warning/40 bg-warning/10 text-warning-foreground' : 'border-primary/40 bg-primary/10 text-foreground',
-      )}
-    >
-      {ikon}
-      <span className="font-semibold">{judul}</span>
-      <Button
-        id={btnId}
-        variant="outline"
-        size="sm"
-        className={cn(
-          'h-6 px-2',
-          warn
-            ? 'border-warning/40 bg-transparent text-warning-foreground hover:bg-warning/10 hover:text-warning-foreground'
-            : 'border-primary/40 bg-transparent hover:bg-primary/10',
-        )}
-        onClick={onKeluar}
-      >
-        Keluar mode
-      </Button>
-    </div>
-  );
-}
+import { CheckAllCell, CheckAllContext, PillMode, TabelMemuat } from './excel/primitives';
+import {
+  ACTIONS_DEFAULT_W,
+  ACTIONS_MIN_W,
+  AKSI_RINGKAS,
+  AUTOFIT_BUFFER,
+  AUTOFIT_MAX_W,
+  CHECK_W,
+  INPUT_ROW_ID,
+  MIN_COL_W,
+  freezeKey,
+  hasOpenEditor,
+  hostUkur,
+  loadFreeze,
+  loadWidths,
+  readWidthCache,
+  teksTampilSel,
+  tinggiCache,
+  widthsKey,
+  writeWidthCache,
+} from './excel/helpers';
+import {
+  InputStaticSelectCell,
+  InputStaticTextCell,
+  SelectCell,
+  StaticCell,
+  TextCell,
+  ToggleCell,
+} from './excel/cells';
+import { HeaderTitle, ukurPerluTinggiHeader } from './excel/header';
+import ToolbarTabel from './excel/toolbar';
+import { ActionsCell, flattenAksi, metaAksi } from './excel/actions';
+import type { AksiMenu, CheckAllState, ExcelField, GridRow, GridSelection } from './excel/types';
 
-/** Kerangka tabel saat memuat: menyerupai grid (baris header + baris data)
- *  agar area tabel tidak tampak seperti blok abu-abu kosong. */
-function TabelMemuat({ rowH, baris = 14 }: { rowH: number; baris?: number }) {
-  return (
-    <div className="flex h-full w-full flex-col overflow-hidden bg-card" aria-hidden="true">
-      <div className="h-[26px] shrink-0 border-b bg-muted/60" />
-      <div className="flex min-h-0 flex-1 flex-col">
-        {Array.from({ length: baris }).map((_, i) => (
-          <div key={i} className="shrink-0 border-b border-border/50" style={{ height: rowH }} />
-        ))}
-      </div>
-    </div>
-  );
-}
+export type { ExcelChoice, ExcelField, GridRow, GridSelection } from './excel/types';
 
-/** Status "pilih semua" lewat context agar klik checkbox tidak membangun ulang
- *  definisi kolom DSG (kolom tetap stabil, hanya header ini yang re-render). */
-interface CheckAllState {
-  ids: readonly (string | number)[];
-  checked: ReadonlySet<string | number>;
-  setChecked: (s: Set<string | number>) => void;
-}
 
-const CheckAllContext = createContext<CheckAllState | null>(null);
 
-function CheckAllCell() {
-  const ctx = useContext(CheckAllContext);
-  if (!ctx) return null;
-  const all = ctx.ids.length > 0 && ctx.ids.every((id) => ctx.checked.has(id));
-  const some = ctx.ids.some((id) => ctx.checked.has(id));
-  return (
-    <span className="flex w-full items-center justify-center">
-      <input
-        type="checkbox"
-        aria-label="Pilih semua baris"
-        className="simpes-dsg-checkall"
-        checked={all}
-        ref={(el) => {
-          if (el) el.indeterminate = some && !all;
-        }}
-        onChange={(e) => {
-          const next = new Set<string | number>();
-          if (e.target.checked) for (const id of ctx.ids) next.add(id);
-          ctx.setChecked(next);
-        }}
-        onClick={(e) => e.stopPropagation()}
-        onMouseDown={(e) => e.stopPropagation()}
-      />
-    </span>
-  );
-}
 
-export interface ExcelChoice {
-  value: string;
-  label: string;
-}
 
-/** Teks yang BENAR-BENAR dirender sel untuk sebuah nilai grid. Kolom `select`
- *  menampilkan label pilihannya (`Ikut lembaga`), bukan nilai mentahnya
- *  (`default`), dan kolom ber-format kamus (angka/tanggal/ya_tidak) memakai
- *  hasil `formatNilai` — pengukuran lebar kolom (AutoFit & lebar awal) wajib
- *  memakai teks ini, kalau tidak kolom jadi sempit dan isi terpotong. */
-function teksTampilSel(f: ExcelField, raw: unknown, format?: string | null): string {
-  if (raw == null) return '';
-  if (f.kind === 'toggle') return '';
-  const s = String(raw);
-  if (f.kind === 'select') {
-    return (f.choices ?? []).find((c) => c.value === s)?.label ?? s;
-  }
-  return format ? formatNilai(s, format) : s;
-}
 
-export interface ExcelField {
-  key: string;
-  label: string;
-  /** Lebar cadangan bila pengukuran konten gagal; lebar normal mengikuti AutoFit. */
-  width?: number;
-  /** text/select bisa diedit saat mode Edit aktif; static selalu baca-saja;
-   *  toggle = switch ON/OFF yang langsung tersimpan (nilai 'ya'/'tidak'). */
-  kind: 'text' | 'select' | 'static' | 'toggle';
-  choices?: ExcelChoice[];
-  maxLength?: number;
-  /** Kembalikan pesan galat bila nilai tidak valid, atau null bila OK. */
-  validate?: (value: string | null) => string | null;
-  /** Wajib diisi pada mode Input (ditandai warna di header + sel baris input). */
-  required?: boolean;
-  /** Kolom static yang tetap bisa DIISI saat mode Input (mis. kode/nik yang
-   *  belum ada saat membuat record). Baris biasa tetap baca-saja. */
-  inputKind?: 'text' | 'select';
-  /** Pilihan dropdown untuk inputKind 'select' (bila beda dari `choices`).
-   *  Boleh fungsi atas nilai baris input — mis. kolom mengikuti tabel terpilih. */
-  inputChoices?: ExcelChoice[] | ((draft: Record<string, string | null>) => ExcelChoice[]);
-  /** Sumber kolom database: mengikat kolom grid ke kamus label
-   *  (nama header, perataan, lebar, tooltip, format, kontrol urut global).
-   *  `null` = kolom sengaja tidak terikat kamus. */
-  sumber?: { tabel: string; kolom: string } | null;
-}
 
-/** Baris grid: id + checklist + nilai string per field. */
-export interface GridRow {
-  id: string | number;
-  checked: boolean;
-  [key: string]: string | boolean | number | null;
-}
 
-/** Seleksi blok gaya spreadsheet (indeks baris/kolom numerik). */
-export interface GridSelection {
-  min: { row: number; col: number };
-  max: { row: number; col: number };
-}
+
+
 
 interface ExcelTableProps<T extends { id: string | number }> {
   /** Kunci unik tabel (persist tinggi baris, id elemen). */
@@ -277,593 +157,35 @@ interface ExcelTableProps<T extends { id: string | number }> {
   sumberTabel?: string;
 }
 
-const MIN_COL_W = 50;
-/** Batas lebar hasil AutoFit (Excel juga membatasi, ~255 karakter). */
-const AUTOFIT_MAX_W = 480;
-/** Ruang napas agar teks tidak menempel garis kolom saat AutoFit. */
-const AUTOFIT_BUFFER = 16;
-/** Lebar kolom Aksi saat belum terukur (3 tombol ikon + padding + napas). */
-const ACTIONS_DEFAULT_W = 124;
-/** Lebar kolom checklist (kolom data pertama). */
-const CHECK_W = 44;
-/** Lantai lebar kolom Aksi (1 tombol ikon + padding). */
-const ACTIONS_MIN_W = 56;
-/** Penanda "kapasitas aksi > 3" per tableKey; hanya tumbuh selama sesi (tidak
- *  pernah turun) agar layout ikon vs hamburger tidak berubah-ubah mengikuti
- *  data yang sedang tampil. Nilai = jumlah aksi maksimum yang pernah terlihat
- *  pada tabel tersebut. */
-const AKSI_RINGKAS = new Map<string, number>();
-/** Id sintetis baris input paling bawah (mode Input). */
-const INPUT_ROW_ID = '__input__';
 
-function widthsKey(tableKey: string) {
-  // v2: hasil AutoFit tidak lagi disimpan (lihat onAutoFit). Kunci lama berisi
-  // lebar basi yang membekukan kolom dinamis (status/aksi) — diabaikan sekali.
-  return `simpes_grid_${tableKey}_w_v2`;
-}
 
-/** Pref jumlah kolom beku (freeze pane kiri) per tabel; 0 = tanpa beku. */
-function freezeKey(tableKey: string) {
-  return `simpes_grid_${tableKey}_freeze`;
-}
 
-async function loadFreeze(key: string): Promise<number> {
-  try {
-    const v = await prefGet(key);
-    const n = Number(v);
-    return Number.isFinite(n) && n > 0 ? Math.round(n) : 0;
-  } catch {
-    return 0;
-  }
-}
 
-async function loadWidths(key: string): Promise<Record<string, number>> {
-  try {
-    const v = await prefGet(key);
-    const o = JSON.parse(v ?? '{}') as Record<string, unknown>;
-    const out: Record<string, number> = {};
-    for (const [k, n] of Object.entries(o)) {
-      if (typeof n === 'number' && Number.isFinite(n)) out[k] = n;
-    }
-    return out;
-  } catch {
-    return {};
-  }
-}
 
-/** Cache lebar kolom per tabel untuk SESI berjalan (di memori, tidak disimpan).
- *  Kunjungan ulang ke halaman yang sama memakai lebar yang sudah final sehingga
- *  grid dapat dirender sekali jadi — tata letak tidak bergeser lagi. */
-interface WidthCacheEntry {
-  widths: Record<string, number>;
-  autoWidths: Record<string, number>;
-}
 
-const widthCache = new Map<string, WidthCacheEntry>();
 
-function readWidthCache(tableKey: string): WidthCacheEntry | null {
-  return widthCache.get(tableKey) ?? null;
-}
 
-function writeWidthCache(tableKey: string, patch: Partial<WidthCacheEntry>) {
-  const prev = widthCache.get(tableKey) ?? { widths: {}, autoWidths: {} };
-  widthCache.set(tableKey, { ...prev, ...patch });
-}
 
-/** Cache tinggi final tabel kompak per tabel (sesi). Dipakai sebagai tinggi
- *  placeholder saat memuat ulang halaman agar tabel tidak berubah tinggi. */
-const tinggiCache = new Map<string, number>();
 
-/** Host pengukuran offscreen: meniru struktur & kelas grid nyata sehingga
- *  getComputedStyle memberi font/padding PERSIS seperti sel asli (termasuk
- *  override gaya bagian). Dipakai menghitung lebar kolom secara sinkron pada
- *  render pertama — tanpa menunggu DOM grid atau pemuatan font. */
-let ukurHostEl: HTMLDivElement | null = null;
 
-function hostUkur(): HTMLDivElement | null {
-  if (typeof document === 'undefined') return null;
-  if (!ukurHostEl) {
-    const h = document.createElement('div');
-    h.className = 'simpes-dsg';
-    h.setAttribute('aria-hidden', 'true');
-    h.style.cssText =
-      'position:fixed;left:-100000px;top:0;visibility:hidden;pointer-events:none;white-space:nowrap';
-    h.innerHTML =
-      '<div class="dsg-row dsg-row-header"><div class="dsg-cell dsg-cell-header">' +
-      '<div class="dsg-cell-header-container"><span data-ukur="head"></span></div></div></div>' +
-      '<div class="dsg-row"><div class="dsg-cell"><span data-ukur="cell"></span></div></div>';
-    document.body.appendChild(h);
-    ukurHostEl = h;
-  }
-  return ukurHostEl;
-}
 
-interface TextColData {
-  fieldKey: string;
-  maxLength?: number;
-  /** Enter saat mengedit baris input = simpan baris (mode Input).
-   *  Kembalikan true bila baris boleh pindah ke bawah (kolom wajib lengkap). */
-  onEnter?: (columnIndex: number) => boolean;
-  /** Klik 2× sel (mode view): nyalakan checkbox Edit. */
-  onDblClick?: (id: string | number) => void;
-  /** Klik 1× sel (mode Edit): buka editor sel ini. */
-  onClickCell?: (id: string | number) => void;
-}
 
-/** Editor sel DSG (input teks / select) sedang terbuka dan fokus? */
-function hasOpenEditor(): boolean {
-  const el = document.activeElement as HTMLElement | null;
-  return !!el?.classList?.contains('dsg-input') || !!el?.classList?.contains('simpes-dsg-select');
-}
 
-/** Sel teks: span saat baca-saja, input saat fokus edit. */
-function TextCell({ rowData, setRowData, columnData, focus, stopEditing, columnIndex }: CellProps<GridRow, TextColData>) {
-  const key = columnData.fieldKey;
-  const committed = (rowData[key] as string) ?? '';
-  const [val, setVal] = useState<string | null>(null);
 
-  useEffect(() => {
-    setVal(null);
-  }, [committed]);
 
-  if (!focus && val === null) {
-    return (
-      <span
-        className="simpes-dsg-fill"
-        data-col-key={key}
-        onDoubleClick={() => columnData.onDblClick?.(rowData.id)}
-        onClick={(e) => {
-          if (e.detail !== 1) return;
-          // Sel yang tadinya aktif sudah otomatis membuka editor lewat
-          // mousedown DSG (input fokus) — jangan buka dua kali.
-          if (hasOpenEditor()) return;
-          columnData.onClickCell?.(rowData.id);
-        }}
-      >
-        {committed}
-      </span>
-    );
-  }
-  const cur = val ?? committed;
-  const commit = (v: string) => {
-    if (v !== committed) setRowData({ ...rowData, [key]: v });
-  };
-  return (
-    <input
-      className="dsg-input"
-      data-col-key={key}
-      value={cur}
-      maxLength={columnData.maxLength}
-      // eslint-disable-next-line jsx-a11y/no-autofocus
-      autoFocus
-      onChange={(e) => setVal(e.target.value)}
-      onBlur={() => {
-        commit(cur);
-        setVal(null);
-      }}
-      onKeyDown={(e) => {
-        // Tab & panah atas/bawah: commit dulu, lalu biarkan DSG yang
-        // memindahkan sel + menutup mode edit (DSG tak memicu blur saat
-        // input di-unmount, jadi commit wajib di sini).
-        if (e.key === 'Tab' || e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-          commit(cur);
-          setVal(null);
-          return;
-        }
-        // Panah kiri/kanan tetap milik input (pindah kursor di dalam teks).
-        if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') return;
-        e.stopPropagation();
-        if (e.key === 'Enter') {
-          commit(cur);
-          setVal(null);
-          // Baris input (mode Input): Enter = simpan baris. Kursor pindah ke
-          // baris bawah (baris input berikutnya) hanya bila kolom wajib lengkap.
-          if (String(rowData.id) === INPUT_ROW_ID && columnData.onEnter) {
-            const bolehPindah = columnData.onEnter(columnIndex);
-            stopEditing({ nextRow: bolehPindah });
-            return;
-          }
-          // stopEditing bawaan DSG = tutup edit + aktif turun 1 baris (kolom sama).
-          stopEditing();
-        } else if (e.key === 'Escape') {
-          setVal(null);
-          // Batal: tutup edit tanpa pindah baris.
-          stopEditing({ nextRow: false });
-        }
-      }}
-    />
-  );
-}
 
-interface SelectColData {
-  fieldKey: string;
-  choices: ExcelChoice[];
-  /** Pilihan khusus baris input (mode Input) — mis. kolom mengikuti tabel terpilih. */
-  choicesInput?: ExcelChoice[];
-  /** Enter saat mengedit baris input = simpan baris (mode Input).
-   *  Kembalikan true bila baris boleh pindah ke bawah (kolom wajib lengkap). */
-  onEnter?: (columnIndex: number) => boolean;
-  /** Klik 2× sel (mode view): nyalakan checkbox Edit. */
-  onDblClick?: (id: string | number) => void;
-  /** Klik 1× sel (mode Edit): buka editor sel ini. */
-  onClickCell?: (id: string | number) => void;
-}
 
-/** Sel dropdown native (tanpa dependensi baru). */
-function SelectCell({ rowData, setRowData, columnData, focus, stopEditing, disabled, columnIndex }: CellProps<GridRow, SelectColData>) {
-  const key = columnData.fieldKey;
-  const cur = (rowData[key] as string) ?? '';
-  const opsi = String(rowData.id) === INPUT_ROW_ID && columnData.choicesInput
-    ? columnData.choicesInput
-    : columnData.choices;
-  const label = opsi.find((c) => c.value === cur)?.label ?? cur;
-  if (disabled || !focus) {
-    return (
-      <span
-        className="simpes-dsg-fill"
-        data-col-key={key}
-        onDoubleClick={() => columnData.onDblClick?.(rowData.id)}
-        onClick={(e) => {
-          if (e.detail !== 1) return;
-          if (hasOpenEditor()) return;
-          columnData.onClickCell?.(rowData.id);
-        }}
-      >
-        {label}
-      </span>
-    );
-  }
-  return (
-    <select
-      className="simpes-dsg-select"
-      data-col-key={key}
-      aria-label={key}
-      value={cur}
-      autoFocus
-      onChange={(e) => {
-        setRowData({ ...rowData, [key]: e.target.value });
-        setTimeout(() => stopEditing(), 0);
-      }}
-      onBlur={() => stopEditing()}
-      onKeyDown={(e) => {
-        if (e.key === 'Tab') return;
-        e.stopPropagation();
-        if (e.key === 'Escape') stopEditing();
-        if (e.key === 'Enter' && String(rowData.id) === INPUT_ROW_ID && columnData.onEnter) {
-          e.preventDefault();
-          const bolehPindah = columnData.onEnter(columnIndex);
-          stopEditing({ nextRow: bolehPindah });
-        }
-      }}
-    >
-      {opsi.map((c) => (
-        <option key={c.value} value={c.value}>
-          {c.label}
-        </option>
-      ))}
-    </select>
-  );
-}
 
-interface ToggleColData {
-  fieldKey: string;
-  /** Label kolom (untuk aria). */
-  label: string;
-  /** Gerbang izin halaman; false = switch selalu nonaktif. */
-  bisaEdit: boolean;
-}
 
-/** Sel boolean (Switch ON/OFF) — langsung mengubah nilai tanpa mode Edit.
- *  Nilai grid tetap string 'ya'/'tidak' agar pipeline data tak berubah. */
-function ToggleCell({ rowData, setRowData, columnData, disabled }: CellProps<GridRow, ToggleColData>) {
-  const key = columnData.fieldKey;
-  return (
-    <span
-      className="simpes-dsg-fill flex items-center justify-center"
-      data-col-key={key}
-      onMouseDown={(e) => e.stopPropagation()}
-      onClick={(e) => e.stopPropagation()}
-    >
-      <Switch
-        size="xs"
-        checked={rowData[key] === 'ya'}
-        disabled={disabled || !columnData.bisaEdit}
-        aria-label={columnData.label}
-        onCheckedChange={(v) => setRowData({ ...rowData, [key]: v ? 'ya' : 'tidak' })}
-      />
-    </span>
-  );
-}
 
-interface StaticColData {
-  fieldKey: string;
-  /** Klik 2× sel (mode view): nyalakan checkbox Edit. */
-  onDblClick?: () => void;
-}
 
-/** Sel baca-saja (teks polos). */
-function StaticCell({ rowData, columnData }: CellProps<GridRow, StaticColData>) {
-  return (
-    <span
-      className="simpes-dsg-fill"
-      data-col-key={columnData.fieldKey}
-      onDoubleClick={() => columnData.onDblClick?.()}
-    >
-      {String(rowData[columnData.fieldKey] ?? '')}
-    </span>
-  );
-}
 
-/** Kolom static + inputKind 'text': baca-saja untuk baris data, input teks
- *  untuk baris input (mode Input). */
-function InputStaticTextCell(props: CellProps<GridRow, TextColData>) {
-  if (String(props.rowData.id) !== INPUT_ROW_ID) {
-    return <StaticCell {...(props as unknown as CellProps<GridRow, StaticColData>)} />;
-  }
-  return <TextCell {...props} />;
-}
 
-/** Kolom static + inputKind 'select': baca-saja untuk baris data, dropdown
- *  untuk baris input (mode Input). */
-function InputStaticSelectCell(props: CellProps<GridRow, SelectColData>) {
-  if (String(props.rowData.id) !== INPUT_ROW_ID) {
-    return <StaticCell {...(props as unknown as CellProps<GridRow, StaticColData>)} />;
-  }
-  return <SelectCell {...props} />;
-}
 
-/** Judul kolom dengan gagang seret pengubah lebar (drag di tepi kanan).
- *  Klik 2× pada gagang = AutoFit lebar mengikuti isi (seperti Excel).
- *  Field wajib (mode Input) ditandai bintang merah; kolom otomatis (tidak
- *  bisa diisi manual saat mode Input) ditandai ikon merah. */
-function HeaderTitle({
-  label,
-  colKey,
-  required,
-  noInput,
-  onResizeStart,
-  onResizePrev,
-  onAutoFit,
-  tooltip = null,
-  terkunci = false,
-}: {
-  label: string;
-  colKey: string;
-  required?: boolean;
-  noInput?: boolean;
-  onResizeStart: (key: string, e: { preventDefault(): void; stopPropagation(): void; clientX: number }) => void;
-  /** Kolom beku: gagang tepi KIRI untuk mengubah lebar kolom sebelumnya
-   *  (gagang kanan tertutup oleh sel beku di sebelahnya). */
-  onResizePrev?: (e: { preventDefault(): void; stopPropagation(): void; clientX: number }) => void;
-  onAutoFit: (key: string) => void;
-  /** Teks bantuan dari kamus kolom (hover header). */
-  tooltip?: string | null;
-  /** Lebar dikunci kamus: gagang seret/AutoFit disembunyikan. */
-  terkunci?: boolean;
-}) {
-  return (
-    <span className="simpes-dsg-headtitle" data-col-key={colKey} title={tooltip ?? undefined}>
-      {label}
-      {required ? (
-        <span className="simpes-dsg-wajib-tanda" title="Wajib diisi pada mode Input">
-          *
-        </span>
-      ) : null}
-      {noInput ? (
-        <span
-          className="simpes-dsg-tak-input"
-          title="Kolom otomatis — tidak bisa diisi manual pada mode Input"
-          aria-label="Tidak bisa diisi manual"
-        >
-          <Ban size={11} />
-        </span>
-      ) : null}
-      {onResizePrev && !terkunci ? (
-        <span
-          className="simpes-dsg-resizer simpes-dsg-resizer-kiri"
-          title="Seret untuk ubah lebar kolom di kiri"
-          onMouseDown={(e) => onResizePrev(e)}
-          onClick={(e) => e.stopPropagation()}
-        />
-      ) : null}
-      {terkunci ? (
-        <span
-          className="simpes-dsg-tak-input"
-          title="Lebar dikunci kamus kolom"
-          aria-label="Lebar dikunci kamus"
-        >
-          🔒
-        </span>
-      ) : (
-        <span
-          className="simpes-dsg-resizer"
-          title="Seret untuk ubah lebar • klik 2× untuk sesuaikan isi"
-          onMouseDown={(e) => onResizeStart(colKey, e)}
-          onDoubleClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            onAutoFit(colKey);
-          }}
-          onClick={(e) => e.stopPropagation()}
-        />
-      )}
-    </span>
-  );
-}
 
-interface ActionsColData {
-  render: (id: string | number) => ReactNode;
-  /** True bila kapasitas aksi tabel pernah melebihi 3 (high-water mark) —
-   *  seluruh baris memakai dropdown hamburger walau aksi baris ini ≤ 3. */
-  ringkas: boolean;
-}
 
-/** Ratakan aksi (bisa berupa fragment/conditional) menjadi daftar elemen. */
-function flattenAksi(node: ReactNode): ReactElement[] {
-  const out: ReactElement[] = [];
-  Children.forEach(node, (child) => {
-    if (!isValidElement(child)) return;
-    if (child.type === Fragment) {
-      out.push(...flattenAksi((child.props as { children?: ReactNode }).children));
-      return;
-    }
-    out.push(child);
-  });
-  return out;
-}
 
-/** Data menu yang diekstrak dari elemen aksi (tanpa menyarangkan tombol asli). */
-interface AksiMenu {
-  label: string;
-  icon: ReactNode;
-  onClick?: () => void;
-  konfirmasi?: { title: string; description: string; confirmLabel?: string; onConfirm: () => void };
-}
 
-/** Ambil isi ikon dari elemen tombol aksi agar menu tidak menyarangkan button. */
-function ikonAksi(node: ReactNode): ReactNode {
-  if (isValidElement(node) && node.type === ActionIcon) {
-    return (node.props as { children?: ReactNode }).children;
-  }
-  return node;
-}
-
-function metaAksi(el: ReactElement): AksiMenu {
-  const p = el.props as {
-    title?: string;
-    onClick?: () => void;
-    onConfirm?: () => void;
-    confirmLabel?: string;
-    description?: string;
-    children?: ReactNode;
-  };
-  if (el.type === DeleteAction) {
-    return {
-      label: 'Hapus',
-      icon: <Trash2 size={16} />,
-      konfirmasi: { title: p.title ?? 'Hapus?', description: p.description ?? '', onConfirm: p.onConfirm ?? (() => {}) },
-    };
-  }
-  if (el.type === EditAction) return { label: 'Ubah', icon: <Pencil size={16} />, onClick: p.onClick };
-  if (el.type === ViewAction) return { label: 'Lihat', icon: <Eye size={16} />, onClick: p.onClick };
-  if (el.type === SetAktifAction) return { label: 'Set aktif', icon: <Check size={16} />, onClick: p.onClick };
-  const title = typeof p.title === 'string' ? p.title.replace(/\?$/, '') : 'Aksi';
-  // Pembungkus konfirmasi umum (mis. ConfirmDelete): teruskan ke dialog konfirmasi menu.
-  if (typeof p.onConfirm === 'function') {
-    return {
-      label: title,
-      icon: ikonAksi(p.children),
-      konfirmasi: {
-        title: p.title ?? 'Konfirmasi?',
-        description: p.description ?? '',
-        confirmLabel: p.confirmLabel,
-        onConfirm: p.onConfirm,
-      },
-    };
-  }
-
-  return { label: title, icon: ikonAksi(p.children), onClick: p.onClick };
-}
-
-/** Tinggi minimum baris header agar judul (termasuk yang membungkus beberapa
- *  baris) tidak meluber: hitung jumlah baris teks × line-height + padding judul.
- *  Tidak bergantung tinggi baris saat ini sehingga stabil (tidak loop). */
-function ukurPerluTinggiHeader(akar: HTMLElement): number {
-  let maks = 0;
-  akar.querySelectorAll<HTMLElement>('.dsg-row-header .simpes-dsg-headtitle').forEach((ht) => {
-    const cs = getComputedStyle(ht);
-    const lh = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.2 || 15;
-    const pad = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
-    let baris = 1;
-    const node = ht.firstChild;
-    if (node && node.nodeType === Node.TEXT_NODE && (node.textContent ?? '').trim() !== '') {
-      const r = document.createRange();
-      r.setStart(node, 0);
-      r.setEnd(node, (node.textContent ?? '').length);
-      baris = Math.max(1, r.getClientRects().length);
-    }
-    maks = Math.max(maks, Math.ceil(baris * lh + pad));
-  });
-  return maks;
-}
-
-/** Sel Aksi: tombol ikon dialog (klik tidak mengubah seleksi grid).
- *  Bila aksi lebih dari 3, diringkas jadi dropdown titik-tiga vertikal. */
-function ActionsCell({ rowData, columnData }: CellProps<GridRow, ActionsColData>) {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [konfirmasi, setKonfirmasi] = useState<AksiMenu['konfirmasi'] | null>(null);
-  const aksi = flattenAksi(columnData.render(rowData.id));
-  const stop = {
-    onMouseDown: (e: React.MouseEvent) => e.stopPropagation(),
-    onClick: (e: React.MouseEvent) => e.stopPropagation(),
-  };
-
-  if (columnData.ringkas) {
-    // Tabel berkapasitas > 3 aksi: selalu hamburger agar konsisten, walau baris
-    // ini sendiri beraksi ≤ 3. Baris tanpa aksi tidak menampilkan apa pun
-    // (fragment kosong: tipe component kolom DSG menolak null).
-    if (aksi.length === 0) return <></>;
-  } else if (aksi.length <= 3) {
-    return (
-      <div className="simpes-dsg-actions flex h-full flex-1 items-center justify-center gap-1" {...stop}>
-        {aksi.map((el, i) => (
-          <Fragment key={el.key ?? i}>{el}</Fragment>
-        ))}
-      </div>
-    );
-  }
-
-  return (
-    <div className="simpes-dsg-actions flex h-full flex-1 items-center justify-end gap-1" {...stop}>
-      <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
-        <DropdownMenuTrigger asChild>
-          <ActionIcon id={`btn_aksi_lain_${rowData.id}`} title="Aksi lainnya">
-            <MoreVertical size={16} />
-          </ActionIcon>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="min-w-44">
-          {aksi.map((el, i) => {
-            const m = metaAksi(el);
-            return (
-              <DropdownMenuItem
-                key={el.key ?? i}
-                onSelect={() => {
-                  setMenuOpen(false);
-                  if (m.konfirmasi) setKonfirmasi(m.konfirmasi);
-                  else m.onClick?.();
-                }}
-              >
-                {m.icon}
-                <span>{m.label}</span>
-              </DropdownMenuItem>
-            );
-          })}
-        </DropdownMenuContent>
-      </DropdownMenu>
-
-      <AlertDialog open={konfirmasi !== null} onOpenChange={(o) => { if (!o) setKonfirmasi(null); }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{konfirmasi?.title}</AlertDialogTitle>
-            <AlertDialogDescription>{konfirmasi?.description}</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Batal</AlertDialogCancel>
-            <AlertDialogAction
-              className={cn(buttonVariants({ variant: 'destructive' }))}
-              onClick={() => {
-                konfirmasi?.onConfirm();
-                setKonfirmasi(null);
-              }}
-            >
-              {konfirmasi?.confirmLabel ?? 'Hapus'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
-  );
-}
 
 type Drafts = Record<string, Record<string, string | null>>;
 
@@ -2495,7 +1817,7 @@ export default function ExcelTable<T extends { id: string | number }>({
     ubahFreeze,
   ]);
 
-  const hasSearchInput = searchValue !== undefined && onSearchChange;
+  const hasSearchInput = searchValue !== undefined && !!onSearchChange;
   const hasFilter = filter !== undefined;
   const hasUrut = !!onUrut;
   const showToolbar = hasSearchInput || hasFilter || hasUrut || awalanToolbar !== undefined || akhirToolbar !== undefined;
@@ -2522,88 +1844,35 @@ export default function ExcelTable<T extends { id: string | number }>({
 
   return (
     <div className={cn('mt-2 flex flex-col', maxRows === undefined ? 'min-h-0 flex-1' : 'shrink-0')}>
-      {/* Satu baris: input cari → tombol cari → pemisah → filter (kiri), lalu
-          kontrol tabel dan tombol tambah halaman (kanan), dikelompokkan
-          menurut fungsi. */}
-      <div
-        data-part="toolbar_tabel"
-        className={cn('flex flex-wrap items-end gap-2', showToolbar || addButton || !hidePreset ? 'mb-3' : 'mb-0')}
-      >
-        {awalanToolbar}
-        {(hasSearchInput || hasFilter || hasUrut) && (
-          <form
-            id={formId}
-            onSubmit={(e) => {
-              e.preventDefault();
-              onSearchSubmit?.();
-            }}
-            className="flex flex-wrap items-end gap-1.5"
-          >
-            {hasSearchInput && (
-              <FilterField label="Cari" htmlFor={inputId}>
-                <Input
-                  id={inputId}
-                  aria-label="Cari"
-                  placeholder={searchPlaceholder ?? 'Cari'}
-                  value={searchValue}
-                  onChange={(e) => onSearchChange?.(e.target.value)}
-                  className="w-44 sm:w-48"
-                />
-              </FilterField>
-            )}
-            {showSearchButton && (
-              <Button
-                id={buttonId}
-                type="submit"
-                size="icon-sm"
-                variant="outline"
-                title="Cari"
-                aria-label="Cari"
-              >
-                <Search size={16} />
-              </Button>
-            )}
-            {hasFilter && (hasSearchInput || showSearchButton) && (
-              <Separator orientation="vertical" className="h-4 self-center" />
-            )}
-            {filter}
-          </form>
-        )}
-        <span
-          id={`grid_info_${tableKey}`}
-          className={`text-xs text-muted-foreground${checkedIds.size > 0 ? '' : ' hidden'}`}
-        >
-          {checkedIds.size} baris dipilih
-        </span>
-        {checkedRows.length > 0 && renderBulkActions ? (
-          <div className="flex flex-wrap items-center gap-1.5">
-            {renderBulkActions(checkedRows, clearSelection)}
-          </div>
-        ) : null}
-        <div className="ml-auto flex flex-wrap items-center gap-2">
-          {/* Urutan tabel: dropdown dari Preset Urut (DB, per tabel) + tombol
-              arah. Kelola opsi lewat item "Kelola urutan…" di dropdown. */}
-          {onUrut && (
-            <PresetUrut
-              tableKey={tableKey}
-              urutAktif={urutAktif}
-              arahUrut={arahUrut}
-              onUrut={onUrut}
-            />
-          )}
-          {/* Preset kolom tampilan (tersimpan di DB per lembaga) — tanpa
-              pembungkus kotak agar tampil polos seperti kontrol lain. Kontrol
-              tabel umum (mode edit/input, salin, autofit, reset) pindah ke
-              ribbon tab "Tabel" agar tak memakan ruang toolbar. */}
-          {!hidePreset && (
-            <PresetKolom tableKey={tableKey} fields={fields} onApply={terapkanPreset} apiRef={presetApiRef} />
-          )}
-
-          {/* Tombol aksi utama halaman, sejajar dengan kontrol tabel. */}
-          {addButton && <div className="flex items-center gap-2">{addButton}</div>}
-          {akhirToolbar}
-        </div>
-      </div>
+      <ToolbarTabel
+        tableKey={tableKey}
+        showToolbar={showToolbar}
+        hidePreset={hidePreset}
+        awalanToolbar={awalanToolbar}
+        akhirToolbar={akhirToolbar}
+        addButton={addButton}
+        filter={filter}
+        formId={formId}
+        inputId={inputId}
+        buttonId={buttonId}
+        hasSearchInput={!!hasSearchInput}
+        hasFilter={hasFilter}
+        showSearchButton={showSearchButton}
+        searchValue={searchValue}
+        onSearchChange={onSearchChange}
+        onSearchSubmit={onSearchSubmit}
+        searchPlaceholder={searchPlaceholder}
+        checkedCount={checkedIds.size}
+        checkedRows={checkedRows}
+        renderBulkActions={renderBulkActions}
+        clearSelection={clearSelection}
+        onUrut={onUrut}
+        urutAktif={urutAktif}
+        arahUrut={arahUrut}
+        fields={fields}
+        terapkanPreset={terapkanPreset}
+        presetApiRef={presetApiRef}
+      />
 
       <div
         ref={wrapRef}
