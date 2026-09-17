@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { bisa } from '../api/auth';
 import { errorMessage } from '../api/client';
@@ -25,7 +25,7 @@ import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
 import { useTahunAjaranAwalString } from '@/hooks/useTahunAjaranAwal';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import Pager from '@/components/Pager';
-import { usePager } from '@/hooks/usePager';
+import { useDaftarTabel } from '@/hooks/useDaftarTabel';
 import { ActionIcon } from '@/components/RowActions';
 import { MoveHorizontal, Plus, SquareMousePointer, FileUp, Download } from '@/icons';
 import {
@@ -41,14 +41,6 @@ export default function RiwayatBelajarPage() {
   const { user } = useAuth();
   const canTambah = bisa(user, 'riwayat_belajar.tambah');
   const canPindah = bisa(user, 'pindah_kelas.ubah');
-  const pager = usePager('riwayat_belajar');
-  const reqRef = useRef(0);
-  const [rows, setRows] = useState<RiwayatRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState('');
-  const [lastPage, setLastPage] = useState(1);
-  const [total, setTotal] = useState(0);
-
   const [lembagaId, setLembagaId] = useState('');
   useLembagaAwalString(setLembagaId);
   const [taId, setTaId] = useState('');
@@ -56,12 +48,38 @@ export default function RiwayatBelajarPage() {
   const [semester, setSemester] = useState('');
   const [tanpaKelas, setTanpaKelas] = useState(false);
   const [arsip, setArsip] = useState(false);
-  const [search, setSearch] = useState('');
   const [terapkanCari, setTerapkanCari] = useState('');
-  /** Urut header: daftar nilai allowlist + arah global (maks 3 kunci). */
-  const [urut, setUrut] = useState<string[]>([]);
-  const [arahUrut, setArahUrut] = useState<'naik' | 'turun'>('naik');
   const [kelas, setKelasOpsi] = useState<Kelas[]>([]);
+  const {
+    rows,
+    loading,
+    err,
+    setErr,
+    search,
+    setSearch,
+    urut,
+    arahUrut,
+    terapkanUrut,
+    load,
+    lastPage,
+    total,
+    pager,
+  } = useDaftarTabel<RiwayatRow>({
+    tableKey: 'riwayat_belajar',
+    ambil: (a) => listRiwayatBelajar({
+      lembaga_id: lembagaId ? Number(lembagaId) : undefined,
+      tahun_ajaran_id: taId ? Number(taId) : undefined,
+      semester: semester || undefined,
+      tanpa_kelas: tanpaKelas || undefined,
+      is_aktif: arsip ? false : true,
+      q: terapkanCari || undefined,
+      sort: a.urut.length ? a.urut : undefined,
+      arah: a.urut.length ? a.arah : undefined,
+      page: a.page,
+      per_page: a.perPage,
+    }),
+    deps: [lembagaId, taId, semester, tanpaKelas, arsip, terapkanCari],
+  });
 
   const [inputOpen, setInputOpen] = useState(false);
   const [kelasPilih, setKelasPilih] = useState('');
@@ -72,58 +90,6 @@ export default function RiwayatBelajarPage() {
   const [importFile, setImportFile] = useState<File | null>(null);
   const [periksaHasil, setPeriksaHasil] = useState<ImportPeriksa | null>(null);
   const [busy, setBusy] = useState(false);
-
-  const load = useCallback(
-    async function loadPage(p = pager.page, pp = pager.perPage, f?: { urut?: string[]; arah?: 'naik' | 'turun' }) {
-      const req = ++reqRef.current;
-      setErr('');
-      setLoading(true);
-      const urutPakai = f?.urut ?? urut;
-      const arahPakai = f?.arah ?? arahUrut;
-      try {
-        const res = await listRiwayatBelajar({
-          lembaga_id: lembagaId ? Number(lembagaId) : undefined,
-          tahun_ajaran_id: taId ? Number(taId) : undefined,
-          semester: semester || undefined,
-          tanpa_kelas: tanpaKelas || undefined,
-          is_aktif: arsip ? false : true,
-          q: terapkanCari || undefined,
-          sort: urutPakai.length ? urutPakai : undefined,
-          arah: urutPakai.length ? arahPakai : undefined,
-          page: p,
-          per_page: pp,
-        });
-        if (req !== reqRef.current) return;
-        const fix = pager.sync(res.current_page, res.last_page);
-        if (fix != null && fix !== p) {
-          await loadPage(fix, pp, f);
-          return;
-        }
-        if (req !== reqRef.current) return;
-        setRows(res.data);
-        setLastPage(res.last_page);
-        setTotal(res.total);
-      } catch (e) {
-        if (req === reqRef.current) setErr(errorMessage(e));
-      } finally {
-        if (req === reqRef.current) setLoading(false);
-      }
-    },
-    [pager.page, pager.perPage, pager.sync, lembagaId, taId, semester, tanpaKelas, arsip, terapkanCari, urut, arahUrut],
-  );
-
-  /** Klik header: simpan urut baru lalu muat ulang dari halaman 1. */
-  function terapkanUrut(nilai: string[], arah: 'naik' | 'turun') {
-    setUrut(nilai);
-    setArahUrut(arah);
-    pager.goFirst();
-    void load(1, pager.perPage, { urut: nilai, arah });
-  }
-
-  useEffect(() => {
-    if (pager.ready) load(pager.page);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pager.ready, lembagaId, taId, semester, tanpaKelas, arsip, terapkanCari]);
 
   useEffect(() => {
     if (!lembagaId) { setKelasOpsi([]); return; }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { errorMessage } from '../api/client';
 import {
   createLembagaSantri,
@@ -35,7 +35,7 @@ import FilterField from '@/components/FilterField';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import Pager from '@/components/Pager';
-import { usePager } from '@/hooks/usePager';
+import { useDaftarTabel } from '@/hooks/useDaftarTabel';
 import { ActionIcon } from '@/components/RowActions';
 import { ProfilSantriDialog } from '@/components/ProfilSantriDialog';
 import { Download, FileUp, ImageUp, Plus, Upload } from '@/icons';
@@ -189,23 +189,38 @@ function pakaiCommitBaris(rows: Santri[]) {
 
 /** Buku Induk: identitas santri (buku induk) + panel keanggotaan per lembaga + import identitas. */
 export default function SantriPage() {
-  const [rows, setRows] = useState<Santri[]>([]);
   const [lembagas, setLembagas] = useState<Lembaga[]>([]);
-  const pager = usePager('santri');
-  const reqRef = useRef(0);
-  const [lastPage, setLastPage] = useState(1);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState('');
   const [statusGlobal, setStatusGlobal] = useState('_semua');
   const [lembagaId, setLembagaId] = useState('');
   useLembagaAwalString(setLembagaId);
-  const [search, setSearch] = useState('');
   const [terapkanCari, setTerapkanCari] = useState('');
-  /** Urut header: daftar nilai allowlist + arah global (maks 3 kunci). */
-  /** Urutan awal: kosong = ikut opsi bawaan Preset Urut (global per tabel). */
-  const [urut, setUrut] = useState<string[]>([]);
-  const [arahUrut, setArahUrut] = useState<'naik' | 'turun'>('naik');
+  const {
+    rows,
+    loading,
+    err,
+    setErr,
+    search,
+    setSearch,
+    urut,
+    arahUrut,
+    terapkanUrut,
+    load,
+    lastPage,
+    total,
+    pager,
+  } = useDaftarTabel<Santri>({
+    tableKey: 'santri',
+    ambil: (a) => listSantri({
+      status_global: statusGlobal === '_semua' ? undefined : statusGlobal === 'aktif',
+      lembaga_id: lembagaId ? Number(lembagaId) : undefined,
+      q: terapkanCari || undefined,
+      sort: a.urut.length ? a.urut : undefined,
+      arah: a.urut.length ? a.arah : undefined,
+      page: a.page,
+      per_page: a.perPage,
+    }),
+    deps: [statusGlobal, lembagaId, terapkanCari],
+  });
 
   const [importOpen, setImportOpen] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
@@ -321,58 +336,9 @@ export default function SantriPage() {
     setDataIds(dariFilter ?? opsiDataLembaga.map((l) => l.id));
   }, [importOpen, lembagaId, opsiDataLembaga, singleLembagaId]);
 
-  const load = useCallback(
-    async function loadPage(p = pager.page, pp = pager.perPage, o?: { urut?: string[]; arah?: 'naik' | 'turun' }) {
-      const req = ++reqRef.current;
-      setErr('');
-      setLoading(true);
-      try {
-        const u = o?.urut ?? urut;
-        const a = o?.arah ?? arahUrut;
-        const res = await listSantri({
-          status_global: statusGlobal === '_semua' ? undefined : statusGlobal === 'aktif',
-          lembaga_id: lembagaId ? Number(lembagaId) : undefined,
-          q: terapkanCari || undefined,
-          sort: u.length ? u : undefined,
-          arah: u.length ? a : undefined,
-          page: p,
-          per_page: pp,
-        });
-        if (req !== reqRef.current) return;
-        const fix = pager.sync(res.current_page, res.last_page);
-        if (fix != null && fix !== p) {
-          await loadPage(fix, pp);
-          return;
-        }
-        if (req !== reqRef.current) return;
-        setRows(res.data);
-        setLastPage(res.last_page);
-        setTotal(res.total);
-      } catch (e) {
-        if (req === reqRef.current) setErr(errorMessage(e));
-      } finally {
-        if (req === reqRef.current) setLoading(false);
-      }
-    },
-    [pager.page, pager.perPage, pager.sync, statusGlobal, lembagaId, terapkanCari, urut, arahUrut],
-  );
-
-  /** Klik header: simpan urut baru lalu muat ulang dari halaman 1. */
-  function terapkanUrut(nilai: string[], arah: 'naik' | 'turun') {
-    setUrut(nilai);
-    setArahUrut(arah);
-    pager.goFirst();
-    void load(1, pager.perPage, { urut: nilai, arah });
-  }
-
   useEffect(() => {
     listLembaga({ per_page: 1000 }).then((p) => setLembagas(p.data)).catch(() => {});
   }, []);
-
-  useEffect(() => {
-    if (pager.ready) load(pager.page);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pager.ready, statusGlobal, lembagaId, terapkanCari]);
 
   const bukaAnggota = useCallback(async (s: Santri) => {
     setAnggotaRow(s);
