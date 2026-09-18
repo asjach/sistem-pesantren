@@ -785,7 +785,7 @@ export default function PsbPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
-                    <SelectItem value="_semua">Semua pendaftar</SelectItem>
+                    <SelectItem value="_semua">Semua</SelectItem>
                     <SelectItem value="baru">Baru</SelectItem>
                     <SelectItem value="waiting_list">Waiting list</SelectItem>
                   </SelectGroup>

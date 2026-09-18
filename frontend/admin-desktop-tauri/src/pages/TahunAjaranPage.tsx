@@ -93,7 +93,6 @@ export default function TahunAjaranPage() {
     total,
     pager,
     onSearchChange,
-    onSearchSubmit,
     onSaved,
   } = useDaftarTabel<TahunAjaran>({
     tableKey: 'tahun_ajaran',
@@ -284,8 +283,6 @@ export default function TahunAjaranPage() {
         inputRowValues={{ aktif: 'nonaktif', tampil: 'global (semua)' }}
         searchValue={search}
         onSearchChange={onSearchChange}
-        onSearchSubmit={onSearchSubmit}
-        searchPlaceholder="Nama mis. 2026/2027"
         addButton={bolehKelola ? (
           <Button id="btn_buka_tambah_ta" onClick={() => setTambahOpen(true)}>
             + Tahun Ajaran

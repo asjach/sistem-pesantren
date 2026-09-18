@@ -81,7 +81,7 @@ export function FilterSemester({ id = 'select_semester_siklus', value, onChange 
         </SelectTrigger>
         <SelectContent>
           <SelectGroup>
-            <SelectItem value="_semua">Semua smt</SelectItem>
+            <SelectItem value="_semua">Semua</SelectItem>
             <SelectItem value="1">Semester 1</SelectItem>
             <SelectItem value="2">Semester 2</SelectItem>
           </SelectGroup>

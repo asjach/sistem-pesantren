@@ -849,7 +849,7 @@ export default function KegiatanPsbPage() {
                 <SelectGroup>
                   <SelectItem value="non_asrama">Non asrama</SelectItem>
                   <SelectItem value="asrama">Asrama</SelectItem>
-                  <SelectItem value="semua">Semua tipe</SelectItem>
+                  <SelectItem value="semua">Semua</SelectItem>
                 </SelectGroup>
               </SelectContent>
             </Select>

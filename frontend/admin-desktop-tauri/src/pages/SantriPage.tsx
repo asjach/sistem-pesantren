@@ -198,7 +198,6 @@ export default function SantriPage() {
     setErr,
     search,
     onSearchChange,
-    onSearchSubmit,
     urut,
     arahUrut,
     terapkanUrut,
@@ -402,8 +401,6 @@ export default function SantriPage() {
         )}
         searchValue={search}
         onSearchChange={onSearchChange}
-        onSearchSubmit={onSearchSubmit}
-        searchPlaceholder="Nama / NIK / NISN"
         searchIds={{ form: 'form_cari_santri', input: 'input_cari_santri', button: 'btn_cari_santri' }}
         filter={(
           <>
@@ -414,7 +411,7 @@ export default function SantriPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
-                    <SelectItem value="_semua">Semua status</SelectItem>
+                    <SelectItem value="_semua">Semua</SelectItem>
                     <SelectItem value="aktif">Aktif</SelectItem>
                     <SelectItem value="nonaktif">Nonaktif</SelectItem>
                   </SelectGroup>

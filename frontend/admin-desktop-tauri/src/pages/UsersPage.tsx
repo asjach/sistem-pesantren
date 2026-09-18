@@ -149,7 +149,6 @@ export default function UsersPage() {
     total,
     pager,
     onSearchChange,
-    onSearchSubmit,
     onSaved,
   } = useDaftarTabel<AdminUser>({
     tableKey: 'users',
@@ -313,8 +312,6 @@ export default function UsersPage() {
         inputRowValues={{ peran: 'orang_tua' }}
         searchValue={search}
         onSearchChange={onSearchChange}
-        onSearchSubmit={onSearchSubmit}
-        searchPlaceholder="Nama / email / HP / username"
         searchIds={{ form: 'form_cari_user', input: 'input_cari_user', button: 'btn_cari_user' }}
         urutAktif={urut}
         arahUrut={arahUrut}

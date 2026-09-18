@@ -93,7 +93,6 @@ export default function LembagaPage() {
     total,
     pager,
     onSearchChange,
-    onSearchSubmit,
     onSaved,
   } = useDaftarTabel<Lembaga>({
     tableKey: 'lembaga',
@@ -367,8 +366,6 @@ export default function LembagaPage() {
         onCreateRow={canTambah ? createRow : undefined}
         searchValue={search}
         onSearchChange={onSearchChange}
-        onSearchSubmit={onSearchSubmit}
-        searchPlaceholder="Nama / kode"
         addButton={canTambah ? (
           <Button id="btn_buka_tambah_lembaga" onClick={() => setTambahOpen(true)}>
             + Lembaga

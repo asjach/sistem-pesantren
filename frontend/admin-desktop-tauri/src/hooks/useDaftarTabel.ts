@@ -145,12 +145,6 @@ export function useDaftarTabel<T, R extends Paginate<T> = Paginate<T>>({
     [pager.goFirst],
   );
 
-  // Enter/tombol Cari: terapkan segera (lewati debounce) lalu muat ulang.
-  const onSearchSubmit = useCallback(() => {
-    setSearchTertunda(search);
-    pager.goFirst();
-  }, [search, pager.goFirst]);
-
   const onSaved = useCallback(() => load(), [load]);
 
   return {
@@ -169,7 +163,6 @@ export function useDaftarTabel<T, R extends Paginate<T> = Paginate<T>>({
     total,
     pager,
     onSearchChange,
-    onSearchSubmit,
     onSaved,
   };
 }

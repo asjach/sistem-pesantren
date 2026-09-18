@@ -158,7 +158,7 @@ export default function TopBar() {
                 >
                   <Landmark size={14} />
                   <span className="hidden max-w-[9rem] truncate sm:inline">
-                    {lembaga ? (lembaga.kode ?? lembaga.nama) : 'Semua lembaga'}
+                    {lembaga ? (lembaga.kode ?? lembaga.nama) : 'Semua'}
                   </span>
                   <ChevronDown size={13} className="opacity-70" />
                 </button>
@@ -170,7 +170,7 @@ export default function TopBar() {
                     keluar dari peran lewat banner / Esc). */}
                 {adaSemua && lembagaId === null && (
                   <DropdownMenuItem id="menu_lembaga_aktif_semua" onSelect={() => pilih(null)}>
-                    <span className="flex-1">Semua lembaga</span>
+                    <span className="flex-1">Semua</span>
                     <Check data-icon="inline-end" size={14} />
                   </DropdownMenuItem>
                 )}
@@ -194,7 +194,7 @@ export default function TopBar() {
                 >
                   <CalendarDays size={14} />
                   <span className="hidden max-w-[9rem] truncate sm:inline">
-                    {tahunAjaran?.nama ?? 'Semua tahun'}
+                    {tahunAjaran?.nama ?? 'Semua'}
                   </span>
                   <ChevronDown size={13} className="opacity-70" />
                 </button>
@@ -203,7 +203,7 @@ export default function TopBar() {
                 <DropdownMenuLabel className="text-foreground">Tahun ajaran aktif</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem id="menu_ta_aktif_semua" onSelect={() => taPilih(null)}>
-                  <span className="flex-1">Semua tahun</span>
+                  <span className="flex-1">Semua</span>
                   {tahunAjaranId === null && <Check data-icon="inline-end" size={14} />}
                 </DropdownMenuItem>
                 {taPilihan.map((t) => (
@@ -229,7 +229,7 @@ export default function TopBar() {
                 >
                   <Columns3 size={14} />
                   <span className="hidden max-w-[9rem] truncate sm:inline">
-                    {semester === null ? 'Semua semester' : `Semester ${semester}`}
+                    {semester === null ? 'Semua' : `Semester ${semester}`}
                   </span>
                   <ChevronDown size={13} className="opacity-70" />
                 </button>
@@ -238,7 +238,7 @@ export default function TopBar() {
                 <DropdownMenuLabel className="text-foreground">Semester aktif</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem id="menu_semester_aktif_semua" onSelect={() => pilihSemester(null)}>
-                  <span className="flex-1">Semua semester</span>
+                  <span className="flex-1">Semua</span>
                   {semester === null && <Check data-icon="inline-end" size={14} />}
                 </DropdownMenuItem>
                 {(['1', '2'] as SemesterAktif[]).map((s) => (

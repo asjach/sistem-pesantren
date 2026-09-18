@@ -310,7 +310,6 @@ export default function ReferensiPage() {
         onSaved={reload}
         searchValue={search}
         onSearchChange={setSearch}
-        searchPlaceholder={isStatus ? 'Kode / nama' : 'Nama'}
         searchIds={{ form: 'form_cari_referensi', input: 'input_cari_referensi', button: 'btn_cari_referensi' }}
         filter={(
           <>

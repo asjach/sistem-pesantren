@@ -135,7 +135,6 @@ export default function KelasPage() {
     total,
     pager,
     onSearchChange,
-    onSearchSubmit,
     onSaved,
   } = useDaftarTabel<Kelas>({
     tableKey: 'kelas',
@@ -537,8 +536,6 @@ export default function KelasPage() {
         inputRowValues={{ ta: taTerpilih, lembaga: lembagaTerpilih, urutan: '0' }}
         searchValue={search}
         onSearchChange={onSearchChange}
-        onSearchSubmit={onSearchSubmit}
-        searchPlaceholder="Nama kelas"
         addButton={canTambahKelas ? (
           <>
             {dariKode && (
