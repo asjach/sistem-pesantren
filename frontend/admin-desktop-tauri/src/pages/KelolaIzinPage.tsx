@@ -4,6 +4,8 @@ import { getMatriks, simpanIzin, type MatriksIzin } from '../api/izin';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+import { X } from '@/icons';
 import { toast } from 'sonner';
 
 const LABEL_AKSI: Record<string, string> = {
@@ -21,6 +23,7 @@ export default function KelolaIzinPage() {
   const [loading, setLoading] = useState(true);
   const [simpanRole, setSimpanRole] = useState('');
   const [err, setErr] = useState('');
+  const [cari, setCari] = useState('');
 
   const muat = useCallback(async () => {
     setErr('');
@@ -74,6 +77,17 @@ export default function KelolaIzinPage() {
   }, [centang, muat]);
 
   const modul = useMemo(() => Object.entries(matriks?.katalog ?? {}), [matriks]);
+  /** Saring baris matriks menuruti kata kunci (modul/aksi/label). */
+  const modulTampil = useMemo(() => {
+    const q = cari.trim().toLowerCase();
+    if (!q) return modul;
+    return modul
+      .map(([namaModul, aksi]) => ([
+        namaModul,
+        aksi.filter((a) => `${namaModul} ${a} ${LABEL_AKSI[a] ?? ''}`.toLowerCase().includes(q)),
+      ] as const))
+      .filter(([, aksi]) => aksi.length > 0);
+  }, [modul, cari]);
 
   return (
     <div className={PAGE_SHELL}>
@@ -81,6 +95,31 @@ export default function KelolaIzinPage() {
       {loading || !matriks ? (
         <p className="py-8 text-sm text-muted-foreground">{loading ? 'Memuat matriks izin…' : 'Matriks izin tidak tersedia.'}</p>
       ) : (
+        <>
+        <div className="mb-3 flex justify-center">
+          <div className="relative">
+            <Input
+              id="input_cari_izin"
+              aria-label="Cari"
+              placeholder="Cari"
+              value={cari}
+              onChange={(e) => setCari(e.target.value)}
+              className="w-35 pr-7"
+            />
+            {cari ? (
+              <button
+                type="button"
+                id="input_cari_izin_hapus"
+                title="Hapus isi pencarian"
+                aria-label="Hapus isi pencarian"
+                onClick={() => setCari('')}
+                className="absolute top-1/2 right-1.5 grid size-4 -translate-y-1/2 place-items-center rounded-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              >
+                <X size={12} />
+              </button>
+            ) : null}
+          </div>
+        </div>
         <div className="overflow-x-auto rounded-xl border bg-card">
           <table className="w-full min-w-160 border-collapse text-sm">
             <thead>
@@ -95,7 +134,13 @@ export default function KelolaIzinPage() {
               </tr>
             </thead>
             <tbody>
-              {modul.map(([namaModul, aksi]) => (
+              {modulTampil.length === 0 ? (
+                <tr>
+                  <td colSpan={matriks.roles.length + 1} className="px-3 py-6 text-center text-xs text-muted-foreground">
+                    Tidak ada modul cocok.
+                  </td>
+                </tr>
+              ) : modulTampil.map(([namaModul, aksi]) => (
                 aksi.map((a, i) => {
                   const izin = `${namaModul}.${a}`;
                   return (
@@ -142,6 +187,7 @@ export default function KelolaIzinPage() {
             </tfoot>
           </table>
         </div>
+        </>
       )}
     </div>
   );
