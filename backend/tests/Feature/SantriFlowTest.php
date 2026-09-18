@@ -460,29 +460,4 @@ class SantriFlowTest extends TestCase
         $negatif = $this->actingAs($admin, 'sanctum')->getJson('/api/admin/santri?per_page=-5')->assertStatus(200);
         $this->assertCount(105, $negatif->json('data'));
     }
-
-    public function test_17_daftar_santri_pencarian_q_substring_dan_kolom(): void
-    {
-        $f = $this->baseFixture();
-        $admin = $this->makeUser('admin', [$f['mi']->id]);
-
-        $this->makeSantri('ADINDA PUTRI', ['nik' => '3201010101010001', 'nisn' => '0099009901']);
-        $this->makeSantri('BUDI SANTOSO');
-
-        // Substring di tengah nama.
-        $nama = $this->actingAs($admin, 'sanctum')->getJson('/api/admin/santri?q=NDA')->assertStatus(200);
-        $this->assertCount(1, $nama->json('data'));
-        $this->assertStringContainsString('ADINDA', $nama->json('data.0.nama_lengkap'));
-
-        // Lewat NIK (substring) dan NISN.
-        $nik = $this->actingAs($admin, 'sanctum')->getJson('/api/admin/santri?q=320101')->assertStatus(200);
-        $this->assertCount(1, $nik->json('data'));
-
-        $nisn = $this->actingAs($admin, 'sanctum')->getJson('/api/admin/santri?q=0099')->assertStatus(200);
-        $this->assertCount(1, $nisn->json('data'));
-
-        // Tak cocok.
-        $kosong = $this->actingAs($admin, 'sanctum')->getJson('/api/admin/santri?q=ZZZZ')->assertStatus(200);
-        $this->assertCount(0, $kosong->json('data'));
-    }
 }

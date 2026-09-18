@@ -124,16 +124,12 @@ jobs:
         working-directory: backend
         run: php artisan migrate:fresh --force --no-interaction
 
-      # Dikecualikan: tes pencarian nama lewat FULLTEXT.
-      # Index FULLTEXT InnoDB baru terlihat SETELAH commit, sedangkan
-      # `RefreshDatabase` membungkus tiap tes dalam transaksi yang belum di-commit
-      # (terbukti empiris: baris tak terlihat di dalam transaksi, terlihat setelah
-      # COMMIT). Jadi ini keterbatasan cara tes, bukan bug pencarian di produksi
-      # (setiap request = transaksi yang sudah commit). Perbaikan menyusul:
-      # pisahkan tes ke jalur yang tidak bergantung transaksi.
+      # Tanpa pengecualian: tes pencarian FULLTEXT sudah dipisah ke
+      # `SantriPencarianTest` yang memakai `DatabaseMigrations` (tanpa transaksi
+      # pembungkus), sehingga index FULLTEXT InnoDB ikut teruji di MySQL.
       - name: Tes backend di MySQL
         working-directory: backend
-        run: vendor/bin/phpunit --exclude-filter 'pencarian_q_substring'
+        run: vendor/bin/phpunit
 
   frontend:
     name: Frontend · typecheck + build
