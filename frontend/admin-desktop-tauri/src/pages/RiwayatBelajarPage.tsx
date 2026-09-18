@@ -12,7 +12,7 @@ import {
   unduhTemplateRiwayatBelajar,
   type RiwayatRow,
 } from '../api/siklus';
-import { listKelas, type Kelas } from '../api/master';
+import { listKelas, listLembaga, listTahunAjaran, type Kelas, type Lembaga, type TahunAjaran } from '../api/master';
 import type { ImportPeriksa, LembagaSantri } from '../api/santri';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,10 +22,13 @@ import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import FilterField from '@/components/FilterField';
 import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
 import { useTahunAjaranAwalString } from '@/hooks/useTahunAjaranAwal';
+import { useLembagaAktif } from '@/lembagaAktif';
+import { useTahunAjaranAktif } from '@/tahunAjaranAktif';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import Pager from '@/components/Pager';
 import { useDaftarTabel } from '@/hooks/useDaftarTabel';
 import { ActionIcon, DeleteAction } from '@/components/RowActions';
+import ConfirmDelete from '@/components/ConfirmDelete';
 import { ArrowRight, FileUp, Download } from '@/icons';
 import {
   ROSTER_FIELDS,
@@ -64,9 +67,35 @@ export default function RiwayatBelajarPage() {
   useLembagaAwalString(setLembagaId);
   const [taId, setTaId] = useState('');
   useTahunAjaranAwalString(setTaId);
+  /** Topbar kosong (mis. mode "Semua lembaga") → pilih lokal di halaman. */
+  const { lembagaId: lembagaTop } = useLembagaAktif();
+  const { tahunAjaranId: taTop } = useTahunAjaranAktif();
+  const [lembagaOpsi, setLembagaOpsi] = useState<Lembaga[]>([]);
+  const [taOpsi, setTaOpsi] = useState<TahunAjaran[]>([]);
+
+  useEffect(() => {
+    if (lembagaTop != null) { setLembagaOpsi([]); return; }
+    listLembaga({ per_page: 1000 })
+      .then((p) => setLembagaOpsi(p.data.filter((l) => l.parent != null)))
+      .catch(() => setLembagaOpsi([]));
+  }, [lembagaTop]);
+
+  useEffect(() => {
+    if (taTop != null || !lembagaId) { setTaOpsi([]); return; }
+    listTahunAjaran({ lembaga_id: Number(lembagaId), per_page: 1000 })
+      .then((p) => setTaOpsi(p.data))
+      .catch(() => setTaOpsi([]));
+  }, [taTop, lembagaId]);
   const [kelasId, setKelasId] = useState('');
   const [kelasOpsi, setKelasOpsi] = useState<Kelas[]>([]);
   const [busyId, setBusyId] = useState<number | null>(null);
+  const [bulkBusy, setBulkBusy] = useState(false);
+  /** Tgl masuk bawaan untuk aksi panah (toolbar panel kiri); default hari ini (lokal). */
+  const [tglMasuk, setTglMasuk] = useState(() => {
+    const now = new Date();
+    const lokal = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+    return lokal.toISOString().slice(0, 10);
+  });
 
   const kiri = useDaftarTabel<LembagaSantri>({
     tableKey: 'riwayat_belum_masuk',
@@ -114,6 +143,7 @@ export default function RiwayatBelajarPage() {
     listKelas({ lembaga_id: Number(lembagaId), tahun_ajaran_id: Number(taId), per_page: 1000 })
       .then((p) => setKelasOpsi(p.data))
       .catch(() => setKelasOpsi([]));
+    setKelasId('');
   }, [lembagaId, taId]);
 
   const muatUlang = useCallback(async () => {
@@ -122,12 +152,20 @@ export default function RiwayatBelajarPage() {
 
   const masukkan = useCallback(async (r: LembagaSantri) => {
     if (busyId !== null || !lembagaId || !taId) return;
+    if (!kelasId) {
+      toast.error('Pilih kelas di toolbar tabel kanan dulu.');
+      return;
+    }
     setBusyId(r.id);
     try {
+      const kelas = kelasOpsi.find((k) => String(k.id) === kelasId);
       await createRiwayatBelajar({
         santri_id: r.santri_id,
         lembaga_id: Number(lembagaId),
         tahun_ajaran_id: Number(taId),
+        kelas_id: Number(kelasId),
+        tingkat: kelas?.tingkat ?? null,
+        tgl_masuk: tglMasuk || null,
       });
       toast.success('Santri dimasukkan ke riwayat ganjil.');
       await muatUlang();
@@ -137,7 +175,7 @@ export default function RiwayatBelajarPage() {
     } finally {
       setBusyId(null);
     }
-  }, [busyId, lembagaId, taId, muatUlang]);
+  }, [busyId, lembagaId, taId, kelasId, kelasOpsi, tglMasuk, muatUlang]);
 
   const batalkan = useCallback(async (r: RiwayatRow) => {
     try {
@@ -146,6 +184,66 @@ export default function RiwayatBelajarPage() {
       await muatUlang();
     } catch (e) { toast.error(errorMessage(e)); }
   }, [muatUlang]);
+
+  /** Aksi massal kiri: masukkan yang tercentang ke kelas terpilih. */
+  const masukBanyak = useCallback(async (checked: LembagaSantri[], clear: () => void) => {
+    if (bulkBusy || checked.length === 0 || !lembagaId || !taId) return;
+    if (!kelasId) {
+      toast.error('Pilih kelas di toolbar tabel kanan dulu.');
+      return;
+    }
+    setBulkBusy(true);
+    const kelas = kelasOpsi.find((k) => String(k.id) === kelasId);
+    let ok = 0;
+    const gagal: string[] = [];
+    try {
+      for (const r of checked) {
+        try {
+          await createRiwayatBelajar({
+            santri_id: r.santri_id,
+            lembaga_id: Number(lembagaId),
+            tahun_ajaran_id: Number(taId),
+            kelas_id: Number(kelasId),
+            tingkat: kelas?.tingkat ?? null,
+            tgl_masuk: tglMasuk || null,
+          });
+          ok++;
+        } catch (e) {
+          gagal.push(`${r.santri?.nama_lengkap ?? r.santri_id}: ${errorMessage(e)}`);
+        }
+      }
+      if (gagal.length > 0) toast.error(`${ok} masuk, ${gagal.length} gagal: ${gagal.slice(0, 3).join(' · ')}${gagal.length > 3 ? ' …' : ''}`);
+      else toast.success(`${ok} santri dimasukkan ke kelas.`);
+      clear();
+      await muatUlang();
+    } finally {
+      setBulkBusy(false);
+    }
+  }, [bulkBusy, lembagaId, taId, kelasId, kelasOpsi, tglMasuk, muatUlang]);
+
+  /** Aksi massal kanan: batalkan yang tercentang (hard delete). */
+  const batalBanyak = useCallback(async (checked: RiwayatRow[], clear: () => void) => {
+    if (bulkBusy || checked.length === 0) return;
+    setBulkBusy(true);
+    let ok = 0;
+    const gagal: string[] = [];
+    try {
+      for (const r of checked) {
+        try {
+          await batalRiwayat(r.id);
+          ok++;
+        } catch (e) {
+          gagal.push(`${r.santri?.nama_lengkap ?? r.id}: ${errorMessage(e)}`);
+        }
+      }
+      if (gagal.length > 0) toast.error(`${ok} dibatalkan, ${gagal.length} gagal: ${gagal.slice(0, 3).join(' · ')}${gagal.length > 3 ? ' …' : ''}`);
+      else toast.success(`${ok} riwayat dibatalkan.`);
+      clear();
+      await muatUlang();
+    } finally {
+      setBulkBusy(false);
+    }
+  }, [bulkBusy, muatUlang]);
 
   const [importOpen, setImportOpen] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
@@ -179,8 +277,52 @@ export default function RiwayatBelajarPage() {
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{kiri.err || kanan.err}</ErrorNotice>
+      {(lembagaTop == null || taTop == null) && (
+        <div className="mb-3 flex flex-wrap items-end gap-2">
+          {lembagaTop == null && (
+            <FilterField label="Lembaga" htmlFor="select_lembaga_riwayat_belajar">
+              <Select value={lembagaId === '' ? '_kosong' : lembagaId} onValueChange={(v) => {
+                const next = v === '_kosong' ? '' : v;
+                setLembagaId(next);
+                if (taTop == null) setTaId('');
+                setKelasId('');
+                kiri.pager.goFirst(); kanan.pager.goFirst();
+              }}>
+                <SelectTrigger id="select_lembaga_riwayat_belajar" title="Filter lembaga" aria-label="Filter lembaga" size="sm" className="w-44">
+                  <SelectValue placeholder="Pilih lembaga" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value="_kosong">Pilih lembaga</SelectItem>
+                    {lembagaOpsi.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>)}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </FilterField>
+          )}
+          {taTop == null && lembagaId !== '' && (
+            <FilterField label="Tahun ajaran" htmlFor="select_ta_riwayat_belajar">
+              <Select value={taId === '' ? '_kosong' : taId} onValueChange={(v) => {
+                setTaId(v === '_kosong' ? '' : v);
+                setKelasId('');
+                kiri.pager.goFirst(); kanan.pager.goFirst();
+              }}>
+                <SelectTrigger id="select_ta_riwayat_belajar" title="Filter tahun ajaran" aria-label="Filter tahun ajaran" size="sm" className="w-44">
+                  <SelectValue placeholder="Pilih tahun ajaran" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value="_kosong">Pilih tahun ajaran</SelectItem>
+                    {taOpsi.map((t) => <SelectItem key={t.id} value={String(t.id)}>{t.nama}</SelectItem>)}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </FilterField>
+          )}
+        </div>
+      )}
       {!siap ? (
-        <p className="text-sm text-muted-foreground">Pilih lembaga dan tahun ajaran aktif di bilah atas dulu.</p>
+        <p className="text-sm text-muted-foreground">Pilih lembaga dan tahun ajaran dulu untuk memuat kedua tabel.</p>
       ) : (
         <div className="grid min-h-0 flex-1 grid-cols-[repeat(auto-fit,minmax(min(420px,100%),1fr))] gap-4">
           {panel(
@@ -197,12 +339,12 @@ export default function RiwayatBelajarPage() {
               canEdit={false}
               onCommit={noopCommit}
               onSaved={noopCommit}
-              hideCheckbox
               renderActions={(r) => (
                 canTambah ? (
                   <ActionIcon
                     id={`btn_masuk_riwayat_${r.id}`}
-                    title="Masukkan ke riwayat ganjil"
+                    title={kelasId ? 'Masukkan ke kelas terpilih' : 'Pilih kelas di tabel kanan dulu'}
+                    disabled={kelasId === '' || busyId !== null}
                     onClick={() => void masukkan(r)}
                   >
                     <ArrowRight size={16} />
@@ -214,6 +356,30 @@ export default function RiwayatBelajarPage() {
               onSearchSubmit={kiri.onSearchSubmit}
               searchPlaceholder="Nama / NIK / NIS lokal"
               searchIds={{ form: 'form_cari_belum_riwayat', input: 'input_cari_belum_riwayat', button: 'btn_cari_belum_riwayat' }}
+              renderBulkActions={canTambah ? (checked, clear) => (
+                <Button
+                  id="btn_bulk_masuk_riwayat"
+                  size="sm"
+                  disabled={bulkBusy || !kelasId}
+                  title={kelasId ? 'Masukkan yang tercentang ke kelas terpilih' : 'Pilih kelas di tabel kanan dulu'}
+                  onClick={() => void masukBanyak(checked, clear)}
+                >
+                  Masuk ({checked.length})
+                </Button>
+              ) : undefined}
+              akhirToolbar={(
+                <FilterField label="Tgl masuk" htmlFor="input_tgl_masuk_belum_riwayat">
+                  <Input
+                    id="input_tgl_masuk_belum_riwayat"
+                    type="date"
+                    title="Tanggal masuk untuk aksi panah"
+                    aria-label="Tanggal masuk untuk aksi panah"
+                    className="w-36"
+                    value={tglMasuk}
+                    onChange={(e) => setTglMasuk(e.target.value)}
+                  />
+                </FilterField>
+              )}
             />,
             <Pager
               page={kiri.pager.page}
@@ -238,7 +404,6 @@ export default function RiwayatBelajarPage() {
               canEdit={false}
               onCommit={noopCommit}
               onSaved={noopCommit}
-              hideCheckbox
               renderActions={(r) => (
                 canBatal ? (
                   <DeleteAction
@@ -254,9 +419,42 @@ export default function RiwayatBelajarPage() {
               onSearchSubmit={kanan.onSearchSubmit}
               searchPlaceholder="Nama / NIK"
               searchIds={{ form: 'form_cari_riwayat_belajar', input: 'input_cari_riwayat_belajar', button: 'btn_cari_riwayat_belajar' }}
+              renderBulkActions={canBatal ? (checked, clear) => (
+                <ConfirmDelete
+                  title={`Batalkan ${checked.length} riwayat?`}
+                  description="Baris yang tercentang dihapus permanen dan santri kembali ke panel kiri."
+                  onConfirm={() => void batalBanyak(checked, clear)}
+                >
+                  <Button
+                    id="btn_bulk_batal_riwayat"
+                    size="sm"
+                    variant="outline"
+                    className="text-destructive"
+                    disabled={bulkBusy}
+                    title="Batalkan yang tercentang (hapus permanen)"
+                  >
+                    Batalkan ({checked.length})
+                  </Button>
+                </ConfirmDelete>
+              ) : undefined}
               urutAktif={kanan.urut}
               arahUrut={kanan.arahUrut}
               onUrut={kanan.terapkanUrut}
+              filter={(
+                <FilterField label="Kelas *" htmlFor="select_kelas_riwayat_belajar">
+                  <Select value={kelasId === '' ? '_semua' : kelasId} onValueChange={(v) => { setKelasId(v === '_semua' ? '' : v); kanan.pager.goFirst(); }}>
+                    <SelectTrigger id="select_kelas_riwayat_belajar" title="Filter tabel + kelas tujuan panah (wajib untuk memasukkan santri)" aria-label="Filter kelas" size="sm" className="w-40">
+                      <SelectValue placeholder="Semua kelas" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectItem value="_semua">Semua kelas</SelectItem>
+                        {kelasOpsi.map((k) => <SelectItem key={k.id} value={String(k.id)}>{k.nama_kelas}</SelectItem>)}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </FilterField>
+              )}
             />,
             <Pager
               page={kanan.pager.page}
@@ -271,21 +469,7 @@ export default function RiwayatBelajarPage() {
                 <FileUp data-icon="inline-start" size={16} /> Import
               </Button>
             ) : undefined,
-            <div className="px-2 pt-2">
-              <FilterField label="Kelas" htmlFor="select_kelas_riwayat_belajar">
-                <Select value={kelasId === '' ? '_semua' : kelasId} onValueChange={(v) => { setKelasId(v === '_semua' ? '' : v); kanan.pager.goFirst(); }}>
-                  <SelectTrigger id="select_kelas_riwayat_belajar" title="Filter kelas" aria-label="Filter kelas" size="sm" className="w-40">
-                    <SelectValue placeholder="Semua kelas" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      <SelectItem value="_semua">Semua kelas</SelectItem>
-                      {kelasOpsi.map((k) => <SelectItem key={k.id} value={String(k.id)}>{k.nama_kelas}</SelectItem>)}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </FilterField>
-            </div>,
+            undefined,
           )}
         </div>
       )}

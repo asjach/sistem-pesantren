@@ -33,9 +33,6 @@ export default function MiMdPage() {
   const [cariMd, setCariMd] = useState('');
   const [cariBeda, setCariBeda] = useState('');
   const [busyId, setBusyId] = useState<number | null>(null);
-  const [pilihMi, setPilihMi] = useState<Set<number>>(new Set());
-  const [pilihMd, setPilihMd] = useState<Set<number>>(new Set());
-  const [pilihBeda, setPilihBeda] = useState<Set<number>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
 
   const load = useCallback(async () => {
@@ -85,7 +82,8 @@ export default function MiMdPage() {
     }
   }
 
-  async function samakanBanyak(ids: number[], arah: 'ke_mi' | 'ke_md') {
+  async function samakanBanyak(checked: Baris[], arah: 'ke_mi' | 'ke_md', clear: () => void) {
+    const ids = checked.map((r) => r.santri_id);
     if (ids.length === 0) return;
     setBulkBusy(true);
     try {
@@ -95,7 +93,7 @@ export default function MiMdPage() {
       } else {
         toast.success(res.pesan);
       }
-      setPilihBeda(new Set());
+      clear();
       await load();
     } catch (e) {
       toast.error(errorMessage(e));
@@ -104,7 +102,8 @@ export default function MiMdPage() {
     }
   }
 
-  async function daftarkanBanyak(ids: number[]) {
+  async function daftarkanBanyak(checked: Baris[], clear: () => void) {
+    const ids = checked.map((r) => r.santri_id);
     if (ids.length === 0) return;
     setBulkBusy(true);
     try {
@@ -114,7 +113,7 @@ export default function MiMdPage() {
       } else {
         toast.success(res.pesan);
       }
-      setPilihMi(new Set());
+      clear();
       await load();
     } catch (e) {
       toast.error(errorMessage(e));
@@ -140,11 +139,10 @@ export default function MiMdPage() {
     }
   }
 
-  async function hentikanBanyak(ids: number[]) {
+  async function hentikanBanyak(checked: Baris[], clear: () => void) {
     // Hanya yang juga-MI yang bisa dikeluarkan; murni MD dilewati.
-    const peta = new Map(rowsMd.map((r) => [r.santri_id, r]));
-    const layak = ids.filter((id) => peta.get(id)?.juga_mi === true);
-    const lewati = ids.length - layak.length;
+    const layak = checked.filter((r) => r.juga_mi === true).map((r) => r.santri_id);
+    const lewati = checked.length - layak.length;
     if (layak.length === 0) {
       toast.error(lewati > 0 ? `${lewati} baris murni MD — tidak ada yang dikeluarkan.` : 'Tidak ada baris terpilih.');
       return;
@@ -157,7 +155,7 @@ export default function MiMdPage() {
       } else {
         toast.success(lewati > 0 ? `${res.pesan} ${lewati} murni MD dilewati.` : res.pesan);
       }
-      setPilihMd(new Set());
+      clear();
       await load();
     } catch (e) {
       toast.error(errorMessage(e));
@@ -210,13 +208,11 @@ export default function MiMdPage() {
     rows: Baris[],
     getValues: (r: Baris) => Record<string, string | null>,
     aksi?: (r: Baris) => ReactNode,
-    aksiKepala?: ReactNode,
-    terpilih?: (rows: Baris[]) => void,
+    renderBulk?: (checked: Baris[], clear: () => void) => ReactNode,
   ) => (
     <section className="flex min-h-0 min-w-0 flex-col rounded-md border">
       <header className="flex items-center justify-between gap-2 border-b bg-muted/40 px-3 py-2 text-sm font-medium">
         <span>{judul} ({jumlah})</span>
-        {aksiKepala}
       </header>
       <div className="px-2 pt-2">
         <Input
@@ -236,7 +232,7 @@ export default function MiMdPage() {
           onCommit={async () => {}}
           onSaved={() => {}}
           renderActions={aksi ? (r) => aksi(r) : () => null}
-          onCheckedChange={terpilih ? (rows) => terpilih(rows) : undefined}
+          renderBulkActions={renderBulk}
           emptyText="Tidak ada data."
         />
       </div>
@@ -272,20 +268,19 @@ export default function MiMdPage() {
               )
               : undefined,
             canDaftar
-              ? (
+              ? (checked, clear) => (
                 <Button
                   id="btn_bulk_daftar_md"
                   size="sm"
                   variant="outline"
-                  disabled={bulkBusy || pilihMi.size === 0}
+                  disabled={bulkBusy}
                   title="Daftarkan yang tercentang ke MD"
-                  onClick={() => void daftarkanBanyak([...pilihMi])}
+                  onClick={() => void daftarkanBanyak(checked, clear)}
                 >
-                  Ke MD ({pilihMi.size})
+                  Ke MD ({checked.length})
                 </Button>
               )
               : undefined,
-            (rows) => setPilihMi(new Set(rows.map((r) => r.santri_id))),
           )}
           {panel('md', 'MD Semua', data?.md_semua.length ?? 0, cariMd, setCariMd, FIELDS_MD, rowsMd, nilaiStatis,
             canHentikan
@@ -303,21 +298,20 @@ export default function MiMdPage() {
                 : null)
               : undefined,
             canHentikan
-              ? (
+              ? (checked, clear) => (
                 <Button
                   id="btn_bulk_hentikan_md"
                   size="sm"
                   variant="outline"
                   className="text-destructive"
-                  disabled={bulkBusy || pilihMd.size === 0}
+                  disabled={bulkBusy}
                   title="Keluarkan yang tercentang dari MD (murni MD dilewati)"
-                  onClick={() => void hentikanBanyak([...pilihMd])}
+                  onClick={() => void hentikanBanyak(checked, clear)}
                 >
-                  Keluarkan ({pilihMd.size})
+                  Keluarkan ({checked.length})
                 </Button>
               )
               : undefined,
-            (rows) => setPilihMd(new Set(rows.map((r) => r.santri_id))),
           )}
           {panel(
             'beda',
@@ -355,32 +349,31 @@ export default function MiMdPage() {
               )
               : undefined,
             canSamakan
-              ? (
+              ? (checked, clear) => (
                 <div className="flex gap-1">
                   <Button
                     id="btn_bulk_samakan_mi"
                     size="sm"
                     variant="outline"
-                    disabled={bulkBusy || pilihBeda.size === 0}
+                    disabled={bulkBusy}
                     title="Samakan yang tercentang dengan MI"
-                    onClick={() => void samakanBanyak([...pilihBeda], 'ke_md')}
+                    onClick={() => void samakanBanyak(checked, 'ke_md', clear)}
                   >
-                    Ikut MI ({pilihBeda.size})
+                    Ikut MI ({checked.length})
                   </Button>
                   <Button
                     id="btn_bulk_samakan_md"
                     size="sm"
                     variant="outline"
-                    disabled={bulkBusy || pilihBeda.size === 0}
+                    disabled={bulkBusy}
                     title="Samakan yang tercentang dengan MD"
-                    onClick={() => void samakanBanyak([...pilihBeda], 'ke_mi')}
+                    onClick={() => void samakanBanyak(checked, 'ke_mi', clear)}
                   >
-                    Ikut MD ({pilihBeda.size})
+                    Ikut MD ({checked.length})
                   </Button>
                 </div>
               )
               : undefined,
-            (rows) => setPilihBeda(new Set(rows.map((r) => r.santri_id))),
           )}
         </div>
       )}

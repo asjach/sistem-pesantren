@@ -5,6 +5,8 @@ import { useAuth } from '@/auth/AuthContext';
 
 /** Lembaga aktif (per perangkat): menentukan standar tampilan & filter awal halaman. */
 const KEY = 'simpes_lembaga_aktif';
+/** Target "bertindak sebagai lembaga" (peran super_admin, terpisah dari filter). */
+const PERAN_KEY = 'simpes_peran_lembaga';
 
 export interface PilihanLembaga {
   id: number;
@@ -14,17 +16,24 @@ export interface PilihanLembaga {
 
 interface LembagaAktifState {
   loading: boolean;
+  /** Filter lembaga (dropdown topbar + filter awal halaman). Bukan peran. */
   lembagaId: number | null;
   lembaga: PilihanLembaga | null;
   pilihan: PilihanLembaga[];
   /** Boleh memilih "Semua lembaga" (super_admin / admin tanpa pivot). */
   adaSemua: boolean;
   banyakPilihan: boolean;
-  /** Sedang "bertindak sebagai lembaga" (super_admin + lembaga aktif terpilih). */
+  /** Target peran "bertindak sebagai lembaga" (tombol PERAN SEBAGAI + banner). */
+  peranId: number | null;
+  peran: PilihanLembaga | null;
+  /** Sedang "bertindak sebagai lembaga" (super_admin + peran terpilih). */
   bertindak: boolean;
   /** Filter lembaga halaman terkunci (satu pilihan saja): bertindak / hanya 1 lembaga. */
   terkunci: boolean;
+  /** Ubah filter lembaga (topbar). */
   pilih: (id: number | null) => void;
+  /** Ubah peran (banner); sekaligus mengarahkan filter ke lembaga itu. */
+  pilihPeran: (id: number | null) => void;
 }
 
 const Ctx = createContext<LembagaAktifState | null>(null);
@@ -33,6 +42,7 @@ export function LembagaAktifProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [pilihan, setPilihan] = useState<PilihanLembaga[]>([]);
   const [lembagaId, setLembagaId] = useState<number | null>(null);
+  const [peranId, setPeranId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
 
   const adaSemua = !!user
@@ -46,6 +56,7 @@ export function LembagaAktifProvider({ children }: { children: ReactNode }) {
       if (!user) {
         setPilihan([]);
         setLembagaId(null);
+        setPeranId(null);
         setLoading(false);
         return;
       }
@@ -72,6 +83,11 @@ export function LembagaAktifProvider({ children }: { children: ReactNode }) {
       else id = adaSemua ? null : (daftar[0]?.id ?? null);
       if (!alive) return;
       setLembagaId(id);
+      // Pulihkan peran tersimpan (hanya id yang masih valid di daftar).
+      const simpananPeran = await prefGet(PERAN_KEY).catch(() => null);
+      if (alive && simpananPeran && simpananPeran !== '0' && daftar.some((d) => String(d.id) === simpananPeran)) {
+        setPeranId(Number(simpananPeran));
+      }
       setLoading(false);
     })();
 
@@ -86,7 +102,18 @@ export function LembagaAktifProvider({ children }: { children: ReactNode }) {
   // Mode "bertindak sebagai lembaga" hanya untuk super_admin: header act-as
   // dipasang sinkron saat render agar request anak (halaman) memakainya.
   const superAdmin = !!user?.roles.some((r) => r.name === 'super_admin');
-  setLembagaAktifHeader(superAdmin && lembagaId != null ? lembagaId : null);
+  const pilihPeran = useMemo(() => (id: number | null) => {
+    if (!superAdmin) return;
+    setPeranId(id);
+    prefSet(PERAN_KEY, id == null ? '0' : String(id)).catch(() => {});
+    // Berperan sekaligus memfilter ke lembaga itu (filter lama dipertahankan
+    // saat kembali ke super_admin).
+    if (id != null) {
+      setLembagaId(id);
+      prefSet(KEY, String(id)).catch(() => {});
+    }
+  }, [superAdmin]);
+  setLembagaAktifHeader(superAdmin && peranId != null ? peranId : null);
 
   const value = useMemo<LembagaAktifState>(() => ({
     loading,
@@ -95,12 +122,15 @@ export function LembagaAktifProvider({ children }: { children: ReactNode }) {
     pilihan,
     adaSemua,
     banyakPilihan: pilihan.length > 1,
-    bertindak: superAdmin && lembagaId != null,
+    peranId,
+    peran: pilihan.find((p) => p.id === peranId) ?? null,
+    bertindak: superAdmin && peranId != null,
     // Satu pilihan (atau sedang bertindak) → filter lembaga tak perlu dipilih:
     // nilainya sudah lembaga aktif. Super_admin/admin pesantren tetap bebas.
-    terkunci: (superAdmin && lembagaId != null) || (!adaSemua && pilihan.length === 1),
+    terkunci: (superAdmin && peranId != null) || (!adaSemua && pilihan.length === 1),
     pilih,
-  }), [loading, lembagaId, pilihan, adaSemua, superAdmin, pilih]);
+    pilihPeran,
+  }), [loading, lembagaId, pilihan, adaSemua, superAdmin, pilih, peranId, pilihPeran]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

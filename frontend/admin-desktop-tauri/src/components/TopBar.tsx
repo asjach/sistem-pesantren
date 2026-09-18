@@ -5,6 +5,7 @@ import { isTauri, prefGet, prefSet } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
 import { useLembagaAktif } from '@/lembagaAktif';
 import { useTahunAjaranAktif } from '@/tahunAjaranAktif';
+import { useSemesterAktif, type SemesterAktif } from '@/semesterAktif';
 import { useTheme, type ModeName, type ThemeName } from '@/theme';
 import { usePicker } from '@/picker';
 import { cn } from '@/lib/utils';
@@ -24,7 +25,7 @@ import {
 import { ICON_SETS } from '@/iconSets';
 import { THEME_PRESETS } from '@/themes';
 import { DEFAULT_PREFS, WARNA_UI } from '@/prefs';
-import { Blend, CalendarDays, Check, ChevronDown, ChevronUp, Landmark, LogOut, Monitor, Moon, Paintbrush, Palette, SquareMousePointer, Sun, Users } from '@/icons';
+import { Blend, CalendarDays, Check, ChevronDown, ChevronUp, Columns3, Landmark, LogOut, Monitor, Moon, Paintbrush, Palette, SquareMousePointer, Sun, Users } from '@/icons';
 import { useRibbonTable } from '@/components/RibbonTable';
 import { useRibbonSlotCtx } from '@/components/RibbonSlot';
 import BannerBertindak from '@/components/BannerBertindak';
@@ -53,11 +54,12 @@ const TOOLS_TAMPIL_KEY = 'simpes_tools_tampil';
  *  Navigasi halaman ada di Sidebar, bukan di sini. */
 export default function TopBar() {
   const { user, logoutLocal } = useAuth();
-  const { lembagaId, lembaga, pilihan, adaSemua, banyakPilihan, bertindak, pilih, loading: lembagaLoading } = useLembagaAktif();
+  const { lembagaId, lembaga, pilihan, adaSemua, banyakPilihan, bertindak, peran, pilih, loading: lembagaLoading } = useLembagaAktif();
   const { tahunAjaranId, tahunAjaran, pilihan: taPilihan, pilih: taPilih, loading: taLoading } = useTahunAjaranAktif();
-  // Saat bertindak sebagai lembaga, dropdown hanya menampilkan lembaga itu;
-  // kembali ke mode penuh → seluruh daftar tampil lagi (tanpa muat ulang).
-  const daftarLembaga = bertindak ? pilihan.filter((l) => l.id === lembagaId) : pilihan;
+  const { semester, pilih: pilihSemester, loading: semesterLoading } = useSemesterAktif();
+  // Dropdown lembaga = filter (bebas diubah kapan pun, termasuk saat bertindak);
+  // peran act-as diatur terpisah lewat tombol PERAN SEBAGAI + banner.
+  const daftarLembaga = pilihan;
   const { theme, mode, dark, iconSet, warnaUI, navigasi, setTheme, setMode, setIconSet, setWarnaUI, setNavigasi } = useTheme();
   const picker = usePicker();
   const nav = useNavigate();
@@ -72,6 +74,10 @@ export default function TopBar() {
   const halaman = halamanDariPath(pathname);
   const [toolsTampil, setToolsTampil] = useState(true);
   const [tabTools, setTabTools] = useState<'halaman' | 'tabel'>('halaman');
+  /** Banner pemilih peran (MI/MD/MTS/MLN) untuk super_admin. */
+  const [peranTerbuka, setPeranTerbuka] = useState(false);
+  const tutupPeran = useCallback(() => setPeranTerbuka(false), []);
+  const isSuperAdmin = !!user?.roles.some((r) => r.name === 'super_admin');
   const adaToolsHalaman = slotAda;
   const adaToolsTabel = apiTabel !== null;
   const adaTools = adaToolsHalaman || adaToolsTabel;
@@ -137,7 +143,10 @@ export default function TopBar() {
           {halaman?.label ?? 'SIMPES Admin'}
         </span>
 
-        <div data-part="area_akun" className="ml-auto flex items-center gap-0.5">
+        <div data-part="area_akun" className="ml-2 flex min-w-0 flex-1 items-center gap-0.5">
+          {/* Perenggang kiri: mendorong filter global ke tengah bar. */}
+          <div aria-hidden="true" className="min-w-0 flex-1" />
+          {/* Dropdown lembaga = filter halaman (bebas, bukan peran). */}
           {!lembagaLoading && (adaSemua || banyakPilihan) && daftarLembaga.length > 0 && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -157,8 +166,8 @@ export default function TopBar() {
               <DropdownMenuContent align="end" className="max-h-80 min-w-[12rem] overflow-y-auto">
                 <DropdownMenuLabel className="text-foreground">Lembaga aktif</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {/* "Semua lembaga" hanya saat mode penuh; ketika bertindak sebagai
-                    lembaga, opsi ini disembunyikan (keluar lewat banner). */}
+                {/* Filter "Semua lembaga" selalu tersedia (bukan peran;
+                    keluar dari peran lewat banner / Esc). */}
                 {adaSemua && lembagaId === null && (
                   <DropdownMenuItem id="menu_lembaga_aktif_semua" onSelect={() => pilih(null)}>
                     <span className="flex-1">Semua lembaga</span>
@@ -208,6 +217,58 @@ export default function TopBar() {
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
+          )}
+          {!semesterLoading && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  id="btn_menu_semester_aktif"
+                  title="Semester aktif"
+                  aria-label="Pilih semester aktif"
+                  className={cn(navBase, navIdle, 'mr-1 data-[state=open]:bg-white/15')}
+                >
+                  <Columns3 size={14} />
+                  <span className="hidden max-w-[9rem] truncate sm:inline">
+                    {semester === null ? 'Semua semester' : `Semester ${semester}`}
+                  </span>
+                  <ChevronDown size={13} className="opacity-70" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="max-h-80 min-w-[12rem] overflow-y-auto">
+                <DropdownMenuLabel className="text-foreground">Semester aktif</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem id="menu_semester_aktif_semua" onSelect={() => pilihSemester(null)}>
+                  <span className="flex-1">Semua semester</span>
+                  {semester === null && <Check data-icon="inline-end" size={14} />}
+                </DropdownMenuItem>
+                {(['1', '2'] as SemesterAktif[]).map((s) => (
+                  <DropdownMenuItem key={s} id={`menu_semester_aktif_${s}`} onSelect={() => pilihSemester(s)}>
+                    <span className="flex-1 truncate">Semester {s}{s === '1' ? ' (Ganjil)' : ' (Genap)'}</span>
+                    {semester === s && <Check data-icon="inline-end" size={14} />}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+          {/* Perenggang kanan: filter global tetap di tengah; peran + akun di kanan. */}
+          <div aria-hidden="true" className="min-w-0 flex-1" />
+          {/* Peran act-as super_admin (dekat area akun, terpisah dari filter). */}
+          {!lembagaLoading && isSuperAdmin && adaSemua && (
+            <button
+              id="btn_peran_sebagai"
+              type="button"
+              title="Pilih peran lembaga (MI / MD / MTS / MLN)"
+              aria-label="Pilih peran lembaga"
+              aria-expanded={peranTerbuka}
+              onClick={() => setPeranTerbuka((v) => !v)}
+              className={cn(navBase, navIdle, 'mr-1 data-[state=open]:bg-white/15', (bertindak || peranTerbuka) && 'bg-white/15')}
+            >
+              <Landmark size={14} />
+              <span className="hidden max-w-[9rem] truncate sm:inline">
+                {peran ? `PERAN: ${peran.kode ?? peran.nama}` : 'PERAN'}
+              </span>
+              <ChevronDown size={13} className="opacity-70" />
+            </button>
           )}
           {adaTools && (
             <button
@@ -369,7 +430,7 @@ export default function TopBar() {
       </div>
 
       {/* Banner "bertindak sebagai lembaga": di atas ribbon agar selalu terlihat. */}
-      <BannerBertindak />
+      <BannerBertindak terbuka={peranTerbuka} onTutup={tutupPeran} />
 
       {/* Baris 2: ribbon tools kontekstual (kontrol tabel / tools halaman). */}
       {tampilTools && (

@@ -144,7 +144,7 @@ const Ctx = createContext<StandarState | null>(null);
 
 export function StandarTampilanProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  const { lembagaId } = useLembagaAktif();
+  const { lembagaId, bertindak } = useLembagaAktif();
 
   const [tampilan, setTampilan] = useState<TampilanData | null>(null);
   const [versi, setVersi] = useState(0);
@@ -162,8 +162,6 @@ export function StandarTampilanProvider({ children }: { children: ReactNode }) {
   /** Penghapus penanda pribadi (diisi setelah callback `hapus` siap). */
   const hapusRef = useRef<(...keys: string[]) => void>(() => {});
 
-  const superAdmin = !!user?.roles.some((r) => r.name === 'super_admin');
-  const bertindak = superAdmin && lembagaId != null;
   const merekam = bertindak && rekam;
 
   useEffect(() => {
@@ -310,13 +308,13 @@ export function StandarTampilanProvider({ children }: { children: ReactNode }) {
 
   /** Terapkan perubahan ke standar lembaga aktif (hanya saat mode rekam aktif). */
   const simpanKeStandar = useCallback((patch: TampilanData) => {
-    if (!(superAdmin && lembagaId != null && rekam)) return;
+    if (!(bertindak && rekam)) return;
     const next = gabungTampilan(tampilanRef.current, patch);
     tampilanRef.current = next;
     setTampilan(next);
     if (simpanTimerRef.current) window.clearTimeout(simpanTimerRef.current);
     simpanTimerRef.current = window.setTimeout(() => { void kirimStandar(next); }, SIMPAN_MS);
-  }, [superAdmin, lembagaId, rekam, kirimStandar]);
+  }, [bertindak, lembagaId, rekam, kirimStandar]);
 
   useEffect(() => () => {
     if (simpanTimerRef.current) window.clearTimeout(simpanTimerRef.current);

@@ -7,6 +7,7 @@ import { bisa } from './api/auth';
 import { useLembagaAktif } from './lembagaAktif';
 import { LembagaAktifProvider } from './lembagaAktif';
 import { TahunAjaranAktifProvider } from './tahunAjaranAktif';
+import { SemesterAktifProvider } from './semesterAktif';
 import { StandarTampilanProvider } from './standarTampilan';
 import { ThemeProvider } from './theme';
 import { PickerProvider } from './picker';
@@ -81,6 +82,7 @@ export default function App() {
     <AuthProvider>
       <LembagaAktifProvider>
         <TahunAjaranAktifProvider>
+          <SemesterAktifProvider>
           <StandarTampilanProvider>
             <ThemeProvider>
               <BrowserRouter>
@@ -138,6 +140,7 @@ export default function App() {
               </BrowserRouter>
             </ThemeProvider>
           </StandarTampilanProvider>
+          </SemesterAktifProvider>
         </TahunAjaranAktifProvider>
       </LembagaAktifProvider>
     </AuthProvider>

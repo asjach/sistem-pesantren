@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/select';
 import { useStandarTampilan } from '../standarTampilan';
 import { toast } from 'sonner';
+import FilterField from './FilterField';
 import KelolaPresetDialog from './presetkolom/KelolaPresetDialog';
 
 const LENGKAP = '_lengkap';
@@ -174,6 +175,7 @@ export default function PresetKolom({
 
   return (
     <>
+      <FilterField label="Kolom" htmlFor={`select_preset_kolom_${tableKey}`}>
       <Select value={aktifId === null ? LENGKAP : String(aktifId)} onValueChange={(v) => void pilihPreset(v)}>
         <SelectTrigger
           id={`select_preset_kolom_${tableKey}`}
@@ -194,7 +196,7 @@ export default function PresetKolom({
           <SelectItem value={KELOLA}>Kelola preset…</SelectItem>
         </SelectContent>
       </Select>
-
+      </FilterField>
       {dokOpen && (
         <KelolaPresetDialog
           key={seed.nonce}
