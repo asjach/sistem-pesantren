@@ -69,6 +69,7 @@ import {
 import {
   InputStaticSelectCell,
   InputStaticTextCell,
+  CheckCell,
   SelectCell,
   StaticCell,
   TextCell,
@@ -1096,8 +1097,7 @@ export default function ExcelTable<T extends { id: string | number }>({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, drafts, checkedIds, fields, getValues, editing, showInput, inputRowValues]);
 
-  function handleChange(newValue: GridRow[]) {
-    const base = new Map<string, T>(rowsRef.current.map((r) => [String(r.id), r]));
+  function handleChange(newValue: GridRow[]) {    const base = new Map<string, T>(rowsRef.current.map((r) => [String(r.id), r]));
     const nd: Drafts = {};
     const nc = new Set<T['id']>();
     for (const g of newValue) {
@@ -1148,6 +1148,7 @@ export default function ExcelTable<T extends { id: string | number }>({
       : [
           {
             ...keyColumn<GridRow, 'checked'>('checked', checkboxColumn),
+            component: CheckCell,
             id: 'check',
             title: <CheckAllCell />,
             basis: CHECK_W,
@@ -1474,6 +1475,57 @@ export default function ExcelTable<T extends { id: string | number }>({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [widths, autoWidths, tableKey, aksiRingkas]);
 
+  /** Posisi mousedown terakhir: klik setelah drag-seleksi bukan maksud mencentang. */
+  const downPosRef = useRef<{ x: number; y: number } | null>(null);
+
+  /** Mousedown di sel centang (termasuk tepat di kotak) = niat mencentang,
+   *  bukan menyeleksi: cegah DSG memasang anchor/drag-seleksi dari sel ini.
+   *  Toggle tetap jalan sekali via onClick di bawah (mousedown asli yang
+   *  diblokir tak sampai ke input, jadi tak ada toggle ganda). Klik kanan &
+   *  kontrol lain dikecualikan agar menu konteks tetap bekerja. */
+  function cegahSeleksiSelCentang(e: React.MouseEvent): void {
+    if (hideCheckbox || e.button !== 0) return;
+    const t = e.target as HTMLElement | null;
+    if (!t || t.closest?.('select, textarea, button, a')) return;
+    const sel = t.closest?.('.dsg-cell');
+    if (!sel || !wrapRef.current?.contains(sel)) return;
+    const box = sel.querySelector('input.dsg-checkbox, input.simpes-dsg-checkall');
+    if (!box || (box as HTMLInputElement).disabled) return;
+    e.preventDefault();
+    e.stopPropagation();
+  }
+
+  /** Klik sel centang (area maupun tepat di kotak): toggle 1× via `checkedIds`
+   *  sendiri memakai `data-row-id` — deterministik, tanpa lewat DSG (jalur
+   *  bawaannya butuh 2× klik dan berbalapan dengan flip browser). Header
+   *  pilih-semua memakai jalur `onChange`-nya sendiri. Baris nonaktif dan
+   *  hasil drag (>4px) dilewati. */
+  function toggleCheckByCell(e: React.MouseEvent) {
+    if (hideCheckbox) return;
+    const d = downPosRef.current;
+    if (d && Math.hypot(e.clientX - d.x, e.clientY - d.y) > 4) return;
+    const t = e.target as HTMLElement | null;
+    if (!t || t.closest?.('select, textarea, button, a')) return;
+    const sel = t.closest?.('.dsg-cell');
+    if (!sel || !wrapRef.current?.contains(sel)) return;
+    const box = sel.querySelector<HTMLInputElement>('input.dsg-checkbox, input.simpes-dsg-checkall');
+    if (!box || box.disabled) return;
+    if (box.classList.contains('simpes-dsg-checkall')) {
+      box.click();
+      return;
+    }
+    const rowId = box.dataset.rowId;
+    const row = rowsRef.current.find((r) => String(r.id) === rowId);
+    if (!row) return;
+    const id = row.id;
+    setCheckedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
   /** Klik/pindah ke sel lain saat ada editor terbuka: tutup dulu editor lama
    *  (memicu commit + auto-save), lalu DSG memindahkan sel aktif. Tanpa ini
    *  input lama tetap fokus sehingga ketikan lanjut masuk ke sel sebelumnya. */
@@ -1751,10 +1803,13 @@ export default function ExcelTable<T extends { id: string | number }>({
         }
         title="Seret untuk memblokir sel • Ctrl+C menyalin"
         onMouseDownCapture={(e) => {
+          downPosRef.current = { x: e.clientX, y: e.clientY };
           closeEditorOnOtherCell(e);
           // Halaman multi-tabel: tabel yang disentuh jadi sumber perintah ribbon.
           ribbonAktif?.(tableKey);
+          cegahSeleksiSelCentang(e);
         }}
+        onClickCapture={toggleCheckByCell}
         className={cn(
           // Grid full-bleed: menempel tepi kiri-kanan area konten (imbangi padding
           // layout p-1) tanpa sudut membulat; toolbar tetap berpadding.

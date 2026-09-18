@@ -40,6 +40,12 @@ export interface GridRow {
   [key: string]: string | boolean | number | null;
 }
 
+/** Data kolom centang (columnData bawaan keyColumn; tidak dipakai). */
+export interface CheckColData {
+  key: string;
+  original?: unknown;
+}
+
 /** Seleksi blok gaya spreadsheet (indeks baris/kolom numerik). */
 export interface GridSelection {
   min: { row: number; col: number };

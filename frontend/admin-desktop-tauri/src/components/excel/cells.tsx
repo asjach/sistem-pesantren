@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import type { CellProps } from 'react-datasheet-grid';
 import { Switch } from '@/components/ui/switch';
 import { hasOpenEditor, INPUT_ROW_ID } from './helpers';
-import type { GridRow, SelectColData, StaticColData, TextColData, ToggleColData } from './types';
+import type { CheckColData, GridRow, SelectColData, StaticColData, TextColData, ToggleColData } from './types';
 
 /** Sel teks: span saat baca-saja, input saat fokus edit. */
 export function TextCell({ rowData, setRowData, columnData, focus, stopEditing, columnIndex }: CellProps<GridRow, TextColData>) {
@@ -172,6 +172,28 @@ export function StaticCell({ rowData, columnData }: CellProps<GridRow, StaticCol
     >
       {String(rowData[columnData.fieldKey] ?? '')}
     </span>
+  );
+}
+
+/** Sel centang: status dikendalikan penuh oleh grid (`checkedIds`).
+ *  Toggle HANYA lewat delegasi klik ExcelTable (`toggleCheckByCell`) yang
+ *  membaca `data-row-id` — bukan lewat `mousedown`/`onChange` input (jalur
+ *  bawaan DSG butuh 2× klik dan flip bawaan browser bikin DOM tak sinkron).
+ *  Toggle keyboard via fokus (Enter) bawaan DSG sengaja tidak dipakai karena
+ *  efeknya ikut jalan saat mount/remount dan membalik status spontan. */
+export function CheckCell({ rowData, disabled }: CellProps<GridRow, CheckColData>) {
+  return (
+    <input
+      type="checkbox"
+      className="dsg-checkbox"
+      tabIndex={-1}
+      disabled={disabled}
+      data-row-id={String(rowData.id)}
+      checked={Boolean(rowData.checked)}
+      // Cegah flip bawaan browser pada click (onChange di bawah no-op).
+      onClick={(e) => e.preventDefault()}
+      onChange={() => {}}
+    />
   );
 }
 

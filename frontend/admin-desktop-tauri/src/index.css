@@ -566,6 +566,7 @@
   justify-content: center;
   padding-left: 0;
   padding-right: 0;
+  cursor: pointer;
 }
 /* Checkbox DSG: kotak border; terpilih = titik aksen 6px tanpa border. */
 .simpes-dsg input.dsg-checkbox {
