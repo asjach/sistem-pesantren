@@ -1,0 +1,220 @@
+# CI SIMPES — memeriksa setiap push ke `main` dan setiap pull request.
+#
+# Tujuan: menangkap regresi di server (bukan di laptop), karena suite backend,
+# typecheck, dan build sebelumnya hanya jalan bila diingat manual.
+#
+# Catatan penting:
+# - Frontend WAJIB di-build dari struktur repo utuh: `scripts/audit-izin.mjs`
+#   membaca `backend/app/Services/IzinKatalog.php` lewat path relatif ke atas.
+#   Karena itu `actions/checkout` repo penuh adalah syarat, bukan opsi.
+# - Job MySQL memakai kredensial khusus CI (root/root + DB `simpes_test`) dan
+#   tidak menyentuh `.env` lokal maupun database pengembangan.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Push cepat berturut-turut: batalkan run lama agar tidak menumpuk menit runner.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend · tes (SQLite)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Siapkan PHP 8.4
+        uses: shivammathur/setup-php@v2
+        with:
+          # `composer.json` mensyaratkan php ^8.4 — uji batas bawah, bukan 8.5 lokal.
+          php-version: '8.4'
+          extensions: mbstring, gd, zip, dom, xml, simplexml, xmlreader, xmlwriter, fileinfo, iconv, curl, bcmath, pdo_sqlite, sqlite3, pdo_mysql
+          coverage: none
+          tools: composer:v2
+
+      - name: Cache Composer
+        uses: actions/cache@v5
+        with:
+          path: ~/.composer/cache/files
+          key: composer-${{ hashFiles('backend/composer.lock') }}
+          restore-keys: composer-
+
+      - name: Install dependensi
+        working-directory: backend
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Siapkan .env
+        working-directory: backend
+        run: cp .env.example .env && php artisan key:generate
+
+      - name: Tes backend
+        working-directory: backend
+        run: php artisan test --compact
+
+      - name: Audit dependensi (composer)
+        working-directory: backend
+        run: composer audit --no-interaction
+
+  backend-mysql:
+    name: Backend · migrasi + tes (MySQL 8)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: simpes_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      # Env asli mengalahkan `.env` dan `<env>` di phpunit.xml — jadi suite ini
+      # benar-benar memakai MySQL (termasuk index FULLTEXT ngram), bukan SQLite.
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '3306'
+      DB_DATABASE: simpes_test
+      DB_USERNAME: root
+      DB_PASSWORD: root
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Siapkan PHP 8.4
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, gd, zip, dom, xml, simplexml, xmlreader, xmlwriter, fileinfo, iconv, curl, bcmath, pdo_sqlite, sqlite3, pdo_mysql
+          coverage: none
+          tools: composer:v2
+
+      - name: Cache Composer
+        uses: actions/cache@v5
+        with:
+          path: ~/.composer/cache/files
+          key: composer-${{ hashFiles('backend/composer.lock') }}
+          restore-keys: composer-
+
+      - name: Install dependensi
+        working-directory: backend
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Siapkan .env
+        working-directory: backend
+        run: cp .env.example .env && php artisan key:generate
+
+      # Membuktikan SELURUH migrasi (termasuk `ADD FULLTEXT ... WITH PARSER ngram`
+      # yang dilewati di SQLite) benar-benar berlaku di MySQL.
+      - name: Migrasi dari nol
+        working-directory: backend
+        run: php artisan migrate:fresh --force --no-interaction
+
+      # Dikecualikan: tes pencarian nama lewat FULLTEXT.
+      # Index FULLTEXT InnoDB baru terlihat SETELAH commit, sedangkan
+      # `RefreshDatabase` membungkus tiap tes dalam transaksi yang belum di-commit
+      # (terbukti empiris: baris tak terlihat di dalam transaksi, terlihat setelah
+      # COMMIT). Jadi ini keterbatasan cara tes, bukan bug pencarian di produksi
+      # (setiap request = transaksi yang sudah commit). Perbaikan menyusul:
+      # pisahkan tes ke jalur yang tidak bergantung transaksi.
+      - name: Tes backend di MySQL
+        working-directory: backend
+        run: vendor/bin/phpunit --exclude-filter 'pencarian_q_substring'
+
+  frontend:
+    name: Frontend · typecheck + build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Siapkan Node 24
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/admin-desktop-tauri/package-lock.json
+
+      - name: Install dependensi
+        working-directory: frontend/admin-desktop-tauri
+        run: npm ci
+
+      # `pretypecheck` menjalankan audit-bagian + audit-izin (butuh `backend/`).
+      - name: Typecheck
+        working-directory: frontend/admin-desktop-tauri
+        run: npm run typecheck
+
+      - name: Build produksi
+        working-directory: frontend/admin-desktop-tauri
+        run: npm run build
+
+  lint:
+    name: Gaya kode · Pint (berkas berubah)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # Perlu riwayat penuh untuk membandingkan dengan commit basis.
+          fetch-depth: 0
+
+      - name: Siapkan PHP 8.4
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+          tools: composer:v2
+
+      - name: Install dependensi
+        working-directory: backend
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      # Ratchet: hanya berkas PHP yang BERUBAH diperiksa, sehingga utang gaya
+      # lama (60 berkas migrasi/model) tidak memblokir pekerjaan baru.
+      # - Pull request: seluruh rentang PR terhadap cabang dasarnya.
+      # - Push: cukup commit terakhir saja. Ini juga melindungi push pertama yang
+      #   menumpuk banyak commit tertunda (mis. `origin/main` tertinggal jauh),
+      #   supaya berkas lama tidak ikut diperiksa.
+      - name: Kumpulkan berkas PHP yang berubah
+        id: berubah
+        run: |
+          set -euo pipefail
+          basis=""
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            basis="origin/${{ github.base_ref }}"
+          elif git rev-parse --verify --quiet 'HEAD~1^{commit}' >/dev/null; then
+            basis="HEAD~1"
+          fi
+
+          if [ -z "${basis}" ] || ! git rev-parse --verify --quiet "${basis}^{commit}" >/dev/null; then
+            echo "::notice::Commit basis tidak tersedia — pemeriksaan gaya dilewati."
+            echo "berkas=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          berkas=$(git diff --name-only --diff-filter=ACMR "${basis}" HEAD -- '*.php' | grep '^backend/' | tr '\n' ' ' || true)
+          echo "berkas=${berkas}" >> "$GITHUB_OUTPUT"
+          if [ -z "${berkas}" ]; then
+            echo "::notice::Tidak ada berkas PHP backend yang berubah (basis: ${basis})."
+          else
+            echo "Basis: ${basis}"
+            echo "Berkas diperiksa: ${berkas}"
+          fi
+
+      - name: Pint --test (berkas berubah)
+        if: steps.berubah.outputs.berkas != ''
+        run: backend/vendor/bin/pint --test ${{ steps.berubah.outputs.berkas }}
