@@ -210,6 +210,26 @@ class SiklusSantriService
         });
     }
 
+    /**
+     * Batalkan baris riwayat (HARD DELETE fisik): dipakai halaman Riwayat
+     * Belajar semester ganjil untuk membatalkan pemasukan yang salah.
+     * Hanya baris aktif; arsip (is_aktif=false) adalah jejak sejarah.
+     * Keanggotaan `lembaga_santri` dipertahankan; `status_global` dihitung ulang.
+     */
+    public function hapusRiwayat(RiwayatBelajar $riwayat): void
+    {
+        DB::transaction(function () use ($riwayat) {
+            $baris = RiwayatBelajar::whereKey($riwayat->id)->lockForUpdate()->firstOrFail();
+            if (! $baris->is_aktif) {
+                abort(422, 'Hanya riwayat aktif yang bisa dibatalkan.');
+            }
+            $santriId = $baris->santri_id;
+            $baris->delete();
+
+            Santri::whereKey($santriId)->firstOrFail()->hitungUlangStatusGlobal();
+        });
+    }
+
     /** Mutasi per lembaga: tutup riwayat + keanggotaan, catat arsip `mutasi_keluar`. */
     public function prosesMutasiPerLembaga(Santri $santri, int $lembagaId, array $dataMutasi): MutasiKeluar
     {

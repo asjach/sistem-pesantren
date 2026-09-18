@@ -100,7 +100,9 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
 
         // Riwayat belajar (102): roster + dialog input + import terpisah
         Route::get('riwayat-belajar', [RiwayatBelajarController::class, 'index'])->middleware('permission:riwayat_belajar.lihat');
+        Route::get('riwayat-belajar/belum-masuk', [RiwayatBelajarController::class, 'belumMasuk'])->middleware('permission:riwayat_belajar.lihat');
         Route::post('riwayat-belajar', [RiwayatBelajarController::class, 'store'])->middleware('permission:riwayat_belajar.tambah');
+        Route::delete('riwayat-belajar/{riwayat}', [RiwayatBelajarController::class, 'destroy'])->middleware('permission:riwayat_belajar.hapus');
         Route::get('riwayat-belajar/import-template', [RiwayatBelajarController::class, 'template'])->middleware('permission:riwayat_belajar.lihat');
         Route::post('riwayat-belajar/import-periksa', [RiwayatBelajarController::class, 'periksaImport'])->middleware(['permission:riwayat_belajar.tambah', 'throttle:imports']);
         Route::post('riwayat-belajar/import-lengkap', [RiwayatBelajarController::class, 'importLengkap'])->middleware(['permission:riwayat_belajar.tambah', 'throttle:imports']);

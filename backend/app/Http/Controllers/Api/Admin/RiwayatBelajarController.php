@@ -166,6 +166,72 @@ class RiwayatBelajarController extends Controller
         ]);
     }
 
+    /**
+     * GET /api/admin/riwayat-belajar/belum-masuk — panel kiri halaman ganjil:
+     * anggota aktif (`lembaga_santri`) yang belum punya riwayat aktif di lembaga
+     * ini DAN belum punya baris semester 1 pada TA aktif (walau arsip, agar
+     * aksi panah tak menabrak unique santri+tahun+lembaga+semester).
+     */
+    public function belumMasuk(Request $request): JsonResponse
+    {
+        $this->authorize('viewAny', Santri::class);
+
+        $data = $request->validate([
+            'lembaga_id' => ['required', 'integer', 'exists:lembaga,id'],
+            'tahun_ajaran_id' => ['required', 'integer', 'exists:tahun_ajaran,id'],
+            'q' => ['nullable', 'string', 'max:100'],
+        ]);
+        $lembagaId = (int) $data['lembaga_id'];
+        $taId = (int) $data['tahun_ajaran_id'];
+        $this->authorizeLembaga($request->user(), $lembagaId);
+        $this->tolakLembagaRoot($lembagaId);
+        $this->cekTaEfektif($lembagaId, $taId);
+
+        $query = $this->scopeLembaga(
+            LembagaSantri::with([
+                'santri:id,nama_lengkap,jk',
+                'lembaga:id,nama,kode',
+            ]),
+            $request->user(),
+            $request
+        )->where('lembaga_santri.is_active', true);
+
+        $query->whereNotExists(fn ($ada) => $ada->selectRaw('1')->from('riwayat_belajar')
+            ->whereColumn('riwayat_belajar.santri_id', 'lembaga_santri.santri_id')
+            ->whereColumn('riwayat_belajar.lembaga_id', 'lembaga_santri.lembaga_id')
+            ->where('riwayat_belajar.is_aktif', true));
+        $query->whereNotExists(fn ($ganjil) => $ganjil->selectRaw('1')->from('riwayat_belajar')
+            ->whereColumn('riwayat_belajar.santri_id', 'lembaga_santri.santri_id')
+            ->whereColumn('riwayat_belajar.lembaga_id', 'lembaga_santri.lembaga_id')
+            ->where('riwayat_belajar.tahun_ajaran_id', $taId)
+            ->where('riwayat_belajar.semester', '1'));
+
+        if (! empty($data['q'])) {
+            $cari = $data['q'];
+            $query->where(fn ($w) => $w
+                ->whereHas('santri', fn ($s) => $s
+                    ->where('nama_lengkap', 'like', "%{$cari}%")
+                    ->orWhere('nik', 'like', "%{$cari}%"))
+                ->orWhere('lembaga_santri.nis_lokal', 'like', "%{$cari}%"));
+        }
+
+        $query->select('lembaga_santri.*')
+            ->leftJoin('santri', 'santri.id', '=', 'lembaga_santri.santri_id')
+            ->orderBy('santri.nama_lengkap')
+            ->orderBy('lembaga_santri.id');
+
+        return response()->json($query->paginate($this->perPage($request)));
+    }
+
+    /** DELETE /api/admin/riwayat-belajar/{riwayat} — batalkan baris aktif (hard delete fisik). */
+    public function destroy(Request $request, RiwayatBelajar $riwayat, SiklusSantriService $siklus): JsonResponse
+    {
+        $this->authorizeAksiLembaga($request, $riwayat->santri, (int) $riwayat->lembaga_id);
+        $siklus->hapusRiwayat($riwayat);
+
+        return response()->json(['pesan' => 'Riwayat belajar dibatalkan.']);
+    }
+
     // ---------------- Import riwayat belajar (terpisah dari import identitas) ----------------
 
     /** GET /api/admin/riwayat-belajar/import-template */

@@ -1,214 +1,296 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { bisa } from '../api/auth';
 import { errorMessage } from '../api/client';
 import {
+  batalRiwayat,
   createRiwayatBelajar,
   importRiwayatBelajar,
-  keluarKelas,
+  listBelumMasukRiwayat,
   listRiwayatBelajar,
   periksaImportRiwayatBelajar,
-  pindahKelas,
-  setKelas,
   unduhTemplateRiwayatBelajar,
   type RiwayatRow,
 } from '../api/siklus';
-import { listSantri, type ImportPeriksa, type Santri } from '../api/santri';
-import { listKelas, listTahunAjaran, type Kelas } from '../api/master';
+import { listKelas, type Kelas } from '../api/master';
+import type { ImportPeriksa, LembagaSantri } from '../api/santri';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { FieldLabel } from '@/components/ui/field';
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import ExcelTable from '@/components/ExcelTable';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import FilterField from '@/components/FilterField';
 import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
 import { useTahunAjaranAwalString } from '@/hooks/useTahunAjaranAwal';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import Pager from '@/components/Pager';
 import { useDaftarTabel } from '@/hooks/useDaftarTabel';
-import { ActionIcon } from '@/components/RowActions';
-import { MoveHorizontal, Plus, SquareMousePointer, FileUp, Download } from '@/icons';
+import { ActionIcon, DeleteAction } from '@/components/RowActions';
+import { ArrowRight, FileUp, Download } from '@/icons';
 import {
-  FilterSemester,
   ROSTER_FIELDS,
   noopCommit,
   riwayatValues,
 } from '@/components/siklus/bersama';
 import { toast } from 'sonner';
 
-/** Riwayat Belajar: tabel + dialog input + import Excel terpisah dari buku induk. */
+/** Kolom panel kiri: anggota aktif yang belum punya riwayat. */
+const FIELDS_KIRI: ExcelField[] = [
+  { key: 'nama', label: 'santri.nama_lengkap', width: 200, kind: 'static', sumber: { tabel: 'santri', kolom: 'nama_lengkap' } },
+  { key: 'nis', label: 'nis_lokal', width: 110, kind: 'static', sumber: { tabel: 'lembaga_santri', kolom: 'nis_lokal' } },
+  { key: 'jk', label: 'santri.jk', width: 70, kind: 'static', sumber: { tabel: 'santri', kolom: 'jk' } },
+  { key: 'mulai', label: 'tgl_mulai', width: 110, kind: 'static', sumber: { tabel: 'lembaga_santri', kolom: 'tgl_mulai' } },
+];
+
+function belumMasukValues(r: LembagaSantri): Record<string, string | null> {
+  return {
+    nama: r.santri?.nama_lengkap ?? String(r.santri_id),
+    nis: r.nis_lokal ?? null,
+    jk: r.santri?.jk ?? null,
+    mulai: r.tgl_mulai ? r.tgl_mulai.slice(0, 10) : null,
+  };
+}
+
+/**
+ * Riwayat Belajar khusus semester ganjil, dua panel sejajar:
+ * kiri = anggota lembaga yang belum masuk riwayat (aksi panah masuk),
+ * kanan = riwayat ganjil TA aktif (aksi batal = hard delete).
+ */
 export default function RiwayatBelajarPage() {
   const { user } = useAuth();
   const canTambah = bisa(user, 'riwayat_belajar.tambah');
-  const canPindah = bisa(user, 'pindah_kelas.ubah');
+  const canBatal = bisa(user, 'riwayat_belajar.hapus');
   const [lembagaId, setLembagaId] = useState('');
   useLembagaAwalString(setLembagaId);
   const [taId, setTaId] = useState('');
   useTahunAjaranAwalString(setTaId);
-  const [semester, setSemester] = useState('');
-  const [tanpaKelas, setTanpaKelas] = useState(false);
-  const [arsip, setArsip] = useState(false);
-  const [kelas, setKelasOpsi] = useState<Kelas[]>([]);
-  const {
-    rows,
-    loading,
-    err,
-    setErr,
-    search,
-    onSearchChange,
-    onSearchSubmit,
-    urut,
-    arahUrut,
-    terapkanUrut,
-    load,
-    lastPage,
-    total,
-    pager,
-  } = useDaftarTabel<RiwayatRow>({
-    tableKey: 'riwayat_belajar',
-    ambil: (a) => listRiwayatBelajar({
-      lembaga_id: lembagaId ? Number(lembagaId) : undefined,
-      tahun_ajaran_id: taId ? Number(taId) : undefined,
-      semester: semester || undefined,
-      tanpa_kelas: tanpaKelas || undefined,
-      is_aktif: arsip ? false : true,
-      q: a.search || undefined,
-      sort: a.urut.length ? a.urut : undefined,
-      arah: a.urut.length ? a.arah : undefined,
-      page: a.page,
-      per_page: a.perPage,
-      signal: a.signal,
-    }),
-    deps: [lembagaId, taId, semester, tanpaKelas, arsip],
+  const [kelasId, setKelasId] = useState('');
+  const [kelasOpsi, setKelasOpsi] = useState<Kelas[]>([]);
+  const [busyId, setBusyId] = useState<number | null>(null);
+
+  const kiri = useDaftarTabel<LembagaSantri>({
+    tableKey: 'riwayat_belum_masuk',
+    ambil: (a) => {
+      if (!lembagaId || !taId) {
+        return Promise.resolve({ data: [], current_page: 1, last_page: 1, per_page: a.perPage, total: 0 });
+      }
+      return listBelumMasukRiwayat({
+        lembaga_id: Number(lembagaId),
+        tahun_ajaran_id: Number(taId),
+        q: a.search || undefined,
+        page: a.page,
+        per_page: a.perPage,
+        signal: a.signal,
+      });
+    },
+    deps: [lembagaId, taId],
   });
 
-  const [inputOpen, setInputOpen] = useState(false);
-  const [kelasPilih, setKelasPilih] = useState('');
-  const [pindahRow, setPindahRow] = useState<RiwayatRow | null>(null);
-  const [pindahKe, setPindahKe] = useState('');
+  const kanan = useDaftarTabel<RiwayatRow>({
+    tableKey: 'riwayat_belajar',
+    ambil: (a) => {
+      if (!lembagaId || !taId) {
+        return Promise.resolve({ data: [], current_page: 1, last_page: 1, per_page: a.perPage, total: 0 });
+      }
+      return listRiwayatBelajar({
+        lembaga_id: Number(lembagaId),
+        tahun_ajaran_id: Number(taId),
+        semester: '1',
+        kelas_id: kelasId ? Number(kelasId) : undefined,
+        is_aktif: true,
+        q: a.search || undefined,
+        sort: a.urut.length ? a.urut : undefined,
+        arah: a.urut.length ? a.arah : undefined,
+        page: a.page,
+        per_page: a.perPage,
+        signal: a.signal,
+      });
+    },
+    deps: [lembagaId, taId, kelasId],
+  });
+
+  useEffect(() => {
+    if (!lembagaId || !taId) { setKelasOpsi([]); return; }
+    listKelas({ lembaga_id: Number(lembagaId), tahun_ajaran_id: Number(taId), per_page: 1000 })
+      .then((p) => setKelasOpsi(p.data))
+      .catch(() => setKelasOpsi([]));
+  }, [lembagaId, taId]);
+
+  const muatUlang = useCallback(async () => {
+    await Promise.all([kiri.load(kiri.pager.page), kanan.load(kanan.pager.page)]);
+  }, [kiri, kanan]);
+
+  const masukkan = useCallback(async (r: LembagaSantri) => {
+    if (busyId !== null || !lembagaId || !taId) return;
+    setBusyId(r.id);
+    try {
+      await createRiwayatBelajar({
+        santri_id: r.santri_id,
+        lembaga_id: Number(lembagaId),
+        tahun_ajaran_id: Number(taId),
+      });
+      toast.success('Santri dimasukkan ke riwayat ganjil.');
+      await muatUlang();
+    } catch (e) {
+      toast.error(errorMessage(e));
+      await muatUlang();
+    } finally {
+      setBusyId(null);
+    }
+  }, [busyId, lembagaId, taId, muatUlang]);
+
+  const batalkan = useCallback(async (r: RiwayatRow) => {
+    try {
+      await batalRiwayat(r.id);
+      toast.success('Riwayat dibatalkan.');
+      await muatUlang();
+    } catch (e) { toast.error(errorMessage(e)); }
+  }, [muatUlang]);
 
   const [importOpen, setImportOpen] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [periksaHasil, setPeriksaHasil] = useState<ImportPeriksa | null>(null);
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
-    if (!lembagaId) { setKelasOpsi([]); return; }
-    listKelas({ lembaga_id: Number(lembagaId), tahun_ajaran_id: taId ? Number(taId) : undefined, per_page: 1000 })
-      .then((p) => setKelasOpsi(p.data))
-      .catch(() => setKelasOpsi([]));
-  }, [lembagaId, taId]);
+  const siap = lembagaId !== '' && taId !== '';
 
-  const bukaPindah = useCallback((r: RiwayatRow) => {
-    setPindahRow(r);
-    setPindahKe(r.kelas_id ? String(r.kelas_id) : '');
-  }, []);
+  const panel = (
+    key: string,
+    judul: string,
+    jumlah: number,
+    tabel: ReactNode,
+    pagerNode: ReactNode,
+    aksiKepala?: ReactNode,
+    bawahJudul?: ReactNode,
+  ) => (
+    <section className="flex min-h-0 min-w-0 flex-col rounded-md border">
+      <header className="flex items-center justify-between gap-2 border-b bg-muted/40 px-3 py-2 text-sm font-medium">
+        <span>{judul} ({jumlah})</span>
+        {aksiKepala}
+      </header>
+      {bawahJudul}
+      <div className="flex min-h-0 flex-1 flex-col px-2 pb-2">
+        {tabel}
+        {pagerNode}
+      </div>
+    </section>
+  );
 
   return (
     <div className={PAGE_SHELL}>
-      <ErrorNotice>{err}</ErrorNotice>
-      <ExcelTable<RiwayatRow>
-        tableKey="riwayat_belajar"
-        fields={ROSTER_FIELDS}
-        rows={rows}
-        getValues={riwayatValues}
-        loading={loading}
-        emptyText="Tidak ada riwayat pada filter ini."
-        canEdit={false}
-        onCommit={noopCommit}
-        onSaved={noopCommit}
-        renderActions={(r) => (
-          canPindah ? (
-          <>
-            <ActionIcon id={`btn_pindah_kelas_${r.id}`} title="Pindah / set kelas" onClick={() => bukaPindah(r)}><MoveHorizontal size={16} /></ActionIcon>
-            {r.kelas_id ? (
-              <ActionIcon id={`btn_keluar_kelas_${r.id}`} title="Keluarkan dari kelas" onClick={async () => {
-                try {
-                  await keluarKelas(r.id);
-                  toast.success('Santri dikeluarkan dari kelas.');
-                  await load();
-                } catch (e) { toast.error(errorMessage(e)); }
-              }}><SquareMousePointer size={16} /></ActionIcon>
-            ) : null}
-          </>
-          ) : null
-        )}
-        searchValue={search}
-        onSearchChange={onSearchChange}
-        onSearchSubmit={onSearchSubmit}
-        searchPlaceholder="Nama / NIK"
-        searchIds={{ form: 'form_cari_riwayat_belajar', input: 'input_cari_riwayat_belajar', button: 'btn_cari_riwayat_belajar' }}
-        urutAktif={urut}
-        arahUrut={arahUrut}
-        onUrut={terapkanUrut}
-        filter={(
-          <>
-            <FilterSemester id="select_semester_riwayat_belajar" value={semester} onChange={(v) => { setSemester(v); pager.goFirst(); }} />
-            {canTambah && (
-            <Button id="btn_buka_input_riwayat" size="sm" onClick={() => { setKelasPilih(''); setInputOpen(true); }}>
-              <Plus data-icon="inline-start" size={16} /> Riwayat
-            </Button>
-            )}
-            {canTambah && (
-            <Button id="btn_buka_import_riwayat" size="sm" variant="outline" onClick={() => { setImportFile(null); setPeriksaHasil(null); setImportOpen(true); }}>
-              <FileUp data-icon="inline-start" size={16} /> Import
-            </Button>
-            )}
-            <Button id="btn_toggle_tanpa_kelas" size="sm" variant={tanpaKelas ? 'default' : 'outline'} onClick={() => { setTanpaKelas((v) => !v); pager.goFirst(); }}>
-              Tanpa kelas
-            </Button>
-            <Button id="btn_toggle_arsip_riwayat" size="sm" variant={arsip ? 'default' : 'outline'} onClick={() => { setArsip((v) => !v); pager.goFirst(); }}>
-              Arsip
-            </Button>
-          </>
-        )}
-      />
-      <Pager page={pager.page} lastPage={lastPage} total={total} perPage={pager.perPage} onPage={(p) => { pager.setPage(p); load(p); }} onPerPage={(pp) => { pager.setPerPage(pp); load(1, pp); }} />
+      <ErrorNotice>{kiri.err || kanan.err}</ErrorNotice>
+      {!siap ? (
+        <p className="text-sm text-muted-foreground">Pilih lembaga dan tahun ajaran aktif di bilah atas dulu.</p>
+      ) : (
+        <div className="grid min-h-0 flex-1 grid-cols-[repeat(auto-fit,minmax(min(420px,100%),1fr))] gap-4">
+          {panel(
+            'belum',
+            'Belum masuk riwayat',
+            kiri.total,
+            <ExcelTable<LembagaSantri>
+              tableKey="riwayat_belum_masuk"
+              fields={FIELDS_KIRI}
+              rows={kiri.rows}
+              getValues={belumMasukValues}
+              loading={kiri.loading}
+              emptyText="Semua anggota sudah masuk riwayat."
+              canEdit={false}
+              onCommit={noopCommit}
+              onSaved={noopCommit}
+              hideCheckbox
+              renderActions={(r) => (
+                canTambah ? (
+                  <ActionIcon
+                    id={`btn_masuk_riwayat_${r.id}`}
+                    title="Masukkan ke riwayat ganjil"
+                    onClick={() => void masukkan(r)}
+                  >
+                    <ArrowRight size={16} />
+                  </ActionIcon>
+                ) : null
+              )}
+              searchValue={kiri.search}
+              onSearchChange={kiri.onSearchChange}
+              onSearchSubmit={kiri.onSearchSubmit}
+              searchPlaceholder="Nama / NIK / NIS lokal"
+              searchIds={{ form: 'form_cari_belum_riwayat', input: 'input_cari_belum_riwayat', button: 'btn_cari_belum_riwayat' }}
+            />,
+            <Pager
+              page={kiri.pager.page}
+              lastPage={kiri.lastPage}
+              total={kiri.total}
+              perPage={kiri.pager.perPage}
+              onPage={(p) => { kiri.pager.setPage(p); void kiri.load(p); }}
+              onPerPage={(pp) => { kiri.pager.setPerPage(pp); void kiri.load(1, pp); }}
+            />,
+          )}
+          {panel(
+            'ganjil',
+            'Riwayat ganjil TA aktif',
+            kanan.total,
+            <ExcelTable<RiwayatRow>
+              tableKey="riwayat_belajar"
+              fields={ROSTER_FIELDS}
+              rows={kanan.rows}
+              getValues={riwayatValues}
+              loading={kanan.loading}
+              emptyText="Tidak ada riwayat ganjil pada filter ini."
+              canEdit={false}
+              onCommit={noopCommit}
+              onSaved={noopCommit}
+              hideCheckbox
+              renderActions={(r) => (
+                canBatal ? (
+                  <DeleteAction
+                    id={`btn_batal_riwayat_${r.id}`}
+                    title="Batalkan riwayat"
+                    description={`Batalkan riwayat ganjil ${r.santri?.nama_lengkap ?? ''}? Baris dihapus permanen dan santri kembali ke panel kiri.`}
+                    onConfirm={() => void batalkan(r)}
+                  />
+                ) : null
+              )}
+              searchValue={kanan.search}
+              onSearchChange={kanan.onSearchChange}
+              onSearchSubmit={kanan.onSearchSubmit}
+              searchPlaceholder="Nama / NIK"
+              searchIds={{ form: 'form_cari_riwayat_belajar', input: 'input_cari_riwayat_belajar', button: 'btn_cari_riwayat_belajar' }}
+              urutAktif={kanan.urut}
+              arahUrut={kanan.arahUrut}
+              onUrut={kanan.terapkanUrut}
+            />,
+            <Pager
+              page={kanan.pager.page}
+              lastPage={kanan.lastPage}
+              total={kanan.total}
+              perPage={kanan.pager.perPage}
+              onPage={(p) => { kanan.pager.setPage(p); void kanan.load(p); }}
+              onPerPage={(pp) => { kanan.pager.setPerPage(pp); void kanan.load(1, pp); }}
+            />,
+            canTambah ? (
+              <Button id="btn_buka_import_riwayat" size="sm" variant="outline" onClick={() => { setImportFile(null); setPeriksaHasil(null); setImportOpen(true); }}>
+                <FileUp data-icon="inline-start" size={16} /> Import
+              </Button>
+            ) : undefined,
+            <div className="px-2 pt-2">
+              <FilterField label="Kelas" htmlFor="select_kelas_riwayat_belajar">
+                <Select value={kelasId === '' ? '_semua' : kelasId} onValueChange={(v) => { setKelasId(v === '_semua' ? '' : v); kanan.pager.goFirst(); }}>
+                  <SelectTrigger id="select_kelas_riwayat_belajar" title="Filter kelas" aria-label="Filter kelas" size="sm" className="w-40">
+                    <SelectValue placeholder="Semua kelas" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectItem value="_semua">Semua kelas</SelectItem>
+                      {kelasOpsi.map((k) => <SelectItem key={k.id} value={String(k.id)}>{k.nama_kelas}</SelectItem>)}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </FilterField>
+            </div>,
+          )}
+        </div>
+      )}
 
-      <InputRiwayatDialog
-        open={inputOpen}
-        onOpenChange={setInputOpen}
-        lembagaId={lembagaId}
-        taId={taId}
-        kelas={kelas}
-        onSaved={() => load(1)}
-      />
-
-      {/* Pindah/set kelas */}
-      <Dialog open={pindahRow !== null} onOpenChange={(o) => { if (!o) setPindahRow(null); }}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Set / pindah kelas</DialogTitle>
-            <DialogDescription>{pindahRow?.santri?.nama_lengkap}</DialogDescription>
-          </DialogHeader>
-          <Select value={kelasPilih || '_kosong'} onValueChange={(v) => setKelasPilih(v === '_kosong' ? '' : v)}>
-            <SelectTrigger id="select_kelas_pindah"><SelectValue placeholder="Pilih kelas" /></SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectItem value="_kosong">Pilih kelas</SelectItem>
-                {kelas.map((k) => <SelectItem key={k.id} value={String(k.id)}>{k.nama_kelas}</SelectItem>)}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setPindahRow(null)}>Batal</Button>
-            <Button id="btn_simpan_pindah_kelas" disabled={!kelasPilih || busy} onClick={async () => {
-              if (!pindahRow || !kelasPilih) return;
-              setBusy(true);
-              try {
-                if (pindahRow.kelas_id) await pindahKelas(pindahRow.id, Number(kelasPilih));
-                else await setKelas(pindahRow.id, Number(kelasPilih));
-                toast.success('Kelas disimpan.');
-                setPindahRow(null);
-                setKelasPilih('');
-                await load();
-              } catch (e) { toast.error(errorMessage(e)); } finally { setBusy(false); }
-            }}>Simpan</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Import riwayat */}
+      {/* Import riwayat (dipertahankan; penyesuaian alur ganjil menyusul) */}
       <Dialog open={importOpen} onOpenChange={setImportOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
@@ -225,7 +307,7 @@ export default function RiwayatBelajarPage() {
               else {
                 toast.success(res.pesan ?? 'Import selesai.');
                 setImportOpen(false);
-                await load(1);
+                await muatUlang();
               }
             } catch (e2) { toast.error(errorMessage(e2)); } finally { setBusy(false); }
           }}>
@@ -265,147 +347,5 @@ export default function RiwayatBelajarPage() {
         </DialogContent>
       </Dialog>
     </div>
-  );
-}
-
-/** Dialog input riwayat: pilih santri (cari) + lembaga/TA + kelas/status + NIS lokal. */
-function InputRiwayatDialog({
-  open, onOpenChange, lembagaId, taId, kelas, onSaved,
-}: {
-  open: boolean;
-  onOpenChange: (o: boolean) => void;
-  lembagaId: string;
-  taId: string;
-  kelas: Kelas[];
-  onSaved: () => void;
-}) {
-  const [cari, setCari] = useState('');
-  const [hasilSantri, setHasilSantri] = useState<Santri[]>([]);
-  const [santriPilih, setSantriPilih] = useState('');
-  const [tahunAjaran, setTahunAjaran] = useState('');
-  const [kelasId, setKelasId] = useState('');
-  const [tingkat, setTingkat] = useState('');
-  const [noAbsen, setNoAbsen] = useState('');
-  const [statusAwal, setStatusAwal] = useState('santri_baru');
-  const [tglMasuk, setTglMasuk] = useState('');
-  const [nisLokal, setNisLokal] = useState('');
-  const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    if (!open) return;
-    setCari(''); setHasilSantri([]); setSantriPilih('');
-    setTahunAjaran(taId); setKelasId(''); setTingkat(''); setNoAbsen('');
-    setStatusAwal('santri_baru'); setTglMasuk(''); setNisLokal('');
-  }, [open, taId]);
-
-  const cariSantri = useCallback(async () => {
-    if (!cari.trim()) return;
-    try {
-      const res = await listSantri({ q: cari.trim(), per_page: 20 });
-      setHasilSantri(res.data);
-    } catch (e) { toast.error(errorMessage(e)); }
-  }, [cari]);
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl">
-        <DialogHeader>
-          <DialogTitle>Tambah riwayat belajar</DialogTitle>
-          <DialogDescription>Penerimaan santri ke lembaga + jejak kelas/semester.</DialogDescription>
-        </DialogHeader>
-        <form className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-3" onSubmit={async (e) => {
-          e.preventDefault();
-          if (!santriPilih || !lembagaId || !tahunAjaran) return;
-          setBusy(true);
-          try {
-            await createRiwayatBelajar({
-              santri_id: Number(santriPilih),
-              lembaga_id: Number(lembagaId),
-              tahun_ajaran_id: Number(tahunAjaran),
-              kelas_id: kelasId ? Number(kelasId) : null,
-              tingkat: tingkat.trim() || null,
-              no_absen: noAbsen.trim() ? Number(noAbsen) : null,
-              status_awal: statusAwal,
-              tgl_masuk: tglMasuk || null,
-              nis_lokal: nisLokal.trim() || null,
-            });
-            toast.success('Riwayat ditambahkan.');
-            onOpenChange(false);
-            onSaved();
-          } catch (e2) { toast.error(errorMessage(e2)); } finally { setBusy(false); }
-        }}>
-          <FieldLabel htmlFor="input_cari_santri_riwayat">Cari santri</FieldLabel>
-          <div className="flex gap-2">
-            <Input id="input_cari_santri_riwayat" value={cari} onChange={(e) => setCari(e.target.value)} placeholder="Nama / NIK / NISN" />
-            <Button id="btn_cari_santri_riwayat" type="button" variant="outline" onClick={() => void cariSantri()}>Cari</Button>
-          </div>
-          <FieldLabel htmlFor="select_santri_riwayat">Santri</FieldLabel>
-          <Select value={santriPilih || '_kosong'} onValueChange={(v) => setSantriPilih(v === '_kosong' ? '' : v)}>
-            <SelectTrigger id="select_santri_riwayat"><SelectValue placeholder="Pilih santri" /></SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectItem value="_kosong">Pilih santri</SelectItem>
-                {hasilSantri.map((s) => <SelectItem key={s.id} value={String(s.id)}>{s.nama_lengkap}</SelectItem>)}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-          <FieldLabel htmlFor="input_ta_riwayat">Tahun ajaran</FieldLabel>
-          <TahunAjaranSelect id="select_ta_input_riwayat" lembagaId={lembagaId} value={tahunAjaran} onChange={setTahunAjaran} />
-          <FieldLabel htmlFor="select_kelas_riwayat">Kelas</FieldLabel>
-          <Select value={kelasId || '_kosong'} onValueChange={(v) => setKelasId(v === '_kosong' ? '' : v)}>
-            <SelectTrigger id="select_kelas_riwayat"><SelectValue placeholder="Belum ditempatkan" /></SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectItem value="_kosong">Belum ditempatkan</SelectItem>
-                {kelas.map((k) => <SelectItem key={k.id} value={String(k.id)}>{k.nama_kelas}</SelectItem>)}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-          <FieldLabel htmlFor="input_tingkat_riwayat">Tingkat</FieldLabel>
-          <Input id="input_tingkat_riwayat" value={tingkat} onChange={(e) => setTingkat(e.target.value)} maxLength={20} />
-          <FieldLabel htmlFor="input_absen_riwayat">No. absen</FieldLabel>
-          <Input id="input_absen_riwayat" value={noAbsen} onChange={(e) => setNoAbsen(e.target.value)} />
-          <FieldLabel htmlFor="select_status_awal_riwayat">Status awal</FieldLabel>
-          <Select value={statusAwal} onValueChange={setStatusAwal}>
-            <SelectTrigger id="select_status_awal_riwayat"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectItem value="santri_baru">Santri baru</SelectItem>
-                <SelectItem value="pindahan">Pindahan</SelectItem>
-                <SelectItem value="mengulang">Mengulang</SelectItem>
-                <SelectItem value="kenaikan">Kenaikan</SelectItem>
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-          <FieldLabel htmlFor="input_masuk_riwayat">Tgl masuk</FieldLabel>
-          <Input id="input_masuk_riwayat" type="date" value={tglMasuk} onChange={(e) => setTglMasuk(e.target.value)} />
-          <FieldLabel htmlFor="input_nis_lokal_riwayat">NIS lokal</FieldLabel>
-          <Input id="input_nis_lokal_riwayat" value={nisLokal} onChange={(e) => setNisLokal(e.target.value)} maxLength={20} placeholder="Opsional" />
-          <DialogFooter className="col-span-2">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Batal</Button>
-            <Button id="btn_simpan_input_riwayat" type="submit" disabled={busy || !santriPilih || !lembagaId || !tahunAjaran}>Simpan</Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function TahunAjaranSelect({ id, lembagaId, value, onChange }: { id: string; lembagaId: string; value: string; onChange: (v: string) => void }) {
-  const [tas, setTas] = useState<{ id: number; nama: string; is_aktif?: boolean }[]>([]);
-  useEffect(() => {
-    if (!lembagaId) { setTas([]); return; }
-    listTahunAjaran({ lembaga_id: Number(lembagaId), per_page: 100 }).then((p) => setTas(p.data)).catch(() => setTas([]));
-  }, [lembagaId]);
-  return (
-    <Select value={value || '_kosong'} onValueChange={(v) => onChange(v === '_kosong' ? '' : v)}>
-      <SelectTrigger id={id}><SelectValue placeholder="Pilih tahun ajaran" /></SelectTrigger>
-      <SelectContent>
-        <SelectGroup>
-          <SelectItem value="_kosong">Pilih tahun ajaran</SelectItem>
-          {tas.map((t) => <SelectItem key={t.id} value={String(t.id)}>{t.nama}</SelectItem>)}
-        </SelectGroup>
-      </SelectContent>
-    </Select>
   );
 }

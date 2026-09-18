@@ -1,6 +1,6 @@
 import { api, apiUpload, downloadFile } from './client';
 import type { Paginate } from './master';
-import type { ImportError, ImportPeriksa, Santri } from './santri';
+import type { ImportError, ImportPeriksa, LembagaSantri, Santri } from './santri';
 
 // ---------- Riwayat belajar (102) + siklus akademik ----------
 
@@ -189,6 +189,31 @@ export function keluarKelas(riwayatId: number) {
   return api<{ pesan: string; data: RiwayatRow }>(`/admin/riwayat-belajar/${riwayatId}/keluar-kelas`, {
     method: 'POST',
   });
+}
+
+/** Batalkan baris riwayat aktif (hard delete fisik). */
+export function batalRiwayat(riwayatId: number) {
+  return api<{ pesan: string }>(`/admin/riwayat-belajar/${riwayatId}`, {
+    method: 'DELETE',
+  });
+}
+
+/** Panel kiri halaman ganjil: anggota aktif tanpa riwayat (siap dipanah masuk). */
+export function listBelumMasukRiwayat(params: {
+  lembaga_id: number;
+  tahun_ajaran_id: number;
+  q?: string;
+  page?: number;
+  per_page?: number;
+  signal?: AbortSignal;
+}) {
+  const q = new URLSearchParams();
+  q.set('lembaga_id', String(params.lembaga_id));
+  q.set('tahun_ajaran_id', String(params.tahun_ajaran_id));
+  if (params.q) q.set('q', params.q);
+  q.set('page', String(params.page ?? 1));
+  if (params.per_page != null) q.set('per_page', String(params.per_page));
+  return api<Paginate<LembagaSantri>>(`/admin/riwayat-belajar/belum-masuk?${q.toString()}`, { signal: params.signal });
 }
 
 // ---------- Import riwayat belajar (terpisah dari import identitas) ----------

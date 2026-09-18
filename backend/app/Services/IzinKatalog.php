@@ -29,7 +29,7 @@ class IzinKatalog
         'kegiatan_psb' => ['lihat', 'tambah', 'ubah', 'hapus'],
         'dokumen_wajib' => ['lihat', 'tambah', 'hapus'],
         'santri' => ['lihat', 'tambah', 'ubah', 'hapus'],
-        'riwayat_belajar' => ['lihat', 'tambah', 'ubah'],
+        'riwayat_belajar' => ['lihat', 'tambah', 'ubah', 'hapus'],
         'daftar_kelas' => ['lihat'],
         'pindah_kelas' => ['lihat', 'ubah'],
         'kenaikan' => ['lihat', 'ubah'],
