@@ -52,15 +52,20 @@ export function SpinBox({
     'shrink-0 place-items-center text-white/70 transition-colors hover:bg-white/10 hover:text-white disabled:pointer-events-none disabled:opacity-40 grid',
     vertikal ? 'h-6' : 'w-5',
   );
+  // Lebar kotak angka menyesuaikan isi (jumlah digit) + sedikit padding, agar
+  // tidak menyisakan ruang kosong. Draft ikut dihitung saat mengetik.
+  const teks = draft ?? String(value);
+  const lebarIsi = `calc(${Math.max(2, teks.length)}ch + 8px)`;
   return (
     <div
       title={title}
       data-part="spinbox"
       className={cn(
         'flex items-stretch overflow-hidden rounded-md border border-white/20 bg-white/5 focus-within:ring-2 focus-within:ring-white/30',
-        vertikal ? 'w-8 flex-col' : 'h-6',
+        vertikal ? 'flex-col' : 'h-6',
         disabled && 'pointer-events-none opacity-40',
       )}
+      style={vertikal ? { width: lebarIsi } : undefined}
     >
       <button
         type="button"
@@ -80,8 +85,9 @@ export function SpinBox({
         disabled={disabled}
         className={cn(
           'border-white/20 bg-transparent px-0 text-center text-xs text-white outline-none',
-          vertikal ? 'h-6 w-full border-y' : 'h-full w-8 border-x',
+          vertikal ? 'h-6 w-full border-y' : 'h-full border-x',
         )}
+        style={vertikal ? undefined : { width: lebarIsi }}
         value={draft ?? String(value)}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={() => commit(draft)}

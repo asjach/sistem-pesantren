@@ -216,13 +216,13 @@ export default function PresetUrut({
         <Button
           id={`btn_arah_urut_${tableKey}`}
           variant="outline"
-          size="sm"
-          title="Balik arah urutan"
+          size="icon-sm"
+          title={`Balik arah urutan (kini: ${arahUrut === 'naik' ? 'naik' : 'turun'})`}
           aria-label={`Arah urutan: ${arahUrut === 'naik' ? 'naik' : 'turun'}`}
           disabled={(urutAktif ?? []).length === 0}
           onClick={balikArah}
         >
-          {arahUrut === 'naik' ? '▲ Naik' : '▼ Turun'}
+          {arahUrut === 'naik' ? <ChevronUp /> : <ChevronDown />}
         </Button>
       </span>
 

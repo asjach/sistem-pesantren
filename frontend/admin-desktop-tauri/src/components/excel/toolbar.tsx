@@ -1,11 +1,9 @@
 import type { MutableRefObject, ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Separator } from '@/components/ui/separator';
-import FilterField from '@/components/FilterField';
 import PresetKolom, { type PresetKolomApi } from '@/components/PresetKolom';
 import PresetUrut from '@/components/PresetUrut';
-import { Search } from '@/icons';
+import { Search, X } from '@/icons';
 import { cn } from '@/lib/utils';
 import type { ExcelField } from './types';
 
@@ -73,51 +71,70 @@ export default function ToolbarTabel<T extends { id: string | number }>({
   return (
     <div
       data-part="toolbar_tabel"
-      className={cn('flex flex-wrap items-end gap-2', showToolbar || addButton || !hidePreset ? 'mb-3' : 'mb-0')}
+      className={cn('flex flex-nowrap items-end gap-2', showToolbar || addButton || !hidePreset ? 'mb-3' : 'mb-0')}
     >
-      {awalanToolbar}
-      {(hasSearchInput || hasFilter || onUrut) && (
+      {/* Zona kiri: kontrol khusus halaman + filter. */}
+      <div className="flex flex-1 flex-nowrap items-end gap-1.5 [&>*]:shrink-0">
+        {awalanToolbar}
+        {filter}
+      </div>
+
+      {/* Zona tengah: kotak cari. Zona kiri & kanan sama-sama `flex-1` sehingga
+          kotak cari berada di tengah toolbar pada semua tabel. */}
+      {(hasSearchInput || showSearchButton) && (
         <form
           id={formId}
           onSubmit={(e) => {
             e.preventDefault();
             onSearchSubmit?.();
           }}
-          className="flex flex-wrap items-end gap-1.5"
+          className="flex shrink-0 flex-nowrap items-end gap-1.5"
         >
           {hasSearchInput && (
-            <FilterField label="Cari" htmlFor={inputId}>
+            <div className="relative">
               <Input
                 id={inputId}
                 aria-label="Cari"
                 placeholder={searchPlaceholder ?? 'Cari'}
                 value={searchValue}
                 onChange={(e) => onSearchChange?.(e.target.value)}
-                className="w-44 sm:w-48"
+                className="w-35 pr-7"
               />
-            </FilterField>
+              {searchValue ? (
+                <button
+                  type="button"
+                  id={`${inputId}_hapus`}
+                  title="Hapus isi pencarian"
+                  aria-label="Hapus isi pencarian"
+                  onClick={() => onSearchChange?.('')}
+                  className="absolute top-1/2 right-1.5 grid size-4 -translate-y-1/2 place-items-center rounded-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                >
+                  <X size={12} />
+                </button>
+              ) : null}
+            </div>
           )}
           {showSearchButton && (
             <Button id={buttonId} type="submit" size="icon-sm" variant="outline" title="Cari" aria-label="Cari">
               <Search size={16} />
             </Button>
           )}
-          {hasFilter && (hasSearchInput || showSearchButton) && (
-            <Separator orientation="vertical" className="h-4 self-center" />
-          )}
-          {filter}
         </form>
       )}
-      <span
-        id={`grid_info_${tableKey}`}
-        className={`text-xs text-muted-foreground${checkedCount > 0 ? '' : ' hidden'}`}
-      >
-        {checkedCount} baris dipilih
-      </span>
-      {checkedRows.length > 0 && renderBulkActions ? (
-        <div className="flex flex-wrap items-center gap-1.5">{renderBulkActions(checkedRows, clearSelection)}</div>
-      ) : null}
-      <div className="ml-auto flex flex-wrap items-center gap-2">
+
+      {/* Zona kanan: info seleksi, bulk, kontrol tabel, aksi halaman. */}
+      <div className="flex flex-1 flex-nowrap items-end justify-end gap-2 [&>*]:shrink-0">
+        <span
+          id={`grid_info_${tableKey}`}
+          className={`text-xs text-muted-foreground${checkedCount > 0 ? '' : ' hidden'}`}
+        >
+          {checkedCount} baris dipilih
+        </span>
+        {checkedRows.length > 0 && renderBulkActions ? (
+          <div className="flex flex-nowrap items-center gap-1.5 [&>*]:shrink-0">
+            {renderBulkActions(checkedRows, clearSelection)}
+          </div>
+        ) : null}
         {/* Urutan tabel: dropdown dari Preset Urut (DB, per tabel) + tombol
             arah. Kelola opsi lewat item "Kelola urutan…" di dropdown. */}
         {onUrut && (
