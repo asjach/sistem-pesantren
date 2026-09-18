@@ -40,6 +40,9 @@ class PengaturanTampilanUpsertRequest extends FormRequest
             'data.lebar.*.*' => ['integer', 'between:20,2000'],
             'data.beku' => ['sometimes', 'array'],
             'data.beku.*' => ['nullable', 'integer', 'between:0,20'],
+            'data.toolbar' => ['sometimes', 'array'],
+            'data.toolbar.*' => ['nullable', 'array'],
+            'data.toolbar.*.*' => ['boolean'],
             'sumber_lembaga_id' => ['sometimes', 'nullable', 'integer', 'exists:lembaga,id'],
         ];
     }

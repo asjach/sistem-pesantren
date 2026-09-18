@@ -6,6 +6,8 @@ export interface RibbonTableApi {
   salin: () => void;
   autofit: () => void;
   reset: () => void;
+  /** Buka dialog Kelola tabel (tab Kolom) untuk tabel aktif. */
+  kelolaTabel: () => void;
   /** Mode edit sel: kemampuan + status (dipakai tombol toggle di ribbon). */
   canEdit: boolean;
   editMode: boolean;

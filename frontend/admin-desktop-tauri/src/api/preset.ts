@@ -20,7 +20,6 @@ export function listPresetTabel(tableKey: string) {
 export function createPresetTabel(input: {
   table_key: string;
   nama: string;
-  lembaga_ids: number[];
   kolom: string[];
   label?: Record<string, string> | null;
 }) {

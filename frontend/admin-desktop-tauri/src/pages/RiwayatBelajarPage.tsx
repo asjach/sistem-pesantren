@@ -90,6 +90,13 @@ export default function RiwayatBelajarPage() {
   const [kelasOpsi, setKelasOpsi] = useState<Kelas[]>([]);
   const [busyId, setBusyId] = useState<number | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
+  /** Baris tercentang per panel (diangkat via `onCheckedChange` agar tombol
+   *  bulk bisa duduk di header panel). */
+  const [centangKiri, setCentangKiri] = useState<LembagaSantri[]>([]);
+  const [centangKanan, setCentangKanan] = useState<RiwayatRow[]>([]);
+  /** Naikkan seusai aksi massal untuk me-remount grid (mereset centang internal). */
+  const [nonceKiri, setNonceKiri] = useState(0);
+  const [nonceKanan, setNonceKanan] = useState(0);
   /** Tgl masuk bawaan untuk aksi panah (toolbar panel kiri); default hari ini (lokal). */
   const [tglMasuk, setTglMasuk] = useState(() => {
     const now = new Date();
@@ -186,8 +193,8 @@ export default function RiwayatBelajarPage() {
   }, [muatUlang]);
 
   /** Aksi massal kiri: masukkan yang tercentang ke kelas terpilih. */
-  const masukBanyak = useCallback(async (checked: LembagaSantri[], clear: () => void) => {
-    if (bulkBusy || checked.length === 0 || !lembagaId || !taId) return;
+  const masukBanyak = useCallback(async () => {
+    if (bulkBusy || centangKiri.length === 0 || !lembagaId || !taId) return;
     if (!kelasId) {
       toast.error('Pilih kelas di toolbar tabel kanan dulu.');
       return;
@@ -197,7 +204,7 @@ export default function RiwayatBelajarPage() {
     let ok = 0;
     const gagal: string[] = [];
     try {
-      for (const r of checked) {
+      for (const r of centangKiri) {
         try {
           await createRiwayatBelajar({
             santri_id: r.santri_id,
@@ -214,21 +221,22 @@ export default function RiwayatBelajarPage() {
       }
       if (gagal.length > 0) toast.error(`${ok} masuk, ${gagal.length} gagal: ${gagal.slice(0, 3).join(' · ')}${gagal.length > 3 ? ' …' : ''}`);
       else toast.success(`${ok} santri dimasukkan ke kelas.`);
-      clear();
+      setCentangKiri([]);
+      setNonceKiri((n) => n + 1);
       await muatUlang();
     } finally {
       setBulkBusy(false);
     }
-  }, [bulkBusy, lembagaId, taId, kelasId, kelasOpsi, tglMasuk, muatUlang]);
+  }, [bulkBusy, centangKiri, lembagaId, taId, kelasId, kelasOpsi, tglMasuk, muatUlang]);
 
   /** Aksi massal kanan: batalkan yang tercentang (hard delete). */
-  const batalBanyak = useCallback(async (checked: RiwayatRow[], clear: () => void) => {
-    if (bulkBusy || checked.length === 0) return;
+  const batalBanyak = useCallback(async () => {
+    if (bulkBusy || centangKanan.length === 0) return;
     setBulkBusy(true);
     let ok = 0;
     const gagal: string[] = [];
     try {
-      for (const r of checked) {
+      for (const r of centangKanan) {
         try {
           await batalRiwayat(r.id);
           ok++;
@@ -238,12 +246,13 @@ export default function RiwayatBelajarPage() {
       }
       if (gagal.length > 0) toast.error(`${ok} dibatalkan, ${gagal.length} gagal: ${gagal.slice(0, 3).join(' · ')}${gagal.length > 3 ? ' …' : ''}`);
       else toast.success(`${ok} riwayat dibatalkan.`);
-      clear();
+      setCentangKanan([]);
+      setNonceKanan((n) => n + 1);
       await muatUlang();
     } finally {
       setBulkBusy(false);
     }
-  }, [bulkBusy, muatUlang]);
+  }, [bulkBusy, centangKanan, muatUlang]);
 
   const [importOpen, setImportOpen] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
@@ -353,28 +362,18 @@ export default function RiwayatBelajarPage() {
               )}
               searchValue={kiri.search}
               onSearchChange={kiri.onSearchChange}
-              onSearchSubmit={kiri.onSearchSubmit}
-              searchPlaceholder="Nama / NIK / NIS lokal"
               searchIds={{ form: 'form_cari_belum_riwayat', input: 'input_cari_belum_riwayat', button: 'btn_cari_belum_riwayat' }}
-              renderBulkActions={canTambah ? (checked, clear) => (
-                <Button
-                  id="btn_bulk_masuk_riwayat"
-                  size="sm"
-                  disabled={bulkBusy || !kelasId}
-                  title={kelasId ? 'Masukkan yang tercentang ke kelas terpilih' : 'Pilih kelas di tabel kanan dulu'}
-                  onClick={() => void masukBanyak(checked, clear)}
-                >
-                  Masuk ({checked.length})
-                </Button>
-              ) : undefined}
-              akhirToolbar={(
+              presetKolomClassName="w-28"
+              key={`riwayat_belum_masuk_${nonceKiri}`}
+              onCheckedChange={setCentangKiri}
+              awalanToolbar={(
                 <FilterField label="Tgl masuk" htmlFor="input_tgl_masuk_belum_riwayat">
                   <Input
                     id="input_tgl_masuk_belum_riwayat"
                     type="date"
                     title="Tanggal masuk untuk aksi panah"
                     aria-label="Tanggal masuk untuk aksi panah"
-                    className="w-36"
+                    className="w-30"
                     value={tglMasuk}
                     onChange={(e) => setTglMasuk(e.target.value)}
                   />
@@ -389,6 +388,17 @@ export default function RiwayatBelajarPage() {
               onPage={(p) => { kiri.pager.setPage(p); void kiri.load(p); }}
               onPerPage={(pp) => { kiri.pager.setPerPage(pp); void kiri.load(1, pp); }}
             />,
+            canTambah ? (
+              <Button
+                id="btn_bulk_masuk_riwayat"
+                size="sm"
+                disabled={bulkBusy || centangKiri.length === 0 || !kelasId}
+                title={kelasId ? 'Masukkan yang tercentang ke kelas terpilih' : 'Pilih kelas di tabel kanan dulu'}
+                onClick={() => void masukBanyak()}
+              >
+                Masuk ({centangKiri.length})
+              </Button>
+            ) : undefined,
           )}
           {panel(
             'ganjil',
@@ -416,39 +426,19 @@ export default function RiwayatBelajarPage() {
               )}
               searchValue={kanan.search}
               onSearchChange={kanan.onSearchChange}
-              onSearchSubmit={kanan.onSearchSubmit}
-              searchPlaceholder="Nama / NIK"
               searchIds={{ form: 'form_cari_riwayat_belajar', input: 'input_cari_riwayat_belajar', button: 'btn_cari_riwayat_belajar' }}
-              renderBulkActions={canBatal ? (checked, clear) => (
-                <ConfirmDelete
-                  title={`Batalkan ${checked.length} riwayat?`}
-                  description="Baris yang tercentang dihapus permanen dan santri kembali ke panel kiri."
-                  onConfirm={() => void batalBanyak(checked, clear)}
-                >
-                  <Button
-                    id="btn_bulk_batal_riwayat"
-                    size="sm"
-                    variant="outline"
-                    className="text-destructive"
-                    disabled={bulkBusy}
-                    title="Batalkan yang tercentang (hapus permanen)"
-                  >
-                    Batalkan ({checked.length})
-                  </Button>
-                </ConfirmDelete>
-              ) : undefined}
-              urutAktif={kanan.urut}
-              arahUrut={kanan.arahUrut}
-              onUrut={kanan.terapkanUrut}
+              presetKolomClassName="w-28"
+              key={`riwayat_belajar_${nonceKanan}`}
+              onCheckedChange={setCentangKanan}
               filter={(
                 <FilterField label="Kelas *" htmlFor="select_kelas_riwayat_belajar">
                   <Select value={kelasId === '' ? '_semua' : kelasId} onValueChange={(v) => { setKelasId(v === '_semua' ? '' : v); kanan.pager.goFirst(); }}>
-                    <SelectTrigger id="select_kelas_riwayat_belajar" title="Filter tabel + kelas tujuan panah (wajib untuk memasukkan santri)" aria-label="Filter kelas" size="sm" className="w-40">
-                      <SelectValue placeholder="Semua kelas" />
+                    <SelectTrigger id="select_kelas_riwayat_belajar" title="Filter tabel + kelas tujuan panah (wajib untuk memasukkan santri)" aria-label="Filter kelas" size="sm" className="w-32">
+                      <SelectValue placeholder="Semua" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectGroup>
-                        <SelectItem value="_semua">Semua kelas</SelectItem>
+                        <SelectItem value="_semua">Semua</SelectItem>
                         {kelasOpsi.map((k) => <SelectItem key={k.id} value={String(k.id)}>{k.nama_kelas}</SelectItem>)}
                       </SelectGroup>
                     </SelectContent>
@@ -464,10 +454,32 @@ export default function RiwayatBelajarPage() {
               onPage={(p) => { kanan.pager.setPage(p); void kanan.load(p); }}
               onPerPage={(pp) => { kanan.pager.setPerPage(pp); void kanan.load(1, pp); }}
             />,
-            canTambah ? (
-              <Button id="btn_buka_import_riwayat" size="sm" variant="outline" onClick={() => { setImportFile(null); setPeriksaHasil(null); setImportOpen(true); }}>
-                <FileUp data-icon="inline-start" size={16} /> Import
-              </Button>
+            (canTambah || canBatal) ? (
+              <div className="flex items-center gap-2">
+                {canBatal ? (
+                  <ConfirmDelete
+                    title={`Batalkan ${centangKanan.length} riwayat?`}
+                    description="Baris yang tercentang dihapus permanen dan santri kembali ke panel kiri."
+                    onConfirm={() => void batalBanyak()}
+                  >
+                    <Button
+                      id="btn_bulk_batal_riwayat"
+                      size="sm"
+                      variant="outline"
+                      className="text-destructive"
+                      disabled={bulkBusy || centangKanan.length === 0}
+                      title="Batalkan yang tercentang (hapus permanen)"
+                    >
+                      Batalkan ({centangKanan.length})
+                    </Button>
+                  </ConfirmDelete>
+                ) : null}
+                {canTambah ? (
+                  <Button id="btn_buka_import_riwayat" size="sm" variant="outline" onClick={() => { setImportFile(null); setPeriksaHasil(null); setImportOpen(true); }}>
+                    <FileUp data-icon="inline-start" size={16} /> Import
+                  </Button>
+                ) : null}
+              </div>
             ) : undefined,
             undefined,
           )}

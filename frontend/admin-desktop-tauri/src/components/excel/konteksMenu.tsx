@@ -40,6 +40,8 @@ export interface MenuKonteksGridProps {
   align: Record<string, AlignName>;
   setAlign: (key: string, a: AlignName) => void;
   presetApiRef: MutableRefObject<PresetKolomApi | null>;
+  /** Kelola preset = super_admin saja (sembunyikan seksi preset + Kelola tabel). */
+  bolehKelola: boolean;
   salinBaris: (id: string | number) => void;
   salinSel: (id: string | number, key: string) => void;
   salinKolom: (key: string) => void;
@@ -62,6 +64,7 @@ export default function MenuKonteksGrid({
   align,
   setAlign,
   presetApiRef,
+  bolehKelola,
   salinBaris,
   salinSel,
   salinKolom,
@@ -154,6 +157,8 @@ export default function MenuKonteksGrid({
             </button>
           </div>
           <ContextMenuSeparator />
+          {bolehKelola && (
+          <>
           <ContextMenuLabel>TAMPILKAN DI PRESET</ContextMenuLabel>
           {(presetApiRef.current?.presets.length ?? 0) === 0 ? (
             <ContextMenuItem disabled>Belum ada preset</ContextMenuItem>
@@ -171,6 +176,18 @@ export default function MenuKonteksGrid({
                 : `${p.nama} (${p.lembaga?.kode ?? p.lembaga?.nama ?? p.lembaga_id})`}
             </ContextMenuCheckboxItem>
           ))}
+          <ContextMenuSeparator />
+          {presetApiRef.current?.bukaKelola && (
+            <ContextMenuItem
+              id={`menu_ctx_kelola_tabel_${tableKey}`}
+              onSelect={() => presetApiRef.current?.bukaKelola('kolom')}
+            >
+              <Columns3 size={16} />
+              <span>Kelola tabel…</span>
+            </ContextMenuItem>
+          )}
+          </>
+          )}
         </>
       )}
 

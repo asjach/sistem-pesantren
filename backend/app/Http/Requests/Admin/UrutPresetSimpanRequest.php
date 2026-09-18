@@ -7,10 +7,10 @@ use Illuminate\Validation\Rule;
 
 class UrutPresetSimpanRequest extends FormRequest
 {
-    /** Preset urut hanya dikelola admin pesantren (403 sebelum validasi). */
+    /** Preset urut (global) hanya dikelola super_admin (403 sebelum validasi). */
     public function authorize(): bool
     {
-        return (bool) $this->user()?->bolehPesantren();
+        return $this->user()?->hasRole('super_admin') ?? false;
     }
 
     public function rules(): array

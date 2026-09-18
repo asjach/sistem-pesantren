@@ -6,9 +6,10 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class PresetTabelStoreRequest extends FormRequest
 {
+    /** Preset kolom (global) hanya dikelola super_admin (403 sebelum validasi). */
     public function authorize(): bool
     {
-        return true;
+        return $this->user()?->hasRole('super_admin') ?? false;
     }
 
     public function rules(): array
@@ -16,8 +17,6 @@ class PresetTabelStoreRequest extends FormRequest
         return [
             'table_key' => ['required', 'string', 'max:60'],
             'nama' => ['required', 'string', 'max:50'],
-            'lembaga_ids' => ['required', 'array', 'min:1', 'max:200'],
-            'lembaga_ids.*' => ['integer', 'exists:lembaga,id'],
             'kolom' => ['required', 'array', 'min:1', 'max:200'],
             'kolom.*' => ['string', 'max:60'],
             'label' => ['nullable', 'array', 'max:200'],

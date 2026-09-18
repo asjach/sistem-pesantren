@@ -15,7 +15,7 @@ use Illuminate\Validation\ValidationException;
  * Preset urut GLOBAL per `table_key` (satu baris = daftar opsi urut).
  * Menggantikan hardcode `opsiUrut` di frontend; kode urut divalidasi terhadap
  * `UrutKatalog` sehingga preset tersimpan dijamin dikenali endpoint daftar.
- * Baca bebas (semua admin); tulis khusus admin pesantren.
+ * Baca bebas (semua admin); tulis khusus super_admin.
  */
 class UrutPresetController extends Controller
 {
@@ -95,8 +95,8 @@ class UrutPresetController extends Controller
 
     protected function pastikanAdminPesantren(): void
     {
-        if (! auth()->user()?->bolehPesantren()) {
-            abort(403, 'Preset urut hanya dikelola admin pesantren.');
+        if (! auth()->user()?->hasRole('super_admin')) {
+            abort(403, 'Preset urut hanya dikelola super_admin.');
         }
     }
 }

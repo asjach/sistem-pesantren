@@ -50,7 +50,7 @@ class UrutPresetTest extends TestCase
 
     public function test_preset_seed_dimuat_dengan_tersedia(): void
     {
-        $pusat = $this->makeUser('admin');
+        $pusat = $this->makeUser('super_admin');
 
         $res = $this->actingAs($pusat, 'sanctum')->getJson('/api/admin/urut-preset?table_key=santri');
         $res->assertStatus(200);
@@ -68,7 +68,7 @@ class UrutPresetTest extends TestCase
 
     public function test_simpan_preset_dan_tolak_kode_liar(): void
     {
-        $pusat = $this->makeUser('admin');
+        $pusat = $this->makeUser('super_admin');
 
         $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/urut-preset', [
             'table_key' => 'santri',
@@ -91,7 +91,7 @@ class UrutPresetTest extends TestCase
 
     public function test_bawaan_dinormalisasi_maks_satu(): void
     {
-        $pusat = $this->makeUser('admin');
+        $pusat = $this->makeUser('super_admin');
 
         $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/urut-preset', [
             'table_key' => 'psb',
@@ -108,7 +108,7 @@ class UrutPresetTest extends TestCase
 
     public function test_table_key_tak_dikenal_ditolak(): void
     {
-        $pusat = $this->makeUser('admin');
+        $pusat = $this->makeUser('super_admin');
 
         $this->actingAs($pusat, 'sanctum')
             ->getJson('/api/admin/urut-preset?table_key=tidak_ada')
@@ -123,7 +123,7 @@ class UrutPresetTest extends TestCase
 
     public function test_hapus_preset_mengosongkan(): void
     {
-        $pusat = $this->makeUser('admin');
+        $pusat = $this->makeUser('super_admin');
 
         $this->actingAs($pusat, 'sanctum')
             ->deleteJson('/api/admin/urut-preset?table_key=santri')

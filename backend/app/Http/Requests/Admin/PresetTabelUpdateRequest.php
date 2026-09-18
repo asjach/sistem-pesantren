@@ -6,9 +6,10 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class PresetTabelUpdateRequest extends FormRequest
 {
+    /** Preset kolom (global) hanya dikelola super_admin (403 sebelum validasi). */
     public function authorize(): bool
     {
-        return true;
+        return $this->user()?->hasRole('super_admin') ?? false;
     }
 
     public function rules(): array

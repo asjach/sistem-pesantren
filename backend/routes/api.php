@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\Admin\RiwayatBelajarController;
 use App\Http\Controllers\Api\Admin\SantriController;
 use App\Http\Controllers\Api\Admin\SiklusController;
 use App\Http\Controllers\Api\Admin\TahunAjaranController;
+use App\Http\Controllers\Api\Admin\ToolbarPresetController;
 use App\Http\Controllers\Api\Admin\UrutPresetController;
 use App\Http\Controllers\Api\Admin\UserManagementController;
 use App\Http\Controllers\Api\AuthController;
@@ -152,7 +153,7 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         // Preset kolom tampilan tabel (per lembaga; global = admin pesantren).
         Route::get('preset-tabel', [PresetTabelController::class, 'index'])->middleware('permission:preset_tabel.lihat');
         Route::post('preset-tabel', [PresetTabelController::class, 'store'])->middleware('permission:preset_tabel.tambah');
-        Route::post('preset-tabel/aktif', [PresetTabelController::class, 'setAktif'])->middleware('permission:preset_tabel.ubah');
+        Route::post('preset-tabel/aktif', [PresetTabelController::class, 'setAktif'])->middleware('permission:preset_tabel.lihat');
         Route::put('preset-tabel/{preset}', [PresetTabelController::class, 'update'])->middleware('permission:preset_tabel.ubah');
         Route::delete('preset-tabel/{preset}', [PresetTabelController::class, 'destroy'])->middleware('permission:preset_tabel.hapus');
 
@@ -166,6 +167,11 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::get('urut-preset', [UrutPresetController::class, 'index'])->middleware('permission:urut_preset.lihat');
         Route::put('urut-preset', [UrutPresetController::class, 'simpan'])->middleware('permission:urut_preset.tambah|urut_preset.ubah');
         Route::delete('urut-preset', [UrutPresetController::class, 'hapus'])->middleware('permission:urut_preset.hapus');
+
+        // Visibilitas kontrol toolbar (global per tabel; tulis super_admin saja).
+        Route::get('toolbar-preset', [ToolbarPresetController::class, 'index'])->middleware('permission:toolbar_preset.lihat');
+        Route::put('toolbar-preset', [ToolbarPresetController::class, 'simpan'])->middleware('permission:toolbar_preset.tambah|toolbar_preset.ubah');
+        Route::delete('toolbar-preset', [ToolbarPresetController::class, 'hapus'])->middleware('permission:toolbar_preset.hapus');
 
         // Standar tampilan per lembaga (super_admin sebar ke semua; admin lembaga salinannya).
         Route::get('pengaturan-tampilan', [PengaturanTampilanController::class, 'show'])->middleware('permission:tampilan.lihat');

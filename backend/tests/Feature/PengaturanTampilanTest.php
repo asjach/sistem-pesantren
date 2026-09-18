@@ -200,6 +200,29 @@ class PengaturanTampilanTest extends TestCase
         $this->assertSame(['kelas' => null], $data['beku']);
     }
 
+    public function test_toolbar_menyimpan_visibilitas_kontrol_per_tabel(): void
+    {
+        [, $mi] = $this->lembaga();
+        $pusat = $this->makeUser('super_admin');
+
+        $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/pengaturan-tampilan', [
+            'lembaga_ids' => [$mi->id],
+            'data' => [
+                'toolbar' => ['kelas' => ['cari' => false, 'kolom' => true]],
+            ],
+        ])->assertStatus(201);
+
+        $data = PengaturanTampilan::where('lembaga_id', $mi->id)->firstOrFail()->data;
+        $this->assertSame(['kelas' => ['cari' => false, 'kolom' => true]], $data['toolbar']);
+
+        $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/pengaturan-tampilan', [
+            'lembaga_ids' => [$mi->id],
+            'data' => [
+                'toolbar' => ['kelas' => ['cari' => 'ya']],
+            ],
+        ])->assertStatus(422)->assertJsonValidationErrors(['data.toolbar.kelas.cari']);
+    }
+
     public function test_validasi_data_dan_reset_ke_bawaan(): void
     {
         [, $mi] = $this->lembaga();

@@ -6,7 +6,6 @@ import {
   updatePresetTabel,
   type PresetTabel,
 } from '../api/preset';
-import { listLembaga, type Lembaga } from '../api/master';
 import { useAuth } from '../auth/AuthContext';
 import type { ExcelField } from './ExcelTable';
 import {
@@ -21,16 +20,19 @@ import {
 import { useStandarTampilan } from '../standarTampilan';
 import { toast } from 'sonner';
 import FilterField from './FilterField';
-import KelolaPresetDialog from './presetkolom/KelolaPresetDialog';
+import DialogKelolaTabel from './kelolaTabel/DialogKelolaTabel';
+import type { TabKelola } from './kelolaTabel/jenis';
 
 const LENGKAP = '_lengkap';
 const KELOLA = '_kelola';
 
 /** API imperatif PresetKolom untuk dipakai pemanggil (mis. context menu header
- *  tabel: tampil/sembunyikan kolom pada preset tanpa membuka dialog). */
+ *  tabel: tampil/sembunyikan kolom pada preset tanpa membuka dialog; atau
+ *  membuka dialog Kelola tabel dari entry lain seperti ribbon/toolbar urut). */
 export interface PresetKolomApi {
   presets: PresetTabel[];
   toggleKolom: (presetId: number, key: string, tampil: boolean) => Promise<void>;
+  bukaKelola: (tab?: TabKelola) => void;
 }
 
 /** Combobox preset kolom tampilan tabel + dialog kelola (tersimpan di DB per lembaga). */
@@ -39,23 +41,29 @@ export default function PresetKolom({
   fields,
   onApply,
   apiRef,
+  triggerClassName,
 }: {
   tableKey: string;
   fields: ExcelField[];
   onApply: (keys: string[] | null, label?: Record<string, string> | null) => void;
   apiRef?: MutableRefObject<PresetKolomApi | null>;
+  /** Timpa lebar trigger (bawaan `w-44`), mis. tabel sempit dua panel. */
+  triggerClassName?: string;
 }) {
   const { user: me } = useAuth();
-  const isPesantren = me?.roles.some((r) => r.name === 'super_admin')
-    || ((me?.roles.some((r) => r.name === 'admin') ?? false) && (me?.lembagas?.length ?? 0) === 0);
+  /** Kelola preset = super_admin saja (global); memilih preset untuk dilihat
+   *  tetap bisa semua role. */
+  const superAdmin = (me?.roles ?? []).some((r) => r.name === 'super_admin');
 
   const [presets, setPresets] = useState<PresetTabel[]>([]);
   const [aktifId, setAktifId] = useState<number | null>(null);
-  const [lembagas, setLembagas] = useState<Lembaga[]>([]);
 
   const [dokOpen, setDokOpen] = useState(false);
-  /** Preset yang dibuka + penanda remount dialog (agar state lokalnya ter-reset). */
-  const [seed, setSeed] = useState<{ preset: PresetTabel | null; nonce: number }>({ preset: null, nonce: 0 });
+  /** Preset yang dibuka + tab awal + penanda remount dialog (agar state
+   *  lokalnya ter-reset). */
+  const [kelola, setKelola] = useState<{ preset: PresetTabel | null; tab: TabKelola; nonce: number }>({
+    preset: null, tab: 'kolom', nonce: 0,
+  });
 
   const fieldKeys = useMemo(() => new Set(fields.map((f) => f.key)), [fields]);
   const { tampilan: standar, isPribadi, tandai, hapus: hapusPribadi, merekam, simpanKeStandar } = useStandarTampilan();
@@ -131,18 +139,24 @@ export default function PresetKolom({
     }
   }, [presets, aktifId, muat]);
 
-  useEffect(() => {
-    if (!apiRef) return;
-    apiRef.current = { presets, toggleKolom: toggleKolomPreset };
-  }, [apiRef, presets, toggleKolomPreset]);
+  /** Buka dialog Kelola tabel (preset tertentu + tab awal). */
+  const bukaKelola = useCallback((preset: PresetTabel | null, tab: TabKelola = 'kolom') => {
+    setKelola((s) => ({ preset, tab, nonce: s.nonce + 1 }));
+    setDokOpen(true);
+  }, []);
 
   useEffect(() => {
-    listLembaga({ per_page: 100 }).then((p) => setLembagas(p.data)).catch(() => {});
-  }, []);
+    if (!apiRef) return;
+    apiRef.current = {
+      presets,
+      toggleKolom: toggleKolomPreset,
+      bukaKelola: (tab: TabKelola = 'kolom') => bukaKelola(null, tab),
+    };
+  }, [apiRef, presets, toggleKolomPreset, bukaKelola]);
 
   async function pilihPreset(v: string) {
     if (v === KELOLA) {
-      bukaKelola(null);
+      bukaKelola(null, 'kolom');
       return;
     }
     const id = v === LENGKAP ? null : Number(v);
@@ -164,11 +178,6 @@ export default function PresetKolom({
     }
   }
 
-  function bukaKelola(preset: PresetTabel | null) {
-    setSeed((s) => ({ preset, nonce: s.nonce + 1 }));
-    setDokOpen(true);
-  }
-
   const labelPreset = (p: PresetTabel) => (
     p.lembaga_id === null ? p.nama : `${p.nama} (${p.lembaga?.kode ?? p.lembaga?.nama ?? p.lembaga_id})`
   );
@@ -181,7 +190,7 @@ export default function PresetKolom({
           id={`select_preset_kolom_${tableKey}`}
           title="Preset kolom tampilan"
           aria-label="Preset kolom tampilan"
-          className="w-44"
+          className={triggerClassName ?? 'w-44'}
         >
           <SelectValue />
         </SelectTrigger>
@@ -192,25 +201,28 @@ export default function PresetKolom({
               <SelectItem key={p.id} value={String(p.id)}>{labelPreset(p)}</SelectItem>
             ))}
           </SelectGroup>
-          <SelectSeparator />
-          <SelectItem value={KELOLA}>Kelola preset…</SelectItem>
+          {superAdmin ? (
+            <>
+              <SelectSeparator />
+              <SelectItem value={KELOLA}>Kelola preset…</SelectItem>
+            </>
+          ) : null}
         </SelectContent>
       </Select>
       </FilterField>
       {dokOpen && (
-        <KelolaPresetDialog
-          key={seed.nonce}
+        <DialogKelolaTabel
+          key={kelola.nonce}
           open={dokOpen}
           onOpenChange={setDokOpen}
           tableKey={tableKey}
+          tabAwal={kelola.tab}
+          banyakKolom={banyakKolom}
           fields={fields}
           fieldKeys={fieldKeys}
           presets={presets}
-          lembagas={lembagas}
-          isPesantren={isPesantren}
-          banyakKolom={banyakKolom}
-          presetAwal={seed.preset}
-          onPilihPreset={bukaKelola}
+          presetAwal={kelola.preset}
+          onPilihPreset={(p) => bukaKelola(p, 'kolom')}
           onTersimpan={async (id) => {
             await muat(id);
             await setPresetAktif(tableKey, id);

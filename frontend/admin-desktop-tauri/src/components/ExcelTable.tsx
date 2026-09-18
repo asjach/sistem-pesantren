@@ -15,7 +15,10 @@ import { formatNilai } from '@/lib/nilaiTampil';
 import { buttonVariants } from '@/components/ui/button';
 import { DEFAULT_FONT_PX, DEFAULT_HEADER_H, FONT_FAMILY_DEFAULT, FONT_OPTIONS, MAX_HEADER_H, useGridPrefs, type AlignName } from '@/components/GridPrefs';
 import { useStandarTampilan } from '@/standarTampilan';
+import { useAuth } from '@/auth/AuthContext';
 import { type PresetKolomApi } from '@/components/PresetKolom';
+import { muatToolbarPreset } from '@/api/toolbarPreset';
+import { EVENT_TOOLBAR_BERUBAH, bacaVisToolbar, type VisToolbar } from '@/components/kelolaTabel/jenis';
 import { useKamusPeta } from '@/components/useKamusPeta';
 import { type KamusKolomAttr } from '@/api/kamusLabel';
 import { useRibbonTable } from '@/components/RibbonTable';
@@ -114,10 +117,9 @@ interface ExcelTableProps<T extends { id: string | number }> {
   onSaved: () => Promise<void> | void;
   /** Isi kolom Aksi (ikon Lihat/Ubah/Hapus, sudah digerbang role oleh halaman). */
   renderActions: (row: T) => ReactNode;
-  /** Pencarian sebaris di toolbar. */
+  /** Pencarian sebaris real-time di toolbar. */
   searchValue?: string;
   onSearchChange?: (v: string) => void;
-  onSearchSubmit?: () => void;
   searchPlaceholder?: string;
   searchIds?: { form?: string; input?: string; button?: string };
   filter?: ReactNode;
@@ -145,6 +147,8 @@ interface ExcelTableProps<T extends { id: string | number }> {
   hideActions?: boolean;
   /** Tabel ringkas baca-saja: sembunyikan pemilih preset kolom di toolbar. */
   hidePreset?: boolean;
+  /** Timpa lebar trigger dropdown Kolom (bawaan `w-44`), mis. tabel sempit. */
+  presetKolomClassName?: string;
   /** Kabarkan baris tercentang setiap seleksi berubah (opsional). */
   onCheckedChange?: (rows: T[]) => void;
   /** Daftar nilai urut aktif berurutan (maks 3) + arah global. */
@@ -202,7 +206,6 @@ export default function ExcelTable<T extends { id: string | number }>({
   renderActions,
   searchValue,
   onSearchChange,
-  onSearchSubmit,
   searchPlaceholder,
   searchIds,
   filter,
@@ -216,6 +219,7 @@ export default function ExcelTable<T extends { id: string | number }>({
   hideCheckbox = false,
   hideActions = false,
   hidePreset = false,
+  presetKolomClassName,
   onCheckedChange,
   urutAktif,
   arahUrut = 'naik',
@@ -253,6 +257,31 @@ export default function ExcelTable<T extends { id: string | number }>({
   const [ctxKonfirmasi, setCtxKonfirmasi] = useState<AksiMenu['konfirmasi'] | null>(null);
   /** API preset kolom (dipakai menu klik kanan header: show/hide kolom). */
   const presetApiRef = useRef<PresetKolomApi | null>(null);
+  /** Kelola tabel = super_admin saja (global); memilih preset untuk dilihat tetap bisa semua. */
+  const { user: me } = useAuth();
+  const superAdmin = (me?.roles ?? []).some((r) => r.name === 'super_admin');
+  /** Visibilitas kontrol toolbar generik (tab Kontrol dialog Kelola tabel). */
+  const [visToolbar, setVisToolbar] = useState<VisToolbar>({ cari: true, info: true, urut: true, kolom: true, filter: true });
+  useEffect(() => {
+    let batal = false;
+    const muat = async () => {
+      try {
+        const res = await muatToolbarPreset(tableKey);
+        if (!batal) setVisToolbar(bacaVisToolbar(res.data.visibilitas));
+      } catch {
+        if (!batal) setVisToolbar({ cari: true, info: true, urut: true, kolom: true, filter: true });
+      }
+    };
+    void muat();
+    const segarkan = (e: Event) => {
+      if ((e as CustomEvent).detail?.tableKey === tableKey) void muat();
+    };
+    window.addEventListener(EVENT_TOOLBAR_BERUBAH, segarkan);
+    return () => {
+      batal = true;
+      window.removeEventListener(EVENT_TOOLBAR_BERUBAH, segarkan);
+    };
+  }, [tableKey]);
   /** Baris input hanya tersedia bila halaman menyediakan onCreateRow.
    *  Tidak bergantung mode Edit: halaman boleh mendukung create saja. */
   const inputEnabled = !!onCreateRow;
@@ -1705,6 +1734,7 @@ export default function ExcelTable<T extends { id: string | number }>({
       salin: () => ribbonAksiRef.current.salin(),
       autofit: () => ribbonAksiRef.current.autofit(),
       reset: () => ribbonAksiRef.current.reset(),
+      kelolaTabel: () => presetApiRef.current?.bukaKelola('kolom'),
       canEdit,
       editMode,
       setEditMode,
@@ -1737,11 +1767,11 @@ export default function ExcelTable<T extends { id: string | number }>({
   const hasSearchInput = searchValue !== undefined && !!onSearchChange;
   const hasFilter = filter !== undefined;
   const hasUrut = !!onUrut;
-  const showToolbar = hasSearchInput || hasFilter || hasUrut || awalanToolbar !== undefined || akhirToolbar !== undefined;
-  const showSearchButton = !!onSearchSubmit;
+  const cariEfektif = visToolbar.cari && hasSearchInput;
+  const filterEfektif = visToolbar.filter && hasFilter;
+  const showToolbar = cariEfektif || filterEfektif || hasUrut || awalanToolbar !== undefined || akhirToolbar !== undefined;
   const formId = searchIds?.form ?? `form_cari_${tableKey}`;
   const inputId = searchIds?.input ?? `input_cari_${tableKey}`;
-  const buttonId = searchIds?.button ?? `btn_cari_${tableKey}`;
 
   // Data context menu per area (header kolom / baris).
   const ctxHeader = ctx.area === 'header' ? ctx : null;
@@ -1771,13 +1801,10 @@ export default function ExcelTable<T extends { id: string | number }>({
         filter={filter}
         formId={formId}
         inputId={inputId}
-        buttonId={buttonId}
         hasSearchInput={!!hasSearchInput}
         hasFilter={hasFilter}
-        showSearchButton={showSearchButton}
         searchValue={searchValue}
         onSearchChange={onSearchChange}
-        onSearchSubmit={onSearchSubmit}
         searchPlaceholder={searchPlaceholder}
         checkedCount={checkedIds.size}
         checkedRows={checkedRows}
@@ -1789,6 +1816,8 @@ export default function ExcelTable<T extends { id: string | number }>({
         fields={fields}
         terapkanPreset={terapkanPreset}
         presetApiRef={presetApiRef}
+        presetKolomClassName={presetKolomClassName}
+        visToolbar={visToolbar}
       />
 
       <div
@@ -1884,6 +1913,7 @@ export default function ExcelTable<T extends { id: string | number }>({
             align={align}
             setAlign={setAlign}
             presetApiRef={presetApiRef}
+            bolehKelola={superAdmin}
             salinBaris={(id) => void salinBarisCtx(id as T['id'])}
             salinSel={(id, key) => void salinSelCtx(id as T['id'], key)}
             salinKolom={(key) => void salinKolomCtx(key)}

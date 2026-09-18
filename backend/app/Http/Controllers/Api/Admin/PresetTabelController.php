@@ -45,37 +45,31 @@ class PresetTabelController extends Controller
         ]);
     }
 
-    /** POST /api/admin/preset-tabel — generate ke lembaga yang dipilih (boleh lebih dari satu). */
+    /** POST /api/admin/preset-tabel — simpan preset GLOBAL (satu baris per nama). */
     public function store(PresetTabelStoreRequest $request): JsonResponse
     {
+        $this->pastikanSuperAdmin($request->user());
         $data = $request->validated();
         $this->pastikanNamaBukanLengkap($data['nama']);
-        foreach (array_unique($data['lembaga_ids']) as $lembagaId) {
-            $this->authorizePreset($request->user(), (int) $lembagaId);
-        }
 
         $kolom = array_values(array_unique($data['kolom']));
         $label = $this->bersihkanLabel($data['label'] ?? null, $kolom);
-        $presets = collect();
-        foreach (array_unique($data['lembaga_ids']) as $lembagaId) {
-            $presets->push(PresetTabel::updateOrCreate(
-                ['lembaga_id' => (int) $lembagaId, 'table_key' => $data['table_key'], 'nama' => $data['nama']],
-                ['kolom' => $kolom, 'label' => $label, 'dibuat_oleh' => $request->user()->id],
-            )->load('lembaga:id,nama,kode'));
-        }
+        $preset = PresetTabel::updateOrCreate(
+            ['lembaga_id' => null, 'table_key' => $data['table_key'], 'nama' => $data['nama']],
+            ['kolom' => $kolom, 'label' => $label, 'dibuat_oleh' => $request->user()->id],
+        )->load('lembaga:id,nama,kode');
 
         return response()->json([
-            'pesan' => $presets->count() > 1
-                ? "Preset digenerate ke {$presets->count()} lembaga."
-                : 'Preset kolom disimpan.',
-            'data' => $presets->values(),
+            'pesan' => 'Preset kolom disimpan.',
+            'data' => [$preset],
         ], 201);
     }
 
-    /** PUT /api/admin/preset-tabel/{preset} — ubah nama/kolom milik satu lembaga. */
+    /** PUT /api/admin/preset-tabel/{preset} — ubah nama/kolom (super_admin; baris
+     *  lama milik lembaga tetap bisa dirapikan). */
     public function update(PresetTabelUpdateRequest $request, PresetTabel $preset): JsonResponse
     {
-        $this->authorizePreset($request->user(), $preset->lembaga_id);
+        $this->pastikanSuperAdmin($request->user());
 
         $data = $request->validated();
 
@@ -101,13 +95,14 @@ class PresetTabelController extends Controller
     /** DELETE /api/admin/preset-tabel/{preset} */
     public function destroy(Request $request, PresetTabel $preset): JsonResponse
     {
-        $this->authorizePreset($request->user(), $preset->lembaga_id);
+        $this->pastikanSuperAdmin($request->user());
         $preset->delete();
 
         return response()->json(['pesan' => 'Preset kolom dihapus.']);
     }
 
-    /** POST /api/admin/preset-tabel/aktif — simpan pilihan terakhir (null = Lengkap). */
+    /** POST /api/admin/preset-tabel/aktif — simpan pilihan terakhir (null = Lengkap).
+     *  Pilihan pribadi: semua role yang bisa melihat preset boleh memakai. */
     public function setAktif(PresetTabelAktifRequest $request): JsonResponse
     {
         $data = $request->validated();
@@ -118,7 +113,10 @@ class PresetTabelController extends Controller
             if ($preset->table_key !== $data['table_key']) {
                 throw ValidationException::withMessages(['preset_id' => 'Preset tidak cocok dengan tabel ini.']);
             }
-            $this->authorizePreset($request->user(), $preset->lembaga_id);
+            $terlihat = $this->queryEfektif($request->user(), $data['table_key'])->pluck('id');
+            if (! $terlihat->contains($preset->id)) {
+                abort(403, 'Preset tidak tersedia untuk Anda.');
+            }
         }
 
         PresetTabelAktif::updateOrCreate(
@@ -127,6 +125,13 @@ class PresetTabelController extends Controller
         );
 
         return response()->json(['pesan' => 'Preset aktif disimpan.']);
+    }
+
+    protected function pastikanSuperAdmin(mixed $user): void
+    {
+        if (! $user instanceof User || ! $user->hasRole('super_admin')) {
+            abort(403, 'Preset kolom hanya dikelola super_admin.');
+        }
     }
 
     protected function queryEfektif(User $user, string $tableKey)
@@ -143,18 +148,6 @@ class PresetTabelController extends Controller
                 $qq->orWhereIn('lembaga_id', $ids);
             }
         });
-    }
-
-    protected function authorizePreset(User $user, ?int $lembagaId): void
-    {
-        if ($lembagaId === null) {
-            if (! $this->isAdminPesantren($user)) {
-                abort(403, 'Preset global hanya dikelola admin pesantren.');
-            }
-
-            return;
-        }
-        $this->authorizeLembaga($user, $lembagaId);
     }
 
     protected function isAdminPesantren(User $user): bool

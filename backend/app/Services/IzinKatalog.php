@@ -40,6 +40,7 @@ class IzinKatalog
         'preset_tabel' => ['lihat', 'tambah', 'ubah', 'hapus'],
         'kamus_label' => ['lihat', 'tambah', 'ubah', 'hapus'],
         'urut_preset' => ['lihat', 'tambah', 'ubah', 'hapus'],
+        'toolbar_preset' => ['lihat', 'tambah', 'ubah', 'hapus'],
         'tampilan' => ['lihat', 'ubah', 'hapus'],
         'server' => ['lihat'],
         'izin' => ['lihat', 'ubah'],
@@ -51,6 +52,15 @@ class IzinKatalog
         'server.lihat',
         'izin.lihat',
         'izin.ubah',
+        'preset_tabel.tambah',
+        'preset_tabel.ubah',
+        'preset_tabel.hapus',
+        'urut_preset.tambah',
+        'urut_preset.ubah',
+        'urut_preset.hapus',
+        'toolbar_preset.tambah',
+        'toolbar_preset.ubah',
+        'toolbar_preset.hapus',
     ];
 
     /** @return list<string> semua nama izin `modul.aksi`. */
