@@ -17,7 +17,7 @@ const LABEL_MENU: Record<TabKategori, string> = {
   beranda: 'Berkas',
   master: 'Data Induk',
   psb: 'PSB',
-  santri: 'Kesiswaan',
+  santri: 'Santri',
   pengaturan: 'Pengaturan',
 };
 
