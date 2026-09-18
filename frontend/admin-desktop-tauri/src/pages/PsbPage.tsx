@@ -206,6 +206,7 @@ export default function PsbPage() {
         terhapus: tampilTerhapus || undefined,
         page: a.page,
         per_page: a.perPage,
+        signal: a.signal,
       }).then((r) => ({ ...r.data, badge: r.badge }));
     },
     onData: (res) => setBadge(res.badge ?? {}),

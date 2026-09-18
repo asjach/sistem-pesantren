@@ -160,6 +160,7 @@ export default function UsersPage() {
       arah: a.urut.length ? a.arah : undefined,
       page: a.page,
       per_page: a.perPage,
+      signal: a.signal,
     }),
     deps: [roleFilter],
   });

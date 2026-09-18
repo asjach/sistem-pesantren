@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { errorMessage } from '../api/client';
 import type { Paginate } from '../api/master';
+import { PER_PAGE_ALL } from '@/prefs';
 import { usePager } from './usePager';
 
 export interface ArgsMuat {
@@ -9,6 +10,8 @@ export interface ArgsMuat {
   perPage: number;
   urut: string[];
   arah: 'naik' | 'turun';
+  /** Sinyal pembatalan request (di-abort saat muat ulang / unmount). */
+  signal?: AbortSignal;
 }
 
 export interface OpsiMuatUrut {
@@ -48,6 +51,9 @@ export function useDaftarTabel<T, R extends Paginate<T> = Paginate<T>>({
   onData?: (res: R) => void;
 }) {
   const [search, setSearch] = useState('');
+  // Live search: nilai yang benar-benar dipakai memuat data ditunda 400 ms agar
+  // tidak memanggil API tiap ketikan. Query 1 karakter tidak memicu muat.
+  const [searchTertunda, setSearchTertunda] = useState('');
   const [urut, setUrut] = useState<string[]>(awalUrut);
   const [arahUrut, setArahUrut] = useState<'naik' | 'turun'>(awalArah);
   const [rows, setRows] = useState<T[]>([]);
@@ -57,6 +63,8 @@ export function useDaftarTabel<T, R extends Paginate<T> = Paginate<T>>({
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
   const reqRef = useRef(0);
+  // Request terakhir; di-abort saat muat ulang berikutnya / unmount.
+  const abortRef = useRef<AbortController | null>(null);
   const ambilRef = useRef(ambil);
   ambilRef.current = ambil;
   const onDataRef = useRef(onData);
@@ -65,12 +73,18 @@ export function useDaftarTabel<T, R extends Paginate<T> = Paginate<T>>({
   const load = useCallback(
     async function loadPage(p = pager.page, pp = pager.perPage, o?: OpsiMuatUrut) {
       const req = ++reqRef.current;
+      // Batalkan request sebelumnya agar tidak menumpuk saat mengetik/filter.
+      abortRef.current?.abort();
+      const ac = new AbortController();
+      abortRef.current = ac;
       setErr('');
       setLoading(true);
       try {
         const u = o?.urut ?? urut;
         const a = o?.arah ?? arahUrut;
-        const res = await ambilRef.current({ search, page: p, perPage: pp, urut: u, arah: a });
+        const res = await ambilRef.current({
+          search: searchTertunda, page: p, perPage: pp, urut: u, arah: a, signal: ac.signal,
+        });
         if (req !== reqRef.current) return;
         const fix = pager.sync(res.current_page, res.last_page);
         if (fix != null && fix !== p) {
@@ -83,12 +97,14 @@ export function useDaftarTabel<T, R extends Paginate<T> = Paginate<T>>({
         setLastPage(res.last_page);
         setTotal(res.total);
       } catch (e) {
+        // Request yang dibatalkan bukan error.
+        if (ac.signal.aborted) return;
         if (req === reqRef.current) setErr(errorMessage(e));
       } finally {
         if (req === reqRef.current) setLoading(false);
       }
     },
-    [search, urut, arahUrut, pager.page, pager.perPage, pager.sync],
+    [searchTertunda, urut, arahUrut, pager.page, pager.perPage, pager.sync],
   );
 
   /** Ubah urutan dari header tabel: simpan lalu muat ulang dari halaman 1. */
@@ -102,10 +118,24 @@ export function useDaftarTabel<T, R extends Paginate<T> = Paginate<T>>({
     [load, pager.goFirst, pager.perPage],
   );
 
+  // Live search: terapkan setelah jeda 400 ms. Query 1 karakter tidak memicu
+  // muat (kecuali dikosongkan), dan mode "Semua baris" (per_page=0) menunggu
+  // Enter/tombol Cari karena responsnya besar.
+  useEffect(() => {
+    const bersih = search.trim();
+    if (bersih.length === 1) return;
+    if (pager.perPage === PER_PAGE_ALL) return;
+    const t = setTimeout(() => setSearchTertunda(search), bersih === '' ? 0 : 400);
+    return () => clearTimeout(t);
+  }, [search, pager.perPage]);
+
+  // Batalkan request yang masih jalan saat komponen dilepas.
+  useEffect(() => () => abortRef.current?.abort(), []);
+
   useEffect(() => {
     if (pager.ready) void load(pager.page);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pager.ready, search, ...deps]);
+  }, [pager.ready, searchTertunda, ...deps]);
 
   const onSearchChange = useCallback(
     (v: string) => {
@@ -115,9 +145,11 @@ export function useDaftarTabel<T, R extends Paginate<T> = Paginate<T>>({
     [pager.goFirst],
   );
 
+  // Enter/tombol Cari: terapkan segera (lewati debounce) lalu muat ulang.
   const onSearchSubmit = useCallback(() => {
+    setSearchTertunda(search);
     pager.goFirst();
-  }, [pager.goFirst]);
+  }, [search, pager.goFirst]);
 
   const onSaved = useCallback(() => load(), [load]);
 

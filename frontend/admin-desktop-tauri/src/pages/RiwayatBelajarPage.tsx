@@ -48,7 +48,6 @@ export default function RiwayatBelajarPage() {
   const [semester, setSemester] = useState('');
   const [tanpaKelas, setTanpaKelas] = useState(false);
   const [arsip, setArsip] = useState(false);
-  const [terapkanCari, setTerapkanCari] = useState('');
   const [kelas, setKelasOpsi] = useState<Kelas[]>([]);
   const {
     rows,
@@ -56,7 +55,8 @@ export default function RiwayatBelajarPage() {
     err,
     setErr,
     search,
-    setSearch,
+    onSearchChange,
+    onSearchSubmit,
     urut,
     arahUrut,
     terapkanUrut,
@@ -72,13 +72,14 @@ export default function RiwayatBelajarPage() {
       semester: semester || undefined,
       tanpa_kelas: tanpaKelas || undefined,
       is_aktif: arsip ? false : true,
-      q: terapkanCari || undefined,
+      q: a.search || undefined,
       sort: a.urut.length ? a.urut : undefined,
       arah: a.urut.length ? a.arah : undefined,
       page: a.page,
       per_page: a.perPage,
+      signal: a.signal,
     }),
-    deps: [lembagaId, taId, semester, tanpaKelas, arsip, terapkanCari],
+    deps: [lembagaId, taId, semester, tanpaKelas, arsip],
   });
 
   const [inputOpen, setInputOpen] = useState(false);
@@ -133,8 +134,8 @@ export default function RiwayatBelajarPage() {
           ) : null
         )}
         searchValue={search}
-        onSearchChange={setSearch}
-        onSearchSubmit={() => { setTerapkanCari(search.trim()); pager.goFirst(); }}
+        onSearchChange={onSearchChange}
+        onSearchSubmit={onSearchSubmit}
         searchPlaceholder="Nama / NIK"
         searchIds={{ form: 'form_cari_riwayat_belajar', input: 'input_cari_riwayat_belajar', button: 'btn_cari_riwayat_belajar' }}
         urutAktif={urut}

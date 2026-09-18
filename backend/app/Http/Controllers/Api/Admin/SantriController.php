@@ -66,9 +66,17 @@ class SantriController extends Controller
         if ($request->filled('q')) {
             $q = trim((string) $request->input('q'));
             $query->where(fn ($sub) => $sub
-                ->where('nama_lengkap', 'like', "%{$q}%")
-                ->orWhere('nik', 'like', "%{$q}%")
-                ->orWhere('nisn', 'like', "%{$q}%"));
+                ->where('nik', 'like', "%{$q}%")
+                ->orWhere('nisn', 'like', "%{$q}%")
+                ->orWhere(function ($nama) use ($q) {
+                    // MySQL/MariaDB: FULLTEXT ngram (index) untuk nama; driver
+                    // lain (SQLite di tes) tetap LIKE substring.
+                    if ($this->bisaFulltext() && mb_strlen($q) >= 2) {
+                        $nama->whereRaw('MATCH(nama_lengkap) AGAINST (? IN BOOLEAN MODE)', [$this->istilahBoolean($q)]);
+                    } else {
+                        $nama->where('nama_lengkap', 'like', "%{$q}%");
+                    }
+                }));
         }
 
         $this->terapkanUrut($query, $urut, [
@@ -76,6 +84,22 @@ class SantriController extends Controller
         ], self::SORT_NULLABLE);
 
         return response()->json($query->paginate($this->perPage($request)));
+    }
+
+    /** Driver dengan dukungan FULLTEXT ngram (lihat migrasi index santri). */
+    private function bisaFulltext(): bool
+    {
+        return in_array(DB::connection()->getDriverName(), ['mysql', 'mariadb'], true);
+    }
+
+    /** Kata kunci → istilah BOOLEAN MODE yang aman untuk parser ngram. */
+    private function istilahBoolean(string $q): string
+    {
+        $token = preg_split('/\s+/', $q, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        $token = array_map(fn (string $t): string => preg_replace('/[+\-><()~*"@]+/', '', $t) ?? '', $token);
+        $token = array_values(array_filter($token, fn (string $t): bool => $t !== ''));
+
+        return implode(' ', array_map(fn (string $t): string => '+'.$t, $token));
     }
 
     /** POST /api/admin/santri — input manual identitas (buku induk). */

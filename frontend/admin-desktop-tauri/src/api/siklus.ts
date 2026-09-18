@@ -133,6 +133,7 @@ export function listRiwayatBelajar(params: {
   arah?: 'naik' | 'turun';
   page?: number;
   per_page?: number;
+  signal?: AbortSignal;
 } = {}) {
   const q = new URLSearchParams();
   if (params.lembaga_id) q.set('lembaga_id', String(params.lembaga_id));
@@ -148,7 +149,7 @@ export function listRiwayatBelajar(params: {
   if (params.arah) q.set('arah', params.arah);
   q.set('page', String(params.page ?? 1));
   if (params.per_page != null) q.set('per_page', String(params.per_page));
-  return api<Paginate<RiwayatRow>>(`/admin/riwayat-belajar?${q.toString()}`);
+  return api<Paginate<RiwayatRow>>(`/admin/riwayat-belajar?${q.toString()}`, { signal: params.signal });
 }
 
 /** Dialog input riwayat / penerimaan santri ke lembaga (satu pintu). */

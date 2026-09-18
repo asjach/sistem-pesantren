@@ -193,14 +193,14 @@ export default function SantriPage() {
   const [statusGlobal, setStatusGlobal] = useState('_semua');
   const [lembagaId, setLembagaId] = useState('');
   useLembagaAwalString(setLembagaId);
-  const [terapkanCari, setTerapkanCari] = useState('');
   const {
     rows,
     loading,
     err,
     setErr,
     search,
-    setSearch,
+    onSearchChange,
+    onSearchSubmit,
     urut,
     arahUrut,
     terapkanUrut,
@@ -213,13 +213,14 @@ export default function SantriPage() {
     ambil: (a) => listSantri({
       status_global: statusGlobal === '_semua' ? undefined : statusGlobal === 'aktif',
       lembaga_id: lembagaId ? Number(lembagaId) : undefined,
-      q: terapkanCari || undefined,
+      q: a.search || undefined,
       sort: a.urut.length ? a.urut : undefined,
       arah: a.urut.length ? a.arah : undefined,
       page: a.page,
       per_page: a.perPage,
+      signal: a.signal,
     }),
-    deps: [statusGlobal, lembagaId, terapkanCari],
+    deps: [statusGlobal, lembagaId],
   });
 
   const [importOpen, setImportOpen] = useState(false);
@@ -429,8 +430,8 @@ export default function SantriPage() {
           </>
         )}
         searchValue={search}
-        onSearchChange={setSearch}
-        onSearchSubmit={() => { setTerapkanCari(search.trim()); pager.goFirst(); }}
+        onSearchChange={onSearchChange}
+        onSearchSubmit={onSearchSubmit}
         searchPlaceholder="Nama / NIK / NISN"
         searchIds={{ form: 'form_cari_santri', input: 'input_cari_santri', button: 'btn_cari_santri' }}
         filter={(

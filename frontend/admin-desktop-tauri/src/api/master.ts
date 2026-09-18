@@ -53,14 +53,14 @@ export interface Paginate<T> {
   total: number;
 }
 
-export function listLembaga(params: { search?: string; sort?: string[]; arah?: 'naik' | 'turun'; page?: number; per_page?: number } = {}) {
+export function listLembaga(params: { search?: string; sort?: string[]; arah?: 'naik' | 'turun'; page?: number; per_page?: number; signal?: AbortSignal } = {}) {
   const q = new URLSearchParams();
   if (params.search) q.set('search', params.search);
   if (params.sort?.length) q.set('sort', params.sort.join(','));
   if (params.arah) q.set('arah', params.arah);
   q.set('page', String(params.page ?? 1));
   q.set('per_page', String(params.per_page ?? PER_PAGE_DEFAULT));
-  return api<Paginate<Lembaga>>(`/admin/lembaga?${q.toString()}`);
+  return api<Paginate<Lembaga>>(`/admin/lembaga?${q.toString()}`, { signal: params.signal });
 }
 
 export interface LembagaInput {
@@ -214,6 +214,7 @@ export function listTahunAjaran(params: {
   arah?: 'naik' | 'turun';
   page?: number;
   per_page?: number;
+  signal?: AbortSignal;
 } = {}) {
   const q = new URLSearchParams();
   if (params.search) q.set('search', params.search);
@@ -223,7 +224,7 @@ export function listTahunAjaran(params: {
   if (params.arah) q.set('arah', params.arah);
   q.set('page', String(params.page ?? 1));
   q.set('per_page', String(params.per_page ?? PER_PAGE_DEFAULT));
-  return api<Paginate<TahunAjaran>>(`/admin/tahun-ajaran?${q.toString()}`);
+  return api<Paginate<TahunAjaran>>(`/admin/tahun-ajaran?${q.toString()}`, { signal: params.signal });
 }
 
 export function createTahunAjaran(input: {
@@ -277,7 +278,7 @@ export interface Kelas {
 }
 
 export function listKelas(
-  params: { search?: string; lembaga_id?: number; tahun_ajaran_id?: number; tingkat?: string; sort?: string[]; arah?: 'naik' | 'turun'; page?: number; per_page?: number } = {},
+  params: { search?: string; lembaga_id?: number; tahun_ajaran_id?: number; tingkat?: string; sort?: string[]; arah?: 'naik' | 'turun'; page?: number; per_page?: number; signal?: AbortSignal } = {},
 ) {
   const q = new URLSearchParams();
   if (params.search) q.set('search', params.search);
@@ -288,7 +289,7 @@ export function listKelas(
   if (params.arah) q.set('arah', params.arah);
   q.set('page', String(params.page ?? 1));
   q.set('per_page', String(params.per_page ?? PER_PAGE_DEFAULT));
-  return api<Paginate<Kelas>>(`/admin/kelas?${q.toString()}`);
+  return api<Paginate<Kelas>>(`/admin/kelas?${q.toString()}`, { signal: params.signal });
 }
 
 export interface KelasItem {

@@ -16,7 +16,7 @@ export interface PengajuanBiodata {
   wali?: { id: number; name: string } | null;
 }
 
-export function listPengajuan(params: { status?: string; sort?: string[]; arah?: 'naik' | 'turun'; page?: number; per_page?: number } = {}) {
+export function listPengajuan(params: { status?: string; sort?: string[]; arah?: 'naik' | 'turun'; page?: number; per_page?: number; signal?: AbortSignal } = {}) {
   const q = new URLSearchParams();
   if (params.status) q.set('status', params.status);
   if (params.sort?.length) q.set('sort', params.sort.join(','));
@@ -25,6 +25,7 @@ export function listPengajuan(params: { status?: string; sort?: string[]; arah?:
   if (params.per_page != null) q.set('per_page', String(params.per_page));
   return api<{ pesan: string; data: Paginate<PengajuanBiodata>; badge: Record<string, number> }>(
     `/admin/pengajuan-biodata?${q.toString()}`,
+    { signal: params.signal },
   );
 }
 

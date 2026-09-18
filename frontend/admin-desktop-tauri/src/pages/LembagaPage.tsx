@@ -103,6 +103,7 @@ export default function LembagaPage() {
       arah: a.urut.length ? a.arah : undefined,
       page: a.page,
       per_page: a.perPage,
+      signal: a.signal,
     }),
   });
 
