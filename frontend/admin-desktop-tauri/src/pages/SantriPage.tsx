@@ -9,11 +9,9 @@ import {
   listLembagaSantri,
   listSantri,
   periksaImportSantriGabungan,
-  samakanNis,
   tidakMemilikiDokumen,
   unduhDataSantriGabungan,
   unduhTemplateSantriGabungan,
-  type SamakanNisHasil,
   updateLembagaSantri,
   updateSantri,
   uploadDokumenSantri,
@@ -230,33 +228,6 @@ export default function SantriPage() {
   // Lembaga sumber "Data existing": multi-pilih (satu/lebih/semua).
   const [dataIds, setDataIds] = useState<number[]>([]);
 
-  // Samakan NIS paket MI↔MD (pratinjau → eksekusi).
-  const [samakanOpen, setSamakanOpen] = useState(false);
-  const [samakanHasil, setSamakanHasil] = useState<SamakanNisHasil | null>(null);
-  const [samakanBusy, setSamakanBusy] = useState(false);
-
-  async function muatSamakan(periksa: boolean) {
-    setSamakanBusy(true);
-    try {
-      const res = await samakanNis(periksa);
-      setSamakanHasil(res);
-      if (!periksa) {
-        toast.success(res.pesan);
-        await load(1);
-      }
-    } catch (e) {
-      toast.error(errorMessage(e));
-    } finally {
-      setSamakanBusy(false);
-    }
-  }
-
-  function bukaSamakan() {
-    setSamakanHasil(null);
-    setSamakanOpen(true);
-    void muatSamakan(true);
-  }
-
   const [fotoRow, setFotoRow] = useState<Santri | null>(null);
   const [fotoFile, setFotoFile] = useState<File | null>(null);
 
@@ -455,9 +426,6 @@ export default function SantriPage() {
             </Button>}
             {bisa(user, 'santri.tambah') && <Button id="btn_buka_import_santri" size="sm" variant="outline" onClick={() => { setImportFile(null); setPeriksaHasil(null); setImportOpen(true); }}>
               <FileUp data-icon="inline-start" size={16} /> Import
-            </Button>}
-            {bisa(user, 'santri.ubah') && <Button id="btn_buka_samakan_nis" size="sm" variant="outline" onClick={() => void bukaSamakan()}>
-              Samakan NIS
             </Button>}
           </>
         )}
@@ -744,53 +712,6 @@ export default function SantriPage() {
               <Button id="btn_import_santri" type="submit" disabled={busy || periksaBusy || !periksaHasil?.siap_import}>Import</Button>
             </DialogFooter>
           </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Samakan NIS paket MI↔MD */}
-      <Dialog open={samakanOpen} onOpenChange={setSamakanOpen}>
-        <DialogContent className="sm:max-w-xl">
-          <DialogHeader>
-            <DialogTitle>Samakan NIS MI↔MD</DialogTitle>
-            <DialogDescription>
-              Santri anggota aktif MI+MD yang baru satu sisi bernomor → disalin ke sisi kosong.
-              Beda dua sisi / tabrakan dilaporkan tanpa disentuh.
-            </DialogDescription>
-          </DialogHeader>
-          {samakanHasil ? (
-            <div className="flex flex-col gap-3 text-sm" id="hasil_samakan_nis">
-              <p className="font-medium">
-                {samakanHasil.ringkasan.kandidat} kandidat · {samakanHasil.ringkasan.disamakan} disamakan ·{' '}
-                {samakanHasil.ringkasan.beda} beda · {samakanHasil.ringkasan.tabrakan} tabrakan
-              </p>
-              {samakanHasil.rincian.length > 0 ? (
-                <ul className="max-h-64 space-y-1.5 overflow-auto text-xs">
-                  {samakanHasil.rincian.slice(0, 100).map((r) => (
-                    <li key={`${r.santri_id}-${r.status}`}>
-                      {r.nama} —{' '}
-                      {r.status === 'disamakan' && <span>{r.dari} {r.nis} → {r.ke}</span>}
-                      {r.status === 'beda' && <span className="text-amber-600">beda (MI {r.mi} / MD {r.md}) — dilewati</span>}
-                      {r.status === 'tabrakan' && <span className="text-destructive">tabrakan ({r.nis} dipakai di {r.ke}) — dilewati</span>}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-xs text-emerald-600">Tidak ada yang perlu disamakan.</p>
-              )}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">{samakanBusy ? 'Memuat pratinjau…' : '—'}</p>
-          )}
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setSamakanOpen(false)}>Tutup</Button>
-            <Button
-              id="btn_eksekusi_samakan_nis"
-              disabled={samakanBusy || !samakanHasil?.periksa || (samakanHasil?.ringkasan.disamakan ?? 0) === 0}
-              onClick={() => void muatSamakan(false)}
-            >
-              {samakanBusy ? 'Memproses…' : `Eksekusi (${samakanHasil?.ringkasan.disamakan ?? 0})`}
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
 
