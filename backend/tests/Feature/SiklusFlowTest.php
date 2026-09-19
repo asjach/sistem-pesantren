@@ -32,42 +32,44 @@ class SiklusFlowTest extends TestCase
         parent::setUp();
         $this->seed(RoleSeeder::class);
         $this->withoutMiddleware(ThrottleRequests::class);
-        $this->ensureRefs();
     }
 
     // ---------- helpers ----------
 
-    protected function ensureRefs(): void
+    /** Benih status/alasan per lembaga fixture (tanpa baris global). */
+    protected function ensureRefs(array $f): void
     {
-        foreach ([
-            ['kode' => 'santri_baru', 'nama' => 'Santri Baru'],
-            ['kode' => 'mengulang', 'nama' => 'Mengulang'],
-            ['kode' => 'pindahan', 'nama' => 'Pindahan'],
-            ['kode' => 'kenaikan', 'nama' => 'Kenaikan Kelas'],
-        ] as $i => $r) {
-            DB::table('ref_status_awal')->updateOrInsert(
-                ['lembaga_id' => null, 'kode' => $r['kode']],
-                ['nama' => $r['nama'], 'urutan' => $i, 'is_active' => true]
-            );
-        }
-        foreach ([
-            ['kode' => 'aktif', 'nama' => 'Aktif'],
-            ['kode' => 'naik', 'nama' => 'Naik'],
-            ['kode' => 'tidak_naik', 'nama' => 'Tidak Naik'],
-            ['kode' => 'pindah_keluar', 'nama' => 'Pindah/Keluar'],
-            ['kode' => 'lulus', 'nama' => 'Lulus'],
-            ['kode' => 'tidak_lulus', 'nama' => 'Tidak Lulus'],
-        ] as $i => $r) {
-            DB::table('ref_status_akhir')->updateOrInsert(
-                ['lembaga_id' => null, 'kode' => $r['kode']],
-                ['nama' => $r['nama'], 'is_aktif_bawaan' => $r['kode'] === 'aktif', 'terminal_ke' => null, 'urutan' => $i, 'is_active' => true]
-            );
-        }
-        foreach (['Ikut pindah orang tua', 'Lainnya'] as $i => $nama) {
-            DB::table('ref_alasan_mutasi')->updateOrInsert(
-                ['lembaga_id' => null, 'nama' => $nama],
-                ['urutan' => $i, 'is_active' => true]
-            );
+        foreach ([$f['mi']->id, $f['md']->id] as $lid) {
+            foreach ([
+                ['kode' => 'santri_baru', 'nama' => 'Santri Baru'],
+                ['kode' => 'mengulang', 'nama' => 'Mengulang'],
+                ['kode' => 'pindahan', 'nama' => 'Pindahan'],
+                ['kode' => 'kenaikan', 'nama' => 'Kenaikan Kelas'],
+            ] as $i => $r) {
+                DB::table('ref_status_awal')->updateOrInsert(
+                    ['lembaga_id' => $lid, 'kode' => $r['kode']],
+                    ['nama' => $r['nama'], 'urutan' => $i, 'is_active' => true]
+                );
+            }
+            foreach ([
+                ['kode' => 'aktif', 'nama' => 'Aktif'],
+                ['kode' => 'naik', 'nama' => 'Naik'],
+                ['kode' => 'tidak_naik', 'nama' => 'Tidak Naik'],
+                ['kode' => 'pindah_keluar', 'nama' => 'Pindah/Keluar'],
+                ['kode' => 'lulus', 'nama' => 'Lulus'],
+                ['kode' => 'tidak_lulus', 'nama' => 'Tidak Lulus'],
+            ] as $i => $r) {
+                DB::table('ref_status_akhir')->updateOrInsert(
+                    ['lembaga_id' => $lid, 'kode' => $r['kode']],
+                    ['nama' => $r['nama'], 'is_aktif_bawaan' => $r['kode'] === 'aktif', 'terminal_ke' => null, 'urutan' => $i, 'is_active' => true]
+                );
+            }
+            foreach (['Ikut pindah orang tua', 'Lainnya'] as $i => $nama) {
+                DB::table('ref_alasan_mutasi')->updateOrInsert(
+                    ['lembaga_id' => $lid, 'nama' => $nama],
+                    ['urutan' => $i, 'is_active' => true]
+                );
+            }
         }
         Cache::flush();
     }
@@ -98,6 +100,8 @@ class SiklusFlowTest extends TestCase
             'lembaga_id' => $md->id, 'nama' => '2025/2026',
             'tanggal_mulai' => '2025-07-01', 'tanggal_selesai' => '2026-06-30', 'is_aktif' => true,
         ]);
+
+        $this->ensureRefs(['mi' => $mi, 'md' => $md]);
 
         return compact('root', 'mi', 'md', 'taLama', 'taBaru', 'taMd');
     }

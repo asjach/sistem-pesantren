@@ -4,6 +4,7 @@ namespace App\Services;
 
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class RefService
 {
@@ -52,16 +53,20 @@ class RefService
         return "ref:$tipe:$lembagaId:v".self::versiGlobal();
     }
 
-    // Gabung baris global (lembaga null) + baris lembaga; baris lembaga menang per kunci.
+    // Nilai referensi murni per lembaga (tanpa baris global): super_admin
+    // menulis ke semua lembaga sekaligus (fan-out), tiap lembaga
+    // mengaktifkan/menonaktifkan miliknya sendiri.
     public static function effective(string $tipe, ?int $lembagaId): array
     {
         $table = self::table($tipe);
         $key = self::KEY[$tipe];
+        if ($lembagaId === null) {
+            return [];
+        }
 
         return Cache::remember(self::kunci($tipe, $lembagaId), 300, function () use ($table, $key, $lembagaId) {
             $rows = DB::table($table)
-                ->whereNull('lembaga_id')
-                ->when($lembagaId, fn ($q) => $q->orWhere('lembaga_id', $lembagaId))
+                ->where('lembaga_id', $lembagaId)
                 // Urut tampil: urutan ASC, tie-break nama ASC (seragam 34 tabel ref).
                 ->orderBy('urutan')->orderBy('nama')->get();
             $map = [];
@@ -73,20 +78,19 @@ class RefService
         });
     }
 
-    /** Gabungan global + lembaga TANPA buang baris nonaktif (untuk "Tampilkan kembali"). */
+    /** Baris lembaga TANPA buang yang nonaktif (untuk "Tampilkan kembali"). */
     public static function semua(string $tipe, ?int $lembagaId): array
     {
         $table = self::table($tipe);
         $key = self::KEY[$tipe];
+        if ($lembagaId === null) {
+            return [];
+        }
 
-        $global = DB::table($table)->whereNull('lembaga_id')->get();
-        $milik = $lembagaId === null ? collect() : DB::table($table)->where('lembaga_id', $lembagaId)->get();
+        $rows = DB::table($table)->where('lembaga_id', $lembagaId)->get();
 
         $map = [];
-        foreach ($global as $r) {
-            $map[$r->{$key}] = $r;
-        }
-        foreach ($milik as $r) {
+        foreach ($rows as $r) {
             $map[$r->{$key}] = $r;
         }
 
@@ -98,6 +102,23 @@ class RefService
         $key = self::KEY[$tipe];
 
         return array_map(fn ($r) => $r->{$key}, self::effective($tipe, $lembagaId));
+    }
+
+    /**
+     * Gabungan nilai aktif SEMUA lembaga operasional (dedup per kunci):
+     * untuk saran/templat tanpa konteks lembaga.
+     */
+    public static function efektifSemuaLembaga(string $tipe): array
+    {
+        $lembagas = DB::table('lembaga')->whereNotNull('parent_id')->pluck('id')->all();
+        $map = [];
+        foreach ($lembagas as $lid) {
+            foreach (self::effective($tipe, (int) $lid) as $r) {
+                $map[$r->{self::KEY[$tipe]}] ??= $r;
+            }
+        }
+
+        return array_values($map);
     }
 
     public static function sifatStatusAkhir(string $kode, ?int $lembagaId): ?object
@@ -125,10 +146,13 @@ class RefService
 
     public static function effectiveAlamat(?int $lembagaId): array
     {
+        if ($lembagaId === null) {
+            return [];
+        }
+
         return Cache::remember('ref:alamat:'.$lembagaId.':v'.self::versiGlobal(), 300, function () use ($lembagaId) {
             $rows = DB::table('ref_alamat')
-                ->whereNull('lembaga_id')
-                ->when($lembagaId, fn ($q) => $q->orWhere('lembaga_id', $lembagaId))
+                ->where('lembaga_id', $lembagaId)
                 // Urut tampil: urutan ASC, tie-break nama ASC.
                 ->orderBy('urutan')->orderBy('nama')->get();
             $map = [];
@@ -154,5 +178,74 @@ class RefService
     public static function efektif(string $tipe, ?int $lembagaId): array
     {
         return self::effective($tipe, $lembagaId);
+    }
+
+    /** Daftar [tabel, kolom kunci] seluruh kamus (33 tipe + alamat). */
+    public static function daftarSebar(): array
+    {
+        $daftar = [];
+        foreach (self::KEY as $tipe => $kunci) {
+            $daftar[] = ['ref_'.$tipe, $kunci];
+        }
+        $daftar[] = ['ref_alamat', 'nama'];
+
+        return $daftar;
+    }
+
+    /**
+     * Sebar satu nilai ke banyak lembaga (super_admin menambah nilai):
+     * lembaga yang sudah punya kunci yang sama dilewati.
+     *
+     * @param  array<string,mixed>  $atribut  kolom nilai (tanpa lembaga_id)
+     * @return list<object> baris yang terbentuk
+     */
+    public static function sebar(string $table, string $key, array $atribut, array $lembagaIds): array
+    {
+        $terbentuk = [];
+        foreach ($lembagaIds as $lid) {
+            $ada = DB::table($table)
+                ->where('lembaga_id', $lid)
+                ->where($key, $atribut[$key])
+                ->first();
+            if ($ada) {
+                continue;
+            }
+            $id = DB::table($table)->insertGetId($atribut + ['lembaga_id' => $lid]);
+            $terbentuk[] = DB::table($table)->find($id);
+            self::forget((int) $lid);
+        }
+        self::forgetAlamat(null);
+
+        return $terbentuk;
+    }
+
+    /**
+     * Benih kamus untuk lembaga operasional baru: salin tiap kunci yang
+     * sudah ada di lembaga lain (contoh pertama) sebagai aktif.
+     */
+    public static function benihUntuk(int $lembagaId): void
+    {
+        foreach (self::daftarSebar() as [$table, $key]) {
+            if (! Schema::hasTable($table)) {
+                continue;
+            }
+            $kuncis = DB::table($table)->distinct()->pluck($key)->all();
+            foreach ($kuncis as $nilai) {
+                $ada = DB::table($table)
+                    ->where('lembaga_id', $lembagaId)
+                    ->where($key, $nilai)
+                    ->exists();
+                if ($ada) {
+                    continue;
+                }
+                $contoh = (array) DB::table($table)->where($key, $nilai)->orderBy('id')->first();
+                unset($contoh['id'], $contoh['created_at'], $contoh['updated_at']);
+                $contoh['lembaga_id'] = $lembagaId;
+                $contoh['is_active'] = true;
+                DB::table($table)->insert($contoh);
+            }
+            self::forget($lembagaId);
+        }
+        self::forgetAlamat(null);
     }
 }

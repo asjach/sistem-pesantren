@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\LembagaStoreRequest;
 use App\Http\Requests\Admin\LembagaUpdateRequest;
 use App\Models\Lembaga;
+use App\Services\RefService;
 use App\Services\UrutKatalog;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -60,6 +61,12 @@ class LembagaController extends Controller
         }
 
         $lembaga = Lembaga::create($data);
+
+        // Lembaga operasional baru: benih kamus dari nilai yang sudah ada
+        // (tanpa baris global, kamus lembaga baru kosong tanpa ini).
+        if (! is_null($lembaga->parent_id)) {
+            RefService::benihUntuk($lembaga->id);
+        }
 
         return response()->json($lembaga->load('parent:id,nama,kode'), 201);
     }

@@ -126,12 +126,11 @@ class KelasController extends Controller
         return response()->json(['pesan' => count($dibuat).' kelas dibuat.', 'data' => $dibuat], 201);
     }
 
-    /** Validasi kamus no.50: tingkat via RefService efektif (null = semua). */
+    /** Validasi kamus no.50: tingkat via RefService efektif milik lembaga. */
     protected function cekTingkat(int $lembagaId, ?string $tingkat): void
     {
         if (! empty($tingkat)
-            && ! in_array($tingkat, RefService::kodeAktif('tingkat', $lembagaId), true)
-            && ! in_array($tingkat, RefService::kodeAktif('tingkat', null), true)) {
+            && ! in_array($tingkat, RefService::kodeAktif('tingkat', $lembagaId), true)) {
             abort(response()->json(['message' => 'Tingkat tidak dikenal.'], 422));
         }
     }

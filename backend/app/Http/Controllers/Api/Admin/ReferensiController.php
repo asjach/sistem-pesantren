@@ -5,15 +5,15 @@ namespace App\Http\Controllers\Api\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\ReferensiStoreRequest;
 use App\Http\Requests\Admin\ReferensiUpdateRequest;
+use App\Models\Lembaga;
 use App\Services\RefService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 /**
- * CRUD kamus berlapis per-lembaga (004, single-pesantren).
- * Global (lembaga null): tambah/ubah hanya super_admin.
- * Baris lembaga: admin kelola lembaganya (tambah/ubah/shadow on-off).
- * Guardrail: baris global HANYA boleh on/off per lembaga (via destroy).
+ * CRUD kamus per lembaga (tanpa baris global): super_admin menambah nilai
+ * ke SEMUA lembaga operasional sekaligus (fan-out); tiap lembaga
+ * mengaktifkan/menonaktifkan miliknya sendiri.
  */
 class ReferensiController extends Controller
 {
@@ -28,7 +28,7 @@ class ReferensiController extends Controller
         if (count($ids) === 1) {
             return (int) $ids[0];
         }
-        abort(422, 'lembaga_id wajib untuk admin non-global (nol/lebih dari satu akses).');
+        abort(422, 'lembaga_id wajib (pilih lembaga dulu).');
     }
 
     protected function canLembaga($actor, int $lembagaId): bool
@@ -39,17 +39,29 @@ class ReferensiController extends Controller
     public function index(Request $request, string $tipe)
     {
         $actor = $request->user();
-        $lembagaId = $request->integer('lembaga_id') ?: ($actor->lembagaIds()[0] ?? null);
-        if (! is_null($lembagaId) && ! $this->canLembaga($actor, (int) $lembagaId)) {
-            abort(403);
+        $lembagaId = $request->integer('lembaga_id') ?: null;
+        if (! is_null($lembagaId)) {
+            $this->canLembaga($actor, (int) $lembagaId) || abort(403);
+
+            if ($request->boolean('termasuk_nonaktif')) {
+                // Sertakan baris nonaktif agar UI bisa menawarkan pulihkan.
+                return response()->json(RefService::semua($tipe, $lembagaId));
+            }
+
+            return response()->json(RefService::effective($tipe, $lembagaId));
         }
 
-        if ($request->boolean('termasuk_nonaktif')) {
-            // Sertakan baris nonaktif (shadow/custom) agar UI bisa menawarkan pulihkan.
-            return response()->json(RefService::semua($tipe, $lembagaId));
+        // Tanpa filter = Semua: gabung baris seluruh lembaga yang boleh
+        // diakses (termasuk nonaktif, untuk kelola + pulihkan per baris).
+        $ids = $actor->bolehPesantren()
+            ? Lembaga::whereNotNull('parent_id')->orderBy('id')->pluck('id')->all()
+            : $actor->lembagaIdsDenganPasangan();
+        $rows = [];
+        foreach ($ids as $lid) {
+            array_push($rows, ...RefService::semua($tipe, (int) $lid));
         }
 
-        return response()->json(RefService::effective($tipe, $lembagaId));
+        return response()->json($rows);
     }
 
     /** Pulihkan baris lembaga yang nonaktif ("Tampilkan kembali"). */
@@ -83,26 +95,25 @@ class ReferensiController extends Controller
         $data = $request->validated();
 
         if ($isStatus && $request->hasAny(['is_aktif_bawaan', 'terminal_ke']) && ! $actor->bolehSuperAdmin()) {
-            abort(403, 'Sifat status hanya super_admin global.');
+            abort(403, 'Sifat status hanya super_admin.');
         }
 
-        // super_admin tanpa lembaga_id = baris global; lainnya wajib lembaganya.
+        $table = RefService::table($tipe);
+        // Tanpa lembaga_id = super_admin menambah ke SEMUA lembaga sekaligus.
         $targetLembaga = $data['lembaga_id'] ?? null;
         if (is_null($targetLembaga)) {
             if (! $actor->bolehSuperAdmin()) {
                 $targetLembaga = $this->mustLembaga($actor, $data);
+            } else {
+                return $this->storeSebar($actor, $tipe, $table, $key, $isStatus, $data);
             }
         } elseif (! $this->canLembaga($actor, (int) $targetLembaga)) {
             abort(403);
         }
 
-        $table = RefService::table($tipe);
         if ($isStatus) {
-            // whereNull bila global: where('lembaga_id', null) tak pernah cocok di SQL.
-            $q = DB::table($table)->where('kode', $data['kode']);
-            is_null($targetLembaga)
-                ? $q->whereNull('lembaga_id')
-                : $q->where('lembaga_id', $targetLembaga);
+            $q = DB::table($table)->where('kode', $data['kode'])
+                ->where('lembaga_id', $targetLembaga);
             if ($q->first()) {
                 abort(422, 'Kode sudah ada.');
             }
@@ -114,9 +125,9 @@ class ReferensiController extends Controller
                 'urutan' => $data['urutan'] ?? 0, 'is_active' => true,
             ]);
         } else {
-            // Cegah duplikat global (MySQL unique lolos NULL).
-            if (is_null($targetLembaga) && DB::table($table)->whereNull('lembaga_id')->where('nama', $data['nama'])->exists()) {
-                abort(422, 'Nilai global sudah ada.');
+            // Cegah duplikat dalam lembaga yang sama.
+            if (DB::table($table)->where('lembaga_id', $targetLembaga)->where('nama', $data['nama'])->exists()) {
+                abort(422, 'Nilai sudah ada.');
             }
             $id = DB::table($table)->insertGetId([
                 'lembaga_id' => $targetLembaga, 'nama' => $data['nama'],
@@ -130,6 +141,39 @@ class ReferensiController extends Controller
         return response()->json(DB::table($table)->find($id), 201);
     }
 
+    /**
+     * Super_admin menambah satu nilai ke SEMUA lembaga operasional sekaligus
+     * (tanpa baris global). Lembaga yang sudah punya kuncinya dilewati;
+     * bila tak ada yang terbentuk → 422.
+     */
+    protected function storeSebar($actor, string $tipe, string $table, string $key, bool $isStatus, array $data)
+    {
+        if ($isStatus) {
+            $atribut = [
+                $key => $data['kode'],
+                'nama' => $data['nama'] ?? $data['kode'],
+                'is_aktif_bawaan' => false, 'terminal_ke' => null,
+                'urutan' => $data['urutan'] ?? 0, 'is_active' => true,
+            ];
+        } else {
+            $atribut = [
+                $key => $data['nama'],
+                'urutan' => $data['urutan'] ?? 0, 'is_active' => true,
+            ];
+        }
+
+        $lembagas = Lembaga::whereNotNull('parent_id')->orderBy('id')->pluck('id')->all();
+        $terbentuk = RefService::sebar($table, $key, $atribut, $lembagas);
+        if (empty($terbentuk)) {
+            abort(422, 'Nilai sudah ada di semua lembaga.');
+        }
+
+        return response()->json([
+            'pesan' => 'Nilai ditambahkan ke '.count($terbentuk).' lembaga.',
+            'data' => $terbentuk,
+        ], 201);
+    }
+
     public function update(ReferensiUpdateRequest $request, string $tipe, int $id)
     {
         $actor = $request->user();
@@ -137,13 +181,11 @@ class ReferensiController extends Controller
         RefService::KEY[$tipe] ?? abort(422, 'Tipe tidak valid.');
         $table = RefService::table($tipe);
         $row = DB::table($table)->find($id) ?? abort(404);
-
         if (is_null($row->lembaga_id)) {
-            // Ubah baris global hanya super_admin; lembaga hanya boleh shadow on/off.
-            if (! $actor->bolehSuperAdmin()) {
-                abort(403, 'Baris global hanya super_admin.');
-            }
-        } elseif (! $this->canLembaga($actor, (int) $row->lembaga_id)) {
+            // Warisan global (pra fan-out): tak dikelola lagi.
+            abort(422, 'Baris global tidak dipakai lagi.');
+        }
+        if (! $this->canLembaga($actor, (int) $row->lembaga_id)) {
             abort(403, 'Di luar lembaga Anda.');
         }
 
@@ -153,14 +195,9 @@ class ReferensiController extends Controller
 
         $upd = ['urutan' => $data['urutan'] ?? $row->urutan];
         if (! $isStatus) {
-            // Cegah bentrok nama di scope yang sama (global + lembaga sendiri).
+            // Cegah bentrok nama dalam lembaga yang sama.
             $q = DB::table($table)->where('nama', $data['nama'])->where('id', '!=', $id)
-                ->where(function ($q) use ($row) {
-                    $q->whereNull('lembaga_id');
-                    if (! is_null($row->lembaga_id)) {
-                        $q->orWhere('lembaga_id', $row->lembaga_id);
-                    }
-                });
+                ->where('lembaga_id', $row->lembaga_id);
             if ($q->exists()) {
                 abort(422, 'Nilai sudah ada.');
             }
@@ -180,28 +217,22 @@ class ReferensiController extends Controller
         $table = RefService::table($tipe);
         $key = RefService::KEY[$tipe] ?? abort(422, 'Tipe tidak valid.');
         $row = DB::table($table)->find($id) ?? abort(404);
-
         if (is_null($row->lembaga_id)) {
-            // Baris global: shadow off di lembaga actor (nama/urutan ikut global).
-            // Semua tabel ref kini punya kolom `nama`; status memakai `kode` sebagai nilai.
-            $targetLembaga = $this->mustLembaga($actor, $request->all());
-            $shadow = ['nama' => $row->nama ?? null, 'urutan' => $row->urutan ?? 0, 'is_active' => false];
-            if ($tipe === 'status_akhir') {
-                $shadow += ['is_aktif_bawaan' => false, 'terminal_ke' => null];
-            }
-            DB::table($table)->updateOrInsert(
-                ['lembaga_id' => $targetLembaga, $key => $row->{$key}],
-                $shadow
-            );
-            RefService::forget($targetLembaga);
-            RefService::forgetAlamat($targetLembaga);
-
-            return response()->json(['pesan' => 'Data referensi berhasil dinonaktifkan']);
+            abort(422, 'Baris global tidak dipakai lagi.');
         }
-
         if (! $this->canLembaga($actor, (int) $row->lembaga_id)) {
             abort(403);
         }
+        // Hapus permanen: baris benar-benar dibuang (data pemakai yang
+        // menyimpan teksnya tidak ikut berubah — konsumen string bebas).
+        if ($request->boolean('permanen')) {
+            DB::table($table)->where('id', $id)->delete();
+            RefService::forget($row->lembaga_id);
+            RefService::forgetAlamat($row->lembaga_id);
+
+            return response()->json(['pesan' => 'Data referensi dihapus permanen.']);
+        }
+        // Padam = milik lembaga sendiri (tiap lembaga punya barisnya).
         DB::table($table)->where('id', $id)->update(['is_active' => false]);
         RefService::forget($row->lembaga_id);
         RefService::forgetAlamat($row->lembaga_id);

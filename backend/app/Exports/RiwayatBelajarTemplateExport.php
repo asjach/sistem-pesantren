@@ -70,10 +70,15 @@ class RiwayatBelajarTemplateExport extends DefaultValueBinder implements FromArr
     /** @return array<string, string[]> */
     public function pilihan(): array
     {
+        $kode = fn (string $tipe): array => array_map(
+            fn ($r) => $r->{RefService::KEY[$tipe]},
+            RefService::efektifSemuaLembaga($tipe)
+        );
+
         return [
             'semester' => ['1', '2'],
-            'status_awal' => RefService::kodeAktif('status_awal', null),
-            'status_akhir' => RefService::kodeAktif('status_akhir', null),
+            'status_awal' => $kode('status_awal'),
+            'status_akhir' => $kode('status_akhir'),
         ];
     }
 

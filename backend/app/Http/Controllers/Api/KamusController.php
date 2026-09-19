@@ -23,9 +23,14 @@ class KamusController extends Controller
     public function saran(string $jenis, Request $request)
     {
         abort_unless(in_array($jenis, self::WHITELIST, true), 404, 'Jenis kamus tidak dikenal.');
-        $rows = collect(RefService::effective($jenis, $request->integer('lembaga_id') ?: null))
+        $lembagaId = $request->integer('lembaga_id') ?: null;
+        $rows = $lembagaId === null
+            ? collect(RefService::efektifSemuaLembaga($jenis))
+            : collect(RefService::effective($jenis, $lembagaId));
+        $rows = $rows
             ->when($request->q, fn ($c) => $c->filter(fn ($r) => stripos($r->nama, $request->q) !== false))
             ->take(50)->values();
+
         return response()->json(['data' => $rows]);
     }
 }

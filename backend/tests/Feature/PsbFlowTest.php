@@ -1213,8 +1213,8 @@ class PsbFlowTest extends TestCase
     public function test_31_dokumen_per_kegiatan_checklist_santri_dan_tidak_memiliki(): void
     {
         Storage::fake('local');
-        $this->seed(ReferensiSeeder::class);
         $f = $this->baseFixture();
+        $this->seed(ReferensiSeeder::class);
         $admin = $this->makeUser('admin', [$f['mi']->id]);
         $this->makeKuota($f['gel'], $f['mi'], $f['ta'], ['membutuhkan_seleksi' => false]);
 

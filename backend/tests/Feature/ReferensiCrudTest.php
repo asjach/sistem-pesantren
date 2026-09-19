@@ -12,8 +12,8 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
-// Ubah kamus referensi: baris lembaga oleh admin lembaganya,
-// baris global hanya super_admin (004).
+// Ubah kamus referensi: nilai murni per lembaga; super_admin menambah ke
+// semua lembaga sekaligus (fan-out, tanpa baris global).
 class ReferensiCrudTest extends TestCase
 {
     use RefreshDatabase;
@@ -41,8 +41,12 @@ class ReferensiCrudTest extends TestCase
             'parent_id' => $root->id, 'nama' => 'Madrasah Diniyah', 'kode' => 'MD',
             'is_seleksi' => false, 'kelompok_psb' => 'combo_mi_md', 'is_active' => true,
         ]);
+        $mts = Lembaga::create([
+            'parent_id' => $root->id, 'nama' => 'Madrasah Tsanawiyah', 'kode' => 'MTS',
+            'is_seleksi' => false, 'kelompok_psb' => 'eksklusif', 'is_active' => true,
+        ]);
 
-        return compact('root', 'mi', 'md');
+        return compact('root', 'mi', 'md', 'mts');
     }
 
     protected function makeUser(string $role, array $lembagaIds = []): User
@@ -92,43 +96,46 @@ class ReferensiCrudTest extends TestCase
         $this->assertNotContains('Memancing', $this->namaEfektif('hobi', $f['mi']->id));
     }
 
-    // ---------- 2. admin tidak boleh ubah baris global ----------
+    // ---------- 2. super_admin menambah ke semua lembaga (fan-out) ----------
 
-    public function test_02_admin_tidak_dapat_mengubah_baris_global(): void
+    public function test_02_super_admin_sebar_ke_semua_lembaga(): void
     {
         $f = $this->fixture();
         $super = $this->makeUser('super_admin');
         $adminMi = $this->makeUser('admin', [$f['mi']->id]);
 
-        $id = $this->actingAs($super, 'sanctum')->postJson('/api/admin/referensi/hobi', [
-            'nama' => 'Global Hobi',
-        ])->assertStatus(201)->json('id');
+        $res = $this->actingAs($super, 'sanctum')->postJson('/api/admin/referensi/hobi', [
+            'nama' => 'Sebar Hobi',
+        ])->assertStatus(201);
+        $this->assertCount(3, $res->json('data'));
 
+        // Tiap lembaga punya barisnya; tanpa sisa global.
+        $this->assertDatabaseHas('ref_hobi', ['lembaga_id' => $f['mi']->id, 'nama' => 'Sebar Hobi']);
+        $this->assertDatabaseHas('ref_hobi', ['lembaga_id' => $f['md']->id, 'nama' => 'Sebar Hobi']);
+        $this->assertDatabaseHas('ref_hobi', ['lembaga_id' => $f['mts']->id, 'nama' => 'Sebar Hobi']);
+        $this->assertSame(0, DB::table('ref_hobi')->whereNull('lembaga_id')->count());
+        $this->assertContains('Sebar Hobi', $this->namaEfektif('hobi', $f['mi']->id));
+        $this->assertContains('Sebar Hobi', $this->namaEfektif('hobi', $f['md']->id));
+
+        // Admin MI boleh ubah miliknya; milik MD tidak tersentuh.
+        $idMi = (int) DB::table('ref_hobi')
+            ->where('lembaga_id', $f['mi']->id)->where('nama', 'Sebar Hobi')->value('id');
         $this->actingAs($adminMi, 'sanctum')
-            ->putJson("/api/admin/referensi/hobi/{$id}", ['nama' => 'Diubah Lembaga'])
-            ->assertStatus(403);
+            ->putJson("/api/admin/referensi/hobi/{$idMi}", ['nama' => 'Hobi MI'])
+            ->assertStatus(200);
+        $this->assertContains('Hobi MI', $this->namaEfektif('hobi', $f['mi']->id));
+        $this->assertContains('Sebar Hobi', $this->namaEfektif('hobi', $f['md']->id));
 
-        $this->assertDatabaseHas('ref_hobi', ['id' => $id, 'nama' => 'Global Hobi']);
-    }
-
-    // ---------- 3. super_admin ubah baris global ----------
-
-    public function test_03_super_admin_dapat_mengubah_baris_global(): void
-    {
-        $f = $this->fixture();
-        $super = $this->makeUser('super_admin');
-
-        $id = $this->actingAs($super, 'sanctum')->postJson('/api/admin/referensi/hobi', [
-            'nama' => 'Global Lama',
-        ])->assertStatus(201)->json('id');
-
-        $this->actingAs($super, 'sanctum')
-            ->putJson("/api/admin/referensi/hobi/{$id}", ['nama' => 'Global Baru', 'urutan' => 3])
-            ->assertStatus(200)
-            ->assertJsonPath('nama', 'Global Baru');
-
-        $this->assertContains('Global Baru', $this->namaEfektif('hobi', null));
-        $this->assertContains('Global Baru', $this->namaEfektif('hobi', $f['mi']->id));
+        // Sebar ulang nilai yang sudah ada di semua lembaga → 422.
+        $this->actingAs($super, 'sanctum')->postJson('/api/admin/referensi/hobi', [
+            'nama' => 'Hobi MI', 'lembaga_id' => $f['md']->id,
+        ])->assertStatus(201);
+        $this->actingAs($super, 'sanctum')->postJson('/api/admin/referensi/hobi', [
+            'nama' => 'Hobi MI', 'lembaga_id' => $f['mts']->id,
+        ])->assertStatus(201);
+        $this->actingAs($super, 'sanctum')->postJson('/api/admin/referensi/hobi', [
+            'nama' => 'Hobi MI',
+        ])->assertStatus(422);
     }
 
     // ---------- 4. admin lembaga lain ditolak ----------
@@ -189,42 +196,39 @@ class ReferensiCrudTest extends TestCase
         ]);
     }
 
-    // ---------- 7. perubahan baris global invalidasi cache per-lembaga ----------
+    // ---------- 7. ubah satu lembaga tak mengganggu lainnya (cache) ----------
 
-    public function test_07_perubahan_global_invalidasi_cache_per_lembaga(): void
+    public function test_07_ubah_satu_lembaga_tak_mengganggu_lainnya(): void
     {
         $f = $this->fixture();
         $super = $this->makeUser('super_admin');
 
-        $id = $this->actingAs($super, 'sanctum')->postJson('/api/admin/referensi/hobi', [
-            'nama' => 'Hobi Global Awal',
-        ])->assertStatus(201)->json('id');
+        $this->actingAs($super, 'sanctum')->postJson('/api/admin/referensi/hobi', [
+            'nama' => 'Hobi Awal',
+        ])->assertStatus(201);
+        $idMi = (int) DB::table('ref_hobi')
+            ->where('lembaga_id', $f['mi']->id)->where('nama', 'Hobi Awal')->value('id');
 
-        // Prime cache per-lembaga MI (baris global ikut ter-cache).
-        $this->assertContains('Hobi Global Awal', $this->namaEfektif('hobi', $f['mi']->id));
+        // Prime cache per-lembaga MI.
+        $this->assertContains('Hobi Awal', $this->namaEfektif('hobi', $f['mi']->id));
 
         $this->actingAs($super, 'sanctum')
-            ->putJson("/api/admin/referensi/hobi/{$id}", ['nama' => 'Hobi Global Baru'])
+            ->putJson("/api/admin/referensi/hobi/{$idMi}", ['nama' => 'Hobi Baru'])
             ->assertStatus(200);
 
         $efektif = $this->namaEfektif('hobi', $f['mi']->id);
-        $this->assertContains('Hobi Global Baru', $efektif);
-        $this->assertNotContains('Hobi Global Awal', $efektif);
+        $this->assertContains('Hobi Baru', $efektif);
+        $this->assertNotContains('Hobi Awal', $efektif);
+        // MD tetap memegang nilai lama.
+        $this->assertContains('Hobi Awal', $this->namaEfektif('hobi', $f['md']->id));
 
-        // forgetAlamat juga menginvalidasi cache alamat (global).
+        // Alamat per lembaga ikut pola yang sama (tanpa global).
         DB::table('ref_alamat')->insert([
-            'lembaga_id' => null, 'nama' => 'Alamat Global Awal', 'urutan' => 0, 'is_active' => true,
+            'lembaga_id' => $f['mi']->id, 'nama' => 'Alamat Awal', 'urutan' => 0, 'is_active' => true,
         ]);
         $alamatAwal = array_map(fn ($r) => $r->nama, RefService::effectiveAlamat($f['mi']->id));
-        $this->assertContains('Alamat Global Awal', $alamatAwal);
-
-        DB::table('ref_alamat')->whereNull('lembaga_id')->where('nama', 'Alamat Global Awal')
-            ->update(['nama' => 'Alamat Global Baru']);
-        RefService::forgetAlamat(null);
-
-        $alamatBaru = array_map(fn ($r) => $r->nama, RefService::effectiveAlamat($f['mi']->id));
-        $this->assertContains('Alamat Global Baru', $alamatBaru);
-        $this->assertNotContains('Alamat Global Awal', $alamatBaru);
+        $this->assertContains('Alamat Awal', $alamatAwal);
+        $this->assertSame([], array_map(fn ($r) => $r->nama, RefService::effectiveAlamat($f['md']->id)));
     }
 
     // ---------- 8. urut tampil: urutan ASC, tie-break nama ASC ----------
@@ -235,16 +239,18 @@ class ReferensiCrudTest extends TestCase
 
         // Tiga baris urutan sama (default 0) → urut nama ASC; urutan lebih awal menang.
         foreach (['Zuhud', 'Akhlak', 'Iman'] as $nama) {
-            DB::table('ref_agama')->insert(['lembaga_id' => null, 'nama' => $nama, 'urutan' => 0, 'is_active' => true]);
+            DB::table('ref_agama')->insert(['lembaga_id' => $f['mi']->id, 'nama' => $nama, 'urutan' => 0, 'is_active' => true]);
         }
-        DB::table('ref_agama')->insert(['lembaga_id' => null, 'nama' => 'Awal', 'urutan' => -1, 'is_active' => true]);
+        DB::table('ref_agama')->insert(['lembaga_id' => $f['mi']->id, 'nama' => 'Awal', 'urutan' => -1, 'is_active' => true]);
         RefService::forget();
+        // Lembaga lain tak melihat nilai MI.
+        $this->assertSame([], $this->namaEfektif('agama', $f['md']->id));
 
         $this->assertSame(['Awal', 'Akhlak', 'Iman', 'Zuhud'], RefService::kodeAktif('agama', $f['mi']->id));
 
         // Status: nilai = kode, tie-break memakai kolom tampilan `nama`.
         foreach ([['kode' => 'z_status', 'nama' => 'Zeta'], ['kode' => 'a_status', 'nama' => 'Alfa']] as $r) {
-            DB::table('ref_status_awal')->insert($r + ['lembaga_id' => null, 'urutan' => 0, 'is_active' => true]);
+            DB::table('ref_status_awal')->insert($r + ['lembaga_id' => $f['mi']->id, 'urutan' => 0, 'is_active' => true]);
         }
         RefService::forget();
 
@@ -255,55 +261,133 @@ class ReferensiCrudTest extends TestCase
     // karena `cache.serializable_classes` = false (baris kamus di-cache sebagai stdClass).
     public function test_cache_hit_referensi_tidak_rusak(): void
     {
+        $f = $this->fixture();
         config(['cache.default' => 'database']);
         Cache::clear();
 
         DB::table('ref_agama')->insert([
-            'lembaga_id' => null, 'nama' => 'Islam', 'urutan' => 0, 'is_active' => true,
+            'lembaga_id' => $f['mi']->id, 'nama' => 'Islam', 'urutan' => 0, 'is_active' => true,
         ]);
         RefService::forget();
 
         // Panggilan pertama mengisi cache; panggilan kedua membaca dari cache.
-        $this->assertSame(['Islam'], RefService::kodeAktif('agama', null));
-        $this->assertSame(['Islam'], RefService::kodeAktif('agama', null));
+        $this->assertSame(['Islam'], RefService::kodeAktif('agama', $f['mi']->id));
+        $this->assertSame(['Islam'], RefService::kodeAktif('agama', $f['mi']->id));
     }
 
-    // ---------- 09. Tampilkan kembali baris lembaga yang nonaktif ----------
+    // ---------- 09. Padamkan + tampilkan kembali baris lembaga ----------
 
-    public function test_09_pulihkan_baris_lembaga_nonaktif(): void
+    public function test_09_padam_dan_pulihkan_baris_lembaga(): void
     {
         $f = $this->fixture();
         $admin = $this->makeUser('admin', [$f['mi']->id]);
 
-        DB::table('ref_agama')->insert(['lembaga_id' => null, 'nama' => 'Islam', 'urutan' => 0, 'is_active' => true]);
-        $idGlobal = (int) DB::table('ref_agama')->where('nama', 'Islam')->value('id');
+        $id = DB::table('ref_agama')->insertGetId(
+            ['lembaga_id' => $f['mi']->id, 'nama' => 'Islam', 'urutan' => 0, 'is_active' => true]
+        );
 
-        // MI menyembunyikan entri global (shadow nonaktif).
-        $this->actingAs($admin, 'sanctum')->deleteJson('/api/admin/referensi/agama/'.$idGlobal)
+        // MI memadamkan miliknya sendiri (tanpa bayangan — barisnya langsung off).
+        $this->actingAs($admin, 'sanctum')->deleteJson('/api/admin/referensi/agama/'.$id)
             ->assertStatus(200);
         $this->assertSame([], $this->namaEfektif('agama', $f['mi']->id));
 
-        // Daftar default tidak memuat yang tersembunyi; termasuk_nonaktif memuatnya.
+        // Daftar default tidak memuat yang padam; termasuk_nonaktif memuatnya.
         $default = $this->actingAs($admin, 'sanctum')
             ->getJson('/api/admin/referensi/agama?lembaga_id='.$f['mi']->id)->assertStatus(200);
         $this->assertSame([], array_column($default->json(), 'nama'));
 
         $dengan = $this->actingAs($admin, 'sanctum')
             ->getJson('/api/admin/referensi/agama?lembaga_id='.$f['mi']->id.'&termasuk_nonaktif=1')->assertStatus(200);
-        $bayangan = collect($dengan->json())->firstWhere('nama', 'Islam');
-        $this->assertNotNull($bayangan);
-        $this->assertFalse((bool) $bayangan['is_active']);
+        $baris = collect($dengan->json())->firstWhere('nama', 'Islam');
+        $this->assertNotNull($baris);
+        $this->assertFalse((bool) $baris['is_active']);
 
-        // Pulihkan → entri tampil lagi; baris global tidak bisa dipulihkan.
+        // Pulihkan → entri tampil lagi.
         $this->actingAs($admin, 'sanctum')
-            ->postJson('/api/admin/referensi/agama/'.$bayangan['id'].'/pulihkan')->assertStatus(200);
+            ->postJson('/api/admin/referensi/agama/'.$baris['id'].'/pulihkan')->assertStatus(200);
         $this->assertSame(['Islam'], $this->namaEfektif('agama', $f['mi']->id));
-        $this->actingAs($admin, 'sanctum')
-            ->postJson('/api/admin/referensi/agama/'.$idGlobal.'/pulihkan')->assertStatus(422);
 
         // Pasangan MI↔MD boleh memulihkan baris milik pasangannya.
+        $this->actingAs($admin, 'sanctum')->deleteJson('/api/admin/referensi/agama/'.$id)
+            ->assertStatus(200);
         $adminMd = $this->makeUser('admin', [$f['md']->id]);
         $this->actingAs($adminMd, 'sanctum')
-            ->postJson('/api/admin/referensi/agama/'.$bayangan['id'].'/pulihkan')->assertStatus(200);
+            ->postJson('/api/admin/referensi/agama/'.$id.'/pulihkan')->assertStatus(200);
+        $this->assertSame(['Islam'], $this->namaEfektif('agama', $f['mi']->id));
+    }
+
+    // ---------- 10. Lembaga baru mewarisi benih kamus ----------
+    public function test_10_lembaga_baru_mendapat_benih_kamus(): void
+    {
+        $f = $this->fixture();
+        $super = $this->makeUser('super_admin');
+
+        $this->actingAs($super, 'sanctum')->postJson('/api/admin/referensi/hobi', [
+            'nama' => 'Benih Hobi',
+        ])->assertStatus(201);
+
+        $baru = $this->actingAs($super, 'sanctum')->postJson('/api/admin/lembaga', [
+            'nama' => "Mu'allimin", 'kode' => 'MLN', 'parent_id' => $f['root']->id,
+        ])->assertStatus(201)->json();
+
+        $this->assertContains('Benih Hobi', $this->namaEfektif('hobi', (int) $baru['id']));
+    }
+
+    // ---------- 11. Hapus permanen membuang baris ----------
+
+    public function test_11_hapus_permanen_membuang_baris(): void
+    {
+        $f = $this->fixture();
+        $super = $this->makeUser('super_admin');
+        $adminMi = $this->makeUser('admin', [$f['mi']->id]);
+
+        $idMi = DB::table('ref_hobi')->insertGetId(
+            ['lembaga_id' => $f['mi']->id, 'nama' => 'Hobi Fana', 'urutan' => 0, 'is_active' => true]
+        );
+        $idMd = DB::table('ref_hobi')->insertGetId(
+            ['lembaga_id' => $f['md']->id, 'nama' => 'Hobi Fana', 'urutan' => 0, 'is_active' => true]
+        );
+        $idMts = DB::table('ref_hobi')->insertGetId(
+            ['lembaga_id' => $f['mts']->id, 'nama' => 'Hobi Fana', 'urutan' => 0, 'is_active' => true]
+        );
+
+        // Tanpa flag = padam biasa (baris tetap ada).
+        $this->actingAs($adminMi, 'sanctum')->deleteJson("/api/admin/referensi/hobi/{$idMi}")
+            ->assertStatus(200);
+        $this->assertDatabaseHas('ref_hobi', ['id' => $idMi, 'is_active' => false]);
+
+        // Flag permanen = baris dibuang; milik MD tak tersentuh.
+        $this->actingAs($super, 'sanctum')->deleteJson("/api/admin/referensi/hobi/{$idMi}?permanen=1")
+            ->assertStatus(200);
+        $this->assertDatabaseMissing('ref_hobi', ['id' => $idMi]);
+        $this->assertDatabaseHas('ref_hobi', ['id' => $idMd, 'nama' => 'Hobi Fana']);
+
+        // Lintas lembaga di luar pasangan MI↔MD ditolak.
+        $this->actingAs($adminMi, 'sanctum')->deleteJson("/api/admin/referensi/hobi/{$idMts}?permanen=1")
+            ->assertStatus(403);
+    }
+
+    // ---------- 12. Tanpa filter = gabungan semua lembaga ----------
+
+    public function test_12_tanpa_filter_gabung_semua_lembaga(): void
+    {
+        $f = $this->fixture();
+        $super = $this->makeUser('super_admin');
+        $adminMi = $this->makeUser('admin', [$f['mi']->id]);
+
+        $this->actingAs($super, 'sanctum')->postJson('/api/admin/referensi/hobi', [
+            'nama' => 'Hobi Gabung',
+        ])->assertStatus(201);
+
+        // Super: semua lembaga (MI, MD, MTS).
+        $semua = $this->actingAs($super, 'sanctum')->getJson('/api/admin/referensi/hobi')
+            ->assertStatus(200)->json();
+        $this->assertCount(3, collect($semua)->where('nama', 'Hobi Gabung')->values()->all());
+
+        // Admin MI: scope-nya (MI + pasangan MD), MTS tak ikut.
+        $milik = $this->actingAs($adminMi, 'sanctum')->getJson('/api/admin/referensi/hobi')
+            ->assertStatus(200)->json();
+        $lembagaTampil = collect($milik)->pluck('lembaga_id')->unique()->sort()->values()->all();
+        $this->assertSame([$f['mi']->id, $f['md']->id], $lembagaTampil);
     }
 }

@@ -40,6 +40,9 @@ class DevSeeder extends Seeder
             $l->update(['kelompok_psb' => 'eksklusif']);
         }
 
+        // Kamus per lembaga (tanpa baris global): benih nilai untuk lembaga di atas.
+        $this->call([ReferensiSeeder::class]);
+
         $this->command?->info('DevSeeder: akun, '.Lembaga::count().' lembaga siap.');
     }
 }

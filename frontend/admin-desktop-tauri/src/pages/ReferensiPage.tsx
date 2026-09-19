@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   createReferensi,
   deleteReferensi,
@@ -39,13 +39,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { ActionIcon, DeleteAction, EditAction } from '@/components/RowActions';
-import { Undo2 } from '@/icons';
+import { DeleteAction, EditAction } from '@/components/RowActions';
 import { toast } from 'sonner';
 
 const STATUS_TIPE = ['status_awal', 'status_akhir'];
-
-async function noopCommit() {}
 
 /** Nilai tampil baris: semua tabel ref memakai `nama` (status juga menyimpan `kode`). */
 function rowText(r: ReferensiRow): string {
@@ -63,7 +60,8 @@ export default function ReferensiPage() {
   const { user: me } = useAuth();
   /** Gerbang super = EFEKTIF (mati saat bertindak; baris global terkunci). */
   const { efektifSuper: isSuper } = useLembagaAktif();
-  // Baris global tetap struktural super_admin; baris lembaga mengikuti izin matriks.
+  // Nilai referensi murni per lembaga (tanpa baris global): super_admin
+  // menambah ke semua lembaga sekaligus; tiap lembaga kelola miliknya.
   const canManage = bisa(me, 'referensi.ubah');
   const myLembagaIds = useMemo(() => me?.lembagas?.map((l) => l.id) ?? [], [me]);
   const adminFull = canManage && !isSuper && myLembagaIds.length === 0;
@@ -73,7 +71,7 @@ export default function ReferensiPage() {
   const [lembagas, setLembagas] = useState<Lembaga[]>([]);
   const [lembagaId, setLembagaId] = useState<number | ''>('');
   useLembagaAwalNumber(setLembagaId);
-  const { terkunci } = useLembagaAktif();
+  const { terkunci, lembagaId: lembagaTop } = useLembagaAktif();
   const [rows, setRows] = useState<ReferensiRow[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -82,7 +80,7 @@ export default function ReferensiPage() {
 
   const [tambahOpen, setTambahOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [scope, setScope] = useState('_global');
+  const [scope, setScope] = useState('');
   const [fNama, setFNama] = useState('');
   const [fKode, setFKode] = useState('');
   const [fUrutan, setFUrutan] = useState('0');
@@ -101,27 +99,45 @@ export default function ReferensiPage() {
     listLembaga({ per_page: 100 }).then((p) => setLembagas(p.data)).catch(() => {});
   }, []);
 
-  // Admin non-global wajib punya konteks lembaga; super_admin boleh '' (baris global).
+  // '' = Semua lembaga (gabungan semua yang boleh diakses); pilihan spesifik
+  // memfilter satu lembaga. Terkunci saat bertindak (mengikuti peran).
+  // Auto-ikuti topbar hanya sekali saat halaman dibuka — pilihan Semua
+  // eksplisit pengguna tidak ditimpa balik.
+  const autoLembaga = useRef(false);
   useEffect(() => {
-    if (isSuper || lembagaId !== '' || lembagas.length === 0) return;
-    setLembagaId(lembagas[0].id);
-  }, [isSuper, lembagaId, lembagas]);
+    if (autoLembaga.current || lembagaId !== '' || terkunci) return;
+    autoLembaga.current = true;
+    if (lembagaTop != null) setLembagaId(lembagaTop);
+  }, [lembagaId, terkunci, lembagaTop]);
 
-  useEffect(() => {
-    if (!tipe) return;
-    let alive = true;
+  /** Muat daftar; mengembalikan promise agar antrean simpan grid bisa menunggu
+   *  baris segar TIBA sebelum membuang draft optimistis (tanpa ini toggle
+   *  kelap-kelip on→off→on→off: draft dibuang saat basis masih basi). */
+  const tipeRef = useRef(tipe);
+  tipeRef.current = tipe;
+  const lembagaRef = useRef(lembagaId);
+  lembagaRef.current = lembagaId;
+  const muat = useCallback(async () => {
+    if (!tipeRef.current) return;
     setErr('');
     setLoading(true);
-    referensiList(tipe, lembagaId === '' ? undefined : lembagaId, lembagaId !== '')
-      .then((r) => { if (alive) setRows(r); })
-      .catch((e) => { if (alive) setErr(errorMessage(e)); })
-      .finally(() => { if (alive) setLoading(false); });
-    return () => { alive = false; };
-  }, [tipe, lembagaId, tick]);
-
-  const reload = useCallback(() => {
-    setTick((t) => t + 1);
+    try {
+      // Mode kelola: selalu sertakan nonaktif agar toggle bisa memulihkan.
+      // MySQL tinyint tiba sebagai 0/1 → normalkan ke boolean.
+      const r = await referensiList(tipeRef.current, lembagaRef.current === '' ? undefined : lembagaRef.current, true);
+      setRows(r.map((row) => ({ ...row, is_active: !!row.is_active })));
+    } catch (e) {
+      setErr(errorMessage(e));
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    void muat();
+  }, [muat, tipe, lembagaId, tick]);
+
+  const reload = useCallback(() => muat(), [muat]);
 
   const lembagaName = useCallback((id: number | null): string => {
     if (id === null) return 'Global';
@@ -131,18 +147,29 @@ export default function ReferensiPage() {
 
   const canAccessRow = useCallback(
     (lid: number | null) =>
-      isSuper || adminFull || (lid !== null && myLembagaIds.includes(lid)),
+      lid !== null && (isSuper || adminFull || myLembagaIds.includes(lid)),
     [isSuper, adminFull, myLembagaIds],
   );
   const canUbahRow = useCallback(
-    (r: ReferensiRow) => (r.lembaga_id === null ? isSuper : canAccessRow(r.lembaga_id)),
-    [isSuper, canAccessRow],
+    (r: ReferensiRow) => canAccessRow(r.lembaga_id),
+    [canAccessRow],
   );
   const canNonaktifRow = useCallback(
-    (r: ReferensiRow) =>
-      r.lembaga_id === null ? canManage && lembagaId !== '' : canAccessRow(r.lembaga_id),
-    [canManage, lembagaId, canAccessRow],
+    (r: ReferensiRow) => canAccessRow(r.lembaga_id),
+    [canAccessRow],
   );
+
+  /** Boleh toggle per baris: hak akses baris lembaganya (backend menegakkan). */
+  const toggleBoleh = useMemo(() => {
+    const m = new Map<number, boolean>();
+    for (const r of rows) {
+      const nyala = r.is_active !== false;
+      m.set(r.id, nyala ? canNonaktifRow(r) : (r.lembaga_id !== null && canAccessRow(r.lembaga_id)));
+    }
+    return m;
+  }, [rows, canNonaktifRow, canAccessRow]);
+
+  const toggleBolehId = useCallback((id: string | number) => toggleBoleh.get(Number(id)) ?? false, [toggleBoleh]);
 
   const fields = useMemo<ExcelField[]>(
     () => isStatus
@@ -152,15 +179,15 @@ export default function ReferensiPage() {
           { key: 'urutan', label: 'urutan', width: 80, kind: 'static' },
           ...(isStatusAkhir ? [{ key: 'sifat', label: 'Sifat', width: 170, kind: 'static' as const }] : []),
           { key: 'sumber', label: 'Sumber', width: 170, kind: 'static' },
-          { key: 'tampil', label: 'is_active', width: 130, kind: 'static' },
+          { key: 'tampil', label: 'is_active', width: 130, kind: 'toggle', toggleTanpaEdit: true, bolehToggle: toggleBolehId },
         ]
       : [
           { key: 'nama', label: 'nama', width: 220, kind: 'static' },
           { key: 'urutan', label: 'urutan', width: 80, kind: 'static' },
           { key: 'sumber', label: 'Sumber', width: 170, kind: 'static' },
-          { key: 'tampil', label: 'is_active', width: 130, kind: 'static' },
+          { key: 'tampil', label: 'is_active', width: 130, kind: 'toggle', toggleTanpaEdit: true, bolehToggle: toggleBolehId },
         ],
-    [isStatus, isStatusAkhir],
+    [isStatus, isStatusAkhir, toggleBolehId],
   );
 
   const gridValues = useCallback((r: ReferensiRow): Record<string, string | null> => ({
@@ -169,7 +196,7 @@ export default function ReferensiPage() {
     urutan: String(r.urutan ?? 0),
     sifat: sifatOf(r),
     sumber: lembagaName(r.lembaga_id),
-    tampil: r.is_active === false ? 'disembunyikan' : '',
+    tampil: r.is_active === false ? 'tidak' : 'ya',
   }), [lembagaName]);
 
   const q = search.trim().toLowerCase();
@@ -181,24 +208,26 @@ export default function ReferensiPage() {
 
   const openTambah = useCallback(() => {
     setFNama(''); setFKode(''); setFUrutan('0');
-    const fallback = lembagaId !== ''
-      ? String(lembagaId)
-      : (isSuper ? '_global' : (lembagas[0] ? String(lembagas[0].id) : ''));
+    // Tanpa Global: super_admin tanpa lembaga = sebar ke semua; jika scope
+    // lembaga aktif, tambah ke lembaga itu.
+    const fallback = lembagaId !== '' ? String(lembagaId) : '';
     setScope(fallback);
     setTambahOpen(true);
-  }, [lembagaId, isSuper, lembagas]);
+  }, [lembagaId]);
 
   const onCreate = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isSuper && scope === '_global') {
-      setErr('Pilih lembaga dulu.');
-      return;
-    }
     setErr('');
     setSubmitting(true);
     try {
       const payload: ReferensiInput = { urutan: fUrutan === '' ? 0 : Number(fUrutan) };
-      if (scope !== '_global') payload.lembaga_id = Number(scope);
+      // Scope kosong = super_admin sebar ke semua lembaga (backend fan-out).
+      if (scope !== '') payload.lembaga_id = Number(scope);
+      else if (!isSuper) {
+        setErr('Pilih lembaga dulu.');
+        setSubmitting(false);
+        return;
+      }
       if (isStatus) {
         payload.kode = fKode.trim();
         payload.nama = fNama.trim() || fKode.trim();
@@ -240,21 +269,31 @@ export default function ReferensiPage() {
   }, [editRow, tipe, eNama, eUrutan, reload]);
 
   const onDelete = useCallback(async (r: ReferensiRow) => {
-    // Baris global: nonaktif per lembaga (shadow) — butuh konteks lembaga terpilih.
-    const lid = r.lembaga_id === null && lembagaId !== '' ? Number(lembagaId) : undefined;
+    // Tiap baris milik satu lembaga: padam langsung baris itu.
+    // Tanpa toast/reload di sini: antrean grid memanggil onSaved (= muat) dan
+    // menunggunya sebelum membuang draft; toast cukup satu dari antrean.
+    const lid = r.lembaga_id ?? undefined;
     try {
       await deleteReferensi(tipe, r.id, lid);
-      toast.success('Entri referensi dinonaktifkan.');
-      reload();
     } catch (e) {
       setErr(errorMessage(e));
     }
-  }, [tipe, lembagaId, reload]);
+  }, [tipe]);
 
   const onPulihkan = useCallback(async (r: ReferensiRow) => {
     try {
       await pulihkanReferensi(tipe, r.id);
-      toast.success('Entri referensi ditampilkan kembali.');
+    } catch (e) {
+      setErr(errorMessage(e));
+    }
+  }, [tipe]);
+
+  /** Hapus permanen: baris benar-benar dibuang (bukan sekadar dipadamkan). */
+  const onHapusPermanen = useCallback(async (r: ReferensiRow) => {
+    setErr('');
+    try {
+      const res = await deleteReferensi(tipe, r.id, r.lembaga_id ?? undefined, true);
+      toast.success(res.pesan);
       reload();
     } catch (e) {
       setErr(errorMessage(e));
@@ -262,38 +301,29 @@ export default function ReferensiPage() {
   }, [tipe, reload]);
 
   const renderActions = useCallback((r: ReferensiRow) => {
-    // Baris lembaga nonaktif → tombol "Tampilkan kembali".
-    if (r.is_active === false && r.lembaga_id !== null) {
-      if (!canAccessRow(r.lembaga_id)) return null;
-      return (
-        <ActionIcon
-          id={`btn_pulihkan_referensi_${r.id}`}
-          title="Tampilkan kembali"
-          onClick={() => onPulihkan(r)}
-        >
-          <Undo2 size={16} />
-        </ActionIcon>
-      );
-    }
-    const bolehUbah = canUbahRow(r);
-    const bolehNonaktif = canNonaktifRow(r);
-    if (!bolehUbah && !bolehNonaktif) return null;
+    // Tampil/padam lewat toggle di kolom is_active; aksi baris: Ubah + Hapus permanen.
+    if (!canUbahRow(r)) return null;
     return (
       <>
-        {bolehUbah && <EditAction id={`btn_ubah_referensi_${r.id}`} onClick={() => openEdit(r)} />}
-        {bolehNonaktif && (
-          <DeleteAction
-            id={`btn_hapus_referensi_${r.id}`}
-            title="Nonaktifkan entri?"
-            description={r.lembaga_id === null
-              ? `"${rowText(r)}" tidak akan tampil untuk ${lembagaName(Number(lembagaId))}. Baris global tetap berlaku di lembaga lain.`
-              : `"${rowText(r)}" tidak akan tampil lagi di daftar efektif.`}
-            onConfirm={() => onDelete(r)}
-          />
-        )}
+        <EditAction id={`btn_ubah_referensi_${r.id}`} onClick={() => openEdit(r)} />
+        <DeleteAction
+          id={`btn_hapus_referensi_${r.id}`}
+          title="Hapus permanen entri?"
+          description={`"${rowText(r)}" dibuang dari kamus ${lembagaName(r.lembaga_id)}. Data yang sudah memakai teks ini tidak ikut berubah.`}
+          onConfirm={() => onHapusPermanen(r)}
+        />
       </>
     );
-  }, [canUbahRow, canNonaktifRow, canAccessRow, openEdit, onDelete, onPulihkan, lembagaName, lembagaId]);
+  }, [canUbahRow, openEdit, onHapusPermanen, rowText, lembagaName]);
+
+  /** Simpan toggle kolom is_active: padam → nonaktifkan, nyala → pulihkan. */
+  const onCommit = useCallback(async (id: number, fields: Record<string, string | null>) => {
+    if (!('tampil' in fields)) return;
+    const row = rows.find((r) => r.id === id);
+    if (!row) return;
+    if (fields.tampil === 'tidak') await onDelete(row);
+    else await onPulihkan(row);
+  }, [rows, onDelete, onPulihkan]);
 
   return (
     <div className={PAGE_SHELL}>
@@ -307,7 +337,7 @@ export default function ReferensiPage() {
         loading={loading}
         emptyText="Belum ada entri."
         canEdit={false}
-        onCommit={noopCommit}
+        onCommit={onCommit}
         onSaved={reload}
         searchValue={search}
         onSearchChange={setSearch}
@@ -328,8 +358,8 @@ export default function ReferensiPage() {
             </FilterField>
             <FilterField label="Lembaga" htmlFor="select_lembaga_referensi">
             <Select
-              value={lembagaId === '' ? '_global' : String(lembagaId)}
-              onValueChange={(v) => setLembagaId(v === '_global' ? '' : Number(v))}
+              value={lembagaId === '' ? '__semua' : String(lembagaId)}
+              onValueChange={(v) => setLembagaId(v === '__semua' ? '' : Number(v))}
               disabled={terkunci}
             >
               <SelectTrigger id="select_lembaga_referensi" title="Filter lembaga" aria-label="Filter lembaga" size="sm" className="w-40">
@@ -337,9 +367,7 @@ export default function ReferensiPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  {isSuper && !terkunci && <SelectLabel>Global</SelectLabel>}
-                  {isSuper && !terkunci && <SelectItem value="_global">Global (bawaan)</SelectItem>}
-                  <SelectLabel>Per lembaga</SelectLabel>
+                  <SelectItem value="__semua">Semua</SelectItem>
                   {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>)}
                 </SelectGroup>
               </SelectContent>
@@ -362,15 +390,13 @@ export default function ReferensiPage() {
           </DialogHeader>
           <form id="form_tambah_referensi" onSubmit={onCreate} className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4">
             <FieldLabel htmlFor="select_scope_referensi">Lembaga</FieldLabel>
-            <Select value={scope} onValueChange={setScope}>
+            <Select value={scope === '' ? '__semua' : scope} onValueChange={(v) => setScope(v === '__semua' ? '' : v)}>
               <SelectTrigger id="select_scope_referensi" className="w-full">
-                <SelectValue placeholder="Pilih lembaga" />
+                <SelectValue placeholder={isSuper ? 'Semua lembaga (sebar)' : 'Pilih lembaga'} />
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  {isSuper && <SelectLabel>Global</SelectLabel>}
-                  {isSuper && <SelectItem value="_global">Global (bawaan sistem)</SelectItem>}
-                  <SelectLabel>Per lembaga</SelectLabel>
+                  {isSuper && <SelectItem value="__semua">Semua lembaga (sebar sekaligus)</SelectItem>}
                   {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>)}
                 </SelectGroup>
               </SelectContent>

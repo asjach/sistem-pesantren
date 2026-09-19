@@ -184,9 +184,12 @@ export function updateReferensi(tipe: string, id: number, input: Omit<ReferensiI
   });
 }
 
-export function deleteReferensi(tipe: string, id: number, lembaga_id?: number) {
-  const q = lembaga_id ? `?lembaga_id=${lembaga_id}` : '';
-  return api<{ pesan: string }>(`/admin/referensi/${encodeURIComponent(tipe)}/${id}${q}`, {
+export function deleteReferensi(tipe: string, id: number, lembaga_id?: number, permanen = false) {
+  const q = new URLSearchParams();
+  if (lembaga_id) q.set('lembaga_id', String(lembaga_id));
+  if (permanen) q.set('permanen', '1');
+  const suffix = q.size > 0 ? `?${q.toString()}` : '';
+  return api<{ pesan: string }>(`/admin/referensi/${encodeURIComponent(tipe)}/${id}${suffix}`, {
     method: 'DELETE',
   });
 }
