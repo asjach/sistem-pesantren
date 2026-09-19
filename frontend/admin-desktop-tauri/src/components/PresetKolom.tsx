@@ -3,6 +3,7 @@ import { errorMessage } from '../api/client';
 import {
   listPresetTabel,
   setPresetAktif,
+  setPresetBawaan,
   updatePresetTabel,
   type PresetTabel,
 } from '../api/preset';
@@ -48,7 +49,7 @@ export default function PresetKolom({
   fields: ExcelField[];
   onApply: (keys: string[] | null, label?: Record<string, string> | null) => void;
   apiRef?: MutableRefObject<PresetKolomApi | null>;
-  /** Timpa lebar trigger (bawaan `w-44`), mis. tabel sempit dua panel. */
+  /** Timpa lebar trigger (bawaan 100px), mis. tabel sempit dua panel. */
   triggerClassName?: string;
   /** Lebar trigger dropdown (px) dari tab Kontrol; menang atas triggerClassName. */
   lebarTrigger?: number;
@@ -59,6 +60,8 @@ export default function PresetKolom({
 
   const [presets, setPresets] = useState<PresetTabel[]>([]);
   const [aktifId, setAktifId] = useState<number | null>(null);
+  /** Preset bawaan tabel (dipakai bila user belum memilih dan ada preset). */
+  const [bawaanId, setBawaanId] = useState<number | null>(null);
 
   const [dokOpen, setDokOpen] = useState(false);
   /** Preset yang dibuka + tab awal + mulai-lengkap + penanda remount dialog
@@ -91,14 +94,19 @@ export default function PresetKolom({
       const res = await listPresetTabel(tableKey);
       const daftar = res.data.presets;
       setPresets(daftar);
+      setBawaanId(res.data.default_preset_id);
       const targetId = pilihId !== undefined ? pilihId : res.data.aktif_preset_id;
-      // Hanya pilihan pribadi yang dipakai; tanpa pilihan = Lengkap (bawaan).
-      const target = targetId === null ? null : daftar.find((p) => p.id === targetId) ?? null;
+      let target = targetId === null ? null : daftar.find((p) => p.id === targetId) ?? null;
+      // Tanpa pilihan pribadi: preset bawaan bila ada, bila tidak = Lengkap.
+      if (target === null && res.data.default_preset_id !== null) {
+        target = daftar.find((p) => p.id === res.data.default_preset_id) ?? null;
+      }
       setAktifId(target?.id ?? null);
       terapkan(target);
     } catch (e) {
       setPresets([]);
       setAktifId(null);
+      setBawaanId(null);
       terapkan(null);
       toast.error(errorMessage(e));
     }
@@ -190,18 +198,31 @@ export default function PresetKolom({
     }
   }
 
-  const labelPreset = (p: PresetTabel) => p.nama;
+  const labelPreset = (p: PresetTabel) => (
+    p.id === bawaanId ? `${p.nama} (bawaan)` : p.nama
+  );
+
+  /** Tandai/cabut preset bawaan tabel (super_admin; satu per tabel). */
+  const togolBawaan = useCallback(async (preset: PresetTabel) => {
+    try {
+      const res = await setPresetBawaan(preset.id, preset.id !== bawaanId);
+      toast.success(res.pesan);
+      await muat(aktifId);
+    } catch (e) {
+      toast.error(errorMessage(e));
+    }
+  }, [bawaanId, aktifId, muat]);
 
   return (
     <>
-      <FilterField label="Kolom" htmlFor={`select_preset_kolom_${tableKey}`}>
+      <FilterField label="Kolom" htmlFor={`select_preset_kolom_${tableKey}`} kelolaLebar={false}>
       <Select value={aktifId === null ? LENGKAP : String(aktifId)} onValueChange={(v) => void pilihPreset(v)}>
         <SelectTrigger
           id={`select_preset_kolom_${tableKey}`}
           title="Preset kolom tampilan"
           aria-label="Preset kolom tampilan"
-          className={triggerClassName ?? 'w-44'}
-          style={lebarTrigger !== undefined ? { width: `${lebarTrigger}px` } : undefined}
+          className={triggerClassName}
+          style={lebarTrigger !== undefined ? { width: `${lebarTrigger}px` } : triggerClassName ? undefined : { width: '100px' }}
         >
           <SelectValue />
         </SelectTrigger>
@@ -237,6 +258,8 @@ export default function PresetKolom({
           onPilihLengkap={() => bukaKelola(null, 'kolom', true)}
           onPilihPreset={(p) => bukaKelola(p, 'kolom')}
           onPakaiLengkap={(keys, label) => pakaiLengkap(keys, label)}
+          bawaanId={bawaanId}
+          onTogolBawaan={(p) => void togolBawaan(p)}
           onTersimpan={async (id) => {
             await muat(id);
             await setPresetAktif(tableKey, id);

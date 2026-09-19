@@ -16,8 +16,7 @@ import {
   useGridPrefs,
 } from '@/components/GridPrefs';
 import type { RibbonTableApi } from '@/components/RibbonTable';
-import { useLembagaAktif } from '@/lembagaAktif';
-import { DensityLarge, DensityMedium, DensitySmall, Columns3, Pencil, PlusCircle, RotateCcw, type Ikon } from '@/icons';
+import { DensityLarge, DensityMedium, DensitySmall, Pencil, PlusCircle, RotateCcw, type Ikon } from '@/icons';
 import {
   Select,
   SelectContent,
@@ -117,8 +116,6 @@ const KERAPATAN: { id: DensityName; nama: string; icon: Ikon }[] = [
 ];
 
 export function RibbonTabel({ apiTabel }: { apiTabel: RibbonTableApi | null }) {
-  /** Kelola tabel = super_admin EFEKTIF (mati saat bertindak sebagai lembaga). */
-  const { efektifSuper: superAdmin } = useLembagaAktif();
   const { density, dark, parts, setGayaBagian, setWarnaBagian, setDensity } = useTheme();
   const { rowH, headerH, fontPx, fontFamily, setRowH, setHeaderH, setFontPx, setFontFamily } = useGridPrefs();
   const effectiveH = rowH ?? DENSITY_PX[density];
@@ -170,15 +167,6 @@ export function RibbonTabel({ apiTabel }: { apiTabel: RibbonTableApi | null }) {
       <RibbonPemisah />
       <RibbonGroup label="Kolom">
         <div className="flex flex-col items-start gap-1.5">
-          {superAdmin ? (
-          <RibbonCmd
-            id="ribbon_btn_kelola_tabel"
-            icon={Columns3}
-            label="Kelola tabel"
-            disabled={!apiTabel}
-            onClick={() => apiTabel?.kelolaTabel()}
-          />
-          ) : null}
           {/* Label di samping stepper; lebar label dikunci agar kedua stepper
               sejajar dalam satu kolom. */}
           <div className="flex items-center gap-1.5">

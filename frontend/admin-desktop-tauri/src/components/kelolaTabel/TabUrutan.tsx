@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { errorMessage } from '@/api/client';
 import {
   hapusUrutPreset,
@@ -23,7 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ChevronDown, ChevronUp, Plus, Trash2 } from '@/icons';
+import { GripVertical, Plus, Trash2 } from '@/icons';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -79,16 +79,35 @@ export default function TabUrutan({ tableKey, onTutup }: { tableKey: string; onT
     setDraft((d) => d.map((o, j) => (j === i ? { ...o, ...patch } : o)));
   }
 
+  /** Geser posisi kolom dalam satu opsi (urutan klik = urutan ORDER BY). */
+  function geserKolom(i: number, dari: number, ke: number) {
+    setDraft((d) => d.map((o, j) => {
+      if (j !== i) return o;
+      const kode = [...o.kode];
+      if (ke < 0 || ke >= kode.length) return o;
+      const [pindah] = kode.splice(dari, 1);
+      kode.splice(ke, 0, pindah);
+      return { ...o, kode };
+    }));
+  }
+
   function setBawaan(i: number) {
     setDraft((d) => d.map((o, j) => ({ ...o, bawaan: j === i })));
   }
 
-  function geser(i: number, delta: number) {
+  /** Seret-untuk-memindah posisi opsi: indeks sumber via ref, target via hover. */
+  const seretRef = useRef<number | null>(null);
+  const [tujuanSeret, setTujuanSeret] = useState<number | null>(null);
+
+  function jatuhSeret(i: number) {
+    const dari = seretRef.current;
+    seretRef.current = null;
+    setTujuanSeret(null);
+    if (dari === null || dari === i) return;
     setDraft((d) => {
-      const j = i + delta;
-      if (j < 0 || j >= d.length) return d;
       const next = [...d];
-      [next[i], next[j]] = [next[j], next[i]];
+      const [pindah] = next.splice(dari, 1);
+      next.splice(i, 0, pindah);
       return next;
     });
   }
@@ -135,11 +154,6 @@ export default function TabUrutan({ tableKey, onTutup }: { tableKey: string; onT
 
   return (
     <div className="flex min-h-0 flex-col gap-3">
-      <p className="text-xs text-muted-foreground">
-        Opsi urut untuk tabel ini (global, berlaku semua lembaga). Pilih satu atau beberapa
-        kolom per opsi — urutan pilihannya mengikuti urutan klik. Tandai satu opsi sebagai
-        bawaan untuk urutan awal saat halaman dibuka.
-      </p>
       <div className="flex max-h-[50vh] min-h-0 flex-col gap-2 overflow-y-auto pr-1">
         {draft.length === 0 ? (
           <p className="py-4 text-center text-xs text-muted-foreground">
@@ -147,11 +161,42 @@ export default function TabUrutan({ tableKey, onTutup }: { tableKey: string; onT
           </p>
         ) : (
           draft.map((o, i) => (
-            <div key={i} className="flex items-center gap-1.5 rounded-md border p-1.5">
-              <span className="w-5 shrink-0 text-center text-xs text-muted-foreground">{i + 1}</span>
+            <div
+              key={i}
+              onDragOver={(e) => { if (bolehSimpan) { e.preventDefault(); setTujuanSeret(i); } }}
+              onDrop={() => jatuhSeret(i)}
+              onDragEnd={() => { seretRef.current = null; setTujuanSeret(null); }}
+              className={cn(
+                'flex items-center gap-1.5 rounded-md border p-1.5',
+                tujuanSeret === i && seretRef.current !== i && 'border-accent bg-accent/20',
+              )}
+            >
+              <span
+                role="button"
+                tabIndex={bolehSimpan ? 0 : undefined}
+                aria-label={`Seret untuk memindah opsi ${i + 1}`}
+                title={bolehSimpan ? 'Seret untuk memindah posisi opsi' : undefined}
+                draggable={bolehSimpan}
+                onDragStart={(e) => { seretRef.current = i; e.dataTransfer.effectAllowed = 'move'; }}
+                onKeyDown={(e) => {
+                  if (!bolehSimpan) return;
+                  if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+                  e.preventDefault();
+                  const ke = e.key === 'ArrowUp' ? i - 1 : i + 1;
+                  if (ke < 0 || ke >= draft.length) return;
+                  seretRef.current = i;
+                  jatuhSeret(ke);
+                }}
+                className={cn(
+                  'grid size-6 shrink-0 place-items-center rounded text-muted-foreground hover:bg-accent hover:text-foreground',
+                  bolehSimpan ? 'cursor-grab active:cursor-grabbing' : 'cursor-not-allowed opacity-50',
+                )}
+              >
+                <GripVertical size={14} />
+              </span>
               <Input
                 id={`input_label_urut_${tableKey}_${i}`}
-                className="h-7 min-w-0 flex-1"
+                className="h-7 w-40 shrink-0"
                 value={o.label}
                 maxLength={60}
                 placeholder={labelKode(o.kode) || 'Label opsi'}
@@ -159,12 +204,13 @@ export default function TabUrutan({ tableKey, onTutup }: { tableKey: string; onT
                 disabled={!bolehSimpan}
                 onChange={(e) => ubah(i, { label: e.target.value })}
               />
-              <div className="w-44 shrink-0" title="Kolom urut">
+              <div className="min-w-0 flex-1" title="Kolom urut">
                 <MultiSelect
                   id={`select_kode_urut_${tableKey}_${i}`}
                   title="Kolom urut"
                   values={o.kode}
                   onChange={(v) => ubah(i, { kode: v })}
+                  onMove={(dari, ke) => geserKolom(i, dari, ke)}
                   disabled={!bolehSimpan}
                   placeholder="Pilih kolom…"
                   options={(data?.tersedia ?? []).map((k) => ({
@@ -207,24 +253,6 @@ export default function TabUrutan({ tableKey, onTutup }: { tableKey: string; onT
               </label>
               <Button
                 type="button" variant="outline" size="icon-sm"
-                id={`btn_urut_naik_${tableKey}_${i}`}
-                title="Naikkan opsi" aria-label="Naikkan opsi"
-                disabled={!bolehSimpan || i === 0}
-                onClick={() => geser(i, -1)}
-              >
-                <ChevronUp size={14} />
-              </Button>
-              <Button
-                type="button" variant="outline" size="icon-sm"
-                id={`btn_urut_turun_${tableKey}_${i}`}
-                title="Turunkan opsi" aria-label="Turunkan opsi"
-                disabled={!bolehSimpan || i === draft.length - 1}
-                onClick={() => geser(i, 1)}
-              >
-                <ChevronDown size={14} />
-              </Button>
-              <Button
-                type="button" variant="outline" size="icon-sm"
                 id={`btn_urut_hapus_${tableKey}_${i}`}
                 title="Hapus opsi" aria-label="Hapus opsi"
                 disabled={!bolehSimpan}
@@ -238,17 +266,16 @@ export default function TabUrutan({ tableKey, onTutup }: { tableKey: string; onT
       </div>
 
       <DialogFooter className={cn('mt-auto gap-2 sm:justify-between')}>
-        <Button
-          type="button"
-          variant="outline"
-          id={`btn_urut_tambah_${tableKey}`}
-          disabled={!bolehSimpan}
-          onClick={() => setDraft((d) => [...d, { kode: [], label: '', arah: null, bawaan: d.length === 0 }])}
-        >
-          <Plus size={14} /> Opsi
-        </Button>
         <span className="flex gap-2">
-          <Button type="button" variant="outline" onClick={onTutup}>Tutup</Button>
+          <Button
+            type="button"
+            variant="outline"
+            id={`btn_urut_tambah_${tableKey}`}
+            disabled={!bolehSimpan}
+            onClick={() => setDraft((d) => [...d, { kode: [], label: '', arah: null, bawaan: d.length === 0 }])}
+          >
+            <Plus size={14} /> Opsi
+          </Button>
           <Button
             type="button"
             variant="outline"
@@ -258,6 +285,9 @@ export default function TabUrutan({ tableKey, onTutup }: { tableKey: string; onT
           >
             Kosongkan
           </Button>
+        </span>
+        <span className="flex gap-2">
+          <Button type="button" variant="outline" onClick={onTutup}>Tutup</Button>
           <Button
             type="button"
             id={`btn_urut_simpan_${tableKey}`}

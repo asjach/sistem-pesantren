@@ -15,13 +15,12 @@ export const KONTROL_TOOLBAR: { kunci: KontrolToolbar; label: string; ket: strin
   { kunci: 'filter', label: 'Filter halaman', ket: 'Filter khusus halaman di kiri toolbar — awas mengunci alur (mis. pilihan kelas tujuan)' },
 ];
 
-/** Lebar bawaan kontrol (px) — sama dengan kelas Tailwind bawaan toolbar
- *  (`w-35` = 140, `w-44` = 176). Selalu ditampilkan sebagai angka meski
- *  belum ada preset tersimpan. */
+/** Lebar bawaan kontrol (px): seluruh dropdown + kotak cari seragam 100.
+ *  Selalu ditampilkan sebagai angka meski belum ada preset tersimpan. */
 export const LEBAR_BAWAHAN_TOOLBAR: Record<KontrolLebar, number> = {
-  cari: 140,
-  urut: 176,
-  kolom: 176,
+  cari: 100,
+  urut: 100,
+  kolom: 100,
 };
 
 /** Status tampil per kontrol; absen/true/null = tampil, hanya false = sembunyi. */
@@ -29,6 +28,20 @@ export type VisToolbar = Record<KontrolToolbar, boolean>;
 
 /** Lebar efektif per kontrol (px); kunci absen = bawaan. */
 export type LebarToolbar = Record<KontrolLebar, number>;
+
+/** Prefiks kunci lebar filter halaman di peta `lebar` preset. */
+export const AWALAN_LEBAR_FILTER = 'filter.';
+
+/** Lebar filter halaman tersimpan (kunci filter → px); kunci asing diabaikan. */
+export function bacaLebarFilter(lebar: Record<string, number> | undefined): Record<string, number> {
+  const hasil: Record<string, number> = {};
+  for (const [k, v] of Object.entries(lebar ?? {})) {
+    if (!k.startsWith(AWALAN_LEBAR_FILTER) || typeof v !== 'number' || !Number.isFinite(v)) continue;
+    const kunci = k.slice(AWALAN_LEBAR_FILTER.length);
+    if (/^[a-z0-9_]{1,60}$/.test(kunci)) hasil[kunci] = Math.min(480, Math.max(40, Math.round(v)));
+  }
+  return hasil;
+}
 
 export function bacaLebarToolbar(lebar: Record<string, number> | undefined): LebarToolbar {
   const px = (v: unknown, min = 40, maks = 480): number | null =>

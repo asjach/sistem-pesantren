@@ -57,7 +57,8 @@ class ToolbarPresetController extends Controller
 
         $lebar = [];
         foreach ($data['lebar'] ?? [] as $kunci => $nilai) {
-            if (! in_array($kunci, self::KUNCI_LEBAR, true)) {
+            $isFilter = preg_match('/^filter\.[a-z0-9_]{1,60}$/', (string) $kunci) === 1;
+            if (! in_array($kunci, self::KUNCI_LEBAR, true) && ! $isFilter) {
                 throw ValidationException::withMessages([
                     'lebar' => "Kunci lebar \"{$kunci}\" tidak dikenal.",
                 ]);

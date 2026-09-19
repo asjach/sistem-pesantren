@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Check, ChevronDown } from '@/icons';
+import { Check, ChevronDown, ChevronLeft, ChevronRight } from '@/icons';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,6 +18,7 @@ export default function MultiSelect({
   options,
   values,
   onChange,
+  onMove,
   placeholder = 'Pilih…',
   title,
   disabled = false,
@@ -26,6 +27,8 @@ export default function MultiSelect({
   options: MultiSelectOption[];
   values: string[];
   onChange: (values: string[]) => void;
+  /** Geser posisi nilai terpilih (untuk urutan bermakna, mis. kolom urut). */
+  onMove?: (from: number, to: number) => void;
   placeholder?: string;
   title?: string;
   disabled?: boolean;
@@ -41,9 +44,9 @@ export default function MultiSelect({
     onChange([options[0].value]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [disabled, values.length, opsi]);
-  const teks = options
-    .filter((o) => values.includes(o.value))
-    .map((o) => o.label)
+  /** Teks trigger mengikuti urutan pilih (klik), bukan urutan opsi. */
+  const teks = values
+    .map((v) => options.find((o) => o.value === v)?.label ?? v)
     .join(', ');
 
   return (
@@ -68,18 +71,51 @@ export default function MultiSelect({
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="max-h-64 w-(--radix-dropdown-menu-trigger-width) min-w-56 overflow-auto">
-        {options.map((o) => (
-          <DropdownMenuItem
-            key={o.value}
-            onSelect={(e) => {
-              e.preventDefault();
-              toggle(o.value);
-            }}
-          >
-            <Check className={cn('size-4', !values.includes(o.value) && 'opacity-0')} />
-            {o.label}
-          </DropdownMenuItem>
-        ))}
+        {options.map((o) => {
+          const pos = values.indexOf(o.value);
+          const terpilih = pos >= 0;
+          return (
+            <DropdownMenuItem
+              key={o.value}
+              onSelect={(e) => {
+                e.preventDefault();
+                toggle(o.value);
+              }}
+            >
+              <Check className={cn('size-4', !terpilih && 'opacity-0')} />
+              {terpilih ? (
+                <span className="grid size-4 shrink-0 place-items-center rounded-full bg-accent text-[10px] font-medium">
+                  {pos + 1}
+                </span>
+              ) : null}
+              <span className="min-w-0 flex-1 truncate">{o.label}</span>
+              {terpilih && onMove ? (
+                <span className="flex shrink-0 items-center" onClick={(e) => e.stopPropagation()}>
+                  <button
+                    type="button"
+                    title="Geser ke kiri (lebih utama)"
+                    aria-label={`Geser ${o.label} ke kiri`}
+                    disabled={disabled || pos === 0}
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); onMove(pos, pos - 1); }}
+                    className="grid size-5 place-items-center rounded hover:bg-accent disabled:opacity-30"
+                  >
+                    <ChevronLeft size={12} />
+                  </button>
+                  <button
+                    type="button"
+                    title="Geser ke kanan"
+                    aria-label={`Geser ${o.label} ke kanan`}
+                    disabled={disabled || pos === values.length - 1}
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); onMove(pos, pos + 1); }}
+                    className="grid size-5 place-items-center rounded hover:bg-accent disabled:opacity-30"
+                  >
+                    <ChevronRight size={12} />
+                  </button>
+                </span>
+              ) : null}
+            </DropdownMenuItem>
+          );
+        })}
       </DropdownMenuContent>
     </DropdownMenu>
   );

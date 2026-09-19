@@ -140,5 +140,21 @@ class ToolbarPresetTest extends TestCase
             'visibilitas' => ['cari' => true],
             'lebar' => ['cari' => 10],
         ])->assertStatus(422)->assertJsonValidationErrors(['lebar.cari']);
+
+        // Kunci filter halaman (filter.<id>) diterima; pola asing ditolak.
+        $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/toolbar-preset', [
+            'table_key' => 'santri',
+            'visibilitas' => ['cari' => true],
+            'lebar' => ['filter.select_status_santri' => 160],
+        ])->assertStatus(200);
+        $this->actingAs($pusat, 'sanctum')
+            ->getJson('/api/admin/toolbar-preset?table_key=santri')
+            ->assertStatus(200)
+            ->assertJsonPath('data.lebar', ['filter.select_status_santri' => 160]);
+        $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/toolbar-preset', [
+            'table_key' => 'santri',
+            'visibilitas' => ['cari' => true],
+            'lebar' => ['filter.besar!' => 100],
+        ])->assertStatus(422)->assertJsonValidationErrors(['lebar']);
     }
 }

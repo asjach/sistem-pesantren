@@ -13,6 +13,7 @@ import { DialogFooter } from '@/components/ui/dialog';
 import ConfirmDelete from '@/components/ConfirmDelete';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
+import { Pin, PinOff } from '@/icons';
 import { toast } from 'sonner';
 import type { ExcelField } from '../excel/types';
 
@@ -30,6 +31,10 @@ export interface TabKolomProps {
   mulaiLengkap: boolean;
   /** Minta induk membuka entri "Lengkap" (remount + reset state). */
   onPilihLengkap: () => void;
+  /** Id preset bawaan tabel (null = Lengkap). */
+  bawaanId: number | null;
+  /** Tandai/cabut preset bawaan (induk menyimpan + memuat ulang daftar). */
+  onTogolBawaan: (preset: PresetTabel) => void;
   /** Minta induk membuka preset lain / preset baru (remount + reset state). */
   onPilihPreset: (preset: PresetTabel | null) => void;
   /** Preset tersimpan → induk menyegarkan daftar + menetapkannya aktif. */
@@ -54,6 +59,8 @@ export default function TabKolom({
   presetAwal,
   mulaiLengkap,
   onPilihLengkap,
+  bawaanId,
+  onTogolBawaan,
   onPilihPreset,
   onTersimpan,
   onPakaiLengkap,
@@ -65,14 +72,6 @@ export default function TabKolom({
   const [kolom, setKolom] = useState<Set<string>>(
     () => new Set(presetAwal ? presetAwal.kolom.filter((k) => fieldKeys.has(k)) : mulaiLengkap ? [...fieldKeys] : []),
   );
-  /** Nama header kustom per key kolom (kosong = label bawaan). */
-  const [labelKustom, setLabelKustom] = useState<Record<string, string>>(() => {
-    const awal: Record<string, string> = {};
-    for (const [k, v] of Object.entries(presetAwal?.label ?? {})) {
-      if (fieldKeys.has(k)) awal[k] = v;
-    }
-    return awal;
-  });
   const [cariKolom, setCariKolom] = useState('');
   const [busy, setBusy] = useState(false);
   /** Mode Lengkap: bukan hasil edit preset (tanpa id) — perubahan disimpan
@@ -106,33 +105,22 @@ export default function TabKolom({
     });
   }
 
-  const labelPreset = (p: PresetTabel) => p.nama;
-
   async function simpan(e: React.FormEvent) {
     e.preventDefault();
     if (kolom.size === 0) return;
     if (!nama.trim()) {
       // Mode Lengkap tanpa nama: terapkan langsung ke tabel, tanpa membuat preset.
-      if (modeLengkap) {
-        const label: Record<string, string> = {};
-        for (const [k, v] of Object.entries(labelKustom)) {
-          if (kolom.has(k) && v.trim() !== '') label[k] = v.trim().slice(0, 60);
-        }
-        onPakaiLengkap([...kolom], label);
-      }
+      if (modeLengkap) onPakaiLengkap([...kolom], {});
       return;
     }
     setBusy(true);
     try {
-      const label: Record<string, string> = {};
-      for (const [k, v] of Object.entries(labelKustom)) {
-        if (kolom.has(k) && v.trim() !== '') label[k] = v.trim().slice(0, 60);
-      }
-      const labelKirim = Object.keys(label).length > 0 ? label : null;
+      // Nama header tunggal dari Kamus Label; label kustom preset tak dikelola
+      // lagi (null = bersihkan sisa lama bila ada).
       let saved: PresetTabel | undefined;
       let pesan = 'Preset kolom disimpan.';
       if (editId) {
-        const res = await updatePresetTabel(editId, { nama: nama.trim(), kolom: [...kolom], label: labelKirim });
+        const res = await updatePresetTabel(editId, { nama: nama.trim(), kolom: [...kolom], label: null });
         saved = res.data[0];
         pesan = res.pesan;
       } else {
@@ -140,7 +128,6 @@ export default function TabKolom({
           table_key: tableKey,
           nama: nama.trim(),
           kolom: [...kolom],
-          label: labelKirim,
         });
         saved = res.data[0];
         pesan = res.pesan;
@@ -166,7 +153,6 @@ export default function TabKolom({
       setEditId(null);
       setNama('');
       setKolom(new Set());
-      setLabelKustom({});
       await onDihapus();
     } catch (e2) {
       toast.error(errorMessage(e2));
@@ -179,26 +165,16 @@ export default function TabKolom({
       onSubmit={simpan}
       className={cn('flex flex-col gap-2', banyakKolom && 'lg:min-h-0')}
     >
-      <div className="grid gap-2 sm:grid-cols-2">
-        <Field>
-          <FieldLabel htmlFor={`input_nama_preset_${tableKey}`}>Nama preset</FieldLabel>
-          <Input
-            id={`input_nama_preset_${tableKey}`}
-            value={nama}
-            onChange={(e) => setNama(e.target.value)}
-            maxLength={50}
-            placeholder="mis. default"
-          />
-          {modeLengkap ? (
-            <p className="text-xs text-muted-foreground">
-              Mode Lengkap: ubah kolom lalu Terapkan langsung — atau isi nama untuk menyimpan sebagai preset baru.
-            </p>
-          ) : null}
-        </Field>
-        <p className="self-end text-xs text-muted-foreground">
-          Preset global: satu definisi berlaku untuk semua lembaga.
-        </p>
-      </div>
+      <Field className="sm:max-w-xs">
+        <FieldLabel htmlFor={`input_nama_preset_${tableKey}`}>Nama preset</FieldLabel>
+        <Input
+          id={`input_nama_preset_${tableKey}`}
+          value={nama}
+          onChange={(e) => setNama(e.target.value)}
+          maxLength={50}
+          placeholder="mis. default"
+        />
+      </Field>
 
       {/* Dua panel: daftar preset (kiri), dan tabel kolom + header
           kustom (kanan). */}
@@ -235,20 +211,41 @@ export default function TabKolom({
             </button>
             {presets.length === 0 ? (
               <p className="px-1 text-xs text-muted-foreground">Belum ada preset lain.</p>
-            ) : presets.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => onPilihPreset(p)}
-                title={labelPreset(p)}
-                className={cn(
-                  'rounded-md px-2 py-1 text-left text-xs transition-colors',
-                  editId === p.id ? 'bg-accent font-medium' : 'hover:bg-accent/60',
-                )}
-              >
-                <span className="block truncate">{labelPreset(p)}</span>
-              </button>
-            ))}
+            ) : presets.map((p) => {
+              const bawaan = p.id === bawaanId;
+              const IkonPin = bawaan ? PinOff : Pin;
+              return (
+                <div key={p.id} className="group flex items-center gap-0.5">
+                  <button
+                    type="button"
+                    onClick={() => onPilihPreset(p)}
+                    title={bawaan ? `${p.nama} (bawaan)` : p.nama}
+                    className={cn(
+                      'min-w-0 flex-1 rounded-md px-2 py-1 text-left text-xs transition-colors',
+                      editId === p.id ? 'bg-accent font-medium' : 'hover:bg-accent/60',
+                    )}
+                  >
+                    <span className="block truncate">
+                      {p.nama}{bawaan ? ' (bawaan)' : ''}
+                    </span>
+                  </button>
+                  <button
+                    id={`btn_preset_bawaan_${tableKey}_${p.id}`}
+                    type="button"
+                    title={bawaan ? 'Cabut preset bawaan' : 'Jadikan preset bawaan'}
+                    aria-label={bawaan ? `Cabut ${p.nama} sebagai bawaan` : `Jadikan ${p.nama} bawaan`}
+                    aria-pressed={bawaan}
+                    onClick={() => onTogolBawaan(p)}
+                    className={cn(
+                      'grid size-6 shrink-0 place-items-center rounded transition-colors hover:bg-accent hover:text-foreground',
+                      bawaan ? 'text-foreground' : 'text-muted-foreground opacity-0 group-hover:opacity-100',
+                    )}
+                  >
+                    <IkonPin size={13} />
+                  </button>
+                </div>
+              );
+            })}
           </div>
         </section>
 
@@ -297,13 +294,12 @@ export default function TabKolom({
                 <tr className="border-b">
                   <th className="w-10 px-2 py-1.5 text-center font-medium" title="Tampilkan kolom">Tampil</th>
                   <th className="px-2 py-1.5 text-left font-medium">Kolom</th>
-                  <th className="px-2 py-1.5 text-left font-medium">Nama header kustom</th>
                 </tr>
               </thead>
               <tbody>
                 {kolomTampil.length === 0 ? (
                   <tr>
-                    <td colSpan={3} className="px-2 py-3 text-center text-muted-foreground">
+                    <td colSpan={2} className="px-2 py-3 text-center text-muted-foreground">
                       Tidak ada kolom cocok.
                     </td>
                   </tr>
@@ -322,20 +318,8 @@ export default function TabKolom({
                           aria-label={`Tampilkan ${f.label}`}
                         />
                       </td>
-                      <td className="max-w-44 truncate px-2 py-1" title={f.label}>
+                      <td className="truncate px-2 py-1" title={f.label}>
                         {f.label}
-                      </td>
-                      <td className="px-2 py-1">
-                        <Input
-                          id={`input_label_${tableKey}_${f.key}`}
-                          value={labelKustom[f.key] ?? ''}
-                          disabled={!aktif}
-                          onChange={(e) => setLabelKustom((prev) => ({ ...prev, [f.key]: e.target.value }))}
-                          maxLength={60}
-                          placeholder={`Bawaan: ${f.label}`}
-                          aria-label={`Nama header kustom untuk ${f.label}`}
-                          className="h-6 text-xs"
-                        />
                       </td>
                     </tr>
                   );

@@ -15,6 +15,12 @@ export interface ExcelField {
   /** text/select bisa diedit saat mode Edit aktif; static selalu baca-saja;
    *  toggle = switch ON/OFF yang langsung tersimpan (nilai 'ya'/'tidak'). */
   kind: 'text' | 'select' | 'static' | 'toggle';
+  /** Toggle yang hidup tanpa Mode Edit (tetap tersimpan langsung);
+   *  mis. kolom is_active referensi yang dikelola lewat aksi baris. */
+  toggleTanpaEdit?: boolean;
+  /** Boleh toggle per baris (id grid) — mis. baris global butuh konteks
+   *  lembaga. Null/absen = semua boleh (selain baris input). */
+  bolehToggle?: (id: string | number) => boolean;
   choices?: ExcelChoice[];
   maxLength?: number;
   /** Kembalikan pesan galat bila nilai tidak valid, atau null bila OK. */

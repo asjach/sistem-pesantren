@@ -363,7 +363,6 @@ export default function RiwayatBelajarPage() {
               searchValue={kiri.search}
               onSearchChange={kiri.onSearchChange}
               searchIds={{ form: 'form_cari_belum_riwayat', input: 'input_cari_belum_riwayat', button: 'btn_cari_belum_riwayat' }}
-              presetKolomClassName="w-28"
               key={`riwayat_belum_masuk_${nonceKiri}`}
               onCheckedChange={setCentangKiri}
               awalanToolbar={(
@@ -427,7 +426,6 @@ export default function RiwayatBelajarPage() {
               searchValue={kanan.search}
               onSearchChange={kanan.onSearchChange}
               searchIds={{ form: 'form_cari_riwayat_belajar', input: 'input_cari_riwayat_belajar', button: 'btn_cari_riwayat_belajar' }}
-              presetKolomClassName="w-28"
               key={`riwayat_belajar_${nonceKanan}`}
               onCheckedChange={setCentangKanan}
               filter={(

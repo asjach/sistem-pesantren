@@ -46,7 +46,7 @@ export default function PresetUrut({
   arahUrut?: 'naik' | 'turun';
   onUrut?: (nilai: string[], arah: 'naik' | 'turun') => void;
   apiRef?: MutableRefObject<PresetKolomApi | null>;
-  /** Lebar trigger dropdown (px) dari tab Kontrol; kosong = `w-44` bawaan. */
+  /** Lebar trigger dropdown (px) dari tab Kontrol; kosong = 100 bawaan. */
   lebarTrigger?: number;
 }) {
   const [data, setData] = useState<PresetUrutData | null>(null);
@@ -111,7 +111,7 @@ export default function PresetUrut({
   return (
     <>
       <span className="flex items-end gap-1.5">
-        <FilterField label="Urutkan" htmlFor={`select_urut_${tableKey}`}>
+        <FilterField label="Urutkan" htmlFor={`select_urut_${tableKey}`} kelolaLebar={false}>
           <Select
             value={nilaiSelect || undefined}
             onValueChange={pilihNilai}
@@ -119,8 +119,7 @@ export default function PresetUrut({
           >
             <SelectTrigger
               id={`select_urut_${tableKey}`}
-              className="w-44"
-              style={lebarTrigger !== undefined ? { width: `${lebarTrigger}px` } : undefined}
+              style={{ width: `${lebarTrigger ?? 100}px` }}
             >
               <SelectValue placeholder="Urutkan…" />
             </SelectTrigger>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { errorMessage } from '@/api/client';
 import {
   hapusToolbarPreset,
@@ -11,7 +11,8 @@ import { DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
-import { EVENT_TOOLBAR_BERUBAH, KONTROL_TOOLBAR, LEBAR_BAWAHAN_TOOLBAR, bacaLebarToolbar, bacaVisToolbar, type KontrolLebar, type VisToolbar, type LebarToolbar } from './jenis';
+import { EVENT_TOOLBAR_BERUBAH, KONTROL_TOOLBAR, LEBAR_BAWAHAN_TOOLBAR, bacaLebarFilter, bacaLebarToolbar, bacaVisToolbar, type KontrolLebar, type VisToolbar, type LebarToolbar } from './jenis';
+import { daftarFilter, kunciFilterBawaan } from '@/components/excel/lebarFilter';
 
 /** Tab Kontrol dialog Kelola tabel: tampil/sembunyikan kontrol toolbar
  *  generik per tabel — GLOBAL untuk seluruh lembaga, khusus super_admin.
@@ -23,6 +24,10 @@ export default function TabKontrol({ tableKey, onTutup }: { tableKey: string; on
   const [vis, setVis] = useState<VisToolbar>({ cari: true, info: true, urut: true, kolom: true, filter: true });
   /** Lebar kontrol (px); nilai awal = bawaan meski belum ada preset tersimpan. */
   const [lebar, setLebar] = useState<LebarToolbar>({ ...LEBAR_BAWAHAN_TOOLBAR });
+  /** Lebar filter halaman tersimpan (kunci → px), untuk daftar + gabung simpan. */
+  const [lebarFilterSimpan, setLebarFilterSimpan] = useState<Record<string, number>>({});
+  /** Isian lebar filter (string; kosong = hapus override → bawaan halaman). */
+  const [filterW, setFilterW] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
 
   const muat = useCallback(async () => {
@@ -30,11 +35,28 @@ export default function TabKontrol({ tableKey, onTutup }: { tableKey: string; on
       const res = await muatToolbarPreset(tableKey);
       setVis(bacaVisToolbar(res.data.visibilitas));
       setLebar(bacaLebarToolbar(res.data.lebar));
+      const tersimpan = bacaLebarFilter(res.data.lebar);
+      setLebarFilterSimpan(tersimpan);
+      setFilterW(Object.fromEntries(Object.entries(tersimpan).map(([k, v]) => [k, String(v)])));
     } catch {
       setVis({ cari: true, info: true, urut: true, kolom: true, filter: true });
       setLebar({ ...LEBAR_BAWAHAN_TOOLBAR });
+      setLebarFilterSimpan({});
+      setFilterW({});
     }
   }, [tableKey]);
+
+  /** Filter halaman tabel ini: terdaftar dari FilterField + kunci tersimpan.
+   *  Kunci bawaan toolbar (Urutkan/Kolom) selalu dilewati — pertahanan lapis
+   *  kedua bila ada sisa setelan lama tersimpan. */
+  const daftar = useMemo(() => {
+    const gabung = new Map(daftarFilter(tableKey).map((f) => [f.kunci, f]));
+    for (const kunci of Object.keys(lebarFilterSimpan)) {
+      if (kunciFilterBawaan(kunci)) continue;
+      if (!gabung.has(kunci)) gabung.set(kunci, { kunci, label: kunci.replace(/_/g, ' ') });
+    }
+    return [...gabung.values()].filter((f) => !kunciFilterBawaan(f.kunci));
+  }, [tableKey, lebarFilterSimpan]);
 
   useEffect(() => {
     void muat();
@@ -59,12 +81,23 @@ export default function TabKontrol({ tableKey, onTutup }: { tableKey: string; on
     if (!bolehUbah) return;
     setBusy(true);
     try {
-      const res = await simpanToolbarPreset(tableKey, { ...vis }, {
+      const lebarKirim: Record<string, number> = {
         cari: jepit(lebar.cari),
         urut: jepit(lebar.urut),
         kolom: jepit(lebar.kolom),
-      });
+      };
+      const bersihFilter: Record<string, string> = {};
+      for (const [k, s] of Object.entries(filterW)) {
+        if (s.trim() === '') continue;
+        const n = parseInt(s, 10);
+        if (Number.isNaN(n)) continue;
+        lebarKirim[`filter.${k}`] = jepit(n);
+        bersihFilter[k] = String(jepit(n));
+      }
+      const res = await simpanToolbarPreset(tableKey, { ...vis }, lebarKirim);
       setLebar((v) => ({ cari: jepit(v.cari), urut: jepit(v.urut), kolom: jepit(v.kolom) }));
+      setFilterW(bersihFilter);
+      await muat();
       toast.success(res.pesan);
       kabariBerubah();
     } catch (e) {
@@ -81,6 +114,8 @@ export default function TabKontrol({ tableKey, onTutup }: { tableKey: string; on
       const res = await hapusToolbarPreset(tableKey);
       setVis({ cari: true, info: true, urut: true, kolom: true, filter: true });
       setLebar({ ...LEBAR_BAWAHAN_TOOLBAR });
+      setLebarFilterSimpan({});
+      setFilterW({});
       toast.success(res.pesan);
       kabariBerubah();
     } catch (e) {
@@ -92,11 +127,6 @@ export default function TabKontrol({ tableKey, onTutup }: { tableKey: string; on
 
   return (
     <div className="flex min-h-0 flex-col gap-3">
-      <p className="text-xs text-muted-foreground">
-        Kontrol toolbar generik tabel ini — global untuk seluruh lembaga, khusus super_admin.
-        Kontrol yang dimatikan disembunyikan (bukan dihapus). Tombol aksi dan aksi bulk
-        tidak termasuk di sini karena alur halaman bergantung padanya.
-      </p>
       <p className="rounded-md border border-amber-500/40 px-3 py-2 text-xs text-amber-600 dark:text-amber-400">
         Awas: menyembunyikan “Filter halaman” dapat mengunci alur yang bergantung padanya
         (mis. pilihan kelas tujuan di Riwayat Belajar).
@@ -145,6 +175,55 @@ export default function TabKontrol({ tableKey, onTutup }: { tableKey: string; on
           </label>
         ))}
       </div>
+
+      {daftar.length > 0 ? (
+        <>
+          <p className="text-sm font-medium">Lebar filter halaman</p>
+          <div className="flex flex-col gap-1 overflow-auto rounded-md border p-1">
+            {daftar.map(({ kunci, label, bawaanPx }) => (
+              <div
+                key={kunci}
+                className="flex items-center gap-3 rounded-md px-2 py-1.5 hover:bg-accent/40"
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm" title={label}>{label}</span>
+                  <span className="block truncate text-xs text-muted-foreground" title={kunci}>{kunci}</span>
+                </span>
+                <span className="flex shrink-0 items-center gap-1">
+                  <Input
+                    id={`input_lebar_filter_${tableKey}_${kunci}`}
+                    type="number"
+                    min={40}
+                    max={480}
+                    step={4}
+                    value={filterW[kunci] ?? (bawaanPx !== undefined ? String(bawaanPx) : '')}
+                    placeholder={bawaanPx === undefined ? 'otomatis' : undefined}
+                    disabled={!bolehUbah || busy}
+                    onChange={(e) => setFilterW((v) => ({ ...v, [kunci]: e.target.value }))}
+                    onBlur={(e) => {
+                      const s = e.target.value.trim();
+                      if (s === '') {
+                        setFilterW((v) => {
+                          const next = { ...v };
+                          delete next[kunci];
+                          return next;
+                        });
+                        return;
+                      }
+                      const n = parseInt(s, 10);
+                      if (!Number.isNaN(n)) setFilterW((v) => ({ ...v, [kunci]: String(jepit(n)) }));
+                    }}
+                    aria-label={`Lebar filter ${label} (px)`}
+                    title={`Lebar filter ${label} dalam px (40–480); kosongkan untuk bawaan halaman`}
+                    className="h-7 w-20 text-right text-xs"
+                  />
+                  <span className="text-xs text-muted-foreground">px</span>
+                </span>
+              </div>
+            ))}
+          </div>
+        </>
+      ) : null}
 
       <DialogFooter className="mt-auto gap-2 sm:justify-between">
         <Button

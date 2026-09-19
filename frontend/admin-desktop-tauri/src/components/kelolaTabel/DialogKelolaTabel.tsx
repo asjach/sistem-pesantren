@@ -4,7 +4,6 @@ import { useLembagaAktif } from '@/lembagaAktif';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -30,16 +29,19 @@ export interface DialogKelolaTabelProps {
   /** Buka tab kolom dengan semua kolom terpilih (entri "Lengkap"). */
   mulaiLengkap: boolean;
   onPilihLengkap: () => void;
+  /** Id preset bawaan tabel (null = Lengkap); togol via tombol pin di TabKolom. */
+  bawaanId: number | null;
+  onTogolBawaan: (preset: PresetTabel) => void;
   onPilihPreset: TabKolomProps['onPilihPreset'];
   onTersimpan: TabKolomProps['onTersimpan'];
   onPakaiLengkap: TabKolomProps['onPakaiLengkap'];
   onDihapus: TabKolomProps['onDihapus'];
 }
 
-const TAB_META: { kunci: TabKelola; label: string; ket: string; superSaja?: boolean }[] = [
-  { kunci: 'kolom', label: 'Kolom', ket: 'Preset kolom tampil untuk tabel ini (global, semua lembaga).' },
-  { kunci: 'urutan', label: 'Urutan', ket: 'Opsi dropdown Urutkan (global, semua lembaga).' },
-  { kunci: 'kontrol', label: 'Kontrol', ket: 'Kontrol toolbar yang tampil (global, super_admin).', superSaja: true },
+const TAB_META: { kunci: TabKelola; label: string; superSaja?: boolean }[] = [
+  { kunci: 'kolom', label: 'Kolom' },
+  { kunci: 'urutan', label: 'Urutan' },
+  { kunci: 'kontrol', label: 'Kontrol', superSaja: true },
 ];
 
 /** Satu pintu kelola tampilan tabel: preset kolom, preset urutan, dan
@@ -56,6 +58,8 @@ export default function DialogKelolaTabel({
   presetAwal,
   mulaiLengkap,
   onPilihLengkap,
+  bawaanId,
+  onTogolBawaan,
   onPilihPreset,
   onTersimpan,
   onPakaiLengkap,
@@ -68,7 +72,6 @@ export default function DialogKelolaTabel({
   // dibuka super_admin; lapis pertahanan kedua).
   const tabs = TAB_META.filter((t) => !t.superSaja || superAdmin);
   const [tab, setTab] = useState<TabKelola>(tabs.some((t) => t.kunci === tabAwal) ? tabAwal : 'kolom');
-  const meta = tabs.find((t) => t.kunci === tab) ?? tabs[0];
   const tutup = () => onOpenChange(false);
 
   return (
@@ -81,7 +84,6 @@ export default function DialogKelolaTabel({
       >
         <DialogHeader>
           <DialogTitle>Kelola tabel</DialogTitle>
-          <DialogDescription>{meta.ket}</DialogDescription>
         </DialogHeader>
 
         <div className="flex gap-1 border-b pb-2" role="tablist" aria-label="Kelola tabel">
@@ -113,6 +115,8 @@ export default function DialogKelolaTabel({
             presetAwal={presetAwal}
             mulaiLengkap={mulaiLengkap}
             onPilihLengkap={onPilihLengkap}
+            bawaanId={bawaanId}
+            onTogolBawaan={onTogolBawaan}
             onPilihPreset={onPilihPreset}
             onTersimpan={onTersimpan}
             onPakaiLengkap={onPakaiLengkap}

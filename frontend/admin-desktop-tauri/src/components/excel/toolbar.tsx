@@ -42,8 +42,10 @@ export interface ToolbarTabelProps<T extends { id: string | number }> {
   lebarKolomDb?: number;
 }
 
-/** Bilah kontrol tabel: cari + filter (kiri), info seleksi/bulk, lalu kontrol
- *  kanan (Urutkan dari Preset Urut, Preset kolom, aksi utama halaman). */
+/** Bilah kontrol tabel 5 zona: kiri 1 filter halaman, kiri 2 bulk + info +
+ *  kustom, tengah search 100px tetap, kanan 1 urut + kolom, kanan 2 kustom +
+ *  tombol aksi halaman. Sisi kiri/kanan berbagi sisa ruang sama besar
+ *  sehingga search selalu di tengah. */
 export default function ToolbarTabel<T extends { id: string | number }>({
   tableKey,
   showToolbar,
@@ -89,17 +91,35 @@ export default function ToolbarTabel<T extends { id: string | number }>({
         e.preventDefault();
         presetApiRef.current.bukaKelola('kolom');
       }}
-      className={cn('flex flex-nowrap items-end gap-2', showToolbar || addButton || !hidePreset ? 'mb-3' : 'mb-0')}
+      className={cn('flex flex-wrap items-end gap-x-2 gap-y-2', showToolbar || addButton || !hidePreset ? 'mb-3' : 'mb-0')}
     >
-      {/* Zona kiri: kontrol khusus halaman + filter. */}
-      <div className="flex flex-1 flex-nowrap items-end gap-1.5 [&>*]:shrink-0">
-        {awalanToolbar}
+      {/* Super-zona kiri: area 1 + 2 membungkus sebagai blok bila sempit. */}
+      <div className="flex min-w-0 flex-1 flex-wrap items-end gap-x-2 gap-y-2">
+      {/* Kiri 1: kelompok filter halaman. */}
+      <div className="flex flex-nowrap items-end gap-1.5 [&>*]:shrink-0">
         {filterTampil && filter}
       </div>
 
-      {/* Zona tengah: kotak cari real-time (tanpa tombol submit). Zona kiri &
-          kanan sama-sama `flex-1` sehingga kotak cari berada di tengah toolbar
-          pada semua tabel. */}
+      {/* Kiri 2: bulk action + info seleksi + kontrol kustom halaman. */}
+      <div className="flex flex-nowrap items-end gap-1.5 [&>*]:shrink-0">
+        {checkedRows.length > 0 && renderBulkActions ? (
+          <div className="flex flex-nowrap items-center gap-1.5 [&>*]:shrink-0">
+            {renderBulkActions(checkedRows, clearSelection)}
+          </div>
+        ) : null}
+        {infoTampil && (
+        <span
+          id={`grid_info_${tableKey}`}
+          className={`text-xs text-muted-foreground${checkedCount > 0 ? '' : ' hidden'}`}
+        >
+          {checkedCount} baris dipilih
+        </span>
+        )}
+        {awalanToolbar}
+      </div>
+      </div>
+
+      {/* Tengah: kotak cari real-time 100px tetap (tanpa tombol submit). */}
       {cariTampil && (
         <form
           id={formId}
@@ -115,7 +135,7 @@ export default function ToolbarTabel<T extends { id: string | number }>({
               placeholder={searchPlaceholder ?? 'Cari'}
               value={searchValue}
               onChange={(e) => onSearchChange?.(e.target.value)}
-              className="w-35 pr-7"
+              className="pr-7"
               style={{ width: `${lebarToolbar.cari}px` }}
             />
             {searchValue ? (
@@ -134,23 +154,10 @@ export default function ToolbarTabel<T extends { id: string | number }>({
         </form>
       )}
 
-      {/* Zona kanan: info seleksi, bulk, kontrol tabel, aksi halaman. */}
-      <div className="flex flex-1 flex-nowrap items-end justify-end gap-2 [&>*]:shrink-0">
-        {infoTampil && (
-        <span
-          id={`grid_info_${tableKey}`}
-          className={`text-xs text-muted-foreground${checkedCount > 0 ? '' : ' hidden'}`}
-        >
-          {checkedCount} baris dipilih
-        </span>
-        )}
-        {checkedRows.length > 0 && renderBulkActions ? (
-          <div className="flex flex-nowrap items-center gap-1.5 [&>*]:shrink-0">
-            {renderBulkActions(checkedRows, clearSelection)}
-          </div>
-        ) : null}
-        {/* Urutan tabel: dropdown dari Preset Urut (DB, per tabel) + tombol
-            arah. Kelola opsi lewat item "Kelola urutan…" di dropdown. */}
+      {/* Super-zona kanan: area 1 + 2 membungkus sebagai blok bila sempit. */}
+      <div className="flex min-w-0 flex-1 flex-wrap items-end justify-end gap-x-2 gap-y-2">
+      {/* Kanan 1: dropdown Urutkan + dropdown Kolom. */}
+      <div className="flex flex-nowrap items-end gap-2 [&>*]:shrink-0">
         {urutTampil && (
           <PresetUrut tableKey={tableKey} urutAktif={urutAktif} arahUrut={arahUrut} onUrut={onUrut} apiRef={presetApiRef} lebarTrigger={lebarToolbar.urut} />
         )}
@@ -161,10 +168,14 @@ export default function ToolbarTabel<T extends { id: string | number }>({
         {kolomTampil && (
           <PresetKolom tableKey={tableKey} fields={fields} onApply={terapkanPreset} apiRef={presetApiRef} triggerClassName={presetKolomClassName} lebarTrigger={lebarKolomDb} />
         )}
+      </div>
 
+      {/* Kanan 2: kontrol kustom + tombol aksi utama halaman. */}
+      <div className="flex flex-nowrap items-end justify-end gap-2 [&>*]:shrink-0">
+        {akhirToolbar}
         {/* Tombol aksi utama halaman, sejajar dengan kontrol tabel. */}
         {addButton && <div className="flex items-center gap-2">{addButton}</div>}
-        {akhirToolbar}
+      </div>
       </div>
     </div>
   );

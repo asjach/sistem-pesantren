@@ -18,7 +18,8 @@ import { useStandarTampilan } from '@/standarTampilan';
 import { useAuth } from '@/auth/AuthContext';
 import { type PresetKolomApi } from '@/components/PresetKolom';
 import { muatToolbarPreset } from '@/api/toolbarPreset';
-import { EVENT_TOOLBAR_BERUBAH, LEBAR_BAWAHAN_TOOLBAR, bacaLebarToolbar, bacaVisToolbar, type LebarToolbar, type VisToolbar } from '@/components/kelolaTabel/jenis';
+import { EVENT_TOOLBAR_BERUBAH, LEBAR_BAWAHAN_TOOLBAR, bacaLebarFilter, bacaLebarToolbar, bacaVisToolbar, type LebarToolbar, type VisToolbar } from '@/components/kelolaTabel/jenis';
+import { KonteksLebarFilter } from './excel/lebarFilter';
 import { useKamusPeta } from '@/components/useKamusPeta';
 import { type KamusKolomAttr } from '@/api/kamusLabel';
 import { useRibbonTable } from '@/components/RibbonTable';
@@ -266,6 +267,9 @@ export default function ExcelTable<T extends { id: string | number }>({
   const [lebarToolbar, setLebarToolbar] = useState<LebarToolbar>({ ...LEBAR_BAWAHAN_TOOLBAR });
   /** Lebar kolom tersimpan di DB (undefined = pakai presetKolomClassName halaman). */
   const [lebarKolomDb, setLebarKolomDb] = useState<number | undefined>(undefined);
+  /** Lebar filter halaman tersimpan (kunci → px); absen = bawaan halaman. */
+  const [lebarFilter, setLebarFilter] = useState<Record<string, number>>({});
+  const konteksLebarFilter = useMemo(() => ({ tableKey, lebar: lebarFilter }), [tableKey, lebarFilter]);
   useEffect(() => {
     let batal = false;
     const muat = async () => {
@@ -274,12 +278,14 @@ export default function ExcelTable<T extends { id: string | number }>({
         if (batal) return;
         setVisToolbar(bacaVisToolbar(res.data.visibilitas));
         setLebarToolbar(bacaLebarToolbar(res.data.lebar));
+        setLebarFilter(bacaLebarFilter(res.data.lebar));
         const tersimpan = res.data.lebar?.kolom;
         setLebarKolomDb(typeof tersimpan === 'number' && tersimpan >= 40 && tersimpan <= 480 ? tersimpan : undefined);
       } catch {
         if (batal) return;
         setVisToolbar({ cari: true, info: true, urut: true, kolom: true, filter: true });
         setLebarToolbar({ ...LEBAR_BAWAHAN_TOOLBAR });
+        setLebarFilter({});
         setLebarKolomDb(undefined);
       }
     };
@@ -1346,11 +1352,13 @@ export default function ExcelTable<T extends { id: string | number }>({
         cols.push({
           ...common,
           component: ToggleCell,
-          columnData: { fieldKey: f.key, label: f.label, bisaEdit: canEdit },
+          columnData: { fieldKey: f.key, label: f.label, bisaEdit: canEdit || !!f.toggleTanpaEdit },
           disableKeys: true,
           keepFocus: false,
           disabled: ({ rowData }: { rowData: GridRow }) =>
-            !canEdit || String(rowData.id) === INPUT_ROW_ID,
+            (!canEdit && !f.toggleTanpaEdit)
+            || String(rowData.id) === INPUT_ROW_ID
+            || (f.bolehToggle != null && !f.bolehToggle(rowData.id)),
           deleteValue: ({ rowData }) => ({ ...rowData, [f.key]: 'tidak' }) as GridRow,
           copyValue: ({ rowData }) => (rowData[f.key] === 'ya' ? 'ya' : 'tidak'),
           pasteValue: ({ rowData, value }: { rowData: GridRow; value: string }) =>
@@ -1551,7 +1559,9 @@ export default function ExcelTable<T extends { id: string | number }>({
     const box = sel.querySelector<HTMLInputElement>('input.dsg-checkbox, input.simpes-dsg-checkall');
     if (!box || box.disabled) return;
     if (box.classList.contains('simpes-dsg-checkall')) {
-      box.click();
+      // Header pilih-semua: biarkan onChange alaminya yang bekerja. Klik
+      // sintetis di sini justru men-toggle balik (true→false) sebelum change
+      // terbaca, sehingga check/uncheck-all tampak tidak berfungsi.
       return;
     }
     const rowId = box.dataset.rowId;
@@ -1780,7 +1790,7 @@ export default function ExcelTable<T extends { id: string | number }>({
   const hasUrut = !!onUrut;
   const cariEfektif = visToolbar.cari && hasSearchInput;
   const filterEfektif = visToolbar.filter && hasFilter;
-  const showToolbar = cariEfektif || filterEfektif || hasUrut || awalanToolbar !== undefined || akhirToolbar !== undefined;
+  const showToolbar = cariEfektif || filterEfektif || hasUrut || awalanToolbar !== undefined || akhirToolbar !== undefined || checkedRows.length > 0;
   const formId = searchIds?.form ?? `form_cari_${tableKey}`;
   const inputId = searchIds?.input ?? `input_cari_${tableKey}`;
 
@@ -1802,6 +1812,7 @@ export default function ExcelTable<T extends { id: string | number }>({
 
   return (
     <div className={cn('mt-2 flex flex-col', maxRows === undefined ? 'min-h-0 flex-1' : 'shrink-0')}>
+      <KonteksLebarFilter.Provider value={konteksLebarFilter}>
       <ToolbarTabel
         tableKey={tableKey}
         showToolbar={showToolbar}
@@ -1832,6 +1843,7 @@ export default function ExcelTable<T extends { id: string | number }>({
         lebarToolbar={lebarToolbar}
         lebarKolomDb={lebarKolomDb}
       />
+      </KonteksLebarFilter.Provider>
 
       <div
         ref={wrapRef}
