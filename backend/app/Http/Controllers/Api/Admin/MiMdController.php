@@ -9,6 +9,7 @@ use App\Models\Lembaga;
 use App\Models\LembagaSantri;
 use App\Models\RiwayatBelajar;
 use App\Models\Santri;
+use App\Models\TahunAjaran;
 use App\Services\PenerimaanService;
 use App\Services\SiklusSantriService;
 use Illuminate\Http\JsonResponse;
@@ -169,9 +170,10 @@ class MiMdController extends Controller
                 $acuanId = $keMi ? $mdId : $miId;
                 $tujuanId = $keMi ? $miId : $mdId;
 
-                // Tenant tulis normal per sisi + pengecualian pasangan.
-                if (! $auth->canAccessLembaga($tujuanId)
-                    || (! $auth->canAccessLembaga($acuanId) && ! $auth->canAccessLembaga($tujuanId))) {
+                // Samakan kelas: pemegang salah satu pihak pasangan boleh
+                // (cerminan daftarkan/hapus-md; tanpa pivot silang).
+                $sepihak = $auth->canAccessLembaga($miId) || $auth->canAccessLembaga($mdId);
+                if (! $sepihak || Lembaga::pasanganId($miId) !== $mdId) {
                     throw ValidationException::withMessages([
                         'santri_id' => 'Akses ditolak.',
                     ]);
@@ -196,9 +198,34 @@ class MiMdController extends Controller
                     ->latest('id')
                     ->first();
                 if (! $tujuan) {
-                    throw ValidationException::withMessages([
-                        'santri_id' => 'Tidak ada riwayat aktif di sisi tujuan.',
+                    // Sisi tujuan belum punya riwayat: buatkan (kelas senama
+                    // acuan), bukan gagal. TA mengikuti acuan bila berlaku di
+                    // sisi tujuan, else TA aktif sisi tujuan.
+                    $taTujuan = TahunAjaran::efektif($tujuanId)->contains('id', $acuan->tahun_ajaran_id)
+                        ? $acuan->tahun_ajaran_id
+                        : TahunAjaran::aktif($tujuanId)?->id;
+                    if ($taTujuan === null) {
+                        throw ValidationException::withMessages([
+                            'santri_id' => 'Tidak ada tahun ajaran aktif di sisi tujuan.',
+                        ]);
+                    }
+                    $namaNormal = mb_strtolower(preg_replace('/\s+/u', ' ', trim($namaAcuan)) ?? $namaAcuan);
+                    $kelasTujuan = Kelas::where('lembaga_id', $tujuanId)
+                        ->where('tahun_ajaran_id', $taTujuan)
+                        ->whereRaw('LOWER(nama_kelas) = ?', [$namaNormal])
+                        ->first();
+                    if (! $kelasTujuan) {
+                        throw ValidationException::withMessages([
+                            'santri_id' => "Kelas \"{$namaAcuan}\" tidak ada di sisi tujuan.",
+                        ]);
+                    }
+                    $this->penerimaanService->terima($santri, $tujuanId, $taTujuan, [
+                        'kelas_id' => $kelasTujuan->id,
+                        'tgl_masuk' => now()->format('Y-m-d'),
                     ]);
+                    $berhasil++;
+
+                    continue;
                 }
 
                 // Kelas senama di lembaga + TA berjalan sisi tujuan.
@@ -252,9 +279,13 @@ class MiMdController extends Controller
             try {
                 $santri = Santri::findOrFail((int) $item['santri_id']);
 
-                // Tulis ke MD; baca MI via pengecualian pasangan.
-                if (! $auth->canAccessLembaga($mdId)
-                    || (! $auth->canAccessLembaga($miId) && ! $auth->canAccessLembaga($mdId))) {
+                // Tulis ke MD; baca MI via pengecualian pasangan. Pemegang salah
+                // satu pihak boleh menulis ke pasangannya (tanpa pivot silang).
+                $punyaMi = $auth->canAccessLembaga($miId);
+                $punyaMd = $auth->canAccessLembaga($mdId);
+                $sepihak = $punyaMi || $punyaMd;
+                $berpasangan = Lembaga::pasanganId($miId) === $mdId;
+                if (! $sepihak || ! $berpasangan) {
                     throw ValidationException::withMessages(['santri_id' => 'Akses ditolak.']);
                 }
 
@@ -311,8 +342,10 @@ class MiMdController extends Controller
             try {
                 $santri = Santri::findOrFail((int) $item['santri_id']);
 
-                if (! $auth->canAccessLembaga($mdId)
-                    || (! $auth->canAccessLembaga($miId) && ! $auth->canAccessLembaga($mdId))) {
+                // Hapus jejak MD: pemegang salah satu pihak pasangan boleh
+                // (cerminan daftarkan-md; tanpa pivot silang).
+                $sepihak = $auth->canAccessLembaga($miId) || $auth->canAccessLembaga($mdId);
+                if (! $sepihak || Lembaga::pasanganId($miId) !== $mdId) {
                     throw ValidationException::withMessages(['santri_id' => 'Akses ditolak.']);
                 }
 

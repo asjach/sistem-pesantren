@@ -142,7 +142,11 @@ class RiwayatBelajarImport implements SkipsOnFailure, SkipsUnknownSheets, ToColl
 
         $noAbsen = isset($row['no_absen']) && $row['no_absen'] !== '' ? (int) $row['no_absen'] : null;
         $tglMasuk = Tanggal::parse($row['tgl_masuk'] ?? null);
+        // Tingkat kosong mewarisi kelas (bila kelas terisi).
         $tingkat = trim((string) ($row['tingkat'] ?? '')) ?: null;
+        if ($tingkat === null && $kelasId !== null) {
+            $tingkat = Kelas::whereKey($kelasId)->value('tingkat') ?: null;
+        }
 
         $kunci = [
             'santri_id' => $santri->id,

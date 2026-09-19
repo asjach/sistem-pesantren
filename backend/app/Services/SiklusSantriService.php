@@ -184,7 +184,12 @@ class SiklusSantriService
             if ($riwayat->tingkat && $kelas->tingkat && $riwayat->tingkat !== $kelas->tingkat) {
                 abort(422, 'Tingkat kelas tidak cocok.');
             }
-            $riwayat->update(['kelas_id' => $kelas->id]);
+            // Tingkat kosong mewarisi kelas tujuan.
+            $upd = ['kelas_id' => $kelas->id];
+            if (empty($riwayat->tingkat) && ! empty($kelas->tingkat)) {
+                $upd['tingkat'] = $kelas->tingkat;
+            }
+            $riwayat->update($upd);
 
             return $riwayat->fresh();
         });

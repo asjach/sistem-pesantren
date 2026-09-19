@@ -402,4 +402,40 @@ class RiwayatBelajarFlowTest extends TestCase
         $this->assertFalse((bool) $riwayat->is_aktif);
         $this->assertFalse((bool) $santri->fresh()->status_global);
     }
+
+    public function test_12_tingkat_mewarisi_kelas(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeUser();
+
+        // Terima tanpa tingkat eksplisit → warisi kelas.tingkat.
+        $s = $this->makeSantri('Waris Tingkat', '1101010000000210');
+        $res = $this->actingAs($admin, 'sanctum')->postJson('/api/admin/riwayat-belajar', [
+            'santri_id' => $s->id, 'lembaga_id' => $f['mi']->id,
+            'tahun_ajaran_id' => $f['taMi']->id, 'kelas_id' => $f['kelasMi']->id,
+        ])->assertStatus(201);
+        $this->assertSame('1', $res->json('data.tingkat'));
+
+        // Set kelas menyusul pada riwayat tanpa tingkat → warisi juga.
+        $s2 = $this->makeSantri('Waris Susul', '1101010000000211');
+        $r2 = $this->actingAs($admin, 'sanctum')->postJson('/api/admin/riwayat-belajar', [
+            'santri_id' => $s2->id, 'lembaga_id' => $f['mi']->id,
+            'tahun_ajaran_id' => $f['taMi']->id,
+        ])->assertStatus(201)->json('data');
+        $this->assertNull($r2['tingkat']);
+        $set = $this->actingAs($admin, 'sanctum')->postJson(
+            "/api/admin/riwayat-belajar/{$r2['id']}/set-kelas", ['kelas_id' => $f['kelasMi']->id]
+        )->assertStatus(200);
+        $this->assertSame('1', $set->json('data.tingkat') ?? $set->json('tingkat'));
+
+        // Tingkat eksplisit yang bentrok tetap ditolak (bukan ditimpa).
+        $s3 = $this->makeSantri('Tolak Bentrok', '1101010000000212');
+        $r3 = $this->actingAs($admin, 'sanctum')->postJson('/api/admin/riwayat-belajar', [
+            'santri_id' => $s3->id, 'lembaga_id' => $f['mi']->id,
+            'tahun_ajaran_id' => $f['taMi']->id, 'tingkat' => '2',
+        ])->assertStatus(201)->json('data');
+        $this->actingAs($admin, 'sanctum')->postJson(
+            "/api/admin/riwayat-belajar/{$r3['id']}/set-kelas", ['kelas_id' => $f['kelasMi']->id]
+        )->assertStatus(422);
+    }
 }

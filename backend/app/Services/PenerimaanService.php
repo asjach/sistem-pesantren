@@ -157,6 +157,7 @@ class PenerimaanService
             }
 
             $kelasId = ! empty($data['kelas_id']) ? (int) $data['kelas_id'] : null;
+            $kelas = null;
             if ($kelasId !== null) {
                 $kelas = Kelas::find($kelasId);
                 if (! $kelas || (int) $kelas->lembaga_id !== $lembagaId) {
@@ -200,7 +201,8 @@ class PenerimaanService
                 'semester' => '1',
                 'tgl_masuk' => $data['tgl_masuk'] ?? null,
                 'no_absen' => $noAbsen,
-                'tingkat' => $data['tingkat'] ?? null,
+                // Tingkat mewarisi kelas bila tak diisi eksplisit.
+                'tingkat' => $data['tingkat'] ?? $kelas?->tingkat,
                 'status_awal' => $statusAwal,
                 'status_akhir' => 'aktif',
                 'is_aktif' => true,
