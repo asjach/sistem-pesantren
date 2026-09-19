@@ -14,6 +14,7 @@ use App\Services\PenerimaanService;
 use App\Services\UrutKatalog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Keanggotaan santri per lembaga (`lembaga_santri`) — panel Buku Induk:
@@ -167,5 +168,59 @@ class LembagaSantriController extends Controller
             'pesan' => 'NIS Kemenag digenerate.',
             'data' => $hasil,
         ], 201);
+    }
+
+    /** POST /api/admin/lembaga-santri/generate-nisk-bulk — generate untuk semua
+     *  baris cocok filter halaman. Dilewati: sudah ada NISK, NIS lokal kosong,
+     *  dan lembaga MD. Kegagalan per baris dikumpulkan (maks 20) tanpa
+     *  menggagalkan yang lain. */
+    public function generateNiskBulk(Request $request, NisKemenagService $service): JsonResponse
+    {
+        $auth = $request->user();
+
+        $query = $this->scopeLembaga(LembagaSantri::query(), $auth, $request);
+        if ($request->filled('lembaga_id')) {
+            $query->where('lembaga_santri.lembaga_id', $request->integer('lembaga_id'));
+        }
+        if ($request->has('is_active')) {
+            $query->where('lembaga_santri.is_active', $request->boolean('is_active'));
+        }
+        if ($request->filled('search')) {
+            $s = $request->input('search');
+            $query->where(function ($q) use ($s) {
+                $q->whereHas('santri', fn ($qq) => $qq->where('nama_lengkap', 'like', "%{$s}%"))
+                    ->orWhere('lembaga_santri.nis_lokal', 'like', "%{$s}%")
+                    ->orWhere('lembaga_santri.nis_kemenag', 'like', "%{$s}%");
+            });
+        }
+        $query->whereNull('lembaga_santri.nis_kemenag')
+            ->whereNotNull('lembaga_santri.nis_lokal')
+            ->whereHas('lembaga', fn ($q) => $q->where('kode', '!=', 'MD'));
+
+        $berhasil = 0;
+        $dilewati = 0;
+        $gagal = [];
+        // Baris sudah dibatasi scopeLembaga ke lembaga yang boleh diakses user.
+        $query->chunkById(200, function ($rows) use ($service, &$berhasil, &$dilewati, &$gagal) {
+            foreach ($rows as $row) {
+                try {
+                    $service->generate($row);
+                    $berhasil++;
+                } catch (ValidationException $e) {
+                    $dilewati++;
+                    if (count($gagal) < 20) {
+                        $gagal[] = [
+                            'id' => $row->id,
+                            'pesan' => collect($e->errors())->flatten()->first(),
+                        ];
+                    }
+                }
+            }
+        });
+
+        return response()->json([
+            'pesan' => "NISK digenerate: {$berhasil} berhasil, {$dilewati} dilewati.",
+            'data' => ['berhasil' => $berhasil, 'dilewati' => $dilewati, 'gagal' => $gagal],
+        ]);
     }
 }

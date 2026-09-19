@@ -104,6 +104,7 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::post('santri/{santri}/lembaga', [LembagaSantriController::class, 'store'])->middleware('permission:santri.tambah');
         Route::patch('lembaga-santri/{lembagaSantri}', [LembagaSantriController::class, 'update'])->middleware('permission:santri.ubah');
         Route::post('lembaga-santri/{lembagaSantri}/generate-nisk', [LembagaSantriController::class, 'generateNisk'])->middleware('permission:santri.ubah');
+        Route::post('lembaga-santri/generate-nisk-bulk', [LembagaSantriController::class, 'generateNiskBulk'])->middleware('permission:santri.ubah');
 
         // Riwayat belajar (102): roster + dialog input + import terpisah
         Route::get('riwayat-belajar', [RiwayatBelajarController::class, 'index'])->middleware('permission:riwayat_belajar.lihat');

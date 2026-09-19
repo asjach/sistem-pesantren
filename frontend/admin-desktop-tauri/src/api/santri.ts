@@ -190,6 +190,15 @@ export function generateNisk(id: number) {
   });
 }
 
+/** Generate NISK massal untuk semua baris cocok filter (lewati: sudah ada,
+ *  NIS lokal kosong, lembaga MD). */
+export function generateNiskBulk(filter: { lembaga_id?: number; is_active?: boolean; search?: string }) {
+  return api<{ pesan: string; data: { berhasil: number; dilewati: number; gagal: { id: number; pesan: string }[] } }>(
+    '/admin/lembaga-santri/generate-nisk-bulk',
+    { method: 'POST', body: JSON.stringify(filter) },
+  );
+}
+
 // ---------- Samakan NIS paket MI↔MD ----------
 
 export interface SamakanNisRincian {

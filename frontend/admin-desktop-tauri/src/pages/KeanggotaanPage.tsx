@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
+import { useLembagaAktif } from '@/lembagaAktif';
 import { bisa } from '../api/auth';
 import { errorMessage } from '../api/client';
 import {
   createLembagaSantri,
-  generateNisk,
+  generateNiskBulk,
   listKeanggotaan,
   listSantri,
   updateLembagaSantri,
@@ -14,6 +15,7 @@ import {
 import { listLembaga, type Lembaga } from '../api/master';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import FilterField from '@/components/FilterField';
 import { FieldLabel } from '@/components/ui/field';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -26,6 +28,9 @@ import { toast } from 'sonner';
 /** Keanggotaan: tabel terpusat lintas santri (pengganti pengelolaan tersebar). */
 export default function KeanggotaanPage() {
   const { user } = useAuth();
+  /** Gerbang super = EFEKTIF (mati saat bertindak; dropdown dikunci ke peran). */
+  const { efektifSuper: superAdmin } = useLembagaAktif();
+  const { lembagaId: lembagaTop } = useLembagaAktif();
   const canUbah = bisa(user, 'santri.ubah');
   const canTambah = bisa(user, 'santri.tambah');
   const pager = usePager('keanggotaan');
@@ -33,7 +38,8 @@ export default function KeanggotaanPage() {
   const [lembagaId, setLembagaId] = useState('');
   const [status, setStatus] = useState('');
   const [cari, setCari] = useState('');
-  const [tanpaNis, setTanpaNis] = useState(false);
+  /** Admin lembaga mengikuti lembaga aktif topbar; dropdown hanya super_admin. */
+  const lembagaEfektif = superAdmin ? lembagaId : (lembagaTop != null ? String(lembagaTop) : '');
   /** Urut header: daftar nilai allowlist + arah global (maks 3 kunci). */
   const [urut, setUrut] = useState<string[]>([]);
   const [arahUrut, setArahUrut] = useState<'naik' | 'turun'>('naik');
@@ -59,15 +65,14 @@ export default function KeanggotaanPage() {
 
   const load = useCallback(async (
     p = pager.page, pp = pager.perPage,
-    f?: { lembagaId?: string; status?: string; cari?: string; tanpaNis?: boolean; urut?: string[]; arah?: 'naik' | 'turun' },
+    f?: { lembagaId?: string; status?: string; cari?: string; urut?: string[]; arah?: 'naik' | 'turun' },
   ) => {
     setErr('');
     try {
-      const fl = f ?? { lembagaId, status, cari, tanpaNis, urut, arah: arahUrut };
+      const fl = f ?? { lembagaId: lembagaEfektif, status, cari, urut, arah: arahUrut };
       const res = await listKeanggotaan({
         lembaga_id: fl.lembagaId ? Number(fl.lembagaId) : null,
         is_active: fl.status === '' ? null : fl.status === '1',
-        tanpa_nis: fl.tanpaNis,
         search: fl.cari || undefined,
         sort: fl.urut?.length ? fl.urut : undefined,
         arah: fl.urut?.length ? (fl.arah ?? 'naik') : undefined,
@@ -79,23 +84,56 @@ export default function KeanggotaanPage() {
       setLastPage(res.last_page);
       setTotal(res.total);
     } catch (e) { setErr(errorMessage(e)); }
-  }, [pager, lembagaId, status, cari, tanpaNis, urut, arahUrut]);
+  }, [pager, lembagaEfektif, lembagaId, status, cari, urut, arahUrut]);
 
   /** Klik header: simpan urut baru lalu muat ulang dari halaman 1. */
   function terapkanUrut(nilai: string[], arah: 'naik' | 'turun') {
     setUrut(nilai);
     setArahUrut(arah);
     pager.goFirst();
-    void load(1, pager.perPage, { lembagaId, status, cari, tanpaNis, urut: nilai, arah });
+    void load(1, pager.perPage, { lembagaId: lembagaEfektif, status, cari, urut: nilai, arah });
   }
 
   useEffect(() => { void listLembaga({ per_page: 100 }).then((r) => setLembagaOpsi(r.data)).catch(() => {}); }, []);
   useEffect(() => { if (pager.ready) void load(pager.page); }, [pager.ready]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  function terapkanFilter() {
+  /** Filter Lembaga/Status langsung terapkan saat berubah. */
+  function gantiFilter(patch: { lembagaId?: string; status?: string }) {
+    const next = { lembagaId: lembagaEfektif, status, ...patch };
+    if (patch.lembagaId !== undefined) setLembagaId(patch.lembagaId);
+    if (patch.status !== undefined) setStatus(patch.status);
     pager.goFirst();
-    void load(1, pager.perPage, { lembagaId, status, cari, tanpaNis });
+    void load(1, pager.perPage, { ...next, cari });
   }
+
+  /** Lembaga aktif topbar berubah → muat ulang (admin lembaga, tanpa dropdown). */
+  const topLalu = useRef<number | null | undefined>(undefined);
+  useEffect(() => {
+    if (!pager.ready) return;
+    if (topLalu.current === undefined) {
+      topLalu.current = lembagaTop;
+      return;
+    }
+    if (topLalu.current === lembagaTop || superAdmin) return;
+    topLalu.current = lembagaTop;
+    pager.goFirst();
+    void load(1, pager.perPage, { lembagaId: lembagaEfektif, status, cari });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lembagaTop, pager.ready]);
+  const cariAwal = useRef(true);
+  useEffect(() => {
+    if (!pager.ready) return;
+    if (cariAwal.current) {
+      cariAwal.current = false;
+      return;
+    }
+    const t = setTimeout(() => {
+      pager.goFirst();
+      void load(1, pager.perPage, { lembagaId: lembagaEfektif, status, cari: cari.trim() });
+    }, cari.trim() === '' ? 0 : 400);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cari, pager.ready]);
 
   async function commitNis(id: number, f: Record<string, string | null>) {
     if (f.nis_lokal === undefined) return;
@@ -130,12 +168,18 @@ export default function KeanggotaanPage() {
     } catch (e) { toast.error(errorMessage(e)); } finally { setBusyId(null); }
   }
 
-  async function generate(r: LembagaSantri) {
-    setBusyId(r.id);
+  /** Generate NISK massal untuk filter saat ini (lewati: sudah ada, NIS
+   *  lokal kosong, lembaga MD). */
+  async function generateSemua() {
+    setBusyId(-1);
     try {
-      const res = await generateNisk(r.id);
-      toast.success(res.pesan ?? 'NIS Kemenag digenerate.');
-      await load();
+      const res = await generateNiskBulk({
+        ...(lembagaEfektif === '' ? {} : { lembaga_id: Number(lembagaEfektif) }),
+        ...(status === '' ? {} : { is_active: status === '1' }),
+        ...(cari.trim() === '' ? {} : { search: cari.trim() }),
+      });
+      toast.success(res.pesan);
+      await load(1);
     } catch (e) { toast.error(errorMessage(e)); } finally { setBusyId(null); }
   }
 
@@ -166,48 +210,54 @@ export default function KeanggotaanPage() {
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
-      <div className="mb-2 flex flex-wrap items-end gap-2">
-        <div>
-          <FieldLabel htmlFor="filter_lembaga_keanggotaan">Lembaga</FieldLabel>
-          <Select value={lembagaId || '_semua'} onValueChange={(v) => setLembagaId(v === '_semua' ? '' : v)}>
-            <SelectTrigger id="filter_lembaga_keanggotaan" className="w-48"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectItem value="_semua">Semua</SelectItem>
-                {lembagaOpsi.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>)}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <FieldLabel htmlFor="filter_status_keanggotaan">Status</FieldLabel>
-          <Select value={status || '_semua'} onValueChange={(v) => setStatus(v === '_semua' ? '' : v)}>
-            <SelectTrigger id="filter_status_keanggotaan" className="w-36"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectItem value="_semua">Semua</SelectItem>
-                <SelectItem value="1">Aktif</SelectItem>
-                <SelectItem value="0">Nonaktif</SelectItem>
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <FieldLabel htmlFor="input_cari_keanggotaan">Cari</FieldLabel>
-          <Input id="input_cari_keanggotaan" value={cari} onChange={(e) => setCari(e.target.value)}
-            placeholder="Nama / NIS" onKeyDown={(e) => { if (e.key === 'Enter') terapkanFilter(); }} />
-        </div>
-        <label htmlFor="chk_tanpa_nis_keanggotaan" className="flex items-center gap-2 pb-2 text-sm">
-          <input id="chk_tanpa_nis_keanggotaan" type="checkbox" checked={tanpaNis}
-            onChange={(e) => setTanpaNis(e.target.checked)} className="size-4 accent-[var(--accent)]" />
-          Tanpa NIS
-        </label>
-        <Button id="btn_filter_keanggotaan" onClick={terapkanFilter}>Terapkan</Button>
-        {canTambah && <Button id="btn_tambah_keanggotaan" variant="outline" onClick={() => setTambahOpen(true)}>Tambah</Button>}
-      </div>
 
       <ExcelTable
         tableKey="keanggotaan"
+        filter={(
+          <>
+            {superAdmin && (
+            <FilterField label="Lembaga" htmlFor="filter_lembaga_keanggotaan">
+              <Select value={lembagaEfektif || '_semua'} onValueChange={(v) => gantiFilter({ lembagaId: v === '_semua' ? '' : v })}>
+                <SelectTrigger id="filter_lembaga_keanggotaan" className="w-48"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value="_semua">Semua</SelectItem>
+                    {lembagaOpsi.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>)}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </FilterField>
+            )}
+            <FilterField label="Status" htmlFor="filter_status_keanggotaan">
+              <Select value={status || '_semua'} onValueChange={(v) => gantiFilter({ status: v === '_semua' ? '' : v })}>
+                <SelectTrigger id="filter_status_keanggotaan" className="w-36"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value="_semua">Semua</SelectItem>
+                    <SelectItem value="1">Aktif</SelectItem>
+                    <SelectItem value="0">Nonaktif</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </FilterField>
+          </>
+        )}
+        searchValue={cari}
+        onSearchChange={setCari}
+        searchIds={{ form: 'form_cari_keanggotaan', input: 'input_cari_keanggotaan', button: 'btn_cari_keanggotaan' }}
+        addButton={canTambah || canUbah ? (
+          <>
+            {canUbah && (
+              <Button id="btn_generate_nisk" size="sm" variant="outline" disabled={busyId !== null}
+                onClick={() => void generateSemua()}>
+                {busyId !== null ? 'Memproses…' : 'Generate NISK'}
+              </Button>
+            )}
+            {canTambah && (
+              <Button id="btn_tambah_keanggotaan" size="sm" onClick={() => setTambahOpen(true)}>Tambah</Button>
+            )}
+          </>
+        ) : null}
         fields={[
           { key: 'santri', label: 'santri.nama_lengkap', kind: 'static', sumber: { tabel: 'santri', kolom: 'nama_lengkap' } },
           { key: 'jk', label: 'santri.jk', kind: 'static', width: 60, sumber: { tabel: 'santri', kolom: 'jk' } },
@@ -246,12 +296,6 @@ export default function KeanggotaanPage() {
                   setFSelesai((r.tgl_selesai ?? '').slice(0, 10));
                 }}>
                 Ubah
-              </Button>
-            )}
-            {canUbah && !r.nis_kemenag && (
-              <Button id={`btn_nisk_anggota_${r.id}`} size="sm" variant="outline" disabled={busyId === r.id}
-                onClick={() => void generate(r)}>
-                NISK
               </Button>
             )}
             {canUbah && (
@@ -345,6 +389,3 @@ export default function KeanggotaanPage() {
     </div>
   );
 }
-  /** Gerbang super = EFEKTIF (mati saat bertindak; dropdown dikunci ke peran). */
-  const { efektifSuper: superAdmin } = useLembagaAktif();
-  const { lembagaId: lembagaTop } = useLembagaAktif();
