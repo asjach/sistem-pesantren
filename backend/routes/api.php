@@ -155,6 +155,7 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::post('preset-tabel', [PresetTabelController::class, 'store'])->middleware('permission:preset_tabel.tambah');
         Route::post('preset-tabel/aktif', [PresetTabelController::class, 'setAktif'])->middleware('permission:preset_tabel.lihat');
         Route::put('preset-tabel/{preset}', [PresetTabelController::class, 'update'])->middleware('permission:preset_tabel.ubah');
+        Route::post('preset-tabel/{preset}/bawaan', [PresetTabelController::class, 'setBawaan'])->middleware('permission:preset_tabel.ubah');
         Route::delete('preset-tabel/{preset}', [PresetTabelController::class, 'destroy'])->middleware('permission:preset_tabel.hapus');
 
         Route::get('kamus-kolom', [KamusLabelController::class, 'index'])->middleware('permission:kamus_label.lihat');

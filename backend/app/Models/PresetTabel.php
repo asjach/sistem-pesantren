@@ -12,7 +12,7 @@ class PresetTabel extends Model
 
     protected $guarded = ['id'];
 
-    protected $casts = ['kolom' => 'array', 'label' => 'array'];
+    protected $casts = ['kolom' => 'array', 'label' => 'array', 'is_default' => 'boolean'];
 
     public function lembaga(): BelongsTo
     {

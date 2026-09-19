@@ -13,7 +13,6 @@ import { DialogFooter } from '@/components/ui/dialog';
 import ConfirmDelete from '@/components/ConfirmDelete';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
-import { X } from '@/icons';
 import { toast } from 'sonner';
 import type { ExcelField } from '../excel/types';
 
@@ -26,10 +25,17 @@ export interface TabKolomProps {
   /** Preset yang dibuka untuk diedit (null = preset baru). Induk me-remount
    *  tab setiap kali preset awal berubah lewat `key`. */
   presetAwal: PresetTabel | null;
+  /** Buka dengan semua kolom terpilih (entri "Lengkap") agar bisa
+   *  dimodifikasi lalu disimpan sebagai preset baru. */
+  mulaiLengkap: boolean;
+  /** Minta induk membuka entri "Lengkap" (remount + reset state). */
+  onPilihLengkap: () => void;
   /** Minta induk membuka preset lain / preset baru (remount + reset state). */
   onPilihPreset: (preset: PresetTabel | null) => void;
   /** Preset tersimpan → induk menyegarkan daftar + menetapkannya aktif. */
   onTersimpan: (presetId: number) => Promise<void>;
+  /** Mode Lengkap tanpa nama → terapkan langsung ke tabel (tanpa menyimpan). */
+  onPakaiLengkap: (kolom: string[], label: Record<string, string>) => void;
   /** Preset dihapus → induk menyegarkan daftar + mengosongkan preset aktif. */
   onDihapus: () => Promise<void>;
   /** Tutup dialog. */
@@ -46,15 +52,18 @@ export default function TabKolom({
   presets,
   banyakKolom,
   presetAwal,
+  mulaiLengkap,
+  onPilihLengkap,
   onPilihPreset,
   onTersimpan,
+  onPakaiLengkap,
   onDihapus,
   onTutup,
 }: TabKolomProps) {
   const [editId, setEditId] = useState<number | null>(presetAwal?.id ?? null);
   const [nama, setNama] = useState(presetAwal?.nama ?? '');
   const [kolom, setKolom] = useState<Set<string>>(
-    new Set(presetAwal ? presetAwal.kolom.filter((k) => fieldKeys.has(k)) : []),
+    () => new Set(presetAwal ? presetAwal.kolom.filter((k) => fieldKeys.has(k)) : mulaiLengkap ? [...fieldKeys] : []),
   );
   /** Nama header kustom per key kolom (kosong = label bawaan). */
   const [labelKustom, setLabelKustom] = useState<Record<string, string>>(() => {
@@ -66,13 +75,15 @@ export default function TabKolom({
   });
   const [cariKolom, setCariKolom] = useState('');
   const [busy, setBusy] = useState(false);
+  /** Mode Lengkap: bukan hasil edit preset (tanpa id) — perubahan disimpan
+   *  sebagai preset baru sehingga nama wajib diisi saat submit. */
+  const modeLengkap = mulaiLengkap && editId === null;
 
   const kolomTampil = useMemo(() => {
     const q = cariKolom.trim().toLowerCase();
     if (!q) return fields;
     return fields.filter((f) => f.label.toLowerCase().includes(q));
   }, [fields, cariKolom]);
-  const terpilih = useMemo(() => fields.filter((f) => kolom.has(f.key)), [fields, kolom]);
   const semuaTampilTerpilih = kolomTampil.length > 0 && kolomTampil.every((f) => kolom.has(f.key));
 
   function togolKolom(key: string, aktif: boolean) {
@@ -84,25 +95,33 @@ export default function TabKolom({
     });
   }
 
-  function togolSemuaTampil() {
+  function aturSemuaTampil(aktif: boolean) {
     setKolom((prev) => {
       const next = new Set(prev);
-      if (semuaTampilTerpilih) {
-        for (const f of kolomTampil) next.delete(f.key);
-      } else {
-        for (const f of kolomTampil) next.add(f.key);
+      for (const f of kolomTampil) {
+        if (aktif) next.add(f.key);
+        else next.delete(f.key);
       }
       return next;
     });
   }
 
-  const labelPreset = (p: PresetTabel) => (
-    p.lembaga_id === null ? p.nama : `${p.nama} (${p.lembaga?.kode ?? p.lembaga?.nama ?? p.lembaga_id})`
-  );
+  const labelPreset = (p: PresetTabel) => p.nama;
 
   async function simpan(e: React.FormEvent) {
     e.preventDefault();
-    if (!nama.trim() || kolom.size === 0) return;
+    if (kolom.size === 0) return;
+    if (!nama.trim()) {
+      // Mode Lengkap tanpa nama: terapkan langsung ke tabel, tanpa membuat preset.
+      if (modeLengkap) {
+        const label: Record<string, string> = {};
+        for (const [k, v] of Object.entries(labelKustom)) {
+          if (kolom.has(k) && v.trim() !== '') label[k] = v.trim().slice(0, 60);
+        }
+        onPakaiLengkap([...kolom], label);
+      }
+      return;
+    }
     setBusy(true);
     try {
       const label: Record<string, string> = {};
@@ -170,17 +189,22 @@ export default function TabKolom({
             maxLength={50}
             placeholder="mis. default"
           />
+          {modeLengkap ? (
+            <p className="text-xs text-muted-foreground">
+              Mode Lengkap: ubah kolom lalu Terapkan langsung — atau isi nama untuk menyimpan sebagai preset baru.
+            </p>
+          ) : null}
         </Field>
         <p className="self-end text-xs text-muted-foreground">
           Preset global: satu definisi berlaku untuk semua lembaga.
         </p>
       </div>
 
-      {/* Tiga panel: daftar preset (kiri), semua kolom (tengah), dan
-          kolom terpilih (kanan). */}
+      {/* Dua panel: daftar preset (kiri), dan tabel kolom + header
+          kustom (kanan). */}
       <div className={cn('flex flex-col gap-2 lg:flex-row', banyakKolom && 'lg:min-h-0 lg:flex-1')}>
         {/* Panel 1 — preset */}
-        <section className="flex flex-col gap-2 lg:w-36 lg:shrink-0">
+        <section className="flex flex-col gap-2 lg:w-44 lg:shrink-0">
           <FieldLabel>Preset</FieldLabel>
           <Button
             id={`btn_preset_baru_${tableKey}`}
@@ -197,36 +221,63 @@ export default function TabKolom({
               banyakKolom ? 'max-h-40 lg:max-h-none lg:min-h-0 lg:flex-1' : 'max-h-64',
             )}
           >
+            <button
+              id={`btn_preset_lengkap_${tableKey}`}
+              type="button"
+              title="Semua kolom — kurangi lalu simpan sebagai preset baru"
+              onClick={onPilihLengkap}
+              className={cn(
+                'rounded-md px-2 py-1 text-left text-xs transition-colors hover:bg-accent/60',
+                mulaiLengkap && editId === null ? 'bg-accent font-medium' : '',
+              )}
+            >
+              <span className="block truncate">Lengkap (semua kolom)</span>
+            </button>
             {presets.length === 0 ? (
-              <p className="px-1 text-xs text-muted-foreground">Belum ada preset.</p>
+              <p className="px-1 text-xs text-muted-foreground">Belum ada preset lain.</p>
             ) : presets.map((p) => (
               <button
                 key={p.id}
                 type="button"
                 onClick={() => onPilihPreset(p)}
+                title={labelPreset(p)}
                 className={cn(
                   'rounded-md px-2 py-1 text-left text-xs transition-colors',
                   editId === p.id ? 'bg-accent font-medium' : 'hover:bg-accent/60',
                 )}
               >
-                {labelPreset(p)}
+                <span className="block truncate">{labelPreset(p)}</span>
               </button>
             ))}
           </div>
         </section>
 
-        {/* Panel 2 — semua kolom (dengan pencarian) */}
-        <section className="flex min-h-0 flex-col gap-2 lg:w-64 lg:shrink-0">
+        {/* Panel 2 — tabel kolom: pilih tampil + nama header kustom */}
+        <section className="flex min-h-0 flex-col gap-2 lg:min-w-0 lg:flex-1">
           <div className="flex items-center justify-between gap-2">
-            <FieldLabel>Kolom tersedia ({fields.length})</FieldLabel>
-            <button
-              type="button"
-              disabled={kolomTampil.length === 0}
-              className="text-xs text-muted-foreground underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
-              onClick={togolSemuaTampil}
-            >
-              {semuaTampilTerpilih ? 'Kosongkan' : cariKolom.trim() ? 'Pilih hasil' : 'Pilih semua'}
-            </button>
+            <FieldLabel>Kolom ({kolom.size}/{fields.length} tampil)</FieldLabel>
+            <span className="flex shrink-0 items-center gap-2">
+              <button
+                id={`btn_pilih_semua_kolom_${tableKey}`}
+                type="button"
+                disabled={kolomTampil.length === 0 || semuaTampilTerpilih}
+                title={cariKolom.trim() ? 'Pilih semua kolom hasil pencarian' : 'Pilih semua kolom'}
+                className="text-xs text-muted-foreground underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+                onClick={() => aturSemuaTampil(true)}
+              >
+                Pilih semua
+              </button>
+              <button
+                id={`btn_kosongkan_kolom_${tableKey}`}
+                type="button"
+                disabled={kolomTampil.length === 0 || kolomTampil.every((f) => !kolom.has(f.key))}
+                title={cariKolom.trim() ? 'Batalkan pilihan kolom hasil pencarian' : 'Batalkan semua pilihan kolom'}
+                className="text-xs text-muted-foreground underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+                onClick={() => aturSemuaTampil(false)}
+              >
+                Kosongkan
+              </button>
+            </span>
           </div>
           <Input
             id={`input_cari_kolom_${tableKey}`}
@@ -237,87 +288,60 @@ export default function TabKolom({
           />
           <div
             className={cn(
-              'flex flex-col gap-0.5 overflow-auto rounded-md border p-1',
+              'overflow-auto rounded-md border',
               banyakKolom ? 'max-h-64 lg:max-h-none lg:min-h-0 lg:flex-1' : 'max-h-64',
             )}
           >
-            {kolomTampil.length === 0 ? (
-              <p className="px-1.5 py-1 text-xs text-muted-foreground">Tidak ada kolom cocok.</p>
-            ) : kolomTampil.map((f) => (
-              <div
-                key={f.key}
-                className="flex items-center gap-1 rounded-md px-1 py-0.5 hover:bg-accent/40"
-              >
-                <Checkbox
-                  id={`chk_kolom_${tableKey}_${f.key}`}
-                  checked={kolom.has(f.key)}
-                  onCheckedChange={(c) => togolKolom(f.key, !!c)}
-                />
-                <label
-                  htmlFor={`chk_kolom_${tableKey}_${f.key}`}
-                  className="min-w-0 flex-1 cursor-pointer truncate text-xs"
-                  title={f.label}
-                >
-                  {f.label}
-                </label>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* Panel 3 — kolom terpilih */}
-        <section className="flex min-h-0 flex-col gap-2 lg:w-64 lg:shrink-0">
-          <div className="flex items-center justify-between gap-2">
-            <FieldLabel>Terpilih ({kolom.size})</FieldLabel>
-            {kolom.size > 0 ? (
-              <button
-                type="button"
-                className="text-xs text-muted-foreground underline-offset-2 hover:underline"
-                onClick={() => setKolom(new Set())}
-              >
-                Kosongkan
-              </button>
-            ) : null}
-          </div>
-          <div
-            className={cn(
-              'flex flex-col gap-0.5 overflow-auto rounded-md border p-1',
-              banyakKolom ? 'max-h-64 lg:max-h-none lg:min-h-0 lg:flex-1' : 'max-h-64',
-            )}
-          >
-            {terpilih.length === 0 ? (
-              <p className="px-1.5 py-1 text-xs text-muted-foreground">Belum ada kolom dipilih.</p>
-            ) : terpilih.map((f) => (
-              <div
-                key={f.key}
-                className="flex flex-col gap-1 rounded-md px-1 py-1 hover:bg-accent/40"
-              >
-                <div className="flex items-center gap-1">
-                  <span className="min-w-0 flex-1 truncate text-xs" title={f.label}>
-                    {f.label}
-                  </span>
-                  <button
-                    id={`btn_keluar_kolom_${tableKey}_${f.key}`}
-                    type="button"
-                    title="Keluarkan dari pilihan"
-                    aria-label={`Keluarkan ${f.label} dari pilihan`}
-                    onClick={() => togolKolom(f.key, false)}
-                    className="grid size-5 shrink-0 place-items-center rounded text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                  >
-                    <X size={12} />
-                  </button>
-                </div>
-                <Input
-                  id={`input_label_${tableKey}_${f.key}`}
-                  value={labelKustom[f.key] ?? ''}
-                  onChange={(e) => setLabelKustom((prev) => ({ ...prev, [f.key]: e.target.value }))}
-                  maxLength={60}
-                  placeholder={`Nama header (bawaan: ${f.label})`}
-                  aria-label={`Nama header kustom untuk ${f.label}`}
-                  className="h-6 text-xs"
-                />
-              </div>
-            ))}
+            <table className="w-full border-collapse text-xs">
+              <thead className="sticky top-0 bg-muted/60 backdrop-blur">
+                <tr className="border-b">
+                  <th className="w-10 px-2 py-1.5 text-center font-medium" title="Tampilkan kolom">Tampil</th>
+                  <th className="px-2 py-1.5 text-left font-medium">Kolom</th>
+                  <th className="px-2 py-1.5 text-left font-medium">Nama header kustom</th>
+                </tr>
+              </thead>
+              <tbody>
+                {kolomTampil.length === 0 ? (
+                  <tr>
+                    <td colSpan={3} className="px-2 py-3 text-center text-muted-foreground">
+                      Tidak ada kolom cocok.
+                    </td>
+                  </tr>
+                ) : kolomTampil.map((f) => {
+                  const aktif = kolom.has(f.key);
+                  return (
+                    <tr
+                      key={f.key}
+                      className={cn('border-b last:border-0 hover:bg-accent/40', !aktif && 'opacity-50')}
+                    >
+                      <td className="px-2 py-1 text-center">
+                        <Checkbox
+                          id={`chk_kolom_${tableKey}_${f.key}`}
+                          checked={aktif}
+                          onCheckedChange={(c) => togolKolom(f.key, !!c)}
+                          aria-label={`Tampilkan ${f.label}`}
+                        />
+                      </td>
+                      <td className="max-w-44 truncate px-2 py-1" title={f.label}>
+                        {f.label}
+                      </td>
+                      <td className="px-2 py-1">
+                        <Input
+                          id={`input_label_${tableKey}_${f.key}`}
+                          value={labelKustom[f.key] ?? ''}
+                          disabled={!aktif}
+                          onChange={(e) => setLabelKustom((prev) => ({ ...prev, [f.key]: e.target.value }))}
+                          maxLength={60}
+                          placeholder={`Bawaan: ${f.label}`}
+                          aria-label={`Nama header kustom untuk ${f.label}`}
+                          className="h-6 text-xs"
+                        />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </section>
       </div>
@@ -338,9 +362,9 @@ export default function TabKolom({
         <Button
           id={`btn_simpan_preset_${tableKey}`}
           type="submit"
-          disabled={busy || !nama.trim() || kolom.size === 0}
+          disabled={busy || kolom.size === 0 || (!modeLengkap && !nama.trim())}
         >
-          Simpan
+          {modeLengkap && !nama.trim() ? 'Terapkan' : modeLengkap ? 'Simpan sebagai preset' : 'Simpan'}
         </Button>
       </DialogFooter>
     </form>

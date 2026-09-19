@@ -13,6 +13,7 @@ use App\Models\PresetTabelAktif;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class PresetTabelController extends Controller
@@ -25,10 +26,8 @@ class PresetTabelController extends Controller
         $data = $request->validated();
         $user = $request->user();
 
-        $presets = $this->queryEfektif($user, $data['table_key'])
+        $presets = $this->queryEfektif($data['table_key'])
             ->with('lembaga:id,nama,kode')
-            ->orderByRaw('lembaga_id is null desc')
-            ->orderBy('lembaga_id')
             ->orderBy('nama')
             ->get();
 
@@ -36,11 +35,16 @@ class PresetTabelController extends Controller
             ->where('table_key', $data['table_key'])
             ->value('preset_id');
 
+        $bawaan = PresetTabel::where('table_key', $data['table_key'])
+            ->where('is_default', true)
+            ->value('id');
+
         return response()->json([
             'pesan' => 'Preset kolom dimuat.',
             'data' => [
                 'presets' => $presets,
                 'aktif_preset_id' => $aktif ? (int) $aktif : null,
+                'default_preset_id' => $bawaan ? (int) $bawaan : null,
             ],
         ]);
     }
@@ -65,17 +69,24 @@ class PresetTabelController extends Controller
         ], 201);
     }
 
-    /** PUT /api/admin/preset-tabel/{preset} — ubah nama/kolom (super_admin; baris
-     *  lama milik lembaga tetap bisa dirapikan). */
+    /** PUT /api/admin/preset-tabel/{preset} — ubah nama/kolom global
+     *  (super_admin). Baris lama per-lembaga tidak dikelola lagi: hapus
+     *  lalu buat baru sebagai global. */
     public function update(PresetTabelUpdateRequest $request, PresetTabel $preset): JsonResponse
     {
         $this->pastikanSuperAdmin($request->user());
+
+        if ($preset->lembaga_id !== null) {
+            throw ValidationException::withMessages([
+                'preset' => 'Preset lama per-lembaga tidak dikelola lagi; hapus lalu buat baru sebagai global.',
+            ]);
+        }
 
         $data = $request->validated();
 
         $nama = $data['nama'] ?? $preset->nama;
         $this->pastikanNamaBukanLengkap($nama);
-        $this->pastikanNamaUnik($preset->table_key, $nama, $preset->lembaga_id, $preset->id);
+        $this->pastikanNamaUnik($preset->table_key, $nama, $preset->id);
 
         $kolom = array_values(array_unique($data['kolom'] ?? $preset->kolom));
         $preset->update([
@@ -113,7 +124,7 @@ class PresetTabelController extends Controller
             if ($preset->table_key !== $data['table_key']) {
                 throw ValidationException::withMessages(['preset_id' => 'Preset tidak cocok dengan tabel ini.']);
             }
-            $terlihat = $this->queryEfektif($request->user(), $data['table_key'])->pluck('id');
+            $terlihat = $this->queryEfektif($data['table_key'])->pluck('id');
             if (! $terlihat->contains($preset->id)) {
                 abort(403, 'Preset tidak tersedia untuk Anda.');
             }
@@ -127,6 +138,29 @@ class PresetTabelController extends Controller
         return response()->json(['pesan' => 'Preset aktif disimpan.']);
     }
 
+    /** POST /api/admin/preset-tabel/{preset}/bawaan — jadikan/cabut preset
+     *  bawaan tabel (super_admin; hanya preset global; satu per table_key). */
+    public function setBawaan(Request $request, PresetTabel $preset): JsonResponse
+    {
+        $this->pastikanSuperAdmin($request->user());
+
+        $bawaan = (bool) $request->boolean('bawaan', true);
+        if ($preset->lembaga_id !== null) {
+            throw ValidationException::withMessages(['preset' => 'Hanya preset global yang bisa jadi bawaan.']);
+        }
+
+        DB::transaction(function () use ($preset, $bawaan) {
+            PresetTabel::where('table_key', $preset->table_key)
+                ->where('id', '!=', $preset->id)
+                ->update(['is_default' => false]);
+            $preset->update(['is_default' => $bawaan]);
+        });
+
+        return response()->json([
+            'pesan' => $bawaan ? 'Preset bawaan ditetapkan.' : 'Preset bawaan dicabut.',
+        ]);
+    }
+
     protected function pastikanSuperAdmin(mixed $user): void
     {
         if (! $user instanceof User || ! $user->hasRole('super_admin')) {
@@ -134,25 +168,10 @@ class PresetTabelController extends Controller
         }
     }
 
-    protected function queryEfektif(User $user, string $tableKey)
+    /** Preset kolom GLOBAL: semua role melihat baris global yang sama. */
+    protected function queryEfektif(string $tableKey)
     {
-        $q = PresetTabel::where('table_key', $tableKey);
-        if ($this->isAdminPesantren($user)) {
-            return $q;
-        }
-        $ids = $user->lembagaIds();
-
-        return $q->where(function ($qq) use ($ids) {
-            $qq->whereNull('lembaga_id');
-            if (! empty($ids)) {
-                $qq->orWhereIn('lembaga_id', $ids);
-            }
-        });
-    }
-
-    protected function isAdminPesantren(User $user): bool
-    {
-        return $user->bolehPesantren();
+        return PresetTabel::where('table_key', $tableKey)->whereNull('lembaga_id');
     }
 
     protected function pastikanNamaBukanLengkap(string $nama): void
@@ -162,16 +181,15 @@ class PresetTabelController extends Controller
         }
     }
 
-    protected function pastikanNamaUnik(string $tableKey, string $nama, ?int $lembagaId, ?int $ignoreId = null): void
+    protected function pastikanNamaUnik(string $tableKey, string $nama, ?int $ignoreId = null): void
     {
         $q = PresetTabel::where('table_key', $tableKey)
             ->where('nama', $nama)
-            ->when($lembagaId === null, fn ($qq) => $qq->whereNull('lembaga_id'))
-            ->when($lembagaId !== null, fn ($qq) => $qq->where('lembaga_id', $lembagaId))
+            ->whereNull('lembaga_id')
             ->when($ignoreId, fn ($qq) => $qq->where('id', '!=', $ignoreId));
 
         if ($q->exists()) {
-            throw ValidationException::withMessages(['nama' => 'Nama preset sudah dipakai untuk tabel & lembaga ini.']);
+            throw ValidationException::withMessages(['nama' => 'Nama preset sudah dipakai untuk tabel ini.']);
         }
     }
 

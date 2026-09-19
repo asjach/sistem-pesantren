@@ -27,13 +27,17 @@ export interface DialogKelolaTabelProps {
   fieldKeys: Set<string>;
   presets: PresetTabel[];
   presetAwal: PresetTabel | null;
+  /** Buka tab kolom dengan semua kolom terpilih (entri "Lengkap"). */
+  mulaiLengkap: boolean;
+  onPilihLengkap: () => void;
   onPilihPreset: TabKolomProps['onPilihPreset'];
   onTersimpan: TabKolomProps['onTersimpan'];
+  onPakaiLengkap: TabKolomProps['onPakaiLengkap'];
   onDihapus: TabKolomProps['onDihapus'];
 }
 
 const TAB_META: { kunci: TabKelola; label: string; ket: string; superSaja?: boolean }[] = [
-  { kunci: 'kolom', label: 'Kolom', ket: 'Preset kolom tampil untuk tabel ini (per lembaga).' },
+  { kunci: 'kolom', label: 'Kolom', ket: 'Preset kolom tampil untuk tabel ini (global, semua lembaga).' },
   { kunci: 'urutan', label: 'Urutan', ket: 'Opsi dropdown Urutkan (global, semua lembaga).' },
   { kunci: 'kontrol', label: 'Kontrol', ket: 'Kontrol toolbar yang tampil (global, super_admin).', superSaja: true },
 ];
@@ -50,8 +54,11 @@ export default function DialogKelolaTabel({
   fieldKeys,
   presets,
   presetAwal,
+  mulaiLengkap,
+  onPilihLengkap,
   onPilihPreset,
   onTersimpan,
+  onPakaiLengkap,
   onDihapus,
 }: DialogKelolaTabelProps) {
   const { user } = useAuth();
@@ -67,8 +74,8 @@ export default function DialogKelolaTabel({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         className={cn(
-          'sm:max-w-4xl',
-          banyakKolom && 'lg:h-[85dvh] lg:max-w-6xl lg:grid-rows-[auto_auto_minmax(0,1fr)] lg:overflow-hidden',
+          'max-h-[70dvh] sm:max-w-2xl',
+          banyakKolom && 'lg:h-[70dvh] lg:max-w-4xl lg:grid-rows-[auto_auto_minmax(0,1fr)] lg:overflow-hidden',
         )}
       >
         <DialogHeader>
@@ -103,24 +110,23 @@ export default function DialogKelolaTabel({
             presets={presets}
             banyakKolom={banyakKolom}
             presetAwal={presetAwal}
+            mulaiLengkap={mulaiLengkap}
+            onPilihLengkap={onPilihLengkap}
             onPilihPreset={onPilihPreset}
             onTersimpan={onTersimpan}
+            onPakaiLengkap={onPakaiLengkap}
             onDihapus={onDihapus}
             onTutup={tutup}
           />
         )}
         {tab === 'urutan' && (
           <div className={cn('min-h-0', banyakKolom && 'lg:overflow-y-auto')}>
-            <div className="mx-auto w-full max-w-xl">
-              <TabUrutan tableKey={tableKey} onTutup={tutup} />
-            </div>
+            <TabUrutan tableKey={tableKey} onTutup={tutup} />
           </div>
         )}
         {tab === 'kontrol' && (
           <div className={cn('min-h-0', banyakKolom && 'lg:overflow-y-auto')}>
-            <div className="mx-auto w-full max-w-xl">
-              <TabKontrol tableKey={tableKey} onTutup={tutup} />
-            </div>
+            <TabKontrol tableKey={tableKey} onTutup={tutup} />
           </div>
         )}
       </DialogContent>
