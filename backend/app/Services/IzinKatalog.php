@@ -23,6 +23,7 @@ class IzinKatalog
         'pengguna' => ['lihat', 'tambah', 'ubah', 'hapus'],
         'lembaga' => ['lihat', 'tambah', 'ubah', 'hapus'],
         'tahun_ajaran' => ['lihat', 'tambah', 'ubah', 'hapus'],
+        'semester' => ['lihat', 'ubah'],
         'kelas' => ['lihat', 'tambah', 'ubah', 'hapus'],
         'referensi' => ['lihat', 'tambah', 'ubah', 'hapus'],
         'psb' => ['lihat', 'tambah', 'ubah', 'hapus'],

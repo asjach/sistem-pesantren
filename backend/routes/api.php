@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\Admin\PsbKegiatanController;
 use App\Http\Controllers\Api\Admin\ReferensiController;
 use App\Http\Controllers\Api\Admin\RiwayatBelajarController;
 use App\Http\Controllers\Api\Admin\SantriController;
+use App\Http\Controllers\Api\Admin\SemesterAktifController;
 use App\Http\Controllers\Api\Admin\SiklusController;
 use App\Http\Controllers\Api\Admin\TahunAjaranController;
 use App\Http\Controllers\Api\Admin\ToolbarPresetController;
@@ -67,6 +68,9 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::delete('tahun-ajaran/{tahunAjaran}', [TahunAjaranController::class, 'destroy'])->middleware('permission:tahun_ajaran.hapus');
         Route::post('tahun-ajaran/{tahunAjaran}/set-aktif', [TahunAjaranController::class, 'setAktif'])->middleware('permission:tahun_ajaran.ubah');
         Route::post('tahun-ajaran/{tahunAjaran}/sembunyikan', [TahunAjaranController::class, 'sembunyikan'])->middleware('permission:tahun_ajaran.ubah');
+
+        Route::get('semester-aktif', [SemesterAktifController::class, 'index'])->middleware('permission:semester.lihat');
+        Route::put('semester-aktif', [SemesterAktifController::class, 'upsert'])->middleware('permission:semester.ubah');
 
         Route::get('kelas', [KelasController::class, 'index'])->middleware('permission:kelas.lihat');
         Route::post('kelas', [KelasController::class, 'store'])->middleware('permission:kelas.tambah');

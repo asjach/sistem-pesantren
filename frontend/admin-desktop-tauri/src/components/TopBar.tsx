@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { logout } from '@/api/auth';
-import { isTauri, prefGet, prefSet } from '@/api/client';
+import { logout, bisa } from '@/api/auth';
+import { isTauri, prefGet, prefSet, errorMessage } from '@/api/client';
+import { daftarSemester, tetapkanSemester } from '@/api/semesterAktif';
 import { useAuth } from '@/auth/AuthContext';
 import { useLembagaAktif } from '@/lembagaAktif';
 import { useTahunAjaranAktif } from '@/tahunAjaranAktif';
@@ -27,6 +28,7 @@ import { THEME_PRESETS } from '@/themes';
 import { DEFAULT_PREFS, WARNA_UI } from '@/prefs';
 import { Blend, CalendarDays, Check, ChevronDown, ChevronUp, Columns3, Landmark, LogOut, Monitor, Moon, Paintbrush, Palette, SquareMousePointer, Sun, Users } from '@/icons';
 import { useRibbonTable } from '@/components/RibbonTable';
+import { toast } from 'sonner';
 import { useRibbonSlotCtx } from '@/components/RibbonSlot';
 import BannerBertindak from '@/components/BannerBertindak';
 import { halamanDariPath } from '@/lib/halaman';
@@ -57,6 +59,37 @@ export default function TopBar() {
   const { lembagaId, lembaga, pilihan, adaSemua, banyakPilihan, bertindak, peran, pilih, loading: lembagaLoading } = useLembagaAktif();
   const { tahunAjaranId, tahunAjaran, pilihan: taPilihan, pilih: taPilih, loading: taLoading } = useTahunAjaranAktif();
   const { semester, pilih: pilihSemester, loading: semesterLoading } = useSemesterAktif();
+  const [simpanSemester, setSimpanSemester] = useState(false);
+
+  // Dropdown Semester = penyetel + filter: mengikuti nilai server lembaga
+  // aktif (bila sudah diatur), memilih Ganjil/Genap ikut menulis ke server
+  // untuk lembaga aktif (super_admin semua, admin lembaganya). "Semua"
+  // hanya filter perangkat.
+  useEffect(() => {
+    if (lembagaId == null || !bisa(user, 'semester.lihat')) return;
+    let hidup = true;
+    daftarSemester()
+      .then((res) => {
+        const nilai = res.data.find((r) => r.lembaga_id === lembagaId)?.semester;
+        if (hidup && (nilai === '1' || nilai === '2')) pilihSemester(nilai);
+      })
+      .catch(() => {});
+    return () => { hidup = false; };
+  }, [lembagaId, user, pilihSemester]);
+
+  async function pilihSemesterServer(s: SemesterAktif | null) {
+    pilihSemester(s);
+    if (s == null || lembagaId == null || !bisa(user, 'semester.ubah')) return;
+    setSimpanSemester(true);
+    try {
+      const res = await tetapkanSemester(lembagaId, s);
+      toast.success(res.pesan);
+    } catch (e) {
+      toast.error(errorMessage(e));
+    } finally {
+      setSimpanSemester(false);
+    }
+  }
   // Dropdown lembaga = filter (bebas diubah kapan pun, termasuk saat bertindak);
   // peran act-as diatur terpisah lewat tombol PERAN SEBAGAI + banner.
   const daftarLembaga = pilihan;
@@ -237,12 +270,12 @@ export default function TopBar() {
               <DropdownMenuContent align="end" className="max-h-80 min-w-[12rem] overflow-y-auto">
                 <DropdownMenuLabel className="text-foreground">Semester aktif</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem id="menu_semester_aktif_semua" onSelect={() => pilihSemester(null)}>
-                  <span className="flex-1">Semua</span>
-                  {semester === null && <Check data-icon="inline-end" size={14} />}
-                </DropdownMenuItem>
-                {(['1', '2'] as SemesterAktif[]).map((s) => (
-                  <DropdownMenuItem key={s} id={`menu_semester_aktif_${s}`} onSelect={() => pilihSemester(s)}>
+              <DropdownMenuItem id="menu_semester_aktif_semua" onSelect={() => pilihSemester(null)}>
+                <span className="flex-1">Semua</span>
+                {semester === null && <Check data-icon="inline-end" size={14} />}
+              </DropdownMenuItem>
+              {(['1', '2'] as SemesterAktif[]).map((s) => (
+                <DropdownMenuItem key={s} id={`menu_semester_aktif_${s}`} disabled={simpanSemester} onSelect={() => void pilihSemesterServer(s)}>
                     <span className="flex-1 truncate">Semester {s}{s === '1' ? ' (Ganjil)' : ' (Genap)'}</span>
                     {semester === s && <Check data-icon="inline-end" size={14} />}
                   </DropdownMenuItem>
