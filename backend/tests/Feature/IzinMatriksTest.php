@@ -165,10 +165,12 @@ class IzinMatriksTest extends TestCase
     /**
      * Setiap endpoint ber-auth di luar portal/kamus/publik wajib punya
      * middleware `permission:` — route admin baru tanpa izin = suite merah.
+     * Pengecualian sadar: peta + skema kamus = metadata tampilan baca bebas
+     * (dipakai semua grid; kelolanya tetap di belakang kamus_label.*).
      */
     public function test_07_semua_route_admin_bermiddleware_permission(): void
     {
-        $terkecuali = ['api/auth', 'api/portal', 'api/kamus', 'api/psb/opsi', 'api/psb/cek-nik', 'api/psb/daftar', 'api/psb/daftar-paket'];
+        $terkecuali = ['api/auth', 'api/portal', 'api/kamus', 'api/psb/opsi', 'api/psb/cek-nik', 'api/psb/daftar', 'api/psb/daftar-paket', 'api/admin/kamus-kolom/peta', 'api/admin/kamus-kolom/skema'];
         $tanpaIzin = [];
         foreach (Route::getRoutes() as $route) {
             $uri = $route->uri();

@@ -13,7 +13,8 @@ use Tests\TestCase;
 
 /**
  * Kamus kolom level tabel database: CRUD, peta untuk grid, urut bawaan
- * per endpoint, dan guard admin pesantren.
+ * per endpoint. Kelola (index/tulis/generasi) khusus super_admin; peta +
+ * skema baca bebas agar label kustom tetap tampil untuk semua peran.
  */
 class KamusLabelTest extends TestCase
 {
@@ -48,9 +49,9 @@ class KamusLabelTest extends TestCase
         return $u;
     }
 
-    public function test_admin_pesantren_crud_dan_peta(): void
+    public function test_super_admin_crud_dan_peta(): void
     {
-        $pusat = $this->makeUser('admin');
+        $pusat = $this->makeUser('super_admin');
 
         $res = $this->actingAs($pusat, 'sanctum')->postJson('/api/admin/kamus-kolom', [
             'tabel' => 'santri', 'kolom' => 'nama_lengkap',
@@ -97,7 +98,7 @@ class KamusLabelTest extends TestCase
 
     public function test_skema_menyediakan_tabel_dan_kolom(): void
     {
-        $pusat = $this->makeUser('admin');
+        $pusat = $this->makeUser('super_admin');
 
         $res = $this->actingAs($pusat, 'sanctum')->getJson('/api/admin/kamus-kolom/skema');
         $res->assertStatus(200);
@@ -117,7 +118,7 @@ class KamusLabelTest extends TestCase
         ])->assertStatus(422)->assertJsonValidationErrors(['kolom']);
     }
 
-    public function test_admin_scoped_hanya_boleh_membaca(): void
+    public function test_admin_hanya_boleh_baca_peta_dan_skema(): void
     {
         $root = Lembaga::create([
             'nama' => 'Pesantren', 'kode' => 'PESANTREN',
@@ -128,20 +129,28 @@ class KamusLabelTest extends TestCase
             'is_seleksi' => false, 'kelompok_psb' => 'combo_mi_md', 'is_active' => true,
         ]);
         $scoped = $this->makeUser('admin', [$mi->id]);
+        $penuh = $this->makeUser('admin');
 
-        // Baca peta boleh (dipakai semua grid).
-        $this->actingAs($scoped, 'sanctum')->getJson('/api/admin/kamus-kolom/peta?tabel=santri')->assertStatus(200);
+        foreach ([$scoped, $penuh] as $admin) {
+            // Peta + skema baca bebas (label grid tetap tampil).
+            $this->actingAs($admin, 'sanctum')->getJson('/api/admin/kamus-kolom/peta?tabel=santri')->assertStatus(200);
+            $this->actingAs($admin, 'sanctum')->getJson('/api/admin/kamus-kolom/skema')->assertStatus(200);
 
-        // Tulis ditolak.
-        $this->actingAs($scoped, 'sanctum')->postJson('/api/admin/kamus-kolom', [
-            'tabel' => 'santri', 'kolom' => 'nama_lengkap', 'label' => 'X',
-        ])->assertStatus(403);
+            // Kelola ditolak seluruhnya.
+            $this->actingAs($admin, 'sanctum')->getJson('/api/admin/kamus-kolom')->assertStatus(403);
+            $this->actingAs($admin, 'sanctum')->postJson('/api/admin/kamus-kolom', [
+                'tabel' => 'santri', 'kolom' => 'nama_lengkap', 'label' => 'X',
+            ])->assertStatus(403);
+            $this->actingAs($admin, 'sanctum')->postJson('/api/admin/kamus-kolom/generasi', [
+                'mode' => 'upper',
+            ])->assertStatus(403);
+        }
         $this->assertSame(0, LabelKolom::count());
     }
 
     public function test_generasi_upper_mengganti_underscore_dan_melewati_kolom_teknis(): void
     {
-        $pusat = $this->makeUser('admin');
+        $pusat = $this->makeUser('super_admin');
 
         $res = $this->actingAs($pusat, 'sanctum')->postJson('/api/admin/kamus-kolom/generasi', [
             'mode' => 'upper',
@@ -170,7 +179,7 @@ class KamusLabelTest extends TestCase
 
     public function test_generasi_proper_dan_lower(): void
     {
-        $pusat = $this->makeUser('admin');
+        $pusat = $this->makeUser('super_admin');
 
         $this->actingAs($pusat, 'sanctum')
             ->postJson('/api/admin/kamus-kolom/generasi', ['mode' => 'proper'])
@@ -191,7 +200,7 @@ class KamusLabelTest extends TestCase
 
     public function test_generasi_menjaga_atribut_lain_dan_menimpa_label(): void
     {
-        $pusat = $this->makeUser('admin');
+        $pusat = $this->makeUser('super_admin');
         LabelKolom::create([
             'tabel' => 'santri', 'kolom' => 'nama_lengkap', 'label' => 'NAMA KUSTOM',
             'align' => 'left', 'lebar' => 220, 'kunci_lebar' => true,
@@ -213,7 +222,7 @@ class KamusLabelTest extends TestCase
 
     public function test_generasi_mode_tidak_valid_ditolak(): void
     {
-        $pusat = $this->makeUser('admin');
+        $pusat = $this->makeUser('super_admin');
 
         $this->actingAs($pusat, 'sanctum')
             ->postJson('/api/admin/kamus-kolom/generasi', ['mode' => 'kapital'])
@@ -222,7 +231,7 @@ class KamusLabelTest extends TestCase
         $this->assertSame(0, LabelKolom::count());
     }
 
-    public function test_generasi_ditolak_untuk_admin_scoped(): void
+    public function test_generasi_ditolak_untuk_admin(): void
     {
         $root = Lembaga::create([
             'nama' => 'Pesantren', 'kode' => 'PESANTREN',
