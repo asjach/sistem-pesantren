@@ -20,6 +20,9 @@ class ToolbarPresetController extends Controller
     /** Kunci kontrol yang dikenal frontend (di luar ini ditolak). */
     public const KUNCI = ['cari', 'info', 'urut', 'kolom', 'filter'];
 
+    /** Kunci kontrol yang punya pengaturan lebar (px). */
+    public const KUNCI_LEBAR = ['cari', 'urut', 'kolom'];
+
     /** GET /api/admin/toolbar-preset?table_key=santri */
     public function index(ToolbarPresetIndexRequest $request): JsonResponse
     {
@@ -32,6 +35,7 @@ class ToolbarPresetController extends Controller
             'data' => [
                 'table_key' => $data['table_key'],
                 'visibilitas' => $row?->visibilitas ?? [],
+                'lebar' => $row?->lebar ?? [],
             ],
         ]);
     }
@@ -51,12 +55,22 @@ class ToolbarPresetController extends Controller
             $normal[$kunci] = (bool) $nilai;
         }
 
+        $lebar = [];
+        foreach ($data['lebar'] ?? [] as $kunci => $nilai) {
+            if (! in_array($kunci, self::KUNCI_LEBAR, true)) {
+                throw ValidationException::withMessages([
+                    'lebar' => "Kunci lebar \"{$kunci}\" tidak dikenal.",
+                ]);
+            }
+            $lebar[$kunci] = (int) $nilai;
+        }
+
         $row = ToolbarPreset::updateOrCreate(
             ['table_key' => $data['table_key']],
-            ['visibilitas' => $normal, 'dibuat_oleh' => $request->user()->id],
+            ['visibilitas' => $normal, 'lebar' => $lebar === [] ? null : $lebar, 'dibuat_oleh' => $request->user()->id],
         );
 
-        return response()->json(['pesan' => 'Visibilitas toolbar disimpan.', 'data' => $row]);
+        return response()->json(['pesan' => 'Toolbar disimpan.', 'data' => $row]);
     }
 
     /** DELETE /api/admin/toolbar-preset?table_key=santri — kembali tampil semua. */

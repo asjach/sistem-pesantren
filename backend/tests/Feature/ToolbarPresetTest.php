@@ -107,4 +107,38 @@ class ToolbarPresetTest extends TestCase
             'visibilitas' => ['tombol_asing' => true],
         ])->assertStatus(422)->assertJsonValidationErrors(['visibilitas']);
     }
+
+    public function test_simpan_dan_baca_lebar_kontrol(): void
+    {
+        $pusat = $this->makeUser('super_admin');
+
+        // Tanpa baris: lebar kosong (frontend memakai bawaan px).
+        $this->actingAs($pusat, 'sanctum')
+            ->getJson('/api/admin/toolbar-preset?table_key=santri')
+            ->assertStatus(200)
+            ->assertJsonPath('data.lebar', []);
+
+        // Simpan lebar + visibilitas sekaligus.
+        $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/toolbar-preset', [
+            'table_key' => 'santri',
+            'visibilitas' => ['cari' => true],
+            'lebar' => ['cari' => 200, 'urut' => 150, 'kolom' => 176],
+        ])->assertStatus(200);
+        $this->actingAs($pusat, 'sanctum')
+            ->getJson('/api/admin/toolbar-preset?table_key=santri')
+            ->assertStatus(200)
+            ->assertJsonPath('data.lebar', ['cari' => 200, 'urut' => 150, 'kolom' => 176]);
+
+        // Kunci lebar tak dikenal + di luar rentang ditolak.
+        $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/toolbar-preset', [
+            'table_key' => 'santri',
+            'visibilitas' => ['cari' => true],
+            'lebar' => ['info' => 100],
+        ])->assertStatus(422)->assertJsonValidationErrors(['lebar']);
+        $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/toolbar-preset', [
+            'table_key' => 'santri',
+            'visibilitas' => ['cari' => true],
+            'lebar' => ['cari' => 10],
+        ])->assertStatus(422)->assertJsonValidationErrors(['lebar.cari']);
+    }
 }

@@ -18,6 +18,8 @@ class ToolbarPresetSimpanRequest extends FormRequest
             'table_key' => ['required', 'string', 'max:60'],
             'visibilitas' => ['present', 'array', 'max:20'],
             'visibilitas.*' => ['boolean'],
+            'lebar' => ['sometimes', 'array', 'max:20'],
+            'lebar.*' => ['integer', 'min:40', 'max:480'],
         ];
     }
 }

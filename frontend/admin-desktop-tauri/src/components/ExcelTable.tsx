@@ -18,7 +18,7 @@ import { useStandarTampilan } from '@/standarTampilan';
 import { useAuth } from '@/auth/AuthContext';
 import { type PresetKolomApi } from '@/components/PresetKolom';
 import { muatToolbarPreset } from '@/api/toolbarPreset';
-import { EVENT_TOOLBAR_BERUBAH, bacaVisToolbar, type VisToolbar } from '@/components/kelolaTabel/jenis';
+import { EVENT_TOOLBAR_BERUBAH, LEBAR_BAWAHAN_TOOLBAR, bacaLebarToolbar, bacaVisToolbar, type LebarToolbar, type VisToolbar } from '@/components/kelolaTabel/jenis';
 import { useKamusPeta } from '@/components/useKamusPeta';
 import { type KamusKolomAttr } from '@/api/kamusLabel';
 import { useRibbonTable } from '@/components/RibbonTable';
@@ -262,14 +262,25 @@ export default function ExcelTable<T extends { id: string | number }>({
   const superAdmin = (me?.roles ?? []).some((r) => r.name === 'super_admin');
   /** Visibilitas kontrol toolbar generik (tab Kontrol dialog Kelola tabel). */
   const [visToolbar, setVisToolbar] = useState<VisToolbar>({ cari: true, info: true, urut: true, kolom: true, filter: true });
+  /** Lebar efektif kontrol berlebar (px); nilai awal = bawaan meski belum tersimpan. */
+  const [lebarToolbar, setLebarToolbar] = useState<LebarToolbar>({ ...LEBAR_BAWAHAN_TOOLBAR });
+  /** Lebar kolom tersimpan di DB (undefined = pakai presetKolomClassName halaman). */
+  const [lebarKolomDb, setLebarKolomDb] = useState<number | undefined>(undefined);
   useEffect(() => {
     let batal = false;
     const muat = async () => {
       try {
         const res = await muatToolbarPreset(tableKey);
-        if (!batal) setVisToolbar(bacaVisToolbar(res.data.visibilitas));
+        if (batal) return;
+        setVisToolbar(bacaVisToolbar(res.data.visibilitas));
+        setLebarToolbar(bacaLebarToolbar(res.data.lebar));
+        const tersimpan = res.data.lebar?.kolom;
+        setLebarKolomDb(typeof tersimpan === 'number' && tersimpan >= 40 && tersimpan <= 480 ? tersimpan : undefined);
       } catch {
-        if (!batal) setVisToolbar({ cari: true, info: true, urut: true, kolom: true, filter: true });
+        if (batal) return;
+        setVisToolbar({ cari: true, info: true, urut: true, kolom: true, filter: true });
+        setLebarToolbar({ ...LEBAR_BAWAHAN_TOOLBAR });
+        setLebarKolomDb(undefined);
       }
     };
     void muat();
@@ -1818,6 +1829,8 @@ export default function ExcelTable<T extends { id: string | number }>({
         presetApiRef={presetApiRef}
         presetKolomClassName={presetKolomClassName}
         visToolbar={visToolbar}
+        lebarToolbar={lebarToolbar}
+        lebarKolomDb={lebarKolomDb}
       />
 
       <div

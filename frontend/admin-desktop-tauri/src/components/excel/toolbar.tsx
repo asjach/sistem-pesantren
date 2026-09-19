@@ -5,7 +5,7 @@ import PresetUrut from '@/components/PresetUrut';
 import { X } from '@/icons';
 import { cn } from '@/lib/utils';
 import type { ExcelField } from './types';
-import type { VisToolbar } from '@/components/kelolaTabel/jenis';
+import type { VisToolbar, LebarToolbar } from '@/components/kelolaTabel/jenis';
 
 export interface ToolbarTabelProps<T extends { id: string | number }> {
   tableKey: string;
@@ -36,6 +36,10 @@ export interface ToolbarTabelProps<T extends { id: string | number }> {
   presetKolomClassName?: string;
   /** Visibilitas kontrol generik (tab Kontrol dialog Kelola tabel). */
   visToolbar: VisToolbar;
+  /** Lebar efektif kontrol berlebar (px) dari tab Kontrol (bawaan bila kosong). */
+  lebarToolbar: LebarToolbar;
+  /** Lebar kolom tersimpan di DB (undefined = pakai presetKolomClassName). */
+  lebarKolomDb?: number;
 }
 
 /** Bilah kontrol tabel: cari + filter (kiri), info seleksi/bulk, lalu kontrol
@@ -67,6 +71,8 @@ export default function ToolbarTabel<T extends { id: string | number }>({
   presetApiRef,
   presetKolomClassName,
   visToolbar,
+  lebarToolbar,
+  lebarKolomDb,
 }: ToolbarTabelProps<T>) {
   const cariTampil = visToolbar.cari && hasSearchInput;
   const infoTampil = visToolbar.info;
@@ -110,6 +116,7 @@ export default function ToolbarTabel<T extends { id: string | number }>({
               value={searchValue}
               onChange={(e) => onSearchChange?.(e.target.value)}
               className="w-35 pr-7"
+              style={{ width: `${lebarToolbar.cari}px` }}
             />
             {searchValue ? (
               <button
@@ -145,14 +152,14 @@ export default function ToolbarTabel<T extends { id: string | number }>({
         {/* Urutan tabel: dropdown dari Preset Urut (DB, per tabel) + tombol
             arah. Kelola opsi lewat item "Kelola urutan…" di dropdown. */}
         {urutTampil && (
-          <PresetUrut tableKey={tableKey} urutAktif={urutAktif} arahUrut={arahUrut} onUrut={onUrut} apiRef={presetApiRef} />
+          <PresetUrut tableKey={tableKey} urutAktif={urutAktif} arahUrut={arahUrut} onUrut={onUrut} apiRef={presetApiRef} lebarTrigger={lebarToolbar.urut} />
         )}
         {/* Preset kolom tampilan (tersimpan di DB per lembaga) — tanpa pembungkus
             kotak agar tampil polos seperti kontrol lain. Kontrol tabel umum
             (mode edit/input, salin, autofit, reset) pindah ke ribbon tab "Tabel"
             agar tak memakan ruang toolbar. */}
         {kolomTampil && (
-          <PresetKolom tableKey={tableKey} fields={fields} onApply={terapkanPreset} apiRef={presetApiRef} triggerClassName={presetKolomClassName} />
+          <PresetKolom tableKey={tableKey} fields={fields} onApply={terapkanPreset} apiRef={presetApiRef} triggerClassName={presetKolomClassName} lebarTrigger={lebarKolomDb} />
         )}
 
         {/* Tombol aksi utama halaman, sejajar dengan kontrol tabel. */}

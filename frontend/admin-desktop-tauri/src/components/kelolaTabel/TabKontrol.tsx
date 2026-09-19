@@ -8,9 +8,10 @@ import {
 import { useAuth } from '@/auth/AuthContext';
 import { Button } from '@/components/ui/button';
 import { DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
-import { EVENT_TOOLBAR_BERUBAH, KONTROL_TOOLBAR, bacaVisToolbar, type VisToolbar } from './jenis';
+import { EVENT_TOOLBAR_BERUBAH, KONTROL_TOOLBAR, LEBAR_BAWAHAN_TOOLBAR, bacaLebarToolbar, bacaVisToolbar, type KontrolLebar, type VisToolbar, type LebarToolbar } from './jenis';
 
 /** Tab Kontrol dialog Kelola tabel: tampil/sembunyikan kontrol toolbar
  *  generik per tabel — GLOBAL untuk seluruh lembaga, khusus super_admin.
@@ -20,14 +21,18 @@ export default function TabKontrol({ tableKey, onTutup }: { tableKey: string; on
   const bolehUbah = (user?.roles ?? []).some((r) => r.name === 'super_admin');
 
   const [vis, setVis] = useState<VisToolbar>({ cari: true, info: true, urut: true, kolom: true, filter: true });
+  /** Lebar kontrol (px); nilai awal = bawaan meski belum ada preset tersimpan. */
+  const [lebar, setLebar] = useState<LebarToolbar>({ ...LEBAR_BAWAHAN_TOOLBAR });
   const [busy, setBusy] = useState(false);
 
   const muat = useCallback(async () => {
     try {
       const res = await muatToolbarPreset(tableKey);
       setVis(bacaVisToolbar(res.data.visibilitas));
+      setLebar(bacaLebarToolbar(res.data.lebar));
     } catch {
       setVis({ cari: true, info: true, urut: true, kolom: true, filter: true });
+      setLebar({ ...LEBAR_BAWAHAN_TOOLBAR });
     }
   }, [tableKey]);
 
@@ -39,11 +44,27 @@ export default function TabKontrol({ tableKey, onTutup }: { tableKey: string; on
     window.dispatchEvent(new CustomEvent(EVENT_TOOLBAR_BERUBAH, { detail: { tableKey } }));
   }
 
+  /** Jepit ke rentang valid backend (40–480 px). */
+  function jepit(n: number): number {
+    return Math.min(480, Math.max(40, Math.round(n)));
+  }
+
+  function ubahLebar(kunci: KontrolLebar, mentah: string) {
+    const n = parseInt(mentah, 10);
+    if (Number.isNaN(n)) return;
+    setLebar((v) => ({ ...v, [kunci]: n }));
+  }
+
   async function simpan() {
     if (!bolehUbah) return;
     setBusy(true);
     try {
-      const res = await simpanToolbarPreset(tableKey, { ...vis });
+      const res = await simpanToolbarPreset(tableKey, { ...vis }, {
+        cari: jepit(lebar.cari),
+        urut: jepit(lebar.urut),
+        kolom: jepit(lebar.kolom),
+      });
+      setLebar((v) => ({ cari: jepit(v.cari), urut: jepit(v.urut), kolom: jepit(v.kolom) }));
       toast.success(res.pesan);
       kabariBerubah();
     } catch (e) {
@@ -59,6 +80,7 @@ export default function TabKontrol({ tableKey, onTutup }: { tableKey: string; on
     try {
       const res = await hapusToolbarPreset(tableKey);
       setVis({ cari: true, info: true, urut: true, kolom: true, filter: true });
+      setLebar({ ...LEBAR_BAWAHAN_TOOLBAR });
       toast.success(res.pesan);
       kabariBerubah();
     } catch (e) {
@@ -85,10 +107,10 @@ export default function TabKontrol({ tableKey, onTutup }: { tableKey: string; on
         </p>
       ) : null}
       <div className="flex flex-col gap-1 overflow-auto rounded-md border p-1">
-        {KONTROL_TOOLBAR.map(({ kunci, label, ket }) => (
+        {KONTROL_TOOLBAR.map(({ kunci, label, ket, lebar: punyaLebar }) => (
           <label
             key={kunci}
-            htmlFor={`switch_toolbar_${tableKey}_${kunci}`}
+            htmlFor={punyaLebar ? undefined : `switch_toolbar_${tableKey}_${kunci}`}
             className="flex cursor-pointer items-center gap-3 rounded-md px-2 py-2 hover:bg-accent/40"
           >
             <Switch
@@ -101,6 +123,25 @@ export default function TabKontrol({ tableKey, onTutup }: { tableKey: string; on
               <span className="block text-sm">{label}</span>
               <span className="block truncate text-xs text-muted-foreground" title={ket}>{ket}</span>
             </span>
+            {punyaLebar ? (
+              <span className="flex shrink-0 items-center gap-1" onClick={(e) => e.preventDefault()}>
+                <Input
+                  id={`input_lebar_toolbar_${tableKey}_${kunci}`}
+                  type="number"
+                  min={40}
+                  max={480}
+                  step={4}
+                  value={lebar[kunci as KontrolLebar]}
+                  disabled={!bolehUbah || busy}
+                  onChange={(e) => ubahLebar(kunci as KontrolLebar, e.target.value)}
+                  onBlur={(e) => setLebar((v) => ({ ...v, [kunci]: jepit(Number(e.target.value) || v[kunci as KontrolLebar]) }))}
+                  aria-label={`Lebar ${label} (px)`}
+                  title={`Lebar ${label} dalam px (40–480)`}
+                  className="h-7 w-20 text-right text-xs"
+                />
+                <span className="text-xs text-muted-foreground">px</span>
+              </span>
+            ) : null}
           </label>
         ))}
       </div>

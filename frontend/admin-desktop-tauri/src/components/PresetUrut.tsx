@@ -39,12 +39,15 @@ export default function PresetUrut({
   arahUrut = 'naik',
   onUrut,
   apiRef,
+  lebarTrigger,
 }: {
   tableKey: string;
   urutAktif?: string[];
   arahUrut?: 'naik' | 'turun';
   onUrut?: (nilai: string[], arah: 'naik' | 'turun') => void;
   apiRef?: MutableRefObject<PresetKolomApi | null>;
+  /** Lebar trigger dropdown (px) dari tab Kontrol; kosong = `w-44` bawaan. */
+  lebarTrigger?: number;
 }) {
   const [data, setData] = useState<PresetUrutData | null>(null);
   const [open, setOpen] = useState(false);
@@ -114,7 +117,11 @@ export default function PresetUrut({
             onValueChange={pilihNilai}
             onOpenChange={(buka) => { if (buka) void muat(); }}
           >
-            <SelectTrigger id={`select_urut_${tableKey}`} className="w-44">
+            <SelectTrigger
+              id={`select_urut_${tableKey}`}
+              className="w-44"
+              style={lebarTrigger !== undefined ? { width: `${lebarTrigger}px` } : undefined}
+            >
               <SelectValue placeholder="Urutkan…" />
             </SelectTrigger>
             <SelectContent>
