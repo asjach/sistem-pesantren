@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { prefGet, prefSet, setLembagaAktifHeader } from '@/api/client';
+import { prefGet, prefSet, setLembagaAktifHeader, tanpaHeaderPeran } from '@/api/client';
 import { isDesktopRoleAllowed, me } from '@/api/auth';
 import { listLembaga } from '@/api/master';
 import { useAuth } from '@/auth/AuthContext';
@@ -21,6 +21,8 @@ interface LembagaAktifState {
   lembagaId: number | null;
   lembaga: PilihanLembaga | null;
   pilihan: PilihanLembaga[];
+  /** Opsi peran act-as super_admin: SELALU penuh (pilihan menyempit saat bertindak). */
+  pilihanPeran: PilihanLembaga[];
   /** Boleh memilih "Semua lembaga" (super_admin / admin tanpa pivot). */
   adaSemua: boolean;
   banyakPilihan: boolean;
@@ -46,6 +48,7 @@ const Ctx = createContext<LembagaAktifState | null>(null);
 export function LembagaAktifProvider({ children }: { children: ReactNode }) {
   const { user, setUser } = useAuth();
   const [pilihan, setPilihan] = useState<PilihanLembaga[]>([]);
+  const [pilihanPeran, setPilihanPeran] = useState<PilihanLembaga[]>([]);
   const [lembagaId, setLembagaId] = useState<number | null>(null);
   const [peranId, setPeranId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
@@ -65,6 +68,7 @@ export function LembagaAktifProvider({ children }: { children: ReactNode }) {
     (async () => {
       if (!user) {
         setPilihan([]);
+        setPilihanPeran([]);
         setLembagaId(null);
         setPeranId(null);
         setLoading(false);
@@ -72,19 +76,32 @@ export function LembagaAktifProvider({ children }: { children: ReactNode }) {
       }
 
       setLoading(true);
+      const peranSuper = user.roles.some((r) => r.name === 'super_admin');
       let daftar: PilihanLembaga[] = [];
+      let daftarPeran: PilihanLembaga[] = [];
       if (adaSemua) {
         try {
+          // Opsi filter: ikut scope header (menyempit ke peran saat bertindak).
           const p = await listLembaga({ per_page: 1000 });
           daftar = p.data.map((l) => ({ id: l.id, nama: l.nama, kode: l.kode }));
         } catch {
           daftar = [];
+        }
+        // Opsi peran act-as: selalu penuh agar tombol banner lengkap.
+        if (peranSuper) {
+          try {
+            const p = await tanpaHeaderPeran(() => listLembaga({ per_page: 1000 }));
+            daftarPeran = p.data.map((l) => ({ id: l.id, nama: l.nama, kode: l.kode }));
+          } catch {
+            daftarPeran = [];
+          }
         }
       } else {
         daftar = (user.lembagas ?? []).map((l) => ({ id: l.id, nama: l.nama, kode: l.kode }));
       }
       if (!alive) return;
       setPilihan(daftar);
+      setPilihanPeran(daftarPeran);
 
       const simpanan = await prefGet(KEY).catch(() => null);
       let id: number | null;
@@ -139,12 +156,14 @@ export function LembagaAktifProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<LembagaAktifState>(() => {
     const bertindak = superAdmin && peranId != null;
-    const peran = pilihan.find((p) => p.id === peranId) ?? null;
+    const peran = pilihanPeran.find((p) => p.id === peranId)
+      ?? pilihan.find((p) => p.id === peranId) ?? null;
     return {
       loading,
       lembagaId,
       lembaga: pilihan.find((p) => p.id === lembagaId) ?? null,
       pilihan,
+      pilihanPeran,
       adaSemua,
       banyakPilihan: pilihan.length > 1,
       peranId,
@@ -160,7 +179,7 @@ export function LembagaAktifProvider({ children }: { children: ReactNode }) {
       pilih,
       pilihPeran,
     };
-  }, [loading, lembagaId, pilihan, adaSemua, superAdmin, pilih, peranId, pilihPeran]);
+  }, [loading, lembagaId, pilihan, pilihanPeran, adaSemua, superAdmin, pilih, peranId, pilihPeran]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

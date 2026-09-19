@@ -30,6 +30,21 @@ function headerLembaga(): Record<string, string> {
   return lembagaAktifId != null ? { 'X-Lembaga-Aktif': String(lembagaAktifId) } : {};
 }
 
+/**
+ * Jalankan request tanpa header peran act-as (mode penuh sementara).
+ * Dipakai mengambil opsi peran super_admin: daftar lembaga ter-scope saat
+ * bertindak, sehingga tanpa ini tombol banner menyusut ke peran aktif saja.
+ */
+export async function tanpaHeaderPeran<T>(kerja: () => Promise<T>): Promise<T> {
+  const simpan = lembagaAktifId;
+  lembagaAktifId = null;
+  try {
+    return await kerja();
+  } finally {
+    lembagaAktifId = simpan;
+  }
+}
+
 /** Event global saat sesi kedaluwarsa (401) — didengar AuthProvider. */
 export const AUTH_EXPIRED_EVENT = 'simpes:unauthorized';
 

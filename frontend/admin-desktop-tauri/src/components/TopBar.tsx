@@ -285,8 +285,10 @@ export default function TopBar() {
           )}
           {/* Perenggang kanan: filter global tetap di tengah; peran + akun di kanan. */}
           <div aria-hidden="true" className="min-w-0 flex-1" />
-          {/* Peran act-as super_admin (dekat area akun, terpisah dari filter). */}
-          {!lembagaLoading && isSuperAdmin && adaSemua && (
+          {/* Peran act-as super_admin (dekat area akun, terpisah dari filter).
+              Disembunyikan saat bertindak: peran murni MTS tak punya hak
+              act-as; satu-satunya jalan ganti peran adalah banner. */}
+          {!lembagaLoading && isSuperAdmin && adaSemua && !bertindak && (
             <button
               id="btn_peran_sebagai"
               type="button"

@@ -20,14 +20,18 @@ export default function BannerBertindak({ terbuka, onTutup }: {
   onTutup: () => void;
 }) {
   const { user } = useAuth();
-  const { peranId, peran, pilihan, pilihPeran } = useLembagaAktif();
+  /** Opsi peran SELALU penuh (pilihan filter menyempit saat bertindak). */
+  const { peranId, peran, pilihanPeran: pilihan, pilihPeran } = useLembagaAktif();
   const { rekam, setRekam, menyimpan } = useStandarTampilan();
 
   const superAdmin = !!user?.roles.some((r) => r.name === 'super_admin');
   const bertindak = peranId != null;
   const tampil = superAdmin && (bertindak || terbuka);
 
-  const cepat = pilihan.filter((p) => CEPAT.includes(p.kode ?? ''));
+  /** Urutan baku tombol cepat: MI | MD | MTS | MLN (PST selalu paling akhir). */
+  const cepat = pilihan
+    .filter((p) => CEPAT.includes(p.kode ?? ''))
+    .sort((a, b) => CEPAT.indexOf(a.kode ?? '') - CEPAT.indexOf(b.kode ?? ''));
   const tombol = cepat.length > 0 ? cepat : pilihan.filter((p) => (p.kode ?? '') !== 'PESANTREN');
   /** Akar pesantren (admin pesantren): tombol cepat "PST", paling kiri grup kanan. */
   const pst = pilihan.find((p) => (p.kode ?? '') === 'PESANTREN') ?? null;
@@ -67,7 +71,7 @@ export default function BannerBertindak({ terbuka, onTutup }: {
       <TriangleAlert size={15} aria-hidden="true" />
       {bertindak ? (
         <span>
-          Anda sedang bertindak sebagai <b>{label ?? `#${peranId}`}</b>
+          Peran sebagai: <b>{label ?? `#${peranId}`}</b>
         </span>
       ) : (
         <span>
@@ -92,11 +96,11 @@ export default function BannerBertindak({ terbuka, onTutup }: {
             />
             Rekam visual
           </label>
-          <span className="opacity-80">
-            {rekam
-              ? (menyimpan ? '· menyimpan standar…' : '· perubahan tampilan tersimpan ke standar lembaga ini')
-              : '· hanya berperan, tampilan lembaga tidak diubah'}
-          </span>
+          {rekam && (
+            <span className="opacity-80">
+              {menyimpan ? '· menyimpan standar…' : '· perubahan tampilan tersimpan ke standar lembaga ini'}
+            </span>
+          )}
         </span>
       )}
 
