@@ -60,22 +60,22 @@ class RiwayatBelajarController extends Controller
             $query->where('riwayat_belajar.is_aktif', true);
         }
         if ($request->filled('tahun_ajaran_id')) {
-            $query->where('tahun_ajaran_id', $request->integer('tahun_ajaran_id'));
+            $query->where('riwayat_belajar.tahun_ajaran_id', $request->integer('tahun_ajaran_id'));
         }
         if ($request->filled('semester')) {
-            $query->where('semester', $request->input('semester'));
+            $query->where('riwayat_belajar.semester', $request->input('semester'));
         }
         if ($request->filled('tingkat')) {
-            $query->where('tingkat', $request->input('tingkat'));
+            $query->where('riwayat_belajar.tingkat', $request->input('tingkat'));
         }
         if ($request->filled('kelas_id')) {
-            $query->where('kelas_id', $request->integer('kelas_id'));
+            $query->where('riwayat_belajar.kelas_id', $request->integer('kelas_id'));
         }
         if ($request->filled('status_akhir')) {
-            $query->where('status_akhir', $request->input('status_akhir'));
+            $query->where('riwayat_belajar.status_akhir', $request->input('status_akhir'));
         }
         if ($request->boolean('tanpa_kelas')) {
-            $query->whereNull('kelas_id');
+            $query->whereNull('riwayat_belajar.kelas_id');
         }
         if ($request->filled('q')) {
             $q = $request->input('q');

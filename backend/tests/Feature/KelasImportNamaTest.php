@@ -23,7 +23,6 @@ class KelasImportNamaTest extends TestCase
     {
         parent::setUp();
         $this->seed(RoleSeeder::class);
-        $this->seed(ReferensiSeeder::class);
         $this->withoutMiddleware(ThrottleRequests::class);
     }
 
@@ -62,6 +61,8 @@ class KelasImportNamaTest extends TestCase
             'phone' => '081000000009', 'password' => 'password',
         ]);
         $super->assignRole('super_admin');
+
+        $this->seed(ReferensiSeeder::class);
 
         return compact('root', 'mi', 'md', 'mts', 'taMi', 'taMd', 'taMts', 'super');
     }

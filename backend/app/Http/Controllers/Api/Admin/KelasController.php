@@ -38,18 +38,19 @@ class KelasController extends Controller
         $query = $this->scopeLembaga(
             Kelas::with(['lembaga:id,nama,kode', 'tahunAjaran:id,nama']),
             auth()->user(),
-            $request
+            $request,
+            'kelas.lembaga_id'
         );
 
         if ($request->filled('tahun_ajaran_id')) {
-            $query->where('tahun_ajaran_id', $request->input('tahun_ajaran_id'));
+            $query->where('kelas.tahun_ajaran_id', $request->input('tahun_ajaran_id'));
         }
         if ($request->filled('tingkat')) {
-            $query->where('tingkat', $request->input('tingkat'));
+            $query->where('kelas.tingkat', $request->input('tingkat'));
         }
         if ($request->filled('search')) {
             $s = $request->input('search');
-            $query->where('nama_kelas', 'like', "%{$s}%");
+            $query->where('kelas.nama_kelas', 'like', "%{$s}%");
         }
 
         // Urut default: `urutan` (diatur admin) lalu nama kelas.

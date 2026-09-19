@@ -7,7 +7,6 @@ import {
   listKelas,
   listLembaga,
   listTahunAjaran,
-  unduhDaftarKelas,
   updateKelas,
   type ImportNamaHasil,
   type Kelas,
@@ -26,6 +25,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import FilterField from '@/components/FilterField';
 import { useLembagaAwalNumber } from '@/hooks/useLembagaAwal';
 import { useTahunAjaranAwalNumber } from '@/hooks/useTahunAjaranAwal';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
@@ -121,6 +121,7 @@ export default function KelasPage() {
   useLembagaAwalNumber(setLembagaId);
   const [taId, setTaId] = useState<number | ''>('');
   useTahunAjaranAwalNumber(setTaId);
+  const [tingkat, setTingkat] = useState('');
   const {
     rows,
     loading,
@@ -142,13 +143,14 @@ export default function KelasPage() {
       search: a.search || undefined,
       lembaga_id: lembagaId === '' ? undefined : Number(lembagaId),
       tahun_ajaran_id: taId === '' ? undefined : Number(taId),
+      tingkat: tingkat || undefined,
       sort: a.urut.length ? a.urut : undefined,
       arah: a.urut.length ? a.arah : undefined,
       page: a.page,
       per_page: a.perPage,
       signal: a.signal,
     }),
-    deps: [lembagaId, taId],
+    deps: [lembagaId, taId, tingkat],
   });
 
   // Import nama kelas pasangan MI↔MD (pratinjau → eksekusi).
@@ -536,6 +538,23 @@ export default function KelasPage() {
         inputRowValues={{ ta: taTerpilih, lembaga: lembagaTerpilih, urutan: '0' }}
         searchValue={search}
         onSearchChange={onSearchChange}
+        filter={(
+          <FilterField label="Tingkat" htmlFor="select_tingkat_kelas">
+            <Select value={tingkat === '' ? '_semua' : tingkat} onValueChange={(v) => setTingkat(v === '_semua' ? '' : v)}>
+              <SelectTrigger id="select_tingkat_kelas" title="Filter tingkat" aria-label="Filter tingkat" size="sm" className="w-28">
+                <SelectValue placeholder="Semua" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value="_semua">Semua</SelectItem>
+                  {['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'].map((t) => (
+                    <SelectItem key={t} value={t}>{t}</SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </FilterField>
+        )}
         addButton={canTambahKelas ? (
           <>
             {dariKode && (
@@ -548,18 +567,6 @@ export default function KelasPage() {
                 </Button>
               </>
             )}
-            <Button
-              id="btn_unduh_daftar_kelas"
-              variant="outline"
-              disabled={lembagaId === '' || taId === ''}
-              title="Unduh daftar nama kelas filter saat ini"
-              onClick={() => {
-                if (lembagaId === '' || taId === '') return;
-                void unduhDaftarKelas(Number(lembagaId), Number(taId)).catch((e) => toast.error(errorMessage(e)));
-              }}
-            >
-              Export nama kelas
-            </Button>
             <Button id="btn_buka_tambah_kelas" onClick={bukaTambah}>
               + Kelas
             </Button>

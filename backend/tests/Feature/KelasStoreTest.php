@@ -22,7 +22,6 @@ class KelasStoreTest extends TestCase
     {
         parent::setUp();
         $this->seed(RoleSeeder::class);
-        $this->seed(ReferensiSeeder::class);
         $this->withoutMiddleware(ThrottleRequests::class);
     }
 
@@ -46,7 +45,24 @@ class KelasStoreTest extends TestCase
         ]);
         $super->assignRole('super_admin');
 
+        $this->seed(ReferensiSeeder::class);
+
         return compact('root', 'mi', 'taMi', 'super');
+    }
+
+    public function test_index_dengan_urut_dan_filter_tidak_ambigu(): void
+    {
+        $f = $this->baseFixture();
+        Kelas::create([
+            'lembaga_id' => $f['mi']->id, 'tahun_ajaran_id' => $f['taMi']->id,
+            'nama_kelas' => 'I-A', 'tingkat' => '1',
+        ]);
+
+        // Join lembaga + tahun_ajaran (sort) + filter: kolom harus terkualifikasi.
+        $this->actingAs($f['super'], 'sanctum')->getJson(
+            '/api/admin/kelas?lembaga_id='.$f['mi']->id
+            .'&tahun_ajaran_id='.$f['taMi']->id.'&sort=nama&arah=naik'
+        )->assertStatus(200)->assertJsonPath('data.0.nama_kelas', 'I-A');
     }
 
     public function test_01_tunggal_kompatibel(): void
