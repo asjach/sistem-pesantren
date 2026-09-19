@@ -253,10 +253,11 @@ class PsbFlowTest extends TestCase
         $this->assertNotEmpty($santriId);
 
         $this->assertEquals(1, Santri::where('id', $santriId)->count());
-        // 2 riwayat aktif (MI + MD)
-        $this->assertEquals(2, RiwayatBelajar::where('santri_id', $santriId)->where('is_aktif', true)->count());
-        $this->assertEquals(1, RiwayatBelajar::where('santri_id', $santriId)->where('lembaga_id', $f['mi']->id)->count());
-        $this->assertEquals(1, RiwayatBelajar::where('santri_id', $santriId)->where('lembaga_id', $f['md']->id)->count());
+        // ACC hanya membuat keanggotaan (MI + MD); riwayat diinput via Riwayat Belajar.
+        $this->assertEquals(2, LembagaSantri::where('santri_id', $santriId)->where('is_active', true)->count());
+        $this->assertEquals(1, LembagaSantri::where('santri_id', $santriId)->where('lembaga_id', $f['mi']->id)->count());
+        $this->assertEquals(1, LembagaSantri::where('santri_id', $santriId)->where('lembaga_id', $f['md']->id)->count());
+        $this->assertEquals(0, RiwayatBelajar::where('santri_id', $santriId)->count());
         // dokumen pindah ke santri
         $this->assertEquals(1, DokumenSantri::where('santri_id', $santriId)->count());
         $this->assertEquals(0, DokumenSantri::where('psb_calon_santri_id', $calonId)->count());
@@ -599,15 +600,14 @@ class PsbFlowTest extends TestCase
             ['masuk_tingkat' => '2']
         ))->assertStatus(422);
 
-        // Alur sampai ACC: riwayat pindahan tingkat 3.
+        // Alur sampai ACC: hanya keanggotaan; status_awal/tingkat diisi via Riwayat Belajar.
         $this->actingAs($admin, 'sanctum')->postJson("/api/psb/{$calonId}/verifikasi")->assertStatus(200);
         $this->actingAs($ortu, 'sanctum')->postJson("/api/portal/psb/{$calonId}/ajukan-daftar-ulang")
             ->assertStatus(201);
         $santriId = $this->actingAs($admin, 'sanctum')->postJson("/api/psb/{$calonId}/acc-daftar-ulang")
             ->json('data.id');
-        $riwayat = RiwayatBelajar::where('santri_id', $santriId)->firstOrFail();
-        $this->assertEquals('pindahan', $riwayat->status_awal);
-        $this->assertEquals('3', $riwayat->tingkat);
+        $this->assertDatabaseHas('lembaga_santri', ['santri_id' => $santriId, 'lembaga_id' => $f['mi']->id, 'is_active' => true]);
+        $this->assertEquals(0, RiwayatBelajar::where('santri_id', $santriId)->count());
 
         // Santri baru MTS tanpa tingkat: default entry 7.
         $this->makeKuota($f['gel'], $f['mts'], $f['ta'], ['membutuhkan_seleksi' => true]);
@@ -624,9 +624,47 @@ class PsbFlowTest extends TestCase
             ->assertStatus(201);
         $santriBaru = $this->actingAs($adminMts, 'sanctum')->postJson("/api/psb/{$calonBaru}/acc-daftar-ulang")
             ->json('data.id');
-        $riwayatBaru = RiwayatBelajar::where('santri_id', $santriBaru)->firstOrFail();
-        $this->assertEquals('santri_baru', $riwayatBaru->status_awal);
-        $this->assertEquals('7', $riwayatBaru->tingkat);
+        $this->assertDatabaseHas('lembaga_santri', ['santri_id' => $santriBaru, 'lembaga_id' => $f['mts']->id, 'is_active' => true]);
+        $this->assertEquals(0, RiwayatBelajar::where('santri_id', $santriBaru)->count());
+    }
+
+    // ---------- 11b. serah-terima: riwayat perdana diinput via Riwayat Belajar ----------
+
+    public function test_11b_acc_tanpa_riwayat_lalu_input_via_riwayat_belajar(): void
+    {
+        $f = $this->baseFixture();
+        $this->makeKuota($f['gel'], $f['mi'], $f['ta'], ['membutuhkan_seleksi' => false]);
+        $admin = $this->makeUser('admin', [$f['mi']->id]);
+        $ortu = $this->makeUser('orang_tua', [], 'ortu11b@example.com', '081111111112');
+
+        $calonId = $this->postJson('/api/psb/daftar', $this->daftarPayload(
+            $f['gel'], $f['mi'], '1100000000000015', 'Serah Terima', 'ortu11b@example.com', '081111111112'
+        ))->json('data.calon.id');
+        $this->actingAs($admin, 'sanctum')->postJson("/api/psb/{$calonId}/verifikasi")->assertStatus(200);
+        $this->actingAs($ortu, 'sanctum')->postJson("/api/portal/psb/{$calonId}/ajukan-daftar-ulang")
+            ->assertStatus(201);
+        $santriId = $this->actingAs($admin, 'sanctum')->postJson("/api/psb/{$calonId}/acc-daftar-ulang")
+            ->assertStatus(201)
+            ->json('data.id');
+
+        // ACC: santri + keanggotaan ada, riwayat belum ada.
+        $this->assertDatabaseHas('santri', ['id' => $santriId]);
+        $this->assertDatabaseHas('lembaga_santri', ['santri_id' => $santriId, 'lembaga_id' => $f['mi']->id, 'is_active' => true]);
+        $this->assertEquals(0, RiwayatBelajar::where('santri_id', $santriId)->count());
+
+        // Riwayat perdana diinput lewat halaman Riwayat Belajar.
+        $super = $this->makeUser('super_admin', [$f['mi']->id]);
+        $this->actingAs($super, 'sanctum')->postJson('/api/admin/riwayat-belajar', [
+            'santri_id' => $santriId,
+            'lembaga_id' => $f['mi']->id,
+            'tahun_ajaran_id' => $f['taMi']->id,
+            'tingkat' => '1',
+            'status_awal' => 'santri_baru',
+        ])->assertStatus(201);
+        $this->assertDatabaseHas('riwayat_belajar', [
+            'santri_id' => $santriId, 'lembaga_id' => $f['mi']->id,
+            'semester' => '1', 'tingkat' => '1', 'status_awal' => 'santri_baru', 'is_aktif' => true,
+        ]);
     }
 
     // ---------- 12. template Excel import PSB ----------
@@ -1084,9 +1122,10 @@ class PsbFlowTest extends TestCase
         $this->actingAs($ortu, 'sanctum')->postJson("/api/portal/psb/{$id}/ajukan-daftar-ulang")->assertStatus(201);
         $santriId = $this->actingAs($admin, 'sanctum')->postJson("/api/psb/{$id}/acc-daftar-ulang")->json('data.id');
 
-        // ACC tetap membuat santri + riwayat.
+        // ACC: santri + keanggotaan (riwayat menyusul via Riwayat Belajar).
         $this->assertDatabaseHas('santri', ['id' => $santriId, 'tipe_santri' => 'asrama']);
-        $this->assertEquals(1, RiwayatBelajar::where('santri_id', $santriId)->where('is_aktif', true)->count());
+        $this->assertDatabaseHas('lembaga_santri', ['santri_id' => $santriId, 'lembaga_id' => $f['mi']->id, 'is_active' => true]);
+        $this->assertEquals(0, RiwayatBelajar::where('santri_id', $santriId)->count());
 
         $daftar2 = $this->postJson('/api/psb/daftar', $this->daftarPayload(
             $f['gel'], $f['mi'], '1100000000000612', 'Non Asrama', 'ortu28b@example.com', '081828888882'
@@ -1441,7 +1480,7 @@ class PsbFlowTest extends TestCase
             $this->actingAs($admin, 'sanctum')->postJson("/api/psb/{$id}/daftar-ulang")->assertStatus(200);
         };
 
-        // ACC tunggal dengan NIS → santri.nis + arsip riwayat_belajar.nis terisi.
+        // ACC tunggal dengan NIS → lembaga_santri.nis_lokal terisi (riwayat tidak dibuat).
         $id1 = $daftar('Acc Nis Satu');
         $siapAcc($id1);
         $santri1 = $this->actingAs($admin, 'sanctum')
@@ -1531,7 +1570,7 @@ class PsbFlowTest extends TestCase
             ->json('data.id');
         $this->assertDatabaseHas('santri', ['id' => $santriId]);
         $this->assertDatabaseHas('lembaga_santri', ['santri_id' => $santriId, 'nis_lokal' => '36001', 'is_active' => true]);
-        $this->assertDatabaseHas('riwayat_belajar', ['santri_id' => $santriId, 'kelas_id' => null, 'is_aktif' => true]);
+        $this->assertEquals(0, RiwayatBelajar::where('santri_id', $santriId)->count());
 
         // Mengundurkan diri dari fase diterima → santri + riwayat ditarik kembali.
         $this->actingAs($admin, 'sanctum')->postJson("/api/psb/{$id}/undur-diri", ['catatan' => 'Pindah domisili'])
@@ -1565,8 +1604,14 @@ class PsbFlowTest extends TestCase
             ->assertStatus(201)
             ->json('data.id');
 
-        // Penempatan kelas menyusul: riwayat aktif berisi kelas_id.
-        $riwayat = RiwayatBelajar::where('santri_id', $santriId)->where('is_aktif', true)->firstOrFail();
+        // Penempatan kelas menyusul: riwayat perdana via Riwayat Belajar, lalu berisi kelas_id.
+        $super = $this->makeUser('super_admin', [$f['mi']->id]);
+        $riwayatId = $this->actingAs($super, 'sanctum')->postJson('/api/admin/riwayat-belajar', [
+            'santri_id' => $santriId,
+            'lembaga_id' => $f['mi']->id,
+            'tahun_ajaran_id' => $f['taMi']->id,
+        ])->assertStatus(201)->json('data.id');
+        $riwayat = RiwayatBelajar::findOrFail($riwayatId);
         $kelas = Kelas::create([
             'lembaga_id' => $f['mi']->id, 'tahun_ajaran_id' => $f['taMi']->id, 'nama_kelas' => 'I-A',
         ]);
@@ -1597,7 +1642,7 @@ class PsbFlowTest extends TestCase
 
     // ---------- 38. TA se-lembaga: ACC paket menulis TA per lembaga ----------
 
-    public function test_38_acc_paket_menulis_ta_per_lembaga(): void
+    public function test_38_acc_paket_hanya_keanggotaan_tanpa_riwayat(): void
     {
         $f = $this->baseFixture();
         $this->makeKuota($f['gel'], $f['mi'], $f['ta'], [
@@ -1627,12 +1672,11 @@ class PsbFlowTest extends TestCase
         $acc->assertStatus(201);
         $santriId = $acc->json('data.id');
 
-        // Riwayat MI memakai TA MI, MD memakai TA MD; tidak ada yang menunjuk root.
-        $rwMi = RiwayatBelajar::where('santri_id', $santriId)->where('lembaga_id', $f['mi']->id)->firstOrFail();
-        $rwMd = RiwayatBelajar::where('santri_id', $santriId)->where('lembaga_id', $f['md']->id)->firstOrFail();
-        $this->assertEquals($f['taMi']->id, (int) $rwMi->tahun_ajaran_id);
-        $this->assertEquals($f['taMd']->id, (int) $rwMd->tahun_ajaran_id);
-        $this->assertEquals(0, RiwayatBelajar::where('santri_id', $santriId)->where('tahun_ajaran_id', $f['ta']->id)->count());
+        // ACC paket: keanggotaan MI + MD ada; riwayat TIDAK dibuat (menyusul via Riwayat Belajar).
+        $this->assertEquals(2, LembagaSantri::where('santri_id', $santriId)->where('is_active', true)->count());
+        $this->assertDatabaseHas('lembaga_santri', ['santri_id' => $santriId, 'lembaga_id' => $f['mi']->id, 'is_active' => true]);
+        $this->assertDatabaseHas('lembaga_santri', ['santri_id' => $santriId, 'lembaga_id' => $f['md']->id, 'is_active' => true]);
+        $this->assertEquals(0, RiwayatBelajar::where('santri_id', $santriId)->count());
     }
 
     // ---------- 39. daftar satuan tanpa TA memakai TA aktif lembaganya ----------

@@ -478,7 +478,8 @@ class PsbService
                 $santri->update($payload);
             }
 
-            // Keanggotaan (`lembaga_santri`) + riwayat perdana per lembaga detail.
+            // Keanggotaan (`lembaga_santri`) per lembaga detail. Riwayat belajar
+            // perdana TIDAK dibuat di sini — diinput lewat halaman Riwayat Belajar.
             if ($calon->tahun_ajaran_id) {
                 if ($calon->lembagaDetail()->count() === 0) {
                     $calon->lembagaDetail()->create(['lembaga_id' => $calon->lembaga_id, 'peran' => 'primer']);
@@ -489,30 +490,10 @@ class PsbService
                     if ($nis !== null && LembagaSantri::nisLokalDipakai($lembagaDetailId, $nis)) {
                         throw ValidationException::withMessages(['nis' => 'NIS sudah dipakai santri lain di lembaga ini.']);
                     }
-                    [$awalAcc, $tingkatAcc] = $this->awalDanTingkat($calon, $detail);
-                    // TA per lembaga detail (paket MI+MD bisa beda TA): TA calon bila
-                    // bila tidak berlaku, pakai TA aktif yang berlaku untuk lembaga itu.
-                    $taAcc = TahunAjaran::resolve($lembagaDetailId, $calon->tahun_ajaran_id);
-
-                    $sudahAktif = RiwayatBelajar::where('santri_id', $santri->id)
-                        ->where('lembaga_id', $lembagaDetailId)
-                        ->where('is_aktif', true)
-                        ->exists();
-
-                    if ($sudahAktif) {
-                        // Pendaftaran lanjutan: cukup pastikan keanggotaan + NIS lokal.
-                        $penerimaan->pastikanKeanggotaan($santri, $lembagaDetailId, [
-                            'nis_lokal' => $nis,
-                            'tgl_mulai' => $calon->tanggal_masuk,
-                        ]);
-                    } else {
-                        $penerimaan->terima($santri, $lembagaDetailId, (int) $taAcc, [
-                            'nis_lokal' => $nis,
-                            'status_awal' => $awalAcc,
-                            'tingkat' => $tingkatAcc,
-                            'tgl_masuk' => $calon->tanggal_masuk,
-                        ]);
-                    }
+                    $penerimaan->pastikanKeanggotaan($santri, $lembagaDetailId, [
+                        'nis_lokal' => $nis,
+                        'tgl_mulai' => $calon->tanggal_masuk,
+                    ]);
                 }
             }
             // PINDAH dokumen: milik santri penuh (jejak asal via santri_id hasil + psb_log_status).
@@ -579,22 +560,6 @@ class PsbService
         if ($diCombo->count() > 2) {
             throw ValidationException::withMessages(['lembaga_id' => 'Maksimal 2 pendaftaran aktif (MI + MD).']);
         }
-    }
-
-    /**
-     * status_awal + tingkat riwayat ACC dari flag calon (root PRD):
-     * is_pindahan=false -> 'santri_baru', true -> 'pindahan'.
-     */
-    protected function awalDanTingkat(PsbCalonSantri $calon, ?PsbCalonLembaga $detail = null): array
-    {
-        $awal = $calon->is_pindahan ? 'pindahan' : 'santri_baru';
-        $tingkat = $detail?->masuk_tingkat;
-        if (! $tingkat) {
-            $lembaga = Lembaga::find($detail?->lembaga_id ?? $calon->lembaga_id);
-            $tingkat = $lembaga ? (self::TINGKAT_MASUK_BARU[$lembaga->kode] ?? null) : null;
-        }
-
-        return [$awal, $tingkat];
     }
 
     /** Banding tanggal null-safe lintas DB (normalisasi Y-m-d). */
