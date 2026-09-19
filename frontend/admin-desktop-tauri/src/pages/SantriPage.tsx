@@ -403,21 +403,23 @@ export default function SantriPage() {
         onSearchChange={onSearchChange}
         searchIds={{ form: 'form_cari_santri', input: 'input_cari_santri', button: 'btn_cari_santri' }}
         filter={(
+          <FilterField label="Status" htmlFor="select_status_santri">
+            <Select value={statusGlobal} onValueChange={(v) => { setStatusGlobal(v); pager.goFirst(); }}>
+              <SelectTrigger id="select_status_santri" title="Filter status" aria-label="Filter status" size="sm" className="w-36">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value="_semua">Semua</SelectItem>
+                  <SelectItem value="aktif">Aktif</SelectItem>
+                  <SelectItem value="nonaktif">Nonaktif</SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </FilterField>
+        )}
+        addButton={(
           <>
-            <FilterField label="Status" htmlFor="select_status_santri">
-              <Select value={statusGlobal} onValueChange={(v) => { setStatusGlobal(v); pager.goFirst(); }}>
-                <SelectTrigger id="select_status_santri" title="Filter status" aria-label="Filter status" size="sm" className="w-36">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectItem value="_semua">Semua</SelectItem>
-                    <SelectItem value="aktif">Aktif</SelectItem>
-                    <SelectItem value="nonaktif">Nonaktif</SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </FilterField>
             {bisa(user, 'santri.tambah') && <Button id="btn_buka_tambah_santri" size="sm" onClick={() => { setAddNama(''); setAddJk('L'); setAddNik(''); setAddNisn(''); setAddLembaga(''); setAddNisLokal(''); setTambahOpen(true); }}>
               <Plus data-icon="inline-start" size={16} /> Santri
             </Button>}
