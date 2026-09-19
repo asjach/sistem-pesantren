@@ -5,7 +5,7 @@ import {
   muatToolbarPreset,
   simpanToolbarPreset,
 } from '@/api/toolbarPreset';
-import { useAuth } from '@/auth/AuthContext';
+import { useLembagaAktif } from '@/lembagaAktif';
 import { Button } from '@/components/ui/button';
 import { DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -17,8 +17,8 @@ import { EVENT_TOOLBAR_BERUBAH, KONTROL_TOOLBAR, LEBAR_BAWAHAN_TOOLBAR, bacaLeba
  *  generik per tabel — GLOBAL untuk seluruh lembaga, khusus super_admin.
  *  Bukan dihapus: kontrol yang disembunyikan tetap ada, hanya tak dirender. */
 export default function TabKontrol({ tableKey, onTutup }: { tableKey: string; onTutup: () => void }) {
-  const { user } = useAuth();
-  const bolehUbah = (user?.roles ?? []).some((r) => r.name === 'super_admin');
+  /** Visibilitas kontrol = super_admin EFEKTIF (mati saat bertindak). */
+  const { efektifSuper: bolehUbah } = useLembagaAktif();
 
   const [vis, setVis] = useState<VisToolbar>({ cari: true, info: true, urut: true, kolom: true, filter: true });
   /** Lebar kontrol (px); nilai awal = bawaan meski belum ada preset tersimpan. */

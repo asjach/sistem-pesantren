@@ -78,7 +78,8 @@ class AuthController extends Controller
 
         return response()->json(array_merge(
             $user->load(['roles', 'lembagas:id,nama,kode'])->toArray(),
-            ['permissions' => $user->getAllPermissions()->pluck('name')->values()->all()],
+            // Saat bertindak sebagai lembaga: izin efektif setara admin.
+            ['permissions' => $user->izinEfektif()],
         ));
     }
 }

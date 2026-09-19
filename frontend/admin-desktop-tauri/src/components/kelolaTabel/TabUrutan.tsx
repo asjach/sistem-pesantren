@@ -8,7 +8,7 @@ import {
   type OpsiUrut,
   type PresetUrutData,
 } from '@/api/urutPreset';
-import { useAuth } from '@/auth/AuthContext';
+import { useLembagaAktif } from '@/lembagaAktif';
 import { useKamusPeta } from '@/components/useKamusPeta';
 import MultiSelect from '@/components/MultiSelect';
 import { Button } from '@/components/ui/button';
@@ -33,9 +33,8 @@ const IKUT = '_ikut';
  *  lembaga), atur arah & opsi bawaan. Draft = salinan penuh opsi tersimpan;
  *  Simpan mengganti seluruh daftar (semantik sama seperti dialog lama). */
 export default function TabUrutan({ tableKey, onTutup }: { tableKey: string; onTutup: () => void }) {
-  const { user } = useAuth();
-  // Kelola urutan = pengaturan global super_admin (dialog ini pun hanya dibuka super_admin).
-  const bolehSimpan = (user?.roles ?? []).some((r) => r.name === 'super_admin');
+  // Kelola urutan = pengaturan global super_admin EFEKTIF (mati saat bertindak).
+  const { efektifSuper: bolehSimpan } = useLembagaAktif();
 
   const [data, setData] = useState<PresetUrutData | null>(null);
   const [draft, setDraft] = useState<OpsiUrut[]>([]);

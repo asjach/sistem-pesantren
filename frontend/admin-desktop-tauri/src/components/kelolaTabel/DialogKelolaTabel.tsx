@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { PresetTabel } from '../../api/preset';
-import { useAuth } from '@/auth/AuthContext';
+import { useLembagaAktif } from '@/lembagaAktif';
 import {
   Dialog,
   DialogContent,
@@ -61,8 +61,9 @@ export default function DialogKelolaTabel({
   onPakaiLengkap,
   onDihapus,
 }: DialogKelolaTabelProps) {
-  const { user } = useAuth();
-  const superAdmin = (user?.roles ?? []).some((r) => r.name === 'super_admin');
+  /** Tab Kontrol = pengaturan global super_admin EFEKTIF (mati saat bertindak;
+   *  seluruh dialog ini pun hanya dibuka super_admin; lapis pertahanan kedua). */
+  const { efektifSuper: superAdmin } = useLembagaAktif();
   // Tab Kontrol = pengaturan global super_admin (seluruh dialog ini pun hanya
   // dibuka super_admin; lapis pertahanan kedua).
   const tabs = TAB_META.filter((t) => !t.superSaja || superAdmin);

@@ -95,7 +95,7 @@ class UrutPresetController extends Controller
 
     protected function pastikanAdminPesantren(): void
     {
-        if (! auth()->user()?->hasRole('super_admin')) {
+        if (! auth()->user()?->bolehSuperAdmin()) {
             abort(403, 'Preset urut hanya dikelola super_admin.');
         }
     }

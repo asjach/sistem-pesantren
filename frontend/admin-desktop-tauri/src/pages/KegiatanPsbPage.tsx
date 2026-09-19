@@ -129,10 +129,12 @@ function nilaiSelect(v: boolean | null | undefined): string {
 
 export default function KegiatanPsbPage() {
   const { user: me } = useAuth();
-  const isSuper = me?.roles.some((r) => r.name === 'super_admin') ?? false;
+  /** Kelola kegiatan = admin pesantren EFEKTIF: super penuh, admin full, atau
+   *  peran akar PST — mati untuk peran lembaga anak. */
+  const { efektifSuper: isSuper, bertindakPst } = useLembagaAktif();
   const isAdminFull = (me?.roles.some((r) => r.name === 'admin') ?? false) && (me?.lembagas?.length ?? 0) === 0;
   /** Admin pesantren (super_admin / admin tanpa batas lembaga): boleh kelola kegiatan & gelombang. */
-  const isAdminPesantren = isSuper || isAdminFull;
+  const isAdminPesantren = isSuper || bertindakPst || isAdminFull;
   const lembagaAkses = me?.lembagas?.map((l) => l.id) ?? [];
   const { lembagaId: lembagaAktifId, terkunci } = useLembagaAktif();
   const [kegiatans, setKegiatans] = useState<PsbKegiatan[]>([]);

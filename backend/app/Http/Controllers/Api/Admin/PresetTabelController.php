@@ -163,7 +163,7 @@ class PresetTabelController extends Controller
 
     protected function pastikanSuperAdmin(mixed $user): void
     {
-        if (! $user instanceof User || ! $user->hasRole('super_admin')) {
+        if (! $user instanceof User || ! $user->bolehSuperAdmin()) {
             abort(403, 'Preset kolom hanya dikelola super_admin.');
         }
     }

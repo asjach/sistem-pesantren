@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
+import { useLembagaAktif } from '@/lembagaAktif';
 import { bisa } from '../api/auth';
 import {
   createUser,
@@ -123,7 +124,8 @@ async function commitDraft(id: number, f: Record<string, string | null>) {
 
 export default function UsersPage() {
   const { user: me } = useAuth();
-  const isSuper = me?.roles.some((r) => r.name === 'super_admin') ?? false;
+  /** Hak kelola role = super_admin EFEKTIF (mati saat bertindak sebagai lembaga). */
+  const { efektifSuper: isSuper } = useLembagaAktif();
   // Gerbang aksi = izin matriks (backend menegakkan yang sama).
   const canUbah = bisa(me, 'pengguna.ubah');
   const canTambah = bisa(me, 'pengguna.tambah');

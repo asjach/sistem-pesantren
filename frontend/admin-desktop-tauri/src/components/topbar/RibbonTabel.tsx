@@ -16,7 +16,7 @@ import {
   useGridPrefs,
 } from '@/components/GridPrefs';
 import type { RibbonTableApi } from '@/components/RibbonTable';
-import { useAuth } from '@/auth/AuthContext';
+import { useLembagaAktif } from '@/lembagaAktif';
 import { DensityLarge, DensityMedium, DensitySmall, Columns3, Pencil, PlusCircle, RotateCcw, type Ikon } from '@/icons';
 import {
   Select,
@@ -117,8 +117,8 @@ const KERAPATAN: { id: DensityName; nama: string; icon: Ikon }[] = [
 ];
 
 export function RibbonTabel({ apiTabel }: { apiTabel: RibbonTableApi | null }) {
-  const { user } = useAuth();
-  const superAdmin = (user?.roles ?? []).some((r) => r.name === 'super_admin');
+  /** Kelola tabel = super_admin EFEKTIF (mati saat bertindak sebagai lembaga). */
+  const { efektifSuper: superAdmin } = useLembagaAktif();
   const { density, dark, parts, setGayaBagian, setWarnaBagian, setDensity } = useTheme();
   const { rowH, headerH, fontPx, fontFamily, setRowH, setHeaderH, setFontPx, setFontFamily } = useGridPrefs();
   const effectiveH = rowH ?? DENSITY_PX[density];

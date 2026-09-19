@@ -147,6 +147,128 @@ class BertindakLembagaTest extends TestCase
         ])->assertStatus(201);
     }
 
+    public function test_bertindak_menurunkan_izin_dan_menolak_tulis_global(): void
+    {
+        $l = $this->lembaga();
+        $pusat = $this->makeUser('super_admin');
+        $hdr = ['X-Lembaga-Aktif' => (string) $l['mi']->id];
+
+        // /me penuh tanpa header…
+        $penuh = $this->actingAs($pusat, 'sanctum')->getJson('/api/auth/me')
+            ->assertStatus(200)->json('permissions');
+        $this->assertContains('preset_tabel.tambah', $penuh);
+        $this->assertContains('izin.ubah', $penuh);
+
+        // …diturunkan ke set admin saat bertindak (tanpa 14 eksklusif super).
+        $efektif = $this->actingAs($pusat, 'sanctum')->withHeaders($hdr)->getJson('/api/auth/me')
+            ->assertStatus(200)->json('permissions');
+        $this->assertNotContains('preset_tabel.tambah', $efektif);
+        $this->assertNotContains('preset_tabel.ubah', $efektif);
+        $this->assertNotContains('urut_preset.tambah', $efektif);
+        $this->assertNotContains('toolbar_preset.tambah', $efektif);
+        $this->assertNotContains('izin.ubah', $efektif);
+        $this->assertNotContains('lembaga.tambah', $efektif);
+        $this->assertContains('santri.ubah', $efektif);
+        $this->assertContains('pengguna.lihat', $efektif);
+
+        // Tulis global ditolak (403), bukan sekadar disembunyikan di UI.
+        $this->actingAs($pusat, 'sanctum')->withHeaders($hdr)->postJson('/api/admin/preset-tabel', [
+            'table_key' => 'santri', 'nama' => 'Uji', 'kolom' => ['nama'],
+        ])->assertStatus(403);
+        $this->actingAs($pusat, 'sanctum')->withHeaders($hdr)->putJson('/api/admin/toolbar-preset', [
+            'table_key' => 'santri', 'visibilitas' => ['cari' => false],
+        ])->assertStatus(403);
+        $this->actingAs($pusat, 'sanctum')->withHeaders($hdr)->putJson('/api/admin/urut-preset', [
+            'table_key' => 'santri', 'opsi' => [['kode' => ['nama'], 'label' => 'Nama']],
+        ])->assertStatus(403);
+        $this->actingAs($pusat, 'sanctum')->withHeaders($hdr)->postJson('/api/admin/tahun-ajaran', [
+            'nama' => '2027/2028',
+        ])->assertStatus(403);
+
+        // Tanpa header tetap boleh (201, bukan 403).
+        $this->flushHeaders();
+        $presetId = $this->actingAs($pusat, 'sanctum')->postJson('/api/admin/preset-tabel', [
+            'table_key' => 'santri', 'nama' => 'Uji', 'kolom' => ['nama'],
+        ])->assertStatus(201)->json('data.0.id');
+
+        // Pin bawaan: boleh penuh, ditolak saat bertindak.
+        $this->actingAs($pusat, 'sanctum')
+            ->postJson("/api/admin/preset-tabel/{$presetId}/bawaan")
+            ->assertStatus(200);
+        $this->actingAs($pusat, 'sanctum')->withHeaders($hdr)
+            ->postJson("/api/admin/preset-tabel/{$presetId}/bawaan")
+            ->assertStatus(403);
+    }
+
+    public function test_bertindak_boleh_simpan_standar_lembaga_sendiri(): void
+    {
+        $l = $this->lembaga();
+        $pusat = $this->makeUser('super_admin');
+        $hdr = ['X-Lembaga-Aktif' => (string) $l['mi']->id];
+
+        // Rekam visual milik sendiri: 201.
+        $this->actingAs($pusat, 'sanctum')->withHeaders($hdr)->putJson('/api/admin/pengaturan-tampilan', [
+            'lembaga_ids' => [$l['mi']->id],
+            'data' => ['tema' => ['theme' => 'geist']],
+        ])->assertStatus(201);
+
+        // Lembaga lain tetap 403.
+        $this->actingAs($pusat, 'sanctum')->withHeaders($hdr)->putJson('/api/admin/pengaturan-tampilan', [
+            'lembaga_ids' => [$l['md']->id],
+            'data' => ['tema' => ['theme' => 'geist']],
+        ])->assertStatus(403);
+    }
+
+    public function test_bertindak_pst_setara_admin_pesantren(): void
+    {
+        $l = $this->lembaga();
+        $this->siapkanKelas($l['mi'], $l['md']);
+        $pusat = $this->makeUser('super_admin');
+        $guruMi = $this->makeUser('guru', [$l['mi']->id]);
+        $hdr = ['X-Lembaga-Aktif' => (string) $l['root']->id];
+
+        // Data lintas lembaga tampil semua (bukan scope satu id).
+        $this->actingAs($pusat, 'sanctum')->withHeaders($hdr)->getJson('/api/admin/kelas')
+            ->assertStatus(200)
+            ->assertJsonCount(2, 'data');
+        $this->actingAs($pusat, 'sanctum')->withHeaders($hdr)
+            ->getJson("/api/admin/kelas?lembaga_id={$l['md']->id}")->assertStatus(200);
+
+        // Izin efektif = set admin.
+        $efektif = $this->actingAs($pusat, 'sanctum')->withHeaders($hdr)->getJson('/api/auth/me')
+            ->assertStatus(200)->json('permissions');
+        $this->assertNotContains('preset_tabel.tambah', $efektif);
+        $this->assertNotContains('izin.ubah', $efektif);
+        $this->assertContains('kelas.lihat', $efektif);
+
+        // Tulis global tetap ditolak.
+        $this->actingAs($pusat, 'sanctum')->withHeaders($hdr)->putJson('/api/admin/toolbar-preset', [
+            'table_key' => 'santri', 'visibilitas' => ['cari' => false],
+        ])->assertStatus(403);
+        $this->actingAs($pusat, 'sanctum')->withHeaders($hdr)->postJson('/api/admin/lembaga', [
+            'nama' => 'Unit Baru', 'kode' => 'UB',
+        ])->assertStatus(403);
+
+        // Kelola pengguna setara admin: filter role=admin ditolak, guru boleh.
+        $this->actingAs($pusat, 'sanctum')->withHeaders($hdr)
+            ->getJson('/api/admin/users?role=admin')->assertStatus(403);
+        $this->actingAs($pusat, 'sanctum')->withHeaders($hdr)
+            ->getJson('/api/admin/users?role=guru')->assertStatus(200);
+
+        // Daftar lembaga (opsi filter) berisi semua.
+        $this->actingAs($pusat, 'sanctum')->withHeaders($hdr)->getJson('/api/admin/lembaga')
+            ->assertStatus(200)
+            ->assertJsonCount(3, 'data');
+
+        // Peran anak tetap sempit: hanya MI, filter admin ditolak.
+        $hdrMi = ['X-Lembaga-Aktif' => (string) $l['mi']->id];
+        $this->actingAs($pusat, 'sanctum')->withHeaders($hdrMi)->getJson('/api/admin/kelas')
+            ->assertStatus(200)
+            ->assertJsonCount(1, 'data');
+        $this->actingAs($pusat, 'sanctum')->withHeaders($hdrMi)
+            ->getJson('/api/admin/users?role=admin')->assertStatus(403);
+    }
+
     public function test_header_lembaga_tidak_dikenal_ditolak(): void
     {
         $this->lembaga();

@@ -28,7 +28,9 @@ export default function BannerBertindak({ terbuka, onTutup }: {
   const tampil = superAdmin && (bertindak || terbuka);
 
   const cepat = pilihan.filter((p) => CEPAT.includes(p.kode ?? ''));
-  const tombol = cepat.length > 0 ? cepat : pilihan;
+  const tombol = cepat.length > 0 ? cepat : pilihan.filter((p) => (p.kode ?? '') !== 'PESANTREN');
+  /** Akar pesantren (admin pesantren): tombol cepat "PST", paling kiri grup kanan. */
+  const pst = pilihan.find((p) => (p.kode ?? '') === 'PESANTREN') ?? null;
 
   // Esc = tutup pemilih / kembali ke mode super_admin. Dialog/menu yang
   // terbuka dan editor sel grid tetap didahulukan (jangan dibajak).
@@ -73,7 +75,32 @@ export default function BannerBertindak({ terbuka, onTutup }: {
         </span>
       )}
 
-      <span className="inline-flex items-center gap-1" role="group" aria-label="Peran cepat">
+      {bertindak && (
+        <span className="mx-auto inline-flex items-center gap-1.5">
+          <label
+            htmlFor="chk_rekam_visual"
+            className="inline-flex cursor-pointer items-center gap-1.5 rounded-md bg-black/10 px-2 py-0.5 font-medium dark:bg-white/15"
+            title="Jika aktif, perubahan tampilan ikut mengubah standar lembaga ini."
+          >
+            <input
+              id="chk_rekam_visual"
+              type="checkbox"
+              checked={rekam}
+              onChange={(e) => setRekam(e.target.checked)}
+              className="size-3.5 accent-current"
+              style={{ accentColor: 'currentColor' }}
+            />
+            Rekam visual
+          </label>
+          <span className="opacity-80">
+            {rekam
+              ? (menyimpan ? '· menyimpan standar…' : '· perubahan tampilan tersimpan ke standar lembaga ini')
+              : '· hanya berperan, tampilan lembaga tidak diubah'}
+          </span>
+        </span>
+      )}
+
+      <span className="ml-auto inline-flex items-center gap-1" role="group" aria-label="Peran cepat">
         {tombol.map((p) => {
           const aktif = p.id === peranId;
           return (
@@ -96,33 +123,26 @@ export default function BannerBertindak({ terbuka, onTutup }: {
             </button>
           );
         })}
+        {pst && (
+          <button
+            key={pst.id}
+            id="btn_peran_lembaga_pst"
+            type="button"
+            title={pst.nama}
+            aria-label={`Berperan sebagai ${pst.nama}`}
+            aria-pressed={pst.id === peranId}
+            onClick={() => { pilihPeran(pst.id); onTutup(); }}
+            className={cn(
+              'rounded-md px-2.5 py-1 font-medium transition-colors',
+              pst.id === peranId
+                ? 'bg-black/25 dark:bg-white/25'
+                : 'bg-black/10 hover:bg-black/20 dark:bg-white/15 dark:hover:bg-white/25',
+            )}
+          >
+            PST
+          </button>
+        )}
       </span>
-
-      {bertindak && (
-        <label
-          htmlFor="chk_rekam_visual"
-          className="ml-1 inline-flex cursor-pointer items-center gap-1.5 rounded-md bg-black/10 px-2 py-0.5 font-medium dark:bg-white/15"
-          title="Jika aktif, perubahan tampilan ikut mengubah standar lembaga ini."
-        >
-          <input
-            id="chk_rekam_visual"
-            type="checkbox"
-            checked={rekam}
-            onChange={(e) => setRekam(e.target.checked)}
-            className="size-3.5 accent-current"
-            style={{ accentColor: 'currentColor' }}
-          />
-          Rekam visual
-        </label>
-      )}
-
-      {bertindak && (
-        <span className="opacity-80">
-          {rekam
-            ? (menyimpan ? '· menyimpan standar…' : '· perubahan tampilan tersimpan ke standar lembaga ini')
-            : '· hanya berperan, tampilan lembaga tidak diubah'}
-        </span>
-      )}
 
       {/* Selalu tampil selama banner terbuka: menutup pemilih / keluar dari peran. */}
       <button
@@ -130,7 +150,7 @@ export default function BannerBertindak({ terbuka, onTutup }: {
         type="button"
         title="Kembali ke mode super_admin (Semua lembaga)"
         onClick={() => { pilihPeran(null); onTutup(); }}
-        className="ml-auto inline-flex items-center gap-1.5 rounded-md bg-black/10 px-2.5 py-1 font-medium transition-colors hover:bg-black/20 dark:bg-white/15 dark:hover:bg-white/25"
+        className="inline-flex items-center gap-1.5 rounded-md bg-black/10 px-2.5 py-1 font-medium transition-colors hover:bg-black/20 dark:bg-white/15 dark:hover:bg-white/25"
       >
         <RotateCcw size={13} aria-hidden="true" /> Kembali ke {user?.name}
       </button>

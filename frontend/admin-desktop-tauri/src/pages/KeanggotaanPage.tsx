@@ -345,3 +345,6 @@ export default function KeanggotaanPage() {
     </div>
   );
 }
+  /** Gerbang super = EFEKTIF (mati saat bertindak; dropdown dikunci ke peran). */
+  const { efektifSuper: superAdmin } = useLembagaAktif();
+  const { lembagaId: lembagaTop } = useLembagaAktif();

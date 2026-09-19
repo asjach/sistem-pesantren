@@ -6,7 +6,7 @@ import {
   updatePresetTabel,
   type PresetTabel,
 } from '../api/preset';
-import { useAuth } from '../auth/AuthContext';
+import { useLembagaAktif } from '@/lembagaAktif';
 import type { ExcelField } from './ExcelTable';
 import {
   Select,
@@ -53,10 +53,9 @@ export default function PresetKolom({
   /** Lebar trigger dropdown (px) dari tab Kontrol; menang atas triggerClassName. */
   lebarTrigger?: number;
 }) {
-  const { user: me } = useAuth();
-  /** Kelola preset = super_admin saja (global); memilih preset untuk dilihat
-   *  tetap bisa semua role. */
-  const superAdmin = (me?.roles ?? []).some((r) => r.name === 'super_admin');
+  /** Kelola preset = super_admin EFEKTIF (global; mati saat bertindak).
+   *  Memilih preset untuk dilihat tetap bisa semua role. */
+  const { efektifSuper: superAdmin } = useLembagaAktif();
 
   const [presets, setPresets] = useState<PresetTabel[]>([]);
   const [aktifId, setAktifId] = useState<number | null>(null);

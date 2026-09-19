@@ -9,7 +9,7 @@ class ToolbarPresetSimpanRequest extends FormRequest
     /** Visibilitas kontrol hanya dikelola super_admin (403 sebelum validasi). */
     public function authorize(): bool
     {
-        return $this->user()?->hasRole('super_admin') ?? false;
+        return $this->user()?->bolehSuperAdmin() ?? false;
     }
 
     public function rules(): array

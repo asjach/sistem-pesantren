@@ -9,7 +9,7 @@ class PresetTabelUpdateRequest extends FormRequest
     /** Preset kolom (global) hanya dikelola super_admin (403 sebelum validasi). */
     public function authorize(): bool
     {
-        return $this->user()?->hasRole('super_admin') ?? false;
+        return $this->user()?->bolehSuperAdmin() ?? false;
     }
 
     public function rules(): array

@@ -7,10 +7,17 @@ use Illuminate\Validation\Rule;
 
 class PengaturanTampilanUpsertRequest extends FormRequest
 {
-    /** Sebar standar = super_admin saja (Rekam Visual + API langsung ikut terkunci). */
+    /**
+     * Sebar standar = super_admin saja; saat bertindak sebagai lembaga,
+     * admin boleh menyimpan standar lembaganya sendiri (controller
+     * mengunci tiap id via canAccessLembaga). API langsung ikut terkunci.
+     */
     public function authorize(): bool
     {
-        return (bool) $this->user()?->hasRole('super_admin');
+        $user = $this->user();
+
+        return (bool) ($user?->bolehSuperAdmin()
+            || ($user?->lembagaPeran() !== null && $user->can('tampilan.ubah')));
     }
 
     public function rules(): array

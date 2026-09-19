@@ -61,7 +61,8 @@ function sifatOf(r: ReferensiRow): string {
 
 export default function ReferensiPage() {
   const { user: me } = useAuth();
-  const isSuper = !!me?.roles.some((r) => r.name === 'super_admin');
+  /** Gerbang super = EFEKTIF (mati saat bertindak; baris global terkunci). */
+  const { efektifSuper: isSuper } = useLembagaAktif();
   // Baris global tetap struktural super_admin; baris lembaga mengikuti izin matriks.
   const canManage = bisa(me, 'referensi.ubah');
   const myLembagaIds = useMemo(() => me?.lembagas?.map((l) => l.id) ?? [], [me]);

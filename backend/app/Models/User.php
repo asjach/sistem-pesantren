@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Konteks\LembagaAktif;
+use App\Services\IzinKatalog;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -10,11 +11,16 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\HasApiTokens;
+use Spatie\Permission\Contracts\Permission;
 use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
-    use HasApiTokens, HasRoles, Notifiable;
+    use HasApiTokens, HasRoles, Notifiable {
+        // `parent::` tak menjangkau metode trait: alias agar override
+        // hasPermissionTo() di bawah bisa memanggil implementasi Spatie.
+        HasRoles::hasPermissionTo as hasPermissionToBawaan;
+    }
 
     protected $guard_name = 'sanctum';
 
@@ -61,9 +67,12 @@ class User extends Authenticatable
     /** Semua lembaga_id yang boleh diakses: pivot user_lembaga saja (users tanpa kolom tenant). */
     public function lembagaIds(): array
     {
-        // Mode "bertindak sebagai lembaga": seluruh scope menyempit ke lembaga peran.
+        // Mode "bertindak sebagai lembaga": seluruh scope menyempit ke lembaga
+        // peran; peran akar pesantren (PST) = admin pesantren: seluruh lembaga.
         if (($peran = $this->lembagaPeran()) !== null) {
-            return [$peran];
+            return $this->bertindakPesantren()
+                ? Lembaga::orderBy('id')->pluck('id')->map(fn ($v) => (int) $v)->all()
+                : [$peran];
         }
 
         return DB::table('user_lembaga')
@@ -85,13 +94,28 @@ class User extends Authenticatable
     }
 
     /**
+     * Bertindak sebagai akar pesantren (tombol cepat PST): berperan sebagai
+     * admin pesantren — data lintas lembaga, tanpa hak khusus super_admin.
+     */
+    public function bertindakPesantren(): bool
+    {
+        $peran = $this->lembagaPeran();
+        if ($peran === null) {
+            return false;
+        }
+
+        return Lembaga::whereKey($peran)->whereNull('parent_id')->exists();
+    }
+
+    /**
      * Kemampuan lintas lembaga (super_admin / admin full). Dimatikan saat
-     * super_admin bertindak sebagai satu lembaga.
+     * super_admin bertindak sebagai satu lembaga; peran akar (PST) tetap
+     * lintas lembaga selayaknya admin pesantren.
      */
     public function bolehPesantren(): bool
     {
         if ($this->lembagaPeran() !== null) {
-            return false;
+            return $this->bertindakPesantren();
         }
 
         return $this->hasRole('super_admin') || $this->isAdminFull();
@@ -106,6 +130,37 @@ class User extends Authenticatable
         return $this->hasRole('super_admin') && $this->lembagaPeran() === null;
     }
 
+    /**
+     * Cek izin matriks dengan kesadaran act-as: saat bertindak sebagai
+     * lembaga, 14 izin eksklusif super_admin nonaktif (efektif = set admin).
+     * Semua gerbang `permission:` route, `$user->can()`, dan Gate::before
+     * Spatie bermuara ke sini.
+     */
+    public function hasPermissionTo($permission, ?string $guardName = null): bool
+    {
+        if ($this->lembagaPeran() !== null) {
+            $nama = $permission instanceof Permission
+                ? $permission->name
+                : (string) $permission;
+            if (in_array($nama, IzinKatalog::EKSKLUSIF_SUPER_ADMIN, true)) {
+                return false;
+            }
+        }
+
+        return $this->hasPermissionToBawaan($permission, $guardName);
+    }
+
+    /** Izin efektif untuk respons `/me` (diturunkan saat bertindak). */
+    public function izinEfektif(): array
+    {
+        $semua = $this->getAllPermissions()->pluck('name')->values()->all();
+        if ($this->lembagaPeran() === null) {
+            return $semua;
+        }
+
+        return array_values(array_diff($semua, IzinKatalog::EKSKLUSIF_SUPER_ADMIN));
+    }
+
     /** Admin full = role admin tanpa pivot (akses semua lembaga). */
     public function isAdminFull(): bool
     {
@@ -114,8 +169,9 @@ class User extends Authenticatable
 
     /**
      * Role yang boleh diberikan aktor ini (create/update/assign/import).
-     * super_admin: semua role; admin: guru/orang_tua/santri (role `admin`
-     * hanya lewat creatableRoles()); lainnya: tidak ada.
+     * super_admin: semua role; admin (atau super_admin yang sedang bertindak
+     * sebagai lembaga): guru/orang_tua/santri (role `admin` hanya lewat
+     * creatableRoles()); lainnya: tidak ada.
      *
      * @return list<string>
      */
@@ -124,7 +180,7 @@ class User extends Authenticatable
         if ($this->bolehSuperAdmin()) {
             return ['super_admin', 'admin', 'guru', 'orang_tua', 'santri'];
         }
-        if ($this->hasRole('admin')) {
+        if ($this->hasRole('admin') || $this->lembagaPeran() !== null) {
             return ['guru', 'orang_tua', 'santri'];
         }
 
@@ -160,9 +216,10 @@ class User extends Authenticatable
 
     public function canAccessLembaga(int $lembagaId): bool
     {
-        // Mode bertindak: hanya lembaga yang sedang diperankan.
-        if (($peran = $this->lembagaPeran()) !== null) {
-            return (int) $lembagaId === $peran;
+        // Mode bertindak: hanya lembaga yang sedang diperankan (peran akar
+        // pesantren = seluruh lembaga, selayaknya admin pesantren).
+        if ($this->lembagaPeran() !== null) {
+            return $this->bertindakPesantren() || (int) $lembagaId === $this->lembagaPeran();
         }
         // Choke point tenant lembaga via pivot user_lembaga.
         if ($this->hasRole('super_admin')) {

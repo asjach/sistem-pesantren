@@ -34,7 +34,9 @@ Route::prefix('auth')->group(function () {
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('logout', [AuthController::class, 'logout']);
         Route::post('logout-all', [AuthController::class, 'logoutAll']);
-        Route::get('me', [AuthController::class, 'me']);
+        // `lembaga_aktif` agar /me mengembalikan izin EFEKTIF saat super_admin
+        // sedang bertindak sebagai lembaga (setara admin).
+        Route::get('me', [AuthController::class, 'me'])->middleware('lembaga_aktif');
     });
 });
 
