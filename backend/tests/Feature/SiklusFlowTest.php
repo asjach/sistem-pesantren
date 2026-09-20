@@ -607,4 +607,148 @@ class SiklusFlowTest extends TestCase
         ])->assertStatus(200);
         $this->assertDatabaseHas('mutasi_keluar', ['santri_id' => $s2->id, 'kelas_terakhir_id' => $kelasB->id]);
     }
+
+    // ---------- 14. kenaikan otomatis: TA + kelas dibuatkan ----------
+
+    public function test_14_naik_otomatis_kelas_bertambah_ta_ada(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeUser('admin', [$f['mi']->id]);
+
+        $kelas1A = Kelas::create([
+            'lembaga_id' => $f['mi']->id, 'tahun_ajaran_id' => $f['taLama']->id,
+            'nama_kelas' => '1A', 'tingkat' => '1',
+        ]);
+        $s = $this->makeSantri('Otomatis Satu');
+        $this->makeKeanggotaan($s, $f['mi'], '25120');
+        $this->makeRiwayat($s, $f['taLama'], $f['mi'], '2', ['tingkat' => '1', 'kelas_id' => $kelas1A->id]);
+
+        $res = $this->actingAs($admin, 'sanctum')->postJson('/api/admin/akademik/naik-kelas-otomatis', [
+            'lembaga_id' => $f['mi']->id,
+            'siswa' => [['santri_id' => $s->id, 'status' => 'naik', 'tgl_masuk' => '2026-07-15']],
+        ])->assertStatus(200);
+        $this->assertSame(1, $res->json('berhasil'));
+        // Respons memuat kelas/tingkat tujuan agar UI tak menampilkan kelas lama.
+        $this->assertSame('2A', $res->json('data.0.kelas'));
+        $this->assertSame('2', (string) $res->json('data.0.tingkat'));
+
+        // TA 2026/2027 milik lembaga dipakai; kelas 2A dibuat otomatis.
+        $kelas2A = Kelas::where('lembaga_id', $f['mi']->id)
+            ->where('tahun_ajaran_id', $f['taBaru']->id)->where('nama_kelas', '2A')->firstOrFail();
+        $this->assertSame('2', $kelas2A->tingkat);
+
+        // Baris lama ditutup naik; baris baru kenaikan + aktif + tgl masuk.
+        $this->assertDatabaseHas('riwayat_belajar', [
+            'santri_id' => $s->id, 'tahun_ajaran_id' => $f['taLama']->id,
+            'semester' => '2', 'status_akhir' => 'naik', 'is_aktif' => false,
+        ]);
+        $this->assertDatabaseHas('riwayat_belajar', [
+            'santri_id' => $s->id, 'tahun_ajaran_id' => $f['taBaru']->id,
+            'semester' => '1', 'kelas_id' => $kelas2A->id, 'tingkat' => '2',
+            'status_awal' => 'kenaikan', 'status_akhir' => 'aktif',
+            'tgl_masuk' => '2026-07-15', 'is_aktif' => true,
+        ]);
+
+        // Filter status_awal (sumber tabel hasil Kenaikan) memuat baris baru.
+        $daftar = $this->actingAs($admin, 'sanctum')->getJson('/api/admin/riwayat-belajar?'.http_build_query([
+            'lembaga_id' => $f['mi']->id, 'status_awal' => 'kenaikan', 'is_aktif' => 1,
+        ]))->assertStatus(200);
+        $this->assertSame('2A', $daftar->json('data.0.kelas.nama_kelas'));
+    }
+
+    public function test_15_naik_otomatis_ta_baru_tidak_naik_dan_gagal_jelas(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeUser('admin', [$f['mi']->id]);
+
+        $kelas3C = Kelas::create([
+            'lembaga_id' => $f['mi']->id, 'tahun_ajaran_id' => $f['taBaru']->id,
+            'nama_kelas' => '3C', 'tingkat' => '3',
+        ]);
+        $sTinggal = $this->makeSantri('Otomatis Tinggal');
+        $this->makeKeanggotaan($sTinggal, $f['mi'], '25121');
+        $this->makeRiwayat($sTinggal, $f['taBaru'], $f['mi'], '2', ['tingkat' => '3', 'kelas_id' => $kelas3C->id]);
+
+        $kelasPagi = Kelas::create([
+            'lembaga_id' => $f['mi']->id, 'tahun_ajaran_id' => $f['taBaru']->id,
+            'nama_kelas' => 'Pagi', 'tingkat' => '1',
+        ]);
+        $sAneh = $this->makeSantri('Otomatis Aneh');
+        $this->makeKeanggotaan($sAneh, $f['mi'], '25122');
+        $this->makeRiwayat($sAneh, $f['taBaru'], $f['mi'], '2', ['tingkat' => '1', 'kelas_id' => $kelasPagi->id]);
+
+        $kelas6A = Kelas::create([
+            'lembaga_id' => $f['mi']->id, 'tahun_ajaran_id' => $f['taBaru']->id,
+            'nama_kelas' => '6A', 'tingkat' => '6',
+        ]);
+        $sAkhir = $this->makeSantri('Otomatis Akhir');
+        $this->makeKeanggotaan($sAkhir, $f['mi'], '25123');
+        $this->makeRiwayat($sAkhir, $f['taBaru'], $f['mi'], '2', ['tingkat' => '6', 'kelas_id' => $kelas6A->id]);
+
+        $res = $this->actingAs($admin, 'sanctum')->postJson('/api/admin/akademik/naik-kelas-otomatis', [
+            'lembaga_id' => $f['mi']->id,
+            'siswa' => [
+                ['santri_id' => $sTinggal->id, 'status' => 'tidak_naik', 'tgl_masuk' => '2027-07-15'],
+                ['santri_id' => $sAneh->id, 'status' => 'naik', 'tgl_masuk' => '2027-07-15'],
+                ['santri_id' => $sAkhir->id, 'status' => 'naik', 'tgl_masuk' => '2027-07-15'],
+            ],
+        ])->assertStatus(200);
+        $this->assertSame(1, $res->json('berhasil'));
+        $this->assertCount(2, $res->json('gagal'));
+
+        // TA 2027/2028 dibuat global; tidak_naik memakai kelas senama.
+        $taBaru2 = TahunAjaran::whereNull('lembaga_id')->where('nama', '2027/2028')->firstOrFail();
+        $kelas3Cbaru = Kelas::where('lembaga_id', $f['mi']->id)
+            ->where('tahun_ajaran_id', $taBaru2->id)->where('nama_kelas', '3C')->firstOrFail();
+        $this->assertDatabaseHas('riwayat_belajar', [
+            'santri_id' => $sTinggal->id, 'tahun_ajaran_id' => $taBaru2->id,
+            'semester' => '1', 'kelas_id' => $kelas3Cbaru->id, 'tingkat' => '3',
+            'status_awal' => 'mengulang', 'status_akhir' => 'aktif', 'is_aktif' => true,
+        ]);
+
+        // Kelas tak berangka + tingkat akhir gagal jelas, baris lama utuh.
+        $pesan = collect($res->json('gagal'))->pluck('pesan')->join(' ');
+        $this->assertStringContainsString('angka', $pesan);
+        $this->assertStringContainsString('Kelulusan', $pesan);
+        $this->assertTrue((bool) RiwayatBelajar::where('santri_id', $sAneh->id)->where('is_aktif', true)->exists());
+        $this->assertTrue((bool) RiwayatBelajar::where('santri_id', $sAkhir->id)->where('is_aktif', true)->exists());
+    }
+
+    // ---------- 15. batal kenaikan: hapus baru + buka lama ----------
+
+    public function test_16_batal_kenaikan_mengembalikan_baris_asal(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeUser('admin', [$f['mi']->id]);
+
+        $kelas1A = Kelas::create([
+            'lembaga_id' => $f['mi']->id, 'tahun_ajaran_id' => $f['taLama']->id,
+            'nama_kelas' => '1A', 'tingkat' => '1',
+        ]);
+        $s = $this->makeSantri('Batal Satu');
+        $this->makeKeanggotaan($s, $f['mi'], '25130');
+        $this->makeRiwayat($s, $f['taLama'], $f['mi'], '2', ['tingkat' => '1', 'kelas_id' => $kelas1A->id]);
+
+        $this->actingAs($admin, 'sanctum')->postJson('/api/admin/akademik/naik-kelas-otomatis', [
+            'lembaga_id' => $f['mi']->id,
+            'siswa' => [['santri_id' => $s->id, 'status' => 'naik', 'tgl_masuk' => '2026-07-15']],
+        ])->assertStatus(200)->assertJsonPath('berhasil', 1);
+
+        $res = $this->actingAs($admin, 'sanctum')->postJson("/api/admin/santri/{$s->id}/batal-kenaikan", [
+            'lembaga_id' => $f['mi']->id,
+        ])->assertStatus(200);
+        $this->assertSame('aktif', $res->json('data.status_akhir'));
+
+        // Baris baru hilang; baris asal aktif kembali.
+        $this->assertSame(1, RiwayatBelajar::where('santri_id', $s->id)->count());
+        $this->assertDatabaseHas('riwayat_belajar', [
+            'santri_id' => $s->id, 'tahun_ajaran_id' => $f['taLama']->id,
+            'semester' => '2', 'status_akhir' => 'aktif', 'is_aktif' => true,
+        ]);
+
+        // Batal kedua kali → 422 jelas (tak ada hasil aktif).
+        $this->actingAs($admin, 'sanctum')->postJson("/api/admin/santri/{$s->id}/batal-kenaikan", [
+            'lembaga_id' => $f['mi']->id,
+        ])->assertStatus(422);
+    }
 }

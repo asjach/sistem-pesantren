@@ -8,6 +8,7 @@ use App\Models\LembagaSantri;
 use App\Models\MutasiKeluar;
 use App\Models\RiwayatBelajar;
 use App\Models\Santri;
+use App\Models\TahunAjaran;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -131,6 +132,148 @@ class SiklusSantriService
             $santri->hitungUlangStatusGlobal();
 
             return $baru;
+        });
+    }
+
+    /**
+     * Kenaikan otomatis genap→ganjil: TA + kelas tujuan dibuatkan bila belum
+     * ada. Naik: tingkat+1, kelas angka+1 (1A→2A, 12-A→13-A, 12→13);
+     * tidak_naik: tingkat + kelas senama. Baris lama ditutup dengan
+     * status_akhir naik/tidak_naik; baris baru status_awal
+     * kenaikan/mengulang, status_akhir aktif.
+     */
+    public function prosesKenaikanOtomatis(Santri $santri, int $lembagaId, string $status, ?string $tglMasuk = null): RiwayatBelajar
+    {
+        return DB::transaction(function () use ($santri, $lembagaId, $status, $tglMasuk) {
+            $santri = Santri::whereKey($santri->id)->lockForUpdate()->firstOrFail();
+            $lama = RiwayatBelajar::where('santri_id', $santri->id)
+                ->where('lembaga_id', $lembagaId)->where('is_aktif', true)
+                ->lockForUpdate()->latest('id')->first();
+            if (! $lama) {
+                throw ValidationException::withMessages(['riwayat' => 'Tidak ada riwayat aktif di lembaga ini.']);
+            }
+            if ($lama->semester !== '2') {
+                abort(422, 'Kenaikan wajib dari baris genap (semester 2) yang aktif — salin ke genap dulu.');
+            }
+            if (! in_array($status, ['naik', 'tidak_naik'], true)) {
+                abort(422, 'Status harus naik/tidak_naik.');
+            }
+            // Hanya tingkat 1–5; tingkat akhir lewat halaman Kelulusan.
+            if (! preg_match('/^[1-5]$/', (string) $lama->tingkat)) {
+                throw ValidationException::withMessages(['tingkat' => 'Tingkat akhir diproses lewat halaman Kelulusan.']);
+            }
+            $awalBaru = $status === 'naik' ? 'kenaikan' : 'mengulang';
+            foreach ([['status_akhir', $status], ['status_awal', $awalBaru], ['status_akhir', 'aktif']] as [$t, $k]) {
+                if (! in_array($k, RefService::kodeAktif($t, $lembagaId), true)) {
+                    abort(422, "Status $k tidak aktif di lembaga ini.");
+                }
+            }
+
+            $taBaru = $this->taBerikutnya((int) $lama->tahun_ajaran_id, $lembagaId);
+            $tingkatBaru = $status === 'naik' ? (string) ((int) $lama->tingkat + 1) : (string) $lama->tingkat;
+            $kelasBaruId = $this->kelasKenaikan(
+                $lembagaId, $taBaru->id, $lama->kelas?->nama_kelas, $tingkatBaru, $status === 'naik'
+            );
+
+            $lama->update(['status_akhir' => $status, 'is_aktif' => false]);
+
+            $this->pastikanKeanggotaanAktif($santri, $lembagaId);
+
+            $baru = $this->buatRiwayatDenganRetry($santri->id, [
+                'tahun_ajaran_id' => $taBaru->id,
+                'lembaga_id' => $lembagaId,
+                'kelas_id' => $kelasBaruId,
+                'semester' => '1',
+                'tgl_masuk' => $tglMasuk,
+                'no_absen' => null,
+                'tingkat' => $tingkatBaru,
+                'status_awal' => $awalBaru,
+                'status_akhir' => 'aktif',
+                'is_aktif' => true,
+            ], where: fn ($q) => $q->where('tahun_ajaran_id', $taBaru->id)
+                ->where('lembaga_id', $lembagaId)->where('semester', '1'));
+
+            $santri->hitungUlangStatusGlobal();
+
+            return $baru;
+        });
+    }
+
+    /** TA global berikutnya ("2026/2027"→"2027/2028"); buatkan bila belum ada. */
+    protected function taBerikutnya(int $taId, int $lembagaId): TahunAjaran
+    {
+        $lama = TahunAjaran::find($taId);
+        if (! $lama || ! preg_match('/^(\d{4})\/(\d{4})$/', (string) $lama->nama, $m)) {
+            abort(422, 'Nama tahun ajaran tak berpola tahun (YYYY/YYYY).');
+        }
+        $namaBaru = ((int) $m[1] + 1).'/'.((int) $m[2] + 1);
+        $ada = TahunAjaran::efektif($lembagaId)->firstWhere('nama', $namaBaru);
+        if ($ada) {
+            return $ada;
+        }
+
+        return TahunAjaran::create([
+            'lembaga_id' => null, 'nama' => $namaBaru,
+            'tanggal_mulai' => null, 'tanggal_selesai' => null,
+            'is_aktif' => false, 'is_active' => true,
+        ]);
+    }
+
+    /**
+     * Kelas tujuan di TA baru (firstOrCreate). Nama wajib berangka depan:
+     * naik menambah angkanya (1A→2A, 12-A→13-A, 12→13); tidak_naik senama.
+     *
+     * @return int|null null bila baris lama tanpa kelas (tetap tanpa kelas).
+     */
+    protected function kelasKenaikan(int $lembagaId, int $taBaruId, ?string $namaLama, string $tingkatBaru, bool $naik): ?int
+    {
+        if ($namaLama === null || trim($namaLama) === '') {
+            return null;
+        }
+        if (! preg_match('/^(\d+)(.*)$/', trim($namaLama), $m)) {
+            throw ValidationException::withMessages(['kelas' => "Nama kelas \"{$namaLama}\" tak berangka depan (mis. 1A)."]);
+        }
+        $namaBaru = $naik ? ((int) $m[1] + 1).$m[2] : trim($namaLama);
+        $kelas = Kelas::firstOrCreate(
+            ['lembaga_id' => $lembagaId, 'tahun_ajaran_id' => $taBaruId, 'nama_kelas' => $namaBaru],
+            ['tingkat' => $tingkatBaru]
+        );
+
+        return $kelas->id;
+    }
+
+    /**
+     * Batalkan kenaikan: hapus baris baru (kenaikan/mengulang yang masih
+     * aktif) dan buka kembali baris lama yang ditutupnya. Hanya bila belum
+     * ada transisi lanjutan (baris baru masih aktif).
+     */
+    public function batalKenaikan(Santri $santri, int $lembagaId): RiwayatBelajar
+    {
+        return DB::transaction(function () use ($santri, $lembagaId) {
+            $santri = Santri::whereKey($santri->id)->lockForUpdate()->firstOrFail();
+            $baru = RiwayatBelajar::where('santri_id', $santri->id)
+                ->where('lembaga_id', $lembagaId)->where('is_aktif', true)
+                ->whereIn('status_awal', ['kenaikan', 'mengulang'])
+                ->lockForUpdate()->latest('id')->first();
+            if (! $baru) {
+                throw ValidationException::withMessages(['riwayat' => 'Tidak ada hasil kenaikan aktif yang bisa dibatalkan.']);
+            }
+            $lama = RiwayatBelajar::where('santri_id', $santri->id)
+                ->where('lembaga_id', $lembagaId)->where('is_aktif', false)
+                ->whereIn('status_akhir', ['naik', 'tidak_naik'])
+                ->where('id', '!=', $baru->id)
+                ->lockForUpdate()->latest('id')->first();
+            if (! $lama) {
+                throw ValidationException::withMessages(['riwayat' => 'Baris asal kenaikan tidak ditemukan.']);
+            }
+
+            $baru->delete();
+            // Invarian: is_aktif=true iff status_akhir='aktif'.
+            $lama->update(['status_akhir' => 'aktif', 'is_aktif' => true]);
+
+            $santri->hitungUlangStatusGlobal();
+
+            return $lama->fresh();
         });
     }
 

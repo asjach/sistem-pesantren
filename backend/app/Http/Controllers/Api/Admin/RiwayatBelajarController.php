@@ -75,6 +75,9 @@ class RiwayatBelajarController extends Controller
         if ($request->filled('status_akhir')) {
             $query->where('riwayat_belajar.status_akhir', $request->input('status_akhir'));
         }
+        if ($request->filled('status_awal')) {
+            $query->where('riwayat_belajar.status_awal', $request->input('status_awal'));
+        }
         if ($request->boolean('tanpa_kelas')) {
             $query->whereNull('riwayat_belajar.kelas_id');
         }

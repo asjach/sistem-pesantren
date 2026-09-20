@@ -128,6 +128,7 @@ export function listRiwayatBelajar(params: {
   tanpa_kelas?: boolean;
   q?: string;
   is_aktif?: boolean;
+  status_awal?: string;
   status_akhir?: string;
   sort?: string[];
   arah?: 'naik' | 'turun';
@@ -145,6 +146,7 @@ export function listRiwayatBelajar(params: {
   if (params.q) q.set('q', params.q);
   if (params.is_aktif !== undefined) q.set('is_aktif', params.is_aktif ? '1' : '0');
   if (params.status_akhir) q.set('status_akhir', params.status_akhir);
+  if (params.status_awal) q.set('status_awal', params.status_awal);
   if (params.sort?.length) q.set('sort', params.sort.join(','));
   if (params.arah) q.set('arah', params.arah);
   q.set('page', String(params.page ?? 1));
@@ -343,6 +345,27 @@ export function naikKelasMassal(input: {
 }) {
   return api<{ pesan: string; berhasil: number; gagal: { santri_id: number | null; pesan: string }[] }>(
     '/admin/akademik/naik-kelas',
+    { method: 'POST', body: JSON.stringify(input) },
+  );
+}
+
+/** Batalkan hasil kenaikan: hapus baris baru + buka kembali baris asal. */
+export function batalKenaikan(santriId: number, lembaga_id: number) {
+  return api<{ pesan: string }>(
+    `/admin/santri/${santriId}/batal-kenaikan`,
+    { method: 'POST', body: JSON.stringify({ lembaga_id }) },
+  );
+}
+/** Kenaikan otomatis: TA + kelas tujuan dibuatkan bila belum ada.
+ *  Baris hasil memuat kelas/tingkat/TA tujuan yang baru dibuat. */
+export interface HasilKenaikan { santri_id: number; nama: string | null; kelas: string | null; tingkat: string | null; tahun_ajaran: string | null; }
+
+export function naikKelasOtomatis(input: {
+  lembaga_id: number;
+  siswa: { santri_id: number; status: 'naik' | 'tidak_naik'; tgl_masuk: string }[];
+}) {
+  return api<{ pesan: string; berhasil: number; gagal: { santri_id: number | null; pesan: string }[]; data: HasilKenaikan[] }>(
+    '/admin/akademik/naik-kelas-otomatis',
     { method: 'POST', body: JSON.stringify(input) },
   );
 }

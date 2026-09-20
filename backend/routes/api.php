@@ -120,11 +120,13 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
 
         // Siklus akademik (kenaikan, kelulusan, mutasi keluar, rekap)
         Route::post('akademik/naik-kelas', [SiklusController::class, 'naikKelasMassal'])->middleware('permission:kenaikan.ubah');
+        Route::post('akademik/naik-kelas-otomatis', [SiklusController::class, 'naikKelasOtomatis'])->middleware('permission:kenaikan.ubah');
         Route::post('akademik/salin-genap', [SiklusController::class, 'salinGenapMassal'])->middleware('permission:kenaikan.ubah');
         Route::get('akademik/daftar-kelas', [SiklusController::class, 'daftarKelas'])->middleware('permission:daftar_kelas.lihat');
         Route::get('akademik/rekap-santri', [SiklusController::class, 'rekapSantri'])->middleware('permission:rekap_santri.lihat');
         Route::post('santri/{santri}/lulus', [SiklusController::class, 'lulus'])->middleware('permission:kelulusan.ubah');
         Route::post('santri/{santri}/tidak-lulus', [SiklusController::class, 'tidakLulus'])->middleware('permission:kelulusan.ubah');
+        Route::post('santri/{santri}/batal-kenaikan', [SiklusController::class, 'batalKenaikan'])->middleware('permission:kenaikan.ubah');
         Route::post('santri/{santri}/mutasi', [SiklusController::class, 'mutasiKeluar'])->middleware('permission:mutasi_keluar.ubah');
         Route::post('santri/{santri}/berhenti-jenjang', [SiklusController::class, 'berhentiJenjang'])->middleware('permission:mutasi_keluar.ubah');
         Route::get('santri/{santri}/profil', [SiklusController::class, 'profilSantri'])->middleware('permission:santri.lihat');

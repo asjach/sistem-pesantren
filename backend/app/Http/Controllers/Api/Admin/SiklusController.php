@@ -9,6 +9,7 @@ use App\Http\Requests\Admin\SiklusDaftarKelasRequest;
 use App\Http\Requests\Admin\SiklusLembagaRequest;
 use App\Http\Requests\Admin\SiklusLulusRequest;
 use App\Http\Requests\Admin\SiklusMutasiKeluarRequest;
+use App\Http\Requests\Admin\SiklusNaikKelasOtomatisRequest;
 use App\Http\Requests\Admin\SiklusNaikKelasRequest;
 use App\Http\Requests\Admin\SiklusRekapRequest;
 use App\Http\Requests\Admin\SiklusSalinGenapRequest;
@@ -140,6 +141,60 @@ class SiklusController extends Controller
         }
 
         return response()->json(['pesan' => 'Proses kenaikan selesai.', 'berhasil' => $ok, 'gagal' => $gagal]);
+    }
+
+    /** POST /api/admin/akademik/naik-kelas-otomatis — TA + kelas tujuan
+     *  dibuatkan otomatis (partial per-item). */
+    public function naikKelasOtomatis(SiklusNaikKelasOtomatisRequest $request): JsonResponse
+    {
+        $this->authorize('viewAny', Santri::class);
+
+        $data = $request->validated();
+
+        $lembagaId = (int) $data['lembaga_id'];
+        $this->tolakLembagaRoot($lembagaId);
+
+        $ok = 0;
+        $gagal = [];
+        $hasil = [];
+        foreach ($data['siswa'] as $item) {
+            try {
+                $santri = Santri::findOrFail($item['santri_id']);
+                $this->authorizeAksiLembaga($request, $santri, $lembagaId);
+                $baru = $this->siklusService->prosesKenaikanOtomatis(
+                    $santri,
+                    $lembagaId,
+                    $item['status'],
+                    $item['tgl_masuk']
+                );
+                $baru->load(['santri:id,nama_lengkap', 'kelas:id,nama_kelas', 'tahunAjaran:id,nama']);
+                $hasil[] = [
+                    'santri_id' => $baru->santri_id,
+                    'nama' => $baru->santri?->nama_lengkap,
+                    'kelas' => $baru->kelas?->nama_kelas,
+                    'tingkat' => $baru->tingkat,
+                    'tahun_ajaran' => $baru->tahunAjaran?->nama,
+                ];
+                $ok++;
+            } catch (\Throwable $e) {
+                $gagal[] = ['santri_id' => $item['santri_id'] ?? null, 'pesan' => $e->getMessage()];
+            }
+        }
+
+        return response()->json(['pesan' => 'Proses kenaikan selesai.', 'berhasil' => $ok, 'gagal' => $gagal, 'data' => $hasil]);
+    }
+
+    /** POST /api/admin/santri/{santri}/batal-kenaikan — urungkan hasil kenaikan. */
+    public function batalKenaikan(SiklusLembagaRequest $request, Santri $santri): JsonResponse
+    {
+        $data = $request->validated();
+
+        $this->tolakLembagaRoot((int) $data['lembaga_id']);
+        $this->authorizeAksiLembaga($request, $santri, (int) $data['lembaga_id']);
+
+        $lama = $this->siklusService->batalKenaikan($santri, (int) $data['lembaga_id']);
+
+        return response()->json(['pesan' => 'Kenaikan dibatalkan; santri kembali ke kelas asal.', 'data' => $lama]);
     }
 
     /** POST /api/admin/santri/{santri}/lulus — kelulusan per lembaga (+arsip alumni). */
