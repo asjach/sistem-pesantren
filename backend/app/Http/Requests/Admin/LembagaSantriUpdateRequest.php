@@ -18,6 +18,7 @@ class LembagaSantriUpdateRequest extends FormRequest
     {
         return [
             'nis_lokal' => ['sometimes', 'nullable', 'string', 'max:20'],
+            'nis_kemenag' => ['sometimes', 'nullable', 'string', 'max:20'],
             'is_active' => ['sometimes', 'boolean'],
             'tgl_mulai' => ['sometimes', 'nullable', 'date'],
             'tgl_selesai' => ['sometimes', 'nullable', 'date'],

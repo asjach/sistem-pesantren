@@ -18,7 +18,10 @@ class LembagaSantriStoreRequest extends FormRequest
         return [
             'lembaga_id' => ['required', Rule::exists('lembaga', 'id')->whereNotNull('parent_id')],
             'nis_lokal' => ['nullable', 'string', 'max:20'],
+            'nis_kemenag' => ['nullable', 'string', 'max:20'],
+            'is_active' => ['sometimes', 'boolean'],
             'tgl_mulai' => ['nullable', 'date'],
+            'tgl_selesai' => ['nullable', 'date'],
         ];
     }
 }

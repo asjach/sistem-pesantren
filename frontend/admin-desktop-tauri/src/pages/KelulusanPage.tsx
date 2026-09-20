@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/field';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import ExcelTable from '@/components/ExcelTable';
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
 import { useTahunAjaranAwalString } from '@/hooks/useTahunAjaranAwal';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
@@ -25,6 +26,8 @@ export default function KelulusanPage() {
   const [kiri, setKiri] = useState<RiwayatRow[]>([]);
   const [pilih, setPilih] = useState<Set<number>>(new Set());
   const [tidakLulus, setTidakLulus] = useState<{ santri_id: number; nama: string; kelas: string | null }[]>([]);
+  /** Panel santri tidak lulus bisa disembunyikan/ditampilkan. */
+  const [tampilTidakLulus, setTampilTidakLulus] = useState(true);
   const [alumni, setAlumni] = useState<Alumni[]>([]);
   /** Urut header alumni: daftar nilai allowlist + arah global (maks 3 kunci). */
   const [urut, setUrut] = useState<string[]>([]);
@@ -125,9 +128,10 @@ export default function KelulusanPage() {
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <section className="rounded-md border">
-          <header className="flex items-center justify-between border-b bg-muted/40 px-3 py-2 text-sm font-medium">
+      <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1" id="grup_kelulusan_kolom">
+        <ResizablePanel defaultSize={50} minSize={25}>
+        <section className="flex h-full min-h-0 min-w-0 flex-col rounded-md border">
+          <header className="flex shrink-0 items-center justify-between border-b bg-muted/40 px-3 py-2 text-sm font-medium">
             <span>Santri tingkat akhir ({kiri.length})</span>
             <div className="flex gap-2">
               <Button id="btn_ke_tidak_lulus" size="sm" variant="outline" disabled={pilih.size === 0} onClick={() => {
@@ -138,7 +142,7 @@ export default function KelulusanPage() {
               }}>→ Tidak lulus</Button>
             </div>
           </header>
-          <div className="px-2 pb-1">
+          <div className="flex min-h-0 flex-1 flex-col px-2 pb-2">
             <ExcelTable
               tableKey="kelulusan_santri_akhir"
               fields={[
@@ -152,16 +156,19 @@ export default function KelulusanPage() {
               onSaved={() => {}}
               renderActions={() => null}
               onCheckedChange={(rows) => setPilih(new Set(rows.map((r) => r.santri_id)))}
-              maxRows={12}
               emptyText="Tidak ada santri aktif."
             />
           </div>
         </section>
-
-        <div className="grid grid-rows-2 gap-4">
-          <section className="rounded-md border">
-            <header className="border-b bg-muted/40 px-3 py-2 text-sm font-medium">{`Alumni (${alumni.length})`}</header>
-            <div className="px-2 pb-1">
+        </ResizablePanel>
+        <ResizableHandle withHandle orientation="horizontal" id="gagang_kelulusan_kolom" />
+        <ResizablePanel defaultSize={50} minSize={25}>
+        <div className="flex h-full min-h-0 flex-col">
+        <ResizablePanelGroup orientation="vertical" className="min-h-0 flex-1" id="grup_kelulusan_baris">
+          <ResizablePanel defaultSize={50} minSize={15}>
+          <section className="flex h-full min-h-0 min-w-0 flex-col rounded-md border">
+            <header className="shrink-0 border-b bg-muted/40 px-3 py-2 text-sm font-medium">{`Alumni (${alumni.length})`}</header>
+            <div className="flex min-h-0 flex-1 flex-col px-2 pb-2">
               <ExcelTable
                 tableKey="kelulusan_alumni"
                 fields={[
@@ -187,14 +194,23 @@ export default function KelulusanPage() {
                 hideCheckbox
                 hideActions
                 hidePreset
-                maxRows={6}
                 emptyText="Belum ada alumni."
               />
             </div>
           </section>
-          <section className="rounded-md border">
-            <header className="border-b bg-muted/40 px-3 py-2 text-sm font-medium">Santri tidak lulus ({tidakLulus.length})</header>
-            <div className="px-2 pb-1">
+          </ResizablePanel>
+          {tampilTidakLulus && (
+          <>
+          <ResizableHandle withHandle orientation="vertical" id="gagang_kelulusan_baris" />
+          <ResizablePanel defaultSize={50} minSize={15}>
+          <section className="flex h-full min-h-0 min-w-0 flex-col rounded-md border">
+            <header className="flex shrink-0 items-center justify-between gap-2 border-b bg-muted/40 px-3 py-2 text-sm font-medium">
+              <span>Santri tidak lulus ({tidakLulus.length})</span>
+              <Button id="btn_sembunyi_tidak_lulus" size="sm" variant="ghost" onClick={() => setTampilTidakLulus(false)}>
+                Sembunyikan
+              </Button>
+            </header>
+            <div className="flex min-h-0 flex-1 flex-col px-2 pb-2">
               <ExcelTable
                 tableKey="kelulusan_tidak_lulus"
                 fields={[
@@ -210,13 +226,24 @@ export default function KelulusanPage() {
                   <Button id={`btn_kembalikan_tidak_lulus_${b.santri_id}`} size="sm" variant="ghost" onClick={() => setTidakLulus((prev) => prev.filter((x) => x.santri_id !== b.santri_id))}>Kembalikan</Button>
                 )}
                 hideCheckbox
-                maxRows={6}
                 emptyText="Belum ada."
               />
             </div>
           </section>
+          </ResizablePanel>
+          </>
+          )}
+        </ResizablePanelGroup>
+        {!tampilTidakLulus && (
+          <div className="flex shrink-0 justify-end pt-2">
+            <Button id="btn_tampil_tidak_lulus" size="sm" variant="outline" onClick={() => setTampilTidakLulus(true)}>
+              Tampilkan santri tidak lulus ({tidakLulus.length})
+            </Button>
+          </div>
+        )}
         </div>
-      </div>
+        </ResizablePanel>
+      </ResizablePanelGroup>
 
       <Dialog open={lulusOpen} onOpenChange={setLulusOpen}>
         <DialogContent className="sm:max-w-md">

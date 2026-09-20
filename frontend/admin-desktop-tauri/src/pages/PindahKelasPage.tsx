@@ -10,27 +10,44 @@ import { FieldLabel } from '@/components/ui/field';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import ExcelTable from '@/components/ExcelTable';
+import { ActionIcon } from '@/components/RowActions';
+import FilterField from '@/components/FilterField';
+import { ArrowRight } from '@/icons';
 import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
 import { useTahunAjaranAwalString } from '@/hooks/useTahunAjaranAwal';
+import { useSemesterAwal } from '@/hooks/useSemesterAwal';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
-import { FilterSemester } from '@/components/siklus/bersama';
 import { toast } from 'sonner';
 
-interface Kelompok { kelasId: number | null; kelas: string; tingkat: string | null; baris: RiwayatRow[]; }
+interface KolomKelas {
+  kelasId: number | null;
+  kelas: string;
+  baris: RiwayatRow[];
+}
 
-/** Pindah Kelas: tabel per kelas (dikelompokkan per tingkat) + salin ganjil→genap. */
+interface GrupTingkat {
+  tingkat: string | null;
+  kolom: KolomKelas[];
+}
+
+/** Pindah Kelas: tiap tingkat tampil sebagai baris kolom — satu tabel per
+ *  kelas. Panah kiri/kanan tiap baris memindahkan ke kelas tetangga siklik
+ *  (ujung bertemu ujung); satu kelas saja = tanpa panah. */
 export default function PindahKelasPage() {
   const { user } = useAuth();
   const canSalin = bisa(user, 'kenaikan.ubah');
+  const canPindah = bisa(user, 'pindah_kelas.ubah');
   const [lembagaId, setLembagaId] = useState('');
   useLembagaAwalString(setLembagaId);
   const [taId, setTaId] = useState('');
   useTahunAjaranAwalString(setTaId);
   const [semester, setSemester] = useState('');
+  useSemesterAwal(setSemester);
+  const [tingkat, setTingkat] = useState('');
   const [rows, setRows] = useState<RiwayatRow[]>([]);
   const [kelas, setKelas] = useState<Kelas[]>([]);
   const [err, setErr] = useState('');
-  const [busy, setBusy] = useState(false);
+  const [busyId, setBusyId] = useState<number | null>(null);
 
   const [salinOpen, setSalinOpen] = useState(false);
   const [tanggalSalin, setTanggalSalin] = useState('');
@@ -53,33 +70,97 @@ export default function PindahKelasPage() {
       .catch(() => setKelas([]));
   }, [lembagaId, taId]);
 
-  const kelompok = useMemo<Kelompok[]>(() => {
-    const peta = new Map<string, Kelompok>();
-    for (const r of rows) {
-      const kunci = `${r.tingkat ?? ''}|${r.kelas_id ?? ''}`;
-      if (!peta.has(kunci)) {
-        peta.set(kunci, { kelasId: r.kelas_id, kelas: r.kelas?.nama_kelas ?? 'Tanpa kelas', tingkat: r.tingkat, baris: [] });
-      }
-      peta.get(kunci)!.baris.push(r);
+  /** Opsi tingkat dari daftar kelas (bukan dari baris, agar kelas kosong
+   *  tetap muncul sebagai kolom tujuan). */
+  const opsiTingkat = useMemo(() => {
+    const unik = new Set<string>();
+    for (const k of kelas) {
+      if (k.tingkat != null && k.tingkat !== '') unik.add(String(k.tingkat));
     }
-    return [...peta.values()].sort((a, b) => String(a.tingkat ?? '').localeCompare(String(b.tingkat ?? '')) || a.kelas.localeCompare(b.kelas));
-  }, [rows]);
+    for (const r of rows) {
+      if (r.tingkat != null && r.tingkat !== '') unik.add(String(r.tingkat));
+    }
+    return [...unik].sort((a, b) => a.localeCompare(b, 'id', { numeric: true }));
+  }, [kelas, rows]);
 
-  const pindah = async (r: RiwayatRow, kelasBaru: string) => {
-    if (!kelasBaru) return;
-    setBusy(true);
+  /** Satu tingkat aktif (wajib pilih satu; otomatis tingkat pertama bila
+   *  pilihan kosong/tak tersedia). */
+  useEffect(() => {
+    if (opsiTingkat.length === 0) return;
+    if (tingkat === '' || !opsiTingkat.includes(tingkat)) setTingkat(opsiTingkat[0]);
+  }, [opsiTingkat, tingkat]);
+
+  const grup = useMemo<GrupTingkat[]>(() => {
+    const petaKelas = new Map<number, Kelas>();
+    for (const k of kelas) petaKelas.set(k.id, k);
+    // Kelompokkan kelas per tingkat, urut nama.
+    const tingkatKeKelas = new Map<string, Kelas[]>();
+    for (const k of kelas) {
+      const t = k.tingkat != null && k.tingkat !== '' ? String(k.tingkat) : '';
+      if (!tingkatKeKelas.has(t)) tingkatKeKelas.set(t, []);
+      tingkatKeKelas.get(t)!.push(k);
+    }
+    for (const daftar of tingkatKeKelas.values()) {
+      daftar.sort((a, b) => a.nama_kelas.localeCompare(b.nama_kelas, 'id', { numeric: true }));
+    }
+    // Baris per kelas; kelas tak dikenal + tanpa kelas menumpuk di kolom
+    // "Tanpa kelas" tingkatnya masing-masing.
+    const barisPerKelas = new Map<number, RiwayatRow[]>();
+    const tanpaPerTingkat = new Map<string, RiwayatRow[]>();
+    for (const r of rows) {
+      if (r.kelas_id != null && petaKelas.has(r.kelas_id)) {
+        if (!barisPerKelas.has(r.kelas_id)) barisPerKelas.set(r.kelas_id, []);
+        barisPerKelas.get(r.kelas_id)!.push(r);
+      } else {
+        const t = r.tingkat != null && r.tingkat !== '' ? String(r.tingkat) : '';
+        if (!tanpaPerTingkat.has(t)) tanpaPerTingkat.set(t, []);
+        tanpaPerTingkat.get(t)!.push(r);
+      }
+    }
+    const semuaTingkat = new Set([...tingkatKeKelas.keys(), ...tanpaPerTingkat.keys()]);
+    const hasil: GrupTingkat[] = [];
+    for (const t of semuaTingkat) {
+      if (tingkat === '' || t !== tingkat) continue;
+      const kolom: KolomKelas[] = (tingkatKeKelas.get(t) ?? []).map((k) => ({
+        kelasId: k.id,
+        kelas: k.nama_kelas,
+        baris: barisPerKelas.get(k.id) ?? [],
+      }));
+      const tanpa = tanpaPerTingkat.get(t) ?? [];
+      if (tanpa.length > 0) kolom.push({ kelasId: null, kelas: 'Tanpa kelas', baris: tanpa });
+      if (kolom.length === 0) continue;
+      hasil.push({ tingkat: t === '' ? null : t, kolom });
+    }
+    hasil.sort((a, b) => String(a.tingkat ?? '').localeCompare(String(b.tingkat ?? ''), 'id', { numeric: true }));
+    return hasil;
+  }, [kelas, rows, tingkat]);
+
+  const pindah = async (r: RiwayatRow, kelasBaruId: number) => {
+    setBusyId(r.id);
     try {
-      await pindahKelas(r.id, Number(kelasBaru));
+      await pindahKelas(r.id, kelasBaruId);
       toast.success('Santri dipindah kelas.');
       await load();
-    } catch (e) { toast.error(errorMessage(e)); } finally { setBusy(false); }
+    } catch (e) { toast.error(errorMessage(e)); } finally { setBusyId(null); }
   };
 
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
       <div className="flex flex-wrap items-end gap-3">
-        <FilterSemester id="select_semester_pindah_kelas" value={semester} onChange={setSemester} />
+        <FilterField label="Tingkat" htmlFor="select_tingkat_pindah_kelas">
+          <Select value={tingkat === '' ? '_pilih' : tingkat} onValueChange={(v) => { if (v !== '_pilih') setTingkat(v); }}>
+            <SelectTrigger id="select_tingkat_pindah_kelas" title="Pilih tingkat" aria-label="Pilih tingkat" size="sm">
+              <SelectValue placeholder="Pilih tingkat" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {opsiTingkat.length === 0 && <SelectItem value="_pilih">Pilih tingkat</SelectItem>}
+                {opsiTingkat.map((t) => <SelectItem key={t} value={t}>Tingkat {t}</SelectItem>)}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </FilterField>
         {canSalin && (
         <Button id="btn_buka_salin_genap" variant="outline" disabled={!lembagaId} onClick={() => { setTanggalSalin(''); setSalinOpen(true); }}>
           Salin ke genap
@@ -87,38 +168,39 @@ export default function PindahKelasPage() {
         )}
       </div>
 
-      {kelompok.length === 0 ? (
+      {grup.length === 0 ? (
         <p className="text-sm text-muted-foreground">Tidak ada santri aktif pada filter ini.</p>
-      ) : kelompok.map((g) => (
-        <section key={`${g.tingkat}-${g.kelasId}`} className="rounded-md border">
-          <header className="flex items-center justify-between border-b bg-muted/40 px-3 py-2 text-sm font-medium">
-            <span>Kelas {g.kelas}</span>
-            <span className="text-xs text-muted-foreground">Tingkat {g.tingkat ?? '—'} · {g.baris.length} santri</span>
-          </header>
-          <div className="px-2 pb-1">
-            <ExcelTable
-              tableKey={`pindah_kelas_${g.tingkat ?? 'tanpa'}_${g.kelasId ?? 'tanpa'}`}
-              fields={[
-                { key: 'nama', label: 'santri.nama_lengkap', kind: 'static', sumber: { tabel: 'santri', kolom: 'nama_lengkap' } },
-                { key: 'nis_lokal', label: 'nis_lokal', kind: 'static', sumber: { tabel: 'lembaga_santri', kolom: 'nis_lokal' } },
-                { key: 'no_absen', label: 'no_absen', kind: 'static', sumber: { tabel: 'riwayat_belajar', kolom: 'no_absen' } },
-              ]}
-              rows={g.baris}
-              getValues={(r) => ({
-                nama: r.santri?.nama_lengkap ?? null,
-                nis_lokal: r.nis_lokal ?? null,
-                no_absen: r.no_absen != null ? String(r.no_absen) : null,
-              })}
-              canEdit={false}
-              onCommit={async () => {}}
-              onSaved={() => {}}
-              renderActions={(r) => (
-                <PindahSelect idPrefix={`pindah_${r.id}`} kelas={kelas} disabled={busy} onPilih={(v) => void pindah(r, v)} />
-              )}
-              hideCheckbox
-              maxRows={12}
-              emptyText="Tidak ada santri pada kelas ini."
-            />
+      ) : grup.map((g) => (
+        <section key={g.tingkat ?? 'tanpa'} className="flex min-h-0 flex-1 flex-col gap-2">
+          <h2 className="shrink-0 text-sm font-semibold">Tingkat {g.tingkat ?? '—'}</h2>
+          <div className="grid min-h-0 flex-1 gap-3 [grid-template-columns:repeat(auto-fit,minmax(300px,1fr))]">
+            {g.kolom.map((k) => (
+              <TabelKelas
+                key={k.kelasId ?? 'tanpa'}
+                tingkat={g.tingkat}
+                kolom={k}
+                tetangga={k.kelasId == null
+                  // Kolom Tanpa kelas: kiri = kelas nyata terakhir,
+                  // kanan = kelas nyata pertama.
+                  ? (() => {
+                      const nyata = g.kolom.filter((c) => c.kelasId != null);
+                      if (nyata.length === 0) return { kiri: null, kanan: null };
+                      return { kiri: nyata[nyata.length - 1], kanan: nyata[0] };
+                    })()
+                  : (() => {
+                      const nyata = g.kolom.filter((c) => c.kelasId != null);
+                      const i = nyata.findIndex((c) => c.kelasId === k.kelasId);
+                      if (nyata.length < 2 || i < 0) return { kiri: null, kanan: null };
+                      return {
+                        kiri: nyata[(i - 1 + nyata.length) % nyata.length],
+                        kanan: nyata[(i + 1) % nyata.length],
+                      };
+                    })()}
+                bisaPindah={canPindah}
+                busyId={busyId}
+                onPindah={(r, tujuan) => void pindah(r, tujuan)}
+              />
+            ))}
           </div>
         </section>
       ))}
@@ -133,15 +215,15 @@ export default function PindahKelasPage() {
           <Input id="input_tanggal_salin_genap" type="date" value={tanggalSalin} onChange={(e) => setTanggalSalin(e.target.value)} />
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setSalinOpen(false)}>Batal</Button>
-            <Button id="btn_proses_salin_genap" disabled={busy || !tanggalSalin} onClick={async () => {
-              setBusy(true);
+            <Button id="btn_proses_salin_genap" disabled={busyId !== null || !tanggalSalin} onClick={async () => {
+              setBusyId(-1);
               try {
                 const res = await salinGenapMassal({ lembaga_id: Number(lembagaId), tanggal_masuk: tanggalSalin });
                 toast.success(`Salin genap: ${res.berhasil} berhasil, ${res.gagal.length} gagal.`);
                 if (res.gagal.length) toast.error(res.gagal.map((g) => `#${g.santri_id}: ${g.pesan}`).join(' · '));
                 setSalinOpen(false);
                 await load();
-              } catch (e) { toast.error(errorMessage(e)); } finally { setBusy(false); }
+              } catch (e) { toast.error(errorMessage(e)); } finally { setBusyId(null); }
             }}>Proses</Button>
           </DialogFooter>
         </DialogContent>
@@ -150,20 +232,82 @@ export default function PindahKelasPage() {
   );
 }
 
-function PindahSelect({ idPrefix, kelas, disabled, onPilih }: { idPrefix: string; kelas: Kelas[]; disabled: boolean; onPilih: (v: string) => void }) {
-  const [nilai, setNilai] = useState('');
+/** Satu kolom kelas: tabel santri + panah pindah ke tetangga siklik. */
+function TabelKelas({ tingkat, kolom, tetangga, bisaPindah, busyId, onPindah }: {
+  tingkat: string | null;
+  kolom: KolomKelas;
+  tetangga: { kiri: KolomKelas | null; kanan: KolomKelas | null };
+  bisaPindah: boolean;
+  busyId: number | null;
+  onPindah: (r: RiwayatRow, kelasBaruId: number) => void;
+}) {
+  const [cari, setCari] = useState('');
+  const kunci = `${tingkat ?? 'tanpa'}_${kolom.kelasId ?? 'tanpa'}`;
+  const tampil = useMemo(() => {
+    const q = cari.trim().toLowerCase();
+    if (!q) return kolom.baris;
+    return kolom.baris.filter((r) =>
+      (r.santri?.nama_lengkap ?? '').toLowerCase().includes(q)
+      || (r.nis_lokal ?? '').toLowerCase().includes(q));
+  }, [kolom.baris, cari]);
+  const aksi = tetangga.kiri != null || tetangga.kanan != null;
   return (
-    <div className="flex items-center gap-2">
-      <Select value={nilai || '_kosong'} onValueChange={(v) => setNilai(v === '_kosong' ? '' : v)}>
-        <SelectTrigger id={`select_${idPrefix}`} className="w-40" size="sm"><SelectValue placeholder="Pilih kelas" /></SelectTrigger>
-        <SelectContent>
-          <SelectGroup>
-            <SelectItem value="_kosong">Pilih kelas</SelectItem>
-            {kelas.map((k) => <SelectItem key={k.id} value={String(k.id)}>{k.nama_kelas}</SelectItem>)}
-          </SelectGroup>
-        </SelectContent>
-      </Select>
-      <Button id={`btn_${idPrefix}`} size="sm" disabled={disabled || !nilai} onClick={() => { onPilih(nilai); setNilai(''); }}>Pindah</Button>
-    </div>
+    <section className="flex min-h-0 min-w-0 flex-col rounded-md border">
+      <header className="flex items-center justify-between border-b bg-muted/40 px-3 py-2 text-sm font-medium">
+        <span>Kelas {kolom.kelas}</span>
+        <span className="text-xs text-muted-foreground">{kolom.baris.length} santri</span>
+      </header>
+      <div className="flex min-h-0 flex-1 flex-col px-2 pb-2">
+        <ExcelTable
+          tableKey={`pindah_kelas_${kunci}`}
+          fields={[
+            { key: 'nama', label: 'santri.nama_lengkap', kind: 'static', sumber: { tabel: 'santri', kolom: 'nama_lengkap' } },
+            { key: 'nis_lokal', label: 'nis_lokal', kind: 'static', sumber: { tabel: 'lembaga_santri', kolom: 'nis_lokal' } },
+            { key: 'no_absen', label: 'no_absen', kind: 'static', sumber: { tabel: 'riwayat_belajar', kolom: 'no_absen' } },
+          ]}
+          rows={tampil}
+          getValues={(r) => ({
+            nama: r.santri?.nama_lengkap ?? null,
+            nis_lokal: r.nis_lokal ?? null,
+            no_absen: r.no_absen != null ? String(r.no_absen) : null,
+          })}
+          canEdit={false}
+          onCommit={async () => {}}
+          onSaved={() => {}}
+          searchValue={cari}
+          onSearchChange={setCari}
+          searchIds={{ form: `form_cari_pindah_${kunci}`, input: `input_cari_pindah_${kunci}`, button: `btn_cari_pindah_${kunci}` }}
+          searchPlaceholder="Cari nama…"
+          renderActions={aksi && bisaPindah ? (r) => (
+            <>
+              {tetangga.kiri?.kelasId != null && tetangga.kiri.kelasId !== kolom.kelasId && (
+                <ActionIcon
+                  id={`btn_pindah_kiri_${r.id}`}
+                  title={`Pindah ke ${tetangga.kiri.kelas}`}
+                  aria-label={`Pindah ke ${tetangga.kiri.kelas}`}
+                  disabled={busyId === r.id}
+                  onClick={() => onPindah(r, tetangga.kiri!.kelasId!)}
+                >
+                  <ArrowRight size={16} className="rotate-180" />
+                </ActionIcon>
+              )}
+              {tetangga.kanan?.kelasId != null && tetangga.kanan.kelasId !== kolom.kelasId && (
+                <ActionIcon
+                  id={`btn_pindah_kanan_${r.id}`}
+                  title={`Pindah ke ${tetangga.kanan.kelas}`}
+                  aria-label={`Pindah ke ${tetangga.kanan.kelas}`}
+                  disabled={busyId === r.id}
+                  onClick={() => onPindah(r, tetangga.kanan!.kelasId!)}
+                >
+                  <ArrowRight size={16} />
+                </ActionIcon>
+              )}
+            </>
+          ) : () => null}
+          hideCheckbox
+          emptyText="Tidak ada santri pada kelas ini."
+        />
+      </div>
+    </section>
   );
 }

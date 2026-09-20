@@ -51,7 +51,8 @@ class RiwayatBelajarController extends Controller
                 'tahunAjaran:id,nama',
             ]),
             $request->user(),
-            $request
+            $request,
+            'riwayat_belajar.lembaga_id'
         );
 
         if ($request->has('is_aktif')) {

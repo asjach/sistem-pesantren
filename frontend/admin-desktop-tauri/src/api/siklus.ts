@@ -242,13 +242,19 @@ export function daftarKelas(params: {
   semester?: string;
   kelas_id?: number;
   tingkat?: string;
+  /** Basis status_akhir: aktif = gabungan 5 status; nonaktif = keluar. */
+  kelompok_status?: 'aktif' | 'nonaktif';
+  /** Matikan default TA/semester agar bisa lintas periode. */
+  lintas_periode?: boolean;
 }) {
   const q = new URLSearchParams({ lembaga_id: String(params.lembaga_id) });
   if (params.tahun_ajaran_id) q.set('tahun_ajaran_id', String(params.tahun_ajaran_id));
   if (params.semester) q.set('semester', params.semester);
   if (params.kelas_id) q.set('kelas_id', String(params.kelas_id));
   if (params.tingkat) q.set('tingkat', params.tingkat);
-  return api<{ lembaga_id: number; tahun_ajaran_id: number; semester: string; data: RiwayatRow[] }>(
+  if (params.kelompok_status) q.set('kelompok_status', params.kelompok_status);
+  if (params.lintas_periode) q.set('lintas_periode', '1');
+  return api<{ lembaga_id: number; tahun_ajaran_id: number | null; semester: string | null; data: RiwayatRow[] }>(
     `/admin/akademik/daftar-kelas?${q.toString()}`,
   );
 }

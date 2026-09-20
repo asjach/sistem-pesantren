@@ -165,7 +165,14 @@ export function listLembagaSantri(santriId: number) {
 
 export function createLembagaSantri(
   santriId: number,
-  input: { lembaga_id: number; nis_lokal?: string | null; tgl_mulai?: string | null },
+  input: {
+    lembaga_id: number;
+    nis_lokal?: string | null;
+    nis_kemenag?: string | null;
+    is_active?: boolean;
+    tgl_mulai?: string | null;
+    tgl_selesai?: string | null;
+  },
 ) {
   return api<{ pesan: string; data: LembagaSantri }>(`/admin/santri/${santriId}/lembaga`, {
     method: 'POST',
@@ -175,7 +182,13 @@ export function createLembagaSantri(
 
 export function updateLembagaSantri(
   id: number,
-  input: { nis_lokal?: string | null; is_active?: boolean; tgl_mulai?: string | null; tgl_selesai?: string | null },
+  input: {
+    nis_lokal?: string | null;
+    nis_kemenag?: string | null;
+    is_active?: boolean;
+    tgl_mulai?: string | null;
+    tgl_selesai?: string | null;
+  },
 ) {
   return api<{ pesan: string; data: LembagaSantri }>(`/admin/lembaga-santri/${id}`, {
     method: 'PATCH',

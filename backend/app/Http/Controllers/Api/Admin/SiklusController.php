@@ -253,8 +253,12 @@ class SiklusController extends Controller
     }
 
     /**
-     * GET /api/admin/akademik/daftar-kelas — santri aktif pada TA (default TA aktif
-     * lembaga) dan semester (default semester berjalan) — sumber halaman Daftar Kelas.
+     * GET /api/admin/akademik/daftar-kelas — daftar santri per kelas.
+     * Tanpa `kelompok_status`: perilaku lama (is_aktif pada TA default aktif
+     * + semester berjalan). Dengan `kelompok_status=aktif|nonaktif`: basis
+     * tampil = status_akhir (aktif = Aktif, Naik, Tidak Naik, Lulus,
+     * Tidak Lulus; nonaktif = Pindah/Keluar) dan `lintas_periode=1`
+     * mematikan default TA/semester agar bisa lintas periode.
      */
     public function daftarKelas(SiklusDaftarKelasRequest $request): JsonResponse
     {
@@ -264,22 +268,37 @@ class SiklusController extends Controller
         $lembagaId = (int) $data['lembaga_id'];
         $this->authorizeLembaga($request->user(), $lembagaId);
 
+        $lintas = $request->boolean('lintas_periode');
+        $kelompok = $data['kelompok_status'] ?? null;
+
         $taId = isset($data['tahun_ajaran_id'])
             ? (int) $data['tahun_ajaran_id']
-            : (int) (TahunAjaran::aktif($lembagaId)?->id ?? 0);
+            : ($lintas ? null : (int) (TahunAjaran::aktif($lembagaId)?->id ?? 0));
         if ($taId === 0) {
             return response()->json(['pesan' => 'Tahun ajaran aktif belum ada di lembaga ini.', 'data' => []]);
         }
 
-        $semester = $data['semester'] ?? (string) (RiwayatBelajar::where('lembaga_id', $lembagaId)
-            ->where('tahun_ajaran_id', $taId)->where('is_aktif', true)
-            ->orderByDesc('semester')->value('semester') ?? '1');
+        $semester = $data['semester']
+            ?? ($lintas || $taId === null ? null : (string) (RiwayatBelajar::where('lembaga_id', $lembagaId)
+                ->where('tahun_ajaran_id', $taId)->where('is_aktif', true)
+                ->orderByDesc('semester')->value('semester') ?? '1'));
 
-        $query = RiwayatBelajar::with(['santri:id,nama_lengkap,jk', 'kelas:id,nama_kelas,tingkat'])
-            ->where('lembaga_id', $lembagaId)
-            ->where('tahun_ajaran_id', $taId)
-            ->where('semester', $semester)
-            ->where('is_aktif', true);
+        $query = RiwayatBelajar::with(['santri:id,nama_lengkap,jk', 'kelas:id,nama_kelas,tingkat', 'tahunAjaran:id,nama'])
+            ->where('lembaga_id', $lembagaId);
+        if ($taId !== null) {
+            $query->where('tahun_ajaran_id', $taId);
+        }
+        if ($semester !== null) {
+            $query->where('semester', $semester);
+        }
+        if ($kelompok === 'aktif') {
+            // Aktif = gabungan status akhir (bukan flag is_aktif).
+            $query->whereIn('status_akhir', ['aktif', 'naik', 'tidak_naik', 'lulus', 'tidak_lulus']);
+        } elseif ($kelompok === 'nonaktif') {
+            $query->where('status_akhir', 'pindah_keluar');
+        } else {
+            $query->where('is_aktif', true);
+        }
 
         if (! empty($data['kelas_id'])) {
             $query->where('kelas_id', (int) $data['kelas_id']);
@@ -288,7 +307,7 @@ class SiklusController extends Controller
             $query->where('tingkat', $data['tingkat']);
         }
 
-        $baris = $query->orderBy('kelas_id')->orderBy('no_absen')->orderBy('santri_id')->get();
+        $baris = $query->orderBy('tahun_ajaran_id')->orderBy('semester')->orderBy('kelas_id')->orderBy('no_absen')->orderBy('santri_id')->get();
         $peta = LembagaSantri::whereIn('santri_id', $baris->pluck('santri_id')->unique())
             ->where('lembaga_id', $lembagaId)
             ->pluck('nis_lokal', 'santri_id');

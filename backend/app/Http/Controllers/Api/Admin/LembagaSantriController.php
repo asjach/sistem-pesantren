@@ -14,6 +14,7 @@ use App\Services\PenerimaanService;
 use App\Services\UrutKatalog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -48,24 +49,25 @@ class LembagaSantriController extends Controller
                 'lembaga:id,nama,kode',
             ]),
             $request->user(),
-            $request
+            $request,
+            'lembaga_santri.lembaga_id'
         );
 
         if ($request->filled('lembaga_id')) {
-            $query->where('lembaga_id', $request->integer('lembaga_id'));
+            $query->where('lembaga_santri.lembaga_id', $request->integer('lembaga_id'));
         }
         if ($request->has('is_active')) {
-            $query->where('is_active', $request->boolean('is_active'));
+            $query->where('lembaga_santri.is_active', $request->boolean('is_active'));
         }
         if ($request->filled('tanpa_nis')) {
-            $query->whereNull('nis_lokal');
+            $query->whereNull('lembaga_santri.nis_lokal');
         }
         if ($request->filled('search')) {
             $s = $request->input('search');
             $query->where(function ($q) use ($s) {
                 $q->whereHas('santri', fn ($qq) => $qq->where('nama_lengkap', 'like', "%{$s}%"))
-                    ->orWhere('nis_lokal', 'like', "%{$s}%")
-                    ->orWhere('nis_kemenag', 'like', "%{$s}%");
+                    ->orWhere('lembaga_santri.nis_lokal', 'like', "%{$s}%")
+                    ->orWhere('lembaga_santri.nis_kemenag', 'like', "%{$s}%");
             });
         }
 
@@ -119,7 +121,9 @@ class LembagaSantriController extends Controller
         ]);
     }
 
-    /** POST /api/admin/santri/{santri}/lembaga — buat/aktifkan keanggotaan. */
+    /** POST /api/admin/santri/{santri}/lembaga — buat/aktifkan keanggotaan.
+     *  Kolom yang diisi manual di halaman Santri Per Jenjang: NIS lokal/kemenag,
+     *  status aktif, tanggal mulai/selesai. */
     public function store(LembagaSantriStoreRequest $request, Santri $santri, PenerimaanService $penerimaan): JsonResponse
     {
         $this->authorize('update', $santri);
@@ -127,10 +131,29 @@ class LembagaSantriController extends Controller
         $data = $request->validated();
         $this->authorizeLembaga($request->user(), (int) $data['lembaga_id']);
 
-        $keanggotaan = $penerimaan->pastikanKeanggotaan($santri, (int) $data['lembaga_id'], [
-            'nis_lokal' => $data['nis_lokal'] ?? null,
-            'tgl_mulai' => $data['tgl_mulai'] ?? null,
-        ]);
+        $keanggotaan = DB::transaction(function () use ($santri, $data, $penerimaan) {
+            // NIS lokal + tanggal mulai lewat pintu tunggal penerimaan.
+            $row = $penerimaan->pastikanKeanggotaan($santri, (int) $data['lembaga_id'], [
+                'nis_lokal' => $data['nis_lokal'] ?? null,
+                'tgl_mulai' => $data['tgl_mulai'] ?? null,
+            ]);
+
+            $tambahan = [];
+            if (array_key_exists('nis_kemenag', $data)) {
+                $tambahan['nis_kemenag'] = $this->nisKemenagBersih((int) $data['lembaga_id'], $data['nis_kemenag'], (int) $row->id);
+            }
+            if (array_key_exists('tgl_selesai', $data)) {
+                $tambahan['tgl_selesai'] = $data['tgl_selesai'] ?: null;
+            }
+            if (array_key_exists('is_active', $data)) {
+                $tambahan['is_active'] = (bool) $data['is_active'];
+            }
+            if ($tambahan !== []) {
+                $row->update($tambahan);
+            }
+
+            return $row->fresh();
+        });
 
         return response()->json(['pesan' => 'Keanggotaan lembaga disimpan.', 'data' => $keanggotaan], 201);
     }
@@ -150,11 +173,35 @@ class LembagaSantriController extends Controller
             $data['nis_lokal'] = $nis;
         }
 
+        if (array_key_exists('nis_kemenag', $data)) {
+            $data['nis_kemenag'] = $this->nisKemenagBersih(
+                (int) $lembagaSantri->lembaga_id,
+                $data['nis_kemenag'],
+                (int) $lembagaSantri->id,
+            );
+        }
+
         $lembagaSantri->update($data);
 
         // Status aktif keanggotaan tidak otomatis mengubah riwayat; status_global tetap turunan riwayat.
 
         return response()->json(['pesan' => 'Keanggotaan diperbarui.', 'data' => $lembagaSantri->fresh()]);
+    }
+
+    /**
+     * NIS Kemenag manual: trim, kosong → null, wajib unik per lembaga.
+     * (Generate otomatis lewat `generateNisk` tetap tersedia.)
+     */
+    protected function nisKemenagBersih(int $lembagaId, mixed $nis, ?int $kecualiId = null): ?string
+    {
+        $nilai = trim((string) $nis);
+        $nilai = $nilai === '' ? null : $nilai;
+
+        if ($nilai !== null && LembagaSantri::nisKemenagDipakai($lembagaId, $nilai, $kecualiId)) {
+            abort(422, 'NIS Kemenag sudah dipakai santri lain di lembaga ini.');
+        }
+
+        return $nilai;
     }
 
     /** POST /api/admin/lembaga-santri/{lembagaSantri}/generate-nisk — NIS Kemenag manual. */

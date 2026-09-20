@@ -438,4 +438,26 @@ class RiwayatBelajarFlowTest extends TestCase
             "/api/admin/riwayat-belajar/{$r3['id']}/set-kelas", ['kelas_id' => $f['kelasMi']->id]
         )->assertStatus(422);
     }
+
+    public function test_13_urut_join_tidak_ambigu_dengan_filter_lembaga(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeUser();
+
+        // Skenario halaman Kenaikan: filter lembaga + semester + urut
+        // (join santri/kelas/lembaga/tahun_ajaran) — 1052 bila tak terkualifikasi.
+        $s = $this->makeSantri('Urut Aman', '1101010000000310');
+        $res = $this->actingAs($admin, 'sanctum')->postJson('/api/admin/riwayat-belajar', [
+            'santri_id' => $s->id, 'lembaga_id' => $f['mi']->id,
+            'tahun_ajaran_id' => $f['taMi']->id, 'kelas_id' => $f['kelasMi']->id,
+        ])->assertStatus(201);
+        // Penerimaan selalu membuka semester 1; geser ke genap untuk skenario.
+        RiwayatBelajar::whereKey($res->json('data.id'))->update(['semester' => '2']);
+
+        $daftar = $this->actingAs($admin, 'sanctum')->getJson(
+            '/api/admin/riwayat-belajar?lembaga_id='.$f['mi']->id.'&semester=2&sort=santri&arah=naik'
+        )->assertStatus(200);
+        $this->assertCount(1, $daftar->json('data'));
+        $this->assertStringStartsWith('Urut Aman', $daftar->json('data.0.santri.nama_lengkap'));
+    }
 }

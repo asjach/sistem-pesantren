@@ -8,16 +8,26 @@ import { Button } from '@/components/ui/button';
 import { FieldLabel } from '@/components/ui/field';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import ExcelTable from '@/components/ExcelTable';
+import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
 import { useTahunAjaranAwalString } from '@/hooks/useTahunAjaranAwal';
+import { useSemesterAwal } from '@/hooks/useSemesterAwal';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { ActionIcon } from '@/components/RowActions';
 import { MoveHorizontal, SquareMousePointer } from '@/icons';
-import { FilterSemester, ROSTER_FIELDS, noopCommit, riwayatValues, useLembagaTa } from '@/components/siklus/bersama';
+import FilterField from '@/components/FilterField';
+import { ROSTER_FIELDS, noopCommit, riwayatValues, useLembagaTa } from '@/components/siklus/bersama';
 import { toast } from 'sonner';
 
-/** Daftar Kelas: santri aktif pada TA aktif & semester berjalan (baca + pindah/keluar kelas). */
+/** Kolom roster + Tahun Ajaran (untuk tampil lintas periode). */
+const FIELDS_DAFTAR: ExcelField[] = [
+  ...ROSTER_FIELDS.slice(0, 3),
+  { key: 'ta', label: 'tahun_ajaran.nama', width: 110, kind: 'static', sumber: { tabel: 'tahun_ajaran', kolom: 'nama' } },
+  ...ROSTER_FIELDS.slice(3),
+];
+
+/** Daftar Kelas: basis status_akhir (Aktif = gabungan 5 status; Tidak aktif =
+ *  Pindah/Keluar) dengan opsi lintas semester dan lintas tahun ajaran. */
 export default function DaftarKelasPage() {
   const { user } = useAuth();
   const canPindah = bisa(user, 'pindah_kelas.ubah');
@@ -26,8 +36,11 @@ export default function DaftarKelasPage() {
   const [taId, setTaId] = useState('');
   useTahunAjaranAwalString(setTaId);
   const [semester, setSemester] = useState('');
+  useSemesterAwal(setSemester);
+  /** Kelompok status akhir: aktif (bawaan) | nonaktif | '' = semua status. */
+  const [kelompok, setKelompok] = useState('aktif');
   const [rows, setRows] = useState<RiwayatRow[]>([]);
-  const [info, setInfo] = useState<{ tahun_ajaran_id: number; semester: string } | null>(null);
+  const [info, setInfo] = useState<{ tahun_ajaran_id: number | null; semester: string | null } | null>(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
   const { tas } = useLembagaTa(lembagaId);
@@ -42,10 +55,14 @@ export default function DaftarKelasPage() {
     setErr('');
     setLoading(true);
     try {
+      // Salah satu periode = Semua → lintas periode (tanpa default server).
+      const lintas = taId === '' || semester === '';
       const res = await daftarKelas({
         lembaga_id: Number(lembagaId),
         tahun_ajaran_id: taId ? Number(taId) : undefined,
         semester: semester || undefined,
+        kelompok_status: kelompok === '' ? undefined : (kelompok as 'aktif' | 'nonaktif'),
+        lintas_periode: lintas || undefined,
       });
       setRows(res.data);
       setInfo({ tahun_ajaran_id: res.tahun_ajaran_id, semester: res.semester });
@@ -54,7 +71,7 @@ export default function DaftarKelasPage() {
     } finally {
       setLoading(false);
     }
-  }, [lembagaId, taId, semester]);
+  }, [lembagaId, taId, semester, kelompok]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -70,9 +87,9 @@ export default function DaftarKelasPage() {
       <ErrorNotice>{err}</ErrorNotice>
       <ExcelTable<RiwayatRow>
         tableKey="daftar_kelas"
-        fields={ROSTER_FIELDS}
+        fields={FIELDS_DAFTAR}
         rows={rows}
-        getValues={riwayatValues}
+        getValues={(r) => ({ ...riwayatValues(r), ta: r.tahun_ajaran?.nama ?? null })}
         loading={loading}
         emptyText="Pilih lembaga untuk menampilkan daftar kelas."
         canEdit={false}
@@ -91,10 +108,26 @@ export default function DaftarKelasPage() {
         )}
         filter={(
           <>
-            <FilterSemester id="select_semester_daftar_kelas" value={semester} onChange={setSemester} />
+            <FilterField label="Status" htmlFor="select_status_daftar_kelas">
+              <Select value={kelompok === '' ? '_semua' : kelompok} onValueChange={(v) => setKelompok(v === '_semua' ? '' : v)}>
+                <SelectTrigger id="select_status_daftar_kelas" title="Filter status akhir" aria-label="Filter status akhir" size="sm">
+                  <SelectValue placeholder="Semua" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value="aktif">Aktif</SelectItem>
+                    <SelectItem value="nonaktif">Tidak aktif</SelectItem>
+                    <SelectItem value="_semua">Semua status</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </FilterField>
             {info ? (
               <span className="text-xs text-muted-foreground">
-                TA {tas.find((t) => t.id === info.tahun_ajaran_id)?.nama ?? info.tahun_ajaran_id} · Smt {info.semester} · {rows.length} santri
+                TA {info.tahun_ajaran_id == null ? 'Semua' : (tas.find((t) => t.id === info.tahun_ajaran_id)?.nama ?? info.tahun_ajaran_id)}
+                {' · '}Smt {info.semester ?? 'Semua'}
+                {' · '}{kelompok === 'aktif' ? 'Aktif' : kelompok === 'nonaktif' ? 'Tidak aktif' : 'Semua status'}
+                {' · '}{rows.length} santri
               </span>
             ) : null}
           </>

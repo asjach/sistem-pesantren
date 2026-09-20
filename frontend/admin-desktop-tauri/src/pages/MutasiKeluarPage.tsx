@@ -113,10 +113,10 @@ export default function MutasiKeluarPage() {
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
-      <div className="grid grid-cols-2 gap-4">
-        <section className="rounded-md border">
-          <header className="border-b bg-muted/40 px-3 py-2 text-sm font-medium">Santri aktif ({kiri.length})</header>
-          <div className="px-2 pb-1">
+      <div className="grid min-h-0 flex-1 grid-cols-2 gap-4">
+        <section className="flex min-h-0 min-w-0 flex-col rounded-md border">
+          <header className="shrink-0 border-b bg-muted/40 px-3 py-2 text-sm font-medium">Santri aktif ({kiri.length})</header>
+          <div className="flex min-h-0 flex-1 flex-col px-2 pb-2">
             <ExcelTable
               tableKey="mutasi_santri_aktif"
               fields={[
@@ -136,15 +136,14 @@ export default function MutasiKeluarPage() {
                 ) : null
               )}
               hideCheckbox
-              maxRows={12}
               emptyText="Pilih lembaga dulu."
             />
           </div>
         </section>
 
-        <section className="rounded-md border">
-          <header className="border-b bg-muted/40 px-3 py-2 text-sm font-medium">Arsip mutasi keluar</header>
-          <div className="px-2 pb-1">
+        <section className="flex min-h-0 min-w-0 flex-col rounded-md border">
+          <header className="shrink-0 border-b bg-muted/40 px-3 py-2 text-sm font-medium">Arsip mutasi keluar</header>
+          <div className="flex min-h-0 flex-1 flex-col px-2 pb-2">
             <ExcelTable
               tableKey="mutasi_arsip"
               fields={[
@@ -170,7 +169,6 @@ export default function MutasiKeluarPage() {
               hideCheckbox
               hideActions
               hidePreset
-              maxRows={8}
               emptyText="Belum ada arsip mutasi."
             />
           </div>

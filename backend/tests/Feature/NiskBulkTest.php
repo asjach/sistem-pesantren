@@ -99,6 +99,23 @@ class NiskBulkTest extends TestCase
         $this->assertSame(0, $ulang->json('data.berhasil'));
     }
 
+    public function test_daftar_urut_join_tidak_ambigu_dengan_filter(): void
+    {
+        $f = $this->fixture();
+        $super = $this->makeUser('super_admin');
+
+        // Urut nama (join santri) + filter lembaga & is_active (join lembaga
+        // bila urut lembaga) — 1052 bila tak terkualifikasi.
+        $this->actingAs($super, 'sanctum')
+            ->getJson('/api/admin/lembaga-santri?lembaga_id='.$f['mi']->id.'&is_active=1&sort=nama&arah=naik')
+            ->assertStatus(200)
+            ->assertJsonPath('data.0.santri.nama_lengkap', 'Kosong');
+        $this->actingAs($super, 'sanctum')
+            ->getJson('/api/admin/lembaga-santri?lembaga_id='.$f['mi']->id.'&is_active=1&sort=lembaga&arah=naik')
+            ->assertStatus(200)
+            ->assertJsonCount(3, 'data');
+    }
+
     public function test_bulk_mengikuti_filter_dan_izin(): void
     {
         $f = $this->fixture();

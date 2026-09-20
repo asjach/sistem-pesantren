@@ -27,7 +27,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
-import { useLembagaAwalNumber } from '@/hooks/useLembagaAwal';
 import { useLembagaAktif } from '@/lembagaAktif';
 import FilterField from '@/components/FilterField';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
@@ -69,9 +68,9 @@ export default function ReferensiPage() {
   const [types, setTypes] = useState<string[]>([]);
   const [tipe, setTipe] = useState('');
   const [lembagas, setLembagas] = useState<Lembaga[]>([]);
-  const [lembagaId, setLembagaId] = useState<number | ''>('');
-  useLembagaAwalNumber(setLembagaId);
-  const { terkunci, lembagaId: lembagaTop } = useLembagaAktif();
+  /** Lembaga selalu mengikuti topbar (satu-satunya sumber); null = Semua. */
+  const { lembagaId: lembagaTop } = useLembagaAktif();
+  const lembagaId = lembagaTop ?? '';
   const [rows, setRows] = useState<ReferensiRow[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -99,23 +98,12 @@ export default function ReferensiPage() {
     listLembaga({ per_page: 100 }).then((p) => setLembagas(p.data)).catch(() => {});
   }, []);
 
-  // '' = Semua lembaga (gabungan semua yang boleh diakses); pilihan spesifik
-  // memfilter satu lembaga. Terkunci saat bertindak (mengikuti peran).
-  // Auto-ikuti topbar hanya sekali saat halaman dibuka — pilihan Semua
-  // eksplisit pengguna tidak ditimpa balik.
-  const autoLembaga = useRef(false);
-  useEffect(() => {
-    if (autoLembaga.current || lembagaId !== '' || terkunci) return;
-    autoLembaga.current = true;
-    if (lembagaTop != null) setLembagaId(lembagaTop);
-  }, [lembagaId, terkunci, lembagaTop]);
-
   /** Muat daftar; mengembalikan promise agar antrean simpan grid bisa menunggu
    *  baris segar TIBA sebelum membuang draft optimistis (tanpa ini toggle
    *  kelap-kelip on→off→on→off: draft dibuang saat basis masih basi). */
   const tipeRef = useRef(tipe);
   tipeRef.current = tipe;
-  const lembagaRef = useRef(lembagaId);
+  const lembagaRef = useRef<number | ''>(lembagaId);
   lembagaRef.current = lembagaId;
   const muat = useCallback(async () => {
     if (!tipeRef.current) return;
@@ -352,23 +340,6 @@ export default function ReferensiPage() {
               <SelectContent>
                 <SelectGroup>
                   {types.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-            </FilterField>
-            <FilterField label="Lembaga" htmlFor="select_lembaga_referensi">
-            <Select
-              value={lembagaId === '' ? '__semua' : String(lembagaId)}
-              onValueChange={(v) => setLembagaId(v === '__semua' ? '' : Number(v))}
-              disabled={terkunci}
-            >
-              <SelectTrigger id="select_lembaga_referensi" title="Filter lembaga" aria-label="Filter lembaga" size="sm" className="w-40">
-                <SelectValue placeholder="Semua" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectItem value="__semua">Semua</SelectItem>
-                  {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>)}
                 </SelectGroup>
               </SelectContent>
             </Select>

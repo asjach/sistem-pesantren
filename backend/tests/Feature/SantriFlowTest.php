@@ -460,4 +460,95 @@ class SantriFlowTest extends TestCase
         $negatif = $this->actingAs($admin, 'sanctum')->getJson('/api/admin/santri?per_page=-5')->assertStatus(200);
         $this->assertCount(105, $negatif->json('data'));
     }
+
+    // ---------- 17-18. input/edit kolom Santri Per Jenjang ----------
+
+    public function test_17_keanggotaan_input_nis_kemenag_status_dan_tanggal(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeUser('super_admin', []);
+        $santri = $this->makeSantri('Anggota Isi');
+
+        $this->actingAs($admin, 'sanctum')->postJson("/api/admin/santri/{$santri->id}/lembaga", [
+            'lembaga_id' => $f['mi']->id,
+            'nis_lokal' => '26005',
+            'nis_kemenag' => '123456789012260005',
+            'is_active' => true,
+            'tgl_mulai' => '2026-07-01',
+            'tgl_selesai' => null,
+        ])->assertStatus(201)->assertJsonPath('data.nis_kemenag', '123456789012260005');
+
+        $ls = LembagaSantri::where('santri_id', $santri->id)->firstOrFail();
+        $this->assertSame('123456789012260005', $ls->nis_kemenag);
+        $this->assertTrue((bool) $ls->is_active);
+        $this->assertSame('2026-07-01', $ls->tgl_mulai?->format('Y-m-d'));
+
+        // Nonaktif + tgl_selesai juga bisa langsung diisi saat menambah.
+        $nonaktif = $this->makeSantri('Anggota Nonaktif');
+        $this->actingAs($admin, 'sanctum')->postJson("/api/admin/santri/{$nonaktif->id}/lembaga", [
+            'lembaga_id' => $f['md']->id,
+            'is_active' => false,
+            'tgl_selesai' => '2026-06-30',
+        ])->assertStatus(201);
+
+        $lsNonaktif = LembagaSantri::where('santri_id', $nonaktif->id)->firstOrFail();
+        $this->assertFalse((bool) $lsNonaktif->is_active);
+        $this->assertSame('2026-06-30', $lsNonaktif->tgl_selesai?->format('Y-m-d'));
+
+        // NIS Kemenag sama di lembaga yang sama → 422 dan tidak menyisakan baris.
+        $lain = $this->makeSantri('Anggota Isi Dua');
+        $this->actingAs($admin, 'sanctum')->postJson("/api/admin/santri/{$lain->id}/lembaga", [
+            'lembaga_id' => $f['mi']->id,
+            'nis_kemenag' => '123456789012260005',
+        ])->assertStatus(422);
+        $this->assertSame(0, LembagaSantri::where('santri_id', $lain->id)->count());
+    }
+
+    public function test_18_keanggotaan_ubah_nis_kemenag_manual(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeUser('super_admin', []);
+        $santri = $this->makeSantri('Anggota Ubah');
+        $ls = LembagaSantri::create([
+            'santri_id' => $santri->id, 'lembaga_id' => $f['mi']->id, 'nis_lokal' => '26007', 'is_active' => true,
+        ]);
+        $lainMi = LembagaSantri::create([
+            'santri_id' => $this->makeSantri('Anggota Ubah Mi')->id, 'lembaga_id' => $f['mi']->id, 'is_active' => true,
+        ]);
+        $lainMd = LembagaSantri::create([
+            'santri_id' => $this->makeSantri('Anggota Ubah Md')->id, 'lembaga_id' => $f['md']->id, 'is_active' => true,
+        ]);
+
+        // Isi manual NIS Kemenag + tanggal mulai lewat dialog Ubah.
+        $this->actingAs($admin, 'sanctum')->patchJson("/api/admin/lembaga-santri/{$ls->id}", [
+            'nis_kemenag' => '123456789012260007',
+            'tgl_mulai' => '2026-07-05',
+            'is_active' => false,
+            'tgl_selesai' => '2026-12-31',
+        ])->assertStatus(200);
+
+        $ls->refresh();
+        $this->assertSame('123456789012260007', $ls->nis_kemenag);
+        $this->assertSame('2026-07-05', $ls->tgl_mulai?->format('Y-m-d'));
+        $this->assertFalse((bool) $ls->is_active);
+        $this->assertSame('2026-12-31', $ls->tgl_selesai?->format('Y-m-d'));
+
+        // Bentrok NIS Kemenag di lembaga yang sama → 422 tanpa mengubah baris.
+        $this->actingAs($admin, 'sanctum')->patchJson("/api/admin/lembaga-santri/{$lainMi->id}", [
+            'nis_kemenag' => '123456789012260007',
+        ])->assertStatus(422);
+        $this->assertNull($lainMi->fresh()->nis_kemenag);
+
+        // Nomor sama di lembaga BERBEDA → boleh (unik per lembaga).
+        $this->actingAs($admin, 'sanctum')->patchJson("/api/admin/lembaga-santri/{$lainMd->id}", [
+            'nis_kemenag' => '123456789012260007',
+        ])->assertStatus(200);
+        $this->assertSame('123456789012260007', $lainMd->fresh()->nis_kemenag);
+
+        // Kosongkan NIS Kemenag (mis. salah input) → NULL, bukan string kosong.
+        $this->actingAs($admin, 'sanctum')->patchJson("/api/admin/lembaga-santri/{$ls->id}", [
+            'nis_kemenag' => '',
+        ])->assertStatus(200);
+        $this->assertNull($ls->fresh()->nis_kemenag);
+    }
 }

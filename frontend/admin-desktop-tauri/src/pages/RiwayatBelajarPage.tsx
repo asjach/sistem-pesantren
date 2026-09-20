@@ -12,7 +12,7 @@ import {
   unduhTemplateRiwayatBelajar,
   type RiwayatRow,
 } from '../api/siklus';
-import { listKelas, listLembaga, listTahunAjaran, type Kelas, type Lembaga, type TahunAjaran } from '../api/master';
+import { listKelas, type Kelas } from '../api/master';
 import type { ImportPeriksa, LembagaSantri } from '../api/santri';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,8 +22,6 @@ import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import FilterField from '@/components/FilterField';
 import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
 import { useTahunAjaranAwalString } from '@/hooks/useTahunAjaranAwal';
-import { useLembagaAktif } from '@/lembagaAktif';
-import { useTahunAjaranAktif } from '@/tahunAjaranAktif';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import Pager from '@/components/Pager';
 import { useDaftarTabel } from '@/hooks/useDaftarTabel';
@@ -63,29 +61,11 @@ export default function RiwayatBelajarPage() {
   const { user } = useAuth();
   const canTambah = bisa(user, 'riwayat_belajar.tambah');
   const canBatal = bisa(user, 'riwayat_belajar.hapus');
+  /** Lembaga + TA selalu mengikuti topbar (satu-satunya sumber). */
   const [lembagaId, setLembagaId] = useState('');
   useLembagaAwalString(setLembagaId);
   const [taId, setTaId] = useState('');
   useTahunAjaranAwalString(setTaId);
-  /** Topbar kosong (mis. mode "Semua lembaga") → pilih lokal di halaman. */
-  const { lembagaId: lembagaTop } = useLembagaAktif();
-  const { tahunAjaranId: taTop } = useTahunAjaranAktif();
-  const [lembagaOpsi, setLembagaOpsi] = useState<Lembaga[]>([]);
-  const [taOpsi, setTaOpsi] = useState<TahunAjaran[]>([]);
-
-  useEffect(() => {
-    if (lembagaTop != null) { setLembagaOpsi([]); return; }
-    listLembaga({ per_page: 1000 })
-      .then((p) => setLembagaOpsi(p.data.filter((l) => l.parent != null)))
-      .catch(() => setLembagaOpsi([]));
-  }, [lembagaTop]);
-
-  useEffect(() => {
-    if (taTop != null || !lembagaId) { setTaOpsi([]); return; }
-    listTahunAjaran({ lembaga_id: Number(lembagaId), per_page: 1000 })
-      .then((p) => setTaOpsi(p.data))
-      .catch(() => setTaOpsi([]));
-  }, [taTop, lembagaId]);
   const [kelasId, setKelasId] = useState('');
   const [kelasOpsi, setKelasOpsi] = useState<Kelas[]>([]);
   const [busyId, setBusyId] = useState<number | null>(null);
@@ -286,52 +266,8 @@ export default function RiwayatBelajarPage() {
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{kiri.err || kanan.err}</ErrorNotice>
-      {(lembagaTop == null || taTop == null) && (
-        <div className="mb-3 flex flex-wrap items-end gap-2">
-          {lembagaTop == null && (
-            <FilterField label="Lembaga" htmlFor="select_lembaga_riwayat_belajar">
-              <Select value={lembagaId === '' ? '_kosong' : lembagaId} onValueChange={(v) => {
-                const next = v === '_kosong' ? '' : v;
-                setLembagaId(next);
-                if (taTop == null) setTaId('');
-                setKelasId('');
-                kiri.pager.goFirst(); kanan.pager.goFirst();
-              }}>
-                <SelectTrigger id="select_lembaga_riwayat_belajar" title="Filter lembaga" aria-label="Filter lembaga" size="sm" className="w-44">
-                  <SelectValue placeholder="Pilih lembaga" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectItem value="_kosong">Pilih lembaga</SelectItem>
-                    {lembagaOpsi.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>)}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </FilterField>
-          )}
-          {taTop == null && lembagaId !== '' && (
-            <FilterField label="Tahun ajaran" htmlFor="select_ta_riwayat_belajar">
-              <Select value={taId === '' ? '_kosong' : taId} onValueChange={(v) => {
-                setTaId(v === '_kosong' ? '' : v);
-                setKelasId('');
-                kiri.pager.goFirst(); kanan.pager.goFirst();
-              }}>
-                <SelectTrigger id="select_ta_riwayat_belajar" title="Filter tahun ajaran" aria-label="Filter tahun ajaran" size="sm" className="w-44">
-                  <SelectValue placeholder="Pilih tahun ajaran" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectItem value="_kosong">Pilih tahun ajaran</SelectItem>
-                    {taOpsi.map((t) => <SelectItem key={t.id} value={String(t.id)}>{t.nama}</SelectItem>)}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </FilterField>
-          )}
-        </div>
-      )}
       {!siap ? (
-        <p className="text-sm text-muted-foreground">Pilih lembaga dan tahun ajaran dulu untuk memuat kedua tabel.</p>
+        <p className="text-sm text-muted-foreground">Pilih lembaga dan tahun ajaran di topbar dulu untuk memuat kedua tabel.</p>
       ) : (
         <div className="grid min-h-0 flex-1 grid-cols-[repeat(auto-fit,minmax(min(420px,100%),1fr))] gap-4">
           {panel(

@@ -66,27 +66,3 @@ export function useLembagaTa(lembagaId: string) {
 
   return { lembagas, tas };
 }
-
-/** Filter semester (1/2). */
-export function FilterSemester({ id = 'select_semester_siklus', value, onChange }: {
-  id?: string;
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  return (
-    <FilterField label="Semester" htmlFor={id}>
-      <Select value={value === '' ? '_semua' : value} onValueChange={(v) => onChange(v === '_semua' ? '' : v)}>
-        <SelectTrigger id={id} title="Filter semester" aria-label="Filter semester" size="sm" className="w-32">
-          <SelectValue placeholder="Semua" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectGroup>
-            <SelectItem value="_semua">Semua</SelectItem>
-            <SelectItem value="1">Semester 1</SelectItem>
-            <SelectItem value="2">Semester 2</SelectItem>
-          </SelectGroup>
-        </SelectContent>
-      </Select>
-    </FilterField>
-  );
-}

@@ -502,6 +502,53 @@ class SiklusFlowTest extends TestCase
         $this->assertArrayHasKey('kelompok', $rekap->json('usia_per_kelas.0'));
     }
 
+    // ---------- 12. daftar kelas basis status_akhir + lintas periode ----------
+
+    public function test_13_daftar_kelas_kelompok_status_lintas_periode(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeUser('admin', [$f['mi']->id]);
+        $kelas = $this->makeKelas($f['mi'], $f['taBaru'], '1B', '1');
+
+        $s1 = $this->makeSantri('Kelompok Satu');
+        $this->makeKeanggotaan($s1, $f['mi'], '25101');
+        $this->makeRiwayat($s1, $f['taBaru'], $f['mi'], '1', ['kelas_id' => $kelas->id]);
+
+        // Lulus lintas TA (flag is_aktif mati) tetap tampil di kelompok aktif:
+        // basis = status_akhir, bukan is_aktif.
+        $s2 = $this->makeSantri('Kelompok Dua');
+        $this->makeKeanggotaan($s2, $f['mi'], '25102');
+        $this->makeRiwayat($s2, $f['taLama'], $f['mi'], '2', ['status_akhir' => 'lulus', 'is_aktif' => false]);
+
+        $s3 = $this->makeSantri('Kelompok Tiga');
+        $this->makeKeanggotaan($s3, $f['mi'], '25103');
+        $this->makeRiwayat($s3, $f['taBaru'], $f['mi'], '1', ['status_akhir' => 'pindah_keluar', 'is_aktif' => false]);
+
+        $aktif = $this->actingAs($admin, 'sanctum')
+            ->getJson('/api/admin/akademik/daftar-kelas?lembaga_id='.$f['mi']->id.'&kelompok_status=aktif&lintas_periode=1')
+            ->assertStatus(200);
+        $nama = collect($aktif->json('data'))->pluck('santri.nama_lengkap');
+        $this->assertTrue($nama->contains(fn ($n) => str_starts_with($n, 'Kelompok Satu')));
+        $this->assertTrue($nama->contains(fn ($n) => str_starts_with($n, 'Kelompok Dua')));
+        $this->assertFalse($nama->contains(fn ($n) => str_starts_with($n, 'Kelompok Tiga')));
+        $this->assertNotNull($aktif->json('data.0.tahun_ajaran.nama'));
+
+        $non = $this->actingAs($admin, 'sanctum')
+            ->getJson('/api/admin/akademik/daftar-kelas?lembaga_id='.$f['mi']->id.'&kelompok_status=nonaktif&lintas_periode=1')
+            ->assertStatus(200);
+        $namaNon = collect($non->json('data'))->pluck('santri.nama_lengkap');
+        $this->assertTrue($namaNon->contains(fn ($n) => str_starts_with($n, 'Kelompok Tiga')));
+        $this->assertFalse($namaNon->contains(fn ($n) => str_starts_with($n, 'Kelompok Satu')));
+
+        // Tanpa kelompok: perilaku lama (is_aktif + default periode).
+        $lama = $this->actingAs($admin, 'sanctum')
+            ->getJson('/api/admin/akademik/daftar-kelas?lembaga_id='.$f['mi']->id)
+            ->assertStatus(200);
+        $namaLama = collect($lama->json('data'))->pluck('santri.nama_lengkap');
+        $this->assertTrue($namaLama->contains(fn ($n) => str_starts_with($n, 'Kelompok Satu')));
+        $this->assertFalse($namaLama->contains(fn ($n) => str_starts_with($n, 'Kelompok Dua')));
+    }
+
     // ---------- 12. profil santri memuat keanggotaan + riwayat + arsip ----------
 
     public function test_12_profil_santri_memuat_keanggotaan_riwayat_dan_alumni(): void
