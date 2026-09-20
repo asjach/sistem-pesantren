@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { errorMessage } from '../../api/client';
 import {
   createPresetTabel,
   deletePresetTabel,
+  setPresetBawaan,
   updatePresetTabel,
   type PresetTabel,
 } from '../../api/preset';
@@ -13,7 +14,7 @@ import { DialogFooter } from '@/components/ui/dialog';
 import ConfirmDelete from '@/components/ConfirmDelete';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
-import { Pin, PinOff } from '@/icons';
+import { Pin } from '@/icons';
 import { toast } from 'sonner';
 import type { ExcelField } from '../excel/types';
 
@@ -31,10 +32,9 @@ export interface TabKolomProps {
   mulaiLengkap: boolean;
   /** Minta induk membuka entri "Lengkap" (remount + reset state). */
   onPilihLengkap: () => void;
-  /** Id preset bawaan tabel (null = Lengkap). */
+  /** Id preset bawaan tabel (null = Lengkap); diubah via checkbox form,
+   *  tersimpan bersama tombol Simpan (boleh tanpa bawaan). */
   bawaanId: number | null;
-  /** Tandai/cabut preset bawaan (induk menyimpan + memuat ulang daftar). */
-  onTogolBawaan: (preset: PresetTabel) => void;
   /** Minta induk membuka preset lain / preset baru (remount + reset state). */
   onPilihPreset: (preset: PresetTabel | null) => void;
   /** Preset tersimpan → induk menyegarkan daftar + menetapkannya aktif. */
@@ -60,7 +60,6 @@ export default function TabKolom({
   mulaiLengkap,
   onPilihLengkap,
   bawaanId,
-  onTogolBawaan,
   onPilihPreset,
   onTersimpan,
   onPakaiLengkap,
@@ -69,6 +68,9 @@ export default function TabKolom({
 }: TabKolomProps) {
   const [editId, setEditId] = useState<number | null>(presetAwal?.id ?? null);
   const [nama, setNama] = useState(presetAwal?.nama ?? '');
+  /** Status bawaan = bagian form (tersimpan via Simpan, boleh dikosongkan). */
+  const [bawaan, setBawaan] = useState(presetAwal ? presetAwal.id === bawaanId : false);
+  const awalBawaan = useRef(presetAwal ? presetAwal.id === bawaanId : false);
   const [kolom, setKolom] = useState<Set<string>>(
     () => new Set(presetAwal ? presetAwal.kolom.filter((k) => fieldKeys.has(k)) : mulaiLengkap ? [...fieldKeys] : []),
   );
@@ -110,7 +112,10 @@ export default function TabKolom({
     if (kolom.size === 0) return;
     if (!nama.trim()) {
       // Mode Lengkap tanpa nama: terapkan langsung ke tabel, tanpa membuat preset.
-      if (modeLengkap) onPakaiLengkap([...kolom], {});
+      if (modeLengkap) {
+        onPakaiLengkap([...kolom], {});
+        onTutup();
+      }
       return;
     }
     setBusy(true);
@@ -135,9 +140,15 @@ export default function TabKolom({
       if (!saved) {
         throw new Error('Preset gagal disimpan.');
       }
+      // Status bawaan ikut tersimpan (boleh dikosongkan = tanpa bawaan).
+      if (bawaan !== awalBawaan.current) {
+        await setPresetBawaan(saved.id, bawaan);
+        awalBawaan.current = bawaan;
+      }
       toast.success(pesan);
       setEditId(saved.id);
       await onTersimpan(saved.id);
+      onTutup();
     } catch (e2) {
       toast.error(errorMessage(e2));
     } finally {
@@ -165,16 +176,30 @@ export default function TabKolom({
       onSubmit={simpan}
       className={cn('flex flex-col gap-2', banyakKolom && 'lg:min-h-0')}
     >
-      <Field className="sm:max-w-xs">
-        <FieldLabel htmlFor={`input_nama_preset_${tableKey}`}>Nama preset</FieldLabel>
-        <Input
-          id={`input_nama_preset_${tableKey}`}
-          value={nama}
-          onChange={(e) => setNama(e.target.value)}
-          maxLength={50}
-          placeholder="mis. default"
-        />
-      </Field>
+      <div className="flex items-end gap-3">
+        <Field className="sm:max-w-xs">
+          <FieldLabel htmlFor={`input_nama_preset_${tableKey}`}>Nama preset</FieldLabel>
+          <Input
+            id={`input_nama_preset_${tableKey}`}
+            value={nama}
+            onChange={(e) => setNama(e.target.value)}
+            maxLength={50}
+            placeholder="mis. default"
+          />
+        </Field>
+        <label
+          className="flex shrink-0 cursor-pointer items-center gap-1.5 pb-2 text-xs whitespace-nowrap"
+          title="Preset ini dipakai otomatis bila user belum memilih preset"
+        >
+          <Checkbox
+            id={`check_preset_bawaan_${tableKey}`}
+            checked={bawaan}
+            onCheckedChange={(c) => setBawaan(!!c)}
+            aria-label="Jadikan preset bawaan"
+          />
+          Bawaan
+        </label>
+      </div>
 
       {/* Dua panel: daftar preset (kiri), dan tabel kolom + header
           kustom (kanan). */}
@@ -212,37 +237,31 @@ export default function TabKolom({
             {presets.length === 0 ? (
               <p className="px-1 text-xs text-muted-foreground">Belum ada preset lain.</p>
             ) : presets.map((p) => {
-              const bawaan = p.id === bawaanId;
-              const IkonPin = bawaan ? PinOff : Pin;
+              const tanda = p.id === bawaanId;
               return (
                 <div key={p.id} className="group flex items-center gap-0.5">
                   <button
                     type="button"
                     onClick={() => onPilihPreset(p)}
-                    title={bawaan ? `${p.nama} (bawaan)` : p.nama}
+                    title={tanda ? `${p.nama} (bawaan)` : p.nama}
                     className={cn(
                       'min-w-0 flex-1 rounded-md px-2 py-1 text-left text-xs transition-colors',
                       editId === p.id ? 'bg-accent font-medium' : 'hover:bg-accent/60',
                     )}
                   >
                     <span className="block truncate">
-                      {p.nama}{bawaan ? ' (bawaan)' : ''}
+                      {p.nama}
                     </span>
                   </button>
-                  <button
-                    id={`btn_preset_bawaan_${tableKey}_${p.id}`}
-                    type="button"
-                    title={bawaan ? 'Cabut preset bawaan' : 'Jadikan preset bawaan'}
-                    aria-label={bawaan ? `Cabut ${p.nama} sebagai bawaan` : `Jadikan ${p.nama} bawaan`}
-                    aria-pressed={bawaan}
-                    onClick={() => onTogolBawaan(p)}
-                    className={cn(
-                      'grid size-6 shrink-0 place-items-center rounded transition-colors hover:bg-accent hover:text-foreground',
-                      bawaan ? 'text-foreground' : 'text-muted-foreground opacity-0 group-hover:opacity-100',
-                    )}
-                  >
-                    <IkonPin size={13} />
-                  </button>
+                  {tanda ? (
+                    <span
+                      title="Preset bawaan"
+                      aria-label="Preset bawaan"
+                      className="grid size-6 shrink-0 place-items-center text-foreground"
+                    >
+                      <Pin size={13} />
+                    </span>
+                  ) : null}
                 </div>
               );
             })}

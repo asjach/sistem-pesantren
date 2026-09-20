@@ -22,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ChevronDown, ChevronUp } from '@/icons';
+import { ChevronDown, ChevronUp, Pin } from '@/icons';
 import type { PresetKolomApi } from '@/components/PresetKolom';
 import TabUrutan from '@/components/kelolaTabel/TabUrutan';
 
@@ -128,8 +128,12 @@ export default function PresetUrut({
                 <SelectItem value={TANPA}>Tanpa urutan</SelectItem>
                 {opsi.map((o, i) => (
                   <SelectItem key={`${o.kode.join(',')}-${i}`} value={String(i)}>
-                    {o.label}
-                    {o.bawaan ? ' •' : ''}
+                    {o.bawaan ? (
+                      <span className="flex items-center gap-1.5">
+                        <Pin size={12} className="shrink-0 text-muted-foreground" aria-label="Urutan bawaan" />
+                        {o.label}
+                      </span>
+                    ) : o.label}
                   </SelectItem>
                 ))}
               </SelectGroup>

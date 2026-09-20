@@ -3,7 +3,6 @@ import { errorMessage } from '../api/client';
 import {
   listPresetTabel,
   setPresetAktif,
-  setPresetBawaan,
   updatePresetTabel,
   type PresetTabel,
 } from '../api/preset';
@@ -19,6 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useStandarTampilan } from '../standarTampilan';
+import { Pin } from '@/icons';
 import { toast } from 'sonner';
 import FilterField from './FilterField';
 import DialogKelolaTabel from './kelolaTabel/DialogKelolaTabel';
@@ -198,20 +198,15 @@ export default function PresetKolom({
     }
   }
 
+  /** Preset bawaan ditandai ikon pin saja (tanpa sufiks teks, tanpa tebal). */
   const labelPreset = (p: PresetTabel) => (
-    p.id === bawaanId ? `${p.nama} (bawaan)` : p.nama
+    p.id === bawaanId ? (
+      <span className="flex items-center gap-1.5">
+        <Pin size={12} className="shrink-0 text-muted-foreground" aria-label="Preset bawaan" />
+        {p.nama}
+      </span>
+    ) : p.nama
   );
-
-  /** Tandai/cabut preset bawaan tabel (super_admin; satu per tabel). */
-  const togolBawaan = useCallback(async (preset: PresetTabel) => {
-    try {
-      const res = await setPresetBawaan(preset.id, preset.id !== bawaanId);
-      toast.success(res.pesan);
-      await muat(aktifId);
-    } catch (e) {
-      toast.error(errorMessage(e));
-    }
-  }, [bawaanId, aktifId, muat]);
 
   return (
     <>
@@ -259,7 +254,6 @@ export default function PresetKolom({
           onPilihPreset={(p) => bukaKelola(p, 'kolom')}
           onPakaiLengkap={(keys, label) => pakaiLengkap(keys, label)}
           bawaanId={bawaanId}
-          onTogolBawaan={(p) => void togolBawaan(p)}
           onTersimpan={async (id) => {
             await muat(id);
             await setPresetAktif(tableKey, id);

@@ -29,9 +29,9 @@ export interface DialogKelolaTabelProps {
   /** Buka tab kolom dengan semua kolom terpilih (entri "Lengkap"). */
   mulaiLengkap: boolean;
   onPilihLengkap: () => void;
-  /** Id preset bawaan tabel (null = Lengkap); togol via tombol pin di TabKolom. */
+  /** Id preset bawaan tabel (null = tanpa bawaan); diubah via checkbox
+   *  form TabKolom, tersimpan bersama tombol Simpan. */
   bawaanId: number | null;
-  onTogolBawaan: (preset: PresetTabel) => void;
   onPilihPreset: TabKolomProps['onPilihPreset'];
   onTersimpan: TabKolomProps['onTersimpan'];
   onPakaiLengkap: TabKolomProps['onPakaiLengkap'];
@@ -59,7 +59,6 @@ export default function DialogKelolaTabel({
   mulaiLengkap,
   onPilihLengkap,
   bawaanId,
-  onTogolBawaan,
   onPilihPreset,
   onTersimpan,
   onPakaiLengkap,
@@ -116,7 +115,6 @@ export default function DialogKelolaTabel({
             mulaiLengkap={mulaiLengkap}
             onPilihLengkap={onPilihLengkap}
             bawaanId={bawaanId}
-            onTogolBawaan={onTogolBawaan}
             onPilihPreset={onPilihPreset}
             onTersimpan={onTersimpan}
             onPakaiLengkap={onPakaiLengkap}
