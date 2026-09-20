@@ -16,10 +16,12 @@ class ToolbarPresetSimpanRequest extends FormRequest
     {
         return [
             'table_key' => ['required', 'string', 'max:60'],
-            'visibilitas' => ['present', 'array', 'max:20'],
+            'visibilitas' => ['sometimes', 'array', 'max:20'],
             'visibilitas.*' => ['boolean'],
             'lebar' => ['sometimes', 'array', 'max:20'],
             'lebar.*' => ['integer', 'min:40', 'max:480'],
+            'urutan' => ['sometimes', 'array', 'max:300'],
+            'urutan.*' => ['string', 'max:80', 'regex:/^[a-z0-9_]{1,80}$/'],
         ];
     }
 }

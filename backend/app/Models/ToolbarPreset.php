@@ -14,11 +14,12 @@ class ToolbarPreset extends Model
 {
     protected $table = 'toolbar_preset';
 
-    protected $fillable = ['table_key', 'visibilitas', 'lebar', 'dibuat_oleh'];
+    protected $fillable = ['table_key', 'visibilitas', 'lebar', 'urutan', 'dibuat_oleh'];
 
     protected $casts = [
         'visibilitas' => 'array',
         'lebar' => 'array',
+        'urutan' => 'array',
     ];
 
     /** @return BelongsTo<User, $this> */

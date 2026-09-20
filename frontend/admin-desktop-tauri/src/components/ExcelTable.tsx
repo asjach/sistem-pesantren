@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from 'react';
 import {
   DynamicDataSheetGrid as DataSheetGrid,
   checkboxColumn,
@@ -16,8 +16,10 @@ import { buttonVariants } from '@/components/ui/button';
 import { DEFAULT_FONT_PX, DEFAULT_HEADER_H, FONT_FAMILY_DEFAULT, FONT_OPTIONS, MAX_HEADER_H, useGridPrefs, type AlignName } from '@/components/GridPrefs';
 import { useStandarTampilan } from '@/standarTampilan';
 import { useAuth } from '@/auth/AuthContext';
+import { useLembagaAktif } from '@/lembagaAktif';
 import { type PresetKolomApi } from '@/components/PresetKolom';
-import { muatToolbarPreset } from '@/api/toolbarPreset';
+import { muatToolbarPreset, simpanToolbarPreset } from '@/api/toolbarPreset';
+import { gabungUrutan } from './excel/urutanKolom';
 import { EVENT_TOOLBAR_BERUBAH, LEBAR_BAWAHAN_TOOLBAR, bacaLebarFilter, bacaLebarToolbar, bacaVisToolbar, type LebarToolbar, type VisToolbar } from '@/components/kelolaTabel/jenis';
 import { KonteksLebarFilter } from './excel/lebarFilter';
 import { useKamusPeta } from '@/components/useKamusPeta';
@@ -79,7 +81,7 @@ import {
   TextCell,
   ToggleCell,
 } from './excel/cells';
-import { HeaderTitle, ukurPerluTinggiHeader } from './excel/header';
+import { HeaderTitle, LEBAR_GAGANG_GESER, ukurPerluTinggiHeader } from './excel/header';
 import { bersihkanProbe, measureActionsWidth } from './excel/measure';
 import { ukurAutoFit } from './excel/autofit';
 import { useAntreanSimpan } from './excel/useAntreanSimpan';
@@ -261,6 +263,8 @@ export default function ExcelTable<T extends { id: string | number }>({
   /** Kelola tabel = super_admin saja (global); memilih preset untuk dilihat tetap bisa semua. */
   const { user: me } = useAuth();
   const superAdmin = (me?.roles ?? []).some((r) => r.name === 'super_admin');
+  /** Geser urutan kolom = super_admin EFEKTIF (global; mati saat bertindak). */
+  const { efektifSuper: bolehGeser } = useLembagaAktif();
   /** Visibilitas kontrol toolbar generik (tab Kontrol dialog Kelola tabel). */
   const [visToolbar, setVisToolbar] = useState<VisToolbar>({ cari: true, info: true, urut: true, kolom: true, filter: true });
   /** Lebar efektif kontrol berlebar (px); nilai awal = bawaan meski belum tersimpan. */
@@ -269,6 +273,8 @@ export default function ExcelTable<T extends { id: string | number }>({
   const [lebarKolomDb, setLebarKolomDb] = useState<number | undefined>(undefined);
   /** Lebar filter halaman tersimpan (kunci → px); absen = bawaan halaman. */
   const [lebarFilter, setLebarFilter] = useState<Record<string, number>>({});
+  /** Urutan kolom tersimpan di DB (null = belum dimuat; [] = bawaan halaman). */
+  const [urutanDb, setUrutanDb] = useState<string[] | null>(null);
   const konteksLebarFilter = useMemo(() => ({ tableKey, lebar: lebarFilter }), [tableKey, lebarFilter]);
   useEffect(() => {
     let batal = false;
@@ -279,6 +285,7 @@ export default function ExcelTable<T extends { id: string | number }>({
         setVisToolbar(bacaVisToolbar(res.data.visibilitas));
         setLebarToolbar(bacaLebarToolbar(res.data.lebar));
         setLebarFilter(bacaLebarFilter(res.data.lebar));
+        setUrutanDb(Array.isArray(res.data.urutan) ? res.data.urutan : []);
         const tersimpan = res.data.lebar?.kolom;
         setLebarKolomDb(typeof tersimpan === 'number' && tersimpan >= 40 && tersimpan <= 480 ? tersimpan : undefined);
       } catch {
@@ -286,6 +293,7 @@ export default function ExcelTable<T extends { id: string | number }>({
         setVisToolbar({ cari: true, info: true, urut: true, kolom: true, filter: true });
         setLebarToolbar({ ...LEBAR_BAWAHAN_TOOLBAR });
         setLebarFilter({});
+        setUrutanDb([]);
         setLebarKolomDb(undefined);
       }
     };
@@ -440,10 +448,21 @@ export default function ExcelTable<T extends { id: string | number }>({
   const getValuesRef = useRef(getValues);
   getValuesRef.current = getValues;
   const visibleFields = useMemo(() => {
-    if (presetKeys === null) return fields;
-    const terlihat = fields.filter((f) => presetKeys.includes(f.key));
-    return terlihat.length > 0 ? terlihat : fields;
-  }, [fields, presetKeys]);
+    const dasar = (() => {
+      if (presetKeys === null) return fields;
+      const terlihat = fields.filter((f) => presetKeys.includes(f.key));
+      return terlihat.length > 0 ? terlihat : fields;
+    })();
+    // Urutan global tersimpan (super_admin) menata ulang kolom tampil;
+    // kolom tampil yang tak ada di simpanan menempel di akhir.
+    if (urutanDb !== null && urutanDb.length > 0) {
+      const byKey = new Map(dasar.map((f) => [f.key, f]));
+      const urut = gabungUrutan(urutanDb, dasar.map((f) => f.key));
+      const hasil = urut.map((k) => byKey.get(k)).filter((f): f is (typeof dasar)[number] => !!f);
+      return hasil.length > 0 ? hasil : dasar;
+    }
+    return dasar;
+  }, [fields, presetKeys, urutanDb]);
   const visibleFieldsRef = useRef(visibleFields);
   /** Nilai TERBARU baris input (ditulis handleChange) — dipakai saat Enter
    *  agar simpan tidak membaca state yang belum ter-flush. */
@@ -490,6 +509,88 @@ export default function ExcelTable<T extends { id: string | number }>({
   );
   visibleFieldsRef.current = visibleFields;
   const wrapRef = useRef<HTMLDivElement>(null);
+
+  /** Seret urutan kolom (cermin ref agar drop membaca nilai terbaru). */
+  const [seret, setSeret] = useState<{ dari: string; ke: string | null; sesudah: boolean } | null>(null);
+  const seretRef = useRef<typeof seret>(null);
+  const tundaSimpanUrutan = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(tundaSimpanUrutan.current), []);
+
+  /** Simpan urutan key kolom tampil (global, super_admin); [] = bawaan. */
+  const simpanUrutan = useCallback((keys: string[]) => {
+    setUrutanDb(keys);
+    window.clearTimeout(tundaSimpanUrutan.current);
+    tundaSimpanUrutan.current = window.setTimeout(() => {
+      simpanToolbarPreset(tableKey, undefined, undefined, keys)
+        .then(() => {
+          toast.success(keys.length === 0 ? 'Urutan kolom dikembalikan ke bawaan.' : 'Urutan kolom disimpan (berlaku semua).');
+          window.dispatchEvent(new CustomEvent(EVENT_TOOLBAR_BERUBAH, { detail: { tableKey } }));
+        })
+        .catch((e) => toast.error(errorMessage(e)));
+    }, 600);
+  }, [tableKey]);
+
+  /** Geser satu langkah (tombol menu konteks). */
+  const geserKolom = useCallback((colKey: string, arah: -1 | 1) => {
+    const kini = visibleFieldsRef.current.map((f) => f.key);
+    const i = kini.indexOf(colKey);
+    const j = i + arah;
+    if (i < 0 || j < 0 || j >= kini.length) return;
+    const next = [...kini];
+    next.splice(i, 1);
+    next.splice(j, 0, colKey);
+    simpanUrutan(next);
+  }, [simpanUrutan]);
+
+  /** Pindahkan kolom `dari` ke posisi kolom `ke` (sesudah = di kanannya). */
+  const pindahKolomKe = useCallback((dari: string, ke: string, sesudah: boolean) => {
+    if (dari === ke) return;
+    const kini = visibleFieldsRef.current.map((f) => f.key).filter((k) => k !== dari);
+    let idx = kini.indexOf(ke);
+    if (idx < 0) return;
+    if (sesudah) idx += 1;
+    kini.splice(idx, 0, dari);
+    simpanUrutan(kini);
+  }, [simpanUrutan]);
+
+  const kembalikanUrutan = useCallback(() => {
+    simpanUrutan([]);
+  }, [simpanUrutan]);
+
+  const dragMulaiKolom = useCallback((key: string, e: DragEvent) => {
+    e.dataTransfer.effectAllowed = 'move';
+    try {
+      e.dataTransfer.setData('text/plain', key);
+    } catch {
+      /* abaikan */
+    }
+    const s = { dari: key, ke: null as string | null, sesudah: false };
+    seretRef.current = s;
+    setSeret(s);
+  }, []);
+  const dragLewatKolom = useCallback((key: string, e: DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const sesudah = e.clientX > r.left + r.width / 2;
+    const s = seretRef.current;
+    if (s && s.dari !== key && (s.ke !== key || s.sesudah !== sesudah)) {
+      const next = { ...s, ke: key, sesudah };
+      seretRef.current = next;
+      setSeret(next);
+    }
+  }, []);
+  const dragJatuhKolom = useCallback((key: string, e: DragEvent) => {
+    e.preventDefault();
+    const s = seretRef.current;
+    seretRef.current = null;
+    setSeret(null);
+    if (s && s.dari !== key) pindahKolomKe(s.dari, key, s.sesudah);
+  }, [pindahKolomKe]);
+  const dragSelesaiKolom = useCallback(() => {
+    seretRef.current = null;
+    setSeret(null);
+  }, []);
   const [gridH, setGridH] = useState(() =>
     typeof window === 'undefined'
       ? 640
@@ -1079,7 +1180,9 @@ export default function ExcelTable<T extends { id: string | number }>({
     const out: Record<string, number> = {};
     const values = rows.map((r) => getValuesRef.current(r) as Record<string, unknown>);
     for (const f of visibleFields) {
-      let w = lebar(headProbe, csHeadCont, labelKolom(f.key, f.label)) + padHead + AUTOFIT_BUFFER;
+      // Gagang geser (super_admin) memakan ruang judul: hitung dalam AutoFit
+      // agar judul 1–2 baris tak terpotong/terbungkus sia-sia.
+      let w = lebar(headProbe, csHeadCont, labelKolom(f.key, f.label)) + padHead + AUTOFIT_BUFFER + (bolehGeser ? LEBAR_GAGANG_GESER : 0);
       for (const v of values) {
         const s = teksTampilSel(f, v[f.key], attrByKey.get(f.key)?.format);
         if (!s) continue;
@@ -1089,7 +1192,7 @@ export default function ExcelTable<T extends { id: string | number }>({
     }
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, visibleFields, effectiveFont, fontStack, fontStackWeight, labelKolom, attrByKey]);
+  }, [rows, visibleFields, effectiveFont, fontStack, fontStackWeight, labelKolom, attrByKey, bolehGeser]);
 
   const editableKeys = useMemo(
     () => visibleFields.filter((f) => f.kind !== 'static').map((f) => f.key),
@@ -1230,11 +1333,22 @@ export default function ExcelTable<T extends { id: string | number }>({
             }
             onAutoFit={onAutoFit}
             tooltip={attrByKey.get(f.key)?.tooltip ?? null}
-            terkunci={lebarTerkunci != null}
+            terkunci={lebarKunci(f.key) != null}
+            bisaGeser={bolehGeser}
+            sedangDiseret={seret?.dari === f.key}
+            targetSeret={seret && seret.ke === f.key ? (seret.sesudah ? 'kanan' : 'kiri') : null}
+            onDragMulai={bolehGeser ? dragMulaiKolom : undefined}
+            onDragLewat={bolehGeser ? dragLewatKolom : undefined}
+            onDragJatuh={bolehGeser ? dragJatuhKolom : undefined}
+            onDragSelesai={bolehGeser ? dragSelesaiKolom : undefined}
           />
         ),
         headerClassName: cn(alignClass(f.key), bekuCls, tepiCls, lastCls),
-        basis: lebarTerkunci ?? widths[f.key] ?? stdLebar?.[f.key] ?? autoWidths[f.key] ?? syncAutoWidths[f.key] ?? f.width ?? 150,
+        basis:
+          (lebarTerkunci ?? widths[f.key] ?? stdLebar?.[f.key] ?? autoWidths[f.key] ?? syncAutoWidths[f.key] ?? f.width ?? 150) +
+          // Gagang geser memakan ruang judul: tambah lebarnya agar area
+          // label tetap sama (hanya saat grip tampil = super_admin).
+          (bolehGeser ? LEBAR_GAGANG_GESER : 0),
         // Semua kolom fixed (grow 0): lebar hanya berubah saat digagang
         // seret atau di-AutoFit, persis seperti Excel. Sisa ruang di kanan
         // dibiarkan kosong, bukan dibagi ke kolom elastis.
@@ -1400,7 +1514,7 @@ export default function ExcelTable<T extends { id: string | number }>({
     }
     return cols;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fields, visibleFields, editing, widths, stdLebar, autoWidths, syncAutoWidths, align, showInput, freezeAktif, hideCheckbox, labelKolom, attrByKey, alignEfektif, lebarKunci, drafts]);
+  }, [fields, visibleFields, editing, widths, stdLebar, autoWidths, syncAutoWidths, align, showInput, freezeAktif, hideCheckbox, labelKolom, attrByKey, alignEfektif, lebarKunci, drafts, bolehGeser, seret, dragMulaiKolom, dragLewatKolom, dragJatuhKolom, dragSelesaiKolom]);
 
   /** Simpan baris input → buat record baru via onCreateRow halaman. Validasi
    *  field wajib + validator kolom dulu; draft dibersihkan hanya bila sukses
@@ -1943,6 +2057,11 @@ export default function ExcelTable<T extends { id: string | number }>({
             salinSel={(id, key) => void salinSelCtx(id as T['id'], key)}
             salinKolom={(key) => void salinKolomCtx(key)}
             onKonfirmasi={setCtxKonfirmasi}
+            bolehGeser={bolehGeser}
+            jumlahKolom={visibleFields.length}
+            onGeserKiri={() => ctxHeader && geserKolom(ctxHeader.colKey, -1)}
+            onGeserKanan={() => ctxHeader && geserKolom(ctxHeader.colKey, 1)}
+            onResetUrutan={() => kembalikanUrutan()}
           />
         </ContextMenu>
 

@@ -47,6 +47,57 @@ class ToolbarPresetTest extends TestCase
         return $u;
     }
 
+    public function test_simpan_dan_baca_urutan_kolom(): void
+    {
+        $pusat = $this->makeUser('super_admin');
+        $scoped = $this->makeUser('admin');
+
+        // Belum ada baris: urutan kosong (frontend memakai urutan bawaan).
+        $this->actingAs($pusat, 'sanctum')
+            ->getJson('/api/admin/toolbar-preset?table_key=santri')
+            ->assertStatus(200)
+            ->assertJsonPath('data.urutan', []);
+
+        // Admin biasa ditolak menulis urutan (403).
+        $this->actingAs($scoped, 'sanctum')->putJson('/api/admin/toolbar-preset', [
+            'table_key' => 'santri',
+            'urutan' => ['b', 'a', 'c'],
+        ])->assertStatus(403);
+
+        // Super_admin menyimpan; duplikat dibuang, urutan dipertahankan.
+        $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/toolbar-preset', [
+            'table_key' => 'santri',
+            'urutan' => ['b', 'a', 'c', 'e', 'd', 'a'],
+        ])->assertStatus(200);
+        $this->actingAs($scoped, 'sanctum')
+            ->getJson('/api/admin/toolbar-preset?table_key=santri')
+            ->assertStatus(200)
+            ->assertJsonPath('data.urutan', ['b', 'a', 'c', 'e', 'd']);
+
+        // Simpan urutan saja tak menghapus visibilitas/lebar yang sudah ada.
+        $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/toolbar-preset', [
+            'table_key' => 'santri',
+            'visibilitas' => ['cari' => false],
+            'lebar' => ['cari' => 200],
+        ])->assertStatus(200);
+        $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/toolbar-preset', [
+            'table_key' => 'santri',
+            'urutan' => ['a', 'b'],
+        ])->assertStatus(200);
+        $this->actingAs($pusat, 'sanctum')
+            ->getJson('/api/admin/toolbar-preset?table_key=santri')
+            ->assertStatus(200)
+            ->assertJsonPath('data.visibilitas', ['cari' => false])
+            ->assertJsonPath('data.lebar', ['cari' => 200])
+            ->assertJsonPath('data.urutan', ['a', 'b']);
+
+        // Kunci urutan asing ditolak.
+        $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/toolbar-preset', [
+            'table_key' => 'santri',
+            'urutan' => ['Kolom Asing!'],
+        ])->assertStatus(422)->assertJsonValidationErrors(['urutan.0']);
+    }
+
     public function test_baca_bebas_tulis_super_admin_saja(): void
     {
         $root = Lembaga::create([

@@ -10,6 +10,8 @@ export interface ToolbarPresetData {
   table_key: string;
   visibilitas: VisibilitasToolbar;
   lebar: LebarToolbarApi;
+  /** Urutan key kolom data (global); kosong = urutan bawaan halaman. */
+  urutan: string[];
 }
 
 export function muatToolbarPreset(tableKey: string) {
@@ -18,10 +20,15 @@ export function muatToolbarPreset(tableKey: string) {
   );
 }
 
-export function simpanToolbarPreset(tableKey: string, visibilitas: VisibilitasToolbar, lebar?: LebarToolbarApi) {
+export function simpanToolbarPreset(tableKey: string, visibilitas?: VisibilitasToolbar, lebar?: LebarToolbarApi, urutan?: string[]) {
   return api<{ pesan: string; data: unknown }>('/admin/toolbar-preset', {
     method: 'PUT',
-    body: JSON.stringify({ table_key: tableKey, visibilitas, ...(lebar ? { lebar } : {}) }),
+    body: JSON.stringify({
+      table_key: tableKey,
+      ...(visibilitas ? { visibilitas } : {}),
+      ...(lebar ? { lebar } : {}),
+      ...(urutan ? { urutan } : {}),
+    }),
   });
 }
 

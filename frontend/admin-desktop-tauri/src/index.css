@@ -418,6 +418,37 @@
 .simpes-dsg .simpes-dsg-resizer:hover {
   background: color-mix(in srgb, var(--accent) 35%, transparent);
 }
+/* Gagang geser urutan kolom (super_admin): di kiri judul, kursor pindah. */
+.simpes-dsg-geser {
+  display: inline-flex;
+  align-items: center;
+  margin-left: -4px;
+  margin-right: 2px;
+  padding: 2px 1px;
+  border-radius: 4px;
+  color: var(--muted-foreground);
+  cursor: grab;
+  touch-action: none;
+  flex: none;
+}
+.simpes-dsg-geser:hover {
+  background: color-mix(in srgb, var(--accent) 35%, transparent);
+  color: var(--foreground);
+}
+.simpes-dsg-geser:active {
+  cursor: grabbing;
+}
+/* Kolom sedang diseret: redupkan judulnya. */
+.simpes-dsg-headtitle.simpes-dsg-diseret {
+  opacity: 0.45;
+}
+/* Indikator posisi drop: garis aksen di kiri/kanan judul target. */
+.simpes-dsg-headtitle.simpes-dsg-target-kiri {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.simpes-dsg-headtitle.simpes-dsg-target-kanan {
+  box-shadow: inset -3px 0 0 var(--accent);
+}
 .simpes-dsg .dsg-input {
   font-size: var(--simpes-font-size, 11px);
   /* Input edit ikut jenis & ketebalan huruf selnya. */

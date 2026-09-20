@@ -9,7 +9,7 @@ import {
 import type { PresetKolomApi } from '@/components/PresetKolom';
 import type { AlignName } from '@/components/GridPrefs';
 import { cn } from '@/lib/utils';
-import { AlignCenter, AlignLeft, AlignRight, Columns3, Copy, MoveHorizontal, Pin, PinOff } from '@/icons';
+import { AlignCenter, AlignLeft, AlignRight, ChevronLeft, ChevronRight, Columns3, Copy, MoveHorizontal, Pin, PinOff, RotateCcw } from '@/icons';
 import { flattenAksi, metaAksi } from './actions';
 import type { AksiMenu } from './types';
 
@@ -46,6 +46,12 @@ export interface MenuKonteksGridProps {
   salinSel: (id: string | number, key: string) => void;
   salinKolom: (key: string) => void;
   onKonfirmasi: (konfirmasi: AksiMenu['konfirmasi']) => void;
+  /** Geser posisi kolom (super_admin efektif; global tersimpan otomatis). */
+  bolehGeser: boolean;
+  jumlahKolom: number;
+  onGeserKiri: () => void;
+  onGeserKanan: () => void;
+  onResetUrutan: () => void;
 }
 
 /** Isi menu klik-kanan grid: area header (AutoFit, beku, perataan, tampil di
@@ -69,6 +75,11 @@ export default function MenuKonteksGrid({
   salinSel,
   salinKolom,
   onKonfirmasi,
+  bolehGeser,
+  jumlahKolom,
+  onGeserKiri,
+  onGeserKanan,
+  onResetUrutan,
 }: MenuKonteksGridProps) {
   return (
     <ContextMenuContent>
@@ -155,8 +166,47 @@ export default function MenuKonteksGrid({
             >
               <Copy size={16} />
             </button>
+            {bolehGeser && (
+              <>
+                <span className="mx-0.5 h-5 w-px bg-border" aria-hidden="true" />
+                <button
+                  type="button"
+                  id={`btn_ctx_geser_kiri_${tableKey}`}
+                  title="Geser kolom ke kiri (global)"
+                  aria-label="Geser kolom ke kiri"
+                  disabled={headerIdx <= 0}
+                  onClick={onGeserKiri}
+                  className={cn(ikonBtn, 'disabled:pointer-events-none disabled:opacity-40')}
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <button
+                  type="button"
+                  id={`btn_ctx_geser_kanan_${tableKey}`}
+                  title="Geser kolom ke kanan (global)"
+                  aria-label="Geser kolom ke kanan"
+                  disabled={headerIdx < 0 || headerIdx >= jumlahKolom - 1}
+                  onClick={onGeserKanan}
+                  className={cn(ikonBtn, 'disabled:pointer-events-none disabled:opacity-40')}
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </>
+            )}
           </div>
           <ContextMenuSeparator />
+          {bolehGeser && (
+            <>
+              <ContextMenuItem
+                id={`menu_ctx_kembalikan_urutan_${tableKey}`}
+                onSelect={onResetUrutan}
+              >
+                <RotateCcw size={16} />
+                <span>Kembalikan urutan bawaan</span>
+              </ContextMenuItem>
+              <ContextMenuSeparator />
+            </>
+          )}
           {bolehKelola && (
           <>
           <ContextMenuLabel>TAMPILKAN DI PRESET</ContextMenuLabel>
