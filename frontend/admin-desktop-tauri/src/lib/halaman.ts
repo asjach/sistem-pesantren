@@ -3,6 +3,7 @@ import {
   BadgeCheck,
   BookMarked,
   BookOpen,
+  CalendarCheck,
   CalendarDays,
   CalendarRange,
   ChevronUp,
@@ -85,6 +86,15 @@ export const HALAMAN: HalamanDef[] = [
   { to: '/rekap-santri', label: 'Rekap Santri', tab: 'santri', grid: true, icon: ReceiptText, permission: 'rekap_santri.lihat' },
   { to: '/pengajuan-biodata', label: 'Pengajuan Biodata', tab: 'santri', grid: true, icon: NotebookTabs, permission: 'pengajuan_biodata.lihat' },
   { to: '/pengaturan/tampilan', label: 'Tampilan', tab: 'pengaturan', icon: Palette, permission: 'tampilan.lihat' },
+  {
+    to: '/pengaturan/semester',
+    label: 'Semester',
+    deskripsi: 'Aktivasi semester berjalan per lembaga. Hanya super_admin.',
+    tab: 'pengaturan',
+    grid: true,
+    icon: CalendarCheck,
+    permission: 'semester.aktivasi',
+  },
   {
     to: '/pengaturan/kamus-label',
     label: 'Kamus Label',

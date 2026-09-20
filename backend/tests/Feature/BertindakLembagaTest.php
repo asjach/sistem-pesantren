@@ -159,7 +159,7 @@ class BertindakLembagaTest extends TestCase
         $this->assertContains('preset_tabel.tambah', $penuh);
         $this->assertContains('izin.ubah', $penuh);
 
-        // …diturunkan ke set admin saat bertindak (tanpa 14 eksklusif super).
+        // …diturunkan ke set admin saat bertindak (tanpa 15 eksklusif super).
         $efektif = $this->actingAs($pusat, 'sanctum')->withHeaders($hdr)->getJson('/api/auth/me')
             ->assertStatus(200)->json('permissions');
         $this->assertNotContains('preset_tabel.tambah', $efektif);

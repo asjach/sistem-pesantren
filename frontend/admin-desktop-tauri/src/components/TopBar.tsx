@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { logout, bisa } from '@/api/auth';
-import { isTauri, prefGet, prefSet, errorMessage } from '@/api/client';
-import { daftarSemester, tetapkanSemester } from '@/api/semesterAktif';
+import { logout } from '@/api/auth';
+import { isTauri, prefGet, prefSet } from '@/api/client';
+import { daftarSemester } from '@/api/semesterAktif';
 import { useAuth } from '@/auth/AuthContext';
 import { useLembagaAktif } from '@/lembagaAktif';
 import { useTahunAjaranAktif } from '@/tahunAjaranAktif';
-import { useSemesterAktif, type SemesterAktif } from '@/semesterAktif';
+import { useSemesterAktif } from '@/semesterAktif';
 import { useTheme, type ModeName, type ThemeName } from '@/theme';
 import { usePicker } from '@/picker';
 import { cn } from '@/lib/utils';
@@ -28,7 +28,6 @@ import { THEME_PRESETS } from '@/themes';
 import { DEFAULT_PREFS, WARNA_UI } from '@/prefs';
 import { Blend, CalendarDays, Check, ChevronDown, ChevronUp, Columns3, Landmark, LogOut, Monitor, Moon, Paintbrush, Palette, SquareMousePointer, Sun, Users } from '@/icons';
 import { useRibbonTable } from '@/components/RibbonTable';
-import { toast } from 'sonner';
 import { useRibbonSlotCtx } from '@/components/RibbonSlot';
 import BannerBertindak from '@/components/BannerBertindak';
 import { halamanDariPath } from '@/lib/halaman';
@@ -59,37 +58,35 @@ export default function TopBar() {
   const { lembagaId, lembaga, pilihan, adaSemua, banyakPilihan, bertindak, peran, pilih, loading: lembagaLoading } = useLembagaAktif();
   const { tahunAjaranId, tahunAjaran, pilihan: taPilihan, pilih: taPilih, loading: taLoading } = useTahunAjaranAktif();
   const { semester, pilih: pilihSemester, loading: semesterLoading } = useSemesterAktif();
-  const [simpanSemester, setSimpanSemester] = useState(false);
 
-  // Dropdown Semester = penyetel + filter: mengikuti nilai server lembaga
-  // aktif (bila sudah diatur), memilih Ganjil/Genap ikut menulis ke server
-  // untuk lembaga aktif (super_admin semua, admin lembaganya). "Semua"
-  // hanya filter perangkat.
+  // Dropdown Semester = filter perangkat murni (tanpa tulis ke server).
+  // Default: semester aktif lembaga aktif; untuk induk pesantren / Semua
+  // (super_admin, admin pesantren) = semester yang paling banyak aktif.
+  // Aktivasi per lembaga ada di halaman Semester (khusus super_admin).
   useEffect(() => {
-    if (lembagaId == null || !bisa(user, 'semester.lihat')) return;
     let hidup = true;
     daftarSemester()
       .then((res) => {
-        const nilai = res.data.find((r) => r.lembaga_id === lembagaId)?.semester;
+        const baris = res.data;
+        const milik = lembagaId != null
+          ? baris.find((r) => r.lembaga_id === lembagaId)?.semester
+          : undefined;
+        let nilai: string | undefined;
+        if (milik === '1' || milik === '2') {
+          nilai = milik;
+        } else {
+          const hitung = { '1': 0, '2': 0 };
+          for (const r of baris) {
+            if (r.semester === '1' || r.semester === '2') hitung[r.semester]++;
+          }
+          if (hitung['1'] === 0 && hitung['2'] === 0) return;
+          nilai = hitung['2'] > hitung['1'] ? '2' : '1';
+        }
         if (hidup && (nilai === '1' || nilai === '2')) pilihSemester(nilai);
       })
       .catch(() => {});
     return () => { hidup = false; };
-  }, [lembagaId, user, pilihSemester]);
-
-  async function pilihSemesterServer(s: SemesterAktif | null) {
-    pilihSemester(s);
-    if (s == null || lembagaId == null || !bisa(user, 'semester.ubah')) return;
-    setSimpanSemester(true);
-    try {
-      const res = await tetapkanSemester(lembagaId, s);
-      toast.success(res.pesan);
-    } catch (e) {
-      toast.error(errorMessage(e));
-    } finally {
-      setSimpanSemester(false);
-    }
-  }
+  }, [lembagaId, pilihSemester]);
   // Dropdown lembaga = filter (bebas diubah kapan pun, termasuk saat bertindak);
   // peran act-as diatur terpisah lewat tombol PERAN SEBAGAI + banner.
   const daftarLembaga = pilihan;
@@ -274,8 +271,8 @@ export default function TopBar() {
                 <span className="flex-1">Semua</span>
                 {semester === null && <Check data-icon="inline-end" size={14} />}
               </DropdownMenuItem>
-              {(['1', '2'] as SemesterAktif[]).map((s) => (
-                <DropdownMenuItem key={s} id={`menu_semester_aktif_${s}`} disabled={simpanSemester} onSelect={() => void pilihSemesterServer(s)}>
+              {(['1', '2'] as const).map((s) => (
+                <DropdownMenuItem key={s} id={`menu_semester_aktif_${s}`} onSelect={() => pilihSemester(s)}>
                     <span className="flex-1 truncate">Semester {s}{s === '1' ? ' (Ganjil)' : ' (Genap)'}</span>
                     {semester === s && <Check data-icon="inline-end" size={14} />}
                   </DropdownMenuItem>
