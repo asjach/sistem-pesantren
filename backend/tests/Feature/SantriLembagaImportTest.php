@@ -78,7 +78,10 @@ class SantriLembagaImportTest extends TestCase
     {
         $headers = [
             'santri_id', 'kode_lembaga', 'lembaga_id', 'nis_lokal', 'nis_kemenag',
-            'is_active_lembaga', 'tgl_masuk', 'tgl_selesai', 'nama_lengkap', 'nik', 'jk', 'tgl_lahir',
+            'is_active_lembaga', 'tgl_masuk', 'tgl_selesai',
+            'tahaj_masuk', 'tingkat_masuk', 'no_urut',
+            'nama_sekolah_asal', 'npsn_sekolah_asal', 'nss_sekolah_asal', 'alamat_sekolah_asal',
+            'nama_lengkap', 'nik', 'jk', 'tgl_lahir', 'kepala_keluarga',
         ];
         $tmp = tempnam(sys_get_temp_dir(), 'gabungan').'.csv';
         $h = fopen($tmp, 'w');
@@ -485,5 +488,43 @@ class SantriLembagaImportTest extends TestCase
         $this->assertSame('1234567890', $dipetakan['nisn']);
         $this->assertSame('7', $dipetakan['rt']);
         $this->assertSame('2015-07-01', $dipetakan['tgl_lahir']);
+    }
+
+    public function test_21_import_field_masuk_sekolah_asal_dan_kepala_keluarga(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeAdmin([$f['mi']->id]);
+
+        $this->upload($admin, $this->makeCsv([[
+            'kode_lembaga' => 'MI',
+            'nis_lokal' => '27101',
+            'is_active_lembaga' => 'Ya',
+            'tgl_masuk' => '2026-07-01',
+            'tahaj_masuk' => '2026/2027',
+            'tingkat_masuk' => '1',
+            'no_urut' => '7',
+            'nama_sekolah_asal' => 'SD Negeri 1',
+            'npsn_sekolah_asal' => '20512345',
+            'nss_sekolah_asal' => '101010101010',
+            'alamat_sekolah_asal' => 'Jl. Asal No. 1',
+            'nama_lengkap' => 'Impor Field',
+            'nik' => '1101010000000021',
+            'jk' => 'L',
+            'tgl_lahir' => '2015-07-01',
+            'kepala_keluarga' => 'Bapak Kepala',
+        ]]))->assertStatus(200);
+
+        $santri = Santri::where('nik', '1101010000000021')->firstOrFail();
+        $this->assertSame('Bapak Kepala', $santri->kepala_keluarga);
+
+        $ls = LembagaSantri::where('santri_id', $santri->id)->where('lembaga_id', $f['mi']->id)->firstOrFail();
+        $this->assertSame('2026/2027', $ls->tahaj_masuk);
+        $this->assertSame('1', $ls->tingkat_masuk);
+        $this->assertSame(7, $ls->no_urut);
+        $this->assertSame('SD Negeri 1', $ls->nama_sekolah_asal);
+        $this->assertSame('20512345', $ls->npsn_sekolah_asal);
+        $this->assertSame('101010101010', $ls->nss_sekolah_asal);
+        $this->assertSame('Jl. Asal No. 1', $ls->alamat_sekolah_asal);
+        $this->assertSame('2026-07-01', $ls->tgl_masuk?->format('Y-m-d'));
     }
 }

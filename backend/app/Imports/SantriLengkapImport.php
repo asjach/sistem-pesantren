@@ -150,6 +150,7 @@ class SantriLengkapImport implements SkipsOnFailure, SkipsUnknownSheets, ToColle
             'kebutuhan_disabilitas' => $row['kebutuhan_disabilitas'] ?? null,
             'nomor_kip' => $row['nomor_kip'] ?? null,
             'no_kk' => $row['no_kk'] ?? null,
+            'kepala_keluarga' => $row['kepala_keluarga'] ?? null,
             'kewarganegaraan' => ($row['kewarganegaraan'] ?? null) ?: 'WNI',
             'bahasa_sehari' => $row['bahasa_sehari'] ?? null,
             'status_tempat_tinggal' => $row['status_tempat_tinggal'] ?? null,
