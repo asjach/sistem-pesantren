@@ -39,8 +39,11 @@ export default function FilterField({ label, htmlFor, children, className, kelol
   const anakTunggal = Children.count(children) === 1 && isValidElement(children)
     ? (children as ReactElement<{ style?: CSSProperties; children?: ReactNode }>)
     : null;
-  // Tanpa override: anak Select diseragamkan 100px (bawaan toolbar).
-  const lebarBawaan = anakTunggal && anakTunggal.type === Select ? 100 : undefined;
+  // Tanpa override: anak Select TERKELOLA diseragamkan 100px (bawaan
+  // toolbar). Kontrol tak-terkelola (kunci kosong: kelolaLebar mati / di luar
+  // toolbar) dibiarkan apa adanya — lebarnya sudah diatur lewat jalur
+  // kontrol (mis. Urutkan/Kolom dari tab Kontrol Kelola tabel).
+  const lebarBawaan = kunci && anakTunggal && anakTunggal.type === Select ? 100 : undefined;
   const lebarEfektif = override ?? lebarBawaan;
   if (lebarEfektif !== undefined && anakTunggal) {
     const el = anakTunggal;
