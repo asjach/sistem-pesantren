@@ -6,14 +6,28 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 // Minimal untuk kebutuhan ACC 100 (lifecycle penuh di 102):
-// is_aktif true iff status_akhir='aktif', tulis hanya via service.
+// is_active_riwayat === 'Ya' iff status_akhir='aktif', tulis hanya via service.
 class RiwayatBelajar extends Model
 {
+    /** Nilai kanonis kolom keaktifan (ENUM). */
+    public const YA = 'Ya';
+
+    public const TIDAK = 'Tidak';
+
     protected $table = 'riwayat_belajar';
 
     protected $guarded = ['id'];
 
-    protected $casts = ['tgl_masuk' => 'date:Y-m-d', 'is_aktif' => 'boolean', 'no_absen' => 'integer'];
+    /** Bawaan kolom keaktifan (juga menutup default DB saat rename di SQLite). */
+    protected $attributes = ['is_active_riwayat' => self::YA];
+
+    protected $casts = ['tgl_masuk' => 'date:Y-m-d', 'no_absen' => 'integer'];
+
+    /** Keaktifan jejak akademik sebagai boolean (bandingkan string ENUM). */
+    public function isActive(): bool
+    {
+        return $this->is_active_riwayat === self::YA;
+    }
 
     public function santri(): BelongsTo
     {

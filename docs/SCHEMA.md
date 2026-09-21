@@ -20,8 +20,8 @@ PSB → kepegawaian → akademik → nilai → presensi → asrama → tahfizh �
 > 1. `santri.lembaga_id` boleh NULL (legacy tanpa track); sumber kebenaran
 >    lembaga = `riwayat_belajar`, kolom ini cache lembaga primer terakhir.
 >    **Batal di v2.0: kolom dihapus total — legacy = santri tanpa riwayat.**
-> 2. `santri.status_global` turunan murni (default false): true iff punya ≥1
->    `riwayat_belajar.is_aktif`. **Sudah diimplementasikan (v1.10.2 + backfill).**
+> 2. `santri.is_active_pst` turunan murni (default 'Tidak'): 'Ya' iff punya ≥1
+>    `riwayat_belajar.is_active_riwayat='Ya'`. **Sudah diimplementasikan (v1.10.2 + backfill).**
 > 3. Asrama = entitas sendiri (BLOK 10), peran `asrama` (7 peran) + pivot
 >    `user_asrama`. Penanda keuangan asrama ditetapkan saat modul keuangan
 >    dirumuskan ulang.
@@ -350,24 +350,29 @@ Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca
 - `alamat`: text [null]
 - `kode_pos`: string [null]
 - `foto_url`: string [null]
-- `status_global`: bool [default false] — TURUNAN murni: true iff punya ≥1 `riwayat_belajar.is_aktif`. Bukan input manual; dihitung ulang tiap transisi (ACC/penerimaan, penempatan kelas, naik, mutasi, lulus, berhenti). Lulus/mutasi tidak disimpan di sini — dibaca dari tabel alumni / mutasi_keluar. Santri legacy tanpa riwayat tetap false (nonaktif) sampai ditempatkan.
+- `kepala_keluarga`: string [null] — nama kepala keluarga
+- `status_global` → **`is_active_pst`**: enum('Ya','Tidak') [default 'Tidak'] — TURUNAN murni: 'Ya' iff punya ≥1 `riwayat_belajar.is_active_riwayat='Ya'`. Bukan input manual; dihitung ulang tiap transisi (ACC/penerimaan, penempatan kelas, naik, mutasi, lulus, berhenti). Lulus/mutasi tidak disimpan di sini — dibaca dari tabel alumni / mutasi_keluar. Santri legacy tanpa riwayat tetap 'Tidak' (nonaktif) sampai ditempatkan.
 - CATATAN visibilitas: santri legacy (tanpa riwayat) boleh dilihat/dikelola pemegang `santri.lihat`; guru/wali tetap lewat jalur masing-masing (bukan endpoint admin).
 - `created_at`, `updated_at`
 - INDEX(`nik`)
 - INDEX(`nisn`)
 
 ### `lembaga_santri`
-**Keanggotaan santri per lembaga** (bukan pivot murni): NIS lokal/kemenag + status + rentang keanggotaan. Multi-lembaga paralel diizinkan (mis. MI+MD); maks 1 baris `is_active` per (santri, lembaga) — invariant aplikasi.
+**Keanggotaan santri per lembaga** (bukan pivot murni): NIS lokal/kemenag + status + rentang keanggotaan. Multi-lembaga paralel diizinkan (mis. MI+MD); maks 1 baris `is_active_lembaga='Ya'` per (santri, lembaga) — invariant aplikasi.
 - `id` PK
 - `santri_id`: FK → santri [cascade]
 - `lembaga_id`: FK → lembaga [cascade]
 - `nis_lokal`: string(20) [null] — NIS per lembaga, unik per lembaga
 - `nis_kemenag`: string(20) [null] — NISK manual: 12 digit NSM lembaga + 2 digit tahun diterima + 4 digit akhir `nis_lokal`; unik per lembaga
-- `is_active`: bool [default true]
-- `tgl_mulai`: date [null] — saat diterima (PSB/dialog/import)
+- `tahaj_masuk`: string(50) [null] — tahun pelajaran saat masuk (mis. "2026/2027"), bukan FK
+- `tingkat_masuk`: string(20) [null] — tingkat saat pertama masuk lembaga
+- `no_urut`: unsigned int [null] — nomor urut masuk per lembaga (tidak unik)
+- `nama_sekolah_asal`, `npsn_sekolah_asal` (20), `nss_sekolah_asal` (30), `alamat_sekolah_asal` (text): [null] — detail sekolah asal
+- `is_active_lembaga`: enum('Ya','Tidak') [default 'Ya'] — status keanggotaan
+- `tgl_masuk`: date [null] — saat diterima (PSB/dialog/import); dulu `tgl_mulai`
 - `tgl_selesai`: date [null] — saat kelulusan/mutasi
 - `created_at`, `updated_at`
-- UNIQUE(`lembaga_id`, `nis_lokal`) · UNIQUE(`lembaga_id`, `nis_kemenag`) [multi-NULL boleh] · INDEX(`santri_id`,`is_active`) · INDEX(`lembaga_id`,`is_active`)
+- UNIQUE(`lembaga_id`, `nis_lokal`) · UNIQUE(`lembaga_id`, `nis_kemenag`) [multi-NULL boleh] · INDEX(`santri_id`,`is_active_lembaga`) · INDEX(`lembaga_id`,`is_active_lembaga`)
 - PENGECUALIAN PASANGAN MI↔MD (global sejak v2.61, timbal-balik): admin scoped pemegang MI/MD bisa baca-tulis sisi pasangannya di semua endpoint; non-pasangan tetap terisolasi, act-as tetap ketat.
 
 ### `riwayat_belajar`
@@ -382,7 +387,7 @@ Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca
 - `tingkat`: string [null] — ref_tingkat: target jenjang tahun ini ('7','8','9'); grouping saat kelas_id null
 - `status_awal`: string [default 'santri_baru'] — Sumber masuk (string bebas, validasi ke ref_status_awal efektif per lembaga). / TERKUNCI: sama antara ganjil-genap dalam 1 tahun (genap copy ganjil).
 - `status_akhir`: string [default 'aktif'] — Hasil semester ini (string bebas, validasi ke ref_status_akhir efektif).
-- `is_aktif`: bool [default true] — Sedang berjalan. INVARIANT: true iff status_akhir='aktif'. Ditulis hanya via SiklusSantriService. / Ganjil→genap: ganjil ditutup (is_aktif=false, arsip), genap aktif — 1 aktif per santri-lembaga terjaga. / Berhenti satu jenjang (paket MD berhenti, MI lanjut): baris MD (is_aktif=false, status_akhir dipertahankan). / santri.status_global=false hanya jika SELURUH riwayat non-aktif (dihitung ulang di 102).
+- `is_active_riwayat`: enum('Ya','Tidak') [default 'Ya'] — Sedang berjalan. INVARIANT: 'Ya' iff status_akhir='aktif'. Ditulis hanya via SiklusSantriService. / Ganjil→genap: ganjil ditutup (is_active_riwayat='Tidak', arsip), genap aktif — 1 aktif per santri-lembaga terjaga. / Berhenti satu jenjang (paket MD berhenti, MI lanjut): baris MD (is_active_riwayat='Tidak', status_akhir dipertahankan). / santri.is_active_pst='Tidak' hanya jika SELURUH riwayat non-aktif (dihitung ulang di 102).
 - `created_at`, `updated_at`
 - UNIQUE(`santri_id`, `tahun_ajaran_id`, `lembaga_id`, `semester`, `uq_riwayat_belajar_stls`) — nama pendek: auto-name 68 char > limit MySQL 64
 - INDEX(`kelas_id`, `tahun_ajaran_id`, `semester`, `no_absen`) — Performa cek bentrok no_absen (bukan unique: kelas_id/no_absen nullable, multi-NULL diizinkan MySQL).

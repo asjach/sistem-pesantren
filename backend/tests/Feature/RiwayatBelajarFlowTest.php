@@ -148,13 +148,13 @@ class RiwayatBelajarFlowTest extends TestCase
         ])->assertStatus(201);
 
         $this->assertDatabaseHas('lembaga_santri', [
-            'santri_id' => $santri->id, 'lembaga_id' => $f['mi']->id, 'nis_lokal' => '26001', 'is_active' => true,
+            'santri_id' => $santri->id, 'lembaga_id' => $f['mi']->id, 'nis_lokal' => '26001', 'is_active_lembaga' => 'Ya',
         ]);
         $this->assertDatabaseHas('riwayat_belajar', [
             'santri_id' => $santri->id, 'tahun_ajaran_id' => $f['taMi']->id, 'kelas_id' => $f['kelasMi']->id,
-            'semester' => '1', 'status_awal' => 'santri_baru', 'status_akhir' => 'aktif', 'is_aktif' => true,
+            'semester' => '1', 'status_awal' => 'santri_baru', 'status_akhir' => 'aktif', 'is_active_riwayat' => 'Ya',
         ]);
-        $this->assertTrue((bool) $santri->fresh()->status_global);
+        $this->assertSame('Ya', $santri->fresh()->is_active_pst);
         $this->assertSame($santri->id, $res->json('data.santri_id'));
     }
 
@@ -211,19 +211,19 @@ class RiwayatBelajarFlowTest extends TestCase
         $santriMi = $this->makeSantri('Roster MI');
         RiwayatBelajar::create([
             'santri_id' => $santriMi->id, 'tahun_ajaran_id' => $f['taMi']->id, 'lembaga_id' => $f['mi']->id,
-            'semester' => '1', 'status_awal' => 'santri_baru', 'status_akhir' => 'aktif', 'is_aktif' => true,
+            'semester' => '1', 'status_awal' => 'santri_baru', 'status_akhir' => 'aktif', 'is_active_riwayat' => 'Ya',
         ]);
         $santriMd = $this->makeSantri('Roster MD');
         RiwayatBelajar::create([
             'santri_id' => $santriMd->id, 'tahun_ajaran_id' => $f['taMd']->id, 'lembaga_id' => $f['md']->id,
-            'semester' => '1', 'status_awal' => 'santri_baru', 'status_akhir' => 'aktif', 'is_aktif' => true,
+            'semester' => '1', 'status_awal' => 'santri_baru', 'status_akhir' => 'aktif', 'is_active_riwayat' => 'Ya',
         ]);
 
         $res = $this->actingAs($adminMi, 'sanctum')->getJson('/api/admin/riwayat-belajar?tanpa_kelas=1')->assertStatus(200);
         $this->assertSame(2, $res->json('total'));
 
         $arsip = $this->actingAs($adminMi, 'sanctum')
-            ->getJson('/api/admin/riwayat-belajar?is_aktif=0&status_akhir=aktif')
+            ->getJson('/api/admin/riwayat-belajar?is_active_riwayat=0&status_akhir=aktif')
             ->assertStatus(200);
         $this->assertSame(0, $arsip->json('total'));
     }
@@ -267,12 +267,12 @@ class RiwayatBelajarFlowTest extends TestCase
         $this->importCsv($admin, $csv)->assertStatus(200);
 
         $this->assertDatabaseHas('lembaga_santri', [
-            'santri_id' => $santri->id, 'lembaga_id' => $f['mi']->id, 'nis_lokal' => '26011', 'is_active' => true,
+            'santri_id' => $santri->id, 'lembaga_id' => $f['mi']->id, 'nis_lokal' => '26011', 'is_active_lembaga' => 'Ya',
         ]);
         $this->assertDatabaseHas('riwayat_belajar', [
-            'santri_id' => $santri->id, 'kelas_id' => $f['kelasMi']->id, 'no_absen' => 3, 'is_aktif' => true,
+            'santri_id' => $santri->id, 'kelas_id' => $f['kelasMi']->id, 'no_absen' => 3, 'is_active_riwayat' => 'Ya',
         ]);
-        $this->assertTrue((bool) $santri->fresh()->status_global);
+        $this->assertSame('Ya', $santri->fresh()->is_active_pst);
     }
 
     public function test_07_import_fallback_nis_lokal_dan_lembaga(): void
@@ -281,7 +281,7 @@ class RiwayatBelajarFlowTest extends TestCase
         $admin = $this->makeUser();
         $santri = $this->makeSantri('Impor NIS Lokal');
         LembagaSantri::create([
-            'santri_id' => $santri->id, 'lembaga_id' => $f['mi']->id, 'nis_lokal' => '26012', 'is_active' => true,
+            'santri_id' => $santri->id, 'lembaga_id' => $f['mi']->id, 'nis_lokal' => '26012', 'is_active_lembaga' => 'Ya',
         ]);
 
         $csv = $this->makeCsv([[
@@ -294,7 +294,7 @@ class RiwayatBelajarFlowTest extends TestCase
         ]]);
         $this->importCsv($admin, $csv)->assertStatus(200);
 
-        $this->assertDatabaseHas('riwayat_belajar', ['santri_id' => $santri->id, 'lembaga_id' => $f['mi']->id, 'is_aktif' => true]);
+        $this->assertDatabaseHas('riwayat_belajar', ['santri_id' => $santri->id, 'lembaga_id' => $f['mi']->id, 'is_active_riwayat' => 'Ya']);
     }
 
     // ---------- 08. import dry-run + kegagalan baris ----------
@@ -356,7 +356,7 @@ class RiwayatBelajarFlowTest extends TestCase
         $santri = $this->makeSantri('Update Riwayat', '1101010000000205');
         RiwayatBelajar::create([
             'santri_id' => $santri->id, 'tahun_ajaran_id' => $f['taMi']->id, 'lembaga_id' => $f['mi']->id,
-            'semester' => '1', 'status_awal' => 'santri_baru', 'status_akhir' => 'aktif', 'is_aktif' => true,
+            'semester' => '1', 'status_awal' => 'santri_baru', 'status_akhir' => 'aktif', 'is_active_riwayat' => 'Ya',
         ]);
 
         $csv = $this->makeCsv([[
@@ -399,8 +399,8 @@ class RiwayatBelajarFlowTest extends TestCase
 
         $riwayat = RiwayatBelajar::firstOrFail();
         $this->assertSame('pindah_keluar', $riwayat->status_akhir);
-        $this->assertFalse((bool) $riwayat->is_aktif);
-        $this->assertFalse((bool) $santri->fresh()->status_global);
+        $this->assertSame('Tidak', $riwayat->is_active_riwayat);
+        $this->assertSame('Tidak', $santri->fresh()->is_active_pst);
     }
 
     public function test_12_tingkat_mewarisi_kelas(): void

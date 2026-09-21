@@ -63,9 +63,16 @@ class SantriLembagaDataExport extends DefaultValueBinder implements FromArray, W
                     'lembaga_id' => (string) $ls->lembaga_id,
                     'nis_lokal' => (string) ($ls->nis_lokal ?? ''),
                     'nis_kemenag' => (string) ($ls->nis_kemenag ?? ''),
-                    'is_active' => $ls->is_active ? '1' : '0',
-                    'tgl_mulai' => $this->teks($ls->tgl_mulai),
+                    'is_active_lembaga' => (string) $ls->is_active_lembaga,
+                    'tgl_masuk' => $this->teks($ls->tgl_masuk),
                     'tgl_selesai' => $this->teks($ls->tgl_selesai),
+                    'tahaj_masuk' => (string) ($ls->tahaj_masuk ?? ''),
+                    'tingkat_masuk' => (string) ($ls->tingkat_masuk ?? ''),
+                    'no_urut' => $ls->no_urut !== null ? (string) $ls->no_urut : '',
+                    'nama_sekolah_asal' => (string) ($ls->nama_sekolah_asal ?? ''),
+                    'npsn_sekolah_asal' => (string) ($ls->npsn_sekolah_asal ?? ''),
+                    'nss_sekolah_asal' => (string) ($ls->nss_sekolah_asal ?? ''),
+                    'alamat_sekolah_asal' => (string) ($ls->alamat_sekolah_asal ?? ''),
                 ];
                 foreach (Santri::KOLOM_PROFIL as $kolom) {
                     $baris[$kolom] = $this->teks($s->getAttribute($kolom));

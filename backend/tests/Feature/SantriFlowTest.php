@@ -118,9 +118,9 @@ class SantriFlowTest extends TestCase
         $adminMi = $this->makeUser('admin', [$f['mi']->id]);
 
         $santriMi = $this->makeSantri('Santri MI');
-        LembagaSantri::create(['santri_id' => $santriMi->id, 'lembaga_id' => $f['mi']->id, 'nis_lokal' => '25001', 'is_active' => true]);
+        LembagaSantri::create(['santri_id' => $santriMi->id, 'lembaga_id' => $f['mi']->id, 'nis_lokal' => '25001', 'is_active_lembaga' => 'Ya']);
         $santriMd = $this->makeSantri('Santri MD');
-        LembagaSantri::create(['santri_id' => $santriMd->id, 'lembaga_id' => $f['md']->id, 'nis_lokal' => '26001', 'is_active' => true]);
+        LembagaSantri::create(['santri_id' => $santriMd->id, 'lembaga_id' => $f['md']->id, 'nis_lokal' => '26001', 'is_active_lembaga' => 'Ya']);
         $tanpaKeanggotaan = $this->makeSantri('Belum Diterima');
 
         $res = $this->actingAs($adminMi, 'sanctum')->getJson('/api/admin/santri')->assertStatus(200);
@@ -156,7 +156,7 @@ class SantriFlowTest extends TestCase
         $id = $res->json('data.id');
         $santri = Santri::findOrFail($id);
         $this->assertSame('Manual Satu', $santri->nama_lengkap);
-        $this->assertFalse((bool) $santri->status_global);
+        $this->assertSame('Tidak', $santri->is_active_pst);
         $this->assertSame(0, LembagaSantri::where('santri_id', $id)->count());
         // Tidak ada kolom relasional di payload master.
         $this->assertArrayNotHasKey('lembaga_id', $santri->getAttributes());
@@ -199,7 +199,7 @@ class SantriFlowTest extends TestCase
         $this->assertSame(2, Santri::count());
         $this->assertSame(0, RiwayatBelajar::count());
         $this->assertSame(0, LembagaSantri::count());
-        $this->assertFalse((bool) Santri::where('nama_lengkap', 'Impor Satu')->firstOrFail()->status_global);
+        $this->assertSame('Tidak', Santri::where('nama_lengkap', 'Impor Satu')->firstOrFail()->is_active_pst);
     }
 
     public function test_06_import_nik_sama_update_bukan_ganda(): void
@@ -278,7 +278,7 @@ class SantriFlowTest extends TestCase
         $santri = $this->makeSantri('Anggota Satu');
 
         $this->actingAs($admin, 'sanctum')->postJson("/api/admin/santri/{$santri->id}/lembaga", [
-            'lembaga_id' => $f['mi']->id, 'nis_lokal' => '25010', 'tgl_mulai' => '2026-07-01',
+            'lembaga_id' => $f['mi']->id, 'nis_lokal' => '25010', 'tgl_masuk' => '2026-07-01',
         ])->assertStatus(201);
 
         // NIS lokal sama di lembaga yang sama → 422.
@@ -297,7 +297,7 @@ class SantriFlowTest extends TestCase
             'lembaga_id' => $f['mi']->id, 'nis_lokal' => '25011',
         ])->assertStatus(201);
 
-        $this->assertSame(2, LembagaSantri::where('santri_id', $lain->id)->where('is_active', true)->count());
+        $this->assertSame(2, LembagaSantri::where('santri_id', $lain->id)->where('is_active_lembaga', 'Ya')->count());
     }
 
     public function test_11_keanggotaan_update_status_dan_tanggal(): void
@@ -306,16 +306,16 @@ class SantriFlowTest extends TestCase
         $admin = $this->makeUser('super_admin', []);
         $santri = $this->makeSantri('Anggota Tiga');
         $ls = LembagaSantri::create([
-            'santri_id' => $santri->id, 'lembaga_id' => $f['mi']->id, 'nis_lokal' => '25011', 'is_active' => true,
+            'santri_id' => $santri->id, 'lembaga_id' => $f['mi']->id, 'nis_lokal' => '25011', 'is_active_lembaga' => 'Ya',
         ]);
 
         $this->actingAs($admin, 'sanctum')->patchJson("/api/admin/lembaga-santri/{$ls->id}", [
-            'nis_lokal' => '25012', 'is_active' => false, 'tgl_selesai' => '2026-06-30',
+            'nis_lokal' => '25012', 'is_active_lembaga' => 'Tidak', 'tgl_selesai' => '2026-06-30',
         ])->assertStatus(200);
 
         $ls->refresh();
         $this->assertSame('25012', $ls->nis_lokal);
-        $this->assertFalse((bool) $ls->is_active);
+        $this->assertSame('Tidak', $ls->is_active_lembaga);
         $this->assertSame('2026-06-30', $ls->tgl_selesai?->format('Y-m-d'));
     }
 
@@ -327,7 +327,7 @@ class SantriFlowTest extends TestCase
         $admin = $this->makeUser('super_admin', []);
         $santri = $this->makeSantri('Nisk Satu');
         $ls = LembagaSantri::create([
-            'santri_id' => $santri->id, 'lembaga_id' => $f['mi']->id, 'nis_lokal' => '26001', 'is_active' => true, 'tgl_mulai' => '2026-07-01',
+            'santri_id' => $santri->id, 'lembaga_id' => $f['mi']->id, 'nis_lokal' => '26001', 'is_active_lembaga' => 'Ya', 'tgl_masuk' => '2026-07-01',
         ]);
         $taMi = TahunAjaran::create([
             'lembaga_id' => $f['mi']->id, 'nama' => '2026/2027',
@@ -335,7 +335,7 @@ class SantriFlowTest extends TestCase
         ]);
         RiwayatBelajar::create([
             'santri_id' => $santri->id, 'tahun_ajaran_id' => $taMi->id, 'lembaga_id' => $f['mi']->id,
-            'semester' => '1', 'status_awal' => 'santri_baru', 'status_akhir' => 'aktif', 'is_aktif' => true,
+            'semester' => '1', 'status_awal' => 'santri_baru', 'status_akhir' => 'aktif', 'is_active_riwayat' => 'Ya',
         ]);
 
         $res = $this->actingAs($admin, 'sanctum')
@@ -347,11 +347,11 @@ class SantriFlowTest extends TestCase
         // Santri lain dengan 4 digit akhir sama di tahun yang sama → bentrok 422.
         $lain = $this->makeSantri('Nisk Dua');
         $lsLain = LembagaSantri::create([
-            'santri_id' => $lain->id, 'lembaga_id' => $f['mi']->id, 'nis_lokal' => '36001', 'is_active' => true, 'tgl_mulai' => '2026-07-01',
+            'santri_id' => $lain->id, 'lembaga_id' => $f['mi']->id, 'nis_lokal' => '36001', 'is_active_lembaga' => 'Ya', 'tgl_masuk' => '2026-07-01',
         ]);
         RiwayatBelajar::create([
             'santri_id' => $lain->id, 'tahun_ajaran_id' => $taMi->id, 'lembaga_id' => $f['mi']->id,
-            'semester' => '1', 'status_awal' => 'santri_baru', 'status_akhir' => 'aktif', 'is_aktif' => true,
+            'semester' => '1', 'status_awal' => 'santri_baru', 'status_akhir' => 'aktif', 'is_active_riwayat' => 'Ya',
         ]);
         $this->actingAs($admin, 'sanctum')
             ->postJson("/api/admin/lembaga-santri/{$lsLain->id}/generate-nisk")
@@ -364,7 +364,7 @@ class SantriFlowTest extends TestCase
         $admin = $this->makeUser('super_admin', []);
         $santri = $this->makeSantri('Nisk Tiga');
         $ls = LembagaSantri::create([
-            'santri_id' => $santri->id, 'lembaga_id' => $f['mi']->id, 'is_active' => true,
+            'santri_id' => $santri->id, 'lembaga_id' => $f['mi']->id, 'is_active_lembaga' => 'Ya',
         ]);
 
         // Tanpa nis_lokal → 422.
@@ -378,7 +378,7 @@ class SantriFlowTest extends TestCase
             'is_seleksi' => false, 'kelompok_psb' => 'eksklusif', 'is_active' => true,
         ]);
         $lsNsm = LembagaSantri::create([
-            'santri_id' => $santri->id, 'lembaga_id' => $lembagaTanpaNsm->id, 'nis_lokal' => '26099', 'is_active' => true,
+            'santri_id' => $santri->id, 'lembaga_id' => $lembagaTanpaNsm->id, 'nis_lokal' => '26099', 'is_active_lembaga' => 'Ya',
         ]);
         $this->actingAs($admin, 'sanctum')
             ->postJson("/api/admin/lembaga-santri/{$lsNsm->id}/generate-nisk")
@@ -395,7 +395,7 @@ class SantriFlowTest extends TestCase
         $adminMd = $this->makeUser('admin', [$f['md']->id]);
 
         $santriMi = $this->makeSantri('Milik MI');
-        LembagaSantri::create(['santri_id' => $santriMi->id, 'lembaga_id' => $f['mi']->id, 'is_active' => true]);
+        LembagaSantri::create(['santri_id' => $santriMi->id, 'lembaga_id' => $f['mi']->id, 'is_active_lembaga' => 'Ya']);
 
         // Admin MD boleh mengubah santri berkeanggotaan MI (pengecualian pasangan).
         $this->actingAs($adminMd, 'sanctum')->patchJson("/api/admin/santri/{$santriMi->id}", [
@@ -421,7 +421,7 @@ class SantriFlowTest extends TestCase
         $adminMi = $this->makeUser('admin', [$f['mi']->id]);
         $adminMd = $this->makeUser('admin', [$f['md']->id]);
         $santri = $this->makeSantri('Foto Satu');
-        LembagaSantri::create(['santri_id' => $santri->id, 'lembaga_id' => $f['mi']->id, 'is_active' => true]);
+        LembagaSantri::create(['santri_id' => $santri->id, 'lembaga_id' => $f['mi']->id, 'is_active_lembaga' => 'Ya']);
 
         $file = UploadedFile::fake()->image('foto.jpg');
         $this->actingAs($adminMi, 'sanctum')->post("/api/admin/santri/{$santri->id}/foto", [
@@ -473,26 +473,26 @@ class SantriFlowTest extends TestCase
             'lembaga_id' => $f['mi']->id,
             'nis_lokal' => '26005',
             'nis_kemenag' => '123456789012260005',
-            'is_active' => true,
-            'tgl_mulai' => '2026-07-01',
+            'is_active_lembaga' => 'Ya',
+            'tgl_masuk' => '2026-07-01',
             'tgl_selesai' => null,
         ])->assertStatus(201)->assertJsonPath('data.nis_kemenag', '123456789012260005');
 
         $ls = LembagaSantri::where('santri_id', $santri->id)->firstOrFail();
         $this->assertSame('123456789012260005', $ls->nis_kemenag);
-        $this->assertTrue((bool) $ls->is_active);
-        $this->assertSame('2026-07-01', $ls->tgl_mulai?->format('Y-m-d'));
+        $this->assertSame('Ya', $ls->is_active_lembaga);
+        $this->assertSame('2026-07-01', $ls->tgl_masuk?->format('Y-m-d'));
 
         // Nonaktif + tgl_selesai juga bisa langsung diisi saat menambah.
         $nonaktif = $this->makeSantri('Anggota Nonaktif');
         $this->actingAs($admin, 'sanctum')->postJson("/api/admin/santri/{$nonaktif->id}/lembaga", [
             'lembaga_id' => $f['md']->id,
-            'is_active' => false,
+            'is_active_lembaga' => 'Tidak',
             'tgl_selesai' => '2026-06-30',
         ])->assertStatus(201);
 
         $lsNonaktif = LembagaSantri::where('santri_id', $nonaktif->id)->firstOrFail();
-        $this->assertFalse((bool) $lsNonaktif->is_active);
+        $this->assertSame('Tidak', $lsNonaktif->is_active_lembaga);
         $this->assertSame('2026-06-30', $lsNonaktif->tgl_selesai?->format('Y-m-d'));
 
         // NIS Kemenag sama di lembaga yang sama → 422 dan tidak menyisakan baris.
@@ -510,27 +510,27 @@ class SantriFlowTest extends TestCase
         $admin = $this->makeUser('super_admin', []);
         $santri = $this->makeSantri('Anggota Ubah');
         $ls = LembagaSantri::create([
-            'santri_id' => $santri->id, 'lembaga_id' => $f['mi']->id, 'nis_lokal' => '26007', 'is_active' => true,
+            'santri_id' => $santri->id, 'lembaga_id' => $f['mi']->id, 'nis_lokal' => '26007', 'is_active_lembaga' => 'Ya',
         ]);
         $lainMi = LembagaSantri::create([
-            'santri_id' => $this->makeSantri('Anggota Ubah Mi')->id, 'lembaga_id' => $f['mi']->id, 'is_active' => true,
+            'santri_id' => $this->makeSantri('Anggota Ubah Mi')->id, 'lembaga_id' => $f['mi']->id, 'is_active_lembaga' => 'Ya',
         ]);
         $lainMd = LembagaSantri::create([
-            'santri_id' => $this->makeSantri('Anggota Ubah Md')->id, 'lembaga_id' => $f['md']->id, 'is_active' => true,
+            'santri_id' => $this->makeSantri('Anggota Ubah Md')->id, 'lembaga_id' => $f['md']->id, 'is_active_lembaga' => 'Ya',
         ]);
 
         // Isi manual NIS Kemenag + tanggal mulai lewat dialog Ubah.
         $this->actingAs($admin, 'sanctum')->patchJson("/api/admin/lembaga-santri/{$ls->id}", [
             'nis_kemenag' => '123456789012260007',
-            'tgl_mulai' => '2026-07-05',
-            'is_active' => false,
+            'tgl_masuk' => '2026-07-05',
+            'is_active_lembaga' => 'Tidak',
             'tgl_selesai' => '2026-12-31',
         ])->assertStatus(200);
 
         $ls->refresh();
         $this->assertSame('123456789012260007', $ls->nis_kemenag);
-        $this->assertSame('2026-07-05', $ls->tgl_mulai?->format('Y-m-d'));
-        $this->assertFalse((bool) $ls->is_active);
+        $this->assertSame('2026-07-05', $ls->tgl_masuk?->format('Y-m-d'));
+        $this->assertSame('Tidak', $ls->is_active_lembaga);
         $this->assertSame('2026-12-31', $ls->tgl_selesai?->format('Y-m-d'));
 
         // Bentrok NIS Kemenag di lembaga yang sama → 422 tanpa mengubah baris.
@@ -550,5 +550,56 @@ class SantriFlowTest extends TestCase
             'nis_kemenag' => '',
         ])->assertStatus(200);
         $this->assertNull($ls->fresh()->nis_kemenag);
+    }
+
+    public function test_19_keanggotaan_field_masuk_dan_sekolah_asal(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeUser('super_admin', []);
+        $santri = $this->makeSantri('Anggota Field');
+
+        $this->actingAs($admin, 'sanctum')->postJson("/api/admin/santri/{$santri->id}/lembaga", [
+            'lembaga_id' => $f['mi']->id,
+            'nis_lokal' => '27001',
+            'tahaj_masuk' => '2026/2027',
+            'tingkat_masuk' => '1',
+            'no_urut' => 5,
+            'nama_sekolah_asal' => 'SD Negeri 1',
+            'npsn_sekolah_asal' => '20512345',
+            'nss_sekolah_asal' => '101010101010',
+            'alamat_sekolah_asal' => 'Jl. Asal No. 1',
+        ])->assertStatus(201);
+
+        $ls = LembagaSantri::where('santri_id', $santri->id)->firstOrFail();
+        $this->assertSame('2026/2027', $ls->tahaj_masuk);
+        $this->assertSame('1', $ls->tingkat_masuk);
+        $this->assertSame(5, $ls->no_urut);
+        $this->assertSame('SD Negeri 1', $ls->nama_sekolah_asal);
+        $this->assertSame('20512345', $ls->npsn_sekolah_asal);
+        $this->assertSame('101010101010', $ls->nss_sekolah_asal);
+        $this->assertSame('Jl. Asal No. 1', $ls->alamat_sekolah_asal);
+
+        // Update sebagian + keaktifan string.
+        $this->actingAs($admin, 'sanctum')->patchJson("/api/admin/lembaga-santri/{$ls->id}", [
+            'tingkat_masuk' => '2',
+            'is_active_lembaga' => 'Tidak',
+        ])->assertStatus(200);
+        $ls->refresh();
+        $this->assertSame('2', $ls->tingkat_masuk);
+        $this->assertSame('Tidak', $ls->is_active_lembaga);
+
+        // Keaktifan wajib 'Ya'/'Tidak'; no_urut wajib integer.
+        $this->actingAs($admin, 'sanctum')->patchJson("/api/admin/lembaga-santri/{$ls->id}", [
+            'is_active_lembaga' => 'yes',
+        ])->assertStatus(422);
+        $this->actingAs($admin, 'sanctum')->patchJson("/api/admin/lembaga-santri/{$ls->id}", [
+            'no_urut' => 'abc',
+        ])->assertStatus(422);
+
+        // Profil santri: kepala_keluarga ikut profil biasa.
+        $this->actingAs($admin, 'sanctum')->patchJson("/api/admin/santri/{$santri->id}", [
+            'kepala_keluarga' => 'Bapak Kepala',
+        ])->assertStatus(200);
+        $this->assertSame('Bapak Kepala', $santri->fresh()->kepala_keluarga);
     }
 }

@@ -118,7 +118,7 @@ class PsbService
     /** Cek NIK publik: boolean saja (anti enumerasi) + throttle + captcha di route. */
     public function cekNikTerdaftar(string $nik): bool
     {
-        return Santri::where('nik', $nik)->where('status_global', true)->exists();
+        return Santri::where('nik', $nik)->where('is_active_pst', Santri::YA)->exists();
     }
 
     public function daftarPublik(array $data): PsbCalonSantri
@@ -143,10 +143,10 @@ class PsbService
                 ->get(['nama_lengkap', 'tgl_lahir']);
 
             if (! $isLanjutan) {
-                $santriAktif = Santri::where('nik', $data['nik'])->where('status_global', true)->first();
+                $santriAktif = Santri::where('nik', $data['nik'])->where('is_active_pst', Santri::YA)->first();
                 if ($santriAktif) {
                     $nisAktif = LembagaSantri::where('santri_id', $santriAktif->id)
-                        ->where('is_active', true)->value('nis_lokal');
+                        ->where('is_active_lembaga', LembagaSantri::YA)->value('nis_lokal');
                     throw ValidationException::withMessages([
                         'nik' => "NIK terdaftar sebagai santri aktif (NIS {$nisAktif}). Gunakan Pendaftaran Lanjutan atau hubungi TU.",
                     ]);
@@ -384,7 +384,7 @@ class PsbService
                 // Santri yang sudah ditempatkan di kelas tidak boleh dihapus lewat undur diri;
                 // keluarkan dulu dari kelas agar jejak penempatan tetap jelas.
                 $berkelas = RiwayatBelajar::where('santri_id', $hasil->santri_id)
-                    ->where('is_aktif', true)->whereNotNull('kelas_id')->exists();
+                    ->where('is_active_riwayat', RiwayatBelajar::YA)->whereNotNull('kelas_id')->exists();
                 if ($berkelas) {
                     throw ValidationException::withMessages(['kelas' => 'Santri sudah ditempatkan di kelas; keluarkan dari kelas terlebih dahulu sebelum mengundurkan diri.']);
                 }
@@ -492,7 +492,7 @@ class PsbService
                     }
                     $penerimaan->pastikanKeanggotaan($santri, $lembagaDetailId, [
                         'nis_lokal' => $nis,
-                        'tgl_mulai' => $calon->tanggal_masuk,
+                        'tgl_masuk' => $calon->tanggal_masuk,
                     ]);
                 }
             }

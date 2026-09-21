@@ -78,7 +78,7 @@ class RiwayatBelajarGanjilTest extends TestCase
         $santri = Santri::create(['nama_lengkap' => $nama.' '.$this->seq, 'jk' => 'L']);
         LembagaSantri::create([
             'santri_id' => $santri->id, 'lembaga_id' => $lembagaId,
-            'nis_lokal' => $nis ?? 'G'.$this->seq, 'is_active' => true,
+            'nis_lokal' => $nis ?? 'G'.$this->seq, 'is_active_lembaga' => 'Ya',
         ]);
 
         return $santri;
@@ -100,25 +100,25 @@ class RiwayatBelajarGanjilTest extends TestCase
         $punyaAktif = $this->makeAnggota('Punya Aktif', $f['mi']->id);
         RiwayatBelajar::create([
             'santri_id' => $punyaAktif->id, 'tahun_ajaran_id' => $f['ta']->id, 'lembaga_id' => $f['mi']->id,
-            'semester' => '1', 'status_awal' => 'santri_baru', 'status_akhir' => 'aktif', 'is_aktif' => true,
+            'semester' => '1', 'status_awal' => 'santri_baru', 'status_akhir' => 'aktif', 'is_active_riwayat' => 'Ya',
         ]);
         // Arsip ganjil TA aktif (mis. salah input lalu dinonaktifkan manual): tetap disaring.
         $arsipGanjil = $this->makeAnggota('Arsip Ganjil', $f['mi']->id);
         RiwayatBelajar::create([
             'santri_id' => $arsipGanjil->id, 'tahun_ajaran_id' => $f['ta']->id, 'lembaga_id' => $f['mi']->id,
-            'semester' => '1', 'status_awal' => 'santri_baru', 'status_akhir' => 'naik', 'is_aktif' => false,
+            'semester' => '1', 'status_awal' => 'santri_baru', 'status_akhir' => 'naik', 'is_active_riwayat' => 'Tidak',
         ]);
         // Arsip ganjil TA LAMA tanpa riwayat aktif: boleh masuk lagi di TA aktif.
         $lulusanLama = $this->makeAnggota('Arsip Lama', $f['mi']->id);
         RiwayatBelajar::create([
             'santri_id' => $lulusanLama->id, 'tahun_ajaran_id' => $f['taLama']->id, 'lembaga_id' => $f['mi']->id,
-            'semester' => '1', 'status_awal' => 'santri_baru', 'status_akhir' => 'naik', 'is_aktif' => false,
+            'semester' => '1', 'status_awal' => 'santri_baru', 'status_akhir' => 'naik', 'is_active_riwayat' => 'Tidak',
         ]);
         // Anggota nonaktif: tidak ikut.
         $this->seq++;
         $keluar = Santri::create(['nama_lengkap' => 'Keluar '.$this->seq, 'jk' => 'L']);
         LembagaSantri::create([
-            'santri_id' => $keluar->id, 'lembaga_id' => $f['mi']->id, 'nis_lokal' => 'GX', 'is_active' => false,
+            'santri_id' => $keluar->id, 'lembaga_id' => $f['mi']->id, 'nis_lokal' => 'GX', 'is_active_lembaga' => 'Tidak',
         ]);
 
         $ids = fn ($res) => collect($res->json('data'))->pluck('santri_id')->sort()->values()->all();
@@ -173,7 +173,7 @@ class RiwayatBelajarGanjilTest extends TestCase
 
         $this->assertDatabaseHas('riwayat_belajar', [
             'santri_id' => $santri->id, 'tahun_ajaran_id' => $f['ta']->id, 'lembaga_id' => $f['mi']->id,
-            'kelas_id' => null, 'semester' => '1', 'status_akhir' => 'aktif', 'is_aktif' => true,
+            'kelas_id' => null, 'semester' => '1', 'status_akhir' => 'aktif', 'is_active_riwayat' => 'Ya',
         ]);
 
         // Hilang dari panel kiri, muncul di panel kanan (index semester=1).
@@ -203,17 +203,17 @@ class RiwayatBelajarGanjilTest extends TestCase
         $santri = $this->makeAnggota('Batal Hapus', $f['mi']->id);
         $riwayat = RiwayatBelajar::create([
             'santri_id' => $santri->id, 'tahun_ajaran_id' => $f['ta']->id, 'lembaga_id' => $f['mi']->id,
-            'semester' => '1', 'status_awal' => 'santri_baru', 'status_akhir' => 'aktif', 'is_aktif' => true,
+            'semester' => '1', 'status_awal' => 'santri_baru', 'status_akhir' => 'aktif', 'is_active_riwayat' => 'Ya',
         ]);
         $santri->hitungUlangStatusGlobal();
-        $this->assertTrue((bool) $santri->fresh()->status_global);
+        $this->assertSame('Ya', $santri->fresh()->is_active_pst);
 
         $this->actingAs($admin, 'sanctum')->deleteJson("/api/admin/riwayat-belajar/{$riwayat->id}")
             ->assertStatus(200)
             ->assertJsonPath('pesan', 'Riwayat belajar dibatalkan.');
 
         $this->assertDatabaseMissing('riwayat_belajar', ['id' => $riwayat->id]);
-        $this->assertFalse((bool) $santri->fresh()->status_global);
+        $this->assertSame('Tidak', $santri->fresh()->is_active_pst);
 
         // Kembali muncul di panel kiri.
         $kiri = $this->belumMasuk($admin, ['lembaga_id' => $f['mi']->id, 'tahun_ajaran_id' => $f['ta']->id])->assertStatus(200);
@@ -227,7 +227,7 @@ class RiwayatBelajarGanjilTest extends TestCase
         $santri = $this->makeAnggota('Arsip Tolak', $f['mi']->id);
         $arsip = RiwayatBelajar::create([
             'santri_id' => $santri->id, 'tahun_ajaran_id' => $f['ta']->id, 'lembaga_id' => $f['mi']->id,
-            'semester' => '1', 'status_awal' => 'santri_baru', 'status_akhir' => 'naik', 'is_aktif' => false,
+            'semester' => '1', 'status_awal' => 'santri_baru', 'status_akhir' => 'naik', 'is_active_riwayat' => 'Tidak',
         ]);
 
         $this->actingAs($admin, 'sanctum')->deleteJson("/api/admin/riwayat-belajar/{$arsip->id}")
@@ -242,7 +242,7 @@ class RiwayatBelajarGanjilTest extends TestCase
         $santri = $this->makeAnggota('Izin Hapus', $f['mi']->id);
         $riwayat = RiwayatBelajar::create([
             'santri_id' => $santri->id, 'tahun_ajaran_id' => $f['ta']->id, 'lembaga_id' => $f['mi']->id,
-            'semester' => '1', 'status_awal' => 'santri_baru', 'status_akhir' => 'aktif', 'is_aktif' => true,
+            'semester' => '1', 'status_awal' => 'santri_baru', 'status_akhir' => 'aktif', 'is_active_riwayat' => 'Ya',
         ]);
 
         $this->actingAs($guru, 'sanctum')->deleteJson("/api/admin/riwayat-belajar/{$riwayat->id}")
@@ -259,7 +259,7 @@ class RiwayatBelajarGanjilTest extends TestCase
         $santri = $this->makeAnggota('Genap Filter', $f['mi']->id);
         RiwayatBelajar::create([
             'santri_id' => $santri->id, 'tahun_ajaran_id' => $f['ta']->id, 'lembaga_id' => $f['mi']->id,
-            'semester' => '2', 'status_awal' => 'santri_baru', 'status_akhir' => 'aktif', 'is_aktif' => true,
+            'semester' => '2', 'status_awal' => 'santri_baru', 'status_akhir' => 'aktif', 'is_active_riwayat' => 'Ya',
         ]);
 
         $res = $this->actingAs($admin, 'sanctum')->getJson('/api/admin/riwayat-belajar?'.http_build_query([

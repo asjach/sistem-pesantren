@@ -44,7 +44,9 @@ class SantriLembagaTemplateExport extends DefaultValueBinder implements FromArra
     /** Blok keanggotaan — selalu di awal, sebelum kolom profil. */
     public const BLOK_LEMBAGA = [
         'santri_id', 'kode_lembaga', 'lembaga_id', 'nis_lokal',
-        'nis_kemenag', 'is_active', 'tgl_mulai', 'tgl_selesai',
+        'nis_kemenag', 'is_active_lembaga', 'tgl_masuk', 'tgl_selesai',
+        'tahaj_masuk', 'tingkat_masuk', 'no_urut',
+        'nama_sekolah_asal', 'npsn_sekolah_asal', 'nss_sekolah_asal', 'alamat_sekolah_asal',
     ];
 
     public function __construct(private ?int $lembagaId = null, private array $kodeDiizinkan = []) {}
@@ -88,7 +90,7 @@ class SantriLembagaTemplateExport extends DefaultValueBinder implements FromArra
             'jk' => ['L', 'P'],
             'tipe_santri' => ['asrama', 'non_asrama'],
             'kewarganegaraan' => ['WNI', 'WNA'],
-            'is_active' => ['1', '0'],
+            'is_active_lembaga' => ['Ya', 'Tidak'],
             'kode_lembaga' => $this->kodeLembaga(),
         ];
 
@@ -135,9 +137,16 @@ class SantriLembagaTemplateExport extends DefaultValueBinder implements FromArra
             'lembaga_id' => '',
             'nis_lokal' => '26001',
             'nis_kemenag' => '',
-            'is_active' => '1',
-            'tgl_mulai' => '2026-07-01',
+            'is_active_lembaga' => 'Ya',
+            'tgl_masuk' => '2026-07-01',
             'tgl_selesai' => '',
+            'tahaj_masuk' => '2026/2027',
+            'tingkat_masuk' => '1',
+            'no_urut' => '1',
+            'nama_sekolah_asal' => 'SD Negeri 1 Bangkalan',
+            'npsn_sekolah_asal' => '20512345',
+            'nss_sekolah_asal' => '',
+            'alamat_sekolah_asal' => '',
             'nama_lengkap' => 'Ahmad Fauzi',
             'nama_singkat' => 'Ahmad',
             'nik' => '1234567890123456',

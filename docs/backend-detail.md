@@ -187,7 +187,7 @@ kegiatan/gelombang ditolak bila sudah ada pendaftar. Status: ✅ live
 
 **101 Santri master.** 74-column EMIS profile; NIK/NISN index-only + service
 dedup; `updateOrCreate` only when NIK present (+ intra-file guard);
-`status_global` bool (false iff ALL riwayat non-active);
+`is_active_pst` enum('Ya','Tidak') ('Ya' iff ada riwayat aktif);
 `SantriPolicy` (guru excluded from admin list).
 Aturan identitas: `nama_lengkap` + `jk` (L/P) wajib; NIK/No.KK/NIK ortu-wali
 `digits:16`; NISN `digits:10`; NIS/nis_lokal maks 20 karakter; `nis_lokal` dan
@@ -208,7 +208,7 @@ tabrakan; beda dua sisi / tabrakan hanya dilaporkan (tanpa auto-copy).
 Status: ✅ live (CRUD scoped, import satu pintu identitas+gabungan, kamus, foto/dokumen, kolom NIS per lembaga, samakan NIS MI↔MD; suite 186/186).
 Tambahan: mapping import penuh (tanpa drop diam-diam), `uploadFoto`,
 `tipe_santri` rule, `kewarganegaraan` default WNI, kolom `kelas_id` menerima
-nama kelas/id (dropdown template per lembaga+TA). Recalc `status_global` tetap di 102.
+nama kelas/id (dropdown template per lembaga+TA). Recalc `is_active_pst` tetap di 102.
 
 **Preset tampilan kolom tabel (lintas modul).** Combobox di toolbar setiap tabel
 (`ExcelTable`) berisi bawaan "Lengkap" + preset buatan user; preset menyimpan
@@ -239,7 +239,7 @@ Rekam Visual (bertindak + tombol rekam) mencakupnya. Status: ✅ live.
 
 **102 Santri lifecycle.** `riwayat_belajar` (`status_awal`: santri_baru/
 mengulang/pindahan; `status_akhir`: aktif/naik/tidak_naik/pindah_keluar/
-lulus/tidak_lulus; `is_aktif` true iff `aktif`; semester 1/2; per-item mass
+lulus/tidak_lulus; `is_active_riwayat='Ya'` iff `aktif`; semester 1/2; per-item mass
 promotion with `{berhasil, gagal[]}`); graduation via `alumni` (last-wins),
 exit via `mutasi_keluar`; package-aware (`nonAktifkanRiwayat`).
 Status: ✅ live (salin genap, naik/pindah/mutasi/lulus/berhenti massal per-item, halaman MI-MD tambah/hapus massal, beku kelas arsip; suite 186/186). Gerbang AND per-lembaga target
@@ -262,7 +262,7 @@ baris baru) kecuali reaktivasi arsip sendiri ber-NIS sama.
 Import riwayat: upsert kunci (santri, TA, lembaga, semester); semester hanya
 1/2; kelas by-nama (case-insensitive) atau id se-lembaga+TA; `status_awal`
 bawaan `santri_baru`, `status_akhir` bawaan `aktif`; keanggotaan auto-create
-(NIS unik); `is_active` parsing `1/0/aktif/ya/…`, tak dikenal = gagal baris.
+(NIS unik); `is_active_lembaga` parsing `Ya/Tidak/1/0/aktif/ya/…`, tak dikenal = gagal baris.
 
 **Pengajuan biodata (admin).** Antrean pengajuan perbaikan biodata dari wali:
 setujui/tolak hanya untuk status `diajukan`; whitelist 17 field (luar daftar
@@ -283,7 +283,7 @@ Status: ✅ live.
 
 **Halaman MI-MD.** Tiga panel: MI Only, MD Semua (+ flag juga-MI), Beda Kelas
 (perbandingan by-nama case-insensitive, null = ''). Aksi: daftarkan ke MD
-(NIS warisi MI, `tgl_mulai` hari ini, idempoten), hapus fisik jejak MD
+(NIS warisi MI, `tgl_masuk` hari ini, idempoten), hapus fisik jejak MD
 (izin `santri.ubah`; ditolak bila bukan-MI-aktif / tanpa anggota MD / ada arsip
 alumni-mutasi MD), samakan kelas (pindah ke kelas senama di TA berjalan sisi
 tujuan, butuh akses tulis tujuan). Izin halaman memakai ulang `rekap_santri.lihat`. Status: ✅ live.
@@ -384,8 +384,8 @@ Status: 🔲 not scaffolded (backend 201/202 pending).
   rows shadowable on/off per lembaga.
 * Identity: `santri.id` stable; NIK attribute (required, may be fictitious),
   dedup `nik+nama+tgl_lahir`.
-* Lifecycle: `riwayat_belajar.is_aktif` (iff `status_akhir='aktif'`);
-  `santri.status_global` recalculated; graduation/exit in `alumni` /
+* Lifecycle: `riwayat_belajar.is_active_riwayat` (iff `status_akhir='aktif'`);
+  `santri.is_active_pst` recalculated; graduation/exit in `alumni` /
   `mutasi_keluar`, never on santri.
 
 ### 8. API conventions

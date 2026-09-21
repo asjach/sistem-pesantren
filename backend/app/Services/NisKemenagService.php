@@ -38,7 +38,7 @@ class NisKemenagService
             ]);
         }
 
-        $yy = $this->tahunDiterimaYY((int) $lembagaSantri->santri_id, (int) $lembagaSantri->lembaga_id, $lembagaSantri->tgl_mulai?->format('Y'));
+        $yy = $this->tahunDiterimaYY((int) $lembagaSantri->santri_id, (int) $lembagaSantri->lembaga_id, $lembagaSantri->tgl_masuk?->format('Y'));
         if ($yy === null) {
             throw ValidationException::withMessages([
                 'nis_kemenag' => 'Tahun diterima belum diketahui — isi riwayat belajar atau tanggal mulai keanggotaan.',
@@ -61,7 +61,7 @@ class NisKemenagService
 
     /**
      * Dua digit tahun diterima: dari riwayat semester 1 paling awal (nama TA
-     * "2026/2027" → "26"); fallback tahun `tgl_mulai`.
+     * "2026/2027" → "26"); fallback tahun `tgl_masuk`.
      */
     protected function tahunDiterimaYY(int $santriId, int $lembagaId, ?string $tglMulaiTahun): ?string
     {

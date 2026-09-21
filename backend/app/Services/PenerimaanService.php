@@ -32,7 +32,7 @@ class PenerimaanService
         return DB::transaction(function () use ($santri, $miId, $mdId, $eksekusi) {
             $anggota = LembagaSantri::where('santri_id', $santri->id)
                 ->whereIn('lembaga_id', [$miId, $mdId])
-                ->where('is_active', true)
+                ->where('is_active_lembaga', LembagaSantri::YA)
                 ->lockForUpdate()
                 ->get()
                 ->keyBy('lembaga_id');
@@ -76,15 +76,28 @@ class PenerimaanService
     /**
      * Pastikan ada keanggotaan AKTIF santri di lembaga (buat baru bila belum ada).
      * Baris lama yang nonaktif tidak diaktifkan ulang — dibuat baris baru agar
-     * jejak keanggotaan (tgl_mulai/tgl_selesai) tetap utuh.
+     * jejak keanggotaan (tgl_masuk/tgl_selesai) tetap utuh. Bidang konteks
+     * penerimaan (`tgl_masuk`, `tahaj_masuk`, `tingkat_masuk`, `no_urut`,
+     * detail sekolah asal) mengisi yang masih kosong, tidak menimpa nilai lama.
      *
-     * @param  array{nis_lokal?: ?string, tgl_mulai?: ?string}  $data
+     * @param  array{nis_lokal?: ?string, tgl_masuk?: ?string, tahaj_masuk?: ?string,
+     *               tingkat_masuk?: ?string, no_urut?: ?int, nama_sekolah_asal?: ?string,
+     *               npsn_sekolah_asal?: ?string, nss_sekolah_asal?: ?string,
+     *               alamat_sekolah_asal?: ?string}  $data
      */
     public function pastikanKeanggotaan(Santri $santri, int $lembagaId, array $data = []): LembagaSantri
     {
         $nisLokal = $data['nis_lokal'] ?? null;
         $nisLokal = $nisLokal !== null ? trim((string) $nisLokal) : null;
         $nisLokal = $nisLokal === '' ? null : $nisLokal;
+
+        // Bidang konteks penerimaan yang diisi (bukan null/kosong).
+        $konteks = [];
+        foreach (['tgl_masuk', 'tahaj_masuk', 'tingkat_masuk', 'no_urut', 'nama_sekolah_asal', 'npsn_sekolah_asal', 'nss_sekolah_asal', 'alamat_sekolah_asal'] as $kolom) {
+            if (array_key_exists($kolom, $data) && $data[$kolom] !== null && $data[$kolom] !== '') {
+                $konteks[$kolom] = $data[$kolom];
+            }
+        }
 
         $aktif = LembagaSantri::aktif($santri->id, $lembagaId);
 
@@ -96,8 +109,10 @@ class PenerimaanService
                 }
                 $ubah['nis_lokal'] = $nisLokal;
             }
-            if ($aktif->tgl_mulai === null && ! empty($data['tgl_mulai'])) {
-                $ubah['tgl_mulai'] = $data['tgl_mulai'];
+            foreach ($konteks as $kolom => $nilai) {
+                if ($aktif->{$kolom} === null) {
+                    $ubah[$kolom] = $nilai;
+                }
             }
             if ($ubah !== []) {
                 $aktif->update($ubah);
@@ -111,15 +126,15 @@ class PenerimaanService
         // agar tidak menabrak cek dipakai/unique di bawah.
         $arsip = LembagaSantri::where('santri_id', $santri->id)
             ->where('lembaga_id', $lembagaId)
-            ->where('is_active', false)
+            ->where('is_active_lembaga', LembagaSantri::TIDAK)
             ->orderByDesc('id')
             ->first();
         if ($arsip && ($arsip->nis_lokal ?? null) === $nisLokal) {
-            $arsip->update([
-                'is_active' => true,
-                'tgl_selesai' => null,
-                'tgl_mulai' => $data['tgl_mulai'] ?? $arsip->tgl_mulai,
-            ]);
+            $ubah = ['is_active_lembaga' => LembagaSantri::YA, 'tgl_selesai' => null];
+            foreach ($konteks as $kolom => $nilai) {
+                $ubah[$kolom] = $nilai;
+            }
+            $arsip->update($ubah);
 
             return $arsip->fresh();
         }
@@ -132,16 +147,18 @@ class PenerimaanService
             'santri_id' => $santri->id,
             'lembaga_id' => $lembagaId,
             'nis_lokal' => $nisLokal,
-            'is_active' => true,
-            'tgl_mulai' => $data['tgl_mulai'] ?? null,
-        ]);
+            'is_active_lembaga' => LembagaSantri::YA,
+        ] + $konteks);
     }
 
     /**
      * Terima santri ke lembaga: keanggotaan aktif + riwayat perdana semester 1.
      *
      * @param  array{nis_lokal?: ?string, kelas_id?: ?int, tingkat?: ?string, no_absen?: ?int,
-     *               status_awal?: ?string, tgl_masuk?: ?string, tgl_mulai?: ?string}  $data
+     *               status_awal?: ?string, tgl_masuk?: ?string, tahaj_masuk?: ?string,
+     *               tingkat_masuk?: ?string, no_urut?: ?int, nama_sekolah_asal?: ?string,
+     *               npsn_sekolah_asal?: ?string, nss_sekolah_asal?: ?string,
+     *               alamat_sekolah_asal?: ?string}  $data
      */
     public function terima(Santri $santri, int $lembagaId, int $tahunAjaranId, array $data = []): RiwayatBelajar
     {
@@ -170,7 +187,7 @@ class PenerimaanService
 
             $adaAktif = RiwayatBelajar::where('santri_id', $santri->id)
                 ->where('lembaga_id', $lembagaId)
-                ->where('is_aktif', true)
+                ->where('is_active_riwayat', RiwayatBelajar::YA)
                 ->lockForUpdate()
                 ->exists();
             if ($adaAktif) {
@@ -185,7 +202,14 @@ class PenerimaanService
 
             $this->pastikanKeanggotaan($santri, $lembagaId, [
                 'nis_lokal' => $data['nis_lokal'] ?? null,
-                'tgl_mulai' => $data['tgl_mulai'] ?? $data['tgl_masuk'] ?? null,
+                'tgl_masuk' => $data['tgl_masuk'] ?? null,
+                'tahaj_masuk' => $data['tahaj_masuk'] ?? null,
+                'tingkat_masuk' => $data['tingkat_masuk'] ?? null,
+                'no_urut' => $data['no_urut'] ?? null,
+                'nama_sekolah_asal' => $data['nama_sekolah_asal'] ?? null,
+                'npsn_sekolah_asal' => $data['npsn_sekolah_asal'] ?? null,
+                'nss_sekolah_asal' => $data['nss_sekolah_asal'] ?? null,
+                'alamat_sekolah_asal' => $data['alamat_sekolah_asal'] ?? null,
             ]);
 
             $noAbsen = isset($data['no_absen']) ? (int) $data['no_absen'] : null;
@@ -205,7 +229,7 @@ class PenerimaanService
                 'tingkat' => $data['tingkat'] ?? $kelas?->tingkat,
                 'status_awal' => $statusAwal,
                 'status_akhir' => 'aktif',
-                'is_aktif' => true,
+                'is_active_riwayat' => RiwayatBelajar::YA,
             ]);
 
             $santri->hitungUlangStatusGlobal();

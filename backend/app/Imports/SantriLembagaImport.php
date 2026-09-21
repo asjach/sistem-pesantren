@@ -257,12 +257,27 @@ class SantriLembagaImport extends SantriLengkapImport
         $nisLokal = $nisLokal === '' ? null : $nisLokal;
         $nisKemenag = trim((string) ($baris['nis_kemenag'] ?? ''));
         $nisKemenag = $nisKemenag === '' ? null : $nisKemenag;
-        $aktif = $this->parseAktif($baris['is_active'] ?? null, $no);
-        if ($aktif === null && array_key_exists('is_active', $baris) && trim((string) $baris['is_active']) !== '') {
+        $aktif = $this->parseAktif($baris['is_active_lembaga'] ?? null, $no);
+        if ($aktif === null && array_key_exists('is_active_lembaga', $baris) && trim((string) $baris['is_active_lembaga']) !== '') {
             return false; // failure sudah dicatat parseAktif
         }
-        $tglMulai = Tanggal::parse($baris['tgl_mulai'] ?? null);
+        $tglMasuk = Tanggal::parse($baris['tgl_masuk'] ?? null);
         $tglSelesai = Tanggal::parse($baris['tgl_selesai'] ?? null);
+        $teksKolom = function (string $kunci) use ($baris): ?string {
+            $nilai = trim((string) ($baris[$kunci] ?? ''));
+
+            return $nilai === '' ? null : $nilai;
+        };
+        $noUrut = $teksKolom('no_urut');
+        $konteks = [
+            'tahaj_masuk' => $teksKolom('tahaj_masuk'),
+            'tingkat_masuk' => $teksKolom('tingkat_masuk'),
+            'no_urut' => $noUrut !== null ? (int) $noUrut : null,
+            'nama_sekolah_asal' => $teksKolom('nama_sekolah_asal'),
+            'npsn_sekolah_asal' => $teksKolom('npsn_sekolah_asal'),
+            'nss_sekolah_asal' => $teksKolom('nss_sekolah_asal'),
+            'alamat_sekolah_asal' => $teksKolom('alamat_sekolah_asal'),
+        ];
 
         $ada = LembagaSantri::where('santri_id', $santri->id)
             ->where('lembaga_id', $lembagaId)
@@ -286,10 +301,10 @@ class SantriLembagaImport extends SantriLengkapImport
                 'lembaga_id' => $lembagaId,
                 'nis_lokal' => $nisLokal,
                 'nis_kemenag' => $nisKemenag,
-                'is_active' => $aktif ?? true,
-                'tgl_mulai' => $tglMulai,
+                'is_active_lembaga' => $aktif ?? LembagaSantri::YA,
+                'tgl_masuk' => $tglMasuk,
                 'tgl_selesai' => $tglSelesai,
-            ]);
+            ] + array_filter($konteks, fn ($v) => $v !== null));
             $baru = true;
 
             return true;
@@ -319,13 +334,18 @@ class SantriLembagaImport extends SantriLengkapImport
             $ubah['nis_kemenag'] = $nisKemenag;
         }
         if ($aktif !== null) {
-            $ubah['is_active'] = $aktif;
+            $ubah['is_active_lembaga'] = $aktif;
         }
-        if ($tglMulai !== null) {
-            $ubah['tgl_mulai'] = $tglMulai;
+        if ($tglMasuk !== null) {
+            $ubah['tgl_masuk'] = $tglMasuk;
         }
         if ($tglSelesai !== null) {
             $ubah['tgl_selesai'] = $tglSelesai;
+        }
+        foreach ($konteks as $kolom => $nilai) {
+            if ($nilai !== null) {
+                $ubah[$kolom] = $nilai;
+            }
         }
         if ($ubah !== []) {
             $ada->update($ubah);
@@ -347,10 +367,10 @@ class SantriLembagaImport extends SantriLengkapImport
     }
 
     /**
-     * Normalisasi is_active Excel: 1/0, true/false, aktif/nonaktif, ya/tidak.
+     * Normalisasi keaktifan Excel → 'Ya'/'Tidak'.
      * null = sel kosong (ikut bawaan); failure dicatat bila tak dikenali.
      */
-    protected function parseAktif(mixed $nilai, int $no): ?bool
+    protected function parseAktif(mixed $nilai, int $no): ?string
     {
         $teks = trim((string) ($nilai ?? ''));
         if ($teks === '') {
@@ -358,13 +378,13 @@ class SantriLembagaImport extends SantriLengkapImport
         }
         $t = mb_strtolower($teks);
         if (in_array($t, ['1', 'true', 'aktif', 'ya', 'y'], true)) {
-            return true;
+            return LembagaSantri::YA;
         }
         if (in_array($t, ['0', 'false', 'nonaktif', 'tidak', 't'], true)) {
-            return false;
+            return LembagaSantri::TIDAK;
         }
 
-        $this->fail($no, 'is_active', "Status aktif \"{$teks}\" tidak dikenali (isi 1/0).");
+        $this->fail($no, 'is_active_lembaga', "Status aktif \"{$teks}\" tidak dikenali (isi Ya/Tidak).");
 
         return null;
     }
@@ -386,8 +406,15 @@ class SantriLembagaImport extends SantriLengkapImport
             'kode_lembaga' => ['nullable'],
             'lembaga_id' => ['nullable', 'integer'],
             'nis_kemenag' => ['nullable'],
-            'is_active' => ['nullable'],
-            'tgl_mulai' => ['nullable', 'date'],
+            'tahaj_masuk' => ['nullable'],
+            'tingkat_masuk' => ['nullable'],
+            'no_urut' => ['nullable'],
+            'nama_sekolah_asal' => ['nullable'],
+            'npsn_sekolah_asal' => ['nullable'],
+            'nss_sekolah_asal' => ['nullable'],
+            'alamat_sekolah_asal' => ['nullable'],
+            'is_active_lembaga' => ['nullable'],
+            'tgl_masuk' => ['nullable', 'date'],
             'tgl_selesai' => ['nullable', 'date'],
         ]);
     }

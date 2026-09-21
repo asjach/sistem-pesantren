@@ -12,18 +12,26 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * TIDAK menyimpan relasi riwayat (`lembaga_id`, `kelas_id`, `tahun_ajaran_id`).
  * - Keanggotaan per lembaga (NIS lokal/kemenag, status aktif) → `lembaga_santri`.
  * - Jejak akademik per TA/semester → `riwayat_belajar`.
- * - `status_global` = turunan: ada ≥1 `riwayat_belajar.is_aktif` (default false).
+ * - `is_active_pst` = turunan: ada ≥1 `riwayat_belajar` aktif (default 'Tidak').
  */
 class Santri extends Model
 {
+    /** Nilai kanonis kolom keaktifan pesantren (ENUM). */
+    public const YA = 'Ya';
+
+    public const TIDAK = 'Tidak';
+
     protected $table = 'santri';
+
+    /** Bawaan status keaktifan pesantren (turunan; juga menutup default DB di SQLite). */
+    protected $attributes = ['is_active_pst' => self::TIDAK];
 
     /** Kolom profil identitas yang boleh diubah langsung; status/foto di luar ini. */
     public const KOLOM_PROFIL = [
         'nama_lengkap', 'nama_singkat', 'nik', 'nisn', 'tmp_lahir', 'tgl_lahir',
         'jk', 'anak_ke', 'j_saudara', 'tipe_santri', 'no_hp_santri', 'email_santri',
         'agama', 'cita_cita', 'hobi', 'kebutuhan_khusus', 'kebutuhan_disabilitas', 'nomor_kip',
-        'no_kk', 'kewarganegaraan', 'bahasa_sehari', 'status_tempat_tinggal',
+        'no_kk', 'kepala_keluarga', 'kewarganegaraan', 'bahasa_sehari', 'status_tempat_tinggal',
         'jarak_ke_pesantren', 'waktu_tempuh', 'transportasi', 'tanggal_masuk',
         'alamat', 'rt', 'rw', 'kode_pos', 'provinsi', 'kab_kota', 'kecamatan', 'desa_kelurahan',
         'ayah_nama', 'ayah_nik', 'ayah_tmp_lahir', 'ayah_tgl_lahir', 'ayah_status',
@@ -92,6 +100,7 @@ class Santri extends Model
         'wali_status_tempat_tinggal',
         'yang_membiayai',
         'no_kk',
+        'kepala_keluarga',
         'kewarganegaraan',
         'bahasa_sehari',
         'status_tempat_tinggal',
@@ -108,10 +117,10 @@ class Santri extends Model
         'alamat',
         'kode_pos',
         'foto_url',
-        'status_global', // turunan: ada riwayat aktif
+        'is_active_pst', // turunan: ada riwayat aktif
     ];
 
-    protected $casts = ['status_global' => 'boolean', 'tgl_lahir' => 'date', 'ayah_tgl_lahir' => 'date', 'ibu_tgl_lahir' => 'date', 'wali_tgl_lahir' => 'date', 'tanggal_masuk' => 'date'];
+    protected $casts = ['tgl_lahir' => 'date', 'ayah_tgl_lahir' => 'date', 'ibu_tgl_lahir' => 'date', 'wali_tgl_lahir' => 'date', 'tanggal_masuk' => 'date'];
 
     /** Keanggotaan per lembaga (semua baris, termasuk riwayat lama). */
     public function lembagaSantri(): HasMany
@@ -122,7 +131,7 @@ class Santri extends Model
     /** Keanggotaan yang sedang aktif. */
     public function lembagaAktif(): HasMany
     {
-        return $this->hasMany(LembagaSantri::class, 'santri_id')->where('is_active', true);
+        return $this->hasMany(LembagaSantri::class, 'santri_id')->where('is_active_lembaga', LembagaSantri::YA);
     }
 
     public function riwayatBelajar(): HasMany
@@ -133,7 +142,7 @@ class Santri extends Model
     /** Dipakai otorisasi aksi per lembaga (riwayat berjalan di lembaga admin). */
     public function riwayatAktif(): HasMany
     {
-        return $this->hasMany(RiwayatBelajar::class, 'santri_id')->where('is_aktif', true);
+        return $this->hasMany(RiwayatBelajar::class, 'santri_id')->where('is_active_riwayat', self::YA);
     }
 
     // Helper baca: alumni = ada baris alumni; lulus/mutasi tidak disimpan di santri.
@@ -181,11 +190,13 @@ class Santri extends Model
             ->orWhereDoesntHave('lembagaSantri'));
     }
 
-    /** Hitung ulang `status_global` dari riwayat aktif (invariant turunan). */
+    /** Hitung ulang `is_active_pst` dari riwayat aktif (invariant turunan). */
     public function hitungUlangStatusGlobal(): void
     {
         $this->update([
-            'status_global' => RiwayatBelajar::where('santri_id', $this->id)->where('is_aktif', true)->exists(),
+            'is_active_pst' => RiwayatBelajar::where('santri_id', $this->id)->where('is_active_riwayat', self::YA)->exists()
+                ? self::YA
+                : self::TIDAK,
         ]);
     }
 }

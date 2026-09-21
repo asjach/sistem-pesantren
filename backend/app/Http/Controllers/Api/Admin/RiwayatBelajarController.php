@@ -56,10 +56,10 @@ class RiwayatBelajarController extends Controller
             'riwayat_belajar.lembaga_id'
         );
 
-        if ($request->has('is_aktif')) {
-            $query->where('riwayat_belajar.is_aktif', $request->boolean('is_aktif'));
+        if ($request->has('is_active_riwayat')) {
+            $query->where('riwayat_belajar.is_active_riwayat', $request->boolean('is_active_riwayat') ? RiwayatBelajar::YA : RiwayatBelajar::TIDAK);
         } else {
-            $query->where('riwayat_belajar.is_aktif', true);
+            $query->where('riwayat_belajar.is_active_riwayat', RiwayatBelajar::YA);
         }
         if ($request->filled('tahun_ajaran_id')) {
             $query->where('riwayat_belajar.tahun_ajaran_id', $request->integer('tahun_ajaran_id'));
@@ -199,12 +199,12 @@ class RiwayatBelajarController extends Controller
             ]),
             $request->user(),
             $request
-        )->where('lembaga_santri.is_active', true);
+        )->where('lembaga_santri.is_active_lembaga', LembagaSantri::YA);
 
         $query->whereNotExists(fn ($ada) => $ada->selectRaw('1')->from('riwayat_belajar')
             ->whereColumn('riwayat_belajar.santri_id', 'lembaga_santri.santri_id')
             ->whereColumn('riwayat_belajar.lembaga_id', 'lembaga_santri.lembaga_id')
-            ->where('riwayat_belajar.is_aktif', true));
+            ->where('riwayat_belajar.is_active_riwayat', RiwayatBelajar::YA));
         $query->whereNotExists(fn ($ganjil) => $ganjil->selectRaw('1')->from('riwayat_belajar')
             ->whereColumn('riwayat_belajar.santri_id', 'lembaga_santri.santri_id')
             ->whereColumn('riwayat_belajar.lembaga_id', 'lembaga_santri.lembaga_id')

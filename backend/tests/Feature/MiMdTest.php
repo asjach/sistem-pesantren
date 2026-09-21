@@ -82,7 +82,7 @@ class MiMdTest extends TestCase
     {
         $s = Santri::create(['nama_lengkap' => $nama, 'jk' => 'L']);
         if ($lembagaMiMd !== null) {
-            LembagaSantri::create(['santri_id' => $s->id, 'lembaga_id' => $lembagaMiMd, 'is_active' => true]);
+            LembagaSantri::create(['santri_id' => $s->id, 'lembaga_id' => $lembagaMiMd, 'is_active_lembaga' => 'Ya']);
         }
 
         return $s;
@@ -100,7 +100,7 @@ class MiMdTest extends TestCase
         RiwayatBelajar::create([
             'santri_id' => $s->id, 'lembaga_id' => $lembagaId, 'tahun_ajaran_id' => $taId,
             'kelas_id' => $kelasId, 'semester' => '1', 'status_awal' => 'santri_baru',
-            'status_akhir' => 'aktif', 'is_aktif' => true,
+            'status_akhir' => 'aktif', 'is_active_riwayat' => 'Ya',
         ]);
     }
 
@@ -117,14 +117,14 @@ class MiMdTest extends TestCase
         $this->tempatkan($mdSaja, $f['md']->id, $f['taMd']->id, '1A');
         // Ganda selaras (id beda, nama sama → TIDAK terdaftar beda).
         $selaras = Santri::create(['nama_lengkap' => 'Selaras', 'jk' => 'L']);
-        LembagaSantri::create(['santri_id' => $selaras->id, 'lembaga_id' => $f['mi']->id, 'is_active' => true]);
-        LembagaSantri::create(['santri_id' => $selaras->id, 'lembaga_id' => $f['md']->id, 'is_active' => true]);
+        LembagaSantri::create(['santri_id' => $selaras->id, 'lembaga_id' => $f['mi']->id, 'is_active_lembaga' => 'Ya']);
+        LembagaSantri::create(['santri_id' => $selaras->id, 'lembaga_id' => $f['md']->id, 'is_active_lembaga' => 'Ya']);
         $this->tempatkan($selaras, $f['mi']->id, $f['taMi']->id, '1A');
         $this->tempatkan($selaras, $f['md']->id, $f['taMd']->id, '1a'); // case-insensitive sama
         // Ganda beda.
         $beda = Santri::create(['nama_lengkap' => 'Beda Kelas', 'jk' => 'L']);
-        LembagaSantri::create(['santri_id' => $beda->id, 'lembaga_id' => $f['mi']->id, 'is_active' => true]);
-        LembagaSantri::create(['santri_id' => $beda->id, 'lembaga_id' => $f['md']->id, 'is_active' => true]);
+        LembagaSantri::create(['santri_id' => $beda->id, 'lembaga_id' => $f['mi']->id, 'is_active_lembaga' => 'Ya']);
+        LembagaSantri::create(['santri_id' => $beda->id, 'lembaga_id' => $f['md']->id, 'is_active_lembaga' => 'Ya']);
         $this->tempatkan($beda, $f['mi']->id, $f['taMi']->id, '1A');
         $this->tempatkan($beda, $f['md']->id, $f['taMd']->id, '1B');
 
@@ -148,8 +148,8 @@ class MiMdTest extends TestCase
     {
         $f = $this->baseFixture();
         $s = Santri::create(['nama_lengkap' => 'Ganda', 'jk' => 'L']);
-        LembagaSantri::create(['santri_id' => $s->id, 'lembaga_id' => $f['mi']->id, 'is_active' => true]);
-        LembagaSantri::create(['santri_id' => $s->id, 'lembaga_id' => $f['md']->id, 'is_active' => true]);
+        LembagaSantri::create(['santri_id' => $s->id, 'lembaga_id' => $f['mi']->id, 'is_active_lembaga' => 'Ya']);
+        LembagaSantri::create(['santri_id' => $s->id, 'lembaga_id' => $f['md']->id, 'is_active_lembaga' => 'Ya']);
 
         // Admin MI saja melihat kedua sisi.
         $resMi = $this->actingAs($this->makeUser('admin', [$f['mi']->id]), 'sanctum')
@@ -168,8 +168,8 @@ class MiMdTest extends TestCase
     {
         $f = $this->baseFixture();
         $s = Santri::create(['nama_lengkap' => 'Global Ganda', 'jk' => 'L']);
-        LembagaSantri::create(['santri_id' => $s->id, 'lembaga_id' => $f['mi']->id, 'nis_lokal' => '40001', 'is_active' => true]);
-        $mdRow = LembagaSantri::create(['santri_id' => $s->id, 'lembaga_id' => $f['md']->id, 'nis_lokal' => '40002', 'is_active' => true]);
+        LembagaSantri::create(['santri_id' => $s->id, 'lembaga_id' => $f['mi']->id, 'nis_lokal' => '40001', 'is_active_lembaga' => 'Ya']);
+        $mdRow = LembagaSantri::create(['santri_id' => $s->id, 'lembaga_id' => $f['md']->id, 'nis_lokal' => '40002', 'is_active_lembaga' => 'Ya']);
 
         $adminMi = $this->makeUser('admin', [$f['mi']->id]);
         $adminMd = $this->makeUser('admin', [$f['md']->id]);
@@ -184,9 +184,9 @@ class MiMdTest extends TestCase
             'nis_lokal' => '40009',
         ])->assertStatus(200);
         $this->actingAs($adminMi, 'sanctum')->patchJson("/api/admin/lembaga-santri/{$mdRow->id}", [
-            'is_active' => false,
+            'is_active_lembaga' => 'Tidak',
         ])->assertStatus(200);
-        $this->assertFalse((bool) $mdRow->fresh()->is_active);
+        $this->assertSame('Tidak', $mdRow->fresh()->is_active_lembaga);
 
         // Sebaliknya: admin MD membaca baris MI.
         $resMd = $this->actingAs($adminMd, 'sanctum')->getJson('/api/admin/lembaga-santri?per_page=50')->assertStatus(200);
@@ -206,8 +206,8 @@ class MiMdTest extends TestCase
         $admin = $this->makeUser('admin', [$f['mi']->id, $f['md']->id]);
 
         $s = Santri::create(['nama_lengkap' => 'Hapus MD', 'jk' => 'L']);
-        LembagaSantri::create(['santri_id' => $s->id, 'lembaga_id' => $f['mi']->id, 'nis_lokal' => '29501', 'is_active' => true]);
-        LembagaSantri::create(['santri_id' => $s->id, 'lembaga_id' => $f['md']->id, 'nis_lokal' => '29501', 'is_active' => true]);
+        LembagaSantri::create(['santri_id' => $s->id, 'lembaga_id' => $f['mi']->id, 'nis_lokal' => '29501', 'is_active_lembaga' => 'Ya']);
+        LembagaSantri::create(['santri_id' => $s->id, 'lembaga_id' => $f['md']->id, 'nis_lokal' => '29501', 'is_active_lembaga' => 'Ya']);
         $this->tempatkan($s, $f['md']->id, $f['taMd']->id, '1A');
 
         $res = $this->actingAs($admin, 'sanctum')->postJson('/api/admin/mi-md/hapus-md', [
@@ -222,7 +222,7 @@ class MiMdTest extends TestCase
 
         // Murni MD (tanpa MI aktif) ditolak.
         $murni = Santri::create(['nama_lengkap' => 'Murni MD', 'jk' => 'L']);
-        LembagaSantri::create(['santri_id' => $murni->id, 'lembaga_id' => $f['md']->id, 'nis_lokal' => '29502', 'is_active' => true]);
+        LembagaSantri::create(['santri_id' => $murni->id, 'lembaga_id' => $f['md']->id, 'nis_lokal' => '29502', 'is_active_lembaga' => 'Ya']);
         $res2 = $this->actingAs($admin, 'sanctum')->postJson('/api/admin/mi-md/hapus-md', [
             'items' => [['santri_id' => $murni->id]],
         ])->assertStatus(200);
@@ -236,8 +236,8 @@ class MiMdTest extends TestCase
         $admin = $this->makeUser('admin', [$f['mi']->id, $f['md']->id]);
 
         $s = Santri::create(['nama_lengkap' => 'Keluar Masuk', 'jk' => 'L']);
-        LembagaSantri::create(['santri_id' => $s->id, 'lembaga_id' => $f['mi']->id, 'nis_lokal' => '29001', 'is_active' => true]);
-        LembagaSantri::create(['santri_id' => $s->id, 'lembaga_id' => $f['md']->id, 'nis_lokal' => '29001', 'is_active' => true]);
+        LembagaSantri::create(['santri_id' => $s->id, 'lembaga_id' => $f['mi']->id, 'nis_lokal' => '29001', 'is_active_lembaga' => 'Ya']);
+        LembagaSantri::create(['santri_id' => $s->id, 'lembaga_id' => $f['md']->id, 'nis_lokal' => '29001', 'is_active_lembaga' => 'Ya']);
         $this->tempatkan($s, $f['md']->id, $f['taMd']->id, '1A');
 
         // X: tutup jenjang MD (arsip nonaktif bernomor sama tetap ada).
@@ -251,7 +251,7 @@ class MiMdTest extends TestCase
         ])->assertStatus(200);
         $baris = LembagaSantri::where('santri_id', $s->id)->where('lembaga_id', $f['md']->id)->get();
         $this->assertCount(1, $baris);
-        $this->assertTrue((bool) $baris->first()->is_active);
+        $this->assertSame('Ya', $baris->first()->is_active_lembaga);
         $this->assertSame('29001', $baris->first()->nis_lokal);
     }
 
@@ -260,7 +260,7 @@ class MiMdTest extends TestCase
         $f = $this->baseFixture();
         $admin = $this->makeUser('admin', [$f['mi']->id, $f['md']->id]);
         $s = Santri::create(['nama_lengkap' => 'MI Saja', 'jk' => 'L']);
-        LembagaSantri::create(['santri_id' => $s->id, 'lembaga_id' => $f['mi']->id, 'nis_lokal' => '28001', 'is_active' => true]);
+        LembagaSantri::create(['santri_id' => $s->id, 'lembaga_id' => $f['mi']->id, 'nis_lokal' => '28001', 'is_active_lembaga' => 'Ya']);
 
         $res = $this->actingAs($admin, 'sanctum')->postJson('/api/admin/mi-md/daftarkan-md', [
             'items' => [['santri_id' => $s->id]],
@@ -269,7 +269,7 @@ class MiMdTest extends TestCase
 
         $md = LembagaSantri::where('santri_id', $s->id)->where('lembaga_id', $f['md']->id)->firstOrFail();
         $this->assertSame('28001', $md->nis_lokal);
-        $this->assertTrue((bool) $md->is_active);
+        $this->assertSame('Ya', $md->is_active_lembaga);
 
         // Idempoten: daftar ulang tetap 1 baris MD.
         $this->actingAs($admin, 'sanctum')->postJson('/api/admin/mi-md/daftarkan-md', [
@@ -292,8 +292,8 @@ class MiMdTest extends TestCase
         $admin = $this->makeUser('admin', [$f['mi']->id, $f['md']->id]);
 
         $s = Santri::create(['nama_lengkap' => 'Beda', 'jk' => 'L']);
-        LembagaSantri::create(['santri_id' => $s->id, 'lembaga_id' => $f['mi']->id, 'is_active' => true]);
-        LembagaSantri::create(['santri_id' => $s->id, 'lembaga_id' => $f['md']->id, 'is_active' => true]);
+        LembagaSantri::create(['santri_id' => $s->id, 'lembaga_id' => $f['mi']->id, 'is_active_lembaga' => 'Ya']);
+        LembagaSantri::create(['santri_id' => $s->id, 'lembaga_id' => $f['md']->id, 'is_active_lembaga' => 'Ya']);
         $this->tempatkan($s, $f['mi']->id, $f['taMi']->id, '1A');
         $this->tempatkan($s, $f['md']->id, $f['taMd']->id, '1B');
         // Kelas senama tersedia di MD.
@@ -323,7 +323,7 @@ class MiMdTest extends TestCase
         $adminMi = $this->makeUser('admin', [$f['mi']->id]);
 
         $s = Santri::create(['nama_lengkap' => 'MI Saja', 'jk' => 'L']);
-        LembagaSantri::create(['santri_id' => $s->id, 'lembaga_id' => $f['mi']->id, 'nis_lokal' => '28701', 'is_active' => true]);
+        LembagaSantri::create(['santri_id' => $s->id, 'lembaga_id' => $f['mi']->id, 'nis_lokal' => '28701', 'is_active_lembaga' => 'Ya']);
 
         $res = $this->actingAs($adminMi, 'sanctum')->postJson('/api/admin/mi-md/daftarkan-md', [
             'items' => [['santri_id' => $s->id]],
@@ -336,7 +336,7 @@ class MiMdTest extends TestCase
         // MTS (di luar pasangan) tetap ditolak.
         $adminMts = $this->makeUser('admin', [$f['mts']->id]);
         $s2 = Santri::create(['nama_lengkap' => 'MI Saja 2', 'jk' => 'L']);
-        LembagaSantri::create(['santri_id' => $s2->id, 'lembaga_id' => $f['mi']->id, 'is_active' => true]);
+        LembagaSantri::create(['santri_id' => $s2->id, 'lembaga_id' => $f['mi']->id, 'is_active_lembaga' => 'Ya']);
         $res2 = $this->actingAs($adminMts, 'sanctum')->postJson('/api/admin/mi-md/daftarkan-md', [
             'items' => [['santri_id' => $s2->id]],
         ])->assertStatus(200);
@@ -358,8 +358,8 @@ class MiMdTest extends TestCase
 
         // Anggota kedua sisi; riwayat + kelas hanya di MI.
         $s = Santri::create(['nama_lengkap' => 'Tanpa MD', 'jk' => 'L']);
-        LembagaSantri::create(['santri_id' => $s->id, 'lembaga_id' => $f['mi']->id, 'nis_lokal' => '28801', 'is_active' => true]);
-        LembagaSantri::create(['santri_id' => $s->id, 'lembaga_id' => $f['md']->id, 'nis_lokal' => '28801', 'is_active' => true]);
+        LembagaSantri::create(['santri_id' => $s->id, 'lembaga_id' => $f['mi']->id, 'nis_lokal' => '28801', 'is_active_lembaga' => 'Ya']);
+        LembagaSantri::create(['santri_id' => $s->id, 'lembaga_id' => $f['md']->id, 'nis_lokal' => '28801', 'is_active_lembaga' => 'Ya']);
         $this->tempatkan($s, $f['mi']->id, $f['taMi']->id, '1A');
         Kelas::firstOrCreate(
             ['lembaga_id' => $f['md']->id, 'tahun_ajaran_id' => $f['taMd']->id, 'nama_kelas' => '1A'],
@@ -380,8 +380,8 @@ class MiMdTest extends TestCase
 
         // Kelas senama tak ada di sisi tujuan → gagal jelas.
         $s2 = Santri::create(['nama_lengkap' => 'Tanpa Kelas Senama', 'jk' => 'L']);
-        LembagaSantri::create(['santri_id' => $s2->id, 'lembaga_id' => $f['mi']->id, 'is_active' => true]);
-        LembagaSantri::create(['santri_id' => $s2->id, 'lembaga_id' => $f['md']->id, 'is_active' => true]);
+        LembagaSantri::create(['santri_id' => $s2->id, 'lembaga_id' => $f['mi']->id, 'is_active_lembaga' => 'Ya']);
+        LembagaSantri::create(['santri_id' => $s2->id, 'lembaga_id' => $f['md']->id, 'is_active_lembaga' => 'Ya']);
         $this->tempatkan($s2, $f['md']->id, $f['taMd']->id, '9Z');
         $res2 = $this->actingAs($admin, 'sanctum')->postJson('/api/admin/mi-md/samakan-kelas', [
             'items' => [['santri_id' => $s2->id, 'arah' => 'ke_mi']],

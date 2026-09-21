@@ -56,19 +56,19 @@ class NiskBulkTest extends TestCase
 
         LembagaSantri::create([
             'santri_id' => $layak->id, 'lembaga_id' => $mi->id,
-            'nis_lokal' => '200', 'is_active' => true, 'tgl_mulai' => '2025-07-01',
+            'nis_lokal' => '200', 'is_active_lembaga' => 'Ya', 'tgl_masuk' => '2025-07-01',
         ]);
         LembagaSantri::create([
             'santri_id' => $sudah->id, 'lembaga_id' => $mi->id,
-            'nis_lokal' => '201', 'nis_kemenag' => 'lama', 'is_active' => true, 'tgl_mulai' => '2025-07-01',
+            'nis_lokal' => '201', 'nis_kemenag' => 'lama', 'is_active_lembaga' => 'Ya', 'tgl_masuk' => '2025-07-01',
         ]);
         LembagaSantri::create([
             'santri_id' => $kosong->id, 'lembaga_id' => $mi->id,
-            'nis_lokal' => null, 'is_active' => true, 'tgl_mulai' => '2025-07-01',
+            'nis_lokal' => null, 'is_active_lembaga' => 'Ya', 'tgl_masuk' => '2025-07-01',
         ]);
         LembagaSantri::create([
             'santri_id' => $anakMd->id, 'lembaga_id' => $md->id,
-            'nis_lokal' => '300', 'is_active' => true, 'tgl_mulai' => '2025-07-01',
+            'nis_lokal' => '300', 'is_active_lembaga' => 'Ya', 'tgl_masuk' => '2025-07-01',
         ]);
 
         return compact('mi', 'md', 'layak');
@@ -84,7 +84,7 @@ class NiskBulkTest extends TestCase
             ->assertStatus(200);
 
         $this->assertSame(1, $res->json('data.berhasil'));
-        // NSM + YY(tgl_mulai 2025) + 4 digit akhir NIS lokal.
+        // NSM + YY(tgl_masuk 2025) + 4 digit akhir NIS lokal.
         $this->assertSame(
             '123456789012250200',
             LembagaSantri::where('santri_id', $f['layak']->id)->value('nis_kemenag')

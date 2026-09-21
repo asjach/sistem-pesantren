@@ -55,8 +55,8 @@ class SantriController extends Controller
         $query = Santri::tenantScope()
             ->with(['lembagaAktif:id,santri_id,lembaga_id,nis_lokal,nis_kemenag', 'lembagaAktif.lembaga:id,nama,kode']);
 
-        if ($request->filled('status_global')) {
-            $query->where('status_global', $request->boolean('status_global'));
+        if ($request->filled('is_active_pst')) {
+            $query->where('is_active_pst', $request->boolean('is_active_pst') ? Santri::YA : Santri::TIDAK);
         }
         if ($request->filled('lembaga_id')) {
             $lembagaId = $request->integer('lembaga_id');

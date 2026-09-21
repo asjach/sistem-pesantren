@@ -16,8 +16,8 @@ use Illuminate\Validation\ValidationException;
 /**
  * 102 — transisi akademik santri (semua lewat service ini):
  * - `riwayat_belajar` = jejak kelas/semester (tanpa NIS; NIS ada di `lembaga_santri`).
- * - `is_aktif=true` iff `status_akhir='aktif'` (abaikan sifat custom ref).
- * - `santri.status_global` dihitung ulang tiap transisi (true iff ada ≥1 riwayat aktif).
+ * - `is_active_riwayat='Ya'` iff `status_akhir='aktif'` (abaikan sifat custom ref).
+ * - `santri.is_active_pst` dihitung ulang tiap transisi ('Ya' iff ada ≥1 riwayat aktif).
  * - Mutasi/lulus menutup riwayat + keanggotaan (`lembaga_santri`); arsip di
  *   `mutasi_keluar`/`alumni`.
  * - Paket MI+MD: satu jenjang keluar/lulus tidak menghentikan jenjang lain.
@@ -31,7 +31,7 @@ class SiklusSantriService
         return DB::transaction(function () use ($santri, $lembagaId, $tglMasukGenap, $noAbsen, $kelasId) {
             $santri = Santri::whereKey($santri->id)->lockForUpdate()->firstOrFail();
             $ganjil = RiwayatBelajar::where('santri_id', $santri->id)
-                ->where('lembaga_id', $lembagaId)->where('is_aktif', true)
+                ->where('lembaga_id', $lembagaId)->where('is_active_riwayat', RiwayatBelajar::YA)
                 ->lockForUpdate()->latest('id')->first();
             if (! $ganjil) {
                 throw ValidationException::withMessages(['riwayat' => 'Tidak ada riwayat aktif di lembaga ini.']);
@@ -46,8 +46,8 @@ class SiklusSantriService
             if (! is_null($noAbsen)) {
                 $this->cekBentrokAbsen($kelasId ?? $ganjil->kelas_id, $ganjil->tahun_ajaran_id, '2', $noAbsen);
             }
-            // Tutup ganjil sebagai arsip semester: status_akhir dipertahankan 'aktif', is_aktif=false.
-            $ganjil->update(['is_aktif' => false]);
+            // Tutup ganjil sebagai arsip semester: status_akhir dipertahankan 'aktif', is_active_riwayat='Tidak'.
+            $ganjil->update(['is_active_riwayat' => RiwayatBelajar::TIDAK]);
 
             $genap = $this->buatRiwayatDenganRetry($santri->id, [
                 'tahun_ajaran_id' => $ganjil->tahun_ajaran_id,
@@ -59,7 +59,7 @@ class SiklusSantriService
                 'tingkat' => $ganjil->tingkat,
                 'status_awal' => $ganjil->status_awal, // KUNCI: sama dengan ganjil
                 'status_akhir' => 'aktif',
-                'is_aktif' => true,
+                'is_active_riwayat' => RiwayatBelajar::YA,
             ], where: fn ($q) => $q->where('tahun_ajaran_id', $ganjil->tahun_ajaran_id)
                 ->where('lembaga_id', $lembagaId)->where('semester', '2'));
 
@@ -92,7 +92,7 @@ class SiklusSantriService
         return DB::transaction(function () use ($santri, $lembagaId, $tahunBaruId, $tingkat, $status, $tglMasuk, $noAbsen) {
             $santri = Santri::whereKey($santri->id)->lockForUpdate()->firstOrFail();
             $lama = RiwayatBelajar::where('santri_id', $santri->id)
-                ->where('lembaga_id', $lembagaId)->where('is_aktif', true)
+                ->where('lembaga_id', $lembagaId)->where('is_active_riwayat', RiwayatBelajar::YA)
                 ->lockForUpdate()->latest('id')->first();
             if (! $lama) {
                 throw ValidationException::withMessages(['riwayat' => 'Tidak ada riwayat aktif di lembaga ini.']);
@@ -111,7 +111,7 @@ class SiklusSantriService
                 }
             }
 
-            $lama->update(['status_akhir' => $akhirLama, 'is_aktif' => false]);
+            $lama->update(['status_akhir' => $akhirLama, 'is_active_riwayat' => RiwayatBelajar::TIDAK]);
 
             $this->pastikanKeanggotaanAktif($santri, $lembagaId);
 
@@ -125,7 +125,7 @@ class SiklusSantriService
                 'tingkat' => $tingkat,
                 'status_awal' => $awalBaru,
                 'status_akhir' => 'aktif',
-                'is_aktif' => true,
+                'is_active_riwayat' => RiwayatBelajar::YA,
             ], where: fn ($q) => $q->where('tahun_ajaran_id', $tahunBaruId)
                 ->where('lembaga_id', $lembagaId)->where('semester', '1'));
 
@@ -147,7 +147,7 @@ class SiklusSantriService
         return DB::transaction(function () use ($santri, $lembagaId, $status, $tglMasuk) {
             $santri = Santri::whereKey($santri->id)->lockForUpdate()->firstOrFail();
             $lama = RiwayatBelajar::where('santri_id', $santri->id)
-                ->where('lembaga_id', $lembagaId)->where('is_aktif', true)
+                ->where('lembaga_id', $lembagaId)->where('is_active_riwayat', RiwayatBelajar::YA)
                 ->lockForUpdate()->latest('id')->first();
             if (! $lama) {
                 throw ValidationException::withMessages(['riwayat' => 'Tidak ada riwayat aktif di lembaga ini.']);
@@ -175,7 +175,7 @@ class SiklusSantriService
                 $lembagaId, $taBaru->id, $lama->kelas?->nama_kelas, $tingkatBaru, $status === 'naik'
             );
 
-            $lama->update(['status_akhir' => $status, 'is_aktif' => false]);
+            $lama->update(['status_akhir' => $status, 'is_active_riwayat' => RiwayatBelajar::TIDAK]);
 
             $this->pastikanKeanggotaanAktif($santri, $lembagaId);
 
@@ -189,7 +189,7 @@ class SiklusSantriService
                 'tingkat' => $tingkatBaru,
                 'status_awal' => $awalBaru,
                 'status_akhir' => 'aktif',
-                'is_aktif' => true,
+                'is_active_riwayat' => RiwayatBelajar::YA,
             ], where: fn ($q) => $q->where('tahun_ajaran_id', $taBaru->id)
                 ->where('lembaga_id', $lembagaId)->where('semester', '1'));
 
@@ -252,14 +252,14 @@ class SiklusSantriService
         return DB::transaction(function () use ($santri, $lembagaId) {
             $santri = Santri::whereKey($santri->id)->lockForUpdate()->firstOrFail();
             $baru = RiwayatBelajar::where('santri_id', $santri->id)
-                ->where('lembaga_id', $lembagaId)->where('is_aktif', true)
+                ->where('lembaga_id', $lembagaId)->where('is_active_riwayat', RiwayatBelajar::YA)
                 ->whereIn('status_awal', ['kenaikan', 'mengulang'])
                 ->lockForUpdate()->latest('id')->first();
             if (! $baru) {
                 throw ValidationException::withMessages(['riwayat' => 'Tidak ada hasil kenaikan aktif yang bisa dibatalkan.']);
             }
             $lama = RiwayatBelajar::where('santri_id', $santri->id)
-                ->where('lembaga_id', $lembagaId)->where('is_aktif', false)
+                ->where('lembaga_id', $lembagaId)->where('is_active_riwayat', RiwayatBelajar::TIDAK)
                 ->whereIn('status_akhir', ['naik', 'tidak_naik'])
                 ->where('id', '!=', $baru->id)
                 ->lockForUpdate()->latest('id')->first();
@@ -268,8 +268,8 @@ class SiklusSantriService
             }
 
             $baru->delete();
-            // Invarian: is_aktif=true iff status_akhir='aktif'.
-            $lama->update(['status_akhir' => 'aktif', 'is_aktif' => true]);
+            // Invarian: is_active_riwayat='Ya' iff status_akhir='aktif'.
+            $lama->update(['status_akhir' => 'aktif', 'is_active_riwayat' => RiwayatBelajar::YA]);
 
             $santri->hitungUlangStatusGlobal();
 
@@ -314,7 +314,7 @@ class SiklusSantriService
     {
         return DB::transaction(function () use ($riwayat, $kelasBaruId) {
             $riwayat = RiwayatBelajar::whereKey($riwayat->id)->lockForUpdate()->firstOrFail();
-            if (! $riwayat->is_aktif) {
+            if ($riwayat->is_active_riwayat !== RiwayatBelajar::YA) {
                 abort(422, 'Riwayat tidak aktif.');
             }
             $kelas = Kelas::findOrFail($kelasBaruId);
@@ -349,7 +349,7 @@ class SiklusSantriService
     {
         return DB::transaction(function () use ($riwayat) {
             $riwayat = RiwayatBelajar::whereKey($riwayat->id)->lockForUpdate()->firstOrFail();
-            if (! $riwayat->is_aktif) {
+            if ($riwayat->is_active_riwayat !== RiwayatBelajar::YA) {
                 abort(422, 'Riwayat tidak aktif.');
             }
             $riwayat->update(['kelas_id' => null]);
@@ -361,14 +361,14 @@ class SiklusSantriService
     /**
      * Batalkan baris riwayat (HARD DELETE fisik): dipakai halaman Riwayat
      * Belajar semester ganjil untuk membatalkan pemasukan yang salah.
-     * Hanya baris aktif; arsip (is_aktif=false) adalah jejak sejarah.
-     * Keanggotaan `lembaga_santri` dipertahankan; `status_global` dihitung ulang.
+     * Hanya baris aktif; arsip (is_active_riwayat='Tidak') adalah jejak sejarah.
+     * Keanggotaan `lembaga_santri` dipertahankan; `is_active_pst` dihitung ulang.
      */
     public function hapusRiwayat(RiwayatBelajar $riwayat): void
     {
         DB::transaction(function () use ($riwayat) {
             $baris = RiwayatBelajar::whereKey($riwayat->id)->lockForUpdate()->firstOrFail();
-            if (! $baris->is_aktif) {
+            if ($baris->is_active_riwayat !== RiwayatBelajar::YA) {
                 abort(422, 'Hanya riwayat aktif yang bisa dibatalkan.');
             }
             $santriId = $baris->santri_id;
@@ -391,8 +391,8 @@ class SiklusSantriService
             }
 
             $diubah = RiwayatBelajar::where('santri_id', $santri->id)->where('lembaga_id', $lembagaId)
-                ->where('is_aktif', true)->lockForUpdate()
-                ->update(['status_akhir' => 'pindah_keluar', 'is_aktif' => false]);
+                ->where('is_active_riwayat', RiwayatBelajar::YA)->lockForUpdate()
+                ->update(['status_akhir' => 'pindah_keluar', 'is_active_riwayat' => RiwayatBelajar::TIDAK]);
             if ($diubah === 0) {
                 abort(422, 'Santri tidak memiliki riwayat aktif di lembaga ini.');
             }
@@ -432,8 +432,8 @@ class SiklusSantriService
             }
 
             $diubah = RiwayatBelajar::where('santri_id', $santri->id)->where('lembaga_id', $lembagaId)
-                ->where('is_aktif', true)->lockForUpdate()
-                ->update(['status_akhir' => 'lulus', 'is_aktif' => false]);
+                ->where('is_active_riwayat', RiwayatBelajar::YA)->lockForUpdate()
+                ->update(['status_akhir' => 'lulus', 'is_active_riwayat' => RiwayatBelajar::TIDAK]);
             if ($diubah === 0) {
                 abort(422, 'Santri tidak memiliki riwayat aktif di lembaga ini.');
             }
@@ -494,12 +494,12 @@ class SiklusSantriService
                 abort(422, 'Status mengulang nonaktif di lembaga ini.');
             }
             $aktif = RiwayatBelajar::where('santri_id', $santri->id)->where('lembaga_id', $lembagaId)
-                ->where('is_aktif', true)->lockForUpdate()->latest('id')->get();
+                ->where('is_active_riwayat', RiwayatBelajar::YA)->lockForUpdate()->latest('id')->get();
             if ($aktif->isEmpty()) {
                 abort(422, 'Santri tidak memiliki riwayat aktif di lembaga ini.');
             }
             foreach ($aktif as $row) {
-                $row->update(['status_akhir' => 'tidak_lulus', 'is_aktif' => false]);
+                $row->update(['status_akhir' => 'tidak_lulus', 'is_active_riwayat' => RiwayatBelajar::TIDAK]);
             }
 
             $taBerikut = (new PenerimaanService)->tahunAjaranBerikut($lembagaId, $aktif->first());
@@ -517,7 +517,7 @@ class SiklusSantriService
                 'tingkat' => $aktif->first()->tingkat,
                 'status_awal' => 'mengulang',
                 'status_akhir' => 'aktif',
-                'is_aktif' => true,
+                'is_active_riwayat' => RiwayatBelajar::YA,
             ], where: fn ($q) => $q->where('tahun_ajaran_id', $taBerikut->id)
                 ->where('lembaga_id', $lembagaId)->where('semester', '1'));
 
@@ -536,14 +536,14 @@ class SiklusSantriService
         return DB::transaction(function () use ($santri, $lembagaId) {
             RiwayatBelajar::where('santri_id', $santri->id)
                 ->where('lembaga_id', $lembagaId)
-                ->where('is_aktif', true)->lockForUpdate()
-                ->update(['is_aktif' => false]);
+                ->where('is_active_riwayat', RiwayatBelajar::YA)->lockForUpdate()
+                ->update(['is_active_riwayat' => RiwayatBelajar::TIDAK]);
             $this->tutupKeanggotaan($santri, $lembagaId, null);
             $santri->hitungUlangStatusGlobal();
         });
     }
 
-    /** Hitung ulang `santri.status_global` (true iff ada ≥1 riwayat aktif). */
+    /** Hitung ulang `santri.is_active_pst` ('Ya' iff ada ≥1 riwayat aktif). */
     public function hitungUlangStatusGlobal(Santri $santri): Santri
     {
         $santri->hitungUlangStatusGlobal();
@@ -582,7 +582,7 @@ class SiklusSantriService
             ?? LembagaSantri::create([
                 'santri_id' => $santri->id,
                 'lembaga_id' => $lembagaId,
-                'is_active' => true,
+                'is_active_lembaga' => LembagaSantri::YA,
             ]);
     }
 
@@ -591,10 +591,10 @@ class SiklusSantriService
     {
         LembagaSantri::where('santri_id', $santri->id)
             ->where('lembaga_id', $lembagaId)
-            ->where('is_active', true)
+            ->where('is_active_lembaga', LembagaSantri::YA)
             ->lockForUpdate()
             ->update([
-                'is_active' => false,
+                'is_active_lembaga' => LembagaSantri::TIDAK,
                 'tgl_selesai' => $tglSelesai ?? now()->toDateString(),
             ]);
     }

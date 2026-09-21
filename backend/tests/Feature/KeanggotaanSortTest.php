@@ -59,15 +59,15 @@ class KeanggotaanSortTest extends TestCase
         $candra = Santri::create(['nama_lengkap' => 'Candra', 'jk' => 'L']);
         LembagaSantri::create([
             'santri_id' => $ahmad->id, 'lembaga_id' => $md->id,
-            'nis_lokal' => '100', 'is_active' => true, 'tgl_mulai' => '2025-07-01',
+            'nis_lokal' => '100', 'is_active_lembaga' => 'Ya', 'tgl_masuk' => '2025-07-01',
         ]);
         LembagaSantri::create([
             'santri_id' => $budi->id, 'lembaga_id' => $mi->id,
-            'nis_lokal' => '200', 'is_active' => true, 'tgl_mulai' => '2025-07-01',
+            'nis_lokal' => '200', 'is_active_lembaga' => 'Ya', 'tgl_masuk' => '2025-07-01',
         ]);
         LembagaSantri::create([
             'santri_id' => $candra->id, 'lembaga_id' => $mi->id,
-            'nis_lokal' => '300', 'is_active' => true, 'tgl_mulai' => '2025-07-01',
+            'nis_lokal' => '300', 'is_active_lembaga' => 'Ya', 'tgl_masuk' => '2025-07-01',
         ]);
 
         return compact('mi', 'md');

@@ -125,7 +125,7 @@ class TahunAjaranGuardTest extends TestCase
     {
         $f = $this->baseFixture();
         $santri = Santri::create([
-            'lembaga_id' => $f['mi']->id, 'nama_lengkap' => 'Anak Root', 'jk' => 'L', 'status_global' => false,
+            'lembaga_id' => $f['mi']->id, 'nama_lengkap' => 'Anak Root', 'jk' => 'L', 'is_active_pst' => 'Tidak',
         ]);
 
         $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/santri/'.$santri->id.'/berhenti-jenjang', [

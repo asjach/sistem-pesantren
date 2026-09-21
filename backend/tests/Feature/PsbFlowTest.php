@@ -194,7 +194,7 @@ class PsbFlowTest extends TestCase
         $nik = '1100000000000003';
         Santri::create([
             'lembaga_id' => $f['mi']->id, 'nama_lengkap' => 'Santri Aktif', 'nik' => $nik,
-            'jk' => 'L', 'tgl_lahir' => '2014-01-01', 'status_global' => true,
+            'jk' => 'L', 'tgl_lahir' => '2014-01-01', 'is_active_pst' => 'Ya',
         ]);
 
         $res = $this->postJson('/api/psb/daftar', $this->daftarPayload(
@@ -254,7 +254,7 @@ class PsbFlowTest extends TestCase
 
         $this->assertEquals(1, Santri::where('id', $santriId)->count());
         // ACC hanya membuat keanggotaan (MI + MD); riwayat diinput via Riwayat Belajar.
-        $this->assertEquals(2, LembagaSantri::where('santri_id', $santriId)->where('is_active', true)->count());
+        $this->assertEquals(2, LembagaSantri::where('santri_id', $santriId)->where('is_active_lembaga', 'Ya')->count());
         $this->assertEquals(1, LembagaSantri::where('santri_id', $santriId)->where('lembaga_id', $f['mi']->id)->count());
         $this->assertEquals(1, LembagaSantri::where('santri_id', $santriId)->where('lembaga_id', $f['md']->id)->count());
         $this->assertEquals(0, RiwayatBelajar::where('santri_id', $santriId)->count());
@@ -606,7 +606,7 @@ class PsbFlowTest extends TestCase
             ->assertStatus(201);
         $santriId = $this->actingAs($admin, 'sanctum')->postJson("/api/psb/{$calonId}/acc-daftar-ulang")
             ->json('data.id');
-        $this->assertDatabaseHas('lembaga_santri', ['santri_id' => $santriId, 'lembaga_id' => $f['mi']->id, 'is_active' => true]);
+        $this->assertDatabaseHas('lembaga_santri', ['santri_id' => $santriId, 'lembaga_id' => $f['mi']->id, 'is_active_lembaga' => 'Ya']);
         $this->assertEquals(0, RiwayatBelajar::where('santri_id', $santriId)->count());
 
         // Santri baru MTS tanpa tingkat: default entry 7.
@@ -624,7 +624,7 @@ class PsbFlowTest extends TestCase
             ->assertStatus(201);
         $santriBaru = $this->actingAs($adminMts, 'sanctum')->postJson("/api/psb/{$calonBaru}/acc-daftar-ulang")
             ->json('data.id');
-        $this->assertDatabaseHas('lembaga_santri', ['santri_id' => $santriBaru, 'lembaga_id' => $f['mts']->id, 'is_active' => true]);
+        $this->assertDatabaseHas('lembaga_santri', ['santri_id' => $santriBaru, 'lembaga_id' => $f['mts']->id, 'is_active_lembaga' => 'Ya']);
         $this->assertEquals(0, RiwayatBelajar::where('santri_id', $santriBaru)->count());
     }
 
@@ -649,7 +649,7 @@ class PsbFlowTest extends TestCase
 
         // ACC: santri + keanggotaan ada, riwayat belum ada.
         $this->assertDatabaseHas('santri', ['id' => $santriId]);
-        $this->assertDatabaseHas('lembaga_santri', ['santri_id' => $santriId, 'lembaga_id' => $f['mi']->id, 'is_active' => true]);
+        $this->assertDatabaseHas('lembaga_santri', ['santri_id' => $santriId, 'lembaga_id' => $f['mi']->id, 'is_active_lembaga' => 'Ya']);
         $this->assertEquals(0, RiwayatBelajar::where('santri_id', $santriId)->count());
 
         // Riwayat perdana diinput lewat halaman Riwayat Belajar.
@@ -663,7 +663,7 @@ class PsbFlowTest extends TestCase
         ])->assertStatus(201);
         $this->assertDatabaseHas('riwayat_belajar', [
             'santri_id' => $santriId, 'lembaga_id' => $f['mi']->id,
-            'semester' => '1', 'tingkat' => '1', 'status_awal' => 'santri_baru', 'is_aktif' => true,
+            'semester' => '1', 'tingkat' => '1', 'status_awal' => 'santri_baru', 'is_active_riwayat' => 'Ya',
         ]);
     }
 
@@ -786,7 +786,7 @@ class PsbFlowTest extends TestCase
 
         $korban = Santri::create([
             'lembaga_id' => $f['mi']->id, 'nama_lengkap' => 'Korban IDOR', 'nik' => '1100000000000301',
-            'jk' => 'L', 'tgl_lahir' => '2014-01-01', 'status_global' => true,
+            'jk' => 'L', 'tgl_lahir' => '2014-01-01', 'is_active_pst' => 'Ya',
         ]);
 
         $res = $this->postJson('/api/psb/daftar', $this->daftarPayload(
@@ -851,7 +851,7 @@ class PsbFlowTest extends TestCase
 
         $santri = Santri::create([
             'lembaga_id' => $f['mi']->id, 'nama_lengkap' => 'Anak Biodata', 'jk' => 'L',
-            'tgl_lahir' => '2013-03-04', 'status_global' => true,
+            'tgl_lahir' => '2013-03-04', 'is_active_pst' => 'Ya',
         ]);
         WaliSantriRelasi::create([
             'user_id' => $ortu->id, 'santri_id' => $santri->id,
@@ -868,7 +868,7 @@ class PsbFlowTest extends TestCase
         ])->assertStatus(422)->assertJsonValidationErrors(['tgl_lahir']);
 
         $this->actingAs($ortu, 'sanctum')->postJson("/api/portal/santri/{$santri->id}/pengajuan-biodata", [
-            'diff' => ['status_global' => false],
+            'diff' => ['is_active_pst' => 'Tidak'],
         ])->assertStatus(422);
 
         // Pengajuan valid -> 201, lalu batalkan -> status dibatalkan.
@@ -1124,7 +1124,7 @@ class PsbFlowTest extends TestCase
 
         // ACC: santri + keanggotaan (riwayat menyusul via Riwayat Belajar).
         $this->assertDatabaseHas('santri', ['id' => $santriId, 'tipe_santri' => 'asrama']);
-        $this->assertDatabaseHas('lembaga_santri', ['santri_id' => $santriId, 'lembaga_id' => $f['mi']->id, 'is_active' => true]);
+        $this->assertDatabaseHas('lembaga_santri', ['santri_id' => $santriId, 'lembaga_id' => $f['mi']->id, 'is_active_lembaga' => 'Ya']);
         $this->assertEquals(0, RiwayatBelajar::where('santri_id', $santriId)->count());
 
         $daftar2 = $this->postJson('/api/psb/daftar', $this->daftarPayload(
@@ -1487,7 +1487,7 @@ class PsbFlowTest extends TestCase
             ->postJson("/api/psb/{$id1}/acc-daftar-ulang", ['nis' => '2400123'])
             ->assertStatus(201)
             ->json('data.id');
-        $this->assertSame('2400123', LembagaSantri::where('santri_id', $santri1)->where('is_active', true)->value('nis_lokal'));
+        $this->assertSame('2400123', LembagaSantri::where('santri_id', $santri1)->where('is_active_lembaga', 'Ya')->value('nis_lokal'));
 
         // ACC tunggal tanpa NIS → tetap null (bisa menyusul via import).
         $id2 = $daftar('Acc Nis Dua');
@@ -1496,7 +1496,7 @@ class PsbFlowTest extends TestCase
             ->postJson("/api/psb/{$id2}/acc-daftar-ulang")
             ->assertStatus(201)
             ->json('data.id');
-        $this->assertNull(LembagaSantri::where('santri_id', $santri2)->where('is_active', true)->value('nis_lokal'));
+        $this->assertNull(LembagaSantri::where('santri_id', $santri2)->where('is_active_lembaga', 'Ya')->value('nis_lokal'));
 
         // Bulk ACC: NIS per calon (map id → NIS); yang kosong tetap null.
         $id3 = $daftar('Acc Nis Tiga');
@@ -1508,8 +1508,8 @@ class PsbFlowTest extends TestCase
             'nis' => [(string) $id3 => '2400456'],
         ]);
         $bulk->assertStatus(200)->assertJsonPath('data.gagal', []);
-        $this->assertSame('2400456', LembagaSantri::where('santri_id', PsbCalonSantri::findOrFail($id3)->santri_id)->where('is_active', true)->value('nis_lokal'));
-        $this->assertNull(LembagaSantri::where('santri_id', PsbCalonSantri::findOrFail($id4)->santri_id)->where('is_active', true)->value('nis_lokal'));
+        $this->assertSame('2400456', LembagaSantri::where('santri_id', PsbCalonSantri::findOrFail($id3)->santri_id)->where('is_active_lembaga', 'Ya')->value('nis_lokal'));
+        $this->assertNull(LembagaSantri::where('santri_id', PsbCalonSantri::findOrFail($id4)->santri_id)->where('is_active_lembaga', 'Ya')->value('nis_lokal'));
 
         // Bulk: NIS panjang (16 karakter) diterima.
         $id4b = $daftar('Acc Nis Empat B');
@@ -1519,7 +1519,7 @@ class PsbFlowTest extends TestCase
             'nis' => [(string) $id4b => '2400456000000001'],
         ]);
         $bulkPanjang->assertStatus(200)->assertJsonPath('data.gagal', []);
-        $this->assertSame('2400456000000001', LembagaSantri::where('santri_id', PsbCalonSantri::findOrFail($id4b)->santri_id)->where('is_active', true)->value('nis_lokal'));
+        $this->assertSame('2400456000000001', LembagaSantri::where('santri_id', PsbCalonSantri::findOrFail($id4b)->santri_id)->where('is_active_lembaga', 'Ya')->value('nis_lokal'));
 
         // Validasi panjang NIS (maks 20): 21 karakter ditolak, 20 karakter diterima.
         $id5 = $daftar('Acc Nis Lima');
@@ -1569,7 +1569,7 @@ class PsbFlowTest extends TestCase
             ->assertStatus(201)
             ->json('data.id');
         $this->assertDatabaseHas('santri', ['id' => $santriId]);
-        $this->assertDatabaseHas('lembaga_santri', ['santri_id' => $santriId, 'nis_lokal' => '36001', 'is_active' => true]);
+        $this->assertDatabaseHas('lembaga_santri', ['santri_id' => $santriId, 'nis_lokal' => '36001', 'is_active_lembaga' => 'Ya']);
         $this->assertEquals(0, RiwayatBelajar::where('santri_id', $santriId)->count());
 
         // Mengundurkan diri dari fase diterima → santri + riwayat ditarik kembali.
@@ -1673,9 +1673,9 @@ class PsbFlowTest extends TestCase
         $santriId = $acc->json('data.id');
 
         // ACC paket: keanggotaan MI + MD ada; riwayat TIDAK dibuat (menyusul via Riwayat Belajar).
-        $this->assertEquals(2, LembagaSantri::where('santri_id', $santriId)->where('is_active', true)->count());
-        $this->assertDatabaseHas('lembaga_santri', ['santri_id' => $santriId, 'lembaga_id' => $f['mi']->id, 'is_active' => true]);
-        $this->assertDatabaseHas('lembaga_santri', ['santri_id' => $santriId, 'lembaga_id' => $f['md']->id, 'is_active' => true]);
+        $this->assertEquals(2, LembagaSantri::where('santri_id', $santriId)->where('is_active_lembaga', 'Ya')->count());
+        $this->assertDatabaseHas('lembaga_santri', ['santri_id' => $santriId, 'lembaga_id' => $f['mi']->id, 'is_active_lembaga' => 'Ya']);
+        $this->assertDatabaseHas('lembaga_santri', ['santri_id' => $santriId, 'lembaga_id' => $f['md']->id, 'is_active_lembaga' => 'Ya']);
         $this->assertEquals(0, RiwayatBelajar::where('santri_id', $santriId)->count());
     }
 

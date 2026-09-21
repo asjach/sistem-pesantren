@@ -42,7 +42,7 @@ class SantriLengkapImport implements SkipsOnFailure, SkipsUnknownSheets, ToColle
     /** Kolom tanggal: serial number Excel → `Y-m-d` (string teks lolos apa adanya). */
     protected const KOLOM_TANGGAL = [
         'tgl_lahir', 'tanggal_masuk', 'ayah_tgl_lahir', 'ibu_tgl_lahir',
-        'wali_tgl_lahir', 'tgl_mulai', 'tgl_selesai',
+        'wali_tgl_lahir', 'tgl_masuk', 'tgl_selesai',
     ];
 
     /** Ringkasan baris (dipakai mode periksa/dry-run). */

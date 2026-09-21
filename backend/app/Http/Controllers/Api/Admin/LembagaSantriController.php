@@ -31,7 +31,7 @@ class LembagaSantriController extends Controller
     private const SORT_NULLABLE = [
         'lembaga_santri.nis_lokal',
         'lembaga_santri.nis_kemenag',
-        'lembaga_santri.tgl_mulai',
+        'lembaga_santri.tgl_masuk',
         'lembaga_santri.tgl_selesai',
         'lembaga.kode',
     ];
@@ -56,8 +56,8 @@ class LembagaSantriController extends Controller
         if ($request->filled('lembaga_id')) {
             $query->where('lembaga_santri.lembaga_id', $request->integer('lembaga_id'));
         }
-        if ($request->has('is_active')) {
-            $query->where('lembaga_santri.is_active', $request->boolean('is_active'));
+        if ($request->has('is_active_lembaga')) {
+            $query->where('lembaga_santri.is_active_lembaga', $request->boolean('is_active_lembaga') ? LembagaSantri::YA : LembagaSantri::TIDAK);
         }
         if ($request->filled('tanpa_nis')) {
             $query->whereNull('lembaga_santri.nis_lokal');
@@ -72,7 +72,7 @@ class LembagaSantriController extends Controller
         }
 
         $bawaan = [
-            ['lembaga_santri.is_active', 'turun'], ['lembaga_santri.id', 'turun'],
+            ['lembaga_santri.is_active_lembaga', 'turun'], ['lembaga_santri.id', 'turun'],
         ];
         // Join relasi hanya bila ada kunci urut (eksplisit atau bawaan) yang butuh.
         $kunciEfektif = ['kunci' => $urut !== null ? $urut['kunci'] : array_map(fn ($p) => $p[0], $bawaan)];
@@ -115,15 +115,15 @@ class LembagaSantriController extends Controller
             'pesan' => 'Keanggotaan lembaga berhasil dimuat.',
             'data' => $santri->lembagaSantri()
                 ->with('lembaga:id,nama,kode,nsm')
-                ->orderByDesc('is_active')
+                ->orderByDesc('is_active_lembaga')
                 ->orderBy('id')
                 ->get(),
         ]);
     }
 
     /** POST /api/admin/santri/{santri}/lembaga — buat/aktifkan keanggotaan.
-     *  Kolom yang diisi manual di halaman Santri Per Jenjang: NIS lokal/kemenag,
-     *  status aktif, tanggal mulai/selesai. */
+     *  Kolom di halaman Santri Per Jenjang: NIS lokal/kemenag, status aktif,
+     *  tanggal masuk/selesai, konteks penerimaan, dan detail sekolah asal. */
     public function store(LembagaSantriStoreRequest $request, Santri $santri, PenerimaanService $penerimaan): JsonResponse
     {
         $this->authorize('update', $santri);
@@ -132,10 +132,17 @@ class LembagaSantriController extends Controller
         $this->authorizeLembaga($request->user(), (int) $data['lembaga_id']);
 
         $keanggotaan = DB::transaction(function () use ($santri, $data, $penerimaan) {
-            // NIS lokal + tanggal mulai lewat pintu tunggal penerimaan.
+            // NIS lokal + konteks penerimaan lewat pintu tunggal penerimaan.
             $row = $penerimaan->pastikanKeanggotaan($santri, (int) $data['lembaga_id'], [
                 'nis_lokal' => $data['nis_lokal'] ?? null,
-                'tgl_mulai' => $data['tgl_mulai'] ?? null,
+                'tgl_masuk' => $data['tgl_masuk'] ?? null,
+                'tahaj_masuk' => $data['tahaj_masuk'] ?? null,
+                'tingkat_masuk' => $data['tingkat_masuk'] ?? null,
+                'no_urut' => $data['no_urut'] ?? null,
+                'nama_sekolah_asal' => $data['nama_sekolah_asal'] ?? null,
+                'npsn_sekolah_asal' => $data['npsn_sekolah_asal'] ?? null,
+                'nss_sekolah_asal' => $data['nss_sekolah_asal'] ?? null,
+                'alamat_sekolah_asal' => $data['alamat_sekolah_asal'] ?? null,
             ]);
 
             $tambahan = [];
@@ -145,8 +152,8 @@ class LembagaSantriController extends Controller
             if (array_key_exists('tgl_selesai', $data)) {
                 $tambahan['tgl_selesai'] = $data['tgl_selesai'] ?: null;
             }
-            if (array_key_exists('is_active', $data)) {
-                $tambahan['is_active'] = (bool) $data['is_active'];
+            if (array_key_exists('is_active_lembaga', $data)) {
+                $tambahan['is_active_lembaga'] = $data['is_active_lembaga'];
             }
             if ($tambahan !== []) {
                 $row->update($tambahan);
@@ -183,7 +190,7 @@ class LembagaSantriController extends Controller
 
         $lembagaSantri->update($data);
 
-        // Status aktif keanggotaan tidak otomatis mengubah riwayat; status_global tetap turunan riwayat.
+        // Status aktif keanggotaan tidak otomatis mengubah riwayat; is_active_pst tetap turunan riwayat.
 
         return response()->json(['pesan' => 'Keanggotaan diperbarui.', 'data' => $lembagaSantri->fresh()]);
     }
@@ -229,8 +236,8 @@ class LembagaSantriController extends Controller
         if ($request->filled('lembaga_id')) {
             $query->where('lembaga_santri.lembaga_id', $request->integer('lembaga_id'));
         }
-        if ($request->has('is_active')) {
-            $query->where('lembaga_santri.is_active', $request->boolean('is_active'));
+        if ($request->has('is_active_lembaga')) {
+            $query->where('lembaga_santri.is_active_lembaga', $request->boolean('is_active_lembaga') ? LembagaSantri::YA : LembagaSantri::TIDAK);
         }
         if ($request->filled('search')) {
             $s = $request->input('search');

@@ -57,7 +57,7 @@ class SiklusController extends Controller
         $tanggal = (string) $data['tanggal_masuk'];
 
         $items = $data['siswa'] ?? RiwayatBelajar::where('lembaga_id', $lembagaId)
-            ->where('semester', '1')->where('is_aktif', true)
+            ->where('semester', '1')->where('is_active_riwayat', RiwayatBelajar::YA)
             ->orderBy('id')->get()
             ->map(fn (RiwayatBelajar $r) => ['santri_id' => (int) $r->santri_id])
             ->all();
@@ -97,7 +97,7 @@ class SiklusController extends Controller
             throw ValidationException::withMessages(['kelas_id' => 'Kelas beda lembaga.']);
         }
         $ganjil = RiwayatBelajar::where('santri_id', $santri->id)
-            ->where('lembaga_id', $lembagaId)->where('is_aktif', true)
+            ->where('lembaga_id', $lembagaId)->where('is_active_riwayat', RiwayatBelajar::YA)
             ->latest('id')->first();
         if ($ganjil && (int) $kelas->tahun_ajaran_id !== (int) $ganjil->tahun_ajaran_id) {
             throw ValidationException::withMessages(['kelas_id' => 'Kelas beda tahun ajaran.']);
@@ -313,7 +313,7 @@ class SiklusController extends Controller
      * `lembaga_anggota` (baris `lembaga_santri` santri+lembaga, aktif
      * diutamakan) + relasi kelas/lembaga/tahun ajaran. `nis_lokal` ringkas
      * dipertahankan untuk kompatibilitas.
-     * Tanpa `kelompok_status`: perilaku lama (is_aktif pada TA default aktif
+     * Tanpa `kelompok_status`: perilaku lama (is_active_riwayat pada TA default aktif
      * + semester berjalan). Dengan `kelompok_status=aktif|nonaktif`: basis
      * tampil = status_akhir (aktif = Aktif, Naik, Tidak Naik, Lulus,
      * Tidak Lulus; nonaktif = Pindah/Keluar) dan `lintas_periode=1`
@@ -339,7 +339,7 @@ class SiklusController extends Controller
 
         $semester = $data['semester']
             ?? ($lintas || $taId === null ? null : (string) (RiwayatBelajar::where('lembaga_id', $lembagaId)
-                ->where('tahun_ajaran_id', $taId)->where('is_aktif', true)
+                ->where('tahun_ajaran_id', $taId)->where('is_active_riwayat', RiwayatBelajar::YA)
                 ->orderByDesc('semester')->value('semester') ?? '1'));
 
         $query = RiwayatBelajar::with([
@@ -355,12 +355,12 @@ class SiklusController extends Controller
             $query->where('semester', $semester);
         }
         if ($kelompok === 'aktif') {
-            // Aktif = gabungan status akhir (bukan flag is_aktif).
+            // Aktif = gabungan status akhir (bukan flag is_active_riwayat).
             $query->whereIn('status_akhir', ['aktif', 'naik', 'tidak_naik', 'lulus', 'tidak_lulus']);
         } elseif ($kelompok === 'nonaktif') {
             $query->where('status_akhir', 'pindah_keluar');
         } else {
-            $query->where('is_aktif', true);
+            $query->where('is_active_riwayat', RiwayatBelajar::YA);
         }
 
         if (! empty($data['kelas_id'])) {
@@ -375,7 +375,7 @@ class SiklusController extends Controller
         // ringkas (kompatibilitas payload lama).
         $anggota = LembagaSantri::whereIn('santri_id', $baris->pluck('santri_id')->unique())
             ->where('lembaga_id', $lembagaId)
-            ->orderByDesc('is_active')->orderBy('id')
+            ->orderByDesc('is_active_lembaga')->orderBy('id')
             ->get()->groupBy('santri_id')->map->first();
         $baris->each(function ($r) use ($anggota) {
             $ls = $anggota[$r->santri_id] ?? null;
@@ -402,7 +402,7 @@ class SiklusController extends Controller
         $data = $request->validated();
 
         $riwayatQuery = function () use ($request, $data) {
-            $q = RiwayatBelajar::query()->where('is_aktif', true);
+            $q = RiwayatBelajar::query()->where('is_active_riwayat', RiwayatBelajar::YA);
             $this->scopeLembaga($q, $request->user(), $request, 'lembaga_id');
             if (! empty($data['tahun_ajaran_id'])) {
                 $q->where('tahun_ajaran_id', (int) $data['tahun_ajaran_id']);

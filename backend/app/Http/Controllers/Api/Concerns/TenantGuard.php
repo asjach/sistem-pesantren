@@ -96,7 +96,7 @@ trait TenantGuard
         }
         $punya = RiwayatBelajar::where('santri_id', $santri->id)
             ->where('lembaga_id', $target)
-            ->where('is_aktif', true)
+            ->where('is_active_riwayat', RiwayatBelajar::YA)
             ->exists();
         if (! $punya) {
             abort(403, 'Akses ditolak.');

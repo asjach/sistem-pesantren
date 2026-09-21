@@ -177,7 +177,7 @@ class RiwayatBelajarImport implements SkipsOnFailure, SkipsUnknownSheets, ToColl
             'tingkat' => $tingkat,
             'status_awal' => $statusAwal,
             'status_akhir' => $statusAkhir,
-            'is_aktif' => $statusAkhir === 'aktif',
+            'is_active_riwayat' => $statusAkhir === 'aktif' ? RiwayatBelajar::YA : RiwayatBelajar::TIDAK,
         ]);
 
         $tersentuh[] = (int) $santri->id;
@@ -238,7 +238,7 @@ class RiwayatBelajarImport implements SkipsOnFailure, SkipsUnknownSheets, ToColl
             'santri_id' => $santri->id,
             'lembaga_id' => $lembagaId,
             'nis_lokal' => $nisLokal,
-            'is_active' => true,
+            'is_active_lembaga' => LembagaSantri::YA,
         ]);
     }
 

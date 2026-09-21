@@ -67,7 +67,7 @@ class MiMdController extends Controller
 
         // Keanggotaan aktif per sisi + santri + riwayat aktif terbaru + kelas.
         $anggota = LembagaSantri::whereIn('lembaga_id', [$miId, $mdId])
-            ->where('is_active', true)
+            ->where('is_active_lembaga', LembagaSantri::YA)
             ->with([
                 'santri:id,nama_lengkap',
                 'santri.riwayatAktif' => fn ($q) => $q->with('kelas:id,nama_kelas')->latest('id'),
@@ -181,7 +181,7 @@ class MiMdController extends Controller
 
                 $acuan = RiwayatBelajar::where('santri_id', $santri->id)
                     ->where('lembaga_id', $acuanId)
-                    ->where('is_aktif', true)
+                    ->where('is_active_riwayat', RiwayatBelajar::YA)
                     ->with('kelas:id,nama_kelas')
                     ->latest('id')
                     ->first();
@@ -194,7 +194,7 @@ class MiMdController extends Controller
 
                 $tujuan = RiwayatBelajar::where('santri_id', $santri->id)
                     ->where('lembaga_id', $tujuanId)
-                    ->where('is_aktif', true)
+                    ->where('is_active_riwayat', RiwayatBelajar::YA)
                     ->latest('id')
                     ->first();
                 if (! $tujuan) {
@@ -291,16 +291,16 @@ class MiMdController extends Controller
 
                 $mi = LembagaSantri::where('santri_id', $santri->id)
                     ->where('lembaga_id', $miId)
-                    ->where('is_active', true)
+                    ->where('is_active_lembaga', LembagaSantri::YA)
                     ->first();
                 if (! $mi) {
                     throw ValidationException::withMessages(['santri_id' => 'Bukan anggota aktif MI.']);
                 }
 
-                // NIS mewarisi MI (kebijakan satu nomor); tgl_mulai hari ini.
+                // NIS mewarisi MI (kebijakan satu nomor); tgl_masuk hari ini.
                 $this->penerimaanService->pastikanKeanggotaan($santri, $mdId, [
                     'nis_lokal' => $mi->nis_lokal,
-                    'tgl_mulai' => now()->format('Y-m-d'),
+                    'tgl_masuk' => now()->format('Y-m-d'),
                 ]);
                 $berhasil++;
             } catch (ValidationException $e) {
@@ -352,7 +352,7 @@ class MiMdController extends Controller
                 // Hanya yang masih MI aktif (kembali menjadi MI Only).
                 $miAktif = LembagaSantri::where('santri_id', $santri->id)
                     ->where('lembaga_id', $miId)
-                    ->where('is_active', true)
+                    ->where('is_active_lembaga', LembagaSantri::YA)
                     ->exists();
                 if (! $miAktif) {
                     throw ValidationException::withMessages(['santri_id' => 'Bukan anggota aktif MI.']);

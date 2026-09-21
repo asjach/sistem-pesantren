@@ -67,7 +67,7 @@ class SamakanNisTest extends TestCase
     {
         LembagaSantri::create([
             'santri_id' => $s->id, 'lembaga_id' => $lembagaId,
-            'nis_lokal' => $nis, 'is_active' => true,
+            'nis_lokal' => $nis, 'is_active_lembaga' => 'Ya',
         ]);
     }
 
