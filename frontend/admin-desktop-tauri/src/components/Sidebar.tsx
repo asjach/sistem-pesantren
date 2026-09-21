@@ -37,9 +37,11 @@ function segmenBaris(atasAktif: boolean, bawah: 'aksen' | 'abu' | 'nihil') {
   );
 }
 
-/** Lanjutan garis luar di samping blok bersarang yang masih punya adik di
- *  bawahnya: garis penuh sejajar garis luar (blok menjorok 15px + pad 8px
- *  → garis di -23px dari wadah bersarang). */
+/** Lanjutan garis level INDUK di samping blok anak yang masih punya adik di
+ *  bawahnya, segaris dengan spine level induk: baris sub menggambar segmennya
+ *  di `-left-2` dari tepi barisnya, sedangkan blok anak menjorok 15px
+ *  (`ml-[15px]`) → garis di `-left-[23px]` dari wadah anak. Aksen bila trail
+ *  terus turun ke adik di bawahnya, abu bila tidak. */
 function lanjutanLuar(aktif = false) {
   return cn(
     'relative before:absolute before:top-0 before:bottom-0 before:-left-[23px] before:w-px before:content-[""]',
@@ -48,15 +50,16 @@ function lanjutanLuar(aktif = false) {
 }
 
 /** Segmen pembungkus tombol sub-grup: paruh atas masuk ke titik (aksen bila
- *  di jalur), paruh bawah SELALU abu sebagai penyambung ke blok bersarang —
- *  tanpa celah kosong. Paruh bawah absen bila sub terakhir & tertutup (tak
- *  ada lanjutan) agar tak menjuntai. */
-function segmenSub(terakhir: boolean, buka: boolean, segAktif: boolean) {
+ *  di jalur); paruh bawah menyambung ke bawah tombol — aksen bila trail
+ *  berlanjut turun (`lanjutAktif`), abu bila tidak. Paruh bawah absen bila
+ *  sub terakhir & tertutup (tak ada lanjutan) agar tak menjuntai. */
+function segmenSub(terakhir: boolean, buka: boolean, segAktif: boolean, lanjutAktif: boolean) {
+  const lanjut = !terakhir || buka;
   return cn(
     'relative before:absolute before:top-0 before:-left-2 before:w-px before:content-[""] before:bottom-1/2',
     segAktif ? 'before:bg-[var(--accent)]' : 'before:bg-white/15',
-    (!terakhir || buka)
-      && 'after:absolute after:top-1/2 after:bottom-0 after:-left-2 after:w-px after:bg-white/15 after:content-[""]',
+    lanjut && 'after:absolute after:top-1/2 after:bottom-0 after:-left-2 after:w-px after:content-[""]',
+    lanjut && (lanjutAktif ? 'after:bg-[var(--accent)]' : 'after:bg-white/15'),
   );
 }
 
@@ -163,7 +166,8 @@ export default function Sidebar() {
 
   /** Tautan halaman: rail lipat = ikon saja; anak submenu = teks menjorok
    *  tanpa ikon; selain itu ikon + label penuh. */
-  function tautanHalaman(h: HalamanDef, ikonSaja: boolean, anak = false) {    const Icon = h.icon;
+  function tautanHalaman(h: HalamanDef, ikonSaja: boolean, anak = false) {
+    const Icon = h.icon;
     return (
       <NavLink
         key={h.to}
@@ -235,7 +239,7 @@ export default function Sidebar() {
     const idx = indeksAktif(n.anak, n.items);
     return (
       <div key={n.kunci}>
-        <div className={segmenSub(terakhir, buka, segAktif)}>
+        <div className={segmenSub(terakhir, buka, segAktif, lanjutAktif)}>
           <button
             id={`btn_grup_sidebar_${idAman}`}
             type="button"
