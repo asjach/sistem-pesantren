@@ -47,9 +47,9 @@ export function ProfilSantriDialog({ santriId, open, onOpenChange }: {
             lembaga: k.lembaga?.kode ?? k.lembaga?.nama ?? '',
             nis_lokal: k.nis_lokal ?? '',
             nis_kemenag: k.nis_kemenag ?? '',
-            mulai: ymd(k.tgl_mulai),
+            mulai: ymd(k.tgl_masuk),
             selesai: ymd(k.tgl_selesai),
-            aktif: k.is_active ? 'Ya' : 'Tidak',
+            aktif: k.is_active_lembaga,
           })),
         },
         {
@@ -72,7 +72,7 @@ export function ProfilSantriDialog({ santriId, open, onOpenChange }: {
             kelas: r.kelas?.nama_kelas ?? '',
             status_awal: r.status_awal ?? '',
             status_akhir: r.status_akhir ?? '',
-            aktif: r.is_aktif ? 'Ya' : 'Tidak',
+            aktif: r.is_active_riwayat,
           })),
         },
         {

@@ -98,6 +98,7 @@ const SANTRI_FIELDS: ExcelField[] = [
   teks('kebutuhan_disabilitas', 'Disabilitas', 130),
   teks('nomor_kip', 'No. KIP', 130),
   { key: 'no_kk', label: 'no_kk', width: 150, kind: 'text', maxLength: 16, validate: digitValidator(16, 'No. KK') },
+  teks('kepala_keluarga', 'Kepala keluarga', 150),
   teks('kewarganegaraan', 'Kewarganegaraan', 130),
   teks('bahasa_sehari', 'Bahasa sehari-hari', 150),
   teks('status_tempat_tinggal', 'Tempat tinggal', 150),
@@ -117,7 +118,7 @@ const SANTRI_FIELDS: ExcelField[] = [
   ...pihakFields('ibu', 'Ibu'),
   ...pihakFields('wali', 'Wali'),
   teks('yang_membiayai', 'Yang membiayai', 140),
-  { key: 'status', label: 'status_global', width: 100, kind: 'static', sumber: { tabel: 'santri', kolom: 'status_global' } },
+  { key: 'status', label: 'is_active_pst', width: 100, kind: 'static', sumber: { tabel: 'santri', kolom: 'is_active_pst' } },
 ];
 
 /** Prefiks kunci kolom NIS per lembaga (kolom dinamis cerminan `lembaga_santri`). */
@@ -140,7 +141,7 @@ function santriGridValues(s: Santri): Record<string, string | null> {
     const str = String(raw);
     out[f.key] = TGL_KEYS.has(f.key) ? str.slice(0, 10) : str;
   }
-  out.status = s.status_global ? 'aktif' : 'nonaktif';
+  out.status = s.is_active_pst === 'Ya' ? 'aktif' : 'nonaktif';
   return out;
 }
 
@@ -208,7 +209,7 @@ export default function SantriPage() {
   } = useDaftarTabel<Santri>({
     tableKey: 'santri',
     ambil: (a) => listSantri({
-      status_global: statusGlobal === '_semua' ? undefined : statusGlobal === 'aktif',
+      is_active_pst: statusGlobal === '_semua' ? undefined : statusGlobal === 'aktif',
       lembaga_id: lembagaId ? Number(lembagaId) : undefined,
       q: a.search || undefined,
       sort: a.urut.length ? a.urut : undefined,
@@ -330,7 +331,7 @@ export default function SantriPage() {
       await createLembagaSantri(anggotaRow.id, {
         lembaga_id: Number(anggotaLembaga),
         nis_lokal: anggotaNis.trim() || null,
-        tgl_mulai: anggotaMulai || null,
+        tgl_masuk: anggotaMulai || null,
       });
       toast.success('Keanggotaan disimpan.');
       setAnggotaNis('');
@@ -519,9 +520,9 @@ export default function SantriPage() {
                     <td className="p-2">{ls.lembaga?.kode ?? ls.lembaga?.nama ?? ls.lembaga_id}</td>
                     <td className="p-2">{ls.nis_lokal ?? '—'}</td>
                     <td className="p-2">{ls.nis_kemenag ?? '—'}</td>
-                    <td className="p-2">{ls.tgl_mulai?.slice(0, 10) ?? '—'}</td>
+                    <td className="p-2">{ls.tgl_masuk?.slice(0, 10) ?? '—'}</td>
                     <td className="p-2">{ls.tgl_selesai?.slice(0, 10) ?? '—'}</td>
-                    <td className="p-2">{ls.is_active ? 'aktif' : 'nonaktif'}</td>
+                    <td className="p-2">{ls.is_active_lembaga === 'Ya' ? 'aktif' : 'nonaktif'}</td>
                     <td className="p-2 text-right">
                       <Button
                         id={`btn_generate_nisk_${ls.id}`}

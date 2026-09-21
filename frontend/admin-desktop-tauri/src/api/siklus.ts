@@ -111,7 +111,8 @@ export interface RiwayatRow {
   tingkat: string | null;
   status_awal: string | null;
   status_akhir: string | null;
-  is_aktif: boolean;
+  /** Jejak akademik aktif: 'Ya' | 'Tidak'. */
+  is_active_riwayat: string;
   created_at?: string | null;
   updated_at?: string | null;
   /** NIS lokal dari keanggotaan (`lembaga_santri`) — dilampirkan backend pada daftar. */
@@ -132,7 +133,7 @@ export function listRiwayatBelajar(params: {
   kelas_id?: number;
   tanpa_kelas?: boolean;
   q?: string;
-  is_aktif?: boolean;
+  is_active_riwayat?: boolean;
   status_awal?: string;
   status_akhir?: string;
   sort?: string[];
@@ -149,7 +150,7 @@ export function listRiwayatBelajar(params: {
   if (params.kelas_id) q.set('kelas_id', String(params.kelas_id));
   if (params.tanpa_kelas) q.set('tanpa_kelas', '1');
   if (params.q) q.set('q', params.q);
-  if (params.is_aktif !== undefined) q.set('is_aktif', params.is_aktif ? '1' : '0');
+  if (params.is_active_riwayat !== undefined) q.set('is_active_riwayat', params.is_active_riwayat ? '1' : '0');
   if (params.status_akhir) q.set('status_akhir', params.status_akhir);
   if (params.status_awal) q.set('status_awal', params.status_awal);
   if (params.sort?.length) q.set('sort', params.sort.join(','));

@@ -10,8 +10,16 @@ export interface LembagaSantri {
   lembaga_id: number;
   nis_lokal: string | null;
   nis_kemenag: string | null;
-  is_active: boolean;
-  tgl_mulai: string | null;
+  tahaj_masuk: string | null;
+  tingkat_masuk: string | null;
+  no_urut: number | null;
+  nama_sekolah_asal: string | null;
+  npsn_sekolah_asal: string | null;
+  nss_sekolah_asal: string | null;
+  alamat_sekolah_asal: string | null;
+  /** Keaktifan keanggotaan: 'Ya' | 'Tidak'. */
+  is_active_lembaga: string;
+  tgl_masuk: string | null;
   tgl_selesai: string | null;
   lembaga?: { id: number; nama: string; kode: string | null; nsm?: string | null } | null;
   santri?: { id: number; nama_lengkap: string; jk: string | null } | null;
@@ -20,7 +28,7 @@ export interface LembagaSantri {
 /** Daftar keanggotaan lintas santri (halaman Keanggotaan terpusat). */
 export function listKeanggotaan(params: {
   lembaga_id?: number | null;
-  is_active?: boolean | null;
+  is_active_lembaga?: boolean | null;
   tanpa_nis?: boolean;
   search?: string;
   sort?: string[];
@@ -30,7 +38,7 @@ export function listKeanggotaan(params: {
 } = {}) {
   const q = new URLSearchParams();
   if (params.lembaga_id != null) q.set('lembaga_id', String(params.lembaga_id));
-  if (params.is_active != null) q.set('is_active', params.is_active ? '1' : '0');
+  if (params.is_active_lembaga != null) q.set('is_active_lembaga', params.is_active_lembaga ? '1' : '0');
   if (params.tanpa_nis) q.set('tanpa_nis', '1');
   if (params.search) q.set('search', params.search);
   if (params.sort?.length) q.set('sort', params.sort.join(','));
@@ -51,7 +59,8 @@ export interface Santri {
   tgl_lahir: string | null;
   jk: string | null;
   tipe_santri: string | null;
-  status_global: boolean;
+  /** Keaktifan pesantren (turunan): 'Ya' | 'Tidak'. */
+  is_active_pst: string;
   foto_url?: string | null;
   lembaga_aktif?: LembagaSantri[];
 }
@@ -104,6 +113,7 @@ export interface SantriPenuh extends Santri {
   wali_status_tempat_tinggal?: string | null;
   yang_membiayai?: string | null;
   no_kk?: string | null;
+  kepala_keluarga?: string | null;
   kewarganegaraan?: string | null;
   bahasa_sehari?: string | null;
   status_tempat_tinggal?: string | null;
@@ -134,10 +144,10 @@ export interface DokumenSantri {
 }
 
 export function listSantri(
-  params: { status_global?: boolean; lembaga_id?: number; q?: string; sort?: string[]; arah?: 'naik' | 'turun'; page?: number; per_page?: number; signal?: AbortSignal } = {},
+  params: { is_active_pst?: boolean; lembaga_id?: number; q?: string; sort?: string[]; arah?: 'naik' | 'turun'; page?: number; per_page?: number; signal?: AbortSignal } = {},
 ) {
   const q = new URLSearchParams();
-  if (params.status_global !== undefined) q.set('status_global', params.status_global ? '1' : '0');
+  if (params.is_active_pst !== undefined) q.set('is_active_pst', params.is_active_pst ? '1' : '0');
   if (params.lembaga_id) q.set('lembaga_id', String(params.lembaga_id));
   if (params.q) q.set('q', params.q);
   if (params.sort?.length) q.set('sort', params.sort.join(','));
@@ -234,8 +244,15 @@ export function createLembagaSantri(
     lembaga_id: number;
     nis_lokal?: string | null;
     nis_kemenag?: string | null;
-    is_active?: boolean;
-    tgl_mulai?: string | null;
+    tahaj_masuk?: string | null;
+    tingkat_masuk?: string | null;
+    no_urut?: number | null;
+    nama_sekolah_asal?: string | null;
+    npsn_sekolah_asal?: string | null;
+    nss_sekolah_asal?: string | null;
+    alamat_sekolah_asal?: string | null;
+    is_active_lembaga?: 'Ya' | 'Tidak';
+    tgl_masuk?: string | null;
     tgl_selesai?: string | null;
   },
 ) {
@@ -250,8 +267,15 @@ export function updateLembagaSantri(
   input: {
     nis_lokal?: string | null;
     nis_kemenag?: string | null;
-    is_active?: boolean;
-    tgl_mulai?: string | null;
+    tahaj_masuk?: string | null;
+    tingkat_masuk?: string | null;
+    no_urut?: number | null;
+    nama_sekolah_asal?: string | null;
+    npsn_sekolah_asal?: string | null;
+    nss_sekolah_asal?: string | null;
+    alamat_sekolah_asal?: string | null;
+    is_active_lembaga?: 'Ya' | 'Tidak';
+    tgl_masuk?: string | null;
     tgl_selesai?: string | null;
   },
 ) {
@@ -270,7 +294,7 @@ export function generateNisk(id: number) {
 
 /** Generate NISK massal untuk semua baris cocok filter (lewati: sudah ada,
  *  NIS lokal kosong, lembaga MD). */
-export function generateNiskBulk(filter: { lembaga_id?: number; is_active?: boolean; search?: string }) {
+export function generateNiskBulk(filter: { lembaga_id?: number; is_active_lembaga?: boolean; search?: string }) {
   return api<{ pesan: string; data: { berhasil: number; dilewati: number; gagal: { id: number; pesan: string }[] } }>(
     '/admin/lembaga-santri/generate-nisk-bulk',
     { method: 'POST', body: JSON.stringify(filter) },

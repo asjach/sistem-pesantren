@@ -50,7 +50,7 @@ export default function KenaikanKelasPage() {
       const res = await listRiwayatBelajar({
         lembaga_id: Number(lembagaId),
         semester: '2',
-        is_aktif: true,
+        is_active_riwayat: true,
         sort: urutPakai.length ? urutPakai : undefined,
         arah: urutPakai.length ? arahPakai : undefined,
         per_page: 500,
@@ -81,8 +81,8 @@ export default function KenaikanKelasPage() {
     if (!lembagaId) { setHasilNaik([]); setHasilTidak([]); return; }
     try {
       const [naik, tidak] = await Promise.all([
-        listRiwayatBelajar({ lembaga_id: Number(lembagaId), status_awal: 'kenaikan', is_aktif: true, per_page: 500 }),
-        listRiwayatBelajar({ lembaga_id: Number(lembagaId), status_awal: 'mengulang', is_aktif: true, per_page: 500 }),
+        listRiwayatBelajar({ lembaga_id: Number(lembagaId), status_awal: 'kenaikan', is_active_riwayat: true, per_page: 500 }),
+        listRiwayatBelajar({ lembaga_id: Number(lembagaId), status_awal: 'mengulang', is_active_riwayat: true, per_page: 500 }),
       ]);
       setHasilNaik(naik.data.map(barisHasil));
       setHasilTidak(tidak.data.map(barisHasil));

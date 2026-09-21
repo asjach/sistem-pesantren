@@ -40,7 +40,7 @@ const FIELDS_KIRI: ExcelField[] = [
   { key: 'nama', label: 'santri.nama_lengkap', width: 200, kind: 'static', sumber: { tabel: 'santri', kolom: 'nama_lengkap' } },
   { key: 'nis', label: 'nis_lokal', width: 110, kind: 'static', sumber: { tabel: 'lembaga_santri', kolom: 'nis_lokal' } },
   { key: 'jk', label: 'santri.jk', width: 70, kind: 'static', sumber: { tabel: 'santri', kolom: 'jk' } },
-  { key: 'mulai', label: 'tgl_mulai', width: 110, kind: 'static', sumber: { tabel: 'lembaga_santri', kolom: 'tgl_mulai' } },
+  { key: 'masuk', label: 'tgl_masuk', width: 110, kind: 'static', sumber: { tabel: 'lembaga_santri', kolom: 'tgl_masuk' } },
 ];
 
 function belumMasukValues(r: LembagaSantri): Record<string, string | null> {
@@ -48,7 +48,7 @@ function belumMasukValues(r: LembagaSantri): Record<string, string | null> {
     nama: r.santri?.nama_lengkap ?? String(r.santri_id),
     nis: r.nis_lokal ?? null,
     jk: r.santri?.jk ?? null,
-    mulai: r.tgl_mulai ? r.tgl_mulai.slice(0, 10) : null,
+    masuk: r.tgl_masuk ? r.tgl_masuk.slice(0, 10) : null,
   };
 }
 
@@ -113,7 +113,7 @@ export default function RiwayatBelajarPage() {
         tahun_ajaran_id: Number(taId),
         semester: '1',
         kelas_id: kelasId ? Number(kelasId) : undefined,
-        is_aktif: true,
+        is_active_riwayat: true,
         q: a.search || undefined,
         sort: a.urut.length ? a.urut : undefined,
         arah: a.urut.length ? a.arah : undefined,

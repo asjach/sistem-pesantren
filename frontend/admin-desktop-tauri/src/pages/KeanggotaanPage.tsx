@@ -90,7 +90,7 @@ export default function KeanggotaanPage() {
       const fl = f ?? { lembagaId: lembagaEfektif, status, cari, urut, arah: arahUrut };
       const res = await listKeanggotaan({
         lembaga_id: fl.lembagaId ? Number(fl.lembagaId) : null,
-        is_active: fl.status === '' ? null : fl.status === '1',
+        is_active_lembaga: fl.status === '' ? null : fl.status === '1',
         search: fl.cari || undefined,
         sort: fl.urut?.length ? fl.urut : undefined,
         arah: fl.urut?.length ? (fl.arah ?? 'naik') : undefined,
@@ -152,15 +152,26 @@ export default function KeanggotaanPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cari, pager.ready]);
 
-  /** Mode Edit sel: simpan kolom yang berubah (NIS lokal/kemenag & tanggal). */
+  /** Mode Edit sel: simpan kolom yang berubah (NIS, konteks masuk, sekolah asal, tanggal). */
   async function commitBaris(id: number, f: Record<string, string | null>) {
     const body: {
       nis_lokal?: string | null; nis_kemenag?: string | null;
-      tgl_mulai?: string | null; tgl_selesai?: string | null;
+      tahaj_masuk?: string | null; tingkat_masuk?: string | null; no_urut?: number | null;
+      nama_sekolah_asal?: string | null; npsn_sekolah_asal?: string | null;
+      nss_sekolah_asal?: string | null; alamat_sekolah_asal?: string | null;
+      is_active_lembaga?: 'Ya' | 'Tidak';
+      tgl_masuk?: string | null; tgl_selesai?: string | null;
     } = {};
     if (f.nis_lokal !== undefined) body.nis_lokal = teksAtauNull(f.nis_lokal);
     if (f.nis_kemenag !== undefined) body.nis_kemenag = teksAtauNull(f.nis_kemenag);
-    if (f.mulai !== undefined) body.tgl_mulai = teksAtauNull(f.mulai);
+    if (f.tahaj_masuk !== undefined) body.tahaj_masuk = teksAtauNull(f.tahaj_masuk);
+    if (f.tingkat_masuk !== undefined) body.tingkat_masuk = teksAtauNull(f.tingkat_masuk);
+    if (f.no_urut !== undefined) body.no_urut = teksAtauNull(f.no_urut) === null ? null : Number(f.no_urut);
+    if (f.nama_sekolah_asal !== undefined) body.nama_sekolah_asal = teksAtauNull(f.nama_sekolah_asal);
+    if (f.npsn_sekolah_asal !== undefined) body.npsn_sekolah_asal = teksAtauNull(f.npsn_sekolah_asal);
+    if (f.nss_sekolah_asal !== undefined) body.nss_sekolah_asal = teksAtauNull(f.nss_sekolah_asal);
+    if (f.alamat_sekolah_asal !== undefined) body.alamat_sekolah_asal = teksAtauNull(f.alamat_sekolah_asal);
+    if (f.masuk !== undefined) body.tgl_masuk = teksAtauNull(f.masuk);
     if (f.selesai !== undefined) body.tgl_selesai = teksAtauNull(f.selesai);
     if (Object.keys(body).length === 0) return;
     await updateLembagaSantri(id, body);
@@ -173,8 +184,8 @@ export default function KeanggotaanPage() {
       await updateLembagaSantri(ubah.id, {
         nis_lokal: teksAtauNull(fNis),
         nis_kemenag: teksAtauNull(fKemenag),
-        is_active: fAktif === '1',
-        tgl_mulai: teksAtauNull(fMulai),
+        is_active_lembaga: fAktif === '1' ? 'Ya' : 'Tidak',
+        tgl_masuk: teksAtauNull(fMulai),
         tgl_selesai: teksAtauNull(fSelesai),
       });
       toast.success('Keanggotaan diubah.');
@@ -186,9 +197,9 @@ export default function KeanggotaanPage() {
   async function togolAktif(r: LembagaSantri) {
     setBusyId(r.id);
     try {
-      const aktif = !r.is_active;
+      const aktif = r.is_active_lembaga !== 'Ya';
       await updateLembagaSantri(r.id, {
-        is_active: aktif,
+        is_active_lembaga: aktif ? 'Ya' : 'Tidak',
         tgl_selesai: aktif ? null : hariIni(),
       });
       toast.success(aktif ? 'Keanggotaan diaktifkan.' : 'Keanggotaan dinonaktifkan.');
@@ -203,7 +214,7 @@ export default function KeanggotaanPage() {
     try {
       const res = await generateNiskBulk({
         ...(lembagaEfektif === '' ? {} : { lembaga_id: Number(lembagaEfektif) }),
-        ...(status === '' ? {} : { is_active: status === '1' }),
+        ...(status === '' ? {} : { is_active_lembaga: status === '1' }),
         ...(cari.trim() === '' ? {} : { search: cari.trim() }),
       });
       toast.success(res.pesan);
@@ -227,8 +238,8 @@ export default function KeanggotaanPage() {
         lembaga_id: Number(tLembaga),
         nis_lokal: teksAtauNull(tNis),
         nis_kemenag: teksAtauNull(tKemenag),
-        is_active: tAktif === '1',
-        tgl_mulai: teksAtauNull(tMulai),
+        is_active_lembaga: tAktif === '1' ? 'Ya' : 'Tidak',
+        tgl_masuk: teksAtauNull(tMulai),
         tgl_selesai: teksAtauNull(tSelesai),
       });
       toast.success('Keanggotaan ditambahkan.');
@@ -239,8 +250,8 @@ export default function KeanggotaanPage() {
     } catch (e) { toast.error(errorMessage(e)); } finally { setBusyId(null); }
   }
 
-  /** Kolom grid: NIS/status/tanggal bisa diedit; santri & lembaga tampil saja
-   *  (tambah lewat dialog Tambah). */
+  /** Kolom grid: NIS, konteks masuk, sekolah asal, dan tanggal bisa diedit;
+   *  santri & lembaga tampil saja (tambah lewat dialog Tambah). */
   const fields = useMemo<ExcelField[]>(() => [
     {
       key: 'santri', label: 'santri.nama_lengkap', kind: 'static',
@@ -253,8 +264,15 @@ export default function KeanggotaanPage() {
     },
     { key: 'nis_lokal', label: 'nis_lokal', kind: 'text', maxLength: 20, sumber: { tabel: 'lembaga_santri', kolom: 'nis_lokal' } },
     { key: 'nis_kemenag', label: 'nis_kemenag', kind: 'text', maxLength: 20, sumber: { tabel: 'lembaga_santri', kolom: 'nis_kemenag' } },
-    { key: 'aktif', label: 'is_active', kind: 'static', width: 90, sumber: { tabel: 'lembaga_santri', kolom: 'is_active' } },
-    { key: 'mulai', label: 'tgl_mulai', kind: 'text', maxLength: 10, width: 110, validate: tglValidator, sumber: { tabel: 'lembaga_santri', kolom: 'tgl_mulai' } },
+    { key: 'tahaj_masuk', label: 'tahaj_masuk', kind: 'text', maxLength: 50, width: 120, sumber: { tabel: 'lembaga_santri', kolom: 'tahaj_masuk' } },
+    { key: 'tingkat_masuk', label: 'tingkat_masuk', kind: 'text', maxLength: 20, width: 110, sumber: { tabel: 'lembaga_santri', kolom: 'tingkat_masuk' } },
+    { key: 'no_urut', label: 'no_urut', kind: 'text', maxLength: 6, width: 90, sumber: { tabel: 'lembaga_santri', kolom: 'no_urut' } },
+    { key: 'nama_sekolah_asal', label: 'nama_sekolah_asal', kind: 'text', maxLength: 255, width: 180, sumber: { tabel: 'lembaga_santri', kolom: 'nama_sekolah_asal' } },
+    { key: 'npsn_sekolah_asal', label: 'npsn_sekolah_asal', kind: 'text', maxLength: 20, width: 130, sumber: { tabel: 'lembaga_santri', kolom: 'npsn_sekolah_asal' } },
+    { key: 'nss_sekolah_asal', label: 'nss_sekolah_asal', kind: 'text', maxLength: 30, width: 130, sumber: { tabel: 'lembaga_santri', kolom: 'nss_sekolah_asal' } },
+    { key: 'alamat_sekolah_asal', label: 'alamat_sekolah_asal', kind: 'text', maxLength: 500, width: 200, sumber: { tabel: 'lembaga_santri', kolom: 'alamat_sekolah_asal' } },
+    { key: 'aktif', label: 'is_active_lembaga', kind: 'static', width: 90, sumber: { tabel: 'lembaga_santri', kolom: 'is_active_lembaga' } },
+    { key: 'masuk', label: 'tgl_masuk', kind: 'text', maxLength: 10, width: 110, validate: tglValidator, sumber: { tabel: 'lembaga_santri', kolom: 'tgl_masuk' } },
     { key: 'selesai', label: 'tgl_selesai', kind: 'text', maxLength: 10, width: 110, validate: tglValidator, sumber: { tabel: 'lembaga_santri', kolom: 'tgl_selesai' } },
   ], []);
 
@@ -304,8 +322,15 @@ export default function KeanggotaanPage() {
           lembaga: r.lembaga ? `${r.lembaga.kode ?? r.lembaga.nama}` : null,
           nis_lokal: r.nis_lokal,
           nis_kemenag: r.nis_kemenag,
-          aktif: r.is_active ? 'Ya' : 'Tidak',
-          mulai: r.tgl_mulai?.slice(0, 10) ?? null,
+          tahaj_masuk: r.tahaj_masuk,
+          tingkat_masuk: r.tingkat_masuk,
+          no_urut: r.no_urut !== null && r.no_urut !== undefined ? String(r.no_urut) : null,
+          nama_sekolah_asal: r.nama_sekolah_asal,
+          npsn_sekolah_asal: r.npsn_sekolah_asal,
+          nss_sekolah_asal: r.nss_sekolah_asal,
+          alamat_sekolah_asal: r.alamat_sekolah_asal,
+          aktif: r.is_active_lembaga,
+          masuk: r.tgl_masuk?.slice(0, 10) ?? null,
           selesai: r.tgl_selesai?.slice(0, 10) ?? null,
         })}
         urutAktif={urut}
@@ -322,8 +347,8 @@ export default function KeanggotaanPage() {
                   setUbah(r);
                   setFNis(r.nis_lokal ?? '');
                   setFKemenag(r.nis_kemenag ?? '');
-                  setFAktif(r.is_active ? '1' : '0');
-                  setFMulai((r.tgl_mulai ?? '').slice(0, 10));
+                  setFAktif(r.is_active_lembaga === 'Ya' ? '1' : '0');
+                  setFMulai((r.tgl_masuk ?? '').slice(0, 10));
                   setFSelesai((r.tgl_selesai ?? '').slice(0, 10));
                 }}>
                 Ubah
@@ -332,7 +357,7 @@ export default function KeanggotaanPage() {
             {canUbah && (
               <Button id={`btn_aktif_anggota_${r.id}`} size="sm" variant="outline" disabled={busyId === r.id}
                 onClick={() => void togolAktif(r)}>
-                {r.is_active ? 'Nonaktifkan' : 'Aktifkan'}
+                {r.is_active_lembaga === 'Ya' ? 'Nonaktifkan' : 'Aktifkan'}
               </Button>
             )}
           </>
