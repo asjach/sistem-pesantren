@@ -22,9 +22,9 @@ class TahunAjaran extends Model
 
     protected $keyType = 'string';
 
-    protected $fillable = ['nama', 'tanggal_mulai', 'tanggal_selesai', 'is_aktif', 'semester_aktif'];
+    protected $fillable = ['nama', 'tanggal_mulai', 'tanggal_selesai', 'is_aktif'];
 
-    protected $casts = ['is_aktif' => 'boolean', 'semester_aktif' => 'integer'];
+    protected $casts = ['is_aktif' => 'boolean'];
 
     /** Pola nama kanonis tahun ajaran (grup 1 & 2 = tahun awal/akhir). */
     public const POLA = '/^(\d{4})\/(\d{4})$/';

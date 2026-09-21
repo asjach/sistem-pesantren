@@ -210,7 +210,6 @@ Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca
 - `tanggal_mulai`: date [null]
 - `tanggal_selesai`: date [null]
 - `is_aktif`: bool [default false] — TA berjalan (satu, global)
-- `semester_aktif`: tinyint unsigned [default 1] — semester berjalan (1 ganjil, 2 genap)
 - `created_at`, `updated_at`
 - Tanpa `id`/`lembaga_id`/`is_active`: TA murni global; visibilitas per lembaga lewat pivot `lembaga_tahun_ajaran`.
 

@@ -202,8 +202,6 @@ export interface TahunAjaran {
   tanggal_mulai: string | null;
   tanggal_selesai: string | null;
   is_aktif: boolean;
-  /** Semester berjalan (1 ganjil, 2 genap). */
-  semester_aktif: number;
   /** Ada saat query per lembaga: TA tampil/tidak untuk lembaga itu. */
   tampil?: boolean;
 }
@@ -233,7 +231,6 @@ export function createTahunAjaran(input: {
   nama: string;
   tanggal_mulai?: string;
   tanggal_selesai?: string;
-  semester_aktif?: 1 | 2;
 }) {
   return api<TahunAjaran>('/admin/tahun-ajaran', { method: 'POST', body: JSON.stringify(input) });
 }
@@ -256,7 +253,7 @@ export function tampilkanTahunAjaran(nama: string, lembaga_id?: number) {
 
 export function updateTahunAjaran(
   nama: string,
-  input: { nama_baru?: string; tanggal_mulai?: string | null; tanggal_selesai?: string | null; semester_aktif?: 1 | 2 },
+  input: { nama_baru?: string; tanggal_mulai?: string | null; tanggal_selesai?: string | null },
 ) {
   return api<TahunAjaran>('/admin/tahun-ajaran', {
     method: 'PUT',
@@ -271,10 +268,10 @@ export function deleteTahunAjaran(nama: string) {
   });
 }
 
-export function setAktifTahunAjaran(nama: string, semester_aktif?: 1 | 2) {
+export function setAktifTahunAjaran(nama: string) {
   return api<TahunAjaran>('/admin/tahun-ajaran/set-aktif', {
     method: 'POST',
-    body: JSON.stringify(semester_aktif ? { nama, semester_aktif } : { nama }),
+    body: JSON.stringify({ nama }),
   });
 }
 

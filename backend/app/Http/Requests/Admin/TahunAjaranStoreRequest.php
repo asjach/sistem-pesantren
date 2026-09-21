@@ -18,7 +18,6 @@ class TahunAjaranStoreRequest extends FormRequest
             'nama' => ['required', 'string', 'max:50', 'regex:'.TahunAjaran::POLA],
             'tanggal_mulai' => ['nullable', 'date'],
             'tanggal_selesai' => ['nullable', 'date', 'after_or_equal:tanggal_mulai'],
-            'semester_aktif' => ['nullable', 'in:1,2'],
         ];
     }
 

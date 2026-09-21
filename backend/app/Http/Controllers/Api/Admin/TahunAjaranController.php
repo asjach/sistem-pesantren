@@ -91,7 +91,6 @@ class TahunAjaranController extends Controller
             'nama' => $nama,
             'tanggal_mulai' => $data['tanggal_mulai'] ?? null,
             'tanggal_selesai' => $data['tanggal_selesai'] ?? null,
-            'semester_aktif' => (int) ($data['semester_aktif'] ?? 1),
         ]);
 
         return response()->json($row, 201);
@@ -116,7 +115,7 @@ class TahunAjaranController extends Controller
                 $perubahan['nama'] = $namaBaru;
             }
         }
-        foreach (['tanggal_mulai', 'tanggal_selesai', 'semester_aktif'] as $kolom) {
+        foreach (['tanggal_mulai', 'tanggal_selesai'] as $kolom) {
             if (array_key_exists($kolom, $data)) {
                 $perubahan[$kolom] = $data[$kolom];
             }
@@ -155,16 +154,12 @@ class TahunAjaranController extends Controller
 
         $data = $request->validate([
             'nama' => ['required', 'string'],
-            'semester_aktif' => ['nullable', 'in:1,2'],
         ]);
         $row = TahunAjaran::findOrFail($data['nama']);
 
-        DB::transaction(function () use ($row, $data) {
+        DB::transaction(function () use ($row) {
             TahunAjaran::query()->update(['is_aktif' => false]);
-            $row->update([
-                'is_aktif' => true,
-                'semester_aktif' => (int) ($data['semester_aktif'] ?? $row->semester_aktif),
-            ]);
+            $row->update(['is_aktif' => true]);
         });
 
         return response()->json($row->fresh());

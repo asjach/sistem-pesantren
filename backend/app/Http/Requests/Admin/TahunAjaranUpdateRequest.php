@@ -20,7 +20,6 @@ class TahunAjaranUpdateRequest extends FormRequest
             'nama_baru' => ['nullable', 'string', 'max:50', 'regex:'.TahunAjaran::POLA],
             'tanggal_mulai' => ['nullable', 'date'],
             'tanggal_selesai' => ['nullable', 'date'],
-            'semester_aktif' => ['nullable', 'in:1,2'],
         ];
     }
 

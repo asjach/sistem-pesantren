@@ -18,7 +18,6 @@ return new class extends Migration
             $table->date('tanggal_mulai')->nullable();
             $table->date('tanggal_selesai')->nullable();
             $table->boolean('is_aktif')->default(false); // TA berjalan (satu, global)
-            $table->unsignedTinyInteger('semester_aktif')->default(1); // 1 ganjil, 2 genap
             $table->timestamps();
         });
     }

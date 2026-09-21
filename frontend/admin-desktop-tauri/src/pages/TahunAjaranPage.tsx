@@ -56,7 +56,6 @@ const FIELDS: ExcelField[] = [
     sumber: { tabel: 'tahun_ajaran', kolom: 'tanggal_selesai' },
     validate: dateRule('Tanggal selesai'),
   },
-  { key: 'semester', label: 'semester_aktif', width: 110, kind: 'static', sumber: { tabel: 'tahun_ajaran', kolom: 'semester_aktif' } },
   { key: 'aktif', label: 'is_aktif', width: 100, kind: 'static', sumber: { tabel: 'tahun_ajaran', kolom: 'is_aktif' } },
   { key: 'tampil', label: 'Tampil lembaga', width: 150, kind: 'static', sumber: null },
 ];
@@ -66,7 +65,6 @@ function gridValues(t: TahunAjaran): Record<string, string | null> {
     nama: t.nama,
     mulai: t.tanggal_mulai,
     selesai: t.tanggal_selesai,
-    semester: t.semester_aktif === 2 ? 'genap' : 'ganjil',
     aktif: t.is_aktif ? 'aktif' : 'nonaktif',
     tampil: t.tampil === undefined ? '—' : (t.tampil ? 'ditampilkan' : 'disembunyikan'),
   };
@@ -295,7 +293,7 @@ export default function TahunAjaranPage() {
         arahUrut={arahUrut}
         onUrut={terapkanUrut}
         onCreateRow={bolehKelola ? createRow : undefined}
-        inputRowValues={{ aktif: 'nonaktif', semester: 'ganjil', tampil: '—' }}
+        inputRowValues={{ aktif: 'nonaktif', tampil: '—' }}
         searchValue={search}
         onSearchChange={onSearchChange}
         addButton={bolehKelola ? (
