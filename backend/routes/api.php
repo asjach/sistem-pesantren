@@ -111,6 +111,7 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::get('riwayat-belajar/belum-masuk', [RiwayatBelajarController::class, 'belumMasuk'])->middleware('permission:riwayat_belajar.lihat');
         Route::post('riwayat-belajar', [RiwayatBelajarController::class, 'store'])->middleware('permission:riwayat_belajar.tambah');
         Route::delete('riwayat-belajar/{riwayat}', [RiwayatBelajarController::class, 'destroy'])->middleware('permission:riwayat_belajar.hapus');
+        Route::patch('riwayat-belajar/{riwayat}', [RiwayatBelajarController::class, 'update'])->middleware('permission:riwayat_belajar.ubah');
         Route::get('riwayat-belajar/import-template', [RiwayatBelajarController::class, 'template'])->middleware('permission:riwayat_belajar.lihat');
         Route::post('riwayat-belajar/import-periksa', [RiwayatBelajarController::class, 'periksaImport'])->middleware(['permission:riwayat_belajar.tambah', 'throttle:imports']);
         Route::post('riwayat-belajar/import-lengkap', [RiwayatBelajarController::class, 'importLengkap'])->middleware(['permission:riwayat_belajar.tambah', 'throttle:imports']);

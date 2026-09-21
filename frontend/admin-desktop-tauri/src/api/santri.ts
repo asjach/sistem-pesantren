@@ -56,6 +56,71 @@ export interface Santri {
   lembaga_aktif?: LembagaSantri[];
 }
 
+/** Seluruh kolom profil `santri` (cermin `Santri::KOLOM_PROFIL` backend).
+ *  Opsional agar endpoint ringkas (daftar, opsi) tetap kompatibel. */
+export interface SantriPenuh extends Santri {
+  anak_ke?: number | null;
+  j_saudara?: number | null;
+  no_hp_santri?: string | null;
+  email_santri?: string | null;
+  agama?: string | null;
+  cita_cita?: string | null;
+  hobi?: string | null;
+  kebutuhan_khusus?: string | null;
+  kebutuhan_disabilitas?: string | null;
+  nomor_kip?: string | null;
+  ayah_nama?: string | null;
+  ayah_nik?: string | null;
+  ayah_tmp_lahir?: string | null;
+  ayah_tgl_lahir?: string | null;
+  ayah_status?: string | null;
+  ayah_pekerjaan?: string | null;
+  ayah_pendidikan?: string | null;
+  ayah_penghasilan?: string | null;
+  ayah_telp?: string | null;
+  ayah_alamat?: string | null;
+  ayah_status_tempat_tinggal?: string | null;
+  ibu_nama?: string | null;
+  ibu_nik?: string | null;
+  ibu_tmp_lahir?: string | null;
+  ibu_tgl_lahir?: string | null;
+  ibu_status?: string | null;
+  ibu_pekerjaan?: string | null;
+  ibu_pendidikan?: string | null;
+  ibu_penghasilan?: string | null;
+  ibu_telp?: string | null;
+  ibu_alamat?: string | null;
+  ibu_status_tempat_tinggal?: string | null;
+  wali_nama?: string | null;
+  wali_nik?: string | null;
+  wali_tmp_lahir?: string | null;
+  wali_tgl_lahir?: string | null;
+  wali_status?: string | null;
+  wali_pekerjaan?: string | null;
+  wali_pendidikan?: string | null;
+  wali_penghasilan?: string | null;
+  wali_telp?: string | null;
+  wali_alamat?: string | null;
+  wali_status_tempat_tinggal?: string | null;
+  yang_membiayai?: string | null;
+  no_kk?: string | null;
+  kewarganegaraan?: string | null;
+  bahasa_sehari?: string | null;
+  status_tempat_tinggal?: string | null;
+  jarak_ke_pesantren?: string | null;
+  waktu_tempuh?: string | null;
+  transportasi?: string | null;
+  tanggal_masuk?: string | null;
+  provinsi?: string | null;
+  kab_kota?: string | null;
+  kecamatan?: string | null;
+  desa_kelurahan?: string | null;
+  rt?: string | null;
+  rw?: string | null;
+  alamat?: string | null;
+  kode_pos?: string | null;
+}
+
 export interface DokumenSantri {
   id: number;
   santri_id: number | null;

@@ -549,6 +549,67 @@ class SiklusFlowTest extends TestCase
         $this->assertFalse($namaLama->contains(fn ($n) => str_starts_with($n, 'Kelompok Dua')));
     }
 
+    // ---------- 14. daftar kelas muatan penuh 3 tabel + PATCH riwayat ----------
+
+    public function test_14_daftar_kelas_penuh_tiga_tabel_dan_ubah_riwayat(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeUser('admin', [$f['mi']->id]);
+        $kelas = $this->makeKelas($f['mi'], $f['taBaru'], '1A', '1');
+
+        $s = $this->makeSantri('Penuh Satu');
+        $s->update(['nik' => '1234567890123456', 'nisn' => '1234567890', 'ayah_nama' => 'Ayah Penuh']);
+        $this->makeKeanggotaan($s, $f['mi'], '25201');
+        LembagaSantri::where('santri_id', $s->id)->where('lembaga_id', $f['mi']->id)
+            ->update(['nis_kemenag' => '1234567890122601', 'tgl_selesai' => null]);
+        $riwayat = $this->makeRiwayat($s, $f['taBaru'], $f['mi'], '1', ['kelas_id' => $kelas->id, 'tingkat' => '1']);
+
+        // Muatan penuh: santri.* + lembaga_anggota.* + relasi + nis_lokal ringkas.
+        $daftar = $this->actingAs($admin, 'sanctum')
+            ->getJson('/api/admin/akademik/daftar-kelas?lembaga_id='.$f['mi']->id)
+            ->assertStatus(200);
+        $baris = $daftar->json('data.0');
+        $this->assertSame('1234567890123456', $baris['santri']['nik']);
+        $this->assertSame('Ayah Penuh', $baris['santri']['ayah_nama']);
+        $this->assertSame('25201', $baris['lembaga_anggota']['nis_lokal']);
+        $this->assertSame('1234567890122601', $baris['lembaga_anggota']['nis_kemenag']);
+        $this->assertSame('2025-07-01', $baris['lembaga_anggota']['tgl_mulai']);
+        $this->assertSame('MI', $baris['lembaga']['kode']);
+        $this->assertSame('25201', $baris['nis_lokal']);
+
+        // PATCH kolom skalar → ok.
+        $this->actingAs($admin, 'sanctum')->patchJson("/api/admin/riwayat-belajar/{$riwayat->id}", [
+            'tingkat' => '2', 'no_absen' => 7, 'tgl_masuk' => '2026-07-10',
+        ])->assertStatus(200)->assertJsonPath('data.tingkat', '2');
+        $this->assertSame(7, (int) $riwayat->fresh()->no_absen);
+
+        // Kolom lifecycle dikunci: status_akhir/is_aktif diabaikan (tetap 200).
+        $this->actingAs($admin, 'sanctum')->patchJson("/api/admin/riwayat-belajar/{$riwayat->id}", [
+            'status_akhir' => 'lulus', 'is_aktif' => false,
+        ])->assertStatus(200);
+        $this->assertSame('aktif', $riwayat->fresh()->status_akhir);
+        $this->assertTrue((bool) $riwayat->fresh()->is_aktif);
+
+        // Semester duplikat (santri+TA+lembaga+semester unik) → 422; di luar 1/2 → 422.
+        $this->makeRiwayat($s, $f['taBaru'], $f['mi'], '2');
+        $this->actingAs($admin, 'sanctum')->patchJson("/api/admin/riwayat-belajar/{$riwayat->id}", [
+            'semester' => '2',
+        ])->assertStatus(422);
+        $this->actingAs($admin, 'sanctum')->patchJson("/api/admin/riwayat-belajar/{$riwayat->id}", [
+            'semester' => '3',
+        ])->assertStatus(422);
+
+        // Admin lembaga lain (di luar pasangan MI↔MD) → 403.
+        $ra = Lembaga::create([
+            'parent_id' => $f['root']->id, 'nama' => 'Raudhatul Athfal', 'kode' => 'RA',
+            'is_seleksi' => false, 'kelompok_psb' => 'combo_mi_md', 'is_active' => true,
+        ]);
+        $adminRa = $this->makeUser('admin', [$ra->id]);
+        $this->actingAs($adminRa, 'sanctum')->patchJson("/api/admin/riwayat-belajar/{$riwayat->id}", [
+            'tingkat' => '3',
+        ])->assertStatus(403);
+    }
+
     // ---------- 12. profil santri memuat keanggotaan + riwayat + arsip ----------
 
     public function test_12_profil_santri_memuat_keanggotaan_riwayat_dan_alumni(): void

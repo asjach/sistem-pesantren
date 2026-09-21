@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\RiwayatImportRequest;
 use App\Http\Requests\Admin\RiwayatKelasRequest;
 use App\Http\Requests\Admin\RiwayatStoreRequest;
+use App\Http\Requests\Admin\RiwayatUpdateRequest;
 use App\Imports\RiwayatBelajarImport;
 use App\Models\LembagaSantri;
 use App\Models\RiwayatBelajar;
@@ -234,6 +235,18 @@ class RiwayatBelajarController extends Controller
         $siklus->hapusRiwayat($riwayat);
 
         return response()->json(['pesan' => 'Riwayat belajar dibatalkan.']);
+    }
+
+    /** PATCH /api/admin/riwayat-belajar/{riwayat} — ubah kolom skalar
+     *  (semester/tingkat/no_absen/tgl_masuk). Status & kelas dikunci:
+     *  status via pintu lifecycle, kelas via set/pindah/keluar-kelas. */
+    public function update(RiwayatUpdateRequest $request, RiwayatBelajar $riwayat): JsonResponse
+    {
+        $this->authorizeAksiLembaga($request, $riwayat->santri, (int) $riwayat->lembaga_id);
+
+        $riwayat->update($request->validated());
+
+        return response()->json(['pesan' => 'Riwayat belajar diubah.', 'data' => $riwayat->fresh()]);
     }
 
     // ---------------- Import riwayat belajar (terpisah dari import identitas) ----------------

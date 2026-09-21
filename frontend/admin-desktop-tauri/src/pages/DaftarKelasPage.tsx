@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { bisa } from '../api/auth';
 import { errorMessage } from '../api/client';
@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { FieldLabel } from '@/components/ui/field';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import ExcelTable from '@/components/ExcelTable';
 import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
 import { useTahunAjaranAwalString } from '@/hooks/useTahunAjaranAwal';
 import { useSemesterAwal } from '@/hooks/useSemesterAwal';
@@ -16,21 +16,21 @@ import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { ActionIcon } from '@/components/RowActions';
 import { MoveHorizontal, SquareMousePointer } from '@/icons';
 import FilterField from '@/components/FilterField';
-import { ROSTER_FIELDS, noopCommit, riwayatValues, useLembagaTa } from '@/components/siklus/bersama';
+import { useLembagaTa } from '@/components/siklus/bersama';
+import {
+  daftarKelasValues,
+  medanDaftarKelas,
+  pakaiCommitDaftarKelas,
+} from '@/components/siklus/kolomDaftarKelas';
 import { toast } from 'sonner';
-
-/** Kolom roster + Tahun Ajaran (untuk tampil lintas periode). */
-const FIELDS_DAFTAR: ExcelField[] = [
-  ...ROSTER_FIELDS.slice(0, 3),
-  { key: 'ta', label: 'tahun_ajaran.nama', width: 110, kind: 'static', sumber: { tabel: 'tahun_ajaran', kolom: 'nama' } },
-  ...ROSTER_FIELDS.slice(3),
-];
 
 /** Daftar Kelas: basis status_akhir (Aktif = gabungan 5 status; Tidak aktif =
  *  Pindah/Keluar) dengan opsi lintas semester dan lintas tahun ajaran. */
 export default function DaftarKelasPage() {
   const { user } = useAuth();
   const canPindah = bisa(user, 'pindah_kelas.ubah');
+  const canSantri = bisa(user, 'santri.ubah');
+  const canRiwayat = bisa(user, 'riwayat_belajar.ubah');
   const [lembagaId, setLembagaId] = useState('');
   useLembagaAwalString(setLembagaId);
   const [taId, setTaId] = useState('');
@@ -49,6 +49,13 @@ export default function DaftarKelasPage() {
   const [pindahRow, setPindahRow] = useState<RiwayatRow | null>(null);
   const [pindahKe, setPindahKe] = useState('');
   const [busy, setBusy] = useState(false);
+
+  /** Seluruh kolom 3 tabel; jenis edit mengikuti izin per tabel. */
+  const fields = useMemo(
+    () => medanDaftarKelas({ bolehSantri: canSantri, bolehRiwayat: canRiwayat }),
+    [canSantri, canRiwayat],
+  );
+  const commitDaftar = useMemo(() => pakaiCommitDaftarKelas(rows), [rows]);
 
   const load = useCallback(async () => {
     if (!lembagaId) { setRows([]); setInfo(null); return; }
@@ -87,14 +94,14 @@ export default function DaftarKelasPage() {
       <ErrorNotice>{err}</ErrorNotice>
       <ExcelTable<RiwayatRow>
         tableKey="daftar_kelas"
-        fields={FIELDS_DAFTAR}
+        fields={fields}
         rows={rows}
-        getValues={(r) => ({ ...riwayatValues(r), ta: r.tahun_ajaran?.nama ?? null })}
+        getValues={daftarKelasValues}
         loading={loading}
         emptyText="Pilih lembaga untuk menampilkan daftar kelas."
-        canEdit={false}
-        onCommit={noopCommit}
-        onSaved={noopCommit}
+        canEdit={canSantri || canRiwayat}
+        onCommit={commitDaftar}
+        onSaved={load}
         renderActions={(r) => (
           canPindah ? (
           <>

@@ -309,6 +309,10 @@ class SiklusController extends Controller
 
     /**
      * GET /api/admin/akademik/daftar-kelas — daftar santri per kelas.
+     * Muatan penuh 3 tabel: `riwayat_belajar` + `santri` (semua kolom) +
+     * `lembaga_anggota` (baris `lembaga_santri` santri+lembaga, aktif
+     * diutamakan) + relasi kelas/lembaga/tahun ajaran. `nis_lokal` ringkas
+     * dipertahankan untuk kompatibilitas.
      * Tanpa `kelompok_status`: perilaku lama (is_aktif pada TA default aktif
      * + semester berjalan). Dengan `kelompok_status=aktif|nonaktif`: basis
      * tampil = status_akhir (aktif = Aktif, Naik, Tidak Naik, Lulus,
@@ -338,8 +342,12 @@ class SiklusController extends Controller
                 ->where('tahun_ajaran_id', $taId)->where('is_aktif', true)
                 ->orderByDesc('semester')->value('semester') ?? '1'));
 
-        $query = RiwayatBelajar::with(['santri:id,nama_lengkap,jk', 'kelas:id,nama_kelas,tingkat', 'tahunAjaran:id,nama'])
-            ->where('lembaga_id', $lembagaId);
+        $query = RiwayatBelajar::with([
+            'santri',
+            'kelas:id,nama_kelas,tingkat',
+            'lembaga:id,nama,kode',
+            'tahunAjaran:id,nama',
+        ])->where('lembaga_id', $lembagaId);
         if ($taId !== null) {
             $query->where('tahun_ajaran_id', $taId);
         }
@@ -363,10 +371,17 @@ class SiklusController extends Controller
         }
 
         $baris = $query->orderBy('tahun_ajaran_id')->orderBy('semester')->orderBy('kelas_id')->orderBy('no_absen')->orderBy('santri_id')->get();
-        $peta = LembagaSantri::whereIn('santri_id', $baris->pluck('santri_id')->unique())
+        // Keanggotaan penuh (satu baris per santri; aktif diutamakan) + NIS lokal
+        // ringkas (kompatibilitas payload lama).
+        $anggota = LembagaSantri::whereIn('santri_id', $baris->pluck('santri_id')->unique())
             ->where('lembaga_id', $lembagaId)
-            ->pluck('nis_lokal', 'santri_id');
-        $baris->each(fn ($r) => $r->setAttribute('nis_lokal', $peta[$r->santri_id] ?? null));
+            ->orderByDesc('is_active')->orderBy('id')
+            ->get()->groupBy('santri_id')->map->first();
+        $baris->each(function ($r) use ($anggota) {
+            $ls = $anggota[$r->santri_id] ?? null;
+            $r->setRelation('lembaga_anggota', $ls);
+            $r->setAttribute('nis_lokal', $ls?->nis_lokal);
+        });
 
         return response()->json([
             'lembaga_id' => $lembagaId,

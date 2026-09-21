@@ -1,6 +1,6 @@
 import { api, apiUpload, downloadFile } from './client';
 import type { Paginate } from './master';
-import type { ImportError, ImportPeriksa, LembagaSantri, Santri } from './santri';
+import type { ImportError, ImportPeriksa, LembagaSantri, Santri, SantriPenuh } from './santri';
 
 // ---------- Riwayat belajar (102) + siklus akademik ----------
 
@@ -97,7 +97,8 @@ export interface Alumni {
   kelas_lulus?: { id: number; nama_kelas: string } | null;
 }
 
-/** Baris riwayat belajar — tanpa `nis` (NIS ada di keanggotaan). */
+/** Baris riwayat belajar — muatan penuh 3 tabel (`daftar-kelas`):
+ *  `riwayat_belajar` + `santri` (semua kolom) + `lembaga_anggota`. */
 export interface RiwayatRow {
   id: number;
   santri_id: number;
@@ -111,9 +112,13 @@ export interface RiwayatRow {
   status_awal: string | null;
   status_akhir: string | null;
   is_aktif: boolean;
+  created_at?: string | null;
+  updated_at?: string | null;
   /** NIS lokal dari keanggotaan (`lembaga_santri`) — dilampirkan backend pada daftar. */
   nis_lokal?: string | null;
-  santri?: { id: number; nama_lengkap: string; jk: string | null } | null;
+  /** Baris keanggotaan santri+lembaga (aktif diutamakan) — muatan penuh. */
+  lembaga_anggota?: LembagaSantri | null;
+  santri?: SantriPenuh | null;
   kelas?: { id: number; nama_kelas: string; tingkat: string | null } | null;
   lembaga?: { id: number; nama: string; kode: string | null } | null;
   tahun_ajaran?: { id: number; nama: string } | null;
@@ -190,6 +195,15 @@ export function pindahKelas(riwayatId: number, kelasBaruId: number) {
 export function keluarKelas(riwayatId: number) {
   return api<{ pesan: string; data: RiwayatRow }>(`/admin/riwayat-belajar/${riwayatId}/keluar-kelas`, {
     method: 'POST',
+  });
+}
+
+/** Ubah kolom skalar riwayat (semester/tingkat/no_absen/tgl_masuk).
+ *  Status & kelas dikunci backend (pintu lifecycle / set-pindah-kelas). */
+export function updateRiwayatBelajar(id: number, changes: Record<string, string | number | null>) {
+  return api<{ pesan: string; data: RiwayatRow }>(`/admin/riwayat-belajar/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(changes),
   });
 }
 
