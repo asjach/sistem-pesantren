@@ -21,15 +21,19 @@ function cabang(aktif = false) {
   return `relative before:absolute before:top-1/2 before:-left-2 before:h-px before:w-2 before:-translate-y-1/2 before:content-[""] after:absolute after:top-1/2 after:left-0 after:size-[5px] after:-translate-x-1/2 after:-translate-y-1/2 after:rounded-full after:content-[""] ${warna}`;
 }
 
-/** Segmen garis vertikal per baris (wadah ber-`pl-2`, garis di `-left-2`
- *  sejajar tick): penuh untuk baris tengah, setengah (atas → tengah, pas di
- *  node bulat) untuk baris terakhir — tanpa trail di bawahnya. Aksen hanya
- *  untuk baris di jalur daun aktif. */
-function segmen(terakhir: boolean, aktif = false) {
+/** Segmen garis vertikal per baris halaman (wadah ber-`pl-2`, garis di
+ *  `-left-2` sejajar tick): paruh atas selalu ada (aksen bila di jalur),
+ *  paruh bawah menyambung ke baris berikut (aksen bila baris berikut juga di
+ *  jalur, abu bila tidak) — tanpa celah kosong. Baris terakhir tanpa paruh
+ *  bawah (berhenti di titik). */
+function segmenBaris(atasAktif: boolean, bawah: 'aksen' | 'abu' | 'nihil') {
   return cn(
-    'relative before:absolute before:top-0 before:-left-2 before:w-px before:content-[""]',
-    aktif ? 'before:bg-[var(--accent)]' : 'before:bg-white/15',
-    terakhir ? 'before:bottom-1/2' : 'before:bottom-0',
+    'relative before:absolute before:top-0 before:-left-2 before:w-px before:content-[""] before:bottom-1/2',
+    atasAktif ? 'before:bg-[var(--accent)]' : 'before:bg-white/15',
+    bawah !== 'nihil'
+      && 'after:absolute after:top-1/2 after:bottom-0 after:-left-2 after:w-px after:content-[""]',
+    bawah === 'aksen' && 'after:bg-[var(--accent)]',
+    bawah === 'abu' && 'after:bg-white/15',
   );
 }
 
@@ -40,6 +44,19 @@ function lanjutanLuar(aktif = false) {
   return cn(
     'relative before:absolute before:top-0 before:bottom-0 before:-left-[23px] before:w-px before:content-[""]',
     aktif ? 'before:bg-[var(--accent)]' : 'before:bg-white/15',
+  );
+}
+
+/** Segmen pembungkus tombol sub-grup: paruh atas masuk ke titik (aksen bila
+ *  di jalur), paruh bawah SELALU abu sebagai penyambung ke blok bersarang —
+ *  tanpa celah kosong. Paruh bawah absen bila sub terakhir & tertutup (tak
+ *  ada lanjutan) agar tak menjuntai. */
+function segmenSub(terakhir: boolean, buka: boolean, segAktif: boolean) {
+  return cn(
+    'relative before:absolute before:top-0 before:-left-2 before:w-px before:content-[""] before:bottom-1/2',
+    segAktif ? 'before:bg-[var(--accent)]' : 'before:bg-white/15',
+    (!terakhir || buka)
+      && 'after:absolute after:top-1/2 after:bottom-0 after:-left-2 after:w-px after:bg-white/15 after:content-[""]',
   );
 }
 
@@ -218,7 +235,7 @@ export default function Sidebar() {
     const idx = indeksAktif(n.anak, n.items);
     return (
       <div key={n.kunci}>
-        <div className={segmen(true, segAktif)}>
+        <div className={segmenSub(terakhir, buka, segAktif)}>
           <button
             id={`btn_grup_sidebar_${idAman}`}
             type="button"
@@ -249,9 +266,12 @@ export default function Sidebar() {
             {n.anak.map((c, ci) => renderSub(c, ci === n.anak.length - 1 && n.items.length === 0, idx >= 0 && ci <= idx, idx > ci))}
             {n.items.map((h, ii) => {
               const gabung = n.anak.length + ii;
-              const barisTrail = idx >= 0 && gabung <= idx;
+              const diTrail = idx >= 0 && gabung <= idx;
+              const bawah: 'aksen' | 'abu' | 'nihil' = ii === n.items.length - 1
+                ? 'nihil'
+                : (idx >= 0 && gabung + 1 <= idx ? 'aksen' : 'abu');
               return (
-                <div key={h.to} className={segmen(ii === n.items.length - 1 || gabung === idx, barisTrail)}>
+                <div key={h.to} className={segmenBaris(diTrail, bawah)}>
                   {tautanHalaman(h, false, true)}
                 </div>
               );
@@ -368,9 +388,12 @@ export default function Sidebar() {
                   {subs.map((n, si) => renderSub(n, si === subs.length - 1 && langsung.length === 0, idxAktif >= 0 && si <= idxAktif, idxAktif > si))}
                   {langsung.map((h, li) => {
                     const gabung = subs.length + li;
-                    const barisTrail = idxAktif >= 0 && gabung <= idxAktif;
+                    const diTrail = idxAktif >= 0 && gabung <= idxAktif;
+                    const bawah: 'aksen' | 'abu' | 'nihil' = li === langsung.length - 1
+                      ? 'nihil'
+                      : (idxAktif >= 0 && gabung + 1 <= idxAktif ? 'aksen' : 'abu');
                     return (
-                      <div key={h.to} className={segmen(li === langsung.length - 1 || gabung === idxAktif, barisTrail)}>
+                      <div key={h.to} className={segmenBaris(diTrail, bawah)}>
                         {tautanHalaman(h, false, true)}
                       </div>
                     );
