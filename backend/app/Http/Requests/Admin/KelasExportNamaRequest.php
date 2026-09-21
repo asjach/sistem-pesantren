@@ -16,7 +16,7 @@ class KelasExportNamaRequest extends FormRequest
     {
         return [
             'lembaga_id' => ['required', Rule::exists('lembaga', 'id')->whereNotNull('parent_id')],
-            'tahun_ajaran_id' => ['required', 'exists:tahun_ajaran,id'],
+            'tahun_ajaran' => ['required', 'string', 'exists:tahun_ajaran,nama'],
         ];
     }
 

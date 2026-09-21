@@ -2,7 +2,6 @@
 
 namespace App\Http\Requests;
 
-use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class PsbDaftarRequest extends FormRequest
@@ -23,7 +22,7 @@ class PsbDaftarRequest extends FormRequest
         return [
             'gelombang_id' => ['nullable', 'integer', 'exists:psb_gelombang,id'], // kosong = otomatis gelombang aktif
             'lembaga_id' => ['required', 'integer', 'exists:lembaga,id'],
-            'tahun_ajaran_id' => ['nullable', 'integer', 'exists:tahun_ajaran,id'], // null = ikut gelombang
+            'tahun_ajaran' => ['nullable', 'string', 'exists:tahun_ajaran,nama'], // null = ikut gelombang
             'tipe_santri' => ['required', 'in:asrama,non_asrama'],
             'nik' => ['required', 'digits:16'],
             'nama_lengkap' => ['required', 'string', 'max:100'],

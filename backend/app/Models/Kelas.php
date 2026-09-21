@@ -10,7 +10,7 @@ class Kelas extends Model
 {
     protected $table = 'kelas';
 
-    protected $fillable = ['lembaga_id', 'tahun_ajaran_id', 'walas_id', 'tingkat', 'nama_kelas', 'kapasitas', 'urutan'];
+    protected $fillable = ['lembaga_id', 'tahun_ajaran', 'walas_id', 'tingkat', 'nama_kelas', 'kapasitas', 'urutan'];
 
     protected $casts = ['urutan' => 'integer'];
 
@@ -36,7 +36,7 @@ class Kelas extends Model
 
     public function tahunAjaran()
     {
-        return $this->belongsTo(TahunAjaran::class);
+        return $this->belongsTo(TahunAjaran::class, 'tahun_ajaran', 'nama');
     }
 
     public function walas()

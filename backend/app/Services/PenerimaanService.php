@@ -160,17 +160,17 @@ class PenerimaanService
      *               npsn_sekolah_asal?: ?string, nss_sekolah_asal?: ?string,
      *               alamat_sekolah_asal?: ?string}  $data
      */
-    public function terima(Santri $santri, int $lembagaId, int $tahunAjaranId, array $data = []): RiwayatBelajar
+    public function terima(Santri $santri, int $lembagaId, string $tahunAjaran, array $data = []): RiwayatBelajar
     {
-        return DB::transaction(function () use ($santri, $lembagaId, $tahunAjaranId, $data) {
+        return DB::transaction(function () use ($santri, $lembagaId, $tahunAjaran, $data) {
             $santri = Santri::whereKey($santri->id)->lockForUpdate()->firstOrFail();
 
-            $tahun = TahunAjaran::find($tahunAjaranId);
+            $tahun = TahunAjaran::find($tahunAjaran);
             if (! $tahun) {
-                throw ValidationException::withMessages(['tahun_ajaran_id' => 'Tahun ajaran tidak ditemukan.']);
+                throw ValidationException::withMessages(['tahun_ajaran' => 'Tahun ajaran tidak ditemukan.']);
             }
-            if (! TahunAjaran::efektif($lembagaId)->contains('id', $tahun->id)) {
-                throw ValidationException::withMessages(['tahun_ajaran_id' => 'Tahun ajaran tidak berlaku untuk lembaga ini.']);
+            if (! TahunAjaran::efektif($lembagaId)->contains('nama', $tahun->nama)) {
+                throw ValidationException::withMessages(['tahun_ajaran' => 'Tahun ajaran tidak berlaku untuk lembaga ini.']);
             }
 
             $kelasId = ! empty($data['kelas_id']) ? (int) $data['kelas_id'] : null;
@@ -180,7 +180,7 @@ class PenerimaanService
                 if (! $kelas || (int) $kelas->lembaga_id !== $lembagaId) {
                     throw ValidationException::withMessages(['kelas_id' => 'Kelas bukan milik lembaga ini.']);
                 }
-                if ((int) $kelas->tahun_ajaran_id !== $tahunAjaranId) {
+                if ($kelas->tahun_ajaran !== $tahunAjaran) {
                     throw ValidationException::withMessages(['kelas_id' => 'Kelas bukan milik tahun ajaran ini.']);
                 }
             }
@@ -214,12 +214,12 @@ class PenerimaanService
 
             $noAbsen = isset($data['no_absen']) ? (int) $data['no_absen'] : null;
             if ($noAbsen !== null) {
-                (new SiklusSantriService)->cekBentrokAbsen($kelasId, $tahunAjaranId, '1', $noAbsen);
+                (new SiklusSantriService)->cekBentrokAbsen($kelasId, $tahunAjaran, '1', $noAbsen);
             }
 
             $baru = RiwayatBelajar::create([
                 'santri_id' => $santri->id,
-                'tahun_ajaran_id' => $tahunAjaranId,
+                'tahun_ajaran' => $tahunAjaran,
                 'lembaga_id' => $lembagaId,
                 'kelas_id' => $kelasId,
                 'semester' => '1',
@@ -241,11 +241,11 @@ class PenerimaanService
     /** Cari tahun ajaran berikut (tanggal_mulai lebih besar) untuk kenaikan/mengulang. */
     public function tahunAjaranBerikut(int $lembagaId, RiwayatBelajar $lama): ?TahunAjaran
     {
-        $taLama = TahunAjaran::find($lama->tahun_ajaran_id);
+        $taLama = TahunAjaran::find($lama->tahun_ajaran);
 
         return TahunAjaran::efektif($lembagaId)
             ->when($taLama?->tanggal_mulai, fn ($rows, $mulai) => $rows->filter(fn ($t) => ($t->tanggal_mulai ?? '') > $mulai))
-            ->sortBy(fn ($t) => ($t->tanggal_mulai ?? '').'|'.str_pad((string) $t->id, 10, '0', STR_PAD_LEFT))
+            ->sortBy(fn ($t) => ($t->tanggal_mulai ?? '').'|'.$t->nama)
             ->first();
     }
 }

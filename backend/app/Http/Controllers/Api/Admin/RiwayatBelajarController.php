@@ -49,7 +49,7 @@ class RiwayatBelajarController extends Controller
                 'santri:id,nama_lengkap,jk',
                 'kelas:id,nama_kelas,tingkat',
                 'lembaga:id,nama,kode',
-                'tahunAjaran:id,nama',
+                'tahunAjaran:nama',
             ]),
             $request->user(),
             $request,
@@ -61,8 +61,8 @@ class RiwayatBelajarController extends Controller
         } else {
             $query->where('riwayat_belajar.is_active_riwayat', RiwayatBelajar::YA);
         }
-        if ($request->filled('tahun_ajaran_id')) {
-            $query->where('riwayat_belajar.tahun_ajaran_id', $request->integer('tahun_ajaran_id'));
+        if ($request->filled('tahun_ajaran')) {
+            $query->where('riwayat_belajar.tahun_ajaran', $request->input('tahun_ajaran'));
         }
         if ($request->filled('semester')) {
             $query->where('riwayat_belajar.semester', $request->input('semester'));
@@ -94,7 +94,7 @@ class RiwayatBelajarController extends Controller
                 ->leftJoin('santri', 'santri.id', '=', 'riwayat_belajar.santri_id')
                 ->leftJoin('kelas', 'kelas.id', '=', 'riwayat_belajar.kelas_id')
                 ->leftJoin('lembaga', 'lembaga.id', '=', 'riwayat_belajar.lembaga_id')
-                ->leftJoin('tahun_ajaran', 'tahun_ajaran.id', '=', 'riwayat_belajar.tahun_ajaran_id');
+                ->leftJoin('tahun_ajaran', 'tahun_ajaran.nama', '=', 'riwayat_belajar.tahun_ajaran');
         }
         $this->terapkanUrut($query, $urut, [
             ['riwayat_belajar.lembaga_id', 'naik'], ['riwayat_belajar.tingkat', 'naik'],
@@ -124,7 +124,7 @@ class RiwayatBelajarController extends Controller
         $this->authorizeLembaga($request->user(), (int) $data['lembaga_id']);
         $this->tolakLembagaRoot((int) $data['lembaga_id']);
 
-        $riwayat = $penerimaan->terima($santri, (int) $data['lembaga_id'], (int) $data['tahun_ajaran_id'], [
+        $riwayat = $penerimaan->terima($santri, (int) $data['lembaga_id'], (string) $data['tahun_ajaran'], [
             'kelas_id' => $data['kelas_id'] ?? null,
             'tingkat' => $data['tingkat'] ?? null,
             'no_absen' => $data['no_absen'] ?? null,
@@ -183,14 +183,14 @@ class RiwayatBelajarController extends Controller
 
         $data = $request->validate([
             'lembaga_id' => ['required', 'integer', 'exists:lembaga,id'],
-            'tahun_ajaran_id' => ['required', 'integer', 'exists:tahun_ajaran,id'],
+            'tahun_ajaran' => ['required', 'string', 'exists:tahun_ajaran,nama'],
             'q' => ['nullable', 'string', 'max:100'],
         ]);
         $lembagaId = (int) $data['lembaga_id'];
-        $taId = (int) $data['tahun_ajaran_id'];
+        $ta = (string) $data['tahun_ajaran'];
         $this->authorizeLembaga($request->user(), $lembagaId);
         $this->tolakLembagaRoot($lembagaId);
-        $this->cekTaEfektif($lembagaId, $taId);
+        $this->cekTaEfektif($lembagaId, $ta);
 
         $query = $this->scopeLembaga(
             LembagaSantri::with([
@@ -208,7 +208,7 @@ class RiwayatBelajarController extends Controller
         $query->whereNotExists(fn ($ganjil) => $ganjil->selectRaw('1')->from('riwayat_belajar')
             ->whereColumn('riwayat_belajar.santri_id', 'lembaga_santri.santri_id')
             ->whereColumn('riwayat_belajar.lembaga_id', 'lembaga_santri.lembaga_id')
-            ->where('riwayat_belajar.tahun_ajaran_id', $taId)
+            ->where('riwayat_belajar.tahun_ajaran', $ta)
             ->where('riwayat_belajar.semester', '1'));
 
         if (! empty($data['q'])) {

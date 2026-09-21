@@ -84,7 +84,7 @@ export default function KelulusanPage() {
       for (const r of namaTerpilih) {
         await lulusSantri(r.santri_id, {
           lembaga_id: Number(lembagaId),
-          tahun_ajaran_lulus_id: Number(taLulus),
+          tahun_ajaran_lulus: taLulus,
           tanggal_lulus: tanggalLulus,
           nomor_ijazah: noIjazah.trim() || undefined,
           no_surat_ijazah: noSurat.trim() || undefined,
@@ -181,7 +181,7 @@ export default function KelulusanPage() {
                 getValues={(a) => ({
                   santri: a.santri?.nama_lengkap ?? '—',
                   kelas: a.kelas_lulus?.nama_kelas ?? '—',
-                  ta: a.tahun_ajaran_lulus?.nama ?? '—',
+                  ta: a.tahunAjaranLulus?.nama ?? '—',
                   ijazah: a.nomor_ijazah ?? '—',
                 })}
                 urutAktif={urut}

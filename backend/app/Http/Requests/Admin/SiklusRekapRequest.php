@@ -17,7 +17,7 @@ class SiklusRekapRequest extends FormRequest
     {
         return [
             'lembaga_id' => ['nullable', 'integer', 'exists:lembaga,id'],
-            'tahun_ajaran_id' => ['nullable', 'integer', 'exists:tahun_ajaran,id'],
+            'tahun_ajaran' => ['nullable', 'string', 'exists:tahun_ajaran,nama'],
         ];
     }
 }

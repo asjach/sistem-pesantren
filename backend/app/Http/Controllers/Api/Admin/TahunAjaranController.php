@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\Concerns\UrutDaftar;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\TahunAjaranStoreRequest;
 use App\Http\Requests\Admin\TahunAjaranUpdateRequest;
+use App\Models\LembagaTahunAjaran;
 use App\Models\TahunAjaran;
 use App\Services\UrutKatalog;
 use Illuminate\Http\Request;
@@ -14,19 +15,19 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
- * FB-004-01: tahun ajaran sebagai data pesantren (global) — mirip ref_*.
- * - super_admin: tambah/ubah/hapus/menambah TA global & menetapkan TA aktif.
+ * FB-004-01: tahun ajaran sebagai data pesantren (global, kunci `nama`).
+ * - super_admin: tambah/ubah/hapus TA + menetapkan TA aktif.
  * - admin lembaga: hanya melihat TA yang berlaku + menyembunyikan/menampilkan
- *   untuk lembaganya sendiri (baris bayangan `is_active = false`).
+ *   untuk lembaganya sendiri (pivot `lembaga_tahun_ajaran`).
+ *
+ * `nama` memuat '/', jadi aksi tulis memakai kunci di body (bukan segmen URL).
  */
 class TahunAjaranController extends Controller
 {
     use TenantGuard;
     use UrutDaftar;
 
-    private const SORT_NULLABLE = [
-        'tahun_ajaran.tanggal_mulai', 'tahun_ajaran.tanggal_selesai', 'lembaga.kode',
-    ];
+    private const SORT_NULLABLE = ['tahun_ajaran.tanggal_mulai', 'tahun_ajaran.tanggal_selesai'];
 
     public function index(Request $request)
     {
@@ -40,156 +41,174 @@ class TahunAjaranController extends Controller
 
         $termasukNonaktif = $request->boolean('termasuk_nonaktif');
 
-        // Tanpa lembaga_id: daftar TA global (kelola super_admin).
-        if ($lembagaId === null) {
-            $query = TahunAjaran::global()->with('lembaga:id,nama,kode');
-        } else {
-            // Tampilan efektif lembaga itu: baris lembaga menang atas baris global
-            // yang punya nama sama (itulah mekanisme sembunyikan/tampilkan).
-            $query = TahunAjaran::query()
-                ->with('lembaga:id,nama,kode')
-                ->where(function ($q) use ($lembagaId) {
-                    $q->where('lembaga_id', $lembagaId)
-                        ->orWhere(function ($qq) use ($lembagaId) {
-                            $qq->whereNull('lembaga_id')->whereNotExists(function ($sub) use ($lembagaId) {
-                                $sub->select(DB::raw(1))->from('tahun_ajaran as bayangan')
-                                    ->whereColumn('bayangan.nama', 'tahun_ajaran.nama')
-                                    ->where('bayangan.lembaga_id', $lembagaId);
-                            });
-                        });
-                });
+        $pivot = $lembagaId === null
+            ? collect()
+            : LembagaTahunAjaran::where('lembaga_id', $lembagaId)->pluck('is_active', 'tahun_ajaran');
+
+        $query = TahunAjaran::query();
+
+        // `termasuk_nonaktif`: sertakan TA tersembunyi agar halaman bisa
+        // menampilkan tombol "Tampilkan kembali".
+        if ($lembagaId !== null && ! $termasukNonaktif) {
+            $query->whereNotIn('nama', $pivot->filter(fn ($aktif) => ! $aktif)->keys());
         }
 
         if ($request->filled('search')) {
             $query->where('nama', 'like', '%'.$request->input('search').'%');
         }
 
-        // `termasuk_nonaktif`: sertakan baris bayangan (tersembunyi) agar halaman
-        // bisa menampilkan tombol "Tampilkan kembali".
-        if (! $termasukNonaktif) {
-            $query->where('tahun_ajaran.is_active', true);
-        }
-
-        // TA aktif selalu di urutan pertama, lalu tanggal_mulai terbaru.
-        if ($urut !== null) {
-            $query->select('tahun_ajaran.*')
-                ->leftJoin('lembaga', 'lembaga.id', '=', 'tahun_ajaran.lembaga_id');
-        }
         $this->terapkanUrut($query, $urut, [
-            ['tahun_ajaran.is_aktif', 'turun'], ['tahun_ajaran.tanggal_mulai', 'turun'], ['tahun_ajaran.id', 'turun'],
+            ['tahun_ajaran.is_aktif', 'turun'], ['tahun_ajaran.tanggal_mulai', 'turun'], ['tahun_ajaran.nama', 'turun'],
         ], self::SORT_NULLABLE);
 
-        return response()->json($query->paginate($this->perPage($request)));
+        $hasil = $query->paginate($this->perPage($request));
+
+        if ($lembagaId !== null) {
+            $hasil->getCollection()->transform(function (TahunAjaran $t) use ($pivot) {
+                $t->setAttribute('tampil', $pivot->has($t->nama) ? (bool) $pivot[$t->nama] : true);
+
+                return $t;
+            });
+        }
+
+        return response()->json($hasil);
     }
 
     public function store(TahunAjaranStoreRequest $request)
     {
-        $auth = $request->user();
-        if (! $auth->bolehSuperAdmin()) {
+        if (! $request->user()->bolehSuperAdmin()) {
             abort(403, 'Tahun ajaran hanya super_admin.');
         }
 
         $data = $request->validated();
+        $nama = TahunAjaran::normalisasiNama($data['nama']);
 
-        if (TahunAjaran::global()->where('nama', $data['nama'])->exists()) {
+        if (TahunAjaran::whereKey($nama)->exists()) {
             throw ValidationException::withMessages(['nama' => 'Nama tahun ajaran sudah ada.']);
         }
 
         $row = TahunAjaran::create([
-            'lembaga_id' => null,
-            'nama' => $data['nama'],
+            'nama' => $nama,
             'tanggal_mulai' => $data['tanggal_mulai'] ?? null,
             'tanggal_selesai' => $data['tanggal_selesai'] ?? null,
+            'semester_aktif' => (int) ($data['semester_aktif'] ?? 1),
         ]);
 
         return response()->json($row, 201);
     }
 
-    public function update(TahunAjaranUpdateRequest $request, TahunAjaran $tahunAjaran)
+    public function update(TahunAjaranUpdateRequest $request)
     {
-        $auth = $request->user();
-        if ($tahunAjaran->lembaga_id !== null || ! $auth->bolehSuperAdmin()) {
+        if (! $request->user()->bolehSuperAdmin()) {
             abort(403, 'Tahun ajaran global hanya super_admin.');
         }
 
         $data = $request->validated();
+        $row = TahunAjaran::findOrFail($data['nama']);
 
-        if (isset($data['nama']) && $data['nama'] !== $tahunAjaran->nama
-            && TahunAjaran::global()->where('nama', $data['nama'])->whereKeyNot($tahunAjaran->id)->exists()
-        ) {
-            throw ValidationException::withMessages(['nama' => 'Nama tahun ajaran sudah ada.']);
+        $perubahan = [];
+        if (! empty($data['nama_baru'])) {
+            $namaBaru = TahunAjaran::normalisasiNama($data['nama_baru']);
+            if ($namaBaru !== $row->nama) {
+                if (TahunAjaran::whereKey($namaBaru)->exists()) {
+                    throw ValidationException::withMessages(['nama_baru' => 'Nama tahun ajaran sudah ada.']);
+                }
+                $perubahan['nama'] = $namaBaru;
+            }
+        }
+        foreach (['tanggal_mulai', 'tanggal_selesai', 'semester_aktif'] as $kolom) {
+            if (array_key_exists($kolom, $data)) {
+                $perubahan[$kolom] = $data[$kolom];
+            }
         }
 
-        $tahunAjaran->update($data);
+        if ($perubahan !== []) {
+            $row->update($perubahan);
+        }
 
-        return response()->json($tahunAjaran);
+        return response()->json($row->fresh());
     }
 
-    public function destroy(Request $request, TahunAjaran $tahunAjaran)
+    public function destroy(Request $request)
     {
-        $auth = $request->user();
-
-        // Baris bayangan lembaga: hapus = tampilkan kembali TA global.
-        if ($tahunAjaran->lembaga_id !== null) {
-            $this->authorizeLembaga($auth, (int) $tahunAjaran->lembaga_id);
-            $tahunAjaran->delete();
-
-            return response()->json(['message' => 'Tahun ajaran ditampilkan kembali.']);
-        }
-
-        if (! $auth->bolehSuperAdmin()) {
+        if (! $request->user()->bolehSuperAdmin()) {
             abort(403, 'Tahun ajaran global hanya super_admin.');
         }
 
-        if ($tahunAjaran->is_aktif) {
+        $data = $request->validate(['nama' => ['required', 'string']]);
+        $row = TahunAjaran::findOrFail($data['nama']);
+
+        if ($row->is_aktif) {
             return response()->json(['message' => 'Tahun ajaran aktif tidak boleh dihapus.'], 422);
         }
 
-        $tahunAjaran->delete();
+        $row->delete();
 
         return response()->json(['message' => 'Tahun ajaran dihapus.']);
     }
 
-    public function setAktif(Request $request, TahunAjaran $tahunAjaran)
+    public function setAktif(Request $request)
     {
         if (! $request->user()->bolehSuperAdmin()) {
             abort(403, 'Tahun ajaran hanya super_admin.');
         }
-        if ($tahunAjaran->lembaga_id !== null) {
-            return response()->json(['message' => 'Hanya tahun ajaran global yang bisa diaktifkan.'], 422);
-        }
 
-        DB::transaction(function () use ($tahunAjaran) {
+        $data = $request->validate([
+            'nama' => ['required', 'string'],
+            'semester_aktif' => ['nullable', 'in:1,2'],
+        ]);
+        $row = TahunAjaran::findOrFail($data['nama']);
+
+        DB::transaction(function () use ($row, $data) {
             TahunAjaran::query()->update(['is_aktif' => false]);
-            $tahunAjaran->update(['is_aktif' => true]);
+            $row->update([
+                'is_aktif' => true,
+                'semester_aktif' => (int) ($data['semester_aktif'] ?? $row->semester_aktif),
+            ]);
         });
 
-        return response()->json($tahunAjaran->fresh());
+        return response()->json($row->fresh());
     }
 
-    /** Sembunyikan TA global untuk lembaga actor (baris bayangan). */
-    public function sembunyikan(Request $request, TahunAjaran $tahunAjaran)
+    /** Sembunyikan TA untuk satu lembaga (pivot is_active = false). */
+    public function sembunyikan(Request $request)
     {
         $auth = $request->user();
-        $lembagaId = $request->filled('lembaga_id')
-            ? (int) $request->input('lembaga_id')
-            : (int) ($auth->lembagaIds()[0] ?? 0);
+        $data = $request->validate([
+            'nama' => ['required', 'string'],
+            'lembaga_id' => ['nullable', 'integer', 'exists:lembaga,id'],
+        ]);
+        $lembagaId = $data['lembaga_id'] ?? (int) ($auth->lembagaIds()[0] ?? 0);
         $this->authorizeLembaga($auth, $lembagaId);
 
-        if ($tahunAjaran->lembaga_id !== null) {
-            return response()->json(['message' => 'Hanya tahun ajaran global yang bisa disembunyikan.'], 422);
-        }
-        if ($tahunAjaran->is_aktif) {
+        $row = TahunAjaran::findOrFail($data['nama']);
+        if ($row->is_aktif) {
             return response()->json(['message' => 'Tahun ajaran aktif tidak bisa disembunyikan.'], 422);
         }
 
-        DB::transaction(function () use ($tahunAjaran, $lembagaId) {
-            TahunAjaran::updateOrCreate(
-                ['lembaga_id' => $lembagaId, 'nama' => $tahunAjaran->nama],
-                ['is_active' => false, 'is_aktif' => false, 'tanggal_mulai' => null, 'tanggal_selesai' => null]
-            );
-        });
+        LembagaTahunAjaran::updateOrCreate(
+            ['lembaga_id' => $lembagaId, 'tahun_ajaran' => $row->nama],
+            ['is_active' => false]
+        );
 
         return response()->json(['message' => 'Tahun ajaran disembunyikan untuk lembaga ini.']);
+    }
+
+    /** Tampilkan kembali TA untuk satu lembaga (hapus baris pivot). */
+    public function tampilkan(Request $request)
+    {
+        $auth = $request->user();
+        $data = $request->validate([
+            'nama' => ['required', 'string'],
+            'lembaga_id' => ['nullable', 'integer', 'exists:lembaga,id'],
+        ]);
+        $lembagaId = $data['lembaga_id'] ?? (int) ($auth->lembagaIds()[0] ?? 0);
+        $this->authorizeLembaga($auth, $lembagaId);
+
+        LembagaTahunAjaran::where('lembaga_id', $lembagaId)
+            ->where('tahun_ajaran', $data['nama'])
+            ->delete();
+
+        return response()->json(['message' => 'Tahun ajaran ditampilkan kembali.']);
     }
 }

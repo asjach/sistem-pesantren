@@ -12,7 +12,7 @@ import { useTahunAjaranAktif } from '@/tahunAjaranAktif';
 /** Shell aplikasi: navigasi (sidebar/menubar sesuai pref) + kolom (ribbon tools + konten). */
 export default function Layout({ children }: { children: ReactNode }) {
   const { lembagaId } = useLembagaAktif();
-  const { tahunAjaranId } = useTahunAjaranAktif();
+  const { tahunAjaranNama } = useTahunAjaranAktif();
   const { navigasi } = useTheme();
   const pakaiMenubar = navigasi === 'menubar';
 
@@ -27,7 +27,7 @@ export default function Layout({ children }: { children: ReactNode }) {
               <TopBar />
               {/* Ganti lembaga/tahun ajaran aktif → remount halaman: filter & data ikut scope baru. */}
               <main className="flex min-h-0 flex-1 flex-col overflow-y-auto p-1">
-                <Fragment key={`${lembagaId ?? 'semua'}:${tahunAjaranId ?? 'semua'}`}>{children}</Fragment>
+                <Fragment key={`${lembagaId ?? 'semua'}:${tahunAjaranNama ?? 'semua'}`}>{children}</Fragment>
               </main>
             </div>
           </div>

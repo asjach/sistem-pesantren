@@ -56,10 +56,9 @@ class BertindakLembagaTest extends TestCase
 
     protected function siapkanKelas(Lembaga $mi, Lembaga $md): void
     {
-        $taMi = TahunAjaran::create(['lembaga_id' => $mi->id, 'nama' => '2026/2027', 'is_aktif' => true]);
-        $taMd = TahunAjaran::create(['lembaga_id' => $md->id, 'nama' => '2026/2027', 'is_aktif' => true]);
-        Kelas::create(['lembaga_id' => $mi->id, 'tahun_ajaran_id' => $taMi->id, 'nama_kelas' => 'I-A']);
-        Kelas::create(['lembaga_id' => $md->id, 'tahun_ajaran_id' => $taMd->id, 'nama_kelas' => 'MD-A']);
+        $ta = TahunAjaran::create(['nama' => '2026/2027', 'is_aktif' => true]);
+        Kelas::create(['lembaga_id' => $mi->id, 'tahun_ajaran' => $ta->nama, 'nama_kelas' => 'I-A']);
+        Kelas::create(['lembaga_id' => $md->id, 'tahun_ajaran' => $ta->nama, 'nama_kelas' => 'MD-A']);
     }
 
     public function test_tanpa_header_super_admin_tetap_penuh(): void

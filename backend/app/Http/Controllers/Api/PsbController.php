@@ -345,12 +345,12 @@ class PsbController extends Controller
         ];
     }
 
-    /** GET /api/psb/gelombang — dropdown gelombang admin (opsional ?kegiatan_id=/?tahun_ajaran_id=). */
+    /** GET /api/psb/gelombang — dropdown gelombang admin (opsional ?kegiatan_id=/?tahun_ajaran=). */
     public function gelombang(Request $request): JsonResponse
     {
-        $rows = PsbGelombang::with('kegiatan:id,nama,tahun_ajaran_id')
+        $rows = PsbGelombang::with('kegiatan:id,nama,tahun_ajaran')
             ->when($request->filled('kegiatan_id'), fn ($q) => $q->where('psb_kegiatan_id', $request->integer('kegiatan_id')))
-            ->when($request->filled('tahun_ajaran_id'), fn ($q) => $q->whereHas('kegiatan', fn ($qq) => $qq->where('tahun_ajaran_id', $request->integer('tahun_ajaran_id'))))
+            ->when($request->filled('tahun_ajaran'), fn ($q) => $q->whereHas('kegiatan', fn ($qq) => $qq->where('tahun_ajaran', $request->input('tahun_ajaran'))))
             ->orderBy('psb_kegiatan_id')
             ->orderBy('nomor')
             ->get(['id', 'psb_kegiatan_id', 'nomor', 'nama', 'tgl_buka', 'tgl_tutup'])

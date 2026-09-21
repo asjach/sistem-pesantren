@@ -46,6 +46,6 @@ class RiwayatBelajar extends Model
 
     public function tahunAjaran(): BelongsTo
     {
-        return $this->belongsTo(TahunAjaran::class, 'tahun_ajaran_id');
+        return $this->belongsTo(TahunAjaran::class, 'tahun_ajaran', 'nama');
     }
 }

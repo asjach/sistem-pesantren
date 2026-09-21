@@ -127,7 +127,8 @@ opsional `?lembaga_id=`): hitungan `lembaga/pengguna/tahun_ajaran_aktif/kelas`
 `lembaga_id=null` + per-lembaga rows; shadow = on/off only for globals),
 `RefService::effective()/kodeAktif()/forget()` (cached), urut tampil
 `urutan` ASC tie-break `nama` ASC, `ReferensiSeeder`
-(decision no.51 values), `Lembaga/TahunAjaran/Kelas` CRUD with tenant scope.
+(decision no.51 values), `Lembaga/Kelas` CRUD with tenant scope, `TahunAjaran`
+global ber-kunci `nama` (mis. '2025/2026') + pivot visibilitas `lembaga_tahun_ajaran`.
 Aturan kamus: baris global diubah hanya `super_admin`; baris lembaga hanya
 tenant pemilik; `kode` tak boleh diubah (kunci data), `nama` boleh; duplikat
 kode/nama per scope → 422; global dihapus = shadow off per lembaga (bukan

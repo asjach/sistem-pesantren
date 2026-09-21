@@ -131,8 +131,8 @@ class PsbService
                 }
                 $data['gelombang_id'] = $gelombangAktif->id;
             }
-            $gelombangModel = PsbGelombang::with('kegiatan:id,tahun_ajaran_id')->findOrFail($data['gelombang_id']);
-            $data['tahun_ajaran_id'] = $data['tahun_ajaran_id'] ?? $gelombangModel->kegiatan?->tahun_ajaran_id;
+            $gelombangModel = PsbGelombang::with('kegiatan:id,tahun_ajaran')->findOrFail($data['gelombang_id']);
+            $data['tahun_ajaran'] = $data['tahun_ajaran'] ?? $gelombangModel->kegiatan?->tahun_ajaran;
 
             $isLanjutan = ! empty($data['santri_asal_id']);
             $isPaket = ($data['paket'] ?? null) === self::PAKET_MI_MD['kode'];
@@ -190,9 +190,9 @@ class PsbService
             }
 
             // TA calon = TA yang berlaku untuk lembaga primer (kegiatan hanya fallback).
-            $data['tahun_ajaran_id'] = TahunAjaran::resolve(
+            $data['tahun_ajaran'] = TahunAjaran::resolve(
                 (int) $targets[0]['lembaga']->id,
-                $data['tahun_ajaran_id'] ?? $gelombangModel->kegiatan?->tahun_ajaran_id
+                $data['tahun_ajaran'] ?? $gelombangModel->kegiatan?->tahun_ajaran
             );
 
             $catatanSistem = [];
@@ -221,7 +221,7 @@ class PsbService
                     $calon = PsbCalonSantri::create([
                         'lembaga_id' => $targets[0]['lembaga']->id,
                         'gelombang_id' => $data['gelombang_id'],
-                        'tahun_ajaran_id' => $data['tahun_ajaran_id'] ?? null,
+                        'tahun_ajaran' => $data['tahun_ajaran'] ?? null,
                         'tipe_santri' => $data['tipe_santri'],
                         'nik' => $data['nik'],
                         'nama_lengkap' => $data['nama_lengkap'],
@@ -480,7 +480,7 @@ class PsbService
 
             // Keanggotaan (`lembaga_santri`) per lembaga detail. Riwayat belajar
             // perdana TIDAK dibuat di sini — diinput lewat halaman Riwayat Belajar.
-            if ($calon->tahun_ajaran_id) {
+            if ($calon->tahun_ajaran) {
                 if ($calon->lembagaDetail()->count() === 0) {
                     $calon->lembagaDetail()->create(['lembaga_id' => $calon->lembaga_id, 'peran' => 'primer']);
                 }

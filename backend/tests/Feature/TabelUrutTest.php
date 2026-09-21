@@ -126,7 +126,7 @@ class TabelUrutTest extends TestCase
         $f = $this->dasar();
         foreach (['Kelas B', 'Kelas A'] as $nama) {
             Kelas::create([
-                'lembaga_id' => $f['mi']->id, 'tahun_ajaran_id' => $f['ta']->id, 'nama_kelas' => $nama,
+                'lembaga_id' => $f['mi']->id, 'tahun_ajaran' => $f['ta']->nama, 'nama_kelas' => $nama,
             ]);
         }
         $this->assertSame(
@@ -219,7 +219,7 @@ class TabelUrutTest extends TestCase
         [$ahmad, $budi, $candra] = $this->santriTiga();
         foreach ([$candra, $ahmad, $budi] as $s) {
             RiwayatBelajar::create([
-                'santri_id' => $s->id, 'tahun_ajaran_id' => $f['ta']->id,
+                'santri_id' => $s->id, 'tahun_ajaran' => $f['ta']->nama,
                 'lembaga_id' => $f['mi']->id, 'semester' => '1',
             ]);
         }
@@ -270,7 +270,7 @@ class TabelUrutTest extends TestCase
         foreach ([$budi, $ahmad] as $s) {
             Alumni::create([
                 'santri_id' => $s->id, 'lembaga_lulus_id' => $f['mi']->id,
-                'tahun_ajaran_lulus_id' => $f['ta']->id, 'tanggal_lulus' => '2026-06-01',
+                'tahun_ajaran_lulus' => $f['ta']->nama, 'tanggal_lulus' => '2026-06-01',
             ]);
         }
         $this->assertSame(

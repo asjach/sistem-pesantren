@@ -64,10 +64,12 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
 
         Route::get('tahun-ajaran', [TahunAjaranController::class, 'index'])->middleware('permission:tahun_ajaran.lihat');
         Route::post('tahun-ajaran', [TahunAjaranController::class, 'store'])->middleware('permission:tahun_ajaran.tambah');
-        Route::match(['put', 'patch'], 'tahun-ajaran/{tahunAjaran}', [TahunAjaranController::class, 'update'])->middleware('permission:tahun_ajaran.ubah');
-        Route::delete('tahun-ajaran/{tahunAjaran}', [TahunAjaranController::class, 'destroy'])->middleware('permission:tahun_ajaran.hapus');
-        Route::post('tahun-ajaran/{tahunAjaran}/set-aktif', [TahunAjaranController::class, 'setAktif'])->middleware('permission:tahun_ajaran.ubah');
-        Route::post('tahun-ajaran/{tahunAjaran}/sembunyikan', [TahunAjaranController::class, 'sembunyikan'])->middleware('permission:tahun_ajaran.ubah');
+        // Kunci `nama` memuat '/', jadi aksi tulis memakai body (bukan segmen URL).
+        Route::match(['put', 'patch'], 'tahun-ajaran', [TahunAjaranController::class, 'update'])->middleware('permission:tahun_ajaran.ubah');
+        Route::delete('tahun-ajaran', [TahunAjaranController::class, 'destroy'])->middleware('permission:tahun_ajaran.hapus');
+        Route::post('tahun-ajaran/set-aktif', [TahunAjaranController::class, 'setAktif'])->middleware('permission:tahun_ajaran.ubah');
+        Route::post('tahun-ajaran/sembunyikan', [TahunAjaranController::class, 'sembunyikan'])->middleware('permission:tahun_ajaran.ubah');
+        Route::post('tahun-ajaran/tampilkan', [TahunAjaranController::class, 'tampilkan'])->middleware('permission:tahun_ajaran.ubah');
 
         Route::get('semester-aktif', [SemesterAktifController::class, 'index'])->middleware('permission:semester.lihat');
         Route::put('semester-aktif', [SemesterAktifController::class, 'upsert'])->middleware('permission:semester.ubah');

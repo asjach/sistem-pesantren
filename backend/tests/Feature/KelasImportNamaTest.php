@@ -44,18 +44,12 @@ class KelasImportNamaTest extends TestCase
             'parent_id' => $root->id, 'nama' => 'Tsanawiyah', 'kode' => 'MTS',
             'is_seleksi' => false, 'kelompok_psb' => 'eksklusif', 'is_active' => true,
         ]);
-        $taMi = TahunAjaran::create([
-            'lembaga_id' => $mi->id, 'nama' => '2026/2027',
+        // TA global (berlaku semua lembaga) — satu baris untuk semua.
+        $ta = TahunAjaran::create([
+            'nama' => '2026/2027',
             'tanggal_mulai' => '2026-07-01', 'tanggal_selesai' => '2027-06-30', 'is_aktif' => true,
         ]);
-        $taMd = TahunAjaran::create([
-            'lembaga_id' => $md->id, 'nama' => '2026/2027',
-            'tanggal_mulai' => '2026-07-01', 'tanggal_selesai' => '2027-06-30', 'is_aktif' => true,
-        ]);
-        $taMts = TahunAjaran::create([
-            'lembaga_id' => $mts->id, 'nama' => '2026/2027',
-            'tanggal_mulai' => '2026-07-01', 'tanggal_selesai' => '2027-06-30', 'is_aktif' => true,
-        ]);
+        $taMi = $taMd = $taMts = $ta;
         $super = User::create([
             'name' => 'Super', 'email' => 'super-impor@example.com',
             'phone' => '081000000009', 'password' => 'password',
@@ -75,12 +69,12 @@ class KelasImportNamaTest extends TestCase
     public function test_pratinjau_lalu_eksekusi_lewati_duplikat(): void
     {
         $f = $this->baseFixture();
-        Kelas::create(['lembaga_id' => $f['mi']->id, 'tahun_ajaran_id' => $f['taMi']->id, 'nama_kelas' => '1A', 'tingkat' => '1', 'urutan' => 1]);
-        Kelas::create(['lembaga_id' => $f['mi']->id, 'tahun_ajaran_id' => $f['taMi']->id, 'nama_kelas' => '1B', 'tingkat' => '1', 'urutan' => 2]);
-        Kelas::create(['lembaga_id' => $f['md']->id, 'tahun_ajaran_id' => $f['taMd']->id, 'nama_kelas' => '1A', 'tingkat' => '1', 'urutan' => 1]);
+        Kelas::create(['lembaga_id' => $f['mi']->id, 'tahun_ajaran' => $f['taMi']->nama, 'nama_kelas' => '1A', 'tingkat' => '1', 'urutan' => 1]);
+        Kelas::create(['lembaga_id' => $f['mi']->id, 'tahun_ajaran' => $f['taMi']->nama, 'nama_kelas' => '1B', 'tingkat' => '1', 'urutan' => 2]);
+        Kelas::create(['lembaga_id' => $f['md']->id, 'tahun_ajaran' => $f['taMd']->nama, 'nama_kelas' => '1A', 'tingkat' => '1', 'urutan' => 1]);
 
         $body = [
-            'lembaga_id' => $f['md']->id, 'tahun_ajaran_id' => $f['taMd']->id,
+            'lembaga_id' => $f['md']->id, 'tahun_ajaran' => $f['taMd']->nama,
             'dari_kode' => 'MI', 'periksa' => true,
         ];
         $res = $this->panggil($f['super'], $body)->assertStatus(200);
@@ -96,11 +90,11 @@ class KelasImportNamaTest extends TestCase
     public function test_mode_copy_ke_kode_target_otomatis(): void
     {
         $f = $this->baseFixture();
-        Kelas::create(['lembaga_id' => $f['mi']->id, 'tahun_ajaran_id' => $f['taMi']->id, 'nama_kelas' => '2A', 'tingkat' => '2', 'urutan' => 1]);
+        Kelas::create(['lembaga_id' => $f['mi']->id, 'tahun_ajaran' => $f['taMi']->nama, 'nama_kelas' => '2A', 'tingkat' => '2', 'urutan' => 1]);
 
         // Copy MI → MD: target + TA diselesaikan server.
         $res = $this->panggil($f['super'], [
-            'dari_lembaga_id' => $f['mi']->id, 'dari_tahun_ajaran_id' => $f['taMi']->id,
+            'dari_lembaga_id' => $f['mi']->id, 'dari_tahun_ajaran' => $f['taMi']->nama,
             'ke_kode' => 'MD', 'periksa' => true,
         ])->assertStatus(200);
         $this->assertSame('MD', $res->json('tujuan.kode'));
@@ -108,11 +102,11 @@ class KelasImportNamaTest extends TestCase
         $this->assertSame(1, (int) $res->json('ringkasan.dibuat'));
 
         $this->panggil($f['super'], [
-            'dari_lembaga_id' => $f['mi']->id, 'dari_tahun_ajaran_id' => $f['taMi']->id,
+            'dari_lembaga_id' => $f['mi']->id, 'dari_tahun_ajaran' => $f['taMi']->nama,
             'ke_kode' => 'MD', 'periksa' => false,
         ])->assertStatus(200);
         $this->assertDatabaseHas('kelas', [
-            'lembaga_id' => $f['md']->id, 'tahun_ajaran_id' => $f['taMd']->id, 'nama_kelas' => '2A',
+            'lembaga_id' => $f['md']->id, 'tahun_ajaran' => $f['taMd']->nama, 'nama_kelas' => '2A',
         ]);
     }
 
@@ -121,7 +115,7 @@ class KelasImportNamaTest extends TestCase
         $f = $this->baseFixture();
 
         $this->panggil($f['super'], [
-            'lembaga_id' => $f['mts']->id, 'tahun_ajaran_id' => $f['taMts']->id,
+            'lembaga_id' => $f['mts']->id, 'tahun_ajaran' => $f['taMts']->nama,
             'dari_kode' => 'MI', 'periksa' => true,
         ])->assertStatus(422);
     }
@@ -129,7 +123,7 @@ class KelasImportNamaTest extends TestCase
     public function test_admin_satu_lembaga_bisa_baca_pasangan(): void
     {
         $f = $this->baseFixture();
-        Kelas::create(['lembaga_id' => $f['md']->id, 'tahun_ajaran_id' => $f['taMd']->id, 'nama_kelas' => '1A', 'tingkat' => '1', 'urutan' => 1]);
+        Kelas::create(['lembaga_id' => $f['md']->id, 'tahun_ajaran' => $f['taMd']->nama, 'nama_kelas' => '1A', 'tingkat' => '1', 'urutan' => 1]);
 
         $adminMi = User::create([
             'name' => 'Admin MI', 'email' => 'adminmi-baca@example.com',
@@ -143,7 +137,7 @@ class KelasImportNamaTest extends TestCase
 
         // Target MI miliknya, sumber MD terbaca via pengecualian pasangan.
         $this->panggil($adminMi, [
-            'lembaga_id' => $f['mi']->id, 'tahun_ajaran_id' => $f['taMi']->id,
+            'lembaga_id' => $f['mi']->id, 'tahun_ajaran' => $f['taMi']->nama,
             'dari_kode' => 'MD', 'periksa' => false,
         ])->assertStatus(200);
         $this->assertDatabaseHas('kelas', ['lembaga_id' => $f['mi']->id, 'nama_kelas' => '1A']);
@@ -152,14 +146,14 @@ class KelasImportNamaTest extends TestCase
     public function test_export_nama_kelas(): void
     {
         $f = $this->baseFixture();
-        Kelas::create(['lembaga_id' => $f['mi']->id, 'tahun_ajaran_id' => $f['taMi']->id, 'nama_kelas' => '1A', 'tingkat' => '1', 'urutan' => 1]);
+        Kelas::create(['lembaga_id' => $f['mi']->id, 'tahun_ajaran' => $f['taMi']->nama, 'nama_kelas' => '1A', 'tingkat' => '1', 'urutan' => 1]);
 
         $this->actingAs($f['super'], 'sanctum')
-            ->get("/api/admin/kelas/export-nama?lembaga_id={$f['mi']->id}&tahun_ajaran_id={$f['taMi']->id}")
+            ->get("/api/admin/kelas/export-nama?lembaga_id={$f['mi']->id}&tahun_ajaran={$f['taMi']->nama}")
             ->assertStatus(200)
             ->assertHeader('content-disposition', 'attachment; filename=daftar-kelas-MI-20262027.xlsx');
 
-        $isi = (new KelasNamaExport($f['mi']->id, $f['taMi']->id))->array();
+        $isi = (new KelasNamaExport($f['mi']->id, $f['taMi']->nama))->array();
         $this->assertSame([['1A', '1', '1']], $isi);
 
         $adminMi = User::create([
@@ -172,7 +166,7 @@ class KelasImportNamaTest extends TestCase
             'created_at' => now(), 'updated_at' => now(),
         ]);
         $this->actingAs($adminMi, 'sanctum')
-            ->get("/api/admin/kelas/export-nama?lembaga_id={$f['md']->id}&tahun_ajaran_id={$f['taMd']->id}")
+            ->get("/api/admin/kelas/export-nama?lembaga_id={$f['md']->id}&tahun_ajaran={$f['taMd']->nama}")
             ->assertStatus(200);
 
         // Non-pasangan (MTS) tetap ditolak.
@@ -186,7 +180,7 @@ class KelasImportNamaTest extends TestCase
             'created_at' => now(), 'updated_at' => now(),
         ]);
         $this->actingAs($adminMts, 'sanctum')
-            ->get("/api/admin/kelas/export-nama?lembaga_id={$f['md']->id}&tahun_ajaran_id={$f['taMd']->id}")
+            ->get("/api/admin/kelas/export-nama?lembaga_id={$f['md']->id}&tahun_ajaran={$f['taMd']->nama}")
             ->assertStatus(403);
     }
 
@@ -204,7 +198,7 @@ class KelasImportNamaTest extends TestCase
         ]);
 
         $this->panggil($adminMts, [
-            'lembaga_id' => $f['md']->id, 'tahun_ajaran_id' => $f['taMd']->id,
+            'lembaga_id' => $f['md']->id, 'tahun_ajaran' => $f['taMd']->nama,
             'dari_kode' => 'MI', 'periksa' => true,
         ])->assertStatus(403);
     }

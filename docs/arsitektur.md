@@ -175,7 +175,7 @@ Service Layer + Policy + transaction; notifikasi DB agregat.
 
 | ID | Modul (kode + nama) | Tabel inti | Relasi kunci |
 |---|---|---|---|
-| 6.1 | 003 Auth Login, 004 Referensi-Master | `lembaga`, 34 `ref_*`, `users`, `user_lembaga`, `tahun_ajaran`, `pegawai`, `kelas` | `lembaga 1—N tahun_ajaran/kelas`; `kelas.walas_id` inline; ref global + shadow lembaga |
+| 6.1 | 003 Auth Login, 004 Referensi-Master | `lembaga`, 34 `ref_*`, `users`, `user_lembaga`, `tahun_ajaran`, `pegawai`, `kelas` | `tahun_ajaran` global (kunci `nama`, mis. '2025/2026'); visibilitas per lembaga via pivot `lembaga_tahun_ajaran`; `lembaga 1—N kelas`; `kelas.walas_id` inline; ref global + shadow lembaga |
 | 6.2 | 101 Santri Master, 102 Siklus Santri | `santri`, `riwayat_belajar`, `mutasi_keluar`, `alumni` | `santri 1—N riwayat_belajar`; `riwayat N—1 kelas`; `id` stabil, NIK index tanpa unique; `santri.lembaga_id` nullable (cache, fallback riwayat), `is_active_pst` turunan |
 | 6.3 | 100 PSB Penerimaan | `psb_*`, `dokumen_santri` | `calon` ke `santri` saat ACC; dokumen pindah ke santri |
 | 6.5 | 200 Pegawai, 201 Kurikulum-Mapel, 202 Nilai-Rapor, 203 Portal Wali | `kurikulum_mapel` pivot, `wali_*`, `pengajuan_biodata_santri` | `kurikulum N—M mapel` via `kurikulum_mapel`; wali via `wali_santri_relasi` |
@@ -243,7 +243,7 @@ Laravel 13 / PHP 8.4+, Sanctum (`sanctum`), Spatie (`sanctum`), MySQL, Excel, Do
 
 ### 8.2 Strategi Migration (per alur, per-modul per-file)
 
-Migration per-modul (timestamp bawaan, urutan FK); spec di `docs/SCHEMA.md`. Urutan `lembaga` ke `ref_*` ke `users` (`0001` bawaan) ke `user_lembaga` ke `tahun_ajaran` ke `pegawai` ke `kelas` ke `santri` ke riwayat ke PSB ke lanjutan; blok asrama (`asrama*`, `user_asrama`) menyusul setelah presensi.
+Migration per-modul (timestamp bawaan, urutan FK); spec di `docs/SCHEMA.md`. Urutan `lembaga` ke `ref_*` ke `users` (`0001` bawaan) ke `user_lembaga` ke `tahun_ajaran` ke `lembaga_tahun_ajaran` ke `pegawai` ke `kelas` ke `santri` ke riwayat ke PSB ke lanjutan; blok asrama (`asrama*`, `user_asrama`) menyusul setelah presensi.
 
 | ID | Alur (Bab 4) | Modul | Tabel (BLOK) |
 |---|---|---|---|

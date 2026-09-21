@@ -16,8 +16,8 @@ class PsbKegiatanUpdateRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'tahun_ajaran_id' => ['sometimes', 'integer', 'exists:tahun_ajaran,id',
-                Rule::unique('psb_kegiatan', 'tahun_ajaran_id')->ignore($this->route('kegiatan')?->id)],
+            'tahun_ajaran' => ['sometimes', 'string', 'exists:tahun_ajaran,nama',
+                Rule::unique('psb_kegiatan', 'tahun_ajaran')->ignore($this->route('kegiatan')?->id)],
             'nama' => ['sometimes', 'string', 'max:100'],
             'is_aktif' => ['nullable', 'boolean'],
         ];
@@ -26,7 +26,7 @@ class PsbKegiatanUpdateRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'tahun_ajaran_id.unique' => 'Tahun ajaran ini sudah memiliki kegiatan PSB.',
+            'tahun_ajaran.unique' => 'Tahun ajaran ini sudah memiliki kegiatan PSB.',
         ];
     }
 }

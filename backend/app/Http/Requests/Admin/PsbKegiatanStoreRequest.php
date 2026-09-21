@@ -15,7 +15,7 @@ class PsbKegiatanStoreRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'tahun_ajaran_id' => ['required', 'integer', 'exists:tahun_ajaran,id', 'unique:psb_kegiatan,tahun_ajaran_id'],
+            'tahun_ajaran' => ['required', 'string', 'exists:tahun_ajaran,nama', 'unique:psb_kegiatan,tahun_ajaran'],
             'nama' => ['required', 'string', 'max:100'],
             'is_aktif' => ['nullable', 'boolean'],
         ];
@@ -24,7 +24,7 @@ class PsbKegiatanStoreRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'tahun_ajaran_id.unique' => 'Tahun ajaran ini sudah memiliki kegiatan PSB.',
+            'tahun_ajaran.unique' => 'Tahun ajaran ini sudah memiliki kegiatan PSB.',
         ];
     }
 }

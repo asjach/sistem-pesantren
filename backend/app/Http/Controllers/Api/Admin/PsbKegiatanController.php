@@ -42,7 +42,7 @@ class PsbKegiatanController extends Controller
             }
 
             return PsbKegiatan::create([
-                'tahun_ajaran_id' => $data['tahun_ajaran_id'],
+                'tahun_ajaran' => $data['tahun_ajaran'],
                 'nama' => $data['nama'],
                 'is_aktif' => (bool) ($data['is_aktif'] ?? false),
             ]);
@@ -61,7 +61,7 @@ class PsbKegiatanController extends Controller
             if (! empty($data['is_aktif'])) {
                 PsbKegiatan::where('id', '!=', $kegiatan->id)->where('is_aktif', true)->update(['is_aktif' => false]);
             }
-            $kegiatan->update(collect($data)->only(['tahun_ajaran_id', 'nama', 'is_aktif'])->filter(fn ($v) => $v !== null)->toArray());
+            $kegiatan->update(collect($data)->only(['tahun_ajaran', 'nama', 'is_aktif'])->filter(fn ($v) => $v !== null)->toArray());
         });
 
         return response()->json(['pesan' => 'Kegiatan PSB diubah.', 'data' => $kegiatan->fresh('tahunAjaran')]);

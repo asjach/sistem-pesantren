@@ -29,7 +29,7 @@ class RiwayatBelajarTemplateExport extends DefaultValueBinder implements FromArr
     private const BARIS_TERAKHIR = 501;
 
     public const KOLOM = [
-        'nik', 'nis_lokal', 'lembaga_id', 'tahun_ajaran_id', 'kelas_id',
+        'nik', 'nis_lokal', 'lembaga_id', 'tahun_ajaran', 'kelas_id',
         'semester', 'tgl_masuk', 'no_absen', 'tingkat', 'status_awal', 'status_akhir',
     ];
 
@@ -56,7 +56,7 @@ class RiwayatBelajarTemplateExport extends DefaultValueBinder implements FromArr
             'nik' => '1234567890123456',
             'nis_lokal' => '26001',
             'lembaga_id' => '2',
-            'tahun_ajaran_id' => '1',
+            'tahun_ajaran' => '2025/2026',
             'kelas_id' => '1A',
             'semester' => '1',
             'tgl_masuk' => '2026-07-01',
@@ -96,7 +96,7 @@ class RiwayatBelajarTemplateExport extends DefaultValueBinder implements FromArr
                     $style = $sheet->getStyle("{$col}1");
                     $style->getFont()->setBold(true)->setSize(10)->getColor()->setARGB('FF1F2937');
                     $style->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB(
-                        in_array($nama, ['nik', 'nis_lokal', 'lembaga_id', 'tahun_ajaran_id', 'semester'], true)
+                        in_array($nama, ['nik', 'nis_lokal', 'lembaga_id', 'tahun_ajaran', 'semester'], true)
                             ? 'FFFFE699'
                             : 'FFDCE6F1'
                     );

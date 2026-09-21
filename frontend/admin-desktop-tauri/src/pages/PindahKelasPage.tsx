@@ -56,7 +56,7 @@ export default function PindahKelasPage() {
     if (!lembagaId) { setRows([]); return; }
     setErr('');
     try {
-      const res = await daftarKelas({ lembaga_id: Number(lembagaId), tahun_ajaran_id: taId ? Number(taId) : undefined, semester: semester || undefined });
+      const res = await daftarKelas({ lembaga_id: Number(lembagaId), tahun_ajaran: taId || undefined, semester: semester || undefined });
       setRows(res.data);
     } catch (e) { setErr(errorMessage(e)); }
   }, [lembagaId, taId, semester]);
@@ -65,7 +65,7 @@ export default function PindahKelasPage() {
 
   useEffect(() => {
     if (!lembagaId) { setKelas([]); return; }
-    listKelas({ lembaga_id: Number(lembagaId), tahun_ajaran_id: taId ? Number(taId) : undefined, per_page: 1000 })
+    listKelas({ lembaga_id: Number(lembagaId), tahun_ajaran: taId || undefined, per_page: 1000 })
       .then((p) => setKelas(p.data))
       .catch(() => setKelas([]));
   }, [lembagaId, taId]);

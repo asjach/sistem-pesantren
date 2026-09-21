@@ -17,7 +17,7 @@ class KelasStoreRequest extends FormRequest
         return [
             // Kelas selalu milik lembaga operasional (bukan root pesantren).
             'lembaga_id' => ['required', Rule::exists('lembaga', 'id')->whereNotNull('parent_id')],
-            'tahun_ajaran_id' => ['required', 'exists:tahun_ajaran,id'],
+            'tahun_ajaran' => ['required', 'string', 'exists:tahun_ajaran,nama'],
             // Mode tunggal (kompatibel lama) atau bulk via items (sub-form dialog).
             'nama_kelas' => ['required_without:items', 'string', 'max:50'],
             'tingkat' => ['nullable', 'string', 'max:20'],

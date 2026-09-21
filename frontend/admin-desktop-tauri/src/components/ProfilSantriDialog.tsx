@@ -65,7 +65,7 @@ export function ProfilSantriDialog({ santriId, open, onOpenChange }: {
             { key: 'aktif', label: 'Aktif' },
           ],
           rows: profil.riwayat.map((r) => ({
-            tahun: r.tahun_ajaran?.nama ?? '',
+            tahun: r.tahun_ajaran ?? '',
             semester: r.semester,
             tingkat: r.tingkat ?? '',
             lembaga: r.lembaga?.kode ?? r.lembaga?.nama ?? '',
@@ -103,7 +103,7 @@ export function ProfilSantriDialog({ santriId, open, onOpenChange }: {
           ],
           rows: profil.alumni.map((a) => ({
             lembaga: a.lembaga_lulus?.kode ?? a.lembaga_lulus?.nama ?? '',
-            ta: a.tahun_ajaran_lulus?.nama ?? '',
+            ta: a.tahunAjaranLulus?.nama ?? '',
             ijazah: a.nomor_ijazah ?? '',
             tanggal: ymd(a.tanggal_lulus),
             penyerahan: a.penyerahan_ijazah ?? '',

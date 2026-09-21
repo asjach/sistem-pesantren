@@ -17,7 +17,7 @@ class SiklusDaftarKelasRequest extends FormRequest
     {
         return [
             'lembaga_id' => ['required', 'integer', 'exists:lembaga,id'],
-            'tahun_ajaran_id' => ['nullable', 'integer', 'exists:tahun_ajaran,id'],
+            'tahun_ajaran' => ['nullable', 'string', 'exists:tahun_ajaran,nama'],
             'semester' => ['nullable', 'in:1,2'],
             'kelas_id' => ['nullable', 'integer', 'exists:kelas,id'],
             'tingkat' => ['nullable', 'string'],

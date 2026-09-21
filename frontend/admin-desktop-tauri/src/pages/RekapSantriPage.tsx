@@ -18,7 +18,7 @@ export default function RekapSantriPage() {
   const load = useCallback(async () => {
     setErr('');
     try {
-      const res = await rekapSantri({ lembaga_id: lembagaId ? Number(lembagaId) : undefined, tahun_ajaran_id: taId ? Number(taId) : undefined });
+      const res = await rekapSantri({ lembaga_id: lembagaId ? Number(lembagaId) : undefined, tahun_ajaran: taId || undefined });
       setData(res);
     } catch (e) { setErr(errorMessage(e)); }
   }, [lembagaId, taId]);

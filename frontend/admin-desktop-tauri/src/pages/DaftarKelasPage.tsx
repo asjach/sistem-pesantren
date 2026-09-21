@@ -40,7 +40,7 @@ export default function DaftarKelasPage() {
   /** Kelompok status akhir: aktif (bawaan) | nonaktif | '' = semua status. */
   const [kelompok, setKelompok] = useState('aktif');
   const [rows, setRows] = useState<RiwayatRow[]>([]);
-  const [info, setInfo] = useState<{ tahun_ajaran_id: number | null; semester: string | null } | null>(null);
+  const [info, setInfo] = useState<{ tahun_ajaran: string | null; semester: string | null } | null>(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
   const { tas } = useLembagaTa(lembagaId);
@@ -66,13 +66,13 @@ export default function DaftarKelasPage() {
       const lintas = taId === '' || semester === '';
       const res = await daftarKelas({
         lembaga_id: Number(lembagaId),
-        tahun_ajaran_id: taId ? Number(taId) : undefined,
+        tahun_ajaran: taId || undefined,
         semester: semester || undefined,
         kelompok_status: kelompok === '' ? undefined : (kelompok as 'aktif' | 'nonaktif'),
         lintas_periode: lintas || undefined,
       });
       setRows(res.data);
-      setInfo({ tahun_ajaran_id: res.tahun_ajaran_id, semester: res.semester });
+      setInfo({ tahun_ajaran: res.tahun_ajaran, semester: res.semester });
     } catch (e) {
       setErr(errorMessage(e));
     } finally {
@@ -84,7 +84,7 @@ export default function DaftarKelasPage() {
 
   useEffect(() => {
     if (!lembagaId) { setKelas([]); return; }
-    listKelas({ lembaga_id: Number(lembagaId), tahun_ajaran_id: taId ? Number(taId) : undefined, per_page: 1000 })
+    listKelas({ lembaga_id: Number(lembagaId), tahun_ajaran: taId || undefined, per_page: 1000 })
       .then((p) => setKelas(p.data))
       .catch(() => setKelas([]));
   }, [lembagaId, taId]);
@@ -131,7 +131,7 @@ export default function DaftarKelasPage() {
             </FilterField>
             {info ? (
               <span className="text-xs text-muted-foreground">
-                TA {info.tahun_ajaran_id == null ? 'Semua' : (tas.find((t) => t.id === info.tahun_ajaran_id)?.nama ?? info.tahun_ajaran_id)}
+                TA {info.tahun_ajaran ?? 'Semua'}
                 {' · '}Smt {info.semester ?? 'Semua'}
                 {' · '}{kelompok === 'aktif' ? 'Aktif' : kelompok === 'nonaktif' ? 'Tidak aktif' : 'Semua status'}
                 {' · '}{rows.length} santri

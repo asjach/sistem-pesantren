@@ -201,9 +201,9 @@ class MiMdController extends Controller
                     // Sisi tujuan belum punya riwayat: buatkan (kelas senama
                     // acuan), bukan gagal. TA mengikuti acuan bila berlaku di
                     // sisi tujuan, else TA aktif sisi tujuan.
-                    $taTujuan = TahunAjaran::efektif($tujuanId)->contains('id', $acuan->tahun_ajaran_id)
-                        ? $acuan->tahun_ajaran_id
-                        : TahunAjaran::aktif($tujuanId)?->id;
+                    $taTujuan = TahunAjaran::efektif($tujuanId)->contains('nama', $acuan->tahun_ajaran)
+                        ? $acuan->tahun_ajaran
+                        : TahunAjaran::aktif($tujuanId)?->nama;
                     if ($taTujuan === null) {
                         throw ValidationException::withMessages([
                             'santri_id' => 'Tidak ada tahun ajaran aktif di sisi tujuan.',
@@ -211,7 +211,7 @@ class MiMdController extends Controller
                     }
                     $namaNormal = mb_strtolower(preg_replace('/\s+/u', ' ', trim($namaAcuan)) ?? $namaAcuan);
                     $kelasTujuan = Kelas::where('lembaga_id', $tujuanId)
-                        ->where('tahun_ajaran_id', $taTujuan)
+                        ->where('tahun_ajaran', $taTujuan)
                         ->whereRaw('LOWER(nama_kelas) = ?', [$namaNormal])
                         ->first();
                     if (! $kelasTujuan) {
@@ -231,7 +231,7 @@ class MiMdController extends Controller
                 // Kelas senama di lembaga + TA berjalan sisi tujuan.
                 $namaNormal = mb_strtolower(preg_replace('/\s+/u', ' ', trim($namaAcuan)) ?? $namaAcuan);
                 $kelasTujuan = Kelas::where('lembaga_id', $tujuanId)
-                    ->where('tahun_ajaran_id', $tujuan->tahun_ajaran_id)
+                    ->where('tahun_ajaran', $tujuan->tahun_ajaran)
                     ->whereRaw('LOWER(nama_kelas) = ?', [$namaNormal])
                     ->first();
                 if (! $kelasTujuan) {

@@ -16,10 +16,10 @@ class KelasImportNamaRequest extends FormRequest
     {
         return [
             'lembaga_id' => ['nullable', Rule::exists('lembaga', 'id')->whereNotNull('parent_id')],
-            'tahun_ajaran_id' => ['nullable', 'exists:tahun_ajaran,id'],
+            'tahun_ajaran' => ['nullable', 'string', 'exists:tahun_ajaran,nama'],
             'dari_kode' => ['nullable', 'in:MI,MD'],
             'dari_lembaga_id' => ['nullable', Rule::exists('lembaga', 'id')->whereNotNull('parent_id')],
-            'dari_tahun_ajaran_id' => ['nullable', 'exists:tahun_ajaran,id'],
+            'dari_tahun_ajaran' => ['nullable', 'string', 'exists:tahun_ajaran,nama'],
             'ke_kode' => ['nullable', 'in:MI,MD'],
             'periksa' => ['nullable', 'boolean'],
         ];

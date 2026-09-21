@@ -27,7 +27,7 @@ import {
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import FilterField from '@/components/FilterField';
 import { useLembagaAwalNumber } from '@/hooks/useLembagaAwal';
-import { useTahunAjaranAwalNumber } from '@/hooks/useTahunAjaranAwal';
+import { useTahunAjaranAwalString } from '@/hooks/useTahunAjaranAwal';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { ViewDialog } from '@/components/ViewDialog';
 import {
@@ -96,7 +96,7 @@ function normKelas(nama: string): string {
 function gridValues(k: Kelas): Record<string, string | null> {  return {
     nama: k.nama_kelas,
     lembaga: k.lembaga?.kode ?? k.lembaga?.nama ?? String(k.lembaga_id),
-    ta: k.tahunAjaran?.nama ?? k.tahun_ajaran?.nama ?? String(k.tahun_ajaran_id),
+    ta: k.tahunAjaran?.nama ?? k.tahun_ajaran,
     tingkat: k.tingkat,
     urutan: String(k.urutan ?? 0),
     kapasitas: k.kapasitas === null || k.kapasitas === undefined ? '' : String(k.kapasitas),
@@ -119,8 +119,8 @@ export default function KelasPage() {
   const [tas, setTas] = useState<TahunAjaran[]>([]);
   const [lembagaId, setLembagaId] = useState<number | ''>('');
   useLembagaAwalNumber(setLembagaId);
-  const [taId, setTaId] = useState<number | ''>('');
-  useTahunAjaranAwalNumber(setTaId);
+  const [taId, setTaId] = useState<string>('');
+  useTahunAjaranAwalString(setTaId);
   const [tingkat, setTingkat] = useState('');
   const {
     rows,
@@ -142,7 +142,7 @@ export default function KelasPage() {
     ambil: (a) => listKelas({
       search: a.search || undefined,
       lembaga_id: lembagaId === '' ? undefined : Number(lembagaId),
-      tahun_ajaran_id: taId === '' ? undefined : Number(taId),
+      tahun_ajaran: taId === '' ? undefined : taId,
       tingkat: tingkat || undefined,
       sort: a.urut.length ? a.urut : undefined,
       arah: a.urut.length ? a.arah : undefined,
@@ -174,13 +174,13 @@ export default function KelasPage() {
         arah === 'ambil'
           ? {
               lembaga_id: Number(lembagaId),
-              tahun_ajaran_id: Number(taId),
+              tahun_ajaran: taId,
               dari_kode: dariKode,
               periksa,
             }
           : {
               dari_lembaga_id: Number(lembagaId),
-              dari_tahun_ajaran_id: Number(taId),
+              dari_tahun_ajaran: taId,
               ke_kode: dariKode,
               periksa,
             },
@@ -206,7 +206,7 @@ export default function KelasPage() {
 
   // Pilihan lembaga + TA khusus dialog Tambah (mandiri dari filter toolbar).
   const [tambahLembagaId, setTambahLembagaId] = useState<number | ''>('');
-  const [tambahTaId, setTambahTaId] = useState<number | ''>('');
+  const [tambahTaId, setTambahTaId] = useState<string>('');
   const [tambahTas, setTambahTas] = useState<TahunAjaran[]>([]);
   /** Lembaga pemilik `tambahTas` (agar tahu daftar mana yang sudah termuat). */
   const [tambahTasUntuk, setTambahTasUntuk] = useState<number | ''>('');
@@ -256,9 +256,9 @@ export default function KelasPage() {
         setTambahTasUntuk(Number(tambahLembagaId));
         setTambahTaId((prev) => {
           const aktif = p.data.find((t) => t.is_aktif);
-          if (aktif) return aktif.id;
-          if (prev !== '' && p.data.some((t) => String(t.id) === String(prev))) return prev;
-          return p.data[0] ? p.data[0].id : '';
+          if (aktif) return aktif.nama;
+          if (prev !== '' && p.data.some((t) => t.nama === prev)) return prev;
+          return p.data[0] ? p.data[0].nama : '';
         });
       })
       .catch((e) => {
@@ -288,7 +288,7 @@ export default function KelasPage() {
       ? tambahTas
       : (Number(targetLembaga) === Number(lembagaId) ? tas : []);
     const aktif = daftar.find((t) => t.is_aktif);
-    setTambahTaId(aktif ? aktif.id : '');
+    setTambahTaId(aktif ? aktif.nama : '');
     setBarisKelas([barisKelasKosong()]);
     setErr('');
     setTambahOpen(true);
@@ -315,14 +315,14 @@ export default function KelasPage() {
   }, []);
 
   /** Muat nama kelas aktif lingkup (lembaga+TA) untuk cek duplikat di klien. */
-  const muatNamaTerpakai = useCallback(async (lembaga: number | '', ta: number | '') => {
+  const muatNamaTerpakai = useCallback(async (lembaga: number | '', ta: string | '') => {
     if (lembaga === '' || ta === '') {
       setNamaTerpakai({ kunci: '', nama: [] });
       return;
     }
     const kunci = `${lembaga}:${ta}`;
     try {
-      const res = await listKelas({ lembaga_id: Number(lembaga), tahun_ajaran_id: Number(ta), per_page: 1000 });
+      const res = await listKelas({ lembaga_id: Number(lembaga), tahun_ajaran: ta, per_page: 1000 });
       setNamaTerpakai({ kunci, nama: res.data.map((k) => normKelas(k.nama_kelas)) });
     } catch {
       // Gagal memuat → biarkan validasi server (422) yang menjaga.
@@ -337,7 +337,7 @@ export default function KelasPage() {
 
   useEffect(() => {
     if (!editRow) return;
-    void muatNamaTerpakai(editRow.lembaga_id, editRow.tahun_ajaran_id);
+    void muatNamaTerpakai(editRow.lembaga_id, editRow.tahun_ajaran);
   }, [editRow, muatNamaTerpakai]);
 
   const onCreate = useCallback(async (e: React.FormEvent) => {
@@ -355,7 +355,7 @@ export default function KelasPage() {
       setErr('Isi minimal 1 baris kelas (nama wajib).');
       return;
     }
-    const kunciLingkup = `${Number(efektifLembagaId)}:${Number(tambahTaId)}`;
+    const kunciLingkup = `${efektifLembagaId}:${tambahTaId}`;
     const terpakai = namaTerpakai.kunci === kunciLingkup ? new Set(namaTerpakai.nama) : new Set<string>();
     const dalamPayload = new Set<string>();
     for (const b of terisi) {
@@ -389,7 +389,7 @@ export default function KelasPage() {
       }
     }
     try {
-      const dasar = { lembaga_id: Number(efektifLembagaId), tahun_ajaran_id: Number(tambahTaId) };
+      const dasar = { lembaga_id: Number(efektifLembagaId), tahun_ajaran: tambahTaId };
       if (terisi.length === 1) {
         const [satu] = terisi;
         await createKelas({
@@ -431,7 +431,7 @@ export default function KelasPage() {
     }
     await createKelas({
       lembaga_id: Number(lembagaId),
-      tahun_ajaran_id: Number(taId),
+      tahun_ajaran: taId,
       nama_kelas: (f.nama ?? '').trim(),
       tingkat: f.tingkat || undefined,
       urutan: f.urutan ? Number(f.urutan) : undefined,
@@ -442,7 +442,7 @@ export default function KelasPage() {
   }, [lembagaId, taId, load]);
 
   const taTerpilih = useMemo(
-    () => tas.find((t) => String(t.id) === String(taId))?.nama ?? '',
+    () => tas.find((t) => t.nama === taId)?.nama ?? '',
     [tas, taId],
   );
 
@@ -468,7 +468,7 @@ export default function KelasPage() {
       setErr('Nama kelas wajib diisi.');
       return;
     }
-    const kunciLingkup = `${editRow.lembaga_id}:${editRow.tahun_ajaran_id}`;
+    const kunciLingkup = `${editRow.lembaga_id}:${editRow.tahun_ajaran}`;
     if (
       namaTerpakai.kunci === kunciLingkup
       && namaTerpakai.nama.includes(namaRapi)
@@ -615,8 +615,8 @@ export default function KelasPage() {
             <FieldLabel htmlFor="select_tambah_ta_kelas" className="self-start pt-1.5">Tahun ajaran</FieldLabel>
             <div className="flex flex-col gap-1.5">
               <Select
-                value={tambahTaId === '' ? '' : String(tambahTaId)}
-                onValueChange={(v) => setTambahTaId(Number(v))}
+                value={tambahTaId}
+                onValueChange={(v) => setTambahTaId(v)}
                 disabled={tambahLembagaId === ''}
               >
                 <SelectTrigger id="select_tambah_ta_kelas" className="w-full">
@@ -624,7 +624,7 @@ export default function KelasPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
-                    {tambahTas.map((t) => <SelectItem key={t.id} value={String(t.id)}>{t.nama}</SelectItem>)}
+                    {tambahTas.map((t) => <SelectItem key={t.nama} value={t.nama}>{t.nama}</SelectItem>)}
                   </SelectGroup>
                 </SelectContent>
               </Select>

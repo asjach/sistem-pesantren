@@ -28,7 +28,7 @@ class Alumni extends Model
 
     public function tahunAjaranLulus(): BelongsTo
     {
-        return $this->belongsTo(TahunAjaran::class, 'tahun_ajaran_lulus_id');
+        return $this->belongsTo(TahunAjaran::class, 'tahun_ajaran_lulus', 'nama');
     }
 
     /** Kelas terakhir saat lulus — snapshot beku, tidak mengikuti perubahan kelas. */

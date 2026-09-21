@@ -22,7 +22,7 @@ use Maatwebsite\Excel\Validators\Failure;
 
 /**
  * Import riwayat belajar (`riwayat_belajar`) — terpisah dari import identitas.
- * Nama kolom mengikuti tabel: nik, nis_lokal, lembaga_id, tahun_ajaran_id,
+ * Nama kolom mengikuti tabel: nik, nis_lokal, lembaga_id, tahun_ajaran,
  * kelas_id, semester, tgl_masuk, no_absen, tingkat, status_awal, status_akhir.
  *
  * Pencocokan santri: `nik` diutamakan → fallback `nis_lokal` + `lembaga_id`.
@@ -67,9 +67,9 @@ class RiwayatBelajarImport implements SkipsOnFailure, SkipsUnknownSheets, ToColl
                 }
 
                 $lembagaId = (int) ($row['lembaga_id'] ?? 0);
-                $taId = (int) ($row['tahun_ajaran_id'] ?? 0);
+                $ta = TahunAjaran::normalisasiNama((string) ($row['tahun_ajaran'] ?? ''));
 
-                if (! $this->prosesBaris($row, $no, $lembagaId, $taId, $tersentuh)) {
+                if (! $this->prosesBaris($row, $no, $lembagaId, $ta, $tersentuh)) {
                     continue;
                 }
 
@@ -83,7 +83,7 @@ class RiwayatBelajarImport implements SkipsOnFailure, SkipsUnknownSheets, ToColl
     }
 
     /** @param  array<int, int>  $tersentuh */
-    protected function prosesBaris(Collection|array $row, int $no, int $lembagaId, int $taId, array &$tersentuh): bool
+    protected function prosesBaris(Collection|array $row, int $no, int $lembagaId, string $ta, array &$tersentuh): bool
     {
         $row = is_array($row) ? $row : $row->toArray();
 
@@ -93,9 +93,9 @@ class RiwayatBelajarImport implements SkipsOnFailure, SkipsUnknownSheets, ToColl
             return false;
         }
 
-        $tahun = TahunAjaran::find($taId);
-        if (! $tahun || ! TahunAjaran::efektif($lembagaId)->contains('id', $tahun->id)) {
-            $this->fail($no, 'tahun_ajaran_id', 'Tahun ajaran tidak berlaku untuk lembaga ini.');
+        $tahun = TahunAjaran::find($ta);
+        if (! $tahun || ! TahunAjaran::efektif($lembagaId)->contains('nama', $tahun->nama)) {
+            $this->fail($no, 'tahun_ajaran', 'Tahun ajaran tidak berlaku untuk lembaga ini.');
 
             return false;
         }
@@ -120,7 +120,7 @@ class RiwayatBelajarImport implements SkipsOnFailure, SkipsUnknownSheets, ToColl
             return false;
         }
 
-        $kelasId = $this->resolveKelasId($row['kelas_id'] ?? null, $lembagaId, $taId, $no);
+        $kelasId = $this->resolveKelasId($row['kelas_id'] ?? null, $lembagaId, $ta, $no);
         if ($kelasId === false) {
             return false;
         }
@@ -150,7 +150,7 @@ class RiwayatBelajarImport implements SkipsOnFailure, SkipsUnknownSheets, ToColl
 
         $kunci = [
             'santri_id' => $santri->id,
-            'tahun_ajaran_id' => $taId,
+            'tahun_ajaran' => $ta,
             'lembaga_id' => $lembagaId,
             'semester' => $semester,
         ];
@@ -158,7 +158,7 @@ class RiwayatBelajarImport implements SkipsOnFailure, SkipsUnknownSheets, ToColl
 
         if ($noAbsen !== null && $kelasId !== null) {
             $bentrok = RiwayatBelajar::where('kelas_id', $kelasId)
-                ->where('tahun_ajaran_id', $taId)
+                ->where('tahun_ajaran', $ta)
                 ->where('semester', $semester)
                 ->where('no_absen', $noAbsen)
                 ->when($lama, fn ($q) => $q->whereKeyNot($lama->id))
@@ -243,7 +243,7 @@ class RiwayatBelajarImport implements SkipsOnFailure, SkipsUnknownSheets, ToColl
     }
 
     /** Kelas: nama (diutamakan) atau id, dalam lingkup lembaga + TA. false = gagal. */
-    protected function resolveKelasId(mixed $nilai, int $lembagaId, int $taId, int $no): int|null|false
+    protected function resolveKelasId(mixed $nilai, int $lembagaId, string $ta, int $no): int|null|false
     {
         $teks = trim((string) $nilai);
         if ($teks === '') {
@@ -251,7 +251,7 @@ class RiwayatBelajarImport implements SkipsOnFailure, SkipsUnknownSheets, ToColl
         }
 
         $nama = Kelas::where('lembaga_id', $lembagaId)
-            ->where('tahun_ajaran_id', $taId)
+            ->where('tahun_ajaran', $ta)
             ->whereRaw('LOWER(nama_kelas) = ?', [mb_strtolower(preg_replace('/\s+/u', ' ', $teks) ?? $teks)])
             ->value('id');
         if ($nama !== null) {
@@ -260,7 +260,7 @@ class RiwayatBelajarImport implements SkipsOnFailure, SkipsUnknownSheets, ToColl
 
         if (ctype_digit($teks)) {
             $kelas = Kelas::find((int) $teks);
-            if ($kelas && (int) $kelas->lembaga_id === $lembagaId && (int) $kelas->tahun_ajaran_id === $taId) {
+            if ($kelas && (int) $kelas->lembaga_id === $lembagaId && $kelas->tahun_ajaran === $ta) {
                 return (int) $kelas->id;
             }
         }
@@ -283,7 +283,7 @@ class RiwayatBelajarImport implements SkipsOnFailure, SkipsUnknownSheets, ToColl
             'nik' => ['required_without:nis_lokal', 'nullable', 'digits:16'],
             'nis_lokal' => ['required_without:nik', 'nullable'],
             'lembaga_id' => ['required', 'integer'],
-            'tahun_ajaran_id' => ['required', 'integer'],
+            'tahun_ajaran' => ['required', 'string'],
             'kelas_id' => ['nullable'],
             'semester' => ['required'],
             'tgl_masuk' => ['nullable', 'date'],

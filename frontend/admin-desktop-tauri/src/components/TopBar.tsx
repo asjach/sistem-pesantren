@@ -56,7 +56,7 @@ const TOOLS_TAMPIL_KEY = 'simpes_tools_tampil';
 export default function TopBar() {
   const { user, logoutLocal } = useAuth();
   const { lembagaId, lembaga, pilihan, adaSemua, banyakPilihan, bertindak, peran, pilih, loading: lembagaLoading } = useLembagaAktif();
-  const { tahunAjaranId, tahunAjaran, pilihan: taPilihan, pilih: taPilih, loading: taLoading } = useTahunAjaranAktif();
+  const { tahunAjaranNama, tahunAjaran, pilihan: taPilihan, pilih: taPilih, loading: taLoading } = useTahunAjaranAktif();
   const { semester, pilih: pilihSemester, loading: semesterLoading } = useSemesterAktif();
 
   // Dropdown Semester = filter perangkat murni (tanpa tulis ke server).
@@ -234,15 +234,12 @@ export default function TopBar() {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem id="menu_ta_aktif_semua" onSelect={() => taPilih(null)}>
                   <span className="flex-1">Semua</span>
-                  {tahunAjaranId === null && <Check data-icon="inline-end" size={14} />}
+                  {tahunAjaranNama === null && <Check data-icon="inline-end" size={14} />}
                 </DropdownMenuItem>
                 {taPilihan.map((t) => (
-                  <DropdownMenuItem key={t.id} id={`menu_ta_aktif_${t.id}`} onSelect={() => taPilih(t.id)}>
-                    <span className="flex-1 truncate">
-                      {/* Mode "Semua lembaga": nama TA dibedakan per lembaga. */}
-                      {t.lembaga ? `${t.lembaga.kode ?? t.lembaga.nama} — ${t.nama}` : t.nama}
-                    </span>
-                    {tahunAjaranId === t.id && <Check data-icon="inline-end" size={14} />}
+                  <DropdownMenuItem key={t.nama} id={`menu_ta_aktif_${t.nama.replace(/[^0-9]/g, '')}`} onSelect={() => taPilih(t.nama)}>
+                    <span className="flex-1 truncate">{t.nama}</span>
+                    {tahunAjaranNama === t.nama && <Check data-icon="inline-end" size={14} />}
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>

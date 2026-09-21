@@ -99,7 +99,7 @@ class SiklusController extends Controller
         $ganjil = RiwayatBelajar::where('santri_id', $santri->id)
             ->where('lembaga_id', $lembagaId)->where('is_active_riwayat', RiwayatBelajar::YA)
             ->latest('id')->first();
-        if ($ganjil && (int) $kelas->tahun_ajaran_id !== (int) $ganjil->tahun_ajaran_id) {
+        if ($ganjil && $kelas->tahun_ajaran !== $ganjil->tahun_ajaran) {
             throw ValidationException::withMessages(['kelas_id' => 'Kelas beda tahun ajaran.']);
         }
     }
@@ -114,10 +114,10 @@ class SiklusController extends Controller
         $data = $request->validated();
 
         $lembagaId = (int) $data['lembaga_id'];
-        $tahunBaruId = (int) $data['tahun_ajaran_baru_id'];
+        $tahunBaru = (string) $data['tahun_ajaran_baru'];
         $tingkat = (string) $data['tingkat'];
         $this->tolakLembagaRoot($lembagaId);
-        $this->cekTaEfektif($lembagaId, $tahunBaruId, 'tahun_ajaran_baru_id');
+        $this->cekTaEfektif($lembagaId, $tahunBaru, 'tahun_ajaran_baru');
 
         $ok = 0;
         $gagal = [];
@@ -128,7 +128,7 @@ class SiklusController extends Controller
                 $this->siklusService->prosesKenaikanPerSantri(
                     $santri,
                     $lembagaId,
-                    $tahunBaruId,
+                    $tahunBaru,
                     $tingkat,
                     $item['status'],
                     $item['tgl_masuk'] ?? null,
@@ -203,7 +203,7 @@ class SiklusController extends Controller
         $data = $request->validated();
 
         $this->tolakLembagaRoot((int) $data['lembaga_id']);
-        $this->cekTaEfektif((int) $data['lembaga_id'], (int) $data['tahun_ajaran_lulus_id'], 'tahun_ajaran_lulus_id');
+        $this->cekTaEfektif((int) $data['lembaga_id'], (string) $data['tahun_ajaran_lulus'], 'tahun_ajaran_lulus');
         $this->authorizeAksiLembaga($request, $santri, (int) $data['lembaga_id']);
 
         $alumni = $this->siklusService->prosesLulusPerLembaga($santri, (int) $data['lembaga_id'], $data);
@@ -291,14 +291,14 @@ class SiklusController extends Controller
         $urut = $this->parseUrut($request, UrutKatalog::peta('kelulusan_alumni'));
 
         $alumni = Alumni::tenantScope()
-            ->with(['santri:id,nama_lengkap,nisn', 'lembagaLulus:id,nama,kode', 'tahunAjaranLulus:id,nama', 'kelasLulus:id,nama_kelas'])
+            ->with(['santri:id,nama_lengkap,nisn', 'lembagaLulus:id,nama,kode', 'tahunAjaranLulus:nama', 'kelasLulus:id,nama_kelas'])
             ->when($request->filled('lembaga_id'), fn ($q) => $q->where('lembaga_lulus_id', $request->integer('lembaga_id')))
-            ->when($request->filled('tahun_ajaran_lulus_id'), fn ($q) => $q->where('tahun_ajaran_lulus_id', $request->integer('tahun_ajaran_lulus_id')));
+            ->when($request->filled('tahun_ajaran_lulus'), fn ($q) => $q->where('tahun_ajaran_lulus', $request->input('tahun_ajaran_lulus')));
         if ($urut !== null) {
             $alumni->select('alumni.*')
                 ->leftJoin('santri', 'santri.id', '=', 'alumni.santri_id')
                 ->leftJoin('lembaga', 'lembaga.id', '=', 'alumni.lembaga_lulus_id')
-                ->leftJoin('tahun_ajaran', 'tahun_ajaran.id', '=', 'alumni.tahun_ajaran_lulus_id')
+                ->leftJoin('tahun_ajaran', 'tahun_ajaran.nama', '=', 'alumni.tahun_ajaran_lulus')
                 ->leftJoin('kelas', 'kelas.id', '=', 'alumni.kelas_lulus_id');
         }
         $this->terapkanUrut($alumni, $urut, [['alumni.id', 'turun']], self::SORT_NULLABLE_ARSIP);
@@ -330,26 +330,25 @@ class SiklusController extends Controller
         $lintas = $request->boolean('lintas_periode');
         $kelompok = $data['kelompok_status'] ?? null;
 
-        $taId = isset($data['tahun_ajaran_id'])
-            ? (int) $data['tahun_ajaran_id']
-            : ($lintas ? null : (int) (TahunAjaran::aktif($lembagaId)?->id ?? 0));
-        if ($taId === 0) {
+        $ta = $data['tahun_ajaran']
+            ?? ($lintas ? null : TahunAjaran::aktif($lembagaId)?->nama);
+        if (! $lintas && $ta === null) {
             return response()->json(['pesan' => 'Tahun ajaran aktif belum ada di lembaga ini.', 'data' => []]);
         }
 
         $semester = $data['semester']
-            ?? ($lintas || $taId === null ? null : (string) (RiwayatBelajar::where('lembaga_id', $lembagaId)
-                ->where('tahun_ajaran_id', $taId)->where('is_active_riwayat', RiwayatBelajar::YA)
+            ?? ($lintas || $ta === null ? null : (string) (RiwayatBelajar::where('lembaga_id', $lembagaId)
+                ->where('tahun_ajaran', $ta)->where('is_active_riwayat', RiwayatBelajar::YA)
                 ->orderByDesc('semester')->value('semester') ?? '1'));
 
         $query = RiwayatBelajar::with([
             'santri',
             'kelas:id,nama_kelas,tingkat',
             'lembaga:id,nama,kode',
-            'tahunAjaran:id,nama',
+            'tahunAjaran:nama',
         ])->where('lembaga_id', $lembagaId);
-        if ($taId !== null) {
-            $query->where('tahun_ajaran_id', $taId);
+        if ($ta !== null) {
+            $query->where('tahun_ajaran', $ta);
         }
         if ($semester !== null) {
             $query->where('semester', $semester);
@@ -370,7 +369,7 @@ class SiklusController extends Controller
             $query->where('tingkat', $data['tingkat']);
         }
 
-        $baris = $query->orderBy('tahun_ajaran_id')->orderBy('semester')->orderBy('kelas_id')->orderBy('no_absen')->orderBy('santri_id')->get();
+        $baris = $query->orderBy('tahun_ajaran')->orderBy('semester')->orderBy('kelas_id')->orderBy('no_absen')->orderBy('santri_id')->get();
         // Keanggotaan penuh (satu baris per santri; aktif diutamakan) + NIS lokal
         // ringkas (kompatibilitas payload lama).
         $anggota = LembagaSantri::whereIn('santri_id', $baris->pluck('santri_id')->unique())
@@ -385,7 +384,7 @@ class SiklusController extends Controller
 
         return response()->json([
             'lembaga_id' => $lembagaId,
-            'tahun_ajaran_id' => $taId,
+            'tahun_ajaran' => $ta,
             'semester' => $semester,
             'data' => $baris,
         ]);
@@ -404,8 +403,8 @@ class SiklusController extends Controller
         $riwayatQuery = function () use ($request, $data) {
             $q = RiwayatBelajar::query()->where('is_active_riwayat', RiwayatBelajar::YA);
             $this->scopeLembaga($q, $request->user(), $request, 'lembaga_id');
-            if (! empty($data['tahun_ajaran_id'])) {
-                $q->where('tahun_ajaran_id', (int) $data['tahun_ajaran_id']);
+            if (! empty($data['tahun_ajaran'])) {
+                $q->where('tahun_ajaran', $data['tahun_ajaran']);
             }
 
             return $q;
@@ -422,10 +421,10 @@ class SiklusController extends Controller
                 'jumlah' => (int) $r->jumlah,
             ])->values()->all();
 
-        $kelasQuery = Kelas::query()->with(['lembaga:id,nama,kode', 'tahunAjaran:id,nama']);
+        $kelasQuery = Kelas::query()->with(['lembaga:id,nama,kode', 'tahunAjaran:nama']);
         $this->scopeLembaga($kelasQuery, $request->user(), $request, 'lembaga_id');
-        if (! empty($data['tahun_ajaran_id'])) {
-            $kelasQuery->where('tahun_ajaran_id', (int) $data['tahun_ajaran_id']);
+        if (! empty($data['tahun_ajaran'])) {
+            $kelasQuery->where('tahun_ajaran', $data['tahun_ajaran']);
         }
         $kelas = $kelasQuery->orderBy('lembaga_id')->orderBy('tingkat')->orderBy('nama_kelas')->get();
 
@@ -492,13 +491,12 @@ class SiklusController extends Controller
         }
 
         $perTahunAjaran = (clone $riwayatQuery())
-            ->selectRaw('tahun_ajaran_id, COUNT(*) as jumlah')
-            ->groupBy('tahun_ajaran_id')
-            ->with('tahunAjaran:id,nama')
+            ->selectRaw('tahun_ajaran, COUNT(*) as jumlah')
+            ->groupBy('tahun_ajaran')
+            ->with('tahunAjaran:nama')
             ->get()
             ->map(fn ($r) => [
-                'tahun_ajaran_id' => (int) $r->tahun_ajaran_id,
-                'tahun_ajaran' => $r->tahunAjaran?->nama,
+                'tahun_ajaran' => $r->tahun_ajaran,
                 'jumlah_riwayat_aktif' => (int) $r->jumlah,
             ])->values()->all();
 
@@ -520,13 +518,13 @@ class SiklusController extends Controller
             'lembagaSantri.lembaga:id,nama,kode,nsm',
         ]);
         $riwayat = RiwayatBelajar::where('santri_id', $santri->id)
-            ->with(['kelas:id,nama_kelas,tingkat', 'lembaga:id,nama,kode', 'tahunAjaran:id,nama'])
+            ->with(['kelas:id,nama_kelas,tingkat', 'lembaga:id,nama,kode', 'tahunAjaran:nama'])
             ->orderByDesc('id')->get();
         $mutasi = MutasiKeluar::where('santri_id', $santri->id)
             ->with(['lembaga:id,nama,kode', 'kelasTerakhir:id,nama_kelas'])
             ->orderByDesc('id')->get();
         $alumni = Alumni::where('santri_id', $santri->id)
-            ->with(['lembagaLulus:id,nama,kode', 'tahunAjaranLulus:id,nama'])
+            ->with(['lembagaLulus:id,nama,kode', 'tahunAjaranLulus:nama'])
             ->orderByDesc('id')->get();
 
         return response()->json([

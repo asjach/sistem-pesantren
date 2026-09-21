@@ -6,36 +6,36 @@ import { useAuth } from '@/auth/AuthContext';
 
 /** Tahun ajaran aktif (per perangkat): default filter tahun ajaran halaman.
  *  Daftarnya mengikuti lembaga aktif; nilainya dipakai halaman sebagai
- *  filter tetap (tanpa dropdown di bar filter halaman). */
+ *  filter tetap (tanpa dropdown di bar filter halaman).
+ *  Nilai = nama TA (kunci alami), mis. '2026/2027'. */
 const KEY = 'simpes_tahun_ajaran_aktif';
 
 interface TahunAjaranAktifState {
   loading: boolean;
-  tahunAjaranId: number | null;
+  tahunAjaranNama: string | null;
   tahunAjaran: TahunAjaran | null;
   pilihan: TahunAjaran[];
-  pilih: (id: number | null) => void;
+  pilih: (nama: string | null) => void;
 }
 
 const Ctx = createContext<TahunAjaranAktifState | null>(null);
 
-/** Bawaan: TA aktif (global atau milik lembaga); jika tak ada → tanggal_mulai
- *  terbaru. Tanpa lembaga tunggal (mode "Semua lembaga") → "Semua tahun". */
-function bawaan(daftar: TahunAjaran[], lembagaId: number | null): number | null {
+/** Bawaan: TA aktif; jika tak ada → tanggal_mulai terbaru, lalu nama terbesar.
+ *  Tanpa lembaga tunggal (mode "Semua lembaga") → "Semua tahun". */
+function bawaan(daftar: TahunAjaran[], lembagaId: number | null): string | null {
   if (lembagaId == null) return null;
-  const milik = daftar.filter((t) => t.lembaga_id === null || t.lembaga_id === lembagaId);
-  const aktif = milik.find((t) => t.is_aktif);
-  if (aktif) return aktif.id;
-  const urut = [...milik].sort((a, b) =>
-    (b.tanggal_mulai ?? '').localeCompare(a.tanggal_mulai ?? ''));
-  return urut[0]?.id ?? null;
+  const aktif = daftar.find((t) => t.is_aktif);
+  if (aktif) return aktif.nama;
+  const urut = [...daftar].sort((a, b) =>
+    (b.tanggal_mulai ?? '').localeCompare(a.tanggal_mulai ?? '') || b.nama.localeCompare(a.nama));
+  return urut[0]?.nama ?? null;
 }
 
 export function TahunAjaranAktifProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const { lembagaId } = useLembagaAktif();
   const [pilihan, setPilihan] = useState<TahunAjaran[]>([]);
-  const [tahunAjaranId, setTahunAjaranId] = useState<number | null>(null);
+  const [tahunAjaranNama, setTahunAjaranNama] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -44,7 +44,7 @@ export function TahunAjaranAktifProvider({ children }: { children: ReactNode }) 
     (async () => {
       if (!user) {
         setPilihan([]);
-        setTahunAjaranId(null);
+        setTahunAjaranNama(null);
         setLoading(false);
         return;
       }
@@ -61,30 +61,30 @@ export function TahunAjaranAktifProvider({ children }: { children: ReactNode }) 
       setPilihan(daftar);
 
       const simpanan = await prefGet(KEY).catch(() => null);
-      let id: number | null;
-      if (simpanan === '0') id = null;
-      else if (simpanan && daftar.some((d) => String(d.id) === simpanan)) id = Number(simpanan);
-      else id = bawaan(daftar, lembagaId);
+      let nama: string | null;
+      if (simpanan === '0') nama = null;
+      else if (simpanan && daftar.some((d) => d.nama === simpanan)) nama = simpanan;
+      else nama = bawaan(daftar, lembagaId);
       if (!alive) return;
-      setTahunAjaranId(id);
+      setTahunAjaranNama(nama);
       setLoading(false);
     })();
 
     return () => { alive = false; };
   }, [user, lembagaId]);
 
-  const pilih = useMemo(() => (id: number | null) => {
-    setTahunAjaranId(id);
-    prefSet(KEY, id == null ? '0' : String(id)).catch(() => {});
+  const pilih = useMemo(() => (nama: string | null) => {
+    setTahunAjaranNama(nama);
+    prefSet(KEY, nama == null ? '0' : nama).catch(() => {});
   }, []);
 
   const value = useMemo<TahunAjaranAktifState>(() => ({
     loading,
-    tahunAjaranId,
-    tahunAjaran: pilihan.find((p) => p.id === tahunAjaranId) ?? null,
+    tahunAjaranNama,
+    tahunAjaran: pilihan.find((p) => p.nama === tahunAjaranNama) ?? null,
     pilihan,
     pilih,
-  }), [loading, tahunAjaranId, pilihan, pilih]);
+  }), [loading, tahunAjaranNama, pilihan, pilih]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Kelas;
 use App\Models\Lembaga;
+use App\Models\LembagaTahunAjaran;
 use App\Models\TahunAjaran;
 use App\Models\User;
 use Database\Seeders\ReferensiSeeder;
@@ -36,7 +37,7 @@ class KelasStoreTest extends TestCase
             'is_seleksi' => false, 'kelompok_psb' => 'combo_mi_md', 'is_active' => true,
         ]);
         $taMi = TahunAjaran::create([
-            'lembaga_id' => $mi->id, 'nama' => '2026/2027',
+            'nama' => '2026/2027',
             'tanggal_mulai' => '2026-07-01', 'tanggal_selesai' => '2027-06-30', 'is_aktif' => true,
         ]);
         $super = User::create([
@@ -54,14 +55,14 @@ class KelasStoreTest extends TestCase
     {
         $f = $this->baseFixture();
         Kelas::create([
-            'lembaga_id' => $f['mi']->id, 'tahun_ajaran_id' => $f['taMi']->id,
+            'lembaga_id' => $f['mi']->id, 'tahun_ajaran' => $f['taMi']->nama,
             'nama_kelas' => 'I-A', 'tingkat' => '1',
         ]);
 
         // Join lembaga + tahun_ajaran (sort) + filter: kolom harus terkualifikasi.
         $this->actingAs($f['super'], 'sanctum')->getJson(
             '/api/admin/kelas?lembaga_id='.$f['mi']->id
-            .'&tahun_ajaran_id='.$f['taMi']->id.'&sort=nama&arah=naik'
+            .'&tahun_ajaran='.$f['taMi']->nama.'&sort=nama&arah=naik'
         )->assertStatus(200)->assertJsonPath('data.0.nama_kelas', 'I-A');
     }
 
@@ -71,7 +72,7 @@ class KelasStoreTest extends TestCase
 
         $res = $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/kelas', [
             'lembaga_id' => $f['mi']->id,
-            'tahun_ajaran_id' => $f['taMi']->id,
+            'tahun_ajaran' => $f['taMi']->nama,
             'nama_kelas' => 'I-A',
             'tingkat' => '1',
             'kapasitas' => 30,
@@ -87,7 +88,7 @@ class KelasStoreTest extends TestCase
 
         $res = $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/kelas', [
             'lembaga_id' => $f['mi']->id,
-            'tahun_ajaran_id' => $f['taMi']->id,
+            'tahun_ajaran' => $f['taMi']->nama,
             'items' => [
                 ['nama_kelas' => '1A', 'tingkat' => '1'],
                 ['nama_kelas' => '1B', 'tingkat' => '1', 'kapasitas' => 28],
@@ -108,7 +109,7 @@ class KelasStoreTest extends TestCase
         // Baris tanpa nama → 422 validasi, tanpa tulisan.
         $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/kelas', [
             'lembaga_id' => $f['mi']->id,
-            'tahun_ajaran_id' => $f['taMi']->id,
+            'tahun_ajaran' => $f['taMi']->nama,
             'items' => [
                 ['nama_kelas' => '1A', 'tingkat' => '1'],
                 ['tingkat' => '1'],
@@ -119,7 +120,7 @@ class KelasStoreTest extends TestCase
         // Tingkat tak dikenal → 422, tanpa tulisan (rollback transaksi).
         $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/kelas', [
             'lembaga_id' => $f['mi']->id,
-            'tahun_ajaran_id' => $f['taMi']->id,
+            'tahun_ajaran' => $f['taMi']->nama,
             'items' => [
                 ['nama_kelas' => '1A', 'tingkat' => '1'],
                 ['nama_kelas' => '1B', 'tingkat' => 'TIDAK_ADA'],
@@ -131,22 +132,23 @@ class KelasStoreTest extends TestCase
     public function test_04_ta_silang_dan_tanpa_items_nama_wajib(): void
     {
         $f = $this->baseFixture();
-        $taRoot = TahunAjaran::create([
-            'lembaga_id' => $f['root']->id, 'nama' => '2026/2027',
-            'tanggal_mulai' => '2026-07-01', 'tanggal_selesai' => '2027-06-30', 'is_aktif' => true,
+        // TA disembunyikan untuk MI → tidak berlaku di lembaga itu.
+        LembagaTahunAjaran::create([
+            'lembaga_id' => $f['mi']->id, 'tahun_ajaran' => $f['taMi']->nama, 'is_active' => false,
         ]);
 
         $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/kelas', [
             'lembaga_id' => $f['mi']->id,
-            'tahun_ajaran_id' => $taRoot->id,
+            'tahun_ajaran' => $f['taMi']->nama,
             'nama_kelas' => 'I-A',
         ])->assertStatus(422);
         $this->assertSame(0, Kelas::count());
 
-        // Mode tunggal tanpa nama_kelas → 422.
+        // Kembalikan visibilitas, lalu mode tunggal tanpa nama_kelas → 422.
+        LembagaTahunAjaran::where('lembaga_id', $f['mi']->id)->delete();
         $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/kelas', [
             'lembaga_id' => $f['mi']->id,
-            'tahun_ajaran_id' => $f['taMi']->id,
+            'tahun_ajaran' => $f['taMi']->nama,
         ])->assertStatus(422);
     }
 
@@ -164,8 +166,8 @@ class KelasStoreTest extends TestCase
             'is_seleksi' => false, 'kelompok_psb' => 'eksklusif', 'is_active' => true,
         ]);
         $taMd = TahunAjaran::create([
-            'lembaga_id' => $md->id, 'nama' => '2026/2027',
-            'tanggal_mulai' => '2026-07-01', 'tanggal_selesai' => '2027-06-30', 'is_aktif' => true,
+            'nama' => '2025/2026',
+            'tanggal_mulai' => '2025-07-01', 'tanggal_selesai' => '2026-06-30', 'is_aktif' => false,
         ]);
         $adminMi = User::create([
             'name' => 'Admin MI', 'email' => 'admin-mi-kelas@example.com',
@@ -178,7 +180,7 @@ class KelasStoreTest extends TestCase
         ]);
         $payload = fn (?int $lembagaId) => [
             'lembaga_id' => $lembagaId,
-            'tahun_ajaran_id' => $f['taMi']->id,
+            'tahun_ajaran' => $f['taMi']->nama,
             'nama_kelas' => 'I-A',
         ];
 
@@ -189,14 +191,14 @@ class KelasStoreTest extends TestCase
         // Pasangan MD → lolos (pengecualian timbal-balik).
         $this->actingAs($adminMi, 'sanctum')->postJson('/api/admin/kelas', [
             'lembaga_id' => $md->id,
-            'tahun_ajaran_id' => $taMd->id,
+            'tahun_ajaran' => $taMd->nama,
             'nama_kelas' => 'I-A',
         ])->assertStatus(201);
 
         // Non-pasangan (MTS) → 403; root → 422; tanpa tulisan baru selain dua baris.
         $this->actingAs($adminMi, 'sanctum')->postJson('/api/admin/kelas', [
             'lembaga_id' => $mts->id,
-            'tahun_ajaran_id' => $f['taMi']->id,
+            'tahun_ajaran' => $f['taMi']->nama,
             'nama_kelas' => 'VII-A',
         ])->assertStatus(403);
         $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/kelas', $payload(
@@ -212,7 +214,7 @@ class KelasStoreTest extends TestCase
         $f = $this->baseFixture();
         foreach (['2B', '1A', '1B'] as $nama) {
             Kelas::create([
-                'lembaga_id' => $f['mi']->id, 'tahun_ajaran_id' => $f['taMi']->id, 'nama_kelas' => $nama,
+                'lembaga_id' => $f['mi']->id, 'tahun_ajaran' => $f['taMi']->nama, 'nama_kelas' => $nama,
             ]);
         }
 
@@ -234,7 +236,7 @@ class KelasStoreTest extends TestCase
 
         $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/kelas', [
             'lembaga_id' => $f['mi']->id,
-            'tahun_ajaran_id' => $f['taMi']->id,
+            'tahun_ajaran' => $f['taMi']->nama,
             'items' => [
                 ['nama_kelas' => '1A', 'tingkat' => '1'],
                 ['nama_kelas' => ' 1a ', 'tingkat' => '1'],
@@ -250,7 +252,7 @@ class KelasStoreTest extends TestCase
 
         $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/kelas', [
             'lembaga_id' => $f['mi']->id,
-            'tahun_ajaran_id' => $f['taMi']->id,
+            'tahun_ajaran' => $f['taMi']->nama,
             'nama_kelas' => '1A',
             'tingkat' => '1',
         ])->assertStatus(201);
@@ -258,7 +260,7 @@ class KelasStoreTest extends TestCase
         // Nama duplikat (beda kapital + spasi berlebih) → 422, nama tersimpan tetap rapi.
         $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/kelas', [
             'lembaga_id' => $f['mi']->id,
-            'tahun_ajaran_id' => $f['taMi']->id,
+            'tahun_ajaran' => $f['taMi']->nama,
             'nama_kelas' => '  1a  ',
             'tingkat' => '1',
         ])->assertStatus(422);
@@ -275,20 +277,20 @@ class KelasStoreTest extends TestCase
             'is_seleksi' => false, 'kelompok_psb' => 'combo_mi_md', 'is_active' => true,
         ]);
         $taMiBerikut = TahunAjaran::create([
-            'lembaga_id' => $f['mi']->id, 'nama' => '2027/2028',
+            'nama' => '2027/2028',
             'tanggal_mulai' => '2027-07-01', 'tanggal_selesai' => '2028-06-30', 'is_aktif' => false,
         ]);
         $taMd = TahunAjaran::create([
-            'lembaga_id' => $md->id, 'nama' => '2026/2027',
-            'tanggal_mulai' => '2026-07-01', 'tanggal_selesai' => '2027-06-30', 'is_aktif' => true,
+            'nama' => '2025/2026',
+            'tanggal_mulai' => '2025-07-01', 'tanggal_selesai' => '2026-06-30', 'is_aktif' => false,
         ]);
-        $payload = fn (int $lembagaId, int $taId) => [
-            'lembaga_id' => $lembagaId, 'tahun_ajaran_id' => $taId, 'nama_kelas' => '1A',
+        $payload = fn (int $lembagaId, string $ta) => [
+            'lembaga_id' => $lembagaId, 'tahun_ajaran' => $ta, 'nama_kelas' => '1A',
         ];
 
-        $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/kelas', $payload($f['mi']->id, $f['taMi']->id))->assertStatus(201);
-        $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/kelas', $payload($f['mi']->id, $taMiBerikut->id))->assertStatus(201);
-        $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/kelas', $payload($md->id, $taMd->id))->assertStatus(201);
+        $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/kelas', $payload($f['mi']->id, $f['taMi']->nama))->assertStatus(201);
+        $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/kelas', $payload($f['mi']->id, $taMiBerikut->nama))->assertStatus(201);
+        $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/kelas', $payload($md->id, $taMd->nama))->assertStatus(201);
 
         $this->assertSame(3, Kelas::count());
     }
@@ -297,10 +299,10 @@ class KelasStoreTest extends TestCase
     {
         $f = $this->baseFixture();
         $kelasA = Kelas::create([
-            'lembaga_id' => $f['mi']->id, 'tahun_ajaran_id' => $f['taMi']->id, 'nama_kelas' => '1A',
+            'lembaga_id' => $f['mi']->id, 'tahun_ajaran' => $f['taMi']->nama, 'nama_kelas' => '1A',
         ]);
         $kelasB = Kelas::create([
-            'lembaga_id' => $f['mi']->id, 'tahun_ajaran_id' => $f['taMi']->id, 'nama_kelas' => '1B',
+            'lembaga_id' => $f['mi']->id, 'tahun_ajaran' => $f['taMi']->nama, 'nama_kelas' => '1B',
         ]);
 
         // Ubah B → nama A (beda kapital) → 422, nama lama tidak berubah.
@@ -325,7 +327,7 @@ class KelasStoreTest extends TestCase
         // Bulk: urutan ikut tersimpan (default 0 bila kosong).
         $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/kelas', [
             'lembaga_id' => $f['mi']->id,
-            'tahun_ajaran_id' => $f['taMi']->id,
+            'tahun_ajaran' => $f['taMi']->nama,
             'items' => [
                 ['nama_kelas' => '1C', 'urutan' => 3],
                 ['nama_kelas' => '1A', 'urutan' => 1],
@@ -338,7 +340,7 @@ class KelasStoreTest extends TestCase
 
         // Daftar diurutkan `urutan` dulu, lalu nama kelas.
         $res = $this->actingAs($f['super'], 'sanctum')
-            ->getJson('/api/admin/kelas?lembaga_id='.$f['mi']->id.'&tahun_ajaran_id='.$f['taMi']->id)
+            ->getJson('/api/admin/kelas?lembaga_id='.$f['mi']->id.'&tahun_ajaran='.$f['taMi']->nama)
             ->assertStatus(200);
         $this->assertSame(['1B', '1A', '1C'], array_column($res->json('data'), 'nama_kelas'));
 

@@ -7,76 +7,74 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Tahun ajaran murni global (data pesantren). Kunci alami = `nama` (mis.
+ * '2025/2026'), dipakai sebagai PK string; anak-anak FK ke kolom ini.
+ * Sembunyikan/tampilkan per lembaga lewat pivot `lembaga_tahun_ajaran`.
+ */
 class TahunAjaran extends Model
 {
     protected $table = 'tahun_ajaran';
 
-    protected $fillable = ['lembaga_id', 'nama', 'tanggal_mulai', 'tanggal_selesai', 'is_aktif', 'is_active'];
+    protected $primaryKey = 'nama';
 
-    protected $casts = ['is_aktif' => 'boolean', 'is_active' => 'boolean'];
+    public $incrementing = false;
 
-    public function lembaga()
+    protected $keyType = 'string';
+
+    protected $fillable = ['nama', 'tanggal_mulai', 'tanggal_selesai', 'is_aktif', 'semester_aktif'];
+
+    protected $casts = ['is_aktif' => 'boolean', 'semester_aktif' => 'integer'];
+
+    /** Pola nama kanonis tahun ajaran (grup 1 & 2 = tahun awal/akhir). */
+    public const POLA = '/^(\d{4})\/(\d{4})$/';
+
+    /** Normalisasi nama: trim, rapatkan spasi, hapus spasi di sekitar '/'. */
+    public static function normalisasiNama(?string $nama): string
     {
-        return $this->belongsTo(Lembaga::class);
+        $rapi = preg_replace('/\s+/u', ' ', trim((string) $nama)) ?? '';
+
+        return str_replace(' /', '/', str_replace('/ ', '/', $rapi));
     }
 
-    /**
-     * TA global: `lembaga_id` NULL = bawaan semua lembaga; baris lembaga hanya
-     * dipakai untuk menyembunyikan (`is_active` = false). `is_aktif` = TA berjalan.
-     */
-
-    /** Daftar TA yang berlaku untuk satu lembaga (baris lembaga menang atas global). */
+    /** Daftar TA yang berlaku untuk satu lembaga (TA tersembunyi dibuang). */
     public static function efektif(?int $lembagaId): Collection
     {
-        $global = static::query()->whereNull('lembaga_id')->get();
-        $milik = $lembagaId === null
+        $tersembunyi = $lembagaId === null
             ? collect()
-            : static::query()->where('lembaga_id', $lembagaId)->get();
+            : LembagaTahunAjaran::query()
+                ->where('lembaga_id', $lembagaId)
+                ->where('is_active', false)
+                ->pluck('tahun_ajaran');
 
-        $map = [];
-        foreach ($global as $row) {
-            $map[$row->nama] = $row;
-        }
-        foreach ($milik as $row) {
-            $map[$row->nama] = $row;
-        }
-
-        return collect($map)
-            ->filter(fn (self $row) => $row->is_active)
-            ->sortByDesc(fn (self $row) => sprintf('%s|%010d', $row->tanggal_mulai ?? '', $row->id))
-            ->values();
+        return static::query()
+            ->when($tersembunyi->isNotEmpty(), fn (Builder $q) => $q->whereNotIn('nama', $tersembunyi))
+            ->orderByDesc('tanggal_mulai')
+            ->orderByDesc('nama')
+            ->get();
     }
 
-    /** TA aktif untuk satu lembaga: baris lembaga lebih dulu, lalu TA aktif global. */
+    /** TA aktif (satu, global). */
     public static function aktif(?int $lembagaId = null): ?self
     {
-        $efektif = static::efektif($lembagaId);
-        $milik = $efektif->first(fn (self $row) => $row->is_aktif && $row->lembaga_id !== null);
-
-        return $milik ?? $efektif->firstWhere('is_aktif', true);
+        return static::efektif($lembagaId)->firstWhere('is_aktif', true);
     }
 
     /**
      * Resolusi TA untuk satu lembaga: TA yang diminta bila berlaku untuk lembaga
-     * itu, bila tidak TA aktif (lembaga/global).
+     * itu, bila tidak TA aktif.
      */
-    public static function resolve(?int $lembagaId, ?int $dimintaId = null): int
+    public static function resolve(?int $lembagaId, ?string $diminta = null): string
     {
         $efektif = static::efektif($lembagaId);
-        if ($dimintaId && $efektif->contains('id', $dimintaId)) {
-            return $dimintaId;
+        if ($diminta !== null && $efektif->contains('nama', $diminta)) {
+            return $diminta;
         }
-        $aktif = static::aktif($lembagaId);
+        $aktif = $efektif->firstWhere('is_aktif', true);
         if ($aktif) {
-            return $aktif->id;
+            return $aktif->nama;
         }
 
-        throw ValidationException::withMessages(['tahun_ajaran_id' => 'Belum ada tahun ajaran aktif.']);
-    }
-
-    /** TA global (lembaga_id NULL) dengan nama tertentu. */
-    public static function global(): Builder
-    {
-        return static::query()->whereNull('lembaga_id');
+        throw ValidationException::withMessages(['tahun_ajaran' => 'Belum ada tahun ajaran aktif.']);
     }
 }

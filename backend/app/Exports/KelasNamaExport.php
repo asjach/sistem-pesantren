@@ -17,7 +17,7 @@ use PhpOffice\PhpSpreadsheet\Cell\DefaultValueBinder;
  */
 class KelasNamaExport extends DefaultValueBinder implements FromArray, WithCustomValueBinder, WithHeadings, WithTitle
 {
-    public function __construct(private int $lembagaId, private int $tahunAjaranId) {}
+    public function __construct(private int $lembagaId, private string $tahunAjaran) {}
 
     public function bindValue(Cell $cell, $value): bool
     {
@@ -39,7 +39,7 @@ class KelasNamaExport extends DefaultValueBinder implements FromArray, WithCusto
     public function array(): array
     {
         return Kelas::where('lembaga_id', $this->lembagaId)
-            ->where('tahun_ajaran_id', $this->tahunAjaranId)
+            ->where('tahun_ajaran', $this->tahunAjaran)
             ->orderBy('urutan')->orderBy('nama_kelas')
             ->get(['nama_kelas', 'tingkat', 'urutan'])
             ->map(fn (Kelas $k) => [

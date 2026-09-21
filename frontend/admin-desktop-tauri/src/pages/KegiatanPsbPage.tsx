@@ -295,7 +295,7 @@ export default function KegiatanPsbPage() {
   function bukaKegiatan(k: PsbKegiatan | null) {
     setKegEdit(k);
     setKegNama(k?.nama ?? '');
-    setKegTa(k ? String(k.tahun_ajaran_id) : '');
+    setKegTa(k ? k.tahun_ajaran : '');
     setKegAktif(k ? k.is_aktif : true);
     setKegOpen(true);
   }
@@ -303,7 +303,7 @@ export default function KegiatanPsbPage() {
   /** Pilih TA dulu; nama kegiatan otomatis memakai pola "PSB {tahun ajaran}". */
   function pilihTahunAjaran(v: string) {
     setKegTa(v);
-    const ta = tahunAjarans.find((t) => String(t.id) === v);
+    const ta = tahunAjarans.find((t) => t.nama === v);
     if (ta) setKegNama(`PSB ${ta.nama}`);
   }
 
@@ -315,10 +315,10 @@ export default function KegiatanPsbPage() {
     try {
       let targetId = kegEdit?.id ?? null;
       if (kegEdit) {
-        await updatePsbKegiatan(kegEdit.id, { nama: kegNama.trim(), tahun_ajaran_id: Number(kegTa), is_aktif: kegAktif });
+        await updatePsbKegiatan(kegEdit.id, { nama: kegNama.trim(), tahun_ajaran: kegTa, is_aktif: kegAktif });
         toast.success('Kegiatan PSB diubah.');
       } else {
-        const res = await createPsbKegiatan({ nama: kegNama.trim(), tahun_ajaran_id: Number(kegTa), is_aktif: kegAktif });
+        const res = await createPsbKegiatan({ nama: kegNama.trim(), tahun_ajaran: kegTa, is_aktif: kegAktif });
         targetId = res.data.id;
         toast.success('Kegiatan PSB dibuat.');
       }
@@ -467,7 +467,7 @@ export default function KegiatanPsbPage() {
   }, [lembagaOpsi]);
 
   const taTersedia = useMemo(
-    () => (kegEdit ? tahunAjarans : tahunAjarans.filter((t) => !kegiatans.some((k) => k.tahun_ajaran_id === t.id))),
+    () => (kegEdit ? tahunAjarans : tahunAjarans.filter((t) => !kegiatans.some((k) => k.tahun_ajaran === t.nama))),
     [kegEdit, tahunAjarans, kegiatans],
   );
 
@@ -782,7 +782,7 @@ export default function KegiatanPsbPage() {
                 <SelectContent>
                   <SelectGroup>
                     {taTersedia.map((t) => (
-                      <SelectItem key={t.id} value={String(t.id)}>{t.nama}</SelectItem>
+                      <SelectItem key={t.nama} value={t.nama}>{t.nama}</SelectItem>
                     ))}
                   </SelectGroup>
                 </SelectContent>

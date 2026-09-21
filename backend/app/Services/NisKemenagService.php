@@ -68,8 +68,8 @@ class NisKemenagService
         $riwayat = RiwayatBelajar::where('santri_id', $santriId)
             ->where('lembaga_id', $lembagaId)
             ->where('semester', '1')
-            ->with('tahunAjaran:id,nama,tanggal_mulai')
-            ->orderBy('tahun_ajaran_id')
+            ->with('tahunAjaran:nama,tanggal_mulai')
+            ->orderBy('tahun_ajaran')
             ->first();
 
         $namaTa = $riwayat?->tahunAjaran?->nama;

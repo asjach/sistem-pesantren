@@ -17,7 +17,7 @@ class SiklusNaikKelasRequest extends FormRequest
     {
         return [
             'lembaga_id' => 'required|exists:lembaga,id',
-            'tahun_ajaran_baru_id' => 'required|exists:tahun_ajaran,id',
+            'tahun_ajaran_baru' => 'required|string|exists:tahun_ajaran,nama',
             'tingkat' => 'required|string',
             'siswa' => 'required|array|min:1',
             'siswa.*.santri_id' => 'required|exists:santri,id',

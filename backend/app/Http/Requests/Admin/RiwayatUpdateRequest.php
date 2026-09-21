@@ -30,7 +30,7 @@ class RiwayatUpdateRequest extends FormRequest
                     ->ignore($row?->id)
                     ->where(fn ($q) => $q
                         ->where('santri_id', $row?->santri_id)
-                        ->where('tahun_ajaran_id', $row?->tahun_ajaran_id)
+                        ->where('tahun_ajaran', $row?->tahun_ajaran)
                         ->where('lembaga_id', $row?->lembaga_id)),
             ],
             'tingkat' => ['sometimes', 'nullable', 'string', 'max:20'],

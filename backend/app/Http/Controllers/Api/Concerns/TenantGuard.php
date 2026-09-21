@@ -111,10 +111,10 @@ trait TenantGuard
         }
     }
 
-    /** TA wajib berlaku untuk lembaga target (TA global atau baris lembaga itu). */
-    protected function cekTaEfektif(int $lembagaId, int $taId, string $field = 'tahun_ajaran_id'): void
+    /** TA wajib berlaku untuk lembaga target (TA global dikurangi yang disembunyikan). */
+    protected function cekTaEfektif(int $lembagaId, string $ta, string $field = 'tahun_ajaran'): void
     {
-        if (! TahunAjaran::efektif($lembagaId)->contains('id', $taId)) {
+        if (! TahunAjaran::efektif($lembagaId)->contains('nama', $ta)) {
             throw ValidationException::withMessages([$field => 'Tahun ajaran tidak berlaku untuk lembaga ini.']);
         }
     }

@@ -40,17 +40,17 @@ class SiklusSantriService
                 abort(422, 'Salin genap wajib dari baris ganjil (semester 1) yang aktif.');
             }
             if (RiwayatBelajar::where('santri_id', $santri->id)->where('lembaga_id', $lembagaId)
-                ->where('tahun_ajaran_id', $ganjil->tahun_ajaran_id)->where('semester', '2')->exists()) {
+                ->where('tahun_ajaran', $ganjil->tahun_ajaran)->where('semester', '2')->exists()) {
                 throw ValidationException::withMessages(['riwayat' => 'Baris genap tahun ini sudah ada.']);
             }
             if (! is_null($noAbsen)) {
-                $this->cekBentrokAbsen($kelasId ?? $ganjil->kelas_id, $ganjil->tahun_ajaran_id, '2', $noAbsen);
+                $this->cekBentrokAbsen($kelasId ?? $ganjil->kelas_id, $ganjil->tahun_ajaran, '2', $noAbsen);
             }
             // Tutup ganjil sebagai arsip semester: status_akhir dipertahankan 'aktif', is_active_riwayat='Tidak'.
             $ganjil->update(['is_active_riwayat' => RiwayatBelajar::TIDAK]);
 
             $genap = $this->buatRiwayatDenganRetry($santri->id, [
-                'tahun_ajaran_id' => $ganjil->tahun_ajaran_id,
+                'tahun_ajaran' => $ganjil->tahun_ajaran,
                 'lembaga_id' => $lembagaId,
                 'kelas_id' => $kelasId ?? $ganjil->kelas_id,
                 'semester' => '2',
@@ -60,7 +60,7 @@ class SiklusSantriService
                 'status_awal' => $ganjil->status_awal, // KUNCI: sama dengan ganjil
                 'status_akhir' => 'aktif',
                 'is_active_riwayat' => RiwayatBelajar::YA,
-            ], where: fn ($q) => $q->where('tahun_ajaran_id', $ganjil->tahun_ajaran_id)
+            ], where: fn ($q) => $q->where('tahun_ajaran', $ganjil->tahun_ajaran)
                 ->where('lembaga_id', $lembagaId)->where('semester', '2'));
 
             $santri->hitungUlangStatusGlobal();
@@ -70,13 +70,13 @@ class SiklusSantriService
     }
 
     /** Cek bentrok no_absen per (kelas, tahun, semester); null/kelas-null lolos. */
-    public function cekBentrokAbsen($kelasId, int $tahunAjaranId, string $semester, int $noAbsen): void
+    public function cekBentrokAbsen($kelasId, string $tahunAjaran, string $semester, int $noAbsen): void
     {
         if (! $kelasId || ! $noAbsen) {
             return;
         }
         $bentrok = RiwayatBelajar::where('kelas_id', $kelasId)
-            ->where('tahun_ajaran_id', $tahunAjaranId)->where('semester', $semester)
+            ->where('tahun_ajaran', $tahunAjaran)->where('semester', $semester)
             ->where('no_absen', $noAbsen)->exists();
         if ($bentrok) {
             throw ValidationException::withMessages(['no_absen' => 'No. absen sudah dipakai di rombel semester ini.']);
@@ -87,9 +87,9 @@ class SiklusSantriService
      * Kenaikan genap→ganjil tahun BARU: tutup baris '2' aktif, buat ganjil tahun baru.
      * $status: 'naik' (tingkat+1) atau 'tidak_naik' (tingkat sama, mengulang). kelas_id=null.
      */
-    public function prosesKenaikanPerSantri(Santri $santri, int $lembagaId, int $tahunBaruId, string $tingkat, string $status, ?string $tglMasuk = null, ?int $noAbsen = null): RiwayatBelajar
+    public function prosesKenaikanPerSantri(Santri $santri, int $lembagaId, string $tahunBaru, string $tingkat, string $status, ?string $tglMasuk = null, ?int $noAbsen = null): RiwayatBelajar
     {
-        return DB::transaction(function () use ($santri, $lembagaId, $tahunBaruId, $tingkat, $status, $tglMasuk, $noAbsen) {
+        return DB::transaction(function () use ($santri, $lembagaId, $tahunBaru, $tingkat, $status, $tglMasuk, $noAbsen) {
             $santri = Santri::whereKey($santri->id)->lockForUpdate()->firstOrFail();
             $lama = RiwayatBelajar::where('santri_id', $santri->id)
                 ->where('lembaga_id', $lembagaId)->where('is_active_riwayat', RiwayatBelajar::YA)
@@ -116,7 +116,7 @@ class SiklusSantriService
             $this->pastikanKeanggotaanAktif($santri, $lembagaId);
 
             $baru = $this->buatRiwayatDenganRetry($santri->id, [
-                'tahun_ajaran_id' => $tahunBaruId,
+                'tahun_ajaran' => $tahunBaru,
                 'lembaga_id' => $lembagaId,
                 'kelas_id' => null,
                 'semester' => '1',
@@ -126,7 +126,7 @@ class SiklusSantriService
                 'status_awal' => $awalBaru,
                 'status_akhir' => 'aktif',
                 'is_active_riwayat' => RiwayatBelajar::YA,
-            ], where: fn ($q) => $q->where('tahun_ajaran_id', $tahunBaruId)
+            ], where: fn ($q) => $q->where('tahun_ajaran', $tahunBaru)
                 ->where('lembaga_id', $lembagaId)->where('semester', '1'));
 
             $santri->hitungUlangStatusGlobal();
@@ -169,10 +169,10 @@ class SiklusSantriService
                 }
             }
 
-            $taBaru = $this->taBerikutnya((int) $lama->tahun_ajaran_id, $lembagaId);
+            $taBaru = $this->taBerikutnya($lama->tahun_ajaran, $lembagaId);
             $tingkatBaru = $status === 'naik' ? (string) ((int) $lama->tingkat + 1) : (string) $lama->tingkat;
             $kelasBaruId = $this->kelasKenaikan(
-                $lembagaId, $taBaru->id, $lama->kelas?->nama_kelas, $tingkatBaru, $status === 'naik'
+                $lembagaId, $taBaru->nama, $lama->kelas?->nama_kelas, $tingkatBaru, $status === 'naik'
             );
 
             $lama->update(['status_akhir' => $status, 'is_active_riwayat' => RiwayatBelajar::TIDAK]);
@@ -180,7 +180,7 @@ class SiklusSantriService
             $this->pastikanKeanggotaanAktif($santri, $lembagaId);
 
             $baru = $this->buatRiwayatDenganRetry($santri->id, [
-                'tahun_ajaran_id' => $taBaru->id,
+                'tahun_ajaran' => $taBaru->nama,
                 'lembaga_id' => $lembagaId,
                 'kelas_id' => $kelasBaruId,
                 'semester' => '1',
@@ -190,7 +190,7 @@ class SiklusSantriService
                 'status_awal' => $awalBaru,
                 'status_akhir' => 'aktif',
                 'is_active_riwayat' => RiwayatBelajar::YA,
-            ], where: fn ($q) => $q->where('tahun_ajaran_id', $taBaru->id)
+            ], where: fn ($q) => $q->where('tahun_ajaran', $taBaru->nama)
                 ->where('lembaga_id', $lembagaId)->where('semester', '1'));
 
             $santri->hitungUlangStatusGlobal();
@@ -199,11 +199,11 @@ class SiklusSantriService
         });
     }
 
-    /** TA global berikutnya ("2026/2027"→"2027/2028"); buatkan bila belum ada. */
-    protected function taBerikutnya(int $taId, int $lembagaId): TahunAjaran
+    /** TA berikutnya ("2026/2027"→"2027/2028"); buatkan bila belum ada. */
+    protected function taBerikutnya(string $ta, int $lembagaId): TahunAjaran
     {
-        $lama = TahunAjaran::find($taId);
-        if (! $lama || ! preg_match('/^(\d{4})\/(\d{4})$/', (string) $lama->nama, $m)) {
+        $lama = TahunAjaran::find($ta);
+        if (! $lama || ! preg_match(TahunAjaran::POLA, (string) $lama->nama, $m)) {
             abort(422, 'Nama tahun ajaran tak berpola tahun (YYYY/YYYY).');
         }
         $namaBaru = ((int) $m[1] + 1).'/'.((int) $m[2] + 1);
@@ -213,9 +213,9 @@ class SiklusSantriService
         }
 
         return TahunAjaran::create([
-            'lembaga_id' => null, 'nama' => $namaBaru,
+            'nama' => $namaBaru,
             'tanggal_mulai' => null, 'tanggal_selesai' => null,
-            'is_aktif' => false, 'is_active' => true,
+            'is_aktif' => false,
         ]);
     }
 
@@ -225,7 +225,7 @@ class SiklusSantriService
      *
      * @return int|null null bila baris lama tanpa kelas (tetap tanpa kelas).
      */
-    protected function kelasKenaikan(int $lembagaId, int $taBaruId, ?string $namaLama, string $tingkatBaru, bool $naik): ?int
+    protected function kelasKenaikan(int $lembagaId, string $taBaru, ?string $namaLama, string $tingkatBaru, bool $naik): ?int
     {
         if ($namaLama === null || trim($namaLama) === '') {
             return null;
@@ -235,7 +235,7 @@ class SiklusSantriService
         }
         $namaBaru = $naik ? ((int) $m[1] + 1).$m[2] : trim($namaLama);
         $kelas = Kelas::firstOrCreate(
-            ['lembaga_id' => $lembagaId, 'tahun_ajaran_id' => $taBaruId, 'nama_kelas' => $namaBaru],
+            ['lembaga_id' => $lembagaId, 'tahun_ajaran' => $taBaru, 'nama_kelas' => $namaBaru],
             ['tingkat' => $tingkatBaru]
         );
 
@@ -283,7 +283,7 @@ class SiklusSantriService
      *
      * @return array{berhasil: int, gagal: array<int, array{santri_id: ?int, pesan: string}>, data: array<int, RiwayatBelajar>}
      */
-    public function naikMassal(int $lembagaId, int $tahunBaruId, string $tingkat, array $items): array
+    public function naikMassal(int $lembagaId, string $tahunBaru, string $tingkat, array $items): array
     {
         $berhasil = 0;
         $gagal = [];
@@ -294,7 +294,7 @@ class SiklusSantriService
                 $data[] = $this->prosesKenaikanPerSantri(
                     $santri,
                     $lembagaId,
-                    $tahunBaruId,
+                    $tahunBaru,
                     $tingkat,
                     $item['status'] ?? '',
                     $item['tgl_masuk'] ?? null,
@@ -321,7 +321,7 @@ class SiklusSantriService
             if ((int) $kelas->lembaga_id !== (int) $riwayat->lembaga_id) {
                 abort(422, 'Kelas beda lembaga.');
             }
-            if ((int) $kelas->tahun_ajaran_id !== (int) $riwayat->tahun_ajaran_id) {
+            if ($kelas->tahun_ajaran !== $riwayat->tahun_ajaran) {
                 abort(422, 'Kelas beda tahun ajaran.');
             }
             if ($riwayat->tingkat && $kelas->tingkat && $riwayat->tingkat !== $kelas->tingkat) {
@@ -445,7 +445,7 @@ class SiklusSantriService
                     ->where('lembaga_id', $lembagaId)
                     ->where('status_akhir', 'lulus')
                     ->latest('id')->value('kelas_id'),
-                'tahun_ajaran_lulus_id' => $dataLulus['tahun_ajaran_lulus_id'],
+                'tahun_ajaran_lulus' => $dataLulus['tahun_ajaran_lulus'],
                 'nomor_ijazah' => $dataLulus['nomor_ijazah'] ?? null,
                 'no_surat_ijazah' => $dataLulus['no_surat_ijazah'] ?? null,
                 'tanggal_lulus' => $dataLulus['tanggal_lulus'],
@@ -510,7 +510,7 @@ class SiklusSantriService
             $this->pastikanKeanggotaanAktif($santri, $lembagaId);
 
             $baru = $this->buatRiwayatDenganRetry($santri->id, [
-                'tahun_ajaran_id' => $taBerikut->id,
+                'tahun_ajaran' => $taBerikut->nama,
                 'lembaga_id' => $lembagaId,
                 'kelas_id' => null,
                 'semester' => '1',
@@ -518,7 +518,7 @@ class SiklusSantriService
                 'status_awal' => 'mengulang',
                 'status_akhir' => 'aktif',
                 'is_active_riwayat' => RiwayatBelajar::YA,
-            ], where: fn ($q) => $q->where('tahun_ajaran_id', $taBerikut->id)
+            ], where: fn ($q) => $q->where('tahun_ajaran', $taBerikut->nama)
                 ->where('lembaga_id', $lembagaId)->where('semester', '1'));
 
             $santri->hitungUlangStatusGlobal();

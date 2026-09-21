@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { errorMessage } from '../api/client';
 import {
   createTahunAjaran,
@@ -6,6 +6,7 @@ import {
   listTahunAjaran,
   sembunyikanTahunAjaran,
   setAktifTahunAjaran,
+  tampilkanTahunAjaran,
   updateTahunAjaran,
   type TahunAjaran,
 } from '../api/master';
@@ -36,11 +37,14 @@ import { toast } from 'sonner';
 const dateRule = (label: string) => (v: string | null) =>
   v && !/^\d{4}-\d{2}-\d{2}$/.test(v) ? `${label} format YYYY-MM-DD.` : null;
 
+const namaRule = (v: string | null) =>
+  !v || !v.trim() ? 'Nama tahun ajaran wajib diisi.' : (/^\d{4}\/\d{4}$/.test(v.trim()) ? null : 'Format YYYY/YYYY, mis. 2026/2027.');
+
 const FIELDS: ExcelField[] = [
   {
     key: 'nama', label: 'nama', width: 160, kind: 'text', maxLength: 50,
     required: true,
-    validate: (v) => (!v || !v.trim() ? 'Nama tahun ajaran wajib diisi.' : null),
+    validate: namaRule,
   },
   {
     key: 'mulai', label: 'tanggal_mulai', width: 130, kind: 'text', maxLength: 10,
@@ -52,6 +56,7 @@ const FIELDS: ExcelField[] = [
     sumber: { tabel: 'tahun_ajaran', kolom: 'tanggal_selesai' },
     validate: dateRule('Tanggal selesai'),
   },
+  { key: 'semester', label: 'semester_aktif', width: 110, kind: 'static', sumber: { tabel: 'tahun_ajaran', kolom: 'semester_aktif' } },
   { key: 'aktif', label: 'is_aktif', width: 100, kind: 'static', sumber: { tabel: 'tahun_ajaran', kolom: 'is_aktif' } },
   { key: 'tampil', label: 'Tampil lembaga', width: 150, kind: 'static', sumber: null },
 ];
@@ -61,20 +66,24 @@ function gridValues(t: TahunAjaran): Record<string, string | null> {
     nama: t.nama,
     mulai: t.tanggal_mulai,
     selesai: t.tanggal_selesai,
+    semester: t.semester_aktif === 2 ? 'genap' : 'ganjil',
     aktif: t.is_aktif ? 'aktif' : 'nonaktif',
-    tampil: t.lembaga_id === null ? 'global (semua)' : (t.is_active ? 'ditampilkan' : 'disembunyikan'),
+    tampil: t.tampil === undefined ? '—' : (t.tampil ? 'ditampilkan' : 'disembunyikan'),
   };
 }
 
-async function commitDraft(id: number, f: Record<string, string | null>) {
-  await updateTahunAjaran(id, {
-    ...(f.nama !== undefined ? { nama: f.nama ?? '' } : {}),
+/** Nama TA memuat '/', jadi id elemen disanitasi (mis. 2026/2027 → 20262027). */
+const slug = (nama: string) => nama.replace(/[^0-9]/g, '');
+
+async function commitDraft(id: string | number, f: Record<string, string | null>) {
+  await updateTahunAjaran(String(id), {
+    ...(f.nama !== undefined ? { nama_baru: (f.nama ?? '').trim() } : {}),
     ...(f.mulai !== undefined ? { tanggal_mulai: f.mulai || null } : {}),
     ...(f.selesai !== undefined ? { tanggal_selesai: f.selesai || null } : {}),
   });
 }
 
-/** Tahun Ajaran (global, gaya Referensi): super_admin mengelola daftar; admin
+/** Tahun Ajaran (global, kunci `nama`): super_admin mengelola daftar; admin
  *  lembaga hanya bisa menyembunyikan/menampilkan TA untuk lembaganya. */
 export default function TahunAjaranPage() {
   const [lembagaId, setLembagaId] = useState<number | ''>('');
@@ -99,7 +108,7 @@ export default function TahunAjaranPage() {
     ambil: (a) => listTahunAjaran({
       search: a.search || undefined,
       lembaga_id: lembagaId === '' ? undefined : Number(lembagaId),
-      // Baris tersembunyi ikut dimuat agar bisa ditampilkan kembali.
+      // TA tersembunyi ikut dimuat agar bisa ditampilkan kembali.
       termasuk_nonaktif: lembagaId !== '',
       sort: a.urut.length ? a.urut : undefined,
       arah: a.urut.length ? a.arah : undefined,
@@ -122,6 +131,8 @@ export default function TahunAjaranPage() {
 
   const { user } = useAuth();
   const { bertindak } = useLembagaAktif();
+  // ExcelTable butuh `id`; TA memakai `nama` sebagai kunci → turunkan id dari nama.
+  const rowsTampil = useMemo(() => rows.map((t) => ({ ...t, id: t.nama })), [rows]);
   // Saat berperan sebagai lembaga, izin kelola super_admin nonaktif (hanya sembunyikan).
   const bolehKelola = bisa(user, 'tahun_ajaran.ubah') && !bertindak;
   // Lembaga untuk aksi sembunyikan: lembaga aktif (perangkat) atau lembaga user.
@@ -154,9 +165,9 @@ export default function TahunAjaranPage() {
     }
   }, [nama, mulai, selesai, load, pager.goFirst]);
 
-  const onSetAktif = useCallback(async (id: number) => {
+  const onSetAktif = useCallback(async (nama: string) => {
     try {
-      await setAktifTahunAjaran(id);
+      await setAktifTahunAjaran(nama);
       toast.success('Tahun ajaran diaktifkan.');
       await load();
     } catch (e) {
@@ -167,8 +178,8 @@ export default function TahunAjaranPage() {
   const onUpdate = useCallback(async () => {
     if (!editRow) return;
     try {
-      await updateTahunAjaran(editRow.id, {
-        nama: editNama,
+      await updateTahunAjaran(editRow.nama, {
+        nama_baru: editNama.trim(),
         tanggal_mulai: editMulai || null,
         tanggal_selesai: editSelesai || null,
       });
@@ -180,9 +191,9 @@ export default function TahunAjaranPage() {
     }
   }, [editRow, editNama, editMulai, editSelesai, load]);
 
-  const onDelete = useCallback(async (id: number) => {
+  const onDelete = useCallback(async (nama: string) => {
     try {
-      await deleteTahunAjaran(id);
+      await deleteTahunAjaran(nama);
       toast.success('Tahun ajaran dihapus.');
       await load();
     } catch (e) {
@@ -190,10 +201,10 @@ export default function TahunAjaranPage() {
     }
   }, [load]);
 
-  const onSembunyikan = useCallback(async (id: number) => {
+  const onSembunyikan = useCallback(async (nama: string) => {
     if (lembagaAksi === null) return;
     try {
-      await sembunyikanTahunAjaran(id, lembagaAksi);
+      await sembunyikanTahunAjaran(nama, lembagaAksi);
       toast.success('Tahun ajaran disembunyikan untuk lembaga ini.');
       await load();
     } catch (e) {
@@ -201,17 +212,18 @@ export default function TahunAjaranPage() {
     }
   }, [lembagaAksi, load]);
 
-  const onTampilkan = useCallback(async (id: number) => {
+  const onTampilkan = useCallback(async (nama: string) => {
+    if (lembagaAksi === null) return;
     try {
-      await deleteTahunAjaran(id);
+      await tampilkanTahunAjaran(nama, lembagaAksi);
       toast.success('Tahun ajaran ditampilkan kembali.');
       await load();
     } catch (e) {
       setErr(errorMessage(e));
     }
-  }, [load]);
+  }, [lembagaAksi, load]);
 
-  /** Mode Input: buat TA global baru dari baris input (super_admin). */
+  /** Mode Input: buat TA baru dari baris input (super_admin). */
   const createRow = useCallback(async (f: Record<string, string | null>) => {
     const namaRapi = (f.nama ?? '').trim();
     if (namaRapi === '') {
@@ -226,41 +238,44 @@ export default function TahunAjaranPage() {
     await load(1);
   }, [load]);
 
-  const renderActions = useCallback((t: TahunAjaran) => (
-    <>
-      <ViewAction id={`btn_lihat_ta_${t.id}`} onClick={() => setViewRow(t)} />
-      {bolehKelola && (
-        <>
-          <EditAction id={`btn_ubah_ta_${t.id}`} onClick={() => openEdit(t)} />
-          {!t.is_aktif && <SetAktifAction id={`btn_aktif_ta_${t.id}`} onClick={() => onSetAktif(t.id)} />}
-          <DeleteAction
-            id={`btn_hapus_ta_${t.id}`}
-            title="Hapus tahun ajaran?"
-            description={`${t.nama} akan dihapus permanen.`}
-            onConfirm={() => onDelete(t.id)}
-          />
-        </>
-      )}
-      {bolehSembunyi && t.lembaga_id === null && t.is_active && !t.is_aktif && (
-        <ActionIcon
-          id={`btn_sembunyi_ta_${t.id}`}
-          title="Sembunyikan dari lembaga ini"
-          onClick={() => onSembunyikan(t.id)}
-        >
-          <Ban size={16} />
-        </ActionIcon>
-      )}
-      {bolehSembunyi && t.lembaga_id !== null && !t.is_active && (
-        <ActionIcon
-          id={`btn_tampil_ta_${t.id}`}
-          title="Tampilkan kembali"
-          onClick={() => onTampilkan(t.id)}
-        >
-          <Undo2 size={16} />
-        </ActionIcon>
-      )}
-    </>
-  ), [bolehKelola, bolehSembunyi, openEdit, onSetAktif, onDelete, onSembunyikan, onTampilkan]);
+  const renderActions = useCallback((t: TahunAjaran) => {
+    const id = slug(t.nama);
+    return (
+      <>
+        <ViewAction id={`btn_lihat_ta_${id}`} onClick={() => setViewRow(t)} />
+        {bolehKelola && (
+          <>
+            <EditAction id={`btn_ubah_ta_${id}`} onClick={() => openEdit(t)} />
+            {!t.is_aktif && <SetAktifAction id={`btn_aktif_ta_${id}`} onClick={() => onSetAktif(t.nama)} />}
+            <DeleteAction
+              id={`btn_hapus_ta_${id}`}
+              title="Hapus tahun ajaran?"
+              description={`${t.nama} akan dihapus permanen.`}
+              onConfirm={() => onDelete(t.nama)}
+            />
+          </>
+        )}
+        {bolehSembunyi && t.tampil !== false && !t.is_aktif && (
+          <ActionIcon
+            id={`btn_sembunyi_ta_${id}`}
+            title="Sembunyikan dari lembaga ini"
+            onClick={() => onSembunyikan(t.nama)}
+          >
+            <Ban size={16} />
+          </ActionIcon>
+        )}
+        {bolehSembunyi && t.tampil === false && (
+          <ActionIcon
+            id={`btn_tampil_ta_${id}`}
+            title="Tampilkan kembali"
+            onClick={() => onTampilkan(t.nama)}
+          >
+            <Undo2 size={16} />
+          </ActionIcon>
+        )}
+      </>
+    );
+  }, [bolehKelola, bolehSembunyi, openEdit, onSetAktif, onDelete, onSembunyikan, onTampilkan]);
 
   return (
     <div className={PAGE_SHELL}>
@@ -269,7 +284,7 @@ export default function TahunAjaranPage() {
         tableKey="tahun_ajaran"
         sumberTabel="tahun_ajaran"
         fields={FIELDS}
-        rows={rows}
+        rows={rowsTampil}
         getValues={gridValues}
         loading={loading}
         emptyText={bolehKelola ? 'Belum ada tahun ajaran.' : 'Lembaga ini belum memakai tahun ajaran mana pun.'}
@@ -280,7 +295,7 @@ export default function TahunAjaranPage() {
         arahUrut={arahUrut}
         onUrut={terapkanUrut}
         onCreateRow={bolehKelola ? createRow : undefined}
-        inputRowValues={{ aktif: 'nonaktif', tampil: 'global (semua)' }}
+        inputRowValues={{ aktif: 'nonaktif', semester: 'ganjil', tampil: '—' }}
         searchValue={search}
         onSearchChange={onSearchChange}
         addButton={bolehKelola ? (

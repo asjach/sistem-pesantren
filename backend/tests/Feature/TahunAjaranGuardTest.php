@@ -13,9 +13,10 @@ use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
-// Aturan TA global: baris `lembaga_id` NULL = bawaan semua lembaga (dikelola
-// super_admin); baris lembaga hanya untuk menyembunyikan. TA aktif satu (global)
-// dan tidak bisa disembunyikan/dihapus. Kegiatan PSB menaut lembaga eksplisit.
+// Aturan TA global (kunci `nama`): berlaku semua lembaga, dikelola super_admin;
+// admin lembaga hanya menyembunyikan/menampilkan via pivot `lembaga_tahun_ajaran`.
+// TA aktif satu (global) dan tidak bisa disembunyikan/dihapus. Kegiatan PSB
+// menaut TA eksplisit.
 class TahunAjaranGuardTest extends TestCase
 {
     use RefreshDatabase;
@@ -38,7 +39,7 @@ class TahunAjaranGuardTest extends TestCase
             'is_seleksi' => false, 'kelompok_psb' => 'combo_mi_md', 'is_active' => true,
         ]);
         $ta = TahunAjaran::create([
-            'lembaga_id' => null, 'nama' => '2026/2027',
+            'nama' => '2026/2027',
             'tanggal_mulai' => '2026-07-01', 'tanggal_selesai' => '2027-06-30', 'is_aktif' => true,
         ]);
         $super = User::create([
@@ -73,10 +74,15 @@ class TahunAjaranGuardTest extends TestCase
         $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/tahun-ajaran', [
             'nama' => '2027/2028', 'tanggal_mulai' => '2027-07-01', 'tanggal_selesai' => '2028-06-30',
         ])->assertStatus(201);
-        $this->assertDatabaseHas('tahun_ajaran', ['lembaga_id' => null, 'nama' => '2027/2028']);
+        $this->assertDatabaseHas('tahun_ajaran', ['nama' => '2027/2028']);
 
         $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/tahun-ajaran', [
             'nama' => '2026/2027',
+        ])->assertStatus(422)->assertJsonValidationErrors(['nama']);
+
+        // Pola nama wajib YYYY/YYYY.
+        $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/tahun-ajaran', [
+            'nama' => '2028-2029',
         ])->assertStatus(422)->assertJsonValidationErrors(['nama']);
 
         $admin = $this->adminMi($f['root'], $f['mi']);
@@ -93,27 +99,27 @@ class TahunAjaranGuardTest extends TestCase
 
         // Hanya admin pesantren yang boleh mengelola kegiatan PSB.
         $this->actingAs($admin, 'sanctum')->postJson('/api/admin/psb/kegiatan', [
-            'tahun_ajaran_id' => $f['ta']->id, 'nama' => 'PSB MI',
+            'tahun_ajaran' => $f['ta']->nama, 'nama' => 'PSB MI',
         ])->assertStatus(403);
 
         // Kegiatan se-pesantren: tanpa lembaga_id, TA cukup ada.
         $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/psb/kegiatan', [
-            'tahun_ajaran_id' => $f['ta']->id, 'nama' => 'PSB 2026/2027', 'is_aktif' => true,
+            'tahun_ajaran' => $f['ta']->nama, 'nama' => 'PSB 2026/2027', 'is_aktif' => true,
         ])->assertStatus(201);
-        $this->assertDatabaseHas('psb_kegiatan', ['tahun_ajaran_id' => $f['ta']->id, 'nama' => 'PSB 2026/2027']);
+        $this->assertDatabaseHas('psb_kegiatan', ['tahun_ajaran' => $f['ta']->nama, 'nama' => 'PSB 2026/2027']);
 
         // Satu kegiatan per tahun ajaran: duplikat ditolak.
         $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/psb/kegiatan', [
-            'tahun_ajaran_id' => $f['ta']->id, 'nama' => 'PSB Duplikat',
-        ])->assertStatus(422)->assertJsonValidationErrors(['tahun_ajaran_id']);
+            'tahun_ajaran' => $f['ta']->nama, 'nama' => 'PSB Duplikat',
+        ])->assertStatus(422)->assertJsonValidationErrors(['tahun_ajaran']);
 
         // TA berbeda → boleh (mis. menyiapkan tahun berikutnya).
         $taBerikut = TahunAjaran::create([
-            'lembaga_id' => null, 'nama' => '2027/2028',
+            'nama' => '2027/2028',
             'tanggal_mulai' => '2027-07-01', 'tanggal_selesai' => '2028-06-30',
         ]);
         $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/psb/kegiatan', [
-            'tahun_ajaran_id' => $taBerikut->id, 'nama' => 'PSB 2027/2028',
+            'tahun_ajaran' => $taBerikut->nama, 'nama' => 'PSB 2027/2028',
         ])->assertStatus(201);
 
         // Kegiatan terlihat oleh admin lembaga (halaman Dokumen Wajib/Kegiatan PSB).
@@ -148,12 +154,12 @@ class TahunAjaranGuardTest extends TestCase
             $res = $this->actingAs($f['super'], 'sanctum')
                 ->getJson('/api/admin/tahun-ajaran?lembaga_id='.$lembagaId)
                 ->assertStatus(200);
-            $this->assertSame([$f['ta']->id], array_column($res->json('data'), 'id'));
+            $this->assertSame([$f['ta']->nama], array_column($res->json('data'), 'nama'));
         }
 
         // Kelas di lembaga mana pun boleh memakai TA global itu.
         $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/kelas', [
-            'lembaga_id' => $md->id, 'tahun_ajaran_id' => $f['ta']->id, 'nama_kelas' => '1A',
+            'lembaga_id' => $md->id, 'tahun_ajaran' => $f['ta']->nama, 'nama_kelas' => '1A',
         ])->assertStatus(201);
         $this->assertSame(1, Kelas::where('lembaga_id', $md->id)->count());
     }
@@ -163,45 +169,52 @@ class TahunAjaranGuardTest extends TestCase
         $f = $this->baseFixture();
         $admin = $this->adminMi($f['root'], $f['mi']);
         $taLama = TahunAjaran::create([
-            'lembaga_id' => null, 'nama' => '2025/2026',
+            'nama' => '2025/2026',
             'tanggal_mulai' => '2025-07-01', 'tanggal_selesai' => '2026-06-30',
         ]);
 
         // Admin lembaga tidak boleh mengubah/menghapus TA global.
-        $this->actingAs($admin, 'sanctum')->putJson('/api/admin/tahun-ajaran/'.$taLama->id, [
-            'nama' => '2025/2026 (ubah)',
+        $this->actingAs($admin, 'sanctum')->putJson('/api/admin/tahun-ajaran', [
+            'nama' => $taLama->nama, 'nama_baru' => '2028/2029',
         ])->assertStatus(403);
-        $this->actingAs($admin, 'sanctum')->deleteJson('/api/admin/tahun-ajaran/'.$taLama->id)->assertStatus(403);
+        $this->actingAs($admin, 'sanctum')->deleteJson('/api/admin/tahun-ajaran', [
+            'nama' => $taLama->nama,
+        ])->assertStatus(403);
 
         // TA aktif tidak bisa disembunyikan.
-        $this->actingAs($admin, 'sanctum')->postJson('/api/admin/tahun-ajaran/'.$f['ta']->id.'/sembunyikan')
-            ->assertStatus(422);
+        $this->actingAs($admin, 'sanctum')->postJson('/api/admin/tahun-ajaran/sembunyikan', [
+            'nama' => $f['ta']->nama,
+        ])->assertStatus(422);
 
         // Sembunyikan TA non-aktif → hilang dari daftar efektif lembaga itu.
-        $this->actingAs($admin, 'sanctum')->postJson('/api/admin/tahun-ajaran/'.$taLama->id.'/sembunyikan')
-            ->assertStatus(200);
+        $this->actingAs($admin, 'sanctum')->postJson('/api/admin/tahun-ajaran/sembunyikan', [
+            'nama' => $taLama->nama,
+        ])->assertStatus(200);
         $res = $this->actingAs($admin, 'sanctum')->getJson('/api/admin/tahun-ajaran?lembaga_id='.$f['mi']->id);
-        $this->assertSame([$f['ta']->id], array_column($res->json('data'), 'id'));
+        $this->assertSame([$f['ta']->nama], array_column($res->json('data'), 'nama'));
 
-        // `termasuk_nonaktif` menampilkan baris bayangan (untuk tombol pulihkan).
+        // `termasuk_nonaktif` menampilkan TA tersembunyi (untuk tombol pulihkan).
         $res = $this->actingAs($admin, 'sanctum')
             ->getJson('/api/admin/tahun-ajaran?lembaga_id='.$f['mi']->id.'&termasuk_nonaktif=1');
         $bayangan = collect($res->json('data'))->firstWhere('nama', '2025/2026');
         $this->assertNotNull($bayangan);
-        $this->assertFalse((bool) $bayangan['is_active']);
+        $this->assertFalse((bool) $bayangan['tampil']);
 
-        // Tampilkan kembali: hapus baris bayangan → TA global berlaku lagi.
-        $this->actingAs($admin, 'sanctum')->deleteJson('/api/admin/tahun-ajaran/'.$bayangan['id'])
-            ->assertStatus(200);
-        $this->assertDatabaseMissing('tahun_ajaran', ['id' => $bayangan['id']]);
+        // Tampilkan kembali: hapus baris pivot → TA global berlaku lagi.
+        $this->actingAs($admin, 'sanctum')->postJson('/api/admin/tahun-ajaran/tampilkan', [
+            'nama' => '2025/2026',
+        ])->assertStatus(200);
+        $this->assertDatabaseMissing('lembaga_tahun_ajaran', [
+            'lembaga_id' => $f['mi']->id, 'tahun_ajaran' => '2025/2026',
+        ]);
         $res = $this->actingAs($admin, 'sanctum')->getJson('/api/admin/tahun-ajaran?lembaga_id='.$f['mi']->id);
         $this->assertCount(2, $res->json('data'));
 
         // Set aktif hanya super_admin.
         $this->actingAs($admin, 'sanctum')
-            ->postJson('/api/admin/tahun-ajaran/'.$taLama->id.'/set-aktif')->assertStatus(403);
+            ->postJson('/api/admin/tahun-ajaran/set-aktif', ['nama' => $taLama->nama])->assertStatus(403);
         $this->actingAs($f['super'], 'sanctum')
-            ->postJson('/api/admin/tahun-ajaran/'.$taLama->id.'/set-aktif')->assertStatus(200);
+            ->postJson('/api/admin/tahun-ajaran/set-aktif', ['nama' => $taLama->nama])->assertStatus(200);
         $this->assertTrue((bool) $taLama->fresh()->is_aktif);
         $this->assertFalse((bool) $f['ta']->fresh()->is_aktif);
     }

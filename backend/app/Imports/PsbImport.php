@@ -27,8 +27,8 @@ class PsbImport implements ToModel, WithHeadingRow, WithValidation
      */
     public function model(array $row): ?Model
     {
-        $gelombang = PsbGelombang::with('kegiatan:id,tahun_ajaran_id')->findOrFail($this->gelombangId);
-        $tahunAjaranId = $gelombang->kegiatan?->tahun_ajaran_id;
+        $gelombang = PsbGelombang::with('kegiatan:id,tahun_ajaran')->findOrFail($this->gelombangId);
+        $tahunAjaran = $gelombang->kegiatan?->tahun_ajaran;
         $noPendaftaran = trim((string) ($row['no_pendaftaran'] ?? ''));
         if ($noPendaftaran === '') {
             $noPendaftaran = $this->psb->nomorPendaftaranBerikutnya($this->gelombangId, $this->lembagaId);
@@ -40,7 +40,7 @@ class PsbImport implements ToModel, WithHeadingRow, WithValidation
                 $calon = PsbCalonSantri::create([
                     'lembaga_id' => $this->lembagaId,
                     'gelombang_id' => $this->gelombangId,
-                    'tahun_ajaran_id' => $tahunAjaranId,
+                    'tahun_ajaran' => $tahunAjaran,
                     'tipe_santri' => $row['tipe_santri'] ?? 'non_asrama',
                     'nik' => (string) $row['nik'],
                     'nama_lengkap' => $row['nama_lengkap'],

@@ -13,13 +13,15 @@ return new class extends Migration
     {
         Schema::create('psb_kegiatan', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('tahun_ajaran_id')->constrained('tahun_ajaran')->cascadeOnDelete();
+            $table->string('tahun_ajaran', 9); // FK ke tahun_ajaran.nama
             $table->string('nama');
             $table->boolean('is_aktif')->default(true);
             $table->timestamps();
 
             // Se-pesantren: satu kegiatan per tahun ajaran.
-            $table->unique('tahun_ajaran_id');
+            $table->unique('tahun_ajaran');
+            $table->foreign('tahun_ajaran')->references('nama')->on('tahun_ajaran')
+                ->cascadeOnUpdate()->cascadeOnDelete();
         });
 
         Schema::create('psb_gelombang', function (Blueprint $table) {
@@ -51,7 +53,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('lembaga_id')->constrained('lembaga')->cascadeOnDelete(); // lembaga tujuan
             $table->foreignId('gelombang_id')->nullable()->constrained('psb_gelombang')->nullOnDelete();
-            $table->foreignId('tahun_ajaran_id')->nullable()->constrained('tahun_ajaran')->nullOnDelete();
+            $table->string('tahun_ajaran', 9)->nullable(); // FK ke tahun_ajaran.nama
             $table->foreignId('kelas_id')->nullable()->constrained('kelas')->nullOnDelete();
             // Pendaftaran lanjutan (anak sudah santri): FK ke santri asal. Hasil konversi: santri_id.
             $table->foreignId('santri_asal_id')->nullable()->constrained('santri')->nullOnDelete();
@@ -147,6 +149,8 @@ return new class extends Migration
             // TANPA unique NIK: NIK boleh fiktif/ganda antar anak berbeda; dedup identitas (nik+nama+tgl_lahir) di service.
             $table->index(['gelombang_id', 'nik']);
             $table->index(['lembaga_id', 'status_pendaftaran', 'updated_at']);
+            $table->foreign('tahun_ajaran')->references('nama')->on('tahun_ajaran')
+                ->cascadeOnUpdate()->nullOnDelete();
         });
 
         // Detail lembaga tujuan per calon (1 baris = 1 lembaga):

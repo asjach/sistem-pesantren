@@ -36,14 +36,14 @@ class KelasController extends Controller
         $urut = $this->parseUrut($request, UrutKatalog::peta('kelas'));
 
         $query = $this->scopeLembaga(
-            Kelas::with(['lembaga:id,nama,kode', 'tahunAjaran:id,nama']),
+            Kelas::with(['lembaga:id,nama,kode', 'tahunAjaran:nama']),
             auth()->user(),
             $request,
             'kelas.lembaga_id'
         );
 
-        if ($request->filled('tahun_ajaran_id')) {
-            $query->where('kelas.tahun_ajaran_id', $request->input('tahun_ajaran_id'));
+        if ($request->filled('tahun_ajaran')) {
+            $query->where('kelas.tahun_ajaran', $request->input('tahun_ajaran'));
         }
         if ($request->filled('tingkat')) {
             $query->where('kelas.tingkat', $request->input('tingkat'));
@@ -57,7 +57,7 @@ class KelasController extends Controller
         if ($urut !== null) {
             $query->select('kelas.*')
                 ->leftJoin('lembaga', 'lembaga.id', '=', 'kelas.lembaga_id')
-                ->leftJoin('tahun_ajaran', 'tahun_ajaran.id', '=', 'kelas.tahun_ajaran_id');
+                ->leftJoin('tahun_ajaran', 'tahun_ajaran.nama', '=', 'kelas.tahun_ajaran');
         }
         $this->terapkanUrut($query, $urut, [
             ['kelas.urutan', 'naik'], ['kelas.nama_kelas', 'naik'], ['kelas.id', 'naik'],
@@ -73,7 +73,7 @@ class KelasController extends Controller
         $auth = auth()->user();
         $this->authorizeLembaga($auth, (int) $data['lembaga_id']);
 
-        $this->cekTaEfektif((int) $data['lembaga_id'], (int) $data['tahun_ajaran_id']);
+        $this->cekTaEfektif((int) $data['lembaga_id'], (string) $data['tahun_ajaran']);
 
         $items = isset($data['items'])
             ? array_values($data['items'])
@@ -98,11 +98,11 @@ class KelasController extends Controller
                     $namaPayload[$kunci] = true;
 
                     $this->cekTingkat((int) $data['lembaga_id'], $item['tingkat'] ?? null);
-                    $this->pastikanNamaUnik((int) $data['lembaga_id'], (int) $data['tahun_ajaran_id'], $nama);
+                    $this->pastikanNamaUnik((int) $data['lembaga_id'], (string) $data['tahun_ajaran'], $nama);
 
                     $rows[] = Kelas::create([
                         'lembaga_id' => (int) $data['lembaga_id'],
-                        'tahun_ajaran_id' => (int) $data['tahun_ajaran_id'],
+                        'tahun_ajaran' => $data['tahun_ajaran'],
                         'nama_kelas' => $nama,
                         'tingkat' => $item['tingkat'] ?? null,
                         'kapasitas' => $item['kapasitas'] ?? null,
@@ -140,10 +140,10 @@ class KelasController extends Controller
      * Nama kelas wajib unik per lembaga + tahun ajaran (mengikuti kolasi kolom
      * yang case-insensitive). Dipanggil sebelum tulis untuk pesan yang jelas.
      */
-    protected function pastikanNamaUnik(int $lembagaId, int $tahunAjaranId, string $nama, ?int $kecualikanId = null): void
+    protected function pastikanNamaUnik(int $lembagaId, string $tahunAjaran, string $nama, ?int $kecualikanId = null): void
     {
         $query = Kelas::where('lembaga_id', $lembagaId)
-            ->where('tahun_ajaran_id', $tahunAjaranId)
+            ->where('tahun_ajaran', $tahunAjaran)
             // LOWER() agar perbandingan case-insensitive di semua driver (DB uji SQLite).
             ->whereRaw('LOWER(nama_kelas) = ?', [mb_strtolower($nama)]);
 
@@ -168,22 +168,21 @@ class KelasController extends Controller
         $data = $request->validated();
 
         $lembagaId = (int) $data['lembaga_id'];
-        $taId = (int) $data['tahun_ajaran_id'];
+        $ta = (string) $data['tahun_ajaran'];
         $this->authorizeLembaga($request->user(), $lembagaId);
-        $this->cekTaEfektif($lembagaId, $taId);
+        $this->cekTaEfektif($lembagaId, $ta);
 
         $kode = Lembaga::whereKey($lembagaId)->value('kode');
-        $ta = TahunAjaran::find($taId);
 
         return Excel::download(
-            new KelasNamaExport($lembagaId, $taId),
-            "daftar-kelas-{$kode}-".preg_replace('/[^0-9]/', '', (string) ($ta?->nama ?? $taId)).'.xlsx',
+            new KelasNamaExport($lembagaId, $ta),
+            "daftar-kelas-{$kode}-".preg_replace('/[^0-9]/', '', $ta).'.xlsx',
         );
     }
 
     /** POST /api/admin/kelas/import-nama — salin nama+tingkat kelas pasangan MI↔MD.
-     *  Dua mode: ambil (`lembaga_id` + `tahun_ajaran_id` target, `dari_kode` sumber)
-     *  atau copy (`dari_lembaga_id` + `dari_tahun_ajaran_id` sumber, `ke_kode` target
+     *  Dua mode: ambil (`lembaga_id` + `tahun_ajaran` target, `dari_kode` sumber)
+     *  atau copy (`dari_lembaga_id` + `dari_tahun_ajaran` sumber, `ke_kode` target
      *  + TA target = nama sama, fallback aktif). */
     public function importNama(KelasImportNamaRequest $request): JsonResponse
     {
@@ -193,15 +192,15 @@ class KelasController extends Controller
 
         if (! empty($data['ke_kode'])) {
             // Mode copy: sumber eksplisit, target via kode + TA otomatis.
-            if (empty($data['dari_lembaga_id']) || empty($data['dari_tahun_ajaran_id'])) {
-                return response()->json(['pesan' => 'Mode copy butuh dari_lembaga_id + dari_tahun_ajaran_id.'], 422);
+            if (empty($data['dari_lembaga_id']) || empty($data['dari_tahun_ajaran'])) {
+                return response()->json(['pesan' => 'Mode copy butuh dari_lembaga_id + dari_tahun_ajaran.'], 422);
             }
             $sumberId = (int) $data['dari_lembaga_id'];
-            $taSumber = TahunAjaran::find((int) $data['dari_tahun_ajaran_id']);
+            $taSumber = TahunAjaran::find((string) $data['dari_tahun_ajaran']);
             if (! $taSumber) {
                 return response()->json(['pesan' => 'Tahun ajaran sumber tidak ditemukan.'], 422);
             }
-            $this->cekTaEfektif($sumberId, (int) $taSumber->id);
+            $this->cekTaEfektif($sumberId, $taSumber->nama);
             $sumberKode = Lembaga::whereKey($sumberId)->value('kode');
             $targetKode = $data['ke_kode'];
             if (! in_array($sumberKode, ['MI', 'MD'], true) || $sumberKode === $targetKode) {
@@ -213,19 +212,19 @@ class KelasController extends Controller
             }
             $targetId = (int) $target->id;
             $this->authorizeLembaga($request->user(), $targetId);
-            $taId = TahunAjaran::efektif($targetId)->firstWhere('nama', $taSumber->nama)?->id
-                ?? TahunAjaran::aktif($targetId)?->id;
+            $taId = TahunAjaran::efektif($targetId)->firstWhere('nama', $taSumber->nama)?->nama
+                ?? TahunAjaran::aktif($targetId)?->nama;
             if (! $taId) {
                 return response()->json(['pesan' => "Tidak ada tahun ajaran acuan di {$targetKode}."], 422);
             }
             $sumber = Lembaga::find($sumberId);
         } else {
             // Mode ambil: target eksplisit, sumber via kode.
-            if (empty($data['lembaga_id']) || empty($data['tahun_ajaran_id']) || empty($data['dari_kode'])) {
+            if (empty($data['lembaga_id']) || empty($data['tahun_ajaran']) || empty($data['dari_kode'])) {
                 return response()->json(['pesan' => 'Pilih mode ambil atau copy.'], 422);
             }
             $targetId = (int) $data['lembaga_id'];
-            $taId = (int) $data['tahun_ajaran_id'];
+            $taId = (string) $data['tahun_ajaran'];
             $this->authorizeLembaga($request->user(), $targetId);
             $this->cekTaEfektif($targetId, $taId);
 
@@ -257,13 +256,13 @@ class KelasController extends Controller
         }
 
         $sudahAda = Kelas::where('lembaga_id', $targetId)
-            ->where('tahun_ajaran_id', $taId)
+            ->where('tahun_ajaran', $taId)
             ->pluck('nama_kelas')
             ->map(fn ($n) => mb_strtolower(Kelas::normalisasiNama((string) $n)))
             ->all();
 
         $sumberKelas = Kelas::where('lembaga_id', $sumber->id)
-            ->where('tahun_ajaran_id', $taSumber->id)
+            ->where('tahun_ajaran', $taSumber->nama)
             ->orderBy('urutan')->orderBy('nama_kelas')
             ->get(['id', 'nama_kelas', 'tingkat', 'urutan']);
 
@@ -280,7 +279,7 @@ class KelasController extends Controller
                 $this->cekTingkat($targetId, $k->tingkat);
                 Kelas::create([
                     'lembaga_id' => $targetId,
-                    'tahun_ajaran_id' => $taId,
+                    'tahun_ajaran' => $taId,
                     'nama_kelas' => $nama,
                     'tingkat' => $k->tingkat,
                     'urutan' => (int) $k->urutan,
@@ -322,7 +321,7 @@ class KelasController extends Controller
             $data['nama_kelas'] = Kelas::normalisasiNama($data['nama_kelas']);
             $this->pastikanNamaUnik(
                 (int) $kela->lembaga_id,
-                (int) $kela->tahun_ajaran_id,
+                (string) $kela->tahun_ajaran,
                 $data['nama_kelas'],
                 (int) $kela->id
             );

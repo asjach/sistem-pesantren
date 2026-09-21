@@ -92,7 +92,7 @@ export default function RiwayatBelajarPage() {
       }
       return listBelumMasukRiwayat({
         lembaga_id: Number(lembagaId),
-        tahun_ajaran_id: Number(taId),
+        tahun_ajaran: taId,
         q: a.search || undefined,
         page: a.page,
         per_page: a.perPage,
@@ -110,7 +110,7 @@ export default function RiwayatBelajarPage() {
       }
       return listRiwayatBelajar({
         lembaga_id: Number(lembagaId),
-        tahun_ajaran_id: Number(taId),
+        tahun_ajaran: taId,
         semester: '1',
         kelas_id: kelasId ? Number(kelasId) : undefined,
         is_active_riwayat: true,
@@ -127,7 +127,7 @@ export default function RiwayatBelajarPage() {
 
   useEffect(() => {
     if (!lembagaId || !taId) { setKelasOpsi([]); return; }
-    listKelas({ lembaga_id: Number(lembagaId), tahun_ajaran_id: Number(taId), per_page: 1000 })
+    listKelas({ lembaga_id: Number(lembagaId), tahun_ajaran: taId, per_page: 1000 })
       .then((p) => setKelasOpsi(p.data))
       .catch(() => setKelasOpsi([]));
     setKelasId('');
@@ -149,7 +149,7 @@ export default function RiwayatBelajarPage() {
       await createRiwayatBelajar({
         santri_id: r.santri_id,
         lembaga_id: Number(lembagaId),
-        tahun_ajaran_id: Number(taId),
+        tahun_ajaran: taId,
         kelas_id: Number(kelasId),
         tingkat: kelas?.tingkat ?? null,
         tgl_masuk: tglMasuk || null,
@@ -189,7 +189,7 @@ export default function RiwayatBelajarPage() {
           await createRiwayatBelajar({
             santri_id: r.santri_id,
             lembaga_id: Number(lembagaId),
-            tahun_ajaran_id: Number(taId),
+            tahun_ajaran: taId,
             kelas_id: Number(kelasId),
             tingkat: kelas?.tingkat ?? null,
             tgl_masuk: tglMasuk || null,

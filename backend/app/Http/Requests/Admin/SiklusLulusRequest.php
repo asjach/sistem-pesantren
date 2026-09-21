@@ -15,7 +15,7 @@ class SiklusLulusRequest extends FormRequest
     {
         return [
             'lembaga_id' => 'required|exists:lembaga,id',
-            'tahun_ajaran_lulus_id' => 'required|exists:tahun_ajaran,id',
+            'tahun_ajaran_lulus' => 'required|string|exists:tahun_ajaran,nama',
             'tanggal_lulus' => 'required|date',
             'nomor_ijazah' => ['nullable', 'string'],
             'no_surat_ijazah' => ['nullable', 'string', 'max:50'],

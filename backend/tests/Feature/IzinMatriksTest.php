@@ -58,7 +58,7 @@ class IzinMatriksTest extends TestCase
         ]);
 
         return Kelas::create([
-            'lembaga_id' => $mi->id, 'tahun_ajaran_id' => $ta->id,
+            'lembaga_id' => $mi->id, 'tahun_ajaran' => $ta->nama,
             'tingkat' => '7', 'nama_kelas' => 'VII-A',
         ]);
     }

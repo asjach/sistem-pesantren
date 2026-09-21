@@ -197,16 +197,15 @@ export function deleteReferensi(tipe: string, id: number, lembaga_id?: number, p
 // ---------- Tahun ajaran (004, FB-004-01) ----------
 
 export interface TahunAjaran {
-  id: number;
-  /** NULL = TA global (berlaku semua lembaga); terisi = baris bayangan lembaga. */
-  lembaga_id: number | null;
+  /** Kunci alami: nama tahun, mis. '2025/2026'. */
   nama: string;
   tanggal_mulai: string | null;
   tanggal_selesai: string | null;
   is_aktif: boolean;
-  /** Tampil/tidak untuk lembaga (baris bayangan nonaktif = disembunyikan). */
-  is_active: boolean;
-  lembaga?: { id: number; nama: string; kode: string | null };
+  /** Semester berjalan (1 ganjil, 2 genap). */
+  semester_aktif: number;
+  /** Ada saat query per lembaga: TA tampil/tidak untuk lembaga itu. */
+  tampil?: boolean;
 }
 
 export function listTahunAjaran(params: {
@@ -234,34 +233,49 @@ export function createTahunAjaran(input: {
   nama: string;
   tanggal_mulai?: string;
   tanggal_selesai?: string;
+  semester_aktif?: 1 | 2;
 }) {
   return api<TahunAjaran>('/admin/tahun-ajaran', { method: 'POST', body: JSON.stringify(input) });
 }
 
-/** Sembunyikan TA global untuk satu lembaga (baris bayangan). */
-export function sembunyikanTahunAjaran(id: number, lembaga_id?: number) {
-  return api<{ message: string }>(`/admin/tahun-ajaran/${id}/sembunyikan`, {
+/** Sembunyikan TA untuk satu lembaga (pivot). */
+export function sembunyikanTahunAjaran(nama: string, lembaga_id?: number) {
+  return api<{ message: string }>('/admin/tahun-ajaran/sembunyikan', {
     method: 'POST',
-    body: JSON.stringify(lembaga_id ? { lembaga_id } : {}),
+    body: JSON.stringify(lembaga_id ? { nama, lembaga_id } : { nama }),
+  });
+}
+
+/** Tampilkan kembali TA untuk satu lembaga (hapus pivot). */
+export function tampilkanTahunAjaran(nama: string, lembaga_id?: number) {
+  return api<{ message: string }>('/admin/tahun-ajaran/tampilkan', {
+    method: 'POST',
+    body: JSON.stringify(lembaga_id ? { nama, lembaga_id } : { nama }),
   });
 }
 
 export function updateTahunAjaran(
-  id: number,
-  input: { nama?: string; tanggal_mulai?: string | null; tanggal_selesai?: string | null },
+  nama: string,
+  input: { nama_baru?: string; tanggal_mulai?: string | null; tanggal_selesai?: string | null; semester_aktif?: 1 | 2 },
 ) {
-  return api<TahunAjaran>(`/admin/tahun-ajaran/${id}`, {
+  return api<TahunAjaran>('/admin/tahun-ajaran', {
     method: 'PUT',
-    body: JSON.stringify(input),
+    body: JSON.stringify({ nama, ...input }),
   });
 }
 
-export function deleteTahunAjaran(id: number) {
-  return api<{ message: string }>(`/admin/tahun-ajaran/${id}`, { method: 'DELETE' });
+export function deleteTahunAjaran(nama: string) {
+  return api<{ message: string }>('/admin/tahun-ajaran', {
+    method: 'DELETE',
+    body: JSON.stringify({ nama }),
+  });
 }
 
-export function setAktifTahunAjaran(id: number) {
-  return api<TahunAjaran>(`/admin/tahun-ajaran/${id}/set-aktif`, { method: 'POST' });
+export function setAktifTahunAjaran(nama: string, semester_aktif?: 1 | 2) {
+  return api<TahunAjaran>('/admin/tahun-ajaran/set-aktif', {
+    method: 'POST',
+    body: JSON.stringify(semester_aktif ? { nama, semester_aktif } : { nama }),
+  });
 }
 
 // ---------- Kelas (004, FB-004-01) ----------
@@ -269,24 +283,24 @@ export function setAktifTahunAjaran(id: number) {
 export interface Kelas {
   id: number;
   lembaga_id: number;
-  tahun_ajaran_id: number;
+  /** Nama tahun ajaran (kunci alami), mis. '2025/2026'. */
+  tahun_ajaran: string;
   tingkat: string | null;
   /** Urutan tampil kelas dalam lingkup lembaga + tahun ajaran. */
   urutan: number;
   nama_kelas: string;
   kapasitas: number | null;
   lembaga?: { id: number; nama: string; kode: string | null };
-  tahun_ajaran?: { id: number; nama: string } | null;
-  tahunAjaran?: { id: number; nama: string } | null;
+  tahunAjaran?: { nama: string } | null;
 }
 
 export function listKelas(
-  params: { search?: string; lembaga_id?: number; tahun_ajaran_id?: number; tingkat?: string; sort?: string[]; arah?: 'naik' | 'turun'; page?: number; per_page?: number; signal?: AbortSignal } = {},
+  params: { search?: string; lembaga_id?: number; tahun_ajaran?: string; tingkat?: string; sort?: string[]; arah?: 'naik' | 'turun'; page?: number; per_page?: number; signal?: AbortSignal } = {},
 ) {
   const q = new URLSearchParams();
   if (params.search) q.set('search', params.search);
   if (params.lembaga_id) q.set('lembaga_id', String(params.lembaga_id));
-  if (params.tahun_ajaran_id) q.set('tahun_ajaran_id', String(params.tahun_ajaran_id));
+  if (params.tahun_ajaran) q.set('tahun_ajaran', params.tahun_ajaran);
   if (params.tingkat) q.set('tingkat', params.tingkat);
   if (params.sort?.length) q.set('sort', params.sort.join(','));
   if (params.arah) q.set('arah', params.arah);
@@ -304,7 +318,7 @@ export interface KelasItem {
 
 export function createKelas(input: {
   lembaga_id: number;
-  tahun_ajaran_id: number;
+  tahun_ajaran: string;
   tingkat?: string;
   nama_kelas?: string;
   kapasitas?: number;
@@ -345,8 +359,8 @@ export interface ImportNamaHasil {
 /** Pratinjau (periksa=true) atau eksekusi salin nama+tingkat kelas MI↔MD (ambil/copy). */
 export function importNamaKelas(
   input:
-    | { lembaga_id: number; tahun_ajaran_id: number; dari_kode: 'MI' | 'MD'; periksa: boolean }
-    | { dari_lembaga_id: number; dari_tahun_ajaran_id: number; ke_kode: 'MI' | 'MD'; periksa: boolean },
+    | { lembaga_id: number; tahun_ajaran: string; dari_kode: 'MI' | 'MD'; periksa: boolean }
+    | { dari_lembaga_id: number; dari_tahun_ajaran: string; ke_kode: 'MI' | 'MD'; periksa: boolean },
 ) {
   return api<ImportNamaHasil>('/admin/kelas/import-nama', {
     method: 'POST',
@@ -355,9 +369,9 @@ export function importNamaKelas(
 }
 
 /** Unduh daftar nama kelas satu lembaga + TA (pasangan import-nama). */
-export function unduhDaftarKelas(lembagaId: number, tahunAjaranId: number) {
+export function unduhDaftarKelas(lembagaId: number, tahunAjaran: string) {
   return downloadFile(
-    `/admin/kelas/export-nama?lembaga_id=${lembagaId}&tahun_ajaran_id=${tahunAjaranId}`,
+    `/admin/kelas/export-nama?lembaga_id=${lembagaId}&tahun_ajaran=${encodeURIComponent(tahunAjaran)}`,
     `daftar-kelas-${lembagaId}.xlsx`,
   );
 }

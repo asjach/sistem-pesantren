@@ -206,15 +206,22 @@ Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca
 - `created_at`: timestamp [null]
 
 ### `tahun_ajaran`
-- `id` PK
-- `lembaga_id`: FK → lembaga [null, nullOnDelete] — null = TA global/pesantren
-- `nama`: string — misal: '2025/2026' (PENYATUAN: bukan 'nama_tahun_ajaran')
+- `nama` PK varchar(9) — kunci alami, misal: '2025/2026' (WAJIB pola `YYYY/YYYY`)
 - `tanggal_mulai`: date [null]
 - `tanggal_selesai`: date [null]
-- `is_aktif`: bool [default false] — TA berjalan (satu, global); hanya TA global bisa diaktifkan
-- `is_active`: bool [default true] — tampil/tidak per lembaga (mekanisme bayangan: sembunyikan = baris bayangan nonaktif)
+- `is_aktif`: bool [default false] — TA berjalan (satu, global)
+- `semester_aktif`: tinyint unsigned [default 1] — semester berjalan (1 ganjil, 2 genap)
 - `created_at`, `updated_at`
-- UNIQUE(`lembaga_id`, `nama`) di DB + `nama` unik global di aplikasi (validasi tolak duplikat nama lintas lembaga)
+- Tanpa `id`/`lembaga_id`/`is_active`: TA murni global; visibilitas per lembaga lewat pivot `lembaga_tahun_ajaran`.
+
+### `lembaga_tahun_ajaran` (pivot visibilitas TA per lembaga)
+- `id` PK
+- `lembaga_id`: FK → lembaga [cascade]
+- `tahun_ajaran`: varchar(9) FK → tahun_ajaran.nama [cascade update + delete]
+- `is_active`: bool [default true] — tampil/tidak untuk lembaga ini (sembunyikan = baris nonaktif)
+- `created_at`, `updated_at`
+- UNIQUE(`lembaga_id`, `tahun_ajaran`)
+
 
 ### `pegawai`
 - `id` PK
@@ -262,13 +269,13 @@ Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca
 ### `kelas`
 - `id` PK
 - `lembaga_id`: FK → lembaga [cascade]
-- `tahun_ajaran_id`: FK → tahun_ajaran [cascade]
+- `tahun_ajaran`: varchar(9) FK → tahun_ajaran.nama [cascade update + delete]
 - `walas_id`: FK → pegawai [null, nullOnDelete] — wali kelas → pegawai
 - `tingkat`: string [null] — ref_tingkat ('7','8','9'); grouping saat kelas_id null di riwayat
 - `nama_kelas`: string — 'VII-A'; dinormalisasi model (trim + rapat spasi)
 - `kapasitas`: int [null]
 - `created_at`, `updated_at`
-- UNIQUE(`lembaga_id`, `tahun_ajaran_id`, `nama_kelas`) — satu nama kelas hanya sekali per lembaga + tahun ajaran (kolasi CI; migrasi mem-dedupe + merapikan spasi lebih dulu)
+- UNIQUE(`lembaga_id`, `tahun_ajaran`, `nama_kelas`) — satu nama kelas hanya sekali per lembaga + tahun ajaran (kolasi CI; migrasi mem-dedupe + merapikan spasi lebih dulu)
 
 ### Pola `ref_*` (24 tabel loop + eksplisit `ref_agama/cita_cita/hobi/pekerjaan/pendidikan/kebutuhan_khusus/kota/alamat/status_awal/status_akhir`)
 - Kolom: `id` PK; `lembaga_id`? FK → `lembaga` (null=global, terisi=milik lembaga); `nama`; `urutan` [default 0]; `is_active` [default true]; unique(`lembaga_id`,`nama`) — pitfall multi-NULL, dedup di `RefService`.
@@ -378,7 +385,7 @@ Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca
 ### `riwayat_belajar`
 - `id` PK
 - `santri_id`: FK → santri [cascade]
-- `tahun_ajaran_id`: FK → tahun_ajaran [cascade]
+- `tahun_ajaran`: varchar(9) FK → tahun_ajaran.nama [cascade update + delete]
 - `lembaga_id`: FK → lembaga [cascade]
 - `kelas_id`: FK → kelas [null, nullOnDelete] — null = belum ditempatkan (naik dulu, penempatan menyusul)
 - `semester`: string(2) [default '1'] — '1' ganjil, '2' genap (selaras nilai_santri)
@@ -389,8 +396,8 @@ Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca
 - `status_akhir`: string [default 'aktif'] — Hasil semester ini (string bebas, validasi ke ref_status_akhir efektif).
 - `is_active_riwayat`: enum('Ya','Tidak') [default 'Ya'] — Sedang berjalan. INVARIANT: 'Ya' iff status_akhir='aktif'. Ditulis hanya via SiklusSantriService. / Ganjil→genap: ganjil ditutup (is_active_riwayat='Tidak', arsip), genap aktif — 1 aktif per santri-lembaga terjaga. / Berhenti satu jenjang (paket MD berhenti, MI lanjut): baris MD (is_active_riwayat='Tidak', status_akhir dipertahankan). / santri.is_active_pst='Tidak' hanya jika SELURUH riwayat non-aktif (dihitung ulang di 102).
 - `created_at`, `updated_at`
-- UNIQUE(`santri_id`, `tahun_ajaran_id`, `lembaga_id`, `semester`, `uq_riwayat_belajar_stls`) — nama pendek: auto-name 68 char > limit MySQL 64
-- INDEX(`kelas_id`, `tahun_ajaran_id`, `semester`, `no_absen`) — Performa cek bentrok no_absen (bukan unique: kelas_id/no_absen nullable, multi-NULL diizinkan MySQL).
+- UNIQUE(`santri_id`, `tahun_ajaran`, `lembaga_id`, `semester`, `uq_riwayat_belajar_stls`) — nama pendek: auto-name 68 char > limit MySQL 64
+- INDEX(`kelas_id`, `tahun_ajaran`, `semester`, `no_absen`) — Performa cek bentrok no_absen (bukan unique: kelas_id/no_absen nullable, multi-NULL diizinkan MySQL).
 
 ### `mutasi_keluar`
 - `id` PK
@@ -412,7 +419,7 @@ Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca
 - `santri_id`: FK → santri [cascade]
 - `lembaga_lulus_id`: FK → lembaga [cascade]
 - `kelas_lulus_id`: FK → kelas [null, nullOnDelete] — snapshot beku kelas terakhir saat lulus
-- `tahun_ajaran_lulus_id`: FK → tahun_ajaran [cascade]
+- `tahun_ajaran_lulus`: varchar(9) FK → tahun_ajaran.nama [cascade update + delete]
 - `nomor_ijazah`: string [null]
 - `no_surat_ijazah`: string [null] — nomor surat pengantar/SKHU
 - `tanggal_lulus`: date
@@ -427,11 +434,11 @@ Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca
 
 ### `psb_kegiatan`
 - `id` PK
-- `tahun_ajaran_id`: FK → tahun_ajaran [cascade] — TA pesantren/root
+- `tahun_ajaran`: varchar(9) FK → tahun_ajaran.nama [cascade update + delete] — TA pesantren/root
 - `nama`: string — misal 'PSB 2026/2027'
 - `is_aktif`: bool [default true] — hanya satu kegiatan aktif (aturan aplikasi)
 - `created_at`, `updated_at`
-- UNIQUE(`tahun_ajaran_id`) — satu tahun ajaran hanya boleh punya satu kegiatan PSB
+- UNIQUE(`tahun_ajaran`) — satu tahun ajaran hanya boleh punya satu kegiatan PSB
 
 ### `psb_gelombang`
 - `id` PK
@@ -459,7 +466,7 @@ Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca
 - `id` PK
 - `lembaga_id`: FK → lembaga [cascade] — lembaga tujuan
 - `gelombang_id`: FK → psb_gelombang [null, nullOnDelete]
-- `tahun_ajaran_id`: FK → tahun_ajaran [null, nullOnDelete]
+- `tahun_ajaran`: varchar(9) FK → tahun_ajaran.nama [null, nullOnDelete]
 - `kelas_id`: FK → kelas [null, nullOnDelete]
 - `santri_asal_id`: FK → santri [null, nullOnDelete] — Pendaftaran lanjutan (anak sudah santri): FK ke santri asal. Hasil konversi: santri_id.
 - `santri_id`: FK → santri [null, nullOnDelete]
@@ -691,11 +698,11 @@ Standar tampilan per lembaga (tema/tipografi/grid/preset aktif), disebar super_a
 - `id` PK
 - `pegawai_id`: FK → pegawai [cascade]
 - `lembaga_id`: FK → lembaga [cascade]
-- `tahun_ajaran_id`: FK → tahun_ajaran [cascade]
+- `tahun_ajaran`: varchar(9) FK → tahun_ajaran.nama [cascade update + delete]
 - `tugas_utama`: string [default 'Guru Pengampu'] — ref_tugas_utama
 - `status_keaktifan`: enum(aktif|inaktif) [default 'aktif']
 - `created_at`, `updated_at`
-- UNIQUE(`pegawai_id`, `lembaga_id`, `tahun_ajaran_id`, `uq_keaktifan_pegawai_plt`) — nama pendek: auto-name 61 char, margin aman dari limit 64
+- UNIQUE(`pegawai_id`, `lembaga_id`, `tahun_ajaran`, `uq_keaktifan_pegawai_plt`) — nama pendek: auto-name 61 char, margin aman dari limit 64
 
 ### `presensi_pegawai`
 - `id` PK
@@ -787,7 +794,7 @@ Standar tampilan per lembaga (tema/tipografi/grid/preset aktif), disebar super_a
 - `id` PK
 - `santri_id`: FK → santri [cascade]
 - `pengampu_mapel_id`: FK → pengampu_mapel [cascade]
-- `tahun_ajaran_id`: FK → tahun_ajaran [cascade]
+- `tahun_ajaran`: varchar(9) FK → tahun_ajaran.nama [cascade update + delete]
 - `semester`: string(2) — '1' atau '2'
 - `nilai_formatif`: decimal(5, 2) [default 0]
 - `nilai_sumatif`: decimal(5, 2) [default 0]
@@ -795,13 +802,13 @@ Standar tampilan per lembaga (tema/tipografi/grid/preset aktif), disebar super_a
 - `predikat`: string(2) [null] — A, B, C, D
 - `catatan_capaian`: text [null]
 - `created_at`, `updated_at`
-- UNIQUE(`santri_id`, `pengampu_mapel_id`, `tahun_ajaran_id`, `semester`, `unique_nilai_santri`)
+- UNIQUE(`santri_id`, `pengampu_mapel_id`, `tahun_ajaran`, `semester`, `unique_nilai_santri`)
 
 ### `rapor_catatan_wali`
 - `id` PK
 - `santri_id`: FK → santri [cascade]
 - `kelas_id`: FK → kelas [cascade]
-- `tahun_ajaran_id`: FK → tahun_ajaran [cascade]
+- `tahun_ajaran`: varchar(9) FK → tahun_ajaran.nama [cascade update + delete]
 - `semester`: string(2)
 - `sakit`: int [default 0]
 - `izin`: int [default 0]
@@ -810,7 +817,7 @@ Standar tampilan per lembaga (tema/tipografi/grid/preset aktif), disebar super_a
 - `catatan_karakter`: text [null]
 - `keputusan_kenaikan`: string [null] — 'Naik ke kelas X', 'Lulus', dsb.
 - `created_at`, `updated_at`
-- UNIQUE(`santri_id`, `kelas_id`, `tahun_ajaran_id`, `semester`, `unique_catatan_wali`)
+- UNIQUE(`santri_id`, `kelas_id`, `tahun_ajaran`, `semester`, `unique_catatan_wali`)
 
 ## BLOK 7 — Presensi & Kedisiplinan (Modul 500 Presensi Santri)
 

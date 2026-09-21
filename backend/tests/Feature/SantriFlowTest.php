@@ -330,11 +330,11 @@ class SantriFlowTest extends TestCase
             'santri_id' => $santri->id, 'lembaga_id' => $f['mi']->id, 'nis_lokal' => '26001', 'is_active_lembaga' => 'Ya', 'tgl_masuk' => '2026-07-01',
         ]);
         $taMi = TahunAjaran::create([
-            'lembaga_id' => $f['mi']->id, 'nama' => '2026/2027',
+            'nama' => '2026/2027',
             'tanggal_mulai' => '2026-07-01', 'tanggal_selesai' => '2027-06-30', 'is_aktif' => true,
         ]);
         RiwayatBelajar::create([
-            'santri_id' => $santri->id, 'tahun_ajaran_id' => $taMi->id, 'lembaga_id' => $f['mi']->id,
+            'santri_id' => $santri->id, 'tahun_ajaran' => $taMi->nama, 'lembaga_id' => $f['mi']->id,
             'semester' => '1', 'status_awal' => 'santri_baru', 'status_akhir' => 'aktif', 'is_active_riwayat' => 'Ya',
         ]);
 
@@ -350,7 +350,7 @@ class SantriFlowTest extends TestCase
             'santri_id' => $lain->id, 'lembaga_id' => $f['mi']->id, 'nis_lokal' => '36001', 'is_active_lembaga' => 'Ya', 'tgl_masuk' => '2026-07-01',
         ]);
         RiwayatBelajar::create([
-            'santri_id' => $lain->id, 'tahun_ajaran_id' => $taMi->id, 'lembaga_id' => $f['mi']->id,
+            'santri_id' => $lain->id, 'tahun_ajaran' => $taMi->nama, 'lembaga_id' => $f['mi']->id,
             'semester' => '1', 'status_awal' => 'santri_baru', 'status_akhir' => 'aktif', 'is_active_riwayat' => 'Ya',
         ]);
         $this->actingAs($admin, 'sanctum')

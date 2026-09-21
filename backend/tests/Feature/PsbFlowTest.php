@@ -7,6 +7,7 @@ use App\Models\DokumenSantri;
 use App\Models\Kelas;
 use App\Models\Lembaga;
 use App\Models\LembagaSantri;
+use App\Models\LembagaTahunAjaran;
 use App\Models\PengajuanBiodataSantri;
 use App\Models\PsbCalonSantri;
 use App\Models\PsbGelombang;
@@ -59,25 +60,14 @@ class PsbFlowTest extends TestCase
             'parent_id' => $root->id, 'nama' => 'Madrasah Tsanawiyah', 'kode' => 'MTS',
             'is_seleksi' => true, 'kelompok_psb' => 'eksklusif', 'is_active' => true,
         ]);
+        // TA global (berlaku semua lembaga).
         $ta = TahunAjaran::create([
-            'lembaga_id' => $root->id, 'nama' => '2026/2027',
+            'nama' => '2026/2027',
             'tanggal_mulai' => '2026-07-01', 'tanggal_selesai' => '2027-06-30', 'is_aktif' => true,
         ]);
-        // TA operasional per lembaga (aturan: TA tidak pernah milik root).
-        $taMi = TahunAjaran::create([
-            'lembaga_id' => $mi->id, 'nama' => '2026/2027',
-            'tanggal_mulai' => '2026-07-01', 'tanggal_selesai' => '2027-06-30', 'is_aktif' => true,
-        ]);
-        $taMd = TahunAjaran::create([
-            'lembaga_id' => $md->id, 'nama' => '2026/2027',
-            'tanggal_mulai' => '2026-07-01', 'tanggal_selesai' => '2027-06-30', 'is_aktif' => true,
-        ]);
-        $taMts = TahunAjaran::create([
-            'lembaga_id' => $mts->id, 'nama' => '2026/2027',
-            'tanggal_mulai' => '2026-07-01', 'tanggal_selesai' => '2027-06-30', 'is_aktif' => true,
-        ]);
+        $taMi = $taMd = $taMts = $ta;
         $keg = PsbKegiatan::create([
-            'tahun_ajaran_id' => $ta->id, 'nama' => 'PSB 2026/2027', 'is_aktif' => true,
+            'tahun_ajaran' => $ta->nama, 'nama' => 'PSB 2026/2027', 'is_aktif' => true,
         ]);
         $gel = PsbGelombang::create([
             'psb_kegiatan_id' => $keg->id, 'nomor' => 1, 'nama' => 'Gelombang 1 2026/2027',
@@ -657,7 +647,7 @@ class PsbFlowTest extends TestCase
         $this->actingAs($super, 'sanctum')->postJson('/api/admin/riwayat-belajar', [
             'santri_id' => $santriId,
             'lembaga_id' => $f['mi']->id,
-            'tahun_ajaran_id' => $f['taMi']->id,
+            'tahun_ajaran' => $f['taMi']->nama,
             'tingkat' => '1',
             'status_awal' => 'santri_baru',
         ])->assertStatus(201);
@@ -1146,20 +1136,20 @@ class PsbFlowTest extends TestCase
         $adminLembaga = $this->makeUser('admin', [$f['mi']->id]);
 
         $this->actingAs($adminLembaga, 'sanctum')->postJson('/api/admin/psb/kegiatan', [
-            'tahun_ajaran_id' => $f['ta']->id, 'nama' => 'PSB X', 'is_aktif' => true,
+            'tahun_ajaran' => $f['ta']->nama, 'nama' => 'PSB X', 'is_aktif' => true,
         ])->assertStatus(403);
 
         // Satu tahun ajaran sudah punya kegiatan -> ditolak.
         $this->actingAs($pusat, 'sanctum')->postJson('/api/admin/psb/kegiatan', [
-            'tahun_ajaran_id' => $f['ta']->id, 'nama' => 'PSB Duplikat', 'is_aktif' => false,
-        ])->assertStatus(422)->assertJsonValidationErrors(['tahun_ajaran_id']);
+            'tahun_ajaran' => $f['ta']->nama, 'nama' => 'PSB Duplikat', 'is_aktif' => false,
+        ])->assertStatus(422)->assertJsonValidationErrors(['tahun_ajaran']);
 
         $ta2 = TahunAjaran::create([
             'lembaga_id' => $f['mi']->id, 'nama' => '2027/2028',
             'tanggal_mulai' => '2027-07-01', 'tanggal_selesai' => '2028-06-30', 'is_aktif' => true,
         ]);
         $keg = $this->actingAs($pusat, 'sanctum')->postJson('/api/admin/psb/kegiatan', [
-            'tahun_ajaran_id' => $ta2->id, 'nama' => 'PSB 2027/2028', 'is_aktif' => true,
+            'tahun_ajaran' => $ta2->nama, 'nama' => 'PSB 2027/2028', 'is_aktif' => true,
         ]);
         $keg->assertStatus(201);
         $kegId = $keg->json('data.id');
@@ -1609,11 +1599,11 @@ class PsbFlowTest extends TestCase
         $riwayatId = $this->actingAs($super, 'sanctum')->postJson('/api/admin/riwayat-belajar', [
             'santri_id' => $santriId,
             'lembaga_id' => $f['mi']->id,
-            'tahun_ajaran_id' => $f['taMi']->id,
+            'tahun_ajaran' => $f['taMi']->nama,
         ])->assertStatus(201)->json('data.id');
         $riwayat = RiwayatBelajar::findOrFail($riwayatId);
         $kelas = Kelas::create([
-            'lembaga_id' => $f['mi']->id, 'tahun_ajaran_id' => $f['taMi']->id, 'nama_kelas' => 'I-A',
+            'lembaga_id' => $f['mi']->id, 'tahun_ajaran' => $f['taMi']->nama, 'nama_kelas' => 'I-A',
         ]);
         $this->actingAs($admin, 'sanctum')->postJson("/api/admin/riwayat-belajar/{$riwayat->id}/set-kelas", [
             'kelas_id' => $kelas->id,
@@ -1659,7 +1649,7 @@ class PsbFlowTest extends TestCase
         $calonId = $res->json('data.calon.id');
 
         // Calon mewarisi TA aktif primer (MI), bukan TA root kegiatan.
-        $this->assertEquals($f['taMi']->id, (int) PsbCalonSantri::findOrFail($calonId)->tahun_ajaran_id);
+        $this->assertSame($f['taMi']->nama, PsbCalonSantri::findOrFail($calonId)->tahun_ajaran);
 
         $this->actingAs($adminMi, 'sanctum')->postJson("/api/psb/{$calonId}/verifikasi")->assertStatus(200);
         $wali = $this->makeUser('orang_tua', [], 'ortu38@example.com', '081444444438');
@@ -1692,7 +1682,7 @@ class PsbFlowTest extends TestCase
         $res->assertStatus(201);
         $calonId = $res->json('data.calon.id');
 
-        $this->assertEquals($f['taMts']->id, (int) PsbCalonSantri::findOrFail($calonId)->tahun_ajaran_id);
+        $this->assertSame($f['taMts']->nama, PsbCalonSantri::findOrFail($calonId)->tahun_ajaran);
     }
 
     // ---------- 40. lembaga tanpa TA aktif ditolak sejak daftar ----------
@@ -1701,13 +1691,16 @@ class PsbFlowTest extends TestCase
     {
         $f = $this->baseFixture();
         $this->makeKuota($f['gel'], $f['mts'], $f['ta'], ['membutuhkan_seleksi' => false]);
-        $f['taMts']->update(['is_aktif' => false]);
+        // TA kegiatan disembunyikan untuk MTS → tidak ada TA berlaku/aktif di MTS.
+        LembagaTahunAjaran::create([
+            'lembaga_id' => $f['mts']->id, 'tahun_ajaran' => $f['ta']->nama, 'is_active' => false,
+        ]);
 
         $this->postJson('/api/psb/daftar', $this->daftarPayload(
             $f['gel'], $f['mts'], '1100000000000040', 'Tanpa TA', 'ortu40@example.com', '081444444440'
         ))
             ->assertStatus(422)
-            ->assertJsonValidationErrors(['tahun_ajaran_id']);
+            ->assertJsonValidationErrors(['tahun_ajaran']);
     }
 
     public function test_41_daftar_lembaga_psb_tanpa_parameter_gelombang(): void

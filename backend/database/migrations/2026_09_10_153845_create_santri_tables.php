@@ -109,7 +109,7 @@ return new class extends Migration
         Schema::create('riwayat_belajar', function (Blueprint $table) {
             $table->id();
             $table->foreignId('santri_id')->constrained('santri')->cascadeOnDelete();
-            $table->foreignId('tahun_ajaran_id')->constrained('tahun_ajaran')->cascadeOnDelete();
+            $table->string('tahun_ajaran', 9); // FK ke tahun_ajaran.nama
             $table->foreignId('lembaga_id')->constrained('lembaga')->cascadeOnDelete();
             $table->foreignId('kelas_id')->nullable()->constrained('kelas')->nullOnDelete(); // null = belum ditempatkan (naik dulu, penempatan menyusul)
             $table->string('semester', 2)->default('1'); // '1' ganjil, '2' genap (selaras nilai_santri)
@@ -128,9 +128,11 @@ return new class extends Migration
             $table->boolean('is_aktif')->default(true);
             $table->timestamps();
 
-            $table->unique(['santri_id', 'tahun_ajaran_id', 'lembaga_id', 'semester'], 'uq_riwayat_belajar_stls'); // nama pendek: auto-name 68 char > limit MySQL 64
+            $table->unique(['santri_id', 'tahun_ajaran', 'lembaga_id', 'semester'], 'uq_riwayat_belajar_stls'); // nama pendek: auto-name 68 char > limit MySQL 64
             // Performa cek bentrok no_absen (bukan unique: kelas_id/no_absen nullable, multi-NULL diizinkan MySQL).
-            $table->index(['kelas_id', 'tahun_ajaran_id', 'semester', 'no_absen']);
+            $table->index(['kelas_id', 'tahun_ajaran', 'semester', 'no_absen']);
+            $table->foreign('tahun_ajaran')->references('nama')->on('tahun_ajaran')
+                ->cascadeOnUpdate()->cascadeOnDelete();
         });
 
         Schema::create('mutasi_keluar', function (Blueprint $table) {
@@ -153,7 +155,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('santri_id')->constrained('santri')->cascadeOnDelete();
             $table->foreignId('lembaga_lulus_id')->constrained('lembaga')->cascadeOnDelete();
-            $table->foreignId('tahun_ajaran_lulus_id')->constrained('tahun_ajaran')->cascadeOnDelete();
+            $table->string('tahun_ajaran_lulus', 9); // FK ke tahun_ajaran.nama
             $table->string('nomor_ijazah')->nullable();
             $table->string('no_surat_ijazah')->nullable(); // nomor surat pengantar/SKHU
             $table->date('tanggal_lulus');
@@ -164,6 +166,8 @@ return new class extends Migration
             $table->timestamps();
 
             $table->unique(['santri_id']); // 1 santri = max 1 record alumni
+            $table->foreign('tahun_ajaran_lulus')->references('nama')->on('tahun_ajaran')
+                ->cascadeOnUpdate()->cascadeOnDelete();
         });
     }
 
