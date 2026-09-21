@@ -20,7 +20,9 @@ import {
   MoveHorizontal,
   NotebookTabs,
   Palette,
+  Pin,
   ReceiptText,
+  ScrollText,
   Server,
   Undo2,
   UserCheck,
@@ -88,17 +90,17 @@ export const HALAMAN: HalamanDef[] = [
     icon: FileCheck2,
     permission: 'dokumen_wajib.lihat',
   },
-  { to: '/santri', label: 'Buku Induk', tab: 'santri', grid: true, icon: GraduationCap, permission: 'santri.lihat' },
-  { to: '/keanggotaan', label: 'Santri Per Jenjang', tab: 'santri', grid: true, icon: BadgeCheck, permission: 'santri.lihat' },
-  { to: '/mi-md', label: 'MI-MD', tab: 'santri', grid: true, icon: MoveHorizontal, permission: 'rekap_santri.lihat' },
-  { to: '/riwayat-belajar', label: 'Riwayat Belajar', tab: 'santri', grid: true, icon: History, permission: 'riwayat_belajar.lihat' },
+  { to: '/santri', label: 'Buku Induk', tab: 'santri', sub: 'identitas', grid: true, icon: GraduationCap, permission: 'santri.lihat' },
+  { to: '/keanggotaan', label: 'Santri Per Lembaga', tab: 'santri', sub: 'penempatan', grid: true, icon: BadgeCheck, permission: 'santri.lihat' },
+  { to: '/mi-md', label: 'MI-MD', tab: 'santri', sub: 'penempatan', grid: true, icon: MoveHorizontal, permission: 'rekap_santri.lihat' },
+  { to: '/riwayat-belajar', label: 'Riwayat Belajar', tab: 'santri', sub: 'penempatan', grid: true, icon: History, permission: 'riwayat_belajar.lihat' },
   { to: '/daftar-kelas', label: 'Daftar Kelas', tab: 'santri', grid: true, icon: ClipboardList, permission: 'daftar_kelas.lihat' },
-  { to: '/pindah-kelas', label: 'Pindah Kelas', tab: 'santri', grid: true, icon: MoveHorizontal, permission: 'pindah_kelas.lihat' },
-  { to: '/mutasi-keluar', label: 'Mutasi Keluar', tab: 'santri', grid: true, icon: LogOut, permission: 'mutasi_keluar.lihat' },
-  { to: '/kenaikan', label: 'Kenaikan Kelas', tab: 'santri', grid: true, icon: ChevronUp, permission: 'kenaikan.lihat' },
-  { to: '/kelulusan', label: 'Kelulusan', tab: 'santri', grid: true, icon: GraduationCap, permission: 'kelulusan.lihat' },
+  { to: '/pindah-kelas', label: 'Pindah Kelas', tab: 'santri', sub: 'mutasi', grid: true, icon: MoveHorizontal, permission: 'pindah_kelas.lihat' },
+  { to: '/mutasi-keluar', label: 'Mutasi Keluar', tab: 'santri', sub: 'mutasi', grid: true, icon: LogOut, permission: 'mutasi_keluar.lihat' },
+  { to: '/kenaikan', label: 'Kenaikan Kelas', tab: 'santri', sub: 'akademik', grid: true, icon: ChevronUp, permission: 'kenaikan.lihat' },
+  { to: '/kelulusan', label: 'Kelulusan', tab: 'santri', sub: 'akademik', grid: true, icon: GraduationCap, permission: 'kelulusan.lihat' },
   { to: '/rekap-santri', label: 'Rekap Santri', tab: 'santri', grid: true, icon: ReceiptText, permission: 'rekap_santri.lihat' },
-  { to: '/pengajuan-biodata', label: 'Pengajuan Biodata', tab: 'santri', grid: true, icon: NotebookTabs, permission: 'pengajuan_biodata.lihat' },
+  { to: '/pengajuan-biodata', label: 'Pengajuan Biodata', tab: 'santri', sub: 'identitas', grid: true, icon: NotebookTabs, permission: 'pengajuan_biodata.lihat' },
   { to: '/pengaturan/tampilan', label: 'Tampilan', tab: 'pengaturan', icon: Palette, permission: 'tampilan.lihat' },
   {
     to: '/pengaturan/semester',
@@ -146,13 +148,22 @@ export interface SubgrupNav {
   anak?: SubgrupNav[];
 }
 
-/** Grup navigasi sidebar/menubar; `anak` = subgrup (dirender sebelum halaman
- *  langsung, mis. PSB bagian pertama sebelum Buku Induk). */
+/** Penanda sisip: halaman langsung grup tampil di posisi ini (di antara
+ *  subgrup), bukan selalu di akhir. */
+export interface PenandaLangsung {
+  langsung: true;
+}
+
+/** Entri `anak` grup: subgrup bernama atau penanda sisip halaman langsung. */
+export type AnakNav = SubgrupNav | PenandaLangsung;
+
+/** Grup navigasi sidebar/menubar; `anak` = subgrup/penanda sisip halaman
+ *  langsung sesuai urutan tampil. */
 export interface GrupNav {
   id: TabKategori;
   label: string;
   icon: Ikon;
-  anak?: SubgrupNav[];
+  anak?: AnakNav[];
 }
 
 /** Urutan & label grup sidebar (hanya grup yang punya halaman yang tampil).
@@ -172,6 +183,12 @@ export const NAV_GRUP: GrupNav[] = [
         icon: ClipboardCheck,
         anak: [{ id: 'antrean', label: 'Antrean', icon: ClipboardList }],
       },
+      // Daftar Kelas & Rekap Santri (halaman langsung) tampil di sini.
+      { langsung: true },
+      { id: 'identitas', label: 'Identitas', icon: NotebookTabs },
+      { id: 'penempatan', label: 'Penempatan', icon: Pin },
+      { id: 'mutasi', label: 'Mutasi', icon: MoveHorizontal },
+      { id: 'akademik', label: 'Akademik', icon: ScrollText },
     ],
   },
   { id: 'pengaturan', label: 'Pengaturan', icon: Palette },
@@ -186,8 +203,9 @@ export function kunciSubgrup(grup: TabKategori, ...jalur: string[]): string {
  *  id tak terdaftar. */
 export function jalurSubgrup(grup: TabKategori, sub: string): string[] | null {
   const akar = NAV_GRUP.find((g) => g.id === grup)?.anak;
-  const cari = (nodes: SubgrupNav[] | undefined, jejak: string[]): string[] | null => {
+  const cari = (nodes: AnakNav[] | undefined, jejak: string[]): string[] | null => {
     for (const n of nodes ?? []) {
+      if ('langsung' in n) continue;
       if (n.id === sub) return [...jejak, n.id];
       const dalam = cari(n.anak, [...jejak, n.id]);
       if (dalam) return dalam;
@@ -200,6 +218,26 @@ export function jalurSubgrup(grup: TabKategori, sub: string): string[] | null {
 /** Halaman langsung grup (tanpa subgrup), mengikuti urutan registri. */
 export function halamanGrupLangsung(grup: TabKategori): HalamanDef[] {
   return HALAMAN.filter((h) => h.tab === grup && !h.sub);
+}
+
+/** Blok isi grup sesuai urutan `anak`: subgrup bernama atau array halaman
+ *  langsung pada posisi penanda `{ langsung: true }`. Tanpa penanda, halaman
+ *  langsung diletakkan di akhir (perilaku lama). */
+export function blokGrup(grup: TabKategori): (SubgrupNav | HalamanDef[])[] {
+  const def = NAV_GRUP.find((g) => g.id === grup);
+  const langsung = halamanGrupLangsung(grup);
+  const blok: (SubgrupNav | HalamanDef[])[] = [];
+  let adaPenanda = false;
+  for (const a of def?.anak ?? []) {
+    if ('langsung' in a) {
+      adaPenanda = true;
+      blok.push(langsung);
+    } else {
+      blok.push(a);
+    }
+  }
+  if (!adaPenanda && langsung.length > 0) blok.push(langsung);
+  return blok;
 }
 
 /** Halaman satu subgrup, mengikuti urutan registri. */

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { NAV_GRUP, halamanDariPath, halamanGrupLangsung, halamanSubgrup, jalurSubgrup, type HalamanDef, type SubgrupNav, type TabKategori } from '@/lib/halaman';
+import { NAV_GRUP, blokGrup, halamanDariPath, halamanSubgrup, jalurSubgrup, type AnakNav, type HalamanDef, type SubgrupNav, type TabKategori } from '@/lib/halaman';
 import { bisa } from '@/api/auth';
 import { useAuth } from '@/auth/AuthContext';
 import { useLembagaAktif } from '@/lembagaAktif';
@@ -70,8 +70,9 @@ const KUNCI_GRUP_TUTUP = 'simpes_sidebar_grup';
 /** Semua kunci lipat yang valid (grup + seluruh tingkat subgrup). */
 function kunciValid(): Set<string> {
   const valid = new Set<string>();
-  const jalan = (subs: SubgrupNav[] | undefined, prefix: string) => {
+  const jalan = (subs: AnakNav[] | undefined, prefix: string) => {
     for (const s of subs ?? []) {
+      if ('langsung' in s) continue;
       const kunci = `${prefix}:${s.id}`;
       valid.add(kunci);
       jalan(s.anak, kunci);
@@ -218,15 +219,15 @@ export default function Sidebar() {
     return [...n.anak.flatMap(kumpulkan), ...n.items];
   }
 
-  /** Indeks gabungan (subgrup + halaman langsung) yang memuat halaman aktif
-   *  (-1 = tak ada); dipakai garis aksen nyambung root → halaman aktif. */
-  function indeksAktif(subs: NodeSiap[], items: HalamanDef[]): number {
-    for (let i = 0; i < subs.length; i++) {
-      if (jalurAktif.includes(subs[i].kunci)) return i;
+  /** Indeks gabungan (subgrup + halaman) di bawah satu node yang memuat
+   *  halaman aktif (-1 = tak ada); dasar garis aksen jalur aktif. */
+  function indeksNode(n: NodeSiap): number {
+    for (let i = 0; i < n.anak.length; i++) {
+      if (jalurAktif.includes(n.anak[i].kunci)) return i;
     }
     if (halAktif === null) return -1;
-    const ii = items.indexOf(halAktif);
-    return ii >= 0 ? subs.length + ii : -1;
+    const ii = n.items.indexOf(halAktif);
+    return ii >= 0 ? n.anak.length + ii : -1;
   }
 
   /** Baris induk subgrup + isi bersarang (rekursif). Garis aksen masuk dari
@@ -236,7 +237,7 @@ export default function Sidebar() {
     const SubIkon = n.def.icon;
     const buka = !tutup.has(n.kunci);
     const idAman = n.kunci.replaceAll(':', '_');
-    const idx = indeksAktif(n.anak, n.items);
+    const idx = indeksNode(n);
     return (
       <div key={n.kunci}>
         <div className={segmenSub(terakhir, buka, segAktif, lanjutAktif)}>
@@ -335,10 +336,18 @@ export default function Sidebar() {
 
       <nav className="flex-1 overflow-x-hidden overflow-y-auto px-2 pb-3">
         {NAV_GRUP.map((g) => {
-          // Subgrup dulu (bagian pertama), lalu halaman langsung grup.
-          const subs = siapkan(g.id, g.anak, g.id);
-          const langsung = halamanGrupLangsung(g.id).filter(bolehLihat);
-          const semua = [...subs.flatMap(kumpulkan), ...langsung];
+          // Entri berurutan: subgrup & halaman langsung pada posisi bloknya
+          // (`blokGrup`), mis. PSB → Daftar Kelas/Rekap Santri → Identitas.
+          const entri: ({ sub: NodeSiap } | { hal: HalamanDef })[] = [];
+          for (const b of blokGrup(g.id)) {
+            if (Array.isArray(b)) {
+              for (const h of b.filter(bolehLihat)) entri.push({ hal: h });
+              continue;
+            }
+            const node = siapkan(g.id, [b], g.id)[0];
+            if (node) entri.push({ sub: node });
+          }
+          const semua = entri.flatMap((e) => ('sub' in e ? kumpulkan(e.sub) : [e.hal]));
           if (semua.length === 0) return null;
           const GrupIkon = g.icon;
           // Rail lipat: semua halaman tetap terjangkau sebagai ikon datar.
@@ -350,10 +359,10 @@ export default function Sidebar() {
             );
           }
           // Grup satu halaman tanpa subgrup (mis. Beranda): tautan langsung.
-          if (subs.length === 0 && langsung.length === 1) {
+          if (entri.length === 1 && 'hal' in entri[0]) {
             return (
               <div key={g.id} className="mb-1.5">
-                {tautanHalaman(langsung[0], false)}
+                {tautanHalaman(entri[0].hal, false)}
               </div>
             );
           }
@@ -361,7 +370,9 @@ export default function Sidebar() {
           // anak menjorok + garis pohon (subgrup boleh bersarang, mis.
           // Santri → PSB → Antrean).
           const terbuka = !tutup.has(g.id);
-          const idxAktif = indeksAktif(subs, langsung);
+          const idxAktif = entri.findIndex((e) => ('sub' in e
+            ? jalurAktif.includes(e.sub.kunci)
+            : halAktif === e.hal));
           return (
             <div key={g.id} className="mb-1.5">
               <button
@@ -389,16 +400,18 @@ export default function Sidebar() {
                   aria-label={g.label}
                   className="mt-0.5 ml-[18px] pl-2"
                 >
-                  {subs.map((n, si) => renderSub(n, si === subs.length - 1 && langsung.length === 0, idxAktif >= 0 && si <= idxAktif, idxAktif > si))}
-                  {langsung.map((h, li) => {
-                    const gabung = subs.length + li;
-                    const diTrail = idxAktif >= 0 && gabung <= idxAktif;
-                    const bawah: 'aksen' | 'abu' | 'nihil' = li === langsung.length - 1
+                  {entri.map((e, i) => {
+                    const terakhir = i === entri.length - 1;
+                    if ('sub' in e) {
+                      return renderSub(e.sub, terakhir, idxAktif >= 0 && i <= idxAktif, idxAktif > i);
+                    }
+                    const diTrail = idxAktif >= 0 && i <= idxAktif;
+                    const bawah: 'aksen' | 'abu' | 'nihil' = terakhir
                       ? 'nihil'
-                      : (idxAktif >= 0 && gabung + 1 <= idxAktif ? 'aksen' : 'abu');
+                      : (idxAktif >= 0 && i + 1 <= idxAktif ? 'aksen' : 'abu');
                     return (
-                      <div key={h.to} className={segmenBaris(diTrail, bawah)}>
-                        {tautanHalaman(h, false, true)}
+                      <div key={e.hal.to} className={segmenBaris(diTrail, bawah)}>
+                        {tautanHalaman(e.hal, false, true)}
                       </div>
                     );
                   })}

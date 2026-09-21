@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { NAV_GRUP, halamanGrupLangsung, halamanSubgrup, type HalamanDef, type SubgrupNav, type TabKategori } from '@/lib/halaman';
+import { NAV_GRUP, blokGrup, halamanSubgrup, type HalamanDef, type SubgrupNav, type TabKategori } from '@/lib/halaman';
 import { bisa, logout } from '@/api/auth';
 import { useAuth } from '@/auth/AuthContext';
 import { useLembagaAktif } from '@/lembagaAktif';
@@ -116,11 +116,19 @@ export default function Menubar() {
         SIMPES
       </span>
       {NAV_GRUP.map((g) => {
-        // Subgrup tampil sebagai submenu bersarang di bagian pertama,
-        // sebelum halaman langsung grup (boleh bersarang, mis. Antrean).
-        const subs = siapkan(g.id, g.anak, g.id);
-        const langsung = halamanGrupLangsung(g.id).filter(bolehLihat);
-        if (g.id !== 'beranda' && langsung.length === 0 && subs.length === 0) return null;
+        // Entri berurutan: submenu subgrup & halaman langsung pada posisi
+        // bloknya (`blokGrup`), mis. PSB → Daftar Kelas/Rekap Santri →
+        // Identitas (boleh bersarang, mis. Antrean).
+        const entri: ({ sub: NodeMenu } | { hal: HalamanDef })[] = [];
+        for (const b of blokGrup(g.id)) {
+          if (Array.isArray(b)) {
+            for (const h of b.filter(bolehLihat)) entri.push({ hal: h });
+            continue;
+          }
+          const node = siapkan(g.id, [b], g.id)[0];
+          if (node) entri.push({ sub: node });
+        }
+        if (g.id !== 'beranda' && entri.length === 0) return null;
         return (
           <DropdownMenu key={g.id}>
             <DropdownMenuTrigger
@@ -130,8 +138,7 @@ export default function Menubar() {
               {LABEL_MENU[g.id]}
             </DropdownMenuTrigger>
             <DropdownMenuContent data-slot="menubar-content" align="start" className="min-w-52">
-              {subs.map(renderSubMenu)}
-              {langsung.map(itemMenu)}
+              {entri.map((e) => ('sub' in e ? renderSubMenu(e.sub) : itemMenu(e.hal)))}
               {g.id === 'beranda' && (
                 <>
                   <DropdownMenuSeparator />
