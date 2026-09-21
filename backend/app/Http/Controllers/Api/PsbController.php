@@ -63,6 +63,12 @@ class PsbController extends Controller
                 ->leftJoin('psb_gelombang', 'psb_gelombang.id', '=', 'psb_calon_santri.gelombang_id');
         }
         $this->terapkanUrut($query, $urut, [['psb_calon_santri.id', 'turun']], self::SORT_NULLABLE);
+        if ($request->filled('search')) {
+            $s = $request->input('search');
+            $query->where(fn ($q) => $q->where('psb_calon_santri.nama_lengkap', 'like', "%{$s}%")
+                ->orWhere('psb_calon_santri.nik', 'like', "%{$s}%")
+                ->orWhere('psb_calon_santri.no_pendaftaran', 'like', "%{$s}%"));
+        }
         if ($request->boolean('terhapus')) {
             $query->onlyTrashed();
         }

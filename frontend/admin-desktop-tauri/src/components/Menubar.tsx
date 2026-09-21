@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { NAV_GRUP, halamanPerGrup, type TabKategori } from '@/lib/halaman';
+import { NAV_GRUP, halamanGrupLangsung, halamanSubgrup, type HalamanDef, type SubgrupNav, type TabKategori } from '@/lib/halaman';
 import { bisa, logout } from '@/api/auth';
 import { useAuth } from '@/auth/AuthContext';
 import { useLembagaAktif } from '@/lembagaAktif';
@@ -8,6 +8,9 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { LogOut } from '@/icons';
@@ -16,7 +19,6 @@ import { cn } from '@/lib/utils';
 const LABEL_MENU: Record<TabKategori, string> = {
   beranda: 'Berkas',
   master: 'Data Induk',
-  psb: 'PSB',
   santri: 'Santri',
   pengaturan: 'Pengaturan',
 };
@@ -37,6 +39,70 @@ export default function Menubar() {
     navigate('/login');
   }
 
+  function bolehLihat(h: HalamanDef): boolean {
+    return bisa(user, h.permission) && !(bertindak && TERKUNCI.has(h.permission));
+  }
+
+  /** Submenu siap render (rekursif): halaman terizin + anak terisi. */
+  interface NodeMenu {
+    def: SubgrupNav;
+    kunci: string;
+    items: HalamanDef[];
+    anak: NodeMenu[];
+  }
+
+  function siapkan(grup: TabKategori, subs: SubgrupNav[] | undefined, prefix: string): NodeMenu[] {
+    return (subs ?? [])
+      .map((s): NodeMenu => {
+        const kunci = `${prefix}:${s.id}`;
+        return {
+          def: s,
+          kunci,
+          items: halamanSubgrup(grup, s.id).filter(bolehLihat),
+          anak: siapkan(grup, s.anak, kunci),
+        };
+      })
+      .filter((n) => n.items.length > 0 || n.anak.length > 0);
+  }
+
+  /** Submenu bersarang (rekursif): anak subgrup dulu, lalu halaman langsung. */
+  function renderSubMenu(n: NodeMenu) {
+    const SubIkon = n.def.icon;
+    const idAman = n.kunci.replaceAll(':', '_');
+    return (
+      <DropdownMenuSub key={n.kunci}>
+        <DropdownMenuSubTrigger id={`menu_${idAman}`}>
+          <SubIkon size={16} />
+          {n.def.label}
+        </DropdownMenuSubTrigger>
+        <DropdownMenuSubContent>
+          {n.anak.map(renderSubMenu)}
+          {n.items.map(itemMenu)}
+        </DropdownMenuSubContent>
+      </DropdownMenuSub>
+    );
+  }
+  function itemMenu(h: HalamanDef) {
+    const Icon = h.icon;
+    return (
+      <DropdownMenuItem key={h.to} asChild>
+        <NavLink
+          to={h.to}
+          end={h.to === '/'}
+          className={({ isActive }) =>
+            cn(
+              'flex w-full cursor-pointer items-center gap-2',
+              isActive && 'bg-accent font-medium text-accent-foreground',
+            )
+          }
+        >
+          <Icon size={16} />
+          {h.label}
+        </NavLink>
+      </DropdownMenuItem>
+    );
+  }
+
   return (
     <nav
       data-slot="menubar"
@@ -50,9 +116,11 @@ export default function Menubar() {
         SIMPES
       </span>
       {NAV_GRUP.map((g) => {
-        const items = halamanPerGrup(g.id)
-          .filter((h) => bisa(user, h.permission) && !(bertindak && TERKUNCI.has(h.permission)));
-        if (g.id !== 'beranda' && items.length === 0) return null;
+        // Subgrup tampil sebagai submenu bersarang di bagian pertama,
+        // sebelum halaman langsung grup (boleh bersarang, mis. Antrean).
+        const subs = siapkan(g.id, g.anak, g.id);
+        const langsung = halamanGrupLangsung(g.id).filter(bolehLihat);
+        if (g.id !== 'beranda' && langsung.length === 0 && subs.length === 0) return null;
         return (
           <DropdownMenu key={g.id}>
             <DropdownMenuTrigger
@@ -62,26 +130,8 @@ export default function Menubar() {
               {LABEL_MENU[g.id]}
             </DropdownMenuTrigger>
             <DropdownMenuContent data-slot="menubar-content" align="start" className="min-w-52">
-              {items.map((h) => {
-                const Icon = h.icon;
-                return (
-                  <DropdownMenuItem key={h.to} asChild>
-                    <NavLink
-                      to={h.to}
-                      end={h.to === '/'}
-                      className={({ isActive }) =>
-                        cn(
-                          'flex w-full cursor-pointer items-center gap-2',
-                          isActive && 'bg-accent font-medium text-accent-foreground',
-                        )
-                      }
-                    >
-                      <Icon size={16} />
-                      {h.label}
-                    </NavLink>
-                  </DropdownMenuItem>
-                );
-              })}
+              {subs.map(renderSubMenu)}
+              {langsung.map(itemMenu)}
               {g.id === 'beranda' && (
                 <>
                   <DropdownMenuSeparator />

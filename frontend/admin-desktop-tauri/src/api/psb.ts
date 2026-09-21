@@ -50,9 +50,10 @@ export interface PsbCalon {
   deleted_at?: string | null;
 }
 
-export function listAntrean(params: { status: string; lembaga_id?: number; sort?: string[]; arah?: 'naik' | 'turun'; page?: number; per_page?: number; terhapus?: boolean; signal?: AbortSignal }) {
+export function listAntrean(params: { status: string; search?: string; lembaga_id?: number; sort?: string[]; arah?: 'naik' | 'turun'; page?: number; per_page?: number; terhapus?: boolean; signal?: AbortSignal }) {
   const q = new URLSearchParams();
   q.set('status', params.status);
+  if (params.search) q.set('search', params.search);
   if (params.lembaga_id) q.set('lembaga_id', String(params.lembaga_id));
   if (params.terhapus) q.set('terhapus', '1');
   if (params.sort?.length) q.set('sort', params.sort.join(','));

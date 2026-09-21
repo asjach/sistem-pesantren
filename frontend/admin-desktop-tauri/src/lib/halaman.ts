@@ -6,9 +6,12 @@ import {
   CalendarCheck,
   CalendarDays,
   CalendarRange,
+  CheckCircle2,
   ChevronUp,
+  ClipboardCheck,
   ClipboardList,
   FileCheck2,
+  FolderOpen,
   GraduationCap,
   History,
   Home,
@@ -19,12 +22,15 @@ import {
   Palette,
   ReceiptText,
   Server,
+  Undo2,
+  UserCheck,
   Users,
+  UserX,
   type Ikon,
 } from '@/icons';
 
 /** Kategori navigasi (grup di sidebar). */
-export type TabKategori = 'beranda' | 'master' | 'psb' | 'santri' | 'pengaturan';
+export type TabKategori = 'beranda' | 'master' | 'santri' | 'pengaturan';
 
 export interface HalamanDef {
   to: string;
@@ -32,6 +38,8 @@ export interface HalamanDef {
   deskripsi?: string;
   /** Kategori tab sidebar. */
   tab: TabKategori;
+  /** Subgrup satu tingkat dalam tab (mis. `psb` = PSB di dalam Santri). */
+  sub?: string;
   /** Punya grid tabel (memunculkan tools tabel di ribbon). */
   grid?: boolean;
   /** Ikon di sidebar. */
@@ -63,13 +71,19 @@ export const HALAMAN: HalamanDef[] = [
   { to: '/tahun-ajaran', label: 'Tahun Ajaran', tab: 'master', grid: true, icon: CalendarDays, permission: 'tahun_ajaran.lihat' },
   { to: '/kelas', label: 'Kelas', tab: 'master', grid: true, icon: BookOpen, permission: 'kelas.lihat' },
   { to: '/referensi', label: 'Referensi', tab: 'master', grid: true, icon: BookMarked, permission: 'referensi.lihat' },
-  { to: '/psb', label: 'Antrean Pendaftar', tab: 'psb', grid: true, icon: ClipboardList, permission: 'psb.lihat' },
-  { to: '/kegiatan-psb', label: 'Kegiatan PSB', tab: 'psb', grid: true, icon: CalendarRange, permission: 'kegiatan_psb.lihat' },
+  { to: '/psb/pendaftar', label: 'Pendaftar', tab: 'santri', sub: 'antrean', grid: true, icon: UserCheck, permission: 'psb.lihat' },
+  { to: '/psb/terdaftar', label: 'Terdaftar', tab: 'santri', sub: 'antrean', grid: true, icon: BadgeCheck, permission: 'psb.lihat' },
+  { to: '/psb/daftar-ulang', label: 'Daftar Ulang', tab: 'santri', sub: 'antrean', grid: true, icon: ClipboardCheck, permission: 'psb.lihat' },
+  { to: '/psb/diterima', label: 'Diterima', tab: 'santri', sub: 'antrean', grid: true, icon: CheckCircle2, permission: 'psb.lihat' },
+  { to: '/psb/mengundurkan-diri', label: 'Mengundurkan Diri', tab: 'santri', sub: 'antrean', grid: true, icon: Undo2, permission: 'psb.lihat' },
+  { to: '/psb/ditolak', label: 'Ditolak', tab: 'santri', sub: 'antrean', grid: true, icon: UserX, permission: 'psb.lihat' },
+  { to: '/kegiatan-psb', label: 'Kegiatan PSB', tab: 'santri', sub: 'psb', grid: true, icon: CalendarRange, permission: 'kegiatan_psb.lihat' },
   {
     to: '/dokumen-wajib',
     label: 'Dokumen PSB',
     deskripsi: 'Ketentuan per kegiatan PSB. Wajib = penekanan saja (tidak menahan pendaftaran); checklist otomatis dibuat untuk santri saat ACC.',
-    tab: 'psb',
+    tab: 'santri',
+    sub: 'psb',
     grid: true,
     icon: FileCheck2,
     permission: 'dokumen_wajib.lihat',
@@ -123,18 +137,74 @@ export const HALAMAN: HalamanDef[] = [
   },
 ];
 
-/** Urutan & label grup sidebar (hanya grup yang punya halaman yang tampil). */
-export const NAV_GRUP: { id: TabKategori; label: string }[] = [
-  { id: 'beranda', label: 'Beranda' },
-  { id: 'master', label: 'Data Induk' },
-  { id: 'psb', label: 'PSB' },
-  { id: 'santri', label: 'Santri' },
-  { id: 'pengaturan', label: 'Pengaturan' },
+/** Subgrup navigasi (bersarang, mis. Antrean di dalam PSB di dalam Santri).
+ *  Id subgrup unik dalam satu tab. */
+export interface SubgrupNav {
+  id: string;
+  label: string;
+  icon: Ikon;
+  anak?: SubgrupNav[];
+}
+
+/** Grup navigasi sidebar/menubar; `anak` = subgrup (dirender sebelum halaman
+ *  langsung, mis. PSB bagian pertama sebelum Buku Induk). */
+export interface GrupNav {
+  id: TabKategori;
+  label: string;
+  icon: Ikon;
+  anak?: SubgrupNav[];
+}
+
+/** Urutan & label grup sidebar (hanya grup yang punya halaman yang tampil).
+ *  Grup multi-halaman dirender sebagai baris induk collapsible (ikon +
+ *  chevron) dengan anak menjorok; grup satu halaman jadi tautan langsung. */
+export const NAV_GRUP: GrupNav[] = [
+  { id: 'beranda', label: 'Beranda', icon: Home },
+  { id: 'master', label: 'Data Induk', icon: FolderOpen },
+  {
+    id: 'santri',
+    label: 'Santri',
+    icon: GraduationCap,
+    anak: [
+      {
+        id: 'psb',
+        label: 'PSB',
+        icon: ClipboardCheck,
+        anak: [{ id: 'antrean', label: 'Antrean', icon: ClipboardList }],
+      },
+    ],
+  },
+  { id: 'pengaturan', label: 'Pengaturan', icon: Palette },
 ];
 
-/** Halaman per grup sidebar, mengikuti urutan registri. */
-export function halamanPerGrup(grup: TabKategori): HalamanDef[] {
-  return HALAMAN.filter((h) => h.tab === grup);
+/** Kunci lipat subgrup (jalur penuh, mis. `santri:psb:antrean`). */
+export function kunciSubgrup(grup: TabKategori, ...jalur: string[]): string {
+  return [grup, ...jalur].join(':');
+}
+
+/** Jalur subgrup dari akar tab ke daun (mis. `['psb', 'antrean']`); null bila
+ *  id tak terdaftar. */
+export function jalurSubgrup(grup: TabKategori, sub: string): string[] | null {
+  const akar = NAV_GRUP.find((g) => g.id === grup)?.anak;
+  const cari = (nodes: SubgrupNav[] | undefined, jejak: string[]): string[] | null => {
+    for (const n of nodes ?? []) {
+      if (n.id === sub) return [...jejak, n.id];
+      const dalam = cari(n.anak, [...jejak, n.id]);
+      if (dalam) return dalam;
+    }
+    return null;
+  };
+  return cari(akar, []);
+}
+
+/** Halaman langsung grup (tanpa subgrup), mengikuti urutan registri. */
+export function halamanGrupLangsung(grup: TabKategori): HalamanDef[] {
+  return HALAMAN.filter((h) => h.tab === grup && !h.sub);
+}
+
+/** Halaman satu subgrup, mengikuti urutan registri. */
+export function halamanSubgrup(grup: TabKategori, sub: string): HalamanDef[] {
+  return HALAMAN.filter((h) => h.tab === grup && h.sub === sub);
 }
 
 /** Halaman yang cocok dengan rute (prefix terpanjang menang). */

@@ -35,7 +35,6 @@ import type { DokumenSantri } from '../api/santri';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/field';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import {
   Select,
   SelectContent,
@@ -48,7 +47,7 @@ import ExcelTable, { type ExcelChoice, type ExcelField } from '@/components/Exce
 import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
 import FilterField from '@/components/FilterField';
 import { RibbonSlot } from '@/components/RibbonSlot';
-import { RibbonCmd, RibbonGroup, RibbonPemisah } from '@/components/topbar/primitives';
+import { RibbonCmd, RibbonGroup } from '@/components/topbar/primitives';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import {
   Dialog,
@@ -77,12 +76,14 @@ import {
 } from '@/icons';
 
 // Tahapan timeline PSB → kumpulan status_pendaftaran (nilai enum di DB).
-const STAGES: { id: string; label: string; statuses: string[] }[] = [
+// Tiap tahap kini halamannya sendiri di bawah submenu Antrean.
+export const TAHAP_PSB: { id: string; label: string; statuses: string[] }[] = [
   { id: 'pendaftar', label: 'Pendaftar', statuses: ['baru', 'waiting_list'] },
   { id: 'terdaftar', label: 'Terdaftar', statuses: ['terverifikasi'] },
   { id: 'daftar_ulang', label: 'Daftar Ulang', statuses: ['lolos', 'pemberkasan', 'ajukan_daftar_ulang'] },
   { id: 'diterima', label: 'Diterima', statuses: ['daftar_ulang'] },
-  { id: 'ditolak', label: 'Mengundurkan Diri / Ditolak', statuses: ['mengundurkan_diri', 'ditolak', 'tidak_lolos'] },
+  { id: 'mengundurkan_diri', label: 'Mengundurkan Diri', statuses: ['mengundurkan_diri'] },
+  { id: 'ditolak', label: 'Ditolak', statuses: ['ditolak', 'tidak_lolos'] },
 ];
 
 /** Definisi kolom grid PSB; pilihan gelombang mengikuti data (mode Input). */
@@ -163,15 +164,14 @@ function psbGridValues(c: PsbCalon): Record<string, string | null> {
 }
 
 // 100 PSB: antrean per tahapan timeline + verifikasi/seleksi/ACC/tolak/promosi + dokumen + import.
-export default function PsbPage() {
+// Satu tahap = satu halaman di bawah submenu Antrean (rute memasok `tahap`).
+export default function PsbPage({ tahap: stage }: { tahap: string }) {
   const { user: me } = useAuth();
   const canUbahPsb = bisa(me, 'psb.ubah');
   const canHapusPsb = bisa(me, 'psb.hapus');
   const canTambahPsb = bisa(me, 'psb.tambah');
   const [lembagas, setLembagas] = useState<Lembaga[]>([]);
-  const [stage, setStage] = useState('daftar_ulang');
   const [subStatus, setSubStatus] = useState('');
-  const [badge, setBadge] = useState<Record<string, number>>({});
   const [lembagaId, setLembagaId] = useState('');
   useLembagaAwalString(setLembagaId);
   const lembagaReqRef = useRef(0);
@@ -184,6 +184,7 @@ export default function PsbPage() {
     loading,
     err,
     setErr,
+    search,
     urut,
     arahUrut,
     terapkanUrut,
@@ -191,15 +192,17 @@ export default function PsbPage() {
     lastPage,
     total,
     pager,
+    onSearchChange,
   } = useDaftarTabel<PsbCalon, Paginate<PsbCalon> & { badge?: Record<string, number> }>({
     tableKey: 'psb',
     ambil: (a) => {
-      const stageDef = STAGES.find((x) => x.id === stage);
+      const stageDef = TAHAP_PSB.find((x) => x.id === stage);
       let statuses = stageDef?.statuses ?? [];
       // Tahap Pendaftar dipisah: baru vs waiting_list.
       if (stage === 'pendaftar' && subStatus) statuses = [subStatus];
       return listAntrean({
         status: statuses.join(','),
+        search: a.search || undefined,
         lembaga_id: lembagaId ? Number(lembagaId) : undefined,
         sort: a.urut.length ? a.urut : undefined,
         arah: a.urut.length ? a.arah : undefined,
@@ -209,7 +212,6 @@ export default function PsbPage() {
         signal: a.signal,
       }).then((r) => ({ ...r.data, badge: r.badge }));
     },
-    onData: (res) => setBadge(res.badge ?? {}),
     deps: [stage, subStatus, lembagaId, tampilTerhapus],
   });
 
@@ -705,55 +707,23 @@ export default function PsbPage() {
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
 
-      {/* Tools halaman di ribbon: pemilih tahap + aksi pendaftar. */}
+      {/* Tools halaman di ribbon: aksi pendaftar (tahap = halamannya sendiri). */}
       <RibbonSlot label="PSB">
-        <RibbonGroup label="Tahap">
-          <ToggleGroup
-            type="single"
-            spacing={0}
-            value={stage}
-            onValueChange={(v) => {
-              if (!v) return;
-              setStage(v);
-              setSubStatus('');
-              pager.goFirst();
-            }}
-          >
-            {STAGES.map((s) => {
-              const jumlah = s.statuses.reduce((n, st) => n + (badge[st] ?? 0), 0);
-              return (
-                <ToggleGroupItem
-                  key={s.id}
-                  id={`stage_psb_${s.id}`}
-                  value={s.id}
-                  title={`Tahap ${s.label}`}
-                  aria-label={`Tahap ${s.label}`}
-                  className="h-6 rounded-md border-0 px-2 text-[11px] text-white/75 hover:bg-white/10 hover:text-white data-[state=on]:bg-white/20 data-[state=on]:font-semibold data-[state=on]:text-white"
-                >
-                  {s.label} <span className="ml-1 text-white/50">({jumlah})</span>
-                </ToggleGroupItem>
-              );
-            })}
-          </ToggleGroup>
-        </RibbonGroup>
         {stage === 'pendaftar' && canTambahPsb && (
-          <>
-            <RibbonPemisah />
-            <RibbonGroup label="Pendaftar">
-              <RibbonCmd
-                id="btn_buka_tambah_pendaftar"
-                icon={PlusCircle}
-                label="Tambah"
-                onClick={() => { resetTambah(); setTambahOpen(true); }}
-              />
-              <RibbonCmd
-                id="btn_buka_import_psb"
-                icon={Upload}
-                label="Import"
-                onClick={() => setImportOpen(true)}
-              />
-            </RibbonGroup>
-          </>
+          <RibbonGroup label="Pendaftar">
+            <RibbonCmd
+              id="btn_buka_tambah_pendaftar"
+              icon={PlusCircle}
+              label="Tambah"
+              onClick={() => { resetTambah(); setTambahOpen(true); }}
+            />
+            <RibbonCmd
+              id="btn_buka_import_psb"
+              icon={Upload}
+              label="Import"
+              onClick={() => setImportOpen(true)}
+            />
+          </RibbonGroup>
         )}
       </RibbonSlot>
 
@@ -772,6 +742,9 @@ export default function PsbPage() {
         onUrut={terapkanUrut}
         onCreateRow={stage === 'pendaftar' && canTambahPsb ? createRow : undefined}
         inputRowValues={{ lembaga: lembagaTerpilih }}
+        searchValue={search}
+        onSearchChange={onSearchChange}
+        searchIds={{ form: 'form_cari_psb', input: 'input_cari_psb', button: 'btn_cari_psb' }}
         filter={(
           <>
             {stage === 'pendaftar' && (
