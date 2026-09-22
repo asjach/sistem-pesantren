@@ -38,8 +38,9 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
  */
 class SantriLembagaTemplateExport extends DefaultValueBinder implements FromArray, WithCustomValueBinder, WithEvents, WithHeadings, WithTitle
 {
-    /** Batas baris data yang diberi dropdown/border (baris 2–1001). */
-    private const BARIS_TERAKHIR = 1001;
+    /** Batas baris data yang diberi dropdown/border (baris 2–5001). Bukan batas
+     *  import: baris di luar rentang ini tetap diproses (tanpa dropdown bantuannya). */
+    private const BARIS_TERAKHIR = 5001;
 
     /** Blok keanggotaan — selalu di awal, sebelum kolom profil. */
     public const BLOK_LEMBAGA = [
