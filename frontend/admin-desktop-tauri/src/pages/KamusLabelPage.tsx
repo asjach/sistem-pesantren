@@ -16,11 +16,11 @@ import {
 import { bersihkanCacheKamus } from '@/components/useKamusPeta';
 import ComboCari from '@/components/ComboCari';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import MenuAksiToolbar from '@/components/MenuAksiToolbar';
 import { DeleteAction } from '@/components/RowActions';
 import FilterField from '@/components/FilterField';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -254,12 +254,9 @@ export default function KamusLabelPage() {
           </FilterField>
         }
         akhirToolbar={
-          <div className="flex items-center gap-1.5">
-            <Separator orientation="vertical" className="h-5" />
+          <MenuAksiToolbar triggerId="btn_aksi_kamus_label" label="Generate">
             <Button
               id="btn_label_upper"
-              variant="outline"
-              size="sm"
               title="Isi label semua kolom dengan huruf kapital (underscore → spasi)"
               disabled={!bolehGenerate}
               onClick={() => setModeTunggu('upper')}
@@ -268,8 +265,6 @@ export default function KamusLabelPage() {
             </Button>
             <Button
               id="btn_label_proper"
-              variant="outline"
-              size="sm"
               title="Isi label semua kolom dengan huruf awal kapital (underscore → spasi)"
               disabled={!bolehGenerate}
               onClick={() => setModeTunggu('proper')}
@@ -278,15 +273,13 @@ export default function KamusLabelPage() {
             </Button>
             <Button
               id="btn_label_lower"
-              variant="outline"
-              size="sm"
               title="Isi label semua kolom dengan huruf kecil (underscore → spasi)"
               disabled={!bolehGenerate}
               onClick={() => setModeTunggu('lower')}
             >
               lower case
             </Button>
-          </div>
+          </MenuAksiToolbar>
         }
         searchValue={cari}
         onSearchChange={setCari}

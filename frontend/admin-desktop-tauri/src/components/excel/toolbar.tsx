@@ -2,6 +2,7 @@ import type { MutableRefObject, ReactNode } from 'react';
 import { Input } from '@/components/ui/input';
 import PresetKolom, { type PresetKolomApi } from '@/components/PresetKolom';
 import PresetUrut from '@/components/PresetUrut';
+import MenuAksiToolbar from '@/components/MenuAksiToolbar';
 import { X } from '@/icons';
 import { cn } from '@/lib/utils';
 import type { ExcelField } from './types';
@@ -173,8 +174,8 @@ export default function ToolbarTabel<T extends { id: string | number }>({
       {/* Kanan 2: kontrol kustom + tombol aksi utama halaman. */}
       <div className="flex flex-nowrap items-end justify-end gap-2 [&>*]:shrink-0">
         {akhirToolbar}
-        {/* Tombol aksi utama halaman, sejajar dengan kontrol tabel. */}
-        {addButton && <div className="flex items-center gap-2">{addButton}</div>}
+        {/* Tombol aksi utama halaman, diringkas jadi menu dropdown. */}
+        {addButton && <MenuAksiToolbar triggerId={`btn_aksi_${tableKey}`}>{addButton}</MenuAksiToolbar>}
       </div>
       </div>
     </div>
