@@ -603,7 +603,7 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 - `jenjang`: FK → lembaga [null, cascade] — preset milik satu lembaga. Saat membuat, admin dapat men-generate ke satu/beberapa lembaga sekaligus; tiap lembaga dapat mengedit salinannya. `null` = sisa data lama (tidak dibuat lagi).
 - `table_key`: string(60) — kunci tabel (mis. `psb`, `kegiatan_psb_dokumen`)
 - `nama`: string(50) — nama preset (mis. 'default', 'nama saja'); 'lengkap' dipakai bawaan sistem
-- `kolom`: json — array key kolom yang ditampilkan (mis. `["nama","lembaga"]`)
+- `kolom`: json — array key kolom yang ditampilkan **berurutan** (urutan array = urutan tampil kolom, mis. `["nama","lembaga"]`); tiap preset boleh beda urutan
 - `dibuat_oleh`: FK → users [null, nullOnDelete]
 - `created_at`, `updated_at`
 - INDEX(`jenjang`, `table_key`)

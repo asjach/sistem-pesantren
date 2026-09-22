@@ -19,8 +19,9 @@ import { useAuth } from '@/auth/AuthContext';
 import { useLembagaAktif } from '@/lembagaAktif';
 import { type PresetKolomApi } from '@/components/PresetKolom';
 import { muatToolbarPreset, simpanToolbarPreset } from '@/api/toolbarPreset';
+import { updatePresetTabel } from '@/api/preset';
 import { gabungUrutan } from './excel/urutanKolom';
-import { EVENT_TOOLBAR_BERUBAH, LEBAR_BAWAHAN_TOOLBAR, bacaLebarFilter, bacaLebarToolbar, bacaVisToolbar, type LebarToolbar, type VisToolbar } from '@/components/kelolaTabel/jenis';
+import { EVENT_PRESET_BERUBAH, EVENT_TOOLBAR_BERUBAH, LEBAR_BAWAHAN_TOOLBAR, bacaLebarFilter, bacaLebarToolbar, bacaVisToolbar, type LebarToolbar, type VisToolbar } from '@/components/kelolaTabel/jenis';
 import { KonteksLebarFilter } from './excel/lebarFilter';
 import { useKamusPeta } from '@/components/useKamusPeta';
 import { type KamusKolomAttr } from '@/api/kamusLabel';
@@ -316,11 +317,15 @@ export default function ExcelTable<T extends { id: string | number }>({
   const clearSelection = useMemo(() => () => setCheckedIds(new Set<T['id']>()), []);
 
   const [presetKeys, setPresetKeys] = useState<string[] | null>(null);
+  /** Id preset aktif (null = Lengkap/tanpa preset): urutan kolom mengikuti
+   *  susunan preset; seret kolom di grid menyimpan balik ke preset ini. */
+  const [presetAktifId, setPresetAktifId] = useState<number | null>(null);
   /** Nama header kustom dari preset aktif (key kolom → nama tampil). */
   const [presetLabel, setPresetLabel] = useState<Record<string, string> | null>(null);
-  const terapkanPreset = useCallback((keys: string[] | null, label?: Record<string, string> | null) => {
+  const terapkanPreset = useCallback((keys: string[] | null, label?: Record<string, string> | null, presetId?: number | null) => {
     setPresetKeys(keys);
     setPresetLabel(label ?? null);
+    setPresetAktifId(presetId ?? null);
   }, []);
 
   /** Sumber efektif sebuah kolom: `sumber` eksplisit, atau tabel utama grid
@@ -448,13 +453,17 @@ export default function ExcelTable<T extends { id: string | number }>({
   const getValuesRef = useRef(getValues);
   getValuesRef.current = getValues;
   const visibleFields = useMemo(() => {
-    const dasar = (() => {
-      if (presetKeys === null) return fields;
-      const terlihat = fields.filter((f) => presetKeys.includes(f.key));
-      return terlihat.length > 0 ? terlihat : fields;
-    })();
-    // Urutan global tersimpan (super_admin) menata ulang kolom tampil;
-    // kolom tampil yang tak ada di simpanan menempel di akhir.
+    // Preset aktif: urutan kolom mengikuti susunan key di dalam preset.
+    if (presetKeys !== null) {
+      const byKey = new Map(fields.map((f) => [f.key, f]));
+      const terpilih = presetKeys
+        .map((k) => byKey.get(k))
+        .filter((f): f is (typeof fields)[number] => !!f);
+      if (terpilih.length > 0) return terpilih;
+    }
+    const dasar = fields;
+    // Tanpa preset (Lengkap): urutan global tersimpan (super_admin) menata
+    // ulang kolom; kolom yang tak ada di simpanan menempel di akhir.
     if (urutanDb !== null && urutanDb.length > 0) {
       const byKey = new Map(dasar.map((f) => [f.key, f]));
       const urut = gabungUrutan(urutanDb, dasar.map((f) => f.key));
@@ -516,10 +525,23 @@ export default function ExcelTable<T extends { id: string | number }>({
   const tundaSimpanUrutan = useRef<number | undefined>(undefined);
   useEffect(() => () => window.clearTimeout(tundaSimpanUrutan.current), []);
 
-  /** Simpan urutan key kolom tampil (global, super_admin); [] = bawaan. */
+  /** Simpan urutan key kolom tampil. Preset aktif → urutan masuk ke preset itu
+   *  (tiap preset bisa beda urutan); tanpa preset → urutan global per halaman. */
   const simpanUrutan = useCallback((keys: string[]) => {
-    setUrutanDb(keys);
     window.clearTimeout(tundaSimpanUrutan.current);
+    if (presetAktifId !== null) {
+      setPresetKeys(keys);
+      tundaSimpanUrutan.current = window.setTimeout(() => {
+        updatePresetTabel(presetAktifId, { kolom: keys })
+          .then(() => {
+            toast.success('Urutan kolom disimpan ke preset.');
+            window.dispatchEvent(new CustomEvent(EVENT_PRESET_BERUBAH, { detail: { tableKey } }));
+          })
+          .catch((e) => toast.error(errorMessage(e)));
+      }, 600);
+      return;
+    }
+    setUrutanDb(keys);
     tundaSimpanUrutan.current = window.setTimeout(() => {
       simpanToolbarPreset(tableKey, undefined, undefined, keys)
         .then(() => {
@@ -528,7 +550,7 @@ export default function ExcelTable<T extends { id: string | number }>({
         })
         .catch((e) => toast.error(errorMessage(e)));
     }, 600);
-  }, [tableKey]);
+  }, [tableKey, presetAktifId]);
 
   /** Geser satu langkah (tombol menu konteks). */
   const geserKolom = useCallback((colKey: string, arah: -1 | 1) => {
@@ -554,8 +576,14 @@ export default function ExcelTable<T extends { id: string | number }>({
   }, [simpanUrutan]);
 
   const kembalikanUrutan = useCallback(() => {
+    // Preset aktif: kembalikan ke urutan bawaan halaman untuk kolom tampil.
+    if (presetAktifId !== null) {
+      const terlihat = new Set(visibleFieldsRef.current.map((f) => f.key));
+      simpanUrutan(fieldsRef.current.filter((f) => terlihat.has(f.key)).map((f) => f.key));
+      return;
+    }
     simpanUrutan([]);
-  }, [simpanUrutan]);
+  }, [presetAktifId, simpanUrutan]);
 
   const dragMulaiKolom = useCallback((key: string, e: DragEvent) => {
     e.dataTransfer.effectAllowed = 'move';

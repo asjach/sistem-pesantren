@@ -103,8 +103,6 @@
 | 2.49 | 2026-09-17 | Panah daftarkan MI Only → MD; suite 183/183 |
 | 2.50 | 2026-09-17 | X hapus fisik jejak MD; suite 185/185 |
 | 2.51 | 2026-09-17 | PRD catat semua aturan (docs-only) |
-| 2.52 | 2026-09-22 | Refactor lembaga berjenjang: PK `jenjang` (tanpa `kode`/`parent_id`/root); import/template/data siswa pakai kunci `jenjang`; suite 273/273 |
-| 2.53 | 2026-09-22 | Import dipindah ke halaman Santri Per Lembaga; keanggotaan wajib (santri minimal 1 jenjang) di import & tambah manual; endpoint import identitas-only dihapus; suite 268/268 |
 | 2.52 | 2026-09-17 | Beku kelas arsip (kelas_lulus_id + auto kelas_terakhir_id); suite 186/186 |
 | 2.53 | 2026-09-17 | §7 dokumentasi desain UI (docs-only) |
 | 2.54 | 2026-09-17 | Lampiran G operasional agen (docs-only) |
@@ -128,6 +126,10 @@
 | 2.72 | 2026-09-18 | Kamus Label: tombol generate label massal (upper/proper/lower) + dropdown tabel ber-search + ikon align & switch kolom |
 | 2.73 | 2026-09-18 | Urutan pindah ke Preset Urut global per tabel (`urut_preset`): dialog "Kelola urutan" memilih kode sah dari `UrutKatalog`, atur label/arah/opsi bawaan; seed dari opsi lama; halaman tak lagi hardcode `opsiUrut`; `bisa_urut` & `arah_bawaan` di-drop dari kamus label; izin `urut_preset.*`; suite 233/233, typecheck + build lolos |
 | 2.74 | 2026-09-18 | Semua header grid tampil KAPITAL (underscore→spasi; placeholder `tabel.kolom` dipangkas jadi nama kolom) — nilai kamus/preset tersimpan tak berubah, hanya tampilan; Opsi A label beda akhiran untuk 3 kolom tabrakan (`NAMA INDUK`, `KELAS MI`, `KELAS MD`) |
+| 2.75 | 2026-09-22 | Refactor lembaga berjenjang: PK `jenjang` (tanpa `kode`/`parent_id`/root); import/template/data siswa pakai kunci `jenjang`; suite 273/273 |
+| 2.76 | 2026-09-22 | Import dipindah ke halaman Santri Per Lembaga; keanggotaan wajib (santri minimal 1 jenjang) di import & tambah manual; endpoint import identitas-only dihapus; suite 268/268 |
+| 2.77 | 2026-09-22 | Tombol aksi toolbar diringkas jadi satu menu dropdown (`MenuAksiToolbar`) di semua halaman |
+| 2.78 | 2026-09-22 | Urutan kolom per preset: `preset_tabel.kolom` jadi berurutan & dihormati grid; Tab Kolom 3 panel (preset / kolom tersedia / kolom terpilih yang bisa diseret); seret kolom di grid menyimpan ke preset aktif; tanpa preset tetap pakai urutan global `toolbar_preset.urutan` |
 
 ## Daftar Isi
 

@@ -31,7 +31,7 @@ export interface ToolbarTabelProps<T extends { id: string | number }> {
   urutAktif?: string[];
   arahUrut?: 'naik' | 'turun';
   fields: ExcelField[];
-  terapkanPreset: (keys: string[] | null, label?: Record<string, string> | null) => void;
+  terapkanPreset: (keys: string[] | null, label?: Record<string, string> | null, presetId?: number | null) => void;
   presetApiRef?: MutableRefObject<PresetKolomApi | null>;
   /** Timpa lebar trigger dropdown Kolom (bawaan `w-44` di PresetKolom). */
   presetKolomClassName?: string;

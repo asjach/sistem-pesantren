@@ -77,7 +77,7 @@ export default function DialogKelolaTabel({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         className={cn(
-          'max-h-[70dvh] sm:max-w-2xl',
+          'max-h-[70dvh] sm:max-w-2xl lg:max-w-4xl',
           banyakKolom && 'lg:h-[70dvh] lg:max-w-4xl lg:grid-rows-[auto_auto_minmax(0,1fr)] lg:overflow-hidden',
         )}
       >

@@ -342,7 +342,10 @@ dokumen wajib, preset tabel, pengaturan server/tampilan.
 Status: 🟢 shell v0.5.0 live (Tailwind+shadcn: 25 tema ala VSCode data-driven + kustom, Gelap/Terang/Sistem per perangkat, galeri pratinjau, border lembut tanpa shadow, navigasi menubar/ribbon/sidebar per perangkat, pagination 10/50/100/500 + "Semua", dialog/toast/skeleton). Tabel master memakai `react-datasheet-grid` lewat wrapper `ExcelTable`
 (seleksi gaya spreadsheet, resize + AutoFit, edit klik-2× langsung simpan, aksi
 baris >3 jadi dropdown, preset kolom per tabel, tombol aksi toolbar diringkas
-jadi satu menu dropdown per tabel lewat `MenuAksiToolbar`) dengan kontrol global ukuran/tinggi/jenis huruf; **Google Fonts disimpan lokal di repo** (`frontend/admin-desktop-tauri/src/assets/fonts`, 8 keluarga × Light/Regular) sehingga aplikasi berjalan **tanpa internet** — dihasilkan ulang via `frontend/admin-desktop-tauri/scripts/fonts-offline.py`. Desktop Tauri 0.5.0 dibangun (`.app` 11 MB, `.dmg` 4 MB, aarch64, belum ditandatangani); build desktop hanya dijalankan bila diminta. Belum: modul 200+ (pegawai/kurikulum/nilai), Fase 5, portal ortu lanjutan.
+jadi satu menu dropdown per tabel lewat `MenuAksiToolbar`; urutan kolom
+disimpan di dalam `preset_tabel.kolom` (tiap preset bisa beda urutan), diatur
+lewat Tab Kolom 3 panel yang bisa diseret; tanpa preset memakai urutan global
+`toolbar_preset.urutan`) dengan kontrol global ukuran/tinggi/jenis huruf; **Google Fonts disimpan lokal di repo** (`frontend/admin-desktop-tauri/src/assets/fonts`, 8 keluarga × Light/Regular) sehingga aplikasi berjalan **tanpa internet** — dihasilkan ulang via `frontend/admin-desktop-tauri/scripts/fonts-offline.py`. Desktop Tauri 0.5.0 dibangun (`.app` 11 MB, `.dmg` 4 MB, aarch64, belum ditandatangani); build desktop hanya dijalankan bila diminta. Belum: modul 200+ (pegawai/kurikulum/nilai), Fase 5, portal ortu lanjutan.
 
 #### 6.2 `frontend/kasir-mobile-react-native`
 

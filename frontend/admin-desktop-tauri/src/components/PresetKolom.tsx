@@ -22,7 +22,7 @@ import { Pin } from '@/icons';
 import { toast } from 'sonner';
 import FilterField from './FilterField';
 import DialogKelolaTabel from './kelolaTabel/DialogKelolaTabel';
-import type { TabKelola } from './kelolaTabel/jenis';
+import { EVENT_PRESET_BERUBAH, type TabKelola } from './kelolaTabel/jenis';
 
 const LENGKAP = '_lengkap';
 const KELOLA = '_kelola';
@@ -47,7 +47,7 @@ export default function PresetKolom({
 }: {
   tableKey: string;
   fields: ExcelField[];
-  onApply: (keys: string[] | null, label?: Record<string, string> | null) => void;
+  onApply: (keys: string[] | null, label?: Record<string, string> | null, presetId?: number | null) => void;
   apiRef?: MutableRefObject<PresetKolomApi | null>;
   /** Timpa lebar trigger (bawaan 100px), mis. tabel sempit dua panel. */
   triggerClassName?: string;
@@ -78,7 +78,7 @@ export default function PresetKolom({
 
   const terapkan = useCallback((preset: PresetTabel | null) => {
     if (!preset) {
-      onApply(null, null);
+      onApply(null, null, null);
       return;
     }
     const keys = preset.kolom.filter((k) => fieldKeys.has(k));
@@ -86,7 +86,7 @@ export default function PresetKolom({
     for (const [k, v] of Object.entries(preset.label ?? {})) {
       if (fieldKeys.has(k) && v.trim() !== '') label[k] = v.trim();
     }
-    onApply(keys.length > 0 ? keys : null, Object.keys(label).length > 0 ? label : null);
+    onApply(keys.length > 0 ? keys : null, Object.keys(label).length > 0 ? label : null, preset.id);
   }, [fieldKeys, onApply]);
 
   const muat = useCallback(async (pilihId?: number | null) => {
@@ -114,6 +114,11 @@ export default function PresetKolom({
 
   useEffect(() => {
     void muat();
+    const segarkan = (e: Event) => {
+      if ((e as CustomEvent).detail?.tableKey === tableKey) void muat();
+    };
+    window.addEventListener(EVENT_PRESET_BERUBAH, segarkan);
+    return () => window.removeEventListener(EVENT_PRESET_BERUBAH, segarkan);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tableKey]);
 

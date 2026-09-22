@@ -66,3 +66,7 @@ export function bacaVisToolbar(vis: Record<string, boolean> | undefined): VisToo
 /** Event jendela setelah visibilitas tersimpan: tiap grid memuat ulang
  *  visibilitas tabelnya sendiri. */
 export const EVENT_TOOLBAR_BERUBAH = 'simpes:toolbar-berubah';
+
+/** Event jendela setelah susunan kolom sebuah preset berubah (mis. dari seret
+ *  kolom di grid): pemilih preset tabel terkait memuat ulang daftarnya. */
+export const EVENT_PRESET_BERUBAH = 'simpes:preset-berubah';

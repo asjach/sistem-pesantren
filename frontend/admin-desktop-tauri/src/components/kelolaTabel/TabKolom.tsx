@@ -14,7 +14,7 @@ import { DialogFooter } from '@/components/ui/dialog';
 import ConfirmDelete from '@/components/ConfirmDelete';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
-import { Pin } from '@/icons';
+import { GripVertical, Pin, X } from '@/icons';
 import { toast } from 'sonner';
 import type { ExcelField } from '../excel/types';
 
@@ -71,8 +71,10 @@ export default function TabKolom({
   /** Status bawaan = bagian form (tersimpan via Simpan, boleh dikosongkan). */
   const [bawaan, setBawaan] = useState(presetAwal ? presetAwal.id === bawaanId : false);
   const awalBawaan = useRef(presetAwal ? presetAwal.id === bawaanId : false);
-  const [kolom, setKolom] = useState<Set<string>>(
-    () => new Set(presetAwal ? presetAwal.kolom.filter((k) => fieldKeys.has(k)) : mulaiLengkap ? [...fieldKeys] : []),
+  /** Kolom terpilih BERURUTAN: urutan array = urutan tampil kolom (disimpan
+   *  ke `preset_tabel.kolom`). Preset berbeda boleh punya urutan berbeda. */
+  const [kolom, setKolom] = useState<string[]>(
+    () => (presetAwal ? presetAwal.kolom.filter((k) => fieldKeys.has(k)) : mulaiLengkap ? [...fieldKeys] : []),
   );
   const [cariKolom, setCariKolom] = useState('');
   const [busy, setBusy] = useState(false);
@@ -85,35 +87,64 @@ export default function TabKolom({
     if (!q) return fields;
     return fields.filter((f) => f.label.toLowerCase().includes(q));
   }, [fields, cariKolom]);
-  const semuaTampilTerpilih = kolomTampil.length > 0 && kolomTampil.every((f) => kolom.has(f.key));
+  const semuaTampilTerpilih = kolomTampil.length > 0 && kolomTampil.every((f) => kolom.includes(f.key));
+  /** Atribut field per key (untuk panel "Kolom tampil" berurutan). */
+  const fieldByKey = useMemo(() => new Map(fields.map((f) => [f.key, f])), [fields]);
 
   function togolKolom(key: string, aktif: boolean) {
     setKolom((prev) => {
-      const next = new Set(prev);
-      if (aktif) next.add(key);
-      else next.delete(key);
-      return next;
+      if (aktif) return prev.includes(key) ? prev : [...prev, key];
+      return prev.filter((k) => k !== key);
     });
   }
 
   function aturSemuaTampil(aktif: boolean) {
     setKolom((prev) => {
-      const next = new Set(prev);
-      for (const f of kolomTampil) {
-        if (aktif) next.add(f.key);
-        else next.delete(f.key);
+      if (aktif) {
+        const ada = new Set(prev);
+        return [...prev, ...kolomTampil.filter((f) => !ada.has(f.key)).map((f) => f.key)];
       }
+      const buang = new Set(kolomTampil.map((f) => f.key));
+      return prev.filter((k) => !buang.has(k));
+    });
+  }
+
+  /** Geser satu item kolom terpilih ke atas/bawah (tombol panah/WASD). */
+  function geserTerpilih(dari: number, arah: -1 | 1) {
+    setKolom((prev) => {
+      const j = dari + arah;
+      if (dari < 0 || j < 0 || j >= prev.length) return prev;
+      const next = [...prev];
+      [next[dari], next[j]] = [next[j], next[dari]];
+      return next;
+    });
+  }
+
+  /** Seret-untuk-mengatur urutan kolom terpilih. */
+  const seretRef = useRef<string | null>(null);
+  const [tujuanSeret, setTujuanSeret] = useState<string | null>(null);
+  function jatuhSeret(ke: string, sesudah: boolean) {
+    const dari = seretRef.current;
+    seretRef.current = null;
+    setTujuanSeret(null);
+    if (dari === null || dari === ke) return;
+    setKolom((prev) => {
+      const next = prev.filter((k) => k !== dari);
+      let idx = next.indexOf(ke);
+      if (idx < 0) return prev;
+      if (sesudah) idx += 1;
+      next.splice(idx, 0, dari);
       return next;
     });
   }
 
   async function simpan(e: React.FormEvent) {
     e.preventDefault();
-    if (kolom.size === 0) return;
+    if (kolom.length === 0) return;
     if (!nama.trim()) {
       // Mode Lengkap tanpa nama: terapkan langsung ke tabel, tanpa membuat preset.
       if (modeLengkap) {
-        onPakaiLengkap([...kolom], {});
+        onPakaiLengkap(kolom, {});
         onTutup();
       }
       return;
@@ -125,14 +156,14 @@ export default function TabKolom({
       let saved: PresetTabel | undefined;
       let pesan = 'Preset kolom disimpan.';
       if (editId) {
-        const res = await updatePresetTabel(editId, { nama: nama.trim(), kolom: [...kolom], label: null });
+        const res = await updatePresetTabel(editId, { nama: nama.trim(), kolom, label: null });
         saved = res.data[0];
         pesan = res.pesan;
       } else {
         const res = await createPresetTabel({
           table_key: tableKey,
           nama: nama.trim(),
-          kolom: [...kolom],
+          kolom,
         });
         saved = res.data[0];
         pesan = res.pesan;
@@ -163,7 +194,7 @@ export default function TabKolom({
       toast.success('Preset kolom dihapus.');
       setEditId(null);
       setNama('');
-      setKolom(new Set());
+      setKolom([]);
       await onDihapus();
     } catch (e2) {
       toast.error(errorMessage(e2));
@@ -201,8 +232,8 @@ export default function TabKolom({
         </label>
       </div>
 
-      {/* Dua panel: daftar preset (kiri), dan tabel kolom + header
-          kustom (kanan). */}
+      {/* Tiga panel: daftar preset (kiri), kolom tersedia (tengah), dan kolom
+          terpilih berurutan yang bisa diseret (kanan). */}
       <div className={cn('flex flex-col gap-2 lg:flex-row', banyakKolom && 'lg:min-h-0 lg:flex-1')}>
         {/* Panel 1 — preset */}
         <section className="flex flex-col gap-2 lg:w-44 lg:shrink-0">
@@ -268,10 +299,10 @@ export default function TabKolom({
           </div>
         </section>
 
-        {/* Panel 2 — tabel kolom: pilih tampil + nama header kustom */}
+        {/* Panel 2 — seluruh kolom yang bisa dipilih */}
         <section className="flex min-h-0 flex-col gap-2 lg:min-w-0 lg:flex-1">
           <div className="flex items-center justify-between gap-2">
-            <FieldLabel>Kolom ({kolom.size}/{fields.length} tampil)</FieldLabel>
+            <FieldLabel>Kolom tersedia</FieldLabel>
             <span className="flex shrink-0 items-center gap-2">
               <button
                 id={`btn_pilih_semua_kolom_${tableKey}`}
@@ -286,7 +317,7 @@ export default function TabKolom({
               <button
                 id={`btn_kosongkan_kolom_${tableKey}`}
                 type="button"
-                disabled={kolomTampil.length === 0 || kolomTampil.every((f) => !kolom.has(f.key))}
+                disabled={kolomTampil.length === 0 || kolomTampil.every((f) => !kolom.includes(f.key))}
                 title={cariKolom.trim() ? 'Batalkan pilihan kolom hasil pencarian' : 'Batalkan semua pilihan kolom'}
                 className="text-xs text-muted-foreground underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
                 onClick={() => aturSemuaTampil(false)}
@@ -323,7 +354,7 @@ export default function TabKolom({
                     </td>
                   </tr>
                 ) : kolomTampil.map((f) => {
-                  const aktif = kolom.has(f.key);
+                  const aktif = kolom.includes(f.key);
                   return (
                     <tr
                       key={f.key}
@@ -347,6 +378,77 @@ export default function TabKolom({
             </table>
           </div>
         </section>
+
+        {/* Panel 3 — kolom terpilih & berurutan (seret untuk mengurutkan) */}
+        <section className="flex min-h-0 flex-col gap-2 lg:w-64 lg:shrink-0">
+          <FieldLabel>Kolom tampil ({kolom.length}) — seret untuk urutkan</FieldLabel>
+          <div
+            className={cn(
+              'flex flex-col gap-1 overflow-auto rounded-md border p-1',
+              banyakKolom ? 'max-h-64 lg:max-h-none lg:min-h-0 lg:flex-1' : 'max-h-64',
+            )}
+          >
+            {kolom.length === 0 ? (
+              <p className="px-1 py-2 text-xs text-muted-foreground">
+                Belum ada kolom dipilih. Centang kolom di panel tengah.
+              </p>
+            ) : kolom.map((k, i) => {
+              const f = fieldByKey.get(k);
+              if (!f) return null;
+              return (
+                <div
+                  key={k}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setTujuanSeret(k);
+                  }}
+                  onDrop={() => jatuhSeret(k, false)}
+                  onDragEnd={() => {
+                    seretRef.current = null;
+                    setTujuanSeret(null);
+                  }}
+                  className={cn(
+                    'flex items-center gap-1 rounded-md border px-1 py-0.5',
+                    tujuanSeret === k && seretRef.current !== k && 'border-accent bg-accent/20',
+                  )}
+                >
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Seret untuk memindah ${f.label}`}
+                    title="Seret untuk memindah posisi kolom"
+                    draggable
+                    onDragStart={(e) => {
+                      seretRef.current = k;
+                      e.dataTransfer.effectAllowed = 'move';
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+                      e.preventDefault();
+                      geserTerpilih(i, e.key === 'ArrowUp' ? -1 : 1);
+                    }}
+                    className="grid size-6 shrink-0 cursor-grab place-items-center rounded text-muted-foreground hover:bg-accent hover:text-foreground active:cursor-grabbing"
+                  >
+                    <GripVertical size={14} />
+                  </span>
+                  <span className="w-4 shrink-0 text-right text-xs tabular-nums text-muted-foreground">{i + 1}.</span>
+                  <span className="min-w-0 flex-1 truncate text-xs" title={f.label}>{f.label}</span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon-sm"
+                    id={`btn_kolom_hapus_${tableKey}_${k}`}
+                    title="Sembunyikan kolom ini"
+                    aria-label={`Sembunyikan ${f.label}`}
+                    onClick={() => togolKolom(k, false)}
+                  >
+                    <X size={12} />
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        </section>
       </div>
 
       <DialogFooter className="mt-auto">
@@ -365,7 +467,7 @@ export default function TabKolom({
         <Button
           id={`btn_simpan_preset_${tableKey}`}
           type="submit"
-          disabled={busy || kolom.size === 0 || (!modeLengkap && !nama.trim())}
+          disabled={busy || kolom.length === 0 || (!modeLengkap && !nama.trim())}
         >
           {modeLengkap && !nama.trim() ? 'Terapkan' : modeLengkap ? 'Simpan sebagai preset' : 'Simpan'}
         </Button>
