@@ -12,7 +12,8 @@ export interface LembagaSantri {
   nis_kemenag: string | null;
   tahaj_masuk: string | null;
   tingkat_masuk: string | null;
-  no_urut: number | null;
+  /** Nomor urut masuk: string bebas (mis. `706x` untuk data ganda historis). */
+  no_urut: string | null;
   nama_sekolah_asal: string | null;
   npsn_sekolah_asal: string | null;
   nss_sekolah_asal: string | null;
@@ -228,7 +229,7 @@ export function createLembagaSantri(
     nis_kemenag?: string | null;
     tahaj_masuk?: string | null;
     tingkat_masuk?: string | null;
-    no_urut?: number | null;
+    no_urut?: string | null;
     nama_sekolah_asal?: string | null;
     npsn_sekolah_asal?: string | null;
     nss_sekolah_asal?: string | null;
@@ -251,7 +252,7 @@ export function updateLembagaSantri(
     nis_kemenag?: string | null;
     tahaj_masuk?: string | null;
     tingkat_masuk?: string | null;
-    no_urut?: number | null;
+    no_urut?: string | null;
     nama_sekolah_asal?: string | null;
     npsn_sekolah_asal?: string | null;
     nss_sekolah_asal?: string | null;

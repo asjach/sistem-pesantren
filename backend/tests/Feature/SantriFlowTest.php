@@ -471,7 +471,7 @@ class SantriFlowTest extends TestCase
         $ls = LembagaSantri::where('santri_id', $santri->id)->firstOrFail();
         $this->assertSame('2026/2027', $ls->tahaj_masuk);
         $this->assertSame('1', $ls->tingkat_masuk);
-        $this->assertSame(5, $ls->no_urut);
+        $this->assertSame('5', (string) $ls->no_urut);
         $this->assertSame('SD Negeri 1', $ls->nama_sekolah_asal);
         $this->assertSame('20512345', $ls->npsn_sekolah_asal);
         $this->assertSame('101010101010', $ls->nss_sekolah_asal);
@@ -486,13 +486,15 @@ class SantriFlowTest extends TestCase
         $this->assertSame('2', $ls->tingkat_masuk);
         $this->assertSame('Tidak', $ls->is_active_lembaga);
 
-        // Keaktifan wajib 'Ya'/'Tidak'; no_urut wajib integer.
+        // Keaktifan wajib 'Ya'/'Tidak'; no_urut boleh string (mis. `706x`
+        // untuk data ganda historis yang tercatat di ijazah).
         $this->actingAs($admin, 'sanctum')->patchJson("/api/admin/lembaga-santri/{$ls->id}", [
             'is_active_lembaga' => 'yes',
         ])->assertStatus(422);
         $this->actingAs($admin, 'sanctum')->patchJson("/api/admin/lembaga-santri/{$ls->id}", [
-            'no_urut' => 'abc',
-        ])->assertStatus(422);
+            'no_urut' => '706x',
+        ])->assertStatus(200);
+        $this->assertSame('706x', $ls->refresh()->no_urut);
 
         // Profil santri: kepala_keluarga ikut profil biasa.
         $this->actingAs($admin, 'sanctum')->patchJson("/api/admin/santri/{$santri->id}", [

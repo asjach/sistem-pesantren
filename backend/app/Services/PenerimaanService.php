@@ -81,7 +81,7 @@ class PenerimaanService
      * detail sekolah asal) mengisi yang masih kosong, tidak menimpa nilai lama.
      *
      * @param  array{nis_lokal?: ?string, tgl_masuk?: ?string, tahaj_masuk?: ?string,
-     *               tingkat_masuk?: ?string, no_urut?: ?int, nama_sekolah_asal?: ?string,
+     *               tingkat_masuk?: ?string, no_urut?: ?string, nama_sekolah_asal?: ?string,
      *               npsn_sekolah_asal?: ?string, nss_sekolah_asal?: ?string,
      *               alamat_sekolah_asal?: ?string}  $data
      */
@@ -156,7 +156,7 @@ class PenerimaanService
      *
      * @param  array{nis_lokal?: ?string, kelas_id?: ?int, tingkat?: ?string, no_absen?: ?int,
      *               status_awal?: ?string, tgl_masuk?: ?string, tahaj_masuk?: ?string,
-     *               tingkat_masuk?: ?string, no_urut?: ?int, nama_sekolah_asal?: ?string,
+     *               tingkat_masuk?: ?string, no_urut?: ?string, nama_sekolah_asal?: ?string,
      *               npsn_sekolah_asal?: ?string, nss_sekolah_asal?: ?string,
      *               alamat_sekolah_asal?: ?string}  $data
      */

@@ -189,7 +189,7 @@ export function medanDaftarKelas({ bolehSantri, bolehRiwayat }: { bolehSantri: b
       ? teks('tingkat_masuk', 'tingkat_masuk', 'lembaga_santri', 'tingkat_masuk', 110, 20)
       : statis('tingkat_masuk', 'tingkat_masuk', 'lembaga_santri', 'tingkat_masuk', 110),
     bolehSantri
-      ? angka('no_urut', 'no_urut', 'lembaga_santri', 'no_urut', 90)
+      ? teks('no_urut', 'no_urut', 'lembaga_santri', 'no_urut', 90, 20)
       : statis('no_urut', 'no_urut', 'lembaga_santri', 'no_urut', 90),
     bolehSantri
       ? teks('nama_sekolah_asal', 'nama_sekolah_asal', 'lembaga_santri', 'nama_sekolah_asal', 180)
@@ -316,7 +316,7 @@ export function pakaiCommitDaftarKelas(rows: RiwayatRow[]) {
     if (anggotaId) {
       const ada: {
         nis_lokal?: string | null; nis_kemenag?: string | null;
-        tahaj_masuk?: string | null; tingkat_masuk?: string | null; no_urut?: number | null;
+        tahaj_masuk?: string | null; tingkat_masuk?: string | null; no_urut?: string | null;
         nama_sekolah_asal?: string | null; npsn_sekolah_asal?: string | null;
         nss_sekolah_asal?: string | null; alamat_sekolah_asal?: string | null;
         is_active_lembaga?: 'Ya' | 'Tidak';
@@ -327,7 +327,7 @@ export function pakaiCommitDaftarKelas(rows: RiwayatRow[]) {
       if (f.anggota_aktif !== undefined) ada.is_active_lembaga = f.anggota_aktif === 'ya' ? 'Ya' : 'Tidak';
       if (f.tahaj_masuk !== undefined) ada.tahaj_masuk = teksAtauNull(f.tahaj_masuk);
       if (f.tingkat_masuk !== undefined) ada.tingkat_masuk = teksAtauNull(f.tingkat_masuk);
-      if (f.no_urut !== undefined) ada.no_urut = teksAtauNull(f.no_urut) === null ? null : Number(f.no_urut);
+      if (f.no_urut !== undefined) ada.no_urut = teksAtauNull(f.no_urut);
       if (f.nama_sekolah_asal !== undefined) ada.nama_sekolah_asal = teksAtauNull(f.nama_sekolah_asal);
       if (f.npsn_sekolah_asal !== undefined) ada.npsn_sekolah_asal = teksAtauNull(f.npsn_sekolah_asal);
       if (f.nss_sekolah_asal !== undefined) ada.nss_sekolah_asal = teksAtauNull(f.nss_sekolah_asal);

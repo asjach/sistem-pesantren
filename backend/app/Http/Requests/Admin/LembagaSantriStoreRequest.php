@@ -13,6 +13,16 @@ class LembagaSantriStoreRequest extends FormRequest
         return (bool) $this->user()?->can('update', $this->route('santri'));
     }
 
+    /**
+     * Terima angka (JSON) maupun string (`706x`): simpan selalu sebagai string.
+     */
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('no_urut') && $this->input('no_urut') !== null) {
+            $this->merge(['no_urut' => (string) $this->input('no_urut')]);
+        }
+    }
+
     public function rules(): array
     {
         return [
@@ -21,7 +31,7 @@ class LembagaSantriStoreRequest extends FormRequest
             'nis_kemenag' => ['nullable', 'string', 'max:20'],
             'tahaj_masuk' => ['nullable', 'string', 'max:50'],
             'tingkat_masuk' => ['nullable', 'string', 'max:20'],
-            'no_urut' => ['nullable', 'integer', 'min:0'],
+            'no_urut' => ['nullable', 'string', 'max:20'],
             'nama_sekolah_asal' => ['nullable', 'string', 'max:255'],
             'npsn_sekolah_asal' => ['nullable', 'string', 'max:20'],
             'nss_sekolah_asal' => ['nullable', 'string', 'max:30'],

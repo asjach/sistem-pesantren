@@ -528,7 +528,7 @@ class SantriLembagaImportTest extends TestCase
         $ls = LembagaSantri::where('santri_id', $santri->id)->where('jenjang', $f['mi']->jenjang)->firstOrFail();
         $this->assertSame('2026/2027', $ls->tahaj_masuk);
         $this->assertSame('1', $ls->tingkat_masuk);
-        $this->assertSame(7, $ls->no_urut);
+        $this->assertSame('7', (string) $ls->no_urut);
         $this->assertSame('SD Negeri 1', $ls->nama_sekolah_asal);
         $this->assertSame('20512345', $ls->npsn_sekolah_asal);
         $this->assertSame('101010101010', $ls->nss_sekolah_asal);

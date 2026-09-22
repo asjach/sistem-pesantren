@@ -166,7 +166,7 @@ export default function KeanggotaanPage() {
     const profil = hanyaIdentitas(f);
     const body: {
       nis_lokal?: string | null; nis_kemenag?: string | null;
-      tahaj_masuk?: string | null; tingkat_masuk?: string | null; no_urut?: number | null;
+      tahaj_masuk?: string | null; tingkat_masuk?: string | null; no_urut?: string | null;
       nama_sekolah_asal?: string | null; npsn_sekolah_asal?: string | null;
       nss_sekolah_asal?: string | null; alamat_sekolah_asal?: string | null;
       is_active_lembaga?: 'Ya' | 'Tidak';
@@ -176,7 +176,7 @@ export default function KeanggotaanPage() {
     if (f.nis_kemenag !== undefined) body.nis_kemenag = teksAtauNull(f.nis_kemenag);
     if (f.tahaj_masuk !== undefined) body.tahaj_masuk = teksAtauNull(f.tahaj_masuk);
     if (f.tingkat_masuk !== undefined) body.tingkat_masuk = teksAtauNull(f.tingkat_masuk);
-    if (f.no_urut !== undefined) body.no_urut = teksAtauNull(f.no_urut) === null ? null : Number(f.no_urut);
+    if (f.no_urut !== undefined) body.no_urut = teksAtauNull(f.no_urut);
     if (f.nama_sekolah_asal !== undefined) body.nama_sekolah_asal = teksAtauNull(f.nama_sekolah_asal);
     if (f.npsn_sekolah_asal !== undefined) body.npsn_sekolah_asal = teksAtauNull(f.npsn_sekolah_asal);
     if (f.nss_sekolah_asal !== undefined) body.nss_sekolah_asal = teksAtauNull(f.nss_sekolah_asal);
@@ -277,7 +277,7 @@ export default function KeanggotaanPage() {
     { key: 'nis_kemenag', label: 'nis_kemenag', kind: 'text', maxLength: 20, sumber: { tabel: 'lembaga_santri', kolom: 'nis_kemenag' } },
     { key: 'tahaj_masuk', label: 'tahaj_masuk', kind: 'text', maxLength: 50, width: 120, sumber: { tabel: 'lembaga_santri', kolom: 'tahaj_masuk' } },
     { key: 'tingkat_masuk', label: 'tingkat_masuk', kind: 'text', maxLength: 20, width: 110, sumber: { tabel: 'lembaga_santri', kolom: 'tingkat_masuk' } },
-    { key: 'no_urut', label: 'no_urut', kind: 'text', maxLength: 6, width: 90, sumber: { tabel: 'lembaga_santri', kolom: 'no_urut' } },
+    { key: 'no_urut', label: 'no_urut', kind: 'text', maxLength: 20, width: 90, sumber: { tabel: 'lembaga_santri', kolom: 'no_urut' } },
     { key: 'nama_sekolah_asal', label: 'nama_sekolah_asal', kind: 'text', maxLength: 255, width: 180, sumber: { tabel: 'lembaga_santri', kolom: 'nama_sekolah_asal' } },
     { key: 'npsn_sekolah_asal', label: 'npsn_sekolah_asal', kind: 'text', maxLength: 20, width: 130, sumber: { tabel: 'lembaga_santri', kolom: 'npsn_sekolah_asal' } },
     { key: 'nss_sekolah_asal', label: 'nss_sekolah_asal', kind: 'text', maxLength: 30, width: 130, sumber: { tabel: 'lembaga_santri', kolom: 'nss_sekolah_asal' } },

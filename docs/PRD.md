@@ -134,6 +134,7 @@
 | 2.80 | 2026-09-22 | Import gabungan: `tahaj_masuk` (+`tingkat_masuk`) otomatis membuat riwayat belajar perdana (semester 1) via `PenerimaanService::terima`; dilewati bila riwayat aktif sudah ada atau keanggotaan nonaktif; TA tak dikenal menolak baris; ringkasan `baris_riwayat_dibuat`; suite 271/271 |
 | 2.81 | 2026-09-22 | Import tahan file besar: baca per chunk 500 baris (state lintas chunk di properti; nomor baris global; transaksi per chunk), cek heading baca-data-saja; perbaiki OOM `memory_limit` pada xlsx ±2000 baris; suite 273/273 |
 | 2.82 | 2026-09-23 | Import tahan data nyata: normalisasi `tahaj_masuk` strip→slash (`1998-1999`→`1998/1999`) & tanggal nol Excel (`1900-01-00`)→null; rule panjang kolom DB (nik/ayah/ibu/wali, nis, npsn/nss, no_urut digit) agar gagal per baris bukan 500; penomoran baris Excel-absolut selaras validator; jaring `QueryException` per baris; suite 274/274 |
+| 2.83 | 2026-09-23 | `lembaga_santri.no_urut` jadi string(20) — menerima sufiks huruf (`706x`) untuk data ganda historis yang tercatat di ijazah; request/import/frontend longgar; suite 274/274 |
 
 ## Daftar Isi
 

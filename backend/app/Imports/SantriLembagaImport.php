@@ -314,7 +314,8 @@ class SantriLembagaImport extends SantriLengkapImport
         $konteks = [
             'tahaj_masuk' => $teksKolom('tahaj_masuk'),
             'tingkat_masuk' => $teksKolom('tingkat_masuk'),
-            'no_urut' => $noUrut !== null ? (int) $noUrut : null,
+            // String bebas (mis. `706x` untuk data ganda historis).
+            'no_urut' => $noUrut,
             'nama_sekolah_asal' => $teksKolom('nama_sekolah_asal'),
             'npsn_sekolah_asal' => $teksKolom('npsn_sekolah_asal'),
             'nss_sekolah_asal' => $teksKolom('nss_sekolah_asal'),
@@ -450,7 +451,7 @@ class SantriLembagaImport extends SantriLengkapImport
             'nis_kemenag' => ['nullable', 'string', 'max:20'],
             'tahaj_masuk' => ['nullable', 'string', 'max:50'],
             'tingkat_masuk' => ['nullable', 'string', 'max:20'],
-            'no_urut' => ['nullable', 'regex:/^\d{1,10}$/'],
+            'no_urut' => ['nullable', 'string', 'max:20'],
             'nama_sekolah_asal' => ['nullable', 'string', 'max:255'],
             'npsn_sekolah_asal' => ['nullable', 'string', 'max:20'],
             'nss_sekolah_asal' => ['nullable', 'string', 'max:30'],

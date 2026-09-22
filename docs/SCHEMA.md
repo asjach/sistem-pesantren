@@ -369,7 +369,7 @@ Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca
 - `nis_kemenag`: string(20) [null] — NISK manual: 12 digit NSM lembaga + 2 digit tahun diterima + 4 digit akhir `nis_lokal`; unik per lembaga
 - `tahaj_masuk`: string(50) [null] — tahun pelajaran saat masuk (mis. "2026/2027"), bukan FK
 - `tingkat_masuk`: string(20) [null] — tingkat saat pertama masuk lembaga
-- `no_urut`: unsigned int [null] — nomor urut masuk per lembaga (tidak unik)
+- `no_urut`: string(20) [null] — nomor urut masuk per lembaga (tidak unik; boleh sufiks huruf mis. `706x` untuk data ganda historis)
 - `nama_sekolah_asal`, `npsn_sekolah_asal` (20), `nss_sekolah_asal` (30), `alamat_sekolah_asal` (text): [null] — detail sekolah asal
 - `is_active_lembaga`: enum('Ya','Tidak') [default 'Ya'] — status keanggotaan
 - `tgl_masuk`: date [null] — saat diterima (PSB/dialog/import); dulu `tgl_mulai`
