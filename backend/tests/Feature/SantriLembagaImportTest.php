@@ -641,4 +641,41 @@ class SantriLembagaImportTest extends TestCase
         // Ditolak sebelum menulis: tak ada santri/keanggotaan yang terbentuk.
         $this->assertFalse(Santri::where('nik', '1101010000000024')->exists());
     }
+
+    // ---------- 25. riwayat lama (arsip) di TA sama → tidak error & tidak duplikat ----------
+
+    public function test_25_riwayat_arsip_ta_sama_tidak_diduplikasi(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeAdmin([$f['mi']->jenjang]);
+        TahunAjaran::create([
+            'nama' => '2026/2027',
+            'tanggal_mulai' => '2026-07-01', 'tanggal_selesai' => '2027-06-30', 'is_aktif' => true,
+        ]);
+
+        $santri = Santri::create(['nama_lengkap' => 'Arsip Lama', 'nik' => '1101010000000025', 'jk' => 'L', 'tgl_lahir' => '2015-07-01']);
+        LembagaSantri::create(['santri_id' => $santri->id, 'jenjang' => $f['mi']->jenjang, 'nis_lokal' => '27501', 'is_active_lembaga' => 'Ya']);
+        // Riwayat perdana lama sudah diarsipkan (mis. pernah keluar lalu masuk lagi).
+        RiwayatBelajar::create([
+            'santri_id' => $santri->id, 'tahun_ajaran' => '2026/2027', 'jenjang' => $f['mi']->jenjang,
+            'semester' => '1', 'tingkat' => '1', 'status_awal' => 'santri_baru', 'status_akhir' => 'pindah_keluar',
+            'is_active_riwayat' => RiwayatBelajar::TIDAK,
+        ]);
+
+        $this->upload($admin, $this->makeCsv([[
+            'jenjang' => 'MI',
+            'nis_lokal' => '27501',
+            'is_active_lembaga' => 'Ya',
+            'tgl_masuk' => '2026-07-01',
+            'tahaj_masuk' => '2026/2027',
+            'tingkat_masuk' => '1',
+            'nama_lengkap' => 'Arsip Lama',
+            'nik' => '1101010000000025',
+            'jk' => 'L',
+            'tgl_lahir' => '2015-07-01',
+        ]]))->assertStatus(200);
+
+        // Tidak menambah baris riwayat (unique santri+TA+jenjang+semester dijaga).
+        $this->assertSame(1, RiwayatBelajar::where('santri_id', $santri->id)->count());
+    }
 }

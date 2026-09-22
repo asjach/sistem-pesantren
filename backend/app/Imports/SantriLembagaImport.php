@@ -9,6 +9,7 @@ use App\Models\Santri;
 use App\Models\TahunAjaran;
 use App\Services\PenerimaanService;
 use App\Support\Tanggal;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -130,7 +131,9 @@ class SantriLembagaImport extends SantriLengkapImport
     /**
      * Buat riwayat belajar perdana (semester 1) dari `tahaj_masuk` +
      * `tingkat_masuk`. Dilewati bila santri sudah punya riwayat aktif di lembaga
-     * ini (idempoten saat re-import). Kegagalan validasi dicatat per baris.
+     * ini ATAU sudah punya baris (santri, tahun ajaran, jenjang, semester 1) —
+     * menjaga unique constraint & idempoten saat re-import. Kegagalan dicatat
+     * per baris (tidak membatalkan seluruh import).
      *
      * @param  array<string, mixed>  $baris
      */
@@ -141,11 +144,17 @@ class SantriLembagaImport extends SantriLengkapImport
             return;
         }
 
-        $ada = RiwayatBelajar::where('santri_id', $santri->id)
+        // Lewati bila sudah ada riwayat aktif di jenjang ini (santri sedang berjalan)
+        // atau baris perdana identik sudah ada (termasuk yang sudah diarsipkan).
+        $sudahAda = RiwayatBelajar::where('santri_id', $santri->id)
             ->where('jenjang', $jenjang)
-            ->where('is_active_riwayat', RiwayatBelajar::YA)
+            ->where(fn ($q) => $q
+                ->where('is_active_riwayat', RiwayatBelajar::YA)
+                ->orWhere(fn ($q2) => $q2
+                    ->where('tahun_ajaran', $tahunAjaran)
+                    ->where('semester', '1')))
             ->exists();
-        if ($ada) {
+        if ($sudahAda) {
             return;
         }
 
@@ -160,6 +169,9 @@ class SantriLembagaImport extends SantriLengkapImport
         } catch (ValidationException $e) {
             $pesan = (string) (collect($e->errors())->flatten()->first() ?? 'Riwayat belajar gagal dibuat.');
             $this->fail($no, 'riwayat_belajar', $pesan);
+        } catch (QueryException $e) {
+            // Bentrok unique (mis. balapan) → catat per baris, jangan batalkan import.
+            $this->fail($no, 'riwayat_belajar', 'Riwayat belajar bentrok dengan data yang ada.');
         }
     }
 
