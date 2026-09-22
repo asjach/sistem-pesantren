@@ -34,8 +34,10 @@ class SantriLengkapImport implements SkipsOnFailure, SkipsUnknownSheets, ToColle
     /** @var Failure[] */
     protected array $failures = [];
 
-    /** Nomor baris Excel global (antar chunk) untuk atribusi kegagalan. */
-    protected int $nomorBaris = 0;
+    /** Nomor baris Excel global (antar chunk) untuk atribusi kegagalan.
+     *  Mulai dari 1 (= baris heading) agar selaras dengan penomoran validator
+     *  maatwebsite: baris data pertama = 2. */
+    protected int $nomorBaris = 1;
 
     /** Guard duplikat intra-file lintas chunk: kunci nik|nama|tgl. */
     protected array $dilihat = [];
@@ -47,7 +49,9 @@ class SantriLengkapImport implements SkipsOnFailure, SkipsUnknownSheets, ToColle
     protected const KOLOM_TEKS = [
         'nik', 'nisn', 'no_kk', 'ayah_nik', 'ibu_nik', 'wali_nik',
         'rt', 'rw', 'kode_pos', 'no_hp_santri', 'ayah_telp', 'ibu_telp', 'wali_telp',
-        'nomor_kip', 'nis_lokal', 'nis_kemenag', 'tahaj_masuk',
+        'nomor_kip', 'nis_lokal', 'nis_kemenag', 'tahaj_masuk', 'no_urut',
+        'tingkat_masuk', 'nama_sekolah_asal', 'npsn_sekolah_asal', 'nss_sekolah_asal',
+        'alamat_sekolah_asal',
     ];
 
     /** Kolom tanggal: serial number Excel → `Y-m-d` (string teks lolos apa adanya). */
@@ -102,7 +106,16 @@ class SantriLengkapImport implements SkipsOnFailure, SkipsUnknownSheets, ToColle
         }
 
         foreach (static::KOLOM_TANGGAL as $kolom) {
-            if (isset($baris[$kolom]) && (is_int($baris[$kolom]) || is_float($baris[$kolom]))) {
+            if (! isset($baris[$kolom])) {
+                continue;
+            }
+            // Tanggal nol (`1900-01-00`) = sel kosong di sistem sumber.
+            if (Tanggal::adalahTanggalNol($baris[$kolom])) {
+                $baris[$kolom] = null;
+
+                continue;
+            }
+            if (is_int($baris[$kolom]) || is_float($baris[$kolom])) {
                 try {
                     $baris[$kolom] = Date::excelToDateTimeObject($baris[$kolom])->format('Y-m-d');
                 } catch (\Throwable $e) {
@@ -111,7 +124,37 @@ class SantriLengkapImport implements SkipsOnFailure, SkipsUnknownSheets, ToColle
             }
         }
 
+        // Tahun ajaran masuk: `1998-1999` (strip) → kanonis `1998/1999` (slash).
+        if (isset($baris['tahaj_masuk'])) {
+            $baris['tahaj_masuk'] = static::normalisasiTahunAjaran($baris['tahaj_masuk']);
+        }
+
         return $baris;
+    }
+
+    /**
+     * Normalisasi tahun ajaran ke format kanonis `YYYY/YYYY` (kunci `tahun_ajaran.nama`).
+     * Menerima pemisah strip/en-dash/slash dan tahun akhir 2 digit (`1998-99`).
+     */
+    protected static function normalisasiTahunAjaran(mixed $nilai): mixed
+    {
+        if (is_int($nilai) || is_float($nilai)) {
+            $nilai = fmod((float) $nilai, 1.0) === 0.0 ? (string) (int) $nilai : (string) $nilai;
+        }
+        if (! is_string($nilai)) {
+            return $nilai;
+        }
+        $teks = trim($nilai);
+        if (preg_match('/^(\d{4})\s*[-–—\/]\s*(\d{2}|\d{4})$/u', $teks, $m)) {
+            $akhir = $m[2];
+            if (strlen($akhir) === 2) {
+                $akhir = substr($m[1], 0, 2).$akhir;
+            }
+
+            return $m[1].'/'.$akhir;
+        }
+
+        return $nilai;
     }
 
     public function onUnknownSheet(string|int $sheetName): void
@@ -286,6 +329,9 @@ class SantriLengkapImport implements SkipsOnFailure, SkipsUnknownSheets, ToColle
             'jk' => ['required', 'in:L,P'],
             'nik' => ['nullable', 'digits:16'],
             'nisn' => ['nullable', 'digits:10'],
+            'ayah_nik' => ['nullable', 'digits:16'],
+            'ibu_nik' => ['nullable', 'digits:16'],
+            'wali_nik' => ['nullable', 'digits:16'],
             'tipe_santri' => ['nullable', 'in:asrama,non_asrama'],
             // Kolom kamus: string bebas (tanpa exists)
             'agama' => ['nullable', 'string', 'max:50'],

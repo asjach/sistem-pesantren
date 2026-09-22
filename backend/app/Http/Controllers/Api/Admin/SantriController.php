@@ -29,6 +29,7 @@ use Maatwebsite\Excel\Facades\Excel;
 use Maatwebsite\Excel\Validators\Failure;
 use Maatwebsite\Excel\Validators\ValidationException;
 use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Reader\IReadFilter;
 
 /**
  * Buku Induk santri — identitas murni (`santri`).
@@ -431,9 +432,16 @@ class SantriController extends Controller
     private function cekHeadingGabungan($file): ?string
     {
         try {
-            // Baca data saja (tanpa style) agar file besar tak makan memori.
+            // Hanya baris 1 (tanpa data/style) agar file besar tak makan memori.
             $reader = IOFactory::createReaderForFile($file->getRealPath());
             $reader->setReadDataOnly(true);
+            $reader->setReadFilter(new class implements IReadFilter
+            {
+                public function readCell($columnAddress, $row, $worksheetName = ''): bool
+                {
+                    return $row === 1;
+                }
+            });
             $sheet = $reader->load($file->getRealPath())->getSheet(0);
             $baris = $sheet->rangeToArray('A1:ZZ1', null, true, false)[0] ?? [];
         } catch (\Throwable $e) {

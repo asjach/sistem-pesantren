@@ -112,12 +112,20 @@ class SantriLembagaImport extends SantriLengkapImport
         }
 
         $dataSantri = $this->buatDataSantri($baris);
-        $santri = $this->cocokkanSantri($baris, $dataSantri, $no, $jenjang, $this->dilihatNik, $this->dilihatNis, $sudahAda);
-        if ($santri === null) {
-            return false;
-        }
+        // Jaring pengaman: kegagalan tulis DB (mis. bentrok unik) dicatat per
+        // baris, bukan 500 yang membatalkan seluruh file.
+        try {
+            $santri = $this->cocokkanSantri($baris, $dataSantri, $no, $jenjang, $this->dilihatNik, $this->dilihatNis, $sudahAda);
+            if ($santri === null) {
+                return false;
+            }
 
-        if (! $this->simpanKeanggotaan($santri, $jenjang, $baris, $no, $keanggotaanBaru)) {
+            if (! $this->simpanKeanggotaan($santri, $jenjang, $baris, $no, $keanggotaanBaru)) {
+                return false;
+            }
+        } catch (QueryException $e) {
+            $this->fail($no, 'basis_data', 'Gagal menyimpan baris ini ke database.');
+
             return false;
         }
 
@@ -430,21 +438,23 @@ class SantriLembagaImport extends SantriLengkapImport
             'nama_lengkap' => ['required_without:santri_id', 'nullable', 'string', 'max:255'],
             'jk' => ['required_without:santri_id', 'nullable', 'in:L,P'],
             // Identitas: minimal satu kunci (NIK tak selalu ada).
-            // CATAT: sel Excel/CSV numerik terbaca sebagai angka (bukan string) —
-            // hindari rule `string`/`max` ketat di kolom kunci (pola RiwayatBelajarImport).
+            // Sel numerik Excel sudah dinormalisasi jadi string di `map()`,
+            // sehingga rule `string`/`max` aman dipakai.
             'nik' => ['required_without_all:nis_lokal,santri_id', 'nullable', 'digits:16'],
-            'nis_lokal' => ['required_without_all:nik,santri_id', 'nullable'],
             // Blok keanggotaan WAJIB: tiap santri minimal terdaftar di 1 jenjang.
+            // Batas `max` mengikuti panjang kolom DB agar kelebihan ditolak per
+            // baris (bukan 500 dari database).
             'santri_id' => ['nullable', 'integer'],
             'jenjang' => ['required', 'string'],
-            'nis_kemenag' => ['nullable'],
-            'tahaj_masuk' => ['nullable'],
-            'tingkat_masuk' => ['nullable'],
-            'no_urut' => ['nullable'],
-            'nama_sekolah_asal' => ['nullable'],
-            'npsn_sekolah_asal' => ['nullable'],
-            'nss_sekolah_asal' => ['nullable'],
-            'alamat_sekolah_asal' => ['nullable'],
+            'nis_lokal' => ['required_without_all:nik,santri_id', 'nullable', 'string', 'max:20'],
+            'nis_kemenag' => ['nullable', 'string', 'max:20'],
+            'tahaj_masuk' => ['nullable', 'string', 'max:50'],
+            'tingkat_masuk' => ['nullable', 'string', 'max:20'],
+            'no_urut' => ['nullable', 'regex:/^\d{1,10}$/'],
+            'nama_sekolah_asal' => ['nullable', 'string', 'max:255'],
+            'npsn_sekolah_asal' => ['nullable', 'string', 'max:20'],
+            'nss_sekolah_asal' => ['nullable', 'string', 'max:30'],
+            'alamat_sekolah_asal' => ['nullable', 'string'],
             'is_active_lembaga' => ['nullable'],
             'tgl_masuk' => ['nullable', 'date'],
             'tgl_selesai' => ['nullable', 'date'],

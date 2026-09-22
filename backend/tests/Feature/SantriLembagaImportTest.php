@@ -83,7 +83,7 @@ class SantriLembagaImportTest extends TestCase
             'is_active_lembaga', 'tgl_masuk', 'tgl_selesai',
             'tahaj_masuk', 'tingkat_masuk', 'no_urut',
             'nama_sekolah_asal', 'npsn_sekolah_asal', 'nss_sekolah_asal', 'alamat_sekolah_asal',
-            'nama_lengkap', 'nik', 'jk', 'tgl_lahir', 'kepala_keluarga',
+            'nama_lengkap', 'nik', 'jk', 'tgl_lahir', 'kepala_keluarga', 'ayah_nik',
         ];
         $tmp = tempnam(sys_get_temp_dir(), 'gabungan').'.csv';
         $h = fopen($tmp, 'w');
@@ -710,10 +710,79 @@ class SantriLembagaImportTest extends TestCase
         $this->assertFalse((bool) $res->json('siap_import'));
         $this->assertSame(600, (int) $res->json('ringkasan.baris_diproses'));
         $this->assertSame(599, (int) $res->json('ringkasan.baris_valid'));
-        $this->assertSame(600, (int) $res->json('errors.0.row'));
+        // Penomoran Excel-absolut (baris 1 = heading): baris data ke-600 = 601.
+        $this->assertSame(601, (int) $res->json('errors.0.row'));
         $this->assertSame('tahaj_masuk', $res->json('errors.0.attribute'));
         // Dry-run: tak ada yang tertulis.
         $this->assertSame(0, Santri::count());
         $this->assertSame(0, RiwayatBelajar::count());
+    }
+
+    // ---------- 27. normalisasi data nyata: strip TA, tanggal nol, NIK ortu ----------
+
+    public function test_27_normalisasi_strip_tanggal_nol_dan_nik_ortu(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeAdmin([$f['mi']->jenjang]);
+        TahunAjaran::create([
+            'nama' => '2026/2027',
+            'tanggal_mulai' => '2026-07-01', 'tanggal_selesai' => '2027-06-30', 'is_aktif' => true,
+        ]);
+
+        // Baris 1: tahaj strip + tanggal nol → diterima (riwayat TA kanonis, tgl null).
+        // Baris 2: ayah_nik 17 digit → gagal per baris (bukan 500).
+        $res = $this->upload($admin, $this->makeCsv([
+            [
+                'jenjang' => 'MI',
+                'nis_lokal' => '27701',
+                'is_active_lembaga' => 'Ya',
+                'tgl_masuk' => '2026-07-01',
+                'tgl_selesai' => '1900-01-00',
+                'tahaj_masuk' => '2026-2027',
+                'tingkat_masuk' => '1',
+                'nama_lengkap' => 'Normalisasi Satu',
+                'nik' => '1101010000000027',
+                'jk' => 'L',
+                'tgl_lahir' => '2015-07-01',
+            ],
+            [
+                'jenjang' => 'MI',
+                'nis_lokal' => '27702',
+                'nama_lengkap' => 'Nik Ortu Panjang',
+                'nik' => '1101010000000028',
+                'jk' => 'P',
+                'tgl_lahir' => '2015-07-01',
+                'ayah_nik' => '32041001010100001',
+            ],
+        ]), 'import-periksa-gabungan')->assertStatus(200);
+
+        $this->assertFalse((bool) $res->json('siap_import'));
+        $this->assertSame(2, (int) $res->json('ringkasan.baris_diproses'));
+        $this->assertSame(1, (int) $res->json('ringkasan.baris_valid'));
+        // Selaras validator: baris data ke-2 = baris Excel 3.
+        $this->assertSame(3, (int) $res->json('errors.0.row'));
+        $this->assertSame('ayah_nik', $res->json('errors.0.attribute'));
+
+        // Baris valid tetap bisa dieksekusi sendiri dengan hasil ternormalisasi.
+        $this->upload($admin, $this->makeCsv([[
+            'jenjang' => 'MI',
+            'nis_lokal' => '27701',
+            'is_active_lembaga' => 'Ya',
+            'tgl_masuk' => '2026-07-01',
+            'tgl_selesai' => '1900-01-00',
+            'tahaj_masuk' => '2026-2027',
+            'tingkat_masuk' => '1',
+            'nama_lengkap' => 'Normalisasi Satu',
+            'nik' => '1101010000000027',
+            'jk' => 'L',
+            'tgl_lahir' => '2015-07-01',
+        ]]))->assertStatus(200);
+
+        $santri = Santri::where('nik', '1101010000000027')->firstOrFail();
+        $ls = LembagaSantri::where('santri_id', $santri->id)->firstOrFail();
+        $this->assertSame('2026/2027', $ls->tahaj_masuk);
+        $this->assertNull($ls->tgl_selesai);
+        $riwayat = RiwayatBelajar::where('santri_id', $santri->id)->firstOrFail();
+        $this->assertSame('2026/2027', $riwayat->tahun_ajaran);
     }
 }

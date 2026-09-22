@@ -200,7 +200,11 @@ Import satu pintu: template-data-periksa-eksekusi; berkas `xlsx/xls/csv` maks
 baris lebih tetap diproses); tulis gabungan butuh
 `santri.tambah` DAN `santri.ubah`; file dibaca per chunk 500 baris (hemat
 memori; nomor baris & guard duplikat global lintas chunk; transaksi per chunk);
-cek heading memakai mode baca-data-saja; pencocokan 4 lapis (santri_id eksak → NIK →
+cek heading memakai mode baca-data-saja; normalisasi `tahaj_masuk` strip→slash
+(`1998-1999`→`1998/1999`) & tanggal nol (`1900-01-00`)→null; rule panjang kolom
+DB (nik/ayah/ibu/wali, nis, npsn/nss, `no_urut` digit) + jaring `QueryException`
+agar kelebihan data gagal per baris (bukan 500); nomor baris Excel-absolut
+selaras validator; pencocokan 4 lapis (santri_id eksak → NIK →
 nis+lembaga → create wajib nama); sel kosong = pertahankan (tanpa pengosongan
 via file); NIK kosong selalu create; **keanggotaan wajib**: tiap baris harus
 punya `jenjang` (case-insensitive) — santri minimal terdaftar di 1 jenjang;
