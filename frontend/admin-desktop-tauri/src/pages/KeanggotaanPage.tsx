@@ -19,10 +19,12 @@ import FilterField from '@/components/FilterField';
 import { FieldLabel } from '@/components/ui/field';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import Pager from '@/components/Pager';
 import { usePager } from '@/hooks/usePager';
 import ImportSantriGabunganDialog from '@/components/ImportSantriGabunganDialog';
+import { MoreVertical } from '@/icons';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { toast } from 'sonner';
 
@@ -304,20 +306,34 @@ export default function KeanggotaanPage() {
         onSearchChange={setCari}
         searchIds={{ form: 'form_cari_keanggotaan', input: 'input_cari_keanggotaan', button: 'btn_cari_keanggotaan' }}
         addButton={canTambah || canUbah ? (
-          <>
-            {canUbah && (
-              <Button id="btn_generate_nisk" size="sm" variant="outline" disabled={busyId !== null}
-                onClick={() => void generateSemua()}>
-                {busyId !== null ? 'Memproses…' : 'Generate NISK'}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button id="btn_aksi_keanggotaan" size="sm" variant="outline" aria-label="Aksi lain" title="Aksi lain">
+                <MoreVertical data-icon="inline-start" size={16} /> Aksi
               </Button>
-            )}
-            {canTambah && (
-              <Button id="btn_tambah_keanggotaan" size="sm" onClick={() => setTambahOpen(true)}>Tambah</Button>
-            )}
-            {canTambah && canUbah && (
-              <Button id="btn_buka_import_keanggotaan" size="sm" variant="outline" onClick={() => setImportOpen(true)}>Import</Button>
-            )}
-          </>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-44">
+              {canUbah && (
+                <DropdownMenuItem
+                  id="btn_generate_nisk"
+                  disabled={busyId !== null}
+                  onSelect={() => void generateSemua()}
+                >
+                  {busyId !== null ? 'Memproses…' : 'Generate NISK'}
+                </DropdownMenuItem>
+              )}
+              {canTambah && (
+                <DropdownMenuItem id="btn_tambah_keanggotaan" onSelect={() => setTambahOpen(true)}>
+                  Tambah
+                </DropdownMenuItem>
+              )}
+              {canTambah && canUbah && (
+                <DropdownMenuItem id="btn_buka_import_keanggotaan" onSelect={() => setImportOpen(true)}>
+                  Import
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         ) : null}
         fields={fields}
         rows={rows}
