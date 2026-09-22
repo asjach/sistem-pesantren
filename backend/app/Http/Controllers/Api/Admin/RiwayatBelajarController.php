@@ -38,7 +38,9 @@ class RiwayatBelajarController extends Controller
         'kelas.nama_kelas', 'riwayat_belajar.tingkat', 'riwayat_belajar.no_absen',
     ];
 
-    /** GET /api/admin/riwayat-belajar — roster riwayat (default hanya aktif). */
+    /** GET /api/admin/riwayat-belajar — roster riwayat (default hanya aktif).
+     *  Filter kelas: `tanpa_kelas=1` (belum ditempatkan) / `dengan_kelas=1`
+     *  (sudah masuk kelas) — dipakai dua panel halaman awal tahun ajaran. */
     public function index(Request $request): JsonResponse
     {
         $this->authorize('viewAny', Santri::class);
@@ -81,6 +83,9 @@ class RiwayatBelajarController extends Controller
         }
         if ($request->boolean('tanpa_kelas')) {
             $query->whereNull('riwayat_belajar.kelas_id');
+        }
+        if ($request->boolean('dengan_kelas')) {
+            $query->whereNotNull('riwayat_belajar.kelas_id');
         }
         if ($request->filled('q')) {
             $q = $request->input('q');

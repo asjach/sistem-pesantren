@@ -280,6 +280,13 @@ dari riwayat aktif terakhir, input manual menang bila diisi (validasi
 Aturan rombel: `no_absen` unik per (kelas, tahun ajaran, semester), minimal 1;
 kelas tujuan se-lembaga + se-TA, tingkat cocok bila keduanya terisi; hanya
 riwayat aktif yang bisa diset/dipindah/dikosongkan kelasnya.
+Halaman awal tahun ajaran dua panel: kiri = riwayat aktif semester 1 tanpa kelas
+(filter tingkat; panah = `set-kelas` ke kelas terpilih di filter kanan, izin
+`pindah_kelas.ubah`, tingkat harus cocok), kanan = riwayat semester 1 yang sudah
+masuk kelas (filter `dengan_kelas`; filter tingkat + kelas; aksi = keluar-kelas
+kembali ke kiri, bukan hapus). ACC daftar-ulang PSB ikut membuat riwayat perdana
+tanpa kelas (idempoten bila sudah ada), sehingga santri PSB langsung tampil di
+panel kiri.
 Aturan salin genap: wajib dari baris aktif semester 1; tolak bila baris
 semester 2 tahun sama sudah ada. Aturan kenaikan: wajib dari semester 2 aktif;
 `tidak_lulus` wajib TA berikut sudah ada (tingkat diwarisi, keanggotaan tetap

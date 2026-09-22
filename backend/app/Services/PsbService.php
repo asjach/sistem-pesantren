@@ -478,8 +478,9 @@ class PsbService
                 $santri->update($payload);
             }
 
-            // Keanggotaan (`lembaga_santri`) per lembaga detail. Riwayat belajar
-            // perdana TIDAK dibuat di sini — diinput lewat halaman Riwayat Belajar.
+            // Keanggotaan (`lembaga_santri`) per lembaga detail + riwayat belajar
+            // perdana TANPA kelas — santri PSB langsung tampil di tabel kiri
+            // halaman Riwayat Belajar (awal tahun ajaran).
             if ($calon->tahun_ajaran) {
                 if ($calon->lembagaDetail()->count() === 0) {
                     $calon->lembagaDetail()->create(['jenjang' => $calon->jenjang, 'peran' => 'primer']);
@@ -494,6 +495,22 @@ class PsbService
                         'nis_lokal' => $nis,
                         'tgl_masuk' => $calon->tanggal_masuk,
                     ]);
+
+                    // Lewati bila sudah punya riwayat aktif / baris perdana TA ini
+                    // (santri lama daftar lagi) — idempoten seperti import.
+                    $taCalon = (string) $calon->tahun_ajaran;
+                    $riwayatAda = RiwayatBelajar::where('santri_id', $santri->id)
+                        ->where('jenjang', $lembagaDetailId)
+                        ->where(fn ($q) => $q->where('is_active_riwayat', RiwayatBelajar::YA)
+                            ->orWhere(fn ($q2) => $q2->where('tahun_ajaran', $taCalon)->where('semester', '1')))
+                        ->exists();
+                    if (! $riwayatAda) {
+                        $penerimaan->terima($santri, $lembagaDetailId, $taCalon, [
+                            'nis_lokal' => $nis,
+                            'tingkat' => $detail->masuk_tingkat ?? null,
+                            'tgl_masuk' => $calon->tanggal_masuk,
+                        ]);
+                    }
                 }
             }
             // PINDAH dokumen: milik santri penuh (jejak asal via santri_id hasil + psb_log_status).

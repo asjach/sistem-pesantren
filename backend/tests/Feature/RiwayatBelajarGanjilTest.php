@@ -260,4 +260,42 @@ class RiwayatBelajarGanjilTest extends TestCase
         ]))->assertStatus(200);
         $this->assertNotContains($santri->id, collect($res->json('data'))->pluck('santri_id')->all());
     }
+
+    // ---------- 05. filter dengan_kelas / tanpa_kelas + tingkat ----------
+
+    public function test_08_filter_dengan_tanpa_kelas_dan_tingkat(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeUser();
+        $tanpa = $this->makeAnggota('Tanpa Kelas', $f['mi']->jenjang);
+        RiwayatBelajar::create([
+            'santri_id' => $tanpa->id, 'tahun_ajaran' => $f['ta']->nama, 'jenjang' => $f['mi']->jenjang,
+            'semester' => '1', 'tingkat' => '1', 'status_awal' => 'santri_baru', 'status_akhir' => 'aktif',
+            'is_active_riwayat' => 'Ya',
+        ]);
+        $berkelas = $this->makeAnggota('Sudah Berkelas', $f['mi']->jenjang);
+        RiwayatBelajar::create([
+            'santri_id' => $berkelas->id, 'tahun_ajaran' => $f['ta']->nama, 'jenjang' => $f['mi']->jenjang,
+            'kelas_id' => $f['kelas']->id, 'semester' => '1', 'tingkat' => '1',
+            'status_awal' => 'santri_baru', 'status_akhir' => 'aktif', 'is_active_riwayat' => 'Ya',
+        ]);
+
+        $ids = fn ($res) => collect($res->json('data'))->pluck('santri_id')->sort()->values()->all();
+        $dasar = ['jenjang' => $f['mi']->jenjang, 'tahun_ajaran' => $f['ta']->nama, 'semester' => '1'];
+
+        $res = $this->actingAs($admin, 'sanctum')->getJson('/api/admin/riwayat-belajar?'.http_build_query($dasar + ['tanpa_kelas' => '1']))->assertStatus(200);
+        $this->assertSame([$tanpa->id], $ids($res));
+
+        $res = $this->actingAs($admin, 'sanctum')->getJson('/api/admin/riwayat-belajar?'.http_build_query($dasar + ['dengan_kelas' => '1']))->assertStatus(200);
+        $this->assertSame([$berkelas->id], $ids($res));
+
+        // Kombinasi tingkat + kelas_id pada panel kanan.
+        $res = $this->actingAs($admin, 'sanctum')->getJson('/api/admin/riwayat-belajar?'.http_build_query($dasar + [
+            'dengan_kelas' => '1', 'tingkat' => '1', 'kelas_id' => $f['kelas']->id,
+        ]))->assertStatus(200);
+        $this->assertSame([$berkelas->id], $ids($res));
+
+        $res = $this->actingAs($admin, 'sanctum')->getJson('/api/admin/riwayat-belajar?'.http_build_query($dasar + ['dengan_kelas' => '1', 'tingkat' => '2']))->assertStatus(200);
+        $this->assertSame([], $ids($res));
+    }
 }

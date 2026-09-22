@@ -137,6 +137,7 @@
 | 2.83 | 2026-09-23 | `lembaga_santri.no_urut` jadi string(20) — menerima sufiks huruf (`706x`) untuk data ganda historis yang tercatat di ijazah; request/import/frontend longgar; suite 274/274 |
 | 2.84 | 2026-09-23 | NIK/`no_kk` longgar + flag `X-`: digit bukan 16 tidak ditolak, tersimpan berawalan `X-` (mutator model + lookup sadar-flag, kolom DB 20); `nis_kemenag` bebas duplikat (lepas unique + cek dipakai); MD abaikan `nis_kemenag` (null via hook; generate 422); batas eksekusi import 300 dtk; suite 277/277 |
 | 2.85 | 2026-09-23 | Riwayat perdana untuk semua baris import valid (bukan hanya keanggotaan aktif): `terima()` mengaktifkan ulang keanggotaan nonaktif bila perlu; baris eksplisit `is_active_lembaga=Tidak` tetap dilewati; suite 279/279 |
+| 2.86 | 2026-09-23 | Halaman Riwayat Belajar awal TA: kiri = riwayat tanpa kelas (filter tingkat, panah set-kelas), kanan = riwayat berkelas (filter dengan_kelas + tingkat + kelas, aksi keluar-kelas); ACC PSB ikut buat perdana tanpa kelas; suite 280/280 |
 
 ## Daftar Isi
 
