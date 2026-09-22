@@ -34,134 +34,19 @@ import { FileUp, ImageUp, Plus, Upload } from '@/icons';
 import { useAuth } from '../auth/AuthContext';
 import { bisa } from '../api/auth';
 import { toast } from 'sonner';
-
-const digitValidator = (len: number, nama: string) => (v: string | null) =>
-  (!v || v.trim() === '' || new RegExp(`^\\d{${len}}$`).test(v.trim()) ? null : `${nama} harus ${len} digit angka.`);
-
-const tglValidator = (v: string | null) =>
-  (!v || v.trim() === '' || /^\d{4}-\d{2}-\d{2}$/.test(v.trim()) ? null : 'Format tanggal: YYYY-MM-DD.');
-
-const angkaValidator = (v: string | null) => (!v || v.trim() === '' || /^\d+$/.test(v.trim()) ? null : 'Harus angka.');
-
-function teks(key: string, label: string, width = 140, maxLength = 255): ExcelField {
-  return { key, label: key, width, kind: 'text', maxLength };
-}
-
-function tgl(key: string, label: string, width = 110): ExcelField {
-  return { key, label: key, width, kind: 'text', maxLength: 10, validate: tglValidator };
-}
-
-function angka(key: string, label: string, width = 90): ExcelField {
-  return { key, label: key, width, kind: 'text', maxLength: 4, validate: angkaValidator };
-}
-
-function pihakFields(prefix: 'ayah' | 'ibu' | 'wali', judul: string): ExcelField[] {
-  return [
-    teks(`${prefix}_nama`, `${judul} — Nama`, 160),
-    { key: `${prefix}_nik`, label: `${prefix}_nik`, width: 150, kind: 'text', maxLength: 16, validate: digitValidator(16, 'NIK') },
-    teks(`${prefix}_tmp_lahir`, `${judul} — Tempat lahir`, 140),
-    tgl(`${prefix}_tgl_lahir`, `${judul} — Tgl lahir`, 120),
-    teks(`${prefix}_status`, `${judul} — Status`, 110),
-    teks(`${prefix}_pekerjaan`, `${judul} — Pekerjaan`, 140),
-    teks(`${prefix}_pendidikan`, `${judul} — Pendidikan`, 140),
-    teks(`${prefix}_penghasilan`, `${judul} — Penghasilan`, 140),
-    teks(`${prefix}_telp`, `${judul} — Telp`, 130, 20),
-    teks(`${prefix}_alamat`, `${judul} — Alamat`, 200, 500),
-    teks(`${prefix}_status_tempat_tinggal`, `${judul} — Tempat tinggal`, 150),
-  ];
-}
-
-/** Kolom buku induk: identitas murni + Status turunan (kolom NIS per lembaga dinamis di komponen). */
-const SANTRI_FIELDS: ExcelField[] = [
-  { key: 'nama', label: 'nama_lengkap', width: 220, kind: 'text', maxLength: 255, sumber: { tabel: 'santri', kolom: 'nama_lengkap' }, validate: (v) => (v && v.trim() ? null : 'Nama wajib diisi.') },
-  teks('nama_singkat', 'Nama singkat', 140),
-  { key: 'nik', label: 'nik', width: 160, kind: 'text', maxLength: 16, validate: digitValidator(16, 'NIK') },
-  { key: 'nisn', label: 'nisn', width: 120, kind: 'text', maxLength: 10, validate: digitValidator(10, 'NISN') },
-  { key: 'jk', label: 'jk', width: 60, kind: 'select', choices: [{ value: 'L', label: 'L' }, { value: 'P', label: 'P' }] },
-  teks('tmp_lahir', 'Tempat lahir', 140),
-  tgl('tgl_lahir', 'Tgl lahir', 110),
-  angka('anak_ke', 'Anak ke', 80),
-  angka('j_saudara', 'Jml saudara', 100),
-  { key: 'tipe_santri', label: 'tipe_santri', width: 120, kind: 'select', choices: [{ value: 'asrama', label: 'asrama' }, { value: 'non_asrama', label: 'non_asrama' }] },
-  teks('no_hp_santri', 'HP santri', 130, 20),
-  { key: 'email_santri', label: 'email_santri', width: 180, kind: 'text', maxLength: 255, validate: (v) => (!v || v.trim() === '' || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()) ? null : 'Format email tidak valid.') },
-  teks('agama', 'Agama', 100),
-  teks('cita_cita', 'Cita-cita', 130),
-  teks('hobi', 'Hobi', 130),
-  teks('kebutuhan_khusus', 'Kebutuhan khusus', 150),
-  teks('kebutuhan_disabilitas', 'Disabilitas', 130),
-  teks('nomor_kip', 'No. KIP', 130),
-  { key: 'no_kk', label: 'no_kk', width: 150, kind: 'text', maxLength: 16, validate: digitValidator(16, 'No. KK') },
-  teks('kepala_keluarga', 'Kepala keluarga', 150),
-  teks('kewarganegaraan', 'Kewarganegaraan', 130),
-  teks('bahasa_sehari', 'Bahasa sehari-hari', 150),
-  teks('status_tempat_tinggal', 'Tempat tinggal', 150),
-  teks('jarak_ke_pesantren', 'Jarak', 110),
-  teks('waktu_tempuh', 'Waktu tempuh', 120),
-  teks('transportasi', 'Transportasi', 130),
-  tgl('tanggal_masuk', 'Tgl masuk', 110),
-  teks('alamat', 'Alamat', 220, 500),
-  teks('rt', 'RT', 60, 3),
-  teks('rw', 'RW', 60, 3),
-  teks('kode_pos', 'Kode pos', 90, 10),
-  teks('provinsi', 'Provinsi', 150),
-  teks('kab_kota', 'Kab/Kota', 150),
-  teks('kecamatan', 'Kecamatan', 150),
-  teks('desa_kelurahan', 'Desa/Kelurahan', 150),
-  ...pihakFields('ayah', 'Ayah'),
-  ...pihakFields('ibu', 'Ibu'),
-  ...pihakFields('wali', 'Wali'),
-  teks('yang_membiayai', 'Yang membiayai', 140),
-  { key: 'status', label: 'is_active_pst', width: 100, kind: 'static', sumber: { tabel: 'santri', kolom: 'is_active_pst' } },
-];
-
-/** Prefiks kunci kolom NIS per lembaga (kolom dinamis cerminan `lembaga_santri`). */
-const NIS_PREFIX = 'nis_anggota_';
-
-const TGL_KEYS = new Set(['tgl_lahir', 'ayah_tgl_lahir', 'ibu_tgl_lahir', 'wali_tgl_lahir', 'tanggal_masuk']);
-const TURUNAN_KEYS = new Set(['status']);
-
-function santriGridValues(s: Santri): Record<string, string | null> {
-  const sumber = s as unknown as Record<string, unknown>;
-  const out: Record<string, string | null> = {};
-  for (const f of SANTRI_FIELDS) {
-    if (TURUNAN_KEYS.has(f.key)) continue;
-    const keyDb = f.key === 'nama' ? 'nama_lengkap' : f.key;
-    const raw = sumber[keyDb];
-    if (raw == null || raw === '') {
-      out[f.key] = null;
-      continue;
-    }
-    const str = String(raw);
-    out[f.key] = TGL_KEYS.has(f.key) ? str.slice(0, 10) : str;
-  }
-  out.status = s.is_active_pst === 'Ya' ? 'aktif' : 'nonaktif';
-  return out;
-}
+import {
+  NIS_PREFIX,
+  SANTRI_IDENTITAS_FIELDS,
+  nilaiIdentitas,
+  pisahProfil,
+} from '@/components/santri/kolomIdentitas';
 
 /** Simpan baris: profil via PATCH santri, kolom NIS via endpoint keanggotaan. */
 function pakaiCommitBaris(rows: Santri[]) {
   return async function commitBaris(id: number, f: Record<string, string | null>) {
-    const body: Record<string, string | null> = {};
-    const nis: Array<[string, string | null]> = [];
-    for (const [k, v] of Object.entries(f)) {
-      if (v === undefined) continue;
-      if (TURUNAN_KEYS.has(k)) continue;
-      if (k.startsWith(NIS_PREFIX)) {
-        const jenjang = k.slice(NIS_PREFIX.length);
-        if (jenjang !== '') {
-          nis.push([jenjang, v === null || String(v).trim() === '' ? null : String(v).trim()]);
-        }
-        continue;
-      }
-      if (k === 'nama') {
-        body.nama_lengkap = (v ?? '').trim();
-        continue;
-      }
-      body[k] = v === null || String(v).trim() === '' ? null : String(v).trim();
-    }
-    if (Object.keys(body).length > 0) {
-      await updateSantri(id, body);
+    const { profil, nis } = pisahProfil(f);
+    if (Object.keys(profil).length > 0) {
+      await updateSantri(id, profil);
     }
     if (nis.length > 0) {
       const baris = rows.find((r) => r.id === id);
@@ -259,9 +144,9 @@ export default function SantriPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [lembagas],
   );
-  const semuaFields: ExcelField[] = useMemo(() => [...SANTRI_FIELDS, ...nisFields], [nisFields]);
+  const semuaFields: ExcelField[] = useMemo(() => [...SANTRI_IDENTITAS_FIELDS, ...nisFields], [nisFields]);
   const getNilai = useCallback((s: Santri): Record<string, string | null> => {
-    const out = santriGridValues(s);
+    const out = nilaiIdentitas(s);
     for (const ls of s.lembaga_aktif ?? []) {
       out[`${NIS_PREFIX}${ls.jenjang}`] = ls.nis_lokal ?? null;
     }

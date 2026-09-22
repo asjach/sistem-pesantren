@@ -22,7 +22,8 @@ export interface LembagaSantri {
   tgl_masuk: string | null;
   tgl_selesai: string | null;
   lembaga?: { jenjang: string; nama: string; nsm?: string | null } | null;
-  santri?: { id: number; nama_lengkap: string; jk: string | null } | null;
+  /** Identitas santri lengkap (dipakai halaman Keanggotaan untuk menampilkan/mengedit). */
+  santri?: SantriPenuh | null;
 }
 
 /** Daftar keanggotaan lintas santri (halaman Keanggotaan terpusat). */

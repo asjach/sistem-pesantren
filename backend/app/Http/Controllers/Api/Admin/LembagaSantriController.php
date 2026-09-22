@@ -45,7 +45,9 @@ class LembagaSantriController extends Controller
 
         $query = $this->scopeLembaga(
             LembagaSantri::with([
-                'santri:id,nama_lengkap,jk',
+                // Seluruh kolom profil identitas santri (mirror Buku Induk) agar
+                // halaman Keanggotaan bisa menampilkan/mengedit identitas.
+                'santri:id,'.implode(',', Santri::KOLOM_PROFIL),
                 'lembaga:jenjang,nama',
             ]),
             $request->user(),

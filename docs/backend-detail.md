@@ -345,7 +345,10 @@ baris >3 jadi dropdown, preset kolom per tabel, tombol aksi toolbar diringkas
 jadi satu menu dropdown per tabel lewat `MenuAksiToolbar`; urutan kolom
 disimpan di dalam `preset_tabel.kolom` (tiap preset bisa beda urutan), diatur
 lewat Tab Kolom 3 panel yang bisa diseret; tanpa preset memakai urutan global
-`toolbar_preset.urutan`) dengan kontrol global ukuran/tinggi/jenis huruf; **Google Fonts disimpan lokal di repo** (`frontend/admin-desktop-tauri/src/assets/fonts`, 8 keluarga × Light/Regular) sehingga aplikasi berjalan **tanpa internet** — dihasilkan ulang via `frontend/admin-desktop-tauri/scripts/fonts-offline.py`. Desktop Tauri 0.5.0 dibangun (`.app` 11 MB, `.dmg` 4 MB, aarch64, belum ditandatangani); build desktop hanya dijalankan bila diminta. Belum: modul 200+ (pegawai/kurikulum/nilai), Fase 5, portal ortu lanjutan.
+`toolbar_preset.urutan`; halaman Santri Per Lembaga menampilkan seluruh
+identitas santri (mirror Buku Induk, bisa diedit via PATCH santri) lebih dulu
+lalu keanggotaan, dengan preset bawaan `ringkas` dari `PresetKolomSeeder`)
+dengan kontrol global ukuran/tinggi/jenis huruf; **Google Fonts disimpan lokal di repo** (`frontend/admin-desktop-tauri/src/assets/fonts`, 8 keluarga × Light/Regular) sehingga aplikasi berjalan **tanpa internet** — dihasilkan ulang via `frontend/admin-desktop-tauri/scripts/fonts-offline.py`. Desktop Tauri 0.5.0 dibangun (`.app` 11 MB, `.dmg` 4 MB, aarch64, belum ditandatangani); build desktop hanya dijalankan bila diminta. Belum: modul 200+ (pegawai/kurikulum/nilai), Fase 5, portal ortu lanjutan.
 
 #### 6.2 `frontend/kasir-mobile-react-native`
 

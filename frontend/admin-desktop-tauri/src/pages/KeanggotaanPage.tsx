@@ -9,10 +9,16 @@ import {
   listKeanggotaan,
   listSantri,
   updateLembagaSantri,
+  updateSantri,
   type LembagaSantri,
   type Santri,
 } from '../api/santri';
 import { listLembaga, type Lembaga } from '../api/master';
+import {
+  SANTRI_IDENTITAS_FIELDS,
+  hanyaIdentitas,
+  nilaiIdentitas,
+} from '@/components/santri/kolomIdentitas';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import FilterField from '@/components/FilterField';
@@ -154,8 +160,10 @@ export default function KeanggotaanPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cari, pager.ready]);
 
-  /** Mode Edit sel: simpan kolom yang berubah (NIS, konteks masuk, sekolah asal, tanggal). */
+  /** Mode Edit sel: identitas santri → PATCH santri; kolom keanggotaan → endpoint
+   *  keanggotaan. Kolom turunan (status) tidak ikut terkirim. */
   async function commitBaris(id: number, f: Record<string, string | null>) {
+    const profil = hanyaIdentitas(f);
     const body: {
       nis_lokal?: string | null; nis_kemenag?: string | null;
       tahaj_masuk?: string | null; tingkat_masuk?: string | null; no_urut?: number | null;
@@ -175,6 +183,10 @@ export default function KeanggotaanPage() {
     if (f.alamat_sekolah_asal !== undefined) body.alamat_sekolah_asal = teksAtauNull(f.alamat_sekolah_asal);
     if (f.masuk !== undefined) body.tgl_masuk = teksAtauNull(f.masuk);
     if (f.selesai !== undefined) body.tgl_selesai = teksAtauNull(f.selesai);
+    const baris = rows.find((r) => r.id === id);
+    if (Object.keys(profil).length > 0 && baris?.santri_id) {
+      await updateSantri(baris.santri_id, profil);
+    }
     if (Object.keys(body).length === 0) return;
     await updateLembagaSantri(id, body);
   }
@@ -252,14 +264,11 @@ export default function KeanggotaanPage() {
     } catch (e) { toast.error(errorMessage(e)); } finally { setBusyId(null); }
   }
 
-  /** Kolom grid: NIS, konteks masuk, sekolah asal, dan tanggal bisa diedit;
-   *  santri & lembaga tampil saja (tambah lewat dialog Tambah). */
+  /** Kolom grid: identitas santri (bisa diedit) dulu, lalu konteks lembaga, lalu
+   *  keanggotaan (`lembaga_santri`) yang bisa diedit. Urutan & kolom tampil
+   *  diatur lewat Kelola tabel → tab Kolom (per preset). */
   const fields = useMemo<ExcelField[]>(() => [
-    {
-      key: 'santri', label: 'santri.nama_lengkap', kind: 'static',
-      sumber: { tabel: 'santri', kolom: 'nama_lengkap' },
-    },
-    { key: 'jk', label: 'santri.jk', kind: 'static', width: 60, sumber: { tabel: 'santri', kolom: 'jk' } },
+    ...SANTRI_IDENTITAS_FIELDS,
     {
       key: 'lembaga', label: 'lembaga.jenjang', kind: 'static',
       sumber: { tabel: 'lembaga', kolom: 'jenjang' },
@@ -284,6 +293,7 @@ export default function KeanggotaanPage() {
 
       <ExcelTable
         tableKey="keanggotaan"
+        sumberTabel="santri"
         filter={(
           <>
             <FilterField label="Status" htmlFor="filter_status_keanggotaan">
@@ -325,8 +335,7 @@ export default function KeanggotaanPage() {
         fields={fields}
         rows={rows}
         getValues={(r) => ({
-          santri: r.santri?.nama_lengkap ?? null,
-          jk: r.santri?.jk ?? null,
+          ...(r.santri ? nilaiIdentitas(r.santri) : {}),
           lembaga: r.lembaga ? r.lembaga.jenjang : null,
           nis_lokal: r.nis_lokal,
           nis_kemenag: r.nis_kemenag,

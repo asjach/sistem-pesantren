@@ -9,7 +9,7 @@ class DevSeeder extends Seeder
 {
     public function run(): void
     {
-        $this->call([PermissionSeeder::class, AkunSeeder::class, TahunAjaranSeeder::class]);
+        $this->call([PermissionSeeder::class, AkunSeeder::class, TahunAjaranSeeder::class, PresetKolomSeeder::class]);
 
         // Lembaga = jenjang (kunci alami). Tanpa root/hierarki.
         $daftar = [

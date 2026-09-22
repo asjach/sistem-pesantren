@@ -130,6 +130,7 @@
 | 2.76 | 2026-09-22 | Import dipindah ke halaman Santri Per Lembaga; keanggotaan wajib (santri minimal 1 jenjang) di import & tambah manual; endpoint import identitas-only dihapus; suite 268/268 |
 | 2.77 | 2026-09-22 | Tombol aksi toolbar diringkas jadi satu menu dropdown (`MenuAksiToolbar`) di semua halaman |
 | 2.78 | 2026-09-22 | Urutan kolom per preset: `preset_tabel.kolom` jadi berurutan & dihormati grid; Tab Kolom 3 panel (preset / kolom tersedia / kolom terpilih yang bisa diseret); seret kolom di grid menyimpan ke preset aktif; tanpa preset tetap pakai urutan global `toolbar_preset.urutan` |
+| 2.79 | 2026-09-22 | Halaman Santri Per Lembaga menampilkan seluruh identitas santri (mirror Buku Induk) dulu lalu keanggotaan; identitas bisa diedit dari grid (PATCH santri); endpoint `lembaga-santri` memuat penuh kolom profil; preset bawaan `ringkas` (seeder); suite 268/268 |
 
 ## Daftar Isi
 
