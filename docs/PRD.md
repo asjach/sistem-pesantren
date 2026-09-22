@@ -132,6 +132,7 @@
 | 2.78 | 2026-09-22 | Urutan kolom per preset: `preset_tabel.kolom` jadi berurutan & dihormati grid; Tab Kolom 3 panel (preset / kolom tersedia / kolom terpilih yang bisa diseret); seret kolom di grid menyimpan ke preset aktif; tanpa preset tetap pakai urutan global `toolbar_preset.urutan` |
 | 2.79 | 2026-09-22 | Halaman Santri Per Lembaga menampilkan seluruh identitas santri (mirror Buku Induk) dulu lalu keanggotaan; identitas bisa diedit dari grid (PATCH santri); endpoint `lembaga-santri` memuat penuh kolom profil; preset bawaan `ringkas` (seeder); suite 268/268 |
 | 2.80 | 2026-09-22 | Import gabungan: `tahaj_masuk` (+`tingkat_masuk`) otomatis membuat riwayat belajar perdana (semester 1) via `PenerimaanService::terima`; dilewati bila riwayat aktif sudah ada atau keanggotaan nonaktif; TA tak dikenal menolak baris; ringkasan `baris_riwayat_dibuat`; suite 271/271 |
+| 2.81 | 2026-09-22 | Import tahan file besar: baca per chunk 500 baris (state lintas chunk di properti; nomor baris global; transaksi per chunk), cek heading baca-data-saja; perbaiki OOM `memory_limit` pada xlsx ±2000 baris; suite 273/273 |
 
 ## Daftar Isi
 

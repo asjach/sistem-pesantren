@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Concerns\SkipsOnFailure;
 use Maatwebsite\Excel\Concerns\SkipsUnknownSheets;
 use Maatwebsite\Excel\Concerns\ToCollection;
+use Maatwebsite\Excel\Concerns\WithChunkReading;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithMultipleSheets;
@@ -23,11 +24,21 @@ use PhpOffice\PhpSpreadsheet\Shared\Date;
  * Tidak menyentuh keanggotaan (`lembaga_santri`) maupun riwayat akademik
  * (`riwayat_belajar`) — keduanya lewat halaman/import masing-masing.
  * Kolom template = KOLOM_PROFIL (tanpa kolom penempatan/status).
+ *
+ * File besar dibaca per chunk (500 baris) agar tidak kehabisan memori;
+ * state lintas chunk (nomor baris, guard duplikat, ringkasan) disimpan di
+ * properti instance karena objek import dipakai ulang antar chunk.
  */
-class SantriLengkapImport implements SkipsOnFailure, SkipsUnknownSheets, ToCollection, WithHeadingRow, WithMapping, WithMultipleSheets, WithValidation
+class SantriLengkapImport implements SkipsOnFailure, SkipsUnknownSheets, ToCollection, WithChunkReading, WithHeadingRow, WithMapping, WithMultipleSheets, WithValidation
 {
     /** @var Failure[] */
     protected array $failures = [];
+
+    /** Nomor baris Excel global (antar chunk) untuk atribusi kegagalan. */
+    protected int $nomorBaris = 0;
+
+    /** Guard duplikat intra-file lintas chunk: kunci nik|nama|tgl. */
+    protected array $dilihat = [];
 
     /**
      * Kolom teks yang rawan terbaca sebagai angka dari sel numerik Excel/CSV
@@ -62,6 +73,12 @@ class SantriLengkapImport implements SkipsOnFailure, SkipsUnknownSheets, ToColle
     public function sheets(): array
     {
         return [0 => $this];
+    }
+
+    /** Ukuran chunk baca file (hemat memori untuk file ribuan baris). */
+    public function chunkSize(): int
+    {
+        return 500;
     }
 
     /**
@@ -105,18 +122,17 @@ class SantriLengkapImport implements SkipsOnFailure, SkipsUnknownSheets, ToColle
     public function collection(Collection $rows): void
     {
         // Kunci konsistensi-03: import diasumsikan single-operator (satu admin satu file satu waktu).
+        // Dipanggil sekali per chunk; transaksi per chunk (bukan per file).
         DB::transaction(function () use ($rows) {
-            $dilihat = []; // guard duplikat intra-file: kunci nik|nama|tgl
-            $no = 0;
             foreach ($rows as $row) {
-                $no++;
+                $this->nomorBaris++;
                 $baris = $row instanceof Collection ? $row->toArray() : $row;
                 // Baris tanpa nama_lengkap dianggap baris kosong/pemisah, lewati
                 if (empty($baris['nama_lengkap'])) {
                     continue;
                 }
 
-                $this->simpanDenganNik($baris, $this->buatDataSantri($baris), $dilihat);
+                $this->simpanDenganNik($baris, $this->buatDataSantri($baris), $this->dilihat);
 
                 $this->barisValid++;
             }

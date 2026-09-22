@@ -678,4 +678,42 @@ class SantriLembagaImportTest extends TestCase
         // Tidak menambah baris riwayat (unique santri+TA+jenjang+semester dijaga).
         $this->assertSame(1, RiwayatBelajar::where('santri_id', $santri->id)->count());
     }
+
+    // ---------- 26. file > 1 chunk: nomor baris kegagalan tetap global ----------
+
+    public function test_26_chunk_besar_nomor_baris_global(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeAdmin([$f['mi']->jenjang]);
+
+        $rows = [];
+        for ($i = 1; $i <= 599; $i++) {
+            $rows[] = [
+                'jenjang' => 'MI',
+                'nis_lokal' => '28'.str_pad((string) $i, 4, '0', STR_PAD_LEFT),
+                'nama_lengkap' => "Chunk {$i}",
+                'nik' => '110188'.str_pad((string) $i, 10, '0', STR_PAD_LEFT),
+                'jk' => 'L',
+            ];
+        }
+        // Baris file ke-600 (chunk kedua): TA tak dikenal → gagal bernomor global.
+        $rows[] = [
+            'jenjang' => 'MI',
+            'nis_lokal' => '28600',
+            'tahaj_masuk' => '1999/2000',
+            'nama_lengkap' => 'Chunk Rusak',
+            'nik' => '110188'.str_pad('600', 10, '0', STR_PAD_LEFT),
+            'jk' => 'L',
+        ];
+
+        $res = $this->upload($admin, $this->makeCsv($rows), 'import-periksa-gabungan')->assertStatus(200);
+        $this->assertFalse((bool) $res->json('siap_import'));
+        $this->assertSame(600, (int) $res->json('ringkasan.baris_diproses'));
+        $this->assertSame(599, (int) $res->json('ringkasan.baris_valid'));
+        $this->assertSame(600, (int) $res->json('errors.0.row'));
+        $this->assertSame('tahaj_masuk', $res->json('errors.0.attribute'));
+        // Dry-run: tak ada yang tertulis.
+        $this->assertSame(0, Santri::count());
+        $this->assertSame(0, RiwayatBelajar::count());
+    }
 }

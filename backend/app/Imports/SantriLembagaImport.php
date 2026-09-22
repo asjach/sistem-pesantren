@@ -52,22 +52,26 @@ class SantriLembagaImport extends SantriLengkapImport
         ]);
     }
 
+    /** Guard duplikat intra-file lintas chunk: kunci nik|nama|tgl. */
+    protected array $dilihatNik = [];
+
+    /** Guard duplikat intra-file lintas chunk: kunci lembaga|nis_lokal. */
+    protected array $dilihatNis = [];
+
     public function collection(Collection $rows): void
     {
         // Kunci konsistensi-03: import diasumsikan single-operator.
+        // Dipanggil sekali per chunk; transaksi per chunk (bukan per file).
         DB::transaction(function () use ($rows) {
-            $dilihatNik = [];
-            $dilihatNis = [];
-            $no = 0;
             foreach ($rows as $row) {
-                $no++;
+                $this->nomorBaris++;
                 $baris = $row instanceof Collection ? $row->toArray() : $row;
                 // Baris tanpa kunci identitas apa pun dianggap kosong/pemisah.
                 if (empty($baris['nama_lengkap']) && empty($baris['santri_id']) && empty($baris['nik']) && empty($baris['nis_lokal'])) {
                     continue;
                 }
 
-                if ($this->prosesBaris($baris, $no, $dilihatNik, $dilihatNis)) {
+                if ($this->prosesBaris($baris)) {
                     $this->barisValid++;
                 }
             }
@@ -75,16 +79,17 @@ class SantriLembagaImport extends SantriLengkapImport
             foreach (array_unique($this->tersentuh) as $santriId) {
                 Santri::find($santriId)?->hitungUlangStatusGlobal();
             }
+            $this->tersentuh = [];
         });
     }
 
     /**
      * @param  array<string, mixed>  $baris
-     * @param  array<string, Santri>  $dilihatNik  guard intra-file kunci nik|nama|tgl
-     * @param  array<string, Santri>  $dilihatNis  guard intra-file kunci lembaga|nis_lokal
      */
-    protected function prosesBaris(array $baris, int $no, array &$dilihatNik, array &$dilihatNis): bool
+    protected function prosesBaris(array $baris): bool
     {
+        $no = $this->nomorBaris;
+
         // Keanggotaan wajib: baris tanpa `jenjang` ditolak.
         $jenjang = $this->resolveLembagaId($baris, $no);
         if ($jenjang === null) {
@@ -107,7 +112,7 @@ class SantriLembagaImport extends SantriLengkapImport
         }
 
         $dataSantri = $this->buatDataSantri($baris);
-        $santri = $this->cocokkanSantri($baris, $dataSantri, $no, $jenjang, $dilihatNik, $dilihatNis, $sudahAda);
+        $santri = $this->cocokkanSantri($baris, $dataSantri, $no, $jenjang, $this->dilihatNik, $this->dilihatNis, $sudahAda);
         if ($santri === null) {
             return false;
         }

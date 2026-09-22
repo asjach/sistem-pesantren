@@ -198,7 +198,9 @@ Foto profil `jpg/jpeg/png` maks 2.048 KB.
 Import satu pintu: template-data-periksa-eksekusi; berkas `xlsx/xls/csv` maks
 10.240 KB **tanpa batas jumlah baris** (template memformat 5000 baris data;
 baris lebih tetap diproses); tulis gabungan butuh
-`santri.tambah` DAN `santri.ubah`; pencocokan 4 lapis (santri_id eksak → NIK →
+`santri.tambah` DAN `santri.ubah`; file dibaca per chunk 500 baris (hemat
+memori; nomor baris & guard duplikat global lintas chunk; transaksi per chunk);
+cek heading memakai mode baca-data-saja; pencocokan 4 lapis (santri_id eksak → NIK →
 nis+lembaga → create wajib nama); sel kosong = pertahankan (tanpa pengosongan
 via file); NIK kosong selalu create; **keanggotaan wajib**: tiap baris harus
 punya `jenjang` (case-insensitive) — santri minimal terdaftar di 1 jenjang;

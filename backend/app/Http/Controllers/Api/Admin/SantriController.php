@@ -431,7 +431,10 @@ class SantriController extends Controller
     private function cekHeadingGabungan($file): ?string
     {
         try {
-            $sheet = IOFactory::load($file->getRealPath())->getSheet(0);
+            // Baca data saja (tanpa style) agar file besar tak makan memori.
+            $reader = IOFactory::createReaderForFile($file->getRealPath());
+            $reader->setReadDataOnly(true);
+            $sheet = $reader->load($file->getRealPath())->getSheet(0);
             $baris = $sheet->rangeToArray('A1:ZZ1', null, true, false)[0] ?? [];
         } catch (\Throwable $e) {
             return 'File tidak dapat dibaca sebagai Excel.';
