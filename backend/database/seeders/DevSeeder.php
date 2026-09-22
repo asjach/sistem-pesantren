@@ -9,21 +9,9 @@ class DevSeeder extends Seeder
 {
     public function run(): void
     {
-        $this->call([PermissionSeeder::class, AkunSeeder::class, TahunAjaranSeeder::class, PresetKolomSeeder::class]);
-
-        // Lembaga = jenjang (kunci alami). Tanpa root/hierarki.
-        $daftar = [
-            ['MI', 'Ibtidaiyah', 'combo_mi_md', false],
-            ['MD', 'Diniyah', 'combo_mi_md', false],
-            ['MTS', 'Tsanawiyah', 'eksklusif', true],
-            ['MLN', "Mu'allimin", 'eksklusif', true],
-        ];
-        foreach ($daftar as [$jenjang, $nama, $kelompok, $seleksi]) {
-            Lembaga::updateOrCreate(
-                ['jenjang' => $jenjang],
-                ['nama' => $nama, 'kelompok_psb' => $kelompok, 'is_seleksi' => $seleksi, 'is_active' => true],
-            );
-        }
+        // Lembaga dulu (AkunSeeder butuh pivot admin lembaga; ReferensiSeeder
+        // mem-fan-out kamus per lembaga).
+        $this->call([PermissionSeeder::class, LembagaSeeder::class, AkunSeeder::class, TahunAjaranSeeder::class, PresetKolomSeeder::class]);
 
         // Kamus per lembaga (tanpa baris global): benih nilai untuk lembaga di atas.
         $this->call([ReferensiSeeder::class]);
