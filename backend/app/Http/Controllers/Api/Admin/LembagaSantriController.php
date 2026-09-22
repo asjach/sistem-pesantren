@@ -198,25 +198,24 @@ class LembagaSantriController extends Controller
     }
 
     /**
-     * NIS Kemenag manual: trim, kosong → null, wajib unik per lembaga.
+     * NIS Kemenag manual: trim, kosong → null. Bebas duplikat (hasil generate;
+     * bisa digenerate ulang). MD selalu null (lihat hook model).
      * (Generate otomatis lewat `generateNisk` tetap tersedia.)
      */
     protected function nisKemenagBersih(string $lembagaId, mixed $nis, ?int $kecualiId = null): ?string
     {
         $nilai = trim((string) $nis);
-        $nilai = $nilai === '' ? null : $nilai;
 
-        if ($nilai !== null && LembagaSantri::nisKemenagDipakai($lembagaId, $nilai, $kecualiId)) {
-            abort(422, 'NIS Kemenag sudah dipakai santri lain di lembaga ini.');
-        }
-
-        return $nilai;
+        return $nilai === '' ? null : $nilai;
     }
 
     /** POST /api/admin/lembaga-santri/{lembagaSantri}/generate-nisk — NIS Kemenag manual. */
     public function generateNisk(Request $request, LembagaSantri $lembagaSantri, NisKemenagService $service): JsonResponse
     {
         $this->authorizeLembaga($request->user(), $lembagaSantri->jenjang);
+        if ($lembagaSantri->jenjang === 'MD') {
+            abort(422, 'Lembaga MD tidak memiliki NIS Kemenag.');
+        }
 
         $hasil = $service->generate($lembagaSantri);
 

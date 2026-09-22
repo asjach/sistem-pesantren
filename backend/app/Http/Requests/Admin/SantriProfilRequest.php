@@ -16,8 +16,10 @@ abstract class SantriProfilRequest extends FormRequest
         }
         $aturan['nama_lengkap'] = ['sometimes', 'required', 'string', 'max:255'];
         $aturan['alamat'] = ['sometimes', 'nullable', 'string', 'max:500'];
-        $aturan['nik'] = $aturan['ayah_nik'] = $aturan['ibu_nik'] = $aturan['wali_nik'] = ['sometimes', 'nullable', 'digits:16'];
-        $aturan['no_kk'] = ['sometimes', 'nullable', 'digits:16'];
+        // NIK/no.KK longgar (maks 20): yang digitnya bukan 16 otomatis berawalan
+        // `X-` saat disimpan (NikFlag) agar ketahuan tak valid.
+        $aturan['nik'] = $aturan['ayah_nik'] = $aturan['ibu_nik'] = $aturan['wali_nik'] = ['sometimes', 'nullable', 'string', 'max:20'];
+        $aturan['no_kk'] = ['sometimes', 'nullable', 'string', 'max:20'];
         $aturan['nisn'] = ['sometimes', 'nullable', 'digits:10'];
         $aturan['jk'] = ['sometimes', 'nullable', 'in:L,P'];
         $aturan['tipe_santri'] = ['sometimes', 'nullable', 'in:asrama,non_asrama'];

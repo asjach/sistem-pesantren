@@ -135,6 +135,7 @@
 | 2.81 | 2026-09-22 | Import tahan file besar: baca per chunk 500 baris (state lintas chunk di properti; nomor baris global; transaksi per chunk), cek heading baca-data-saja; perbaiki OOM `memory_limit` pada xlsx ±2000 baris; suite 273/273 |
 | 2.82 | 2026-09-23 | Import tahan data nyata: normalisasi `tahaj_masuk` strip→slash (`1998-1999`→`1998/1999`) & tanggal nol Excel (`1900-01-00`)→null; rule panjang kolom DB (nik/ayah/ibu/wali, nis, npsn/nss, no_urut digit) agar gagal per baris bukan 500; penomoran baris Excel-absolut selaras validator; jaring `QueryException` per baris; suite 274/274 |
 | 2.83 | 2026-09-23 | `lembaga_santri.no_urut` jadi string(20) — menerima sufiks huruf (`706x`) untuk data ganda historis yang tercatat di ijazah; request/import/frontend longgar; suite 274/274 |
+| 2.84 | 2026-09-23 | NIK/`no_kk` longgar + flag `X-`: digit bukan 16 tidak ditolak, tersimpan berawalan `X-` (mutator model + lookup sadar-flag, kolom DB 20); `nis_kemenag` bebas duplikat (lepas unique + cek dipakai); MD abaikan `nis_kemenag` (null via hook; generate 422); batas eksekusi import 300 dtk; suite 277/277 |
 
 ## Daftar Isi
 

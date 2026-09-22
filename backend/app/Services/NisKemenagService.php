@@ -48,12 +48,7 @@ class NisKemenagService
         $urut = str_pad(substr($nisLokal, -4), 4, '0', STR_PAD_LEFT);
         $nisKemenag = $nsm.$yy.$urut;
 
-        if (LembagaSantri::nisKemenagDipakai($lembagaSantri->jenjang, $nisKemenag, (int) $lembagaSantri->id)) {
-            throw ValidationException::withMessages([
-                'nis_kemenag' => "NIS Kemenag {$nisKemenag} sudah dipakai santri lain di lembaga ini. Sesuaikan 4 digit akhir NIS lokal.",
-            ]);
-        }
-
+        // Duplikat dibiarkan (hasil generate; bisa digenerate ulang).
         $lembagaSantri->update(['nis_kemenag' => $nisKemenag]);
 
         return $lembagaSantri->fresh();

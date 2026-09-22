@@ -52,6 +52,19 @@ class LembagaSantri extends Model
         'tgl_selesai' => 'date:Y-m-d',
     ];
 
+    /**
+     * Lembaga MD tidak memiliki NIS Kemenag: nilai apa pun yang masuk
+     * (import/manual/generate) diabaikan menjadi null. Berlaku semua jalur tulis.
+     */
+    protected static function booted(): void
+    {
+        static::saving(function (LembagaSantri $row) {
+            if ($row->jenjang === 'MD') {
+                $row->nis_kemenag = null;
+            }
+        });
+    }
+
     public function santri(): BelongsTo
     {
         return $this->belongsTo(Santri::class, 'santri_id');
@@ -94,21 +107,6 @@ class LembagaSantri extends Model
 
         return static::where('jenjang', $jenjang)
             ->where('nis_lokal', $nis)
-            ->when($kecualiId, fn (Builder $q) => $q->whereKeyNot($kecualiId))
-            ->exists();
-    }
-
-    /** NIS kemenag (bila diisi) wajib unik per lembaga. */
-    public static function nisKemenagDipakai(string $jenjang, ?string $nisKemenag, ?int $kecualiId = null): bool
-    {
-        $nis = $nisKemenag !== null ? trim($nisKemenag) : '';
-
-        if ($nis === '') {
-            return false;
-        }
-
-        return static::where('jenjang', $jenjang)
-            ->where('nis_kemenag', $nis)
             ->when($kecualiId, fn (Builder $q) => $q->whereKeyNot($kecualiId))
             ->exists();
     }

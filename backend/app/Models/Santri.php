@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\NikFlag;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -121,6 +122,20 @@ class Santri extends Model
     ];
 
     protected $casts = ['tgl_lahir' => 'date', 'ayah_tgl_lahir' => 'date', 'ibu_tgl_lahir' => 'date', 'wali_tgl_lahir' => 'date', 'tanggal_masuk' => 'date'];
+
+    /**
+     * NIK/no.KK yang digitnya bukan 16 otomatis berawalan `X-` saat disimpan
+     * agar ketahuan tak valid (`X-320410460905001`). Berlaku semua jalur tulis
+     * (manual, import, ACC). Idempoten; nilai valid tak berubah.
+     */
+    protected static function booted(): void
+    {
+        static::saving(function (Santri $santri) {
+            foreach (['nik', 'no_kk', 'ayah_nik', 'ibu_nik', 'wali_nik'] as $kolom) {
+                $santri->{$kolom} = NikFlag::tandai($santri->getAttribute($kolom));
+            }
+        });
+    }
 
     /** Keanggotaan per lembaga (semua baris, termasuk riwayat lama). */
     public function lembagaSantri(): HasMany

@@ -8,6 +8,7 @@ use App\Models\RiwayatBelajar;
 use App\Models\Santri;
 use App\Models\TahunAjaran;
 use App\Services\PenerimaanService;
+use App\Support\NikFlag;
 use App\Support\Tanggal;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Collection;
@@ -248,8 +249,8 @@ class SantriLembagaImport extends SantriLengkapImport
 
         // (b) NIK via logika induk (membedakan update vs create).
         if ($nikTerisi) {
-            $sebelum = Santri::where('nik', trim((string) $baris['nik']))->exists();
-            $santri = $this->simpanDenganNik($baris, $dataSantri, $dilihatNik);
+            $sebelum = Santri::where('nik', NikFlag::tandai(trim((string) $baris['nik'])))->exists();
+            $santri = $this->simpanDenganNik($baris, $dataSantri, $this->dilihatNik);
             $sudahAda = $sebelum;
 
             return $santri;
@@ -333,11 +334,7 @@ class SantriLembagaImport extends SantriLengkapImport
 
                 return false;
             }
-            if ($nisKemenag !== null && LembagaSantri::nisKemenagDipakai($jenjang, $nisKemenag)) {
-                $this->fail($no, 'nis_kemenag', 'NIS Kemenag sudah dipakai santri lain di lembaga ini.');
-
-                return false;
-            }
+            // NIS Kemenag bebas duplikat (hasil generate; bisa digenerate ulang).
 
             LembagaSantri::create([
                 'santri_id' => $santri->id,
@@ -354,16 +351,10 @@ class SantriLembagaImport extends SantriLengkapImport
         }
 
         // Update: hanya nilai non-kosong yang menimpa (sel kosong = pertahankan).
+        // NIS lokal wajib unik; NIS Kemenag bebas duplikat.
         if ($nisLokal !== null && $nisLokal !== $ada->nis_lokal) {
             if (LembagaSantri::nisLokalDipakai($jenjang, $nisLokal, $ada->id)) {
                 $this->fail($no, 'nis_lokal', 'NIS lokal sudah dipakai santri lain di lembaga ini.');
-
-                return false;
-            }
-        }
-        if ($nisKemenag !== null && $nisKemenag !== $ada->nis_kemenag) {
-            if (LembagaSantri::nisKemenagDipakai($jenjang, $nisKemenag, $ada->id)) {
-                $this->fail($no, 'nis_kemenag', 'NIS Kemenag sudah dipakai santri lain di lembaga ini.');
 
                 return false;
             }
@@ -441,7 +432,7 @@ class SantriLembagaImport extends SantriLengkapImport
             // Identitas: minimal satu kunci (NIK tak selalu ada).
             // Sel numerik Excel sudah dinormalisasi jadi string di `map()`,
             // sehingga rule `string`/`max` aman dipakai.
-            'nik' => ['required_without_all:nis_lokal,santri_id', 'nullable', 'digits:16'],
+            'nik' => ['required_without_all:nis_lokal,santri_id', 'nullable', 'string', 'max:20'],
             // Blok keanggotaan WAJIB: tiap santri minimal terdaftar di 1 jenjang.
             // Batas `max` mengikuti panjang kolom DB agar kelebihan ditolak per
             // baris (bukan 500 dari database).

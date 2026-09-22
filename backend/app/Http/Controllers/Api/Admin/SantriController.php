@@ -375,6 +375,11 @@ class SantriController extends Controller
     {
         $this->authorizeTulisGabungan($request);
 
+        // File ribuan baris butuh waktu: longgarkan batas eksekusi PHP khusus
+        // request ini (aman diabaikan bila host melarang; tanpa ini server dev
+        // `php -S` memutus request > 30 detik).
+        ini_set('max_execution_time', '300');
+
         $salah = $this->cekHeadingGabungan($request->file('file'));
         if ($salah !== null) {
             return response()->json(['pesan' => $salah, 'siap_import' => false, 'errors' => []], 422);

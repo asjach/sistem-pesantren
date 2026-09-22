@@ -730,7 +730,8 @@ class SantriLembagaImportTest extends TestCase
         ]);
 
         // Baris 1: tahaj strip + tanggal nol → diterima (riwayat TA kanonis, tgl null).
-        // Baris 2: ayah_nik 17 digit → gagal per baris (bukan 500).
+        // Baris 2: ayah_nik 17 digit → diterima + berflag `X-` (bukan gagal).
+        // Baris 3: ayah_nik 21 digit → gagal per baris (melebihi maks 20).
         $res = $this->upload($admin, $this->makeCsv([
             [
                 'jenjang' => 'MI',
@@ -754,29 +755,49 @@ class SantriLembagaImportTest extends TestCase
                 'tgl_lahir' => '2015-07-01',
                 'ayah_nik' => '32041001010100001',
             ],
+            [
+                'jenjang' => 'MI',
+                'nis_lokal' => '27703',
+                'nama_lengkap' => 'Nik Ortu Kebablasan',
+                'nik' => '1101010000000029',
+                'jk' => 'P',
+                'tgl_lahir' => '2015-07-01',
+                'ayah_nik' => '320410010101000012345',
+            ],
         ]), 'import-periksa-gabungan')->assertStatus(200);
 
         $this->assertFalse((bool) $res->json('siap_import'));
-        $this->assertSame(2, (int) $res->json('ringkasan.baris_diproses'));
-        $this->assertSame(1, (int) $res->json('ringkasan.baris_valid'));
-        // Selaras validator: baris data ke-2 = baris Excel 3.
-        $this->assertSame(3, (int) $res->json('errors.0.row'));
+        $this->assertSame(3, (int) $res->json('ringkasan.baris_diproses'));
+        $this->assertSame(2, (int) $res->json('ringkasan.baris_valid'));
+        // Selaras validator: baris data ke-3 = baris Excel 4.
+        $this->assertSame(4, (int) $res->json('errors.0.row'));
         $this->assertSame('ayah_nik', $res->json('errors.0.attribute'));
 
-        // Baris valid tetap bisa dieksekusi sendiri dengan hasil ternormalisasi.
-        $this->upload($admin, $this->makeCsv([[
-            'jenjang' => 'MI',
-            'nis_lokal' => '27701',
-            'is_active_lembaga' => 'Ya',
-            'tgl_masuk' => '2026-07-01',
-            'tgl_selesai' => '1900-01-00',
-            'tahaj_masuk' => '2026-2027',
-            'tingkat_masuk' => '1',
-            'nama_lengkap' => 'Normalisasi Satu',
-            'nik' => '1101010000000027',
-            'jk' => 'L',
-            'tgl_lahir' => '2015-07-01',
-        ]]))->assertStatus(200);
+        // Dua baris valid dieksekusi dengan hasil ternormalisasi + berflag.
+        $this->upload($admin, $this->makeCsv([
+            [
+                'jenjang' => 'MI',
+                'nis_lokal' => '27701',
+                'is_active_lembaga' => 'Ya',
+                'tgl_masuk' => '2026-07-01',
+                'tgl_selesai' => '1900-01-00',
+                'tahaj_masuk' => '2026-2027',
+                'tingkat_masuk' => '1',
+                'nama_lengkap' => 'Normalisasi Satu',
+                'nik' => '1101010000000027',
+                'jk' => 'L',
+                'tgl_lahir' => '2015-07-01',
+            ],
+            [
+                'jenjang' => 'MI',
+                'nis_lokal' => '27702',
+                'nama_lengkap' => 'Nik Ortu Panjang',
+                'nik' => '1101010000000028',
+                'jk' => 'P',
+                'tgl_lahir' => '2015-07-01',
+                'ayah_nik' => '32041001010100001',
+            ],
+        ]))->assertStatus(200);
 
         $santri = Santri::where('nik', '1101010000000027')->firstOrFail();
         $ls = LembagaSantri::where('santri_id', $santri->id)->firstOrFail();
@@ -784,5 +805,96 @@ class SantriLembagaImportTest extends TestCase
         $this->assertNull($ls->tgl_selesai);
         $riwayat = RiwayatBelajar::where('santri_id', $santri->id)->firstOrFail();
         $this->assertSame('2026/2027', $riwayat->tahun_ajaran);
+
+        $ortu = Santri::where('nik', '1101010000000028')->firstOrFail();
+        $this->assertSame('X-32041001010100001', $ortu->ayah_nik);
+    }
+
+    // ---------- 28. NIK tak valid: tersimpan berflag + re-import tak ganda ----------
+
+    public function test_28_nik_tak_valid_flag_dan_tidak_ganda(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeAdmin([$f['mi']->jenjang]);
+
+        $csv = $this->makeCsv([[
+            'jenjang' => 'MI',
+            'nis_lokal' => '27801',
+            'is_active_lembaga' => 'Ya',
+            'nama_lengkap' => 'Nik Pendek',
+            'nik' => '320410460905001',
+            'jk' => 'L',
+            'tgl_lahir' => '2015-07-01',
+        ]]);
+
+        $this->upload($admin, $csv)->assertStatus(200);
+        $this->assertSame(1, Santri::where('nama_lengkap', 'Nik Pendek')->count());
+        $santri = Santri::where('nama_lengkap', 'Nik Pendek')->firstOrFail();
+        $this->assertSame('X-320410460905001', $santri->nik);
+
+        // Import ulang file yang sama: cocok via NIK berflag, tak ada santri baru.
+        $res = $this->upload($admin, $csv, 'import-periksa-gabungan')->assertStatus(200);
+        $this->assertTrue((bool) $res->json('siap_import'));
+        $this->assertSame(1, (int) $res->json('ringkasan.baris_diperbarui'));
+        $this->upload($admin, $csv)->assertStatus(200);
+        $this->assertSame(1, Santri::where('nama_lengkap', 'Nik Pendek')->count());
+        $this->assertSame('X-320410460905001', Santri::where('nama_lengkap', 'Nik Pendek')->firstOrFail()->nik);
+    }
+
+    // ---------- 29. NIS Kemenag boleh duplikat ----------
+
+    public function test_29_nis_kemenag_duplikat_diterima(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeAdmin([$f['mi']->jenjang]);
+
+        $this->upload($admin, $this->makeCsv([
+            [
+                'jenjang' => 'MI',
+                'nis_lokal' => '27901',
+                'nis_kemenag' => '123456789012279001',
+                'nama_lengkap' => 'Kemenag Satu',
+                'nik' => '1101010000000031',
+                'jk' => 'L',
+            ],
+            [
+                'jenjang' => 'MI',
+                'nis_lokal' => '27902',
+                'nis_kemenag' => '123456789012279001',
+                'nama_lengkap' => 'Kemenag Dua',
+                'nik' => '1101010000000032',
+                'jk' => 'P',
+            ],
+        ]))->assertStatus(200);
+
+        $this->assertSame(
+            '123456789012279001',
+            LembagaSantri::whereHas('santri', fn ($q) => $q->where('nama_lengkap', 'Kemenag Satu'))->firstOrFail()->nis_kemenag
+        );
+        $this->assertSame(
+            '123456789012279001',
+            LembagaSantri::whereHas('santri', fn ($q) => $q->where('nama_lengkap', 'Kemenag Dua'))->firstOrFail()->nis_kemenag
+        );
+    }
+
+    // ---------- 30. MD: nis_kemenag diabaikan (null) ----------
+
+    public function test_30_md_nis_kemenag_diabaikan(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeAdmin([$f['mi']->jenjang, $f['md']->jenjang]);
+
+        $this->upload($admin, $this->makeCsv([[
+            'jenjang' => 'MD',
+            'nis_lokal' => '28001',
+            'nis_kemenag' => '123456789012280001',
+            'nama_lengkap' => 'MD Tanpa Kemenag',
+            'nik' => '1101010000000033',
+            'jk' => 'L',
+        ]]))->assertStatus(200);
+
+        $ls = LembagaSantri::where('jenjang', $f['md']->jenjang)->firstOrFail();
+        $this->assertSame('28001', $ls->nis_lokal);
+        $this->assertNull($ls->nis_kemenag);
     }
 }

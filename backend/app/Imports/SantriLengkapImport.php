@@ -3,6 +3,7 @@
 namespace App\Imports;
 
 use App\Models\Santri;
+use App\Support\NikFlag;
 use App\Support\Tanggal;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -278,8 +279,10 @@ class SantriLengkapImport implements SkipsOnFailure, SkipsUnknownSheets, ToColle
     {
         // PENTING: hanya pakai pencocokan NIK saat NIK terisi.
         if (! empty($row['nik'])) {
+            // Cari dalam bentuk tersimpan (nilai tak valid tersimpan berawalan `X-`).
+            $nikCari = NikFlag::tandai($row['nik']);
             // Dedup identitas nik+nama+tgl_lahir (NIK boleh fiktif/ganda).
-            $kunci = strtolower(trim((string) $row['nik'])).'|'.strtolower(trim((string) $dataSantri['nama_lengkap'])).'|'.(string) ($dataSantri['tgl_lahir'] ?? '');
+            $kunci = strtolower(trim((string) $nikCari)).'|'.strtolower(trim((string) $dataSantri['nama_lengkap'])).'|'.(string) ($dataSantri['tgl_lahir'] ?? '');
             if (isset($dilihat[$kunci])) {
                 $dilihat[$kunci]->update($dataSantri);
 
@@ -289,7 +292,7 @@ class SantriLengkapImport implements SkipsOnFailure, SkipsUnknownSheets, ToColle
             $tglBaru = ! empty($dataSantri['tgl_lahir'])
                 ? Carbon::parse($dataSantri['tgl_lahir'])->format('Y-m-d')
                 : null;
-            $santri = Santri::where('nik', $row['nik'])
+            $santri = Santri::where('nik', $nikCari)
                 ->where('nama_lengkap', $dataSantri['nama_lengkap'])
                 ->get()
                 ->first(function (Santri $s) use ($tglBaru) {
@@ -327,11 +330,11 @@ class SantriLengkapImport implements SkipsOnFailure, SkipsUnknownSheets, ToColle
         return [
             'nama_lengkap' => ['required', 'string', 'max:255'],
             'jk' => ['required', 'in:L,P'],
-            'nik' => ['nullable', 'digits:16'],
+            'nik' => ['nullable', 'string', 'max:20'],
             'nisn' => ['nullable', 'digits:10'],
-            'ayah_nik' => ['nullable', 'digits:16'],
-            'ibu_nik' => ['nullable', 'digits:16'],
-            'wali_nik' => ['nullable', 'digits:16'],
+            'ayah_nik' => ['nullable', 'string', 'max:20'],
+            'ibu_nik' => ['nullable', 'string', 'max:20'],
+            'wali_nik' => ['nullable', 'string', 'max:20'],
             'tipe_santri' => ['nullable', 'in:asrama,non_asrama'],
             // Kolom kamus: string bebas (tanpa exists)
             'agama' => ['nullable', 'string', 'max:50'],

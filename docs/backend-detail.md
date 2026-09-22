@@ -204,7 +204,11 @@ cek heading memakai mode baca-data-saja; normalisasi `tahaj_masuk` strip→slash
 (`1998-1999`→`1998/1999`) & tanggal nol (`1900-01-00`)→null; rule panjang kolom
 DB (nik/ayah/ibu/wali, nis, npsn/nss, `no_urut` string maks 20) + jaring `QueryException`
 agar kelebihan data gagal per baris (bukan 500); `no_urut` string bebas (mis.
-`706x` untuk data ganda historis); nomor baris Excel-absolut
+`706x` untuk data ganda historis); NIK/`no_kk` yang digitnya bukan 16 tidak
+ditolak melainkan tersimpan berawalan `X-` (mutator `Santri`, lookup import
+sadar-flag); `nis_kemenag` bebas duplikat (tanpa unique/cek dipakai) dan selalu
+null untuk MD (hook model; generate per-baris MD 422); batas eksekusi request
+import 300 detik; nomor baris Excel-absolut
 selaras validator; pencocokan 4 lapis (santri_id eksak → NIK →
 nis+lembaga → create wajib nama); sel kosong = pertahankan (tanpa pengosongan
 via file); NIK kosong selalu create; **keanggotaan wajib**: tiap baris harus

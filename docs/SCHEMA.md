@@ -286,7 +286,7 @@ Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca
 - `id` PK
 - `nama_lengkap`: string — Identitas Personal
 - `nama_singkat`: string [null]
-- `nik`: string(16) [null] — index (boleh fiktif/ganda; dedup nik+nama+tgl_lahir di service)
+- `nik`: string(20) [null] — index (boleh fiktif/ganda; dedup nik+nama+tgl_lahir di service; yang digitnya bukan 16 tersimpan berawalan `X-`)
 - `nisn`: string(10) [null] — berlaku RA–S3 (nasional)
 - `tmp_lahir`: string [null] — kamus ref_tmp_lahir
 - `tgl_lahir`: date [null]
@@ -303,7 +303,7 @@ Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca
 - `kebutuhan_disabilitas`: string [null] — ref_disabilitas
 - `nomor_kip`: string [null]
 - `ayah_nama`: string [null]
-- `ayah_nik`: string(16) [null]
+- `ayah_nik`: string(20) [null] — yang digitnya bukan 16 tersimpan berawalan `X-`
 - `ayah_tmp_lahir`: string [null] — ref_tmp_lahir
 - `ayah_tgl_lahir`: date [null]
 - `ayah_status`: string [null] — ref_status_ortu
@@ -314,7 +314,7 @@ Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca
 - `ayah_alamat`: string [null]
 - `ayah_status_tempat_tinggal`: string [null] — ref_status_tinggal
 - `ibu_nama`: string [null]
-- `ibu_nik`: string(16) [null]
+- `ibu_nik`: string(20) [null] — yang digitnya bukan 16 tersimpan berawalan `X-`
 - `ibu_tmp_lahir`: string [null] — ref_tmp_lahir
 - `ibu_tgl_lahir`: date [null]
 - `ibu_status`: string [null] — ref_status_ortu
@@ -325,7 +325,7 @@ Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca
 - `ibu_alamat`: string [null]
 - `ibu_status_tempat_tinggal`: string [null] — ref_status_tinggal
 - `wali_nama`: string [null]
-- `wali_nik`: string(16) [null]
+- `wali_nik`: string(20) [null] — yang digitnya bukan 16 tersimpan berawalan `X-`
 - `wali_tmp_lahir`: string [null] — ref_tmp_lahir
 - `wali_tgl_lahir`: date [null]
 - `wali_status`: string [null] — ref_status_ortu
@@ -336,7 +336,7 @@ Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca
 - `wali_alamat`: string [null]
 - `wali_status_tempat_tinggal`: string [null] — ref_status_tinggal
 - `yang_membiayai`: string [null] — ref_yang_membiayai
-- `no_kk`: string(16) [null] — EMIS santri tambahan:
+- `no_kk`: string(20) [null] — EMIS santri tambahan; yang digitnya bukan 16 tersimpan berawalan `X-`
 - `kewarganegaraan`: string [default 'WNI']
 - `bahasa_sehari`: string [null] — ref_bahasa_sehari_hari
 - `status_tempat_tinggal`: string [null] — ref_status_tinggal
@@ -366,7 +366,7 @@ Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca
 - `santri_id`: FK → santri [cascade]
 - `jenjang`: FK → lembaga [cascade]
 - `nis_lokal`: string(20) [null] — NIS per lembaga, unik per lembaga
-- `nis_kemenag`: string(20) [null] — NISK manual: 12 digit NSM lembaga + 2 digit tahun diterima + 4 digit akhir `nis_lokal`; unik per lembaga
+- `nis_kemenag`: string(20) [null] — NISK manual: 12 digit NSM lembaga + 2 digit tahun diterima + 4 digit akhir `nis_lokal`; boleh duplikat (hasil generate); MD selalu null
 - `tahaj_masuk`: string(50) [null] — tahun pelajaran saat masuk (mis. "2026/2027"), bukan FK
 - `tingkat_masuk`: string(20) [null] — tingkat saat pertama masuk lembaga
 - `no_urut`: string(20) [null] — nomor urut masuk per lembaga (tidak unik; boleh sufiks huruf mis. `706x` untuk data ganda historis)

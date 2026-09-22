@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\PengajuanBiodataSantri;
 use App\Models\Santri;
+use App\Support\NikFlag;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
@@ -98,7 +99,7 @@ class PengajuanBiodataService
             if (isset($apply['nik'])) {
                 $namaBaru = $apply['nama_lengkap'] ?? $santri->nama_lengkap;
                 $tglBaru = $apply['tgl_lahir'] ?? $santri->tgl_lahir;
-                $dup = Santri::where('nik', $apply['nik'])
+                $dup = Santri::where('nik', NikFlag::tandai($apply['nik']))
                     ->where('nama_lengkap', $namaBaru)->where('tgl_lahir', $tglBaru)
                     ->where('id', '<>', $p->santri_id)->exists();
                 if ($dup) {

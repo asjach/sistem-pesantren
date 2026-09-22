@@ -9,6 +9,7 @@ use App\Models\RiwayatBelajar;
 use App\Models\Santri;
 use App\Models\TahunAjaran;
 use App\Services\RefService;
+use App\Support\NikFlag;
 use App\Support\Tanggal;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -191,7 +192,8 @@ class RiwayatBelajarImport implements SkipsOnFailure, SkipsUnknownSheets, ToColl
     {
         $nik = trim((string) ($row['nik'] ?? ''));
         if ($nik !== '') {
-            $santri = Santri::where('nik', $nik)->first();
+            // NIK tak valid tersimpan berawalan `X-`: cari bentuk tersimpannya.
+            $santri = Santri::where('nik', NikFlag::tandai($nik))->first();
             if ($santri) {
                 return $santri;
             }
