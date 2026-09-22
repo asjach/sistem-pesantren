@@ -322,7 +322,7 @@ export default function SantriPage() {
               </SelectContent>
             </Select>
             <FieldLabel htmlFor="input_nik_santri">NIK</FieldLabel>
-            <Input id="input_nik_santri" value={addNik} onChange={(e) => setAddNik(e.target.value)} maxLength={16} />
+            <Input id="input_nik_santri" value={addNik} onChange={(e) => setAddNik(e.target.value)} maxLength={20} />
             <FieldLabel htmlFor="input_nisn_santri">NISN</FieldLabel>
             <Input id="input_nisn_santri" value={addNisn} onChange={(e) => setAddNisn(e.target.value)} maxLength={10} />
             <FieldLabel htmlFor="select_lembaga_tambah_santri">Jenjang</FieldLabel>

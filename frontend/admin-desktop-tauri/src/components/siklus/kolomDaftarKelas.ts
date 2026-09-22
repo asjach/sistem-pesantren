@@ -9,6 +9,11 @@ import { updateRiwayatBelajar, type RiwayatRow } from '@/api/siklus';
 const digitValidator = (len: number, nama: string) => (v: string | null) =>
   (!v || v.trim() === '' || new RegExp(`^\\d{${len}}$`).test(v.trim()) ? null : `${nama} harus ${len} digit angka.`);
 
+/** NIK/no.KK longgar (maks 20): yang digitnya bukan 16 otomatis berawalan
+ *  `X-` saat disimpan agar ketahuan tak valid. */
+const nikValidator = (v: string | null) =>
+  (!v || v.trim() === '' || v.trim().length <= 20 ? null : 'Maksimal 20 karakter.');
+
 const tglValidator = (v: string | null) =>
   (!v || v.trim() === '' || /^\d{4}-\d{2}-\d{2}$/.test(v.trim()) ? null : 'Format tanggal: YYYY-MM-DD.');
 
@@ -39,7 +44,7 @@ function pihakFields(prefix: 'ayah' | 'ibu' | 'wali', judul: string, boleh: bool
     t(`${prefix}_nama`, `${judul} — Nama`, 160),
     statis
       ? { key: `${prefix}_nik`, label: `${prefix}_nik`, width: 150, kind: 'static', sumber: { tabel: 'santri', kolom: `${prefix}_nik` } }
-      : { key: `${prefix}_nik`, label: `${prefix}_nik`, width: 150, kind: 'text', maxLength: 16, validate: digitValidator(16, 'NIK'), sumber: { tabel: 'santri', kolom: `${prefix}_nik` } },
+      : { key: `${prefix}_nik`, label: `${prefix}_nik`, width: 150, kind: 'text', maxLength: 20, validate: nikValidator, sumber: { tabel: 'santri', kolom: `${prefix}_nik` } },
     t(`${prefix}_tmp_lahir`, `${judul} — Tempat lahir`),
     statis
       ? { key: `${prefix}_tgl_lahir`, label: `${judul} — Tgl lahir`, width: 120, kind: 'static', sumber: { tabel: 'santri', kolom: `${prefix}_tgl_lahir` } }
@@ -104,7 +109,7 @@ function profilFields(boleh: boolean): ExcelField[] {
   }
   return [
     teks('nama_singkat', 'Nama singkat', 'santri', 'nama_singkat'),
-    { key: 'nik', label: 'nik', width: 160, kind: 'text', maxLength: 16, validate: digitValidator(16, 'NIK'), sumber: { tabel: 'santri', kolom: 'nik' } },
+    { key: 'nik', label: 'nik', width: 160, kind: 'text', maxLength: 20, validate: nikValidator, sumber: { tabel: 'santri', kolom: 'nik' } },
     { key: 'nisn', label: 'nisn', width: 120, kind: 'text', maxLength: 10, validate: digitValidator(10, 'NISN'), sumber: { tabel: 'santri', kolom: 'nisn' } },
     { key: 'jk', label: 'jk', width: 60, kind: 'select', choices: [{ value: 'L', label: 'L' }, { value: 'P', label: 'P' }], sumber: { tabel: 'santri', kolom: 'jk' } },
     teks('tmp_lahir', 'Tempat lahir', 'santri', 'tmp_lahir'),
@@ -120,7 +125,7 @@ function profilFields(boleh: boolean): ExcelField[] {
     teks('kebutuhan_khusus', 'Kebutuhan khusus', 'santri', 'kebutuhan_khusus', 150),
     teks('kebutuhan_disabilitas', 'Disabilitas', 'santri', 'kebutuhan_disabilitas', 130),
     teks('nomor_kip', 'No. KIP', 'santri', 'nomor_kip', 130),
-    { key: 'no_kk', label: 'no_kk', width: 150, kind: 'text', maxLength: 16, validate: digitValidator(16, 'No. KK'), sumber: { tabel: 'santri', kolom: 'no_kk' } },
+    { key: 'no_kk', label: 'no_kk', width: 150, kind: 'text', maxLength: 20, validate: nikValidator, sumber: { tabel: 'santri', kolom: 'no_kk' } },
     teks('kewarganegaraan', 'Kewarganegaraan', 'santri', 'kewarganegaraan', 130),
     teks('bahasa_sehari', 'Bahasa sehari-hari', 'santri', 'bahasa_sehari', 150),
     teks('status_tempat_tinggal', 'Tempat tinggal', 'santri', 'status_tempat_tinggal', 150),

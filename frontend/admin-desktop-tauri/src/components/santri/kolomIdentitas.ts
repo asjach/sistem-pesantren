@@ -8,6 +8,11 @@ import type { Santri } from '@/api/santri';
 export const digitValidator = (len: number, nama: string) => (v: string | null) =>
   (!v || v.trim() === '' || new RegExp(`^\\d{${len}}$`).test(v.trim()) ? null : `${nama} harus ${len} digit angka.`);
 
+/** NIK/no.KK longgar (maks 20): yang digitnya bukan 16 otomatis berawalan
+ *  `X-` saat disimpan agar ketahuan tak valid. */
+export const nikValidator = (v: string | null) =>
+  (!v || v.trim() === '' || v.trim().length <= 20 ? null : 'Maksimal 20 karakter.');
+
 export const tglValidator = (v: string | null) =>
   (!v || v.trim() === '' || /^\d{4}-\d{2}-\d{2}$/.test(v.trim()) ? null : 'Format tanggal: YYYY-MM-DD.');
 
@@ -28,7 +33,7 @@ export function angka(key: string, label: string, width = 90): ExcelField {
 export function pihakFields(prefix: 'ayah' | 'ibu' | 'wali', judul: string): ExcelField[] {
   return [
     teks(`${prefix}_nama`, `${judul} — Nama`, 160),
-    { key: `${prefix}_nik`, label: `${prefix}_nik`, width: 150, kind: 'text', maxLength: 16, validate: digitValidator(16, 'NIK') },
+    { key: `${prefix}_nik`, label: `${prefix}_nik`, width: 150, kind: 'text', maxLength: 20, validate: nikValidator },
     teks(`${prefix}_tmp_lahir`, `${judul} — Tempat lahir`, 140),
     tgl(`${prefix}_tgl_lahir`, `${judul} — Tgl lahir`, 120),
     teks(`${prefix}_status`, `${judul} — Status`, 110),
@@ -45,7 +50,7 @@ export function pihakFields(prefix: 'ayah' | 'ibu' | 'wali', judul: string): Exc
 export const SANTRI_IDENTITAS_FIELDS: ExcelField[] = [
   { key: 'nama', label: 'nama_lengkap', width: 220, kind: 'text', maxLength: 255, sumber: { tabel: 'santri', kolom: 'nama_lengkap' }, validate: (v) => (v && v.trim() ? null : 'Nama wajib diisi.') },
   teks('nama_singkat', 'Nama singkat', 140),
-  { key: 'nik', label: 'nik', width: 160, kind: 'text', maxLength: 16, validate: digitValidator(16, 'NIK') },
+  { key: 'nik', label: 'nik', width: 160, kind: 'text', maxLength: 20, validate: nikValidator },
   { key: 'nisn', label: 'nisn', width: 120, kind: 'text', maxLength: 10, validate: digitValidator(10, 'NISN') },
   { key: 'jk', label: 'jk', width: 60, kind: 'select', choices: [{ value: 'L', label: 'L' }, { value: 'P', label: 'P' }] },
   teks('tmp_lahir', 'Tempat lahir', 140),
@@ -61,7 +66,7 @@ export const SANTRI_IDENTITAS_FIELDS: ExcelField[] = [
   teks('kebutuhan_khusus', 'Kebutuhan khusus', 150),
   teks('kebutuhan_disabilitas', 'Disabilitas', 130),
   teks('nomor_kip', 'No. KIP', 130),
-  { key: 'no_kk', label: 'no_kk', width: 150, kind: 'text', maxLength: 16, validate: digitValidator(16, 'No. KK') },
+  { key: 'no_kk', label: 'no_kk', width: 150, kind: 'text', maxLength: 20, validate: nikValidator },
   teks('kepala_keluarga', 'Kepala keluarga', 150),
   teks('kewarganegaraan', 'Kewarganegaraan', 130),
   teks('bahasa_sehari', 'Bahasa sehari-hari', 150),
