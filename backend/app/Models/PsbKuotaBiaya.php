@@ -23,7 +23,7 @@ class PsbKuotaBiaya extends Model
 
     public function lembaga(): BelongsTo
     {
-        return $this->belongsTo(Lembaga::class);
+        return $this->belongsTo(Lembaga::class, 'jenjang', 'jenjang');
     }
 
     public function butuhSeleksi(): bool

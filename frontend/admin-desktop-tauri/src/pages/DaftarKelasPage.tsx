@@ -31,7 +31,7 @@ export default function DaftarKelasPage() {
   const canPindah = bisa(user, 'pindah_kelas.ubah');
   const canSantri = bisa(user, 'santri.ubah');
   const canRiwayat = bisa(user, 'riwayat_belajar.ubah');
-  const [lembagaId, setLembagaId] = useState('');
+  const [jenjang, setLembagaId] = useState('');
   useLembagaAwalString(setLembagaId);
   const [taId, setTaId] = useState('');
   useTahunAjaranAwalString(setTaId);
@@ -43,7 +43,7 @@ export default function DaftarKelasPage() {
   const [info, setInfo] = useState<{ tahun_ajaran: string | null; semester: string | null } | null>(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
-  const { tas } = useLembagaTa(lembagaId);
+  const { tas } = useLembagaTa(jenjang);
 
   const [kelas, setKelas] = useState<Kelas[]>([]);
   const [pindahRow, setPindahRow] = useState<RiwayatRow | null>(null);
@@ -58,14 +58,14 @@ export default function DaftarKelasPage() {
   const commitDaftar = useMemo(() => pakaiCommitDaftarKelas(rows), [rows]);
 
   const load = useCallback(async () => {
-    if (!lembagaId) { setRows([]); setInfo(null); return; }
+    if (!jenjang) { setRows([]); setInfo(null); return; }
     setErr('');
     setLoading(true);
     try {
       // Salah satu periode = Semua → lintas periode (tanpa default server).
       const lintas = taId === '' || semester === '';
       const res = await daftarKelas({
-        lembaga_id: Number(lembagaId),
+        jenjang: jenjang,
         tahun_ajaran: taId || undefined,
         semester: semester || undefined,
         kelompok_status: kelompok === '' ? undefined : (kelompok as 'aktif' | 'nonaktif'),
@@ -78,16 +78,16 @@ export default function DaftarKelasPage() {
     } finally {
       setLoading(false);
     }
-  }, [lembagaId, taId, semester, kelompok]);
+  }, [jenjang, taId, semester, kelompok]);
 
   useEffect(() => { void load(); }, [load]);
 
   useEffect(() => {
-    if (!lembagaId) { setKelas([]); return; }
-    listKelas({ lembaga_id: Number(lembagaId), tahun_ajaran: taId || undefined, per_page: 1000 })
+    if (!jenjang) { setKelas([]); return; }
+    listKelas({ jenjang: jenjang, tahun_ajaran: taId || undefined, per_page: 1000 })
       .then((p) => setKelas(p.data))
       .catch(() => setKelas([]));
-  }, [lembagaId, taId]);
+  }, [jenjang, taId]);
 
   return (
     <div className={PAGE_SHELL}>

@@ -9,7 +9,7 @@ export interface AdminUser {
   phone: string | null;
   username: string | null;
   roles: Role[];
-  lembagas?: { id: number; nama: string; kode: string | null }[];
+  lembagas?: { jenjang: string; nama: string }[];
 }
 
 export interface Paginate<T> {
@@ -39,7 +39,7 @@ export function createUser(input: {
   username?: string;
   password: string;
   roles: string[];
-  lembaga_ids?: number[];
+  jenjangs?: string[];
 }) {
   return api<AdminUser>('/admin/users', { method: 'POST', body: JSON.stringify(input) });
 }
@@ -55,22 +55,22 @@ export function updateUser(id: number, input: {
   username?: string | null;
   password?: string;
   roles?: string[];
-  lembaga_ids?: number[];
+  jenjangs?: string[];
 }) {
   return api<AdminUser>(`/admin/users/${id}`, { method: 'PUT', body: JSON.stringify(input) });
 }
 
-export function attachLembaga(userId: number, lembaga_id: number) {
+export function attachLembaga(userId: number, jenjang: string) {
   return api(`/admin/users/${userId}/lembaga`, {
     method: 'POST',
-    body: JSON.stringify({ lembaga_id }),
+    body: JSON.stringify({ jenjang }),
   });
 }
 
-export function detachLembaga(userId: number, lembaga_id: number) {
+export function detachLembaga(userId: number, jenjang: string) {
   return api(`/admin/users/${userId}/lembaga`, {
     method: 'DELETE',
-    body: JSON.stringify({ lembaga_id }),
+    body: JSON.stringify({ jenjang }),
   });
 }
 

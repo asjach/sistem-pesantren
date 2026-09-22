@@ -149,14 +149,14 @@ function santriGridValues(s: Santri): Record<string, string | null> {
 function pakaiCommitBaris(rows: Santri[]) {
   return async function commitBaris(id: number, f: Record<string, string | null>) {
     const body: Record<string, string | null> = {};
-    const nis: Array<[number, string | null]> = [];
+    const nis: Array<[string, string | null]> = [];
     for (const [k, v] of Object.entries(f)) {
       if (v === undefined) continue;
       if (TURUNAN_KEYS.has(k)) continue;
       if (k.startsWith(NIS_PREFIX)) {
-        const lembagaId = Number(k.slice(NIS_PREFIX.length));
-        if (Number.isInteger(lembagaId)) {
-          nis.push([lembagaId, v === null || String(v).trim() === '' ? null : String(v).trim()]);
+        const jenjang = k.slice(NIS_PREFIX.length);
+        if (jenjang !== '') {
+          nis.push([jenjang, v === null || String(v).trim() === '' ? null : String(v).trim()]);
         }
         continue;
       }
@@ -172,14 +172,14 @@ function pakaiCommitBaris(rows: Santri[]) {
     if (nis.length > 0) {
       const baris = rows.find((r) => r.id === id);
       const aktif = baris?.lembaga_aktif ?? [];
-      for (const [lembagaId, nilai] of nis) {
-        const ada = aktif.find((ls) => ls.lembaga_id === lembagaId);
+      for (const [jenjang, nilai] of nis) {
+        const ada = aktif.find((ls) => ls.jenjang === jenjang);
         if (ada) {
           if ((ada.nis_lokal ?? null) !== nilai) {
             await updateLembagaSantri(ada.id, { nis_lokal: nilai });
           }
         } else if (nilai !== null) {
-          await createLembagaSantri(id, { lembaga_id: lembagaId, nis_lokal: nilai });
+          await createLembagaSantri(id, { jenjang: jenjang, nis_lokal: nilai });
         }
       }
     }
@@ -190,7 +190,7 @@ function pakaiCommitBaris(rows: Santri[]) {
 export default function SantriPage() {
   const [lembagas, setLembagas] = useState<Lembaga[]>([]);
   const [statusGlobal, setStatusGlobal] = useState('_semua');
-  const [lembagaId, setLembagaId] = useState('');
+  const [jenjang, setLembagaId] = useState('');
   useLembagaAwalString(setLembagaId);
   const {
     rows,
@@ -210,7 +210,7 @@ export default function SantriPage() {
     tableKey: 'santri',
     ambil: (a) => listSantri({
       is_active_pst: statusGlobal === '_semua' ? undefined : statusGlobal === 'aktif',
-      lembaga_id: lembagaId ? Number(lembagaId) : undefined,
+      jenjang: jenjang ? jenjang : undefined,
       q: a.search || undefined,
       sort: a.urut.length ? a.urut : undefined,
       arah: a.urut.length ? a.arah : undefined,
@@ -218,7 +218,7 @@ export default function SantriPage() {
       per_page: a.perPage,
       signal: a.signal,
     }),
-    deps: [statusGlobal, lembagaId],
+    deps: [statusGlobal, jenjang],
   });
 
   const [importOpen, setImportOpen] = useState(false);
@@ -226,7 +226,7 @@ export default function SantriPage() {
   const [periksaHasil, setPeriksaHasil] = useState<ImportPeriksa | null>(null);
   const [periksaBusy, setPeriksaBusy] = useState(false);
   // Lembaga sumber "Data existing": multi-pilih (satu/lebih/semua).
-  const [dataIds, setDataIds] = useState<number[]>([]);
+  const [dataIds, setDataIds] = useState<string[]>([]);
 
   const [fotoRow, setFotoRow] = useState<Santri | null>(null);
   const [fotoFile, setFotoFile] = useState<File | null>(null);
@@ -257,13 +257,13 @@ export default function SantriPage() {
   const [busy, setBusy] = useState(false);
 
   // Hanya lembaga operasional (root pesantren tidak bisa menjadi keanggotaan).
-  const lembagaOperasional = lembagas.filter((l) => l.parent);
+  const lembagaOperasional = lembagas;
 
   // Kolom NIS per lembaga — cerminan `lembaga_santri`, bisa diketik langsung.
   const nisFields: ExcelField[] = useMemo(
     () => lembagaOperasional.map((l) => ({
-      key: `${NIS_PREFIX}${l.id}`,
-      label: `NIS ${l.kode ?? l.nama}`,
+      key: `${NIS_PREFIX}${l.jenjang}`,
+      label: `NIS ${l.jenjang}`,
       width: 110,
       kind: 'text' as const,
       maxLength: 20,
@@ -276,7 +276,7 @@ export default function SantriPage() {
   const getNilai = useCallback((s: Santri): Record<string, string | null> => {
     const out = santriGridValues(s);
     for (const ls of s.lembaga_aktif ?? []) {
-      out[`${NIS_PREFIX}${ls.lembaga_id}`] = ls.nis_lokal ?? null;
+      out[`${NIS_PREFIX}${ls.jenjang}`] = ls.nis_lokal ?? null;
     }
     return out;
   }, []);
@@ -285,7 +285,7 @@ export default function SantriPage() {
   const { user } = useAuth();
   const singleLembagaId =
     user && !user.roles.some((r) => r.name === 'super_admin') && (user.lembagas?.length ?? 0) === 1
-      ? user.lembagas![0].id
+      ? user.lembagas![0].jenjang
       : null;
 
   // Dropdown sumber "Data existing": admin tak rangkap terkunci ke 1 lembaganya;
@@ -294,19 +294,19 @@ export default function SantriPage() {
   // efek bawaan di bawah me-reset pilihan user ke "semua" setiap render ulang.
   const opsiDataLembaga = useMemo(() => lembagaOperasional, [lembagas]);
   const dataTerkunci = opsiDataLembaga.length === 1 || singleLembagaId !== null;
-  const toggleDataId = (id: number) =>
+  const toggleDataId = (id: string) =>
     setDataIds((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
   useEffect(() => {
     if (!importOpen) return;
-    if (singleLembagaId !== null && opsiDataLembaga.some((l) => l.id === singleLembagaId)) {
+    if (singleLembagaId !== null && opsiDataLembaga.some((l) => l.jenjang === singleLembagaId)) {
       setDataIds([singleLembagaId]);
       return;
     }
-    const dariFilter = lembagaId && opsiDataLembaga.some((l) => String(l.id) === lembagaId)
-      ? [Number(lembagaId)]
+    const dariFilter = jenjang && opsiDataLembaga.some((l) => l.jenjang === jenjang)
+      ? [jenjang]
       : null;
-    setDataIds(dariFilter ?? opsiDataLembaga.map((l) => l.id));
-  }, [importOpen, lembagaId, opsiDataLembaga, singleLembagaId]);
+    setDataIds(dariFilter ?? opsiDataLembaga.map((l) => l.jenjang));
+  }, [importOpen, jenjang, opsiDataLembaga, singleLembagaId]);
 
   useEffect(() => {
     listLembaga({ per_page: 1000 }).then((p) => setLembagas(p.data)).catch(() => {});
@@ -329,7 +329,7 @@ export default function SantriPage() {
     if (!anggotaRow || !anggotaLembaga) return;
     try {
       await createLembagaSantri(anggotaRow.id, {
-        lembaga_id: Number(anggotaLembaga),
+        jenjang: anggotaLembaga,
         nis_lokal: anggotaNis.trim() || null,
         tgl_masuk: anggotaMulai || null,
       });
@@ -445,7 +445,7 @@ export default function SantriPage() {
             try {
               const res = await createSantri({ nama_lengkap: addNama.trim(), jk: addJk, nik: addNik.trim() || null, nisn: addNisn.trim() || null });
               if (addLembaga) {
-                await createLembagaSantri(res.data.id, { lembaga_id: Number(addLembaga), nis_lokal: addNisLokal.trim() || null });
+                await createLembagaSantri(res.data.id, { jenjang: addLembaga, nis_lokal: addNisLokal.trim() || null });
               }
               toast.success('Santri ditambahkan.');
               setTambahOpen(false);
@@ -478,7 +478,7 @@ export default function SantriPage() {
               <SelectContent>
                 <SelectGroup>
                   <SelectItem value="_kosong">Tanpa lembaga</SelectItem>
-                  {lembagaOperasional.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>)}
+                  {lembagaOperasional.map((l) => <SelectItem key={l.jenjang} value={l.jenjang}>{l.jenjang} — {l.nama}</SelectItem>)}
                 </SelectGroup>
               </SelectContent>
             </Select>
@@ -517,7 +517,7 @@ export default function SantriPage() {
                   <tr><td colSpan={7} className="p-3 text-center text-muted-foreground">Belum ada keanggotaan.</td></tr>
                 ) : anggotaList.map((ls) => (
                   <tr key={ls.id} className="border-t">
-                    <td className="p-2">{ls.lembaga?.kode ?? ls.lembaga?.nama ?? ls.lembaga_id}</td>
+                    <td className="p-2">{ls.lembaga?.jenjang ?? ls.jenjang}</td>
                     <td className="p-2">{ls.nis_lokal ?? '—'}</td>
                     <td className="p-2">{ls.nis_kemenag ?? '—'}</td>
                     <td className="p-2">{ls.tgl_masuk?.slice(0, 10) ?? '—'}</td>
@@ -546,7 +546,7 @@ export default function SantriPage() {
               <SelectContent>
                 <SelectGroup>
                   <SelectItem value="_kosong">Pilih lembaga</SelectItem>
-                  {lembagaOperasional.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>)}
+                  {lembagaOperasional.map((l) => <SelectItem key={l.jenjang} value={l.jenjang}>{l.jenjang} — {l.nama}</SelectItem>)}
                 </SelectGroup>
               </SelectContent>
             </Select>
@@ -617,23 +617,23 @@ export default function SantriPage() {
                       id="check_data_semua"
                       checked={dataIds.length === opsiDataLembaga.length && opsiDataLembaga.length > 0}
                       onCheckedChange={() => setDataIds((s) =>
-                        s.length === opsiDataLembaga.length ? [] : opsiDataLembaga.map((l) => l.id),
+                        s.length === opsiDataLembaga.length ? [] : opsiDataLembaga.map((l) => l.jenjang),
                       )}
                     /> Semua
                   </label>
                 )}
                 {opsiDataLembaga.map((l) => (
                   <label
-                    key={l.id}
+                    key={l.jenjang}
                     className="inline-flex h-7 cursor-pointer items-center gap-2 rounded-full border bg-card px-3 text-xs has-checked:border-primary has-checked:bg-accent has-checked:font-semibold"
                     title={dataTerkunci ? 'Satu-satunya lembaga Anda (otomatis)' : l.nama}
                   >
                     <Checkbox
                       id={`check_data_lembaga_${l.id}`}
-                      checked={dataIds.includes(l.id)}
+                      checked={dataIds.includes(l.jenjang)}
                       disabled={dataTerkunci}
-                      onCheckedChange={() => toggleDataId(l.id)}
-                    /> {l.kode ?? l.nama}
+                      onCheckedChange={() => toggleDataId(l.jenjang)}
+                    /> {l.jenjang}
                   </label>
                 ))}
                 <Button

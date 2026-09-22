@@ -92,11 +92,11 @@ class PsbService
      */
     protected function validasiMasukTingkat(Lembaga $lembaga, bool $isPindahan, mixed $tingkat): string
     {
-        $kode = (string) $lembaga->kode;
+        $kode = (string) $lembaga->jenjang;
         if (! $isPindahan) {
             $def = self::TINGKAT_MASUK_BARU[$kode] ?? null;
             if ($def === null) {
-                throw ValidationException::withMessages(['lembaga_id' => "Kode lembaga {$kode} belum punya tingkat masuk santri baru."]);
+                throw ValidationException::withMessages(['jenjang' => "Kode lembaga {$kode} belum punya tingkat masuk santri baru."]);
             }
             if ($tingkat !== null && (string) $tingkat !== $def) {
                 throw ValidationException::withMessages(['masuk_tingkat' => "Santri baru {$kode} wajib tingkat {$def}."]);
@@ -106,7 +106,7 @@ class PsbService
         }
         $boleh = self::TINGKAT_PINDAHAN[$kode] ?? null;
         if ($boleh === null) {
-            throw ValidationException::withMessages(['lembaga_id' => "Kode lembaga {$kode} belum punya daftar tingkat pindahan."]);
+            throw ValidationException::withMessages(['jenjang' => "Kode lembaga {$kode} belum punya daftar tingkat pindahan."]);
         }
         if (! in_array((string) ($tingkat ?? ''), $boleh, true)) {
             throw ValidationException::withMessages(['masuk_tingkat' => 'Pindahan '.$kode.' wajib tingkat '.implode('/', $boleh).'.']);
@@ -163,7 +163,7 @@ class PsbService
                 throw ValidationException::withMessages(['paket' => 'Paket MI-MD hanya untuk pendaftaran santri baru.']);
             }
 
-            $lembagaDaftar = Lembaga::findOrFail($data['lembaga_id']);
+            $lembagaDaftar = Lembaga::findOrFail($data['jenjang']);
             $isPindahan = (bool) ($data['is_pindahan'] ?? false);
             $targets = [];
 
@@ -171,9 +171,9 @@ class PsbService
                 if (($data['tipe_santri'] ?? 'non_asrama') !== 'non_asrama') {
                     throw ValidationException::withMessages(['paket' => 'Paket MI-MD hanya tersedia untuk non_asrama.']);
                 }
-                $lembagaPrimer = Lembaga::where('kode', self::PAKET_MI_MD['primer'])->firstOrFail();
-                $lembagaSekunder = Lembaga::where('kode', 'MD')->firstOrFail();
-                $kuotaBiaya = $this->kuotaUntuk((int) $data['gelombang_id'], $lembagaPrimer->id, 'non_asrama');
+                $lembagaPrimer = Lembaga::whereKey(self::PAKET_MI_MD['primer'])->firstOrFail();
+                $lembagaSekunder = Lembaga::whereKey('MD')->firstOrFail();
+                $kuotaBiaya = $this->kuotaUntuk((int) $data['gelombang_id'], $lembagaPrimer->jenjang, 'non_asrama');
                 if (! $kuotaBiaya || ! $kuotaBiaya->paket_tersedia) {
                     throw ValidationException::withMessages(['paket' => 'Paket MI-MD tidak ditawarkan di gelombang ini.']);
                 }
@@ -191,7 +191,7 @@ class PsbService
 
             // TA calon = TA yang berlaku untuk lembaga primer (kegiatan hanya fallback).
             $data['tahun_ajaran'] = TahunAjaran::resolve(
-                (int) $targets[0]['lembaga']->id,
+                $targets[0]['lembaga']->jenjang,
                 $data['tahun_ajaran'] ?? $gelombangModel->kegiatan?->tahun_ajaran
             );
 
@@ -208,18 +208,18 @@ class PsbService
                 $catatanSistem[] = 'NIK ganda dengan calon lain (nama/tgl_lahir beda, kemungkinan NIK fiktif) — perlu verifikasi admin';
             }
 
-            $statusAwal = $this->kuotaPenuh((int) $data['gelombang_id'], (int) $targets[0]['lembaga']->id, $data['tipe_santri'] ?? null)
+            $statusAwal = $this->kuotaPenuh((int) $data['gelombang_id'], $targets[0]['lembaga']->jenjang, $data['tipe_santri'] ?? null)
                 ? 'waiting_list'
                 : 'baru';
 
             $usaha = 0;
             $noPendaftaran = $isPaket
                 ? $this->generateNoPendaftaranPaket((int) $data['gelombang_id'])
-                : $this->generateNoPendaftaran((int) $data['gelombang_id'], (int) $data['lembaga_id']);
+                : $this->generateNoPendaftaran((int) $data['gelombang_id'], $data['jenjang']);
             while (true) {
                 try {
                     $calon = PsbCalonSantri::create([
-                        'lembaga_id' => $targets[0]['lembaga']->id,
+                        'jenjang' => $targets[0]['lembaga']->jenjang,
                         'gelombang_id' => $data['gelombang_id'],
                         'tahun_ajaran' => $data['tahun_ajaran'] ?? null,
                         'tipe_santri' => $data['tipe_santri'],
@@ -247,14 +247,14 @@ class PsbService
                     }
                     $noPendaftaran = $isPaket
                         ? $this->generateNoPendaftaranPaket((int) $data['gelombang_id'])
-                        : $this->generateNoPendaftaran((int) $data['gelombang_id'], (int) $data['lembaga_id']);
+                        : $this->generateNoPendaftaran((int) $data['gelombang_id'], $data['jenjang']);
                 }
             }
 
             foreach ($targets as $t) {
                 PsbCalonLembaga::create([
                     'psb_calon_santri_id' => $calon->id,
-                    'lembaga_id' => $t['lembaga']->id,
+                    'jenjang' => $t['lembaga']->jenjang,
                     'peran' => $t['peran'],
                     'masuk_tingkat' => $t['tingkat'],
                 ]);
@@ -285,9 +285,9 @@ class PsbService
     }
 
     /** Kuota POOL GABUNGAN per kelompok PSB (delegasi ke PsbGelombangService). waiting_list tidak memakan kursi. */
-    public function kuotaPenuh(int $gelombangId, int $lembagaId, ?string $tipeSantri = null): bool
+    public function kuotaPenuh(int $gelombangId, string $jenjang, ?string $tipeSantri = null): bool
     {
-        return $this->gelombang->sisaKuota($gelombangId, $lembagaId, $tipeSantri) === 0;
+        return $this->gelombang->sisaKuota($gelombangId, $jenjang, $tipeSantri) === 0;
     }
 
     public function verifikasi(int $id, int $adminId): PsbCalonSantri
@@ -327,7 +327,7 @@ class PsbService
     public function promosikanWaiting(int $id, int $adminId): PsbCalonSantri
     {
         $calon = PsbCalonSantri::findOrFail($id);
-        if ($this->kuotaPenuh((int) $calon->gelombang_id, (int) $calon->lembaga_id, $calon->tipe_santri)) {
+        if ($this->kuotaPenuh((int) $calon->gelombang_id, $calon->jenjang, $calon->tipe_santri)) {
             throw ValidationException::withMessages(['kuota' => 'Kuota masih penuh.']);
         }
 
@@ -337,7 +337,7 @@ class PsbService
     public function setSeleksi(int $id, bool $lolos, int $adminId, ?string $catatan = null): PsbCalonSantri
     {
         $calon = PsbCalonSantri::with('gelombang')->findOrFail($id);
-        $kuotaBiaya = $this->kuotaUntuk((int) $calon->gelombang_id, (int) $calon->lembaga_id, $calon->tipe_santri);
+        $kuotaBiaya = $this->kuotaUntuk((int) $calon->gelombang_id, $calon->jenjang, $calon->tipe_santri);
         $butuhSeleksi = $kuotaBiaya ? $kuotaBiaya->butuhSeleksi() : false;
         if (! $butuhSeleksi) {
             throw ValidationException::withMessages(['status' => 'Gelombang ini jalur langsung, tanpa seleksi.']);
@@ -354,7 +354,7 @@ class PsbService
     public function masukDaftarUlang(int $id, int $adminId, ?bool $lolos = null, ?string $catatan = null): PsbCalonSantri
     {
         $calon = PsbCalonSantri::with('gelombang')->findOrFail($id);
-        $kuotaBiaya = $this->kuotaUntuk((int) $calon->gelombang_id, (int) $calon->lembaga_id, $calon->tipe_santri);
+        $kuotaBiaya = $this->kuotaUntuk((int) $calon->gelombang_id, $calon->jenjang, $calon->tipe_santri);
         $butuhSeleksi = $kuotaBiaya ? $kuotaBiaya->butuhSeleksi() : false;
 
         if ($butuhSeleksi) {
@@ -439,7 +439,7 @@ class PsbService
         if (! $calon->milikWali($wali, false)) {
             abort(403, 'Calon ini bukan tanggungan akun Anda.');
         }
-        $kuotaBiaya = $this->kuotaUntuk((int) $calon->gelombang_id, (int) $calon->lembaga_id, $calon->tipe_santri);
+        $kuotaBiaya = $this->kuotaUntuk((int) $calon->gelombang_id, $calon->jenjang, $calon->tipe_santri);
         $butuhSeleksi = $kuotaBiaya ? $kuotaBiaya->butuhSeleksi() : false;
         $bolehDari = $butuhSeleksi ? ['lolos', 'pemberkasan'] : ['terverifikasi', 'pemberkasan', 'lolos'];
         if (! in_array($calon->status_pendaftaran, $bolehDari, true)) {
@@ -482,11 +482,11 @@ class PsbService
             // perdana TIDAK dibuat di sini — diinput lewat halaman Riwayat Belajar.
             if ($calon->tahun_ajaran) {
                 if ($calon->lembagaDetail()->count() === 0) {
-                    $calon->lembagaDetail()->create(['lembaga_id' => $calon->lembaga_id, 'peran' => 'primer']);
+                    $calon->lembagaDetail()->create(['jenjang' => $calon->jenjang, 'peran' => 'primer']);
                 }
                 $penerimaan = app(PenerimaanService::class);
                 foreach ($calon->lembagaDetail()->get() as $detail) {
-                    $lembagaDetailId = (int) $detail->lembaga_id;
+                    $lembagaDetailId = $detail->jenjang;
                     if ($nis !== null && LembagaSantri::nisLokalDipakai($lembagaDetailId, $nis)) {
                         throw ValidationException::withMessages(['nis' => 'NIS sudah dipakai santri lain di lembaga ini.']);
                     }
@@ -504,12 +504,12 @@ class PsbService
             // tidak menahan proses. Centang "tidak memiliki" tersedia di UI.
             $kegiatanId = $calon->gelombang?->psb_kegiatan_id;
             if ($kegiatanId) {
-                $lembagaIds = $calon->lembagaDetail()->pluck('lembaga_id');
-                if ($lembagaIds->isEmpty()) {
-                    $lembagaIds = collect([$calon->lembaga_id]);
+                $jenjangs = $calon->lembagaDetail()->pluck('jenjang');
+                if ($jenjangs->isEmpty()) {
+                    $jenjangs = collect([$calon->jenjang]);
                 }
                 $syarat = DokumenWajibLembaga::where('psb_kegiatan_id', $kegiatanId)
-                    ->whereIn('lembaga_id', $lembagaIds)
+                    ->whereIn('jenjang', $jenjangs)
                     ->pluck('jenis_dokumen_santri')->unique();
                 $sudah = DokumenSantri::where('santri_id', $santri->id)
                     ->whereNotNull('jenis_dokumen_santri')
@@ -536,29 +536,29 @@ class PsbService
 
     protected function cekAturanGanda(array $data): void
     {
-        $lembaga = Lembaga::findOrFail($data['lembaga_id']);
+        $lembaga = Lembaga::findOrFail($data['jenjang']);
         $targetLembaga = collect([$lembaga]);
         if (($data['paket'] ?? null) === self::PAKET_MI_MD['kode']) {
-            $targetLembaga = Lembaga::whereIn('kode', self::PAKET_MI_MD['anggota'])->get();
+            $targetLembaga = Lembaga::whereIn('jenjang', self::PAKET_MI_MD['anggota'])->get();
         }
-        $targetIds = $targetLembaga->pluck('id');
+        $targetIds = $targetLembaga->pluck('jenjang');
 
         $aktifLain = PsbCalonSantri::where('nik', $data['nik'])
             ->whereNotIn('status_pendaftaran', ['ditolak', 'tidak_lolos', 'mengundurkan_diri', 'daftar_ulang'])
-            ->with('lembagaDetail.lembaga:id,kode,kelompok_psb')->get();
-        $existingIds = $aktifLain->flatMap(fn ($c) => $c->lembagaDetail->pluck('lembaga_id'))->unique();
+            ->with('lembagaDetail.lembaga:jenjang,kelompok_psb')->get();
+        $existingIds = $aktifLain->flatMap(fn ($c) => $c->lembagaDetail->pluck('jenjang'))->unique();
 
         $existingEksklusif = $aktifLain->flatMap(fn ($c) => $c->lembagaDetail)
             ->contains(fn ($d) => ($d->lembaga->kelompok_psb ?? null) !== self::KELOMPOK_COMBO);
         $targetEksklusif = $targetLembaga->contains(fn ($l) => $l->kelompok_psb !== self::KELOMPOK_COMBO);
         if (($targetEksklusif || $existingEksklusif) && $existingIds->isNotEmpty()) {
-            throw ValidationException::withMessages(['lembaga_id' => 'Pendaftaran eksklusif: calon sudah terdaftar aktif di lembaga lain.']);
+            throw ValidationException::withMessages(['jenjang' => 'Pendaftaran eksklusif: calon sudah terdaftar aktif di lembaga lain.']);
         }
 
-        $comboIds = Lembaga::where('kelompok_psb', self::KELOMPOK_COMBO)->pluck('id');
+        $comboIds = Lembaga::where('kelompok_psb', self::KELOMPOK_COMBO)->pluck('jenjang');
         $diCombo = $existingIds->merge($targetIds)->intersect($comboIds)->unique();
         if ($diCombo->count() > 2) {
-            throw ValidationException::withMessages(['lembaga_id' => 'Maksimal 2 pendaftaran aktif (MI + MD).']);
+            throw ValidationException::withMessages(['jenjang' => 'Maksimal 2 pendaftaran aktif (MI + MD).']);
         }
     }
 
@@ -572,35 +572,35 @@ class PsbService
     }
 
     /** Lookup kuota exact-tipe lalu fallback 'semua' (konsisten di semua pemakaian). */
-    protected function kuotaUntuk(int $gelombangId, int $lembagaId, ?string $tipeSantri): ?PsbKuotaBiaya
+    protected function kuotaUntuk(int $gelombangId, string $jenjang, ?string $tipeSantri): ?PsbKuotaBiaya
     {
         return PsbKuotaBiaya::where('gelombang_id', $gelombangId)
-            ->where('lembaga_id', $lembagaId)
+            ->where('jenjang', $jenjang)
             ->where('tipe_santri', $tipeSantri ?? 'semua')
             ->first()
             ?? PsbKuotaBiaya::where('gelombang_id', $gelombangId)
-                ->where('lembaga_id', $lembagaId)
+                ->where('jenjang', $jenjang)
                 ->where('tipe_santri', 'semua')
                 ->first();
     }
 
-    public function nomorPendaftaranBerikutnya(int $gelombangId, int $lembagaId): string
+    public function nomorPendaftaranBerikutnya(int $gelombangId, string $jenjang): string
     {
-        return $this->generateNoPendaftaran($gelombangId, $lembagaId);
+        return $this->generateNoPendaftaran($gelombangId, $jenjang);
     }
 
-    protected function generateNoPendaftaran(int $gelombangId, int $lembagaId): string
+    protected function generateNoPendaftaran(int $gelombangId, string $jenjang): string
     {
         // Format: PSB_{tahun}_{kodeLembaga}_{noGelombang}_{seq4}; seq reset per (lembaga,tahun); unique no_pendaftaran global.
         // Kunci konsistensi-03: count()+lock masih bisa race (dua transaksi hitung sama sebelum insert).
         // Caller WAJIB catch QueryException 1062 pada unique no_pendaftaran lalu regenerate (maks 3x).
-        $lembaga = Lembaga::findOrFail($lembagaId);
-        $kode = $lembaga->kode ?: ($lembaga->jenjang ?: $lembagaId);
+        $lembaga = Lembaga::findOrFail($jenjang);
+        $kode = $lembaga->jenjang;
         $tahun = date('Y');
         $gelombang = PsbGelombang::findOrFail($gelombangId);
         $noGelombang = (int) ($gelombang->nomor ?: (PsbGelombang::where('psb_kegiatan_id', $gelombang->psb_kegiatan_id)
             ->where('id', '<=', $gelombangId)->count() ?: 1));
-        $seq = PsbCalonSantri::withTrashed()->where('lembaga_id', $lembagaId)
+        $seq = PsbCalonSantri::withTrashed()->where('jenjang', $jenjang)
             ->whereYear('created_at', $tahun)
             ->lockForUpdate()->count() + 1;
 

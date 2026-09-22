@@ -7,16 +7,8 @@ import { useLembagaAktif } from '@/lembagaAktif';
  * sendiri lewat filter halaman.
  */
 export function useLembagaAwalString(set: (v: string) => void): void {
-  const { lembagaId } = useLembagaAktif();
+  const { jenjang } = useLembagaAktif();
   useEffect(() => {
-    set(lembagaId != null ? String(lembagaId) : '');
-  }, [lembagaId, set]);
-}
-
-/** Varian untuk state filter bertipe `number | ''`. */
-export function useLembagaAwalNumber(set: (v: number | '') => void): void {
-  const { lembagaId } = useLembagaAktif();
-  useEffect(() => {
-    set(lembagaId ?? '');
-  }, [lembagaId, set]);
+    set(jenjang ?? '');
+  }, [jenjang, set]);
 }

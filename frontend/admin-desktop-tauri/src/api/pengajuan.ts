@@ -12,7 +12,7 @@ export interface PengajuanBiodata {
   catatan_admin: string | null;
   cancelled_at: string | null;
   created_at: string | null;
-  santri?: { id: number; nama_lengkap: string; nik: string | null; lembaga_id: number } | null;
+  santri?: { id: number; nama_lengkap: string; nik: string | null } | null;
   wali?: { id: number; name: string } | null;
 }
 

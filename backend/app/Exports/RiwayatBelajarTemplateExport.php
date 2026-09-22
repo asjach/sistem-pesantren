@@ -22,14 +22,14 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 /**
  * Template import riwayat belajar — nama kolom mengikuti tabel `riwayat_belajar`
  * (tanpa `nis`; NIS ada di `lembaga_santri`). Kolom `nik`/`nis_lokal` adalah kunci
- * pencocokan santri: `nik` diutamakan, fallback `nis_lokal` + `lembaga_id`.
+ * pencocokan santri: `nik` diutamakan, fallback `nis_lokal` + `jenjang`.
  */
 class RiwayatBelajarTemplateExport extends DefaultValueBinder implements FromArray, WithCustomValueBinder, WithEvents, WithHeadings, WithTitle
 {
     private const BARIS_TERAKHIR = 501;
 
     public const KOLOM = [
-        'nik', 'nis_lokal', 'lembaga_id', 'tahun_ajaran', 'kelas_id',
+        'nik', 'nis_lokal', 'jenjang', 'tahun_ajaran', 'kelas_id',
         'semester', 'tgl_masuk', 'no_absen', 'tingkat', 'status_awal', 'status_akhir',
     ];
 
@@ -55,7 +55,7 @@ class RiwayatBelajarTemplateExport extends DefaultValueBinder implements FromArr
         return [[
             'nik' => '1234567890123456',
             'nis_lokal' => '26001',
-            'lembaga_id' => '2',
+            'jenjang' => '2',
             'tahun_ajaran' => '2025/2026',
             'kelas_id' => '1A',
             'semester' => '1',
@@ -96,7 +96,7 @@ class RiwayatBelajarTemplateExport extends DefaultValueBinder implements FromArr
                     $style = $sheet->getStyle("{$col}1");
                     $style->getFont()->setBold(true)->setSize(10)->getColor()->setARGB('FF1F2937');
                     $style->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB(
-                        in_array($nama, ['nik', 'nis_lokal', 'lembaga_id', 'tahun_ajaran', 'semester'], true)
+                        in_array($nama, ['nik', 'nis_lokal', 'jenjang', 'tahun_ajaran', 'semester'], true)
                             ? 'FFFFE699'
                             : 'FFDCE6F1'
                     );

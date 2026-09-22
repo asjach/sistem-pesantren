@@ -11,33 +11,18 @@ class DevSeeder extends Seeder
     {
         $this->call([PermissionSeeder::class, AkunSeeder::class]);
 
-        $root = Lembaga::firstOrCreate(
-            ['kode' => 'PESANTREN'],
-            ['nama' => 'Pesantren', 'is_seleksi' => false, 'kelompok_psb' => 'eksklusif', 'is_active' => true],
-        );
-        $root->update(['kelompok_psb' => 'eksklusif']);
-
-        $mi = Lembaga::firstOrCreate(
-            ['kode' => 'MI'],
-            ['parent_id' => $root->id, 'nama' => 'Ibtidaiyah', 'is_seleksi' => false, 'kelompok_psb' => 'combo_mi_md', 'is_active' => true],
-        );
-        $md = Lembaga::firstOrCreate(
-            ['kode' => 'MD'],
-            ['parent_id' => $root->id, 'nama' => 'Diniyah', 'is_seleksi' => false, 'kelompok_psb' => 'combo_mi_md', 'is_active' => true],
-        );
-        $mts = Lembaga::firstOrCreate(
-            ['kode' => 'MTS'],
-            ['parent_id' => $root->id, 'nama' => 'Tsanawiyah', 'is_seleksi' => true, 'kelompok_psb' => 'eksklusif', 'is_active' => true],
-        );
-        $mln = Lembaga::firstOrCreate(
-            ['kode' => 'MLN'],
-            ['parent_id' => $root->id, 'nama' => "Mu'allimin", 'is_seleksi' => true, 'kelompok_psb' => 'eksklusif', 'is_active' => true],
-        );
-        foreach ([$mi, $md] as $l) {
-            $l->update(['kelompok_psb' => 'combo_mi_md']);
-        }
-        foreach ([$mts, $mln] as $l) {
-            $l->update(['kelompok_psb' => 'eksklusif']);
+        // Lembaga = jenjang (kunci alami). Tanpa root/hierarki.
+        $daftar = [
+            ['MI', 'Ibtidaiyah', 'combo_mi_md', false],
+            ['MD', 'Diniyah', 'combo_mi_md', false],
+            ['MTS', 'Tsanawiyah', 'eksklusif', true],
+            ['MLN', "Mu'allimin", 'eksklusif', true],
+        ];
+        foreach ($daftar as [$jenjang, $nama, $kelompok, $seleksi]) {
+            Lembaga::updateOrCreate(
+                ['jenjang' => $jenjang],
+                ['nama' => $nama, 'kelompok_psb' => $kelompok, 'is_seleksi' => $seleksi, 'is_active' => true],
+            );
         }
 
         // Kamus per lembaga (tanpa baris global): benih nilai untuk lembaga di atas.

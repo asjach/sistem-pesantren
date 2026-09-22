@@ -48,12 +48,12 @@ class RiwayatBelajarController extends Controller
             RiwayatBelajar::with([
                 'santri:id,nama_lengkap,jk',
                 'kelas:id,nama_kelas,tingkat',
-                'lembaga:id,nama,kode',
+                'lembaga:jenjang,nama',
                 'tahunAjaran:nama',
             ]),
             $request->user(),
             $request,
-            'riwayat_belajar.lembaga_id'
+            'riwayat_belajar.jenjang'
         );
 
         if ($request->has('is_active_riwayat')) {
@@ -93,11 +93,11 @@ class RiwayatBelajarController extends Controller
             $query->select('riwayat_belajar.*')
                 ->leftJoin('santri', 'santri.id', '=', 'riwayat_belajar.santri_id')
                 ->leftJoin('kelas', 'kelas.id', '=', 'riwayat_belajar.kelas_id')
-                ->leftJoin('lembaga', 'lembaga.id', '=', 'riwayat_belajar.lembaga_id')
+                ->leftJoin('lembaga', 'lembaga.jenjang', '=', 'riwayat_belajar.jenjang')
                 ->leftJoin('tahun_ajaran', 'tahun_ajaran.nama', '=', 'riwayat_belajar.tahun_ajaran');
         }
         $this->terapkanUrut($query, $urut, [
-            ['riwayat_belajar.lembaga_id', 'naik'], ['riwayat_belajar.tingkat', 'naik'],
+            ['riwayat_belajar.jenjang', 'naik'], ['riwayat_belajar.tingkat', 'naik'],
             ['riwayat_belajar.kelas_id', 'naik'], ['riwayat_belajar.no_absen', 'naik'],
             ['riwayat_belajar.santri_id', 'naik'],
         ], self::SORT_NULLABLE);
@@ -121,10 +121,9 @@ class RiwayatBelajarController extends Controller
 
         $santri = Santri::findOrFail($data['santri_id']);
         $this->authorize('update', $santri);
-        $this->authorizeLembaga($request->user(), (int) $data['lembaga_id']);
-        $this->tolakLembagaRoot((int) $data['lembaga_id']);
+        $this->authorizeLembaga($request->user(), $data['jenjang']);
 
-        $riwayat = $penerimaan->terima($santri, (int) $data['lembaga_id'], (string) $data['tahun_ajaran'], [
+        $riwayat = $penerimaan->terima($santri, $data['jenjang'], (string) $data['tahun_ajaran'], [
             'kelas_id' => $data['kelas_id'] ?? null,
             'tingkat' => $data['tingkat'] ?? null,
             'no_absen' => $data['no_absen'] ?? null,
@@ -139,7 +138,7 @@ class RiwayatBelajarController extends Controller
     /** POST /api/admin/riwayat-belajar/{riwayat}/set-kelas — penempatan kelas menyusul. */
     public function setKelas(RiwayatKelasRequest $request, RiwayatBelajar $riwayat, SiklusSantriService $siklus): JsonResponse
     {
-        $this->authorizeAksiLembaga($request, $riwayat->santri, (int) $riwayat->lembaga_id);
+        $this->authorizeAksiLembaga($request, $riwayat->santri, $riwayat->jenjang);
         $data = $request->validated();
 
         return response()->json([
@@ -151,7 +150,7 @@ class RiwayatBelajarController extends Controller
     /** POST /api/admin/riwayat-belajar/{riwayat}/pindah-kelas. */
     public function pindahKelas(RiwayatKelasRequest $request, RiwayatBelajar $riwayat, SiklusSantriService $siklus): JsonResponse
     {
-        $this->authorizeAksiLembaga($request, $riwayat->santri, (int) $riwayat->lembaga_id);
+        $this->authorizeAksiLembaga($request, $riwayat->santri, $riwayat->jenjang);
         $data = $request->validated();
 
         return response()->json([
@@ -163,7 +162,7 @@ class RiwayatBelajarController extends Controller
     /** POST /api/admin/riwayat-belajar/{riwayat}/keluar-kelas — batalkan penempatan. */
     public function keluarKelas(Request $request, RiwayatBelajar $riwayat, SiklusSantriService $siklus): JsonResponse
     {
-        $this->authorizeAksiLembaga($request, $riwayat->santri, (int) $riwayat->lembaga_id);
+        $this->authorizeAksiLembaga($request, $riwayat->santri, $riwayat->jenjang);
 
         return response()->json([
             'pesan' => 'Santri dikeluarkan dari kelas.',
@@ -182,20 +181,19 @@ class RiwayatBelajarController extends Controller
         $this->authorize('viewAny', Santri::class);
 
         $data = $request->validate([
-            'lembaga_id' => ['required', 'integer', 'exists:lembaga,id'],
+            'jenjang' => ['required', 'string', 'exists:lembaga,jenjang'],
             'tahun_ajaran' => ['required', 'string', 'exists:tahun_ajaran,nama'],
             'q' => ['nullable', 'string', 'max:100'],
         ]);
-        $lembagaId = (int) $data['lembaga_id'];
+        $lembagaId = $data['jenjang'];
         $ta = (string) $data['tahun_ajaran'];
         $this->authorizeLembaga($request->user(), $lembagaId);
-        $this->tolakLembagaRoot($lembagaId);
         $this->cekTaEfektif($lembagaId, $ta);
 
         $query = $this->scopeLembaga(
             LembagaSantri::with([
                 'santri:id,nama_lengkap,jk',
-                'lembaga:id,nama,kode',
+                'lembaga:jenjang,nama',
             ]),
             $request->user(),
             $request
@@ -203,11 +201,11 @@ class RiwayatBelajarController extends Controller
 
         $query->whereNotExists(fn ($ada) => $ada->selectRaw('1')->from('riwayat_belajar')
             ->whereColumn('riwayat_belajar.santri_id', 'lembaga_santri.santri_id')
-            ->whereColumn('riwayat_belajar.lembaga_id', 'lembaga_santri.lembaga_id')
+            ->whereColumn('riwayat_belajar.jenjang', 'lembaga_santri.jenjang')
             ->where('riwayat_belajar.is_active_riwayat', RiwayatBelajar::YA));
         $query->whereNotExists(fn ($ganjil) => $ganjil->selectRaw('1')->from('riwayat_belajar')
             ->whereColumn('riwayat_belajar.santri_id', 'lembaga_santri.santri_id')
-            ->whereColumn('riwayat_belajar.lembaga_id', 'lembaga_santri.lembaga_id')
+            ->whereColumn('riwayat_belajar.jenjang', 'lembaga_santri.jenjang')
             ->where('riwayat_belajar.tahun_ajaran', $ta)
             ->where('riwayat_belajar.semester', '1'));
 
@@ -231,7 +229,7 @@ class RiwayatBelajarController extends Controller
     /** DELETE /api/admin/riwayat-belajar/{riwayat} — batalkan baris aktif (hard delete fisik). */
     public function destroy(Request $request, RiwayatBelajar $riwayat, SiklusSantriService $siklus): JsonResponse
     {
-        $this->authorizeAksiLembaga($request, $riwayat->santri, (int) $riwayat->lembaga_id);
+        $this->authorizeAksiLembaga($request, $riwayat->santri, $riwayat->jenjang);
         $siklus->hapusRiwayat($riwayat);
 
         return response()->json(['pesan' => 'Riwayat belajar dibatalkan.']);
@@ -242,7 +240,7 @@ class RiwayatBelajarController extends Controller
      *  status via pintu lifecycle, kelas via set/pindah/keluar-kelas. */
     public function update(RiwayatUpdateRequest $request, RiwayatBelajar $riwayat): JsonResponse
     {
-        $this->authorizeAksiLembaga($request, $riwayat->santri, (int) $riwayat->lembaga_id);
+        $this->authorizeAksiLembaga($request, $riwayat->santri, $riwayat->jenjang);
 
         $riwayat->update($request->validated());
 
@@ -319,11 +317,11 @@ class RiwayatBelajarController extends Controller
     {
         $santriIds = $hasil->getCollection()->pluck('santri_id')->unique()->values();
         $peta = LembagaSantri::whereIn('santri_id', $santriIds)
-            ->get(['santri_id', 'lembaga_id', 'nis_lokal'])
-            ->mapWithKeys(fn (LembagaSantri $ls) => [$ls->santri_id.':'.$ls->lembaga_id => $ls->nis_lokal]);
+            ->get(['santri_id', 'jenjang', 'nis_lokal'])
+            ->mapWithKeys(fn (LembagaSantri $ls) => [$ls->santri_id.':'.$ls->jenjang => $ls->nis_lokal]);
 
         $hasil->getCollection()->transform(function (RiwayatBelajar $row) use ($peta) {
-            $row->setAttribute('nis_lokal', $peta[$row->santri_id.':'.$row->lembaga_id] ?? null);
+            $row->setAttribute('nis_lokal', $peta[$row->santri_id.':'.$row->jenjang] ?? null);
 
             return $row;
         });

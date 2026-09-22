@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 /**
  * Buku induk: identitas santri murni.
  *
- * TIDAK menyimpan relasi riwayat (`lembaga_id`, `kelas_id`, `tahun_ajaran`).
+ * TIDAK menyimpan relasi riwayat (`jenjang`, `kelas_id`, `tahun_ajaran`).
  * - Keanggotaan per lembaga (NIS lokal/kemenag, status aktif) → `lembaga_santri`.
  * - Jejak akademik per TA/semester → `riwayat_belajar`.
  * - `is_active_pst` = turunan: ada ≥1 `riwayat_belajar` aktif (default 'Tidak').
@@ -186,7 +186,7 @@ class Santri extends Model
         $ids = $authUser->lembagaIdsDenganPasangan();
 
         return $query->where(fn (Builder $q) => $q
-            ->whereHas('lembagaSantri', fn (Builder $ls) => $ls->whereIn('lembaga_id', $ids))
+            ->whereHas('lembagaSantri', fn (Builder $ls) => $ls->whereIn('jenjang', $ids))
             ->orWhereDoesntHave('lembagaSantri'));
     }
 

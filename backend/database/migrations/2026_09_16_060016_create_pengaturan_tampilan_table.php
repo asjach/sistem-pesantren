@@ -11,7 +11,8 @@ return new class extends Migration
     {
         Schema::create('pengaturan_tampilan', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('lembaga_id')->unique()->constrained('lembaga')->cascadeOnDelete();
+            $table->string('jenjang', 20)->unique();
+            $table->foreign('jenjang')->references('jenjang')->on('lembaga')->cascadeOnUpdate()->cascadeOnDelete();
             $table->json('data');
             // Naik setiap perubahan agar klien bisa memantau & memuat ulang.
             $table->unsignedInteger('versi')->default(1);

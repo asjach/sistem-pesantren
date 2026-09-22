@@ -19,7 +19,7 @@ class PengaturanTampilan extends Model
 
     public function lembaga(): BelongsTo
     {
-        return $this->belongsTo(Lembaga::class, 'lembaga_id');
+        return $this->belongsTo(Lembaga::class, 'jenjang', 'jenjang');
     }
 
     public function pengubah(): BelongsTo

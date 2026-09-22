@@ -51,15 +51,15 @@ class TabelUrutTest extends TestCase
     protected function dasar(): array
     {
         $root = Lembaga::create([
-            'nama' => 'Pesantren Root', 'kode' => 'PESANTREN',
+            'nama' => 'Pesantren Root', 'jenjang' => 'PESANTREN',
             'is_seleksi' => false, 'kelompok_psb' => 'combo_mi_md', 'is_active' => true,
         ]);
         $mi = Lembaga::create([
-            'parent_id' => $root->id, 'nama' => 'Madrasah Ibtidaiyah', 'kode' => 'MI',
+            'nama' => 'Madrasah Ibtidaiyah', 'jenjang' => 'MI',
             'is_seleksi' => false, 'kelompok_psb' => 'combo_mi_md', 'is_active' => true,
         ]);
         $ta = TahunAjaran::create([
-            'lembaga_id' => null, 'nama' => '2026/2027',
+            'jenjang' => null, 'nama' => '2026/2027',
             'tanggal_mulai' => '2026-07-01', 'tanggal_selesai' => '2027-06-30',
             'is_aktif' => true, 'is_active' => true,
         ]);
@@ -126,7 +126,7 @@ class TabelUrutTest extends TestCase
         $f = $this->dasar();
         foreach (['Kelas B', 'Kelas A'] as $nama) {
             Kelas::create([
-                'lembaga_id' => $f['mi']->id, 'tahun_ajaran' => $f['ta']->nama, 'nama_kelas' => $nama,
+                'jenjang' => $f['mi']->jenjang, 'tahun_ajaran' => $f['ta']->nama, 'nama_kelas' => $nama,
             ]);
         }
         $this->assertSame(
@@ -149,7 +149,7 @@ class TabelUrutTest extends TestCase
         $this->dasar();
         $this->assertSame(
             ['PESANTREN', 'MI'],
-            $this->kolom($this->super(), '/api/admin/lembaga?per_page=50&sort=kode&arah=turun', 'kode')
+            $this->kolom($this->super(), '/api/admin/lembaga?per_page=50&sort=kode&arah=turun', 'jenjang')
         );
     }
 
@@ -191,11 +191,11 @@ class TabelUrutTest extends TestCase
     public function test_tahun_ajaran_urut_nama(): void
     {
         TahunAjaran::create([
-            'lembaga_id' => null, 'nama' => '2027/2028',
+            'jenjang' => null, 'nama' => '2027/2028',
             'tanggal_mulai' => '2027-07-01', 'is_aktif' => false, 'is_active' => true,
         ]);
         TahunAjaran::create([
-            'lembaga_id' => null, 'nama' => '2025/2026',
+            'jenjang' => null, 'nama' => '2025/2026',
             'tanggal_mulai' => '2025-07-01', 'is_aktif' => false, 'is_active' => true,
         ]);
         $this->assertSame(
@@ -220,7 +220,7 @@ class TabelUrutTest extends TestCase
         foreach ([$candra, $ahmad, $budi] as $s) {
             RiwayatBelajar::create([
                 'santri_id' => $s->id, 'tahun_ajaran' => $f['ta']->nama,
-                'lembaga_id' => $f['mi']->id, 'semester' => '1',
+                'jenjang' => $f['mi']->jenjang, 'semester' => '1',
             ]);
         }
         $this->assertSame(
@@ -244,7 +244,7 @@ class TabelUrutTest extends TestCase
         [$ahmad, $budi] = $this->santriTiga();
         foreach ([$budi, $ahmad] as $s) {
             MutasiKeluar::create([
-                'santri_id' => $s->id, 'lembaga_id' => $f['mi']->id,
+                'santri_id' => $s->id, 'jenjang' => $f['mi']->jenjang,
                 'tanggal_mutasi' => '2026-05-01',
             ]);
         }
@@ -269,7 +269,7 @@ class TabelUrutTest extends TestCase
         [$ahmad, $budi] = $this->santriTiga();
         foreach ([$budi, $ahmad] as $s) {
             Alumni::create([
-                'santri_id' => $s->id, 'lembaga_lulus_id' => $f['mi']->id,
+                'santri_id' => $s->id, 'lembaga_lulus' => $f['mi']->jenjang,
                 'tahun_ajaran_lulus' => $f['ta']->nama, 'tanggal_lulus' => '2026-06-01',
             ]);
         }
@@ -322,7 +322,7 @@ class TabelUrutTest extends TestCase
             PsbCalonSantri::create([
                 'nik' => $nik, 'nama_lengkap' => $nama,
                 'no_pendaftaran' => 'PSB_2026_MI_1_'.$this->seq.'_'.$nik,
-                'lembaga_id' => $f['mi']->id,
+                'jenjang' => $f['mi']->jenjang,
                 'status_pendaftaran' => 'ajukan_daftar_ulang',
             ]);
         }

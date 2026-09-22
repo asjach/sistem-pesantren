@@ -62,15 +62,15 @@ export default function ReferensiPage() {
   // Nilai referensi murni per lembaga (tanpa baris global): super_admin
   // menambah ke semua lembaga sekaligus; tiap lembaga kelola miliknya.
   const canManage = bisa(me, 'referensi.ubah');
-  const myLembagaIds = useMemo(() => me?.lembagas?.map((l) => l.id) ?? [], [me]);
-  const adminFull = canManage && !isSuper && myLembagaIds.length === 0;
+  const myJenjang = useMemo(() => me?.lembagas?.map((l) => l.jenjang) ?? [], [me]);
+  const adminFull = canManage && !isSuper && myJenjang.length === 0;
 
   const [types, setTypes] = useState<string[]>([]);
   const [tipe, setTipe] = useState('');
   const [lembagas, setLembagas] = useState<Lembaga[]>([]);
   /** Lembaga selalu mengikuti topbar (satu-satunya sumber); null = Semua. */
-  const { lembagaId: lembagaTop } = useLembagaAktif();
-  const lembagaId = lembagaTop ?? '';
+  const { jenjang: lembagaTop } = useLembagaAktif();
+  const jenjang = lembagaTop ?? '';
   const [rows, setRows] = useState<ReferensiRow[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -103,8 +103,8 @@ export default function ReferensiPage() {
    *  kelap-kelip on→off→on→off: draft dibuang saat basis masih basi). */
   const tipeRef = useRef(tipe);
   tipeRef.current = tipe;
-  const lembagaRef = useRef<number | ''>(lembagaId);
-  lembagaRef.current = lembagaId;
+  const lembagaRef = useRef<string>(jenjang);
+  lembagaRef.current = jenjang;
   const muat = useCallback(async () => {
     if (!tipeRef.current) return;
     setErr('');
@@ -123,41 +123,41 @@ export default function ReferensiPage() {
 
   useEffect(() => {
     void muat();
-  }, [muat, tipe, lembagaId, tick]);
+  }, [muat, tipe, jenjang, tick]);
 
   const reload = useCallback(() => muat(), [muat]);
 
-  const lembagaName = useCallback((id: number | null): string => {
-    if (id === null) return 'Global';
-    const l = lembagas.find((x) => x.id === id);
-    return l?.kode ?? l?.nama ?? `Lembaga #${id}`;
+  const lembagaName = useCallback((j: string | null): string => {
+    if (j === null) return 'Global';
+    const l = lembagas.find((x) => x.jenjang === j);
+    return l?.jenjang ?? l?.nama ?? j;
   }, [lembagas]);
 
   const canAccessRow = useCallback(
-    (lid: number | null) =>
-      lid !== null && (isSuper || adminFull || myLembagaIds.includes(lid)),
-    [isSuper, adminFull, myLembagaIds],
+    (lid: string | null) =>
+      lid !== null && (isSuper || adminFull || myJenjang.includes(lid)),
+    [isSuper, adminFull, myJenjang],
   );
   const canUbahRow = useCallback(
-    (r: ReferensiRow) => canAccessRow(r.lembaga_id),
+    (r: ReferensiRow) => canAccessRow(r.jenjang),
     [canAccessRow],
   );
   const canNonaktifRow = useCallback(
-    (r: ReferensiRow) => canAccessRow(r.lembaga_id),
+    (r: ReferensiRow) => canAccessRow(r.jenjang),
     [canAccessRow],
   );
 
   /** Boleh toggle per baris: hak akses baris lembaganya (backend menegakkan). */
   const toggleBoleh = useMemo(() => {
-    const m = new Map<number, boolean>();
+    const m = new Map<string, boolean>();
     for (const r of rows) {
       const nyala = r.is_active !== false;
-      m.set(r.id, nyala ? canNonaktifRow(r) : (r.lembaga_id !== null && canAccessRow(r.lembaga_id)));
+      m.set(r.jenjang ?? '', nyala ? canNonaktifRow(r) : (r.jenjang !== null && canAccessRow(r.jenjang)));
     }
     return m;
   }, [rows, canNonaktifRow, canAccessRow]);
 
-  const toggleBolehId = useCallback((id: string | number) => toggleBoleh.get(Number(id)) ?? false, [toggleBoleh]);
+  const toggleBolehId = useCallback((id: string | number) => toggleBoleh.get(String(id)) ?? false, [toggleBoleh]);
 
   const fields = useMemo<ExcelField[]>(
     () => isStatus
@@ -183,7 +183,7 @@ export default function ReferensiPage() {
     kode: r.kode ?? null,
     urutan: String(r.urutan ?? 0),
     sifat: sifatOf(r),
-    sumber: lembagaName(r.lembaga_id),
+    sumber: lembagaName(r.jenjang),
     tampil: r.is_active === false ? 'tidak' : 'ya',
   }), [lembagaName]);
 
@@ -198,10 +198,10 @@ export default function ReferensiPage() {
     setFNama(''); setFKode(''); setFUrutan('0');
     // Tanpa Global: super_admin tanpa lembaga = sebar ke semua; jika scope
     // lembaga aktif, tambah ke lembaga itu.
-    const fallback = lembagaId !== '' ? String(lembagaId) : '';
+    const fallback = jenjang !== '' ? String(jenjang) : '';
     setScope(fallback);
     setTambahOpen(true);
-  }, [lembagaId]);
+  }, [jenjang]);
 
   const onCreate = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -210,7 +210,7 @@ export default function ReferensiPage() {
     try {
       const payload: ReferensiInput = { urutan: fUrutan === '' ? 0 : Number(fUrutan) };
       // Scope kosong = super_admin sebar ke semua lembaga (backend fan-out).
-      if (scope !== '') payload.lembaga_id = Number(scope);
+      if (scope !== '') payload.jenjang = scope;
       else if (!isSuper) {
         setErr('Pilih lembaga dulu.');
         setSubmitting(false);
@@ -260,7 +260,7 @@ export default function ReferensiPage() {
     // Tiap baris milik satu lembaga: padam langsung baris itu.
     // Tanpa toast/reload di sini: antrean grid memanggil onSaved (= muat) dan
     // menunggunya sebelum membuang draft; toast cukup satu dari antrean.
-    const lid = r.lembaga_id ?? undefined;
+    const lid = r.jenjang ?? undefined;
     try {
       await deleteReferensi(tipe, r.id, lid);
     } catch (e) {
@@ -280,7 +280,7 @@ export default function ReferensiPage() {
   const onHapusPermanen = useCallback(async (r: ReferensiRow) => {
     setErr('');
     try {
-      const res = await deleteReferensi(tipe, r.id, r.lembaga_id ?? undefined, true);
+      const res = await deleteReferensi(tipe, r.id, r.jenjang ?? undefined, true);
       toast.success(res.pesan);
       reload();
     } catch (e) {
@@ -297,7 +297,7 @@ export default function ReferensiPage() {
         <DeleteAction
           id={`btn_hapus_referensi_${r.id}`}
           title="Hapus permanen entri?"
-          description={`"${rowText(r)}" dibuang dari kamus ${lembagaName(r.lembaga_id)}. Data yang sudah memakai teks ini tidak ikut berubah.`}
+          description={`"${rowText(r)}" dibuang dari kamus ${lembagaName(r.jenjang)}. Data yang sudah memakai teks ini tidak ikut berubah.`}
           onConfirm={() => onHapusPermanen(r)}
         />
       </>
@@ -368,7 +368,7 @@ export default function ReferensiPage() {
               <SelectContent>
                 <SelectGroup>
                   {isSuper && <SelectItem value="__semua">Semua lembaga (sebar sekaligus)</SelectItem>}
-                  {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>)}
+                  {lembagas.map((l) => <SelectItem key={l.jenjang} value={l.jenjang}>{l.jenjang} — {l.nama}</SelectItem>)}
                 </SelectGroup>
               </SelectContent>
             </Select>

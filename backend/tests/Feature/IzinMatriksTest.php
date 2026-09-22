@@ -33,7 +33,7 @@ class IzinMatriksTest extends TestCase
         $u->assignRole($role);
         foreach ($lembagaIds as $lid) {
             DB::table('user_lembaga')->insert([
-                'user_id' => $u->id, 'lembaga_id' => $lid,
+                'user_id' => $u->id, 'jenjang' => $lid,
                 'created_at' => now(), 'updated_at' => now(),
             ]);
         }
@@ -45,20 +45,20 @@ class IzinMatriksTest extends TestCase
     {
         $unik = strtoupper(substr(uniqid(), -5));
         $root = Lembaga::create([
-            'nama' => 'Pesantren Root', 'kode' => 'PESANTREN'.$unik,
+            'nama' => 'Pesantren Root', 'jenjang' => 'PESANTREN'.$unik,
             'is_seleksi' => false, 'kelompok_psb' => 'eksklusif', 'is_active' => true,
         ]);
         $mi = Lembaga::create([
-            'parent_id' => $root->id, 'nama' => 'Madrasah Ibtidaiyah', 'kode' => 'MI'.$unik,
+            'nama' => 'Madrasah Ibtidaiyah', 'jenjang' => 'MI'.$unik,
             'is_seleksi' => false, 'kelompok_psb' => 'combo_mi_md', 'is_active' => true,
         ]);
         $ta = TahunAjaran::create([
-            'lembaga_id' => null, 'nama' => '2026/2027 '.$unik,
+            'jenjang' => null, 'nama' => '2026/2027 '.$unik,
             'tanggal_mulai' => '2026-07-01', 'tanggal_selesai' => '2027-06-30', 'is_aktif' => true,
         ]);
 
         return Kelas::create([
-            'lembaga_id' => $mi->id, 'tahun_ajaran' => $ta->nama,
+            'jenjang' => $mi->jenjang, 'tahun_ajaran' => $ta->nama,
             'tingkat' => '7', 'nama_kelas' => 'VII-A',
         ]);
     }
@@ -114,7 +114,7 @@ class IzinMatriksTest extends TestCase
     {
         $kelas = $this->fixtureKelas();
         $super = $this->makeUser('super_admin');
-        $admin = $this->makeUser('admin', [$kelas->lembaga_id]);
+        $admin = $this->makeUser('admin', [$kelas->jenjang]);
 
         // Bawaan: admin boleh hapus.
         $this->actingAs($admin, 'sanctum')
@@ -122,7 +122,7 @@ class IzinMatriksTest extends TestCase
             ->assertStatus(200);
         $kelas = $this->fixtureKelas();
         DB::table('user_lembaga')->insert([
-            'user_id' => $admin->id, 'lembaga_id' => $kelas->lembaga_id,
+            'user_id' => $admin->id, 'jenjang' => $kelas->jenjang,
             'created_at' => now(), 'updated_at' => now(),
         ]);
 

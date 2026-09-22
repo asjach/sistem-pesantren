@@ -17,7 +17,7 @@ class RiwayatStoreRequest extends FormRequest
     {
         return [
             'santri_id' => ['required', 'exists:santri,id'],
-            'lembaga_id' => ['required', 'exists:lembaga,id'],
+            'jenjang' => ['required', 'exists:lembaga,jenjang'],
             'tahun_ajaran' => ['required', 'string', 'exists:tahun_ajaran,nama'],
             'kelas_id' => ['nullable', 'exists:kelas,id'],
             'tingkat' => ['nullable', 'string', 'max:20'],

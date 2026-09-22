@@ -84,7 +84,7 @@ const KEGIATAN_FIELDS: ExcelField[] = [
 ];
 
 const KUOTA_FIELDS: ExcelField[] = [
-  { key: 'lembaga', label: 'lembaga.kode', width: 180, kind: 'static', sumber: { tabel: 'lembaga', kolom: 'kode' } },
+  { key: 'lembaga', label: 'lembaga.jenjang', width: 180, kind: 'static', sumber: { tabel: 'lembaga', kolom: 'jenjang' } },
   { key: 'tipe', label: 'tipe_santri', width: 110, kind: 'static', sumber: { tabel: 'psb_kuota_biaya', kolom: 'tipe_santri' } },
   { key: 'kuota', label: 'kuota', width: 130, kind: 'text', maxLength: 9, validate: angkaInput('Kuota'), sumber: { tabel: 'psb_kuota_biaya', kolom: 'kuota' } },
   {
@@ -115,7 +115,7 @@ const KUOTA_FIELDS: ExcelField[] = [
 ];
 
 const DOKUMEN_FIELDS: ExcelField[] = [
-  { key: 'lembaga', label: 'lembaga.kode', width: 200, kind: 'static', sumber: { tabel: 'lembaga', kolom: 'kode' } },
+  { key: 'lembaga', label: 'lembaga.jenjang', width: 200, kind: 'static', sumber: { tabel: 'lembaga', kolom: 'jenjang' } },
   { key: 'wajib', label: 'Dokumen wajib', width: 300, kind: 'static', sumber: null },
   { key: 'opsional', label: 'Dokumen opsional', width: 300, kind: 'static', sumber: null },
 ];
@@ -131,12 +131,12 @@ export default function KegiatanPsbPage() {
   const { user: me } = useAuth();
   /** Kelola kegiatan = admin pesantren EFEKTIF: super penuh, admin full, atau
    *  peran akar PST — mati untuk peran lembaga anak. */
-  const { efektifSuper: isSuper, bertindakPst } = useLembagaAktif();
+  const { efektifSuper: isSuper } = useLembagaAktif();
   const isAdminFull = (me?.roles.some((r) => r.name === 'admin') ?? false) && (me?.lembagas?.length ?? 0) === 0;
   /** Admin pesantren (super_admin / admin tanpa batas lembaga): boleh kelola kegiatan & gelombang. */
-  const isAdminPesantren = isSuper || bertindakPst || isAdminFull;
-  const lembagaAkses = me?.lembagas?.map((l) => l.id) ?? [];
-  const { lembagaId: lembagaAktifId, terkunci } = useLembagaAktif();
+  const isAdminPesantren = isSuper || isAdminFull;
+  const lembagaAkses = me?.lembagas?.map((l) => l.jenjang) ?? [];
+  const { jenjang: lembagaAktifId, terkunci } = useLembagaAktif();
   const [kegiatans, setKegiatans] = useState<PsbKegiatan[]>([]);
   const [tahunAjarans, setTahunAjarans] = useState<TahunAjaran[]>([]);
   const [kegiatanId, setKegiatanId] = useState<number | null>(null);
@@ -179,7 +179,7 @@ export default function KegiatanPsbPage() {
   const kegiatan = useMemo(() => kegiatans.find((k) => k.id === kegiatanId) ?? null, [kegiatans, kegiatanId]);
   const gelombang = useMemo(() => gelombangs.find((g) => g.id === gelombangId) ?? null, [gelombangs, gelombangId]);
   const lembagaTampil = useMemo(
-    () => (isAdminPesantren ? lembagaOpsi : lembagaOpsi.filter((l) => lembagaAkses.includes(l.id))),
+    () => (isAdminPesantren ? lembagaOpsi : lembagaOpsi.filter((l) => lembagaAkses.includes(l.jenjang))),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [isAdminPesantren, lembagaOpsi, me?.lembagas],
   );
@@ -187,17 +187,17 @@ export default function KegiatanPsbPage() {
   // pilihan & daftar lembaga di halaman ini dibatasi ke lembaga aktif itu.
   const lembagaDialog = useMemo(
     () => (terkunci && lembagaAktifId != null
-      ? lembagaTampil.filter((l) => l.id === lembagaAktifId)
+      ? lembagaTampil.filter((l) => l.jenjang === lembagaAktifId)
       : lembagaTampil),
     [terkunci, lembagaAktifId, lembagaTampil],
   );
   /** Nilai awal pemilih lembaga dialog ('' = belum ada / harus dipilih sendiri). */
-  const lembagaAwalDialog = terkunci && lembagaDialog.length === 1 ? String(lembagaDialog[0].id) : '';
+  const lembagaAwalDialog = terkunci && lembagaDialog.length === 1 ? lembagaDialog[0].jenjang : '';
 
   const kuotaTampil = useMemo(() => {
-    const dasar = isAdminPesantren ? kuotaRows : kuotaRows.filter((r) => lembagaAkses.includes(r.lembaga_id));
+    const dasar = isAdminPesantren ? kuotaRows : kuotaRows.filter((r) => lembagaAkses.includes(r.jenjang));
     return terkunci && lembagaAktifId != null
-      ? dasar.filter((r) => r.lembaga_id === lembagaAktifId)
+      ? dasar.filter((r) => r.jenjang === lembagaAktifId)
       : dasar;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdminPesantren, kuotaRows, terkunci, lembagaAktifId, me?.lembagas]);
@@ -398,7 +398,7 @@ export default function KegiatanPsbPage() {
 
   function bukaKuota(row: PsbKuotaBiayaRow | null) {
     setKuotaEdit(row);
-    setQLembagas(row ? [String(row.lembaga_id)] : (lembagaAwalDialog ? [lembagaAwalDialog] : []));
+    setQLembagas(row ? [String(row.jenjang)] : (lembagaAwalDialog ? [lembagaAwalDialog] : []));
     setQTipe((row?.tipe_santri as 'semua' | 'asrama' | 'non_asrama') ?? 'non_asrama');
     setQKuota(row?.kuota !== null && row?.kuota !== undefined ? String(row.kuota) : '');
     setQPaketTersedia(row ? !!row.paket_tersedia : false);
@@ -421,8 +421,8 @@ export default function KegiatanPsbPage() {
         membutuhkan_seleksi: qSeleksi === 'default' ? null : qSeleksi === 'ya',
         membutuhkan_pemberkasan: qPemberkasan === 'ya',
       };
-      for (const lembagaId of qLembagas) {
-        await upsertKuotaBiaya({ ...dasar, lembaga_id: Number(lembagaId) });
+      for (const jenjang of qLembagas) {
+        await upsertKuotaBiaya({ ...dasar, jenjang: jenjang });
       }
       toast.success(
         qLembagas.length > 1
@@ -455,9 +455,9 @@ export default function KegiatanPsbPage() {
   }), []);
 
   const getKuotaValues = useCallback((r: PsbKuotaBiayaRow) => {
-    const l = lembagaOpsi.find((x) => x.id === r.lembaga_id);
+    const l = lembagaOpsi.find((x) => x.jenjang === r.jenjang);
     return {
-      lembaga: l?.kode ?? l?.nama ?? String(r.lembaga_id),
+      lembaga: l?.jenjang ?? l?.nama ?? String(r.jenjang),
       tipe: r.tipe_santri,
       kuota: r.kuota === null || r.kuota === undefined ? '' : angka(r.kuota),
       paket: r.paket_tersedia ? 'ya' : 'tidak',
@@ -482,7 +482,7 @@ export default function KegiatanPsbPage() {
     if (!row) return;
     const payload: KuotaBiayaInput = {
       gelombang_id: row.gelombang_id,
-      lembaga_id: row.lembaga_id,
+      jenjang: row.jenjang,
       tipe_santri: row.tipe_santri,
     };
     if (f.kuota !== undefined) payload.kuota = (f.kuota ?? '').trim() === '' ? null : parseAngka(f.kuota);
@@ -501,17 +501,17 @@ export default function KegiatanPsbPage() {
   }, [gelombangId, loadKuota]);
 
   const dokumenGridRows = useMemo(() => {
-    const peta = new Map<number, { id: number; lembaga: string; wajib: string[]; opsional: string[] }>();
+    const peta = new Map<string, { id: string; lembaga: string; wajib: string[]; opsional: string[] }>();
     for (const d of dokumenRows) {
-      if (!peta.has(d.lembaga_id)) {
-        peta.set(d.lembaga_id, {
-          id: d.lembaga_id,
-          lembaga: d.lembaga?.kode ?? d.lembaga?.nama ?? lembagaTampil.find((l) => l.id === d.lembaga_id)?.kode ?? lembagaTampil.find((l) => l.id === d.lembaga_id)?.nama ?? String(d.lembaga_id),
+      if (!peta.has(d.jenjang)) {
+        peta.set(d.jenjang, {
+          id: d.jenjang,
+          lembaga: d.lembaga?.jenjang ?? d.lembaga?.nama ?? lembagaTampil.find((l) => l.jenjang === d.jenjang)?.jenjang ?? lembagaTampil.find((l) => l.jenjang === d.jenjang)?.nama ?? String(d.jenjang),
           wajib: [],
           opsional: [],
         });
       }
-      const grup = peta.get(d.lembaga_id)!;
+      const grup = peta.get(d.jenjang)!;
       if (d.is_wajib) grup.wajib.push(d.jenis_dokumen_santri);
       else grup.opsional.push(d.jenis_dokumen_santri);
     }
@@ -519,7 +519,7 @@ export default function KegiatanPsbPage() {
   }, [dokumenRows, lembagaTampil]);
 
   const getDokumenValues = useCallback(
-    (d: { id: number; lembaga: string; wajib: string[]; opsional: string[] }) => ({
+    (d: { id: string; lembaga: string; wajib: string[]; opsional: string[] }) => ({
       lembaga: d.lembaga,
       wajib: d.wajib.join(', '),
       opsional: d.opsional.join(', '),
@@ -531,9 +531,9 @@ export default function KegiatanPsbPage() {
     await loadDokumen(kegiatanId);
   }, [kegiatanId, loadDokumen]);
 
-  async function hapusDokumenLembaga(row: { id: number; lembaga: string }) {
+  async function hapusDokumenLembaga(row: { id: string; lembaga: string }) {
     try {
-      const target = dokumenRows.filter((d) => d.lembaga_id === row.id);
+      const target = dokumenRows.filter((d) => d.jenjang === row.id);
       for (const d of target) await hapusDokumenWajib(d.id);
       toast.success(`Ketentuan dokumen ${row.lembaga} dihapus.`);
       await loadDokumen(kegiatanId);
@@ -561,7 +561,7 @@ export default function KegiatanPsbPage() {
     if (v.length === 0) return;
     try {
       const hasil = await Promise.all(
-        v.map((id) => referensiList('jenis_dokumen_santri', Number(id))),
+        v.map((id) => referensiList('jenis_dokumen_santri', id)),
       );
       const gabung = new Map<string, ReferensiRow>();
       for (const list of hasil) {
@@ -582,10 +582,10 @@ export default function KegiatanPsbPage() {
     setBusy(true);
     setErr('');
     try {
-      for (const lembagaId of dokLembagas) {
+      for (const jenjang of dokLembagas) {
         await simpanDokumenWajib({
           psb_kegiatan_id: kegiatanId,
-          lembaga_id: Number(lembagaId),
+          jenjang: jenjang,
           jenis_dokumen_santri: dokJenis,
           is_wajib: dokSifat === 'wajib',
         });
@@ -840,7 +840,7 @@ export default function KegiatanPsbPage() {
               onChange={setQLembagas}
               disabled={!!kuotaEdit || terkunci}
               placeholder="Pilih lembaga"
-              options={lembagaDialog.map((l) => ({ value: String(l.id), label: l.kode ?? l.nama }))}
+              options={lembagaDialog.map((l) => ({ value: l.jenjang, label: `${l.jenjang} — ${l.nama}` }))}
             />
             <FieldLabel htmlFor="select_tipe_kuota">Tipe santri</FieldLabel>
             <Select value={qTipe} onValueChange={(v) => setQTipe(v as 'semua' | 'asrama' | 'non_asrama')} disabled={!!kuotaEdit}>
@@ -910,7 +910,7 @@ export default function KegiatanPsbPage() {
               onChange={(v) => void pilihLembagaDokumen(v)}
               placeholder="Pilih lembaga"
               disabled={terkunci}
-              options={lembagaDialog.map((l) => ({ value: String(l.id), label: l.kode ?? l.nama }))}
+              options={lembagaDialog.map((l) => ({ value: l.jenjang, label: `${l.jenjang} — ${l.nama}` }))}
             />
             <FieldLabel htmlFor="select_jenis_dokumen_psb">Jenis dokumen</FieldLabel>
             <Select value={dokJenis} onValueChange={setDokJenis} disabled={dokLembagas.length === 0}>

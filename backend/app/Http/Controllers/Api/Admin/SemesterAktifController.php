@@ -23,18 +23,18 @@ class SemesterAktifController extends Controller
     public function index(Request $request): JsonResponse
     {
         $auth = $request->user();
-        $lembagas = Lembaga::whereNotNull('parent_id')->orderBy('id')->get(['id', 'kode', 'nama']);
-        $aktif = SemesterAktif::whereIn('lembaga_id', $lembagas->pluck('id'))
-            ->pluck('semester', 'lembaga_id');
+        $lembagas = Lembaga::orderBy('jenjang')->get(['jenjang', 'nama']);
+        $aktif = SemesterAktif::whereIn('jenjang', $lembagas->pluck('jenjang'))
+            ->pluck('semester', 'jenjang');
 
         $data = $lembagas
-            ->filter(fn ($l) => $auth->canAccessLembaga($l->id))
+            ->filter(fn ($l) => $auth->canAccessLembaga($l->jenjang))
             ->map(fn ($l) => [
-                'lembaga_id' => $l->id,
-                'kode' => $l->kode,
+                'jenjang' => $l->jenjang,
+                'kode' => $l->jenjang,
                 'nama' => $l->nama,
-                'semester' => $aktif->get($l->id),
-                'label' => $aktif->has($l->id) ? SemesterAktif::label((string) $aktif->get($l->id)) : null,
+                'semester' => $aktif->get($l->jenjang),
+                'label' => $aktif->has($l->jenjang) ? SemesterAktif::label((string) $aktif->get($l->jenjang)) : null,
             ])->values()->all();
 
         return response()->json(['data' => $data]);
@@ -44,23 +44,22 @@ class SemesterAktifController extends Controller
     public function upsert(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'lembaga_id' => ['required', 'integer', 'exists:lembaga,id'],
+            'jenjang' => ['required', 'string', 'exists:lembaga,jenjang'],
             'semester' => ['required', Rule::in(['1', '2'])],
         ]);
 
         $auth = $request->user();
-        $this->tolakLembagaRoot((int) $data['lembaga_id']);
-        $this->authorizeLembaga($auth, (int) $data['lembaga_id']);
+        $this->authorizeLembaga($auth, $data['jenjang']);
 
         $row = SemesterAktif::updateOrCreate(
-            ['lembaga_id' => (int) $data['lembaga_id']],
+            ['jenjang' => $data['jenjang']],
             ['semester' => $data['semester'], 'diubah_oleh' => $auth->id],
         );
 
         return response()->json([
             'pesan' => 'Semester aktif ditetapkan.',
             'data' => [
-                'lembaga_id' => $row->lembaga_id,
+                'jenjang' => $row->jenjang,
                 'semester' => $row->semester,
                 'label' => SemesterAktif::label($row->semester),
             ],

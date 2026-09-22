@@ -12,16 +12,15 @@ SIMPES adalah backend API-first Laravel 13 + frontend terpisah, modular beruruta
 
 ### 2.2 Struktur Lembaga
 
-| Kode      | Nama           | Sifat                    | Kohort             | Aturan daftar (Modul 100 PSB Penerimaan)                        |
+| Jenjang   | Nama           | Sifat                    | Kohort             | Aturan daftar (Modul 100 PSB Penerimaan)                        |
 | --------- | -------------- | ------------------------ | ------------------ | --------------------------------------------------------------- |
-| PESANTREN | Root pesantren | Induk (`parent_id` null) | —                  | Fallback kontak/logo bila null di anak; root null pakai placeholder |
 | MI        | Ibtidaiyah     | Formal                   | SD                 | Langsung contoh hari ini; mandiri boleh; paket MD opsional      |
 | MD        | Diniyah        | Non-formal paralel       | SD (sama dgn MI)   | Langsung contoh hari ini; mandiri boleh; paket MI opsional      |
 | MTS       | Tsanawiyah     | Formal                   | SMP                | Seleksi contoh hari ini; eksklusif                              |
 | MLN       | Mu'allimin     | Formal khas              | Aliyah (nama beda) | Seleksi contoh hari ini; eksklusif                              |
 
 Aturan terkunci:
-- Hierarki via `parent_id` ke root; PK tetap `lembaga.id` INT. `kode` hardcoded, unik global, wajib isi (PESANTREN, MI, MD, MTS, MLN). Ganti kode via Lampiran E.
+- Tanpa hierarki/root: identitas lembaga = `jenjang` (PK string `^[A-Z0-9]{1,20}$`, mis. `MI`/`MD`/`MTS`/`MLN`), **imutabel**. Tabel anak FK kolom `jenjang` varchar(20) → `lembaga.jenjang` (`ON UPDATE CASCADE`). Tidak ada lagi `kode`/`parent_id`.
 - Seleksi via flag: default `lembaga.is_seleksi`; override `psb_kuota_biaya.membutuhkan_seleksi` null = ikut default. Contoh hari ini MI/MD langsung, MTS/MLN seleksi; bisa dibalik per gelombang.
 - Paket MI-MD opsional: 1 input usia SD jadi 2 keikutsertaan (primer MI, non-asrama, lifecycle tidak divergen). MI saja / MD saja tetap boleh.
 - Tenant: pivot `user_lembaga` satu-satunya; tanpa tabel `pesantren` (Modul 003 Auth Login).
@@ -40,8 +39,8 @@ Aturan terkunci:
 
 Aturan terkunci:
 - 6 peran final: `super_admin, admin, guru, orang_tua, santri, asrama`; **efektif sekarang 5** — `asrama` menyusul pasca production (Modul 505); guard wajib `sanctum`; multi-peran didukung. 4 peran lama (`admin_pesantren, admin_lembaga, kasir_pesantren, kasir_lembaga`) dihapus; gabung jadi `admin` / `kasir` (Modul 003 Auth Login). Role `kasir` dihapus sementara dari seed/kode (v2.38); riwayatnya tetap di changelog.
-- Tenant pivot `user_lembaga`; `users` tanpa kolom tenant; 1 akun multi-lembaga via `lembaga_ids[]` (mis. 1 akun `admin` untuk MI+MD); non-admin tidak boleh list users. Peran `asrama` memakai pivot tambahan `user_asrama` (1 akun boleh multi-asrama) dan **tidak** memberi akses `user_lembaga`.
-- Pemberian peran via `assignableRolesFor()`: `super_admin` ke semua 6; `admin` hanya `guru,orang_tua,santri` (tidak boleh buat sesama `admin/super_admin`, dan **tidak boleh** memberi `asrama` — khusus super_admin); tambah lembaga via attach/detach oleh `super_admin`/admin full; larang hapus diri sendiri. **Pengecualian create**: saat *membuat user* saja, `admin` (full/scoped) boleh memberi role `admin` — batas lembaga ⊆ kewenangan pembuat (boleh subset; scoped tanpa `lembaga_ids` memakai pivot sendiri, sehingga tak bisa melahirkan admin global). Jalur `update`/`assignRole`/`removeRole`/`import` tetap tanpa role `admin`.
+- Tenant pivot `user_lembaga`; `users` tanpa kolom tenant; 1 akun multi-lembaga via `jenjangs[]` (mis. 1 akun `admin` untuk MI+MD); non-admin tidak boleh list users. Peran `asrama` memakai pivot tambahan `user_asrama` (1 akun boleh multi-asrama) dan **tidak** memberi akses `user_lembaga`.
+- Pemberian peran via `assignableRolesFor()`: `super_admin` ke semua 6; `admin` hanya `guru,orang_tua,santri` (tidak boleh buat sesama `admin/super_admin`, dan **tidak boleh** memberi `asrama` — khusus super_admin); tambah lembaga via attach/detach oleh `super_admin`/admin full; larang hapus diri sendiri. **Pengecualian create**: saat *membuat user* saja, `admin` (full/scoped) boleh memberi role `admin` — batas lembaga ⊆ kewenangan pembuat (boleh subset; scoped tanpa `jenjangs` memakai pivot sendiri, sehingga tak bisa melahirkan admin global). Jalur `update`/`assignRole`/`removeRole`/`import` tetap tanpa role `admin`.
 - Login multi-identifier `email/phone/username` + `password`, throttle 6/mnt, tulis `login_audits` + `last_login_at`. Buat user hanya oleh admin manual atau Import Excel; register publik tidak dibuka.
 
 ### 2.3.x Matriks Izin (Kelola Izin)
@@ -66,7 +65,7 @@ Aturan terkunci:
 | A3 | Bahasa Indonesia persis DB: `santri`, `riwayat_belajar`, `tahun_ajaran` (AGENTS) |
 | A4 | Data awal Excel per lembaga ke staging lalu verifikasi lalu production; dedup `nik+nama+tgl_lahir` (Modul 101 Santri, 003) |
 | A5 | NIK wajib boleh fiktif tanpa flag (Modul 101) |
-| A6 | `kurikulum`, `dokumen_wajib_lembaga`, `ref_*` per lembaga; kontak/logo null fallback root, root null placeholder (Modul 004 Referensi-Master, 100 PSB Penerimaan) |
+| A6 | `kurikulum`, `dokumen_wajib_lembaga`, `ref_*` per lembaga; kontak/logo dari lembaga sendiri (tanpa fallback root) (Modul 004 Referensi-Master, 100 PSB Penerimaan) |
 | A7 | FE terpisah Tauri/PySide/RN; Flutter dihentikan; base `API_BASE_URL` fallback `127.0.0.1:8000/api` (Modul 003) |
 | A8 | Kapasitas/kinerja ikut Bab 3.2 NFR-01 sampai NFR-07; anggaran Bab 9 |
 
@@ -90,7 +89,7 @@ Aturan terkunci:
 | FR-003                 | 003 Auth Login                                    | Login multi-identifier, 6 peran (efektif 5; `asrama` pasca production, `kasir` dihapus sementara v2.38), import, audit, matriks izin Kelola Izin (super_admin) | Detail (G0)           |
 | FR-004                 | 004 Referensi-Master                              | `lembaga`, `tahun_ajaran`, `kelas`, 34 `ref_*` via `RefService`                                                  | Detail (G0)           |
 | FR-100                 | 100 PSB Penerimaan Santri                         | 2-jalur via `is_seleksi` + override null ikut default, kuota saat input, waiting_list, paket MI-MD opsional, ACC | Detail (G1+G3 daftar) |
-| FR-101                 | 101 Santri Master                                 | `id` stabil; NIK fiktif boleh; dedup; `is_active_pst` turunan (default 'Tidak'); `lembaga_id` boleh NULL (legacy, terlihat semua admin) | Detail (G1)           |
+| FR-101                 | 101 Santri Master                                 | `id` stabil; NIK fiktif boleh; dedup; `is_active_pst` turunan (default 'Tidak'); tanpa kolom lembaga (legacy = santri tanpa riwayat) | Detail (G1)           |
 | FR-102                 | 102 Siklus Santri                                 | status_awal/akhir, naik/pindah/mutasi/lulus                                                                      | Detail (G1)           |
 | FR-203                 | 203 Portal Wali subset                            | Daftar + pengajuan                                                                                               | Detail (G3)           |
 | FR-200, FR-201, FR-202 | 200 Pegawai, 201 Kurikulum-Mapel, 202 Nilai-Rapor | Skema siap, UI belakangan                                                                                        | Persiapan (G5/G7)     |
@@ -176,14 +175,14 @@ Service Layer + Policy + transaction; notifikasi DB agregat.
 | ID | Modul (kode + nama) | Tabel inti | Relasi kunci |
 |---|---|---|---|
 | 6.1 | 003 Auth Login, 004 Referensi-Master | `lembaga`, 34 `ref_*`, `users`, `user_lembaga`, `tahun_ajaran`, `pegawai`, `kelas` | `tahun_ajaran` global (kunci `nama`, mis. '2025/2026'); visibilitas per lembaga via pivot `lembaga_tahun_ajaran`; `lembaga 1—N kelas`; `kelas.walas_id` inline; ref global + shadow lembaga |
-| 6.2 | 101 Santri Master, 102 Siklus Santri | `santri`, `riwayat_belajar`, `mutasi_keluar`, `alumni` | `santri 1—N riwayat_belajar`; `riwayat N—1 kelas`; `id` stabil, NIK index tanpa unique; `santri.lembaga_id` nullable (cache, fallback riwayat), `is_active_pst` turunan |
+| 6.2 | 101 Santri Master, 102 Siklus Santri | `santri`, `riwayat_belajar`, `mutasi_keluar`, `alumni` | `santri 1—N riwayat_belajar`; `riwayat N—1 kelas`; `id` stabil, NIK index tanpa unique; santri tanpa kolom lembaga (lembaga dari riwayat/keanggotaan), `is_active_pst` turunan |
 | 6.3 | 100 PSB Penerimaan | `psb_*`, `dokumen_santri` | `calon` ke `santri` saat ACC; dokumen pindah ke santri |
 | 6.5 | 200 Pegawai, 201 Kurikulum-Mapel, 202 Nilai-Rapor, 203 Portal Wali | `kurikulum_mapel` pivot, `wali_*`, `pengajuan_biodata_santri` | `kurikulum N—M mapel` via `kurikulum_mapel`; wali via `wali_santri_relasi` |
 | 6.6 | 505 Asrama (gambaran umum — **pasca production**) | `asrama`, `asrama_kamar`, `asrama_penghuni`, `asrama_izin_pulang`, `asrama_kegiatan`, `user_asrama` | `asrama 1—N kamar/penghuni/izin/kegiatan`; `santri 1—N penghuni`; pengurus via `user_asrama` (asrama bukan `lembaga`) |
 
 Contoh kamus ringkas:
 
-**`santri`:** `id INT PK`; `nik VARCHAR(16) INDEX nullable` (fiktif boleh, dedup service); `nis VARCHAR(20) nullable` (maks 20 karakter); `is_active_pst ENUM('Ya','Tidak') DEFAULT 'Tidak'` (turunan: punya ≥1 riwayat aktif); `kepala_keluarga VARCHAR NULL`; `lembaga_id INT FK NULL` (legacy tanpa track; cache), `kelas_id INT FK NULL`.
+**`santri`:** `id INT PK`; `nik VARCHAR(16) INDEX nullable` (fiktif boleh, dedup service); `nis VARCHAR(20) nullable` (maks 20 karakter); `is_active_pst ENUM('Ya','Tidak') DEFAULT 'Tidak'` (turunan: punya ≥1 riwayat aktif); `kepala_keluarga VARCHAR NULL`; `kelas_id INT FK NULL`.
 **`riwayat_belajar`:** `status_awal VARCHAR`; `status_akhir VARCHAR`; `is_active_riwayat ENUM('Ya','Tidak')` (tulis via service); `semester CHAR(1)`.
 **`asrama`:** `id INT PK`; `jenis_kelamin ENUM(L,P)`; `user_asrama(user_id, asrama_id)`; tidak memakai `riwayat_belajar`.
 
@@ -250,7 +249,7 @@ Migration per-modul (timestamp bawaan, urutan FK); spec di `docs/SCHEMA.md`. Uru
 | 8.2.1 | PSB | 100 PSB Penerimaan | `psb_gelombang`, `psb_kuota_biaya`, `psb_calon_santri`, `dokumen_santri`, `dokumen_wajib_lembaga`, `psb_log_status` |
 | 8.2.2 | Santri/Siklus | 101 Santri Master, 102 Siklus Santri | `santri`, `riwayat_belajar`, `mutasi_keluar`, `alumni` |
 | 8.2.4 | Akademik/Nilai/Portal | 200, 201, 202, 203 | `kurikulum*`, `pengampu_mapel`, `nilai_santri`, `rapor_catatan_wali`, `wali_*` |
-| 8.2.5 | Asrama (gambaran umum — **pasca production**, belum dibuat) | 505 Asrama | `asrama`, `asrama_kamar`, `asrama_penghuni`, `asrama_izin_pulang`, `asrama_kegiatan`, `user_asrama`; perubahan `santri` (lembaga_id nullable, status_global default false — dibahas terpisah) |
+| 8.2.5 | Asrama (gambaran umum — **pasca production**, belum dibuat) | 505 Asrama | `asrama`, `asrama_kamar`, `asrama_penghuni`, `asrama_izin_pulang`, `asrama_kegiatan`, `user_asrama`; perubahan `santri` (status_global default false — dibahas terpisah) |
 
 ### 8.3 Konvensi Kode
 

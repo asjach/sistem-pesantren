@@ -15,7 +15,7 @@ class PsbKuotaUpsertRequest extends FormRequest
     {
         return [
             'gelombang_id' => ['required', 'integer', 'exists:psb_gelombang,id'],
-            'lembaga_id' => ['required', 'integer', 'exists:lembaga,id'],
+            'jenjang' => ['required', 'string', 'exists:lembaga,jenjang'],
             'tipe_santri' => ['required', 'in:semua,asrama,non_asrama'],
             'kuota' => ['nullable', 'integer', 'min:0'],
             'paket_tersedia' => ['nullable', 'boolean'],

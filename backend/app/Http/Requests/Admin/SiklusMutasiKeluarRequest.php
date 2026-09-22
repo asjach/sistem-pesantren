@@ -14,7 +14,7 @@ class SiklusMutasiKeluarRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'lembaga_id' => 'required|exists:lembaga,id',
+            'jenjang' => 'required|exists:lembaga,jenjang',
             'tanggal_mutasi' => 'required|date',
             'alasan_mutasi' => 'required|string|max:100',
             'kelas_terakhir_id' => 'nullable|exists:kelas,id',

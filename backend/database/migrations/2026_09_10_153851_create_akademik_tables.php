@@ -11,79 +11,82 @@ return new class extends Migration
      */
     public function up(): void
     {
-                Schema::create('kurikulum', function (Blueprint $table) {
-                    $table->id();
-                    $table->foreignId('lembaga_id')->constrained('lembaga')->cascadeOnDelete();
-                    $table->string('nama');
-                    $table->text('deskripsi')->nullable();
-                    $table->timestamps();
+        Schema::create('kurikulum', function (Blueprint $table) {
+            $table->id();
+            $table->string('jenjang', 20);
+            $table->foreign('jenjang')->references('jenjang')->on('lembaga')->cascadeOnUpdate()->cascadeOnDelete();
+            $table->string('nama');
+            $table->text('deskripsi')->nullable();
+            $table->timestamps();
 
-                    $table->unique(['lembaga_id', 'nama']);
-                });
+            $table->unique(['jenjang', 'nama']);
+        });
 
-                Schema::create('mata_pelajaran', function (Blueprint $table) {
-                    $table->id();
-                    $table->foreignId('lembaga_id')->constrained('lembaga')->cascadeOnDelete();
-                    $table->string('nama_mapel');
-                    // Kolom darí Modul 202 (kelompok rapor):
-                    $table->enum('kelompok', ['formal', 'pesantren'])->default('formal');
-                    $table->string('kode_mapel', 20)->nullable();
-                    $table->timestamps();
+        Schema::create('mata_pelajaran', function (Blueprint $table) {
+            $table->id();
+            $table->string('jenjang', 20);
+            $table->foreign('jenjang')->references('jenjang')->on('lembaga')->cascadeOnUpdate()->cascadeOnDelete();
+            $table->string('nama_mapel');
+            // Kolom darí Modul 202 (kelompok rapor):
+            $table->enum('kelompok', ['formal', 'pesantren'])->default('formal');
+            $table->string('kode_mapel', 20)->nullable();
+            $table->timestamps();
 
-                    $table->unique(['lembaga_id', 'nama_mapel']);
-                });
+            $table->unique(['jenjang', 'nama_mapel']);
+        });
 
-                Schema::create('kelas_kurikulum', function (Blueprint $table) {
-                    $table->id();
-                    $table->foreignId('kelas_id')->constrained('kelas')->cascadeOnDelete();
-                    $table->foreignId('kurikulum_id')->constrained('kurikulum')->cascadeOnDelete();
-                    $table->timestamps();
+        Schema::create('kelas_kurikulum', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('kelas_id')->constrained('kelas')->cascadeOnDelete();
+            $table->foreignId('kurikulum_id')->constrained('kurikulum')->cascadeOnDelete();
+            $table->timestamps();
 
-                    $table->unique(['kelas_id', 'kurikulum_id']);
-                });
+            $table->unique(['kelas_id', 'kurikulum_id']);
+        });
 
-                Schema::create('kurikulum_mapel', function (Blueprint $table) {
-                    $table->id();
-                    $table->foreignId('kurikulum_id')->constrained('kurikulum')->cascadeOnDelete();
-                    $table->foreignId('mata_pelajaran_id')->constrained('mata_pelajaran')->cascadeOnDelete();
-                    $table->string('tingkat')->nullable(); // ref_tingkat: null = semua tingkat; '8'/'9' = khusus
-                    $table->decimal('kkm', 5, 2)->nullable(); // null = predikat manual (202)
-                    $table->integer('urutan')->default(0); // urutan tampil di rapor/leger
-                    $table->timestamps();
+        Schema::create('kurikulum_mapel', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('kurikulum_id')->constrained('kurikulum')->cascadeOnDelete();
+            $table->foreignId('mata_pelajaran_id')->constrained('mata_pelajaran')->cascadeOnDelete();
+            $table->string('tingkat')->nullable(); // ref_tingkat: null = semua tingkat; '8'/'9' = khusus
+            $table->decimal('kkm', 5, 2)->nullable(); // null = predikat manual (202)
+            $table->integer('urutan')->default(0); // urutan tampil di rapor/leger
+            $table->timestamps();
 
-                    $table->unique(['kurikulum_id', 'mata_pelajaran_id', 'tingkat'], 'uq_kurikulum_mapel_kmt'); // nama pendek: auto-name 61 char, margin aman dari limit 64
-                });
+            $table->unique(['kurikulum_id', 'mata_pelajaran_id', 'tingkat'], 'uq_kurikulum_mapel_kmt'); // nama pendek: auto-name 61 char, margin aman dari limit 64
+        });
 
-                Schema::create('pengampu_mapel', function (Blueprint $table) {
-                    $table->id();
-                    $table->foreignId('kelas_id')->constrained('kelas')->cascadeOnDelete();
-                    $table->foreignId('mata_pelajaran_id')->constrained('mata_pelajaran')->cascadeOnDelete();
-                    $table->foreignId('keaktifan_pegawai_id')->nullable()->constrained('keaktifan_pegawai')->nullOnDelete();
-                    $table->timestamps();
+        Schema::create('pengampu_mapel', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('kelas_id')->constrained('kelas')->cascadeOnDelete();
+            $table->foreignId('mata_pelajaran_id')->constrained('mata_pelajaran')->cascadeOnDelete();
+            $table->foreignId('keaktifan_pegawai_id')->nullable()->constrained('keaktifan_pegawai')->nullOnDelete();
+            $table->timestamps();
 
-                    $table->unique(['kelas_id', 'mata_pelajaran_id']);
-                });
+            $table->unique(['kelas_id', 'mata_pelajaran_id']);
+        });
 
-                Schema::create('slot_jam_pelajaran', function (Blueprint $table) {
-                    $table->id();
-                    $table->foreignId('lembaga_id')->constrained('lembaga')->cascadeOnDelete();
-                    $table->string('nama_slot')->nullable(); // 'Jam 1', 'Jam 2', dsb.
-                    $table->time('jam_mulai')->nullable();
-                    $table->time('jam_selesai')->nullable();
-                    $table->timestamps();
-                });
+        Schema::create('slot_jam_pelajaran', function (Blueprint $table) {
+            $table->id();
+            $table->string('jenjang', 20);
+            $table->foreign('jenjang')->references('jenjang')->on('lembaga')->cascadeOnUpdate()->cascadeOnDelete();
+            $table->string('nama_slot')->nullable(); // 'Jam 1', 'Jam 2', dsb.
+            $table->time('jam_mulai')->nullable();
+            $table->time('jam_selesai')->nullable();
+            $table->timestamps();
+        });
 
-                Schema::create('jadwal_pelajaran', function (Blueprint $table) {
-                    $table->id();
-                    $table->foreignId('pengampu_mapel_id')->constrained('pengampu_mapel')->cascadeOnDelete();
-                    $table->foreignId('slot_jam_id')->constrained('slot_jam_pelajaran')->cascadeOnDelete();
-                    $table->enum('hari', ['senin', 'selasa', 'rabu', 'kamis', 'jumat', 'sabtu', 'minggu']);
-                    $table->string('ruangan')->nullable();
-                    $table->timestamps();
+        Schema::create('jadwal_pelajaran', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('pengampu_mapel_id')->constrained('pengampu_mapel')->cascadeOnDelete();
+            $table->foreignId('slot_jam_id')->constrained('slot_jam_pelajaran')->cascadeOnDelete();
+            $table->enum('hari', ['senin', 'selasa', 'rabu', 'kamis', 'jumat', 'sabtu', 'minggu']);
+            $table->string('ruangan')->nullable();
+            $table->timestamps();
 
-                    // Unik per slot/hari = backing constraint validasi bentrok
-                    $table->unique(['pengampu_mapel_id', 'slot_jam_id', 'hari']);
-                });
+            // Unik per slot/hari = backing constraint validasi bentrok
+            $table->unique(['pengampu_mapel_id', 'slot_jam_id', 'hari']);
+        });
     }
 
     /**

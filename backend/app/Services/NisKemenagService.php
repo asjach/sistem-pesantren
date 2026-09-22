@@ -30,7 +30,7 @@ class NisKemenagService
             ]);
         }
 
-        $lembaga = Lembaga::find($lembagaSantri->lembaga_id);
+        $lembaga = Lembaga::find($lembagaSantri->jenjang);
         $nsm = preg_replace('/\D/', '', (string) ($lembaga->nsm ?? ''));
         if (strlen($nsm) !== 12) {
             throw ValidationException::withMessages([
@@ -38,7 +38,7 @@ class NisKemenagService
             ]);
         }
 
-        $yy = $this->tahunDiterimaYY((int) $lembagaSantri->santri_id, (int) $lembagaSantri->lembaga_id, $lembagaSantri->tgl_masuk?->format('Y'));
+        $yy = $this->tahunDiterimaYY((int) $lembagaSantri->santri_id, $lembagaSantri->jenjang, $lembagaSantri->tgl_masuk?->format('Y'));
         if ($yy === null) {
             throw ValidationException::withMessages([
                 'nis_kemenag' => 'Tahun diterima belum diketahui — isi riwayat belajar atau tanggal mulai keanggotaan.',
@@ -48,7 +48,7 @@ class NisKemenagService
         $urut = str_pad(substr($nisLokal, -4), 4, '0', STR_PAD_LEFT);
         $nisKemenag = $nsm.$yy.$urut;
 
-        if (LembagaSantri::nisKemenagDipakai((int) $lembagaSantri->lembaga_id, $nisKemenag, (int) $lembagaSantri->id)) {
+        if (LembagaSantri::nisKemenagDipakai($lembagaSantri->jenjang, $nisKemenag, (int) $lembagaSantri->id)) {
             throw ValidationException::withMessages([
                 'nis_kemenag' => "NIS Kemenag {$nisKemenag} sudah dipakai santri lain di lembaga ini. Sesuaikan 4 digit akhir NIS lokal.",
             ]);
@@ -63,10 +63,10 @@ class NisKemenagService
      * Dua digit tahun diterima: dari riwayat semester 1 paling awal (nama TA
      * "2026/2027" → "26"); fallback tahun `tgl_masuk`.
      */
-    protected function tahunDiterimaYY(int $santriId, int $lembagaId, ?string $tglMulaiTahun): ?string
+    protected function tahunDiterimaYY(int $santriId, string $lembagaId, ?string $tglMulaiTahun): ?string
     {
         $riwayat = RiwayatBelajar::where('santri_id', $santriId)
-            ->where('lembaga_id', $lembagaId)
+            ->where('jenjang', $lembagaId)
             ->where('semester', '1')
             ->with('tahunAjaran:nama,tanggal_mulai')
             ->orderBy('tahun_ajaran')

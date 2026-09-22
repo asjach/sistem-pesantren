@@ -39,36 +39,36 @@ class PsbPublikController extends Controller
         }
 
         $lembagas = Lembaga::where('is_active', true)
-            ->whereIn('kode', array_keys(PsbService::TINGKAT_MASUK_BARU))
-            ->orderBy('id')
-            ->get(['id', 'kode', 'nama', 'nama_singkat', 'kelompok_psb', 'is_seleksi']);
+            ->whereIn('jenjang', array_keys(PsbService::TINGKAT_MASUK_BARU))
+            ->orderBy('jenjang')
+            ->get(['jenjang', 'nama', 'nama_singkat', 'kelompok_psb', 'is_seleksi']);
 
         $kuotaSemua = PsbKuotaBiaya::where('gelombang_id', $gelombangAktif->id)
-            ->whereIn('lembaga_id', $lembagas->pluck('id'))
-            ->get(['gelombang_id', 'lembaga_id', 'tipe_santri', 'paket_tersedia']);
+            ->whereIn('jenjang', $lembagas->pluck('jenjang'))
+            ->get(['gelombang_id', 'jenjang', 'tipe_santri', 'paket_tersedia']);
 
         $dataLembaga = $lembagas
             ->map(function (Lembaga $l) use ($kuotaSemua, $gelombangAktif, $gelombang) {
-                $rows = $kuotaSemua->where('lembaga_id', $l->id);
+                $rows = $kuotaSemua->where('jenjang', $l->jenjang);
                 if ($rows->isEmpty()) {
                     return null;
                 }
 
                 return [
-                    'id' => $l->id,
-                    'kode' => $l->kode,
+                    'id' => $l->jenjang,
+                    'kode' => $l->jenjang,
                     'nama' => $l->nama,
                     'nama_singkat' => $l->nama_singkat,
                     'kelompok_psb' => $l->kelompok_psb,
                     'is_seleksi' => (bool) $l->is_seleksi,
-                    'tingkat_baru' => PsbService::TINGKAT_MASUK_BARU[$l->kode] ?? null,
-                    'tingkat_pindahan' => PsbService::TINGKAT_PINDAHAN[$l->kode] ?? [],
+                    'tingkat_baru' => PsbService::TINGKAT_MASUK_BARU[$l->jenjang] ?? null,
+                    'tingkat_pindahan' => PsbService::TINGKAT_PINDAHAN[$l->jenjang] ?? [],
                     'kuota' => $rows->map(fn (PsbKuotaBiaya $k) => [
                         'tipe_santri' => $k->tipe_santri,
                         'paket_tersedia' => (bool) $k->paket_tersedia,
                         'sisa_kuota' => $gelombang->sisaKuota(
                             $gelombangAktif->id,
-                            $l->id,
+                            $l->jenjang,
                             $k->tipe_santri === 'semua' ? null : $k->tipe_santri
                         ),
                     ])->values(),
@@ -144,7 +144,7 @@ class PsbPublikController extends Controller
      */
     public function bukti(PsbCalonSantri $calon): JsonResponse
     {
-        $calon->load(['lembagaTujuan:id,nama,kode', 'gelombang:id,nama']);
+        $calon->load(['lembagaTujuan:jenjang,nama', 'gelombang:id,nama']);
 
         return response()->json([
             'pesan' => 'Ringkasan bukti pendaftaran.',
@@ -185,6 +185,6 @@ class PsbPublikController extends Controller
             }
             $data['gelombang_id'] = $aktif->id;
         }
-        $gelombang->cekBukaDanKuota((int) $data['gelombang_id'], (int) $data['lembaga_id']);
+        $gelombang->cekBukaDanKuota((int) $data['gelombang_id'], $data['jenjang']);
     }
 }

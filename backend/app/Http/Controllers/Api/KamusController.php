@@ -23,7 +23,7 @@ class KamusController extends Controller
     public function saran(string $jenis, Request $request)
     {
         abort_unless(in_array($jenis, self::WHITELIST, true), 404, 'Jenis kamus tidak dikenal.');
-        $lembagaId = $request->integer('lembaga_id') ?: null;
+        $lembagaId = (string) $request->input('jenjang') ?: null;
         $rows = $lembagaId === null
             ? collect(RefService::efektifSemuaLembaga($jenis))
             : collect(RefService::effective($jenis, $lembagaId));

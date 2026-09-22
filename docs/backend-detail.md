@@ -97,7 +97,7 @@ Status legend: ✅ implemented & migrated · 🟡 spec locked, not implemented �
 Status: ✅ project exists.
 
 **002 Database schema.** Per-module migration files (default timestamps, FK order;
-spec in `docs/SCHEMA.md`, rewritten from the original single-file spec): `lembaga` (root `kode=PESANTREN` + units via `parent_id`) → 34 `ref_*`
+spec in `docs/SCHEMA.md`, rewritten from the original single-file spec): `lembaga` (PK `jenjang`, tanpa root/hierarki) → 34 `ref_*`
 → `users` (+pivot/audit) → `tahun_ajaran` → `pegawai` → `kelas`
 (`walas_id → pegawai` inline) → santri/riwayat → PSB → finance →
 HR-academic → grades → presensi → tahfizh → wali portal (34 `ref_*`, 24 file migrasi).
@@ -110,7 +110,7 @@ kunci diri (tak boleh ubah/cabut role sendiri, tak boleh hapus diri sendiri),
 ganti role mencabut semua token (wajib login ulang), anti-eskalasi
 (non-`super_admin` 403 memutasi/menghapus pemegang `admin`/`super_admin`),
 act-as lembaga via header `X-Lembaga-Aktif`, `UsersImport` (flat keys, intra-file
-dedup, `lembaga_ids[]` pivot sync), `UserPolicy`.
+dedup, `jenjangs[]` pivot sync), `UserPolicy`.
 API: `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me`,
 `GET|POST /api/admin/users`, `PUT|DELETE /api/admin/users/{user}`,
 `POST /api/admin/users/import`, role assign/remove,
@@ -119,22 +119,21 @@ Status: ✅ live.
 
 **Dashboard (ekstra — didokumentasikan v1.3.2).**
 `GET /api/dashboard/ringkasan` (`auth:sanctum`, semua peran, scope tenant +
-opsional `?lembaga_id=`): hitungan `lembaga/pengguna/tahun_ajaran_aktif/kelas`
+opsional `?jenjang=`): hitungan `lembaga/pengguna/tahun_ajaran_aktif/kelas`
 + daftar tahun aktif. Bukan executive dashboard 504. Slot `santri`,
 `antrean_psb` = null (placeholder modul lanjutan).
 
-**004 Reference & master data.** 34 kamus tables (global row
-`lembaga_id=null` + per-lembaga rows; shadow = on/off only for globals),
+**004 Reference & master data.** 34 kamus tables (per-lembaga; fan-out mengisi tiap lembaga, tanpa baris global),
 `RefService::effective()/kodeAktif()/forget()` (cached), urut tampil
 `urutan` ASC tie-break `nama` ASC, `ReferensiSeeder`
 (decision no.51 values), `Lembaga/Kelas` CRUD with tenant scope, `TahunAjaran`
 global ber-kunci `nama` (mis. '2025/2026') + pivot visibilitas `lembaga_tahun_ajaran`.
-Aturan kamus: baris global diubah hanya `super_admin`; baris lembaga hanya
-tenant pemilik; `kode` tak boleh diubah (kunci data), `nama` boleh; duplikat
-kode/nama per scope → 422; global dihapus = shadow off per lembaga (bukan
-fisik), milik lembaga = nonaktif, pulihkan hanya baris lembaga.
-Aturan lembaga: tambah hanya `super_admin`; `kode/npsn/nsm` unik;
-`kelompok_psb` combo hanya untuk kode MI/MD.
+Aturan kamus: super_admin menambah nilai ke semua lembaga (fan-out); baris
+milik lembaga hanya tenant pemilik; `kode` (status) tak boleh diubah (kunci
+data), `nama` boleh; duplikat kode/nama per lembaga → 422; hapus = nonaktif
+(toggle), hapus permanen membuang baris.
+Aturan lembaga: tambah hanya `super_admin`; `jenjang` (PK, imutabel) + `npsn/nsm` unik;
+`kelompok_psb` combo hanya untuk jenjang MI/MD.
 Aturan kelas: nama dinormalisasi (trim + rapat spasi), unik per
 lembaga+tahun ajaran (case-insensitive, pre-check + tangkap 1062);
 `kapasitas` minimal 1; `tingkat` harus dikenal di kamus efektif;
@@ -201,7 +200,7 @@ Import satu pintu: template-data-periksa-eksekusi; berkas `xlsx/xls/csv` maks
 `santri.tambah` DAN `santri.ubah`; pencocokan 4 lapis (santri_id eksak → NIK →
 nis+lembaga → create wajib nama); sel kosong = pertahankan (tanpa pengosongan
 via file); NIK kosong selalu create; kunci lembaga `kode_lembaga`
-(case-insensitive) prioritas, fallback `lembaga_id`; baris luar tenant gagal
+(case-insensitive) prioritas, fallback `jenjang`; baris luar tenant gagal
 per baris (bukan 403); sel numerik/serial tanggal dinormalisasi sebelum
 validasi; hanya sheet pertama (sheet Referensi diabaikan).
 Samakan NIS MI↔MD: salin hanya bila tepat satu sisi bernomor + sisi tujuan tak
@@ -234,7 +233,7 @@ tanpa rebuild (token/base-URL via plugin-store di desktop); aksi uji koneksi +
 kembalikan bawaan; izin `server.lihat` eksklusif `super_admin`. Status: ✅ live.
 
 **Sebar standar tampilan (lintas modul).** Endpoint sebar ke lembaga
-(`lembaga_ids` wajib; lembaga tak teresolusi → 422) dikunci super_admin
+(`jenjangs` wajib; lembaga tak teresolusi → 422) dikunci super_admin
 (Rekam Visual + API langsung ikut terkunci); halaman sebar terpisah dihapus,
 Rekam Visual (bertindak + tombol rekam) mencakupnya. Status: ✅ live.
 
@@ -371,7 +370,7 @@ Status: 🔲 not scaffolded (backend 201/202 pending).
 
 ### 7. Data model summary
 
-* Tenant: `lembaga` tree (`parent_id`, `kode=PESANTREN`); `user_lembaga`
+* Tenant: `lembaga` PK `jenjang` (tanpa root/hierarki); `user_lembaga`
   pivot is the ONLY tenant store. **Pengecualian pasangan MI↔MD (global,
   timbal-balik)**: admin scoped pemegang MI bisa lihat/ubah/hapus data MD dan
   sebaliknya — di semua endpoint (daftar, tulis, impor, PSB, kamus, preset,

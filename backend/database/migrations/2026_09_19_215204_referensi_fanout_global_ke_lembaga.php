@@ -8,14 +8,14 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     /**
-     * Fan-out nilai global ke tiap lembaga operasional: super_admin menulis
+     * Fan-out nilai global ke tiap lembaga: super_admin menulis
      * ke semua lembaga sekaligus — tidak ada lagi baris global
-     * (`lembaga_id` null). Lembaga yang sudah punya kunci yang sama
+     * (`jenjang` null). Lembaga yang sudah punya kunci yang sama
      * (termasuk bayangan nonaktif) dibiarkan apa adanya.
      */
     public function up(): void
     {
-        $lembagas = DB::table('lembaga')->whereNotNull('parent_id')->pluck('id')->all();
+        $lembagas = DB::table('lembaga')->pluck('jenjang')->all();
         $daftars = [];
         foreach (RefService::KEY as $tipe => $kunci) {
             $daftars[] = ['ref_'.$tipe, $kunci];
@@ -26,12 +26,12 @@ return new class extends Migration
             if (! Schema::hasTable($table)) {
                 continue;
             }
-            $globals = DB::table($table)->whereNull('lembaga_id')->get();
+            $globals = DB::table($table)->whereNull('jenjang')->get();
             foreach ($globals as $g) {
                 $g = (array) $g;
                 foreach ($lembagas as $lid) {
                     $ada = DB::table($table)
-                        ->where('lembaga_id', $lid)
+                        ->where('jenjang', $lid)
                         ->where($key, $g[$key])
                         ->exists();
                     if ($ada) {
@@ -39,11 +39,11 @@ return new class extends Migration
                     }
                     $baris = $g;
                     unset($baris['id']);
-                    $baris['lembaga_id'] = $lid;
+                    $baris['jenjang'] = $lid;
                     DB::table($table)->insert($baris);
                 }
             }
-            DB::table($table)->whereNull('lembaga_id')->delete();
+            DB::table($table)->whereNull('jenjang')->delete();
         }
     }
 

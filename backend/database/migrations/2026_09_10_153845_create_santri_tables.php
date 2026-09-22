@@ -110,7 +110,8 @@ return new class extends Migration
             $table->id();
             $table->foreignId('santri_id')->constrained('santri')->cascadeOnDelete();
             $table->string('tahun_ajaran', 9); // FK ke tahun_ajaran.nama
-            $table->foreignId('lembaga_id')->constrained('lembaga')->cascadeOnDelete();
+            $table->string('jenjang', 20);
+            $table->foreign('jenjang')->references('jenjang')->on('lembaga')->cascadeOnUpdate()->cascadeOnDelete();
             $table->foreignId('kelas_id')->nullable()->constrained('kelas')->nullOnDelete(); // null = belum ditempatkan (naik dulu, penempatan menyusul)
             $table->string('semester', 2)->default('1'); // '1' ganjil, '2' genap (selaras nilai_santri)
             $table->date('tgl_masuk')->nullable(); // mulai per semester (ganjil=awal tahun, genap=awal semester 2)
@@ -128,7 +129,7 @@ return new class extends Migration
             $table->boolean('is_aktif')->default(true);
             $table->timestamps();
 
-            $table->unique(['santri_id', 'tahun_ajaran', 'lembaga_id', 'semester'], 'uq_riwayat_belajar_stls'); // nama pendek: auto-name 68 char > limit MySQL 64
+            $table->unique(['santri_id', 'tahun_ajaran', 'jenjang', 'semester'], 'uq_riwayat_belajar_stls'); // nama pendek: auto-name 68 char > limit MySQL 64
             // Performa cek bentrok no_absen (bukan unique: kelas_id/no_absen nullable, multi-NULL diizinkan MySQL).
             $table->index(['kelas_id', 'tahun_ajaran', 'semester', 'no_absen']);
             $table->foreign('tahun_ajaran')->references('nama')->on('tahun_ajaran')
@@ -138,7 +139,8 @@ return new class extends Migration
         Schema::create('mutasi_keluar', function (Blueprint $table) {
             $table->id();
             $table->foreignId('santri_id')->constrained('santri')->cascadeOnDelete();
-            $table->foreignId('lembaga_id')->constrained('lembaga')->cascadeOnDelete();
+            $table->string('jenjang', 20);
+            $table->foreign('jenjang')->references('jenjang')->on('lembaga')->cascadeOnUpdate()->cascadeOnDelete();
             $table->foreignId('kelas_terakhir_id')->nullable()->constrained('kelas')->nullOnDelete();
             $table->date('tanggal_mutasi');
             $table->string('alasan_mutasi')->nullable(); // kamus ref_alasan_mutasi (string bebas, tanpa FK)
@@ -154,7 +156,8 @@ return new class extends Migration
         Schema::create('alumni', function (Blueprint $table) {
             $table->id();
             $table->foreignId('santri_id')->constrained('santri')->cascadeOnDelete();
-            $table->foreignId('lembaga_lulus_id')->constrained('lembaga')->cascadeOnDelete();
+            $table->string('lembaga_lulus', 20);
+            $table->foreign('lembaga_lulus')->references('jenjang')->on('lembaga')->cascadeOnUpdate()->cascadeOnDelete();
             $table->string('tahun_ajaran_lulus', 9); // FK ke tahun_ajaran.nama
             $table->string('nomor_ijazah')->nullable();
             $table->string('no_surat_ijazah')->nullable(); // nomor surat pengantar/SKHU

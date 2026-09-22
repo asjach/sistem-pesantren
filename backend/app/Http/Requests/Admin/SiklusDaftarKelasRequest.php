@@ -16,7 +16,7 @@ class SiklusDaftarKelasRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'lembaga_id' => ['required', 'integer', 'exists:lembaga,id'],
+            'jenjang' => ['required', 'string', 'exists:lembaga,jenjang'],
             'tahun_ajaran' => ['nullable', 'string', 'exists:tahun_ajaran,nama'],
             'semester' => ['nullable', 'in:1,2'],
             'kelas_id' => ['nullable', 'integer', 'exists:kelas,id'],

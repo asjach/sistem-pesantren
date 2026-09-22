@@ -39,13 +39,13 @@ class NiskBulkTest extends TestCase
     /** MI (NSM valid) + MD; baris layak, sudah-ada, tanpa-nis-lokal, dan MD. */
     protected function fixture(): array
     {
-        $root = Lembaga::create(['nama' => 'Pesantren', 'kode' => 'PESANTREN', 'is_active' => true]);
+        $root = Lembaga::create(['nama' => 'Pesantren', 'jenjang' => 'PESANTREN', 'is_active' => true]);
         $mi = Lembaga::create([
-            'parent_id' => $root->id, 'nama' => 'MI', 'kode' => 'MI',
+            'nama' => 'MI', 'jenjang' => 'MI',
             'nsm' => '123456789012', 'is_active' => true,
         ]);
         $md = Lembaga::create([
-            'parent_id' => $root->id, 'nama' => 'MD', 'kode' => 'MD',
+            'nama' => 'MD', 'jenjang' => 'MD',
             'nsm' => '123456789013', 'is_active' => true,
         ]);
 
@@ -55,19 +55,19 @@ class NiskBulkTest extends TestCase
         $anakMd = Santri::create(['nama_lengkap' => 'Anak MD', 'jk' => 'L']);
 
         LembagaSantri::create([
-            'santri_id' => $layak->id, 'lembaga_id' => $mi->id,
+            'santri_id' => $layak->id, 'jenjang' => $mi->jenjang,
             'nis_lokal' => '200', 'is_active_lembaga' => 'Ya', 'tgl_masuk' => '2025-07-01',
         ]);
         LembagaSantri::create([
-            'santri_id' => $sudah->id, 'lembaga_id' => $mi->id,
+            'santri_id' => $sudah->id, 'jenjang' => $mi->jenjang,
             'nis_lokal' => '201', 'nis_kemenag' => 'lama', 'is_active_lembaga' => 'Ya', 'tgl_masuk' => '2025-07-01',
         ]);
         LembagaSantri::create([
-            'santri_id' => $kosong->id, 'lembaga_id' => $mi->id,
+            'santri_id' => $kosong->id, 'jenjang' => $mi->jenjang,
             'nis_lokal' => null, 'is_active_lembaga' => 'Ya', 'tgl_masuk' => '2025-07-01',
         ]);
         LembagaSantri::create([
-            'santri_id' => $anakMd->id, 'lembaga_id' => $md->id,
+            'santri_id' => $anakMd->id, 'jenjang' => $md->jenjang,
             'nis_lokal' => '300', 'is_active_lembaga' => 'Ya', 'tgl_masuk' => '2025-07-01',
         ]);
 
@@ -107,11 +107,11 @@ class NiskBulkTest extends TestCase
         // Urut nama (join santri) + filter lembaga & is_active (join lembaga
         // bila urut lembaga) — 1052 bila tak terkualifikasi.
         $this->actingAs($super, 'sanctum')
-            ->getJson('/api/admin/lembaga-santri?lembaga_id='.$f['mi']->id.'&is_active=1&sort=nama&arah=naik')
+            ->getJson('/api/admin/lembaga-santri?jenjang='.$f['mi']->jenjang.'&is_active=1&sort=nama&arah=naik')
             ->assertStatus(200)
             ->assertJsonPath('data.0.santri.nama_lengkap', 'Kosong');
         $this->actingAs($super, 'sanctum')
-            ->getJson('/api/admin/lembaga-santri?lembaga_id='.$f['mi']->id.'&is_active=1&sort=lembaga&arah=naik')
+            ->getJson('/api/admin/lembaga-santri?jenjang='.$f['mi']->jenjang.'&is_active=1&sort=lembaga&arah=naik')
             ->assertStatus(200)
             ->assertJsonCount(3, 'data');
     }
@@ -124,7 +124,7 @@ class NiskBulkTest extends TestCase
 
         // Filter lembaga MD saja → nol (MD dilewati).
         $this->actingAs($super, 'sanctum')
-            ->postJson('/api/admin/lembaga-santri/generate-nisk-bulk', ['lembaga_id' => $f['md']->id])
+            ->postJson('/api/admin/lembaga-santri/generate-nisk-bulk', ['jenjang' => $f['md']->jenjang])
             ->assertStatus(200)
             ->assertJsonPath('data.berhasil', 0);
 

@@ -9,9 +9,9 @@ namespace App\Konteks;
  */
 class LembagaAktif
 {
-    protected ?int $id = null;
+    protected ?string $id = null;
 
-    public function id(): ?int
+    public function id(): ?string
     {
         return $this->id;
     }
@@ -21,7 +21,7 @@ class LembagaAktif
         return $this->id !== null;
     }
 
-    public function set(?int $id): void
+    public function set(?string $id): void
     {
         $this->id = $id;
     }

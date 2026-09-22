@@ -2,10 +2,13 @@
 
 namespace App\Http\Requests\Admin;
 
+use Illuminate\Validation\Rule;
+
 class LembagaUpdateRequest extends LembagaRequest
 {
     public function rules(): array
     {
-        return $this->aturanDasar();
+        // `jenjang` = kunci (PK) dan imutabel: hanya boleh dikirim bila sama.
+        return ['jenjang' => ['sometimes', 'string', Rule::in([$this->jenjangLembaga()])]] + $this->aturanDasar();
     }
 }

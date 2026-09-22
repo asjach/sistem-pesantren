@@ -5,7 +5,7 @@ namespace App\Http\Requests\Admin;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-/** Aturan bersama tambah/ubah lembaga (update mengabaikan id pada unique). */
+/** Aturan bersama tambah/ubah lembaga (update mengabaikan kunci `jenjang`). */
 abstract class LembagaRequest extends FormRequest
 {
     public function authorize(): bool
@@ -13,29 +13,25 @@ abstract class LembagaRequest extends FormRequest
         return true;
     }
 
-    protected function idLembaga(): ?int
+    protected function jenjangLembaga(): ?string
     {
         $param = $this->route('lembaga');
-        $id = is_object($param) ? $param->id : $param;
 
-        return $id === null ? null : (int) $id;
+        return is_object($param) ? $param->jenjang : ($param !== null ? (string) $param : null);
     }
 
     /** Bidang identitas/legalitas/alamat yang sama untuk tambah & ubah. */
     protected function aturanDasar(): array
     {
-        $id = $this->idLembaga();
+        $jenjang = $this->jenjangLembaga();
 
         return [
-            'parent_id' => ['nullable', 'exists:lembaga,id'],
             'nama' => ['sometimes', 'string', 'max:100'],
             'nama_singkat' => ['nullable', 'string', 'max:50'],
-            'kode' => ['nullable', 'string', 'max:20', Rule::unique('lembaga', 'kode')->ignore($id)],
             'mudir_am' => ['nullable', 'string', 'max:100'],
-            'jenjang' => ['nullable', 'string', 'max:50'],
             'status' => ['nullable', 'in:negeri,swasta'],
-            'npsn' => ['nullable', 'string', 'max:20', Rule::unique('lembaga', 'npsn')->ignore($id)],
-            'nsm' => ['nullable', 'string', 'max:30', Rule::unique('lembaga', 'nsm')->ignore($id)],
+            'npsn' => ['nullable', 'string', 'max:20', Rule::unique('lembaga', 'npsn')->ignore($jenjang, 'jenjang')],
+            'nsm' => ['nullable', 'string', 'max:30', Rule::unique('lembaga', 'nsm')->ignore($jenjang, 'jenjang')],
             'npwp' => ['nullable', 'string', 'max:30'],
             'no_izin_operasional' => ['nullable', 'string', 'max:100'],
             'tgl_izin' => ['nullable', 'date'],

@@ -29,22 +29,22 @@ class SamakanNisTest extends TestCase
     protected function baseFixture(): array
     {
         $root = Lembaga::create([
-            'nama' => 'Pesantren Root', 'kode' => 'PESANTREN',
+            'nama' => 'Pesantren Root', 'jenjang' => 'PESANTREN',
             'is_seleksi' => false, 'kelompok_psb' => 'combo_mi_md', 'is_active' => true,
         ]);
         $mi = Lembaga::create([
-            'parent_id' => $root->id, 'nama' => 'Madrasah Ibtidaiyah', 'kode' => 'MI',
+            'nama' => 'Madrasah Ibtidaiyah', 'jenjang' => 'MI',
             'is_seleksi' => false, 'kelompok_psb' => 'combo_mi_md', 'is_active' => true,
         ]);
         $md = Lembaga::create([
-            'parent_id' => $root->id, 'nama' => 'Madrasah Diniyah', 'kode' => 'MD',
+            'nama' => 'Madrasah Diniyah', 'jenjang' => 'MD',
             'is_seleksi' => false, 'kelompok_psb' => 'combo_mi_md', 'is_active' => true,
         ]);
 
         return compact('root', 'mi', 'md');
     }
 
-    protected function makeAdmin(array $lembagaIds): User
+    protected function makeAdmin(array $jenjangs): User
     {
         $u = User::create([
             'name' => 'Admin Samakan',
@@ -53,9 +53,9 @@ class SamakanNisTest extends TestCase
             'password' => 'password',
         ]);
         $u->assignRole('admin');
-        foreach ($lembagaIds as $lid) {
+        foreach ($jenjangs as $lid) {
             DB::table('user_lembaga')->insert([
-                'user_id' => $u->id, 'lembaga_id' => $lid,
+                'user_id' => $u->id, 'jenjang' => $lid,
                 'created_at' => now(), 'updated_at' => now(),
             ]);
         }
@@ -63,10 +63,10 @@ class SamakanNisTest extends TestCase
         return $u;
     }
 
-    protected function anggota(Santri $s, int $lembagaId, ?string $nis): void
+    protected function anggota(Santri $s, string $jenjang, ?string $nis): void
     {
         LembagaSantri::create([
-            'santri_id' => $s->id, 'lembaga_id' => $lembagaId,
+            'santri_id' => $s->id, 'jenjang' => $jenjang,
             'nis_lokal' => $nis, 'is_active_lembaga' => 'Ya',
         ]);
     }
@@ -81,71 +81,71 @@ class SamakanNisTest extends TestCase
     public function test_periksa_tanpa_menulis_dan_eksekusi_menyalin_dua_arah(): void
     {
         $f = $this->baseFixture();
-        $admin = $this->makeAdmin([$f['mi']->id, $f['md']->id]);
+        $admin = $this->makeAdmin([$f['mi']->jenjang, $f['md']->jenjang]);
 
         $a = Santri::create(['nama_lengkap' => 'Ganda A', 'jk' => 'L']);
-        $this->anggota($a, $f['mi']->id, '27001');
-        $this->anggota($a, $f['md']->id, null);
+        $this->anggota($a, $f['mi']->jenjang, '27001');
+        $this->anggota($a, $f['md']->jenjang, null);
 
         $b = Santri::create(['nama_lengkap' => 'Ganda B', 'jk' => 'P']);
-        $this->anggota($b, $f['mi']->id, null);
-        $this->anggota($b, $f['md']->id, '27002');
+        $this->anggota($b, $f['mi']->jenjang, null);
+        $this->anggota($b, $f['md']->jenjang, '27002');
 
         $res = $this->panggil($admin, true)->assertStatus(200);
         $this->assertSame(2, (int) $res->json('ringkasan.disamakan'));
         // Pratinjau tidak menulis.
-        $this->assertNull(LembagaSantri::where('santri_id', $a->id)->where('lembaga_id', $f['md']->id)->firstOrFail()->nis_lokal);
+        $this->assertNull(LembagaSantri::where('santri_id', $a->id)->where('jenjang', $f['md']->jenjang)->firstOrFail()->nis_lokal);
 
         $this->panggil($admin, false)->assertStatus(200);
-        $this->assertSame('27001', LembagaSantri::where('santri_id', $a->id)->where('lembaga_id', $f['md']->id)->firstOrFail()->nis_lokal);
-        $this->assertSame('27002', LembagaSantri::where('santri_id', $b->id)->where('lembaga_id', $f['mi']->id)->firstOrFail()->nis_lokal);
+        $this->assertSame('27001', LembagaSantri::where('santri_id', $a->id)->where('jenjang', $f['md']->jenjang)->firstOrFail()->nis_lokal);
+        $this->assertSame('27002', LembagaSantri::where('santri_id', $b->id)->where('jenjang', $f['mi']->jenjang)->firstOrFail()->nis_lokal);
     }
 
     public function test_beda_dua_sisi_dilaporkan_tanpa_disentuh(): void
     {
         $f = $this->baseFixture();
-        $admin = $this->makeAdmin([$f['mi']->id, $f['md']->id]);
+        $admin = $this->makeAdmin([$f['mi']->jenjang, $f['md']->jenjang]);
 
         $s = Santri::create(['nama_lengkap' => 'Beda', 'jk' => 'L']);
-        $this->anggota($s, $f['mi']->id, '27101');
-        $this->anggota($s, $f['md']->id, '27201');
+        $this->anggota($s, $f['mi']->jenjang, '27101');
+        $this->anggota($s, $f['md']->jenjang, '27201');
 
         $res = $this->panggil($admin, false)->assertStatus(200);
         $this->assertSame(0, (int) $res->json('ringkasan.disamakan'));
         $this->assertSame(1, (int) $res->json('ringkasan.beda'));
-        $this->assertSame('27101', LembagaSantri::where('santri_id', $s->id)->where('lembaga_id', $f['mi']->id)->firstOrFail()->nis_lokal);
+        $this->assertSame('27101', LembagaSantri::where('santri_id', $s->id)->where('jenjang', $f['mi']->jenjang)->firstOrFail()->nis_lokal);
     }
 
     public function test_tabrakan_dilewati(): void
     {
         $f = $this->baseFixture();
-        $admin = $this->makeAdmin([$f['mi']->id, $f['md']->id]);
+        $admin = $this->makeAdmin([$f['mi']->jenjang, $f['md']->jenjang]);
 
         $pemilik = Santri::create(['nama_lengkap' => 'Pemilik', 'jk' => 'L']);
-        $this->anggota($pemilik, $f['md']->id, '27301');
+        $this->anggota($pemilik, $f['md']->jenjang, '27301');
 
         $s = Santri::create(['nama_lengkap' => 'Korban', 'jk' => 'L']);
-        $this->anggota($s, $f['mi']->id, '27301');
-        $this->anggota($s, $f['md']->id, null);
+        $this->anggota($s, $f['mi']->jenjang, '27301');
+        $this->anggota($s, $f['md']->jenjang, null);
 
         $res = $this->panggil($admin, false)->assertStatus(200);
         $this->assertSame(1, (int) $res->json('ringkasan.tabrakan'));
-        $this->assertNull(LembagaSantri::where('santri_id', $s->id)->where('lembaga_id', $f['md']->id)->firstOrFail()->nis_lokal);
+        $this->assertNull(LembagaSantri::where('santri_id', $s->id)->where('jenjang', $f['md']->jenjang)->firstOrFail()->nis_lokal);
     }
 
     public function test_luar_lingkup_dikecualikan_dan_tanpa_izin_ditolak(): void
     {
         $f = $this->baseFixture();
-        $adminMi = $this->makeAdmin([$f['mi']->id]);
+        $adminMi = $this->makeAdmin([$f['mi']->jenjang]);
 
         $s = Santri::create(['nama_lengkap' => 'Luar', 'jk' => 'L']);
-        $this->anggota($s, $f['mi']->id, '27401');
-        $this->anggota($s, $f['md']->id, null);
+        $this->anggota($s, $f['mi']->jenjang, '27401');
+        $this->anggota($s, $f['md']->jenjang, null);
 
         // Admin MI bisa menulis MD (pengecualian pasangan) → kandidat disamakan.
         $res = $this->panggil($adminMi, false)->assertStatus(200);
         $this->assertSame(1, (int) $res->json('ringkasan.disamakan'));
-        $this->assertSame('27401', LembagaSantri::where('santri_id', $s->id)->where('lembaga_id', $f['md']->id)->firstOrFail()->nis_lokal);
+        $this->assertSame('27401', LembagaSantri::where('santri_id', $s->id)->where('jenjang', $f['md']->jenjang)->firstOrFail()->nis_lokal);
 
         $tanpaIzin = User::create([
             'name' => 'Tanpa Izin', 'email' => 'tanpa_'.uniqid().'@example.com',
@@ -153,7 +153,7 @@ class SamakanNisTest extends TestCase
         ]);
         $tanpaIzin->givePermissionTo(['santri.lihat', 'santri.tambah']);
         DB::table('user_lembaga')->insert([
-            'user_id' => $tanpaIzin->id, 'lembaga_id' => $f['mi']->id,
+            'user_id' => $tanpaIzin->id, 'jenjang' => $f['mi']->jenjang,
             'created_at' => now(), 'updated_at' => now(),
         ]);
         $this->panggil($tanpaIzin, true)->assertStatus(403);

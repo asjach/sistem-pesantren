@@ -10,7 +10,7 @@ use Illuminate\Validation\ValidationException;
 
 class PsbGelombangService
 {
-    public function cekBukaDanKuota(int $gelombangId, int $lembagaId): void
+    public function cekBukaDanKuota(int $gelombangId, string $jenjang): void
     {
         $gelombang = PsbGelombang::findOrFail($gelombangId);
         $hariIni = now()->toDateString();
@@ -74,17 +74,17 @@ class PsbGelombangService
      * Pemakaian = calon aktif yang punya baris lembaga di kelompok tsb (distinct calon, 1 calon = 1 baris).
      * null = tanpa batas (kuota kosong/0).
      */
-    public function sisaKuota(int $gelombangId, int $lembagaId, ?string $tipeSantri = null): ?int
+    public function sisaKuota(int $gelombangId, string $jenjang, ?string $tipeSantri = null): ?int
     {
-        $lembaga = Lembaga::find($lembagaId);
+        $lembaga = Lembaga::find($jenjang);
         if (! $lembaga || ! $lembaga->kelompok_psb) {
             return null;
         }
         $combo = $lembaga->kelompok_psb === PsbService::KELOMPOK_COMBO;
         $primer = $combo
-            ? (Lembaga::where('kode', PsbService::PAKET_MI_MD['primer'])->first() ?? $lembaga)
+            ? (Lembaga::whereKey(PsbService::PAKET_MI_MD['primer'])->first() ?? $lembaga)
             : $lembaga;
-        $q = PsbKuotaBiaya::where('gelombang_id', $gelombangId)->where('lembaga_id', $primer->id);
+        $q = PsbKuotaBiaya::where('gelombang_id', $gelombangId)->where('jenjang', $primer->jenjang);
         $kuota = $tipeSantri
             ? (clone $q)->whereIn('tipe_santri', [$tipeSantri, 'semua'])->sum('kuota')
             : $q->sum('kuota');
@@ -93,10 +93,10 @@ class PsbGelombangService
         }
 
         $anggotaIds = $combo
-            ? Lembaga::whereIn('kode', PsbService::PAKET_MI_MD['anggota'])->pluck('id')->all()
-            : [$lembaga->id];
+            ? Lembaga::whereIn('jenjang', PsbService::PAKET_MI_MD['anggota'])->pluck('jenjang')->all()
+            : [$lembaga->jenjang];
         $terpakai = PsbCalonSantri::where('gelombang_id', $gelombangId)
-            ->whereHas('lembagaDetail', fn ($qq) => $qq->whereIn('lembaga_id', $anggotaIds))
+            ->whereHas('lembagaDetail', fn ($qq) => $qq->whereIn('jenjang', $anggotaIds))
             ->when($tipeSantri, fn ($qq) => $qq->where('tipe_santri', $tipeSantri))
             ->whereNotIn('status_pendaftaran', ['ditolak', 'tidak_lolos', 'mengundurkan_diri', 'waiting_list'])
             ->count();

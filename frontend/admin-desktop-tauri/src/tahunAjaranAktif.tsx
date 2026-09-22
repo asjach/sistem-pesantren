@@ -22,8 +22,8 @@ const Ctx = createContext<TahunAjaranAktifState | null>(null);
 
 /** Bawaan: TA aktif; jika tak ada → tanggal_mulai terbaru, lalu nama terbesar.
  *  Tanpa lembaga tunggal (mode "Semua lembaga") → "Semua tahun". */
-function bawaan(daftar: TahunAjaran[], lembagaId: number | null): string | null {
-  if (lembagaId == null) return null;
+function bawaan(daftar: TahunAjaran[], jenjang: string | null): string | null {
+  if (jenjang == null) return null;
   const aktif = daftar.find((t) => t.is_aktif);
   if (aktif) return aktif.nama;
   const urut = [...daftar].sort((a, b) =>
@@ -33,7 +33,7 @@ function bawaan(daftar: TahunAjaran[], lembagaId: number | null): string | null 
 
 export function TahunAjaranAktifProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  const { lembagaId } = useLembagaAktif();
+  const { jenjang } = useLembagaAktif();
   const [pilihan, setPilihan] = useState<TahunAjaran[]>([]);
   const [tahunAjaranNama, setTahunAjaranNama] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -52,7 +52,7 @@ export function TahunAjaranAktifProvider({ children }: { children: ReactNode }) 
       setLoading(true);
       let daftar: TahunAjaran[] = [];
       try {
-        const p = await listTahunAjaran({ lembaga_id: lembagaId ?? undefined, per_page: 1000 });
+        const p = await listTahunAjaran({ jenjang: jenjang ?? undefined, per_page: 1000 });
         daftar = p.data;
       } catch {
         daftar = [];
@@ -64,14 +64,14 @@ export function TahunAjaranAktifProvider({ children }: { children: ReactNode }) 
       let nama: string | null;
       if (simpanan === '0') nama = null;
       else if (simpanan && daftar.some((d) => d.nama === simpanan)) nama = simpanan;
-      else nama = bawaan(daftar, lembagaId);
+      else nama = bawaan(daftar, jenjang);
       if (!alive) return;
       setTahunAjaranNama(nama);
       setLoading(false);
     })();
 
     return () => { alive = false; };
-  }, [user, lembagaId]);
+  }, [user, jenjang]);
 
   const pilih = useMemo(() => (nama: string | null) => {
     setTahunAjaranNama(nama);

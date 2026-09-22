@@ -14,8 +14,8 @@ class CreateUserRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'lembaga_ids' => ['nullable', 'array'],
-            'lembaga_ids.*' => ['integer', 'exists:lembaga,id'],
+            'jenjangs' => ['nullable', 'array'],
+            'jenjangs.*' => ['string', 'exists:lembaga,jenjang'],
             'name' => ['required', 'string', 'max:255'],
             'email' => ['nullable', 'email', 'required_without_all:phone,username', 'unique:users,email'],
             'phone' => ['nullable', 'string', 'max:20', 'unique:users,phone'],

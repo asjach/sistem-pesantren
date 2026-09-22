@@ -41,7 +41,7 @@ class KamusLabelTest extends TestCase
         $u->assignRole($role);
         foreach ($lembagaIds as $lid) {
             DB::table('user_lembaga')->insert([
-                'user_id' => $u->id, 'lembaga_id' => $lid,
+                'user_id' => $u->id, 'jenjang' => $lid,
                 'created_at' => now(), 'updated_at' => now(),
             ]);
         }
@@ -121,14 +121,14 @@ class KamusLabelTest extends TestCase
     public function test_admin_hanya_boleh_baca_peta_dan_skema(): void
     {
         $root = Lembaga::create([
-            'nama' => 'Pesantren', 'kode' => 'PESANTREN',
+            'nama' => 'Pesantren', 'jenjang' => 'PESANTREN',
             'is_seleksi' => false, 'kelompok_psb' => 'combo_mi_md', 'is_active' => true,
         ]);
         $mi = Lembaga::create([
-            'parent_id' => $root->id, 'nama' => 'Madrasah Ibtidaiyah', 'kode' => 'MI',
+            'nama' => 'Madrasah Ibtidaiyah', 'jenjang' => 'MI',
             'is_seleksi' => false, 'kelompok_psb' => 'combo_mi_md', 'is_active' => true,
         ]);
-        $scoped = $this->makeUser('admin', [$mi->id]);
+        $scoped = $this->makeUser('admin', [$mi->jenjang]);
         $penuh = $this->makeUser('admin');
 
         foreach ([$scoped, $penuh] as $admin) {
@@ -234,14 +234,14 @@ class KamusLabelTest extends TestCase
     public function test_generasi_ditolak_untuk_admin(): void
     {
         $root = Lembaga::create([
-            'nama' => 'Pesantren', 'kode' => 'PESANTREN',
+            'nama' => 'Pesantren', 'jenjang' => 'PESANTREN',
             'is_seleksi' => false, 'kelompok_psb' => 'combo_mi_md', 'is_active' => true,
         ]);
         $mi = Lembaga::create([
-            'parent_id' => $root->id, 'nama' => 'Madrasah Ibtidaiyah', 'kode' => 'MI',
+            'nama' => 'Madrasah Ibtidaiyah', 'jenjang' => 'MI',
             'is_seleksi' => false, 'kelompok_psb' => 'combo_mi_md', 'is_active' => true,
         ]);
-        $scoped = $this->makeUser('admin', [$mi->id]);
+        $scoped = $this->makeUser('admin', [$mi->jenjang]);
 
         $this->actingAs($scoped, 'sanctum')
             ->postJson('/api/admin/kamus-kolom/generasi', ['mode' => 'upper'])

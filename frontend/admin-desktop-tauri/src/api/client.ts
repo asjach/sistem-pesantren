@@ -20,9 +20,9 @@ const BASE_URL_KEY = 'simpes_base_url';
 
 /** Lembaga yang sedang "diperankan" (mode bertindak sebagai lembaga) — dikirim
  *  sebagai header X-Lembaga-Aktif. `null` = mode penuh. */
-let lembagaAktifId: number | null = null;
+let lembagaAktifId: string | null = null;
 
-export function setLembagaAktifHeader(id: number | null): void {
+export function setLembagaAktifHeader(id: string | null): void {
   lembagaAktifId = id;
 }
 

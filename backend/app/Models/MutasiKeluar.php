@@ -23,7 +23,7 @@ class MutasiKeluar extends Model
 
     public function lembaga(): BelongsTo
     {
-        return $this->belongsTo(Lembaga::class);
+        return $this->belongsTo(Lembaga::class, 'jenjang', 'jenjang');
     }
 
     public function kelasTerakhir(): BelongsTo
@@ -47,6 +47,6 @@ class MutasiKeluar extends Model
             return $query->whereRaw('1 = 0');
         }
 
-        return $query->whereIn('lembaga_id', $ids);
+        return $query->whereIn('jenjang', $ids);
     }
 }

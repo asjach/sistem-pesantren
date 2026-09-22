@@ -40,7 +40,7 @@ class SiklusFlowTest extends TestCase
     /** Benih status/alasan per lembaga fixture (tanpa baris global). */
     protected function ensureRefs(array $f): void
     {
-        foreach ([$f['mi']->id, $f['md']->id] as $lid) {
+        foreach ([$f['mi']->jenjang, $f['md']->jenjang] as $lid) {
             foreach ([
                 ['kode' => 'santri_baru', 'nama' => 'Santri Baru'],
                 ['kode' => 'mengulang', 'nama' => 'Mengulang'],
@@ -48,7 +48,7 @@ class SiklusFlowTest extends TestCase
                 ['kode' => 'kenaikan', 'nama' => 'Kenaikan Kelas'],
             ] as $i => $r) {
                 DB::table('ref_status_awal')->updateOrInsert(
-                    ['lembaga_id' => $lid, 'kode' => $r['kode']],
+                    ['jenjang' => $lid, 'kode' => $r['kode']],
                     ['nama' => $r['nama'], 'urutan' => $i, 'is_active' => true]
                 );
             }
@@ -61,13 +61,13 @@ class SiklusFlowTest extends TestCase
                 ['kode' => 'tidak_lulus', 'nama' => 'Tidak Lulus'],
             ] as $i => $r) {
                 DB::table('ref_status_akhir')->updateOrInsert(
-                    ['lembaga_id' => $lid, 'kode' => $r['kode']],
+                    ['jenjang' => $lid, 'kode' => $r['kode']],
                     ['nama' => $r['nama'], 'is_aktif_bawaan' => $r['kode'] === 'aktif', 'terminal_ke' => null, 'urutan' => $i, 'is_active' => true]
                 );
             }
             foreach (['Ikut pindah orang tua', 'Lainnya'] as $i => $nama) {
                 DB::table('ref_alasan_mutasi')->updateOrInsert(
-                    ['lembaga_id' => $lid, 'nama' => $nama],
+                    ['jenjang' => $lid, 'nama' => $nama],
                     ['urutan' => $i, 'is_active' => true]
                 );
             }
@@ -78,15 +78,15 @@ class SiklusFlowTest extends TestCase
     protected function baseFixture(): array
     {
         $root = Lembaga::create([
-            'nama' => 'Pesantren Root', 'kode' => 'PESANTREN',
+            'nama' => 'Pesantren Root', 'jenjang' => 'PESANTREN',
             'is_seleksi' => false, 'kelompok_psb' => 'combo_mi_md', 'is_active' => true,
         ]);
         $mi = Lembaga::create([
-            'parent_id' => $root->id, 'nama' => 'Madrasah Ibtidaiyah', 'kode' => 'MI', 'nsm' => '123456789012',
+            'nama' => 'Madrasah Ibtidaiyah', 'jenjang' => 'MI', 'nsm' => '123456789012',
             'is_seleksi' => false, 'kelompok_psb' => 'combo_mi_md', 'is_active' => true,
         ]);
         $md = Lembaga::create([
-            'parent_id' => $root->id, 'nama' => 'Madrasah Diniyah', 'kode' => 'MD', 'nsm' => '123456789013',
+            'nama' => 'Madrasah Diniyah', 'jenjang' => 'MD', 'nsm' => '123456789013',
             'is_seleksi' => false, 'kelompok_psb' => 'combo_mi_md', 'is_active' => true,
         ]);
         // TA global (berlaku semua lembaga); taLama juga dipakai MD.
@@ -105,7 +105,7 @@ class SiklusFlowTest extends TestCase
             'tanggal_mulai' => '2024-07-01', 'tanggal_selesai' => '2025-06-30', 'is_aktif' => false,
         ]);
         LembagaTahunAjaran::create([
-            'lembaga_id' => $mi->id, 'tahun_ajaran' => $taLuar->nama, 'is_active' => false,
+            'jenjang' => $mi->jenjang, 'tahun_ajaran' => $taLuar->nama, 'is_active' => false,
         ]);
 
         $this->ensureRefs(['mi' => $mi, 'md' => $md]);
@@ -127,7 +127,7 @@ class SiklusFlowTest extends TestCase
         $u->assignRole($role);
         foreach ($lembagaIds as $lid) {
             DB::table('user_lembaga')->insert([
-                'user_id' => $u->id, 'lembaga_id' => $lid,
+                'user_id' => $u->id, 'jenjang' => $lid,
                 'created_at' => now(), 'updated_at' => now(),
             ]);
         }
@@ -151,7 +151,7 @@ class SiklusFlowTest extends TestCase
     {
         return LembagaSantri::create([
             'santri_id' => $santri->id,
-            'lembaga_id' => $lembaga->id,
+            'jenjang' => $lembaga->jenjang,
             'nis_lokal' => $nisLokal,
             'is_active_lembaga' => $aktif ? 'Ya' : 'Tidak',
             'tgl_masuk' => '2025-07-01',
@@ -161,7 +161,7 @@ class SiklusFlowTest extends TestCase
     protected function makeKelas(Lembaga $lembaga, TahunAjaran $ta, string $nama, ?string $tingkat = null): Kelas
     {
         return Kelas::create([
-            'lembaga_id' => $lembaga->id,
+            'jenjang' => $lembaga->jenjang,
             'tahun_ajaran' => $ta->nama,
             'nama_kelas' => $nama.'-'.uniqid(),
             'tingkat' => $tingkat,
@@ -173,7 +173,7 @@ class SiklusFlowTest extends TestCase
         return RiwayatBelajar::create(array_merge([
             'santri_id' => $santri->id,
             'tahun_ajaran' => $ta->nama,
-            'lembaga_id' => $lembaga->id,
+            'jenjang' => $lembaga->jenjang,
             'kelas_id' => null,
             'semester' => $semester,
             'tgl_masuk' => '2025-07-15',
@@ -189,14 +189,14 @@ class SiklusFlowTest extends TestCase
     public function test_01_salin_genap_massal_api(): void
     {
         $f = $this->baseFixture();
-        $admin = $this->makeUser('admin', [$f['mi']->id]);
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
         $santri = $this->makeSantri('Ganjil Satu');
         $this->makeKeanggotaan($santri, $f['mi'], '25001');
         $kelas = $this->makeKelas($f['mi'], $f['taLama'], '1A', '1');
         $this->makeRiwayat($santri, $f['taLama'], $f['mi'], '1', ['kelas_id' => $kelas->id]);
 
         $res = $this->actingAs($admin, 'sanctum')->postJson('/api/admin/akademik/salin-genap', [
-            'lembaga_id' => $f['mi']->id,
+            'jenjang' => $f['mi']->jenjang,
             'tanggal_masuk' => '2026-01-05',
         ])->assertStatus(200);
 
@@ -209,7 +209,7 @@ class SiklusFlowTest extends TestCase
 
         // Salin ulang baris yang ganjilnya sudah tertutup → per-item gagal (partial), bukan 500.
         $res2 = $this->actingAs($admin, 'sanctum')->postJson('/api/admin/akademik/salin-genap', [
-            'lembaga_id' => $f['mi']->id,
+            'jenjang' => $f['mi']->jenjang,
             'tanggal_masuk' => '2026-01-05',
             'siswa' => [['santri_id' => $santri->id]],
         ])->assertStatus(200);
@@ -222,7 +222,7 @@ class SiklusFlowTest extends TestCase
     public function test_02_naik_kelas_massal_naik_dan_tidak_naik(): void
     {
         $f = $this->baseFixture();
-        $admin = $this->makeUser('admin', [$f['mi']->id]);
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
 
         $naikSantri = $this->makeSantri('Naik Satu');
         $this->makeKeanggotaan($naikSantri, $f['mi'], '25002');
@@ -233,7 +233,7 @@ class SiklusFlowTest extends TestCase
         $this->makeRiwayat($tinggalSantri, $f['taLama'], $f['mi'], '2', ['tingkat' => '1']);
 
         $res = $this->actingAs($admin, 'sanctum')->postJson('/api/admin/akademik/naik-kelas', [
-            'lembaga_id' => $f['mi']->id,
+            'jenjang' => $f['mi']->jenjang,
             'tahun_ajaran_baru' => $f['taBaru']->nama,
             'tingkat' => '2',
             'siswa' => [
@@ -264,13 +264,13 @@ class SiklusFlowTest extends TestCase
     public function test_03_kenaikan_wajib_dari_baris_genap(): void
     {
         $f = $this->baseFixture();
-        $admin = $this->makeUser('admin', [$f['mi']->id]);
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
         $santri = $this->makeSantri('Ganjil Dua');
         $this->makeKeanggotaan($santri, $f['mi'], '25004');
         $this->makeRiwayat($santri, $f['taLama'], $f['mi'], '1');
 
         $res = $this->actingAs($admin, 'sanctum')->postJson('/api/admin/akademik/naik-kelas', [
-            'lembaga_id' => $f['mi']->id,
+            'jenjang' => $f['mi']->jenjang,
             'tahun_ajaran_baru' => $f['taBaru']->nama,
             'tingkat' => '2',
             'siswa' => [['santri_id' => $santri->id, 'status' => 'naik']],
@@ -287,13 +287,13 @@ class SiklusFlowTest extends TestCase
     public function test_04_tidak_lulus_membuka_baris_mengulang(): void
     {
         $f = $this->baseFixture();
-        $admin = $this->makeUser('admin', [$f['mi']->id]);
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
         $santri = $this->makeSantri('Tidak Lulus Satu');
         $this->makeKeanggotaan($santri, $f['mi'], '25005');
         $this->makeRiwayat($santri, $f['taLama'], $f['mi'], '2', ['tingkat' => '1']);
 
         $this->actingAs($admin, 'sanctum')->postJson("/api/admin/santri/{$santri->id}/tidak-lulus", [
-            'lembaga_id' => $f['mi']->id,
+            'jenjang' => $f['mi']->jenjang,
         ])->assertStatus(200);
 
         $this->assertDatabaseHas('riwayat_belajar', [
@@ -315,14 +315,14 @@ class SiklusFlowTest extends TestCase
     public function test_05_lulus_menulis_alumni_dan_menutup_keanggotaan(): void
     {
         $f = $this->baseFixture();
-        $admin = $this->makeUser('admin', [$f['mi']->id]);
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
         $santri = $this->makeSantri('Lulus Satu');
         $this->makeKeanggotaan($santri, $f['mi'], '25006');
         $kelas = $this->makeKelas($f['mi'], $f['taLama'], '6A', '6');
         $this->makeRiwayat($santri, $f['taLama'], $f['mi'], '2', ['kelas_id' => $kelas->id, 'tingkat' => '6']);
 
         $this->actingAs($admin, 'sanctum')->postJson("/api/admin/santri/{$santri->id}/lulus", [
-            'lembaga_id' => $f['mi']->id,
+            'jenjang' => $f['mi']->jenjang,
             'tahun_ajaran_lulus' => $f['taLama']->nama,
             'tanggal_lulus' => '2026-06-20',
             'nomor_ijazah' => 'IJZ-001',
@@ -340,14 +340,14 @@ class SiklusFlowTest extends TestCase
     public function test_06_mutasi_keluar_menulis_arsip(): void
     {
         $f = $this->baseFixture();
-        $admin = $this->makeUser('admin', [$f['mi']->id]);
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
         $santri = $this->makeSantri('Mutasi Satu');
         $this->makeKeanggotaan($santri, $f['mi'], '25007');
         $kelas = $this->makeKelas($f['mi'], $f['taLama'], '2A', '2');
         $this->makeRiwayat($santri, $f['taLama'], $f['mi'], '1', ['kelas_id' => $kelas->id]);
 
         $this->actingAs($admin, 'sanctum')->postJson("/api/admin/santri/{$santri->id}/mutasi", [
-            'lembaga_id' => $f['mi']->id,
+            'jenjang' => $f['mi']->jenjang,
             'kelas_terakhir_id' => $kelas->id,
             'tanggal_mutasi' => '2026-05-01',
             'alasan_mutasi' => 'Ikut pindah orang tua',
@@ -372,13 +372,13 @@ class SiklusFlowTest extends TestCase
         $this->makeRiwayat($santri, $f['taMd'], $f['md'], '1');
 
         $this->actingAs($admin, 'sanctum')->postJson("/api/admin/santri/{$santri->id}/berhenti-jenjang", [
-            'lembaga_id' => $f['md']->id,
+            'jenjang' => $f['md']->jenjang,
         ])->assertStatus(200);
 
         // MD tertutup, MI tetap aktif → is_active_pst tetap 'Ya'.
-        $this->assertDatabaseHas('riwayat_belajar', ['santri_id' => $santri->id, 'lembaga_id' => $f['md']->id, 'is_active_riwayat' => 'Tidak']);
-        $this->assertDatabaseHas('riwayat_belajar', ['santri_id' => $santri->id, 'lembaga_id' => $f['mi']->id, 'is_active_riwayat' => 'Ya']);
-        $this->assertDatabaseHas('lembaga_santri', ['santri_id' => $santri->id, 'lembaga_id' => $f['md']->id, 'is_active_lembaga' => 'Tidak']);
+        $this->assertDatabaseHas('riwayat_belajar', ['santri_id' => $santri->id, 'jenjang' => $f['md']->jenjang, 'is_active_riwayat' => 'Tidak']);
+        $this->assertDatabaseHas('riwayat_belajar', ['santri_id' => $santri->id, 'jenjang' => $f['mi']->jenjang, 'is_active_riwayat' => 'Ya']);
+        $this->assertDatabaseHas('lembaga_santri', ['santri_id' => $santri->id, 'jenjang' => $f['md']->jenjang, 'is_active_lembaga' => 'Tidak']);
         $this->assertSame('Ya', $santri->fresh()->is_active_pst);
     }
 
@@ -387,21 +387,21 @@ class SiklusFlowTest extends TestCase
     public function test_08_naik_lulus_menolak_ta_bukan_milik_lembaga(): void
     {
         $f = $this->baseFixture();
-        $admin = $this->makeUser('admin', [$f['mi']->id]);
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
         $santri = $this->makeSantri('Guard TA');
         $this->makeKeanggotaan($santri, $f['mi'], '25009');
         $this->makeRiwayat($santri, $f['taLama'], $f['mi'], '2');
 
         // TA di luar lingkup MI → 422.
         $this->actingAs($admin, 'sanctum')->postJson('/api/admin/akademik/naik-kelas', [
-            'lembaga_id' => $f['mi']->id,
+            'jenjang' => $f['mi']->jenjang,
             'tahun_ajaran_baru' => $f['taLuar']->nama,
             'tingkat' => '2',
             'siswa' => [['santri_id' => $santri->id, 'status' => 'naik']],
         ])->assertStatus(422)->assertJsonValidationErrors(['tahun_ajaran_baru']);
 
         $this->actingAs($admin, 'sanctum')->postJson("/api/admin/santri/{$santri->id}/lulus", [
-            'lembaga_id' => $f['mi']->id,
+            'jenjang' => $f['mi']->jenjang,
             'tahun_ajaran_lulus' => $f['taLuar']->nama,
             'tanggal_lulus' => '2026-06-20',
         ])->assertStatus(422)->assertJsonValidationErrors(['tahun_ajaran_lulus']);
@@ -412,8 +412,8 @@ class SiklusFlowTest extends TestCase
     public function test_09_list_mutasi_alumni_terskop_tenant(): void
     {
         $f = $this->baseFixture();
-        $adminMi = $this->makeUser('admin', [$f['mi']->id]);
-        $adminMd = $this->makeUser('admin', [$f['md']->id]);
+        $adminMi = $this->makeUser('admin', [$f['mi']->jenjang]);
+        $adminMd = $this->makeUser('admin', [$f['md']->jenjang]);
 
         $santriMi = $this->makeSantri('Arsip MI');
         $this->makeKeanggotaan($santriMi, $f['mi'], '25010');
@@ -423,7 +423,7 @@ class SiklusFlowTest extends TestCase
         $this->makeRiwayat($santriMd, $f['taMd'], $f['md'], '1');
 
         $this->actingAs($adminMi, 'sanctum')->postJson("/api/admin/santri/{$santriMi->id}/mutasi", [
-            'lembaga_id' => $f['mi']->id,
+            'jenjang' => $f['mi']->jenjang,
             'tanggal_mutasi' => '2026-05-01',
             'alasan_mutasi' => 'Ikut pindah orang tua',
         ])->assertStatus(200);
@@ -439,7 +439,7 @@ class SiklusFlowTest extends TestCase
         $this->makeKeanggotaan($santriBaru, $f['mi'], '25011');
         $this->makeRiwayat($santriBaru, $f['taLama'], $f['mi'], '1');
         $this->actingAs($adminMd, 'sanctum')->postJson("/api/admin/santri/{$santriBaru->id}/mutasi", [
-            'lembaga_id' => $f['mi']->id,
+            'jenjang' => $f['mi']->jenjang,
             'tanggal_mutasi' => '2026-05-01',
             'alasan_mutasi' => 'Ikut pindah orang tua',
         ])->assertStatus(200);
@@ -450,7 +450,7 @@ class SiklusFlowTest extends TestCase
     public function test_10_pindah_set_kelas_validasi_dan_keluar_kelas(): void
     {
         $f = $this->baseFixture();
-        $admin = $this->makeUser('admin', [$f['mi']->id]);
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
         $santri = $this->makeSantri('Pindah Kelas');
         $this->makeKeanggotaan($santri, $f['mi'], '25011');
         $kelasA = $this->makeKelas($f['mi'], $f['taLama'], '1A', '1');
@@ -480,7 +480,7 @@ class SiklusFlowTest extends TestCase
     public function test_11_daftar_kelas_dan_rekap_santri(): void
     {
         $f = $this->baseFixture();
-        $admin = $this->makeUser('admin', [$f['mi']->id]);
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
         $kelas = $this->makeKelas($f['mi'], $f['taBaru'], '1A', '1');
 
         $s1 = $this->makeSantri('Rekap Satu');
@@ -494,14 +494,14 @@ class SiklusFlowTest extends TestCase
         $this->makeRiwayat($s2, $f['taBaru'], $f['mi'], '1', ['kelas_id' => $kelas->id, 'tingkat' => '1']);
 
         $daftar = $this->actingAs($admin, 'sanctum')
-            ->getJson('/api/admin/akademik/daftar-kelas?lembaga_id='.$f['mi']->id)
+            ->getJson('/api/admin/akademik/daftar-kelas?jenjang='.$f['mi']->jenjang)
             ->assertStatus(200);
         $this->assertSame($f['taBaru']->nama, $daftar->json('tahun_ajaran'));
         $this->assertSame('1', $daftar->json('semester'));
         $this->assertCount(2, $daftar->json('data'));
 
         $rekap = $this->actingAs($admin, 'sanctum')
-            ->getJson('/api/admin/akademik/rekap-santri?lembaga_id='.$f['mi']->id.'&tahun_ajaran='.$f['taBaru']->nama)
+            ->getJson('/api/admin/akademik/rekap-santri?jenjang='.$f['mi']->jenjang.'&tahun_ajaran='.$f['taBaru']->nama)
             ->assertStatus(200);
         $this->assertSame(2, $rekap->json('total_aktif'));
         $this->assertSame(2, $rekap->json('per_kelas.0.terisi'));
@@ -514,7 +514,7 @@ class SiklusFlowTest extends TestCase
     public function test_13_daftar_kelas_kelompok_status_lintas_periode(): void
     {
         $f = $this->baseFixture();
-        $admin = $this->makeUser('admin', [$f['mi']->id]);
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
         $kelas = $this->makeKelas($f['mi'], $f['taBaru'], '1B', '1');
 
         $s1 = $this->makeSantri('Kelompok Satu');
@@ -532,7 +532,7 @@ class SiklusFlowTest extends TestCase
         $this->makeRiwayat($s3, $f['taBaru'], $f['mi'], '1', ['status_akhir' => 'pindah_keluar', 'is_active_riwayat' => 'Tidak']);
 
         $aktif = $this->actingAs($admin, 'sanctum')
-            ->getJson('/api/admin/akademik/daftar-kelas?lembaga_id='.$f['mi']->id.'&kelompok_status=aktif&lintas_periode=1')
+            ->getJson('/api/admin/akademik/daftar-kelas?jenjang='.$f['mi']->jenjang.'&kelompok_status=aktif&lintas_periode=1')
             ->assertStatus(200);
         $nama = collect($aktif->json('data'))->pluck('santri.nama_lengkap');
         $this->assertTrue($nama->contains(fn ($n) => str_starts_with($n, 'Kelompok Satu')));
@@ -541,7 +541,7 @@ class SiklusFlowTest extends TestCase
         $this->assertNotNull($aktif->json('data.0.tahun_ajaran.nama'));
 
         $non = $this->actingAs($admin, 'sanctum')
-            ->getJson('/api/admin/akademik/daftar-kelas?lembaga_id='.$f['mi']->id.'&kelompok_status=nonaktif&lintas_periode=1')
+            ->getJson('/api/admin/akademik/daftar-kelas?jenjang='.$f['mi']->jenjang.'&kelompok_status=nonaktif&lintas_periode=1')
             ->assertStatus(200);
         $namaNon = collect($non->json('data'))->pluck('santri.nama_lengkap');
         $this->assertTrue($namaNon->contains(fn ($n) => str_starts_with($n, 'Kelompok Tiga')));
@@ -549,7 +549,7 @@ class SiklusFlowTest extends TestCase
 
         // Tanpa kelompok: perilaku lama (is_aktif + default periode).
         $lama = $this->actingAs($admin, 'sanctum')
-            ->getJson('/api/admin/akademik/daftar-kelas?lembaga_id='.$f['mi']->id)
+            ->getJson('/api/admin/akademik/daftar-kelas?jenjang='.$f['mi']->jenjang)
             ->assertStatus(200);
         $namaLama = collect($lama->json('data'))->pluck('santri.nama_lengkap');
         $this->assertTrue($namaLama->contains(fn ($n) => str_starts_with($n, 'Kelompok Satu')));
@@ -561,19 +561,19 @@ class SiklusFlowTest extends TestCase
     public function test_14_daftar_kelas_penuh_tiga_tabel_dan_ubah_riwayat(): void
     {
         $f = $this->baseFixture();
-        $admin = $this->makeUser('admin', [$f['mi']->id]);
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
         $kelas = $this->makeKelas($f['mi'], $f['taBaru'], '1A', '1');
 
         $s = $this->makeSantri('Penuh Satu');
         $s->update(['nik' => '1234567890123456', 'nisn' => '1234567890', 'ayah_nama' => 'Ayah Penuh']);
         $this->makeKeanggotaan($s, $f['mi'], '25201');
-        LembagaSantri::where('santri_id', $s->id)->where('lembaga_id', $f['mi']->id)
+        LembagaSantri::where('santri_id', $s->id)->where('jenjang', $f['mi']->jenjang)
             ->update(['nis_kemenag' => '1234567890122601', 'tgl_selesai' => null]);
         $riwayat = $this->makeRiwayat($s, $f['taBaru'], $f['mi'], '1', ['kelas_id' => $kelas->id, 'tingkat' => '1']);
 
         // Muatan penuh: santri.* + lembaga_anggota.* + relasi + nis_lokal ringkas.
         $daftar = $this->actingAs($admin, 'sanctum')
-            ->getJson('/api/admin/akademik/daftar-kelas?lembaga_id='.$f['mi']->id)
+            ->getJson('/api/admin/akademik/daftar-kelas?jenjang='.$f['mi']->jenjang)
             ->assertStatus(200);
         $baris = $daftar->json('data.0');
         $this->assertSame('1234567890123456', $baris['santri']['nik']);
@@ -581,7 +581,7 @@ class SiklusFlowTest extends TestCase
         $this->assertSame('25201', $baris['lembaga_anggota']['nis_lokal']);
         $this->assertSame('1234567890122601', $baris['lembaga_anggota']['nis_kemenag']);
         $this->assertSame('2025-07-01', $baris['lembaga_anggota']['tgl_masuk']);
-        $this->assertSame('MI', $baris['lembaga']['kode']);
+        $this->assertSame('MI', $baris['lembaga']['jenjang']);
         $this->assertSame('25201', $baris['nis_lokal']);
 
         // PATCH kolom skalar → ok.
@@ -608,10 +608,10 @@ class SiklusFlowTest extends TestCase
 
         // Admin lembaga lain (di luar pasangan MI↔MD) → 403.
         $ra = Lembaga::create([
-            'parent_id' => $f['root']->id, 'nama' => 'Raudhatul Athfal', 'kode' => 'RA',
+            'nama' => 'Raudhatul Athfal', 'jenjang' => 'RA',
             'is_seleksi' => false, 'kelompok_psb' => 'combo_mi_md', 'is_active' => true,
         ]);
-        $adminRa = $this->makeUser('admin', [$ra->id]);
+        $adminRa = $this->makeUser('admin', [$ra->jenjang]);
         $this->actingAs($adminRa, 'sanctum')->patchJson("/api/admin/riwayat-belajar/{$riwayat->id}", [
             'tingkat' => '3',
         ])->assertStatus(403);
@@ -622,13 +622,13 @@ class SiklusFlowTest extends TestCase
     public function test_12_profil_santri_memuat_keanggotaan_riwayat_dan_alumni(): void
     {
         $f = $this->baseFixture();
-        $admin = $this->makeUser('admin', [$f['mi']->id]);
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
         $santri = $this->makeSantri('Profil Satu');
         $this->makeKeanggotaan($santri, $f['mi'], '25014');
         $this->makeRiwayat($santri, $f['taLama'], $f['mi'], '2', ['tingkat' => '6']);
 
         $this->actingAs($admin, 'sanctum')->postJson("/api/admin/santri/{$santri->id}/lulus", [
-            'lembaga_id' => $f['mi']->id,
+            'jenjang' => $f['mi']->jenjang,
             'tahun_ajaran_lulus' => $f['taLama']->nama,
             'tanggal_lulus' => '2026-06-20',
         ])->assertStatus(200);
@@ -648,7 +648,7 @@ class SiklusFlowTest extends TestCase
     public function test_13_mutasi_beku_kelas_otomatis_dan_override_manual(): void
     {
         $f = $this->baseFixture();
-        $admin = $this->makeUser('admin', [$f['mi']->id]);
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
         $kelasA = $this->makeKelas($f['mi'], $f['taLama'], '3A', '3');
         $kelasB = $this->makeKelas($f['mi'], $f['taLama'], '3B', '3');
 
@@ -657,7 +657,7 @@ class SiklusFlowTest extends TestCase
         $this->makeKeanggotaan($s1, $f['mi'], '25015');
         $this->makeRiwayat($s1, $f['taLama'], $f['mi'], '1', ['kelas_id' => $kelasA->id]);
         $this->actingAs($admin, 'sanctum')->postJson("/api/admin/santri/{$s1->id}/mutasi", [
-            'lembaga_id' => $f['mi']->id,
+            'jenjang' => $f['mi']->jenjang,
             'tanggal_mutasi' => '2026-05-01',
             'alasan_mutasi' => 'Ikut pindah orang tua',
         ])->assertStatus(200);
@@ -668,7 +668,7 @@ class SiklusFlowTest extends TestCase
         $this->makeKeanggotaan($s2, $f['mi'], '25016');
         $this->makeRiwayat($s2, $f['taLama'], $f['mi'], '1', ['kelas_id' => $kelasA->id]);
         $this->actingAs($admin, 'sanctum')->postJson("/api/admin/santri/{$s2->id}/mutasi", [
-            'lembaga_id' => $f['mi']->id,
+            'jenjang' => $f['mi']->jenjang,
             'kelas_terakhir_id' => $kelasB->id,
             'tanggal_mutasi' => '2026-05-01',
             'alasan_mutasi' => 'Ikut pindah orang tua',
@@ -681,10 +681,10 @@ class SiklusFlowTest extends TestCase
     public function test_14_naik_otomatis_kelas_bertambah_ta_ada(): void
     {
         $f = $this->baseFixture();
-        $admin = $this->makeUser('admin', [$f['mi']->id]);
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
 
         $kelas1A = Kelas::create([
-            'lembaga_id' => $f['mi']->id, 'tahun_ajaran' => $f['taLama']->nama,
+            'jenjang' => $f['mi']->jenjang, 'tahun_ajaran' => $f['taLama']->nama,
             'nama_kelas' => '1A', 'tingkat' => '1',
         ]);
         $s = $this->makeSantri('Otomatis Satu');
@@ -692,7 +692,7 @@ class SiklusFlowTest extends TestCase
         $this->makeRiwayat($s, $f['taLama'], $f['mi'], '2', ['tingkat' => '1', 'kelas_id' => $kelas1A->id]);
 
         $res = $this->actingAs($admin, 'sanctum')->postJson('/api/admin/akademik/naik-kelas-otomatis', [
-            'lembaga_id' => $f['mi']->id,
+            'jenjang' => $f['mi']->jenjang,
             'siswa' => [['santri_id' => $s->id, 'status' => 'naik', 'tgl_masuk' => '2026-07-15']],
         ])->assertStatus(200);
         $this->assertSame(1, $res->json('berhasil'), json_encode($res->json('gagal')));
@@ -701,7 +701,7 @@ class SiklusFlowTest extends TestCase
         $this->assertSame('2', (string) $res->json('data.0.tingkat'));
 
         // TA 2026/2027 milik lembaga dipakai; kelas 2A dibuat otomatis.
-        $kelas2A = Kelas::where('lembaga_id', $f['mi']->id)
+        $kelas2A = Kelas::where('jenjang', $f['mi']->jenjang)
             ->where('tahun_ajaran', $f['taBaru']->nama)->where('nama_kelas', '2A')->firstOrFail();
         $this->assertSame('2', $kelas2A->tingkat);
 
@@ -719,7 +719,7 @@ class SiklusFlowTest extends TestCase
 
         // Filter status_awal (sumber tabel hasil Kenaikan) memuat baris baru.
         $daftar = $this->actingAs($admin, 'sanctum')->getJson('/api/admin/riwayat-belajar?'.http_build_query([
-            'lembaga_id' => $f['mi']->id, 'status_awal' => 'kenaikan', 'is_active_riwayat' => 1,
+            'jenjang' => $f['mi']->jenjang, 'status_awal' => 'kenaikan', 'is_active_riwayat' => 1,
         ]))->assertStatus(200);
         $this->assertSame('2A', $daftar->json('data.0.kelas.nama_kelas'));
     }
@@ -727,10 +727,10 @@ class SiklusFlowTest extends TestCase
     public function test_15_naik_otomatis_ta_baru_tidak_naik_dan_gagal_jelas(): void
     {
         $f = $this->baseFixture();
-        $admin = $this->makeUser('admin', [$f['mi']->id]);
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
 
         $kelas3C = Kelas::create([
-            'lembaga_id' => $f['mi']->id, 'tahun_ajaran' => $f['taBaru']->nama,
+            'jenjang' => $f['mi']->jenjang, 'tahun_ajaran' => $f['taBaru']->nama,
             'nama_kelas' => '3C', 'tingkat' => '3',
         ]);
         $sTinggal = $this->makeSantri('Otomatis Tinggal');
@@ -738,7 +738,7 @@ class SiklusFlowTest extends TestCase
         $this->makeRiwayat($sTinggal, $f['taBaru'], $f['mi'], '2', ['tingkat' => '3', 'kelas_id' => $kelas3C->id]);
 
         $kelasPagi = Kelas::create([
-            'lembaga_id' => $f['mi']->id, 'tahun_ajaran' => $f['taBaru']->nama,
+            'jenjang' => $f['mi']->jenjang, 'tahun_ajaran' => $f['taBaru']->nama,
             'nama_kelas' => 'Pagi', 'tingkat' => '1',
         ]);
         $sAneh = $this->makeSantri('Otomatis Aneh');
@@ -746,7 +746,7 @@ class SiklusFlowTest extends TestCase
         $this->makeRiwayat($sAneh, $f['taBaru'], $f['mi'], '2', ['tingkat' => '1', 'kelas_id' => $kelasPagi->id]);
 
         $kelas6A = Kelas::create([
-            'lembaga_id' => $f['mi']->id, 'tahun_ajaran' => $f['taBaru']->nama,
+            'jenjang' => $f['mi']->jenjang, 'tahun_ajaran' => $f['taBaru']->nama,
             'nama_kelas' => '6A', 'tingkat' => '6',
         ]);
         $sAkhir = $this->makeSantri('Otomatis Akhir');
@@ -754,7 +754,7 @@ class SiklusFlowTest extends TestCase
         $this->makeRiwayat($sAkhir, $f['taBaru'], $f['mi'], '2', ['tingkat' => '6', 'kelas_id' => $kelas6A->id]);
 
         $res = $this->actingAs($admin, 'sanctum')->postJson('/api/admin/akademik/naik-kelas-otomatis', [
-            'lembaga_id' => $f['mi']->id,
+            'jenjang' => $f['mi']->jenjang,
             'siswa' => [
                 ['santri_id' => $sTinggal->id, 'status' => 'tidak_naik', 'tgl_masuk' => '2027-07-15'],
                 ['santri_id' => $sAneh->id, 'status' => 'naik', 'tgl_masuk' => '2027-07-15'],
@@ -766,7 +766,7 @@ class SiklusFlowTest extends TestCase
 
         // TA 2027/2028 dibuat global; tidak_naik memakai kelas senama.
         $taBaru2 = TahunAjaran::where('nama', '2027/2028')->firstOrFail();
-        $kelas3Cbaru = Kelas::where('lembaga_id', $f['mi']->id)
+        $kelas3Cbaru = Kelas::where('jenjang', $f['mi']->jenjang)
             ->where('tahun_ajaran', $taBaru2->nama)->where('nama_kelas', '3C')->firstOrFail();
         $this->assertDatabaseHas('riwayat_belajar', [
             'santri_id' => $sTinggal->id, 'tahun_ajaran' => $taBaru2->nama,
@@ -787,10 +787,10 @@ class SiklusFlowTest extends TestCase
     public function test_16_batal_kenaikan_mengembalikan_baris_asal(): void
     {
         $f = $this->baseFixture();
-        $admin = $this->makeUser('admin', [$f['mi']->id]);
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
 
         $kelas1A = Kelas::create([
-            'lembaga_id' => $f['mi']->id, 'tahun_ajaran' => $f['taLama']->nama,
+            'jenjang' => $f['mi']->jenjang, 'tahun_ajaran' => $f['taLama']->nama,
             'nama_kelas' => '1A', 'tingkat' => '1',
         ]);
         $s = $this->makeSantri('Batal Satu');
@@ -798,12 +798,12 @@ class SiklusFlowTest extends TestCase
         $this->makeRiwayat($s, $f['taLama'], $f['mi'], '2', ['tingkat' => '1', 'kelas_id' => $kelas1A->id]);
 
         $this->actingAs($admin, 'sanctum')->postJson('/api/admin/akademik/naik-kelas-otomatis', [
-            'lembaga_id' => $f['mi']->id,
+            'jenjang' => $f['mi']->jenjang,
             'siswa' => [['santri_id' => $s->id, 'status' => 'naik', 'tgl_masuk' => '2026-07-15']],
         ])->assertStatus(200)->assertJsonPath('berhasil', 1);
 
         $res = $this->actingAs($admin, 'sanctum')->postJson("/api/admin/santri/{$s->id}/batal-kenaikan", [
-            'lembaga_id' => $f['mi']->id,
+            'jenjang' => $f['mi']->jenjang,
         ])->assertStatus(200);
         $this->assertSame('aktif', $res->json('data.status_akhir'));
 
@@ -816,7 +816,7 @@ class SiklusFlowTest extends TestCase
 
         // Batal kedua kali → 422 jelas (tak ada hasil aktif).
         $this->actingAs($admin, 'sanctum')->postJson("/api/admin/santri/{$s->id}/batal-kenaikan", [
-            'lembaga_id' => $f['mi']->id,
+            'jenjang' => $f['mi']->jenjang,
         ])->assertStatus(422);
     }
 }

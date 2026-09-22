@@ -80,7 +80,7 @@ const USER_FIELDS_BASE: ExcelField[] = [
     validate: (v) => (!v || v.trim().length < 8 ? 'Kata sandi minimal 8 karakter.' : null),
   },
   { key: 'peran', label: 'roles.name', width: 200, kind: 'static', inputKind: 'select', sumber: { tabel: 'roles', kolom: 'name' } },
-  { key: 'lembaga', label: 'lembaga.kode', width: 200, kind: 'static', inputKind: 'select', sumber: { tabel: 'lembaga', kolom: 'kode' } },
+  { key: 'lembaga', label: 'lembaga.jenjang', width: 200, kind: 'static', inputKind: 'select', sumber: { tabel: 'lembaga', kolom: 'jenjang' } },
 ];
 
 /** Kolom grid pengguna: pilihan peran (sesuai kewenangan) & lembaga disuntik. */
@@ -94,7 +94,7 @@ function buatUserFields(creatable: string[], lembagas: Lembaga[]): ExcelField[] 
         ...f,
         inputChoices: [
           { value: '', label: '— tanpa lembaga —' },
-          ...lembagas.map((l) => ({ value: String(l.id), label: l.kode ?? l.nama })),
+          ...lembagas.map((l) => ({ value: l.jenjang, label: ` — ` })),
         ],
       };
     }
@@ -109,7 +109,7 @@ function userGridValues(u: AdminUser): Record<string, string | null> {
     phone: u.phone,
     username: u.username,
     peran: u.roles.map((r) => r.name).join(', '),
-    lembaga: (u.lembagas ?? []).map((l) => l.kode ?? l.nama).join(', '),
+    lembaga: (u.lembagas ?? []).map((l) => l.jenjang).join(', '),
   };
 }
 
@@ -170,12 +170,12 @@ export default function UsersPage() {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [newRoles, setNewRoles] = useState<string[]>(['orang_tua']);
-  const [newLembaga, setNewLembaga] = useState<number[]>([]);
+  const [newLembaga, setNewLembaga] = useState<string[]>([]);
   const [viewRow, setViewRow] = useState<AdminUser | null>(null);
   const [editRow, setEditRow] = useState<AdminUser | null>(null);
   const [tambahOpen, setTambahOpen] = useState(false);
   const [editRoles, setEditRoles] = useState<string[]>([]);
-  const [editLembaga, setEditLembaga] = useState<number[]>([]);
+  const [editLembaga, setEditLembaga] = useState<string[]>([]);
 
   const isSelf = useCallback((id: number) => me?.id === id, [me]);
   const locked = useCallback(
@@ -202,14 +202,14 @@ export default function UsersPage() {
   const openEdit = useCallback((u: AdminUser) => {
     setEditRow(u);
     setEditRoles(u.roles.map((r) => r.name));
-    setEditLembaga((u.lembagas ?? []).map((l) => l.id));
+    setEditLembaga((u.lembagas ?? []).map((l) => l.jenjang));
   }, []);
 
   function toggle(list: string[], v: string): string[] {
     return list.includes(v) ? list.filter((x) => x !== v) : [...list, v];
   }
 
-  function toggleId(list: number[], v: number): number[] {
+  function toggleId(list: string[], v: string): string[] {
     return list.includes(v) ? list.filter((x) => x !== v) : [...list, v];
   }
 
@@ -222,7 +222,7 @@ export default function UsersPage() {
     }
     try {
       const field = identifier.includes('@') ? { email: identifier } : { username: identifier };
-      await createUser({ name, password, roles: newRoles, lembaga_ids: newLembaga, ...field });
+      await createUser({ name, password, roles: newRoles, jenjangs: newLembaga, ...field });
       toast.success(`Pengguna dibuat (${newRoles.join(', ')}).`);
       setName(''); setIdentifier(''); setPassword(''); setNewRoles(['orang_tua']); setNewLembaga([]);
       setTambahOpen(false);
@@ -240,7 +240,7 @@ export default function UsersPage() {
       return;
     }
     try {
-      await updateUser(editRow.id, { roles: editRoles, lembaga_ids: editLembaga });
+      await updateUser(editRow.id, { roles: editRoles, jenjangs: editLembaga });
       toast.success('Role & lembaga pengguna diubah (sesinya dicabut).');
       setEditRow(null);
       await load();
@@ -265,12 +265,12 @@ export default function UsersPage() {
     const email = (f.email ?? '').trim();
     const username = (f.username ?? '').trim();
     if (!email && !username) throw new Error('Email atau username wajib diisi.');
-    const lembagaId = (f.lembaga ?? '').trim();
+    const jenjang = (f.lembaga ?? '').trim();
     await createUser({
       name: (f.nama ?? '').trim(),
       password: (f.sandi ?? '').trim(),
       roles: f.peran ? [f.peran] : ['orang_tua'],
-      lembaga_ids: lembagaId ? [Number(lembagaId)] : [],
+      jenjangs: jenjang ? [jenjang] : [],
       phone: (f.phone ?? '').trim() || undefined,
       ...(email ? { email } : {}),
       ...(username ? { username } : {}),
@@ -394,15 +394,15 @@ export default function UsersPage() {
               <div id="group_lembaga_baru" className="flex flex-wrap gap-2">
                 {lembagas.map((l) => (
                   <label
-                    key={l.id}
-                    htmlFor={`check_lembaga_baru_${l.id}`}
+                    key={l.jenjang}
+                    htmlFor={`check_lembaga_baru_${l.jenjang}`}
                     className="inline-flex h-6 cursor-pointer items-center gap-2 rounded-full border bg-card px-3 py-0 text-xs has-checked:border-primary has-checked:bg-accent has-checked:font-semibold"
                   >
                     <Checkbox
-                      id={`check_lembaga_baru_${l.id}`}
-                      checked={newLembaga.includes(l.id)}
-                      onCheckedChange={() => setNewLembaga((s) => toggleId(s, l.id))}
-                    /> {l.kode ?? l.nama}
+                      id={`check_lembaga_baru_${l.jenjang}`}
+                      checked={newLembaga.includes(l.jenjang)}
+                      onCheckedChange={() => setNewLembaga((s) => toggleId(s, l.jenjang))}
+                    /> {l.jenjang} — {l.nama}
                   </label>
                 ))}
               </div>
@@ -452,15 +452,15 @@ export default function UsersPage() {
             <div id="group_ubah_lembaga" className="flex flex-wrap gap-2">
               {lembagas.map((l) => (
                 <label
-                  key={l.id}
-                  htmlFor={`check_ubah_lembaga_${l.id}`}
+                  key={l.jenjang}
+                  htmlFor={`check_ubah_lembaga_${l.jenjang}`}
                   className="inline-flex h-[30px] cursor-pointer items-center gap-2 rounded-full border bg-card px-3.5 py-0 text-[13.5px] has-checked:border-primary has-checked:bg-accent has-checked:font-semibold"
                 >
                   <Checkbox
-                    id={`check_ubah_lembaga_${l.id}`}
-                    checked={editLembaga.includes(l.id)}
-                    onCheckedChange={() => setEditLembaga((s) => toggleId(s, l.id))}
-                  /> {l.kode ?? l.nama}
+                    id={`check_ubah_lembaga_${l.jenjang}`}
+                    checked={editLembaga.includes(l.jenjang)}
+                    onCheckedChange={() => setEditLembaga((s) => toggleId(s, l.jenjang))}
+                  /> {l.jenjang} — {l.nama}
                 </label>
               ))}
             </div>

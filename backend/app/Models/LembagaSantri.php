@@ -32,7 +32,7 @@ class LembagaSantri extends Model
 
     protected $fillable = [
         'santri_id',
-        'lembaga_id',
+        'jenjang',
         'nis_lokal',
         'nis_kemenag',
         'tahaj_masuk',
@@ -59,7 +59,7 @@ class LembagaSantri extends Model
 
     public function lembaga(): BelongsTo
     {
-        return $this->belongsTo(Lembaga::class, 'lembaga_id');
+        return $this->belongsTo(Lembaga::class, 'jenjang', 'jenjang');
     }
 
     /** Keaktifan sebagai boolean (bandingkan string ENUM secara eksplisit). */
@@ -80,11 +80,11 @@ class LembagaSantri extends Model
             return $query->whereRaw('1 = 0');
         }
 
-        return $query->whereIn('lembaga_id', $authUser->lembagaIdsDenganPasangan());
+        return $query->whereIn('jenjang', $authUser->lembagaIdsDenganPasangan());
     }
 
     /** NIS lokal wajib unik per lembaga. */
-    public static function nisLokalDipakai(int $lembagaId, ?string $nisLokal, ?int $kecualiId = null): bool
+    public static function nisLokalDipakai(string $jenjang, ?string $nisLokal, ?int $kecualiId = null): bool
     {
         $nis = $nisLokal !== null ? trim($nisLokal) : '';
 
@@ -92,14 +92,14 @@ class LembagaSantri extends Model
             return false;
         }
 
-        return static::where('lembaga_id', $lembagaId)
+        return static::where('jenjang', $jenjang)
             ->where('nis_lokal', $nis)
             ->when($kecualiId, fn (Builder $q) => $q->whereKeyNot($kecualiId))
             ->exists();
     }
 
     /** NIS kemenag (bila diisi) wajib unik per lembaga. */
-    public static function nisKemenagDipakai(int $lembagaId, ?string $nisKemenag, ?int $kecualiId = null): bool
+    public static function nisKemenagDipakai(string $jenjang, ?string $nisKemenag, ?int $kecualiId = null): bool
     {
         $nis = $nisKemenag !== null ? trim($nisKemenag) : '';
 
@@ -107,17 +107,17 @@ class LembagaSantri extends Model
             return false;
         }
 
-        return static::where('lembaga_id', $lembagaId)
+        return static::where('jenjang', $jenjang)
             ->where('nis_kemenag', $nis)
             ->when($kecualiId, fn (Builder $q) => $q->whereKeyNot($kecualiId))
             ->exists();
     }
 
     /** Baris keanggotaan aktif untuk pasangan santri+lembaga (maks 1). */
-    public static function aktif(int $santriId, int $lembagaId): ?self
+    public static function aktif(int $santriId, string $jenjang): ?self
     {
         return static::where('santri_id', $santriId)
-            ->where('lembaga_id', $lembagaId)
+            ->where('jenjang', $jenjang)
             ->where('is_active_lembaga', self::YA)
             ->first();
     }

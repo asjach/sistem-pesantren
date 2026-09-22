@@ -41,15 +41,14 @@ class AkunSeeder extends Seeder
             ['name' => 'Admin Lembaga', 'phone' => '081200000006', 'password' => 'rahayu45'],
         );
         $adminLembaga->syncRoles(['admin']);
-        $lembaga = Lembaga::where('kode', 'MTS')->first()
-            ?? Lembaga::whereNotNull('parent_id')->orderBy('id')->first()
-            ?? Lembaga::orderBy('id')->first();
+        $lembaga = Lembaga::whereKey('MTS')->first()
+            ?? Lembaga::orderBy('jenjang')->first();
         if ($lembaga) {
             DB::table('user_lembaga')->updateOrInsert(
-                ['user_id' => $adminLembaga->id, 'lembaga_id' => $lembaga->id],
+                ['user_id' => $adminLembaga->id, 'jenjang' => $lembaga->jenjang],
                 ['created_at' => now(), 'updated_at' => now()],
             );
-            $this->command?->info("Admin Lembaga terhubung ke {$lembaga->nama} ({$lembaga->kode}).");
+            $this->command?->info("Admin Lembaga terhubung ke {$lembaga->nama} ({$lembaga->jenjang}).");
         } else {
             $this->command?->warn('Belum ada lembaga: Admin Lembaga dibuat tanpa pivot (jadi admin-full sementara).');
         }

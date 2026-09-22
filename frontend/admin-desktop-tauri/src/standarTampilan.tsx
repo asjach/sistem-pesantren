@@ -144,7 +144,7 @@ const Ctx = createContext<StandarState | null>(null);
 
 export function StandarTampilanProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  const { lembagaId, bertindak } = useLembagaAktif();
+  const { jenjang, bertindak } = useLembagaAktif();
 
   const [tampilan, setTampilan] = useState<TampilanData | null>(null);
   const [versi, setVersi] = useState(0);
@@ -158,7 +158,7 @@ export function StandarTampilanProvider({ children }: { children: ReactNode }) {
   tampilanRef.current = tampilan;
   const simpanTimerRef = useRef<number | null>(null);
   /** Lembaga pemilik `tampilan` saat ini (hindari dif saat ganti lembaga). */
-  const tampilanLembagaRef = useRef<number | null>(null);
+  const tampilanLembagaRef = useRef<string | null>(null);
   /** Penghapus penanda pribadi (diisi setelah callback `hapus` siap). */
   const hapusRef = useRef<(...keys: string[]) => void>(() => {});
 
@@ -180,26 +180,26 @@ export function StandarTampilanProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const muat = useCallback(async () => {
-    if (!user || lembagaId == null) {
+    if (!user || jenjang == null) {
       setTampilan(null);
       setVersi(0);
       return;
     }
     setLoading(true);
     try {
-      const res = await getPengaturanTampilan(lembagaId);
+      const res = await getPengaturanTampilan(jenjang);
       // Standar berubah (versi baru): lepas penanda pribadi untuk kunci yang
       // diubah super_admin agar standar baru berlaku, tanpa mengganggu
       // penyesuaian pribadi user pada kunci lain.
-      if (tampilanLembagaRef.current === lembagaId) {
+      if (tampilanLembagaRef.current === jenjang) {
         const berubah = kunciStandarBerubah(tampilanRef.current, res.data.tampilan);
         if (berubah.length > 0) hapusRef.current(...berubah);
       }
-      tampilanLembagaRef.current = lembagaId;
+      tampilanLembagaRef.current = jenjang;
       setTampilan(res.data.tampilan);
       setVersi(res.data.versi);
       prefSet(
-        `${CACHE_PREFIX}${lembagaId}`,
+        `${CACHE_PREFIX}${jenjang}`,
         JSON.stringify({ versi: res.data.versi, tampilan: res.data.tampilan, ts: Date.now() }),
       ).catch(() => {});
     } catch {
@@ -207,37 +207,37 @@ export function StandarTampilanProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [user, lembagaId]);
+  }, [user, jenjang]);
 
   // Tampilkan cache lebih dulu agar tidak berkedip, lalu ambil versi server.
   useEffect(() => {
-    if (lembagaId == null) {
+    if (jenjang == null) {
       setTampilan(null);
       setVersi(0);
       tampilanLembagaRef.current = null;
       return;
     }
-    prefGet(`${CACHE_PREFIX}${lembagaId}`)
+    prefGet(`${CACHE_PREFIX}${jenjang}`)
       .then((raw) => {
         if (!raw) return;
         const c = JSON.parse(raw) as { versi?: number; tampilan?: TampilanData | null };
-        tampilanLembagaRef.current = lembagaId;
+        tampilanLembagaRef.current = jenjang;
         setTampilan(c.tampilan ?? null);
         setVersi(c.versi ?? 0);
       })
       .catch(() => {});
-  }, [lembagaId]);
+  }, [jenjang]);
 
   useEffect(() => { void muat(); }, [muat]);
 
   // Pantau versi: saat jendela kembali fokus & berkala.
   useEffect(() => {
-    if (!user || lembagaId == null) return;
+    if (!user || jenjang == null) return;
     let batal = false;
     const cek = async () => {
       if (batal || document.visibilityState === 'hidden') return;
       try {
-        const res = await getVersiTampilan(lembagaId);
+        const res = await getVersiTampilan(jenjang);
         if (!batal && res.data.versi !== versiRef.current) void muat();
       } catch {
         /* offline: coba lagi pada pemantauan berikutnya */
@@ -253,7 +253,7 @@ export function StandarTampilanProvider({ children }: { children: ReactNode }) {
       window.removeEventListener('focus', onFokus);
       document.removeEventListener('visibilitychange', onFokus);
     };
-  }, [user, lembagaId, muat]);
+  }, [user, jenjang, muat]);
 
   const simpanPribadi = useCallback((next: PribadiMap) => {
     prefSet(PERSONAL_KEY, JSON.stringify(next)).catch(() => {});
@@ -282,12 +282,12 @@ export function StandarTampilanProvider({ children }: { children: ReactNode }) {
 
   // Simpan standar lembaga aktif (mode bertindak) — langsung ke DB, debounce.
   const kirimStandar = useCallback(async (data: TampilanData) => {
-    if (lembagaId == null) return;
+    if (jenjang == null) return;
     setMenyimpan(true);
     try {
       const res = await putPengaturanTampilan({
-        lembaga_ids: [lembagaId],
-        sumber_lembaga_id: lembagaId,
+        jenjangs: [jenjang],
+        sumber_jenjang: jenjang,
         data,
       });
       const row = res.data?.[0];
@@ -295,7 +295,7 @@ export function StandarTampilanProvider({ children }: { children: ReactNode }) {
         setTampilan(row.tampilan);
         setVersi(row.versi);
         prefSet(
-          `${CACHE_PREFIX}${lembagaId}`,
+          `${CACHE_PREFIX}${jenjang}`,
           JSON.stringify({ versi: row.versi, tampilan: row.tampilan, ts: Date.now() }),
         ).catch(() => {});
       }
@@ -304,7 +304,7 @@ export function StandarTampilanProvider({ children }: { children: ReactNode }) {
     } finally {
       setMenyimpan(false);
     }
-  }, [lembagaId]);
+  }, [jenjang]);
 
   /** Terapkan perubahan ke standar lembaga aktif (hanya saat mode rekam aktif). */
   const simpanKeStandar = useCallback((patch: TampilanData) => {
@@ -314,7 +314,7 @@ export function StandarTampilanProvider({ children }: { children: ReactNode }) {
     setTampilan(next);
     if (simpanTimerRef.current) window.clearTimeout(simpanTimerRef.current);
     simpanTimerRef.current = window.setTimeout(() => { void kirimStandar(next); }, SIMPAN_MS);
-  }, [bertindak, lembagaId, rekam, kirimStandar]);
+  }, [bertindak, jenjang, rekam, kirimStandar]);
 
   useEffect(() => () => {
     if (simpanTimerRef.current) window.clearTimeout(simpanTimerRef.current);

@@ -37,12 +37,11 @@ class LembagaDetailTest extends TestCase
     public function test_update_menerima_seluruh_kolom_detail(): void
     {
         $super = $this->makeSuperAdmin();
-        $lembaga = Lembaga::create(['nama' => 'MI Contoh', 'kode' => 'MI']);
+        $lembaga = Lembaga::create(['nama' => 'MI Contoh', 'jenjang' => 'MI']);
 
-        $res = $this->actingAs($super, 'sanctum')->putJson("/api/admin/lembaga/{$lembaga->id}", [
+        $res = $this->actingAs($super, 'sanctum')->putJson("/api/admin/lembaga/{$lembaga->jenjang}", [
             'nama_singkat' => 'MIC',
             'mudir_am' => 'H. Contoh',
-            'jenjang' => 'SD',
             'status' => 'swasta',
             'npsn' => '12345678',
             'nsm' => '123456789012',
@@ -80,16 +79,16 @@ class LembagaDetailTest extends TestCase
     public function test_update_menolak_isian_tak_valid_dan_duplikat(): void
     {
         $super = $this->makeSuperAdmin();
-        $a = Lembaga::create(['nama' => 'A', 'kode' => 'MA', 'npsn' => '11111111']);
-        $b = Lembaga::create(['nama' => 'B', 'kode' => 'MB']);
+        $a = Lembaga::create(['nama' => 'A', 'jenjang' => 'MA', 'npsn' => '11111111']);
+        $b = Lembaga::create(['nama' => 'B', 'jenjang' => 'MB']);
 
         // NPSN duplikat milik lembaga lain.
-        $this->actingAs($super, 'sanctum')->putJson("/api/admin/lembaga/{$b->id}", [
+        $this->actingAs($super, 'sanctum')->putJson("/api/admin/lembaga/{$b->jenjang}", [
             'npsn' => '11111111',
         ])->assertStatus(422)->assertJsonValidationErrors(['npsn']);
 
         // Enum, email, koordinat, dan tahun tak valid.
-        $this->actingAs($super, 'sanctum')->putJson("/api/admin/lembaga/{$b->id}", [
+        $this->actingAs($super, 'sanctum')->putJson("/api/admin/lembaga/{$b->jenjang}", [
             'status' => 'internasional',
             'email' => 'bukan-email',
             'lintang' => 120,
@@ -97,28 +96,28 @@ class LembagaDetailTest extends TestCase
         ])->assertStatus(422)
             ->assertJsonValidationErrors(['status', 'email', 'lintang', 'tahun_berdiri']);
 
-        $this->assertSame('MB', $b->fresh()->kode);
+        $this->assertSame('MB', $b->fresh()->jenjang);
         $this->assertNull($a->fresh()->email);
     }
 
     public function test_daftar_keanggotaan_lintas_santri_dengan_filter(): void
     {
         $super = $this->makeSuperAdmin();
-        $mi = Lembaga::create(['nama' => 'MI', 'kode' => 'MI']);
-        $md = Lembaga::create(['nama' => 'MD', 'kode' => 'MD']);
+        $mi = Lembaga::create(['nama' => 'MI', 'jenjang' => 'MI']);
+        $md = Lembaga::create(['nama' => 'MD', 'jenjang' => 'MD']);
 
         $s1 = Santri::create(['nama_lengkap' => 'Anggota Satu', 'jk' => 'L']);
         $s2 = Santri::create(['nama_lengkap' => 'Anggota Dua', 'jk' => 'P']);
-        LembagaSantri::create(['santri_id' => $s1->id, 'lembaga_id' => $mi->id, 'nis_lokal' => '10001', 'is_active_lembaga' => 'Ya']);
-        LembagaSantri::create(['santri_id' => $s2->id, 'lembaga_id' => $md->id, 'nis_lokal' => null, 'is_active_lembaga' => 'Ya']);
-        LembagaSantri::create(['santri_id' => $s2->id, 'lembaga_id' => $mi->id, 'nis_lokal' => '10002', 'is_active_lembaga' => 'Tidak']);
+        LembagaSantri::create(['santri_id' => $s1->id, 'jenjang' => $mi->jenjang, 'nis_lokal' => '10001', 'is_active_lembaga' => 'Ya']);
+        LembagaSantri::create(['santri_id' => $s2->id, 'jenjang' => $md->jenjang, 'nis_lokal' => null, 'is_active_lembaga' => 'Ya']);
+        LembagaSantri::create(['santri_id' => $s2->id, 'jenjang' => $mi->jenjang, 'nis_lokal' => '10002', 'is_active_lembaga' => 'Tidak']);
 
         // Semua (tanpa filter status).
         $res = $this->actingAs($super, 'sanctum')->getJson('/api/admin/lembaga-santri?per_page=50')->assertStatus(200);
         $this->assertSame(3, $res->json('total'));
 
         // Filter lembaga + tanpa NIS.
-        $res = $this->actingAs($super, 'sanctum')->getJson("/api/admin/lembaga-santri?lembaga_id={$md->id}&tanpa_nis=1")->assertStatus(200);
+        $res = $this->actingAs($super, 'sanctum')->getJson("/api/admin/lembaga-santri?jenjang={$md->jenjang}&tanpa_nis=1")->assertStatus(200);
         $this->assertSame(1, $res->json('total'));
         $this->assertSame('Anggota Dua', $res->json('data.0.santri.nama_lengkap'));
 

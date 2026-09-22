@@ -42,15 +42,15 @@ class SantriPencarianTest extends TestCase
     protected function baseFixture(): array
     {
         $root = Lembaga::create([
-            'nama' => 'Pesantren Root', 'kode' => 'PESANTREN',
+            'nama' => 'Pesantren Root', 'jenjang' => 'PESANTREN',
             'is_seleksi' => false, 'kelompok_psb' => 'combo_mi_md', 'is_active' => true,
         ]);
         $mi = Lembaga::create([
-            'parent_id' => $root->id, 'nama' => 'Madrasah Ibtidaiyah', 'kode' => 'MI', 'nsm' => '123456789012',
+            'nama' => 'Madrasah Ibtidaiyah', 'jenjang' => 'MI', 'nsm' => '123456789012',
             'is_seleksi' => false, 'kelompok_psb' => 'combo_mi_md', 'is_active' => true,
         ]);
         $md = Lembaga::create([
-            'parent_id' => $root->id, 'nama' => 'Madrasah Diniyah', 'kode' => 'MD', 'nsm' => '123456789013',
+            'nama' => 'Madrasah Diniyah', 'jenjang' => 'MD', 'nsm' => '123456789013',
             'is_seleksi' => false, 'kelompok_psb' => 'combo_mi_md', 'is_active' => true,
         ]);
 
@@ -71,7 +71,7 @@ class SantriPencarianTest extends TestCase
         $u->assignRole($role);
         foreach ($lembagaIds as $lid) {
             DB::table('user_lembaga')->insert([
-                'user_id' => $u->id, 'lembaga_id' => $lid,
+                'user_id' => $u->id, 'jenjang' => $lid,
                 'created_at' => now(), 'updated_at' => now(),
             ]);
         }
@@ -95,7 +95,7 @@ class SantriPencarianTest extends TestCase
     public function test_pencarian_q_substring_nama_nik_dan_nisn(): void
     {
         $f = $this->baseFixture();
-        $admin = $this->makeUser('admin', [$f['mi']->id]);
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
 
         $this->makeSantri('ADINDA PUTRI', ['nik' => '3201010101010001', 'nisn' => '0099009901']);
         $this->makeSantri('BUDI SANTOSO');

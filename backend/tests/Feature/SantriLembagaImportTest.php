@@ -37,15 +37,15 @@ class SantriLembagaImportTest extends TestCase
     protected function baseFixture(): array
     {
         $root = Lembaga::create([
-            'nama' => 'Pesantren Root', 'kode' => 'PESANTREN',
+            'nama' => 'Pesantren Root', 'jenjang' => 'PESANTREN',
             'is_seleksi' => false, 'kelompok_psb' => 'combo_mi_md', 'is_active' => true,
         ]);
         $mi = Lembaga::create([
-            'parent_id' => $root->id, 'nama' => 'Madrasah Ibtidaiyah', 'kode' => 'MI', 'nsm' => '123456789012',
+            'nama' => 'Madrasah Ibtidaiyah', 'jenjang' => 'MI', 'nsm' => '123456789012',
             'is_seleksi' => false, 'kelompok_psb' => 'combo_mi_md', 'is_active' => true,
         ]);
         $md = Lembaga::create([
-            'parent_id' => $root->id, 'nama' => 'Madrasah Diniyah', 'kode' => 'MD', 'nsm' => '123456789013',
+            'nama' => 'Madrasah Diniyah', 'jenjang' => 'MD', 'nsm' => '123456789013',
             'is_seleksi' => false, 'kelompok_psb' => 'combo_mi_md', 'is_active' => true,
         ]);
 
@@ -66,7 +66,7 @@ class SantriLembagaImportTest extends TestCase
         $u->assignRole('admin');
         foreach ($lembagaIds as $lid) {
             DB::table('user_lembaga')->insert([
-                'user_id' => $u->id, 'lembaga_id' => $lid,
+                'user_id' => $u->id, 'jenjang' => $lid,
                 'created_at' => now(), 'updated_at' => now(),
             ]);
         }
@@ -77,7 +77,7 @@ class SantriLembagaImportTest extends TestCase
     protected function makeCsv(array $rows): string
     {
         $headers = [
-            'santri_id', 'kode_lembaga', 'lembaga_id', 'nis_lokal', 'nis_kemenag',
+            'santri_id', 'kode_lembaga', 'jenjang', 'nis_lokal', 'nis_kemenag',
             'is_active_lembaga', 'tgl_masuk', 'tgl_selesai',
             'tahaj_masuk', 'tingkat_masuk', 'no_urut',
             'nama_sekolah_asal', 'npsn_sekolah_asal', 'nss_sekolah_asal', 'alamat_sekolah_asal',
@@ -112,7 +112,7 @@ class SantriLembagaImportTest extends TestCase
         $kolom = SantriLembagaTemplateExport::kolom();
 
         $this->assertSame(
-            ['santri_id', 'kode_lembaga', 'lembaga_id', 'nis_lokal', 'nis_kemenag', 'is_active_lembaga', 'tgl_masuk', 'tgl_selesai'],
+            ['santri_id', 'kode_lembaga', 'jenjang', 'nis_lokal', 'nis_kemenag', 'is_active_lembaga', 'tgl_masuk', 'tgl_selesai'],
             array_slice($kolom, 0, 8),
         );
         foreach (Santri::KOLOM_PROFIL as $k) {
@@ -125,7 +125,7 @@ class SantriLembagaImportTest extends TestCase
     public function test_02_baris_baru_buat_santri_dan_anggota(): void
     {
         $f = $this->baseFixture();
-        $admin = $this->makeAdmin([$f['mi']->id]);
+        $admin = $this->makeAdmin([$f['mi']->jenjang]);
 
         $this->upload($admin, $this->makeCsv([[
             'kode_lembaga' => 'mi', // case-insensitive
@@ -139,7 +139,7 @@ class SantriLembagaImportTest extends TestCase
         ]]))->assertStatus(200);
 
         $santri = Santri::where('nik', '1101010000000001')->firstOrFail();
-        $ls = LembagaSantri::where('santri_id', $santri->id)->where('lembaga_id', $f['mi']->id)->firstOrFail();
+        $ls = LembagaSantri::where('santri_id', $santri->id)->where('jenjang', $f['mi']->jenjang)->firstOrFail();
         $this->assertSame('26001', $ls->nis_lokal);
         $this->assertSame('Ya', $ls->is_active_lembaga);
         $this->assertSame('2026-07-01', $ls->tgl_masuk->format('Y-m-d'));
@@ -150,10 +150,10 @@ class SantriLembagaImportTest extends TestCase
     public function test_03_nik_cocok_update_profil_dan_anggota(): void
     {
         $f = $this->baseFixture();
-        $admin = $this->makeAdmin([$f['mi']->id]);
+        $admin = $this->makeAdmin([$f['mi']->jenjang]);
 
         $santri = Santri::create(['nama_lengkap' => 'Lama', 'nik' => '1101010000000002', 'jk' => 'L', 'tgl_lahir' => '2015-01-01']);
-        LembagaSantri::create(['santri_id' => $santri->id, 'lembaga_id' => $f['mi']->id, 'nis_lokal' => '25001', 'is_active_lembaga' => 'Ya']);
+        LembagaSantri::create(['santri_id' => $santri->id, 'jenjang' => $f['mi']->jenjang, 'nis_lokal' => '25001', 'is_active_lembaga' => 'Ya']);
 
         $csv = $this->makeCsv([[
             'kode_lembaga' => 'MI',
@@ -180,10 +180,10 @@ class SantriLembagaImportTest extends TestCase
     public function test_04_tanpa_nik_cocok_via_nis(): void
     {
         $f = $this->baseFixture();
-        $admin = $this->makeAdmin([$f['mi']->id]);
+        $admin = $this->makeAdmin([$f['mi']->jenjang]);
 
         $santri = Santri::create(['nama_lengkap' => 'Tanpa NIK', 'jk' => 'P']);
-        LembagaSantri::create(['santri_id' => $santri->id, 'lembaga_id' => $f['mi']->id, 'nis_lokal' => '25009', 'is_active_lembaga' => 'Ya']);
+        LembagaSantri::create(['santri_id' => $santri->id, 'jenjang' => $f['mi']->jenjang, 'nis_lokal' => '25009', 'is_active_lembaga' => 'Ya']);
 
         $this->upload($admin, $this->makeCsv([[
             'kode_lembaga' => 'MI',
@@ -200,10 +200,10 @@ class SantriLembagaImportTest extends TestCase
     public function test_05_santri_id_kunci_eksak_parsial(): void
     {
         $f = $this->baseFixture();
-        $admin = $this->makeAdmin([$f['mi']->id]);
+        $admin = $this->makeAdmin([$f['mi']->jenjang]);
 
         $santri = Santri::create(['nama_lengkap' => 'Parsial', 'jk' => 'L']);
-        LembagaSantri::create(['santri_id' => $santri->id, 'lembaga_id' => $f['mi']->id, 'nis_lokal' => '25100', 'is_active_lembaga' => 'Ya']);
+        LembagaSantri::create(['santri_id' => $santri->id, 'jenjang' => $f['mi']->jenjang, 'nis_lokal' => '25100', 'is_active_lembaga' => 'Ya']);
 
         $this->upload($admin, $this->makeCsv([[
             'santri_id' => (string) $santri->id,
@@ -221,7 +221,7 @@ class SantriLembagaImportTest extends TestCase
     public function test_06_periksa_tidak_menulis(): void
     {
         $f = $this->baseFixture();
-        $admin = $this->makeAdmin([$f['mi']->id]);
+        $admin = $this->makeAdmin([$f['mi']->jenjang]);
 
         $sebelumSantri = Santri::count();
         $sebelumLs = LembagaSantri::count();
@@ -244,10 +244,10 @@ class SantriLembagaImportTest extends TestCase
     public function test_07_nis_ganda_gagal_baris(): void
     {
         $f = $this->baseFixture();
-        $admin = $this->makeAdmin([$f['mi']->id]);
+        $admin = $this->makeAdmin([$f['mi']->jenjang]);
 
         $a = Santri::create(['nama_lengkap' => 'Pemilik NIS', 'jk' => 'L']);
-        LembagaSantri::create(['santri_id' => $a->id, 'lembaga_id' => $f['mi']->id, 'nis_lokal' => '25300', 'is_active_lembaga' => 'Ya']);
+        LembagaSantri::create(['santri_id' => $a->id, 'jenjang' => $f['mi']->jenjang, 'nis_lokal' => '25300', 'is_active_lembaga' => 'Ya']);
 
         $res = $this->upload($admin, $this->makeCsv([[
             'kode_lembaga' => 'MI',
@@ -267,9 +267,9 @@ class SantriLembagaImportTest extends TestCase
     public function test_08_baris_luar_lingkup_gagal(): void
     {
         $f = $this->baseFixture();
-        $adminMi = $this->makeAdmin([$f['mi']->id]);
+        $adminMi = $this->makeAdmin([$f['mi']->jenjang]);
         $mts = Lembaga::create([
-            'parent_id' => $f['mi']->parent_id, 'nama' => 'Tsanawiyah', 'kode' => 'MTS',
+            'nama' => 'Tsanawiyah', 'jenjang' => 'MTS',
             'is_seleksi' => false, 'kelompok_psb' => 'eksklusif', 'is_active' => true,
         ]);
 
@@ -309,7 +309,7 @@ class SantriLembagaImportTest extends TestCase
         ]);
         $u->givePermissionTo(['santri.lihat', 'santri.tambah']);
         DB::table('user_lembaga')->insert([
-            'user_id' => $u->id, 'lembaga_id' => $f['mi']->id,
+            'user_id' => $u->id, 'jenjang' => $f['mi']->jenjang,
             'created_at' => now(), 'updated_at' => now(),
         ]);
 
@@ -324,7 +324,7 @@ class SantriLembagaImportTest extends TestCase
     public function test_10_file_identitas_jadi_santri_saja(): void
     {
         $f = $this->baseFixture();
-        $admin = $this->makeAdmin([$f['mi']->id]);
+        $admin = $this->makeAdmin([$f['mi']->jenjang]);
 
         $tmp = tempnam(sys_get_temp_dir(), 'identitas').'.csv';
         $h = fopen($tmp, 'w');
@@ -347,7 +347,7 @@ class SantriLembagaImportTest extends TestCase
     public function test_14_file_campuran_pasangan_tepat(): void
     {
         $f = $this->baseFixture();
-        $admin = $this->makeAdmin([$f['mi']->id]);
+        $admin = $this->makeAdmin([$f['mi']->jenjang]);
 
         $this->upload($admin, $this->makeCsv([
             [
@@ -370,10 +370,10 @@ class SantriLembagaImportTest extends TestCase
     public function test_11_unduh_template_dan_data(): void
     {
         $f = $this->baseFixture();
-        $admin = $this->makeAdmin([$f['mi']->id]);
+        $admin = $this->makeAdmin([$f['mi']->jenjang]);
 
         $santri = Santri::create(['nama_lengkap' => 'Unduh Saya', 'jk' => 'L']);
-        LembagaSantri::create(['santri_id' => $santri->id, 'lembaga_id' => $f['mi']->id, 'nis_lokal' => '25601', 'is_active_lembaga' => 'Ya']);
+        LembagaSantri::create(['santri_id' => $santri->id, 'jenjang' => $f['mi']->jenjang, 'nis_lokal' => '25601', 'is_active_lembaga' => 'Ya']);
 
         $this->actingAs($admin, 'sanctum')
             ->get('/api/admin/santri/import-template-gabungan')
@@ -382,10 +382,10 @@ class SantriLembagaImportTest extends TestCase
         $this->actingAs($admin, 'sanctum')
             ->get('/api/admin/santri/data-gabungan?kode_lembaga=MI')
             ->assertStatus(200)
-            ->assertHeader('content-disposition', 'attachment; filename=data-siswa-MI-'.$f['mi']->id.'.xlsx');
+            ->assertHeader('content-disposition', 'attachment; filename=data-siswa-MI-'.$f['mi']->jenjang.'.xlsx');
 
         // Isi pra-isi: santri_id + kode + nis di posisi blok lembaga.
-        $isi = (new SantriLembagaDataExport([$f['mi']->id]))->array();
+        $isi = (new SantriLembagaDataExport([$f['mi']->jenjang]))->array();
         $this->assertCount(1, $isi);
         $this->assertSame((string) $santri->id, $isi[0][0]);
         $this->assertSame('MI', $isi[0][1]);
@@ -405,24 +405,24 @@ class SantriLembagaImportTest extends TestCase
             'password' => 'password',
         ]);
         $super->assignRole('super_admin');
-        $adminMi = $this->makeAdmin([$f['mi']->id]);
+        $adminMi = $this->makeAdmin([$f['mi']->jenjang]);
 
         $a = Santri::create(['nama_lengkap' => 'Anak MI', 'jk' => 'L']);
-        LembagaSantri::create(['santri_id' => $a->id, 'lembaga_id' => $f['mi']->id, 'nis_lokal' => '26101', 'is_active_lembaga' => 'Ya']);
+        LembagaSantri::create(['santri_id' => $a->id, 'jenjang' => $f['mi']->jenjang, 'nis_lokal' => '26101', 'is_active_lembaga' => 'Ya']);
         $b = Santri::create(['nama_lengkap' => 'Anak MD', 'jk' => 'P']);
-        LembagaSantri::create(['santri_id' => $b->id, 'lembaga_id' => $f['md']->id, 'nis_lokal' => '26201', 'is_active_lembaga' => 'Ya']);
+        LembagaSantri::create(['santri_id' => $b->id, 'jenjang' => $f['md']->jenjang, 'nis_lokal' => '26201', 'is_active_lembaga' => 'Ya']);
 
         // Super admin tanpa parameter → semua operasional (MI + MD).
         $this->actingAs($super, 'sanctum')
             ->get('/api/admin/santri/data-gabungan')
             ->assertStatus(200)
             ->assertHeader('content-disposition', 'attachment; filename=data-siswa-pilihan.xlsx');
-        $semua = (new SantriLembagaDataExport([$f['mi']->id, $f['md']->id]))->array();
+        $semua = (new SantriLembagaDataExport([$f['mi']->jenjang, $f['md']->jenjang]))->array();
         $this->assertCount(2, $semua);
-        $this->assertSame(['MI', 'MD'], array_map(fn ($r) => $r[1], $semua));
+        $this->assertSame(['MD', 'MI'], array_map(fn ($r) => $r[1], $semua));
 
         // Admin MI tanpa parameter → hanya MI (lingkup sendiri).
-        $isi = (new SantriLembagaDataExport([$f['mi']->id]))->array();
+        $isi = (new SantriLembagaDataExport([$f['mi']->jenjang]))->array();
         $this->assertCount(1, $isi);
 
         // Round-trip campuran sebagai super admin: cocok keduanya via santri_id.
@@ -436,14 +436,14 @@ class SantriLembagaImportTest extends TestCase
         $this->assertSame('26202', LembagaSantri::where('santri_id', $b->id)->firstOrFail()->nis_lokal);
 
         // Multi ID eksplisit → hanya yang dipilih; id luar lingkup → 422.
-        $isi = (new SantriLembagaDataExport([$f['md']->id]))->array();
+        $isi = (new SantriLembagaDataExport([$f['md']->jenjang]))->array();
         $this->assertCount(1, $isi);
         $this->assertSame('MD', $isi[0][1]);
         $this->actingAs($super, 'sanctum')
-            ->get("/api/admin/santri/data-gabungan?lembaga_id[]={$f['mi']->id}&lembaga_id[]={$f['md']->id}")
+            ->get("/api/admin/santri/data-gabungan?jenjang[]={$f['mi']->jenjang}&jenjang[]={$f['md']->jenjang}")
             ->assertStatus(200);
         $this->actingAs($adminMi, 'sanctum')
-            ->get("/api/admin/santri/data-gabungan?lembaga_id[]={$f['mi']->id}&lembaga_id[]={$f['md']->id}")
+            ->get("/api/admin/santri/data-gabungan?jenjang[]={$f['mi']->jenjang}&jenjang[]={$f['md']->jenjang}")
             ->assertStatus(200);
     }
 
@@ -452,12 +452,12 @@ class SantriLembagaImportTest extends TestCase
     public function test_12_xlsx_manual_sel_numerik_lolos(): void
     {
         $f = $this->baseFixture();
-        $admin = $this->makeAdmin([$f['mi']->id]);
+        $admin = $this->makeAdmin([$f['mi']->jenjang]);
 
         // Tiru file ketikan manual: NISN & NIS sebagai ANGKA, tanggal sebagai serial.
         $sheet = (new Spreadsheet)->getActiveSheet();
         $judul = [
-            'santri_id', 'kode_lembaga', 'lembaga_id', 'nis_lokal', 'nis_kemenag',
+            'santri_id', 'kode_lembaga', 'jenjang', 'nis_lokal', 'nis_kemenag',
             'is_active_lembaga', 'tgl_masuk', 'tgl_selesai', 'nama_lengkap', 'nik', 'jk',
             'tgl_lahir', 'nisn', 'rt',
         ];
@@ -493,7 +493,7 @@ class SantriLembagaImportTest extends TestCase
     public function test_21_import_field_masuk_sekolah_asal_dan_kepala_keluarga(): void
     {
         $f = $this->baseFixture();
-        $admin = $this->makeAdmin([$f['mi']->id]);
+        $admin = $this->makeAdmin([$f['mi']->jenjang]);
 
         $this->upload($admin, $this->makeCsv([[
             'kode_lembaga' => 'MI',
@@ -517,7 +517,7 @@ class SantriLembagaImportTest extends TestCase
         $santri = Santri::where('nik', '1101010000000021')->firstOrFail();
         $this->assertSame('Bapak Kepala', $santri->kepala_keluarga);
 
-        $ls = LembagaSantri::where('santri_id', $santri->id)->where('lembaga_id', $f['mi']->id)->firstOrFail();
+        $ls = LembagaSantri::where('santri_id', $santri->id)->where('jenjang', $f['mi']->jenjang)->firstOrFail();
         $this->assertSame('2026/2027', $ls->tahaj_masuk);
         $this->assertSame('1', $ls->tingkat_masuk);
         $this->assertSame(7, $ls->no_urut);

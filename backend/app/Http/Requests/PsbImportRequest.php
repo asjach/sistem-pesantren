@@ -15,7 +15,7 @@ class PsbImportRequest extends FormRequest
     {
         return [
             'gelombang_id' => ['required', 'integer', 'exists:psb_gelombang,id'],
-            'lembaga_id' => ['required', 'integer', 'exists:lembaga,id'],
+            'jenjang' => ['required', 'string', 'exists:lembaga,jenjang'],
             'file' => ['required', 'file', 'mimes:xlsx,xls,csv', 'max:5120'],
         ];
     }

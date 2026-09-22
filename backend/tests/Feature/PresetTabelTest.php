@@ -34,7 +34,7 @@ class PresetTabelTest extends TestCase
         $u->assignRole($role);
         foreach ($lembagaIds as $lid) {
             DB::table('user_lembaga')->insert([
-                'user_id' => $u->id, 'lembaga_id' => $lid,
+                'user_id' => $u->id, 'jenjang' => $lid,
                 'created_at' => now(), 'updated_at' => now(),
             ]);
         }
@@ -44,11 +44,11 @@ class PresetTabelTest extends TestCase
 
     public function test_preset_global_hanya_super_admin(): void
     {
-        $root = Lembaga::create(['nama' => 'Pesantren', 'kode' => 'PESANTREN', 'is_active' => true]);
-        $mi = Lembaga::create(['parent_id' => $root->id, 'nama' => 'Madrasah Ibtidaiyah', 'kode' => 'MI', 'is_active' => true]);
+        $root = Lembaga::create(['nama' => 'Pesantren', 'jenjang' => 'PESANTREN', 'is_active' => true]);
+        $mi = Lembaga::create(['nama' => 'Madrasah Ibtidaiyah', 'jenjang' => 'MI', 'is_active' => true]);
 
         $pusat = $this->makeUser('super_admin');
-        $adminMi = $this->makeUser('admin', [$mi->id]);
+        $adminMi = $this->makeUser('admin', [$mi->jenjang]);
 
         // Admin lembaga ditolak menulis (403), baris tak terbentuk.
         $this->actingAs($adminMi, 'sanctum')->postJson('/api/admin/preset-tabel', [
@@ -62,7 +62,7 @@ class PresetTabelTest extends TestCase
         ]);
         $res->assertStatus(201);
         $id = (int) $res->json('data.0.id');
-        $this->assertNull(PresetTabel::findOrFail($id)->lembaga_id);
+        $this->assertNull(PresetTabel::findOrFail($id)->jenjang);
 
         // Nama "lengkap" milik bawaan sistem.
         $this->actingAs($pusat, 'sanctum')->postJson('/api/admin/preset-tabel', [
@@ -103,7 +103,7 @@ class PresetTabelTest extends TestCase
         $admin = $this->makeUser('admin');
 
         $id = PresetTabel::create([
-            'lembaga_id' => null, 'table_key' => 'psb', 'nama' => 'global', 'kolom' => ['nama'],
+            'jenjang' => null, 'table_key' => 'psb', 'nama' => 'global', 'kolom' => ['nama'],
         ])->id;
 
         // Preset tabel lain tidak bisa dipilih untuk tabel ini.
@@ -112,9 +112,9 @@ class PresetTabelTest extends TestCase
         ])->assertStatus(422)->assertJsonValidationErrors(['preset_id']);
 
         // Baris lama per-lembaga tak terlihat siapa pun (403), tak bisa dipilih.
-        $root = Lembaga::create(['nama' => 'Pesantren', 'kode' => 'PESANTREN', 'is_active' => true]);
+        $root = Lembaga::create(['nama' => 'Pesantren', 'jenjang' => 'PESANTREN', 'is_active' => true]);
         $warisan = PresetTabel::create([
-            'lembaga_id' => $root->id, 'table_key' => 'psb', 'nama' => 'warisan', 'kolom' => ['nama'],
+            'jenjang' => $root->jenjang, 'table_key' => 'psb', 'nama' => 'warisan', 'kolom' => ['nama'],
         ]);
         $this->actingAs($admin, 'sanctum')->postJson('/api/admin/preset-tabel/aktif', [
             'table_key' => 'psb', 'preset_id' => $warisan->id,
@@ -179,8 +179,8 @@ class PresetTabelTest extends TestCase
         $pusat = $this->makeUser('super_admin');
         $admin = $this->makeUser('admin');
 
-        $a = PresetTabel::create(['lembaga_id' => null, 'table_key' => 'psb', 'nama' => 'a', 'kolom' => ['nama']]);
-        $b = PresetTabel::create(['lembaga_id' => null, 'table_key' => 'psb', 'nama' => 'b', 'kolom' => ['nama']]);
+        $a = PresetTabel::create(['jenjang' => null, 'table_key' => 'psb', 'nama' => 'a', 'kolom' => ['nama']]);
+        $b = PresetTabel::create(['jenjang' => null, 'table_key' => 'psb', 'nama' => 'b', 'kolom' => ['nama']]);
 
         // Non-super_admin ditolak (403 ganda: middleware izin + pastikanSuperAdmin).
         $this->actingAs($admin, 'sanctum')->postJson("/api/admin/preset-tabel/{$a->id}/bawaan")

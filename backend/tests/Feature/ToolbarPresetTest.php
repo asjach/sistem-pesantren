@@ -39,7 +39,7 @@ class ToolbarPresetTest extends TestCase
         $u->assignRole($role);
         foreach ($lembagaIds as $lid) {
             DB::table('user_lembaga')->insert([
-                'user_id' => $u->id, 'lembaga_id' => $lid,
+                'user_id' => $u->id, 'jenjang' => $lid,
                 'created_at' => now(), 'updated_at' => now(),
             ]);
         }
@@ -101,15 +101,15 @@ class ToolbarPresetTest extends TestCase
     public function test_baca_bebas_tulis_super_admin_saja(): void
     {
         $root = Lembaga::create([
-            'nama' => 'Pesantren', 'kode' => 'PESANTREN',
+            'nama' => 'Pesantren', 'jenjang' => 'PESANTREN',
             'is_seleksi' => false, 'kelompok_psb' => 'combo_mi_md', 'is_active' => true,
         ]);
         $mi = Lembaga::create([
-            'parent_id' => $root->id, 'nama' => 'Madrasah Ibtidaiyah', 'kode' => 'MI',
+            'nama' => 'Madrasah Ibtidaiyah', 'jenjang' => 'MI',
             'is_seleksi' => false, 'kelompok_psb' => 'combo_mi_md', 'is_active' => true,
         ]);
         $pusat = $this->makeUser('super_admin');
-        $scoped = $this->makeUser('admin', [$mi->id]);
+        $scoped = $this->makeUser('admin', [$mi->jenjang]);
 
         // Belum ada baris: visibilitas kosong (semua tampil).
         $this->actingAs($scoped, 'sanctum')

@@ -58,33 +58,30 @@ class User extends Authenticatable
         return $this->hasMany(WaliSantriRelasi::class, 'user_id');
     }
 
-    /** Relasi tenant: semua lembaga via pivot user_lembaga. */
+    /** Relasi tenant: semua lembaga via pivot user_lembaga (kunci `jenjang`). */
     public function lembagas(): BelongsToMany
     {
-        return $this->belongsToMany(Lembaga::class, 'user_lembaga');
+        return $this->belongsToMany(Lembaga::class, 'user_lembaga', 'user_id', 'jenjang');
     }
 
-    /** Semua lembaga_id yang boleh diakses: pivot user_lembaga saja (users tanpa kolom tenant). */
+    /** Semua jenjang lembaga yang boleh diakses: pivot user_lembaga. */
     public function lembagaIds(): array
     {
-        // Mode "bertindak sebagai lembaga": seluruh scope menyempit ke lembaga
-        // peran; peran akar pesantren (PST) = admin pesantren: seluruh lembaga.
+        // Mode "bertindak sebagai lembaga": scope menyempit ke lembaga peran.
         if (($peran = $this->lembagaPeran()) !== null) {
-            return $this->bertindakPesantren()
-                ? Lembaga::orderBy('id')->pluck('id')->map(fn ($v) => (int) $v)->all()
-                : [$peran];
+            return [$peran];
         }
 
         return DB::table('user_lembaga')
             ->where('user_id', $this->id)
-            ->pluck('lembaga_id')->map(fn ($v) => (int) $v)->all();
+            ->pluck('jenjang')->all();
     }
 
     /**
      * Lembaga yang sedang "diperankan" (act-as) untuk super_admin; null = mode penuh.
      * Konteks diisi middleware `lembaga_aktif` dari header X-Lembaga-Aktif.
      */
-    public function lembagaPeran(): ?int
+    public function lembagaPeran(): ?string
     {
         if (! $this->hasRole('super_admin')) {
             return null;
@@ -94,28 +91,13 @@ class User extends Authenticatable
     }
 
     /**
-     * Bertindak sebagai akar pesantren (tombol cepat PST): berperan sebagai
-     * admin pesantren — data lintas lembaga, tanpa hak khusus super_admin.
-     */
-    public function bertindakPesantren(): bool
-    {
-        $peran = $this->lembagaPeran();
-        if ($peran === null) {
-            return false;
-        }
-
-        return Lembaga::whereKey($peran)->whereNull('parent_id')->exists();
-    }
-
-    /**
      * Kemampuan lintas lembaga (super_admin / admin full). Dimatikan saat
-     * super_admin bertindak sebagai satu lembaga; peran akar (PST) tetap
-     * lintas lembaga selayaknya admin pesantren.
+     * super_admin bertindak sebagai satu lembaga.
      */
     public function bolehPesantren(): bool
     {
         if ($this->lembagaPeran() !== null) {
-            return $this->bertindakPesantren();
+            return false;
         }
 
         return $this->hasRole('super_admin') || $this->isAdminFull();
@@ -214,12 +196,11 @@ class User extends Authenticatable
             || ! $this->hasAnyRole(['admin', 'super_admin']);
     }
 
-    public function canAccessLembaga(int $lembagaId): bool
+    public function canAccessLembaga(string $jenjang): bool
     {
-        // Mode bertindak: hanya lembaga yang sedang diperankan (peran akar
-        // pesantren = seluruh lembaga, selayaknya admin pesantren).
+        // Mode bertindak: hanya lembaga yang sedang diperankan.
         if ($this->lembagaPeran() !== null) {
-            return $this->bertindakPesantren() || (int) $lembagaId === $this->lembagaPeran();
+            return $jenjang === $this->lembagaPeran();
         }
         // Choke point tenant lembaga via pivot user_lembaga.
         if ($this->hasRole('super_admin')) {
@@ -227,18 +208,18 @@ class User extends Authenticatable
         }
         if ($this->hasRole('admin')) {
             if ($this->isAdminFull()) {
-                return Lembaga::whereKey($lembagaId)->exists();
+                return Lembaga::whereKey($jenjang)->exists();
             }
-            if (in_array((int) $lembagaId, $this->lembagaIds(), true)) {
+            if (in_array($jenjang, $this->lembagaIds(), true)) {
                 return true;
             }
             // Pengecualian pasangan MI↔MD (timbal-balik, global).
-            $pasangan = Lembaga::pasanganId((int) $lembagaId);
+            $pasangan = Lembaga::pasanganJenjang($jenjang);
 
             return $pasangan !== null && in_array($pasangan, $this->lembagaIds(), true);
         }
 
-        return in_array((int) $lembagaId, $this->lembagaIds(), true);
+        return in_array($jenjang, $this->lembagaIds(), true);
     }
 
     /**
@@ -252,7 +233,7 @@ class User extends Authenticatable
             return $ids;
         }
         foreach ($ids as $id) {
-            $pasangan = Lembaga::pasanganId((int) $id);
+            $pasangan = Lembaga::pasanganJenjang($id);
             if ($pasangan !== null && ! in_array($pasangan, $ids, true)) {
                 $ids[] = $pasangan;
             }
@@ -294,7 +275,7 @@ class User extends Authenticatable
             $exists->select(DB::raw(1))
                 ->from('user_lembaga')
                 ->whereColumn('user_lembaga.user_id', 'users.id')
-                ->whereIn('user_lembaga.lembaga_id', $ids);
+                ->whereIn('user_lembaga.jenjang', $ids);
         });
     }
 }

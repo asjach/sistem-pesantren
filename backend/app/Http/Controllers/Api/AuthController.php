@@ -77,7 +77,7 @@ class AuthController extends Controller
         $user = request()->user();
 
         return response()->json(array_merge(
-            $user->load(['roles', 'lembagas:id,nama,kode'])->toArray(),
+            $user->load(['roles', 'lembagas:jenjang,nama'])->toArray(),
             // Saat bertindak sebagai lembaga: izin efektif setara admin.
             ['permissions' => $user->izinEfektif()],
         ));

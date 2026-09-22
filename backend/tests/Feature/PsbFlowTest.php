@@ -45,19 +45,19 @@ class PsbFlowTest extends TestCase
     protected function baseFixture(): array
     {
         $root = Lembaga::create([
-            'nama' => 'Pesantren Root', 'kode' => 'PESANTREN',
+            'nama' => 'Pesantren Root', 'jenjang' => 'PESANTREN',
             'is_seleksi' => false, 'kelompok_psb' => 'combo_mi_md', 'is_active' => true,
         ]);
         $mi = Lembaga::create([
-            'parent_id' => $root->id, 'nama' => 'Madrasah Ibtidaiyah', 'kode' => 'MI',
+            'nama' => 'Madrasah Ibtidaiyah', 'jenjang' => 'MI',
             'is_seleksi' => false, 'kelompok_psb' => 'combo_mi_md', 'is_active' => true,
         ]);
         $md = Lembaga::create([
-            'parent_id' => $root->id, 'nama' => 'Madrasah Diniyah', 'kode' => 'MD',
+            'nama' => 'Madrasah Diniyah', 'jenjang' => 'MD',
             'is_seleksi' => false, 'kelompok_psb' => 'combo_mi_md', 'is_active' => true,
         ]);
         $mts = Lembaga::create([
-            'parent_id' => $root->id, 'nama' => 'Madrasah Tsanawiyah', 'kode' => 'MTS',
+            'nama' => 'Madrasah Tsanawiyah', 'jenjang' => 'MTS',
             'is_seleksi' => true, 'kelompok_psb' => 'eksklusif', 'is_active' => true,
         ]);
         // TA global (berlaku semua lembaga).
@@ -82,7 +82,7 @@ class PsbFlowTest extends TestCase
     {
         return PsbKuotaBiaya::create(array_merge([
             'gelombang_id' => $gel->id,
-            'lembaga_id' => $lembaga->id,
+            'jenjang' => $lembaga->jenjang,
             'tipe_santri' => 'non_asrama',
             'paket_tersedia' => false,
             'kuota' => null,
@@ -108,7 +108,7 @@ class PsbFlowTest extends TestCase
         $u->assignRole($role);
         foreach ($lembagaIds as $lid) {
             DB::table('user_lembaga')->insert([
-                'user_id' => $u->id, 'lembaga_id' => $lid,
+                'user_id' => $u->id, 'jenjang' => $lid,
                 'created_at' => now(), 'updated_at' => now(),
             ]);
         }
@@ -120,7 +120,7 @@ class PsbFlowTest extends TestCase
     {
         return array_merge([
             'gelombang_id' => $gel->id,
-            'lembaga_id' => $lembaga->id,
+            'jenjang' => $lembaga->jenjang,
             'tipe_santri' => 'non_asrama',
             'nik' => $nik,
             'nama_lengkap' => $nama,
@@ -183,7 +183,7 @@ class PsbFlowTest extends TestCase
 
         $nik = '1100000000000003';
         Santri::create([
-            'lembaga_id' => $f['mi']->id, 'nama_lengkap' => 'Santri Aktif', 'nik' => $nik,
+            'jenjang' => $f['mi']->jenjang, 'nama_lengkap' => 'Santri Aktif', 'nik' => $nik,
             'jk' => 'L', 'tgl_lahir' => '2014-01-01', 'is_active_pst' => 'Ya',
         ]);
 
@@ -205,7 +205,7 @@ class PsbFlowTest extends TestCase
             'membutuhkan_seleksi' => false, 'paket_tersedia' => true,
         ]);
         $this->makeKuota($f['gel'], $f['md'], $f['ta'], ['membutuhkan_seleksi' => false]);
-        $adminMi = $this->makeUser('admin', [$f['mi']->id]);
+        $adminMi = $this->makeUser('admin', [$f['mi']->jenjang]);
 
         $nik = '1100000000000004';
         $res = $this->postJson('/api/psb/daftar-paket', $this->daftarPayload(
@@ -217,14 +217,14 @@ class PsbFlowTest extends TestCase
 
         $calon = PsbCalonSantri::with('lembagaDetail')->findOrFail($calonId);
         $this->assertStringContainsString('MIMD', $calon->no_pendaftaran);
-        $this->assertEquals($f['mi']->id, (int) $calon->lembaga_id);
+        $this->assertEquals($f['mi']->jenjang, $calon->jenjang);
         $this->assertCount(2, $calon->lembagaDetail);
         $this->assertEquals(
-            collect([$f['mi']->id, $f['md']->id])->sort()->values()->all(),
-            $calon->lembagaDetail->pluck('lembaga_id')->sort()->values()->all()
+            collect([$f['mi']->jenjang, $f['md']->jenjang])->sort()->values()->all(),
+            $calon->lembagaDetail->pluck('jenjang')->sort()->values()->all()
         );
-        $this->assertEquals('1', $calon->lembagaDetail->firstWhere('lembaga_id', $f['mi']->id)->masuk_tingkat);
-        $this->assertEquals('1', $calon->lembagaDetail->firstWhere('lembaga_id', $f['md']->id)->masuk_tingkat);
+        $this->assertEquals('1', $calon->lembagaDetail->firstWhere('jenjang', $f['mi']->jenjang)->masuk_tingkat);
+        $this->assertEquals('1', $calon->lembagaDetail->firstWhere('jenjang', $f['md']->jenjang)->masuk_tingkat);
 
         // Alur normal: admin verifikasi -> ortu ajukan -> admin ACC
         $this->actingAs($adminMi, 'sanctum')->postJson("/api/psb/{$calonId}/verifikasi")->assertStatus(200);
@@ -245,8 +245,8 @@ class PsbFlowTest extends TestCase
         $this->assertEquals(1, Santri::where('id', $santriId)->count());
         // ACC hanya membuat keanggotaan (MI + MD); riwayat diinput via Riwayat Belajar.
         $this->assertEquals(2, LembagaSantri::where('santri_id', $santriId)->where('is_active_lembaga', 'Ya')->count());
-        $this->assertEquals(1, LembagaSantri::where('santri_id', $santriId)->where('lembaga_id', $f['mi']->id)->count());
-        $this->assertEquals(1, LembagaSantri::where('santri_id', $santriId)->where('lembaga_id', $f['md']->id)->count());
+        $this->assertEquals(1, LembagaSantri::where('santri_id', $santriId)->where('jenjang', $f['mi']->jenjang)->count());
+        $this->assertEquals(1, LembagaSantri::where('santri_id', $santriId)->where('jenjang', $f['md']->jenjang)->count());
         $this->assertEquals(0, RiwayatBelajar::where('santri_id', $santriId)->count());
         // dokumen pindah ke santri
         $this->assertEquals(1, DokumenSantri::where('santri_id', $santriId)->count());
@@ -273,7 +273,7 @@ class PsbFlowTest extends TestCase
     {
         $f = $this->baseFixture();
         $this->makeKuota($f['gel'], $f['mts'], $f['ta'], ['membutuhkan_seleksi' => true]);
-        $admin = $this->makeUser('admin', [$f['mts']->id]);
+        $admin = $this->makeUser('admin', [$f['mts']->jenjang]);
         $ortu = $this->makeUser('orang_tua', [], 'ortu5@example.com', '081555555555');
 
         $nik = '1100000000000005';
@@ -311,7 +311,7 @@ class PsbFlowTest extends TestCase
     {
         $f = $this->baseFixture();
         $this->makeKuota($f['gel'], $f['mi'], $f['ta'], ['membutuhkan_seleksi' => false]);
-        $admin = $this->makeUser('admin', [$f['mi']->id]);
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
         $ortu = $this->makeUser('orang_tua', [], 'ortu6@example.com', '081666666666');
 
         $nik = '1100000000000006';
@@ -344,7 +344,7 @@ class PsbFlowTest extends TestCase
             'membutuhkan_seleksi' => false, 'paket_tersedia' => true,
         ]);
         $this->makeKuota($f['gel'], $f['md'], $f['ta'], ['membutuhkan_seleksi' => false]);
-        $admin = $this->makeUser('admin', [$f['mi']->id]);
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
 
         $d1 = $this->postJson('/api/psb/daftar', $this->daftarPayload(
             $f['gel'], $f['mi'], '1100000000000007', 'Hapus Satu', 'ortu7a@example.com', '081777777771'
@@ -382,8 +382,8 @@ class PsbFlowTest extends TestCase
     {
         $f = $this->baseFixture();
         $this->makeKuota($f['gel'], $f['mi'], $f['ta'], ['membutuhkan_seleksi' => true]);
-        $admin = $this->makeUser('admin', [$f['mi']->id]);
-        $adminLain = $this->makeUser('admin', [$f['mts']->id]);
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
+        $adminLain = $this->makeUser('admin', [$f['mts']->jenjang]);
 
         $ids = [];
         foreach (['a', 'b'] as $i => $suf) {
@@ -424,7 +424,7 @@ class PsbFlowTest extends TestCase
     {
         $f = $this->baseFixture();
         $this->makeKuota($f['gel'], $f['mi'], $f['ta'], ['membutuhkan_seleksi' => false]);
-        $admin = $this->makeUser('admin', [$f['mi']->id]);
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
 
         $a = $this->postJson('/api/psb/daftar', $this->daftarPayload(
             $f['gel'], $f['mi'], '1100000000000190', 'Bulk Hapus A', 'ortu26a@example.com', '081826666661'
@@ -455,7 +455,7 @@ class PsbFlowTest extends TestCase
     {
         $f = $this->baseFixture();
         $this->makeKuota($f['gel'], $f['mi'], $f['ta'], ['membutuhkan_seleksi' => false, 'kuota' => 1]);
-        $admin = $this->makeUser('admin', [$f['mi']->id]);
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
 
         $c1 = $this->postJson('/api/psb/daftar', $this->daftarPayload(
             $f['gel'], $f['mi'], '1100000000000009', 'Kuota Satu', 'ortu8a@example.com', '081888888881'
@@ -489,8 +489,8 @@ class PsbFlowTest extends TestCase
         $f = $this->baseFixture();
         $this->makeKuota($f['gel'], $f['mi'], $f['ta'], ['membutuhkan_seleksi' => false]);
         $this->makeKuota($f['gel'], $f['mts'], $f['ta'], ['membutuhkan_seleksi' => true]);
-        $adminMi = $this->makeUser('admin', [$f['mi']->id]);
-        $adminMts = $this->makeUser('admin', [$f['mts']->id]);
+        $adminMi = $this->makeUser('admin', [$f['mi']->jenjang]);
+        $adminMts = $this->makeUser('admin', [$f['mts']->jenjang]);
         $ortu = $this->makeUser('orang_tua', [], 'ortu9@example.com', '081999999999');
 
         // verifikasi lintas lembaga -> 403
@@ -516,7 +516,7 @@ class PsbFlowTest extends TestCase
     {
         $f = $this->baseFixture();
         $this->makeKuota($f['gel'], $f['mi'], $f['ta'], ['membutuhkan_seleksi' => false]);
-        $admin = $this->makeUser('admin', [$f['mi']->id]);
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
         $ortu = $this->makeUser('orang_tua', [], 'ortu10@example.com', '082000000000');
 
         $nik = '1100000000000013';
@@ -564,7 +564,7 @@ class PsbFlowTest extends TestCase
     {
         $f = $this->baseFixture();
         $this->makeKuota($f['gel'], $f['mi'], $f['ta'], ['membutuhkan_seleksi' => false]);
-        $admin = $this->makeUser('admin', [$f['mi']->id]);
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
         $ortu = $this->makeUser('orang_tua', [], 'ortu11@example.com', '081111111111');
 
         // Pindahan MI tingkat 3: OK.
@@ -596,12 +596,12 @@ class PsbFlowTest extends TestCase
             ->assertStatus(201);
         $santriId = $this->actingAs($admin, 'sanctum')->postJson("/api/psb/{$calonId}/acc-daftar-ulang")
             ->json('data.id');
-        $this->assertDatabaseHas('lembaga_santri', ['santri_id' => $santriId, 'lembaga_id' => $f['mi']->id, 'is_active_lembaga' => 'Ya']);
+        $this->assertDatabaseHas('lembaga_santri', ['santri_id' => $santriId, 'jenjang' => $f['mi']->jenjang, 'is_active_lembaga' => 'Ya']);
         $this->assertEquals(0, RiwayatBelajar::where('santri_id', $santriId)->count());
 
         // Santri baru MTS tanpa tingkat: default entry 7.
         $this->makeKuota($f['gel'], $f['mts'], $f['ta'], ['membutuhkan_seleksi' => true]);
-        $adminMts = $this->makeUser('admin', [$f['mts']->id]);
+        $adminMts = $this->makeUser('admin', [$f['mts']->jenjang]);
         $baru = $this->postJson('/api/psb/daftar', $this->daftarPayload(
             $f['gel'], $f['mts'], '1100000000000014', 'Baru MTS', 'ortu11@example.com', '081111111111'
         ));
@@ -614,7 +614,7 @@ class PsbFlowTest extends TestCase
             ->assertStatus(201);
         $santriBaru = $this->actingAs($adminMts, 'sanctum')->postJson("/api/psb/{$calonBaru}/acc-daftar-ulang")
             ->json('data.id');
-        $this->assertDatabaseHas('lembaga_santri', ['santri_id' => $santriBaru, 'lembaga_id' => $f['mts']->id, 'is_active_lembaga' => 'Ya']);
+        $this->assertDatabaseHas('lembaga_santri', ['santri_id' => $santriBaru, 'jenjang' => $f['mts']->jenjang, 'is_active_lembaga' => 'Ya']);
         $this->assertEquals(0, RiwayatBelajar::where('santri_id', $santriBaru)->count());
     }
 
@@ -624,7 +624,7 @@ class PsbFlowTest extends TestCase
     {
         $f = $this->baseFixture();
         $this->makeKuota($f['gel'], $f['mi'], $f['ta'], ['membutuhkan_seleksi' => false]);
-        $admin = $this->makeUser('admin', [$f['mi']->id]);
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
         $ortu = $this->makeUser('orang_tua', [], 'ortu11b@example.com', '081111111112');
 
         $calonId = $this->postJson('/api/psb/daftar', $this->daftarPayload(
@@ -639,20 +639,20 @@ class PsbFlowTest extends TestCase
 
         // ACC: santri + keanggotaan ada, riwayat belum ada.
         $this->assertDatabaseHas('santri', ['id' => $santriId]);
-        $this->assertDatabaseHas('lembaga_santri', ['santri_id' => $santriId, 'lembaga_id' => $f['mi']->id, 'is_active_lembaga' => 'Ya']);
+        $this->assertDatabaseHas('lembaga_santri', ['santri_id' => $santriId, 'jenjang' => $f['mi']->jenjang, 'is_active_lembaga' => 'Ya']);
         $this->assertEquals(0, RiwayatBelajar::where('santri_id', $santriId)->count());
 
         // Riwayat perdana diinput lewat halaman Riwayat Belajar.
-        $super = $this->makeUser('super_admin', [$f['mi']->id]);
+        $super = $this->makeUser('super_admin', [$f['mi']->jenjang]);
         $this->actingAs($super, 'sanctum')->postJson('/api/admin/riwayat-belajar', [
             'santri_id' => $santriId,
-            'lembaga_id' => $f['mi']->id,
+            'jenjang' => $f['mi']->jenjang,
             'tahun_ajaran' => $f['taMi']->nama,
             'tingkat' => '1',
             'status_awal' => 'santri_baru',
         ])->assertStatus(201);
         $this->assertDatabaseHas('riwayat_belajar', [
-            'santri_id' => $santriId, 'lembaga_id' => $f['mi']->id,
+            'santri_id' => $santriId, 'jenjang' => $f['mi']->jenjang,
             'semester' => '1', 'tingkat' => '1', 'status_awal' => 'santri_baru', 'is_active_riwayat' => 'Ya',
         ]);
     }
@@ -662,7 +662,7 @@ class PsbFlowTest extends TestCase
     public function test_12_template_import_psb_bisa_diunduh(): void
     {
         $f = $this->baseFixture();
-        $admin = $this->makeUser('admin', [$f['mi']->id]);
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
 
         $res = $this->actingAs($admin, 'sanctum')->get('/api/psb/import-template');
 
@@ -678,7 +678,7 @@ class PsbFlowTest extends TestCase
     {
         $f = $this->baseFixture();
         $this->makeKuota($f['gel'], $f['mi'], $f['ta'], ['membutuhkan_seleksi' => false]);
-        $admin = $this->makeUser('admin', [$f['mi']->id]);
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
 
         $ids = [];
         foreach ([['1100000000000101', 'Calon Baru'], ['1100000000000102', 'Calon Verif'], ['1100000000000103', 'Calon Ajukan']] as $i => [$nik, $nama]) {
@@ -711,11 +711,11 @@ class PsbFlowTest extends TestCase
     {
         $f = $this->baseFixture();
         $this->makeKuota($f['gel'], $f['mi'], $f['ta'], ['membutuhkan_seleksi' => false]);
-        $admin = $this->makeUser('admin', [$f['mi']->id]);
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
 
         $res = $this->actingAs($admin, 'sanctum')->postJson('/api/psb/calon', [
             'gelombang_id' => $f['gel']->id,
-            'lembaga_id' => $f['mi']->id,
+            'jenjang' => $f['mi']->jenjang,
             'tipe_santri' => 'non_asrama',
             'nik' => '1100000000000201',
             'nama_lengkap' => 'Pendaftar Manual',
@@ -727,14 +727,14 @@ class PsbFlowTest extends TestCase
             ->assertJsonPath('data.status_pendaftaran', 'baru')
             ->assertJsonPath('data.nama_lengkap', 'Pendaftar Manual');
         $this->assertDatabaseHas('psb_calon_santri', [
-            'nik' => '1100000000000201', 'status_pendaftaran' => 'baru', 'lembaga_id' => $f['mi']->id,
+            'nik' => '1100000000000201', 'status_pendaftaran' => 'baru', 'jenjang' => $f['mi']->jenjang,
         ]);
 
         // Tenant: pasangan MI↔MD boleh input lintas (pengecualian timbal-balik).
-        $adminMd = $this->makeUser('admin', [$f['md']->id]);
+        $adminMd = $this->makeUser('admin', [$f['md']->jenjang]);
         $this->actingAs($adminMd, 'sanctum')->postJson('/api/psb/calon', [
             'gelombang_id' => $f['gel']->id,
-            'lembaga_id' => $f['mi']->id,
+            'jenjang' => $f['mi']->jenjang,
             'tipe_santri' => 'non_asrama',
             'nik' => '1100000000000202',
             'nama_lengkap' => 'Lintas Pasangan',
@@ -747,10 +747,10 @@ class PsbFlowTest extends TestCase
 
         // Antrean menandai kebutuhan seleksi: MI tanpa seleksi, MTs dengan seleksi.
         $this->makeKuota($f['gel'], $f['mts'], $f['ta'], ['membutuhkan_seleksi' => true]);
-        $adminMts = $this->makeUser('admin', [$f['mts']->id]);
+        $adminMts = $this->makeUser('admin', [$f['mts']->jenjang]);
         $this->actingAs($adminMts, 'sanctum')->postJson('/api/psb/calon', [
             'gelombang_id' => $f['gel']->id,
-            'lembaga_id' => $f['mts']->id,
+            'jenjang' => $f['mts']->jenjang,
             'tipe_santri' => 'non_asrama',
             'nik' => '1100000000000203',
             'nama_lengkap' => 'Pendaftar MTs',
@@ -775,7 +775,7 @@ class PsbFlowTest extends TestCase
         $this->makeKuota($f['gel'], $f['md'], $f['ta'], ['membutuhkan_seleksi' => false]);
 
         $korban = Santri::create([
-            'lembaga_id' => $f['mi']->id, 'nama_lengkap' => 'Korban IDOR', 'nik' => '1100000000000301',
+            'jenjang' => $f['mi']->jenjang, 'nama_lengkap' => 'Korban IDOR', 'nik' => '1100000000000301',
             'jk' => 'L', 'tgl_lahir' => '2014-01-01', 'is_active_pst' => 'Ya',
         ]);
 
@@ -836,11 +836,11 @@ class PsbFlowTest extends TestCase
     public function test_18_biodata_validasi_nilai_setujui_cast_dan_batalkan(): void
     {
         $f = $this->baseFixture();
-        $admin = $this->makeUser('admin', [$f['mi']->id]);
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
         $ortu = $this->makeUser('orang_tua', [], 'ortu18@example.com', '081818181818');
 
         $santri = Santri::create([
-            'lembaga_id' => $f['mi']->id, 'nama_lengkap' => 'Anak Biodata', 'jk' => 'L',
+            'jenjang' => $f['mi']->jenjang, 'nama_lengkap' => 'Anak Biodata', 'jk' => 'L',
             'tgl_lahir' => '2013-03-04', 'is_active_pst' => 'Ya',
         ]);
         WaliSantriRelasi::create([
@@ -906,7 +906,7 @@ class PsbFlowTest extends TestCase
     public function test_19_import_psb_tanpa_nomor_digenerate(): void
     {
         $f = $this->baseFixture();
-        $admin = $this->makeUser('admin', [$f['mi']->id]);
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
         $row = [
             'nik' => '1100000000000401', 'nama_lengkap' => 'Import Satu', 'jk' => 'L',
             'tgl_lahir' => '2015-01-01', 'tipe_santri' => 'non_asrama', 'no_pendaftaran' => '',
@@ -914,7 +914,7 @@ class PsbFlowTest extends TestCase
 
         $this->actingAs($admin, 'sanctum')->post('/api/psb/import', [
             'gelombang_id' => $f['gel']->id,
-            'lembaga_id' => $f['mi']->id,
+            'jenjang' => $f['mi']->jenjang,
             'file' => $this->xlsxFile([$row]),
         ], ['Accept' => 'application/json'])->assertStatus(200);
 
@@ -926,21 +926,21 @@ class PsbFlowTest extends TestCase
     public function test_20_import_psb_nomor_duplikat_ditolak_rapi(): void
     {
         $f = $this->baseFixture();
-        $admin = $this->makeUser('admin', [$f['mi']->id]);
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
         $row = [
             'nik' => '1100000000000411', 'nama_lengkap' => 'Import Satu', 'jk' => 'L',
             'tgl_lahir' => '2015-01-01', 'tipe_santri' => 'non_asrama', 'no_pendaftaran' => 'PSB_MANUAL_0001',
         ];
         $this->actingAs($admin, 'sanctum')->post('/api/psb/import', [
             'gelombang_id' => $f['gel']->id,
-            'lembaga_id' => $f['mi']->id,
+            'jenjang' => $f['mi']->jenjang,
             'file' => $this->xlsxFile([$row]),
         ], ['Accept' => 'application/json'])->assertStatus(200);
 
         $row2 = array_merge($row, ['nik' => '1100000000000412', 'nama_lengkap' => 'Import Dua']);
         $res = $this->actingAs($admin, 'sanctum')->post('/api/psb/import', [
             'gelombang_id' => $f['gel']->id,
-            'lembaga_id' => $f['mi']->id,
+            'jenjang' => $f['mi']->jenjang,
             'file' => $this->xlsxFile([$row2]),
         ], ['Accept' => 'application/json']);
 
@@ -1018,9 +1018,9 @@ class PsbFlowTest extends TestCase
         $f = $this->baseFixture();
         $this->makeKuota($f['gel'], $f['mi'], $f['ta'], ['paket_tersedia' => true]);
         $this->makeKuota($f['gel'], $f['md'], $f['ta']);
-        $adminMi = $this->makeUser('admin', [$f['mi']->id]);
-        $adminMd = $this->makeUser('admin', [$f['md']->id]);
-        $adminMts = $this->makeUser('admin', [$f['mts']->id]);
+        $adminMi = $this->makeUser('admin', [$f['mi']->jenjang]);
+        $adminMd = $this->makeUser('admin', [$f['md']->jenjang]);
+        $adminMts = $this->makeUser('admin', [$f['mts']->jenjang]);
 
         $res = $this->postJson('/api/psb/daftar-paket', $this->daftarPayload(
             $f['gel'], $f['mi'], '1100000000000431', 'Paket Scope', 'ortu23@example.com', '081423333331'
@@ -1099,7 +1099,7 @@ class PsbFlowTest extends TestCase
         $f = $this->baseFixture();
         $this->makeKuota($f['gel'], $f['mi'], $f['ta'], ['membutuhkan_seleksi' => false]);
         $this->makeKuota($f['gel'], $f['mi'], $f['ta'], ['membutuhkan_seleksi' => false, 'tipe_santri' => 'asrama']);
-        $admin = $this->makeUser('admin', [$f['mi']->id]);
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
         $ortu = $this->makeUser('orang_tua', [], 'ortu28@example.com', '081828888881');
 
         $daftar = $this->postJson('/api/psb/daftar', $this->daftarPayload(
@@ -1114,7 +1114,7 @@ class PsbFlowTest extends TestCase
 
         // ACC: santri + keanggotaan (riwayat menyusul via Riwayat Belajar).
         $this->assertDatabaseHas('santri', ['id' => $santriId, 'tipe_santri' => 'asrama']);
-        $this->assertDatabaseHas('lembaga_santri', ['santri_id' => $santriId, 'lembaga_id' => $f['mi']->id, 'is_active_lembaga' => 'Ya']);
+        $this->assertDatabaseHas('lembaga_santri', ['santri_id' => $santriId, 'jenjang' => $f['mi']->jenjang, 'is_active_lembaga' => 'Ya']);
         $this->assertEquals(0, RiwayatBelajar::where('santri_id', $santriId)->count());
 
         $daftar2 = $this->postJson('/api/psb/daftar', $this->daftarPayload(
@@ -1133,7 +1133,7 @@ class PsbFlowTest extends TestCase
     {
         $f = $this->baseFixture();
         $pusat = $this->makeUser('admin');
-        $adminLembaga = $this->makeUser('admin', [$f['mi']->id]);
+        $adminLembaga = $this->makeUser('admin', [$f['mi']->jenjang]);
 
         $this->actingAs($adminLembaga, 'sanctum')->postJson('/api/admin/psb/kegiatan', [
             'tahun_ajaran' => $f['ta']->nama, 'nama' => 'PSB X', 'is_aktif' => true,
@@ -1145,7 +1145,7 @@ class PsbFlowTest extends TestCase
         ])->assertStatus(422)->assertJsonValidationErrors(['tahun_ajaran']);
 
         $ta2 = TahunAjaran::create([
-            'lembaga_id' => $f['mi']->id, 'nama' => '2027/2028',
+            'jenjang' => $f['mi']->jenjang, 'nama' => '2027/2028',
             'tanggal_mulai' => '2027-07-01', 'tanggal_selesai' => '2028-06-30', 'is_aktif' => true,
         ]);
         $keg = $this->actingAs($pusat, 'sanctum')->postJson('/api/admin/psb/kegiatan', [
@@ -1179,20 +1179,20 @@ class PsbFlowTest extends TestCase
     public function test_30_kuota_upsert_tenant(): void
     {
         $f = $this->baseFixture();
-        $adminMi = $this->makeUser('admin', [$f['mi']->id]);
+        $adminMi = $this->makeUser('admin', [$f['mi']->jenjang]);
 
         $res = $this->actingAs($adminMi, 'sanctum')->postJson('/api/admin/psb/kuota-biaya', [
-            'gelombang_id' => $f['gel']->id, 'lembaga_id' => $f['mi']->id, 'tipe_santri' => 'non_asrama',
+            'gelombang_id' => $f['gel']->id, 'jenjang' => $f['mi']->jenjang, 'tipe_santri' => 'non_asrama',
             'kuota' => 100, 'paket_tersedia' => true,
             'membutuhkan_seleksi' => false, 'membutuhkan_pemberkasan' => true,
         ]);
         $res->assertStatus(200);
-        $row = PsbKuotaBiaya::where('gelombang_id', $f['gel']->id)->where('lembaga_id', $f['mi']->id)->firstOrFail();
+        $row = PsbKuotaBiaya::where('gelombang_id', $f['gel']->id)->where('jenjang', $f['mi']->jenjang)->firstOrFail();
         $this->assertEquals(100, (int) $row->kuota);
         $this->assertTrue((bool) $row->paket_tersedia);
 
         $this->actingAs($adminMi, 'sanctum')->postJson('/api/admin/psb/kuota-biaya', [
-            'gelombang_id' => $f['gel']->id, 'lembaga_id' => $f['md']->id, 'tipe_santri' => 'non_asrama',
+            'gelombang_id' => $f['gel']->id, 'jenjang' => $f['md']->jenjang, 'tipe_santri' => 'non_asrama',
         ])->assertStatus(200);
 
         $index = $this->actingAs($adminMi, 'sanctum')->getJson('/api/admin/psb/kuota-biaya?gelombang_id='.$f['gel']->id);
@@ -1205,18 +1205,18 @@ class PsbFlowTest extends TestCase
         Storage::fake('local');
         $f = $this->baseFixture();
         $this->seed(ReferensiSeeder::class);
-        $admin = $this->makeUser('admin', [$f['mi']->id]);
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
         $this->makeKuota($f['gel'], $f['mi'], $f['ta'], ['membutuhkan_seleksi' => false]);
 
         // Ketentuan per kegiatan + lembaga: wajib (kk) & opsional (akta).
         foreach ([['Kartu Keluarga', true], ['Akta Kelahiran', false]] as [$jenis, $wajib]) {
             $this->actingAs($admin, 'sanctum')->postJson('/api/admin/dokumen-wajib', [
-                'psb_kegiatan_id' => $f['keg']->id, 'lembaga_id' => $f['mi']->id,
+                'psb_kegiatan_id' => $f['keg']->id, 'jenjang' => $f['mi']->jenjang,
                 'jenis_dokumen_santri' => $jenis, 'is_wajib' => $wajib,
             ])->assertStatus(200);
         }
         $index = $this->actingAs($admin, 'sanctum')->getJson(
-            "/api/admin/dokumen-wajib?psb_kegiatan_id={$f['keg']->id}&lembaga_id={$f['mi']->id}"
+            "/api/admin/dokumen-wajib?psb_kegiatan_id={$f['keg']->id}&jenjang={$f['mi']->jenjang}"
         );
         $index->assertStatus(200);
         $this->assertCount(2, $index->json('data'));
@@ -1224,7 +1224,7 @@ class PsbFlowTest extends TestCase
         // Tanpa filter lembaga: admin lembaga hanya melihat lembaganya; pusat melihat semua.
         $pusat = $this->makeUser('admin');
         $this->actingAs($pusat, 'sanctum')->postJson('/api/admin/dokumen-wajib', [
-            'psb_kegiatan_id' => $f['keg']->id, 'lembaga_id' => $f['mts']->id,
+            'psb_kegiatan_id' => $f['keg']->id, 'jenjang' => $f['mts']->jenjang,
             'jenis_dokumen_santri' => 'Pas Foto', 'is_wajib' => true,
         ])->assertStatus(200);
 
@@ -1280,7 +1280,7 @@ class PsbFlowTest extends TestCase
     {
         $f = $this->baseFixture();
         $this->makeKuota($f['gel'], $f['mi'], $f['ta'], ['membutuhkan_seleksi' => false, 'membutuhkan_pemberkasan' => true]);
-        $admin = $this->makeUser('admin', [$f['mi']->id]);
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
 
         $daftar = $this->postJson('/api/psb/daftar', $this->daftarPayload(
             $f['gel'], $f['mi'], '1100000000000801', 'Berkas Satu', 'ortu32@example.com', '083232323232'
@@ -1321,7 +1321,7 @@ class PsbFlowTest extends TestCase
 
         // Lembaga ber-seleksi: wajib konfirmasi hasil; tanpa `lolos` ditolak.
         $this->makeKuota($f['gel'], $f['mts'], $f['ta'], ['membutuhkan_seleksi' => true]);
-        $adminMts = $this->makeUser('admin', [$f['mts']->id]);
+        $adminMts = $this->makeUser('admin', [$f['mts']->jenjang]);
         $daftar3 = $this->postJson('/api/psb/daftar', $this->daftarPayload(
             $f['gel'], $f['mts'], '1100000000000803', 'Uji Seleksi Gagal', 'ortu32c@example.com', '083232323234'
         ));
@@ -1349,7 +1349,7 @@ class PsbFlowTest extends TestCase
     {
         $f = $this->baseFixture();
         $this->makeKuota($f['gel'], $f['mi'], $f['ta'], ['membutuhkan_seleksi' => false]);
-        $admin = $this->makeUser('admin', [$f['mi']->id]);
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
 
         $daftar = fn (string $nik, string $nama, string $email, string $telp) => $this->postJson('/api/psb/daftar', $this->daftarPayload(
             $f['gel'], $f['mi'], $nik, $nama, $email, $telp
@@ -1393,7 +1393,7 @@ class PsbFlowTest extends TestCase
     {
         $f = $this->baseFixture();
         $this->makeKuota($f['gel'], $f['mi'], $f['ta'], ['membutuhkan_seleksi' => false]);
-        $admin = $this->makeUser('admin', [$f['mi']->id]);
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
 
         $seq = 0;
         $daftar = function (string $nama) use ($f, &$seq) {
@@ -1454,7 +1454,7 @@ class PsbFlowTest extends TestCase
     {
         $f = $this->baseFixture();
         $this->makeKuota($f['gel'], $f['mi'], $f['ta'], ['membutuhkan_seleksi' => false]);
-        $admin = $this->makeUser('admin', [$f['mi']->id]);
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
 
         $seq = 0;
         $daftar = function (string $nama) use ($f, &$seq) {
@@ -1546,7 +1546,7 @@ class PsbFlowTest extends TestCase
     {
         $f = $this->baseFixture();
         $this->makeKuota($f['gel'], $f['mi'], $f['ta'], ['membutuhkan_seleksi' => false]);
-        $admin = $this->makeUser('admin', [$f['mi']->id]);
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
 
         $id = $this->postJson('/api/psb/daftar', $this->daftarPayload(
             $f['gel'], $f['mi'], '1100000000003001', 'Undur Diterima', 'ortu36@example.com', '083636363601'
@@ -1574,14 +1574,14 @@ class PsbFlowTest extends TestCase
         $this->assertSame('mengundurkan_diri', $calon->status_pendaftaran);
         $this->assertNull($calon->santri_id);
         // NIS kembali bebas dipakai (santri sudah tidak ada).
-        $this->assertFalse(LembagaSantri::nisLokalDipakai((int) $f['mi']->id, '36001'));
+        $this->assertFalse(LembagaSantri::nisLokalDipakai($f['mi']->jenjang, '36001'));
     }
 
     public function test_37_undur_diri_diblokir_saat_santri_sudah_di_kelas(): void
     {
         $f = $this->baseFixture();
         $this->makeKuota($f['gel'], $f['mi'], $f['ta'], ['membutuhkan_seleksi' => false]);
-        $admin = $this->makeUser('admin', [$f['mi']->id]);
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
 
         $id = $this->postJson('/api/psb/daftar', $this->daftarPayload(
             $f['gel'], $f['mi'], '1100000000003701', 'Undur Berkelas', 'ortu37@example.com', '083737373701'
@@ -1595,15 +1595,15 @@ class PsbFlowTest extends TestCase
             ->json('data.id');
 
         // Penempatan kelas menyusul: riwayat perdana via Riwayat Belajar, lalu berisi kelas_id.
-        $super = $this->makeUser('super_admin', [$f['mi']->id]);
+        $super = $this->makeUser('super_admin', [$f['mi']->jenjang]);
         $riwayatId = $this->actingAs($super, 'sanctum')->postJson('/api/admin/riwayat-belajar', [
             'santri_id' => $santriId,
-            'lembaga_id' => $f['mi']->id,
+            'jenjang' => $f['mi']->jenjang,
             'tahun_ajaran' => $f['taMi']->nama,
         ])->assertStatus(201)->json('data.id');
         $riwayat = RiwayatBelajar::findOrFail($riwayatId);
         $kelas = Kelas::create([
-            'lembaga_id' => $f['mi']->id, 'tahun_ajaran' => $f['taMi']->nama, 'nama_kelas' => 'I-A',
+            'jenjang' => $f['mi']->jenjang, 'tahun_ajaran' => $f['taMi']->nama, 'nama_kelas' => 'I-A',
         ]);
         $this->actingAs($admin, 'sanctum')->postJson("/api/admin/riwayat-belajar/{$riwayat->id}/set-kelas", [
             'kelas_id' => $kelas->id,
@@ -1639,7 +1639,7 @@ class PsbFlowTest extends TestCase
             'membutuhkan_seleksi' => false, 'paket_tersedia' => true,
         ]);
         $this->makeKuota($f['gel'], $f['md'], $f['ta'], ['membutuhkan_seleksi' => false]);
-        $adminMi = $this->makeUser('admin', [$f['mi']->id]);
+        $adminMi = $this->makeUser('admin', [$f['mi']->jenjang]);
 
         // Kegiatan menunjuk TA root; daftar tanpa TA eksplisit.
         $res = $this->postJson('/api/psb/daftar-paket', $this->daftarPayload(
@@ -1664,8 +1664,8 @@ class PsbFlowTest extends TestCase
 
         // ACC paket: keanggotaan MI + MD ada; riwayat TIDAK dibuat (menyusul via Riwayat Belajar).
         $this->assertEquals(2, LembagaSantri::where('santri_id', $santriId)->where('is_active_lembaga', 'Ya')->count());
-        $this->assertDatabaseHas('lembaga_santri', ['santri_id' => $santriId, 'lembaga_id' => $f['mi']->id, 'is_active_lembaga' => 'Ya']);
-        $this->assertDatabaseHas('lembaga_santri', ['santri_id' => $santriId, 'lembaga_id' => $f['md']->id, 'is_active_lembaga' => 'Ya']);
+        $this->assertDatabaseHas('lembaga_santri', ['santri_id' => $santriId, 'jenjang' => $f['mi']->jenjang, 'is_active_lembaga' => 'Ya']);
+        $this->assertDatabaseHas('lembaga_santri', ['santri_id' => $santriId, 'jenjang' => $f['md']->jenjang, 'is_active_lembaga' => 'Ya']);
         $this->assertEquals(0, RiwayatBelajar::where('santri_id', $santriId)->count());
     }
 
@@ -1693,7 +1693,7 @@ class PsbFlowTest extends TestCase
         $this->makeKuota($f['gel'], $f['mts'], $f['ta'], ['membutuhkan_seleksi' => false]);
         // TA kegiatan disembunyikan untuk MTS → tidak ada TA berlaku/aktif di MTS.
         LembagaTahunAjaran::create([
-            'lembaga_id' => $f['mts']->id, 'tahun_ajaran' => $f['ta']->nama, 'is_active' => false,
+            'jenjang' => $f['mts']->jenjang, 'tahun_ajaran' => $f['ta']->nama, 'is_active' => false,
         ]);
 
         $this->postJson('/api/psb/daftar', $this->daftarPayload(
@@ -1707,16 +1707,16 @@ class PsbFlowTest extends TestCase
     {
         $f = $this->baseFixture();
         $this->makeKuota($f['gel'], $f['mi'], $f['ta'], ['tipe_santri' => 'asrama']);
-        $adminMi = $this->makeUser('admin', [$f['mi']->id]);
+        $adminMi = $this->makeUser('admin', [$f['mi']->jenjang]);
 
         // Pemilih lembaga di UI (mis. ketentuan dokumen) tidak boleh bergantung
         // gelombang — kegiatan baru belum punya gelombang.
         $res = $this->actingAs($adminMi, 'sanctum')->getJson('/api/admin/psb/lembaga');
         $res->assertStatus(200);
 
-        $kode = collect($res->json('data'))->pluck('kode')->all();
-        $this->assertEqualsCanonicalizing(['MI', 'MD', 'MTS'], $kode);
-        $this->assertTrue((bool) collect($res->json('data'))->firstWhere('kode', 'MI')['punya_asrama']);
-        $this->assertFalse((bool) collect($res->json('data'))->firstWhere('kode', 'MD')['punya_asrama']);
+        $jenjang = collect($res->json('data'))->pluck('jenjang')->all();
+        $this->assertEqualsCanonicalizing(['MI', 'MD', 'MTS'], $jenjang);
+        $this->assertTrue((bool) collect($res->json('data'))->firstWhere('jenjang', 'MI')['punya_asrama']);
+        $this->assertFalse((bool) collect($res->json('data'))->firstWhere('jenjang', 'MD')['punya_asrama']);
     }
 }

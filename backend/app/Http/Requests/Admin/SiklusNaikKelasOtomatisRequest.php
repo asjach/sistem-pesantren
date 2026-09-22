@@ -16,7 +16,7 @@ class SiklusNaikKelasOtomatisRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'lembaga_id' => 'required|exists:lembaga,id',
+            'jenjang' => 'required|exists:lembaga,jenjang',
             'siswa' => 'required|array|min:1',
             'siswa.*.santri_id' => 'required|exists:santri,id',
             'siswa.*.status' => 'required|in:naik,tidak_naik',

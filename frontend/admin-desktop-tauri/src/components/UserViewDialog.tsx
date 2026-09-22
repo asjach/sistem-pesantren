@@ -108,8 +108,8 @@ export function UserViewDialog({
               <div className="flex flex-wrap gap-2">
                 {lembagas.length > 0 ? (
                   lembagas.map((l) => (
-                    <Badge key={l.id} variant="outline" title={l.nama}>
-                      {l.kode ?? l.nama}
+                    <Badge key={l.jenjang} variant="outline" title={l.nama}>
+                      {l.jenjang}
                     </Badge>
                   ))
                 ) : (

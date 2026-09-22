@@ -31,7 +31,7 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
  * - Seluruh sel bertipe TEKS (NIS/NIK/NISN tidak berubah jadi angka).
  * - Header: KUNING = wajib diisi, BIRU = opsional. `nik`/`nis_lokal`
  *   salah-satu-wajib (minimal satu kunci identitas selain santri_id).
- * - `kode_lembaga` kunci utama lembaga (case-insensitive); `lembaga_id`
+ * - `kode_lembaga` kunci utama lembaga (case-insensitive); `jenjang`
  *   sebagai fallback. Dropdown kode dibatasi lingkup pengunduh.
  * - Daftar nilai dropdown disimpan di sheet tersembunyi "Referensi"
  *   (import hanya membaca sheet pertama).
@@ -43,13 +43,13 @@ class SantriLembagaTemplateExport extends DefaultValueBinder implements FromArra
 
     /** Blok keanggotaan — selalu di awal, sebelum kolom profil. */
     public const BLOK_LEMBAGA = [
-        'santri_id', 'kode_lembaga', 'lembaga_id', 'nis_lokal',
+        'santri_id', 'kode_lembaga', 'jenjang', 'nis_lokal',
         'nis_kemenag', 'is_active_lembaga', 'tgl_masuk', 'tgl_selesai',
         'tahaj_masuk', 'tingkat_masuk', 'no_urut',
         'nama_sekolah_asal', 'npsn_sekolah_asal', 'nss_sekolah_asal', 'alamat_sekolah_asal',
     ];
 
-    public function __construct(private ?int $lembagaId = null, private array $kodeDiizinkan = []) {}
+    public function __construct(private ?string $lembagaId = null, private array $kodeDiizinkan = []) {}
 
     public function bindValue(Cell $cell, $value): bool
     {
@@ -110,11 +110,10 @@ class SantriLembagaTemplateExport extends DefaultValueBinder implements FromArra
             return array_values($this->kodeDiizinkan);
         }
 
-        return Lembaga::whereNotNull('parent_id')
-            ->whereNotNull('kode')
-            ->when($this->lembagaId !== null, fn ($q) => $q->where('id', $this->lembagaId))
-            ->orderBy('kode')
-            ->pluck('kode')
+        return Lembaga::query()
+            ->when($this->lembagaId !== null, fn ($q) => $q->where('jenjang', $this->lembagaId))
+            ->orderBy('jenjang')
+            ->pluck('jenjang')
             ->all();
     }
 
@@ -134,7 +133,7 @@ class SantriLembagaTemplateExport extends DefaultValueBinder implements FromArra
         $contoh = [
             'santri_id' => '',
             'kode_lembaga' => $kode[0] ?? '',
-            'lembaga_id' => '',
+            'jenjang' => '',
             'nis_lokal' => '26001',
             'nis_kemenag' => '',
             'is_active_lembaga' => 'Ya',

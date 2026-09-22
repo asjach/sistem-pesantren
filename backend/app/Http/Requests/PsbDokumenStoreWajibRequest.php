@@ -15,7 +15,7 @@ class PsbDokumenStoreWajibRequest extends FormRequest
     {
         return [
             'psb_kegiatan_id' => ['required', 'exists:psb_kegiatan,id'],
-            'lembaga_id' => ['required', 'exists:lembaga,id'],
+            'jenjang' => ['required', 'exists:lembaga,jenjang'],
             'jenis_dokumen_santri' => ['required', 'string', 'max:50'],
             'is_wajib' => ['sometimes', 'boolean'],
         ];

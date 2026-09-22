@@ -37,7 +37,7 @@ export default function PindahKelasPage() {
   const { user } = useAuth();
   const canSalin = bisa(user, 'kenaikan.ubah');
   const canPindah = bisa(user, 'pindah_kelas.ubah');
-  const [lembagaId, setLembagaId] = useState('');
+  const [jenjang, setLembagaId] = useState('');
   useLembagaAwalString(setLembagaId);
   const [taId, setTaId] = useState('');
   useTahunAjaranAwalString(setTaId);
@@ -53,22 +53,22 @@ export default function PindahKelasPage() {
   const [tanggalSalin, setTanggalSalin] = useState('');
 
   const load = useCallback(async () => {
-    if (!lembagaId) { setRows([]); return; }
+    if (!jenjang) { setRows([]); return; }
     setErr('');
     try {
-      const res = await daftarKelas({ lembaga_id: Number(lembagaId), tahun_ajaran: taId || undefined, semester: semester || undefined });
+      const res = await daftarKelas({ jenjang: jenjang, tahun_ajaran: taId || undefined, semester: semester || undefined });
       setRows(res.data);
     } catch (e) { setErr(errorMessage(e)); }
-  }, [lembagaId, taId, semester]);
+  }, [jenjang, taId, semester]);
 
   useEffect(() => { void load(); }, [load]);
 
   useEffect(() => {
-    if (!lembagaId) { setKelas([]); return; }
-    listKelas({ lembaga_id: Number(lembagaId), tahun_ajaran: taId || undefined, per_page: 1000 })
+    if (!jenjang) { setKelas([]); return; }
+    listKelas({ jenjang: jenjang, tahun_ajaran: taId || undefined, per_page: 1000 })
       .then((p) => setKelas(p.data))
       .catch(() => setKelas([]));
-  }, [lembagaId, taId]);
+  }, [jenjang, taId]);
 
   /** Opsi tingkat dari daftar kelas (bukan dari baris, agar kelas kosong
    *  tetap muncul sebagai kolom tujuan). */
@@ -162,7 +162,7 @@ export default function PindahKelasPage() {
           </Select>
         </FilterField>
         {canSalin && (
-        <Button id="btn_buka_salin_genap" variant="outline" disabled={!lembagaId} onClick={() => { setTanggalSalin(''); setSalinOpen(true); }}>
+        <Button id="btn_buka_salin_genap" variant="outline" disabled={!jenjang} onClick={() => { setTanggalSalin(''); setSalinOpen(true); }}>
           Salin ke genap
         </Button>
         )}
@@ -218,7 +218,7 @@ export default function PindahKelasPage() {
             <Button id="btn_proses_salin_genap" disabled={busyId !== null || !tanggalSalin} onClick={async () => {
               setBusyId(-1);
               try {
-                const res = await salinGenapMassal({ lembaga_id: Number(lembagaId), tanggal_masuk: tanggalSalin });
+                const res = await salinGenapMassal({ jenjang: jenjang, tanggal_masuk: tanggalSalin });
                 toast.success(`Salin genap: ${res.berhasil} berhasil, ${res.gagal.length} gagal.`);
                 if (res.gagal.length) toast.error(res.gagal.map((g) => `#${g.santri_id}: ${g.pesan}`).join(' · '));
                 setSalinOpen(false);

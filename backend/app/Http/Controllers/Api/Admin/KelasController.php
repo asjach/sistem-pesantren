@@ -36,10 +36,10 @@ class KelasController extends Controller
         $urut = $this->parseUrut($request, UrutKatalog::peta('kelas'));
 
         $query = $this->scopeLembaga(
-            Kelas::with(['lembaga:id,nama,kode', 'tahunAjaran:nama']),
+            Kelas::with(['lembaga:jenjang,nama', 'tahunAjaran:nama']),
             auth()->user(),
             $request,
-            'kelas.lembaga_id'
+            'kelas.jenjang'
         );
 
         if ($request->filled('tahun_ajaran')) {
@@ -56,7 +56,7 @@ class KelasController extends Controller
         // Urut default: `urutan` (diatur admin) lalu nama kelas.
         if ($urut !== null) {
             $query->select('kelas.*')
-                ->leftJoin('lembaga', 'lembaga.id', '=', 'kelas.lembaga_id')
+                ->leftJoin('lembaga', 'lembaga.jenjang', '=', 'kelas.jenjang')
                 ->leftJoin('tahun_ajaran', 'tahun_ajaran.nama', '=', 'kelas.tahun_ajaran');
         }
         $this->terapkanUrut($query, $urut, [
@@ -71,9 +71,9 @@ class KelasController extends Controller
         $data = $request->validated();
 
         $auth = auth()->user();
-        $this->authorizeLembaga($auth, (int) $data['lembaga_id']);
+        $this->authorizeLembaga($auth, $data['jenjang']);
 
-        $this->cekTaEfektif((int) $data['lembaga_id'], (string) $data['tahun_ajaran']);
+        $this->cekTaEfektif($data['jenjang'], (string) $data['tahun_ajaran']);
 
         $items = isset($data['items'])
             ? array_values($data['items'])
@@ -97,11 +97,11 @@ class KelasController extends Controller
                     }
                     $namaPayload[$kunci] = true;
 
-                    $this->cekTingkat((int) $data['lembaga_id'], $item['tingkat'] ?? null);
-                    $this->pastikanNamaUnik((int) $data['lembaga_id'], (string) $data['tahun_ajaran'], $nama);
+                    $this->cekTingkat($data['jenjang'], $item['tingkat'] ?? null);
+                    $this->pastikanNamaUnik($data['jenjang'], (string) $data['tahun_ajaran'], $nama);
 
                     $rows[] = Kelas::create([
-                        'lembaga_id' => (int) $data['lembaga_id'],
+                        'jenjang' => $data['jenjang'],
                         'tahun_ajaran' => $data['tahun_ajaran'],
                         'nama_kelas' => $nama,
                         'tingkat' => $item['tingkat'] ?? null,
@@ -128,10 +128,10 @@ class KelasController extends Controller
     }
 
     /** Validasi kamus no.50: tingkat via RefService efektif milik lembaga. */
-    protected function cekTingkat(int $lembagaId, ?string $tingkat): void
+    protected function cekTingkat(string $jenjang, ?string $tingkat): void
     {
         if (! empty($tingkat)
-            && ! in_array($tingkat, RefService::kodeAktif('tingkat', $lembagaId), true)) {
+            && ! in_array($tingkat, RefService::kodeAktif('tingkat', $jenjang), true)) {
             abort(response()->json(['message' => 'Tingkat tidak dikenal.'], 422));
         }
     }
@@ -140,9 +140,9 @@ class KelasController extends Controller
      * Nama kelas wajib unik per lembaga + tahun ajaran (mengikuti kolasi kolom
      * yang case-insensitive). Dipanggil sebelum tulis untuk pesan yang jelas.
      */
-    protected function pastikanNamaUnik(int $lembagaId, string $tahunAjaran, string $nama, ?int $kecualikanId = null): void
+    protected function pastikanNamaUnik(string $jenjang, string $tahunAjaran, string $nama, ?int $kecualikanId = null): void
     {
-        $query = Kelas::where('lembaga_id', $lembagaId)
+        $query = Kelas::where('jenjang', $jenjang)
             ->where('tahun_ajaran', $tahunAjaran)
             // LOWER() agar perbandingan case-insensitive di semua driver (DB uji SQLite).
             ->whereRaw('LOWER(nama_kelas) = ?', [mb_strtolower($nama)]);
@@ -167,12 +167,12 @@ class KelasController extends Controller
     {
         $data = $request->validated();
 
-        $lembagaId = (int) $data['lembaga_id'];
+        $lembagaId = $data['jenjang'];
         $ta = (string) $data['tahun_ajaran'];
         $this->authorizeLembaga($request->user(), $lembagaId);
         $this->cekTaEfektif($lembagaId, $ta);
 
-        $kode = Lembaga::whereKey($lembagaId)->value('kode');
+        $kode = Lembaga::whereKey($lembagaId)->value('jenjang');
 
         return Excel::download(
             new KelasNamaExport($lembagaId, $ta),
@@ -181,8 +181,8 @@ class KelasController extends Controller
     }
 
     /** POST /api/admin/kelas/import-nama — salin nama+tingkat kelas pasangan MI↔MD.
-     *  Dua mode: ambil (`lembaga_id` + `tahun_ajaran` target, `dari_kode` sumber)
-     *  atau copy (`dari_lembaga_id` + `dari_tahun_ajaran` sumber, `ke_kode` target
+     *  Dua mode: ambil (`jenjang` + `tahun_ajaran` target, `dari_kode` sumber)
+     *  atau copy (`dari_jenjang` + `dari_tahun_ajaran` sumber, `ke_kode` target
      *  + TA target = nama sama, fallback aktif). */
     public function importNama(KelasImportNamaRequest $request): JsonResponse
     {
@@ -192,56 +192,56 @@ class KelasController extends Controller
 
         if (! empty($data['ke_kode'])) {
             // Mode copy: sumber eksplisit, target via kode + TA otomatis.
-            if (empty($data['dari_lembaga_id']) || empty($data['dari_tahun_ajaran'])) {
-                return response()->json(['pesan' => 'Mode copy butuh dari_lembaga_id + dari_tahun_ajaran.'], 422);
+            if (empty($data['dari_jenjang']) || empty($data['dari_tahun_ajaran'])) {
+                return response()->json(['pesan' => 'Mode copy butuh dari_jenjang + dari_tahun_ajaran.'], 422);
             }
-            $sumberId = (int) $data['dari_lembaga_id'];
+            $sumberJenjang = (string) $data['dari_jenjang'];
             $taSumber = TahunAjaran::find((string) $data['dari_tahun_ajaran']);
             if (! $taSumber) {
                 return response()->json(['pesan' => 'Tahun ajaran sumber tidak ditemukan.'], 422);
             }
-            $this->cekTaEfektif($sumberId, $taSumber->nama);
-            $sumberKode = Lembaga::whereKey($sumberId)->value('kode');
+            $this->cekTaEfektif($sumberJenjang, $taSumber->nama);
+            $sumberKode = $sumberJenjang;
             $targetKode = $data['ke_kode'];
             if (! in_array($sumberKode, ['MI', 'MD'], true) || $sumberKode === $targetKode) {
                 return response()->json(['pesan' => 'Copy nama hanya untuk pasangan MI↔MD.'], 422);
             }
-            $target = Lembaga::where('kode', $targetKode)->whereNotNull('parent_id')->first();
+            $target = Lembaga::whereKey($targetKode)->first();
             if (! $target) {
                 return response()->json(['pesan' => "Lembaga tujuan {$targetKode} tidak ditemukan."], 422);
             }
-            $targetId = (int) $target->id;
+            $targetId = $target->jenjang;
             $this->authorizeLembaga($request->user(), $targetId);
             $taId = TahunAjaran::efektif($targetId)->firstWhere('nama', $taSumber->nama)?->nama
                 ?? TahunAjaran::aktif($targetId)?->nama;
             if (! $taId) {
                 return response()->json(['pesan' => "Tidak ada tahun ajaran acuan di {$targetKode}."], 422);
             }
-            $sumber = Lembaga::find($sumberId);
+            $sumber = Lembaga::whereKey($sumberJenjang)->first();
         } else {
             // Mode ambil: target eksplisit, sumber via kode.
-            if (empty($data['lembaga_id']) || empty($data['tahun_ajaran']) || empty($data['dari_kode'])) {
+            if (empty($data['jenjang']) || empty($data['tahun_ajaran']) || empty($data['dari_kode'])) {
                 return response()->json(['pesan' => 'Pilih mode ambil atau copy.'], 422);
             }
-            $targetId = (int) $data['lembaga_id'];
+            $targetId = $data['jenjang'];
             $taId = (string) $data['tahun_ajaran'];
             $this->authorizeLembaga($request->user(), $targetId);
             $this->cekTaEfektif($targetId, $taId);
 
-            $targetKode = Lembaga::whereKey($targetId)->value('kode');
+            $targetKode = $targetId;
             $sumberKode = $data['dari_kode'];
             // Pasangan MI↔MD dua arah: target salah satu, sumber yang lain.
             if (! in_array($targetKode, ['MI', 'MD'], true) || $targetKode === $sumberKode) {
                 return response()->json(['pesan' => 'Import nama hanya untuk pasangan MI↔MD.'], 422);
             }
-            $sumber = Lembaga::where('kode', $sumberKode)->whereNotNull('parent_id')->first();
+            $sumber = Lembaga::whereKey($sumberKode)->first();
             if (! $sumber) {
                 return response()->json(['pesan' => "Lembaga sumber {$sumberKode} tidak ditemukan."], 422);
             }
             // TA sumber: nama sama → fallback TA aktif sumber.
             $taTarget = TahunAjaran::find($taId);
-            $taSumber = TahunAjaran::efektif((int) $sumber->id)->firstWhere('nama', $taTarget?->nama)
-                ?? TahunAjaran::aktif((int) $sumber->id);
+            $taSumber = TahunAjaran::efektif($sumber->jenjang)->firstWhere('nama', $taTarget?->nama)
+                ?? TahunAjaran::aktif($sumber->jenjang);
             if (! $taSumber) {
                 return response()->json(['pesan' => "Tidak ada tahun ajaran acuan di {$sumberKode}."], 422);
             }
@@ -250,18 +250,18 @@ class KelasController extends Controller
         // Pengecualian pasangan MI↔MD: sumber boleh dibaca bila pemanggil boleh
         // akses target (sudah diauthorize di atas); tulis tetap target saja.
         // Tanpa ini admin satu lembaga selalu 403 saat import dari pasangannya.
-        if (! $request->user()->canAccessLembaga((int) $sumber->id)
+        if (! $request->user()->canAccessLembaga($sumber->jenjang)
             && ! $request->user()->canAccessLembaga($targetId)) {
             return response()->json(['pesan' => 'Akses ditolak.'], 403);
         }
 
-        $sudahAda = Kelas::where('lembaga_id', $targetId)
+        $sudahAda = Kelas::where('jenjang', $targetId)
             ->where('tahun_ajaran', $taId)
             ->pluck('nama_kelas')
             ->map(fn ($n) => mb_strtolower(Kelas::normalisasiNama((string) $n)))
             ->all();
 
-        $sumberKelas = Kelas::where('lembaga_id', $sumber->id)
+        $sumberKelas = Kelas::where('jenjang', $sumber->jenjang)
             ->where('tahun_ajaran', $taSumber->nama)
             ->orderBy('urutan')->orderBy('nama_kelas')
             ->get(['id', 'nama_kelas', 'tingkat', 'urutan']);
@@ -278,7 +278,7 @@ class KelasController extends Controller
             if (! $periksa) {
                 $this->cekTingkat($targetId, $k->tingkat);
                 Kelas::create([
-                    'lembaga_id' => $targetId,
+                    'jenjang' => $targetId,
                     'tahun_ajaran' => $taId,
                     'nama_kelas' => $nama,
                     'tingkat' => $k->tingkat,
@@ -308,7 +308,7 @@ class KelasController extends Controller
 
     public function update(KelasUpdateRequest $request, Kelas $kela)
     {
-        $this->authorizeLembaga(auth()->user(), $kela->lembaga_id);
+        $this->authorizeLembaga(auth()->user(), $kela->jenjang);
 
         $data = $request->validated();
 
@@ -320,7 +320,7 @@ class KelasController extends Controller
         if (array_key_exists('nama_kelas', $data)) {
             $data['nama_kelas'] = Kelas::normalisasiNama($data['nama_kelas']);
             $this->pastikanNamaUnik(
-                (int) $kela->lembaga_id,
+                $kela->jenjang,
                 (string) $kela->tahun_ajaran,
                 $data['nama_kelas'],
                 (int) $kela->id
@@ -342,7 +342,7 @@ class KelasController extends Controller
 
     public function destroy(Kelas $kela)
     {
-        $this->authorizeLembaga(auth()->user(), $kela->lembaga_id);
+        $this->authorizeLembaga(auth()->user(), $kela->jenjang);
         $kela->delete();
 
         return response()->json(['message' => 'Kelas dihapus.']);

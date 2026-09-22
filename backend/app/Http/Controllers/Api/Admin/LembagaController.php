@@ -14,8 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Master lembaga (single-pesantren, 004).
- * Identitas pesantren = baris root (kode=PESANTREN, parent_id=null).
+ * Master lembaga (single-pesantren, 004). Kunci alami `jenjang` (MI/MD/MTS/MLN).
  * Tenant: index via scopeTenantScope; aksi via canAccessLembaga.
  */
 class LembagaController extends Controller
@@ -23,23 +22,19 @@ class LembagaController extends Controller
     use TenantGuard;
     use UrutDaftar;
 
-    private const SORT_NULLABLE = ['lembaga.kode', 'induk.nama'];
+    private const SORT_NULLABLE = ['lembaga.jenjang'];
 
     public function index(Request $request)
     {
         $urut = $this->parseUrut($request, UrutKatalog::peta('lembaga'));
 
-        $query = Lembaga::tenantScope()->with('parent:id,nama,kode');
+        $query = Lembaga::tenantScope();
 
         if ($request->filled('search')) {
             $s = $request->input('search');
-            $query->where(fn ($q) => $q->where('nama', 'like', "%{$s}%")->orWhere('kode', 'like', "%{$s}%"));
+            $query->where(fn ($q) => $q->where('nama', 'like', "%{$s}%")->orWhere('jenjang', 'like', "%{$s}%"));
         }
 
-        if ($urut !== null) {
-            $query->select('lembaga.*')
-                ->leftJoin('lembaga as induk', 'induk.id', '=', 'lembaga.parent_id');
-        }
         $this->terapkanUrut($query, $urut, [['lembaga.nama', 'naik']], self::SORT_NULLABLE);
 
         return response()->json($query->paginate($this->perPage($request)));
@@ -54,49 +49,39 @@ class LembagaController extends Controller
         }
 
         $data = $request->validated();
-        $this->pastikanKelompokSesuaiKode($data['kode'] ?? null, $data['kelompok_psb'] ?? null);
-
-        if (! empty($data['parent_id'])) {
-            $this->authorizeLembaga($auth, (int) $data['parent_id']);
-        }
+        $this->pastikanKelompokSesuaiJenjang($data['jenjang'] ?? null, $data['kelompok_psb'] ?? null);
 
         $lembaga = Lembaga::create($data);
 
-        // Lembaga operasional baru: benih kamus dari nilai yang sudah ada
+        // Lembaga baru: benih kamus dari nilai yang sudah ada
         // (tanpa baris global, kamus lembaga baru kosong tanpa ini).
-        if (! is_null($lembaga->parent_id)) {
-            RefService::benihUntuk($lembaga->id);
-        }
+        RefService::benihUntuk($lembaga->jenjang);
 
-        return response()->json($lembaga->load('parent:id,nama,kode'), 201);
+        return response()->json($lembaga, 201);
     }
 
     public function update(LembagaUpdateRequest $request, Lembaga $lembaga)
     {
-        $this->authorizeLembaga(auth()->user(), $lembaga->id);
+        $this->authorizeLembaga(auth()->user(), $lembaga->jenjang);
 
         $data = $request->validated();
 
-        $this->pastikanKelompokSesuaiKode($data['kode'] ?? $lembaga->kode, $data['kelompok_psb'] ?? null);
-
-        if (! empty($data['parent_id'])) {
-            $this->authorizeLembaga(auth()->user(), (int) $data['parent_id']);
-        }
+        $this->pastikanKelompokSesuaiJenjang($data['jenjang'] ?? $lembaga->jenjang, $data['kelompok_psb'] ?? null);
 
         $lembaga->update($data);
 
         return response()->json($lembaga);
     }
 
-    /** Combo MI-MD hanya untuk lembaga berkode MI/MD; selain itu eksklusif. */
-    protected function pastikanKelompokSesuaiKode(?string $kode, ?string $kelompok): void
+    /** Combo MI-MD hanya untuk lembaga berjenjang MI/MD; selain itu eksklusif. */
+    protected function pastikanKelompokSesuaiJenjang(?string $jenjang, ?string $kelompok): void
     {
         if ($kelompok !== 'combo_mi_md') {
             return;
         }
-        if (! in_array(strtoupper((string) $kode), ['MI', 'MD'], true)) {
+        if (! in_array(strtoupper((string) $jenjang), ['MI', 'MD'], true)) {
             throw ValidationException::withMessages([
-                'kelompok_psb' => 'Combo MI-MD hanya untuk lembaga berkode MI atau MD.',
+                'kelompok_psb' => 'Combo MI-MD hanya untuk lembaga berjenjang MI atau MD.',
             ]);
         }
     }
@@ -107,7 +92,7 @@ class LembagaController extends Controller
         if (! $auth->can('lembaga.hapus')) {
             return response()->json(['message' => 'Akses ditolak.'], 403);
         }
-        $this->authorizeLembaga($auth, $lembaga->id);
+        $this->authorizeLembaga($auth, $lembaga->jenjang);
 
         $lembaga->delete();
 

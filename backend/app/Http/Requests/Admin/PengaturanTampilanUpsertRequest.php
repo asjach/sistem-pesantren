@@ -23,7 +23,7 @@ class PengaturanTampilanUpsertRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'lembaga_ids' => ['required'],
+            'jenjangs' => ['required'],
             'data' => ['required', 'array'],
             'data.tema' => ['sometimes', 'array'],
             'data.tema.theme' => ['sometimes', 'nullable', 'string', 'max:40'],
@@ -50,7 +50,7 @@ class PengaturanTampilanUpsertRequest extends FormRequest
             'data.toolbar' => ['sometimes', 'array'],
             'data.toolbar.*' => ['nullable', 'array'],
             'data.toolbar.*.*' => ['boolean'],
-            'sumber_lembaga_id' => ['sometimes', 'nullable', 'integer', 'exists:lembaga,id'],
+            'sumber_jenjang' => ['sometimes', 'nullable', 'string', 'exists:lembaga,jenjang'],
         ];
     }
 }

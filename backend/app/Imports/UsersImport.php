@@ -4,6 +4,7 @@ namespace App\Imports;
 
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Concerns\ToModel;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Concerns\WithValidation;
@@ -11,6 +12,7 @@ use Maatwebsite\Excel\Concerns\WithValidation;
 class UsersImport implements ToModel, WithHeadingRow, WithValidation
 {
     protected array $lembagaIds;
+
     protected array $allowedRoles;
 
     protected array $seenIdentifiers = [];
@@ -26,7 +28,7 @@ class UsersImport implements ToModel, WithHeadingRow, WithValidation
         $email = isset($row['email']) ? strtolower(trim((string) $row['email'])) : null;
         $phone = isset($row['phone']) ? trim((string) $row['phone']) : null;
         $username = isset($row['username']) ? trim((string) $row['username']) : null;
-        $key = ($email ?: '') . '|' . ($phone ?: '') . '|' . ($username ?: '');
+        $key = ($email ?: '').'|'.($phone ?: '').'|'.($username ?: '');
 
         if (in_array($key, $this->seenIdentifiers, true)) {
             return null;
@@ -44,8 +46,8 @@ class UsersImport implements ToModel, WithHeadingRow, WithValidation
 
         // Pivot tenant user_lembaga (users tanpa kolom tenant).
         foreach ($this->lembagaIds as $lid) {
-            \Illuminate\Support\Facades\DB::table('user_lembaga')->insert([
-                'user_id' => $user->id, 'lembaga_id' => (int) $lid,
+            DB::table('user_lembaga')->insert([
+                'user_id' => $user->id, 'jenjang' => (int) $lid,
                 'created_at' => now(), 'updated_at' => now(),
             ]);
         }

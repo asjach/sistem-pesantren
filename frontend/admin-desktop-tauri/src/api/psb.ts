@@ -21,10 +21,10 @@ export type PsbStatus = (typeof PSB_STATUS)[number];
 
 export interface PsbCalonLembaga {
   id: number;
-  lembaga_id: number;
+  jenjang: string;
   peran: 'primer' | 'anggota' | string;
   masuk_tingkat: string | null;
-  lembaga?: { id: number; nama: string; kode: string | null } | null;
+  lembaga?: { jenjang: string; nama: string } | null;
 }
 
 export interface PsbCalon {
@@ -39,10 +39,10 @@ export interface PsbCalon {
   email_ortu: string | null;
   telp_ortu: string | null;
   tanggal_daftar: string | null;
-  lembaga_id: number;
+  jenjang: string;
   gelombang_id: number;
   catatan_admin: string | null;
-  lembaga_tujuan?: { id: number; nama: string; kode: string | null } | null;
+  lembaga_tujuan?: { jenjang: string; nama: string } | null;
   lembaga_detail?: PsbCalonLembaga[];
   gelombang?: { id: number; nama: string } | null;
   butuh_seleksi?: boolean;
@@ -50,11 +50,11 @@ export interface PsbCalon {
   deleted_at?: string | null;
 }
 
-export function listAntrean(params: { status: string; search?: string; lembaga_id?: number; sort?: string[]; arah?: 'naik' | 'turun'; page?: number; per_page?: number; terhapus?: boolean; signal?: AbortSignal }) {
+export function listAntrean(params: { status: string; search?: string; jenjang?: string; sort?: string[]; arah?: 'naik' | 'turun'; page?: number; per_page?: number; terhapus?: boolean; signal?: AbortSignal }) {
   const q = new URLSearchParams();
   q.set('status', params.status);
   if (params.search) q.set('search', params.search);
-  if (params.lembaga_id) q.set('lembaga_id', String(params.lembaga_id));
+  if (params.jenjang) q.set('jenjang', params.jenjang);
   if (params.terhapus) q.set('terhapus', '1');
   if (params.sort?.length) q.set('sort', params.sort.join(','));
   if (params.arah) q.set('arah', params.arah);
@@ -188,10 +188,10 @@ export function bulkPulihkan(ids: number[]) {
   });
 }
 
-export function importPsb(input: { gelombang_id: number; lembaga_id: number; file: File }) {
+export function importPsb(input: { gelombang_id: number; jenjang: string; file: File }) {
   const fd = new FormData();
   fd.set('gelombang_id', String(input.gelombang_id));
-  fd.set('lembaga_id', String(input.lembaga_id));
+  fd.set('jenjang', input.jenjang);
   fd.set('file', input.file);
   return apiUpload<{ pesan: string; errors?: { row: number; attribute: string; errors: string[] }[] }>('/psb/import', fd);
 }
@@ -244,7 +244,7 @@ export interface PsbGelombangMaster {
 export interface PsbKuotaBiayaRow {
   id: number;
   gelombang_id: number;
-  lembaga_id: number;
+  jenjang: string;
   tipe_santri: 'semua' | 'asrama' | 'non_asrama';
   kuota: number | null;
   paket_tersedia: boolean;
@@ -253,8 +253,7 @@ export interface PsbKuotaBiayaRow {
 }
 
 export interface PsbLembagaOpsi {
-  id: number;
-  kode: string | null;
+  jenjang: string;
   nama: string;
   kelompok_psb: string | null;
   is_seleksi: boolean;
@@ -308,7 +307,7 @@ export function getKuotaBiaya(gelombangId: number) {
 
 export interface KuotaBiayaInput {
   gelombang_id: number;
-  lembaga_id: number;
+  jenjang: string;
   tipe_santri: 'semua' | 'asrama' | 'non_asrama';
   kuota?: number | null;
   paket_tersedia?: boolean;
@@ -326,7 +325,7 @@ export function deleteKuotaBiaya(id: number) {
 
 export interface PsbCalonInput {
   gelombang_id: number;
-  lembaga_id: number;
+  jenjang: string;
   tipe_santri: 'asrama' | 'non_asrama';
   nik: string;
   nama_lengkap: string;
@@ -364,21 +363,21 @@ export function verifikasiDokumen(dokumenId: number, input: { status: 'menunggu'
 export interface DokumenWajib {
   id: number;
   psb_kegiatan_id: number;
-  lembaga_id: number;
+  jenjang: string;
   jenis_dokumen_santri: string;
   is_wajib: boolean;
-  lembaga?: { id: number; nama: string; kode: string | null } | null;
+  lembaga?: { jenjang: string; nama: string } | null;
 }
 
-export function listDokumenWajib(kegiatanId: number, lembagaId?: number) {
+export function listDokumenWajib(kegiatanId: number, jenjang?: string) {
   const q = new URLSearchParams({ psb_kegiatan_id: String(kegiatanId) });
-  if (lembagaId) q.set('lembaga_id', String(lembagaId));
+  if (jenjang) q.set('jenjang', String(jenjang));
   return api<{ pesan: string; data: DokumenWajib[] }>(`/admin/dokumen-wajib?${q.toString()}`);
 }
 
 export function simpanDokumenWajib(input: {
   psb_kegiatan_id: number;
-  lembaga_id: number;
+  jenjang: string;
   jenis_dokumen_santri: string;
   is_wajib?: boolean;
 }) {

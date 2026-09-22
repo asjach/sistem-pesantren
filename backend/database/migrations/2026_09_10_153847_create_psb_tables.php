@@ -38,7 +38,8 @@ return new class extends Migration
         Schema::create('psb_kuota_biaya', function (Blueprint $table) {
             $table->id();
             $table->foreignId('gelombang_id')->constrained('psb_gelombang')->cascadeOnDelete();
-            $table->foreignId('lembaga_id')->constrained('lembaga')->cascadeOnDelete();
+            $table->string('jenjang', 20);
+            $table->foreign('jenjang')->references('jenjang')->on('lembaga')->cascadeOnUpdate()->cascadeOnDelete();
             $table->enum('tipe_santri', ['semua', 'asrama', 'non_asrama'])->default('semua');
             $table->boolean('paket_tersedia')->default(false); // paket MI-MD ditawarkan (di baris primer MI)
             $table->integer('kuota')->nullable();
@@ -46,12 +47,13 @@ return new class extends Migration
             $table->boolean('membutuhkan_pemberkasan')->default(true);
             $table->timestamps();
 
-            $table->unique(['gelombang_id', 'lembaga_id', 'tipe_santri']);
+            $table->unique(['gelombang_id', 'jenjang', 'tipe_santri']);
         });
 
         Schema::create('psb_calon_santri', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('lembaga_id')->constrained('lembaga')->cascadeOnDelete(); // lembaga tujuan
+            $table->string('jenjang', 20);
+            $table->foreign('jenjang')->references('jenjang')->on('lembaga')->cascadeOnUpdate()->cascadeOnDelete(); // lembaga tujuan
             $table->foreignId('gelombang_id')->nullable()->constrained('psb_gelombang')->nullOnDelete();
             $table->string('tahun_ajaran', 9)->nullable(); // FK ke tahun_ajaran.nama
             $table->foreignId('kelas_id')->nullable()->constrained('kelas')->nullOnDelete();
@@ -148,7 +150,7 @@ return new class extends Migration
             $table->unique('no_pendaftaran'); // 1 calon = 1 nomor (paket MI-MD kini 1 baris calon)
             // TANPA unique NIK: NIK boleh fiktif/ganda antar anak berbeda; dedup identitas (nik+nama+tgl_lahir) di service.
             $table->index(['gelombang_id', 'nik']);
-            $table->index(['lembaga_id', 'status_pendaftaran', 'updated_at']);
+            $table->index(['jenjang', 'status_pendaftaran', 'updated_at']);
             $table->foreign('tahun_ajaran')->references('nama')->on('tahun_ajaran')
                 ->cascadeOnUpdate()->nullOnDelete();
         });
@@ -159,13 +161,14 @@ return new class extends Migration
         Schema::create('psb_calon_lembaga', function (Blueprint $table) {
             $table->id();
             $table->foreignId('psb_calon_santri_id')->constrained('psb_calon_santri')->cascadeOnDelete();
-            $table->foreignId('lembaga_id')->constrained('lembaga')->cascadeOnDelete();
+            $table->string('jenjang', 20);
+            $table->foreign('jenjang')->references('jenjang')->on('lembaga')->cascadeOnUpdate()->cascadeOnDelete();
             $table->string('peran', 10)->default('primer'); // primer | anggota
             $table->string('masuk_tingkat', 2)->nullable(); // tingkat per lembaga (paket MI-MD = 1 & 1)
             $table->timestamps();
 
-            $table->unique(['psb_calon_santri_id', 'lembaga_id']);
-            $table->index('lembaga_id');
+            $table->unique(['psb_calon_santri_id', 'jenjang']);
+            $table->index('jenjang');
         });
 
         Schema::create('dokumen_santri', function (Blueprint $table) {
@@ -187,13 +190,14 @@ return new class extends Migration
             $table->id();
             // Ketentuan dokumen PSB per kegiatan + lembaga.
             $table->foreignId('psb_kegiatan_id')->nullable()->constrained('psb_kegiatan')->cascadeOnDelete();
-            $table->foreignId('lembaga_id')->constrained('lembaga')->cascadeOnDelete();
+            $table->string('jenjang', 20);
+            $table->foreign('jenjang')->references('jenjang')->on('lembaga')->cascadeOnUpdate()->cascadeOnDelete();
             $table->string('jenis_dokumen_santri'); // ref_jenis_dokumen_santri
             $table->boolean('is_wajib')->default(true);
             $table->timestamps();
 
-            $table->index('lembaga_id');
-            $table->unique(['psb_kegiatan_id', 'lembaga_id', 'jenis_dokumen_santri'], 'dokumen_wajib_scope_unique');
+            $table->index('jenjang');
+            $table->unique(['psb_kegiatan_id', 'jenjang', 'jenis_dokumen_santri'], 'dokumen_wajib_scope_unique');
         });
 
         Schema::create('psb_log_status', function (Blueprint $table) {

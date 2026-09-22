@@ -14,8 +14,8 @@ class ImportUserRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'lembaga_ids' => ['nullable', 'array'],
-            'lembaga_ids.*' => ['integer', 'exists:lembaga,id'],
+            'jenjangs' => ['nullable', 'array'],
+            'jenjangs.*' => ['string', 'exists:lembaga,jenjang'],
             'file' => ['required', 'file', 'mimes:xlsx,xls,csv', 'max:5120'],
         ];
     }

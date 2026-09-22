@@ -66,7 +66,7 @@ export function hapusMdMiMd(items: Array<{ santri_id: number }>) {
 export interface MutasiKeluar {
   id: number;
   santri_id: number;
-  lembaga_id: number;
+  jenjang: string;
   kelas_terakhir_id: number | null;
   tanggal_mutasi: string | null;
   alasan_mutasi: string | null;
@@ -74,14 +74,13 @@ export interface MutasiKeluar {
   nama_sekolah_tujuan: string | null;
   keterangan: string | null;
   santri?: { id: number; nama_lengkap: string; nisn: string | null } | null;
-  lembaga?: { id: number; nama: string; kode: string | null } | null;
+  lembaga?: { jenjang: string; nama: string } | null;
   kelas_terakhir?: { id: number; nama_kelas: string } | null;
 }
 
 export interface Alumni {
   id: number;
   santri_id: number;
-  lembaga_lulus_id: number;
   tahun_ajaran_lulus: string;
   nomor_ijazah: string | null;
   no_surat_ijazah: string | null;
@@ -92,7 +91,7 @@ export interface Alumni {
   catatan: string | null;
   kelas_lulus_id: number | null;
   santri?: { id: number; nama_lengkap: string; nisn: string | null } | null;
-  lembaga_lulus?: { id: number; nama: string; kode: string | null } | null;
+  lembaga_lulus?: { jenjang: string; nama: string } | null;
   tahunAjaranLulus?: { nama: string } | null;
   kelas_lulus?: { id: number; nama_kelas: string } | null;
 }
@@ -103,7 +102,7 @@ export interface RiwayatRow {
   id: number;
   santri_id: number;
   tahun_ajaran: string;
-  lembaga_id: number;
+  jenjang: string;
   kelas_id: number | null;
   semester: string;
   tgl_masuk: string | null;
@@ -121,12 +120,12 @@ export interface RiwayatRow {
   lembaga_anggota?: LembagaSantri | null;
   santri?: SantriPenuh | null;
   kelas?: { id: number; nama_kelas: string; tingkat: string | null } | null;
-  lembaga?: { id: number; nama: string; kode: string | null } | null;
+  lembaga?: { jenjang: string; nama: string } | null;
   tahunAjaran?: { nama: string } | null;
 }
 
 export function listRiwayatBelajar(params: {
-  lembaga_id?: number;
+  jenjang?: string;
   tahun_ajaran?: string;
   semester?: string;
   tingkat?: string;
@@ -143,7 +142,7 @@ export function listRiwayatBelajar(params: {
   signal?: AbortSignal;
 } = {}) {
   const q = new URLSearchParams();
-  if (params.lembaga_id) q.set('lembaga_id', String(params.lembaga_id));
+  if (params.jenjang) q.set('jenjang', params.jenjang);
   if (params.tahun_ajaran) q.set('tahun_ajaran', params.tahun_ajaran);
   if (params.semester) q.set('semester', params.semester);
   if (params.tingkat) q.set('tingkat', params.tingkat);
@@ -163,7 +162,7 @@ export function listRiwayatBelajar(params: {
 /** Dialog input riwayat / penerimaan santri ke lembaga (satu pintu). */
 export function createRiwayatBelajar(input: {
   santri_id: number;
-  lembaga_id: number;
+  jenjang: string;
   tahun_ajaran: string;
   kelas_id?: number | null;
   tingkat?: string | null;
@@ -217,7 +216,7 @@ export function batalRiwayat(riwayatId: number) {
 
 /** Panel kiri halaman ganjil: anggota aktif tanpa riwayat (siap dipanah masuk). */
 export function listBelumMasukRiwayat(params: {
-  lembaga_id: number;
+  jenjang: string;
   tahun_ajaran: string;
   q?: string;
   page?: number;
@@ -225,7 +224,7 @@ export function listBelumMasukRiwayat(params: {
   signal?: AbortSignal;
 }) {
   const q = new URLSearchParams();
-  q.set('lembaga_id', String(params.lembaga_id));
+  q.set('jenjang', params.jenjang);
   q.set('tahun_ajaran', params.tahun_ajaran);
   if (params.q) q.set('q', params.q);
   q.set('page', String(params.page ?? 1));
@@ -254,7 +253,7 @@ export function periksaImportRiwayatBelajar(input: { file: File }) {
 // ---------- Daftar kelas & rekap ----------
 
 export function daftarKelas(params: {
-  lembaga_id: number;
+  jenjang: string;
   tahun_ajaran?: string;
   semester?: string;
   kelas_id?: number;
@@ -264,14 +263,14 @@ export function daftarKelas(params: {
   /** Matikan default TA/semester agar bisa lintas periode. */
   lintas_periode?: boolean;
 }) {
-  const q = new URLSearchParams({ lembaga_id: String(params.lembaga_id) });
+  const q = new URLSearchParams({ jenjang: params.jenjang });
   if (params.tahun_ajaran) q.set('tahun_ajaran', params.tahun_ajaran);
   if (params.semester) q.set('semester', params.semester);
   if (params.kelas_id) q.set('kelas_id', String(params.kelas_id));
   if (params.tingkat) q.set('tingkat', params.tingkat);
   if (params.kelompok_status) q.set('kelompok_status', params.kelompok_status);
   if (params.lintas_periode) q.set('lintas_periode', '1');
-  return api<{ lembaga_id: number; tahun_ajaran: string | null; semester: string | null; data: RiwayatRow[] }>(
+  return api<{ jenjang: string; tahun_ajaran: string | null; semester: string | null; data: RiwayatRow[] }>(
     `/admin/akademik/daftar-kelas?${q.toString()}`,
   );
 }
@@ -301,18 +300,18 @@ export interface RekapSantri {
   }[];
 }
 
-export function rekapSantri(params: { lembaga_id?: number; tahun_ajaran?: string } = {}) {
+export function rekapSantri(params: { jenjang?: string; tahun_ajaran?: string } = {}) {
   const q = new URLSearchParams();
-  if (params.lembaga_id) q.set('lembaga_id', String(params.lembaga_id));
+  if (params.jenjang) q.set('jenjang', params.jenjang);
   if (params.tahun_ajaran) q.set('tahun_ajaran', params.tahun_ajaran);
   return api<RekapSantri>(`/admin/akademik/rekap-santri?${q.toString()}`);
 }
 
 // ---------- Aksi siklus ----------
 
-export function listMutasiKeluar(params: { lembaga_id?: number; sort?: string[]; arah?: 'naik' | 'turun'; page?: number; per_page?: number } = {}) {
+export function listMutasiKeluar(params: { jenjang?: string; sort?: string[]; arah?: 'naik' | 'turun'; page?: number; per_page?: number } = {}) {
   const q = new URLSearchParams();
-  if (params.lembaga_id) q.set('lembaga_id', String(params.lembaga_id));
+  if (params.jenjang) q.set('jenjang', params.jenjang);
   if (params.sort?.length) q.set('sort', params.sort.join(','));
   if (params.arah) q.set('arah', params.arah);
   q.set('page', String(params.page ?? 1));
@@ -321,10 +320,10 @@ export function listMutasiKeluar(params: { lembaga_id?: number; sort?: string[];
 }
 
 export function listAlumni(
-  params: { lembaga_id?: number; tahun_ajaran_lulus?: string; sort?: string[]; arah?: 'naik' | 'turun'; page?: number; per_page?: number } = {},
+  params: { jenjang?: string; tahun_ajaran_lulus?: string; sort?: string[]; arah?: 'naik' | 'turun'; page?: number; per_page?: number } = {},
 ) {
   const q = new URLSearchParams();
-  if (params.lembaga_id) q.set('lembaga_id', String(params.lembaga_id));
+  if (params.jenjang) q.set('jenjang', params.jenjang);
   if (params.tahun_ajaran_lulus) q.set('tahun_ajaran_lulus', params.tahun_ajaran_lulus);
   if (params.sort?.length) q.set('sort', params.sort.join(','));
   if (params.arah) q.set('arah', params.arah);
@@ -335,7 +334,7 @@ export function listAlumni(
 
 /** Salin ganjil→genap massal per lembaga; tanpa `siswa` = semua baris ganjil aktif. */
 export function salinGenapMassal(input: {
-  lembaga_id: number;
+  jenjang: string;
   tanggal_masuk: string;
   siswa?: { santri_id: number; kelas_id?: number; no_absen?: number }[];
 }) {
@@ -353,7 +352,7 @@ export interface NaikKelasItem {
 }
 
 export function naikKelasMassal(input: {
-  lembaga_id: number;
+  jenjang: string;
   tahun_ajaran_baru: string;
   tingkat: string;
   siswa: NaikKelasItem[];
@@ -365,10 +364,10 @@ export function naikKelasMassal(input: {
 }
 
 /** Batalkan hasil kenaikan: hapus baris baru + buka kembali baris asal. */
-export function batalKenaikan(santriId: number, lembaga_id: number) {
+export function batalKenaikan(santriId: number, jenjang: string) {
   return api<{ pesan: string }>(
     `/admin/santri/${santriId}/batal-kenaikan`,
-    { method: 'POST', body: JSON.stringify({ lembaga_id }) },
+    { method: 'POST', body: JSON.stringify({ jenjang }) },
   );
 }
 /** Kenaikan otomatis: TA + kelas tujuan dibuatkan bila belum ada.
@@ -376,7 +375,7 @@ export function batalKenaikan(santriId: number, lembaga_id: number) {
 export interface HasilKenaikan { santri_id: number; nama: string | null; kelas: string | null; tingkat: string | null; tahun_ajaran: string | null; }
 
 export function naikKelasOtomatis(input: {
-  lembaga_id: number;
+  jenjang: string;
   siswa: { santri_id: number; status: 'naik' | 'tidak_naik'; tgl_masuk: string }[];
 }) {
   return api<{ pesan: string; berhasil: number; gagal: { santri_id: number | null; pesan: string }[]; data: HasilKenaikan[] }>(
@@ -388,7 +387,7 @@ export function naikKelasOtomatis(input: {
 export function lulusSantri(
   santriId: number,
   input: {
-    lembaga_id: number;
+    jenjang: string;
     tahun_ajaran_lulus: string;
     tanggal_lulus: string;
     nomor_ijazah?: string;
@@ -404,17 +403,17 @@ export function lulusSantri(
   });
 }
 
-export function tidakLulusSantri(santriId: number, lembagaId: number) {
+export function tidakLulusSantri(santriId: number, jenjang: string) {
   return api<{ pesan: string; data: RiwayatRow }>(`/admin/santri/${santriId}/tidak-lulus`, {
     method: 'POST',
-    body: JSON.stringify({ lembaga_id: lembagaId }),
+    body: JSON.stringify({ jenjang }),
   });
 }
 
 export function mutasiSantri(
   santriId: number,
   input: {
-    lembaga_id: number;
+    jenjang: string;
     tanggal_mutasi: string;
     alasan_mutasi: string;
     kelas_terakhir_id?: number;
@@ -432,10 +431,10 @@ export function mutasiSantri(
   });
 }
 
-export function berhentiJenjang(santriId: number, lembagaId: number) {
+export function berhentiJenjang(santriId: number, jenjang: string) {
   return api<{ pesan: string; data: unknown }>(`/admin/santri/${santriId}/berhenti-jenjang`, {
     method: 'POST',
-    body: JSON.stringify({ lembaga_id: lembagaId }),
+    body: JSON.stringify({ jenjang }),
   });
 }
 

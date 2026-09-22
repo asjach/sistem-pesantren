@@ -17,9 +17,9 @@ PSB → kepegawaian → akademik → nilai → presensi → asrama → tahfizh �
 `down()` sebaliknya (dependent dulu). `migrate:fresh` boleh pre-production.
 
 > Keputusan desain (v1.10, gambaran umum — masih bisa berubah):
-> 1. `santri.lembaga_id` boleh NULL (legacy tanpa track); sumber kebenaran
->    lembaga = `riwayat_belajar`, kolom ini cache lembaga primer terakhir.
->    **Batal di v2.0: kolom dihapus total — legacy = santri tanpa riwayat.**
+> 1. `santri` tidak menyimpan kolom lembaga (identitas murni); sumber kebenaran
+>    lembaga = `riwayat_belajar`/`lembaga_santri` (FK `jenjang`).
+>    **v2.0: kolom lembaga di `santri` dihapus total — legacy = santri tanpa riwayat.**
 > 2. `santri.is_active_pst` turunan murni (default 'Tidak'): 'Ya' iff punya ≥1
 >    `riwayat_belajar.is_active_riwayat='Ya'`. **Sudah diimplementasikan (v1.10.2 + backfill).**
 > 3. Asrama = entitas sendiri (BLOK 10), peran `asrama` (7 peran) + pivot
@@ -38,18 +38,15 @@ Tanpa kolom tenant — tenant = pivot `user_lembaga`.
 ## BLOK 1 — Dasar & Referensi (Modul 003 Auth Login + 004 Referensi-Master)
 
 ### `lembaga`
-- `id` PK
-- `parent_id`: FK → lembaga [null, nullOnDelete] — null = root pesantren
+- `jenjang` PK: string(20) — kunci alami lembaga, pola `^[A-Z0-9]{1,20}$` (mis. `MI`, `MD`, `MTS`, `MLN`); **imutabel** setelah dibuat
 - `nama`: string — PENYATUAN: bukan 'nama_lembaga'
 - `nama_singkat`: string [null] — EMIS: nama singkatan
-- `kode`: string(20) [null] — kode beku: PESANTREN (root), MI, MD, MTS, MUA (untuk no_pendaftaran + tampilan)
-- `mudir_am`: string [null] — kepala lembaga (di root = pimpinan pesantren, di unit = kepala madrasah)
-- `jenjang`: string [null] — free string (tidak di-enum)
+- `mudir_am`: string [null] — kepala madrasah/unit
 - `status`: enum(negeri|swasta) [default 'swasta'] — EMIS: status madrasah
 - `npsn`: string(20) [null, unique] — EMIS/Kemendikbud, global unique
 - `nsm`: string(30) [null, unique] — EMIS/Kemenag 12 digit, global unique
 - `npwp`: string [null] — EMIS/BOS
-- UNIQUE(`kode`) — kode lembaga unik global (single-pesantren)
+- PK(`jenjang`) — satu baris per jenjang (single-pesantren, tanpa hierarki/root)
 - CATATAN: asrama **bukan** lembaga — entitas + peran + pivot sendiri (BLOK 10).
 - `no_izin_operasional`: string [null] — Legalitas full EMIS:
 - `tgl_izin`: date [null]
@@ -85,63 +82,63 @@ Tanpa kolom tenant — tenant = pivot `user_lembaga`.
 
 ### `ref_agama`
 - `id` PK
-- `lembaga_id`: FK → lembaga [null, nullOnDelete]
+- `jenjang`: FK → lembaga [null, nullOnDelete]
 - `nama`: string
 - `urutan`: int [default 0]
 - `is_active`: bool [default true]
-- UNIQUE(`lembaga_id`, `nama`) — PITFALL: MySQL unique membolehkan duplikat NULL — duplikasi baris global dicegah di service (RefService), bukan andalkan index
+- UNIQUE(`jenjang`, `nama`) — PITFALL: MySQL unique membolehkan duplikat NULL — duplikasi baris global dicegah di service (RefService), bukan andalkan index
 
 ### `ref_cita_cita`
 - `id` PK
-- `lembaga_id`: FK → lembaga [null, nullOnDelete]
+- `jenjang`: FK → lembaga [null, nullOnDelete]
 - `nama`: string
 - `urutan`: int [default 0]
 - `is_active`: bool [default true]
-- UNIQUE(`lembaga_id`, `nama`) — PITFALL: MySQL unique membolehkan duplikat NULL — duplikasi baris global dicegah di service (RefService), bukan andalkan index
+- UNIQUE(`jenjang`, `nama`) — PITFALL: MySQL unique membolehkan duplikat NULL — duplikasi baris global dicegah di service (RefService), bukan andalkan index
 
 ### `ref_hobi`
 - `id` PK
-- `lembaga_id`: FK → lembaga [null, nullOnDelete]
+- `jenjang`: FK → lembaga [null, nullOnDelete]
 - `nama`: string
 - `urutan`: int [default 0]
 - `is_active`: bool [default true]
-- UNIQUE(`lembaga_id`, `nama`) — PITFALL: MySQL unique membolehkan duplikat NULL — duplikasi baris global dicegah di service (RefService), bukan andalkan index
+- UNIQUE(`jenjang`, `nama`) — PITFALL: MySQL unique membolehkan duplikat NULL — duplikasi baris global dicegah di service (RefService), bukan andalkan index
 
 ### `ref_pekerjaan`
 - `id` PK
-- `lembaga_id`: FK → lembaga [null, nullOnDelete]
+- `jenjang`: FK → lembaga [null, nullOnDelete]
 - `nama`: string
 - `urutan`: int [default 0]
 - `is_active`: bool [default true]
-- UNIQUE(`lembaga_id`, `nama`) — PITFALL: MySQL unique membolehkan duplikat NULL — duplikasi baris global dicegah di service (RefService), bukan andalkan index
+- UNIQUE(`jenjang`, `nama`) — PITFALL: MySQL unique membolehkan duplikat NULL — duplikasi baris global dicegah di service (RefService), bukan andalkan index
 
 ### `ref_pendidikan`
 - `id` PK
-- `lembaga_id`: FK → lembaga [null, nullOnDelete]
+- `jenjang`: FK → lembaga [null, nullOnDelete]
 - `nama`: string
 - `urutan`: int [default 0]
 - `is_active`: bool [default true]
-- UNIQUE(`lembaga_id`, `nama`) — PITFALL: MySQL unique membolehkan duplikat NULL — duplikasi baris global dicegah di service (RefService), bukan andalkan index
+- UNIQUE(`jenjang`, `nama`) — PITFALL: MySQL unique membolehkan duplikat NULL — duplikasi baris global dicegah di service (RefService), bukan andalkan index
 
 ### `ref_kebutuhan_khusus`
 - `id` PK
-- `lembaga_id`: FK → lembaga [null, nullOnDelete]
+- `jenjang`: FK → lembaga [null, nullOnDelete]
 - `nama`: string
 - `urutan`: int [default 0]
 - `is_active`: bool [default true]
-- UNIQUE(`lembaga_id`, `nama`) — PITFALL: MySQL unique membolehkan duplikat NULL — duplikasi baris global dicegah di service (RefService), bukan andalkan index
+- UNIQUE(`jenjang`, `nama`) — PITFALL: MySQL unique membolehkan duplikat NULL — duplikasi baris global dicegah di service (RefService), bukan andalkan index
 
 ### `ref_kota`
 - `id` PK
-- `lembaga_id`: FK → lembaga [null, nullOnDelete]
+- `jenjang`: FK → lembaga [null, nullOnDelete]
 - `nama`: string
 - `urutan`: int [default 0]
 - `is_active`: bool [default true]
-- UNIQUE(`lembaga_id`, `nama`) — PITFALL: MySQL unique membolehkan duplikat NULL — duplikasi baris global dicegah di service (RefService), bukan andalkan index
+- UNIQUE(`jenjang`, `nama`) — PITFALL: MySQL unique membolehkan duplikat NULL — duplikasi baris global dicegah di service (RefService), bukan andalkan index
 
 ### `ref_alamat`
 - `id` PK
-- `lembaga_id`: FK → lembaga [null, nullOnDelete]
+- `jenjang`: FK → lembaga [null, nullOnDelete]
 - `nama`: string — mis. 'Sekebolek'
 - `provinsi`: string [null]
 - `kab_kota`: string [null]
@@ -153,34 +150,34 @@ Tanpa kolom tenant — tenant = pivot `user_lembaga`.
 - `kode_pos`: string(10) [null]
 - `urutan`: int [default 0]
 - `is_active`: bool [default true]
-- UNIQUE(`lembaga_id`, `nama`) — scope LEMBAGA, pola KEY sama dengan ref lain
+- UNIQUE(`jenjang`, `nama`) — scope LEMBAGA, pola KEY sama dengan ref lain
 
 ### `ref_status_awal`
 - `id` PK
-- `lembaga_id`: FK → lembaga [null, nullOnDelete]
+- `jenjang`: FK → lembaga [null, nullOnDelete]
 - `kode`: string — santri_baru, naik_kelas, mengulang, pindahan (+ custom); NILAI yang disimpan konsumen
 - `nama`: string — teks tampilan (seragam dengan tabel ref lain; dulu bernama `label`)
 - `urutan`: int [default 0]
 - `is_active`: bool [default true]
-- UNIQUE(`lembaga_id`, `kode`)
+- UNIQUE(`jenjang`, `kode`)
 
 ### `ref_status_akhir`
 - `id` PK
-- `lembaga_id`: FK → lembaga [null, nullOnDelete]
+- `jenjang`: FK → lembaga [null, nullOnDelete]
 - `kode`: string — aktif, naik, tidak_naik, pindah_keluar, lulus, tidak_lulus (+ custom, no.51); NILAI yang disimpan konsumen
 - `nama`: string — teks tampilan (seragam dengan tabel ref lain; dulu bernama `label`)
 - `is_aktif_bawaan`: bool [default false] — Sifat logika (terkunci untuk baris sistem): / true HANYA untuk 'aktif' (is_aktif=true iff status_akhir aktif)
 - `terminal_ke`: string [null] — null = bukan terminal (custom baru selalu null = non-aktif netral)
 - `urutan`: int [default 0]
 - `is_active`: bool [default true]
-- UNIQUE(`lembaga_id`, `kode`)
+- UNIQUE(`jenjang`, `kode`)
 
 ### `user_lembaga`
 - `id` PK
 - `user_id`: FK → users [cascade]
-- `lembaga_id`: FK → lembaga [cascade]
+- `jenjang`: FK → lembaga [cascade]
 - `created_at`, `updated_at`
-- UNIQUE(`user_id`, `lembaga_id`)
+- UNIQUE(`user_id`, `jenjang`)
 
 ### Izin matriks (Spatie, guard `sanctum`)
 Izin = AKSI (`modul.aksi`, katalog `IzinKatalog::MODUL_AKSI`); pivot `user_lembaga` = CAKUPAN data.
@@ -211,15 +208,15 @@ Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca
 - `tanggal_selesai`: date [null]
 - `is_aktif`: bool [default false] — TA berjalan (satu, global)
 - `created_at`, `updated_at`
-- Tanpa `id`/`lembaga_id`/`is_active`: TA murni global; visibilitas per lembaga lewat pivot `lembaga_tahun_ajaran`.
+- Tanpa `id`/`jenjang`/`is_active`: TA murni global; visibilitas per lembaga lewat pivot `lembaga_tahun_ajaran`.
 
 ### `lembaga_tahun_ajaran` (pivot visibilitas TA per lembaga)
 - `id` PK
-- `lembaga_id`: FK → lembaga [cascade]
+- `jenjang`: FK → lembaga [cascade]
 - `tahun_ajaran`: varchar(9) FK → tahun_ajaran.nama [cascade update + delete]
 - `is_active`: bool [default true] — tampil/tidak untuk lembaga ini (sembunyikan = baris nonaktif)
 - `created_at`, `updated_at`
-- UNIQUE(`lembaga_id`, `tahun_ajaran`)
+- UNIQUE(`jenjang`, `tahun_ajaran`)
 
 
 ### `pegawai`
@@ -267,17 +264,17 @@ Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca
 
 ### `kelas`
 - `id` PK
-- `lembaga_id`: FK → lembaga [cascade]
+- `jenjang`: FK → lembaga [cascade]
 - `tahun_ajaran`: varchar(9) FK → tahun_ajaran.nama [cascade update + delete]
 - `walas_id`: FK → pegawai [null, nullOnDelete] — wali kelas → pegawai
 - `tingkat`: string [null] — ref_tingkat ('7','8','9'); grouping saat kelas_id null di riwayat
 - `nama_kelas`: string — 'VII-A'; dinormalisasi model (trim + rapat spasi)
 - `kapasitas`: int [null]
 - `created_at`, `updated_at`
-- UNIQUE(`lembaga_id`, `tahun_ajaran`, `nama_kelas`) — satu nama kelas hanya sekali per lembaga + tahun ajaran (kolasi CI; migrasi mem-dedupe + merapikan spasi lebih dulu)
+- UNIQUE(`jenjang`, `tahun_ajaran`, `nama_kelas`) — satu nama kelas hanya sekali per lembaga + tahun ajaran (kolasi CI; migrasi mem-dedupe + merapikan spasi lebih dulu)
 
 ### Pola `ref_*` (24 tabel loop + eksplisit `ref_agama/cita_cita/hobi/pekerjaan/pendidikan/kebutuhan_khusus/kota/alamat/status_awal/status_akhir`)
-- Kolom: `id` PK; `lembaga_id`? FK → `lembaga` (null=global, terisi=milik lembaga); `nama`; `urutan` [default 0]; `is_active` [default true]; unique(`lembaga_id`,`nama`) — pitfall multi-NULL, dedup di `RefService`.
+- Kolom: `id` PK; `jenjang` FK → `lembaga` (nullable teknis, tanpa baris global; `null` = sisa legacy); `nama`; `urutan` [default 0]; `is_active` [default true]; unique(`jenjang`,`nama`) — pitfall multi-NULL, dedup di `RefService`.
 - Urut tampil (v1.10.7): `urutan` ASC, tie-break `nama` ASC — termasuk `ref_status_awal/akhir` (kode = nilai, nama = tampilan).
 - `ref_alamat` tambahan: wilayah free string + snapshot autofill. `ref_status_akhir`: `is_aktif_bawaan`, `terminal_ke`.
 - Tabel loop: `ref_penghasilan`, `ref_transportasi`, `ref_status_tinggal`, `ref_jarak`, `ref_waktu_tempuh`, `ref_bahasa_sehari_hari`, `ref_disabilitas`, `ref_tmp_lahir`, `ref_status_ortu`, `ref_yang_membiayai`, `ref_provinsi`, `ref_kecamatan`, `ref_desa_kelurahan`, `ref_alasan_mutasi`, `ref_jenis_dokumen_santri`, `ref_jenis_dokumen_pegawai`, `ref_status_pernikahan`, `ref_gol_darah`, `ref_jenis_ptk`, `ref_jenjang_sertifikasi`, `ref_tingkat`, `ref_tugas_utama`, `ref_tipe_pelanggaran`, `ref_jalur_sertifikasi`
@@ -367,7 +364,7 @@ Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca
 **Keanggotaan santri per lembaga** (bukan pivot murni): NIS lokal/kemenag + status + rentang keanggotaan. Multi-lembaga paralel diizinkan (mis. MI+MD); maks 1 baris `is_active_lembaga='Ya'` per (santri, lembaga) — invariant aplikasi.
 - `id` PK
 - `santri_id`: FK → santri [cascade]
-- `lembaga_id`: FK → lembaga [cascade]
+- `jenjang`: FK → lembaga [cascade]
 - `nis_lokal`: string(20) [null] — NIS per lembaga, unik per lembaga
 - `nis_kemenag`: string(20) [null] — NISK manual: 12 digit NSM lembaga + 2 digit tahun diterima + 4 digit akhir `nis_lokal`; unik per lembaga
 - `tahaj_masuk`: string(50) [null] — tahun pelajaran saat masuk (mis. "2026/2027"), bukan FK
@@ -378,14 +375,14 @@ Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca
 - `tgl_masuk`: date [null] — saat diterima (PSB/dialog/import); dulu `tgl_mulai`
 - `tgl_selesai`: date [null] — saat kelulusan/mutasi
 - `created_at`, `updated_at`
-- UNIQUE(`lembaga_id`, `nis_lokal`) · UNIQUE(`lembaga_id`, `nis_kemenag`) [multi-NULL boleh] · INDEX(`santri_id`,`is_active_lembaga`) · INDEX(`lembaga_id`,`is_active_lembaga`)
+- UNIQUE(`jenjang`, `nis_lokal`) · UNIQUE(`jenjang`, `nis_kemenag`) [multi-NULL boleh] · INDEX(`santri_id`,`is_active_lembaga`) · INDEX(`jenjang`,`is_active_lembaga`)
 - PENGECUALIAN PASANGAN MI↔MD (global sejak v2.61, timbal-balik): admin scoped pemegang MI/MD bisa baca-tulis sisi pasangannya di semua endpoint; non-pasangan tetap terisolasi, act-as tetap ketat.
 
 ### `riwayat_belajar`
 - `id` PK
 - `santri_id`: FK → santri [cascade]
 - `tahun_ajaran`: varchar(9) FK → tahun_ajaran.nama [cascade update + delete]
-- `lembaga_id`: FK → lembaga [cascade]
+- `jenjang`: FK → lembaga [cascade]
 - `kelas_id`: FK → kelas [null, nullOnDelete] — null = belum ditempatkan (naik dulu, penempatan menyusul)
 - `semester`: string(2) [default '1'] — '1' ganjil, '2' genap (selaras nilai_santri)
 - `tgl_masuk`: date [null] — mulai per semester (ganjil=awal tahun, genap=awal semester 2)
@@ -395,13 +392,13 @@ Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca
 - `status_akhir`: string [default 'aktif'] — Hasil semester ini (string bebas, validasi ke ref_status_akhir efektif).
 - `is_active_riwayat`: enum('Ya','Tidak') [default 'Ya'] — Sedang berjalan. INVARIANT: 'Ya' iff status_akhir='aktif'. Ditulis hanya via SiklusSantriService. / Ganjil→genap: ganjil ditutup (is_active_riwayat='Tidak', arsip), genap aktif — 1 aktif per santri-lembaga terjaga. / Berhenti satu jenjang (paket MD berhenti, MI lanjut): baris MD (is_active_riwayat='Tidak', status_akhir dipertahankan). / santri.is_active_pst='Tidak' hanya jika SELURUH riwayat non-aktif (dihitung ulang di 102).
 - `created_at`, `updated_at`
-- UNIQUE(`santri_id`, `tahun_ajaran`, `lembaga_id`, `semester`, `uq_riwayat_belajar_stls`) — nama pendek: auto-name 68 char > limit MySQL 64
+- UNIQUE(`santri_id`, `tahun_ajaran`, `jenjang`, `semester`, `uq_riwayat_belajar_stls`) — nama pendek: auto-name 68 char > limit MySQL 64
 - INDEX(`kelas_id`, `tahun_ajaran`, `semester`, `no_absen`) — Performa cek bentrok no_absen (bukan unique: kelas_id/no_absen nullable, multi-NULL diizinkan MySQL).
 
 ### `mutasi_keluar`
 - `id` PK
 - `santri_id`: FK → santri [cascade]
-- `lembaga_id`: FK → lembaga [cascade]
+- `jenjang`: FK → lembaga [cascade]
 - `kelas_terakhir_id`: FK → kelas [null, nullOnDelete] — beku otomatis dari riwayat aktif terakhir; input manual menang bila diisi
 - `tanggal_mutasi`: date
 - `alasan_mutasi`: string [null] — kamus ref_alasan_mutasi (string bebas, tanpa FK)
@@ -416,7 +413,7 @@ Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca
 ### `alumni`
 - `id` PK
 - `santri_id`: FK → santri [cascade]
-- `lembaga_lulus_id`: FK → lembaga [cascade]
+- `lembaga_lulus`: FK → lembaga [cascade]
 - `kelas_lulus_id`: FK → kelas [null, nullOnDelete] — snapshot beku kelas terakhir saat lulus
 - `tahun_ajaran_lulus`: varchar(9) FK → tahun_ajaran.nama [cascade update + delete]
 - `nomor_ijazah`: string [null]
@@ -433,7 +430,7 @@ Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca
 
 ### `psb_kegiatan`
 - `id` PK
-- `tahun_ajaran`: varchar(9) FK → tahun_ajaran.nama [cascade update + delete] — TA pesantren/root
+- `tahun_ajaran`: varchar(9) FK → tahun_ajaran.nama [cascade update + delete] — TA global (data pesantren)
 - `nama`: string — misal 'PSB 2026/2027'
 - `is_aktif`: bool [default true] — hanya satu kegiatan aktif (aturan aplikasi)
 - `created_at`, `updated_at`
@@ -452,18 +449,18 @@ Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca
 ### `psb_kuota_biaya`
 - `id` PK
 - `gelombang_id`: FK → psb_gelombang [cascade]
-- `lembaga_id`: FK → lembaga [cascade]
+- `jenjang`: FK → lembaga [cascade]
 - `tipe_santri`: enum(semua|asrama|non_asrama) [default 'semua']
 - `paket_tersedia`: bool [default false] — paket MI-MD ditawarkan (di baris primer MI)
 - `kuota`: int [null] — pool gabungan per kelompok PSB; hanya dibaca dari baris **lembaga primer kelompok** (combo_mi_md → MI). null = tanpa batas
 - `membutuhkan_seleksi`: bool [null] — null = ikut lembaga.is_seleksi
 - `membutuhkan_pemberkasan`: bool [default true]
 - `created_at`, `updated_at`
-- UNIQUE(`gelombang_id`, `lembaga_id`, `tipe_santri`)
+- UNIQUE(`gelombang_id`, `jenjang`, `tipe_santri`)
 
 ### `psb_calon_santri`
 - `id` PK
-- `lembaga_id`: FK → lembaga [cascade] — lembaga tujuan
+- `jenjang`: FK → lembaga [cascade] — lembaga tujuan
 - `gelombang_id`: FK → psb_gelombang [null, nullOnDelete]
 - `tahun_ajaran`: varchar(9) FK → tahun_ajaran.nama [null, nullOnDelete]
 - `kelas_id`: FK → kelas [null, nullOnDelete]
@@ -553,18 +550,18 @@ Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca
 - `created_at`, `updated_at`
 - UNIQUE(`no_pendaftaran`) — 1 calon = 1 nomor
 - INDEX(`gelombang_id`, `nik`)
-- INDEX(`lembaga_id`, `status_pendaftaran`, `updated_at`)
+- INDEX(`jenjang`, `status_pendaftaran`, `updated_at`)
 
 ### `psb_calon_lembaga`
 Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; paket MI-MD 2 baris (`primer` MI + `anggota` MD).
 - `id` PK
 - `psb_calon_santri_id`: FK → psb_calon_santri [cascade]
-- `lembaga_id`: FK → lembaga [cascade]
+- `jenjang`: FK → lembaga [cascade]
 - `peran`: string(10) [default 'primer'] — primer | anggota
 - `masuk_tingkat`: string(2) [null] — tingkat per lembaga (paket MI-MD = 1 & 1)
 - `created_at`, `updated_at`
-- UNIQUE(`psb_calon_santri_id`, `lembaga_id`)
-- INDEX(`lembaga_id`)
+- UNIQUE(`psb_calon_santri_id`, `jenjang`)
+- INDEX(`jenjang`)
 - Catatan kuota: angka pool gabungan dibaca dari `psb_kuota_biaya.kuota` baris **lembaga primer kelompok** (combo_mi_md → MI); pemakaian = calon aktif yang punya baris di kelompok tsb
 
 ### `dokumen_santri`
@@ -584,11 +581,11 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 ### `dokumen_wajib_lembaga`
 - `id` PK
 - `psb_kegiatan_id`: FK → psb_kegiatan [cascade] — syarat diikat ke satu kegiatan PSB
-- `lembaga_id`: FK → lembaga [cascade]
+- `jenjang`: FK → lembaga [cascade]
 - `jenis_dokumen_santri`: string — ref_jenis_dokumen_santri
 - `is_wajib`: bool [default true] — penekanan saja, TIDAK menahan pengajuan daftar ulang
 - `created_at`, `updated_at`
-- UNIQUE(`psb_kegiatan_id`, `lembaga_id`, `jenis_dokumen_santri`)
+- UNIQUE(`psb_kegiatan_id`, `jenjang`, `jenis_dokumen_santri`)
 
 ### `psb_log_status`
 - `id` PK
@@ -603,14 +600,14 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 
 ### `preset_tabel`
 - `id` PK
-- `lembaga_id`: FK → lembaga [null, cascade] — preset milik satu lembaga. Saat membuat, admin dapat men-generate ke satu/beberapa lembaga sekaligus; tiap lembaga dapat mengedit salinannya. `null` = sisa data lama (tidak dibuat lagi).
+- `jenjang`: FK → lembaga [null, cascade] — preset milik satu lembaga. Saat membuat, admin dapat men-generate ke satu/beberapa lembaga sekaligus; tiap lembaga dapat mengedit salinannya. `null` = sisa data lama (tidak dibuat lagi).
 - `table_key`: string(60) — kunci tabel (mis. `psb`, `kegiatan_psb_dokumen`)
 - `nama`: string(50) — nama preset (mis. 'default', 'nama saja'); 'lengkap' dipakai bawaan sistem
 - `kolom`: json — array key kolom yang ditampilkan (mis. `["nama","lembaga"]`)
 - `dibuat_oleh`: FK → users [null, nullOnDelete]
 - `created_at`, `updated_at`
-- INDEX(`lembaga_id`, `table_key`)
-- Unik `(lembaga_id, table_key, nama)` dicek di aplikasi (MySQL mengizinkan banyak NULL)
+- INDEX(`jenjang`, `table_key`)
+- Unik `(jenjang, table_key, nama)` dicek di aplikasi (MySQL mengizinkan banyak NULL)
 
 ### `preset_tabel_aktif`
 - `id` PK
@@ -631,7 +628,7 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 ### `pengaturan_tampilan`
 Standar tampilan per lembaga (tema/tipografi/grid/preset aktif), disebar super_admin; `versi` naik tiap perubahan agar klien memantau & memuat ulang.
 - `id` PK
-- `lembaga_id`: FK → lembaga [unique, cascade] — satu baris per lembaga
+- `jenjang`: FK → lembaga [unique, cascade] — satu baris per lembaga
 - `data`: json — isi standar tampilan
 - `versi`: int unsigned [default 1]
 - `diubah_oleh`: FK → users [null, nullOnDelete]
@@ -696,16 +693,16 @@ Standar tampilan per lembaga (tema/tipografi/grid/preset aktif), disebar super_a
 ### `keaktifan_pegawai`
 - `id` PK
 - `pegawai_id`: FK → pegawai [cascade]
-- `lembaga_id`: FK → lembaga [cascade]
+- `jenjang`: FK → lembaga [cascade]
 - `tahun_ajaran`: varchar(9) FK → tahun_ajaran.nama [cascade update + delete]
 - `tugas_utama`: string [default 'Guru Pengampu'] — ref_tugas_utama
 - `status_keaktifan`: enum(aktif|inaktif) [default 'aktif']
 - `created_at`, `updated_at`
-- UNIQUE(`pegawai_id`, `lembaga_id`, `tahun_ajaran`, `uq_keaktifan_pegawai_plt`) — nama pendek: auto-name 61 char, margin aman dari limit 64
+- UNIQUE(`pegawai_id`, `jenjang`, `tahun_ajaran`, `uq_keaktifan_pegawai_plt`) — nama pendek: auto-name 61 char, margin aman dari limit 64
 
 ### `presensi_pegawai`
 - `id` PK
-- `lembaga_id`: FK → lembaga [null, nullOnDelete]
+- `jenjang`: FK → lembaga [null, nullOnDelete]
 - `pegawai_id`: FK → pegawai [cascade]
 - `tanggal`: date
 - `jam_masuk`: time [null]
@@ -722,28 +719,28 @@ Standar tampilan per lembaga (tema/tipografi/grid/preset aktif), disebar super_a
 
 ### `pengaturan_hari_lembaga`
 - `id` PK
-- `lembaga_id`: FK → lembaga [cascade]
+- `jenjang`: FK → lembaga [cascade]
 - `hari`: enum(senin|selasa|rabu|kamis|jumat|sabtu|minggu)
 - `is_hari_libur`: bool [default false]
 - `created_at`, `updated_at`
-- UNIQUE(`lembaga_id`, `hari`)
+- UNIQUE(`jenjang`, `hari`)
 
 ### `kurikulum`
 - `id` PK
-- `lembaga_id`: FK → lembaga [cascade]
+- `jenjang`: FK → lembaga [cascade]
 - `nama`: string
 - `deskripsi`: text [null]
 - `created_at`, `updated_at`
-- UNIQUE(`lembaga_id`, `nama`)
+- UNIQUE(`jenjang`, `nama`)
 
 ### `mata_pelajaran`
 - `id` PK
-- `lembaga_id`: FK → lembaga [cascade]
+- `jenjang`: FK → lembaga [cascade]
 - `nama_mapel`: string
 - `kelompok`: enum(formal|pesantren) [default 'formal'] — Kolom darí Modul 202 (kelompok rapor):
 - `kode_mapel`: string(20) [null]
 - `created_at`, `updated_at`
-- UNIQUE(`lembaga_id`, `nama_mapel`)
+- UNIQUE(`jenjang`, `nama_mapel`)
 
 ### `kelas_kurikulum`
 - `id` PK
@@ -772,7 +769,7 @@ Standar tampilan per lembaga (tema/tipografi/grid/preset aktif), disebar super_a
 
 ### `slot_jam_pelajaran`
 - `id` PK
-- `lembaga_id`: FK → lembaga [cascade]
+- `jenjang`: FK → lembaga [cascade]
 - `nama_slot`: string [null] — 'Jam 1', 'Jam 2', dsb.
 - `jam_mulai`: time [null]
 - `jam_selesai`: time [null]
@@ -826,7 +823,7 @@ Standar tampilan per lembaga (tema/tipografi/grid/preset aktif), disebar super_a
 
 ### `sesi_presensi`
 - `id` PK
-- `lembaga_id`: FK → lembaga [null, nullOnDelete]
+- `jenjang`: FK → lembaga [null, nullOnDelete]
 - `nama_sesi`: string — 'KBM Pagi', 'Shalat Subuh Jamaah'
 - `kategori`: enum(kbm|kegiatan_asrama|shalat)
 - `jam_mulai`: time [null]
@@ -849,7 +846,7 @@ Standar tampilan per lembaga (tema/tipografi/grid/preset aktif), disebar super_a
 ### `pelanggaran_santri`
 - `id` PK
 - `santri_id`: FK → santri [cascade]
-- `lembaga_id`: FK → lembaga [null, nullOnDelete]
+- `jenjang`: FK → lembaga [null, nullOnDelete]
 - `tanggal`: date [null]
 - `tipe_pelanggaran`: string [null] — ref_tipe_pelanggaran
 - `deskripsi`: text [null]
@@ -861,7 +858,7 @@ Standar tampilan per lembaga (tema/tipografi/grid/preset aktif), disebar super_a
 
 ### `target_tahfiz`
 - `id` PK
-- `lembaga_id`: FK → lembaga [cascade]
+- `jenjang`: FK → lembaga [cascade]
 - `nama_target`: string — 'Target Juz 30 Kelas 7'
 - `juz_awal`: int
 - `juz_akhir`: int
@@ -930,7 +927,7 @@ Standar tampilan per lembaga (tema/tipografi/grid/preset aktif), disebar super_a
 - INDEX(`santri_id`, `status`)
 
 ### Pola `ref_*` (24 tabel loop + eksplisit `ref_agama/cita_cita/hobi/pekerjaan/pendidikan/kebutuhan_khusus/kota/alamat/status_awal/status_akhir`)
-- Kolom: `id` PK; `lembaga_id`? FK → `lembaga` (null=global, terisi=milik lembaga); `nama`; `urutan` [default 0]; `is_active` [default true]; unique(`lembaga_id`,`nama`) — pitfall multi-NULL, dedup di `RefService`.
+- Kolom: `id` PK; `jenjang` FK → `lembaga` (nullable teknis, tanpa baris global; `null` = sisa legacy); `nama`; `urutan` [default 0]; `is_active` [default true]; unique(`jenjang`,`nama`) — pitfall multi-NULL, dedup di `RefService`.
 - Urut tampil (v1.10.7): `urutan` ASC, tie-break `nama` ASC — termasuk `ref_status_awal/akhir` (kode = nilai, nama = tampilan).
 - `ref_alamat` tambahan: wilayah free string + snapshot autofill. `ref_status_akhir`: `is_aktif_bawaan`, `terminal_ke`.
 - Tabel loop: `ref_penghasilan`, `ref_transportasi`, `ref_status_tinggal`, `ref_jarak`, `ref_waktu_tempuh`, `ref_bahasa_sehari_hari`, `ref_disabilitas`, `ref_tmp_lahir`, `ref_status_ortu`, `ref_yang_membiayai`, `ref_provinsi`, `ref_kecamatan`, `ref_desa_kelurahan`, `ref_alasan_mutasi`, `ref_jenis_dokumen_santri`, `ref_jenis_dokumen_pegawai`, `ref_status_pernikahan`, `ref_gol_darah`, `ref_jenis_ptk`, `ref_jenjang_sertifikasi`, `ref_tingkat`, `ref_tugas_utama`, `ref_tipe_pelanggaran`, `ref_jalur_sertifikasi`

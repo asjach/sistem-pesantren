@@ -29,7 +29,7 @@ class PsbCalonSantri extends Model
 
     public function lembagaTujuan(): BelongsTo
     {
-        return $this->belongsTo(Lembaga::class, 'lembaga_id');
+        return $this->belongsTo(Lembaga::class, 'jenjang', 'jenjang');
     }
 
     public function lembagaDetail(): HasMany
@@ -46,12 +46,12 @@ class PsbCalonSantri extends Model
         if ($auth->bolehPesantren()) {
             return true;
         }
-        $ids = $this->lembagaDetail()->pluck('lembaga_id');
+        $ids = $this->lembagaDetail()->pluck('jenjang');
         if ($ids->isEmpty()) {
-            $ids = collect([$this->lembaga_id]);
+            $ids = collect([$this->jenjang]);
         }
 
-        return $ids->contains(fn ($id) => $auth->canAccessLembaga((int) $id));
+        return $ids->contains(fn ($id) => $auth->canAccessLembaga($id));
     }
 
     /**

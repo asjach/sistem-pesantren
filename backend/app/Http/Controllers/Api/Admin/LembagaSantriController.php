@@ -33,7 +33,7 @@ class LembagaSantriController extends Controller
         'lembaga_santri.nis_kemenag',
         'lembaga_santri.tgl_masuk',
         'lembaga_santri.tgl_selesai',
-        'lembaga.kode',
+        'lembaga.jenjang',
     ];
 
     /** GET /api/admin/lembaga-santri — daftar lintas santri (halaman Keanggotaan terpusat). */
@@ -46,15 +46,15 @@ class LembagaSantriController extends Controller
         $query = $this->scopeLembaga(
             LembagaSantri::with([
                 'santri:id,nama_lengkap,jk',
-                'lembaga:id,nama,kode',
+                'lembaga:jenjang,nama',
             ]),
             $request->user(),
             $request,
-            'lembaga_santri.lembaga_id'
+            'lembaga_santri.jenjang'
         );
 
-        if ($request->filled('lembaga_id')) {
-            $query->where('lembaga_santri.lembaga_id', $request->integer('lembaga_id'));
+        if ($request->filled('jenjang')) {
+            $query->where('lembaga_santri.jenjang', (string) $request->input('jenjang'));
         }
         if ($request->has('is_active_lembaga')) {
             $query->where('lembaga_santri.is_active_lembaga', $request->boolean('is_active_lembaga') ? LembagaSantri::YA : LembagaSantri::TIDAK);
@@ -85,7 +85,7 @@ class LembagaSantriController extends Controller
             $query->leftJoin('santri', 'santri.id', '=', 'lembaga_santri.santri_id');
         }
         if ($butuhLembaga) {
-            $query->leftJoin('lembaga', 'lembaga.id', '=', 'lembaga_santri.lembaga_id');
+            $query->leftJoin('lembaga', 'lembaga.jenjang', '=', 'lembaga_santri.jenjang');
         }
         $this->terapkanUrut($query, $urut, $bawaan, self::SORT_NULLABLE);
 
@@ -114,7 +114,7 @@ class LembagaSantriController extends Controller
         return response()->json([
             'pesan' => 'Keanggotaan lembaga berhasil dimuat.',
             'data' => $santri->lembagaSantri()
-                ->with('lembaga:id,nama,kode,nsm')
+                ->with('lembaga:jenjang,nama,nsm')
                 ->orderByDesc('is_active_lembaga')
                 ->orderBy('id')
                 ->get(),
@@ -129,11 +129,11 @@ class LembagaSantriController extends Controller
         $this->authorize('update', $santri);
 
         $data = $request->validated();
-        $this->authorizeLembaga($request->user(), (int) $data['lembaga_id']);
+        $this->authorizeLembaga($request->user(), $data['jenjang']);
 
         $keanggotaan = DB::transaction(function () use ($santri, $data, $penerimaan) {
             // NIS lokal + konteks penerimaan lewat pintu tunggal penerimaan.
-            $row = $penerimaan->pastikanKeanggotaan($santri, (int) $data['lembaga_id'], [
+            $row = $penerimaan->pastikanKeanggotaan($santri, $data['jenjang'], [
                 'nis_lokal' => $data['nis_lokal'] ?? null,
                 'tgl_masuk' => $data['tgl_masuk'] ?? null,
                 'tahaj_masuk' => $data['tahaj_masuk'] ?? null,
@@ -147,7 +147,7 @@ class LembagaSantriController extends Controller
 
             $tambahan = [];
             if (array_key_exists('nis_kemenag', $data)) {
-                $tambahan['nis_kemenag'] = $this->nisKemenagBersih((int) $data['lembaga_id'], $data['nis_kemenag'], (int) $row->id);
+                $tambahan['nis_kemenag'] = $this->nisKemenagBersih($data['jenjang'], $data['nis_kemenag'], (int) $row->id);
             }
             if (array_key_exists('tgl_selesai', $data)) {
                 $tambahan['tgl_selesai'] = $data['tgl_selesai'] ?: null;
@@ -168,13 +168,13 @@ class LembagaSantriController extends Controller
     /** PATCH /api/admin/lembaga-santri/{lembagaSantri} — NIS/status/tanggal. */
     public function update(LembagaSantriUpdateRequest $request, LembagaSantri $lembagaSantri): JsonResponse
     {
-        $this->authorizeLembaga($request->user(), (int) $lembagaSantri->lembaga_id);
+        $this->authorizeLembaga($request->user(), $lembagaSantri->jenjang);
 
         $data = $request->validated();
 
         if (array_key_exists('nis_lokal', $data)) {
             $nis = trim((string) $data['nis_lokal']) ?: null;
-            if (LembagaSantri::nisLokalDipakai((int) $lembagaSantri->lembaga_id, $nis, (int) $lembagaSantri->id)) {
+            if (LembagaSantri::nisLokalDipakai($lembagaSantri->jenjang, $nis, (int) $lembagaSantri->id)) {
                 abort(422, 'NIS lokal sudah dipakai santri lain di lembaga ini.');
             }
             $data['nis_lokal'] = $nis;
@@ -182,7 +182,7 @@ class LembagaSantriController extends Controller
 
         if (array_key_exists('nis_kemenag', $data)) {
             $data['nis_kemenag'] = $this->nisKemenagBersih(
-                (int) $lembagaSantri->lembaga_id,
+                $lembagaSantri->jenjang,
                 $data['nis_kemenag'],
                 (int) $lembagaSantri->id,
             );
@@ -199,7 +199,7 @@ class LembagaSantriController extends Controller
      * NIS Kemenag manual: trim, kosong → null, wajib unik per lembaga.
      * (Generate otomatis lewat `generateNisk` tetap tersedia.)
      */
-    protected function nisKemenagBersih(int $lembagaId, mixed $nis, ?int $kecualiId = null): ?string
+    protected function nisKemenagBersih(string $lembagaId, mixed $nis, ?int $kecualiId = null): ?string
     {
         $nilai = trim((string) $nis);
         $nilai = $nilai === '' ? null : $nilai;
@@ -214,7 +214,7 @@ class LembagaSantriController extends Controller
     /** POST /api/admin/lembaga-santri/{lembagaSantri}/generate-nisk — NIS Kemenag manual. */
     public function generateNisk(Request $request, LembagaSantri $lembagaSantri, NisKemenagService $service): JsonResponse
     {
-        $this->authorizeLembaga($request->user(), (int) $lembagaSantri->lembaga_id);
+        $this->authorizeLembaga($request->user(), $lembagaSantri->jenjang);
 
         $hasil = $service->generate($lembagaSantri);
 
@@ -233,8 +233,8 @@ class LembagaSantriController extends Controller
         $auth = $request->user();
 
         $query = $this->scopeLembaga(LembagaSantri::query(), $auth, $request);
-        if ($request->filled('lembaga_id')) {
-            $query->where('lembaga_santri.lembaga_id', $request->integer('lembaga_id'));
+        if ($request->filled('jenjang')) {
+            $query->where('lembaga_santri.jenjang', (string) $request->input('jenjang'));
         }
         if ($request->has('is_active_lembaga')) {
             $query->where('lembaga_santri.is_active_lembaga', $request->boolean('is_active_lembaga') ? LembagaSantri::YA : LembagaSantri::TIDAK);
@@ -249,7 +249,7 @@ class LembagaSantriController extends Controller
         }
         $query->whereNull('lembaga_santri.nis_kemenag')
             ->whereNotNull('lembaga_santri.nis_lokal')
-            ->whereHas('lembaga', fn ($q) => $q->where('kode', '!=', 'MD'));
+            ->whereHas('lembaga', fn ($q) => $q->where('jenjang', '!=', 'MD'));
 
         $berhasil = 0;
         $dilewati = 0;

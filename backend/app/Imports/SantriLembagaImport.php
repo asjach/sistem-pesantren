@@ -96,25 +96,25 @@ class SantriLembagaImport extends SantriLengkapImport
             return true;
         }
 
-        $lembagaId = $this->resolveLembagaId($baris, $no);
-        if ($lembagaId === null) {
+        $jenjang = $this->resolveLembagaId($baris, $no);
+        if ($jenjang === null) {
             return false;
         }
 
         $auth = auth()->user();
-        if (! $auth || ! $auth->canAccessLembaga($lembagaId)) {
+        if (! $auth || ! $auth->canAccessLembaga($jenjang)) {
             $this->fail($no, 'kode_lembaga', 'Lembaga di luar lingkup akses Anda.');
 
             return false;
         }
 
         $dataSantri = $this->buatDataSantri($baris);
-        $santri = $this->cocokkanSantri($baris, $dataSantri, $no, $lembagaId, $dilihatNik, $dilihatNis, $sudahAda);
+        $santri = $this->cocokkanSantri($baris, $dataSantri, $no, $jenjang, $dilihatNik, $dilihatNis, $sudahAda);
         if ($santri === null) {
             return false;
         }
 
-        if (! $this->simpanKeanggotaan($santri, $lembagaId, $baris, $no, $keanggotaanBaru)) {
+        if (! $this->simpanKeanggotaan($santri, $jenjang, $baris, $no, $keanggotaanBaru)) {
             return false;
         }
 
@@ -135,49 +135,46 @@ class SantriLembagaImport extends SantriLengkapImport
     protected function adaInfoLembaga(array $baris): bool
     {
         return trim((string) ($baris['kode_lembaga'] ?? '')) !== ''
-            || trim((string) ($baris['lembaga_id'] ?? '')) !== '';
+            || trim((string) ($baris['jenjang'] ?? '')) !== '';
     }
 
     /**
-     * Lembaga dari `kode_lembaga` (kunci utama, case-insensitive) dengan
-     * fallback `lembaga_id` numerik. Wajib operasional (parent_id not null).
+     * Lembaga dari `kode_lembaga`/`jenjang` (case-insensitive).
      *
      * @param  array<string, mixed>  $baris
      */
-    protected function resolveLembagaId(array $baris, int $no): ?int
+    protected function resolveLembagaId(array $baris, int $no): ?string
     {
         $kode = trim((string) ($baris['kode_lembaga'] ?? ''));
-        if ($kode !== '') {
-            $lembaga = Lembaga::whereRaw('UPPER(kode) = ?', [mb_strtoupper($kode)])->first();
-            if (! $lembaga || $lembaga->parent_id === null) {
-                $this->fail($no, 'kode_lembaga', "Kode lembaga \"{$kode}\" tidak ditemukan / bukan operasional.");
-
-                return null;
-            }
-
-            return (int) $lembaga->id;
+        if ($kode === '') {
+            $kode = trim((string) ($baris['jenjang'] ?? ''));
         }
-
-        $id = (int) ($baris['lembaga_id'] ?? 0);
-        if ($id === 0 || ! Lembaga::where('id', $id)->whereNotNull('parent_id')->exists()) {
-            $this->fail($no, 'lembaga_id', 'Lembaga tidak valid (isi kode_lembaga atau lembaga_id operasional).');
+        if ($kode === '') {
+            $this->fail($no, 'kode_lembaga', 'Isi kode_lembaga (jenjang, mis. MI/MD).');
 
             return null;
         }
 
-        return $id;
+        $lembaga = Lembaga::whereRaw('UPPER(jenjang) = ?', [mb_strtoupper($kode)])->first();
+        if (! $lembaga) {
+            $this->fail($no, 'kode_lembaga', "Lembaga \"{$kode}\" tidak ditemukan.");
+
+            return null;
+        }
+
+        return $lembaga->jenjang;
     }
 
     /**
      * Cocokkan santri 4 lapis; $sudahAda true bila baris menimpa santri lama.
-     * $lembagaId null (file identitas) → lapis (c) dilewati.
+     *  null (file identitas) → lapis (c) dilewati.
      *
      * @param  array<string, mixed>  $baris
      * @param  array<string, mixed>  $dataSantri
      * @param  array<string, Santri>  $dilihatNik
      * @param  array<string, Santri>  $dilihatNis
      */
-    protected function cocokkanSantri(array $baris, array $dataSantri, int $no, ?int $lembagaId, array &$dilihatNik, array &$dilihatNis, ?bool &$sudahAda): ?Santri
+    protected function cocokkanSantri(array $baris, array $dataSantri, int $no, ?string $jenjang, array &$dilihatNik, array &$dilihatNis, ?bool &$sudahAda): ?Santri
     {
         $sudahAda = false;
 
@@ -214,16 +211,16 @@ class SantriLembagaImport extends SantriLengkapImport
 
         // (c) Fallback NIS lokal + lembaga (+ guard intra-file). Dilewati bila
         // file identitas (tanpa lembaga) — NIS tanpa lembaga tak bisa dicocokkan.
-        if ($nisTerisi && $lembagaId !== null) {
+        if ($nisTerisi && $jenjang !== null) {
             $nis = trim((string) $baris['nis_lokal']);
-            $kunci = $lembagaId.'|'.mb_strtolower($nis);
+            $kunci = $jenjang.'|'.mb_strtolower($nis);
             if (isset($dilihatNis[$kunci])) {
                 $dilihatNis[$kunci]->update($this->tanpaKosong($dataSantri));
                 $sudahAda = true;
 
                 return $dilihatNis[$kunci];
             }
-            $ls = LembagaSantri::where('lembaga_id', $lembagaId)->where('nis_lokal', $nis)->first();
+            $ls = LembagaSantri::where('jenjang', $jenjang)->where('nis_lokal', $nis)->first();
             if ($ls && ($santri = Santri::find($ls->santri_id))) {
                 $santri->update($this->tanpaKosong($dataSantri));
                 $dilihatNis[$kunci] = $santri;
@@ -249,7 +246,7 @@ class SantriLembagaImport extends SantriLengkapImport
      *
      * @param  array<string, mixed>  $baris
      */
-    protected function simpanKeanggotaan(Santri $santri, int $lembagaId, array $baris, int $no, ?bool &$baru): bool
+    protected function simpanKeanggotaan(Santri $santri, string $jenjang, array $baris, int $no, ?bool &$baru): bool
     {
         $baru = false;
 
@@ -280,17 +277,17 @@ class SantriLembagaImport extends SantriLengkapImport
         ];
 
         $ada = LembagaSantri::where('santri_id', $santri->id)
-            ->where('lembaga_id', $lembagaId)
+            ->where('jenjang', $jenjang)
             ->orderByDesc('id')
             ->first();
 
         if ($ada === null) {
-            if ($nisLokal !== null && LembagaSantri::nisLokalDipakai($lembagaId, $nisLokal)) {
+            if ($nisLokal !== null && LembagaSantri::nisLokalDipakai($jenjang, $nisLokal)) {
                 $this->fail($no, 'nis_lokal', 'NIS lokal sudah dipakai santri lain di lembaga ini.');
 
                 return false;
             }
-            if ($nisKemenag !== null && LembagaSantri::nisKemenagDipakai($lembagaId, $nisKemenag)) {
+            if ($nisKemenag !== null && LembagaSantri::nisKemenagDipakai($jenjang, $nisKemenag)) {
                 $this->fail($no, 'nis_kemenag', 'NIS Kemenag sudah dipakai santri lain di lembaga ini.');
 
                 return false;
@@ -298,7 +295,7 @@ class SantriLembagaImport extends SantriLengkapImport
 
             LembagaSantri::create([
                 'santri_id' => $santri->id,
-                'lembaga_id' => $lembagaId,
+                'jenjang' => $jenjang,
                 'nis_lokal' => $nisLokal,
                 'nis_kemenag' => $nisKemenag,
                 'is_active_lembaga' => $aktif ?? LembagaSantri::YA,
@@ -312,14 +309,14 @@ class SantriLembagaImport extends SantriLengkapImport
 
         // Update: hanya nilai non-kosong yang menimpa (sel kosong = pertahankan).
         if ($nisLokal !== null && $nisLokal !== $ada->nis_lokal) {
-            if (LembagaSantri::nisLokalDipakai($lembagaId, $nisLokal, $ada->id)) {
+            if (LembagaSantri::nisLokalDipakai($jenjang, $nisLokal, $ada->id)) {
                 $this->fail($no, 'nis_lokal', 'NIS lokal sudah dipakai santri lain di lembaga ini.');
 
                 return false;
             }
         }
         if ($nisKemenag !== null && $nisKemenag !== $ada->nis_kemenag) {
-            if (LembagaSantri::nisKemenagDipakai($lembagaId, $nisKemenag, $ada->id)) {
+            if (LembagaSantri::nisKemenagDipakai($jenjang, $nisKemenag, $ada->id)) {
                 $this->fail($no, 'nis_kemenag', 'NIS Kemenag sudah dipakai santri lain di lembaga ini.');
 
                 return false;
@@ -404,7 +401,7 @@ class SantriLembagaImport extends SantriLengkapImport
             // (file identitas lama tetap diterima endpoint gabungan).
             'santri_id' => ['nullable', 'integer'],
             'kode_lembaga' => ['nullable'],
-            'lembaga_id' => ['nullable', 'integer'],
+            'jenjang' => ['nullable', 'string'],
             'nis_kemenag' => ['nullable'],
             'tahaj_masuk' => ['nullable'],
             'tingkat_masuk' => ['nullable'],

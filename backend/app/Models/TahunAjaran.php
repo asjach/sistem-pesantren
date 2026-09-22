@@ -38,12 +38,12 @@ class TahunAjaran extends Model
     }
 
     /** Daftar TA yang berlaku untuk satu lembaga (TA tersembunyi dibuang). */
-    public static function efektif(?int $lembagaId): Collection
+    public static function efektif(?string $jenjang): Collection
     {
-        $tersembunyi = $lembagaId === null
+        $tersembunyi = $jenjang === null
             ? collect()
             : LembagaTahunAjaran::query()
-                ->where('lembaga_id', $lembagaId)
+                ->where('jenjang', $jenjang)
                 ->where('is_active', false)
                 ->pluck('tahun_ajaran');
 
@@ -55,18 +55,18 @@ class TahunAjaran extends Model
     }
 
     /** TA aktif (satu, global). */
-    public static function aktif(?int $lembagaId = null): ?self
+    public static function aktif(?string $jenjang = null): ?self
     {
-        return static::efektif($lembagaId)->firstWhere('is_aktif', true);
+        return static::efektif($jenjang)->firstWhere('is_aktif', true);
     }
 
     /**
      * Resolusi TA untuk satu lembaga: TA yang diminta bila berlaku untuk lembaga
      * itu, bila tidak TA aktif.
      */
-    public static function resolve(?int $lembagaId, ?string $diminta = null): string
+    public static function resolve(?string $jenjang, ?string $diminta = null): string
     {
-        $efektif = static::efektif($lembagaId);
+        $efektif = static::efektif($jenjang);
         if ($diminta !== null && $efektif->contains('nama', $diminta)) {
             return $diminta;
         }

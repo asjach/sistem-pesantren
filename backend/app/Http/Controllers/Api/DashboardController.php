@@ -20,23 +20,23 @@ class DashboardController extends Controller
         $auth = auth()->user();
 
         $lembagaQuery = Lembaga::tenantScope();
-        if ($request->filled('lembaga_id')) {
-            if (! $auth->canAccessLembaga((int) $request->input('lembaga_id'))) {
+        if ($request->filled('jenjang')) {
+            if (! $auth->canAccessLembaga((string) $request->input('jenjang'))) {
                 return response()->json(['message' => 'Akses ditolak.'], 403);
             }
-            $lembagaQuery->where('id', $request->input('lembaga_id'));
+            $lembagaQuery->where('jenjang', $request->input('jenjang'));
         }
-        $lembagaIds = $lembagaQuery->pluck('id');
+        $lembagaIds = $lembagaQuery->pluck('jenjang');
 
         // TA kini data pesantren (global): tampilkan satu TA aktif yang berlaku.
-        $taAktif = TahunAjaran::aktif($lembagaIds->count() === 1 ? (int) $lembagaIds->first() : null);
-        $tahunAktif = $taAktif ? collect([$taAktif->only(['id', 'lembaga_id', 'nama'])]) : collect();
+        $taAktif = TahunAjaran::aktif($lembagaIds->count() === 1 ? $lembagaIds->first() : null);
+        $tahunAktif = $taAktif ? collect([$taAktif->only(['nama', 'tanggal_mulai', 'tanggal_selesai', 'is_aktif'])]) : collect();
 
         return response()->json([
             'lembaga' => $lembagaIds->count(),
             'pengguna' => (clone User::tenantScope())->count(),
             'tahun_ajaran_aktif' => $tahunAktif->count(),
-            'kelas' => Kelas::whereIn('lembaga_id', $lembagaIds)->count(),
+            'kelas' => Kelas::whereIn('jenjang', $lembagaIds)->count(),
             'tahun_aktif' => $tahunAktif,
             // Placeholder modul lanjutan (santri/psb menyusul):
             'santri' => null,

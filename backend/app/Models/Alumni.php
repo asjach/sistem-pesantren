@@ -23,7 +23,7 @@ class Alumni extends Model
 
     public function lembagaLulus(): BelongsTo
     {
-        return $this->belongsTo(Lembaga::class, 'lembaga_lulus_id');
+        return $this->belongsTo(Lembaga::class, 'lembaga_lulus', 'jenjang');
     }
 
     public function tahunAjaranLulus(): BelongsTo
@@ -37,7 +37,7 @@ class Alumni extends Model
         return $this->belongsTo(Kelas::class, 'kelas_lulus_id');
     }
 
-    // Tenant lembaga via lembaga_lulus_id (pola Kelas): super_admin/admin full semua;
+    // Tenant lembaga via lembaga_lulus (pola Kelas): super_admin/admin full semua;
     // guru/orang_tua/santri kosong; lainnya via pivot user_lembaga.
     public function scopeTenantScope(Builder $query): Builder
     {
@@ -53,6 +53,6 @@ class Alumni extends Model
             return $query->whereRaw('1 = 0');
         }
 
-        return $query->whereIn('lembaga_lulus_id', $ids);
+        return $query->whereIn('lembaga_lulus', $ids);
     }
 }

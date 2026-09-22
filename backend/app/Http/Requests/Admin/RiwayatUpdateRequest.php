@@ -12,7 +12,7 @@ class RiwayatUpdateRequest extends FormRequest
     {
         $row = $this->route('riwayat');
 
-        return $row !== null && (bool) $this->user()?->canAccessLembaga((int) $row->lembaga_id);
+        return $row !== null && (bool) $this->user()?->canAccessLembaga($row->jenjang);
     }
 
     /**
@@ -31,7 +31,7 @@ class RiwayatUpdateRequest extends FormRequest
                     ->where(fn ($q) => $q
                         ->where('santri_id', $row?->santri_id)
                         ->where('tahun_ajaran', $row?->tahun_ajaran)
-                        ->where('lembaga_id', $row?->lembaga_id)),
+                        ->where('jenjang', $row?->jenjang)),
             ],
             'tingkat' => ['sometimes', 'nullable', 'string', 'max:20'],
             'no_absen' => ['sometimes', 'nullable', 'integer', 'min:1'],

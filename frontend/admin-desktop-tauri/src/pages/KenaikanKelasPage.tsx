@@ -22,7 +22,7 @@ interface Baris { santri_id: number; nama: string; kelas: string | null; tingkat
 export default function KenaikanKelasPage() {
   const { user } = useAuth();
   const canUbah = bisa(user, 'kenaikan.ubah');
-  const [lembagaId, setLembagaId] = useState('');
+  const [jenjang, setLembagaId] = useState('');
   useLembagaAwalString(setLembagaId);
   /** Tanggal masuk kelas baru; bawaan hari ini (lokal). */
   const [tglMasuk, setTglMasuk] = useState(() => {
@@ -42,13 +42,13 @@ export default function KenaikanKelasPage() {
   const [busyId, setBusyId] = useState<number | null>(null);
 
   const load = useCallback(async (f?: { urut?: string[]; arah?: 'naik' | 'turun' }) => {
-    if (!lembagaId) { setKiri([]); return; }
+    if (!jenjang) { setKiri([]); return; }
     setErr('');
     const urutPakai = f?.urut ?? urut;
     const arahPakai = f?.arah ?? arahUrut;
     try {
       const res = await listRiwayatBelajar({
-        lembaga_id: Number(lembagaId),
+        jenjang: jenjang,
         semester: '2',
         is_active_riwayat: true,
         sort: urutPakai.length ? urutPakai : undefined,
@@ -58,7 +58,7 @@ export default function KenaikanKelasPage() {
       // Hanya tingkat 1–5; tingkat akhir lewat halaman Kelulusan.
       setKiri(res.data.filter((r) => /^[1-5]$/.test(String(r.tingkat ?? ''))));
     } catch (e) { setErr(errorMessage(e)); }
-  }, [lembagaId, urut, arahUrut]);
+  }, [jenjang, urut, arahUrut]);
 
   /** Klik header: simpan urut baru lalu muat ulang. */
   function terapkanUrut(nilai: string[], arah: 'naik' | 'turun') {
@@ -78,26 +78,26 @@ export default function KenaikanKelasPage() {
   /** Hasil dimuat dari backend (persisten): status_awal kenaikan/mengulang
    *  yang masih aktif — bukan state sesi, jadi aman di-reload. */
   const muatHasil = useCallback(async () => {
-    if (!lembagaId) { setHasilNaik([]); setHasilTidak([]); return; }
+    if (!jenjang) { setHasilNaik([]); setHasilTidak([]); return; }
     try {
       const [naik, tidak] = await Promise.all([
-        listRiwayatBelajar({ lembaga_id: Number(lembagaId), status_awal: 'kenaikan', is_active_riwayat: true, per_page: 500 }),
-        listRiwayatBelajar({ lembaga_id: Number(lembagaId), status_awal: 'mengulang', is_active_riwayat: true, per_page: 500 }),
+        listRiwayatBelajar({ jenjang: jenjang, status_awal: 'kenaikan', is_active_riwayat: true, per_page: 500 }),
+        listRiwayatBelajar({ jenjang: jenjang, status_awal: 'mengulang', is_active_riwayat: true, per_page: 500 }),
       ]);
       setHasilNaik(naik.data.map(barisHasil));
       setHasilTidak(tidak.data.map(barisHasil));
     } catch (e) { setErr(errorMessage(e)); }
-  }, [lembagaId]);
+  }, [jenjang]);
 
   useEffect(() => { void load(); void muatHasil(); }, [load, muatHasil]);
 
   /** Naik: sisa tabel kiri dianggap naik semua. */
   const prosesNaik = async () => {
-    if (!lembagaId || kiri.length === 0 || !tglMasuk || busy) return;
+    if (!jenjang || kiri.length === 0 || !tglMasuk || busy) return;
     setBusy(true);
     try {
       const res = await naikKelasOtomatis({
-        lembaga_id: Number(lembagaId),
+        jenjang: jenjang,
         siswa: kiri.map((r) => ({ santri_id: r.santri_id, status: 'naik' as const, tgl_masuk: tglMasuk })),
       });
       toast.success(`Kenaikan selesai: ${res.berhasil} berhasil, ${res.gagal.length} gagal.`);
@@ -109,11 +109,11 @@ export default function KenaikanKelasPage() {
 
   /** Tidak naik per santri: langsung proses → tabel kanan bawah. */
   const prosesTidakNaik = async (r: RiwayatRow) => {
-    if (!lembagaId || !tglMasuk || busyId !== null) return;
+    if (!jenjang || !tglMasuk || busyId !== null) return;
     setBusyId(r.santri_id);
     try {
       const res = await naikKelasOtomatis({
-        lembaga_id: Number(lembagaId),
+        jenjang: jenjang,
         siswa: [{ santri_id: r.santri_id, status: 'tidak_naik' as const, tgl_masuk: tglMasuk }],
       });
       if (res.berhasil === 1) {
@@ -128,12 +128,12 @@ export default function KenaikanKelasPage() {
 
   /** Batalkan hasil (per baris / bulk): urungkan di server, baris kembali kiri. */
   const batalkan = async (daftar: Baris[]) => {
-    if (!lembagaId || daftar.length === 0 || busy) return;
+    if (!jenjang || daftar.length === 0 || busy) return;
     setBusy(true);
     const gagal: string[] = [];
     for (const b of daftar) {
       try {
-        await batalKenaikan(b.santri_id, Number(lembagaId));
+        await batalKenaikan(b.santri_id, jenjang);
       } catch (e) { gagal.push(`#${b.santri_id}: ${errorMessage(e)}`); }
     }
     if (gagal.length) toast.error(gagal.join(' · '));

@@ -40,7 +40,7 @@ class UrutPresetTest extends TestCase
         $u->assignRole($role);
         foreach ($lembagaIds as $lid) {
             DB::table('user_lembaga')->insert([
-                'user_id' => $u->id, 'lembaga_id' => $lid,
+                'user_id' => $u->id, 'jenjang' => $lid,
                 'created_at' => now(), 'updated_at' => now(),
             ]);
         }
@@ -135,14 +135,14 @@ class UrutPresetTest extends TestCase
     public function test_admin_scoped_hanya_boleh_membaca(): void
     {
         $root = Lembaga::create([
-            'nama' => 'Pesantren', 'kode' => 'PESANTREN',
+            'nama' => 'Pesantren', 'jenjang' => 'PESANTREN',
             'is_seleksi' => false, 'kelompok_psb' => 'combo_mi_md', 'is_active' => true,
         ]);
         $mi = Lembaga::create([
-            'parent_id' => $root->id, 'nama' => 'Madrasah Ibtidaiyah', 'kode' => 'MI',
+            'nama' => 'Madrasah Ibtidaiyah', 'jenjang' => 'MI',
             'is_seleksi' => false, 'kelompok_psb' => 'combo_mi_md', 'is_active' => true,
         ]);
-        $scoped = $this->makeUser('admin', [$mi->id]);
+        $scoped = $this->makeUser('admin', [$mi->jenjang]);
 
         $this->actingAs($scoped, 'sanctum')
             ->getJson('/api/admin/urut-preset?table_key=santri')

@@ -11,14 +11,15 @@ return new class extends Migration
     {
         Schema::create('preset_tabel', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('lembaga_id')->nullable()->constrained('lembaga')->cascadeOnDelete();
+            $table->string('jenjang', 20)->nullable();
+            $table->foreign('jenjang')->references('jenjang')->on('lembaga')->cascadeOnUpdate()->cascadeOnDelete();
             $table->string('table_key', 60);
             $table->string('nama', 50);
             $table->json('kolom');
             $table->foreignId('dibuat_oleh')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
 
-            $table->index(['lembaga_id', 'table_key']);
+            $table->index(['jenjang', 'table_key']);
         });
 
         Schema::create('preset_tabel_aktif', function (Blueprint $table) {

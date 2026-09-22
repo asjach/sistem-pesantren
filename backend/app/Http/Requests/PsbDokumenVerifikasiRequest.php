@@ -13,10 +13,10 @@ class PsbDokumenVerifikasiRequest extends FormRequest
         if ($dokumen === null) {
             return false;
         }
-        $dokumen->load(['calon:id,lembaga_id', 'santri:id,lembaga_id']);
-        $lembagaId = $dokumen->calon?->lembaga_id ?? $dokumen->santri?->lembaga_id;
+        $dokumen->load(['calon:id,jenjang', 'santri:id,jenjang']);
+        $lembagaId = $dokumen->calon?->jenjang ?? $dokumen->santri?->jenjang;
 
-        return $lembagaId !== null && (bool) $this->user()?->canAccessLembaga((int) $lembagaId);
+        return $lembagaId !== null && (bool) $this->user()?->canAccessLembaga($lembagaId);
     }
 
     public function rules(): array

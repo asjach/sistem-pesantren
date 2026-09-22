@@ -156,7 +156,7 @@ export function medanDaftarKelas({ bolehSantri, bolehRiwayat }: { bolehSantri: b
     bolehSantri
       ? { key: 'nis_lokal', label: 'nis_lokal', width: 110, kind: 'text', maxLength: 20, sumber: { tabel: 'lembaga_santri', kolom: 'nis_lokal' } }
       : statis('nis_lokal', 'nis_lokal', 'lembaga_santri', 'nis_lokal'),
-    statis('lembaga', 'lembaga.kode', 'lembaga', 'kode'),
+    statis('lembaga', 'lembaga.jenjang', 'lembaga', 'jenjang'),
     statis('ta', 'tahun_ajaran.nama', 'tahun_ajaran', 'nama', 110),
     bolehRiwayat
       ? { key: 'semester', label: 'semester', width: 60, kind: 'select', choices: [{ value: '1', label: '1' }, { value: '2', label: '2' }], sumber: { tabel: 'riwayat_belajar', kolom: 'semester' } }
@@ -216,7 +216,7 @@ export function medanDaftarKelas({ bolehSantri, bolehRiwayat }: { bolehSantri: b
     // FK + timestamp (jejak teknis).
     statis('santri_id', 'santri_id', 'riwayat_belajar', 'santri_id', 90),
     statis('tahun_ajaran', 'tahun_ajaran', 'riwayat_belajar', 'tahun_ajaran', 110),
-    statis('lembaga_id', 'lembaga_id', 'riwayat_belajar', 'lembaga_id', 100),
+    statis('jenjang', 'jenjang', 'riwayat_belajar', 'jenjang', 100),
     statis('kelas_id', 'kelas_id', 'riwayat_belajar', 'kelas_id', 90),
     statis('rwy_dibuat', 'riwayat.created_at', 'riwayat_belajar', 'created_at', 160),
     statis('rwy_diubah', 'riwayat.updated_at', 'riwayat_belajar', 'updated_at', 160),
@@ -234,7 +234,7 @@ export function daftarKelasValues(r: RiwayatRow): Record<string, string | null> 
   const out: Record<string, string | null> = {
     nama_lengkap: (r.santri?.nama_lengkap ?? String(r.santri_id)) as string,
     nis_lokal: (r.lembaga_anggota?.nis_lokal ?? r.nis_lokal ?? null) as string | null,
-    lembaga: r.lembaga?.kode ?? r.lembaga?.nama ?? String(r.lembaga_id),
+    lembaga: r.lembaga?.jenjang ?? String(r.jenjang),
     ta: r.tahun_ajaran ?? null,
     semester: r.semester,
     tingkat: r.tingkat,
@@ -260,7 +260,7 @@ export function daftarKelasValues(r: RiwayatRow): Record<string, string | null> 
     foto_url: (r.santri?.foto_url ?? null) as string | null,
     santri_id: String(r.santri_id),
     tahun_ajaran: r.tahun_ajaran,
-    lembaga_id: String(r.lembaga_id),
+    jenjang: String(r.jenjang),
     kelas_id: r.kelas_id !== null && r.kelas_id !== undefined ? String(r.kelas_id) : null,
     rwy_dibuat: potongWaktu((r as unknown as Record<string, unknown>).created_at),
     rwy_diubah: potongWaktu((r as unknown as Record<string, unknown>).updated_at),

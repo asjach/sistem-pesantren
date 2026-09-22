@@ -42,15 +42,15 @@ class KeanggotaanSortTest extends TestCase
     protected function sebaris(): array
     {
         $root = Lembaga::create([
-            'nama' => 'Pesantren Root', 'kode' => 'PESANTREN',
+            'nama' => 'Pesantren Root', 'jenjang' => 'PESANTREN',
             'is_seleksi' => false, 'kelompok_psb' => 'combo_mi_md', 'is_active' => true,
         ]);
         $mi = Lembaga::create([
-            'parent_id' => $root->id, 'nama' => 'Madrasah Ibtidaiyah', 'kode' => 'MI',
+            'nama' => 'Madrasah Ibtidaiyah', 'jenjang' => 'MI',
             'is_seleksi' => false, 'kelompok_psb' => 'combo_mi_md', 'is_active' => true,
         ]);
         $md = Lembaga::create([
-            'parent_id' => $root->id, 'nama' => 'Madrasah Diniyah', 'kode' => 'MD',
+            'nama' => 'Madrasah Diniyah', 'jenjang' => 'MD',
             'is_seleksi' => false, 'kelompok_psb' => 'combo_mi_md', 'is_active' => true,
         ]);
 
@@ -58,15 +58,15 @@ class KeanggotaanSortTest extends TestCase
         $budi = Santri::create(['nama_lengkap' => 'Budi', 'jk' => 'L']);
         $candra = Santri::create(['nama_lengkap' => 'Candra', 'jk' => 'L']);
         LembagaSantri::create([
-            'santri_id' => $ahmad->id, 'lembaga_id' => $md->id,
+            'santri_id' => $ahmad->id, 'jenjang' => $md->jenjang,
             'nis_lokal' => '100', 'is_active_lembaga' => 'Ya', 'tgl_masuk' => '2025-07-01',
         ]);
         LembagaSantri::create([
-            'santri_id' => $budi->id, 'lembaga_id' => $mi->id,
+            'santri_id' => $budi->id, 'jenjang' => $mi->jenjang,
             'nis_lokal' => '200', 'is_active_lembaga' => 'Ya', 'tgl_masuk' => '2025-07-01',
         ]);
         LembagaSantri::create([
-            'santri_id' => $candra->id, 'lembaga_id' => $mi->id,
+            'santri_id' => $candra->id, 'jenjang' => $mi->jenjang,
             'nis_lokal' => '300', 'is_active_lembaga' => 'Ya', 'tgl_masuk' => '2025-07-01',
         ]);
 

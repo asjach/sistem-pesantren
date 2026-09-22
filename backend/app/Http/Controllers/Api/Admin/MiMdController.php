@@ -32,17 +32,17 @@ class MiMdController extends Controller
         private PenerimaanService $penerimaanService,
     ) {}
 
-    /** @return array{mi_id: int, md_id: int}|null */
+    /** @return array{mi_id: string, md_id: string}|null */
     protected function resolvePasangan(): ?array
     {
-        $miId = Lembaga::where('kode', 'MI')->whereNotNull('parent_id')->value('id');
-        $mdId = Lembaga::where('kode', 'MD')->whereNotNull('parent_id')->value('id');
+        $miId = Lembaga::whereKey('MI')->value('jenjang');
+        $mdId = Lembaga::whereKey('MD')->value('jenjang');
 
-        return $miId && $mdId ? ['mi_id' => (int) $miId, 'md_id' => (int) $mdId] : null;
+        return $miId && $mdId ? ['mi_id' => $miId, 'md_id' => $mdId] : null;
     }
 
     /** Pengecualian pasangan: boleh MI atau MD → kedua sisi terbuka di halaman ini. */
-    protected function bolehPasangan(Request $request, int $miId, int $mdId): bool
+    protected function bolehPasangan(Request $request, string $miId, string $mdId): bool
     {
         $auth = $request->user();
 
@@ -66,7 +66,7 @@ class MiMdController extends Controller
         }
 
         // Keanggotaan aktif per sisi + santri + riwayat aktif terbaru + kelas.
-        $anggota = LembagaSantri::whereIn('lembaga_id', [$miId, $mdId])
+        $anggota = LembagaSantri::whereIn('jenjang', [$miId, $mdId])
             ->where('is_active_lembaga', LembagaSantri::YA)
             ->with([
                 'santri:id,nama_lengkap',
@@ -75,9 +75,9 @@ class MiMdController extends Controller
             ->get()
             ->groupBy('santri_id');
 
-        $kelasAktif = function ($santri, int $lembagaId): ?string {
+        $kelasAktif = function ($santri, string $lembagaId): ?string {
             $riwayat = $santri->riwayatAktif
-                ->where('lembaga_id', $lembagaId)
+                ->where('jenjang', $lembagaId)
                 ->sortByDesc('id')
                 ->first();
 
@@ -93,10 +93,10 @@ class MiMdController extends Controller
             if (! $santri) {
                 continue;
             }
-            $punyaMi = $baris->contains('lembaga_id', $miId);
-            $punyaMd = $baris->contains('lembaga_id', $mdId);
-            $nisMi = $baris->firstWhere('lembaga_id', $miId)?->nis_lokal;
-            $nisMd = $baris->firstWhere('lembaga_id', $mdId)?->nis_lokal;
+            $punyaMi = $baris->contains('jenjang', $miId);
+            $punyaMd = $baris->contains('jenjang', $mdId);
+            $nisMi = $baris->firstWhere('jenjang', $miId)?->nis_lokal;
+            $nisMd = $baris->firstWhere('jenjang', $mdId)?->nis_lokal;
 
             if ($punyaMd) {
                 $mdSemua[] = [
@@ -173,14 +173,14 @@ class MiMdController extends Controller
                 // Samakan kelas: pemegang salah satu pihak pasangan boleh
                 // (cerminan daftarkan/hapus-md; tanpa pivot silang).
                 $sepihak = $auth->canAccessLembaga($miId) || $auth->canAccessLembaga($mdId);
-                if (! $sepihak || Lembaga::pasanganId($miId) !== $mdId) {
+                if (! $sepihak || Lembaga::pasanganJenjang($miId) !== $mdId) {
                     throw ValidationException::withMessages([
                         'santri_id' => 'Akses ditolak.',
                     ]);
                 }
 
                 $acuan = RiwayatBelajar::where('santri_id', $santri->id)
-                    ->where('lembaga_id', $acuanId)
+                    ->where('jenjang', $acuanId)
                     ->where('is_active_riwayat', RiwayatBelajar::YA)
                     ->with('kelas:id,nama_kelas')
                     ->latest('id')
@@ -193,7 +193,7 @@ class MiMdController extends Controller
                 }
 
                 $tujuan = RiwayatBelajar::where('santri_id', $santri->id)
-                    ->where('lembaga_id', $tujuanId)
+                    ->where('jenjang', $tujuanId)
                     ->where('is_active_riwayat', RiwayatBelajar::YA)
                     ->latest('id')
                     ->first();
@@ -210,7 +210,7 @@ class MiMdController extends Controller
                         ]);
                     }
                     $namaNormal = mb_strtolower(preg_replace('/\s+/u', ' ', trim($namaAcuan)) ?? $namaAcuan);
-                    $kelasTujuan = Kelas::where('lembaga_id', $tujuanId)
+                    $kelasTujuan = Kelas::where('jenjang', $tujuanId)
                         ->where('tahun_ajaran', $taTujuan)
                         ->whereRaw('LOWER(nama_kelas) = ?', [$namaNormal])
                         ->first();
@@ -230,7 +230,7 @@ class MiMdController extends Controller
 
                 // Kelas senama di lembaga + TA berjalan sisi tujuan.
                 $namaNormal = mb_strtolower(preg_replace('/\s+/u', ' ', trim($namaAcuan)) ?? $namaAcuan);
-                $kelasTujuan = Kelas::where('lembaga_id', $tujuanId)
+                $kelasTujuan = Kelas::where('jenjang', $tujuanId)
                     ->where('tahun_ajaran', $tujuan->tahun_ajaran)
                     ->whereRaw('LOWER(nama_kelas) = ?', [$namaNormal])
                     ->first();
@@ -284,13 +284,13 @@ class MiMdController extends Controller
                 $punyaMi = $auth->canAccessLembaga($miId);
                 $punyaMd = $auth->canAccessLembaga($mdId);
                 $sepihak = $punyaMi || $punyaMd;
-                $berpasangan = Lembaga::pasanganId($miId) === $mdId;
+                $berpasangan = Lembaga::pasanganJenjang($miId) === $mdId;
                 if (! $sepihak || ! $berpasangan) {
                     throw ValidationException::withMessages(['santri_id' => 'Akses ditolak.']);
                 }
 
                 $mi = LembagaSantri::where('santri_id', $santri->id)
-                    ->where('lembaga_id', $miId)
+                    ->where('jenjang', $miId)
                     ->where('is_active_lembaga', LembagaSantri::YA)
                     ->first();
                 if (! $mi) {
@@ -345,32 +345,32 @@ class MiMdController extends Controller
                 // Hapus jejak MD: pemegang salah satu pihak pasangan boleh
                 // (cerminan daftarkan-md; tanpa pivot silang).
                 $sepihak = $auth->canAccessLembaga($miId) || $auth->canAccessLembaga($mdId);
-                if (! $sepihak || Lembaga::pasanganId($miId) !== $mdId) {
+                if (! $sepihak || Lembaga::pasanganJenjang($miId) !== $mdId) {
                     throw ValidationException::withMessages(['santri_id' => 'Akses ditolak.']);
                 }
 
                 // Hanya yang masih MI aktif (kembali menjadi MI Only).
                 $miAktif = LembagaSantri::where('santri_id', $santri->id)
-                    ->where('lembaga_id', $miId)
+                    ->where('jenjang', $miId)
                     ->where('is_active_lembaga', LembagaSantri::YA)
                     ->exists();
                 if (! $miAktif) {
                     throw ValidationException::withMessages(['santri_id' => 'Bukan anggota aktif MI.']);
                 }
-                if (! LembagaSantri::where('santri_id', $santri->id)->where('lembaga_id', $mdId)->exists()) {
+                if (! LembagaSantri::where('santri_id', $santri->id)->where('jenjang', $mdId)->exists()) {
                     throw ValidationException::withMessages(['santri_id' => 'Tidak ada keanggotaan MD.']);
                 }
 
                 // Arsip resmi ada → lewat halaman mutasi, bukan X.
-                $adaArsip = $santri->alumni()->where('lembaga_lulus_id', $mdId)->exists()
-                    || $santri->mutasiKeluar()->where('lembaga_id', $mdId)->exists();
+                $adaArsip = $santri->alumni()->where('lembaga_lulus', $mdId)->exists()
+                    || $santri->mutasiKeluar()->where('jenjang', $mdId)->exists();
                 if ($adaArsip) {
                     throw ValidationException::withMessages(['santri_id' => 'Sudah ada arsip MD — hapus via mutasi.']);
                 }
 
                 DB::transaction(function () use ($santri, $mdId) {
-                    RiwayatBelajar::where('santri_id', $santri->id)->where('lembaga_id', $mdId)->delete();
-                    LembagaSantri::where('santri_id', $santri->id)->where('lembaga_id', $mdId)->delete();
+                    RiwayatBelajar::where('santri_id', $santri->id)->where('jenjang', $mdId)->delete();
+                    LembagaSantri::where('santri_id', $santri->id)->where('jenjang', $mdId)->delete();
                     $santri->hitungUlangStatusGlobal();
                 });
                 $berhasil++;

@@ -55,7 +55,7 @@ const TOOLS_TAMPIL_KEY = 'simpes_tools_tampil';
  *  Navigasi halaman ada di Sidebar, bukan di sini. */
 export default function TopBar() {
   const { user, logoutLocal } = useAuth();
-  const { lembagaId, lembaga, pilihan, adaSemua, banyakPilihan, bertindak, peran, pilih, loading: lembagaLoading } = useLembagaAktif();
+  const { jenjang, lembaga, pilihan, adaSemua, banyakPilihan, bertindak, peran, pilih, loading: lembagaLoading } = useLembagaAktif();
   const { tahunAjaranNama, tahunAjaran, pilihan: taPilihan, pilih: taPilih, loading: taLoading } = useTahunAjaranAktif();
   const { semester, pilih: pilihSemester, loading: semesterLoading } = useSemesterAktif();
 
@@ -68,8 +68,8 @@ export default function TopBar() {
     daftarSemester()
       .then((res) => {
         const baris = res.data;
-        const milik = lembagaId != null
-          ? baris.find((r) => r.lembaga_id === lembagaId)?.semester
+        const milik = jenjang != null
+          ? baris.find((r) => r.jenjang === jenjang)?.semester
           : undefined;
         let nilai: string | undefined;
         if (milik === '1' || milik === '2') {
@@ -86,7 +86,7 @@ export default function TopBar() {
       })
       .catch(() => {});
     return () => { hidup = false; };
-  }, [lembagaId, pilihSemester]);
+  }, [jenjang, pilihSemester]);
   // Dropdown lembaga = filter (bebas diubah kapan pun, termasuk saat bertindak);
   // peran act-as diatur terpisah lewat tombol PERAN SEBAGAI + banner.
   const daftarLembaga = pilihan;
@@ -188,7 +188,7 @@ export default function TopBar() {
                 >
                   <Landmark size={14} />
                   <span className="hidden max-w-[9rem] truncate sm:inline">
-                    {lembaga ? (lembaga.kode ?? lembaga.nama) : 'Semua'}
+                    {lembaga ? (lembaga.nama) : 'Semua'}
                   </span>
                   <ChevronDown size={13} className="opacity-70" />
                 </button>
@@ -198,16 +198,16 @@ export default function TopBar() {
                 <DropdownMenuSeparator />
                 {/* Filter "Semua lembaga" selalu tersedia (bukan peran;
                     keluar dari peran lewat banner / Esc). */}
-                {adaSemua && lembagaId === null && (
+                {adaSemua && jenjang === null && (
                   <DropdownMenuItem id="menu_lembaga_aktif_semua" onSelect={() => pilih(null)}>
                     <span className="flex-1">Semua</span>
                     <Check data-icon="inline-end" size={14} />
                   </DropdownMenuItem>
                 )}
                 {daftarLembaga.map((l) => (
-                  <DropdownMenuItem key={l.id} id={`menu_lembaga_aktif_${l.id}`} onSelect={() => pilih(l.id)}>
-                    <span className="flex-1 truncate">{l.kode ? `${l.kode} — ${l.nama}` : l.nama}</span>
-                    {lembagaId === l.id && <Check data-icon="inline-end" size={14} />}
+                  <DropdownMenuItem key={l.jenjang} id={`menu_lembaga_aktif_${l.jenjang}`} onSelect={() => pilih(l.jenjang)}>
+                    <span className="flex-1 truncate">{`${l.jenjang} — ${l.nama}`}</span>
+                    {jenjang === l.jenjang && <Check data-icon="inline-end" size={14} />}
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>
@@ -294,7 +294,7 @@ export default function TopBar() {
             >
               <Landmark size={14} />
               <span className="hidden max-w-[9rem] truncate sm:inline">
-                {peran ? `PERAN: ${peran.kode ?? peran.nama}` : 'PERAN'}
+                {peran ? `PERAN: ${peran.jenjang}` : 'PERAN'}
               </span>
               <ChevronDown size={13} className="opacity-70" />
             </button>

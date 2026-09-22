@@ -115,14 +115,14 @@ G4: Modul Guru (pegawai), Dokumen Guru/Santri, Absensi Guru (Modul 501 stub). G5
 TBD khusus asrama (v1.10 — semua pasca production):
 - Implementasi asrama tidak dalam waktu dekat; tidak ada tabel/peran/pivot dibuat sekarang.
 - Yang perlu dijaga sekarang agar tidak menutup jalan: peran baru cukup ditambah saat itu.
-- Perubahan `santri` (`lembaga_id` nullable, `status_global` turunan) **bukan** bagian asrama — **sudah diimplementasikan** (v1.10.2).
+- Perubahan `santri` (`status_global` turunan) **bukan** bagian asrama — **sudah diimplementasikan** (v1.10.2).
 - Presensi kegiatan asrama: `sesi_presensi.kategori` sudah ada, tetapi `presensi_santri.kelas_id` masih NOT NULL — perlu penyesuaian skema sebelum dipakai.
 - Tarif beda antar-asrama (putra/putri) belum diakomodasi; menunggu perumusan ulang modul keuangan.
 - Bentuk tabel kamar/penghuni/izin/kegiatan masih **gambaran umum**, bisa berubah saat implementasi.
 
 ## Lampiran D — Glosarium (Opsi A)
 
-SIMPES; santri; lembaga (MI=SD formal, MD=SD non-formal paralel, MTS=SMP, MLN=Aliyah beda nama; kode hardcoded; PK id INT); tahun_ajaran; kelas; pegawai/guru; 6 peran (`super_admin, admin, guru, orang_tua, santri, asrama` — efektif 5 sekarang; `asrama` pasca production, `kasir` dihapus sementara v2.38); PSB (`is_seleksi`); riwayat_belajar; asrama (entitas sendiri — bukan `lembaga`; kamar, penghuni, izin pulang, kegiatan; pasca production); pengurus asrama (peran `asrama` + pivot `user_asrama`); santri legacy (tanpa jejak riwayat).
+SIMPES; santri; lembaga (PK `jenjang`: MI=SD formal, MD=SD non-formal paralel, MTS=SMP, MLN=Aliyah beda nama; tanpa root/hierarki); tahun_ajaran; kelas; pegawai/guru; 6 peran (`super_admin, admin, guru, orang_tua, santri, asrama` — efektif 5 sekarang; `asrama` pasca production, `kasir` dihapus sementara v2.38); PSB (`is_seleksi`); riwayat_belajar; asrama (entitas sendiri — bukan `lembaga`; kamar, penghuni, izin pulang, kegiatan; pasca production); pengurus asrama (peran `asrama` + pivot `user_asrama`); santri legacy (tanpa jejak riwayat).
 
 ## Lampiran E — Catatan Perubahan Aturan
 

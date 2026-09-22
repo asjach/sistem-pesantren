@@ -21,7 +21,7 @@ class PsbDaftarRequest extends FormRequest
     {
         return [
             'gelombang_id' => ['nullable', 'integer', 'exists:psb_gelombang,id'], // kosong = otomatis gelombang aktif
-            'lembaga_id' => ['required', 'integer', 'exists:lembaga,id'],
+            'jenjang' => ['required', 'string', 'exists:lembaga,jenjang'],
             'tahun_ajaran' => ['nullable', 'string', 'exists:tahun_ajaran,nama'], // null = ikut gelombang
             'tipe_santri' => ['required', 'in:asrama,non_asrama'],
             'nik' => ['required', 'digits:16'],

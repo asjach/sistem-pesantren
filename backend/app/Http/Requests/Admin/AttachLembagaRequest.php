@@ -24,7 +24,7 @@ class AttachLembagaRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'lembaga_id' => ['required', 'integer', 'exists:lembaga,id'],
+            'jenjang' => ['required', 'string', 'exists:lembaga,jenjang'],
         ];
     }
 }

@@ -13,7 +13,7 @@ export default function SemesterPage() {
   const [cari, setCari] = useState('');
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
-  const [busyId, setBusyId] = useState<number | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setErr('');
@@ -28,9 +28,9 @@ export default function SemesterPage() {
 
   async function tetapkan(r: SemesterLembaga, semester: '1' | '2') {
     if (r.semester === semester) return;
-    setBusyId(r.lembaga_id);
+    setBusyId(r.jenjang);
     try {
-      const res = await tetapkanSemester(r.lembaga_id, semester);
+      const res = await tetapkanSemester(r.jenjang, semester);
       toast.success(res.pesan);
       await load();
     } catch (e) { toast.error(errorMessage(e)); } finally { setBusyId(null); }
@@ -39,16 +39,16 @@ export default function SemesterPage() {
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
-      <ExcelTable<SemesterLembaga & { id: number }>
+      <ExcelTable<SemesterLembaga & { id: string }>
         tableKey="semester_aktif"
         fields={[
-          { key: 'kode', label: 'lembaga.kode', kind: 'static', sumber: { tabel: 'lembaga', kolom: 'kode' } },
+          { key: 'jenjang', label: 'lembaga.jenjang', kind: 'static', sumber: { tabel: 'lembaga', kolom: 'jenjang' } },
           { key: 'nama', label: 'lembaga.nama', kind: 'static', sumber: { tabel: 'lembaga', kolom: 'nama' } },
           { key: 'semester', label: 'semester_aktif.semester', kind: 'static', sumber: { tabel: 'semester_aktif', kolom: 'semester' } },
         ]}
-        rows={rows.map((r) => ({ ...r, id: r.lembaga_id }))}
+        rows={rows.map((r) => ({ ...r, id: r.jenjang }))}
         getValues={(r) => ({
-          kode: r.kode,
+          jenjang: r.jenjang,
           nama: r.nama,
           semester: r.label ?? 'Belum diatur',
         })}
@@ -64,19 +64,19 @@ export default function SemesterPage() {
         renderActions={(r) => (
           <>
             <Button
-              id={`btn_semester_ganjil_${r.lembaga_id}`}
+              id={`btn_semester_ganjil_${r.jenjang}`}
               size="sm"
               variant={r.semester === '1' ? 'default' : 'outline'}
-              disabled={busyId === r.lembaga_id || r.semester === '1'}
+              disabled={busyId === r.jenjang || r.semester === '1'}
               onClick={() => void tetapkan(r, '1')}
             >
               Ganjil
             </Button>
             <Button
-              id={`btn_semester_genap_${r.lembaga_id}`}
+              id={`btn_semester_genap_${r.jenjang}`}
               size="sm"
               variant={r.semester === '2' ? 'default' : 'outline'}
-              disabled={busyId === r.lembaga_id || r.semester === '2'}
+              disabled={busyId === r.jenjang || r.semester === '2'}
               onClick={() => void tetapkan(r, '2')}
             >
               Genap

@@ -27,16 +27,12 @@ class UserRoleGuardTest extends TestCase
 
     protected function fixture(): array
     {
-        $root = Lembaga::create([
-            'nama' => 'Pesantren Root', 'kode' => 'PESANTREN',
-            'is_seleksi' => false, 'kelompok_psb' => 'combo_mi_md', 'is_active' => true,
-        ]);
         $mi = Lembaga::create([
-            'parent_id' => $root->id, 'nama' => 'Madrasah Ibtidaiyah', 'kode' => 'MI',
+            'nama' => 'Madrasah Ibtidaiyah', 'jenjang' => 'MI',
             'is_seleksi' => false, 'kelompok_psb' => 'combo_mi_md', 'is_active' => true,
         ]);
 
-        return compact('root', 'mi');
+        return compact('mi');
     }
 
     protected function makeUser(string $role, array $lembagaIds = []): User
@@ -51,7 +47,7 @@ class UserRoleGuardTest extends TestCase
         $u->assignRole($role);
         foreach ($lembagaIds as $lid) {
             DB::table('user_lembaga')->insert([
-                'user_id' => $u->id, 'lembaga_id' => $lid,
+                'user_id' => $u->id, 'jenjang' => $lid,
                 'created_at' => now(), 'updated_at' => now(),
             ]);
         }
@@ -61,7 +57,7 @@ class UserRoleGuardTest extends TestCase
 
     protected function pivotOf(User $u): array
     {
-        return DB::table('user_lembaga')->where('user_id', $u->id)->pluck('lembaga_id')->all();
+        return DB::table('user_lembaga')->where('user_id', $u->id)->pluck('jenjang')->all();
     }
 
     // ---------- 1. admin boleh membuat user ber-role admin (khusus create) ----------
@@ -69,7 +65,7 @@ class UserRoleGuardTest extends TestCase
     public function test_01_admin_scoped_bisa_buat_admin_lembaganya(): void
     {
         $f = $this->fixture();
-        $admin = $this->makeUser('admin', [$f['mi']->id]);
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
 
         $res = $this->actingAs($admin, 'sanctum')->postJson('/api/admin/users', [
             'name' => 'Calon Admin',
@@ -81,42 +77,42 @@ class UserRoleGuardTest extends TestCase
         $baru = User::findOrFail($res->json('id'));
         $this->assertTrue($baru->hasRole('admin'));
         // Tanpa lembaga_ids -> fallback pivot milik pembuat (bukan admin global).
-        $this->assertSame([$f['mi']->id], array_map('intval', $this->pivotOf($baru)));
+        $this->assertSame([$f['mi']->jenjang], $this->pivotOf($baru));
     }
 
     public function test_01b_admin_scoped_bisa_buat_admin_subset_lembaganya(): void
     {
         $f = $this->fixture();
-        $admin = $this->makeUser('admin', [$f['mi']->id, $f['root']->id]);
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
 
         $res = $this->actingAs($admin, 'sanctum')->postJson('/api/admin/users', [
             'name' => 'Admin Subset',
             'email' => 'admin_subset_'.uniqid().'@example.com',
             'password' => 'password',
             'roles' => ['admin'],
-            'lembaga_ids' => [$f['mi']->id],
+            'jenjangs' => [$f['mi']->jenjang],
         ])->assertStatus(201);
 
         $baru = User::findOrFail($res->json('id'));
         $this->assertTrue($baru->hasRole('admin'));
-        $this->assertSame([$f['mi']->id], array_map('intval', $this->pivotOf($baru)));
+        $this->assertSame([$f['mi']->jenjang], $this->pivotOf($baru));
     }
 
     public function test_01c_admin_scoped_tidak_bisa_buat_admin_lembaga_luar(): void
     {
         $f = $this->fixture();
         $md = Lembaga::create([
-            'parent_id' => $f['root']->id, 'nama' => 'Madrasah Diniyah', 'kode' => 'MD',
+            'nama' => 'Madrasah Diniyah', 'jenjang' => 'MD',
             'is_seleksi' => false, 'kelompok_psb' => 'combo_mi_md', 'is_active' => true,
         ]);
-        $admin = $this->makeUser('admin', [$f['mi']->id]);
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
 
         $this->actingAs($admin, 'sanctum')->postJson('/api/admin/users', [
             'name' => 'Admin MD',
             'email' => 'admin_md_'.uniqid().'@example.com',
             'password' => 'password',
             'roles' => ['admin'],
-            'lembaga_ids' => [$md->id],
+            'jenjangs' => [$md->jenjang],
         ])->assertStatus(201);
 
         $this->assertDatabaseHas('users', ['name' => 'Admin MD']);
@@ -143,8 +139,8 @@ class UserRoleGuardTest extends TestCase
     public function test_01e_admin_tetap_tidak_bisa_beri_role_admin_via_update_dan_assign(): void
     {
         $f = $this->fixture();
-        $admin = $this->makeUser('admin', [$f['mi']->id]);
-        $target = $this->makeUser('guru', [$f['mi']->id]);
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
+        $target = $this->makeUser('guru', [$f['mi']->jenjang]);
 
         $this->actingAs($admin, 'sanctum')->putJson("/api/admin/users/{$target->id}", [
             'roles' => ['admin'],
@@ -162,7 +158,7 @@ class UserRoleGuardTest extends TestCase
     public function test_02_admin_tidak_bisa_sync_role_diri_sendiri(): void
     {
         $f = $this->fixture();
-        $admin = $this->makeUser('admin', [$f['mi']->id]);
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
 
         $this->actingAs($admin, 'sanctum')->putJson("/api/admin/users/{$admin->id}", [
             'roles' => ['guru'],
@@ -176,7 +172,7 @@ class UserRoleGuardTest extends TestCase
     public function test_03_admin_tidak_bisa_assign_role_ke_diri_sendiri(): void
     {
         $f = $this->fixture();
-        $admin = $this->makeUser('admin', [$f['mi']->id]);
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
 
         $this->actingAs($admin, 'sanctum')->postJson("/api/admin/users/{$admin->id}/roles", [
             'role' => 'guru',
@@ -209,7 +205,7 @@ class UserRoleGuardTest extends TestCase
     {
         $f = $this->fixture();
         $super = $this->makeUser('super_admin');
-        $target = $this->makeUser('guru', [$f['mi']->id]);
+        $target = $this->makeUser('guru', [$f['mi']->jenjang]);
 
         $this->actingAs($super, 'sanctum')->postJson("/api/admin/users/{$target->id}/roles", [
             'role' => 'guru',
@@ -221,8 +217,8 @@ class UserRoleGuardTest extends TestCase
     public function test_06_admin_bisa_assign_guru_ke_orang_lain_setenant(): void
     {
         $f = $this->fixture();
-        $admin = $this->makeUser('admin', [$f['mi']->id]);
-        $target = $this->makeUser('orang_tua', [$f['mi']->id]);
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
+        $target = $this->makeUser('orang_tua', [$f['mi']->jenjang]);
 
         $this->actingAs($admin, 'sanctum')->postJson("/api/admin/users/{$target->id}/roles", [
             'role' => 'guru',
@@ -236,16 +232,16 @@ class UserRoleGuardTest extends TestCase
     public function test_07_admin_tidak_bisa_tambah_lembaga(): void
     {
         $f = $this->fixture();
-        $admin = $this->makeUser('admin', [$f['mi']->id]);
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
 
         $this->actingAs($admin, 'sanctum')->postJson('/api/admin/lembaga', [
             'nama' => 'Unit Liar '.uniqid(),
-            'kode' => 'LX'.strtoupper(substr(uniqid(), -6)),
+            'jenjang' => 'LX'.strtoupper(substr(uniqid(), -6)),
         ])->assertStatus(403);
 
         $this->actingAs($this->makeUser('admin'), 'sanctum')->postJson('/api/admin/lembaga', [
             'nama' => 'Unit Full '.uniqid(),
-            'kode' => 'LY'.strtoupper(substr(uniqid(), -6)),
+            'jenjang' => 'LY'.strtoupper(substr(uniqid(), -6)),
         ])->assertStatus(403);
     }
 
@@ -256,7 +252,7 @@ class UserRoleGuardTest extends TestCase
 
         $this->actingAs($super, 'sanctum')->postJson('/api/admin/lembaga', [
             'nama' => 'Unit Baru '.uniqid(),
-            'kode' => 'LZ'.strtoupper(substr(uniqid(), -6)),
+            'jenjang' => 'LZ'.strtoupper(substr(uniqid(), -6)),
         ])->assertStatus(201);
     }
 
@@ -295,8 +291,8 @@ class UserRoleGuardTest extends TestCase
     public function test_11_admin_tidak_bisa_mutasi_role_sesama_admin(): void
     {
         $f = $this->fixture();
-        $admin = $this->makeUser('admin', [$f['mi']->id]);
-        $sesama = $this->makeUser('admin', [$f['mi']->id]);
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
+        $sesama = $this->makeUser('admin', [$f['mi']->jenjang]);
 
         $this->actingAs($admin, 'sanctum')->putJson("/api/admin/users/{$sesama->id}", [
             'roles' => ['guru'],
@@ -314,16 +310,16 @@ class UserRoleGuardTest extends TestCase
     public function test_12_admin_tidak_bisa_detach_lembaga_super_admin(): void
     {
         $f = $this->fixture();
-        $admin = $this->makeUser('admin', [$f['mi']->id]);
-        $super = $this->makeUser('super_admin', [$f['mi']->id]);
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
+        $super = $this->makeUser('super_admin', [$f['mi']->jenjang]);
 
         $this->actingAs($admin, 'sanctum')->deleteJson("/api/admin/users/{$super->id}/lembaga", [
-            'lembaga_id' => $f['mi']->id,
+            'jenjang' => $f['mi']->jenjang,
         ])->assertStatus(403);
 
         $this->assertContains(
-            $f['mi']->id,
-            DB::table('user_lembaga')->where('user_id', $super->id)->pluck('lembaga_id')->all()
+            $f['mi']->jenjang,
+            DB::table('user_lembaga')->where('user_id', $super->id)->pluck('jenjang')->all()
         );
     }
 
@@ -333,20 +329,20 @@ class UserRoleGuardTest extends TestCase
     {
         $f = $this->fixture();
         $md = Lembaga::create([
-            'parent_id' => $f['root']->id, 'nama' => 'Madrasah Diniyah', 'kode' => 'MD',
+            'nama' => 'Madrasah Diniyah', 'jenjang' => 'MD',
             'is_seleksi' => false, 'kelompok_psb' => 'combo_mi_md', 'is_active' => true,
         ]);
-        $adminMi = $this->makeUser('admin', [$f['mi']->id]);
-        $target = $this->makeUser('guru', [$f['mi']->id, $md->id]);
+        $adminMi = $this->makeUser('admin', [$f['mi']->jenjang]);
+        $target = $this->makeUser('guru', [$f['mi']->jenjang, $md->jenjang]);
 
         $this->actingAs($adminMi, 'sanctum')->deleteJson("/api/admin/users/{$target->id}/lembaga", [
-            'lembaga_id' => $md->id,
+            'jenjang' => $md->jenjang,
         ])->assertStatus(200);
-        $this->assertNotContains($md->id, $this->pivotOf($target->fresh()));
+        $this->assertNotContains($md->jenjang, $this->pivotOf($target->fresh()));
 
         $this->actingAs($adminMi, 'sanctum')->deleteJson("/api/admin/users/{$target->id}/lembaga", [
-            'lembaga_id' => $f['mi']->id,
+            'jenjang' => $f['mi']->jenjang,
         ])->assertStatus(200);
-        $this->assertNotContains($f['mi']->id, $this->pivotOf($target->fresh()));
+        $this->assertNotContains($f['mi']->jenjang, $this->pivotOf($target->fresh()));
     }
 }

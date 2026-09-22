@@ -15,7 +15,7 @@ class KelasExportNamaRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'lembaga_id' => ['required', Rule::exists('lembaga', 'id')->whereNotNull('parent_id')],
+            'jenjang' => ['required', Rule::exists('lembaga', 'jenjang')],
             'tahun_ajaran' => ['required', 'string', 'exists:tahun_ajaran,nama'],
         ];
     }
@@ -23,7 +23,7 @@ class KelasExportNamaRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'lembaga_id.exists' => 'Lembaga harus lembaga operasional (bukan induk pesantren).',
+            'jenjang.exists' => 'Lembaga harus lembaga operasional (bukan induk pesantren).',
         ];
     }
 }

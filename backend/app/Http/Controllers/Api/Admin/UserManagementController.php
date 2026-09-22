@@ -49,12 +49,12 @@ class UserManagementController extends Controller
     }
 
     /**
-     * Validasi lembaga_ids[]: tiap id wajib exists + boleh diakses actor.
-     * Admin non-full tanpa lembaga_ids = fallback seluruh pivot sendiri (vault 003).
+     * Validasi jenjangs[]: tiap id wajib exists + boleh diakses actor.
+     * Admin non-full tanpa jenjangs = fallback seluruh pivot sendiri (vault 003).
      */
     protected function resolveLembagaIds(User $authUser, ?array $inputIds): array
     {
-        $ids = array_values(array_unique(array_map('intval', $inputIds ?? [])));
+        $ids = array_values(array_unique(array_map('strval', $inputIds ?? [])));
         foreach ($ids as $lid) {
             if (! Lembaga::whereKey($lid)->exists()) {
                 abort(422, "Lembaga $lid tidak ditemukan.");
@@ -66,7 +66,7 @@ class UserManagementController extends Controller
         if (empty($ids) && ! $authUser->bolehPesantren()) {
             $mine = $authUser->lembagaIds();
             if (empty($mine)) {
-                abort(422, 'lembaga_ids wajib untuk admin non-global.');
+                abort(422, 'jenjangs wajib untuk admin non-global.');
             }
 
             return $mine;
@@ -80,7 +80,7 @@ class UserManagementController extends Controller
         DB::table('user_lembaga')->where('user_id', $user->id)->delete();
         foreach ($ids as $lid) {
             DB::table('user_lembaga')->insert([
-                'user_id' => $user->id, 'lembaga_id' => $lid,
+                'user_id' => $user->id, 'jenjang' => $lid,
                 'created_at' => now(), 'updated_at' => now(),
             ]);
         }
@@ -90,7 +90,7 @@ class UserManagementController extends Controller
     {
         $this->authorize('viewAny', User::class);
         $urut = $this->parseUrut($request, UrutKatalog::peta('users'));
-        $query = User::tenantScope()->with(['roles', 'lembagas:id,nama,kode']);
+        $query = User::tenantScope()->with(['roles', 'lembagas:jenjang,nama']);
 
         if ($request->filled('role')
             && ! in_array($request->input('role'), $this->assignableRolesFor(auth()->user()), true)) {
@@ -125,7 +125,7 @@ class UserManagementController extends Controller
             ], 403);
         }
 
-        $lembagaIds = $this->resolveLembagaIds($authUser, $request->input('lembaga_ids'));
+        $lembagaIds = $this->resolveLembagaIds($authUser, $request->input('jenjangs'));
 
         $user = User::create([
             'name' => $request->input('name'),
@@ -147,10 +147,10 @@ class UserManagementController extends Controller
 
         $data = $request->validated();
 
-        if (array_key_exists('lembaga_ids', $data)) {
-            $ids = $this->resolveLembagaIds($authUser, $data['lembaga_ids']);
+        if (array_key_exists('jenjangs', $data)) {
+            $ids = $this->resolveLembagaIds($authUser, $data['jenjangs']);
             $this->syncLembaga($user, $ids);
-            unset($data['lembaga_ids']);
+            unset($data['jenjangs']);
         }
 
         if (array_key_exists('roles', $data)) {
@@ -183,9 +183,9 @@ class UserManagementController extends Controller
         $allowedRoles = $this->assignableRolesFor($authUser);
 
         $isFull = $authUser->bolehPesantren();
-        $lembagaIds = $request->input('lembaga_ids');
+        $lembagaIds = $request->input('jenjangs');
         if (! $isFull && empty($lembagaIds)) {
-            return response()->json(['message' => 'lembaga_ids wajib untuk admin non-global.'], 422);
+            return response()->json(['message' => 'jenjangs wajib untuk admin non-global.'], 422);
         }
         $lembagaIds = $this->resolveLembagaIds($authUser, $lembagaIds);
 
@@ -304,12 +304,12 @@ class UserManagementController extends Controller
                 return response()->json(['message' => 'Akses ditolak.'], 403);
             }
         }
-        if (! $authUser->canAccessLembaga((int) $data['lembaga_id'])) {
+        if (! $authUser->canAccessLembaga($data['jenjang'])) {
             return response()->json(['message' => 'Akses ditolak untuk lembaga ini.'], 403);
         }
 
         DB::table('user_lembaga')->updateOrInsert(
-            ['user_id' => $user->id, 'lembaga_id' => (int) $data['lembaga_id']],
+            ['user_id' => $user->id, 'jenjang' => $data['jenjang']],
             ['created_at' => now(), 'updated_at' => now()]
         );
 
@@ -324,13 +324,13 @@ class UserManagementController extends Controller
     {
         $data = $request->validated();
 
-        if (! auth()->user()->canAccessLembaga((int) $data['lembaga_id'])) {
+        if (! auth()->user()->canAccessLembaga($data['jenjang'])) {
             return response()->json(['message' => 'Akses ditolak untuk lembaga ini.'], 403);
         }
 
         DB::table('user_lembaga')
             ->where('user_id', $user->id)
-            ->where('lembaga_id', (int) $data['lembaga_id'])
+            ->where('jenjang', $data['jenjang'])
             ->delete();
 
         return response()->json([

@@ -26,12 +26,12 @@ class AktifLembaga
         $header = $request->header('X-Lembaga-Aktif');
 
         if ($user?->hasRole('super_admin') && $header !== null && trim($header) !== '') {
-            $id = (int) $header;
-            if ($id > 0) {
-                if (! Lembaga::whereKey($id)->exists()) {
+            $jenjang = trim($header);
+            if ($jenjang !== '') {
+                if (! Lembaga::whereKey($jenjang)->exists()) {
                     abort(403, 'Lembaga aktif tidak ditemukan.');
                 }
-                $this->konteks->set($id);
+                $this->konteks->set($jenjang);
             }
         }
 

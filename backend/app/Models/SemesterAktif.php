@@ -10,11 +10,11 @@ class SemesterAktif extends Model
 {
     protected $table = 'semester_aktif';
 
-    protected $fillable = ['lembaga_id', 'semester', 'diubah_oleh'];
+    protected $fillable = ['jenjang', 'semester', 'diubah_oleh'];
 
     public function lembaga(): BelongsTo
     {
-        return $this->belongsTo(Lembaga::class);
+        return $this->belongsTo(Lembaga::class, 'jenjang', 'jenjang');
     }
 
     public function pengubah(): BelongsTo

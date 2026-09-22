@@ -16,7 +16,7 @@ class SiklusRekapRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'lembaga_id' => ['nullable', 'integer', 'exists:lembaga,id'],
+            'jenjang' => ['nullable', 'string', 'exists:lembaga,jenjang'],
             'tahun_ajaran' => ['nullable', 'string', 'exists:tahun_ajaran,nama'],
         ];
     }

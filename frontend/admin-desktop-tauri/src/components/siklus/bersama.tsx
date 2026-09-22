@@ -16,7 +16,7 @@ import {
 export const ROSTER_FIELDS: ExcelField[] = [
   { key: 'santri', label: 'santri.nama_lengkap', width: 200, kind: 'static', sumber: { tabel: 'santri', kolom: 'nama_lengkap' } },
   { key: 'nis', label: 'nis_lokal', width: 110, kind: 'static', sumber: { tabel: 'lembaga_santri', kolom: 'nis_lokal' } },
-  { key: 'lembaga', label: 'lembaga.kode', width: 110, kind: 'static', sumber: { tabel: 'lembaga', kolom: 'kode' } },
+  { key: 'lembaga', label: 'lembaga.jenjang', width: 110, kind: 'static', sumber: { tabel: 'lembaga', kolom: 'jenjang' } },
   { key: 'smt', label: 'semester', width: 60, kind: 'static', sumber: { tabel: 'riwayat_belajar', kolom: 'semester' } },
   { key: 'tingkat', label: 'tingkat', width: 80, kind: 'static', sumber: { tabel: 'riwayat_belajar', kolom: 'tingkat' } },
   { key: 'kelas', label: 'kelas.nama_kelas', width: 140, kind: 'static', sumber: { tabel: 'kelas', kolom: 'nama_kelas' } },
@@ -29,7 +29,7 @@ export function riwayatValues(r: RiwayatRow): Record<string, string | null> {
   return {
     santri: r.santri?.nama_lengkap ?? String(r.santri_id),
     nis: r.nis_lokal ?? null,
-    lembaga: r.lembaga?.kode ?? r.lembaga?.nama ?? String(r.lembaga_id),
+    lembaga: r.lembaga?.jenjang ?? String(r.jenjang),
     smt: r.semester,
     tingkat: r.tingkat,
     kelas: r.kelas?.nama_kelas ?? '—',
@@ -43,14 +43,14 @@ export function riwayatValues(r: RiwayatRow): Record<string, string | null> {
 export async function noopCommit(): Promise<void> {}
 
 /** Satu lembaga saja? → id-nya; campuran/kosong → null. */
-export function lembagaSeragam(rows: { lembaga_id: number }[]): number | null {
+export function lembagaSeragam(rows: { jenjang: string }[]): string | null {
   if (rows.length === 0) return null;
-  const id = rows[0].lembaga_id;
-  return rows.every((r) => r.lembaga_id === id) ? id : null;
+  const id = rows[0].jenjang;
+  return rows.every((r) => r.jenjang === id) ? id : null;
 }
 
 /** Muat daftar lembaga + tahun ajaran (TA mengikuti lembaga terpilih). */
-export function useLembagaTa(lembagaId: string) {
+export function useLembagaTa(jenjang: string) {
   const [lembagas, setLembagas] = useState<Lembaga[]>([]);
   const [tas, setTas] = useState<TahunAjaran[]>([]);
 
@@ -59,10 +59,10 @@ export function useLembagaTa(lembagaId: string) {
   }, []);
 
   useEffect(() => {
-    listTahunAjaran({ lembaga_id: lembagaId ? Number(lembagaId) : undefined, per_page: 100 })
+    listTahunAjaran({ jenjang: jenjang || undefined, per_page: 100 })
       .then((p) => setTas(p.data))
       .catch(() => {});
-  }, [lembagaId]);
+  }, [jenjang]);
 
   return { lembagas, tas };
 }

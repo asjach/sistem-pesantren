@@ -6,9 +6,8 @@ export interface Role {
 }
 
 export interface LembagaRingkas {
-  id: number;
+  jenjang: string;
   nama: string;
-  kode: string | null;
 }
 
 export interface Me {

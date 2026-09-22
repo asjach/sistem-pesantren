@@ -76,7 +76,7 @@ class SantriTemplateExport extends DefaultValueBinder implements FromArray, With
         'desa_kelurahan' => 'desa_kelurahan',
     ];
 
-    public function __construct(private ?int $lembagaId = null) {}
+    public function __construct(private ?string $lembagaId = null) {}
 
     public function bindValue(Cell $cell, $value): bool
     {

@@ -44,7 +44,7 @@ export function ProfilSantriDialog({ santriId, open, onOpenChange }: {
             { key: 'aktif', label: 'Aktif' },
           ],
           rows: profil.keanggotaan.map((k) => ({
-            lembaga: k.lembaga?.kode ?? k.lembaga?.nama ?? '',
+            lembaga: k.lembaga?.jenjang ?? k.lembaga?.nama ?? '',
             nis_lokal: k.nis_lokal ?? '',
             nis_kemenag: k.nis_kemenag ?? '',
             mulai: ymd(k.tgl_masuk),
@@ -68,7 +68,7 @@ export function ProfilSantriDialog({ santriId, open, onOpenChange }: {
             tahun: r.tahun_ajaran ?? '',
             semester: r.semester,
             tingkat: r.tingkat ?? '',
-            lembaga: r.lembaga?.kode ?? r.lembaga?.nama ?? '',
+            lembaga: r.lembaga?.jenjang ?? r.lembaga?.nama ?? '',
             kelas: r.kelas?.nama_kelas ?? '',
             status_awal: r.status_awal ?? '',
             status_akhir: r.status_akhir ?? '',
@@ -85,7 +85,7 @@ export function ProfilSantriDialog({ santriId, open, onOpenChange }: {
             { key: 'tujuan', label: 'Tujuan' },
           ],
           rows: profil.mutasi.map((m) => ({
-            lembaga: m.lembaga?.kode ?? m.lembaga?.nama ?? '',
+            lembaga: m.lembaga?.jenjang ?? m.lembaga?.nama ?? '',
             kelas: m.kelas_terakhir?.nama_kelas ?? '',
             tanggal: ymd(m.tanggal_mutasi),
             alasan: m.alasan_mutasi ?? '',
@@ -102,7 +102,7 @@ export function ProfilSantriDialog({ santriId, open, onOpenChange }: {
             { key: 'penyerahan', label: 'Ijazah' },
           ],
           rows: profil.alumni.map((a) => ({
-            lembaga: a.lembaga_lulus?.kode ?? a.lembaga_lulus?.nama ?? '',
+            lembaga: a.lembaga_lulus?.jenjang ?? a.lembaga_lulus?.nama ?? '',
             ta: a.tahunAjaranLulus?.nama ?? '',
             ijazah: a.nomor_ijazah ?? '',
             tanggal: ymd(a.tanggal_lulus),

@@ -7,7 +7,10 @@ use Illuminate\Database\Eloquent\Model;
 class RefPenghasilan extends Model
 {
     protected $table = 'ref_penghasilan';
-    protected $fillable = ['lembaga_id', 'nama', 'urutan', 'is_active'];
+
+    protected $fillable = ['jenjang', 'nama', 'urutan', 'is_active'];
+
     protected $casts = ['is_active' => 'boolean'];
+
     public $timestamps = false;
 }

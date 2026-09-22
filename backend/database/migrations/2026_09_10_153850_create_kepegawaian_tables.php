@@ -75,20 +75,22 @@ return new class extends Migration
         Schema::create('keaktifan_pegawai', function (Blueprint $table) {
             $table->id();
             $table->foreignId('pegawai_id')->constrained('pegawai')->cascadeOnDelete();
-            $table->foreignId('lembaga_id')->constrained('lembaga')->cascadeOnDelete();
+            $table->string('jenjang', 20);
+            $table->foreign('jenjang')->references('jenjang')->on('lembaga')->cascadeOnUpdate()->cascadeOnDelete();
             $table->string('tahun_ajaran', 9); // FK ke tahun_ajaran.nama
             $table->string('tugas_utama')->default('Guru Pengampu'); // ref_tugas_utama
             $table->enum('status_keaktifan', ['aktif', 'inaktif'])->default('aktif');
             $table->timestamps();
 
-            $table->unique(['pegawai_id', 'lembaga_id', 'tahun_ajaran'], 'uq_keaktifan_pegawai_plt'); // nama pendek: auto-name 61 char, margin aman dari limit 64
+            $table->unique(['pegawai_id', 'jenjang', 'tahun_ajaran'], 'uq_keaktifan_pegawai_plt'); // nama pendek: auto-name 61 char, margin aman dari limit 64
             $table->foreign('tahun_ajaran')->references('nama')->on('tahun_ajaran')
                 ->cascadeOnUpdate()->cascadeOnDelete();
         });
 
         Schema::create('presensi_pegawai', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('lembaga_id')->nullable()->constrained('lembaga')->nullOnDelete();
+            $table->string('jenjang', 20)->nullable();
+            $table->foreign('jenjang')->references('jenjang')->on('lembaga')->cascadeOnUpdate()->nullOnDelete();
             $table->foreignId('pegawai_id')->constrained('pegawai')->cascadeOnDelete();
             $table->date('tanggal');
             $table->time('jam_masuk')->nullable();
@@ -105,12 +107,13 @@ return new class extends Migration
 
         Schema::create('pengaturan_hari_lembaga', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('lembaga_id')->constrained('lembaga')->cascadeOnDelete();
+            $table->string('jenjang', 20);
+            $table->foreign('jenjang')->references('jenjang')->on('lembaga')->cascadeOnUpdate()->cascadeOnDelete();
             $table->enum('hari', ['senin', 'selasa', 'rabu', 'kamis', 'jumat', 'sabtu', 'minggu']);
             $table->boolean('is_hari_libur')->default(false);
             $table->timestamps();
 
-            $table->unique(['lembaga_id', 'hari']);
+            $table->unique(['jenjang', 'hari']);
         });
     }
 

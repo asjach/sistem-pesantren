@@ -14,7 +14,7 @@ class SiklusLulusRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'lembaga_id' => 'required|exists:lembaga,id',
+            'jenjang' => 'required|exists:lembaga,jenjang',
             'tahun_ajaran_lulus' => 'required|string|exists:tahun_ajaran,nama',
             'tanggal_lulus' => 'required|date',
             'nomor_ijazah' => ['nullable', 'string'],

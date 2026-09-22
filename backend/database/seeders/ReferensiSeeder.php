@@ -11,7 +11,7 @@ class ReferensiSeeder extends Seeder
     {
         // Nilai murni per lembaga operasional (tanpa baris global):
         // super_admin menambah ke semua lembaga; tiap lembaga kelola miliknya.
-        $lembagas = DB::table('lembaga')->whereNotNull('parent_id')->pluck('id')->all();
+        $lembagas = DB::table('lembaga')->pluck('jenjang')->all();
         if (empty($lembagas)) {
             return;
         }
@@ -23,11 +23,11 @@ class ReferensiSeeder extends Seeder
                     // Hanya sisip bila belum ada: baris milik lembaga (mis.
                     // yang sengaja dipadamkan) tidak disentuh seeder.
                     $ada = DB::table($table)
-                        ->where('lembaga_id', $lid)
+                        ->where('jenjang', $lid)
                         ->where($key, $nilai)
                         ->exists();
                     if (! $ada) {
-                        DB::table($table)->insert($attrs + ['lembaga_id' => $lid, $key => $nilai]);
+                        DB::table($table)->insert($attrs + ['jenjang' => $lid, $key => $nilai]);
                     }
                 }
             }

@@ -55,11 +55,11 @@ class PsbController extends Controller
 
         $query = (clone $base)
             ->whereIn('status_pendaftaran', $statuses)
-            ->with(['lembagaTujuan:id,nama,kode', 'lembagaDetail.lembaga:id,nama,kode', 'gelombang:id,nama']);
+            ->with(['lembagaTujuan:jenjang,nama', 'lembagaDetail.lembaga:jenjang,nama', 'gelombang:id,nama']);
         $urut = $this->parseUrut($request, UrutKatalog::peta('psb'));
         if ($urut !== null) {
             $query->select('psb_calon_santri.*')
-                ->leftJoin('lembaga', 'lembaga.id', '=', 'psb_calon_santri.lembaga_id')
+                ->leftJoin('lembaga', 'lembaga.jenjang', '=', 'psb_calon_santri.jenjang')
                 ->leftJoin('psb_gelombang', 'psb_gelombang.id', '=', 'psb_calon_santri.gelombang_id');
         }
         $this->terapkanUrut($query, $urut, [['psb_calon_santri.id', 'turun']], self::SORT_NULLABLE);
@@ -77,13 +77,13 @@ class PsbController extends Controller
 
         // Tandai kebutuhan seleksi per calon (mengikuti kuota lembaga primer + tipe santri).
         $items = collect($page->items());
-        $kuota = PsbKuotaBiaya::with('lembaga:id,is_seleksi')
+        $kuota = PsbKuotaBiaya::with('lembaga:jenjang,is_seleksi')
             ->whereIn('gelombang_id', $items->pluck('gelombang_id')->unique()->filter())
-            ->whereIn('lembaga_id', $items->pluck('lembaga_id')->unique()->filter())
+            ->whereIn('jenjang', $items->pluck('jenjang')->unique()->filter())
             ->get();
         $page->getCollection()->transform(function (PsbCalonSantri $calon) use ($kuota) {
             $cocok = fn (PsbKuotaBiaya $r) => (int) $r->gelombang_id === (int) $calon->gelombang_id
-                && (int) $r->lembaga_id === (int) $calon->lembaga_id;
+                && $r->jenjang === $calon->jenjang;
             $baris = $kuota->first(fn (PsbKuotaBiaya $r) => $cocok($r) && $r->tipe_santri === ($calon->tipe_santri ?? 'semua'))
                 ?? $kuota->first(fn (PsbKuotaBiaya $r) => $cocok($r) && $r->tipe_santri === 'semua');
 
@@ -372,7 +372,7 @@ class PsbController extends Controller
     public function storeCalon(PsbDaftarRequest $request, PsbService $service): JsonResponse
     {
         $data = $request->validated();
-        $this->authorizeLembaga($request->user(), (int) $data['lembaga_id']);
+        $this->authorizeLembaga($request->user(), $data['jenjang']);
 
         $calon = $service->daftarPublik($data);
 
@@ -392,11 +392,11 @@ class PsbController extends Controller
     public function import(PsbImportRequest $request, PsbService $psbService): JsonResponse
     {
         $data = $request->validated();
-        $this->authorizeLembaga(auth()->user(), (int) $data['lembaga_id']);
+        $this->authorizeLembaga(auth()->user(), $data['jenjang']);
 
         try {
             Excel::import(
-                new PsbImport((int) $data['gelombang_id'], (int) $data['lembaga_id'], $psbService),
+                new PsbImport((int) $data['gelombang_id'], $data['jenjang'], $psbService),
                 $request->file('file')
             );
 

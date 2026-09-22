@@ -23,7 +23,7 @@ class PsbBiayaController extends Controller
         $gelombang = PsbGelombang::with('kegiatan:id,nama')->findOrFail($data['gelombang_id']);
 
         $rows = PsbKuotaBiaya::where('gelombang_id', $gelombang->id)
-            ->orderBy('lembaga_id')
+            ->orderBy('jenjang')
             ->orderBy('tipe_santri')
             ->get();
 
@@ -66,16 +66,17 @@ class PsbBiayaController extends Controller
         $punyaAsrama = $this->lembagaPunyaAsrama();
 
         return Lembaga::where('is_active', true)
-            ->whereIn('kode', array_keys(PsbService::TINGKAT_MASUK_BARU))
-            ->orderBy('id')
-            ->get(['id', 'kode', 'nama', 'kelompok_psb', 'is_seleksi'])
+            ->whereIn('jenjang', array_keys(PsbService::TINGKAT_MASUK_BARU))
+            ->orderBy('jenjang')
+            ->get(['jenjang', 'nama', 'kelompok_psb', 'is_seleksi'])
             ->map(fn (Lembaga $l) => [
-                'id' => $l->id,
-                'kode' => $l->kode,
+                'id' => $l->jenjang,
+                'jenjang' => $l->jenjang,
+                'kode' => $l->jenjang,
                 'nama' => $l->nama,
                 'kelompok_psb' => $l->kelompok_psb,
                 'is_seleksi' => (bool) $l->is_seleksi,
-                'punya_asrama' => in_array($l->id, $punyaAsrama, true),
+                'punya_asrama' => in_array($l->jenjang, $punyaAsrama, true),
             ])
             ->values()
             ->all();
@@ -85,12 +86,12 @@ class PsbBiayaController extends Controller
     public function upsertKuota(PsbKuotaUpsertRequest $request): JsonResponse
     {
         $data = $request->validated();
-        $this->authorizeLembaga($request->user(), (int) $data['lembaga_id']);
+        $this->authorizeLembaga($request->user(), $data['jenjang']);
 
         $row = PsbKuotaBiaya::updateOrCreate(
             [
                 'gelombang_id' => $data['gelombang_id'],
-                'lembaga_id' => $data['lembaga_id'],
+                'jenjang' => $data['jenjang'],
                 'tipe_santri' => $data['tipe_santri'],
             ],
             collect($data)->only([
@@ -104,7 +105,7 @@ class PsbBiayaController extends Controller
     /** DELETE /api/admin/psb/kuota-biaya/{kuota} */
     public function destroyKuota(PsbKuotaBiaya $kuota): JsonResponse
     {
-        $this->authorizeLembaga(auth()->user(), (int) $kuota->lembaga_id);
+        $this->authorizeLembaga(auth()->user(), $kuota->jenjang);
         $kuota->delete();
 
         return response()->json(['pesan' => 'Baris kuota dihapus.']);
@@ -115,8 +116,8 @@ class PsbBiayaController extends Controller
     {
         return PsbKuotaBiaya::whereIn('tipe_santri', ['asrama', 'semua'])
             ->distinct()
-            ->pluck('lembaga_id')
-            ->map(fn ($v) => (int) $v)
+            ->pluck('jenjang')
+            ->map(fn ($v) => (string) $v)
             ->all();
     }
 }

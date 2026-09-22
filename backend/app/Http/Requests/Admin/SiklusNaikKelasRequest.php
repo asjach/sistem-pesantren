@@ -16,7 +16,7 @@ class SiklusNaikKelasRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'lembaga_id' => 'required|exists:lembaga,id',
+            'jenjang' => 'required|exists:lembaga,jenjang',
             'tahun_ajaran_baru' => 'required|string|exists:tahun_ajaran,nama',
             'tingkat' => 'required|string',
             'siswa' => 'required|array|min:1',

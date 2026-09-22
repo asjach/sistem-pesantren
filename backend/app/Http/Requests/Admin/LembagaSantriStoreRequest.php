@@ -16,7 +16,7 @@ class LembagaSantriStoreRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'lembaga_id' => ['required', Rule::exists('lembaga', 'id')->whereNotNull('parent_id')],
+            'jenjang' => ['required', Rule::exists('lembaga', 'jenjang')],
             'nis_lokal' => ['nullable', 'string', 'max:20'],
             'nis_kemenag' => ['nullable', 'string', 'max:20'],
             'tahaj_masuk' => ['nullable', 'string', 'max:50'],

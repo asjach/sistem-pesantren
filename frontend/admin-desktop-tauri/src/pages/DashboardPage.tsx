@@ -70,7 +70,7 @@ export default function DashboardPage() {
       ) : (
         <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {data.tahun_aktif.map((t) => (
-            <li key={t.id}>
+            <li key={t.nama}>
               <Item variant="outline" size="sm" className="bg-card">
                 <ItemMedia
                   variant="icon"
@@ -80,7 +80,7 @@ export default function DashboardPage() {
                 </ItemMedia>
                 <ItemContent>
                   <ItemTitle>{t.nama}</ItemTitle>
-                  <ItemDescription>{t.lembaga?.nama ?? (t.lembaga_id ? String(t.lembaga_id) : 'Semua lembaga')}</ItemDescription>
+                  <ItemDescription>Berlaku untuk semua lembaga</ItemDescription>
                 </ItemContent>
               </Item>
             </li>

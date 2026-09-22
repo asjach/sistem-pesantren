@@ -65,12 +65,12 @@ class PsbPortalController extends Controller
             }
             $data['gelombang_id'] = $aktif->id;
         }
-        $gelombang->cekBukaDanKuota((int) $data['gelombang_id'], (int) $data['lembaga_id']);
+        $gelombang->cekBukaDanKuota((int) $data['gelombang_id'], $data['jenjang']);
 
         $santri = Santri::findOrFail($data['santri_id']);
         $calon = $service->daftarPublik([
             'gelombang_id' => $data['gelombang_id'],
-            'lembaga_id' => $data['lembaga_id'],
+            'jenjang' => $data['jenjang'],
             'tipe_santri' => $santri->tipe_santri ?? 'non_asrama',
             'nik' => $santri->nik,
             'nama_lengkap' => $santri->nama_lengkap,
@@ -117,7 +117,7 @@ class PsbPortalController extends Controller
                     $q->orWhereIn('santri_asal_id', $santriIds);
                 }
             })
-                ->with(['lembagaTujuan:id,nama,kode', 'gelombang:id,nama'])
+                ->with(['lembagaTujuan:jenjang,nama', 'gelombang:id,nama'])
                 ->latest('id')
                 ->get();
         }
@@ -130,7 +130,7 @@ class PsbPortalController extends Controller
     {
         $list = WaliSantriRelasi::where('user_id', $request->user()->id)
             ->where('is_active', true)
-            ->with(['santri.lembaga:id,nama'])
+            ->with(['santri.lembaga:jenjang,nama'])
             ->latest('id')
             ->get()
             ->pluck('santri')

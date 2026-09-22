@@ -22,9 +22,9 @@ return new class extends Migration
             ->value('semester');
 
         Schema::table('semester_aktif', function (Blueprint $table) {
-            $table->dropForeign(['lembaga_id']);
-            $table->dropUnique(['lembaga_id']);
-            $table->dropColumn('lembaga_id');
+            $table->dropForeign(['jenjang']);
+            $table->dropUnique(['jenjang']);
+            $table->dropColumn('jenjang');
         });
 
         DB::table('semester_aktif')->delete();
@@ -40,7 +40,8 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('semester_aktif', function (Blueprint $table) {
-            $table->foreignId('lembaga_id')->nullable()->unique()->constrained('lembaga')->cascadeOnDelete();
+            $table->string('jenjang', 20)->nullable()->unique();
+            $table->foreign('jenjang')->references('jenjang')->on('lembaga')->cascadeOnUpdate()->cascadeOnDelete();
         });
     }
 };

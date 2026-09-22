@@ -38,7 +38,7 @@ class SemesterAktifTest extends TestCase
         $u->assignRole($role);
         foreach ($lembagaIds as $lid) {
             DB::table('user_lembaga')->insert([
-                'user_id' => $u->id, 'lembaga_id' => $lid,
+                'user_id' => $u->id, 'jenjang' => $lid,
                 'created_at' => now(), 'updated_at' => now(),
             ]);
         }
@@ -46,15 +46,14 @@ class SemesterAktifTest extends TestCase
         return $u;
     }
 
-    /** @return array{root: Lembaga, mi: Lembaga, md: Lembaga, mts: Lembaga} */
+    /** @return array{mi: Lembaga, md: Lembaga, mts: Lembaga} */
     protected function lembaga(): array
     {
-        $root = Lembaga::create(['nama' => 'Pesantren', 'kode' => 'PESANTREN', 'is_active' => true]);
-        $mi = Lembaga::create(['parent_id' => $root->id, 'nama' => 'Madrasah Ibtidaiyah', 'kode' => 'MI', 'is_active' => true]);
-        $md = Lembaga::create(['parent_id' => $root->id, 'nama' => 'Madrasah Diniyah', 'kode' => 'MD', 'is_active' => true]);
-        $mts = Lembaga::create(['parent_id' => $root->id, 'nama' => 'Madrasah Tsanawiyah', 'kode' => 'MTS', 'is_active' => true]);
+        $mi = Lembaga::create(['nama' => 'Madrasah Ibtidaiyah', 'jenjang' => 'MI', 'is_active' => true]);
+        $md = Lembaga::create(['nama' => 'Madrasah Diniyah', 'jenjang' => 'MD', 'is_active' => true]);
+        $mts = Lembaga::create(['nama' => 'Madrasah Tsanawiyah', 'jenjang' => 'MTS', 'is_active' => true]);
 
-        return ['root' => $root, 'mi' => $mi, 'md' => $md, 'mts' => $mts];
+        return ['mi' => $mi, 'md' => $md, 'mts' => $mts];
     }
 
     public function test_daftar_dan_tetapkan_semester(): void
@@ -62,7 +61,7 @@ class SemesterAktifTest extends TestCase
         $l = $this->lembaga();
         $pusat = $this->makeUser('super_admin');
 
-        // Awal: semua belum diatur, root tak ikut daftar.
+        // Awal: semua belum diatur.
         $this->actingAs($pusat, 'sanctum')->getJson('/api/admin/semester-aktif')
             ->assertStatus(200)
             ->assertJsonCount(3, 'data')
@@ -70,38 +69,44 @@ class SemesterAktifTest extends TestCase
 
         // Tetapkan MI = Ganjil.
         $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/semester-aktif', [
-            'lembaga_id' => $l['mi']->id, 'semester' => '1',
+            'jenjang' => $l['mi']->jenjang, 'semester' => '1',
         ])->assertStatus(200)
             ->assertJsonPath('data.label', 'Ganjil');
 
-        $this->assertSame('1', SemesterAktif::where('lembaga_id', $l['mi']->id)->value('semester'));
+        $this->assertSame('1', SemesterAktif::where('jenjang', $l['mi']->jenjang)->value('semester'));
 
         // Nilai lain ditolak; root ditolak (bukan operasional).
         $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/semester-aktif', [
-            'lembaga_id' => $l['mi']->id, 'semester' => '3',
+            'jenjang' => $l['mi']->jenjang, 'semester' => '3',
         ])->assertStatus(422);
         $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/semester-aktif', [
-            'lembaga_id' => $l['root']->id, 'semester' => '1',
+            'jenjang' => 'ZZ', 'semester' => '1',
         ])->assertStatus(422);
     }
 
     public function test_admin_hanya_lembaganya(): void
     {
         $l = $this->lembaga();
-        $adminMi = $this->makeUser('admin', [$l['mi']->id]);
+        $adminMi = $this->makeUser('admin', [$l['mi']->jenjang]);
 
         // Daftar: MI + pasangan MD; MTS di luar jangkauan.
         $this->actingAs($adminMi, 'sanctum')->getJson('/api/admin/semester-aktif')
             ->assertStatus(200)
             ->assertJsonCount(2, 'data')
-            ->assertJsonPath('data.0.lembaga_id', $l['mi']->id);
+            ->assertJsonPath('data.0.semester', null);
+        $jenjangTampil = collect($this->actingAs($adminMi, 'sanctum')->getJson('/api/admin/semester-aktif')->json('data'))
+            ->pluck('jenjang')->sort()->values()->all();
+        $this->assertSame(
+            collect([$l['mi']->jenjang, $l['md']->jenjang])->sort()->values()->all(),
+            $jenjangTampil
+        );
 
         // Milik sendiri boleh, MTS ditolak.
         $this->actingAs($adminMi, 'sanctum')->putJson('/api/admin/semester-aktif', [
-            'lembaga_id' => $l['mi']->id, 'semester' => '2',
+            'jenjang' => $l['mi']->jenjang, 'semester' => '2',
         ])->assertStatus(200)->assertJsonPath('data.label', 'Genap');
         $this->actingAs($adminMi, 'sanctum')->putJson('/api/admin/semester-aktif', [
-            'lembaga_id' => $l['mts']->id, 'semester' => '2',
+            'jenjang' => $l['mts']->jenjang, 'semester' => '2',
         ])->assertStatus(403);
     }
 

@@ -16,7 +16,7 @@ class SiklusSalinGenapRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'lembaga_id' => 'required|exists:lembaga,id',
+            'jenjang' => 'required|exists:lembaga,jenjang',
             'tanggal_masuk' => 'required|date',
             'siswa' => 'nullable|array|min:1',
             'siswa.*.santri_id' => 'required|exists:santri,id',

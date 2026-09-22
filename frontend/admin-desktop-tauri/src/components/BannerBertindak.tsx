@@ -21,20 +21,18 @@ export default function BannerBertindak({ terbuka, onTutup }: {
 }) {
   const { user } = useAuth();
   /** Opsi peran SELALU penuh (pilihan filter menyempit saat bertindak). */
-  const { peranId, peran, pilihanPeran: pilihan, pilihPeran } = useLembagaAktif();
+  const { peranJenjang, peran, pilihanPeran: pilihan, pilihPeran } = useLembagaAktif();
   const { rekam, setRekam, menyimpan } = useStandarTampilan();
 
   const superAdmin = !!user?.roles.some((r) => r.name === 'super_admin');
-  const bertindak = peranId != null;
+  const bertindak = peranJenjang != null;
   const tampil = superAdmin && (bertindak || terbuka);
 
-  /** Urutan baku tombol cepat: MI | MD | MTS | MLN (PST selalu paling akhir). */
+  /** Urutan baku tombol cepat: MI | MD | MTS | MLN. */
   const cepat = pilihan
-    .filter((p) => CEPAT.includes(p.kode ?? ''))
-    .sort((a, b) => CEPAT.indexOf(a.kode ?? '') - CEPAT.indexOf(b.kode ?? ''));
-  const tombol = cepat.length > 0 ? cepat : pilihan.filter((p) => (p.kode ?? '') !== 'PESANTREN');
-  /** Akar pesantren (admin pesantren): tombol cepat "PST", paling kiri grup kanan. */
-  const pst = pilihan.find((p) => (p.kode ?? '') === 'PESANTREN') ?? null;
+    .filter((p) => CEPAT.includes(p.jenjang))
+    .sort((a, b) => CEPAT.indexOf(a.jenjang) - CEPAT.indexOf(b.jenjang));
+  const tombol = cepat.length > 0 ? cepat : pilihan;
 
   // Esc = tutup pemilih / kembali ke mode super_admin. Dialog/menu yang
   // terbuka dan editor sel grid tetap didahulukan (jangan dibajak).
@@ -57,9 +55,7 @@ export default function BannerBertindak({ terbuka, onTutup }: {
 
   if (!tampil) return null;
 
-  const label = peran
-    ? (peran.kode ? `${peran.kode} — ${peran.nama}` : peran.nama)
-    : null;
+  const label = peran ? `${peran.jenjang} — ${peran.nama}` : null;
 
   return (
     <div
@@ -71,7 +67,7 @@ export default function BannerBertindak({ terbuka, onTutup }: {
       <TriangleAlert size={15} aria-hidden="true" />
       {bertindak ? (
         <span>
-          Peran sebagai: <b>{label ?? `#${peranId}`}</b>
+          Peran sebagai: <b>{label ?? peranJenjang}</b>
         </span>
       ) : (
         <span>
@@ -106,16 +102,16 @@ export default function BannerBertindak({ terbuka, onTutup }: {
 
       <span className="ml-auto inline-flex items-center gap-1" role="group" aria-label="Peran cepat">
         {tombol.map((p) => {
-          const aktif = p.id === peranId;
+          const aktif = p.jenjang === peranJenjang;
           return (
             <button
-              key={p.id}
-              id={`btn_peran_lembaga_${(p.kode ?? String(p.id)).toLowerCase()}`}
+              key={p.jenjang}
+              id={`btn_peran_lembaga_${p.jenjang.toLowerCase()}`}
               type="button"
               title={p.nama}
               aria-label={`Berperan sebagai ${p.nama}`}
               aria-pressed={aktif}
-              onClick={() => { pilihPeran(p.id); onTutup(); }}
+              onClick={() => { pilihPeran(p.jenjang); onTutup(); }}
               className={cn(
                 'rounded-md px-2.5 py-1 font-medium transition-colors',
                 aktif
@@ -123,29 +119,10 @@ export default function BannerBertindak({ terbuka, onTutup }: {
                   : 'bg-black/10 hover:bg-black/20 dark:bg-white/15 dark:hover:bg-white/25',
               )}
             >
-              {p.kode ?? p.nama}
+              {p.jenjang}
             </button>
           );
         })}
-        {pst && (
-          <button
-            key={pst.id}
-            id="btn_peran_lembaga_pst"
-            type="button"
-            title={pst.nama}
-            aria-label={`Berperan sebagai ${pst.nama}`}
-            aria-pressed={pst.id === peranId}
-            onClick={() => { pilihPeran(pst.id); onTutup(); }}
-            className={cn(
-              'rounded-md px-2.5 py-1 font-medium transition-colors',
-              pst.id === peranId
-                ? 'bg-black/25 dark:bg-white/25'
-                : 'bg-black/10 hover:bg-black/20 dark:bg-white/15 dark:hover:bg-white/25',
-            )}
-          >
-            PST
-          </button>
-        )}
       </span>
 
       {/* Selalu tampil selama banner terbuka: menutup pemilih / keluar dari peran. */}

@@ -34,7 +34,7 @@ class TahunAjaranController extends Controller
         $urut = $this->parseUrut($request, UrutKatalog::peta('tahun_ajaran'));
 
         $auth = $request->user();
-        $lembagaId = $request->filled('lembaga_id') ? (int) $request->input('lembaga_id') : null;
+        $lembagaId = $request->filled('jenjang') ? (string) $request->input('jenjang') : null;
         if ($lembagaId !== null) {
             $this->authorizeLembaga($auth, $lembagaId);
         }
@@ -43,7 +43,7 @@ class TahunAjaranController extends Controller
 
         $pivot = $lembagaId === null
             ? collect()
-            : LembagaTahunAjaran::where('lembaga_id', $lembagaId)->pluck('is_active', 'tahun_ajaran');
+            : LembagaTahunAjaran::where('jenjang', $lembagaId)->pluck('is_active', 'tahun_ajaran');
 
         $query = TahunAjaran::query();
 
@@ -171,9 +171,12 @@ class TahunAjaranController extends Controller
         $auth = $request->user();
         $data = $request->validate([
             'nama' => ['required', 'string'],
-            'lembaga_id' => ['nullable', 'integer', 'exists:lembaga,id'],
+            'jenjang' => ['nullable', 'string', 'exists:lembaga,jenjang'],
         ]);
-        $lembagaId = $data['lembaga_id'] ?? (int) ($auth->lembagaIds()[0] ?? 0);
+        $lembagaId = $data['jenjang'] ?? ($auth->lembagaIds()[0] ?? null);
+        if ($lembagaId === null) {
+            abort(422, 'jenjang wajib.');
+        }
         $this->authorizeLembaga($auth, $lembagaId);
 
         $row = TahunAjaran::findOrFail($data['nama']);
@@ -182,7 +185,7 @@ class TahunAjaranController extends Controller
         }
 
         LembagaTahunAjaran::updateOrCreate(
-            ['lembaga_id' => $lembagaId, 'tahun_ajaran' => $row->nama],
+            ['jenjang' => $lembagaId, 'tahun_ajaran' => $row->nama],
             ['is_active' => false]
         );
 
@@ -195,12 +198,15 @@ class TahunAjaranController extends Controller
         $auth = $request->user();
         $data = $request->validate([
             'nama' => ['required', 'string'],
-            'lembaga_id' => ['nullable', 'integer', 'exists:lembaga,id'],
+            'jenjang' => ['nullable', 'string', 'exists:lembaga,jenjang'],
         ]);
-        $lembagaId = $data['lembaga_id'] ?? (int) ($auth->lembagaIds()[0] ?? 0);
+        $lembagaId = $data['jenjang'] ?? ($auth->lembagaIds()[0] ?? null);
+        if ($lembagaId === null) {
+            abort(422, 'jenjang wajib.');
+        }
         $this->authorizeLembaga($auth, $lembagaId);
 
-        LembagaTahunAjaran::where('lembaga_id', $lembagaId)
+        LembagaTahunAjaran::where('jenjang', $lembagaId)
             ->where('tahun_ajaran', $data['nama'])
             ->delete();
 

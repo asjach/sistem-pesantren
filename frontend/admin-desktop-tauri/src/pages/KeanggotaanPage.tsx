@@ -45,7 +45,7 @@ function hariIni(): string {
 export default function KeanggotaanPage() {
   const { user } = useAuth();
   /** Lembaga selalu mengikuti topbar (satu-satunya sumber); null = Semua. */
-  const { lembagaId: lembagaTop } = useLembagaAktif();
+  const { jenjang: lembagaTop } = useLembagaAktif();
   const canUbah = bisa(user, 'santri.ubah');
   const canTambah = bisa(user, 'santri.tambah');
   const pager = usePager('keanggotaan');
@@ -83,13 +83,13 @@ export default function KeanggotaanPage() {
 
   const load = useCallback(async (
     p = pager.page, pp = pager.perPage,
-    f?: { lembagaId?: string; status?: string; cari?: string; urut?: string[]; arah?: 'naik' | 'turun' },
+    f?: { jenjang?: string; status?: string; cari?: string; urut?: string[]; arah?: 'naik' | 'turun' },
   ) => {
     setErr('');
     try {
-      const fl = f ?? { lembagaId: lembagaEfektif, status, cari, urut, arah: arahUrut };
+      const fl = f ?? { jenjang: lembagaEfektif, status, cari, urut, arah: arahUrut };
       const res = await listKeanggotaan({
-        lembaga_id: fl.lembagaId ? Number(fl.lembagaId) : null,
+        jenjang: fl.jenjang || null,
         is_active_lembaga: fl.status === '' ? null : fl.status === '1',
         search: fl.cari || undefined,
         sort: fl.urut?.length ? fl.urut : undefined,
@@ -109,7 +109,7 @@ export default function KeanggotaanPage() {
     setUrut(nilai);
     setArahUrut(arah);
     pager.goFirst();
-    void load(1, pager.perPage, { lembagaId: lembagaEfektif, status, cari, urut: nilai, arah });
+    void load(1, pager.perPage, { jenjang: lembagaEfektif, status, cari, urut: nilai, arah });
   }
 
   useEffect(() => { void listLembaga({ per_page: 100 }).then((r) => setLembagaOpsi(r.data)).catch(() => {}); }, []);
@@ -117,14 +117,14 @@ export default function KeanggotaanPage() {
 
   /** Filter Status langsung terapkan saat berubah. */
   function gantiFilter(patch: { status?: string }) {
-    const next = { lembagaId: lembagaEfektif, status, ...patch };
+    const next = { jenjang: lembagaEfektif, status, ...patch };
     if (patch.status !== undefined) setStatus(patch.status);
     pager.goFirst();
     void load(1, pager.perPage, { ...next, cari });
   }
 
   /** Lembaga aktif topbar berubah → muat ulang dari halaman 1. */
-  const topLalu = useRef<number | null | undefined>(undefined);
+  const topLalu = useRef<string | null | undefined>(undefined);
   useEffect(() => {
     if (!pager.ready) return;
     if (topLalu.current === undefined) {
@@ -134,7 +134,7 @@ export default function KeanggotaanPage() {
     if (topLalu.current === lembagaTop) return;
     topLalu.current = lembagaTop;
     pager.goFirst();
-    void load(1, pager.perPage, { lembagaId: lembagaEfektif, status, cari });
+    void load(1, pager.perPage, { jenjang: lembagaEfektif, status, cari });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lembagaTop, pager.ready]);
   const cariAwal = useRef(true);
@@ -146,7 +146,7 @@ export default function KeanggotaanPage() {
     }
     const t = setTimeout(() => {
       pager.goFirst();
-      void load(1, pager.perPage, { lembagaId: lembagaEfektif, status, cari: cari.trim() });
+      void load(1, pager.perPage, { jenjang: lembagaEfektif, status, cari: cari.trim() });
     }, cari.trim() === '' ? 0 : 400);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -213,7 +213,7 @@ export default function KeanggotaanPage() {
     setBusyId(-1);
     try {
       const res = await generateNiskBulk({
-        ...(lembagaEfektif === '' ? {} : { lembaga_id: Number(lembagaEfektif) }),
+        ...(lembagaEfektif === '' ? {} : { jenjang: lembagaEfektif }),
         ...(status === '' ? {} : { is_active_lembaga: status === '1' }),
         ...(cari.trim() === '' ? {} : { search: cari.trim() }),
       });
@@ -235,7 +235,7 @@ export default function KeanggotaanPage() {
     setBusyId(-1);
     try {
       await createLembagaSantri(tPilih.id, {
-        lembaga_id: Number(tLembaga),
+        jenjang: tLembaga,
         nis_lokal: teksAtauNull(tNis),
         nis_kemenag: teksAtauNull(tKemenag),
         is_active_lembaga: tAktif === '1' ? 'Ya' : 'Tidak',
@@ -259,8 +259,8 @@ export default function KeanggotaanPage() {
     },
     { key: 'jk', label: 'santri.jk', kind: 'static', width: 60, sumber: { tabel: 'santri', kolom: 'jk' } },
     {
-      key: 'lembaga', label: 'lembaga.kode', kind: 'static',
-      sumber: { tabel: 'lembaga', kolom: 'kode' },
+      key: 'lembaga', label: 'lembaga.jenjang', kind: 'static',
+      sumber: { tabel: 'lembaga', kolom: 'jenjang' },
     },
     { key: 'nis_lokal', label: 'nis_lokal', kind: 'text', maxLength: 20, sumber: { tabel: 'lembaga_santri', kolom: 'nis_lokal' } },
     { key: 'nis_kemenag', label: 'nis_kemenag', kind: 'text', maxLength: 20, sumber: { tabel: 'lembaga_santri', kolom: 'nis_kemenag' } },
@@ -319,7 +319,7 @@ export default function KeanggotaanPage() {
         getValues={(r) => ({
           santri: r.santri?.nama_lengkap ?? null,
           jk: r.santri?.jk ?? null,
-          lembaga: r.lembaga ? `${r.lembaga.kode ?? r.lembaga.nama}` : null,
+          lembaga: r.lembaga ? r.lembaga.jenjang : null,
           nis_lokal: r.nis_lokal,
           nis_kemenag: r.nis_kemenag,
           tahaj_masuk: r.tahaj_masuk,
@@ -372,7 +372,7 @@ export default function KeanggotaanPage() {
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Ubah keanggotaan</DialogTitle>
-            <DialogDescription>{ubah?.santri?.nama_lengkap} — {ubah?.lembaga?.kode ?? ubah?.lembaga?.nama}</DialogDescription>
+            <DialogDescription>{ubah?.santri?.nama_lengkap} — {ubah?.lembaga?.jenjang ?? ubah?.lembaga?.nama}</DialogDescription>
           </DialogHeader>
           <div className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-3">
             <FieldLabel htmlFor="input_ubah_nis_anggota">NIS lokal</FieldLabel>
@@ -440,7 +440,7 @@ export default function KeanggotaanPage() {
               <SelectContent>
                 <SelectGroup>
                   <SelectItem value="_pilih">Pilih lembaga</SelectItem>
-                  {lembagaOpsi.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>)}
+                  {lembagaOpsi.map((l) => <SelectItem key={l.jenjang} value={l.jenjang}>{l.jenjang} — {l.nama}</SelectItem>)}
                 </SelectGroup>
               </SelectContent>
             </Select>

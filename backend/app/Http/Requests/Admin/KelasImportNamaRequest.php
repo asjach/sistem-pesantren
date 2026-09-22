@@ -15,10 +15,10 @@ class KelasImportNamaRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'lembaga_id' => ['nullable', Rule::exists('lembaga', 'id')->whereNotNull('parent_id')],
+            'jenjang' => ['nullable', Rule::exists('lembaga', 'jenjang')],
             'tahun_ajaran' => ['nullable', 'string', 'exists:tahun_ajaran,nama'],
             'dari_kode' => ['nullable', 'in:MI,MD'],
-            'dari_lembaga_id' => ['nullable', Rule::exists('lembaga', 'id')->whereNotNull('parent_id')],
+            'dari_jenjang' => ['nullable', Rule::exists('lembaga', 'jenjang')],
             'dari_tahun_ajaran' => ['nullable', 'string', 'exists:tahun_ajaran,nama'],
             'ke_kode' => ['nullable', 'in:MI,MD'],
             'periksa' => ['nullable', 'boolean'],
@@ -28,8 +28,8 @@ class KelasImportNamaRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'lembaga_id.exists' => 'Lembaga harus lembaga operasional (bukan induk pesantren).',
-            'dari_lembaga_id.exists' => 'Lembaga harus lembaga operasional (bukan induk pesantren).',
+            'jenjang.exists' => 'Lembaga harus lembaga operasional (bukan induk pesantren).',
+            'dari_jenjang.exists' => 'Lembaga harus lembaga operasional (bukan induk pesantren).',
         ];
     }
 }

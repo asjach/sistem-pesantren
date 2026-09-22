@@ -22,7 +22,7 @@ class PengaturanTampilanController extends Controller
 {
     use TenantGuard;
 
-    /** GET /api/admin/pengaturan-tampilan[?lembaga_id=] — standar efektif. */
+    /** GET /api/admin/pengaturan-tampilan[?jenjang=] — standar efektif. */
     public function show(Request $request): JsonResponse
     {
         return response()->json([
@@ -31,7 +31,7 @@ class PengaturanTampilanController extends Controller
         ]);
     }
 
-    /** GET /api/admin/pengaturan-tampilan/versi[?lembaga_id=] — ringan untuk pemantauan. */
+    /** GET /api/admin/pengaturan-tampilan/versi[?jenjang=] — ringan untuk pemantauan. */
     public function versi(Request $request): JsonResponse
     {
         $lembagaId = $this->lembagaEfektif($request);
@@ -39,7 +39,7 @@ class PengaturanTampilanController extends Controller
         return response()->json([
             'pesan' => 'Versi pengaturan tampilan.',
             'data' => [
-                'lembaga_id' => $lembagaId,
+                'jenjang' => $lembagaId,
                 'versi' => $this->versiUntuk($lembagaId),
             ],
         ]);
@@ -51,12 +51,12 @@ class PengaturanTampilanController extends Controller
         $data = $request->validated();
 
         $auth = $request->user();
-        $ids = $this->resolveLembagaIds($request->input('lembaga_ids'), $auth);
-        $sumber = isset($data['sumber_lembaga_id']) ? (int) $data['sumber_lembaga_id'] : null;
+        $ids = $this->resolveLembagaIds($request->input('jenjangs'), $auth);
+        $sumber = isset($data['sumber_jenjang']) ? $data['sumber_jenjang'] : null;
 
         DB::transaction(function () use ($ids, $data, $auth, $sumber) {
             foreach ($ids as $lembagaId) {
-                $row = PengaturanTampilan::firstOrNew(['lembaga_id' => $lembagaId]);
+                $row = PengaturanTampilan::firstOrNew(['jenjang' => $lembagaId]);
                 $row->data = $data['data'];
                 $row->versi = ($row->exists ? (int) $row->versi : 0) + 1;
                 $row->diubah_oleh = $auth->id;
@@ -71,13 +71,13 @@ class PengaturanTampilanController extends Controller
                 ? 'Standar tampilan disebar ke '.count($ids).' lembaga.'
                 : 'Standar tampilan disimpan.',
             'data' => collect($ids)
-                ->map(fn (int $id) => $this->respon($id))
+                ->map(fn (string $id) => $this->respon($id))
                 ->values()
                 ->all(),
         ], 201);
     }
 
-    /** DELETE /api/admin/pengaturan-tampilan[?lembaga_id=] — kembali ke bawaan aplikasi. */
+    /** DELETE /api/admin/pengaturan-tampilan[?jenjang=] — kembali ke bawaan aplikasi. */
     public function destroy(Request $request): JsonResponse
     {
         $lembagaId = $this->lembagaEfektif($request);
@@ -85,24 +85,24 @@ class PengaturanTampilanController extends Controller
             abort(422, 'Lembaga tidak dapat ditentukan.');
         }
         $this->authorizeLembaga($request->user(), $lembagaId);
-        PengaturanTampilan::where('lembaga_id', $lembagaId)->delete();
+        PengaturanTampilan::where('jenjang', $lembagaId)->delete();
 
         return response()->json(['pesan' => 'Standar tampilan dikembalikan ke bawaan.']);
     }
 
     /** Standar satu lembaga (null bila belum diatur). */
-    protected function respon(?int $lembagaId): array
+    protected function respon(?string $lembagaId): array
     {
         if ($lembagaId === null) {
-            return ['lembaga_id' => null, 'versi' => 0, 'tampilan' => null, 'diubah_oleh' => null, 'diperbarui' => null];
+            return ['jenjang' => null, 'versi' => 0, 'tampilan' => null, 'diubah_oleh' => null, 'diperbarui' => null];
         }
 
         $row = PengaturanTampilan::with('pengubah:id,name')
-            ->where('lembaga_id', $lembagaId)
+            ->where('jenjang', $lembagaId)
             ->first();
 
         return [
-            'lembaga_id' => $lembagaId,
+            'jenjang' => $lembagaId,
             'versi' => $row?->versi ?? 0,
             'tampilan' => $row?->data,
             'diubah_oleh' => $row?->pengubah?->name,
@@ -110,44 +110,44 @@ class PengaturanTampilanController extends Controller
         ];
     }
 
-    protected function versiUntuk(?int $lembagaId): int
+    protected function versiUntuk(?string $lembagaId): int
     {
         if ($lembagaId === null) {
             return 0;
         }
 
-        return (int) (PengaturanTampilan::where('lembaga_id', $lembagaId)->value('versi') ?? 0);
+        return (int) (PengaturanTampilan::where('jenjang', $lembagaId)->value('versi') ?? 0);
     }
 
     /**
-     * Lembaga siapa yang dimaksud: `?lembaga_id=` (terotorisasi) menang; bila
+     * Lembaga siapa yang dimaksud: `?jenjang=` (terotorisasi) menang; bila
      * tidak ada, hanya user berpivot tunggal yang bisa dipastikan.
      */
-    protected function lembagaEfektif(Request $request): ?int
+    protected function lembagaEfektif(Request $request): ?string
     {
         $auth = $request->user();
-        if ($request->filled('lembaga_id')) {
-            $id = (int) $request->input('lembaga_id');
+        if ($request->filled('jenjang')) {
+            $id = (string) $request->input('jenjang');
             $this->authorizeLembaga($auth, $id);
 
             return $id;
         }
         $ids = $auth->lembagaIds();
 
-        return count($ids) === 1 ? (int) $ids[0] : null;
+        return count($ids) === 1 ? $ids[0] : null;
     }
 
-    /** Normalisasi `lembaga_ids` (array atau "semua") + otorisasi tiap lembaga. */
+    /** Normalisasi `jenjangs` (array atau "semua") + otorisasi tiap lembaga. */
     protected function resolveLembagaIds(mixed $isi, User $auth): array
     {
         if ($isi === 'semua') {
-            $ids = Lembaga::orderBy('id')->pluck('id')->map(fn ($v) => (int) $v)->all();
+            $ids = Lembaga::orderBy('jenjang')->pluck('jenjang')->all();
         } else {
-            $valid = validator(['lembaga_ids' => $isi], [
-                'lembaga_ids' => ['required', 'array', 'min:1', 'max:200'],
-                'lembaga_ids.*' => ['integer', 'exists:lembaga,id'],
+            $valid = validator(['jenjangs' => $isi], [
+                'jenjangs' => ['required', 'array', 'min:1', 'max:200'],
+                'jenjangs.*' => ['string', 'exists:lembaga,jenjang'],
             ])->validate();
-            $ids = array_map('intval', array_unique($valid['lembaga_ids']));
+            $ids = array_values(array_unique($valid['jenjangs']));
         }
 
         foreach ($ids as $id) {
@@ -162,14 +162,14 @@ class PengaturanTampilanController extends Controller
      * nama) ada di lembaga target; bila belum, salin definisinya dari lembaga
      * sumber (biasanya tempat standar disusun).
      */
-    protected function salinPresetAktif(array $presetAktif, int $targetLembagaId, ?int $sumberLembagaId): void
+    protected function salinPresetAktif(array $presetAktif, string $targetLembagaId, ?string $sumberLembagaId): void
     {
         foreach ($presetAktif as $tableKey => $nama) {
             if (! is_string($nama) || trim($nama) === '' || mb_strtolower(trim($nama)) === 'lengkap') {
                 continue;
             }
 
-            $sudahAda = PresetTabel::where('lembaga_id', $targetLembagaId)
+            $sudahAda = PresetTabel::where('jenjang', $targetLembagaId)
                 ->where('table_key', $tableKey)
                 ->where('nama', $nama)
                 ->exists();
@@ -177,7 +177,7 @@ class PengaturanTampilanController extends Controller
                 continue;
             }
 
-            $sumber = PresetTabel::where('lembaga_id', $sumberLembagaId)
+            $sumber = PresetTabel::where('jenjang', $sumberLembagaId)
                 ->where('table_key', $tableKey)
                 ->where('nama', $nama)
                 ->first();
@@ -186,7 +186,7 @@ class PengaturanTampilanController extends Controller
             }
 
             PresetTabel::create([
-                'lembaga_id' => $targetLembagaId,
+                'jenjang' => $targetLembagaId,
                 'table_key' => $tableKey,
                 'nama' => $nama,
                 'kolom' => $sumber->kolom,

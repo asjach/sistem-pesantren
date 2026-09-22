@@ -32,30 +32,30 @@ export interface TampilanData {
 }
 
 export interface TampilanRespon {
-  lembaga_id: number | null;
+  jenjang: string | null;
   versi: number;
   tampilan: TampilanData | null;
   diubah_oleh: string | null;
   diperbarui: string | null;
 }
 
-function q(lembagaId?: number | null): string {
-  return lembagaId != null ? `?lembaga_id=${lembagaId}` : '';
+function q(jenjang?: string | null): string {
+  return jenjang != null ? `?jenjang=${encodeURIComponent(jenjang)}` : '';
 }
 
-export function getPengaturanTampilan(lembagaId?: number | null) {
-  return api<{ pesan: string; data: TampilanRespon }>(`/admin/pengaturan-tampilan${q(lembagaId)}`);
+export function getPengaturanTampilan(jenjang?: string | null) {
+  return api<{ pesan: string; data: TampilanRespon }>(`/admin/pengaturan-tampilan${q(jenjang)}`);
 }
 
-export function getVersiTampilan(lembagaId?: number | null) {
-  return api<{ pesan: string; data: { lembaga_id: number | null; versi: number } }>(
-    `/admin/pengaturan-tampilan/versi${q(lembagaId)}`,
+export function getVersiTampilan(jenjang?: string | null) {
+  return api<{ pesan: string; data: { jenjang: string | null; versi: number } }>(
+    `/admin/pengaturan-tampilan/versi${q(jenjang)}`,
   );
 }
 
 export function putPengaturanTampilan(input: {
-  lembaga_ids: number[] | 'semua';
-  sumber_lembaga_id?: number | null;
+  jenjangs: string[] | 'semua';
+  sumber_jenjang?: string | null;
   data: TampilanData;
 }) {
   return api<{ pesan: string; data: TampilanRespon[] }>('/admin/pengaturan-tampilan', {
@@ -64,6 +64,6 @@ export function putPengaturanTampilan(input: {
   });
 }
 
-export function deletePengaturanTampilan(lembagaId?: number | null) {
-  return api<{ pesan: string }>(`/admin/pengaturan-tampilan${q(lembagaId)}`, { method: 'DELETE' });
+export function deletePengaturanTampilan(jenjang?: string | null) {
+  return api<{ pesan: string }>(`/admin/pengaturan-tampilan${q(jenjang)}`, { method: 'DELETE' });
 }

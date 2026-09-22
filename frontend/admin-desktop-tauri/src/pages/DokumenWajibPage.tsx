@@ -67,7 +67,7 @@ export default function DokumenWajibPage() {
   const canTambah = bisa(user, 'dokumen_wajib.tambah');
   const [kegiatans, setKegiatans] = useState<PsbKegiatan[]>([]);
   const [kegiatanId, setKegiatanId] = useState('');
-  const [lembagaId, setLembagaId] = useState('');
+  const [jenjang, setLembagaId] = useState('');
   useLembagaAwalString(setLembagaId);
   const [rows, setRows] = useState<DokumenWajib[]>([]);
   const [jenis, setJenis] = useState<ReferensiRow[]>([]);
@@ -80,12 +80,12 @@ export default function DokumenWajibPage() {
   const reqRef = useRef(0);
 
   const load = useCallback(async () => {
-    if (!kegiatanId || !lembagaId) return;
+    if (!kegiatanId || !jenjang) return;
     const req = ++reqRef.current;
     setErr('');
     setLoading(true);
     try {
-      const res = await listDokumenWajib(Number(kegiatanId), Number(lembagaId));
+      const res = await listDokumenWajib(Number(kegiatanId), jenjang);
       if (req !== reqRef.current) return;
       setRows(res.data);
     } catch (e) {
@@ -93,7 +93,7 @@ export default function DokumenWajibPage() {
     } finally {
       if (req === reqRef.current) setLoading(false);
     }
-  }, [kegiatanId, lembagaId]);
+  }, [kegiatanId, jenjang]);
 
   useEffect(() => {
     listPsbKegiatan()
@@ -105,7 +105,7 @@ export default function DokumenWajibPage() {
   }, []);
 
   useEffect(() => {
-    if (!lembagaId) {
+    if (!jenjang) {
       reqRef.current += 1;
       setRows([]);
       setJenis([]);
@@ -114,21 +114,21 @@ export default function DokumenWajibPage() {
     }
     void load();
     let alive = true;
-    referensiList('jenis_dokumen_santri', Number(lembagaId))
+    referensiList('jenis_dokumen_santri', jenjang)
       .then((r) => { if (alive) setJenis(r); })
       .catch(() => {});
     return () => { alive = false; };
-  }, [lembagaId, load]);
+  }, [jenjang, load]);
 
   const onTambah = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!kegiatanId || !lembagaId || !jenisBaru) return;
+    if (!kegiatanId || !jenjang || !jenisBaru) return;
     setBusy(true);
     setErr('');
     try {
       await simpanDokumenWajib({
         psb_kegiatan_id: Number(kegiatanId),
-        lembaga_id: Number(lembagaId),
+        jenjang: jenjang,
         jenis_dokumen_santri: jenisBaru,
         is_wajib: sifatBaru === 'wajib',
       });
@@ -141,7 +141,7 @@ export default function DokumenWajibPage() {
     } finally {
       setBusy(false);
     }
-  }, [kegiatanId, lembagaId, jenisBaru, sifatBaru, load]);
+  }, [kegiatanId, jenjang, jenisBaru, sifatBaru, load]);
 
   const onHapus = useCallback(async (id: number) => {
     setErr('');
@@ -155,16 +155,16 @@ export default function DokumenWajibPage() {
   }, [load]);
 
   const commitWajib = useCallback(async (id: string | number, f: Record<string, string | null>) => {
-    if (f.wajib === undefined || !kegiatanId || !lembagaId) return;
+    if (f.wajib === undefined || !kegiatanId || !jenjang) return;
     const row = rows.find((r) => String(r.id) === String(id));
     if (!row) return;
     await simpanDokumenWajib({
       psb_kegiatan_id: row.psb_kegiatan_id,
-      lembaga_id: Number(lembagaId),
+      jenjang: jenjang,
       jenis_dokumen_santri: row.jenis_dokumen_santri,
       is_wajib: f.wajib === 'Ya',
     });
-  }, [rows, kegiatanId, lembagaId]);
+  }, [rows, kegiatanId, jenjang]);
 
   /** Kolom grid dengan pilihan jenis dinamis + mode Input. */
   const fields = useMemo(
@@ -177,18 +177,18 @@ export default function DokumenWajibPage() {
 
   /** Mode Input: simpan ketentuan dokumen baru dari baris input. */
   const createRow = useCallback(async (f: Record<string, string | null>) => {
-    if (!kegiatanId || !lembagaId) {
+    if (!kegiatanId || !jenjang) {
       throw new Error('Pilih kegiatan & lembaga dulu untuk mode Input.');
     }
     await simpanDokumenWajib({
       psb_kegiatan_id: Number(kegiatanId),
-      lembaga_id: Number(lembagaId),
+      jenjang: jenjang,
       jenis_dokumen_santri: (f.jenis ?? '').trim(),
       is_wajib: f.wajib !== 'Tidak',
     });
     toast.success('Ketentuan disimpan.');
     await load();
-  }, [kegiatanId, lembagaId, load]);
+  }, [kegiatanId, jenjang, load]);
 
   const renderActions = useCallback((d: DokumenWajib) => (
     bisa(user, 'dokumen_wajib.hapus') ? (
@@ -210,13 +210,13 @@ export default function DokumenWajibPage() {
         rows={rows}
         getValues={gridValues}
         loading={loading}
-        emptyText={!lembagaId
+        emptyText={!jenjang
           ? 'Pilih lembaga aktif di TopBar dulu.'
           : (kegiatanId ? 'Belum ada ketentuan dokumen.' : 'Pilih kegiatan dulu.')}
         canEdit={canUbah}
         onCommit={commitWajib}
         onSaved={load}
-        onCreateRow={kegiatanId && lembagaId && canTambah ? createRow : undefined}
+        onCreateRow={kegiatanId && jenjang && canTambah ? createRow : undefined}
         inputRowValues={{ wajib: 'Ya' }}
         filter={(
           <>
@@ -235,7 +235,7 @@ export default function DokumenWajibPage() {
           </>
         )}
         addButton={canTambah ? (
-          <Button id="btn_buka_tambah_dokumen_wajib" onClick={() => { setJenisBaru(''); setSifatBaru('wajib'); setTambahOpen(true); }} disabled={!kegiatanId || !lembagaId}>
+          <Button id="btn_buka_tambah_dokumen_wajib" onClick={() => { setJenisBaru(''); setSifatBaru('wajib'); setTambahOpen(true); }} disabled={!kegiatanId || !jenjang}>
             + Ketentuan
           </Button>
         ) : undefined}

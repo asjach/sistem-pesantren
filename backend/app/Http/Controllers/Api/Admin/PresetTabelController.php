@@ -27,7 +27,7 @@ class PresetTabelController extends Controller
         $user = $request->user();
 
         $presets = $this->queryEfektif($data['table_key'])
-            ->with('lembaga:id,nama,kode')
+            ->with('lembaga:jenjang,nama')
             ->orderBy('nama')
             ->get();
 
@@ -59,9 +59,9 @@ class PresetTabelController extends Controller
         $kolom = array_values(array_unique($data['kolom']));
         $label = $this->bersihkanLabel($data['label'] ?? null, $kolom);
         $preset = PresetTabel::updateOrCreate(
-            ['lembaga_id' => null, 'table_key' => $data['table_key'], 'nama' => $data['nama']],
+            ['jenjang' => null, 'table_key' => $data['table_key'], 'nama' => $data['nama']],
             ['kolom' => $kolom, 'label' => $label, 'dibuat_oleh' => $request->user()->id],
-        )->load('lembaga:id,nama,kode');
+        )->load('lembaga:jenjang,nama');
 
         return response()->json([
             'pesan' => 'Preset kolom disimpan.',
@@ -76,7 +76,7 @@ class PresetTabelController extends Controller
     {
         $this->pastikanSuperAdmin($request->user());
 
-        if ($preset->lembaga_id !== null) {
+        if ($preset->jenjang !== null) {
             throw ValidationException::withMessages([
                 'preset' => 'Preset lama per-lembaga tidak dikelola lagi; hapus lalu buat baru sebagai global.',
             ]);
@@ -99,7 +99,7 @@ class PresetTabelController extends Controller
 
         return response()->json([
             'pesan' => 'Preset kolom diubah.',
-            'data' => [$preset->fresh('lembaga:id,nama,kode')],
+            'data' => [$preset->fresh('lembaga:jenjang,nama')],
         ]);
     }
 
@@ -145,7 +145,7 @@ class PresetTabelController extends Controller
         $this->pastikanSuperAdmin($request->user());
 
         $bawaan = (bool) $request->boolean('bawaan', true);
-        if ($preset->lembaga_id !== null) {
+        if ($preset->jenjang !== null) {
             throw ValidationException::withMessages(['preset' => 'Hanya preset global yang bisa jadi bawaan.']);
         }
 
@@ -171,7 +171,7 @@ class PresetTabelController extends Controller
     /** Preset kolom GLOBAL: semua role melihat baris global yang sama. */
     protected function queryEfektif(string $tableKey)
     {
-        return PresetTabel::where('table_key', $tableKey)->whereNull('lembaga_id');
+        return PresetTabel::where('table_key', $tableKey)->whereNull('jenjang');
     }
 
     protected function pastikanNamaBukanLengkap(string $nama): void
@@ -185,7 +185,7 @@ class PresetTabelController extends Controller
     {
         $q = PresetTabel::where('table_key', $tableKey)
             ->where('nama', $nama)
-            ->whereNull('lembaga_id')
+            ->whereNull('jenjang')
             ->when($ignoreId, fn ($qq) => $qq->where('id', '!=', $ignoreId));
 
         if ($q->exists()) {

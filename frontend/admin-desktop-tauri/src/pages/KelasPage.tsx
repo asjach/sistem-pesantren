@@ -26,7 +26,7 @@ import {
 } from '@/components/ui/select';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import FilterField from '@/components/FilterField';
-import { useLembagaAwalNumber } from '@/hooks/useLembagaAwal';
+import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
 import { useTahunAjaranAwalString } from '@/hooks/useTahunAjaranAwal';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { ViewDialog } from '@/components/ViewDialog';
@@ -53,7 +53,7 @@ const FIELDS: ExcelField[] = [
     required: true,
     validate: (v) => (!v || !v.trim() ? 'Nama kelas wajib diisi.' : null),
   },
-  { key: 'lembaga', label: 'lembaga.kode', width: 110, kind: 'static', sumber: { tabel: 'lembaga', kolom: 'kode' } },
+  { key: 'lembaga', label: 'lembaga.jenjang', width: 110, kind: 'static', sumber: { tabel: 'lembaga', kolom: 'jenjang' } },
   { key: 'ta', label: 'tahun_ajaran.nama', width: 160, kind: 'static', sumber: { tabel: 'tahun_ajaran', kolom: 'nama' } },
   {
     key: 'tingkat', label: 'tingkat', width: 120, kind: 'text', maxLength: 20,
@@ -95,7 +95,7 @@ function normKelas(nama: string): string {
 
 function gridValues(k: Kelas): Record<string, string | null> {  return {
     nama: k.nama_kelas,
-    lembaga: k.lembaga?.kode ?? k.lembaga?.nama ?? String(k.lembaga_id),
+    lembaga: k.lembaga?.jenjang ?? k.lembaga?.nama ?? String(k.jenjang),
     ta: k.tahunAjaran?.nama ?? k.tahun_ajaran,
     tingkat: k.tingkat,
     urutan: String(k.urutan ?? 0),
@@ -117,8 +117,8 @@ async function commitDraft(id: number, f: Record<string, string | null>) {
 export default function KelasPage() {
   const [lembagas, setLembagas] = useState<Lembaga[]>([]);
   const [tas, setTas] = useState<TahunAjaran[]>([]);
-  const [lembagaId, setLembagaId] = useState<number | ''>('');
-  useLembagaAwalNumber(setLembagaId);
+  const [jenjang, setLembagaId] = useState<string>('');
+  useLembagaAwalString(setLembagaId);
   const [taId, setTaId] = useState<string>('');
   useTahunAjaranAwalString(setTaId);
   const [tingkat, setTingkat] = useState('');
@@ -141,7 +141,7 @@ export default function KelasPage() {
     tableKey: 'kelas',
     ambil: (a) => listKelas({
       search: a.search || undefined,
-      lembaga_id: lembagaId === '' ? undefined : Number(lembagaId),
+      jenjang: jenjang === '' ? undefined : jenjang,
       tahun_ajaran: taId === '' ? undefined : taId,
       tingkat: tingkat || undefined,
       sort: a.urut.length ? a.urut : undefined,
@@ -150,7 +150,7 @@ export default function KelasPage() {
       per_page: a.perPage,
       signal: a.signal,
     }),
-    deps: [lembagaId, taId, tingkat],
+    deps: [jenjang, taId, tingkat],
   });
 
   // Import nama kelas pasangan MI↔MD (pratinjau → eksekusi).
@@ -161,25 +161,25 @@ export default function KelasPage() {
 
   /** Kode lembaga filter saat ini; tombol import hanya untuk MI/MD. */
   const kodeFilter = useMemo(() => {
-    const l = lembagas.find((x) => String(x.id) === String(lembagaId));
-    return l?.kode ?? null;
-  }, [lembagas, lembagaId]);
+    const l = lembagas.find((x) => x.jenjang === jenjang);
+    return l?.jenjang ?? null;
+  }, [lembagas, jenjang]);
   const dariKode = kodeFilter === 'MI' ? 'MD' : kodeFilter === 'MD' ? 'MI' : null;
 
   async function muatImpor(periksa: boolean, arah: 'ambil' | 'copy' = imporArah) {
-    if (lembagaId === '' || taId === '' || !dariKode) return;
+    if (jenjang === '' || taId === '' || !dariKode) return;
     setImporBusy(true);
     try {
       const res = await importNamaKelas(
         arah === 'ambil'
           ? {
-              lembaga_id: Number(lembagaId),
+              jenjang: jenjang,
               tahun_ajaran: taId,
               dari_kode: dariKode,
               periksa,
             }
           : {
-              dari_lembaga_id: Number(lembagaId),
+              dari_jenjang: jenjang,
               dari_tahun_ajaran: taId,
               ke_kode: dariKode,
               periksa,
@@ -205,11 +205,11 @@ export default function KelasPage() {
   }
 
   // Pilihan lembaga + TA khusus dialog Tambah (mandiri dari filter toolbar).
-  const [tambahLembagaId, setTambahLembagaId] = useState<number | ''>('');
+  const [tambahLembagaId, setTambahLembagaId] = useState<string>('');
   const [tambahTaId, setTambahTaId] = useState<string>('');
   const [tambahTas, setTambahTas] = useState<TahunAjaran[]>([]);
   /** Lembaga pemilik `tambahTas` (agar tahu daftar mana yang sudah termuat). */
-  const [tambahTasUntuk, setTambahTasUntuk] = useState<number | ''>('');
+  const [tambahTasUntuk, setTambahTasUntuk] = useState<string>('');
   const tambahTaReqRef = useRef(0);
 
   const [barisKelas, setBarisKelas] = useState<BarisKelas[]>([barisKelasKosong()]);
@@ -229,16 +229,16 @@ export default function KelasPage() {
   }, []);
 
   useEffect(() => {
-    if (lembagaId === '') {
+    if (jenjang === '') {
       setTas([]);
       return;
     }
     let alive = true;
-    listTahunAjaran({ lembaga_id: Number(lembagaId) })
+    listTahunAjaran({ jenjang: jenjang })
       .then((p) => { if (alive) setTas(p.data); })
       .catch((e) => { if (alive) setErr(errorMessage(e)); });
     return () => { alive = false; };
-  }, [lembagaId]);
+  }, [jenjang]);
 
   // Dialog Tambah: muat TA milik lembaga terpilih; **selalu** mengutamakan
   // tahun ajaran aktif (bila belum ada, pertahankan pilihan yang masih valid).
@@ -249,11 +249,11 @@ export default function KelasPage() {
       setTambahTasUntuk('');
       return;
     }
-    listTahunAjaran({ lembaga_id: Number(tambahLembagaId), per_page: 100 })
+    listTahunAjaran({ jenjang: tambahLembagaId, per_page: 100 })
       .then((p) => {
         if (req !== tambahTaReqRef.current) return;
         setTambahTas(p.data);
-        setTambahTasUntuk(Number(tambahLembagaId));
+        setTambahTasUntuk(tambahLembagaId);
         setTambahTaId((prev) => {
           const aktif = p.data.find((t) => t.is_aktif);
           if (aktif) return aktif.nama;
@@ -276,23 +276,23 @@ export default function KelasPage() {
   const canHapusKelas = bisa(user, 'kelas.hapus');
   const singleLembagaId =
     user && !user.roles.some((r) => r.name === 'super_admin') && (user.lembagas?.length ?? 0) === 1
-      ? user.lembagas![0].id
+      ? user.lembagas![0].jenjang
       : null;
 
   const bukaTambah = useCallback(() => {
-    const targetLembaga = singleLembagaId ?? lembagaId;
+    const targetLembaga = singleLembagaId ?? jenjang;
     setTambahLembagaId(targetLembaga);
     // Nilai awal: tahun ajaran aktif lembaga tujuan. Daftar toolbar dipakai
     // sebagai cadangan saat daftar dialog belum termuat (efek pemuat mengoreksi).
-    const daftar = tambahTasUntuk === Number(targetLembaga)
+    const daftar = tambahTasUntuk === targetLembaga
       ? tambahTas
-      : (Number(targetLembaga) === Number(lembagaId) ? tas : []);
+      : (targetLembaga === jenjang ? tas : []);
     const aktif = daftar.find((t) => t.is_aktif);
     setTambahTaId(aktif ? aktif.nama : '');
     setBarisKelas([barisKelasKosong()]);
     setErr('');
     setTambahOpen(true);
-  }, [singleLembagaId, lembagaId, tambahTas, tambahTasUntuk, tas]);
+  }, [singleLembagaId, jenjang, tambahTas, tambahTasUntuk, tas]);
 
   const openEdit = useCallback((k: Kelas) => {
     setEditRow(k);
@@ -315,14 +315,14 @@ export default function KelasPage() {
   }, []);
 
   /** Muat nama kelas aktif lingkup (lembaga+TA) untuk cek duplikat di klien. */
-  const muatNamaTerpakai = useCallback(async (lembaga: number | '', ta: string | '') => {
+  const muatNamaTerpakai = useCallback(async (lembaga: string, ta: string) => {
     if (lembaga === '' || ta === '') {
       setNamaTerpakai({ kunci: '', nama: [] });
       return;
     }
     const kunci = `${lembaga}:${ta}`;
     try {
-      const res = await listKelas({ lembaga_id: Number(lembaga), tahun_ajaran: ta, per_page: 1000 });
+      const res = await listKelas({ jenjang: lembaga, tahun_ajaran: ta, per_page: 1000 });
       setNamaTerpakai({ kunci, nama: res.data.map((k) => normKelas(k.nama_kelas)) });
     } catch {
       // Gagal memuat → biarkan validasi server (422) yang menjaga.
@@ -337,7 +337,7 @@ export default function KelasPage() {
 
   useEffect(() => {
     if (!editRow) return;
-    void muatNamaTerpakai(editRow.lembaga_id, editRow.tahun_ajaran);
+    void muatNamaTerpakai(editRow.jenjang, editRow.tahun_ajaran);
   }, [editRow, muatNamaTerpakai]);
 
   const onCreate = useCallback(async (e: React.FormEvent) => {
@@ -389,7 +389,7 @@ export default function KelasPage() {
       }
     }
     try {
-      const dasar = { lembaga_id: Number(efektifLembagaId), tahun_ajaran: tambahTaId };
+      const dasar = { jenjang: efektifLembagaId, tahun_ajaran: tambahTaId };
       if (terisi.length === 1) {
         const [satu] = terisi;
         await createKelas({
@@ -426,11 +426,11 @@ export default function KelasPage() {
 
   /** Mode Input: buat kelas baru dari baris input (butuh filter lembaga+TA). */
   const createRow = useCallback(async (f: Record<string, string | null>) => {
-    if (lembagaId === '' || taId === '') {
+    if (jenjang === '' || taId === '') {
       throw new Error('Pilih filter lembaga & tahun ajaran dulu untuk mode Input.');
     }
     await createKelas({
-      lembaga_id: Number(lembagaId),
+      jenjang: jenjang,
       tahun_ajaran: taId,
       nama_kelas: (f.nama ?? '').trim(),
       tingkat: f.tingkat || undefined,
@@ -439,7 +439,7 @@ export default function KelasPage() {
     });
     toast.success('Kelas dibuat.');
     await load(1);
-  }, [lembagaId, taId, load]);
+  }, [jenjang, taId, load]);
 
   const taTerpilih = useMemo(
     () => tas.find((t) => t.nama === taId)?.nama ?? '',
@@ -447,17 +447,17 @@ export default function KelasPage() {
   );
 
   const lembagaTerpilih = useMemo(() => {
-    const l = lembagas.find((x) => String(x.id) === String(lembagaId));
-    return l?.kode ?? l?.nama ?? '';
-  }, [lembagas, lembagaId]);
+    const l = lembagas.find((x) => x.jenjang === jenjang);
+    return l?.jenjang ?? l?.nama ?? '';
+  }, [lembagas, jenjang]);
 
-  /** Row dialog Lihat: tampilkan nama/kode lembaga, sembunyikan lembaga_id mentah. */
+  /** Row dialog Lihat: tampilkan nama/kode lembaga, sembunyikan jenjang mentah. */
   const viewRowTampil = useMemo(() => {
     if (!viewRow) return null;
-    const { lembaga_id: _lembagaId, ...rest } = viewRow;
+    const { jenjang: _lembagaId, ...rest } = viewRow;
     return {
       ...rest,
-      lembaga: viewRow.lembaga?.kode ?? viewRow.lembaga?.nama ?? String(_lembagaId),
+      lembaga: viewRow.lembaga?.jenjang ?? viewRow.lembaga?.nama ?? String(_lembagaId),
     } as unknown as Record<string, unknown>;
   }, [viewRow]);
 
@@ -468,7 +468,7 @@ export default function KelasPage() {
       setErr('Nama kelas wajib diisi.');
       return;
     }
-    const kunciLingkup = `${editRow.lembaga_id}:${editRow.tahun_ajaran}`;
+    const kunciLingkup = `${editRow.jenjang}:${editRow.tahun_ajaran}`;
     if (
       namaTerpakai.kunci === kunciLingkup
       && namaTerpakai.nama.includes(namaRapi)
@@ -593,21 +593,19 @@ export default function KelasPage() {
             <FieldLabel htmlFor="select_tambah_lembaga_kelas">Lembaga</FieldLabel>
             {singleLembagaId !== null ? (
               <p className="text-sm text-muted-foreground">
-                {lembagas.find((l) => l.id === singleLembagaId)?.kode
-                  ?? lembagas.find((l) => l.id === singleLembagaId)?.nama
-                  ?? `#${singleLembagaId}`} (otomatis)
+                {lembagas.find((l) => l.jenjang === singleLembagaId)?.jenjang ?? lembagas.find((l) => l.jenjang === singleLembagaId)?.nama ?? singleLembagaId} (otomatis)
               </p>
             ) : (
               <Select
                 value={tambahLembagaId === '' ? '' : String(tambahLembagaId)}
-                onValueChange={(v) => { setTambahLembagaId(Number(v)); setTambahTaId(''); }}
+                onValueChange={(v) => { setTambahLembagaId(v); setTambahTaId(''); }}
               >
                 <SelectTrigger id="select_tambah_lembaga_kelas" className="w-full">
                   <SelectValue placeholder="Pilih lembaga" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
-                    {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>)}
+                    {lembagas.map((l) => <SelectItem key={l.jenjang} value={l.jenjang}>{l.jenjang}</SelectItem>)}
                   </SelectGroup>
                 </SelectContent>
               </Select>

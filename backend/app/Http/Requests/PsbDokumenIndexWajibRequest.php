@@ -15,7 +15,7 @@ class PsbDokumenIndexWajibRequest extends FormRequest
     {
         return [
             'psb_kegiatan_id' => ['required', 'integer', 'exists:psb_kegiatan,id'],
-            'lembaga_id' => ['sometimes', 'integer', 'exists:lembaga,id'],
+            'jenjang' => ['sometimes', 'string', 'exists:lembaga,jenjang'],
         ];
     }
 }

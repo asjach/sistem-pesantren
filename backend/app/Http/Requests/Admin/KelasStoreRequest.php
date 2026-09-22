@@ -16,7 +16,7 @@ class KelasStoreRequest extends FormRequest
     {
         return [
             // Kelas selalu milik lembaga operasional (bukan root pesantren).
-            'lembaga_id' => ['required', Rule::exists('lembaga', 'id')->whereNotNull('parent_id')],
+            'jenjang' => ['required', Rule::exists('lembaga', 'jenjang')],
             'tahun_ajaran' => ['required', 'string', 'exists:tahun_ajaran,nama'],
             // Mode tunggal (kompatibel lama) atau bulk via items (sub-form dialog).
             'nama_kelas' => ['required_without:items', 'string', 'max:50'],
@@ -34,7 +34,7 @@ class KelasStoreRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'lembaga_id.exists' => 'Lembaga harus lembaga operasional (bukan induk pesantren).',
+            'jenjang.exists' => 'Lembaga harus lembaga operasional (bukan induk pesantren).',
         ];
     }
 }

@@ -17,7 +17,7 @@ class PsbImport implements ToModel, WithHeadingRow, WithValidation
 {
     public function __construct(
         protected int $gelombangId,
-        protected int $lembagaId,
+        protected string $lembagaId,
         protected PsbService $psb,
     ) {}
 
@@ -38,7 +38,7 @@ class PsbImport implements ToModel, WithHeadingRow, WithValidation
         while (true) {
             try {
                 $calon = PsbCalonSantri::create([
-                    'lembaga_id' => $this->lembagaId,
+                    'jenjang' => $this->lembagaId,
                     'gelombang_id' => $this->gelombangId,
                     'tahun_ajaran' => $tahunAjaran,
                     'tipe_santri' => $row['tipe_santri'] ?? 'non_asrama',
@@ -64,7 +64,7 @@ class PsbImport implements ToModel, WithHeadingRow, WithValidation
         }
 
         PsbLogStatus::create(['psb_calon_santri_id' => $calon->id, 'dari' => null, 'ke' => 'baru']);
-        $calon->lembagaDetail()->create(['lembaga_id' => $this->lembagaId, 'peran' => 'primer']);
+        $calon->lembagaDetail()->create(['jenjang' => $this->lembagaId, 'peran' => 'primer']);
 
         return $calon;
     }

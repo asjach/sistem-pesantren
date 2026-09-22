@@ -14,12 +14,13 @@ return new class extends Migration
     {
         Schema::create('lembaga_tahun_ajaran', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('lembaga_id')->constrained('lembaga')->cascadeOnDelete();
+            $table->string('jenjang', 20);
+            $table->foreign('jenjang')->references('jenjang')->on('lembaga')->cascadeOnUpdate()->cascadeOnDelete();
             $table->string('tahun_ajaran', 9);
             $table->boolean('is_active')->default(true); // tampil/tidak untuk lembaga ini
             $table->timestamps();
 
-            $table->unique(['lembaga_id', 'tahun_ajaran']);
+            $table->unique(['jenjang', 'tahun_ajaran']);
             $table->foreign('tahun_ajaran')->references('nama')->on('tahun_ajaran')
                 ->cascadeOnUpdate()->cascadeOnDelete();
         });

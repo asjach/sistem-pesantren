@@ -20,7 +20,8 @@ return new class extends Migration
         Schema::create('lembaga_santri', function (Blueprint $table) {
             $table->id();
             $table->foreignId('santri_id')->constrained('santri')->cascadeOnDelete();
-            $table->foreignId('lembaga_id')->constrained('lembaga')->cascadeOnDelete();
+            $table->string('jenjang', 20);
+            $table->foreign('jenjang')->references('jenjang')->on('lembaga')->cascadeOnUpdate()->cascadeOnDelete();
             $table->string('nis_lokal', 20)->nullable();
             $table->string('nis_kemenag', 20)->nullable();
             $table->boolean('is_active')->default(true);
@@ -29,10 +30,10 @@ return new class extends Migration
             $table->timestamps();
 
             // NIS (lokal & kemenag) unik per lembaga; NULL boleh berulang (multi-NULL MySQL).
-            $table->unique(['lembaga_id', 'nis_lokal'], 'uq_lembaga_santri_nis_lokal');
-            $table->unique(['lembaga_id', 'nis_kemenag'], 'uq_lembaga_santri_nis_kemenag');
+            $table->unique(['jenjang', 'nis_lokal'], 'uq_lembaga_santri_nis_lokal');
+            $table->unique(['jenjang', 'nis_kemenag'], 'uq_lembaga_santri_nis_kemenag');
             $table->index(['santri_id', 'is_active']);
-            $table->index(['lembaga_id', 'is_active']);
+            $table->index(['jenjang', 'is_active']);
         });
     }
 

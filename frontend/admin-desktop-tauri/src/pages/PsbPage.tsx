@@ -110,7 +110,7 @@ function psbFields(gelombangChoices: ExcelChoice[]): ExcelField[] {
         { value: 'non_asrama', label: 'non_asrama' },
       ],
     },
-    { key: 'lembaga', label: 'lembaga.kode', width: 180, kind: 'static', sumber: { tabel: 'lembaga', kolom: 'kode' } },
+    { key: 'lembaga', label: 'lembaga.jenjang', width: 180, kind: 'static', sumber: { tabel: 'lembaga', kolom: 'jenjang' } },
     {
       key: 'gelombang', label: 'psb_gelombang.nama', width: 140, kind: 'static',
       sumber: { tabel: 'psb_gelombang', kolom: 'nama' },
@@ -148,8 +148,8 @@ const STATUS_LABEL: Record<string, string> = {
 function psbGridValues(c: PsbCalon): Record<string, string | null> {
   const detail = c.lembaga_detail ?? [];
   const kodeLembaga = detail.length > 0
-    ? detail.map((d) => d.lembaga?.kode ?? d.lembaga?.nama ?? String(d.lembaga_id)).join(' + ')
-    : (c.lembaga_tujuan?.kode ?? c.lembaga_tujuan?.nama ?? String(c.lembaga_id));
+    ? detail.map((d) => d.lembaga?.jenjang ?? String(d.jenjang)).join(' + ')
+    : (c.lembaga_tujuan?.jenjang ?? String(c.jenjang));
   return {
     no: c.no_pendaftaran,
     nama: c.nama_lengkap,
@@ -172,7 +172,7 @@ export default function PsbPage({ tahap: stage }: { tahap: string }) {
   const canTambahPsb = bisa(me, 'psb.tambah');
   const [lembagas, setLembagas] = useState<Lembaga[]>([]);
   const [subStatus, setSubStatus] = useState('');
-  const [lembagaId, setLembagaId] = useState('');
+  const [jenjang, setLembagaId] = useState('');
   useLembagaAwalString(setLembagaId);
   const lembagaReqRef = useRef(0);
   const gelombangReqRef = useRef(0);
@@ -203,7 +203,7 @@ export default function PsbPage({ tahap: stage }: { tahap: string }) {
       return listAntrean({
         status: statuses.join(','),
         search: a.search || undefined,
-        lembaga_id: lembagaId ? Number(lembagaId) : undefined,
+        jenjang: jenjang ? jenjang : undefined,
         sort: a.urut.length ? a.urut : undefined,
         arah: a.urut.length ? a.arah : undefined,
         terhapus: tampilTerhapus || undefined,
@@ -212,7 +212,7 @@ export default function PsbPage({ tahap: stage }: { tahap: string }) {
         signal: a.signal,
       }).then((r) => ({ ...r.data, badge: r.badge }));
     },
-    deps: [stage, subStatus, lembagaId, tampilTerhapus],
+    deps: [stage, subStatus, jenjang, tampilTerhapus],
   });
 
   const [seleksiRow, setSeleksiRow] = useState<PsbCalon | null>(null);
@@ -305,7 +305,7 @@ export default function PsbPage({ tahap: stage }: { tahap: string }) {
     try {
       const res = await createCalonPsb({
         gelombang_id: Number(tfGelombang),
-        lembaga_id: Number(tfLembaga),
+        jenjang: tfLembaga,
         tipe_santri: tfTipe,
         nik: tfNik.trim(),
         nama_lengkap: tfNama.trim(),
@@ -422,7 +422,7 @@ export default function PsbPage({ tahap: stage }: { tahap: string }) {
     try {
       const res = await importPsb({
         gelombang_id: Number(importGelombang),
-        lembaga_id: Number(importLembaga),
+        jenjang: importLembaga,
         file: importFile,
       });
       if (res.errors?.length) {
@@ -455,7 +455,7 @@ export default function PsbPage({ tahap: stage }: { tahap: string }) {
 
   /** Mode Input (tahap pendaftar): daftarkan calon baru dari baris input. */
   const createRow = useCallback(async (f: Record<string, string | null>) => {
-    if (!lembagaId) {
+    if (!jenjang) {
       throw new Error('Pilih filter lembaga dulu untuk mode Input.');
     }
     if (!f.gelombang) {
@@ -463,19 +463,19 @@ export default function PsbPage({ tahap: stage }: { tahap: string }) {
     }
     await createCalonPsb({
       gelombang_id: Number(f.gelombang),
-      lembaga_id: Number(lembagaId),
+      jenjang: jenjang,
       tipe_santri: f.tipe === 'asrama' ? 'asrama' : 'non_asrama',
       nik: (f.nik ?? '').trim(),
       nama_lengkap: (f.nama ?? '').trim(),
     });
     toast.success('Pendaftar dibuat.');
     await load(1);
-  }, [lembagaId, load]);
+  }, [jenjang, load]);
 
   const lembagaTerpilih = useMemo(() => {
-    const l = lembagas.find((x) => String(x.id) === String(lembagaId));
-    return l?.kode ?? l?.nama ?? '';
-  }, [lembagas, lembagaId]);
+    const l = lembagas.find((x) => x.jenjang === jenjang);
+    return l?.jenjang ?? l?.nama ?? '';
+  }, [lembagas, jenjang]);
 
   async function jalankanBulk() {
     if (!bulkAksi || bulkIds.length === 0) return;
@@ -1074,7 +1074,7 @@ export default function PsbPage({ tahap: stage }: { tahap: string }) {
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>)}
+                  {lembagas.map((l) => <SelectItem key={l.jenjang} value={l.jenjang}>{l.jenjang} — {l.nama}</SelectItem>)}
                 </SelectGroup>
               </SelectContent>
             </Select>
@@ -1127,7 +1127,7 @@ export default function PsbPage({ tahap: stage }: { tahap: string }) {
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  {lembagas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.kode ?? l.nama}</SelectItem>)}
+                  {lembagas.map((l) => <SelectItem key={l.jenjang} value={l.jenjang}>{l.jenjang} — {l.nama}</SelectItem>)}
                 </SelectGroup>
               </SelectContent>
             </Select>

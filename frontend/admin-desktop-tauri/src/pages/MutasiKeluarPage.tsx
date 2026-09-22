@@ -19,7 +19,7 @@ import { toast } from 'sonner';
 /** Mutasi Keluar: kiri santri aktif (nama + kelas) → kanan arsip mutasi. */
 export default function MutasiKeluarPage() {
   const { user } = useAuth();
-  const [lembagaId, setLembagaId] = useState('');
+  const [jenjang, setLembagaId] = useState('');
   useLembagaAwalString(setLembagaId);
   const [kiri, setKiri] = useState<RiwayatRow[]>([]);
   const [arsip, setArsip] = useState<MutasiKeluar[]>([]);
@@ -43,24 +43,24 @@ export default function MutasiKeluarPage() {
   const [keterangan, setKeterangan] = useState('');
 
   const loadKiri = useCallback(async () => {
-    if (!lembagaId) { setKiri([]); return; }
+    if (!jenjang) { setKiri([]); return; }
     setErr('');
     try {
-      const res = await daftarKelas({ lembaga_id: Number(lembagaId) });
+      const res = await daftarKelas({ jenjang: jenjang });
       setKiri(res.data);
     } catch (e) { setErr(errorMessage(e)); }
-  }, [lembagaId]);
+  }, [jenjang]);
 
   const loadArsip = useCallback(async (
     p = pager.page, pp = pager.perPage,
     f?: { urut?: string[]; arah?: 'naik' | 'turun' },
   ) => {
-    if (!lembagaId) { setArsip([]); return; }
+    if (!jenjang) { setArsip([]); return; }
     try {
       const u = f?.urut ?? urut;
       const a = f?.arah ?? arahUrut;
       const res = await listMutasiKeluar({
-        lembaga_id: Number(lembagaId),
+        jenjang: jenjang,
         sort: u.length ? u : undefined,
         arah: u.length ? a : undefined,
         page: p, per_page: pp,
@@ -69,7 +69,7 @@ export default function MutasiKeluarPage() {
       setLastPage(res.last_page);
       setTotal(res.total);
     } catch (e) { setErr(errorMessage(e)); }
-  }, [lembagaId, pager.page, pager.perPage, urut, arahUrut]);
+  }, [jenjang, pager.page, pager.perPage, urut, arahUrut]);
 
   /** Klik header: simpan urut baru lalu muat ulang arsip dari halaman 1. */
   function terapkanUrut(nilai: string[], arah: 'naik' | 'turun') {
@@ -83,17 +83,17 @@ export default function MutasiKeluarPage() {
   useEffect(() => { void loadArsip(); }, [loadArsip]);
 
   useEffect(() => {
-    referensiList('alasan_mutasi', lembagaId ? Number(lembagaId) : undefined)
+    referensiList('alasan_mutasi', jenjang ? jenjang : undefined)
       .then((r) => setAlasanOpsi(r.map((x) => ({ value: x.kode ?? x.nama ?? '', label: x.nama ?? x.kode ?? '' }))))
       .catch(() => setAlasanOpsi([]));
-  }, [lembagaId]);
+  }, [jenjang]);
 
   const simpan = async () => {
-    if (!baris || !lembagaId || !tanggal || !alasan) return;
+    if (!baris || !jenjang || !tanggal || !alasan) return;
     setBusy(true);
     try {
       await mutasiSantri(baris.santri_id, {
-        lembaga_id: Number(lembagaId),
+        jenjang: jenjang,
         tanggal_mutasi: tanggal,
         alasan_mutasi: alasan,
         kelas_terakhir_id: baris.kelas_id ?? undefined,

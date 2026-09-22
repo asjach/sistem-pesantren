@@ -54,11 +54,11 @@ class PengajuanBiodataController extends Controller
         $auth = $request->user();
 
         $base = PengajuanBiodataSantri::query()->whereHas('santri', function ($q) use ($auth, $request) {
-            $filterLembaga = $request->filled('lembaga_id') ? $request->integer('lembaga_id') : null;
+            $filterLembaga = $request->filled('jenjang') ? (string) $request->input('jenjang') : null;
 
             if ($auth->bolehPesantren()) {
                 if ($filterLembaga !== null) {
-                    $q->whereHas('lembagaSantri', fn ($ls) => $ls->where('lembaga_id', $filterLembaga));
+                    $q->whereHas('lembagaSantri', fn ($ls) => $ls->where('jenjang', $filterLembaga));
                 }
 
                 return;
@@ -66,7 +66,7 @@ class PengajuanBiodataController extends Controller
 
             $ids = $filterLembaga !== null ? [$filterLembaga] : $auth->lembagaIds();
             $q->where(function ($sub) use ($ids, $filterLembaga) {
-                $sub->whereHas('lembagaSantri', fn ($ls) => $ls->whereIn('lembaga_id', $ids));
+                $sub->whereHas('lembagaSantri', fn ($ls) => $ls->whereIn('jenjang', $ids));
                 // Tanpa keanggotaan = arsip pusat → ikut terlihat admin scoped,
                 // kecuali saat filter lembaga eksplisit.
                 if ($filterLembaga === null) {
@@ -98,10 +98,10 @@ class PengajuanBiodataController extends Controller
     {
         $pengajuan = PengajuanBiodataSantri::with('santri:id')->findOrFail($id);
         // Tanpa keanggotaan = arsip pusat/pra-penerimaan → boleh semua admin.
-        $lembagaId = $pengajuan->santri->lembagaAktif()->value('lembaga_id')
-            ?? $pengajuan->santri->lembagaSantri()->value('lembaga_id');
+        $lembagaId = $pengajuan->santri->lembagaAktif()->value('jenjang')
+            ?? $pengajuan->santri->lembagaSantri()->value('jenjang');
         if ($lembagaId !== null) {
-            $this->authorizeLembaga(auth()->user(), (int) $lembagaId);
+            $this->authorizeLembaga(auth()->user(), $lembagaId);
         }
 
         $service->setujui($id, auth()->id(), $this->isFull(auth()->user()));
@@ -115,10 +115,10 @@ class PengajuanBiodataController extends Controller
         $data = $request->validated();
         $pengajuan = PengajuanBiodataSantri::with('santri:id')->findOrFail($id);
         // Tanpa keanggotaan = arsip pusat/pra-penerimaan → boleh semua admin.
-        $lembagaId = $pengajuan->santri->lembagaAktif()->value('lembaga_id')
-            ?? $pengajuan->santri->lembagaSantri()->value('lembaga_id');
+        $lembagaId = $pengajuan->santri->lembagaAktif()->value('jenjang')
+            ?? $pengajuan->santri->lembagaSantri()->value('jenjang');
         if ($lembagaId !== null) {
-            $this->authorizeLembaga(auth()->user(), (int) $lembagaId);
+            $this->authorizeLembaga(auth()->user(), $lembagaId);
         }
 
         $service->tolak($id, auth()->id(), $data['catatan'] ?? null);

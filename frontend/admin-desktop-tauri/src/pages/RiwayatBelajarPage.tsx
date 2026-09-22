@@ -62,7 +62,7 @@ export default function RiwayatBelajarPage() {
   const canTambah = bisa(user, 'riwayat_belajar.tambah');
   const canBatal = bisa(user, 'riwayat_belajar.hapus');
   /** Lembaga + TA selalu mengikuti topbar (satu-satunya sumber). */
-  const [lembagaId, setLembagaId] = useState('');
+  const [jenjang, setLembagaId] = useState('');
   useLembagaAwalString(setLembagaId);
   const [taId, setTaId] = useState('');
   useTahunAjaranAwalString(setTaId);
@@ -87,11 +87,11 @@ export default function RiwayatBelajarPage() {
   const kiri = useDaftarTabel<LembagaSantri>({
     tableKey: 'riwayat_belum_masuk',
     ambil: (a) => {
-      if (!lembagaId || !taId) {
+      if (!jenjang || !taId) {
         return Promise.resolve({ data: [], current_page: 1, last_page: 1, per_page: a.perPage, total: 0 });
       }
       return listBelumMasukRiwayat({
-        lembaga_id: Number(lembagaId),
+        jenjang: jenjang,
         tahun_ajaran: taId,
         q: a.search || undefined,
         page: a.page,
@@ -99,17 +99,17 @@ export default function RiwayatBelajarPage() {
         signal: a.signal,
       });
     },
-    deps: [lembagaId, taId],
+    deps: [jenjang, taId],
   });
 
   const kanan = useDaftarTabel<RiwayatRow>({
     tableKey: 'riwayat_belajar',
     ambil: (a) => {
-      if (!lembagaId || !taId) {
+      if (!jenjang || !taId) {
         return Promise.resolve({ data: [], current_page: 1, last_page: 1, per_page: a.perPage, total: 0 });
       }
       return listRiwayatBelajar({
-        lembaga_id: Number(lembagaId),
+        jenjang: jenjang,
         tahun_ajaran: taId,
         semester: '1',
         kelas_id: kelasId ? Number(kelasId) : undefined,
@@ -122,23 +122,23 @@ export default function RiwayatBelajarPage() {
         signal: a.signal,
       });
     },
-    deps: [lembagaId, taId, kelasId],
+    deps: [jenjang, taId, kelasId],
   });
 
   useEffect(() => {
-    if (!lembagaId || !taId) { setKelasOpsi([]); return; }
-    listKelas({ lembaga_id: Number(lembagaId), tahun_ajaran: taId, per_page: 1000 })
+    if (!jenjang || !taId) { setKelasOpsi([]); return; }
+    listKelas({ jenjang: jenjang, tahun_ajaran: taId, per_page: 1000 })
       .then((p) => setKelasOpsi(p.data))
       .catch(() => setKelasOpsi([]));
     setKelasId('');
-  }, [lembagaId, taId]);
+  }, [jenjang, taId]);
 
   const muatUlang = useCallback(async () => {
     await Promise.all([kiri.load(kiri.pager.page), kanan.load(kanan.pager.page)]);
   }, [kiri, kanan]);
 
   const masukkan = useCallback(async (r: LembagaSantri) => {
-    if (busyId !== null || !lembagaId || !taId) return;
+    if (busyId !== null || !jenjang || !taId) return;
     if (!kelasId) {
       toast.error('Pilih kelas di toolbar tabel kanan dulu.');
       return;
@@ -148,7 +148,7 @@ export default function RiwayatBelajarPage() {
       const kelas = kelasOpsi.find((k) => String(k.id) === kelasId);
       await createRiwayatBelajar({
         santri_id: r.santri_id,
-        lembaga_id: Number(lembagaId),
+        jenjang: jenjang,
         tahun_ajaran: taId,
         kelas_id: Number(kelasId),
         tingkat: kelas?.tingkat ?? null,
@@ -162,7 +162,7 @@ export default function RiwayatBelajarPage() {
     } finally {
       setBusyId(null);
     }
-  }, [busyId, lembagaId, taId, kelasId, kelasOpsi, tglMasuk, muatUlang]);
+  }, [busyId, jenjang, taId, kelasId, kelasOpsi, tglMasuk, muatUlang]);
 
   const batalkan = useCallback(async (r: RiwayatRow) => {
     try {
@@ -174,7 +174,7 @@ export default function RiwayatBelajarPage() {
 
   /** Aksi massal kiri: masukkan yang tercentang ke kelas terpilih. */
   const masukBanyak = useCallback(async () => {
-    if (bulkBusy || centangKiri.length === 0 || !lembagaId || !taId) return;
+    if (bulkBusy || centangKiri.length === 0 || !jenjang || !taId) return;
     if (!kelasId) {
       toast.error('Pilih kelas di toolbar tabel kanan dulu.');
       return;
@@ -188,7 +188,7 @@ export default function RiwayatBelajarPage() {
         try {
           await createRiwayatBelajar({
             santri_id: r.santri_id,
-            lembaga_id: Number(lembagaId),
+            jenjang: jenjang,
             tahun_ajaran: taId,
             kelas_id: Number(kelasId),
             tingkat: kelas?.tingkat ?? null,
@@ -207,7 +207,7 @@ export default function RiwayatBelajarPage() {
     } finally {
       setBulkBusy(false);
     }
-  }, [bulkBusy, centangKiri, lembagaId, taId, kelasId, kelasOpsi, tglMasuk, muatUlang]);
+  }, [bulkBusy, centangKiri, jenjang, taId, kelasId, kelasOpsi, tglMasuk, muatUlang]);
 
   /** Aksi massal kanan: batalkan yang tercentang (hard delete). */
   const batalBanyak = useCallback(async () => {
@@ -239,7 +239,7 @@ export default function RiwayatBelajarPage() {
   const [periksaHasil, setPeriksaHasil] = useState<ImportPeriksa | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const siap = lembagaId !== '' && taId !== '';
+  const siap = jenjang !== '' && taId !== '';
 
   const panel = (
     key: string,

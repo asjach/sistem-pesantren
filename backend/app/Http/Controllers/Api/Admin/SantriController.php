@@ -53,15 +53,15 @@ class SantriController extends Controller
         $urut = $this->parseUrut($request, UrutKatalog::peta('santri'));
 
         $query = Santri::tenantScope()
-            ->with(['lembagaAktif:id,santri_id,lembaga_id,nis_lokal,nis_kemenag', 'lembagaAktif.lembaga:id,nama,kode']);
+            ->with(['lembagaAktif:id,santri_id,jenjang,nis_lokal,nis_kemenag', 'lembagaAktif.lembaga:jenjang,nama']);
 
         if ($request->filled('is_active_pst')) {
             $query->where('is_active_pst', $request->boolean('is_active_pst') ? Santri::YA : Santri::TIDAK);
         }
-        if ($request->filled('lembaga_id')) {
-            $lembagaId = $request->integer('lembaga_id');
+        if ($request->filled('jenjang')) {
+            $lembagaId = (string) $request->input('jenjang');
             $this->authorizeLembaga($request->user(), $lembagaId);
-            $query->whereHas('lembagaSantri', fn ($ls) => $ls->where('lembaga_id', $lembagaId));
+            $query->whereHas('lembagaSantri', fn ($ls) => $ls->where('jenjang', $lembagaId));
         }
         if ($request->filled('q')) {
             $q = trim((string) $request->input('q'));
@@ -113,22 +113,22 @@ class SantriController extends Controller
     }
 
     /** Resolusi lembaga untuk lingkup kamus efektif (template import). */
-    private function resolveLembagaInput(User $auth, ?int $lembagaId): ?int
+    private function resolveLembagaInput(User $auth, ?string $jenjang): ?string
     {
-        if ($lembagaId !== null) {
-            $this->authorizeLembaga($auth, $lembagaId);
-            if (! Lembaga::where('id', $lembagaId)->whereNotNull('parent_id')->exists()) {
-                throw ServiceValidationException::withMessages(['lembaga_id' => 'Lembaga harus lembaga operasional (bukan induk pesantren).']);
+        if ($jenjang !== null) {
+            $this->authorizeLembaga($auth, $jenjang);
+            if (! Lembaga::whereKey($jenjang)->exists()) {
+                throw ServiceValidationException::withMessages(['jenjang' => 'Lembaga tidak ditemukan.']);
             }
 
-            return $lembagaId;
+            return $jenjang;
         }
         if ($auth->bolehPesantren()) {
             return null;
         }
         $ids = $auth->lembagaIds();
 
-        return count($ids) === 1 ? (int) $ids[0] : null;
+        return count($ids) === 1 ? $ids[0] : null;
     }
 
     /** PATCH /api/admin/santri/{santri} — edit kolom identitas (partial). */
@@ -166,7 +166,7 @@ class SantriController extends Controller
     public function uploadDokumen(SantriDokumenRequest $request, Santri $santri)
     {
         $data = $request->validated();
-        $lembagaUntukKamus = $santri->lembagaAktif()->value('lembaga_id');
+        $lembagaUntukKamus = $santri->lembagaAktif()->value('jenjang');
         if (! in_array($data['jenis_dokumen_santri'], RefService::kodeAktif('jenis_dokumen_santri', $lembagaUntukKamus), true)) {
             abort(422, 'Jenis dokumen tidak aktif di lembaga ini.');
         }
@@ -218,14 +218,14 @@ class SantriController extends Controller
     }
 
     /** GET /api/admin/santri/import-template — template Excel identitas (buku induk).
-     *  `lembaga_id` opsional: dropdown kamus mengikuti referensi efektif lembaga tsb. */
+     *  `jenjang` opsional: dropdown kamus mengikuti referensi efektif lembaga tsb. */
     public function template(Request $request)
     {
         $this->authorize('create', Santri::class);
 
         $lembagaId = $this->resolveLembagaInput(
             $request->user(),
-            $request->filled('lembaga_id') ? (int) $request->lembaga_id : null,
+            $request->filled('jenjang') ? (string) $request->jenjang : null,
         );
 
         return Excel::download(new SantriTemplateExport($lembagaId), 'template-import-santri.xlsx');
@@ -318,29 +318,29 @@ class SantriController extends Controller
         $this->authorize('update', new Santri);
         $periksa = $request->boolean('periksa', true);
 
-        $miId = Lembaga::where('kode', 'MI')->value('id');
-        $mdId = Lembaga::where('kode', 'MD')->value('id');
+        $miId = Lembaga::whereKey('MI')->value('jenjang');
+        $mdId = Lembaga::whereKey('MD')->value('jenjang');
         if (! $miId || ! $mdId) {
             return response()->json(['pesan' => 'Lembaga MI/MD tidak ditemukan.'], 422);
         }
 
         $auth = $request->user();
         $kandidat = Santri::tenantScope()
-            ->whereHas('lembagaAktif', fn ($q) => $q->where('lembaga_id', $miId))
-            ->whereHas('lembagaAktif', fn ($q) => $q->where('lembaga_id', $mdId))
+            ->whereHas('lembagaAktif', fn ($q) => $q->where('jenjang', $miId))
+            ->whereHas('lembagaAktif', fn ($q) => $q->where('jenjang', $mdId))
             ->pluck('id');
 
         $layanan = app(PenerimaanService::class);
         $rincian = [];
         foreach ($kandidat as $id) {
-            if (! $auth->canAccessLembaga((int) $miId) || ! $auth->canAccessLembaga((int) $mdId)) {
+            if (! $auth->canAccessLembaga($miId) || ! $auth->canAccessLembaga($mdId)) {
                 continue;
             }
             $santri = Santri::find($id);
             if (! $santri) {
                 continue;
             }
-            $hasil = $layanan->samakanNisSatu($santri, (int) $miId, (int) $mdId, ! $periksa);
+            $hasil = $layanan->samakanNisSatu($santri, $miId, $mdId, ! $periksa);
             if ($hasil !== null) {
                 $rincian[] = array_merge(['santri_id' => (int) $id, 'nama' => $santri->nama_lengkap], $hasil);
             }
@@ -363,16 +363,16 @@ class SantriController extends Controller
         ]);
     }
 
-    /** Lembaga operasional yang boleh diakses pengunduh (dropdown kode template). */
+    /** Lembaga yang boleh diakses pengunduh (dropdown jenjang template). */
     private function lembagaDiizinkan(User $auth): array
     {
         if ($auth->bolehPesantren()) {
-            return Lembaga::whereNotNull('parent_id')->pluck('id')->map(fn ($v) => (int) $v)->all();
+            return Lembaga::orderBy('jenjang')->pluck('jenjang')->all();
         }
 
         return array_values(array_filter(
             $auth->lembagaIdsDenganPasangan(),
-            fn (int $id) => Lembaga::where('id', $id)->whereNotNull('parent_id')->exists(),
+            fn (string $jenjang) => Lembaga::whereKey($jenjang)->exists(),
         ));
     }
 
@@ -385,8 +385,8 @@ class SantriController extends Controller
         $boleh = $this->lembagaDiizinkan($auth);
         $tunggal = count($boleh) === 1 ? $boleh[0] : null;
         $kode = $tunggal !== null
-            ? Lembaga::whereKey($tunggal)->pluck('kode')->filter()->all()
-            : Lembaga::whereIn('id', $boleh)->whereNotNull('kode')->orderBy('kode')->pluck('kode')->all();
+            ? Lembaga::whereKey($tunggal)->pluck('jenjang')->filter()->all()
+            : Lembaga::whereIn('jenjang', $boleh)->orderBy('jenjang')->pluck('jenjang')->all();
 
         return Excel::download(
             new SantriLembagaTemplateExport($tunggal, array_values($kode)),
@@ -395,7 +395,7 @@ class SantriController extends Controller
     }
 
     /** GET /api/admin/santri/data-gabungan — pra-isi data existing (round-trip update).
-     *  Satu lembaga via `kode_lembaga`/`lembaga_id`, beberapa via `lembaga_id[]`;
+     *  Satu lembaga via `kode_lembaga`/`jenjang`, beberapa via `jenjang[]`;
      *  tanpa parameter → semua lembaga dalam lingkup pengunduh. */
     public function dataGabungan(Request $request)
     {
@@ -403,7 +403,7 @@ class SantriController extends Controller
 
         $ids = $this->resolveDaftarLembagaGabungan($request);
         if (count($ids) === 1) {
-            $kode = Lembaga::whereKey($ids[0])->value('kode');
+            $kode = Lembaga::whereKey($ids[0])->value('jenjang');
 
             return Excel::download(new SantriLembagaDataExport($ids), "data-siswa-{$kode}-{$ids[0]}.xlsx");
         }
@@ -418,16 +418,16 @@ class SantriController extends Controller
             return [$this->resolveLembagaGabungan($request)];
         }
 
-        $mentah = $request->input('lembaga_id');
+        $mentah = $request->input('jenjang');
         $ids = array_values(array_unique(array_filter(
-            array_map('intval', is_array($mentah) ? $mentah : [$mentah]),
-            fn (int $id) => $id > 0,
+            is_array($mentah) ? $mentah : [$mentah],
+            fn ($v) => trim((string) $v) !== '',
         )));
         if ($ids !== []) {
             foreach ($ids as $id) {
-                $this->authorizeLembaga($request->user(), $id);
-                if (! Lembaga::where('id', $id)->whereNotNull('parent_id')->exists()) {
-                    abort(422, 'Lembaga harus operasional (bukan induk pesantren).');
+                $this->authorizeLembaga($request->user(), (string) $id);
+                if (! Lembaga::whereKey($id)->exists()) {
+                    abort(422, 'Lembaga tidak ditemukan.');
                 }
             }
 
@@ -436,40 +436,40 @@ class SantriController extends Controller
 
         $boleh = $this->lembagaDiizinkan($request->user());
         if ($boleh === []) {
-            abort(422, 'Tidak ada lembaga operasional dalam lingkup akses Anda.');
+            abort(422, 'Tidak ada lembaga dalam lingkup akses Anda.');
         }
 
         return $boleh;
     }
 
-    /** Resolusi lembaga wajib untuk unduh data & validasi tenant (kode/id, operasional). */
-    private function resolveLembagaGabungan(Request $request): int
+    /** Resolusi lembaga wajib untuk unduh data & validasi tenant (kode/jenjang). */
+    private function resolveLembagaGabungan(Request $request): string
     {
         $kode = trim((string) $request->input('kode_lembaga', ''));
         if ($kode !== '') {
-            $lembaga = Lembaga::whereRaw('UPPER(kode) = ?', [mb_strtoupper($kode)])->first();
-            if (! $lembaga || $lembaga->parent_id === null) {
+            $lembaga = Lembaga::whereRaw('UPPER(jenjang) = ?', [mb_strtoupper($kode)])->first();
+            if (! $lembaga) {
                 abort(422, 'Kode lembaga tidak valid.');
             }
-            $this->authorizeLembaga($request->user(), (int) $lembaga->id);
+            $this->authorizeLembaga($request->user(), $lembaga->jenjang);
 
-            return (int) $lembaga->id;
+            return $lembaga->jenjang;
         }
 
-        $lembagaId = $request->filled('lembaga_id') ? (int) $request->lembaga_id : null;
-        if ($lembagaId === null) {
+        $jenjang = $request->filled('jenjang') ? trim((string) $request->jenjang) : null;
+        if ($jenjang === null || $jenjang === '') {
             $boleh = $this->lembagaDiizinkan($request->user());
             if (count($boleh) !== 1) {
-                abort(422, 'Pilih satu lembaga (kode_lembaga / lembaga_id).');
+                abort(422, 'Pilih satu lembaga (kode_lembaga / jenjang).');
             }
-            $lembagaId = $boleh[0];
+            $jenjang = $boleh[0];
         }
-        $this->authorizeLembaga($request->user(), $lembagaId);
-        if (! Lembaga::where('id', $lembagaId)->whereNotNull('parent_id')->exists()) {
-            abort(422, 'Lembaga harus operasional (bukan induk pesantren).');
+        $this->authorizeLembaga($request->user(), $jenjang);
+        if (! Lembaga::whereKey($jenjang)->exists()) {
+            abort(422, 'Lembaga tidak ditemukan.');
         }
 
-        return $lembagaId;
+        return $jenjang;
     }
 
     /** POST /api/admin/santri/import-periksa-gabungan — validasi file TANPA menulis (dry-run). */

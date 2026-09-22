@@ -12,7 +12,7 @@ class LembagaSantriUpdateRequest extends FormRequest
     {
         $row = $this->route('lembagaSantri');
 
-        return $row !== null && (bool) $this->user()?->canAccessLembaga((int) $row->lembaga_id);
+        return $row !== null && (bool) $this->user()?->canAccessLembaga($row->jenjang);
     }
 
     public function rules(): array

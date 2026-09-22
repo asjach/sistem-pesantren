@@ -8,7 +8,7 @@ import { useTahunAjaranAwalString } from '@/hooks/useTahunAjaranAwal';
 
 /** Rekap Santri: jumlah per tahun ajaran/tingkat/kelas + usia per kelas. */
 export default function RekapSantriPage() {
-  const [lembagaId, setLembagaId] = useState('');
+  const [jenjang, setLembagaId] = useState('');
   useLembagaAwalString(setLembagaId);
   const [taId, setTaId] = useState('');
   useTahunAjaranAwalString(setTaId);
@@ -18,10 +18,10 @@ export default function RekapSantriPage() {
   const load = useCallback(async () => {
     setErr('');
     try {
-      const res = await rekapSantri({ lembaga_id: lembagaId ? Number(lembagaId) : undefined, tahun_ajaran: taId || undefined });
+      const res = await rekapSantri({ jenjang: jenjang ? jenjang : undefined, tahun_ajaran: taId || undefined });
       setData(res);
     } catch (e) { setErr(errorMessage(e)); }
-  }, [lembagaId, taId]);
+  }, [jenjang, taId]);
 
   useEffect(() => { void load(); }, [load]);
 

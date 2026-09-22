@@ -2,13 +2,13 @@ import { api, downloadFile } from './client';
 import { PER_PAGE_DEFAULT } from '@/prefs';
 
 export interface Lembaga {
-  id: number;
-  parent_id?: number | null;
+  /** Sama dengan `jenjang`; dipakai komponen tabel generik (butuh `id`). */
+  id: string;
+  /** Kunci alami lembaga (PK), mis. MI/MD/MTS/MLN. */
+  jenjang: string;
   nama: string;
   nama_singkat?: string | null;
-  kode: string | null;
   mudir_am?: string | null;
-  jenjang?: string | null;
   status?: 'negeri' | 'swasta' | null;
   npsn?: string | null;
   nsm?: string | null;
@@ -42,7 +42,6 @@ export interface Lembaga {
   is_active?: boolean | null;
   kelompok_psb?: 'combo_mi_md' | 'eksklusif' | null;
   is_seleksi?: boolean | null;
-  parent?: { id: number; nama: string; kode: string | null } | null;
 }
 
 export interface Paginate<T> {
@@ -53,6 +52,12 @@ export interface Paginate<T> {
   total: number;
 }
 
+/** Backend tak mengirim `id` terpisah; samakan dengan `jenjang` untuk tabel generik. */
+type LembagaApi = Omit<Lembaga, 'id'>;
+function normLembaga(l: LembagaApi): Lembaga {
+  return { ...l, id: l.jenjang };
+}
+
 export function listLembaga(params: { search?: string; sort?: string[]; arah?: 'naik' | 'turun'; page?: number; per_page?: number; signal?: AbortSignal } = {}) {
   const q = new URLSearchParams();
   if (params.search) q.set('search', params.search);
@@ -60,16 +65,14 @@ export function listLembaga(params: { search?: string; sort?: string[]; arah?: '
   if (params.arah) q.set('arah', params.arah);
   q.set('page', String(params.page ?? 1));
   q.set('per_page', String(params.per_page ?? PER_PAGE_DEFAULT));
-  return api<Paginate<Lembaga>>(`/admin/lembaga?${q.toString()}`, { signal: params.signal });
+  return api<Paginate<LembagaApi>>(`/admin/lembaga?${q.toString()}`, { signal: params.signal })
+    .then((p) => ({ ...p, data: p.data.map(normLembaga) }));
 }
 
 export interface LembagaInput {
-  parent_id?: number | null;
   nama: string;
   nama_singkat?: string | null;
-  kode?: string | null;
   mudir_am?: string | null;
-  jenjang?: string | null;
   status?: 'negeri' | 'swasta' | null;
   npsn?: string | null;
   nsm?: string | null;
@@ -105,16 +108,16 @@ export interface LembagaInput {
   is_seleksi?: boolean;
 }
 
-export function createLembaga(input: LembagaInput) {
-  return api<Lembaga>('/admin/lembaga', { method: 'POST', body: JSON.stringify(input) });
+export function createLembaga(input: LembagaInput & { jenjang: string }) {
+  return api<LembagaApi>('/admin/lembaga', { method: 'POST', body: JSON.stringify(input) }).then(normLembaga);
 }
 
-export function updateLembaga(id: number, input: Partial<LembagaInput>) {
-  return api<Lembaga>(`/admin/lembaga/${id}`, { method: 'PUT', body: JSON.stringify(input) });
+export function updateLembaga(jenjang: string, input: Partial<LembagaInput>) {
+  return api<LembagaApi>(`/admin/lembaga/${encodeURIComponent(jenjang)}`, { method: 'PUT', body: JSON.stringify(input) }).then(normLembaga);
 }
 
-export function deleteLembaga(id: number) {
-  return api<{ message: string }>(`/admin/lembaga/${id}`, { method: 'DELETE' });
+export function deleteLembaga(jenjang: string) {
+  return api<{ message: string }>(`/admin/lembaga/${encodeURIComponent(jenjang)}`, { method: 'DELETE' });
 }
 
 export interface Ringkasan {
@@ -122,13 +125,13 @@ export interface Ringkasan {
   pengguna: number;
   tahun_ajaran_aktif: number;
   kelas: number;
-  tahun_aktif: { id: number; lembaga_id: number | null; nama: string; lembaga?: { id: number; nama: string } }[];
+  tahun_aktif: { nama: string; tanggal_mulai: string | null; tanggal_selesai: string | null; is_aktif: boolean }[];
   santri: null;
   antrean_psb: null;
 }
 
-export function ringkasan(lembaga_id?: number) {
-  const q = lembaga_id ? `?lembaga_id=${lembaga_id}` : '';
+export function ringkasan(jenjang?: string) {
+  const q = jenjang ? `?jenjang=${encodeURIComponent(jenjang)}` : '';
   return api<Ringkasan>(`/dashboard/ringkasan${q}`);
 }
 
@@ -136,7 +139,7 @@ export function ringkasan(lembaga_id?: number) {
 
 export interface ReferensiRow {
   id: number;
-  lembaga_id: number | null;
+  jenjang: string | null;
   /** Semua tabel ref memakai `nama`; status juga punya `kode` (nilai yang disimpan). */
   nama?: string | null;
   kode?: string | null;
@@ -147,7 +150,7 @@ export interface ReferensiRow {
 }
 
 export interface ReferensiInput {
-  lembaga_id?: number | null;
+  jenjang?: string | null;
   nama?: string;
   kode?: string;
   urutan?: number;
@@ -157,9 +160,9 @@ export function referensiTypes() {
   return api<string[]>('/admin/referensi/types');
 }
 
-export function referensiList(tipe: string, lembaga_id?: number, termasukNonaktif = false) {
+export function referensiList(tipe: string, jenjang?: string, termasukNonaktif = false) {
   const q = new URLSearchParams();
-  if (lembaga_id) q.set('lembaga_id', String(lembaga_id));
+  if (jenjang) q.set('jenjang', jenjang);
   if (termasukNonaktif) q.set('termasuk_nonaktif', '1');
   const qs = q.toString();
   return api<ReferensiRow[]>(`/admin/referensi/${encodeURIComponent(tipe)}${qs ? `?${qs}` : ''}`);
@@ -177,16 +180,16 @@ export function createReferensi(tipe: string, input: ReferensiInput) {
   });
 }
 
-export function updateReferensi(tipe: string, id: number, input: Omit<ReferensiInput, 'lembaga_id' | 'kode'>) {
+export function updateReferensi(tipe: string, id: number, input: Omit<ReferensiInput, 'jenjang' | 'kode'>) {
   return api<ReferensiRow>(`/admin/referensi/${encodeURIComponent(tipe)}/${id}`, {
     method: 'PUT',
     body: JSON.stringify(input),
   });
 }
 
-export function deleteReferensi(tipe: string, id: number, lembaga_id?: number, permanen = false) {
+export function deleteReferensi(tipe: string, id: number, jenjang?: string, permanen = false) {
   const q = new URLSearchParams();
-  if (lembaga_id) q.set('lembaga_id', String(lembaga_id));
+  if (jenjang) q.set('jenjang', jenjang);
   if (permanen) q.set('permanen', '1');
   const suffix = q.size > 0 ? `?${q.toString()}` : '';
   return api<{ pesan: string }>(`/admin/referensi/${encodeURIComponent(tipe)}/${id}${suffix}`, {
@@ -208,7 +211,7 @@ export interface TahunAjaran {
 
 export function listTahunAjaran(params: {
   search?: string;
-  lembaga_id?: number;
+  jenjang?: string;
   termasuk_nonaktif?: boolean;
   sort?: string[];
   arah?: 'naik' | 'turun';
@@ -218,7 +221,7 @@ export function listTahunAjaran(params: {
 } = {}) {
   const q = new URLSearchParams();
   if (params.search) q.set('search', params.search);
-  if (params.lembaga_id) q.set('lembaga_id', String(params.lembaga_id));
+  if (params.jenjang) q.set('jenjang', params.jenjang);
   if (params.termasuk_nonaktif) q.set('termasuk_nonaktif', '1');
   if (params.sort?.length) q.set('sort', params.sort.join(','));
   if (params.arah) q.set('arah', params.arah);
@@ -236,18 +239,18 @@ export function createTahunAjaran(input: {
 }
 
 /** Sembunyikan TA untuk satu lembaga (pivot). */
-export function sembunyikanTahunAjaran(nama: string, lembaga_id?: number) {
+export function sembunyikanTahunAjaran(nama: string, jenjang?: string) {
   return api<{ message: string }>('/admin/tahun-ajaran/sembunyikan', {
     method: 'POST',
-    body: JSON.stringify(lembaga_id ? { nama, lembaga_id } : { nama }),
+    body: JSON.stringify(jenjang ? { nama, jenjang } : { nama }),
   });
 }
 
 /** Tampilkan kembali TA untuk satu lembaga (hapus pivot). */
-export function tampilkanTahunAjaran(nama: string, lembaga_id?: number) {
+export function tampilkanTahunAjaran(nama: string, jenjang?: string) {
   return api<{ message: string }>('/admin/tahun-ajaran/tampilkan', {
     method: 'POST',
-    body: JSON.stringify(lembaga_id ? { nama, lembaga_id } : { nama }),
+    body: JSON.stringify(jenjang ? { nama, jenjang } : { nama }),
   });
 }
 
@@ -279,7 +282,7 @@ export function setAktifTahunAjaran(nama: string) {
 
 export interface Kelas {
   id: number;
-  lembaga_id: number;
+  jenjang: string;
   /** Nama tahun ajaran (kunci alami), mis. '2025/2026'. */
   tahun_ajaran: string;
   tingkat: string | null;
@@ -287,16 +290,16 @@ export interface Kelas {
   urutan: number;
   nama_kelas: string;
   kapasitas: number | null;
-  lembaga?: { id: number; nama: string; kode: string | null };
+  lembaga?: { jenjang: string; nama: string };
   tahunAjaran?: { nama: string } | null;
 }
 
 export function listKelas(
-  params: { search?: string; lembaga_id?: number; tahun_ajaran?: string; tingkat?: string; sort?: string[]; arah?: 'naik' | 'turun'; page?: number; per_page?: number; signal?: AbortSignal } = {},
+  params: { search?: string; jenjang?: string; tahun_ajaran?: string; tingkat?: string; sort?: string[]; arah?: 'naik' | 'turun'; page?: number; per_page?: number; signal?: AbortSignal } = {},
 ) {
   const q = new URLSearchParams();
   if (params.search) q.set('search', params.search);
-  if (params.lembaga_id) q.set('lembaga_id', String(params.lembaga_id));
+  if (params.jenjang) q.set('jenjang', params.jenjang);
   if (params.tahun_ajaran) q.set('tahun_ajaran', params.tahun_ajaran);
   if (params.tingkat) q.set('tingkat', params.tingkat);
   if (params.sort?.length) q.set('sort', params.sort.join(','));
@@ -314,7 +317,7 @@ export interface KelasItem {
 }
 
 export function createKelas(input: {
-  lembaga_id: number;
+  jenjang: string;
   tahun_ajaran: string;
   tingkat?: string;
   nama_kelas?: string;
@@ -356,8 +359,8 @@ export interface ImportNamaHasil {
 /** Pratinjau (periksa=true) atau eksekusi salin nama+tingkat kelas MI↔MD (ambil/copy). */
 export function importNamaKelas(
   input:
-    | { lembaga_id: number; tahun_ajaran: string; dari_kode: 'MI' | 'MD'; periksa: boolean }
-    | { dari_lembaga_id: number; dari_tahun_ajaran: string; ke_kode: 'MI' | 'MD'; periksa: boolean },
+    | { jenjang: string; tahun_ajaran: string; dari_kode: 'MI' | 'MD'; periksa: boolean }
+    | { dari_jenjang: string; dari_tahun_ajaran: string; ke_kode: 'MI' | 'MD'; periksa: boolean },
 ) {
   return api<ImportNamaHasil>('/admin/kelas/import-nama', {
     method: 'POST',
@@ -366,9 +369,9 @@ export function importNamaKelas(
 }
 
 /** Unduh daftar nama kelas satu lembaga + TA (pasangan import-nama). */
-export function unduhDaftarKelas(lembagaId: number, tahunAjaran: string) {
+export function unduhDaftarKelas(jenjang: string, tahunAjaran: string) {
   return downloadFile(
-    `/admin/kelas/export-nama?lembaga_id=${lembagaId}&tahun_ajaran=${encodeURIComponent(tahunAjaran)}`,
-    `daftar-kelas-${lembagaId}.xlsx`,
+    `/admin/kelas/export-nama?jenjang=${encodeURIComponent(jenjang)}&tahun_ajaran=${encodeURIComponent(tahunAjaran)}`,
+    `daftar-kelas-${jenjang}.xlsx`,
   );
 }

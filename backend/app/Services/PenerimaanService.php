@@ -27,18 +27,18 @@ class PenerimaanService
      *
      * @return null|array{status: string, ...} null = tidak ada yang perlu dilakukan
      */
-    public function samakanNisSatu(Santri $santri, int $miId, int $mdId, bool $eksekusi): ?array
+    public function samakanNisSatu(Santri $santri, string $miJenjang, string $mdJenjang, bool $eksekusi): ?array
     {
-        return DB::transaction(function () use ($santri, $miId, $mdId, $eksekusi) {
+        return DB::transaction(function () use ($santri, $miJenjang, $mdJenjang, $eksekusi) {
             $anggota = LembagaSantri::where('santri_id', $santri->id)
-                ->whereIn('lembaga_id', [$miId, $mdId])
+                ->whereIn('jenjang', [$miJenjang, $mdJenjang])
                 ->where('is_active_lembaga', LembagaSantri::YA)
                 ->lockForUpdate()
                 ->get()
-                ->keyBy('lembaga_id');
+                ->keyBy('jenjang');
 
-            $mi = $anggota->get($miId);
-            $md = $anggota->get($mdId);
+            $mi = $anggota->get($miJenjang);
+            $md = $anggota->get($mdJenjang);
             if (! $mi || ! $md) {
                 return null;
             }
@@ -63,7 +63,7 @@ class PenerimaanService
     /** @return array{status: string, ...} */
     protected function salinNis(LembagaSantri $tujuan, string $nis, string $dari, string $ke, bool $eksekusi): array
     {
-        if (LembagaSantri::nisLokalDipakai((int) $tujuan->lembaga_id, $nis, (int) $tujuan->id)) {
+        if (LembagaSantri::nisLokalDipakai($tujuan->jenjang, $nis, $tujuan->id)) {
             return ['status' => 'tabrakan', 'dari' => $dari, 'ke' => $ke, 'nis' => $nis];
         }
         if ($eksekusi) {
@@ -85,7 +85,7 @@ class PenerimaanService
      *               npsn_sekolah_asal?: ?string, nss_sekolah_asal?: ?string,
      *               alamat_sekolah_asal?: ?string}  $data
      */
-    public function pastikanKeanggotaan(Santri $santri, int $lembagaId, array $data = []): LembagaSantri
+    public function pastikanKeanggotaan(Santri $santri, string $jenjang, array $data = []): LembagaSantri
     {
         $nisLokal = $data['nis_lokal'] ?? null;
         $nisLokal = $nisLokal !== null ? trim((string) $nisLokal) : null;
@@ -99,12 +99,12 @@ class PenerimaanService
             }
         }
 
-        $aktif = LembagaSantri::aktif($santri->id, $lembagaId);
+        $aktif = LembagaSantri::aktif($santri->id, $jenjang);
 
         if ($aktif !== null) {
             $ubah = [];
             if ($nisLokal !== null && $nisLokal !== $aktif->nis_lokal) {
-                if (LembagaSantri::nisLokalDipakai($lembagaId, $nisLokal, $aktif->id)) {
+                if (LembagaSantri::nisLokalDipakai($jenjang, $nisLokal, $aktif->id)) {
                     throw ValidationException::withMessages(['nis_lokal' => 'NIS lokal sudah dipakai santri lain di lembaga ini.']);
                 }
                 $ubah['nis_lokal'] = $nisLokal;
@@ -125,7 +125,7 @@ class PenerimaanService
         // (mis. X di halaman MI-MD lalu panah lagi) — aktifkan baris lamanya
         // agar tidak menabrak cek dipakai/unique di bawah.
         $arsip = LembagaSantri::where('santri_id', $santri->id)
-            ->where('lembaga_id', $lembagaId)
+            ->where('jenjang', $jenjang)
             ->where('is_active_lembaga', LembagaSantri::TIDAK)
             ->orderByDesc('id')
             ->first();
@@ -139,13 +139,13 @@ class PenerimaanService
             return $arsip->fresh();
         }
 
-        if ($nisLokal !== null && LembagaSantri::nisLokalDipakai($lembagaId, $nisLokal)) {
+        if ($nisLokal !== null && LembagaSantri::nisLokalDipakai($jenjang, $nisLokal)) {
             throw ValidationException::withMessages(['nis_lokal' => 'NIS lokal sudah dipakai santri lain di lembaga ini.']);
         }
 
         return LembagaSantri::create([
             'santri_id' => $santri->id,
-            'lembaga_id' => $lembagaId,
+            'jenjang' => $jenjang,
             'nis_lokal' => $nisLokal,
             'is_active_lembaga' => LembagaSantri::YA,
         ] + $konteks);
@@ -160,16 +160,16 @@ class PenerimaanService
      *               npsn_sekolah_asal?: ?string, nss_sekolah_asal?: ?string,
      *               alamat_sekolah_asal?: ?string}  $data
      */
-    public function terima(Santri $santri, int $lembagaId, string $tahunAjaran, array $data = []): RiwayatBelajar
+    public function terima(Santri $santri, string $jenjang, string $tahunAjaran, array $data = []): RiwayatBelajar
     {
-        return DB::transaction(function () use ($santri, $lembagaId, $tahunAjaran, $data) {
+        return DB::transaction(function () use ($santri, $jenjang, $tahunAjaran, $data) {
             $santri = Santri::whereKey($santri->id)->lockForUpdate()->firstOrFail();
 
             $tahun = TahunAjaran::find($tahunAjaran);
             if (! $tahun) {
                 throw ValidationException::withMessages(['tahun_ajaran' => 'Tahun ajaran tidak ditemukan.']);
             }
-            if (! TahunAjaran::efektif($lembagaId)->contains('nama', $tahun->nama)) {
+            if (! TahunAjaran::efektif($jenjang)->contains('nama', $tahun->nama)) {
                 throw ValidationException::withMessages(['tahun_ajaran' => 'Tahun ajaran tidak berlaku untuk lembaga ini.']);
             }
 
@@ -177,7 +177,7 @@ class PenerimaanService
             $kelas = null;
             if ($kelasId !== null) {
                 $kelas = Kelas::find($kelasId);
-                if (! $kelas || (int) $kelas->lembaga_id !== $lembagaId) {
+                if (! $kelas || $kelas->jenjang !== $jenjang) {
                     throw ValidationException::withMessages(['kelas_id' => 'Kelas bukan milik lembaga ini.']);
                 }
                 if ($kelas->tahun_ajaran !== $tahunAjaran) {
@@ -186,7 +186,7 @@ class PenerimaanService
             }
 
             $adaAktif = RiwayatBelajar::where('santri_id', $santri->id)
-                ->where('lembaga_id', $lembagaId)
+                ->where('jenjang', $jenjang)
                 ->where('is_active_riwayat', RiwayatBelajar::YA)
                 ->lockForUpdate()
                 ->exists();
@@ -195,12 +195,12 @@ class PenerimaanService
             }
 
             $statusAwal = $data['status_awal'] ?? 'santri_baru';
-            $kamusAwal = RefService::kodeAktif('status_awal', $lembagaId);
+            $kamusAwal = RefService::kodeAktif('status_awal', $jenjang);
             if ($kamusAwal !== [] && ! in_array($statusAwal, $kamusAwal, true)) {
                 throw ValidationException::withMessages(['status_awal' => "Status awal {$statusAwal} tidak aktif di lembaga ini."]);
             }
 
-            $this->pastikanKeanggotaan($santri, $lembagaId, [
+            $this->pastikanKeanggotaan($santri, $jenjang, [
                 'nis_lokal' => $data['nis_lokal'] ?? null,
                 'tgl_masuk' => $data['tgl_masuk'] ?? null,
                 'tahaj_masuk' => $data['tahaj_masuk'] ?? null,
@@ -220,7 +220,7 @@ class PenerimaanService
             $baru = RiwayatBelajar::create([
                 'santri_id' => $santri->id,
                 'tahun_ajaran' => $tahunAjaran,
-                'lembaga_id' => $lembagaId,
+                'jenjang' => $jenjang,
                 'kelas_id' => $kelasId,
                 'semester' => '1',
                 'tgl_masuk' => $data['tgl_masuk'] ?? null,
@@ -239,11 +239,11 @@ class PenerimaanService
     }
 
     /** Cari tahun ajaran berikut (tanggal_mulai lebih besar) untuk kenaikan/mengulang. */
-    public function tahunAjaranBerikut(int $lembagaId, RiwayatBelajar $lama): ?TahunAjaran
+    public function tahunAjaranBerikut(string $jenjang, RiwayatBelajar $lama): ?TahunAjaran
     {
         $taLama = TahunAjaran::find($lama->tahun_ajaran);
 
-        return TahunAjaran::efektif($lembagaId)
+        return TahunAjaran::efektif($jenjang)
             ->when($taLama?->tanggal_mulai, fn ($rows, $mulai) => $rows->filter(fn ($t) => ($t->tanggal_mulai ?? '') > $mulai))
             ->sortBy(fn ($t) => ($t->tanggal_mulai ?? '').'|'.$t->nama)
             ->first();

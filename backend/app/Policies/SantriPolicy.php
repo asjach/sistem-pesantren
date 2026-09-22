@@ -36,13 +36,13 @@ class SantriPolicy
         }
 
         // Tanpa keanggotaan (`lembaga_santri`) = arsip pusat/pra-penerimaan → semua pemegang izin lihat.
-        $lembagaIds = $santri->lembagaSantri()->pluck('lembaga_id');
+        $lembagaIds = $santri->lembagaSantri()->pluck('jenjang');
         if ($lembagaIds->isEmpty()) {
             return true;
         }
 
         // Cukup punya akses ke salah satu lembaga keanggotaan.
-        return $lembagaIds->contains(fn ($id) => $user->canAccessLembaga((int) $id));
+        return $lembagaIds->contains(fn ($id) => $user->canAccessLembaga($id));
     }
 
     public function create(User $user): bool

@@ -13,7 +13,8 @@ return new class extends Migration
     {
         Schema::create('kelas', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('lembaga_id')->constrained('lembaga')->cascadeOnDelete();
+            $table->string('jenjang', 20);
+            $table->foreign('jenjang')->references('jenjang')->on('lembaga')->cascadeOnUpdate()->cascadeOnDelete();
             $table->string('tahun_ajaran', 9); // FK ke tahun_ajaran.nama
             $table->foreignId('walas_id')->nullable()->constrained('pegawai')->nullOnDelete(); // wali kelas → pegawai
             $table->string('tingkat')->nullable(); // ref_tingkat ('7','8','9'); grouping saat kelas_id null di riwayat
@@ -22,8 +23,8 @@ return new class extends Migration
             $table->integer('kapasitas')->nullable();
             $table->timestamps();
 
-            $table->unique(['lembaga_id', 'tahun_ajaran', 'nama_kelas'], 'kelas_lingkup_nama_unique');
-            $table->index(['lembaga_id', 'tahun_ajaran', 'urutan'], 'kelas_lingkup_urutan_index');
+            $table->unique(['jenjang', 'tahun_ajaran', 'nama_kelas'], 'kelas_lingkup_nama_unique');
+            $table->index(['jenjang', 'tahun_ajaran', 'urutan'], 'kelas_lingkup_urutan_index');
             $table->foreign('tahun_ajaran')->references('nama')->on('tahun_ajaran')
                 ->cascadeOnUpdate()->cascadeOnDelete();
         });

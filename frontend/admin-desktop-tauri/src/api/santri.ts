@@ -7,7 +7,7 @@ import type { Paginate } from './master';
 export interface LembagaSantri {
   id: number;
   santri_id: number;
-  lembaga_id: number;
+  jenjang: string;
   nis_lokal: string | null;
   nis_kemenag: string | null;
   tahaj_masuk: string | null;
@@ -21,13 +21,13 @@ export interface LembagaSantri {
   is_active_lembaga: string;
   tgl_masuk: string | null;
   tgl_selesai: string | null;
-  lembaga?: { id: number; nama: string; kode: string | null; nsm?: string | null } | null;
+  lembaga?: { jenjang: string; nama: string; nsm?: string | null } | null;
   santri?: { id: number; nama_lengkap: string; jk: string | null } | null;
 }
 
 /** Daftar keanggotaan lintas santri (halaman Keanggotaan terpusat). */
 export function listKeanggotaan(params: {
-  lembaga_id?: number | null;
+  jenjang?: string | null;
   is_active_lembaga?: boolean | null;
   tanpa_nis?: boolean;
   search?: string;
@@ -37,7 +37,7 @@ export function listKeanggotaan(params: {
   per_page?: number;
 } = {}) {
   const q = new URLSearchParams();
-  if (params.lembaga_id != null) q.set('lembaga_id', String(params.lembaga_id));
+  if (params.jenjang != null) q.set('jenjang', params.jenjang);
   if (params.is_active_lembaga != null) q.set('is_active_lembaga', params.is_active_lembaga ? '1' : '0');
   if (params.tanpa_nis) q.set('tanpa_nis', '1');
   if (params.search) q.set('search', params.search);
@@ -144,11 +144,11 @@ export interface DokumenSantri {
 }
 
 export function listSantri(
-  params: { is_active_pst?: boolean; lembaga_id?: number; q?: string; sort?: string[]; arah?: 'naik' | 'turun'; page?: number; per_page?: number; signal?: AbortSignal } = {},
+  params: { is_active_pst?: boolean; jenjang?: string; q?: string; sort?: string[]; arah?: 'naik' | 'turun'; page?: number; per_page?: number; signal?: AbortSignal } = {},
 ) {
   const q = new URLSearchParams();
   if (params.is_active_pst !== undefined) q.set('is_active_pst', params.is_active_pst ? '1' : '0');
-  if (params.lembaga_id) q.set('lembaga_id', String(params.lembaga_id));
+  if (params.jenjang) q.set('jenjang', params.jenjang);
   if (params.q) q.set('q', params.q);
   if (params.sort?.length) q.set('sort', params.sort.join(','));
   if (params.arah) q.set('arah', params.arah);
@@ -171,9 +171,9 @@ export function updateSantri(id: number, changes: Record<string, string | number
   });
 }
 
-/** Unduh template import identitas (buku induk). `lembagaId` hanya lingkup kamus dropdown. */
-export function unduhTemplateSantri(lembagaId?: number) {
-  const q = lembagaId ? `?lembaga_id=${lembagaId}` : '';
+/** Unduh template import identitas (buku induk). `jenjang` hanya lingkup kamus dropdown. */
+export function unduhTemplateSantri(jenjang?: string) {
+  const q = jenjang ? `?jenjang=${jenjang}` : '';
   return downloadFile(`/admin/santri/import-template${q}`, 'template-import-santri.xlsx');
 }
 
@@ -211,11 +211,11 @@ export function unduhTemplateSantriGabungan() {
 }
 
 /** Unduh data existing (pra-isi santri_id) untuk round-trip update. Tanpa argumen = semua lingkup. */
-export function unduhDataSantriGabungan(ids?: number[]) {
-  const q = ids?.length ? `?${ids.map((id) => `lembaga_id[]=${id}`).join('&')}` : '';
+export function unduhDataSantriGabungan(jenjangs?: string[]) {
+  const q = jenjangs?.length ? `?${jenjangs.map((j) => `jenjang[]=${encodeURIComponent(j)}`).join('&')}` : '';
   return downloadFile(
     `/admin/santri/data-gabungan${q}`,
-    ids?.length === 1 ? `data-siswa-${ids[0]}.xlsx` : 'data-siswa-pilihan.xlsx',
+    jenjangs?.length === 1 ? `data-siswa-${jenjangs[0]}.xlsx` : 'data-siswa-pilihan.xlsx',
   );
 }
 
@@ -241,7 +241,7 @@ export function listLembagaSantri(santriId: number) {
 export function createLembagaSantri(
   santriId: number,
   input: {
-    lembaga_id: number;
+    jenjang: string;
     nis_lokal?: string | null;
     nis_kemenag?: string | null;
     tahaj_masuk?: string | null;
@@ -294,7 +294,7 @@ export function generateNisk(id: number) {
 
 /** Generate NISK massal untuk semua baris cocok filter (lewati: sudah ada,
  *  NIS lokal kosong, lembaga MD). */
-export function generateNiskBulk(filter: { lembaga_id?: number; is_active_lembaga?: boolean; search?: string }) {
+export function generateNiskBulk(filter: { jenjang?: string; is_active_lembaga?: boolean; search?: string }) {
   return api<{ pesan: string; data: { berhasil: number; dilewati: number; gagal: { id: number; pesan: string }[] } }>(
     '/admin/lembaga-santri/generate-nisk-bulk',
     { method: 'POST', body: JSON.stringify(filter) },

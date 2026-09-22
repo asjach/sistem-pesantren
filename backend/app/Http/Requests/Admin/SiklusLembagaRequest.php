@@ -4,7 +4,7 @@ namespace App\Http\Requests\Admin;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-/** Payload minimum siklus yang hanya butuh lembaga_id (tidak lulus / berhenti jenjang). */
+/** Payload minimum siklus yang hanya butuh jenjang (tidak lulus / berhenti jenjang). */
 class SiklusLembagaRequest extends FormRequest
 {
     public function authorize(): bool
@@ -15,7 +15,7 @@ class SiklusLembagaRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'lembaga_id' => 'required|exists:lembaga,id',
+            'jenjang' => 'required|exists:lembaga,jenjang',
         ];
     }
 }

@@ -57,8 +57,8 @@ class PsbSummaryNotificationService
             return;
         }
         // Single-tenant: tenant = lembaga via pivot user_lembaga.
-        // Kolom lembaga_id hanya ada di tabel santri (s) pada join ini.
-        $q->whereIn('s.lembaga_id', $admin->lembagaIds() ?: [-1]);
+        // Kolom jenjang hanya ada di tabel santri (s) pada join ini.
+        $q->whereIn('s.jenjang', $admin->lembagaIds() ?: [-1]);
     }
 
     // Alias scopeTenant untuk query PsbCalonSantri langsung (pola sama, nama beda agar jelas di refreshDaftarUlang).
@@ -67,6 +67,6 @@ class PsbSummaryNotificationService
         if ($admin->bolehPesantren()) {
             return;
         }
-        $q->whereIn('lembaga_id', $admin->lembagaIds() ?: [-1]);
+        $q->whereIn('jenjang', $admin->lembagaIds() ?: [-1]);
     }
 }

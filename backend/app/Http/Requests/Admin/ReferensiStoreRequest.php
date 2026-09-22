@@ -14,7 +14,7 @@ class ReferensiStoreRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'lembaga_id' => 'nullable|exists:lembaga,id',
+            'jenjang' => 'nullable|exists:lembaga,jenjang',
             'nama' => 'required_without:kode|string',
             'kode' => 'required_without:nama|string',
             'urutan' => 'nullable|integer',

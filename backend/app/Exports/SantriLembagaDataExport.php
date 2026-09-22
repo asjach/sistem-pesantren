@@ -47,20 +47,18 @@ class SantriLembagaDataExport extends DefaultValueBinder implements FromArray, W
 
     public function array(): array
     {
-        $kode = Lembaga::whereIn('id', $this->lembagaIds)->pluck('kode', 'id');
-
-        return LembagaSantri::whereIn('lembaga_id', $this->lembagaIds)
+        return LembagaSantri::whereIn('jenjang', $this->lembagaIds)
             ->with('santri')
-            ->orderBy('lembaga_id')
+            ->orderBy('jenjang')
             ->orderBy('santri_id')
             ->get()
             ->filter(fn (LembagaSantri $ls) => $ls->santri !== null)
-            ->map(function (LembagaSantri $ls) use ($kode) {
+            ->map(function (LembagaSantri $ls) {
                 $s = $ls->santri;
                 $baris = [
                     'santri_id' => (string) $s->id,
-                    'kode_lembaga' => (string) ($kode[$ls->lembaga_id] ?? ''),
-                    'lembaga_id' => (string) $ls->lembaga_id,
+                    'kode_lembaga' => (string) $ls->jenjang,
+                    'jenjang' => (string) $ls->jenjang,
                     'nis_lokal' => (string) ($ls->nis_lokal ?? ''),
                     'nis_kemenag' => (string) ($ls->nis_kemenag ?? ''),
                     'is_active_lembaga' => (string) $ls->is_active_lembaga,

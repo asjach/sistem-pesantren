@@ -36,7 +36,7 @@ class BertindakLembagaTest extends TestCase
         $u->assignRole($role);
         foreach ($lembagaIds as $lid) {
             DB::table('user_lembaga')->insert([
-                'user_id' => $u->id, 'lembaga_id' => $lid,
+                'user_id' => $u->id, 'jenjang' => $lid,
                 'created_at' => now(), 'updated_at' => now(),
             ]);
         }
@@ -44,21 +44,20 @@ class BertindakLembagaTest extends TestCase
         return $u;
     }
 
-    /** @return array{root: Lembaga, mi: Lembaga, md: Lembaga} */
+    /** @return array{mi: Lembaga, md: Lembaga} */
     protected function lembaga(): array
     {
-        $root = Lembaga::create(['nama' => 'Pesantren', 'kode' => 'PESANTREN', 'is_active' => true]);
-        $mi = Lembaga::create(['parent_id' => $root->id, 'nama' => 'Madrasah Ibtidaiyah', 'kode' => 'MI', 'is_active' => true]);
-        $md = Lembaga::create(['parent_id' => $root->id, 'nama' => 'Madrasah Diniyah', 'kode' => 'MD', 'is_active' => true]);
+        $mi = Lembaga::create(['nama' => 'Madrasah Ibtidaiyah', 'jenjang' => 'MI', 'is_active' => true]);
+        $md = Lembaga::create(['nama' => 'Madrasah Diniyah', 'jenjang' => 'MD', 'is_active' => true]);
 
-        return ['root' => $root, 'mi' => $mi, 'md' => $md];
+        return ['mi' => $mi, 'md' => $md];
     }
 
     protected function siapkanKelas(Lembaga $mi, Lembaga $md): void
     {
         $ta = TahunAjaran::create(['nama' => '2026/2027', 'is_aktif' => true]);
-        Kelas::create(['lembaga_id' => $mi->id, 'tahun_ajaran' => $ta->nama, 'nama_kelas' => 'I-A']);
-        Kelas::create(['lembaga_id' => $md->id, 'tahun_ajaran' => $ta->nama, 'nama_kelas' => 'MD-A']);
+        Kelas::create(['jenjang' => $mi->jenjang, 'tahun_ajaran' => $ta->nama, 'nama_kelas' => 'I-A']);
+        Kelas::create(['jenjang' => $md->jenjang, 'tahun_ajaran' => $ta->nama, 'nama_kelas' => 'MD-A']);
     }
 
     public function test_tanpa_header_super_admin_tetap_penuh(): void
@@ -68,10 +67,10 @@ class BertindakLembagaTest extends TestCase
         $pusat = $this->makeUser('super_admin');
 
         $this->actingAs($pusat, 'sanctum')->postJson('/api/admin/lembaga', [
-            'nama' => 'Unit Baru', 'kode' => 'UB',
+            'nama' => 'Unit Baru', 'jenjang' => 'UB',
         ])->assertStatus(201);
 
-        $this->actingAs($pusat, 'sanctum')->getJson("/api/admin/kelas?lembaga_id={$l['md']->id}")
+        $this->actingAs($pusat, 'sanctum')->getJson("/api/admin/kelas?jenjang={$l['md']->jenjang}")
             ->assertStatus(200);
     }
 
@@ -82,24 +81,24 @@ class BertindakLembagaTest extends TestCase
         $pusat = $this->makeUser('super_admin');
 
         // Dua user berbeda lembaga untuk uji daftar pengguna.
-        $this->makeUser('guru', [$l['mi']->id]);
-        $this->makeUser('guru', [$l['md']->id]);
+        $this->makeUser('guru', [$l['mi']->jenjang]);
+        $this->makeUser('guru', [$l['md']->jenjang]);
 
-        $hdr = ['X-Lembaga-Aktif' => (string) $l['mi']->id];
+        $hdr = ['X-Lembaga-Aktif' => (string) $l['mi']->jenjang];
 
         // Data kelas menyempit ke MI.
         $this->actingAs($pusat, 'sanctum')->withHeaders($hdr)->getJson('/api/admin/kelas')
             ->assertStatus(200)
             ->assertJsonCount(1, 'data')
-            ->assertJsonPath('data.0.lembaga_id', $l['mi']->id);
+            ->assertJsonPath('data.0.jenjang', $l['mi']->jenjang);
 
         // Lintas lembaga ditolak.
         $this->actingAs($pusat, 'sanctum')->withHeaders($hdr)
-            ->getJson("/api/admin/kelas?lembaga_id={$l['md']->id}")->assertStatus(403);
+            ->getJson("/api/admin/kelas?jenjang={$l['md']->jenjang}")->assertStatus(403);
 
         // Kemampuan global dicabut.
         $this->actingAs($pusat, 'sanctum')->withHeaders($hdr)->postJson('/api/admin/lembaga', [
-            'nama' => 'Unit Baru', 'kode' => 'UB',
+            'nama' => 'Unit Baru', 'jenjang' => 'UB',
         ])->assertStatus(403);
 
         $this->actingAs($pusat, 'sanctum')->withHeaders($hdr)->postJson('/api/admin/psb/kegiatan', [
@@ -111,7 +110,7 @@ class BertindakLembagaTest extends TestCase
             ->assertStatus(200)
             ->assertJsonPath('lembaga', 1);
         $this->actingAs($pusat, 'sanctum')->withHeaders($hdr)
-            ->getJson("/api/dashboard/ringkasan?lembaga_id={$l['md']->id}")->assertStatus(403);
+            ->getJson("/api/dashboard/ringkasan?jenjang={$l['md']->jenjang}")->assertStatus(403);
 
         // Pengguna hanya dari MI.
         $this->actingAs($pusat, 'sanctum')->withHeaders($hdr)->getJson('/api/admin/users')
@@ -122,13 +121,13 @@ class BertindakLembagaTest extends TestCase
         $this->actingAs($pusat, 'sanctum')->withHeaders($hdr)->getJson('/api/admin/lembaga')
             ->assertStatus(200)
             ->assertJsonCount(1, 'data')
-            ->assertJsonPath('data.0.id', $l['mi']->id);
+            ->assertJsonPath('data.0.jenjang', $l['mi']->jenjang);
 
         // Standar tampilan lembaga lain ditolak; sebar "semua" ditolak.
         $this->actingAs($pusat, 'sanctum')->withHeaders($hdr)
-            ->getJson("/api/admin/pengaturan-tampilan?lembaga_id={$l['md']->id}")->assertStatus(403);
+            ->getJson("/api/admin/pengaturan-tampilan?jenjang={$l['md']->jenjang}")->assertStatus(403);
         $this->actingAs($pusat, 'sanctum')->withHeaders($hdr)->putJson('/api/admin/pengaturan-tampilan', [
-            'lembaga_ids' => 'semua',
+            'jenjangs' => 'semua',
             'data' => ['tema' => ['theme' => 'geist']],
         ])->assertStatus(403);
 
@@ -136,13 +135,13 @@ class BertindakLembagaTest extends TestCase
         $this->actingAs($pusat, 'sanctum')->withHeaders($hdr)->postJson('/api/admin/referensi/tingkat', [
             'nama' => 'Kelas 1', 'kode' => '1',
         ])->assertStatus(201);
-        $this->assertSame(1, DB::table('ref_tingkat')->where('lembaga_id', $l['mi']->id)->count());
-        $this->assertSame(0, DB::table('ref_tingkat')->whereNull('lembaga_id')->count());
+        $this->assertSame(1, DB::table('ref_tingkat')->where('jenjang', $l['mi']->jenjang)->count());
+        $this->assertSame(0, DB::table('ref_tingkat')->whereNull('jenjang')->count());
 
         // Keluar mode (header dilepas) → kembali penuh.
         $this->flushHeaders();
         $this->actingAs($pusat, 'sanctum')->postJson('/api/admin/lembaga', [
-            'nama' => 'Unit Baru', 'kode' => 'UB',
+            'nama' => 'Unit Baru', 'jenjang' => 'UB',
         ])->assertStatus(201);
     }
 
@@ -150,7 +149,7 @@ class BertindakLembagaTest extends TestCase
     {
         $l = $this->lembaga();
         $pusat = $this->makeUser('super_admin');
-        $hdr = ['X-Lembaga-Aktif' => (string) $l['mi']->id];
+        $hdr = ['X-Lembaga-Aktif' => (string) $l['mi']->jenjang];
 
         // /me penuh tanpa header…
         $penuh = $this->actingAs($pusat, 'sanctum')->getJson('/api/auth/me')
@@ -203,69 +202,19 @@ class BertindakLembagaTest extends TestCase
     {
         $l = $this->lembaga();
         $pusat = $this->makeUser('super_admin');
-        $hdr = ['X-Lembaga-Aktif' => (string) $l['mi']->id];
+        $hdr = ['X-Lembaga-Aktif' => (string) $l['mi']->jenjang];
 
         // Rekam visual milik sendiri: 201.
         $this->actingAs($pusat, 'sanctum')->withHeaders($hdr)->putJson('/api/admin/pengaturan-tampilan', [
-            'lembaga_ids' => [$l['mi']->id],
+            'jenjangs' => [$l['mi']->jenjang],
             'data' => ['tema' => ['theme' => 'geist']],
         ])->assertStatus(201);
 
         // Lembaga lain tetap 403.
         $this->actingAs($pusat, 'sanctum')->withHeaders($hdr)->putJson('/api/admin/pengaturan-tampilan', [
-            'lembaga_ids' => [$l['md']->id],
+            'jenjangs' => [$l['md']->jenjang],
             'data' => ['tema' => ['theme' => 'geist']],
         ])->assertStatus(403);
-    }
-
-    public function test_bertindak_pst_setara_admin_pesantren(): void
-    {
-        $l = $this->lembaga();
-        $this->siapkanKelas($l['mi'], $l['md']);
-        $pusat = $this->makeUser('super_admin');
-        $guruMi = $this->makeUser('guru', [$l['mi']->id]);
-        $hdr = ['X-Lembaga-Aktif' => (string) $l['root']->id];
-
-        // Data lintas lembaga tampil semua (bukan scope satu id).
-        $this->actingAs($pusat, 'sanctum')->withHeaders($hdr)->getJson('/api/admin/kelas')
-            ->assertStatus(200)
-            ->assertJsonCount(2, 'data');
-        $this->actingAs($pusat, 'sanctum')->withHeaders($hdr)
-            ->getJson("/api/admin/kelas?lembaga_id={$l['md']->id}")->assertStatus(200);
-
-        // Izin efektif = set admin.
-        $efektif = $this->actingAs($pusat, 'sanctum')->withHeaders($hdr)->getJson('/api/auth/me')
-            ->assertStatus(200)->json('permissions');
-        $this->assertNotContains('preset_tabel.tambah', $efektif);
-        $this->assertNotContains('izin.ubah', $efektif);
-        $this->assertContains('kelas.lihat', $efektif);
-
-        // Tulis global tetap ditolak.
-        $this->actingAs($pusat, 'sanctum')->withHeaders($hdr)->putJson('/api/admin/toolbar-preset', [
-            'table_key' => 'santri', 'visibilitas' => ['cari' => false],
-        ])->assertStatus(403);
-        $this->actingAs($pusat, 'sanctum')->withHeaders($hdr)->postJson('/api/admin/lembaga', [
-            'nama' => 'Unit Baru', 'kode' => 'UB',
-        ])->assertStatus(403);
-
-        // Kelola pengguna setara admin: filter role=admin ditolak, guru boleh.
-        $this->actingAs($pusat, 'sanctum')->withHeaders($hdr)
-            ->getJson('/api/admin/users?role=admin')->assertStatus(403);
-        $this->actingAs($pusat, 'sanctum')->withHeaders($hdr)
-            ->getJson('/api/admin/users?role=guru')->assertStatus(200);
-
-        // Daftar lembaga (opsi filter) berisi semua.
-        $this->actingAs($pusat, 'sanctum')->withHeaders($hdr)->getJson('/api/admin/lembaga')
-            ->assertStatus(200)
-            ->assertJsonCount(3, 'data');
-
-        // Peran anak tetap sempit: hanya MI, filter admin ditolak.
-        $hdrMi = ['X-Lembaga-Aktif' => (string) $l['mi']->id];
-        $this->actingAs($pusat, 'sanctum')->withHeaders($hdrMi)->getJson('/api/admin/kelas')
-            ->assertStatus(200)
-            ->assertJsonCount(1, 'data');
-        $this->actingAs($pusat, 'sanctum')->withHeaders($hdrMi)
-            ->getJson('/api/admin/users?role=admin')->assertStatus(403);
     }
 
     public function test_header_lembaga_tidak_dikenal_ditolak(): void
@@ -281,10 +230,10 @@ class BertindakLembagaTest extends TestCase
     {
         $l = $this->lembaga();
         $this->siapkanKelas($l['mi'], $l['md']);
-        $adminMi = $this->makeUser('admin', [$l['mi']->id]);
+        $adminMi = $this->makeUser('admin', [$l['mi']->jenjang]);
 
         // Header act-as diabaikan untuk non-super_admin; pasangan MI↔MD ikut tampil.
-        $this->actingAs($adminMi, 'sanctum')->withHeaders(['X-Lembaga-Aktif' => (string) $l['md']->id])
+        $this->actingAs($adminMi, 'sanctum')->withHeaders(['X-Lembaga-Aktif' => (string) $l['md']->jenjang])
             ->getJson('/api/admin/kelas')
             ->assertStatus(200)
             ->assertJsonCount(2, 'data');

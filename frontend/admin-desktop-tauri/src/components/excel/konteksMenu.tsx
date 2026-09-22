@@ -221,9 +221,9 @@ export default function MenuKonteksGrid({
                 void presetApiRef.current?.toggleKolom(p.id, header.colKey, !!c)
               }
             >
-              {p.lembaga_id === null
+              {p.jenjang === null
                 ? p.nama
-                : `${p.nama} (${p.lembaga?.kode ?? p.lembaga?.nama ?? p.lembaga_id})`}
+                : `${p.nama} (${p.lembaga?.nama ?? p.jenjang})`}
             </ContextMenuCheckboxItem>
           ))}
           <ContextMenuSeparator />

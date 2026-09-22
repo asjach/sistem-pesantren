@@ -51,12 +51,11 @@ class SiklusController extends Controller
 
         $data = $request->validated();
 
-        $lembagaId = (int) $data['lembaga_id'];
+        $lembagaId = $data['jenjang'];
         $this->authorizeLembaga($request->user(), $lembagaId);
-        $this->tolakLembagaRoot($lembagaId);
         $tanggal = (string) $data['tanggal_masuk'];
 
-        $items = $data['siswa'] ?? RiwayatBelajar::where('lembaga_id', $lembagaId)
+        $items = $data['siswa'] ?? RiwayatBelajar::where('jenjang', $lembagaId)
             ->where('semester', '1')->where('is_active_riwayat', RiwayatBelajar::YA)
             ->orderBy('id')->get()
             ->map(fn (RiwayatBelajar $r) => ['santri_id' => (int) $r->santri_id])
@@ -87,17 +86,17 @@ class SiklusController extends Controller
     }
 
     /** Guard kelas pengganti salin genap: wajib se-lembaga & se-tahun dengan baris aktif. */
-    protected function cekKelasGenap(Santri $santri, int $lembagaId, ?int $kelasId): void
+    protected function cekKelasGenap(Santri $santri, string $lembagaId, ?int $kelasId): void
     {
         if ($kelasId === null) {
             return;
         }
         $kelas = Kelas::findOrFail($kelasId);
-        if ((int) $kelas->lembaga_id !== $lembagaId) {
+        if ($kelas->jenjang !== $lembagaId) {
             throw ValidationException::withMessages(['kelas_id' => 'Kelas beda lembaga.']);
         }
         $ganjil = RiwayatBelajar::where('santri_id', $santri->id)
-            ->where('lembaga_id', $lembagaId)->where('is_active_riwayat', RiwayatBelajar::YA)
+            ->where('jenjang', $lembagaId)->where('is_active_riwayat', RiwayatBelajar::YA)
             ->latest('id')->first();
         if ($ganjil && $kelas->tahun_ajaran !== $ganjil->tahun_ajaran) {
             throw ValidationException::withMessages(['kelas_id' => 'Kelas beda tahun ajaran.']);
@@ -113,10 +112,9 @@ class SiklusController extends Controller
 
         $data = $request->validated();
 
-        $lembagaId = (int) $data['lembaga_id'];
+        $lembagaId = $data['jenjang'];
         $tahunBaru = (string) $data['tahun_ajaran_baru'];
         $tingkat = (string) $data['tingkat'];
-        $this->tolakLembagaRoot($lembagaId);
         $this->cekTaEfektif($lembagaId, $tahunBaru, 'tahun_ajaran_baru');
 
         $ok = 0;
@@ -151,8 +149,7 @@ class SiklusController extends Controller
 
         $data = $request->validated();
 
-        $lembagaId = (int) $data['lembaga_id'];
-        $this->tolakLembagaRoot($lembagaId);
+        $lembagaId = $data['jenjang'];
 
         $ok = 0;
         $gagal = [];
@@ -189,10 +186,9 @@ class SiklusController extends Controller
     {
         $data = $request->validated();
 
-        $this->tolakLembagaRoot((int) $data['lembaga_id']);
-        $this->authorizeAksiLembaga($request, $santri, (int) $data['lembaga_id']);
+        $this->authorizeAksiLembaga($request, $santri, $data['jenjang']);
 
-        $lama = $this->siklusService->batalKenaikan($santri, (int) $data['lembaga_id']);
+        $lama = $this->siklusService->batalKenaikan($santri, $data['jenjang']);
 
         return response()->json(['pesan' => 'Kenaikan dibatalkan; santri kembali ke kelas asal.', 'data' => $lama]);
     }
@@ -202,11 +198,10 @@ class SiklusController extends Controller
     {
         $data = $request->validated();
 
-        $this->tolakLembagaRoot((int) $data['lembaga_id']);
-        $this->cekTaEfektif((int) $data['lembaga_id'], (string) $data['tahun_ajaran_lulus'], 'tahun_ajaran_lulus');
-        $this->authorizeAksiLembaga($request, $santri, (int) $data['lembaga_id']);
+        $this->cekTaEfektif($data['jenjang'], (string) $data['tahun_ajaran_lulus'], 'tahun_ajaran_lulus');
+        $this->authorizeAksiLembaga($request, $santri, $data['jenjang']);
 
-        $alumni = $this->siklusService->prosesLulusPerLembaga($santri, (int) $data['lembaga_id'], $data);
+        $alumni = $this->siklusService->prosesLulusPerLembaga($santri, $data['jenjang'], $data);
 
         return response()->json([
             'pesan' => 'Santri dinyatakan lulus dan masuk data alumni.',
@@ -219,10 +214,9 @@ class SiklusController extends Controller
     {
         $data = $request->validated();
 
-        $this->tolakLembagaRoot((int) $data['lembaga_id']);
-        $this->authorizeAksiLembaga($request, $santri, (int) $data['lembaga_id']);
+        $this->authorizeAksiLembaga($request, $santri, $data['jenjang']);
 
-        $riwayat = $this->siklusService->prosesTidakLulus($santri, (int) $data['lembaga_id']);
+        $riwayat = $this->siklusService->prosesTidakLulus($santri, $data['jenjang']);
 
         return response()->json([
             'pesan' => 'Santri tidak lulus; riwayat mengulang tapel berikut dibuka.',
@@ -237,10 +231,9 @@ class SiklusController extends Controller
     {
         $data = $request->validated();
 
-        $this->tolakLembagaRoot((int) $data['lembaga_id']);
-        $this->authorizeAksiLembaga($request, $santri, (int) $data['lembaga_id']);
+        $this->authorizeAksiLembaga($request, $santri, $data['jenjang']);
 
-        $mutasi = $this->siklusService->prosesMutasiPerLembaga($santri, (int) $data['lembaga_id'], $data);
+        $mutasi = $this->siklusService->prosesMutasiPerLembaga($santri, $data['jenjang'], $data);
 
         return response()->json([
             'pesan' => 'Santri berhasil dimutasi keluar.',
@@ -253,10 +246,9 @@ class SiklusController extends Controller
     {
         $data = $request->validated();
 
-        $this->tolakLembagaRoot((int) $data['lembaga_id']);
-        $this->authorizeAksiLembaga($request, $santri, (int) $data['lembaga_id']);
+        $this->authorizeAksiLembaga($request, $santri, $data['jenjang']);
 
-        $this->siklusService->nonAktifkanRiwayat($santri, (int) $data['lembaga_id']);
+        $this->siklusService->nonAktifkanRiwayat($santri, $data['jenjang']);
 
         return response()->json(['pesan' => 'Riwayat jenjang dinonaktifkan.', 'data' => $santri->fresh()]);
     }
@@ -270,12 +262,12 @@ class SiklusController extends Controller
         $urut = $this->parseUrut($request, UrutKatalog::peta('mutasi_arsip'));
 
         $mutasi = MutasiKeluar::tenantScope()
-            ->with(['santri:id,nama_lengkap,nisn', 'lembaga:id,nama,kode', 'kelasTerakhir:id,nama_kelas'])
-            ->when($request->filled('lembaga_id'), fn ($q) => $q->where('lembaga_id', $request->integer('lembaga_id')));
+            ->with(['santri:id,nama_lengkap,nisn', 'lembaga:jenjang,nama', 'kelasTerakhir:id,nama_kelas'])
+            ->when($request->filled('jenjang'), fn ($q) => $q->where('jenjang', (string) $request->input('jenjang')));
         if ($urut !== null) {
             $mutasi->select('mutasi_keluar.*')
                 ->leftJoin('santri', 'santri.id', '=', 'mutasi_keluar.santri_id')
-                ->leftJoin('lembaga', 'lembaga.id', '=', 'mutasi_keluar.lembaga_id')
+                ->leftJoin('lembaga', 'lembaga.jenjang', '=', 'mutasi_keluar.jenjang')
                 ->leftJoin('kelas', 'kelas.id', '=', 'mutasi_keluar.kelas_terakhir_id');
         }
         $this->terapkanUrut($mutasi, $urut, [['mutasi_keluar.id', 'turun']], self::SORT_NULLABLE_ARSIP);
@@ -291,13 +283,13 @@ class SiklusController extends Controller
         $urut = $this->parseUrut($request, UrutKatalog::peta('kelulusan_alumni'));
 
         $alumni = Alumni::tenantScope()
-            ->with(['santri:id,nama_lengkap,nisn', 'lembagaLulus:id,nama,kode', 'tahunAjaranLulus:nama', 'kelasLulus:id,nama_kelas'])
-            ->when($request->filled('lembaga_id'), fn ($q) => $q->where('lembaga_lulus_id', $request->integer('lembaga_id')))
+            ->with(['santri:id,nama_lengkap,nisn', 'lembagaLulus:jenjang,nama', 'tahunAjaranLulus:nama', 'kelasLulus:id,nama_kelas'])
+            ->when($request->filled('jenjang'), fn ($q) => $q->where('lembaga_lulus', (string) $request->input('jenjang')))
             ->when($request->filled('tahun_ajaran_lulus'), fn ($q) => $q->where('tahun_ajaran_lulus', $request->input('tahun_ajaran_lulus')));
         if ($urut !== null) {
             $alumni->select('alumni.*')
                 ->leftJoin('santri', 'santri.id', '=', 'alumni.santri_id')
-                ->leftJoin('lembaga', 'lembaga.id', '=', 'alumni.lembaga_lulus_id')
+                ->leftJoin('lembaga', 'lembaga.jenjang', '=', 'alumni.lembaga_lulus')
                 ->leftJoin('tahun_ajaran', 'tahun_ajaran.nama', '=', 'alumni.tahun_ajaran_lulus')
                 ->leftJoin('kelas', 'kelas.id', '=', 'alumni.kelas_lulus_id');
         }
@@ -324,7 +316,7 @@ class SiklusController extends Controller
         $this->authorize('viewAny', Santri::class);
 
         $data = $request->validated();
-        $lembagaId = (int) $data['lembaga_id'];
+        $lembagaId = $data['jenjang'];
         $this->authorizeLembaga($request->user(), $lembagaId);
 
         $lintas = $request->boolean('lintas_periode');
@@ -337,16 +329,16 @@ class SiklusController extends Controller
         }
 
         $semester = $data['semester']
-            ?? ($lintas || $ta === null ? null : (string) (RiwayatBelajar::where('lembaga_id', $lembagaId)
+            ?? ($lintas || $ta === null ? null : (string) (RiwayatBelajar::where('jenjang', $lembagaId)
                 ->where('tahun_ajaran', $ta)->where('is_active_riwayat', RiwayatBelajar::YA)
                 ->orderByDesc('semester')->value('semester') ?? '1'));
 
         $query = RiwayatBelajar::with([
             'santri',
             'kelas:id,nama_kelas,tingkat',
-            'lembaga:id,nama,kode',
+            'lembaga:jenjang,nama',
             'tahunAjaran:nama',
-        ])->where('lembaga_id', $lembagaId);
+        ])->where('jenjang', $lembagaId);
         if ($ta !== null) {
             $query->where('tahun_ajaran', $ta);
         }
@@ -373,7 +365,7 @@ class SiklusController extends Controller
         // Keanggotaan penuh (satu baris per santri; aktif diutamakan) + NIS lokal
         // ringkas (kompatibilitas payload lama).
         $anggota = LembagaSantri::whereIn('santri_id', $baris->pluck('santri_id')->unique())
-            ->where('lembaga_id', $lembagaId)
+            ->where('jenjang', $lembagaId)
             ->orderByDesc('is_active_lembaga')->orderBy('id')
             ->get()->groupBy('santri_id')->map->first();
         $baris->each(function ($r) use ($anggota) {
@@ -383,7 +375,7 @@ class SiklusController extends Controller
         });
 
         return response()->json([
-            'lembaga_id' => $lembagaId,
+            'jenjang' => $lembagaId,
             'tahun_ajaran' => $ta,
             'semester' => $semester,
             'data' => $baris,
@@ -402,7 +394,7 @@ class SiklusController extends Controller
 
         $riwayatQuery = function () use ($request, $data) {
             $q = RiwayatBelajar::query()->where('is_active_riwayat', RiwayatBelajar::YA);
-            $this->scopeLembaga($q, $request->user(), $request, 'lembaga_id');
+            $this->scopeLembaga($q, $request->user(), $request, 'jenjang');
             if (! empty($data['tahun_ajaran'])) {
                 $q->where('tahun_ajaran', $data['tahun_ajaran']);
             }
@@ -411,22 +403,22 @@ class SiklusController extends Controller
         };
 
         $perTingkat = (clone $riwayatQuery())
-            ->selectRaw('lembaga_id, tingkat, COUNT(*) as jumlah')
-            ->groupBy('lembaga_id', 'tingkat')
-            ->with('lembaga:id,nama,kode')
+            ->selectRaw('jenjang, tingkat, COUNT(*) as jumlah')
+            ->groupBy('jenjang', 'tingkat')
+            ->with('lembaga:jenjang,nama')
             ->get()
             ->map(fn ($r) => [
-                'lembaga' => $r->lembaga?->kode ?? $r->lembaga?->nama,
+                'lembaga' => $r->lembaga?->jenjang ?? $r->lembaga?->nama,
                 'tingkat' => $r->tingkat,
                 'jumlah' => (int) $r->jumlah,
             ])->values()->all();
 
-        $kelasQuery = Kelas::query()->with(['lembaga:id,nama,kode', 'tahunAjaran:nama']);
-        $this->scopeLembaga($kelasQuery, $request->user(), $request, 'lembaga_id');
+        $kelasQuery = Kelas::query()->with(['lembaga:jenjang,nama', 'tahunAjaran:nama']);
+        $this->scopeLembaga($kelasQuery, $request->user(), $request, 'jenjang');
         if (! empty($data['tahun_ajaran'])) {
             $kelasQuery->where('tahun_ajaran', $data['tahun_ajaran']);
         }
-        $kelas = $kelasQuery->orderBy('lembaga_id')->orderBy('tingkat')->orderBy('nama_kelas')->get();
+        $kelas = $kelasQuery->orderBy('jenjang')->orderBy('tingkat')->orderBy('nama_kelas')->get();
 
         $terisi = (clone $riwayatQuery())
             ->whereIn('kelas_id', $kelas->pluck('id'))
@@ -438,7 +430,7 @@ class SiklusController extends Controller
             'kelas_id' => $k->id,
             'kelas' => $k->nama_kelas,
             'tingkat' => $k->tingkat,
-            'lembaga' => $k->lembaga?->kode ?? $k->lembaga?->nama,
+            'lembaga' => $k->lembaga?->jenjang ?? $k->lembaga?->nama,
             'tahun_ajaran' => $k->tahunAjaran?->nama,
             'kapasitas' => $k->kapasitas !== null ? (int) $k->kapasitas : null,
             'terisi' => (int) ($terisi[$k->id] ?? 0),
@@ -515,16 +507,16 @@ class SiklusController extends Controller
         $this->authorize('view', $santri);
 
         $santri->load([
-            'lembagaSantri.lembaga:id,nama,kode,nsm',
+            'lembagaSantri.lembaga:jenjang,nama,nsm',
         ]);
         $riwayat = RiwayatBelajar::where('santri_id', $santri->id)
-            ->with(['kelas:id,nama_kelas,tingkat', 'lembaga:id,nama,kode', 'tahunAjaran:nama'])
+            ->with(['kelas:id,nama_kelas,tingkat', 'lembaga:jenjang,nama', 'tahunAjaran:nama'])
             ->orderByDesc('id')->get();
         $mutasi = MutasiKeluar::where('santri_id', $santri->id)
-            ->with(['lembaga:id,nama,kode', 'kelasTerakhir:id,nama_kelas'])
+            ->with(['lembaga:jenjang,nama', 'kelasTerakhir:id,nama_kelas'])
             ->orderByDesc('id')->get();
         $alumni = Alumni::where('santri_id', $santri->id)
-            ->with(['lembagaLulus:id,nama,kode', 'tahunAjaranLulus:nama'])
+            ->with(['lembagaLulus:jenjang,nama', 'tahunAjaranLulus:nama'])
             ->orderByDesc('id')->get();
 
         return response()->json([

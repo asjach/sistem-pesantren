@@ -53,8 +53,8 @@ class UpdateUserRequest extends FormRequest
             'phone' => ['nullable', 'string', 'max:20', 'unique:users,phone,'.$id],
             'username' => ['nullable', 'string', 'max:50', 'unique:users,username,'.$id],
             'password' => ['nullable', 'string', 'min:8'],
-            'lembaga_ids' => ['nullable', 'array'],
-            'lembaga_ids.*' => ['integer', 'exists:lembaga,id'],
+            'jenjangs' => ['nullable', 'array'],
+            'jenjangs.*' => ['string', 'exists:lembaga,jenjang'],
             'roles' => ['sometimes', 'array', 'min:1'],
             'roles.*' => ['string', 'exists:roles,name,guard_name,sanctum'],
         ];

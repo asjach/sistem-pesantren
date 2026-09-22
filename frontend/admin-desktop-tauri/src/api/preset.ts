@@ -2,7 +2,7 @@ import { api } from './client';
 
 export interface PresetTabel {
   id: number;
-  lembaga_id: number | null;
+  jenjang: string | null;
   table_key: string;
   nama: string;
   kolom: string[];
@@ -10,7 +10,7 @@ export interface PresetTabel {
   label?: Record<string, string> | null;
   /** Preset bawaan tabel (dipakai bila user belum memilih preset). */
   is_default: boolean;
-  lembaga?: { id: number; nama: string; kode: string | null } | null;
+  lembaga?: { jenjang: string; nama: string } | null;
 }
 
 export function listPresetTabel(tableKey: string) {

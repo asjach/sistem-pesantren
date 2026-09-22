@@ -18,7 +18,7 @@ import { toast } from 'sonner';
 export default function KelulusanPage() {
   const { user } = useAuth();
   const canUbah = bisa(user, 'kelulusan.ubah');
-  const [lembagaId, setLembagaId] = useState('');
+  const [jenjang, setLembagaId] = useState('');
   useLembagaAwalString(setLembagaId);
   const [tingkat, setTingkat] = useState('');
   const [taLulus, setTaLulus] = useState('');
@@ -41,28 +41,28 @@ export default function KelulusanPage() {
   const [noSurat, setNoSurat] = useState('');
 
   const loadKiri = useCallback(async () => {
-    if (!lembagaId) { setKiri([]); return; }
+    if (!jenjang) { setKiri([]); return; }
     setErr('');
     try {
-      const res = await daftarKelas({ lembaga_id: Number(lembagaId) });
+      const res = await daftarKelas({ jenjang: jenjang });
       setKiri(res.data.filter((r) => !tingkat || r.tingkat === tingkat));
     } catch (e) { setErr(errorMessage(e)); }
-  }, [lembagaId, tingkat]);
+  }, [jenjang, tingkat]);
 
   const loadArsip = useCallback(async (f?: { urut?: string[]; arah?: 'naik' | 'turun' }) => {
-    if (!lembagaId) { setAlumni([]); return; }
+    if (!jenjang) { setAlumni([]); return; }
     try {
       const u = f?.urut ?? urut;
       const a = f?.arah ?? arahUrut;
       const res = await listAlumni({
-        lembaga_id: Number(lembagaId),
+        jenjang: jenjang,
         sort: u.length ? u : undefined,
         arah: u.length ? a : undefined,
         per_page: 100,
       });
       setAlumni(res.data);
     } catch (e) { setErr(errorMessage(e)); }
-  }, [lembagaId, urut, arahUrut]);
+  }, [jenjang, urut, arahUrut]);
 
   /** Klik header: simpan urut baru lalu muat ulang arsip alumni. */
   function terapkanUrut(nilai: string[], arah: 'naik' | 'turun') {
@@ -78,12 +78,12 @@ export default function KelulusanPage() {
   const totalTerpilih = namaTerpilih.length + tidakLulus.length;
 
   const prosesLulus = async () => {
-    if (!lembagaId || !taLulus || !tanggalLulus || namaTerpilih.length === 0) return;
+    if (!jenjang || !taLulus || !tanggalLulus || namaTerpilih.length === 0) return;
     setBusy(true);
     try {
       for (const r of namaTerpilih) {
         await lulusSantri(r.santri_id, {
-          lembaga_id: Number(lembagaId),
+          jenjang: jenjang,
           tahun_ajaran_lulus: taLulus,
           tanggal_lulus: tanggalLulus,
           nomor_ijazah: noIjazah.trim() || undefined,
@@ -98,10 +98,10 @@ export default function KelulusanPage() {
   };
 
   const prosesTidakLulus = async () => {
-    if (!lembagaId || tidakLulus.length === 0) return;
+    if (!jenjang || tidakLulus.length === 0) return;
     setBusy(true);
     try {
-      for (const b of tidakLulus) await tidakLulusSantri(b.santri_id, Number(lembagaId));
+      for (const b of tidakLulus) await tidakLulusSantri(b.santri_id, jenjang);
       toast.success(`${tidakLulus.length} santri ditandai tidak lulus (mengulang).`);
       setTidakLulus([]);
       await Promise.all([loadKiri(), loadArsip()]);

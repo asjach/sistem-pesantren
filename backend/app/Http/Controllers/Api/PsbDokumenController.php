@@ -25,7 +25,7 @@ class PsbDokumenController extends Controller
     public function uploadCalon(PsbDokumenUploadCalonRequest $request, PsbCalonSantri $calon): JsonResponse
     {
         $data = $request->validated();
-        if (! in_array($data['jenis_dokumen_santri'], RefService::kodeAktif('jenis_dokumen_santri', $calon->lembaga_id), true)) {
+        if (! in_array($data['jenis_dokumen_santri'], RefService::kodeAktif('jenis_dokumen_santri', $calon->jenjang), true)) {
             abort(422, 'Jenis dokumen tidak aktif di lembaga ini.');
         }
         $path = $request->file('file')->store('psb/dokumen', 'local');
@@ -45,7 +45,7 @@ class PsbDokumenController extends Controller
     {
         $user = $request->user();
         if ($user->hasAnyRole(['super_admin', 'admin'])) {
-            $this->authorizeLembaga($user, (int) $calon->lembaga_id);
+            $this->authorizeLembaga($user, $calon->jenjang);
         } else {
             $this->assertPemilik($user, $calon);
         }
@@ -63,12 +63,12 @@ class PsbDokumenController extends Controller
      */
     public function verifikasi(PsbDokumenVerifikasiRequest $request, DokumenSantri $dokumen): JsonResponse
     {
-        $dokumen->load(['calon:id,lembaga_id', 'santri:id,lembaga_id']);
-        $lembagaId = $dokumen->calon?->lembaga_id ?? $dokumen->santri?->lembaga_id;
+        $dokumen->load(['calon:id,jenjang', 'santri:id,jenjang']);
+        $lembagaId = $dokumen->calon?->jenjang ?? $dokumen->santri?->jenjang;
         if (! $lembagaId) {
             abort(404, 'Dokumen tidak tertaut ke calon/santri.');
         }
-        $this->authorizeLembaga($request->user(), (int) $lembagaId);
+        $this->authorizeLembaga($request->user(), $lembagaId);
 
         $data = $request->validated();
         $dokumen->update(['status_verifikasi' => $data['status'], 'catatan' => $data['catatan'] ?? $dokumen->catatan]);
@@ -76,12 +76,12 @@ class PsbDokumenController extends Controller
         return response()->json(['pesan' => 'Verifikasi disimpan.', 'data' => $dokumen->fresh()]);
     }
 
-    /** GET /api/admin/dokumen-wajib?psb_kegiatan_id=&lembaga_id= (admin; lembaga_id opsional). */
+    /** GET /api/admin/dokumen-wajib?psb_kegiatan_id=&jenjang= (admin; jenjang opsional). */
     public function indexWajib(PsbDokumenIndexWajibRequest $request): JsonResponse
     {
         $data = $request->validated();
 
-        $query = DokumenWajibLembaga::with('lembaga:id,nama,kode')
+        $query = DokumenWajibLembaga::with('lembaga:jenjang,nama')
             ->where('psb_kegiatan_id', $data['psb_kegiatan_id']);
         $query = $this->scopeLembaga($query, $request->user(), $request);
 
@@ -95,12 +95,12 @@ class PsbDokumenController extends Controller
     public function storeWajib(PsbDokumenStoreWajibRequest $request): JsonResponse
     {
         $data = $request->validated();
-        $this->authorizeLembaga($request->user(), (int) $data['lembaga_id']);
+        $this->authorizeLembaga($request->user(), $data['jenjang']);
 
         $row = DokumenWajibLembaga::updateOrCreate(
             [
                 'psb_kegiatan_id' => $data['psb_kegiatan_id'],
-                'lembaga_id' => $data['lembaga_id'],
+                'jenjang' => $data['jenjang'],
                 'jenis_dokumen_santri' => $data['jenis_dokumen_santri'],
             ],
             ['is_wajib' => $data['is_wajib'] ?? true]
@@ -112,7 +112,7 @@ class PsbDokumenController extends Controller
     /** DELETE /api/admin/dokumen-wajib/{id} (admin). */
     public function destroyWajib(DokumenWajibLembaga $wajib): JsonResponse
     {
-        $this->authorizeLembaga(auth()->user(), (int) $wajib->lembaga_id);
+        $this->authorizeLembaga(auth()->user(), $wajib->jenjang);
         $wajib->delete();
 
         return response()->json(['pesan' => 'Ketentuan dihapus.']);
