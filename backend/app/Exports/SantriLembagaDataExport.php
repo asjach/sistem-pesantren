@@ -57,7 +57,6 @@ class SantriLembagaDataExport extends DefaultValueBinder implements FromArray, W
                 $s = $ls->santri;
                 $baris = [
                     'santri_id' => (string) $s->id,
-                    'kode_lembaga' => (string) $ls->jenjang,
                     'jenjang' => (string) $ls->jenjang,
                     'nis_lokal' => (string) ($ls->nis_lokal ?? ''),
                     'nis_kemenag' => (string) ($ls->nis_kemenag ?? ''),

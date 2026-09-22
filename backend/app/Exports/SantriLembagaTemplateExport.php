@@ -31,8 +31,8 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
  * - Seluruh sel bertipe TEKS (NIS/NIK/NISN tidak berubah jadi angka).
  * - Header: KUNING = wajib diisi, BIRU = opsional. `nik`/`nis_lokal`
  *   salah-satu-wajib (minimal satu kunci identitas selain santri_id).
- * - `kode_lembaga` kunci utama lembaga (case-insensitive); `jenjang`
- *   sebagai fallback. Dropdown kode dibatasi lingkup pengunduh.
+ * - `jenjang` kunci lembaga (case-insensitive, mis. MI/MD/MTS/MLN); dropdown
+ *   dibatasi lingkup pengunduh.
  * - Daftar nilai dropdown disimpan di sheet tersembunyi "Referensi"
  *   (import hanya membaca sheet pertama).
  */
@@ -43,7 +43,7 @@ class SantriLembagaTemplateExport extends DefaultValueBinder implements FromArra
 
     /** Blok keanggotaan — selalu di awal, sebelum kolom profil. */
     public const BLOK_LEMBAGA = [
-        'santri_id', 'kode_lembaga', 'jenjang', 'nis_lokal',
+        'santri_id', 'jenjang', 'nis_lokal',
         'nis_kemenag', 'is_active_lembaga', 'tgl_masuk', 'tgl_selesai',
         'tahaj_masuk', 'tingkat_masuk', 'no_urut',
         'nama_sekolah_asal', 'npsn_sekolah_asal', 'nss_sekolah_asal', 'alamat_sekolah_asal',
@@ -67,9 +67,9 @@ class SantriLembagaTemplateExport extends DefaultValueBinder implements FromArra
     /** Kolom wajib = rule import bertanda `required` + kunci lembaga/identitas. */
     public static function kolomWajib(): array
     {
-        // kode_lembaga/nama_lengkap/jk memakai `required_without` (bukan `required`
+        // jenjang/nama_lengkap/jk memakai `required_without` (bukan `required`
         // polos) sehingga tidak tertangkap pemindaian rule — tandai eksplisit.
-        $wajib = ['kode_lembaga', 'nama_lengkap', 'jk'];
+        $wajib = ['jenjang', 'nama_lengkap', 'jk'];
         foreach ((new SantriLembagaImport)->rules() as $kolom => $aturan) {
             if (in_array('required', $aturan, true)) {
                 $wajib[] = $kolom;
@@ -91,7 +91,7 @@ class SantriLembagaTemplateExport extends DefaultValueBinder implements FromArra
             'tipe_santri' => ['asrama', 'non_asrama'],
             'kewarganegaraan' => ['WNI', 'WNA'],
             'is_active_lembaga' => ['Ya', 'Tidak'],
-            'kode_lembaga' => $this->kodeLembaga(),
+            'jenjang' => $this->jenjangOperasional(),
         ];
 
         foreach (SantriTemplateExport::REF_KOLOM as $kolom => $tipe) {
@@ -103,8 +103,8 @@ class SantriLembagaTemplateExport extends DefaultValueBinder implements FromArra
         return $pilihan;
     }
 
-    /** Kode lembaga operasional untuk dropdown (dibatasi lingkup pengunduh). */
-    protected function kodeLembaga(): array
+    /** Jenjang lembaga operasional untuk dropdown (dibatasi lingkup pengunduh). */
+    protected function jenjangOperasional(): array
     {
         if ($this->kodeDiizinkan !== []) {
             return array_values($this->kodeDiizinkan);
@@ -129,11 +129,10 @@ class SantriLembagaTemplateExport extends DefaultValueBinder implements FromArra
 
     public function array(): array
     {
-        $kode = $this->kodeLembaga();
+        $jenjang = $this->jenjangOperasional();
         $contoh = [
             'santri_id' => '',
-            'kode_lembaga' => $kode[0] ?? '',
-            'jenjang' => '',
+            'jenjang' => $jenjang[0] ?? '',
             'nis_lokal' => '26001',
             'nis_kemenag' => '',
             'is_active_lembaga' => 'Ya',

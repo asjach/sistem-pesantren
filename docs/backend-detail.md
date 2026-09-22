@@ -199,8 +199,8 @@ Import satu pintu: template-data-periksa-eksekusi; berkas `xlsx/xls/csv` maks
 10.240 KB; tulis gabungan butuh
 `santri.tambah` DAN `santri.ubah`; pencocokan 4 lapis (santri_id eksak → NIK →
 nis+lembaga → create wajib nama); sel kosong = pertahankan (tanpa pengosongan
-via file); NIK kosong selalu create; kunci lembaga `kode_lembaga`
-(case-insensitive) prioritas, fallback `jenjang`; baris luar tenant gagal
+via file); NIK kosong selalu create; kunci lembaga `jenjang`
+(case-insensitive); baris luar tenant gagal
 per baris (bukan 403); sel numerik/serial tanggal dinormalisasi sebelum
 validasi; hanya sheet pertama (sheet Referensi diabaikan).
 Samakan NIS MI↔MD: salin hanya bila tepat satu sisi bernomor + sisi tujuan tak

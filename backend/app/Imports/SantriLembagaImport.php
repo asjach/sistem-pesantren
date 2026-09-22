@@ -103,7 +103,7 @@ class SantriLembagaImport extends SantriLengkapImport
 
         $auth = auth()->user();
         if (! $auth || ! $auth->canAccessLembaga($jenjang)) {
-            $this->fail($no, 'kode_lembaga', 'Lembaga di luar lingkup akses Anda.');
+            $this->fail($no, 'jenjang', 'Lembaga di luar lingkup akses Anda.');
 
             return false;
         }
@@ -134,30 +134,26 @@ class SantriLembagaImport extends SantriLengkapImport
      */
     protected function adaInfoLembaga(array $baris): bool
     {
-        return trim((string) ($baris['kode_lembaga'] ?? '')) !== ''
-            || trim((string) ($baris['jenjang'] ?? '')) !== '';
+        return trim((string) ($baris['jenjang'] ?? '')) !== '';
     }
 
     /**
-     * Lembaga dari `kode_lembaga`/`jenjang` (case-insensitive).
+     * Lembaga dari `jenjang` (case-insensitive).
      *
      * @param  array<string, mixed>  $baris
      */
     protected function resolveLembagaId(array $baris, int $no): ?string
     {
-        $kode = trim((string) ($baris['kode_lembaga'] ?? ''));
+        $kode = trim((string) ($baris['jenjang'] ?? ''));
         if ($kode === '') {
-            $kode = trim((string) ($baris['jenjang'] ?? ''));
-        }
-        if ($kode === '') {
-            $this->fail($no, 'kode_lembaga', 'Isi kode_lembaga (jenjang, mis. MI/MD).');
+            $this->fail($no, 'jenjang', 'Isi jenjang lembaga (mis. MI/MD).');
 
             return null;
         }
 
         $lembaga = Lembaga::whereRaw('UPPER(jenjang) = ?', [mb_strtoupper($kode)])->first();
         if (! $lembaga) {
-            $this->fail($no, 'kode_lembaga', "Lembaga \"{$kode}\" tidak ditemukan.");
+            $this->fail($no, 'jenjang', "Lembaga \"{$kode}\" tidak ditemukan.");
 
             return null;
         }
@@ -400,7 +396,6 @@ class SantriLembagaImport extends SantriLengkapImport
             // Blok keanggotaan: opsional. Tanpa info lembaga → santri saja
             // (file identitas lama tetap diterima endpoint gabungan).
             'santri_id' => ['nullable', 'integer'],
-            'kode_lembaga' => ['nullable'],
             'jenjang' => ['nullable', 'string'],
             'nis_kemenag' => ['nullable'],
             'tahaj_masuk' => ['nullable'],
