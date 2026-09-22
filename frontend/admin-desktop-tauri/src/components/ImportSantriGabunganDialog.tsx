@@ -5,6 +5,7 @@ import {
   periksaImportSantriGabungan,
   unduhDataSantriGabungan,
   unduhTemplateSantriGabungan,
+  type ImportError,
   type ImportPeriksa,
 } from '@/api/santri';
 import { listLembaga, type Lembaga } from '@/api/master';
@@ -34,6 +35,8 @@ export default function ImportSantriGabunganDialog({
   const [dataIds, setDataIds] = useState<string[]>([]);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [periksaHasil, setPeriksaHasil] = useState<ImportPeriksa | null>(null);
+  /** Galat eksekusi Import (bukan Periksa): tampil di panel dialog, bukan toast. */
+  const [galatImport, setGalatImport] = useState<ImportError[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [periksaBusy, setPeriksaBusy] = useState(false);
 
@@ -47,6 +50,7 @@ export default function ImportSantriGabunganDialog({
     if (!open) return;
     setImportFile(null);
     setPeriksaHasil(null);
+    setGalatImport(null);
     if (jenjangAktif != null && lembagas.some((l) => l.jenjang === jenjangAktif)) {
       setDataIds([jenjangAktif]);
       return;
@@ -74,10 +78,13 @@ export default function ImportSantriGabunganDialog({
           e.preventDefault();
           if (!importFile || !periksaHasil?.siap_import) return;
           setBusy(true);
+          setGalatImport(null);
           try {
             const res = await importSantriGabungan({ file: importFile });
             if (res.errors?.length) {
-              toast.error(res.errors.map((x) => `Baris ${x.row} (${x.attribute}): ${x.errors.join(', ')}`).join(' · '));
+              // Tetap di dialog (panel galat) agar daftarnya bisa dibaca/scroll.
+              setGalatImport(res.errors);
+              setPeriksaHasil((h) => (h ? { ...h, siap_import: false } : h));
             } else {
               toast.success(res.pesan ?? 'Import selesai.');
               onOpenChange(false);
@@ -160,7 +167,7 @@ export default function ImportSantriGabunganDialog({
                 type="file"
                 accept=".xlsx,.xls,.csv"
                 className="hidden"
-                onChange={(e) => { setImportFile(e.target.files?.[0] ?? null); setPeriksaHasil(null); }}
+                onChange={(e) => { setImportFile(e.target.files?.[0] ?? null); setPeriksaHasil(null); setGalatImport(null); }}
               />
               <Button
                 id="btn_pilih_file_import_santri"
@@ -191,15 +198,24 @@ export default function ImportSantriGabunganDialog({
               )}
             </div>
           ) : null}
+          {galatImport?.length ? (
+            <div className="col-span-2 rounded-md border p-4 text-sm" id="hasil_import_santri">
+              <p className="font-medium">Import menemukan {galatImport.length} masalah — perbaiki file lalu Periksa ulang.</p>
+              <ul className="mt-3 max-h-48 space-y-1.5 overflow-auto text-xs text-destructive">
+                {galatImport.slice(0, 50).map((x, i) => <li key={`${x.row}-${x.attribute}-${i}`}>Baris {x.row} ({x.attribute}): {x.errors.join(', ')}</li>)}
+              </ul>
+            </div>
+          ) : null}
           <DialogFooter className="col-span-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Batal</Button>
             <Button id="btn_periksa_import_santri" type="button" variant="outline" disabled={!importFile || periksaBusy || busy} onClick={async () => {
               if (!importFile) return;
               setPeriksaBusy(true);
+              setGalatImport(null);
               try {
+                // Hasil (termasuk galat) tampil di panel dialog, bukan toast.
                 const res = await periksaImportSantriGabungan({ file: importFile });
                 setPeriksaHasil(res);
-                if (res.siap_import) toast.success(res.pesan); else toast.error(res.pesan);
               } catch (e2) {
                 setPeriksaHasil(null);
                 toast.error(errorMessage(e2));
