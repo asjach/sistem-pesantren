@@ -131,6 +131,7 @@ export function listRiwayatBelajar(params: {
   tingkat?: string;
   kelas_id?: number;
   tanpa_kelas?: boolean;
+  dengan_kelas?: boolean;
   q?: string;
   is_active_riwayat?: boolean;
   status_awal?: string;
@@ -148,6 +149,7 @@ export function listRiwayatBelajar(params: {
   if (params.tingkat) q.set('tingkat', params.tingkat);
   if (params.kelas_id) q.set('kelas_id', String(params.kelas_id));
   if (params.tanpa_kelas) q.set('tanpa_kelas', '1');
+  if (params.dengan_kelas) q.set('dengan_kelas', '1');
   if (params.q) q.set('q', params.q);
   if (params.is_active_riwayat !== undefined) q.set('is_active_riwayat', params.is_active_riwayat ? '1' : '0');
   if (params.status_akhir) q.set('status_akhir', params.status_akhir);
