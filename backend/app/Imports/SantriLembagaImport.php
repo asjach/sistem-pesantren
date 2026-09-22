@@ -144,17 +144,22 @@ class SantriLembagaImport extends SantriLengkapImport
 
     /**
      * Buat riwayat belajar perdana (semester 1) dari `tahaj_masuk` +
-     * `tingkat_masuk`. Dilewati bila santri sudah punya riwayat aktif di lembaga
-     * ini ATAU sudah punya baris (santri, tahun ajaran, jenjang, semester 1) —
-     * menjaga unique constraint & idempoten saat re-import. Kegagalan dicatat
-     * per baris (tidak membatalkan seluruh import).
+     * `tingkat_masuk` untuk SEMUA baris import yang valid — bukan hanya yang
+     * keanggotaannya sudah aktif (`terima()` mengaktifkan keanggotaan bila
+     * perlu). Dilewati bila baris eksplisit ditandai nonaktif, santri sudah
+     * punya riwayat aktif di lembaga ini, ATAU sudah punya baris (santri,
+     * tahun ajaran, jenjang, semester 1) — menjaga unique constraint &
+     * idempoten saat re-import. Kegagalan dicatat per baris (tidak
+     * membatalkan seluruh import).
      *
      * @param  array<string, mixed>  $baris
      */
     protected function catatRiwayatPerdana(Santri $santri, string $jenjang, string $tahunAjaran, array $baris, int $no): void
     {
-        // Hanya untuk keanggotaan aktif: baris nonaktif tak punya riwayat berjalan.
-        if (LembagaSantri::aktif($santri->id, $jenjang) === null) {
+        // Baris yang eksplisit ditandai nonaktif tidak dibuatkan riwayat
+        // berjalan — `terima()` di bawah justru akan mengaktifkan ulang
+        // keanggotaannya bila dipaksakan.
+        if (in_array(mb_strtolower(trim((string) ($baris['is_active_lembaga'] ?? ''))), ['0', 'false', 'nonaktif', 'tidak', 't'], true)) {
             return;
         }
 

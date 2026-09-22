@@ -222,7 +222,9 @@ Induk. Store manual (`POST /api/admin/santri`) juga wajib `jenjang` + opsional
 Riwayat perdana: bila `tahaj_masuk` diisi (harus tahun ajaran yang ada), import
 membuat baris `riwayat_belajar` semester 1 via `PenerimaanService::terima`
 (tingkat dari `tingkat_masuk`, `tgl_masuk` dari keanggotaan, `status_awal`
-`santri_baru`); dilewati bila keanggotaan nonaktif, sudah ada riwayat aktif di
+`santri_baru`) untuk SEMUA baris valid — keanggotaan nonaktif diaktifkan ulang
+bila perlu; dilewati hanya bila baris eksplisit ditandai nonaktif
+(`is_active_lembaga=Tidak`), sudah ada riwayat aktif di
 jenjang itu, atau baris (santri, tahun ajaran, jenjang, semester 1) sudah ada
 (termasuk arsip) — menjaga unique constraint & idempoten; bentrok DB dicatat
 per baris tanpa membatalkan import; ringkasan melaporkan

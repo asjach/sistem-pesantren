@@ -897,4 +897,77 @@ class SantriLembagaImportTest extends TestCase
         $this->assertSame('28001', $ls->nis_lokal);
         $this->assertNull($ls->nis_kemenag);
     }
+
+    // ---------- 31. keanggotaan nonaktif + tahaj_masuk → riwayat tetap dibuat ----------
+
+    public function test_31_riwayat_dibuat_untuk_keanggotaan_nonaktif(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeAdmin([$f['mi']->jenjang]);
+        TahunAjaran::create([
+            'nama' => '2026/2027',
+            'tanggal_mulai' => '2026-07-01', 'tanggal_selesai' => '2027-06-30', 'is_aktif' => true,
+        ]);
+
+        // Santri lama yang keanggotaannya nonaktif dan belum punya riwayat.
+        $santri = Santri::create(['nama_lengkap' => 'Nonaktif Lama', 'nik' => '1101010000000034', 'jk' => 'L', 'tgl_lahir' => '2015-07-01']);
+        LembagaSantri::create(['santri_id' => $santri->id, 'jenjang' => $f['mi']->jenjang, 'nis_lokal' => '28101', 'is_active_lembaga' => 'Tidak']);
+
+        $csv = $this->makeCsv([[
+            'jenjang' => 'MI',
+            'nis_lokal' => '28101',
+            // Tanpa penanda nonaktif: keanggotaan diaktifkan ulang + riwayat dibuat.
+            'tahaj_masuk' => '2026/2027',
+            'tingkat_masuk' => '1',
+            'nama_lengkap' => 'Nonaktif Lama',
+            'nik' => '1101010000000034',
+            'jk' => 'L',
+            'tgl_lahir' => '2015-07-01',
+        ]]);
+
+        // Mode periksa melaporkan rencana riwayat tanpa menulis.
+        $periksa = $this->upload($admin, $csv, 'import-periksa-gabungan')->assertStatus(200);
+        $this->assertSame(1, (int) $periksa->json('ringkasan.baris_riwayat_dibuat'));
+
+        $this->upload($admin, $csv)->assertStatus(200);
+
+        $riwayat = RiwayatBelajar::where('santri_id', $santri->id)->firstOrFail();
+        $this->assertSame(RiwayatBelajar::YA, $riwayat->is_active_riwayat);
+        $this->assertSame('Ya', LembagaSantri::aktif($santri->id, $f['mi']->jenjang)?->is_active_lembaga);
+        $this->assertSame('Ya', $santri->fresh()->is_active_pst);
+    }
+
+    // ---------- 32. baris eksplisit nonaktif → riwayat tidak dibuat ----------
+
+    public function test_32_baris_eksplisit_nonaktif_tanpa_riwayat(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeAdmin([$f['mi']->jenjang]);
+        TahunAjaran::create([
+            'nama' => '2026/2027',
+            'tanggal_mulai' => '2026-07-01', 'tanggal_selesai' => '2027-06-30', 'is_aktif' => true,
+        ]);
+
+        $csv = $this->makeCsv([[
+            'jenjang' => 'MI',
+            'nis_lokal' => '28102',
+            'is_active_lembaga' => 'Tidak',
+            'tahaj_masuk' => '2026/2027',
+            'tingkat_masuk' => '1',
+            'nama_lengkap' => 'Tetap Nonaktif',
+            'nik' => '1101010000000035',
+            'jk' => 'L',
+            'tgl_lahir' => '2015-07-01',
+        ]]);
+
+        // Mode periksa: tidak ada rencana riwayat untuk baris eksplisit nonaktif.
+        $periksa = $this->upload($admin, $csv, 'import-periksa-gabungan')->assertStatus(200);
+        $this->assertSame(0, (int) $periksa->json('ringkasan.baris_riwayat_dibuat'));
+
+        $this->upload($admin, $csv)->assertStatus(200);
+
+        $santri = Santri::where('nik', '1101010000000035')->firstOrFail();
+        $this->assertSame(0, RiwayatBelajar::where('santri_id', $santri->id)->count());
+        $this->assertSame('Tidak', LembagaSantri::where('santri_id', $santri->id)->where('jenjang', $f['mi']->jenjang)->value('is_active_lembaga'));
+    }
 }
