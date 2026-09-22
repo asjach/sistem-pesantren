@@ -36,7 +36,7 @@ class SantriLengkapImport implements SkipsOnFailure, SkipsUnknownSheets, ToColle
     protected const KOLOM_TEKS = [
         'nik', 'nisn', 'no_kk', 'ayah_nik', 'ibu_nik', 'wali_nik',
         'rt', 'rw', 'kode_pos', 'no_hp_santri', 'ayah_telp', 'ibu_telp', 'wali_telp',
-        'nomor_kip', 'nis_lokal', 'nis_kemenag',
+        'nomor_kip', 'nis_lokal', 'nis_kemenag', 'tahaj_masuk',
     ];
 
     /** Kolom tanggal: serial number Excel → `Y-m-d` (string teks lolos apa adanya). */

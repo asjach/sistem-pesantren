@@ -4,10 +4,14 @@ namespace App\Imports;
 
 use App\Models\Lembaga;
 use App\Models\LembagaSantri;
+use App\Models\RiwayatBelajar;
 use App\Models\Santri;
+use App\Models\TahunAjaran;
+use App\Services\PenerimaanService;
 use App\Support\Tanggal;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Maatwebsite\Excel\Validators\Failure;
 
 /**
@@ -33,6 +37,9 @@ class SantriLembagaImport extends SantriLengkapImport
     /** Baris yang memutakhirkan santri/keanggotaan yang sudah ada. */
     protected int $barisUpdate = 0;
 
+    /** Riwayat belajar perdana yang dibuat dari `tahaj_masuk` + `tingkat_masuk`. */
+    protected int $barisRiwayat = 0;
+
     /** @var array<int, int> */
     protected array $tersentuh = [];
 
@@ -40,6 +47,7 @@ class SantriLembagaImport extends SantriLengkapImport
     {
         return array_merge(parent::ringkasan(), [
             'baris_diperbarui' => $this->barisUpdate,
+            'baris_riwayat_dibuat' => $this->barisRiwayat,
         ]);
     }
 
@@ -89,6 +97,14 @@ class SantriLembagaImport extends SantriLengkapImport
             return false;
         }
 
+        // Riwayat perdana (opsional): `tahaj_masuk` harus tahun ajaran yang ada.
+        $tahunAjaranMasuk = trim((string) ($baris['tahaj_masuk'] ?? ''));
+        if ($tahunAjaranMasuk !== '' && ! TahunAjaran::whereKey($tahunAjaranMasuk)->exists()) {
+            $this->fail($no, 'tahaj_masuk', "Tahun ajaran \"{$tahunAjaranMasuk}\" tidak ditemukan.");
+
+            return false;
+        }
+
         $dataSantri = $this->buatDataSantri($baris);
         $santri = $this->cocokkanSantri($baris, $dataSantri, $no, $jenjang, $dilihatNik, $dilihatNis, $sudahAda);
         if ($santri === null) {
@@ -99,12 +115,52 @@ class SantriLembagaImport extends SantriLengkapImport
             return false;
         }
 
+        if ($tahunAjaranMasuk !== '') {
+            $this->catatRiwayatPerdana($santri, $jenjang, $tahunAjaranMasuk, $baris, $no);
+        }
+
         if ($sudahAda || ! $keanggotaanBaru) {
             $this->barisUpdate++;
         }
         $this->tersentuh[] = (int) $santri->id;
 
         return true;
+    }
+
+    /**
+     * Buat riwayat belajar perdana (semester 1) dari `tahaj_masuk` +
+     * `tingkat_masuk`. Dilewati bila santri sudah punya riwayat aktif di lembaga
+     * ini (idempoten saat re-import). Kegagalan validasi dicatat per baris.
+     *
+     * @param  array<string, mixed>  $baris
+     */
+    protected function catatRiwayatPerdana(Santri $santri, string $jenjang, string $tahunAjaran, array $baris, int $no): void
+    {
+        // Hanya untuk keanggotaan aktif: baris nonaktif tak punya riwayat berjalan.
+        if (LembagaSantri::aktif($santri->id, $jenjang) === null) {
+            return;
+        }
+
+        $ada = RiwayatBelajar::where('santri_id', $santri->id)
+            ->where('jenjang', $jenjang)
+            ->where('is_active_riwayat', RiwayatBelajar::YA)
+            ->exists();
+        if ($ada) {
+            return;
+        }
+
+        $tingkat = trim((string) ($baris['tingkat_masuk'] ?? ''));
+
+        try {
+            app(PenerimaanService::class)->terima($santri, $jenjang, $tahunAjaran, [
+                'tingkat' => $tingkat === '' ? null : $tingkat,
+                'tgl_masuk' => Tanggal::parse($baris['tgl_masuk'] ?? null),
+            ]);
+            $this->barisRiwayat++;
+        } catch (ValidationException $e) {
+            $pesan = (string) (collect($e->errors())->flatten()->first() ?? 'Riwayat belajar gagal dibuat.');
+            $this->fail($no, 'riwayat_belajar', $pesan);
+        }
     }
 
     /**

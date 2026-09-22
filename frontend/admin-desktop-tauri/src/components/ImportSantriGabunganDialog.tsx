@@ -66,6 +66,8 @@ export default function ImportSantriGabunganDialog({
           <DialogDescription>
             Satu file: keanggotaan (blok awal) + identitas. Kolom `jenjang` wajib diisi —
             santri minimal terdaftar di 1 jenjang. Cocok santri_id / NIK / NIS; baris baru otomatis dibuat.
+            Bila `tahaj_masuk` diisi (tahun ajaran yang ada), riwayat belajar perdana dibuat
+            otomatis memakai `tingkat_masuk`.
           </DialogDescription>
         </DialogHeader>
         <form className="grid grid-cols-2 gap-4" onSubmit={async (e) => {
@@ -178,6 +180,7 @@ export default function ImportSantriGabunganDialog({
               <p className="font-medium">
                 {periksaHasil.ringkasan.baris_diproses} baris diperiksa · {periksaHasil.ringkasan.baris_valid} valid · {periksaHasil.ringkasan.baris_gagal} bermasalah
                 {(periksaHasil.ringkasan.baris_diperbarui ?? 0) > 0 ? ` · ${periksaHasil.ringkasan.baris_diperbarui} pembaruan` : ''}
+                {(periksaHasil.ringkasan.baris_riwayat_dibuat ?? 0) > 0 ? ` · ${periksaHasil.ringkasan.baris_riwayat_dibuat} riwayat belajar dibuat` : ''}
               </p>
               {periksaHasil.errors.length > 0 ? (
                 <ul className="mt-3 max-h-48 space-y-1.5 overflow-auto text-xs text-destructive">

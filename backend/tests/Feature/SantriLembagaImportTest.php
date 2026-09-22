@@ -7,7 +7,9 @@ use App\Exports\SantriLembagaTemplateExport;
 use App\Imports\SantriLengkapImport;
 use App\Models\Lembaga;
 use App\Models\LembagaSantri;
+use App\Models\RiwayatBelajar;
 use App\Models\Santri;
+use App\Models\TahunAjaran;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -496,6 +498,10 @@ class SantriLembagaImportTest extends TestCase
     {
         $f = $this->baseFixture();
         $admin = $this->makeAdmin([$f['mi']->jenjang]);
+        TahunAjaran::create([
+            'nama' => '2026/2027',
+            'tanggal_mulai' => '2026-07-01', 'tanggal_selesai' => '2027-06-30', 'is_aktif' => true,
+        ]);
 
         $this->upload($admin, $this->makeCsv([[
             'jenjang' => 'MI',
@@ -528,5 +534,111 @@ class SantriLembagaImportTest extends TestCase
         $this->assertSame('101010101010', $ls->nss_sekolah_asal);
         $this->assertSame('Jl. Asal No. 1', $ls->alamat_sekolah_asal);
         $this->assertSame('2026-07-01', $ls->tgl_masuk?->format('Y-m-d'));
+        // tahaj_masuk valid + keanggotaan aktif → riwayat perdana ikut dibuat.
+        $this->assertTrue(RiwayatBelajar::where('santri_id', $santri->id)->where('jenjang', $f['mi']->jenjang)->exists());
+    }
+
+    // ---------- 22. tahaj_masuk + tingkat_masuk → riwayat belajar perdana ----------
+
+    public function test_22_import_buat_riwayat_belajar_perdana(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeAdmin([$f['mi']->jenjang]);
+        TahunAjaran::create([
+            'nama' => '2026/2027',
+            'tanggal_mulai' => '2026-07-01', 'tanggal_selesai' => '2027-06-30', 'is_aktif' => true,
+        ]);
+
+        $csv = $this->makeCsv([[
+            'jenjang' => 'MI',
+            'nis_lokal' => '27201',
+            'is_active_lembaga' => 'Ya',
+            'tgl_masuk' => '2026-07-15',
+            'tahaj_masuk' => '2026/2027',
+            'tingkat_masuk' => '1',
+            'nama_lengkap' => 'Riwayat Baru',
+            'nik' => '1101010000000022',
+            'jk' => 'L',
+            'tgl_lahir' => '2015-07-01',
+        ]]);
+
+        // Mode periksa melaporkan rencana riwayat tanpa menulis.
+        $periksa = $this->upload($admin, $csv, 'import-periksa-gabungan')->assertStatus(200);
+        $this->assertTrue((bool) $periksa->json('siap_import'));
+        $this->assertSame(1, (int) $periksa->json('ringkasan.baris_riwayat_dibuat'));
+        $this->assertSame(0, RiwayatBelajar::count());
+
+        $this->upload($admin, $csv)->assertStatus(200);
+
+        $santri = Santri::where('nik', '1101010000000022')->firstOrFail();
+        $riwayat = RiwayatBelajar::where('santri_id', $santri->id)->firstOrFail();
+        $this->assertSame('2026/2027', $riwayat->tahun_ajaran);
+        $this->assertSame($f['mi']->jenjang, $riwayat->jenjang);
+        $this->assertSame('1', $riwayat->semester);
+        $this->assertSame('1', $riwayat->tingkat);
+        $this->assertSame('santri_baru', $riwayat->status_awal);
+        $this->assertSame('aktif', $riwayat->status_akhir);
+        $this->assertSame(RiwayatBelajar::YA, $riwayat->is_active_riwayat);
+        $this->assertSame('2026-07-15', $riwayat->tgl_masuk?->format('Y-m-d'));
+        $this->assertSame('Ya', $santri->fresh()->is_active_pst);
+    }
+
+    // ---------- 23. re-import idempoten: riwayat tidak digandakan ----------
+
+    public function test_23_reimport_tidak_duplikat_riwayat(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeAdmin([$f['mi']->jenjang]);
+        TahunAjaran::create([
+            'nama' => '2026/2027',
+            'tanggal_mulai' => '2026-07-01', 'tanggal_selesai' => '2027-06-30', 'is_aktif' => true,
+        ]);
+
+        $csv = $this->makeCsv([[
+            'jenjang' => 'MI',
+            'nis_lokal' => '27301',
+            'is_active_lembaga' => 'Ya',
+            'tgl_masuk' => '2026-07-01',
+            'tahaj_masuk' => '2026/2027',
+            'tingkat_masuk' => '1',
+            'nama_lengkap' => 'Riwayat Sekali',
+            'nik' => '1101010000000023',
+            'jk' => 'L',
+            'tgl_lahir' => '2015-07-01',
+        ]]);
+
+        $this->upload($admin, $csv)->assertStatus(200);
+        $santri = Santri::where('nik', '1101010000000023')->firstOrFail();
+        $this->assertSame(1, RiwayatBelajar::where('santri_id', $santri->id)->count());
+
+        // Import ulang: santri cocok, keanggotaan diperbarui, riwayat aktif dilewati.
+        $res = $this->upload($admin, $csv, 'import-periksa-gabungan')->assertStatus(200);
+        $this->assertSame(0, (int) $res->json('ringkasan.baris_riwayat_dibuat'));
+        $this->upload($admin, $csv)->assertStatus(200);
+        $this->assertSame(1, RiwayatBelajar::where('santri_id', $santri->id)->count());
+    }
+
+    // ---------- 24. tahaj_masuk tak dikenal → baris ditolak (tanpa tulis) ----------
+
+    public function test_24_tahaj_masuk_tak_dikenal_ditolak(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeAdmin([$f['mi']->jenjang]);
+
+        $res = $this->upload($admin, $this->makeCsv([[
+            'jenjang' => 'MI',
+            'nis_lokal' => '27401',
+            'is_active_lembaga' => 'Ya',
+            'tahaj_masuk' => '1999/2000',
+            'tingkat_masuk' => '1',
+            'nama_lengkap' => 'TA Salah',
+            'nik' => '1101010000000024',
+            'jk' => 'L',
+            'tgl_lahir' => '2015-07-01',
+        ]]))->assertStatus(422);
+
+        $this->assertSame('tahaj_masuk', $res->json('errors.0.attribute'));
+        // Ditolak sebelum menulis: tak ada santri/keanggotaan yang terbentuk.
+        $this->assertFalse(Santri::where('nik', '1101010000000024')->exists());
     }
 }

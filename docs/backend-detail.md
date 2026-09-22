@@ -207,6 +207,11 @@ validasi; hanya sheet pertama (sheet Referensi diabaikan).
 Import dipakai di halaman **Santri Per Lembaga** (`/keanggotaan`), bukan Buku
 Induk. Store manual (`POST /api/admin/santri`) juga wajib `jenjang` + opsional
 `nis_lokal`, membuat keanggotaan dalam satu transaksi.
+Riwayat perdana: bila `tahaj_masuk` diisi (harus tahun ajaran yang ada), import
+membuat baris `riwayat_belajar` semester 1 via `PenerimaanService::terima`
+(tingkat dari `tingkat_masuk`, `tgl_masuk` dari keanggotaan, `status_awal`
+`santri_baru`); dilewati bila keanggotaan nonaktif atau sudah ada riwayat aktif
+di jenjang itu (idempoten); ringkasan melaporkan `baris_riwayat_dibuat`.
 Samakan NIS MI↔MD: salin hanya bila tepat satu sisi bernomor + sisi tujuan tak
 tabrakan; beda dua sisi / tabrakan hanya dilaporkan (tanpa auto-copy).
 Status: ✅ live (CRUD scoped, import satu pintu identitas+gabungan, kamus, foto/dokumen, kolom NIS per lembaga, samakan NIS MI↔MD; suite 186/186).

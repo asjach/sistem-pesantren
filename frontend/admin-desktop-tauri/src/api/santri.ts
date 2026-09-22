@@ -181,7 +181,7 @@ export interface ImportError {
 export interface ImportPeriksa {
   pesan: string;
   siap_import: boolean;
-  ringkasan: { baris_diproses: number; baris_valid: number; baris_gagal: number; baris_diperbarui?: number };
+  ringkasan: { baris_diproses: number; baris_valid: number; baris_gagal: number; baris_diperbarui?: number; baris_riwayat_dibuat?: number };
   errors: ImportError[];
 }
 
