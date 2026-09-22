@@ -171,18 +171,6 @@ export function updateSantri(id: number, changes: Record<string, string | number
   });
 }
 
-/** Unduh template import identitas (buku induk). `jenjang` hanya lingkup kamus dropdown. */
-export function unduhTemplateSantri(jenjang?: string) {
-  const q = jenjang ? `?jenjang=${jenjang}` : '';
-  return downloadFile(`/admin/santri/import-template${q}`, 'template-import-santri.xlsx');
-}
-
-export function importSantri(input: { file: File }) {
-  const fd = new FormData();
-  fd.set('file', input.file);
-  return apiUpload<{ pesan: string; errors?: ImportError[] }>('/admin/santri/import-lengkap', fd);
-}
-
 export interface ImportError {
   row: number;
   attribute: string;
@@ -192,15 +180,8 @@ export interface ImportError {
 export interface ImportPeriksa {
   pesan: string;
   siap_import: boolean;
-  ringkasan: { baris_diproses: number; baris_valid: number; baris_gagal: number; baris_diperbarui?: number; baris_tanpa_keanggotaan?: number };
+  ringkasan: { baris_diproses: number; baris_valid: number; baris_gagal: number; baris_diperbarui?: number };
   errors: ImportError[];
-}
-
-/** Validasi file import tanpa menulis (dry-run) — sumber tombol "Periksa". */
-export function periksaImportSantri(input: { file: File }) {
-  const fd = new FormData();
-  fd.set('file', input.file);
-  return apiUpload<ImportPeriksa>('/admin/santri/import-periksa', fd);
 }
 
 // ---------- Import gabungan siswa (identitas + keanggotaan) ----------

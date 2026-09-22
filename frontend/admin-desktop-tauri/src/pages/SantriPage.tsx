@@ -4,26 +4,20 @@ import {
   createLembagaSantri,
   createSantri,
   generateNisk,
-  importSantriGabungan,
   listDokumenSantri,
   listLembagaSantri,
   listSantri,
-  periksaImportSantriGabungan,
   tidakMemilikiDokumen,
-  unduhDataSantriGabungan,
-  unduhTemplateSantriGabungan,
   updateLembagaSantri,
   updateSantri,
   uploadDokumenSantri,
   uploadFotoSantri,
   type DokumenSantri,
-  type ImportPeriksa,
   type LembagaSantri,
   type Santri,
 } from '../api/santri';
 import { listLembaga, type Lembaga } from '../api/master';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/field';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -36,7 +30,7 @@ import Pager from '@/components/Pager';
 import { useDaftarTabel } from '@/hooks/useDaftarTabel';
 import { ActionIcon } from '@/components/RowActions';
 import { ProfilSantriDialog } from '@/components/ProfilSantriDialog';
-import { Download, FileUp, ImageUp, Plus, Upload } from '@/icons';
+import { FileUp, ImageUp, Plus, Upload } from '@/icons';
 import { useAuth } from '../auth/AuthContext';
 import { bisa } from '../api/auth';
 import { toast } from 'sonner';
@@ -221,13 +215,6 @@ export default function SantriPage() {
     deps: [statusGlobal, jenjang],
   });
 
-  const [importOpen, setImportOpen] = useState(false);
-  const [importFile, setImportFile] = useState<File | null>(null);
-  const [periksaHasil, setPeriksaHasil] = useState<ImportPeriksa | null>(null);
-  const [periksaBusy, setPeriksaBusy] = useState(false);
-  // Lembaga sumber "Data existing": multi-pilih (satu/lebih/semua).
-  const [dataIds, setDataIds] = useState<string[]>([]);
-
   const [fotoRow, setFotoRow] = useState<Santri | null>(null);
   const [fotoFile, setFotoFile] = useState<File | null>(null);
 
@@ -283,30 +270,6 @@ export default function SantriPage() {
   const commitBaris = useMemo(() => pakaiCommitBaris(rows), [rows]);
 
   const { user } = useAuth();
-  const singleLembagaId =
-    user && !user.roles.some((r) => r.name === 'super_admin') && (user.lembagas?.length ?? 0) === 1
-      ? user.lembagas![0].jenjang
-      : null;
-
-  // Dropdown sumber "Data existing": admin tak rangkap terkunci ke 1 lembaganya;
-  // selain itu bawaan filter aktif → semua tercentang (tinggal kurangi).
-  // Referensi stabil: filter() bikin array baru tiap render — tanpa memo,
-  // efek bawaan di bawah me-reset pilihan user ke "semua" setiap render ulang.
-  const opsiDataLembaga = useMemo(() => lembagaOperasional, [lembagas]);
-  const dataTerkunci = opsiDataLembaga.length === 1 || singleLembagaId !== null;
-  const toggleDataId = (id: string) =>
-    setDataIds((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
-  useEffect(() => {
-    if (!importOpen) return;
-    if (singleLembagaId !== null && opsiDataLembaga.some((l) => l.jenjang === singleLembagaId)) {
-      setDataIds([singleLembagaId]);
-      return;
-    }
-    const dariFilter = jenjang && opsiDataLembaga.some((l) => l.jenjang === jenjang)
-      ? [jenjang]
-      : null;
-    setDataIds(dariFilter ?? opsiDataLembaga.map((l) => l.jenjang));
-  }, [importOpen, jenjang, opsiDataLembaga, singleLembagaId]);
 
   useEffect(() => {
     listLembaga({ per_page: 1000 }).then((p) => setLembagas(p.data)).catch(() => {});
@@ -424,9 +387,6 @@ export default function SantriPage() {
             {bisa(user, 'santri.tambah') && <Button id="btn_buka_tambah_santri" size="sm" onClick={() => { setAddNama(''); setAddJk('L'); setAddNik(''); setAddNisn(''); setAddLembaga(''); setAddNisLokal(''); setTambahOpen(true); }}>
               <Plus data-icon="inline-start" size={16} /> Santri
             </Button>}
-            {bisa(user, 'santri.tambah') && <Button id="btn_buka_import_santri" size="sm" variant="outline" onClick={() => { setImportFile(null); setPeriksaHasil(null); setImportOpen(true); }}>
-              <FileUp data-icon="inline-start" size={16} /> Import
-            </Button>}
           </>
         )}
       />
@@ -437,16 +397,24 @@ export default function SantriPage() {
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Tambah santri</DialogTitle>
-            <DialogDescription>Identitas buku induk; keanggotaan lembaga opsional di sini.</DialogDescription>
+            <DialogDescription>Identitas buku induk + keanggotaan (wajib pilih 1 jenjang).</DialogDescription>
           </DialogHeader>
           <form className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-3" onSubmit={async (e) => {
             e.preventDefault();
+            if (!addLembaga) {
+              toast.error('Pilih jenjang dulu (santri minimal terdaftar di 1 jenjang).');
+              return;
+            }
             setBusy(true);
             try {
-              const res = await createSantri({ nama_lengkap: addNama.trim(), jk: addJk, nik: addNik.trim() || null, nisn: addNisn.trim() || null });
-              if (addLembaga) {
-                await createLembagaSantri(res.data.id, { jenjang: addLembaga, nis_lokal: addNisLokal.trim() || null });
-              }
+              await createSantri({
+                nama_lengkap: addNama.trim(),
+                jk: addJk,
+                nik: addNik.trim() || null,
+                nisn: addNisn.trim() || null,
+                jenjang: addLembaga,
+                nis_lokal: addNisLokal.trim() || null,
+              });
               toast.success('Santri ditambahkan.');
               setTambahOpen(false);
               await load(1);
@@ -472,12 +440,12 @@ export default function SantriPage() {
             <Input id="input_nik_santri" value={addNik} onChange={(e) => setAddNik(e.target.value)} maxLength={16} />
             <FieldLabel htmlFor="input_nisn_santri">NISN</FieldLabel>
             <Input id="input_nisn_santri" value={addNisn} onChange={(e) => setAddNisn(e.target.value)} maxLength={10} />
-            <FieldLabel htmlFor="select_lembaga_tambah_santri">Lembaga (opsional)</FieldLabel>
+            <FieldLabel htmlFor="select_lembaga_tambah_santri">Jenjang</FieldLabel>
             <Select value={addLembaga === '' ? '_kosong' : addLembaga} onValueChange={(v) => setAddLembaga(v === '_kosong' ? '' : v)}>
-              <SelectTrigger id="select_lembaga_tambah_santri"><SelectValue placeholder="Tanpa lembaga" /></SelectTrigger>
+              <SelectTrigger id="select_lembaga_tambah_santri"><SelectValue placeholder="Pilih jenjang" /></SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  <SelectItem value="_kosong">Tanpa lembaga</SelectItem>
+                  <SelectItem value="_kosong">Pilih jenjang</SelectItem>
                   {lembagaOperasional.map((l) => <SelectItem key={l.jenjang} value={l.jenjang}>{l.jenjang} — {l.nama}</SelectItem>)}
                 </SelectGroup>
               </SelectContent>
@@ -486,7 +454,7 @@ export default function SantriPage() {
             <Input id="input_nis_lokal_tambah" value={addNisLokal} onChange={(e) => setAddNisLokal(e.target.value)} maxLength={20} disabled={!addLembaga} />
             <DialogFooter className="col-span-2">
               <Button type="button" variant="outline" onClick={() => setTambahOpen(false)}>Batal</Button>
-              <Button id="btn_simpan_tambah_santri" type="submit" disabled={busy}>Simpan</Button>
+              <Button id="btn_simpan_tambah_santri" type="submit" disabled={busy || !addLembaga}>Simpan</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -559,159 +527,6 @@ export default function SantriPage() {
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setAnggotaRow(null)}>Tutup</Button>
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Import santri */}
-      <Dialog open={importOpen} onOpenChange={setImportOpen}>
-        <DialogContent className="sm:max-w-xl">
-          <DialogHeader>
-            <DialogTitle>Import santri</DialogTitle>
-            <DialogDescription>
-              Satu file: keanggotaan (blok awal) + identitas. Tanpa blok lembaga → hanya identitas.
-              Cocok santri_id / NIK / NIS; baris baru otomatis dibuat.
-            </DialogDescription>
-          </DialogHeader>
-          <form className="grid grid-cols-2 gap-4" onSubmit={async (e) => {
-            e.preventDefault();
-            if (!importFile || !periksaHasil?.siap_import) return;
-            setBusy(true);
-            try {
-              const res = await importSantriGabungan({ file: importFile });
-              if (res.errors?.length) {
-                toast.error(res.errors.map((x) => `Baris ${x.row} (${x.attribute}): ${x.errors.join(', ')}`).join(' · '));
-              } else {
-                toast.success(res.pesan ?? 'Import selesai.');
-                setImportOpen(false);
-                await load(1);
-              }
-            } catch (e2) {
-              toast.error(errorMessage(e2));
-            } finally {
-              setBusy(false);
-            }
-          }}>
-            <div className="col-span-2 grid gap-3 sm:grid-cols-2">
-              <div className="flex flex-col gap-2 rounded-lg border bg-muted/40 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Template kosong</p>
-                <p className="text-xs text-muted-foreground">Mulai dari nol: blok keanggotaan + identitas.</p>
-              <Button
-                id="btn_unduh_template_gabungan"
-                type="button"
-                variant="link"
-                className="h-auto justify-start px-0"
-                onClick={() => void unduhTemplateSantriGabungan().catch((e) => toast.error(errorMessage(e)))}
-              >
-                <Download data-icon="inline-start" size={16} /> Template gabungan
-              </Button>
-              </div>
-              <div className="flex flex-col gap-2 rounded-lg border bg-muted/40 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Data existing (update)</p>
-                <p className="text-xs text-muted-foreground">Terisi santri_id — edit lalu upload untuk update.</p>
-              <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Lembaga sumber data existing">
-                {!dataTerkunci && opsiDataLembaga.length > 1 && (
-                  <label
-                    className="inline-flex h-7 cursor-pointer items-center gap-2 rounded-full border bg-card px-3 text-xs has-checked:border-primary has-checked:bg-accent has-checked:font-semibold"
-                  >
-                    <Checkbox
-                      id="check_data_semua"
-                      checked={dataIds.length === opsiDataLembaga.length && opsiDataLembaga.length > 0}
-                      onCheckedChange={() => setDataIds((s) =>
-                        s.length === opsiDataLembaga.length ? [] : opsiDataLembaga.map((l) => l.jenjang),
-                      )}
-                    /> Semua
-                  </label>
-                )}
-                {opsiDataLembaga.map((l) => (
-                  <label
-                    key={l.jenjang}
-                    className="inline-flex h-7 cursor-pointer items-center gap-2 rounded-full border bg-card px-3 text-xs has-checked:border-primary has-checked:bg-accent has-checked:font-semibold"
-                    title={dataTerkunci ? 'Satu-satunya lembaga Anda (otomatis)' : l.nama}
-                  >
-                    <Checkbox
-                      id={`check_data_lembaga_${l.id}`}
-                      checked={dataIds.includes(l.jenjang)}
-                      disabled={dataTerkunci}
-                      onCheckedChange={() => toggleDataId(l.jenjang)}
-                    /> {l.jenjang}
-                  </label>
-                ))}
-                <Button
-                  id="btn_unduh_data_gabungan"
-                  type="button"
-                  variant="link"
-                  className="h-auto shrink-0 px-0"
-                  disabled={dataIds.length === 0}
-                  title="Unduh data existing (pra-isi santri_id) untuk update via Excel"
-                  onClick={() => {
-                    // Pilihan penuh = semua lingkup (tanpa parameter).
-                    const ids = dataIds.length === opsiDataLembaga.length ? undefined : dataIds;
-                    void unduhDataSantriGabungan(ids).catch((e) => toast.error(errorMessage(e)));
-                  }}
-                >
-                  <Download data-icon="inline-start" size={16} /> Unduh{dataIds.length > 0 && dataIds.length < opsiDataLembaga.length ? ` (${dataIds.length})` : ''}
-                </Button>
-              </div>
-              </div>
-            </div>
-            <div className="col-span-2 flex flex-col gap-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Langkah 2 — Upload & periksa</p>
-              <div className="flex items-center gap-2">
-                <input
-                  id="input_file_import_santri"
-                  type="file"
-                  accept=".xlsx,.xls,.csv"
-                  className="hidden"
-                  onChange={(e) => { setImportFile(e.target.files?.[0] ?? null); setPeriksaHasil(null); }}
-                />
-                <Button
-                  id="btn_pilih_file_import_santri"
-                  type="button"
-                  variant="outline"
-                  onClick={() => document.getElementById('input_file_import_santri')?.click()}
-                >
-                  <Upload data-icon="inline-start" size={16} /> Pilih file
-                </Button>
-                <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground" title={importFile?.name ?? ''}>
-                  {importFile?.name ?? 'Belum ada file dipilih (.xlsx, .xls, .csv)'}
-                </span>
-              </div>
-            </div>
-            {periksaHasil ? (
-              <div className="col-span-2 rounded-md border p-4 text-sm" id="hasil_periksa_import_santri">
-                <p className="font-medium">
-                  {periksaHasil.ringkasan.baris_diproses} baris diperiksa · {periksaHasil.ringkasan.baris_valid} valid · {periksaHasil.ringkasan.baris_gagal} bermasalah
-                  {(periksaHasil.ringkasan.baris_diperbarui ?? 0) > 0 ? ` · ${periksaHasil.ringkasan.baris_diperbarui} pembaruan` : ''}
-                  {(periksaHasil.ringkasan.baris_tanpa_keanggotaan ?? 0) > 0 ? ` · ${periksaHasil.ringkasan.baris_tanpa_keanggotaan} hanya identitas` : ''}
-                </p>
-                {periksaHasil.errors.length > 0 ? (
-                  <ul className="mt-3 max-h-48 space-y-1.5 overflow-auto text-xs text-destructive">
-                    {periksaHasil.errors.slice(0, 50).map((x, i) => <li key={`${x.row}-${x.attribute}-${i}`}>Baris {x.row} ({x.attribute}): {x.errors.join(', ')}</li>)}
-                  </ul>
-                ) : (
-                  <p className="mt-1 text-xs text-emerald-600">Tidak ada masalah — siap diimport.</p>
-                )}
-              </div>
-            ) : null}
-            <DialogFooter className="col-span-2">
-              <Button type="button" variant="outline" onClick={() => setImportOpen(false)}>Batal</Button>
-              <Button id="btn_periksa_import_santri" type="button" variant="outline" disabled={!importFile || periksaBusy || busy} onClick={async () => {
-                if (!importFile) return;
-                setPeriksaBusy(true);
-                try {
-                  const res = await periksaImportSantriGabungan({ file: importFile });
-                  setPeriksaHasil(res);
-                  if (res.siap_import) toast.success(res.pesan); else toast.error(res.pesan);
-                } catch (e2) {
-                  setPeriksaHasil(null);
-                  toast.error(errorMessage(e2));
-                } finally {
-                  setPeriksaBusy(false);
-                }
-              }}>{periksaBusy ? 'Memeriksa…' : 'Periksa'}</Button>
-              <Button id="btn_import_santri" type="submit" disabled={busy || periksaBusy || !periksaHasil?.siap_import}>Import</Button>
-            </DialogFooter>
-          </form>
         </DialogContent>
       </Dialog>
 

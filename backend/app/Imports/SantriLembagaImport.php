@@ -22,19 +22,16 @@ use Maatwebsite\Excel\Validators\Failure;
  *  (c) `nis_lokal + lembaga` (penting: tidak semua santri punya NIK),
  *  (d) create baru (wajib ada `nama_lengkap`).
  *
- * Keanggotaan: belum ada → create (`is_active` bawaan true); sudah ada baris
- * untuk pasangan santri+lembaga → update (hanya nilai non-kosong yang menimpa,
- * agar sel kosong di Excel tidak menghapus data lama).
- * Tanpa info lembaga (file identitas) → hanya identitas, tanpa keanggotaan.
+ * Keanggotaan WAJIB: tiap baris harus punya `jenjang` (minimal 1 lembaga).
+ * Belum ada → create (`is_active_lembaga` bawaan true); sudah ada baris untuk
+ * pasangan santri+lembaga → update (hanya nilai non-kosong yang menimpa, agar
+ * sel kosong di Excel tidak menghapus data lama).
  * Baris di luar lingkup tenant pengimport → gagal per baris (bukan 403).
  */
 class SantriLembagaImport extends SantriLengkapImport
 {
     /** Baris yang memutakhirkan santri/keanggotaan yang sudah ada. */
     protected int $barisUpdate = 0;
-
-    /** Baris tanpa info lembaga → hanya identitas, tanpa keanggotaan. */
-    protected int $barisTanpaAnggota = 0;
 
     /** @var array<int, int> */
     protected array $tersentuh = [];
@@ -43,7 +40,6 @@ class SantriLembagaImport extends SantriLengkapImport
     {
         return array_merge(parent::ringkasan(), [
             'baris_diperbarui' => $this->barisUpdate,
-            'baris_tanpa_keanggotaan' => $this->barisTanpaAnggota,
         ]);
     }
 
@@ -80,22 +76,7 @@ class SantriLembagaImport extends SantriLengkapImport
      */
     protected function prosesBaris(array $baris, int $no, array &$dilihatNik, array &$dilihatNis): bool
     {
-        // Tanpa info lembaga (kolom tak ada / nilai kosong) → santri saja.
-        if (! $this->adaInfoLembaga($baris)) {
-            $dataSantri = $this->buatDataSantri($baris);
-            $santri = $this->cocokkanSantri($baris, $dataSantri, $no, null, $dilihatNik, $dilihatNis, $sudahAda);
-            if ($santri === null) {
-                return false;
-            }
-            if ($sudahAda) {
-                $this->barisUpdate++;
-            }
-            $this->barisTanpaAnggota++;
-            $this->tersentuh[] = (int) $santri->id;
-
-            return true;
-        }
-
+        // Keanggotaan wajib: baris tanpa `jenjang` ditolak.
         $jenjang = $this->resolveLembagaId($baris, $no);
         if ($jenjang === null) {
             return false;
@@ -127,17 +108,6 @@ class SantriLembagaImport extends SantriLengkapImport
     }
 
     /**
-     * Ada info lembaga bila salah satu kolom terisi (nilai). Kolom tak ada
-     * (file identitas lama) juga berarti tidak ada.
-     *
-     * @param  array<string, mixed>  $baris
-     */
-    protected function adaInfoLembaga(array $baris): bool
-    {
-        return trim((string) ($baris['jenjang'] ?? '')) !== '';
-    }
-
-    /**
      * Lembaga dari `jenjang` (case-insensitive).
      *
      * @param  array<string, mixed>  $baris
@@ -163,14 +133,13 @@ class SantriLembagaImport extends SantriLengkapImport
 
     /**
      * Cocokkan santri 4 lapis; $sudahAda true bila baris menimpa santri lama.
-     *  null (file identitas) → lapis (c) dilewati.
      *
      * @param  array<string, mixed>  $baris
      * @param  array<string, mixed>  $dataSantri
      * @param  array<string, Santri>  $dilihatNik
      * @param  array<string, Santri>  $dilihatNis
      */
-    protected function cocokkanSantri(array $baris, array $dataSantri, int $no, ?string $jenjang, array &$dilihatNik, array &$dilihatNis, ?bool &$sudahAda): ?Santri
+    protected function cocokkanSantri(array $baris, array $dataSantri, int $no, string $jenjang, array &$dilihatNik, array &$dilihatNis, ?bool &$sudahAda): ?Santri
     {
         $sudahAda = false;
 
@@ -205,9 +174,8 @@ class SantriLembagaImport extends SantriLengkapImport
             return $santri;
         }
 
-        // (c) Fallback NIS lokal + lembaga (+ guard intra-file). Dilewati bila
-        // file identitas (tanpa lembaga) — NIS tanpa lembaga tak bisa dicocokkan.
-        if ($nisTerisi && $jenjang !== null) {
+        // (c) Fallback NIS lokal + lembaga (+ guard intra-file).
+        if ($nisTerisi) {
             $nis = trim((string) $baris['nis_lokal']);
             $kunci = $jenjang.'|'.mb_strtolower($nis);
             if (isset($dilihatNis[$kunci])) {
@@ -393,10 +361,9 @@ class SantriLembagaImport extends SantriLengkapImport
             // hindari rule `string`/`max` ketat di kolom kunci (pola RiwayatBelajarImport).
             'nik' => ['required_without_all:nis_lokal,santri_id', 'nullable', 'digits:16'],
             'nis_lokal' => ['required_without_all:nik,santri_id', 'nullable'],
-            // Blok keanggotaan: opsional. Tanpa info lembaga → santri saja
-            // (file identitas lama tetap diterima endpoint gabungan).
+            // Blok keanggotaan WAJIB: tiap santri minimal terdaftar di 1 jenjang.
             'santri_id' => ['nullable', 'integer'],
-            'jenjang' => ['nullable', 'string'],
+            'jenjang' => ['required', 'string'],
             'nis_kemenag' => ['nullable'],
             'tahaj_masuk' => ['nullable'],
             'tingkat_masuk' => ['nullable'],

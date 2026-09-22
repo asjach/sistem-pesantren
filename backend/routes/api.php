@@ -84,11 +84,8 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         // Data Santri (101: master profil + import PPDB massal + foto/dokumen)
         Route::get('santri', [SantriController::class, 'index'])->middleware('permission:santri.lihat');
         Route::post('santri', [SantriController::class, 'store'])->middleware('permission:santri.tambah');
-        Route::get('santri/import-template', [SantriController::class, 'template'])->middleware('permission:santri.lihat');
         Route::patch('santri/{santri}', [SantriController::class, 'update'])->middleware('permission:santri.ubah');
-        Route::post('santri/import-periksa', [SantriController::class, 'periksaImport'])->middleware(['permission:santri.tambah', 'throttle:imports']);
-        Route::post('santri/import-lengkap', [SantriController::class, 'importLengkap'])->middleware(['permission:santri.tambah', 'throttle:imports']);
-        // Import gabungan siswa (identitas + keanggotaan): dua middleware = AND (tambah DAN ubah).
+        // Import gabungan siswa (identitas + keanggotaan, wajib jenjang): dua middleware = AND (tambah DAN ubah).
         Route::get('santri/import-template-gabungan', [SantriController::class, 'templateGabungan'])->middleware('permission:santri.lihat');
         Route::get('santri/data-gabungan', [SantriController::class, 'dataGabungan'])->middleware('permission:santri.lihat');
         Route::post('santri/import-periksa-gabungan', [SantriController::class, 'periksaImportGabungan'])->middleware(['permission:santri.tambah', 'permission:santri.ubah', 'throttle:imports']);

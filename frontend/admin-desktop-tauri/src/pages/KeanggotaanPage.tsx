@@ -22,6 +22,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import Pager from '@/components/Pager';
 import { usePager } from '@/hooks/usePager';
+import ImportSantriGabunganDialog from '@/components/ImportSantriGabunganDialog';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { toast } from 'sonner';
 
@@ -71,6 +72,7 @@ export default function KeanggotaanPage() {
   const [fSelesai, setFSelesai] = useState('');
 
   const [tambahOpen, setTambahOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [tCari, setTCari] = useState('');
   const [tHasil, setTHasil] = useState<Santri[]>([]);
   const [tPilih, setTPilih] = useState<Santri | null>(null);
@@ -312,6 +314,9 @@ export default function KeanggotaanPage() {
             {canTambah && (
               <Button id="btn_tambah_keanggotaan" size="sm" onClick={() => setTambahOpen(true)}>Tambah</Button>
             )}
+            {canTambah && canUbah && (
+              <Button id="btn_buka_import_keanggotaan" size="sm" variant="outline" onClick={() => setImportOpen(true)}>Import</Button>
+            )}
           </>
         ) : null}
         fields={fields}
@@ -470,6 +475,8 @@ export default function KeanggotaanPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ImportSantriGabunganDialog open={importOpen} onOpenChange={setImportOpen} onDone={() => load(1)} />
     </div>
   );
 }

@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Exports\SantriTemplateExport;
 use App\Models\Lembaga;
 use App\Models\LembagaSantri;
 use App\Models\RiwayatBelajar;
@@ -85,31 +84,6 @@ class SantriFlowTest extends TestCase
         ], $opt));
     }
 
-    protected function makeCsv(array $rows): string
-    {
-        $headers = ['nama_lengkap', 'jk', 'nik', 'nisn', 'tgl_lahir', 'hobi', 'kewarganegaraan'];
-        $tmp = tempnam(sys_get_temp_dir(), 'santri101').'.csv';
-        $h = fopen($tmp, 'w');
-        fputcsv($h, $headers);
-        foreach ($rows as $r) {
-            $line = [];
-            foreach ($headers as $col) {
-                $line[] = $r[$col] ?? ($col === 'kewarganegaraan' ? 'WNI' : '');
-            }
-            fputcsv($h, $line);
-        }
-        fclose($h);
-
-        return $tmp;
-    }
-
-    protected function importCsv(User $admin, string $csvPath)
-    {
-        return $this->actingAs($admin, 'sanctum')->post('/api/admin/santri/import-lengkap', [
-            'file' => new UploadedFile($csvPath, 'santri.csv', 'text/csv', null, true),
-        ]);
-    }
-
     // ---------- 01. index terskop tenant ----------
 
     public function test_01_index_terskop_tenant(): void
@@ -139,25 +113,35 @@ class SantriFlowTest extends TestCase
         $this->actingAs($guru, 'sanctum')->getJson('/api/admin/santri')->assertStatus(403);
     }
 
-    // ---------- 03. store manual identitas ----------
+    // ---------- 03. store manual identitas + keanggotaan (wajib jenjang) ----------
 
-    public function test_03_store_manual_identitas_tanpa_relasi(): void
+    public function test_03_store_manual_wajib_jenjang_dan_buat_keanggotaan(): void
     {
         $f = $this->baseFixture();
         $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
+
+        // Tanpa jenjang → 422 (santri minimal terdaftar di 1 jenjang).
+        $this->actingAs($admin, 'sanctum')->postJson('/api/admin/santri', [
+            'nama_lengkap' => 'Tanpa Jenjang',
+            'jk' => 'P',
+        ])->assertStatus(422)->assertJsonValidationErrors(['jenjang']);
 
         $res = $this->actingAs($admin, 'sanctum')->postJson('/api/admin/santri', [
             'nama_lengkap' => 'Manual Satu',
             'jk' => 'P',
             'nik' => '1101010000000001',
             'nisn' => '1234567890',
+            'jenjang' => $f['mi']->jenjang,
+            'nis_lokal' => '25001',
         ])->assertStatus(201);
 
         $id = $res->json('data.id');
         $santri = Santri::findOrFail($id);
         $this->assertSame('Manual Satu', $santri->nama_lengkap);
-        $this->assertSame('Tidak', $santri->is_active_pst);
-        $this->assertSame(0, LembagaSantri::where('santri_id', $id)->count());
+        $this->assertSame(1, LembagaSantri::where('santri_id', $id)->count());
+        $this->assertDatabaseHas('lembaga_santri', [
+            'santri_id' => $id, 'jenjang' => $f['mi']->jenjang, 'nis_lokal' => '25001', 'is_active_lembaga' => 'Ya',
+        ]);
         // Tidak ada kolom relasional di payload master.
         $this->assertArrayNotHasKey('jenjang', $santri->getAttributes());
         $this->assertArrayNotHasKey('nis', $santri->getAttributes());
@@ -181,92 +165,6 @@ class SantriFlowTest extends TestCase
         ])->assertStatus(200)->assertJsonPath('data.nama_singkat', 'Edit');
 
         $this->assertSame('0987654321', $santri->fresh()->nisn);
-    }
-
-    // ---------- 05-08. import identitas ----------
-
-    public function test_05_import_identitas_sukses_tanpa_riwayat(): void
-    {
-        $f = $this->baseFixture();
-        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
-
-        $csv = $this->makeCsv([
-            ['nama_lengkap' => 'Impor Satu', 'jk' => 'L', 'nik' => '1101010000000011'],
-            ['nama_lengkap' => 'Impor Dua', 'jk' => 'P', 'nik' => '1101010000000012'],
-        ]);
-        $this->importCsv($admin, $csv)->assertStatus(200);
-
-        $this->assertSame(2, Santri::count());
-        $this->assertSame(0, RiwayatBelajar::count());
-        $this->assertSame(0, LembagaSantri::count());
-        $this->assertSame('Tidak', Santri::where('nama_lengkap', 'Impor Satu')->firstOrFail()->is_active_pst);
-    }
-
-    public function test_06_import_nik_sama_update_bukan_ganda(): void
-    {
-        $f = $this->baseFixture();
-        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
-
-        $this->importCsv($admin, $this->makeCsv([
-            ['nama_lengkap' => 'Impor Tiga', 'jk' => 'L', 'nik' => '1101010000000013', 'hobi' => 'Membaca'],
-        ]))->assertStatus(200);
-
-        $this->importCsv($admin, $this->makeCsv([
-            ['nama_lengkap' => 'Impor Tiga', 'jk' => 'L', 'nik' => '1101010000000013', 'hobi' => 'Menulis'],
-        ]))->assertStatus(200);
-
-        $this->assertSame(1, Santri::count());
-        $this->assertSame('Menulis', Santri::firstOrFail()->hobi);
-    }
-
-    public function test_07_import_nik_kosong_tidak_saling_menimpa(): void
-    {
-        $f = $this->baseFixture();
-        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
-
-        $this->importCsv($admin, $this->makeCsv([
-            ['nama_lengkap' => 'Tanpa NIK Satu', 'jk' => 'L'],
-            ['nama_lengkap' => 'Tanpa NIK Dua', 'jk' => 'P'],
-        ]))->assertStatus(200);
-
-        $this->assertSame(2, Santri::count());
-    }
-
-    public function test_08_import_periksa_dry_run_tanpa_menulis(): void
-    {
-        $f = $this->baseFixture();
-        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
-
-        $csv = $this->makeCsv([
-            ['nama_lengkap' => 'Valid Satu', 'jk' => 'L'],
-            ['nama_lengkap' => 'JK Salah', 'jk' => 'X'],
-        ]);
-        $res = $this->actingAs($admin, 'sanctum')->post('/api/admin/santri/import-periksa', [
-            'file' => new UploadedFile($csv, 'periksa.csv', 'text/csv', null, true),
-        ])->assertStatus(200);
-
-        $res->assertJsonPath('siap_import', false)
-            ->assertJsonPath('ringkasan.baris_valid', 1)
-            ->assertJsonPath('ringkasan.baris_gagal', 1);
-        $this->assertSame(0, Santri::count());
-    }
-
-    // ---------- 09. template identitas ----------
-
-    public function test_09_template_identitas_selaras_import(): void
-    {
-        $f = $this->baseFixture();
-        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
-
-        $export = new SantriTemplateExport;
-        $headings = $export->headings();
-        $this->assertSame(Santri::KOLOM_PROFIL, $headings);
-        $this->assertNotContains('jenjang', $headings);
-        $this->assertNotContains('kelas_id', $headings);
-        $this->assertNotContains('nis', $headings);
-        $this->assertSame(count($headings), count($export->array()[0]));
-
-        $this->actingAs($admin, 'sanctum')->get('/api/admin/santri/import-template')->assertStatus(200);
     }
 
     // ---------- 10-11. keanggotaan ----------

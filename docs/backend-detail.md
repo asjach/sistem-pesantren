@@ -199,10 +199,14 @@ Import satu pintu: template-data-periksa-eksekusi; berkas `xlsx/xls/csv` maks
 10.240 KB; tulis gabungan butuh
 `santri.tambah` DAN `santri.ubah`; pencocokan 4 lapis (santri_id eksak → NIK →
 nis+lembaga → create wajib nama); sel kosong = pertahankan (tanpa pengosongan
-via file); NIK kosong selalu create; kunci lembaga `jenjang`
-(case-insensitive); baris luar tenant gagal
+via file); NIK kosong selalu create; **keanggotaan wajib**: tiap baris harus
+punya `jenjang` (case-insensitive) — santri minimal terdaftar di 1 jenjang;
+baris tanpa jenjang gagal; baris luar tenant gagal
 per baris (bukan 403); sel numerik/serial tanggal dinormalisasi sebelum
 validasi; hanya sheet pertama (sheet Referensi diabaikan).
+Import dipakai di halaman **Santri Per Lembaga** (`/keanggotaan`), bukan Buku
+Induk. Store manual (`POST /api/admin/santri`) juga wajib `jenjang` + opsional
+`nis_lokal`, membuat keanggotaan dalam satu transaksi.
 Samakan NIS MI↔MD: salin hanya bila tepat satu sisi bernomor + sisi tujuan tak
 tabrakan; beda dua sisi / tabrakan hanya dilaporkan (tanpa auto-copy).
 Status: ✅ live (CRUD scoped, import satu pintu identitas+gabungan, kamus, foto/dokumen, kolom NIS per lembaga, samakan NIS MI↔MD; suite 186/186).

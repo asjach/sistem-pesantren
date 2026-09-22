@@ -104,6 +104,7 @@
 | 2.50 | 2026-09-17 | X hapus fisik jejak MD; suite 185/185 |
 | 2.51 | 2026-09-17 | PRD catat semua aturan (docs-only) |
 | 2.52 | 2026-09-22 | Refactor lembaga berjenjang: PK `jenjang` (tanpa `kode`/`parent_id`/root); import/template/data siswa pakai kunci `jenjang`; suite 273/273 |
+| 2.53 | 2026-09-22 | Import dipindah ke halaman Santri Per Lembaga; keanggotaan wajib (santri minimal 1 jenjang) di import & tambah manual; endpoint import identitas-only dihapus; suite 268/268 |
 | 2.52 | 2026-09-17 | Beku kelas arsip (kelas_lulus_id + auto kelas_terakhir_id); suite 186/186 |
 | 2.53 | 2026-09-17 | §7 dokumentasi desain UI (docs-only) |
 | 2.54 | 2026-09-17 | Lampiran G operasional agen (docs-only) |

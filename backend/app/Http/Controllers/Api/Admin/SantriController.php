@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Exports\SantriLembagaDataExport;
 use App\Exports\SantriLembagaTemplateExport;
-use App\Exports\SantriTemplateExport;
 use App\Http\Controllers\Api\Concerns\TenantGuard;
 use App\Http\Controllers\Api\Concerns\UrutDaftar;
 use App\Http\Controllers\Controller;
@@ -15,7 +14,6 @@ use App\Http\Requests\Admin\SantriStoreRequest;
 use App\Http\Requests\Admin\SantriTidakMemilikiRequest;
 use App\Http\Requests\Admin\SantriUpdateRequest;
 use App\Imports\SantriLembagaImport;
-use App\Imports\SantriLengkapImport;
 use App\Models\DokumenSantri;
 use App\Models\Lembaga;
 use App\Models\Santri;
@@ -27,7 +25,6 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Validation\ValidationException as ServiceValidationException;
 use Maatwebsite\Excel\Facades\Excel;
 use Maatwebsite\Excel\Validators\Failure;
 use Maatwebsite\Excel\Validators\ValidationException;
@@ -102,33 +99,28 @@ class SantriController extends Controller
         return implode(' ', array_map(fn (string $t): string => '+'.$t, $token));
     }
 
-    /** POST /api/admin/santri — input manual identitas (buku induk). */
+    /** POST /api/admin/santri — input manual identitas + keanggotaan (wajib 1 jenjang). */
     public function store(SantriStoreRequest $request): JsonResponse
     {
         $data = $request->validated();
+        $jenjang = (string) $data['jenjang'];
+        $nisLokal = $data['nis_lokal'] ?? null;
+        $this->authorizeLembaga($request->user(), $jenjang);
+        unset($data['jenjang'], $data['nis_lokal']);
 
-        $santri = Santri::create($data);
+        $santri = DB::transaction(function () use ($data, $jenjang, $nisLokal) {
+            $santri = Santri::create($data);
+            app(PenerimaanService::class)->pastikanKeanggotaan($santri, $jenjang, [
+                'nis_lokal' => $nisLokal,
+            ]);
 
-        return response()->json(['pesan' => 'Santri ditambahkan.', 'data' => $santri], 201);
-    }
+            return $santri;
+        });
 
-    /** Resolusi lembaga untuk lingkup kamus efektif (template import). */
-    private function resolveLembagaInput(User $auth, ?string $jenjang): ?string
-    {
-        if ($jenjang !== null) {
-            $this->authorizeLembaga($auth, $jenjang);
-            if (! Lembaga::whereKey($jenjang)->exists()) {
-                throw ServiceValidationException::withMessages(['jenjang' => 'Lembaga tidak ditemukan.']);
-            }
-
-            return $jenjang;
-        }
-        if ($auth->bolehPesantren()) {
-            return null;
-        }
-        $ids = $auth->lembagaIds();
-
-        return count($ids) === 1 ? $ids[0] : null;
+        return response()->json([
+            'pesan' => 'Santri ditambahkan.',
+            'data' => $santri->load('lembagaAktif.lembaga:jenjang,nama'),
+        ], 201);
     }
 
     /** PATCH /api/admin/santri/{santri} — edit kolom identitas (partial). */
@@ -215,77 +207,6 @@ class SantriController extends Controller
         $dokumen->update(['tidak_memiliki' => $data['tidak_memiliki']]);
 
         return response()->json(['pesan' => 'Status dokumen diperbarui.', 'data' => $dokumen->fresh()]);
-    }
-
-    /** GET /api/admin/santri/import-template — template Excel identitas (buku induk).
-     *  `jenjang` opsional: dropdown kamus mengikuti referensi efektif lembaga tsb. */
-    public function template(Request $request)
-    {
-        $this->authorize('create', Santri::class);
-
-        $lembagaId = $this->resolveLembagaInput(
-            $request->user(),
-            $request->filled('jenjang') ? (string) $request->jenjang : null,
-        );
-
-        return Excel::download(new SantriTemplateExport($lembagaId), 'template-import-santri.xlsx');
-    }
-
-    /** POST /api/admin/santri/import-periksa — validasi file TANPA menulis (dry-run). */
-    public function periksaImport(ImportSantriRequest $request): JsonResponse
-    {
-        return $this->prosesImport($request, periksa: true);
-    }
-
-    /** POST /api/admin/santri/import-lengkap — import identitas massal. */
-    public function importLengkap(ImportSantriRequest $request): JsonResponse
-    {
-        return $this->prosesImport($request, periksa: false);
-    }
-
-    /** Alur bersama import identitas. Mode periksa: transaksi selalu di-rollback. */
-    private function prosesImport(ImportSantriRequest $request, bool $periksa): JsonResponse
-    {
-        $this->authorize('create', Santri::class);
-
-        $import = new SantriLengkapImport;
-        $errors = [];
-
-        if ($periksa) {
-            DB::beginTransaction();
-        }
-
-        try {
-            Excel::import($import, $request->file('file'));
-        } catch (ValidationException $e) {
-            $errors = $this->formatFailures($e->failures());
-        } finally {
-            if ($periksa) {
-                DB::rollBack();
-            }
-        }
-
-        if ($errors === []) {
-            $errors = $this->formatFailures($import->failures());
-        }
-
-        if ($periksa) {
-            return response()->json([
-                'pesan' => $errors === [] ? 'Pengecekan selesai: file siap diimport.' : 'Pengecekan menemukan masalah.',
-                'siap_import' => $errors === [],
-                'ringkasan' => $import->ringkasan(),
-                'errors' => $errors,
-            ]);
-        }
-
-        if ($errors !== []) {
-            return response()->json([
-                'pesan' => 'Gagal mengimport beberapa data.',
-                'errors' => $errors,
-            ], 422);
-        }
-
-        return response()->json(['pesan' => 'Data santri berhasil diimport.']);
     }
 
     /** @param  iterable<Failure>  $failures */

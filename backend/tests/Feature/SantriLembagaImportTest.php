@@ -321,7 +321,7 @@ class SantriLembagaImportTest extends TestCase
 
     // ---------- 10. file identitas diterima: santri saja, tanpa anggota ----------
 
-    public function test_10_file_identitas_jadi_santri_saja(): void
+    public function test_10_baris_tanpa_jenjang_ditolak(): void
     {
         $f = $this->baseFixture();
         $admin = $this->makeAdmin([$f['mi']->jenjang]);
@@ -332,37 +332,39 @@ class SantriLembagaImportTest extends TestCase
         fputcsv($h, ['Hanya Identitas', 'L', '1101010000000008']);
         fclose($h);
 
-        $res = $this->upload($admin, $tmp)->assertStatus(200);
-        $santri = Santri::where('nik', '1101010000000008')->firstOrFail();
-        $this->assertSame(0, LembagaSantri::where('santri_id', $santri->id)->count());
+        // Keanggotaan wajib: baris tanpa jenjang gagal, tak ada santri dibuat.
+        $res = $this->upload($admin, $tmp)->assertStatus(422);
+        $attrs = collect($res->json('errors'))->pluck('attribute')->all();
+        $this->assertContains('jenjang', $attrs);
+        $this->assertNull(Santri::where('nik', '1101010000000008')->first());
 
-        // Periksa melaporkan baris tanpa keanggotaan.
+        // Periksa menandai file belum siap import.
         $cek = $this->upload($admin, $tmp, 'import-periksa-gabungan')->assertStatus(200);
-        $this->assertTrue((bool) $cek->json('siap_import'));
-        $this->assertSame(1, (int) $cek->json('ringkasan.baris_tanpa_keanggotaan'));
+        $this->assertFalse((bool) $cek->json('siap_import'));
     }
 
-    // ---------- 14. file campuran: baris berlembaga + tanpa lembaga ----------
+    // ---------- 14. file campuran: dua lembaga berbeda ----------
 
     public function test_14_file_campuran_pasangan_tepat(): void
     {
         $f = $this->baseFixture();
-        $admin = $this->makeAdmin([$f['mi']->jenjang]);
+        $admin = $this->makeAdmin([$f['mi']->jenjang, $f['md']->jenjang]);
 
         $this->upload($admin, $this->makeCsv([
             [
                 'jenjang' => 'MI', 'nis_lokal' => '26401',
-                'nama_lengkap' => 'Campur Anggota', 'nik' => '1101010000000009', 'jk' => 'L',
+                'nama_lengkap' => 'Campur MI', 'nik' => '1101010000000009', 'jk' => 'L',
             ],
             [
-                'nama_lengkap' => 'Campur Identitas', 'nik' => '1101010000000010', 'jk' => 'P',
+                'jenjang' => 'MD', 'nis_lokal' => '26402',
+                'nama_lengkap' => 'Campur MD', 'nik' => '1101010000000010', 'jk' => 'P',
             ],
         ]))->assertStatus(200);
 
-        $dengan = Santri::where('nik', '1101010000000009')->firstOrFail();
-        $tanpa = Santri::where('nik', '1101010000000010')->firstOrFail();
-        $this->assertSame(1, LembagaSantri::where('santri_id', $dengan->id)->count());
-        $this->assertSame(0, LembagaSantri::where('santri_id', $tanpa->id)->count());
+        $mi = Santri::where('nik', '1101010000000009')->firstOrFail();
+        $md = Santri::where('nik', '1101010000000010')->firstOrFail();
+        $this->assertDatabaseHas('lembaga_santri', ['santri_id' => $mi->id, 'jenjang' => 'MI', 'nis_lokal' => '26401']);
+        $this->assertDatabaseHas('lembaga_santri', ['santri_id' => $md->id, 'jenjang' => 'MD', 'nis_lokal' => '26402']);
     }
 
     // ---------- 11. template & data-gabungan bisa diunduh ----------
