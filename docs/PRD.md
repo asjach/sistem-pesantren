@@ -153,6 +153,8 @@
 | 2.99 | 2026-09-23 | Import arsip mutasi keluar (template/periksa/import, tombol di panel arsip): kunci NIK→NIS lokal, kelas cukup nama (+TA bila ganda), baris sama dilewati, efek tiru tombol Mutasi; suite 305/305 |
 | 2.100 | 2026-09-23 | Import riwayat tanpa NIK: kunci `nis_lokal` + `jenjang` (template, validasi, pencocokan, dialog, tes); suite 305/305 |
 | 2.101 | 2026-09-23 | Status tampil Proper Case di grid/dialog (`Santri Baru`); template dropdown ikut label, import petakan label→kode (kode lama tetap jalan); suite 306/306 |
+| 2.102 | 2026-09-23 | Perbaiki import riwayat untuk arsip keanggotaan sendiri: baris aktif mengaktifkan ulang (pola terima), baris arsip tak membangunkan, bentrok NIS kecualikan milik sendiri; suite 308/308 |
+| 2.103 | 2026-09-23 | Import riwayat siap file historis 34 rb baris: serial tanggal General→Y-m-d, alias status (`Naik Kelas`, `Keluar`), fallback NIS pasangan MI↔MD, tanpa cek unik no_absen, nomor galat absolut; verifikasi periksa nyata 34.844/34.868 valid; suite 310/310 |
 
 ## Daftar Isi
 

@@ -277,7 +277,9 @@ Aturan beku kelas arsip: `alumni.kelas_lulus_id` terisi otomatis dari riwayat
 aktif terakhir saat lulus; `mutasi_keluar.kelas_terakhir_id` beku otomatis
 dari riwayat aktif terakhir, input manual menang bila diisi (validasi
 `nullable|exists:kelas,id` — sebelumnya input selalu terbuang).
-Aturan rombel: `no_absen` unik per (kelas, tahun ajaran, semester), minimal 1;
+Aturan rombel: `no_absen` unik per (kelas, tahun ajaran, semester) dijaga di
+input manual/dialog, TIDAK di import (nilai file disimpan apa adanya;
+duplikat digenerate ulang menyusul);
 kelas tujuan se-lembaga + se-TA, tingkat cocok bila keduanya terisi; hanya
 riwayat aktif yang bisa diset/dipindah/dikosongkan kelasnya.
 Import arsip mutasi keluar (`mutasi-keluar/import-template|periksa|import`,
@@ -305,7 +307,10 @@ aktif). Daftar ulang jenjang: baris nonaktif lama tak diaktifkan ulang (buat
 baris baru) kecuali reaktivasi arsip sendiri ber-NIS sama.
 Import riwayat: upsert kunci (santri, TA, lembaga, semester); pencocokan santri
 via `nis_lokal` + `jenjang` (tanpa NIK; santri wajib sudah punya keanggotaan
-di lembaga itu — buat dulu lewat import keanggotaan bila belum ada); semester
+di lembaga itu — buat dulu lewat import keanggotaan bila belum ada; NIS sama
+di pasangan MI↔MD ikut dikenali lalu keanggotaan target dibuat otomatis);
+serial tanggal Excel (sel General) dan status label/singkatan (`Naik Kelas`,
+`Keluar`) dinormalisasi saat import; semester
 hanya 1/2; kelas by-nama (case-insensitive) atau id se-lembaga+TA; `status_awal`
 bawaan `santri_baru`, `status_akhir` bawaan `aktif`; keanggotaan auto-create
 (NIS unik); `is_active_lembaga` parsing `Ya/Tidak/1/0/aktif/ya/…`, tak dikenal = gagal baris.
