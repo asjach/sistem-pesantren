@@ -351,7 +351,11 @@ bayangan nonaktif per lembaga. Set-aktif/sembunyikan global hanya `super_admin`.
 Status: ✅ live.
 
 **Halaman MI-MD.** Tiga panel: MI Only, MD Semua (+ flag juga-MI), Beda Kelas
-(perbandingan by-nama case-insensitive, null = ''). Aksi: daftarkan ke MD
+(perbandingan by-nama case-insensitive, null = ''). Daftar mengikuti tahun
+ajaran (param `tahun_ajaran`, default TA aktif): keanggotaan dibatasi ke santri
+yang punya riwayat di TA itu ATAU `tahaj_masuk` = TA itu (anggota baru belum
+ditempatkan) sehingga alumni/TA lama tidak ikut muncul; kelas diambil dari
+riwayat TA terpilih (bukan "riwayat aktif terbaru" lintas TA). Aksi: daftarkan ke MD
 (NIS warisi MI, `tgl_masuk` hari ini, idempoten), hapus fisik jejak MD
 (izin `santri.ubah`; ditolak bila bukan-MI-aktif / tanpa anggota MD / ada arsip
 alumni-mutasi MD), samakan kelas (pindah ke kelas senama di TA berjalan sisi

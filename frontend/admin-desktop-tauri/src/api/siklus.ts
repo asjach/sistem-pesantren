@@ -29,14 +29,17 @@ export interface MiMdBarisBeda {
 }
 
 export interface MiMdData {
-  lembaga: { mi_id: number; md_id: number };
+  lembaga: { mi_id: string; md_id: string };
+  tahun_ajaran: string | null;
   mi_only: MiMdBarisMi[];
   md_semua: MiMdBarisMd[];
   beda_kelas: MiMdBarisBeda[];
 }
 
-export function listMiMd() {
-  return api<MiMdData>('/admin/mi-md');
+/** Tiga dataset MI-MD untuk satu tahun ajaran (default TA aktif di backend). */
+export function listMiMd(params: { tahun_ajaran?: string } = {}) {
+  const q = params.tahun_ajaran ? `?tahun_ajaran=${encodeURIComponent(params.tahun_ajaran)}` : '';
+  return api<MiMdData>(`/admin/mi-md${q}`);
 }
 
 /** Sejajarkan kelas by-nama dua arah; hasil per item berhasil/gagal. */

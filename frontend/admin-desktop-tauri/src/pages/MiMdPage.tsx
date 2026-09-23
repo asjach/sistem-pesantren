@@ -17,14 +17,18 @@ import { ActionIcon } from '@/components/RowActions';
 import { ArrowRight, X } from '@/icons';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import { useTahunAjaranAwalString } from '@/hooks/useTahunAjaranAwal';
 import { toast } from 'sonner';
 
-/** Halaman MI-MD: MI saja | MD semua | beda kelas by-nama + aksi samakan dua arah. */
+/** Halaman MI-MD: MI saja | MD semua | beda kelas by-nama + aksi samakan dua arah.
+ *  Daftar mengikuti tahun ajaran pilihan topbar (default TA aktif). */
 export default function MiMdPage() {
   const { user } = useAuth();
   const canSamakan = bisa(user, 'pindah_kelas.ubah');
   const canDaftar = bisa(user, 'santri.tambah');
   const canHentikan = bisa(user, 'santri.ubah');
+  const [taId, setTaId] = useState('');
+  useTahunAjaranAwalString(setTaId);
   const [data, setData] = useState<MiMdData | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
@@ -38,13 +42,13 @@ export default function MiMdPage() {
     setErr('');
     setLoading(true);
     try {
-      setData(await listMiMd());
+      setData(await listMiMd({ tahun_ajaran: taId || undefined }));
     } catch (e) {
       setErr(errorMessage(e));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [taId]);
 
   useEffect(() => {
     void load();
@@ -249,7 +253,11 @@ export default function MiMdPage() {
       {loading && !data ? (
         <p className="text-sm text-muted-foreground">Memuat…</p>
       ) : (
-        <div className="grid min-h-0 flex-1 grid-cols-[repeat(auto-fit,minmax(min(360px,100%),1fr))] gap-4">
+        <>
+          <p className="text-xs text-muted-foreground" id="info_ta_mi_md">
+            Tahun ajaran: {data?.tahun_ajaran ?? 'Semua'}
+          </p>
+          <div className="grid min-h-0 flex-1 grid-cols-[repeat(auto-fit,minmax(min(360px,100%),1fr))] gap-4">
           {panel('mi', 'MI Only', data?.mi_only.length ?? 0, cariMi, setCariMi, FIELDS_MI, rowsMi, nilaiStatis,
             canDaftar
               ? (r) => (
@@ -370,7 +378,8 @@ export default function MiMdPage() {
               )
               : undefined,
           )}
-        </div>
+          </div>
+        </>
       )}
     </div>
   );

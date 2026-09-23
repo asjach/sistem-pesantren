@@ -146,8 +146,8 @@ class MiMdTest extends TestCase
     {
         $f = $this->baseFixture();
         $s = Santri::create(['nama_lengkap' => 'Ganda', 'jk' => 'L']);
-        LembagaSantri::create(['santri_id' => $s->id, 'jenjang' => $f['mi']->jenjang, 'is_active_lembaga' => 'Ya']);
-        LembagaSantri::create(['santri_id' => $s->id, 'jenjang' => $f['md']->jenjang, 'is_active_lembaga' => 'Ya']);
+        LembagaSantri::create(['santri_id' => $s->id, 'jenjang' => $f['mi']->jenjang, 'is_active_lembaga' => 'Ya', 'tahaj_masuk' => $f['taMi']->nama]);
+        LembagaSantri::create(['santri_id' => $s->id, 'jenjang' => $f['md']->jenjang, 'is_active_lembaga' => 'Ya', 'tahaj_masuk' => $f['taMd']->nama]);
 
         // Admin MI saja melihat kedua sisi.
         $resMi = $this->actingAs($this->makeUser('admin', [$f['mi']->jenjang]), 'sanctum')
@@ -387,5 +387,35 @@ class MiMdTest extends TestCase
         $this->assertSame(0, (int) $res2->json('berhasil'));
         $this->assertCount(1, $res2->json('gagal'));
         $this->assertSame(0, RiwayatBelajar::where('santri_id', $s2->id)->where('jenjang', $f['mi']->jenjang)->count());
+    }
+
+    // ---------- Filter tahun ajaran: alumni TA lama tidak muncul ----------
+
+    public function test_filter_tahun_ajaran_sesuai_pilihan(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang, $f['md']->jenjang]);
+        $lama = TahunAjaran::create([
+            'nama' => '2005/2006',
+            'tanggal_mulai' => '2005-07-01', 'tanggal_selesai' => '2006-06-30', 'is_aktif' => false,
+        ]);
+
+        // Alumni: keanggotaan MI aktif + riwayat HANYA di TA lama.
+        $alumni = $this->santriDengan($f, 'Alumni Lama', $f['mi']->jenjang);
+        $this->tempatkan($alumni, $f['mi']->jenjang, $lama->nama, '6A');
+        // Berjalan: riwayat di TA aktif.
+        $aktif = $this->santriDengan($f, 'Berjalan Kini', $f['mi']->jenjang);
+        $this->tempatkan($aktif, $f['mi']->jenjang, $f['taMi']->nama, '1A');
+
+        // Default (TA aktif) → hanya yang berjalan; alumni tidak muncul.
+        $res = $this->actingAs($admin, 'sanctum')->getJson('/api/admin/mi-md')->assertStatus(200);
+        $this->assertSame($f['taMi']->nama, $res->json('tahun_ajaran'));
+        $this->assertSame(['Berjalan Kini'], array_column($res->json('mi_only'), 'nama'));
+
+        // Pilih TA lama → hanya alumni.
+        $resLama = $this->actingAs($admin, 'sanctum')
+            ->getJson('/api/admin/mi-md?tahun_ajaran='.$lama->nama)->assertStatus(200);
+        $this->assertSame($lama->nama, $resLama->json('tahun_ajaran'));
+        $this->assertSame(['Alumni Lama'], array_column($resLama->json('mi_only'), 'nama'));
     }
 }

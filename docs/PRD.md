@@ -161,6 +161,8 @@
 | 2.107 | 2026-09-23 | Kriteria cocok import santri disederhanakan: santri_id eksak → nis+jenjang (cocok triple NIK dihapus; NIK hanya disimpan); suite 319/319 |
 | 2.108 | 2026-09-23 | Import santri bertahap 1000 baris/potongan (SantriImporService + sesi tipe santri + dialog terpisah; endpoint upload utuh dihapus); riwayat 2000→1000/potongan; kolom riwayat_dibuat di import_sesi; suite 322/322 |
 | 2.109 | 2026-09-23 | Fix batal-salin: baris genap dari import (ganjil masih aktif) bisa dibatalkan — hapus genap, pastikan ganjil aktif; suite 323/323 |
+| 2.110 | 2026-09-23 | Fix `[object Object]`: lepas eager-load `tahunAjaran` di daftar (snake-case menimpa atribut FK) + helper tampilan `namaTahunAjaran`/`namaLembaga`; suite 323/323 |
+| 2.111 | 2026-09-23 | Halaman MI-MD ikut TA topbar (default TA aktif): santri difilter ke TA terpilih (riwayat di TA atau `tahaj_masuk`), kelas dari TA itu — alumni/TA lama tak muncul; suite 324/324 |
 
 ## Daftar Isi
 

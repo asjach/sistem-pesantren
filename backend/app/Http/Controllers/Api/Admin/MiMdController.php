@@ -65,23 +65,46 @@ class MiMdController extends Controller
             ]);
         }
 
-        // Keanggotaan aktif per sisi + santri + riwayat aktif terbaru + kelas.
+        // TA mengikuti pilihan topbar; tanpa pilihan → TA aktif (bukan semua TA).
+        $ta = trim((string) $request->input('tahun_ajaran', ''));
+        if ($ta === '') {
+            $ta = TahunAjaran::aktif($miId)?->nama ?? TahunAjaran::aktif($mdId)?->nama;
+        }
+
+        // Keanggotaan aktif per sisi + santri. Bila TA terpilih, batasi ke santri
+        // yang "ada di TA itu": punya riwayat di TA itu ATAU keanggotaan
+        // `tahaj_masuk` = TA itu (anggota baru belum ditempatkan). Alumni/TA lama
+        // tanpa jejak di TA terpilih tidak ikut muncul.
         $anggota = LembagaSantri::whereIn('jenjang', [$miId, $mdId])
             ->where('is_active_lembaga', LembagaSantri::YA)
+            ->when($ta !== null, fn ($q) => $q->where(function ($q2) use ($ta, $miId, $mdId) {
+                $q2->where('tahaj_masuk', $ta)
+                    ->orWhereHas('santri.riwayatBelajar', fn ($q3) => $q3
+                        ->whereIn('jenjang', [$miId, $mdId])
+                        ->where('tahun_ajaran', $ta));
+            }))
             ->with([
                 'santri:id,nama_lengkap',
-                'santri.riwayatAktif' => fn ($q) => $q->with('kelas:id,nama_kelas')->latest('id'),
             ])
             ->get()
             ->groupBy('santri_id');
 
-        $kelasAktif = function ($santri, string $lembagaId): ?string {
-            $riwayat = $santri->riwayatAktif
-                ->where('jenjang', $lembagaId)
-                ->sortByDesc('id')
-                ->first();
+        // Riwayat TA terpilih (MI/MD) → sumber kelas tiap sisi.
+        $riwayat = RiwayatBelajar::whereIn('santri_id', $anggota->keys()->all())
+            ->whereIn('jenjang', [$miId, $mdId])
+            ->when($ta !== null, fn ($q) => $q->where('tahun_ajaran', $ta))
+            ->with('kelas:id,nama_kelas')
+            ->orderBy('semester')->orderBy('id')
+            ->get()
+            ->groupBy('santri_id');
 
-            return $riwayat?->kelas?->nama_kelas;
+        $kelasAktif = function (int $santriId, string $lembagaId) use ($riwayat): ?string {
+            $rows = $riwayat->get($santriId);
+            if ($rows === null) {
+                return null;
+            }
+
+            return $rows->where('jenjang', $lembagaId)->last()?->kelas?->nama_kelas;
         };
 
         $miOnly = [];
@@ -93,6 +116,7 @@ class MiMdController extends Controller
             if (! $santri) {
                 continue;
             }
+            $santriId = (int) $santriId;
             $punyaMi = $baris->contains('jenjang', $miId);
             $punyaMd = $baris->contains('jenjang', $mdId);
             $nisMi = $baris->firstWhere('jenjang', $miId)?->nis_lokal;
@@ -100,29 +124,29 @@ class MiMdController extends Controller
 
             if ($punyaMd) {
                 $mdSemua[] = [
-                    'santri_id' => (int) $santriId,
+                    'santri_id' => $santriId,
                     'nama' => $santri->nama_lengkap,
                     'nis_md' => $nisMd,
-                    'kelas_md' => $kelasAktif($santri, $mdId),
+                    'kelas_md' => $kelasAktif($santriId, $mdId),
                     'juga_mi' => $punyaMi,
                 ];
             }
             if ($punyaMi && ! $punyaMd) {
                 $miOnly[] = [
-                    'santri_id' => (int) $santriId,
+                    'santri_id' => $santriId,
                     'nama' => $santri->nama_lengkap,
                     'nis_mi' => $nisMi,
-                    'kelas_mi' => $kelasAktif($santri, $miId),
+                    'kelas_mi' => $kelasAktif($santriId, $miId),
                 ];
             }
             if ($punyaMi && $punyaMd) {
-                $kelasMi = $kelasAktif($santri, $miId);
-                $kelasMd = $kelasAktif($santri, $mdId);
+                $kelasMi = $kelasAktif($santriId, $miId);
+                $kelasMd = $kelasAktif($santriId, $mdId);
                 // Banding by-NAMA (id jelas beda antar lembaga); null = ''.
                 $norm = fn (?string $n) => mb_strtolower(trim((string) ($n ?? '')));
                 if ($norm($kelasMi) !== $norm($kelasMd)) {
                     $bedaKelas[] = [
-                        'santri_id' => (int) $santriId,
+                        'santri_id' => $santriId,
                         'nama' => $santri->nama_lengkap,
                         'kelas_mi' => $kelasMi,
                         'kelas_md' => $kelasMd,
@@ -138,6 +162,7 @@ class MiMdController extends Controller
 
         return response()->json([
             'lembaga' => ['mi_id' => $miId, 'md_id' => $mdId],
+            'tahun_ajaran' => $ta,
             'mi_only' => $miOnly,
             'md_semua' => $mdSemua,
             'beda_kelas' => $bedaKelas,
