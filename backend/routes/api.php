@@ -91,11 +91,12 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::get('santri', [SantriController::class, 'index'])->middleware('permission:santri.lihat');
         Route::post('santri', [SantriController::class, 'store'])->middleware('permission:santri.tambah');
         Route::patch('santri/{santri}', [SantriController::class, 'update'])->middleware('permission:santri.ubah');
-        // Import gabungan siswa (identitas + keanggotaan, wajib jenjang): dua middleware = AND (tambah DAN ubah).
+        // Import gabungan siswa bertahap (potongan JSON 1000/panggilan): dua middleware = AND (tambah DAN ubah).
         Route::get('santri/import-template-gabungan', [SantriController::class, 'templateGabungan'])->middleware('permission:santri.lihat');
         Route::get('santri/data-gabungan', [SantriController::class, 'dataGabungan'])->middleware('permission:santri.lihat');
-        Route::post('santri/import-periksa-gabungan', [SantriController::class, 'periksaImportGabungan'])->middleware(['permission:santri.tambah', 'permission:santri.ubah', 'throttle:imports']);
-        Route::post('santri/import-gabungan', [SantriController::class, 'importGabungan'])->middleware(['permission:santri.tambah', 'permission:santri.ubah', 'throttle:imports']);
+        Route::post('santri/import-potong', [SantriController::class, 'potongImport'])->middleware(['permission:santri.tambah', 'permission:santri.ubah', 'throttle:imports']);
+        Route::post('santri/import-potong/{sesi}/batal', [SantriController::class, 'batalPotong'])->middleware(['permission:santri.tambah', 'permission:santri.ubah']);
+        Route::get('santri/import-potong/{sesi}/galat', [SantriController::class, 'galatPotong'])->middleware('permission:santri.lihat');
         // Samakan NIS paket MI↔MD (pratinjau + eksekusi).
         Route::post('santri/samakan-nis', [SantriController::class, 'samakanNis'])->middleware('permission:santri.ubah');
         Route::post('santri/{santri}/foto', [SantriController::class, 'uploadFoto'])->middleware('permission:santri.tambah');

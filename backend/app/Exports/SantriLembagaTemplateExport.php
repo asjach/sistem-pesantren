@@ -2,10 +2,10 @@
 
 namespace App\Exports;
 
-use App\Imports\SantriLembagaImport;
 use App\Models\Lembaga;
 use App\Models\Santri;
 use App\Services\RefService;
+use App\Services\SantriImporService;
 use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\WithCustomValueBinder;
 use Maatwebsite\Excel\Concerns\WithEvents;
@@ -71,7 +71,7 @@ class SantriLembagaTemplateExport extends DefaultValueBinder implements FromArra
         // jenjang/nama_lengkap/jk memakai `required_without` (bukan `required`
         // polos) sehingga tidak tertangkap pemindaian rule — tandai eksplisit.
         $wajib = ['jenjang', 'nama_lengkap', 'jk'];
-        foreach ((new SantriLembagaImport)->rules() as $kolom => $aturan) {
+        foreach (SantriImporService::rules() as $kolom => $aturan) {
             if (in_array('required', $aturan, true)) {
                 $wajib[] = $kolom;
             }

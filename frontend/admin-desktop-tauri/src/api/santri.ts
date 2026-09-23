@@ -202,17 +202,59 @@ export function unduhDataSantriGabungan(jenjangs?: string[]) {
   );
 }
 
-export function importSantriGabungan(input: { file: File }) {
-  const fd = new FormData();
-  fd.set('file', input.file);
-  return apiUpload<{ pesan: string; errors?: ImportError[] }>('/admin/santri/import-gabungan', fd);
+// ---------- Import santri bertahap (potongan JSON 1000/panggilan) ----------
+
+export interface SantriPotongRingkasan {
+  baris_diproses: number;
+  baris_valid: number;
+  baris_gagal: number;
+  baris_dilewati: number;
+  dibuat: number;
+  diperbarui: number;
+  riwayat_dibuat: number;
 }
 
-/** Validasi file gabungan tanpa menulis (dry-run). */
-export function periksaImportSantriGabungan(input: { file: File }) {
-  const fd = new FormData();
-  fd.set('file', input.file);
-  return apiUpload<ImportPeriksa>('/admin/santri/import-periksa-gabungan', fd);
+export interface SantriPotongGalat {
+  baris: number;
+  nis_lokal: string | null;
+  kolom: string;
+  pesan: string;
+}
+
+export interface SantriPotongHasil {
+  sesi_id: number;
+  offset: number;
+  total: number;
+  selesai: boolean;
+  ringkasan: SantriPotongRingkasan;
+  galat_baru: number;
+  galat_contoh: SantriPotongGalat[];
+  galat_unduh: boolean;
+}
+
+export function importSantriPotong(input: {
+  sesi_id?: number;
+  mode: 'periksa' | 'eksekusi';
+  total?: number;
+  baris: Record<string, unknown>[];
+  terakhir?: boolean;
+}) {
+  return api<SantriPotongHasil>('/admin/santri/import-potong', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+/** Batalkan sesi import santri bertahap milik sendiri. */
+export function batalPotongImportSantri(sesiId: number) {
+  return api<{ pesan: string }>(`/admin/santri/import-potong/${sesiId}/batal`, {
+    method: 'POST',
+  });
+}
+
+/** Unduh CSV galat sesi import santri milik sendiri. */
+export function unduhGalatPotongSantri(sesiId: number) {
+  return downloadFile(`/admin/santri/import-potong/${sesiId}/galat`, 'galat-import-santri.csv');
 }
 
 // ---------- Keanggotaan per lembaga ----------

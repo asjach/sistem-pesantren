@@ -303,7 +303,7 @@ export interface ImportPotongHasil {
   galat_unduh: boolean;
 }
 
-/** Kirim satu potongan baris (maks 2000); panggilan pertama tanpa sesi_id
+/** Kirim satu potongan baris (maks 1000); panggilan pertama tanpa sesi_id
  *  membuat sesi (wajib mode + total). */
 export function potongImportRiwayat(input: {
   sesi_id?: number;

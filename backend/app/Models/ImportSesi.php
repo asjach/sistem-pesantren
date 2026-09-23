@@ -34,6 +34,7 @@ class ImportSesi extends Model
             'baris_dilewati' => max(0, $this->offset - $valid - $this->gagal),
             'dibuat' => $this->dibuat,
             'diperbarui' => $this->diperbarui,
+            'riwayat_dibuat' => (int) ($this->riwayat_dibuat ?? 0),
         ];
     }
 }

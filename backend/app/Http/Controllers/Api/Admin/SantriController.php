@@ -7,19 +7,20 @@ use App\Exports\SantriLembagaTemplateExport;
 use App\Http\Controllers\Api\Concerns\TenantGuard;
 use App\Http\Controllers\Api\Concerns\UrutDaftar;
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Admin\ImportSantriRequest;
 use App\Http\Requests\Admin\SantriDokumenRequest;
 use App\Http\Requests\Admin\SantriFotoRequest;
+use App\Http\Requests\Admin\SantriPotongRequest;
 use App\Http\Requests\Admin\SantriStoreRequest;
 use App\Http\Requests\Admin\SantriTidakMemilikiRequest;
 use App\Http\Requests\Admin\SantriUpdateRequest;
-use App\Imports\SantriLembagaImport;
 use App\Models\DokumenSantri;
+use App\Models\ImportSesi;
 use App\Models\Lembaga;
 use App\Models\Santri;
 use App\Models\User;
 use App\Services\PenerimaanService;
 use App\Services\RefService;
+use App\Services\SantriImporService;
 use App\Services\UrutKatalog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -27,9 +28,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Facades\Excel;
 use Maatwebsite\Excel\Validators\Failure;
-use Maatwebsite\Excel\Validators\ValidationException;
-use PhpOffice\PhpSpreadsheet\IOFactory;
-use PhpOffice\PhpSpreadsheet\Reader\IReadFilter;
 
 /**
  * Buku Induk santri — identitas murni (`santri`).
@@ -358,106 +356,149 @@ class SantriController extends Controller
         return $boleh;
     }
 
-    /** POST /api/admin/santri/import-periksa-gabungan — validasi file TANPA menulis (dry-run). */
-    public function periksaImportGabungan(ImportSantriRequest $request): JsonResponse
-    {
-        return $this->prosesImportGabungan($request, periksa: true);
-    }
+    // ---------------- Import bertahap (potongan JSON) ----------------
 
-    /** POST /api/admin/santri/import-gabungan — import siswa massal (identitas + keanggotaan). */
-    public function importGabungan(ImportSantriRequest $request): JsonResponse
-    {
-        return $this->prosesImportGabungan($request, periksa: false);
-    }
-
-    /** Alur bersama import gabungan. Mode periksa: transaksi selalu di-rollback. */
-    private function prosesImportGabungan(ImportSantriRequest $request, bool $periksa): JsonResponse
+    /**
+     * POST /api/admin/santri/import-potong — satu potongan baris
+     * (maks 1000) dari browser. Panggilan pertama tanpa `sesi_id` membuat
+     * sesi (wajib `mode` + `total`); berikutnya wajib `sesi_id` milik sendiri.
+     * Frontend mengirim SEMUA baris data berurutan (termasuk yang kosong)
+     * agar nomor galat absolut selaras nomor file (1 = heading).
+     */
+    public function potongImport(SantriPotongRequest $request, SantriImporService $layanan): JsonResponse
     {
         $this->authorizeTulisGabungan($request);
+        $data = $request->validated();
+        $pengguna = $request->user();
 
-        // File ribuan baris butuh waktu: longgarkan batas eksekusi PHP khusus
-        // request ini (aman diabaikan bila host melarang; tanpa ini server dev
-        // `php -S` memutus request > 30 detik).
-        ini_set('max_execution_time', '300');
+        $this->buangSesiBasi();
 
-        $salah = $this->cekHeadingGabungan($request->file('file'));
-        if ($salah !== null) {
-            return response()->json(['pesan' => $salah, 'siap_import' => false, 'errors' => []], 422);
-        }
-
-        $import = new SantriLembagaImport;
-        $errors = [];
-
-        if ($periksa) {
-            DB::beginTransaction();
-        }
-
-        try {
-            Excel::import($import, $request->file('file'));
-        } catch (ValidationException $e) {
-            $errors = $this->formatFailures($e->failures());
-        } finally {
-            if ($periksa) {
-                DB::rollBack();
+        if (! empty($data['sesi_id'])) {
+            $sesi = ImportSesi::whereKey($data['sesi_id'])->where('user_id', $pengguna->id)->first();
+            if ($sesi === null) {
+                return response()->json(['message' => 'Sesi import tidak ditemukan.'], 404);
             }
-        }
-
-        if ($errors === []) {
-            $errors = $this->formatFailures($import->failures());
-        }
-
-        if ($periksa) {
-            return response()->json([
-                'pesan' => $errors === [] ? 'Pengecekan selesai: file siap diimport.' : 'Pengecekan menemukan masalah.',
-                'siap_import' => $errors === [],
-                'ringkasan' => $import->ringkasan(),
-                'errors' => $errors,
+            if ($sesi->status !== ImportSesi::JALAN) {
+                return response()->json(['message' => 'Sesi sudah selesai atau dibatalkan.'], 422);
+            }
+            if ($sesi->mode !== $data['mode']) {
+                return response()->json(['message' => 'Mode potongan berbeda dari sesi.'], 422);
+            }
+        } else {
+            $sesi = ImportSesi::create([
+                'user_id' => $pengguna->id,
+                'tipe' => 'santri',
+                'mode' => $data['mode'],
+                'total' => $data['total'],
             ]);
         }
 
-        if ($errors !== []) {
-            return response()->json([
-                'pesan' => 'Gagal mengimport beberapa data.',
-                'errors' => $errors,
-            ], 422);
-        }
+        $kering = $sesi->mode === 'periksa';
+        $normal = array_map(fn ($baris) => $layanan->normalisasiBaris((array) $baris), $data['baris']);
+        $layanan->prosesPotongan($normal, $sesi->offset + 1, $kering);
 
-        return response()->json(['pesan' => 'Data siswa berhasil diimport.']);
+        $baru = $layanan->gagal;
+        if ($baru !== []) {
+            $this->tambahGalatSesi($sesi, $baru);
+        }
+        $sesi->offset += count($data['baris']);
+        $sesi->dibuat += $layanan->dibuat;
+        $sesi->diperbarui += $layanan->diperbarui;
+        $sesi->riwayat_dibuat += $layanan->barisRiwayat;
+        $sesi->gagal += count($baru);
+
+        $selesai = $request->boolean('terakhir') || $sesi->offset >= $sesi->total;
+        if ($selesai) {
+            $sesi->status = ImportSesi::SELESAI;
+        }
+        $sesi->save();
+
+        return response()->json([
+            'sesi_id' => $sesi->id,
+            'offset' => $sesi->offset,
+            'total' => $sesi->total,
+            'selesai' => $selesai,
+            'ringkasan' => $sesi->ringkasan(),
+            'galat_baru' => count($baru),
+            'galat_contoh' => array_slice($sesi->galat_contoh ?? [], 0, 10),
+            'galat_unduh' => $selesai && $sesi->gagal > 0,
+        ]);
     }
 
-    /**
-     * Penjaga salah-template: file identitas (tanpa blok keanggotaan) ditolak
-     * dengan pesan jelas sebelum validasi per baris.
-     */
-    /**
-     * Penjaga salah-file: endpoint gabungan menerima file gabungan maupun
-     * identitas (tanpa blok lembaga → hanya santri). Syarat minimal hanya
-     * kolom identitas kunci.
-     */
-    private function cekHeadingGabungan($file): ?string
+    /** POST /api/admin/santri/import-potong/{sesi}/batal. */
+    public function batalPotong(Request $request, ImportSesi $sesi): JsonResponse
     {
-        try {
-            // Hanya baris 1 (tanpa data/style) agar file besar tak makan memori.
-            $reader = IOFactory::createReaderForFile($file->getRealPath());
-            $reader->setReadDataOnly(true);
-            $reader->setReadFilter(new class implements IReadFilter
-            {
-                public function readCell($columnAddress, $row, $worksheetName = ''): bool
-                {
-                    return $row === 1;
+        if ($sesi->user_id !== $request->user()->id) {
+            return response()->json(['message' => 'Sesi import tidak ditemukan.'], 404);
+        }
+        $this->hapusBerkasGalat($sesi);
+        $sesi->update(['status' => ImportSesi::BATAL]);
+
+        return response()->json(['pesan' => 'Sesi import dibatalkan.']);
+    }
+
+    /** GET /api/admin/santri/import-potong/{sesi}/galat — unduh CSV galat. */
+    public function galatPotong(Request $request, ImportSesi $sesi)
+    {
+        if ($sesi->user_id !== $request->user()->id || $sesi->galat_file === null) {
+            abort(404);
+        }
+        $path = storage_path('app/'.$sesi->galat_file);
+        if (! is_file($path)) {
+            abort(404);
+        }
+
+        return response()->download($path, 'galat-import-santri.csv', ['Content-Type' => 'text/csv']);
+    }
+
+    /** Tambah galat potongan ke berkas CSV sesi + contoh (maks 200). */
+    private function tambahGalatSesi(ImportSesi $sesi, array $baru): void
+    {
+        $relatif = $sesi->galat_file ?? "imports/galat-{$sesi->id}.csv";
+        $path = storage_path('app/'.$relatif);
+        if (! is_dir(dirname($path))) {
+            mkdir(dirname($path), 0755, true);
+        }
+        $baruBerkas = ! is_file($path);
+        $tulis = fopen($path, 'ab');
+        if ($baruBerkas) {
+            fputcsv($tulis, ['baris', 'nis_lokal', 'kolom', 'pesan']);
+        }
+        foreach ($baru as $galat) {
+            fputcsv($tulis, [$galat['baris'], $galat['nis_lokal'] ?? '', $galat['kolom'], $galat['pesan']]);
+        }
+        fclose($tulis);
+
+        $contoh = $sesi->galat_contoh ?? [];
+        foreach ($baru as $galat) {
+            if (count($contoh) >= 200) {
+                break;
+            }
+            $contoh[] = $galat;
+        }
+        $sesi->galat_file = $relatif;
+        $sesi->galat_contoh = $contoh;
+    }
+
+    private function hapusBerkasGalat(ImportSesi $sesi): void
+    {
+        if ($sesi->galat_file !== null) {
+            $path = storage_path('app/'.$sesi->galat_file);
+            if (is_file($path)) {
+                @unlink($path);
+            }
+        }
+    }
+
+    /** Bersihkan sesi basi (melewati TTL) beserta berkas galatnya. */
+    private function buangSesiBasi(): void
+    {
+        ImportSesi::where('created_at', '<', now()->subHours(ImportSesi::TTL_JAM))
+            ->chunkById(100, function ($daftar) {
+                foreach ($daftar as $sesi) {
+                    $this->hapusBerkasGalat($sesi);
+                    $sesi->delete();
                 }
             });
-            $sheet = $reader->load($file->getRealPath())->getSheet(0);
-            $baris = $sheet->rangeToArray('A1:ZZ1', null, true, false)[0] ?? [];
-        } catch (\Throwable $e) {
-            return 'File tidak dapat dibaca sebagai Excel.';
-        }
-
-        $judul = array_map(fn ($v) => strtolower(trim((string) $v)), $baris);
-        if (! in_array('nama_lengkap', $judul, true)) {
-            return 'File bukan template siswa (kolom nama_lengkap tidak ada).';
-        }
-
-        return null;
     }
 }

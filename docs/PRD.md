@@ -159,6 +159,7 @@
 | 2.105 | 2026-09-23 | Perbaiki corrupt NIS berurutan: cocok via pasangan tak menimpa NIS target (kasus NIS beda antar-tahun); verifikasi file 34.868 baris; suite 316/316 |
 | 2.106 | 2026-09-23 | Masuk-lagi-setelah-keluar = periode baru: arsip nonaktif + NIS beda → baris keanggotaan baru (bukan timpa NIS); bentrok NIS santri-scoped; repair SALSYA + 20 riwayat; suite 319/319 |
 | 2.107 | 2026-09-23 | Kriteria cocok import santri disederhanakan: santri_id eksak → nis+jenjang (cocok triple NIK dihapus; NIK hanya disimpan); suite 319/319 |
+| 2.108 | 2026-09-23 | Import santri bertahap 1000 baris/potongan (SantriImporService + sesi tipe santri + dialog terpisah; endpoint upload utuh dihapus); riwayat 2000→1000/potongan; kolom riwayat_dibuat di import_sesi; suite 322/322 |
 
 ## Daftar Isi
 

@@ -197,11 +197,11 @@ class ImportPotongTest extends TestCase
             'baris' => [$this->baris('27999', 'MI', '2026/2027')],
         ])->assertStatus(422);
 
-        // Lebih dari 2000 baris per panggilan.
+        // Lebih dari 1000 baris per panggilan.
         $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/riwayat-belajar/import-potong', [
             'mode' => 'periksa',
-            'total' => 2001,
-            'baris' => array_fill(0, 2001, $this->baris('27999', 'MI', '2026/2027')),
+            'total' => 1001,
+            'baris' => array_fill(0, 1001, $this->baris('27999', 'MI', '2026/2027')),
         ])->assertStatus(422);
     }
 

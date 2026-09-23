@@ -4,14 +4,14 @@ namespace App\Http\Requests\Admin;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class RiwayatPotongRequest extends FormRequest
+class SantriPotongRequest extends FormRequest
 {
     public function authorize(): bool
     {
         return true;
     }
 
-    /** Import bertahap: potongan baris JSON (maks 1000/panggilan). */
+    /** Import santri bertahap: potongan baris JSON (maks 1000/panggilan). */
     public function rules(): array
     {
         return [

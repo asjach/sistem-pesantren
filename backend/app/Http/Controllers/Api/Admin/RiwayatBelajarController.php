@@ -436,7 +436,7 @@ class RiwayatBelajarController extends Controller
 
     /**
      * POST /api/admin/riwayat-belajar/import-potong — satu potongan baris
-     * (maks 2000) dari browser. Panggilan pertama tanpa `sesi_id` membuat
+     * (maks 1000) dari browser. Panggilan pertama tanpa `sesi_id` membuat
      * sesi (wajib `mode` + `total`); berikutnya wajib `sesi_id` milik sendiri.
      * Frontend mengirim SEMUA baris data berurutan (termasuk yang kosong)
      * agar nomor galat absolut selaras nomor Excel (1 = heading).

@@ -282,11 +282,14 @@ input manual/dialog, TIDAK di import (nilai file disimpan apa adanya;
 duplikat digenerate ulang menyusul); baris arsip tak membangunkan arsip
 keanggotaan, baris aktif mengaktifkan ulang arsip sendiri (pola terima).
 Import bertahap (`import-potong`, tombol Import bertahap): browser membaca
-XLSX (SheetJS) lalu mengirim potongan JSON maks 2000 baris/panggilan dalam
+file (SheetJS) lalu mengirim potongan JSON maks 1000 baris/panggilan dalam
 sesi (`import_sesi`: offset + akumulator + CSV galat bisa diunduh, TTL 24
 jam); logika per baris menumpang service yang sama dengan import file
 (mode periksa = kering tanpa tulis); kontrak: kirim SEMUA baris berurutan
-agar nomor galat absolut.
+agar nomor galat absolut. Berlaku untuk santri (`SantriImporService`,
+`tipe='santri'`, ringkasan sesi memuat `riwayat_dibuat`) dan riwayat belajar
+(`RiwayatBelajarImporService`, `tipe='riwayat'`); endpoint upload file utuh
+santri/riwayat sudah dihapus.
 kelas tujuan se-lembaga + se-TA, tingkat cocok bila keduanya terisi; hanya
 riwayat aktif yang bisa diset/dipindah/dikosongkan kelasnya.
 Import arsip mutasi keluar (`mutasi-keluar/import-template|periksa|import`,
