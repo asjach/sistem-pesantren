@@ -188,7 +188,7 @@ export default function TopBar() {
                 >
                   <Landmark size={14} />
                   <span className="hidden max-w-[9rem] truncate sm:inline">
-                    {lembaga ? (lembaga.nama) : 'Semua'}
+                    {lembaga ? lembaga.jenjang : 'Semua'}
                   </span>
                   <ChevronDown size={13} className="opacity-70" />
                 </button>
