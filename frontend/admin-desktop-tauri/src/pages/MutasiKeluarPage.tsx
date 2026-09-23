@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/field';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import ExcelTable from '@/components/ExcelTable';
 import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
@@ -121,8 +122,9 @@ export default function MutasiKeluarPage() {
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
-      <div className="grid min-h-0 flex-1 grid-cols-2 gap-4">
-        <section className="flex min-h-0 min-w-0 flex-col rounded-md border">
+      <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1" id="grup_mutasi_kolom">
+        <ResizablePanel defaultSize="33" minSize="20">
+        <section className="flex h-full min-h-0 min-w-0 flex-col rounded-md border">
           <header className="shrink-0 border-b bg-muted/40 px-3 py-2 text-sm font-medium">Santri aktif ({kiri.length})</header>
           <div className="flex min-h-0 flex-1 flex-col px-2 pb-2">
             <ExcelTable
@@ -148,8 +150,12 @@ export default function MutasiKeluarPage() {
             />
           </div>
         </section>
+        </ResizablePanel>
 
-        <section className="flex min-h-0 min-w-0 flex-col rounded-md border">
+        <ResizableHandle orientation="horizontal" withHandle id="gagang_mutasi_kolom" />
+
+        <ResizablePanel defaultSize="67" minSize="20">
+        <section className="flex h-full min-h-0 min-w-0 flex-col rounded-md border">
           <header className="flex shrink-0 items-center justify-between border-b bg-muted/40 px-3 py-2 text-sm font-medium">
             <span>Arsip mutasi keluar</span>
             {canImportMutasi && (
@@ -190,7 +196,8 @@ export default function MutasiKeluarPage() {
           </div>
           <Pager page={pager.page} lastPage={lastPage} total={total} perPage={pager.perPage} onPage={(p) => { pager.setPage(p); void loadArsip(p); }} onPerPage={(pp) => { pager.setPerPage(pp); void loadArsip(1, pp); }} />
         </section>
-      </div>
+        </ResizablePanel>
+      </ResizablePanelGroup>
 
       {/* Import arsip mutasi (Periksa → Import) */}
       <Dialog open={fileOpen} onOpenChange={setFileOpen}>
