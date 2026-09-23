@@ -8,13 +8,16 @@ use App\Http\Controllers\Api\Concerns\UrutDaftar;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\RiwayatImportRequest;
 use App\Http\Requests\Admin\RiwayatKelasRequest;
+use App\Http\Requests\Admin\RiwayatPotongRequest;
 use App\Http\Requests\Admin\RiwayatStoreRequest;
 use App\Http\Requests\Admin\RiwayatUpdateRequest;
 use App\Imports\RiwayatBelajarImport;
+use App\Models\ImportSesi;
 use App\Models\LembagaSantri;
 use App\Models\RiwayatBelajar;
 use App\Models\Santri;
 use App\Services\PenerimaanService;
+use App\Services\RiwayatBelajarImporService;
 use App\Services\SiklusSantriService;
 use App\Services\UrutKatalog;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -427,5 +430,149 @@ class RiwayatBelajarController extends Controller
         }
 
         return $errors;
+    }
+
+    // ---------------- Import bertahap (potongan JSON) ----------------
+
+    /**
+     * POST /api/admin/riwayat-belajar/import-potong — satu potongan baris
+     * (maks 2000) dari browser. Panggilan pertama tanpa `sesi_id` membuat
+     * sesi (wajib `mode` + `total`); berikutnya wajib `sesi_id` milik sendiri.
+     * Frontend mengirim SEMUA baris data berurutan (termasuk yang kosong)
+     * agar nomor galat absolut selaras nomor Excel (1 = heading).
+     */
+    public function potongImport(RiwayatPotongRequest $request, RiwayatBelajarImporService $layanan): JsonResponse
+    {
+        $data = $request->validated();
+        $pengguna = $request->user();
+
+        $this->buangSesiBasi();
+
+        if (! empty($data['sesi_id'])) {
+            $sesi = ImportSesi::whereKey($data['sesi_id'])->where('user_id', $pengguna->id)->first();
+            if ($sesi === null) {
+                return response()->json(['message' => 'Sesi import tidak ditemukan.'], 404);
+            }
+            if ($sesi->status !== ImportSesi::JALAN) {
+                return response()->json(['message' => 'Sesi sudah selesai atau dibatalkan.'], 422);
+            }
+            if ($sesi->mode !== $data['mode']) {
+                return response()->json(['message' => 'Mode potongan berbeda dari sesi.'], 422);
+            }
+        } else {
+            $sesi = ImportSesi::create([
+                'user_id' => $pengguna->id,
+                'tipe' => 'riwayat',
+                'mode' => $data['mode'],
+                'total' => $data['total'],
+            ]);
+        }
+
+        $kering = $sesi->mode === 'periksa';
+        $normal = array_map(fn ($baris) => $layanan->normalisasiBaris((array) $baris), $data['baris']);
+        $layanan->prosesPotongan($normal, $sesi->offset + 1, $kering);
+
+        $baru = $layanan->gagal;
+        if ($baru !== []) {
+            $this->tambahGalatSesi($sesi, $baru);
+        }
+        $sesi->offset += count($data['baris']);
+        $sesi->dibuat += $layanan->dibuat;
+        $sesi->diperbarui += $layanan->diperbarui;
+        $sesi->gagal += count($baru);
+
+        $selesai = $request->boolean('terakhir') || $sesi->offset >= $sesi->total;
+        if ($selesai) {
+            $sesi->status = ImportSesi::SELESAI;
+        }
+        $sesi->save();
+
+        return response()->json([
+            'sesi_id' => $sesi->id,
+            'offset' => $sesi->offset,
+            'total' => $sesi->total,
+            'selesai' => $selesai,
+            'ringkasan' => $sesi->ringkasan(),
+            'galat_baru' => count($baru),
+            'galat_contoh' => array_slice($sesi->galat_contoh ?? [], 0, 10),
+            'galat_unduh' => $selesai && $sesi->gagal > 0,
+        ]);
+    }
+
+    /** POST /api/admin/riwayat-belajar/import-potong/{sesi}/batal. */
+    public function batalPotong(Request $request, ImportSesi $sesi): JsonResponse
+    {
+        if ($sesi->user_id !== $request->user()->id) {
+            return response()->json(['message' => 'Sesi import tidak ditemukan.'], 404);
+        }
+        $this->hapusBerkasGalat($sesi);
+        $sesi->update(['status' => ImportSesi::BATAL]);
+
+        return response()->json(['pesan' => 'Sesi import dibatalkan.']);
+    }
+
+    /** GET /api/admin/riwayat-belajar/import-potong/{sesi}/galat — unduh CSV galat. */
+    public function galatPotong(Request $request, ImportSesi $sesi)
+    {
+        if ($sesi->user_id !== $request->user()->id || $sesi->galat_file === null) {
+            abort(404);
+        }
+        $path = storage_path('app/'.$sesi->galat_file);
+        if (! is_file($path)) {
+            abort(404);
+        }
+
+        return response()->download($path, 'galat-import-riwayat.csv', ['Content-Type' => 'text/csv']);
+    }
+
+    /** Tambah galat potongan ke berkas CSV sesi + contoh (maks 200). */
+    private function tambahGalatSesi(ImportSesi $sesi, array $baru): void
+    {
+        $relatif = $sesi->galat_file ?? "imports/galat-{$sesi->id}.csv";
+        $path = storage_path('app/'.$relatif);
+        if (! is_dir(dirname($path))) {
+            mkdir(dirname($path), 0755, true);
+        }
+        $baruBerkas = ! is_file($path);
+        $tulis = fopen($path, 'ab');
+        if ($baruBerkas) {
+            fputcsv($tulis, ['baris', 'nis_lokal', 'kolom', 'pesan']);
+        }
+        foreach ($baru as $galat) {
+            fputcsv($tulis, [$galat['baris'], $galat['nis_lokal'] ?? '', $galat['kolom'], $galat['pesan']]);
+        }
+        fclose($tulis);
+
+        $contoh = $sesi->galat_contoh ?? [];
+        foreach ($baru as $galat) {
+            if (count($contoh) >= 200) {
+                break;
+            }
+            $contoh[] = $galat;
+        }
+        $sesi->galat_file = $relatif;
+        $sesi->galat_contoh = $contoh;
+    }
+
+    private function hapusBerkasGalat(ImportSesi $sesi): void
+    {
+        if ($sesi->galat_file !== null) {
+            $path = storage_path('app/'.$sesi->galat_file);
+            if (is_file($path)) {
+                @unlink($path);
+            }
+        }
+    }
+
+    /** Bersihkan sesi basi (melewati TTL) beserta berkas galatnya. */
+    private function buangSesiBasi(): void
+    {
+        ImportSesi::where('created_at', '<', now()->subHours(ImportSesi::TTL_JAM))
+            ->chunkById(100, function ($daftar) {
+                foreach ($daftar as $sesi) {
+                    $this->hapusBerkasGalat($sesi);
+                    $sesi->delete();
+                }
+            });
     }
 }

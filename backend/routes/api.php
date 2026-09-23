@@ -120,6 +120,9 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::patch('riwayat-belajar/{riwayat}', [RiwayatBelajarController::class, 'update'])->middleware('permission:riwayat_belajar.ubah');
         Route::get('riwayat-belajar/import-template', [RiwayatBelajarController::class, 'template'])->middleware('permission:riwayat_belajar.lihat');
         Route::post('riwayat-belajar/import-periksa', [RiwayatBelajarController::class, 'periksaImport'])->middleware(['permission:riwayat_belajar.tambah', 'throttle:imports']);
+        Route::post('riwayat-belajar/import-potong', [RiwayatBelajarController::class, 'potongImport'])->middleware(['permission:riwayat_belajar.tambah', 'throttle:imports']);
+        Route::post('riwayat-belajar/import-potong/{sesi}/batal', [RiwayatBelajarController::class, 'batalPotong'])->middleware('permission:riwayat_belajar.tambah');
+        Route::get('riwayat-belajar/import-potong/{sesi}/galat', [RiwayatBelajarController::class, 'galatPotong'])->middleware('permission:riwayat_belajar.lihat');
         Route::post('riwayat-belajar/import-lengkap', [RiwayatBelajarController::class, 'importLengkap'])->middleware(['permission:riwayat_belajar.tambah', 'throttle:imports']);
         Route::post('riwayat-belajar/{riwayat}/pindah-kelas', [RiwayatBelajarController::class, 'pindahKelas'])->middleware('permission:pindah_kelas.ubah');
         Route::post('riwayat-belajar/{riwayat}/set-kelas', [RiwayatBelajarController::class, 'setKelas'])->middleware('permission:pindah_kelas.ubah');
