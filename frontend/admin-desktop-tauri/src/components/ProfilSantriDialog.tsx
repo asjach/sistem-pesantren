@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { errorMessage } from '@/api/client';
 import { profilSantri, type ProfilSantri } from '@/api/siklus';
 import { ViewDialog, type ViewDialogSection } from '@/components/ViewDialog';
+import { formatStatus } from '@/lib/nilaiTampil';
 import { toast } from 'sonner';
 
 const ymd = (v: string | null | undefined) => (v ? v.slice(0, 10) : '');
@@ -70,8 +71,8 @@ export function ProfilSantriDialog({ santriId, open, onOpenChange }: {
             tingkat: r.tingkat ?? '',
             lembaga: r.lembaga?.jenjang ?? r.lembaga?.nama ?? '',
             kelas: r.kelas?.nama_kelas ?? '',
-            status_awal: r.status_awal ?? '',
-            status_akhir: r.status_akhir ?? '',
+            status_awal: formatStatus(r.status_awal) ?? '',
+            status_akhir: formatStatus(r.status_akhir) ?? '',
             aktif: r.is_active_riwayat,
           })),
         },

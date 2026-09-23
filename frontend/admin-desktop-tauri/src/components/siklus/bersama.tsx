@@ -3,6 +3,7 @@ import { listLembaga, listTahunAjaran, type Lembaga, type TahunAjaran } from '@/
 import type { RiwayatRow } from '@/api/siklus';
 import type { ExcelField } from '@/components/ExcelTable';
 import FilterField from '@/components/FilterField';
+import { formatStatus } from '@/lib/nilaiTampil';
 import {
   Select,
   SelectContent,
@@ -34,7 +35,7 @@ export function riwayatValues(r: RiwayatRow): Record<string, string | null> {
     tingkat: r.tingkat,
     kelas: r.kelas?.nama_kelas ?? '—',
     absen: r.no_absen !== null && r.no_absen !== undefined ? String(r.no_absen) : null,
-    status: r.status_awal,
+    status: formatStatus(r.status_awal),
     masuk: r.tgl_masuk ? r.tgl_masuk.slice(0, 10) : null,
   };
 }

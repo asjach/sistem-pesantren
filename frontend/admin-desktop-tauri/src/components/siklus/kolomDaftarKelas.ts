@@ -1,6 +1,7 @@
 import type { ExcelField } from '@/components/ExcelTable';
 import { updateLembagaSantri, updateSantri } from '@/api/santri';
 import { updateRiwayatBelajar, type RiwayatRow } from '@/api/siklus';
+import { formatStatus } from '@/lib/nilaiTampil';
 
 /** Kolom penuh Daftar Kelas: seluruh `riwayat_belajar` + `santri` + `lembaga_santri`.
  *  Kunci = nama kolom DB (datar, tanpa prefiks; tak ada tabrakan antar tabel).
@@ -245,8 +246,8 @@ export function daftarKelasValues(r: RiwayatRow): Record<string, string | null> 
     tingkat: r.tingkat,
     kelas: r.kelas?.nama_kelas ?? '—',
     no_absen: r.no_absen !== null && r.no_absen !== undefined ? String(r.no_absen) : null,
-    status_awal: r.status_awal,
-    status_akhir: r.status_akhir,
+    status_awal: formatStatus(r.status_awal),
+    status_akhir: formatStatus(r.status_akhir),
     is_active_riwayat: r.is_active_riwayat,
     tgl_masuk: potongTgl(r.tgl_masuk),
     anggota_id: r.lembaga_anggota ? String(r.lembaga_anggota.id) : null,

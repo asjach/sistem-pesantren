@@ -20,3 +20,13 @@ export function formatNilai(v: string | null | undefined, format: string | null 
       return String(v);
   }
 }
+
+/** Kode snake_case → Proper Case berspasi (`santri_baru` → `Santri Baru`).
+ *  Hanya untuk TAMPILAN (grid/dialog); kode asli tetap dipakai di API,
+ *  filter, dan file import. */
+export function formatStatus(v: string | null | undefined): string | null {
+  if (v == null) return null;
+  const s = String(v).trim();
+  if (s === '') return s;
+  return s.split('_').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' ');
+}
