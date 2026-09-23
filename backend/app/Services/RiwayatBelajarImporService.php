@@ -117,7 +117,12 @@ class RiwayatBelajarImporService
             }
 
             if (! $kering) {
-                foreach (array_unique($tersentuh) as $santriId) {
+                // Periode terakhir per (santri, jenjang) yang aktif; sisanya arsip.
+                $siklus = app(SiklusSantriService::class);
+                foreach ($tersentuh as [$santriId, $jenjang]) {
+                    $siklus->sinkronkanAktifRiwayat($santriId, $jenjang);
+                }
+                foreach (array_unique(array_column($tersentuh, 0)) as $santriId) {
                     Santri::find($santriId)?->hitungUlangStatusGlobal();
                 }
             }
@@ -130,7 +135,7 @@ class RiwayatBelajarImporService
         }
     }
 
-    /** @param  array<int, int>  $tersentuh */
+    /** @param  array<string, array{0: int, 1: string}>  $tersentuh */
     protected function prosesBaris(array $row, int $no, string $jenjang, string $ta, array &$tersentuh, bool $kering): bool
     {
         if ($jenjang === '' || ! Lembaga::whereKey($jenjang)->exists()) {
@@ -284,7 +289,7 @@ class RiwayatBelajarImporService
             $this->diperbarui++;
         }
 
-        $tersentuh[] = (int) $santri->id;
+        $tersentuh[$santri->id.'|'.$jenjang] = [(int) $santri->id, $jenjang];
 
         return true;
     }

@@ -587,6 +587,34 @@ class SiklusSantriService
         return $santri->fresh();
     }
 
+    /**
+     * Sinkronkan jejak aktif per (santri, jenjang) — dipakai impor historis &
+     * backfill data lama: hanya baris periode TERAKHIR (tahun ajaran desc, lalu
+     * semester desc) yang aktif, dan itu pun hanya bila `status_akhir='aktif'`;
+     * baris lain diarsipkan. Menegakkan invarian "maks 1 riwayat aktif per
+     * santri+lembaga" yang selama ini dilanggar hasil impor (semua ganjil
+     * bersejarah ikut `Ya`).
+     */
+    public function sinkronkanAktifRiwayat(int $santriId, string $jenjang): void
+    {
+        $baris = RiwayatBelajar::where('santri_id', $santriId)
+            ->where('jenjang', $jenjang)
+            ->orderByDesc('tahun_ajaran')
+            ->orderByDesc('semester')
+            ->orderByDesc('id')
+            ->get();
+
+        $terakhir = $baris->first();
+        $idAktif = $terakhir !== null && $terakhir->status_akhir === 'aktif' ? $terakhir->id : null;
+
+        foreach ($baris as $r) {
+            $nilai = $r->id === $idAktif ? RiwayatBelajar::YA : RiwayatBelajar::TIDAK;
+            if ($r->is_active_riwayat !== $nilai) {
+                $r->update(['is_active_riwayat' => $nilai]);
+            }
+        }
+    }
+
     // ---- Alias nama generik ----
 
     public function mutasiKeluar(Santri $santri, string $jenjang, array $dataMutasi): MutasiKeluar
