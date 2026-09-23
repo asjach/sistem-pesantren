@@ -6,7 +6,6 @@ import {
   CalendarCheck,
   CalendarDays,
   CalendarRange,
-  CheckCircle2,
   ChevronUp,
   ClipboardCheck,
   ClipboardList,
@@ -25,10 +24,8 @@ import {
   ReceiptText,
   ScrollText,
   Server,
-  Undo2,
   UserCheck,
   Users,
-  UserX,
   type Ikon,
 } from '@/icons';
 
@@ -74,12 +71,7 @@ export const HALAMAN: HalamanDef[] = [
   { to: '/tahun-ajaran', label: 'Tahun Ajaran', tab: 'master', grid: true, icon: CalendarDays, permission: 'tahun_ajaran.lihat' },
   { to: '/kelas', label: 'Kelas', tab: 'master', grid: true, icon: BookOpen, permission: 'kelas.lihat' },
   { to: '/referensi', label: 'Referensi', tab: 'master', grid: true, icon: BookMarked, permission: 'referensi.lihat' },
-  { to: '/psb/pendaftar', label: 'Pendaftar', tab: 'santri', sub: 'antrean', grid: true, icon: UserCheck, permission: 'psb.lihat' },
-  { to: '/psb/terdaftar', label: 'Terdaftar', tab: 'santri', sub: 'antrean', grid: true, icon: BadgeCheck, permission: 'psb.lihat' },
-  { to: '/psb/daftar-ulang', label: 'Daftar Ulang', tab: 'santri', sub: 'antrean', grid: true, icon: ClipboardCheck, permission: 'psb.lihat' },
-  { to: '/psb/diterima', label: 'Diterima', tab: 'santri', sub: 'antrean', grid: true, icon: CheckCircle2, permission: 'psb.lihat' },
-  { to: '/psb/mengundurkan-diri', label: 'Mengundurkan Diri', tab: 'santri', sub: 'antrean', grid: true, icon: Undo2, permission: 'psb.lihat' },
-  { to: '/psb/ditolak', label: 'Ditolak', tab: 'santri', sub: 'antrean', grid: true, icon: UserX, permission: 'psb.lihat' },
+  { to: '/psb', label: 'Antrean PSB', deskripsi: 'Antrean calon per tahap (Pendaftar, Terdaftar, Daftar Ulang, Diterima, Mengundurkan Diri, Ditolak).', tab: 'santri', sub: 'psb', grid: true, icon: UserCheck, permission: 'psb.lihat' },
   { to: '/kegiatan-psb', label: 'Kegiatan PSB', tab: 'santri', sub: 'psb', grid: true, icon: CalendarRange, permission: 'kegiatan_psb.lihat' },
   {
     to: '/dokumen-wajib',
@@ -183,7 +175,6 @@ export const NAV_GRUP: GrupNav[] = [
         id: 'psb',
         label: 'PSB',
         icon: ClipboardCheck,
-        anak: [{ id: 'antrean', label: 'Antrean', icon: ClipboardList }],
       },
       // Daftar Kelas & Rekap Santri (halaman langsung) tampil di sini.
       { langsung: true },

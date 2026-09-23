@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { bisa } from '../api/auth';
 import { errorMessage } from '../api/client';
@@ -44,6 +45,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import ExcelTable, { type ExcelChoice, type ExcelField } from '@/components/ExcelTable';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
 import FilterField from '@/components/FilterField';
 import { RibbonSlot } from '@/components/RibbonSlot';
@@ -164,8 +166,16 @@ function psbGridValues(c: PsbCalon): Record<string, string | null> {
 }
 
 // 100 PSB: antrean per tahapan timeline + verifikasi/seleksi/ACC/tolak/promosi + dokumen + import.
-// Satu tahap = satu halaman di bawah submenu Antrean (rute memasok `tahap`).
-export default function PsbPage({ tahap: stage }: { tahap: string }) {
+// Satu halaman dengan 6 tab tahap (rute memasok `tahap`; tab mengubah rute).
+export default function PsbPage() {
+  const navigate = useNavigate();
+  const { tahap } = useParams<{ tahap?: string }>();
+  const stage = useMemo(
+    () => (TAHAP_PSB.some((t) => t.id === tahap) ? (tahap as string) : 'pendaftar'),
+    [tahap],
+  );
+  /** Jumlah calon per status (dari respons antrean) untuk badge tab. */
+  const [badge, setBadge] = useState<Record<string, number>>({});
   const { user: me } = useAuth();
   const canUbahPsb = bisa(me, 'psb.ubah');
   const canHapusPsb = bisa(me, 'psb.hapus');
@@ -213,6 +223,7 @@ export default function PsbPage({ tahap: stage }: { tahap: string }) {
       }).then((r) => ({ ...r.data, badge: r.badge }));
     },
     deps: [stage, subStatus, jenjang, tampilTerhapus],
+    onData: (res) => setBadge(res.badge ?? {}),
   });
 
   const [seleksiRow, setSeleksiRow] = useState<PsbCalon | null>(null);
@@ -706,6 +717,22 @@ export default function PsbPage({ tahap: stage }: { tahap: string }) {
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
+
+      <Tabs value={stage} onValueChange={(v) => navigate(`/psb/${v}`)} className="contents">
+        <TabsList id="tabs_psb" className="mb-2 w-fit">
+          {TAHAP_PSB.map((t) => {
+            const n = t.statuses.reduce((s, st) => s + (badge[st] ?? 0), 0);
+            return (
+              <TabsTrigger key={t.id} id={`tab_psb_${t.id}`} value={t.id}>
+                {t.label}
+                {n > 0 && (
+                  <span className="ml-1 rounded-full bg-foreground/10 px-1.5 text-[11px] tabular-nums">{n}</span>
+                )}
+              </TabsTrigger>
+            );
+          })}
+        </TabsList>
+        <TabsContent value={stage} className="contents">
 
       {/* Tools halaman di ribbon: aksi pendaftar (tahap = halamannya sendiri). */}
       <RibbonSlot label="PSB">
@@ -1214,6 +1241,8 @@ export default function PsbPage({ tahap: stage }: { tahap: string }) {
           </form>
         </DialogContent>
       </Dialog>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

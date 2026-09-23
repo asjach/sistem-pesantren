@@ -102,12 +102,7 @@ export default function App() {
                       <Route path="/referensi" element={<KhususIzin izin="referensi.lihat"><ReferensiPage /></KhususIzin>} />
                       <Route path="/pengaturan/kamus-label" element={<KhususIzin izin="kamus_label.lihat"><KamusLabelPage /></KhususIzin>} />
                       <Route path="/psb" element={<Navigate to="/psb/pendaftar" replace />} />
-                      <Route path="/psb/pendaftar" element={<KhususIzin izin="psb.lihat"><PsbPage key="pendaftar" tahap="pendaftar" /></KhususIzin>} />
-                      <Route path="/psb/terdaftar" element={<KhususIzin izin="psb.lihat"><PsbPage key="terdaftar" tahap="terdaftar" /></KhususIzin>} />
-                      <Route path="/psb/daftar-ulang" element={<KhususIzin izin="psb.lihat"><PsbPage key="daftar-ulang" tahap="daftar_ulang" /></KhususIzin>} />
-                      <Route path="/psb/diterima" element={<KhususIzin izin="psb.lihat"><PsbPage key="diterima" tahap="diterima" /></KhususIzin>} />
-                      <Route path="/psb/mengundurkan-diri" element={<KhususIzin izin="psb.lihat"><PsbPage key="mengundurkan-diri" tahap="mengundurkan_diri" /></KhususIzin>} />
-                      <Route path="/psb/ditolak" element={<KhususIzin izin="psb.lihat"><PsbPage key="ditolak" tahap="ditolak" /></KhususIzin>} />
+                      <Route path="/psb/:tahap" element={<KhususIzin izin="psb.lihat"><PsbPage /></KhususIzin>} />
                       <Route path="/kegiatan-psb" element={<KhususIzin izin="kegiatan_psb.lihat"><KegiatanPsbPage /></KhususIzin>} />
                       <Route path="/santri" element={<KhususIzin izin="santri.lihat"><SantriPage /></KhususIzin>} />
                       <Route path="/keanggotaan" element={<KhususIzin izin="santri.lihat"><KeanggotaanPage /></KhususIzin>} />

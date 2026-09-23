@@ -163,6 +163,7 @@
 | 2.109 | 2026-09-23 | Fix batal-salin: baris genap dari import (ganjil masih aktif) bisa dibatalkan — hapus genap, pastikan ganjil aktif; suite 323/323 |
 | 2.110 | 2026-09-23 | Fix `[object Object]`: lepas eager-load `tahunAjaran` di daftar (snake-case menimpa atribut FK) + helper tampilan `namaTahunAjaran`/`namaLembaga`; suite 323/323 |
 | 2.111 | 2026-09-23 | Halaman MI-MD ikut TA topbar (default TA aktif): santri difilter ke TA terpilih (riwayat di TA atau `tahaj_masuk`), kelas dari TA itu — alumni/TA lama tak muncul; suite 324/324 |
+| 2.112 | 2026-09-24 | Antrean PSB jadi 1 halaman 6 tab (shadcn Tabs + badge jumlah per tahap; rute `/psb/:tahap`; sidebar 6 entri → 1); pencarian/filter dipertahankan antar tab |
 
 ## Daftar Isi
 

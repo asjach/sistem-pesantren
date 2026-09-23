@@ -7,7 +7,6 @@ export const BELUM_DIPAKAI: ReadonlySet<string> = new Set([
   'aspect_ratio',
   'scroll_area',
   'collapsible',
-  'tabs',
   'breadcrumb',
   'pagination',
   'navigation_menu',
