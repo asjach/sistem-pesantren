@@ -427,6 +427,17 @@ Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca
 - `created_at`, `updated_at`
 - UNIQUE(`santri_id`) — 1 santri = max 1 record alumni
 
+### `import_sesi`
+- `id` PK — sesi import bertahap (potongan JSON dari browser)
+- `user_id`: FK → users [cascade] — sesi milik pembuat saja
+- `tipe`: string(20) [default 'riwayat']
+- `mode`: string(10) — periksa (kering) | eksekusi
+- `total`, `offset`, `dibuat`, `diperbarui`, `gagal`: unsigned int — akumulator progres
+- `galat_contoh`: json [null] — maks 200 pertama untuk tampil
+- `galat_file`: string [null] — path relatif CSV semua galat (bisa diunduh)
+- `status`: string(10) [default 'jalan'] — jalan|selesai|batal
+- `created_at`, `updated_at` — basi (>24 jam) dibersihkan otomatis
+
 ## BLOK 3 — PSB (Modul 100 PSB Penerimaan)
 
 ### `psb_kegiatan`

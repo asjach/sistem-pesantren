@@ -279,7 +279,14 @@ dari riwayat aktif terakhir, input manual menang bila diisi (validasi
 `nullable|exists:kelas,id` — sebelumnya input selalu terbuang).
 Aturan rombel: `no_absen` unik per (kelas, tahun ajaran, semester) dijaga di
 input manual/dialog, TIDAK di import (nilai file disimpan apa adanya;
-duplikat digenerate ulang menyusul);
+duplikat digenerate ulang menyusul); baris arsip tak membangunkan arsip
+keanggotaan, baris aktif mengaktifkan ulang arsip sendiri (pola terima).
+Import bertahap (`import-potong`, tombol Import bertahap): browser membaca
+XLSX (SheetJS) lalu mengirim potongan JSON maks 2000 baris/panggilan dalam
+sesi (`import_sesi`: offset + akumulator + CSV galat bisa diunduh, TTL 24
+jam); logika per baris menumpang service yang sama dengan import file
+(mode periksa = kering tanpa tulis); kontrak: kirim SEMUA baris berurutan
+agar nomor galat absolut.
 kelas tujuan se-lembaga + se-TA, tingkat cocok bila keduanya terisi; hanya
 riwayat aktif yang bisa diset/dipindah/dikosongkan kelasnya.
 Import arsip mutasi keluar (`mutasi-keluar/import-template|periksa|import`,
@@ -310,7 +317,8 @@ via `nis_lokal` + `jenjang` (tanpa NIK; santri wajib sudah punya keanggotaan
 di lembaga itu — buat dulu lewat import keanggotaan bila belum ada; NIS sama
 di pasangan MI↔MD ikut dikenali lalu keanggotaan target dibuat otomatis);
 serial tanggal Excel (sel General) dan status label/singkatan (`Naik Kelas`,
-`Keluar`) dinormalisasi saat import; semester
+`Keluar`) dinormalisasi saat import; nomor baris galat absolut (1 = heading);
+semester
 hanya 1/2; kelas by-nama (case-insensitive) atau id se-lembaga+TA; `status_awal`
 bawaan `santri_baru`, `status_akhir` bawaan `aktif`; keanggotaan auto-create
 (NIS unik); `is_active_lembaga` parsing `Ya/Tidak/1/0/aktif/ya/…`, tak dikenal = gagal baris.
