@@ -104,7 +104,8 @@ export default function PindahKelasPage() {
       daftar.sort((a, b) => a.nama_kelas.localeCompare(b.nama_kelas, 'id', { numeric: true }));
     }
     // Baris per kelas; kelas tak dikenal + tanpa kelas menumpuk di kolom
-    // "Tanpa kelas" tingkatnya masing-masing.
+    // "Tanpa kelas" tingkatnya masing-masing — kolom ini tampil PALING
+    // DEPAN agar santri yang belum berdenah kelas langsung terlihat.
     const barisPerKelas = new Map<number, RiwayatRow[]>();
     const tanpaPerTingkat = new Map<string, RiwayatRow[]>();
     for (const r of rows) {
@@ -121,13 +122,12 @@ export default function PindahKelasPage() {
     const hasil: GrupTingkat[] = [];
     for (const t of semuaTingkat) {
       if (tingkat === '' || t !== tingkat) continue;
-      const kolom: KolomKelas[] = (tingkatKeKelas.get(t) ?? []).map((k) => ({
-        kelasId: k.id,
-        kelas: k.nama_kelas,
-        baris: barisPerKelas.get(k.id) ?? [],
-      }));
       const tanpa = tanpaPerTingkat.get(t) ?? [];
+      const kolom: KolomKelas[] = [];
       if (tanpa.length > 0) kolom.push({ kelasId: null, kelas: 'Tanpa kelas', baris: tanpa });
+      for (const k of tingkatKeKelas.get(t) ?? []) {
+        kolom.push({ kelasId: k.id, kelas: k.nama_kelas, baris: barisPerKelas.get(k.id) ?? [] });
+      }
       if (kolom.length === 0) continue;
       hasil.push({ tingkat: t === '' ? null : t, kolom });
     }
@@ -254,7 +254,7 @@ function TabelKelas({ tingkat, kolom, tetangga, bisaPindah, busyId, onPindah }: 
   return (
     <section className="flex min-h-0 min-w-0 flex-col rounded-md border">
       <header className="flex items-center justify-between border-b bg-muted/40 px-3 py-2 text-sm font-medium">
-        <span>Kelas {kolom.kelas}</span>
+        <span>{kolom.kelasId == null ? 'Santri Belum Masuk Kelas' : `Kelas ${kolom.kelas}`}</span>
         <span className="text-xs text-muted-foreground">{kolom.baris.length} santri</span>
       </header>
       <div className="flex min-h-0 flex-1 flex-col px-2 pb-2">
