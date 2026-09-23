@@ -243,7 +243,11 @@ class RiwayatBelajarFlowTest extends TestCase
         $admin = $this->makeUser();
 
         $export = new RiwayatBelajarTemplateExport;
-        $this->assertSame(self::HEADERS, $export->headings());
+        // Kelas memakai nama rombel (bukan id) agar ramah diisi.
+        $this->assertSame(
+            ['nik', 'nis_lokal', 'jenjang', 'tahun_ajaran', 'nama_kelas', 'semester', 'tgl_masuk', 'no_absen', 'tingkat', 'status_awal', 'status_akhir'],
+            $export->headings()
+        );
         $this->assertNotContains('nis', $export->headings());
         $this->assertSame(count($export->headings()), count($export->array()[0]));
 
@@ -466,5 +470,127 @@ class RiwayatBelajarFlowTest extends TestCase
         )->assertStatus(200);
         $this->assertCount(1, $daftar->json('data'));
         $this->assertStringStartsWith('Urut Aman', $daftar->json('data.0.santri.nama_lengkap'));
+    }
+
+    // ---------- 14. import update: sel kosong = pertahankan ----------
+
+    public function test_14_import_update_hanya_sel_terisi(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeUser();
+        $santri = $this->makeSantri('Update Parsial', '1101010000000213');
+        RiwayatBelajar::create([
+            'santri_id' => $santri->id, 'tahun_ajaran' => $f['taMi']->nama, 'jenjang' => $f['mi']->jenjang,
+            'kelas_id' => $f['kelasMi']->id, 'semester' => '1', 'no_absen' => 3, 'tingkat' => '1',
+            'status_awal' => 'santri_baru', 'status_akhir' => 'pindah_keluar', 'is_active_riwayat' => 'Tidak',
+        ]);
+
+        // Hanya tingkat yang diisi: status arsip + kelas + absen wajib bertahan.
+        $csv = $this->makeCsv([[
+            'nik' => '1101010000000213',
+            'jenjang' => (string) $f['mi']->jenjang,
+            'tahun_ajaran' => (string) $f['taMi']->nama,
+            'semester' => '1',
+            'tingkat' => '2',
+        ]]);
+
+        $periksa = $this->actingAs($admin, 'sanctum')->post('/api/admin/riwayat-belajar/import-periksa', [
+            'file' => new UploadedFile($csv, 'periksa.csv', 'text/csv', null, true),
+        ])->assertStatus(200);
+        $this->assertTrue((bool) $periksa->json('siap_import'));
+        $this->assertSame(0, (int) $periksa->json('ringkasan.dibuat'));
+        $this->assertSame(1, (int) $periksa->json('ringkasan.diperbarui'));
+
+        $this->importCsv($admin, $csv)->assertStatus(200);
+
+        $this->assertSame(1, RiwayatBelajar::where('santri_id', $santri->id)->count());
+        $riwayat = RiwayatBelajar::where('santri_id', $santri->id)->firstOrFail();
+        $this->assertSame('2', $riwayat->tingkat);
+        $this->assertSame($f['kelasMi']->id, (int) $riwayat->kelas_id);
+        $this->assertSame(3, (int) $riwayat->no_absen);
+        $this->assertSame('pindah_keluar', $riwayat->status_akhir);
+        $this->assertSame('Tidak', $riwayat->is_active_riwayat);
+    }
+
+    // ---------- 15. import izin per baris mengikuti akun ----------
+
+    public function test_15_import_barus_luar_lembaga_gagal_per_baris(): void
+    {
+        $f = $this->baseFixture();
+        // MTS di luar pasangan MI↔MD: admin MI tak boleh menulisnya.
+        $mts = Lembaga::create([
+            'nama' => 'Tsanawiyah', 'jenjang' => 'MTS',
+            'is_seleksi' => false, 'kelompok_psb' => 'eksklusif', 'is_active' => true,
+        ]);
+        $adminMi = $this->makeUser('admin', [$f['mi']->jenjang]);
+        $a = $this->makeSantri('Riwayat MI', '1101010000000214');
+        $b = $this->makeSantri('Riwayat MTS', '1101010000000215');
+
+        $csv = $this->makeCsv([
+            ['nik' => '1101010000000214', 'jenjang' => (string) $f['mi']->jenjang, 'tahun_ajaran' => (string) $f['taMi']->nama, 'semester' => '1'],
+            ['nik' => '1101010000000215', 'jenjang' => (string) $mts->jenjang, 'tahun_ajaran' => (string) $f['taMi']->nama, 'semester' => '1'],
+        ]);
+        $res = $this->actingAs($adminMi, 'sanctum')->post('/api/admin/riwayat-belajar/import-lengkap', [
+            'file' => new UploadedFile($csv, 'riwayat.csv', 'text/csv', null, true),
+        ])->assertStatus(422);
+
+        $this->assertSame('jenjang', $res->json('errors.0.attribute'));
+        $this->assertSame(1, RiwayatBelajar::where('santri_id', $a->id)->count());
+        $this->assertSame(0, RiwayatBelajar::where('santri_id', $b->id)->count());
+    }
+
+    // ---------- 16. heading nama_kelas (kelas_id lama tetap jalan) ----------
+
+    public function test_16_import_heading_nama_kelas(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeUser();
+        $kelasB = Kelas::create([
+            'jenjang' => $f['mi']->jenjang, 'tahun_ajaran' => $f['taMi']->nama,
+            'nama_kelas' => '1B', 'tingkat' => '1',
+        ]);
+        $a = $this->makeSantri('Kelas Nama', '1101010000000216');
+        $b = $this->makeSantri('Kelas Id Lama', '1101010000000217');
+
+        $tulis = function (array $headers, array $rows): string {
+            $tmp = tempnam(sys_get_temp_dir(), 'riwayat116').'.csv';
+            $h = fopen($tmp, 'w');
+            fputcsv($h, $headers);
+            foreach ($rows as $r) {
+                $line = [];
+                foreach ($headers as $col) {
+                    $line[] = $r[$col] ?? '';
+                }
+                fputcsv($h, $line);
+            }
+            fclose($h);
+
+            return $tmp;
+        };
+        $kirim = fn (string $csv) => $this->actingAs($admin, 'sanctum')->post('/api/admin/riwayat-belajar/import-lengkap', [
+            'file' => new UploadedFile($csv, 'riwayat.csv', 'text/csv', null, true),
+        ]);
+
+        $dasar = ['jenjang' => (string) $f['mi']->jenjang, 'tahun_ajaran' => (string) $f['taMi']->nama, 'semester' => '1'];
+        $kepalaBaru = ['nik', 'nis_lokal', 'jenjang', 'tahun_ajaran', 'nama_kelas', 'semester', 'tgl_masuk', 'no_absen', 'tingkat', 'status_awal', 'status_akhir'];
+
+        // Insert via nama_kelas.
+        $kirim($tulis($kepalaBaru, [
+            ['nik' => '1101010000000216'] + $dasar + ['nama_kelas' => '1A'],
+        ]))->assertStatus(200);
+        $this->assertSame($f['kelasMi']->id, (int) RiwayatBelajar::where('santri_id', $a->id)->firstOrFail()->kelas_id);
+
+        // Update via nama_kelas (pindah ke 1B).
+        $kirim($tulis($kepalaBaru, [
+            ['nik' => '1101010000000216'] + $dasar + ['nama_kelas' => '1B'],
+        ]))->assertStatus(200);
+        $this->assertSame($kelasB->id, (int) RiwayatBelajar::where('santri_id', $a->id)->firstOrFail()->kelas_id);
+        $this->assertSame(1, RiwayatBelajar::where('santri_id', $a->id)->count());
+
+        // Heading lama kelas_id numerik tetap diterima.
+        $kirim($tulis(self::HEADERS, [
+            ['nik' => '1101010000000217'] + $dasar + ['kelas_id' => (string) $f['kelasMi']->id],
+        ]))->assertStatus(200);
+        $this->assertSame($f['kelasMi']->id, (int) RiwayatBelajar::where('santri_id', $b->id)->firstOrFail()->kelas_id);
     }
 }

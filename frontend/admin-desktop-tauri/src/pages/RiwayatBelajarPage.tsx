@@ -460,7 +460,7 @@ export default function RiwayatBelajarPage() {
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Import riwayat belajar</DialogTitle>
-            <DialogDescription>Kolom mengikuti tabel riwayat; kunci: NIK → fallback NIS lokal + lembaga.</DialogDescription>
+            <DialogDescription>Kolom mengikuti tabel riwayat (kelas cukup diisi nama); kunci: NIK → fallback NIS lokal + lembaga. Baris cocok (santri+TA+jenjang+semester) diperbarui, hanya kolom terisi.</DialogDescription>
           </DialogHeader>
           <form className="grid grid-cols-2 gap-3" onSubmit={async (e) => {
             e.preventDefault();
@@ -486,6 +486,9 @@ export default function RiwayatBelajarPage() {
               <div className="col-span-2 rounded-md border p-3 text-sm" id="hasil_periksa_import_riwayat">
                 <p className="font-medium">
                   {periksaHasil.ringkasan.baris_diproses} baris diperiksa · {periksaHasil.ringkasan.baris_valid} valid · {periksaHasil.ringkasan.baris_gagal} bermasalah
+                  {(periksaHasil.ringkasan.dibuat !== undefined || periksaHasil.ringkasan.diperbarui !== undefined) && (
+                    <> · {periksaHasil.ringkasan.dibuat ?? 0} dibuat · {periksaHasil.ringkasan.diperbarui ?? 0} diperbarui</>
+                  )}
                 </p>
                 {periksaHasil.errors.length > 0 ? (
                   <ul className="mt-2 max-h-40 space-y-1 overflow-auto text-xs text-destructive">

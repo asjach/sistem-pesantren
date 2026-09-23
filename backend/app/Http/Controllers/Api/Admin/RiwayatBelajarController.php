@@ -314,7 +314,12 @@ class RiwayatBelajarController extends Controller
             return response()->json(['pesan' => 'Gagal mengimport beberapa data.', 'errors' => $errors], 422);
         }
 
-        return response()->json(['pesan' => 'Riwayat belajar berhasil diimport.']);
+        $ringkasan = $import->ringkasan();
+
+        return response()->json([
+            'pesan' => "{$ringkasan['dibuat']} riwayat dibuat, {$ringkasan['diperbarui']} diperbarui.",
+            'ringkasan' => $ringkasan,
+        ]);
     }
 
     /** Lampirkan NIS lokal (dari keanggotaan) ke tiap baris riwayat. */

@@ -21,15 +21,16 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 /**
  * Template import riwayat belajar — nama kolom mengikuti tabel `riwayat_belajar`
- * (tanpa `nis`; NIS ada di `lembaga_santri`). Kolom `nik`/`nis_lokal` adalah kunci
- * pencocokan santri: `nik` diutamakan, fallback `nis_lokal` + `jenjang`.
+ * (tanpa `nis`; NIS ada di `lembaga_santri`), kecuali kelas memakai
+ * `nama_kelas` (nama rombel, mis. '1A') agar ramah diisi. Kolom `nik`/`nis_lokal`
+ * adalah kunci pencocokan santri: `nik` diutamakan, fallback `nis_lokal` + `jenjang`.
  */
 class RiwayatBelajarTemplateExport extends DefaultValueBinder implements FromArray, WithCustomValueBinder, WithEvents, WithHeadings, WithTitle
 {
     private const BARIS_TERAKHIR = 501;
 
     public const KOLOM = [
-        'nik', 'nis_lokal', 'jenjang', 'tahun_ajaran', 'kelas_id',
+        'nik', 'nis_lokal', 'jenjang', 'tahun_ajaran', 'nama_kelas',
         'semester', 'tgl_masuk', 'no_absen', 'tingkat', 'status_awal', 'status_akhir',
     ];
 
@@ -57,7 +58,7 @@ class RiwayatBelajarTemplateExport extends DefaultValueBinder implements FromArr
             'nis_lokal' => '26001',
             'jenjang' => '2',
             'tahun_ajaran' => '2025/2026',
-            'kelas_id' => '1A',
+            'nama_kelas' => '1A',
             'semester' => '1',
             'tgl_masuk' => '2026-07-01',
             'no_absen' => '1',
