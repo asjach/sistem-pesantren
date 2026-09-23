@@ -139,6 +139,9 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::post('santri/{santri}/berhenti-jenjang', [SiklusController::class, 'berhentiJenjang'])->middleware('permission:mutasi_keluar.ubah');
         Route::get('santri/{santri}/profil', [SiklusController::class, 'profilSantri'])->middleware('permission:santri.lihat');
         Route::get('mutasi-keluar', [SiklusController::class, 'getMutasiKeluar'])->middleware('permission:mutasi_keluar.lihat');
+        Route::get('mutasi-keluar/import-template', [SiklusController::class, 'templateImportMutasi'])->middleware('permission:mutasi_keluar.lihat');
+        Route::post('mutasi-keluar/import-periksa', [SiklusController::class, 'periksaImportMutasi'])->middleware(['permission:mutasi_keluar.ubah', 'throttle:imports']);
+        Route::post('mutasi-keluar/import', [SiklusController::class, 'importMutasi'])->middleware(['permission:mutasi_keluar.ubah', 'throttle:imports']);
         Route::get('alumni', [SiklusController::class, 'getAlumni'])->middleware('permission:kelulusan.lihat');
 
         // Halaman MI-MD: 3 tabel berdampingan + samakan kelas by-nama.

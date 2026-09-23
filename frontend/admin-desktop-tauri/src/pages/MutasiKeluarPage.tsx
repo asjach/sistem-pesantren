@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { bisa } from '../api/auth';
 import { errorMessage } from '../api/client';
-import { daftarKelas, listMutasiKeluar, mutasiSantri, type MutasiKeluar, type RiwayatRow } from '../api/siklus';
+import { daftarKelas, importMutasiFile, listMutasiKeluar, mutasiSantri, periksaImportMutasi, unduhTemplateMutasi, type ImportMutasiHasil, type MutasiKeluar, type RiwayatRow } from '../api/siklus';
 import { referensiList } from '../api/master';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import ExcelTable from '@/components/ExcelTable';
 import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
+import { FileUp, Download } from '@/icons';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import Pager from '@/components/Pager';
 import { usePager } from '@/hooks/usePager';
@@ -41,6 +42,13 @@ export default function MutasiKeluarPage() {
   const [npsn, setNpsn] = useState('');
   const [nsm, setNsm] = useState('');
   const [keterangan, setKeterangan] = useState('');
+
+  // Import arsip mutasi (Periksa → Import).
+  const canImportMutasi = bisa(user, 'mutasi_keluar.ubah');
+  const [fileOpen, setFileOpen] = useState(false);
+  const [fileMutasi, setFileMutasi] = useState<File | null>(null);
+  const [hasilFile, setHasilFile] = useState<ImportMutasiHasil | null>(null);
+  const [fileBusy, setFileBusy] = useState(false);
 
   const loadKiri = useCallback(async () => {
     if (!jenjang) { setKiri([]); return; }
@@ -142,7 +150,15 @@ export default function MutasiKeluarPage() {
         </section>
 
         <section className="flex min-h-0 min-w-0 flex-col rounded-md border">
-          <header className="shrink-0 border-b bg-muted/40 px-3 py-2 text-sm font-medium">Arsip mutasi keluar</header>
+          <header className="flex shrink-0 items-center justify-between border-b bg-muted/40 px-3 py-2 text-sm font-medium">
+            <span>Arsip mutasi keluar</span>
+            {canImportMutasi && (
+              <Button id="btn_buka_import_mutasi" size="sm" variant="outline" disabled={!jenjang}
+                onClick={() => { setFileMutasi(null); setHasilFile(null); setFileOpen(true); }}>
+                <FileUp data-icon="inline-start" size={16} /> Import
+              </Button>
+            )}
+          </header>
           <div className="flex min-h-0 flex-1 flex-col px-2 pb-2">
             <ExcelTable
               tableKey="mutasi_arsip"
@@ -176,6 +192,72 @@ export default function MutasiKeluarPage() {
         </section>
       </div>
 
+      {/* Import arsip mutasi (Periksa → Import) */}
+      <Dialog open={fileOpen} onOpenChange={setFileOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Import arsip mutasi keluar</DialogTitle>
+            <DialogDescription>
+              Satu file boleh berisi banyak lembaga. Kunci santri: NIK → fallback NIS lokal + lembaga.
+              Kolom: nik, nis_lokal, jenjang, tanggal_mutasi (wajib), alasan_mutasi (wajib),
+              kelas_terakhir (nama rombel; kosong = beku dari riwayat terakhir), tahun_ajaran
+              (opsional, wajib bila nama kelas ada di beberapa tahun ajaran), no_surat,
+              nama_sekolah_tujuan, npsn, nsm, dan alamat tujuan, keterangan. Baris yang sama
+              (santri+lembaga+tanggal) dilewati; santri yang masih aktif ikut ditutup seperti
+              tombol Mutasi.
+            </DialogDescription>
+          </DialogHeader>
+          <form className="grid grid-cols-2 gap-3" onSubmit={async (e) => {
+            e.preventDefault();
+            if (!fileMutasi || !hasilFile?.siap_import) return;
+            setFileBusy(true);
+            try {
+              const res = await importMutasiFile(fileMutasi);
+              if (res.errors?.length) toast.error(res.errors.map((x) => `Baris ${x.row} (${x.attribute}): ${x.errors.join(', ')}`).join(' · '));
+              else {
+                toast.success(res.pesan ?? 'Import selesai.');
+                setFileOpen(false);
+                pager.goFirst();
+                await Promise.all([loadKiri(), loadArsip(1)]);
+              }
+            } catch (e2) { toast.error(errorMessage(e2)); } finally { setFileBusy(false); }
+          }}>
+            <Button id="btn_unduh_template_mutasi" type="button" variant="link" className="col-span-2 h-auto justify-start px-0"
+              onClick={() => void unduhTemplateMutasi().catch((e) => toast.error(errorMessage(e)))}>
+              <Download data-icon="inline-start" size={16} /> Unduh template Excel mutasi keluar
+            </Button>
+            <Input id="input_file_import_mutasi" className="col-span-2" type="file" accept=".xlsx,.xls,.csv"
+              onChange={(e) => { setFileMutasi(e.target.files?.[0] ?? null); setHasilFile(null); }} required />
+            {hasilFile ? (
+              <div className="col-span-2 rounded-md border p-3 text-sm" id="hasil_periksa_import_mutasi">
+                <p className="font-medium">
+                  {hasilFile.ringkasan.baris_diproses} baris diperiksa · {hasilFile.ringkasan.dibuat} dibuat ·{' '}
+                  {hasilFile.ringkasan.dilewati} dilewati · {hasilFile.ringkasan.baris_gagal} bermasalah
+                </p>
+                {hasilFile.errors.length > 0 ? (
+                  <ul className="mt-2 max-h-40 space-y-1 overflow-auto text-xs text-destructive">
+                    {hasilFile.errors.slice(0, 50).map((x, i) => <li key={`${x.row}-${x.attribute}-${i}`}>Baris {x.row} ({x.attribute}): {x.errors.join(', ')}</li>)}
+                  </ul>
+                ) : <p className="mt-1 text-xs text-emerald-600">Tidak ada masalah — siap diimport.</p>}
+              </div>
+            ) : null}
+            <DialogFooter className="col-span-2">
+              <Button type="button" variant="outline" onClick={() => setFileOpen(false)}>Batal</Button>
+              <Button id="btn_periksa_import_mutasi" type="button" variant="outline" disabled={!fileMutasi || fileBusy}
+                onClick={async () => {
+                  if (!fileMutasi) return;
+                  setFileBusy(true);
+                  try {
+                    const res = await periksaImportMutasi(fileMutasi);
+                    setHasilFile(res);
+                    if (res.siap_import) toast.success(res.pesan); else toast.error(res.pesan);
+                  } catch (e2) { setHasilFile(null); toast.error(errorMessage(e2)); } finally { setFileBusy(false); }
+                }}>Periksa</Button>
+              <Button id="btn_import_mutasi" type="submit" disabled={fileBusy || !hasilFile?.siap_import}>Import</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
       <Dialog open={baris !== null} onOpenChange={(o) => { if (!o) setBaris(null); }}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>

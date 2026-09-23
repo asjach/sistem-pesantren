@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Exports\KelasTemplateExport;
+use App\Exports\MutasiKeluarTemplateExport;
 use App\Exports\PsbTemplateExport;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Maatwebsite\Excel\Facades\Excel;
@@ -23,6 +24,7 @@ class TemplateWarnaTest extends TestCase
         $kasus = [
             [new KelasTemplateExport, ['A1' => 'FFFFE699', 'D1' => 'FFDCE6F1']],
             [new PsbTemplateExport, ['A1' => 'FFFFE699', 'C1' => 'FFDCE6F1']],
+            [new MutasiKeluarTemplateExport, ['A1' => 'FFFFE699', 'B1' => 'FFDCE6F1']],
         ];
 
         foreach ($kasus as $i => [$export, $sel]) {

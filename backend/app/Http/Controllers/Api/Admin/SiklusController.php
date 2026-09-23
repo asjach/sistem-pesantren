@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers\Api\Admin;
 
+use App\Exports\MutasiKeluarTemplateExport;
 use App\Http\Controllers\Api\Concerns\TenantGuard;
 use App\Http\Controllers\Api\Concerns\UrutDaftar;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\MutasiKeluarImportRequest;
 use App\Http\Requests\Admin\SiklusDaftarKelasRequest;
 use App\Http\Requests\Admin\SiklusLembagaRequest;
 use App\Http\Requests\Admin\SiklusLulusRequest;
@@ -13,6 +15,7 @@ use App\Http\Requests\Admin\SiklusNaikKelasOtomatisRequest;
 use App\Http\Requests\Admin\SiklusNaikKelasRequest;
 use App\Http\Requests\Admin\SiklusRekapRequest;
 use App\Http\Requests\Admin\SiklusSalinGenapRequest;
+use App\Imports\MutasiKeluarImport;
 use App\Models\Alumni;
 use App\Models\Kelas;
 use App\Models\LembagaSantri;
@@ -24,7 +27,9 @@ use App\Services\SiklusSantriService;
 use App\Services\UrutKatalog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Maatwebsite\Excel\Facades\Excel;
 
 /**
  * Siklus akademik santri: salin genap, kenaikan, kelulusan, mutasi keluar,
@@ -286,6 +291,90 @@ class SiklusController extends Controller
         $mutasi = $mutasi->paginate($this->perPage($request));
 
         return response()->json($mutasi);
+    }
+
+    /** GET /api/admin/mutasi-keluar/import-template — template Excel import arsip. */
+    public function templateImportMutasi()
+    {
+        return Excel::download(new MutasiKeluarTemplateExport, 'template-import-mutasi-keluar.xlsx');
+    }
+
+    /** POST /api/admin/mutasi-keluar/import-periksa — validasi file TANPA menulis (dry-run). */
+    public function periksaImportMutasi(MutasiKeluarImportRequest $request): JsonResponse
+    {
+        return $this->prosesImportMutasi($request, periksa: true);
+    }
+
+    /** POST /api/admin/mutasi-keluar/import — import arsip mutasi massal. */
+    public function importMutasi(MutasiKeluarImportRequest $request): JsonResponse
+    {
+        return $this->prosesImportMutasi($request, periksa: false);
+    }
+
+    /** Alur bersama import arsip mutasi multi-lembaga. Mode periksa:
+     *  transaksi selalu di-rollback. Izin dicek per baris di import
+     *  (mengikuti akun), bukan 403 di depan. */
+    private function prosesImportMutasi(MutasiKeluarImportRequest $request, bool $periksa): JsonResponse
+    {
+        $request->validated();
+
+        $import = new MutasiKeluarImport;
+        $errors = [];
+
+        if ($periksa) {
+            DB::beginTransaction();
+        }
+
+        try {
+            Excel::import($import, $request->file('file'));
+        } catch (ValidationException $e) {
+            $errors = $this->formatFailures($e->failures());
+        } finally {
+            if ($periksa) {
+                DB::rollBack();
+            }
+        }
+
+        if ($errors === []) {
+            $errors = $this->formatFailures($import->failures());
+        }
+
+        if ($periksa) {
+            return response()->json([
+                'pesan' => $errors === [] ? 'Pengecekan selesai: file siap diimport.' : 'Pengecekan menemukan masalah.',
+                'siap_import' => $errors === [],
+                'ringkasan' => $import->ringkasan(),
+                'errors' => $errors,
+            ]);
+        }
+
+        if ($errors !== []) {
+            return response()->json([
+                'pesan' => 'Gagal mengimport beberapa data.',
+                'errors' => $errors,
+            ], 422);
+        }
+
+        $ringkasan = $import->ringkasan();
+
+        return response()->json([
+            'pesan' => "{$ringkasan['dibuat']} arsip dibuat, {$ringkasan['dilewati']} dilewati.",
+            'ringkasan' => $ringkasan,
+        ]);
+    }
+
+    private function formatFailures(iterable $failures): array
+    {
+        $errors = [];
+        foreach ($failures as $failure) {
+            $errors[] = [
+                'row' => $failure->row(),
+                'attribute' => $failure->attribute(),
+                'errors' => $failure->errors(),
+            ];
+        }
+
+        return $errors;
     }
 
     /** GET /api/admin/alumni — arsip alumni (terskop tenant via lembaga lulus). */

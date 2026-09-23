@@ -356,6 +356,47 @@ export function listAlumni(
   return api<Paginate<Alumni>>(`/admin/alumni?${q.toString()}`);
 }
 
+// ---------- Import arsip mutasi keluar ----------
+
+export interface ImportMutasiRingkasan {
+  baris_diproses: number;
+  baris_valid: number;
+  baris_gagal: number;
+  dibuat: number;
+  dilewati: number;
+}
+
+export interface ImportMutasiHasil {
+  pesan: string;
+  siap_import: boolean;
+  ringkasan: ImportMutasiRingkasan;
+  errors: ImportError[];
+}
+
+/** Unduh template Excel import arsip mutasi keluar. */
+export function unduhTemplateMutasi() {
+  return downloadFile('/admin/mutasi-keluar/import-template', 'template-import-mutasi-keluar.xlsx');
+}
+
+function formImportMutasi(file: File) {
+  const fd = new FormData();
+  fd.set('file', file);
+  return fd;
+}
+
+/** Periksa file arsip mutasi tanpa menulis (dry-run). */
+export function periksaImportMutasi(file: File) {
+  return apiUpload<ImportMutasiHasil>('/admin/mutasi-keluar/import-periksa', formImportMutasi(file));
+}
+
+/** Eksekusi import arsip mutasi (baris sama dilewati, gagal dilaporkan). */
+export function importMutasiFile(file: File) {
+  return apiUpload<{ pesan: string; ringkasan: ImportMutasiRingkasan; errors?: ImportError[] }>(
+    '/admin/mutasi-keluar/import',
+    formImportMutasi(file),
+  );
+}
+
 /** Salin ganjil→genap massal per lembaga; tanpa `siswa` = semua baris ganjil aktif. */
 export function salinGenapMassal(input: {
   jenjang: string;
