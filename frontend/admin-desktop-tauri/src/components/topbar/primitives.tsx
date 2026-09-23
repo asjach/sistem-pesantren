@@ -153,18 +153,20 @@ export function RibbonCmd({
   );
 }
 
-/** Grup perintah ribbon + nama grup di atasnya.
+/** Grup perintah ribbon + nama grup di atasnya (opsional).
  *  `disabled` mematikan seluruh isi grup (mis. tidak ada tabel pada halaman). */
-export function RibbonGroup({ label, children, disabled }: { label: string; children: ReactNode; disabled?: boolean }) {
+export function RibbonGroup({ label, children, disabled }: { label?: string; children: ReactNode; disabled?: boolean }) {
   return (
     <div
       data-part="grup_ribbon"
       aria-disabled={disabled || undefined}
       className={cn('flex shrink-0 flex-col items-center gap-1.5 px-3', disabled && 'pointer-events-none opacity-40')}
     >
-      <span className="w-full pb-1 text-center text-[10px] uppercase tracking-wide text-white/50">
-        {label}
-      </span>
+      {label && (
+        <span className="w-full pb-1 text-center text-[10px] uppercase tracking-wide text-white/50">
+          {label}
+        </span>
+      )}
       <div className="flex flex-1 items-center gap-1">{children}</div>
     </div>
   );

@@ -144,7 +144,7 @@ export function RibbonTabel({ apiTabel }: { apiTabel: RibbonTableApi | null }) {
 
   return (
     <>
-      <RibbonGroup label="Mode">
+      <RibbonGroup>
         <div className="flex flex-col items-start gap-1">
           <RibbonCmd
             id="ribbon_btn_input"
@@ -165,7 +165,7 @@ export function RibbonTabel({ apiTabel }: { apiTabel: RibbonTableApi | null }) {
         </div>
       </RibbonGroup>
       <RibbonPemisah />
-      <RibbonGroup label="Kolom">
+      <RibbonGroup>
         <div className="flex flex-col items-start gap-1.5">
           {/* Label di samping stepper; lebar label dikunci agar kedua stepper
               sejajar dalam satu kolom. */}
@@ -223,7 +223,7 @@ export function RibbonTabel({ apiTabel }: { apiTabel: RibbonTableApi | null }) {
         </div>
       </RibbonGroup>
       <RibbonPemisah />
-      <RibbonGroup label="Baris" disabled={!apiTabel}>
+      <RibbonGroup disabled={!apiTabel}>
         <div className="flex items-start gap-1.5">
           <ToggleGroup
             type="single"
@@ -265,7 +265,7 @@ export function RibbonTabel({ apiTabel }: { apiTabel: RibbonTableApi | null }) {
         </div>
       </RibbonGroup>
       <RibbonPemisah />
-      <RibbonGroup label="Font & Warna" disabled={!apiTabel}>
+      <RibbonGroup disabled={!apiTabel}>
         {/* Kolom stepper & tombol reset dipisah agar judul "Font Size"
             center tepat di atas stepper-nya, bukan gabungan stepper+reset. */}
         <div className="grid grid-cols-[auto_11rem_auto_auto_auto_auto] items-center gap-x-3 gap-y-1">

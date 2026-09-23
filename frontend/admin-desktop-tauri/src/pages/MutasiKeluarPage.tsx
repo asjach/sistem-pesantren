@@ -8,21 +8,73 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/field';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { cn } from '@/lib/utils';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import ExcelTable from '@/components/ExcelTable';
 import { TopBarFilter } from '@/components/TopBarFilter';
 import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
-import { FileUp, Download, ArrowRight, GraduationCap, NotebookTabs } from '@/icons';
+import { FileUp, Download, ArrowRight, Check, ChevronDown } from '@/icons';
 import { ActionIcon } from '@/components/RowActions';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import Pager from '@/components/Pager';
 import { usePager } from '@/hooks/usePager';
 import { toast } from 'sonner';
 
-/** Gaya trigger filter di topBar — disamakan dengan dropdown lembaga/TA/semester. */
-const GAYA_FILTER_TOPBAR =
-  'border-0 bg-transparent gap-2 px-2.5 py-1 text-xs text-[var(--sidebar-foreground)] whitespace-nowrap transition-colors outline-none hover:bg-[color-mix(in_srgb,var(--sidebar-foreground)_14%,transparent)] hover:text-white focus-visible:ring-2 focus-visible:ring-[var(--sidebar-foreground)]/60 data-[state=open]:bg-white/15 [&_svg]:text-white/70';
+/** Gaya tombol trigger filter di topBar — seragam dropdown lembaga/TA/semester. */
+const navBase =
+  'flex items-center gap-2 rounded-md px-2.5 py-1 text-xs whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--sidebar-foreground)]/60';
+const navIdle =
+  'text-[var(--sidebar-foreground)] hover:bg-[color-mix(in_srgb,var(--sidebar-foreground)_14%,transparent)] hover:text-white';
+
+/** Filter topBar multi-pilih (centang banyak): tetap terbuka saat memilih. */
+function FilterMulti({
+  id,
+  label,
+  opsi,
+  dipilih,
+  onToggle,
+  onSemua,
+}: {
+  id: string;
+  label: string;
+  opsi: string[];
+  dipilih: string[];
+  onToggle: (v: string) => void;
+  onSemua: () => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          id={id}
+          type="button"
+          title={dipilih.length ? `${label}: ${dipilih.join(', ')}` : label}
+          aria-label={label}
+          className={cn(navBase, navIdle, 'mr-1 data-[state=open]:bg-white/15')}
+        >
+          <span className="hidden max-w-[9rem] truncate sm:inline">
+            {dipilih.length ? `${label} (${dipilih.length})` : label}
+          </span>
+          <ChevronDown size={13} className="opacity-70" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="max-h-80 min-w-[12rem] overflow-y-auto">
+        <DropdownMenuItem id={`${id}_semua`} onSelect={(e) => { e.preventDefault(); onSemua(); }}>
+          <span className="flex-1">Semua</span>
+          {dipilih.length === 0 && <Check data-icon="inline-end" size={14} />}
+        </DropdownMenuItem>
+        {opsi.map((o) => (
+          <DropdownMenuItem key={o} id={`${id}_${o}`} onSelect={(e) => { e.preventDefault(); onToggle(o); }}>
+            <span className="flex-1 truncate">{o}</span>
+            {dipilih.includes(o) && <Check data-icon="inline-end" size={14} />}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
 
 /** Mutasi Keluar: kiri santri aktif (nama + kelas) → kanan arsip mutasi. */
 export default function MutasiKeluarPage() {
@@ -40,9 +92,9 @@ export default function MutasiKeluarPage() {
   /** Urut header arsip: daftar nilai allowlist + arah global (maks 3 kunci). */
   const [urut, setUrut] = useState<string[]>([]);
   const [arahUrut, setArahUrut] = useState<'naik' | 'turun'>('naik');
-  /** Filter santri aktif (dropdown di baris tools topBar): tingkat + kelas. */
-  const [tingkat, setTingkat] = useState('');
-  const [kelasFilter, setKelasFilter] = useState('');
+  /** Filter santri aktif (dropdown multi-pilih di topBar): tingkat + kelas. */
+  const [tingkat, setTingkat] = useState<string[]>([]);
+  const [kelasFilter, setKelasFilter] = useState<string[]>([]);
 
   const [baris, setBaris] = useState<RiwayatRow | null>(null);
   const [tanggal, setTanggal] = useState('');
@@ -113,16 +165,32 @@ export default function MutasiKeluarPage() {
   );
   const kelasOpsi = useMemo(() => {
     const nama = kiri
-      .filter((r) => !tingkat || (r.tingkat ?? '') === tingkat)
+      .filter((r) => tingkat.length === 0 || tingkat.includes((r.tingkat ?? '').trim()))
       .map((r) => r.kelas?.nama_kelas ?? '')
       .filter(Boolean);
     return [...new Set(nama)].sort((a, b) => a.localeCompare(b, 'id', { numeric: true }));
   }, [kiri, tingkat]);
   const kiriTampil = useMemo(() => kiri.filter((r) => {
-    if (tingkat && (r.tingkat ?? '') !== tingkat) return false;
-    if (kelasFilter && (r.kelas?.nama_kelas ?? '') !== kelasFilter) return false;
+    if (tingkat.length > 0 && !tingkat.includes((r.tingkat ?? '').trim())) return false;
+    if (kelasFilter.length > 0 && !kelasFilter.includes(r.kelas?.nama_kelas ?? '')) return false;
     return true;
   }), [kiri, tingkat, kelasFilter]);
+
+  /** Pilih/lepas satu tingkat; kelas yang tak lagi relevan ikut dibuang. */
+  function togolTingkat(v: string) {
+    const next = tingkat.includes(v) ? tingkat.filter((x) => x !== v) : [...tingkat, v];
+    setTingkat(next);
+    const valid = new Set(
+      kiri
+        .filter((r) => next.length === 0 || next.includes((r.tingkat ?? '').trim()))
+        .map((r) => r.kelas?.nama_kelas ?? ''),
+    );
+    setKelasFilter((k) => k.filter((x) => valid.has(x)));
+  }
+
+  function togolKelas(v: string) {
+    setKelasFilter((prev) => (prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v]));
+  }
 
   const simpan = async () => {
     if (!baris || !jenjang || !tanggal || !alasan) return;
@@ -150,37 +218,22 @@ export default function MutasiKeluarPage() {
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
       <TopBarFilter>
-        <Select
-          value={tingkat === '' ? '_semua' : tingkat}
-          onValueChange={(v) => { setTingkat(v === '_semua' ? '' : v); setKelasFilter(''); }}
-        >
-          <SelectTrigger id="select_tingkat_mutasi" title="Filter tingkat" aria-label="Filter tingkat" className={GAYA_FILTER_TOPBAR}>
-            <GraduationCap size={14} />
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              <SelectItem value="_semua">Semua</SelectItem>
-              {tingkatOpsi.map((t) => (
-                <SelectItem key={t} value={t}>Tingkat {t}</SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
-        <Select value={kelasFilter === '' ? '_semua' : kelasFilter} onValueChange={(v) => setKelasFilter(v === '_semua' ? '' : v)}>
-          <SelectTrigger id="select_kelas_mutasi" title="Filter kelas" aria-label="Filter kelas" className={GAYA_FILTER_TOPBAR}>
-            <NotebookTabs size={14} />
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              <SelectItem value="_semua">Semua</SelectItem>
-              {kelasOpsi.map((k) => (
-                <SelectItem key={k} value={k}>{k}</SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
+        <FilterMulti
+          id="filter_tingkat_mutasi"
+          label="Tingkat"
+          opsi={tingkatOpsi}
+          dipilih={tingkat}
+          onToggle={togolTingkat}
+          onSemua={() => { setTingkat([]); setKelasFilter([]); }}
+        />
+        <FilterMulti
+          id="filter_kelas_mutasi"
+          label="Kelas"
+          opsi={kelasOpsi}
+          dipilih={kelasFilter}
+          onToggle={togolKelas}
+          onSemua={() => setKelasFilter([])}
+        />
       </TopBarFilter>
       <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1" id="grup_mutasi_kolom">
         <ResizablePanel defaultSize="33" minSize="20">

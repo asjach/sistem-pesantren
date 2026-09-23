@@ -26,7 +26,7 @@ import {
 import { ICON_SETS } from '@/iconSets';
 import { THEME_PRESETS } from '@/themes';
 import { DEFAULT_PREFS, WARNA_UI } from '@/prefs';
-import { Blend, CalendarDays, Check, ChevronDown, ChevronUp, Columns3, Landmark, LogOut, Monitor, Moon, Paintbrush, Palette, SquareMousePointer, Sun, Users } from '@/icons';
+import { Blend, Check, ChevronDown, ChevronUp, Landmark, LogOut, Monitor, Moon, Paintbrush, Palette, SquareMousePointer, Sun, Users } from '@/icons';
 import { useRibbonTable } from '@/components/RibbonTable';
 import { useRibbonSlotCtx } from '@/components/RibbonSlot';
 import { useTopBarFilterCtx } from '@/components/TopBarFilter';
@@ -194,7 +194,6 @@ export default function TopBar() {
                   aria-label="Pilih lembaga aktif"
                   className={cn(navBase, navIdle, 'mr-1 data-[state=open]:bg-white/15')}
                 >
-                  <Landmark size={14} />
                   <span className="hidden max-w-[9rem] truncate sm:inline">
                     {lembaga ? lembaga.jenjang : 'Semua'}
                   </span>
@@ -202,8 +201,6 @@ export default function TopBar() {
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="max-h-80 min-w-[12rem] overflow-y-auto">
-                <DropdownMenuLabel className="text-foreground">Lembaga aktif</DropdownMenuLabel>
-                <DropdownMenuSeparator />
                 {/* Filter "Semua lembaga" selalu tersedia selama punya akses
                     (bukan peran; keluar dari peran lewat banner / Esc). */}
                 {adaSemua && (
@@ -230,7 +227,6 @@ export default function TopBar() {
                   aria-label="Pilih tahun ajaran aktif"
                   className={cn(navBase, navIdle, 'mr-1 data-[state=open]:bg-white/15')}
                 >
-                  <CalendarDays size={14} />
                   <span className="hidden max-w-[9rem] truncate sm:inline">
                     {tahunAjaran?.nama ?? 'Semua'}
                   </span>
@@ -238,8 +234,6 @@ export default function TopBar() {
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="max-h-80 min-w-[12rem] overflow-y-auto">
-                <DropdownMenuLabel className="text-foreground">Tahun ajaran aktif</DropdownMenuLabel>
-                <DropdownMenuSeparator />
                 <DropdownMenuItem id="menu_ta_aktif_semua" onSelect={() => taPilih(null)}>
                   <span className="flex-1">Semua</span>
                   {tahunAjaranNama === null && <Check data-icon="inline-end" size={14} />}
@@ -262,7 +256,6 @@ export default function TopBar() {
                   aria-label="Pilih semester aktif"
                   className={cn(navBase, navIdle, 'mr-1 data-[state=open]:bg-white/15')}
                 >
-                  <Columns3 size={14} />
                   <span className="hidden max-w-[9rem] truncate sm:inline">
                     {semester === null ? 'Semua' : `Semester ${semester}`}
                   </span>
@@ -270,8 +263,6 @@ export default function TopBar() {
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="max-h-80 min-w-[12rem] overflow-y-auto">
-                <DropdownMenuLabel className="text-foreground">Semester aktif</DropdownMenuLabel>
-                <DropdownMenuSeparator />
               <DropdownMenuItem id="menu_semester_aktif_semua" onSelect={() => pilihSemester(null)}>
                 <span className="flex-1">Semua</span>
                 {semester === null && <Check data-icon="inline-end" size={14} />}

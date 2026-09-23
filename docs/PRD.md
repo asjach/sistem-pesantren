@@ -178,7 +178,10 @@
 | 2.124 | 2026-09-24 | Import arsip mutasi keluar: hapus kolom `nik`, kunci update kini **NIS lokal + jenjang** (`nis_lokal` wajib). Template/deskripsi/tabel tes disesuaikan |
 | 2.125 | 2026-09-24 | Mutasi Keluar: dua tabel (Santri aktif : Arsip) jadi **resizable** dengan rasio awal **1:2** (sebelumnya grid 1:1) |
 | 2.126 | 2026-09-24 | Mutasi Keluar: container tabel tanpa border; aksi "Mutasi" jadi ikon panah kanan tanpa label (ActionIcon) |
-| 2.127 | 2026-09-24 | Mutasi Keluar: filter dropdown **tingkat** & **kelas** untuk daftar Santri aktif, di baris atas topBar tepat setelah dropdown Semester (slot filter halaman baru `TopBarFilter`); gaya trigger disamakan dengan dropdown lembaga/TA/semester |
+| 2.127 | 2026-09-24 | Mutasi Keluar: filter **tingkat** & **kelas** (multi-pilih/centang) untuk daftar Santri aktif, di baris atas topBar tepat setelah dropdown Semester (slot filter halaman baru `TopBarFilter`); gaya trigger disamakan dengan dropdown lembaga/TA/semester, tanpa ikon |
+| 2.128 | 2026-09-24 | TopBar: hapus ikon pada dropdown lembaga, tahun ajaran, dan semester (teks + chevron saja) |
+| 2.129 | 2026-09-24 | TopBar: hapus header/judul pada daftar dropdown lembaga, tahun ajaran, semester, serta filter tingkat & kelas |
+| 2.130 | 2026-09-24 | Ribbon tabel: hapus header grup MODE, KOLOM, BARIS, dan FONT & WARNA (`RibbonGroup` label jadi opsional) |
 
 ## Daftar Isi
 
