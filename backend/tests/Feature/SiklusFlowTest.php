@@ -54,6 +54,7 @@ class SiklusFlowTest extends TestCase
             }
             foreach ([
                 ['kode' => 'aktif', 'nama' => 'Aktif'],
+                ['kode' => 'lanjut', 'nama' => 'Lanjut'],
                 ['kode' => 'naik', 'nama' => 'Naik'],
                 ['kode' => 'tidak_naik', 'nama' => 'Tidak Naik'],
                 ['kode' => 'pindah_keluar', 'nama' => 'Pindah/Keluar'],
@@ -205,11 +206,11 @@ class SiklusFlowTest extends TestCase
             'santri_id' => $santri->id, 'tahun_ajaran' => $f['taLama']->nama,
             'semester' => '2', 'kelas_id' => $kelas->id, 'is_active_riwayat' => 'Ya',
         ]);
-        // Genap dibuka 'lanjutan'; ganjil arsip tetap 'aktif'.
+        // Genap dibuka 'lanjutan'; ganjil arsip jadi 'lanjut' (santri lanjut ke genap).
         $genap = RiwayatBelajar::where('santri_id', $santri->id)->where('semester', '2')->firstOrFail();
         $this->assertSame('lanjutan', $genap->status_awal);
         $ganjil = RiwayatBelajar::where('santri_id', $santri->id)->where('semester', '1')->firstOrFail();
-        $this->assertSame('aktif', $ganjil->status_akhir);
+        $this->assertSame('lanjut', $ganjil->status_akhir);
         $this->assertSame('Tidak', $ganjil->is_active_riwayat);
         $this->assertSame('Tidak', RiwayatBelajar::where('santri_id', $santri->id)->where('semester', '1')->firstOrFail()->is_active_riwayat);
 

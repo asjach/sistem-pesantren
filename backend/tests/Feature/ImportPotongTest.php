@@ -232,17 +232,19 @@ class ImportPotongTest extends TestCase
         $a = $this->makeSantri('Sinkron A', '27101', $f['mi']); // ganjil + genap aktif
         $b = $this->makeSantri('Sinkron B', '27102', $f['mi']); // ganjil aktif saja
         $c = $this->makeSantri('Sinkron C', '27103', $f['mi']); // ganjil aktif + genap naik
+        $d = $this->makeSantri('Sinkron D', '27104', $f['mi']); // ganjil 'lanjut' tanpa genap
 
         $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/riwayat-belajar/import-potong', [
             'mode' => 'eksekusi',
             'terakhir' => true,
-            'total' => 5,
+            'total' => 6,
             'baris' => [
                 $this->baris('27101', 'MI', '2026/2027'),
                 $this->baris('27101', 'MI', '2026/2027', ['semester' => '2']),
                 $this->baris('27102', 'MI', '2026/2027'),
                 $this->baris('27103', 'MI', '2026/2027'),
                 $this->baris('27103', 'MI', '2026/2027', ['semester' => '2', 'status_akhir' => 'naik']),
+                $this->baris('27104', 'MI', '2026/2027', ['status_akhir' => 'lanjut']),
             ],
         ])->assertStatus(200);
 
@@ -254,6 +256,14 @@ class ImportPotongTest extends TestCase
         $this->assertSame(['1'], $aktif($b->id));
         // Periode terakhir 'naik' (sudah selesai) → tak ada baris aktif.
         $this->assertSame([], $aktif($c->id));
+        // Ganjil yang punya genap → status_akhir 'lanjut' (bukan 'aktif').
+        $this->assertSame('lanjut', RiwayatBelajar::where('santri_id', $a->id)->where('semester', '1')->value('status_akhir'));
+        $this->assertSame('lanjut', RiwayatBelajar::where('santri_id', $c->id)->where('semester', '1')->value('status_akhir'));
+        // Ganjil tanpa genap (masih berjalan) tetap 'aktif'.
+        $this->assertSame('aktif', RiwayatBelajar::where('santri_id', $b->id)->where('semester', '1')->value('status_akhir'));
+        // 'lanjut' tanpa genap dinormalkan balik ke 'aktif' (baris berjalan).
+        $this->assertSame('aktif', RiwayatBelajar::where('santri_id', $d->id)->where('semester', '1')->value('status_akhir'));
+        $this->assertSame(['1'], $aktif($d->id));
         $this->assertSame('Ya', $a->fresh()->is_active_pst);
         $this->assertSame('Tidak', $c->fresh()->is_active_pst);
     }

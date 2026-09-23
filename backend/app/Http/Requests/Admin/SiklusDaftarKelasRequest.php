@@ -21,7 +21,7 @@ class SiklusDaftarKelasRequest extends FormRequest
             'semester' => ['nullable', 'in:1,2'],
             'kelas_id' => ['nullable', 'integer', 'exists:kelas,id'],
             'tingkat' => ['nullable', 'string'],
-            /** Basis tampil status_akhir: aktif = gabungan 5 status, nonaktif = keluar. */
+            /** Basis tampil status_akhir: aktif = gabungan 6 status, nonaktif = keluar. */
             'kelompok_status' => ['nullable', 'in:aktif,nonaktif'],
             /** Matikan default TA/semester agar bisa lintas periode. */
             'lintas_periode' => ['nullable', 'boolean'],

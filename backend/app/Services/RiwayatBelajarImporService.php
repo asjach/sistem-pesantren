@@ -170,7 +170,7 @@ class RiwayatBelajarImporService
         $nisLokal = $nisLokal === '' ? null : $nisLokal;
 
         // Status diparse di depan: keanggotaan hanya diaktifkan ulang bila
-        // barisnya aktif (baris arsip tak membangunkan arsip keanggotaan).
+        // barisnya aktif/lanjut (baris arsip tak membangunkan arsip keanggotaan).
         $statusAwal = $this->normalisasiStatus('status_awal', $row['status_awal'] ?? null, $jenjang) ?: 'santri_baru';
         $statusAkhir = $this->normalisasiStatus('status_akhir', $row['status_akhir'] ?? null, $jenjang) ?: 'aktif';
         $kamusAwal = RefService::kodeAktif('status_awal', $jenjang);
@@ -186,7 +186,7 @@ class RiwayatBelajarImporService
             return false;
         }
 
-        $keanggotaan = $this->pastikanKeanggotaan($santri, $jenjang, $nisLokal, $statusAkhir === 'aktif', $langsung, $kering, $no);
+        $keanggotaan = $this->pastikanKeanggotaan($santri, $jenjang, $nisLokal, in_array($statusAkhir, ['aktif', 'lanjut'], true), $langsung, $kering, $no);
         if ($keanggotaan === false) {
             return false;
         }

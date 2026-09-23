@@ -89,7 +89,9 @@ class ReferensiSeeder extends Seeder
         // Status siklus no.51 GANTI TOTAL (terkunci): awal 4 kode + 'kenaikan' + 'lanjutan'
         // (root PRD v1.7.1: kenaikan kelas -> status_awal baris tapel-berikut;
         // salin ganjil→genap -> status_awal baris genap 'lanjutan'),
-        // akhir 6 kode; is_aktif_bawaan=true HANYA untuk 'aktif' (invarian 102 terjaga).
+        // akhir 7 kode; is_aktif_bawaan=true HANYA untuk 'aktif' (invarian 102 terjaga).
+        // 'lanjut' = ganjil yang santrinya lanjut ke genap TA yang sama (bukan
+        // 'aktif' — 'aktif' khusus baris periode yang sedang berjalan).
         $isi('ref_status_awal', 'kode', [
             ['santri_baru', ['nama' => 'Santri Baru', 'urutan' => 0, 'is_active' => true]],
             ['mengulang', ['nama' => 'Mengulang', 'urutan' => 1, 'is_active' => true]],
@@ -100,11 +102,12 @@ class ReferensiSeeder extends Seeder
 
         $isi('ref_status_akhir', 'kode', [
             ['aktif', ['nama' => 'Aktif', 'is_aktif_bawaan' => true, 'terminal_ke' => null, 'urutan' => 0, 'is_active' => true]],
-            ['naik', ['nama' => 'Naik', 'is_aktif_bawaan' => false, 'terminal_ke' => null, 'urutan' => 1, 'is_active' => true]],
-            ['tidak_naik', ['nama' => 'Tidak Naik', 'is_aktif_bawaan' => false, 'terminal_ke' => null, 'urutan' => 2, 'is_active' => true]],
-            ['pindah_keluar', ['nama' => 'Pindah/Keluar', 'is_aktif_bawaan' => false, 'terminal_ke' => null, 'urutan' => 3, 'is_active' => true]],
-            ['lulus', ['nama' => 'Lulus', 'is_aktif_bawaan' => false, 'terminal_ke' => null, 'urutan' => 4, 'is_active' => true]],
-            ['tidak_lulus', ['nama' => 'Tidak Lulus', 'is_aktif_bawaan' => false, 'terminal_ke' => null, 'urutan' => 5, 'is_active' => true]],
+            ['lanjut', ['nama' => 'Lanjut', 'is_aktif_bawaan' => false, 'terminal_ke' => null, 'urutan' => 1, 'is_active' => true]],
+            ['naik', ['nama' => 'Naik', 'is_aktif_bawaan' => false, 'terminal_ke' => null, 'urutan' => 2, 'is_active' => true]],
+            ['tidak_naik', ['nama' => 'Tidak Naik', 'is_aktif_bawaan' => false, 'terminal_ke' => null, 'urutan' => 3, 'is_active' => true]],
+            ['pindah_keluar', ['nama' => 'Pindah/Keluar', 'is_aktif_bawaan' => false, 'terminal_ke' => null, 'urutan' => 4, 'is_active' => true]],
+            ['lulus', ['nama' => 'Lulus', 'is_aktif_bawaan' => false, 'terminal_ke' => null, 'urutan' => 5, 'is_active' => true]],
+            ['tidak_lulus', ['nama' => 'Tidak Lulus', 'is_aktif_bawaan' => false, 'terminal_ke' => null, 'urutan' => 6, 'is_active' => true]],
         ]);
     }
 }

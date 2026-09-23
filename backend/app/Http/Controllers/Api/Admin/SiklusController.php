@@ -408,7 +408,7 @@ class SiklusController extends Controller
      * dipertahankan untuk kompatibilitas.
      * Tanpa `kelompok_status`: perilaku lama (is_active_riwayat pada TA default aktif
      * + semester berjalan). Dengan `kelompok_status=aktif|nonaktif`: basis
-     * tampil = status_akhir (aktif = Aktif, Naik, Tidak Naik, Lulus,
+     * tampil = status_akhir (aktif = Aktif, Lanjut, Naik, Tidak Naik, Lulus,
      * Tidak Lulus; nonaktif = Pindah/Keluar) dan `lintas_periode=1`
      * mematikan default TA/semester agar bisa lintas periode.
      */
@@ -450,7 +450,7 @@ class SiklusController extends Controller
         }
         if ($kelompok === 'aktif') {
             // Aktif = gabungan status akhir (bukan flag is_active_riwayat).
-            $query->whereIn('status_akhir', ['aktif', 'naik', 'tidak_naik', 'lulus', 'tidak_lulus']);
+            $query->whereIn('status_akhir', ['aktif', 'lanjut', 'naik', 'tidak_naik', 'lulus', 'tidak_lulus']);
         } elseif ($kelompok === 'nonaktif') {
             $query->where('status_akhir', 'pindah_keluar');
         } else {
@@ -505,7 +505,7 @@ class SiklusController extends Controller
             // Unique (santri, TA, jenjang, semester) → satu baris per santri.
             $q = RiwayatBelajar::query();
             if ($keaktifan === 'aktif') {
-                $q->whereIn('status_akhir', ['aktif', 'naik', 'tidak_naik', 'lulus', 'tidak_lulus']);
+                $q->whereIn('status_akhir', ['aktif', 'lanjut', 'naik', 'tidak_naik', 'lulus', 'tidak_lulus']);
             } elseif ($keaktifan === 'nonaktif') {
                 $q->where('status_akhir', 'pindah_keluar');
             }

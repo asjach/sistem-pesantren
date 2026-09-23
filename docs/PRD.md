@@ -173,6 +173,8 @@
 | 2.119 | 2026-09-24 | Rekap Santri: layout 3 kolom (Per TA span vertikal; Per Tingkat; Per Kelas; Usia per TINGKAT di bawah kolom 2–3) dengan pembatas antar tabel **resizable** (react-resizable-panels), container tabel **tanpa border**, rasio baris Per Tingkat/Kelas : Usia = **2:1**; tabel Per TA menampilkan SELURUH TA (abaikan filter TA terpilih); baris "Jumlah" (total L/P/JML) di Per Tingkat & Per Kelas dan total (Jumlah/rata/min/max + tiap kelompok usia) di Usia per Tingkat; tabel mengisi penuh wadah (scroll hanya saat isi melebihi); Per Kelas: kolom Kelas/Lembaga/L/P/JML (tanpa tingkat, TA, kapasitas, sisa) |
 | 2.120 | 2026-09-24 | Rekap Santri: filter **Keaktifan** (Aktif = `status_akhir` selain Pindah/Keluar [bawaan]; Tidak aktif = Pindah/Keluar; Semua). Verified: semester 2 Tidak aktif = 739 |
 | 2.121 | 2026-09-24 | Rekap Santri: tabel Per tahun ajaran diurut menaik (ASC) berdasarkan Tahun Ajaran (2004/2005 → …) |
+| 2.122 | 2026-09-24 | Fix dropdown lembaga TopBar: opsi "Semua" selalu tampil selama punya akses (sebelumnya hanya muncul saat sudah "Semua", sehingga tak bisa kembali dari lembaga terpilih) |
+| 2.123 | 2026-09-24 | Status akhir semester ganjil = **`lanjut`** (kode ref baru "Lanjut"): ganjil yang lanjut ke genap TA sama tidak lagi `aktif`; `aktif` khusus periode yang berjalan. `salinKeGenap` mengarsipkan ganjil sebagai `lanjut`, `batalSalin` mengembalikannya ke `aktif`, importer menyinkronkan ganjil↔genap. Set "aktif" (Daftar Kelas & Rekap) menyertakan `lanjut` |
 
 ## Daftar Isi
 

@@ -63,7 +63,7 @@ class RiwayatBelajarTemplateExport extends DefaultValueBinder implements FromArr
             'no_absen' => '1',
             'tingkat' => '1',
             'status_awal' => 'Santri Baru',
-            'status_akhir' => 'Aktif',
+            'status_akhir' => 'Lanjut',
         ]];
     }
 
