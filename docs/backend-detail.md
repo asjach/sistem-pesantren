@@ -209,9 +209,9 @@ ditolak melainkan tersimpan berawalan `X-` (mutator `Santri`, lookup import
 sadar-flag); `nis_kemenag` bebas duplikat (tanpa unique/cek dipakai) dan selalu
 null untuk MD (hook model; generate per-baris MD 422); batas eksekusi request
 import 300 detik; nomor baris Excel-absolut
-selaras validator; pencocokan 4 lapis (santri_id eksak → NIK →
-nis+lembaga → create wajib nama); sel kosong = pertahankan (tanpa pengosongan
-via file); NIK kosong selalu create; **keanggotaan wajib**: tiap baris harus
+selaras validator; pencocokan 2 lapis (santri_id eksak → nis+lembaga;
+NIK bukan kunci karena boleh ganda) → create wajib nama bila tak cocok; sel kosong = pertahankan (tanpa pengosongan
+via file); NIK hanya disimpan, tak dipakai mencocokkan (boleh ganda); **keanggotaan wajib**: tiap baris harus
 punya `jenjang` (case-insensitive) — santri minimal terdaftar di 1 jenjang;
 baris tanpa jenjang gagal; baris luar tenant gagal
 per baris (bukan 403); sel numerik/serial tanggal dinormalisasi sebelum

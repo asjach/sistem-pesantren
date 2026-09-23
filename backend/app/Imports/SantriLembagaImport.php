@@ -8,7 +8,6 @@ use App\Models\RiwayatBelajar;
 use App\Models\Santri;
 use App\Models\TahunAjaran;
 use App\Services\PenerimaanService;
-use App\Support\NikFlag;
 use App\Support\Tanggal;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Collection;
@@ -22,11 +21,11 @@ use Maatwebsite\Excel\Validators\Failure;
  * `Santri::KOLOM_PROFIL` — file ini juga bisa dipakai memutakhirkan data
  * (round-trip via kolom `santri_id` opsional).
  *
- * Pencocokan santri 4 lapis per baris:
+ * Pencocokan santri 2 lapis per baris:
  *  (a) `santri_id` eksak (bila diisi),
- *  (b) `nik|nama_lengkap|tgl_lahir` (dipakai ulang dari induk),
- *  (c) `nis_lokal + lembaga` (penting: tidak semua santri punya NIK),
- *  (d) create baru (wajib ada `nama_lengkap`).
+ *  (b) `nis_lokal + lembaga` (kunci utama; NIK sengaja bukan kunci karena
+ *      boleh ganda),
+ *  lalu create baru (wajib ada `nama_lengkap`).
  *
  * Keanggotaan WAJIB: tiap baris harus punya `jenjang` (minimal 1 lembaga).
  * Belum ada → create (`is_active_lembaga` bawaan true); sudah ada baris untuk
@@ -52,9 +51,6 @@ class SantriLembagaImport extends SantriLengkapImport
             'baris_riwayat_dibuat' => $this->barisRiwayat,
         ]);
     }
-
-    /** Guard duplikat intra-file lintas chunk: kunci nik|nama|tgl. */
-    protected array $dilihatNik = [];
 
     /** Guard duplikat intra-file lintas chunk: kunci lembaga|nis_lokal. */
     protected array $dilihatNis = [];
@@ -116,7 +112,7 @@ class SantriLembagaImport extends SantriLengkapImport
         // Jaring pengaman: kegagalan tulis DB (mis. bentrok unik) dicatat per
         // baris, bukan 500 yang membatalkan seluruh file.
         try {
-            $santri = $this->cocokkanSantri($baris, $dataSantri, $no, $jenjang, $this->dilihatNik, $this->dilihatNis, $sudahAda);
+            $santri = $this->cocokkanSantri($baris, $dataSantri, $no, $jenjang, $this->dilihatNis, $sudahAda);
             if ($santri === null) {
                 return false;
             }
@@ -219,14 +215,13 @@ class SantriLembagaImport extends SantriLengkapImport
     }
 
     /**
-     * Cocokkan santri 4 lapis; $sudahAda true bila baris menimpa santri lama.
+     * Cocokkan santri 2 lapis; $sudahAda true bila baris menimpa santri lama.
      *
      * @param  array<string, mixed>  $baris
      * @param  array<string, mixed>  $dataSantri
-     * @param  array<string, Santri>  $dilihatNik
      * @param  array<string, Santri>  $dilihatNis
      */
-    protected function cocokkanSantri(array $baris, array $dataSantri, int $no, string $jenjang, array &$dilihatNik, array &$dilihatNis, ?bool &$sudahAda): ?Santri
+    protected function cocokkanSantri(array $baris, array $dataSantri, int $no, string $jenjang, array &$dilihatNis, ?bool &$sudahAda): ?Santri
     {
         $sudahAda = false;
 
@@ -252,16 +247,7 @@ class SantriLembagaImport extends SantriLengkapImport
         $nikTerisi = trim((string) ($baris['nik'] ?? '')) !== '';
         $nisTerisi = trim((string) ($baris['nis_lokal'] ?? '')) !== '';
 
-        // (b) NIK via logika induk (membedakan update vs create).
-        if ($nikTerisi) {
-            $sebelum = Santri::where('nik', NikFlag::tandai(trim((string) $baris['nik'])))->exists();
-            $santri = $this->simpanDenganNik($baris, $dataSantri, $this->dilihatNik);
-            $sudahAda = $sebelum;
-
-            return $santri;
-        }
-
-        // (c) Fallback NIS lokal + lembaga (+ guard intra-file).
+        // (b) NIS lokal + lembaga (NIK bukan kunci karena boleh ganda).
         if ($nisTerisi) {
             $nis = trim((string) $baris['nis_lokal']);
             $kunci = $jenjang.'|'.mb_strtolower($nis);
@@ -282,7 +268,7 @@ class SantriLembagaImport extends SantriLengkapImport
             // NIS belum terdaftar → create baru di bawah (membawa nis_lokal).
         }
 
-        // (d) Create baru — wajib ada nama.
+        // (c) Create baru — wajib ada nama.
         if (empty($dataSantri['nama_lengkap'])) {
             $this->fail($no, 'nama_lengkap', 'Nama wajib diisi untuk santri baru.');
 

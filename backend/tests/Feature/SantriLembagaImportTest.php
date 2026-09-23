@@ -147,9 +147,9 @@ class SantriLembagaImportTest extends TestCase
         $this->assertSame('2026-07-01', $ls->tgl_masuk->format('Y-m-d'));
     }
 
-    // ---------- 03. NIK cocok: profil + keanggotaan ter-update ----------
+    // ---------- 03. NIK sama bukan kunci: NIS baru = santri baru ----------
 
-    public function test_03_nik_cocok_update_profil_dan_anggota(): void
+    public function test_03_nik_sama_nis_beda_buat_santri_baru(): void
     {
         $f = $this->baseFixture();
         $admin = $this->makeAdmin([$f['mi']->jenjang]);
@@ -157,6 +157,8 @@ class SantriLembagaImportTest extends TestCase
         $santri = Santri::create(['nama_lengkap' => 'Lama', 'nik' => '1101010000000002', 'jk' => 'L', 'tgl_lahir' => '2015-01-01']);
         LembagaSantri::create(['santri_id' => $santri->id, 'jenjang' => $f['mi']->jenjang, 'nis_lokal' => '25001', 'is_active_lembaga' => 'Ya']);
 
+        // NIK sama tapi NIS tak dikenal: NIK bukan kunci → santri BARU
+        // (duplikat NIK diizinkan skema).
         $csv = $this->makeCsv([[
             'jenjang' => 'MI',
             'nis_lokal' => '25002',
@@ -168,13 +170,12 @@ class SantriLembagaImportTest extends TestCase
 
         $this->upload($admin, $csv)->assertStatus(200);
 
-        $this->assertSame(1, Santri::where('nik', '1101010000000002')->count());
-        $this->assertSame('25002', LembagaSantri::where('santri_id', $santri->id)->firstOrFail()->nis_lokal);
+        $this->assertSame(2, Santri::where('nik', '1101010000000002')->count());
+        $this->assertSame('25001', LembagaSantri::where('santri_id', $santri->id)->firstOrFail()->nis_lokal);
 
-        // Mode periksa melaporkan baris update tanpa menulis ulang yang merusak.
+        // Mode periksa: baris Kedua tercatat dibuat (bukan update).
         $res = $this->upload($admin, $csv, 'import-periksa-gabungan')->assertStatus(200);
         $this->assertTrue((bool) $res->json('siap_import'));
-        $this->assertSame(1, (int) $res->json('ringkasan.baris_diperbarui'));
     }
 
     // ---------- 04. tanpa NIK: fallback NIS + lembaga ----------
@@ -241,9 +242,9 @@ class SantriLembagaImportTest extends TestCase
         $this->assertSame($sebelumLs, LembagaSantri::count());
     }
 
-    // ---------- 07. NIS dipakai santri lain → gagal baris ----------
+    // ---------- 07. NIS + lembaga cocok = update pemiliknya ----------
 
-    public function test_07_nis_ganda_gagal_baris(): void
+    public function test_07_nis_cocok_update_pemilik(): void
     {
         $f = $this->baseFixture();
         $admin = $this->makeAdmin([$f['mi']->jenjang]);
@@ -251,17 +252,17 @@ class SantriLembagaImportTest extends TestCase
         $a = Santri::create(['nama_lengkap' => 'Pemilik NIS', 'jk' => 'L']);
         LembagaSantri::create(['santri_id' => $a->id, 'jenjang' => $f['mi']->jenjang, 'nis_lokal' => '25300', 'is_active_lembaga' => 'Ya']);
 
-        $res = $this->upload($admin, $this->makeCsv([[
+        // NIS + lembaga adalah kunci: baris menimpa pemiliknya (bukan tolak,
+        // bukan santri baru) — sel terisi menimpa, kosong dipertahankan.
+        $this->upload($admin, $this->makeCsv([[
             'jenjang' => 'MI',
             'nis_lokal' => '25300',
-            'nama_lengkap' => 'Penyerobot',
-            'nik' => '1101010000000004',
+            'nama_lengkap' => 'Pemilik NIS Baru',
             'jk' => 'L',
-        ]]))->assertStatus(422);
+        ]]))->assertStatus(200);
 
-        $attrs = collect($res->json('errors'))->pluck('attribute')->all();
-        $this->assertContains('nis_lokal', $attrs);
-        $this->assertNull(Santri::where('nik', '1101010000000004')->first()?->lembagaSantri()->first());
+        $this->assertSame(1, LembagaSantri::where('jenjang', $f['mi']->jenjang)->where('nis_lokal', '25300')->count());
+        $this->assertSame('Pemilik NIS Baru', $a->fresh()->nama_lengkap);
     }
 
     // ---------- 08. tenant: baris luar lingkup gagal, dalam lingkup masuk ----------
@@ -973,9 +974,10 @@ class SantriLembagaImportTest extends TestCase
 
     // ---------- masuk lagi setelah keluar: NIS baru = baris baru ----------
 
-    protected function barisMasukLagi(string $nis, string $aktif = 'Ya'): array
+    protected function barisMasukLagi(int $santriId, string $nis, string $aktif = 'Ya'): array
     {
         return [
+            'santri_id' => (string) $santriId,
             'jenjang' => 'MI',
             'nis_lokal' => $nis,
             'is_active_lembaga' => $aktif,
@@ -994,8 +996,9 @@ class SantriLembagaImportTest extends TestCase
         $santri = Santri::create(['nama_lengkap' => 'Masuk Lagi', 'nik' => '1101010000000041', 'jk' => 'L', 'tgl_lahir' => '2015-07-01']);
         LembagaSantri::create(['santri_id' => $santri->id, 'jenjang' => $f['mi']->jenjang, 'nis_lokal' => '25051', 'is_active_lembaga' => 'Tidak', 'tgl_selesai' => '2024-06-01']);
 
-        // NIS beda + arsip nonaktif = periode baru (bukan timpa NIS lama).
-        $this->upload($admin, $this->makeCsv([$this->barisMasukLagi('25052')]))->assertStatus(200);
+        // santri_id eksak + NIS baru + arsip nonaktif = periode baru
+        // (bukan timpa NIS lama).
+        $this->upload($admin, $this->makeCsv([$this->barisMasukLagi($santri->id, '25052')]))->assertStatus(200);
 
         $this->assertSame(1, Santri::where('nik', '1101010000000041')->count());
         $baris = LembagaSantri::where('santri_id', $santri->id)->where('jenjang', $f['mi']->jenjang)->orderBy('id')->get();
@@ -1017,6 +1020,7 @@ class SantriLembagaImportTest extends TestCase
 
         // NIS sama dengan salah satu baris miliknya → pakai baris itu (tidak nambah).
         $csv = $this->makeCsv([[
+            'santri_id' => (string) $santri->id,
             'jenjang' => 'MI',
             'nis_lokal' => '25062',
             'is_active_lembaga' => 'Tidak',
@@ -1043,6 +1047,7 @@ class SantriLembagaImportTest extends TestCase
 
         // Anak A masuk lagi tapi NIS yang diminta milik Anak B → tolak.
         $res = $this->upload($admin, $this->makeCsv([[
+            'santri_id' => (string) $a->id,
             'jenjang' => 'MI',
             'nis_lokal' => '25072',
             'is_active_lembaga' => 'Ya',
