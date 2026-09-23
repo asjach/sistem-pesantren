@@ -19,9 +19,9 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
-// Import arsip mutasi keluar: template + periksa + eksekusi, kunci NIK →
-// fallback NIS lokal, kelas cukup nama, baris sama dilewati, efek meniru
-// tombol "Proses mutasi" (tutup riwayat + keanggotaan aktif bila ada).
+// Import arsip mutasi keluar: template + periksa + eksekusi, kunci NIS lokal +
+// lembaga, kelas cukup nama, baris sama dilewati, efek meniru tombol
+// "Proses mutasi" (tutup riwayat + keanggotaan aktif bila ada).
 class MutasiKeluarImportTest extends TestCase
 {
     use RefreshDatabase;
@@ -111,9 +111,15 @@ class MutasiKeluarImportTest extends TestCase
         return $santri;
     }
 
+    /** NIS lokal santri (kunci import). */
+    protected function nisOf(Santri $santri): string
+    {
+        return (string) LembagaSantri::where('santri_id', $santri->id)->firstOrFail()->nis_lokal;
+    }
+
     protected function makeCsv(array $rows): string
     {
-        $headers = ['nik', 'nis_lokal', 'jenjang', 'tanggal_mutasi', 'alasan_mutasi', 'kelas_terakhir', 'tahun_ajaran', 'no_surat', 'nama_sekolah_tujuan', 'npsn_sekolah_tujuan', 'nsm_sekolah_tujuan', 'alamat_sekolah_tujuan', 'keterangan'];
+        $headers = ['nis_lokal', 'jenjang', 'tanggal_mutasi', 'alasan_mutasi', 'kelas_terakhir', 'tahun_ajaran', 'no_surat', 'nama_sekolah_tujuan', 'npsn_sekolah_tujuan', 'nsm_sekolah_tujuan', 'alamat_sekolah_tujuan', 'keterangan'];
         $tmp = tempnam(sys_get_temp_dir(), 'mutasi').'.csv';
         $h = fopen($tmp, 'w');
         fputcsv($h, $headers);
@@ -154,7 +160,7 @@ class MutasiKeluarImportTest extends TestCase
         ]);
         $santri = $this->makeSantriAktif($f, 'Arsip Tulis', '1101010000000311', $kelas);
         $csv = $this->makeCsv([[
-            'nik' => '1101010000000311', 'jenjang' => 'MI',
+            'nis_lokal' => $this->nisOf($santri), 'jenjang' => 'MI',
             'tanggal_mutasi' => '2026-05-01', 'alasan_mutasi' => 'Ikut pindah orang tua',
             'kelas_terakhir' => '1A', 'nama_sekolah_tujuan' => 'SDN Contoh',
         ]]);
@@ -182,7 +188,7 @@ class MutasiKeluarImportTest extends TestCase
         $f = $this->baseFixture();
         $santri = $this->makeSantriAktif($f, 'Arsip Ganda', '1101010000000312');
         $baris = [
-            'nik' => '1101010000000312', 'jenjang' => 'MI',
+            'nis_lokal' => $this->nisOf($santri), 'jenjang' => 'MI',
             'tanggal_mutasi' => '2026-05-01', 'alasan_mutasi' => 'Ikut pindah orang tua',
         ];
         $csv = $this->makeCsv([$baris]);
@@ -226,7 +232,7 @@ class MutasiKeluarImportTest extends TestCase
         }
         $santri = $this->makeSantriAktif($f, 'Arsip Ganda Kelas', '1101010000000314');
         $dasar = [
-            'nik' => '1101010000000314', 'jenjang' => 'MI',
+            'nis_lokal' => $this->nisOf($santri), 'jenjang' => 'MI',
             'tanggal_mutasi' => '2026-05-01', 'alasan_mutasi' => 'Ikut pindah orang tua',
             'kelas_terakhir' => '1C',
         ];
@@ -250,16 +256,16 @@ class MutasiKeluarImportTest extends TestCase
         $santri = $this->makeSantriAktif($f, 'Arsip Alasan', '1101010000000315');
         $csv = $this->makeCsv([
             // Santri tak dikenal.
-            ['nik' => '1101010000000399', 'jenjang' => 'MI', 'tanggal_mutasi' => '2026-05-01', 'alasan_mutasi' => 'Ikut pindah orang tua'],
+            ['nis_lokal' => 'NIS-TAK-ADA', 'jenjang' => 'MI', 'tanggal_mutasi' => '2026-05-01', 'alasan_mutasi' => 'Ikut pindah orang tua'],
             // Di luar lingkup akun.
-            ['nik' => '1101010000000398', 'jenjang' => 'MTS', 'tanggal_mutasi' => '2026-05-01', 'alasan_mutasi' => 'Ikut pindah orang tua'],
+            ['nis_lokal' => 'NIS-LUAR', 'jenjang' => 'MTS', 'tanggal_mutasi' => '2026-05-01', 'alasan_mutasi' => 'Ikut pindah orang tua'],
             // Alasan tak aktif (santri nyata agar sampai ke cek alasan).
-            ['nik' => '1101010000000315', 'jenjang' => 'MI', 'tanggal_mutasi' => '2026-05-01', 'alasan_mutasi' => 'Alasan Fiktif'],
+            ['nis_lokal' => $this->nisOf($santri), 'jenjang' => 'MI', 'tanggal_mutasi' => '2026-05-01', 'alasan_mutasi' => 'Alasan Fiktif'],
         ]);
 
         $res = $this->upload($adminMi, $csv)->assertStatus(422);
         $atribut = collect($res->json('errors'))->pluck('attribute')->all();
-        $this->assertSame(['nik', 'jenjang', 'alasan_mutasi'], $atribut);
+        $this->assertSame(['nis_lokal', 'jenjang', 'alasan_mutasi'], $atribut);
         $this->assertSame(0, MutasiKeluar::count());
     }
 }

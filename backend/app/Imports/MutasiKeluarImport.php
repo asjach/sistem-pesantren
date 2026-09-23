@@ -8,7 +8,6 @@ use App\Models\MutasiKeluar;
 use App\Models\RiwayatBelajar;
 use App\Models\Santri;
 use App\Services\RefService;
-use App\Support\NikFlag;
 use App\Support\Tanggal;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -23,9 +22,8 @@ use Maatwebsite\Excel\Validators\Failure;
 
 /**
  * Import arsip mutasi keluar multi-lembaga: tiap baris membawa `jenjang`
- * sendiri. Pencocokan santri: `nik` diutamakan → fallback `nis_lokal` +
- * `jenjang` (pola import riwayat). Baris yang sama (santri + jenjang +
- * tanggal) dilewati (`dilewati`) agar file boleh diimport ulang.
+ * sendiri. Kunci santri: `nis_lokal` + `jenjang`. Baris yang sama (santri +
+ * jenjang + tanggal) dilewati (`dilewati`) agar file boleh diimport ulang.
  *
  * Efek per baris valid MENIRU tombol "Proses mutasi": arsip ditulis; bila
  * santri masih punya riwayat aktif di jenjang itu, riwayat ditutup
@@ -77,7 +75,7 @@ class MutasiKeluarImport implements SkipsOnFailure, SkipsUnknownSheets, ToCollec
     }
 
     /**
-     * Normalisasi SEBELUM validasi: angka Excel → string (NIK ber-nol-depan
+     * Normalisasi SEBELUM validasi: angka Excel → string (NIS ber-nol-depan
      * dan tanggal serial tetap terbaca; tanggal diparse via Tanggal::parse).
      *
      * @param  array<string, mixed>  $row
@@ -86,7 +84,7 @@ class MutasiKeluarImport implements SkipsOnFailure, SkipsUnknownSheets, ToCollec
     public function map($row): array
     {
         $baris = (array) $row;
-        foreach (['nik', 'nis_lokal', 'jenjang', 'tanggal_mutasi', 'alasan_mutasi', 'kelas_terakhir', 'tahun_ajaran', 'no_surat', 'nama_sekolah_tujuan', 'npsn_sekolah_tujuan', 'nsm_sekolah_tujuan', 'alamat_sekolah_tujuan', 'keterangan'] as $kolom) {
+        foreach (['nis_lokal', 'jenjang', 'tanggal_mutasi', 'alasan_mutasi', 'kelas_terakhir', 'tahun_ajaran', 'no_surat', 'nama_sekolah_tujuan', 'npsn_sekolah_tujuan', 'nsm_sekolah_tujuan', 'alamat_sekolah_tujuan', 'keterangan'] as $kolom) {
             if (isset($baris[$kolom]) && (is_int($baris[$kolom]) || is_float($baris[$kolom]))) {
                 $baris[$kolom] = fmod((float) $baris[$kolom], 1.0) === 0.0
                     ? (string) (int) $baris[$kolom]
@@ -102,8 +100,7 @@ class MutasiKeluarImport implements SkipsOnFailure, SkipsUnknownSheets, ToCollec
         return [
             // Sel Excel/CSV bisa terbaca sebagai angka → hindari rule `string` ketat.
             // Tanggal TANPA rule `date` (serial Excel gagal rule itu) — diparse manual.
-            'nik' => ['required_without:nis_lokal', 'nullable', 'digits:16'],
-            'nis_lokal' => ['required_without:nik', 'nullable'],
+            'nis_lokal' => ['required'],
             'jenjang' => ['required', 'string', 'exists:lembaga,jenjang'],
             'tanggal_mutasi' => ['required'],
             'alasan_mutasi' => ['required', 'string', 'max:100'],
@@ -207,18 +204,9 @@ class MutasiKeluarImport implements SkipsOnFailure, SkipsUnknownSheets, ToCollec
         });
     }
 
-    /** Cari santri: `nik` diutamakan → fallback `nis_lokal` + lembaga. */
+    /** Cari santri via `nis_lokal` + lembaga (kunci tunggal). */
     protected function cariSantri(array $row, string $jenjang): ?Santri
     {
-        $nik = trim((string) ($row['nik'] ?? ''));
-        if ($nik !== '') {
-            // NIK tak valid tersimpan berawalan `X-`: cari bentuk tersimpannya.
-            $santri = Santri::where('nik', NikFlag::tandai($nik))->first();
-            if ($santri) {
-                return $santri;
-            }
-        }
-
         $nisLokal = trim((string) ($row['nis_lokal'] ?? ''));
         if ($nisLokal !== '') {
             $ls = LembagaSantri::where('jenjang', $jenjang)->where('nis_lokal', $nisLokal)->first();
@@ -227,7 +215,7 @@ class MutasiKeluarImport implements SkipsOnFailure, SkipsUnknownSheets, ToCollec
             }
         }
 
-        $this->fail($this->nomorBaris, 'nik', 'Santri tidak ditemukan (cocokkan NIK atau NIS lokal + lembaga).');
+        $this->fail($this->nomorBaris, 'nis_lokal', 'Santri tidak ditemukan (cocokkan NIS lokal + lembaga).');
 
         return null;
     }

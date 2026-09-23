@@ -198,8 +198,8 @@ export default function MutasiKeluarPage() {
           <DialogHeader>
             <DialogTitle>Import arsip mutasi keluar</DialogTitle>
             <DialogDescription>
-              Satu file boleh berisi banyak lembaga. Kunci santri: NIK → fallback NIS lokal + lembaga.
-              Kolom: nik, nis_lokal, jenjang, tanggal_mutasi (wajib), alasan_mutasi (wajib),
+              Satu file boleh berisi banyak lembaga. Kunci santri: NIS lokal + lembaga.
+              Kolom: nis_lokal (wajib), jenjang (wajib), tanggal_mutasi (wajib), alasan_mutasi (wajib),
               kelas_terakhir (nama rombel; kosong = beku dari riwayat terakhir), tahun_ajaran
               (opsional, wajib bila nama kelas ada di beberapa tahun ajaran), no_surat,
               nama_sekolah_tujuan, npsn, nsm, dan alamat tujuan, keterangan. Baris yang sama

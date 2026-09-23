@@ -18,10 +18,10 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
 
 /**
  * Template import arsip mutasi keluar: hanya heading (tanpa baris contoh agar
- * tak ikut terimport). Kunci santri: `nik` diutamakan → fallback `nis_lokal` +
- * `jenjang`. `kelas_terakhir` diisi NAMA rombel (id numerik tetap diterima);
+ * tak ikut terimport). Kunci santri: `nis_lokal` + `jenjang`.
+ * `kelas_terakhir` diisi NAMA rombel (id numerik tetap diterima);
  * `tahun_ajaran` opsional sebagai lingkup pencarian nama (wajib diisi bila
- * nama yang sama ada di beberapa tahun ajaran). Sel bertipe TEKS agar NIK
+ * nama yang sama ada di beberapa tahun ajaran). Sel bertipe TEKS agar NIS
  * ber-nol-depan tidak berubah format.
  *
  * Header berkode warna (seragam template lain): kuning = wajib diisi,
@@ -29,8 +29,8 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
  */
 class MutasiKeluarTemplateExport extends DefaultValueBinder implements FromArray, WithCustomValueBinder, WithEvents, WithHeadings, WithTitle
 {
-    /** Kolom wajib (nik boleh diganti nis_lokal + jenjang sebagai kunci). */
-    public const WAJIB = ['nik', 'jenjang', 'tanggal_mutasi', 'alasan_mutasi'];
+    /** Kolom wajib. */
+    public const WAJIB = ['nis_lokal', 'jenjang', 'tanggal_mutasi', 'alasan_mutasi'];
 
     public function bindValue(Cell $cell, $value): bool
     {
@@ -42,7 +42,7 @@ class MutasiKeluarTemplateExport extends DefaultValueBinder implements FromArray
     public static function kolom(): array
     {
         return [
-            'nik', 'nis_lokal', 'jenjang', 'tanggal_mutasi', 'alasan_mutasi',
+            'nis_lokal', 'jenjang', 'tanggal_mutasi', 'alasan_mutasi',
             'kelas_terakhir', 'tahun_ajaran', 'no_surat', 'nama_sekolah_tujuan',
             'npsn_sekolah_tujuan', 'nsm_sekolah_tujuan', 'alamat_sekolah_tujuan',
             'keterangan',

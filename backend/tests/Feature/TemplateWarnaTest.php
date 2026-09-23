@@ -24,7 +24,7 @@ class TemplateWarnaTest extends TestCase
         $kasus = [
             [new KelasTemplateExport, ['A1' => 'FFFFE699', 'D1' => 'FFDCE6F1']],
             [new PsbTemplateExport, ['A1' => 'FFFFE699', 'C1' => 'FFDCE6F1']],
-            [new MutasiKeluarTemplateExport, ['A1' => 'FFFFE699', 'B1' => 'FFDCE6F1']],
+            [new MutasiKeluarTemplateExport, ['A1' => 'FFFFE699', 'E1' => 'FFDCE6F1']],
         ];
 
         foreach ($kasus as $i => [$export, $sel]) {

@@ -175,6 +175,7 @@
 | 2.121 | 2026-09-24 | Rekap Santri: tabel Per tahun ajaran diurut menaik (ASC) berdasarkan Tahun Ajaran (2004/2005 → …) |
 | 2.122 | 2026-09-24 | Fix dropdown lembaga TopBar: opsi "Semua" selalu tampil selama punya akses (sebelumnya hanya muncul saat sudah "Semua", sehingga tak bisa kembali dari lembaga terpilih) |
 | 2.123 | 2026-09-24 | Status akhir semester ganjil = **`lanjut`** (kode ref baru "Lanjut"): ganjil yang lanjut ke genap TA sama tidak lagi `aktif`; `aktif` khusus periode yang berjalan. `salinKeGenap` mengarsipkan ganjil sebagai `lanjut`, `batalSalin` mengembalikannya ke `aktif`, importer menyinkronkan ganjil↔genap. Set "aktif" (Daftar Kelas & Rekap) menyertakan `lanjut` |
+| 2.124 | 2026-09-24 | Import arsip mutasi keluar: hapus kolom `nik`, kunci update kini **NIS lokal + jenjang** (`nis_lokal` wajib). Template/deskripsi/tabel tes disesuaikan |
 
 ## Daftar Isi
 
