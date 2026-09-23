@@ -150,6 +150,9 @@
 | 2.96 | 2026-09-23 | Batal salin semester: endpoint + aksi per baris/massal di panel kanan Pindah Semester (genap dihapus, ganjil dibuka); suite 298/298 |
 | 2.97 | 2026-09-23 | Syarat pindah semester: hanya ganjil yang sudah berkelas (genap mewarisi kelas otomatis); suite 298/298 |
 | 2.98 | 2026-09-23 | Template riwayat pakai `nama_kelas` (bukan `kelas_id`); import terima dua heading (nama dulu, fallback id); suite 299/299 |
+| 2.99 | 2026-09-23 | Import arsip mutasi keluar (template/periksa/import, tombol di panel arsip): kunci NIK→NIS lokal, kelas cukup nama (+TA bila ganda), baris sama dilewati, efek tiru tombol Mutasi; suite 305/305 |
+| 2.100 | 2026-09-23 | Import riwayat tanpa NIK: kunci `nis_lokal` + `jenjang` (template, validasi, pencocokan, dialog, tes); suite 305/305 |
+| 2.101 | 2026-09-23 | Status tampil Proper Case di grid/dialog (`Santri Baru`); template dropdown ikut label, import petakan label→kode (kode lama tetap jalan); suite 306/306 |
 
 ## Daftar Isi
 

@@ -280,6 +280,12 @@ dari riwayat aktif terakhir, input manual menang bila diisi (validasi
 Aturan rombel: `no_absen` unik per (kelas, tahun ajaran, semester), minimal 1;
 kelas tujuan se-lembaga + se-TA, tingkat cocok bila keduanya terisi; hanya
 riwayat aktif yang bisa diset/dipindah/dikosongkan kelasnya.
+Import arsip mutasi keluar (`mutasi-keluar/import-template|periksa|import`,
+tombol di panel arsip, izin `mutasi_keluar.ubah`): kunci NIK → fallback NIS
+lokal + jenjang; `kelas_terakhir` cukup nama (id tetap diterima; nama ganda
+antar-TA wajib diiringi `tahun_ajaran`; kosong = beku dari riwayat terakhir);
+baris sama (santri+jenjang+tanggal) dilewati agar import idempoten; efek meniru
+tombol Mutasi (tutup riwayat + keanggotaan aktif bila ada).
 Wali kelas inline (`kelas.walas_id → pegawai`): `setWalas()` validasi 3 lapis
 (pegawai ada + aktif global + keaktifan aktif di lembaga + TA kelas) via
 endpoint set-walas / update / import kolom `walas` (NIP dulu, fallback nama);
@@ -297,8 +303,10 @@ semester 2 tahun sama sudah ada; ganjil arsip tetap 'aktif', genap dibuka
 `tidak_lulus` wajib TA berikut sudah ada (tingkat diwarisi, keanggotaan tetap
 aktif). Daftar ulang jenjang: baris nonaktif lama tak diaktifkan ulang (buat
 baris baru) kecuali reaktivasi arsip sendiri ber-NIS sama.
-Import riwayat: upsert kunci (santri, TA, lembaga, semester); semester hanya
-1/2; kelas by-nama (case-insensitive) atau id se-lembaga+TA; `status_awal`
+Import riwayat: upsert kunci (santri, TA, lembaga, semester); pencocokan santri
+via `nis_lokal` + `jenjang` (tanpa NIK; santri wajib sudah punya keanggotaan
+di lembaga itu — buat dulu lewat import keanggotaan bila belum ada); semester
+hanya 1/2; kelas by-nama (case-insensitive) atau id se-lembaga+TA; `status_awal`
 bawaan `santri_baru`, `status_akhir` bawaan `aktif`; keanggotaan auto-create
 (NIS unik); `is_active_lembaga` parsing `Ya/Tidak/1/0/aktif/ya/…`, tak dikenal = gagal baris.
 
