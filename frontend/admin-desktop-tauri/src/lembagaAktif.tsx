@@ -49,7 +49,7 @@ export function LembagaAktifProvider({ children }: { children: ReactNode }) {
   const [pilihanPeran, setPilihanPeran] = useState<PilihanLembaga[]>([]);
   const [jenjang, setJenjang] = useState<string | null>(null);
   const [peranJenjang, setPeranJenjang] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   /** Izin efektif (/me) sudah disegarkan untuk peran pulihan (sekali saja). */
   const disegarkan = useRef(false);
   // Ganti akun → izinkan penyegaran ulang untuk peran pulihan akun baru.
@@ -69,7 +69,9 @@ export function LembagaAktifProvider({ children }: { children: ReactNode }) {
         setPilihanPeran([]);
         setJenjang(null);
         setPeranJenjang(null);
-        setLoading(false);
+        // `loading` sengaja TIDAK dimatikan di sini: selama user belum ada,
+        // provider anak (tahun ajaran/TopBar) harus tetap menunggu agar tidak
+        // memuat untuk state perantara ("Semua" lalu jenjang terpilih).
         return;
       }
 

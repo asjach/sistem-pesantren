@@ -46,7 +46,7 @@ export function SemesterAktifProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     })();
     return () => { alive = false; };
-  }, [user]);
+  }, [user?.id]);
 
   const pilih = useMemo(() => (s: SemesterAktif | null) => {
     setSemester(s);

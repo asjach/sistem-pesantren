@@ -207,7 +207,7 @@ export function StandarTampilanProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [user, jenjang]);
+  }, [user?.id, jenjang]);
 
   // Tampilkan cache lebih dulu agar tidak berkedip, lalu ambil versi server.
   useEffect(() => {
@@ -253,7 +253,7 @@ export function StandarTampilanProvider({ children }: { children: ReactNode }) {
       window.removeEventListener('focus', onFokus);
       document.removeEventListener('visibilitychange', onFokus);
     };
-  }, [user, jenjang, muat]);
+  }, [user?.id, jenjang, muat]);
 
   const simpanPribadi = useCallback((next: PribadiMap) => {
     prefSet(PERSONAL_KEY, JSON.stringify(next)).catch(() => {});

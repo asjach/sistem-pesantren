@@ -64,6 +64,9 @@ export default function TopBar() {
   // (super_admin, admin pesantren) = semester yang paling banyak aktif.
   // Aktivasi per lembaga ada di halaman Semester (khusus super_admin).
   useEffect(() => {
+    // Tunggu lembaga aktif selesai dimuat agar tak memuat dua kali
+    // (untuk "Semua" lalu untuk jenjang terpilih).
+    if (lembagaLoading) return;
     let hidup = true;
     daftarSemester()
       .then((res) => {
@@ -86,7 +89,7 @@ export default function TopBar() {
       })
       .catch(() => {});
     return () => { hidup = false; };
-  }, [jenjang, pilihSemester]);
+  }, [jenjang, pilihSemester, lembagaLoading]);
   // Dropdown lembaga = filter (bebas diubah kapan pun, termasuk saat bertindak);
   // peran act-as diatur terpisah lewat tombol PERAN SEBAGAI + banner.
   const daftarLembaga = pilihan;

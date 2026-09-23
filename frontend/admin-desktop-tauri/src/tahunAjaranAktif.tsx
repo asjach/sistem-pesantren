@@ -33,7 +33,7 @@ function bawaan(daftar: TahunAjaran[], jenjang: string | null): string | null {
 
 export function TahunAjaranAktifProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  const { jenjang } = useLembagaAktif();
+  const { jenjang, loading: lembagaLoading } = useLembagaAktif();
   const [pilihan, setPilihan] = useState<TahunAjaran[]>([]);
   const [tahunAjaranNama, setTahunAjaranNama] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -48,6 +48,9 @@ export function TahunAjaranAktifProvider({ children }: { children: ReactNode }) 
         setLoading(false);
         return;
       }
+      // Tunggu lembaga aktif selesai dimuat agar tak memuat dua kali
+      // (untuk "Semua" lalu untuk jenjang terpilih).
+      if (lembagaLoading) return;
 
       setLoading(true);
       let daftar: TahunAjaran[] = [];
@@ -71,7 +74,7 @@ export function TahunAjaranAktifProvider({ children }: { children: ReactNode }) 
     })();
 
     return () => { alive = false; };
-  }, [user, jenjang]);
+  }, [user?.id, jenjang, lembagaLoading]);
 
   const pilih = useMemo(() => (nama: string | null) => {
     setTahunAjaranNama(nama);
