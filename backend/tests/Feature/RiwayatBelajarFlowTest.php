@@ -785,4 +785,31 @@ class RiwayatBelajarFlowTest extends TestCase
         ]);
         $this->assertDatabaseHas('riwayat_belajar', ['santri_id' => $santri->id, 'jenjang' => $f['md']->jenjang, 'is_active_riwayat' => 'Ya']);
     }
+
+    // ---------- 22. cocok pasangan tak menimpa NIS target ----------
+
+    public function test_22_import_pasangan_mempertahankan_nis_target(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeUser();
+        // Santri dikenal di MI (26072) dan punya arsip MD bernis lain (26073):
+        // baris MD bernis MI tidak boleh menimpa nis MD miliknya.
+        $santri = $this->makeSantri('NIS Ganda', '26072', $f['mi']);
+        LembagaSantri::create([
+            'santri_id' => $santri->id, 'jenjang' => $f['md']->jenjang,
+            'nis_lokal' => '26073', 'is_active_lembaga' => 'Tidak', 'tgl_masuk' => '2026-07-01',
+        ]);
+
+        $this->importCsv($admin, $this->makeCsv([[
+            'nis_lokal' => '26072',
+            'jenjang' => (string) $f['md']->jenjang,
+            'tahun_ajaran' => (string) $f['taMd']->nama,
+            'semester' => '1',
+        ]]))->assertStatus(200);
+
+        $anggota = LembagaSantri::where('santri_id', $santri->id)->where('jenjang', $f['md']->jenjang)->firstOrFail();
+        $this->assertSame('26073', $anggota->nis_lokal);
+        $this->assertSame('Ya', $anggota->is_active_lembaga);
+        $this->assertSame(1, RiwayatBelajar::where('santri_id', $santri->id)->count());
+    }
 }

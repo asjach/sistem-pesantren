@@ -156,6 +156,7 @@
 | 2.102 | 2026-09-23 | Perbaiki import riwayat untuk arsip keanggotaan sendiri: baris aktif mengaktifkan ulang (pola terima), baris arsip tak membangunkan, bentrok NIS kecualikan milik sendiri; suite 308/308 |
 | 2.103 | 2026-09-23 | Import riwayat siap file historis 34 rb baris: serial tanggal General→Y-m-d, alias status (`Naik Kelas`, `Keluar`), fallback NIS pasangan MI↔MD, tanpa cek unik no_absen, nomor galat absolut; verifikasi periksa nyata 34.844/34.868 valid; suite 310/310 |
 | 2.104 | 2026-09-23 | Import riwayat bertahap: service per-baris reusable (mode kering), endpoint potong + sesi + CSV galat, dialog SheetJS 2000 baris/panggilan + progress; verifikasi potong nyata 34.868 baris; suite 315/315 |
+| 2.105 | 2026-09-23 | Perbaiki corrupt NIS berurutan: cocok via pasangan tak menimpa NIS target (kasus NIS beda antar-tahun); verifikasi file 34.868 baris; suite 316/316 |
 
 ## Daftar Isi
 

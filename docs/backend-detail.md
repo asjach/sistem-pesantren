@@ -315,7 +315,9 @@ baris baru) kecuali reaktivasi arsip sendiri ber-NIS sama.
 Import riwayat: upsert kunci (santri, TA, lembaga, semester); pencocokan santri
 via `nis_lokal` + `jenjang` (tanpa NIK; santri wajib sudah punya keanggotaan
 di lembaga itu — buat dulu lewat import keanggotaan bila belum ada; NIS sama
-di pasangan MI↔MD ikut dikenali lalu keanggotaan target dibuat otomatis);
+di pasangan MI↔MD ikut dikenali lalu keanggotaan target dibuat otomatis
+(tanpa menimpa NIS target yang sudah ada — NIS bisa beda antar-tahun
+pada data historis));
 serial tanggal Excel (sel General) dan status label/singkatan (`Naik Kelas`,
 `Keluar`) dinormalisasi saat import; nomor baris galat absolut (1 = heading);
 semester
