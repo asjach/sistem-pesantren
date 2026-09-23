@@ -3,7 +3,7 @@ import { listLembaga, listTahunAjaran, type Lembaga, type TahunAjaran } from '@/
 import type { RiwayatRow } from '@/api/siklus';
 import type { ExcelField } from '@/components/ExcelTable';
 import FilterField from '@/components/FilterField';
-import { formatStatus } from '@/lib/nilaiTampil';
+import { formatStatus, namaLembaga } from '@/lib/nilaiTampil';
 import {
   Select,
   SelectContent,
@@ -30,7 +30,7 @@ export function riwayatValues(r: RiwayatRow): Record<string, string | null> {
   return {
     santri: r.santri?.nama_lengkap ?? String(r.santri_id),
     nis: r.nis_lokal ?? null,
-    lembaga: r.lembaga?.jenjang ?? String(r.jenjang),
+    lembaga: namaLembaga(r.lembaga, r.jenjang),
     smt: r.semester,
     tingkat: r.tingkat,
     kelas: r.kelas?.nama_kelas ?? '—',

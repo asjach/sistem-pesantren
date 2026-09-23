@@ -54,7 +54,8 @@ class RiwayatBelajarController extends Controller
                 'santri:id,nama_lengkap,jk',
                 'kelas:id,nama_kelas,tingkat',
                 'lembaga:jenjang,nama',
-                'tahunAjaran:nama',
+                // JANGAN eager-load `tahunAjaran`: di-snake-case jadi
+                // `tahun_ajaran` dan menimpa atribut string FK → "[object Object]".
             ]),
             $request->user(),
             $request,

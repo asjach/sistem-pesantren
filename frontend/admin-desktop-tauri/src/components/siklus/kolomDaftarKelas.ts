@@ -1,7 +1,7 @@
 import type { ExcelField } from '@/components/ExcelTable';
 import { updateLembagaSantri, updateSantri } from '@/api/santri';
 import { updateRiwayatBelajar, type RiwayatRow } from '@/api/siklus';
-import { formatStatus } from '@/lib/nilaiTampil';
+import { formatStatus, namaLembaga, namaTahunAjaran } from '@/lib/nilaiTampil';
 
 /** Kolom penuh Daftar Kelas: seluruh `riwayat_belajar` + `santri` + `lembaga_santri`.
  *  Kunci = nama kolom DB (datar, tanpa prefiks; tak ada tabrakan antar tabel).
@@ -240,8 +240,8 @@ export function daftarKelasValues(r: RiwayatRow): Record<string, string | null> 
   const out: Record<string, string | null> = {
     nama_lengkap: (r.santri?.nama_lengkap ?? String(r.santri_id)) as string,
     nis_lokal: (r.lembaga_anggota?.nis_lokal ?? r.nis_lokal ?? null) as string | null,
-    lembaga: r.lembaga?.jenjang ?? String(r.jenjang),
-    ta: r.tahun_ajaran ?? null,
+    lembaga: namaLembaga(r.lembaga, r.jenjang),
+    ta: namaTahunAjaran(r.tahun_ajaran),
     semester: r.semester,
     tingkat: r.tingkat,
     kelas: r.kelas?.nama_kelas ?? '—',
@@ -265,7 +265,7 @@ export function daftarKelasValues(r: RiwayatRow): Record<string, string | null> 
     status_pst: !r.santri ? null : r.santri.is_active_pst,
     foto_url: (r.santri?.foto_url ?? null) as string | null,
     santri_id: String(r.santri_id),
-    tahun_ajaran: r.tahun_ajaran,
+    tahun_ajaran: namaTahunAjaran(r.tahun_ajaran),
     jenjang: String(r.jenjang),
     kelas_id: r.kelas_id !== null && r.kelas_id !== undefined ? String(r.kelas_id) : null,
     rwy_dibuat: potongWaktu((r as unknown as Record<string, unknown>).created_at),

@@ -438,7 +438,9 @@ class SiklusController extends Controller
             'santri',
             'kelas:id,nama_kelas,tingkat',
             'lembaga:jenjang,nama',
-            'tahunAjaran:nama',
+            // JANGAN eager-load `tahunAjaran`: kunci relasi di-snake-case jadi
+            // `tahun_ajaran` dan menimpa atribut string FK (frontend menerima
+            // objek → tampil "[object Object]"). Nilai FK-nya sudah nama TA.
         ])->where('jenjang', $lembagaId);
         if ($ta !== null) {
             $query->where('tahun_ajaran', $ta);
@@ -611,7 +613,7 @@ class SiklusController extends Controller
             'lembagaSantri.lembaga:jenjang,nama,nsm',
         ]);
         $riwayat = RiwayatBelajar::where('santri_id', $santri->id)
-            ->with(['kelas:id,nama_kelas,tingkat', 'lembaga:jenjang,nama', 'tahunAjaran:nama'])
+            ->with(['kelas:id,nama_kelas,tingkat', 'lembaga:jenjang,nama'])
             ->orderByDesc('id')->get();
         $mutasi = MutasiKeluar::where('santri_id', $santri->id)
             ->with(['lembaga:jenjang,nama', 'kelasTerakhir:id,nama_kelas'])

@@ -605,6 +605,13 @@ class SiklusFlowTest extends TestCase
         $this->assertSame('1', $daftar->json('semester'));
         $this->assertCount(2, $daftar->json('data'));
 
+        // Regresi jebakan snake_case: `tahun_ajaran` per baris tetap string
+        // (bukan objek relasi `tahunAjaran` yang tampil "[object Object]").
+        $baris = $daftar->json('data.0');
+        $this->assertSame($f['taBaru']->nama, $baris['tahun_ajaran']);
+        $this->assertSame('MI', $baris['jenjang']);
+        $this->assertSame('MI', $baris['lembaga']['jenjang']);
+
         $rekap = $this->actingAs($admin, 'sanctum')
             ->getJson('/api/admin/akademik/rekap-santri?jenjang='.$f['mi']->jenjang.'&tahun_ajaran='.$f['taBaru']->nama)
             ->assertStatus(200);
@@ -643,7 +650,8 @@ class SiklusFlowTest extends TestCase
         $this->assertTrue($nama->contains(fn ($n) => str_starts_with($n, 'Kelompok Satu')));
         $this->assertTrue($nama->contains(fn ($n) => str_starts_with($n, 'Kelompok Dua')));
         $this->assertFalse($nama->contains(fn ($n) => str_starts_with($n, 'Kelompok Tiga')));
-        $this->assertNotNull($aktif->json('data.0.tahun_ajaran.nama'));
+        // `tahun_ajaran` per baris = string nama TA (bukan objek relasi).
+        $this->assertContains($aktif->json('data.0.tahun_ajaran'), [$f['taBaru']->nama, $f['taLama']->nama]);
 
         $non = $this->actingAs($admin, 'sanctum')
             ->getJson('/api/admin/akademik/daftar-kelas?jenjang='.$f['mi']->jenjang.'&kelompok_status=nonaktif&lintas_periode=1')

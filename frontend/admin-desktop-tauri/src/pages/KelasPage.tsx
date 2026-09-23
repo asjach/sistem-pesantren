@@ -50,6 +50,7 @@ import { useAuth } from '../auth/AuthContext';
 import { bisa } from '../api/auth';
 import { X, FileUp, Download } from '@/icons';
 import { DeleteAction, EditAction, ViewAction } from '@/components/RowActions';
+import { namaLembaga, namaTahunAjaran } from '@/lib/nilaiTampil';
 import { toast } from 'sonner';
 
 const FIELDS: ExcelField[] = [
@@ -109,8 +110,8 @@ function gridValues(k: Kelas): Record<string, string | null> {  return {
     nama: k.nama_kelas,
     alias: k.nama_alias,
     wali: k.walas?.nama_lengkap ?? '—',
-    lembaga: k.lembaga?.jenjang ?? k.lembaga?.nama ?? String(k.jenjang),
-    ta: k.tahunAjaran?.nama ?? k.tahun_ajaran,
+    lembaga: namaLembaga(k.lembaga, k.jenjang),
+    ta: namaTahunAjaran(k.tahun_ajaran) ?? namaTahunAjaran(k.tahunAjaran),
     tingkat: k.tingkat,
     urutan: String(k.urutan ?? 0),
     kapasitas: k.kapasitas === null || k.kapasitas === undefined ? '' : String(k.kapasitas),
@@ -494,7 +495,7 @@ export default function KelasPage() {
     const { jenjang: _lembagaId, ...rest } = viewRow;
     return {
       ...rest,
-      lembaga: viewRow.lembaga?.jenjang ?? viewRow.lembaga?.nama ?? String(_lembagaId),
+      lembaga: namaLembaga(viewRow.lembaga, _lembagaId) ?? '',
     } as unknown as Record<string, unknown>;
   }, [viewRow]);
 

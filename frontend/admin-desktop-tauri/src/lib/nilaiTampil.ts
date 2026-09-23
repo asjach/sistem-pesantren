@@ -30,3 +30,26 @@ export function formatStatus(v: string | null | undefined): string | null {
   if (s === '') return s;
   return s.split('_').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' ');
 }
+
+/** Nama tahun ajaran dari FK string atau objek relasi `{ nama }`.
+ *  Jebakan Laravel: relasi `tahunAjaran` di-snake-case jadi `tahun_ajaran`
+ *  dan menimpa atribut string FK, sehingga sel bisa berisi objek. */
+export function namaTahunAjaran(v: unknown): string | null {
+  if (typeof v === 'string') return v === '' ? null : v;
+  if (v && typeof v === 'object') {
+    const n = (v as { nama?: unknown }).nama;
+    if (typeof n === 'string') return n === '' ? null : n;
+  }
+  return null;
+}
+
+/** Kode/nama lembaga dari FK string atau objek relasi `{ jenjang, nama }`. */
+export function namaLembaga(v: unknown, jenjang?: string | null): string | null {
+  if (typeof v === 'string') return v === '' ? null : v;
+  if (v && typeof v === 'object') {
+    const o = v as { jenjang?: unknown; nama?: unknown };
+    if (typeof o.jenjang === 'string' && o.jenjang !== '') return o.jenjang;
+    if (typeof o.nama === 'string' && o.nama !== '') return o.nama;
+  }
+  return jenjang ?? null;
+}
