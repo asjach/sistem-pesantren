@@ -177,6 +177,8 @@
 | 2.123 | 2026-09-24 | Status akhir semester ganjil = **`lanjut`** (kode ref baru "Lanjut"): ganjil yang lanjut ke genap TA sama tidak lagi `aktif`; `aktif` khusus periode yang berjalan. `salinKeGenap` mengarsipkan ganjil sebagai `lanjut`, `batalSalin` mengembalikannya ke `aktif`, importer menyinkronkan ganjil↔genap. Set "aktif" (Daftar Kelas & Rekap) menyertakan `lanjut` |
 | 2.124 | 2026-09-24 | Import arsip mutasi keluar: hapus kolom `nik`, kunci update kini **NIS lokal + jenjang** (`nis_lokal` wajib). Template/deskripsi/tabel tes disesuaikan |
 | 2.125 | 2026-09-24 | Mutasi Keluar: dua tabel (Santri aktif : Arsip) jadi **resizable** dengan rasio awal **1:2** (sebelumnya grid 1:1) |
+| 2.126 | 2026-09-24 | Mutasi Keluar: container tabel tanpa border; aksi "Mutasi" jadi ikon panah kanan tanpa label (ActionIcon) |
+| 2.127 | 2026-09-24 | Mutasi Keluar: filter dropdown **tingkat** & **kelas** untuk daftar Santri aktif, di baris atas topBar tepat setelah dropdown Semester (slot filter halaman baru `TopBarFilter`); gaya trigger disamakan dengan dropdown lembaga/TA/semester |
 
 ## Daftar Isi
 

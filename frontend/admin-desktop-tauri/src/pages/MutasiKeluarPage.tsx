@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { bisa } from '../api/auth';
 import { errorMessage } from '../api/client';
@@ -11,12 +11,18 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import ExcelTable from '@/components/ExcelTable';
+import { TopBarFilter } from '@/components/TopBarFilter';
 import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
-import { FileUp, Download } from '@/icons';
+import { FileUp, Download, ArrowRight, GraduationCap, NotebookTabs } from '@/icons';
+import { ActionIcon } from '@/components/RowActions';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import Pager from '@/components/Pager';
 import { usePager } from '@/hooks/usePager';
 import { toast } from 'sonner';
+
+/** Gaya trigger filter di topBar — disamakan dengan dropdown lembaga/TA/semester. */
+const GAYA_FILTER_TOPBAR =
+  'border-0 bg-transparent gap-2 px-2.5 py-1 text-xs text-[var(--sidebar-foreground)] whitespace-nowrap transition-colors outline-none hover:bg-[color-mix(in_srgb,var(--sidebar-foreground)_14%,transparent)] hover:text-white focus-visible:ring-2 focus-visible:ring-[var(--sidebar-foreground)]/60 data-[state=open]:bg-white/15 [&_svg]:text-white/70';
 
 /** Mutasi Keluar: kiri santri aktif (nama + kelas) → kanan arsip mutasi. */
 export default function MutasiKeluarPage() {
@@ -34,6 +40,9 @@ export default function MutasiKeluarPage() {
   /** Urut header arsip: daftar nilai allowlist + arah global (maks 3 kunci). */
   const [urut, setUrut] = useState<string[]>([]);
   const [arahUrut, setArahUrut] = useState<'naik' | 'turun'>('naik');
+  /** Filter santri aktif (dropdown di baris tools topBar): tingkat + kelas. */
+  const [tingkat, setTingkat] = useState('');
+  const [kelasFilter, setKelasFilter] = useState('');
 
   const [baris, setBaris] = useState<RiwayatRow | null>(null);
   const [tanggal, setTanggal] = useState('');
@@ -97,6 +106,24 @@ export default function MutasiKeluarPage() {
       .catch(() => setAlasanOpsi([]));
   }, [jenjang]);
 
+  const tingkatOpsi = useMemo(
+    () => [...new Set(kiri.map((r) => (r.tingkat ?? '').trim()).filter(Boolean))]
+      .sort((a, b) => a.localeCompare(b, 'id', { numeric: true })),
+    [kiri],
+  );
+  const kelasOpsi = useMemo(() => {
+    const nama = kiri
+      .filter((r) => !tingkat || (r.tingkat ?? '') === tingkat)
+      .map((r) => r.kelas?.nama_kelas ?? '')
+      .filter(Boolean);
+    return [...new Set(nama)].sort((a, b) => a.localeCompare(b, 'id', { numeric: true }));
+  }, [kiri, tingkat]);
+  const kiriTampil = useMemo(() => kiri.filter((r) => {
+    if (tingkat && (r.tingkat ?? '') !== tingkat) return false;
+    if (kelasFilter && (r.kelas?.nama_kelas ?? '') !== kelasFilter) return false;
+    return true;
+  }), [kiri, tingkat, kelasFilter]);
+
   const simpan = async () => {
     if (!baris || !jenjang || !tanggal || !alasan) return;
     setBusy(true);
@@ -122,10 +149,43 @@ export default function MutasiKeluarPage() {
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
+      <TopBarFilter>
+        <Select
+          value={tingkat === '' ? '_semua' : tingkat}
+          onValueChange={(v) => { setTingkat(v === '_semua' ? '' : v); setKelasFilter(''); }}
+        >
+          <SelectTrigger id="select_tingkat_mutasi" title="Filter tingkat" aria-label="Filter tingkat" className={GAYA_FILTER_TOPBAR}>
+            <GraduationCap size={14} />
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              <SelectItem value="_semua">Semua</SelectItem>
+              {tingkatOpsi.map((t) => (
+                <SelectItem key={t} value={t}>Tingkat {t}</SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+        <Select value={kelasFilter === '' ? '_semua' : kelasFilter} onValueChange={(v) => setKelasFilter(v === '_semua' ? '' : v)}>
+          <SelectTrigger id="select_kelas_mutasi" title="Filter kelas" aria-label="Filter kelas" className={GAYA_FILTER_TOPBAR}>
+            <NotebookTabs size={14} />
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              <SelectItem value="_semua">Semua</SelectItem>
+              {kelasOpsi.map((k) => (
+                <SelectItem key={k} value={k}>{k}</SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+      </TopBarFilter>
       <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1" id="grup_mutasi_kolom">
         <ResizablePanel defaultSize="33" minSize="20">
-        <section className="flex h-full min-h-0 min-w-0 flex-col rounded-md border">
-          <header className="shrink-0 border-b bg-muted/40 px-3 py-2 text-sm font-medium">Santri aktif ({kiri.length})</header>
+        <section className="flex h-full min-h-0 min-w-0 flex-col rounded-md">
+          <header className="shrink-0 border-b bg-muted/40 px-3 py-2 text-sm font-medium">Santri aktif ({kiriTampil.length})</header>
           <div className="flex min-h-0 flex-1 flex-col px-2 pb-2">
             <ExcelTable
               tableKey="mutasi_santri_aktif"
@@ -133,16 +193,20 @@ export default function MutasiKeluarPage() {
                 { key: 'nama', label: 'santri.nama_lengkap', kind: 'static', sumber: { tabel: 'santri', kolom: 'nama_lengkap' } },
                 { key: 'kelas', label: 'kelas.nama_kelas', kind: 'static', sumber: { tabel: 'kelas', kolom: 'nama_kelas' } },
               ]}
-              rows={kiri}
+              rows={kiriTampil}
               getValues={(r) => ({ nama: r.santri?.nama_lengkap ?? null, kelas: r.kelas?.nama_kelas ?? null })}
               canEdit={false}
               onCommit={async () => {}}
               onSaved={() => {}}
               renderActions={(r) => (
                 bisa(user, 'mutasi_keluar.ubah') ? (
-                  <Button id={`btn_mutasi_${r.id}`} size="sm" variant="outline" onClick={() => { setBaris(r); setTanggal(''); setAlasan(''); setNoSurat(''); setTujuan(''); setNpsn(''); setNsm(''); setKeterangan(''); }}>
-                    Mutasi
-                  </Button>
+                  <ActionIcon
+                    id={`btn_mutasi_${r.id}`}
+                    title="Mutasi keluar"
+                    onClick={() => { setBaris(r); setTanggal(''); setAlasan(''); setNoSurat(''); setTujuan(''); setNpsn(''); setNsm(''); setKeterangan(''); }}
+                  >
+                    <ArrowRight size={16} />
+                  </ActionIcon>
                 ) : null
               )}
               hideCheckbox
@@ -155,7 +219,7 @@ export default function MutasiKeluarPage() {
         <ResizableHandle orientation="horizontal" withHandle id="gagang_mutasi_kolom" />
 
         <ResizablePanel defaultSize="67" minSize="20">
-        <section className="flex h-full min-h-0 min-w-0 flex-col rounded-md border">
+        <section className="flex h-full min-h-0 min-w-0 flex-col rounded-md">
           <header className="flex shrink-0 items-center justify-between border-b bg-muted/40 px-3 py-2 text-sm font-medium">
             <span>Arsip mutasi keluar</span>
             {canImportMutasi && (

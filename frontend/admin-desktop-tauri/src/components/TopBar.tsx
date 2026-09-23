@@ -29,6 +29,7 @@ import { DEFAULT_PREFS, WARNA_UI } from '@/prefs';
 import { Blend, CalendarDays, Check, ChevronDown, ChevronUp, Columns3, Landmark, LogOut, Monitor, Moon, Paintbrush, Palette, SquareMousePointer, Sun, Users } from '@/icons';
 import { useRibbonTable } from '@/components/RibbonTable';
 import { useRibbonSlotCtx } from '@/components/RibbonSlot';
+import { useTopBarFilterCtx } from '@/components/TopBarFilter';
 import BannerBertindak from '@/components/BannerBertindak';
 import { halamanDariPath } from '@/lib/halaman';
 import { RibbonTabel } from './topbar/RibbonTabel';
@@ -103,6 +104,8 @@ export default function TopBar() {
   const setSlotEl = slot?.setEl;
   const slotAda = slot?.ada ?? false;
   const slotLabel = slot?.label ?? null;
+  const filter = useTopBarFilterCtx();
+  const setFilterEl = filter?.setEl;
 
   const halaman = halamanDariPath(pathname);
   const [toolsTampil, setToolsTampil] = useState(true);
@@ -120,6 +123,8 @@ export default function TopBar() {
 
   // Elemen target portal tools halaman (lihat `RibbonSlot`).
   const hostRef = useCallback((el: HTMLDivElement | null) => setSlotEl?.(el), [setSlotEl]);
+  // Elemen target portal filter halaman (lihat `TopBarFilter`).
+  const filterHostRef = useCallback((el: HTMLDivElement | null) => setFilterEl?.(el), [setFilterEl]);
 
   useEffect(() => {
     prefGet(TOOLS_TAMPIL_KEY).then((v) => setToolsTampil(v !== '0')).catch(() => {});
@@ -280,6 +285,8 @@ export default function TopBar() {
               </DropdownMenuContent>
             </DropdownMenu>
           )}
+          {/* Filter halaman (mis. tingkat/kelas) menyusul tepat setelah semester. */}
+          <div ref={filterHostRef} className="contents" />
           {/* Perenggang kanan: filter global tetap di tengah; peran + akun di kanan. */}
           <div aria-hidden="true" className="min-w-0 flex-1" />
           {/* Peran act-as super_admin (dekat area akun, terpisah dari filter).
