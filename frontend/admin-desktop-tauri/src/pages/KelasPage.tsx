@@ -3,14 +3,20 @@ import { errorMessage } from '../api/client';
 import {
   createKelas,
   deleteKelas,
+  importKelasFile,
   importNamaKelas,
   listKelas,
   listLembaga,
+  listPegawaiAktif,
   listTahunAjaran,
+  periksaImportKelas,
+  unduhTemplateKelas,
   updateKelas,
+  type ImportKelasHasil,
   type ImportNamaHasil,
   type Kelas,
   type Lembaga,
+  type PegawaiAktif,
   type TahunAjaran,
 } from '../api/master';
 import { Button } from '@/components/ui/button';
@@ -42,7 +48,7 @@ import Pager from '@/components/Pager';
 import { useDaftarTabel } from '@/hooks/useDaftarTabel';
 import { useAuth } from '../auth/AuthContext';
 import { bisa } from '../api/auth';
-import { X } from '@/icons';
+import { X, FileUp, Download } from '@/icons';
 import { DeleteAction, EditAction, ViewAction } from '@/components/RowActions';
 import { toast } from 'sonner';
 
@@ -53,6 +59,11 @@ const FIELDS: ExcelField[] = [
     required: true,
     validate: (v) => (!v || !v.trim() ? 'Nama kelas wajib diisi.' : null),
   },
+  {
+    key: 'alias', label: 'nama_alias', width: 160, kind: 'text', maxLength: 50,
+    sumber: { tabel: 'kelas', kolom: 'nama_alias' },
+  },
+  { key: 'wali', label: 'wali kelas', width: 180, kind: 'static', sumber: { tabel: 'pegawai', kolom: 'nama_lengkap' } },
   { key: 'lembaga', label: 'lembaga.jenjang', width: 110, kind: 'static', sumber: { tabel: 'lembaga', kolom: 'jenjang' } },
   { key: 'ta', label: 'tahun_ajaran.nama', width: 160, kind: 'static', sumber: { tabel: 'tahun_ajaran', kolom: 'nama' } },
   {
@@ -76,16 +87,17 @@ const FIELDS: ExcelField[] = [
   },
 ];
 
-/** Satu sub-form baris tambah kelas (nama wajib, tingkat + kapasitas opsional). */
+/** Satu sub-form baris tambah kelas (nama wajib, alias/tingkat + kapasitas opsional). */
 interface BarisKelas {
   nama: string;
+  alias: string;
   tingkat: string;
   urutan: string;
   kapasitas: string;
 }
 
 function barisKelasKosong(): BarisKelas {
-  return { nama: '', tingkat: '', urutan: '', kapasitas: '' };
+  return { nama: '', alias: '', tingkat: '', urutan: '', kapasitas: '' };
 }
 
 /** Normalisasi nama untuk pembanding duplikat (samakan dengan backend). */
@@ -95,6 +107,8 @@ function normKelas(nama: string): string {
 
 function gridValues(k: Kelas): Record<string, string | null> {  return {
     nama: k.nama_kelas,
+    alias: k.nama_alias,
+    wali: k.walas?.nama_lengkap ?? '—',
     lembaga: k.lembaga?.jenjang ?? k.lembaga?.nama ?? String(k.jenjang),
     ta: k.tahunAjaran?.nama ?? k.tahun_ajaran,
     tingkat: k.tingkat,
@@ -106,6 +120,7 @@ function gridValues(k: Kelas): Record<string, string | null> {  return {
 async function commitDraft(id: number, f: Record<string, string | null>) {
   await updateKelas(id, {
     ...(f.nama !== undefined ? { nama_kelas: f.nama ?? '' } : {}),
+    ...(f.alias !== undefined ? { nama_alias: f.alias || null } : {}),
     ...(f.tingkat !== undefined ? { tingkat: f.tingkat || null } : {}),
     ...(f.urutan !== undefined ? { urutan: f.urutan ? Number(f.urutan) : 0 } : {}),
     ...(f.kapasitas !== undefined
@@ -158,6 +173,12 @@ export default function KelasPage() {
   const [imporArah, setImporArah] = useState<'ambil' | 'copy'>('ambil');
   const [imporHasil, setImporHasil] = useState<ImportNamaHasil | null>(null);
   const [imporBusy, setImporBusy] = useState(false);
+
+  // Import file kelas satu lingkup (filter lembaga+TA saat ini).
+  const [fileOpen, setFileOpen] = useState(false);
+  const [fileKelas, setFileKelas] = useState<File | null>(null);
+  const [hasilFile, setHasilFile] = useState<ImportKelasHasil | null>(null);
+  const [fileBusy, setFileBusy] = useState(false);
 
   /** Kode lembaga filter saat ini; tombol import hanya untuk MI/MD. */
   const kodeFilter = useMemo(() => {
@@ -216,6 +237,9 @@ export default function KelasPage() {
   const [tambahOpen, setTambahOpen] = useState(false);  const [viewRow, setViewRow] = useState<Kelas | null>(null);
   const [editRow, setEditRow] = useState<Kelas | null>(null);
   const [editNama, setEditNama] = useState('');
+  const [editAlias, setEditAlias] = useState('');
+  const [editWali, setEditWali] = useState('');
+  const [waliOpsi, setWaliOpsi] = useState<PegawaiAktif[]>([]);
   const [editTingkat, setEditTingkat] = useState('');
   const [editUrutan, setEditUrutan] = useState('');
   const [editKapasitas, setEditKapasitas] = useState('');
@@ -297,6 +321,8 @@ export default function KelasPage() {
   const openEdit = useCallback((k: Kelas) => {
     setEditRow(k);
     setEditNama(k.nama_kelas);
+    setEditAlias(k.nama_alias ?? '');
+    setEditWali(k.walas_id ? String(k.walas_id) : '');
     setEditTingkat(k.tingkat ?? '');
     setEditUrutan(String(k.urutan ?? 0));
     setEditKapasitas(k.kapasitas === null || k.kapasitas === undefined ? '' : String(k.kapasitas));
@@ -340,6 +366,14 @@ export default function KelasPage() {
     void muatNamaTerpakai(editRow.jenjang, editRow.tahun_ajaran);
   }, [editRow, muatNamaTerpakai]);
 
+  // Opsi dropdown wali: pegawai aktif di lembaga + TA kelas yang diubah.
+  useEffect(() => {
+    if (!editRow) return;
+    listPegawaiAktif(editRow.jenjang, editRow.tahun_ajaran)
+      .then(setWaliOpsi)
+      .catch(() => setWaliOpsi([]));
+  }, [editRow]);
+
   const onCreate = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     setErr('');
@@ -350,7 +384,7 @@ export default function KelasPage() {
     }
     const terisi = barisKelas
       .map((b, i) => ({ ...b, baris: i + 1 }))
-      .filter((b) => b.nama.trim() !== '' || b.tingkat.trim() !== '' || b.urutan.trim() !== '' || b.kapasitas.trim() !== '');
+      .filter((b) => b.nama.trim() !== '' || b.alias.trim() !== '' || b.tingkat.trim() !== '' || b.urutan.trim() !== '' || b.kapasitas.trim() !== '');
     if (terisi.length === 0) {
       setErr('Isi minimal 1 baris kelas (nama wajib).');
       return;
@@ -395,6 +429,7 @@ export default function KelasPage() {
         await createKelas({
           ...dasar,
           nama_kelas: satu.nama.trim(),
+          nama_alias: satu.alias.trim() || undefined,
           tingkat: satu.tingkat.trim() || undefined,
           urutan: satu.urutan.trim() ? Number(satu.urutan) : undefined,
           kapasitas: satu.kapasitas.trim() ? Number(satu.kapasitas) : undefined,
@@ -405,6 +440,7 @@ export default function KelasPage() {
           ...dasar,
           items: terisi.map((b) => ({
             nama_kelas: b.nama.trim(),
+            ...(b.alias.trim() ? { nama_alias: b.alias.trim() } : {}),
             ...(b.tingkat.trim() ? { tingkat: b.tingkat.trim() } : {}),
             ...(b.urutan.trim() ? { urutan: Number(b.urutan) } : {}),
             ...(b.kapasitas.trim() ? { kapasitas: Number(b.kapasitas) } : {}),
@@ -433,6 +469,7 @@ export default function KelasPage() {
       jenjang: jenjang,
       tahun_ajaran: taId,
       nama_kelas: (f.nama ?? '').trim(),
+      nama_alias: f.alias || undefined,
       tingkat: f.tingkat || undefined,
       urutan: f.urutan ? Number(f.urutan) : undefined,
       kapasitas: f.kapasitas ? Number(f.kapasitas) : undefined,
@@ -480,6 +517,8 @@ export default function KelasPage() {
     try {
       await updateKelas(editRow.id, {
         nama_kelas: editNama.trim(),
+        nama_alias: editAlias.trim() || null,
+        walas_id: editWali === '' ? null : Number(editWali),
         tingkat: editTingkat || null,
         urutan: editUrutan ? Number(editUrutan) : 0,
         kapasitas: editKapasitas ? Number(editKapasitas) : null,
@@ -490,7 +529,7 @@ export default function KelasPage() {
     } catch (e) {
       setErr(errorMessage(e));
     }
-  }, [editRow, editNama, editTingkat, editUrutan, editKapasitas, namaTerpakai, load]);
+  }, [editRow, editNama, editAlias, editWali, editTingkat, editUrutan, editKapasitas, namaTerpakai, load]);
 
   const onDelete = useCallback(async (id: number) => {
     try {
@@ -567,6 +606,14 @@ export default function KelasPage() {
                 </Button>
               </>
             )}
+            <Button
+              id="btn_buka_import_kelas"
+              variant="outline"
+              title="Import file kelas (multi-lembaga & multi-tahun ajaran; izin per baris mengikuti akun)"
+              onClick={() => { setFileKelas(null); setHasilFile(null); setFileOpen(true); }}
+            >
+              <FileUp data-icon="inline-start" size={16} /> Import
+            </Button>
             <Button id="btn_buka_tambah_kelas" onClick={bukaTambah}>
               + Kelas
             </Button>
@@ -632,21 +679,29 @@ export default function KelasPage() {
             </div>
             <FieldLabel htmlFor="input_nama_kelas_0">Daftar kelas</FieldLabel>
             <div className="flex flex-col gap-2">
-              <div className="grid grid-cols-[1fr_100px_80px_100px_32px] items-center gap-2 text-xs text-muted-foreground" aria-hidden="true">
+              <div className="grid grid-cols-[1fr_1fr_100px_80px_100px_32px] items-center gap-2 text-xs text-muted-foreground" aria-hidden="true">
                 <span>Nama kelas</span>
+                <span>Alias</span>
                 <span>Tingkat</span>
                 <span>Urutan</span>
                 <span>Kapasitas</span>
                 <span />
               </div>
               {barisKelas.map((b, i) => (
-                <div key={i} className="grid grid-cols-[1fr_100px_80px_100px_32px] items-center gap-2">
+                <div key={i} className="grid grid-cols-[1fr_1fr_100px_80px_100px_32px] items-center gap-2">
                   <Input
                     id={`input_nama_kelas_${i}`}
                     aria-label={`Nama kelas baris ${i + 1}`}
                     value={b.nama}
                     onChange={(e) => ubahBaris(i, 'nama', e.target.value)}
                     required={i === 0}
+                    maxLength={50}
+                  />
+                  <Input
+                    id={`input_alias_kelas_${i}`}
+                    aria-label={`Alias baris ${i + 1}`}
+                    value={b.alias}
+                    onChange={(e) => ubahBaris(i, 'alias', e.target.value)}
                     maxLength={50}
                   />
                   <Input
@@ -764,6 +819,70 @@ export default function KelasPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* Import file kelas satu lingkup (Periksa → Import) */}
+      <Dialog open={fileOpen} onOpenChange={setFileOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Import kelas</DialogTitle>
+            <DialogDescription>
+              Satu file boleh berisi banyak lembaga + tahun ajaran. Kolom: jenjang, tahun_ajaran,
+              nama_kelas (wajib), nama_alias, walas (NIP/nama pegawai, opsional), tingkat, urutan,
+              kapasitas. Nama yang sudah ada diperbarui (hanya kolom terisi; kosong = pertahankan);
+              baris di luar lembaga Anda ditolak per baris.
+            </DialogDescription>
+          </DialogHeader>
+          <form className="grid grid-cols-2 gap-3" onSubmit={async (e) => {
+            e.preventDefault();
+            if (!fileKelas || !hasilFile?.siap_import) return;
+            setFileBusy(true);
+            try {
+              const res = await importKelasFile(fileKelas);
+              if (res.errors?.length) toast.error(res.errors.map((x) => `Baris ${x.row} (${x.attribute}): ${x.errors.join(', ')}`).join(' · '));
+              else {
+                toast.success(res.pesan ?? 'Import selesai.');
+                setFileOpen(false);
+                pager.goFirst();
+                await load(1);
+              }
+            } catch (e2) { toast.error(errorMessage(e2)); } finally { setFileBusy(false); }
+          }}>
+            <Button id="btn_unduh_template_kelas" type="button" variant="link" className="col-span-2 h-auto justify-start px-0"
+              onClick={() => void unduhTemplateKelas().catch((e) => toast.error(errorMessage(e)))}>
+              <Download data-icon="inline-start" size={16} /> Unduh template Excel kelas
+            </Button>
+            <Input id="input_file_import_kelas" className="col-span-2" type="file" accept=".xlsx,.xls,.csv"
+              onChange={(e) => { setFileKelas(e.target.files?.[0] ?? null); setHasilFile(null); }} required />
+            {hasilFile ? (
+              <div className="col-span-2 rounded-md border p-3 text-sm" id="hasil_periksa_import_kelas">
+                <p className="font-medium">
+                  {hasilFile.ringkasan.baris_diproses} baris diperiksa · {hasilFile.ringkasan.dibuat} dibuat ·{' '}
+                  {hasilFile.ringkasan.diperbarui} diperbarui · {hasilFile.ringkasan.dilewati} dilewati ·{' '}
+                  {hasilFile.ringkasan.baris_gagal} bermasalah
+                </p>
+                {hasilFile.errors.length > 0 ? (
+                  <ul className="mt-2 max-h-40 space-y-1 overflow-auto text-xs text-destructive">
+                    {hasilFile.errors.slice(0, 50).map((x, i) => <li key={`${x.row}-${x.attribute}-${i}`}>Baris {x.row} ({x.attribute}): {x.errors.join(', ')}</li>)}
+                  </ul>
+                ) : <p className="mt-1 text-xs text-emerald-600">Tidak ada masalah — siap diimport.</p>}
+              </div>
+            ) : null}
+            <DialogFooter className="col-span-2">
+              <Button type="button" variant="outline" onClick={() => setFileOpen(false)}>Batal</Button>
+              <Button id="btn_periksa_import_kelas" type="button" variant="outline" disabled={!fileKelas || fileBusy}
+                onClick={async () => {
+                  if (!fileKelas) return;
+                  setFileBusy(true);
+                  try {
+                    const res = await periksaImportKelas(fileKelas);
+                    setHasilFile(res);
+                    if (res.siap_import) toast.success(res.pesan); else toast.error(res.pesan);
+                  } catch (e2) { setHasilFile(null); toast.error(errorMessage(e2)); } finally { setFileBusy(false); }
+                }}>Periksa</Button>
+              <Button id="btn_import_kelas" type="submit" disabled={fileBusy || !hasilFile?.siap_import}>Import</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
       <Dialog open={editRow !== null} onOpenChange={(o) => { if (!o) setEditRow(null); }}>
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
@@ -773,6 +892,24 @@ export default function KelasPage() {
           <div className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4">
             <FieldLabel htmlFor="input_ubah_nama_kelas">Nama kelas</FieldLabel>
             <Input id="input_ubah_nama_kelas" value={editNama} onChange={(e) => setEditNama(e.target.value)} required maxLength={50} />
+            <FieldLabel htmlFor="input_ubah_alias_kelas">Alias (opsional)</FieldLabel>
+            <Input id="input_ubah_alias_kelas" value={editAlias} onChange={(e) => setEditAlias(e.target.value)} maxLength={50} />
+            <FieldLabel htmlFor="select_ubah_wali_kelas">Wali kelas</FieldLabel>
+            <Select value={editWali === '' ? '_kosong' : editWali} onValueChange={(v) => setEditWali(v === '_kosong' ? '' : v)}>
+              <SelectTrigger id="select_ubah_wali_kelas" className="w-full">
+                <SelectValue placeholder="Tanpa wali" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value="_kosong">— Tanpa wali —</SelectItem>
+                  {waliOpsi.map((p) => (
+                    <SelectItem key={p.id} value={String(p.id)}>
+                      {p.nama_lengkap}{p.nip ? ` (${p.nip})` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
             <FieldLabel htmlFor="input_ubah_tingkat_kelas">Tingkat (kamus, opsional)</FieldLabel>
             <Input id="input_ubah_tingkat_kelas" value={editTingkat} onChange={(e) => setEditTingkat(e.target.value)} />
             <FieldLabel htmlFor="input_ubah_urutan_kelas">Urutan tampil</FieldLabel>

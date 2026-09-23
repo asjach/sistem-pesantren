@@ -3,16 +3,21 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Exports\KelasNamaExport;
+use App\Exports\KelasTemplateExport;
 use App\Http\Controllers\Api\Concerns\TenantGuard;
 use App\Http\Controllers\Api\Concerns\UrutDaftar;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\KelasExportNamaRequest;
 use App\Http\Requests\Admin\KelasImportNamaRequest;
+use App\Http\Requests\Admin\KelasImportRequest;
 use App\Http\Requests\Admin\KelasStoreRequest;
 use App\Http\Requests\Admin\KelasUpdateRequest;
+use App\Http\Requests\Admin\KelasWalasRequest;
+use App\Imports\KelasImport;
 use App\Models\Kelas;
 use App\Models\Lembaga;
 use App\Models\TahunAjaran;
+use App\Services\KelasService;
 use App\Services\RefService;
 use App\Services\UrutKatalog;
 use Illuminate\Database\QueryException;
@@ -20,6 +25,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
+use Maatwebsite\Excel\Validators\ValidationException;
 
 /**
  * FB-004-01: CRUD kelas. tahun_ajaran wajib berlaku untuk lembaga kelas (TA global).
@@ -35,8 +41,12 @@ class KelasController extends Controller
     {
         $urut = $this->parseUrut($request, UrutKatalog::peta('kelas'));
 
+        // JANGAN eager-load `tahunAjaran`: Laravel meng-snake-case kunci relasi
+        // saat serialisasi sehingga menimpa atribut string `tahun_ajaran`
+        // (frontend menerima objek → tampil "[object Object]"). Nilai FK-nya
+        // sendiri sudah berupa nama TA yang siap tampil.
         $query = $this->scopeLembaga(
-            Kelas::with(['lembaga:jenjang,nama', 'tahunAjaran:nama']),
+            Kelas::with(['lembaga:jenjang,nama', 'walas:id,nama_lengkap']),
             auth()->user(),
             $request,
             'kelas.jenjang'
@@ -79,6 +89,7 @@ class KelasController extends Controller
             ? array_values($data['items'])
             : [[
                 'nama_kelas' => $data['nama_kelas'],
+                'nama_alias' => $data['nama_alias'] ?? null,
                 'tingkat' => $data['tingkat'] ?? null,
                 'kapasitas' => $data['kapasitas'] ?? null,
                 'urutan' => $data['urutan'] ?? 0,
@@ -104,6 +115,9 @@ class KelasController extends Controller
                         'jenjang' => $data['jenjang'],
                         'tahun_ajaran' => $data['tahun_ajaran'],
                         'nama_kelas' => $nama,
+                        'nama_alias' => isset($item['nama_alias']) && trim((string) $item['nama_alias']) !== ''
+                            ? trim((string) $item['nama_alias'])
+                            : null,
                         'tingkat' => $item['tingkat'] ?? null,
                         'kapasitas' => $item['kapasitas'] ?? null,
                         'urutan' => (int) ($item['urutan'] ?? 0),
@@ -306,15 +320,109 @@ class KelasController extends Controller
         ]);
     }
 
+    /** GET /api/admin/kelas/import-template — template Excel import file kelas (multi-lembaga/TA). */
+    public function templateImport()
+    {
+        return Excel::download(new KelasTemplateExport, 'template-import-kelas.xlsx');
+    }
+
+    /** POST /api/admin/kelas/import-periksa — validasi file TANPA menulis (dry-run). */
+    public function periksaImport(KelasImportRequest $request): JsonResponse
+    {
+        return $this->prosesImport($request, periksa: true);
+    }
+
+    /** POST /api/admin/kelas/import — import file kelas massal satu lingkup. */
+    public function importLengkap(KelasImportRequest $request): JsonResponse
+    {
+        return $this->prosesImport($request, periksa: false);
+    }
+
+    /** Alur bersama import file kelas multi-lembaga/TA. Mode periksa:
+     *  transaksi selalu di-rollback. Izin dicek per baris di import
+     *  (mengikuti akun), bukan 403 di depan. */
+    private function prosesImport(KelasImportRequest $request, bool $periksa): JsonResponse
+    {
+        $request->validated();
+
+        $import = new KelasImport;
+        $errors = [];
+
+        if ($periksa) {
+            DB::beginTransaction();
+        }
+
+        try {
+            Excel::import($import, $request->file('file'));
+        } catch (ValidationException $e) {
+            $errors = $this->formatFailures($e->failures());
+        } finally {
+            if ($periksa) {
+                DB::rollBack();
+            }
+        }
+
+        if ($errors === []) {
+            $errors = $this->formatFailures($import->failures());
+        }
+
+        if ($periksa) {
+            return response()->json([
+                'pesan' => $errors === [] ? 'Pengecekan selesai: file siap diimport.' : 'Pengecekan menemukan masalah.',
+                'siap_import' => $errors === [],
+                'ringkasan' => $import->ringkasan(),
+                'errors' => $errors,
+            ]);
+        }
+
+        if ($errors !== []) {
+            return response()->json([
+                'pesan' => 'Gagal mengimport beberapa data.',
+                'errors' => $errors,
+            ], 422);
+        }
+
+        $ringkasan = $import->ringkasan();
+
+        return response()->json([
+            'pesan' => "{$ringkasan['dibuat']} kelas dibuat, {$ringkasan['diperbarui']} diperbarui, {$ringkasan['dilewati']} dilewati.",
+            'ringkasan' => $ringkasan,
+        ]);
+    }
+
+    private function formatFailures(iterable $failures): array
+    {
+        $errors = [];
+        foreach ($failures as $failure) {
+            $errors[] = [
+                'row' => $failure->row(),
+                'attribute' => $failure->attribute(),
+                'errors' => $failure->errors(),
+            ];
+        }
+
+        return $errors;
+    }
+
     public function update(KelasUpdateRequest $request, Kelas $kela)
     {
         $this->authorizeLembaga(auth()->user(), $kela->jenjang);
 
         $data = $request->validated();
 
+        // Wali lewat pintu 3 lapis (boleh null = lepas).
+        $adaWalas = array_key_exists('walas_id', $data);
+        $walasId = $adaWalas && $data['walas_id'] !== null ? (int) $data['walas_id'] : null;
+        unset($data['walas_id']);
+
         if (array_key_exists('urutan', $data) && $data['urutan'] === null) {
             // Kolom NOT NULL default 0: null dari form dianggap 0.
             $data['urutan'] = 0;
+        }
+
+        if (array_key_exists('nama_alias', $data) && trim((string) $data['nama_alias']) === '') {
+            // Alias kosong = tanpa alias (bukan string kosong).
+            $data['nama_alias'] = null;
         }
 
         if (array_key_exists('nama_kelas', $data)) {
@@ -337,7 +445,28 @@ class KelasController extends Controller
             return response()->json(['message' => 'Nama kelas sudah dipakai di lembaga + tahun ajaran ini.'], 422);
         }
 
-        return response()->json($kela);
+        if ($adaWalas) {
+            $kela = app(KelasService::class)->tetapkanWalas($kela->fresh(), $walasId);
+        }
+
+        return response()->json($kela->fresh());
+    }
+
+    /** POST /api/admin/kelas/{kela}/set-walas — tetapkan/lepas wali (3 lapis). */
+    public function setWalas(KelasWalasRequest $request, Kelas $kela, KelasService $layanan): JsonResponse
+    {
+        $this->authorizeLembaga($request->user(), $kela->jenjang);
+
+        $data = $request->validated();
+        $kela = $layanan->tetapkanWalas(
+            $kela,
+            isset($data['pegawai_id']) && $data['pegawai_id'] !== null ? (int) $data['pegawai_id'] : null
+        );
+
+        return response()->json([
+            'pesan' => $kela->walas_id ? 'Wali kelas ditetapkan.' : 'Wali kelas dilepas.',
+            'data' => $kela,
+        ]);
     }
 
     public function destroy(Kelas $kela)

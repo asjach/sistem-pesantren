@@ -10,7 +10,7 @@ class Kelas extends Model
 {
     protected $table = 'kelas';
 
-    protected $fillable = ['jenjang', 'tahun_ajaran', 'walas_id', 'tingkat', 'nama_kelas', 'kapasitas', 'urutan'];
+    protected $fillable = ['jenjang', 'tahun_ajaran', 'walas_id', 'tingkat', 'nama_kelas', 'nama_alias', 'kapasitas', 'urutan'];
 
     protected $casts = ['urutan' => 'integer'];
 

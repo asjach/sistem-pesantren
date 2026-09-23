@@ -91,14 +91,15 @@ class KelasStoreTest extends TestCase
             'tahun_ajaran' => $f['taMi']->nama,
             'items' => [
                 ['nama_kelas' => '1A', 'tingkat' => '1'],
-                ['nama_kelas' => '1B', 'tingkat' => '1', 'kapasitas' => 28],
+                ['nama_kelas' => '1B', 'nama_alias' => 'Umar', 'tingkat' => '1', 'kapasitas' => 28],
                 ['nama_kelas' => '2A'],
             ],
         ])->assertStatus(201);
 
         $this->assertCount(3, $res->json('data'));
         $this->assertSame(3, Kelas::where('jenjang', $f['mi']->jenjang)->count());
-        $this->assertDatabaseHas('kelas', ['nama_kelas' => '1B', 'kapasitas' => 28]);
+        $this->assertDatabaseHas('kelas', ['nama_kelas' => '1B', 'nama_alias' => 'Umar', 'kapasitas' => 28]);
+        $this->assertNull(Kelas::where('nama_kelas', '1A')->firstOrFail()->nama_alias);
         $this->assertNull(Kelas::where('nama_kelas', '2A')->firstOrFail()->tingkat);
     }
 

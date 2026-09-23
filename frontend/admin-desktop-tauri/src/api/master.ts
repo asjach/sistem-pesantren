@@ -1,5 +1,6 @@
-import { api, downloadFile } from './client';
+import { api, apiUpload, downloadFile } from './client';
 import { PER_PAGE_DEFAULT } from '@/prefs';
+import type { ImportError } from './santri';
 
 export interface Lembaga {
   /** Sama dengan `jenjang`; dipakai komponen tabel generik (butuh `id`). */
@@ -289,6 +290,11 @@ export interface Kelas {
   /** Urutan tampil kelas dalam lingkup lembaga + tahun ajaran. */
   urutan: number;
   nama_kelas: string;
+  /** Nama alias/tampilan kelas (opsional), mis. 'Umar bin Khattab'. */
+  nama_alias: string | null;
+  /** Wali kelas (FK pegawai, opsional). */
+  walas_id: number | null;
+  walas?: { id: number; nama_lengkap: string } | null;
   kapasitas: number | null;
   lembaga?: { jenjang: string; nama: string };
   tahunAjaran?: { nama: string } | null;
@@ -311,6 +317,7 @@ export function listKelas(
 
 export interface KelasItem {
   nama_kelas: string;
+  nama_alias?: string;
   tingkat?: string;
   kapasitas?: number;
   urutan?: number;
@@ -321,6 +328,7 @@ export function createKelas(input: {
   tahun_ajaran: string;
   tingkat?: string;
   nama_kelas?: string;
+  nama_alias?: string;
   kapasitas?: number;
   urutan?: number;
   items?: KelasItem[];
@@ -330,9 +338,31 @@ export function createKelas(input: {
 
 export function updateKelas(
   id: number,
-  input: { tingkat?: string | null; nama_kelas?: string; kapasitas?: number | null; urutan?: number },
+  input: { tingkat?: string | null; nama_kelas?: string; nama_alias?: string | null; walas_id?: number | null; kapasitas?: number | null; urutan?: number },
 ) {
   return api<Kelas>(`/admin/kelas/${id}`, { method: 'PUT', body: JSON.stringify(input) });
+}
+
+/** Tetapkan/lepas wali kelas (null = lepas). */
+export function setWalasKelas(id: number, pegawaiId: number | null) {
+  return api<{ pesan: string; data: Kelas }>(`/admin/kelas/${id}/set-walas`, {
+    method: 'POST',
+    body: JSON.stringify({ pegawai_id: pegawaiId }),
+  });
+}
+
+// ---------- Pegawai aktif (opsi wali) ----------
+
+export interface PegawaiAktif {
+  id: number;
+  nip: string | null;
+  nama_lengkap: string;
+}
+
+/** Daftar pegawai aktif di lembaga + TA (opsi dropdown wali kelas). */
+export function listPegawaiAktif(jenjang: string, tahunAjaran: string) {
+  const q = new URLSearchParams({ jenjang, tahun_ajaran: tahunAjaran });
+  return api<PegawaiAktif[]>(`/admin/pegawai/aktif?${q.toString()}`);
 }
 
 export function deleteKelas(id: number) {
@@ -373,5 +403,47 @@ export function unduhDaftarKelas(jenjang: string, tahunAjaran: string) {
   return downloadFile(
     `/admin/kelas/export-nama?jenjang=${encodeURIComponent(jenjang)}&tahun_ajaran=${encodeURIComponent(tahunAjaran)}`,
     `daftar-kelas-${jenjang}.xlsx`,
+  );
+}
+
+// ---------- Import file kelas satu lingkup ----------
+
+export interface ImportKelasRingkasan {
+  baris_diproses: number;
+  baris_valid: number;
+  baris_gagal: number;
+  dibuat: number;
+  diperbarui: number;
+  dilewati: number;
+}
+
+export interface ImportKelasHasil {
+  pesan: string;
+  siap_import: boolean;
+  ringkasan: ImportKelasRingkasan;
+  errors: ImportError[];
+}
+
+/** Unduh template Excel import kelas (kolom: jenjang, tahun_ajaran, nama_kelas, tingkat, urutan, kapasitas). */
+export function unduhTemplateKelas() {
+  return downloadFile('/admin/kelas/import-template', 'template-import-kelas.xlsx');
+}
+
+function formImportKelas(file: File) {
+  const fd = new FormData();
+  fd.set('file', file);
+  return fd;
+}
+
+/** Periksa file kelas tanpa menulis (dry-run). */
+export function periksaImportKelas(file: File) {
+  return apiUpload<ImportKelasHasil>('/admin/kelas/import-periksa', formImportKelas(file));
+}
+
+/** Eksekusi import file kelas (duplikat dilewati, per-baris gagal dilaporkan). */
+export function importKelasFile(file: File) {
+  return apiUpload<{ pesan: string; ringkasan: ImportKelasRingkasan; errors?: ImportError[] }>(
+    '/admin/kelas/import',
+    formImportKelas(file),
   );
 }
