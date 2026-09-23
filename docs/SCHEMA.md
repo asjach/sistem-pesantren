@@ -269,6 +269,7 @@ Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca
 - `walas_id`: FK → pegawai [null, nullOnDelete] — wali kelas → pegawai
 - `tingkat`: string [null] — ref_tingkat ('7','8','9'); grouping saat kelas_id null di riwayat
 - `nama_kelas`: string — 'VII-A'; dinormalisasi model (trim + rapat spasi)
+- `nama_alias`: string(50) [null] — nama tampilan alternatif (mis. 'Umar bin Khattab')
 - `kapasitas`: int [null]
 - `created_at`, `updated_at`
 - UNIQUE(`jenjang`, `tahun_ajaran`, `nama_kelas`) — satu nama kelas hanya sekali per lembaga + tahun ajaran (kolasi CI; migrasi mem-dedupe + merapikan spasi lebih dulu)
@@ -388,7 +389,7 @@ Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca
 - `tgl_masuk`: date [null] — mulai per semester (ganjil=awal tahun, genap=awal semester 2)
 - `no_absen`: int [null] — no urut rombel per semester; unique per kelas dicek di service
 - `tingkat`: string [null] — ref_tingkat: target jenjang tahun ini ('7','8','9'); grouping saat kelas_id null
-- `status_awal`: string [default 'santri_baru'] — Sumber masuk (string bebas, validasi ke ref_status_awal efektif per lembaga). / TERKUNCI: sama antara ganjil-genap dalam 1 tahun (genap copy ganjil).
+- `status_awal`: string [default 'santri_baru'] — Sumber masuk (string bebas, validasi ke ref_status_awal efektif per lembaga). Baris genap hasil salin selalu 'lanjutan' (bukan warisan ganjil).
 - `status_akhir`: string [default 'aktif'] — Hasil semester ini (string bebas, validasi ke ref_status_akhir efektif).
 - `is_active_riwayat`: enum('Ya','Tidak') [default 'Ya'] — Sedang berjalan. INVARIANT: 'Ya' iff status_akhir='aktif'. Ditulis hanya via SiklusSantriService. / Ganjil→genap: ganjil ditutup (is_active_riwayat='Tidak', arsip), genap aktif — 1 aktif per santri-lembaga terjaga. / Berhenti satu jenjang (paket MD berhenti, MI lanjut): baris MD (is_active_riwayat='Tidak', status_akhir dipertahankan). / santri.is_active_pst='Tidak' hanya jika SELURUH riwayat non-aktif (dihitung ulang di 102).
 - `created_at`, `updated_at`

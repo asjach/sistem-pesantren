@@ -280,6 +280,10 @@ dari riwayat aktif terakhir, input manual menang bila diisi (validasi
 Aturan rombel: `no_absen` unik per (kelas, tahun ajaran, semester), minimal 1;
 kelas tujuan se-lembaga + se-TA, tingkat cocok bila keduanya terisi; hanya
 riwayat aktif yang bisa diset/dipindah/dikosongkan kelasnya.
+Wali kelas inline (`kelas.walas_id → pegawai`): `setWalas()` validasi 3 lapis
+(pegawai ada + aktif global + keaktifan aktif di lembaga + TA kelas) via
+endpoint set-walas / update / import kolom `walas` (NIP dulu, fallback nama);
+daftar opsi via `pegawai/aktif`.
 Halaman awal tahun ajaran dua panel: kiri = riwayat aktif semester 1 tanpa kelas
 (filter tingkat; panah = `set-kelas` ke kelas terpilih di filter kanan, izin
 `pindah_kelas.ubah`, tingkat harus cocok), kanan = riwayat semester 1 yang sudah
@@ -288,7 +292,8 @@ kembali ke kiri, bukan hapus). ACC daftar-ulang PSB ikut membuat riwayat perdana
 tanpa kelas (idempoten bila sudah ada), sehingga santri PSB langsung tampil di
 panel kiri.
 Aturan salin genap: wajib dari baris aktif semester 1; tolak bila baris
-semester 2 tahun sama sudah ada. Aturan kenaikan: wajib dari semester 2 aktif;
+semester 2 tahun sama sudah ada; ganjil arsip tetap 'aktif', genap dibuka
+'lanjutan' (bukan warisan status ganjil). Aturan kenaikan: wajib dari semester 2 aktif;
 `tidak_lulus` wajib TA berikut sudah ada (tingkat diwarisi, keanggotaan tetap
 aktif). Daftar ulang jenjang: baris nonaktif lama tak diaktifkan ulang (buat
 baris baru) kecuali reaktivasi arsip sendiri ber-NIS sama.

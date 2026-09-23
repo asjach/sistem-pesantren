@@ -138,6 +138,18 @@
 | 2.84 | 2026-09-23 | NIK/`no_kk` longgar + flag `X-`: digit bukan 16 tidak ditolak, tersimpan berawalan `X-` (mutator model + lookup sadar-flag, kolom DB 20); `nis_kemenag` bebas duplikat (lepas unique + cek dipakai); MD abaikan `nis_kemenag` (null via hook; generate 422); batas eksekusi import 300 dtk; suite 277/277 |
 | 2.85 | 2026-09-23 | Riwayat perdana untuk semua baris import valid (bukan hanya keanggotaan aktif): `terima()` mengaktifkan ulang keanggotaan nonaktif bila perlu; baris eksplisit `is_active_lembaga=Tidak` tetap dilewati; suite 279/279 |
 | 2.86 | 2026-09-23 | Halaman Riwayat Belajar awal TA: kiri = riwayat tanpa kelas (filter tingkat, panah set-kelas), kanan = riwayat berkelas (filter dengan_kelas + tingkat + kelas, aksi keluar-kelas); ACC PSB ikut buat perdana tanpa kelas; suite 280/280 |
+| 2.87 | 2026-09-23 | Import file kelas multi-lembaga + multi-TA (template + Periksa + Import, duplikat dilewati, izin per baris mengikuti akun) + tombol di halaman Kelas; suite 286/286 |
+| 2.88 | 2026-09-23 | Field `kelas.nama_alias` (opsional, maks 50): migrasi + CRUD + grid/dialog Tambah-Ubah + template/import file; suite 286/286 |
+| 2.89 | 2026-09-23 | Wali kelas inline (`kelas.walas_id`): model Pegawai/KeaktifanPegawai + endpoint set-walas & daftar aktif (validasi 3 lapis) + kolom `walas` di import + kolom grid & dropdown Ubah; suite 290/290 |
+| 2.90 | 2026-09-23 | Kode warna header template Excel (kuning = wajib, biru = opsional): dilengkapi untuk template kelas + PSB, dikunci tes untuk 4 template; suite 291/291 |
+| 2.91 | 2026-09-23 | Fix TA grid kelas "[object Object]": lepas eager `tahunAjaran` di index (kunci relasi yang di-snake Laravel menimpa atribut string); FK string dipakai langsung; suite 291/291 |
+| 2.92 | 2026-09-23 | Import kelas upsert: nama cocok → update kolom terisi (kosong = pertahankan), nama baru → dibuat; ringkasan diperbarui; suite 292/292 |
+| 2.93 | 2026-09-23 | Import riwayat insert+update: upsert per kunci (update hanya sel terisi), izin per baris mengikuti akun, ringkasan dibuat/diperbarui + dialog; suite 294/294 |
+| 2.94 | 2026-09-23 | Halaman Pindah Semester (ganjil→genap, nav di bawah Riwayat Belajar): kiri = ganjil tanpa genap (panah/massal salin, filter tingkat+kelas), kanan = semester 2; endpoint belum-genap; suite 295/295 |
+| 2.95 | 2026-09-23 | Status salin semester: ganjil arsip tetap 'aktif', genap dibuka 'lanjutan' (kode kamus baru); suite 296/296 |
+| 2.96 | 2026-09-23 | Batal salin semester: endpoint + aksi per baris/massal di panel kanan Pindah Semester (genap dihapus, ganjil dibuka); suite 298/298 |
+| 2.97 | 2026-09-23 | Syarat pindah semester: hanya ganjil yang sudah berkelas (genap mewarisi kelas otomatis); suite 298/298 |
+| 2.98 | 2026-09-23 | Template riwayat pakai `nama_kelas` (bukan `kelas_id`); import terima dua heading (nama dulu, fallback id); suite 299/299 |
 
 ## Daftar Isi
 
