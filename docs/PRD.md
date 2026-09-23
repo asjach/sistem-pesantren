@@ -164,6 +164,10 @@
 | 2.110 | 2026-09-23 | Fix `[object Object]`: lepas eager-load `tahunAjaran` di daftar (snake-case menimpa atribut FK) + helper tampilan `namaTahunAjaran`/`namaLembaga`; suite 323/323 |
 | 2.111 | 2026-09-23 | Halaman MI-MD ikut TA topbar (default TA aktif): santri difilter ke TA terpilih (riwayat di TA atau `tahaj_masuk`), kelas dari TA itu — alumni/TA lama tak muncul; suite 324/324 |
 | 2.112 | 2026-09-24 | Antrean PSB jadi 1 halaman 6 tab (shadcn Tabs + badge jumlah per tahap; rute `/psb/:tahap`; sidebar 6 entri → 1); pencarian/filter dipertahankan antar tab |
+| 2.113 | 2026-09-24 | Daftar Kelas: aksi baris jadi "Lihat detail santri" (ProfilSantriDialog) & "Ubah detail santri" (dialog identitas baru); hapus aksi "Pindah kelas"/"Keluarkan dari kelas" (pindah tetap di halaman Pindah Kelas) |
+| 2.114 | 2026-09-24 | Buku Induk dipindah dari grup Santri ke grup Data Induk (sebelum Referensi) |
+| 2.115 | 2026-09-24 | Grup Santri: subgrup "Identitas" dihapus; subgrup baru "Lain-lain" menampung Rekap Santri & Pengajuan Biodata |
+| 2.116 | 2026-09-24 | Grup Santri: subgrup "Mutasi" dihapus; Pindah Kelas & Mutasi Keluar dipindah ke subgrup "Akademik" |
 
 ## Daftar Isi
 
