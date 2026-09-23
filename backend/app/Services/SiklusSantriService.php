@@ -57,7 +57,7 @@ class SiklusSantriService
                 'tgl_masuk' => $tglMasukGenap,
                 'no_absen' => $noAbsen,
                 'tingkat' => $ganjil->tingkat,
-                'status_awal' => $ganjil->status_awal, // KUNCI: sama dengan ganjil
+                'status_awal' => 'lanjutan', // KUNCI: masuk semester 2 selalu lanjutan (bukan warisan ganjil)
                 'status_akhir' => 'aktif',
                 'is_active_riwayat' => RiwayatBelajar::YA,
             ], where: fn ($q) => $q->where('tahun_ajaran', $ganjil->tahun_ajaran)
@@ -274,6 +274,40 @@ class SiklusSantriService
             $santri->hitungUlangStatusGlobal();
 
             return $lama->fresh();
+        });
+    }
+
+    /**
+     * Batalkan salin semester: hapus baris genap aktif dan buka kembali baris
+     * ganjil yang ditutupnya (TA sama). Hanya bila belum ada transisi lanjutan
+     * (baris aktif terbaru masih semester 2).
+     */
+    public function batalSalin(Santri $santri, string $jenjang): RiwayatBelajar
+    {
+        return DB::transaction(function () use ($santri, $jenjang) {
+            $santri = Santri::whereKey($santri->id)->lockForUpdate()->firstOrFail();
+            $genap = RiwayatBelajar::where('santri_id', $santri->id)
+                ->where('jenjang', $jenjang)->where('is_active_riwayat', RiwayatBelajar::YA)
+                ->lockForUpdate()->latest('id')->first();
+            if (! $genap || $genap->semester !== '2') {
+                throw ValidationException::withMessages(['riwayat' => 'Tidak ada salin semester aktif yang bisa dibatalkan.']);
+            }
+            $ganjil = RiwayatBelajar::where('santri_id', $santri->id)
+                ->where('jenjang', $jenjang)->where('is_active_riwayat', RiwayatBelajar::TIDAK)
+                ->where('tahun_ajaran', $genap->tahun_ajaran)->where('semester', '1')
+                ->where('id', '!=', $genap->id)
+                ->lockForUpdate()->latest('id')->first();
+            if (! $ganjil) {
+                throw ValidationException::withMessages(['riwayat' => 'Baris ganjil asal tidak ditemukan.']);
+            }
+
+            $genap->delete();
+            // Status ganjil dipertahankan 'aktif' saat penyalinan, tinggal buka kembali.
+            $ganjil->update(['is_active_riwayat' => RiwayatBelajar::YA]);
+
+            $santri->hitungUlangStatusGlobal();
+
+            return $ganjil->fresh();
         });
     }
 

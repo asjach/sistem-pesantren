@@ -193,6 +193,18 @@ class SiklusController extends Controller
         return response()->json(['pesan' => 'Kenaikan dibatalkan; santri kembali ke kelas asal.', 'data' => $lama]);
     }
 
+    /** POST /api/admin/santri/{santri}/batal-salin — urungkan salin ganjil→genap. */
+    public function batalSalin(SiklusLembagaRequest $request, Santri $santri): JsonResponse
+    {
+        $data = $request->validated();
+
+        $this->authorizeAksiLembaga($request, $santri, $data['jenjang']);
+
+        $ganjil = $this->siklusService->batalSalin($santri, $data['jenjang']);
+
+        return response()->json(['pesan' => 'Salin semester dibatalkan; santri kembali ke semester 1.', 'data' => $ganjil]);
+    }
+
     /** POST /api/admin/santri/{santri}/lulus — kelulusan per lembaga (+arsip alumni). */
     public function lulus(SiklusLulusRequest $request, Santri $santri): JsonResponse
     {

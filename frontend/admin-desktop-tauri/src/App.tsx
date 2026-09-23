@@ -32,6 +32,7 @@ const KegiatanPsbPage = lazy(() => import('./pages/KegiatanPsbPage'));
 const SantriPage = lazy(() => import('./pages/SantriPage'));
 const KeanggotaanPage = lazy(() => import('./pages/KeanggotaanPage'));
 const RiwayatBelajarPage = lazy(() => import('./pages/RiwayatBelajarPage'));
+const PindahSemesterPage = lazy(() => import('./pages/PindahSemesterPage'));
 const DaftarKelasPage = lazy(() => import('./pages/DaftarKelasPage'));
 const PindahKelasPage = lazy(() => import('./pages/PindahKelasPage'));
 const KenaikanKelasPage = lazy(() => import('./pages/KenaikanKelasPage'));
@@ -111,6 +112,7 @@ export default function App() {
                       <Route path="/santri" element={<KhususIzin izin="santri.lihat"><SantriPage /></KhususIzin>} />
                       <Route path="/keanggotaan" element={<KhususIzin izin="santri.lihat"><KeanggotaanPage /></KhususIzin>} />
                       <Route path="/riwayat-belajar" element={<KhususIzin izin="riwayat_belajar.lihat"><RiwayatBelajarPage /></KhususIzin>} />
+                      <Route path="/pindah-semester" element={<KhususIzin izin="kenaikan.lihat"><PindahSemesterPage /></KhususIzin>} />
                       <Route path="/daftar-kelas" element={<KhususIzin izin="daftar_kelas.lihat"><DaftarKelasPage /></KhususIzin>} />
                       <Route path="/pindah-kelas" element={<KhususIzin izin="pindah_kelas.lihat"><PindahKelasPage /></KhususIzin>} />
                       <Route path="/kenaikan" element={<KhususIzin izin="kenaikan.lihat"><KenaikanKelasPage /></KhususIzin>} />

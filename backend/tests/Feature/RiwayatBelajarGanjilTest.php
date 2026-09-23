@@ -298,4 +298,71 @@ class RiwayatBelajarGanjilTest extends TestCase
         $res = $this->actingAs($admin, 'sanctum')->getJson('/api/admin/riwayat-belajar?'.http_build_query($dasar + ['dengan_kelas' => '1', 'tingkat' => '2']))->assertStatus(200);
         $this->assertSame([], $ids($res));
     }
+
+    // ---------- 06. belum-genap: ganjil aktif tanpa baris genap ----------
+
+    public function test_09_belum_genap_hanya_ganjil_tanpa_genap(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeUser();
+
+        $calon = $this->makeAnggota('Calon Genap', $f['mi']->jenjang);
+        RiwayatBelajar::create([
+            'santri_id' => $calon->id, 'tahun_ajaran' => $f['ta']->nama, 'jenjang' => $f['mi']->jenjang,
+            'kelas_id' => $f['kelas']->id, 'semester' => '1', 'tingkat' => '1',
+            'status_awal' => 'santri_baru', 'status_akhir' => 'aktif', 'is_active_riwayat' => 'Ya',
+        ]);
+        // Sudah punya genap aktif → bukan calon.
+        $sudah = $this->makeAnggota('Sudah Genap', $f['mi']->jenjang);
+        RiwayatBelajar::create([
+            'santri_id' => $sudah->id, 'tahun_ajaran' => $f['ta']->nama, 'jenjang' => $f['mi']->jenjang,
+            'semester' => '1', 'status_awal' => 'santri_baru', 'status_akhir' => 'aktif', 'is_active_riwayat' => 'Tidak',
+        ]);
+        RiwayatBelajar::create([
+            'santri_id' => $sudah->id, 'tahun_ajaran' => $f['ta']->nama, 'jenjang' => $f['mi']->jenjang,
+            'semester' => '2', 'status_awal' => 'santri_baru', 'status_akhir' => 'aktif', 'is_active_riwayat' => 'Ya',
+        ]);
+        // Genap arsip pun tetap menyingkirkan (jaga unique).
+        $arsip = $this->makeAnggota('Arsip Genap', $f['mi']->jenjang);
+        RiwayatBelajar::create([
+            'santri_id' => $arsip->id, 'tahun_ajaran' => $f['ta']->nama, 'jenjang' => $f['mi']->jenjang,
+            'semester' => '1', 'status_awal' => 'santri_baru', 'status_akhir' => 'aktif', 'is_active_riwayat' => 'Ya',
+        ]);
+        RiwayatBelajar::create([
+            'santri_id' => $arsip->id, 'tahun_ajaran' => $f['ta']->nama, 'jenjang' => $f['mi']->jenjang,
+            'semester' => '2', 'status_awal' => 'santri_baru', 'status_akhir' => 'pindah_keluar', 'is_active_riwayat' => 'Tidak',
+        ]);
+
+        // Tanpa kelas → bukan calon pindah (walau ganjil aktif).
+        $tanpaKelas = $this->makeAnggota('Tanpa Kelas', $f['mi']->jenjang);
+        RiwayatBelajar::create([
+            'santri_id' => $tanpaKelas->id, 'tahun_ajaran' => $f['ta']->nama, 'jenjang' => $f['mi']->jenjang,
+            'semester' => '1', 'tingkat' => '1', 'status_awal' => 'santri_baru', 'status_akhir' => 'aktif',
+            'is_active_riwayat' => 'Ya',
+        ]);
+
+        $ids = fn ($res) => collect($res->json('data'))->pluck('santri_id')->sort()->values()->all();
+        $ambil = fn (array $p) => $this->actingAs($admin, 'sanctum')->getJson(
+            '/api/admin/riwayat-belajar/belum-genap?'.http_build_query($p)
+        )->assertStatus(200);
+
+        $dasar = ['jenjang' => $f['mi']->jenjang, 'tahun_ajaran' => $f['ta']->nama];
+        $this->assertSame([$calon->id], $ids($ambil($dasar)));
+
+        // NIS lokal terlampir; tahun_ajaran tetap string (anti "[object Object]").
+        $baris = collect($ambil($dasar)->json('data'))->firstWhere('santri_id', $calon->id);
+        $this->assertIsString($baris['tahun_ajaran']);
+        $this->assertNotEmpty($baris['nis_lokal']);
+
+        // Filter tingkat + kelas + pencarian.
+        $this->assertSame([$calon->id], $ids($ambil($dasar + ['tingkat' => '1'])));
+        $this->assertSame([], $ids($ambil($dasar + ['tingkat' => '2'])));
+        $this->assertSame([$calon->id], $ids($ambil($dasar + ['kelas_id' => $f['kelas']->id])));
+        $this->assertSame([$calon->id], $ids($ambil($dasar + ['q' => 'Calon Genap'])));
+
+        // TA disembunyikan untuk lembaga ini ditolak.
+        $this->actingAs($admin, 'sanctum')->getJson('/api/admin/riwayat-belajar/belum-genap?'.http_build_query([
+            'jenjang' => $f['mi']->jenjang, 'tahun_ajaran' => $f['taLama']->nama,
+        ]))->assertStatus(422);
+    }
 }

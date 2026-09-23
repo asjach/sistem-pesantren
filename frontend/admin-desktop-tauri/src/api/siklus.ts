@@ -234,6 +234,28 @@ export function listBelumMasukRiwayat(params: {
   return api<Paginate<LembagaSantri>>(`/admin/riwayat-belajar/belum-masuk?${q.toString()}`, { signal: params.signal });
 }
 
+/** Panel kiri halaman Pindah Semester: ganjil aktif tanpa baris genap. */
+export function listBelumGenap(params: {
+  jenjang: string;
+  tahun_ajaran: string;
+  tingkat?: string;
+  kelas_id?: number;
+  q?: string;
+  page?: number;
+  per_page?: number;
+  signal?: AbortSignal;
+}) {
+  const q = new URLSearchParams();
+  q.set('jenjang', params.jenjang);
+  q.set('tahun_ajaran', params.tahun_ajaran);
+  if (params.tingkat) q.set('tingkat', params.tingkat);
+  if (params.kelas_id) q.set('kelas_id', String(params.kelas_id));
+  if (params.q) q.set('q', params.q);
+  q.set('page', String(params.page ?? 1));
+  if (params.per_page != null) q.set('per_page', String(params.per_page));
+  return api<Paginate<RiwayatRow>>(`/admin/riwayat-belajar/belum-genap?${q.toString()}`, { signal: params.signal });
+}
+
 // ---------- Import riwayat belajar (terpisah dari import identitas) ----------
 
 export function unduhTemplateRiwayatBelajar() {
@@ -372,6 +394,15 @@ export function batalKenaikan(santriId: number, jenjang: string) {
     { method: 'POST', body: JSON.stringify({ jenjang }) },
   );
 }
+
+/** Batalkan salin semester: hapus baris genap + buka kembali ganjil (TA sama). */
+export function batalSalin(santriId: number, jenjang: string) {
+  return api<{ pesan: string }>(
+    `/admin/santri/${santriId}/batal-salin`,
+    { method: 'POST', body: JSON.stringify({ jenjang }) },
+  );
+}
+
 /** Kenaikan otomatis: TA + kelas tujuan dibuatkan bila belum ada.
  *  Baris hasil memuat kelas/tingkat/TA tujuan yang baru dibuat. */
 export interface HasilKenaikan { santri_id: number; nama: string | null; kelas: string | null; tingkat: string | null; tahun_ajaran: string | null; }

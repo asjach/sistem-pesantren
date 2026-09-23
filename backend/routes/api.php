@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\Admin\KelasController;
 use App\Http\Controllers\Api\Admin\LembagaController;
 use App\Http\Controllers\Api\Admin\LembagaSantriController;
 use App\Http\Controllers\Api\Admin\MiMdController;
+use App\Http\Controllers\Api\Admin\PegawaiController;
 use App\Http\Controllers\Api\Admin\PengaturanTampilanController;
 use App\Http\Controllers\Api\Admin\PresetTabelController;
 use App\Http\Controllers\Api\Admin\PsbBiayaController;
@@ -78,6 +79,11 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::post('kelas', [KelasController::class, 'store'])->middleware('permission:kelas.tambah');
         Route::get('kelas/export-nama', [KelasController::class, 'exportNama'])->middleware('permission:kelas.lihat');
         Route::post('kelas/import-nama', [KelasController::class, 'importNama'])->middleware('permission:kelas.tambah');
+        Route::get('kelas/import-template', [KelasController::class, 'templateImport'])->middleware('permission:kelas.lihat');
+        Route::post('kelas/import-periksa', [KelasController::class, 'periksaImport'])->middleware(['permission:kelas.tambah', 'throttle:imports']);
+        Route::post('kelas/import', [KelasController::class, 'importLengkap'])->middleware(['permission:kelas.tambah', 'throttle:imports']);
+        Route::post('kelas/{kela}/set-walas', [KelasController::class, 'setWalas'])->middleware('permission:kelas.ubah');
+        Route::get('pegawai/aktif', [PegawaiController::class, 'aktif'])->middleware('permission:kelas.ubah');
         Route::match(['put', 'patch'], 'kelas/{kela}', [KelasController::class, 'update'])->middleware('permission:kelas.ubah');
         Route::delete('kelas/{kela}', [KelasController::class, 'destroy'])->middleware('permission:kelas.hapus');
 
@@ -108,6 +114,7 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         // Riwayat belajar (102): roster + dialog input + import terpisah
         Route::get('riwayat-belajar', [RiwayatBelajarController::class, 'index'])->middleware('permission:riwayat_belajar.lihat');
         Route::get('riwayat-belajar/belum-masuk', [RiwayatBelajarController::class, 'belumMasuk'])->middleware('permission:riwayat_belajar.lihat');
+        Route::get('riwayat-belajar/belum-genap', [RiwayatBelajarController::class, 'belumGenap'])->middleware('permission:kenaikan.lihat');
         Route::post('riwayat-belajar', [RiwayatBelajarController::class, 'store'])->middleware('permission:riwayat_belajar.tambah');
         Route::delete('riwayat-belajar/{riwayat}', [RiwayatBelajarController::class, 'destroy'])->middleware('permission:riwayat_belajar.hapus');
         Route::patch('riwayat-belajar/{riwayat}', [RiwayatBelajarController::class, 'update'])->middleware('permission:riwayat_belajar.ubah');
@@ -127,6 +134,7 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::post('santri/{santri}/lulus', [SiklusController::class, 'lulus'])->middleware('permission:kelulusan.ubah');
         Route::post('santri/{santri}/tidak-lulus', [SiklusController::class, 'tidakLulus'])->middleware('permission:kelulusan.ubah');
         Route::post('santri/{santri}/batal-kenaikan', [SiklusController::class, 'batalKenaikan'])->middleware('permission:kenaikan.ubah');
+        Route::post('santri/{santri}/batal-salin', [SiklusController::class, 'batalSalin'])->middleware('permission:kenaikan.ubah');
         Route::post('santri/{santri}/mutasi', [SiklusController::class, 'mutasiKeluar'])->middleware('permission:mutasi_keluar.ubah');
         Route::post('santri/{santri}/berhenti-jenjang', [SiklusController::class, 'berhentiJenjang'])->middleware('permission:mutasi_keluar.ubah');
         Route::get('santri/{santri}/profil', [SiklusController::class, 'profilSantri'])->middleware('permission:santri.lihat');

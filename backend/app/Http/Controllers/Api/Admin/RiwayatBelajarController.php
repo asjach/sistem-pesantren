@@ -231,6 +231,80 @@ class RiwayatBelajarController extends Controller
         return response()->json($query->paginate($this->perPage($request)));
     }
 
+    /**
+     * GET /api/admin/riwayat-belajar/belum-genap — panel kiri halaman Pindah
+     * Semester: baris semester 1 AKTIF yang sudah masuk kelas dan belum punya
+     * baris semester 2 pada TA yang sama (walau arsip, agar aksi panah tak
+     * menabrak unique santri+tahun+lembaga+semester). Genap otomatis mewarisi
+     * kelas ganjil. Filter tingkat/kelas/pencarian opsional.
+     */
+    public function belumGenap(Request $request): JsonResponse
+    {
+        $this->authorize('viewAny', Santri::class);
+
+        $data = $request->validate([
+            'jenjang' => ['required', 'string', 'exists:lembaga,jenjang'],
+            'tahun_ajaran' => ['required', 'string', 'exists:tahun_ajaran,nama'],
+            'tingkat' => ['nullable', 'string', 'max:20'],
+            'kelas_id' => ['nullable', 'integer', 'exists:kelas,id'],
+            'q' => ['nullable', 'string', 'max:100'],
+        ]);
+        $lembagaId = $data['jenjang'];
+        $ta = (string) $data['tahun_ajaran'];
+        $this->authorizeLembaga($request->user(), $lembagaId);
+        $this->cekTaEfektif($lembagaId, $ta);
+
+        $query = $this->scopeLembaga(
+            // TANPA `tahunAjaran`: kunci relasi yang di-snake Laravel menimpa
+            // atribut string `tahun_ajaran` (lihat KelasController@index).
+            RiwayatBelajar::with([
+                'santri:id,nama_lengkap,jk',
+                'kelas:id,nama_kelas,tingkat',
+                'lembaga:jenjang,nama',
+            ]),
+            $request->user(),
+            $request,
+            'riwayat_belajar.jenjang'
+        )->where('riwayat_belajar.jenjang', $lembagaId)
+            ->where('riwayat_belajar.tahun_ajaran', $ta)
+            ->where('riwayat_belajar.semester', '1')
+            ->where('riwayat_belajar.is_active_riwayat', RiwayatBelajar::YA)
+            // Syarat pindah: sudah terdaftar di kelas (genap mewarisi kelas ini).
+            ->whereNotNull('riwayat_belajar.kelas_id');
+
+        // Sudah punya baris genap TA sama (aktif maupun arsip) → bukan calon.
+        $query->whereNotExists(fn ($genap) => $genap->selectRaw('1')->from('riwayat_belajar as g2')
+            ->whereColumn('g2.santri_id', 'riwayat_belajar.santri_id')
+            ->whereColumn('g2.jenjang', 'riwayat_belajar.jenjang')
+            ->where('g2.tahun_ajaran', $ta)
+            ->where('g2.semester', '2'));
+
+        if (! empty($data['tingkat'])) {
+            $query->where('riwayat_belajar.tingkat', $data['tingkat']);
+        }
+        if (! empty($data['kelas_id'])) {
+            $query->where('riwayat_belajar.kelas_id', (int) $data['kelas_id']);
+        }
+        if (! empty($data['q'])) {
+            $cari = $data['q'];
+            $query->where(fn ($w) => $w
+                ->whereHas('santri', fn ($s) => $s
+                    ->where('nama_lengkap', 'like', "%{$cari}%")
+                    ->orWhere('nik', 'like', "%{$cari}%")));
+        }
+
+        $query->orderBy('riwayat_belajar.tingkat')
+            ->orderBy('riwayat_belajar.kelas_id')
+            ->orderBy('riwayat_belajar.no_absen')
+            ->orderBy('riwayat_belajar.santri_id');
+
+        $hasil = $query->paginate($this->perPage($request));
+
+        $this->lampirkanNisLokal($hasil);
+
+        return response()->json($hasil);
+    }
+
     /** DELETE /api/admin/riwayat-belajar/{riwayat} — batalkan baris aktif (hard delete fisik). */
     public function destroy(Request $request, RiwayatBelajar $riwayat, SiklusSantriService $siklus): JsonResponse
     {

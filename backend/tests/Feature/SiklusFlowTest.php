@@ -205,6 +205,12 @@ class SiklusFlowTest extends TestCase
             'santri_id' => $santri->id, 'tahun_ajaran' => $f['taLama']->nama,
             'semester' => '2', 'kelas_id' => $kelas->id, 'is_active_riwayat' => 'Ya',
         ]);
+        // Genap dibuka 'lanjutan'; ganjil arsip tetap 'aktif'.
+        $genap = RiwayatBelajar::where('santri_id', $santri->id)->where('semester', '2')->firstOrFail();
+        $this->assertSame('lanjutan', $genap->status_awal);
+        $ganjil = RiwayatBelajar::where('santri_id', $santri->id)->where('semester', '1')->firstOrFail();
+        $this->assertSame('aktif', $ganjil->status_akhir);
+        $this->assertSame('Tidak', $ganjil->is_active_riwayat);
         $this->assertSame('Tidak', RiwayatBelajar::where('santri_id', $santri->id)->where('semester', '1')->firstOrFail()->is_active_riwayat);
 
         // Salin ulang baris yang ganjilnya sudah tertutup → per-item gagal (partial), bukan 500.
@@ -215,6 +221,81 @@ class SiklusFlowTest extends TestCase
         ])->assertStatus(200);
         $this->assertSame(0, $res2->json('berhasil'));
         $this->assertCount(1, $res2->json('gagal'));
+    }
+
+    // ---------- 01b. salin genap dari ganjil pindahan → tetap 'lanjutan' ----------
+
+    public function test_01b_salin_genap_dari_pindahan_tetap_lanjutan(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
+        $santri = $this->makeSantri('Ganjil Pindahan');
+        $this->makeKeanggotaan($santri, $f['mi'], '25011');
+        $kelas = $this->makeKelas($f['mi'], $f['taLama'], '1B', '1');
+        $this->makeRiwayat($santri, $f['taLama'], $f['mi'], '1', ['kelas_id' => $kelas->id, 'status_awal' => 'pindahan']);
+
+        $this->actingAs($admin, 'sanctum')->postJson('/api/admin/akademik/salin-genap', [
+            'jenjang' => $f['mi']->jenjang,
+            'tanggal_masuk' => '2026-01-05',
+            'siswa' => [['santri_id' => $santri->id]],
+        ])->assertStatus(200);
+
+        $genap = RiwayatBelajar::where('santri_id', $santri->id)->where('semester', '2')->firstOrFail();
+        $this->assertSame('lanjutan', $genap->status_awal);
+        $this->assertSame('aktif', $genap->status_akhir);
+    }
+
+    // ---------- 01c. batal salin: genap dihapus, ganjil dibuka lagi ----------
+
+    public function test_01c_batal_salin_kembalikan_ganjil(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
+        $santri = $this->makeSantri('Batal Salin');
+        $this->makeKeanggotaan($santri, $f['mi'], '25012');
+        $kelas = $this->makeKelas($f['mi'], $f['taLama'], '1C', '1');
+        $this->makeRiwayat($santri, $f['taLama'], $f['mi'], '1', ['kelas_id' => $kelas->id]);
+
+        $this->actingAs($admin, 'sanctum')->postJson('/api/admin/akademik/salin-genap', [
+            'jenjang' => $f['mi']->jenjang,
+            'tanggal_masuk' => '2026-01-05',
+            'siswa' => [['santri_id' => $santri->id]],
+        ])->assertStatus(200);
+        $this->assertSame(2, RiwayatBelajar::where('santri_id', $santri->id)->count());
+
+        $res = $this->actingAs($admin, 'sanctum')->postJson("/api/admin/santri/{$santri->id}/batal-salin", [
+            'jenjang' => $f['mi']->jenjang,
+        ])->assertStatus(200);
+        $this->assertSame('Salin semester dibatalkan; santri kembali ke semester 1.', $res->json('pesan'));
+
+        $this->assertSame(1, RiwayatBelajar::where('santri_id', $santri->id)->count());
+        $ganjil = RiwayatBelajar::where('santri_id', $santri->id)->firstOrFail();
+        $this->assertSame('1', $ganjil->semester);
+        $this->assertSame('Ya', $ganjil->is_active_riwayat);
+        $this->assertSame('Ya', $santri->fresh()->is_active_pst);
+    }
+
+    // ---------- 01d. batal salin ditolak bila tak ada genap / sudah lanjut ----------
+
+    public function test_01d_batal_salin_ditolak_tanpa_genap_atau_sudah_lanjut(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
+        $santri = $this->makeSantri('Batal Tolak');
+        $this->makeKeanggotaan($santri, $f['mi'], '25013');
+        $this->makeRiwayat($santri, $f['taLama'], $f['mi'], '1');
+
+        // Belum disalin → tak ada yang dibatalkan.
+        $this->actingAs($admin, 'sanctum')->postJson("/api/admin/santri/{$santri->id}/batal-salin", [
+            'jenjang' => $f['mi']->jenjang,
+        ])->assertStatus(422);
+
+        // Sudah ada transisi lanjutan (baris aktif terbaru bukan genap) → ditolak.
+        $this->makeRiwayat($santri, $f['taBaru'], $f['mi'], '1');
+        $this->actingAs($admin, 'sanctum')->postJson("/api/admin/santri/{$santri->id}/batal-salin", [
+            'jenjang' => $f['mi']->jenjang,
+        ])->assertStatus(422);
+        $this->assertSame(2, RiwayatBelajar::where('santri_id', $santri->id)->count());
     }
 
     // ---------- 02. kenaikan massal naik/tidak naik ----------

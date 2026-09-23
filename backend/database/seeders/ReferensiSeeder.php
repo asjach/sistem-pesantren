@@ -86,13 +86,16 @@ class ReferensiSeeder extends Seeder
                 'kode_pos' => '40218', 'urutan' => 0, 'is_active' => true],
         ]]);
 
-        // Status siklus no.51 GANTI TOTAL (terkunci): awal 3 kode + 'kenaikan' (root PRD v1.7.1:
-        // kenaikan kelas -> status_awal baris tapel-berikut), akhir 6 kode; is_aktif_bawaan=true HANYA untuk 'aktif' (invarian 102 terjaga).
+        // Status siklus no.51 GANTI TOTAL (terkunci): awal 4 kode + 'kenaikan' + 'lanjutan'
+        // (root PRD v1.7.1: kenaikan kelas -> status_awal baris tapel-berikut;
+        // salin ganjil→genap -> status_awal baris genap 'lanjutan'),
+        // akhir 6 kode; is_aktif_bawaan=true HANYA untuk 'aktif' (invarian 102 terjaga).
         $isi('ref_status_awal', 'kode', [
             ['santri_baru', ['nama' => 'Santri Baru', 'urutan' => 0, 'is_active' => true]],
             ['mengulang', ['nama' => 'Mengulang', 'urutan' => 1, 'is_active' => true]],
             ['pindahan', ['nama' => 'Pindahan', 'urutan' => 2, 'is_active' => true]],
             ['kenaikan', ['nama' => 'Kenaikan Kelas', 'urutan' => 3, 'is_active' => true]],
+            ['lanjutan', ['nama' => 'Lanjutan Semester', 'urutan' => 4, 'is_active' => true]],
         ]);
 
         $isi('ref_status_akhir', 'kode', [
