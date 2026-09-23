@@ -274,6 +274,62 @@ export function periksaImportRiwayatBelajar(input: { file: File }) {
   return apiUpload<ImportPeriksa>('/admin/riwayat-belajar/import-periksa', fd);
 }
 
+// ---------- Import riwayat bertahap (potongan JSON dari browser) ----------
+
+export interface ImportPotongRingkasan {
+  baris_diproses: number;
+  baris_valid: number;
+  baris_gagal: number;
+  baris_dilewati: number;
+  dibuat: number;
+  diperbarui: number;
+}
+
+export interface ImportPotongGalat {
+  baris: number;
+  nis_lokal: string | null;
+  kolom: string;
+  pesan: string;
+}
+
+export interface ImportPotongHasil {
+  sesi_id: number;
+  offset: number;
+  total: number;
+  selesai: boolean;
+  ringkasan: ImportPotongRingkasan;
+  galat_baru: number;
+  galat_contoh: ImportPotongGalat[];
+  galat_unduh: boolean;
+}
+
+/** Kirim satu potongan baris (maks 2000); panggilan pertama tanpa sesi_id
+ *  membuat sesi (wajib mode + total). */
+export function potongImportRiwayat(input: {
+  sesi_id?: number;
+  mode: 'periksa' | 'eksekusi';
+  total?: number;
+  baris: Record<string, unknown>[];
+  terakhir?: boolean;
+}) {
+  return api<ImportPotongHasil>('/admin/riwayat-belajar/import-potong', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+/** Batalkan sesi import bertahap milik sendiri. */
+export function batalPotongImport(sesiId: number) {
+  return api<{ pesan: string }>(`/admin/riwayat-belajar/import-potong/${sesiId}/batal`, {
+    method: 'POST',
+  });
+}
+
+/** Unduh CSV galat sesi milik sendiri. */
+export function unduhGalatPotong(sesiId: number) {
+  return downloadFile(`/admin/riwayat-belajar/import-potong/${sesiId}/galat`, 'galat-import-riwayat.csv');
+}
+
 // ---------- Daftar kelas & rekap ----------
 
 export function daftarKelas(params: {

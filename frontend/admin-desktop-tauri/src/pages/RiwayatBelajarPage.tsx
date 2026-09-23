@@ -25,6 +25,7 @@ import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import Pager from '@/components/Pager';
 import { useDaftarTabel } from '@/hooks/useDaftarTabel';
 import { ActionIcon } from '@/components/RowActions';
+import ImportBertahapDialog from '@/components/ImportBertahapDialog';
 import { ArrowRight, FileUp, Download, Undo2 } from '@/icons';
 import {
   ROSTER_FIELDS,
@@ -261,6 +262,7 @@ export default function RiwayatBelajarPage() {
   const [importFile, setImportFile] = useState<File | null>(null);
   const [periksaHasil, setPeriksaHasil] = useState<ImportPeriksa | null>(null);
   const [busy, setBusy] = useState(false);
+  const [bertahapOpen, setBertahapOpen] = useState(false);
 
   const siap = jenjang !== '' && taId !== '';
 
@@ -444,9 +446,15 @@ export default function RiwayatBelajarPage() {
                   </Button>
                 ) : null}
                 {canTambah ? (
-                  <Button id="btn_buka_import_riwayat" size="sm" variant="outline" onClick={() => { setImportFile(null); setPeriksaHasil(null); setImportOpen(true); }}>
-                    <FileUp data-icon="inline-start" size={16} /> Import
-                  </Button>
+                  <>
+                    <Button id="btn_buka_import_riwayat" size="sm" variant="outline" onClick={() => { setImportFile(null); setPeriksaHasil(null); setImportOpen(true); }}>
+                      <FileUp data-icon="inline-start" size={16} /> Import
+                    </Button>
+                    <Button id="btn_buka_import_bertahap" size="sm" variant="outline" title="Untuk file besar (puluhan hingga ratusan ribu baris)"
+                      onClick={() => setBertahapOpen(true)}>
+                      <FileUp data-icon="inline-start" size={16} /> Import bertahap
+                    </Button>
+                  </>
                 ) : null}
               </div>
             ) : undefined,
@@ -514,6 +522,8 @@ export default function RiwayatBelajarPage() {
           </form>
         </DialogContent>
       </Dialog>
+      {/* Import bertahap (file besar): baca di browser, kirim per potongan */}
+      <ImportBertahapDialog open={bertahapOpen} onOpenChange={setBertahapOpen} onSelesai={() => void muatUlang()} />
     </div>
   );
 }
