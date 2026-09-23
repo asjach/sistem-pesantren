@@ -10,6 +10,7 @@ use App\Models\Santri;
 use App\Models\TahunAjaran;
 use App\Services\RefService;
 use App\Support\Tanggal;
+use DateTimeInterface;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Concerns\SkipsOnFailure;
@@ -20,6 +21,7 @@ use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 use Maatwebsite\Excel\Concerns\WithValidation;
 use Maatwebsite\Excel\Validators\Failure;
+use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 
 /**
  * Import riwayat belajar (`riwayat_belajar`) — terpisah dari import identitas.
@@ -30,7 +32,7 @@ use Maatwebsite\Excel\Validators\Failure;
  * UPSERT per kunci (santri, tahun ajaran, jenjang, semester): kunci baru →
  * dibuat; kunci cocok → update hanya kolom yang terisi (sel kosong =
  * pertahankan). Pencocokan santri: `nis_lokal` + `jenjang` (unik per lembaga
- * di DB). `lembaga_santri` dibuat otomatis bila belum ada (membawa
+ * di DB), fallback NIS sama di pasangan MI↔MD. `lembaga_santri` dibuat otomatis bila belum ada (membawa
  * nis_lokal dari file). Izin mengikuti akun per baris.
  */
 class RiwayatBelajarImport implements SkipsOnFailure, SkipsUnknownSheets, ToCollection, WithHeadingRow, WithMapping, WithMultipleSheets, WithValidation
@@ -76,6 +78,22 @@ class RiwayatBelajarImport implements SkipsOnFailure, SkipsUnknownSheets, ToColl
     public function map($row): array
     {
         $baris = (array) $row;
+        foreach ($baris as $kunci => $nilai) {
+            // Sel tanggal Excel terbaca sebagai objek DateTime (gagal rule
+            // `date` dan Tanggal::parse) — samakan jadi string Y-m-d.
+            if ($nilai instanceof DateTimeInterface) {
+                $baris[$kunci] = $nilai->format('Y-m-d');
+            }
+        }
+        // Serial tanggal Excel (sel berformat General) terbaca sebagai angka
+        // mentah — konversi ke Y-m-d agar lolos rule `date`.
+        if (isset($baris['tgl_masuk']) && (is_int($baris['tgl_masuk']) || is_float($baris['tgl_masuk']))) {
+            try {
+                $baris['tgl_masuk'] = ExcelDate::excelToDateTimeObject($baris['tgl_masuk'])->format('Y-m-d');
+            } catch (\Throwable $e) {
+                $baris['tgl_masuk'] = (string) $baris['tgl_masuk'];
+            }
+        }
         if (trim((string) ($baris['kelas_id'] ?? '')) === '' && trim((string) ($baris['nama_kelas'] ?? '')) !== '') {
             $baris['kelas_id'] = $baris['nama_kelas'];
         }
@@ -93,7 +111,9 @@ class RiwayatBelajarImport implements SkipsOnFailure, SkipsUnknownSheets, ToColl
     public function collection(Collection $rows): void
     {
         DB::transaction(function () use ($rows) {
-            $no = 0;
+            // Nomor absolut baris Excel (1 = heading) agar selaras dengan
+            // nomor galat validasi Maatwebsite.
+            $no = 1;
             $tersentuh = [];
             foreach ($rows as $row) {
                 $no++;
@@ -153,7 +173,24 @@ class RiwayatBelajarImport implements SkipsOnFailure, SkipsUnknownSheets, ToColl
         $nisLokal = trim((string) ($row['nis_lokal'] ?? ''));
         $nisLokal = $nisLokal === '' ? null : $nisLokal;
 
-        $keanggotaan = $this->pastikanKeanggotaan($santri, $jenjang, $nisLokal, $no);
+        // Status diparse di depan: keanggotaan hanya diaktifkan ulang bila
+        // barisnya aktif (baris arsip tak membangunkan arsip keanggotaan).
+        $statusAwal = $this->normalisasiStatus('status_awal', $row['status_awal'] ?? null, $jenjang) ?: 'santri_baru';
+        $statusAkhir = $this->normalisasiStatus('status_akhir', $row['status_akhir'] ?? null, $jenjang) ?: 'aktif';
+        $kamusAwal = RefService::kodeAktif('status_awal', $jenjang);
+        if ($kamusAwal !== [] && ! in_array($statusAwal, $kamusAwal, true)) {
+            $this->fail($no, 'status_awal', "Status awal {$statusAwal} tidak aktif di lembaga ini.");
+
+            return false;
+        }
+        $kamusAkhir = RefService::kodeAktif('status_akhir', $jenjang);
+        if ($kamusAkhir !== [] && ! in_array($statusAkhir, $kamusAkhir, true)) {
+            $this->fail($no, 'status_akhir', "Status akhir {$statusAkhir} tidak aktif di lembaga ini.");
+
+            return false;
+        }
+
+        $keanggotaan = $this->pastikanKeanggotaan($santri, $jenjang, $nisLokal, $statusAkhir === 'aktif', $no);
         if ($keanggotaan === false) {
             return false;
         }
@@ -167,21 +204,6 @@ class RiwayatBelajarImport implements SkipsOnFailure, SkipsUnknownSheets, ToColl
 
         $kelasId = $this->resolveKelasId($row['kelas_id'] ?? null, $jenjang, $ta, $no);
         if ($kelasId === false) {
-            return false;
-        }
-
-        $statusAwal = $this->normalisasiStatus('status_awal', $row['status_awal'] ?? null, $jenjang) ?: 'santri_baru';
-        $statusAkhir = $this->normalisasiStatus('status_akhir', $row['status_akhir'] ?? null, $jenjang) ?: 'aktif';
-        $kamusAwal = RefService::kodeAktif('status_awal', $jenjang);
-        if ($kamusAwal !== [] && ! in_array($statusAwal, $kamusAwal, true)) {
-            $this->fail($no, 'status_awal', "Status awal {$statusAwal} tidak aktif di lembaga ini.");
-
-            return false;
-        }
-        $kamusAkhir = RefService::kodeAktif('status_akhir', $jenjang);
-        if ($kamusAkhir !== [] && ! in_array($statusAkhir, $kamusAkhir, true)) {
-            $this->fail($no, 'status_akhir', "Status akhir {$statusAkhir} tidak aktif di lembaga ini.");
-
             return false;
         }
 
@@ -203,20 +225,6 @@ class RiwayatBelajarImport implements SkipsOnFailure, SkipsUnknownSheets, ToColl
             'semester' => $semester,
         ];
         $lama = RiwayatBelajar::where($kunci)->first();
-
-        if ($noAbsen !== null && $kelasId !== null) {
-            $bentrok = RiwayatBelajar::where('kelas_id', $kelasId)
-                ->where('tahun_ajaran', $ta)
-                ->where('semester', $semester)
-                ->where('no_absen', $noAbsen)
-                ->when($lama, fn ($q) => $q->whereKeyNot($lama->id))
-                ->exists();
-            if ($bentrok) {
-                $this->fail($no, 'no_absen', 'No. absen sudah dipakai di rombel semester ini.');
-
-                return false;
-            }
-        }
 
         if ($lama === null) {
             // Insert: default berlaku (status aktif, tingkat warisi kelas).
@@ -267,6 +275,9 @@ class RiwayatBelajarImport implements SkipsOnFailure, SkipsUnknownSheets, ToColl
     }
 
     /** Cari santri via `nis_lokal` + lembaga (unik per lembaga di DB).
+     *  Fallback pasangan MI↔MD: NIS yang sama di lembaga pasangan menandai
+     *  santri yang sama (keanggotaan target lalu dibuat otomatis).
+     *
      *  @param  array<string, mixed>  $row */
     protected function cariSantri(array $row, string $jenjang, int $no): ?Santri
     {
@@ -276,6 +287,14 @@ class RiwayatBelajarImport implements SkipsOnFailure, SkipsUnknownSheets, ToColl
             if ($ls) {
                 return Santri::find($ls->santri_id);
             }
+
+            $pasangan = Lembaga::pasanganJenjang($jenjang);
+            if ($pasangan !== null) {
+                $kandidat = LembagaSantri::where('jenjang', $pasangan)->where('nis_lokal', $nisLokal)->first();
+                if ($kandidat) {
+                    return Santri::find($kandidat->santri_id);
+                }
+            }
         }
 
         $this->fail($no, 'nis_lokal', 'Santri tidak ditemukan (cocokkan NIS lokal + lembaga).');
@@ -283,8 +302,11 @@ class RiwayatBelajarImport implements SkipsOnFailure, SkipsUnknownSheets, ToColl
         return null;
     }
 
-    /** Buat/buka keanggotaan; false = gagal (failure sudah dicatat). */
-    protected function pastikanKeanggotaan(Santri $santri, string $jenjang, ?string $nisLokal, int $no): LembagaSantri|false
+    /** Buat/buka keanggotaan; false = gagal (failure sudah dicatat).
+     *  Arsip milik sendiri diaktifkan ulang HANYA bila barisnya aktif
+     *  (pola PenerimaanService; baris arsip tak membangunkan keanggotaan).
+     *  Cek bentrok NIS selalu mengecualikan baris sendiri. */
+    protected function pastikanKeanggotaan(Santri $santri, string $jenjang, ?string $nisLokal, bool $aktifkan, int $no): LembagaSantri|false
     {
         $aktif = LembagaSantri::aktif($santri->id, $jenjang);
 
@@ -301,6 +323,28 @@ class RiwayatBelajarImport implements SkipsOnFailure, SkipsUnknownSheets, ToColl
             return $aktif;
         }
 
+        $milik = LembagaSantri::where('santri_id', $santri->id)
+            ->where('jenjang', $jenjang)
+            ->orderByDesc('id')
+            ->first();
+        if ($milik !== null) {
+            if ($nisLokal !== null && ($milik->nis_lokal ?? null) !== $nisLokal) {
+                if (LembagaSantri::nisLokalDipakai($jenjang, $nisLokal, $milik->id)) {
+                    $this->fail($no, 'nis_lokal', 'NIS lokal sudah dipakai santri lain di lembaga ini.');
+
+                    return false;
+                }
+                $milik->nis_lokal = $nisLokal;
+            }
+            if ($aktifkan) {
+                $milik->is_active_lembaga = LembagaSantri::YA;
+                $milik->tgl_selesai = null;
+            }
+            $milik->save();
+
+            return $milik->fresh();
+        }
+
         if ($nisLokal !== null && LembagaSantri::nisLokalDipakai($jenjang, $nisLokal)) {
             $this->fail($no, 'nis_lokal', 'NIS lokal sudah dipakai santri lain di lembaga ini.');
 
@@ -311,9 +355,16 @@ class RiwayatBelajarImport implements SkipsOnFailure, SkipsUnknownSheets, ToColl
             'santri_id' => $santri->id,
             'jenjang' => $jenjang,
             'nis_lokal' => $nisLokal,
-            'is_active_lembaga' => LembagaSantri::YA,
+            'is_active_lembaga' => $aktifkan ? LembagaSantri::YA : LembagaSantri::TIDAK,
         ]);
     }
+
+    /** Singkatan label dari ekspor historis → kode (dibandingkan lower-case).
+     *  Kamus resmi tetap sumber kebenaran; ini hanya jembatan data lama. */
+    protected const ALIAS_STATUS = [
+        'naik kelas' => 'naik',
+        'keluar' => 'pindah_keluar',
+    ];
 
     /** Status: label Proper Case ('Santri Baru') dipetakan ke kode; kode
      *  lama tetap diterima apa adanya. Tak dikenal → kembalikan mentah agar
@@ -323,6 +374,9 @@ class RiwayatBelajarImport implements SkipsOnFailure, SkipsUnknownSheets, ToColl
         $teks = trim((string) ($nilai ?? ''));
         if ($teks === '') {
             return '';
+        }
+        if (isset(self::ALIAS_STATUS[mb_strtolower($teks)])) {
+            return self::ALIAS_STATUS[mb_strtolower($teks)];
         }
         $kunci = RefService::KEY[$tipe];
         foreach (RefService::effective($tipe, $jenjang) as $baris) {

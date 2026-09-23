@@ -17,6 +17,9 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use PhpOffice\PhpSpreadsheet\Shared\Date;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Tests\TestCase;
 
 /**
@@ -77,6 +80,7 @@ class RiwayatBelajarFlowTest extends TestCase
             foreach ([
                 ['kode' => 'santri_baru', 'nama' => 'Santri Baru'],
                 ['kode' => 'pindahan', 'nama' => 'Pindahan'],
+                ['kode' => 'kenaikan', 'nama' => 'Kenaikan Kelas'],
             ] as $i => $r) {
                 DB::table('ref_status_awal')->updateOrInsert(
                     ['jenjang' => $jenjang, 'kode' => $r['kode']],
@@ -85,6 +89,7 @@ class RiwayatBelajarFlowTest extends TestCase
             }
             foreach ([
                 ['kode' => 'aktif', 'nama' => 'Aktif'],
+                ['kode' => 'naik', 'nama' => 'Naik'],
                 ['kode' => 'pindah_keluar', 'nama' => 'Pindah/Keluar'],
             ] as $i => $r) {
                 DB::table('ref_status_akhir')->updateOrInsert(
@@ -367,9 +372,9 @@ class RiwayatBelajarFlowTest extends TestCase
         $this->assertSame(0, RiwayatBelajar::count());
     }
 
-    // ---------- 09. no_absen bentrok ----------
+    // ---------- 09. no_absen ganda diloloskan (digenerate menyusul) ----------
 
-    public function test_09_import_no_absen_bentrok_gagal_baris(): void
+    public function test_09_import_no_absen_ganda_tidak_divalidasi(): void
     {
         $f = $this->baseFixture();
         $admin = $this->makeUser();
@@ -380,12 +385,12 @@ class RiwayatBelajarFlowTest extends TestCase
             ['nis_lokal' => '26022', 'jenjang' => (string) $f['mi']->jenjang, 'tahun_ajaran' => (string) $f['taMi']->nama, 'kelas_id' => '1A', 'semester' => '1', 'no_absen' => '1'],
             ['nis_lokal' => '26023', 'jenjang' => (string) $f['mi']->jenjang, 'tahun_ajaran' => (string) $f['taMi']->nama, 'kelas_id' => '1A', 'semester' => '1', 'no_absen' => '1'],
         ]);
-        $res = $this->importCsv($admin, $csv)->assertStatus(422);
-        $this->assertStringContainsString('no_absen', (string) json_encode($res->json('errors')));
+        // Tanpa cek unik: dua-duanya dibuat (nomor digenerate ulang menyusul).
+        $this->importCsv($admin, $csv)->assertStatus(200);
 
-        $this->assertSame(1, RiwayatBelajar::count());
+        $this->assertSame(2, RiwayatBelajar::count());
         $this->assertSame(1, RiwayatBelajar::where('santri_id', $a->id)->count());
-        $this->assertSame(0, RiwayatBelajar::where('santri_id', $b->id)->count());
+        $this->assertSame(1, RiwayatBelajar::where('santri_id', $b->id)->count());
     }
 
     // ---------- 10. import memperbarui baris yang sudah ada ----------
@@ -655,5 +660,129 @@ class RiwayatBelajarFlowTest extends TestCase
         ]))->assertStatus(422);
         $this->assertSame('status_awal', $res->json('errors.0.attribute'));
         $this->assertSame(0, RiwayatBelajar::where('santri_id', $c->id)->count());
+
+        // Singkatan ekspor historis → kode.
+        $d = $this->makeSantri('Status Singkat', '26044', $f['mi']);
+        $this->importCsv($admin, $this->makeCsv([
+            ['nis_lokal' => '26044'] + $dasar + ['status_awal' => 'Kenaikan', 'status_akhir' => 'Naik Kelas'],
+        ]))->assertStatus(200);
+        $riwayat = RiwayatBelajar::where('santri_id', $d->id)->firstOrFail();
+        $this->assertSame('kenaikan', $riwayat->status_awal);
+        $this->assertSame('naik', $riwayat->status_akhir);
+
+        $e = $this->makeSantri('Status Keluar', '26045', $f['mi']);
+        $this->importCsv($admin, $this->makeCsv([
+            ['nis_lokal' => '26045'] + $dasar + ['status_akhir' => 'Keluar'],
+        ]))->assertStatus(200);
+        $this->assertSame('pindah_keluar', RiwayatBelajar::where('santri_id', $e->id)->firstOrFail()->status_akhir);
+    }
+
+    // ---------- 18-19. arsip keanggotaan sendiri ----------
+
+    protected function nonaktifkanKeanggotaan(Santri $santri, Lembaga $lembaga): void
+    {
+        LembagaSantri::where('santri_id', $santri->id)->where('jenjang', $lembaga->jenjang)
+            ->update(['is_active_lembaga' => 'Tidak', 'tgl_selesai' => '2025-06-01']);
+    }
+
+    public function test_18_import_aktif_mengaktifkan_ulang_arsip_sendiri(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeUser();
+        $santri = $this->makeSantri('Arsip Aktif Lagi', '26051', $f['mi']);
+        $this->nonaktifkanKeanggotaan($santri, $f['mi']);
+
+        $this->importCsv($admin, $this->makeCsv([[
+            'nis_lokal' => '26051',
+            'jenjang' => (string) $f['mi']->jenjang,
+            'tahun_ajaran' => (string) $f['taMi']->nama,
+            'semester' => '1',
+        ]]))->assertStatus(200);
+
+        $anggota = LembagaSantri::where('santri_id', $santri->id)->where('jenjang', $f['mi']->jenjang)->firstOrFail();
+        $this->assertSame('Ya', $anggota->is_active_lembaga);
+        $this->assertNull($anggota->tgl_selesai);
+        $this->assertSame(1, LembagaSantri::where('santri_id', $santri->id)->where('jenjang', $f['mi']->jenjang)->count());
+        $this->assertDatabaseHas('riwayat_belajar', ['santri_id' => $santri->id, 'is_active_riwayat' => 'Ya']);
+    }
+
+    public function test_19_import_arsip_tak_membangunkan_keanggotaan(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeUser();
+        $santri = $this->makeSantri('Arsip Tetap', '26052', $f['mi']);
+        $this->nonaktifkanKeanggotaan($santri, $f['mi']);
+
+        $this->importCsv($admin, $this->makeCsv([[
+            'nis_lokal' => '26052',
+            'jenjang' => (string) $f['mi']->jenjang,
+            'tahun_ajaran' => (string) $f['taMi']->nama,
+            'semester' => '1',
+            'status_akhir' => 'Pindah/Keluar',
+        ]]))->assertStatus(200);
+
+        $this->assertSame('Tidak', LembagaSantri::where('santri_id', $santri->id)->where('jenjang', $f['mi']->jenjang)->firstOrFail()->is_active_lembaga);
+        $this->assertDatabaseHas('riwayat_belajar', ['santri_id' => $santri->id, 'status_akhir' => 'pindah_keluar', 'is_active_riwayat' => 'Tidak']);
+    }
+
+    // ---------- 20. sel tanggal xlsx nyata (objek DateTime) ----------
+
+    public function test_20_import_sel_tanggal_xlsx_nyata(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeUser();
+        $santri = $this->makeSantri('Tanggal Xlsx', '26061', $f['mi']);
+
+        $spreadsheet = new Spreadsheet;
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->fromArray([['nis_lokal', 'jenjang', 'tahun_ajaran', 'semester', 'tgl_masuk']], null, 'A1');
+        $sheet->setCellValue('A2', '26061');
+        $sheet->setCellValue('B2', 'MI');
+        $sheet->setCellValue('C2', '2026/2027');
+        $sheet->setCellValue('D2', '1');
+        $sheet->setCellValue('E2', new \DateTime('2026-07-01'));
+        $sheet->getStyle('E2')->getNumberFormat()->setFormatCode('yyyy-mm-dd');
+        // Serial mentah berformat General (kasus file historis).
+        $sheet->setCellValue('A3', '26062');
+        $sheet->setCellValue('B3', 'MI');
+        $sheet->setCellValue('C3', '2026/2027');
+        $sheet->setCellValue('D3', '1');
+        $sheet->setCellValue('E3', 45123);
+        $santri2 = $this->makeSantri('Tanggal Serial', '26062', $f['mi']);
+        $tmp = tempnam(sys_get_temp_dir(), 'riwayat120').'.xlsx';
+        (new Xlsx($spreadsheet))->save($tmp);
+        $spreadsheet->disconnectWorksheets();
+
+        $this->actingAs($admin, 'sanctum')->post('/api/admin/riwayat-belajar/import-lengkap', [
+            'file' => new UploadedFile($tmp, 'riwayat.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', null, true),
+        ])->assertStatus(200);
+        $this->assertDatabaseHas('riwayat_belajar', ['santri_id' => $santri->id, 'tgl_masuk' => '2026-07-01']);
+        $this->assertDatabaseHas('riwayat_belajar', [
+            'santri_id' => $santri2->id,
+            'tgl_masuk' => Date::excelToDateTimeObject(45123)->format('Y-m-d'),
+        ]);
+    }
+
+    // ---------- 21. fallback pasangan MI↔MD ----------
+
+    public function test_21_import_cocok_nis_pasangan_membuka_keanggotaan(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeUser();
+        // Santri hanya dikenal di MI; baris MD dengan NIS sama membuka
+        // keanggotaan MD otomatis.
+        $santri = $this->makeSantri('Pasangan MD', '26071', $f['mi']);
+
+        $this->importCsv($admin, $this->makeCsv([[
+            'nis_lokal' => '26071',
+            'jenjang' => (string) $f['md']->jenjang,
+            'tahun_ajaran' => (string) $f['taMd']->nama,
+            'semester' => '1',
+        ]]))->assertStatus(200);
+
+        $this->assertDatabaseHas('lembaga_santri', [
+            'santri_id' => $santri->id, 'jenjang' => $f['md']->jenjang, 'nis_lokal' => '26071', 'is_active_lembaga' => 'Ya',
+        ]);
+        $this->assertDatabaseHas('riwayat_belajar', ['santri_id' => $santri->id, 'jenjang' => $f['md']->jenjang, 'is_active_riwayat' => 'Ya']);
     }
 }

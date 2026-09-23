@@ -352,6 +352,9 @@ class RiwayatBelajarController extends Controller
     {
         $this->authorize('viewAny', Santri::class);
 
+        // File besar (puluhan ribu baris): beri waktu eksekusi eksplisit.
+        ini_set('max_execution_time', '600');
+
         $request->validated();
 
         $import = new RiwayatBelajarImport;
