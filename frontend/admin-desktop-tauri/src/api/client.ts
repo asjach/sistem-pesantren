@@ -248,6 +248,57 @@ function messageOf(body: unknown, fallback: string): string {
 }
 
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const method = (init.method ?? 'GET').toUpperCase();
+
+  // Setiap request tulis membatalkan cache GET referensi agar data tak basi
+  // (mis. buat lembaga → daftar langsung segar pada muat berikutnya).
+  if (method !== 'GET') getCache.clear();
+
+  // Dedup GET identik yang sedang in-flight: React StrictMode (dev) menggandakan
+  // efek, dan beberapa komponen (provider + halaman + tiap grid) sering memuat
+  // daftar referensi yang sama serentak. Permintaan ber-`signal` (abortable)
+  // tidak digabung agar pembatalan satu pemanggil tak mengganggu yang lain.
+  if (method === 'GET' && !init.signal) {
+    const kunci = `${lembagaAktifId ?? ''}|${path}`;
+    if (bolehCache(path)) {
+      const c = getCache.get(kunci);
+      if (c && Date.now() - c.at < GET_TTL_MS) return c.value as T;
+    }
+    const ada = inFlightGet.get(kunci);
+    if (ada) return ada as Promise<T>;
+    const p = apiMentah<T>(path, init)
+      .then((v) => {
+        if (bolehCache(path)) getCache.set(kunci, { at: Date.now(), value: v });
+        return v;
+      })
+      .finally(() => {
+        if (inFlightGet.get(kunci) === p) inFlightGet.delete(kunci);
+      });
+    inFlightGet.set(kunci, p);
+    return p;
+  }
+  return apiMentah<T>(path, init);
+}
+
+/** Dedup in-flight per kunci (lembaga aktif + path). */
+const inFlightGet = new Map<string, Promise<unknown>>();
+
+/** Cache singkat GET referensi (per lembaga aktif). TTL kecil agar hemat
+ *  request saat banyak grid/provider memuat data sama, tanpa risiko basi lama. */
+const getCache = new Map<string, { at: number; value: unknown }>();
+const GET_TTL_MS = 5000;
+
+/** Endpoint referensi yang aman di-cache singkat (daftar jarang berubah). */
+const CACHE_PATH = [
+  '/admin/lembaga', '/admin/tahun-ajaran', '/admin/semester-aktif',
+  '/admin/preset-tabel', '/admin/toolbar-preset', '/admin/urut-preset',
+];
+
+function bolehCache(path: string): boolean {
+  return CACHE_PATH.some((p) => path === p || path.startsWith(`${p}?`) || path.startsWith(`${p}/`));
+}
+
+async function apiMentah<T>(path: string, init: RequestInit = {}): Promise<T> {
   const [token, base] = await Promise.all([getToken(), getBaseUrl()]);
   let res: Response;
   try {
@@ -269,6 +320,7 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
 
 /** POST multipart (upload file): tanpa header Content-Type agar boundary otomatis. */
 export async function apiUpload<T>(path: string, body: FormData): Promise<T> {
+  getCache.clear();
   const [token, base] = await Promise.all([getToken(), getBaseUrl()]);
   let res: Response;
   try {

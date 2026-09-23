@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { listLembaga, listTahunAjaran, type Lembaga, type TahunAjaran } from '@/api/master';
+import { listTahunAjaran, type TahunAjaran } from '@/api/master';
 import type { RiwayatRow } from '@/api/siklus';
 import type { ExcelField } from '@/components/ExcelTable';
+import { useLembagaAktif } from '@/lembagaAktif';
 import FilterField from '@/components/FilterField';
 import { formatStatus, namaLembaga } from '@/lib/nilaiTampil';
 import {
@@ -50,20 +51,23 @@ export function lembagaSeragam(rows: { jenjang: string }[]): string | null {
   return rows.every((r) => r.jenjang === id) ? id : null;
 }
 
-/** Muat daftar lembaga + tahun ajaran (TA mengikuti lembaga terpilih). */
+/** Daftar lembaga + tahun ajaran (TA mengikuti lembaga terpilih).
+ *  Lembaga diambil dari provider LembagaAktif (sudah dimuat) agar tak fetch ulang. */
 export function useLembagaTa(jenjang: string) {
-  const [lembagas, setLembagas] = useState<Lembaga[]>([]);
+  const { pilihan } = useLembagaAktif();
   const [tas, setTas] = useState<TahunAjaran[]>([]);
 
   useEffect(() => {
-    listLembaga({ per_page: 100 }).then((p) => setLembagas(p.data)).catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    listTahunAjaran({ jenjang: jenjang || undefined, per_page: 100 })
-      .then((p) => setTas(p.data))
-      .catch(() => {});
+    if (!jenjang) {
+      setTas([]);
+      return;
+    }
+    let hidup = true;
+    listTahunAjaran({ jenjang, per_page: 100 })
+      .then((p) => { if (hidup) setTas(p.data); })
+      .catch(() => { if (hidup) setTas([]); });
+    return () => { hidup = false; };
   }, [jenjang]);
 
-  return { lembagas, tas };
+  return { lembagas: pilihan, tas };
 }
