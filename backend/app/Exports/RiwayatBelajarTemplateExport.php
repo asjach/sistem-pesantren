@@ -22,15 +22,15 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 /**
  * Template import riwayat belajar — nama kolom mengikuti tabel `riwayat_belajar`
  * (tanpa `nis`; NIS ada di `lembaga_santri`), kecuali kelas memakai
- * `nama_kelas` (nama rombel, mis. '1A') agar ramah diisi. Kolom `nik`/`nis_lokal`
- * adalah kunci pencocokan santri: `nik` diutamakan, fallback `nis_lokal` + `jenjang`.
+ * `nama_kelas` (nama rombel, mis. '1A') agar ramah diisi. Kunci pencocokan
+ * santri: `nis_lokal` + `jenjang` (unik per lembaga di DB).
  */
 class RiwayatBelajarTemplateExport extends DefaultValueBinder implements FromArray, WithCustomValueBinder, WithEvents, WithHeadings, WithTitle
 {
     private const BARIS_TERAKHIR = 501;
 
     public const KOLOM = [
-        'nik', 'nis_lokal', 'jenjang', 'tahun_ajaran', 'nama_kelas',
+        'nis_lokal', 'jenjang', 'tahun_ajaran', 'nama_kelas',
         'semester', 'tgl_masuk', 'no_absen', 'tingkat', 'status_awal', 'status_akhir',
     ];
 
@@ -54,7 +54,6 @@ class RiwayatBelajarTemplateExport extends DefaultValueBinder implements FromArr
     public function array(): array
     {
         return [[
-            'nik' => '1234567890123456',
             'nis_lokal' => '26001',
             'jenjang' => '2',
             'tahun_ajaran' => '2025/2026',
@@ -63,23 +62,25 @@ class RiwayatBelajarTemplateExport extends DefaultValueBinder implements FromArr
             'tgl_masuk' => '2026-07-01',
             'no_absen' => '1',
             'tingkat' => '1',
-            'status_awal' => 'santri_baru',
-            'status_akhir' => 'aktif',
+            'status_awal' => 'Santri Baru',
+            'status_akhir' => 'Aktif',
         ]];
     }
 
     /** @return array<string, string[]> */
     public function pilihan(): array
     {
-        $kode = fn (string $tipe): array => array_map(
-            fn ($r) => $r->{RefService::KEY[$tipe]},
+        // Dropdown memakai LABEL Proper Case (mis. 'Santri Baru'); import
+        // memetakan label → kode (kode lama tetap diterima).
+        $label = fn (string $tipe): array => array_map(
+            fn ($r) => (string) ($r->nama ?? $r->{RefService::KEY[$tipe]}),
             RefService::efektifSemuaLembaga($tipe)
         );
 
         return [
             'semester' => ['1', '2'],
-            'status_awal' => $kode('status_awal'),
-            'status_akhir' => $kode('status_akhir'),
+            'status_awal' => $label('status_awal'),
+            'status_akhir' => $label('status_akhir'),
         ];
     }
 
@@ -97,7 +98,7 @@ class RiwayatBelajarTemplateExport extends DefaultValueBinder implements FromArr
                     $style = $sheet->getStyle("{$col}1");
                     $style->getFont()->setBold(true)->setSize(10)->getColor()->setARGB('FF1F2937');
                     $style->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB(
-                        in_array($nama, ['nik', 'nis_lokal', 'jenjang', 'tahun_ajaran', 'semester'], true)
+                        in_array($nama, ['nis_lokal', 'jenjang', 'tahun_ajaran', 'semester'], true)
                             ? 'FFFFE699'
                             : 'FFDCE6F1'
                     );

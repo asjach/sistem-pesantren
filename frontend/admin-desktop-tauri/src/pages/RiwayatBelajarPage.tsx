@@ -460,7 +460,7 @@ export default function RiwayatBelajarPage() {
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Import riwayat belajar</DialogTitle>
-            <DialogDescription>Kolom mengikuti tabel riwayat (kelas cukup diisi nama); kunci: NIK → fallback NIS lokal + lembaga. Baris cocok (santri+TA+jenjang+semester) diperbarui, hanya kolom terisi.</DialogDescription>
+            <DialogDescription>Kolom mengikuti tabel riwayat (kelas cukup diisi nama); kunci: NIS lokal + lembaga. Baris cocok (santri+TA+jenjang+semester) diperbarui, hanya kolom terisi.</DialogDescription>
           </DialogHeader>
           <form className="grid grid-cols-2 gap-3" onSubmit={async (e) => {
             e.preventDefault();

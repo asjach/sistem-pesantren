@@ -15,12 +15,13 @@ use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Routing\Middleware\ThrottleRequests;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
  * Halaman Riwayat Belajar: tabel + dialog input + import Excel terpisah.
- * Pencocokan import: `nik` → fallback `nis_lokal` + `lembaga_id`.
+ * Pencocokan import: `nis_lokal` + `jenjang` (unik per lembaga).
  */
 class RiwayatBelajarFlowTest extends TestCase
 {
@@ -33,7 +34,7 @@ class RiwayatBelajarFlowTest extends TestCase
         $this->withoutMiddleware(ThrottleRequests::class);
     }
 
-    protected const HEADERS = ['nik', 'nis_lokal', 'jenjang', 'tahun_ajaran', 'kelas_id', 'semester', 'tgl_masuk', 'no_absen', 'tingkat', 'status_awal', 'status_akhir'];
+    protected const HEADERS = ['nis_lokal', 'jenjang', 'tahun_ajaran', 'kelas_id', 'semester', 'tgl_masuk', 'no_absen', 'tingkat', 'status_awal', 'status_akhir'];
 
     // ---------- helpers ----------
 
@@ -71,6 +72,28 @@ class RiwayatBelajarFlowTest extends TestCase
         $kelasMd = Kelas::create([
             'jenjang' => $md->jenjang, 'tahun_ajaran' => $taMd->nama, 'nama_kelas' => 'MD-A', 'tingkat' => '1',
         ]);
+        // Kamus status per lembaga (label ↔ kode untuk import).
+        foreach ([$mi->jenjang, $md->jenjang] as $jenjang) {
+            foreach ([
+                ['kode' => 'santri_baru', 'nama' => 'Santri Baru'],
+                ['kode' => 'pindahan', 'nama' => 'Pindahan'],
+            ] as $i => $r) {
+                DB::table('ref_status_awal')->updateOrInsert(
+                    ['jenjang' => $jenjang, 'kode' => $r['kode']],
+                    ['nama' => $r['nama'], 'urutan' => $i, 'is_active' => true]
+                );
+            }
+            foreach ([
+                ['kode' => 'aktif', 'nama' => 'Aktif'],
+                ['kode' => 'pindah_keluar', 'nama' => 'Pindah/Keluar'],
+            ] as $i => $r) {
+                DB::table('ref_status_akhir')->updateOrInsert(
+                    ['jenjang' => $jenjang, 'kode' => $r['kode']],
+                    ['nama' => $r['nama'], 'is_aktif_bawaan' => $r['kode'] === 'aktif', 'terminal_ke' => null, 'urutan' => $i, 'is_active' => true]
+                );
+            }
+        }
+        Cache::flush();
 
         return compact('root', 'mi', 'md', 'taMi', 'taMd', 'taLama', 'kelasMi', 'kelasMd');
     }
@@ -99,15 +122,22 @@ class RiwayatBelajarFlowTest extends TestCase
 
     protected int $santriSeq = 0;
 
-    protected function makeSantri(string $nama, ?string $nik = null): Santri
+    protected function makeSantri(string $nama, ?string $nisLokal = null, ?Lembaga $lembaga = null): Santri
     {
         $this->santriSeq++;
 
-        return Santri::create([
+        $santri = Santri::create([
             'nama_lengkap' => $nama.' '.$this->santriSeq,
             'jk' => 'L',
-            'nik' => $nik,
         ]);
+        if ($nisLokal !== null && $lembaga !== null) {
+            LembagaSantri::create([
+                'santri_id' => $santri->id, 'jenjang' => $lembaga->jenjang,
+                'nis_lokal' => $nisLokal, 'is_active_lembaga' => 'Ya', 'tgl_masuk' => '2026-07-01',
+            ]);
+        }
+
+        return $santri;
     }
 
     protected function makeCsv(array $rows): string
@@ -243,27 +273,30 @@ class RiwayatBelajarFlowTest extends TestCase
         $admin = $this->makeUser();
 
         $export = new RiwayatBelajarTemplateExport;
-        // Kelas memakai nama rombel (bukan id) agar ramah diisi.
+        // Kunci hanya nis_lokal + jenjang (tanpa nik).
         $this->assertSame(
-            ['nik', 'nis_lokal', 'jenjang', 'tahun_ajaran', 'nama_kelas', 'semester', 'tgl_masuk', 'no_absen', 'tingkat', 'status_awal', 'status_akhir'],
+            ['nis_lokal', 'jenjang', 'tahun_ajaran', 'nama_kelas', 'semester', 'tgl_masuk', 'no_absen', 'tingkat', 'status_awal', 'status_akhir'],
             $export->headings()
         );
+        // Dropdown status memakai label Proper Case, bukan kode.
+        $this->assertContains('Santri Baru', $export->pilihan()['status_awal']);
+        $this->assertContains('Aktif', $export->pilihan()['status_akhir']);
         $this->assertNotContains('nis', $export->headings());
         $this->assertSame(count($export->headings()), count($export->array()[0]));
 
         $this->actingAs($admin, 'sanctum')->get('/api/admin/riwayat-belajar/import-template')->assertStatus(200);
     }
 
-    // ---------- 06-07. import: nik & fallback nis_lokal ----------
+    // ---------- 06-07. import: kunci nis_lokal ----------
 
-    public function test_06_import_cocok_via_nik_membuat_keanggotaan(): void
+    public function test_06_import_cocok_nis_lokal_membuat_riwayat(): void
     {
         $f = $this->baseFixture();
         $admin = $this->makeUser();
-        $santri = $this->makeSantri('Impor NIK', '1101010000000201');
+        // Kunci hanya NIS lokal + lembaga: santri dikenali via keanggotaannya.
+        $santri = $this->makeSantri('Impor NIS', '26011', $f['mi']);
 
         $csv = $this->makeCsv([[
-            'nik' => '1101010000000201',
             'nis_lokal' => '26011',
             'jenjang' => (string) $f['mi']->jenjang,
             'tahun_ajaran' => (string) $f['taMi']->nama,
@@ -286,14 +319,11 @@ class RiwayatBelajarFlowTest extends TestCase
         $this->assertSame('Ya', $santri->fresh()->is_active_pst);
     }
 
-    public function test_07_import_fallback_nis_lokal_dan_lembaga(): void
+    public function test_07_import_nis_lokal_tanpa_nik(): void
     {
         $f = $this->baseFixture();
         $admin = $this->makeUser();
-        $santri = $this->makeSantri('Impor NIS Lokal');
-        LembagaSantri::create([
-            'santri_id' => $santri->id, 'jenjang' => $f['mi']->jenjang, 'nis_lokal' => '26012', 'is_active_lembaga' => 'Ya',
-        ]);
+        $santri = $this->makeSantri('Impor NIS Lokal', '26012', $f['mi']);
 
         $csv = $this->makeCsv([[
             'nis_lokal' => '26012',
@@ -314,17 +344,17 @@ class RiwayatBelajarFlowTest extends TestCase
     {
         $f = $this->baseFixture();
         $admin = $this->makeUser();
-        $santri = $this->makeSantri('Periksa Satu', '1101010000000202');
+        $santri = $this->makeSantri('Periksa Satu', '26020', $f['mi']);
 
         $csv = $this->makeCsv([
             // valid
-            ['nik' => '1101010000000202', 'jenjang' => (string) $f['mi']->jenjang, 'tahun_ajaran' => (string) $f['taMi']->nama, 'semester' => '1'],
+            ['nis_lokal' => '26020', 'jenjang' => (string) $f['mi']->jenjang, 'tahun_ajaran' => (string) $f['taMi']->nama, 'semester' => '1'],
             // santri tidak ditemukan
-            ['nik' => '1101010000000299', 'jenjang' => (string) $f['mi']->jenjang, 'tahun_ajaran' => (string) $f['taMi']->nama, 'semester' => '1'],
+            ['nis_lokal' => '26999', 'jenjang' => (string) $f['mi']->jenjang, 'tahun_ajaran' => (string) $f['taMi']->nama, 'semester' => '1'],
             // TA disembunyikan untuk lembaga ini
-            ['nik' => '1101010000000202', 'jenjang' => (string) $f['mi']->jenjang, 'tahun_ajaran' => (string) $f['taLama']->nama, 'semester' => '1'],
+            ['nis_lokal' => '26020', 'jenjang' => (string) $f['mi']->jenjang, 'tahun_ajaran' => (string) $f['taLama']->nama, 'semester' => '1'],
             // kelas lintas lingkup
-            ['nik' => '1101010000000202', 'jenjang' => (string) $f['mi']->jenjang, 'tahun_ajaran' => (string) $f['taMi']->nama, 'kelas_id' => 'MD-A', 'semester' => '1'],
+            ['nis_lokal' => '26020', 'jenjang' => (string) $f['mi']->jenjang, 'tahun_ajaran' => (string) $f['taMi']->nama, 'kelas_id' => 'MD-A', 'semester' => '1'],
         ]);
 
         $res = $this->actingAs($admin, 'sanctum')->post('/api/admin/riwayat-belajar/import-periksa', [
@@ -343,12 +373,12 @@ class RiwayatBelajarFlowTest extends TestCase
     {
         $f = $this->baseFixture();
         $admin = $this->makeUser();
-        $a = $this->makeSantri('Absen A', '1101010000000203');
-        $b = $this->makeSantri('Absen B', '1101010000000204');
+        $a = $this->makeSantri('Absen A', '26022', $f['mi']);
+        $b = $this->makeSantri('Absen B', '26023', $f['mi']);
 
         $csv = $this->makeCsv([
-            ['nik' => '1101010000000203', 'jenjang' => (string) $f['mi']->jenjang, 'tahun_ajaran' => (string) $f['taMi']->nama, 'kelas_id' => '1A', 'semester' => '1', 'no_absen' => '1'],
-            ['nik' => '1101010000000204', 'jenjang' => (string) $f['mi']->jenjang, 'tahun_ajaran' => (string) $f['taMi']->nama, 'kelas_id' => '1A', 'semester' => '1', 'no_absen' => '1'],
+            ['nis_lokal' => '26022', 'jenjang' => (string) $f['mi']->jenjang, 'tahun_ajaran' => (string) $f['taMi']->nama, 'kelas_id' => '1A', 'semester' => '1', 'no_absen' => '1'],
+            ['nis_lokal' => '26023', 'jenjang' => (string) $f['mi']->jenjang, 'tahun_ajaran' => (string) $f['taMi']->nama, 'kelas_id' => '1A', 'semester' => '1', 'no_absen' => '1'],
         ]);
         $res = $this->importCsv($admin, $csv)->assertStatus(422);
         $this->assertStringContainsString('no_absen', (string) json_encode($res->json('errors')));
@@ -364,14 +394,14 @@ class RiwayatBelajarFlowTest extends TestCase
     {
         $f = $this->baseFixture();
         $admin = $this->makeUser();
-        $santri = $this->makeSantri('Update Riwayat', '1101010000000205');
+        $santri = $this->makeSantri('Update Riwayat', '26024', $f['mi']);
         RiwayatBelajar::create([
             'santri_id' => $santri->id, 'tahun_ajaran' => $f['taMi']->nama, 'jenjang' => $f['mi']->jenjang,
             'semester' => '1', 'status_awal' => 'santri_baru', 'status_akhir' => 'aktif', 'is_active_riwayat' => 'Ya',
         ]);
 
         $csv = $this->makeCsv([[
-            'nik' => '1101010000000205',
+            'nis_lokal' => '26024',
             'jenjang' => (string) $f['mi']->jenjang,
             'tahun_ajaran' => (string) $f['taMi']->nama,
             'kelas_id' => '1A',
@@ -396,10 +426,10 @@ class RiwayatBelajarFlowTest extends TestCase
     {
         $f = $this->baseFixture();
         $admin = $this->makeUser();
-        $santri = $this->makeSantri('Arsip Riwayat', '1101010000000206');
+        $santri = $this->makeSantri('Arsip Riwayat', '26025', $f['mi']);
 
         $csv = $this->makeCsv([[
-            'nik' => '1101010000000206',
+            'nis_lokal' => '26025',
             'jenjang' => (string) $f['mi']->jenjang,
             'tahun_ajaran' => (string) $f['taMi']->nama,
             'semester' => '1',
@@ -420,7 +450,7 @@ class RiwayatBelajarFlowTest extends TestCase
         $admin = $this->makeUser();
 
         // Terima tanpa tingkat eksplisit → warisi kelas.tingkat.
-        $s = $this->makeSantri('Waris Tingkat', '1101010000000210');
+        $s = $this->makeSantri('Waris Tingkat');
         $res = $this->actingAs($admin, 'sanctum')->postJson('/api/admin/riwayat-belajar', [
             'santri_id' => $s->id, 'jenjang' => $f['mi']->jenjang,
             'tahun_ajaran' => $f['taMi']->nama, 'kelas_id' => $f['kelasMi']->id,
@@ -428,7 +458,7 @@ class RiwayatBelajarFlowTest extends TestCase
         $this->assertSame('1', $res->json('data.tingkat'));
 
         // Set kelas menyusul pada riwayat tanpa tingkat → warisi juga.
-        $s2 = $this->makeSantri('Waris Susul', '1101010000000211');
+        $s2 = $this->makeSantri('Waris Susul');
         $r2 = $this->actingAs($admin, 'sanctum')->postJson('/api/admin/riwayat-belajar', [
             'santri_id' => $s2->id, 'jenjang' => $f['mi']->jenjang,
             'tahun_ajaran' => $f['taMi']->nama,
@@ -440,7 +470,7 @@ class RiwayatBelajarFlowTest extends TestCase
         $this->assertSame('1', $set->json('data.tingkat') ?? $set->json('tingkat'));
 
         // Tingkat eksplisit yang bentrok tetap ditolak (bukan ditimpa).
-        $s3 = $this->makeSantri('Tolak Bentrok', '1101010000000212');
+        $s3 = $this->makeSantri('Tolak Bentrok');
         $r3 = $this->actingAs($admin, 'sanctum')->postJson('/api/admin/riwayat-belajar', [
             'santri_id' => $s3->id, 'jenjang' => $f['mi']->jenjang,
             'tahun_ajaran' => $f['taMi']->nama, 'tingkat' => '2',
@@ -457,7 +487,7 @@ class RiwayatBelajarFlowTest extends TestCase
 
         // Skenario halaman Kenaikan: filter lembaga + semester + urut
         // (join santri/kelas/lembaga/tahun_ajaran) — 1052 bila tak terkualifikasi.
-        $s = $this->makeSantri('Urut Aman', '1101010000000310');
+        $s = $this->makeSantri('Urut Aman');
         $res = $this->actingAs($admin, 'sanctum')->postJson('/api/admin/riwayat-belajar', [
             'santri_id' => $s->id, 'jenjang' => $f['mi']->jenjang,
             'tahun_ajaran' => $f['taMi']->nama, 'kelas_id' => $f['kelasMi']->id,
@@ -478,7 +508,7 @@ class RiwayatBelajarFlowTest extends TestCase
     {
         $f = $this->baseFixture();
         $admin = $this->makeUser();
-        $santri = $this->makeSantri('Update Parsial', '1101010000000213');
+        $santri = $this->makeSantri('Update Parsial', '26026', $f['mi']);
         RiwayatBelajar::create([
             'santri_id' => $santri->id, 'tahun_ajaran' => $f['taMi']->nama, 'jenjang' => $f['mi']->jenjang,
             'kelas_id' => $f['kelasMi']->id, 'semester' => '1', 'no_absen' => 3, 'tingkat' => '1',
@@ -487,7 +517,7 @@ class RiwayatBelajarFlowTest extends TestCase
 
         // Hanya tingkat yang diisi: status arsip + kelas + absen wajib bertahan.
         $csv = $this->makeCsv([[
-            'nik' => '1101010000000213',
+            'nis_lokal' => '26026',
             'jenjang' => (string) $f['mi']->jenjang,
             'tahun_ajaran' => (string) $f['taMi']->nama,
             'semester' => '1',
@@ -523,12 +553,12 @@ class RiwayatBelajarFlowTest extends TestCase
             'is_seleksi' => false, 'kelompok_psb' => 'eksklusif', 'is_active' => true,
         ]);
         $adminMi = $this->makeUser('admin', [$f['mi']->jenjang]);
-        $a = $this->makeSantri('Riwayat MI', '1101010000000214');
-        $b = $this->makeSantri('Riwayat MTS', '1101010000000215');
+        $a = $this->makeSantri('Riwayat MI', '26027', $f['mi']);
+        $b = $this->makeSantri('Riwayat MTS', '26028', $mts);
 
         $csv = $this->makeCsv([
-            ['nik' => '1101010000000214', 'jenjang' => (string) $f['mi']->jenjang, 'tahun_ajaran' => (string) $f['taMi']->nama, 'semester' => '1'],
-            ['nik' => '1101010000000215', 'jenjang' => (string) $mts->jenjang, 'tahun_ajaran' => (string) $f['taMi']->nama, 'semester' => '1'],
+            ['nis_lokal' => '26027', 'jenjang' => (string) $f['mi']->jenjang, 'tahun_ajaran' => (string) $f['taMi']->nama, 'semester' => '1'],
+            ['nis_lokal' => '26028', 'jenjang' => (string) $mts->jenjang, 'tahun_ajaran' => (string) $f['taMi']->nama, 'semester' => '1'],
         ]);
         $res = $this->actingAs($adminMi, 'sanctum')->post('/api/admin/riwayat-belajar/import-lengkap', [
             'file' => new UploadedFile($csv, 'riwayat.csv', 'text/csv', null, true),
@@ -549,8 +579,8 @@ class RiwayatBelajarFlowTest extends TestCase
             'jenjang' => $f['mi']->jenjang, 'tahun_ajaran' => $f['taMi']->nama,
             'nama_kelas' => '1B', 'tingkat' => '1',
         ]);
-        $a = $this->makeSantri('Kelas Nama', '1101010000000216');
-        $b = $this->makeSantri('Kelas Id Lama', '1101010000000217');
+        $a = $this->makeSantri('Kelas Nama', '26031', $f['mi']);
+        $b = $this->makeSantri('Kelas Id Lama', '26032', $f['mi']);
 
         $tulis = function (array $headers, array $rows): string {
             $tmp = tempnam(sys_get_temp_dir(), 'riwayat116').'.csv';
@@ -572,25 +602,58 @@ class RiwayatBelajarFlowTest extends TestCase
         ]);
 
         $dasar = ['jenjang' => (string) $f['mi']->jenjang, 'tahun_ajaran' => (string) $f['taMi']->nama, 'semester' => '1'];
-        $kepalaBaru = ['nik', 'nis_lokal', 'jenjang', 'tahun_ajaran', 'nama_kelas', 'semester', 'tgl_masuk', 'no_absen', 'tingkat', 'status_awal', 'status_akhir'];
+        $kepalaBaru = ['nis_lokal', 'jenjang', 'tahun_ajaran', 'nama_kelas', 'semester', 'tgl_masuk', 'no_absen', 'tingkat', 'status_awal', 'status_akhir'];
 
         // Insert via nama_kelas.
         $kirim($tulis($kepalaBaru, [
-            ['nik' => '1101010000000216'] + $dasar + ['nama_kelas' => '1A'],
+            ['nis_lokal' => '26031'] + $dasar + ['nama_kelas' => '1A'],
         ]))->assertStatus(200);
         $this->assertSame($f['kelasMi']->id, (int) RiwayatBelajar::where('santri_id', $a->id)->firstOrFail()->kelas_id);
 
         // Update via nama_kelas (pindah ke 1B).
         $kirim($tulis($kepalaBaru, [
-            ['nik' => '1101010000000216'] + $dasar + ['nama_kelas' => '1B'],
+            ['nis_lokal' => '26031'] + $dasar + ['nama_kelas' => '1B'],
         ]))->assertStatus(200);
         $this->assertSame($kelasB->id, (int) RiwayatBelajar::where('santri_id', $a->id)->firstOrFail()->kelas_id);
         $this->assertSame(1, RiwayatBelajar::where('santri_id', $a->id)->count());
 
         // Heading lama kelas_id numerik tetap diterima.
         $kirim($tulis(self::HEADERS, [
-            ['nik' => '1101010000000217'] + $dasar + ['kelas_id' => (string) $f['kelasMi']->id],
+            ['nis_lokal' => '26032'] + $dasar + ['kelas_id' => (string) $f['kelasMi']->id],
         ]))->assertStatus(200);
         $this->assertSame($f['kelasMi']->id, (int) RiwayatBelajar::where('santri_id', $b->id)->firstOrFail()->kelas_id);
+    }
+
+    // ---------- 17. status label Proper Case dipetakan ke kode ----------
+
+    public function test_17_import_status_label_dipetakan_ke_kode(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeUser();
+        $a = $this->makeSantri('Status Label', '26041', $f['mi']);
+        $b = $this->makeSantri('Status Kode', '26042', $f['mi']);
+        $c = $this->makeSantri('Status Asing', '26043', $f['mi']);
+        $dasar = ['jenjang' => (string) $f['mi']->jenjang, 'tahun_ajaran' => (string) $f['taMi']->nama, 'semester' => '1'];
+
+        // Label → tersimpan sebagai kode.
+        $this->importCsv($admin, $this->makeCsv([
+            ['nis_lokal' => '26041'] + $dasar + ['status_awal' => 'Pindahan', 'status_akhir' => 'Aktif'],
+        ]))->assertStatus(200);
+        $riwayat = RiwayatBelajar::where('santri_id', $a->id)->firstOrFail();
+        $this->assertSame('pindahan', $riwayat->status_awal);
+        $this->assertSame('aktif', $riwayat->status_akhir);
+
+        // Kode lama tetap jalan.
+        $this->importCsv($admin, $this->makeCsv([
+            ['nis_lokal' => '26042'] + $dasar + ['status_awal' => 'santri_baru', 'status_akhir' => 'aktif'],
+        ]))->assertStatus(200);
+        $this->assertSame('santri_baru', RiwayatBelajar::where('santri_id', $b->id)->firstOrFail()->status_awal);
+
+        // Label tak dikenal → gagal baris.
+        $res = $this->importCsv($admin, $this->makeCsv([
+            ['nis_lokal' => '26043'] + $dasar + ['status_awal' => 'Status Fiktif'],
+        ]))->assertStatus(422);
+        $this->assertSame('status_awal', $res->json('errors.0.attribute'));
+        $this->assertSame(0, RiwayatBelajar::where('santri_id', $c->id)->count());
     }
 }
