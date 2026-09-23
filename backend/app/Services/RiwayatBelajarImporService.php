@@ -329,17 +329,18 @@ class RiwayatBelajarImporService
     /** Buat/buka keanggotaan; false = gagal (failure sudah dicatat).
      *  Arsip milik sendiri diaktifkan ulang HANYA bila barisnya aktif
      *  (pola PenerimaanService; baris arsip tak membangunkan keanggotaan).
-     *  Cek bentrok NIS selalu mengecualikan baris sendiri. Bila cocok via
-     *  pasangan ($langsung=false), NIS target dipertahankan (NIS bisa beda
-     *  antar-lembaga/tahun pada data historis). Mode kering: cek saja tanpa
-     *  menulis (kembalikan model transient). */
+     *  Cek bentrok NIS mengecualikan SEMUA baris milik santri ini (boleh
+     *  >1 baris per lembaga). Bila cocok via pasangan ($langsung=false),
+     *  NIS target dipertahankan (NIS bisa beda antar-lembaga/tahun pada
+     *  data historis). Mode kering: cek saja tanpa menulis (kembalikan
+     *  model transient). */
     protected function pastikanKeanggotaan(Santri $santri, string $jenjang, ?string $nisLokal, bool $aktifkan, bool $langsung, bool $kering, int $no): LembagaSantri|false
     {
         $aktif = LembagaSantri::aktif($santri->id, $jenjang);
 
         if ($aktif !== null) {
             if ($langsung && $nisLokal !== null && $aktif->nis_lokal !== $nisLokal) {
-                if (LembagaSantri::nisLokalDipakai($jenjang, $nisLokal, $aktif->id)) {
+                if (LembagaSantri::nisLokalDipakaiSantriLain($jenjang, $nisLokal, $santri->id)) {
                     $this->fail($no, 'nis_lokal', 'NIS lokal sudah dipakai santri lain di lembaga ini.');
 
                     return false;
@@ -352,7 +353,16 @@ class RiwayatBelajarImporService
             return $aktif;
         }
 
-        $milik = LembagaSantri::where('santri_id', $santri->id)
+        // Baris sendiri ber-NIS sama diutamakan (arsip periode yang tepat).
+        $milik = null;
+        if ($nisLokal !== null) {
+            $milik = LembagaSantri::where('santri_id', $santri->id)
+                ->where('jenjang', $jenjang)
+                ->where('nis_lokal', $nisLokal)
+                ->orderByDesc('id')
+                ->first();
+        }
+        $milik ??= LembagaSantri::where('santri_id', $santri->id)
             ->where('jenjang', $jenjang)
             ->orderByDesc('id')
             ->first();
@@ -360,7 +370,7 @@ class RiwayatBelajarImporService
             // Cocok via pasangan: NIS target bisa beda antar-lembaga/tahun
             // (historis) — pertahankan miliknya, jangan timpa dengan NIS baris.
             if ($langsung && $nisLokal !== null && ($milik->nis_lokal ?? null) !== $nisLokal) {
-                if (LembagaSantri::nisLokalDipakai($jenjang, $nisLokal, $milik->id)) {
+                if (LembagaSantri::nisLokalDipakaiSantriLain($jenjang, $nisLokal, $santri->id)) {
                     $this->fail($no, 'nis_lokal', 'NIS lokal sudah dipakai santri lain di lembaga ini.');
 
                     return false;

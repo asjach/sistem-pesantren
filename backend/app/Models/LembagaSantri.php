@@ -111,6 +111,23 @@ class LembagaSantri extends Model
             ->exists();
     }
 
+    /** NIS dipakai santri LAIN (semua baris milik sendiri dikecualikan) —
+     *  untuk masa santri boleh punya >1 baris per lembaga (masuk lagi
+     *  setelah keluar = NIS baru). */
+    public static function nisLokalDipakaiSantriLain(string $jenjang, ?string $nisLokal, int $santriId): bool
+    {
+        $nis = $nisLokal !== null ? trim($nisLokal) : '';
+
+        if ($nis === '') {
+            return false;
+        }
+
+        return static::where('jenjang', $jenjang)
+            ->where('nis_lokal', $nis)
+            ->where('santri_id', '!=', $santriId)
+            ->exists();
+    }
+
     /** Baris keanggotaan aktif untuk pasangan santri+lembaga (maks 1). */
     public static function aktif(int $santriId, string $jenjang): ?self
     {

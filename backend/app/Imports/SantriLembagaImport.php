@@ -355,10 +355,48 @@ class SantriLembagaImport extends SantriLengkapImport
             return true;
         }
 
+        // Baris sendiri ber-NIS sama diutamakan (idempoten saat import ulang;
+        // santri boleh punya >1 baris per lembaga).
+        if ($nisLokal !== null) {
+            $seNis = LembagaSantri::where('santri_id', $santri->id)
+                ->where('jenjang', $jenjang)
+                ->where('nis_lokal', $nisLokal)
+                ->orderByDesc('id')
+                ->first();
+            if ($seNis !== null) {
+                $ada = $seNis;
+            }
+        }
+
+        // Masuk lagi setelah keluar = periode BARU (NIS baru): arsip lama
+        // dipertahankan, buat baris baru. Koreksi NIS hanya untuk baris aktif.
+        if ($ada->is_active_lembaga === LembagaSantri::TIDAK
+            && $nisLokal !== null && $nisLokal !== $ada->nis_lokal
+        ) {
+            if (LembagaSantri::nisLokalDipakaiSantriLain($jenjang, $nisLokal, $santri->id)) {
+                $this->fail($no, 'nis_lokal', 'NIS lokal sudah dipakai santri lain di lembaga ini.');
+
+                return false;
+            }
+
+            LembagaSantri::create([
+                'santri_id' => $santri->id,
+                'jenjang' => $jenjang,
+                'nis_lokal' => $nisLokal,
+                'nis_kemenag' => $nisKemenag,
+                'is_active_lembaga' => $aktif ?? LembagaSantri::YA,
+                'tgl_masuk' => $tglMasuk,
+                'tgl_selesai' => $tglSelesai,
+            ] + array_filter($konteks, fn ($v) => $v !== null));
+            $baru = true;
+
+            return true;
+        }
+
         // Update: hanya nilai non-kosong yang menimpa (sel kosong = pertahankan).
         // NIS lokal wajib unik; NIS Kemenag bebas duplikat.
         if ($nisLokal !== null && $nisLokal !== $ada->nis_lokal) {
-            if (LembagaSantri::nisLokalDipakai($jenjang, $nisLokal, $ada->id)) {
+            if (LembagaSantri::nisLokalDipakaiSantriLain($jenjang, $nisLokal, $santri->id)) {
                 $this->fail($no, 'nis_lokal', 'NIS lokal sudah dipakai santri lain di lembaga ini.');
 
                 return false;

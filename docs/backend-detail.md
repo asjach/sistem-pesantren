@@ -324,6 +324,11 @@ semester
 hanya 1/2; kelas by-nama (case-insensitive) atau id se-lembaga+TA; `status_awal`
 bawaan `santri_baru`, `status_akhir` bawaan `aktif`; keanggotaan auto-create
 (NIS unik); `is_active_lembaga` parsing `Ya/Tidak/1/0/aktif/ya/…`, tak dikenal = gagal baris.
+Masuk lagi setelah keluar = periode BARU: baris arsip nonaktif + NIS beda →
+buat baris keanggotaan baru (NIS baru), arsip lama dipertahankan; NIS sama
+(dengan baris mana pun miliknya) → pakai baris itu (idempoten); cek bentrok
+NIS mengecualikan semua baris milik santri ini. Skema mengizinkan >1 baris
+per santri+lembaga (unik hanya per NIS; maks 1 aktif dijaga service).
 
 **Pengajuan biodata (admin).** Antrean pengajuan perbaikan biodata dari wali:
 setujui/tolak hanya untuk status `diajukan`; whitelist 17 field (luar daftar

@@ -970,4 +970,89 @@ class SantriLembagaImportTest extends TestCase
         $this->assertSame(0, RiwayatBelajar::where('santri_id', $santri->id)->count());
         $this->assertSame('Tidak', LembagaSantri::where('santri_id', $santri->id)->where('jenjang', $f['mi']->jenjang)->value('is_active_lembaga'));
     }
+
+    // ---------- masuk lagi setelah keluar: NIS baru = baris baru ----------
+
+    protected function barisMasukLagi(string $nis, string $aktif = 'Ya'): array
+    {
+        return [
+            'jenjang' => 'MI',
+            'nis_lokal' => $nis,
+            'is_active_lembaga' => $aktif,
+            'nama_lengkap' => 'Masuk Lagi',
+            'nik' => '1101010000000041',
+            'jk' => 'L',
+            'tgl_lahir' => '2015-07-01',
+        ];
+    }
+
+    public function test_27_masuk_lagi_buat_baris_baru_arsip_dipertahankan(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeAdmin([$f['mi']->jenjang]);
+
+        $santri = Santri::create(['nama_lengkap' => 'Masuk Lagi', 'nik' => '1101010000000041', 'jk' => 'L', 'tgl_lahir' => '2015-07-01']);
+        LembagaSantri::create(['santri_id' => $santri->id, 'jenjang' => $f['mi']->jenjang, 'nis_lokal' => '25051', 'is_active_lembaga' => 'Tidak', 'tgl_selesai' => '2024-06-01']);
+
+        // NIS beda + arsip nonaktif = periode baru (bukan timpa NIS lama).
+        $this->upload($admin, $this->makeCsv([$this->barisMasukLagi('25052')]))->assertStatus(200);
+
+        $this->assertSame(1, Santri::where('nik', '1101010000000041')->count());
+        $baris = LembagaSantri::where('santri_id', $santri->id)->where('jenjang', $f['mi']->jenjang)->orderBy('id')->get();
+        $this->assertCount(2, $baris);
+        $this->assertSame('25051', $baris[0]->nis_lokal);
+        $this->assertSame('Tidak', $baris[0]->is_active_lembaga);
+        $this->assertSame('25052', $baris[1]->nis_lokal);
+        $this->assertSame('Ya', $baris[1]->is_active_lembaga);
+    }
+
+    public function test_28_import_ulang_nis_sama_idempoten(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeAdmin([$f['mi']->jenjang]);
+
+        $santri = Santri::create(['nama_lengkap' => 'Masuk Lagi', 'nik' => '1101010000000042', 'jk' => 'L', 'tgl_lahir' => '2015-07-01']);
+        LembagaSantri::create(['santri_id' => $santri->id, 'jenjang' => $f['mi']->jenjang, 'nis_lokal' => '25061', 'is_active_lembaga' => 'Tidak']);
+        LembagaSantri::create(['santri_id' => $santri->id, 'jenjang' => $f['mi']->jenjang, 'nis_lokal' => '25062', 'is_active_lembaga' => 'Tidak']);
+
+        // NIS sama dengan salah satu baris miliknya → pakai baris itu (tidak nambah).
+        $csv = $this->makeCsv([[
+            'jenjang' => 'MI',
+            'nis_lokal' => '25062',
+            'is_active_lembaga' => 'Tidak',
+            'nama_lengkap' => 'Masuk Lagi',
+            'nik' => '1101010000000042',
+            'jk' => 'L',
+            'tgl_lahir' => '2015-07-01',
+        ]]);
+        $this->upload($admin, $csv)->assertStatus(200);
+        $this->upload($admin, $csv)->assertStatus(200);
+
+        $this->assertSame(2, LembagaSantri::where('santri_id', $santri->id)->where('jenjang', $f['mi']->jenjang)->count());
+    }
+
+    public function test_29_nis_milik_santri_lain_tetap_ditolak(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeAdmin([$f['mi']->jenjang]);
+
+        $a = Santri::create(['nama_lengkap' => 'Anak A', 'nik' => '1101010000000043', 'jk' => 'L', 'tgl_lahir' => '2015-07-01']);
+        LembagaSantri::create(['santri_id' => $a->id, 'jenjang' => $f['mi']->jenjang, 'nis_lokal' => '25071', 'is_active_lembaga' => 'Tidak']);
+        $b = Santri::create(['nama_lengkap' => 'Anak B', 'nik' => '1101010000000044', 'jk' => 'L', 'tgl_lahir' => '2015-07-01']);
+        LembagaSantri::create(['santri_id' => $b->id, 'jenjang' => $f['mi']->jenjang, 'nis_lokal' => '25072', 'is_active_lembaga' => 'Ya']);
+
+        // Anak A masuk lagi tapi NIS yang diminta milik Anak B → tolak.
+        $res = $this->upload($admin, $this->makeCsv([[
+            'jenjang' => 'MI',
+            'nis_lokal' => '25072',
+            'is_active_lembaga' => 'Ya',
+            'nama_lengkap' => 'Anak A',
+            'nik' => '1101010000000043',
+            'jk' => 'L',
+            'tgl_lahir' => '2015-07-01',
+        ]]))->assertStatus(422);
+
+        $this->assertSame('nis_lokal', $res->json('errors.0.attribute'));
+        $this->assertSame(1, LembagaSantri::where('santri_id', $a->id)->where('jenjang', $f['mi']->jenjang)->count());
+    }
 }
