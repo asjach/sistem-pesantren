@@ -360,8 +360,8 @@ export function daftarKelas(params: {
 
 export interface RekapSantri {
   total_aktif: number;
-  per_tahun_ajaran: { tahun_ajaran: string; jumlah_riwayat_aktif: number }[];
-  per_tingkat: { lembaga: string | null; tingkat: string | null; jumlah: number }[];
+  per_tahun_ajaran: { tahun_ajaran: string; jumlah_riwayat_aktif: number; l: number; p: number }[];
+  per_tingkat: { lembaga: string | null; tingkat: string | null; jumlah: number; l: number; p: number }[];
   per_kelas: {
     kelas_id: number;
     kelas: string;
@@ -370,11 +370,12 @@ export interface RekapSantri {
     tahun_ajaran: string | null;
     kapasitas: number | null;
     terisi: number;
+    l: number;
+    p: number;
     sisa: number | null;
   }[];
-  usia_per_kelas: {
-    kelas_id: number;
-    kelas: string | null;
+  usia_per_tingkat: {
+    tingkat: string | null;
     jumlah: number;
     rata_usia: number;
     min: number;
@@ -383,10 +384,12 @@ export interface RekapSantri {
   }[];
 }
 
-export function rekapSantri(params: { jenjang?: string; tahun_ajaran?: string } = {}) {
+export function rekapSantri(params: { jenjang?: string; tahun_ajaran?: string; semester?: string; keaktifan?: string } = {}) {
   const q = new URLSearchParams();
   if (params.jenjang) q.set('jenjang', params.jenjang);
   if (params.tahun_ajaran) q.set('tahun_ajaran', params.tahun_ajaran);
+  if (params.semester) q.set('semester', params.semester);
+  if (params.keaktifan) q.set('keaktifan', params.keaktifan);
   return api<RekapSantri>(`/admin/akademik/rekap-santri?${q.toString()}`);
 }
 

@@ -168,6 +168,11 @@
 | 2.114 | 2026-09-24 | Buku Induk dipindah dari grup Santri ke grup Data Induk (sebelum Referensi) |
 | 2.115 | 2026-09-24 | Grup Santri: subgrup "Identitas" dihapus; subgrup baru "Lain-lain" menampung Rekap Santri & Pengajuan Biodata |
 | 2.116 | 2026-09-24 | Grup Santri: subgrup "Mutasi" dihapus; Pindah Kelas & Mutasi Keluar dipindah ke subgrup "Akademik" |
+| 2.117 | 2026-09-24 | Fix is_active_riwayat impor: hanya periode terakhir per (santri, jenjang) yang `status_akhir='aktif'`; sisanya diarsipkan (invarian maks 1 aktif per santri+lembaga). Tambah perintah `riwayat:sinkron-aktif` untuk backfill; data lama: 3.924 → 1.064 baris aktif, 553 santri aktif |
+| 2.118 | 2026-09-24 | Rekap Santri tak lagi bergantung `is_active_riwayat` (TA historis kembali terhitung): dasar = TA + semester + `status_akhir` bukan pindah_keluar (selaras Daftar Kelas); tambah filter semester dari TopBar; tambah kolom jenis kelamin L \| P \| JML (per TA, per tingkat, per kelas). 2010/2011: ganjil 425 (L 217/P 208), genap 395 (L 197/P 198) |
+| 2.119 | 2026-09-24 | Rekap Santri: layout 3 kolom (Per TA span vertikal; Per Tingkat; Per Kelas; Usia per TINGKAT di bawah kolom 2–3) dengan pembatas antar tabel **resizable** (react-resizable-panels), container tabel **tanpa border**, rasio baris Per Tingkat/Kelas : Usia = **2:1**; tabel Per TA menampilkan SELURUH TA (abaikan filter TA terpilih); baris "Jumlah" (total L/P/JML) di Per Tingkat & Per Kelas dan total (Jumlah/rata/min/max + tiap kelompok usia) di Usia per Tingkat; tabel mengisi penuh wadah (scroll hanya saat isi melebihi); Per Kelas: kolom Kelas/Lembaga/L/P/JML (tanpa tingkat, TA, kapasitas, sisa) |
+| 2.120 | 2026-09-24 | Rekap Santri: filter **Keaktifan** (Aktif = `status_akhir` selain Pindah/Keluar [bawaan]; Tidak aktif = Pindah/Keluar; Semua). Verified: semester 2 Tidak aktif = 739 |
+| 2.121 | 2026-09-24 | Rekap Santri: tabel Per tahun ajaran diurut menaik (ASC) berdasarkan Tahun Ajaran (2004/2005 → …) |
 
 ## Daftar Isi
 

@@ -1,5 +1,6 @@
 import { useMemo, type ReactNode } from 'react';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import { cn } from '@/lib/utils';
 
 export interface RingkasKolom {
   /** Kunci kolom (unik dalam tabel ini). */
@@ -17,11 +18,13 @@ interface TabelRingkasProps {
   kolom: RingkasKolom[];
   /** Isi baris: urut sesuai `kolom`. */
   baris: (string | number | null)[][];
-  /** Tinggi maksimal N baris sebelum isi bisa di-scroll (bawaan 10). */
+  /** Batas tinggi N baris; kosong = tabel mengisi penuh tinggi wadah (flex-1). */
   maxRows?: number;
   emptyText?: string;
   /** Konten tambahan di sisi kanan judul (mis. jumlah data). */
   aksi?: ReactNode;
+  /** Kelas tambahan untuk <section> (mis. penempatan grid / tinggi penuh). */
+  className?: string;
 }
 
 /** Tabel ringkas baca-saja (rekap/laporan) memakai grid standar ExcelTable
@@ -32,9 +35,10 @@ export default function TabelRingkas({
   judul,
   kolom,
   baris,
-  maxRows = 10,
+  maxRows,
   emptyText = 'Belum ada data.',
   aksi,
+  className,
 }: TabelRingkasProps) {
   const fields = useMemo<ExcelField[]>(
     () =>
@@ -63,12 +67,12 @@ export default function TabelRingkas({
   );
 
   return (
-    <section className="flex min-w-0 flex-col rounded-md border">
+    <section className={cn('flex min-w-0 flex-col', className)}>
       <header className="flex items-center justify-between gap-2 border-b bg-muted/40 px-3 py-1.5 text-sm font-medium">
         <span>{judul}</span>
         {aksi}
       </header>
-      <div className="min-w-0 px-2 pb-1">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col px-2 pb-1">
         <ExcelTable
           tableKey={tableKey}
           fields={fields}

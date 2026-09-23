@@ -18,6 +18,8 @@ class SiklusRekapRequest extends FormRequest
         return [
             'jenjang' => ['nullable', 'string', 'exists:lembaga,jenjang'],
             'tahun_ajaran' => ['nullable', 'string', 'exists:tahun_ajaran,nama'],
+            'semester' => ['nullable', 'in:1,2'],
+            'keaktifan' => ['nullable', 'in:aktif,nonaktif'],
         ];
     }
 }

@@ -494,26 +494,44 @@ class SiklusController extends Controller
         $this->authorize('viewAny', Santri::class);
 
         $data = $request->validated();
+        // Keaktifan dari `status_akhir`: aktif = selain Pindah/Keluar (bawaan),
+        // nonaktif = Pindah/Keluar, kosong = semua status.
+        $keaktifan = $data['keaktifan'] ?? 'aktif';
 
-        $riwayatQuery = function () use ($request, $data) {
-            $q = RiwayatBelajar::query()->where('is_active_riwayat', RiwayatBelajar::YA);
+        $riwayatQuery = function (bool $semuaTa = false) use ($request, $data, $keaktifan) {
+            // "Santri aktif pada periode" = terdaftar di TA+semester itu dan
+            // tidak pindah keluar (definisi sama dengan Daftar Kelas), bukan
+            // flag `is_active_riwayat` yang hanya menandai periode terkini.
+            // Unique (santri, TA, jenjang, semester) → satu baris per santri.
+            $q = RiwayatBelajar::query();
+            if ($keaktifan === 'aktif') {
+                $q->whereIn('status_akhir', ['aktif', 'naik', 'tidak_naik', 'lulus', 'tidak_lulus']);
+            } elseif ($keaktifan === 'nonaktif') {
+                $q->where('status_akhir', 'pindah_keluar');
+            }
             $this->scopeLembaga($q, $request->user(), $request, 'jenjang');
-            if (! empty($data['tahun_ajaran'])) {
+            if (! $semuaTa && ! empty($data['tahun_ajaran'])) {
                 $q->where('tahun_ajaran', $data['tahun_ajaran']);
+            }
+            if (! empty($data['semester'])) {
+                $q->where('semester', $data['semester']);
             }
 
             return $q;
         };
 
         $perTingkat = (clone $riwayatQuery())
-            ->selectRaw('jenjang, tingkat, COUNT(*) as jumlah')
-            ->groupBy('jenjang', 'tingkat')
+            ->join('santri', 'santri.id', '=', 'riwayat_belajar.santri_id')
+            ->selectRaw("riwayat_belajar.jenjang as jenjang, riwayat_belajar.tingkat as tingkat, COUNT(*) as jumlah, SUM(santri.jk = 'L') as l, SUM(santri.jk = 'P') as p")
+            ->groupBy('riwayat_belajar.jenjang', 'riwayat_belajar.tingkat')
             ->with('lembaga:jenjang,nama')
             ->get()
             ->map(fn ($r) => [
                 'lembaga' => $r->lembaga?->jenjang ?? $r->lembaga?->nama,
                 'tingkat' => $r->tingkat,
                 'jumlah' => (int) $r->jumlah,
+                'l' => (int) $r->l,
+                'p' => (int) $r->p,
             ])->values()->all();
 
         $kelasQuery = Kelas::query()->with(['lembaga:jenjang,nama', 'tahunAjaran:nama']);
@@ -524,38 +542,41 @@ class SiklusController extends Controller
         $kelas = $kelasQuery->orderBy('jenjang')->orderBy('tingkat')->orderBy('nama_kelas')->get();
 
         $terisi = (clone $riwayatQuery())
-            ->whereIn('kelas_id', $kelas->pluck('id'))
-            ->selectRaw('kelas_id, COUNT(*) as jumlah')
-            ->groupBy('kelas_id')
-            ->pluck('jumlah', 'kelas_id');
-
-        $perKelas = $kelas->map(fn (Kelas $k) => [
-            'kelas_id' => $k->id,
-            'kelas' => $k->nama_kelas,
-            'tingkat' => $k->tingkat,
-            'lembaga' => $k->lembaga?->jenjang ?? $k->lembaga?->nama,
-            'tahun_ajaran' => $k->tahunAjaran?->nama,
-            'kapasitas' => $k->kapasitas !== null ? (int) $k->kapasitas : null,
-            'terisi' => (int) ($terisi[$k->id] ?? 0),
-            'sisa' => $k->kapasitas !== null ? max(0, (int) $k->kapasitas - (int) ($terisi[$k->id] ?? 0)) : null,
-        ])->values()->all();
-
-        // Usia per kelas: rata-rata + sebaran kelompok umur (dari tgl_lahir santri).
-        $usiaPerKelas = [];
-        $riwayatKelas = (clone $riwayatQuery())
-            ->whereNotNull('kelas_id')
-            ->with(['santri:id,tgl_lahir', 'kelas:id,nama_kelas'])
+            ->join('santri', 'santri.id', '=', 'riwayat_belajar.santri_id')
+            ->whereIn('riwayat_belajar.kelas_id', $kelas->pluck('id'))
+            ->selectRaw("riwayat_belajar.kelas_id as kelas_id, COUNT(*) as jumlah, SUM(santri.jk = 'L') as l, SUM(santri.jk = 'P') as p")
+            ->groupBy('riwayat_belajar.kelas_id')
             ->get()
-            ->groupBy('kelas_id');
+            ->keyBy('kelas_id');
 
-        foreach ($riwayatKelas as $kelasId => $baris) {
-            $usia = $baris->map(function (RiwayatBelajar $r) {
-                if (! $r->santri?->tgl_lahir) {
-                    return null;
-                }
+        $perKelas = $kelas->map(function (Kelas $k) use ($terisi) {
+            $t = $terisi[$k->id] ?? null;
+            $jml = (int) ($t->jumlah ?? 0);
 
-                return $r->santri->tgl_lahir->age;
-            })->filter(fn ($u) => $u !== null);
+            return [
+                'kelas_id' => $k->id,
+                'kelas' => $k->nama_kelas,
+                'tingkat' => $k->tingkat,
+                'lembaga' => $k->lembaga?->jenjang ?? $k->lembaga?->nama,
+                'tahun_ajaran' => $k->tahunAjaran?->nama,
+                'kapasitas' => $k->kapasitas !== null ? (int) $k->kapasitas : null,
+                'terisi' => $jml,
+                'l' => (int) ($t->l ?? 0),
+                'p' => (int) ($t->p ?? 0),
+                'sisa' => $k->kapasitas !== null ? max(0, (int) $k->kapasitas - $jml) : null,
+            ];
+        })->values()->all();
+
+        // Usia per tingkat: rata-rata + sebaran kelompok umur (dari tgl_lahir santri).
+        $usiaPerTingkat = [];
+        $riwayatTingkat = (clone $riwayatQuery())
+            ->with(['santri:id,tgl_lahir'])
+            ->get()
+            ->groupBy(fn (RiwayatBelajar $r) => (string) ($r->tingkat ?? ''));
+
+        foreach ($riwayatTingkat as $tingkat => $baris) {
+            $usia = $baris->map(fn (RiwayatBelajar $r) => $r->santri?->tgl_lahir?->age)
+                ->filter(fn ($u) => $u !== null);
 
             if ($usia->isEmpty()) {
                 continue;
@@ -574,9 +595,8 @@ class SiklusController extends Controller
                     $kelompok['>=16']++;
                 }
             }
-            $usiaPerKelas[] = [
-                'kelas_id' => (int) $kelasId,
-                'kelas' => $baris->first()->kelas?->nama_kelas,
+            $usiaPerTingkat[] = [
+                'tingkat' => $tingkat === '' ? null : (string) $tingkat,
                 'jumlah' => $usia->count(),
                 'rata_usia' => round($usia->avg(), 1),
                 'min' => $usia->min(),
@@ -584,15 +604,22 @@ class SiklusController extends Controller
                 'kelompok' => $kelompok,
             ];
         }
+        usort($usiaPerTingkat, fn ($a, $b) => strnatcasecmp((string) $a['tingkat'], (string) $b['tingkat']));
 
-        $perTahunAjaran = (clone $riwayatQuery())
-            ->selectRaw('tahun_ajaran, COUNT(*) as jumlah')
-            ->groupBy('tahun_ajaran')
+        // Rekap per tahun ajaran = SELURUH TA (abaikan filter TA terpilih),
+        // agar kolom kiri menampilkan rentang penuh dari TA awal ke akhir.
+        $perTahunAjaran = $riwayatQuery(true)
+            ->join('santri', 'santri.id', '=', 'riwayat_belajar.santri_id')
+            ->selectRaw("riwayat_belajar.tahun_ajaran as tahun_ajaran, COUNT(*) as jumlah, SUM(santri.jk = 'L') as l, SUM(santri.jk = 'P') as p")
+            ->groupBy('riwayat_belajar.tahun_ajaran')
+            ->orderBy('riwayat_belajar.tahun_ajaran')
             ->with('tahunAjaran:nama')
             ->get()
             ->map(fn ($r) => [
                 'tahun_ajaran' => $r->tahun_ajaran,
                 'jumlah_riwayat_aktif' => (int) $r->jumlah,
+                'l' => (int) $r->l,
+                'p' => (int) $r->p,
             ])->values()->all();
 
         return response()->json([
@@ -600,7 +627,7 @@ class SiklusController extends Controller
             'per_tahun_ajaran' => $perTahunAjaran,
             'per_tingkat' => $perTingkat,
             'per_kelas' => $perKelas,
-            'usia_per_kelas' => $usiaPerKelas,
+            'usia_per_tingkat' => $usiaPerTingkat,
         ]);
     }
 

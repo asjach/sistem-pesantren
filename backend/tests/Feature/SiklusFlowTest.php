@@ -617,8 +617,58 @@ class SiklusFlowTest extends TestCase
             ->assertStatus(200);
         $this->assertSame(2, $rekap->json('total_aktif'));
         $this->assertSame(2, $rekap->json('per_kelas.0.terisi'));
-        $this->assertNotEmpty($rekap->json('usia_per_kelas'));
-        $this->assertArrayHasKey('kelompok', $rekap->json('usia_per_kelas.0'));
+        $this->assertNotEmpty($rekap->json('usia_per_tingkat'));
+        $this->assertArrayHasKey('kelompok', $rekap->json('usia_per_tingkat.0'));
+    }
+
+    // ---------- 11b. rekap santri TA historis + semester (kecuali pindah keluar) ----------
+
+    public function test_12_rekap_santri_ta_historis_per_semester(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
+        $kelas = $this->makeKelas($f['mi'], $f['taLama'], '2A', '2');
+
+        // Dua lanjut (naik/lulus) + satu pindah keluar, semua semester genap TA lama.
+        $lanjut = $this->makeSantri('Historis Lanjut');
+        $lanjut->update(['tgl_lahir' => now()->subYears(9)->toDateString()]);
+        $this->makeKeanggotaan($lanjut, $f['mi'], '26001');
+        $this->makeRiwayat($lanjut, $f['taLama'], $f['mi'], '2', [
+            'kelas_id' => $kelas->id, 'tingkat' => '2', 'status_akhir' => 'naik', 'is_active_riwayat' => 'Tidak',
+        ]);
+
+        $lulus = $this->makeSantri('Historis Lulus');
+        $lulus->update(['tgl_lahir' => now()->subYears(12)->toDateString()]);
+        $this->makeKeanggotaan($lulus, $f['mi'], '26002');
+        $this->makeRiwayat($lulus, $f['taLama'], $f['mi'], '2', [
+            'kelas_id' => $kelas->id, 'tingkat' => '2', 'status_akhir' => 'lulus', 'is_active_riwayat' => 'Tidak',
+        ]);
+
+        $keluar = $this->makeSantri('Historis Keluar');
+        $this->makeKeanggotaan($keluar, $f['mi'], '26003');
+        $this->makeRiwayat($keluar, $f['taLama'], $f['mi'], '2', [
+            'kelas_id' => $kelas->id, 'tingkat' => '2', 'status_akhir' => 'pindah_keluar', 'is_active_riwayat' => 'Tidak',
+        ]);
+
+        // Dulu (filter is_active_riwayat) TA historis = 0; kini dihitung dari TA+semester.
+        $rekap = $this->actingAs($admin, 'sanctum')
+            ->getJson('/api/admin/akademik/rekap-santri?jenjang='.$f['mi']->jenjang
+                .'&tahun_ajaran='.$f['taLama']->nama.'&semester=2')
+            ->assertStatus(200);
+        $this->assertSame(2, $rekap->json('total_aktif')); // pindah_keluar dikecualikan
+        $this->assertSame(2, $rekap->json('per_kelas.0.terisi'));
+        $this->assertNotEmpty($rekap->json('usia_per_tingkat'));
+        $this->assertSame(
+            [['tahun_ajaran' => $f['taLama']->nama, 'jumlah_riwayat_aktif' => 2, 'l' => 2, 'p' => 0]],
+            $rekap->json('per_tahun_ajaran')
+        );
+
+        // Filter keaktifan: nonaktif = hanya yang pindah keluar.
+        $nonaktif = $this->actingAs($admin, 'sanctum')
+            ->getJson('/api/admin/akademik/rekap-santri?jenjang='.$f['mi']->jenjang
+                .'&tahun_ajaran='.$f['taLama']->nama.'&semester=2&keaktifan=nonaktif')
+            ->assertStatus(200);
+        $this->assertSame(1, $nonaktif->json('total_aktif'));
     }
 
     // ---------- 12. daftar kelas basis status_akhir + lintas periode ----------
