@@ -48,8 +48,6 @@ import ExcelTable, { type ExcelChoice, type ExcelField } from '@/components/Exce
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
 import FilterField from '@/components/FilterField';
-import { RibbonSlot } from '@/components/RibbonSlot';
-import { RibbonCmd, RibbonGroup } from '@/components/topbar/primitives';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import {
   Dialog,
@@ -719,40 +717,20 @@ export default function PsbPage() {
       <ErrorNotice>{err}</ErrorNotice>
 
       <Tabs value={stage} onValueChange={(v) => navigate(`/psb/${v}`)} className="contents">
-        <TabsList id="tabs_psb" className="mb-2 w-fit">
+        <TabsList id="tabs_psb" className="mb-2 h-auto w-fit gap-1 p-1">
           {TAHAP_PSB.map((t) => {
             const n = t.statuses.reduce((s, st) => s + (badge[st] ?? 0), 0);
             return (
-              <TabsTrigger key={t.id} id={`tab_psb_${t.id}`} value={t.id}>
+              <TabsTrigger key={t.id} id={`tab_psb_${t.id}`} value={t.id} className="px-4 py-2">
                 {t.label}
                 {n > 0 && (
-                  <span className="ml-1 rounded-full bg-foreground/10 px-1.5 text-[11px] tabular-nums">{n}</span>
+                  <span className="ml-1.5 rounded-full bg-foreground/10 px-1.5 text-[11px] tabular-nums">{n}</span>
                 )}
               </TabsTrigger>
             );
           })}
         </TabsList>
         <TabsContent value={stage} className="contents">
-
-      {/* Tools halaman di ribbon: aksi pendaftar (tahap = halamannya sendiri). */}
-      <RibbonSlot label="PSB">
-        {stage === 'pendaftar' && canTambahPsb && (
-          <RibbonGroup label="Pendaftar">
-            <RibbonCmd
-              id="btn_buka_tambah_pendaftar"
-              icon={PlusCircle}
-              label="Tambah"
-              onClick={() => { resetTambah(); setTambahOpen(true); }}
-            />
-            <RibbonCmd
-              id="btn_buka_import_psb"
-              icon={Upload}
-              label="Import"
-              onClick={() => setImportOpen(true)}
-            />
-          </RibbonGroup>
-        )}
-      </RibbonSlot>
 
       <ExcelTable
         tableKey="psb"
@@ -774,6 +752,25 @@ export default function PsbPage() {
         searchIds={{ form: 'form_cari_psb', input: 'input_cari_psb', button: 'btn_cari_psb' }}
         filter={(
           <>
+            {stage === 'pendaftar' && canTambahPsb && (
+              <>
+                <Button
+                  id="btn_buka_tambah_pendaftar"
+                  size="sm"
+                  onClick={() => { resetTambah(); setTambahOpen(true); }}
+                >
+                  <PlusCircle data-icon="inline-start" size={16} /> Tambah
+                </Button>
+                <Button
+                  id="btn_buka_import_psb"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setImportOpen(true)}
+                >
+                  <Upload data-icon="inline-start" size={16} /> Import
+                </Button>
+              </>
+            )}
             {stage === 'pendaftar' && (
               <FilterField label="Status pendaftar" htmlFor="select_substatus_pendaftar">
               <Select
