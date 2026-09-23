@@ -298,6 +298,30 @@ class SiklusFlowTest extends TestCase
         $this->assertSame(2, RiwayatBelajar::where('santri_id', $santri->id)->count());
     }
 
+    // ---------- 01e. batal salin: genap dari import (ganjil masih aktif) ----------
+
+    public function test_01e_batal_salin_genap_import_ganjil_masih_aktif(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
+        $santri = $this->makeSantri('Genap Import');
+        $this->makeKeanggotaan($santri, $f['mi'], '25014');
+        $kelas = $this->makeKelas($f['mi'], $f['taLama'], '1D', '1');
+        // Ganjil TIDAK ditutup (pola import: baris genap dibuat tanpa salin).
+        $this->makeRiwayat($santri, $f['taLama'], $f['mi'], '1', ['kelas_id' => $kelas->id]);
+        $this->makeRiwayat($santri, $f['taLama'], $f['mi'], '2', ['kelas_id' => $kelas->id, 'status_awal' => 'lanjutan']);
+
+        $res = $this->actingAs($admin, 'sanctum')->postJson("/api/admin/santri/{$santri->id}/batal-salin", [
+            'jenjang' => $f['mi']->jenjang,
+        ])->assertStatus(200);
+        $this->assertSame('Salin semester dibatalkan; santri kembali ke semester 1.', $res->json('pesan'));
+
+        $sisa = RiwayatBelajar::where('santri_id', $santri->id)->get();
+        $this->assertCount(1, $sisa);
+        $this->assertSame('1', $sisa->first()->semester);
+        $this->assertSame('Ya', $sisa->first()->is_active_riwayat);
+    }
+
     // ---------- 02. kenaikan massal naik/tidak naik ----------
 
     public function test_02_naik_kelas_massal_naik_dan_tidak_naik(): void

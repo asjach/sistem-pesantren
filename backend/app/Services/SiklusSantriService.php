@@ -278,9 +278,10 @@ class SiklusSantriService
     }
 
     /**
-     * Batalkan salin semester: hapus baris genap aktif dan buka kembali baris
-     * ganjil yang ditutupnya (TA sama). Hanya bila belum ada transisi lanjutan
-     * (baris aktif terbaru masih semester 2).
+     * Batalkan salin semester: hapus baris genap aktif dan pastikan baris
+     * ganjil TA sama kembali aktif. Ganjil boleh masih aktif (baris genap
+     * dari import tidak menutup ganjil) — cukup hapus genapnya. Hanya bila
+     * belum ada transisi lanjutan (baris aktif terbaru masih semester 2).
      */
     public function batalSalin(Santri $santri, string $jenjang): RiwayatBelajar
     {
@@ -293,7 +294,7 @@ class SiklusSantriService
                 throw ValidationException::withMessages(['riwayat' => 'Tidak ada salin semester aktif yang bisa dibatalkan.']);
             }
             $ganjil = RiwayatBelajar::where('santri_id', $santri->id)
-                ->where('jenjang', $jenjang)->where('is_active_riwayat', RiwayatBelajar::TIDAK)
+                ->where('jenjang', $jenjang)
                 ->where('tahun_ajaran', $genap->tahun_ajaran)->where('semester', '1')
                 ->where('id', '!=', $genap->id)
                 ->lockForUpdate()->latest('id')->first();
@@ -302,7 +303,8 @@ class SiklusSantriService
             }
 
             $genap->delete();
-            // Status ganjil dipertahankan 'aktif' saat penyalinan, tinggal buka kembali.
+            // Ganjil dari salin tertutup (buka lagi); ganjil dari import
+            // masih aktif (no-op) — akhir: santri kembali ke semester 1.
             $ganjil->update(['is_active_riwayat' => RiwayatBelajar::YA]);
 
             $santri->hitungUlangStatusGlobal();
