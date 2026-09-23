@@ -199,12 +199,12 @@ export default function TopBar() {
               <DropdownMenuContent align="end" className="max-h-80 min-w-[12rem] overflow-y-auto">
                 <DropdownMenuLabel className="text-foreground">Lembaga aktif</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {/* Filter "Semua lembaga" selalu tersedia (bukan peran;
-                    keluar dari peran lewat banner / Esc). */}
-                {adaSemua && jenjang === null && (
+                {/* Filter "Semua lembaga" selalu tersedia selama punya akses
+                    (bukan peran; keluar dari peran lewat banner / Esc). */}
+                {adaSemua && (
                   <DropdownMenuItem id="menu_lembaga_aktif_semua" onSelect={() => pilih(null)}>
                     <span className="flex-1">Semua</span>
-                    <Check data-icon="inline-end" size={14} />
+                    {jenjang === null && <Check data-icon="inline-end" size={14} />}
                   </DropdownMenuItem>
                 )}
                 {daftarLembaga.map((l) => (
