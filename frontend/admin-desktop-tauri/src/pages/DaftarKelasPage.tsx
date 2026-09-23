@@ -2,33 +2,29 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { bisa } from '../api/auth';
 import { errorMessage } from '../api/client';
-import { daftarKelas, keluarKelas, pindahKelas, type RiwayatRow } from '../api/siklus';
-import { listKelas, type Kelas } from '../api/master';
-import { Button } from '@/components/ui/button';
-import { FieldLabel } from '@/components/ui/field';
+import { daftarKelas, type RiwayatRow } from '../api/siklus';
+import type { SantriPenuh } from '../api/santri';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import ExcelTable from '@/components/ExcelTable';
 import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
 import { useTahunAjaranAwalString } from '@/hooks/useTahunAjaranAwal';
 import { useSemesterAwal } from '@/hooks/useSemesterAwal';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { ActionIcon } from '@/components/RowActions';
-import { MoveHorizontal, SquareMousePointer } from '@/icons';
+import { Eye, Pencil } from '@/icons';
 import FilterField from '@/components/FilterField';
-import { useLembagaTa } from '@/components/siklus/bersama';
+import { ProfilSantriDialog } from '@/components/ProfilSantriDialog';
+import { EditSantriDialog } from '@/components/santri/EditSantriDialog';
 import {
   daftarKelasValues,
   medanDaftarKelas,
   pakaiCommitDaftarKelas,
 } from '@/components/siklus/kolomDaftarKelas';
-import { toast } from 'sonner';
 
 /** Daftar Kelas: basis status_akhir (Aktif = gabungan 5 status; Tidak aktif =
  *  Pindah/Keluar) dengan opsi lintas semester dan lintas tahun ajaran. */
 export default function DaftarKelasPage() {
   const { user } = useAuth();
-  const canPindah = bisa(user, 'pindah_kelas.ubah');
   const canSantri = bisa(user, 'santri.ubah');
   const canRiwayat = bisa(user, 'riwayat_belajar.ubah');
   const [jenjang, setLembagaId] = useState('');
@@ -43,12 +39,8 @@ export default function DaftarKelasPage() {
   const [info, setInfo] = useState<{ tahun_ajaran: string | null; semester: string | null } | null>(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
-  const { tas } = useLembagaTa(jenjang);
-
-  const [kelas, setKelas] = useState<Kelas[]>([]);
-  const [pindahRow, setPindahRow] = useState<RiwayatRow | null>(null);
-  const [pindahKe, setPindahKe] = useState('');
-  const [busy, setBusy] = useState(false);
+  const [profilRow, setProfilRow] = useState<SantriPenuh | null>(null);
+  const [editRow, setEditRow] = useState<SantriPenuh | null>(null);
 
   /** Seluruh kolom 3 tabel; jenis edit mengikuti izin per tabel. */
   const fields = useMemo(
@@ -82,13 +74,6 @@ export default function DaftarKelasPage() {
 
   useEffect(() => { void load(); }, [load]);
 
-  useEffect(() => {
-    if (!jenjang) { setKelas([]); return; }
-    listKelas({ jenjang: jenjang, tahun_ajaran: taId || undefined, per_page: 1000 })
-      .then((p) => setKelas(p.data))
-      .catch(() => setKelas([]));
-  }, [jenjang, taId]);
-
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
@@ -102,17 +87,14 @@ export default function DaftarKelasPage() {
         canEdit={canSantri || canRiwayat}
         onCommit={commitDaftar}
         onSaved={load}
-        renderActions={(r) => (
-          canPindah ? (
+        renderActions={(r) => (r.santri ? (
           <>
-            <ActionIcon id={`btn_pindah_kelas_daftar_${r.id}`} title="Pindah kelas" onClick={() => { setPindahRow(r); setPindahKe(r.kelas_id ? String(r.kelas_id) : ''); }}><MoveHorizontal size={16} /></ActionIcon>
-            <ActionIcon id={`btn_keluar_kelas_daftar_${r.id}`} title="Keluarkan dari kelas" onClick={async () => {
-              try { await keluarKelas(r.id); toast.success('Santri dikeluarkan dari kelas.'); await load(); }
-              catch (e) { toast.error(errorMessage(e)); }
-            }}><SquareMousePointer size={16} /></ActionIcon>
+            <ActionIcon id={`btn_detail_santri_${r.id}`} title="Lihat detail santri" onClick={() => setProfilRow(r.santri as SantriPenuh)}><Eye size={16} /></ActionIcon>
+            {canSantri && (
+              <ActionIcon id={`btn_edit_santri_${r.id}`} title="Ubah detail santri" onClick={() => setEditRow(r.santri as SantriPenuh)}><Pencil size={16} /></ActionIcon>
+            )}
           </>
-          ) : null
-        )}
+        ) : null)}
         filter={(
           <>
             <FilterField label="Status" htmlFor="select_status_daftar_kelas">
@@ -141,38 +123,17 @@ export default function DaftarKelasPage() {
         )}
       />
 
-      <Dialog open={pindahRow !== null} onOpenChange={(o) => { if (!o) setPindahRow(null); }}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Pindah kelas</DialogTitle>
-            <DialogDescription>{pindahRow?.santri?.nama_lengkap}</DialogDescription>
-          </DialogHeader>
-          <FieldLabel htmlFor="select_pindah_kelas_daftar">Kelas tujuan</FieldLabel>
-          <Select value={pindahKe || '_kosong'} onValueChange={(v) => setPindahKe(v === '_kosong' ? '' : v)}>
-            <SelectTrigger id="select_pindah_kelas_daftar"><SelectValue placeholder="Pilih kelas" /></SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectItem value="_kosong">Pilih kelas</SelectItem>
-                {kelas.map((k) => <SelectItem key={k.id} value={String(k.id)}>{k.nama_kelas}</SelectItem>)}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setPindahRow(null)}>Batal</Button>
-            <Button id="btn_simpan_pindah_kelas_daftar" disabled={!pindahKe || busy} onClick={async () => {
-              if (!pindahRow || !pindahKe) return;
-              setBusy(true);
-              try {
-                await pindahKelas(pindahRow.id, Number(pindahKe));
-                toast.success('Kelas dipindah.');
-                setPindahRow(null);
-                setPindahKe('');
-                await load();
-              } catch (e) { toast.error(errorMessage(e)); } finally { setBusy(false); }
-            }}>Simpan</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ProfilSantriDialog
+        santriId={profilRow?.id ?? null}
+        open={profilRow !== null}
+        onOpenChange={(o) => { if (!o) setProfilRow(null); }}
+      />
+      <EditSantriDialog
+        santri={editRow}
+        open={editRow !== null}
+        onOpenChange={(o) => { if (!o) setEditRow(null); }}
+        onSaved={load}
+      />
     </div>
   );
 }
