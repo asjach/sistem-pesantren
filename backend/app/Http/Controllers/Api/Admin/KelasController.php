@@ -56,7 +56,7 @@ class KelasController extends Controller
             $query->where('kelas.tahun_ajaran', $request->input('tahun_ajaran'));
         }
         if ($request->filled('tingkat')) {
-            $query->where('kelas.tingkat', $request->input('tingkat'));
+            $query->whereIn('kelas.tingkat', (array) $request->input('tingkat'));
         }
         if ($request->filled('search')) {
             $s = $request->input('search');

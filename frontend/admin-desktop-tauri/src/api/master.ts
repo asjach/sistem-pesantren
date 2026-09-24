@@ -301,13 +301,16 @@ export interface Kelas {
 }
 
 export function listKelas(
-  params: { search?: string; jenjang?: string; tahun_ajaran?: string; tingkat?: string; sort?: string[]; arah?: 'naik' | 'turun'; page?: number; per_page?: number; signal?: AbortSignal } = {},
+  params: { search?: string; jenjang?: string; tahun_ajaran?: string; tingkat?: string | string[]; sort?: string[]; arah?: 'naik' | 'turun'; page?: number; per_page?: number; signal?: AbortSignal } = {},
 ) {
   const q = new URLSearchParams();
   if (params.search) q.set('search', params.search);
   if (params.jenjang) q.set('jenjang', params.jenjang);
   if (params.tahun_ajaran) q.set('tahun_ajaran', params.tahun_ajaran);
-  if (params.tingkat) q.set('tingkat', params.tingkat);
+  if (params.tingkat) {
+    const arr = Array.isArray(params.tingkat) ? params.tingkat : [params.tingkat];
+    for (const t of arr) if (t !== '') q.append('tingkat[]', t);
+  }
   if (params.sort?.length) q.set('sort', params.sort.join(','));
   if (params.arah) q.set('arah', params.arah);
   q.set('page', String(params.page ?? 1));

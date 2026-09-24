@@ -31,7 +31,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
-import FilterField from '@/components/FilterField';
+import { FilterMulti } from '@/components/FilterTingkatKelas';
+import { TopBarFilter } from '@/components/TopBarFilter';
 import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
 import { useTahunAjaranAwalString } from '@/hooks/useTahunAjaranAwal';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
@@ -53,6 +54,9 @@ import { X, FileUp, Download } from '@/icons';
 import { DeleteAction, EditAction, ViewAction } from '@/components/RowActions';
 import { namaLembaga, namaTahunAjaran } from '@/lib/nilaiTampil';
 import { toast } from 'sonner';
+
+/** Opsi tingkat (tetap 1–12 seperti filter lama di header tabel). */
+const TINGKAT_OPSI = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
 
 const FIELDS: ExcelField[] = [
   {
@@ -138,7 +142,10 @@ export default function KelasPage() {
   useLembagaAwalString(setLembagaId);
   const [taId, setTaId] = useState<string>('');
   useTahunAjaranAwalString(setTaId);
-  const [tingkat, setTingkat] = useState('');
+  const [tingkat, setTingkat] = useState<string[]>([]);
+  function togolTingkat(v: string) {
+    setTingkat((prev) => (prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v]));
+  }
   /** Pencarian tunggal halaman (topBar). */
   const [cari, setCari] = useState('');
   const {
@@ -161,7 +168,7 @@ export default function KelasPage() {
       search: a.search || undefined,
       jenjang: jenjang === '' ? undefined : jenjang,
       tahun_ajaran: taId === '' ? undefined : taId,
-      tingkat: tingkat || undefined,
+      tingkat: tingkat.length ? tingkat : undefined,
       sort: a.urut.length ? a.urut : undefined,
       arah: a.urut.length ? a.arah : undefined,
       page: a.page,
@@ -563,6 +570,16 @@ export default function KelasPage() {
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari kelas…" />
+      <TopBarFilter>
+        <FilterMulti
+          id="filter_tingkat_kelas_topbar"
+          label="Tingkat"
+          opsi={TINGKAT_OPSI}
+          dipilih={tingkat}
+          onToggle={togolTingkat}
+          onSemua={() => setTingkat([])}
+        />
+      </TopBarFilter>
       <ExcelTable
         tableKey="kelas"
         sumberTabel="kelas"
@@ -579,23 +596,6 @@ export default function KelasPage() {
         onUrut={terapkanUrut}
         onCreateRow={canTambahKelas ? createRow : undefined}
         inputRowValues={{ ta: taTerpilih, lembaga: lembagaTerpilih, urutan: '0' }}
-        filter={(
-          <FilterField label="Tingkat" htmlFor="select_tingkat_kelas">
-            <Select value={tingkat === '' ? '_semua' : tingkat} onValueChange={(v) => setTingkat(v === '_semua' ? '' : v)}>
-              <SelectTrigger id="select_tingkat_kelas" title="Filter tingkat" aria-label="Filter tingkat" size="sm" className="w-28">
-                <SelectValue placeholder="Semua" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectItem value="_semua">Semua</SelectItem>
-                  {['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'].map((t) => (
-                    <SelectItem key={t} value={t}>{t}</SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </FilterField>
-        )}
         addButton={canTambahKelas ? (
           <>
             {dariKode && (
