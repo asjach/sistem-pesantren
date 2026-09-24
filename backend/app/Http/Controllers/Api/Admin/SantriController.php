@@ -62,9 +62,9 @@ class SantriController extends Controller
         if ($request->filled('q')) {
             $q = trim((string) $request->input('q'));
             $query->where(fn ($sub) => $sub
-                ->where('nik', 'like', "%{$q}%")
-                ->orWhere('nisn', 'like', "%{$q}%")
-                ->orWhereHas('lembagaSantri', fn ($ls) => $ls->where('nis_lokal', 'like', "%{$q}%"))
+                ->where('nisn', 'like', "%{$q}%")
+                ->orWhere('ayah_nama', 'like', "%{$q}%")
+                ->orWhere('ibu_nama', 'like', "%{$q}%")
                 ->orWhere(function ($nama) use ($q) {
                     // MySQL/MariaDB: FULLTEXT ngram (index) untuk nama; driver
                     // lain (SQLite di tes) tetap LIKE substring.

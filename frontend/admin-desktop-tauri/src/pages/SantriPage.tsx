@@ -224,7 +224,7 @@ export default function SantriPage() {
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
-      <TopBarSearch value={cari} onChange={setCari} placeholder="Cari santri (nama/NIK/NIS)…" />
+      <TopBarSearch value={cari} onChange={setCari} placeholder="Cari santri (nama/NISN/ayah/ibu)…" />
       <ExcelTable<Santri>
         tableKey="santri"
         sumberTabel="santri"

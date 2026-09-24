@@ -61,9 +61,8 @@ export function TopBarSearch({
         type="search"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
         aria-label={placeholder}
-        className="h-7 w-full rounded-md border border-white/20 bg-white/10 pr-7 pl-8 text-xs text-white outline-none placeholder:text-white/50 focus:border-white/40 focus:bg-white/15 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:appearance-none"
+        className="h-7 w-full rounded-md border border-white/20 bg-white/10 pr-7 pl-8 text-xs text-white outline-none focus:border-white/40 focus:bg-white/15 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:appearance-none"
       />
       {value !== '' && (
         <button

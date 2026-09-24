@@ -63,8 +63,11 @@ export default function FilterField({ label, htmlFor, children, className, kelol
   }
 
   return (
-    <span ref={ref} className={cn('flex flex-col gap-0.5', className)}>
-      <label htmlFor={htmlFor} className="text-[11px] leading-tight text-muted-foreground">
+    <span ref={ref} className={cn(konteks ? 'flex items-center gap-1.5' : 'flex flex-col gap-0.5', className)}>
+      <label
+        htmlFor={htmlFor}
+        className={cn('text-[11px] text-muted-foreground', konteks ? 'leading-none whitespace-nowrap' : 'leading-tight')}
+      >
         {label}
       </label>
       {isi}
