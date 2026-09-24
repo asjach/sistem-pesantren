@@ -186,6 +186,9 @@
 | 2.132 | 2026-09-24 | TopBar: tombol mode (Terang/Gelap/Sistem) dipindah dari baris atas ke area akun — blok khusus di bawah nama akun, di atas menu Tema |
 | 2.133 | 2026-09-24 | Filter **tingkat & kelas** (multi-pilih, topBar) dipakai lintas halaman via komponen bersama `FilterTingkatKelas`: Mutasi Keluar, Kenaikan Kelas, Daftar Kelas, Pindah Kelas, Riwayat Belajar, Pindah Semester (server-side), dan MI-MD (kelas saja). Endpoint `riwayat-belajar` & `riwayat-belajar/belum-genap` kini menerima `tingkat[]` & `kelas_id[]` |
 | 2.134 | 2026-09-24 | **Search tunggal di topBar** menggantikan judul halaman (slot `TopBarSearch`): satu input per halaman dipakai semua tabel (mis. MI-MD & Kegiatan PSB 3 tabel, Riwayat Belajar/Pindah Semester 2 tabel, Pindah Kelas banyak kolom). Input cari per tabel dihapus di seluruh halaman ber-tabel; `useDaftarTabel` menerima `search` eksternal. Endpoint `pengajuan-biodata`, `mutasi-keluar`, `alumni` menerima `q`. Judul tetap di judul jendela/sidebar |
+| 2.135 | 2026-09-24 | Fix search topBar tak jalan untuk query 1 karakter (mis. "9" di halaman Kelas): guard panjang 1 di `useDaftarTabel` dihapus; live search 400 ms berlaku semua panjang query (termasuk mode "Semua baris") |
+| 2.136 | 2026-09-24 | TopBar search: sembunyikan tombol bersihkan bawaan (`type=search`), pertahankan tombol "x" kustom |
+| 2.137 | 2026-09-24 | Search multi-field (bertahap): **Buku Induk** kini mencari nama/NIK/NISN/**NIS lokal** (`GET /admin/santri?q=`); **Pengguna** sudah multi-field (nama/email/phone/username). Halaman lain menyusul bila diperlukan |
 
 ## Daftar Isi
 

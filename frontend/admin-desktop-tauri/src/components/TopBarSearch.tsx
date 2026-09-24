@@ -53,7 +53,7 @@ export function TopBarSearch({
     <form
       role="search"
       onSubmit={(e) => e.preventDefault()}
-      className="relative flex w-full items-center"
+      className="relative flex w-[150px] shrink-0 items-center"
     >
       <Search size={15} className="pointer-events-none absolute left-2.5 text-white/60" />
       <input
@@ -63,7 +63,7 @@ export function TopBarSearch({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         aria-label={placeholder}
-        className="h-7 w-full rounded-md border border-white/20 bg-white/10 pr-7 pl-8 text-xs text-white outline-none placeholder:text-white/50 focus:border-white/40 focus:bg-white/15"
+        className="h-7 w-full rounded-md border border-white/20 bg-white/10 pr-7 pl-8 text-xs text-white outline-none placeholder:text-white/50 focus:border-white/40 focus:bg-white/15 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:appearance-none"
       />
       {value !== '' && (
         <button

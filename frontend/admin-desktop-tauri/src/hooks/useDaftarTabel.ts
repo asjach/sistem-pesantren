@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { errorMessage } from '../api/client';
 import type { Paginate } from '../api/master';
-import { PER_PAGE_ALL } from '@/prefs';
 import { usePager } from './usePager';
 
 export interface ArgsMuat {
@@ -123,13 +122,11 @@ export function useDaftarTabel<T, R extends Paginate<T> = Paginate<T>>({
     [load, pager.goFirst, pager.perPage],
   );
 
-  // Live search: terapkan setelah jeda 400 ms. Query 1 karakter tidak memicu
-  // muat (kecuali dikosongkan), dan mode "Semua baris" (per_page=0) menunggu
-  // Enter/tombol Cari karena responsnya besar.
+  // Live search: terapkan setelah jeda 400 ms (langsung saat dikosongkan).
+  // Semua panjang query dipakai (termasuk 1 karakter) agar pencarian pendek
+  // seperti nama kelas ("7") tetap berfungsi.
   useEffect(() => {
     const bersih = searchEfektif.trim();
-    if (bersih.length === 1) return;
-    if (pager.perPage === PER_PAGE_ALL) return;
     const t = setTimeout(() => {
       setSearchTertunda(searchEfektif);
       pager.goFirst();

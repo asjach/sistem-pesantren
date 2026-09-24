@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Lembaga;
+use App\Models\LembagaSantri;
 use App\Models\Santri;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
@@ -112,6 +113,16 @@ class SantriPencarianTest extends TestCase
         // Lewat NISN.
         $nisn = $this->actingAs($admin, 'sanctum')->getJson('/api/admin/santri?q=0099')->assertStatus(200);
         $this->assertCount(1, $nisn->json('data'));
+
+        // Lewat NIS lokal (keanggotaan lembaga).
+        $santriNis = $this->makeSantri('CITRA DEWI');
+        LembagaSantri::create([
+            'santri_id' => $santriNis->id, 'jenjang' => $f['mi']->jenjang,
+            'nis_lokal' => 'NIS-778899', 'is_active_lembaga' => 'Ya', 'tgl_masuk' => '2025-07-01',
+        ]);
+        $nisLokal = $this->actingAs($admin, 'sanctum')->getJson('/api/admin/santri?q=778899')->assertStatus(200);
+        $this->assertCount(1, $nisLokal->json('data'));
+        $this->assertStringContainsString('CITRA', $nisLokal->json('data.0.nama_lengkap'));
 
         // Tak cocok.
         $kosong = $this->actingAs($admin, 'sanctum')->getJson('/api/admin/santri?q=ZZZZ')->assertStatus(200);

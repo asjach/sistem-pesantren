@@ -189,7 +189,7 @@ export default function TopBar() {
           </span>
         )}
         {/* Pencarian tunggal halaman (portal) — menggantikan judul saat ada. */}
-        <div ref={searchHostRef} className={cn('flex min-w-0 items-center', searchAda && 'max-w-md flex-1')} />
+        <div ref={searchHostRef} className={cn('flex min-w-0 items-center', searchAda && 'w-[150px] shrink-0')} />
 
         <div data-part="area_akun" className="ml-2 flex min-w-0 flex-1 items-center gap-0.5">
           {/* Perenggang kiri: mendorong filter global ke tengah bar. */}
