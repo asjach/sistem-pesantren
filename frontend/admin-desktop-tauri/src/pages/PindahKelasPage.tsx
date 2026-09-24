@@ -7,11 +7,10 @@ import { listKelas, type Kelas } from '../api/master';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/field';
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import ExcelTable from '@/components/ExcelTable';
+import { FilterTingkatKelas, useFilterTingkatKelas } from '@/components/FilterTingkatKelas';
 import { ActionIcon } from '@/components/RowActions';
-import FilterField from '@/components/FilterField';
 import { ArrowRight } from '@/icons';
 import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
 import { useTahunAjaranAwalString } from '@/hooks/useTahunAjaranAwal';
@@ -43,8 +42,9 @@ export default function PindahKelasPage() {
   useTahunAjaranAwalString(setTaId);
   const [semester, setSemester] = useState('');
   useSemesterAwal(setSemester);
-  const [tingkat, setTingkat] = useState('');
   const [rows, setRows] = useState<RiwayatRow[]>([]);
+  /** Filter tingkat & kelas (multi-pilih) di topBar. */
+  const filter = useFilterTingkatKelas(rows, (r) => r.tingkat, (r) => r.kelas?.nama_kelas);
   const [kelas, setKelas] = useState<Kelas[]>([]);
   const [err, setErr] = useState('');
   const [busyId, setBusyId] = useState<number | null>(null);
@@ -69,26 +69,6 @@ export default function PindahKelasPage() {
       .then((p) => setKelas(p.data))
       .catch(() => setKelas([]));
   }, [jenjang, taId]);
-
-  /** Opsi tingkat dari daftar kelas (bukan dari baris, agar kelas kosong
-   *  tetap muncul sebagai kolom tujuan). */
-  const opsiTingkat = useMemo(() => {
-    const unik = new Set<string>();
-    for (const k of kelas) {
-      if (k.tingkat != null && k.tingkat !== '') unik.add(String(k.tingkat));
-    }
-    for (const r of rows) {
-      if (r.tingkat != null && r.tingkat !== '') unik.add(String(r.tingkat));
-    }
-    return [...unik].sort((a, b) => a.localeCompare(b, 'id', { numeric: true }));
-  }, [kelas, rows]);
-
-  /** Satu tingkat aktif (wajib pilih satu; otomatis tingkat pertama bila
-   *  pilihan kosong/tak tersedia). */
-  useEffect(() => {
-    if (opsiTingkat.length === 0) return;
-    if (tingkat === '' || !opsiTingkat.includes(tingkat)) setTingkat(opsiTingkat[0]);
-  }, [opsiTingkat, tingkat]);
 
   const grup = useMemo<GrupTingkat[]>(() => {
     const petaKelas = new Map<number, Kelas>();
@@ -121,11 +101,14 @@ export default function PindahKelasPage() {
     const semuaTingkat = new Set([...tingkatKeKelas.keys(), ...tanpaPerTingkat.keys()]);
     const hasil: GrupTingkat[] = [];
     for (const t of semuaTingkat) {
-      if (tingkat === '' || t !== tingkat) continue;
+      if (filter.tingkat.length > 0 && !filter.tingkat.includes(t)) continue;
       const tanpa = tanpaPerTingkat.get(t) ?? [];
       const kolom: KolomKelas[] = [];
-      if (tanpa.length > 0) kolom.push({ kelasId: null, kelas: 'Tanpa kelas', baris: tanpa });
+      if (tanpa.length > 0 && filter.kelas.length === 0) {
+        kolom.push({ kelasId: null, kelas: 'Tanpa kelas', baris: tanpa });
+      }
       for (const k of tingkatKeKelas.get(t) ?? []) {
+        if (filter.kelas.length > 0 && !filter.kelas.includes(k.nama_kelas)) continue;
         kolom.push({ kelasId: k.id, kelas: k.nama_kelas, baris: barisPerKelas.get(k.id) ?? [] });
       }
       if (kolom.length === 0) continue;
@@ -133,7 +116,8 @@ export default function PindahKelasPage() {
     }
     hasil.sort((a, b) => String(a.tingkat ?? '').localeCompare(String(b.tingkat ?? ''), 'id', { numeric: true }));
     return hasil;
-  }, [kelas, rows, tingkat]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kelas, rows, filter.tingkat, filter.kelas]);
 
   const pindah = async (r: RiwayatRow, kelasBaruId: number) => {
     setBusyId(r.id);
@@ -147,20 +131,8 @@ export default function PindahKelasPage() {
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
+      <FilterTingkatKelas filter={filter} />
       <div className="flex flex-wrap items-end gap-3">
-        <FilterField label="Tingkat" htmlFor="select_tingkat_pindah_kelas">
-          <Select value={tingkat === '' ? '_pilih' : tingkat} onValueChange={(v) => { if (v !== '_pilih') setTingkat(v); }}>
-            <SelectTrigger id="select_tingkat_pindah_kelas" title="Pilih tingkat" aria-label="Pilih tingkat" size="sm">
-              <SelectValue placeholder="Pilih tingkat" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {opsiTingkat.length === 0 && <SelectItem value="_pilih">Pilih tingkat</SelectItem>}
-                {opsiTingkat.map((t) => <SelectItem key={t} value={t}>Tingkat {t}</SelectItem>)}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </FilterField>
         {canSalin && (
         <Button id="btn_buka_salin_genap" variant="outline" disabled={!jenjang} onClick={() => { setTanggalSalin(''); setSalinOpen(true); }}>
           Salin ke genap

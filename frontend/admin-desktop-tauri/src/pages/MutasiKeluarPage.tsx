@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { bisa } from '../api/auth';
 import { errorMessage } from '../api/client';
@@ -8,73 +8,17 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/field';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { cn } from '@/lib/utils';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import ExcelTable from '@/components/ExcelTable';
-import { TopBarFilter } from '@/components/TopBarFilter';
+import { FilterTingkatKelas, useFilterTingkatKelas } from '@/components/FilterTingkatKelas';
 import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
-import { FileUp, Download, ArrowRight, Check, ChevronDown } from '@/icons';
+import { FileUp, Download, ArrowRight } from '@/icons';
 import { ActionIcon } from '@/components/RowActions';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import Pager from '@/components/Pager';
 import { usePager } from '@/hooks/usePager';
 import { toast } from 'sonner';
-
-/** Gaya tombol trigger filter di topBar — seragam dropdown lembaga/TA/semester. */
-const navBase =
-  'flex items-center gap-2 rounded-md px-2.5 py-1 text-xs whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--sidebar-foreground)]/60';
-const navIdle =
-  'text-[var(--sidebar-foreground)] hover:bg-[color-mix(in_srgb,var(--sidebar-foreground)_14%,transparent)] hover:text-white';
-
-/** Filter topBar multi-pilih (centang banyak): tetap terbuka saat memilih. */
-function FilterMulti({
-  id,
-  label,
-  opsi,
-  dipilih,
-  onToggle,
-  onSemua,
-}: {
-  id: string;
-  label: string;
-  opsi: string[];
-  dipilih: string[];
-  onToggle: (v: string) => void;
-  onSemua: () => void;
-}) {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          id={id}
-          type="button"
-          title={dipilih.length ? `${label}: ${dipilih.join(', ')}` : label}
-          aria-label={label}
-          className={cn(navBase, navIdle, 'mr-1 data-[state=open]:bg-white/15')}
-        >
-          <span className="hidden max-w-[9rem] truncate sm:inline">
-            {dipilih.length ? `${label} (${dipilih.length})` : label}
-          </span>
-          <ChevronDown size={13} className="opacity-70" />
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="max-h-80 min-w-[12rem] overflow-y-auto">
-        <DropdownMenuItem id={`${id}_semua`} onSelect={(e) => { e.preventDefault(); onSemua(); }}>
-          <span className="flex-1">Semua</span>
-          {dipilih.length === 0 && <Check data-icon="inline-end" size={14} />}
-        </DropdownMenuItem>
-        {opsi.map((o) => (
-          <DropdownMenuItem key={o} id={`${id}_${o}`} onSelect={(e) => { e.preventDefault(); onToggle(o); }}>
-            <span className="flex-1 truncate">{o}</span>
-            {dipilih.includes(o) && <Check data-icon="inline-end" size={14} />}
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
 
 /** Mutasi Keluar: kiri santri aktif (nama + kelas) → kanan arsip mutasi. */
 export default function MutasiKeluarPage() {
@@ -92,9 +36,6 @@ export default function MutasiKeluarPage() {
   /** Urut header arsip: daftar nilai allowlist + arah global (maks 3 kunci). */
   const [urut, setUrut] = useState<string[]>([]);
   const [arahUrut, setArahUrut] = useState<'naik' | 'turun'>('naik');
-  /** Filter santri aktif (dropdown multi-pilih di topBar): tingkat + kelas. */
-  const [tingkat, setTingkat] = useState<string[]>([]);
-  const [kelasFilter, setKelasFilter] = useState<string[]>([]);
 
   const [baris, setBaris] = useState<RiwayatRow | null>(null);
   const [tanggal, setTanggal] = useState('');
@@ -158,39 +99,8 @@ export default function MutasiKeluarPage() {
       .catch(() => setAlasanOpsi([]));
   }, [jenjang]);
 
-  const tingkatOpsi = useMemo(
-    () => [...new Set(kiri.map((r) => (r.tingkat ?? '').trim()).filter(Boolean))]
-      .sort((a, b) => a.localeCompare(b, 'id', { numeric: true })),
-    [kiri],
-  );
-  const kelasOpsi = useMemo(() => {
-    const nama = kiri
-      .filter((r) => tingkat.length === 0 || tingkat.includes((r.tingkat ?? '').trim()))
-      .map((r) => r.kelas?.nama_kelas ?? '')
-      .filter(Boolean);
-    return [...new Set(nama)].sort((a, b) => a.localeCompare(b, 'id', { numeric: true }));
-  }, [kiri, tingkat]);
-  const kiriTampil = useMemo(() => kiri.filter((r) => {
-    if (tingkat.length > 0 && !tingkat.includes((r.tingkat ?? '').trim())) return false;
-    if (kelasFilter.length > 0 && !kelasFilter.includes(r.kelas?.nama_kelas ?? '')) return false;
-    return true;
-  }), [kiri, tingkat, kelasFilter]);
-
-  /** Pilih/lepas satu tingkat; kelas yang tak lagi relevan ikut dibuang. */
-  function togolTingkat(v: string) {
-    const next = tingkat.includes(v) ? tingkat.filter((x) => x !== v) : [...tingkat, v];
-    setTingkat(next);
-    const valid = new Set(
-      kiri
-        .filter((r) => next.length === 0 || next.includes((r.tingkat ?? '').trim()))
-        .map((r) => r.kelas?.nama_kelas ?? ''),
-    );
-    setKelasFilter((k) => k.filter((x) => valid.has(x)));
-  }
-
-  function togolKelas(v: string) {
-    setKelasFilter((prev) => (prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v]));
-  }
+  /** Filter tingkat & kelas (multi-pilih) di topBar untuk daftar santri aktif. */
+  const filter = useFilterTingkatKelas(kiri, (r) => r.tingkat, (r) => r.kelas?.nama_kelas);
 
   const simpan = async () => {
     if (!baris || !jenjang || !tanggal || !alasan) return;
@@ -217,28 +127,11 @@ export default function MutasiKeluarPage() {
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
-      <TopBarFilter>
-        <FilterMulti
-          id="filter_tingkat_mutasi"
-          label="Tingkat"
-          opsi={tingkatOpsi}
-          dipilih={tingkat}
-          onToggle={togolTingkat}
-          onSemua={() => { setTingkat([]); setKelasFilter([]); }}
-        />
-        <FilterMulti
-          id="filter_kelas_mutasi"
-          label="Kelas"
-          opsi={kelasOpsi}
-          dipilih={kelasFilter}
-          onToggle={togolKelas}
-          onSemua={() => setKelasFilter([])}
-        />
-      </TopBarFilter>
+      <FilterTingkatKelas filter={filter} />
       <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1" id="grup_mutasi_kolom">
         <ResizablePanel defaultSize="33" minSize="20">
         <section className="flex h-full min-h-0 min-w-0 flex-col rounded-md">
-          <header className="shrink-0 border-b bg-muted/40 px-3 py-2 text-sm font-medium">Santri aktif ({kiriTampil.length})</header>
+          <header className="shrink-0 border-b bg-muted/40 px-3 py-2 text-sm font-medium">Santri aktif ({filter.tersaring.length})</header>
           <div className="flex min-h-0 flex-1 flex-col px-2 pb-2">
             <ExcelTable
               tableKey="mutasi_santri_aktif"
@@ -246,7 +139,7 @@ export default function MutasiKeluarPage() {
                 { key: 'nama', label: 'santri.nama_lengkap', kind: 'static', sumber: { tabel: 'santri', kolom: 'nama_lengkap' } },
                 { key: 'kelas', label: 'kelas.nama_kelas', kind: 'static', sumber: { tabel: 'kelas', kolom: 'nama_kelas' } },
               ]}
-              rows={kiriTampil}
+              rows={filter.tersaring}
               getValues={(r) => ({ nama: r.santri?.nama_lengkap ?? null, kelas: r.kelas?.nama_kelas ?? null })}
               canEdit={false}
               onCommit={async () => {}}

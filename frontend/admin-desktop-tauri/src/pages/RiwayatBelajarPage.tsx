@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import { FilterTingkatKelas } from '@/components/FilterTingkatKelas';
 import FilterField from '@/components/FilterField';
 import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
 import { useTahunAjaranAwalString } from '@/hooks/useTahunAjaranAwal';
@@ -73,9 +74,10 @@ export default function RiwayatBelajarPage() {
   /** Filter kanan sekaligus kelas tujuan panah (wajib spesifik untuk memasukkan santri). */
   const [kelasId, setKelasId] = useState('');
   const [kelasOpsi, setKelasOpsi] = useState<Kelas[]>([]);
-  /** Filter tingkat per panel (kunci penempatan: tingkat riwayat vs tingkat kelas). */
-  const [tingkatKiri, setTingkatKiri] = useState('');
-  const [tingkatKanan, setTingkatKanan] = useState('');
+  /** Filter tingkat & kelas (multi-pilih) di topBar: tingkat menyaring kedua
+   *  panel; kelas menyaring panel "sudah masuk kelas". */
+  const [tingkatFilter, setTingkatFilter] = useState<string[]>([]);
+  const [kelasFilter, setKelasFilter] = useState<string[]>([]);
   const [busyId, setBusyId] = useState<number | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
   /** Baris tercentang per panel (diangkat via `onCheckedChange` agar tombol
@@ -95,6 +97,19 @@ export default function RiwayatBelajarPage() {
     return [...unik].sort((a, b) => a.localeCompare(b, 'id', { numeric: true }));
   }, [kelasOpsi]);
 
+  /** Id kelas terpilih (dari nama di filter topBar) untuk param server. */
+  const kelasFilterIds = useMemo(
+    () => kelasOpsi.filter((k) => kelasFilter.includes(k.nama_kelas)).map((k) => k.id),
+    [kelasOpsi, kelasFilter],
+  );
+
+  function togolTingkat(v: string) {
+    setTingkatFilter((prev) => (prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v]));
+  }
+  function togolKelas(v: string) {
+    setKelasFilter((prev) => (prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v]));
+  }
+
   const kiri = useDaftarTabel<RiwayatRow>({
     tableKey: 'riwayat_belum_masuk',
     ambil: (a) => {
@@ -106,7 +121,7 @@ export default function RiwayatBelajarPage() {
         tahun_ajaran: taId,
         semester: '1',
         tanpa_kelas: true,
-        tingkat: tingkatKiri || undefined,
+        tingkat: tingkatFilter.length ? tingkatFilter : undefined,
         is_active_riwayat: true,
         q: a.search || undefined,
         sort: a.urut.length ? a.urut : undefined,
@@ -116,7 +131,7 @@ export default function RiwayatBelajarPage() {
         signal: a.signal,
       });
     },
-    deps: [jenjang, taId, tingkatKiri],
+    deps: [jenjang, taId, tingkatFilter],
   });
 
   const kanan = useDaftarTabel<RiwayatRow>({
@@ -130,8 +145,8 @@ export default function RiwayatBelajarPage() {
         tahun_ajaran: taId,
         semester: '1',
         dengan_kelas: true,
-        tingkat: tingkatKanan || undefined,
-        kelas_id: kelasId ? Number(kelasId) : undefined,
+        tingkat: tingkatFilter.length ? tingkatFilter : undefined,
+        kelas_id: kelasFilterIds.length ? kelasFilterIds : undefined,
         is_active_riwayat: true,
         q: a.search || undefined,
         sort: a.urut.length ? a.urut : undefined,
@@ -141,7 +156,7 @@ export default function RiwayatBelajarPage() {
         signal: a.signal,
       });
     },
-    deps: [jenjang, taId, tingkatKanan, kelasId],
+    deps: [jenjang, taId, tingkatFilter, kelasFilterIds],
   });
 
   useEffect(() => {
@@ -150,8 +165,8 @@ export default function RiwayatBelajarPage() {
       .then((p) => setKelasOpsi(p.data))
       .catch(() => setKelasOpsi([]));
     setKelasId('');
-    setTingkatKiri('');
-    setTingkatKanan('');
+    setTingkatFilter([]);
+    setKelasFilter([]);
   }, [jenjang, taId]);
 
   const muatUlang = useCallback(async () => {
@@ -291,6 +306,18 @@ export default function RiwayatBelajarPage() {
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{kiri.err || kanan.err}</ErrorNotice>
+      <FilterTingkatKelas
+        filter={{
+          tingkat: tingkatFilter,
+          kelas: kelasFilter,
+          tingkatOpsi: opsiTingkat,
+          kelasOpsi: kelasOpsi.map((k) => k.nama_kelas),
+          togolTingkat,
+          togolKelas,
+          kosongkanTingkat: () => setTingkatFilter([]),
+          kosongkanKelas: () => setKelasFilter([]),
+        }}
+      />
       {!siap ? (
         <p className="text-sm text-muted-foreground">Pilih lembaga dan tahun ajaran di topbar dulu untuk memuat kedua tabel.</p>
       ) : (
@@ -326,21 +353,6 @@ export default function RiwayatBelajarPage() {
               searchIds={{ form: 'form_cari_belum_kelas', input: 'input_cari_belum_kelas', button: 'btn_cari_belum_kelas' }}
               key={`riwayat_belum_masuk_${nonceKiri}`}
               onCheckedChange={setCentangKiri}
-              filter={(
-                <FilterField label="Tingkat" htmlFor="select_tingkat_belum_kelas">
-                  <Select value={tingkatKiri === '' ? '_semua' : tingkatKiri} onValueChange={(v) => { setTingkatKiri(v === '_semua' ? '' : v); kiri.pager.goFirst(); }}>
-                    <SelectTrigger id="select_tingkat_belum_kelas" title="Filter tingkat" aria-label="Filter tingkat" size="sm" className="w-28">
-                      <SelectValue placeholder="Semua" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        <SelectItem value="_semua">Semua</SelectItem>
-                        {opsiTingkat.map((t) => <SelectItem key={t} value={t}>Tingkat {t}</SelectItem>)}
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                </FilterField>
-              )}
             />,
             <Pager
               page={kiri.pager.page}
@@ -393,34 +405,19 @@ export default function RiwayatBelajarPage() {
               key={`riwayat_belajar_${nonceKanan}`}
               onCheckedChange={setCentangKanan}
               filter={(
-                <>
-                  <FilterField label="Tingkat" htmlFor="select_tingkat_sudah_kelas">
-                    <Select value={tingkatKanan === '' ? '_semua' : tingkatKanan} onValueChange={(v) => { setTingkatKanan(v === '_semua' ? '' : v); kanan.pager.goFirst(); }}>
-                      <SelectTrigger id="select_tingkat_sudah_kelas" title="Filter tingkat" aria-label="Filter tingkat" size="sm" className="w-28">
-                        <SelectValue placeholder="Semua" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectGroup>
-                          <SelectItem value="_semua">Semua</SelectItem>
-                          {opsiTingkat.map((t) => <SelectItem key={t} value={t}>Tingkat {t}</SelectItem>)}
-                        </SelectGroup>
-                      </SelectContent>
-                    </Select>
-                  </FilterField>
-                  <FilterField label="Kelas *" htmlFor="select_kelas_riwayat_belajar">
-                    <Select value={kelasId === '' ? '_semua' : kelasId} onValueChange={(v) => { setKelasId(v === '_semua' ? '' : v); kanan.pager.goFirst(); }}>
-                      <SelectTrigger id="select_kelas_riwayat_belajar" title="Filter tabel + kelas tujuan panah (pilih spesifik untuk memasukkan santri)" aria-label="Filter kelas" size="sm" className="w-32">
-                        <SelectValue placeholder="Semua" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectGroup>
-                          <SelectItem value="_semua">Semua</SelectItem>
-                          {kelasOpsi.map((k) => <SelectItem key={k.id} value={String(k.id)}>{k.nama_kelas}</SelectItem>)}
-                        </SelectGroup>
-                      </SelectContent>
-                    </Select>
-                  </FilterField>
-                </>
+                <FilterField label="Kelas tujuan" htmlFor="select_kelas_riwayat_belajar">
+                  <Select value={kelasId === '' ? '_semua' : kelasId} onValueChange={(v) => setKelasId(v === '_semua' ? '' : v)}>
+                    <SelectTrigger id="select_kelas_riwayat_belajar" title="Kelas tujuan aksi panah (pilih spesifik untuk memasukkan santri)" aria-label="Kelas tujuan" size="sm" className="w-32">
+                      <SelectValue placeholder="Semua" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectItem value="_semua">Semua</SelectItem>
+                        {kelasOpsi.map((k) => <SelectItem key={k.id} value={String(k.id)}>{k.nama_kelas}</SelectItem>)}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </FilterField>
               )}
             />,
             <Pager

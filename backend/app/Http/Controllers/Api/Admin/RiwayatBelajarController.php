@@ -74,10 +74,10 @@ class RiwayatBelajarController extends Controller
             $query->where('riwayat_belajar.semester', $request->input('semester'));
         }
         if ($request->filled('tingkat')) {
-            $query->where('riwayat_belajar.tingkat', $request->input('tingkat'));
+            $query->whereIn('riwayat_belajar.tingkat', (array) $request->input('tingkat'));
         }
         if ($request->filled('kelas_id')) {
-            $query->where('riwayat_belajar.kelas_id', $request->integer('kelas_id'));
+            $query->whereIn('riwayat_belajar.kelas_id', array_map('intval', (array) $request->input('kelas_id')));
         }
         if ($request->filled('status_akhir')) {
             $query->where('riwayat_belajar.status_akhir', $request->input('status_akhir'));
@@ -249,8 +249,10 @@ class RiwayatBelajarController extends Controller
         $data = $request->validate([
             'jenjang' => ['required', 'string', 'exists:lembaga,jenjang'],
             'tahun_ajaran' => ['required', 'string', 'exists:tahun_ajaran,nama'],
-            'tingkat' => ['nullable', 'string', 'max:20'],
-            'kelas_id' => ['nullable', 'integer', 'exists:kelas,id'],
+            'tingkat' => ['nullable'],
+            'tingkat.*' => ['string', 'max:20'],
+            'kelas_id' => ['nullable'],
+            'kelas_id.*' => ['integer', 'exists:kelas,id'],
             'q' => ['nullable', 'string', 'max:100'],
         ]);
         $lembagaId = $data['jenjang'];
@@ -284,10 +286,10 @@ class RiwayatBelajarController extends Controller
             ->where('g2.semester', '2'));
 
         if (! empty($data['tingkat'])) {
-            $query->where('riwayat_belajar.tingkat', $data['tingkat']);
+            $query->whereIn('riwayat_belajar.tingkat', (array) $data['tingkat']);
         }
         if (! empty($data['kelas_id'])) {
-            $query->where('riwayat_belajar.kelas_id', (int) $data['kelas_id']);
+            $query->whereIn('riwayat_belajar.kelas_id', array_map('intval', (array) $data['kelas_id']));
         }
         if (! empty($data['q'])) {
             $cari = $data['q'];

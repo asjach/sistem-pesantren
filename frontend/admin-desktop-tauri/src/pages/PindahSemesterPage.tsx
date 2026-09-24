@@ -12,8 +12,8 @@ import {
 import { listKelas, type Kelas } from '../api/master';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import { FilterTingkatKelas } from '@/components/FilterTingkatKelas';
 import FilterField from '@/components/FilterField';
 import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
 import { useTahunAjaranAwalString } from '@/hooks/useTahunAjaranAwal';
@@ -64,11 +64,9 @@ export default function PindahSemesterPage() {
   useLembagaAwalString(setLembagaId);
   const [taId, setTaId] = useState('');
   useTahunAjaranAwalString(setTaId);
-  /** Filter per panel. */
-  const [tingkatKiri, setTingkatKiri] = useState('');
-  const [kelasKiri, setKelasKiri] = useState('');
-  const [tingkatKanan, setTingkatKanan] = useState('');
-  const [kelasKanan, setKelasKanan] = useState('');
+  /** Filter tingkat & kelas (multi-pilih) di topBar, berlaku untuk kedua panel. */
+  const [tingkatFilter, setTingkatFilter] = useState<string[]>([]);
+  const [kelasFilter, setKelasFilter] = useState<string[]>([]);
   const [kelasOpsi, setKelasOpsi] = useState<Kelas[]>([]);
   const [busyId, setBusyId] = useState<number | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -95,6 +93,19 @@ export default function PindahSemesterPage() {
     return [...unik].sort((a, b) => a.localeCompare(b, 'id', { numeric: true }));
   }, [kelasOpsi]);
 
+  /** Id kelas terpilih (dari nama di filter topBar) untuk param server. */
+  const kelasFilterIds = useMemo(
+    () => kelasOpsi.filter((k) => kelasFilter.includes(k.nama_kelas)).map((k) => k.id),
+    [kelasOpsi, kelasFilter],
+  );
+
+  function togolTingkat(v: string) {
+    setTingkatFilter((prev) => (prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v]));
+  }
+  function togolKelas(v: string) {
+    setKelasFilter((prev) => (prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v]));
+  }
+
   const kiri = useDaftarTabel<RiwayatRow>({
     tableKey: 'pindah_semester_kiri',
     ambil: (a) => {
@@ -104,15 +115,15 @@ export default function PindahSemesterPage() {
       return listBelumGenap({
         jenjang: jenjang,
         tahun_ajaran: taId,
-        tingkat: tingkatKiri || undefined,
-        kelas_id: kelasKiri ? Number(kelasKiri) : undefined,
+        tingkat: tingkatFilter.length ? tingkatFilter : undefined,
+        kelas_id: kelasFilterIds.length ? kelasFilterIds : undefined,
         q: a.search || undefined,
         page: a.page,
         per_page: a.perPage,
         signal: a.signal,
       });
     },
-    deps: [jenjang, taId, tingkatKiri, kelasKiri],
+    deps: [jenjang, taId, tingkatFilter, kelasFilterIds],
   });
 
   const kanan = useDaftarTabel<RiwayatRow>({
@@ -125,8 +136,8 @@ export default function PindahSemesterPage() {
         jenjang: jenjang,
         tahun_ajaran: taId,
         semester: '2',
-        tingkat: tingkatKanan || undefined,
-        kelas_id: kelasKanan ? Number(kelasKanan) : undefined,
+        tingkat: tingkatFilter.length ? tingkatFilter : undefined,
+        kelas_id: kelasFilterIds.length ? kelasFilterIds : undefined,
         is_active_riwayat: true,
         q: a.search || undefined,
         sort: a.urut.length ? a.urut : undefined,
@@ -136,7 +147,7 @@ export default function PindahSemesterPage() {
         signal: a.signal,
       });
     },
-    deps: [jenjang, taId, tingkatKanan, kelasKanan],
+    deps: [jenjang, taId, tingkatFilter, kelasFilterIds],
   });
 
   useEffect(() => {
@@ -144,10 +155,8 @@ export default function PindahSemesterPage() {
     listKelas({ jenjang: jenjang, tahun_ajaran: taId, per_page: 1000 })
       .then((p) => setKelasOpsi(p.data))
       .catch(() => setKelasOpsi([]));
-    setTingkatKiri('');
-    setKelasKiri('');
-    setTingkatKanan('');
-    setKelasKanan('');
+    setTingkatFilter([]);
+    setKelasFilter([]);
   }, [jenjang, taId]);
 
   const muatUlang = useCallback(async () => {
@@ -215,48 +224,6 @@ export default function PindahSemesterPage() {
 
   const siap = jenjang !== '' && taId !== '';
 
-  const filterTingkat = (
-    id: string,
-    nilai: string,
-    ubah: (v: string) => void,
-    goFirst: () => void,
-  ) => (
-    <FilterField label="Tingkat" htmlFor={id}>
-      <Select value={nilai === '' ? '_semua' : nilai} onValueChange={(v) => { ubah(v === '_semua' ? '' : v); goFirst(); }}>
-        <SelectTrigger id={id} title="Filter tingkat" aria-label="Filter tingkat" size="sm" className="w-28">
-          <SelectValue placeholder="Semua" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectGroup>
-            <SelectItem value="_semua">Semua</SelectItem>
-            {opsiTingkat.map((t) => <SelectItem key={t} value={t}>Tingkat {t}</SelectItem>)}
-          </SelectGroup>
-        </SelectContent>
-      </Select>
-    </FilterField>
-  );
-
-  const filterKelas = (
-    id: string,
-    nilai: string,
-    ubah: (v: string) => void,
-    goFirst: () => void,
-  ) => (
-    <FilterField label="Kelas" htmlFor={id}>
-      <Select value={nilai === '' ? '_semua' : nilai} onValueChange={(v) => { ubah(v === '_semua' ? '' : v); goFirst(); }}>
-        <SelectTrigger id={id} title="Filter kelas" aria-label="Filter kelas" size="sm" className="w-32">
-          <SelectValue placeholder="Semua" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectGroup>
-            <SelectItem value="_semua">Semua</SelectItem>
-            {kelasOpsi.map((k) => <SelectItem key={k.id} value={String(k.id)}>{k.nama_kelas}</SelectItem>)}
-          </SelectGroup>
-        </SelectContent>
-      </Select>
-    </FilterField>
-  );
-
   const panel = (
     key: string,
     judul: string,
@@ -280,6 +247,18 @@ export default function PindahSemesterPage() {
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{kiri.err || kanan.err}</ErrorNotice>
+      <FilterTingkatKelas
+        filter={{
+          tingkat: tingkatFilter,
+          kelas: kelasFilter,
+          tingkatOpsi: opsiTingkat,
+          kelasOpsi: kelasOpsi.map((k) => k.nama_kelas),
+          togolTingkat,
+          togolKelas,
+          kosongkanTingkat: () => setTingkatFilter([]),
+          kosongkanKelas: () => setKelasFilter([]),
+        }}
+      />
       {!siap ? (
         <p className="text-sm text-muted-foreground">Pilih lembaga dan tahun ajaran di topbar dulu untuk memuat kedua tabel.</p>
       ) : (
@@ -315,12 +294,6 @@ export default function PindahSemesterPage() {
               searchIds={{ form: 'form_cari_belum_genap', input: 'input_cari_belum_genap', button: 'btn_cari_belum_genap' }}
               key={`pindah_semester_kiri_${nonceKiri}`}
               onCheckedChange={setCentangKiri}
-              filter={(
-                <>
-                  {filterTingkat('select_tingkat_belum_genap', tingkatKiri, setTingkatKiri, () => kiri.pager.goFirst())}
-                  {filterKelas('select_kelas_belum_genap', kelasKiri, setKelasKiri, () => kiri.pager.goFirst())}
-                </>
-              )}
               awalanToolbar={(
                 <FilterField label="Tgl masuk" htmlFor="input_tgl_masuk_genap">
                   <Input
@@ -386,12 +359,6 @@ export default function PindahSemesterPage() {
               searchIds={{ form: 'form_cari_sudah_genap', input: 'input_cari_sudah_genap', button: 'btn_cari_sudah_genap' }}
               key={`pindah_semester_kanan_${nonceKanan}`}
               onCheckedChange={setCentangKanan}
-              filter={(
-                <>
-                  {filterTingkat('select_tingkat_sudah_genap', tingkatKanan, setTingkatKanan, () => kanan.pager.goFirst())}
-                  {filterKelas('select_kelas_sudah_genap', kelasKanan, setKelasKanan, () => kanan.pager.goFirst())}
-                </>
-              )}
             />,
             <Pager
               page={kanan.pager.page}

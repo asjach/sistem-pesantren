@@ -184,6 +184,7 @@
 | 2.130 | 2026-09-24 | Ribbon tabel: hapus header grup MODE, KOLOM, BARIS, dan FONT & WARNA (`RibbonGroup` label jadi opsional) |
 | 2.131 | 2026-09-24 | TopBar: tombol toggle tampil/sembunyi ribbon diperlebar (`size-6` → `w-14`) |
 | 2.132 | 2026-09-24 | TopBar: tombol mode (Terang/Gelap/Sistem) dipindah dari baris atas ke area akun — blok khusus di bawah nama akun, di atas menu Tema |
+| 2.133 | 2026-09-24 | Filter **tingkat & kelas** (multi-pilih, topBar) dipakai lintas halaman via komponen bersama `FilterTingkatKelas`: Mutasi Keluar, Kenaikan Kelas, Daftar Kelas, Pindah Kelas, Riwayat Belajar, Pindah Semester (server-side), dan MI-MD (kelas saja). Endpoint `riwayat-belajar` & `riwayat-belajar/belum-genap` kini menerima `tingkat[]` & `kelas_id[]` |
 
 ## Daftar Isi
 

@@ -17,6 +17,8 @@ import { ActionIcon } from '@/components/RowActions';
 import { ArrowRight, X } from '@/icons';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import { FilterMulti } from '@/components/FilterTingkatKelas';
+import { TopBarFilter } from '@/components/TopBarFilter';
 import { useTahunAjaranAwalString } from '@/hooks/useTahunAjaranAwal';
 import { toast } from 'sonner';
 
@@ -37,6 +39,8 @@ export default function MiMdPage() {
   const [cariBeda, setCariBeda] = useState('');
   const [busyId, setBusyId] = useState<number | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
+  /** Filter kelas (multi-pilih) di topBar — gabungan kelas MI & MD. */
+  const [kelasFilter, setKelasFilter] = useState<string[]>([]);
 
   const load = useCallback(async () => {
     setErr('');
@@ -64,9 +68,31 @@ export default function MiMdPage() {
     [],
   );
 
-  const rowsMi = useMemo(() => saring(data?.mi_only ?? [], cariMi), [data, cariMi, saring]);
-  const rowsMd = useMemo(() => saring(data?.md_semua ?? [], cariMd), [data, cariMd, saring]);
-  const rowsBeda = useMemo(() => saring(data?.beda_kelas ?? [], cariBeda), [data, cariBeda, saring]);
+  const kelasOpsi = useMemo(() => {
+    const unik = new Set<string>();
+    for (const r of data?.mi_only ?? []) if (r.kelas_mi) unik.add(r.kelas_mi);
+    for (const r of data?.md_semua ?? []) if (r.kelas_md) unik.add(r.kelas_md);
+    for (const r of data?.beda_kelas ?? []) {
+      if (r.kelas_mi) unik.add(r.kelas_mi);
+      if (r.kelas_md) unik.add(r.kelas_md);
+    }
+    return [...unik].sort((a, b) => a.localeCompare(b, 'id', { numeric: true }));
+  }, [data]);
+
+  /** Baris lolos bila salah satu kelasnya (MI atau MD) terpilih. */
+  const cocokKelas = useCallback((r: Baris): boolean => (
+    kelasFilter.length === 0
+    || (typeof r.kelas_mi === 'string' && kelasFilter.includes(r.kelas_mi))
+    || (typeof r.kelas_md === 'string' && kelasFilter.includes(r.kelas_md))
+  ), [kelasFilter]);
+
+  const rowsMi = useMemo(() => saring(data?.mi_only ?? [], cariMi).filter(cocokKelas), [data, cariMi, saring, cocokKelas]);
+  const rowsMd = useMemo(() => saring(data?.md_semua ?? [], cariMd).filter(cocokKelas), [data, cariMd, saring, cocokKelas]);
+  const rowsBeda = useMemo(() => saring(data?.beda_kelas ?? [], cariBeda).filter(cocokKelas), [data, cariBeda, saring, cocokKelas]);
+
+  function togolKelas(v: string) {
+    setKelasFilter((prev) => (prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v]));
+  }
 
   async function samakan(santriId: number, arah: 'ke_mi' | 'ke_md') {
     setBusyId(santriId);
@@ -250,6 +276,16 @@ export default function MiMdPage() {
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
+      <TopBarFilter>
+        <FilterMulti
+          id="filter_kelas_mi_md"
+          label="Kelas"
+          opsi={kelasOpsi}
+          dipilih={kelasFilter}
+          onToggle={togolKelas}
+          onSemua={() => setKelasFilter([])}
+        />
+      </TopBarFilter>
       {loading && !data ? (
         <p className="text-sm text-muted-foreground">Memuat…</p>
       ) : (
@@ -258,7 +294,7 @@ export default function MiMdPage() {
             Tahun ajaran: {data?.tahun_ajaran ?? 'Semua'}
           </p>
           <div className="grid min-h-0 flex-1 grid-cols-[repeat(auto-fit,minmax(min(360px,100%),1fr))] gap-4">
-          {panel('mi', 'MI Only', data?.mi_only.length ?? 0, cariMi, setCariMi, FIELDS_MI, rowsMi, nilaiStatis,
+          {panel('mi', 'MI Only', rowsMi.length, cariMi, setCariMi, FIELDS_MI, rowsMi, nilaiStatis,
             canDaftar
               ? (r) => (
                 <ActionIcon
@@ -285,7 +321,7 @@ export default function MiMdPage() {
               )
               : undefined,
           )}
-          {panel('md', 'MD Semua', data?.md_semua.length ?? 0, cariMd, setCariMd, FIELDS_MD, rowsMd, nilaiStatis,
+          {panel('md', 'MD Semua', rowsMd.length, cariMd, setCariMd, FIELDS_MD, rowsMd, nilaiStatis,
             canHentikan
               ? (r) => (r.juga_mi === true
                 ? (
@@ -319,7 +355,7 @@ export default function MiMdPage() {
           {panel(
             'beda',
             'Perbandingan Kelas',
-            data?.beda_kelas.length ?? 0,
+            rowsBeda.length,
             cariBeda,
             setCariBeda,
             FIELDS_BEDA,

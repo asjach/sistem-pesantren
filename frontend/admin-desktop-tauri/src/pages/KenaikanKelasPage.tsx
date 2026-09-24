@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/field';
 import ExcelTable from '@/components/ExcelTable';
+import { FilterTingkatKelas, useFilterTingkatKelas } from '@/components/FilterTingkatKelas';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
@@ -34,6 +35,8 @@ export default function KenaikanKelasPage() {
   const [urut, setUrut] = useState<string[]>([]);
   const [arahUrut, setArahUrut] = useState<'naik' | 'turun'>('naik');
   const [kiri, setKiri] = useState<RiwayatRow[]>([]);
+  /** Filter tingkat & kelas (multi-pilih) di topBar. */
+  const filter = useFilterTingkatKelas(kiri, (r) => r.tingkat, (r) => r.kelas?.nama_kelas);
   /** Hasil sesi ini (kanan atas = naik, kanan bawah = tidak naik). */
   const [hasilNaik, setHasilNaik] = useState<Baris[]>([]);
   const [hasilTidak, setHasilTidak] = useState<Baris[]>([]);
@@ -93,12 +96,12 @@ export default function KenaikanKelasPage() {
 
   /** Naik: sisa tabel kiri dianggap naik semua. */
   const prosesNaik = async () => {
-    if (!jenjang || kiri.length === 0 || !tglMasuk || busy) return;
+    if (!jenjang || filter.tersaring.length === 0 || !tglMasuk || busy) return;
     setBusy(true);
     try {
       const res = await naikKelasOtomatis({
         jenjang: jenjang,
-        siswa: kiri.map((r) => ({ santri_id: r.santri_id, status: 'naik' as const, tgl_masuk: tglMasuk })),
+        siswa: filter.tersaring.map((r) => ({ santri_id: r.santri_id, status: 'naik' as const, tgl_masuk: tglMasuk })),
       });
       toast.success(`Kenaikan selesai: ${res.berhasil} berhasil, ${res.gagal.length} gagal.`);
       if (res.gagal.length) toast.error(res.gagal.map((g) => `#${g.santri_id}: ${g.pesan}`).join(' · '));
@@ -146,11 +149,12 @@ export default function KenaikanKelasPage() {
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
+      <FilterTingkatKelas filter={filter} />
       <div className="flex flex-wrap items-end gap-3">
         {canUbah && (
         <>
-          <Button id="btn_naik_kenaikan" disabled={busy || busyId !== null || kiri.length === 0 || !tglMasuk} onClick={() => void prosesNaik()}>
-            Naik ({kiri.length})
+          <Button id="btn_naik_kenaikan" disabled={busy || busyId !== null || filter.tersaring.length === 0 || !tglMasuk} onClick={() => void prosesNaik()}>
+            Naik ({filter.tersaring.length})
           </Button>
           <div>
             <FieldLabel htmlFor="input_tgl_kenaikan">Tanggal masuk kelas baru</FieldLabel>
@@ -164,7 +168,7 @@ export default function KenaikanKelasPage() {
         <ResizablePanel defaultSize={50} minSize={25}>
         <section className="flex h-full min-h-0 min-w-0 flex-col">
           <header className="flex shrink-0 items-center justify-between border-b bg-muted/40 px-3 py-2 text-sm font-medium">
-            <span>Santri semester genap, tingkat 1–5 ({kiri.length})</span>
+            <span>Santri semester genap, tingkat 1–5 ({filter.tersaring.length})</span>
           </header>
           <div className="flex min-h-0 flex-1 flex-col px-2 pb-2">
             <ExcelTable
@@ -174,7 +178,7 @@ export default function KenaikanKelasPage() {
                 { key: 'kelas', label: 'kelas.nama_kelas', kind: 'static', sumber: { tabel: 'kelas', kolom: 'nama_kelas' } },
                 { key: 'tingkat', label: 'tingkat', kind: 'static', sumber: { tabel: 'riwayat_belajar', kolom: 'tingkat' } },
               ]}
-              rows={kiri}
+              rows={filter.tersaring}
               getValues={(r) => ({
                 nama: r.santri?.nama_lengkap ?? null,
                 kelas: r.kelas?.nama_kelas ?? null,

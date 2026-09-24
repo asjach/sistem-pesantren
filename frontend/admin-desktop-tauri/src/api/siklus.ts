@@ -127,12 +127,19 @@ export interface RiwayatRow {
   tahunAjaran?: { nama: string } | null;
 }
 
+/** Tambah param berulang `key[]=…` untuk filter multi (nilai tunggal/array). */
+function appendMulti(q: URLSearchParams, key: string, v?: string | number | Array<string | number>) {
+  if (v == null) return;
+  const arr = Array.isArray(v) ? v : [v];
+  for (const x of arr) if (x !== '') q.append(`${key}[]`, String(x));
+}
+
 export function listRiwayatBelajar(params: {
   jenjang?: string;
   tahun_ajaran?: string;
   semester?: string;
-  tingkat?: string;
-  kelas_id?: number;
+  tingkat?: string | string[];
+  kelas_id?: number | number[];
   tanpa_kelas?: boolean;
   dengan_kelas?: boolean;
   q?: string;
@@ -149,8 +156,8 @@ export function listRiwayatBelajar(params: {
   if (params.jenjang) q.set('jenjang', params.jenjang);
   if (params.tahun_ajaran) q.set('tahun_ajaran', params.tahun_ajaran);
   if (params.semester) q.set('semester', params.semester);
-  if (params.tingkat) q.set('tingkat', params.tingkat);
-  if (params.kelas_id) q.set('kelas_id', String(params.kelas_id));
+  if (params.tingkat) appendMulti(q, 'tingkat', params.tingkat);
+  if (params.kelas_id) appendMulti(q, 'kelas_id', params.kelas_id);
   if (params.tanpa_kelas) q.set('tanpa_kelas', '1');
   if (params.dengan_kelas) q.set('dengan_kelas', '1');
   if (params.q) q.set('q', params.q);
@@ -241,8 +248,8 @@ export function listBelumMasukRiwayat(params: {
 export function listBelumGenap(params: {
   jenjang: string;
   tahun_ajaran: string;
-  tingkat?: string;
-  kelas_id?: number;
+  tingkat?: string | string[];
+  kelas_id?: number | number[];
   q?: string;
   page?: number;
   per_page?: number;
@@ -251,8 +258,8 @@ export function listBelumGenap(params: {
   const q = new URLSearchParams();
   q.set('jenjang', params.jenjang);
   q.set('tahun_ajaran', params.tahun_ajaran);
-  if (params.tingkat) q.set('tingkat', params.tingkat);
-  if (params.kelas_id) q.set('kelas_id', String(params.kelas_id));
+  if (params.tingkat) appendMulti(q, 'tingkat', params.tingkat);
+  if (params.kelas_id) appendMulti(q, 'kelas_id', params.kelas_id);
   if (params.q) q.set('q', params.q);
   q.set('page', String(params.page ?? 1));
   if (params.per_page != null) q.set('per_page', String(params.per_page));
