@@ -361,8 +361,8 @@ export function daftarKelas(params: {
   tingkat?: string | string[];
   /** Cari nama/NIK santri atau NIS lokal. */
   search?: string;
-  /** Basis status_akhir: aktif = gabungan 5 status; nonaktif = keluar. */
-  kelompok_status?: 'aktif' | 'nonaktif';
+  /** Basis status_akhir: aktif = gabungan 5 status; nonaktif = keluar; semua = tanpa filter. */
+  kelompok_status?: 'aktif' | 'nonaktif' | 'semua';
   /** Matikan default TA/semester agar bisa lintas periode. */
   lintas_periode?: boolean;
   sort?: string[];

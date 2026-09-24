@@ -711,6 +711,16 @@ class SiklusFlowTest extends TestCase
         $this->assertTrue($namaNon->contains(fn ($n) => str_starts_with($n, 'Kelompok Tiga')));
         $this->assertFalse($namaNon->contains(fn ($n) => str_starts_with($n, 'Kelompok Satu')));
 
+        // Semua = aktif + nonaktif (tanpa filter status sama sekali).
+        $semua = $this->actingAs($admin, 'sanctum')
+            ->getJson('/api/admin/akademik/daftar-kelas?jenjang='.$f['mi']->jenjang.'&kelompok_status=semua&lintas_periode=1')
+            ->assertStatus(200);
+        $namaSemua = collect($semua->json('data'))->pluck('santri.nama_lengkap');
+        $this->assertTrue($namaSemua->contains(fn ($n) => str_starts_with($n, 'Kelompok Satu')));
+        $this->assertTrue($namaSemua->contains(fn ($n) => str_starts_with($n, 'Kelompok Dua')));
+        $this->assertTrue($namaSemua->contains(fn ($n) => str_starts_with($n, 'Kelompok Tiga')));
+        $this->assertSame(3, $semua->json('total'));
+
         // Tanpa kelompok: perilaku lama (is_aktif + default periode).
         $lama = $this->actingAs($admin, 'sanctum')
             ->getJson('/api/admin/akademik/daftar-kelas?jenjang='.$f['mi']->jenjang)

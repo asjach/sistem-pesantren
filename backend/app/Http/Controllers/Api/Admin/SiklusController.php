@@ -462,6 +462,8 @@ class SiklusController extends Controller
             $query->whereIn('riwayat_belajar.status_akhir', ['aktif', 'lanjut', 'naik', 'tidak_naik', 'lulus', 'tidak_lulus']);
         } elseif ($kelompok === 'nonaktif') {
             $query->where('riwayat_belajar.status_akhir', 'pindah_keluar');
+        } elseif ($kelompok === 'semua') {
+            // Semua status: tanpa filter status sama sekali.
         } else {
             $query->where('riwayat_belajar.is_active_riwayat', RiwayatBelajar::YA);
         }

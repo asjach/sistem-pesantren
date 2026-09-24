@@ -92,7 +92,7 @@ export default function DaftarKelasPage() {
         jenjang: jenjang,
         tahun_ajaran: taId || undefined,
         semester: semester || undefined,
-        kelompok_status: kelompok === '' ? undefined : (kelompok as 'aktif' | 'nonaktif'),
+        kelompok_status: kelompok === '' ? 'semua' : (kelompok as 'aktif' | 'nonaktif'),
         lintas_periode: lintas || undefined,
         tingkat: tingkatAktif.length ? tingkatAktif : undefined,
         kelas_id: kelasFilterIds.length ? kelasFilterIds : undefined,

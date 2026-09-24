@@ -25,8 +25,8 @@ class SiklusDaftarKelasRequest extends FormRequest
             'tingkat.*' => ['string'],
             /** Cari nama/NIK santri atau NIS lokal. */
             'q' => ['nullable', 'string', 'max:100'],
-            /** Basis tampil status_akhir: aktif = gabungan 6 status, nonaktif = keluar. */
-            'kelompok_status' => ['nullable', 'in:aktif,nonaktif'],
+            /** Basis tampil status_akhir: aktif = gabungan 6 status, nonaktif = keluar, semua = tanpa filter status. */
+            'kelompok_status' => ['nullable', 'in:aktif,nonaktif,semua'],
             /** Matikan default TA/semester agar bisa lintas periode. */
             'lintas_periode' => ['nullable', 'boolean'],
         ];
