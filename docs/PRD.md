@@ -192,6 +192,7 @@
 | 2.138 | 2026-09-24 | TopBar search: placeholder dihapus (teks label tetap dipakai sebagai `aria-label`) |
 | 2.139 | 2026-09-24 | Toolbar tabel: label filter/dropdown (Tingkat, Urutkan, Kolom, dll.) disejajarkan **satu baris** dengan kontrolnya (inline) saat berada di toolbar; di luar toolbar tetap bertumpuk |
 | 2.140 | 2026-09-24 | Dropdown Urutkan: label opsi "Tanpa urutan" diganti strip "—" |
+| 2.141 | 2026-09-24 | Tombol **PERAN SEBAGAI** di baris atas dihapus; pilih/keluar peran lembaga super_admin pindah ke section **"Peran sebagai"** di menu akun (tetap tampil saat bertindak; banner act-as dipertahankan sebagai penanda) |
 
 ## Daftar Isi
 

@@ -26,7 +26,7 @@ import {
 import { ICON_SETS } from '@/iconSets';
 import { THEME_PRESETS } from '@/themes';
 import { DEFAULT_PREFS, WARNA_UI } from '@/prefs';
-import { Blend, Check, ChevronDown, ChevronUp, Landmark, LogOut, Monitor, Moon, Paintbrush, Palette, SquareMousePointer, Sun, Users } from '@/icons';
+import { Blend, Check, ChevronDown, ChevronUp, LogOut, Monitor, Moon, Paintbrush, Palette, SquareMousePointer, Sun, Users } from '@/icons';
 import { useRibbonTable } from '@/components/RibbonTable';
 import { useRibbonSlotCtx } from '@/components/RibbonSlot';
 import { useTopBarFilterCtx } from '@/components/TopBarFilter';
@@ -57,7 +57,7 @@ const TOOLS_TAMPIL_KEY = 'simpes_tools_tampil';
  *  Navigasi halaman ada di Sidebar, bukan di sini. */
 export default function TopBar() {
   const { user, logoutLocal } = useAuth();
-  const { jenjang, lembaga, pilihan, adaSemua, banyakPilihan, bertindak, peran, pilih, loading: lembagaLoading } = useLembagaAktif();
+  const { jenjang, lembaga, pilihan, adaSemua, banyakPilihan, bertindak, pilih, pilihPeran, pilihanPeran, peranJenjang, loading: lembagaLoading } = useLembagaAktif();
   const { tahunAjaranNama, tahunAjaran, pilihan: taPilihan, pilih: taPilih, loading: taLoading } = useTahunAjaranAktif();
   const { semester, pilih: pilihSemester, loading: semesterLoading } = useSemesterAktif();
 
@@ -93,7 +93,7 @@ export default function TopBar() {
     return () => { hidup = false; };
   }, [jenjang, pilihSemester, lembagaLoading]);
   // Dropdown lembaga = filter (bebas diubah kapan pun, termasuk saat bertindak);
-  // peran act-as diatur terpisah lewat tombol PERAN SEBAGAI + banner.
+  // peran act-as diatur lewat menu akun (section "Peran sebagai") + banner.
   const daftarLembaga = pilihan;
   const { theme, mode, dark, iconSet, warnaUI, navigasi, setTheme, setMode, setIconSet, setWarnaUI, setNavigasi } = useTheme();
   const picker = usePicker();
@@ -114,9 +114,6 @@ export default function TopBar() {
   const halaman = halamanDariPath(pathname);
   const [toolsTampil, setToolsTampil] = useState(true);
   const [tabTools, setTabTools] = useState<'halaman' | 'tabel'>('halaman');
-  /** Banner pemilih peran (MI/MD/MTS/MLN) untuk super_admin. */
-  const [peranTerbuka, setPeranTerbuka] = useState(false);
-  const tutupPeran = useCallback(() => setPeranTerbuka(false), []);
   const isSuperAdmin = !!user?.roles.some((r) => r.name === 'super_admin');
   const adaToolsHalaman = slotAda;
   const adaToolsTabel = apiTabel !== null;
@@ -212,7 +209,7 @@ export default function TopBar() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="max-h-80 min-w-[12rem] overflow-y-auto">
                 {/* Filter "Semua lembaga" selalu tersedia selama punya akses
-                    (bukan peran; keluar dari peran lewat banner / Esc). */}
+                    (bukan peran; keluar dari peran lewat menu akun / banner / Esc). */}
                 {adaSemua && (
                   <DropdownMenuItem id="menu_lembaga_aktif_semua" onSelect={() => pilih(null)}>
                     <span className="flex-1">Semua</span>
@@ -288,28 +285,8 @@ export default function TopBar() {
           )}
           {/* Filter halaman (mis. tingkat/kelas) menyusul tepat setelah semester. */}
           <div ref={filterHostRef} className="contents" />
-          {/* Perenggang kanan: filter global tetap di tengah; peran + akun di kanan. */}
+          {/* Perenggang kanan: filter global tetap di tengah; akun di kanan. */}
           <div aria-hidden="true" className="min-w-0 flex-1" />
-          {/* Peran act-as super_admin (dekat area akun, terpisah dari filter).
-              Disembunyikan saat bertindak: peran murni MTS tak punya hak
-              act-as; satu-satunya jalan ganti peran adalah banner. */}
-          {!lembagaLoading && isSuperAdmin && adaSemua && !bertindak && (
-            <button
-              id="btn_peran_sebagai"
-              type="button"
-              title="Pilih peran lembaga (MI / MD / MTS / MLN)"
-              aria-label="Pilih peran lembaga"
-              aria-expanded={peranTerbuka}
-              onClick={() => setPeranTerbuka((v) => !v)}
-              className={cn(navBase, navIdle, 'mr-1 data-[state=open]:bg-white/15', (bertindak || peranTerbuka) && 'bg-white/15')}
-            >
-              <Landmark size={14} />
-              <span className="hidden max-w-[9rem] truncate sm:inline">
-                {peran ? `PERAN: ${peran.jenjang}` : 'PERAN'}
-              </span>
-              <ChevronDown size={13} className="opacity-70" />
-            </button>
-          )}
           {adaTools && (
             <button
               id="btn_tampil_tools"
@@ -365,6 +342,26 @@ export default function TopBar() {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
+              {/* Peran act-as super_admin (pengganti tombol PERAN SEBAGAI di
+                  baris atas). Tetap tampil saat bertindak agar ganti/keluar
+                  peran bisa dari sini selain banner/Esc. */}
+              {!lembagaLoading && isSuperAdmin && adaSemua && pilihanPeran.length > 0 && (
+                <>
+                  <DropdownMenuLabel className="text-foreground">Peran sebagai</DropdownMenuLabel>
+                  {pilihanPeran.map((p) => (
+                    <DropdownMenuItem key={p.jenjang} id={`menu_peran_${p.jenjang.toLowerCase()}`} onSelect={() => pilihPeran(p.jenjang)}>
+                      <span className="flex-1 truncate">{`${p.jenjang} — ${p.nama}`}</span>
+                      {peranJenjang === p.jenjang && <Check data-icon="inline-end" size={14} />}
+                    </DropdownMenuItem>
+                  ))}
+                  {bertindak && (
+                    <DropdownMenuItem id="menu_peran_kembali" onSelect={() => pilihPeran(null)}>
+                      <span className="flex-1">Kembali ke {user?.name}</span>
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuSeparator />
+                </>
+              )}
               {/* Area mode tampilan (terang/gelap/sistem) — di bawah nama akun,
                   di atas menu Tema. Bukan item menu agar klik tak menutup. */}
               <div className="px-2 py-1.5">
@@ -479,7 +476,7 @@ export default function TopBar() {
       </div>
 
       {/* Banner "bertindak sebagai lembaga": di atas ribbon agar selalu terlihat. */}
-      <BannerBertindak terbuka={peranTerbuka} onTutup={tutupPeran} />
+      <BannerBertindak terbuka={false} onTutup={() => {}} />
 
       {/* Baris 2: ribbon tools kontekstual (kontrol tabel / tools halaman). */}
       {tampilTools && (

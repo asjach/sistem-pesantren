@@ -11,8 +11,8 @@ const CEPAT = ['MI', 'MD', 'MTS', 'MLN'];
 
 /**
  * Banner peran super_admin: pemilih cepat MI/MD/MTS/MLN + penanda act-as.
- * Tampil saat sedang bertindak sebagai lembaga ATAU saat pemilih dibuka
- * lewat tombol "PERAN SEBAGAI" di topbar. Keluar: Esc atau tombol kembali.
+ * Tampil saat sedang bertindak sebagai lembaga. Pilih/keluar peran lewat
+ * section "Peran sebagai" di menu akun, banner ini, atau Esc.
  */
 export default function BannerBertindak({ terbuka, onTutup }: {
   /** Pemilih peran sedang dibuka (tampil walau belum bertindak). */
