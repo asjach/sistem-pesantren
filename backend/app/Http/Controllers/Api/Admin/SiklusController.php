@@ -169,7 +169,7 @@ class SiklusController extends Controller
                     $item['status'],
                     $item['tgl_masuk']
                 );
-                $baru->load(['santri:id,nama_lengkap', 'kelas:id,nama_kelas', 'tahunAjaran:id,nama']);
+                $baru->load(['santri:id,nama_lengkap', 'kelas:id,nama_kelas', 'tahunAjaran:nama']);
                 $hasil[] = [
                     'santri_id' => $baru->santri_id,
                     'nama' => $baru->santri?->nama_lengkap,

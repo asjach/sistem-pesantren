@@ -44,6 +44,10 @@ class IzinMatriksTest extends TestCase
     protected function fixtureKelas(): Kelas
     {
         $unik = strtoupper(substr(uniqid(), -5));
+        // Nama TA unik per panggilan namun tetap pola YYYY/YYYY (9 char,
+        // sesuai varchar kolom `nama` — MySQL menegakkan panjang).
+        $thn = 2026 + (intval(substr($unik, -2), 16) % 40);
+        $namaTa = sprintf('%04d/%04d', $thn, $thn + 1);
         $root = Lembaga::create([
             'nama' => 'Pesantren Root', 'jenjang' => 'PESANTREN'.$unik,
             'is_seleksi' => false, 'kelompok_psb' => 'eksklusif', 'is_active' => true,
@@ -53,8 +57,8 @@ class IzinMatriksTest extends TestCase
             'is_seleksi' => false, 'kelompok_psb' => 'combo_mi_md', 'is_active' => true,
         ]);
         $ta = TahunAjaran::create([
-            'jenjang' => null, 'nama' => '2026/2027 '.$unik,
-            'tanggal_mulai' => '2026-07-01', 'tanggal_selesai' => '2027-06-30', 'is_aktif' => true,
+            'nama' => $namaTa,
+            'tanggal_mulai' => sprintf('%04d-07-01', $thn), 'tanggal_selesai' => sprintf('%04d-06-30', $thn + 1), 'is_aktif' => true,
         ]);
 
         return Kelas::create([

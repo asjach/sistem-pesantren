@@ -69,7 +69,8 @@ class PengaturanHalamanTest extends TestCase
         ])->assertStatus(403);
         $this->assertSame(0, PengaturanHalaman::where('page_key', 'daftar_kelas')->count());
 
-        // Super_admin menyimpan + membaca kembali.
+        // Super_admin menyimpan + membaca kembali (per kunci: MySQL tak
+        // menjamin urutan kunci objek JSON sama dengan urutan kirim).
         $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/pengaturan-halaman', [
             'page_key' => 'daftar_kelas',
             'filter' => ['tingkat' => false, 'kelas' => true, 'semester' => false],
@@ -77,7 +78,9 @@ class PengaturanHalamanTest extends TestCase
         $this->actingAs($scoped, 'sanctum')
             ->getJson('/api/admin/pengaturan-halaman?page_key=daftar_kelas')
             ->assertStatus(200)
-            ->assertJsonPath('data.filter', ['tingkat' => false, 'kelas' => true, 'semester' => false]);
+            ->assertJsonPath('data.filter.tingkat', false)
+            ->assertJsonPath('data.filter.kelas', true)
+            ->assertJsonPath('data.filter.semester', false);
 
         // Simpan parsial tak menghapus kunci lain.
         $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/pengaturan-halaman', [
@@ -87,7 +90,10 @@ class PengaturanHalamanTest extends TestCase
         $this->actingAs($scoped, 'sanctum')
             ->getJson('/api/admin/pengaturan-halaman?page_key=daftar_kelas')
             ->assertStatus(200)
-            ->assertJsonPath('data.filter', ['tingkat' => false, 'kelas' => true, 'semester' => false, 'lembaga' => false]);
+            ->assertJsonPath('data.filter.tingkat', false)
+            ->assertJsonPath('data.filter.kelas', true)
+            ->assertJsonPath('data.filter.semester', false)
+            ->assertJsonPath('data.filter.lembaga', false);
 
         // Admin lembaga ditolak menghapus; super_admin mengembalikan bawaan.
         $this->actingAs($scoped, 'sanctum')

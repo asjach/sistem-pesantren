@@ -201,6 +201,7 @@
 | 2.147 | 2026-09-24 | Daftar Kelas: hapus 6 kolom jejak teknis (`riwayat/santri/anggota.created_at+updated_at`) dari grid; header CREATED AT/UPDATED AT tak lagi tampil |
 | 2.148 | 2026-09-24 | Daftar Kelas: hapus kolom ganda — `TAHUN AJARAN` (nilai sama dengan `TA`), `JENJANG` (sama dengan `LEMBAGA`), `TGL MASUK` anggota (header kembar milik riwayat; sisakan riwayat), ID teknis `SANTRI_ID`+`KELAS_ID` |
 | 2.149 | 2026-09-24 | Dialog **Kelola Halaman** (perluasan Kelola Tabel ke cakupan halaman): 4 tab Filter/Kolom/Urutan/Toolbar + pemilih tabel; visibilitas filter topBar pindah ke tabel `pengaturan_halaman` (DB menang atas bawaan kode; tombol topBar khusus super_admin). `VisibilitasFilter` → `PengaturanHalaman` (+registrasi tabel; diekstraksi ke konstanta di Mutasi/Kenaikan/Kelulusan/Semester). Halaman tanpa grid (Dashboard, Rekap, Pengaturan) tanpa tombol |
+| 2.150 | 2026-09-24 | Fix CI MySQL (lolos SQLite karena DQS literal + varchar tak ditegakkan): `tahunAjaran:id,nama` → `tahunAjaran:nama` (PsbKegiatan index, Siklus naik-otomatis); fixture TA matriks ≤9 char unik; assert filter per-kunci (urutan kunci JSON MySQL ≠ urutan kirim) |
 
 ## Daftar Isi
 

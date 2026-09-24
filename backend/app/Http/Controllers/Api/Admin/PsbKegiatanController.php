@@ -22,7 +22,7 @@ class PsbKegiatanController extends Controller
     /** GET /api/admin/psb/kegiatan (kegiatan se-pesantren: terlihat semua admin). */
     public function index(): JsonResponse
     {
-        $rows = PsbKegiatan::with('tahunAjaran:id,nama')
+        $rows = PsbKegiatan::with('tahunAjaran:nama')
             ->withCount('gelombang')
             ->orderByDesc('id')
             ->get();
