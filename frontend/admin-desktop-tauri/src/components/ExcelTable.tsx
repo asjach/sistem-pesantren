@@ -121,6 +121,8 @@ interface ExcelTableProps<T extends { id: string | number }> {
   /** Isi kolom Aksi (ikon Lihat/Ubah/Hapus, sudah digerbang role oleh halaman). */
   renderActions: (row: T) => ReactNode;
   filter?: ReactNode;
+  /** Label info halaman di zona tengah toolbar (baris 1; baris 2 = seleksi). */
+  tengah?: ReactNode;
   /** Kontrol di awal toolbar (mis. pemilih
    *  tabel pada halaman Kamus Label). */
   awalanToolbar?: ReactNode;
@@ -203,6 +205,7 @@ export default function ExcelTable<T extends { id: string | number }>({
   onSaved,
   renderActions,
   filter,
+  tengah,
   awalanToolbar,
   akhirToolbar,
   addButton,
@@ -1946,6 +1949,7 @@ export default function ExcelTable<T extends { id: string | number }>({
         addButton={addButton}
         filter={filter}
         hasFilter={hasFilter}
+        tengah={tengah}
         checkedCount={checkedIds.size}
         checkedRows={checkedRows}
         renderBulkActions={renderBulkActions}

@@ -143,28 +143,28 @@ export default function DaftarKelasPage() {
           </>
         ) : null)}
         filter={(
-          <>
-            <FilterField label="Status" htmlFor="select_status_daftar_kelas">
-              <Select value={kelompok === '' ? '_semua' : kelompok} onValueChange={(v) => setKelompok(v === '_semua' ? '' : v)}>
-                <SelectTrigger id="select_status_daftar_kelas" title="Filter status akhir" aria-label="Filter status akhir" size="sm">
-                  <SelectValue placeholder="Semua" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectItem value="aktif">Aktif</SelectItem>
-                    <SelectItem value="nonaktif">Tidak aktif</SelectItem>
-                    <SelectItem value="_semua">Semua status</SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </FilterField>
-            <span className="text-xs text-muted-foreground">
-              TA {taId === '' ? 'Semua' : taId}
-              {' · '}Smt {semester === '' ? 'Semua' : semester}
-              {' · '}{kelompok === 'aktif' ? 'Aktif' : kelompok === 'nonaktif' ? 'Tidak aktif' : 'Semua status'}
-              {' · '}{total} santri
-            </span>
-          </>
+          <FilterField label="Status" htmlFor="select_status_daftar_kelas">
+            <Select value={kelompok === '' ? '_semua' : kelompok} onValueChange={(v) => setKelompok(v === '_semua' ? '' : v)}>
+              <SelectTrigger id="select_status_daftar_kelas" title="Filter status akhir" aria-label="Filter status akhir" size="sm">
+                <SelectValue placeholder="Semua" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value="aktif">Aktif</SelectItem>
+                  <SelectItem value="nonaktif">Tidak aktif</SelectItem>
+                  <SelectItem value="_semua">Semua status</SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </FilterField>
+        )}
+        tengah={(
+          <span>
+            TA {taId === '' ? 'Semua' : taId}
+            {' · '}Smt {semester === '' ? 'Semua' : semester}
+            {' · '}{kelompok === 'aktif' ? 'Aktif' : kelompok === 'nonaktif' ? 'Tidak aktif' : 'Semua status'}
+            {' · '}{total} santri
+          </span>
         )}
       />
       <Pager

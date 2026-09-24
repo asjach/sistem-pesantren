@@ -206,6 +206,7 @@
 | 2.152 | 2026-09-24 | Hapus dialog Kelola Tabel: pengelolaan hanya lewat Kelola Halaman (tombol topBar). Pintu yang dibuang: item Kelola preset/Urutan di dropdown, klik kanan toolbar & menu konteks, aksi ribbon; `PresetKolomApi.bukaKelola`, `TabKelola`, `pakaiLengkap` lokal ikut hapus. Toggle kolom per preset di menu konteks tetap ada (gerbang diseragamkan mati-saat-bertindak) |
 | 2.153 | 2026-09-24 | Daftar Kelas: Urutkan + paginasi sisi server (ikuti pola riwayat_belajar). Endpoint dukung `q` (nama/NIK/NIS lokal), `tingkat[]`, `kelas_id[]`, `sort`/`arah` (katalog `daftar_kelas`), paginasi; seed opsi urut; pemanggil lama (Kelulusan/PindahKelas/Mutasi) kirim `per_page=0`. Halaman pakai `useDaftarTabel` + `Pager`; filter global & cari pindah ke server |
 | 2.154 | 2026-09-24 | Fix jumlah status Daftar Kelas: opsi Semua kirim `kelompok_status=semua` (tanpa filter status) — sebelumnya jatuh ke cabang lama `is_active_riwayat='Ya'` sehingga baris nonaktif terbuang (543 vs 553). Tanpa param tetap perilaku lama untuk pemanggil lain |
+| 2.155 | 2026-09-24 | Zona info tengah toolbar (ganti posisi search box lama): pil 2 baris — info halaman + info seleksi (dot aksen, hanya saat ada centang); sembunyi total bila kosong; ikut toggle preset `info`. Prop `tengah` baru; label info Daftar Kelas pindah ke tengah |
 
 ## Daftar Isi
 
