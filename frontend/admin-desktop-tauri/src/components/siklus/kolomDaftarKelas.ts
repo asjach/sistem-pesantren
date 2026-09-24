@@ -97,11 +97,6 @@ function potongTgl(v: unknown): string | null {
   return String(v).slice(0, 10);
 }
 
-function potongWaktu(v: unknown): string | null {
-  if (v == null || v === '') return null;
-  return String(v).slice(0, 19).replace('T', ' ');
-}
-
 function profilFields(boleh: boolean): ExcelField[] {
   if (!boleh) {
     return SANTRI_EDIT_KEYS.map((k) => ({
@@ -224,12 +219,6 @@ export function medanDaftarKelas({ bolehSantri, bolehRiwayat }: { bolehSantri: b
     statis('tahun_ajaran', 'tahun_ajaran', 'riwayat_belajar', 'tahun_ajaran', 110),
     statis('jenjang', 'jenjang', 'riwayat_belajar', 'jenjang', 100),
     statis('kelas_id', 'kelas_id', 'riwayat_belajar', 'kelas_id', 90),
-    statis('rwy_dibuat', 'riwayat.created_at', 'riwayat_belajar', 'created_at', 160),
-    statis('rwy_diubah', 'riwayat.updated_at', 'riwayat_belajar', 'updated_at', 160),
-    statis('santri_dibuat', 'santri.created_at', 'santri', 'created_at', 160),
-    statis('santri_diubah', 'santri.updated_at', 'santri', 'updated_at', 160),
-    statis('anggota_dibuat', 'anggota.created_at', 'lembaga_santri', 'created_at', 160),
-    statis('anggota_diubah', 'anggota.updated_at', 'lembaga_santri', 'updated_at', 160),
   ];
 }
 
@@ -268,12 +257,6 @@ export function daftarKelasValues(r: RiwayatRow): Record<string, string | null> 
     tahun_ajaran: namaTahunAjaran(r.tahun_ajaran),
     jenjang: String(r.jenjang),
     kelas_id: r.kelas_id !== null && r.kelas_id !== undefined ? String(r.kelas_id) : null,
-    rwy_dibuat: potongWaktu((r as unknown as Record<string, unknown>).created_at),
-    rwy_diubah: potongWaktu((r as unknown as Record<string, unknown>).updated_at),
-    santri_dibuat: potongWaktu(s.created_at),
-    santri_diubah: potongWaktu(s.updated_at),
-    anggota_dibuat: potongWaktu(a.created_at),
-    anggota_diubah: potongWaktu(a.updated_at),
   };
   for (const k of SANTRI_EDIT_KEYS) {
     if (k === 'nama_lengkap') continue;

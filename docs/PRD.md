@@ -198,6 +198,7 @@
 | 2.144 | 2026-09-24 | **Tingkat & Kelas jadi filter global** (setara lembaga/TA/semester; nilai menetap lintas halaman, tersimpan per perangkat; pilihan kelas dikosongkan saat ganti lembaga/TA). Tiap filter bisa show/hide per halaman via `VisibilitasFilter` (bawaan: lembaga/TA/semester tampil, tingkat/kelas tampil bila halaman meminta). Slot `TopBarFilter`/`TanpaSemester` dilebur ke mekanisme ini |
 | 2.145 | 2026-09-24 | Fix toggle `is_active` halaman Referensi tak bisa ditekan: peta izin `toggleBoleh` di-key per `jenjang` padahal `bolehToggle` dipanggil per `id` baris (selalu gagal → disabled); kini di-key per `id` |
 | 2.146 | 2026-09-24 | Opsi **Tingkat** global menyesuaikan lembaga aktif (distinct tingkat dari daftar kelas; mis. MI → 1–6; jatuh balik 1–12 bila kosong). Pilihan usang ikut dibuang saat ganti lembaga |
+| 2.147 | 2026-09-24 | Daftar Kelas: hapus 6 kolom jejak teknis (`riwayat/santri/anggota.created_at+updated_at`) dari grid; header CREATED AT/UPDATED AT tak lagi tampil |
 
 ## Daftar Isi
 
