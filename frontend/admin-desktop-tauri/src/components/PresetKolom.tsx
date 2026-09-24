@@ -38,6 +38,7 @@ export default function PresetKolom({
   onApply,
   apiRef,
   triggerClassName,
+  wrapperClassName,
   lebarTrigger,
 }: {
   tableKey: string;
@@ -46,6 +47,7 @@ export default function PresetKolom({
   apiRef?: MutableRefObject<PresetKolomApi | null>;
   /** Timpa lebar trigger (bawaan 100px), mis. tabel sempit dua panel. */
   triggerClassName?: string;
+  wrapperClassName?: string;
   /** Lebar trigger dropdown (px) dari tab Kontrol; menang atas triggerClassName. */
   lebarTrigger?: number;
 }) {
@@ -174,7 +176,7 @@ export default function PresetKolom({
 
   return (
     <>
-      <FilterField label="Kolom" htmlFor={`select_preset_kolom_${tableKey}`} kelolaLebar={false}>
+      <FilterField label="Kolom" htmlFor={`select_preset_kolom_${tableKey}`} kelolaLebar={false} className={wrapperClassName}>
       <Select value={aktifId === null ? LENGKAP : String(aktifId)} onValueChange={(v) => void pilihPreset(v)}>
         <SelectTrigger
           id={`select_preset_kolom_${tableKey}`}

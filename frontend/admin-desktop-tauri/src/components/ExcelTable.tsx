@@ -16,7 +16,7 @@ import { buttonVariants } from '@/components/ui/button';
 import { DEFAULT_FONT_PX, DEFAULT_HEADER_H, FONT_FAMILY_DEFAULT, FONT_OPTIONS, MAX_HEADER_H, useGridPrefs, type AlignName } from '@/components/GridPrefs';
 import { useStandarTampilan } from '@/standarTampilan';
 import { useLembagaAktif } from '@/lembagaAktif';
-import { type PresetKolomApi } from '@/components/PresetKolom';
+import PresetKolom, { type PresetKolomApi } from '@/components/PresetKolom';
 import { muatToolbarPreset, simpanToolbarPreset } from '@/api/toolbarPreset';
 import { updatePresetTabel } from '@/api/preset';
 import { gabungUrutan } from './excel/urutanKolom';
@@ -123,6 +123,8 @@ interface ExcelTableProps<T extends { id: string | number }> {
   filter?: ReactNode;
   /** Label info halaman di zona tengah toolbar (baris 1; baris 2 = seleksi). */
   tengah?: ReactNode;
+  header?: ReactNode;
+  presetKolomDiHeader?: boolean;
   /** Kontrol di awal toolbar (mis. pemilih
    *  tabel pada halaman Kamus Label). */
   awalanToolbar?: ReactNode;
@@ -206,6 +208,8 @@ export default function ExcelTable<T extends { id: string | number }>({
   renderActions,
   filter,
   tengah,
+  header,
+  presetKolomDiHeader = false,
   awalanToolbar,
   akhirToolbar,
   addButton,
@@ -1938,12 +1942,32 @@ export default function ExcelTable<T extends { id: string | number }>({
     : -1;
 
   return (
-    <div className={cn('mt-2 flex flex-col', maxRows === undefined ? 'min-h-0 flex-1' : 'shrink-0')}>
+    <div className={cn(
+      'flex flex-col',
+      header === undefined && 'mt-2',
+      maxRows === undefined ? 'min-h-0 flex-1' : 'shrink-0',
+    )}>
+      {header !== undefined ? (
+        <div className="flex shrink-0 items-center justify-between gap-2 border-b bg-muted/40 px-3 py-2 text-sm font-medium">
+          <div className="min-w-0 truncate">{header}</div>
+          {presetKolomDiHeader && visToolbar.kolom && !hidePreset ? (
+            <PresetKolom
+              tableKey={tableKey}
+              fields={fields}
+              onApply={terapkanPreset}
+              apiRef={presetApiRef}
+              triggerClassName={presetKolomClassName}
+              wrapperClassName="flex-row items-center gap-1.5"
+              lebarTrigger={lebarKolomDb}
+            />
+          ) : null}
+        </div>
+      ) : null}
       <KonteksLebarFilter.Provider value={konteksLebarFilter}>
       <ToolbarTabel
         tableKey={tableKey}
         showToolbar={showToolbar}
-        hidePreset={hidePreset}
+        hidePreset={hidePreset || presetKolomDiHeader}
         awalanToolbar={awalanToolbar}
         akhirToolbar={akhirToolbar}
         addButton={addButton}
@@ -1989,7 +2013,8 @@ export default function ExcelTable<T extends { id: string | number }>({
         className={cn(
           // Grid full-bleed: menempel tepi kiri-kanan area konten (imbangi padding
           // layout p-1) tanpa sudut membulat; toolbar tetap berpadding.
-          'simpes-dsg relative -mx-1 flex flex-col',
+          'simpes-dsg relative flex flex-col',
+          header === undefined && '-mx-1',
           maxRows === undefined ? 'min-h-[280px] flex-1' : 'shrink-0',
           !editing && 'simpes-dsg-readonly',
         )}

@@ -13,6 +13,7 @@ import {
 import { bisa } from '../api/auth';
 import { useAuth } from '../auth/AuthContext';
 import { Button } from '@/components/ui/button';
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { ActionIcon } from '@/components/RowActions';
 import { ArrowRight, X } from '@/icons';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
@@ -222,24 +223,21 @@ export default function MiMdPage() {
     aksi?: (r: Baris) => ReactNode,
     renderBulk?: (checked: Baris[], clear: () => void) => ReactNode,
   ) => (
-    <section className="flex min-h-0 min-w-0 flex-col rounded-md border">
-      <header className="flex items-center justify-between gap-2 border-b bg-muted/40 px-3 py-2 text-sm font-medium">
-        <span>{judul} ({jumlah})</span>
-      </header>
-      <div className="flex min-h-0 flex-1 flex-col px-2 pb-2">
-        <ExcelTable
-          tableKey={`mi_md_${key}`}
-          fields={fields}
-          rows={rows}
-          getValues={getValues}
-          canEdit={false}
-          onCommit={async () => {}}
-          onSaved={() => {}}
-          renderActions={aksi ? (r) => aksi(r) : () => null}
-          renderBulkActions={renderBulk}
-          emptyText="Tidak ada data."
-        />
-      </div>
+    <section className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
+      <ExcelTable
+        tableKey={`mi_md_${key}`}
+        fields={fields}
+        rows={rows}
+        getValues={getValues}
+        header={<span>{judul} ({jumlah})</span>}
+        presetKolomDiHeader
+        canEdit={false}
+        onCommit={async () => {}}
+        onSaved={() => {}}
+        renderActions={aksi ? (r) => aksi(r) : () => null}
+        renderBulkActions={renderBulk}
+        emptyText="Tidak ada data."
+      />
     </section>
   );
 
@@ -264,7 +262,8 @@ export default function MiMdPage() {
           <p className="text-xs text-muted-foreground" id="info_ta_mi_md">
             Tahun ajaran: {data?.tahun_ajaran ?? 'Semua'}
           </p>
-          <div className="grid min-h-0 flex-1 grid-cols-[repeat(auto-fit,minmax(min(360px,100%),1fr))] gap-4">
+          <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1" id="grup_mi_md">
+          <ResizablePanel defaultSize="33.34%" minSize="20%" id="panel_mi_md_mi">
           {panel('mi', 'MI Only', rowsMi.length, FIELDS_MI, rowsMi, nilaiStatis,
             canDaftar
               ? (r) => (
@@ -292,6 +291,9 @@ export default function MiMdPage() {
               )
               : undefined,
           )}
+          </ResizablePanel>
+          <ResizableHandle withHandle orientation="horizontal" id="gagang_mi_md_mi_md" aria-label="Atur lebar tabel MI Only dan MD Semua" />
+          <ResizablePanel defaultSize="33.33%" minSize="20%" id="panel_mi_md_md">
           {panel('md', 'MD Semua', rowsMd.length, FIELDS_MD, rowsMd, nilaiStatis,
             canHentikan
               ? (r) => (r.juga_mi === true
@@ -323,6 +325,9 @@ export default function MiMdPage() {
               )
               : undefined,
           )}
+          </ResizablePanel>
+          <ResizableHandle withHandle orientation="horizontal" id="gagang_mi_md_md_beda" aria-label="Atur lebar tabel MD Semua dan Perbandingan Kelas" />
+          <ResizablePanel defaultSize="33.33%" minSize="20%" id="panel_mi_md_beda">
           {panel(
             'beda',
             'Perbandingan Kelas',
@@ -383,7 +388,8 @@ export default function MiMdPage() {
               )
               : undefined,
           )}
-          </div>
+          </ResizablePanel>
+          </ResizablePanelGroup>
         </>
       )}
     </div>
