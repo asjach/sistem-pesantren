@@ -3,6 +3,7 @@ import { GridPrefsProvider } from '@/components/GridPrefs';
 import { RibbonTableProvider } from '@/components/RibbonTable';
 import { RibbonSlotProvider } from '@/components/RibbonSlot';
 import { TopBarFilterProvider } from '@/components/TopBarFilter';
+import { TopBarSearchProvider } from '@/components/TopBarSearch';
 import Sidebar from '@/components/Sidebar';
 import Menubar from '@/components/Menubar';
 import TopBar from '@/components/TopBar';
@@ -22,17 +23,19 @@ export default function Layout({ children }: { children: ReactNode }) {
       <RibbonTableProvider>
         <RibbonSlotProvider>
           <TopBarFilterProvider>
-            <div className="flex h-screen overflow-hidden">
-              {!pakaiMenubar && <Sidebar />}
-              <div className="flex min-w-0 flex-1 flex-col">
-                {pakaiMenubar && <Menubar />}
-                <TopBar />
-                {/* Ganti lembaga/tahun ajaran aktif → remount halaman: filter & data ikut scope baru. */}
-                <main className="flex min-h-0 flex-1 flex-col overflow-y-auto p-1">
-                  <Fragment key={`${jenjang ?? 'semua'}:${tahunAjaranNama ?? 'semua'}`}>{children}</Fragment>
-                </main>
+            <TopBarSearchProvider>
+              <div className="flex h-screen overflow-hidden">
+                {!pakaiMenubar && <Sidebar />}
+                <div className="flex min-w-0 flex-1 flex-col">
+                  {pakaiMenubar && <Menubar />}
+                  <TopBar />
+                  {/* Ganti lembaga/tahun ajaran aktif → remount halaman: filter & data ikut scope baru. */}
+                  <main className="flex min-h-0 flex-1 flex-col overflow-y-auto p-1">
+                    <Fragment key={`${jenjang ?? 'semua'}:${tahunAjaranNama ?? 'semua'}`}>{children}</Fragment>
+                  </main>
+                </div>
               </div>
-            </div>
+            </TopBarSearchProvider>
           </TopBarFilterProvider>
         </RibbonSlotProvider>
       </RibbonTableProvider>

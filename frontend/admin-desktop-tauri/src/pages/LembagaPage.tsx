@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import { TopBarSearch } from '@/components/TopBarSearch';
 import { ViewDialog } from '@/components/ViewDialog';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import {
@@ -80,12 +81,13 @@ export default function LembagaPage() {
   const canUbah = bisa(me, 'lembaga.ubah');
   const canTambah = bisa(me, 'lembaga.tambah');
   const canHapus = bisa(me, 'lembaga.hapus');
+  /** Pencarian tunggal halaman (topBar). */
+  const [cari, setCari] = useState('');
   const {
     rows,
     loading,
     err,
     setErr,
-    search,
     urut,
     arahUrut,
     terapkanUrut,
@@ -93,10 +95,10 @@ export default function LembagaPage() {
     lastPage,
     total,
     pager,
-    onSearchChange,
     onSaved,
   } = useDaftarTabel<Lembaga>({
     tableKey: 'lembaga',
+    search: cari,
     ambil: (a) => listLembaga({
       search: a.search || undefined,
       sort: a.urut.length ? a.urut : undefined,
@@ -334,6 +336,7 @@ export default function LembagaPage() {
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
+      <TopBarSearch value={cari} onChange={setCari} placeholder="Cari lembaga…" />
       <ExcelTable
         tableKey="lembaga"
         sumberTabel="lembaga"
@@ -349,14 +352,11 @@ export default function LembagaPage() {
         arahUrut={arahUrut}
         onUrut={terapkanUrut}
         onCreateRow={canTambah ? createRow : undefined}
-        searchValue={search}
-        onSearchChange={onSearchChange}
         addButton={canTambah ? (
           <Button id="btn_buka_tambah_lembaga" onClick={() => setTambahOpen(true)}>
             + Lembaga
           </Button>
         ) : undefined}
-        searchIds={{ form: 'form_cari_lembaga', input: 'input_cari_lembaga', button: 'btn_cari_lembaga' }}
         renderActions={renderActions}
       />
       <Pager

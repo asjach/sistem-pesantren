@@ -16,9 +16,10 @@ export interface PengajuanBiodata {
   wali?: { id: number; name: string } | null;
 }
 
-export function listPengajuan(params: { status?: string; sort?: string[]; arah?: 'naik' | 'turun'; page?: number; per_page?: number; signal?: AbortSignal } = {}) {
+export function listPengajuan(params: { status?: string; q?: string; sort?: string[]; arah?: 'naik' | 'turun'; page?: number; per_page?: number; signal?: AbortSignal } = {}) {
   const q = new URLSearchParams();
   if (params.status) q.set('status', params.status);
+  if (params.q) q.set('q', params.q);
   if (params.sort?.length) q.set('sort', params.sort.join(','));
   if (params.arah) q.set('arah', params.arah);
   q.set('page', String(params.page ?? 1));

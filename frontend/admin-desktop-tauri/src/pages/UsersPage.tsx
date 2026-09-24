@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import { TopBarSearch } from '@/components/TopBarSearch';
 import FilterField from '@/components/FilterField';
 import { UserViewDialog } from '@/components/UserViewDialog';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
@@ -136,13 +137,14 @@ export default function UsersPage() {
   const [lembagas, setLembagas] = useState<Lembaga[]>([]);
   const fields = useMemo(() => buatUserFields(creatable, lembagas), [creatable, lembagas]);
   const [roleFilter, setRoleFilter] = useState('');
+  /** Pencarian tunggal halaman (topBar) — menggantikan input cari per tabel. */
+  const [cari, setCari] = useState('');
   const lembagaReqRef = useRef(0);
   const {
     rows,
     loading,
     err,
     setErr,
-    search,
     urut,
     arahUrut,
     terapkanUrut,
@@ -150,10 +152,10 @@ export default function UsersPage() {
     lastPage,
     total,
     pager,
-    onSearchChange,
     onSaved,
   } = useDaftarTabel<AdminUser>({
     tableKey: 'users',
+    search: cari,
     ambil: (a) => listUsers({
       search: a.search || undefined,
       role: roleFilter || undefined,
@@ -299,6 +301,7 @@ export default function UsersPage() {
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
+      <TopBarSearch value={cari} onChange={setCari} placeholder="Cari pengguna…" />
       <ExcelTable
         tableKey="users"
         sumberTabel="users"
@@ -312,9 +315,6 @@ export default function UsersPage() {
         onSaved={onSaved}
         onCreateRow={canTambah ? createRow : undefined}
         inputRowValues={{ peran: 'orang_tua' }}
-        searchValue={search}
-        onSearchChange={onSearchChange}
-        searchIds={{ form: 'form_cari_user', input: 'input_cari_user', button: 'btn_cari_user' }}
         urutAktif={urut}
         arahUrut={arahUrut}
         onUrut={terapkanUrut}

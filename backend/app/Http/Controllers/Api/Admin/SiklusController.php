@@ -280,7 +280,11 @@ class SiklusController extends Controller
 
         $mutasi = MutasiKeluar::tenantScope()
             ->with(['santri:id,nama_lengkap,nisn', 'lembaga:jenjang,nama', 'kelasTerakhir:id,nama_kelas'])
-            ->when($request->filled('jenjang'), fn ($q) => $q->where('jenjang', (string) $request->input('jenjang')));
+            ->when($request->filled('jenjang'), fn ($q) => $q->where('jenjang', (string) $request->input('jenjang')))
+            ->when($request->filled('q'), function ($q) use ($request) {
+                $cari = (string) $request->input('q');
+                $q->whereHas('santri', fn ($s) => $s->where('nama_lengkap', 'like', "%{$cari}%"));
+            });
         if ($urut !== null) {
             $mutasi->select('mutasi_keluar.*')
                 ->leftJoin('santri', 'santri.id', '=', 'mutasi_keluar.santri_id')
@@ -386,7 +390,11 @@ class SiklusController extends Controller
         $alumni = Alumni::tenantScope()
             ->with(['santri:id,nama_lengkap,nisn', 'lembagaLulus:jenjang,nama', 'tahunAjaranLulus:nama', 'kelasLulus:id,nama_kelas'])
             ->when($request->filled('jenjang'), fn ($q) => $q->where('lembaga_lulus', (string) $request->input('jenjang')))
-            ->when($request->filled('tahun_ajaran_lulus'), fn ($q) => $q->where('tahun_ajaran_lulus', $request->input('tahun_ajaran_lulus')));
+            ->when($request->filled('tahun_ajaran_lulus'), fn ($q) => $q->where('tahun_ajaran_lulus', $request->input('tahun_ajaran_lulus')))
+            ->when($request->filled('q'), function ($q) use ($request) {
+                $cari = (string) $request->input('q');
+                $q->whereHas('santri', fn ($s) => $s->where('nama_lengkap', 'like', "%{$cari}%"));
+            });
         if ($urut !== null) {
             $alumni->select('alumni.*')
                 ->leftJoin('santri', 'santri.id', '=', 'alumni.santri_id')

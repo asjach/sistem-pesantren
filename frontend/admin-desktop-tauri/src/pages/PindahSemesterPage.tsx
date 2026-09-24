@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { FilterTingkatKelas } from '@/components/FilterTingkatKelas';
+import { TopBarSearch } from '@/components/TopBarSearch';
 import FilterField from '@/components/FilterField';
 import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
 import { useTahunAjaranAwalString } from '@/hooks/useTahunAjaranAwal';
@@ -70,6 +71,8 @@ export default function PindahSemesterPage() {
   const [kelasOpsi, setKelasOpsi] = useState<Kelas[]>([]);
   const [busyId, setBusyId] = useState<number | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
+  /** Pencarian tunggal halaman (topBar) untuk kedua panel. */
+  const [cari, setCari] = useState('');
   /** Baris tercentang per panel (diangkat via `onCheckedChange` agar tombol
    *  bulk bisa duduk di header panel). */
   const [centangKiri, setCentangKiri] = useState<RiwayatRow[]>([]);
@@ -108,6 +111,7 @@ export default function PindahSemesterPage() {
 
   const kiri = useDaftarTabel<RiwayatRow>({
     tableKey: 'pindah_semester_kiri',
+    search: cari,
     ambil: (a) => {
       if (!jenjang || !taId) {
         return Promise.resolve({ data: [], current_page: 1, last_page: 1, per_page: a.perPage, total: 0 });
@@ -128,6 +132,7 @@ export default function PindahSemesterPage() {
 
   const kanan = useDaftarTabel<RiwayatRow>({
     tableKey: 'pindah_semester_kanan',
+    search: cari,
     ambil: (a) => {
       if (!jenjang || !taId) {
         return Promise.resolve({ data: [], current_page: 1, last_page: 1, per_page: a.perPage, total: 0 });
@@ -247,6 +252,7 @@ export default function PindahSemesterPage() {
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{kiri.err || kanan.err}</ErrorNotice>
+      <TopBarSearch value={cari} onChange={setCari} placeholder="Cari santri…" />
       <FilterTingkatKelas
         filter={{
           tingkat: tingkatFilter,
@@ -289,9 +295,6 @@ export default function PindahSemesterPage() {
                   </ActionIcon>
                 ) : null
               )}
-              searchValue={kiri.search}
-              onSearchChange={kiri.onSearchChange}
-              searchIds={{ form: 'form_cari_belum_genap', input: 'input_cari_belum_genap', button: 'btn_cari_belum_genap' }}
               key={`pindah_semester_kiri_${nonceKiri}`}
               onCheckedChange={setCentangKiri}
               awalanToolbar={(
@@ -354,9 +357,6 @@ export default function PindahSemesterPage() {
                   </ActionIcon>
                 ) : null
               )}
-              searchValue={kanan.search}
-              onSearchChange={kanan.onSearchChange}
-              searchIds={{ form: 'form_cari_sudah_genap', input: 'input_cari_sudah_genap', button: 'btn_cari_sudah_genap' }}
               key={`pindah_semester_kanan_${nonceKanan}`}
               onCheckedChange={setCentangKanan}
             />,

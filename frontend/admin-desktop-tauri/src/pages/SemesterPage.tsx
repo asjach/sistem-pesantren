@@ -3,6 +3,7 @@ import { errorMessage } from '../api/client';
 import { daftarSemester, tetapkanSemester, type SemesterLembaga } from '../api/semesterAktif';
 import { Button } from '@/components/ui/button';
 import ExcelTable from '@/components/ExcelTable';
+import { TopBarSearch } from '@/components/TopBarSearch';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { toast } from 'sonner';
 
@@ -26,6 +27,11 @@ export default function SemesterPage() {
 
   useEffect(() => { void load(); }, [load]);
 
+  const q = cari.trim().toLowerCase();
+  const rowsTampil = q === ''
+    ? rows
+    : rows.filter((r) => r.jenjang.toLowerCase().includes(q) || (r.nama ?? '').toLowerCase().includes(q));
+
   async function tetapkan(r: SemesterLembaga, semester: '1' | '2') {
     if (r.semester === semester) return;
     setBusyId(r.jenjang);
@@ -39,6 +45,7 @@ export default function SemesterPage() {
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
+      <TopBarSearch value={cari} onChange={setCari} placeholder="Cari lembaga…" />
       <ExcelTable<SemesterLembaga & { id: string }>
         tableKey="semester_aktif"
         fields={[
@@ -46,7 +53,7 @@ export default function SemesterPage() {
           { key: 'nama', label: 'lembaga.nama', kind: 'static', sumber: { tabel: 'lembaga', kolom: 'nama' } },
           { key: 'semester', label: 'semester_aktif.semester', kind: 'static', sumber: { tabel: 'semester_aktif', kolom: 'semester' } },
         ]}
-        rows={rows.map((r) => ({ ...r, id: r.jenjang }))}
+        rows={rowsTampil.map((r) => ({ ...r, id: r.jenjang }))}
         getValues={(r) => ({
           jenjang: r.jenjang,
           nama: r.nama,
@@ -57,10 +64,6 @@ export default function SemesterPage() {
         canEdit={false}
         onCommit={async () => {}}
         onSaved={() => {}}
-        searchValue={cari}
-        onSearchChange={setCari}
-        searchIds={{ form: 'form_cari_semester', input: 'input_cari_semester', button: 'btn_cari_semester' }}
-        searchPlaceholder="Cari lembaga…"
         renderActions={(r) => (
           <>
             <Button

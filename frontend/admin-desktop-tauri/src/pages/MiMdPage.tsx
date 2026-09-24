@@ -19,6 +19,7 @@ import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { FilterMulti } from '@/components/FilterTingkatKelas';
 import { TopBarFilter } from '@/components/TopBarFilter';
+import { TopBarSearch } from '@/components/TopBarSearch';
 import { useTahunAjaranAwalString } from '@/hooks/useTahunAjaranAwal';
 import { toast } from 'sonner';
 
@@ -34,9 +35,8 @@ export default function MiMdPage() {
   const [data, setData] = useState<MiMdData | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
-  const [cariMi, setCariMi] = useState('');
-  const [cariMd, setCariMd] = useState('');
-  const [cariBeda, setCariBeda] = useState('');
+  /** Pencarian tunggal halaman (topBar) untuk ketiga tabel. */
+  const [cari, setCari] = useState('');
   const [busyId, setBusyId] = useState<number | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
   /** Filter kelas (multi-pilih) di topBar — gabungan kelas MI & MD. */
@@ -86,9 +86,9 @@ export default function MiMdPage() {
     || (typeof r.kelas_md === 'string' && kelasFilter.includes(r.kelas_md))
   ), [kelasFilter]);
 
-  const rowsMi = useMemo(() => saring(data?.mi_only ?? [], cariMi).filter(cocokKelas), [data, cariMi, saring, cocokKelas]);
-  const rowsMd = useMemo(() => saring(data?.md_semua ?? [], cariMd).filter(cocokKelas), [data, cariMd, saring, cocokKelas]);
-  const rowsBeda = useMemo(() => saring(data?.beda_kelas ?? [], cariBeda).filter(cocokKelas), [data, cariBeda, saring, cocokKelas]);
+  const rowsMi = useMemo(() => saring(data?.mi_only ?? [], cari).filter(cocokKelas), [data, cari, saring, cocokKelas]);
+  const rowsMd = useMemo(() => saring(data?.md_semua ?? [], cari).filter(cocokKelas), [data, cari, saring, cocokKelas]);
+  const rowsBeda = useMemo(() => saring(data?.beda_kelas ?? [], cari).filter(cocokKelas), [data, cari, saring, cocokKelas]);
 
   function togolKelas(v: string) {
     setKelasFilter((prev) => (prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v]));
@@ -231,8 +231,6 @@ export default function MiMdPage() {
     key: string,
     judul: string,
     jumlah: number,
-    cari: string,
-    setCari: (v: string) => void,
     fields: ExcelField[],
     rows: Baris[],
     getValues: (r: Baris) => Record<string, string | null>,
@@ -255,10 +253,6 @@ export default function MiMdPage() {
           renderActions={aksi ? (r) => aksi(r) : () => null}
           renderBulkActions={renderBulk}
           emptyText="Tidak ada data."
-          searchValue={cari}
-          onSearchChange={setCari}
-          searchIds={{ form: `form_cari_${key}`, input: `input_cari_${key}`, button: `btn_cari_${key}` }}
-          searchPlaceholder="Cari nama…"
         />
       </div>
     </section>
@@ -276,6 +270,7 @@ export default function MiMdPage() {
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
+      <TopBarSearch value={cari} onChange={setCari} placeholder="Cari nama…" />
       <TopBarFilter>
         <FilterMulti
           id="filter_kelas_mi_md"
@@ -294,7 +289,7 @@ export default function MiMdPage() {
             Tahun ajaran: {data?.tahun_ajaran ?? 'Semua'}
           </p>
           <div className="grid min-h-0 flex-1 grid-cols-[repeat(auto-fit,minmax(min(360px,100%),1fr))] gap-4">
-          {panel('mi', 'MI Only', rowsMi.length, cariMi, setCariMi, FIELDS_MI, rowsMi, nilaiStatis,
+          {panel('mi', 'MI Only', rowsMi.length, FIELDS_MI, rowsMi, nilaiStatis,
             canDaftar
               ? (r) => (
                 <ActionIcon
@@ -321,7 +316,7 @@ export default function MiMdPage() {
               )
               : undefined,
           )}
-          {panel('md', 'MD Semua', rowsMd.length, cariMd, setCariMd, FIELDS_MD, rowsMd, nilaiStatis,
+          {panel('md', 'MD Semua', rowsMd.length, FIELDS_MD, rowsMd, nilaiStatis,
             canHentikan
               ? (r) => (r.juga_mi === true
                 ? (
@@ -356,8 +351,6 @@ export default function MiMdPage() {
             'beda',
             'Perbandingan Kelas',
             rowsBeda.length,
-            cariBeda,
-            setCariBeda,
             FIELDS_BEDA,
             rowsBeda,
             nilaiStatis,

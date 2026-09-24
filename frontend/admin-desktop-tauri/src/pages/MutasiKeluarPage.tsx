@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { bisa } from '../api/auth';
 import { errorMessage } from '../api/client';
@@ -12,6 +12,7 @@ import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/componen
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import ExcelTable from '@/components/ExcelTable';
 import { FilterTingkatKelas, useFilterTingkatKelas } from '@/components/FilterTingkatKelas';
+import { TopBarSearch } from '@/components/TopBarSearch';
 import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
 import { FileUp, Download, ArrowRight } from '@/icons';
 import { ActionIcon } from '@/components/RowActions';
@@ -36,6 +37,8 @@ export default function MutasiKeluarPage() {
   /** Urut header arsip: daftar nilai allowlist + arah global (maks 3 kunci). */
   const [urut, setUrut] = useState<string[]>([]);
   const [arahUrut, setArahUrut] = useState<'naik' | 'turun'>('naik');
+  /** Pencarian tunggal halaman (topBar). */
+  const [cari, setCari] = useState('');
 
   const [baris, setBaris] = useState<RiwayatRow | null>(null);
   const [tanggal, setTanggal] = useState('');
@@ -72,6 +75,7 @@ export default function MutasiKeluarPage() {
       const a = f?.arah ?? arahUrut;
       const res = await listMutasiKeluar({
         jenjang: jenjang,
+        q: cari || undefined,
         sort: u.length ? u : undefined,
         arah: u.length ? a : undefined,
         page: p, per_page: pp,
@@ -80,7 +84,7 @@ export default function MutasiKeluarPage() {
       setLastPage(res.last_page);
       setTotal(res.total);
     } catch (e) { setErr(errorMessage(e)); }
-  }, [jenjang, pager.page, pager.perPage, urut, arahUrut]);
+  }, [jenjang, cari, pager.page, pager.perPage, urut, arahUrut]);
 
   /** Klik header: simpan urut baru lalu muat ulang arsip dari halaman 1. */
   function terapkanUrut(nilai: string[], arah: 'naik' | 'turun') {
@@ -101,6 +105,14 @@ export default function MutasiKeluarPage() {
 
   /** Filter tingkat & kelas (multi-pilih) di topBar untuk daftar santri aktif. */
   const filter = useFilterTingkatKelas(kiri, (r) => r.tingkat, (r) => r.kelas?.nama_kelas);
+  /** Hasil filter tingkat/kelas + pencarian tunggal topBar (sisi klien). */
+  const kiriTampil = useMemo(() => {
+    const q = cari.trim().toLowerCase();
+    if (q === '') return filter.tersaring;
+    return filter.tersaring.filter((r) =>
+      (r.santri?.nama_lengkap ?? '').toLowerCase().includes(q)
+      || (r.nis_lokal ?? '').toLowerCase().includes(q));
+  }, [filter.tersaring, cari]);
 
   const simpan = async () => {
     if (!baris || !jenjang || !tanggal || !alasan) return;
@@ -127,11 +139,12 @@ export default function MutasiKeluarPage() {
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
+      <TopBarSearch value={cari} onChange={setCari} placeholder="Cari santri…" />
       <FilterTingkatKelas filter={filter} />
       <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1" id="grup_mutasi_kolom">
         <ResizablePanel defaultSize="33" minSize="20">
         <section className="flex h-full min-h-0 min-w-0 flex-col rounded-md">
-          <header className="shrink-0 border-b bg-muted/40 px-3 py-2 text-sm font-medium">Santri aktif ({filter.tersaring.length})</header>
+          <header className="shrink-0 border-b bg-muted/40 px-3 py-2 text-sm font-medium">Santri aktif ({kiriTampil.length})</header>
           <div className="flex min-h-0 flex-1 flex-col px-2 pb-2">
             <ExcelTable
               tableKey="mutasi_santri_aktif"
@@ -139,7 +152,7 @@ export default function MutasiKeluarPage() {
                 { key: 'nama', label: 'santri.nama_lengkap', kind: 'static', sumber: { tabel: 'santri', kolom: 'nama_lengkap' } },
                 { key: 'kelas', label: 'kelas.nama_kelas', kind: 'static', sumber: { tabel: 'kelas', kolom: 'nama_kelas' } },
               ]}
-              rows={filter.tersaring}
+              rows={kiriTampil}
               getValues={(r) => ({ nama: r.santri?.nama_lengkap ?? null, kelas: r.kelas?.nama_kelas ?? null })}
               canEdit={false}
               onCommit={async () => {}}

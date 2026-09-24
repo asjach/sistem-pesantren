@@ -49,6 +49,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
 import FilterField from '@/components/FilterField';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
+import { TopBarSearch } from '@/components/TopBarSearch';
 import {
   Dialog,
   DialogContent,
@@ -187,12 +188,13 @@ export default function PsbPage() {
   const dokumenReqRef = useRef(0);
   const [busy, setBusy] = useState(false);
   const [tampilTerhapus, setTampilTerhapus] = useState(false);
+  /** Pencarian tunggal halaman (topBar). */
+  const [cari, setCari] = useState('');
   const {
     rows,
     loading,
     err,
     setErr,
-    search,
     urut,
     arahUrut,
     terapkanUrut,
@@ -200,9 +202,9 @@ export default function PsbPage() {
     lastPage,
     total,
     pager,
-    onSearchChange,
   } = useDaftarTabel<PsbCalon, Paginate<PsbCalon> & { badge?: Record<string, number> }>({
     tableKey: 'psb',
+    search: cari,
     ambil: (a) => {
       const stageDef = TAHAP_PSB.find((x) => x.id === stage);
       let statuses = stageDef?.statuses ?? [];
@@ -715,6 +717,7 @@ export default function PsbPage() {
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
+      <TopBarSearch value={cari} onChange={setCari} placeholder="Cari calon santri…" />
 
       <Tabs value={stage} onValueChange={(v) => navigate(`/psb/${v}`)} className="contents">
         <TabsList id="tabs_psb" className="mb-2 h-auto w-fit gap-1 p-1">
@@ -747,9 +750,6 @@ export default function PsbPage() {
         onUrut={terapkanUrut}
         onCreateRow={stage === 'pendaftar' && canTambahPsb ? createRow : undefined}
         inputRowValues={{ lembaga: lembagaTerpilih }}
-        searchValue={search}
-        onSearchChange={onSearchChange}
-        searchIds={{ form: 'form_cari_psb', input: 'input_cari_psb', button: 'btn_cari_psb' }}
         filter={(
           <>
             {stage === 'pendaftar' && canTambahPsb && (

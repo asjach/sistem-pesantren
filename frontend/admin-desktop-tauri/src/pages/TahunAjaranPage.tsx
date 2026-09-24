@@ -17,6 +17,7 @@ import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
 import { useLembagaAktif } from '@/lembagaAktif';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
+import { TopBarSearch } from '@/components/TopBarSearch';
 import { ViewDialog } from '@/components/ViewDialog';
 import {
   Dialog,
@@ -86,12 +87,13 @@ async function commitDraft(id: string | number, f: Record<string, string | null>
 export default function TahunAjaranPage() {
   const [jenjang, setLembagaId] = useState<string>('');
   useLembagaAwalString(setLembagaId);
+  /** Pencarian tunggal halaman (topBar). */
+  const [cari, setCari] = useState('');
   const {
     rows,
     loading,
     err,
     setErr,
-    search,
     urut,
     arahUrut,
     terapkanUrut,
@@ -99,10 +101,10 @@ export default function TahunAjaranPage() {
     lastPage,
     total,
     pager,
-    onSearchChange,
     onSaved,
   } = useDaftarTabel<TahunAjaran>({
     tableKey: 'tahun_ajaran',
+    search: cari,
     ambil: (a) => listTahunAjaran({
       search: a.search || undefined,
       jenjang: jenjang === '' ? undefined : jenjang,
@@ -278,6 +280,7 @@ export default function TahunAjaranPage() {
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
+      <TopBarSearch value={cari} onChange={setCari} placeholder="Cari tahun ajaran…" />
       <ExcelTable
         tableKey="tahun_ajaran"
         sumberTabel="tahun_ajaran"
@@ -294,14 +297,11 @@ export default function TahunAjaranPage() {
         onUrut={terapkanUrut}
         onCreateRow={bolehKelola ? createRow : undefined}
         inputRowValues={{ aktif: 'nonaktif', tampil: '—' }}
-        searchValue={search}
-        onSearchChange={onSearchChange}
         addButton={bolehKelola ? (
           <Button id="btn_buka_tambah_ta" onClick={() => setTambahOpen(true)}>
             + Tahun Ajaran
           </Button>
         ) : undefined}
-        searchIds={{ form: 'form_filter_ta', input: 'input_cari_ta', button: 'btn_cari_ta' }}
         renderActions={renderActions}
       />
       <Pager

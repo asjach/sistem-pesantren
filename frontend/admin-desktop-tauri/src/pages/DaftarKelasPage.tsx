@@ -7,6 +7,7 @@ import type { SantriPenuh } from '../api/santri';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import ExcelTable from '@/components/ExcelTable';
 import { FilterTingkatKelas, useFilterTingkatKelas } from '@/components/FilterTingkatKelas';
+import { TopBarSearch } from '@/components/TopBarSearch';
 import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
 import { useTahunAjaranAwalString } from '@/hooks/useTahunAjaranAwal';
 import { useSemesterAwal } from '@/hooks/useSemesterAwal';
@@ -37,8 +38,18 @@ export default function DaftarKelasPage() {
   /** Kelompok status akhir: aktif (bawaan) | nonaktif | '' = semua status. */
   const [kelompok, setKelompok] = useState('aktif');
   const [rows, setRows] = useState<RiwayatRow[]>([]);
+  /** Pencarian tunggal halaman (topBar). */
+  const [cari, setCari] = useState('');
   /** Filter tingkat & kelas (multi-pilih) di topBar. */
   const filter = useFilterTingkatKelas(rows, (r) => r.tingkat, (r) => r.kelas?.nama_kelas);
+  /** Hasil filter tingkat/kelas + pencarian tunggal (sisi klien). */
+  const rowsTampil = useMemo(() => {
+    const q = cari.trim().toLowerCase();
+    if (q === '') return filter.tersaring;
+    return filter.tersaring.filter((r) =>
+      (r.santri?.nama_lengkap ?? '').toLowerCase().includes(q)
+      || (r.nis_lokal ?? '').toLowerCase().includes(q));
+  }, [filter.tersaring, cari]);
   const [info, setInfo] = useState<{ tahun_ajaran: string | null; semester: string | null } | null>(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
@@ -80,11 +91,12 @@ export default function DaftarKelasPage() {
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
+      <TopBarSearch value={cari} onChange={setCari} placeholder="Cari santri…" />
       <FilterTingkatKelas filter={filter} />
       <ExcelTable<RiwayatRow>
         tableKey="daftar_kelas"
         fields={fields}
-        rows={filter.tersaring}
+        rows={rowsTampil}
         getValues={daftarKelasValues}
         loading={loading}
         emptyText="Pilih lembaga untuk menampilkan daftar kelas."

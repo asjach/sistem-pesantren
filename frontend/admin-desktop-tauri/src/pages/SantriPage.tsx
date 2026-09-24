@@ -25,6 +25,7 @@ import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
 import FilterField from '@/components/FilterField';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
+import { TopBarSearch } from '@/components/TopBarSearch';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import Pager from '@/components/Pager';
 import { useDaftarTabel } from '@/hooks/useDaftarTabel';
@@ -71,13 +72,13 @@ export default function SantriPage() {
   const [statusGlobal, setStatusGlobal] = useState('_semua');
   const [jenjang, setLembagaId] = useState('');
   useLembagaAwalString(setLembagaId);
+  /** Pencarian tunggal halaman (topBar). */
+  const [cari, setCari] = useState('');
   const {
     rows,
     loading,
     err,
     setErr,
-    search,
-    onSearchChange,
     urut,
     arahUrut,
     terapkanUrut,
@@ -87,6 +88,7 @@ export default function SantriPage() {
     pager,
   } = useDaftarTabel<Santri>({
     tableKey: 'santri',
+    search: cari,
     ambil: (a) => listSantri({
       is_active_pst: statusGlobal === '_semua' ? undefined : statusGlobal === 'aktif',
       jenjang: jenjang ? jenjang : undefined,
@@ -222,6 +224,7 @@ export default function SantriPage() {
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
+      <TopBarSearch value={cari} onChange={setCari} placeholder="Cari santri (nama/NIK/NIS)…" />
       <ExcelTable<Santri>
         tableKey="santri"
         sumberTabel="santri"
@@ -248,9 +251,6 @@ export default function SantriPage() {
             <ActionIcon id={`btn_profil_santri_${s.id}`} title="Profil santri" onClick={() => setProfilRow(s)}><FileUp size={16} /></ActionIcon>
           </>
         )}
-        searchValue={search}
-        onSearchChange={onSearchChange}
-        searchIds={{ form: 'form_cari_santri', input: 'input_cari_santri', button: 'btn_cari_santri' }}
         filter={(
           <FilterField label="Status" htmlFor="select_status_santri">
             <Select value={statusGlobal} onValueChange={(v) => { setStatusGlobal(v); pager.goFirst(); }}>

@@ -19,6 +19,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { FilterTingkatKelas } from '@/components/FilterTingkatKelas';
+import { TopBarSearch } from '@/components/TopBarSearch';
 import FilterField from '@/components/FilterField';
 import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
 import { useTahunAjaranAwalString } from '@/hooks/useTahunAjaranAwal';
@@ -73,6 +74,8 @@ export default function RiwayatBelajarPage() {
   useTahunAjaranAwalString(setTaId);
   /** Filter kanan sekaligus kelas tujuan panah (wajib spesifik untuk memasukkan santri). */
   const [kelasId, setKelasId] = useState('');
+  /** Pencarian tunggal halaman (topBar) untuk kedua panel. */
+  const [cari, setCari] = useState('');
   const [kelasOpsi, setKelasOpsi] = useState<Kelas[]>([]);
   /** Filter tingkat & kelas (multi-pilih) di topBar: tingkat menyaring kedua
    *  panel; kelas menyaring panel "sudah masuk kelas". */
@@ -112,6 +115,7 @@ export default function RiwayatBelajarPage() {
 
   const kiri = useDaftarTabel<RiwayatRow>({
     tableKey: 'riwayat_belum_masuk',
+    search: cari,
     ambil: (a) => {
       if (!jenjang || !taId) {
         return Promise.resolve({ data: [], current_page: 1, last_page: 1, per_page: a.perPage, total: 0 });
@@ -136,6 +140,7 @@ export default function RiwayatBelajarPage() {
 
   const kanan = useDaftarTabel<RiwayatRow>({
     tableKey: 'riwayat_belajar',
+    search: cari,
     ambil: (a) => {
       if (!jenjang || !taId) {
         return Promise.resolve({ data: [], current_page: 1, last_page: 1, per_page: a.perPage, total: 0 });
@@ -306,6 +311,7 @@ export default function RiwayatBelajarPage() {
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{kiri.err || kanan.err}</ErrorNotice>
+      <TopBarSearch value={cari} onChange={setCari} placeholder="Cari santri…" />
       <FilterTingkatKelas
         filter={{
           tingkat: tingkatFilter,
@@ -348,9 +354,6 @@ export default function RiwayatBelajarPage() {
                   </ActionIcon>
                 ) : null
               )}
-              searchValue={kiri.search}
-              onSearchChange={kiri.onSearchChange}
-              searchIds={{ form: 'form_cari_belum_kelas', input: 'input_cari_belum_kelas', button: 'btn_cari_belum_kelas' }}
               key={`riwayat_belum_masuk_${nonceKiri}`}
               onCheckedChange={setCentangKiri}
             />,
@@ -399,9 +402,6 @@ export default function RiwayatBelajarPage() {
                   </ActionIcon>
                 ) : null
               )}
-              searchValue={kanan.search}
-              onSearchChange={kanan.onSearchChange}
-              searchIds={{ form: 'form_cari_sudah_kelas', input: 'input_cari_sudah_kelas', button: 'btn_cari_sudah_kelas' }}
               key={`riwayat_belajar_${nonceKanan}`}
               onCheckedChange={setCentangKanan}
               filter={(

@@ -30,6 +30,7 @@ import { Blend, Check, ChevronDown, ChevronUp, Landmark, LogOut, Monitor, Moon, 
 import { useRibbonTable } from '@/components/RibbonTable';
 import { useRibbonSlotCtx } from '@/components/RibbonSlot';
 import { useTopBarFilterCtx } from '@/components/TopBarFilter';
+import { useTopBarSearchCtx } from '@/components/TopBarSearch';
 import BannerBertindak from '@/components/BannerBertindak';
 import { halamanDariPath } from '@/lib/halaman';
 import { RibbonTabel } from './topbar/RibbonTabel';
@@ -106,6 +107,9 @@ export default function TopBar() {
   const slotLabel = slot?.label ?? null;
   const filter = useTopBarFilterCtx();
   const setFilterEl = filter?.setEl;
+  const search = useTopBarSearchCtx();
+  const setSearchEl = search?.setEl;
+  const searchAda = search?.ada ?? false;
 
   const halaman = halamanDariPath(pathname);
   const [toolsTampil, setToolsTampil] = useState(true);
@@ -125,6 +129,8 @@ export default function TopBar() {
   const hostRef = useCallback((el: HTMLDivElement | null) => setSlotEl?.(el), [setSlotEl]);
   // Elemen target portal filter halaman (lihat `TopBarFilter`).
   const filterHostRef = useCallback((el: HTMLDivElement | null) => setFilterEl?.(el), [setFilterEl]);
+  // Elemen target portal pencarian halaman (lihat `TopBarSearch`).
+  const searchHostRef = useCallback((el: HTMLDivElement | null) => setSearchEl?.(el), [setSearchEl]);
 
   useEffect(() => {
     prefGet(TOOLS_TAMPIL_KEY).then((v) => setToolsTampil(v !== '0')).catch(() => {});
@@ -177,9 +183,13 @@ export default function TopBar() {
 
       {/* Baris 1: judul halaman (kiri) + area akun (kanan). */}
       <div className="flex items-center gap-2 px-3 py-1.5 md:px-5">
-        <span id="judul_bar_halaman" className="truncate text-sm font-semibold">
-          {halaman?.label ?? 'SIMPES Admin'}
-        </span>
+        {!searchAda && (
+          <span id="judul_bar_halaman" className="truncate text-sm font-semibold">
+            {halaman?.label ?? 'SIMPES Admin'}
+          </span>
+        )}
+        {/* Pencarian tunggal halaman (portal) — menggantikan judul saat ada. */}
+        <div ref={searchHostRef} className={cn('flex min-w-0 items-center', searchAda && 'max-w-md flex-1')} />
 
         <div data-part="area_akun" className="ml-2 flex min-w-0 flex-1 items-center gap-0.5">
           {/* Perenggang kiri: mendorong filter global ke tengah bar. */}

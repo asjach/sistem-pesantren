@@ -18,6 +18,7 @@ import {
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import FilterField from '@/components/FilterField';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
+import { TopBarSearch } from '@/components/TopBarSearch';
 import {
   Dialog,
   DialogContent,
@@ -66,6 +67,8 @@ export default function PengajuanBiodataPage() {
   const { user } = useAuth();
   const canProses = bisa(user, 'pengajuan_biodata.ubah');
   const [status, setStatus] = useState('diajukan');
+  /** Pencarian tunggal halaman (topBar). */
+  const [cari, setCari] = useState('');
   const [badge, setBadge] = useState<Record<string, number>>({});
   const [busy, setBusy] = useState(false);
   const {
@@ -82,8 +85,10 @@ export default function PengajuanBiodataPage() {
     pager,
   } = useDaftarTabel<PengajuanBiodata, Paginate<PengajuanBiodata> & { badge?: Record<string, number> }>({
     tableKey: 'pengajuan_biodata',
+    search: cari,
     ambil: (a) => listPengajuan({
       status,
+      q: a.search || undefined,
       sort: a.urut.length ? a.urut : undefined,
       arah: a.urut.length ? a.arah : undefined,
       page: a.page,
@@ -143,6 +148,7 @@ export default function PengajuanBiodataPage() {
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
+      <TopBarSearch value={cari} onChange={setCari} placeholder="Cari santri…" />
       <ExcelTable
         tableKey="pengajuan_biodata"
         fields={FIELDS}

@@ -41,6 +41,7 @@ export function useDaftarTabel<T, R extends Paginate<T> = Paginate<T>>({
   awalUrut = [],
   awalArah = 'naik',
   onData,
+  search: searchEksternal,
 }: {
   tableKey: string;
   ambil: (a: ArgsMuat) => Promise<R>;
@@ -49,8 +50,12 @@ export function useDaftarTabel<T, R extends Paginate<T> = Paginate<T>>({
   awalArah?: 'naik' | 'turun';
   /** Data tambahan dari respons (mis. `badge`), dipanggil setelah req valid. */
   onData?: (res: R) => void;
+  /** Bila diisi, pencarian dikendalikan dari luar (mis. search tunggal topBar). */
+  search?: string;
 }) {
   const [search, setSearch] = useState('');
+  // Pencarian efektif: eksternal (topBar) bila diisi, jika tidak state internal.
+  const searchEfektif = searchEksternal ?? search;
   // Live search: nilai yang benar-benar dipakai memuat data ditunda 400 ms agar
   // tidak memanggil API tiap ketikan. Query 1 karakter tidak memicu muat.
   const [searchTertunda, setSearchTertunda] = useState('');
@@ -122,12 +127,15 @@ export function useDaftarTabel<T, R extends Paginate<T> = Paginate<T>>({
   // muat (kecuali dikosongkan), dan mode "Semua baris" (per_page=0) menunggu
   // Enter/tombol Cari karena responsnya besar.
   useEffect(() => {
-    const bersih = search.trim();
+    const bersih = searchEfektif.trim();
     if (bersih.length === 1) return;
     if (pager.perPage === PER_PAGE_ALL) return;
-    const t = setTimeout(() => setSearchTertunda(search), bersih === '' ? 0 : 400);
+    const t = setTimeout(() => {
+      setSearchTertunda(searchEfektif);
+      pager.goFirst();
+    }, bersih === '' ? 0 : 400);
     return () => clearTimeout(t);
-  }, [search, pager.perPage]);
+  }, [searchEfektif, pager.perPage]);
 
   // Batalkan request yang masih jalan saat komponen dilepas.
   useEffect(() => () => abortRef.current?.abort(), []);

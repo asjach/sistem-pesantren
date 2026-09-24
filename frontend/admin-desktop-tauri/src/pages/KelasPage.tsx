@@ -35,6 +35,7 @@ import FilterField from '@/components/FilterField';
 import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
 import { useTahunAjaranAwalString } from '@/hooks/useTahunAjaranAwal';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
+import { TopBarSearch } from '@/components/TopBarSearch';
 import { ViewDialog } from '@/components/ViewDialog';
 import {
   Dialog,
@@ -138,12 +139,13 @@ export default function KelasPage() {
   const [taId, setTaId] = useState<string>('');
   useTahunAjaranAwalString(setTaId);
   const [tingkat, setTingkat] = useState('');
+  /** Pencarian tunggal halaman (topBar). */
+  const [cari, setCari] = useState('');
   const {
     rows,
     loading,
     err,
     setErr,
-    search,
     urut,
     arahUrut,
     terapkanUrut,
@@ -151,10 +153,10 @@ export default function KelasPage() {
     lastPage,
     total,
     pager,
-    onSearchChange,
     onSaved,
   } = useDaftarTabel<Kelas>({
     tableKey: 'kelas',
+    search: cari,
     ambil: (a) => listKelas({
       search: a.search || undefined,
       jenjang: jenjang === '' ? undefined : jenjang,
@@ -560,6 +562,7 @@ export default function KelasPage() {
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
+      <TopBarSearch value={cari} onChange={setCari} placeholder="Cari kelas…" />
       <ExcelTable
         tableKey="kelas"
         sumberTabel="kelas"
@@ -576,8 +579,6 @@ export default function KelasPage() {
         onUrut={terapkanUrut}
         onCreateRow={canTambahKelas ? createRow : undefined}
         inputRowValues={{ ta: taTerpilih, lembaga: lembagaTerpilih, urutan: '0' }}
-        searchValue={search}
-        onSearchChange={onSearchChange}
         filter={(
           <FilterField label="Tingkat" htmlFor="select_tingkat_kelas">
             <Select value={tingkat === '' ? '_semua' : tingkat} onValueChange={(v) => setTingkat(v === '_semua' ? '' : v)}>
@@ -620,7 +621,6 @@ export default function KelasPage() {
             </Button>
           </>
         ) : undefined}
-        searchIds={{ form: 'form_filter_kelas', input: 'input_cari_kelas', button: 'btn_cari_kelas' }}
         renderActions={renderActions}
       />
       <Pager

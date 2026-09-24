@@ -25,6 +25,7 @@ import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
 import FilterField from '@/components/FilterField';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
+import { TopBarSearch } from '@/components/TopBarSearch';
 import {
   Dialog,
   DialogContent,
@@ -70,6 +71,13 @@ export default function DokumenWajibPage() {
   const [jenjang, setLembagaId] = useState('');
   useLembagaAwalString(setLembagaId);
   const [rows, setRows] = useState<DokumenWajib[]>([]);
+  /** Pencarian tunggal halaman (topBar). */
+  const [cari, setCari] = useState('');
+  const rowsTampil = useMemo(() => {
+    const q = cari.trim().toLowerCase();
+    if (q === '') return rows;
+    return rows.filter((r) => String(r.jenis_dokumen_santri ?? '').toLowerCase().includes(q));
+  }, [rows, cari]);
   const [jenis, setJenis] = useState<ReferensiRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
@@ -204,10 +212,11 @@ export default function DokumenWajibPage() {
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
+      <TopBarSearch value={cari} onChange={setCari} placeholder="Cari dokumen…" />
       <ExcelTable
         tableKey="dokumen_wajib"
         fields={fields}
-        rows={rows}
+        rows={rowsTampil}
         getValues={gridValues}
         loading={loading}
         emptyText={!jenjang

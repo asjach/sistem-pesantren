@@ -30,6 +30,7 @@ import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { useLembagaAktif } from '@/lembagaAktif';
 import FilterField from '@/components/FilterField';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
+import { TopBarSearch } from '@/components/TopBarSearch';
 import {
   Dialog,
   DialogContent,
@@ -316,6 +317,7 @@ export default function ReferensiPage() {
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
+      <TopBarSearch value={search} onChange={setSearch} placeholder="Cari referensi…" />
       <ExcelTable
         key={tipe}
         tableKey="referensi"
@@ -327,9 +329,6 @@ export default function ReferensiPage() {
         canEdit={false}
         onCommit={onCommit}
         onSaved={reload}
-        searchValue={search}
-        onSearchChange={setSearch}
-        searchIds={{ form: 'form_cari_referensi', input: 'input_cari_referensi', button: 'btn_cari_referensi' }}
         filter={(
           <>
             <FilterField label="Tipe kamus" htmlFor="select_tipe">

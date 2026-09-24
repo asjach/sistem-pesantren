@@ -10,6 +10,7 @@ import { FieldLabel } from '@/components/ui/field';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import ExcelTable from '@/components/ExcelTable';
 import { FilterTingkatKelas, useFilterTingkatKelas } from '@/components/FilterTingkatKelas';
+import { TopBarSearch } from '@/components/TopBarSearch';
 import { ActionIcon } from '@/components/RowActions';
 import { ArrowRight } from '@/icons';
 import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
@@ -43,6 +44,8 @@ export default function PindahKelasPage() {
   const [semester, setSemester] = useState('');
   useSemesterAwal(setSemester);
   const [rows, setRows] = useState<RiwayatRow[]>([]);
+  /** Pencarian tunggal halaman (topBar) — disaring di tiap kolom kelas. */
+  const [cari, setCari] = useState('');
   /** Filter tingkat & kelas (multi-pilih) di topBar. */
   const filter = useFilterTingkatKelas(rows, (r) => r.tingkat, (r) => r.kelas?.nama_kelas);
   const [kelas, setKelas] = useState<Kelas[]>([]);
@@ -131,6 +134,7 @@ export default function PindahKelasPage() {
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
+      <TopBarSearch value={cari} onChange={setCari} placeholder="Cari santri…" />
       <FilterTingkatKelas filter={filter} />
       <div className="flex flex-wrap items-end gap-3">
         {canSalin && (
@@ -170,6 +174,7 @@ export default function PindahKelasPage() {
                     })()}
                 bisaPindah={canPindah}
                 busyId={busyId}
+                cari={cari}
                 onPindah={(r, tujuan) => void pindah(r, tujuan)}
               />
             ))}
@@ -205,15 +210,16 @@ export default function PindahKelasPage() {
 }
 
 /** Satu kolom kelas: tabel santri + panah pindah ke tetangga siklik. */
-function TabelKelas({ tingkat, kolom, tetangga, bisaPindah, busyId, onPindah }: {
+function TabelKelas({ tingkat, kolom, tetangga, bisaPindah, busyId, cari, onPindah }: {
   tingkat: string | null;
   kolom: KolomKelas;
   tetangga: { kiri: KolomKelas | null; kanan: KolomKelas | null };
   bisaPindah: boolean;
   busyId: number | null;
+  /** Pencarian tunggal halaman (topBar) — disaring di tiap kolom. */
+  cari: string;
   onPindah: (r: RiwayatRow, kelasBaruId: number) => void;
 }) {
-  const [cari, setCari] = useState('');
   const kunci = `${tingkat ?? 'tanpa'}_${kolom.kelasId ?? 'tanpa'}`;
   const tampil = useMemo(() => {
     const q = cari.trim().toLowerCase();
@@ -246,10 +252,6 @@ function TabelKelas({ tingkat, kolom, tetangga, bisaPindah, busyId, onPindah }: 
           canEdit={false}
           onCommit={async () => {}}
           onSaved={() => {}}
-          searchValue={cari}
-          onSearchChange={setCari}
-          searchIds={{ form: `form_cari_pindah_${kunci}`, input: `input_cari_pindah_${kunci}`, button: `btn_cari_pindah_${kunci}` }}
-          searchPlaceholder="Cari nama…"
           renderActions={aksi && bisaPindah ? (r) => (
             <>
               {tetangga.kiri?.kelasId != null && tetangga.kiri.kelasId !== kolom.kelasId && (

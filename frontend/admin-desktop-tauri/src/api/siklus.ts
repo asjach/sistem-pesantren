@@ -402,9 +402,10 @@ export function rekapSantri(params: { jenjang?: string; tahun_ajaran?: string; s
 
 // ---------- Aksi siklus ----------
 
-export function listMutasiKeluar(params: { jenjang?: string; sort?: string[]; arah?: 'naik' | 'turun'; page?: number; per_page?: number } = {}) {
+export function listMutasiKeluar(params: { jenjang?: string; q?: string; sort?: string[]; arah?: 'naik' | 'turun'; page?: number; per_page?: number } = {}) {
   const q = new URLSearchParams();
   if (params.jenjang) q.set('jenjang', params.jenjang);
+  if (params.q) q.set('q', params.q);
   if (params.sort?.length) q.set('sort', params.sort.join(','));
   if (params.arah) q.set('arah', params.arah);
   q.set('page', String(params.page ?? 1));
@@ -413,11 +414,12 @@ export function listMutasiKeluar(params: { jenjang?: string; sort?: string[]; ar
 }
 
 export function listAlumni(
-  params: { jenjang?: string; tahun_ajaran_lulus?: string; sort?: string[]; arah?: 'naik' | 'turun'; page?: number; per_page?: number } = {},
+  params: { jenjang?: string; tahun_ajaran_lulus?: string; q?: string; sort?: string[]; arah?: 'naik' | 'turun'; page?: number; per_page?: number } = {},
 ) {
   const q = new URLSearchParams();
   if (params.jenjang) q.set('jenjang', params.jenjang);
   if (params.tahun_ajaran_lulus) q.set('tahun_ajaran_lulus', params.tahun_ajaran_lulus);
+  if (params.q) q.set('q', params.q);
   if (params.sort?.length) q.set('sort', params.sort.join(','));
   if (params.arah) q.set('arah', params.arah);
   q.set('page', String(params.page ?? 1));

@@ -40,6 +40,7 @@ import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import MultiSelect from '@/components/MultiSelect';
 import { useLembagaAktif } from '@/lembagaAktif';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
+import { TopBarSearch } from '@/components/TopBarSearch';
 import {
   Dialog,
   DialogContent,
@@ -141,6 +142,8 @@ export default function KegiatanPsbPage() {
   const [tahunAjarans, setTahunAjarans] = useState<TahunAjaran[]>([]);
   const [kegiatanId, setKegiatanId] = useState<number | null>(null);
   const [gelombangs, setGelombangs] = useState<PsbGelombangMaster[]>([]);
+  /** Pencarian tunggal halaman (topBar) untuk ketiga tabel. */
+  const [cari, setCari] = useState('');
   const [gelombangId, setGelombangId] = useState<number | null>(null);
   const [lembagaOpsi, setLembagaOpsi] = useState<PsbLembagaOpsi[]>([]);
   const [kuotaRows, setKuotaRows] = useState<PsbKuotaBiayaRow[]>([]);
@@ -518,6 +521,26 @@ export default function KegiatanPsbPage() {
     return [...peta.values()].sort((a, b) => a.lembaga.localeCompare(b.lembaga));
   }, [dokumenRows, lembagaTampil]);
 
+  /** Filter ketiga tabel dengan pencarian tunggal topBar (sisi klien). */
+  const q = cari.trim().toLowerCase();
+  const cocok = (...vals: (string | number | null | undefined)[]) =>
+    q === '' || vals.some((v) => String(v ?? '').toLowerCase().includes(q));
+  const dokumenTampil = useMemo(
+    () => dokumenGridRows.filter((d) => cocok(d.lembaga, ...d.wajib, ...d.opsional)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [dokumenGridRows, q],
+  );
+  const gelombangTampil = useMemo(
+    () => gelombangs.filter((g) => cocok(g.nama, g.nomor)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [gelombangs, q],
+  );
+  const kuotaFilter = useMemo(
+    () => kuotaTampil.filter((r) => cocok(r.jenjang, r.tipe_santri)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [kuotaTampil, q],
+  );
+
   const getDokumenValues = useCallback(
     (d: { id: string; lembaga: string; wajib: string[]; opsional: string[] }) => ({
       lembaga: d.lembaga,
@@ -607,6 +630,7 @@ export default function KegiatanPsbPage() {
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
+      <TopBarSearch value={cari} onChange={setCari} placeholder="Cari…" />
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <div className="min-w-64">
@@ -657,7 +681,7 @@ export default function KegiatanPsbPage() {
             tableKey="kegiatan_psb_dokumen"
             maxRows={8}
             fields={DOKUMEN_FIELDS}
-            rows={dokumenGridRows}
+            rows={dokumenTampil}
             getValues={getDokumenValues}
             loading={loading}
             emptyText="Belum ada ketentuan dokumen di kegiatan ini."
@@ -684,7 +708,7 @@ export default function KegiatanPsbPage() {
             tableKey="kegiatan_psb_gelombang"
             maxRows={3}
             fields={KEGIATAN_FIELDS}
-            rows={gelombangs}
+            rows={gelombangTampil}
             getValues={getGelombangValues}
             loading={loading}
             emptyText="Belum ada gelombang di kegiatan ini."
@@ -737,7 +761,7 @@ export default function KegiatanPsbPage() {
             tableKey="kegiatan_psb_kuota"
             maxRows={6}
             fields={KUOTA_FIELDS}
-            rows={kuotaTampil}
+            rows={kuotaFilter}
             getValues={getKuotaValues}
             loading={loading}
             emptyText="Belum ada konfigurasi kuota di gelombang ini."

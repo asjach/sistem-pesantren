@@ -20,6 +20,7 @@ import MenuAksiToolbar from '@/components/MenuAksiToolbar';
 import { DeleteAction } from '@/components/RowActions';
 import FilterField from '@/components/FilterField';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
+import { TopBarSearch } from '@/components/TopBarSearch';
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -229,6 +230,7 @@ export default function KamusLabelPage() {
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
+      <TopBarSearch value={cari} onChange={setCari} placeholder="Cari kolom…" />
       <ExcelTable
         tableKey="kamus_label_kolom"
         fields={FIELDS}
@@ -281,9 +283,6 @@ export default function KamusLabelPage() {
             </Button>
           </MenuAksiToolbar>
         }
-        searchValue={cari}
-        onSearchChange={setCari}
-        searchIds={{ form: 'form_cari_kamus_kolom', input: 'input_cari_kamus_kolom', button: 'btn_cari_kamus_kolom' }}
         renderActions={(r) => (
           canHapus && (r.entri || idBaruRef.current.has(r.kolom)) ? (
             <DeleteAction

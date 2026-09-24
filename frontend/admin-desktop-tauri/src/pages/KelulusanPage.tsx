@@ -12,6 +12,7 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/componen
 import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
 import { useTahunAjaranAwalString } from '@/hooks/useTahunAjaranAwal';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
+import { TopBarSearch } from '@/components/TopBarSearch';
 import { toast } from 'sonner';
 
 /** Kelulusan: kiri santri tingkat akhir → kanan alumni & santri tidak lulus. */
@@ -33,6 +34,8 @@ export default function KelulusanPage() {
   const [urut, setUrut] = useState<string[]>([]);
   const [arahUrut, setArahUrut] = useState<'naik' | 'turun'>('naik');
   const [err, setErr] = useState('');
+  /** Pencarian tunggal halaman (topBar). */
+  const [cari, setCari] = useState('');
   const [busy, setBusy] = useState(false);
 
   const [lulusOpen, setLulusOpen] = useState(false);
@@ -43,11 +46,15 @@ export default function KelulusanPage() {
   const loadKiri = useCallback(async () => {
     if (!jenjang) { setKiri([]); return; }
     setErr('');
+    const q = cari.trim().toLowerCase();
     try {
       const res = await daftarKelas({ jenjang: jenjang });
-      setKiri(res.data.filter((r) => !tingkat || r.tingkat === tingkat));
+      setKiri(res.data.filter((r) => (!tingkat || r.tingkat === tingkat)
+        && (q === ''
+          || (r.santri?.nama_lengkap ?? '').toLowerCase().includes(q)
+          || (r.nis_lokal ?? '').toLowerCase().includes(q))));
     } catch (e) { setErr(errorMessage(e)); }
-  }, [jenjang, tingkat]);
+  }, [jenjang, tingkat, cari]);
 
   const loadArsip = useCallback(async (f?: { urut?: string[]; arah?: 'naik' | 'turun' }) => {
     if (!jenjang) { setAlumni([]); return; }
@@ -56,13 +63,14 @@ export default function KelulusanPage() {
       const a = f?.arah ?? arahUrut;
       const res = await listAlumni({
         jenjang: jenjang,
+        q: cari || undefined,
         sort: u.length ? u : undefined,
         arah: u.length ? a : undefined,
         per_page: 100,
       });
       setAlumni(res.data);
     } catch (e) { setErr(errorMessage(e)); }
-  }, [jenjang, urut, arahUrut]);
+  }, [jenjang, urut, arahUrut, cari]);
 
   /** Klik header: simpan urut baru lalu muat ulang arsip alumni. */
   function terapkanUrut(nilai: string[], arah: 'naik' | 'turun') {
@@ -111,6 +119,7 @@ export default function KelulusanPage() {
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
+      <TopBarSearch value={cari} onChange={setCari} placeholder="Cari santri…" />
       <div className="flex flex-wrap items-end gap-3">
         <div>
           <FieldLabel htmlFor="input_tingkat_kelulusan">Tingkat akhir</FieldLabel>

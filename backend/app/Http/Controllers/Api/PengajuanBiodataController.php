@@ -52,8 +52,13 @@ class PengajuanBiodataController extends Controller
         $status = $request->input('status', 'diajukan');
         $urut = $this->parseUrut($request, UrutKatalog::peta('pengajuan_biodata'));
         $auth = $request->user();
+        $cari = trim((string) $request->input('q', ''));
 
-        $base = PengajuanBiodataSantri::query()->whereHas('santri', function ($q) use ($auth, $request) {
+        $base = PengajuanBiodataSantri::query()->whereHas('santri', function ($q) use ($auth, $request, $cari) {
+            if ($cari !== '') {
+                $q->where(fn ($w) => $w->where('nama_lengkap', 'like', "%{$cari}%")->orWhere('nik', 'like', "%{$cari}%"));
+            }
+
             $filterLembaga = $request->filled('jenjang') ? (string) $request->input('jenjang') : null;
 
             if ($auth->bolehPesantren()) {
