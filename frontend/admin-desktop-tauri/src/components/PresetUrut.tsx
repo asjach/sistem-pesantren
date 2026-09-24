@@ -24,12 +24,14 @@ export default function PresetUrut({
   urutAktif,
   arahUrut = 'naik',
   onUrut,
+  wrapperClassName,
   lebarTrigger,
 }: {
   tableKey: string;
   urutAktif?: string[];
   arahUrut?: 'naik' | 'turun';
   onUrut?: (nilai: string[], arah: 'naik' | 'turun') => void;
+  wrapperClassName?: string;
   /** Lebar trigger dropdown (px) dari tab Kontrol; kosong = 100 bawaan. */
   lebarTrigger?: number;
 }) {
@@ -82,7 +84,7 @@ export default function PresetUrut({
 
   return (
     <span className="flex items-end gap-1.5">
-      <FilterField label="Urutkan" htmlFor={`select_urut_${tableKey}`} kelolaLebar={false}>
+      <FilterField label="Urutkan" htmlFor={`select_urut_${tableKey}`} kelolaLebar={false} className={wrapperClassName}>
         <Select
           value={nilaiSelect || undefined}
           onValueChange={pilihNilai}

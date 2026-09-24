@@ -142,9 +142,10 @@ class MiMdController extends Controller
             if ($punyaMi && $punyaMd) {
                 $kelasMi = $kelasAktif($santriId, $miId);
                 $kelasMd = $kelasAktif($santriId, $mdId);
-                // Banding by-NAMA (id jelas beda antar lembaga); null = ''.
                 $norm = fn (?string $n) => mb_strtolower(trim((string) ($n ?? '')));
-                if ($norm($kelasMi) !== $norm($kelasMd)) {
+                $kelasMiNormal = $norm($kelasMi);
+                $kelasMdNormal = $norm($kelasMd);
+                if ($kelasMiNormal !== '' && $kelasMdNormal !== '' && $kelasMiNormal !== $kelasMdNormal) {
                     $bedaKelas[] = [
                         'santri_id' => $santriId,
                         'nama' => $santri->nama_lengkap,
@@ -201,6 +202,17 @@ class MiMdController extends Controller
                 if (! $sepihak || Lembaga::pasanganJenjang($miId) !== $mdId) {
                     throw ValidationException::withMessages([
                         'santri_id' => 'Akses ditolak.',
+                    ]);
+                }
+
+                $aktifKeduaSisi = LembagaSantri::where('santri_id', $santri->id)
+                    ->whereIn('jenjang', [$miId, $mdId])
+                    ->where('is_active_lembaga', LembagaSantri::YA)
+                    ->distinct()
+                    ->count('jenjang');
+                if ($aktifKeduaSisi !== 2) {
+                    throw ValidationException::withMessages([
+                        'santri_id' => 'Santri harus aktif di MI dan MD.',
                     ]);
                 }
 

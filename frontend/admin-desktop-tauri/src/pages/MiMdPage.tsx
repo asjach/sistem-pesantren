@@ -60,6 +60,27 @@ export default function MiMdPage() {
   }, [load]);
 
   type Baris = { id: number; santri_id: number } & Record<string, string | boolean | number | null>;
+  const [urutTabel, setUrutTabel] = useState<Record<string, { kolom: string[]; arah: 'naik' | 'turun' }>>({
+    mi: { kolom: ['nama'], arah: 'naik' },
+    md: { kolom: ['nama'], arah: 'naik' },
+    beda: { kolom: ['nama'], arah: 'naik' },
+  });
+
+  const terapkanUrut = useCallback((tableKey: string, kolom: string[], arah: 'naik' | 'turun') => {
+    setUrutTabel((saatIni) => ({ ...saatIni, [tableKey]: { kolom, arah } }));
+  }, []);
+
+  const urutkan = useCallback((rows: Baris[], kolom: string[], arah: 'naik' | 'turun'): Baris[] => {
+    if (kolom.length === 0) return rows;
+    const nilai = (v: string | boolean | number | null) => v == null ? '' : String(v).trim().toLocaleLowerCase('id');
+    return [...rows].sort((a, b) => {
+      for (const key of kolom) {
+        const bandingkan = nilai(a[key]).localeCompare(nilai(b[key]), 'id', { numeric: true, sensitivity: 'base' });
+        if (bandingkan !== 0) return arah === 'turun' ? -bandingkan : bandingkan;
+      }
+      return a.santri_id - b.santri_id;
+    });
+  }, []);
 
   const saring = useCallback(
     <T extends { nama: string; santri_id: number }>(rows: T[], q: string): Baris[] =>
@@ -227,10 +248,14 @@ export default function MiMdPage() {
       <ExcelTable
         tableKey={`mi_md_${key}`}
         fields={fields}
-        rows={rows}
+        rows={urutkan(rows, urutTabel[key].kolom, urutTabel[key].arah)}
         getValues={getValues}
         header={<span>{judul} ({jumlah})</span>}
         presetKolomDiHeader
+        presetUrutDiHeader
+        urutAktif={urutTabel[key].kolom}
+        arahUrut={urutTabel[key].arah}
+        onUrut={(kolom, arah) => terapkanUrut(key, kolom, arah)}
         canEdit={false}
         onCommit={async () => {}}
         onSaved={() => {}}
@@ -254,7 +279,14 @@ export default function MiMdPage() {
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari nama…" />
-      <PengaturanHalaman tampil={{ kelas: true }} />
+      <PengaturanHalaman
+        tampil={{ kelas: true }}
+        tabel={[
+          { key: 'mi_md_mi', judul: 'MI Only', fields: FIELDS_MI },
+          { key: 'mi_md_md', judul: 'MD Semua', fields: FIELDS_MD },
+          { key: 'mi_md_beda', judul: 'Perbandingan Kelas', fields: FIELDS_BEDA },
+        ]}
+      />
       {loading && !data ? (
         <p className="text-sm text-muted-foreground">Memuat…</p>
       ) : (
@@ -263,132 +295,138 @@ export default function MiMdPage() {
             Tahun ajaran: {data?.tahun_ajaran ?? 'Semua'}
           </p>
           <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1" id="grup_mi_md">
-          <ResizablePanel defaultSize="33.34%" minSize="20%" id="panel_mi_md_mi">
-          {panel('mi', 'MI Only', rowsMi.length, FIELDS_MI, rowsMi, nilaiStatis,
-            canDaftar
-              ? (r) => (
-                <ActionIcon
-                  id={`btn_daftar_md_${r.santri_id}`}
-                  title="Masukkan ke MD (buat keanggotaan, NIS mewarisi MI)"
-                  onClick={() => { if (busyId !== r.santri_id) void daftarkanKeMd(r.santri_id); }}
-                >
-                  <ArrowRight size={16} />
-                </ActionIcon>
-              )
-              : undefined,
-            canDaftar
-              ? (checked, clear) => (
-                <Button
-                  id="btn_bulk_daftar_md"
-                  size="sm"
-                  variant="outline"
-                  disabled={bulkBusy}
-                  title="Daftarkan yang tercentang ke MD"
-                  onClick={() => void daftarkanBanyak(checked, clear)}
-                >
-                  Ke MD ({checked.length})
-                </Button>
-              )
-              : undefined,
-          )}
-          </ResizablePanel>
-          <ResizableHandle withHandle orientation="horizontal" id="gagang_mi_md_mi_md" aria-label="Atur lebar tabel MI Only dan MD Semua" />
-          <ResizablePanel defaultSize="33.33%" minSize="20%" id="panel_mi_md_md">
-          {panel('md', 'MD Semua', rowsMd.length, FIELDS_MD, rowsMd, nilaiStatis,
-            canHentikan
-              ? (r) => (r.juga_mi === true
-                ? (
-                  <ActionIcon
-                    id={`btn_hentikan_md_${r.santri_id}`}
-                    title="Hapus dari MD (fisik, tanpa arsip — kembali menjadi MI Only)"
-                    className="text-destructive hover:text-destructive"
-                    onClick={() => { if (busyId !== r.santri_id) void hentikanMd(r.santri_id); }}
-                  >
-                    <X size={16} />
-                  </ActionIcon>
-                )
-                : null)
-              : undefined,
-            canHentikan
-              ? (checked, clear) => (
-                <Button
-                  id="btn_bulk_hentikan_md"
-                  size="sm"
-                  variant="outline"
-                  className="text-destructive"
-                  disabled={bulkBusy}
-                  title="Keluarkan yang tercentang dari MD (murni MD dilewati)"
-                  onClick={() => void hentikanBanyak(checked, clear)}
-                >
-                  Keluarkan ({checked.length})
-                </Button>
-              )
-              : undefined,
-          )}
-          </ResizablePanel>
-          <ResizableHandle withHandle orientation="horizontal" id="gagang_mi_md_md_beda" aria-label="Atur lebar tabel MD Semua dan Perbandingan Kelas" />
-          <ResizablePanel defaultSize="33.33%" minSize="20%" id="panel_mi_md_beda">
-          {panel(
-            'beda',
-            'Perbandingan Kelas',
-            rowsBeda.length,
-            FIELDS_BEDA,
-            rowsBeda,
-            nilaiStatis,
-            canSamakan
-              ? (r) => (
-                <div className="flex gap-1">
-                  <Button
-                    id={`btn_samakan_mi_${r.santri_id}`}
-                    size="sm"
-                    variant="outline"
-                    disabled={busyId === r.santri_id}
-                    title="Samakan MD dengan MI (buatkan riwayat bila belum ada)"
-                    onClick={() => void samakan(r.santri_id, 'ke_md')}
-                  >
-                    Samakan dengan MI
-                  </Button>
-                  <Button
-                    id={`btn_samakan_md_${r.santri_id}`}
-                    size="sm"
-                    variant="outline"
-                    disabled={busyId === r.santri_id}
-                    title="Samakan MI dengan MD (buatkan riwayat bila belum ada)"
-                    onClick={() => void samakan(r.santri_id, 'ke_mi')}
-                  >
-                    Samakan dengan MD
-                  </Button>
-                </div>
-              )
-              : undefined,
-            canSamakan
-              ? (checked, clear) => (
-                <div className="flex gap-1">
-                  <Button
-                    id="btn_bulk_samakan_mi"
-                    size="sm"
-                    variant="outline"
-                    disabled={bulkBusy}
-                    title="Samakan yang tercentang dengan MI"
-                    onClick={() => void samakanBanyak(checked, 'ke_md', clear)}
-                  >
-                    Ikut MI ({checked.length})
-                  </Button>
-                  <Button
-                    id="btn_bulk_samakan_md"
-                    size="sm"
-                    variant="outline"
-                    disabled={bulkBusy}
-                    title="Samakan yang tercentang dengan MD"
-                    onClick={() => void samakanBanyak(checked, 'ke_mi', clear)}
-                  >
-                    Ikut MD ({checked.length})
-                  </Button>
-                </div>
-              )
-              : undefined,
-          )}
-          </ResizablePanel>
+            <ResizablePanel defaultSize="50%" minSize="25%" id="panel_mi_md_kiri">
+              <ResizablePanelGroup orientation="vertical" className="min-h-0" id="grup_mi_md_kiri">
+                <ResizablePanel defaultSize="66.67%" minSize="30%" id="panel_mi_md_mi">
+                  {panel('mi', 'MI Only', rowsMi.length, FIELDS_MI, rowsMi, nilaiStatis,
+                    canDaftar
+                      ? (r) => (
+                        <ActionIcon
+                          id={`btn_daftar_md_${r.santri_id}`}
+                          title="Masukkan ke MD (buat keanggotaan, NIS mewarisi MI)"
+                          onClick={() => { if (busyId !== r.santri_id) void daftarkanKeMd(r.santri_id); }}
+                        >
+                          <ArrowRight size={16} />
+                        </ActionIcon>
+                      )
+                      : undefined,
+                    canDaftar
+                      ? (checked, clear) => (
+                        <Button
+                          id="btn_bulk_daftar_md"
+                          size="sm"
+                          variant="outline"
+                          disabled={bulkBusy}
+                          title="Daftarkan yang tercentang ke MD"
+                          onClick={() => void daftarkanBanyak(checked, clear)}
+                        >
+                          Ke MD ({checked.length})
+                        </Button>
+                      )
+                      : undefined,
+                  )}
+                </ResizablePanel>
+                <ResizableHandle withHandle orientation="vertical" id="gagang_mi_md_mi_beda" aria-label="Atur tinggi tabel MI Only dan Perbandingan Kelas" />
+                <ResizablePanel defaultSize="33.33%" minSize="15%" id="panel_mi_md_beda">
+                  {panel(
+                    'beda',
+                    'Perbandingan Kelas',
+                    rowsBeda.length,
+                    FIELDS_BEDA,
+                    rowsBeda,
+                    nilaiStatis,
+                    canSamakan
+                      ? (r) => (
+                        <div className="flex gap-1">
+                          <Button
+                            id={`btn_samakan_mi_${r.santri_id}`}
+                            size="sm"
+                            variant="outline"
+                            disabled={busyId === r.santri_id}
+                            title="Samakan MD dengan MI (buatkan riwayat bila belum ada)"
+                            onClick={() => void samakan(r.santri_id, 'ke_md')}
+                          >
+                            <ArrowRight data-icon="inline-start" />
+                            MI
+                          </Button>
+                          <Button
+                            id={`btn_samakan_md_${r.santri_id}`}
+                            size="sm"
+                            variant="outline"
+                            disabled={busyId === r.santri_id}
+                            title="Samakan MI dengan MD (buatkan riwayat bila belum ada)"
+                            onClick={() => void samakan(r.santri_id, 'ke_mi')}
+                          >
+                            <ArrowRight data-icon="inline-start" />
+                            MD
+                          </Button>
+                        </div>
+                      )
+                      : undefined,
+                    canSamakan
+                      ? (checked, clear) => (
+                        <div className="flex gap-1">
+                          <Button
+                            id="btn_bulk_samakan_mi"
+                            size="sm"
+                            variant="outline"
+                            disabled={bulkBusy}
+                            title="Samakan yang tercentang dengan MI"
+                            onClick={() => void samakanBanyak(checked, 'ke_md', clear)}
+                          >
+                            Ikut MI ({checked.length})
+                          </Button>
+                          <Button
+                            id="btn_bulk_samakan_md"
+                            size="sm"
+                            variant="outline"
+                            disabled={bulkBusy}
+                            title="Samakan yang tercentang dengan MD"
+                            onClick={() => void samakanBanyak(checked, 'ke_mi', clear)}
+                          >
+                            Ikut MD ({checked.length})
+                          </Button>
+                        </div>
+                      )
+                      : undefined,
+                  )}
+                </ResizablePanel>
+              </ResizablePanelGroup>
+            </ResizablePanel>
+            <ResizableHandle withHandle orientation="horizontal" id="gagang_mi_md_kiri_md" aria-label="Atur lebar kolom MI-MD dan MD Semua" />
+            <ResizablePanel defaultSize="50%" minSize="25%" id="panel_mi_md_md">
+              {panel('md', 'MD Semua', rowsMd.length, FIELDS_MD, rowsMd, nilaiStatis,
+                canHentikan
+                  ? (r) => (r.juga_mi === true
+                    ? (
+                      <ActionIcon
+                        id={`btn_hentikan_md_${r.santri_id}`}
+                        title="Hapus dari MD (fisik, tanpa arsip — kembali menjadi MI Only)"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => { if (busyId !== r.santri_id) void hentikanMd(r.santri_id); }}
+                      >
+                        <X size={16} />
+                      </ActionIcon>
+                    )
+                    : null)
+                  : undefined,
+                canHentikan
+                  ? (checked, clear) => (
+                    <Button
+                      id="btn_bulk_hentikan_md"
+                      size="sm"
+                      variant="outline"
+                      className="text-destructive"
+                      disabled={bulkBusy}
+                      title="Keluarkan yang tercentang dari MD (murni MD dilewati)"
+                      onClick={() => void hentikanBanyak(checked, clear)}
+                    >
+                      Keluarkan ({checked.length})
+                    </Button>
+                  )
+                  : undefined,
+              )}
+            </ResizablePanel>
           </ResizablePanelGroup>
         </>
       )}

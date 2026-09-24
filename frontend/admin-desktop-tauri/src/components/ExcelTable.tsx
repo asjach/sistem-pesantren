@@ -17,6 +17,7 @@ import { DEFAULT_FONT_PX, DEFAULT_HEADER_H, FONT_FAMILY_DEFAULT, FONT_OPTIONS, M
 import { useStandarTampilan } from '@/standarTampilan';
 import { useLembagaAktif } from '@/lembagaAktif';
 import PresetKolom, { type PresetKolomApi } from '@/components/PresetKolom';
+import PresetUrut from '@/components/PresetUrut';
 import { muatToolbarPreset, simpanToolbarPreset } from '@/api/toolbarPreset';
 import { updatePresetTabel } from '@/api/preset';
 import { gabungUrutan } from './excel/urutanKolom';
@@ -125,6 +126,7 @@ interface ExcelTableProps<T extends { id: string | number }> {
   tengah?: ReactNode;
   header?: ReactNode;
   presetKolomDiHeader?: boolean;
+  presetUrutDiHeader?: boolean;
   /** Kontrol di awal toolbar (mis. pemilih
    *  tabel pada halaman Kamus Label). */
   awalanToolbar?: ReactNode;
@@ -210,6 +212,7 @@ export default function ExcelTable<T extends { id: string | number }>({
   tengah,
   header,
   presetKolomDiHeader = false,
+  presetUrutDiHeader = false,
   awalanToolbar,
   akhirToolbar,
   addButton,
@@ -1923,7 +1926,7 @@ export default function ExcelTable<T extends { id: string | number }>({
   const hasFilter = filter !== undefined;
   const hasUrut = !!onUrut;
   const filterEfektif = visToolbar.filter && hasFilter;
-  const showToolbar = filterEfektif || hasUrut || awalanToolbar !== undefined || akhirToolbar !== undefined || checkedRows.length > 0;
+  const showToolbar = filterEfektif || (hasUrut && !presetUrutDiHeader) || awalanToolbar !== undefined || akhirToolbar !== undefined || checkedRows.length > 0;
 
   // Data context menu per area (header kolom / baris).
   const ctxHeader = ctx.area === 'header' ? ctx : null;
@@ -1950,17 +1953,29 @@ export default function ExcelTable<T extends { id: string | number }>({
       {header !== undefined ? (
         <div className="flex shrink-0 items-center justify-between gap-2 border-b bg-muted/40 px-3 py-2 text-sm font-medium">
           <div className="min-w-0 truncate">{header}</div>
-          {presetKolomDiHeader && visToolbar.kolom && !hidePreset ? (
-            <PresetKolom
-              tableKey={tableKey}
-              fields={fields}
-              onApply={terapkanPreset}
-              apiRef={presetApiRef}
-              triggerClassName={presetKolomClassName}
-              wrapperClassName="flex-row items-center gap-1.5"
-              lebarTrigger={lebarKolomDb}
-            />
-          ) : null}
+          <div className="flex shrink-0 items-center gap-2">
+            {presetUrutDiHeader && visToolbar.urut && onUrut ? (
+              <PresetUrut
+                tableKey={tableKey}
+                urutAktif={urutAktif}
+                arahUrut={arahUrut}
+                onUrut={onUrut}
+                wrapperClassName="flex-row items-center gap-1.5"
+                lebarTrigger={lebarToolbar.urut}
+              />
+            ) : null}
+            {presetKolomDiHeader && visToolbar.kolom && !hidePreset ? (
+              <PresetKolom
+                tableKey={tableKey}
+                fields={fields}
+                onApply={terapkanPreset}
+                apiRef={presetApiRef}
+                triggerClassName={presetKolomClassName}
+                wrapperClassName="flex-row items-center gap-1.5"
+                lebarTrigger={lebarKolomDb}
+              />
+            ) : null}
+          </div>
         </div>
       ) : null}
       <KonteksLebarFilter.Provider value={konteksLebarFilter}>
@@ -1979,6 +1994,7 @@ export default function ExcelTable<T extends { id: string | number }>({
         renderBulkActions={renderBulkActions}
         clearSelection={clearSelection}
         onUrut={onUrut}
+        presetUrutDiHeader={presetUrutDiHeader}
         urutAktif={urutAktif}
         arahUrut={arahUrut}
         fields={fields}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { bisa } from '../api/auth';
 import { errorMessage } from '../api/client';
@@ -49,11 +49,12 @@ export default function PindahKelasPage() {
   /** Pencarian tunggal halaman (topBar) — disaring di tiap kolom kelas. */
   const [cari, setCari] = useState('');
   /** Tingkat & Kelas = filter global topBar (setara lembaga/TA/semester). */
-  const { tingkat: tingkatAktif } = useTingkatAktif();
+  const { tingkat: tingkatAktif, pilih: pilihTingkat, loading: loadingTingkat } = useTingkatAktif();
   const { kelas: kelasAktif } = useKelasAktif();
   const [kelas, setKelas] = useState<Kelas[]>([]);
   const [err, setErr] = useState('');
   const [busyId, setBusyId] = useState<number | null>(null);
+  const defaultTerapkan = useRef(false);
 
   const [salinOpen, setSalinOpen] = useState(false);
   const [tanggalSalin, setTanggalSalin] = useState('');
@@ -75,6 +76,19 @@ export default function PindahKelasPage() {
       .then((p) => setKelas(p.data))
       .catch(() => setKelas([]));
   }, [jenjang, taId]);
+
+  const tingkatAwal = useMemo(() => {
+    const tingkat = [...new Set(kelas
+      .map((k) => k.tingkat == null ? '' : String(k.tingkat).trim())
+      .filter((t) => t !== ''))];
+    return tingkat.sort((a, b) => a.localeCompare(b, 'id', { numeric: true }))[0] ?? '';
+  }, [kelas]);
+
+  useEffect(() => {
+    if (defaultTerapkan.current || loadingTingkat || !jenjang || !taId || !tingkatAwal) return;
+    defaultTerapkan.current = true;
+    if (tingkatAktif.length === 0) pilihTingkat([tingkatAwal]);
+  }, [jenjang, loadingTingkat, pilihTingkat, taId, tingkatAktif, tingkatAwal]);
 
   const grup = useMemo<GrupTingkat[]>(() => {
     const petaKelas = new Map<number, Kelas>();

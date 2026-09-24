@@ -24,6 +24,7 @@ export interface ToolbarTabelProps<T extends { id: string | number }> {
   renderBulkActions?: (checkedRows: T[], clearSelection: () => void) => ReactNode;
   clearSelection: () => void;
   onUrut?: (nilai: string[], arah: 'naik' | 'turun') => void;
+  presetUrutDiHeader?: boolean;
   urutAktif?: string[];
   arahUrut?: 'naik' | 'turun';
   fields: ExcelField[];
@@ -58,6 +59,7 @@ export default function ToolbarTabel<T extends { id: string | number }>({
   renderBulkActions,
   clearSelection,
   onUrut,
+  presetUrutDiHeader = false,
   urutAktif,
   arahUrut,
   fields,
@@ -72,7 +74,7 @@ export default function ToolbarTabel<T extends { id: string | number }>({
   const adaInfoHalaman = tengah !== undefined && tengah !== null;
   const adaInfoSeleksi = checkedCount > 0;
   const tengahTampil = infoTampil && (adaInfoHalaman || adaInfoSeleksi);
-  const urutTampil = visToolbar.urut && !!onUrut;
+  const urutTampil = visToolbar.urut && !!onUrut && !presetUrutDiHeader;
   const kolomTampil = visToolbar.kolom && !hidePreset;
   const filterTampil = visToolbar.filter && hasFilter;
   return (

@@ -66,6 +66,21 @@ class UrutPresetTest extends TestCase
         $this->assertContains('jk', $kode);
     }
 
+    public function test_preset_urut_mi_md_tersedia(): void
+    {
+        $pusat = $this->makeUser('super_admin');
+
+        foreach (['mi_md_mi', 'mi_md_md', 'mi_md_beda'] as $tableKey) {
+            $res = $this->actingAs($pusat, 'sanctum')->getJson("/api/admin/urut-preset?table_key={$tableKey}");
+            $res->assertOk();
+
+            $this->assertNotEmpty($res->json('data.opsi'));
+            $this->assertSame(['nama'], $res->json('data.opsi.0.kode'));
+            $this->assertTrue($res->json('data.opsi.0.bawaan'));
+            $this->assertContains('nama', array_column($res->json('data.tersedia'), 'kode'));
+        }
+    }
+
     public function test_simpan_preset_dan_tolak_kode_liar(): void
     {
         $pusat = $this->makeUser('super_admin');

@@ -142,6 +142,20 @@ class MiMdTest extends TestCase
         $this->assertSame('1B', $baris['kelas_md']);
     }
 
+    public function test_perbandingan_membutuhkan_kelas_aktif_di_kedua_jenjang(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang, $f['md']->jenjang]);
+        $santri = Santri::create(['nama_lengkap' => 'Tanpa Kelas MD', 'jk' => 'L']);
+        LembagaSantri::create(['santri_id' => $santri->id, 'jenjang' => $f['mi']->jenjang, 'is_active_lembaga' => 'Ya']);
+        LembagaSantri::create(['santri_id' => $santri->id, 'jenjang' => $f['md']->jenjang, 'is_active_lembaga' => 'Ya']);
+        $this->tempatkan($santri, $f['mi']->jenjang, $f['taMi']->nama, '1A');
+
+        $res = $this->actingAs($admin, 'sanctum')->getJson('/api/admin/mi-md')->assertStatus(200);
+
+        $this->assertNotContains('Tanpa Kelas MD', array_column($res->json('beda_kelas'), 'nama'));
+    }
+
     public function test_pengecualian_pasangan_vs_mts(): void
     {
         $f = $this->baseFixture();
@@ -312,6 +326,44 @@ class MiMdTest extends TestCase
         ])->assertStatus(200);
         $this->assertSame(0, (int) $res3->json('berhasil'));
         $this->assertCount(1, $res3->json('gagal'));
+    }
+
+    public function test_samakan_hanya_anggota_aktif_kedua_jenjang(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang, $f['md']->jenjang]);
+
+        $miSaja = Santri::create(['nama_lengkap' => 'MI Saja', 'jk' => 'L']);
+        LembagaSantri::create(['santri_id' => $miSaja->id, 'jenjang' => $f['mi']->jenjang, 'is_active_lembaga' => 'Ya']);
+        $this->tempatkan($miSaja, $f['mi']->jenjang, $f['taMi']->nama, '1A');
+        Kelas::firstOrCreate(
+            ['jenjang' => $f['md']->jenjang, 'tahun_ajaran' => $f['taMd']->nama, 'nama_kelas' => '1A'],
+            ['tingkat' => '1'],
+        );
+
+        $resMi = $this->actingAs($admin, 'sanctum')->postJson('/api/admin/mi-md/samakan-kelas', [
+            'items' => [['santri_id' => $miSaja->id, 'arah' => 'ke_md']],
+        ])->assertStatus(200);
+        $this->assertSame(0, (int) $resMi->json('berhasil'));
+        $this->assertSame('Santri harus aktif di MI dan MD.', $resMi->json('gagal.0.pesan'));
+        $this->assertSame(0, LembagaSantri::where('santri_id', $miSaja->id)->where('jenjang', $f['md']->jenjang)->count());
+        $this->assertSame(0, RiwayatBelajar::where('santri_id', $miSaja->id)->where('jenjang', $f['md']->jenjang)->count());
+
+        $mdSaja = Santri::create(['nama_lengkap' => 'MD Saja', 'jk' => 'L']);
+        LembagaSantri::create(['santri_id' => $mdSaja->id, 'jenjang' => $f['md']->jenjang, 'is_active_lembaga' => 'Ya']);
+        $this->tempatkan($mdSaja, $f['md']->jenjang, $f['taMd']->nama, '1B');
+        Kelas::firstOrCreate(
+            ['jenjang' => $f['mi']->jenjang, 'tahun_ajaran' => $f['taMi']->nama, 'nama_kelas' => '1B'],
+            ['tingkat' => '1'],
+        );
+
+        $resMd = $this->actingAs($admin, 'sanctum')->postJson('/api/admin/mi-md/samakan-kelas', [
+            'items' => [['santri_id' => $mdSaja->id, 'arah' => 'ke_mi']],
+        ])->assertStatus(200);
+        $this->assertSame(0, (int) $resMd->json('berhasil'));
+        $this->assertSame('Santri harus aktif di MI dan MD.', $resMd->json('gagal.0.pesan'));
+        $this->assertSame(0, LembagaSantri::where('santri_id', $mdSaja->id)->where('jenjang', $f['mi']->jenjang)->count());
+        $this->assertSame(0, RiwayatBelajar::where('santri_id', $mdSaja->id)->where('jenjang', $f['mi']->jenjang)->count());
     }
 
     public function test_daftarkan_md_sepihak_mi_saja(): void

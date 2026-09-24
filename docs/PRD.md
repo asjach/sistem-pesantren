@@ -208,6 +208,12 @@
 | 2.154 | 2026-09-24 | Fix jumlah status Daftar Kelas: opsi Semua kirim `kelompok_status=semua` (tanpa filter status) — sebelumnya jatuh ke cabang lama `is_active_riwayat='Ya'` sehingga baris nonaktif terbuang (543 vs 553). Tanpa param tetap perilaku lama untuk pemanggil lain |
 | 2.155 | 2026-09-24 | Zona info tengah toolbar (ganti posisi search box lama): pil 2 baris — info halaman + info seleksi (dot aksen, hanya saat ada centang); sembunyi total bila kosong; ikut toggle preset `info`. Prop `tengah` baru; label info Daftar Kelas pindah ke tengah |
 | 2.156 | 2026-09-24 | MI-MD: tiga tabel dipisahkan panel horizontal resizable tanpa border (MI Only, MD Semua, Perbandingan Kelas) dengan handle drag/keyboard; kontrol dropdown Kolom dipindahkan ke header masing-masing tabel; rasio awal sama besar, lebar minimum 20%, dan tiap panel mengisi tinggi area |
+| 2.157 | 2026-09-25 | MI-MD: dropdown Urutkan ditambahkan di kiri dropdown Kolom pada header setiap tabel; opsi Nama/NIS/Kelas dibangun per tabel, sorting berjalan sisi klien, dan preset awal tetap Nama menaik. Ketiga tabel didaftarkan di Kelola Halaman untuk mengelola preset Kolom, Urutan, dan Toolbar |
+| 2.158 | 2026-09-25 | MI-MD menjadi dua kolom: kolom kiri memuat MI Only di atas Perbandingan Kelas dengan rasio tinggi 2:1 dan pemisah vertikal resizable; kolom kanan memuat MD Semua dengan pemisah lebar resizable |
+| 2.159 | 2026-09-25 | Aksi Samakan dengan MI/MD hanya berlaku untuk santri dengan keanggotaan aktif pada kedua jenjang; permintaan API dari Santri yang hanya aktif di MI atau MD ditolak tanpa membuat riwayat/keanggotaan sisi lain |
+| 2.160 | 2026-09-25 | Label aksi baris Samakan dipersingkat: ikon panah ke kanan diikuti MI atau MD; tooltip deskriptif tetap dipertahankan |
+| 2.161 | 2026-09-25 | Perbandingan Kelas hanya memuat Santri aktif di MI dan MD yang sama-sama memiliki kelas aktif; jika kelas MI atau MD kosong, baris tidak ditampilkan |
+| 2.162 | 2026-09-25 | Pindah Kelas: saat halaman dibuka, filter global Tingkat otomatis memilih tingkat terendah yang tersedia pada kelas aktif, bukan Semua; pilihan pengguna berikutnya tetap dihormati |
 
 ## Daftar Isi
 

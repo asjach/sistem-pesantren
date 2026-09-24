@@ -96,6 +96,21 @@ class UrutKatalog
             'absen' => ['riwayat_belajar.no_absen'],
             'id' => ['riwayat_belajar.id'],
         ],
+        'mi_md_mi' => [
+            'nama' => ['santri.nama_lengkap'],
+            'nis_mi' => ['lembaga_santri.nis_lokal'],
+            'kelas_mi' => ['kelas.nama_kelas'],
+        ],
+        'mi_md_md' => [
+            'nama' => ['santri.nama_lengkap'],
+            'nis_md' => ['lembaga_santri.nis_lokal'],
+            'kelas_md' => ['kelas.nama_kelas'],
+        ],
+        'mi_md_beda' => [
+            'nama' => ['santri.nama_lengkap'],
+            'kelas_mi' => ['kelas.nama_kelas'],
+            'kelas_md' => ['kelas.nama_kelas'],
+        ],
         'mutasi_arsip' => [
             'santri' => ['santri.nama_lengkap'],
             'tanggal' => ['mutasi_keluar.tanggal_mutasi'],
