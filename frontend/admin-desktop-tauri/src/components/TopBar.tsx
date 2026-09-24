@@ -31,6 +31,7 @@ import { useRibbonTable } from '@/components/RibbonTable';
 import { useRibbonSlotCtx } from '@/components/RibbonSlot';
 import { useTopBarFilterCtx } from '@/components/TopBarFilter';
 import { useTopBarSearchCtx } from '@/components/TopBarSearch';
+import { useTopBarSemesterCtx } from '@/components/TopBarSemester';
 import BannerBertindak from '@/components/BannerBertindak';
 import { halamanDariPath } from '@/lib/halaman';
 import { RibbonTabel } from './topbar/RibbonTabel';
@@ -110,6 +111,8 @@ export default function TopBar() {
   const search = useTopBarSearchCtx();
   const setSearchEl = search?.setEl;
   const searchAda = search?.ada ?? false;
+  /** Halaman tanpa konsep semester (mis. Kelas) menyembunyikan dropdown Semester. */
+  const semesterSembunyi = useTopBarSemesterCtx()?.sembunyi ?? false;
 
   const halaman = halamanDariPath(pathname);
   const [toolsTampil, setToolsTampil] = useState(true);
@@ -254,7 +257,7 @@ export default function TopBar() {
               </DropdownMenuContent>
             </DropdownMenu>
           )}
-          {!semesterLoading && (
+          {!semesterLoading && !semesterSembunyi && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button

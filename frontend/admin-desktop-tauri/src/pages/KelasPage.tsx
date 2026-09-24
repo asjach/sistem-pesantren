@@ -33,6 +33,7 @@ import {
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { FilterMulti } from '@/components/FilterTingkatKelas';
 import { TopBarFilter } from '@/components/TopBarFilter';
+import { TanpaSemester } from '@/components/TopBarSemester';
 import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
 import { useTahunAjaranAwalString } from '@/hooks/useTahunAjaranAwal';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
@@ -569,6 +570,8 @@ export default function KelasPage() {
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
+      {/* Kelas tak mengenal semester: sembunyikan dropdown Semester global. */}
+      <TanpaSemester />
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari kelas…" />
       <TopBarFilter>
         <FilterMulti

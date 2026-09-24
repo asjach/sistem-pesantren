@@ -194,6 +194,7 @@
 | 2.140 | 2026-09-24 | Dropdown Urutkan: label opsi "Tanpa urutan" diganti strip "—" |
 | 2.141 | 2026-09-24 | Tombol **PERAN SEBAGAI** di baris atas dihapus; pilih/keluar peran lembaga super_admin pindah ke section **"Peran sebagai"** di menu akun (tetap tampil saat bertindak; banner act-as dipertahankan sebagai penanda) |
 | 2.142 | 2026-09-24 | Halaman **Kelas**: hapus filter Tingkat di header tabel; filter Tingkat (multi-pilih 1–12) pindah ke topBar. Endpoint `kelas` menerima `tingkat[]` (tunggal tetap didukung) |
+| 2.143 | 2026-09-24 | Dropdown **Semester** disembunyikan di halaman Kelas (data kelas tak mengenal semester; kontrol ini tak berpengaruh di sana). Mekanisme per halaman via `TanpaSemester` |
 
 ## Daftar Isi
 
