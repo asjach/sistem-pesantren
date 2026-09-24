@@ -153,7 +153,7 @@ export default function ReferensiPage() {
     const m = new Map<string, boolean>();
     for (const r of rows) {
       const nyala = r.is_active !== false;
-      m.set(r.jenjang ?? '', nyala ? canNonaktifRow(r) : (r.jenjang !== null && canAccessRow(r.jenjang)));
+      m.set(String(r.id), nyala ? canNonaktifRow(r) : (r.jenjang !== null && canAccessRow(r.jenjang)));
     }
     return m;
   }, [rows, canNonaktifRow, canAccessRow]);

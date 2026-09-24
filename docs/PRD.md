@@ -196,6 +196,7 @@
 | 2.142 | 2026-09-24 | Halaman **Kelas**: hapus filter Tingkat di header tabel; filter Tingkat (multi-pilih 1–12) pindah ke topBar. Endpoint `kelas` menerima `tingkat[]` (tunggal tetap didukung) |
 | 2.143 | 2026-09-24 | Dropdown **Semester** disembunyikan di halaman Kelas (data kelas tak mengenal semester; kontrol ini tak berpengaruh di sana). Mekanisme per halaman via `TanpaSemester` |
 | 2.144 | 2026-09-24 | **Tingkat & Kelas jadi filter global** (setara lembaga/TA/semester; nilai menetap lintas halaman, tersimpan per perangkat; pilihan kelas dikosongkan saat ganti lembaga/TA). Tiap filter bisa show/hide per halaman via `VisibilitasFilter` (bawaan: lembaga/TA/semester tampil, tingkat/kelas tampil bila halaman meminta). Slot `TopBarFilter`/`TanpaSemester` dilebur ke mekanisme ini |
+| 2.145 | 2026-09-24 | Fix toggle `is_active` halaman Referensi tak bisa ditekan: peta izin `toggleBoleh` di-key per `jenjang` padahal `bolehToggle` dipanggil per `id` baris (selalu gagal → disabled); kini di-key per `id` |
 
 ## Daftar Isi
 
