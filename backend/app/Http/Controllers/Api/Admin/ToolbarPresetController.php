@@ -17,11 +17,12 @@ use Illuminate\Validation\ValidationException;
  */
 class ToolbarPresetController extends Controller
 {
-    /** Kunci kontrol yang dikenal frontend (di luar ini ditolak). */
-    public const KUNCI = ['cari', 'info', 'urut', 'kolom', 'filter'];
+    /** Kunci kontrol yang dikenal frontend (di luar ini ditolak).
+     *  Kotak cari tidak ada lagi (pencarian tunggal di topBar). */
+    public const KUNCI = ['info', 'urut', 'kolom', 'filter'];
 
     /** Kunci kontrol yang punya pengaturan lebar (px). */
-    public const KUNCI_LEBAR = ['cari', 'urut', 'kolom'];
+    public const KUNCI_LEBAR = ['urut', 'kolom'];
 
     /** GET /api/admin/toolbar-preset?table_key=santri */
     public function index(ToolbarPresetIndexRequest $request): JsonResponse

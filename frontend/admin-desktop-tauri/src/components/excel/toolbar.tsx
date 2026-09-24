@@ -1,9 +1,7 @@
 import type { MutableRefObject, ReactNode } from 'react';
-import { Input } from '@/components/ui/input';
 import PresetKolom, { type PresetKolomApi } from '@/components/PresetKolom';
 import PresetUrut from '@/components/PresetUrut';
 import MenuAksiToolbar from '@/components/MenuAksiToolbar';
-import { X } from '@/icons';
 import { cn } from '@/lib/utils';
 import type { ExcelField } from './types';
 import type { VisToolbar, LebarToolbar } from '@/components/kelolaTabel/jenis';
@@ -16,13 +14,7 @@ export interface ToolbarTabelProps<T extends { id: string | number }> {
   akhirToolbar?: ReactNode;
   addButton?: ReactNode;
   filter?: ReactNode;
-  formId: string;
-  inputId: string;
-  hasSearchInput: boolean;
   hasFilter: boolean;
-  searchValue?: string;
-  onSearchChange?: (v: string) => void;
-  searchPlaceholder?: string;
   checkedCount: number;
   checkedRows: T[];
   renderBulkActions?: (checkedRows: T[], clearSelection: () => void) => ReactNode;
@@ -43,10 +35,8 @@ export interface ToolbarTabelProps<T extends { id: string | number }> {
   lebarKolomDb?: number;
 }
 
-/** Bilah kontrol tabel 5 zona: kiri 1 filter halaman, kiri 2 bulk + info +
- *  kustom, tengah search 100px tetap, kanan 1 urut + kolom, kanan 2 kustom +
- *  tombol aksi halaman. Sisi kiri/kanan berbagi sisa ruang sama besar
- *  sehingga search selalu di tengah. */
+/** Bilah kontrol tabel 4 zona: kiri 1 filter halaman, kiri 2 bulk + info +
+ *  kustom, kanan 1 urut + kolom, kanan 2 kustom + tombol aksi halaman. */
 export default function ToolbarTabel<T extends { id: string | number }>({
   tableKey,
   showToolbar,
@@ -55,13 +45,7 @@ export default function ToolbarTabel<T extends { id: string | number }>({
   akhirToolbar,
   addButton,
   filter,
-  formId,
-  inputId,
-  hasSearchInput,
   hasFilter,
-  searchValue,
-  onSearchChange,
-  searchPlaceholder,
   checkedCount,
   checkedRows,
   renderBulkActions,
@@ -77,7 +61,6 @@ export default function ToolbarTabel<T extends { id: string | number }>({
   lebarToolbar,
   lebarKolomDb,
 }: ToolbarTabelProps<T>) {
-  const cariTampil = visToolbar.cari && hasSearchInput;
   const infoTampil = visToolbar.info;
   const urutTampil = visToolbar.urut && !!onUrut;
   const kolomTampil = visToolbar.kolom && !hidePreset;
@@ -119,41 +102,6 @@ export default function ToolbarTabel<T extends { id: string | number }>({
         {awalanToolbar}
       </div>
       </div>
-
-      {/* Tengah: kotak cari real-time 100px tetap (tanpa tombol submit). */}
-      {cariTampil && (
-        <form
-          id={formId}
-          onSubmit={(e) => {
-            e.preventDefault();
-          }}
-          className="flex shrink-0 flex-nowrap items-end gap-1.5"
-        >
-          <div className="relative">
-            <Input
-              id={inputId}
-              aria-label="Cari"
-              placeholder={searchPlaceholder ?? 'Cari'}
-              value={searchValue}
-              onChange={(e) => onSearchChange?.(e.target.value)}
-              className="pr-7"
-              style={{ width: `${lebarToolbar.cari}px` }}
-            />
-            {searchValue ? (
-              <button
-                type="button"
-                id={`${inputId}_hapus`}
-                title="Hapus isi pencarian"
-                aria-label="Hapus isi pencarian"
-                onClick={() => onSearchChange?.('')}
-                className="absolute top-1/2 right-1.5 grid size-4 -translate-y-1/2 place-items-center rounded-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-              >
-                <X size={12} />
-              </button>
-            ) : null}
-          </div>
-        </form>
-      )}
 
       {/* Super-zona kanan: area 1 + 2 membungkus sebagai blok bila sempit. */}
       <div className="flex min-w-0 flex-1 flex-wrap items-end justify-end gap-x-2 gap-y-2">

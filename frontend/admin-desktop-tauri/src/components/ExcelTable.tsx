@@ -121,13 +121,8 @@ interface ExcelTableProps<T extends { id: string | number }> {
   onSaved: () => Promise<void> | void;
   /** Isi kolom Aksi (ikon Lihat/Ubah/Hapus, sudah digerbang role oleh halaman). */
   renderActions: (row: T) => ReactNode;
-  /** Pencarian sebaris real-time di toolbar. */
-  searchValue?: string;
-  onSearchChange?: (v: string) => void;
-  searchPlaceholder?: string;
-  searchIds?: { form?: string; input?: string; button?: string };
   filter?: ReactNode;
-  /** Kontrol di awal toolbar, diletakkan SEBELUM kotak Cari (mis. pemilih
+  /** Kontrol di awal toolbar (mis. pemilih
    *  tabel pada halaman Kamus Label). */
   awalanToolbar?: ReactNode;
   /** Kontrol di ujung KANAN toolbar (setelah tombol aksi utama halaman). */
@@ -208,10 +203,6 @@ export default function ExcelTable<T extends { id: string | number }>({
   onCommit,
   onSaved,
   renderActions,
-  searchValue,
-  onSearchChange,
-  searchPlaceholder,
-  searchIds,
   filter,
   awalanToolbar,
   akhirToolbar,
@@ -267,7 +258,7 @@ export default function ExcelTable<T extends { id: string | number }>({
   /** Geser urutan kolom = super_admin EFEKTIF (global; mati saat bertindak). */
   const { efektifSuper: bolehGeser } = useLembagaAktif();
   /** Visibilitas kontrol toolbar generik (tab Kontrol dialog Kelola tabel). */
-  const [visToolbar, setVisToolbar] = useState<VisToolbar>({ cari: true, info: true, urut: true, kolom: true, filter: true });
+  const [visToolbar, setVisToolbar] = useState<VisToolbar>({ info: true, urut: true, kolom: true, filter: true });
   /** Lebar efektif kontrol berlebar (px); nilai awal = bawaan meski belum tersimpan. */
   const [lebarToolbar, setLebarToolbar] = useState<LebarToolbar>({ ...LEBAR_BAWAHAN_TOOLBAR });
   /** Lebar kolom tersimpan di DB (undefined = pakai presetKolomClassName halaman). */
@@ -291,7 +282,7 @@ export default function ExcelTable<T extends { id: string | number }>({
         setLebarKolomDb(typeof tersimpan === 'number' && tersimpan >= 40 && tersimpan <= 480 ? tersimpan : undefined);
       } catch {
         if (batal) return;
-        setVisToolbar({ cari: true, info: true, urut: true, kolom: true, filter: true });
+        setVisToolbar({ info: true, urut: true, kolom: true, filter: true });
         setLebarToolbar({ ...LEBAR_BAWAHAN_TOOLBAR });
         setLebarFilter({});
         setUrutanDb([]);
@@ -813,7 +804,7 @@ export default function ExcelTable<T extends { id: string | number }>({
   // saat fokus di grid maupun di editor sel (input/select) — listener capture
   // berjalan sebelum handler editor, lalu editor ikut ditutup komponennya.
   // Dialog/dropdown yang sedang terbuka tetap dikecualikan agar Esc menutupnya;
-  // kotak cari/filter di toolbar juga dikecualikan agar Esc saat mengetik tidak
+  // kotak filter di toolbar juga dikecualikan agar Esc saat mengetik tidak
   // keluar dari mode Edit/Input.
   useEffect(() => {
     if (!((canEdit && editMode) || showInput)) return;
@@ -1927,14 +1918,10 @@ export default function ExcelTable<T extends { id: string | number }>({
     ubahFreeze,
   ]);
 
-  const hasSearchInput = searchValue !== undefined && !!onSearchChange;
   const hasFilter = filter !== undefined;
   const hasUrut = !!onUrut;
-  const cariEfektif = visToolbar.cari && hasSearchInput;
   const filterEfektif = visToolbar.filter && hasFilter;
-  const showToolbar = cariEfektif || filterEfektif || hasUrut || awalanToolbar !== undefined || akhirToolbar !== undefined || checkedRows.length > 0;
-  const formId = searchIds?.form ?? `form_cari_${tableKey}`;
-  const inputId = searchIds?.input ?? `input_cari_${tableKey}`;
+  const showToolbar = filterEfektif || hasUrut || awalanToolbar !== undefined || akhirToolbar !== undefined || checkedRows.length > 0;
 
   // Data context menu per area (header kolom / baris).
   const ctxHeader = ctx.area === 'header' ? ctx : null;
@@ -1963,13 +1950,7 @@ export default function ExcelTable<T extends { id: string | number }>({
         akhirToolbar={akhirToolbar}
         addButton={addButton}
         filter={filter}
-        formId={formId}
-        inputId={inputId}
-        hasSearchInput={!!hasSearchInput}
         hasFilter={hasFilter}
-        searchValue={searchValue}
-        onSearchChange={onSearchChange}
-        searchPlaceholder={searchPlaceholder}
         checkedCount={checkedIds.size}
         checkedRows={checkedRows}
         renderBulkActions={renderBulkActions}

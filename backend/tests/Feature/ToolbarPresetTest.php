@@ -77,8 +77,8 @@ class ToolbarPresetTest extends TestCase
         // Simpan urutan saja tak menghapus visibilitas/lebar yang sudah ada.
         $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/toolbar-preset', [
             'table_key' => 'santri',
-            'visibilitas' => ['cari' => false],
-            'lebar' => ['cari' => 200],
+            'visibilitas' => ['info' => false],
+            'lebar' => ['urut' => 200],
         ])->assertStatus(200);
         $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/toolbar-preset', [
             'table_key' => 'santri',
@@ -87,8 +87,8 @@ class ToolbarPresetTest extends TestCase
         $this->actingAs($pusat, 'sanctum')
             ->getJson('/api/admin/toolbar-preset?table_key=santri')
             ->assertStatus(200)
-            ->assertJsonPath('data.visibilitas', ['cari' => false])
-            ->assertJsonPath('data.lebar', ['cari' => 200])
+            ->assertJsonPath('data.visibilitas', ['info' => false])
+            ->assertJsonPath('data.lebar', ['urut' => 200])
             ->assertJsonPath('data.urutan', ['a', 'b']);
 
         // Kunci urutan asing ditolak.
@@ -120,19 +120,22 @@ class ToolbarPresetTest extends TestCase
         // Admin lembaga ditolak menulis (403), baris tak terbentuk.
         $this->actingAs($scoped, 'sanctum')->putJson('/api/admin/toolbar-preset', [
             'table_key' => 'santri',
-            'visibilitas' => ['cari' => false],
+            'visibilitas' => ['info' => false],
         ])->assertStatus(403);
         $this->assertSame(0, ToolbarPreset::where('table_key', 'santri')->count());
 
-        // Super_admin menyimpan + membaca kembali.
+        // Super_admin menyimpan + membaca kembali (per kunci: urutan kunci
+        // objek JSON MySQL tak dijamin sama dengan urutan kirim).
         $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/toolbar-preset', [
             'table_key' => 'santri',
-            'visibilitas' => ['cari' => false, 'kolom' => true, 'filter' => false],
+            'visibilitas' => ['info' => false, 'kolom' => true, 'filter' => false],
         ])->assertStatus(200);
         $this->actingAs($scoped, 'sanctum')
             ->getJson('/api/admin/toolbar-preset?table_key=santri')
             ->assertStatus(200)
-            ->assertJsonPath('data.visibilitas', ['cari' => false, 'kolom' => true, 'filter' => false]);
+            ->assertJsonPath('data.visibilitas.info', false)
+            ->assertJsonPath('data.visibilitas.kolom', true)
+            ->assertJsonPath('data.visibilitas.filter', false);
 
         // Admin lembaga ditolak menghapus; super_admin mengembalikan bawaan.
         $this->actingAs($scoped, 'sanctum')
@@ -150,13 +153,24 @@ class ToolbarPresetTest extends TestCase
 
         $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/toolbar-preset', [
             'table_key' => 'santri',
-            'visibilitas' => ['cari' => 'ya'],
-        ])->assertStatus(422)->assertJsonValidationErrors(['visibilitas.cari']);
+            'visibilitas' => ['info' => 'ya'],
+        ])->assertStatus(422)->assertJsonValidationErrors(['visibilitas.info']);
 
         $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/toolbar-preset', [
             'table_key' => 'santri',
             'visibilitas' => ['tombol_asing' => true],
         ])->assertStatus(422)->assertJsonValidationErrors(['visibilitas']);
+
+        // Kotak cari dihapus: kunci lama ditolak di visibilitas maupun lebar.
+        $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/toolbar-preset', [
+            'table_key' => 'santri',
+            'visibilitas' => ['cari' => true],
+        ])->assertStatus(422)->assertJsonValidationErrors(['visibilitas']);
+        $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/toolbar-preset', [
+            'table_key' => 'santri',
+            'visibilitas' => ['info' => true],
+            'lebar' => ['cari' => 100],
+        ])->assertStatus(422)->assertJsonValidationErrors(['lebar']);
     }
 
     public function test_simpan_dan_baca_lebar_kontrol(): void
@@ -172,30 +186,31 @@ class ToolbarPresetTest extends TestCase
         // Simpan lebar + visibilitas sekaligus.
         $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/toolbar-preset', [
             'table_key' => 'santri',
-            'visibilitas' => ['cari' => true],
-            'lebar' => ['cari' => 200, 'urut' => 150, 'kolom' => 176],
+            'visibilitas' => ['info' => true],
+            'lebar' => ['urut' => 150, 'kolom' => 176],
         ])->assertStatus(200);
         $this->actingAs($pusat, 'sanctum')
             ->getJson('/api/admin/toolbar-preset?table_key=santri')
             ->assertStatus(200)
-            ->assertJsonPath('data.lebar', ['cari' => 200, 'urut' => 150, 'kolom' => 176]);
+            ->assertJsonPath('data.lebar.urut', 150)
+            ->assertJsonPath('data.lebar.kolom', 176);
 
         // Kunci lebar tak dikenal + di luar rentang ditolak.
         $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/toolbar-preset', [
             'table_key' => 'santri',
-            'visibilitas' => ['cari' => true],
+            'visibilitas' => ['info' => true],
             'lebar' => ['info' => 100],
         ])->assertStatus(422)->assertJsonValidationErrors(['lebar']);
         $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/toolbar-preset', [
             'table_key' => 'santri',
-            'visibilitas' => ['cari' => true],
-            'lebar' => ['cari' => 10],
-        ])->assertStatus(422)->assertJsonValidationErrors(['lebar.cari']);
+            'visibilitas' => ['info' => true],
+            'lebar' => ['urut' => 10],
+        ])->assertStatus(422)->assertJsonValidationErrors(['lebar.urut']);
 
         // Kunci filter halaman (filter.<id>) diterima; pola asing ditolak.
         $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/toolbar-preset', [
             'table_key' => 'santri',
-            'visibilitas' => ['cari' => true],
+            'visibilitas' => ['info' => true],
             'lebar' => ['filter.select_status_santri' => 160],
         ])->assertStatus(200);
         $this->actingAs($pusat, 'sanctum')
@@ -204,7 +219,7 @@ class ToolbarPresetTest extends TestCase
             ->assertJsonPath('data.lebar', ['filter.select_status_santri' => 160]);
         $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/toolbar-preset', [
             'table_key' => 'santri',
-            'visibilitas' => ['cari' => true],
+            'visibilitas' => ['info' => true],
             'lebar' => ['filter.besar!' => 100],
         ])->assertStatus(422)->assertJsonValidationErrors(['lebar']);
     }

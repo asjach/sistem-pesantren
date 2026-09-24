@@ -1,24 +1,23 @@
 /** Tab dialog Kelola tabel. */
 export type TabKelola = 'kolom' | 'urutan' | 'kontrol';
 
-/** Kunci kontrol toolbar generik yang bisa ditampil/sembunyikan per tabel. */
-export type KontrolToolbar = 'cari' | 'info' | 'urut' | 'kolom' | 'filter';
+/** Kunci kontrol toolbar generik yang bisa ditampil/sembunyikan per tabel.
+ *  Kotak cari tidak ada lagi (pencarian tunggal di topBar). */
+export type KontrolToolbar = 'info' | 'urut' | 'kolom' | 'filter';
 
 /** Kunci kontrol yang punya pengaturan lebar (px). */
-export type KontrolLebar = 'cari' | 'urut' | 'kolom';
+export type KontrolLebar = 'urut' | 'kolom';
 
 export const KONTROL_TOOLBAR: { kunci: KontrolToolbar; label: string; ket: string; lebar?: boolean }[] = [
-  { kunci: 'cari', label: 'Kotak cari', ket: 'Kolom pencarian di tengah toolbar', lebar: true },
   { kunci: 'info', label: 'Info seleksi', ket: 'Teks "N baris dipilih"' },
   { kunci: 'urut', label: 'Dropdown Urutkan', ket: 'Pemilih urutan + tombol arah', lebar: true },
   { kunci: 'kolom', label: 'Dropdown Kolom', ket: 'Pemilih preset kolom', lebar: true },
   { kunci: 'filter', label: 'Filter halaman', ket: 'Filter khusus halaman di kiri toolbar — awas mengunci alur (mis. pilihan kelas tujuan)' },
 ];
 
-/** Lebar bawaan kontrol (px): seluruh dropdown + kotak cari seragam 100.
+/** Lebar bawaan kontrol (px): seluruh dropdown seragam 100.
  *  Selalu ditampilkan sebagai angka meski belum ada preset tersimpan. */
 export const LEBAR_BAWAHAN_TOOLBAR: Record<KontrolLebar, number> = {
-  cari: 100,
   urut: 100,
   kolom: 100,
 };
@@ -47,7 +46,6 @@ export function bacaLebarToolbar(lebar: Record<string, number> | undefined): Leb
   const px = (v: unknown, min = 40, maks = 480): number | null =>
     typeof v === 'number' && Number.isFinite(v) && v >= min && v <= maks ? Math.round(v) : null;
   return {
-    cari: px(lebar?.cari) ?? LEBAR_BAWAHAN_TOOLBAR.cari,
     urut: px(lebar?.urut) ?? LEBAR_BAWAHAN_TOOLBAR.urut,
     kolom: px(lebar?.kolom) ?? LEBAR_BAWAHAN_TOOLBAR.kolom,
   };
@@ -55,7 +53,6 @@ export function bacaLebarToolbar(lebar: Record<string, number> | undefined): Leb
 
 export function bacaVisToolbar(vis: Record<string, boolean> | undefined): VisToolbar {
   return {
-    cari: vis?.cari !== false,
     info: vis?.info !== false,
     urut: vis?.urut !== false,
     kolom: vis?.kolom !== false,

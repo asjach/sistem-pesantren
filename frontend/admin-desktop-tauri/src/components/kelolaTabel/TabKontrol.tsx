@@ -21,7 +21,7 @@ export default function TabKontrol({ tableKey, onTutup }: { tableKey: string; on
   /** Visibilitas kontrol = super_admin EFEKTIF (mati saat bertindak). */
   const { efektifSuper: bolehUbah } = useLembagaAktif();
 
-  const [vis, setVis] = useState<VisToolbar>({ cari: true, info: true, urut: true, kolom: true, filter: true });
+  const [vis, setVis] = useState<VisToolbar>({ info: true, urut: true, kolom: true, filter: true });
   /** Lebar kontrol (px); nilai awal = bawaan meski belum ada preset tersimpan. */
   const [lebar, setLebar] = useState<LebarToolbar>({ ...LEBAR_BAWAHAN_TOOLBAR });
   /** Lebar filter halaman tersimpan (kunci → px), untuk daftar + gabung simpan. */
@@ -39,7 +39,7 @@ export default function TabKontrol({ tableKey, onTutup }: { tableKey: string; on
       setLebarFilterSimpan(tersimpan);
       setFilterW(Object.fromEntries(Object.entries(tersimpan).map(([k, v]) => [k, String(v)])));
     } catch {
-      setVis({ cari: true, info: true, urut: true, kolom: true, filter: true });
+      setVis({ info: true, urut: true, kolom: true, filter: true });
       setLebar({ ...LEBAR_BAWAHAN_TOOLBAR });
       setLebarFilterSimpan({});
       setFilterW({});
@@ -82,7 +82,6 @@ export default function TabKontrol({ tableKey, onTutup }: { tableKey: string; on
     setBusy(true);
     try {
       const lebarKirim: Record<string, number> = {
-        cari: jepit(lebar.cari),
         urut: jepit(lebar.urut),
         kolom: jepit(lebar.kolom),
       };
@@ -95,7 +94,7 @@ export default function TabKontrol({ tableKey, onTutup }: { tableKey: string; on
         bersihFilter[k] = String(jepit(n));
       }
       const res = await simpanToolbarPreset(tableKey, { ...vis }, lebarKirim);
-      setLebar((v) => ({ cari: jepit(v.cari), urut: jepit(v.urut), kolom: jepit(v.kolom) }));
+      setLebar((v) => ({ urut: jepit(v.urut), kolom: jepit(v.kolom) }));
       setFilterW(bersihFilter);
       await muat();
       toast.success(res.pesan);
@@ -112,7 +111,7 @@ export default function TabKontrol({ tableKey, onTutup }: { tableKey: string; on
     setBusy(true);
     try {
       const res = await hapusToolbarPreset(tableKey);
-      setVis({ cari: true, info: true, urut: true, kolom: true, filter: true });
+      setVis({ info: true, urut: true, kolom: true, filter: true });
       setLebar({ ...LEBAR_BAWAHAN_TOOLBAR });
       setLebarFilterSimpan({});
       setFilterW({});
