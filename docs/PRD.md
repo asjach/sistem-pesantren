@@ -182,6 +182,8 @@
 | 2.128 | 2026-09-24 | TopBar: hapus ikon pada dropdown lembaga, tahun ajaran, dan semester (teks + chevron saja) |
 | 2.129 | 2026-09-24 | TopBar: hapus header/judul pada daftar dropdown lembaga, tahun ajaran, semester, serta filter tingkat & kelas |
 | 2.130 | 2026-09-24 | Ribbon tabel: hapus header grup MODE, KOLOM, BARIS, dan FONT & WARNA (`RibbonGroup` label jadi opsional) |
+| 2.131 | 2026-09-24 | TopBar: tombol toggle tampil/sembunyi ribbon diperlebar (`size-6` → `w-14`) |
+| 2.132 | 2026-09-24 | TopBar: tombol mode (Terang/Gelap/Sistem) dipindah dari baris atas ke area akun — blok khusus di bawah nama akun, di atas menu Tema |
 
 ## Daftar Isi
 

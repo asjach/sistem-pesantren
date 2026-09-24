@@ -309,33 +309,13 @@ export default function TopBar() {
               aria-pressed={toolsTampil}
               onClick={togolTools}
               className={cn(
-                'mr-1 grid size-6 place-items-center rounded-md text-white/75 transition-colors hover:bg-white/10 hover:text-white',
+                'mr-1 grid h-6 w-14 place-items-center rounded-md text-white/75 transition-colors hover:bg-white/10 hover:text-white',
                 toolsTampil && 'bg-white/15 text-white',
               )}
             >
               {toolsTampil ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
             </button>
           )}
-          <ToggleGroup
-            type="single"
-            spacing={0}
-            value={mode}
-            onValueChange={(v) => { if (v) setMode(v as ModeName); }}
-            className="mr-1"
-          >
-            {MODE_STRIP.map((m) => (
-              <ToggleGroupItem
-                key={m.id}
-                id={`strip_mode_${m.id}`}
-                value={m.id}
-                title={`Mode ${m.nama}`}
-                aria-label={`Mode ${m.nama}`}
-                className="size-6 rounded-md border-0 text-white/75 hover:bg-white/10 hover:text-white data-[state=on]:bg-white/20 data-[state=on]:text-white"
-              >
-                <m.icon size={14} />
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
           <button
             id="btn_pilih_komponen_global"
             type="button"
@@ -362,7 +342,7 @@ export default function TopBar() {
                 <ChevronDown size={13} className="opacity-70" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="min-w-[13rem]">
+            <DropdownMenuContent align="end" className="min-w-[15rem]">
               <DropdownMenuLabel className="text-foreground">
                 <div className="font-medium">{user?.name}</div>
                 <div className="mt-0.5 flex items-center gap-1.5">
@@ -374,6 +354,35 @@ export default function TopBar() {
                   </span>
                 </div>
               </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {/* Area mode tampilan (terang/gelap/sistem) — di bawah nama akun,
+                  di atas menu Tema. Bukan item menu agar klik tak menutup. */}
+              <div className="px-2 py-1.5">
+                <div className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                  Mode tampilan
+                </div>
+                <ToggleGroup
+                  type="single"
+                  spacing={0}
+                  value={mode}
+                  onValueChange={(v) => { if (v) setMode(v as ModeName); }}
+                  className="w-full"
+                >
+                  {MODE_STRIP.map((m) => (
+                    <ToggleGroupItem
+                      key={m.id}
+                      id={`menu_mode_${m.id}`}
+                      value={m.id}
+                      title={`Mode ${m.nama}`}
+                      aria-label={`Mode ${m.nama}`}
+                      className="flex-1 gap-1.5"
+                    >
+                      <m.icon size={14} />
+                      <span>{m.nama}</span>
+                    </ToggleGroupItem>
+                  ))}
+                </ToggleGroup>
+              </div>
               <DropdownMenuSeparator />
               <DropdownMenuSub>
                 <DropdownMenuSubTrigger id="menu_set_tema">
