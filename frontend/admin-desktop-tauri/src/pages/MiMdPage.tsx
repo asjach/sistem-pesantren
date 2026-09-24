@@ -18,7 +18,7 @@ import { ArrowRight, X } from '@/icons';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { useKelasAktif } from '@/kelasAktif';
-import { VisibilitasFilter } from '@/components/VisibilitasFilter';
+import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import { useTahunAjaranAwalString } from '@/hooks/useTahunAjaranAwal';
 import { toast } from 'sonner';
@@ -256,7 +256,7 @@ export default function MiMdPage() {
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari nama…" />
-      <VisibilitasFilter tampil={{ kelas: true }} />
+      <PengaturanHalaman tampil={{ kelas: true }} />
       {loading && !data ? (
         <p className="text-sm text-muted-foreground">Memuat…</p>
       ) : (

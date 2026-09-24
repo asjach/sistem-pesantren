@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/input';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { useTingkatAktif } from '@/tingkatAktif';
 import { useKelasAktif } from '@/kelasAktif';
-import { VisibilitasFilter } from '@/components/VisibilitasFilter';
+import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import FilterField from '@/components/FilterField';
 import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
@@ -238,7 +238,7 @@ export default function PindahSemesterPage() {
     <div className={PAGE_SHELL}>
       <ErrorNotice>{kiri.err || kanan.err}</ErrorNotice>
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari santri…" />
-      <VisibilitasFilter tampil={{ tingkat: true, kelas: true }} />
+      <PengaturanHalaman tampil={{ tingkat: true, kelas: true }} tabel={[{ key: 'pindah_semester_kiri', judul: 'Belum pindah semester', fields: FIELDS_KIRI }, { key: 'pindah_semester_kanan', judul: 'Sudah semester 2', fields: ROSTER_FIELDS }]} />
       {!siap ? (
         <p className="text-sm text-muted-foreground">Pilih lembaga dan tahun ajaran di topbar dulu untuk memuat kedua tabel.</p>
       ) : (

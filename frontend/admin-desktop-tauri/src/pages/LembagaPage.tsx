@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/select';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { TopBarSearch } from '@/components/TopBarSearch';
+import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { ViewDialog } from '@/components/ViewDialog';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import {
@@ -337,6 +338,7 @@ export default function LembagaPage() {
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari lembaga…" />
+      <PengaturanHalaman tampil={{}} tabel={[{ key: 'lembaga', judul: 'Lembaga', fields: FIELDS }]} />
       <ExcelTable
         tableKey="lembaga"
         sumberTabel="lembaga"

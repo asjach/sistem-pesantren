@@ -31,6 +31,7 @@ import { usePager } from '@/hooks/usePager';
 import ImportSantriGabunganDialog from '@/components/ImportSantriGabunganDialog';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { TopBarSearch } from '@/components/TopBarSearch';
+import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { toast } from 'sonner';
 
 /** Format tanggal sel grid: YYYY-MM-DD (kosong = boleh, berarti NULL). */
@@ -292,6 +293,7 @@ export default function KeanggotaanPage() {
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari santri (nama/NIK)…" />
+      <PengaturanHalaman tampil={{}} tabel={[{ key: 'keanggotaan', judul: 'Santri per lembaga', fields }]} />
 
       <ExcelTable
         tableKey="keanggotaan"

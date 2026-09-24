@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import ExcelTable from '@/components/ExcelTable';
 import { useTingkatAktif } from '@/tingkatAktif';
 import { useKelasAktif } from '@/kelasAktif';
-import { VisibilitasFilter } from '@/components/VisibilitasFilter';
+import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import { ActionIcon } from '@/components/RowActions';
 import { ArrowRight } from '@/icons';
@@ -138,7 +138,7 @@ export default function PindahKelasPage() {
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari santri…" />
-      <VisibilitasFilter tampil={{ tingkat: true, kelas: true }} />
+      <PengaturanHalaman tampil={{ tingkat: true, kelas: true }} />
       <div className="flex flex-wrap items-end gap-3">
         {canSalin && (
         <Button id="btn_buka_salin_genap" variant="outline" disabled={!jenjang} onClick={() => { setTanggalSalin(''); setSalinOpen(true); }}>

@@ -26,6 +26,7 @@ import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
 import FilterField from '@/components/FilterField';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { TopBarSearch } from '@/components/TopBarSearch';
+import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import {
   Dialog,
   DialogContent,
@@ -213,6 +214,7 @@ export default function DokumenWajibPage() {
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari dokumen…" />
+      <PengaturanHalaman tampil={{}} tabel={[{ key: 'dokumen_wajib', judul: 'Dokumen wajib', fields }]} />
       <ExcelTable
         tableKey="dokumen_wajib"
         fields={fields}

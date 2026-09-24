@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import ExcelTable from '@/components/ExcelTable';
 import { useTingkatAktif } from '@/tingkatAktif';
 import { useKelasAktif } from '@/kelasAktif';
-import { VisibilitasFilter } from '@/components/VisibilitasFilter';
+import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
 import { useTahunAjaranAwalString } from '@/hooks/useTahunAjaranAwal';
@@ -98,7 +98,7 @@ export default function DaftarKelasPage() {
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari santri…" />
-      <VisibilitasFilter tampil={{ tingkat: true, kelas: true }} />
+      <PengaturanHalaman tampil={{ tingkat: true, kelas: true }} tabel={[{ key: 'daftar_kelas', judul: 'Daftar kelas', fields }]} />
       <ExcelTable<RiwayatRow>
         tableKey="daftar_kelas"
         fields={fields}

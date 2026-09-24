@@ -18,6 +18,7 @@ import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
 import { useLembagaAktif } from '@/lembagaAktif';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { TopBarSearch } from '@/components/TopBarSearch';
+import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { ViewDialog } from '@/components/ViewDialog';
 import {
   Dialog,
@@ -281,6 +282,7 @@ export default function TahunAjaranPage() {
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari tahun ajaran…" />
+      <PengaturanHalaman tampil={{}} tabel={[{ key: 'tahun_ajaran', judul: 'Tahun ajaran', fields: FIELDS }]} />
       <ExcelTable
         tableKey="tahun_ajaran"
         sumberTabel="tahun_ajaran"

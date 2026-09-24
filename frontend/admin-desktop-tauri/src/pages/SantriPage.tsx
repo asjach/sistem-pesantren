@@ -26,6 +26,7 @@ import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
 import FilterField from '@/components/FilterField';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { TopBarSearch } from '@/components/TopBarSearch';
+import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import Pager from '@/components/Pager';
 import { useDaftarTabel } from '@/hooks/useDaftarTabel';
@@ -225,6 +226,7 @@ export default function SantriPage() {
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari santri (nama/NISN/ayah/ibu)…" />
+      <PengaturanHalaman tampil={{}} tabel={[{ key: 'santri', judul: 'Santri', fields: semuaFields }]} />
       <ExcelTable<Santri>
         tableKey="santri"
         sumberTabel="santri"

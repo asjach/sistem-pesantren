@@ -19,6 +19,7 @@ import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import FilterField from '@/components/FilterField';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { TopBarSearch } from '@/components/TopBarSearch';
+import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import {
   Dialog,
   DialogContent,
@@ -149,6 +150,7 @@ export default function PengajuanBiodataPage() {
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari santri…" />
+      <PengaturanHalaman tampil={{}} tabel={[{ key: 'pengajuan_biodata', judul: 'Pengajuan biodata', fields: FIELDS }]} />
       <ExcelTable
         tableKey="pengajuan_biodata"
         fields={FIELDS}

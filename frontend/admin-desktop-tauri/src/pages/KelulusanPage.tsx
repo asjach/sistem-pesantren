@@ -7,15 +7,30 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/field';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import ExcelTable from '@/components/ExcelTable';
+import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
 import { useTahunAjaranAwalString } from '@/hooks/useTahunAjaranAwal';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { TopBarSearch } from '@/components/TopBarSearch';
+import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { toast } from 'sonner';
 
 /** Kelulusan: kiri santri tingkat akhir → kanan alumni & santri tidak lulus. */
+
+/** Kolom santri (kiri + tidak lulus). */
+const FIELDS_SANTRI: ExcelField[] = [
+  { key: 'nama', label: 'santri.nama_lengkap', kind: 'static', sumber: { tabel: 'santri', kolom: 'nama_lengkap' } },
+  { key: 'kelas', label: 'kelas.nama_kelas', kind: 'static', sumber: { tabel: 'kelas', kolom: 'nama_kelas' } },
+];
+
+/** Kolom arsip alumni. */
+const FIELDS_ALUMNI: ExcelField[] = [
+  { key: 'santri', label: 'santri.nama_lengkap', kind: 'static', sumber: { tabel: 'santri', kolom: 'nama_lengkap' } },
+  { key: 'kelas', label: 'kelas.nama_kelas', kind: 'static', sumber: { tabel: 'kelas', kolom: 'nama_kelas' } },
+  { key: 'ta', label: 'tahun_ajaran.nama', kind: 'static', sumber: { tabel: 'tahun_ajaran', kolom: 'nama' } },
+  { key: 'ijazah', label: 'nomor_ijazah', kind: 'static', sumber: { tabel: 'alumni', kolom: 'nomor_ijazah' } },
+];
 export default function KelulusanPage() {
   const { user } = useAuth();
   const canUbah = bisa(user, 'kelulusan.ubah');
@@ -120,6 +135,7 @@ export default function KelulusanPage() {
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari santri…" />
+      <PengaturanHalaman tampil={{}} tabel={[{ key: 'kelulusan_santri_akhir', judul: 'Santri tingkat akhir', fields: FIELDS_SANTRI }, { key: 'kelulusan_alumni', judul: 'Alumni', fields: FIELDS_ALUMNI }, { key: 'kelulusan_tidak_lulus', judul: 'Santri tidak lulus', fields: FIELDS_SANTRI }]} />
       <div className="flex flex-wrap items-end gap-3">
         <div>
           <FieldLabel htmlFor="input_tingkat_kelulusan">Tingkat akhir</FieldLabel>
@@ -154,10 +170,7 @@ export default function KelulusanPage() {
           <div className="flex min-h-0 flex-1 flex-col px-2 pb-2">
             <ExcelTable
               tableKey="kelulusan_santri_akhir"
-              fields={[
-                { key: 'nama', label: 'santri.nama_lengkap', kind: 'static', sumber: { tabel: 'santri', kolom: 'nama_lengkap' } },
-                { key: 'kelas', label: 'kelas.nama_kelas', kind: 'static', sumber: { tabel: 'kelas', kolom: 'nama_kelas' } },
-              ]}
+              fields={FIELDS_SANTRI}
               rows={kiri}
               getValues={(r) => ({ nama: r.santri?.nama_lengkap ?? null, kelas: r.kelas?.nama_kelas ?? null })}
               canEdit={false}
@@ -180,12 +193,7 @@ export default function KelulusanPage() {
             <div className="flex min-h-0 flex-1 flex-col px-2 pb-2">
               <ExcelTable
                 tableKey="kelulusan_alumni"
-                fields={[
-                  { key: 'santri', label: 'santri.nama_lengkap', kind: 'static', sumber: { tabel: 'santri', kolom: 'nama_lengkap' } },
-                  { key: 'kelas', label: 'kelas.nama_kelas', kind: 'static', sumber: { tabel: 'kelas', kolom: 'nama_kelas' } },
-                  { key: 'ta', label: 'tahun_ajaran.nama', kind: 'static', sumber: { tabel: 'tahun_ajaran', kolom: 'nama' } },
-                  { key: 'ijazah', label: 'nomor_ijazah', kind: 'static', sumber: { tabel: 'alumni', kolom: 'nomor_ijazah' } },
-                ]}
+                fields={FIELDS_ALUMNI}
                 rows={alumni}
                 getValues={(a) => ({
                   santri: a.santri?.nama_lengkap ?? '—',
@@ -222,10 +230,7 @@ export default function KelulusanPage() {
             <div className="flex min-h-0 flex-1 flex-col px-2 pb-2">
               <ExcelTable
                 tableKey="kelulusan_tidak_lulus"
-                fields={[
-                  { key: 'nama', label: 'santri.nama_lengkap', kind: 'static', sumber: { tabel: 'santri', kolom: 'nama_lengkap' } },
-                  { key: 'kelas', label: 'kelas.nama_kelas', kind: 'static', sumber: { tabel: 'kelas', kolom: 'nama_kelas' } },
-                ]}
+                fields={FIELDS_SANTRI}
                 rows={tidakLulus.map((b) => ({ ...b, id: b.santri_id }))}
                 getValues={(b) => ({ nama: b.nama, kelas: b.kelas })}
                 canEdit={false}

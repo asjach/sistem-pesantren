@@ -2,10 +2,18 @@ import { useCallback, useEffect, useState } from 'react';
 import { errorMessage } from '../api/client';
 import { daftarSemester, tetapkanSemester, type SemesterLembaga } from '../api/semesterAktif';
 import { Button } from '@/components/ui/button';
-import ExcelTable from '@/components/ExcelTable';
+import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { TopBarSearch } from '@/components/TopBarSearch';
+import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { toast } from 'sonner';
+
+/** Kolom tabel semester aktif per lembaga. */
+const FIELDS_SEMESTER: ExcelField[] = [
+  { key: 'jenjang', label: 'lembaga.jenjang', kind: 'static', sumber: { tabel: 'lembaga', kolom: 'jenjang' } },
+  { key: 'nama', label: 'lembaga.nama', kind: 'static', sumber: { tabel: 'lembaga', kolom: 'nama' } },
+  { key: 'semester', label: 'semester_aktif.semester', kind: 'static', sumber: { tabel: 'semester_aktif', kolom: 'semester' } },
+];
 
 /** Semester: aktivasi semester berjalan per lembaga (khusus super_admin).
  *  Baris = lembaga operasional; aksi Ganjil/Genap menetapkan semester aktif. */
@@ -46,13 +54,10 @@ export default function SemesterPage() {
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari lembaga…" />
+      <PengaturanHalaman tampil={{}} tabel={[{ key: 'semester_aktif', judul: 'Semester aktif', fields: FIELDS_SEMESTER }]} />
       <ExcelTable<SemesterLembaga & { id: string }>
         tableKey="semester_aktif"
-        fields={[
-          { key: 'jenjang', label: 'lembaga.jenjang', kind: 'static', sumber: { tabel: 'lembaga', kolom: 'jenjang' } },
-          { key: 'nama', label: 'lembaga.nama', kind: 'static', sumber: { tabel: 'lembaga', kolom: 'nama' } },
-          { key: 'semester', label: 'semester_aktif.semester', kind: 'static', sumber: { tabel: 'semester_aktif', kolom: 'semester' } },
-        ]}
+        fields={FIELDS_SEMESTER}
         rows={rowsTampil.map((r) => ({ ...r, id: r.jenjang }))}
         getValues={(r) => ({
           jenjang: r.jenjang,

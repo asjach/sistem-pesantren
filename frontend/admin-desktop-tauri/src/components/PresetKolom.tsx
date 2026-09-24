@@ -115,7 +115,15 @@ export default function PresetKolom({
   useEffect(() => {
     void muat();
     const segarkan = (e: Event) => {
-      if ((e as CustomEvent).detail?.tableKey === tableKey) void muat();
+      const d = (e as CustomEvent).detail;
+      if (d?.tableKey !== tableKey) return;
+      // Susunan Lengkap kustom dari dialog Kelola Halaman: terapkan langsung
+      // (server sudah di-nol-kan pemanggil sebelum event dikirim).
+      if (d?.lengkap) {
+        terapkan({ kolom: d.lengkap.keys ?? [], label: d.lengkap.label ?? {} } as PresetTabel);
+        return;
+      }
+      void muat();
     };
     window.addEventListener(EVENT_PRESET_BERUBAH, segarkan);
     return () => window.removeEventListener(EVENT_PRESET_BERUBAH, segarkan);

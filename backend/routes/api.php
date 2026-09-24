@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\Admin\LembagaController;
 use App\Http\Controllers\Api\Admin\LembagaSantriController;
 use App\Http\Controllers\Api\Admin\MiMdController;
 use App\Http\Controllers\Api\Admin\PegawaiController;
+use App\Http\Controllers\Api\Admin\PengaturanHalamanController;
 use App\Http\Controllers\Api\Admin\PengaturanTampilanController;
 use App\Http\Controllers\Api\Admin\PresetTabelController;
 use App\Http\Controllers\Api\Admin\PsbBiayaController;
@@ -199,6 +200,11 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::get('toolbar-preset', [ToolbarPresetController::class, 'index'])->middleware('permission:toolbar_preset.lihat');
         Route::put('toolbar-preset', [ToolbarPresetController::class, 'simpan'])->middleware('permission:toolbar_preset.tambah|toolbar_preset.ubah');
         Route::delete('toolbar-preset', [ToolbarPresetController::class, 'hapus'])->middleware('permission:toolbar_preset.hapus');
+
+        // Visibilitas filter topBar (global per halaman; tulis super_admin saja).
+        Route::get('pengaturan-halaman', [PengaturanHalamanController::class, 'index'])->middleware('permission:pengaturan_halaman.lihat');
+        Route::put('pengaturan-halaman', [PengaturanHalamanController::class, 'simpan'])->middleware('permission:pengaturan_halaman.tambah|pengaturan_halaman.ubah');
+        Route::delete('pengaturan-halaman', [PengaturanHalamanController::class, 'hapus'])->middleware('permission:pengaturan_halaman.hapus');
 
         // Standar tampilan per lembaga (super_admin sebar ke semua; admin lembaga salinannya).
         Route::get('pengaturan-tampilan', [PengaturanTampilanController::class, 'show'])->middleware('permission:tampilan.lihat');

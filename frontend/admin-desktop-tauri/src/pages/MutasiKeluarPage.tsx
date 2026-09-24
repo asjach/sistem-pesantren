@@ -10,10 +10,10 @@ import { FieldLabel } from '@/components/ui/field';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import ExcelTable from '@/components/ExcelTable';
+import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { useTingkatAktif } from '@/tingkatAktif';
 import { useKelasAktif } from '@/kelasAktif';
-import { VisibilitasFilter } from '@/components/VisibilitasFilter';
+import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
 import { FileUp, Download, ArrowRight } from '@/icons';
@@ -24,6 +24,21 @@ import { usePager } from '@/hooks/usePager';
 import { toast } from 'sonner';
 
 /** Mutasi Keluar: kiri santri aktif (nama + kelas) → kanan arsip mutasi. */
+
+/** Kolom tabel kiri (santri aktif). */
+const FIELDS_AKTIF: ExcelField[] = [
+  { key: 'nama', label: 'santri.nama_lengkap', kind: 'static', sumber: { tabel: 'santri', kolom: 'nama_lengkap' } },
+  { key: 'kelas', label: 'kelas.nama_kelas', kind: 'static', sumber: { tabel: 'kelas', kolom: 'nama_kelas' } },
+];
+
+/** Kolom tabel kanan (arsip mutasi keluar). */
+const FIELDS_ARSIP: ExcelField[] = [
+  { key: 'santri', label: 'santri.nama_lengkap', kind: 'static', sumber: { tabel: 'santri', kolom: 'nama_lengkap' } },
+  { key: 'tanggal', label: 'tanggal_mutasi', kind: 'static', sumber: { tabel: 'mutasi_keluar', kolom: 'tanggal_mutasi' } },
+  { key: 'alasan', label: 'alasan_mutasi', kind: 'static', sumber: { tabel: 'mutasi_keluar', kolom: 'alasan_mutasi' } },
+  { key: 'tujuan', label: 'nama_sekolah_tujuan', kind: 'static', sumber: { tabel: 'mutasi_keluar', kolom: 'nama_sekolah_tujuan' } },
+];
+
 export default function MutasiKeluarPage() {
   const { user } = useAuth();
   const [jenjang, setLembagaId] = useState('');
@@ -146,7 +161,7 @@ export default function MutasiKeluarPage() {
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari santri…" />
-      <VisibilitasFilter tampil={{ tingkat: true, kelas: true }} />
+      <PengaturanHalaman tampil={{ tingkat: true, kelas: true }} tabel={[{ key: 'mutasi_santri_aktif', judul: 'Santri aktif', fields: FIELDS_AKTIF }, { key: 'mutasi_arsip', judul: 'Arsip mutasi keluar', fields: FIELDS_ARSIP }]} />
       <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1" id="grup_mutasi_kolom">
         <ResizablePanel defaultSize="33" minSize="20">
         <section className="flex h-full min-h-0 min-w-0 flex-col rounded-md">
@@ -154,10 +169,7 @@ export default function MutasiKeluarPage() {
           <div className="flex min-h-0 flex-1 flex-col px-2 pb-2">
             <ExcelTable
               tableKey="mutasi_santri_aktif"
-              fields={[
-                { key: 'nama', label: 'santri.nama_lengkap', kind: 'static', sumber: { tabel: 'santri', kolom: 'nama_lengkap' } },
-                { key: 'kelas', label: 'kelas.nama_kelas', kind: 'static', sumber: { tabel: 'kelas', kolom: 'nama_kelas' } },
-              ]}
+              fields={FIELDS_AKTIF}
               rows={kiriTampil}
               getValues={(r) => ({ nama: r.santri?.nama_lengkap ?? null, kelas: r.kelas?.nama_kelas ?? null })}
               canEdit={false}
@@ -197,12 +209,7 @@ export default function MutasiKeluarPage() {
           <div className="flex min-h-0 flex-1 flex-col px-2 pb-2">
             <ExcelTable
               tableKey="mutasi_arsip"
-              fields={[
-                { key: 'santri', label: 'santri.nama_lengkap', kind: 'static', sumber: { tabel: 'santri', kolom: 'nama_lengkap' } },
-                { key: 'tanggal', label: 'tanggal_mutasi', kind: 'static', sumber: { tabel: 'mutasi_keluar', kolom: 'tanggal_mutasi' } },
-                { key: 'alasan', label: 'alasan_mutasi', kind: 'static', sumber: { tabel: 'mutasi_keluar', kolom: 'alasan_mutasi' } },
-                { key: 'tujuan', label: 'nama_sekolah_tujuan', kind: 'static', sumber: { tabel: 'mutasi_keluar', kolom: 'nama_sekolah_tujuan' } },
-              ]}
+              fields={FIELDS_ARSIP}
               rows={arsip}
               getValues={(m) => ({
                 santri: m.santri?.nama_lengkap ?? '—',

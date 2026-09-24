@@ -21,6 +21,7 @@ import { DeleteAction } from '@/components/RowActions';
 import FilterField from '@/components/FilterField';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { TopBarSearch } from '@/components/TopBarSearch';
+import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -231,6 +232,7 @@ export default function KamusLabelPage() {
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari kolom…" />
+      <PengaturanHalaman tampil={{}} tabel={[{ key: 'kamus_label_kolom', judul: 'Kamus label', fields: FIELDS }]} />
       <ExcelTable
         tableKey="kamus_label_kolom"
         fields={FIELDS}

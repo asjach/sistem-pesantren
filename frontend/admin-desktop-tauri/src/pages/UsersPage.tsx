@@ -17,6 +17,7 @@ import { FieldLabel } from '@/components/ui/field';
 import { Checkbox } from '@/components/ui/checkbox';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { TopBarSearch } from '@/components/TopBarSearch';
+import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { UserViewDialog } from '@/components/UserViewDialog';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import {
@@ -290,6 +291,7 @@ export default function UsersPage() {
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari pengguna (nama/email/username/phone/role)…" />
+      <PengaturanHalaman tampil={{}} tabel={[{ key: 'users', judul: 'Pengguna', fields }]} />
       <ExcelTable
         tableKey="users"
         sumberTabel="users"

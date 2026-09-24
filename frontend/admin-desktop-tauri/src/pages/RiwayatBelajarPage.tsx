@@ -20,7 +20,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { useTingkatAktif } from '@/tingkatAktif';
 import { useKelasAktif } from '@/kelasAktif';
-import { VisibilitasFilter } from '@/components/VisibilitasFilter';
+import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import FilterField from '@/components/FilterField';
 import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
@@ -296,7 +296,7 @@ export default function RiwayatBelajarPage() {
     <div className={PAGE_SHELL}>
       <ErrorNotice>{kiri.err || kanan.err}</ErrorNotice>
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari santri…" />
-      <VisibilitasFilter tampil={{ tingkat: true, kelas: true }} />
+      <PengaturanHalaman tampil={{ tingkat: true, kelas: true }} tabel={[{ key: 'riwayat_belum_masuk', judul: 'Belum memiliki kelas', fields: FIELDS_KIRI }, { key: 'riwayat_belajar', judul: 'Sudah masuk kelas', fields: ROSTER_FIELDS }]} />
       {!siap ? (
         <p className="text-sm text-muted-foreground">Pilih lembaga dan tahun ajaran di topbar dulu untuk memuat kedua tabel.</p>
       ) : (

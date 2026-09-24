@@ -50,6 +50,7 @@ import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
 import FilterField from '@/components/FilterField';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { TopBarSearch } from '@/components/TopBarSearch';
+import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import {
   Dialog,
   DialogContent,
@@ -718,6 +719,7 @@ export default function PsbPage() {
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari calon santri…" />
+      <PengaturanHalaman tampil={{}} tabel={[{ key: 'psb', judul: 'Pendaftar', fields: psbFieldsMemo }]} />
 
       <Tabs value={stage} onValueChange={(v) => navigate(`/psb/${v}`)} className="contents">
         <TabsList id="tabs_psb" className="mb-2 h-auto w-fit gap-1 p-1">

@@ -31,11 +31,12 @@ import {
 import { ICON_SETS } from '@/iconSets';
 import { THEME_PRESETS } from '@/themes';
 import { DEFAULT_PREFS, WARNA_UI } from '@/prefs';
-import { Blend, Check, ChevronDown, ChevronUp, LogOut, Monitor, Moon, Paintbrush, Palette, SquareMousePointer, Sun, Users } from '@/icons';
+import { Blend, Check, ChevronDown, ChevronUp, LogOut, Monitor, Moon, NotebookTabs, Paintbrush, Palette, SquareMousePointer, Sun, Users } from '@/icons';
 import { useRibbonTable } from '@/components/RibbonTable';
 import { useRibbonSlotCtx } from '@/components/RibbonSlot';
 import { useTopBarSearchCtx } from '@/components/TopBarSearch';
 import BannerBertindak from '@/components/BannerBertindak';
+import DialogKelolaHalaman from '@/components/kelolaHalaman/DialogKelolaHalaman';
 import { halamanDariPath } from '@/lib/halaman';
 import { RibbonTabel } from './topbar/RibbonTabel';
 
@@ -64,7 +65,7 @@ const TOOLS_TAMPIL_KEY = 'simpes_tools_tampil';
  *  Navigasi halaman ada di Sidebar, bukan di sini. */
 export default function TopBar() {
   const { user, logoutLocal } = useAuth();
-  const { jenjang, lembaga, pilihan, adaSemua, banyakPilihan, bertindak, pilih, pilihPeran, pilihanPeran, peranJenjang, loading: lembagaLoading } = useLembagaAktif();
+  const { jenjang, lembaga, pilihan, adaSemua, banyakPilihan, bertindak, pilih, pilihPeran, pilihanPeran, peranJenjang, loading: lembagaLoading, efektifSuper } = useLembagaAktif();
   const { tahunAjaranNama, tahunAjaran, pilihan: taPilihan, pilih: taPilih, loading: taLoading } = useTahunAjaranAktif();
   const { semester, pilih: pilihSemester, loading: semesterLoading } = useSemesterAktif();
 
@@ -115,8 +116,12 @@ export default function TopBar() {
   const search = useTopBarSearchCtx();
   const setSearchEl = search?.setEl;
   const searchAda = search?.ada ?? false;
-  /** Filter global yang tampil — halaman mengatur lewat `<VisibilitasFilter>`. */
-  const tampil = useVisibilitasFilter()?.tampil ?? TAMPIL_BAWAAN;
+  /** Filter global yang tampil — halaman mengatur lewat `<PengaturanHalaman>`. */
+  const visCtx = useVisibilitasFilter();
+  const tampil = visCtx?.tampil ?? TAMPIL_BAWAAN;
+  /** Registrasi halaman aktif (untuk dialog Kelola Halaman). */
+  const registrasi = visCtx?.registrasi ?? null;
+  const [kelolaHalamanOpen, setKelolaHalamanOpen] = useState(false);
   /** Tingkat & Kelas kini filter global (setara lembaga/TA/semester). */
   const { tingkat, pilih: pilihTingkat } = useTingkatAktif();
   const { kelas, pilih: pilihKelas } = useKelasAktif();
@@ -400,6 +405,18 @@ export default function TopBar() {
           >
             <SquareMousePointer size={14} />
           </button>
+          {registrasi && efektifSuper ? (
+            <button
+              id="btn_kelola_halaman"
+              type="button"
+              title="Kelola halaman (filter, kolom, urutan, toolbar)"
+              aria-label="Kelola halaman"
+              onClick={() => setKelolaHalamanOpen(true)}
+              className="mr-1 grid size-6 place-items-center rounded-md text-white/75 transition-colors hover:bg-white/10 hover:text-white"
+            >
+              <NotebookTabs size={14} />
+            </button>
+          ) : null}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
@@ -592,6 +609,16 @@ export default function TopBar() {
             {(!banyakTab || tabTools === 'tabel') && apiTabel && <RibbonTabel apiTabel={apiTabel} />}
           </div>
         </div>
+      )}
+      {registrasi && (
+        <DialogKelolaHalaman
+          open={kelolaHalamanOpen}
+          onOpenChange={setKelolaHalamanOpen}
+          pageKey={registrasi.pageKey}
+          judul={halaman?.label ?? registrasi.pageKey}
+          tabel={registrasi.tabel}
+          filterBawaan={registrasi.bawaan}
+        />
       )}
     </header>
   );

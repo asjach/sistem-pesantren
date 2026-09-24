@@ -41,6 +41,7 @@ import MultiSelect from '@/components/MultiSelect';
 import { useLembagaAktif } from '@/lembagaAktif';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { TopBarSearch } from '@/components/TopBarSearch';
+import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import {
   Dialog,
   DialogContent,
@@ -631,6 +632,7 @@ export default function KegiatanPsbPage() {
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari…" />
+      <PengaturanHalaman tampil={{}} tabel={[{ key: 'kegiatan_psb_dokumen', judul: 'Dokumen', fields: DOKUMEN_FIELDS }, { key: 'kegiatan_psb_gelombang', judul: 'Gelombang', fields: KEGIATAN_FIELDS }, { key: 'kegiatan_psb_kuota', judul: 'Kuota', fields: KUOTA_FIELDS }]} />
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <div className="min-w-64">

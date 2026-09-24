@@ -6,10 +6,10 @@ import { batalKenaikan, listRiwayatBelajar, naikKelasOtomatis, type RiwayatRow }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/field';
-import ExcelTable from '@/components/ExcelTable';
+import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { useTingkatAktif } from '@/tingkatAktif';
 import { useKelasAktif } from '@/kelasAktif';
-import { VisibilitasFilter } from '@/components/VisibilitasFilter';
+import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
@@ -17,6 +17,13 @@ import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { toast } from 'sonner';
 
 interface Baris { santri_id: number; nama: string; kelas: string | null; tingkat: string | null; }
+
+/** Kolom tabel kiri (santri semester genap) + tabel hasil (naik/tidak naik). */
+const FIELDS_KENAIKAN: ExcelField[] = [
+  { key: 'nama', label: 'santri.nama_lengkap', kind: 'static', sumber: { tabel: 'santri', kolom: 'nama_lengkap' } },
+  { key: 'kelas', label: 'kelas.nama_kelas', kind: 'static', sumber: { tabel: 'kelas', kolom: 'nama_kelas' } },
+  { key: 'tingkat', label: 'tingkat', kind: 'static', sumber: { tabel: 'riwayat_belajar', kolom: 'tingkat' } },
+];
 
 /** Kenaikan: kiri santri semester genap (tingkat 1–5). Aksi per baris
  *  "Tidak naik" langsung memproses ke tabel kanan bawah; tombol Naik
@@ -167,7 +174,7 @@ export default function KenaikanKelasPage() {
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari santri…" />
-      <VisibilitasFilter tampil={{ tingkat: true, kelas: true }} />
+      <PengaturanHalaman tampil={{ tingkat: true, kelas: true }} tabel={[{ key: 'kenaikan_santri_genap', judul: 'Santri semester genap', fields: FIELDS_KENAIKAN }, { key: 'kenaikan_naik_kelas', judul: 'Santri naik kelas', fields: FIELDS_KENAIKAN }, { key: 'kenaikan_tidak_naik_kelas', judul: 'Santri tidak naik', fields: FIELDS_KENAIKAN }]} />
       <div className="flex flex-wrap items-end gap-3">
         {canUbah && (
         <>
@@ -191,11 +198,7 @@ export default function KenaikanKelasPage() {
           <div className="flex min-h-0 flex-1 flex-col px-2 pb-2">
             <ExcelTable
               tableKey="kenaikan_santri_genap"
-              fields={[
-                { key: 'nama', label: 'santri.nama_lengkap', kind: 'static', sumber: { tabel: 'santri', kolom: 'nama_lengkap' } },
-                { key: 'kelas', label: 'kelas.nama_kelas', kind: 'static', sumber: { tabel: 'kelas', kolom: 'nama_kelas' } },
-                { key: 'tingkat', label: 'tingkat', kind: 'static', sumber: { tabel: 'riwayat_belajar', kolom: 'tingkat' } },
-              ]}
+              fields={FIELDS_KENAIKAN}
               rows={kiriTampil}
               getValues={(r) => ({
                 nama: r.santri?.nama_lengkap ?? null,
@@ -270,11 +273,7 @@ function PanelDaftar({ idPrefix, judul, baris, onBatalkan, aksiHeader }: { idPre
       <div className="flex min-h-0 flex-1 flex-col px-2 pb-2">
         <ExcelTable
           tableKey={`kenaikan_${idPrefix}`}
-          fields={[
-            { key: 'nama', label: 'santri.nama_lengkap', kind: 'static', sumber: { tabel: 'santri', kolom: 'nama_lengkap' } },
-            { key: 'kelas', label: 'kelas.nama_kelas', kind: 'static', sumber: { tabel: 'kelas', kolom: 'nama_kelas' } },
-            { key: 'tingkat', label: 'tingkat', kind: 'static', sumber: { tabel: 'riwayat_belajar', kolom: 'tingkat' } },
-          ]}
+          fields={FIELDS_KENAIKAN}
           rows={baris.map((b) => ({ ...b, id: b.santri_id }))}
           getValues={(b) => ({ nama: b.nama, kelas: b.kelas, tingkat: b.tingkat })}
           canEdit={false}

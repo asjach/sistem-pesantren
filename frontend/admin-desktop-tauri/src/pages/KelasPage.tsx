@@ -32,7 +32,7 @@ import {
 } from '@/components/ui/select';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { useTingkatAktif } from '@/tingkatAktif';
-import { VisibilitasFilter } from '@/components/VisibilitasFilter';
+import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
 import { useTahunAjaranAwalString } from '@/hooks/useTahunAjaranAwal';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
@@ -565,7 +565,7 @@ export default function KelasPage() {
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
       {/* Kelas tak mengenal semester; tingkat tampil sebagai filter global. */}
-      <VisibilitasFilter tampil={{ semester: false, tingkat: true }} />
+      <PengaturanHalaman tampil={{ semester: false, tingkat: true }} tabel={[{ key: 'kelas', judul: 'Kelas', fields: FIELDS }]} />
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari kelas…" />
       <ExcelTable
         tableKey="kelas"
