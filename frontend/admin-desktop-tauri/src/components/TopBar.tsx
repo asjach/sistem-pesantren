@@ -1,12 +1,17 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { logout } from '@/api/auth';
 import { isTauri, prefGet, prefSet } from '@/api/client';
 import { daftarSemester } from '@/api/semesterAktif';
+import { listKelas, type Kelas } from '@/api/master';
 import { useAuth } from '@/auth/AuthContext';
 import { useLembagaAktif } from '@/lembagaAktif';
 import { useTahunAjaranAktif } from '@/tahunAjaranAktif';
 import { useSemesterAktif } from '@/semesterAktif';
+import { useTingkatAktif } from '@/tingkatAktif';
+import { useKelasAktif } from '@/kelasAktif';
+import { useVisibilitasFilter, TAMPIL_BAWAAN } from '@/components/VisibilitasFilter';
+import { FilterMulti } from '@/components/FilterMulti';
 import { useTheme, type ModeName, type ThemeName } from '@/theme';
 import { usePicker } from '@/picker';
 import { cn } from '@/lib/utils';
@@ -29,9 +34,7 @@ import { DEFAULT_PREFS, WARNA_UI } from '@/prefs';
 import { Blend, Check, ChevronDown, ChevronUp, LogOut, Monitor, Moon, Paintbrush, Palette, SquareMousePointer, Sun, Users } from '@/icons';
 import { useRibbonTable } from '@/components/RibbonTable';
 import { useRibbonSlotCtx } from '@/components/RibbonSlot';
-import { useTopBarFilterCtx } from '@/components/TopBarFilter';
 import { useTopBarSearchCtx } from '@/components/TopBarSearch';
-import { useTopBarSemesterCtx } from '@/components/TopBarSemester';
 import BannerBertindak from '@/components/BannerBertindak';
 import { halamanDariPath } from '@/lib/halaman';
 import { RibbonTabel } from './topbar/RibbonTabel';
@@ -44,6 +47,9 @@ const MODE_STRIP: { id: ModeName; nama: string; icon: typeof Sun }[] = [
   { id: 'gelap', nama: 'Gelap', icon: Moon },
   { id: 'sistem', nama: 'Sistem', icon: Monitor },
 ];
+
+/** Opsi tingkat global (tetap 1–12, universal lintas lembaga). */
+const TINGKAT_GLOBAL = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
 
 const navBase =
   'flex items-center gap-2 rounded-md px-2.5 py-1 text-xs whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--sidebar-foreground)]/60';
@@ -106,13 +112,50 @@ export default function TopBar() {
   const setSlotEl = slot?.setEl;
   const slotAda = slot?.ada ?? false;
   const slotLabel = slot?.label ?? null;
-  const filter = useTopBarFilterCtx();
-  const setFilterEl = filter?.setEl;
   const search = useTopBarSearchCtx();
   const setSearchEl = search?.setEl;
   const searchAda = search?.ada ?? false;
-  /** Halaman tanpa konsep semester (mis. Kelas) menyembunyikan dropdown Semester. */
-  const semesterSembunyi = useTopBarSemesterCtx()?.sembunyi ?? false;
+  /** Filter global yang tampil — halaman mengatur lewat `<VisibilitasFilter>`. */
+  const tampil = useVisibilitasFilter()?.tampil ?? TAMPIL_BAWAAN;
+  /** Tingkat & Kelas kini filter global (setara lembaga/TA/semester). */
+  const { tingkat, pilih: pilihTingkat } = useTingkatAktif();
+  const { kelas, pilih: pilihKelas } = useKelasAktif();
+  // Opsi kelas global (nama) mengikuti lembaga+TA aktif; dimuat saat tampil.
+  const [kelasDaftar, setKelasDaftar] = useState<Kelas[]>([]);
+  useEffect(() => {
+    if (!tampil.kelas || !jenjang || !tahunAjaranNama) {
+      setKelasDaftar([]);
+      return;
+    }
+    let hidup = true;
+    listKelas({ jenjang, tahun_ajaran: tahunAjaranNama, per_page: 1000 })
+      .then((p) => { if (hidup) setKelasDaftar(p.data); })
+      .catch(() => { if (hidup) setKelasDaftar([]); });
+    return () => { hidup = false; };
+  }, [tampil.kelas, jenjang, tahunAjaranNama]);
+  const kelasOpsi = useMemo(() => {
+    const nama = kelasDaftar
+      .filter((k) => tingkat.length === 0 || (k.tingkat != null && tingkat.includes(String(k.tingkat))))
+      .map((k) => k.nama_kelas);
+    return [...new Set(nama)].sort((a, b) => a.localeCompare(b, 'id', { numeric: true }));
+  }, [kelasDaftar, tingkat]);
+  /** Pilih/lepas satu tingkat; kelas yang tak lagi relevan ikut dibuang. */
+  function togolTingkat(v: string) {
+    const next = tingkat.includes(v) ? tingkat.filter((x) => x !== v) : [...tingkat, v];
+    pilihTingkat(next);
+    if (kelasDaftar.length > 0) {
+      const valid = new Set(
+        kelasDaftar
+          .filter((k) => next.length === 0 || (k.tingkat != null && next.includes(String(k.tingkat))))
+          .map((k) => k.nama_kelas),
+      );
+      const kelasNext = kelas.filter((x) => valid.has(x));
+      if (kelasNext.length !== kelas.length) pilihKelas(kelasNext);
+    }
+  }
+  function togolKelas(v: string) {
+    pilihKelas(kelas.includes(v) ? kelas.filter((x) => x !== v) : [...kelas, v]);
+  }
 
   const halaman = halamanDariPath(pathname);
   const [toolsTampil, setToolsTampil] = useState(true);
@@ -127,8 +170,6 @@ export default function TopBar() {
 
   // Elemen target portal tools halaman (lihat `RibbonSlot`).
   const hostRef = useCallback((el: HTMLDivElement | null) => setSlotEl?.(el), [setSlotEl]);
-  // Elemen target portal filter halaman (lihat `TopBarFilter`).
-  const filterHostRef = useCallback((el: HTMLDivElement | null) => setFilterEl?.(el), [setFilterEl]);
   // Elemen target portal pencarian halaman (lihat `TopBarSearch`).
   const searchHostRef = useCallback((el: HTMLDivElement | null) => setSearchEl?.(el), [setSearchEl]);
 
@@ -195,7 +236,7 @@ export default function TopBar() {
           {/* Perenggang kiri: mendorong filter global ke tengah bar. */}
           <div aria-hidden="true" className="min-w-0 flex-1" />
           {/* Dropdown lembaga = filter halaman (bebas, bukan peran). */}
-          {!lembagaLoading && (adaSemua || banyakPilihan) && daftarLembaga.length > 0 && (
+          {tampil.lembaga && !lembagaLoading && (adaSemua || banyakPilihan) && daftarLembaga.length > 0 && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
@@ -228,7 +269,7 @@ export default function TopBar() {
               </DropdownMenuContent>
             </DropdownMenu>
           )}
-          {!taLoading && taPilihan.length > 0 && (
+          {tampil.tahun_ajaran && !taLoading && taPilihan.length > 0 && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
@@ -257,7 +298,7 @@ export default function TopBar() {
               </DropdownMenuContent>
             </DropdownMenu>
           )}
-          {!semesterLoading && !semesterSembunyi && (
+          {tampil.semester && !semesterLoading && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
@@ -286,8 +327,27 @@ export default function TopBar() {
               </DropdownMenuContent>
             </DropdownMenu>
           )}
-          {/* Filter halaman (mis. tingkat/kelas) menyusul tepat setelah semester. */}
-          <div ref={filterHostRef} className="contents" />
+          {/* Tingkat & Kelas = filter global (setara lembaga/TA/semester). */}
+          {tampil.tingkat && (
+            <FilterMulti
+              id="filter_tingkat_global"
+              label="Tingkat"
+              opsi={TINGKAT_GLOBAL}
+              dipilih={tingkat}
+              onToggle={togolTingkat}
+              onSemua={() => pilihTingkat([])}
+            />
+          )}
+          {tampil.kelas && (
+            <FilterMulti
+              id="filter_kelas_global"
+              label="Kelas"
+              opsi={kelasOpsi}
+              dipilih={kelas}
+              onToggle={togolKelas}
+              onSemua={() => pilihKelas([])}
+            />
+          )}
           {/* Perenggang kanan: filter global tetap di tengah; akun di kanan. */}
           <div aria-hidden="true" className="min-w-0 flex-1" />
           {adaTools && (

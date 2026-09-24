@@ -6,7 +6,9 @@ import { daftarKelas, type RiwayatRow } from '../api/siklus';
 import type { SantriPenuh } from '../api/santri';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import ExcelTable from '@/components/ExcelTable';
-import { FilterTingkatKelas, useFilterTingkatKelas } from '@/components/FilterTingkatKelas';
+import { useTingkatAktif } from '@/tingkatAktif';
+import { useKelasAktif } from '@/kelasAktif';
+import { VisibilitasFilter } from '@/components/VisibilitasFilter';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
 import { useTahunAjaranAwalString } from '@/hooks/useTahunAjaranAwal';
@@ -40,16 +42,20 @@ export default function DaftarKelasPage() {
   const [rows, setRows] = useState<RiwayatRow[]>([]);
   /** Pencarian tunggal halaman (topBar). */
   const [cari, setCari] = useState('');
-  /** Filter tingkat & kelas (multi-pilih) di topBar. */
-  const filter = useFilterTingkatKelas(rows, (r) => r.tingkat, (r) => r.kelas?.nama_kelas);
-  /** Hasil filter tingkat/kelas + pencarian tunggal (sisi klien). */
+  /** Tingkat & Kelas = filter global topBar (setara lembaga/TA/semester). */
+  const { tingkat: tingkatAktif } = useTingkatAktif();
+  const { kelas: kelasAktif } = useKelasAktif();
+  /** Hasil filter global + pencarian tunggal (sisi klien). */
   const rowsTampil = useMemo(() => {
     const q = cari.trim().toLowerCase();
-    if (q === '') return filter.tersaring;
-    return filter.tersaring.filter((r) =>
-      (r.santri?.nama_lengkap ?? '').toLowerCase().includes(q)
-      || (r.nis_lokal ?? '').toLowerCase().includes(q));
-  }, [filter.tersaring, cari]);
+    return rows.filter((r) => {
+      if (tingkatAktif.length > 0 && !tingkatAktif.includes((r.tingkat ?? '').trim())) return false;
+      if (kelasAktif.length > 0 && !kelasAktif.includes(r.kelas?.nama_kelas ?? '')) return false;
+      if (q === '') return true;
+      return (r.santri?.nama_lengkap ?? '').toLowerCase().includes(q)
+        || (r.nis_lokal ?? '').toLowerCase().includes(q);
+    });
+  }, [rows, tingkatAktif, kelasAktif, cari]);
   const [info, setInfo] = useState<{ tahun_ajaran: string | null; semester: string | null } | null>(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
@@ -92,7 +98,7 @@ export default function DaftarKelasPage() {
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari santri…" />
-      <FilterTingkatKelas filter={filter} />
+      <VisibilitasFilter tampil={{ tingkat: true, kelas: true }} />
       <ExcelTable<RiwayatRow>
         tableKey="daftar_kelas"
         fields={fields}

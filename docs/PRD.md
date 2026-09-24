@@ -195,6 +195,7 @@
 | 2.141 | 2026-09-24 | Tombol **PERAN SEBAGAI** di baris atas dihapus; pilih/keluar peran lembaga super_admin pindah ke section **"Peran sebagai"** di menu akun (tetap tampil saat bertindak; banner act-as dipertahankan sebagai penanda) |
 | 2.142 | 2026-09-24 | Halaman **Kelas**: hapus filter Tingkat di header tabel; filter Tingkat (multi-pilih 1–12) pindah ke topBar. Endpoint `kelas` menerima `tingkat[]` (tunggal tetap didukung) |
 | 2.143 | 2026-09-24 | Dropdown **Semester** disembunyikan di halaman Kelas (data kelas tak mengenal semester; kontrol ini tak berpengaruh di sana). Mekanisme per halaman via `TanpaSemester` |
+| 2.144 | 2026-09-24 | **Tingkat & Kelas jadi filter global** (setara lembaga/TA/semester; nilai menetap lintas halaman, tersimpan per perangkat; pilihan kelas dikosongkan saat ganti lembaga/TA). Tiap filter bisa show/hide per halaman via `VisibilitasFilter` (bawaan: lembaga/TA/semester tampil, tingkat/kelas tampil bila halaman meminta). Slot `TopBarFilter`/`TanpaSemester` dilebur ke mekanisme ini |
 
 ## Daftar Isi
 

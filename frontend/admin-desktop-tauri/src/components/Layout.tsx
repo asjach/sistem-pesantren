@@ -2,9 +2,8 @@ import { Fragment, type ReactNode } from 'react';
 import { GridPrefsProvider } from '@/components/GridPrefs';
 import { RibbonTableProvider } from '@/components/RibbonTable';
 import { RibbonSlotProvider } from '@/components/RibbonSlot';
-import { TopBarFilterProvider } from '@/components/TopBarFilter';
 import { TopBarSearchProvider } from '@/components/TopBarSearch';
-import { TopBarSemesterProvider } from '@/components/TopBarSemester';
+import { VisibilitasFilterProvider } from '@/components/VisibilitasFilter';
 import Sidebar from '@/components/Sidebar';
 import Menubar from '@/components/Menubar';
 import TopBar from '@/components/TopBar';
@@ -23,10 +22,9 @@ export default function Layout({ children }: { children: ReactNode }) {
     <GridPrefsProvider>
       <RibbonTableProvider>
         <RibbonSlotProvider>
-          <TopBarFilterProvider>
+          <VisibilitasFilterProvider>
             <TopBarSearchProvider>
-              <TopBarSemesterProvider>
-                <div className="flex h-screen overflow-hidden">
+              <div className="flex h-screen overflow-hidden">
                 {!pakaiMenubar && <Sidebar />}
                 <div className="flex min-w-0 flex-1 flex-col">
                   {pakaiMenubar && <Menubar />}
@@ -37,9 +35,8 @@ export default function Layout({ children }: { children: ReactNode }) {
                   </main>
                 </div>
               </div>
-              </TopBarSemesterProvider>
             </TopBarSearchProvider>
-          </TopBarFilterProvider>
+          </VisibilitasFilterProvider>
         </RibbonSlotProvider>
       </RibbonTableProvider>
     </GridPrefsProvider>

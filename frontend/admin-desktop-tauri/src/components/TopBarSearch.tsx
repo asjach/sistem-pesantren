@@ -55,14 +55,14 @@ export function TopBarSearch({
       onSubmit={(e) => e.preventDefault()}
       className="relative flex w-[150px] shrink-0 items-center"
     >
-      <Search size={15} className="pointer-events-none absolute left-2.5 text-white/60" />
+      <Search size={14} className="pointer-events-none absolute top-1/2 left-2 -translate-y-1/2 text-white/60" />
       <input
         id="input_cari_topbar"
         type="search"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         aria-label={placeholder}
-        className="h-7 w-full rounded-md border border-white/20 bg-white/10 pr-7 pl-8 text-xs text-white outline-none focus:border-white/40 focus:bg-white/15 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:appearance-none"
+        className="h-6 w-full rounded-md border border-white/20 bg-white/10 pr-6 pl-7 text-xs text-white outline-none focus:border-white/40 focus:bg-white/15 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:appearance-none"
       />
       {value !== '' && (
         <button
@@ -71,9 +71,9 @@ export function TopBarSearch({
           title="Bersihkan pencarian"
           aria-label="Bersihkan pencarian"
           onClick={() => onChange('')}
-          className="absolute right-1.5 grid size-5 place-items-center rounded text-white/60 hover:bg-white/10 hover:text-white"
+          className="absolute top-1/2 right-1 grid size-4 -translate-y-1/2 place-items-center rounded text-white/60 hover:bg-white/10 hover:text-white"
         >
-          <X size={13} />
+          <X size={12} />
         </button>
       )}
     </form>,

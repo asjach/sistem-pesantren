@@ -8,6 +8,8 @@ import { useLembagaAktif } from './lembagaAktif';
 import { LembagaAktifProvider } from './lembagaAktif';
 import { TahunAjaranAktifProvider } from './tahunAjaranAktif';
 import { SemesterAktifProvider } from './semesterAktif';
+import { TingkatAktifProvider } from './tingkatAktif';
+import { KelasAktifProvider } from './kelasAktif';
 import { StandarTampilanProvider } from './standarTampilan';
 import { ThemeProvider } from './theme';
 import { PickerProvider } from './picker';
@@ -85,6 +87,8 @@ export default function App() {
       <LembagaAktifProvider>
         <TahunAjaranAktifProvider>
           <SemesterAktifProvider>
+          <TingkatAktifProvider>
+          <KelasAktifProvider>
           <StandarTampilanProvider>
             <ThemeProvider>
               <BrowserRouter>
@@ -145,6 +149,8 @@ export default function App() {
               </BrowserRouter>
             </ThemeProvider>
           </StandarTampilanProvider>
+          </KelasAktifProvider>
+          </TingkatAktifProvider>
           </SemesterAktifProvider>
         </TahunAjaranAktifProvider>
       </LembagaAktifProvider>

@@ -17,8 +17,8 @@ import { ActionIcon } from '@/components/RowActions';
 import { ArrowRight, X } from '@/icons';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
-import { FilterMulti } from '@/components/FilterTingkatKelas';
-import { TopBarFilter } from '@/components/TopBarFilter';
+import { useKelasAktif } from '@/kelasAktif';
+import { VisibilitasFilter } from '@/components/VisibilitasFilter';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import { useTahunAjaranAwalString } from '@/hooks/useTahunAjaranAwal';
 import { toast } from 'sonner';
@@ -39,8 +39,8 @@ export default function MiMdPage() {
   const [cari, setCari] = useState('');
   const [busyId, setBusyId] = useState<number | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
-  /** Filter kelas (multi-pilih) di topBar — gabungan kelas MI & MD. */
-  const [kelasFilter, setKelasFilter] = useState<string[]>([]);
+  /** Kelas = filter global topBar (gabungan kelas MI & MD). */
+  const { kelas: kelasFilter } = useKelasAktif();
 
   const load = useCallback(async () => {
     setErr('');
@@ -68,17 +68,6 @@ export default function MiMdPage() {
     [],
   );
 
-  const kelasOpsi = useMemo(() => {
-    const unik = new Set<string>();
-    for (const r of data?.mi_only ?? []) if (r.kelas_mi) unik.add(r.kelas_mi);
-    for (const r of data?.md_semua ?? []) if (r.kelas_md) unik.add(r.kelas_md);
-    for (const r of data?.beda_kelas ?? []) {
-      if (r.kelas_mi) unik.add(r.kelas_mi);
-      if (r.kelas_md) unik.add(r.kelas_md);
-    }
-    return [...unik].sort((a, b) => a.localeCompare(b, 'id', { numeric: true }));
-  }, [data]);
-
   /** Baris lolos bila salah satu kelasnya (MI atau MD) terpilih. */
   const cocokKelas = useCallback((r: Baris): boolean => (
     kelasFilter.length === 0
@@ -89,10 +78,6 @@ export default function MiMdPage() {
   const rowsMi = useMemo(() => saring(data?.mi_only ?? [], cari).filter(cocokKelas), [data, cari, saring, cocokKelas]);
   const rowsMd = useMemo(() => saring(data?.md_semua ?? [], cari).filter(cocokKelas), [data, cari, saring, cocokKelas]);
   const rowsBeda = useMemo(() => saring(data?.beda_kelas ?? [], cari).filter(cocokKelas), [data, cari, saring, cocokKelas]);
-
-  function togolKelas(v: string) {
-    setKelasFilter((prev) => (prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v]));
-  }
 
   async function samakan(santriId: number, arah: 'ke_mi' | 'ke_md') {
     setBusyId(santriId);
@@ -271,16 +256,7 @@ export default function MiMdPage() {
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari nama…" />
-      <TopBarFilter>
-        <FilterMulti
-          id="filter_kelas_mi_md"
-          label="Kelas"
-          opsi={kelasOpsi}
-          dipilih={kelasFilter}
-          onToggle={togolKelas}
-          onSemua={() => setKelasFilter([])}
-        />
-      </TopBarFilter>
+      <VisibilitasFilter tampil={{ kelas: true }} />
       {loading && !data ? (
         <p className="text-sm text-muted-foreground">Memuat…</p>
       ) : (

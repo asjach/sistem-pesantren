@@ -9,7 +9,9 @@ import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/field';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import ExcelTable from '@/components/ExcelTable';
-import { FilterTingkatKelas, useFilterTingkatKelas } from '@/components/FilterTingkatKelas';
+import { useTingkatAktif } from '@/tingkatAktif';
+import { useKelasAktif } from '@/kelasAktif';
+import { VisibilitasFilter } from '@/components/VisibilitasFilter';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import { ActionIcon } from '@/components/RowActions';
 import { ArrowRight } from '@/icons';
@@ -46,8 +48,9 @@ export default function PindahKelasPage() {
   const [rows, setRows] = useState<RiwayatRow[]>([]);
   /** Pencarian tunggal halaman (topBar) — disaring di tiap kolom kelas. */
   const [cari, setCari] = useState('');
-  /** Filter tingkat & kelas (multi-pilih) di topBar. */
-  const filter = useFilterTingkatKelas(rows, (r) => r.tingkat, (r) => r.kelas?.nama_kelas);
+  /** Tingkat & Kelas = filter global topBar (setara lembaga/TA/semester). */
+  const { tingkat: tingkatAktif } = useTingkatAktif();
+  const { kelas: kelasAktif } = useKelasAktif();
   const [kelas, setKelas] = useState<Kelas[]>([]);
   const [err, setErr] = useState('');
   const [busyId, setBusyId] = useState<number | null>(null);
@@ -104,14 +107,14 @@ export default function PindahKelasPage() {
     const semuaTingkat = new Set([...tingkatKeKelas.keys(), ...tanpaPerTingkat.keys()]);
     const hasil: GrupTingkat[] = [];
     for (const t of semuaTingkat) {
-      if (filter.tingkat.length > 0 && !filter.tingkat.includes(t)) continue;
+      if (tingkatAktif.length > 0 && !tingkatAktif.includes(t)) continue;
       const tanpa = tanpaPerTingkat.get(t) ?? [];
       const kolom: KolomKelas[] = [];
-      if (tanpa.length > 0 && filter.kelas.length === 0) {
+      if (tanpa.length > 0 && kelasAktif.length === 0) {
         kolom.push({ kelasId: null, kelas: 'Tanpa kelas', baris: tanpa });
       }
       for (const k of tingkatKeKelas.get(t) ?? []) {
-        if (filter.kelas.length > 0 && !filter.kelas.includes(k.nama_kelas)) continue;
+        if (kelasAktif.length > 0 && !kelasAktif.includes(k.nama_kelas)) continue;
         kolom.push({ kelasId: k.id, kelas: k.nama_kelas, baris: barisPerKelas.get(k.id) ?? [] });
       }
       if (kolom.length === 0) continue;
@@ -120,7 +123,7 @@ export default function PindahKelasPage() {
     hasil.sort((a, b) => String(a.tingkat ?? '').localeCompare(String(b.tingkat ?? ''), 'id', { numeric: true }));
     return hasil;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kelas, rows, filter.tingkat, filter.kelas]);
+  }, [kelas, rows, tingkatAktif, kelasAktif]);
 
   const pindah = async (r: RiwayatRow, kelasBaruId: number) => {
     setBusyId(r.id);
@@ -135,7 +138,7 @@ export default function PindahKelasPage() {
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari santri…" />
-      <FilterTingkatKelas filter={filter} />
+      <VisibilitasFilter tampil={{ tingkat: true, kelas: true }} />
       <div className="flex flex-wrap items-end gap-3">
         {canSalin && (
         <Button id="btn_buka_salin_genap" variant="outline" disabled={!jenjang} onClick={() => { setTanggalSalin(''); setSalinOpen(true); }}>

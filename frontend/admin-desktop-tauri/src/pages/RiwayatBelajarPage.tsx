@@ -18,7 +18,9 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
-import { FilterTingkatKelas } from '@/components/FilterTingkatKelas';
+import { useTingkatAktif } from '@/tingkatAktif';
+import { useKelasAktif } from '@/kelasAktif';
+import { VisibilitasFilter } from '@/components/VisibilitasFilter';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import FilterField from '@/components/FilterField';
 import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
@@ -77,10 +79,10 @@ export default function RiwayatBelajarPage() {
   /** Pencarian tunggal halaman (topBar) untuk kedua panel. */
   const [cari, setCari] = useState('');
   const [kelasOpsi, setKelasOpsi] = useState<Kelas[]>([]);
-  /** Filter tingkat & kelas (multi-pilih) di topBar: tingkat menyaring kedua
-   *  panel; kelas menyaring panel "sudah masuk kelas". */
-  const [tingkatFilter, setTingkatFilter] = useState<string[]>([]);
-  const [kelasFilter, setKelasFilter] = useState<string[]>([]);
+  /** Tingkat & Kelas = filter global topBar (setara lembaga/TA/semester):
+   *  tingkat menyaring kedua panel; kelas menyaring panel "sudah masuk kelas". */
+  const { tingkat: tingkatFilter } = useTingkatAktif();
+  const { kelas: kelasFilter } = useKelasAktif();
   const [busyId, setBusyId] = useState<number | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
   /** Baris tercentang per panel (diangkat via `onCheckedChange` agar tombol
@@ -91,27 +93,11 @@ export default function RiwayatBelajarPage() {
   const [nonceKiri, setNonceKiri] = useState(0);
   const [nonceKanan, setNonceKanan] = useState(0);
 
-  /** Opsi tingkat diturunkan dari daftar kelas (distinct, urut numerik). */
-  const opsiTingkat = useMemo(() => {
-    const unik = new Set<string>();
-    for (const k of kelasOpsi) {
-      if (k.tingkat !== null && k.tingkat !== undefined && String(k.tingkat) !== '') unik.add(String(k.tingkat));
-    }
-    return [...unik].sort((a, b) => a.localeCompare(b, 'id', { numeric: true }));
-  }, [kelasOpsi]);
-
-  /** Id kelas terpilih (dari nama di filter topBar) untuk param server. */
+  /** Id kelas terpilih (dari nama di filter global) untuk param server. */
   const kelasFilterIds = useMemo(
     () => kelasOpsi.filter((k) => kelasFilter.includes(k.nama_kelas)).map((k) => k.id),
     [kelasOpsi, kelasFilter],
   );
-
-  function togolTingkat(v: string) {
-    setTingkatFilter((prev) => (prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v]));
-  }
-  function togolKelas(v: string) {
-    setKelasFilter((prev) => (prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v]));
-  }
 
   const kiri = useDaftarTabel<RiwayatRow>({
     tableKey: 'riwayat_belum_masuk',
@@ -170,8 +156,6 @@ export default function RiwayatBelajarPage() {
       .then((p) => setKelasOpsi(p.data))
       .catch(() => setKelasOpsi([]));
     setKelasId('');
-    setTingkatFilter([]);
-    setKelasFilter([]);
   }, [jenjang, taId]);
 
   const muatUlang = useCallback(async () => {
@@ -312,18 +296,7 @@ export default function RiwayatBelajarPage() {
     <div className={PAGE_SHELL}>
       <ErrorNotice>{kiri.err || kanan.err}</ErrorNotice>
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari santri…" />
-      <FilterTingkatKelas
-        filter={{
-          tingkat: tingkatFilter,
-          kelas: kelasFilter,
-          tingkatOpsi: opsiTingkat,
-          kelasOpsi: kelasOpsi.map((k) => k.nama_kelas),
-          togolTingkat,
-          togolKelas,
-          kosongkanTingkat: () => setTingkatFilter([]),
-          kosongkanKelas: () => setKelasFilter([]),
-        }}
-      />
+      <VisibilitasFilter tampil={{ tingkat: true, kelas: true }} />
       {!siap ? (
         <p className="text-sm text-muted-foreground">Pilih lembaga dan tahun ajaran di topbar dulu untuk memuat kedua tabel.</p>
       ) : (

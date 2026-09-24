@@ -11,7 +11,9 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import ExcelTable from '@/components/ExcelTable';
-import { FilterTingkatKelas, useFilterTingkatKelas } from '@/components/FilterTingkatKelas';
+import { useTingkatAktif } from '@/tingkatAktif';
+import { useKelasAktif } from '@/kelasAktif';
+import { VisibilitasFilter } from '@/components/VisibilitasFilter';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
 import { FileUp, Download, ArrowRight } from '@/icons';
@@ -103,16 +105,20 @@ export default function MutasiKeluarPage() {
       .catch(() => setAlasanOpsi([]));
   }, [jenjang]);
 
-  /** Filter tingkat & kelas (multi-pilih) di topBar untuk daftar santri aktif. */
-  const filter = useFilterTingkatKelas(kiri, (r) => r.tingkat, (r) => r.kelas?.nama_kelas);
-  /** Hasil filter tingkat/kelas + pencarian tunggal topBar (sisi klien). */
+  /** Tingkat & Kelas = filter global topBar (setara lembaga/TA/semester). */
+  const { tingkat: tingkatAktif } = useTingkatAktif();
+  const { kelas: kelasAktif } = useKelasAktif();
+  /** Hasil filter global + pencarian tunggal topBar (sisi klien). */
   const kiriTampil = useMemo(() => {
     const q = cari.trim().toLowerCase();
-    if (q === '') return filter.tersaring;
-    return filter.tersaring.filter((r) =>
-      (r.santri?.nama_lengkap ?? '').toLowerCase().includes(q)
-      || (r.nis_lokal ?? '').toLowerCase().includes(q));
-  }, [filter.tersaring, cari]);
+    return kiri.filter((r) => {
+      if (tingkatAktif.length > 0 && !tingkatAktif.includes((r.tingkat ?? '').trim())) return false;
+      if (kelasAktif.length > 0 && !kelasAktif.includes(r.kelas?.nama_kelas ?? '')) return false;
+      if (q === '') return true;
+      return (r.santri?.nama_lengkap ?? '').toLowerCase().includes(q)
+        || (r.nis_lokal ?? '').toLowerCase().includes(q);
+    });
+  }, [kiri, tingkatAktif, kelasAktif, cari]);
 
   const simpan = async () => {
     if (!baris || !jenjang || !tanggal || !alasan) return;
@@ -140,7 +146,7 @@ export default function MutasiKeluarPage() {
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari santri…" />
-      <FilterTingkatKelas filter={filter} />
+      <VisibilitasFilter tampil={{ tingkat: true, kelas: true }} />
       <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1" id="grup_mutasi_kolom">
         <ResizablePanel defaultSize="33" minSize="20">
         <section className="flex h-full min-h-0 min-w-0 flex-col rounded-md">
