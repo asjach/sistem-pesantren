@@ -7,7 +7,7 @@ import { daftarkanFilter, hapusFilter, pakaiLebarFilter } from './excel/lebarFil
  *
  *  Bila ter-render di dalam toolbar tabel (konteks lebar tersedia), punya
  *  `htmlFor`, dan `kelolaLebar` tidak dimatikan, filter otomatis terdaftar
- *  di tab Kontrol Kelola tabel (kunci = `htmlFor`) dengan lebar bawaan
+ *  di tab Toolbar Kelola Halaman (kunci = `htmlFor`) dengan lebar bawaan
  *  terukur — dan override lebar tersimpan diterapkan ke kontrol anak via
  *  `style`. Tanpa override, anak Select diseragamkan 100px (bawaan toolbar);
  *  anak bukan Select (mis. input tanggal) memakai lebar alami. Kontrol
@@ -42,7 +42,7 @@ export default function FilterField({ label, htmlFor, children, className, kelol
   // Tanpa override: anak Select TERKELOLA diseragamkan 100px (bawaan
   // toolbar). Kontrol tak-terkelola (kunci kosong: kelolaLebar mati / di luar
   // toolbar) dibiarkan apa adanya — lebarnya sudah diatur lewat jalur
-  // kontrol (mis. Urutkan/Kolom dari tab Kontrol Kelola tabel).
+  // kontrol (mis. Urutkan/Kolom dari tab Toolbar Kelola Halaman).
   const lebarBawaan = kunci && anakTunggal && anakTunggal.type === Select ? 100 : undefined;
   const lebarEfektif = override ?? lebarBawaan;
   if (lebarEfektif !== undefined && anakTunggal) {

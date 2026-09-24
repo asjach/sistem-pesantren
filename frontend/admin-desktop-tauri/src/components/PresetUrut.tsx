@@ -1,59 +1,39 @@
-import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   muatUrutPreset,
   type PresetUrutData,
 } from '@/api/urutPreset';
-import { useAuth } from '@/auth/AuthContext';
 import FilterField from '@/components/FilterField';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import {
   Select,
   SelectContent,
   SelectGroup,
   SelectItem,
-  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
 import { ChevronDown, ChevronUp, Pin } from '@/icons';
-import type { PresetKolomApi } from '@/components/PresetKolom';
-import TabUrutan from '@/components/kelolaTabel/TabUrutan';
 
-const KELOLA = '_kelola';
 const TANPA = '_tanpa';
 
-/** Dropdown Urutkan yang sumbernya Preset Urut (global per tabel). Kelola opsi
- *  lewat dialog Kelola tabel (tab Urutan) milik PresetKolom — dibuka via
- *  `apiRef`; bila tak tersedia, dialog cadangan lokal dipakai. Opsi dropdown
- *  dimuat ulang setiap dibuka agar selalu segar seusai penyimpanan. */
+/** Dropdown Urutkan yang sumbernya Preset Urut (global per tabel).
+ *  Pengelolaan opsi hanya lewat dialog Kelola Halaman (tab Urutan). */
 export default function PresetUrut({
   tableKey,
   urutAktif,
   arahUrut = 'naik',
   onUrut,
-  apiRef,
   lebarTrigger,
 }: {
   tableKey: string;
   urutAktif?: string[];
   arahUrut?: 'naik' | 'turun';
   onUrut?: (nilai: string[], arah: 'naik' | 'turun') => void;
-  apiRef?: MutableRefObject<PresetKolomApi | null>;
   /** Lebar trigger dropdown (px) dari tab Kontrol; kosong = 100 bawaan. */
   lebarTrigger?: number;
 }) {
   const [data, setData] = useState<PresetUrutData | null>(null);
-  const [open, setOpen] = useState(false);
-  /** Kelola urutan = super_admin saja (global); memilih urutan tetap bisa semua. */
-  const { user } = useAuth();
-  const superAdmin = (user?.roles ?? []).some((r) => r.name === 'super_admin');
   /** table_key yang opsi bawaannya sudah diterapkan (sekali per tabel). */
   const sudahRef = useRef('');
 
@@ -87,14 +67,6 @@ export default function PresetUrut({
   }, [data, tableKey, urutAktif, arahUrut, onUrut]);
 
   function pilihNilai(v: string) {
-    if (v === KELOLA) {
-      if (!apiRef?.current?.bukaKelola) {
-        setOpen(true);
-        return;
-      }
-      apiRef.current.bukaKelola('urutan');
-      return;
-    }
     if (v === TANPA) {
       onUrut?.([], arahUrut);
       return;
@@ -109,68 +81,47 @@ export default function PresetUrut({
   }
 
   return (
-    <>
-      <span className="flex items-end gap-1.5">
-        <FilterField label="Urutkan" htmlFor={`select_urut_${tableKey}`} kelolaLebar={false}>
-          <Select
-            value={nilaiSelect || undefined}
-            onValueChange={pilihNilai}
-            onOpenChange={(buka) => { if (buka) void muat(); }}
-          >
-            <SelectTrigger
-              id={`select_urut_${tableKey}`}
-              style={{ width: `${lebarTrigger ?? 100}px` }}
-            >
-              <SelectValue placeholder="Urutkan…" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectItem value={TANPA}>—</SelectItem>
-                {opsi.map((o, i) => (
-                  <SelectItem key={`${o.kode.join(',')}-${i}`} value={String(i)}>
-                    {o.bawaan ? (
-                      <span className="flex items-center gap-1.5">
-                        <Pin size={12} className="shrink-0 text-muted-foreground" aria-label="Urutan bawaan" />
-                        {o.label}
-                      </span>
-                    ) : o.label}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-              {superAdmin ? (
-                <>
-                  <SelectSeparator />
-                  <SelectItem value={KELOLA}>Kelola urutan…</SelectItem>
-                </>
-              ) : null}
-            </SelectContent>
-          </Select>
-        </FilterField>
-        <Button
-          id={`btn_arah_urut_${tableKey}`}
-          variant="outline"
-          size="icon-sm"
-          title={`Balik arah urutan (kini: ${arahUrut === 'naik' ? 'naik' : 'turun'})`}
-          aria-label={`Arah urutan: ${arahUrut === 'naik' ? 'naik' : 'turun'}`}
-          disabled={(urutAktif ?? []).length === 0}
-          onClick={balikArah}
+    <span className="flex items-end gap-1.5">
+      <FilterField label="Urutkan" htmlFor={`select_urut_${tableKey}`} kelolaLebar={false}>
+        <Select
+          value={nilaiSelect || undefined}
+          onValueChange={pilihNilai}
+          onOpenChange={(buka) => { if (buka) void muat(); }}
         >
-          {arahUrut === 'naik' ? <ChevronUp /> : <ChevronDown />}
-        </Button>
-      </span>
-
-      {/* Cadangan bila dialog utama (milik PresetKolom) tak tersedia. */}
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Kelola urutan</DialogTitle>
-            <DialogDescription>
-              Opsi urut untuk tabel ini (global, berlaku semua lembaga).
-            </DialogDescription>
-          </DialogHeader>
-          <TabUrutan tableKey={tableKey} onTutup={() => setOpen(false)} />
-        </DialogContent>
-      </Dialog>
-    </>
+          <SelectTrigger
+            id={`select_urut_${tableKey}`}
+            style={{ width: `${lebarTrigger ?? 100}px` }}
+          >
+            <SelectValue placeholder="Urutkan…" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              <SelectItem value={TANPA}>—</SelectItem>
+              {opsi.map((o, i) => (
+                <SelectItem key={`${o.kode.join(',')}-${i}`} value={String(i)}>
+                  {o.bawaan ? (
+                    <span className="flex items-center gap-1.5">
+                      <Pin size={12} className="shrink-0 text-muted-foreground" aria-label="Urutan bawaan" />
+                      {o.label}
+                    </span>
+                  ) : o.label}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+      </FilterField>
+      <Button
+        id={`btn_arah_urut_${tableKey}`}
+        variant="outline"
+        size="icon-sm"
+        title={`Balik arah urutan (kini: ${arahUrut === 'naik' ? 'naik' : 'turun'})`}
+        aria-label={`Arah urutan: ${arahUrut === 'naik' ? 'naik' : 'turun'}`}
+        disabled={(urutAktif ?? []).length === 0}
+        onClick={balikArah}
+      >
+        {arahUrut === 'naik' ? <ChevronUp /> : <ChevronDown />}
+      </Button>
+    </span>
   );
 }

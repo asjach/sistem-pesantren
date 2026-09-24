@@ -6,14 +6,12 @@ import {
   updatePresetTabel,
   type PresetTabel,
 } from '../api/preset';
-import { useLembagaAktif } from '@/lembagaAktif';
 import type { ExcelField } from './ExcelTable';
 import {
   Select,
   SelectContent,
   SelectGroup,
   SelectItem,
-  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
@@ -21,22 +19,19 @@ import { useStandarTampilan } from '../standarTampilan';
 import { Pin } from '@/icons';
 import { toast } from 'sonner';
 import FilterField from './FilterField';
-import DialogKelolaTabel from './kelolaTabel/DialogKelolaTabel';
-import { EVENT_PRESET_BERUBAH, type TabKelola } from './kelolaTabel/jenis';
+import { EVENT_PRESET_BERUBAH } from './kelolaTabel/jenis';
 
 const LENGKAP = '_lengkap';
-const KELOLA = '_kelola';
 
 /** API imperatif PresetKolom untuk dipakai pemanggil (mis. context menu header
- *  tabel: tampil/sembunyikan kolom pada preset tanpa membuka dialog; atau
- *  membuka dialog Kelola tabel dari entry lain seperti ribbon/toolbar urut). */
+ *  tabel: tampil/sembunyikan kolom pada preset tanpa membuka dialog).
+ *  Pengelolaan preset (tambah/ubah/hapus) hanya lewat dialog Kelola Halaman. */
 export interface PresetKolomApi {
   presets: PresetTabel[];
   toggleKolom: (presetId: number, key: string, tampil: boolean) => Promise<void>;
-  bukaKelola: (tab?: TabKelola) => void;
 }
 
-/** Combobox preset kolom tampilan tabel + dialog kelola (global, super_admin). */
+/** Combobox preset kolom tampilan tabel (kelola global via Kelola Halaman). */
 export default function PresetKolom({
   tableKey,
   fields,
@@ -54,27 +49,15 @@ export default function PresetKolom({
   /** Lebar trigger dropdown (px) dari tab Kontrol; menang atas triggerClassName. */
   lebarTrigger?: number;
 }) {
-  /** Kelola preset = super_admin EFEKTIF (global; mati saat bertindak).
-   *  Memilih preset untuk dilihat tetap bisa semua role. */
-  const { efektifSuper: superAdmin } = useLembagaAktif();
+  /** Memilih preset untuk dilihat bisa semua role (kelola via Kelola Halaman). */
 
   const [presets, setPresets] = useState<PresetTabel[]>([]);
   const [aktifId, setAktifId] = useState<number | null>(null);
   /** Preset bawaan tabel (dipakai bila user belum memilih dan ada preset). */
   const [bawaanId, setBawaanId] = useState<number | null>(null);
 
-  const [dokOpen, setDokOpen] = useState(false);
-  /** Preset yang dibuka + tab awal + mulai-lengkap + penanda remount dialog
-   *  (agar state lokalnya ter-reset). */
-  const [kelola, setKelola] = useState<{ preset: PresetTabel | null; tab: TabKelola; lengkap: boolean; nonce: number }>({
-    preset: null, tab: 'kolom', lengkap: false, nonce: 0,
-  });
-
   const fieldKeys = useMemo(() => new Set(fields.map((f) => f.key)), [fields]);
   const { tandai, hapus: hapusPribadi, merekam, simpanKeStandar } = useStandarTampilan();
-  /** Tabel berkolom sangat banyak (mis. Santri 72 kolom) memakai dialog tinggi
-   *  penuh agar panel-panelnya punya area gulir sendiri. */
-  const banyakKolom = fields.length > 30;
 
   const terapkan = useCallback((preset: PresetTabel | null) => {
     if (!preset) {
@@ -151,47 +134,15 @@ export default function PresetKolom({
     }
   }, [presets, aktifId, muat]);
 
-  /** Terapkan susunan Lengkap kustom langsung ke tabel (tanpa menyimpan
-   *  preset): pilihan pribadi dikosongkan (= Lengkap), dialog ditutup. */
-  const pakaiLengkap = useCallback((keys: string[], label: Record<string, string>) => {
-    const efektif = keys.filter((k) => fieldKeys.has(k));
-    const labelBersih: Record<string, string> = {};
-    for (const [k, v] of Object.entries(label)) {
-      if (fieldKeys.has(k) && v.trim() !== '') labelBersih[k] = v.trim();
-    }
-    setAktifId(null);
-    terapkan({ kolom: efektif, label: labelBersih } as PresetTabel);
-    if (merekam) {
-      hapusPribadi(`preset.${tableKey}`);
-      simpanKeStandar({ presetAktif: { [tableKey]: null } });
-    } else {
-      tandai(`preset.${tableKey}`);
-      void setPresetAktif(tableKey, null).catch((e: unknown) => toast.error(errorMessage(e)));
-    }
-    setDokOpen(false);
-    toast.success('Susunan kolom diterapkan.');
-  }, [fieldKeys, terapkan, merekam, hapusPribadi, simpanKeStandar, tableKey, tandai]);
-  /** Buka dialog Kelola tabel (preset tertentu + tab awal; lengkap = mulai
-   *  dari semua kolom agar bisa dimodifikasi). */
-  const bukaKelola = useCallback((preset: PresetTabel | null, tab: TabKelola = 'kolom', lengkap = false) => {
-    setKelola((s) => ({ preset, tab, lengkap, nonce: s.nonce + 1 }));
-    setDokOpen(true);
-  }, []);
-
   useEffect(() => {
     if (!apiRef) return;
     apiRef.current = {
       presets,
       toggleKolom: toggleKolomPreset,
-      bukaKelola: (tab: TabKelola = 'kolom') => bukaKelola(null, tab),
     };
-  }, [apiRef, presets, toggleKolomPreset, bukaKelola]);
+  }, [apiRef, presets, toggleKolomPreset]);
 
   async function pilihPreset(v: string) {
-    if (v === KELOLA) {
-      bukaKelola(null, 'kolom');
-      return;
-    }
     const id = v === LENGKAP ? null : Number(v);
     const target = id === null ? null : presets.find((p) => p.id === id) ?? null;
     setAktifId(target?.id ?? null);
@@ -241,42 +192,9 @@ export default function PresetKolom({
               <SelectItem key={p.id} value={String(p.id)}>{labelPreset(p)}</SelectItem>
             ))}
           </SelectGroup>
-          {superAdmin ? (
-            <>
-              <SelectSeparator />
-              <SelectItem value={KELOLA}>Kelola preset…</SelectItem>
-            </>
-          ) : null}
         </SelectContent>
       </Select>
       </FilterField>
-      {dokOpen && (
-        <DialogKelolaTabel
-          key={kelola.nonce}
-          open={dokOpen}
-          onOpenChange={setDokOpen}
-          tableKey={tableKey}
-          tabAwal={kelola.tab}
-          banyakKolom={banyakKolom}
-          fields={fields}
-          fieldKeys={fieldKeys}
-          presets={presets}
-          presetAwal={kelola.preset}
-          mulaiLengkap={kelola.lengkap}
-          onPilihLengkap={() => bukaKelola(null, 'kolom', true)}
-          onPilihPreset={(p) => bukaKelola(p, 'kolom')}
-          onPakaiLengkap={(keys, label) => pakaiLengkap(keys, label)}
-          bawaanId={bawaanId}
-          onTersimpan={async (id) => {
-            await muat(id);
-            await setPresetAktif(tableKey, id);
-          }}
-          onDihapus={async () => {
-            await muat(null);
-            await setPresetAktif(tableKey, null);
-          }}
-        />
-      )}
     </>
   );
 }

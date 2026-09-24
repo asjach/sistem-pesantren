@@ -15,7 +15,6 @@ import { formatNilai } from '@/lib/nilaiTampil';
 import { buttonVariants } from '@/components/ui/button';
 import { DEFAULT_FONT_PX, DEFAULT_HEADER_H, FONT_FAMILY_DEFAULT, FONT_OPTIONS, MAX_HEADER_H, useGridPrefs, type AlignName } from '@/components/GridPrefs';
 import { useStandarTampilan } from '@/standarTampilan';
-import { useAuth } from '@/auth/AuthContext';
 import { useLembagaAktif } from '@/lembagaAktif';
 import { type PresetKolomApi } from '@/components/PresetKolom';
 import { muatToolbarPreset, simpanToolbarPreset } from '@/api/toolbarPreset';
@@ -252,12 +251,9 @@ export default function ExcelTable<T extends { id: string | number }>({
   const [ctxKonfirmasi, setCtxKonfirmasi] = useState<AksiMenu['konfirmasi'] | null>(null);
   /** API preset kolom (dipakai menu klik kanan header: show/hide kolom). */
   const presetApiRef = useRef<PresetKolomApi | null>(null);
-  /** Kelola tabel = super_admin saja (global); memilih preset untuk dilihat tetap bisa semua. */
-  const { user: me } = useAuth();
-  const superAdmin = (me?.roles ?? []).some((r) => r.name === 'super_admin');
   /** Geser urutan kolom = super_admin EFEKTIF (global; mati saat bertindak). */
   const { efektifSuper: bolehGeser } = useLembagaAktif();
-  /** Visibilitas kontrol toolbar generik (tab Kontrol dialog Kelola tabel). */
+  /** Visibilitas kontrol toolbar generik (tab Toolbar dialog Kelola Halaman). */
   const [visToolbar, setVisToolbar] = useState<VisToolbar>({ info: true, urut: true, kolom: true, filter: true });
   /** Lebar efektif kontrol berlebar (px); nilai awal = bawaan meski belum tersimpan. */
   const [lebarToolbar, setLebarToolbar] = useState<LebarToolbar>({ ...LEBAR_BAWAHAN_TOOLBAR });
@@ -1888,7 +1884,6 @@ export default function ExcelTable<T extends { id: string | number }>({
       salin: () => ribbonAksiRef.current.salin(),
       autofit: () => ribbonAksiRef.current.autofit(),
       reset: () => ribbonAksiRef.current.reset(),
-      kelolaTabel: () => presetApiRef.current?.bukaKelola('kolom'),
       canEdit,
       editMode,
       setEditMode,
@@ -2061,7 +2056,7 @@ export default function ExcelTable<T extends { id: string | number }>({
             align={align}
             setAlign={setAlign}
             presetApiRef={presetApiRef}
-            bolehKelola={superAdmin}
+            bolehKelola={bolehGeser}
             salinBaris={(id) => void salinBarisCtx(id as T['id'])}
             salinSel={(id, key) => void salinSelCtx(id as T['id'], key)}
             salinKolom={(key) => void salinKolomCtx(key)}

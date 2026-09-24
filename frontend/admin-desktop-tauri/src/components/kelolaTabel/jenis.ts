@@ -1,6 +1,3 @@
-/** Tab dialog Kelola tabel. */
-export type TabKelola = 'kolom' | 'urutan' | 'kontrol';
-
 /** Kunci kontrol toolbar generik yang bisa ditampil/sembunyikan per tabel.
  *  Kotak cari tidak ada lagi (pencarian tunggal di topBar). */
 export type KontrolToolbar = 'info' | 'urut' | 'kolom' | 'filter';

@@ -127,9 +127,7 @@ function KelolaKolomHalaman({
 }
 
 /** Satu pintu pengaturan halaman: filter topBar + preset kolom + preset
- *  urutan + visibilitas toolbar — perluasan Kelola Tabel ke cakupan halaman.
- *  Entry per tabel di tab Kolom/Urutan/Toolbar tetap memakai komponen yang
- *  sama dengan dialog Kelola Tabel. */
+ *  urutan + visibilitas toolbar. Pengelolaan tabel hanya lewat sini. */
 export default function DialogKelolaHalaman({
   open,
   onOpenChange,

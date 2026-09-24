@@ -14,7 +14,7 @@ import { toast } from 'sonner';
 import { EVENT_TOOLBAR_BERUBAH, KONTROL_TOOLBAR, LEBAR_BAWAHAN_TOOLBAR, bacaLebarFilter, bacaLebarToolbar, bacaVisToolbar, type KontrolLebar, type VisToolbar, type LebarToolbar } from './jenis';
 import { daftarFilter, kunciFilterBawaan } from '@/components/excel/lebarFilter';
 
-/** Tab Kontrol dialog Kelola tabel: tampil/sembunyikan kontrol toolbar
+/** Tab Toolbar dialog Kelola Halaman: tampil/sembunyikan kontrol toolbar
  *  generik per tabel — GLOBAL untuk seluruh lembaga, khusus super_admin.
  *  Bukan dihapus: kontrol yang disembunyikan tetap ada, hanya tak dirender. */
 export default function TabKontrol({ tableKey, onTutup }: { tableKey: string; onTutup: () => void }) {

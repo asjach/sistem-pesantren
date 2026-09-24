@@ -47,7 +47,7 @@ export interface TabKolomProps {
   onTutup: () => void;
 }
 
-/** Tab Kolom dialog Kelola tabel: preset kolom GLOBAL (satu definisi untuk
+/** Tab Kolom dialog Kelola Halaman: preset kolom GLOBAL (satu definisi untuk
  *  semua lembaga), dikelola super_admin. Pilih/atur kolom tampil + nama
  *  header kustom. */
 export default function TabKolom({

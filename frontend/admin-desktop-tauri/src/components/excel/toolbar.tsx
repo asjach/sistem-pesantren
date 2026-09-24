@@ -27,7 +27,7 @@ export interface ToolbarTabelProps<T extends { id: string | number }> {
   presetApiRef?: MutableRefObject<PresetKolomApi | null>;
   /** Timpa lebar trigger dropdown Kolom (bawaan `w-44` di PresetKolom). */
   presetKolomClassName?: string;
-  /** Visibilitas kontrol generik (tab Kontrol dialog Kelola tabel). */
+  /** Visibilitas kontrol generik (tab Toolbar dialog Kelola Halaman). */
   visToolbar: VisToolbar;
   /** Lebar efektif kontrol berlebar (px) dari tab Kontrol (bawaan bila kosong). */
   lebarToolbar: LebarToolbar;
@@ -69,12 +69,6 @@ export default function ToolbarTabel<T extends { id: string | number }>({
     <div
       data-part="toolbar_tabel"
       id={`toolbar_tabel_${tableKey}`}
-      title="Klik kanan untuk Kelola tabel"
-      onContextMenu={(e) => {
-        if (!presetApiRef?.current?.bukaKelola) return;
-        e.preventDefault();
-        presetApiRef.current.bukaKelola('kolom');
-      }}
       className={cn('flex flex-wrap items-end gap-x-2 gap-y-2', showToolbar || addButton || !hidePreset ? 'mb-3' : 'mb-0')}
     >
       {/* Super-zona kiri: area 1 + 2 membungkus sebagai blok bila sempit. */}
@@ -108,7 +102,7 @@ export default function ToolbarTabel<T extends { id: string | number }>({
       {/* Kanan 1: dropdown Urutkan + dropdown Kolom. */}
       <div className="flex flex-nowrap items-end gap-2 [&>*]:shrink-0">
         {urutTampil && (
-          <PresetUrut tableKey={tableKey} urutAktif={urutAktif} arahUrut={arahUrut} onUrut={onUrut} apiRef={presetApiRef} lebarTrigger={lebarToolbar.urut} />
+          <PresetUrut tableKey={tableKey} urutAktif={urutAktif} arahUrut={arahUrut} onUrut={onUrut} lebarTrigger={lebarToolbar.urut} />
         )}
         {/* Preset kolom tampilan (tersimpan di DB per lembaga) — tanpa pembungkus
             kotak agar tampil polos seperti kontrol lain. Kontrol tabel umum
