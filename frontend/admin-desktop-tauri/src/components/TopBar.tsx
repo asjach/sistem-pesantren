@@ -120,10 +120,11 @@ export default function TopBar() {
   /** Tingkat & Kelas kini filter global (setara lembaga/TA/semester). */
   const { tingkat, pilih: pilihTingkat } = useTingkatAktif();
   const { kelas, pilih: pilihKelas } = useKelasAktif();
-  // Opsi kelas global (nama) mengikuti lembaga+TA aktif; dimuat saat tampil.
+  // Opsi kelas global (nama) mengikuti lembaga+TA aktif; dimuat saat
+  // tingkat/kelas tampil (tingkat ikut diturunkan dari daftar ini).
   const [kelasDaftar, setKelasDaftar] = useState<Kelas[]>([]);
   useEffect(() => {
-    if (!tampil.kelas || !jenjang || !tahunAjaranNama) {
+    if ((!tampil.kelas && !tampil.tingkat) || !jenjang || !tahunAjaranNama) {
       setKelasDaftar([]);
       return;
     }
@@ -132,7 +133,25 @@ export default function TopBar() {
       .then((p) => { if (hidup) setKelasDaftar(p.data); })
       .catch(() => { if (hidup) setKelasDaftar([]); });
     return () => { hidup = false; };
-  }, [tampil.kelas, jenjang, tahunAjaranNama]);
+  }, [tampil.kelas, tampil.tingkat, jenjang, tahunAjaranNama]);
+  /** Opsi tingkat global = distinct tingkat kelas lembaga aktif (jatuh balik
+   *  ke 1–12 bila daftar kosong, mis. lembaga "Semua"). */
+  const tingkatOpsi = useMemo(() => {
+    const unik = new Set<string>();
+    for (const k of kelasDaftar) {
+      if (k.tingkat != null && String(k.tingkat) !== '') unik.add(String(k.tingkat));
+    }
+    const hasil = [...unik].sort((a, b) => a.localeCompare(b, 'id', { numeric: true }));
+    return hasil.length > 0 ? hasil : TINGKAT_GLOBAL;
+  }, [kelasDaftar]);
+  // Tingkat terpilih yang tak ada di lembaga aktif ikut dibuang.
+  useEffect(() => {
+    if (kelasDaftar.length === 0) return;
+    const valid = new Set(tingkatOpsi);
+    const next = tingkat.filter((x) => valid.has(x));
+    if (next.length !== tingkat.length) pilihTingkat(next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kelasDaftar]);
   const kelasOpsi = useMemo(() => {
     const nama = kelasDaftar
       .filter((k) => tingkat.length === 0 || (k.tingkat != null && tingkat.includes(String(k.tingkat))))
@@ -332,7 +351,7 @@ export default function TopBar() {
             <FilterMulti
               id="filter_tingkat_global"
               label="Tingkat"
-              opsi={TINGKAT_GLOBAL}
+              opsi={tingkatOpsi}
               dipilih={tingkat}
               onToggle={togolTingkat}
               onSemua={() => pilihTingkat([])}
