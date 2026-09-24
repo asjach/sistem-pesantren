@@ -186,6 +186,33 @@ class TabelUrutTest extends TestCase
             ->assertStatus(422);
     }
 
+    public function test_users_search_mencakup_role(): void
+    {
+        $this->seq++;
+        $admin = User::create([
+            'name' => 'Uji Alfa',
+            'email' => "uji_alfa_{$this->seq}_".uniqid().'@example.com',
+            'phone' => '0813'.str_pad((string) (30000000 + $this->seq), 8, '0', STR_PAD_LEFT),
+            'username' => 'uji_alfa_'.$this->seq,
+            'password' => 'password',
+        ]);
+        $admin->assignRole('admin');
+        $this->seq++;
+        $ortu = User::create([
+            'name' => 'Uji Beta',
+            'email' => "uji_beta_{$this->seq}_".uniqid().'@example.com',
+            'phone' => '0813'.str_pad((string) (30000000 + $this->seq), 8, '0', STR_PAD_LEFT),
+            'username' => 'uji_beta_'.$this->seq,
+            'password' => 'password',
+        ]);
+        $ortu->assignRole('orang_tua');
+
+        $this->assertSame(
+            ['Uji Beta'],
+            $this->kolom($this->super(), '/api/admin/users?per_page=50&search=orang_tua', 'name')
+        );
+    }
+
     // ---------- tahun ajaran ----------
 
     public function test_tahun_ajaran_urut_nama(): void

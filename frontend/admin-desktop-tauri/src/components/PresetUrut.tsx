@@ -125,7 +125,7 @@ export default function PresetUrut({
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
-                <SelectItem value={TANPA}>Tanpa urutan</SelectItem>
+                <SelectItem value={TANPA}>—</SelectItem>
                 {opsi.map((o, i) => (
                   <SelectItem key={`${o.kode.join(',')}-${i}`} value={String(i)}>
                     {o.bawaan ? (

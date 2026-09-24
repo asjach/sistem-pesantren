@@ -188,9 +188,10 @@
 | 2.134 | 2026-09-24 | **Search tunggal di topBar** menggantikan judul halaman (slot `TopBarSearch`): satu input per halaman dipakai semua tabel (mis. MI-MD & Kegiatan PSB 3 tabel, Riwayat Belajar/Pindah Semester 2 tabel, Pindah Kelas banyak kolom). Input cari per tabel dihapus di seluruh halaman ber-tabel; `useDaftarTabel` menerima `search` eksternal. Endpoint `pengajuan-biodata`, `mutasi-keluar`, `alumni` menerima `q`. Judul tetap di judul jendela/sidebar |
 | 2.135 | 2026-09-24 | Fix search topBar tak jalan untuk query 1 karakter (mis. "9" di halaman Kelas): guard panjang 1 di `useDaftarTabel` dihapus; live search 400 ms berlaku semua panjang query (termasuk mode "Semua baris") |
 | 2.136 | 2026-09-24 | TopBar search: sembunyikan tombol bersihkan bawaan (`type=search`), pertahankan tombol "x" kustom |
-| 2.137 | 2026-09-24 | Search multi-field (bertahap): **Buku Induk** mencari `nama_lengkap`, `nisn`, `ayah_nama`, `ibu_nama` (`GET /admin/santri?q=`); **Pengguna** sudah multi-field (nama/email/phone/username). Halaman lain menyusul bila diperlukan |
+| 2.137 | 2026-09-24 | Search multi-field (bertahap): **Buku Induk** mencari `nama_lengkap`, `nisn`, `ayah_nama`, `ibu_nama` (`GET /admin/santri?q=`); **Pengguna** mencari `name`, `email`, `phone`, `username`, `role` (hapus filter Role di header tabel; filter lewat search). Halaman lain menyusul bila diperlukan |
 | 2.138 | 2026-09-24 | TopBar search: placeholder dihapus (teks label tetap dipakai sebagai `aria-label`) |
 | 2.139 | 2026-09-24 | Toolbar tabel: label filter/dropdown (Tingkat, Urutkan, Kolom, dll.) disejajarkan **satu baris** dengan kontrolnya (inline) saat berada di toolbar; di luar toolbar tetap bertumpuk |
+| 2.140 | 2026-09-24 | Dropdown Urutkan: label opsi "Tanpa urutan" diganti strip "—" |
 
 ## Daftar Isi
 

@@ -15,17 +15,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/field';
 import { Checkbox } from '@/components/ui/checkbox';
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { TopBarSearch } from '@/components/TopBarSearch';
-import FilterField from '@/components/FilterField';
 import { UserViewDialog } from '@/components/UserViewDialog';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import {
@@ -136,7 +127,6 @@ export default function UsersPage() {
 
   const [lembagas, setLembagas] = useState<Lembaga[]>([]);
   const fields = useMemo(() => buatUserFields(creatable, lembagas), [creatable, lembagas]);
-  const [roleFilter, setRoleFilter] = useState('');
   /** Pencarian tunggal halaman (topBar) — menggantikan input cari per tabel. */
   const [cari, setCari] = useState('');
   const lembagaReqRef = useRef(0);
@@ -158,14 +148,12 @@ export default function UsersPage() {
     search: cari,
     ambil: (a) => listUsers({
       search: a.search || undefined,
-      role: roleFilter || undefined,
       sort: a.urut.length ? a.urut : undefined,
       arah: a.urut.length ? a.arah : undefined,
       page: a.page,
       per_page: a.perPage,
       signal: a.signal,
     }),
-    deps: [roleFilter],
   });
 
   const [name, setName] = useState('');
@@ -301,7 +289,7 @@ export default function UsersPage() {
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
-      <TopBarSearch value={cari} onChange={setCari} placeholder="Cari pengguna…" />
+      <TopBarSearch value={cari} onChange={setCari} placeholder="Cari pengguna (nama/email/username/phone/role)…" />
       <ExcelTable
         tableKey="users"
         sumberTabel="users"
@@ -323,21 +311,6 @@ export default function UsersPage() {
             + Pengguna
           </Button>
         ) : undefined}
-        filter={(
-          <FilterField label="Role" htmlFor="select_filter_role">
-          <Select value={roleFilter || '_semua'} onValueChange={(v) => { setRoleFilter(v === '_semua' ? '' : v); pager.goFirst(); }}>
-            <SelectTrigger id="select_filter_role" title="Filter role" aria-label="Filter role" size="sm" className="w-36">
-              <SelectValue placeholder="Semua" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectItem value="_semua">Semua</SelectItem>
-                {assignable.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-          </FilterField>
-        )}
         renderActions={renderActions}
       />
       <Pager

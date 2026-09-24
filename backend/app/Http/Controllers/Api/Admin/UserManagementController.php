@@ -101,7 +101,8 @@ class UserManagementController extends Controller
             $query->where(fn ($q) => $q->where('name', 'like', "%{$s}%")
                 ->orWhere('email', 'like', "%{$s}%")
                 ->orWhere('phone', 'like', "%{$s}%")
-                ->orWhere('username', 'like', "%{$s}%"));
+                ->orWhere('username', 'like', "%{$s}%")
+                ->orWhereHas('roles', fn ($r) => $r->where('name', 'like', "%{$s}%")));
         }
         if ($request->filled('role')) {
             $query->role($request->input('role'));
