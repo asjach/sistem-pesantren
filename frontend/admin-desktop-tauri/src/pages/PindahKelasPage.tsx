@@ -62,7 +62,7 @@ export default function PindahKelasPage() {
     if (!jenjang) { setRows([]); return; }
     setErr('');
     try {
-      const res = await daftarKelas({ jenjang: jenjang, tahun_ajaran: taId || undefined, semester: semester || undefined });
+      const res = await daftarKelas({ jenjang: jenjang, tahun_ajaran: taId || undefined, semester: semester || undefined, per_page: 0 });
       setRows(res.data);
     } catch (e) { setErr(errorMessage(e)); }
   }, [jenjang, taId, semester]);

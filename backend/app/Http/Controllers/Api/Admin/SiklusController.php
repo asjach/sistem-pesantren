@@ -427,6 +427,7 @@ class SiklusController extends Controller
         $data = $request->validated();
         $lembagaId = $data['jenjang'];
         $this->authorizeLembaga($request->user(), $lembagaId);
+        $urut = $this->parseUrut($request, UrutKatalog::peta('daftar_kelas'));
 
         $lintas = $request->boolean('lintas_periode');
         $kelompok = $data['kelompok_status'] ?? null;
@@ -449,48 +450,73 @@ class SiklusController extends Controller
             // JANGAN eager-load `tahunAjaran`: kunci relasi di-snake-case jadi
             // `tahun_ajaran` dan menimpa atribut string FK (frontend menerima
             // objek → tampil "[object Object]"). Nilai FK-nya sudah nama TA.
-        ])->where('jenjang', $lembagaId);
+        ])->where('riwayat_belajar.jenjang', $lembagaId);
         if ($ta !== null) {
-            $query->where('tahun_ajaran', $ta);
+            $query->where('riwayat_belajar.tahun_ajaran', $ta);
         }
         if ($semester !== null) {
-            $query->where('semester', $semester);
+            $query->where('riwayat_belajar.semester', $semester);
         }
         if ($kelompok === 'aktif') {
             // Aktif = gabungan status akhir (bukan flag is_active_riwayat).
-            $query->whereIn('status_akhir', ['aktif', 'lanjut', 'naik', 'tidak_naik', 'lulus', 'tidak_lulus']);
+            $query->whereIn('riwayat_belajar.status_akhir', ['aktif', 'lanjut', 'naik', 'tidak_naik', 'lulus', 'tidak_lulus']);
         } elseif ($kelompok === 'nonaktif') {
-            $query->where('status_akhir', 'pindah_keluar');
+            $query->where('riwayat_belajar.status_akhir', 'pindah_keluar');
         } else {
-            $query->where('is_active_riwayat', RiwayatBelajar::YA);
+            $query->where('riwayat_belajar.is_active_riwayat', RiwayatBelajar::YA);
         }
 
         if (! empty($data['kelas_id'])) {
-            $query->where('kelas_id', (int) $data['kelas_id']);
+            $query->whereIn('riwayat_belajar.kelas_id', array_map('intval', (array) $data['kelas_id']));
         }
         if (! empty($data['tingkat'])) {
-            $query->where('tingkat', $data['tingkat']);
+            $query->whereIn('riwayat_belajar.tingkat', (array) $data['tingkat']);
+        }
+        if ($request->filled('q')) {
+            $qcari = $request->input('q');
+            $query->where(function ($w) use ($qcari, $lembagaId) {
+                $w->whereHas('santri', fn ($s) => $s
+                    ->where('nama_lengkap', 'like', "%{$qcari}%")
+                    ->orWhere('nik', 'like', "%{$qcari}%"))
+                    ->orWhereIn('riwayat_belajar.santri_id', LembagaSantri::where('jenjang', $lembagaId)
+                        ->where('nis_lokal', 'like', "%{$qcari}%")
+                        ->select('santri_id'));
+            });
         }
 
-        $baris = $query->orderBy('tahun_ajaran')->orderBy('semester')->orderBy('kelas_id')->orderBy('no_absen')->orderBy('santri_id')->get();
+        if ($urut !== null) {
+            $query->select('riwayat_belajar.*')
+                ->leftJoin('santri', 'santri.id', '=', 'riwayat_belajar.santri_id')
+                ->leftJoin('kelas', 'kelas.id', '=', 'riwayat_belajar.kelas_id')
+                ->leftJoin('lembaga', 'lembaga.jenjang', '=', 'riwayat_belajar.jenjang')
+                ->leftJoin('tahun_ajaran', 'tahun_ajaran.nama', '=', 'riwayat_belajar.tahun_ajaran');
+        }
+        // Urutan bawaan = lama (TA → semester → kelas → absen → santri);
+        // nullable dikosongkan agar NULL tetap di depan seperti sebelumnya.
+        $this->terapkanUrut($query, $urut, [
+            ['riwayat_belajar.tahun_ajaran', 'naik'], ['riwayat_belajar.semester', 'naik'],
+            ['riwayat_belajar.kelas_id', 'naik'], ['riwayat_belajar.no_absen', 'naik'],
+            ['riwayat_belajar.santri_id', 'naik'],
+        ]);
+
+        $hasil = $query->paginate($this->perPage($request));
         // Keanggotaan penuh (satu baris per santri; aktif diutamakan) + NIS lokal
         // ringkas (kompatibilitas payload lama).
-        $anggota = LembagaSantri::whereIn('santri_id', $baris->pluck('santri_id')->unique())
+        $anggota = LembagaSantri::whereIn('santri_id', $hasil->getCollection()->pluck('santri_id')->unique())
             ->where('jenjang', $lembagaId)
             ->orderByDesc('is_active_lembaga')->orderBy('id')
             ->get()->groupBy('santri_id')->map->first();
-        $baris->each(function ($r) use ($anggota) {
+        $hasil->getCollection()->each(function ($r) use ($anggota) {
             $ls = $anggota[$r->santri_id] ?? null;
             $r->setRelation('lembaga_anggota', $ls);
             $r->setAttribute('nis_lokal', $ls?->nis_lokal);
         });
 
-        return response()->json([
+        return response()->json(array_merge($hasil->toArray(), [
             'jenjang' => $lembagaId,
             'tahun_ajaran' => $ta,
             'semester' => $semester,
-            'data' => $baris,
-        ]);
+        ]));
     }
 
     /**

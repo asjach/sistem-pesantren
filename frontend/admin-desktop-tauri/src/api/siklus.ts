@@ -342,26 +342,53 @@ export function unduhGalatPotong(sesiId: number) {
 
 // ---------- Daftar kelas & rekap ----------
 
+export interface DaftarKelasHasil {
+  jenjang: string;
+  tahun_ajaran: string | null;
+  semester: string | null;
+  data: RiwayatRow[];
+  current_page: number;
+  last_page: number;
+  per_page: number;
+  total: number;
+}
+
 export function daftarKelas(params: {
   jenjang: string;
   tahun_ajaran?: string;
   semester?: string;
-  kelas_id?: number;
-  tingkat?: string;
+  kelas_id?: number | number[];
+  tingkat?: string | string[];
+  /** Cari nama/NIK santri atau NIS lokal. */
+  search?: string;
   /** Basis status_akhir: aktif = gabungan 5 status; nonaktif = keluar. */
   kelompok_status?: 'aktif' | 'nonaktif';
   /** Matikan default TA/semester agar bisa lintas periode. */
   lintas_periode?: boolean;
+  sort?: string[];
+  arah?: 'naik' | 'turun';
+  page?: number;
+  /** 0 = semua baris (dipakai pemanggil non-paginasi). */
+  per_page?: number;
+  signal?: AbortSignal;
 }) {
   const q = new URLSearchParams({ jenjang: params.jenjang });
   if (params.tahun_ajaran) q.set('tahun_ajaran', params.tahun_ajaran);
   if (params.semester) q.set('semester', params.semester);
-  if (params.kelas_id) q.set('kelas_id', String(params.kelas_id));
-  if (params.tingkat) q.set('tingkat', params.tingkat);
+  const kelasArr = params.kelas_id === undefined ? [] : Array.isArray(params.kelas_id) ? params.kelas_id : [params.kelas_id];
+  for (const id of kelasArr) q.append('kelas_id[]', String(id));
+  const tingkatArr = params.tingkat === undefined ? [] : Array.isArray(params.tingkat) ? params.tingkat : [params.tingkat];
+  for (const t of tingkatArr) if (t !== '') q.append('tingkat[]', t);
+  if (params.search) q.set('q', params.search);
   if (params.kelompok_status) q.set('kelompok_status', params.kelompok_status);
   if (params.lintas_periode) q.set('lintas_periode', '1');
-  return api<{ jenjang: string; tahun_ajaran: string | null; semester: string | null; data: RiwayatRow[] }>(
+  if (params.sort?.length) q.set('sort', params.sort.join(','));
+  if (params.arah) q.set('arah', params.arah);
+  q.set('page', String(params.page ?? 1));
+  q.set('per_page', String(params.per_page ?? 100));
+  return api<DaftarKelasHasil>(
     `/admin/akademik/daftar-kelas?${q.toString()}`,
+    { signal: params.signal },
   );
 }
 

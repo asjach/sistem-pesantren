@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { bisa } from '../api/auth';
-import { errorMessage } from '../api/client';
-import { daftarKelas, type RiwayatRow } from '../api/siklus';
+import { daftarKelas, type DaftarKelasHasil, type RiwayatRow } from '../api/siklus';
 import type { SantriPenuh } from '../api/santri';
+import { listKelas, type Kelas } from '../api/master';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import ExcelTable from '@/components/ExcelTable';
 import { useTingkatAktif } from '@/tingkatAktif';
@@ -17,6 +17,8 @@ import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { ActionIcon } from '@/components/RowActions';
 import { Eye, Pencil } from '@/icons';
 import FilterField from '@/components/FilterField';
+import Pager from '@/components/Pager';
+import { useDaftarTabel } from '@/hooks/useDaftarTabel';
 import { ProfilSantriDialog } from '@/components/ProfilSantriDialog';
 import { EditSantriDialog } from '@/components/santri/EditSantriDialog';
 import {
@@ -26,7 +28,8 @@ import {
 } from '@/components/siklus/kolomDaftarKelas';
 
 /** Daftar Kelas: basis status_akhir (Aktif = gabungan 5 status; Tidak aktif =
- *  Pindah/Keluar) dengan opsi lintas semester dan lintas tahun ajaran. */
+ *  Pindah/Keluar) dengan opsi lintas semester dan lintas tahun ajaran.
+ *  Urut + paginasi sisi server; tingkat/kelas global + cari via server. */
 export default function DaftarKelasPage() {
   const { user } = useAuth();
   const canSantri = bisa(user, 'santri.ubah');
@@ -39,28 +42,70 @@ export default function DaftarKelasPage() {
   useSemesterAwal(setSemester);
   /** Kelompok status akhir: aktif (bawaan) | nonaktif | '' = semua status. */
   const [kelompok, setKelompok] = useState('aktif');
-  const [rows, setRows] = useState<RiwayatRow[]>([]);
   /** Pencarian tunggal halaman (topBar). */
   const [cari, setCari] = useState('');
   /** Tingkat & Kelas = filter global topBar (setara lembaga/TA/semester). */
   const { tingkat: tingkatAktif } = useTingkatAktif();
   const { kelas: kelasAktif } = useKelasAktif();
-  /** Hasil filter global + pencarian tunggal (sisi klien). */
-  const rowsTampil = useMemo(() => {
-    const q = cari.trim().toLowerCase();
-    return rows.filter((r) => {
-      if (tingkatAktif.length > 0 && !tingkatAktif.includes((r.tingkat ?? '').trim())) return false;
-      if (kelasAktif.length > 0 && !kelasAktif.includes(r.kelas?.nama_kelas ?? '')) return false;
-      if (q === '') return true;
-      return (r.santri?.nama_lengkap ?? '').toLowerCase().includes(q)
-        || (r.nis_lokal ?? '').toLowerCase().includes(q);
-    });
-  }, [rows, tingkatAktif, kelasAktif, cari]);
-  const [info, setInfo] = useState<{ tahun_ajaran: string | null; semester: string | null } | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState('');
-  const [profilRow, setProfilRow] = useState<SantriPenuh | null>(null);
-  const [editRow, setEditRow] = useState<SantriPenuh | null>(null);
+  /** Opsi kelas lingkup (tanpa TA saat lintas periode) untuk memetakan nama
+   *  filter global → id kelas param server. */
+  const [kelasOpsi, setKelasOpsi] = useState<Kelas[]>([]);
+  useEffect(() => {
+    if (!jenjang) { setKelasOpsi([]); return; }
+    let hidup = true;
+    listKelas({ jenjang, tahun_ajaran: taId || undefined, per_page: 1000 })
+      .then((p) => { if (hidup) setKelasOpsi(p.data); })
+      .catch(() => { if (hidup) setKelasOpsi([]); });
+    return () => { hidup = false; };
+  }, [jenjang, taId]);
+  /** Id kelas terpilih (dari nama di filter global) untuk param server. */
+  const kelasFilterIds = useMemo(
+    () => kelasOpsi.filter((k) => kelasAktif.includes(k.nama_kelas)).map((k) => k.id),
+    [kelasOpsi, kelasAktif],
+  );
+
+  const {
+    rows,
+    loading,
+    err,
+    urut,
+    arahUrut,
+    terapkanUrut,
+    load,
+    lastPage,
+    total,
+    pager,
+    onSaved,
+  } = useDaftarTabel<RiwayatRow>({
+    tableKey: 'daftar_kelas',
+    search: cari,
+    ambil: (a): Promise<DaftarKelasHasil> => {
+      if (!jenjang) {
+        return Promise.resolve({
+          jenjang: '', tahun_ajaran: null, semester: null,
+          data: [], current_page: 1, last_page: 1, per_page: a.perPage, total: 0,
+        });
+      }
+      // Salah satu periode = Semua → lintas periode (tanpa default server).
+      const lintas = taId === '' || semester === '';
+      return daftarKelas({
+        jenjang: jenjang,
+        tahun_ajaran: taId || undefined,
+        semester: semester || undefined,
+        kelompok_status: kelompok === '' ? undefined : (kelompok as 'aktif' | 'nonaktif'),
+        lintas_periode: lintas || undefined,
+        tingkat: tingkatAktif.length ? tingkatAktif : undefined,
+        kelas_id: kelasFilterIds.length ? kelasFilterIds : undefined,
+        search: a.search || undefined,
+        sort: a.urut.length ? a.urut : undefined,
+        arah: a.urut.length ? a.arah : undefined,
+        page: a.page,
+        per_page: a.perPage,
+        signal: a.signal,
+      });
+    },
+    deps: [jenjang, taId, semester, kelompok, tingkatAktif, kelasFilterIds],
+  });
 
   /** Seluruh kolom 3 tabel; jenis edit mengikuti izin per tabel. */
   const fields = useMemo(
@@ -68,31 +113,8 @@ export default function DaftarKelasPage() {
     [canSantri, canRiwayat],
   );
   const commitDaftar = useMemo(() => pakaiCommitDaftarKelas(rows), [rows]);
-
-  const load = useCallback(async () => {
-    if (!jenjang) { setRows([]); setInfo(null); return; }
-    setErr('');
-    setLoading(true);
-    try {
-      // Salah satu periode = Semua → lintas periode (tanpa default server).
-      const lintas = taId === '' || semester === '';
-      const res = await daftarKelas({
-        jenjang: jenjang,
-        tahun_ajaran: taId || undefined,
-        semester: semester || undefined,
-        kelompok_status: kelompok === '' ? undefined : (kelompok as 'aktif' | 'nonaktif'),
-        lintas_periode: lintas || undefined,
-      });
-      setRows(res.data);
-      setInfo({ tahun_ajaran: res.tahun_ajaran, semester: res.semester });
-    } catch (e) {
-      setErr(errorMessage(e));
-    } finally {
-      setLoading(false);
-    }
-  }, [jenjang, taId, semester, kelompok]);
-
-  useEffect(() => { void load(); }, [load]);
+  const [profilRow, setProfilRow] = useState<SantriPenuh | null>(null);
+  const [editRow, setEditRow] = useState<SantriPenuh | null>(null);
 
   return (
     <div className={PAGE_SHELL}>
@@ -102,13 +124,16 @@ export default function DaftarKelasPage() {
       <ExcelTable<RiwayatRow>
         tableKey="daftar_kelas"
         fields={fields}
-        rows={rowsTampil}
+        rows={rows}
         getValues={daftarKelasValues}
         loading={loading}
         emptyText="Pilih lembaga untuk menampilkan daftar kelas."
         canEdit={canSantri || canRiwayat}
         onCommit={commitDaftar}
-        onSaved={load}
+        onSaved={onSaved}
+        urutAktif={urut}
+        arahUrut={arahUrut}
+        onUrut={terapkanUrut}
         renderActions={(r) => (r.santri ? (
           <>
             <ActionIcon id={`btn_detail_santri_${r.id}`} title="Lihat detail santri" onClick={() => setProfilRow(r.santri as SantriPenuh)}><Eye size={16} /></ActionIcon>
@@ -133,16 +158,22 @@ export default function DaftarKelasPage() {
                 </SelectContent>
               </Select>
             </FilterField>
-            {info ? (
-              <span className="text-xs text-muted-foreground">
-                TA {info.tahun_ajaran ?? 'Semua'}
-                {' · '}Smt {info.semester ?? 'Semua'}
-                {' · '}{kelompok === 'aktif' ? 'Aktif' : kelompok === 'nonaktif' ? 'Tidak aktif' : 'Semua status'}
-                {' · '}{rows.length} santri
-              </span>
-            ) : null}
+            <span className="text-xs text-muted-foreground">
+              TA {taId === '' ? 'Semua' : taId}
+              {' · '}Smt {semester === '' ? 'Semua' : semester}
+              {' · '}{kelompok === 'aktif' ? 'Aktif' : kelompok === 'nonaktif' ? 'Tidak aktif' : 'Semua status'}
+              {' · '}{total} santri
+            </span>
           </>
         )}
+      />
+      <Pager
+        page={pager.page}
+        lastPage={lastPage}
+        total={total}
+        perPage={pager.perPage}
+        onPage={(p) => { pager.setPage(p); load(p); }}
+        onPerPage={(pp) => { pager.setPerPage(pp); load(1, pp); }}
       />
 
       <ProfilSantriDialog

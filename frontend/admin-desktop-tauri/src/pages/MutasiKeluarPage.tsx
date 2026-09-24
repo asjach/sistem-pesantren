@@ -77,7 +77,7 @@ export default function MutasiKeluarPage() {
     if (!jenjang) { setKiri([]); return; }
     setErr('');
     try {
-      const res = await daftarKelas({ jenjang: jenjang });
+      const res = await daftarKelas({ jenjang: jenjang, per_page: 0 });
       setKiri(res.data);
     } catch (e) { setErr(errorMessage(e)); }
   }, [jenjang]);

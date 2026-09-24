@@ -204,6 +204,7 @@
 | 2.150 | 2026-09-24 | Fix CI MySQL (lolos SQLite karena DQS literal + varchar tak ditegakkan): `tahunAjaran:id,nama` → `tahunAjaran:nama` (PsbKegiatan index, Siklus naik-otomatis); fixture TA matriks ≤9 char unik; assert filter per-kunci (urutan kunci JSON MySQL ≠ urutan kirim) |
 | 2.151 | 2026-09-24 | Hapus Kotak cari toolbar (mati sejak pencarian pindah ke topBar; tak ada halaman mengoper search): kunci `cari` keluar dari kontrol+lebar toolbar FE & allowlist BE; tes toolbar pakai `info`/`urut`, kunci `cari` lama kini ditolak 422 |
 | 2.152 | 2026-09-24 | Hapus dialog Kelola Tabel: pengelolaan hanya lewat Kelola Halaman (tombol topBar). Pintu yang dibuang: item Kelola preset/Urutan di dropdown, klik kanan toolbar & menu konteks, aksi ribbon; `PresetKolomApi.bukaKelola`, `TabKelola`, `pakaiLengkap` lokal ikut hapus. Toggle kolom per preset di menu konteks tetap ada (gerbang diseragamkan mati-saat-bertindak) |
+| 2.153 | 2026-09-24 | Daftar Kelas: Urutkan + paginasi sisi server (ikuti pola riwayat_belajar). Endpoint dukung `q` (nama/NIK/NIS lokal), `tingkat[]`, `kelas_id[]`, `sort`/`arah` (katalog `daftar_kelas`), paginasi; seed opsi urut; pemanggil lama (Kelulusan/PindahKelas/Mutasi) kirim `per_page=0`. Halaman pakai `useDaftarTabel` + `Pager`; filter global & cari pindah ke server |
 
 ## Daftar Isi
 

@@ -781,6 +781,62 @@ class SiklusFlowTest extends TestCase
         ])->assertStatus(403);
     }
 
+    public function test_14b_daftar_kelas_urut_cari_paginasi(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
+        $kelas1 = $this->makeKelas($f['mi'], $f['taBaru'], '1A', '1');
+        $kelas2 = $this->makeKelas($f['mi'], $f['taBaru'], '2A', '2');
+
+        $sA = $this->makeSantri('Citra');
+        $this->makeKeanggotaan($sA, $f['mi'], '91001');
+        $this->makeRiwayat($sA, $f['taBaru'], $f['mi'], '1', ['kelas_id' => $kelas1->id, 'tingkat' => '1']);
+        $sB = $this->makeSantri('Andi');
+        $this->makeKeanggotaan($sB, $f['mi'], '91002');
+        $this->makeRiwayat($sB, $f['taBaru'], $f['mi'], '1', ['kelas_id' => $kelas2->id, 'tingkat' => '2']);
+        $sC = $this->makeSantri('Budi');
+        $this->makeKeanggotaan($sC, $f['mi'], '91003');
+        $this->makeRiwayat($sC, $f['taBaru'], $f['mi'], '1', ['kelas_id' => $kelas1->id, 'tingkat' => '1']);
+
+        $dasar = '/api/admin/akademik/daftar-kelas?jenjang='.$f['mi']->jenjang;
+
+        // Urut nama menurun + meta periode tetap ada.
+        $urut = $this->actingAs($admin, 'sanctum')
+            ->getJson($dasar.'&sort=santri&arah=turun')
+            ->assertStatus(200);
+        $nama = collect($urut->json('data'))->pluck('santri.nama_lengkap');
+        $this->assertTrue(str_starts_with($nama->first(), 'Citra'));
+        $this->assertTrue(str_starts_with($nama->last(), 'Andi'));
+        $this->assertSame($f['taBaru']->nama, $urut->json('tahun_ajaran'));
+
+        // Cari NIS lokal + kunci urut asing ditolak.
+        $cari = $this->actingAs($admin, 'sanctum')
+            ->getJson($dasar.'&q=91002')
+            ->assertStatus(200);
+        $this->assertSame(1, $cari->json('total'));
+        $this->assertSame('91002', $cari->json('data.0.nis_lokal'));
+        $this->actingAs($admin, 'sanctum')
+            ->getJson($dasar.'&sort=kolom_asing')
+            ->assertStatus(422);
+
+        // Filter tingkat[] + kelas_id[] + paginasi.
+        $tingkat = $this->actingAs($admin, 'sanctum')
+            ->getJson($dasar.'&tingkat[]=2')
+            ->assertStatus(200);
+        $this->assertSame(1, $tingkat->json('total'));
+        $this->assertTrue(str_starts_with($tingkat->json('data.0.santri.nama_lengkap'), 'Andi'));
+        $kelas = $this->actingAs($admin, 'sanctum')
+            ->getJson($dasar.'&kelas_id[]='.$kelas2->id)
+            ->assertStatus(200);
+        $this->assertSame(1, $kelas->json('total'));
+        $halaman = $this->actingAs($admin, 'sanctum')
+            ->getJson($dasar.'&per_page=2&page=2')
+            ->assertStatus(200);
+        $this->assertSame(3, $halaman->json('total'));
+        $this->assertSame(2, $halaman->json('last_page'));
+        $this->assertCount(1, $halaman->json('data'));
+    }
+
     // ---------- 12. profil santri memuat keanggotaan + riwayat + arsip ----------
 
     public function test_12_profil_santri_memuat_keanggotaan_riwayat_dan_alumni(): void

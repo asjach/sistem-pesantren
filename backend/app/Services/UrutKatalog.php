@@ -76,6 +76,16 @@ class UrutKatalog
             'absen' => ['riwayat_belajar.no_absen'],
             'id' => ['riwayat_belajar.id'],
         ],
+        'daftar_kelas' => [
+            'santri' => ['santri.nama_lengkap'],
+            'kelas' => ['kelas.nama_kelas'],
+            'lembaga' => ['lembaga.jenjang'],
+            'ta' => ['tahun_ajaran.nama'],
+            'tingkat' => ['riwayat_belajar.tingkat'],
+            'semester' => ['riwayat_belajar.semester'],
+            'absen' => ['riwayat_belajar.no_absen'],
+            'id' => ['riwayat_belajar.id'],
+        ],
         'kenaikan_santri_genap' => [
             'santri' => ['santri.nama_lengkap'],
             'kelas' => ['kelas.nama_kelas'],

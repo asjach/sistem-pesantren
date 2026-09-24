@@ -63,7 +63,7 @@ export default function KelulusanPage() {
     setErr('');
     const q = cari.trim().toLowerCase();
     try {
-      const res = await daftarKelas({ jenjang: jenjang });
+      const res = await daftarKelas({ jenjang: jenjang, per_page: 0 });
       setKiri(res.data.filter((r) => (!tingkat || r.tingkat === tingkat)
         && (q === ''
           || (r.santri?.nama_lengkap ?? '').toLowerCase().includes(q)

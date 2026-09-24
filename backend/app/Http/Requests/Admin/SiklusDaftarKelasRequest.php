@@ -19,8 +19,12 @@ class SiklusDaftarKelasRequest extends FormRequest
             'jenjang' => ['required', 'string', 'exists:lembaga,jenjang'],
             'tahun_ajaran' => ['nullable', 'string', 'exists:tahun_ajaran,nama'],
             'semester' => ['nullable', 'in:1,2'],
-            'kelas_id' => ['nullable', 'integer', 'exists:kelas,id'],
-            'tingkat' => ['nullable', 'string'],
+            'kelas_id' => ['nullable', 'array'],
+            'kelas_id.*' => ['integer', 'exists:kelas,id'],
+            'tingkat' => ['nullable', 'array'],
+            'tingkat.*' => ['string'],
+            /** Cari nama/NIK santri atau NIS lokal. */
+            'q' => ['nullable', 'string', 'max:100'],
             /** Basis tampil status_akhir: aktif = gabungan 6 status, nonaktif = keluar. */
             'kelompok_status' => ['nullable', 'in:aktif,nonaktif'],
             /** Matikan default TA/semester agar bisa lintas periode. */
