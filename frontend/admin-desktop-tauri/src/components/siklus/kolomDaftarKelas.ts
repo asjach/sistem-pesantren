@@ -87,7 +87,7 @@ export const ANGGOTA_EDIT_KEYS = [
   'nis_lokal', 'nis_kemenag', 'anggota_aktif',
   'tahaj_masuk', 'tingkat_masuk', 'no_urut',
   'nama_sekolah_asal', 'npsn_sekolah_asal', 'nss_sekolah_asal', 'alamat_sekolah_asal',
-  'anggota_tgl_masuk', 'tgl_selesai',
+  'tgl_selesai',
 ];
 
 const TGL_SANTRI_KEYS = new Set(['tgl_lahir', 'ayah_tgl_lahir', 'ibu_tgl_lahir', 'wali_tgl_lahir', 'tanggal_masuk']);
@@ -205,20 +205,12 @@ export function medanDaftarKelas({ bolehSantri, bolehRiwayat }: { bolehSantri: b
       ? teks('alamat_sekolah_asal', 'alamat_sekolah_asal', 'lembaga_santri', 'alamat_sekolah_asal', 200, 500)
       : statis('alamat_sekolah_asal', 'alamat_sekolah_asal', 'lembaga_santri', 'alamat_sekolah_asal', 200),
     bolehSantri
-      ? { key: 'anggota_tgl_masuk', label: 'tgl_masuk', width: 110, kind: 'text', maxLength: 10, validate: tglValidator, sumber: { tabel: 'lembaga_santri', kolom: 'tgl_masuk' } }
-      : statis('anggota_tgl_masuk', 'tgl_masuk', 'lembaga_santri', 'tgl_masuk'),
-    bolehSantri
       ? { key: 'tgl_selesai', label: 'tgl_selesai', width: 110, kind: 'text', maxLength: 10, validate: tglValidator, sumber: { tabel: 'lembaga_santri', kolom: 'tgl_selesai' } }
       : statis('tgl_selesai', 'tgl_selesai', 'lembaga_santri', 'tgl_selesai'),
     // Profil santri penuh.
     ...profilFields(bolehSantri),
     statis('status_pst', 'is_active_pst', 'santri', 'is_active_pst', 100),
     statis('foto_url', 'foto_url', 'santri', 'foto_url', 160),
-    // FK + timestamp (jejak teknis).
-    statis('santri_id', 'santri_id', 'riwayat_belajar', 'santri_id', 90),
-    statis('tahun_ajaran', 'tahun_ajaran', 'riwayat_belajar', 'tahun_ajaran', 110),
-    statis('jenjang', 'jenjang', 'riwayat_belajar', 'jenjang', 100),
-    statis('kelas_id', 'kelas_id', 'riwayat_belajar', 'kelas_id', 90),
   ];
 }
 
@@ -249,14 +241,9 @@ export function daftarKelasValues(r: RiwayatRow): Record<string, string | null> 
     npsn_sekolah_asal: (a.npsn_sekolah_asal ?? null) as string | null,
     nss_sekolah_asal: (a.nss_sekolah_asal ?? null) as string | null,
     alamat_sekolah_asal: (a.alamat_sekolah_asal ?? null) as string | null,
-    anggota_tgl_masuk: potongTgl(a.tgl_masuk),
     tgl_selesai: potongTgl(a.tgl_selesai),
     status_pst: !r.santri ? null : r.santri.is_active_pst,
     foto_url: (r.santri?.foto_url ?? null) as string | null,
-    santri_id: String(r.santri_id),
-    tahun_ajaran: namaTahunAjaran(r.tahun_ajaran),
-    jenjang: String(r.jenjang),
-    kelas_id: r.kelas_id !== null && r.kelas_id !== undefined ? String(r.kelas_id) : null,
   };
   for (const k of SANTRI_EDIT_KEYS) {
     if (k === 'nama_lengkap') continue;
@@ -321,7 +308,6 @@ export function pakaiCommitDaftarKelas(rows: RiwayatRow[]) {
       if (f.npsn_sekolah_asal !== undefined) ada.npsn_sekolah_asal = teksAtauNull(f.npsn_sekolah_asal);
       if (f.nss_sekolah_asal !== undefined) ada.nss_sekolah_asal = teksAtauNull(f.nss_sekolah_asal);
       if (f.alamat_sekolah_asal !== undefined) ada.alamat_sekolah_asal = teksAtauNull(f.alamat_sekolah_asal);
-      if (f.anggota_tgl_masuk !== undefined) ada.tgl_masuk = teksAtauNull(f.anggota_tgl_masuk);
       if (f.tgl_selesai !== undefined) ada.tgl_selesai = teksAtauNull(f.tgl_selesai);
       if (Object.keys(ada).length > 0) {
         await updateLembagaSantri(anggotaId, ada);

@@ -199,6 +199,7 @@
 | 2.145 | 2026-09-24 | Fix toggle `is_active` halaman Referensi tak bisa ditekan: peta izin `toggleBoleh` di-key per `jenjang` padahal `bolehToggle` dipanggil per `id` baris (selalu gagal → disabled); kini di-key per `id` |
 | 2.146 | 2026-09-24 | Opsi **Tingkat** global menyesuaikan lembaga aktif (distinct tingkat dari daftar kelas; mis. MI → 1–6; jatuh balik 1–12 bila kosong). Pilihan usang ikut dibuang saat ganti lembaga |
 | 2.147 | 2026-09-24 | Daftar Kelas: hapus 6 kolom jejak teknis (`riwayat/santri/anggota.created_at+updated_at`) dari grid; header CREATED AT/UPDATED AT tak lagi tampil |
+| 2.148 | 2026-09-24 | Daftar Kelas: hapus kolom ganda — `TAHUN AJARAN` (nilai sama dengan `TA`), `JENJANG` (sama dengan `LEMBAGA`), `TGL MASUK` anggota (header kembar milik riwayat; sisakan riwayat), ID teknis `SANTRI_ID`+`KELAS_ID` |
 
 ## Daftar Isi
 
