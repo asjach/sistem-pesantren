@@ -45,7 +45,7 @@ export default function PresetKolom({
   fields: ExcelField[];
   onApply: (keys: string[] | null, label?: Record<string, string> | null, presetId?: number | null) => void;
   apiRef?: MutableRefObject<PresetKolomApi | null>;
-  /** Timpa lebar trigger (bawaan 100px), mis. tabel sempit dua panel. */
+  /** Timpa lebar trigger (bawaan 120px), mis. tabel sempit dua panel. */
   triggerClassName?: string;
   wrapperClassName?: string;
   /** Lebar trigger dropdown (px) dari tab Kontrol; menang atas triggerClassName. */
@@ -183,7 +183,7 @@ export default function PresetKolom({
           title="Preset kolom tampilan"
           aria-label="Preset kolom tampilan"
           className={triggerClassName}
-          style={lebarTrigger !== undefined ? { width: `${lebarTrigger}px` } : triggerClassName ? undefined : { width: '100px' }}
+           style={lebarTrigger !== undefined ? { width: `${lebarTrigger}px` } : triggerClassName ? undefined : { width: '120px' }}
         >
           <SelectValue />
         </SelectTrigger>

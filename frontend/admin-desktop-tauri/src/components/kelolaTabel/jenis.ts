@@ -6,17 +6,15 @@ export type KontrolToolbar = 'info' | 'urut' | 'kolom' | 'filter';
 export type KontrolLebar = 'urut' | 'kolom';
 
 export const KONTROL_TOOLBAR: { kunci: KontrolToolbar; label: string; ket: string; lebar?: boolean }[] = [
-  { kunci: 'info', label: 'Info seleksi', ket: 'Teks "N baris dipilih"' },
   { kunci: 'urut', label: 'Dropdown Urutkan', ket: 'Pemilih urutan + tombol arah', lebar: true },
   { kunci: 'kolom', label: 'Dropdown Kolom', ket: 'Pemilih preset kolom', lebar: true },
-  { kunci: 'filter', label: 'Filter halaman', ket: 'Filter khusus halaman di kiri toolbar — awas mengunci alur (mis. pilihan kelas tujuan)' },
+  { kunci: 'filter', label: 'Filter halaman', ket: 'Combobox filter halaman selain Dropdown Urutkan dan Dropdown Kolom' },
 ];
 
-/** Lebar bawaan kontrol (px): seluruh dropdown seragam 100.
- *  Selalu ditampilkan sebagai angka meski belum ada preset tersimpan. */
+export const LEBAR_BAWAHAN_FILTER = 120;
 export const LEBAR_BAWAHAN_TOOLBAR: Record<KontrolLebar, number> = {
-  urut: 100,
-  kolom: 100,
+  urut: LEBAR_BAWAHAN_FILTER,
+  kolom: LEBAR_BAWAHAN_FILTER,
 };
 
 /** Status tampil per kontrol; absen/true/null = tampil, hanya false = sembunyi. */
@@ -50,7 +48,7 @@ export function bacaLebarToolbar(lebar: Record<string, number> | undefined): Leb
 
 export function bacaVisToolbar(vis: Record<string, boolean> | undefined): VisToolbar {
   return {
-    info: vis?.info !== false,
+    info: true,
     urut: vis?.urut !== false,
     kolom: vis?.kolom !== false,
     filter: vis?.filter !== false,

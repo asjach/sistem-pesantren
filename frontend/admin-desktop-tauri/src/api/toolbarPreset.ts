@@ -3,7 +3,7 @@ import { api } from './client';
 /** Peta kontrol → tampil (true/absen) atau sembunyi (false). */
 export type VisibilitasToolbar = Record<string, boolean>;
 
-/** Peta kontrol → lebar px (hanya cari/urut/kolom). */
+/** Peta kontrol → lebar px (urut/kolom/filter.*). */
 export type LebarToolbarApi = Record<string, number>;
 
 export interface ToolbarPresetData {

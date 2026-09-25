@@ -166,22 +166,18 @@ export default function DialogKelolaHalaman({
   }, [open, pageKey]);
 
   const tabelTerpilih = tabel.find((t) => t.key === tabelAktif) ?? tabel[0];
-  const banyakKolom = (tabelTerpilih?.fields?.length ?? 0) > 30;
   const butuhPilihTabel = tabel.length > 1 && tab !== 'filter';
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className={cn(
-          'max-h-[70dvh] sm:max-w-2xl lg:max-w-4xl',
-          banyakKolom && 'lg:h-[70dvh] lg:max-w-4xl lg:grid-rows-[auto_auto_minmax(0,1fr)] lg:overflow-hidden',
-        )}
+        className="!flex h-[70dvh] max-h-[70dvh] flex-col !overflow-hidden sm:max-w-2xl lg:max-w-4xl"
       >
-        <DialogHeader>
+        <DialogHeader className="shrink-0">
           <DialogTitle>Kelola halaman: {judul}</DialogTitle>
         </DialogHeader>
 
-        <div className="flex gap-1 border-b pb-2" role="tablist" aria-label="Kelola halaman">
+        <div className="flex shrink-0 items-start gap-1 border-b pb-2" role="tablist" aria-label="Kelola halaman">
           {tabMeta.map((t) => (
             <button
               key={t.kunci}
@@ -191,7 +187,7 @@ export default function DialogKelolaHalaman({
               id={`tab_kelola_halaman_${t.kunci}`}
               onClick={() => setTab(t.kunci)}
               className={cn(
-                'rounded-md px-3 py-1.5 text-sm transition-colors',
+                'h-fit rounded-md px-3 py-1.5 text-sm transition-colors',
                 tab === t.kunci ? 'bg-accent font-medium' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground',
               )}
             >
@@ -201,7 +197,7 @@ export default function DialogKelolaHalaman({
         </div>
 
         {butuhPilihTabel ? (
-          <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Pilih tabel">
+          <div className="flex shrink-0 flex-wrap items-center gap-1.5" role="group" aria-label="Pilih tabel">
             <span className="text-xs text-muted-foreground">Tabel:</span>
             {tabel.map((t) => (
               <button
@@ -222,36 +218,40 @@ export default function DialogKelolaHalaman({
         ) : null}
 
         {tab === 'filter' && (
-          <TabFilterHalaman
-            pageKey={pageKey}
-            filterRelevan={konfigurasi.filter}
-            bawaan={filterBawaan}
-            modeBawaan={konfigurasi.mode}
-            onTutup={tutup}
-          />
-        )}
-        {tab === 'kolom' && tabelTerpilih && (
-          tabelTerpilih.fields ? (
-            <KelolaKolomHalaman
-              key={tabelTerpilih.key}
-              tableKey={tabelTerpilih.key}
-              fields={tabelTerpilih.fields}
+          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+            <TabFilterHalaman
+              pageKey={pageKey}
+              filterRelevan={konfigurasi.filter}
+              bawaan={filterBawaan}
+              modeBawaan={konfigurasi.mode}
               onTutup={tutup}
             />
-          ) : (
-            <p className="rounded-md border px-3 py-2 text-xs text-muted-foreground">
-              Tabel “{tabelTerpilih.judul ?? tabelTerpilih.key}” tidak memakai preset kolom —
-              kelola kolomnya dari toolbar tabel masing-masing.
-            </p>
-          )
+          </div>
+        )}
+        {tab === 'kolom' && tabelTerpilih && (
+          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+            {tabelTerpilih.fields ? (
+              <KelolaKolomHalaman
+                key={tabelTerpilih.key}
+                tableKey={tabelTerpilih.key}
+                fields={tabelTerpilih.fields}
+                onTutup={tutup}
+              />
+            ) : (
+              <p className="rounded-md border px-3 py-2 text-xs text-muted-foreground">
+                Tabel “{tabelTerpilih.judul ?? tabelTerpilih.key}” tidak memakai preset kolom —
+                kelola kolomnya dari toolbar tabel masing-masing.
+              </p>
+            )}
+          </div>
         )}
         {tab === 'urutan' && tabelTerpilih && (
-          <div key={tabelTerpilih.key} className={cn('min-h-0', banyakKolom && 'lg:overflow-y-auto')}>
+          <div key={tabelTerpilih.key} className="flex min-h-0 flex-1 flex-col overflow-y-auto">
             <TabUrutan tableKey={tabelTerpilih.key} onTutup={tutup} />
           </div>
         )}
         {tab === 'kontrol' && tabelTerpilih && (
-          <div key={tabelTerpilih.key} className={cn('min-h-0', banyakKolom && 'lg:overflow-y-auto')}>
+          <div key={tabelTerpilih.key} className="flex min-h-0 flex-1 flex-col overflow-y-auto">
             <TabKontrol tableKey={tabelTerpilih.key} onTutup={tutup} />
           </div>
         )}

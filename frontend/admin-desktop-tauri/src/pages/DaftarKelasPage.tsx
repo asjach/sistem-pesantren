@@ -154,15 +154,6 @@ export default function DaftarKelasPage() {
             </Select>
           </FilterField>
         )}
-        tengah={(
-          <span>
-            TA {tahunAjaranNames.length === 0 ? 'Semua' : tahunAjaranNames.join(', ')}
-            {' · '}Smt {semesters.length === 0 ? 'Semua' : semesters.join(', ')}
-            {' · '}{kelompok === 'aktif' ? 'Aktif' : kelompok === 'nonaktif' ? 'Tidak aktif' : 'Semua status'}
-
-            {' · '}{total} santri
-          </span>
-        )}
       />
       <Pager
         page={pager.page}

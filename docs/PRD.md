@@ -215,6 +215,37 @@
 | 2.161 | 2026-09-25 | Perbandingan Kelas hanya memuat Santri aktif di MI dan MD yang sama-sama memiliki kelas aktif; jika kelas MI atau MD kosong, baris tidak ditampilkan |
 | 2.162 | 2026-09-25 | Pindah Kelas: saat halaman dibuka, filter global Tingkat otomatis memilih tingkat terendah yang tersedia pada kelas aktif, bukan Semua; pilihan pengguna berikutnya tetap dihormati |
 | 2.163 | 2026-09-25 | Kelola Halaman tab Filter: setiap filter relevan memiliki mode Tunggal/Jamak tersimpan per halaman (default Tunggal); allowlist filter per halaman disembunyikan bila tidak dipakai. Provider dan API mendukung nilai jamak (OR dalam filter, AND antarfilter), sementara target aksi tetap scalar aman |
+| 2.164 | 2026-09-25 | Filter Tingkat dan Kelas dipindahkan ke rail vertikal 42px tepat di bawah TopBar dengan warna latar halaman: nilai All berada di posisi pertama pada kedua filter, terdapat switch Tunggal/Jamak per filter dengan jarak antarbagian, daftar tingkat di atas, daftar kelas di bawah, scroll per bagian, pilihan mengikuti mode Tunggal/Jamak dari Kelola Halaman, dan mode Jamak mendukung klik atau tahan lalu geser; dropdown TopBar yang duplikat dihapus |
+| 2.165 | 2026-09-25 | Filter Lembaga dan Semester pada TopBar menggunakan ToggleGroup tanpa opsi Semua, mendukung mode Tunggal/Jamak, dan tanpa margin antar-nilai; Semester hanya menampilkan Ganjil dan Genap |
+| 2.166 | 2026-09-25 | Katalog Urutan selalu menyediakan kode jk untuk seluruh tabel berbasis data Santri, MI-MD, dan PSB, serta katalog Pegawai untuk data guru/pegawai; data MI-MD juga membawa nilai jk ke opsi urutan |
+| 2.167 | 2026-09-25 | ExcelTable memakai header generik berisi judul, filter tabel, Urutkan, Kolom, dan Aksi; toolbar hanya menampilkan informasi, aksi massal, serta kontrol kondisional; header lama pada halaman berpanel dihapus agar tidak tampil ganda |
+| 2.168 | 2026-09-25 | Mutasi Keluar: tombol Import Arsip dipindahkan ke menu Aksi paling kanan, dan kontrol preset Kolom diaktifkan kembali pada tabel Arsip |
+| 2.169 | 2026-09-25 | Seluruh tombol pembuka Import pada halaman yang relevan disatukan ke menu Aksi/hamburger paling kanan; tombol Tambah dan aksi global lain tetap mengikuti pola menu yang sama |
+| 2.170 | 2026-09-25 | Kelola Halaman → Toolbar: lebar semua combobox default 120px; Filter halaman hanya memuat combobox selain Urutkan dan Kolom; Info seleksi dihapus dari pengaturan visibilitas |
+| 2.171 | 2026-09-25 | Kelola Halaman dapat dibuka lewat tombol, klik kanan TopBar, atau klik kanan header container tabel; akses tetap terbatas super_admin efektif |
+| 2.172 | 2026-09-25 | Ganti lembaga tidak lagi membuat filter tahun/rail tingkat-kelas hilang sementara; kontrol TopBar tetap tampil nonaktif saat memuat, dan request kelas menunggu scope baru siap |
+| 2.173 | 2026-09-25 | Rail Tingkat memakai data aktif `ref_tingkat` melalui Referensi API, bukan diturunkan dari kelas; daftar kelas tetap memakai `listKelas` |
+| 2.174 | 2026-09-25 | Referensi: pilihan baris dapat dihapus massal secara permanen dengan konfirmasi, permission `referensi.hapus`, dan laporan hasil parsial |
+| 2.175 | 2026-09-25 | Referensi: pilihan Tipe kamus disimpan per perangkat dan dipulihkan saat scope lembaga berubah |
+| 2.176 | 2026-09-25 | Pilihan Tingkat/Kelas tidak lagi membuat array filter global tersusun ulang, sehingga rail tidak flicker saat tingkat dipilih |
+| 2.177 | 2026-09-25 | Mode jamak rail: klik biasa memilih satu nilai, drag atau Ctrl/Cmd klik menambah/memilih beberapa nilai |
+| 2.178 | 2026-09-25 | Riwayat Belajar: dua panel menampilkan data sesuai tahun ajaran yang dipilih dengan judul Semester Ganjil dan Semester Genap; masing-masing memakai field nama_lengkap, kelas, tgl_masuk, status_awal, status_akhir, is_active_riwayat dan filter Keaktifan default Semua |
+| 2.179 | 2026-09-25 | Riwayat Belajar diubah menjadi laporan per semester read-only: aksi masuk/keluarkan kelas, checkbox, dan filter kelas tujuan dihapus; impor riwayat tetap tersedia |
+| 2.180 | 2026-09-25 | Riwayat Belajar menerapkan filter tahun ajaran, tingkat, dan kelas yang dipilih pada kedua tabel semester |
+| 2.181 | 2026-09-25 | Label Kamus Label untuk `riwayat_belajar.is_active_riwayat` diubah menjadi `AKTIF` tanpa menonaktifkan sumber label tabel |
+| 2.182 | 2026-09-25 | Field `tgl_masuk` dihapus dari kedua tabel Riwayat Belajar |
+| 2.183 | 2026-09-25 | Combobox preset Kolom disembunyikan pada kedua tabel Riwayat Belajar |
+| 2.184 | 2026-09-25 | Filter Keaktifan Riwayat Belajar memakai `status_akhir`: selain `pindah_keluar` berarti Aktif, `pindah_keluar` berarti Tidak Aktif |
+| 2.185 | 2026-09-25 | Dialog Kelola Halaman memakai layout flex agar baris tab tidak ikut meregang; area isi tab dapat digulir sendiri |
+| 2.186 | 2026-09-25 | Filter Tingkat/Kelas mode tunggal mengganti nilai lama saat nilai lain dipilih, dan klik nilai aktif mengosongkan pilihan |
+| 2.187 | 2026-09-25 | Tabel Semester Ganjil Riwayat Belajar menampilkan aksi Pindah untuk siswa aktif; backend hanya menerima TA aktif dan Semester aktif Ganjil, serta memindahkan baris exact yang dipilih |
+| 2.188 | 2026-09-25 | Aksi Pindah dipindahkan ke toolbar header Semester Ganjil dan hanya aktif setelah checkbox dipilih; input tanggal masuk dipindah ke dialog konfirmasi |
+| 2.189 | 2026-09-25 | Riwayat Belajar menjadi aksi massal tanpa checkbox: Pindah berada di sebelah filter Keaktifan dan memproses status akhir selain Pindah/Keluar, Semester Genap memakai aksi Batal pada TA aktif, dan semua aksi Import dihapus |
+| 2.190 | 2026-09-25 | Dialog Pindah ke Semester 2 menampilkan jumlah serta nama siswa tidak aktif berdasarkan filter halaman, dengan status aktif memakai `status_akhir != pindah_keluar` |
+| 2.191 | 2026-09-25 | Aksi Pindah dan ringkasannya mengabaikan filter Tingkat/Kelas; kedua filter hanya untuk pengecekan tabel. Import Biasa tetap dihapus, sedangkan Import Bertahap dipulihkan |
+| 2.192 | 2026-09-25 | Halaman Pindah Semester dihapus dari route, sidebar, dan konfigurasi frontend; URL lama dialihkan ke Riwayat Belajar |
+| 2.193 | 2026-09-25 | Tabel Arsip Mutasi Keluar menampilkan seluruh kolom `mutasi_keluar`, nama Santri, dan nama kelas terakhir |
+| 2.194 | 2026-09-25 | Panel Santri Aktif pada Mutasi Keluar otomatis disembunyikan saat digeser melewati batas minimum dan tampil kembali saat gagang digeser ke kanan |
 
 ## Daftar Isi
 

@@ -59,6 +59,7 @@ export interface RegistrasiHalaman {
 /** Event jendela setelah filter halaman tersimpan: penanda halaman memuat
  *  ulang override DB-nya sendiri. */
 export const EVENT_HALAMAN_BERUBAH = 'simpes:halaman-berubah';
+export const EVENT_KELOLA_HALAMAN = 'simpes:kelola-halaman';
 
 /** Kunci halaman dari path route (`/daftar-kelas` → `daftar_kelas`,
  *  `/` → `dashboard`, `/psb/pendaftar` → `psb_pendaftar`). */

@@ -261,14 +261,11 @@ function TabelKelas({ tingkat, kolom, tetangga, bisaPindah, busyId, cari, onPind
   const aksi = tetangga.kiri != null || tetangga.kanan != null;
   return (
     <section className="flex min-h-0 min-w-0 flex-col rounded-md border">
-      <header className="flex items-center justify-between border-b bg-muted/40 px-3 py-2 text-sm font-medium">
-        <span>{kolom.kelasId == null ? 'Santri Belum Masuk Kelas' : `Kelas ${kolom.kelas}`}</span>
-        <span className="text-xs text-muted-foreground">{kolom.baris.length} santri</span>
-      </header>
       <div className="flex min-h-0 flex-1 flex-col px-2 pb-2">
         <ExcelTable
-          tableKey={`pindah_kelas_${kunci}`}
-          fields={[
+           tableKey={`pindah_kelas_${kunci}`}
+           header={<span>{kolom.kelasId == null ? 'Santri Belum Masuk Kelas' : `Kelas ${kolom.kelas}`} ({kolom.baris.length} santri)</span>}
+           fields={[
             { key: 'nama', label: 'santri.nama_lengkap', kind: 'static', sumber: { tabel: 'santri', kolom: 'nama_lengkap' } },
             { key: 'nis_lokal', label: 'nis_lokal', kind: 'static', sumber: { tabel: 'lembaga_santri', kolom: 'nis_lokal' } },
             { key: 'no_absen', label: 'no_absen', kind: 'static', sumber: { tabel: 'riwayat_belajar', kolom: 'no_absen' } },

@@ -16,7 +16,6 @@ import {
 import { bersihkanCacheKamus } from '@/components/useKamusPeta';
 import ComboCari from '@/components/ComboCari';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
-import MenuAksiToolbar from '@/components/MenuAksiToolbar';
 import { DeleteAction } from '@/components/RowActions';
 import FilterField from '@/components/FilterField';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
@@ -257,8 +256,8 @@ export default function KamusLabelPage() {
             />
           </FilterField>
         }
-        akhirToolbar={
-          <MenuAksiToolbar triggerId="btn_aksi_kamus_label" label="Generate">
+        addButton={
+          <>
             <Button
               id="btn_label_upper"
               title="Isi label semua kolom dengan huruf kapital (underscore → spasi)"
@@ -283,7 +282,7 @@ export default function KamusLabelPage() {
             >
               lower case
             </Button>
-          </MenuAksiToolbar>
+          </>
         }
         renderActions={(r) => (
           canHapus && (r.entri || idBaruRef.current.has(r.kolom)) ? (

@@ -119,7 +119,7 @@ class MiMdController extends Controller
             $anggotaQuery->whereHas('santri.riwayatBelajar', $filterRiwayat);
         }
         $anggota = $anggotaQuery
-            ->with(['santri:id,nama_lengkap'])
+            ->with(['santri:id,nama_lengkap,jk'])
             ->get()
             ->groupBy('santri_id');
 
@@ -164,6 +164,7 @@ class MiMdController extends Controller
                 $mdSemua[] = [
                     'santri_id' => $santriId,
                     'nama' => $santri->nama_lengkap,
+                    'jk' => $santri->jk,
                     'nis_md' => $nisMd,
                     'kelas_md' => $kelasAktif($santriId, $mdId),
                     'juga_mi' => $punyaMiAktif,
@@ -173,6 +174,7 @@ class MiMdController extends Controller
                 $miOnly[] = [
                     'santri_id' => $santriId,
                     'nama' => $santri->nama_lengkap,
+                    'jk' => $santri->jk,
                     'nis_mi' => $nisMi,
                     'kelas_mi' => $kelasAktif($santriId, $miId),
                 ];
@@ -187,6 +189,7 @@ class MiMdController extends Controller
                     $bedaKelas[] = [
                         'santri_id' => $santriId,
                         'nama' => $santri->nama_lengkap,
+                        'jk' => $santri->jk,
                         'kelas_mi' => $kelasMi,
                         'kelas_md' => $kelasMd,
                     ];

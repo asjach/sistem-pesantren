@@ -78,6 +78,34 @@ class UrutPresetTest extends TestCase
             $this->assertSame(['nama'], $res->json('data.opsi.0.kode'));
             $this->assertTrue($res->json('data.opsi.0.bawaan'));
             $this->assertContains('nama', array_column($res->json('data.tersedia'), 'kode'));
+            $this->assertContains('jk', array_column($res->json('data.tersedia'), 'kode'));
+        }
+    }
+
+    public function test_katalog_data_orang_selalu_sediakan_jk(): void
+    {
+        $pusat = $this->makeUser('super_admin');
+
+        foreach ([
+            'santri',
+            'keanggotaan',
+            'riwayat_belajar',
+            'daftar_kelas',
+            'kenaikan_santri_genap',
+            'mi_md_mi',
+            'mi_md_md',
+            'mi_md_beda',
+            'mutasi_arsip',
+            'kelulusan_alumni',
+            'pengajuan_biodata',
+            'psb',
+            'pegawai',
+        ] as $tableKey) {
+            $res = $this->actingAs($pusat, 'sanctum')
+                ->getJson("/api/admin/urut-preset?table_key={$tableKey}")
+                ->assertOk();
+
+            $this->assertContains('jk', array_column($res->json('data.tersedia'), 'kode'));
         }
     }
 

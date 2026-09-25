@@ -16,6 +16,12 @@ class SiklusLembagaRequest extends FormRequest
     {
         return [
             'jenjang' => 'required|exists:lembaga,jenjang',
+            'tahun_ajaran' => 'nullable|exists:tahun_ajaran,nama',
+            'tingkat' => 'nullable|array',
+            'tingkat.*' => 'nullable|string|max:20',
+            'kelas_id' => 'nullable|array',
+            'kelas_id.*' => 'nullable|integer|exists:kelas,id',
+            'q' => 'nullable|string|max:100',
         ];
     }
 }

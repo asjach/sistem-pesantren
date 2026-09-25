@@ -3,16 +3,15 @@ import { useAuth } from '../auth/AuthContext';
 import { bisa } from '../api/auth';
 import { errorMessage } from '../api/client';
 import {
-  importRiwayatBelajar,
-  keluarKelas,
+  batalSalinMassal,
   listRiwayatBelajar,
-  periksaImportRiwayatBelajar,
-  setKelas,
-  unduhTemplateRiwayatBelajar,
+  ringkasanPindahGenap,
+  salinGenapMassal,
+  type RingkasanPindahGenap,
   type RiwayatRow,
 } from '../api/siklus';
-import { listKelas, type Kelas } from '../api/master';
-import type { ImportPeriksa } from '../api/santri';
+import { daftarSemester } from '../api/semesterAktif';
+import { listKelas, listTahunAjaran, type Kelas } from '../api/master';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -25,52 +24,51 @@ import FilterField from '@/components/FilterField';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import Pager from '@/components/Pager';
 import { useDaftarTabel } from '@/hooks/useDaftarTabel';
-import { ActionIcon } from '@/components/RowActions';
 import ImportBertahapDialog from '@/components/ImportBertahapDialog';
-import { ArrowRight, FileUp, Download, Undo2 } from '@/icons';
-import {
-  ROSTER_FIELDS,
-  noopCommit,
-  riwayatValues,
-} from '@/components/siklus/bersama';
+import { FileUp } from '@/icons';
+import { noopCommit } from '@/components/siklus/bersama';
+import { formatStatus } from '@/lib/nilaiTampil';
 import { toast } from 'sonner';
 
-/** Kolom panel kiri: riwayat aktif tanpa kelas (tanpa kolom kelas). */
-const FIELDS_KIRI: ExcelField[] = [
-  { key: 'santri', label: 'santri.nama_lengkap', width: 200, kind: 'static', sumber: { tabel: 'santri', kolom: 'nama_lengkap' } },
-  { key: 'nis', label: 'nis_lokal', width: 110, kind: 'static', sumber: { tabel: 'lembaga_santri', kolom: 'nis_lokal' } },
-  { key: 'jk', label: 'santri.jk', width: 70, kind: 'static', sumber: { tabel: 'santri', kolom: 'jk' } },
-  { key: 'tingkat', label: 'tingkat', width: 80, kind: 'static', sumber: { tabel: 'riwayat_belajar', kolom: 'tingkat' } },
-  { key: 'masuk', label: 'tgl_masuk', width: 110, kind: 'static', sumber: { tabel: 'riwayat_belajar', kolom: 'tgl_masuk' } },
+const FIELDS_RIWAYAT: ExcelField[] = [
+  { key: 'nama_lengkap', label: 'nama_lengkap', width: 200, kind: 'static', sumber: { tabel: 'santri', kolom: 'nama_lengkap' } },
+  { key: 'kelas', label: 'kelas', width: 140, kind: 'static', sumber: { tabel: 'kelas', kolom: 'nama_kelas' } },
+  { key: 'status_awal', label: 'status_awal', width: 130, kind: 'static', sumber: { tabel: 'riwayat_belajar', kolom: 'status_awal' } },
+  { key: 'status_akhir', label: 'status_akhir', width: 130, kind: 'static', sumber: { tabel: 'riwayat_belajar', kolom: 'status_akhir' } },
+  { key: 'is_active_riwayat', label: 'AKTIF', width: 130, kind: 'static', sumber: { tabel: 'riwayat_belajar', kolom: 'is_active_riwayat' } },
 ];
 
-function kiriValues(r: RiwayatRow): Record<string, string | null> {
+function riwayatBelajarValues(r: RiwayatRow): Record<string, string | null> {
   return {
-    santri: r.santri?.nama_lengkap ?? String(r.santri_id),
-    nis: r.nis_lokal ?? null,
-    jk: r.santri?.jk ?? null,
-    tingkat: r.tingkat,
-    masuk: r.tgl_masuk ? r.tgl_masuk.slice(0, 10) : null,
+    nama_lengkap: r.santri?.nama_lengkap ?? String(r.santri_id),
+    kelas: r.kelas?.nama_kelas ?? '—',
+    status_awal: formatStatus(r.status_awal),
+    status_akhir: formatStatus(r.status_akhir),
+    is_active_riwayat: r.is_active_riwayat,
   };
 }
 
-/**
- * Riwayat Belajar khusus awal tahun ajaran, dua panel sejajar:
- * kiri = riwayat aktif semester 1 yang belum memiliki kelas (aksi panah =
- *   set-kelas ke kelas terpilih di filter kanan),
- * kanan = riwayat semester 1 yang sudah masuk kelas (aksi = keluarkan dari
- *   kelas, baris kembali ke panel kiri; riwayat tidak dihapus).
- */
+
 export default function RiwayatBelajarPage() {
   const { user } = useAuth();
   const canTambah = bisa(user, 'riwayat_belajar.tambah');
-  /** Penempatan/keluar kelas lewat pintu `pindah_kelas.ubah`. */
-  const canKelas = bisa(user, 'pindah_kelas.ubah');
-  /** Filter kanan sekaligus kelas tujuan panah (wajib spesifik untuk memasukkan santri). */
-  const [kelasId, setKelasId] = useState('');
-  /** Pencarian tunggal halaman (topBar) untuk kedua panel. */
+  const canPindah = bisa(user, 'kenaikan.ubah');
+  const [keaktifan, setKeaktifan] = useState<'aktif' | 'nonaktif' | 'semua'>('semua');
+  const filterRiwayatAktif = keaktifan;
   const [cari, setCari] = useState('');
-  const [kelasOpsi, setKelasOpsi] = useState<Kelas[]>([]);
+  const [pindahOpen, setPindahOpen] = useState(false);
+  const [pindahBusy, setPindahBusy] = useState(false);
+  const [ringkasanPindah, setRingkasanPindah] = useState<RingkasanPindahGenap | null>(null);
+  const [ringkasanPindahLoading, setRingkasanPindahLoading] = useState(false);
+  const [ringkasanPindahError, setRingkasanPindahError] = useState('');
+  const [batalOpen, setBatalOpen] = useState(false);
+  const [batalBusy, setBatalBusy] = useState(false);
+  const [bertahapOpen, setBertahapOpen] = useState(false);
+  const [tglMasuk, setTglMasuk] = useState(() => {
+    const now = new Date();
+    const lokal = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+    return lokal.toISOString().slice(0, 10);
+  });
   const {
     jenjangs,
     tahunAjaranNames,
@@ -78,22 +76,56 @@ export default function RiwayatBelajarPage() {
     kelas: kelasFilter,
     loading: filterLoading,
   } = useFilterGlobalAktif();
-
-  const [busyId, setBusyId] = useState<number | null>(null);
-  const [bulkBusy, setBulkBusy] = useState(false);
-  /** Baris tercentang per panel (diangkat via `onCheckedChange` agar tombol
-   *  bulk bisa duduk di header panel). */
-  const [centangKiri, setCentangKiri] = useState<RiwayatRow[]>([]);
-  const [centangKanan, setCentangKanan] = useState<RiwayatRow[]>([]);
-  /** Naikkan seusai aksi massal untuk me-remount grid (mereset centang internal). */
-  const [nonceKiri, setNonceKiri] = useState(0);
-  const [nonceKanan, setNonceKanan] = useState(0);
-
-  /** Id kelas terpilih (dari nama di filter global) untuk param server. */
+  const [kelasOpsi, setKelasOpsi] = useState<Kelas[]>([]);
+  const [konteksPindah, setKonteksPindah] = useState<{
+    tahun: Record<string, string | null>;
+    semester: Record<string, string | null>;
+  }>({ tahun: {}, semester: {} });
+  const [konteksPindahLoading, setKonteksPindahLoading] = useState(false);
   const kelasFilterIds = useMemo(
     () => kelasOpsi.filter((k) => kelasFilter.includes(k.nama_kelas)).map((k) => k.id),
     [kelasOpsi, kelasFilter],
   );
+
+  useEffect(() => {
+    if (filterLoading) {
+      setKelasOpsi([]);
+      return;
+    }
+    let hidup = true;
+    listKelas({ jenjang: jenjangs, tahun_ajaran: tahunAjaranNames, per_page: 1000 })
+      .then((p) => { if (hidup) setKelasOpsi(p.data); })
+      .catch(() => { if (hidup) setKelasOpsi([]); });
+    return () => { hidup = false; };
+  }, [filterLoading, jenjangs, tahunAjaranNames]);
+
+  useEffect(() => {
+    if (filterLoading || jenjangs.length === 0) {
+      setKonteksPindah({ tahun: {}, semester: {} });
+      setKonteksPindahLoading(false);
+      return;
+    }
+    let hidup = true;
+    setKonteksPindahLoading(true);
+    Promise.all([
+      daftarSemester(),
+      ...jenjangs.map((jenjang) => listTahunAjaran({ jenjang, per_page: 1000 })),
+    ]).then(([semester, ...tahun]) => {
+      if (!hidup) return;
+      const semesterMap: Record<string, string | null> = {};
+      for (const item of semester.data) semesterMap[item.jenjang] = item.semester;
+      const tahunMap: Record<string, string | null> = {};
+      jenjangs.forEach((jenjang, index) => {
+        tahunMap[jenjang] = tahun[index]?.data.find((item) => item.is_aktif)?.nama ?? null;
+      });
+      setKonteksPindah({ tahun: tahunMap, semester: semesterMap });
+    }).catch(() => {
+      if (hidup) setKonteksPindah({ tahun: {}, semester: {} });
+    }).finally(() => {
+      if (hidup) setKonteksPindahLoading(false);
+    });
+    return () => { hidup = false; };
+  }, [filterLoading, jenjangs]);
 
   const kiri = useDaftarTabel<RiwayatRow>({
     tableKey: 'riwayat_belum_masuk',
@@ -106,9 +138,9 @@ export default function RiwayatBelajarPage() {
         jenjang: jenjangs,
         tahun_ajaran: tahunAjaranNames,
         semester: '1',
-        tanpa_kelas: true,
         tingkat: tingkatFilter,
-        is_active_riwayat: true,
+        kelas_id: kelasFilterIds.length ? kelasFilterIds : undefined,
+        keaktifan: filterRiwayatAktif,
         q: a.search || undefined,
         sort: a.urut.length ? a.urut : undefined,
         arah: a.urut.length ? a.arah : undefined,
@@ -117,7 +149,7 @@ export default function RiwayatBelajarPage() {
         signal: a.signal,
       });
     },
-    deps: [filterLoading, jenjangs, tahunAjaranNames, tingkatFilter],
+     deps: [filterLoading, jenjangs, tahunAjaranNames, tingkatFilter, kelasFilterIds, filterRiwayatAktif],
   });
 
   const kanan = useDaftarTabel<RiwayatRow>({
@@ -130,11 +162,10 @@ export default function RiwayatBelajarPage() {
       return listRiwayatBelajar({
         jenjang: jenjangs,
         tahun_ajaran: tahunAjaranNames,
-        semester: '1',
-        dengan_kelas: true,
+        semester: '2',
         tingkat: tingkatFilter,
         kelas_id: kelasFilterIds.length ? kelasFilterIds : undefined,
-        is_active_riwayat: true,
+        keaktifan: filterRiwayatAktif,
         q: a.search || undefined,
         sort: a.urut.length ? a.urut : undefined,
         arah: a.urut.length ? a.arah : undefined,
@@ -143,147 +174,118 @@ export default function RiwayatBelajarPage() {
         signal: a.signal,
       });
     },
-    deps: [filterLoading, jenjangs, tahunAjaranNames, tingkatFilter, kelasFilterIds],
+     deps: [filterLoading, jenjangs, tahunAjaranNames, tingkatFilter, kelasFilterIds, filterRiwayatAktif],
   });
-
-  useEffect(() => {
-    if (filterLoading) { setKelasOpsi([]); return; }
-    let hidup = true;
-    listKelas({ jenjang: jenjangs, tahun_ajaran: tahunAjaranNames, per_page: 1000 })
-      .then((p) => { if (hidup) setKelasOpsi(p.data); })
-      .catch(() => { if (hidup) setKelasOpsi([]); });
-    setKelasId('');
-    return () => { hidup = false; };
-  }, [filterLoading, jenjangs, tahunAjaranNames]);
 
   const muatUlang = useCallback(async () => {
     await Promise.all([kiri.load(kiri.pager.page), kanan.load(kanan.pager.page)]);
   }, [kiri, kanan]);
 
-  /** Kelas tujuan panah = kelas terpilih di filter kanan (harus spesifik). */
-  const targetKelas = kelasOpsi.find((k) => String(k.id) === kelasId) ?? null;
+  const targetJenjang = jenjangs.length === 1 ? jenjangs[0] : null;
+  const targetTahunAjaran = tahunAjaranNames.length === 1 ? tahunAjaranNames[0] : null;
+  const pindahAktif = Boolean(
+    canPindah
+    && !konteksPindahLoading
+    && targetJenjang
+    && targetTahunAjaran
+    && konteksPindah.tahun[targetJenjang] === targetTahunAjaran
+    && konteksPindah.semester[targetJenjang] === '1',
+  );
 
-  const cocokTingkat = useCallback((r: RiwayatRow): boolean => {
-    if (!targetKelas) return false;
-    const tKelas = targetKelas.tingkat !== null && targetKelas.tingkat !== undefined ? String(targetKelas.tingkat) : '';
-    // Backend menolak bila keduanya terisi dan berbeda; kosong di salah satu sisi boleh.
-    if (!r.tingkat || !tKelas) return true;
-    return String(r.tingkat) === tKelas;
-  }, [targetKelas]);
+  const batalAktif = Boolean(
+    canPindah
+    && !konteksPindahLoading
+    && targetJenjang
+    && targetTahunAjaran
+    && konteksPindah.tahun[targetJenjang] === targetTahunAjaran,
+  );
 
-  const masukkan = useCallback(async (r: RiwayatRow) => {
-    if (busyId !== null) return;
-    if (!targetKelas) {
-      toast.error('Pilih kelas di filter kanan dulu.');
-      return;
-    }
-    if (!cocokTingkat(r)) {
-      toast.error(`Tingkat santri (${r.tingkat ?? '—'}) tidak cocok dengan kelas ${targetKelas.nama_kelas}.`);
-      return;
-    }
-    setBusyId(r.id);
+  const bukaPindah = useCallback(async () => {
+    if (!pindahAktif || !targetJenjang || !targetTahunAjaran) return;
+    setPindahOpen(true);
+    setRingkasanPindah(null);
+    setRingkasanPindahError('');
+    setRingkasanPindahLoading(true);
     try {
-      await setKelas(r.id, targetKelas.id);
-      toast.success('Santri dimasukkan ke kelas.');
+      const res = await ringkasanPindahGenap({
+        jenjang: targetJenjang,
+        tahun_ajaran: targetTahunAjaran,
+        q: cari || undefined,
+      });
+      setRingkasanPindah(res.data);
+    } catch (e) {
+      setRingkasanPindahError(errorMessage(e));
+    } finally {
+      setRingkasanPindahLoading(false);
+    }
+  }, [pindahAktif, targetJenjang, targetTahunAjaran, cari]);
+
+  const pindahkan = useCallback(async () => {
+    if (!pindahAktif || !targetJenjang || !targetTahunAjaran || pindahBusy || !ringkasanPindah || ringkasanPindah.aktif === 0) return;
+    if (!tglMasuk) {
+      toast.error('Isi tanggal masuk semester 2 dulu.');
+      return;
+    }
+    setPindahBusy(true);
+    try {
+      const res = await salinGenapMassal({
+        jenjang: targetJenjang,
+        tanggal_masuk: tglMasuk,
+        konteks_aktif: true,
+        tahun_ajaran: targetTahunAjaran,
+        q: cari || undefined,
+      });
+      if (res.gagal.length > 0) {
+        toast.error(`${res.berhasil} berhasil, ${res.gagal.length} gagal: ${res.gagal[0]?.pesan ?? 'Data tidak dapat dipindahkan.'}`);
+      } else {
+        toast.success(`${res.berhasil} siswa dipindahkan ke semester 2.`);
+      }
+      setPindahOpen(false);
       await muatUlang();
     } catch (e) {
       toast.error(errorMessage(e));
-      await muatUlang();
     } finally {
-      setBusyId(null);
+      setPindahBusy(false);
     }
-  }, [busyId, targetKelas, cocokTingkat, muatUlang]);
+  }, [pindahAktif, targetJenjang, targetTahunAjaran, pindahBusy, ringkasanPindah, tglMasuk, cari, muatUlang]);
 
-  const keluarkan = useCallback(async (r: RiwayatRow) => {
+  const batalkan = useCallback(async () => {
+    if (!batalAktif || !targetJenjang || !targetTahunAjaran || batalBusy) return;
+    setBatalBusy(true);
     try {
-      await keluarKelas(r.id);
-      toast.success('Santri dikeluarkan dari kelas.');
-      await muatUlang();
-    } catch (e) { toast.error(errorMessage(e)); }
-  }, [muatUlang]);
-
-  /** Aksi massal kiri: masukkan yang tercentang ke kelas terpilih. */
-  const masukBanyak = useCallback(async () => {
-    if (bulkBusy || centangKiri.length === 0) return;
-    if (!targetKelas) {
-      toast.error('Pilih kelas di filter kanan dulu.');
-      return;
-    }
-    setBulkBusy(true);
-    let ok = 0;
-    const gagal: string[] = [];
-    try {
-      for (const r of centangKiri) {
-        if (!cocokTingkat(r)) {
-          gagal.push(`${r.santri?.nama_lengkap ?? r.santri_id}: tingkat tidak cocok`);
-          continue;
-        }
-        try {
-          await setKelas(r.id, targetKelas.id);
-          ok++;
-        } catch (e) {
-          gagal.push(`${r.santri?.nama_lengkap ?? r.santri_id}: ${errorMessage(e)}`);
-        }
+      const res = await batalSalinMassal({
+        jenjang: targetJenjang,
+        tahun_ajaran: targetTahunAjaran,
+        tingkat: tingkatFilter,
+        kelas_id: kelasFilterIds.length ? kelasFilterIds : undefined,
+        q: cari || undefined,
+      });
+      if (res.gagal.length > 0) {
+        toast.error(`${res.berhasil} berhasil, ${res.gagal.length} gagal: ${res.gagal[0]?.pesan ?? 'Data tidak dapat dibatalkan.'}`);
+      } else {
+        toast.success(`${res.berhasil} siswa dikembalikan ke semester 1.`);
       }
-      if (gagal.length > 0) toast.error(`${ok} masuk, ${gagal.length} gagal: ${gagal.slice(0, 3).join(' · ')}${gagal.length > 3 ? ' …' : ''}`);
-      else toast.success(`${ok} santri dimasukkan ke kelas.`);
-      setCentangKiri([]);
-      setNonceKiri((n) => n + 1);
+      setBatalOpen(false);
       await muatUlang();
+    } catch (e) {
+      toast.error(errorMessage(e));
     } finally {
-      setBulkBusy(false);
+      setBatalBusy(false);
     }
-  }, [bulkBusy, centangKiri, targetKelas, cocokTingkat, muatUlang]);
-
-  /** Aksi massal kanan: keluarkan yang tercentang dari kelas (kembali ke kiri). */
-  const keluarBanyak = useCallback(async () => {
-    if (bulkBusy || centangKanan.length === 0) return;
-    setBulkBusy(true);
-    let ok = 0;
-    const gagal: string[] = [];
-    try {
-      for (const r of centangKanan) {
-        try {
-          await keluarKelas(r.id);
-          ok++;
-        } catch (e) {
-          gagal.push(`${r.santri?.nama_lengkap ?? r.id}: ${errorMessage(e)}`);
-        }
-      }
-      if (gagal.length > 0) toast.error(`${ok} dikeluarkan, ${gagal.length} gagal: ${gagal.slice(0, 3).join(' · ')}${gagal.length > 3 ? ' …' : ''}`);
-      else toast.success(`${ok} santri dikeluarkan dari kelas.`);
-      setCentangKanan([]);
-      setNonceKanan((n) => n + 1);
-      await muatUlang();
-    } finally {
-      setBulkBusy(false);
-    }
-  }, [bulkBusy, centangKanan, muatUlang]);
-
-  const [importOpen, setImportOpen] = useState(false);
-  const [importFile, setImportFile] = useState<File | null>(null);
-  const [periksaHasil, setPeriksaHasil] = useState<ImportPeriksa | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [bertahapOpen, setBertahapOpen] = useState(false);
+  }, [batalAktif, targetJenjang, targetTahunAjaran, batalBusy, tingkatFilter, kelasFilterIds, cari, muatUlang]);
 
   const siap = !filterLoading;
 
-  const panel = (
-    key: string,
-    judul: string,
-    jumlah: number,
-    tabel: ReactNode,
-    pagerNode: ReactNode,
-    aksiKepala?: ReactNode,
-    bawahJudul?: ReactNode,
-  ) => (
-    <section className="flex min-h-0 min-w-0 flex-col rounded-md border">
-      <header className="flex items-center justify-between gap-2 border-b bg-muted/40 px-3 py-2 text-sm font-medium">
-        <span>{judul} ({jumlah})</span>
-        {aksiKepala}
-      </header>
-      {bawahJudul}
-      <div className="flex min-h-0 flex-1 flex-col px-2 pb-2">
+  function ubahKeaktifan(value: string) {
+    setKeaktifan(value as 'aktif' | 'nonaktif' | 'semua');
+    kiri.pager.goFirst();
+    kanan.pager.goFirst();
+    setPindahOpen(false);
+  }
+
+  const panel = (tabel: ReactNode, pagerNode: ReactNode) => (
+    <section className="flex min-h-0 min-w-0 flex-col rounded-md">
+      <div className="flex min-h-0 flex-1 flex-col pb-2">
         {tabel}
         {pagerNode}
       </div>
@@ -294,39 +296,54 @@ export default function RiwayatBelajarPage() {
     <div className={PAGE_SHELL}>
       <ErrorNotice>{kiri.err || kanan.err}</ErrorNotice>
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari santri…" />
-      <PengaturanHalaman tampil={{ tingkat: true, kelas: true }} tabel={[{ key: 'riwayat_belum_masuk', judul: 'Belum memiliki kelas', fields: FIELDS_KIRI }, { key: 'riwayat_belajar', judul: 'Sudah masuk kelas', fields: ROSTER_FIELDS }]} />
+      <PengaturanHalaman tampil={{ tingkat: true, kelas: true }} tabel={[{ key: 'riwayat_belum_masuk', judul: 'Semester Ganjil', fields: FIELDS_RIWAYAT }, { key: 'riwayat_belajar', judul: 'Semester Genap', fields: FIELDS_RIWAYAT }]} />
       {!siap ? (
         <p className="text-sm text-muted-foreground">Pilih lembaga dan tahun ajaran di topbar dulu untuk memuat kedua tabel.</p>
       ) : (
         <div className="grid min-h-0 flex-1 grid-cols-[repeat(auto-fit,minmax(min(420px,100%),1fr))] gap-4">
           {panel(
-            'belum',
-            'Belum memiliki kelas',
-            kiri.total,
             <ExcelTable<RiwayatRow>
-              tableKey="riwayat_belum_masuk"
-              fields={FIELDS_KIRI}
-              rows={kiri.rows}
-              getValues={kiriValues}
-              loading={kiri.loading}
-              emptyText="Semua santri sudah masuk kelas."
-              canEdit={false}
-              onCommit={noopCommit}
-              onSaved={noopCommit}
-              renderActions={(r) => (
-                canKelas ? (
-                  <ActionIcon
-                    id={`btn_masuk_kelas_${r.id}`}
-                    title={targetKelas ? `Masukkan ke ${targetKelas.nama_kelas}` : 'Pilih kelas di filter kanan dulu'}
-                    disabled={!targetKelas || busyId !== null}
-                    onClick={() => void masukkan(r)}
-                  >
-                    <ArrowRight size={16} />
-                  </ActionIcon>
-                ) : null
-              )}
-              key={`riwayat_belum_masuk_${nonceKiri}`}
-              onCheckedChange={setCentangKiri}
+               tableKey="riwayat_belum_masuk"
+                header={<span>Semester Ganjil ({kiri.total})</span>}
+                 filter={(
+                   <FilterField label="Keaktifan" htmlFor="select_keaktifan_riwayat_belajar">
+                     <Select value={keaktifan} onValueChange={ubahKeaktifan}>
+                       <SelectTrigger id="select_keaktifan_riwayat_belajar" title="Filter status akhir" aria-label="Filter keaktifan" size="sm">
+                         <SelectValue />
+                       </SelectTrigger>
+                       <SelectContent>
+                         <SelectGroup>
+                           <SelectItem value="semua">Semua</SelectItem>
+                           <SelectItem value="aktif">Aktif</SelectItem>
+                           <SelectItem value="nonaktif">Tidak aktif</SelectItem>
+                         </SelectGroup>
+                       </SelectContent>
+                     </Select>
+                   </FilterField>
+                 )}
+                 addButton={canPindah ? (
+                   <Button
+                     id="btn_pindah_semester_riwayat"
+                     size="sm"
+                     disabled={!pindahAktif || pindahBusy || ringkasanPindahLoading}
+                     title={!pindahAktif ? 'Pindah hanya aktif pada tahun ajaran aktif dan semester aktif Ganjil.' : 'Pindahkan semua data aktif pada filter ini'}
+                     onClick={() => void bukaPindah()}
+                   >
+                     Salin ke Genap
+                   </Button>
+                 ) : undefined}
+                fields={FIELDS_RIWAYAT}
+               rows={kiri.rows}
+               getValues={riwayatBelajarValues}
+               loading={kiri.loading}
+               emptyText="Tidak ada data semester ganjil."
+               canEdit={false}
+               hideCheckbox
+               hideActions
+               hidePreset
+               onCommit={noopCommit}
+               onSaved={noopCommit}
+               renderActions={() => null}
             />,
             <Pager
               page={kiri.pager.page}
@@ -334,62 +351,52 @@ export default function RiwayatBelajarPage() {
               total={kiri.total}
               perPage={kiri.pager.perPage}
               onPage={(p) => { kiri.pager.setPage(p); void kiri.load(p); }}
-              onPerPage={(pp) => { kiri.pager.setPerPage(pp); void kiri.load(1, pp); }}
-            />,
-            canKelas ? (
-              <Button
-                id="btn_bulk_masuk_kelas"
-                size="sm"
-                disabled={bulkBusy || centangKiri.length === 0 || !targetKelas}
-                title={targetKelas ? 'Masukkan yang tercentang ke kelas terpilih' : 'Pilih kelas di filter kanan dulu'}
-                onClick={() => void masukBanyak()}
-              >
-                Masuk ({centangKiri.length})
-              </Button>
-            ) : undefined,
-          )}
+               onPerPage={(pp) => { kiri.pager.setPerPage(pp); void kiri.load(1, pp); }}
+             />,
+           )}
           {panel(
-            'sudah',
-            'Sudah masuk kelas',
-            kanan.total,
             <ExcelTable<RiwayatRow>
-              tableKey="riwayat_belajar"
-              fields={ROSTER_FIELDS}
-              rows={kanan.rows}
-              getValues={riwayatValues}
-              loading={kanan.loading}
-              emptyText="Tidak ada santri berkelas pada filter ini."
-              canEdit={false}
-              onCommit={noopCommit}
-              onSaved={noopCommit}
-              renderActions={(r) => (
-                canKelas ? (
-                  <ActionIcon
-                    id={`btn_keluar_kelas_${r.id}`}
-                    title="Keluarkan dari kelas (kembali ke panel kiri)"
-                    onClick={() => void keluarkan(r)}
-                  >
-                    <Undo2 size={16} />
-                  </ActionIcon>
-                ) : null
-              )}
-              key={`riwayat_belajar_${nonceKanan}`}
-              onCheckedChange={setCentangKanan}
-              filter={(
-                <FilterField label="Kelas tujuan" htmlFor="select_kelas_riwayat_belajar">
-                  <Select value={kelasId === '' ? '_semua' : kelasId} onValueChange={(v) => setKelasId(v === '_semua' ? '' : v)}>
-                    <SelectTrigger id="select_kelas_riwayat_belajar" title="Kelas tujuan aksi panah (pilih spesifik untuk memasukkan santri)" aria-label="Kelas tujuan" size="sm" className="w-32">
-                      <SelectValue placeholder="Semua" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        <SelectItem value="_semua">Semua</SelectItem>
-                        {kelasOpsi.map((k) => <SelectItem key={k.id} value={String(k.id)}>{k.nama_kelas}</SelectItem>)}
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                </FilterField>
-              )}
+               tableKey="riwayat_belajar"
+                header={<span>Semester Genap ({kanan.total})</span>}
+               addButton={canPindah || canTambah ? (
+                 <>
+                   {canPindah ? (
+                     <Button
+                       id="btn_batal_semester_riwayat"
+                       size="sm"
+                       variant="outline"
+                       disabled={!batalAktif || batalBusy}
+                       title={!batalAktif ? 'Batal hanya tersedia pada tahun ajaran aktif.' : 'Batalkan pemindahan semester 2 pada filter ini'}
+                       onClick={() => setBatalOpen(true)}
+                     >
+                       Batal
+                     </Button>
+                   ) : null}
+                   {canTambah ? (
+                     <Button
+                       id="btn_buka_import_bertahap"
+                       size="sm"
+                       variant="outline"
+                       title="Untuk file besar (puluhan hingga ratusan ribu baris)"
+                       onClick={() => setBertahapOpen(true)}
+                     >
+                       <FileUp data-icon="inline-start" size={16} /> Import bertahap
+                     </Button>
+                   ) : null}
+                 </>
+               ) : undefined}
+               fields={FIELDS_RIWAYAT}
+               rows={kanan.rows}
+               getValues={riwayatBelajarValues}
+               loading={kanan.loading}
+               emptyText="Tidak ada data semester genap."
+               canEdit={false}
+               hideCheckbox
+               hideActions
+               hidePreset
+               onCommit={noopCommit}
+               onSaved={noopCommit}
+               renderActions={() => null}
             />,
             <Pager
               page={kanan.pager.page}
@@ -397,100 +404,81 @@ export default function RiwayatBelajarPage() {
               total={kanan.total}
               perPage={kanan.pager.perPage}
               onPage={(p) => { kanan.pager.setPage(p); void kanan.load(p); }}
-              onPerPage={(pp) => { kanan.pager.setPerPage(pp); void kanan.load(1, pp); }}
-            />,
-            (canKelas || canTambah) ? (
-              <div className="flex items-center gap-2">
-                {canKelas ? (
-                  <Button
-                    id="btn_bulk_keluar_kelas"
-                    size="sm"
-                    variant="outline"
-                    disabled={bulkBusy || centangKanan.length === 0}
-                    title="Keluarkan yang tercentang dari kelas (kembali ke panel kiri)"
-                    onClick={() => void keluarBanyak()}
-                  >
-                    Keluarkan ({centangKanan.length})
-                  </Button>
-                ) : null}
-                {canTambah ? (
-                  <>
-                    <Button id="btn_buka_import_riwayat" size="sm" variant="outline" onClick={() => { setImportFile(null); setPeriksaHasil(null); setImportOpen(true); }}>
-                      <FileUp data-icon="inline-start" size={16} /> Import
-                    </Button>
-                    <Button id="btn_buka_import_bertahap" size="sm" variant="outline" title="Untuk file besar (puluhan hingga ratusan ribu baris)"
-                      onClick={() => setBertahapOpen(true)}>
-                      <FileUp data-icon="inline-start" size={16} /> Import bertahap
-                    </Button>
-                  </>
-                ) : null}
-              </div>
-            ) : undefined,
-            undefined,
-          )}
+               onPerPage={(pp) => { kanan.pager.setPerPage(pp); void kanan.load(1, pp); }}
+             />,
+           )}
         </div>
       )}
 
-      {/* Import riwayat (dipertahankan; penyesuaian alur ganjil menyusul) */}
-      <Dialog open={importOpen} onOpenChange={setImportOpen}>
-        <DialogContent className="sm:max-w-lg">
+      <Dialog open={pindahOpen} onOpenChange={setPindahOpen}>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Import riwayat belajar</DialogTitle>
-            <DialogDescription>Kolom mengikuti tabel riwayat (kelas cukup diisi nama); kunci: NIS lokal + lembaga. Baris cocok (santri+TA+jenjang+semester) diperbarui, hanya kolom terisi.</DialogDescription>
+            <DialogTitle>Pindah ke semester 2</DialogTitle>
+            <DialogDescription>Semua data Semester 1 dengan status akhir selain Pindah/Keluar pada filter halaman akan dipindahkan. Data Semester 1 diarsipkan dan dibuatkan baris Semester 2 pada tahun ajaran yang sama.</DialogDescription>
           </DialogHeader>
-          <form className="grid grid-cols-2 gap-3" onSubmit={async (e) => {
-            e.preventDefault();
-            if (!importFile || !periksaHasil?.siap_import) return;
-            setBusy(true);
-            try {
-              const res = await importRiwayatBelajar({ file: importFile });
-              if (res.errors?.length) toast.error(res.errors.map((x) => `Baris ${x.row} (${x.attribute}): ${x.errors.join(', ')}`).join(' · '));
-              else {
-                toast.success(res.pesan ?? 'Import selesai.');
-                setImportOpen(false);
-                await muatUlang();
-              }
-            } catch (e2) { toast.error(errorMessage(e2)); } finally { setBusy(false); }
-          }}>
-            <Button id="btn_unduh_template_riwayat" type="button" variant="link" className="col-span-2 h-auto justify-start px-0"
-              onClick={() => void unduhTemplateRiwayatBelajar().catch((e) => toast.error(errorMessage(e)))}>
-              <Download data-icon="inline-start" size={16} /> Unduh template Excel riwayat
-            </Button>
-            <Input id="input_file_import_riwayat" className="col-span-2" type="file" accept=".xlsx,.xls,.csv"
-              onChange={(e) => { setImportFile(e.target.files?.[0] ?? null); setPeriksaHasil(null); }} required />
-            {periksaHasil ? (
-              <div className="col-span-2 rounded-md border p-3 text-sm" id="hasil_periksa_import_riwayat">
-                <p className="font-medium">
-                  {periksaHasil.ringkasan.baris_diproses} baris diperiksa · {periksaHasil.ringkasan.baris_valid} valid · {periksaHasil.ringkasan.baris_gagal} bermasalah
-                  {(periksaHasil.ringkasan.dibuat !== undefined || periksaHasil.ringkasan.diperbarui !== undefined) && (
-                    <> · {periksaHasil.ringkasan.dibuat ?? 0} dibuat · {periksaHasil.ringkasan.diperbarui ?? 0} diperbarui</>
-                  )}
-                </p>
-                {periksaHasil.errors.length > 0 ? (
-                  <ul className="mt-2 max-h-40 space-y-1 overflow-auto text-xs text-destructive">
-                    {periksaHasil.errors.slice(0, 50).map((x, i) => <li key={`${x.row}-${x.attribute}-${i}`}>Baris {x.row} ({x.attribute}): {x.errors.join(', ')}</li>)}
-                  </ul>
-                ) : <p className="mt-1 text-xs text-emerald-600">Tidak ada masalah — siap diimport.</p>}
+          {ringkasanPindahLoading ? (
+            <p className="text-sm text-muted-foreground">Memuat ringkasan siswa…</p>
+          ) : ringkasanPindahError ? (
+            <p className="text-sm text-destructive">{ringkasanPindahError}</p>
+          ) : ringkasanPindah ? (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-md border p-3">
+                  <p className="text-xs text-muted-foreground">Santri aktif</p>
+                  <p className="text-2xl font-semibold">{ringkasanPindah.aktif}</p>
+                </div>
+                <div className="rounded-md border p-3">
+                  <p className="text-xs text-muted-foreground">Santri tidak aktif</p>
+                  <p className="text-2xl font-semibold">{ringkasanPindah.tidak_aktif}</p>
+                </div>
               </div>
-            ) : null}
-            <DialogFooter className="col-span-2">
-              <Button type="button" variant="outline" onClick={() => setImportOpen(false)}>Batal</Button>
-              <Button id="btn_periksa_import_riwayat" type="button" variant="outline" disabled={!importFile || busy}
-                onClick={async () => {
-                  if (!importFile) return;
-                  setBusy(true);
-                  try {
-                    const res = await periksaImportRiwayatBelajar({ file: importFile });
-                    setPeriksaHasil(res);
-                    if (res.siap_import) toast.success(res.pesan); else toast.error(res.pesan);
-                  } catch (e2) { setPeriksaHasil(null); toast.error(errorMessage(e2)); } finally { setBusy(false); }
-                }}>Periksa</Button>
-              <Button id="btn_import_riwayat" type="submit" disabled={busy || !periksaHasil?.siap_import}>Import</Button>
+              {ringkasanPindah.nama_tidak_aktif.length > 0 ? (
+                <div className="rounded-md border p-3">
+                  <p className="mb-2 text-sm font-medium">Nama siswa tidak aktif</p>
+                  <ul className="max-h-40 space-y-1 overflow-y-auto text-sm text-muted-foreground">
+                    {ringkasanPindah.nama_tidak_aktif.map((nama, index) => <li key={`${nama}-${index}`}>{nama}</li>)}
+                  </ul>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+          <form onSubmit={(e) => { e.preventDefault(); void pindahkan(); }}>
+            <FilterField label="Tanggal masuk semester 2" htmlFor="input_tgl_masuk_pindah_riwayat">
+              <Input
+                id="input_tgl_masuk_pindah_riwayat"
+                type="date"
+                title="Tanggal masuk semester 2"
+                aria-label="Tanggal masuk semester 2"
+                value={tglMasuk}
+                onChange={(e) => setTglMasuk(e.target.value)}
+                required
+              />
+            </FilterField>
+            <DialogFooter className="mt-4">
+              <Button type="button" variant="outline" onClick={() => setPindahOpen(false)}>Batal</Button>
+              <Button id="btn_konfirmasi_pindah_semester_riwayat" type="submit" disabled={!pindahAktif || !tglMasuk || pindahBusy || ringkasanPindahLoading || !ringkasanPindah || ringkasanPindah.aktif === 0}>
+                {pindahBusy ? 'Memindahkan…' : 'Pindahkan'}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
-      {/* Import bertahap (file besar): baca di browser, kirim per potongan */}
+
+      <Dialog open={batalOpen} onOpenChange={setBatalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Batalkan pemindahan semester</DialogTitle>
+            <DialogDescription>Semua data Semester 2 aktif pada tahun ajaran aktif dan filter halaman akan dihapus, lalu data Semester 1 dipulihkan.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setBatalOpen(false)}>Kembali</Button>
+            <Button id="btn_konfirmasi_batal_semester_riwayat" variant="destructive" disabled={!batalAktif || batalBusy} onClick={() => void batalkan()}>
+              {batalBusy ? 'Membatalkan…' : 'Batalkan Pemindahan'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <ImportBertahapDialog open={bertahapOpen} onOpenChange={setBertahapOpen} onSelesai={() => void muatUlang()} />
     </div>
   );

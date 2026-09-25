@@ -26,13 +26,19 @@ use Illuminate\Validation\ValidationException;
 class SiklusSantriService
 {
     /** Salin ganjil→genap dalam tahun SAMA: tutup baris '1' aktif, buat baris '2'. */
-    public function salinKeGenap(Santri $santri, string $jenjang, string $tglMasukGenap, ?int $noAbsen = null, ?int $kelasId = null): RiwayatBelajar
+    public function salinKeGenap(Santri $santri, string $jenjang, string $tglMasukGenap, ?int $noAbsen = null, ?int $kelasId = null, ?int $riwayatId = null): RiwayatBelajar
     {
-        return DB::transaction(function () use ($santri, $jenjang, $tglMasukGenap, $noAbsen, $kelasId) {
+        return DB::transaction(function () use ($santri, $jenjang, $tglMasukGenap, $noAbsen, $kelasId, $riwayatId) {
             $santri = Santri::whereKey($santri->id)->lockForUpdate()->firstOrFail();
-            $ganjil = RiwayatBelajar::where('santri_id', $santri->id)
-                ->where('jenjang', $jenjang)->where('is_active_riwayat', RiwayatBelajar::YA)
-                ->lockForUpdate()->latest('id')->first();
+            $ganjil = ($riwayatId === null
+                ? RiwayatBelajar::where('santri_id', $santri->id)
+                    ->where('jenjang', $jenjang)->where('is_active_riwayat', RiwayatBelajar::YA)
+                    ->lockForUpdate()->latest('id')
+                : RiwayatBelajar::whereKey($riwayatId)
+                    ->where('santri_id', $santri->id)
+                    ->where('jenjang', $jenjang)
+                    ->lockForUpdate())
+                ->first();
             if (! $ganjil) {
                 throw ValidationException::withMessages(['riwayat' => 'Tidak ada riwayat aktif di lembaga ini.']);
             }
@@ -284,13 +290,20 @@ class SiklusSantriService
      * dari import tidak menutup ganjil) — cukup hapus genapnya. Hanya bila
      * belum ada transisi lanjutan (baris aktif terbaru masih semester 2).
      */
-    public function batalSalin(Santri $santri, string $jenjang): RiwayatBelajar
+    public function batalSalin(Santri $santri, string $jenjang, ?int $riwayatId = null): RiwayatBelajar
     {
-        return DB::transaction(function () use ($santri, $jenjang) {
+        return DB::transaction(function () use ($santri, $jenjang, $riwayatId) {
             $santri = Santri::whereKey($santri->id)->lockForUpdate()->firstOrFail();
-            $genap = RiwayatBelajar::where('santri_id', $santri->id)
-                ->where('jenjang', $jenjang)->where('is_active_riwayat', RiwayatBelajar::YA)
-                ->lockForUpdate()->latest('id')->first();
+            $genap = ($riwayatId === null
+                ? RiwayatBelajar::where('santri_id', $santri->id)
+                    ->where('jenjang', $jenjang)->where('is_active_riwayat', RiwayatBelajar::YA)
+                    ->lockForUpdate()->latest('id')
+                : RiwayatBelajar::whereKey($riwayatId)
+                    ->where('santri_id', $santri->id)
+                    ->where('jenjang', $jenjang)
+                    ->where('is_active_riwayat', RiwayatBelajar::YA)
+                    ->lockForUpdate())
+                ->first();
             if (! $genap || $genap->semester !== '2') {
                 throw ValidationException::withMessages(['riwayat' => 'Tidak ada salin semester aktif yang bisa dibatalkan.']);
             }

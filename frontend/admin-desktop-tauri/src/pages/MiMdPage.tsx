@@ -247,8 +247,6 @@ export default function MiMdPage() {
         rows={urutkan(rows, urutTabel[key].kolom, urutTabel[key].arah)}
         getValues={getValues}
         header={<span>{judul} ({jumlah})</span>}
-        presetKolomDiHeader
-        presetUrutDiHeader
         urutAktif={urutTabel[key].kolom}
         arahUrut={urutTabel[key].arah}
         onUrut={(kolom, arah) => terapkanUrut(key, kolom, arah)}

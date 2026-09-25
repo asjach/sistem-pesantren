@@ -25,19 +25,35 @@ export function useFilterGlobalAktif(): FilterGlobalAktif {
   const loading = loadingLembaga || loadingTahunAjaran || loadingSemester || loadingTingkat || loadingKelas || !filter?.siap;
   const mode = filter?.mode;
 
-  return useMemo(() => {
-    const efektif = (values: readonly string[], key: 'lembaga' | 'tahun_ajaran' | 'semester' | 'tingkat' | 'kelas') => (
-      mode?.[key] === 'multiple' ? values : values.slice(0, 1)
-    );
-    return {
-      jenjangs: efektif(jenjangs, 'lembaga'),
-      tahunAjaranNames: efektif(tahunAjaranNames, 'tahun_ajaran'),
-      semesters: efektif(semesters, 'semester'),
-      tingkat: efektif(tingkat, 'tingkat'),
-      kelas: efektif(kelas, 'kelas'),
-      loading,
-    };
-  }, [jenjangs, tahunAjaranNames, semesters, tingkat, kelas, loading, mode?.lembaga, mode?.tahun_ajaran, mode?.semester, mode?.tingkat, mode?.kelas]);
+  const jenjangsEfektif = useMemo(
+    () => mode?.lembaga === 'multiple' ? jenjangs : jenjangs.slice(0, 1),
+    [jenjangs, mode?.lembaga],
+  );
+  const tahunAjaranEfektif = useMemo(
+    () => mode?.tahun_ajaran === 'multiple' ? tahunAjaranNames : tahunAjaranNames.slice(0, 1),
+    [tahunAjaranNames, mode?.tahun_ajaran],
+  );
+  const semesterEfektif = useMemo(
+    () => mode?.semester === 'multiple' ? semesters : semesters.slice(0, 1),
+    [semesters, mode?.semester],
+  );
+  const tingkatEfektif = useMemo(
+    () => mode?.tingkat === 'multiple' ? tingkat : tingkat.slice(0, 1),
+    [tingkat, mode?.tingkat],
+  );
+  const kelasEfektif = useMemo(
+    () => mode?.kelas === 'multiple' ? kelas : kelas.slice(0, 1),
+    [kelas, mode?.kelas],
+  );
+
+  return useMemo(() => ({
+    jenjangs: jenjangsEfektif,
+    tahunAjaranNames: tahunAjaranEfektif,
+    semesters: semesterEfektif,
+    tingkat: tingkatEfektif,
+    kelas: kelasEfektif,
+    loading,
+  }), [jenjangsEfektif, tahunAjaranEfektif, semesterEfektif, tingkatEfektif, kelasEfektif, loading]);
 }
 
 export function targetTunggal(values: readonly string[]): string | null {

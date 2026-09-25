@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Check as CheckIcon, ChevronDown as ChevronDownIcon } from '@/icons';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -20,6 +20,7 @@ interface Props {
   kosongText?: string;
   /** Kelas lebar pemicu, mis. `w-56`. */
   className?: string;
+  style?: CSSProperties;
   disabled?: boolean;
 }
 
@@ -34,6 +35,7 @@ export default function ComboCari({
   placeholder = 'Pilih…',
   kosongText = 'Tidak ada hasil.',
   className,
+  style,
   disabled = false,
 }: Props) {
   const [open, setOpen] = useState(false);
@@ -66,10 +68,11 @@ export default function ComboCari({
           aria-haspopup="listbox"
           disabled={disabled}
           className={cn(
-            'flex h-6 w-56 items-center justify-between gap-2 rounded-md border border-input bg-transparent px-2 py-0.5 text-xs shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50',
+            'flex h-6 w-56 items-center justify-between gap-2 rounded-md border border-input bg-transparent px-2 py-0.5 text-xs shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50',
             className,
           )}
-        >
+          style={style}
+         >
           <span className={cn('truncate', !terpilih && 'text-muted-foreground')}>
             {terpilih?.label ?? placeholder}
           </span>

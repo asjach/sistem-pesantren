@@ -11,7 +11,7 @@ import { DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
-import { EVENT_TOOLBAR_BERUBAH, KONTROL_TOOLBAR, LEBAR_BAWAHAN_TOOLBAR, bacaLebarFilter, bacaLebarToolbar, bacaVisToolbar, type KontrolLebar, type VisToolbar, type LebarToolbar } from './jenis';
+import { EVENT_TOOLBAR_BERUBAH, KONTROL_TOOLBAR, LEBAR_BAWAHAN_FILTER, LEBAR_BAWAHAN_TOOLBAR, bacaLebarFilter, bacaLebarToolbar, bacaVisToolbar, type KontrolLebar, type VisToolbar, type LebarToolbar } from './jenis';
 import { daftarFilter, kunciFilterBawaan } from '@/components/excel/lebarFilter';
 
 /** Tab Toolbar dialog Kelola Halaman: tampil/sembunyikan kontrol toolbar
@@ -177,7 +177,7 @@ export default function TabKontrol({ tableKey, onTutup }: { tableKey: string; on
 
       {daftar.length > 0 ? (
         <>
-          <p className="text-sm font-medium">Lebar filter halaman</p>
+          <p className="text-sm font-medium">Lebar combobox filter halaman</p>
           <div className="flex flex-col gap-1 overflow-auto rounded-md border p-1">
             {daftar.map(({ kunci, label, bawaanPx }) => (
               <div
@@ -195,8 +195,8 @@ export default function TabKontrol({ tableKey, onTutup }: { tableKey: string; on
                     min={40}
                     max={480}
                     step={4}
-                    value={filterW[kunci] ?? (bawaanPx !== undefined ? String(bawaanPx) : '')}
-                    placeholder={bawaanPx === undefined ? 'otomatis' : undefined}
+                    value={filterW[kunci] ?? String(bawaanPx ?? LEBAR_BAWAHAN_FILTER)}
+                    placeholder={String(LEBAR_BAWAHAN_FILTER)}
                     disabled={!bolehUbah || busy}
                     onChange={(e) => setFilterW((v) => ({ ...v, [kunci]: e.target.value }))}
                     onBlur={(e) => {

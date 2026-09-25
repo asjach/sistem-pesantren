@@ -22,6 +22,7 @@ use App\Models\LembagaSantri;
 use App\Models\MutasiKeluar;
 use App\Models\RiwayatBelajar;
 use App\Models\Santri;
+use App\Models\SemesterAktif;
 use App\Models\TahunAjaran;
 use App\Services\SiklusSantriService;
 use App\Services\UrutKatalog;
@@ -49,6 +50,50 @@ class SiklusController extends Controller
 
     // ---------------- Salin genap ----------------
 
+    public function ringkasanPindahGenap(SiklusLembagaRequest $request): JsonResponse
+    {
+        $this->authorize('viewAny', Santri::class);
+        $data = $request->validated();
+        $lembagaId = $data['jenjang'];
+        $this->authorizeLembaga($request->user(), $lembagaId);
+        $tahunAktif = TahunAjaran::aktif($lembagaId);
+        if ($tahunAktif === null || ($data['tahun_ajaran'] ?? null) !== $tahunAktif->nama) {
+            throw ValidationException::withMessages(['tahun_ajaran' => 'Ringkasan hanya berlaku pada tahun ajaran aktif.']);
+        }
+        if ((string) SemesterAktif::where('jenjang', $lembagaId)->value('semester') !== '1') {
+            throw ValidationException::withMessages(['semester' => 'Ringkasan hanya berlaku pada semester aktif Ganjil.']);
+        }
+
+        $query = RiwayatBelajar::where('jenjang', $lembagaId)
+            ->where('tahun_ajaran', $tahunAktif->nama)
+            ->where('semester', '1');
+        if ($request->filled('q')) {
+            $q = (string) $request->input('q');
+            $query->whereHas('santri', fn ($s) => $s
+                ->where('nama_lengkap', 'like', "%{$q}%")
+                ->orWhere('nik', 'like', "%{$q}%"));
+        }
+
+        $aktif = (clone $query)->where(function ($status) {
+            $status->where('status_akhir', '!=', 'pindah_keluar')
+                ->orWhereNull('status_akhir');
+        })->count();
+        $tidakAktifRows = (clone $query)->where('status_akhir', 'pindah_keluar')
+            ->with('santri:id,nama_lengkap')
+            ->get();
+        $namaTidakAktif = $tidakAktifRows
+            ->map(fn (RiwayatBelajar $r) => $r->santri?->nama_lengkap ?? "Santri #{$r->santri_id}")
+            ->sortBy(fn (string $nama) => mb_strtolower($nama))
+            ->values()
+            ->all();
+
+        return response()->json(['data' => [
+            'aktif' => $aktif,
+            'tidak_aktif' => $tidakAktifRows->count(),
+            'nama_tidak_aktif' => $namaTidakAktif,
+        ]]);
+    }
+
     /** POST /api/admin/akademik/salin-genap — massal per lembaga (partial per-item). */
     public function salinGenapMassal(SiklusSalinGenapRequest $request): JsonResponse
     {
@@ -60,26 +105,64 @@ class SiklusController extends Controller
         $this->authorizeLembaga($request->user(), $lembagaId);
         $tanggal = (string) $data['tanggal_masuk'];
 
-        $items = $data['siswa'] ?? RiwayatBelajar::where('jenjang', $lembagaId)
-            ->where('semester', '1')->where('is_active_riwayat', RiwayatBelajar::YA)
-            ->orderBy('id')->get()
-            ->map(fn (RiwayatBelajar $r) => ['santri_id' => (int) $r->santri_id])
-            ->all();
+        if (isset($data['siswa'])) {
+            $items = $data['siswa'];
+        } elseif ($data['konteks_aktif'] ?? false) {
+            $query = RiwayatBelajar::where('jenjang', $lembagaId)
+                ->where('semester', '1')
+                ->where(function ($status) {
+                    $status->where('status_akhir', '!=', 'pindah_keluar')
+                        ->orWhereNull('status_akhir');
+                });
+            if (isset($data['tahun_ajaran'])) {
+                $query->where('tahun_ajaran', $data['tahun_ajaran']);
+            }
+            if ($request->filled('q')) {
+                $q = (string) $request->input('q');
+                $query->whereHas('santri', fn ($s) => $s
+                    ->where('nama_lengkap', 'like', "%{$q}%")
+                    ->orWhere('nik', 'like', "%{$q}%"));
+            }
+            $items = $query->orderBy('id')->get()
+                ->map(fn (RiwayatBelajar $r) => [
+                    'santri_id' => (int) $r->santri_id,
+                    'riwayat_id' => (int) $r->id,
+                ])->all();
+        } else {
+            $items = RiwayatBelajar::where('jenjang', $lembagaId)
+                ->where('semester', '1')->where('is_active_riwayat', RiwayatBelajar::YA)
+                ->orderBy('id')->get()
+                ->map(fn (RiwayatBelajar $r) => ['santri_id' => (int) $r->santri_id])
+                ->all();
+        }
 
         $ok = 0;
         $gagal = [];
         foreach ($items as $item) {
             try {
-                $santri = Santri::findOrFail($item['santri_id']);
-                $this->authorizeAksiLembaga($request, $santri, $lembagaId);
+                $riwayatId = isset($item['riwayat_id']) ? (int) $item['riwayat_id'] : null;
+                if ($riwayatId !== null) {
+                    $riwayat = RiwayatBelajar::findOrFail($riwayatId);
+                    if ($riwayat->jenjang !== $lembagaId || (int) $riwayat->santri_id !== (int) $item['santri_id']) {
+                        throw ValidationException::withMessages(['riwayat_id' => 'Riwayat tidak sesuai dengan siswa atau lembaga.']);
+                    }
+                    $this->cekPindahDariRiwayat($riwayat);
+                    $santri = Santri::findOrFail($riwayat->santri_id);
+                } else {
+                    $santri = Santri::findOrFail($item['santri_id']);
+                }
+                if ($riwayatId === null) {
+                    $this->authorizeAksiLembaga($request, $santri, $lembagaId);
+                }
                 $kelasId = isset($item['kelas_id']) ? (int) $item['kelas_id'] : null;
-                $this->cekKelasGenap($santri, $lembagaId, $kelasId);
+                $this->cekKelasGenap($santri, $lembagaId, $kelasId, $riwayatId);
                 $this->siklusService->salinKeGenap(
                     $santri,
                     $lembagaId,
                     $tanggal,
                     isset($item['no_absen']) ? (int) $item['no_absen'] : null,
-                    $kelasId
+                    $kelasId,
+                    $riwayatId
                 );
                 $ok++;
             } catch (\Throwable $e) {
@@ -90,8 +173,36 @@ class SiklusController extends Controller
         return response()->json(['pesan' => 'Salin ke genap selesai.', 'berhasil' => $ok, 'gagal' => $gagal]);
     }
 
+    protected function cekPindahDariRiwayat(RiwayatBelajar $riwayat): void
+    {
+        $tahunAktif = TahunAjaran::aktif($riwayat->jenjang);
+        if ($tahunAktif === null || $riwayat->tahun_ajaran !== $tahunAktif->nama) {
+            throw ValidationException::withMessages(['riwayat_id' => 'Pindah hanya berlaku pada tahun ajaran aktif.']);
+        }
+        $semesterAktif = SemesterAktif::where('jenjang', $riwayat->jenjang)->value('semester');
+        if ((string) $semesterAktif !== '1') {
+            throw ValidationException::withMessages(['riwayat_id' => 'Pindah hanya aktif pada semester aktif Ganjil.']);
+        }
+        if ($riwayat->semester !== '1' || $riwayat->status_akhir === 'pindah_keluar') {
+            throw ValidationException::withMessages(['riwayat_id' => 'Hanya sejarah semester 1 dengan status akhir selain Pindah/Keluar yang dapat dipindahkan.']);
+        }
+        if (! LembagaSantri::where('santri_id', $riwayat->santri_id)
+            ->where('jenjang', $riwayat->jenjang)
+            ->where('is_active_lembaga', LembagaSantri::YA)
+            ->exists()) {
+            throw ValidationException::withMessages(['riwayat_id' => 'Santri tidak aktif di lembaga ini.']);
+        }
+        if (RiwayatBelajar::where('santri_id', $riwayat->santri_id)
+            ->where('jenjang', $riwayat->jenjang)
+            ->where('tahun_ajaran', $riwayat->tahun_ajaran)
+            ->where('semester', '2')
+            ->exists()) {
+            throw ValidationException::withMessages(['riwayat_id' => 'Baris semester 2 tahun ini sudah ada.']);
+        }
+    }
+
     /** Guard kelas pengganti salin genap: wajib se-lembaga & se-tahun dengan baris aktif. */
-    protected function cekKelasGenap(Santri $santri, string $lembagaId, ?int $kelasId): void
+    protected function cekKelasGenap(Santri $santri, string $lembagaId, ?int $kelasId, ?int $riwayatId = null): void
     {
         if ($kelasId === null) {
             return;
@@ -100,9 +211,11 @@ class SiklusController extends Controller
         if ($kelas->jenjang !== $lembagaId) {
             throw ValidationException::withMessages(['kelas_id' => 'Kelas beda lembaga.']);
         }
-        $ganjil = RiwayatBelajar::where('santri_id', $santri->id)
-            ->where('jenjang', $lembagaId)->where('is_active_riwayat', RiwayatBelajar::YA)
-            ->latest('id')->first();
+        $ganjil = $riwayatId !== null
+            ? RiwayatBelajar::whereKey($riwayatId)->first()
+            : RiwayatBelajar::where('santri_id', $santri->id)
+                ->where('jenjang', $lembagaId)->where('is_active_riwayat', RiwayatBelajar::YA)
+                ->latest('id')->first();
         if ($ganjil && $kelas->tahun_ajaran !== $ganjil->tahun_ajaran) {
             throw ValidationException::withMessages(['kelas_id' => 'Kelas beda tahun ajaran.']);
         }
@@ -196,6 +309,67 @@ class SiklusController extends Controller
         $lama = $this->siklusService->batalKenaikan($santri, $data['jenjang']);
 
         return response()->json(['pesan' => 'Kenaikan dibatalkan; santri kembali ke kelas asal.', 'data' => $lama]);
+    }
+
+    public function batalSalinMassal(SiklusLembagaRequest $request): JsonResponse
+    {
+        $this->authorize('viewAny', Santri::class);
+        $data = $request->validated();
+        $lembagaId = $data['jenjang'];
+        $this->authorizeLembaga($request->user(), $lembagaId);
+        $tahunAktif = TahunAjaran::aktif($lembagaId);
+        if ($tahunAktif === null || ($data['tahun_ajaran'] ?? null) !== $tahunAktif->nama) {
+            throw ValidationException::withMessages(['tahun_ajaran' => 'Batal hanya berlaku pada tahun ajaran aktif.']);
+        }
+
+        $query = RiwayatBelajar::where('jenjang', $lembagaId)
+            ->where('tahun_ajaran', $tahunAktif->nama)
+            ->where('semester', '2')
+            ->where('is_active_riwayat', RiwayatBelajar::YA);
+        $this->applyFilter($query, $request, 'tingkat', 'riwayat_belajar.tingkat');
+        $this->applyFilter($query, $request, 'kelas_id', 'riwayat_belajar.kelas_id', true);
+        if ($request->filled('q')) {
+            $q = (string) $request->input('q');
+            $query->whereHas('santri', fn ($s) => $s
+                ->where('nama_lengkap', 'like', "%{$q}%")
+                ->orWhere('nik', 'like', "%{$q}%"));
+        }
+
+        $ok = 0;
+        $gagal = [];
+        foreach ($query->orderBy('id')->get() as $riwayat) {
+            try {
+                $santri = Santri::findOrFail($riwayat->santri_id);
+                $this->authorizeAksiLembaga($request, $santri, $lembagaId);
+                $this->cekBatalDariRiwayat($riwayat, $tahunAktif->nama);
+                $this->siklusService->batalSalin($santri, $lembagaId, $riwayat->id);
+                $ok++;
+            } catch (\Throwable $e) {
+                $gagal[] = ['santri_id' => $riwayat->santri_id, 'pesan' => $e->getMessage()];
+            }
+        }
+
+        return response()->json(['pesan' => 'Pembatalan semester selesai.', 'berhasil' => $ok, 'gagal' => $gagal]);
+    }
+
+    protected function cekBatalDariRiwayat(RiwayatBelajar $riwayat, string $tahunAktif): void
+    {
+        if ($riwayat->tahun_ajaran !== $tahunAktif || $riwayat->semester !== '2' || $riwayat->is_active_riwayat !== RiwayatBelajar::YA) {
+            throw ValidationException::withMessages(['riwayat_id' => 'Baris semester 2 aktif pada tahun ajaran aktif tidak ditemukan.']);
+        }
+        if (! LembagaSantri::where('santri_id', $riwayat->santri_id)
+            ->where('jenjang', $riwayat->jenjang)
+            ->where('is_active_lembaga', LembagaSantri::YA)
+            ->exists()) {
+            throw ValidationException::withMessages(['riwayat_id' => 'Santri tidak aktif di lembaga ini.']);
+        }
+        if (! RiwayatBelajar::where('santri_id', $riwayat->santri_id)
+            ->where('jenjang', $riwayat->jenjang)
+            ->where('tahun_ajaran', $riwayat->tahun_ajaran)
+            ->where('semester', '1')
+            ->exists()) {
+            throw ValidationException::withMessages(['riwayat_id' => 'Baris semester 1 asal tidak ditemukan.']);
+        }
     }
 
     /** POST /api/admin/santri/{santri}/batal-salin — urungkan salin ganjil→genap. */

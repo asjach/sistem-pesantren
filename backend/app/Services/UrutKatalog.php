@@ -68,6 +68,7 @@ class UrutKatalog
         ],
         'riwayat_belajar' => [
             'santri' => ['santri.nama_lengkap'],
+            'jk' => ['santri.jk'],
             'kelas' => ['kelas.nama_kelas'],
             'lembaga' => ['lembaga.jenjang'],
             'ta' => ['tahun_ajaran.nama'],
@@ -78,6 +79,7 @@ class UrutKatalog
         ],
         'daftar_kelas' => [
             'santri' => ['santri.nama_lengkap'],
+            'jk' => ['santri.jk'],
             'kelas' => ['kelas.nama_kelas'],
             'lembaga' => ['lembaga.jenjang'],
             'ta' => ['tahun_ajaran.nama'],
@@ -88,6 +90,7 @@ class UrutKatalog
         ],
         'kenaikan_santri_genap' => [
             'santri' => ['santri.nama_lengkap'],
+            'jk' => ['santri.jk'],
             'kelas' => ['kelas.nama_kelas'],
             'lembaga' => ['lembaga.jenjang'],
             'ta' => ['tahun_ajaran.nama'],
@@ -98,21 +101,25 @@ class UrutKatalog
         ],
         'mi_md_mi' => [
             'nama' => ['santri.nama_lengkap'],
+            'jk' => ['santri.jk'],
             'nis_mi' => ['lembaga_santri.nis_lokal'],
             'kelas_mi' => ['kelas.nama_kelas'],
         ],
         'mi_md_md' => [
             'nama' => ['santri.nama_lengkap'],
+            'jk' => ['santri.jk'],
             'nis_md' => ['lembaga_santri.nis_lokal'],
             'kelas_md' => ['kelas.nama_kelas'],
         ],
         'mi_md_beda' => [
             'nama' => ['santri.nama_lengkap'],
+            'jk' => ['santri.jk'],
             'kelas_mi' => ['kelas.nama_kelas'],
             'kelas_md' => ['kelas.nama_kelas'],
         ],
         'mutasi_arsip' => [
             'santri' => ['santri.nama_lengkap'],
+            'jk' => ['santri.jk'],
             'tanggal' => ['mutasi_keluar.tanggal_mutasi'],
             'lembaga' => ['lembaga.jenjang'],
             'kelas' => ['kelas.nama_kelas'],
@@ -120,6 +127,7 @@ class UrutKatalog
         ],
         'kelulusan_alumni' => [
             'santri' => ['santri.nama_lengkap'],
+            'jk' => ['santri.jk'],
             'tanggal' => ['alumni.tanggal_lulus'],
             'lembaga' => ['lembaga.jenjang'],
             'ta' => ['tahun_ajaran.nama'],
@@ -128,16 +136,25 @@ class UrutKatalog
         ],
         'pengajuan_biodata' => [
             'santri' => ['santri.nama_lengkap'],
+            'jk' => ['santri.jk'],
             'status' => ['pengajuan_biodata_santri.status'],
             'id' => ['pengajuan_biodata_santri.id'],
         ],
         'psb' => [
             'nama' => ['psb_calon_santri.nama_lengkap'],
+            'jk' => ['psb_calon_santri.jk'],
             'nik' => ['psb_calon_santri.nik'],
             'gelombang' => ['psb_gelombang.nama'],
             'lembaga' => ['lembaga.jenjang'],
             'status' => ['psb_calon_santri.status_pendaftaran'],
             'id' => ['psb_calon_santri.id'],
+        ],
+        'pegawai' => [
+            'nama' => ['pegawai.nama_lengkap'],
+            'nip' => ['pegawai.nip'],
+            'jk' => ['pegawai.jenis_kelamin'],
+            'status' => ['pegawai.status_aktif'],
+            'id' => ['pegawai.id'],
         ],
     ];
 

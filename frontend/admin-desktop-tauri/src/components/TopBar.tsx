@@ -2,21 +2,24 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { logout } from '@/api/auth';
 import { isTauri, prefGet, prefSet } from '@/api/client';
-import { listKelas, type Kelas } from '@/api/master';
 import { useAuth } from '@/auth/AuthContext';
 import { useLembagaAktif } from '@/lembagaAktif';
 import { useTahunAjaranAktif } from '@/tahunAjaranAktif';
 import { useSemesterAktif } from '@/semesterAktif';
-import { useTingkatAktif } from '@/tingkatAktif';
-import { useKelasAktif } from '@/kelasAktif';
-import { useVisibilitasFilter, TAMPIL_BAWAAN } from '@/components/VisibilitasFilter';
+import { useVisibilitasFilter, EVENT_KELOLA_HALAMAN, TAMPIL_BAWAAN } from '@/components/VisibilitasFilter';
 import type { ModeFilterGlobal } from '@/lib/filterHalaman';
-import { FilterDropdown } from '@/components/FilterMulti';
+import { FilterSelect, FilterToggleGroup } from '@/components/FilterMulti';
 import { useTheme, type ModeName, type ThemeName } from '@/theme';
 import { usePicker } from '@/picker';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,7 +34,7 @@ import {
 import { ICON_SETS } from '@/iconSets';
 import { THEME_PRESETS } from '@/themes';
 import { DEFAULT_PREFS, WARNA_UI } from '@/prefs';
-import { Blend, Check, ChevronDown, ChevronUp, LogOut, Monitor, Moon, NotebookTabs, Paintbrush, Palette, SquareMousePointer, Sun, Users } from '@/icons';
+import { Blend, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, LogOut, Monitor, Moon, NotebookTabs, Paintbrush, Palette, SquareMousePointer, Sun, Users } from '@/icons';
 import { useRibbonTable } from '@/components/RibbonTable';
 import { useRibbonSlotCtx } from '@/components/RibbonSlot';
 import { useTopBarSearchCtx } from '@/components/TopBarSearch';
@@ -48,9 +51,6 @@ const MODE_STRIP: { id: ModeName; nama: string; icon: typeof Sun }[] = [
   { id: 'gelap', nama: 'Gelap', icon: Moon },
   { id: 'sistem', nama: 'Sistem', icon: Monitor },
 ];
-
-/** Opsi tingkat global (tetap 1–12, universal lintas lembaga). */
-const TINGKAT_GLOBAL = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
 
 function pilihNilaiFilter(
   nilai: string,
@@ -102,8 +102,6 @@ export default function TopBar() {
   } = useLembagaAktif();
   const {
     tahunAjaranNames,
-    tahunAjaranNama,
-    tahunAjaran,
     pilihan: taPilihan,
     pilih: pilihTahunAjaran,
     pilihBanyak: pilihBanyakTahunAjaran,
@@ -111,7 +109,6 @@ export default function TopBar() {
   } = useTahunAjaranAktif();
   const {
     semesters,
-    semester,
     pilih: pilihSemester,
     pilihBanyak: pilihBanyakSemester,
     loading: semesterLoading,
@@ -119,8 +116,15 @@ export default function TopBar() {
 
   // Dropdown lembaga = filter (bebas diubah kapan pun, termasuk saat bertindak);
   // peran act-as diatur lewat menu akun (section "Peran sebagai") + banner.
-  const daftarLembaga = pilihan;
-  const { theme, mode, dark, iconSet, warnaUI, navigasi, setTheme, setMode, setIconSet, setWarnaUI, setNavigasi } = useTheme();
+  const urutanLembaga = ['MI', 'MD', 'MTS', 'MLN'];
+  const posisiLembaga = (value: string) => {
+    const index = urutanLembaga.indexOf(value);
+    return index === -1 ? urutanLembaga.length : index;
+  };
+  const daftarLembaga = [...pilihan].sort((a, b) => posisiLembaga(a.jenjang) - posisiLembaga(b.jenjang));
+  const classFilterLembaga = cn('mr-0', daftarLembaga.length === 1 ? 'w-[80px]' : 'w-[160px]');
+  const taPilihanTerurut = [...taPilihan].sort((a, b) => b.nama.localeCompare(a.nama, 'id', { numeric: true }));
+  const { theme, mode, dark, iconSet, warnaUI, navigasi, collapsed, setTheme, setMode, setCollapsed, setIconSet, setWarnaUI, setNavigasi } = useTheme();
   const picker = usePicker();
   const nav = useNavigate();
   const { pathname } = useLocation();
@@ -140,55 +144,16 @@ export default function TopBar() {
   const modeLembaga = filterMode?.lembaga ?? 'single';
   const modeTahunAjaran = filterMode?.tahun_ajaran ?? 'single';
   const modeSemester = filterMode?.semester ?? 'single';
-  const modeTingkat = filterMode?.tingkat ?? 'single';
-  const modeKelas = filterMode?.kelas ?? 'single';
   /** Registrasi halaman aktif (untuk dialog Kelola Halaman). */
   const registrasi = visCtx?.registrasi ?? null;
   const [kelolaHalamanOpen, setKelolaHalamanOpen] = useState(false);
-  /** Tingkat & Kelas kini filter global (setara lembaga/TA/semester). */
-  const { tingkat, pilih: pilihTingkat } = useTingkatAktif();
-  const { kelas, pilih: pilihKelas } = useKelasAktif();
-  // Opsi kelas global (nama) mengikuti lembaga+TA aktif; dimuat saat
-  // tingkat/kelas tampil (tingkat ikut diturunkan dari daftar ini).
-  const scopeMiMd = pathname === '/mi-md';
-  const scopeJenjang = useMemo(() => (scopeMiMd ? ['MI', 'MD'] : jenjangs), [scopeMiMd, jenjangs]);
-  const scopeTahunAjaran = tahunAjaranNames;
-  const [kelasDaftar, setKelasDaftar] = useState<Kelas[]>([]);
   useEffect(() => {
-    if ((!tampil.kelas && !tampil.tingkat) || scopeJenjang.length === 0 || scopeTahunAjaran.length === 0) {
-      setKelasDaftar([]);
-      return;
-    }
-    let hidup = true;
-    listKelas({ jenjang: scopeJenjang, tahun_ajaran: scopeTahunAjaran, per_page: 1000 })
-      .then((p) => { if (hidup) setKelasDaftar(p.data); })
-      .catch(() => { if (hidup) setKelasDaftar([]); });
-    return () => { hidup = false; };
-  }, [tampil.kelas, tampil.tingkat, scopeJenjang, scopeTahunAjaran]);
-  /** Opsi tingkat global = distinct tingkat kelas lembaga aktif (jatuh balik
-   *  ke 1–12 bila daftar kosong, mis. lembaga "Semua"). */
-  const tingkatOpsi = useMemo(() => {
-    const unik = new Set<string>();
-    for (const k of kelasDaftar) {
-      if (k.tingkat != null && String(k.tingkat) !== '') unik.add(String(k.tingkat));
-    }
-    const hasil = [...unik].sort((a, b) => a.localeCompare(b, 'id', { numeric: true }));
-    return hasil.length > 0 ? hasil : TINGKAT_GLOBAL;
-  }, [kelasDaftar]);
-  // Tingkat terpilih yang tak ada di lembaga aktif ikut dibuang.
-  useEffect(() => {
-    if (kelasDaftar.length === 0) return;
-    const valid = new Set(tingkatOpsi);
-    const next = tingkat.filter((x) => valid.has(x));
-    if (next.length !== tingkat.length) pilihTingkat(next);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kelasDaftar]);
-  const kelasOpsi = useMemo(() => {
-    const nama = kelasDaftar
-      .filter((k) => tingkat.length === 0 || (k.tingkat != null && tingkat.includes(String(k.tingkat))))
-      .map((k) => k.nama_kelas);
-    return [...new Set(nama)].sort((a, b) => a.localeCompare(b, 'id', { numeric: true }));
-  }, [kelasDaftar, tingkat]);
+    const bukaKelolaHalaman = () => {
+      if (registrasi && efektifSuper) setKelolaHalamanOpen(true);
+    };
+    window.addEventListener(EVENT_KELOLA_HALAMAN, bukaKelolaHalaman);
+    return () => window.removeEventListener(EVENT_KELOLA_HALAMAN, bukaKelolaHalaman);
+  }, [efektifSuper, registrasi]);
   function pilihLembagaNilai(v: string) {
     pilihNilaiFilter(v, jenjangs, modeLembaga, pilihBanyakLembaga, pilihLembaga);
   }
@@ -202,27 +167,6 @@ export default function TopBar() {
     }
     pilihNilaiFilter(v, semesters, modeSemester, pilihBanyakSemester);
   }
-  function pilihTingkatNilai(v: string) {
-    const next = modeTingkat === 'single'
-      ? [v]
-      : tingkat.includes(v) ? tingkat.filter((x) => x !== v) : [...tingkat, v];
-    pilihTingkat(next);
-    if (kelasDaftar.length > 0) {
-      const valid = new Set(
-        kelasDaftar
-          .filter((k) => next.length === 0 || (k.tingkat != null && next.includes(String(k.tingkat))))
-          .map((k) => k.nama_kelas),
-      );
-      const kelasNext = kelas.filter((x) => valid.has(x));
-      if (kelasNext.length !== kelas.length) pilihKelas(kelasNext);
-    }
-  }
-  function pilihKelasNilai(v: string) {
-    pilihKelas(modeKelas === 'single'
-      ? [v]
-      : kelas.includes(v) ? kelas.filter((x) => x !== v) : [...kelas, v]);
-  }
-
   const halaman = halamanDariPath(pathname);
   const [toolsTampil, setToolsTampil] = useState(true);
   const [tabTools, setTabTools] = useState<'halaman' | 'tabel'>('halaman');
@@ -242,6 +186,18 @@ export default function TopBar() {
   useEffect(() => {
     prefGet(TOOLS_TAMPIL_KEY).then((v) => setToolsTampil(v !== '0')).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (navigasi !== 'sidebar') return;
+    function onKey(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
+        e.preventDefault();
+        setCollapsed(!collapsed);
+      }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [collapsed, navigasi, setCollapsed]);
 
   // Jaga tab aktif tetap valid saat ketersediaan tools berubah (navigasi).
   // Halaman tanpa tools sama sekali tidak menyentuh state (hindari bolak-balik).
@@ -278,22 +234,55 @@ export default function TopBar() {
     nav('/login', { replace: true });
   }
 
+  const bolehKelolaHalaman = !!registrasi && efektifSuper;
+
   return (
-    <header
-      className="shrink-0 border-b border-white/10 text-white"
-      style={{ background: 'linear-gradient(90deg, var(--sidebar-deep), var(--sidebar))' }}
-    >
+    <ContextMenu>
+      <ContextMenuTrigger asChild disabled={!bolehKelolaHalaman}>
+        <header
+          className="shrink-0 border-b border-white/10 text-white"
+          style={{ background: 'linear-gradient(90deg, var(--sidebar-deep), var(--sidebar))' }}
+        >
       {/* Judul halaman untuk pembaca layar (visual tampil di bar judul). */}
       <h1 id="judul_halaman_aktif" className="sr-only">
         {halaman?.label ?? 'SIMPES Admin'}
       </h1>
 
       {/* Baris 1: judul halaman (kiri) + area akun (kanan). */}
-      <div className="flex items-center gap-2 px-3 py-1.5 md:px-5">
+      <div className="flex items-center gap-2 py-1.5 pl-1 pr-3 md:pr-5">
+        {navigasi === 'sidebar' && (
+          <button
+            id="btn_lipat_sidebar"
+            type="button"
+            title={collapsed ? 'Buka navigasi (Ctrl/Cmd+B)' : 'Lipat navigasi (Ctrl/Cmd+B)'}
+            aria-label={collapsed ? 'Buka navigasi' : 'Lipat navigasi'}
+            aria-expanded={!collapsed}
+            onClick={() => setCollapsed(!collapsed)}
+            className="mr-1 grid h-6 w-[42px] shrink-0 place-items-center rounded-md text-white/75 transition-colors hover:bg-white/10 hover:text-white"
+          >
+            {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+          </button>
+        )}
         {!searchAda && (
           <span id="judul_bar_halaman" className="truncate text-sm font-semibold">
             {halaman?.label ?? 'SIMPES Admin'}
           </span>
+        )}
+        {adaTools && (
+          <button
+            id="btn_tampil_tools"
+            type="button"
+            title={toolsTampil ? 'Sembunyikan toolbar' : 'Tampilkan toolbar'}
+            aria-label={toolsTampil ? 'Sembunyikan toolbar' : 'Tampilkan toolbar'}
+            aria-pressed={toolsTampil}
+            onClick={togolTools}
+            className={cn(
+              'mr-1 grid h-6 w-[42px] place-items-center rounded-md text-white/75 transition-colors hover:bg-white/10 hover:text-white',
+              toolsTampil && 'bg-white/15 text-white',
+            )}
+          >
+            {toolsTampil ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </button>
         )}
         {/* Pencarian tunggal halaman (portal) — menggantikan judul saat ada. */}
         <div ref={searchHostRef} className={cn('flex min-w-0 items-center', searchAda && 'w-[150px] shrink-0')} />
@@ -301,104 +290,71 @@ export default function TopBar() {
         <div data-part="area_akun" className="ml-2 flex min-w-0 flex-1 items-center gap-0.5">
           {/* Perenggang kiri: mendorong filter global ke tengah bar. */}
           <div aria-hidden="true" className="min-w-0 flex-1" />
-          {tampil.lembaga && !lembagaLoading && (adaSemua || banyakPilihan) && daftarLembaga.length > 0 && (
-            <FilterDropdown
+          <div className="flex min-w-0 items-center gap-0 rounded-md border border-white/15 bg-white/5 p-0.5 empty:hidden">
+            {tampil.lembaga && (adaSemua || banyakPilihan) && daftarLembaga.length > 0 && (
+            <FilterToggleGroup
               id="btn_menu_lembaga_aktif"
               idSemua="menu_lembaga_aktif_semua"
               ariaLabel="Pilih lembaga aktif"
-              title="Lembaga aktif"
               label="Lembaga"
               mode={modeLembaga}
               opsi={daftarLembaga.map((l) => ({
                 nilai: l.jenjang,
-                label: `${l.jenjang} — ${l.nama}`,
+                label: l.jenjang,
                 id: `menu_lembaga_aktif_${l.jenjang}`,
               }))}
               dipilih={nilaiDropdown(jenjangs, modeLembaga)}
-              labelTerpilih={lembaga?.jenjang ?? 'Semua'}
-              tampilSemua={adaSemua}
+              tampilkanSemua={false}
+              className={classFilterLembaga}
+              itemClassName="min-w-0 flex-1 shrink"
               onPilih={pilihLembagaNilai}
               onSemua={() => pilihLembaga(null)}
+              disabled={lembagaLoading}
             />
           )}
-          {tampil.tahun_ajaran && !taLoading && taPilihan.length > 0 && (
-            <FilterDropdown
+          {tampil.tahun_ajaran && taPilihanTerurut.length > 0 && (
+            <FilterSelect
               id="btn_menu_tahun_ajaran_aktif"
               idSemua="menu_ta_aktif_semua"
               ariaLabel="Pilih tahun ajaran aktif"
               title="Tahun ajaran aktif"
               label="Tahun Ajaran"
               mode={modeTahunAjaran}
-              opsi={taPilihan.map((t) => ({
+              opsi={taPilihanTerurut.map((t) => ({
                 nilai: t.nama,
                 label: t.nama,
                 id: `menu_ta_aktif_${t.nama.replace(/[^0-9]/g, '')}`,
               }))}
               dipilih={nilaiDropdown(tahunAjaranNames, modeTahunAjaran)}
-              labelTerpilih={tahunAjaran?.nama ?? 'Semua'}
               onPilih={pilihTahunAjaranNilai}
               onSemua={() => pilihTahunAjaran(null)}
+              disabled={taLoading}
             />
           )}
-          {tampil.semester && !semesterLoading && (
-            <FilterDropdown
+          {tampil.semester && (
+            <FilterToggleGroup
               id="btn_menu_semester_aktif"
               idSemua="menu_semester_aktif_semua"
               ariaLabel="Pilih semester aktif"
-              title="Semester aktif"
               label="Semester"
               mode={modeSemester}
               opsi={(['1', '2'] as const).map((s) => ({
                 nilai: s,
-                label: `Semester ${s}${s === '1' ? ' (Ganjil)' : ' (Genap)'}`,
+                label: s === '1' ? 'Ganjil' : 'Genap',
                 id: `menu_semester_aktif_${s}`,
               }))}
               dipilih={nilaiDropdown(semesters, modeSemester)}
-              labelTerpilih={semester === null ? 'Semua' : `Semester ${semester}`}
+              tampilkanSemua={false}
+              className="mr-0 w-[160px]"
+              itemClassName="min-w-0 flex-1 shrink"
               onPilih={pilihSemesterNilai}
               onSemua={() => pilihSemester(null)}
+              disabled={semesterLoading}
             />
           )}
-          {tampil.tingkat && (
-            <FilterDropdown
-              id="filter_tingkat_global"
-              label="Tingkat"
-              mode={modeTingkat}
-              opsi={tingkatOpsi.map((nilai) => ({ nilai, label: nilai }))}
-              dipilih={nilaiDropdown(tingkat, modeTingkat)}
-              onPilih={pilihTingkatNilai}
-              onSemua={() => pilihTingkat([])}
-            />
-          )}
-          {tampil.kelas && (
-            <FilterDropdown
-              id="filter_kelas_global"
-              label="Kelas"
-              mode={modeKelas}
-              opsi={kelasOpsi.map((nilai) => ({ nilai, label: nilai }))}
-              dipilih={nilaiDropdown(kelas, modeKelas)}
-              onPilih={pilihKelasNilai}
-              onSemua={() => pilihKelas([])}
-            />
-          )}
+          </div>
           {/* Perenggang kanan: filter global tetap di tengah; akun di kanan. */}
           <div aria-hidden="true" className="min-w-0 flex-1" />
-          {adaTools && (
-            <button
-              id="btn_tampil_tools"
-              type="button"
-              title={toolsTampil ? 'Sembunyikan toolbar' : 'Tampilkan toolbar'}
-              aria-label={toolsTampil ? 'Sembunyikan toolbar' : 'Tampilkan toolbar'}
-              aria-pressed={toolsTampil}
-              onClick={togolTools}
-              className={cn(
-                'mr-1 grid h-6 w-14 place-items-center rounded-md text-white/75 transition-colors hover:bg-white/10 hover:text-white',
-                toolsTampil && 'bg-white/15 text-white',
-              )}
-            >
-              {toolsTampil ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-            </button>
-          )}
           <button
             id="btn_pilih_komponen_global"
             type="button"
@@ -629,6 +585,18 @@ export default function TopBar() {
           filterBawaan={registrasi.bawaan}
         />
       )}
-    </header>
+        </header>
+      </ContextMenuTrigger>
+      {bolehKelolaHalaman ? (
+        <ContextMenuContent>
+          <ContextMenuItem
+            id="menu_kelola_halaman"
+            onSelect={() => window.dispatchEvent(new CustomEvent(EVENT_KELOLA_HALAMAN))}
+          >
+            <NotebookTabs data-icon="inline-start" size={16} /> Kelola Halaman
+          </ContextMenuItem>
+        </ContextMenuContent>
+      ) : null}
+    </ContextMenu>
   );
 }

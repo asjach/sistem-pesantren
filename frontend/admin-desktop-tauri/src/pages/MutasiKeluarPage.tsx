@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { PanelSize } from 'react-resizable-panels';
 import { useAuth } from '../auth/AuthContext';
 import { bisa } from '../api/auth';
 import { errorMessage } from '../api/client';
@@ -31,10 +32,22 @@ const FIELDS_AKTIF: ExcelField[] = [
 
 /** Kolom tabel kanan (arsip mutasi keluar). */
 const FIELDS_ARSIP: ExcelField[] = [
-  { key: 'santri', label: 'santri.nama_lengkap', kind: 'static', sumber: { tabel: 'santri', kolom: 'nama_lengkap' } },
-  { key: 'tanggal', label: 'tanggal_mutasi', kind: 'static', sumber: { tabel: 'mutasi_keluar', kolom: 'tanggal_mutasi' } },
-  { key: 'alasan', label: 'alasan_mutasi', kind: 'static', sumber: { tabel: 'mutasi_keluar', kolom: 'alasan_mutasi' } },
-  { key: 'tujuan', label: 'nama_sekolah_tujuan', kind: 'static', sumber: { tabel: 'mutasi_keluar', kolom: 'nama_sekolah_tujuan' } },
+  { key: 'id', label: 'ID Mutasi', kind: 'static', width: 90, sumber: { tabel: 'mutasi_keluar', kolom: 'id' } },
+  { key: 'santri_id', label: 'ID Santri', kind: 'static', width: 90, sumber: { tabel: 'mutasi_keluar', kolom: 'santri_id' } },
+  { key: 'santri', label: 'Nama Santri', kind: 'static', width: 200, sumber: { tabel: 'santri', kolom: 'nama_lengkap' } },
+  { key: 'jenjang', label: 'Jenjang', kind: 'static', width: 80, sumber: { tabel: 'mutasi_keluar', kolom: 'jenjang' } },
+  { key: 'kelas_terakhir_id', label: 'ID Kelas Terakhir', kind: 'static', width: 120, sumber: { tabel: 'mutasi_keluar', kolom: 'kelas_terakhir_id' } },
+  { key: 'kelas_terakhir', label: 'Kelas Terakhir', kind: 'static', width: 140, sumber: { tabel: 'kelas', kolom: 'nama_kelas' } },
+  { key: 'tanggal', label: 'Tanggal Mutasi', kind: 'static', width: 140, sumber: { tabel: 'mutasi_keluar', kolom: 'tanggal_mutasi' } },
+  { key: 'alasan', label: 'Alasan Mutasi', kind: 'static', width: 220, sumber: { tabel: 'mutasi_keluar', kolom: 'alasan_mutasi' } },
+  { key: 'no_surat', label: 'No. Surat', kind: 'static', width: 140, sumber: { tabel: 'mutasi_keluar', kolom: 'no_surat' } },
+  { key: 'tujuan', label: 'Nama Sekolah Tujuan', kind: 'static', width: 220, sumber: { tabel: 'mutasi_keluar', kolom: 'nama_sekolah_tujuan' } },
+  { key: 'npsn_sekolah_tujuan', label: 'NPSN Sekolah Tujuan', kind: 'static', width: 170, sumber: { tabel: 'mutasi_keluar', kolom: 'npsn_sekolah_tujuan' } },
+  { key: 'nsm_sekolah_tujuan', label: 'NSM Sekolah Tujuan', kind: 'static', width: 170, sumber: { tabel: 'mutasi_keluar', kolom: 'nsm_sekolah_tujuan' } },
+  { key: 'alamat_sekolah_tujuan', label: 'Alamat Sekolah Tujuan', kind: 'static', width: 280, sumber: { tabel: 'mutasi_keluar', kolom: 'alamat_sekolah_tujuan' } },
+  { key: 'keterangan', label: 'Keterangan', kind: 'static', width: 240, sumber: { tabel: 'mutasi_keluar', kolom: 'keterangan' } },
+  { key: 'created_at', label: 'Dibuat', kind: 'static', width: 190, sumber: { tabel: 'mutasi_keluar', kolom: 'created_at' } },
+  { key: 'updated_at', label: 'Diperbarui', kind: 'static', width: 190, sumber: { tabel: 'mutasi_keluar', kolom: 'updated_at' } },
 ];
 
 export default function MutasiKeluarPage() {
@@ -47,6 +60,7 @@ export default function MutasiKeluarPage() {
    } = useFilterGlobalAktif();
 
   const [kiri, setKiri] = useState<RiwayatRow[]>([]);
+  const [santriAktifTampil, setSantriAktifTampil] = useState(true);
   const [arsip, setArsip] = useState<MutasiKeluar[]>([]);
   const [alasanOpsi, setAlasanOpsi] = useState<{ value: string; label: string }[]>([]);
   const [err, setErr] = useState('');
@@ -75,6 +89,11 @@ export default function MutasiKeluarPage() {
   const [fileMutasi, setFileMutasi] = useState<File | null>(null);
   const [hasilFile, setHasilFile] = useState<ImportMutasiHasil | null>(null);
   const [fileBusy, setFileBusy] = useState(false);
+
+  const onResizeSantriAktif = useCallback((size: PanelSize) => {
+    const tampil = size.asPercentage > 0;
+    setSantriAktifTampil((current) => current === tampil ? current : tampil);
+  }, []);
 
   const loadKiri = useCallback(async () => {
     if (filterLoading || jenjangs.length === 0) { setKiri([]); return; }
@@ -165,59 +184,78 @@ export default function MutasiKeluarPage() {
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari santri…" />
       <PengaturanHalaman tampil={{ tingkat: true, kelas: true }} tabel={[{ key: 'mutasi_santri_aktif', judul: 'Santri aktif', fields: FIELDS_AKTIF }, { key: 'mutasi_arsip', judul: 'Arsip mutasi keluar', fields: FIELDS_ARSIP }]} />
       <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1" id="grup_mutasi_kolom">
-        <ResizablePanel defaultSize="33" minSize="20">
-        <section className="flex h-full min-h-0 min-w-0 flex-col rounded-md">
-          <header className="shrink-0 border-b bg-muted/40 px-3 py-2 text-sm font-medium">Santri aktif ({kiriTampil.length})</header>
-          <div className="flex min-h-0 flex-1 flex-col px-2 pb-2">
-            <ExcelTable
-              tableKey="mutasi_santri_aktif"
-              fields={FIELDS_AKTIF}
-              rows={kiriTampil}
-              getValues={(r) => ({ nama: r.santri?.nama_lengkap ?? null, kelas: r.kelas?.nama_kelas ?? null })}
-              canEdit={false}
-              onCommit={async () => {}}
-              onSaved={() => {}}
-              renderActions={(r) => (
-                bisa(user, 'mutasi_keluar.ubah') ? (
-                  <ActionIcon
-                    id={`btn_mutasi_${r.id}`}
-                    title="Mutasi keluar"
-                    onClick={() => { setBaris(r); setTanggal(''); setAlasan(''); setNoSurat(''); setTujuan(''); setNpsn(''); setNsm(''); setKeterangan(''); }}
-                  >
-                    <ArrowRight size={16} />
-                  </ActionIcon>
-                ) : null
-              )}
-              hideCheckbox
-              emptyText="Pilih lembaga dulu."
-            />
-          </div>
-        </section>
+        <ResizablePanel
+          id="panel_mutasi_santri_aktif"
+          defaultSize="33"
+          minSize="20"
+          collapsible
+          collapsedSize="0%"
+          onResize={onResizeSantriAktif}
+        >
+          {santriAktifTampil ? (
+            <section className="flex h-full min-h-0 min-w-0 flex-col rounded-md">
+              <div className="flex min-h-0 flex-1 flex-col px-2 pb-2">
+                <ExcelTable
+                  tableKey="mutasi_santri_aktif"
+                  header={<span>Santri aktif ({kiriTampil.length})</span>}
+                  fields={FIELDS_AKTIF}
+                  rows={kiriTampil}
+                  getValues={(r) => ({ nama: r.santri?.nama_lengkap ?? null, kelas: r.kelas?.nama_kelas ?? null })}
+                  canEdit={false}
+                  onCommit={async () => {}}
+                  onSaved={() => {}}
+                  renderActions={(r) => (
+                    bisa(user, 'mutasi_keluar.ubah') ? (
+                      <ActionIcon
+                        id={`btn_mutasi_${r.id}`}
+                        title="Mutasi keluar"
+                        onClick={() => { setBaris(r); setTanggal(''); setAlasan(''); setNoSurat(''); setTujuan(''); setNpsn(''); setNsm(''); setKeterangan(''); }}
+                      >
+                        <ArrowRight size={16} />
+                      </ActionIcon>
+                    ) : null
+                  )}
+                  hideCheckbox
+                  emptyText="Pilih lembaga dulu."
+                />
+              </div>
+            </section>
+          ) : null}
         </ResizablePanel>
 
         <ResizableHandle orientation="horizontal" withHandle id="gagang_mutasi_kolom" />
 
         <ResizablePanel defaultSize="67" minSize="20">
         <section className="flex h-full min-h-0 min-w-0 flex-col rounded-md">
-          <header className="flex shrink-0 items-center justify-between border-b bg-muted/40 px-3 py-2 text-sm font-medium">
-            <span>Arsip mutasi keluar</span>
-            {canImportMutasi && (
-              <Button id="btn_buka_import_mutasi" size="sm" variant="outline" disabled={filterLoading || jenjangs.length === 0}
-                onClick={() => { setFileMutasi(null); setHasilFile(null); setFileOpen(true); }}>
-                <FileUp data-icon="inline-start" size={16} /> Import
-              </Button>
-            )}
-          </header>
           <div className="flex min-h-0 flex-1 flex-col px-2 pb-2">
             <ExcelTable
-              tableKey="mutasi_arsip"
-              fields={FIELDS_ARSIP}
+               tableKey="mutasi_arsip"
+                header={<span>Arsip mutasi keluar</span>}
+                addButton={canImportMutasi ? (
+                  <Button id="btn_buka_import_mutasi" size="sm" variant="outline" disabled={filterLoading || jenjangs.length === 0}
+                    onClick={() => { setFileMutasi(null); setHasilFile(null); setFileOpen(true); }}>
+                    <FileUp data-icon="inline-start" size={16} /> Import
+                  </Button>
+                ) : undefined}
+                fields={FIELDS_ARSIP}
               rows={arsip}
               getValues={(m) => ({
+                id: String(m.id),
+                santri_id: String(m.santri_id),
                 santri: m.santri?.nama_lengkap ?? '—',
+                jenjang: m.jenjang ?? '—',
+                kelas_terakhir_id: m.kelas_terakhir_id == null ? '—' : String(m.kelas_terakhir_id),
+                kelas_terakhir: m.kelas_terakhir?.nama_kelas ?? '—',
                 tanggal: m.tanggal_mutasi?.slice(0, 10) ?? '—',
                 alasan: m.alasan_mutasi ?? '—',
+                no_surat: m.no_surat ?? '—',
                 tujuan: m.nama_sekolah_tujuan ?? '—',
+                npsn_sekolah_tujuan: m.npsn_sekolah_tujuan ?? '—',
+                nsm_sekolah_tujuan: m.nsm_sekolah_tujuan ?? '—',
+                alamat_sekolah_tujuan: m.alamat_sekolah_tujuan ?? '—',
+                keterangan: m.keterangan ?? '—',
+                created_at: m.created_at ?? '—',
+                updated_at: m.updated_at ?? '—',
               })}
               urutAktif={urut}
               arahUrut={arahUrut}
@@ -227,9 +265,8 @@ export default function MutasiKeluarPage() {
               onSaved={() => {}}
               renderActions={() => null}
               hideCheckbox
-              hideActions
-              hidePreset
-              emptyText="Belum ada arsip mutasi."
+               hideActions
+               emptyText="Belum ada arsip mutasi."
             />
           </div>
           <Pager page={pager.page} lastPage={lastPage} total={total} perPage={pager.perPage} onPage={(p) => { pager.setPage(p); void loadArsip(p); }} onPerPage={(pp) => { pager.setPerPage(pp); void loadArsip(1, pp); }} />

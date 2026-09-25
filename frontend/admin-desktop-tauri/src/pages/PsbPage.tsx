@@ -757,32 +757,32 @@ export default function PsbPage() {
         onUrut={terapkanUrut}
         onCreateRow={stage === 'pendaftar' && canTambahPsb ? createRow : undefined}
         inputRowValues={{ lembaga: lembagaTerpilih }}
+        addButton={stage === 'pendaftar' && canTambahPsb ? (
+          <>
+            <Button
+              id="btn_buka_tambah_pendaftar"
+              size="sm"
+              onClick={() => { resetTambah(); setTambahOpen(true); }}
+            >
+              <PlusCircle data-icon="inline-start" size={16} /> Tambah
+            </Button>
+            <Button
+              id="btn_buka_import_psb"
+              size="sm"
+              variant="outline"
+              onClick={() => setImportOpen(true)}
+            >
+              <Upload data-icon="inline-start" size={16} /> Import
+            </Button>
+          </>
+        ) : undefined}
         filter={(
           <>
-            {stage === 'pendaftar' && canTambahPsb && (
-              <>
-                <Button
-                  id="btn_buka_tambah_pendaftar"
-                  size="sm"
-                  onClick={() => { resetTambah(); setTambahOpen(true); }}
-                >
-                  <PlusCircle data-icon="inline-start" size={16} /> Tambah
-                </Button>
-                <Button
-                  id="btn_buka_import_psb"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setImportOpen(true)}
-                >
-                  <Upload data-icon="inline-start" size={16} /> Import
-                </Button>
-              </>
-            )}
             {stage === 'pendaftar' && (
               <FilterField label="Status pendaftar" htmlFor="select_substatus_pendaftar">
               <Select
                 value={subStatus === '' ? '_semua' : subStatus}
-                onValueChange={(v) => { setSubStatus(v === '_semua' ? '' : v); pager.goFirst(); }}
+                onValueChange={(v) => { setSubStatus(v); pager.goFirst(); }}
               >
                 <SelectTrigger id="select_substatus_pendaftar" title="Filter status pendaftar" aria-label="Filter status pendaftar" size="sm" className="w-44">
                   <SelectValue />

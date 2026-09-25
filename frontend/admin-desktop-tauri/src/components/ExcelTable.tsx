@@ -16,6 +16,7 @@ import { buttonVariants } from '@/components/ui/button';
 import { DEFAULT_FONT_PX, DEFAULT_HEADER_H, FONT_FAMILY_DEFAULT, FONT_OPTIONS, MAX_HEADER_H, useGridPrefs, type AlignName } from '@/components/GridPrefs';
 import { useStandarTampilan } from '@/standarTampilan';
 import { useLembagaAktif } from '@/lembagaAktif';
+import { EVENT_KELOLA_HALAMAN, useVisibilitasFilter } from '@/components/VisibilitasFilter';
 import PresetKolom, { type PresetKolomApi } from '@/components/PresetKolom';
 import PresetUrut from '@/components/PresetUrut';
 import { muatToolbarPreset, simpanToolbarPreset } from '@/api/toolbarPreset';
@@ -28,6 +29,8 @@ import { type KamusKolomAttr } from '@/api/kamusLabel';
 import { useRibbonTable } from '@/components/RibbonTable';
 import {
   ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
 import { ActionIcon } from '@/components/RowActions';
@@ -37,7 +40,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Pencil, PlusCircle, Save } from '@/icons';
+import { NotebookTabs, Pencil, PlusCircle, Save } from '@/icons';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -87,6 +90,7 @@ import { bersihkanProbe, measureActionsWidth } from './excel/measure';
 import { ukurAutoFit } from './excel/autofit';
 import { useAntreanSimpan } from './excel/useAntreanSimpan';
 import ToolbarTabel from './excel/toolbar';
+import MenuAksiToolbar from '@/components/MenuAksiToolbar';
 import { ActionsCell, flattenAksi } from './excel/actions';
 import MenuKonteksGrid from './excel/konteksMenu';
 import type { AksiMenu, CheckAllState, ExcelField, GridRow, GridSelection } from './excel/types';
@@ -125,8 +129,6 @@ interface ExcelTableProps<T extends { id: string | number }> {
   /** Label info halaman di zona tengah toolbar (baris 1; baris 2 = seleksi). */
   tengah?: ReactNode;
   header?: ReactNode;
-  presetKolomDiHeader?: boolean;
-  presetUrutDiHeader?: boolean;
   /** Kontrol di awal toolbar (mis. pemilih
    *  tabel pada halaman Kamus Label). */
   awalanToolbar?: ReactNode;
@@ -163,6 +165,35 @@ interface ExcelTableProps<T extends { id: string | number }> {
   /** Tabel database utama grid ini: kolom tanpa `sumber` dianggap berasal dari
    *  tabel ini (nama kolom = key-nya), kecuali `sumber: null`. */
   sumberTabel?: string;
+}
+
+const JUDUL_TABEL: Record<string, string> = {
+  santri: 'Santri',
+  keanggotaan: 'Keanggotaan',
+  users: 'Pengguna',
+  tahun_ajaran: 'Tahun Ajaran',
+  lembaga: 'Lembaga',
+  kelas: 'Kelas',
+  riwayat_belajar: 'Riwayat Belajar',
+  daftar_kelas: 'Daftar Kelas',
+  kenaikan_santri_genap: 'Santri Semester Genap',
+  mi_md_mi: 'MI Only',
+  mi_md_md: 'MD Semua',
+  mi_md_beda: 'Perbandingan Kelas',
+  mutasi_arsip: 'Arsip Mutasi',
+  kelulusan_alumni: 'Alumni',
+  pengajuan_biodata: 'Pengajuan Biodata',
+  psb: 'PSB',
+  pegawai: 'Pegawai',
+  dokumen_wajib: 'Dokumen Wajib',
+  kamus_label_kolom: 'Kamus Label',
+};
+
+function judulTabel(tableKey: string): string {
+  const khusus = JUDUL_TABEL[tableKey];
+  if (khusus) return khusus;
+  const teks = tableKey.replace(/[_-]+/g, ' ').trim();
+  return teks ? `${teks.charAt(0).toUpperCase()}${teks.slice(1)}` : 'Tabel';
 }
 
 
@@ -211,8 +242,6 @@ export default function ExcelTable<T extends { id: string | number }>({
   filter,
   tengah,
   header,
-  presetKolomDiHeader = false,
-  presetUrutDiHeader = false,
   awalanToolbar,
   akhirToolbar,
   addButton,
@@ -263,6 +292,8 @@ export default function ExcelTable<T extends { id: string | number }>({
   const presetApiRef = useRef<PresetKolomApi | null>(null);
   /** Geser urutan kolom = super_admin EFEKTIF (global; mati saat bertindak). */
   const { efektifSuper: bolehGeser } = useLembagaAktif();
+  const visHalaman = useVisibilitasFilter();
+  const bolehKelolaHalaman = !!visHalaman?.registrasi && bolehGeser;
   /** Visibilitas kontrol toolbar generik (tab Toolbar dialog Kelola Halaman). */
   const [visToolbar, setVisToolbar] = useState<VisToolbar>({ info: true, urut: true, kolom: true, filter: true });
   /** Lebar efektif kontrol berlebar (px); nilai awal = bawaan meski belum tersimpan. */
@@ -1925,8 +1956,16 @@ export default function ExcelTable<T extends { id: string | number }>({
 
   const hasFilter = filter !== undefined;
   const hasUrut = !!onUrut;
-  const filterEfektif = visToolbar.filter && hasFilter;
-  const showToolbar = filterEfektif || (hasUrut && !presetUrutDiHeader) || awalanToolbar !== undefined || akhirToolbar !== undefined || checkedRows.length > 0;
+  const filterTampil = visToolbar.filter && hasFilter;
+  const urutTampil = visToolbar.urut && hasUrut;
+  const kolomTampil = visToolbar.kolom && !hidePreset;
+  const headerKontrolTampil = filterTampil || urutTampil || kolomTampil || (addButton !== undefined && addButton !== null);
+  const headerTampil = header !== undefined || headerKontrolTampil;
+  const judulHeader = header ?? judulTabel(tableKey);
+  const showToolbar = (visToolbar.info && tengah !== undefined && tengah !== null)
+    || checkedRows.length > 0
+    || awalanToolbar !== undefined
+    || akhirToolbar !== undefined;
 
   // Data context menu per area (header kolom / baris).
   const ctxHeader = ctx.area === 'header' ? ctx : null;
@@ -1947,64 +1986,68 @@ export default function ExcelTable<T extends { id: string | number }>({
   return (
     <div className={cn(
       'flex flex-col',
-      header === undefined && 'mt-2',
+      !headerTampil && 'mt-2',
       maxRows === undefined ? 'min-h-0 flex-1' : 'shrink-0',
     )}>
-      {header !== undefined ? (
-        <div className="flex shrink-0 items-center justify-between gap-2 border-b bg-muted/40 px-3 py-2 text-sm font-medium">
-          <div className="min-w-0 truncate">{header}</div>
-          <div className="flex shrink-0 items-center gap-2">
-            {presetUrutDiHeader && visToolbar.urut && onUrut ? (
-              <PresetUrut
-                tableKey={tableKey}
-                urutAktif={urutAktif}
-                arahUrut={arahUrut}
-                onUrut={onUrut}
-                wrapperClassName="flex-row items-center gap-1.5"
-                lebarTrigger={lebarToolbar.urut}
-              />
-            ) : null}
-            {presetKolomDiHeader && visToolbar.kolom && !hidePreset ? (
-              <PresetKolom
-                tableKey={tableKey}
-                fields={fields}
-                onApply={terapkanPreset}
-                apiRef={presetApiRef}
-                triggerClassName={presetKolomClassName}
-                wrapperClassName="flex-row items-center gap-1.5"
-                lebarTrigger={lebarKolomDb}
-              />
-            ) : null}
-          </div>
-        </div>
-      ) : null}
       <KonteksLebarFilter.Provider value={konteksLebarFilter}>
-      <ToolbarTabel
-        tableKey={tableKey}
-        showToolbar={showToolbar}
-        hidePreset={hidePreset || presetKolomDiHeader}
-        awalanToolbar={awalanToolbar}
-        akhirToolbar={akhirToolbar}
-        addButton={addButton}
-        filter={filter}
-        hasFilter={hasFilter}
-        tengah={tengah}
-        checkedCount={checkedIds.size}
-        checkedRows={checkedRows}
-        renderBulkActions={renderBulkActions}
-        clearSelection={clearSelection}
-        onUrut={onUrut}
-        presetUrutDiHeader={presetUrutDiHeader}
-        urutAktif={urutAktif}
-        arahUrut={arahUrut}
-        fields={fields}
-        terapkanPreset={terapkanPreset}
-        presetApiRef={presetApiRef}
-        presetKolomClassName={presetKolomClassName}
-        visToolbar={visToolbar}
-        lebarToolbar={lebarToolbar}
-        lebarKolomDb={lebarKolomDb}
-      />
+        {headerTampil ? (
+          <ContextMenu>
+            <ContextMenuTrigger asChild disabled={!bolehKelolaHalaman}>
+              <div data-part="header_tabel" className="flex shrink-0 items-center justify-between gap-2 border-b bg-muted/40 px-3 py-2 text-sm font-medium">
+            <div className="min-w-0 flex-1 truncate">{judulHeader}</div>
+            <div className="ml-auto flex min-w-0 flex-1 items-center justify-end gap-2">
+              <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
+                {filterTampil ? <div className="flex items-center gap-1.5 [&>*]:shrink-0">{filter}</div> : null}
+                {urutTampil ? (
+                  <PresetUrut
+                    tableKey={tableKey}
+                    urutAktif={urutAktif}
+                    arahUrut={arahUrut}
+                    onUrut={onUrut}
+                    wrapperClassName="flex-row items-center gap-1.5"
+                    lebarTrigger={lebarToolbar.urut}
+                  />
+                ) : null}
+                {kolomTampil ? (
+                  <PresetKolom
+                    tableKey={tableKey}
+                    fields={fields}
+                    onApply={terapkanPreset}
+                    apiRef={presetApiRef}
+                    triggerClassName={presetKolomClassName}
+                    wrapperClassName="flex-row items-center gap-1.5"
+                    lebarTrigger={lebarKolomDb}
+                  />
+                ) : null}
+              </div>
+              {addButton ? <div className="shrink-0"><MenuAksiToolbar triggerId={`btn_aksi_${tableKey}`}>{addButton}</MenuAksiToolbar></div> : null}
+              </div>
+            </div>
+            </ContextMenuTrigger>
+            {bolehKelolaHalaman ? (
+              <ContextMenuContent>
+                <ContextMenuItem
+                  id={`menu_kelola_halaman_${tableKey}`}
+                  onSelect={() => window.dispatchEvent(new CustomEvent(EVENT_KELOLA_HALAMAN))}
+                >
+                  <NotebookTabs data-icon="inline-start" size={16} /> Kelola Halaman
+                </ContextMenuItem>
+              </ContextMenuContent>
+            ) : null}
+          </ContextMenu>
+        ) : null}
+        <ToolbarTabel
+          tableKey={tableKey}
+          showToolbar={showToolbar}
+          awalanToolbar={awalanToolbar}
+          akhirToolbar={akhirToolbar}
+          tengah={tengah}
+          checkedCount={checkedIds.size}
+          checkedRows={checkedRows}
+          renderBulkActions={renderBulkActions}
+          clearSelection={clearSelection}
+          visToolbar={visToolbar}
+        />
       </KonteksLebarFilter.Provider>
 
       <div
@@ -2030,7 +2073,7 @@ export default function ExcelTable<T extends { id: string | number }>({
           // Grid full-bleed: menempel tepi kiri-kanan area konten (imbangi padding
           // layout p-1) tanpa sudut membulat; toolbar tetap berpadding.
           'simpes-dsg relative flex flex-col',
-          header === undefined && '-mx-1',
+          !headerTampil && '-mx-1',
           maxRows === undefined ? 'min-h-[280px] flex-1' : 'shrink-0',
           !editing && 'simpes-dsg-readonly',
         )}

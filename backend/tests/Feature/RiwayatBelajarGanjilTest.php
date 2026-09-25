@@ -299,6 +299,64 @@ class RiwayatBelajarGanjilTest extends TestCase
         $this->assertSame([], $ids($res));
     }
 
+    public function test_filter_is_active_riwayat_semua(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeUser();
+        $aktif = $this->makeAnggota('Aktif', $f['mi']->jenjang);
+        RiwayatBelajar::create([
+            'santri_id' => $aktif->id, 'tahun_ajaran' => $f['ta']->nama, 'jenjang' => $f['mi']->jenjang,
+            'semester' => '1', 'status_awal' => 'santri_baru', 'status_akhir' => 'aktif', 'is_active_riwayat' => 'Ya',
+        ]);
+        $arsip = $this->makeAnggota('Arsip', $f['mi']->jenjang);
+        RiwayatBelajar::create([
+            'santri_id' => $arsip->id, 'tahun_ajaran' => $f['ta']->nama, 'jenjang' => $f['mi']->jenjang,
+            'semester' => '1', 'status_awal' => 'santri_baru', 'status_akhir' => 'naik', 'is_active_riwayat' => 'Tidak',
+        ]);
+
+        $res = $this->actingAs($admin, 'sanctum')->getJson('/api/admin/riwayat-belajar?'.http_build_query([
+            'jenjang' => $f['mi']->jenjang,
+            'semester' => '1',
+            'is_active_riwayat' => 'semua',
+        ]))->assertStatus(200);
+
+        $this->assertSame(
+            [$aktif->id, $arsip->id],
+            collect($res->json('data'))->pluck('santri_id')->sort()->values()->all(),
+        );
+    }
+
+    public function test_filter_keaktifan_basis_status_akhir(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeUser();
+        $aktif = $this->makeAnggota('Aktif Status', $f['mi']->jenjang);
+        RiwayatBelajar::create([
+            'santri_id' => $aktif->id, 'tahun_ajaran' => $f['ta']->nama, 'jenjang' => $f['mi']->jenjang,
+            'semester' => '1', 'status_awal' => 'santri_baru', 'status_akhir' => 'selesai',
+            'is_active_riwayat' => 'Tidak',
+        ]);
+        $nonaktif = $this->makeAnggota('Pindah Keluar', $f['mi']->jenjang);
+        RiwayatBelajar::create([
+            'santri_id' => $nonaktif->id, 'tahun_ajaran' => $f['ta']->nama, 'jenjang' => $f['mi']->jenjang,
+            'semester' => '1', 'status_awal' => 'santri_baru', 'status_akhir' => 'pindah_keluar',
+            'is_active_riwayat' => 'Ya',
+        ]);
+
+        $ids = fn ($res) => collect($res->json('data'))->pluck('santri_id')->sort()->values()->all();
+        $dasar = [
+            'jenjang' => $f['mi']->jenjang,
+            'tahun_ajaran' => $f['ta']->nama,
+            'semester' => '1',
+        ];
+
+        $res = $this->actingAs($admin, 'sanctum')->getJson('/api/admin/riwayat-belajar?'.http_build_query($dasar + ['keaktifan' => 'aktif']))->assertStatus(200);
+        $this->assertSame([$aktif->id], $ids($res));
+
+        $res = $this->actingAs($admin, 'sanctum')->getJson('/api/admin/riwayat-belajar?'.http_build_query($dasar + ['keaktifan' => 'nonaktif']))->assertStatus(200);
+        $this->assertSame([$nonaktif->id], $ids($res));
+    }
+
     // ---------- 06. belum-genap: ganjil aktif tanpa baris genap ----------
 
     public function test_09_belum_genap_hanya_ganjil_tanpa_genap(): void

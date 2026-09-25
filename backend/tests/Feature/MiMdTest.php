@@ -140,6 +140,8 @@ class MiMdTest extends TestCase
         $baris = $res->json('beda_kelas')[0];
         $this->assertSame('1A', $baris['kelas_mi']);
         $this->assertSame('1B', $baris['kelas_md']);
+        $this->assertSame('L', $res->json('mi_only.0.jk'));
+        $this->assertSame('L', $res->json('beda_kelas.0.jk'));
     }
 
     public function test_perbandingan_membutuhkan_kelas_aktif_di_kedua_jenjang(): void

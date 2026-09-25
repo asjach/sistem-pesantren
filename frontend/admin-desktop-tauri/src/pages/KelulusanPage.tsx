@@ -167,21 +167,19 @@ export default function KelulusanPage() {
       <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1" id="grup_kelulusan_kolom">
         <ResizablePanel defaultSize={50} minSize={25}>
         <section className="flex h-full min-h-0 min-w-0 flex-col rounded-md border">
-          <header className="flex shrink-0 items-center justify-between border-b bg-muted/40 px-3 py-2 text-sm font-medium">
-            <span>Santri tingkat akhir ({kiri.length})</span>
-            <div className="flex gap-2">
-              <Button id="btn_ke_tidak_lulus" size="sm" variant="outline" disabled={pilih.size === 0} onClick={() => {
-                const baris = kiri.filter((r) => pilih.has(r.santri_id)).map((r) => ({ santri_id: r.santri_id, nama: r.santri?.nama_lengkap ?? String(r.santri_id), kelas: r.kelas?.nama_kelas ?? null }));
-                setTidakLulus((prev) => [...prev, ...baris]);
-                setKiri((prev) => prev.filter((r) => !pilih.has(r.santri_id)));
-                setPilih(new Set());
-              }}>→ Tidak lulus</Button>
-            </div>
-          </header>
           <div className="flex min-h-0 flex-1 flex-col px-2 pb-2">
             <ExcelTable
-              tableKey="kelulusan_santri_akhir"
-              fields={FIELDS_SANTRI}
+               tableKey="kelulusan_santri_akhir"
+               header={<span>Santri tingkat akhir ({kiri.length})</span>}
+               akhirToolbar={pilih.size > 0 ? (
+                 <Button id="btn_ke_tidak_lulus" size="sm" variant="outline" onClick={() => {
+                   const baris = kiri.filter((r) => pilih.has(r.santri_id)).map((r) => ({ santri_id: r.santri_id, nama: r.santri?.nama_lengkap ?? String(r.santri_id), kelas: r.kelas?.nama_kelas ?? null }));
+                   setTidakLulus((prev) => [...prev, ...baris]);
+                   setKiri((prev) => prev.filter((r) => !pilih.has(r.santri_id)));
+                   setPilih(new Set());
+                 }}>→ Tidak lulus</Button>
+               ) : undefined}
+               fields={FIELDS_SANTRI}
               rows={kiri}
               getValues={(r) => ({ nama: r.santri?.nama_lengkap ?? null, kelas: r.kelas?.nama_kelas ?? null })}
               canEdit={false}
@@ -200,11 +198,11 @@ export default function KelulusanPage() {
         <ResizablePanelGroup orientation="vertical" className="min-h-0 flex-1" id="grup_kelulusan_baris">
           <ResizablePanel defaultSize={50} minSize={15}>
           <section className="flex h-full min-h-0 min-w-0 flex-col rounded-md border">
-            <header className="shrink-0 border-b bg-muted/40 px-3 py-2 text-sm font-medium">{`Alumni (${alumni.length})`}</header>
             <div className="flex min-h-0 flex-1 flex-col px-2 pb-2">
               <ExcelTable
-                tableKey="kelulusan_alumni"
-                fields={FIELDS_ALUMNI}
+                 tableKey="kelulusan_alumni"
+                 header={<span>Alumni ({alumni.length})</span>}
+                 fields={FIELDS_ALUMNI}
                 rows={alumni}
                 getValues={(a) => ({
                   santri: a.santri?.nama_lengkap ?? '—',
@@ -232,16 +230,16 @@ export default function KelulusanPage() {
           <ResizableHandle withHandle orientation="vertical" id="gagang_kelulusan_baris" />
           <ResizablePanel defaultSize={50} minSize={15}>
           <section className="flex h-full min-h-0 min-w-0 flex-col rounded-md border">
-            <header className="flex shrink-0 items-center justify-between gap-2 border-b bg-muted/40 px-3 py-2 text-sm font-medium">
-              <span>Santri tidak lulus ({tidakLulus.length})</span>
-              <Button id="btn_sembunyi_tidak_lulus" size="sm" variant="ghost" onClick={() => setTampilTidakLulus(false)}>
-                Sembunyikan
-              </Button>
-            </header>
             <div className="flex min-h-0 flex-1 flex-col px-2 pb-2">
               <ExcelTable
-                tableKey="kelulusan_tidak_lulus"
-                fields={FIELDS_SANTRI}
+                 tableKey="kelulusan_tidak_lulus"
+                 header={<span>Santri tidak lulus ({tidakLulus.length})</span>}
+                 akhirToolbar={(
+                   <Button id="btn_sembunyi_tidak_lulus" size="sm" variant="ghost" onClick={() => setTampilTidakLulus(false)}>
+                     Sembunyikan
+                   </Button>
+                 )}
+                 fields={FIELDS_SANTRI}
                 rows={tidakLulus.map((b) => ({ ...b, id: b.santri_id }))}
                 getValues={(b) => ({ nama: b.nama, kelas: b.kelas })}
                 canEdit={false}

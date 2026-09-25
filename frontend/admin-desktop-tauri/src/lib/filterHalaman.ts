@@ -80,7 +80,6 @@ export const KONFIGURASI_FILTER_HALAMAN = {
   keanggotaan: buatKonfigurasi(['lembaga']),
   mi_md: buatKonfigurasi(FILTER_MI_MD, { kelas: true }),
   riwayat_belajar: buatKonfigurasi(FILTER_AKADEMIK, { tingkat: true, kelas: true }),
-  pindah_semester: buatKonfigurasi(FILTER_AKADEMIK, { tingkat: true, kelas: true }),
   daftar_kelas: buatKonfigurasi(FILTER_SEMUA, { tingkat: true, kelas: true }),
   pindah_kelas: buatKonfigurasi(FILTER_SEMUA, { tingkat: true, kelas: true }),
   mutasi_keluar: buatKonfigurasi(FILTER_PANEL, { tingkat: true, kelas: true }),

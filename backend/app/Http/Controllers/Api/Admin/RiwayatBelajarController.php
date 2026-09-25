@@ -62,8 +62,21 @@ class RiwayatBelajarController extends Controller
             'riwayat_belajar.jenjang'
         );
 
-        if ($request->has('is_active_riwayat')) {
-            $query->where('riwayat_belajar.is_active_riwayat', $request->boolean('is_active_riwayat') ? RiwayatBelajar::YA : RiwayatBelajar::TIDAK);
+        if ($request->filled('keaktifan')) {
+            $keaktifan = (string) $request->input('keaktifan');
+            if ($keaktifan === 'aktif') {
+                $query->where(function ($status) {
+                    $status->where('riwayat_belajar.status_akhir', '!=', 'pindah_keluar')
+                        ->orWhereNull('riwayat_belajar.status_akhir');
+                });
+            } elseif ($keaktifan === 'nonaktif') {
+                $query->where('riwayat_belajar.status_akhir', 'pindah_keluar');
+            }
+        } elseif ($request->has('is_active_riwayat')) {
+            $nilai = $request->input('is_active_riwayat');
+            if (! in_array($nilai, ['semua', 'all'], true)) {
+                $query->where('riwayat_belajar.is_active_riwayat', $request->boolean('is_active_riwayat') ? RiwayatBelajar::YA : RiwayatBelajar::TIDAK);
+            }
         } else {
             $query->where('riwayat_belajar.is_active_riwayat', RiwayatBelajar::YA);
         }

@@ -197,13 +197,11 @@ export default function KenaikanKelasPage() {
       <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1" id="grup_kenaikan_kolom">
         <ResizablePanel defaultSize={50} minSize={25}>
         <section className="flex h-full min-h-0 min-w-0 flex-col">
-          <header className="flex shrink-0 items-center justify-between border-b bg-muted/40 px-3 py-2 text-sm font-medium">
-            <span>Santri semester genap, tingkat 1–5 ({kiriTampil.length})</span>
-          </header>
           <div className="flex min-h-0 flex-1 flex-col px-2 pb-2">
             <ExcelTable
-              tableKey="kenaikan_santri_genap"
-              fields={FIELDS_KENAIKAN}
+               tableKey="kenaikan_santri_genap"
+               header={<span>Santri semester genap, tingkat 1–5 ({kiriTampil.length})</span>}
+               fields={FIELDS_KENAIKAN}
               rows={kiriTampil}
               getValues={(r) => ({
                 nama: r.santri?.nama_lengkap ?? null,
@@ -271,14 +269,12 @@ export default function KenaikanKelasPage() {
 function PanelDaftar({ idPrefix, judul, baris, onBatalkan, aksiHeader }: { idPrefix: string; judul: string; baris: Baris[]; onBatalkan: (b: Baris) => void; aksiHeader?: ReactNode }) {
   return (
     <section className="flex h-full min-h-0 min-w-0 flex-col">
-      <header className="flex shrink-0 items-center justify-between gap-2 border-b bg-muted/40 px-3 py-2 text-sm font-medium">
-        <span>{judul}</span>
-        {aksiHeader}
-      </header>
       <div className="flex min-h-0 flex-1 flex-col px-2 pb-2">
         <ExcelTable
-          tableKey={`kenaikan_${idPrefix}`}
-          fields={FIELDS_KENAIKAN}
+           tableKey={`kenaikan_${idPrefix}`}
+           header={<span>{judul}</span>}
+           akhirToolbar={aksiHeader}
+           fields={FIELDS_KENAIKAN}
           rows={baris.map((b) => ({ ...b, id: b.santri_id }))}
           getValues={(b) => ({ nama: b.nama, kelas: b.kelas, tingkat: b.tingkat })}
           canEdit={false}

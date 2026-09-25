@@ -11,7 +11,7 @@ import {
   type ReferensiInput,
   type ReferensiRow,
 } from '../api/master';
-import { errorMessage } from '../api/client';
+import { errorMessage, prefGet, prefSet } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { bisa } from '../api/auth';
 import { Button } from '@/components/ui/button';
@@ -42,9 +42,12 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { DeleteAction, EditAction } from '@/components/RowActions';
+import ConfirmDelete from '@/components/ConfirmDelete';
+import { Trash2 } from '@/icons';
 import { toast } from 'sonner';
 
 const STATUS_TIPE = ['status_awal', 'status_akhir'];
+const TIPE_AKTIF_KEY = 'simpes_referensi_tipe_aktif';
 
 /** Nilai tampil baris: semua tabel ref memakai `nama` (status juga menyimpan `kode`). */
 function rowText(r: ReferensiRow): string {
@@ -65,6 +68,7 @@ export default function ReferensiPage() {
   // Nilai referensi murni per lembaga (tanpa baris global): super_admin
   // menambah ke semua lembaga sekaligus; tiap lembaga kelola miliknya.
   const canManage = bisa(me, 'referensi.ubah');
+  const canHapus = bisa(me, 'referensi.hapus');
   const myJenjang = useMemo(() => me?.lembagas?.map((l) => l.jenjang) ?? [], [me]);
   const adminFull = canManage && !isSuper && myJenjang.length === 0;
 
@@ -94,10 +98,24 @@ export default function ReferensiPage() {
   const isStatusAkhir = tipe === 'status_akhir';
 
   useEffect(() => {
-    referensiTypes()
-      .then((t) => { setTypes(t); if (t[0]) setTipe((cur) => cur || t[0]); })
-      .catch((e) => { setErr(errorMessage(e)); setLoading(false); });
-    listLembaga({ per_page: 100 }).then((p) => setLembagas(p.data)).catch(() => {});
+    let hidup = true;
+    (async () => {
+      try {
+        const [daftar, tersimpan] = await Promise.all([referensiTypes(), prefGet(TIPE_AKTIF_KEY)]);
+        if (!hidup) return;
+        setTypes(daftar);
+        const pilihan = tersimpan && daftar.includes(tersimpan) ? tersimpan : daftar[0] ?? '';
+        setTipe(pilihan);
+        if (pilihan && pilihan !== tersimpan) prefSet(TIPE_AKTIF_KEY, pilihan).catch(() => {});
+      } catch (e) {
+        if (hidup) {
+          setErr(errorMessage(e));
+          setLoading(false);
+        }
+      }
+    })();
+    listLembaga({ per_page: 100 }).then((p) => { if (hidup) setLembagas(p.data); }).catch(() => {});
+    return () => { hidup = false; };
   }, []);
 
   /** Muat daftar; mengembalikan promise agar antrean simpan grid bisa menunggu
@@ -148,6 +166,10 @@ export default function ReferensiPage() {
   const canNonaktifRow = useCallback(
     (r: ReferensiRow) => canAccessRow(r.jenjang),
     [canAccessRow],
+  );
+  const canHapusRow = useCallback(
+    (r: ReferensiRow) => canHapus && canAccessRow(r.jenjang),
+    [canHapus, canAccessRow],
   );
 
   /** Boleh toggle per baris: hak akses baris lembaganya (backend menegakkan). */
@@ -291,21 +313,61 @@ export default function ReferensiPage() {
     }
   }, [tipe, reload]);
 
+  const hapusBulk = useCallback(async (list: ReferensiRow[]) => {
+    if (list.length === 0) return;
+    setErr('');
+    const results = await Promise.allSettled(list.map((r) => (
+      deleteReferensi(tipe, r.id, r.jenjang ?? undefined, true)
+    )));
+    const gagal = results.filter((result) => result.status === 'rejected');
+    if (gagal.length > 0) {
+      const alasan = gagal
+        .map((result) => result.status === 'rejected' ? errorMessage(result.reason) : '')
+        .filter(Boolean)
+        .join(' · ');
+      setErr(`${gagal.length} entri gagal dihapus${alasan ? `: ${alasan}` : '.'}`);
+      toast.error('Sebagian entri referensi gagal dihapus.');
+    } else {
+      toast.success(`${list.length} entri referensi dihapus.`);
+    }
+    await reload();
+  }, [tipe, reload]);
+
+  const renderBulkActions = useCallback((checked: ReferensiRow[], clear: () => void) => {
+    if (!canHapus) return null;
+    const eligible = checked.filter(canHapusRow);
+    if (eligible.length === 0) return null;
+    return (
+      <ConfirmDelete
+        title={`Hapus ${eligible.length} entri referensi?`}
+        description="Entri yang dipilih akan dihapus permanen dari kamus. Data yang sudah memakai teks ini tidak ikut berubah."
+        confirmLabel="Hapus permanen"
+        onConfirm={() => { clear(); void hapusBulk(eligible); }}
+      >
+        <Button id="btn_bulk_hapus_referensi" size="sm" variant="destructive">
+          <Trash2 data-icon="inline-start" size={14} /> Hapus ({eligible.length})
+        </Button>
+      </ConfirmDelete>
+    );
+  }, [canHapus, canHapusRow, hapusBulk]);
+
   const renderActions = useCallback((r: ReferensiRow) => {
     // Tampil/padam lewat toggle di kolom is_active; aksi baris: Ubah + Hapus permanen.
     if (!canUbahRow(r)) return null;
     return (
       <>
         <EditAction id={`btn_ubah_referensi_${r.id}`} onClick={() => openEdit(r)} />
-        <DeleteAction
-          id={`btn_hapus_referensi_${r.id}`}
-          title="Hapus permanen entri?"
-          description={`"${rowText(r)}" dibuang dari kamus ${lembagaName(r.jenjang)}. Data yang sudah memakai teks ini tidak ikut berubah.`}
-          onConfirm={() => onHapusPermanen(r)}
-        />
+        {canHapusRow(r) ? (
+          <DeleteAction
+            id={`btn_hapus_referensi_${r.id}`}
+            title="Hapus permanen entri?"
+            description={`"${rowText(r)}" dibuang dari kamus ${lembagaName(r.jenjang)}. Data yang sudah memakai teks ini tidak ikut berubah.`}
+            onConfirm={() => onHapusPermanen(r)}
+          />
+        ) : null}
       </>
     );
-  }, [canUbahRow, openEdit, onHapusPermanen, rowText, lembagaName]);
+  }, [canUbahRow, canHapusRow, openEdit, onHapusPermanen, rowText, lembagaName]);
 
   /** Simpan toggle kolom is_active: padam → nonaktifkan, nyala → pulihkan. */
   const onCommit = useCallback(async (id: number, fields: Record<string, string | null>) => {
@@ -335,7 +397,11 @@ export default function ReferensiPage() {
         filter={(
           <>
             <FilterField label="Tipe kamus" htmlFor="select_tipe">
-            <Select value={tipe} onValueChange={(v) => { setTipe(v); setSearch(''); }}>
+             <Select value={tipe} onValueChange={(v) => {
+               setTipe(v);
+               setSearch('');
+               prefSet(TIPE_AKTIF_KEY, v).catch(() => {});
+             }}>
               <SelectTrigger id="select_tipe" title="Tipe kamus" aria-label="Tipe kamus" size="sm" className="w-44">
                 <SelectValue placeholder="Pilih tipe" />
               </SelectTrigger>
@@ -352,9 +418,10 @@ export default function ReferensiPage() {
           <Button id="btn_tambah_referensi" onClick={openTambah} disabled={!tipe}>
             + Entri
           </Button>
-        ) : undefined}
-        renderActions={renderActions}
-      />
+         ) : undefined}
+         renderActions={renderActions}
+         renderBulkActions={renderBulkActions}
+       />
       <Dialog open={tambahOpen} onOpenChange={setTambahOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>

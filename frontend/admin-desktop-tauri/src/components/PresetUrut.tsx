@@ -83,7 +83,7 @@ export default function PresetUrut({
   }
 
   return (
-    <span className="flex items-end gap-1.5">
+    <span className="flex items-end gap-0">
       <FilterField label="Urutkan" htmlFor={`select_urut_${tableKey}`} kelolaLebar={false} className={wrapperClassName}>
         <Select
           value={nilaiSelect || undefined}
@@ -92,7 +92,8 @@ export default function PresetUrut({
         >
           <SelectTrigger
             id={`select_urut_${tableKey}`}
-            style={{ width: `${lebarTrigger ?? 100}px` }}
+            className="rounded-r-none border-r-0"
+            style={{ width: `${lebarTrigger ?? 120}px` }}
           >
             <SelectValue placeholder="Urutkan…" />
           </SelectTrigger>
@@ -117,6 +118,7 @@ export default function PresetUrut({
         id={`btn_arah_urut_${tableKey}`}
         variant="outline"
         size="icon-sm"
+        className="rounded-l-none border-l"
         title={`Balik arah urutan (kini: ${arahUrut === 'naik' ? 'naik' : 'turun'})`}
         aria-label={`Arah urutan: ${arahUrut === 'naik' ? 'naik' : 'turun'}`}
         disabled={(urutAktif ?? []).length === 0}
