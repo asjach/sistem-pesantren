@@ -10,7 +10,7 @@ import {
 import 'react-datasheet-grid/dist/style.css';
 import { DENSITY_PX } from '@/prefs';
 import { useTheme } from '@/theme';
-import { errorMessage, prefSet } from '@/api/client';
+import { prefSet } from '@/api/client';
 import { buttonVariants } from '@/components/ui/button';
 import { DEFAULT_FONT_PX, DEFAULT_HEADER_H, FONT_FAMILY_DEFAULT, FONT_OPTIONS, useGridPrefs, type AlignName } from '@/components/GridPrefs';
 import { useStandarTampilan } from '@/standarTampilan';
@@ -24,6 +24,7 @@ import { useToolbarPresetState } from './excel/useToolbarPreset';
 import { useUrutanKolom } from './excel/useUrutanKolom';
 import { useLebarKolom } from './excel/useLebarKolom';
 import { useSalinTabel } from './excel/useSalinTabel';
+import { useBarisInput } from './excel/useBarisInput';
 import { KonteksLebarFilter } from './excel/lebarFilter';
 import { useKamusPeta } from '@/components/useKamusPeta';
 import { type KamusKolomAttr } from '@/api/kamusLabel';
@@ -383,12 +384,6 @@ export default function ExcelTable<T extends { id: string | number }>({
     return dasar;
   }, [fields, presetKeys, urutanDb]);
   const visibleFieldsRef = useRef(visibleFields);
-  /** Nilai TERBARU baris input (ditulis handleChange) — dipakai saat Enter
-   *  agar simpan tidak membaca state yang belum ter-flush. */
-  const inputDraftRef = useRef<Record<string, string | null>>({});
-  /** Indeks kolom yang ditinggalkan & penanda kursor harus turun ke baris input. */
-  const inputKolomRef = useRef(0);
-  const pindahKeInputRef = useRef(false);
   const gridRef = useRef<DataSheetGridRef>(null);
 
   const stdBeku = merekam
@@ -980,82 +975,20 @@ export default function ExcelTable<T extends { id: string | number }>({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fields, visibleFields, editing, widths, stdLebar, autoWidths, syncAutoWidths, align, showInput, freezeAktif, hideCheckbox, labelKolom, attrByKey, alignEfektif, lebarKunci, drafts, bolehGeser, seret, dragMulaiKolom, dragLewatKolom, dragJatuhKolom, dragSelesaiKolom]);
 
-  /** Simpan baris input → buat record baru via onCreateRow halaman. Validasi
-   *  field wajib + validator kolom dulu; draft dibersihkan hanya bila sukses
-   *  (toast sukses menjadi tanggung jawab halaman). */
-  /** Periksa baris input tanpa efek samping: nilai, kolom kurang, pesan. */
-  function periksaInput() {
-    const d = inputDraftRef.current;
-    const flds: Record<string, string | null> = {};
-    const kurang: string[] = [];
-    let pesan: string | null = null;
-    for (const f of visibleFieldsRef.current) {
-      if (f.kind === 'static' && !f.inputKind) continue;
-      const raw = d[f.key] ?? inputRowValues?.[f.key] ?? null;
-      const v = raw == null || String(raw).trim() === '' ? null : String(raw);
-      flds[f.key] = v;
-      if (f.required && v === null) {
-        kurang.push(f.label);
-        continue;
-      }
-      if (v !== null && f.validate) {
-        const blocked = f.validate(v);
-        if (blocked && pesan === null) pesan = blocked;
-      }
-    }
-    return { flds, kurang, pesan, valid: kurang.length === 0 && pesan === null };
-  }
-
-  async function simpanInput() {
-    if (!onCreateRow) return;
-    const { flds, kurang, pesan, valid } = periksaInput();
-    if (!valid) {
-      // Kolom wajib belum lengkap → tidak ada yang disimpan.
-      if (pesan) toast.error(pesan);
-      else toast.error('Kolom wajib harus diisi terlebih dahulu.', { description: kurang.join(', ') });
-      return;
-    }
-    try {
-      await onCreateRow(flds);
-      inputDraftRef.current = {};
-      // Kursor pindah ke baris bawah (baris input) setelah data dimuat.
-      pindahKeInputRef.current = true;
-      setDrafts((prev) => {
-        if (!(INPUT_ROW_ID in prev)) return prev;
-        const next = { ...prev };
-        delete next[INPUT_ROW_ID];
-        return next;
-      });
-    } catch (e) {
-      toast.error(errorMessage(e));
-    }
-  }
-
-  /** Enter pada baris input: simpan bila kolom wajib lengkap. Kembalikan true
-   *  bila kursor boleh turun ke baris bawah (baris input berikutnya). */
-  function enterInputRow(columnIndex: number): boolean {
-    if (!onCreateRow) return false;
-    inputKolomRef.current = columnIndex;
-    const { valid } = periksaInput();
-    void simpanInput();
-    return valid;
-  }
-  const inputEnterRef = useRef(enterInputRow);
-  inputEnterRef.current = enterInputRow;
-
-  /** Setelah simpan sukses: pindahkan kursor ke baris input (baris di bawah
-   *  data yang baru dibuat) begitu daftar selesai dimuat. */
-  useEffect(() => {
-    if (!pindahKeInputRef.current || loading) return;
-    const idx = gridValue.findIndex((r) => String(r.id) === INPUT_ROW_ID);
-    if (idx < 0) return;
-    pindahKeInputRef.current = false;
-    gridRef.current?.setActiveCell({ col: inputKolomRef.current, row: idx });
-  }, [gridValue, loading]);
-
-  /** Handler simpan baris input (dipakai tombol di kolom Aksi & Enter). */
-  const inputAksiRef = useRef<() => void>(() => {});
-  inputAksiRef.current = () => void simpanInput();
+  /** Logika baris input (mode Input): draft, validasi, simpan, kursor. */
+  const {
+    inputDraftRef,
+    inputEnterRef,
+    inputAksiRef,
+  } = useBarisInput<T>({
+    onCreateRow,
+    visibleFieldsRef,
+    inputRowValues,
+    setDrafts,
+    loading,
+    gridValueRef,
+    gridRef,
+  });
 
 
   /** Kolom Aksi = kolom "sticky kanan" DSG: selalu ter-render & menempel di
