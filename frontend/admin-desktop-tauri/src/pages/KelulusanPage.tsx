@@ -34,7 +34,7 @@ import { toast } from 'sonner';
 /** Kolom template yang dikirim (kunci lain dari file diabaikan). */
 const KOLOM_IMPORT_ALUMNI = [
   'nis_lokal', 'jenjang', 'tahun_ajaran_lulus', 'tanggal_lulus', 'kelas_lulus', 'nomor_ijazah',
-  'no_peserta', 'no_surat_ijazah', 'kegiatan_setelah_lulus', 'penyerahan_ijazah', 'melanjutkan', 'catatan',
+  'no_peserta', 'skhun', 'no_surat_ijazah', 'kegiatan_setelah_lulus', 'penyerahan_ijazah', 'melanjutkan', 'catatan',
 ];
 
 /** Kolom santri (kiri + tidak lulus). */
@@ -50,6 +50,7 @@ const FIELDS_ALUMNI: ExcelField[] = [
   { key: 'ta', label: 'tahun_ajaran.nama', kind: 'static', sumber: { tabel: 'tahun_ajaran', kolom: 'nama' } },
   { key: 'ijazah', label: 'nomor_ijazah', kind: 'static', sumber: { tabel: 'alumni', kolom: 'nomor_ijazah' } },
   { key: 'no_peserta', label: 'no_peserta', kind: 'static', sumber: { tabel: 'alumni', kolom: 'no_peserta' } },
+  { key: 'skhun', label: 'skhun', kind: 'static', sumber: { tabel: 'alumni', kolom: 'skhun' } },
 ];
 export default function KelulusanPage() {
   const { user } = useAuth();
@@ -79,6 +80,7 @@ export default function KelulusanPage() {
   const [tanggalLulus, setTanggalLulus] = useState('');
   const [noIjazah, setNoIjazah] = useState('');
   const [noPeserta, setNoPeserta] = useState('');
+  const [skhun, setSkhun] = useState('');
   const [noSurat, setNoSurat] = useState('');
 
   const loadKiri = useCallback(async () => {
@@ -142,13 +144,14 @@ export default function KelulusanPage() {
           tanggal_lulus: tanggalLulus,
           nomor_ijazah: noIjazah.trim() || undefined,
           no_peserta: noPeserta.trim() || undefined,
+          skhun: skhun.trim() || undefined,
           no_surat_ijazah: noSurat.trim() || undefined,
 
         });
       }
       toast.success(`${namaTerpilih.length} santri dinyatakan lulus.`);
       setLulusOpen(false);
-      setNoIjazah(''); setNoPeserta(''); setNoSurat(''); setTanggalLulus('');
+      setNoIjazah(''); setNoPeserta(''); setSkhun(''); setNoSurat(''); setTanggalLulus('');
       await Promise.all([loadKiri(), loadArsip()]);
     } catch (e) { toast.error(errorMessage(e)); } finally { setBusy(false); }
   };
@@ -184,7 +187,7 @@ export default function KelulusanPage() {
                 )}
                  addButton={canUbah ? (
                    <>
-                     <Button id="btn_buka_luluskan" disabled={namaTerpilih.length === 0 || !targetJenjang || !targetTahunAjaran} onClick={() => { setTanggalLulus(''); setNoIjazah(''); setNoPeserta(''); setNoSurat(''); setLulusOpen(true); }}>
+                     <Button id="btn_buka_luluskan" disabled={namaTerpilih.length === 0 || !targetJenjang || !targetTahunAjaran} onClick={() => { setTanggalLulus(''); setNoIjazah(''); setNoPeserta(''); setSkhun(''); setNoSurat(''); setLulusOpen(true); }}>
                        Luluskan ({namaTerpilih.length})
                      </Button>
                      <Button id="btn_tidak_lulus" variant="outline" disabled={pilih.size === 0} onClick={pindahkanTidakLulus}>
@@ -229,6 +232,7 @@ export default function KelulusanPage() {
                   ta: a.tahunAjaranLulus?.nama ?? '—',
                   ijazah: a.nomor_ijazah ?? '—',
                   no_peserta: a.no_peserta ?? '—',
+                  skhun: a.skhun ?? '—',
                 })}
                  canEdit={false}
                 onCommit={async () => {}}
@@ -335,6 +339,8 @@ export default function KelulusanPage() {
             <Input id="input_no_ijazah_kelulusan" value={noIjazah} onChange={(e) => setNoIjazah(e.target.value)} />
             <FieldLabel htmlFor="input_no_peserta_kelulusan">No. peserta</FieldLabel>
             <Input id="input_no_peserta_kelulusan" value={noPeserta} onChange={(e) => setNoPeserta(e.target.value)} />
+            <FieldLabel htmlFor="input_skhun_kelulusan">SKHUN</FieldLabel>
+            <Input id="input_skhun_kelulusan" value={skhun} onChange={(e) => setSkhun(e.target.value)} />
             <FieldLabel htmlFor="input_no_surat_kelulusan">No. surat</FieldLabel>
             <Input id="input_no_surat_kelulusan" value={noSurat} onChange={(e) => setNoSurat(e.target.value)} />
           </div>

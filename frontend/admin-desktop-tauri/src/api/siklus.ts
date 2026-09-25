@@ -109,6 +109,7 @@ export interface Alumni {
   tahun_ajaran_lulus: string;
   nomor_ijazah: string | null;
   no_peserta: string | null;
+  skhun: string | null;
   no_surat_ijazah: string | null;
   tanggal_lulus: string | null;
   kegiatan_setelah_lulus: string | null;
@@ -734,6 +735,7 @@ export function lulusSantri(
     tanggal_lulus: string;
     nomor_ijazah?: string;
     no_peserta?: string;
+    skhun?: string;
     no_surat_ijazah?: string;
     kegiatan_setelah_lulus?: string;
     penyerahan_ijazah?: 'sudah' | 'belum';

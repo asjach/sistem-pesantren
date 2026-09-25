@@ -498,6 +498,7 @@ class SiklusSantriService
                 'tahun_ajaran_lulus' => $dataLulus['tahun_ajaran_lulus'],
                 'nomor_ijazah' => $dataLulus['nomor_ijazah'] ?? null,
                 'no_peserta' => $dataLulus['no_peserta'] ?? null,
+                'skhun' => $dataLulus['skhun'] ?? null,
                 'no_surat_ijazah' => $dataLulus['no_surat_ijazah'] ?? null,
                 'tanggal_lulus' => $dataLulus['tanggal_lulus'],
                 'kegiatan_setelah_lulus' => $dataLulus['kegiatan_setelah_lulus'] ?? null,
