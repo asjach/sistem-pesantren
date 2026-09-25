@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   DynamicDataSheetGrid as DataSheetGrid,
   checkboxColumn,
@@ -19,12 +19,10 @@ import { useLembagaAktif } from '@/lembagaAktif';
 import { EVENT_KELOLA_HALAMAN, useVisibilitasFilter } from '@/components/VisibilitasFilter';
 import PresetKolom, { type PresetKolomApi } from '@/components/PresetKolom';
 import PresetUrut from '@/components/PresetUrut';
-import { simpanToolbarPreset } from '@/api/toolbarPreset';
-import { updatePresetTabel } from '@/api/preset';
 import { gabungUrutan } from './excel/urutanKolom';
 import { judulTabel } from './excel/judul';
 import { useToolbarPresetState } from './excel/useToolbarPreset';
-import { EVENT_PRESET_BERUBAH, EVENT_TOOLBAR_BERUBAH } from '@/components/kelolaTabel/jenis';
+import { useUrutanKolom } from './excel/useUrutanKolom';
 import { KonteksLebarFilter } from './excel/lebarFilter';
 import { useKamusPeta } from '@/components/useKamusPeta';
 import { type KamusKolomAttr } from '@/api/kamusLabel';
@@ -471,106 +469,23 @@ export default function ExcelTable<T extends { id: string | number }>({
   visibleFieldsRef.current = visibleFields;
   const wrapRef = useRef<HTMLDivElement>(null);
 
-  /** Seret urutan kolom (cermin ref agar drop membaca nilai terbaru). */
-  const [seret, setSeret] = useState<{ dari: string; ke: string | null; sesudah: boolean } | null>(null);
-  const seretRef = useRef<typeof seret>(null);
-  const tundaSimpanUrutan = useRef<number | undefined>(undefined);
-  useEffect(() => () => window.clearTimeout(tundaSimpanUrutan.current), []);
-
-  /** Simpan urutan key kolom tampil. Preset aktif → urutan masuk ke preset itu
-   *  (tiap preset bisa beda urutan); tanpa preset → urutan global per halaman. */
-  const simpanUrutan = useCallback((keys: string[]) => {
-    window.clearTimeout(tundaSimpanUrutan.current);
-    if (presetAktifId !== null) {
-      setPresetKeys(keys);
-      tundaSimpanUrutan.current = window.setTimeout(() => {
-        updatePresetTabel(presetAktifId, { kolom: keys })
-          .then(() => {
-            toast.success('Urutan kolom disimpan ke preset.');
-            window.dispatchEvent(new CustomEvent(EVENT_PRESET_BERUBAH, { detail: { tableKey } }));
-          })
-          .catch((e) => toast.error(errorMessage(e)));
-      }, 600);
-      return;
-    }
-    setUrutanDb(keys);
-    tundaSimpanUrutan.current = window.setTimeout(() => {
-      simpanToolbarPreset(tableKey, undefined, undefined, keys)
-        .then(() => {
-          toast.success(keys.length === 0 ? 'Urutan kolom dikembalikan ke bawaan.' : 'Urutan kolom disimpan (berlaku semua).');
-          window.dispatchEvent(new CustomEvent(EVENT_TOOLBAR_BERUBAH, { detail: { tableKey } }));
-        })
-        .catch((e) => toast.error(errorMessage(e)));
-    }, 600);
-  }, [tableKey, presetAktifId]);
-
-  /** Geser satu langkah (tombol menu konteks). */
-  const geserKolom = useCallback((colKey: string, arah: -1 | 1) => {
-    const kini = visibleFieldsRef.current.map((f) => f.key);
-    const i = kini.indexOf(colKey);
-    const j = i + arah;
-    if (i < 0 || j < 0 || j >= kini.length) return;
-    const next = [...kini];
-    next.splice(i, 1);
-    next.splice(j, 0, colKey);
-    simpanUrutan(next);
-  }, [simpanUrutan]);
-
-  /** Pindahkan kolom `dari` ke posisi kolom `ke` (sesudah = di kanannya). */
-  const pindahKolomKe = useCallback((dari: string, ke: string, sesudah: boolean) => {
-    if (dari === ke) return;
-    const kini = visibleFieldsRef.current.map((f) => f.key).filter((k) => k !== dari);
-    let idx = kini.indexOf(ke);
-    if (idx < 0) return;
-    if (sesudah) idx += 1;
-    kini.splice(idx, 0, dari);
-    simpanUrutan(kini);
-  }, [simpanUrutan]);
-
-  const kembalikanUrutan = useCallback(() => {
-    // Preset aktif: kembalikan ke urutan bawaan halaman untuk kolom tampil.
-    if (presetAktifId !== null) {
-      const terlihat = new Set(visibleFieldsRef.current.map((f) => f.key));
-      simpanUrutan(fieldsRef.current.filter((f) => terlihat.has(f.key)).map((f) => f.key));
-      return;
-    }
-    simpanUrutan([]);
-  }, [presetAktifId, simpanUrutan]);
-
-  const dragMulaiKolom = useCallback((key: string, e: DragEvent) => {
-    e.dataTransfer.effectAllowed = 'move';
-    try {
-      e.dataTransfer.setData('text/plain', key);
-    } catch {
-      /* abaikan */
-    }
-    const s = { dari: key, ke: null as string | null, sesudah: false };
-    seretRef.current = s;
-    setSeret(s);
-  }, []);
-  const dragLewatKolom = useCallback((key: string, e: DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    const sesudah = e.clientX > r.left + r.width / 2;
-    const s = seretRef.current;
-    if (s && s.dari !== key && (s.ke !== key || s.sesudah !== sesudah)) {
-      const next = { ...s, ke: key, sesudah };
-      seretRef.current = next;
-      setSeret(next);
-    }
-  }, []);
-  const dragJatuhKolom = useCallback((key: string, e: DragEvent) => {
-    e.preventDefault();
-    const s = seretRef.current;
-    seretRef.current = null;
-    setSeret(null);
-    if (s && s.dari !== key) pindahKolomKe(s.dari, key, s.sesudah);
-  }, [pindahKolomKe]);
-  const dragSelesaiKolom = useCallback(() => {
-    seretRef.current = null;
-    setSeret(null);
-  }, []);
+  /** Seret & simpan urutan kolom (state cermin ref ada di dalam hook). */
+  const {
+    seret,
+    geserKolom,
+    kembalikanUrutan,
+    dragMulaiKolom,
+    dragLewatKolom,
+    dragJatuhKolom,
+    dragSelesaiKolom,
+  } = useUrutanKolom({
+    tableKey,
+    presetAktifId,
+    setPresetKeys,
+    setUrutanDb,
+    getVisibleKeys: () => visibleFieldsRef.current.map((f) => f.key),
+    getFieldKeys: () => fieldsRef.current.map((f) => f.key),
+  });
   const [gridH, setGridH] = useState(() =>
     typeof window === 'undefined'
       ? 640
