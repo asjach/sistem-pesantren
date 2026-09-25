@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\Kelas;
 use App\Models\Lembaga;
 use App\Models\TahunAjaran;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -23,36 +22,10 @@ use Illuminate\Validation\ValidationException;
  * Mode kering (`$kering = true`) menjalankan SEMUA cek tanpa menulis,
  * untuk periksa bertahap (pengganti rollback-transaksi di file besar).
  */
-class KelasImporService
+class KelasImporService extends ImporPotongan
 {
-    /** Galat terkumpul: ['baris' => int, 'nis_lokal' => ?string, 'kolom' => string, 'pesan' => string]. */
-    public array $gagal = [];
-
-    public int $valid = 0;
-
-    public int $dibuat = 0;
-
-    public int $diperbarui = 0;
-
-    public int $dilewati = 0;
-
-    /** Nama kelas baris yang sedang diproses (untuk kolom kunci di galat). */
-    protected ?string $namaAktif = null;
-
     /** Guard duplikat intra-file: "jenjang|ta|nama" lower. */
     protected array $dilihat = [];
-
-    public function ringkasan(): array
-    {
-        return [
-            'baris_diproses' => $this->valid + count($this->gagal),
-            'baris_valid' => $this->valid,
-            'baris_gagal' => count($this->gagal),
-            'dibuat' => $this->dibuat,
-            'diperbarui' => $this->diperbarui,
-            'dilewati' => $this->dilewati,
-        ];
-    }
 
     /**
      * Normalisasi SEBELUM cek: angka Excel → string (sel template
@@ -63,44 +36,14 @@ class KelasImporService
      */
     public function normalisasiBaris(array $baris): array
     {
-        foreach (['jenjang', 'tahun_ajaran', 'nama_kelas', 'nama_alias', 'walas', 'tingkat', 'urutan', 'kapasitas'] as $kolom) {
-            if (isset($baris[$kolom]) && (is_int($baris[$kolom]) || is_float($baris[$kolom]))) {
-                $baris[$kolom] = fmod((float) $baris[$kolom], 1.0) === 0.0
-                    ? (string) (int) $baris[$kolom]
-                    : (string) $baris[$kolom];
-            }
-        }
-
-        return $baris;
-    }
-
-    /**
-     * Proses satu potongan baris (sudah ternormalisasi). `$nomorAwal` =
-     * nomor baris file baris pertama potongan dikurangi 1 (heading = 1),
-     * sehingga nomor galat absolut dan selaras antar potongan.
-     *
-     * @param  array<int, array<string, mixed>>  $potongan
-     */
-    public function prosesPotongan(array $potongan, int $nomorAwal, bool $kering): void
-    {
-        $jalan = function () use ($potongan, $nomorAwal, $kering) {
-            foreach (array_values($potongan) as $i => $baris) {
-                $this->prosesBaris(is_array($baris) ? $baris : [], $nomorAwal + $i + 1, $kering);
-            }
-        };
-
-        if ($kering) {
-            $jalan();
-        } else {
-            DB::transaction($jalan);
-        }
+        return $this->castTeks($baris, ['jenjang', 'tahun_ajaran', 'nama_kelas', 'nama_alias', 'walas', 'tingkat', 'urutan', 'kapasitas']);
     }
 
     /** @param  array<string, mixed>  $baris */
-    public function prosesBaris(array $baris, int $no, bool $kering): void
+    protected function prosesBaris(array $baris, int $no, bool $kering): void
     {
         $nama = Kelas::normalisasiNama(trim((string) ($baris['nama_kelas'] ?? '')));
-        $this->namaAktif = $nama === '' ? null : $nama;
+        $this->kunciAktif = $nama === '' ? null : $nama;
         // Baris tanpa nama = kosong/pemisah.
         if ($nama === '') {
             return;
@@ -234,11 +177,5 @@ class KelasImporService
         }
 
         return (int) $nilai;
-    }
-
-    /** @param  array{baris: int, nis_lokal: ?string, kolom: string, pesan: string}  $gagal */
-    protected function fail(int $no, string $kolom, string $pesan): void
-    {
-        $this->gagal[] = ['baris' => $no, 'nis_lokal' => $this->namaAktif, 'kolom' => $kolom, 'pesan' => $pesan];
     }
 }

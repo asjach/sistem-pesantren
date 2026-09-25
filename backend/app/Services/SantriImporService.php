@@ -32,27 +32,16 @@ use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
  * Baris di luar lingkup tenant pengimport → gagal per baris (bukan 403).
  * Mode kering (`$kering = true`) menjalankan SEMUA cek tanpa menulis.
  */
-class SantriImporService
+class SantriImporService extends ImporPotongan
 {
-    /** Galat terkumpul: ['baris' => int, 'nis_lokal' => ?string, 'kolom' => string, 'pesan' => string]. */
-    public array $gagal = [];
-
-    public int $valid = 0;
-
-    /** Santri baru yang dibuat. */
-    public int $dibuat = 0;
-
-    /** Baris yang menimpa santri/keanggotaan lama. */
-    public int $diperbarui = 0;
-
     /** Riwayat belajar perdana yang dibuat dari `tahaj_masuk` + `tingkat_masuk`. */
     public int $barisRiwayat = 0;
 
-    /** NIS baris yang sedang diproses (untuk kolom kunci di galat). */
-    protected ?string $nisAktif = null;
-
-    /** Guard duplikat intra-potongan: kunci lembaga|nis_lokal. */
+    /** Guard duplikat intra-potongan: kunci lembaga|nis_lokal → Santri. */
     protected array $dilihatNis = [];
+
+    /** Santri tersentuh dalam potongan berjalan (status global dihitung ulang di akhir potongan). */
+    protected array $tersentuh = [];
 
     /**
      * Kolom teks yang rawan terbaca sebagai angka dari sel numerik
@@ -72,6 +61,7 @@ class SantriImporService
         'wali_tgl_lahir', 'tgl_masuk', 'tgl_selesai',
     ];
 
+    /** Ringkasan khas service ini: menambah `baris_riwayat_dibuat`. */
     public function ringkasan(): array
     {
         return [
@@ -94,16 +84,9 @@ class SantriImporService
      */
     public function normalisasiBaris(array $baris): array
     {
-        foreach (static::KOLOM_TEKS as $kolom) {
-            if (isset($baris[$kolom]) && (is_int($baris[$kolom]) || is_float($baris[$kolom]))) {
-                // 26001.0 → '26001' (bukan '26001.0'); pecahan tak wajar dibiarkan string.
-                $baris[$kolom] = fmod((float) $baris[$kolom], 1.0) === 0.0
-                    ? (string) (int) $baris[$kolom]
-                    : (string) $baris[$kolom];
-            }
-        }
+        $baris = $this->castTeks($baris, self::KOLOM_TEKS);
 
-        foreach (static::KOLOM_TANGGAL as $kolom) {
+        foreach (self::KOLOM_TANGGAL as $kolom) {
             if (! isset($baris[$kolom])) {
                 continue;
             }
@@ -158,30 +141,30 @@ class SantriImporService
      * Proses satu potongan baris (sudah ternormalisasi). `$nomorAwal` = nomor
      * baris file baris pertama potongan dikurangi 1 (heading = 1), sehingga
      * nomor galat absolut dan selaras antar potongan.
+     * Override: baris kosong/pemisah dilewati kunci identitas, dan santri
+     * yang tersentuh dihitung ulang status globalnya di akhir potongan.
      *
      * @param  array<int, array<string, mixed>>  $potongan
      */
     public function prosesPotongan(array $potongan, int $nomorAwal, bool $kering): void
     {
         $jalan = function () use ($potongan, $nomorAwal, $kering) {
-            $tersentuh = [];
+            $this->tersentuh = [];
             foreach (array_values($potongan) as $i => $baris) {
                 $no = $nomorAwal + $i + 1;
                 $baris = is_array($baris) ? $baris : [];
                 $nis = trim((string) ($baris['nis_lokal'] ?? ''));
-                $this->nisAktif = $nis === '' ? null : $nis;
+                $this->kunciAktif = $nis === '' ? null : $nis;
                 // Baris tanpa kunci identitas apa pun dianggap kosong/pemisah.
                 if (empty($baris['nama_lengkap']) && empty($baris['santri_id']) && empty($baris['nik']) && empty($baris['nis_lokal'])) {
                     continue;
                 }
 
-                if ($this->prosesBaris($baris, $no, $tersentuh, $kering)) {
-                    $this->valid++;
-                }
+                $this->prosesBaris($baris, $no, $kering);
             }
 
             if (! $kering) {
-                foreach (array_unique($tersentuh) as $santriId) {
+                foreach (array_unique($this->tersentuh) as $santriId) {
                     Santri::find($santriId)?->hitungUlangStatusGlobal();
                 }
             }
@@ -194,29 +177,36 @@ class SantriImporService
         }
     }
 
-    /** @param  array<string, mixed>  $baris
-     *  @param  array<int, int>  $tersentuh */
-    protected function prosesBaris(array $baris, int $no, array &$tersentuh, bool $kering): bool
+    /**
+     * Implementasi baris gabungan santri + keanggotaan (+ riwayat perdana
+     * opsional). Hitungan `valid` dihitung di sini; santri tersentuh
+     * dikumpulkan ke `$this->tersentuh` untuk diproses di akhir potongan
+     * (loop potongan service ini khusus, sehingga `prosesPotongan()`
+     * di-override di atas).
+     *
+     * @param  array<string, mixed>  $baris
+     */
+    protected function prosesBaris(array $baris, int $no, bool $kering): void
     {
         $validator = Validator::make($baris, static::rules());
         if ($validator->fails()) {
             $kolom = (string) $validator->errors()->keys()[0];
             $this->fail($no, $kolom, (string) $validator->errors()->first($kolom));
 
-            return false;
+            return;
         }
 
         // Keanggotaan wajib: baris tanpa `jenjang` ditolak.
         $jenjang = $this->resolveLembagaId($baris, $no);
         if ($jenjang === null) {
-            return false;
+            return;
         }
 
         $auth = auth()->user();
         if (! $auth || ! $auth->canAccessLembaga($jenjang)) {
             $this->fail($no, 'jenjang', 'Lembaga di luar lingkup akses Anda.');
 
-            return false;
+            return;
         }
 
         // Riwayat perdana (opsional): `tahaj_masuk` harus tahun ajaran yang ada.
@@ -224,7 +214,7 @@ class SantriImporService
         if ($tahunAjaranMasuk !== '' && ! TahunAjaran::whereKey($tahunAjaranMasuk)->exists()) {
             $this->fail($no, 'tahaj_masuk', "Tahun ajaran \"{$tahunAjaranMasuk}\" tidak ditemukan.");
 
-            return false;
+            return;
         }
 
         $dataSantri = $this->buatDataSantri($baris);
@@ -233,16 +223,16 @@ class SantriImporService
         try {
             $santri = $this->cocokkanSantri($baris, $dataSantri, $no, $jenjang, $sudahAda, $kering);
             if ($santri === null) {
-                return false;
+                return;
             }
 
             if (! $this->simpanKeanggotaan($santri, $jenjang, $baris, $no, $keanggotaanBaru, $kering)) {
-                return false;
+                return;
             }
         } catch (QueryException $e) {
             $this->fail($no, 'basis_data', 'Gagal menyimpan baris ini ke database.');
 
-            return false;
+            return;
         }
 
         if ($tahunAjaranMasuk !== '') {
@@ -254,11 +244,12 @@ class SantriImporService
         } else {
             $this->diperbarui++;
         }
+
         if (! $kering && $santri->exists) {
-            $tersentuh[] = (int) $santri->id;
+            $this->tersentuh[] = (int) $santri->id;
         }
 
-        return true;
+        $this->valid++;
     }
 
     /**
@@ -690,12 +681,6 @@ class SantriImporService
         return null;
     }
 
-    /** @param  array{baris: int, nis_lokal: ?string, kolom: string, pesan: string}  $gagal */
-    protected function fail(int $no, string $kolom, string $pesan): void
-    {
-        $this->gagal[] = ['baris' => $no, 'nis_lokal' => $this->nisAktif, 'kolom' => $kolom, 'pesan' => $pesan];
-    }
-
     /**
      * Aturan validasi per baris (basis buku induk + blok keanggotaan wajib).
      * Dipakai validasi manual potongan JSON dan penanda kolom wajib template.
@@ -753,12 +738,9 @@ class SantriImporService
             'ayah_status' => ['nullable', 'string', 'max:50'],
             'ibu_status' => ['nullable', 'string', 'max:50'],
             'ayah_tmp_lahir' => ['nullable', 'string', 'max:50'],
-            'ibu_tmp_lahir' => ['nullable', 'string', 'max:50'],
-            'ayah_tgl_lahir' => ['nullable', 'date'],
             'ibu_tgl_lahir' => ['nullable', 'date'],
-            'ayah_alamat' => ['nullable', 'string'],
             'ibu_alamat' => ['nullable', 'string'],
-            'ayah_status_tempat_tinggal' => ['nullable', 'string', 'max:50'],
+            'ayah_alamat' => ['nullable', 'string'],
             'ibu_status_tempat_tinggal' => ['nullable', 'string', 'max:50'],
             'tmp_lahir' => ['nullable', 'string', 'max:50'],
             'no_hp_santri' => ['nullable', 'string', 'max:20'],

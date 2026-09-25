@@ -9,8 +9,6 @@ use App\Models\MutasiKeluar;
 use App\Models\RiwayatBelajar;
 use App\Models\Santri;
 use App\Support\Tanggal;
-use DateTimeInterface;
-use Illuminate\Support\Facades\DB;
 
 /**
  * Logika import arsip mutasi keluar per baris — dipakai dua jalur: file
@@ -28,44 +26,13 @@ use Illuminate\Support\Facades\DB;
  * (arsip historis). Tanggal kosong tetap ikut jadi kunci idempotensi.
  * `alasan_mutasi` arsip = bebas teks (maks 100 karakter), tak harus cocok
  * dengan kamus `ref_alasan_mutasi`; hanya form "Proses mutasi" yang mewajibkan
- * nilai kamus.
+ * pilih dari kamus aktif.
  *
- * `kelas_terakhir` diisi nama rombel lebih dulu (angka pun sah sebagai nama),
- * id numerik jadi fallback, dalam lingkup jenjang; `tahun_ajaran` opsional
- * mempersempit pencarian nama — wajib diisi bila nama yang sama ada di
- * beberapa tahun ajaran. Kosong → beku otomatis dari riwayat terakhir.
- *
- * Izin mengikuti akun per baris (pola import kelas). Mode kering
- * (`$kering = true`) menjalankan SEMUA cek tanpa menulis.
+ * Izin mengikuti akun per baris. Mode kering (`$kering = true`) menjalankan
+ * SEMUA cek tanpa menulis.
  */
-class MutasiKeluarImporService
+class MutasiKeluarImporService extends ImporPotongan
 {
-    /** Galat terkumpul: ['baris' => int, 'nis_lokal' => ?string, 'kolom' => string, 'pesan' => string]. */
-    public array $gagal = [];
-
-    public int $valid = 0;
-
-    public int $dibuat = 0;
-
-    public int $diperbarui = 0;
-
-    public int $dilewati = 0;
-
-    /** NIS lokal baris yang sedang diproses (untuk kolom kunci di galat). */
-    protected ?string $nisAktif = null;
-
-    public function ringkasan(): array
-    {
-        return [
-            'baris_diproses' => $this->valid + count($this->gagal),
-            'baris_valid' => $this->valid,
-            'baris_gagal' => count($this->gagal),
-            'dibuat' => $this->dibuat,
-            'diperbarui' => $this->diperbarui,
-            'dilewati' => $this->dilewati,
-        ];
-    }
-
     /**
      * Normalisasi SEBELUM cek: angka Excel → string (NIS ber-nol-depan
      * dan tanggal serial tetap terbaca), objek DateTime → Y-m-d.
@@ -75,48 +42,16 @@ class MutasiKeluarImporService
      */
     public function normalisasiBaris(array $baris): array
     {
-        foreach ($baris as $kunci => $nilai) {
-            if ($nilai instanceof DateTimeInterface) {
-                $baris[$kunci] = $nilai->format('Y-m-d');
-            }
-        }
-        foreach (['nis_lokal', 'jenjang', 'tanggal_mutasi', 'alasan_mutasi', 'kelas_terakhir', 'tahun_ajaran', 'no_surat', 'nama_sekolah_tujuan', 'npsn_sekolah_tujuan', 'nsm_sekolah_tujuan', 'alamat_sekolah_tujuan', 'keterangan'] as $kolom) {
-            if (isset($baris[$kolom]) && (is_int($baris[$kolom]) || is_float($baris[$kolom]))) {
-                $baris[$kolom] = fmod((float) $baris[$kolom], 1.0) === 0.0
-                    ? (string) (int) $baris[$kolom]
-                    : (string) $baris[$kolom];
-            }
-        }
+        $baris = $this->castTanggal($baris);
 
-        return $baris;
-    }
-
-    /**
-     * Proses satu potongan baris (sudah ternormalisasi). `$nomorAwal` =
-     * nomor baris file baris pertama potongan dikurangi 1 (heading = 1).
-     *
-     * @param  array<int, array<string, mixed>>  $potongan
-     */
-    public function prosesPotongan(array $potongan, int $nomorAwal, bool $kering): void
-    {
-        $jalan = function () use ($potongan, $nomorAwal, $kering) {
-            foreach (array_values($potongan) as $i => $baris) {
-                $this->prosesBaris(is_array($baris) ? $baris : [], $nomorAwal + $i + 1, $kering);
-            }
-        };
-
-        if ($kering) {
-            $jalan();
-        } else {
-            DB::transaction($jalan);
-        }
+        return $this->castTeks($baris, ['nis_lokal', 'jenjang', 'tanggal_mutasi', 'alasan_mutasi', 'kelas_terakhir', 'tahun_ajaran', 'no_surat', 'nama_sekolah_tujuan', 'npsn_sekolah_tujuan', 'nsm_sekolah_tujuan', 'alamat_sekolah_tujuan', 'keterangan']);
     }
 
     /** @param  array<string, mixed>  $baris */
-    public function prosesBaris(array $baris, int $no, bool $kering): void
+    protected function prosesBaris(array $baris, int $no, bool $kering): void
     {
         $nis = trim((string) ($baris['nis_lokal'] ?? ''));
-        $this->nisAktif = $nis === '' ? null : $nis;
+        $this->kunciAktif = $nis === '' ? null : $nis;
         $jenjang = trim((string) ($baris['jenjang'] ?? ''));
         if ($jenjang === '' || ! Lembaga::whereKey($jenjang)->exists()) {
             $this->fail($no, 'jenjang', 'Lembaga tidak valid (isi jenjang, mis. MI/MD).');
@@ -281,19 +216,5 @@ class MutasiKeluarImporService
         $this->fail($no, 'kelas_terakhir', "Kelas \"{$teks}\" tidak ditemukan di lembaga ini.");
 
         return false;
-    }
-
-    /** @param  array<string, mixed>  $baris */
-    protected function teks(array $baris, string $kolom): ?string
-    {
-        $nilai = trim((string) ($baris[$kolom] ?? ''));
-
-        return $nilai === '' ? null : $nilai;
-    }
-
-    /** @param  array{baris: int, nis_lokal: ?string, kolom: string, pesan: string}  $gagal */
-    protected function fail(int $no, string $kolom, string $pesan): void
-    {
-        $this->gagal[] = ['baris' => $no, 'nis_lokal' => $this->nisAktif, 'kolom' => $kolom, 'pesan' => $pesan];
     }
 }

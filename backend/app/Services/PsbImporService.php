@@ -6,9 +6,7 @@ use App\Models\PsbCalonSantri;
 use App\Models\PsbGelombang;
 use App\Models\PsbLogStatus;
 use App\Support\Tanggal;
-use DateTimeInterface;
 use Illuminate\Database\QueryException;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 
@@ -27,22 +25,8 @@ use Illuminate\Validation\Rule;
  * TANPA menulis apa pun — periksa bertahap tidak boleh membuat
  * pendaftar, log status, maupun nomor pendaftaran.
  */
-class PsbImporService
+class PsbImporService extends ImporPotongan
 {
-    /** Galat terkumpul: ['baris' => int, 'nis_lokal' => ?string, 'kolom' => string, 'pesan' => string]. */
-    public array $gagal = [];
-
-    public int $valid = 0;
-
-    public int $dibuat = 0;
-
-    public int $diperbarui = 0;
-
-    public int $dilewati = 0;
-
-    /** NIK baris yang sedang diproses (untuk kolom kunci di galat). */
-    protected ?string $nikAktif = null;
-
     public function __construct(
         protected int $gelombangId,
         protected string $jenjang,
@@ -66,49 +50,16 @@ class PsbImporService
      */
     public function normalisasiBaris(array $baris): array
     {
-        foreach ($baris as $kunci => $nilai) {
-            if ($nilai instanceof DateTimeInterface) {
-                $baris[$kunci] = $nilai->format('Y-m-d');
-            }
-        }
-        foreach (['nik', 'telp_ortu', 'no_pendaftaran'] as $kolom) {
-            if (isset($baris[$kolom]) && (is_int($baris[$kolom]) || is_float($baris[$kolom]))) {
-                $baris[$kolom] = fmod((float) $baris[$kolom], 1.0) === 0.0
-                    ? (string) (int) $baris[$kolom]
-                    : (string) $baris[$kolom];
-            }
-        }
+        $baris = $this->castTanggal($baris);
 
-        return $baris;
-    }
-
-    /**
-     * Proses satu potongan baris untuk satu gelombang + lembaga tujuan.
-     * `$nomorAwal` = nomor baris file baris pertama potongan dikurangi 1
-     * (heading = 1) agar nomor galat absolut antar potongan.
-     *
-     * @param  array<int, array<string, mixed>>  $potongan
-     */
-    public function prosesPotongan(array $potongan, int $nomorAwal, bool $kering): void
-    {
-        $jalan = function () use ($potongan, $nomorAwal, $kering) {
-            foreach (array_values($potongan) as $i => $baris) {
-                $this->prosesBaris(is_array($baris) ? $baris : [], $nomorAwal + $i + 1, $kering);
-            }
-        };
-
-        if ($kering) {
-            $jalan();
-        } else {
-            DB::transaction($jalan);
-        }
+        return $this->castTeks($baris, ['nik', 'telp_ortu', 'no_pendaftaran']);
     }
 
     /** @param  array<string, mixed>  $baris */
-    public function prosesBaris(array $baris, int $no, bool $kering): void
+    protected function prosesBaris(array $baris, int $no, bool $kering): void
     {
         $nik = trim((string) ($baris['nik'] ?? ''));
-        $this->nikAktif = $nik === '' ? null : $nik;
+        $this->kunciAktif = $nik === '' ? null : $nik;
         $baris['nik'] = $nik;
 
         if ($nik === '') {
@@ -165,7 +116,7 @@ class PsbImporService
                     // NIK/no_pendaftaran bentrok Unique: baris gagal, bukan fatal.
                     $this->dibuat--;
                     $this->valid--;
-                    $this->gagal[] = ['baris' => $no, 'nis_lokal' => $this->nikAktif, 'kolom' => 'nik', 'pesan' => 'Calon sudah terdaftar (NIK atau nomor pendaftaran bentrok).'];
+                    $this->gagal[] = ['baris' => $no, 'nis_lokal' => $this->kunciAktif, 'kolom' => 'nik', 'pesan' => 'Calon sudah terdaftar (NIK atau nomor pendaftaran bentrok).'];
 
                     return;
                 }
@@ -195,11 +146,5 @@ class PsbImporService
                 Rule::unique('psb_calon_santri', 'no_pendaftaran'),
             ],
         ];
-    }
-
-    /** @param  array{baris: int, nis_lokal: ?string, kolom: string, pesan: string}  $gagal */
-    protected function fail(int $no, string $kolom, string $pesan): void
-    {
-        $this->gagal[] = ['baris' => $no, 'nis_lokal' => $this->nikAktif, 'kolom' => $kolom, 'pesan' => $pesan];
     }
 }

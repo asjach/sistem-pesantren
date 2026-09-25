@@ -9,8 +9,6 @@ use App\Models\LembagaSantri;
 use App\Models\RiwayatBelajar;
 use App\Models\Santri;
 use App\Support\Tanggal;
-use DateTimeInterface;
-use Illuminate\Support\Facades\DB;
 
 /**
  * Logika import arsip alumni per baris — dipakai dua jalur: file Excel
@@ -25,34 +23,8 @@ use Illuminate\Support\Facades\DB;
  * Izin mengikuti akun per baris. Mode kering (`$kering = true`)
  * menjalankan SEMUA cek tanpa menulis (periksa bertahap).
  */
-class AlumniImporService
+class AlumniImporService extends ImporPotongan
 {
-    /** Galat terkumpul: ['baris' => int, 'nis_lokal' => ?string, 'kolom' => string, 'pesan' => string]. */
-    public array $gagal = [];
-
-    public int $valid = 0;
-
-    public int $dibuat = 0;
-
-    public int $diperbarui = 0;
-
-    public int $dilewati = 0;
-
-    /** NIS lokal baris yang sedang diproses (untuk kolom kunci di galat). */
-    protected ?string $nisAktif = null;
-
-    public function ringkasan(): array
-    {
-        return [
-            'baris_diproses' => $this->valid + count($this->gagal),
-            'baris_valid' => $this->valid,
-            'baris_gagal' => count($this->gagal),
-            'dibuat' => $this->dibuat,
-            'diperbarui' => $this->diperbarui,
-            'dilewati' => $this->dilewati,
-        ];
-    }
-
     /**
      * Normalisasi SEBELUM cek: angka Excel → string, objek DateTime → Y-m-d.
      *
@@ -61,48 +33,16 @@ class AlumniImporService
      */
     public function normalisasiBaris(array $baris): array
     {
-        foreach ($baris as $kunci => $nilai) {
-            if ($nilai instanceof DateTimeInterface) {
-                $baris[$kunci] = $nilai->format('Y-m-d');
-            }
-        }
-        foreach (['nis_lokal', 'jenjang', 'tahun_ajaran_lulus', 'tanggal_lulus', 'kelas_lulus', 'nomor_ijazah', 'no_surat_ijazah', 'kegiatan_setelah_lulus', 'penyerahan_ijazah', 'melanjutkan', 'catatan'] as $kolom) {
-            if (isset($baris[$kolom]) && (is_int($baris[$kolom]) || is_float($baris[$kolom]))) {
-                $baris[$kolom] = fmod((float) $baris[$kolom], 1.0) === 0.0
-                    ? (string) (int) $baris[$kolom]
-                    : (string) $baris[$kolom];
-            }
-        }
+        $baris = $this->castTanggal($baris);
 
-        return $baris;
-    }
-
-    /**
-     * Proses satu potongan baris (sudah ternormalisasi). `$nomorAwal` =
-     * nomor baris file baris pertama potongan dikurangi 1 (heading = 1).
-     *
-     * @param  array<int, array<string, mixed>>  $potongan
-     */
-    public function prosesPotongan(array $potongan, int $nomorAwal, bool $kering): void
-    {
-        $jalan = function () use ($potongan, $nomorAwal, $kering) {
-            foreach (array_values($potongan) as $i => $baris) {
-                $this->prosesBaris(is_array($baris) ? $baris : [], $nomorAwal + $i + 1, $kering);
-            }
-        };
-
-        if ($kering) {
-            $jalan();
-        } else {
-            DB::transaction($jalan);
-        }
+        return $this->castTeks($baris, ['nis_lokal', 'jenjang', 'tahun_ajaran_lulus', 'tanggal_lulus', 'kelas_lulus', 'nomor_ijazah', 'no_surat_ijazah', 'kegiatan_setelah_lulus', 'penyerahan_ijazah', 'melanjutkan', 'catatan']);
     }
 
     /** @param  array<string, mixed>  $baris */
-    public function prosesBaris(array $baris, int $no, bool $kering): void
+    protected function prosesBaris(array $baris, int $no, bool $kering): void
     {
         $nis = trim((string) ($baris['nis_lokal'] ?? ''));
-        $this->nisAktif = $nis === '' ? null : $nis;
+        $this->kunciAktif = $nis === '' ? null : $nis;
         $jenjang = trim((string) ($baris['jenjang'] ?? ''));
         if ($jenjang === '' || ! Lembaga::whereKey($jenjang)->exists()) {
             $this->fail($no, 'jenjang', 'Lembaga tidak valid (isi jenjang, mis. MI/MD).');
@@ -270,30 +210,5 @@ class AlumniImporService
             || (string) $ada->penyerahan_ijazah !== (string) $data['penyerahan_ijazah']
             || (string) $ada->melanjutkan !== (string) ($data['melanjutkan'] ?? '')
             || (string) $ada->catatan !== (string) ($data['catatan'] ?? '');
-    }
-
-    /** @param  array<string, mixed>  $baris */
-    protected function teks(array $baris, string $kolom): ?string
-    {
-        $nilai = trim((string) ($baris[$kolom] ?? ''));
-
-        return $nilai === '' ? null : $nilai;
-    }
-
-    /**
-     * @param  array<string, mixed>  $baris
-     * @param  array<int, string>  $pilihan
-     */
-    protected function nilai(array $baris, string $kolom, array $pilihan): ?string
-    {
-        $nilai = strtolower(trim((string) ($baris[$kolom] ?? '')));
-
-        return in_array($nilai, $pilihan, true) ? $nilai : null;
-    }
-
-    /** @param  array{baris: int, nis_lokal: ?string, kolom: string, pesan: string}  $gagal */
-    protected function fail(int $no, string $kolom, string $pesan): void
-    {
-        $this->gagal[] = ['baris' => $no, 'nis_lokal' => $this->nisAktif, 'kolom' => $kolom, 'pesan' => $pesan];
     }
 }

@@ -9,7 +9,6 @@ use App\Models\RiwayatBelajar;
 use App\Models\Santri;
 use App\Models\TahunAjaran;
 use App\Support\Tanggal;
-use DateTimeInterface;
 use Illuminate\Support\Facades\DB;
 use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 
@@ -23,20 +22,10 @@ use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
  * `nis_lokal` + `jenjang`, fallback NIS sama di pasangan MI↔MD. Mode kering
  * (`$kering = true`) menjalankan SEMUA cek tanpa menulis — untuk periksa
  * bertahap (pengganti rollback-transaksi yang berat di file besar).
- */
-class RiwayatBelajarImporService
+ */ class RiwayatBelajarImporService extends ImporPotongan
 {
-    /** Galat terkumpul: ['baris' => int, 'nis_lokal' => ?string, 'kolom' => string, 'pesan' => string]. */
-    public array $gagal = [];
-
-    public int $valid = 0;
-
-    public int $dibuat = 0;
-
-    public int $diperbarui = 0;
-
-    /** NIS baris yang sedang diproses (untuk kolom kunci di galat). */
-    protected ?string $nisAktif = null;
+    /** (santri, jenjang) tersentuh potongan berjalan; disinkronkan di akhir potongan. */
+    protected array $tersentuh = [];
 
     public function ringkasan(): array
     {
@@ -60,11 +49,7 @@ class RiwayatBelajarImporService
      */
     public function normalisasiBaris(array $baris): array
     {
-        foreach ($baris as $kunci => $nilai) {
-            if ($nilai instanceof DateTimeInterface) {
-                $baris[$kunci] = $nilai->format('Y-m-d');
-            }
-        }
+        $baris = $this->castTanggal($baris);
         if (isset($baris['tgl_masuk']) && (is_int($baris['tgl_masuk']) || is_float($baris['tgl_masuk']))) {
             try {
                 $baris['tgl_masuk'] = ExcelDate::excelToDateTimeObject($baris['tgl_masuk'])->format('Y-m-d');
@@ -88,40 +73,36 @@ class RiwayatBelajarImporService
      * Proses satu potongan baris (sudah ternormalisasi). `$nomorAwal` = nomor
      * baris Excel baris pertama potongan dikurangi 1 (heading = 1), sehingga
      * nomor galat absolut dan selaras antar potongan.
+     * Override: baris kosong/pemisah (tanpa NIS lokal) dilewati, dan pasangan
+     * (santri, jenjang) yang tersentuh disinkronkan + dihitung ulang di akhir
+     * potongan — loop potongan service ini khusus.
      *
      * @param  array<int, array<string, mixed>>  $potongan
      */
     public function prosesPotongan(array $potongan, int $nomorAwal, bool $kering): void
     {
         $jalan = function () use ($potongan, $nomorAwal, $kering) {
-            $tersentuh = [];
+            $this->tersentuh = [];
             foreach (array_values($potongan) as $i => $baris) {
                 $no = $nomorAwal + $i + 1;
                 $baris = is_array($baris) ? $baris : [];
                 $nis = trim((string) ($baris['nis_lokal'] ?? ''));
-                $this->nisAktif = $nis === '' ? null : $nis;
+                $this->kunciAktif = $nis === '' ? null : $nis;
                 // Baris tanpa NIS lokal dianggap baris kosong/pemisah.
                 if (empty($baris['nis_lokal'])) {
                     continue;
                 }
 
-                $jenjang = trim((string) ($baris['jenjang'] ?? ''));
-                $ta = TahunAjaran::normalisasiNama((string) ($baris['tahun_ajaran'] ?? ''));
-
-                if (! $this->prosesBaris($baris, $no, $jenjang, $ta, $tersentuh, $kering)) {
-                    continue;
-                }
-
-                $this->valid++;
+                $this->prosesBaris($baris, $no, $kering);
             }
 
             if (! $kering) {
                 // Periode terakhir per (santri, jenjang) yang aktif; sisanya arsip.
                 $siklus = app(SiklusSantriService::class);
-                foreach ($tersentuh as [$santriId, $jenjang]) {
+                foreach ($this->tersentuh as [$santriId, $jenjang]) {
                     $siklus->sinkronkanAktifRiwayat($santriId, $jenjang);
                 }
-                foreach (array_unique(array_column($tersentuh, 0)) as $santriId) {
+                foreach (array_unique(array_column($this->tersentuh, 0)) as $santriId) {
                     Santri::find($santriId)?->hitungUlangStatusGlobal();
                 }
             }
@@ -134,8 +115,32 @@ class RiwayatBelajarImporService
         }
     }
 
-    /** @param  array<string, array{0: int, 1: string}>  $tersentuh */
-    protected function prosesBaris(array $row, int $no, string $jenjang, string $ta, array &$tersentuh, bool $kering): bool
+    /**
+     * Implementasi UPSERT riwayat per kunci (santri, tahun ajaran, jenjang,
+     * semester). Hitungan `valid` dihitung di sini; pasangan tersentuh
+     * dikumpulkan ke `$this->tersentuh` untuk disinkronkan di akhir potongan.
+     *
+     * @param  array<string, mixed>  $row
+     */
+    protected function prosesBaris(array $row, int $no, bool $kering): void
+    {
+        $jenjang = trim((string) ($row['jenjang'] ?? ''));
+        $ta = TahunAjaran::normalisasiNama((string) ($row['tahun_ajaran'] ?? ''));
+
+        if (! $this->prosesBarisRiwayat($row, $no, $jenjang, $ta, $kering)) {
+            return;
+        }
+
+        $this->valid++;
+    }
+
+    /**
+     * Inti pemrosesan satu baris riwayat (validasi + UPSERT). Dipecah dari
+     * `prosesBaris()` karena butuh `jenjang` + `ta` hasil normalisasi baris.
+     *
+     * @param  array<string, mixed>  $row
+     */
+    protected function prosesBarisRiwayat(array $row, int $no, string $jenjang, string $ta, bool $kering): bool
     {
         if ($jenjang === '' || ! Lembaga::whereKey($jenjang)->exists()) {
             $this->fail($no, 'jenjang', 'Lembaga tidak valid (isi jenjang, mis. MI/MD).');
@@ -288,7 +293,7 @@ class RiwayatBelajarImporService
             $this->diperbarui++;
         }
 
-        $tersentuh[$santri->id.'|'.$jenjang] = [(int) $santri->id, $jenjang];
+        $this->tersentuh[$santri->id.'|'.$jenjang] = [(int) $santri->id, $jenjang];
 
         return true;
     }
@@ -475,11 +480,5 @@ class RiwayatBelajarImporService
         $this->fail($no, 'nama_kelas', "Kelas \"{$teks}\" tidak ditemukan di lembaga + tahun ajaran ini.");
 
         return false;
-    }
-
-    /** @param  array{baris: int, nis_lokal: ?string, kolom: string, pesan: string}  $gagal */
-    protected function fail(int $no, string $kolom, string $pesan): void
-    {
-        $this->gagal[] = ['baris' => $no, 'nis_lokal' => $this->nisAktif, 'kolom' => $kolom, 'pesan' => $pesan];
     }
 }

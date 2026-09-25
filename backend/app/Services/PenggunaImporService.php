@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Models\User;
-use DateTimeInterface;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -25,22 +24,8 @@ use Illuminate\Validation\Rule;
  * menjalankan SEMUA validasi tanpa menulis akun, pivot `user_lembaga`,
  * maupun peran.
  */
-class PenggunaImporService
+class PenggunaImporService extends ImporPotongan
 {
-    /** Galat terkumpul: ['baris' => int, 'nis_lokal' => ?string, 'kolom' => string, 'pesan' => string]. */
-    public array $gagal = [];
-
-    public int $valid = 0;
-
-    public int $dibuat = 0;
-
-    public int $diperbarui = 0;
-
-    public int $dilewati = 0;
-
-    /** Identifier baris yang sedang diproses (untuk kolom kunci di galat). */
-    protected ?string $idAktif = null;
-
     /** Guard duplikat intra-sesi: "email|phone|username". */
     protected array $dilihat = [];
 
@@ -53,18 +38,6 @@ class PenggunaImporService
         protected array $allowedRoles,
     ) {}
 
-    public function ringkasan(): array
-    {
-        return [
-            'baris_diproses' => $this->valid + count($this->gagal),
-            'baris_valid' => $this->valid,
-            'baris_gagal' => count($this->gagal),
-            'dibuat' => $this->dibuat,
-            'diperbarui' => $this->diperbarui,
-            'dilewati' => $this->dilewati,
-        ];
-    }
-
     /**
      * Normalisasi SEBELUM cek: objek DateTime → Y-m-d; identifier
      * di-trim dan email di-lowercase.
@@ -74,11 +47,7 @@ class PenggunaImporService
      */
     public function normalisasiBaris(array $baris): array
     {
-        foreach ($baris as $kunci => $nilai) {
-            if ($nilai instanceof DateTimeInterface) {
-                $baris[$kunci] = $nilai->format('Y-m-d');
-            }
-        }
+        $baris = $this->castTanggal($baris);
         foreach (['email', 'phone', 'username'] as $kolom) {
             if (isset($baris[$kolom])) {
                 $teks = strtolower(trim((string) $baris[$kolom]));
@@ -92,34 +61,13 @@ class PenggunaImporService
         return $baris;
     }
 
-    /**
-     * Proses satu potongan baris (sudah ternormalisasi). `$nomorAwal` =
-     * nomor baris file baris pertama potongan dikurangi 1 (heading = 1).
-     *
-     * @param  array<int, array<string, mixed>>  $potongan
-     */
-    public function prosesPotongan(array $potongan, int $nomorAwal, bool $kering): void
-    {
-        $jalan = function () use ($potongan, $nomorAwal, $kering) {
-            foreach (array_values($potongan) as $i => $baris) {
-                $this->prosesBaris(is_array($baris) ? $baris : [], $nomorAwal + $i + 1, $kering);
-            }
-        };
-
-        if ($kering) {
-            $jalan();
-        } else {
-            DB::transaction($jalan);
-        }
-    }
-
     /** @param  array<string, mixed>  $baris */
-    public function prosesBaris(array $baris, int $no, bool $kering): void
+    protected function prosesBaris(array $baris, int $no, bool $kering): void
     {
         $email = $baris['email'] ?? null;
         $phone = $baris['phone'] ?? null;
         $username = $baris['username'] ?? null;
-        $this->idAktif = $email ?: $phone ?: $username;
+        $this->kunciAktif = $email ?: $phone ?: $username;
 
         if (($email ?? '') === '' && ($phone ?? '') === '' && ($username ?? '') === '') {
             $this->fail($no, 'email', 'Isi email, phone, atau username (minimal satu).');
@@ -189,11 +137,5 @@ class PenggunaImporService
             'password' => ['required', 'string', 'min:8'],
             'roles' => ['required', 'string'],
         ];
-    }
-
-    /** @param  array{baris: int, nis_lokal: ?string, kolom: string, pesan: string}  $gagal */
-    protected function fail(int $no, string $kolom, string $pesan): void
-    {
-        $this->gagal[] = ['baris' => $no, 'nis_lokal' => $this->idAktif, 'kolom' => $kolom, 'pesan' => $pesan];
     }
 }
