@@ -3,8 +3,10 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { bisa } from '../api/auth';
 import { errorMessage } from '../api/client';
-import { tanggal } from '../lib/tanggal';
 import {
+  daftarUlangCalon,
+  batalkanFaseCalon,
+  undurDiriCalon,
   accCalon,
   bulkAcc,
   bulkDaftarUlang,
@@ -16,17 +18,11 @@ import {
   createCalonPsb,
   downloadTemplatePsb,
   hapusCalon,
-  importPsbPotong,
-  batalPotongPsb,
-  unduhGalatPsb,
   listAntrean,
   listDokumenCalon,
   listGelombangPsb,
-  daftarUlangCalon,
   promosiCalon,
   pulihkanCalon,
-  batalkanFaseCalon,
-  undurDiriCalon,
   verifikasiCalon,
   verifikasiDokumen,
   type BulkHasil,
@@ -36,8 +32,6 @@ import {
 import { listLembaga, type Lembaga, type Paginate } from '../api/master';
 import type { DokumenSantri } from '../api/santri';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { FieldLabel } from '@/components/ui/field';
 import {
   Select,
   SelectContent,
@@ -46,25 +40,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import ExcelTable, { type ExcelChoice, type ExcelField } from '@/components/ExcelTable';
+import ExcelTable from '@/components/ExcelTable';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { targetTunggal, useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
 import FilterField from '@/components/FilterField';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import Pager from '@/components/Pager';
 import { useDaftarTabel } from '@/hooks/useDaftarTabel';
 import { ActionIcon, DeleteAction } from '@/components/RowActions';
-import ImportBertahapUmumDialog from '@/components/ImportBertahapUmumDialog';
 import { toast } from 'sonner';
 import {
   BadgeCheck,
@@ -79,100 +64,23 @@ import {
   UserCheck,
   UserX,
 } from '@/icons';
-
-// Tahapan timeline PSB → kumpulan status_pendaftaran (nilai enum di DB).
-// Tiap tahap kini halamannya sendiri di bawah submenu Antrean.
-export const TAHAP_PSB: { id: string; label: string; statuses: string[] }[] = [
-  { id: 'pendaftar', label: 'Pendaftar', statuses: ['baru', 'waiting_list'] },
-  { id: 'terdaftar', label: 'Terdaftar', statuses: ['terverifikasi'] },
-  { id: 'daftar_ulang', label: 'Daftar Ulang', statuses: ['lolos', 'pemberkasan', 'ajukan_daftar_ulang'] },
-  { id: 'diterima', label: 'Diterima', statuses: ['daftar_ulang'] },
-  { id: 'mengundurkan_diri', label: 'Mengundurkan Diri', statuses: ['mengundurkan_diri'] },
-  { id: 'ditolak', label: 'Ditolak', statuses: ['ditolak', 'tidak_lolos'] },
-];
-
-/** Definisi kolom grid PSB; pilihan gelombang mengikuti data (mode Input). */
-function psbFields(gelombangChoices: ExcelChoice[]): ExcelField[] {
-  return [
-    { key: 'no', label: 'no_pendaftaran', width: 190, kind: 'static', sumber: { tabel: 'psb_calon_santri', kolom: 'no_pendaftaran' } },
-    {
-      key: 'nama', label: 'nama_lengkap', width: 200, kind: 'static',
-      sumber: { tabel: 'psb_calon_santri', kolom: 'nama_lengkap' },
-      inputKind: 'text', maxLength: 255, required: true,
-    },
-    {
-      key: 'nik', label: 'nik', width: 160, kind: 'static',
-      sumber: { tabel: 'psb_calon_santri', kolom: 'nik' },
-      inputKind: 'text', maxLength: 16, required: true,
-      validate: (v) => (!v || /^\d{16}$/.test(v.trim()) ? null : 'NIK harus 16 digit angka.'),
-    },
-    {
-      key: 'tipe', label: 'tipe_santri', width: 110, kind: 'static',
-      sumber: { tabel: 'psb_calon_santri', kolom: 'tipe_santri' },
-      inputKind: 'select', required: true,
-      inputChoices: [
-        { value: 'asrama', label: 'asrama' },
-        { value: 'non_asrama', label: 'non_asrama' },
-      ],
-    },
-    { key: 'lembaga', label: 'lembaga.jenjang', width: 180, kind: 'static', sumber: { tabel: 'lembaga', kolom: 'jenjang' } },
-    {
-      key: 'gelombang', label: 'psb_gelombang.nama', width: 140, kind: 'static',
-      sumber: { tabel: 'psb_gelombang', kolom: 'nama' },
-      inputKind: 'select', required: true, inputChoices: gelombangChoices,
-    },
-    { key: 'paket', label: 'Paket', width: 120, kind: 'static', sumber: null },
-    { key: 'status', label: 'status_pendaftaran', width: 150, kind: 'static', sumber: { tabel: 'psb_calon_santri', kolom: 'status_pendaftaran' } },
-    { key: 'daftar', label: 'tanggal_daftar', width: 110, kind: 'static', sumber: { tabel: 'psb_calon_santri', kolom: 'tanggal_daftar' } },
-  ];
-}
-
-type BulkAksi = 'verifikasi' | 'daftar_ulang' | 'acc' | 'undur' | 'batal' | 'hapus' | 'pulihkan';
-
-/** Kolom template yang dikirim (kunci lain dari file diabaikan). */
-const KOLOM_IMPORT_PSB = [
-  'nik', 'nama_lengkap', 'jk', 'tgl_lahir', 'tipe_santri', 'email_ortu', 'telp_ortu',
-  'nama_ayah', 'nama_ibu', 'no_pendaftaran',
-];
-
-/** Fase yang boleh mengundurkan diri: terdaftar, daftar ulang, diterima. */
-const BISA_UNDUR = ['terverifikasi', 'lolos', 'pemberkasan', 'ajukan_daftar_ulang', 'daftar_ulang'];
-
-/** Fase yang bisa dibatalkan (kembali ke fase sebelumnya); fase diterima dikecualikan. */
-const BISA_BATAL = ['terverifikasi', 'lolos', 'pemberkasan', 'ajukan_daftar_ulang', 'tidak_lolos', 'ditolak', 'mengundurkan_diri'];
-
-/** Label tampilan kolom Status (nilai DB tetap snake_case). */
-const STATUS_LABEL: Record<string, string> = {
-  baru: 'Baru',
-  waiting_list: 'Waiting list',
-  terverifikasi: 'Terverifikasi',
-  lolos: 'Lolos',
-  tidak_lolos: 'Tidak lolos',
-  pemberkasan: 'Pemberkasan',
-  ajukan_daftar_ulang: 'Ajukan daftar ulang',
-  daftar_ulang: 'Daftar ulang',
-  mengundurkan_diri: 'Mengundurkan diri',
-  ditolak: 'Ditolak',
-  terhapus: 'Terhapus',
-};
-
-function psbGridValues(c: PsbCalon): Record<string, string | null> {
-  const detail = c.lembaga_detail ?? [];
-  const kodeLembaga = detail.length > 0
-    ? detail.map((d) => d.lembaga?.jenjang ?? String(d.jenjang)).join(' + ')
-    : (c.lembaga_tujuan?.jenjang ?? String(c.jenjang));
-  return {
-    no: c.no_pendaftaran,
-    nama: c.nama_lengkap,
-    nik: c.nik,
-    tipe: c.tipe_santri,
-    lembaga: kodeLembaga,
-    gelombang: c.gelombang?.nama ?? String(c.gelombang_id),
-    paket: detail.length > 1 ? 'MI-MD' : null,
-    status: c.deleted_at ? 'Terhapus' : (STATUS_LABEL[c.status_pendaftaran] ?? c.status_pendaftaran),
-    daftar: tanggal(c.tanggal_daftar),
-  };
-}
+import {
+  BISA_BATAL,
+  BISA_UNDUR,
+  TAHAP_PSB,
+  psbFields,
+  psbGridValues,
+  type BulkAksi,
+} from '@/components/psb/bersama';
+import {
+  DialogAccSantri,
+  DialogBatalkanFase,
+  DialogDaftarUlangSeleksi,
+  DialogUndurDiri,
+} from '@/components/psb/dialogAksi';
+import { DialogBulkHasil, DialogBulkKonfirmasi } from '@/components/psb/dialogBulk';
+import { DialogDokumenCalon, DialogTambahPendaftar } from '@/components/psb/dialogTambahDanDokumen';
+import { DialogImportPsb } from '@/components/psb/dialogImport';
 
 // 100 PSB: antrean per tahapan timeline + verifikasi/seleksi/ACC/tolak/promosi + dokumen + import.
 // Satu halaman dengan 6 tab tahap (rute memasok `tahap`; tab mengubah rute).
@@ -269,19 +177,11 @@ export default function PsbPage() {
   const [importLembaga, setImportLembaga] = useState('');
 
   const [tambahOpen, setTambahOpen] = useState(false);
-  const [tfGelombang, setTfGelombang] = useState('');
-  const [tfLembaga, setTfLembaga] = useState('');
-  const [tfTipe, setTfTipe] = useState<'asrama' | 'non_asrama'>('non_asrama');
-  const [tfNik, setTfNik] = useState('');
-  const [tfNama, setTfNama] = useState('');
-  const [tfJk, setTfJk] = useState('');
-  const [tfTglLahir, setTfTglLahir] = useState('');
-  const [tfEmail, setTfEmail] = useState('');
-  const [tfTelp, setTfTelp] = useState('');
-  const [tfAyah, setTfAyah] = useState('');
-  const [tfIbu, setTfIbu] = useState('');
-  const [tfPindahan, setTfPindahan] = useState(false);
-  const [tfTingkat, setTfTingkat] = useState('');
+  const [tf, setTf] = useState({
+    gelombang: '', lembaga: '', tipe: 'non_asrama' as 'asrama' | 'non_asrama',
+    nik: '', nama: '', jk: '', tglLahir: '', email: '', telp: '',
+    ayah: '', ibu: '', pindahan: false, tingkat: '',
+  });
 
   const getValues = useCallback(psbGridValues, []);
 
@@ -312,32 +212,34 @@ export default function PsbPage() {
   }, []);
 
   function resetTambah() {
-    setTfGelombang(''); setTfLembaga(''); setTfTipe('non_asrama');
-    setTfNik(''); setTfNama(''); setTfJk(''); setTfTglLahir('');
-    setTfEmail(''); setTfTelp(''); setTfAyah(''); setTfIbu('');
-    setTfPindahan(false); setTfTingkat('');
+    setTf({
+      gelombang: '', lembaga: '', tipe: 'non_asrama',
+      nik: '', nama: '', jk: '', tglLahir: '',
+      email: '', telp: '', ayah: '', ibu: '',
+      pindahan: false, tingkat: '',
+    });
   }
 
   async function onCreateCalon(e: React.FormEvent) {
     e.preventDefault();
-    if (!tfGelombang || !tfLembaga) return;
+    if (!tf.gelombang || !tf.lembaga) return;
     setBusy(true);
     setErr('');
     try {
       const res = await createCalonPsb({
-        gelombang_id: Number(tfGelombang),
-        jenjang: tfLembaga,
-        tipe_santri: tfTipe,
-        nik: tfNik.trim(),
-        nama_lengkap: tfNama.trim(),
-        jk: tfJk === '' ? undefined : (tfJk as 'L' | 'P'),
-        tgl_lahir: tfTglLahir || undefined,
-        email_ortu: tfEmail.trim() || undefined,
-        telp_ortu: tfTelp.trim() || undefined,
-        nama_ayah: tfAyah.trim() || undefined,
-        nama_ibu: tfIbu.trim() || undefined,
-        is_pindahan: tfPindahan || undefined,
-        masuk_tingkat: tfPindahan && tfTingkat ? tfTingkat : undefined,
+        gelombang_id: Number(tf.gelombang),
+        jenjang: tf.lembaga,
+        tipe_santri: tf.tipe,
+        nik: tf.nik.trim(),
+        nama_lengkap: tf.nama.trim(),
+        jk: tf.jk === '' ? undefined : (tf.jk as 'L' | 'P'),
+        tgl_lahir: tf.tglLahir || undefined,
+        email_ortu: tf.email.trim() || undefined,
+        telp_ortu: tf.telp.trim() || undefined,
+        nama_ayah: tf.ayah.trim() || undefined,
+        nama_ibu: tf.ibu.trim() || undefined,
+        is_pindahan: tf.pindahan || undefined,
+        masuk_tingkat: tf.pindahan && tf.tingkat ? tf.tingkat : undefined,
       });
       toast.success(res.pesan ?? 'Pendaftar dibuat.');
       setTambahOpen(false);
@@ -803,435 +705,113 @@ export default function PsbPage() {
         onPerPage={(pp) => { pager.setPerPage(pp); load(1, pp); }}
       />
 
-      <Dialog open={seleksiRow !== null} onOpenChange={(o) => { if (!o) setSeleksiRow(null); }}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Masuk daftar ulang: {seleksiRow?.nama_lengkap}</DialogTitle>
-            <DialogDescription>
-              Lembaga ini memiliki tes/seleksi — tentukan hasilnya. Lolos = masuk fase daftar ulang; tidak lolos = ditolak.
-            </DialogDescription>
-          </DialogHeader>
-          <form id="form_daftar_ulang_psb" onSubmit={onMasukDaftarUlang} className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4">
-            <FieldLabel htmlFor="select_hasil_seleksi">Hasil seleksi</FieldLabel>
-            <Select value={seleksiLolos} onValueChange={setSeleksiLolos}>
-              <SelectTrigger id="select_hasil_seleksi" className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectItem value="lolos">Lolos</SelectItem>
-                  <SelectItem value="tidak_lolos">Tidak lolos</SelectItem>
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-            <FieldLabel htmlFor="input_catatan_seleksi">Catatan (opsional)</FieldLabel>
-            <Input id="input_catatan_seleksi" value={seleksiCatatan} onChange={(e) => setSeleksiCatatan(e.target.value)} />
-            <DialogFooter className="col-span-2">
-              <Button type="button" variant="outline" onClick={() => setSeleksiRow(null)}>Batal</Button>
-              <Button id="btn_simpan_daftar_ulang_psb" type="submit" disabled={busy}>Simpan</Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={batalRow !== null} onOpenChange={(o) => { if (!o) setBatalRow(null); }}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Batalkan fase: {batalRow?.nama_lengkap}</DialogTitle>
-            <DialogDescription className="sr-only">
-              Calon dikembalikan ke fase sebelumnya berdasarkan riwayat status.
-            </DialogDescription>
-          </DialogHeader>
-          <form id="form_batal_fase_psb" onSubmit={onBatalkanFase} className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4">
-            <FieldLabel htmlFor="input_catatan_batal_fase">Catatan (opsional)</FieldLabel>
-            <Input id="input_catatan_batal_fase" value={batalCatatan} onChange={(e) => setBatalCatatan(e.target.value)} maxLength={255} />
-            <DialogFooter className="col-span-2">
-              <Button type="button" variant="outline" onClick={() => setBatalRow(null)}>Tutup</Button>
-              <Button id="btn_simpan_batal_fase_psb" type="submit" disabled={busy}>Batalkan</Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={undurRow !== null} onOpenChange={(o) => { if (!o) { setUndurRow(null); setErr(''); } }}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Pengunduran diri: {undurRow?.nama_lengkap}</DialogTitle>
-            <DialogDescription>
-              Calon dipindahkan ke fase Mengundurkan Diri / Ditolak. Catatan/alasan bersifat opsional.
-            </DialogDescription>
-          </DialogHeader>
-          <form id="form_undur_diri_psb" onSubmit={onUndurDiri} className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4">
-            <FieldLabel htmlFor="input_catatan_undur">Catatan / alasan (opsional)</FieldLabel>
-            <Input id="input_catatan_undur" value={undurCatatan} onChange={(e) => setUndurCatatan(e.target.value)} maxLength={255} />
-            {err ? (
-              <p id="error_undur_psb" className="col-span-2 text-sm text-destructive" role="alert">{err}</p>
-            ) : null}
-            <DialogFooter className="col-span-2">
-              <Button type="button" variant="outline" onClick={() => setUndurRow(null)}>Batal</Button>
-              <Button id="btn_simpan_undur_psb" type="submit" variant="destructive" disabled={busy}>Mengundurkan Diri</Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={accRows !== null} onOpenChange={(o) => { if (!o) setAccRows(null); }}>
-        <DialogContent className="max-w-xl">
-          <DialogHeader>
-            <DialogTitle>
-              {accRows?.length === 1 ? `ACC jadi santri: ${accRows[0]?.nama_lengkap}` : 'ACC jadi santri (massal)'}
-            </DialogTitle>
-            <DialogDescription>
-              Isi NIS bila sudah tersedia — boleh dikosongkan lalu diisi menyusul lewat import Excel.
-              {accRows && accRows.length > 1 ? ` ${accRows.length} calon akan diproses.` : ''}
-            </DialogDescription>
-          </DialogHeader>
-          <form id="form_acc_psb" onSubmit={(e) => { e.preventDefault(); void jalankanAcc(); }} className="flex flex-col gap-3">
-            <ul className="max-h-72 divide-y overflow-auto rounded-md border">
-              {(accRows ?? []).map((c) => (
-                <li key={c.id} className="flex items-center gap-2 p-2">
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{c.nama_lengkap}</p>
-                    <p className="truncate text-xs text-muted-foreground">{c.no_pendaftaran ?? `#${c.id}`}</p>
-                  </div>
-                  <Input
-                    id={`input_nis_acc_${c.id}`}
-                    className="w-36"
-                    maxLength={20}
-                    placeholder="NIS (opsional)"
-                    value={accNis[String(c.id)] ?? ''}
-                    onChange={(e) => setAccNis((prev) => ({ ...prev, [String(c.id)]: e.target.value }))}
-                  />
-                </li>
-              ))}
-            </ul>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setAccRows(null)}>Batal</Button>
-              <Button id="btn_proses_acc_psb" type="submit" disabled={accProses}>
-                {accProses ? 'Memproses…' : accRows && accRows.length > 1 ? `ACC ${accRows.length} calon` : 'ACC jadi santri'}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={bulkAksi !== null} onOpenChange={(o) => { if (!o) setBulkAksi(null); }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {bulkAksi === 'verifikasi' ? 'Verifikasi massal'
-                : bulkAksi === 'daftar_ulang' ? 'Masuk daftar ulang massal'
-                  : bulkAksi === 'acc' ? 'ACC daftar ulang massal'
-                    : bulkAksi === 'undur' ? 'Pengunduran diri massal'
-                      : bulkAksi === 'batal' ? 'Batalkan fase massal'
-                        : bulkAksi === 'hapus' ? 'Hapus massal'
-                          : 'Pulihkan massal'}
-            </DialogTitle>
-            <DialogDescription>
-              {bulkIds.length} calon terpilih akan diproses.
-              {bulkAksi === 'hapus' ? ' Calon dihapus (soft delete).' : ''}
-              {bulkAksi === 'undur' ? ' Calon dipindahkan ke fase Mengundurkan Diri / Ditolak.' : ''}
-              {bulkAksi === 'batal' ? ' Calon dikembalikan ke fase sebelumnya (fase diterima tidak bisa dibatalkan).' : ''}
-              {bulkAksi === 'daftar_ulang' && bulkButuhSeleksi ? ' Sebagian lembaga memiliki seleksi — tentukan hasilnya.' : ''}
-            </DialogDescription>
-          </DialogHeader>
-          {(bulkAksi === 'daftar_ulang' && bulkButuhSeleksi) || bulkAksi === 'undur' || bulkAksi === 'batal' ? (
-            <div className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4">
-              {bulkAksi === 'daftar_ulang' && bulkButuhSeleksi ? (
-                <>
-                  <FieldLabel htmlFor="select_bulk_hasil_seleksi">Hasil seleksi</FieldLabel>
-                  <Select value={bulkLolos} onValueChange={setBulkLolos}>
-                    <SelectTrigger id="select_bulk_hasil_seleksi" className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        <SelectItem value="lolos">Lolos</SelectItem>
-                        <SelectItem value="tidak_lolos">Tidak lolos</SelectItem>
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                </>
-              ) : null}
-              <FieldLabel htmlFor="input_bulk_catatan_psb">Catatan (opsional)</FieldLabel>
-              <Input id="input_bulk_catatan_psb" value={bulkCatatan} onChange={(e) => setBulkCatatan(e.target.value)} />
-            </div>
-          ) : null}
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setBulkAksi(null)}>Batal</Button>
-            <Button
-              id="btn_proses_bulk_psb"
-              variant={bulkAksi === 'hapus' || bulkAksi === 'undur' ? 'destructive' : 'default'}
-              disabled={bulkProses}
-              onClick={() => void jalankanBulk()}
-            >
-              {bulkProses ? 'Memproses…' : `Proses ${bulkIds.length} calon`}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={bulkHasil !== null} onOpenChange={(o) => { if (!o) setBulkHasil(null); }}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Hasil proses massal</DialogTitle>
-            <DialogDescription>
-              {bulkHasil?.berhasil.length ?? 0} berhasil · {bulkHasil?.gagal.length ?? 0} gagal
-            </DialogDescription>
-          </DialogHeader>
-          {bulkHasil && bulkHasil.gagal.length > 0 ? (
-            <ul className="max-h-64 divide-y overflow-auto rounded-md border text-sm">
-              {bulkHasil.gagal.map((g) => (
-                <li key={g.id} className="flex flex-col gap-0.5 p-2">
-                  <span className="font-medium">
-                    {g.nama_lengkap ?? `#${g.id}`}{g.no_pendaftaran ? ` · ${g.no_pendaftaran}` : ''}
-                  </span>
-                  <span className="text-xs text-destructive">{g.pesan}</span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-sm text-muted-foreground">Semua calon berhasil diproses.</p>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setBulkHasil(null)}>Tutup</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={dokRow !== null} onOpenChange={(o) => { if (!o) setDokRow(null); }}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Dokumen: {dokRow?.nama_lengkap}</DialogTitle>
-            <DialogDescription className="sr-only">
-              Daftar dokumen calon beserta status verifikasi dan aksinya.
-            </DialogDescription>
-          </DialogHeader>
-          {dokumen.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Belum ada dokumen diupload.</p>
-          ) : (
-            <ul className="divide-y rounded-md border">
-              {dokumen.map((d) => (
-                <li key={d.id} className="flex flex-wrap items-center gap-2 p-2 text-sm">
-                  <span className="font-medium">{d.jenis_dokumen_santri}</span>
-                  <span className="text-muted-foreground">{d.status_verifikasi}</span>
-                  <div className="ml-auto flex gap-1.5">
-                    <Button
-                      id={`btn_dok_valid_${d.id}`}
-                      size="sm"
-                      variant="outline"
-                      disabled={busy}
-                      onClick={() => run(() => verifikasiDokumen(d.id, { status: 'valid' }), 'Dokumen divalidasi.')}
-                    >
-                      Valid
-                    </Button>
-                    <Button
-                      id={`btn_dok_tolak_${d.id}`}
-                      size="sm"
-                      variant="outline"
-                      disabled={busy}
-                      onClick={() => run(() => verifikasiDokumen(d.id, { status: 'ditolak' }), 'Dokumen ditolak.')}
-                    >
-                      Tolak
-                    </Button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDokRow(null)}>Tutup</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <ImportBertahapUmumDialog
-        open={importOpen}
-        onOpenChange={(o) => { setImportOpen(o); if (!o) { setImportGelombang(''); setImportLembaga(''); } }}
-        config={{
-          idPrefix: 'psb',
-          judul: 'Import data PSB bertahap',
-          deskripsi: 'Pilih gelombang + lembaga. Kolom wajib: nik dan nama_lengkap.',
-          kolom: KOLOM_IMPORT_PSB,
-          wajib: ['nik', 'nama_lengkap'],
-          idTombol: { template: 'btn_template_psb' },
-          labelTemplate: 'Unduh template Excel',
-          unduhTemplate: onTemplate,
-          konteks: () => ({ gelombang_id: Number(importGelombang), jenjang: importLembaga }),
-          konteksSiap: importGelombang !== '' && importLembaga !== '',
-          kirim: ({ sesi_id, mode, total, konteks, baris, terakhir }) =>
-            importPsbPotong({
-              ...(sesi_id === undefined ? {} : { sesi_id }),
-              mode, ...(sesi_id === undefined ? { total } : {}),
-              gelombang_id: Number(konteks.gelombang_id),
-              jenjang: String(konteks.jenjang),
-              baris, ...(terakhir ? { terakhir } : {}),
-            }),
-          batal: batalPotongPsb,
-          unduhGalat: unduhGalatPsb,
-          children: (
-            <div className="col-span-2 grid grid-cols-2 gap-3">
-              <div>
-                <FieldLabel htmlFor="select_gelombang_psb">Gelombang</FieldLabel>
-                <Select value={importGelombang} onValueChange={setImportGelombang}>
-                  <SelectTrigger id="select_gelombang_psb" className="w-full">
-                    <SelectValue placeholder="Pilih gelombang" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {gelombangs.map((g) => (
-                        <SelectItem key={g.id} value={String(g.id)}>
-                          {g.nama}{g.tahun_ajaran ? ` — ${g.tahun_ajaran.nama}` : ''}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <FieldLabel htmlFor="select_import_psb_lembaga">Lembaga tujuan</FieldLabel>
-                <Select value={importLembaga} onValueChange={setImportLembaga}>
-                  <SelectTrigger id="select_import_psb_lembaga" className="w-full">
-                    <SelectValue placeholder="Pilih lembaga" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {lembagas.map((l) => (
-                        <SelectItem key={l.jenjang} value={l.jenjang}>{l.jenjang} — {l.nama}</SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          ),
-          onSelesai: () => {
-            setImportOpen(false);
-            setImportGelombang('');
-            setImportLembaga('');
-            void load(1);
-          },
-        }}
+      <DialogDaftarUlangSeleksi
+        calon={seleksiRow}
+        lolos={seleksiLolos}
+        catatan={seleksiCatatan}
+        busy={busy}
+        onLolos={setSeleksiLolos}
+        onCatatan={setSeleksiCatatan}
+        onClose={() => setSeleksiRow(null)}
+        onSubmit={onMasukDaftarUlang}
       />
 
-      <Dialog open={tambahOpen} onOpenChange={setTambahOpen}>
-        <DialogContent className="sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Tambah pendaftar (input admin)</DialogTitle>
-            <DialogDescription>
-              Jalur manual tanpa pendaftaran publik. Kuota & dedup NIK tetap berlaku.
-            </DialogDescription>
-          </DialogHeader>
-          <form id="form_tambah_pendaftar" onSubmit={onCreateCalon} className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4">
-            <FieldLabel htmlFor="select_gelombang_pendaftar">Gelombang</FieldLabel>
-            <Select value={tfGelombang} onValueChange={setTfGelombang}>
-              <SelectTrigger id="select_gelombang_pendaftar" className="w-full">
-                <SelectValue placeholder="Pilih gelombang" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {gelombangs.map((g) => (
-                    <SelectItem key={g.id} value={String(g.id)}>
-                      {g.nama}{g.tahun_ajaran ? ` — ${g.tahun_ajaran.nama}` : ''}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-            <FieldLabel htmlFor="select_lembaga_pendaftar">Lembaga tujuan</FieldLabel>
-            <Select value={tfLembaga} onValueChange={setTfLembaga}>
-              <SelectTrigger id="select_lembaga_pendaftar" className="w-full">
-                <SelectValue placeholder="Pilih lembaga" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {lembagas.map((l) => <SelectItem key={l.jenjang} value={l.jenjang}>{l.jenjang} — {l.nama}</SelectItem>)}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-            <FieldLabel htmlFor="select_tipe_pendaftar">Tipe santri</FieldLabel>
-            <Select value={tfTipe} onValueChange={(v) => setTfTipe(v as 'asrama' | 'non_asrama')}>
-              <SelectTrigger id="select_tipe_pendaftar" className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectItem value="non_asrama">Non asrama</SelectItem>
-                  <SelectItem value="asrama">Asrama</SelectItem>
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-            <FieldLabel htmlFor="input_nik_pendaftar">NIK (16 digit)</FieldLabel>
-            <Input
-              id="input_nik_pendaftar"
-              value={tfNik}
-              onChange={(e) => setTfNik(e.target.value)}
-              inputMode="numeric"
-              minLength={16}
-              maxLength={16}
-              required
-            />
-            <FieldLabel htmlFor="input_nama_pendaftar">Nama lengkap</FieldLabel>
-            <Input id="input_nama_pendaftar" value={tfNama} onChange={(e) => setTfNama(e.target.value)} required maxLength={100} />
-            <FieldLabel htmlFor="select_jk_pendaftar">Jenis kelamin</FieldLabel>
-            <Select value={tfJk === '' ? '_kosong' : tfJk} onValueChange={(v) => setTfJk(v === '_kosong' ? '' : v)}>
-              <SelectTrigger id="select_jk_pendaftar" className="w-full">
-                <SelectValue placeholder="-" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectItem value="_kosong">-</SelectItem>
-                  <SelectItem value="L">Laki-laki</SelectItem>
-                  <SelectItem value="P">Perempuan</SelectItem>
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-            <FieldLabel htmlFor="input_tgl_lahir_pendaftar">Tanggal lahir</FieldLabel>
-            <Input id="input_tgl_lahir_pendaftar" type="date" value={tfTglLahir} onChange={(e) => setTfTglLahir(e.target.value)} />
-            <FieldLabel htmlFor="input_email_ortu_pendaftar">Email orang tua</FieldLabel>
-            <Input id="input_email_ortu_pendaftar" type="email" value={tfEmail} onChange={(e) => setTfEmail(e.target.value)} maxLength={100} />
-            <FieldLabel htmlFor="input_telp_ortu_pendaftar">No. HP orang tua</FieldLabel>
-            <Input id="input_telp_ortu_pendaftar" value={tfTelp} onChange={(e) => setTfTelp(e.target.value)} maxLength={20} />
-            <FieldLabel htmlFor="input_ayah_pendaftar">Nama ayah</FieldLabel>
-            <Input id="input_ayah_pendaftar" value={tfAyah} onChange={(e) => setTfAyah(e.target.value)} maxLength={100} />
-            <FieldLabel htmlFor="input_ibu_pendaftar">Nama ibu</FieldLabel>
-            <Input id="input_ibu_pendaftar" value={tfIbu} onChange={(e) => setTfIbu(e.target.value)} maxLength={100} />
-            <FieldLabel htmlFor="check_pindahan_pendaftar">Pindahan</FieldLabel>
-            <label htmlFor="check_pindahan_pendaftar" className="flex cursor-pointer items-center gap-2 text-sm">
-              <input
-                id="check_pindahan_pendaftar"
-                type="checkbox"
-                checked={tfPindahan}
-                onChange={(e) => setTfPindahan(e.target.checked)}
-                className="size-4 accent-[var(--accent)]"
-              />
-              <span className="text-muted-foreground">Bukan santri baru</span>
-            </label>
-            {tfPindahan && (
-              <>
-                <FieldLabel htmlFor="input_tingkat_pendaftar">Masuk tingkat</FieldLabel>
-                <Input
-                  id="input_tingkat_pendaftar"
-                  value={tfTingkat}
-                  onChange={(e) => setTfTingkat(e.target.value)}
-                  maxLength={2}
-                  placeholder="mis. 3"
-                />
-              </>
-            )}
-            <DialogFooter className="col-span-2">
-              <Button type="button" variant="outline" onClick={() => setTambahOpen(false)}>Batal</Button>
-              <Button
-                id="btn_simpan_pendaftar"
-                type="submit"
-                disabled={busy || !tfGelombang || !tfLembaga || tfNik.trim().length !== 16 || !tfNama.trim()}
-              >
-                Simpan pendaftar
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <DialogBatalkanFase
+        calon={batalRow}
+        catatan={batalCatatan}
+        busy={busy}
+        onCatatan={setBatalCatatan}
+        onClose={() => setBatalRow(null)}
+        onSubmit={onBatalkanFase}
+      />
+
+      <DialogUndurDiri
+        calon={undurRow}
+        catatan={undurCatatan}
+        busy={busy}
+        err={err}
+        onCatatan={setUndurCatatan}
+        onClose={() => { setUndurRow(null); setErr(''); }}
+        onSubmit={onUndurDiri}
+      />
+
+      <DialogAccSantri
+        rows={accRows}
+        nis={accNis}
+        proses={accProses}
+        onNis={(id, v) => setAccNis((prev) => ({ ...prev, [String(id)]: v }))}
+        onClose={() => setAccRows(null)}
+        onSubmit={() => void jalankanAcc()}
+      />
+
+      <DialogBulkKonfirmasi
+        aksi={bulkAksi}
+        ids={bulkIds}
+        lolos={bulkLolos}
+        catatan={bulkCatatan}
+        butuhSeleksi={bulkButuhSeleksi}
+        proses={bulkProses}
+        onLolos={setBulkLolos}
+        onCatatan={setBulkCatatan}
+        onClose={() => setBulkAksi(null)}
+        onProses={() => void jalankanBulk()}
+      />
+
+      <DialogBulkHasil hasil={bulkHasil} onClose={() => setBulkHasil(null)} />
+
+      <DialogDokumenCalon
+        calon={dokRow}
+        dokumen={dokumen}
+        busy={busy}
+        onClose={() => setDokRow(null)}
+        onVerifikasi={(id, status) => void run(
+          () => verifikasiDokumen(id, { status }),
+          status === 'valid' ? 'Dokumen divalidasi.' : 'Dokumen ditolak.',
+        )}
+      />
+
+      <DialogImportPsb
+        open={importOpen}
+        gelombangs={gelombangs}
+        lembagas={lembagas}
+        gelombang={importGelombang}
+        lembaga={importLembaga}
+        onGelombang={setImportGelombang}
+        onLembaga={setImportLembaga}
+        onOpenChange={(o) => { setImportOpen(o); if (!o) { setImportGelombang(''); setImportLembaga(''); } }}
+        onSelesai={() => {
+          setImportOpen(false);
+          setImportGelombang('');
+          setImportLembaga('');
+          void load(1);
+        }}
+        onTemplate={onTemplate}
+      />
+
+      <DialogTambahPendaftar
+        open={tambahOpen}
+        gelombangs={gelombangs}
+        lembagas={lembagas}
+        busy={busy}
+        f={tf}
+        set={{
+          gelombang: (v) => setTf((s) => ({ ...s, gelombang: v })),
+          lembaga: (v) => setTf((s) => ({ ...s, lembaga: v })),
+          tipe: (v) => setTf((s) => ({ ...s, tipe: v })),
+          nik: (v) => setTf((s) => ({ ...s, nik: v })),
+          nama: (v) => setTf((s) => ({ ...s, nama: v })),
+          jk: (v) => setTf((s) => ({ ...s, jk: v })),
+          tglLahir: (v) => setTf((s) => ({ ...s, tglLahir: v })),
+          email: (v) => setTf((s) => ({ ...s, email: v })),
+          telp: (v) => setTf((s) => ({ ...s, telp: v })),
+          ayah: (v) => setTf((s) => ({ ...s, ayah: v })),
+          ibu: (v) => setTf((s) => ({ ...s, ibu: v })),
+          pindahan: (v) => setTf((s) => ({ ...s, pindahan: v })),
+          tingkat: (v) => setTf((s) => ({ ...s, tingkat: v })),
+        }}
+        onClose={() => setTambahOpen(false)}
+        onSubmit={onCreateCalon}
+      />
         </TabsContent>
       </Tabs>
     </div>
