@@ -18,6 +18,7 @@ class SiklusLulusRequest extends FormRequest
             'tahun_ajaran_lulus' => 'required|string|exists:tahun_ajaran,nama',
             'tanggal_lulus' => 'required|date',
             'nomor_ijazah' => ['nullable', 'string'],
+            'no_peserta' => ['nullable', 'string', 'max:30'],
             'no_surat_ijazah' => ['nullable', 'string', 'max:50'],
             'kegiatan_setelah_lulus' => ['nullable', 'string'],
             'penyerahan_ijazah' => ['nullable', 'in:sudah,belum'],

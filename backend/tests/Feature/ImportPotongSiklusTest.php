@@ -277,11 +277,12 @@ class ImportPotongSiklusTest extends TestCase
         $satu = $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/alumni/import-potong', [
             'mode' => 'eksekusi',
             'total' => 2,
-            'baris' => [$this->barisAlumni('28102', ['nomor_ijazah' => 'IJZ-1'])],
+            'baris' => [$this->barisAlumni('28102', ['nomor_ijazah' => 'IJZ-1', 'no_peserta' => 'PPTK-2027-0001'])],
         ])->assertStatus(200);
         $this->assertFalse((bool) $satu->json('selesai'));
         $this->assertSame(1, Alumni::count());
         $this->assertSame('IJZ-1', Alumni::where('santri_id', $a->id)->value('nomor_ijazah'));
+        $this->assertSame('PPTK-2027-0001', Alumni::where('santri_id', $a->id)->value('no_peserta'));
         $this->assertSame('lulus', RiwayatBelajar::where('santri_id', $a->id)->value('status_akhir'));
         $this->assertSame('Tidak', LembagaSantri::where('santri_id', $a->id)->value('is_active_lembaga'));
 
@@ -291,8 +292,8 @@ class ImportPotongSiklusTest extends TestCase
             'mode' => 'eksekusi',
             'terakhir' => true,
             'baris' => [
-                $this->barisAlumni('28102', ['nomor_ijazah' => 'IJZ-1']),
-                $this->barisAlumni('28102', ['nomor_ijazah' => 'IJZ-2']),
+                $this->barisAlumni('28102', ['nomor_ijazah' => 'IJZ-1', 'no_peserta' => 'PPTK-2027-0001']),
+                $this->barisAlumni('28102', ['nomor_ijazah' => 'IJZ-2', 'no_peserta' => 'PPTK-2027-0002']),
             ],
         ])->assertStatus(200);
 
@@ -300,6 +301,7 @@ class ImportPotongSiklusTest extends TestCase
         $this->assertSame(1, $dua->json('ringkasan.baris_dilewati'));
         $this->assertSame(1, Alumni::count());
         $this->assertSame('IJZ-2', Alumni::where('santri_id', $a->id)->value('nomor_ijazah'));
+        $this->assertSame('PPTK-2027-0002', Alumni::where('santri_id', $a->id)->value('no_peserta'));
     }
 
     // ---------------- Kunci sesi bersama ----------------

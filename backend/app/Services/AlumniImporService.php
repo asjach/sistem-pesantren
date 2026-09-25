@@ -35,7 +35,7 @@ class AlumniImporService extends ImporPotongan
     {
         $baris = $this->castTanggal($baris);
 
-        return $this->castTeks($baris, ['nis_lokal', 'jenjang', 'tahun_ajaran_lulus', 'tanggal_lulus', 'kelas_lulus', 'nomor_ijazah', 'no_surat_ijazah', 'kegiatan_setelah_lulus', 'penyerahan_ijazah', 'melanjutkan', 'catatan']);
+        return $this->castTeks($baris, ['nis_lokal', 'jenjang', 'tahun_ajaran_lulus', 'tanggal_lulus', 'kelas_lulus', 'nomor_ijazah', 'no_peserta', 'no_surat_ijazah', 'kegiatan_setelah_lulus', 'penyerahan_ijazah', 'melanjutkan', 'catatan']);
     }
 
     /** @param  array<string, mixed>  $baris */
@@ -82,6 +82,7 @@ class AlumniImporService extends ImporPotongan
             'kelas_lulus_id' => $kelasId,
             'tahun_ajaran_lulus' => $tahunAjaran,
             'nomor_ijazah' => $this->teks($baris, 'nomor_ijazah'),
+            'no_peserta' => $this->teks($baris, 'no_peserta'),
             'no_surat_ijazah' => $this->teks($baris, 'no_surat_ijazah'),
             'tanggal_lulus' => $tanggal,
             'kegiatan_setelah_lulus' => $this->teks($baris, 'kegiatan_setelah_lulus'),
@@ -205,6 +206,7 @@ class AlumniImporService extends ImporPotongan
             || (string) $ada->tahun_ajaran_lulus !== (string) $data['tahun_ajaran_lulus']
             || $tanggal !== (string) $data['tanggal_lulus']
             || (string) $ada->nomor_ijazah !== (string) ($data['nomor_ijazah'] ?? '')
+            || (string) $ada->no_peserta !== (string) ($data['no_peserta'] ?? '')
             || (string) $ada->no_surat_ijazah !== (string) ($data['no_surat_ijazah'] ?? '')
             || (string) $ada->kegiatan_setelah_lulus !== (string) ($data['kegiatan_setelah_lulus'] ?? '')
             || (string) $ada->penyerahan_ijazah !== (string) $data['penyerahan_ijazah']

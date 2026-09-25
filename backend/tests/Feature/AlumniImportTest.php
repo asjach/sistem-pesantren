@@ -91,7 +91,7 @@ class AlumniImportTest extends TestCase
     {
         $headers = [
             'nis_lokal', 'jenjang', 'tahun_ajaran_lulus', 'tanggal_lulus', 'kelas_lulus',
-            'nomor_ijazah', 'no_surat_ijazah', 'kegiatan_setelah_lulus', 'penyerahan_ijazah',
+            'nomor_ijazah', 'no_peserta', 'no_surat_ijazah', 'kegiatan_setelah_lulus', 'penyerahan_ijazah',
             'melanjutkan', 'catatan',
         ];
         $path = tempnam(sys_get_temp_dir(), 'alumni').'.csv';
@@ -120,6 +120,7 @@ class AlumniImportTest extends TestCase
             'tahun_ajaran_lulus' => '2026/2027',
             'tanggal_lulus' => '2027-06-30',
             'kelas_lulus' => '6A',
+            'no_peserta' => 'PPTK-2027-0001',
         ]);
 
         $template = $this->actingAs($f['user'], 'sanctum')->get('/api/admin/alumni/import-template');
@@ -138,6 +139,7 @@ class AlumniImportTest extends TestCase
             'lembaga_lulus' => 'MI',
             'kelas_lulus_id' => $f['kelas']->id,
             'tahun_ajaran_lulus' => '2026/2027',
+            'no_peserta' => 'PPTK-2027-0001',
         ]);
         $this->assertSame('Tidak', RiwayatBelajar::where('santri_id', $santri->id)->value('is_active_riwayat'));
     }

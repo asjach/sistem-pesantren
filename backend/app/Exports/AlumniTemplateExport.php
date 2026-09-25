@@ -31,8 +31,8 @@ class AlumniTemplateExport extends DefaultValueBinder implements FromArray, With
     {
         return [
             'nis_lokal', 'jenjang', 'tahun_ajaran_lulus', 'tanggal_lulus', 'kelas_lulus',
-            'nomor_ijazah', 'no_surat_ijazah', 'kegiatan_setelah_lulus', 'penyerahan_ijazah',
-            'melanjutkan', 'catatan',
+            'nomor_ijazah', 'no_peserta', 'no_surat_ijazah', 'kegiatan_setelah_lulus',
+            'penyerahan_ijazah', 'melanjutkan', 'catatan',
         ];
     }
 
