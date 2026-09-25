@@ -19,10 +19,12 @@ import { useLembagaAktif } from '@/lembagaAktif';
 import { EVENT_KELOLA_HALAMAN, useVisibilitasFilter } from '@/components/VisibilitasFilter';
 import PresetKolom, { type PresetKolomApi } from '@/components/PresetKolom';
 import PresetUrut from '@/components/PresetUrut';
-import { muatToolbarPreset, simpanToolbarPreset } from '@/api/toolbarPreset';
+import { simpanToolbarPreset } from '@/api/toolbarPreset';
 import { updatePresetTabel } from '@/api/preset';
 import { gabungUrutan } from './excel/urutanKolom';
-import { EVENT_PRESET_BERUBAH, EVENT_TOOLBAR_BERUBAH, LEBAR_BAWAHAN_TOOLBAR, bacaLebarFilter, bacaLebarToolbar, bacaVisToolbar, type LebarToolbar, type VisToolbar } from '@/components/kelolaTabel/jenis';
+import { judulTabel } from './excel/judul';
+import { useToolbarPresetState } from './excel/useToolbarPreset';
+import { EVENT_PRESET_BERUBAH, EVENT_TOOLBAR_BERUBAH } from '@/components/kelolaTabel/jenis';
 import { KonteksLebarFilter } from './excel/lebarFilter';
 import { useKamusPeta } from '@/components/useKamusPeta';
 import { type KamusKolomAttr } from '@/api/kamusLabel';
@@ -97,17 +99,7 @@ import type { AksiMenu, CheckAllState, ExcelField, GridRow, GridSelection } from
 
 export type { ExcelChoice, ExcelField, GridRow, GridSelection } from './excel/types';
 
-
-
-
-
-
-
-
-
-
-
-interface ExcelTableProps<T extends { id: string | number }> {
+export interface ExcelTableProps<T extends { id: string | number }> {
   /** Kunci unik tabel (persist tinggi baris, id elemen). */
   tableKey: string;
   /** Definisi kolom data (kolom checklist + Aksi ditambah otomatis). */
@@ -167,34 +159,7 @@ interface ExcelTableProps<T extends { id: string | number }> {
   sumberTabel?: string;
 }
 
-const JUDUL_TABEL: Record<string, string> = {
-  santri: 'Santri',
-  keanggotaan: 'Keanggotaan',
-  users: 'Pengguna',
-  tahun_ajaran: 'Tahun Ajaran',
-  lembaga: 'Lembaga',
-  kelas: 'Kelas',
-  riwayat_belajar: 'Riwayat Belajar',
-  daftar_kelas: 'Daftar Kelas',
-  kenaikan_santri_genap: 'Santri Semester Genap',
-  mi_md_mi: 'MI Only',
-  mi_md_md: 'MD Semua',
-  mi_md_beda: 'Perbandingan Kelas',
-  mutasi_arsip: 'Arsip Mutasi',
-  kelulusan_alumni: 'Alumni',
-  pengajuan_biodata: 'Pengajuan Biodata',
-  psb: 'PSB',
-  pegawai: 'Pegawai',
-  dokumen_wajib: 'Dokumen Wajib',
-  kamus_label_kolom: 'Kamus Label',
-};
 
-function judulTabel(tableKey: string): string {
-  const khusus = JUDUL_TABEL[tableKey];
-  if (khusus) return khusus;
-  const teks = tableKey.replace(/[_-]+/g, ' ').trim();
-  return teks ? `${teks.charAt(0).toUpperCase()}${teks.slice(1)}` : 'Tabel';
-}
 
 
 
@@ -294,48 +259,7 @@ export default function ExcelTable<T extends { id: string | number }>({
   const { efektifSuper: bolehGeser } = useLembagaAktif();
   const visHalaman = useVisibilitasFilter();
   const bolehKelolaHalaman = !!visHalaman?.registrasi && bolehGeser;
-  /** Visibilitas kontrol toolbar generik (tab Toolbar dialog Kelola Halaman). */
-  const [visToolbar, setVisToolbar] = useState<VisToolbar>({ info: true, urut: true, kolom: true, filter: true });
-  /** Lebar efektif kontrol berlebar (px); nilai awal = bawaan meski belum tersimpan. */
-  const [lebarToolbar, setLebarToolbar] = useState<LebarToolbar>({ ...LEBAR_BAWAHAN_TOOLBAR });
-  /** Lebar kolom tersimpan di DB (undefined = pakai presetKolomClassName halaman). */
-  const [lebarKolomDb, setLebarKolomDb] = useState<number | undefined>(undefined);
-  /** Lebar filter halaman tersimpan (kunci → px); absen = bawaan halaman. */
-  const [lebarFilter, setLebarFilter] = useState<Record<string, number>>({});
-  /** Urutan kolom tersimpan di DB (null = belum dimuat; [] = bawaan halaman). */
-  const [urutanDb, setUrutanDb] = useState<string[] | null>(null);
-  const konteksLebarFilter = useMemo(() => ({ tableKey, lebar: lebarFilter }), [tableKey, lebarFilter]);
-  useEffect(() => {
-    let batal = false;
-    const muat = async () => {
-      try {
-        const res = await muatToolbarPreset(tableKey);
-        if (batal) return;
-        setVisToolbar(bacaVisToolbar(res.data.visibilitas));
-        setLebarToolbar(bacaLebarToolbar(res.data.lebar));
-        setLebarFilter(bacaLebarFilter(res.data.lebar));
-        setUrutanDb(Array.isArray(res.data.urutan) ? res.data.urutan : []);
-        const tersimpan = res.data.lebar?.kolom;
-        setLebarKolomDb(typeof tersimpan === 'number' && tersimpan >= 40 && tersimpan <= 480 ? tersimpan : undefined);
-      } catch {
-        if (batal) return;
-        setVisToolbar({ info: true, urut: true, kolom: true, filter: true });
-        setLebarToolbar({ ...LEBAR_BAWAHAN_TOOLBAR });
-        setLebarFilter({});
-        setUrutanDb([]);
-        setLebarKolomDb(undefined);
-      }
-    };
-    void muat();
-    const segarkan = (e: Event) => {
-      if ((e as CustomEvent).detail?.tableKey === tableKey) void muat();
-    };
-    window.addEventListener(EVENT_TOOLBAR_BERUBAH, segarkan);
-    return () => {
-      batal = true;
-      window.removeEventListener(EVENT_TOOLBAR_BERUBAH, segarkan);
-    };
-  }, [tableKey]);
+  const { visToolbar, lebarToolbar, lebarKolomDb, lebarFilter, urutanDb, setUrutanDb, konteksLebarFilter } = useToolbarPresetState(tableKey);
   /** Baris input hanya tersedia bila halaman menyediakan onCreateRow.
    *  Tidak bergantung mode Edit: halaman boleh mendukung create saja. */
   const inputEnabled = !!onCreateRow;
