@@ -18,10 +18,9 @@ import { ActionIcon } from '@/components/RowActions';
 import { ArrowRight, X } from '@/icons';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
-import { useKelasAktif } from '@/kelasAktif';
+import { useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { TopBarSearch } from '@/components/TopBarSearch';
-import { useTahunAjaranAwalString } from '@/hooks/useTahunAjaranAwal';
 import { toast } from 'sonner';
 
 /** Halaman MI-MD: MI saja | MD semua | beda kelas by-nama + aksi samakan dua arah.
@@ -31,8 +30,7 @@ export default function MiMdPage() {
   const canSamakan = bisa(user, 'pindah_kelas.ubah');
   const canDaftar = bisa(user, 'santri.tambah');
   const canHentikan = bisa(user, 'santri.ubah');
-  const [taId, setTaId] = useState('');
-  useTahunAjaranAwalString(setTaId);
+  const { tahunAjaranNames, kelas: kelasFilter } = useFilterGlobalAktif();
   const [data, setData] = useState<MiMdData | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
@@ -40,20 +38,18 @@ export default function MiMdPage() {
   const [cari, setCari] = useState('');
   const [busyId, setBusyId] = useState<number | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
-  /** Kelas = filter global topBar (gabungan kelas MI & MD). */
-  const { kelas: kelasFilter } = useKelasAktif();
 
   const load = useCallback(async () => {
     setErr('');
     setLoading(true);
     try {
-      setData(await listMiMd({ tahun_ajaran: taId || undefined }));
+      setData(await listMiMd({ tahun_ajaran: tahunAjaranNames }));
     } catch (e) {
       setErr(errorMessage(e));
     } finally {
       setLoading(false);
     }
-  }, [taId]);
+  }, [tahunAjaranNames]);
 
   useEffect(() => {
     void load();
@@ -292,7 +288,8 @@ export default function MiMdPage() {
       ) : (
         <>
           <p className="text-xs text-muted-foreground" id="info_ta_mi_md">
-            Tahun ajaran: {data?.tahun_ajaran ?? 'Semua'}
+             Tahun ajaran: {Array.isArray(data?.tahun_ajaran) ? data.tahun_ajaran.join(', ') : data?.tahun_ajaran ?? 'Semua'}
+
           </p>
           <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1" id="grup_mi_md">
             <ResizablePanel defaultSize="50%" minSize="25%" id="panel_mi_md_kiri">

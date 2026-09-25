@@ -6,13 +6,9 @@ import type { SantriPenuh } from '../api/santri';
 import { listKelas, type Kelas } from '../api/master';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import ExcelTable from '@/components/ExcelTable';
-import { useTingkatAktif } from '@/tingkatAktif';
-import { useKelasAktif } from '@/kelasAktif';
+import { useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { TopBarSearch } from '@/components/TopBarSearch';
-import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
-import { useTahunAjaranAwalString } from '@/hooks/useTahunAjaranAwal';
-import { useSemesterAwal } from '@/hooks/useSemesterAwal';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { ActionIcon } from '@/components/RowActions';
 import { Eye, Pencil } from '@/icons';
@@ -34,30 +30,29 @@ export default function DaftarKelasPage() {
   const { user } = useAuth();
   const canSantri = bisa(user, 'santri.ubah');
   const canRiwayat = bisa(user, 'riwayat_belajar.ubah');
-  const [jenjang, setLembagaId] = useState('');
-  useLembagaAwalString(setLembagaId);
-  const [taId, setTaId] = useState('');
-  useTahunAjaranAwalString(setTaId);
-  const [semester, setSemester] = useState('');
-  useSemesterAwal(setSemester);
+  const {
+    jenjangs,
+    tahunAjaranNames,
+    semesters,
+    tingkat: tingkatAktif,
+    kelas: kelasAktif,
+    loading: filterLoading,
+  } = useFilterGlobalAktif();
   /** Kelompok status akhir: aktif (bawaan) | nonaktif | '' = semua status. */
   const [kelompok, setKelompok] = useState('aktif');
   /** Pencarian tunggal halaman (topBar). */
   const [cari, setCari] = useState('');
-  /** Tingkat & Kelas = filter global topBar (setara lembaga/TA/semester). */
-  const { tingkat: tingkatAktif } = useTingkatAktif();
-  const { kelas: kelasAktif } = useKelasAktif();
   /** Opsi kelas lingkup (tanpa TA saat lintas periode) untuk memetakan nama
    *  filter global → id kelas param server. */
   const [kelasOpsi, setKelasOpsi] = useState<Kelas[]>([]);
   useEffect(() => {
-    if (!jenjang) { setKelasOpsi([]); return; }
+    if (filterLoading || jenjangs.length === 0) { setKelasOpsi([]); return; }
     let hidup = true;
-    listKelas({ jenjang, tahun_ajaran: taId || undefined, per_page: 1000 })
+    listKelas({ jenjang: jenjangs, tahun_ajaran: tahunAjaranNames, per_page: 1000 })
       .then((p) => { if (hidup) setKelasOpsi(p.data); })
       .catch(() => { if (hidup) setKelasOpsi([]); });
     return () => { hidup = false; };
-  }, [jenjang, taId]);
+  }, [filterLoading, jenjangs, tahunAjaranNames]);
   /** Id kelas terpilih (dari nama di filter global) untuk param server. */
   const kelasFilterIds = useMemo(
     () => kelasOpsi.filter((k) => kelasAktif.includes(k.nama_kelas)).map((k) => k.id),
@@ -80,21 +75,22 @@ export default function DaftarKelasPage() {
     tableKey: 'daftar_kelas',
     search: cari,
     ambil: (a): Promise<DaftarKelasHasil> => {
-      if (!jenjang) {
+      if (filterLoading || jenjangs.length === 0) {
         return Promise.resolve({
-          jenjang: '', tahun_ajaran: null, semester: null,
+          jenjang: [], tahun_ajaran: null, semester: null,
           data: [], current_page: 1, last_page: 1, per_page: a.perPage, total: 0,
         });
       }
       // Salah satu periode = Semua → lintas periode (tanpa default server).
-      const lintas = taId === '' || semester === '';
+      const lintas = tahunAjaranNames.length === 0 || semesters.length === 0;
       return daftarKelas({
-        jenjang: jenjang,
-        tahun_ajaran: taId || undefined,
-        semester: semester || undefined,
+        jenjang: jenjangs,
+        tahun_ajaran: tahunAjaranNames,
+        semester: semesters,
         kelompok_status: kelompok === '' ? 'semua' : (kelompok as 'aktif' | 'nonaktif'),
+
         lintas_periode: lintas || undefined,
-        tingkat: tingkatAktif.length ? tingkatAktif : undefined,
+        tingkat: tingkatAktif,
         kelas_id: kelasFilterIds.length ? kelasFilterIds : undefined,
         search: a.search || undefined,
         sort: a.urut.length ? a.urut : undefined,
@@ -104,7 +100,7 @@ export default function DaftarKelasPage() {
         signal: a.signal,
       });
     },
-    deps: [jenjang, taId, semester, kelompok, tingkatAktif, kelasFilterIds],
+    deps: [filterLoading, jenjangs, tahunAjaranNames, semesters, kelompok, tingkatAktif, kelasFilterIds],
   });
 
   /** Seluruh kolom 3 tabel; jenis edit mengikuti izin per tabel. */
@@ -160,9 +156,10 @@ export default function DaftarKelasPage() {
         )}
         tengah={(
           <span>
-            TA {taId === '' ? 'Semua' : taId}
-            {' · '}Smt {semester === '' ? 'Semua' : semester}
+            TA {tahunAjaranNames.length === 0 ? 'Semua' : tahunAjaranNames.join(', ')}
+            {' · '}Smt {semesters.length === 0 ? 'Semua' : semesters.join(', ')}
             {' · '}{kelompok === 'aktif' ? 'Aktif' : kelompok === 'nonaktif' ? 'Tidak aktif' : 'Semua status'}
+
             {' · '}{total} santri
           </span>
         )}

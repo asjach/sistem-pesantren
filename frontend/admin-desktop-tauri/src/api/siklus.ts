@@ -1,4 +1,5 @@
 import { api, apiUpload, downloadFile } from './client';
+import { appendQueryParam, type ScalarOrArray } from './query';
 import type { Paginate } from './master';
 import type { ImportError, ImportPeriksa, LembagaSantri, Santri, SantriPenuh } from './santri';
 
@@ -30,16 +31,28 @@ export interface MiMdBarisBeda {
 
 export interface MiMdData {
   lembaga: { mi_id: string; md_id: string };
-  tahun_ajaran: string | null;
+  tahun_ajaran: string | string[] | null;
   mi_only: MiMdBarisMi[];
   md_semua: MiMdBarisMd[];
   beda_kelas: MiMdBarisBeda[];
 }
 
 /** Tiga dataset MI-MD untuk satu tahun ajaran (default TA aktif di backend). */
-export function listMiMd(params: { tahun_ajaran?: string } = {}) {
-  const q = params.tahun_ajaran ? `?tahun_ajaran=${encodeURIComponent(params.tahun_ajaran)}` : '';
-  return api<MiMdData>(`/admin/mi-md${q}`);
+export function listMiMd(params: {
+  jenjang?: ScalarOrArray<string>;
+  tahun_ajaran?: ScalarOrArray<string>;
+  semester?: ScalarOrArray<string>;
+  tingkat?: ScalarOrArray<string>;
+  kelas_id?: ScalarOrArray<number>;
+} = {}) {
+  const q = new URLSearchParams();
+  appendQueryParam(q, 'jenjang', params.jenjang);
+  appendQueryParam(q, 'tahun_ajaran', params.tahun_ajaran);
+  appendQueryParam(q, 'semester', params.semester);
+  appendQueryParam(q, 'tingkat', params.tingkat);
+  appendQueryParam(q, 'kelas_id', params.kelas_id);
+  const qs = q.toString();
+  return api<MiMdData>(`/admin/mi-md${qs ? `?${qs}` : ''}`);
 }
 
 /** Sejajarkan kelas by-nama dua arah; hasil per item berhasil/gagal. */
@@ -127,19 +140,12 @@ export interface RiwayatRow {
   tahunAjaran?: { nama: string } | null;
 }
 
-/** Tambah param berulang `key[]=…` untuk filter multi (nilai tunggal/array). */
-function appendMulti(q: URLSearchParams, key: string, v?: string | number | Array<string | number>) {
-  if (v == null) return;
-  const arr = Array.isArray(v) ? v : [v];
-  for (const x of arr) if (x !== '') q.append(`${key}[]`, String(x));
-}
-
 export function listRiwayatBelajar(params: {
-  jenjang?: string;
-  tahun_ajaran?: string;
-  semester?: string;
-  tingkat?: string | string[];
-  kelas_id?: number | number[];
+  jenjang?: ScalarOrArray<string>;
+  tahun_ajaran?: ScalarOrArray<string>;
+  semester?: ScalarOrArray<string>;
+  tingkat?: ScalarOrArray<string>;
+  kelas_id?: ScalarOrArray<number>;
   tanpa_kelas?: boolean;
   dengan_kelas?: boolean;
   q?: string;
@@ -153,11 +159,11 @@ export function listRiwayatBelajar(params: {
   signal?: AbortSignal;
 } = {}) {
   const q = new URLSearchParams();
-  if (params.jenjang) q.set('jenjang', params.jenjang);
-  if (params.tahun_ajaran) q.set('tahun_ajaran', params.tahun_ajaran);
-  if (params.semester) q.set('semester', params.semester);
-  if (params.tingkat) appendMulti(q, 'tingkat', params.tingkat);
-  if (params.kelas_id) appendMulti(q, 'kelas_id', params.kelas_id);
+  appendQueryParam(q, 'jenjang', params.jenjang);
+  appendQueryParam(q, 'tahun_ajaran', params.tahun_ajaran);
+  appendQueryParam(q, 'semester', params.semester);
+  appendQueryParam(q, 'tingkat', params.tingkat);
+  appendQueryParam(q, 'kelas_id', params.kelas_id);
   if (params.tanpa_kelas) q.set('tanpa_kelas', '1');
   if (params.dengan_kelas) q.set('dengan_kelas', '1');
   if (params.q) q.set('q', params.q);
@@ -246,20 +252,20 @@ export function listBelumMasukRiwayat(params: {
 
 /** Panel kiri halaman Pindah Semester: ganjil aktif tanpa baris genap. */
 export function listBelumGenap(params: {
-  jenjang: string;
-  tahun_ajaran: string;
-  tingkat?: string | string[];
-  kelas_id?: number | number[];
+  jenjang: ScalarOrArray<string>;
+  tahun_ajaran: ScalarOrArray<string>;
+  tingkat?: ScalarOrArray<string>;
+  kelas_id?: ScalarOrArray<number>;
   q?: string;
   page?: number;
   per_page?: number;
   signal?: AbortSignal;
 }) {
   const q = new URLSearchParams();
-  q.set('jenjang', params.jenjang);
-  q.set('tahun_ajaran', params.tahun_ajaran);
-  if (params.tingkat) appendMulti(q, 'tingkat', params.tingkat);
-  if (params.kelas_id) appendMulti(q, 'kelas_id', params.kelas_id);
+  appendQueryParam(q, 'jenjang', params.jenjang);
+  appendQueryParam(q, 'tahun_ajaran', params.tahun_ajaran);
+  appendQueryParam(q, 'tingkat', params.tingkat);
+  appendQueryParam(q, 'kelas_id', params.kelas_id);
   if (params.q) q.set('q', params.q);
   q.set('page', String(params.page ?? 1));
   if (params.per_page != null) q.set('per_page', String(params.per_page));
@@ -343,9 +349,9 @@ export function unduhGalatPotong(sesiId: number) {
 // ---------- Daftar kelas & rekap ----------
 
 export interface DaftarKelasHasil {
-  jenjang: string;
-  tahun_ajaran: string | null;
-  semester: string | null;
+  jenjang: string | string[];
+  tahun_ajaran: string | string[] | null;
+  semester: string | string[] | null;
   data: RiwayatRow[];
   current_page: number;
   last_page: number;
@@ -354,14 +360,14 @@ export interface DaftarKelasHasil {
 }
 
 export function daftarKelas(params: {
-  jenjang: string;
-  tahun_ajaran?: string;
-  semester?: string;
-  kelas_id?: number | number[];
-  tingkat?: string | string[];
+  jenjang: ScalarOrArray<string>;
+  tahun_ajaran?: ScalarOrArray<string>;
+  semester?: ScalarOrArray<string>;
+  kelas_id?: ScalarOrArray<number>;
+  tingkat?: ScalarOrArray<string>;
   /** Cari nama/NIK santri atau NIS lokal. */
   search?: string;
-  /** Basis status_akhir: aktif = gabungan 5 status; nonaktif = keluar; semua = tanpa filter. */
+  /** Basis status_akhir: aktif = gabungan 5 status, nonaktif = keluar, semua = tanpa filter. */
   kelompok_status?: 'aktif' | 'nonaktif' | 'semua';
   /** Matikan default TA/semester agar bisa lintas periode. */
   lintas_periode?: boolean;
@@ -372,13 +378,12 @@ export function daftarKelas(params: {
   per_page?: number;
   signal?: AbortSignal;
 }) {
-  const q = new URLSearchParams({ jenjang: params.jenjang });
-  if (params.tahun_ajaran) q.set('tahun_ajaran', params.tahun_ajaran);
-  if (params.semester) q.set('semester', params.semester);
-  const kelasArr = params.kelas_id === undefined ? [] : Array.isArray(params.kelas_id) ? params.kelas_id : [params.kelas_id];
-  for (const id of kelasArr) q.append('kelas_id[]', String(id));
-  const tingkatArr = params.tingkat === undefined ? [] : Array.isArray(params.tingkat) ? params.tingkat : [params.tingkat];
-  for (const t of tingkatArr) if (t !== '') q.append('tingkat[]', t);
+  const q = new URLSearchParams();
+  appendQueryParam(q, 'jenjang', params.jenjang);
+  appendQueryParam(q, 'tahun_ajaran', params.tahun_ajaran);
+  appendQueryParam(q, 'semester', params.semester);
+  appendQueryParam(q, 'kelas_id', params.kelas_id);
+  appendQueryParam(q, 'tingkat', params.tingkat);
   if (params.search) q.set('q', params.search);
   if (params.kelompok_status) q.set('kelompok_status', params.kelompok_status);
   if (params.lintas_periode) q.set('lintas_periode', '1');
@@ -418,20 +423,42 @@ export interface RekapSantri {
   }[];
 }
 
-export function rekapSantri(params: { jenjang?: string; tahun_ajaran?: string; semester?: string; keaktifan?: string } = {}) {
+export function rekapSantri(params: {
+  jenjang?: ScalarOrArray<string>;
+  tahun_ajaran?: ScalarOrArray<string>;
+  semester?: ScalarOrArray<string>;
+  tingkat?: ScalarOrArray<string>;
+  kelas_id?: ScalarOrArray<number>;
+  keaktifan?: string;
+} = {}) {
   const q = new URLSearchParams();
-  if (params.jenjang) q.set('jenjang', params.jenjang);
-  if (params.tahun_ajaran) q.set('tahun_ajaran', params.tahun_ajaran);
-  if (params.semester) q.set('semester', params.semester);
+  appendQueryParam(q, 'jenjang', params.jenjang);
+  appendQueryParam(q, 'tahun_ajaran', params.tahun_ajaran);
+  appendQueryParam(q, 'semester', params.semester);
+  appendQueryParam(q, 'tingkat', params.tingkat);
+  appendQueryParam(q, 'kelas_id', params.kelas_id);
   if (params.keaktifan) q.set('keaktifan', params.keaktifan);
   return api<RekapSantri>(`/admin/akademik/rekap-santri?${q.toString()}`);
 }
 
 // ---------- Aksi siklus ----------
 
-export function listMutasiKeluar(params: { jenjang?: string; q?: string; sort?: string[]; arah?: 'naik' | 'turun'; page?: number; per_page?: number } = {}) {
+export function listMutasiKeluar(params: {
+  jenjang?: ScalarOrArray<string>;
+  tahun_ajaran?: ScalarOrArray<string>;
+  tingkat?: ScalarOrArray<string>;
+  kelas_id?: ScalarOrArray<number>;
+  q?: string;
+  sort?: string[];
+  arah?: 'naik' | 'turun';
+  page?: number;
+  per_page?: number;
+} = {}) {
   const q = new URLSearchParams();
-  if (params.jenjang) q.set('jenjang', params.jenjang);
+  appendQueryParam(q, 'jenjang', params.jenjang);
+  appendQueryParam(q, 'tahun_ajaran', params.tahun_ajaran);
+  appendQueryParam(q, 'tingkat', params.tingkat);
+  appendQueryParam(q, 'kelas_id', params.kelas_id);
   if (params.q) q.set('q', params.q);
   if (params.sort?.length) q.set('sort', params.sort.join(','));
   if (params.arah) q.set('arah', params.arah);
@@ -441,11 +468,25 @@ export function listMutasiKeluar(params: { jenjang?: string; q?: string; sort?: 
 }
 
 export function listAlumni(
-  params: { jenjang?: string; tahun_ajaran_lulus?: string; q?: string; sort?: string[]; arah?: 'naik' | 'turun'; page?: number; per_page?: number } = {},
+  params: {
+    jenjang?: ScalarOrArray<string>;
+    tahun_ajaran?: ScalarOrArray<string>;
+    tahun_ajaran_lulus?: ScalarOrArray<string>;
+    tingkat?: ScalarOrArray<string>;
+    kelas_id?: ScalarOrArray<number>;
+    q?: string;
+    sort?: string[];
+    arah?: 'naik' | 'turun';
+    page?: number;
+    per_page?: number;
+  } = {},
 ) {
   const q = new URLSearchParams();
-  if (params.jenjang) q.set('jenjang', params.jenjang);
-  if (params.tahun_ajaran_lulus) q.set('tahun_ajaran_lulus', params.tahun_ajaran_lulus);
+  appendQueryParam(q, 'jenjang', params.jenjang);
+  appendQueryParam(q, 'tahun_ajaran', params.tahun_ajaran);
+  appendQueryParam(q, 'tahun_ajaran_lulus', params.tahun_ajaran_lulus);
+  appendQueryParam(q, 'tingkat', params.tingkat);
+  appendQueryParam(q, 'kelas_id', params.kelas_id);
   if (params.q) q.set('q', params.q);
   if (params.sort?.length) q.set('sort', params.sort.join(','));
   if (params.arah) q.set('arah', params.arah);

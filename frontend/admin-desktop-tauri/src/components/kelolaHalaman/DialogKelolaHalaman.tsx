@@ -20,6 +20,7 @@ import TabUrutan from '../kelolaTabel/TabUrutan';
 import TabKontrol from '../kelolaTabel/TabKontrol';
 import { EVENT_PRESET_BERUBAH } from '../kelolaTabel/jenis';
 import TabFilterHalaman from './TabFilterHalaman';
+import { konfigurasiFilterHalaman } from '@/lib/filterHalaman';
 import type { KunciFilterGlobal, TabelHalaman } from '../VisibilitasFilter';
 
 /** Tab dialog Kelola Halaman. */
@@ -149,6 +150,11 @@ export default function DialogKelolaHalaman({
   const [tab, setTab] = useState<TabHalaman>('filter');
   const [tabelAktif, setTabelAktif] = useState<string>(tabel[0]?.key ?? '');
   const tutup = () => onOpenChange(false);
+  const konfigurasi = useMemo(() => konfigurasiFilterHalaman(pageKey), [pageKey]);
+  const tabMeta = useMemo(
+    () => tabel.length > 0 ? TAB_META : TAB_META.filter((item) => item.kunci === 'filter'),
+    [tabel.length],
+  );
 
   // Reset pilihan saat halaman/ganti dialog dibuka.
   useEffect(() => {
@@ -176,7 +182,7 @@ export default function DialogKelolaHalaman({
         </DialogHeader>
 
         <div className="flex gap-1 border-b pb-2" role="tablist" aria-label="Kelola halaman">
-          {TAB_META.map((t) => (
+          {tabMeta.map((t) => (
             <button
               key={t.kunci}
               type="button"
@@ -216,7 +222,13 @@ export default function DialogKelolaHalaman({
         ) : null}
 
         {tab === 'filter' && (
-          <TabFilterHalaman pageKey={pageKey} bawaan={filterBawaan} onTutup={tutup} />
+          <TabFilterHalaman
+            pageKey={pageKey}
+            filterRelevan={konfigurasi.filter}
+            bawaan={filterBawaan}
+            modeBawaan={konfigurasi.mode}
+            onTutup={tutup}
+          />
         )}
         {tab === 'kolom' && tabelTerpilih && (
           tabelTerpilih.fields ? (

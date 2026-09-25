@@ -11,14 +11,12 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
-import { useTingkatAktif } from '@/tingkatAktif';
-import { useKelasAktif } from '@/kelasAktif';
+import { useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { TopBarSearch } from '@/components/TopBarSearch';
-import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
+import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { FileUp, Download, ArrowRight } from '@/icons';
 import { ActionIcon } from '@/components/RowActions';
-import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import Pager from '@/components/Pager';
 import { usePager } from '@/hooks/usePager';
 import { toast } from 'sonner';
@@ -41,8 +39,13 @@ const FIELDS_ARSIP: ExcelField[] = [
 
 export default function MutasiKeluarPage() {
   const { user } = useAuth();
-  const [jenjang, setLembagaId] = useState('');
-  useLembagaAwalString(setLembagaId);
+  const {
+    jenjangs,
+    tingkat: tingkatAktif,
+    kelas: kelasAktif,
+    loading: filterLoading,
+   } = useFilterGlobalAktif();
+
   const [kiri, setKiri] = useState<RiwayatRow[]>([]);
   const [arsip, setArsip] = useState<MutasiKeluar[]>([]);
   const [alasanOpsi, setAlasanOpsi] = useState<{ value: string; label: string }[]>([]);
@@ -74,24 +77,25 @@ export default function MutasiKeluarPage() {
   const [fileBusy, setFileBusy] = useState(false);
 
   const loadKiri = useCallback(async () => {
-    if (!jenjang) { setKiri([]); return; }
+    if (filterLoading || jenjangs.length === 0) { setKiri([]); return; }
     setErr('');
     try {
-      const res = await daftarKelas({ jenjang: jenjang, per_page: 0 });
+      const res = await daftarKelas({ jenjang: jenjangs, tingkat: tingkatAktif, per_page: 0 });
       setKiri(res.data);
     } catch (e) { setErr(errorMessage(e)); }
-  }, [jenjang]);
+  }, [filterLoading, jenjangs, tingkatAktif]);
 
   const loadArsip = useCallback(async (
     p = pager.page, pp = pager.perPage,
     f?: { urut?: string[]; arah?: 'naik' | 'turun' },
   ) => {
-    if (!jenjang) { setArsip([]); return; }
+    if (filterLoading || jenjangs.length === 0) { setArsip([]); return; }
     try {
       const u = f?.urut ?? urut;
       const a = f?.arah ?? arahUrut;
       const res = await listMutasiKeluar({
-        jenjang: jenjang,
+        jenjang: jenjangs,
+        tingkat: tingkatAktif,
         q: cari || undefined,
         sort: u.length ? u : undefined,
         arah: u.length ? a : undefined,
@@ -101,7 +105,7 @@ export default function MutasiKeluarPage() {
       setLastPage(res.last_page);
       setTotal(res.total);
     } catch (e) { setErr(errorMessage(e)); }
-  }, [jenjang, cari, pager.page, pager.perPage, urut, arahUrut]);
+  }, [filterLoading, jenjangs, tingkatAktif, cari, pager.page, pager.perPage, urut, arahUrut]);
 
   /** Klik header: simpan urut baru lalu muat ulang arsip dari halaman 1. */
   function terapkanUrut(nilai: string[], arah: 'naik' | 'turun') {
@@ -115,14 +119,11 @@ export default function MutasiKeluarPage() {
   useEffect(() => { void loadArsip(); }, [loadArsip]);
 
   useEffect(() => {
-    referensiList('alasan_mutasi', jenjang ? jenjang : undefined)
+    referensiList('alasan_mutasi', jenjangs)
       .then((r) => setAlasanOpsi(r.map((x) => ({ value: x.kode ?? x.nama ?? '', label: x.nama ?? x.kode ?? '' }))))
       .catch(() => setAlasanOpsi([]));
-  }, [jenjang]);
+  }, [jenjangs]);
 
-  /** Tingkat & Kelas = filter global topBar (setara lembaga/TA/semester). */
-  const { tingkat: tingkatAktif } = useTingkatAktif();
-  const { kelas: kelasAktif } = useKelasAktif();
   /** Hasil filter global + pencarian tunggal topBar (sisi klien). */
   const kiriTampil = useMemo(() => {
     const q = cari.trim().toLowerCase();
@@ -136,13 +137,14 @@ export default function MutasiKeluarPage() {
   }, [kiri, tingkatAktif, kelasAktif, cari]);
 
   const simpan = async () => {
-    if (!baris || !jenjang || !tanggal || !alasan) return;
+    if (!baris || !baris.jenjang || !tanggal || !alasan) return;
     setBusy(true);
     try {
       await mutasiSantri(baris.santri_id, {
-        jenjang: jenjang,
-        tanggal_mutasi: tanggal,
-        alasan_mutasi: alasan,
+        jenjang: baris.jenjang,
+         tanggal_mutasi: tanggal,
+         alasan_mutasi: alasan,
+
         kelas_terakhir_id: baris.kelas_id ?? undefined,
         no_surat: noSurat.trim() || undefined,
         nama_sekolah_tujuan: tujuan.trim() || undefined,
@@ -200,7 +202,7 @@ export default function MutasiKeluarPage() {
           <header className="flex shrink-0 items-center justify-between border-b bg-muted/40 px-3 py-2 text-sm font-medium">
             <span>Arsip mutasi keluar</span>
             {canImportMutasi && (
-              <Button id="btn_buka_import_mutasi" size="sm" variant="outline" disabled={!jenjang}
+              <Button id="btn_buka_import_mutasi" size="sm" variant="outline" disabled={filterLoading || jenjangs.length === 0}
                 onClick={() => { setFileMutasi(null); setHasilFile(null); setFileOpen(true); }}>
                 <FileUp data-icon="inline-start" size={16} /> Import
               </Button>

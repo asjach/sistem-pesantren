@@ -28,6 +28,7 @@ import {
 } from '@/components/ui/select';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { useLembagaAktif } from '@/lembagaAktif';
+import { targetTunggal, useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
 import FilterField from '@/components/FilterField';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { TopBarSearch } from '@/components/TopBarSearch';
@@ -70,9 +71,8 @@ export default function ReferensiPage() {
   const [types, setTypes] = useState<string[]>([]);
   const [tipe, setTipe] = useState('');
   const [lembagas, setLembagas] = useState<Lembaga[]>([]);
-  /** Lembaga selalu mengikuti topbar (satu-satunya sumber); null = Semua. */
-  const { jenjang: lembagaTop } = useLembagaAktif();
-  const jenjang = lembagaTop ?? '';
+  const { jenjangs } = useFilterGlobalAktif();
+  const targetJenjang = targetTunggal(jenjangs);
   const [rows, setRows] = useState<ReferensiRow[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -105,8 +105,9 @@ export default function ReferensiPage() {
    *  kelap-kelip on→off→on→off: draft dibuang saat basis masih basi). */
   const tipeRef = useRef(tipe);
   tipeRef.current = tipe;
-  const lembagaRef = useRef<string>(jenjang);
-  lembagaRef.current = jenjang;
+  const lembagaRef = useRef<readonly string[]>(jenjangs);
+  lembagaRef.current = jenjangs;
+
   const muat = useCallback(async () => {
     if (!tipeRef.current) return;
     setErr('');
@@ -114,7 +115,7 @@ export default function ReferensiPage() {
     try {
       // Mode kelola: selalu sertakan nonaktif agar toggle bisa memulihkan.
       // MySQL tinyint tiba sebagai 0/1 → normalkan ke boolean.
-      const r = await referensiList(tipeRef.current, lembagaRef.current === '' ? undefined : lembagaRef.current, true);
+      const r = await referensiList(tipeRef.current, lembagaRef.current, true);
       setRows(r.map((row) => ({ ...row, is_active: !!row.is_active })));
     } catch (e) {
       setErr(errorMessage(e));
@@ -125,7 +126,7 @@ export default function ReferensiPage() {
 
   useEffect(() => {
     void muat();
-  }, [muat, tipe, jenjang, tick]);
+  }, [muat, tipe, jenjangs, tick]);
 
   const reload = useCallback(() => muat(), [muat]);
 
@@ -200,10 +201,10 @@ export default function ReferensiPage() {
     setFNama(''); setFKode(''); setFUrutan('0');
     // Tanpa Global: super_admin tanpa lembaga = sebar ke semua; jika scope
     // lembaga aktif, tambah ke lembaga itu.
-    const fallback = jenjang !== '' ? String(jenjang) : '';
+    const fallback = targetJenjang ?? '';
     setScope(fallback);
     setTambahOpen(true);
-  }, [jenjang]);
+  }, [targetJenjang]);
 
   const onCreate = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();

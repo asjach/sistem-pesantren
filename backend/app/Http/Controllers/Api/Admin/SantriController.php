@@ -54,10 +54,18 @@ class SantriController extends Controller
         if ($request->filled('is_active_pst')) {
             $query->where('is_active_pst', $request->boolean('is_active_pst') ? Santri::YA : Santri::TIDAK);
         }
-        if ($request->filled('jenjang')) {
-            $lembagaId = (string) $request->input('jenjang');
-            $this->authorizeLembaga($request->user(), $lembagaId);
-            $query->whereHas('lembagaSantri', fn ($ls) => $ls->where('jenjang', $lembagaId));
+        $lembaga = $this->nilaiFilter($request, 'jenjang');
+        $this->authorizeLembagaMany($request->user(), $lembaga);
+        if ($lembaga !== []) {
+            $query->whereHas('lembagaSantri', fn ($ls) => $ls->whereIn('jenjang', $lembaga));
+        }
+        if ($this->hasAcademicFilter($request)) {
+            $query->whereHas('riwayatBelajar', function ($riwayat) use ($lembaga, $request) {
+                if ($lembaga !== []) {
+                    $riwayat->whereIn('jenjang', $lembaga);
+                }
+                $this->applyAcademicFilters($riwayat, $request);
+            });
         }
         if ($request->filled('q')) {
             $q = trim((string) $request->input('q'));

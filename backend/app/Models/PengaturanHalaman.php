@@ -15,10 +15,11 @@ class PengaturanHalaman extends Model
 {
     protected $table = 'pengaturan_halaman';
 
-    protected $fillable = ['page_key', 'filter', 'dibuat_oleh'];
+    protected $fillable = ['page_key', 'filter', 'filter_mode', 'dibuat_oleh'];
 
     protected $casts = [
         'filter' => 'array',
+        'filter_mode' => 'array',
     ];
 
     /** @return BelongsTo<User, $this> */

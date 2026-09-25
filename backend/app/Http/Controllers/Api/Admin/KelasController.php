@@ -52,12 +52,8 @@ class KelasController extends Controller
             'kelas.jenjang'
         );
 
-        if ($request->filled('tahun_ajaran')) {
-            $query->where('kelas.tahun_ajaran', $request->input('tahun_ajaran'));
-        }
-        if ($request->filled('tingkat')) {
-            $query->whereIn('kelas.tingkat', (array) $request->input('tingkat'));
-        }
+        $this->applyFilter($query, $request, 'tahun_ajaran', 'kelas.tahun_ajaran');
+        $this->applyFilter($query, $request, 'tingkat', 'kelas.tingkat');
         if ($request->filled('search')) {
             $s = $request->input('search');
             $query->where('kelas.nama_kelas', 'like', "%{$s}%");

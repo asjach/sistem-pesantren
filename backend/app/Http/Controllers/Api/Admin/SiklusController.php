@@ -278,13 +278,29 @@ class SiklusController extends Controller
         $this->authorize('viewAny', Santri::class);
         $urut = $this->parseUrut($request, UrutKatalog::peta('mutasi_arsip'));
 
-        $mutasi = MutasiKeluar::tenantScope()
-            ->with(['santri:id,nama_lengkap,nisn', 'lembaga:jenjang,nama', 'kelasTerakhir:id,nama_kelas'])
-            ->when($request->filled('jenjang'), fn ($q) => $q->where('jenjang', (string) $request->input('jenjang')))
-            ->when($request->filled('q'), function ($q) use ($request) {
-                $cari = (string) $request->input('q');
-                $q->whereHas('santri', fn ($s) => $s->where('nama_lengkap', 'like', "%{$cari}%"));
+        $mutasi = $this->scopeLembaga(
+            MutasiKeluar::with(['santri:id,nama_lengkap,nisn', 'lembaga:jenjang,nama', 'kelasTerakhir:id,nama_kelas']),
+            $request->user(),
+            $request,
+            'mutasi_keluar.jenjang'
+        );
+        $tahunAjaran = $this->nilaiFilter($request, 'tahun_ajaran');
+        $tingkat = $this->nilaiFilter($request, 'tingkat');
+        if ($tahunAjaran !== [] || $tingkat !== []) {
+            $mutasi->whereHas('kelasTerakhir', function ($kelas) use ($tahunAjaran, $tingkat) {
+                if ($tahunAjaran !== []) {
+                    $kelas->whereIn('tahun_ajaran', $tahunAjaran);
+                }
+                if ($tingkat !== []) {
+                    $kelas->whereIn('tingkat', $tingkat);
+                }
             });
+        }
+        $this->applyFilter($mutasi, $request, 'kelas_id', 'kelas_terakhir_id', true);
+        $mutasi->when($request->filled('q'), function ($q) use ($request) {
+            $cari = (string) $request->input('q');
+            $q->whereHas('santri', fn ($s) => $s->where('nama_lengkap', 'like', "%{$cari}%"));
+        });
         if ($urut !== null) {
             $mutasi->select('mutasi_keluar.*')
                 ->leftJoin('santri', 'santri.id', '=', 'mutasi_keluar.santri_id')
@@ -387,14 +403,23 @@ class SiklusController extends Controller
         $this->authorize('viewAny', Santri::class);
         $urut = $this->parseUrut($request, UrutKatalog::peta('kelulusan_alumni'));
 
-        $alumni = Alumni::tenantScope()
-            ->with(['santri:id,nama_lengkap,nisn', 'lembagaLulus:jenjang,nama', 'tahunAjaranLulus:nama', 'kelasLulus:id,nama_kelas'])
-            ->when($request->filled('jenjang'), fn ($q) => $q->where('lembaga_lulus', (string) $request->input('jenjang')))
-            ->when($request->filled('tahun_ajaran_lulus'), fn ($q) => $q->where('tahun_ajaran_lulus', $request->input('tahun_ajaran_lulus')))
-            ->when($request->filled('q'), function ($q) use ($request) {
-                $cari = (string) $request->input('q');
-                $q->whereHas('santri', fn ($s) => $s->where('nama_lengkap', 'like', "%{$cari}%"));
-            });
+        $alumni = $this->scopeLembaga(
+            Alumni::with(['santri:id,nama_lengkap,nisn', 'lembagaLulus:jenjang,nama', 'tahunAjaranLulus:nama', 'kelasLulus:id,nama_kelas']),
+            $request->user(),
+            $request,
+            'alumni.lembaga_lulus'
+        );
+        $this->applyFilter($alumni, $request, 'tahun_ajaran', 'alumni.tahun_ajaran_lulus');
+        $this->applyFilter($alumni, $request, 'tahun_ajaran_lulus', 'alumni.tahun_ajaran_lulus');
+        $this->applyFilter($alumni, $request, 'kelas_id', 'alumni.kelas_lulus_id', true);
+        $tingkat = $this->nilaiFilter($request, 'tingkat');
+        if ($tingkat !== []) {
+            $alumni->whereHas('kelasLulus', fn ($kelas) => $kelas->whereIn('tingkat', $tingkat));
+        }
+        $alumni->when($request->filled('q'), function ($q) use ($request) {
+            $cari = (string) $request->input('q');
+            $q->whereHas('santri', fn ($s) => $s->where('nama_lengkap', 'like', "%{$cari}%"));
+        });
         if ($urut !== null) {
             $alumni->select('alumni.*')
                 ->leftJoin('santri', 'santri.id', '=', 'alumni.santri_id')
@@ -425,37 +450,57 @@ class SiklusController extends Controller
         $this->authorize('viewAny', Santri::class);
 
         $data = $request->validated();
-        $lembagaId = $data['jenjang'];
-        $this->authorizeLembaga($request->user(), $lembagaId);
+        $lembagaIds = $data['jenjang'];
+        $this->authorizeLembagaMany($request->user(), $lembagaIds);
         $urut = $this->parseUrut($request, UrutKatalog::peta('daftar_kelas'));
 
         $lintas = $request->boolean('lintas_periode');
         $kelompok = $data['kelompok_status'] ?? null;
-
-        $ta = $data['tahun_ajaran']
-            ?? ($lintas ? null : TahunAjaran::aktif($lembagaId)?->nama);
-        if (! $lintas && $ta === null) {
+        $tahunIds = $data['tahun_ajaran'] ?? [];
+        if ($tahunIds === [] && ! $lintas) {
+            $tahunIds = collect($lembagaIds)
+                ->map(fn (string $lembagaId) => TahunAjaran::aktif($lembagaId)?->nama)
+                ->filter()
+                ->unique()
+                ->values()
+                ->all();
+        }
+        if (! $lintas && $tahunIds === []) {
             return response()->json(['pesan' => 'Tahun ajaran aktif belum ada di lembaga ini.', 'data' => []]);
         }
 
-        $semester = $data['semester']
-            ?? ($lintas || $ta === null ? null : (string) (RiwayatBelajar::where('jenjang', $lembagaId)
-                ->where('tahun_ajaran', $ta)->where('is_active_riwayat', RiwayatBelajar::YA)
-                ->orderByDesc('semester')->value('semester') ?? '1'));
+        $semesterIds = $data['semester'] ?? [];
+        if ($semesterIds === [] && ! $lintas) {
+            $semesterIds = collect($lembagaIds)
+                ->flatMap(function (string $lembagaId) use ($tahunIds) {
+                    return collect($tahunIds)->map(function (string $tahunId) use ($lembagaId) {
+                        return (string) (RiwayatBelajar::where('jenjang', $lembagaId)
+                            ->where('tahun_ajaran', $tahunId)
+                            ->where('is_active_riwayat', RiwayatBelajar::YA)
+                            ->orderByDesc('semester')
+                            ->value('semester') ?? '1');
+                    });
+                })
+                ->filter()
+                ->unique()
+                ->values()
+                ->all();
+            $semesterIds = $semesterIds === [] ? ['1'] : $semesterIds;
+        }
 
         $query = RiwayatBelajar::with([
             'santri',
             'kelas:id,nama_kelas,tingkat',
             'lembaga:jenjang,nama',
-            // JANGAN eager-load `tahunAjaran`: kunci relasi di-snake-case jadi
+            // JANGAN eager-load `tahunAjaran`: kunci relasi di-snake_case jadi
             // `tahun_ajaran` dan menimpa atribut string FK (frontend menerima
             // objek → tampil "[object Object]"). Nilai FK-nya sudah nama TA.
-        ])->where('riwayat_belajar.jenjang', $lembagaId);
-        if ($ta !== null) {
-            $query->where('riwayat_belajar.tahun_ajaran', $ta);
+        ])->whereIn('riwayat_belajar.jenjang', $lembagaIds);
+        if ($tahunIds !== []) {
+            $query->whereIn('riwayat_belajar.tahun_ajaran', $tahunIds);
         }
-        if ($semester !== null) {
-            $query->where('riwayat_belajar.semester', $semester);
+        if ($semesterIds !== []) {
+            $query->whereIn('riwayat_belajar.semester', $semesterIds);
         }
         if ($kelompok === 'aktif') {
             // Aktif = gabungan status akhir (bukan flag is_active_riwayat).
@@ -468,19 +513,15 @@ class SiklusController extends Controller
             $query->where('riwayat_belajar.is_active_riwayat', RiwayatBelajar::YA);
         }
 
-        if (! empty($data['kelas_id'])) {
-            $query->whereIn('riwayat_belajar.kelas_id', array_map('intval', (array) $data['kelas_id']));
-        }
-        if (! empty($data['tingkat'])) {
-            $query->whereIn('riwayat_belajar.tingkat', (array) $data['tingkat']);
-        }
+        $this->applyFilter($query, $request, 'kelas_id', 'riwayat_belajar.kelas_id', true);
+        $this->applyFilter($query, $request, 'tingkat', 'riwayat_belajar.tingkat');
         if ($request->filled('q')) {
             $qcari = $request->input('q');
-            $query->where(function ($w) use ($qcari, $lembagaId) {
+            $query->where(function ($w) use ($qcari, $lembagaIds) {
                 $w->whereHas('santri', fn ($s) => $s
                     ->where('nama_lengkap', 'like', "%{$qcari}%")
                     ->orWhere('nik', 'like', "%{$qcari}%"))
-                    ->orWhereIn('riwayat_belajar.santri_id', LembagaSantri::where('jenjang', $lembagaId)
+                    ->orWhereIn('riwayat_belajar.santri_id', LembagaSantri::whereIn('jenjang', $lembagaIds)
                         ->where('nis_lokal', 'like', "%{$qcari}%")
                         ->select('santri_id'));
             });
@@ -505,19 +546,23 @@ class SiklusController extends Controller
         // Keanggotaan penuh (satu baris per santri; aktif diutamakan) + NIS lokal
         // ringkas (kompatibilitas payload lama).
         $anggota = LembagaSantri::whereIn('santri_id', $hasil->getCollection()->pluck('santri_id')->unique())
-            ->where('jenjang', $lembagaId)
+            ->whereIn('jenjang', $lembagaIds)
             ->orderByDesc('is_active_lembaga')->orderBy('id')
-            ->get()->groupBy('santri_id')->map->first();
+            ->get()->groupBy('santri_id');
         $hasil->getCollection()->each(function ($r) use ($anggota) {
-            $ls = $anggota[$r->santri_id] ?? null;
+            $ls = $anggota[$r->santri_id]?->firstWhere('jenjang', $r->jenjang);
             $r->setRelation('lembaga_anggota', $ls);
             $r->setAttribute('nis_lokal', $ls?->nis_lokal);
         });
 
+        $metadata = fn (array $values): string|array|null => count($values) === 1
+            ? $values[0]
+            : ($values === [] ? null : $values);
+
         return response()->json(array_merge($hasil->toArray(), [
-            'jenjang' => $lembagaId,
-            'tahun_ajaran' => $ta,
-            'semester' => $semester,
+            'jenjang' => $metadata($lembagaIds),
+            'tahun_ajaran' => $metadata($tahunIds),
+            'semester' => $metadata($semesterIds),
         ]));
     }
 
@@ -534,7 +579,7 @@ class SiklusController extends Controller
         // nonaktif = Pindah/Keluar, kosong = semua status.
         $keaktifan = $data['keaktifan'] ?? 'aktif';
 
-        $riwayatQuery = function (bool $semuaTa = false) use ($request, $data, $keaktifan) {
+        $riwayatQuery = function (bool $semuaTa = false) use ($request, $keaktifan) {
             // "Santri aktif pada periode" = terdaftar di TA+semester itu dan
             // tidak pindah keluar (definisi sama dengan Daftar Kelas), bukan
             // flag `is_active_riwayat` yang hanya menandai periode terkini.
@@ -546,12 +591,12 @@ class SiklusController extends Controller
                 $q->where('status_akhir', 'pindah_keluar');
             }
             $this->scopeLembaga($q, $request->user(), $request, 'jenjang');
-            if (! $semuaTa && ! empty($data['tahun_ajaran'])) {
-                $q->where('tahun_ajaran', $data['tahun_ajaran']);
+            if (! $semuaTa) {
+                $this->applyFilter($q, $request, 'tahun_ajaran', 'tahun_ajaran');
             }
-            if (! empty($data['semester'])) {
-                $q->where('semester', $data['semester']);
-            }
+            $this->applyFilter($q, $request, 'semester', 'semester');
+            $this->applyFilter($q, $request, 'tingkat', 'tingkat');
+            $this->applyFilter($q, $request, 'kelas_id', 'kelas_id', true);
 
             return $q;
         };
@@ -572,9 +617,9 @@ class SiklusController extends Controller
 
         $kelasQuery = Kelas::query()->with(['lembaga:jenjang,nama', 'tahunAjaran:nama']);
         $this->scopeLembaga($kelasQuery, $request->user(), $request, 'jenjang');
-        if (! empty($data['tahun_ajaran'])) {
-            $kelasQuery->where('tahun_ajaran', $data['tahun_ajaran']);
-        }
+        $this->applyFilter($kelasQuery, $request, 'tahun_ajaran', 'tahun_ajaran');
+        $this->applyFilter($kelasQuery, $request, 'tingkat', 'tingkat');
+        $this->applyFilter($kelasQuery, $request, 'kelas_id', 'id', true);
         $kelas = $kelasQuery->orderBy('jenjang')->orderBy('tingkat')->orderBy('nama_kelas')->get();
 
         $terisi = (clone $riwayatQuery())

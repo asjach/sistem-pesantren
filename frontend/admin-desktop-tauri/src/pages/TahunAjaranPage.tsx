@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/field';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
-import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
+import { targetTunggal, useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
 import { useLembagaAktif } from '@/lembagaAktif';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { TopBarSearch } from '@/components/TopBarSearch';
@@ -86,8 +86,7 @@ async function commitDraft(id: string | number, f: Record<string, string | null>
 /** Tahun Ajaran (global, kunci `nama`): super_admin mengelola daftar; admin
  *  lembaga hanya bisa menyembunyikan/menampilkan TA untuk lembaganya. */
 export default function TahunAjaranPage() {
-  const [jenjang, setLembagaId] = useState<string>('');
-  useLembagaAwalString(setLembagaId);
+  const { jenjangs } = useFilterGlobalAktif();
   /** Pencarian tunggal halaman (topBar). */
   const [cari, setCari] = useState('');
   const {
@@ -108,16 +107,17 @@ export default function TahunAjaranPage() {
     search: cari,
     ambil: (a) => listTahunAjaran({
       search: a.search || undefined,
-      jenjang: jenjang === '' ? undefined : jenjang,
+      jenjang: jenjangs,
       // TA tersembunyi ikut dimuat agar bisa ditampilkan kembali.
-      termasuk_nonaktif: jenjang !== '',
+      termasuk_nonaktif: jenjangs.length > 0,
       sort: a.urut.length ? a.urut : undefined,
+
       arah: a.urut.length ? a.arah : undefined,
       page: a.page,
       per_page: a.perPage,
       signal: a.signal,
     }),
-    deps: [jenjang],
+    deps: [jenjangs],
   });
 
   const [nama, setNama] = useState('');
@@ -132,12 +132,11 @@ export default function TahunAjaranPage() {
 
   const { user } = useAuth();
   const { bertindak } = useLembagaAktif();
-  // ExcelTable butuh `id`; TA memakai `nama` sebagai kunci → turunkan id dari nama.
   const rowsTampil = useMemo(() => rows.map((t) => ({ ...t, id: t.nama })), [rows]);
-  // Saat berperan sebagai lembaga, izin kelola super_admin nonaktif (hanya sembunyikan).
   const bolehKelola = bisa(user, 'tahun_ajaran.ubah') && !bertindak;
-  // Lembaga untuk aksi sembunyikan: lembaga aktif (perangkat) atau lembaga user.
-  const lembagaAksi = jenjang === '' ? (user?.lembagas?.[0]?.jenjang ?? null) : jenjang;
+  const targetJenjang = targetTunggal(jenjangs);
+  const lembagaAksi = targetJenjang ?? (user?.lembagas?.length === 1 ? user.lembagas[0].jenjang : null);
+
   const bolehSembunyi = !bolehKelola && lembagaAksi !== null;
 
   const openEdit = useCallback((t: TahunAjaran) => {

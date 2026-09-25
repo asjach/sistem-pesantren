@@ -18,13 +18,10 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
-import { useTingkatAktif } from '@/tingkatAktif';
-import { useKelasAktif } from '@/kelasAktif';
+import { useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import FilterField from '@/components/FilterField';
-import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
-import { useTahunAjaranAwalString } from '@/hooks/useTahunAjaranAwal';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import Pager from '@/components/Pager';
 import { useDaftarTabel } from '@/hooks/useDaftarTabel';
@@ -69,20 +66,19 @@ export default function RiwayatBelajarPage() {
   const canTambah = bisa(user, 'riwayat_belajar.tambah');
   /** Penempatan/keluar kelas lewat pintu `pindah_kelas.ubah`. */
   const canKelas = bisa(user, 'pindah_kelas.ubah');
-  /** Lembaga + TA selalu mengikuti topbar (satu-satunya sumber). */
-  const [jenjang, setLembagaId] = useState('');
-  useLembagaAwalString(setLembagaId);
-  const [taId, setTaId] = useState('');
-  useTahunAjaranAwalString(setTaId);
   /** Filter kanan sekaligus kelas tujuan panah (wajib spesifik untuk memasukkan santri). */
   const [kelasId, setKelasId] = useState('');
   /** Pencarian tunggal halaman (topBar) untuk kedua panel. */
   const [cari, setCari] = useState('');
   const [kelasOpsi, setKelasOpsi] = useState<Kelas[]>([]);
-  /** Tingkat & Kelas = filter global topBar (setara lembaga/TA/semester):
-   *  tingkat menyaring kedua panel; kelas menyaring panel "sudah masuk kelas". */
-  const { tingkat: tingkatFilter } = useTingkatAktif();
-  const { kelas: kelasFilter } = useKelasAktif();
+  const {
+    jenjangs,
+    tahunAjaranNames,
+    tingkat: tingkatFilter,
+    kelas: kelasFilter,
+    loading: filterLoading,
+  } = useFilterGlobalAktif();
+
   const [busyId, setBusyId] = useState<number | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
   /** Baris tercentang per panel (diangkat via `onCheckedChange` agar tombol
@@ -103,15 +99,15 @@ export default function RiwayatBelajarPage() {
     tableKey: 'riwayat_belum_masuk',
     search: cari,
     ambil: (a) => {
-      if (!jenjang || !taId) {
+      if (filterLoading) {
         return Promise.resolve({ data: [], current_page: 1, last_page: 1, per_page: a.perPage, total: 0 });
       }
       return listRiwayatBelajar({
-        jenjang: jenjang,
-        tahun_ajaran: taId,
+        jenjang: jenjangs,
+        tahun_ajaran: tahunAjaranNames,
         semester: '1',
         tanpa_kelas: true,
-        tingkat: tingkatFilter.length ? tingkatFilter : undefined,
+        tingkat: tingkatFilter,
         is_active_riwayat: true,
         q: a.search || undefined,
         sort: a.urut.length ? a.urut : undefined,
@@ -121,22 +117,22 @@ export default function RiwayatBelajarPage() {
         signal: a.signal,
       });
     },
-    deps: [jenjang, taId, tingkatFilter],
+    deps: [filterLoading, jenjangs, tahunAjaranNames, tingkatFilter],
   });
 
   const kanan = useDaftarTabel<RiwayatRow>({
     tableKey: 'riwayat_belajar',
     search: cari,
     ambil: (a) => {
-      if (!jenjang || !taId) {
+      if (filterLoading) {
         return Promise.resolve({ data: [], current_page: 1, last_page: 1, per_page: a.perPage, total: 0 });
       }
       return listRiwayatBelajar({
-        jenjang: jenjang,
-        tahun_ajaran: taId,
+        jenjang: jenjangs,
+        tahun_ajaran: tahunAjaranNames,
         semester: '1',
         dengan_kelas: true,
-        tingkat: tingkatFilter.length ? tingkatFilter : undefined,
+        tingkat: tingkatFilter,
         kelas_id: kelasFilterIds.length ? kelasFilterIds : undefined,
         is_active_riwayat: true,
         q: a.search || undefined,
@@ -147,16 +143,18 @@ export default function RiwayatBelajarPage() {
         signal: a.signal,
       });
     },
-    deps: [jenjang, taId, tingkatFilter, kelasFilterIds],
+    deps: [filterLoading, jenjangs, tahunAjaranNames, tingkatFilter, kelasFilterIds],
   });
 
   useEffect(() => {
-    if (!jenjang || !taId) { setKelasOpsi([]); return; }
-    listKelas({ jenjang: jenjang, tahun_ajaran: taId, per_page: 1000 })
-      .then((p) => setKelasOpsi(p.data))
-      .catch(() => setKelasOpsi([]));
+    if (filterLoading) { setKelasOpsi([]); return; }
+    let hidup = true;
+    listKelas({ jenjang: jenjangs, tahun_ajaran: tahunAjaranNames, per_page: 1000 })
+      .then((p) => { if (hidup) setKelasOpsi(p.data); })
+      .catch(() => { if (hidup) setKelasOpsi([]); });
     setKelasId('');
-  }, [jenjang, taId]);
+    return () => { hidup = false; };
+  }, [filterLoading, jenjangs, tahunAjaranNames]);
 
   const muatUlang = useCallback(async () => {
     await Promise.all([kiri.load(kiri.pager.page), kanan.load(kanan.pager.page)]);
@@ -174,7 +172,7 @@ export default function RiwayatBelajarPage() {
   }, [targetKelas]);
 
   const masukkan = useCallback(async (r: RiwayatRow) => {
-    if (busyId !== null || !jenjang || !taId) return;
+    if (busyId !== null) return;
     if (!targetKelas) {
       toast.error('Pilih kelas di filter kanan dulu.');
       return;
@@ -194,7 +192,7 @@ export default function RiwayatBelajarPage() {
     } finally {
       setBusyId(null);
     }
-  }, [busyId, jenjang, taId, targetKelas, cocokTingkat, muatUlang]);
+  }, [busyId, targetKelas, cocokTingkat, muatUlang]);
 
   const keluarkan = useCallback(async (r: RiwayatRow) => {
     try {
@@ -206,7 +204,7 @@ export default function RiwayatBelajarPage() {
 
   /** Aksi massal kiri: masukkan yang tercentang ke kelas terpilih. */
   const masukBanyak = useCallback(async () => {
-    if (bulkBusy || centangKiri.length === 0 || !jenjang || !taId) return;
+    if (bulkBusy || centangKiri.length === 0) return;
     if (!targetKelas) {
       toast.error('Pilih kelas di filter kanan dulu.');
       return;
@@ -235,7 +233,7 @@ export default function RiwayatBelajarPage() {
     } finally {
       setBulkBusy(false);
     }
-  }, [bulkBusy, centangKiri, jenjang, taId, targetKelas, cocokTingkat, muatUlang]);
+  }, [bulkBusy, centangKiri, targetKelas, cocokTingkat, muatUlang]);
 
   /** Aksi massal kanan: keluarkan yang tercentang dari kelas (kembali ke kiri). */
   const keluarBanyak = useCallback(async () => {
@@ -268,7 +266,7 @@ export default function RiwayatBelajarPage() {
   const [busy, setBusy] = useState(false);
   const [bertahapOpen, setBertahapOpen] = useState(false);
 
-  const siap = jenjang !== '' && taId !== '';
+  const siap = !filterLoading;
 
   const panel = (
     key: string,

@@ -18,6 +18,7 @@ export interface PilihanLembaga {
 interface LembagaAktifState {
   loading: boolean;
   /** Filter lembaga (dropdown topbar + filter awal halaman). Bukan peran. */
+  jenjangs: string[];
   jenjang: string | null;
   lembaga: PilihanLembaga | null;
   pilihan: PilihanLembaga[];
@@ -37,8 +38,32 @@ interface LembagaAktifState {
   terkunci: boolean;
   /** Ubah filter lembaga (topbar). */
   pilih: (jenjang: string | null) => void;
+  pilihBanyak: (jenjangs: string[]) => void;
   /** Ubah peran (banner); sekaligus mengarahkan filter ke lembaga itu. */
   pilihPeran: (jenjang: string | null) => void;
+}
+
+function normalisasiNilaiAktif(values: readonly string[]): string[] {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+}
+
+function bacaNilaiAktif(simpanan: string | null): string[] {
+  if (!simpanan || simpanan === '0') return [];
+  try {
+    const parsed: unknown = JSON.parse(simpanan);
+    if (parsed === null) return [];
+    if (Array.isArray(parsed)) {
+      return normalisasiNilaiAktif(parsed.filter((value): value is string => typeof value === 'string'));
+    }
+    if (typeof parsed === 'string' && parsed !== '0') return normalisasiNilaiAktif([parsed]);
+  } catch {
+    return normalisasiNilaiAktif([simpanan]);
+  }
+  return normalisasiNilaiAktif([simpanan]);
+}
+
+function simpanNilaiAktif(values: readonly string[]): string {
+  return JSON.stringify(normalisasiNilaiAktif(values));
 }
 
 const Ctx = createContext<LembagaAktifState | null>(null);
@@ -47,7 +72,7 @@ export function LembagaAktifProvider({ children }: { children: ReactNode }) {
   const { user, setUser } = useAuth();
   const [pilihan, setPilihan] = useState<PilihanLembaga[]>([]);
   const [pilihanPeran, setPilihanPeran] = useState<PilihanLembaga[]>([]);
-  const [jenjang, setJenjang] = useState<string | null>(null);
+  const [jenjangs, setJenjangs] = useState<string[]>([]);
   const [peranJenjang, setPeranJenjang] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   /** Izin efektif (/me) sudah disegarkan untuk peran pulihan (sekali saja). */
@@ -67,7 +92,7 @@ export function LembagaAktifProvider({ children }: { children: ReactNode }) {
       if (!user) {
         setPilihan([]);
         setPilihanPeran([]);
-        setJenjang(null);
+        setJenjangs([]);
         setPeranJenjang(null);
         // `loading` sengaja TIDAK dimatikan di sini: selama user belum ada,
         // provider anak (tahun ajaran/TopBar) harus tetap menunggu agar tidak
@@ -104,12 +129,21 @@ export function LembagaAktifProvider({ children }: { children: ReactNode }) {
       setPilihanPeran(daftarPeran);
 
       const simpanan = await prefGet(KEY).catch(() => null);
-      let terpilih: string | null;
-      if (simpanan === '0' && adaSemua) terpilih = null;
-      else if (simpanan && daftar.some((d) => d.jenjang === simpanan)) terpilih = simpanan;
-      else terpilih = adaSemua ? null : (daftar[0]?.jenjang ?? null);
+      const valid = bacaNilaiAktif(simpanan).filter((nilai) =>
+        daftar.some((d) => d.jenjang === nilai),
+      );
+      let terpilih: string[];
+      if (simpanan === null) {
+        terpilih = adaSemua ? [] : (daftar[0] ? [daftar[0].jenjang] : []);
+      } else if (simpanan === '0' && adaSemua) {
+        terpilih = [];
+      } else if (valid.length > 0) {
+        terpilih = valid;
+      } else {
+        terpilih = adaSemua ? [] : (daftar[0] ? [daftar[0].jenjang] : []);
+      }
       if (!alive) return;
-      setJenjang(terpilih);
+      setJenjangs(terpilih);
       // Pulihkan peran tersimpan (hanya jenjang yang masih valid di daftar).
       const simpananPeran = await prefGet(PERAN_KEY).catch(() => null);
       if (alive && simpananPeran && simpananPeran !== '0' && daftar.some((d) => d.jenjang === simpananPeran)) {
@@ -128,9 +162,16 @@ export function LembagaAktifProvider({ children }: { children: ReactNode }) {
     return () => { alive = false; };
   }, [user, adaSemua]);
 
+  const pilihBanyak = useMemo(() => (values: string[]) => {
+    const next = normalisasiNilaiAktif(values);
+    setJenjangs(next);
+    prefSet(KEY, simpanNilaiAktif(next)).catch(() => {});
+  }, []);
+
   const pilih = useMemo(() => (jenjangBaru: string | null) => {
-    setJenjang(jenjangBaru);
-    prefSet(KEY, jenjangBaru == null ? '0' : jenjangBaru).catch(() => {});
+    const next = jenjangBaru == null ? [] : normalisasiNilaiAktif([jenjangBaru]);
+    setJenjangs(next);
+    prefSet(KEY, next[0] ?? '0').catch(() => {});
   }, []);
 
   // Mode "bertindak sebagai lembaga" hanya untuk super_admin: header act-as
@@ -143,22 +184,23 @@ export function LembagaAktifProvider({ children }: { children: ReactNode }) {
     // Berperan sekaligus memfilter ke lembaga itu (filter lama dipertahankan
     // saat kembali ke super_admin).
     if (jenjangBaru != null) {
-      setJenjang(jenjangBaru);
-      prefSet(KEY, jenjangBaru).catch(() => {});
+      pilih(jenjangBaru);
     }
     // Header sinkron SEBELUM /me agar izin efektif sesuai peran baru, lalu
     // segarkan user (tanpa ini UI berizin super tetap terbuka sampai reload).
     setLembagaAktifHeader(jenjangBaru);
     me().then((u) => { if (isDesktopRoleAllowed(u)) setUser(u); }).catch(() => {});
-  }, [superAdmin, setUser]);
+  }, [superAdmin, setUser, pilih]);
   setLembagaAktifHeader(superAdmin && peranJenjang != null ? peranJenjang : null);
 
   const value = useMemo<LembagaAktifState>(() => {
     const bertindak = superAdmin && peranJenjang != null;
     const peran = pilihanPeran.find((p) => p.jenjang === peranJenjang)
       ?? pilihan.find((p) => p.jenjang === peranJenjang) ?? null;
+    const jenjang = jenjangs[0] ?? null;
     return {
       loading,
+      jenjangs,
       jenjang,
       lembaga: pilihan.find((p) => p.jenjang === jenjang) ?? null,
       pilihan,
@@ -174,9 +216,10 @@ export function LembagaAktifProvider({ children }: { children: ReactNode }) {
       // nilainya sudah lembaga aktif. Super_admin/admin pesantren tetap bebas.
       terkunci: (superAdmin && peranJenjang != null) || (!adaSemua && pilihan.length === 1),
       pilih,
+      pilihBanyak,
       pilihPeran,
     };
-  }, [loading, jenjang, pilihan, pilihanPeran, adaSemua, superAdmin, pilih, peranJenjang, pilihPeran]);
+  }, [loading, jenjangs, pilihan, pilihanPeran, adaSemua, superAdmin, pilih, pilihBanyak, peranJenjang, pilihPeran]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

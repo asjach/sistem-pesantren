@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
-import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
+import { targetTunggal, useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
 import FilterField from '@/components/FilterField';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { TopBarSearch } from '@/components/TopBarSearch';
@@ -69,8 +69,9 @@ export default function DokumenWajibPage() {
   const canTambah = bisa(user, 'dokumen_wajib.tambah');
   const [kegiatans, setKegiatans] = useState<PsbKegiatan[]>([]);
   const [kegiatanId, setKegiatanId] = useState('');
-  const [jenjang, setLembagaId] = useState('');
-  useLembagaAwalString(setLembagaId);
+  const { jenjangs } = useFilterGlobalAktif();
+  const [jenjang, setJenjang] = useState(targetTunggal(jenjangs) ?? '');
+  useEffect(() => { setJenjang(targetTunggal(jenjangs) ?? ''); }, [jenjangs]);
   const [rows, setRows] = useState<DokumenWajib[]>([]);
   /** Pencarian tunggal halaman (topBar). */
   const [cari, setCari] = useState('');
@@ -89,12 +90,12 @@ export default function DokumenWajibPage() {
   const reqRef = useRef(0);
 
   const load = useCallback(async () => {
-    if (!kegiatanId || !jenjang) return;
+    if (!kegiatanId) return;
     const req = ++reqRef.current;
     setErr('');
     setLoading(true);
     try {
-      const res = await listDokumenWajib(Number(kegiatanId), jenjang);
+      const res = await listDokumenWajib(Number(kegiatanId), jenjangs);
       if (req !== reqRef.current) return;
       setRows(res.data);
     } catch (e) {
@@ -102,7 +103,7 @@ export default function DokumenWajibPage() {
     } finally {
       if (req === reqRef.current) setLoading(false);
     }
-  }, [kegiatanId, jenjang]);
+  }, [kegiatanId, jenjangs]);
 
   useEffect(() => {
     listPsbKegiatan()
@@ -114,7 +115,7 @@ export default function DokumenWajibPage() {
   }, []);
 
   useEffect(() => {
-    if (!jenjang) {
+    if (!kegiatanId) {
       reqRef.current += 1;
       setRows([]);
       setJenis([]);
@@ -123,11 +124,11 @@ export default function DokumenWajibPage() {
     }
     void load();
     let alive = true;
-    referensiList('jenis_dokumen_santri', jenjang)
+    referensiList('jenis_dokumen_santri', jenjangs)
       .then((r) => { if (alive) setJenis(r); })
       .catch(() => {});
     return () => { alive = false; };
-  }, [jenjang, load]);
+  }, [kegiatanId, jenjangs, load]);
 
   const onTambah = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -164,16 +165,16 @@ export default function DokumenWajibPage() {
   }, [load]);
 
   const commitWajib = useCallback(async (id: string | number, f: Record<string, string | null>) => {
-    if (f.wajib === undefined || !kegiatanId || !jenjang) return;
+    if (f.wajib === undefined || !kegiatanId) return;
     const row = rows.find((r) => String(r.id) === String(id));
     if (!row) return;
     await simpanDokumenWajib({
       psb_kegiatan_id: row.psb_kegiatan_id,
-      jenjang: jenjang,
+      jenjang: row.jenjang,
       jenis_dokumen_santri: row.jenis_dokumen_santri,
       is_wajib: f.wajib === 'Ya',
     });
-  }, [rows, kegiatanId, jenjang]);
+  }, [rows, kegiatanId]);
 
   /** Kolom grid dengan pilihan jenis dinamis + mode Input. */
   const fields = useMemo(
@@ -221,9 +222,7 @@ export default function DokumenWajibPage() {
         rows={rowsTampil}
         getValues={gridValues}
         loading={loading}
-        emptyText={!jenjang
-          ? 'Pilih lembaga aktif di TopBar dulu.'
-          : (kegiatanId ? 'Belum ada ketentuan dokumen.' : 'Pilih kegiatan dulu.')}
+         emptyText={!kegiatanId ? 'Pilih kegiatan dulu.' : 'Belum ada ketentuan dokumen.'}
         canEdit={canUbah}
         onCommit={commitWajib}
         onSaved={load}

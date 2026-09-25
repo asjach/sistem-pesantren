@@ -55,8 +55,14 @@ class LembagaSantriController extends Controller
             'lembaga_santri.jenjang'
         );
 
-        if ($request->filled('jenjang')) {
-            $query->where('lembaga_santri.jenjang', (string) $request->input('jenjang'));
+        $lembaga = $this->nilaiFilter($request, 'jenjang');
+        if ($this->hasAcademicFilter($request)) {
+            $query->whereHas('santri.riwayatBelajar', function ($riwayat) use ($lembaga, $request) {
+                if ($lembaga !== []) {
+                    $riwayat->whereIn('jenjang', $lembaga);
+                }
+                $this->applyAcademicFilters($riwayat, $request);
+            });
         }
         if ($request->has('is_active_lembaga')) {
             $query->where('lembaga_santri.is_active_lembaga', $request->boolean('is_active_lembaga') ? LembagaSantri::YA : LembagaSantri::TIDAK);
@@ -234,9 +240,6 @@ class LembagaSantriController extends Controller
         $auth = $request->user();
 
         $query = $this->scopeLembaga(LembagaSantri::query(), $auth, $request);
-        if ($request->filled('jenjang')) {
-            $query->where('lembaga_santri.jenjang', (string) $request->input('jenjang'));
-        }
         if ($request->has('is_active_lembaga')) {
             $query->where('lembaga_santri.is_active_lembaga', $request->boolean('is_active_lembaga') ? LembagaSantri::YA : LembagaSantri::TIDAK);
         }

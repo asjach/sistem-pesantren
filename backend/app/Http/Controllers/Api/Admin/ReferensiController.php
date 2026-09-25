@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Admin;
 
+use App\Http\Controllers\Api\Concerns\FilterGlobal;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\ReferensiStoreRequest;
 use App\Http\Requests\Admin\ReferensiUpdateRequest;
@@ -17,6 +18,8 @@ use Illuminate\Support\Facades\DB;
  */
 class ReferensiController extends Controller
 {
+    use FilterGlobal;
+
     protected function mustLembaga($actor, array $data): string
     {
         if (! empty($data['jenjang'])) {
@@ -39,16 +42,20 @@ class ReferensiController extends Controller
     public function index(Request $request, string $tipe)
     {
         $actor = $request->user();
-        $lembagaId = (string) $request->input('jenjang') ?: null;
-        if (! is_null($lembagaId)) {
+        $lembagaIds = $this->nilaiFilter($request, 'jenjang');
+        foreach ($lembagaIds as $lembagaId) {
             $this->canLembaga($actor, $lembagaId) || abort(403);
+        }
 
-            if ($request->boolean('termasuk_nonaktif')) {
-                // Sertakan baris nonaktif agar UI bisa menawarkan pulihkan.
-                return response()->json(RefService::semua($tipe, $lembagaId));
+        if ($lembagaIds !== []) {
+            $rows = [];
+            foreach ($lembagaIds as $lembagaId) {
+                array_push($rows, ...($request->boolean('termasuk_nonaktif')
+                    ? RefService::semua($tipe, $lembagaId)
+                    : RefService::effective($tipe, $lembagaId)));
             }
 
-            return response()->json(RefService::effective($tipe, $lembagaId));
+            return response()->json($rows);
         }
 
         // Tanpa filter = Semua: gabung baris seluruh lembaga yang boleh

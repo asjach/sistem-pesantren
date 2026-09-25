@@ -6,36 +6,35 @@ import TabelRingkas from '@/components/TabelRingkas';
 import FilterField from '@/components/FilterField';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
-import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
-import { useTahunAjaranAwalString } from '@/hooks/useTahunAjaranAwal';
-import { useSemesterAwal } from '@/hooks/useSemesterAwal';
+import { useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
 
 /** Rekap Santri: jumlah per tahun ajaran/tingkat/kelas + usia per kelas.
  *  "Aktif" = terdaftar di TA+semester itu dan tidak pindah keluar. */
 export default function RekapSantriPage() {
-  const [jenjang, setLembagaId] = useState('');
-  useLembagaAwalString(setLembagaId);
-  const [taId, setTaId] = useState('');
-  useTahunAjaranAwalString(setTaId);
-  const [semester, setSemester] = useState('');
-  useSemesterAwal(setSemester);
+  const {
+    jenjangs,
+    tahunAjaranNames,
+    semesters,
+    loading: filterLoading,
+  } = useFilterGlobalAktif();
   /** Keaktifan dari `status_akhir`: aktif (bawaan) | nonaktif | '' = semua. */
   const [keaktifan, setKeaktifan] = useState('aktif');
   const [data, setData] = useState<RekapSantri | null>(null);
   const [err, setErr] = useState('');
 
   const load = useCallback(async () => {
+    if (filterLoading) return;
     setErr('');
     try {
       const res = await rekapSantri({
-        jenjang: jenjang ? jenjang : undefined,
-        tahun_ajaran: taId || undefined,
-        semester: semester || undefined,
+        jenjang: jenjangs,
+        tahun_ajaran: tahunAjaranNames,
+        semester: semesters,
         keaktifan: keaktifan || undefined,
       });
       setData(res);
     } catch (e) { setErr(errorMessage(e)); }
-  }, [jenjang, taId, semester, keaktifan]);
+  }, [filterLoading, jenjangs, tahunAjaranNames, semesters, keaktifan]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -87,7 +86,7 @@ export default function RekapSantriPage() {
         </FilterField>
         <span className="rounded-md border px-3 py-2 text-sm">
           {keaktifan === 'nonaktif' ? 'Tidak aktif' : keaktifan === 'aktif' ? 'Aktif' : 'Semua status'}
-          {' · '}{semester ? `semester ${semester}` : 'semua semester'}: <strong>{data?.total_aktif ?? 0}</strong>
+          {' · '}{semesters.length ? `semester ${semesters.join(', ')}` : 'semua semester'}: <strong>{data?.total_aktif ?? 0}</strong>
         </span>
       </div>
 

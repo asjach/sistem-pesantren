@@ -105,6 +105,59 @@ class PengaturanHalamanTest extends TestCase
         $this->assertSame(0, PengaturanHalaman::where('page_key', 'daftar_kelas')->count());
     }
 
+    public function test_mode_filter_bawaan_saat_data_kosong(): void
+    {
+        $admin = $this->makeUser('admin');
+
+        $this->actingAs($admin, 'sanctum')
+            ->getJson('/api/admin/pengaturan-halaman?page_key=daftar_kelas')
+            ->assertStatus(200)
+            ->assertJsonPath('data.filter_mode', [
+                'lembaga' => 'single',
+                'tahun_ajaran' => 'single',
+                'semester' => 'single',
+                'tingkat' => 'single',
+                'kelas' => 'single',
+            ]);
+    }
+
+    public function test_mode_filter_disimpan_dan_bergabung(): void
+    {
+        $pusat = $this->makeUser('super_admin');
+
+        $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/pengaturan-halaman', [
+            'page_key' => 'daftar_kelas',
+            'filter_mode' => ['lembaga' => 'multiple'],
+        ])->assertStatus(200)
+            ->assertJsonPath('data.filter', [])
+            ->assertJsonPath('data.filter_mode', [
+                'lembaga' => 'multiple',
+                'tahun_ajaran' => 'single',
+                'semester' => 'single',
+                'tingkat' => 'single',
+                'kelas' => 'single',
+            ]);
+
+        $row = PengaturanHalaman::where('page_key', 'daftar_kelas')->firstOrFail();
+        $this->assertSame([], $row->filter);
+        $this->assertSame('multiple', $row->filter_mode['lembaga']);
+        $this->assertSame('single', $row->filter_mode['tahun_ajaran']);
+
+        $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/pengaturan-halaman', [
+            'page_key' => 'daftar_kelas',
+            'filter_mode' => ['tahun_ajaran' => 'multiple'],
+        ])->assertStatus(200);
+
+        $this->actingAs($pusat, 'sanctum')
+            ->getJson('/api/admin/pengaturan-halaman?page_key=daftar_kelas')
+            ->assertStatus(200)
+            ->assertJsonPath('data.filter_mode.lembaga', 'multiple')
+            ->assertJsonPath('data.filter_mode.tahun_ajaran', 'multiple')
+            ->assertJsonPath('data.filter_mode.semester', 'single')
+            ->assertJsonPath('data.filter_mode.tingkat', 'single')
+            ->assertJsonPath('data.filter_mode.kelas', 'single');
+    }
+
     public function test_validasi_kunci_dan_nilai(): void
     {
         $pusat = $this->makeUser('super_admin');
@@ -118,6 +171,16 @@ class PengaturanHalamanTest extends TestCase
             'page_key' => 'daftar_kelas',
             'filter' => ['filter_asing' => true],
         ])->assertStatus(422)->assertJsonValidationErrors(['filter']);
+
+        $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/pengaturan-halaman', [
+            'page_key' => 'daftar_kelas',
+            'filter_mode' => ['filter_asing' => 'single'],
+        ])->assertStatus(422)->assertJsonValidationErrors(['filter_mode']);
+
+        $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/pengaturan-halaman', [
+            'page_key' => 'daftar_kelas',
+            'filter_mode' => ['lembaga' => 'tidak_valid'],
+        ])->assertStatus(422)->assertJsonValidationErrors(['filter_mode.lembaga']);
 
         $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/pengaturan-halaman', [
             'page_key' => 'daftar_kelas',

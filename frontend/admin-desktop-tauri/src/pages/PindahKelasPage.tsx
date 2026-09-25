@@ -9,15 +9,12 @@ import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/field';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import ExcelTable from '@/components/ExcelTable';
+import { targetTunggal, useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
 import { useTingkatAktif } from '@/tingkatAktif';
-import { useKelasAktif } from '@/kelasAktif';
-import { PengaturanHalaman } from '@/components/VisibilitasFilter';
+import { PengaturanHalaman, useVisibilitasFilter } from '@/components/VisibilitasFilter';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import { ActionIcon } from '@/components/RowActions';
 import { ArrowRight } from '@/icons';
-import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
-import { useTahunAjaranAwalString } from '@/hooks/useTahunAjaranAwal';
-import { useSemesterAwal } from '@/hooks/useSemesterAwal';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { toast } from 'sonner';
 
@@ -37,20 +34,23 @@ interface GrupTingkat {
  *  (ujung bertemu ujung); satu kelas saja = tanpa panah. */
 export default function PindahKelasPage() {
   const { user } = useAuth();
+  const filterVis = useVisibilitasFilter();
   const canSalin = bisa(user, 'kenaikan.ubah');
   const canPindah = bisa(user, 'pindah_kelas.ubah');
-  const [jenjang, setLembagaId] = useState('');
-  useLembagaAwalString(setLembagaId);
-  const [taId, setTaId] = useState('');
-  useTahunAjaranAwalString(setTaId);
-  const [semester, setSemester] = useState('');
-  useSemesterAwal(setSemester);
+  const {
+    jenjangs,
+    tahunAjaranNames,
+    semesters,
+    tingkat: tingkatAktif,
+    kelas: kelasAktif,
+    loading: filterLoading,
+  } = useFilterGlobalAktif();
+  const { pilih: pilihTingkat, loading: loadingTingkat } = useTingkatAktif();
+  const targetJenjang = targetTunggal(jenjangs);
+  const targetTahunAjaran = targetTunggal(tahunAjaranNames);
   const [rows, setRows] = useState<RiwayatRow[]>([]);
   /** Pencarian tunggal halaman (topBar) — disaring di tiap kolom kelas. */
   const [cari, setCari] = useState('');
-  /** Tingkat & Kelas = filter global topBar (setara lembaga/TA/semester). */
-  const { tingkat: tingkatAktif, pilih: pilihTingkat, loading: loadingTingkat } = useTingkatAktif();
-  const { kelas: kelasAktif } = useKelasAktif();
   const [kelas, setKelas] = useState<Kelas[]>([]);
   const [err, setErr] = useState('');
   const [busyId, setBusyId] = useState<number | null>(null);
@@ -60,22 +60,32 @@ export default function PindahKelasPage() {
   const [tanggalSalin, setTanggalSalin] = useState('');
 
   const load = useCallback(async () => {
-    if (!jenjang) { setRows([]); return; }
+    if (filterLoading || jenjangs.length === 0) { setRows([]); return; }
     setErr('');
     try {
-      const res = await daftarKelas({ jenjang: jenjang, tahun_ajaran: taId || undefined, semester: semester || undefined, per_page: 0 });
+      const lintasPeriode = tahunAjaranNames.length === 0 || semesters.length === 0;
+      const res = await daftarKelas({
+        jenjang: jenjangs,
+        tahun_ajaran: tahunAjaranNames,
+        semester: semesters,
+        tingkat: tingkatAktif,
+        lintas_periode: lintasPeriode || undefined,
+        per_page: 0,
+      });
       setRows(res.data);
     } catch (e) { setErr(errorMessage(e)); }
-  }, [jenjang, taId, semester]);
+  }, [filterLoading, jenjangs, tahunAjaranNames, semesters, tingkatAktif]);
 
   useEffect(() => { void load(); }, [load]);
 
   useEffect(() => {
-    if (!jenjang) { setKelas([]); return; }
-    listKelas({ jenjang: jenjang, tahun_ajaran: taId || undefined, per_page: 1000 })
-      .then((p) => setKelas(p.data))
-      .catch(() => setKelas([]));
-  }, [jenjang, taId]);
+    if (filterLoading || jenjangs.length === 0) { setKelas([]); return; }
+    let hidup = true;
+    listKelas({ jenjang: jenjangs, tahun_ajaran: tahunAjaranNames, per_page: 1000 })
+      .then((p) => { if (hidup) setKelas(p.data); })
+      .catch(() => { if (hidup) setKelas([]); });
+    return () => { hidup = false; };
+  }, [filterLoading, jenjangs, tahunAjaranNames]);
 
   const tingkatAwal = useMemo(() => {
     const tingkat = [...new Set(kelas
@@ -85,10 +95,10 @@ export default function PindahKelasPage() {
   }, [kelas]);
 
   useEffect(() => {
-    if (defaultTerapkan.current || loadingTingkat || !jenjang || !taId || !tingkatAwal) return;
+    if (defaultTerapkan.current || !filterVis?.siap || filterVis.mode.tingkat !== 'single' || loadingTingkat || filterLoading || jenjangs.length !== 1 || tahunAjaranNames.length !== 1 || !tingkatAwal) return;
     defaultTerapkan.current = true;
     if (tingkatAktif.length === 0) pilihTingkat([tingkatAwal]);
-  }, [jenjang, loadingTingkat, pilihTingkat, taId, tingkatAktif, tingkatAwal]);
+  }, [filterLoading, filterVis?.mode.tingkat, filterVis?.siap, jenjangs, loadingTingkat, pilihTingkat, tahunAjaranNames, tingkatAktif, tingkatAwal]);
 
   const grup = useMemo<GrupTingkat[]>(() => {
     const petaKelas = new Map<number, Kelas>();
@@ -155,10 +165,11 @@ export default function PindahKelasPage() {
       <PengaturanHalaman tampil={{ tingkat: true, kelas: true }} />
       <div className="flex flex-wrap items-end gap-3">
         {canSalin && (
-        <Button id="btn_buka_salin_genap" variant="outline" disabled={!jenjang} onClick={() => { setTanggalSalin(''); setSalinOpen(true); }}>
-          Salin ke genap
-        </Button>
+          <Button id="btn_buka_salin_genap" variant="outline" disabled={!targetJenjang || !targetTahunAjaran} onClick={() => { setTanggalSalin(''); setSalinOpen(true); }}>
+            Salin ke genap
+          </Button>
         )}
+
       </div>
 
       {grup.length === 0 ? (
@@ -209,10 +220,11 @@ export default function PindahKelasPage() {
           <Input id="input_tanggal_salin_genap" type="date" value={tanggalSalin} onChange={(e) => setTanggalSalin(e.target.value)} />
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setSalinOpen(false)}>Batal</Button>
-            <Button id="btn_proses_salin_genap" disabled={busyId !== null || !tanggalSalin} onClick={async () => {
+            <Button id="btn_proses_salin_genap" disabled={busyId !== null || !tanggalSalin || !targetJenjang || !targetTahunAjaran} onClick={async () => {
+              if (!targetJenjang || !targetTahunAjaran) return;
               setBusyId(-1);
               try {
-                const res = await salinGenapMassal({ jenjang: jenjang, tanggal_masuk: tanggalSalin });
+                const res = await salinGenapMassal({ jenjang: targetJenjang, tanggal_masuk: tanggalSalin });
                 toast.success(`Salin genap: ${res.berhasil} berhasil, ${res.gagal.length} gagal.`);
                 if (res.gagal.length) toast.error(res.gagal.map((g) => `#${g.santri_id}: ${g.pesan}`).join(' · '));
                 setSalinOpen(false);
@@ -221,6 +233,7 @@ export default function PindahKelasPage() {
             }}>Proses</Button>
           </DialogFooter>
         </DialogContent>
+
       </Dialog>
     </div>
   );

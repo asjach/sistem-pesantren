@@ -46,7 +46,7 @@ import {
 } from '@/components/ui/select';
 import ExcelTable, { type ExcelChoice, type ExcelField } from '@/components/ExcelTable';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
+import { targetTunggal, useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
 import FilterField from '@/components/FilterField';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { TopBarSearch } from '@/components/TopBarSearch';
@@ -182,8 +182,8 @@ export default function PsbPage() {
   const canTambahPsb = bisa(me, 'psb.tambah');
   const [lembagas, setLembagas] = useState<Lembaga[]>([]);
   const [subStatus, setSubStatus] = useState('');
-  const [jenjang, setLembagaId] = useState('');
-  useLembagaAwalString(setLembagaId);
+  const { jenjangs } = useFilterGlobalAktif();
+  const targetJenjang = targetTunggal(jenjangs);
   const lembagaReqRef = useRef(0);
   const gelombangReqRef = useRef(0);
   const dokumenReqRef = useRef(0);
@@ -214,16 +214,17 @@ export default function PsbPage() {
       return listAntrean({
         status: statuses.join(','),
         search: a.search || undefined,
-        jenjang: jenjang ? jenjang : undefined,
+        jenjang: jenjangs,
         sort: a.urut.length ? a.urut : undefined,
         arah: a.urut.length ? a.arah : undefined,
+
         terhapus: tampilTerhapus || undefined,
         page: a.page,
         per_page: a.perPage,
         signal: a.signal,
       }).then((r) => ({ ...r.data, badge: r.badge }));
     },
-    deps: [stage, subStatus, jenjang, tampilTerhapus],
+    deps: [stage, subStatus, jenjangs, tampilTerhapus],
     onData: (res) => setBadge(res.badge ?? {}),
   });
 
@@ -467,27 +468,31 @@ export default function PsbPage() {
 
   /** Mode Input (tahap pendaftar): daftarkan calon baru dari baris input. */
   const createRow = useCallback(async (f: Record<string, string | null>) => {
-    if (!jenjang) {
-      throw new Error('Pilih filter lembaga dulu untuk mode Input.');
-    }
-    if (!f.gelombang) {
+     if (!targetJenjang) {
+       throw new Error('Pilih satu lembaga di TopBar untuk mode Input.');
+     }
+     if (!f.gelombang) {
+
       throw new Error('Gelombang wajib diisi.');
     }
     await createCalonPsb({
       gelombang_id: Number(f.gelombang),
-      jenjang: jenjang,
+       jenjang: targetJenjang,
+
       tipe_santri: f.tipe === 'asrama' ? 'asrama' : 'non_asrama',
       nik: (f.nik ?? '').trim(),
       nama_lengkap: (f.nama ?? '').trim(),
     });
     toast.success('Pendaftar dibuat.');
     await load(1);
-  }, [jenjang, load]);
+   }, [targetJenjang, load]);
+
 
   const lembagaTerpilih = useMemo(() => {
-    const l = lembagas.find((x) => x.jenjang === jenjang);
+    const l = lembagas.find((x) => x.jenjang === targetJenjang);
     return l?.jenjang ?? l?.nama ?? '';
-  }, [lembagas, jenjang]);
+   }, [lembagas, targetJenjang]);
+
 
   async function jalankanBulk() {
     if (!bulkAksi || bulkIds.length === 0) return;

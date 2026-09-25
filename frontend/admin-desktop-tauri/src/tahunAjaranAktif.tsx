@@ -12,10 +12,35 @@ const KEY = 'simpes_tahun_ajaran_aktif';
 
 interface TahunAjaranAktifState {
   loading: boolean;
+  tahunAjaranNames: string[];
   tahunAjaranNama: string | null;
   tahunAjaran: TahunAjaran | null;
   pilihan: TahunAjaran[];
   pilih: (nama: string | null) => void;
+  pilihBanyak: (nama: string[]) => void;
+}
+
+function normalisasiNamaAktif(values: readonly string[]): string[] {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+}
+
+function bacaNamaAktif(simpanan: string | null): string[] {
+  if (!simpanan || simpanan === '0') return [];
+  try {
+    const parsed: unknown = JSON.parse(simpanan);
+    if (parsed === null) return [];
+    if (Array.isArray(parsed)) {
+      return normalisasiNamaAktif(parsed.filter((value): value is string => typeof value === 'string'));
+    }
+    if (typeof parsed === 'string' && parsed !== '0') return normalisasiNamaAktif([parsed]);
+  } catch {
+    return normalisasiNamaAktif([simpanan]);
+  }
+  return normalisasiNamaAktif([simpanan]);
+}
+
+function simpanNamaAktif(values: readonly string[]): string {
+  return JSON.stringify(normalisasiNamaAktif(values));
 }
 
 const Ctx = createContext<TahunAjaranAktifState | null>(null);
@@ -33,9 +58,10 @@ function bawaan(daftar: TahunAjaran[], jenjang: string | null): string | null {
 
 export function TahunAjaranAktifProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  const { jenjang, loading: lembagaLoading } = useLembagaAktif();
+  const { jenjangs, loading: lembagaLoading } = useLembagaAktif();
+  const jenjang = jenjangs[0] ?? null;
   const [pilihan, setPilihan] = useState<TahunAjaran[]>([]);
-  const [tahunAjaranNama, setTahunAjaranNama] = useState<string | null>(null);
+  const [tahunAjaranNames, setTahunAjaranNames] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -44,7 +70,7 @@ export function TahunAjaranAktifProvider({ children }: { children: ReactNode }) 
     (async () => {
       if (!user) {
         setPilihan([]);
-        setTahunAjaranNama(null);
+        setTahunAjaranNames([]);
         setLoading(false);
         return;
       }
@@ -55,7 +81,7 @@ export function TahunAjaranAktifProvider({ children }: { children: ReactNode }) 
       setLoading(true);
       let daftar: TahunAjaran[] = [];
       try {
-        const p = await listTahunAjaran({ jenjang: jenjang ?? undefined, per_page: 1000 });
+        const p = await listTahunAjaran({ jenjang: jenjangs.length > 0 ? jenjangs : undefined, per_page: 1000 });
         daftar = p.data;
       } catch {
         daftar = [];
@@ -64,30 +90,46 @@ export function TahunAjaranAktifProvider({ children }: { children: ReactNode }) 
       setPilihan(daftar);
 
       const simpanan = await prefGet(KEY).catch(() => null);
-      let nama: string | null;
-      if (simpanan === '0') nama = null;
-      else if (simpanan && daftar.some((d) => d.nama === simpanan)) nama = simpanan;
-      else nama = bawaan(daftar, jenjang);
+      const valid = bacaNamaAktif(simpanan).filter((nilai) =>
+        daftar.some((d) => d.nama === nilai),
+      );
+      const bawaanNama = bawaan(daftar, jenjang);
+      let nama: string[];
+      if (simpanan === '0' || simpanan === '[]') nama = [];
+      else if (valid.length > 0) nama = valid;
+      else nama = bawaanNama == null ? [] : [bawaanNama];
       if (!alive) return;
-      setTahunAjaranNama(nama);
+      setTahunAjaranNames(nama);
       setLoading(false);
     })();
 
     return () => { alive = false; };
-  }, [user?.id, jenjang, lembagaLoading]);
+  }, [user?.id, jenjangs, lembagaLoading]);
 
-  const pilih = useMemo(() => (nama: string | null) => {
-    setTahunAjaranNama(nama);
-    prefSet(KEY, nama == null ? '0' : nama).catch(() => {});
+  const pilihBanyak = useMemo(() => (values: string[]) => {
+    const next = normalisasiNamaAktif(values);
+    setTahunAjaranNames(next);
+    prefSet(KEY, simpanNamaAktif(next)).catch(() => {});
   }, []);
 
-  const value = useMemo<TahunAjaranAktifState>(() => ({
-    loading,
-    tahunAjaranNama,
-    tahunAjaran: pilihan.find((p) => p.nama === tahunAjaranNama) ?? null,
-    pilihan,
-    pilih,
-  }), [loading, tahunAjaranNama, pilihan, pilih]);
+  const pilih = useMemo(() => (nama: string | null) => {
+    const next = nama == null ? [] : normalisasiNamaAktif([nama]);
+    setTahunAjaranNames(next);
+    prefSet(KEY, next[0] ?? '0').catch(() => {});
+  }, []);
+
+  const value = useMemo<TahunAjaranAktifState>(() => {
+    const tahunAjaranNama = tahunAjaranNames[0] ?? null;
+    return {
+      loading,
+      tahunAjaranNames,
+      tahunAjaranNama,
+      tahunAjaran: pilihan.find((p) => p.nama === tahunAjaranNama) ?? null,
+      pilihan,
+      pilih,
+      pilihBanyak,
+    };
+  }, [loading, tahunAjaranNames, pilihan, pilih, pilihBanyak]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

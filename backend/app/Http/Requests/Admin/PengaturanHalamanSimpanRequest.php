@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Http\Controllers\Api\Admin\PengaturanHalamanController;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class PengaturanHalamanSimpanRequest extends FormRequest
 {
@@ -18,6 +20,16 @@ class PengaturanHalamanSimpanRequest extends FormRequest
             'page_key' => ['required', 'string', 'max:60'],
             'filter' => ['sometimes', 'array', 'max:20'],
             'filter.*' => ['boolean'],
+            'filter_mode' => [
+                'sometimes',
+                'array:'.implode(',', PengaturanHalamanController::KUNCI),
+                'max:5',
+            ],
+            'filter_mode.*' => [
+                'required',
+                'string',
+                Rule::in(PengaturanHalamanController::MODE_FILTER),
+            ],
         ];
     }
 }

@@ -46,6 +46,21 @@ class PsbController extends Controller
         $statuses = array_values(array_filter(array_map('trim', explode(',', $status))));
 
         $base = $this->scopeLembagaRelasi(PsbCalonSantri::query(), $request->user(), $request);
+        $this->applyFilter($base, $request, 'tahun_ajaran', 'psb_calon_santri.tahun_ajaran');
+        $this->applyFilter($base, $request, 'kelas_id', 'psb_calon_santri.kelas_id', true);
+        $tingkat = $this->nilaiFilter($request, 'tingkat');
+        if ($tingkat !== []) {
+            $lembaga = $this->nilaiFilter($request, 'jenjang');
+            if ($lembaga === [] && ! $request->user()->bolehPesantren()) {
+                $lembaga = $request->user()->lembagaIdsDenganPasangan();
+            }
+            $base->whereHas('lembagaDetail', function ($detail) use ($lembaga, $tingkat) {
+                if ($lembaga !== []) {
+                    $detail->whereIn('jenjang', $lembaga);
+                }
+                $detail->whereIn('masuk_tingkat', $tingkat);
+            });
+        }
 
         // Jumlah per status (tanpa filter status) untuk badge tahapan timeline.
         $badge = (clone $base)

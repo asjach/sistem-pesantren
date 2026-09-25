@@ -19,8 +19,8 @@ const Ctx = createContext<KelasAktifState | null>(null);
 
 export function KelasAktifProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  const { jenjang } = useLembagaAktif();
-  const { tahunAjaranNama } = useTahunAjaranAktif();
+  const { jenjangs } = useLembagaAktif();
+  const { tahunAjaranNames } = useTahunAjaranAktif();
   const [kelas, setKelas] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -53,7 +53,7 @@ export function KelasAktifProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // Nama kelas usang bila lingkup berganti → kosongkan (kecuali pemuatan awal).
-  const lingkup = `${jenjang ?? '∅'}:${tahunAjaranNama ?? '∅'}`;
+  const lingkup = `${jenjangs.join(',') || '∅'}:${tahunAjaranNames.join(',') || '∅'}`;
   const lingkupAwal = useRef<string | null>(null);
   useEffect(() => {
     if (lingkupAwal.current === null) {

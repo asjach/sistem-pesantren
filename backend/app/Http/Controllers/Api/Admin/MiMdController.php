@@ -58,6 +58,8 @@ class MiMdController extends Controller
         }
         ['mi_id' => $miId, 'md_id' => $mdId] = $pasangan;
 
+        $lembagaDipilih = $this->nilaiFilter($request, 'jenjang');
+        $this->authorizeLembagaMany($request->user(), $lembagaDipilih);
         if (! $this->bolehPasangan($request, $miId, $mdId)) {
             return response()->json([
                 'mi_only' => [], 'md_semua' => [], 'beda_kelas' => [],
@@ -65,34 +67,68 @@ class MiMdController extends Controller
             ]);
         }
 
-        // TA mengikuti pilihan topbar; tanpa pilihan → TA aktif (bukan semua TA).
-        $ta = trim((string) $request->input('tahun_ajaran', ''));
-        if ($ta === '') {
-            $ta = TahunAjaran::aktif($miId)?->nama ?? TahunAjaran::aktif($mdId)?->nama;
+        $lembagaIds = array_values(array_intersect(
+            $lembagaDipilih === [] ? [$miId, $mdId] : $lembagaDipilih,
+            [$miId, $mdId]
+        ));
+        $sideMi = in_array($miId, $lembagaIds, true);
+        $sideMd = in_array($mdId, $lembagaIds, true);
+        if (! $sideMi && ! $sideMd) {
+            return response()->json([
+                'lembaga' => ['mi_id' => $miId, 'md_id' => $mdId],
+                'tahun_ajaran' => null,
+                'mi_only' => [], 'md_semua' => [], 'beda_kelas' => [],
+            ]);
         }
 
-        // Keanggotaan aktif per sisi + santri. Bila TA terpilih, batasi ke santri
-        // yang "ada di TA itu": punya riwayat di TA itu ATAU keanggotaan
-        // `tahaj_masuk` = TA itu (anggota baru belum ditempatkan). Alumni/TA lama
-        // tanpa jejak di TA terpilih tidak ikut muncul.
-        $anggota = LembagaSantri::whereIn('jenjang', [$miId, $mdId])
-            ->where('is_active_lembaga', LembagaSantri::YA)
-            ->when($ta !== null, fn ($q) => $q->where(function ($q2) use ($ta, $miId, $mdId) {
-                $q2->where('tahaj_masuk', $ta)
-                    ->orWhereHas('santri.riwayatBelajar', fn ($q3) => $q3
-                        ->whereIn('jenjang', [$miId, $mdId])
-                        ->where('tahun_ajaran', $ta));
-            }))
-            ->with([
-                'santri:id,nama_lengkap',
-            ])
+        $tahunIds = $this->nilaiFilter($request, 'tahun_ajaran');
+        if ($tahunIds === []) {
+            $default = TahunAjaran::aktif($miId)?->nama ?? TahunAjaran::aktif($mdId)?->nama;
+            $tahunIds = $default === null ? [] : [$default];
+        }
+        $semesterIds = $this->nilaiFilter($request, 'semester');
+        $tingkatIds = $this->nilaiFilter($request, 'tingkat');
+        $kelasIds = array_map('intval', $this->nilaiFilter($request, 'kelas_id'));
+        $filterRiwayat = function ($query) use ($lembagaIds, $tahunIds, $semesterIds, $tingkatIds, $kelasIds) {
+            $query->whereIn('jenjang', $lembagaIds);
+            if ($tahunIds !== []) {
+                $query->whereIn('tahun_ajaran', $tahunIds);
+            }
+            if ($semesterIds !== []) {
+                $query->whereIn('semester', $semesterIds);
+            }
+            if ($tingkatIds !== []) {
+                $query->whereIn('tingkat', $tingkatIds);
+            }
+            if ($kelasIds !== []) {
+                $query->whereIn('kelas_id', $kelasIds);
+            }
+        };
+
+        $adaFilterLain = $semesterIds !== [] || $tingkatIds !== [] || $kelasIds !== [];
+        $anggotaQuery = LembagaSantri::whereIn('jenjang', $lembagaIds)
+            ->where('is_active_lembaga', LembagaSantri::YA);
+        if ($tahunIds !== []) {
+            $anggotaQuery->where(function ($query) use ($tahunIds, $adaFilterLain, $filterRiwayat) {
+                if (! $adaFilterLain) {
+                    $query->whereIn('tahaj_masuk', $tahunIds);
+                }
+                $query->orWhereHas('santri.riwayatBelajar', $filterRiwayat);
+            });
+        } elseif ($adaFilterLain) {
+            $anggotaQuery->whereHas('santri.riwayatBelajar', $filterRiwayat);
+        }
+        $anggota = $anggotaQuery
+            ->with(['santri:id,nama_lengkap'])
             ->get()
             ->groupBy('santri_id');
 
-        // Riwayat TA terpilih (MI/MD) → sumber kelas tiap sisi.
         $riwayat = RiwayatBelajar::whereIn('santri_id', $anggota->keys()->all())
-            ->whereIn('jenjang', [$miId, $mdId])
-            ->when($ta !== null, fn ($q) => $q->where('tahun_ajaran', $ta))
+            ->whereIn('jenjang', $lembagaIds)
+            ->when($tahunIds !== [], fn ($query) => $query->whereIn('tahun_ajaran', $tahunIds))
+            ->when($semesterIds !== [], fn ($query) => $query->whereIn('semester', $semesterIds))
+            ->when($tingkatIds !== [], fn ($query) => $query->whereIn('tingkat', $tingkatIds))
+            ->when($kelasIds !== [], fn ($query) => $query->whereIn('kelas_id', $kelasIds))
             ->with('kelas:id,nama_kelas')
             ->orderBy('semester')->orderBy('id')
             ->get()
@@ -117,8 +153,10 @@ class MiMdController extends Controller
                 continue;
             }
             $santriId = (int) $santriId;
-            $punyaMi = $baris->contains('jenjang', $miId);
-            $punyaMd = $baris->contains('jenjang', $mdId);
+            $punyaMiAktif = $baris->contains('jenjang', $miId);
+            $punyaMdAktif = $baris->contains('jenjang', $mdId);
+            $punyaMi = $sideMi && $punyaMiAktif;
+            $punyaMd = $sideMd && $punyaMdAktif;
             $nisMi = $baris->firstWhere('jenjang', $miId)?->nis_lokal;
             $nisMd = $baris->firstWhere('jenjang', $mdId)?->nis_lokal;
 
@@ -128,7 +166,7 @@ class MiMdController extends Controller
                     'nama' => $santri->nama_lengkap,
                     'nis_md' => $nisMd,
                     'kelas_md' => $kelasAktif($santriId, $mdId),
-                    'juga_mi' => $punyaMi,
+                    'juga_mi' => $punyaMiAktif,
                 ];
             }
             if ($punyaMi && ! $punyaMd) {
@@ -163,7 +201,7 @@ class MiMdController extends Controller
 
         return response()->json([
             'lembaga' => ['mi_id' => $miId, 'md_id' => $mdId],
-            'tahun_ajaran' => $ta,
+            'tahun_ajaran' => count($tahunIds) === 1 ? $tahunIds[0] : ($tahunIds ?: null),
             'mi_only' => $miOnly,
             'md_semua' => $mdSemua,
             'beda_kelas' => $bedaKelas,

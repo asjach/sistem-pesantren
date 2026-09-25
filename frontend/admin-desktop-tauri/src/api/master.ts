@@ -1,4 +1,5 @@
 import { api, apiUpload, downloadFile } from './client';
+import { appendQueryParam, type ScalarOrArray } from './query';
 import { PER_PAGE_DEFAULT } from '@/prefs';
 import type { ImportError } from './santri';
 
@@ -161,9 +162,9 @@ export function referensiTypes() {
   return api<string[]>('/admin/referensi/types');
 }
 
-export function referensiList(tipe: string, jenjang?: string, termasukNonaktif = false) {
+export function referensiList(tipe: string, jenjang?: ScalarOrArray<string>, termasukNonaktif = false) {
   const q = new URLSearchParams();
-  if (jenjang) q.set('jenjang', jenjang);
+  appendQueryParam(q, 'jenjang', jenjang);
   if (termasukNonaktif) q.set('termasuk_nonaktif', '1');
   const qs = q.toString();
   return api<ReferensiRow[]>(`/admin/referensi/${encodeURIComponent(tipe)}${qs ? `?${qs}` : ''}`);
@@ -212,7 +213,8 @@ export interface TahunAjaran {
 
 export function listTahunAjaran(params: {
   search?: string;
-  jenjang?: string;
+  jenjang?: ScalarOrArray<string>;
+  tahun_ajaran?: ScalarOrArray<string>;
   termasuk_nonaktif?: boolean;
   sort?: string[];
   arah?: 'naik' | 'turun';
@@ -222,7 +224,8 @@ export function listTahunAjaran(params: {
 } = {}) {
   const q = new URLSearchParams();
   if (params.search) q.set('search', params.search);
-  if (params.jenjang) q.set('jenjang', params.jenjang);
+  appendQueryParam(q, 'jenjang', params.jenjang);
+  appendQueryParam(q, 'tahun_ajaran', params.tahun_ajaran);
   if (params.termasuk_nonaktif) q.set('termasuk_nonaktif', '1');
   if (params.sort?.length) q.set('sort', params.sort.join(','));
   if (params.arah) q.set('arah', params.arah);
@@ -301,16 +304,23 @@ export interface Kelas {
 }
 
 export function listKelas(
-  params: { search?: string; jenjang?: string; tahun_ajaran?: string; tingkat?: string | string[]; sort?: string[]; arah?: 'naik' | 'turun'; page?: number; per_page?: number; signal?: AbortSignal } = {},
+  params: {
+    search?: string;
+    jenjang?: ScalarOrArray<string>;
+    tahun_ajaran?: ScalarOrArray<string>;
+    tingkat?: ScalarOrArray<string>;
+    sort?: string[];
+    arah?: 'naik' | 'turun';
+    page?: number;
+    per_page?: number;
+    signal?: AbortSignal;
+  } = {},
 ) {
   const q = new URLSearchParams();
   if (params.search) q.set('search', params.search);
-  if (params.jenjang) q.set('jenjang', params.jenjang);
-  if (params.tahun_ajaran) q.set('tahun_ajaran', params.tahun_ajaran);
-  if (params.tingkat) {
-    const arr = Array.isArray(params.tingkat) ? params.tingkat : [params.tingkat];
-    for (const t of arr) if (t !== '') q.append('tingkat[]', t);
-  }
+  appendQueryParam(q, 'jenjang', params.jenjang);
+  appendQueryParam(q, 'tahun_ajaran', params.tahun_ajaran);
+  appendQueryParam(q, 'tingkat', params.tingkat);
   if (params.sort?.length) q.set('sort', params.sort.join(','));
   if (params.arah) q.set('arah', params.arah);
   q.set('page', String(params.page ?? 1));

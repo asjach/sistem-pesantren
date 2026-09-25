@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { logout } from '@/api/auth';
 import { isTauri, prefGet, prefSet } from '@/api/client';
-import { daftarSemester } from '@/api/semesterAktif';
 import { listKelas, type Kelas } from '@/api/master';
 import { useAuth } from '@/auth/AuthContext';
 import { useLembagaAktif } from '@/lembagaAktif';
@@ -11,7 +10,8 @@ import { useSemesterAktif } from '@/semesterAktif';
 import { useTingkatAktif } from '@/tingkatAktif';
 import { useKelasAktif } from '@/kelasAktif';
 import { useVisibilitasFilter, TAMPIL_BAWAAN } from '@/components/VisibilitasFilter';
-import { FilterMulti } from '@/components/FilterMulti';
+import type { ModeFilterGlobal } from '@/lib/filterHalaman';
+import { FilterDropdown } from '@/components/FilterMulti';
 import { useTheme, type ModeName, type ThemeName } from '@/theme';
 import { usePicker } from '@/picker';
 import { cn } from '@/lib/utils';
@@ -52,6 +52,25 @@ const MODE_STRIP: { id: ModeName; nama: string; icon: typeof Sun }[] = [
 /** Opsi tingkat global (tetap 1–12, universal lintas lembaga). */
 const TINGKAT_GLOBAL = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
 
+function pilihNilaiFilter(
+  nilai: string,
+  dipilih: readonly string[],
+  mode: ModeFilterGlobal,
+  setBanyak: (values: string[]) => void,
+  setTunggal?: (value: string) => void,
+) {
+  if (mode === 'single') {
+    if (setTunggal) setTunggal(nilai);
+    else setBanyak([nilai]);
+    return;
+  }
+  setBanyak(dipilih.includes(nilai) ? dipilih.filter((item) => item !== nilai) : [...dipilih, nilai]);
+}
+
+function nilaiDropdown(values: readonly string[], mode: ModeFilterGlobal): string[] {
+  return mode === 'single' ? values.slice(0, 1) : [...values];
+}
+
 const navBase =
   'flex items-center gap-2 rounded-md px-2.5 py-1 text-xs whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--sidebar-foreground)]/60';
 const navIdle =
@@ -65,41 +84,39 @@ const TOOLS_TAMPIL_KEY = 'simpes_tools_tampil';
  *  Navigasi halaman ada di Sidebar, bukan di sini. */
 export default function TopBar() {
   const { user, logoutLocal } = useAuth();
-  const { jenjang, lembaga, pilihan, adaSemua, banyakPilihan, bertindak, pilih, pilihPeran, pilihanPeran, peranJenjang, loading: lembagaLoading, efektifSuper } = useLembagaAktif();
-  const { tahunAjaranNama, tahunAjaran, pilihan: taPilihan, pilih: taPilih, loading: taLoading } = useTahunAjaranAktif();
-  const { semester, pilih: pilihSemester, loading: semesterLoading } = useSemesterAktif();
+  const {
+    jenjangs,
+    jenjang,
+    lembaga,
+    pilihan,
+    adaSemua,
+    banyakPilihan,
+    bertindak,
+    pilih: pilihLembaga,
+    pilihBanyak: pilihBanyakLembaga,
+    pilihPeran,
+    pilihanPeran,
+    peranJenjang,
+    loading: lembagaLoading,
+    efektifSuper,
+  } = useLembagaAktif();
+  const {
+    tahunAjaranNames,
+    tahunAjaranNama,
+    tahunAjaran,
+    pilihan: taPilihan,
+    pilih: pilihTahunAjaran,
+    pilihBanyak: pilihBanyakTahunAjaran,
+    loading: taLoading,
+  } = useTahunAjaranAktif();
+  const {
+    semesters,
+    semester,
+    pilih: pilihSemester,
+    pilihBanyak: pilihBanyakSemester,
+    loading: semesterLoading,
+  } = useSemesterAktif();
 
-  // Dropdown Semester = filter perangkat murni (tanpa tulis ke server).
-  // Default: semester aktif lembaga aktif; untuk induk pesantren / Semua
-  // (super_admin, admin pesantren) = semester yang paling banyak aktif.
-  // Aktivasi per lembaga ada di halaman Semester (khusus super_admin).
-  useEffect(() => {
-    // Tunggu lembaga aktif selesai dimuat agar tak memuat dua kali
-    // (untuk "Semua" lalu untuk jenjang terpilih).
-    if (lembagaLoading) return;
-    let hidup = true;
-    daftarSemester()
-      .then((res) => {
-        const baris = res.data;
-        const milik = jenjang != null
-          ? baris.find((r) => r.jenjang === jenjang)?.semester
-          : undefined;
-        let nilai: string | undefined;
-        if (milik === '1' || milik === '2') {
-          nilai = milik;
-        } else {
-          const hitung = { '1': 0, '2': 0 };
-          for (const r of baris) {
-            if (r.semester === '1' || r.semester === '2') hitung[r.semester]++;
-          }
-          if (hitung['1'] === 0 && hitung['2'] === 0) return;
-          nilai = hitung['2'] > hitung['1'] ? '2' : '1';
-        }
-        if (hidup && (nilai === '1' || nilai === '2')) pilihSemester(nilai);
-      })
-      .catch(() => {});
-    return () => { hidup = false; };
-  }, [jenjang, pilihSemester, lembagaLoading]);
   // Dropdown lembaga = filter (bebas diubah kapan pun, termasuk saat bertindak);
   // peran act-as diatur lewat menu akun (section "Peran sebagai") + banner.
   const daftarLembaga = pilihan;
@@ -119,6 +136,12 @@ export default function TopBar() {
   /** Filter global yang tampil — halaman mengatur lewat `<PengaturanHalaman>`. */
   const visCtx = useVisibilitasFilter();
   const tampil = visCtx?.tampil ?? TAMPIL_BAWAAN;
+  const filterMode = visCtx?.mode;
+  const modeLembaga = filterMode?.lembaga ?? 'single';
+  const modeTahunAjaran = filterMode?.tahun_ajaran ?? 'single';
+  const modeSemester = filterMode?.semester ?? 'single';
+  const modeTingkat = filterMode?.tingkat ?? 'single';
+  const modeKelas = filterMode?.kelas ?? 'single';
   /** Registrasi halaman aktif (untuk dialog Kelola Halaman). */
   const registrasi = visCtx?.registrasi ?? null;
   const [kelolaHalamanOpen, setKelolaHalamanOpen] = useState(false);
@@ -127,18 +150,21 @@ export default function TopBar() {
   const { kelas, pilih: pilihKelas } = useKelasAktif();
   // Opsi kelas global (nama) mengikuti lembaga+TA aktif; dimuat saat
   // tingkat/kelas tampil (tingkat ikut diturunkan dari daftar ini).
+  const scopeMiMd = pathname === '/mi-md';
+  const scopeJenjang = useMemo(() => (scopeMiMd ? ['MI', 'MD'] : jenjangs), [scopeMiMd, jenjangs]);
+  const scopeTahunAjaran = tahunAjaranNames;
   const [kelasDaftar, setKelasDaftar] = useState<Kelas[]>([]);
   useEffect(() => {
-    if ((!tampil.kelas && !tampil.tingkat) || !jenjang || !tahunAjaranNama) {
+    if ((!tampil.kelas && !tampil.tingkat) || scopeJenjang.length === 0 || scopeTahunAjaran.length === 0) {
       setKelasDaftar([]);
       return;
     }
     let hidup = true;
-    listKelas({ jenjang, tahun_ajaran: tahunAjaranNama, per_page: 1000 })
+    listKelas({ jenjang: scopeJenjang, tahun_ajaran: scopeTahunAjaran, per_page: 1000 })
       .then((p) => { if (hidup) setKelasDaftar(p.data); })
       .catch(() => { if (hidup) setKelasDaftar([]); });
     return () => { hidup = false; };
-  }, [tampil.kelas, tampil.tingkat, jenjang, tahunAjaranNama]);
+  }, [tampil.kelas, tampil.tingkat, scopeJenjang, scopeTahunAjaran]);
   /** Opsi tingkat global = distinct tingkat kelas lembaga aktif (jatuh balik
    *  ke 1–12 bila daftar kosong, mis. lembaga "Semua"). */
   const tingkatOpsi = useMemo(() => {
@@ -163,9 +189,23 @@ export default function TopBar() {
       .map((k) => k.nama_kelas);
     return [...new Set(nama)].sort((a, b) => a.localeCompare(b, 'id', { numeric: true }));
   }, [kelasDaftar, tingkat]);
-  /** Pilih/lepas satu tingkat; kelas yang tak lagi relevan ikut dibuang. */
-  function togolTingkat(v: string) {
-    const next = tingkat.includes(v) ? tingkat.filter((x) => x !== v) : [...tingkat, v];
+  function pilihLembagaNilai(v: string) {
+    pilihNilaiFilter(v, jenjangs, modeLembaga, pilihBanyakLembaga, pilihLembaga);
+  }
+  function pilihTahunAjaranNilai(v: string) {
+    pilihNilaiFilter(v, tahunAjaranNames, modeTahunAjaran, pilihBanyakTahunAjaran, pilihTahunAjaran);
+  }
+  function pilihSemesterNilai(v: string) {
+    if (modeSemester === 'single' && (v === '1' || v === '2')) {
+      pilihSemester(v);
+      return;
+    }
+    pilihNilaiFilter(v, semesters, modeSemester, pilihBanyakSemester);
+  }
+  function pilihTingkatNilai(v: string) {
+    const next = modeTingkat === 'single'
+      ? [v]
+      : tingkat.includes(v) ? tingkat.filter((x) => x !== v) : [...tingkat, v];
     pilihTingkat(next);
     if (kelasDaftar.length > 0) {
       const valid = new Set(
@@ -177,8 +217,10 @@ export default function TopBar() {
       if (kelasNext.length !== kelas.length) pilihKelas(kelasNext);
     }
   }
-  function togolKelas(v: string) {
-    pilihKelas(kelas.includes(v) ? kelas.filter((x) => x !== v) : [...kelas, v]);
+  function pilihKelasNilai(v: string) {
+    pilihKelas(modeKelas === 'single'
+      ? [v]
+      : kelas.includes(v) ? kelas.filter((x) => x !== v) : [...kelas, v]);
   }
 
   const halaman = halamanDariPath(pathname);
@@ -259,116 +301,83 @@ export default function TopBar() {
         <div data-part="area_akun" className="ml-2 flex min-w-0 flex-1 items-center gap-0.5">
           {/* Perenggang kiri: mendorong filter global ke tengah bar. */}
           <div aria-hidden="true" className="min-w-0 flex-1" />
-          {/* Dropdown lembaga = filter halaman (bebas, bukan peran). */}
           {tampil.lembaga && !lembagaLoading && (adaSemua || banyakPilihan) && daftarLembaga.length > 0 && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  id="btn_menu_lembaga_aktif"
-                  title="Lembaga aktif"
-                  aria-label="Pilih lembaga aktif"
-                  className={cn(navBase, navIdle, 'mr-1 data-[state=open]:bg-white/15')}
-                >
-                  <span className="hidden max-w-[9rem] truncate sm:inline">
-                    {lembaga ? lembaga.jenjang : 'Semua'}
-                  </span>
-                  <ChevronDown size={13} className="opacity-70" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="max-h-80 min-w-[12rem] overflow-y-auto">
-                {/* Filter "Semua lembaga" selalu tersedia selama punya akses
-                    (bukan peran; keluar dari peran lewat menu akun / banner / Esc). */}
-                {adaSemua && (
-                  <DropdownMenuItem id="menu_lembaga_aktif_semua" onSelect={() => pilih(null)}>
-                    <span className="flex-1">Semua</span>
-                    {jenjang === null && <Check data-icon="inline-end" size={14} />}
-                  </DropdownMenuItem>
-                )}
-                {daftarLembaga.map((l) => (
-                  <DropdownMenuItem key={l.jenjang} id={`menu_lembaga_aktif_${l.jenjang}`} onSelect={() => pilih(l.jenjang)}>
-                    <span className="flex-1 truncate">{`${l.jenjang} — ${l.nama}`}</span>
-                    {jenjang === l.jenjang && <Check data-icon="inline-end" size={14} />}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <FilterDropdown
+              id="btn_menu_lembaga_aktif"
+              idSemua="menu_lembaga_aktif_semua"
+              ariaLabel="Pilih lembaga aktif"
+              title="Lembaga aktif"
+              label="Lembaga"
+              mode={modeLembaga}
+              opsi={daftarLembaga.map((l) => ({
+                nilai: l.jenjang,
+                label: `${l.jenjang} — ${l.nama}`,
+                id: `menu_lembaga_aktif_${l.jenjang}`,
+              }))}
+              dipilih={nilaiDropdown(jenjangs, modeLembaga)}
+              labelTerpilih={lembaga?.jenjang ?? 'Semua'}
+              tampilSemua={adaSemua}
+              onPilih={pilihLembagaNilai}
+              onSemua={() => pilihLembaga(null)}
+            />
           )}
           {tampil.tahun_ajaran && !taLoading && taPilihan.length > 0 && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  id="btn_menu_tahun_ajaran_aktif"
-                  title="Tahun ajaran aktif"
-                  aria-label="Pilih tahun ajaran aktif"
-                  className={cn(navBase, navIdle, 'mr-1 data-[state=open]:bg-white/15')}
-                >
-                  <span className="hidden max-w-[9rem] truncate sm:inline">
-                    {tahunAjaran?.nama ?? 'Semua'}
-                  </span>
-                  <ChevronDown size={13} className="opacity-70" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="max-h-80 min-w-[12rem] overflow-y-auto">
-                <DropdownMenuItem id="menu_ta_aktif_semua" onSelect={() => taPilih(null)}>
-                  <span className="flex-1">Semua</span>
-                  {tahunAjaranNama === null && <Check data-icon="inline-end" size={14} />}
-                </DropdownMenuItem>
-                {taPilihan.map((t) => (
-                  <DropdownMenuItem key={t.nama} id={`menu_ta_aktif_${t.nama.replace(/[^0-9]/g, '')}`} onSelect={() => taPilih(t.nama)}>
-                    <span className="flex-1 truncate">{t.nama}</span>
-                    {tahunAjaranNama === t.nama && <Check data-icon="inline-end" size={14} />}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <FilterDropdown
+              id="btn_menu_tahun_ajaran_aktif"
+              idSemua="menu_ta_aktif_semua"
+              ariaLabel="Pilih tahun ajaran aktif"
+              title="Tahun ajaran aktif"
+              label="Tahun Ajaran"
+              mode={modeTahunAjaran}
+              opsi={taPilihan.map((t) => ({
+                nilai: t.nama,
+                label: t.nama,
+                id: `menu_ta_aktif_${t.nama.replace(/[^0-9]/g, '')}`,
+              }))}
+              dipilih={nilaiDropdown(tahunAjaranNames, modeTahunAjaran)}
+              labelTerpilih={tahunAjaran?.nama ?? 'Semua'}
+              onPilih={pilihTahunAjaranNilai}
+              onSemua={() => pilihTahunAjaran(null)}
+            />
           )}
           {tampil.semester && !semesterLoading && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  id="btn_menu_semester_aktif"
-                  title="Semester aktif"
-                  aria-label="Pilih semester aktif"
-                  className={cn(navBase, navIdle, 'mr-1 data-[state=open]:bg-white/15')}
-                >
-                  <span className="hidden max-w-[9rem] truncate sm:inline">
-                    {semester === null ? 'Semua' : `Semester ${semester}`}
-                  </span>
-                  <ChevronDown size={13} className="opacity-70" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="max-h-80 min-w-[12rem] overflow-y-auto">
-              <DropdownMenuItem id="menu_semester_aktif_semua" onSelect={() => pilihSemester(null)}>
-                <span className="flex-1">Semua</span>
-                {semester === null && <Check data-icon="inline-end" size={14} />}
-              </DropdownMenuItem>
-              {(['1', '2'] as const).map((s) => (
-                <DropdownMenuItem key={s} id={`menu_semester_aktif_${s}`} onSelect={() => pilihSemester(s)}>
-                    <span className="flex-1 truncate">Semester {s}{s === '1' ? ' (Ganjil)' : ' (Genap)'}</span>
-                    {semester === s && <Check data-icon="inline-end" size={14} />}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <FilterDropdown
+              id="btn_menu_semester_aktif"
+              idSemua="menu_semester_aktif_semua"
+              ariaLabel="Pilih semester aktif"
+              title="Semester aktif"
+              label="Semester"
+              mode={modeSemester}
+              opsi={(['1', '2'] as const).map((s) => ({
+                nilai: s,
+                label: `Semester ${s}${s === '1' ? ' (Ganjil)' : ' (Genap)'}`,
+                id: `menu_semester_aktif_${s}`,
+              }))}
+              dipilih={nilaiDropdown(semesters, modeSemester)}
+              labelTerpilih={semester === null ? 'Semua' : `Semester ${semester}`}
+              onPilih={pilihSemesterNilai}
+              onSemua={() => pilihSemester(null)}
+            />
           )}
-          {/* Tingkat & Kelas = filter global (setara lembaga/TA/semester). */}
           {tampil.tingkat && (
-            <FilterMulti
+            <FilterDropdown
               id="filter_tingkat_global"
               label="Tingkat"
-              opsi={tingkatOpsi}
-              dipilih={tingkat}
-              onToggle={togolTingkat}
+              mode={modeTingkat}
+              opsi={tingkatOpsi.map((nilai) => ({ nilai, label: nilai }))}
+              dipilih={nilaiDropdown(tingkat, modeTingkat)}
+              onPilih={pilihTingkatNilai}
               onSemua={() => pilihTingkat([])}
             />
           )}
           {tampil.kelas && (
-            <FilterMulti
+            <FilterDropdown
               id="filter_kelas_global"
               label="Kelas"
-              opsi={kelasOpsi}
-              dipilih={kelas}
-              onToggle={togolKelas}
+              mode={modeKelas}
+              opsi={kelasOpsi.map((nilai) => ({ nilai, label: nilai }))}
+              dipilih={nilaiDropdown(kelas, modeKelas)}
+              onPilih={pilihKelasNilai}
               onSemua={() => pilihKelas([])}
             />
           )}

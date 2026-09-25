@@ -13,13 +13,10 @@ import { listKelas, type Kelas } from '../api/master';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
-import { useTingkatAktif } from '@/tingkatAktif';
-import { useKelasAktif } from '@/kelasAktif';
+import { targetTunggal, useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import FilterField from '@/components/FilterField';
-import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
-import { useTahunAjaranAwalString } from '@/hooks/useTahunAjaranAwal';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import Pager from '@/components/Pager';
 import { useDaftarTabel } from '@/hooks/useDaftarTabel';
@@ -62,15 +59,15 @@ function kiriValues(r: RiwayatRow): Record<string, string | null> {
 export default function PindahSemesterPage() {
   const { user } = useAuth();
   const canPindah = bisa(user, 'kenaikan.ubah');
-  /** Lembaga + TA selalu mengikuti topbar (satu-satunya sumber). */
-  const [jenjang, setLembagaId] = useState('');
-  useLembagaAwalString(setLembagaId);
-  const [taId, setTaId] = useState('');
-  useTahunAjaranAwalString(setTaId);
-  /** Tingkat & Kelas = filter global topBar (setara lembaga/TA/semester),
-   *  berlaku untuk kedua panel. */
-  const { tingkat: tingkatFilter } = useTingkatAktif();
-  const { kelas: kelasFilter } = useKelasAktif();
+  const {
+    jenjangs,
+    tahunAjaranNames,
+    tingkat: tingkatFilter,
+    kelas: kelasFilter,
+    loading: filterLoading,
+  } = useFilterGlobalAktif();
+  const targetJenjang = targetTunggal(jenjangs);
+  const targetTahunAjaran = targetTunggal(tahunAjaranNames);
   const [kelasOpsi, setKelasOpsi] = useState<Kelas[]>([]);
   const [busyId, setBusyId] = useState<number | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -100,13 +97,13 @@ export default function PindahSemesterPage() {
     tableKey: 'pindah_semester_kiri',
     search: cari,
     ambil: (a) => {
-      if (!jenjang || !taId) {
+      if (filterLoading || jenjangs.length === 0 || tahunAjaranNames.length === 0) {
         return Promise.resolve({ data: [], current_page: 1, last_page: 1, per_page: a.perPage, total: 0 });
       }
       return listBelumGenap({
-        jenjang: jenjang,
-        tahun_ajaran: taId,
-        tingkat: tingkatFilter.length ? tingkatFilter : undefined,
+        jenjang: jenjangs,
+        tahun_ajaran: tahunAjaranNames,
+        tingkat: tingkatFilter,
         kelas_id: kelasFilterIds.length ? kelasFilterIds : undefined,
         q: a.search || undefined,
         page: a.page,
@@ -114,21 +111,21 @@ export default function PindahSemesterPage() {
         signal: a.signal,
       });
     },
-    deps: [jenjang, taId, tingkatFilter, kelasFilterIds],
+    deps: [filterLoading, jenjangs, tahunAjaranNames, tingkatFilter, kelasFilterIds],
   });
 
   const kanan = useDaftarTabel<RiwayatRow>({
     tableKey: 'pindah_semester_kanan',
     search: cari,
     ambil: (a) => {
-      if (!jenjang || !taId) {
+      if (filterLoading || jenjangs.length === 0 || tahunAjaranNames.length === 0) {
         return Promise.resolve({ data: [], current_page: 1, last_page: 1, per_page: a.perPage, total: 0 });
       }
       return listRiwayatBelajar({
-        jenjang: jenjang,
-        tahun_ajaran: taId,
+        jenjang: jenjangs,
+        tahun_ajaran: tahunAjaranNames,
         semester: '2',
-        tingkat: tingkatFilter.length ? tingkatFilter : undefined,
+        tingkat: tingkatFilter,
         kelas_id: kelasFilterIds.length ? kelasFilterIds : undefined,
         is_active_riwayat: true,
         q: a.search || undefined,
@@ -139,15 +136,17 @@ export default function PindahSemesterPage() {
         signal: a.signal,
       });
     },
-    deps: [jenjang, taId, tingkatFilter, kelasFilterIds],
+    deps: [filterLoading, jenjangs, tahunAjaranNames, tingkatFilter, kelasFilterIds],
   });
 
   useEffect(() => {
-    if (!jenjang || !taId) { setKelasOpsi([]); return; }
-    listKelas({ jenjang: jenjang, tahun_ajaran: taId, per_page: 1000 })
-      .then((p) => setKelasOpsi(p.data))
-      .catch(() => setKelasOpsi([]));
-  }, [jenjang, taId]);
+    if (filterLoading || jenjangs.length === 0 || tahunAjaranNames.length === 0) { setKelasOpsi([]); return; }
+    let hidup = true;
+    listKelas({ jenjang: jenjangs, tahun_ajaran: tahunAjaranNames, per_page: 1000 })
+      .then((p) => { if (hidup) setKelasOpsi(p.data); })
+      .catch(() => { if (hidup) setKelasOpsi([]); });
+    return () => { hidup = false; };
+  }, [filterLoading, jenjangs, tahunAjaranNames]);
 
   const muatUlang = useCallback(async () => {
     setNonceKiri((n) => n + 1);
@@ -162,7 +161,7 @@ export default function PindahSemesterPage() {
 
   /** Batalkan salin: hapus baris genap, ganjil dibuka lagi (kembali ke kiri). */
   const batalkan = useCallback(async (rows: RiwayatRow[]) => {
-    if (bulkBusy || busyId !== null || rows.length === 0 || !jenjang) return;
+    if (bulkBusy || busyId !== null || rows.length === 0 || !targetJenjang || !targetTahunAjaran) return;
     if (rows.length === 1) setBusyId(rows[0].id);
     else setBulkBusy(true);
     let ok = 0;
@@ -170,7 +169,7 @@ export default function PindahSemesterPage() {
     try {
       for (const r of rows) {
         try {
-          await batalSalin(r.santri_id, jenjang);
+          await batalSalin(r.santri_id, targetJenjang);
           ok++;
         } catch (e) {
           gagal.push(`${r.santri?.nama_lengkap ?? r.santri_id}: ${errorMessage(e)}`);
@@ -184,10 +183,10 @@ export default function PindahSemesterPage() {
       setBusyId(null);
       setBulkBusy(false);
     }
-  }, [bulkBusy, busyId, jenjang, muatUlang]);
+  }, [bulkBusy, busyId, targetJenjang, targetTahunAjaran, muatUlang]);
 
   const pindahkan = useCallback(async (rows: RiwayatRow[]) => {
-    if (bulkBusy || busyId !== null || rows.length === 0 || !jenjang || !taId) return;
+    if (bulkBusy || busyId !== null || rows.length === 0 || !targetJenjang || !targetTahunAjaran) return;
     if (!tglMasuk) {
       toast.error('Isi tanggal masuk semester 2 dulu.');
       return;
@@ -196,7 +195,7 @@ export default function PindahSemesterPage() {
     else setBulkBusy(true);
     try {
       const res = await salinGenapMassal({
-        jenjang: jenjang,
+        jenjang: targetJenjang,
         tanggal_masuk: tglMasuk,
         siswa: rows.map((r) => ({ santri_id: r.santri_id })),
       });
@@ -210,9 +209,9 @@ export default function PindahSemesterPage() {
       setBusyId(null);
       setBulkBusy(false);
     }
-  }, [bulkBusy, busyId, jenjang, taId, tglMasuk, laporkan, muatUlang]);
+  }, [bulkBusy, busyId, targetJenjang, targetTahunAjaran, tglMasuk, laporkan, muatUlang]);
 
-  const siap = jenjang !== '' && taId !== '';
+  const siap = !filterLoading && jenjangs.length > 0 && tahunAjaranNames.length > 0;
 
   const panel = (
     key: string,
@@ -261,9 +260,10 @@ export default function PindahSemesterPage() {
                 canPindah ? (
                   <ActionIcon
                     id={`btn_pindah_semester_${r.id}`}
-                    title="Pindahkan ke semester 2"
-                    disabled={busyId !== null || bulkBusy || !tglMasuk}
-                    onClick={() => void pindahkan([r])}
+                     title="Pindahkan ke semester 2"
+                     disabled={busyId !== null || bulkBusy || !tglMasuk || !targetJenjang || !targetTahunAjaran}
+                     onClick={() => void pindahkan([r])}
+
                   >
                     <ArrowRight size={16} />
                   </ActionIcon>
@@ -295,10 +295,11 @@ export default function PindahSemesterPage() {
             />,
             canPindah ? (
               <Button
-                id="btn_bulk_pindah_semester"
-                size="sm"
-                disabled={bulkBusy || busyId !== null || centangKiri.length === 0 || !tglMasuk}
-                title="Pindahkan yang tercentang ke semester 2"
+                 id="btn_bulk_pindah_semester"
+                 size="sm"
+                 disabled={bulkBusy || busyId !== null || centangKiri.length === 0 || !tglMasuk || !targetJenjang || !targetTahunAjaran}
+                 title="Pindahkan yang tercentang ke semester 2"
+
                 onClick={() => void pindahkan(centangKiri)}
               >
                 Pindah ({centangKiri.length})
@@ -322,10 +323,11 @@ export default function PindahSemesterPage() {
               renderActions={(r) => (
                 canPindah ? (
                   <ActionIcon
-                    id={`btn_batal_salin_${r.id}`}
-                    title="Batalkan salin (kembali ke semester 1)"
-                    disabled={busyId !== null || bulkBusy}
-                    onClick={() => void batalkan([r])}
+                     id={`btn_batal_salin_${r.id}`}
+                     title="Batalkan salin (kembali ke semester 1)"
+                     disabled={busyId !== null || bulkBusy || !targetJenjang || !targetTahunAjaran}
+                     onClick={() => void batalkan([r])}
+
                   >
                     <Undo2 size={16} />
                   </ActionIcon>
@@ -344,11 +346,12 @@ export default function PindahSemesterPage() {
             />,
             canPindah ? (
               <Button
-                id="btn_bulk_batal_salin"
-                size="sm"
-                variant="outline"
-                disabled={bulkBusy || busyId !== null || centangKanan.length === 0}
-                title="Batalkan salin yang tercentang (kembali ke semester 1)"
+                 id="btn_bulk_batal_salin"
+                 size="sm"
+                 variant="outline"
+                 disabled={bulkBusy || busyId !== null || centangKanan.length === 0 || !targetJenjang || !targetTahunAjaran}
+                 title="Batalkan salin yang tercentang (kembali ke semester 1)"
+
                 onClick={() => void batalkan(centangKanan)}
               >
                 Batalkan ({centangKanan.length})

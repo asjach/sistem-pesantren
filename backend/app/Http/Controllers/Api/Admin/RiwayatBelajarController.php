@@ -67,18 +67,7 @@ class RiwayatBelajarController extends Controller
         } else {
             $query->where('riwayat_belajar.is_active_riwayat', RiwayatBelajar::YA);
         }
-        if ($request->filled('tahun_ajaran')) {
-            $query->where('riwayat_belajar.tahun_ajaran', $request->input('tahun_ajaran'));
-        }
-        if ($request->filled('semester')) {
-            $query->where('riwayat_belajar.semester', $request->input('semester'));
-        }
-        if ($request->filled('tingkat')) {
-            $query->whereIn('riwayat_belajar.tingkat', (array) $request->input('tingkat'));
-        }
-        if ($request->filled('kelas_id')) {
-            $query->whereIn('riwayat_belajar.kelas_id', array_map('intval', (array) $request->input('kelas_id')));
-        }
+        $this->applyAcademicFilters($query, $request);
         if ($request->filled('status_akhir')) {
             $query->where('riwayat_belajar.status_akhir', $request->input('status_akhir'));
         }
@@ -246,19 +235,29 @@ class RiwayatBelajarController extends Controller
     {
         $this->authorize('viewAny', Santri::class);
 
+        $request->merge([
+            'jenjang' => $this->nilaiFilter($request, 'jenjang'),
+            'tahun_ajaran' => $this->nilaiFilter($request, 'tahun_ajaran'),
+            'tingkat' => $this->nilaiFilter($request, 'tingkat'),
+            'kelas_id' => $this->nilaiFilter($request, 'kelas_id'),
+        ]);
         $data = $request->validate([
-            'jenjang' => ['required', 'string', 'exists:lembaga,jenjang'],
-            'tahun_ajaran' => ['required', 'string', 'exists:tahun_ajaran,nama'],
-            'tingkat' => ['nullable'],
+            'jenjang' => ['required', 'array', 'min:1'],
+            'jenjang.*' => ['string', 'exists:lembaga,jenjang'],
+            'tahun_ajaran' => ['required', 'array', 'min:1'],
+            'tahun_ajaran.*' => ['string', 'exists:tahun_ajaran,nama'],
+            'tingkat' => ['nullable', 'array'],
             'tingkat.*' => ['string', 'max:20'],
-            'kelas_id' => ['nullable'],
+            'kelas_id' => ['nullable', 'array'],
             'kelas_id.*' => ['integer', 'exists:kelas,id'],
             'q' => ['nullable', 'string', 'max:100'],
         ]);
-        $lembagaId = $data['jenjang'];
-        $ta = (string) $data['tahun_ajaran'];
-        $this->authorizeLembaga($request->user(), $lembagaId);
-        $this->cekTaEfektif($lembagaId, $ta);
+        $lembagaIds = $data['jenjang'];
+        $tahunIds = $data['tahun_ajaran'];
+        $this->authorizeLembagaMany($request->user(), $lembagaIds);
+        if (count($lembagaIds) === 1 && count($tahunIds) === 1) {
+            $this->cekTaEfektif($lembagaIds[0], $tahunIds[0]);
+        }
 
         $query = $this->scopeLembaga(
             // TANPA `tahunAjaran`: kunci relasi yang di-snake Laravel menimpa
@@ -271,26 +270,20 @@ class RiwayatBelajarController extends Controller
             $request->user(),
             $request,
             'riwayat_belajar.jenjang'
-        )->where('riwayat_belajar.jenjang', $lembagaId)
-            ->where('riwayat_belajar.tahun_ajaran', $ta)
+        )->whereIn('riwayat_belajar.jenjang', $lembagaIds)
+            ->whereIn('riwayat_belajar.tahun_ajaran', $tahunIds)
             ->where('riwayat_belajar.semester', '1')
             ->where('riwayat_belajar.is_active_riwayat', RiwayatBelajar::YA)
-            // Syarat pindah: sudah terdaftar di kelas (genap mewarisi kelas ini).
             ->whereNotNull('riwayat_belajar.kelas_id');
 
-        // Sudah punya baris genap TA sama (aktif maupun arsip) → bukan calon.
         $query->whereNotExists(fn ($genap) => $genap->selectRaw('1')->from('riwayat_belajar as g2')
             ->whereColumn('g2.santri_id', 'riwayat_belajar.santri_id')
             ->whereColumn('g2.jenjang', 'riwayat_belajar.jenjang')
-            ->where('g2.tahun_ajaran', $ta)
+            ->whereIn('g2.tahun_ajaran', $tahunIds)
             ->where('g2.semester', '2'));
 
-        if (! empty($data['tingkat'])) {
-            $query->whereIn('riwayat_belajar.tingkat', (array) $data['tingkat']);
-        }
-        if (! empty($data['kelas_id'])) {
-            $query->whereIn('riwayat_belajar.kelas_id', array_map('intval', (array) $data['kelas_id']));
-        }
+        $this->applyFilter($query, $request, 'tingkat', 'riwayat_belajar.tingkat');
+        $this->applyFilter($query, $request, 'kelas_id', 'riwayat_belajar.kelas_id', true);
         if (! empty($data['q'])) {
             $cari = $data['q'];
             $query->where(fn ($w) => $w

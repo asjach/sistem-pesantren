@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
-import { useLembagaAktif } from '@/lembagaAktif';
+import { useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
 import { bisa } from '../api/auth';
 import { errorMessage } from '../api/client';
 import {
@@ -53,15 +53,13 @@ function hariIni(): string {
 /** Keanggotaan: tabel terpusat lintas santri (pengganti pengelolaan tersebar). */
 export default function KeanggotaanPage() {
   const { user } = useAuth();
-  /** Lembaga selalu mengikuti topbar (satu-satunya sumber); null = Semua. */
-  const { jenjang: lembagaTop } = useLembagaAktif();
+  const { jenjangs } = useFilterGlobalAktif();
   const canUbah = bisa(user, 'santri.ubah');
   const canTambah = bisa(user, 'santri.tambah');
   const pager = usePager('keanggotaan');
 
   const [status, setStatus] = useState('');
   const [cari, setCari] = useState('');
-  const lembagaEfektif = lembagaTop != null ? String(lembagaTop) : '';
   /** Urut header: daftar nilai allowlist + arah global (maks 3 kunci). */
   const [urut, setUrut] = useState<string[]>([]);
   const [arahUrut, setArahUrut] = useState<'naik' | 'turun'>('naik');
@@ -93,13 +91,13 @@ export default function KeanggotaanPage() {
 
   const load = useCallback(async (
     p = pager.page, pp = pager.perPage,
-    f?: { jenjang?: string; status?: string; cari?: string; urut?: string[]; arah?: 'naik' | 'turun' },
+    f?: { jenjangs?: readonly string[]; status?: string; cari?: string; urut?: string[]; arah?: 'naik' | 'turun' },
   ) => {
     setErr('');
     try {
-      const fl = f ?? { jenjang: lembagaEfektif, status, cari, urut, arah: arahUrut };
+      const fl = f ?? { jenjangs, status, cari, urut, arah: arahUrut };
       const res = await listKeanggotaan({
-        jenjang: fl.jenjang || null,
+        jenjang: fl.jenjangs,
         is_active_lembaga: fl.status === '' ? null : fl.status === '1',
         search: fl.cari || undefined,
         sort: fl.urut?.length ? fl.urut : undefined,
@@ -112,14 +110,14 @@ export default function KeanggotaanPage() {
       setLastPage(res.last_page);
       setTotal(res.total);
     } catch (e) { setErr(errorMessage(e)); }
-  }, [pager, lembagaEfektif, status, cari, urut, arahUrut]);
+  }, [pager, jenjangs, status, cari, urut, arahUrut]);
 
   /** Klik header: simpan urut baru lalu muat ulang dari halaman 1. */
   function terapkanUrut(nilai: string[], arah: 'naik' | 'turun') {
     setUrut(nilai);
     setArahUrut(arah);
     pager.goFirst();
-    void load(1, pager.perPage, { jenjang: lembagaEfektif, status, cari, urut: nilai, arah });
+    void load(1, pager.perPage, { jenjangs, status, cari, urut: nilai, arah });
   }
 
   useEffect(() => { void listLembaga({ per_page: 100 }).then((r) => setLembagaOpsi(r.data)).catch(() => {}); }, []);
@@ -127,26 +125,26 @@ export default function KeanggotaanPage() {
 
   /** Filter Status langsung terapkan saat berubah. */
   function gantiFilter(patch: { status?: string }) {
-    const next = { jenjang: lembagaEfektif, status, ...patch };
+    const next = { jenjangs, status, ...patch };
     if (patch.status !== undefined) setStatus(patch.status);
     pager.goFirst();
     void load(1, pager.perPage, { ...next, cari });
   }
 
-  /** Lembaga aktif topbar berubah → muat ulang dari halaman 1. */
-  const topLalu = useRef<string | null | undefined>(undefined);
+  const topLalu = useRef<readonly string[] | undefined>(undefined);
   useEffect(() => {
     if (!pager.ready) return;
     if (topLalu.current === undefined) {
-      topLalu.current = lembagaTop;
+      topLalu.current = jenjangs;
       return;
     }
-    if (topLalu.current === lembagaTop) return;
-    topLalu.current = lembagaTop;
+    if (topLalu.current === jenjangs) return;
+    topLalu.current = jenjangs;
     pager.goFirst();
-    void load(1, pager.perPage, { jenjang: lembagaEfektif, status, cari });
+    void load(1, pager.perPage, { jenjangs, status, cari });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lembagaTop, pager.ready]);
+  }, [jenjangs, pager.ready]);
+
   const cariAwal = useRef(true);
   useEffect(() => {
     if (!pager.ready) return;
@@ -156,7 +154,7 @@ export default function KeanggotaanPage() {
     }
     const t = setTimeout(() => {
       pager.goFirst();
-      void load(1, pager.perPage, { jenjang: lembagaEfektif, status, cari: cari.trim() });
+      void load(1, pager.perPage, { jenjangs, status, cari: cari.trim() });
     }, cari.trim() === '' ? 0 : 400);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -229,21 +227,23 @@ export default function KeanggotaanPage() {
     setBusyId(-1);
     try {
       const res = await generateNiskBulk({
-        ...(lembagaEfektif === '' ? {} : { jenjang: lembagaEfektif }),
+        jenjang: jenjangs,
         ...(status === '' ? {} : { is_active_lembaga: status === '1' }),
         ...(cari.trim() === '' ? {} : { search: cari.trim() }),
       });
-      toast.success(res.pesan);
-      await load(1);
-    } catch (e) { toast.error(errorMessage(e)); } finally { setBusyId(null); }
+       toast.success(res.pesan);
+       await load(1);
+     } catch (e) { toast.error(errorMessage(e)); } finally { setBusyId(null); }
+
   }
 
   async function cariSantri() {
     if (!tCari.trim()) { setTHasil([]); return; }
     try {
-      const res = await listSantri({ q: tCari.trim(), per_page: 10 });
+      const res = await listSantri({ q: tCari.trim(), jenjang: jenjangs, per_page: 10 });
       setTHasil(res.data);
     } catch (e) { toast.error(errorMessage(e)); }
+
   }
 
   async function simpanTambah() {

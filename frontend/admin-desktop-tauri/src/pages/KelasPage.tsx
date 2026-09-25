@@ -31,10 +31,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import { targetTunggal, useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
 import { useTingkatAktif } from '@/tingkatAktif';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
-import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
-import { useTahunAjaranAwalString } from '@/hooks/useTahunAjaranAwal';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import { ViewDialog } from '@/components/ViewDialog';
@@ -135,10 +134,13 @@ async function commitDraft(id: number, f: Record<string, string | null>) {
 export default function KelasPage() {
   const [lembagas, setLembagas] = useState<Lembaga[]>([]);
   const [tas, setTas] = useState<TahunAjaran[]>([]);
-  const [jenjang, setLembagaId] = useState<string>('');
-  useLembagaAwalString(setLembagaId);
-  const [taId, setTaId] = useState<string>('');
-  useTahunAjaranAwalString(setTaId);
+  const {
+    jenjangs,
+    tahunAjaranNames,
+    loading: filterLoading,
+  } = useFilterGlobalAktif();
+  const jenjang = targetTunggal(jenjangs) ?? '';
+  const taId = targetTunggal(tahunAjaranNames) ?? '';
   /** Tingkat = filter global topBar (setara lembaga/TA/semester). */
   const { tingkat } = useTingkatAktif();
   /** Pencarian tunggal halaman (topBar). */
@@ -159,18 +161,23 @@ export default function KelasPage() {
   } = useDaftarTabel<Kelas>({
     tableKey: 'kelas',
     search: cari,
-    ambil: (a) => listKelas({
-      search: a.search || undefined,
-      jenjang: jenjang === '' ? undefined : jenjang,
-      tahun_ajaran: taId === '' ? undefined : taId,
-      tingkat: tingkat.length ? tingkat : undefined,
-      sort: a.urut.length ? a.urut : undefined,
-      arah: a.urut.length ? a.arah : undefined,
-      page: a.page,
-      per_page: a.perPage,
-      signal: a.signal,
-    }),
-    deps: [jenjang, taId, tingkat],
+    ambil: (a) => {
+      if (filterLoading) {
+        return Promise.resolve({ data: [], current_page: 1, last_page: 1, per_page: a.perPage, total: 0 });
+      }
+      return listKelas({
+        search: a.search || undefined,
+        jenjang: jenjangs,
+        tahun_ajaran: tahunAjaranNames,
+        tingkat,
+        sort: a.urut.length ? a.urut : undefined,
+        arah: a.urut.length ? a.arah : undefined,
+        page: a.page,
+        per_page: a.perPage,
+        signal: a.signal,
+      });
+    },
+    deps: [filterLoading, jenjangs, tahunAjaranNames, tingkat],
   });
 
   // Import nama kelas pasangan MI↔MD (pratinjau → eksekusi).
@@ -258,16 +265,16 @@ export default function KelasPage() {
   }, []);
 
   useEffect(() => {
-    if (jenjang === '') {
+    if (filterLoading) {
       setTas([]);
       return;
     }
     let alive = true;
-    listTahunAjaran({ jenjang: jenjang })
+    listTahunAjaran({ jenjang: jenjangs })
       .then((p) => { if (alive) setTas(p.data); })
       .catch((e) => { if (alive) setErr(errorMessage(e)); });
     return () => { alive = false; };
-  }, [jenjang]);
+  }, [filterLoading, jenjangs]);
 
   // Dialog Tambah: muat TA milik lembaga terpilih; **selalu** mengutamakan
   // tahun ajaran aktif (bila belum ada, pertahankan pilihan yang masih valid).

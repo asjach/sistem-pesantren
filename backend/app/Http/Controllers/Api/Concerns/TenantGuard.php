@@ -16,6 +16,7 @@ use Illuminate\Validation\ValidationException;
  */
 trait TenantGuard
 {
+    use FilterGlobal;
     use PerPageLimit;
 
     protected function authorizeLembaga(User $auth, string $jenjang): void
@@ -25,6 +26,21 @@ trait TenantGuard
         }
     }
 
+    protected function authorizeLembagaMany(User $auth, array $jenjang): void
+    {
+        foreach ($jenjang as $id) {
+            $this->authorizeLembaga($auth, (string) $id);
+        }
+    }
+
+    protected function selectedLembaga(Request $request, User $auth): array
+    {
+        $selected = $this->nilaiFilter($request, 'jenjang');
+        $this->authorizeLembagaMany($auth, $selected);
+
+        return $selected;
+    }
+
     /**
      * Batasi query ke lembaga yang boleh diakses auth user.
      * super_admin / admin full: semua (opsional filter `jenjang`).
@@ -32,22 +48,17 @@ trait TenantGuard
      */
     protected function scopeLembaga($query, User $auth, Request $request, string $column = 'jenjang')
     {
+        $selected = $this->selectedLembaga($request, $auth);
         if ($auth->bolehPesantren()) {
-            if ($request->filled('jenjang')) {
-                $query->where($column, $request->input('jenjang'));
-            }
-
-            return $query;
+            return $selected === [] ? $query : $query->whereIn($column, $selected);
         }
 
         $ids = $auth->lembagaIdsDenganPasangan();
         if (empty($ids)) {
             return $query->whereRaw('1 = 0');
         }
-        if ($request->filled('jenjang')) {
-            $this->authorizeLembaga($auth, (string) $request->input('jenjang'));
-
-            return $query->where($column, $request->input('jenjang'));
+        if ($selected !== []) {
+            return $query->whereIn($column, $selected);
         }
 
         return $query->whereIn($column, $ids);
@@ -59,23 +70,18 @@ trait TenantGuard
      */
     protected function scopeLembagaRelasi($query, User $auth, Request $request, string $relation = 'lembagaDetail')
     {
-        $filter = fn ($q) => $q->where('jenjang', $request->input('jenjang'));
+        $selected = $this->selectedLembaga($request, $auth);
+        $filter = fn ($q) => $q->whereIn('jenjang', $selected);
 
         if ($auth->bolehPesantren()) {
-            if ($request->filled('jenjang')) {
-                $query->whereHas($relation, $filter);
-            }
-
-            return $query;
+            return $selected === [] ? $query : $query->whereHas($relation, $filter);
         }
 
         $ids = $auth->lembagaIdsDenganPasangan();
         if (empty($ids)) {
             return $query->whereRaw('1 = 0');
         }
-        if ($request->filled('jenjang')) {
-            $this->authorizeLembaga($auth, (string) $request->input('jenjang'));
-
+        if ($selected !== []) {
             return $query->whereHas($relation, $filter);
         }
 

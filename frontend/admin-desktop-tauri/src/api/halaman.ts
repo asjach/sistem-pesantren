@@ -1,11 +1,14 @@
 import { api } from './client';
+import type { KunciFilterGlobal, ModeFilterGlobal } from '@/lib/filterHalaman';
 
 /** Peta filter → tampil (true/absen) atau sembunyi (false). */
-export type FilterHalaman = Record<string, boolean>;
+export type FilterHalaman = Partial<Record<KunciFilterGlobal, boolean>>;
+export type FilterModeHalaman = Partial<Record<KunciFilterGlobal, ModeFilterGlobal>>;
 
 export interface PengaturanHalamanData {
   page_key: string;
   filter: FilterHalaman;
+  filter_mode: FilterModeHalaman;
 }
 
 export function muatPengaturanHalaman(pageKey: string) {
@@ -14,10 +17,14 @@ export function muatPengaturanHalaman(pageKey: string) {
   );
 }
 
-export function simpanPengaturanHalaman(pageKey: string, filter: FilterHalaman) {
-  return api<{ pesan: string; data: unknown }>('/admin/pengaturan-halaman', {
+export function simpanPengaturanHalaman(
+  pageKey: string,
+  filter: FilterHalaman,
+  filterMode: FilterModeHalaman,
+) {
+  return api<{ pesan: string; data: PengaturanHalamanData }>('/admin/pengaturan-halaman', {
     method: 'PUT',
-    body: JSON.stringify({ page_key: pageKey, filter }),
+    body: JSON.stringify({ page_key: pageKey, filter, filter_mode: filterMode }),
   });
 }
 

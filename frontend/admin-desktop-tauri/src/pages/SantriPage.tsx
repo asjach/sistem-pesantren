@@ -22,7 +22,7 @@ import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/field';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
-import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
+import { useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
 import FilterField from '@/components/FilterField';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { TopBarSearch } from '@/components/TopBarSearch';
@@ -71,8 +71,7 @@ function pakaiCommitBaris(rows: Santri[]) {
 export default function SantriPage() {
   const [lembagas, setLembagas] = useState<Lembaga[]>([]);
   const [statusGlobal, setStatusGlobal] = useState('_semua');
-  const [jenjang, setLembagaId] = useState('');
-  useLembagaAwalString(setLembagaId);
+  const { jenjangs } = useFilterGlobalAktif();
   /** Pencarian tunggal halaman (topBar). */
   const [cari, setCari] = useState('');
   const {
@@ -92,7 +91,7 @@ export default function SantriPage() {
     search: cari,
     ambil: (a) => listSantri({
       is_active_pst: statusGlobal === '_semua' ? undefined : statusGlobal === 'aktif',
-      jenjang: jenjang ? jenjang : undefined,
+      jenjang: jenjangs,
       q: a.search || undefined,
       sort: a.urut.length ? a.urut : undefined,
       arah: a.urut.length ? a.arah : undefined,
@@ -100,7 +99,7 @@ export default function SantriPage() {
       per_page: a.perPage,
       signal: a.signal,
     }),
-    deps: [statusGlobal, jenjang],
+    deps: [statusGlobal, jenjangs],
   });
 
   const [fotoRow, setFotoRow] = useState<Santri | null>(null);

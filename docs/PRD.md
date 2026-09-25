@@ -214,6 +214,7 @@
 | 2.160 | 2026-09-25 | Label aksi baris Samakan dipersingkat: ikon panah ke kanan diikuti MI atau MD; tooltip deskriptif tetap dipertahankan |
 | 2.161 | 2026-09-25 | Perbandingan Kelas hanya memuat Santri aktif di MI dan MD yang sama-sama memiliki kelas aktif; jika kelas MI atau MD kosong, baris tidak ditampilkan |
 | 2.162 | 2026-09-25 | Pindah Kelas: saat halaman dibuka, filter global Tingkat otomatis memilih tingkat terendah yang tersedia pada kelas aktif, bukan Semua; pilihan pengguna berikutnya tetap dihormati |
+| 2.163 | 2026-09-25 | Kelola Halaman tab Filter: setiap filter relevan memiliki mode Tunggal/Jamak tersimpan per halaman (default Tunggal); allowlist filter per halaman disembunyikan bila tidak dipakai. Provider dan API mendukung nilai jamak (OR dalam filter, AND antarfilter), sementara target aksi tetap scalar aman |
 
 ## Daftar Isi
 

@@ -1,23 +1,41 @@
-import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+  type ReactNode,
+  type SetStateAction,
+} from 'react';
 import { useLocation } from 'react-router-dom';
 import type { ExcelField } from './excel/types';
-import { muatPengaturanHalaman } from '../api/halaman';
+import {
+  muatPengaturanHalaman,
+  type PengaturanHalamanData,
+} from '../api/halaman';
+import {
+  KUNCI_FILTER_GLOBAL,
+  TAMPIL_BAWAAN_GLOBAL,
+  konfigurasiFilterHalaman,
+  tampilEfektifFilterHalaman,
+  type KunciFilterGlobal,
+  type KonfigurasiFilterHalaman,
+  type ModeFilterGlobal,
+  type ModeSemuaFilterGlobal,
+  type TampilFilterGlobal,
+} from '@/lib/filterHalaman';
 
 /** Kunci filter global di topBar. */
-export type KunciFilterGlobal = 'lembaga' | 'tahun_ajaran' | 'semester' | 'tingkat' | 'kelas';
+export type { KunciFilterGlobal, ModeFilterGlobal };
 
 /** Kunci filter yang dikenal dialog Kelola Halaman (sama dengan backend). */
-export const KUNCI_FILTER_HALAMAN: KunciFilterGlobal[] = ['lembaga', 'tahun_ajaran', 'semester', 'tingkat', 'kelas'];
+export const KUNCI_FILTER_HALAMAN = KUNCI_FILTER_GLOBAL;
 
 /** Tampil bawaan: lembaga/TA/semester selalu; tingkat/kelas hanya bila halaman
  *  memintanya lewat `<PengaturanHalaman>`. */
-export const TAMPIL_BAWAAN: Record<KunciFilterGlobal, boolean> = {
-  lembaga: true,
-  tahun_ajaran: true,
-  semester: true,
-  tingkat: false,
-  kelas: false,
-};
+export const TAMPIL_BAWAAN = TAMPIL_BAWAAN_GLOBAL;
 
 /** Satu tabel di halaman (untuk tab Kolom/Urutan/Toolbar dialog Kelola
  *  Halaman). `fields` opsional: tanpa fields, tab Kolom disembunyikan
@@ -33,7 +51,9 @@ export interface TabelHalaman {
 export interface RegistrasiHalaman {
   pageKey: string;
   tabel: TabelHalaman[];
-  bawaan: Record<KunciFilterGlobal, boolean>;
+  filterRelevan: readonly KunciFilterGlobal[];
+  bawaan: TampilFilterGlobal;
+  modeBawaan: ModeSemuaFilterGlobal;
 }
 
 /** Event jendela setelah filter halaman tersimpan: penanda halaman memuat
@@ -48,18 +68,102 @@ export function pageKeyDariPath(pathname: string): string {
 }
 
 interface VisibilitasFilterCtxValue {
-  tampil: Record<KunciFilterGlobal, boolean>;
-  setTampil: React.Dispatch<React.SetStateAction<Record<KunciFilterGlobal, boolean>>>;
+  tampil: TampilFilterGlobal;
+  setTampil: Dispatch<SetStateAction<TampilFilterGlobal>>;
+  mode: ModeSemuaFilterGlobal;
+  setMode: Dispatch<SetStateAction<ModeSemuaFilterGlobal>>;
+  siap: boolean;
+  filterRelevan: readonly KunciFilterGlobal[];
   registrasi: RegistrasiHalaman | null;
-  setRegistrasi: React.Dispatch<React.SetStateAction<RegistrasiHalaman | null>>;
+  setRegistrasi: Dispatch<SetStateAction<RegistrasiHalaman | null>>;
+}
+
+function gabungkanPengaturan(
+  data: PengaturanHalamanData,
+  filter: readonly KunciFilterGlobal[],
+  bawaanTampil: TampilFilterGlobal,
+  bawaanMode: ModeSemuaFilterGlobal,
+) {
+  const tampil = { ...bawaanTampil };
+  const mode = { ...bawaanMode };
+  for (const kunci of filter) {
+    const tampilTersimpan = data.filter[kunci];
+    const modeTersimpan = data.filter_mode[kunci];
+    if (typeof tampilTersimpan === 'boolean') tampil[kunci] = tampilTersimpan;
+    if (modeTersimpan === 'single' || modeTersimpan === 'multiple') mode[kunci] = modeTersimpan;
+  }
+  return { tampil, mode };
 }
 
 const Ctx = createContext<VisibilitasFilterCtxValue | null>(null);
 
 export function VisibilitasFilterProvider({ children }: { children: ReactNode }) {
-  const [tampil, setTampil] = useState<Record<KunciFilterGlobal, boolean>>(TAMPIL_BAWAAN);
+  const { pathname } = useLocation();
+  const pageKey = pageKeyDariPath(pathname);
+  const konfigurasi = useMemo(() => konfigurasiFilterHalaman(pageKey), [pageKey]);
+  const [tampil, setTampil] = useState<TampilFilterGlobal>(konfigurasi.tampil);
+  const [mode, setMode] = useState<ModeSemuaFilterGlobal>(konfigurasi.mode);
+  const [pageSiap, setPageSiap] = useState<string | null>(null);
   const [registrasi, setRegistrasi] = useState<RegistrasiHalaman | null>(null);
-  const value = useMemo(() => ({ tampil, setTampil, registrasi, setRegistrasi }), [tampil, registrasi]);
+  const fallback = useMemo<RegistrasiHalaman | null>(() => (
+    konfigurasi.filter.length > 0 ? {
+      pageKey,
+      tabel: [],
+      filterRelevan: konfigurasi.filter,
+      bawaan: { ...konfigurasi.tampil },
+      modeBawaan: { ...konfigurasi.mode },
+    } : null
+  ), [pageKey, konfigurasi]);
+  const registrasiAktif = registrasi?.pageKey === pageKey ? registrasi : fallback;
+
+  useEffect(() => {
+    setTampil({ ...konfigurasi.tampil });
+    setMode({ ...konfigurasi.mode });
+    setPageSiap(null);
+    setRegistrasi((saatIni) => saatIni?.pageKey === pageKey ? saatIni : null);
+
+    let hidup = true;
+    const muat = () => {
+      setPageSiap(null);
+      return muatPengaturanHalaman(pageKey)
+        .then((res) => {
+          if (!hidup) return;
+          const hasil = gabungkanPengaturan(
+            res.data,
+            konfigurasi.filter,
+            konfigurasi.tampil,
+            konfigurasi.mode,
+          );
+          setTampil(hasil.tampil);
+          setMode(hasil.mode);
+        })
+        .catch(() => {})
+        .finally(() => {
+          if (hidup) setPageSiap(pageKey);
+        });
+    };
+
+    muat();
+    const segarkan = (e: Event) => {
+      if ((e as CustomEvent).detail?.pageKey === pageKey) muat();
+    };
+    window.addEventListener(EVENT_HALAMAN_BERUBAH, segarkan);
+    return () => {
+      hidup = false;
+      window.removeEventListener(EVENT_HALAMAN_BERUBAH, segarkan);
+    };
+  }, [pageKey, konfigurasi]);
+
+  const value = useMemo(() => ({
+    tampil,
+    setTampil,
+    mode,
+    setMode,
+    siap: pageSiap === pageKey,
+    filterRelevan: registrasiAktif?.filterRelevan ?? [],
+    registrasi: registrasiAktif,
+    setRegistrasi,
+  }), [tampil, mode, pageSiap, pageKey, registrasiAktif]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
@@ -73,66 +177,60 @@ export function useVisibilitasFilter() {
  *  daftar tabel untuk dialog Kelola Halaman, dan override visibilitas dari
  *  DB bila ada. Kembali ke bawaan otomatis saat halaman unmount. */
 export function PengaturanHalaman({
-  tampil,
+  tampil = {},
   tabel = [],
 }: {
-  tampil: Partial<Record<KunciFilterGlobal, boolean>>;
+  tampil?: Partial<TampilFilterGlobal>;
   tabel?: TabelHalaman[];
 }) {
   const ctx = useContext(Ctx);
   const setTampil = ctx?.setTampil;
+  const setMode = ctx?.setMode;
   const setRegistrasi = ctx?.setRegistrasi;
   const { pathname } = useLocation();
   const pageKey = pageKeyDariPath(pathname);
+  const konfigurasi = konfigurasiFilterHalaman(pageKey);
   const kunci = JSON.stringify(tampil);
   const kunciTabel = JSON.stringify(tabel.map((t) => t.key));
-  /** Ref agar registrasi memakai objek `tabel` terbaru tanpa mengulang efek
-   *  tiap render (prop inline selalu identitas baru). */
   const tabelRef = useRef(tabel);
   tabelRef.current = tabel;
 
   useEffect(() => {
-    if (!setTampil || !setRegistrasi) return;
-    const parsed = JSON.parse(kunci) as Partial<Record<KunciFilterGlobal, boolean>>;
-    const bawaan = { ...TAMPIL_BAWAAN, ...parsed };
+    if (!setTampil || !setMode || !setRegistrasi) return;
+    const perubahan = JSON.parse(kunci) as Partial<TampilFilterGlobal>;
+    const bawaan = tampilEfektifFilterHalaman(konfigurasi, perubahan);
+    const modeBawaan = { ...konfigurasi.mode };
     setTampil(bawaan);
-    setRegistrasi({ pageKey, tabel: tabelRef.current, bawaan });
+    setMode(modeBawaan);
+    setRegistrasi({
+      pageKey,
+      tabel: tabelRef.current,
+      filterRelevan: konfigurasi.filter,
+      bawaan,
+      modeBawaan,
+    });
+
     let hidup = true;
-    // Override DB (bila ada) menang atas bawaan kode; kunci asing diabaikan.
-    muatPengaturanHalaman(pageKey)
+    const muat = () => muatPengaturanHalaman(pageKey)
       .then((res) => {
         if (!hidup) return;
-        const bersih: Partial<Record<KunciFilterGlobal, boolean>> = {};
-        for (const k of KUNCI_FILTER_HALAMAN) {
-          const v = res.data.filter?.[k];
-          if (typeof v === 'boolean') bersih[k] = v;
-        }
-        if (Object.keys(bersih).length > 0) setTampil((prev) => ({ ...prev, ...bersih }));
+        const hasil = gabungkanPengaturan(res.data, konfigurasi.filter, bawaan, modeBawaan);
+        setTampil(hasil.tampil);
+        setMode(hasil.mode);
       })
       .catch(() => {});
+
+    muat();
     const segarkan = (e: Event) => {
-      if ((e as CustomEvent).detail?.pageKey !== pageKey) return;
-      muatPengaturanHalaman(pageKey)
-        .then((res) => {
-          if (!hidup) return;
-          const bersih: Partial<Record<KunciFilterGlobal, boolean>> = {};
-          for (const k of KUNCI_FILTER_HALAMAN) {
-            const v = res.data.filter?.[k];
-            if (typeof v === 'boolean') bersih[k] = v;
-          }
-          setTampil({ ...bawaan, ...bersih });
-        })
-        .catch(() => {});
+      if ((e as CustomEvent).detail?.pageKey === pageKey) muat();
     };
     window.addEventListener(EVENT_HALAMAN_BERUBAH, segarkan);
     return () => {
       hidup = false;
       window.removeEventListener(EVENT_HALAMAN_BERUBAH, segarkan);
-      setTampil(TAMPIL_BAWAAN);
       setRegistrasi(null);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [setTampil, setRegistrasi, pageKey, kunci, kunciTabel]);
+  }, [setTampil, setMode, setRegistrasi, pageKey, konfigurasi, kunci, kunciTabel]);
 
   return null;
 }

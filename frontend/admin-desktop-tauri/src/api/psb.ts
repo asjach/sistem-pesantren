@@ -1,4 +1,5 @@
 import { api, apiUpload, downloadFile } from './client';
+import { appendQueryParam, type ScalarOrArray } from './query';
 import type { Paginate } from './master';
 import type { DokumenSantri } from './santri';
 
@@ -50,11 +51,27 @@ export interface PsbCalon {
   deleted_at?: string | null;
 }
 
-export function listAntrean(params: { status: string; search?: string; jenjang?: string; sort?: string[]; arah?: 'naik' | 'turun'; page?: number; per_page?: number; terhapus?: boolean; signal?: AbortSignal }) {
+export function listAntrean(params: {
+  status: string;
+  search?: string;
+  jenjang?: ScalarOrArray<string>;
+  tahun_ajaran?: ScalarOrArray<string>;
+  tingkat?: ScalarOrArray<string>;
+  kelas_id?: ScalarOrArray<number>;
+  sort?: string[];
+  arah?: 'naik' | 'turun';
+  page?: number;
+  per_page?: number;
+  terhapus?: boolean;
+  signal?: AbortSignal;
+}) {
   const q = new URLSearchParams();
   q.set('status', params.status);
   if (params.search) q.set('search', params.search);
-  if (params.jenjang) q.set('jenjang', params.jenjang);
+  appendQueryParam(q, 'jenjang', params.jenjang);
+  appendQueryParam(q, 'tahun_ajaran', params.tahun_ajaran);
+  appendQueryParam(q, 'tingkat', params.tingkat);
+  appendQueryParam(q, 'kelas_id', params.kelas_id);
   if (params.terhapus) q.set('terhapus', '1');
   if (params.sort?.length) q.set('sort', params.sort.join(','));
   if (params.arah) q.set('arah', params.arah);
@@ -369,9 +386,9 @@ export interface DokumenWajib {
   lembaga?: { jenjang: string; nama: string } | null;
 }
 
-export function listDokumenWajib(kegiatanId: number, jenjang?: string) {
+export function listDokumenWajib(kegiatanId: number, jenjang?: ScalarOrArray<string>) {
   const q = new URLSearchParams({ psb_kegiatan_id: String(kegiatanId) });
-  if (jenjang) q.set('jenjang', String(jenjang));
+  appendQueryParam(q, 'jenjang', jenjang);
   return api<{ pesan: string; data: DokumenWajib[] }>(`/admin/dokumen-wajib?${q.toString()}`);
 }
 

@@ -1,4 +1,5 @@
 import { api, apiUpload, downloadFile } from './client';
+import { appendQueryParam, type ScalarOrArray } from './query';
 import type { Paginate } from './master';
 
 // ---------- Buku Induk santri (identitas murni) + keanggotaan per lembaga ----------
@@ -29,7 +30,11 @@ export interface LembagaSantri {
 
 /** Daftar keanggotaan lintas santri (halaman Keanggotaan terpusat). */
 export function listKeanggotaan(params: {
-  jenjang?: string | null;
+  jenjang?: ScalarOrArray<string> | null;
+  tahun_ajaran?: ScalarOrArray<string>;
+  semester?: ScalarOrArray<string>;
+  tingkat?: ScalarOrArray<string>;
+  kelas_id?: ScalarOrArray<number>;
   is_active_lembaga?: boolean | null;
   tanpa_nis?: boolean;
   search?: string;
@@ -39,7 +44,11 @@ export function listKeanggotaan(params: {
   per_page?: number;
 } = {}) {
   const q = new URLSearchParams();
-  if (params.jenjang != null) q.set('jenjang', params.jenjang);
+  appendQueryParam(q, 'jenjang', params.jenjang);
+  appendQueryParam(q, 'tahun_ajaran', params.tahun_ajaran);
+  appendQueryParam(q, 'semester', params.semester);
+  appendQueryParam(q, 'tingkat', params.tingkat);
+  appendQueryParam(q, 'kelas_id', params.kelas_id);
   if (params.is_active_lembaga != null) q.set('is_active_lembaga', params.is_active_lembaga ? '1' : '0');
   if (params.tanpa_nis) q.set('tanpa_nis', '1');
   if (params.search) q.set('search', params.search);
@@ -146,11 +155,28 @@ export interface DokumenSantri {
 }
 
 export function listSantri(
-  params: { is_active_pst?: boolean; jenjang?: string; q?: string; sort?: string[]; arah?: 'naik' | 'turun'; page?: number; per_page?: number; signal?: AbortSignal } = {},
+  params: {
+    is_active_pst?: boolean;
+    jenjang?: ScalarOrArray<string>;
+    tahun_ajaran?: ScalarOrArray<string>;
+    semester?: ScalarOrArray<string>;
+    tingkat?: ScalarOrArray<string>;
+    kelas_id?: ScalarOrArray<number>;
+    q?: string;
+    sort?: string[];
+    arah?: 'naik' | 'turun';
+    page?: number;
+    per_page?: number;
+    signal?: AbortSignal;
+  } = {},
 ) {
   const q = new URLSearchParams();
   if (params.is_active_pst !== undefined) q.set('is_active_pst', params.is_active_pst ? '1' : '0');
-  if (params.jenjang) q.set('jenjang', params.jenjang);
+  appendQueryParam(q, 'jenjang', params.jenjang);
+  appendQueryParam(q, 'tahun_ajaran', params.tahun_ajaran);
+  appendQueryParam(q, 'semester', params.semester);
+  appendQueryParam(q, 'tingkat', params.tingkat);
+  appendQueryParam(q, 'kelas_id', params.kelas_id);
   if (params.q) q.set('q', params.q);
   if (params.sort?.length) q.set('sort', params.sort.join(','));
   if (params.arah) q.set('arah', params.arah);
@@ -319,7 +345,7 @@ export function generateNisk(id: number) {
 
 /** Generate NISK massal untuk semua baris cocok filter (lewati: sudah ada,
  *  NIS lokal kosong, lembaga MD). */
-export function generateNiskBulk(filter: { jenjang?: string; is_active_lembaga?: boolean; search?: string }) {
+export function generateNiskBulk(filter: { jenjang?: ScalarOrArray<string>; is_active_lembaga?: boolean; search?: string }) {
   return api<{ pesan: string; data: { berhasil: number; dilewati: number; gagal: { id: number; pesan: string }[] } }>(
     '/admin/lembaga-santri/generate-nisk-bulk',
     { method: 'POST', body: JSON.stringify(filter) },

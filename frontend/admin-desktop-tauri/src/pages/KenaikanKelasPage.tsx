@@ -7,12 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/field';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
-import { useTingkatAktif } from '@/tingkatAktif';
-import { useKelasAktif } from '@/kelasAktif';
+import { targetTunggal, useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
-import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { toast } from 'sonner';
 
@@ -33,8 +31,15 @@ const FIELDS_KENAIKAN: ExcelField[] = [
 export default function KenaikanKelasPage() {
   const { user } = useAuth();
   const canUbah = bisa(user, 'kenaikan.ubah');
-  const [jenjang, setLembagaId] = useState('');
-  useLembagaAwalString(setLembagaId);
+  const {
+    jenjangs,
+    tahunAjaranNames,
+    tingkat: tingkatAktif,
+    kelas: kelasAktif,
+    loading: filterLoading,
+  } = useFilterGlobalAktif();
+  const targetJenjang = targetTunggal(jenjangs);
+  const targetTahunAjaran = targetTunggal(tahunAjaranNames);
   /** Tanggal masuk kelas baru; bawaan hari ini (lokal). */
   const [tglMasuk, setTglMasuk] = useState(() => {
     const now = new Date();
@@ -47,9 +52,6 @@ export default function KenaikanKelasPage() {
   const [kiri, setKiri] = useState<RiwayatRow[]>([]);
   /** Pencarian tunggal halaman (topBar). */
   const [cari, setCari] = useState('');
-  /** Tingkat & Kelas = filter global topBar (setara lembaga/TA/semester). */
-  const { tingkat: tingkatAktif } = useTingkatAktif();
-  const { kelas: kelasAktif } = useKelasAktif();
   /** Hasil filter global + pencarian tunggal (sisi klien). */
   const kiriTampil = useMemo(() => {
     const q = cari.trim().toLowerCase();
@@ -69,23 +71,25 @@ export default function KenaikanKelasPage() {
   const [busyId, setBusyId] = useState<number | null>(null);
 
   const load = useCallback(async (f?: { urut?: string[]; arah?: 'naik' | 'turun' }) => {
-    if (!jenjang) { setKiri([]); return; }
+    if (filterLoading) { setKiri([]); return; }
     setErr('');
     const urutPakai = f?.urut ?? urut;
     const arahPakai = f?.arah ?? arahUrut;
     try {
       const res = await listRiwayatBelajar({
-        jenjang: jenjang,
+        jenjang: jenjangs,
         semester: '2',
+        tingkat: tingkatAktif,
         is_active_riwayat: true,
         sort: urutPakai.length ? urutPakai : undefined,
+
         arah: urutPakai.length ? arahPakai : undefined,
         per_page: 500,
       });
       // Hanya tingkat 1–5; tingkat akhir lewat halaman Kelulusan.
       setKiri(res.data.filter((r) => /^[1-5]$/.test(String(r.tingkat ?? ''))));
     } catch (e) { setErr(errorMessage(e)); }
-  }, [jenjang, urut, arahUrut]);
+  }, [filterLoading, jenjangs, tingkatAktif, urut, arahUrut]);
 
   /** Klik header: simpan urut baru lalu muat ulang. */
   function terapkanUrut(nilai: string[], arah: 'naik' | 'turun') {
@@ -105,26 +109,27 @@ export default function KenaikanKelasPage() {
   /** Hasil dimuat dari backend (persisten): status_awal kenaikan/mengulang
    *  yang masih aktif — bukan state sesi, jadi aman di-reload. */
   const muatHasil = useCallback(async () => {
-    if (!jenjang) { setHasilNaik([]); setHasilTidak([]); return; }
+    if (filterLoading) { setHasilNaik([]); setHasilTidak([]); return; }
     try {
       const [naik, tidak] = await Promise.all([
-        listRiwayatBelajar({ jenjang: jenjang, status_awal: 'kenaikan', is_active_riwayat: true, per_page: 500 }),
-        listRiwayatBelajar({ jenjang: jenjang, status_awal: 'mengulang', is_active_riwayat: true, per_page: 500 }),
+        listRiwayatBelajar({ jenjang: jenjangs, tingkat: tingkatAktif, status_awal: 'kenaikan', is_active_riwayat: true, per_page: 500 }),
+        listRiwayatBelajar({ jenjang: jenjangs, tingkat: tingkatAktif, status_awal: 'mengulang', is_active_riwayat: true, per_page: 500 }),
+
       ]);
       setHasilNaik(naik.data.map(barisHasil));
       setHasilTidak(tidak.data.map(barisHasil));
     } catch (e) { setErr(errorMessage(e)); }
-  }, [jenjang]);
+  }, [filterLoading, jenjangs, tingkatAktif]);
 
   useEffect(() => { void load(); void muatHasil(); }, [load, muatHasil]);
 
   /** Naik: sisa tabel kiri dianggap naik semua. */
   const prosesNaik = async () => {
-    if (!jenjang || kiriTampil.length === 0 || !tglMasuk || busy) return;
+    if (!targetJenjang || !targetTahunAjaran || kiriTampil.length === 0 || !tglMasuk || busy) return;
     setBusy(true);
     try {
       const res = await naikKelasOtomatis({
-        jenjang: jenjang,
+        jenjang: targetJenjang,
         siswa: kiriTampil.map((r) => ({ santri_id: r.santri_id, status: 'naik' as const, tgl_masuk: tglMasuk })),
       });
       toast.success(`Kenaikan selesai: ${res.berhasil} berhasil, ${res.gagal.length} gagal.`);
@@ -136,11 +141,11 @@ export default function KenaikanKelasPage() {
 
   /** Tidak naik per santri: langsung proses → tabel kanan bawah. */
   const prosesTidakNaik = async (r: RiwayatRow) => {
-    if (!jenjang || !tglMasuk || busyId !== null) return;
+    if (!targetJenjang || !targetTahunAjaran || !tglMasuk || busyId !== null) return;
     setBusyId(r.santri_id);
     try {
       const res = await naikKelasOtomatis({
-        jenjang: jenjang,
+        jenjang: targetJenjang,
         siswa: [{ santri_id: r.santri_id, status: 'tidak_naik' as const, tgl_masuk: tglMasuk }],
       });
       if (res.berhasil === 1) {
@@ -155,12 +160,12 @@ export default function KenaikanKelasPage() {
 
   /** Batalkan hasil (per baris / bulk): urungkan di server, baris kembali kiri. */
   const batalkan = async (daftar: Baris[]) => {
-    if (!jenjang || daftar.length === 0 || busy) return;
+    if (!targetJenjang || !targetTahunAjaran || daftar.length === 0 || busy) return;
     setBusy(true);
     const gagal: string[] = [];
     for (const b of daftar) {
       try {
-        await batalKenaikan(b.santri_id, jenjang);
+        await batalKenaikan(b.santri_id, targetJenjang);
       } catch (e) { gagal.push(`#${b.santri_id}: ${errorMessage(e)}`); }
     }
     if (gagal.length) toast.error(gagal.join(' · '));
@@ -178,7 +183,7 @@ export default function KenaikanKelasPage() {
       <div className="flex flex-wrap items-end gap-3">
         {canUbah && (
         <>
-          <Button id="btn_naik_kenaikan" disabled={busy || busyId !== null || kiriTampil.length === 0 || !tglMasuk} onClick={() => void prosesNaik()}>
+          <Button id="btn_naik_kenaikan" disabled={busy || busyId !== null || kiriTampil.length === 0 || !tglMasuk || !targetJenjang || !targetTahunAjaran} onClick={() => void prosesNaik()}>
             Naik ({kiriTampil.length})
           </Button>
           <div>
@@ -213,7 +218,7 @@ export default function KenaikanKelasPage() {
               onSaved={() => {}}
               renderActions={(r) => (
                 canUbah ? (
-                  <Button id={`btn_tidak_naik_${r.santri_id}`} size="sm" variant="outline" disabled={busyId === r.santri_id || !tglMasuk} onClick={() => void prosesTidakNaik(r)}>
+                  <Button id={`btn_tidak_naik_${r.santri_id}`} size="sm" variant="outline" disabled={busyId === r.santri_id || !tglMasuk || !targetJenjang || !targetTahunAjaran} onClick={() => void prosesTidakNaik(r)}>
                     Tidak naik
                   </Button>
                 ) : null
@@ -235,7 +240,7 @@ export default function KenaikanKelasPage() {
             baris={hasilNaik}
             onBatalkan={(b) => void batalkan([b])}
             aksiHeader={hasilNaik.length > 0 ? (
-              <Button id="btn_batal_semua_naik" size="sm" variant="ghost" disabled={busy} onClick={() => void batalkan(hasilNaik)}>
+              <Button id="btn_batal_semua_naik" size="sm" variant="ghost" disabled={busy || !targetJenjang || !targetTahunAjaran} onClick={() => void batalkan(hasilNaik)}>
                 Batalkan semua
               </Button>
             ) : undefined}
@@ -249,7 +254,7 @@ export default function KenaikanKelasPage() {
             baris={hasilTidak}
             onBatalkan={(b) => void batalkan([b])}
             aksiHeader={hasilTidak.length > 0 ? (
-              <Button id="btn_batal_semua_tidak_naik" size="sm" variant="ghost" disabled={busy} onClick={() => void batalkan(hasilTidak)}>
+              <Button id="btn_batal_semua_tidak_naik" size="sm" variant="ghost" disabled={busy || !targetJenjang || !targetTahunAjaran} onClick={() => void batalkan(hasilTidak)}>
                 Batalkan semua
               </Button>
             ) : undefined}

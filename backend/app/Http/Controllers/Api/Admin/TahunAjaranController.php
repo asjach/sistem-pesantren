@@ -34,23 +34,39 @@ class TahunAjaranController extends Controller
         $urut = $this->parseUrut($request, UrutKatalog::peta('tahun_ajaran'));
 
         $auth = $request->user();
-        $lembagaId = $request->filled('jenjang') ? (string) $request->input('jenjang') : null;
-        if ($lembagaId !== null) {
-            $this->authorizeLembaga($auth, $lembagaId);
-        }
+        $lembagaIds = $this->nilaiFilter($request, 'jenjang');
+        $this->authorizeLembagaMany($auth, $lembagaIds);
 
         $termasukNonaktif = $request->boolean('termasuk_nonaktif');
-
-        $pivot = $lembagaId === null
-            ? collect()
-            : LembagaTahunAjaran::where('jenjang', $lembagaId)->pluck('is_active', 'tahun_ajaran');
+        $pivot = collect();
+        $hiddenPerLembaga = [];
+        if (count($lembagaIds) === 1) {
+            $pivot = LembagaTahunAjaran::where('jenjang', $lembagaIds[0])->pluck('is_active', 'tahun_ajaran');
+            $hiddenPerLembaga[$lembagaIds[0]] = $pivot->filter(fn ($aktif) => ! $aktif)->keys()->all();
+        } elseif ($lembagaIds !== []) {
+            foreach ($lembagaIds as $lembagaId) {
+                $hiddenPerLembaga[$lembagaId] = LembagaTahunAjaran::where('jenjang', $lembagaId)
+                    ->where('is_active', false)
+                    ->pluck('tahun_ajaran')
+                    ->all();
+            }
+        }
 
         $query = TahunAjaran::query();
+        $this->applyFilter($query, $request, 'tahun_ajaran', 'nama');
 
         // `termasuk_nonaktif`: sertakan TA tersembunyi agar halaman bisa
         // menampilkan tombol "Tampilkan kembali".
-        if ($lembagaId !== null && ! $termasukNonaktif) {
-            $query->whereNotIn('nama', $pivot->filter(fn ($aktif) => ! $aktif)->keys());
+        if ($lembagaIds !== [] && ! $termasukNonaktif) {
+            $query->where(function ($q) use ($hiddenPerLembaga) {
+                foreach ($hiddenPerLembaga as $names) {
+                    if ($names === []) {
+                        $q->orWhereRaw('1 = 1');
+                    } else {
+                        $q->orWhereNotIn('nama', $names);
+                    }
+                }
+            });
         }
 
         if ($request->filled('search')) {
@@ -63,9 +79,16 @@ class TahunAjaranController extends Controller
 
         $hasil = $query->paginate($this->perPage($request));
 
-        if ($lembagaId !== null) {
-            $hasil->getCollection()->transform(function (TahunAjaran $t) use ($pivot) {
-                $t->setAttribute('tampil', $pivot->has($t->nama) ? (bool) $pivot[$t->nama] : true);
+        if ($lembagaIds !== []) {
+            $hasil->getCollection()->transform(function (TahunAjaran $t) use ($hiddenPerLembaga, $lembagaIds) {
+                $tampil = false;
+                foreach ($lembagaIds as $lembagaId) {
+                    if (! in_array($t->nama, $hiddenPerLembaga[$lembagaId] ?? [], true)) {
+                        $tampil = true;
+                        break;
+                    }
+                }
+                $t->setAttribute('tampil', $tampil);
 
                 return $t;
             });

@@ -20,6 +20,8 @@ class PengaturanHalamanController extends Controller
     /** Kunci filter yang dikenal frontend (di luar ini ditolak). */
     public const KUNCI = ['lembaga', 'tahun_ajaran', 'semester', 'tingkat', 'kelas'];
 
+    public const MODE_FILTER = ['single', 'multiple'];
+
     /** GET /api/admin/pengaturan-halaman?page_key=daftar_kelas */
     public function index(PengaturanHalamanIndexRequest $request): JsonResponse
     {
@@ -32,6 +34,7 @@ class PengaturanHalamanController extends Controller
             'data' => [
                 'page_key' => $data['page_key'],
                 'filter' => $row?->filter ?? [],
+                'filter_mode' => $this->normalisasiMode($row?->filter_mode),
             ],
         ]);
     }
@@ -42,9 +45,9 @@ class PengaturanHalamanController extends Controller
     {
         $data = $request->validated();
 
-        if (! array_key_exists('filter', $data)) {
+        if (! array_key_exists('filter', $data) && ! array_key_exists('filter_mode', $data)) {
             throw ValidationException::withMessages([
-                'page_key' => 'Kirim minimal filter.',
+                'page_key' => 'Kirim minimal filter atau filter_mode.',
             ]);
         }
 
@@ -55,16 +58,23 @@ class PengaturanHalamanController extends Controller
             $row->filter = [];
         }
 
-        $normal = $row->filter ?? [];
-        foreach ($data['filter'] as $kunci => $nilai) {
-            if (! in_array($kunci, self::KUNCI, true)) {
-                throw ValidationException::withMessages([
-                    'filter' => "Kunci filter \"{$kunci}\" tidak dikenal.",
-                ]);
+        if (array_key_exists('filter', $data)) {
+            $normal = $row->filter;
+            foreach ($data['filter'] as $kunci => $nilai) {
+                if (! in_array($kunci, self::KUNCI, true)) {
+                    throw ValidationException::withMessages([
+                        'filter' => "Kunci filter \"{$kunci}\" tidak dikenal.",
+                    ]);
+                }
+                $normal[$kunci] = (bool) $nilai;
             }
-            $normal[$kunci] = (bool) $nilai;
+            $row->filter = $normal;
         }
-        $row->filter = $normal;
+
+        $row->filter_mode = array_replace(
+            $this->normalisasiMode($row->filter_mode),
+            $data['filter_mode'] ?? [],
+        );
 
         $row->dibuat_oleh = $request->user()->id;
         $row->save();
@@ -80,5 +90,18 @@ class PengaturanHalamanController extends Controller
         PengaturanHalaman::where('page_key', $data['page_key'])->delete();
 
         return response()->json(['pesan' => 'Pengaturan halaman dikembalikan ke bawaan (ikut bawaan kode).']);
+    }
+
+    private function normalisasiMode(?array $mode): array
+    {
+        $normal = array_fill_keys(self::KUNCI, 'single');
+
+        foreach ($mode ?? [] as $kunci => $nilai) {
+            if (in_array($kunci, self::KUNCI, true) && in_array($nilai, self::MODE_FILTER, true)) {
+                $normal[$kunci] = $nilai;
+            }
+        }
+
+        return $normal;
     }
 }

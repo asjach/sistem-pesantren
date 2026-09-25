@@ -4,6 +4,8 @@ import {
   hapusPengaturanHalaman,
   muatPengaturanHalaman,
   simpanPengaturanHalaman,
+  type FilterHalaman,
+  type FilterModeHalaman,
 } from '@/api/halaman';
 import { useLembagaAktif } from '@/lembagaAktif';
 import { Button } from '@/components/ui/button';
@@ -12,9 +14,9 @@ import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import {
   EVENT_HALAMAN_BERUBAH,
-  KUNCI_FILTER_HALAMAN,
   type KunciFilterGlobal,
 } from '@/components/VisibilitasFilter';
+import type { ModeSemuaFilterGlobal, TampilFilterGlobal } from '@/lib/filterHalaman';
 
 const LABEL_FILTER: { kunci: KunciFilterGlobal; label: string; ket: string }[] = [
   { kunci: 'lembaga', label: 'Lembaga', ket: 'Dropdown lembaga aktif' },
@@ -29,17 +31,22 @@ const LABEL_FILTER: { kunci: KunciFilterGlobal; label: string; ket: string }[] =
  *  simpanan = halaman ikut bawaan kode. */
 export default function TabFilterHalaman({
   pageKey,
+  filterRelevan,
   bawaan,
+  modeBawaan,
   onTutup,
 }: {
   pageKey: string;
-  bawaan: Record<KunciFilterGlobal, boolean>;
+  filterRelevan: readonly KunciFilterGlobal[];
+  bawaan: TampilFilterGlobal;
+  modeBawaan: ModeSemuaFilterGlobal;
   onTutup: () => void;
 }) {
   /** Visibilitas filter = super_admin EFEKTIF (mati saat bertindak). */
   const { efektifSuper: bolehUbah } = useLembagaAktif();
 
-  const [nilai, setNilai] = useState<Record<KunciFilterGlobal, boolean>>(bawaan);
+  const [nilai, setNilai] = useState<TampilFilterGlobal>(bawaan);
+  const [nilaiMode, setNilaiMode] = useState<ModeSemuaFilterGlobal>(modeBawaan);
   /** Ada baris tersimpan di DB (untuk status tombol Kembalikan). */
   const [adaSimpanan, setAdaSimpanan] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -47,22 +54,27 @@ export default function TabFilterHalaman({
   const muat = useCallback(async () => {
     try {
       const res = await muatPengaturanHalaman(pageKey);
-      const bersih: Record<KunciFilterGlobal, boolean> = { ...bawaan };
+      const bersih: TampilFilterGlobal = { ...bawaan };
+      const modeBersih: ModeSemuaFilterGlobal = { ...modeBawaan };
       let ada = false;
-      for (const k of KUNCI_FILTER_HALAMAN) {
+      for (const k of filterRelevan) {
         const v = res.data.filter?.[k];
+        const m = res.data.filter_mode?.[k];
         if (typeof v === 'boolean') {
           bersih[k] = v;
           ada = true;
         }
+        if (m === 'single' || m === 'multiple') modeBersih[k] = m;
       }
       setNilai(bersih);
+      setNilaiMode(modeBersih);
       setAdaSimpanan(ada);
     } catch {
       setNilai({ ...bawaan });
+      setNilaiMode({ ...modeBawaan });
       setAdaSimpanan(false);
     }
-  }, [pageKey, JSON.stringify(bawaan)]);
+  }, [pageKey, filterRelevan, bawaan, modeBawaan]);
 
   useEffect(() => {
     void muat();
@@ -73,10 +85,16 @@ export default function TabFilterHalaman({
   }
 
   async function simpan() {
-    if (!bolehUbah) return;
+    if (!bolehUbah || filterRelevan.length === 0) return;
     setBusy(true);
     try {
-      const res = await simpanPengaturanHalaman(pageKey, { ...nilai });
+      const filter: FilterHalaman = {};
+      const filterMode: FilterModeHalaman = {};
+      for (const k of filterRelevan) {
+        filter[k] = nilai[k];
+        filterMode[k] = nilaiMode[k];
+      }
+      const res = await simpanPengaturanHalaman(pageKey, filter, filterMode);
       setAdaSimpanan(true);
       toast.success(res.pesan);
       kabariBerubah();
@@ -93,6 +111,7 @@ export default function TabFilterHalaman({
     try {
       const res = await hapusPengaturanHalaman(pageKey);
       setNilai({ ...bawaan });
+      setNilaiMode({ ...modeBawaan });
       setAdaSimpanan(false);
       toast.success(res.pesan);
       kabariBerubah();
@@ -103,6 +122,8 @@ export default function TabFilterHalaman({
     }
   }
 
+  const filterTampil = LABEL_FILTER.filter(({ kunci }) => filterRelevan.includes(kunci));
+
   return (
     <div className="flex min-h-0 flex-col gap-3">
       {!bolehUbah ? (
@@ -110,27 +131,51 @@ export default function TabFilterHalaman({
           Hanya super_admin yang dapat mengubah filter halaman.
         </p>
       ) : null}
-      <div className="flex flex-col gap-1 overflow-auto rounded-md border p-1">
-        {LABEL_FILTER.map(({ kunci, label, ket }) => (
-          <label
+      <div className="flex flex-col overflow-auto rounded-md border">
+        {filterTampil.length === 0 ? (
+          <p className="px-3 py-4 text-sm text-muted-foreground">
+            Halaman ini tidak memiliki filter global yang relevan.
+          </p>
+        ) : filterTampil.map(({ kunci, label, ket }) => (
+          <div
             key={kunci}
-            htmlFor={`switch_filter_halaman_${pageKey}_${kunci}`}
-            className="flex cursor-pointer items-center gap-3 rounded-md px-2 py-2 hover:bg-accent/40"
+            className="flex flex-wrap items-center gap-3 rounded-md px-2 py-2 hover:bg-accent/40"
           >
             <Switch
               id={`switch_filter_halaman_${pageKey}_${kunci}`}
               checked={nilai[kunci]}
               disabled={!bolehUbah || busy}
+              aria-label={`Tampilkan filter ${label}`}
               onCheckedChange={(c) => setNilai((v) => ({ ...v, [kunci]: !!c }))}
             />
-            <span className="min-w-0 flex-1">
+            <span className="min-w-40 flex-1">
               <span className="block text-sm">{label}</span>
               <span className="block truncate text-xs text-muted-foreground" title={ket}>{ket}</span>
             </span>
-            {!nilai[kunci] ? (
-              <span className="shrink-0 text-xs text-muted-foreground">tersembunyi</span>
-            ) : null}
-          </label>
+            <span className="shrink-0 text-xs text-muted-foreground">
+              {nilai[kunci] ? 'Tampil' : 'Tersembunyi'}
+            </span>
+            <label
+              htmlFor={`switch_mode_filter_halaman_${pageKey}_${kunci}`}
+              className="flex shrink-0 items-center gap-2"
+            >
+              <span className="text-xs text-muted-foreground">Mode</span>
+              <Switch
+                id={`switch_mode_filter_halaman_${pageKey}_${kunci}`}
+                size="sm"
+                checked={nilaiMode[kunci] === 'multiple'}
+                disabled={!bolehUbah || busy}
+                aria-label={`Mode filter ${label}: ${nilaiMode[kunci] === 'multiple' ? 'jamak' : 'tunggal'}`}
+                onCheckedChange={(c) => setNilaiMode((v) => ({
+                  ...v,
+                  [kunci]: c ? 'multiple' : 'single',
+                }))}
+              />
+              <span className="min-w-14 text-xs">
+                {nilaiMode[kunci] === 'multiple' ? 'Jamak' : 'Tunggal'}
+              </span>
+            </label>
+          </div>
         ))}
       </div>
       <p className="text-xs text-muted-foreground">
@@ -154,7 +199,7 @@ export default function TabFilterHalaman({
           <Button
             type="button"
             id={`btn_filter_halaman_simpan_${pageKey}`}
-            disabled={!bolehUbah || busy}
+            disabled={!bolehUbah || busy || filterRelevan.length === 0}
             onClick={() => void simpan()}
           >
             {busy ? 'Menyimpan…' : 'Simpan'}

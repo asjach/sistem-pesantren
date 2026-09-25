@@ -9,8 +9,7 @@ import { FieldLabel } from '@/components/ui/field';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
-import { useLembagaAwalString } from '@/hooks/useLembagaAwal';
-import { useTahunAjaranAwalString } from '@/hooks/useTahunAjaranAwal';
+import { targetTunggal, useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
@@ -34,11 +33,14 @@ const FIELDS_ALUMNI: ExcelField[] = [
 export default function KelulusanPage() {
   const { user } = useAuth();
   const canUbah = bisa(user, 'kelulusan.ubah');
-  const [jenjang, setLembagaId] = useState('');
-  useLembagaAwalString(setLembagaId);
+  const {
+    jenjangs,
+    tahunAjaranNames,
+    loading: filterLoading,
+  } = useFilterGlobalAktif();
+  const targetJenjang = targetTunggal(jenjangs);
+  const targetTahunAjaran = targetTunggal(tahunAjaranNames);
   const [tingkat, setTingkat] = useState('');
-  const [taLulus, setTaLulus] = useState('');
-  useTahunAjaranAwalString(setTaLulus);
   const [kiri, setKiri] = useState<RiwayatRow[]>([]);
   const [pilih, setPilih] = useState<Set<number>>(new Set());
   const [tidakLulus, setTidakLulus] = useState<{ santri_id: number; nama: string; kelas: string | null }[]>([]);
@@ -59,33 +61,41 @@ export default function KelulusanPage() {
   const [noSurat, setNoSurat] = useState('');
 
   const loadKiri = useCallback(async () => {
-    if (!jenjang) { setKiri([]); return; }
+    if (filterLoading || jenjangs.length === 0) { setKiri([]); return; }
     setErr('');
     const q = cari.trim().toLowerCase();
     try {
-      const res = await daftarKelas({ jenjang: jenjang, per_page: 0 });
+      const res = await daftarKelas({
+        jenjang: jenjangs,
+        tahun_ajaran: tahunAjaranNames,
+        lintas_periode: tahunAjaranNames.length === 0 || undefined,
+        per_page: 0,
+      });
       setKiri(res.data.filter((r) => (!tingkat || r.tingkat === tingkat)
         && (q === ''
           || (r.santri?.nama_lengkap ?? '').toLowerCase().includes(q)
           || (r.nis_lokal ?? '').toLowerCase().includes(q))));
     } catch (e) { setErr(errorMessage(e)); }
-  }, [jenjang, tingkat, cari]);
+  }, [filterLoading, jenjangs, tingkat, cari]);
 
   const loadArsip = useCallback(async (f?: { urut?: string[]; arah?: 'naik' | 'turun' }) => {
-    if (!jenjang) { setAlumni([]); return; }
+    if (filterLoading) { setAlumni([]); return; }
+    setErr('');
+    const u = f?.urut ?? urut;
+    const a = f?.arah ?? arahUrut;
     try {
-      const u = f?.urut ?? urut;
-      const a = f?.arah ?? arahUrut;
       const res = await listAlumni({
-        jenjang: jenjang,
+        jenjang: jenjangs,
+        tahun_ajaran: tahunAjaranNames,
         q: cari || undefined,
         sort: u.length ? u : undefined,
         arah: u.length ? a : undefined,
+
         per_page: 100,
       });
       setAlumni(res.data);
     } catch (e) { setErr(errorMessage(e)); }
-  }, [jenjang, urut, arahUrut, cari]);
+  }, [filterLoading, jenjangs, tahunAjaranNames, urut, arahUrut, cari]);
 
   /** Klik header: simpan urut baru lalu muat ulang arsip alumni. */
   function terapkanUrut(nilai: string[], arah: 'naik' | 'turun') {
@@ -101,16 +111,17 @@ export default function KelulusanPage() {
   const totalTerpilih = namaTerpilih.length + tidakLulus.length;
 
   const prosesLulus = async () => {
-    if (!jenjang || !taLulus || !tanggalLulus || namaTerpilih.length === 0) return;
+    if (!targetJenjang || !targetTahunAjaran || !tanggalLulus || namaTerpilih.length === 0) return;
     setBusy(true);
     try {
       for (const r of namaTerpilih) {
         await lulusSantri(r.santri_id, {
-          jenjang: jenjang,
-          tahun_ajaran_lulus: taLulus,
+          jenjang: targetJenjang,
+          tahun_ajaran_lulus: targetTahunAjaran,
           tanggal_lulus: tanggalLulus,
           nomor_ijazah: noIjazah.trim() || undefined,
           no_surat_ijazah: noSurat.trim() || undefined,
+
         });
       }
       toast.success(`${namaTerpilih.length} santri dinyatakan lulus.`);
@@ -121,10 +132,10 @@ export default function KelulusanPage() {
   };
 
   const prosesTidakLulus = async () => {
-    if (!jenjang || tidakLulus.length === 0) return;
+    if (!targetJenjang || tidakLulus.length === 0) return;
     setBusy(true);
     try {
-      for (const b of tidakLulus) await tidakLulusSantri(b.santri_id, jenjang);
+      for (const b of tidakLulus) await tidakLulusSantri(b.santri_id, targetJenjang);
       toast.success(`${tidakLulus.length} santri ditandai tidak lulus (mengulang).`);
       setTidakLulus([]);
       await Promise.all([loadKiri(), loadArsip()]);
@@ -142,12 +153,12 @@ export default function KelulusanPage() {
           <Input id="input_tingkat_akhir_kelulusan" value={tingkat} onChange={(e) => setTingkat(e.target.value)} placeholder="mis. 6" className="w-28" />
         </div>
         {canUbah && (
-        <Button id="btn_buka_luluskan" disabled={namaTerpilih.length === 0} onClick={() => { setTanggalLulus(''); setNoIjazah(''); setNoSurat(''); setLulusOpen(true); }}>
+        <Button id="btn_buka_luluskan" disabled={namaTerpilih.length === 0 || !targetJenjang || !targetTahunAjaran} onClick={() => { setTanggalLulus(''); setNoIjazah(''); setNoSurat(''); setLulusOpen(true); }}>
           Luluskan ({namaTerpilih.length})
         </Button>
         )}
         {canUbah && (
-        <Button id="btn_proses_tidak_lulus" variant="outline" disabled={busy || tidakLulus.length === 0} onClick={() => void prosesTidakLulus()}>
+        <Button id="btn_proses_tidak_lulus" variant="outline" disabled={busy || tidakLulus.length === 0 || !targetJenjang} onClick={() => void prosesTidakLulus()}>
           Tandai tidak lulus ({tidakLulus.length})
         </Button>
         )}
@@ -275,7 +286,7 @@ export default function KelulusanPage() {
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setLulusOpen(false)}>Batal</Button>
-            <Button id="btn_simpan_lulus" disabled={busy || !tanggalLulus || !taLulus} onClick={() => void prosesLulus()}>Proses</Button>
+            <Button id="btn_simpan_lulus" disabled={busy || !tanggalLulus || !targetJenjang || !targetTahunAjaran} onClick={() => void prosesLulus()}>Proses</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
