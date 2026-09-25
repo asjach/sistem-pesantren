@@ -11,7 +11,6 @@ import 'react-datasheet-grid/dist/style.css';
 import { DENSITY_PX } from '@/prefs';
 import { useTheme } from '@/theme';
 import { errorMessage, prefSet } from '@/api/client';
-import { formatNilai } from '@/lib/nilaiTampil';
 import { buttonVariants } from '@/components/ui/button';
 import { DEFAULT_FONT_PX, DEFAULT_HEADER_H, FONT_FAMILY_DEFAULT, FONT_OPTIONS, useGridPrefs, type AlignName } from '@/components/GridPrefs';
 import { useStandarTampilan } from '@/standarTampilan';
@@ -24,6 +23,7 @@ import { judulTabel } from './excel/judul';
 import { useToolbarPresetState } from './excel/useToolbarPreset';
 import { useUrutanKolom } from './excel/useUrutanKolom';
 import { useLebarKolom } from './excel/useLebarKolom';
+import { useSalinTabel } from './excel/useSalinTabel';
 import { KonteksLebarFilter } from './excel/lebarFilter';
 import { useKamusPeta } from '@/components/useKamusPeta';
 import { type KamusKolomAttr } from '@/api/kamusLabel';
@@ -52,7 +52,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { copyText, toTSV } from '@/lib/clipboard';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -342,11 +341,15 @@ export default function ExcelTable<T extends { id: string | number }>({
   }, [aksiMaksBaris, aksiRingkas, tableKey]);
   const draftsRef = useRef(drafts);
   draftsRef.current = drafts;
+  const checkedIdsRef = useRef(checkedIds);
+  checkedIdsRef.current = checkedIds;
   /** Antrean simpan otomatis per baris (id → field yang belum dikirim). */
   const rangeRef = useRef(range);
   rangeRef.current = range;
   /** Cermin baris grid aktif (id → baris) untuk pengukuran AutoFit DOM. */
   const gridByIdRef = useRef(new Map<string, GridRow>());
+  /** Cermin baris grid tampil (dipakai salin blok seleksi). */
+  const gridValueRef = useRef<GridRow[]>([]);
   /** Jumlah kolom DATA pertama yang dibekukan (freeze pane kiri), per tabel. */
   const [freeze, setFreeze] = useState(0);
   const fieldsRef = useRef(fields);
@@ -488,6 +491,29 @@ export default function ExcelTable<T extends { id: string | number }>({
     fontStack,
     fontStackWeight,
   });
+
+  /** Perintah salin (menu konteks, ribbon, Ctrl+C) + pemetaan kolom grid. */
+  const {
+    gridColumnKeys,
+    selectedColumnKeys,
+    displayOf,
+    salinBarisCtx,
+    salinSelCtx,
+    salinKolomCtx,
+    onCopy,
+  } = useSalinTabel<T>({
+    hideCheckbox,
+    hideActions,
+    visibleFieldsRef,
+    fieldsRef,
+    rowsRef,
+    gridValueRef,
+    gridByIdRef,
+    checkedIdsRef,
+    rangeRef,
+    attrByKey,
+    labelKolom,
+  });
   const [gridH, setGridH] = useState(() =>
     typeof window === 'undefined'
       ? 640
@@ -584,35 +610,10 @@ export default function ExcelTable<T extends { id: string | number }>({
       if (!root?.querySelector('.dsg-active-cell')) return;
       if (root.querySelector('.dsg-active-cell-focus')) return; // sedang mengedit sel
       toast.success('Telah disalin ke clipboard.');
-    }
-    document.addEventListener('copy', saatSalin);
+    }  document.addEventListener('copy', saatSalin);
     return () => document.removeEventListener('copy', saatSalin);
   }, []);
 
-
-  /** Urutan id kolom grid (tanpa gutter) — untuk memetakan indeks seleksi. */
-  function gridColumnKeys(): string[] {
-    return [
-      ...(hideCheckbox ? [] : ['check']),
-      ...visibleFieldsRef.current.map((f) => f.key),
-      ...(hideActions ? [] : ['__aksi']),
-    ];
-  }
-
-  /** Kolom-kolom yang sedang terseleksi, kolom checkbox dikecualikan karena
-   *  lebarnya tetap. Dipakai untuk resize serentak seperti Excel: pilih
-   *  beberapa kolom → ubah lebar salah satunya → semuanya jadi sama lebar. */
-  function selectedColumnKeys(): string[] {
-    const r = rangeRef.current;
-    if (!r || r.max.col <= r.min.col) return [];
-    const keys = gridColumnKeys();
-    const out: string[] = [];
-    for (let c = r.min.col; c <= r.max.col; c++) {
-      const k = keys[c];
-      if (k && k !== 'check') out.push(k);
-    }
-    return out;
-  }
 
 
 
@@ -1173,15 +1174,10 @@ export default function ExcelTable<T extends { id: string | number }>({
     for (const g of gridValue) m.set(String(g.id), g);
     return m;
   }, [gridValue]);
-  // Cermin untuk AutoFit DOM di hook lebar (dibaca saat mengukur, bukan render).
+  // Cermin untuk AutoFit DOM di hook lebar & salin blok di hook salin
+  // (dibaca saat event/ukur, bukan saat render).
   gridByIdRef.current = gridById;
-
-  function displayOf(id: string | number, key: string): string {
-    const v = gridById.get(String(id))?.[key];
-    if (v == null) return '';
-    const format = attrByKey.get(key)?.format;
-    return format ? formatNilai(String(v), format) : String(v);
-  }
+  gridValueRef.current = gridValue;
 
   /** Klik kanan di tabel: tentukan area (header kolom / baris / kosong).
    *  Area kosong tidak punya menu — preventDefault membatalkan penggeseran
@@ -1212,33 +1208,6 @@ export default function ExcelTable<T extends { id: string | number }>({
     e.preventDefault();
   }
 
-  /** Salin satu baris (kolom terlihat) sebagai TSV. */
-  async function salinBarisCtx(id: T['id']) {
-    const header = visibleFieldsRef.current.map((f) => labelKolom(f.key, f.label));
-    const body = [visibleFieldsRef.current.map((f) => displayOf(id, f.key))];
-    const ok = await copyText(toTSV(header, body));
-    if (ok) toast.success('Baris disalin (TSV).');
-    else toast.error('Gagal menyalin.');
-  }
-
-  /** Salin nilai satu sel. */
-  async function salinSelCtx(id: T['id'], key: string) {
-    const ok = await copyText(displayOf(id, key));
-    if (ok) toast.success('Nilai sel disalin.');
-    else toast.error('Gagal menyalin.');
-  }
-
-  /** Salin seluruh kolom (label header + nilai semua baris) sebagai TSV. */
-  async function salinKolomCtx(key: string) {
-    const f = fieldsRef.current.find((x) => x.key === key);
-    if (!f) return;
-    const header = [labelKolom(key, f.label)];
-    const body = rowsRef.current.map((r) => [displayOf(r.id, key)]);
-    const ok = await copyText(toTSV(header, body));
-    if (ok) toast.success(`${body.length} baris kolom disalin (TSV).`);
-    else toast.error('Gagal menyalin.');
-  }
-
   /** Status pilih-semua (context) — terpisah dari definisi kolom. */
   const checkAllState = useMemo<CheckAllState>(
     () => ({
@@ -1248,42 +1217,6 @@ export default function ExcelTable<T extends { id: string | number }>({
     }),
     [rows, checkedIds],
   );
-
-  async function onCopy() {
-    const checkedRows = rows.filter((r) => checkedIds.has(r.id));
-    let header: string[];
-    let body: string[][];
-    if (checkedRows.length > 0) {
-      header = visibleFields.map((f) => labelKolom(f.key, f.label));
-      body = checkedRows.map((r) => visibleFields.map((f) => displayOf(r.id, f.key)));
-    } else if (range) {
-      const r0 = Math.max(0, Math.min(range.min.row, range.max.row));
-      const r1 = Math.min(gridValue.length - 1, Math.max(range.min.row, range.max.row));
-      const keys = gridColumnKeys();
-      const picked: { key: string; label: string }[] = [];
-      for (let c = Math.min(range.min.col, range.max.col); c <= Math.max(range.min.col, range.max.col); c++) {
-        const k = keys[c];
-        if (!k || k === 'check' || k === '__aksi') continue;
-        const f = visibleFields.find((v) => v.key === k);
-        if (f) picked.push({ key: f.key, label: labelKolom(f.key, f.label) });
-      }
-      if (r1 < r0 || picked.length === 0) return;
-      header = picked.map((p) => p.label);
-      body = [];
-      for (let r = r0; r <= r1; r++) {
-        const g = gridValue[r];
-        if (!g) continue;
-        body.push(picked.map((p) => displayOf(g.id, p.key)));
-      }
-    } else {
-      return;
-    }
-    if (body.length === 0) return;
-    const n = checkedRows.length > 0 ? checkedRows.length : body.length;
-    const ok = await copyText(toTSV(header, body));
-    if (ok) toast.success(`${n} baris disalin (TSV, siap tempel ke Excel).`);
-    else toast.error('Gagal menyalin. Coba blok manual + Ctrl+C.');
-  }
 
   /** Buang kunci draft yang selesai/gagal — nilai sel kembali ke data server. */
   function dropDraft(idKey: string, keys: string[]) {
