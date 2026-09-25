@@ -171,7 +171,7 @@ export default function KelulusanPage() {
       <PengaturanHalaman tampil={{}} tabel={[{ key: 'kelulusan_santri_akhir', judul: 'Santri tingkat akhir', fields: FIELDS_SANTRI }, { key: 'kelulusan_alumni', judul: 'Alumni', fields: FIELDS_ALUMNI }, { key: 'kelulusan_tidak_lulus', judul: 'Santri tidak lulus', fields: FIELDS_SANTRI }]} />
 
       <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1" id="grup_kelulusan_kolom">
-        <ResizableAutoHidePanel id="panel_kelulusan_santri_akhir" defaultSize={50} minSize={25}>
+        <ResizableAutoHidePanel id="panel_kelulusan_santri_akhir" defaultSize={33} minSize={20}>
          <section className="flex h-full min-h-0 min-w-0 flex-col rounded-md">
            <div className="flex min-h-0 flex-1 flex-col pb-0">
             <ExcelTable
@@ -207,7 +207,7 @@ export default function KelulusanPage() {
         </section>
         </ResizableAutoHidePanel>
         <ResizableHandle withHandle orientation="horizontal" id="gagang_kelulusan_kolom" />
-        <ResizablePanel defaultSize={50} minSize={25}>
+        <ResizablePanel defaultSize={67} minSize={25}>
         <div className="flex h-full min-h-0 flex-col">
         <ResizablePanelGroup orientation="vertical" className="min-h-0 flex-1" id="grup_kelulusan_baris">
           <ResizableAutoHidePanel id="panel_kelulusan_alumni" defaultSize={50} minSize={15}>
