@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Exports\AlumniTemplateExport;
 use App\Http\Controllers\Api\Concerns\ImporBertahap;
+use App\Http\Controllers\Api\Concerns\ImporFileMassal;
 use App\Http\Controllers\Api\Concerns\TenantGuard;
 use App\Http\Controllers\Api\Concerns\UrutDaftar;
 use App\Http\Controllers\Controller;
@@ -17,8 +18,6 @@ use App\Services\AlumniImporService;
 use App\Services\UrutKatalog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\ValidationException;
 use Maatwebsite\Excel\Facades\Excel;
 
 /**
@@ -29,6 +28,7 @@ use Maatwebsite\Excel\Facades\Excel;
 class AlumniArsipController extends Controller
 {
     use ImporBertahap;
+    use ImporFileMassal;
     use TenantGuard;
     use UrutDaftar;
 
@@ -80,12 +80,12 @@ class AlumniArsipController extends Controller
 
     public function periksaImport(AlumniImportRequest $request): JsonResponse
     {
-        return $this->prosesImport($request, periksa: true);
+        return $this->imporFile($request, new AlumniImport, periksa: true, pesanSukses: fn (array $r) => "{$r['dibuat']} arsip dibuat, {$r['diperbarui']} diperbarui, {$r['dilewati']} dilewati.");
     }
 
     public function import(AlumniImportRequest $request): JsonResponse
     {
-        return $this->prosesImport($request, periksa: false);
+        return $this->imporFile($request, new AlumniImport, periksa: false, pesanSukses: fn (array $r) => "{$r['dibuat']} arsip dibuat, {$r['diperbarui']} diperbarui, {$r['dilewati']} dilewati.");
     }
 
     /**
@@ -108,67 +108,5 @@ class AlumniArsipController extends Controller
     public function galatPotong(Request $request, ImportSesi $sesi)
     {
         return $this->unduhGalatImpor($request, $sesi, 'galat-import-alumni.csv');
-    }
-
-    private function prosesImport(AlumniImportRequest $request, bool $periksa): JsonResponse
-    {
-        $request->validated();
-        $import = new AlumniImport;
-        $errors = [];
-
-        if ($periksa) {
-            DB::beginTransaction();
-        }
-
-        try {
-            Excel::import($import, $request->file('file'));
-        } catch (ValidationException $e) {
-            $errors = $this->formatFailures($e->failures());
-        } finally {
-            if ($periksa) {
-                DB::rollBack();
-            }
-        }
-
-        if ($errors === []) {
-            $errors = $this->formatFailures($import->failures());
-        }
-
-        if ($periksa) {
-            return response()->json([
-                'pesan' => $errors === [] ? 'Pengecekan selesai: file siap diimport.' : 'Pengecekan menemukan masalah.',
-                'siap_import' => $errors === [],
-                'ringkasan' => $import->ringkasan(),
-                'errors' => $errors,
-            ]);
-        }
-
-        if ($errors !== []) {
-            return response()->json([
-                'pesan' => 'Gagal mengimport beberapa data.',
-                'errors' => $errors,
-            ], 422);
-        }
-
-        $ringkasan = $import->ringkasan();
-
-        return response()->json([
-            'pesan' => "{$ringkasan['dibuat']} arsip dibuat, {$ringkasan['diperbarui']} diperbarui, {$ringkasan['dilewati']} dilewati.",
-            'ringkasan' => $ringkasan,
-        ]);
-    }
-
-    private function formatFailures(iterable $failures): array
-    {
-        $errors = [];
-        foreach ($failures as $failure) {
-            $errors[] = [
-                'row' => $failure->row(),
-                'attribute' => $failure->attribute(),
-                'errors' => $failure->errors(),
-            ];
-        }
-
-        return $errors;
     }
 }

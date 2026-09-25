@@ -28,7 +28,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Facades\Excel;
-use Maatwebsite\Excel\Validators\Failure;
 
 /**
  * Buku Induk santri — identitas murni (`santri`).
@@ -217,21 +216,6 @@ class SantriController extends Controller
         $dokumen->update(['tidak_memiliki' => $data['tidak_memiliki']]);
 
         return response()->json(['pesan' => 'Status dokumen diperbarui.', 'data' => $dokumen->fresh()]);
-    }
-
-    /** @param  iterable<Failure>  $failures */
-    private function formatFailures(iterable $failures): array
-    {
-        $errors = [];
-        foreach ($failures as $failure) {
-            $errors[] = [
-                'row' => $failure->row(),
-                'attribute' => $failure->attribute(),
-                'errors' => $failure->errors(),
-            ];
-        }
-
-        return $errors;
     }
 
     /** Izin tulis gabungan: tambah (santri baru) DAN ubah (update + keanggotaan). */

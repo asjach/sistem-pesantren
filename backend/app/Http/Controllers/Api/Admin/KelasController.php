@@ -6,6 +6,7 @@ use App\Exports\KelasDataExport;
 use App\Exports\KelasNamaExport;
 use App\Exports\KelasTemplateExport;
 use App\Http\Controllers\Api\Concerns\ImporBertahap;
+use App\Http\Controllers\Api\Concerns\ImporFileMassal;
 use App\Http\Controllers\Api\Concerns\TenantGuard;
 use App\Http\Controllers\Api\Concerns\UrutDaftar;
 use App\Http\Controllers\Controller;
@@ -30,7 +31,6 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
-use Maatwebsite\Excel\Validators\ValidationException;
 
 /**
  * FB-004-01: CRUD kelas. tahun_ajaran wajib berlaku untuk lembaga kelas (TA global).
@@ -38,6 +38,7 @@ use Maatwebsite\Excel\Validators\ValidationException;
 class KelasController extends Controller
 {
     use ImporBertahap;
+    use ImporFileMassal;
     use TenantGuard;
     use UrutDaftar;
 
@@ -340,13 +341,13 @@ class KelasController extends Controller
     /** POST /api/admin/kelas/import-periksa — validasi file TANPA menulis (dry-run). */
     public function periksaImport(KelasImportRequest $request): JsonResponse
     {
-        return $this->prosesImport($request, periksa: true);
+        return $this->imporFile($request, new KelasImport, periksa: true, pesanSukses: fn (array $r) => "{$r['dibuat']} kelas dibuat, {$r['diperbarui']} diperbarui, {$r['dilewati']} dilewati.");
     }
 
     /** POST /api/admin/kelas/import — import file kelas massal satu lingkup. */
     public function importLengkap(KelasImportRequest $request): JsonResponse
     {
-        return $this->prosesImport($request, periksa: false);
+        return $this->imporFile($request, new KelasImport, periksa: false, pesanSukses: fn (array $r) => "{$r['dibuat']} kelas dibuat, {$r['diperbarui']} diperbarui, {$r['dilewati']} dilewati.");
     }
 
     /**
@@ -371,72 +372,7 @@ class KelasController extends Controller
         return $this->unduhGalatImpor($request, $sesi, 'galat-import-kelas.csv');
     }
 
-    /** Alur bersama import file kelas multi-lembaga/TA. Mode periksa:
-     *  transaksi selalu di-rollback. Izin dicek per baris di import
-     *  (mengikuti akun), bukan 403 di depan. */
-    private function prosesImport(KelasImportRequest $request, bool $periksa): JsonResponse
-    {
-        $request->validated();
-
-        $import = new KelasImport;
-        $errors = [];
-
-        if ($periksa) {
-            DB::beginTransaction();
-        }
-
-        try {
-            Excel::import($import, $request->file('file'));
-        } catch (ValidationException $e) {
-            $errors = $this->formatFailures($e->failures());
-        } finally {
-            if ($periksa) {
-                DB::rollBack();
-            }
-        }
-
-        if ($errors === []) {
-            $errors = $this->formatFailures($import->failures());
-        }
-
-        if ($periksa) {
-            return response()->json([
-                'pesan' => $errors === [] ? 'Pengecekan selesai: file siap diimport.' : 'Pengecekan menemukan masalah.',
-                'siap_import' => $errors === [],
-                'ringkasan' => $import->ringkasan(),
-                'errors' => $errors,
-            ]);
-        }
-
-        if ($errors !== []) {
-            return response()->json([
-                'pesan' => 'Gagal mengimport beberapa data.',
-                'errors' => $errors,
-            ], 422);
-        }
-
-        $ringkasan = $import->ringkasan();
-
-        return response()->json([
-            'pesan' => "{$ringkasan['dibuat']} kelas dibuat, {$ringkasan['diperbarui']} diperbarui, {$ringkasan['dilewati']} dilewati.",
-            'ringkasan' => $ringkasan,
-        ]);
-    }
-
-    private function formatFailures(iterable $failures): array
-    {
-        $errors = [];
-        foreach ($failures as $failure) {
-            $errors[] = [
-                'row' => $failure->row(),
-                'attribute' => $failure->attribute(),
-                'errors' => $failure->errors(),
-            ];
-        }
-
-        return $errors;
-    }
-
+    /** Alur bersama import file kelas multi-lembaga/TA kini di trait ImporFileMassal. */
     public function update(KelasUpdateRequest $request, Kelas $kela)
     {
         $this->authorizeLembaga(auth()->user(), $kela->jenjang);

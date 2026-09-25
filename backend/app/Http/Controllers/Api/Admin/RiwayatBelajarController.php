@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Admin;
 use App\Exports\RiwayatBelajarDataExport;
 use App\Exports\RiwayatBelajarTemplateExport;
 use App\Http\Controllers\Api\Concerns\ImporBertahap;
+use App\Http\Controllers\Api\Concerns\ImporFileMassal;
 use App\Http\Controllers\Api\Concerns\TenantGuard;
 use App\Http\Controllers\Api\Concerns\UrutDaftar;
 use App\Http\Controllers\Controller;
@@ -25,10 +26,7 @@ use App\Services\UrutKatalog;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
-use Maatwebsite\Excel\Validators\Failure;
-use Maatwebsite\Excel\Validators\ValidationException;
 
 /**
  * Riwayat belajar (`riwayat_belajar`): jejak kelas/semester per santri+lembaga.
@@ -37,6 +35,7 @@ use Maatwebsite\Excel\Validators\ValidationException;
 class RiwayatBelajarController extends Controller
 {
     use ImporBertahap;
+    use ImporFileMassal;
     use TenantGuard;
     use UrutDaftar;
 
@@ -366,64 +365,21 @@ class RiwayatBelajarController extends Controller
     /** POST /api/admin/riwayat-belajar/import-periksa — dry-run tanpa menulis. */
     public function periksaImport(RiwayatImportRequest $request): JsonResponse
     {
-        return $this->prosesImport($request, periksa: true);
+        return $this->imporFile($request, new RiwayatBelajarImport, periksa: true, pesanSukses: fn (array $r) => "{$r['dibuat']} riwayat dibuat, {$r['diperbarui']} diperbarui.", sebelum: function (): void {
+            $this->authorize('viewAny', Santri::class);
+            // File besar (puluhan ribu baris): beri waktu eksekusi eksplisit.
+            ini_set('max_execution_time', '600');
+        });
     }
 
     /** POST /api/admin/riwayat-belajar/import-lengkap */
     public function importLengkap(RiwayatImportRequest $request): JsonResponse
     {
-        return $this->prosesImport($request, periksa: false);
-    }
-
-    private function prosesImport(RiwayatImportRequest $request, bool $periksa): JsonResponse
-    {
-        $this->authorize('viewAny', Santri::class);
-
-        // File besar (puluhan ribu baris): beri waktu eksekusi eksplisit.
-        ini_set('max_execution_time', '600');
-
-        $request->validated();
-
-        $import = new RiwayatBelajarImport;
-        $errors = [];
-
-        if ($periksa) {
-            DB::beginTransaction();
-        }
-
-        try {
-            Excel::import($import, $request->file('file'));
-        } catch (ValidationException $e) {
-            $errors = $this->formatFailures($e->failures());
-        } finally {
-            if ($periksa) {
-                DB::rollBack();
-            }
-        }
-
-        if ($errors === []) {
-            $errors = $this->formatFailures($import->failures());
-        }
-
-        if ($periksa) {
-            return response()->json([
-                'pesan' => $errors === [] ? 'Pengecekan selesai: file siap diimport.' : 'Pengecekan menemukan masalah.',
-                'siap_import' => $errors === [],
-                'ringkasan' => $import->ringkasan(),
-                'errors' => $errors,
-            ]);
-        }
-
-        if ($errors !== []) {
-            return response()->json(['pesan' => 'Gagal mengimport beberapa data.', 'errors' => $errors], 422);
-        }
-
-        $ringkasan = $import->ringkasan();
-
-        return response()->json([
-            'pesan' => "{$ringkasan['dibuat']} riwayat dibuat, {$ringkasan['diperbarui']} diperbarui.",
-            'ringkasan' => $ringkasan,
-        ]);
+        return $this->imporFile($request, new RiwayatBelajarImport, periksa: false, pesanSukses: fn (array $r) => "{$r['dibuat']} riwayat dibuat, {$r['diperbarui']} diperbarui.", sebelum: function (): void {
+            $this->authorize('viewAny', Santri::class);
+            // File besar (puluhan ribu baris): beri waktu eksekusi eksplisit.
+            ini_set('max_execution_time', '600');
+        });
     }
 
     /** Lampirkan NIS lokal (dari keanggotaan) ke tiap baris riwayat. */
@@ -439,21 +395,6 @@ class RiwayatBelajarController extends Controller
 
             return $row;
         });
-    }
-
-    /** @param  iterable<Failure>  $failures */
-    private function formatFailures(iterable $failures): array
-    {
-        $errors = [];
-        foreach ($failures as $failure) {
-            $errors[] = [
-                'row' => $failure->row(),
-                'attribute' => $failure->attribute(),
-                'errors' => $failure->errors(),
-            ];
-        }
-
-        return $errors;
     }
 
     // ---------------- Import bertahap (potongan JSON) ----------------

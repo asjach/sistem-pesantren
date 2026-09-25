@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Admin;
 use App\Exports\MutasiKeluarDataExport;
 use App\Exports\MutasiKeluarTemplateExport;
 use App\Http\Controllers\Api\Concerns\ImporBertahap;
+use App\Http\Controllers\Api\Concerns\ImporFileMassal;
 use App\Http\Controllers\Api\Concerns\TenantGuard;
 use App\Http\Controllers\Api\Concerns\UrutDaftar;
 use App\Http\Controllers\Controller;
@@ -18,8 +19,6 @@ use App\Services\MutasiKeluarImporService;
 use App\Services\UrutKatalog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\ValidationException;
 use Maatwebsite\Excel\Facades\Excel;
 
 /**
@@ -30,6 +29,7 @@ use Maatwebsite\Excel\Facades\Excel;
 class MutasiKeluarArsipController extends Controller
 {
     use ImporBertahap;
+    use ImporFileMassal;
     use TenantGuard;
     use UrutDaftar;
 
@@ -100,13 +100,13 @@ class MutasiKeluarArsipController extends Controller
     /** POST /api/admin/mutasi-keluar/import-periksa — validasi file TANPA menulis (dry-run). */
     public function periksaImport(MutasiKeluarImportRequest $request): JsonResponse
     {
-        return $this->prosesImport($request, periksa: true);
+        return $this->imporFile($request, new MutasiKeluarImport, periksa: true, pesanSukses: fn (array $r) => "{$r['dibuat']} arsip dibuat, {$r['dilewati']} dilewati.");
     }
 
     /** POST /api/admin/mutasi-keluar/import — import arsip mutasi massal. */
     public function import(MutasiKeluarImportRequest $request): JsonResponse
     {
-        return $this->prosesImport($request, periksa: false);
+        return $this->imporFile($request, new MutasiKeluarImport, periksa: false, pesanSukses: fn (array $r) => "{$r['dibuat']} arsip dibuat, {$r['dilewati']} dilewati.");
     }
 
     /** Alur bersama import arsip mutasi multi-lembaga. Mode periksa:
@@ -132,68 +132,5 @@ class MutasiKeluarArsipController extends Controller
     public function galatPotong(Request $request, ImportSesi $sesi)
     {
         return $this->unduhGalatImpor($request, $sesi, 'galat-import-mutasi-keluar.csv');
-    }
-
-    private function prosesImport(MutasiKeluarImportRequest $request, bool $periksa): JsonResponse
-    {
-        $request->validated();
-
-        $import = new MutasiKeluarImport;
-        $errors = [];
-
-        if ($periksa) {
-            DB::beginTransaction();
-        }
-
-        try {
-            Excel::import($import, $request->file('file'));
-        } catch (ValidationException $e) {
-            $errors = $this->formatFailures($e->failures());
-        } finally {
-            if ($periksa) {
-                DB::rollBack();
-            }
-        }
-
-        if ($errors === []) {
-            $errors = $this->formatFailures($import->failures());
-        }
-
-        if ($periksa) {
-            return response()->json([
-                'pesan' => $errors === [] ? 'Pengecekan selesai: file siap diimport.' : 'Pengecekan menemukan masalah.',
-                'siap_import' => $errors === [],
-                'ringkasan' => $import->ringkasan(),
-                'errors' => $errors,
-            ]);
-        }
-
-        if ($errors !== []) {
-            return response()->json([
-                'pesan' => 'Gagal mengimport beberapa data.',
-                'errors' => $errors,
-            ], 422);
-        }
-
-        $ringkasan = $import->ringkasan();
-
-        return response()->json([
-            'pesan' => "{$ringkasan['dibuat']} arsip dibuat, {$ringkasan['dilewati']} dilewati.",
-            'ringkasan' => $ringkasan,
-        ]);
-    }
-
-    private function formatFailures(iterable $failures): array
-    {
-        $errors = [];
-        foreach ($failures as $failure) {
-            $errors[] = [
-                'row' => $failure->row(),
-                'attribute' => $failure->attribute(),
-                'errors' => $failure->errors(),
-            ];
-        }
-
-        return $errors;
     }
 }
