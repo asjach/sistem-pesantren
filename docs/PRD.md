@@ -246,6 +246,58 @@
 | 2.192 | 2026-09-25 | Halaman Pindah Semester dihapus dari route, sidebar, dan konfigurasi frontend; URL lama dialihkan ke Riwayat Belajar |
 | 2.193 | 2026-09-25 | Tabel Arsip Mutasi Keluar menampilkan seluruh kolom `mutasi_keluar`, nama Santri, dan nama kelas terakhir |
 | 2.194 | 2026-09-25 | Panel Santri Aktif pada Mutasi Keluar otomatis disembunyikan saat digeser melewati batas minimum dan tampil kembali saat gagang digeser ke kanan |
+| 2.195 | 2026-09-25 | Auto-hide panel pertama diterapkan seragam pada seluruh kelompok resizable, mencakup panel bersarang dan pratinjau; panel tampil kembali saat gagang digeser ke arah sebaliknya |
+| 2.196 | 2026-09-25 | Teks Tahun Ajaran pada halaman MI-MD dihapus; tahun ajaran tetap tercermin dari filter global dan data tabel |
+| 2.197 | 2026-09-25 | Garis separator resizable diperpanjang hingga ujung panel tanpa jedanya |
+| 2.198 | 2026-09-25 | Padding global `p-1` pada container `main` dihapus agar tabel menempel ke sisi area konten |
+| 2.199 | 2026-09-25 | Area handle resizable diperbesar dari 8 px menjadi 12 px untuk kondisi drag yang lebih mudah |
+| 2.200 | 2026-09-25 | Filter Semester diaktifkan pada halaman MI-MD dan diteruskan ke query data agar hasil Ganjil/Genap dapat dibedakan |
+| 2.201 | 2026-09-25 | Rail Tingkat diaktifkan pada halaman MI-MD dan diteruskan ke query data bersama filter semester |
+| 2.202 | 2026-09-25 | Halaman Riwayat Belajar menggunakan resizable dua panel; Semester Ganjil dapat otomatis tersembunyi dan dipulihkan melalui gagang pemisah |
+| 2.203 | 2026-09-25 | AutoFit header ExcelTable membungkus header multiword menjadi dua baris saat lebar tidak cukup, tetapi memprioritaskan lebar isi kolom yang panjang agar header tetap satu baris |
+| 2.204 | 2026-09-25 | Pagination menampilkan nomor halaman aktif dan tetangga halaman pertama/terakhir dengan elipsis; page size tetap dipertahankan |
+| 2.205 | 2026-09-25 | Tombol sebelumnya/berikutnya dipadatkan menjadi ikon saja; pilihan Data/hal menggunakan grup tombol toggle |
+| 2.206 | 2026-09-25 | Label pilihan seluruh data pada pagination diubah dari `Semua` menjadi `All` |
+| 2.207 | 2026-09-25 | Layout pagination tiga kolom: Data/hal di kiri, tombol halaman di tengah, dan informasi halaman/jumlah data di kanan |
+| 2.208 | 2026-09-25 | Padding horizontal pagination 4 px; halaman aktif ditampilkan antara Prev/Next tanpa tombol nomor, jumlah data tetap di kanan |
+| 2.209 | 2026-09-25 | Setiap item Data/hal pada pagination dikunci lebar 36 px agar opsi jumlah data seragam |
+| 2.210 | 2026-09-25 | Padding vertikal pagination dikurangi menjadi 4 px atas dan bawah |
+| 2.211 | 2026-09-25 | Padding bawah pagination dan wrapper tabel dihapus agar area konten menempel ke batas bawah panel |
+| 2.212 | 2026-09-25 | Padding bawah pagination dan wrapper tabel dikembalikan menjadi 4 px |
+| 2.213 | 2026-09-25 | Padding bawah pagination tetap 4 px, sedangkan padding bawah wrapper tabel diatur 0 px agar tidak terhitung dua kali |
+| 2.214 | 2026-09-25 | Label `Data/hal` dihapus; grup tombol pilihan jumlah data tetap dipertahankan |
+| 2.215 | 2026-09-25 | Kontrol Prev, informasi halaman, dan Next dibungkus border |
+| 2.216 | 2026-09-25 | Padding horizontal pada wrapper kontrol Prev/Hal/Next dihapus agar border hugs konten |
+| 2.217 | 2026-09-25 | Lebar item Data/hal dikurangi menjadi 28 px |
+| 2.218 | 2026-09-25 | Jumlah data dihapus dari judul tabel dan pagination selalu tampil, termasuk saat data masih berada dalam satu halaman |
+| 2.219 | 2026-09-25 | Padding horizontal dan border wrapper tabel pada halaman Pindah Kelas dihapus |
+| 2.220 | 2026-09-25 | Pagination Klien ditambahkan pada setiap tabel kelas di halaman Pindah Kelas, termasuk pilihan jumlah data dan navigasi halaman |
+| 2.221 | 2026-09-25 | Tombol Salin ke Genap beserta dialog dan alur terkait dihapus dari halaman Pindah Kelas |
+| 2.222 | 2026-09-25 | Label `Tingkat` pada judul kelompok kelas Pindah Kelas dihapus; nilai tingkat tetap ditampilkan |
+| 2.223 | 2026-09-25 | Nilai tingkat pada judul kelompok kelas Pindah Kelas juga dihapus |
+| 2.224 | 2026-09-25 | Padding vertikal header container tabel dikurangi dari 8 px menjadi 4 px |
+| 2.225 | 2026-09-25 | Tombol All pada rail Tingkat disembunyikan khusus halaman Pindah Kelas; rail Kelas tetap menyediakan All |
+| 2.226 | 2026-09-25 | Area handle resizable dikecilkan dari 12 px menjadi 8 px |
+| 2.227 | 2026-09-25 | Gagang visual dan ikon di dalam handle resizable disamakan menjadi 8 px agar perubahan ukuran terlihat |
+| 2.228 | 2026-09-25 | Padding container `main` dipaksa 0 px secara horizontal dan vertikal untuk seluruh halaman |
+| 2.229 | 2026-09-25 | Padding horizontal wrapper tabel pada halaman Kenaikan Kelas dihapus agar tabel menempel ke area panel |
+| 2.230 | 2026-09-25 | Padding horizontal tabel 2 dan 3 Kenaikan Kelas juga dihapus agar konsisten dengan tabel utama |
+| 2.231 | 2026-09-25 | Combobox Urutkan dan Kolom dihapus pada ketiga tabel Kenaikan Kelas; tanggal masuk dan tombol Naik dipindahkan ke header container tabel utama |
+| 2.232 | 2026-09-25 | Combobox Urutkan dan Kolom dihapus pada ketiga tabel Kelulusan; Tingkat akhir, Luluskan, dan Tandai tidak lulus dipindahkan ke header container tabel masing-masing |
+| 2.233 | 2026-09-25 | Padding horizontal dan border wrapper ketiga tabel Kelulusan dihapus |
+| 2.234 | 2026-09-25 | Action Import ditambahkan pada menu Aksi tabel Alumni; action Tidak Lulus ditambahkan pada menu Aksi Santri Tingkat Akhir |
+| 2.235 | 2026-09-25 | Semua import file aktif diseragamkan ke session bertahap per 1.000 baris; endpoint full-file tetap dipertahankan untuk kompatibilitas |
+| 2.236 | 2026-09-26 | Import mutasi keluar: `tanggal_mutasi` dan `alasan_mutasi` jadi opsional (kosong disimpan `NULL`; kolom `tanggal_mutasi` dibuat nullable langsung di migrasi utama) |
+| 2.237 | 2026-09-26 | Import riwayat belajar: kolom kelas resmi `nama_kelas` (bukan `kelas_id`); heading lama `kelas_id` tetap diterima sebagai alias dan galat kelas menunjuk `nama_kelas` |
+| 2.238 | 2026-09-26 | Import mutasi keluar: `kelas_terakhir` dibaca nama rombel lebih dulu (angka seperti "1" tak lagi diperlakukan sebagai id kelas); id numerik hanya fallback |
+| 2.239 | 2026-09-26 | Import arsip mutasi keluar: `alasan_mutasi` jadi bebas teks (maks 100 karakter, tak harus ada di kamus `ref_alasan_mutasi`); form "Proses mutasi" tetap memakai kamus |
+| 2.240 | 2026-09-26 | Seeder `ref_tingkat` mengikuti jenjang: MI/MD 1-6, MTS 7-9, MLN 10-12; baris tingkat di luar rentang lembaga dihapus saat seed |
+| 2.241 | 2026-09-26 | Dialog import kelas, riwayat belajar, dan mutasi keluar bertambah tombol **Unduh data existing** (kolom identik template import, data nyata, dibatasi lembaga akses akun) |
+| 2.242 | 2026-09-26 | Dialog import santri bertahap bertambah tombol **Unduh data existing**; cakupan mengikuti akses akun (super admin/admin pesantren = semua lembaga, admin MI/MD = milik + pasangan MI+MD, admin lain = miliknya) |
+| 2.243 | 2026-09-26 | Dialog import santri: pilihan lembaga untuk unduh data existing tak lagi dikunci/di-default oleh filter lembaga toolbar; bawaan seluruh lembaga yang boleh diakses, terkunci hanya bila akun cuma punya satu lembaga |
+| 2.244 | 2026-09-26 | Import bertahap dijalankan inline di dialog import Santri; pop-up terpisah "Buka import bertahap" dihapus (satu dialog: template, data existing, pilih file, Periksa, Import) |
+| 2.245 | 2026-09-26 | Layout dialog import Santri diterapkan ke semua dialog import (Kelas, Riwayat Belajar, Mutasi Keluar, Alumni, PSB): cards Template / Data existing (chip lembaga + unduh di kanan) / Import bertahap inline, `sm:max-w-3xl`, deskripsi singkat |
+| 2.246 | 2026-09-26 | Unduh data existing diberi style: header tebal (kuning = wajib, biru = opsional), baris 1 dibekukan, autofilter, border tipis, zebra baris data, dan lebar kolom per jenis data |
 
 ## Daftar Isi
 

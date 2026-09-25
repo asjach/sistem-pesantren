@@ -2,79 +2,71 @@
 
 namespace App\Imports;
 
-use App\Models\User;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\DB;
-use Maatwebsite\Excel\Concerns\ToModel;
+use App\Services\PenggunaImporService;
+use Illuminate\Support\Collection;
+use Illuminate\Validation\Rule;
+use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
+use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithValidation;
 
-class UsersImport implements ToModel, WithHeadingRow, WithValidation
+/**
+ * Import pengguna dari file Excel — pembungkus tipis Maatwebsite di atas
+ * PenggunaImporService (logika per baris), yang juga dipakai jalur import
+ * bertahap (potongan JSON dari browser).
+ *
+ * `lembagaIds` + `allowedRoles` berasal dari akun yang menulis (resolusi
+ * tenant + peran yang boleh ditetapkan), bukan dari baris file.
+ *
+ * Sengaja TIDAK memakai SkipsOnFailure: endpoint file harus melempar
+ * ValidationException agar controller membalas 422 + daftar galat
+ * (kontrak lama). Per-baris di jalur bertahap ditangani sesi galat
+ * (ImportSesi) tanpa melempar.
+ */
+class UsersImport implements ToCollection, WithHeadingRow, WithMapping, WithValidation
 {
-    protected array $lembagaIds;
-
-    protected array $allowedRoles;
-
-    protected array $seenIdentifiers = [];
-
-    public function __construct(array $lembagaIds, array $allowedRoles)
-    {
-        $this->lembagaIds = $lembagaIds;
-        $this->allowedRoles = $allowedRoles;
-    }
-
-    public function model(array $row): Model|array|null
-    {
-        $email = isset($row['email']) ? strtolower(trim((string) $row['email'])) : null;
-        $phone = isset($row['phone']) ? trim((string) $row['phone']) : null;
-        $username = isset($row['username']) ? trim((string) $row['username']) : null;
-        $key = ($email ?: '').'|'.($phone ?: '').'|'.($username ?: '');
-
-        if (in_array($key, $this->seenIdentifiers, true)) {
-            return null;
-        }
-        $this->seenIdentifiers[] = $key;
-
-        $user = User::create([
-            'name' => $row['name'],
-            'email' => $email ?: null,
-            'phone' => $phone ?: null,
-            'username' => $username ?: null,
-            'password' => $row['password'],
-            'email_verified_at' => now(),
-        ]);
-
-        // Pivot tenant user_lembaga (users tanpa kolom tenant).
-        foreach ($this->lembagaIds as $lid) {
-            DB::table('user_lembaga')->insert([
-                'user_id' => $user->id, 'jenjang' => (int) $lid,
-                'created_at' => now(), 'updated_at' => now(),
-            ]);
-        }
-
-        if (! empty($row['roles'])) {
-            $requested = array_map('trim', explode(',', (string) $row['roles']));
-            $filtered = array_values(array_intersect($requested, $this->allowedRoles));
-            if (! empty($filtered)) {
-                $user->assignRole($filtered);
-            }
-        }
-
-        return $user;
-    }
+    protected PenggunaImporService $layanan;
 
     /**
-     * Key flat (tanpa '*.') — ToModel + WithValidation validasi per baris.
+     * @param  array<int, string>  $lembagaIds
+     * @param  array<int, string>  $allowedRoles
      */
+    public function __construct(array $lembagaIds, array $allowedRoles, ?PenggunaImporService $layanan = null)
+    {
+        $this->layanan = $layanan ?? new PenggunaImporService($lembagaIds, $allowedRoles);
+    }
+
+    public function ringkasan(): array
+    {
+        return $this->layanan->ringkasan();
+    }
+
+    /** @return array<string, mixed> */
+    public function map($row): array
+    {
+        return $this->layanan->normalisasiBaris((array) $row);
+    }
+
+    /** @return array<string, array<int, mixed>> */
     public function rules(): array
     {
         return [
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['nullable', 'email', 'required_without_all:phone,username', 'unique:users,email'],
-            'phone' => ['nullable', 'string', 'max:20', 'unique:users,phone'],
-            'username' => ['nullable', 'string', 'max:50', 'unique:users,username'],
+            'email' => ['nullable', 'email', 'required_without_all:phone,username', Rule::unique('users', 'email')],
+            'phone' => ['nullable', 'string', 'max:20', Rule::unique('users', 'phone')],
+            'username' => ['nullable', 'string', 'max:50', Rule::unique('users', 'username')],
             'password' => ['required', 'string', 'min:8'],
             'roles' => ['required', 'string'],
         ];
+    }
+
+    public function collection(Collection $rows): void
+    {
+        $potongan = [];
+        foreach ($rows as $row) {
+            $potongan[] = $row instanceof Collection ? $row->toArray() : $row;
+        }
+
+        $this->layanan->prosesPotongan($potongan, 1, false);
     }
 }

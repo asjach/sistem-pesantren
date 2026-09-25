@@ -288,16 +288,37 @@ jam); logika per baris menumpang service yang sama dengan import file
 (mode periksa = kering tanpa tulis); kontrak: kirim SEMUA baris berurutan
 agar nomor galat absolut. Berlaku untuk santri (`SantriImporService`,
 `tipe='santri'`, ringkasan sesi memuat `riwayat_dibuat`) dan riwayat belajar
-(`RiwayatBelajarImporService`, `tipe='riwayat'`); endpoint upload file utuh
+(`RiwayatBelajarImporService`, `tipe='riwayat'`, kolom kelas = `nama_kelas`;
+heading lama `kelas_id` yang isinya nama rombel tetap diterima sebagai alias,
+dan galat kelasDilaporkan pada kolom `nama_kelas`); endpoint upload file utuh
 santri/riwayat sudah dihapus.
 kelas tujuan se-lembaga + se-TA, tingkat cocok bila keduanya terisi; hanya
 riwayat aktif yang bisa diset/dipindah/dikosongkan kelasnya.
+Unduh data existing untuk dialog import: `kelas/ekspor-data`,
+`riwayat-belajar/ekspor-data`, `mutasi-keluar/ekspor-data` (izin `*.lihat`).
+Santri memakai endpoint lama `santri/data-gabungan` (opsi `jenjang[]`; tanpa
+parameter = seluruh lingkup `lembagaDiizinkan()` → super admin/admin pesantren
+semua lembaga, admin MI/MD milik + pasangan, admin lain miliknya saja).
+Heading PERSIS sama dengan template import modul tersebut (round-trip unduh →
+edit → import); isi data nyata dalam lingkup `jenjangUntukBerkas()` (filter
+`jenjang` bila ada, else seluruh lembaga yang boleh diakses akun). Kelas
+menulis `walas` sebagai NIP, riwayat menulis status sebagai LABEL, mutasi
+menulis `kelas_terakhir` sebagai nama rombel + `tahun_ajaran` rombelnya.
+Semua export data existing memakai trait `App\Exports\Concerns\GayaSheetExcel`
+(header wajib/opsional, freeze, autofilter, border, zebra hingga 5.000 baris).
 Import arsip mutasi keluar (`mutasi-keluar/import-template|periksa|import`,
 tombol di panel arsip, izin `mutasi_keluar.ubah`): kunci NIK → fallback NIS
 lokal + jenjang; `kelas_terakhir` cukup nama (id tetap diterima; nama ganda
 antar-TA wajib diiringi `tahun_ajaran`; kosong = beku dari riwayat terakhir);
 baris sama (santri+jenjang+tanggal) dilewati agar import idempoten; efek meniru
-tombol Mutasi (tutup riwayat + keanggotaan aktif bila ada).
+tombol Mutasi (tutup riwayat + keanggotaan aktif bila ada). `tanggal_mutasi` dan
+`alasan_mutasi` opsional (kosong → `NULL`; tanggal kosong tetap satu nilai
+kunci idempotensi), sedangkan form Mutasi manual tetap mewajibkan keduanya.
+`alasan_mutasi` pada import arsip = **bebas teks** (maks 100 karakter, tak
+harus ada di kamus `ref_alasan_mutasi`); hanya form "Proses mutasi" yang
+mewajibkan nilai kamus. `kelas_terakhir` dibaca **nama lebih dulu** (angka pun
+sah sebagai nama rombel, mis. "1"), id numerik hanya jadi fallback bila tak
+ada nama yang cocok.
 Wali kelas inline (`kelas.walas_id → pegawai`): `setWalas()` validasi 3 lapis
 (pegawai ada + aktif global + keaktifan aktif di lembaga + TA kelas) via
 endpoint set-walas / update / import kolom `walas` (NIP dulu, fallback nama);

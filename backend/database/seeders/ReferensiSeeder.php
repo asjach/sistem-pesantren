@@ -67,7 +67,6 @@ class ReferensiSeeder extends Seeder
             'ref_gol_darah' => ['A', 'B', 'AB', 'O'],
             'ref_jenis_ptk' => ['Pendidik', 'Tenaga Kependidikan'],
             'ref_jenjang_sertifikasi' => ['RA', 'MI', 'MTS', 'MA', 'MAK', 'SLB'],
-            'ref_tingkat' => ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'],
             'ref_tugas_utama' => ['Guru Mapel', 'Guru Kelas'],
             'ref_tipe_pelanggaran' => ['ringan', 'sedang', 'berat'],
             'ref_jalur_sertifikasi' => ['PSPL/PF/PLPG', 'PPG SM-3T', 'PPG S1 Basic Science Berasrama', 'PPG S1 PPGD Berasrama', 'PPG SMK Kolaboratif', 'PPG Terintegrasi', 'PPG Sertifikasi Jalur Pendidikan', 'PPG Kemenag', 'PLPG 2015', 'PPGJ 2015', 'PLPG 2016', 'PLPG 2017', 'PPG Pra Jabatan', 'PPG Dalam Jabatan'],
@@ -77,6 +76,35 @@ class ReferensiSeeder extends Seeder
 
         // Seed kota no.51: Kab. Bandung, Kota Bandung, Bandung.
         $isi('ref_kota', 'nama', $nama(['Kab. Bandung', 'Kota Bandung', 'Bandung'], 1));
+
+        // Tingkat per jenjang: MI-MD 1-6, MTS 7-9, MLN 10-12. Berbeda dari
+        // kamus lain, baris di luar rentang institution dihapus supaya hasil
+        // seed persis mengikuti pemetaan. Sisip manual per lembaga (bukan
+        // lewat $isi yang selalu memancarkan ke semua lembaga).
+        $petaTingkat = [
+            'MI' => ['1', '2', '3', '4', '5', '6'],
+            'MD' => ['1', '2', '3', '4', '5', '6'],
+            'MTS' => ['7', '8', '9'],
+            'MLN' => ['10', '11', '12'],
+        ];
+        foreach ($lembagas as $lid) {
+            $daftar = $petaTingkat[$lid] ?? ['1', '2', '3', '4', '5', '6'];
+            DB::table('ref_tingkat')
+                ->where('jenjang', $lid)
+                ->whereNotIn('nama', $daftar)
+                ->delete();
+            foreach ($daftar as $urutan => $nilai) {
+                $ada = DB::table('ref_tingkat')
+                    ->where('jenjang', $lid)
+                    ->where('nama', $nilai)
+                    ->exists();
+                if (! $ada) {
+                    DB::table('ref_tingkat')->insert([
+                        'jenjang' => $lid, 'nama' => $nilai, 'urutan' => $urutan, 'is_active' => true,
+                    ]);
+                }
+            }
+        }
 
         // Preset alamat (contoh Bandung Raya; tiap lembaga dapat salinannya).
         $isi('ref_alamat', 'nama', [[

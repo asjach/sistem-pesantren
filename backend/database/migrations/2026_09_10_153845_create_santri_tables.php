@@ -142,7 +142,7 @@ return new class extends Migration
             $table->string('jenjang', 20);
             $table->foreign('jenjang')->references('jenjang')->on('lembaga')->cascadeOnUpdate()->cascadeOnDelete();
             $table->foreignId('kelas_terakhir_id')->nullable()->constrained('kelas')->nullOnDelete();
-            $table->date('tanggal_mutasi');
+            $table->date('tanggal_mutasi')->nullable(); // arsip historis: boleh kosong
             $table->string('alasan_mutasi')->nullable(); // kamus ref_alasan_mutasi (string bebas, tanpa FK)
             $table->string('no_surat')->nullable(); // nomor surat keterangan pindah/keluar (arsip EMIS)
             $table->string('nama_sekolah_tujuan')->nullable();

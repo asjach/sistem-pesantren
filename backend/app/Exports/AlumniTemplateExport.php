@@ -16,22 +16,9 @@ use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 
-/**
- * Template import arsip mutasi keluar: hanya heading (tanpa baris contoh agar
- * tak ikut terimport). Kunci santri: `nis_lokal` + `jenjang`.
- * `tanggal_mutasi` dan `alasan_mutasi` opsional (kosong → kosong di arsip).
- * `kelas_terakhir` diisi NAMA rombel (id numerik tetap diterima);
- * `tahun_ajaran` opsional sebagai lingkup pencarian nama (wajib diisi bila
- * nama yang sama ada di beberapa tahun ajaran). Sel bertipe TEKS agar NIS
- * ber-nol-depan tidak berubah format.
- *
- * Header berkode warna (seragam template lain): kuning = wajib diisi,
- * biru = opsional.
- */
-class MutasiKeluarTemplateExport extends DefaultValueBinder implements FromArray, WithCustomValueBinder, WithEvents, WithHeadings, WithTitle
+class AlumniTemplateExport extends DefaultValueBinder implements FromArray, WithCustomValueBinder, WithEvents, WithHeadings, WithTitle
 {
-    /** Kolom wajib. */
-    public const WAJIB = ['nis_lokal', 'jenjang'];
+    public const WAJIB = ['nis_lokal', 'jenjang', 'tahun_ajaran_lulus', 'tanggal_lulus'];
 
     public function bindValue(Cell $cell, $value): bool
     {
@@ -43,10 +30,9 @@ class MutasiKeluarTemplateExport extends DefaultValueBinder implements FromArray
     public static function kolom(): array
     {
         return [
-            'nis_lokal', 'jenjang', 'tanggal_mutasi', 'alasan_mutasi',
-            'kelas_terakhir', 'tahun_ajaran', 'no_surat', 'nama_sekolah_tujuan',
-            'npsn_sekolah_tujuan', 'nsm_sekolah_tujuan', 'alamat_sekolah_tujuan',
-            'keterangan',
+            'nis_lokal', 'jenjang', 'tahun_ajaran_lulus', 'tanggal_lulus', 'kelas_lulus',
+            'nomor_ijazah', 'no_surat_ijazah', 'kegiatan_setelah_lulus', 'penyerahan_ijazah',
+            'melanjutkan', 'catatan',
         ];
     }
 
@@ -57,7 +43,7 @@ class MutasiKeluarTemplateExport extends DefaultValueBinder implements FromArray
 
     public function title(): string
     {
-        return 'Import Mutasi Keluar';
+        return 'Import Alumni';
     }
 
     public function array(): array

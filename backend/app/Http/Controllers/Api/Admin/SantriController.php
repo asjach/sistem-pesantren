@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Exports\SantriLembagaDataExport;
 use App\Exports\SantriLembagaTemplateExport;
+use App\Http\Controllers\Api\Concerns\ImporBertahap;
 use App\Http\Controllers\Api\Concerns\TenantGuard;
 use App\Http\Controllers\Api\Concerns\UrutDaftar;
 use App\Http\Controllers\Controller;
@@ -36,6 +37,7 @@ use Maatwebsite\Excel\Validators\Failure;
  */
 class SantriController extends Controller
 {
+    use ImporBertahap;
     use TenantGuard;
     use UrutDaftar;
 
@@ -377,137 +379,25 @@ class SantriController extends Controller
     public function potongImport(SantriPotongRequest $request, SantriImporService $layanan): JsonResponse
     {
         $this->authorizeTulisGabungan($request);
-        $data = $request->validated();
-        $pengguna = $request->user();
 
-        $this->buangSesiBasi();
-
-        if (! empty($data['sesi_id'])) {
-            $sesi = ImportSesi::whereKey($data['sesi_id'])->where('user_id', $pengguna->id)->first();
-            if ($sesi === null) {
-                return response()->json(['message' => 'Sesi import tidak ditemukan.'], 404);
-            }
-            if ($sesi->status !== ImportSesi::JALAN) {
-                return response()->json(['message' => 'Sesi sudah selesai atau dibatalkan.'], 422);
-            }
-            if ($sesi->mode !== $data['mode']) {
-                return response()->json(['message' => 'Mode potongan berbeda dari sesi.'], 422);
-            }
-        } else {
-            $sesi = ImportSesi::create([
-                'user_id' => $pengguna->id,
-                'tipe' => 'santri',
-                'mode' => $data['mode'],
-                'total' => $data['total'],
-            ]);
-        }
-
-        $kering = $sesi->mode === 'periksa';
-        $normal = array_map(fn ($baris) => $layanan->normalisasiBaris((array) $baris), $data['baris']);
-        $layanan->prosesPotongan($normal, $sesi->offset + 1, $kering);
-
-        $baru = $layanan->gagal;
-        if ($baru !== []) {
-            $this->tambahGalatSesi($sesi, $baru);
-        }
-        $sesi->offset += count($data['baris']);
-        $sesi->dibuat += $layanan->dibuat;
-        $sesi->diperbarui += $layanan->diperbarui;
-        $sesi->riwayat_dibuat += $layanan->barisRiwayat;
-        $sesi->gagal += count($baru);
-
-        $selesai = $request->boolean('terakhir') || $sesi->offset >= $sesi->total;
-        if ($selesai) {
-            $sesi->status = ImportSesi::SELESAI;
-        }
-        $sesi->save();
-
-        return response()->json([
-            'sesi_id' => $sesi->id,
-            'offset' => $sesi->offset,
-            'total' => $sesi->total,
-            'selesai' => $selesai,
-            'ringkasan' => $sesi->ringkasan(),
-            'galat_baru' => count($baru),
-            'galat_contoh' => array_slice($sesi->galat_contoh ?? [], 0, 10),
-            'galat_unduh' => $selesai && $sesi->gagal > 0,
-        ]);
+        return $this->jalankanImporSesi(
+            $request,
+            'santri',
+            $layanan,
+            'galat-import-santri.csv',
+            fn (ImportSesi $sesi, SantriImporService $svc) => $sesi->riwayat_dibuat += $svc->barisRiwayat
+        );
     }
 
     /** POST /api/admin/santri/import-potong/{sesi}/batal. */
     public function batalPotong(Request $request, ImportSesi $sesi): JsonResponse
     {
-        if ($sesi->user_id !== $request->user()->id) {
-            return response()->json(['message' => 'Sesi import tidak ditemukan.'], 404);
-        }
-        $this->hapusBerkasGalat($sesi);
-        $sesi->update(['status' => ImportSesi::BATAL]);
-
-        return response()->json(['pesan' => 'Sesi import dibatalkan.']);
+        return $this->batalImporSesi($request, $sesi);
     }
 
     /** GET /api/admin/santri/import-potong/{sesi}/galat — unduh CSV galat. */
     public function galatPotong(Request $request, ImportSesi $sesi)
     {
-        if ($sesi->user_id !== $request->user()->id || $sesi->galat_file === null) {
-            abort(404);
-        }
-        $path = storage_path('app/'.$sesi->galat_file);
-        if (! is_file($path)) {
-            abort(404);
-        }
-
-        return response()->download($path, 'galat-import-santri.csv', ['Content-Type' => 'text/csv']);
-    }
-
-    /** Tambah galat potongan ke berkas CSV sesi + contoh (maks 200). */
-    private function tambahGalatSesi(ImportSesi $sesi, array $baru): void
-    {
-        $relatif = $sesi->galat_file ?? "imports/galat-{$sesi->id}.csv";
-        $path = storage_path('app/'.$relatif);
-        if (! is_dir(dirname($path))) {
-            mkdir(dirname($path), 0755, true);
-        }
-        $baruBerkas = ! is_file($path);
-        $tulis = fopen($path, 'ab');
-        if ($baruBerkas) {
-            fputcsv($tulis, ['baris', 'nis_lokal', 'kolom', 'pesan']);
-        }
-        foreach ($baru as $galat) {
-            fputcsv($tulis, [$galat['baris'], $galat['nis_lokal'] ?? '', $galat['kolom'], $galat['pesan']]);
-        }
-        fclose($tulis);
-
-        $contoh = $sesi->galat_contoh ?? [];
-        foreach ($baru as $galat) {
-            if (count($contoh) >= 200) {
-                break;
-            }
-            $contoh[] = $galat;
-        }
-        $sesi->galat_file = $relatif;
-        $sesi->galat_contoh = $contoh;
-    }
-
-    private function hapusBerkasGalat(ImportSesi $sesi): void
-    {
-        if ($sesi->galat_file !== null) {
-            $path = storage_path('app/'.$sesi->galat_file);
-            if (is_file($path)) {
-                @unlink($path);
-            }
-        }
-    }
-
-    /** Bersihkan sesi basi (melewati TTL) beserta berkas galatnya. */
-    private function buangSesiBasi(): void
-    {
-        ImportSesi::where('created_at', '<', now()->subHours(ImportSesi::TTL_JAM))
-            ->chunkById(100, function ($daftar) {
-                foreach ($daftar as $sesi) {
-                    $this->hapusBerkasGalat($sesi);
-                    $sesi->delete();
-                }
-            });
+        return $this->unduhGalatImpor($request, $sesi, 'galat-import-santri.csv');
     }
 }

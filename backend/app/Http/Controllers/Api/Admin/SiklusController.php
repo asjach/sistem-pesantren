@@ -2,11 +2,17 @@
 
 namespace App\Http\Controllers\Api\Admin;
 
+use App\Exports\AlumniTemplateExport;
+use App\Exports\MutasiKeluarDataExport;
 use App\Exports\MutasiKeluarTemplateExport;
+use App\Http\Controllers\Api\Concerns\ImporBertahap;
 use App\Http\Controllers\Api\Concerns\TenantGuard;
 use App\Http\Controllers\Api\Concerns\UrutDaftar;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\AlumniImportRequest;
+use App\Http\Requests\Admin\AlumniPotongRequest;
 use App\Http\Requests\Admin\MutasiKeluarImportRequest;
+use App\Http\Requests\Admin\MutasiKeluarPotongRequest;
 use App\Http\Requests\Admin\SiklusDaftarKelasRequest;
 use App\Http\Requests\Admin\SiklusLembagaRequest;
 use App\Http\Requests\Admin\SiklusLulusRequest;
@@ -15,8 +21,10 @@ use App\Http\Requests\Admin\SiklusNaikKelasOtomatisRequest;
 use App\Http\Requests\Admin\SiklusNaikKelasRequest;
 use App\Http\Requests\Admin\SiklusRekapRequest;
 use App\Http\Requests\Admin\SiklusSalinGenapRequest;
+use App\Imports\AlumniImport;
 use App\Imports\MutasiKeluarImport;
 use App\Models\Alumni;
+use App\Models\ImportSesi;
 use App\Models\Kelas;
 use App\Models\LembagaSantri;
 use App\Models\MutasiKeluar;
@@ -24,6 +32,8 @@ use App\Models\RiwayatBelajar;
 use App\Models\Santri;
 use App\Models\SemesterAktif;
 use App\Models\TahunAjaran;
+use App\Services\AlumniImporService;
+use App\Services\MutasiKeluarImporService;
 use App\Services\SiklusSantriService;
 use App\Services\UrutKatalog;
 use Illuminate\Http\JsonResponse;
@@ -38,6 +48,7 @@ use Maatwebsite\Excel\Facades\Excel;
  */
 class SiklusController extends Controller
 {
+    use ImporBertahap;
     use TenantGuard;
     use UrutDaftar;
 
@@ -493,6 +504,18 @@ class SiklusController extends Controller
         return Excel::download(new MutasiKeluarTemplateExport, 'template-import-mutasi-keluar.xlsx');
     }
 
+    /** GET /api/admin/mutasi-keluar/ekspor-data — unduh data arsip mutasi existing
+     *  (kolom = template import; kelas ditulis sebagai nama rombel). */
+    public function eksporDataMutasi(Request $request)
+    {
+        $this->authorize('viewAny', Santri::class);
+
+        return Excel::download(
+            new MutasiKeluarDataExport($this->jenjangUntukBerkas($request)),
+            'data-mutasi-keluar-existing.xlsx'
+        );
+    }
+
     /** POST /api/admin/mutasi-keluar/import-periksa — validasi file TANPA menulis (dry-run). */
     public function periksaImportMutasi(MutasiKeluarImportRequest $request): JsonResponse
     {
@@ -508,6 +531,28 @@ class SiklusController extends Controller
     /** Alur bersama import arsip mutasi multi-lembaga. Mode periksa:
      *  transaksi selalu di-rollback. Izin dicek per baris di import
      *  (mengikuti akun), bukan 403 di depan. */
+    /**
+     * POST /api/admin/mutasi-keluar/import-potong — import bertahap (potongan
+     *  JSON 1000 baris/panggilan) dari browser. Lingkup ada per baris; izin
+     *  dicek di MutasiKeluarImporService, bukan 403 di depan.
+     */
+    public function potongImportMutasi(MutasiKeluarPotongRequest $request, MutasiKeluarImporService $layanan): JsonResponse
+    {
+        return $this->jalankanImporSesi($request, 'mutasi', $layanan);
+    }
+
+    /** POST /api/admin/mutasi-keluar/import-potong/{sesi}/batal. */
+    public function batalPotongMutasi(Request $request, ImportSesi $sesi): JsonResponse
+    {
+        return $this->batalImporSesi($request, $sesi);
+    }
+
+    /** GET /api/admin/mutasi-keluar/import-potong/{sesi}/galat — unduh CSV galat. */
+    public function galatPotongMutasi(Request $request, ImportSesi $sesi)
+    {
+        return $this->unduhGalatImpor($request, $sesi, 'galat-import-mutasi-keluar.csv');
+    }
+
     private function prosesImportMutasi(MutasiKeluarImportRequest $request, bool $periksa): JsonResponse
     {
         $request->validated();
@@ -605,6 +650,91 @@ class SiklusController extends Controller
         $alumni = $alumni->paginate($this->perPage($request));
 
         return response()->json($alumni);
+    }
+
+    public function templateImportAlumni()
+    {
+        return Excel::download(new AlumniTemplateExport, 'template-import-alumni.xlsx');
+    }
+
+    public function periksaImportAlumni(AlumniImportRequest $request): JsonResponse
+    {
+        return $this->prosesImportAlumni($request, periksa: true);
+    }
+
+    public function importAlumni(AlumniImportRequest $request): JsonResponse
+    {
+        return $this->prosesImportAlumni($request, periksa: false);
+    }
+
+    /**
+     * POST /api/admin/alumni/import-potong — import bertahap (potongan JSON
+     *  1000 baris/panggilan) dari browser. Lingkup ada per baris; izin dicek
+     *  di AlumniImporService, bukan 403 di depan.
+     */
+    public function potongImportAlumni(AlumniPotongRequest $request, AlumniImporService $layanan): JsonResponse
+    {
+        return $this->jalankanImporSesi($request, 'alumni', $layanan);
+    }
+
+    /** POST /api/admin/alumni/import-potong/{sesi}/batal. */
+    public function batalPotongAlumni(Request $request, ImportSesi $sesi): JsonResponse
+    {
+        return $this->batalImporSesi($request, $sesi);
+    }
+
+    /** GET /api/admin/alumni/import-potong/{sesi}/galat — unduh CSV galat. */
+    public function galatPotongAlumni(Request $request, ImportSesi $sesi)
+    {
+        return $this->unduhGalatImpor($request, $sesi, 'galat-import-alumni.csv');
+    }
+
+    private function prosesImportAlumni(AlumniImportRequest $request, bool $periksa): JsonResponse
+    {
+        $request->validated();
+        $import = new AlumniImport;
+        $errors = [];
+
+        if ($periksa) {
+            DB::beginTransaction();
+        }
+
+        try {
+            Excel::import($import, $request->file('file'));
+        } catch (ValidationException $e) {
+            $errors = $this->formatFailures($e->failures());
+        } finally {
+            if ($periksa) {
+                DB::rollBack();
+            }
+        }
+
+        if ($errors === []) {
+            $errors = $this->formatFailures($import->failures());
+        }
+
+        if ($periksa) {
+            return response()->json([
+                'pesan' => $errors === [] ? 'Pengecekan selesai: file siap diimport.' : 'Pengecekan menemukan masalah.',
+                'siap_import' => $errors === [],
+                'ringkasan' => $import->ringkasan(),
+                'errors' => $errors,
+            ]);
+        }
+
+        if ($errors !== []) {
+            return response()->json([
+                'pesan' => 'Gagal mengimport beberapa data.',
+                'errors' => $errors,
+            ], 422);
+        }
+
+        $ringkasan = $import->ringkasan();
+
+        return response()->json([
+            'pesan' => "{$ringkasan['dibuat']} arsip dibuat, {$ringkasan['diperbarui']} diperbarui, {$ringkasan['dilewati']} dilewati.",
+            'ringkasan' => $ringkasan,
+        ]);
     }
 
     /**

@@ -2,21 +2,26 @@
 
 namespace App\Http\Controllers\Api\Admin;
 
+use App\Exports\KelasDataExport;
 use App\Exports\KelasNamaExport;
 use App\Exports\KelasTemplateExport;
+use App\Http\Controllers\Api\Concerns\ImporBertahap;
 use App\Http\Controllers\Api\Concerns\TenantGuard;
 use App\Http\Controllers\Api\Concerns\UrutDaftar;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\KelasExportNamaRequest;
 use App\Http\Requests\Admin\KelasImportNamaRequest;
 use App\Http\Requests\Admin\KelasImportRequest;
+use App\Http\Requests\Admin\KelasPotongRequest;
 use App\Http\Requests\Admin\KelasStoreRequest;
 use App\Http\Requests\Admin\KelasUpdateRequest;
 use App\Http\Requests\Admin\KelasWalasRequest;
 use App\Imports\KelasImport;
+use App\Models\ImportSesi;
 use App\Models\Kelas;
 use App\Models\Lembaga;
 use App\Models\TahunAjaran;
+use App\Services\KelasImporService;
 use App\Services\KelasService;
 use App\Services\RefService;
 use App\Services\UrutKatalog;
@@ -32,6 +37,7 @@ use Maatwebsite\Excel\Validators\ValidationException;
  */
 class KelasController extends Controller
 {
+    use ImporBertahap;
     use TenantGuard;
     use UrutDaftar;
 
@@ -322,6 +328,15 @@ class KelasController extends Controller
         return Excel::download(new KelasTemplateExport, 'template-import-kelas.xlsx');
     }
 
+    /** GET /api/admin/kelas/ekspor-data — unduh data kelas existing (kolom = template import). */
+    public function eksporData(Request $request)
+    {
+        return Excel::download(
+            new KelasDataExport($this->jenjangUntukBerkas($request)),
+            'data-kelas-existing.xlsx'
+        );
+    }
+
     /** POST /api/admin/kelas/import-periksa — validasi file TANPA menulis (dry-run). */
     public function periksaImport(KelasImportRequest $request): JsonResponse
     {
@@ -332,6 +347,28 @@ class KelasController extends Controller
     public function importLengkap(KelasImportRequest $request): JsonResponse
     {
         return $this->prosesImport($request, periksa: false);
+    }
+
+    /**
+     * POST /api/admin/kelas/import-potong — import bertahap (potongan JSON
+     * 1000 baris/panggilan) dari browser. Lingkup ada per baris dan izin
+     *  dicek di kelas ImporService, bukan 403 di depan.
+     */
+    public function potongImport(KelasPotongRequest $request, KelasImporService $layanan): JsonResponse
+    {
+        return $this->jalankanImporSesi($request, 'kelas', $layanan);
+    }
+
+    /** POST /api/admin/kelas/import-potong/{sesi}/batal. */
+    public function batalPotong(Request $request, ImportSesi $sesi): JsonResponse
+    {
+        return $this->batalImporSesi($request, $sesi);
+    }
+
+    /** GET /api/admin/kelas/import-potong/{sesi}/galat — unduh CSV galat. */
+    public function galatPotong(Request $request, ImportSesi $sesi)
+    {
+        return $this->unduhGalatImpor($request, $sesi, 'galat-import-kelas.csv');
     }
 
     /** Alur bersama import file kelas multi-lembaga/TA. Mode periksa:

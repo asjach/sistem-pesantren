@@ -7,6 +7,7 @@ use App\Models\Santri;
 use App\Models\TahunAjaran;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -39,6 +40,28 @@ trait TenantGuard
         $this->authorizeLembagaMany($auth, $selected);
 
         return $selected;
+    }
+
+    /**
+     * Daftar jenjang untuk export/berkas (tanpa `whereIn`): filter `jenjang`
+     * bila ada, else seluruh lembaga yang boleh diakses. Dipakai unduh data
+     * existing (ekspor butuh daftar, bukan query).
+     *
+     * @return list<string>
+     */
+    protected function jenjangUntukBerkas(Request $request): array
+    {
+        $auth = $request->user();
+        $selected = $this->selectedLembaga($request, $auth);
+        if ($selected !== []) {
+            return array_values(array_map('strval', $selected));
+        }
+
+        if ($auth->bolehPesantren()) {
+            return DB::table('lembaga')->orderBy('jenjang')->pluck('jenjang')->map(fn ($v) => (string) $v)->all();
+        }
+
+        return array_values(array_map('strval', $auth->lembagaIdsDenganPasangan()));
     }
 
     /**

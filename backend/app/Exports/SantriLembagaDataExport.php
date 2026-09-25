@@ -2,6 +2,7 @@
 
 namespace App\Exports;
 
+use App\Exports\Concerns\GayaSheetExcel;
 use App\Models\Lembaga;
 use App\Models\LembagaSantri;
 use App\Models\Santri;
@@ -9,8 +10,10 @@ use Carbon\CarbonInterface;
 use DateTimeInterface;
 use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\WithCustomValueBinder;
+use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithTitle;
+use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Cell\Cell;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Cell\DefaultValueBinder;
@@ -23,8 +26,10 @@ use PhpOffice\PhpSpreadsheet\Cell\DefaultValueBinder;
  *
  * Seluruh sel bertipe TEKS agar NIS/NIK tidak berubah jadi angka saat dibuka.
  */
-class SantriLembagaDataExport extends DefaultValueBinder implements FromArray, WithCustomValueBinder, WithHeadings, WithTitle
+class SantriLembagaDataExport extends DefaultValueBinder implements FromArray, WithCustomValueBinder, WithEvents, WithHeadings, WithTitle
 {
+    use GayaSheetExcel;
+
     /** @param  list<int>  $lembagaIds */
     public function __construct(private array $lembagaIds) {}
 
@@ -93,5 +98,19 @@ class SantriLembagaDataExport extends DefaultValueBinder implements FromArray, W
         }
 
         return (string) $nilai;
+    }
+
+    public function registerEvents(): array
+    {
+        return [
+            AfterSheet::class => function (AfterSheet $event) {
+                $this->gayaSheet(
+                    $event->sheet->getDelegate(),
+                    SantriLembagaTemplateExport::kolom(),
+                    SantriLembagaTemplateExport::kolomWajib(),
+                    ['nama_lengkap' => 28, 'alamat' => 28, 'email_santri' => 24],
+                );
+            },
+        ];
     }
 }

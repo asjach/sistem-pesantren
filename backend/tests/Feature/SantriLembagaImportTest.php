@@ -15,6 +15,7 @@ use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\DB;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 use Tests\TestCase;
 
 /**
@@ -442,6 +443,58 @@ class SantriLembagaImportTest extends TestCase
         $this->actingAs($adminMi, 'sanctum')
             ->get("/api/admin/santri/data-gabungan?jenjang[]={$f['mi']->jenjang}&jenjang[]={$f['md']->jenjang}")
             ->assertStatus(200);
+    }
+
+    /**
+     * Cakupan unduh data existing mengikuti akses akun: super admin = semua
+     * lembaga; admin MI/MD = milik + pasangan (MI+MD); admin MTS = MTS saja.
+     */
+    public function test_13b_cakupan_data_existing_mengikuti_akses(): void
+    {
+        $f = $this->baseFixture();
+        $mts = Lembaga::create([
+            'nama' => 'Madrasah Tsanawiyah', 'jenjang' => 'MTS', 'nsm' => '123456789014',
+            'is_seleksi' => true, 'kelompok_psb' => 'eksklusif', 'is_active' => true,
+        ]);
+        $super = User::create([
+            'name' => 'Super Cakupan',
+            'email' => 'super_cakupan_'.uniqid().'@example.com',
+            'phone' => '089000000009',
+            'password' => 'password',
+        ]);
+        $super->assignRole('super_admin');
+        $adminMi = $this->makeAdmin([$f['mi']->jenjang]);
+        $adminMts = $this->makeAdmin([$mts->jenjang]);
+
+        foreach ([['Mi', '26301', 'MI'], ['Md', '26302', 'MD'], ['Mts', '26303', 'MTS']] as [$nama, $nis, $jenjang]) {
+            $s = Santri::create(['nama_lengkap' => $nama, 'jk' => 'L']);
+            LembagaSantri::create([
+                'santri_id' => $s->id, 'jenjang' => $jenjang, 'nis_lokal' => $nis,
+                'is_active_lembaga' => 'Ya',
+            ]);
+        }
+
+        $cakupan = function (User $user): array {
+            $res = $this->actingAs($user, 'sanctum')
+                ->get('/api/admin/santri/data-gabungan')
+                ->assertStatus(200);
+            $path = tempnam(sys_get_temp_dir(), 'cakupan').'.xlsx';
+            file_put_contents($path, $res->streamedContent() ?: $res->getContent());
+
+            try {
+                $isi = IOFactory::load($path)->getActiveSheet()->toArray();
+                array_shift($isi);
+
+                return array_values(array_unique(array_map(fn ($b) => (string) ($b[1] ?? ''), $isi)));
+            } finally {
+                @unlink($path);
+            }
+        };
+
+        $this->assertSame(['MD', 'MI', 'MTS'], $cakupan($super));
+        // Admin MI → MI + pasangan MD; admin MTS → MTS saja.
+        $this->assertSame(['MD', 'MI'], $cakupan($adminMi));
+        $this->assertSame(['MTS'], $cakupan($adminMts));
     }
 
     // ---------- 12. sel numerik + tanggal serial dinormalisasi ----------

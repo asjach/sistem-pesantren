@@ -79,7 +79,6 @@ class RiwayatBelajarImport implements SkipsOnFailure, SkipsUnknownSheets, ToColl
             'nis_lokal' => ['required'],
             'jenjang' => ['required', 'string'],
             'tahun_ajaran' => ['required', 'string'],
-            'kelas_id' => ['nullable'],
             'nama_kelas' => ['nullable', 'string', 'max:50'],
             'semester' => ['required'],
             'tgl_masuk' => ['nullable'],

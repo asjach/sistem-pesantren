@@ -289,4 +289,45 @@ class ImportPotongTest extends TestCase
         $this->assertSame(['2'], RiwayatBelajar::where('santri_id', $s->id)
             ->where('is_active_riwayat', 'Ya')->pluck('semester')->all());
     }
+
+    public function test_08_kolom_kelas_pakai_nama_kelas_bukan_id(): void
+    {
+        $f = $this->baseFixture();
+        $a = $this->makeSantri('Kelas Nama', '27210', $f['mi']);
+
+        $res = $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/riwayat-belajar/import-potong', [
+            'mode' => 'eksekusi',
+            'total' => 2,
+            'terakhir' => true,
+            'baris' => [
+                $this->baris('27210', 'MI', '2026/2027'),
+                // Heading lama `kelas_id` (isi nama rombel) tetap diterima.
+                $this->baris('27210', 'MI', '2026/2027', ['semester' => '2', 'nama_kelas' => '', 'kelas_id' => '1A']),
+            ],
+        ])->assertStatus(200);
+
+        $this->assertSame(2, $res->json('ringkasan.dibuat'));
+        $this->assertSame(0, $res->json('ringkasan.baris_gagal'));
+        $this->assertSame(
+            [$f['kelas']->id, $f['kelas']->id],
+            RiwayatBelajar::where('santri_id', $a->id)->orderBy('semester')->pluck('kelas_id')->all()
+        );
+    }
+
+    public function test_09_galat_kelas_lama_menyebut_nama_kelas(): void
+    {
+        $f = $this->baseFixture();
+        $this->makeSantri('Kelas Salah', '27211', $f['mi']);
+
+        $res = $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/riwayat-belajar/import-potong', [
+            'mode' => 'eksekusi',
+            'total' => 1,
+            'terakhir' => true,
+            'baris' => [$this->baris('27211', 'MI', '2026/2027', ['nama_kelas' => '9Z'])],
+        ])->assertStatus(200);
+
+        $this->assertSame(1, $res->json('ringkasan.baris_gagal'));
+        $this->assertSame('nama_kelas', $res->json('galat_contoh.0.kolom'));
+        $this->assertSame(0, RiwayatBelajar::count());
+    }
 }

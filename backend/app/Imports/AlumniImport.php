@@ -2,7 +2,7 @@
 
 namespace App\Imports;
 
-use App\Services\KelasImporService;
+use App\Services\AlumniImporService;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\SkipsOnFailure;
 use Maatwebsite\Excel\Concerns\SkipsUnknownSheets;
@@ -14,23 +14,23 @@ use Maatwebsite\Excel\Concerns\WithValidation;
 use Maatwebsite\Excel\Validators\Failure;
 
 /**
- * Import file kelas multi-lembaga + multi-tahun ajaran — pembungkus tipis
- * Maatwebsite di atas KelasImporService (logika per baris), yang juga
- * dipakai jalur import bertahap (potongan JSON dari browser).
+ * Import arsip alumni multi-lembaga — pembungkus tipis Maatwebsite di
+ * atas AlumniImporService (logika per baris), yang juga dipakai jalur
+ * import bertahap (potongan JSON dari browser).
  *
- * Multi-sheet: hanya sheet pertama. Galat dikembalikan sebagai
- * `Failure[]` agar format galat file sama seperti impor lain.
+ * Hanya sheet pertama. Galat dikembalikan sebagai `Failure[]` agar format
+ * galat file sama seperti impor lain.
  */
-class KelasImport implements SkipsOnFailure, SkipsUnknownSheets, ToCollection, WithHeadingRow, WithMapping, WithMultipleSheets, WithValidation
+class AlumniImport implements SkipsOnFailure, SkipsUnknownSheets, ToCollection, WithHeadingRow, WithMapping, WithMultipleSheets, WithValidation
 {
     /** @var Failure[] */
     protected array $failures = [];
 
-    protected KelasImporService $layanan;
+    protected AlumniImporService $layanan;
 
-    public function __construct(?KelasImporService $layanan = null)
+    public function __construct(?AlumniImporService $layanan = null)
     {
-        $this->layanan = $layanan ?? new KelasImporService;
+        $this->layanan = $layanan ?? new AlumniImporService;
     }
 
     public function ringkasan(): array
@@ -59,14 +59,17 @@ class KelasImport implements SkipsOnFailure, SkipsUnknownSheets, ToCollection, W
     public function rules(): array
     {
         return [
+            'nis_lokal' => ['required'],
             'jenjang' => ['required', 'string', 'exists:lembaga,jenjang'],
-            'tahun_ajaran' => ['required', 'string', 'exists:tahun_ajaran,nama'],
-            'nama_kelas' => ['nullable', 'string', 'max:50'],
-            'nama_alias' => ['nullable', 'string', 'max:50'],
-            'walas' => ['nullable', 'string', 'max:100'],
-            'tingkat' => ['nullable', 'string', 'max:20'],
-            'urutan' => ['nullable', 'integer', 'min:0'],
-            'kapasitas' => ['nullable', 'integer', 'min:1'],
+            'tahun_ajaran_lulus' => ['required', 'string', 'exists:tahun_ajaran,nama'],
+            'tanggal_lulus' => ['required'],
+            'kelas_lulus' => ['nullable'],
+            'nomor_ijazah' => ['nullable', 'string', 'max:255'],
+            'no_surat_ijazah' => ['nullable', 'string', 'max:50'],
+            'kegiatan_setelah_lulus' => ['nullable', 'string', 'max:255'],
+            'penyerahan_ijazah' => ['nullable', 'string', 'in:sudah,belum'],
+            'melanjutkan' => ['nullable', 'string', 'in:ya,tidak'],
+            'catatan' => ['nullable'],
         ];
     }
 

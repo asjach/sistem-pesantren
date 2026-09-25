@@ -401,7 +401,7 @@ Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca
 - `santri_id`: FK → santri [cascade]
 - `jenjang`: FK → lembaga [cascade]
 - `kelas_terakhir_id`: FK → kelas [null, nullOnDelete] — beku otomatis dari riwayat aktif terakhir; input manual menang bila diisi
-- `tanggal_mutasi`: date
+- `tanggal_mutasi`: date [null] — kosong pada arsip historis (import boleh dikosongkan)
 - `alasan_mutasi`: string [null] — kamus ref_alasan_mutasi (string bebas, tanpa FK)
 - `no_surat`: string [null] — nomor surat keterangan pindah/keluar (arsip EMIS)
 - `nama_sekolah_tujuan`: string [null]

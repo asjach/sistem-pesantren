@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Exports\PsbTemplateExport;
+use App\Http\Controllers\Api\Concerns\ImporBertahap;
 use App\Http\Controllers\Api\Concerns\TenantGuard;
 use App\Http\Controllers\Api\Concerns\UrutDaftar;
 use App\Http\Controllers\Controller;
@@ -16,12 +17,15 @@ use App\Http\Requests\PsbCatatanRequest;
 use App\Http\Requests\PsbDaftarRequest;
 use App\Http\Requests\PsbDaftarUlangRequest;
 use App\Http\Requests\PsbImportRequest;
+use App\Http\Requests\PsbPotongRequest;
 use App\Http\Requests\PsbSeleksiRequest;
 use App\Imports\PsbImport;
+use App\Models\ImportSesi;
 use App\Models\PsbCalonSantri;
 use App\Models\PsbGelombang;
 use App\Models\PsbKuotaBiaya;
 use App\Models\User;
+use App\Services\PsbImporService;
 use App\Services\PsbService;
 use App\Services\UrutKatalog;
 use Illuminate\Http\JsonResponse;
@@ -33,6 +37,7 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class PsbController extends Controller
 {
+    use ImporBertahap;
     use TenantGuard;
     use UrutDaftar;
 
@@ -411,7 +416,7 @@ class PsbController extends Controller
 
         try {
             Excel::import(
-                new PsbImport((int) $data['gelombang_id'], $data['jenjang'], $psbService),
+                new PsbImport((int) $data['gelombang_id'], $data['jenjang'], new PsbImporService((int) $data['gelombang_id'], $data['jenjang'], $psbService)),
                 $request->file('file')
             );
 
@@ -428,5 +433,34 @@ class PsbController extends Controller
 
             return response()->json(['pesan' => 'Gagal mengimport beberapa data.', 'errors' => $errors], 422);
         }
+    }
+
+    /**
+     * POST /api/psb/import-potong — import bertahap (potongan JSON 1000
+     *  baris/panggilan) dari browser. `gelombang_id` + `jenjang` (lembaga
+     *  tujuan) adalah konteks tetap sesi dan wajib dikirim ulang tiap
+     *  potongan; mode `periksa` menjalankan SEMUA cek tanpa menulis.
+     */
+    public function potongImport(PsbPotongRequest $request, PsbService $psbService): JsonResponse
+    {
+        $data = $request->validated();
+        $this->authorizeLembaga(auth()->user(), $data['jenjang']);
+
+        $gelombangId = (int) $data['gelombang_id'];
+        $layanan = new PsbImporService($gelombangId, $data['jenjang'], $psbService);
+
+        return $this->jalankanImporSesi($request, 'psb', $layanan);
+    }
+
+    /** POST /api/psb/import-potong/{sesi}/batal. */
+    public function batalPotong(Request $request, ImportSesi $sesi): JsonResponse
+    {
+        return $this->batalImporSesi($request, $sesi);
+    }
+
+    /** GET /api/psb/import-potong/{sesi}/galat — unduh CSV galat. */
+    public function galatPotong(Request $request, ImportSesi $sesi)
+    {
+        return $this->unduhGalatImpor($request, $sesi, 'galat-import-psb.csv');
     }
 }

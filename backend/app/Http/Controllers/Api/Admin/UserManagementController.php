@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Admin;
 
+use App\Http\Controllers\Api\Concerns\ImporBertahap;
 use App\Http\Controllers\Api\Concerns\PerPageLimit;
 use App\Http\Controllers\Api\Concerns\UrutDaftar;
 use App\Http\Controllers\Controller;
@@ -10,11 +11,15 @@ use App\Http\Requests\Admin\AttachLembagaRequest;
 use App\Http\Requests\Admin\CreateUserRequest;
 use App\Http\Requests\Admin\DetachLembagaRequest;
 use App\Http\Requests\Admin\ImportUserRequest;
+use App\Http\Requests\Admin\PenggunaPotongRequest;
 use App\Http\Requests\Admin\UpdateUserRequest;
 use App\Imports\UsersImport;
+use App\Models\ImportSesi;
 use App\Models\Lembaga;
 use App\Models\User;
+use App\Services\PenggunaImporService;
 use App\Services\UrutKatalog;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
@@ -22,6 +27,7 @@ use Maatwebsite\Excel\Validators\ValidationException;
 
 class UserManagementController extends Controller
 {
+    use ImporBertahap;
     use PerPageLimit;
     use UrutDaftar;
 
@@ -183,12 +189,10 @@ class UserManagementController extends Controller
         $this->authorize('create', User::class);
         $allowedRoles = $this->assignableRolesFor($authUser);
 
-        $isFull = $authUser->bolehPesantren();
-        $lembagaIds = $request->input('jenjangs');
-        if (! $isFull && empty($lembagaIds)) {
+        $lembagaIds = $this->lembagaIdsUntukImpor($authUser, $request->input('jenjangs'));
+        if ($lembagaIds === null) {
             return response()->json(['message' => 'jenjangs wajib untuk admin non-global.'], 422);
         }
-        $lembagaIds = $this->resolveLembagaIds($authUser, $lembagaIds);
 
         try {
             Excel::import(new UsersImport($lembagaIds, $allowedRoles), $request->file('file'));
@@ -206,6 +210,58 @@ class UserManagementController extends Controller
 
             return response()->json(['message' => 'Gagal mengimport beberapa data.', 'errors' => $errors], 422);
         }
+    }
+
+    /**
+     * POST /api/admin/pengguna/import-potong — import bertahap (potongan JSON
+     *  1000 baris/panggilan). Tenant (`jenjangs`) dan peran yang boleh
+     *  ditetapkan dihitung dari akun yang menulis, bukan dari baris, jadi
+     *  file tak bisa menaruh akun di luar kewenangan.
+     */
+    public function potongImport(PenggunaPotongRequest $request): JsonResponse
+    {
+        $authUser = auth()->user();
+        $this->authorize('create', User::class);
+        $allowedRoles = $this->assignableRolesFor($authUser);
+
+        $lembagaIds = $this->lembagaIdsUntukImpor($authUser, $request->input('jenjangs'));
+        if ($lembagaIds === null) {
+            return response()->json(['message' => 'jenjangs wajib untuk admin non-global.'], 422);
+        }
+
+        return $this->jalankanImporSesi(
+            $request,
+            'pengguna',
+            new PenggunaImporService($lembagaIds, $allowedRoles)
+        );
+    }
+
+    /** POST /api/admin/pengguna/import-potong/{sesi}/batal. */
+    public function batalPotong(Request $request, ImportSesi $sesi): JsonResponse
+    {
+        return $this->batalImporSesi($request, $sesi);
+    }
+
+    /** GET /api/admin/pengguna/import-potong/{sesi}/galat — unduh CSV galat. */
+    public function galatPotong(Request $request, ImportSesi $sesi)
+    {
+        return $this->unduhGalatImpor($request, $sesi, 'galat-import-pengguna.csv');
+    }
+
+    /**
+     * Resolusi tenant import dari akun. null = admin non-global tanpa
+     * `jenjangs` (pesan 422, bukan exception).
+     *
+     * @param  array<int, string>|null  $inputIds
+     * @return array<int, string>|null
+     */
+    private function lembagaIdsUntukImpor(User $authUser, ?array $inputIds): ?array
+    {
+        if (empty($inputIds) && ! $authUser->bolehPesantren()) {
+            return null;
+        }
+
+        return $this->resolveLembagaIds($authUser, $inputIds);
     }
 
     public function assignRole(AssignRoleRequest $request, User $user)

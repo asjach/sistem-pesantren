@@ -249,7 +249,7 @@ class MutasiKeluarImportTest extends TestCase
         $this->assertSame('2025/2026', Kelas::find($arsip->kelas_terakhir_id)->tahun_ajaran);
     }
 
-    public function test_06_galat_per_baris_tak_dikenal_luar_lingkup_alasan(): void
+    public function test_06_galat_per_baris_tak_dikenal_luar_lingkup(): void
     {
         $f = $this->baseFixture();
         $adminMi = $this->makeUser('admin', [$f['mi']->jenjang]);
@@ -259,13 +259,37 @@ class MutasiKeluarImportTest extends TestCase
             ['nis_lokal' => 'NIS-TAK-ADA', 'jenjang' => 'MI', 'tanggal_mutasi' => '2026-05-01', 'alasan_mutasi' => 'Ikut pindah orang tua'],
             // Di luar lingkup akun.
             ['nis_lokal' => 'NIS-LUAR', 'jenjang' => 'MTS', 'tanggal_mutasi' => '2026-05-01', 'alasan_mutasi' => 'Ikut pindah orang tua'],
-            // Alasan tak aktif (santri nyata agar sampai ke cek alasan).
+            // Alasan bebas teks pada arsip: tetap diterima.
             ['nis_lokal' => $this->nisOf($santri), 'jenjang' => 'MI', 'tanggal_mutasi' => '2026-05-01', 'alasan_mutasi' => 'Alasan Fiktif'],
         ]);
 
         $res = $this->upload($adminMi, $csv)->assertStatus(422);
         $atribut = collect($res->json('errors'))->pluck('attribute')->all();
-        $this->assertSame(['nis_lokal', 'jenjang', 'alasan_mutasi'], $atribut);
+        $this->assertSame(['nis_lokal', 'jenjang'], $atribut);
+        $this->assertSame(1, MutasiKeluar::count());
+        $this->assertSame('Alasan Fiktif', MutasiKeluar::where('santri_id', $santri->id)->value('alasan_mutasi'));
+    }
+
+    public function test_07_tanggal_dan_alasan_kosong_diterima(): void
+    {
+        $f = $this->baseFixture();
+        $kelas = Kelas::create([
+            'jenjang' => $f['mi']->jenjang, 'tahun_ajaran' => $f['ta']->nama,
+            'nama_kelas' => '1D', 'tingkat' => '1',
+        ]);
+        $santri = $this->makeSantriAktif($f, 'Arsip Tanpa Tanggal', '1101010000000316', $kelas);
+        $csv = $this->makeCsv([[
+            'nis_lokal' => $this->nisOf($santri), 'jenjang' => 'MI',
+            'tanggal_mutasi' => '', 'alasan_mutasi' => '', 'kelas_terakhir' => '1D',
+        ]]);
+
+        $this->upload($f['super'], $csv, 'import-periksa')->assertStatus(200);
         $this->assertSame(0, MutasiKeluar::count());
+
+        $this->upload($f['super'], $csv)->assertStatus(200);
+        $arsip = MutasiKeluar::where('santri_id', $santri->id)->firstOrFail();
+        $this->assertNull($arsip->tanggal_mutasi);
+        $this->assertNull($arsip->alasan_mutasi);
+        $this->assertSame($kelas->id, $arsip->kelas_terakhir_id);
     }
 }

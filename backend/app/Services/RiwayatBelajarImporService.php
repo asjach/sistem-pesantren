@@ -50,9 +50,10 @@ class RiwayatBelajarImporService
     }
 
     /**
-     * Normalisasi SEBELUM cek: heading lama `kelas_id` disamakan dari
-     * `nama_kelas`; angka Excel dinormalisasi; sel tanggal (objek DateTime
-     * atau serial General) disamakan ke string Y-m-d.
+     * Normalisasi SEBELUM cek: heading lama `kelas_id` disamakan ke
+     * `nama_kelas` (nilai yang diharapkan = nama rombel); angka Excel
+     * dinormalisasi; sel tanggal (objek DateTime atau serial General)
+     * disamakan ke string Y-m-d.
      *
      * @param  array<string, mixed>  $baris
      * @return array<string, mixed>
@@ -71,15 +72,13 @@ class RiwayatBelajarImporService
                 $baris['tgl_masuk'] = (string) $baris['tgl_masuk'];
             }
         }
-        if (trim((string) ($baris['kelas_id'] ?? '')) === '' && trim((string) ($baris['nama_kelas'] ?? '')) !== '') {
-            $baris['kelas_id'] = $baris['nama_kelas'];
+        if (trim((string) ($baris['nama_kelas'] ?? '')) === '' && trim((string) ($baris['kelas_id'] ?? '')) !== '') {
+            $baris['nama_kelas'] = $baris['kelas_id'];
         }
-        foreach (['kelas_id', 'nama_kelas'] as $kolom) {
-            if (isset($baris[$kolom]) && (is_int($baris[$kolom]) || is_float($baris[$kolom]))) {
-                $baris[$kolom] = fmod((float) $baris[$kolom], 1.0) === 0.0
-                    ? (string) (int) $baris[$kolom]
-                    : (string) $baris[$kolom];
-            }
+        if (isset($baris['nama_kelas']) && (is_int($baris['nama_kelas']) || is_float($baris['nama_kelas']))) {
+            $baris['nama_kelas'] = fmod((float) $baris['nama_kelas'], 1.0) === 0.0
+                ? (string) (int) $baris['nama_kelas']
+                : (string) $baris['nama_kelas'];
         }
 
         return $baris;
@@ -198,7 +197,7 @@ class RiwayatBelajarImporService
             return false;
         }
 
-        $kelasId = $this->resolveKelasId($row['kelas_id'] ?? null, $jenjang, $ta, $no);
+        $kelasId = $this->resolveKelasId($row['nama_kelas'] ?? null, $jenjang, $ta, $no);
         if ($kelasId === false) {
             return false;
         }
@@ -262,7 +261,7 @@ class RiwayatBelajarImporService
             // Update: hanya sel terisi yang menimpa (sel kosong = pertahankan,
             // tak bisa mengosongkan/mengarsipkan diam-diam via import).
             $ubah = [];
-            if ($terisi('kelas_id')) {
+            if ($terisi('nama_kelas')) {
                 $ubah['kelas_id'] = $kelasId;
             }
             if ($terisi('tgl_masuk')) {
@@ -273,7 +272,7 @@ class RiwayatBelajarImporService
             }
             if ($terisi('tingkat')) {
                 $ubah['tingkat'] = $tingkat;
-            } elseif ($terisi('kelas_id') && $tingkat !== null) {
+            } elseif ($terisi('nama_kelas') && $tingkat !== null) {
                 $ubah['tingkat'] = $tingkat; // ganti kelas tanpa tingkat → warisi
             }
             if ($terisi('status_awal')) {
@@ -473,7 +472,7 @@ class RiwayatBelajarImporService
             }
         }
 
-        $this->fail($no, 'kelas_id', "Kelas \"{$teks}\" tidak ditemukan di lembaga + tahun ajaran ini.");
+        $this->fail($no, 'nama_kelas', "Kelas \"{$teks}\" tidak ditemukan di lembaga + tahun ajaran ini.");
 
         return false;
     }
