@@ -16,7 +16,9 @@ import {
   createCalonPsb,
   downloadTemplatePsb,
   hapusCalon,
-  importPsb,
+  importPsbPotong,
+  batalPotongPsb,
+  unduhGalatPsb,
   listAntrean,
   listDokumenCalon,
   listGelombangPsb,
@@ -62,6 +64,7 @@ import {
 import Pager from '@/components/Pager';
 import { useDaftarTabel } from '@/hooks/useDaftarTabel';
 import { ActionIcon, DeleteAction } from '@/components/RowActions';
+import ImportBertahapUmumDialog from '@/components/ImportBertahapUmumDialog';
 import { toast } from 'sonner';
 import {
   BadgeCheck,
@@ -125,6 +128,12 @@ function psbFields(gelombangChoices: ExcelChoice[]): ExcelField[] {
 }
 
 type BulkAksi = 'verifikasi' | 'daftar_ulang' | 'acc' | 'undur' | 'batal' | 'hapus' | 'pulihkan';
+
+/** Kolom template yang dikirim (kunci lain dari file diabaikan). */
+const KOLOM_IMPORT_PSB = [
+  'nik', 'nama_lengkap', 'jk', 'tgl_lahir', 'tipe_santri', 'email_ortu', 'telp_ortu',
+  'nama_ayah', 'nama_ibu', 'no_pendaftaran',
+];
 
 /** Fase yang boleh mengundurkan diri: terdaftar, daftar ulang, diterima. */
 const BISA_UNDUR = ['terverifikasi', 'lolos', 'pemberkasan', 'ajukan_daftar_ulang', 'daftar_ulang'];
@@ -258,7 +267,6 @@ export default function PsbPage() {
   const [gelombangs, setGelombangs] = useState<PsbGelombang[]>([]);
   const [importGelombang, setImportGelombang] = useState('');
   const [importLembaga, setImportLembaga] = useState('');
-  const [importFile, setImportFile] = useState<File | null>(null);
 
   const [tambahOpen, setTambahOpen] = useState(false);
   const [tfGelombang, setTfGelombang] = useState('');
@@ -420,32 +428,6 @@ export default function PsbPage() {
       setSeleksiRow(null);
       setSeleksiCatatan('');
       await load();
-    } catch (e2) {
-      setErr(errorMessage(e2));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function onImport(e: React.FormEvent) {
-    e.preventDefault();
-    if (!importFile || !importGelombang || !importLembaga) return;
-    setBusy(true);
-    setErr('');
-    try {
-      const res = await importPsb({
-        gelombang_id: Number(importGelombang),
-        jenjang: importLembaga,
-        file: importFile,
-      });
-      if (res.errors?.length) {
-        setErr(res.errors.map((x) => `Baris ${x.row} (${x.attribute}): ${x.errors.join(', ')}`).join(' · '));
-      } else {
-        toast.success(res.pesan ?? 'Import PSB selesai.');
-        setImportOpen(false);
-        setImportFile(null);
-        await load(1);
-      }
     } catch (e2) {
       setErr(errorMessage(e2));
     } finally {
@@ -1063,69 +1045,74 @@ export default function PsbPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={importOpen} onOpenChange={setImportOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Import data PSB (Excel/CSV)</DialogTitle>
-            <DialogDescription>
-              Gelombang menentukan tahun ajaran calon. Pakai template agar nama kolom sesuai.
-            </DialogDescription>
-          </DialogHeader>
-          <form id="form_import_psb" onSubmit={onImport} className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4">
-            <div className="col-span-2">
-              <Button
-                id="btn_template_psb"
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={onTemplate}
-              >
-                Unduh template Excel
-              </Button>
+      <ImportBertahapUmumDialog
+        open={importOpen}
+        onOpenChange={(o) => { setImportOpen(o); if (!o) { setImportGelombang(''); setImportLembaga(''); } }}
+        config={{
+          idPrefix: 'psb',
+          judul: 'Import data PSB bertahap',
+          deskripsi: 'Pilih gelombang + lembaga. Kolom wajib: nik dan nama_lengkap.',
+          kolom: KOLOM_IMPORT_PSB,
+          wajib: ['nik', 'nama_lengkap'],
+          idTombol: { template: 'btn_template_psb' },
+          labelTemplate: 'Unduh template Excel',
+          unduhTemplate: onTemplate,
+          konteks: () => ({ gelombang_id: Number(importGelombang), jenjang: importLembaga }),
+          konteksSiap: importGelombang !== '' && importLembaga !== '',
+          kirim: ({ sesi_id, mode, total, konteks, baris, terakhir }) =>
+            importPsbPotong({
+              ...(sesi_id === undefined ? {} : { sesi_id }),
+              mode, ...(sesi_id === undefined ? { total } : {}),
+              gelombang_id: Number(konteks.gelombang_id),
+              jenjang: String(konteks.jenjang),
+              baris, ...(terakhir ? { terakhir } : {}),
+            }),
+          batal: batalPotongPsb,
+          unduhGalat: unduhGalatPsb,
+          children: (
+            <div className="col-span-2 grid grid-cols-2 gap-3">
+              <div>
+                <FieldLabel htmlFor="select_gelombang_psb">Gelombang</FieldLabel>
+                <Select value={importGelombang} onValueChange={setImportGelombang}>
+                  <SelectTrigger id="select_gelombang_psb" className="w-full">
+                    <SelectValue placeholder="Pilih gelombang" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {gelombangs.map((g) => (
+                        <SelectItem key={g.id} value={String(g.id)}>
+                          {g.nama}{g.tahun_ajaran ? ` — ${g.tahun_ajaran.nama}` : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <FieldLabel htmlFor="select_import_psb_lembaga">Lembaga tujuan</FieldLabel>
+                <Select value={importLembaga} onValueChange={setImportLembaga}>
+                  <SelectTrigger id="select_import_psb_lembaga" className="w-full">
+                    <SelectValue placeholder="Pilih lembaga" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {lembagas.map((l) => (
+                        <SelectItem key={l.jenjang} value={l.jenjang}>{l.jenjang} — {l.nama}</SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <FieldLabel htmlFor="select_gelombang_psb">Gelombang</FieldLabel>
-            <Select value={importGelombang} onValueChange={setImportGelombang}>
-              <SelectTrigger id="select_gelombang_psb" className="w-full">
-                <SelectValue placeholder="Pilih gelombang" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {gelombangs.map((g) => (
-                    <SelectItem key={g.id} value={String(g.id)}>
-                      {g.nama}{g.tahun_ajaran ? ` — ${g.tahun_ajaran.nama}` : ''}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-            <FieldLabel htmlFor="select_import_psb_lembaga">Lembaga tujuan</FieldLabel>
-            <Select value={importLembaga} onValueChange={setImportLembaga}>
-              <SelectTrigger id="select_import_psb_lembaga" className="w-full">
-                <SelectValue placeholder="Pilih lembaga" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {lembagas.map((l) => <SelectItem key={l.jenjang} value={l.jenjang}>{l.jenjang} — {l.nama}</SelectItem>)}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-            <FieldLabel htmlFor="input_file_psb">File (.xlsx/.xls/.csv, maks 5 MB)</FieldLabel>
-            <Input
-              id="input_file_psb"
-              type="file"
-              accept=".xlsx,.xls,.csv"
-              onChange={(e) => setImportFile(e.target.files?.[0] ?? null)}
-              required
-            />
-            <DialogFooter className="col-span-2">
-              <Button type="button" variant="outline" onClick={() => setImportOpen(false)}>Batal</Button>
-              <Button id="btn_import_psb" type="submit" disabled={busy || !importFile || !importGelombang || !importLembaga}>
-                Import
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+          ),
+          onSelesai: () => {
+            setImportOpen(false);
+            setImportGelombang('');
+            setImportLembaga('');
+            void load(1);
+          },
+        }}
+      />
 
       <Dialog open={tambahOpen} onOpenChange={setTambahOpen}>
         <DialogContent className="sm:max-w-2xl">

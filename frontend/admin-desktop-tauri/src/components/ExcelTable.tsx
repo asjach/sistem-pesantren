@@ -87,7 +87,7 @@ import {
 } from './excel/cells';
 import { HeaderTitle, LEBAR_GAGANG_GESER, ukurPerluTinggiHeader } from './excel/header';
 import { bersihkanProbe, measureActionsWidth } from './excel/measure';
-import { ukurAutoFit } from './excel/autofit';
+import { lebarJudulDuaBaris, ukurAutoFit } from './excel/autofit';
 import { useAntreanSimpan } from './excel/useAntreanSimpan';
 import ToolbarTabel from './excel/toolbar';
 import MenuAksiToolbar from '@/components/MenuAksiToolbar';
@@ -1238,7 +1238,10 @@ export default function ExcelTable<T extends { id: string | number }>({
     for (const f of visibleFields) {
       // Gagang geser (super_admin) memakan ruang judul: hitung dalam AutoFit
       // agar judul 1–2 baris tak terpotong/terbungkus sia-sia.
-      let w = lebar(headProbe, csHeadCont, labelKolom(f.key, f.label)) + padHead + AUTOFIT_BUFFER + (bolehGeser ? LEBAR_GAGANG_GESER : 0);
+      let w = lebarJudulDuaBaris(
+        labelKolom(f.key, f.label),
+        (text) => lebar(headProbe, csHeadCont, text),
+      ) + padHead + AUTOFIT_BUFFER + (bolehGeser ? LEBAR_GAGANG_GESER : 0);
       for (const v of values) {
         const s = teksTampilSel(f, v[f.key], attrByKey.get(f.key)?.format);
         if (!s) continue;
@@ -1993,10 +1996,10 @@ export default function ExcelTable<T extends { id: string | number }>({
         {headerTampil ? (
           <ContextMenu>
             <ContextMenuTrigger asChild disabled={!bolehKelolaHalaman}>
-              <div data-part="header_tabel" className="flex shrink-0 items-center justify-between gap-2 border-b bg-muted/40 px-3 py-2 text-sm font-medium">
+              <div data-part="header_tabel" className="flex shrink-0 items-center justify-between gap-2 border-b bg-muted/40 px-3 py-1 text-sm font-medium">
             <div className="min-w-0 flex-1 truncate">{judulHeader}</div>
-            <div className="ml-auto flex min-w-0 flex-1 items-center justify-end gap-2">
-              <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
+            <div className="ml-auto flex shrink-0 items-center justify-end gap-2">
+              <div className="flex shrink-0 items-center justify-end gap-2">
                 {filterTampil ? <div className="flex items-center gap-1.5 [&>*]:shrink-0">{filter}</div> : null}
                 {urutTampil ? (
                   <PresetUrut

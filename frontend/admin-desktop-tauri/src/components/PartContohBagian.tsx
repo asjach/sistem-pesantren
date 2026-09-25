@@ -8,7 +8,7 @@ import { Field, FieldDescription, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Item, ItemContent, ItemDescription, ItemMedia, ItemTitle } from '@/components/ui/item';
 import { Label } from '@/components/ui/label';
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
+import { ResizableAutoHidePanel, ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -80,9 +80,9 @@ export function contohBagian(id: PartId): ReactElement {
           orientation="horizontal"
           className="h-20 w-56 overflow-hidden rounded border"
         >
-          <ResizablePanel id="pratinjau_resizable_kiri" className="p-2 text-xs">
+          <ResizableAutoHidePanel className="p-2 text-xs" minSize="20%">
             Panel kiri
-          </ResizablePanel>
+          </ResizableAutoHidePanel>
           <ResizableHandle />
           <ResizablePanel id="pratinjau_resizable_kanan" className="p-2 text-xs">
             Panel kanan

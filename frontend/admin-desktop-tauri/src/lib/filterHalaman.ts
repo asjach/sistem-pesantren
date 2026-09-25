@@ -54,7 +54,7 @@ const FILTER_SEMUA: readonly KunciFilterGlobal[] = ['lembaga', 'tahun_ajaran', '
 const FILTER_AKADEMIK: readonly KunciFilterGlobal[] = ['lembaga', 'tahun_ajaran', 'tingkat', 'kelas'];
 const FILTER_PANEL: readonly KunciFilterGlobal[] = ['lembaga', 'tingkat', 'kelas'];
 const FILTER_PSB: readonly KunciFilterGlobal[] = ['lembaga'];
-const FILTER_MI_MD: readonly KunciFilterGlobal[] = ['tahun_ajaran', 'kelas'];
+const FILTER_MI_MD: readonly KunciFilterGlobal[] = ['tahun_ajaran', 'semester', 'tingkat', 'kelas'];
 const FILTER_KELULUSAN: readonly KunciFilterGlobal[] = ['lembaga', 'tahun_ajaran'];
 const FILTER_KELAS: readonly KunciFilterGlobal[] = ['lembaga', 'tahun_ajaran', 'tingkat'];
 const FILTER_REKAP: readonly KunciFilterGlobal[] = ['lembaga', 'tahun_ajaran', 'semester'];
@@ -78,7 +78,7 @@ export const KONFIGURASI_FILTER_HALAMAN = {
   dokumen_wajib: buatKonfigurasi(['lembaga']),
   santri: buatKonfigurasi(['lembaga']),
   keanggotaan: buatKonfigurasi(['lembaga']),
-  mi_md: buatKonfigurasi(FILTER_MI_MD, { kelas: true }),
+  mi_md: buatKonfigurasi(FILTER_MI_MD, { tingkat: true, kelas: true }),
   riwayat_belajar: buatKonfigurasi(FILTER_AKADEMIK, { tingkat: true, kelas: true }),
   daftar_kelas: buatKonfigurasi(FILTER_SEMUA, { tingkat: true, kelas: true }),
   pindah_kelas: buatKonfigurasi(FILTER_SEMUA, { tingkat: true, kelas: true }),

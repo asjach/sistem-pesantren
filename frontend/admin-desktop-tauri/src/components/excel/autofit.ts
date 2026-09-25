@@ -2,6 +2,21 @@ import { AUTOFIT_BUFFER, AUTOFIT_MAX_W, MIN_COL_W } from './helpers';
 import { measureActionsWidth, measureTextWidth } from './measure';
 import type { ExcelField } from './types';
 
+export function lebarJudulDuaBaris(label: string, ukur: (text: string) => number): number {
+  const kata = label.trim().split(/\s+/).filter(Boolean);
+  if (kata.length < 2) return ukur(label);
+  const lebarKata = kata.map(ukur);
+  const lebarSpasi = ukur(' ');
+  const total = lebarKata.reduce((jumlah, nilai) => jumlah + nilai, 0) + lebarSpasi * (kata.length - 1);
+  let terbaik = total;
+  let panjang = 0;
+  for (let i = 0; i < kata.length - 1; i += 1) {
+    panjang += lebarKata[i] + lebarSpasi;
+    terbaik = Math.min(terbaik, Math.max(panjang, total - panjang));
+  }
+  return Math.max(...lebarKata, terbaik);
+}
+
 export interface OpsiAutoFit {
   fields: ExcelField[];
   rows: { id: string | number }[];
@@ -59,7 +74,10 @@ export function ukurAutoFit(root: HTMLElement | null, key: string, o: OpsiAutoFi
     values.push({ v, cw });
   }
 
-  let w = measureTextWidth(o.labelKolom(f.key, f.label), csHead) + padHead + AUTOFIT_BUFFER;
+  let w = lebarJudulDuaBaris(
+    o.labelKolom(f.key, f.label),
+    (text) => measureTextWidth(text, csHead),
+  ) + padHead + AUTOFIT_BUFFER;
   for (const { v, cw } of values) {
     if (cw < maxCw - CANDIDATE_MARGIN) continue;
     w = Math.max(w, measureTextWidth(v, csCell) + padCell + AUTOFIT_BUFFER);

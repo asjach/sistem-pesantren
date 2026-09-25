@@ -17,7 +17,7 @@ import { normalizeHex } from '@/prefs';
 import { bangunCssPratinjau, variabelBagian, variabelWajah } from '@/partStyles';
 import { contohBagian } from '@/components/PartContohBagian';
 import { usePicker } from '@/picker';
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
+import { ResizableAutoHidePanel, ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useDefaultLayout } from 'react-resizable-panels';
 import { Badge } from '@/components/ui/badge';
@@ -893,11 +893,11 @@ export default function PartStyleEditor() {
             defaultLayout={layoutH.defaultLayout}
             onLayoutChanged={layoutH.onLayoutChanged}
           >
-            <ResizablePanel id="accordion" {...ukuranAccordion}>
+            <ResizableAutoHidePanel id="accordion" {...ukuranAccordion}>
               <aside className="flex h-full min-h-0 flex-col gap-2 overflow-y-auto rounded-xl border bg-card p-3">
                 {daftarBagian}
               </aside>
-            </ResizablePanel>
+            </ResizableAutoHidePanel>
             <ResizableHandle withHandle orientation="horizontal" />
             <ResizablePanel id="kanan" minSize="40%">
               <ResizablePanelGroup
@@ -906,10 +906,10 @@ export default function PartStyleEditor() {
                 defaultLayout={layoutV.defaultLayout}
                 onLayoutChanged={layoutV.onLayoutChanged}
               >
-                <ResizablePanel id="pratinjau" defaultSize="38%" minSize="14%" maxSize="70%">
+                <ResizableAutoHidePanel id="pratinjau" defaultSize="38%" minSize="14%" maxSize="70%">
                   <div className="h-full min-h-0">{kartuPratinjau}</div>
-                </ResizablePanel>
-                <ResizableHandle withHandle orientation="vertical" />
+                </ResizableAutoHidePanel>
+                <ResizableHandle withHandle orientation="vertical" id="gagang_bagian_pratinjau_kontrol" />
                 <ResizablePanel id="kontrol" minSize="22%">
                   <div className="h-full min-h-0">{kartuKontrol}</div>
                 </ResizablePanel>

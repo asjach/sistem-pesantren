@@ -9,7 +9,6 @@ import {
 } from '../api/santri';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Download } from '@/icons';
 import { toast } from 'sonner';
 
@@ -39,13 +38,16 @@ const POTONGAN = 1000;
 
 type Fase = 'pilih' | 'siap' | 'jalan' | 'selesai';
 
-/** Import santri bertahap: browser membaca file (SheetJS, lazy-load) lalu
- *  mengirim potongan JSON 1000 baris per panggilan dengan progress bar.
- *  Backend tidak pernah menyentuh file — ringan untuk file puluhan ribu baris. */
-export default function ImportSantriBertahapDialog({ open, onOpenChange, onSelesai }: {
-  open: boolean;
-  onOpenChange: (o: boolean) => void;
+/**
+ * Panel import bertahap (dipakai DI DALAM dialog import Santri, bukan
+ * pop-up terpisah): browser membaca XLSX (SheetJS, lazy-load) lalu mengirim
+ * potongan JSON 1000 baris per panggilan dengan progress bar. Backend tak
+ * pernah menyentuh file — ringan untuk file puluhan ribu baris.
+ */
+export default function ImportSantriBertahapPanel({ onSelesai, onSibuk }: {
   onSelesai: () => void;
+  /** Laporkan status sibuk agar induk tak bisa menutup dialog saat jalan. */
+  onSibuk?: (sibuk: boolean) => void;
 }) {
   const [namaFile, setNamaFile] = useState('');
   const [baris, setBaris] = useState<Record<string, unknown>[]>([]);
@@ -58,6 +60,11 @@ export default function ImportSantriBertahapDialog({ open, onOpenChange, onSeles
   const [galatUnduh, setGalatUnduh] = useState(false);
   const [sibuk, setSibuk] = useState(false);
   const batalRef = useRef(false);
+
+  function aturSibuk(nilai: boolean) {
+    setSibuk(nilai);
+    onSibuk?.(nilai);
+  }
 
   function reset() {
     setNamaFile('');
@@ -75,7 +82,7 @@ export default function ImportSantriBertahapDialog({ open, onOpenChange, onSeles
     reset();
     if (!f) return;
     setNamaFile(f.name);
-    setSibuk(true);
+    aturSibuk(true);
     try {
       const XLSX = await import('xlsx');
       const buf = await f.arrayBuffer();
@@ -113,7 +120,7 @@ export default function ImportSantriBertahapDialog({ open, onOpenChange, onSeles
     } catch (e) {
       toast.error(errorMessage(e));
     } finally {
-      setSibuk(false);
+      aturSibuk(false);
     }
   }
 
@@ -122,7 +129,7 @@ export default function ImportSantriBertahapDialog({ open, onOpenChange, onSeles
     // Tiap penekanan mulai sesi baru dari baris pertama (upsert idempoten).
     setMode(modeJalan);
     setFase('jalan');
-    setSibuk(true);
+    aturSibuk(true);
     setSesiId(null);
     setOffset(0);
     setRingkasan(null);
@@ -157,7 +164,7 @@ export default function ImportSantriBertahapDialog({ open, onOpenChange, onSeles
     } catch (e) {
       toast.error(errorMessage(e));
     } finally {
-      setSibuk(false);
+      aturSibuk(false);
       setFase('selesai');
     }
   }
@@ -166,76 +173,63 @@ export default function ImportSantriBertahapDialog({ open, onOpenChange, onSeles
   const bersih = ringkasan !== null && ringkasan.baris_gagal === 0 && offset >= baris.length && baris.length > 0;
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o && sibuk) return; onOpenChange(o); }}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Import santri bertahap</DialogTitle>
-          <DialogDescription>
-            Untuk file besar (ribuan baris). File dibaca di browser lalu
-            dikirim 1000 baris per panggilan dengan progres — backend tetap ringan.
-            Kunci: santri_id, lalu NIS lokal + lembaga; baris cocok diperbarui, hanya kolom terisi.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="grid grid-cols-2 gap-3">
-          <Input id="input_file_import_santri_bertahap" className="col-span-2" type="file" accept=".xlsx,.xls,.csv"
-            disabled={sibuk} onChange={(e) => void pilihFile(e.target.files?.[0] ?? null)} />
-          {fase !== 'pilih' && (
-            <p className="col-span-2 text-sm text-muted-foreground">
-              {namaFile} · {baris.length.toLocaleString('id-ID')} baris data
-            </p>
-          )}
-          {(fase === 'jalan' || fase === 'selesai') && baris.length > 0 && (
-            <div className="col-span-2" id="progres_import_santri_bertahap">
-              <div className="h-2 w-full overflow-hidden rounded bg-muted">
-                <div className="h-full bg-primary transition-all" style={{ width: `${persen}%` }} />
-              </div>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {offset.toLocaleString('id-ID')} / {baris.length.toLocaleString('id-ID')} ({persen}%) ·{' '}
-                {ringkasan ? `${ringkasan.dibuat} dibuat · ${ringkasan.diperbarui} diperbarui · ${ringkasan.riwayat_dibuat} riwayat · ${ringkasan.baris_gagal} gagal` : '…'}
-              </p>
-            </div>
-          )}
-          {ringkasan && ringkasan.baris_gagal > 0 && (
-            <div className="col-span-2 rounded-md border p-3 text-sm" id="hasil_import_santri_bertahap">
-              <p className="font-medium">{ringkasan.baris_gagal.toLocaleString('id-ID')} baris bermasalah{mode === 'eksekusi' ? ' (dilewati)' : ''}:</p>
-              <ul className="mt-2 max-h-40 space-y-1 overflow-auto text-xs text-destructive">
-                {contoh.map((x, i) => (
-                  <li key={`${x.baris}-${x.kolom}-${i}`}>
-                    Baris {x.baris}{x.nis_lokal ? ` (${x.nis_lokal})` : ''} ({x.kolom}): {x.pesan}
-                  </li>
-                ))}
-              </ul>
-              {galatUnduh && sesiId !== null && (
-                <Button id="btn_unduh_galat_santri_bertahap" type="button" variant="link" className="h-auto px-0"
-                  onClick={() => void unduhGalatPotongSantri(sesiId).catch((e) => toast.error(errorMessage(e)))}>
-                  <Download data-icon="inline-start" size={16} /> Unduh CSV semua galat
-                </Button>
-              )}
-            </div>
-          )}
-          {fase === 'selesai' && bersih && (
-            <p className="col-span-2 text-sm text-emerald-600" id="hasil_import_santri_bertahap">
-              {mode === 'periksa' ? 'Tidak ada masalah — siap diimport.' : 'Import selesai tanpa galat.'}
-            </p>
+    <div className="grid grid-cols-2 gap-3">
+      <Input id="input_file_import_santri_bertahap" type="file" accept=".xlsx,.xls,.csv"
+        className="col-span-2 h-11 cursor-pointer py-2 file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-1 file:text-xs file:font-medium"
+        disabled={sibuk} onChange={(e) => void pilihFile(e.target.files?.[0] ?? null)} />
+      {fase !== 'pilih' && (
+        <p className="text-sm text-muted-foreground">
+          {namaFile} · {baris.length.toLocaleString('id-ID')} baris data
+        </p>
+      )}
+      {(fase === 'jalan' || fase === 'selesai') && baris.length > 0 && (
+        <div className="w-full" id="progres_import_santri_bertahap">
+          <div className="h-2 w-full overflow-hidden rounded bg-muted">
+            <div className="h-full bg-primary transition-all" style={{ width: `${persen}%` }} />
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {offset.toLocaleString('id-ID')} / {baris.length.toLocaleString('id-ID')} ({persen}%) ·{' '}
+            {ringkasan ? `${ringkasan.dibuat} dibuat · ${ringkasan.diperbarui} diperbarui · ${ringkasan.riwayat_dibuat} riwayat · ${ringkasan.baris_gagal} gagal` : '…'}
+          </p>
+        </div>
+      )}
+      {ringkasan && ringkasan.baris_gagal > 0 && (
+        <div className="rounded-md border p-3 text-sm" id="hasil_import_santri_bertahap">
+          <p className="font-medium">{ringkasan.baris_gagal.toLocaleString('id-ID')} baris bermasalah{mode === 'eksekusi' ? ' (dilewati)' : ''}:</p>
+          <ul className="mt-2 max-h-40 space-y-1 overflow-auto text-xs text-destructive">
+            {contoh.map((x, i) => (
+              <li key={`${x.baris}-${x.kolom}-${i}`}>
+                Baris {x.baris}{x.nis_lokal ? ` (${x.nis_lokal})` : ''} ({x.kolom}): {x.pesan}
+              </li>
+            ))}
+          </ul>
+          {galatUnduh && sesiId !== null && (
+            <Button id="btn_unduh_galat_santri_bertahap" type="button" variant="link" className="h-auto px-0"
+              onClick={() => void unduhGalatPotongSantri(sesiId).catch((e) => toast.error(errorMessage(e)))}>
+              <Download data-icon="inline-start" size={16} /> Unduh CSV semua galat
+            </Button>
           )}
         </div>
-        <DialogFooter>
-          <Button type="button" variant="outline"
-            onClick={() => {
-              if (fase === 'jalan') { batalRef.current = true; }
-              else { reset(); onOpenChange(false); }
-            }}>
-            {fase === 'jalan' ? 'Batalkan' : 'Tutup'}
+      )}
+      {fase === 'selesai' && bersih && (
+        <p className="text-sm text-emerald-600" id="hasil_import_santri_bertahap">
+          {mode === 'periksa' ? 'Tidak ada masalah — siap diimport.' : 'Import selesai tanpa galat.'}
+        </p>
+      )}
+      <div className="flex justify-end gap-2">
+        {fase === 'jalan' ? (
+          <Button type="button" variant="outline" onClick={() => { batalRef.current = true; }}>
+            Batalkan
           </Button>
-          <Button id="btn_mulai_periksa_santri_bertahap" type="button" variant="outline"
-            disabled={sibuk || baris.length === 0 || fase === 'jalan'}
-            onClick={() => void jalan('periksa')}>Periksa</Button>
-          <Button id="btn_mulai_import_santri_bertahap" type="button"
-            disabled={sibuk || !bersih || mode !== 'periksa'}
-            title={bersih ? 'Jalankan import setelah periksa bersih' : 'Periksa dulu hingga bersih'}
-            onClick={() => void jalan('eksekusi')}>Import</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        ) : null}
+        <Button id="btn_mulai_periksa_santri_bertahap" type="button" variant="outline"
+          disabled={sibuk || baris.length === 0 || fase === 'jalan'}
+          onClick={() => void jalan('periksa')}>Periksa</Button>
+        <Button id="btn_mulai_import_santri_bertahap" type="button"
+          disabled={sibuk || !bersih || mode !== 'periksa'}
+          title={bersih ? 'Jalankan import setelah periksa bersih' : 'Periksa dulu hingga bersih'}
+          onClick={() => void jalan('eksekusi')}>Import</Button>
+      </div>
+    </div>
   );
 }

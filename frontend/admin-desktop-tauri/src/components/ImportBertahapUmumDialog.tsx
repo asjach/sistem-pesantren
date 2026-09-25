@@ -1,14 +1,5 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { errorMessage } from '../api/client';
-import {
-  batalPotongImport,
-  potongImportRiwayat,
-  unduhDataRiwayatBelajar,
-  unduhGalatPotong,
-  unduhTemplateRiwayatBelajar,
-  type ImportPotongHasil,
-  type ImportPotongRingkasan,
-} from '../api/siklus';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -16,24 +7,103 @@ import { Download } from '@/icons';
 import { toast } from 'sonner';
 import DataExistingCard from '@/components/DataExistingCard';
 
-/** Kolom template yang dikirim (kunci lain dari file diabaikan). */
-const KOLOM_KIRIM = [
-  'nis_lokal', 'jenjang', 'tahun_ajaran', 'nama_kelas',
-  'semester', 'tgl_masuk', 'no_absen', 'tingkat', 'status_awal', 'status_akhir',
-];
+/** Maks baris per panggilan (disamakan batas backend `baris.max:1000`). */
+export const POTONGAN_IMPORT = 1000;
 
-/** Maks baris per panggilan (disamakan batas backend). */
-const POTONGAN = 1000;
+/** Kontrak respons bersama endpoint import-potong (santri/riwayat + fitur lain). */
+export interface PotongRingkasan {
+  baris_diproses: number;
+  baris_valid: number;
+  baris_gagal: number;
+  baris_dilewati: number;
+  dibuat: number;
+  diperbarui: number;
+}
+
+export interface PotongGalat {
+  baris: number;
+  nis_lokal: string | null;
+  kolom: string;
+  pesan: string;
+}
+
+export interface PotongHasil {
+  sesi_id: number;
+  offset: number;
+  total: number;
+  selesai: boolean;
+  ringkasan: PotongRingkasan;
+  galat_baru: number;
+  galat_contoh: PotongGalat[];
+  galat_unduh: boolean;
+}
+
+/** Konteks tetap per sesi (PSB: gelombang + lembaga tujuan). */
+export type KonteksSesi = Record<string, string | number>;
+
+export type KirimPotongan = (input: {
+  sesi_id?: number;
+  mode: 'periksa' | 'eksekusi';
+  /** Jumlah seluruh baris file; hanya bermakna pada panggilan pertama. */
+  total: number;
+  konteks: KonteksSesi;
+  baris: Record<string, unknown>[];
+  terakhir?: boolean;
+}) => Promise<PotongHasil>;
+
+export interface KonfigurasiImportBertahap {
+  /** Judul dialog ( Bahasa Indonesia). */
+  judul: string;
+  /** Penjelasan singkat di bawah judul. */
+  deskripsi: ReactNode;
+  /** `id` elemen unik per dialog (NFR-05: snake_case). */
+  idPrefix: string;
+  /** Kolom template yang dikirim; kunci lain dari file diabaikan. */
+  kolom: string[];
+  /** Satu dari `kolom` yang wajib ada di header file. */
+  wajib: string[];
+  /** Label tombol unduh template + aksi unduh. */
+  labelTemplate: string;
+  unduhTemplate: () => Promise<unknown>;
+  /** Unduh data existing (kolom identik template) bila tersedia; pilihan
+   *  lembaga diteruskan sebagai argumen (tanpa argumen = seluruh lingkup). */
+  unduhData?: { label: string; jalankan: (jenjangs?: string[]) => Promise<unknown> };
+  /** Kirim satu potongan; `sesi_id` hanya pada panggilan lanjutan. */
+  kirim: KirimPotongan;
+  /** Batalkan sesi milik sendiri. */
+  batal: (sesiId: number) => Promise<unknown>;
+  /** Unduh CSV galat sesi milik sendiri. */
+  unduhGalat: (sesiId: number) => Promise<unknown>;
+  /** Konteks tetap sesi; `null` = tanpa konteks tambahan. */
+  konteks?: () => KonteksSesi;
+  /**
+   * Override `id` tombol agar halaman bisa mempertahankan `id` lamanya
+   * (NFR-05). Kosong = pola staged `btn_mulai_*` + `idPrefix`.
+   */
+  idTombol?: { template?: string; periksa?: string; mulai?: string; unduhGalat?: string };
+  /** Elemen tambahan di atas input file (mis. select gelombang/lembaga). */
+  children?: ReactNode;
+  /** Nonaktifkan tombol selama konteks belum lengkap. */
+  konteksSiap?: boolean;
+  /** Dipanggil setelah eksekusi selesai sukses. */
+  onSelesai: () => void;
+}
 
 type Fase = 'pilih' | 'siap' | 'jalan' | 'selesai';
 
-/** Import riwayat bertahap: browser membaca XLSX (SheetJS, lazy-load) lalu
- *  mengirim potongan JSON 1000 baris per panggilan dengan progress bar.
- *  Backend tidak pernah menyentuh file — ringan untuk file ratusan ribu baris. */
-export default function ImportBertahapDialog({ open, onOpenChange, onSelesai }: {
+/**
+ * Dialog import bertahap generik: browser membaca XLSX/XLS/CSV (SheetJS,
+ * lazy-load) lalu mengirim potongan JSON tepat 1000 baris per panggilan
+ * dengan progres. Alur `periksa` (kering, tak menulis) → `eksekusi`.
+ * Backend tidak pernah menyentuh file — ringan untuk file besar.
+ *
+ * Semua fitur bermigrasi ke sini lewat `KonfigurasiImportBertahap`, sehingga
+ * label/`id` per halaman tetap bisa dipertahankan lewat `idPrefix`.
+ */
+export default function ImportBertahapUmumDialog({ open, onOpenChange, config }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
-  onSelesai: () => void;
+  config: KonfigurasiImportBertahap;
 }) {
   const [namaFile, setNamaFile] = useState('');
   const [baris, setBaris] = useState<Record<string, unknown>[]>([]);
@@ -41,13 +111,19 @@ export default function ImportBertahapDialog({ open, onOpenChange, onSelesai }: 
   const [mode, setMode] = useState<'periksa' | 'eksekusi'>('periksa');
   const [sesiId, setSesiId] = useState<number | null>(null);
   const [offset, setOffset] = useState(0);
-  const [ringkasan, setRingkasan] = useState<ImportPotongRingkasan | null>(null);
-  const [contoh, setContoh] = useState<ImportPotongHasil['galat_contoh']>([]);
+  const [ringkasan, setRingkasan] = useState<PotongRingkasan | null>(null);
+  const [contoh, setContoh] = useState<PotongGalat[]>([]);
   const [galatUnduh, setGalatUnduh] = useState(false);
   const [sibuk, setSibuk] = useState(false);
   const batalRef = useRef(false);
 
-  function reset() {
+  const { idPrefix, idTombol } = config;
+  const idTemplate = idTombol?.template ?? `btn_unduh_template_${idPrefix}`;
+  const idPeriksa = idTombol?.periksa ?? `btn_mulai_periksa_${idPrefix}`;
+  const idMulai = idTombol?.mulai ?? `btn_mulai_import_${idPrefix}`;
+  const idUnduhGalat = idTombol?.unduhGalat ?? `btn_unduh_galat_${idPrefix}`;
+
+  function bersihkanTampilan() {
     setNamaFile('');
     setBaris([]);
     setFase('pilih');
@@ -60,7 +136,7 @@ export default function ImportBertahapDialog({ open, onOpenChange, onSelesai }: 
   }
 
   async function pilihFile(f: File | null) {
-    reset();
+    bersihkanTampilan();
     if (!f) return;
     setNamaFile(f.name);
     setSibuk(true);
@@ -75,8 +151,7 @@ export default function ImportBertahapDialog({ open, onOpenChange, onSelesai }: 
         return;
       }
       const kepala = (matriks[0] as unknown[]).map((h) => String(h ?? '').trim().toLowerCase());
-      const wajib = ['nis_lokal', 'jenjang'];
-      const hilang = wajib.filter((k) => !kepala.includes(k));
+      const hilang = config.wajib.filter((k) => !kepala.includes(k));
       if (hilang.length > 0) {
         toast.error(`Kolom wajib tidak ada: ${hilang.join(', ')}.`);
         return;
@@ -85,7 +160,7 @@ export default function ImportBertahapDialog({ open, onOpenChange, onSelesai }: 
       for (const r of matriks.slice(1) as unknown[][]) {
         const o: Record<string, unknown> = {};
         kepala.forEach((k, i) => {
-          if (KOLOM_KIRIM.includes(k)) o[k] = r[i] ?? null;
+          if (config.kolom.includes(k)) o[k] = r[i] ?? null;
         });
         data.push(o);
       }
@@ -115,14 +190,17 @@ export default function ImportBertahapDialog({ open, onOpenChange, onSelesai }: 
     setGalatUnduh(false);
     batalRef.current = false;
     let sid: number | null = null;
+    const konteks = config.konteks?.() ?? {};
     try {
-      for (let i = 0; i < baris.length; i += POTONGAN) {
+      for (let i = 0; i < baris.length; i += POTONGAN_IMPORT) {
         if (batalRef.current) break;
-        const potong = baris.slice(i, i + POTONGAN);
-        const res = await potongImportRiwayat({
-          ...(sid === null ? { mode: modeJalan, total: baris.length } : { sesi_id: sid, mode: modeJalan }),
+        const potong = baris.slice(i, i + POTONGAN_IMPORT);
+        const res = await config.kirim({
+          ...(sid === null ? { mode: modeJalan } : { sesi_id: sid, mode: modeJalan }),
+          total: baris.length,
+          konteks,
           baris: potong,
-          ...(i + POTONGAN >= baris.length ? { terakhir: true } : {}),
+          ...(i + POTONGAN_IMPORT >= baris.length ? { terakhir: true } : {}),
         });
         sid = res.sesi_id;
         setSesiId(sid);
@@ -133,11 +211,11 @@ export default function ImportBertahapDialog({ open, onOpenChange, onSelesai }: 
         if (res.selesai) break;
       }
       if (batalRef.current && sid !== null) {
-        await batalPotongImport(sid).catch(() => {});
+        await config.batal(sid).catch(() => {});
         toast('Import dibatalkan.');
       } else {
         toast.success(modeJalan === 'periksa' ? 'Periksa bertahap selesai.' : 'Import bertahap selesai.');
-        if (modeJalan === 'eksekusi') onSelesai();
+        if (modeJalan === 'eksekusi') config.onSelesai();
       }
     } catch (e) {
       toast.error(errorMessage(e));
@@ -149,17 +227,15 @@ export default function ImportBertahapDialog({ open, onOpenChange, onSelesai }: 
 
   const persen = baris.length === 0 ? 0 : Math.round((offset / baris.length) * 100);
   const bersih = ringkasan !== null && ringkasan.baris_gagal === 0 && offset >= baris.length && baris.length > 0;
+  const konteksSiap = config.konteksSiap !== false;
+  const bisaMulai = baris.length > 0 && konteksSiap;
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o && sibuk) return; onOpenChange(o); }}>
       <DialogContent className="sm:max-w-3xl">
         <DialogHeader>
-          <DialogTitle>Import riwayat bertahap</DialogTitle>
-          <DialogDescription>
-            Untuk file besar (puluhan hingga ratusan ribu baris). File dibaca di browser lalu
-            dikirim 1000 baris per panggilan dengan progres — backend tetap ringan.
-            Kunci: NIS lokal + lembaga; baris cocok diperbarui, hanya kolom terisi.
-          </DialogDescription>
+          <DialogTitle>{config.judul}</DialogTitle>
+          <DialogDescription>{config.deskripsi}</DialogDescription>
         </DialogHeader>
         <div className="grid grid-cols-1 gap-4">
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-muted/40 p-4">
@@ -167,21 +243,24 @@ export default function ImportBertahapDialog({ open, onOpenChange, onSelesai }: 
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Template kosong</p>
               <p className="text-xs text-muted-foreground">Mulai dari nol.</p>
             </div>
-            <Button id="btn_unduh_template_riwayat" type="button" variant="link" className="h-auto shrink-0 justify-start px-0"
-              onClick={() => void unduhTemplateRiwayatBelajar().catch((e) => toast.error(errorMessage(e)))}>
-              <Download data-icon="inline-start" size={16} /> Unduh template Excel
+            <Button id={idTemplate} type="button" variant="link" className="h-auto shrink-0 justify-start px-0"
+              onClick={() => void config.unduhTemplate().catch((e) => toast.error(errorMessage(e)))}>
+              <Download data-icon="inline-start" size={16} /> {config.labelTemplate}
             </Button>
           </div>
-          <DataExistingCard
-            aktif={open}
-            id="btn_unduh_data_riwayat"
-            labelTombol="Unduh data"
-            unduh={unduhDataRiwayatBelajar}
-          />
+          {config.unduhData && (
+            <DataExistingCard
+              aktif={open}
+              id={`btn_unduh_data_${idPrefix}`}
+              labelTombol={config.unduhData.label}
+              unduh={config.unduhData.jalankan}
+            />
+          )}
           <div className="flex flex-col gap-2 rounded-lg border bg-muted/40 p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Import bertahap</p>
           <p className="text-xs text-muted-foreground">1000 baris per panggilan — ringan untuk ribuan baris.</p>
-          <Input id="input_file_import_bertahap" type="file" accept=".xlsx,.xls,.csv"
+          {config.children}
+          <Input id={`input_file_import_${idPrefix}`} type="file" accept=".xlsx,.xls,.csv"
             className="h-11 cursor-pointer py-2 file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-1 file:text-xs file:font-medium"
             disabled={sibuk} onChange={(e) => void pilihFile(e.target.files?.[0] ?? null)} />
           {fase !== 'pilih' && (
@@ -190,19 +269,23 @@ export default function ImportBertahapDialog({ open, onOpenChange, onSelesai }: 
             </p>
           )}
           {(fase === 'jalan' || fase === 'selesai') && baris.length > 0 && (
-            <div className="w-full" id="progres_import_bertahap">
+            <div className="w-full" id={`progres_import_${idPrefix}`}>
               <div className="h-2 w-full overflow-hidden rounded bg-muted">
                 <div className="h-full bg-primary transition-all" style={{ width: `${persen}%` }} />
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
                 {offset.toLocaleString('id-ID')} / {baris.length.toLocaleString('id-ID')} ({persen}%) ·{' '}
-                {ringkasan ? `${ringkasan.dibuat} dibuat · ${ringkasan.diperbarui} diperbarui · ${ringkasan.baris_gagal} gagal` : '…'}
+                {ringkasan
+                  ? `${ringkasan.dibuat} dibuat · ${ringkasan.diperbarui} diperbarui · ${ringkasan.baris_dilewati} dilewati · ${ringkasan.baris_gagal} gagal`
+                  : '…'}
               </p>
             </div>
           )}
           {ringkasan && ringkasan.baris_gagal > 0 && (
-            <div className="rounded-md border p-3 text-sm" id="hasil_import_bertahap">
-              <p className="font-medium">{ringkasan.baris_gagal.toLocaleString('id-ID')} baris bermasalah{mode === 'eksekusi' ? ' (dilewati)' : ''}:</p>
+            <div className="rounded-md border p-3 text-sm" id={`hasil_import_${idPrefix}`}>
+              <p className="font-medium">
+                {ringkasan.baris_gagal.toLocaleString('id-ID')} baris bermasalah{mode === 'eksekusi' ? ' (dilewati)' : ''}:
+              </p>
               <ul className="mt-2 max-h-40 space-y-1 overflow-auto text-xs text-destructive">
                 {contoh.map((x, i) => (
                   <li key={`${x.baris}-${x.kolom}-${i}`}>
@@ -211,23 +294,29 @@ export default function ImportBertahapDialog({ open, onOpenChange, onSelesai }: 
                 ))}
               </ul>
               {galatUnduh && sesiId !== null && (
-                <Button id="btn_unduh_galat_bertahap" type="button" variant="link" className="h-auto px-0"
-                  onClick={() => void unduhGalatPotong(sesiId).catch((e) => toast.error(errorMessage(e)))}>
+                <Button id={idUnduhGalat} type="button" variant="link" className="h-auto px-0"
+                  onClick={() => void config.unduhGalat(sesiId).catch((e) => toast.error(errorMessage(e)))}>
                   <Download data-icon="inline-start" size={16} /> Unduh CSV semua galat
                 </Button>
               )}
             </div>
           )}
           {fase === 'selesai' && bersih && (
-            <p className="text-sm text-emerald-600" id="hasil_import_bertahap">
+            <p className="text-sm text-emerald-600" id={`hasil_import_${idPrefix}`}>
               {mode === 'periksa' ? 'Tidak ada masalah — siap diimport.' : 'Import selesai tanpa galat.'}
             </p>
           )}
           <div className="flex justify-end gap-2">
-            <Button id="btn_mulai_periksa_bertahap" type="button" variant="outline"
-              disabled={sibuk || baris.length === 0 || fase === 'jalan'}
+            {fase === 'jalan' ? (
+              <Button type="button" variant="outline" onClick={() => { batalRef.current = true; }}>
+                Batalkan
+              </Button>
+            ) : null}
+            <Button id={idPeriksa} type="button" variant="outline"
+              disabled={sibuk || !bisaMulai || fase === 'jalan'}
+              title={konteksSiap ? undefined : 'Lengkapi pilihan di atas dulu'}
               onClick={() => void jalan('periksa')}>Periksa</Button>
-            <Button id="btn_mulai_import_bertahap" type="button"
+            <Button id={idMulai} type="button"
               disabled={sibuk || !bersih || mode !== 'periksa'}
               title={bersih ? 'Jalankan import setelah periksa bersih' : 'Periksa dulu hingga bersih'}
               onClick={() => void jalan('eksekusi')}>Import</Button>
@@ -236,9 +325,7 @@ export default function ImportBertahapDialog({ open, onOpenChange, onSelesai }: 
         </div>
         <DialogFooter>
           <Button type="button" variant="outline" disabled={sibuk}
-            onClick={() => { if (fase !== 'jalan') { reset(); onOpenChange(false); } }}>
-            {fase === 'jalan' ? 'Batalkan' : 'Tutup'}
-          </Button>
+            onClick={() => { bersihkanTampilan(); onOpenChange(false); }}>Tutup</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

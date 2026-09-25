@@ -24,6 +24,7 @@ import FilterField from '@/components/FilterField';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import Pager from '@/components/Pager';
 import { useDaftarTabel } from '@/hooks/useDaftarTabel';
+import { ResizableAutoHidePanel, ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import ImportBertahapDialog from '@/components/ImportBertahapDialog';
 import { FileUp } from '@/icons';
 import { noopCommit } from '@/components/siklus/bersama';
@@ -284,8 +285,8 @@ export default function RiwayatBelajarPage() {
   }
 
   const panel = (tabel: ReactNode, pagerNode: ReactNode) => (
-    <section className="flex min-h-0 min-w-0 flex-col rounded-md">
-      <div className="flex min-h-0 flex-1 flex-col pb-2">
+    <section className="flex h-full min-h-0 min-w-0 flex-col rounded-md">
+      <div className="flex min-h-0 flex-1 flex-col pb-0">
         {tabel}
         {pagerNode}
       </div>
@@ -300,11 +301,12 @@ export default function RiwayatBelajarPage() {
       {!siap ? (
         <p className="text-sm text-muted-foreground">Pilih lembaga dan tahun ajaran di topbar dulu untuk memuat kedua tabel.</p>
       ) : (
-        <div className="grid min-h-0 flex-1 grid-cols-[repeat(auto-fit,minmax(min(420px,100%),1fr))] gap-4">
+         <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1" id="grup_riwayat_belajar">
+           <ResizableAutoHidePanel id="panel_riwayat_ganjil" defaultSize="50%" minSize="20%">
           {panel(
             <ExcelTable<RiwayatRow>
                tableKey="riwayat_belum_masuk"
-                header={<span>Semester Ganjil ({kiri.total})</span>}
+                 header={<span>Semester Ganjil</span>}
                  filter={(
                    <FilterField label="Keaktifan" htmlFor="select_keaktifan_riwayat_belajar">
                      <Select value={keaktifan} onValueChange={ubahKeaktifan}>
@@ -352,12 +354,15 @@ export default function RiwayatBelajarPage() {
               perPage={kiri.pager.perPage}
               onPage={(p) => { kiri.pager.setPage(p); void kiri.load(p); }}
                onPerPage={(pp) => { kiri.pager.setPerPage(pp); void kiri.load(1, pp); }}
-             />,
-           )}
-          {panel(
+              />,
+            )}
+           </ResizableAutoHidePanel>
+           <ResizableHandle orientation="horizontal" withHandle id="gagang_riwayat_belajar" />
+           <ResizablePanel id="panel_riwayat_genap" defaultSize="50%" minSize="20%">
+           {panel(
             <ExcelTable<RiwayatRow>
                tableKey="riwayat_belajar"
-                header={<span>Semester Genap ({kanan.total})</span>}
+                 header={<span>Semester Genap</span>}
                addButton={canPindah || canTambah ? (
                  <>
                    {canPindah ? (
@@ -400,14 +405,15 @@ export default function RiwayatBelajarPage() {
             />,
             <Pager
               page={kanan.pager.page}
-              lastPage={kanan.pager.page}
+               lastPage={kanan.lastPage}
               total={kanan.total}
               perPage={kanan.pager.perPage}
               onPage={(p) => { kanan.pager.setPage(p); void kanan.load(p); }}
                onPerPage={(pp) => { kanan.pager.setPerPage(pp); void kanan.load(1, pp); }}
-             />,
-           )}
-        </div>
+              />,
+            )}
+           </ResizablePanel>
+         </ResizablePanelGroup>
       )}
 
       <Dialog open={pindahOpen} onOpenChange={setPindahOpen}>

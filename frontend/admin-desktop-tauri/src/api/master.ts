@@ -2,6 +2,7 @@ import { api, apiUpload, downloadFile } from './client';
 import { appendQueryParam, type ScalarOrArray } from './query';
 import { PER_PAGE_DEFAULT } from '@/prefs';
 import type { ImportError } from './santri';
+import type { PotongHasil } from '@/components/ImportBertahapUmumDialog';
 
 export interface Lembaga {
   /** Sama dengan `jenjang`; dipakai komponen tabel generik (butuh `id`). */
@@ -442,6 +443,13 @@ export function unduhTemplateKelas() {
   return downloadFile('/admin/kelas/import-template', 'template-import-kelas.xlsx');
 }
 
+/** Unduh data kelas existing (kolom identik template import; walas = NIP).
+ *  Tanpa argumen = seluruh lingkup akses akun. */
+export function unduhDataKelas(jenjangs?: string[]) {
+  const q = jenjangs?.length ? `?${jenjangs.map((j) => `jenjang[]=${encodeURIComponent(j)}`).join('&')}` : '';
+  return downloadFile(`/admin/kelas/ekspor-data${q}`, 'data-kelas-existing.xlsx');
+}
+
 function formImportKelas(file: File) {
   const fd = new FormData();
   fd.set('file', file);
@@ -459,4 +467,31 @@ export function importKelasFile(file: File) {
     '/admin/kelas/import',
     formImportKelas(file),
   );
+}
+
+// ---------- Import kelas bertahap (potongan JSON dari browser) ----------
+
+/** Kirim satu potongan baris (maks 1000); panggilan pertama tanpa sesi_id
+ *  membuat sesi (wajib mode + total). */
+export function importKelasPotong(input: {
+  sesi_id?: number;
+  mode: 'periksa' | 'eksekusi';
+  total?: number;
+  baris: Record<string, unknown>[];
+  terakhir?: boolean;
+}) {
+  return api<PotongHasil>('/admin/kelas/import-potong', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+/** Batalkan sesi import bertahap milik sendiri. */
+export function batalPotongKelas(sesiId: number) {
+  return api<{ pesan: string }>(`/admin/kelas/import-potong/${sesiId}/batal`, { method: 'POST' });
+}
+
+/** Unduh CSV galat sesi milik sendiri. */
+export function unduhGalatKelas(sesiId: number) {
+  return downloadFile(`/admin/kelas/import-potong/${sesiId}/galat`, 'galat-import-kelas.csv');
 }

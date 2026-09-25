@@ -3,16 +3,17 @@ import { errorMessage } from '../api/client';
 import {
   createKelas,
   deleteKelas,
-  importKelasFile,
+  importKelasPotong,
   importNamaKelas,
   listKelas,
   listLembaga,
   listPegawaiAktif,
   listTahunAjaran,
-  periksaImportKelas,
+  unduhDataKelas,
   unduhTemplateKelas,
   updateKelas,
-  type ImportKelasHasil,
+  batalPotongKelas,
+  unduhGalatKelas,
   type ImportNamaHasil,
   type Kelas,
   type Lembaga,
@@ -51,8 +52,14 @@ import { useAuth } from '../auth/AuthContext';
 import { bisa } from '../api/auth';
 import { X, FileUp, Download } from '@/icons';
 import { DeleteAction, EditAction, ViewAction } from '@/components/RowActions';
+import ImportBertahapUmumDialog from '@/components/ImportBertahapUmumDialog';
 import { namaLembaga, namaTahunAjaran } from '@/lib/nilaiTampil';
 import { toast } from 'sonner';
+
+/** Kolom template yang dikirim (kunci lain dari file diabaikan). */
+const KOLOM_IMPORT_KELAS = [
+  'jenjang', 'tahun_ajaran', 'nama_kelas', 'nama_alias', 'walas', 'tingkat', 'urutan', 'kapasitas',
+];
 
 const FIELDS: ExcelField[] = [
   {
@@ -188,9 +195,6 @@ export default function KelasPage() {
 
   // Import file kelas satu lingkup (filter lembaga+TA saat ini).
   const [fileOpen, setFileOpen] = useState(false);
-  const [fileKelas, setFileKelas] = useState<File | null>(null);
-  const [hasilFile, setHasilFile] = useState<ImportKelasHasil | null>(null);
-  const [fileBusy, setFileBusy] = useState(false);
 
   /** Kode lembaga filter saat ini; tombol import hanya untuk MI/MD. */
   const kodeFilter = useMemo(() => {
@@ -606,7 +610,7 @@ export default function KelasPage() {
               id="btn_buka_import_kelas"
               variant="outline"
               title="Import file kelas (multi-lembaga & multi-tahun ajaran; izin per baris mengikuti akun)"
-              onClick={() => { setFileKelas(null); setHasilFile(null); setFileOpen(true); }}
+              onClick={() => setFileOpen(true)}
             >
               <FileUp data-icon="inline-start" size={16} /> Import
             </Button>
@@ -815,69 +819,38 @@ export default function KelasPage() {
         </DialogContent>
       </Dialog>
       {/* Import file kelas satu lingkup (Periksa → Import) */}
-      <Dialog open={fileOpen} onOpenChange={setFileOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Import kelas</DialogTitle>
-            <DialogDescription>
-              Satu file boleh berisi banyak lembaga + tahun ajaran. Kolom: jenjang, tahun_ajaran,
-              nama_kelas (wajib), nama_alias, walas (NIP/nama pegawai, opsional), tingkat, urutan,
-              kapasitas. Nama yang sudah ada diperbarui (hanya kolom terisi; kosong = pertahankan);
-              baris di luar lembaga Anda ditolak per baris.
-            </DialogDescription>
-          </DialogHeader>
-          <form className="grid grid-cols-2 gap-3" onSubmit={async (e) => {
-            e.preventDefault();
-            if (!fileKelas || !hasilFile?.siap_import) return;
-            setFileBusy(true);
-            try {
-              const res = await importKelasFile(fileKelas);
-              if (res.errors?.length) toast.error(res.errors.map((x) => `Baris ${x.row} (${x.attribute}): ${x.errors.join(', ')}`).join(' · '));
-              else {
-                toast.success(res.pesan ?? 'Import selesai.');
-                setFileOpen(false);
-                pager.goFirst();
-                await load(1);
-              }
-            } catch (e2) { toast.error(errorMessage(e2)); } finally { setFileBusy(false); }
-          }}>
-            <Button id="btn_unduh_template_kelas" type="button" variant="link" className="col-span-2 h-auto justify-start px-0"
-              onClick={() => void unduhTemplateKelas().catch((e) => toast.error(errorMessage(e)))}>
-              <Download data-icon="inline-start" size={16} /> Unduh template Excel kelas
-            </Button>
-            <Input id="input_file_import_kelas" className="col-span-2" type="file" accept=".xlsx,.xls,.csv"
-              onChange={(e) => { setFileKelas(e.target.files?.[0] ?? null); setHasilFile(null); }} required />
-            {hasilFile ? (
-              <div className="col-span-2 rounded-md border p-3 text-sm" id="hasil_periksa_import_kelas">
-                <p className="font-medium">
-                  {hasilFile.ringkasan.baris_diproses} baris diperiksa · {hasilFile.ringkasan.dibuat} dibuat ·{' '}
-                  {hasilFile.ringkasan.diperbarui} diperbarui · {hasilFile.ringkasan.dilewati} dilewati ·{' '}
-                  {hasilFile.ringkasan.baris_gagal} bermasalah
-                </p>
-                {hasilFile.errors.length > 0 ? (
-                  <ul className="mt-2 max-h-40 space-y-1 overflow-auto text-xs text-destructive">
-                    {hasilFile.errors.slice(0, 50).map((x, i) => <li key={`${x.row}-${x.attribute}-${i}`}>Baris {x.row} ({x.attribute}): {x.errors.join(', ')}</li>)}
-                  </ul>
-                ) : <p className="mt-1 text-xs text-emerald-600">Tidak ada masalah — siap diimport.</p>}
-              </div>
-            ) : null}
-            <DialogFooter className="col-span-2">
-              <Button type="button" variant="outline" onClick={() => setFileOpen(false)}>Batal</Button>
-              <Button id="btn_periksa_import_kelas" type="button" variant="outline" disabled={!fileKelas || fileBusy}
-                onClick={async () => {
-                  if (!fileKelas) return;
-                  setFileBusy(true);
-                  try {
-                    const res = await periksaImportKelas(fileKelas);
-                    setHasilFile(res);
-                    if (res.siap_import) toast.success(res.pesan); else toast.error(res.pesan);
-                  } catch (e2) { setHasilFile(null); toast.error(errorMessage(e2)); } finally { setFileBusy(false); }
-                }}>Periksa</Button>
-              <Button id="btn_import_kelas" type="submit" disabled={fileBusy || !hasilFile?.siap_import}>Import</Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <ImportBertahapUmumDialog
+        open={fileOpen}
+        onOpenChange={setFileOpen}
+        config={{
+          idPrefix: 'kelas',
+          judul: 'Import kelas bertahap',
+          deskripsi: 'Import kelas bertahap. Satu file boleh berisi banyak lembaga + tahun ajaran.',
+          kolom: KOLOM_IMPORT_KELAS,
+          wajib: ['jenjang', 'tahun_ajaran', 'nama_kelas'],
+          idTombol: {
+            template: 'btn_unduh_template_kelas',
+            periksa: 'btn_periksa_import_kelas',
+            mulai: 'btn_import_kelas',
+          },
+          labelTemplate: 'Unduh template Excel kelas',
+          unduhTemplate: unduhTemplateKelas,
+          unduhData: { label: 'Unduh data kelas existing', jalankan: unduhDataKelas },
+          kirim: ({ sesi_id, mode, total, baris, terakhir }) =>
+            importKelasPotong({
+              ...(sesi_id === undefined ? {} : { sesi_id }),
+              mode, ...(sesi_id === undefined ? { total } : {}), baris,
+              ...(terakhir ? { terakhir } : {}),
+            }),
+          batal: batalPotongKelas,
+          unduhGalat: unduhGalatKelas,
+          onSelesai: () => {
+            setFileOpen(false);
+            pager.goFirst();
+            void load(1);
+          },
+        }}
+      />
       <Dialog open={editRow !== null} onOpenChange={(o) => { if (!o) setEditRow(null); }}>
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>

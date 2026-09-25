@@ -2,20 +2,40 @@ import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { bisa } from '../api/auth';
 import { errorMessage } from '../api/client';
-import { daftarKelas, listAlumni, lulusSantri, tidakLulusSantri, type Alumni, type RiwayatRow } from '../api/siklus';
+import {
+  batalPotongAlumni,
+  daftarKelas,
+  importAlumniPotong,
+  listAlumni,
+  lulusSantri,
+  tidakLulusSantri,
+  unduhGalatAlumni,
+  unduhTemplateAlumni,
+  type Alumni,
+  type RiwayatRow,
+} from '../api/siklus';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import FilterField from '@/components/FilterField';
 import { FieldLabel } from '@/components/ui/field';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
+import { ResizableAutoHidePanel, ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { targetTunggal, useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
+import { Download, FileUp } from '@/icons';
+import ImportBertahapUmumDialog from '@/components/ImportBertahapUmumDialog';
 import { toast } from 'sonner';
 
 /** Kelulusan: kiri santri tingkat akhir → kanan alumni & santri tidak lulus. */
+
+/** Kolom template yang dikirim (kunci lain dari file diabaikan). */
+const KOLOM_IMPORT_ALUMNI = [
+  'nis_lokal', 'jenjang', 'tahun_ajaran_lulus', 'tanggal_lulus', 'kelas_lulus', 'nomor_ijazah',
+  'no_surat_ijazah', 'kegiatan_setelah_lulus', 'penyerahan_ijazah', 'melanjutkan', 'catatan',
+];
 
 /** Kolom santri (kiri + tidak lulus). */
 const FIELDS_SANTRI: ExcelField[] = [
@@ -47,13 +67,12 @@ export default function KelulusanPage() {
   /** Panel santri tidak lulus bisa disembunyikan/ditampilkan. */
   const [tampilTidakLulus, setTampilTidakLulus] = useState(true);
   const [alumni, setAlumni] = useState<Alumni[]>([]);
-  /** Urut header alumni: daftar nilai allowlist + arah global (maks 3 kunci). */
-  const [urut, setUrut] = useState<string[]>([]);
-  const [arahUrut, setArahUrut] = useState<'naik' | 'turun'>('naik');
   const [err, setErr] = useState('');
   /** Pencarian tunggal halaman (topBar). */
   const [cari, setCari] = useState('');
   const [busy, setBusy] = useState(false);
+
+  const [importOpen, setImportOpen] = useState(false);
 
   const [lulusOpen, setLulusOpen] = useState(false);
   const [tanggalLulus, setTanggalLulus] = useState('');
@@ -78,37 +97,37 @@ export default function KelulusanPage() {
     } catch (e) { setErr(errorMessage(e)); }
   }, [filterLoading, jenjangs, tingkat, cari]);
 
-  const loadArsip = useCallback(async (f?: { urut?: string[]; arah?: 'naik' | 'turun' }) => {
+  const loadArsip = useCallback(async () => {
     if (filterLoading) { setAlumni([]); return; }
     setErr('');
-    const u = f?.urut ?? urut;
-    const a = f?.arah ?? arahUrut;
     try {
       const res = await listAlumni({
         jenjang: jenjangs,
         tahun_ajaran: tahunAjaranNames,
         q: cari || undefined,
-        sort: u.length ? u : undefined,
-        arah: u.length ? a : undefined,
-
         per_page: 100,
       });
       setAlumni(res.data);
     } catch (e) { setErr(errorMessage(e)); }
-  }, [filterLoading, jenjangs, tahunAjaranNames, urut, arahUrut, cari]);
-
-  /** Klik header: simpan urut baru lalu muat ulang arsip alumni. */
-  function terapkanUrut(nilai: string[], arah: 'naik' | 'turun') {
-    setUrut(nilai);
-    setArahUrut(arah);
-    void loadArsip({ urut: nilai, arah });
-  }
+  }, [filterLoading, jenjangs, tahunAjaranNames, cari]);
 
   useEffect(() => { void loadKiri(); }, [loadKiri]);
   useEffect(() => { void loadArsip(); }, [loadArsip]);
 
   const namaTerpilih = kiri.filter((r) => pilih.has(r.santri_id));
   const totalTerpilih = namaTerpilih.length + tidakLulus.length;
+
+  const pindahkanTidakLulus = () => {
+    if (!canUbah || pilih.size === 0) return;
+    const baris = kiri.filter((r) => pilih.has(r.santri_id)).map((r) => ({
+      santri_id: r.santri_id,
+      nama: r.santri?.nama_lengkap ?? String(r.santri_id),
+      kelas: r.kelas?.nama_kelas ?? null,
+    }));
+    setTidakLulus((prev) => [...prev, ...baris]);
+    setKiri((prev) => prev.filter((r) => !pilih.has(r.santri_id)));
+    setPilih(new Set());
+  };
 
   const prosesLulus = async () => {
     if (!targetJenjang || !targetTahunAjaran || !tanggalLulus || namaTerpilih.length === 0) return;
@@ -147,38 +166,29 @@ export default function KelulusanPage() {
       <ErrorNotice>{err}</ErrorNotice>
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari santri…" />
       <PengaturanHalaman tampil={{}} tabel={[{ key: 'kelulusan_santri_akhir', judul: 'Santri tingkat akhir', fields: FIELDS_SANTRI }, { key: 'kelulusan_alumni', judul: 'Alumni', fields: FIELDS_ALUMNI }, { key: 'kelulusan_tidak_lulus', judul: 'Santri tidak lulus', fields: FIELDS_SANTRI }]} />
-      <div className="flex flex-wrap items-end gap-3">
-        <div>
-          <FieldLabel htmlFor="input_tingkat_kelulusan">Tingkat akhir</FieldLabel>
-          <Input id="input_tingkat_akhir_kelulusan" value={tingkat} onChange={(e) => setTingkat(e.target.value)} placeholder="mis. 6" className="w-28" />
-        </div>
-        {canUbah && (
-        <Button id="btn_buka_luluskan" disabled={namaTerpilih.length === 0 || !targetJenjang || !targetTahunAjaran} onClick={() => { setTanggalLulus(''); setNoIjazah(''); setNoSurat(''); setLulusOpen(true); }}>
-          Luluskan ({namaTerpilih.length})
-        </Button>
-        )}
-        {canUbah && (
-        <Button id="btn_proses_tidak_lulus" variant="outline" disabled={busy || tidakLulus.length === 0 || !targetJenjang} onClick={() => void prosesTidakLulus()}>
-          Tandai tidak lulus ({tidakLulus.length})
-        </Button>
-        )}
-      </div>
 
       <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1" id="grup_kelulusan_kolom">
-        <ResizablePanel defaultSize={50} minSize={25}>
-        <section className="flex h-full min-h-0 min-w-0 flex-col rounded-md border">
-          <div className="flex min-h-0 flex-1 flex-col px-2 pb-2">
+        <ResizableAutoHidePanel id="panel_kelulusan_santri_akhir" defaultSize={50} minSize={25}>
+         <section className="flex h-full min-h-0 min-w-0 flex-col rounded-md">
+           <div className="flex min-h-0 flex-1 flex-col pb-0">
             <ExcelTable
                tableKey="kelulusan_santri_akhir"
-               header={<span>Santri tingkat akhir ({kiri.length})</span>}
-               akhirToolbar={pilih.size > 0 ? (
-                 <Button id="btn_ke_tidak_lulus" size="sm" variant="outline" onClick={() => {
-                   const baris = kiri.filter((r) => pilih.has(r.santri_id)).map((r) => ({ santri_id: r.santri_id, nama: r.santri?.nama_lengkap ?? String(r.santri_id), kelas: r.kelas?.nama_kelas ?? null }));
-                   setTidakLulus((prev) => [...prev, ...baris]);
-                   setKiri((prev) => prev.filter((r) => !pilih.has(r.santri_id)));
-                   setPilih(new Set());
-                 }}>→ Tidak lulus</Button>
-               ) : undefined}
+                header={<span>Santri tingkat akhir</span>}
+                filter={(
+                  <FilterField label="Tingkat akhir" htmlFor="input_tingkat_akhir_kelulusan">
+                    <Input id="input_tingkat_akhir_kelulusan" value={tingkat} onChange={(e) => setTingkat(e.target.value)} placeholder="mis. 6" className="w-28" />
+                  </FilterField>
+                )}
+                 addButton={canUbah ? (
+                   <>
+                     <Button id="btn_buka_luluskan" disabled={namaTerpilih.length === 0 || !targetJenjang || !targetTahunAjaran} onClick={() => { setTanggalLulus(''); setNoIjazah(''); setNoSurat(''); setLulusOpen(true); }}>
+                       Luluskan ({namaTerpilih.length})
+                     </Button>
+                     <Button id="btn_tidak_lulus" variant="outline" disabled={pilih.size === 0} onClick={pindahkanTidakLulus}>
+                       Tidak Lulus ({pilih.size})
+                     </Button>
+                   </>
+                 ) : undefined}
                fields={FIELDS_SANTRI}
               rows={kiri}
               getValues={(r) => ({ nama: r.santri?.nama_lengkap ?? null, kelas: r.kelas?.nama_kelas ?? null })}
@@ -186,23 +196,29 @@ export default function KelulusanPage() {
               onCommit={async () => {}}
               onSaved={() => {}}
               renderActions={() => null}
-              onCheckedChange={(rows) => setPilih(new Set(rows.map((r) => r.santri_id)))}
-              emptyText="Tidak ada santri aktif."
+               onCheckedChange={(rows) => setPilih(new Set(rows.map((r) => r.santri_id)))}
+               hidePreset
+               emptyText="Tidak ada santri aktif."
             />
           </div>
         </section>
-        </ResizablePanel>
+        </ResizableAutoHidePanel>
         <ResizableHandle withHandle orientation="horizontal" id="gagang_kelulusan_kolom" />
         <ResizablePanel defaultSize={50} minSize={25}>
         <div className="flex h-full min-h-0 flex-col">
         <ResizablePanelGroup orientation="vertical" className="min-h-0 flex-1" id="grup_kelulusan_baris">
-          <ResizablePanel defaultSize={50} minSize={15}>
-          <section className="flex h-full min-h-0 min-w-0 flex-col rounded-md border">
-            <div className="flex min-h-0 flex-1 flex-col px-2 pb-2">
+          <ResizableAutoHidePanel id="panel_kelulusan_alumni" defaultSize={50} minSize={15}>
+           <section className="flex h-full min-h-0 min-w-0 flex-col rounded-md">
+             <div className="flex min-h-0 flex-1 flex-col pb-0">
               <ExcelTable
                  tableKey="kelulusan_alumni"
-                 header={<span>Alumni ({alumni.length})</span>}
-                 fields={FIELDS_ALUMNI}
+                  header={<span>Alumni</span>}
+                  addButton={canUbah ? (
+                    <Button id="btn_buka_import_alumni" variant="outline" onClick={() => setImportOpen(true)}>
+                      <FileUp data-icon="inline-start" size={16} /> Import
+                    </Button>
+                  ) : undefined}
+                  fields={FIELDS_ALUMNI}
                 rows={alumni}
                 getValues={(a) => ({
                   santri: a.santri?.nama_lengkap ?? '—',
@@ -210,10 +226,7 @@ export default function KelulusanPage() {
                   ta: a.tahunAjaranLulus?.nama ?? '—',
                   ijazah: a.nomor_ijazah ?? '—',
                 })}
-                urutAktif={urut}
-                arahUrut={arahUrut}
-                onUrut={terapkanUrut}
-                canEdit={false}
+                 canEdit={false}
                 onCommit={async () => {}}
                 onSaved={() => {}}
                 renderActions={() => null}
@@ -224,17 +237,22 @@ export default function KelulusanPage() {
               />
             </div>
           </section>
-          </ResizablePanel>
+          </ResizableAutoHidePanel>
           {tampilTidakLulus && (
           <>
           <ResizableHandle withHandle orientation="vertical" id="gagang_kelulusan_baris" />
           <ResizablePanel defaultSize={50} minSize={15}>
-          <section className="flex h-full min-h-0 min-w-0 flex-col rounded-md border">
-            <div className="flex min-h-0 flex-1 flex-col px-2 pb-2">
+           <section className="flex h-full min-h-0 min-w-0 flex-col rounded-md">
+             <div className="flex min-h-0 flex-1 flex-col pb-0">
               <ExcelTable
                  tableKey="kelulusan_tidak_lulus"
-                 header={<span>Santri tidak lulus ({tidakLulus.length})</span>}
-                 akhirToolbar={(
+                  header={<span>Santri tidak lulus</span>}
+                  addButton={canUbah ? (
+                    <Button id="btn_proses_tidak_lulus" variant="outline" disabled={busy || tidakLulus.length === 0 || !targetJenjang} onClick={() => void prosesTidakLulus()}>
+                      Tandai tidak lulus ({tidakLulus.length})
+                    </Button>
+                  ) : undefined}
+                  akhirToolbar={(
                    <Button id="btn_sembunyi_tidak_lulus" size="sm" variant="ghost" onClick={() => setTampilTidakLulus(false)}>
                      Sembunyikan
                    </Button>
@@ -248,8 +266,9 @@ export default function KelulusanPage() {
                 renderActions={(b) => (
                   <Button id={`btn_kembalikan_tidak_lulus_${b.santri_id}`} size="sm" variant="ghost" onClick={() => setTidakLulus((prev) => prev.filter((x) => x.santri_id !== b.santri_id))}>Kembalikan</Button>
                 )}
-                hideCheckbox
-                emptyText="Belum ada."
+                 hideCheckbox
+                 hidePreset
+                 emptyText="Belum ada."
               />
             </div>
           </section>
@@ -268,7 +287,38 @@ export default function KelulusanPage() {
         </ResizablePanel>
       </ResizablePanelGroup>
 
-      <Dialog open={lulusOpen} onOpenChange={setLulusOpen}>
+       <ImportBertahapUmumDialog
+         open={importOpen}
+         onOpenChange={setImportOpen}
+         config={{
+           idPrefix: 'alumni',
+           judul: 'Import arsip alumni bertahap',
+           deskripsi: 'Kolom wajib: tahun_ajaran_lulus dan tanggal_lulus.',
+           kolom: KOLOM_IMPORT_ALUMNI,
+           wajib: ['nis_lokal', 'jenjang', 'tahun_ajaran_lulus', 'tanggal_lulus'],
+           idTombol: {
+             template: 'btn_unduh_template_alumni',
+             periksa: 'btn_periksa_import_alumni',
+             mulai: 'btn_import_alumni',
+           },
+           labelTemplate: 'Unduh template Excel alumni',
+           unduhTemplate: unduhTemplateAlumni,
+           kirim: ({ sesi_id, mode, total, baris, terakhir }) =>
+             importAlumniPotong({
+               ...(sesi_id === undefined ? {} : { sesi_id }),
+               mode, ...(sesi_id === undefined ? { total } : {}), baris,
+               ...(terakhir ? { terakhir } : {}),
+             }),
+           batal: batalPotongAlumni,
+           unduhGalat: unduhGalatAlumni,
+           onSelesai: () => {
+             setImportOpen(false);
+             void Promise.all([loadKiri(), loadArsip()]);
+           },
+         }}
+       />
+
+       <Dialog open={lulusOpen} onOpenChange={setLulusOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Luluskan santri</DialogTitle>

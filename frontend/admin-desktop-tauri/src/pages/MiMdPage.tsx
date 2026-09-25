@@ -13,7 +13,7 @@ import {
 import { bisa } from '../api/auth';
 import { useAuth } from '../auth/AuthContext';
 import { Button } from '@/components/ui/button';
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
+import { ResizableAutoHidePanel, ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { ActionIcon } from '@/components/RowActions';
 import { ArrowRight, X } from '@/icons';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
@@ -30,7 +30,7 @@ export default function MiMdPage() {
   const canSamakan = bisa(user, 'pindah_kelas.ubah');
   const canDaftar = bisa(user, 'santri.tambah');
   const canHentikan = bisa(user, 'santri.ubah');
-  const { tahunAjaranNames, kelas: kelasFilter } = useFilterGlobalAktif();
+  const { tahunAjaranNames, semesters, tingkat: tingkatFilter, kelas: kelasFilter, loading: filterLoading } = useFilterGlobalAktif();
   const [data, setData] = useState<MiMdData | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
@@ -40,16 +40,17 @@ export default function MiMdPage() {
   const [bulkBusy, setBulkBusy] = useState(false);
 
   const load = useCallback(async () => {
+    if (filterLoading) return;
     setErr('');
     setLoading(true);
     try {
-      setData(await listMiMd({ tahun_ajaran: tahunAjaranNames }));
+      setData(await listMiMd({ tahun_ajaran: tahunAjaranNames, semester: semesters, tingkat: tingkatFilter }));
     } catch (e) {
       setErr(errorMessage(e));
     } finally {
       setLoading(false);
     }
-  }, [tahunAjaranNames]);
+  }, [filterLoading, tahunAjaranNames, semesters, tingkatFilter]);
 
   useEffect(() => {
     void load();
@@ -246,7 +247,7 @@ export default function MiMdPage() {
         fields={fields}
         rows={urutkan(rows, urutTabel[key].kolom, urutTabel[key].arah)}
         getValues={getValues}
-        header={<span>{judul} ({jumlah})</span>}
+         header={<span>{judul}</span>}
         urutAktif={urutTabel[key].kolom}
         arahUrut={urutTabel[key].arah}
         onUrut={(kolom, arah) => terapkanUrut(key, kolom, arah)}
@@ -285,14 +286,10 @@ export default function MiMdPage() {
         <p className="text-sm text-muted-foreground">Memuat…</p>
       ) : (
         <>
-          <p className="text-xs text-muted-foreground" id="info_ta_mi_md">
-             Tahun ajaran: {Array.isArray(data?.tahun_ajaran) ? data.tahun_ajaran.join(', ') : data?.tahun_ajaran ?? 'Semua'}
-
-          </p>
-          <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1" id="grup_mi_md">
-            <ResizablePanel defaultSize="50%" minSize="25%" id="panel_mi_md_kiri">
+           <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1" id="grup_mi_md">
+            <ResizableAutoHidePanel defaultSize="50%" minSize="25%" id="panel_mi_md_kiri">
               <ResizablePanelGroup orientation="vertical" className="min-h-0" id="grup_mi_md_kiri">
-                <ResizablePanel defaultSize="66.67%" minSize="30%" id="panel_mi_md_mi">
+                <ResizableAutoHidePanel defaultSize="66.67%" minSize="30%" id="panel_mi_md_mi">
                   {panel('mi', 'MI Only', rowsMi.length, FIELDS_MI, rowsMi, nilaiStatis,
                     canDaftar
                       ? (r) => (
@@ -320,7 +317,7 @@ export default function MiMdPage() {
                       )
                       : undefined,
                   )}
-                </ResizablePanel>
+                </ResizableAutoHidePanel>
                 <ResizableHandle withHandle orientation="vertical" id="gagang_mi_md_mi_beda" aria-label="Atur tinggi tabel MI Only dan Perbandingan Kelas" />
                 <ResizablePanel defaultSize="33.33%" minSize="15%" id="panel_mi_md_beda">
                   {panel(
@@ -387,7 +384,7 @@ export default function MiMdPage() {
                   )}
                 </ResizablePanel>
               </ResizablePanelGroup>
-            </ResizablePanel>
+            </ResizableAutoHidePanel>
             <ResizableHandle withHandle orientation="horizontal" id="gagang_mi_md_kiri_md" aria-label="Atur lebar kolom MI-MD dan MD Semua" />
             <ResizablePanel defaultSize="50%" minSize="25%" id="panel_mi_md_md">
               {panel('md', 'MD Semua', rowsMd.length, FIELDS_MD, rowsMd, nilaiStatis,

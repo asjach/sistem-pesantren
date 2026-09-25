@@ -5,12 +5,12 @@ import { errorMessage } from '../api/client';
 import { batalKenaikan, listRiwayatBelajar, naikKelasOtomatis, type RiwayatRow } from '../api/siklus';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { FieldLabel } from '@/components/ui/field';
+import FilterField from '@/components/FilterField';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { targetTunggal, useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { TopBarSearch } from '@/components/TopBarSearch';
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
+import { ResizableAutoHidePanel, ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { toast } from 'sonner';
 
@@ -46,9 +46,6 @@ export default function KenaikanKelasPage() {
     const lokal = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
     return lokal.toISOString().slice(0, 10);
   });
-  /** Urut header: daftar nilai allowlist + arah global (maks 3 kunci). */
-  const [urut, setUrut] = useState<string[]>([]);
-  const [arahUrut, setArahUrut] = useState<'naik' | 'turun'>('naik');
   const [kiri, setKiri] = useState<RiwayatRow[]>([]);
   /** Pencarian tunggal halaman (topBar). */
   const [cari, setCari] = useState('');
@@ -70,33 +67,21 @@ export default function KenaikanKelasPage() {
   const [busy, setBusy] = useState(false);
   const [busyId, setBusyId] = useState<number | null>(null);
 
-  const load = useCallback(async (f?: { urut?: string[]; arah?: 'naik' | 'turun' }) => {
+  const load = useCallback(async () => {
     if (filterLoading) { setKiri([]); return; }
     setErr('');
-    const urutPakai = f?.urut ?? urut;
-    const arahPakai = f?.arah ?? arahUrut;
     try {
       const res = await listRiwayatBelajar({
         jenjang: jenjangs,
         semester: '2',
         tingkat: tingkatAktif,
         is_active_riwayat: true,
-        sort: urutPakai.length ? urutPakai : undefined,
-
-        arah: urutPakai.length ? arahPakai : undefined,
         per_page: 500,
       });
       // Hanya tingkat 1–5; tingkat akhir lewat halaman Kelulusan.
       setKiri(res.data.filter((r) => /^[1-5]$/.test(String(r.tingkat ?? ''))));
     } catch (e) { setErr(errorMessage(e)); }
-  }, [filterLoading, jenjangs, tingkatAktif, urut, arahUrut]);
-
-  /** Klik header: simpan urut baru lalu muat ulang. */
-  function terapkanUrut(nilai: string[], arah: 'naik' | 'turun') {
-    setUrut(nilai);
-    setArahUrut(arah);
-    void load({ urut: nilai, arah });
-  }
+  }, [filterLoading, jenjangs, tingkatAktif]);
 
   /** Petakan baris riwayat aktif (kelas/tingkat tujuan) ke tabel hasil. */
   const barisHasil = (r: RiwayatRow): Baris => ({
@@ -180,38 +165,32 @@ export default function KenaikanKelasPage() {
       <ErrorNotice>{err}</ErrorNotice>
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari santri…" />
       <PengaturanHalaman tampil={{ tingkat: true, kelas: true }} tabel={[{ key: 'kenaikan_santri_genap', judul: 'Santri semester genap', fields: FIELDS_KENAIKAN }, { key: 'kenaikan_naik_kelas', judul: 'Santri naik kelas', fields: FIELDS_KENAIKAN }, { key: 'kenaikan_tidak_naik_kelas', judul: 'Santri tidak naik', fields: FIELDS_KENAIKAN }]} />
-      <div className="flex flex-wrap items-end gap-3">
-        {canUbah && (
-        <>
-          <Button id="btn_naik_kenaikan" disabled={busy || busyId !== null || kiriTampil.length === 0 || !tglMasuk || !targetJenjang || !targetTahunAjaran} onClick={() => void prosesNaik()}>
-            Naik ({kiriTampil.length})
-          </Button>
-          <div>
-            <FieldLabel htmlFor="input_tgl_kenaikan">Tanggal masuk kelas baru</FieldLabel>
-            <Input id="input_tgl_kenaikan" type="date" value={tglMasuk} onChange={(e) => setTglMasuk(e.target.value)} className="w-40" />
-          </div>
-        </>
-        )}
-      </div>
 
       <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1" id="grup_kenaikan_kolom">
-        <ResizablePanel defaultSize={50} minSize={25}>
+        <ResizableAutoHidePanel id="panel_kenaikan_santri_genap" defaultSize={50} minSize={25}>
         <section className="flex h-full min-h-0 min-w-0 flex-col">
-          <div className="flex min-h-0 flex-1 flex-col px-2 pb-2">
+           <div className="flex min-h-0 flex-1 flex-col pb-0">
             <ExcelTable
                tableKey="kenaikan_santri_genap"
-               header={<span>Santri semester genap, tingkat 1–5 ({kiriTampil.length})</span>}
-               fields={FIELDS_KENAIKAN}
+                header={<span>Santri semester genap, tingkat 1–5</span>}
+                filter={canUbah ? (
+                  <FilterField label="Tanggal masuk kelas baru" htmlFor="input_tgl_kenaikan">
+                    <Input id="input_tgl_kenaikan" type="date" value={tglMasuk} onChange={(e) => setTglMasuk(e.target.value)} className="w-40" />
+                  </FilterField>
+                ) : undefined}
+                addButton={canUbah ? (
+                  <Button id="btn_naik_kenaikan" disabled={busy || busyId !== null || kiriTampil.length === 0 || !tglMasuk || !targetJenjang || !targetTahunAjaran} onClick={() => void prosesNaik()}>
+                    Naik ({kiriTampil.length})
+                  </Button>
+                ) : undefined}
+                fields={FIELDS_KENAIKAN}
               rows={kiriTampil}
               getValues={(r) => ({
                 nama: r.santri?.nama_lengkap ?? null,
                 kelas: r.kelas?.nama_kelas ?? null,
                 tingkat: r.tingkat ?? null,
               })}
-              urutAktif={urut}
-              arahUrut={arahUrut}
-              onUrut={terapkanUrut}
-              canEdit={false}
+               canEdit={false}
               onCommit={async () => {}}
               onSaved={() => {}}
               renderActions={(r) => (
@@ -221,20 +200,21 @@ export default function KenaikanKelasPage() {
                   </Button>
                 ) : null
               )}
-              hideCheckbox
-              emptyText="Tidak ada santri semester genap pada filter ini."
+               hideCheckbox
+               hidePreset
+               emptyText="Tidak ada santri semester genap pada filter ini."
             />
           </div>
         </section>
-        </ResizablePanel>
+        </ResizableAutoHidePanel>
         <ResizableHandle withHandle orientation="horizontal" id="gagang_kenaikan_kolom" />
         <ResizablePanel defaultSize={50} minSize={25}>
         <div className="flex h-full min-h-0 flex-col">
         <ResizablePanelGroup orientation="vertical" className="min-h-0 flex-1" id="grup_kenaikan_baris">
-          <ResizablePanel defaultSize={65} minSize={15}>
+          <ResizableAutoHidePanel id="panel_kenaikan_naik_kelas" defaultSize={65} minSize={15}>
           <PanelDaftar
             idPrefix="naik_kelas"
-            judul={`Santri naik kelas (${hasilNaik.length})`}
+             judul="Santri naik kelas"
             baris={hasilNaik}
             onBatalkan={(b) => void batalkan([b])}
             aksiHeader={hasilNaik.length > 0 ? (
@@ -243,12 +223,12 @@ export default function KenaikanKelasPage() {
               </Button>
             ) : undefined}
           />
-          </ResizablePanel>
+          </ResizableAutoHidePanel>
           <ResizableHandle withHandle orientation="vertical" id="gagang_kenaikan_baris" />
           <ResizablePanel defaultSize={35} minSize={15}>
           <PanelDaftar
             idPrefix="tidak_naik_kelas"
-            judul={`Santri tidak naik (${hasilTidak.length})`}
+             judul="Santri tidak naik"
             baris={hasilTidak}
             onBatalkan={(b) => void batalkan([b])}
             aksiHeader={hasilTidak.length > 0 ? (
@@ -269,7 +249,7 @@ export default function KenaikanKelasPage() {
 function PanelDaftar({ idPrefix, judul, baris, onBatalkan, aksiHeader }: { idPrefix: string; judul: string; baris: Baris[]; onBatalkan: (b: Baris) => void; aksiHeader?: ReactNode }) {
   return (
     <section className="flex h-full min-h-0 min-w-0 flex-col">
-      <div className="flex min-h-0 flex-1 flex-col px-2 pb-2">
+       <div className="flex min-h-0 flex-1 flex-col pb-0">
         <ExcelTable
            tableKey={`kenaikan_${idPrefix}`}
            header={<span>{judul}</span>}
@@ -283,8 +263,9 @@ function PanelDaftar({ idPrefix, judul, baris, onBatalkan, aksiHeader }: { idPre
           renderActions={(b) => (
             <Button id={`btn_batal_${idPrefix}_${b.santri_id}`} size="sm" variant="ghost" onClick={() => onBatalkan(b)}>Batalkan</Button>
           )}
-          hideCheckbox
-          emptyText="Belum ada."
+           hideCheckbox
+           hidePreset
+           emptyText="Belum ada."
         />
       </div>
     </section>

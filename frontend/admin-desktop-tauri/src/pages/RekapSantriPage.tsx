@@ -5,7 +5,7 @@ import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import TabelRingkas from '@/components/TabelRingkas';
 import FilterField from '@/components/FilterField';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
+import { ResizableAutoHidePanel, ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
 
 /** Rekap Santri: jumlah per tahun ajaran/tingkat/kelas + usia per kelas.
@@ -90,8 +90,8 @@ export default function RekapSantriPage() {
         </span>
       </div>
 
-      <ResizablePanelGroup orientation="horizontal" className="mt-3 min-h-0 flex-1">
-        <ResizablePanel defaultSize="34" minSize="15">
+      <ResizablePanelGroup orientation="horizontal" className="mt-3 min-h-0 flex-1" id="grup_rekap_santri">
+        <ResizableAutoHidePanel id="panel_rekap_tahun_ajaran" defaultSize="34" minSize="15">
           <TabelRingkas
             className="h-full min-h-0"
             tableKey="rekap_per_tahun_ajaran"
@@ -104,13 +104,13 @@ export default function RekapSantriPage() {
             ]}
             baris={(data?.per_tahun_ajaran ?? []).map((r) => [r.tahun_ajaran ?? '—', r.l, r.p, r.jumlah_riwayat_aktif])}
           />
-        </ResizablePanel>
-        <ResizableHandle orientation="horizontal" withHandle />
+        </ResizableAutoHidePanel>
+        <ResizableHandle orientation="horizontal" withHandle id="gagang_rekap_tahun_ajaran" />
         <ResizablePanel defaultSize="66" minSize="30">
-          <ResizablePanelGroup orientation="vertical" className="h-full">
-            <ResizablePanel defaultSize="67" minSize="20">
-              <ResizablePanelGroup orientation="horizontal" className="h-full">
-                <ResizablePanel defaultSize="50" minSize="20">
+          <ResizablePanelGroup orientation="vertical" className="h-full" id="grup_rekap_vertikal">
+            <ResizableAutoHidePanel id="panel_rekap_tingkat_kelas" defaultSize="67" minSize="20">
+              <ResizablePanelGroup orientation="horizontal" className="h-full" id="grup_rekap_tingkat_kelas">
+                <ResizableAutoHidePanel id="panel_rekap_per_tingkat" defaultSize="50" minSize="20">
                   <TabelRingkas
                     className="h-full min-h-0"
                     tableKey="rekap_per_tingkat"
@@ -127,8 +127,8 @@ export default function RekapSantriPage() {
                       ['Jumlah', '', totalTingkat.l, totalTingkat.p, totalTingkat.jml],
                     ]}
                   />
-                </ResizablePanel>
-                <ResizableHandle orientation="horizontal" withHandle />
+                </ResizableAutoHidePanel>
+                <ResizableHandle orientation="horizontal" withHandle id="gagang_rekap_tingkat_kelas" />
                 <ResizablePanel defaultSize="50" minSize="20">
                   <TabelRingkas
                     className="h-full min-h-0"
@@ -154,8 +154,8 @@ export default function RekapSantriPage() {
                   />
                 </ResizablePanel>
               </ResizablePanelGroup>
-            </ResizablePanel>
-            <ResizableHandle orientation="vertical" withHandle />
+            </ResizableAutoHidePanel>
+            <ResizableHandle orientation="vertical" withHandle id="gagang_rekap_vertikal" />
             <ResizablePanel defaultSize="33" minSize="20">
               <TabelRingkas
                 className="h-full min-h-0"

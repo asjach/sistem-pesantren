@@ -85,6 +85,7 @@ export default function FilterRail() {
   const pageKey = filter?.registrasi?.pageKey ?? pageKeyDariPath(pathname);
   const bolehUbahMode = efektifSuper && !!setMode;
   const scopeMiMd = pathname === '/mi-md';
+  const hideTingkatAll = pageKey === 'pindah_kelas';
   const scopeJenjang = useMemo(() => (scopeMiMd ? ['MI', 'MD'] : jenjangs), [scopeMiMd, jenjangs]);
   const showTingkat = !!filter?.filterRelevan.includes('tingkat') && filter.tampil.tingkat;
   const showKelas = !!filter?.filterRelevan.includes('kelas') && filter.tampil.kelas;
@@ -284,18 +285,20 @@ export default function FilterRail() {
              disabled={loading || !bolehUbahMode || modeBusy !== null}
             onChange={(next) => { void ubahMode('tingkat', next); }}
           />
-          <button
-            id="filter_rail_tingkat_all"
-             type="button"
-             disabled={loading}
-             aria-label="Pilih semua tingkat"
-            aria-pressed={tingkat.length === 0}
-            title="Semua tingkat"
-            onClick={() => pilihTingkat([])}
-            className={itemClass(tingkat.length === 0)}
-          >
-            All
-          </button>
+           {!hideTingkatAll ? (
+             <button
+               id="filter_rail_tingkat_all"
+               type="button"
+               disabled={loading}
+               aria-label="Pilih semua tingkat"
+               aria-pressed={tingkat.length === 0}
+               title="Semua tingkat"
+               onClick={() => pilihTingkat([])}
+               className={itemClass(tingkat.length === 0)}
+             >
+               All
+             </button>
+           ) : null}
            {tingkatReferensiLoading ? (
              <span className="block px-1 py-3 text-center text-[10px] text-muted-foreground">Memuat…</span>
            ) : tingkatReferensiGagal ? (

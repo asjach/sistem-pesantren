@@ -1,11 +1,8 @@
 import { Button } from '@/components/ui/button';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+  ToggleGroup,
+  ToggleGroupItem,
+} from '@/components/ui/toggle-group';
 import { ChevronLeft, ChevronRight } from '@/icons';
 import { PER_PAGE_ALL, PER_PAGE_OPTIONS, normalizePerPage, type PerPage } from '@/prefs';
 
@@ -22,47 +19,65 @@ interface Props {
  *  Tak ditampilkan bila seluruh data masuk dalam satu halaman — kecuali pada
  *  pilihan "Semua", kontrol tetap tampil agar bisa dikembalikan. */
 export default function Pager({ page, lastPage, total, onPage, perPage, onPerPage }: Props) {
-  if (perPage !== PER_PAGE_ALL && total <= perPage) return null;
   return (
-    <div id="pager" className="flex flex-wrap items-center gap-2 py-2">
-      <Button
-        id="btn_page_prev"
-        variant="outline"
-        size="sm"
-        disabled={page <= 1}
-        onClick={() => onPage(page - 1)}
-      >
-        <ChevronLeft data-icon="inline-start" size={16} /> Sebelumnya
-      </Button>
-      <span className="text-sm text-muted-foreground">
-        Hal {page} / {lastPage} · {total} data
-      </span>
-      <Select value={String(perPage)} onValueChange={(v) => onPerPage(normalizePerPage(v))}>
-        <SelectTrigger
-          id="select_per_page"
-          aria-label="Baris per halaman"
-          title="Baris per halaman"
-          className="h-6 w-24"
+    <div id="pager" className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 px-1 py-1">
+      <div className="flex min-w-0 items-center gap-2">
+        <ToggleGroup
+          id="group_per_page"
+          type="single"
+          value={String(perPage)}
+          onValueChange={(value) => { if (value) onPerPage(normalizePerPage(value)); }}
+          variant="outline"
+          size="sm"
+          spacing={0}
+          aria-label="Jumlah data per halaman"
         >
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
           {PER_PAGE_OPTIONS.map((o) => (
-            <SelectItem key={o} value={String(o)}>
-              {o === PER_PAGE_ALL ? 'Semua' : `${o} / hal`}
-            </SelectItem>
+            <ToggleGroupItem
+              key={o}
+              id={`btn_per_page_${o}`}
+              value={String(o)}
+              aria-label={o === PER_PAGE_ALL ? 'Semua data per halaman' : `${o} data per halaman`}
+              title={o === PER_PAGE_ALL ? 'Semua data per halaman' : `${o} data per halaman`}
+              className="w-7 justify-center px-0"
+            >
+              {o === PER_PAGE_ALL ? 'All' : o}
+            </ToggleGroupItem>
           ))}
-        </SelectContent>
-      </Select>
-      <Button
-        id="btn_page_next"
-        variant="outline"
-        size="sm"
-        disabled={page >= lastPage}
-        onClick={() => onPage(page + 1)}
-      >
-        Berikutnya <ChevronRight data-icon="inline-end" size={16} />
-      </Button>
+        </ToggleGroup>
+      </div>
+      <div className="flex h-6 items-center justify-center gap-2 rounded-md border">
+        <Button
+          id="btn_page_prev"
+          type="button"
+          variant="outline"
+          size="icon-sm"
+          disabled={page <= 1}
+          aria-label="Halaman sebelumnya"
+          title="Halaman sebelumnya"
+          onClick={() => onPage(page - 1)}
+        >
+          <ChevronLeft size={16} />
+        </Button>
+        <span className="flex h-6 items-center text-sm text-muted-foreground">
+          Hal {page} / {Math.max(1, lastPage)}
+        </span>
+        <Button
+          id="btn_page_next"
+          type="button"
+          variant="outline"
+          size="icon-sm"
+          disabled={page >= lastPage}
+          aria-label="Halaman berikutnya"
+          title="Halaman berikutnya"
+          onClick={() => onPage(page + 1)}
+        >
+          <ChevronRight size={16} />
+        </Button>
+      </div>
+      <span className="flex h-6 min-w-0 items-center justify-self-end text-right text-sm text-muted-foreground">
+        {total} data
+      </span>
     </div>
   );
 }

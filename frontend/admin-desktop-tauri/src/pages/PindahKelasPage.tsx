@@ -2,15 +2,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { bisa } from '../api/auth';
 import { errorMessage } from '../api/client';
-import { daftarKelas, pindahKelas, salinGenapMassal, type RiwayatRow } from '../api/siklus';
+import { daftarKelas, pindahKelas, type RiwayatRow } from '../api/siklus';
 import { listKelas, type Kelas } from '../api/master';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { FieldLabel } from '@/components/ui/field';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import ExcelTable from '@/components/ExcelTable';
-import { targetTunggal, useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
+import Pager from '@/components/Pager';
+import { useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
 import { useTingkatAktif } from '@/tingkatAktif';
+import { usePager } from '@/hooks/usePager';
+import { PER_PAGE_ALL } from '@/prefs';
 import { PengaturanHalaman, useVisibilitasFilter } from '@/components/VisibilitasFilter';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import { ActionIcon } from '@/components/RowActions';
@@ -35,7 +35,6 @@ interface GrupTingkat {
 export default function PindahKelasPage() {
   const { user } = useAuth();
   const filterVis = useVisibilitasFilter();
-  const canSalin = bisa(user, 'kenaikan.ubah');
   const canPindah = bisa(user, 'pindah_kelas.ubah');
   const {
     jenjangs,
@@ -46,8 +45,6 @@ export default function PindahKelasPage() {
     loading: filterLoading,
   } = useFilterGlobalAktif();
   const { pilih: pilihTingkat, loading: loadingTingkat } = useTingkatAktif();
-  const targetJenjang = targetTunggal(jenjangs);
-  const targetTahunAjaran = targetTunggal(tahunAjaranNames);
   const [rows, setRows] = useState<RiwayatRow[]>([]);
   /** Pencarian tunggal halaman (topBar) — disaring di tiap kolom kelas. */
   const [cari, setCari] = useState('');
@@ -55,9 +52,6 @@ export default function PindahKelasPage() {
   const [err, setErr] = useState('');
   const [busyId, setBusyId] = useState<number | null>(null);
   const defaultTerapkan = useRef(false);
-
-  const [salinOpen, setSalinOpen] = useState(false);
-  const [tanggalSalin, setTanggalSalin] = useState('');
 
   const load = useCallback(async () => {
     if (filterLoading || jenjangs.length === 0) { setRows([]); return; }
@@ -163,21 +157,12 @@ export default function PindahKelasPage() {
       <ErrorNotice>{err}</ErrorNotice>
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari santri…" />
       <PengaturanHalaman tampil={{ tingkat: true, kelas: true }} />
-      <div className="flex flex-wrap items-end gap-3">
-        {canSalin && (
-          <Button id="btn_buka_salin_genap" variant="outline" disabled={!targetJenjang || !targetTahunAjaran} onClick={() => { setTanggalSalin(''); setSalinOpen(true); }}>
-            Salin ke genap
-          </Button>
-        )}
-
-      </div>
 
       {grup.length === 0 ? (
         <p className="text-sm text-muted-foreground">Tidak ada santri aktif pada filter ini.</p>
       ) : grup.map((g) => (
-        <section key={g.tingkat ?? 'tanpa'} className="flex min-h-0 flex-1 flex-col gap-2">
-          <h2 className="shrink-0 text-sm font-semibold">Tingkat {g.tingkat ?? '—'}</h2>
-          <div className="grid min-h-0 flex-1 gap-3 [grid-template-columns:repeat(auto-fit,minmax(300px,1fr))]">
+         <section key={g.tingkat ?? 'tanpa'} className="flex min-h-0 flex-1 flex-col gap-2">
+           <div className="grid min-h-0 flex-1 gap-3 [grid-template-columns:repeat(auto-fit,minmax(300px,1fr))]">
             {g.kolom.map((k) => (
               <TabelKelas
                 key={k.kelasId ?? 'tanpa'}
@@ -210,31 +195,7 @@ export default function PindahKelasPage() {
         </section>
       ))}
 
-      <Dialog open={salinOpen} onOpenChange={setSalinOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Salin ganjil → genap</DialogTitle>
-            <DialogDescription>Semua baris semester 1 aktif di lembaga ini disalin ke semester 2.</DialogDescription>
-          </DialogHeader>
-          <FieldLabel htmlFor="input_tanggal_salin_genap">Tanggal masuk semester 2</FieldLabel>
-          <Input id="input_tanggal_salin_genap" type="date" value={tanggalSalin} onChange={(e) => setTanggalSalin(e.target.value)} />
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setSalinOpen(false)}>Batal</Button>
-            <Button id="btn_proses_salin_genap" disabled={busyId !== null || !tanggalSalin || !targetJenjang || !targetTahunAjaran} onClick={async () => {
-              if (!targetJenjang || !targetTahunAjaran) return;
-              setBusyId(-1);
-              try {
-                const res = await salinGenapMassal({ jenjang: targetJenjang, tanggal_masuk: tanggalSalin });
-                toast.success(`Salin genap: ${res.berhasil} berhasil, ${res.gagal.length} gagal.`);
-                if (res.gagal.length) toast.error(res.gagal.map((g) => `#${g.santri_id}: ${g.pesan}`).join(' · '));
-                setSalinOpen(false);
-                await load();
-              } catch (e) { toast.error(errorMessage(e)); } finally { setBusyId(null); }
-            }}>Proses</Button>
-          </DialogFooter>
-        </DialogContent>
 
-      </Dialog>
     </div>
   );
 }
@@ -251,6 +212,7 @@ function TabelKelas({ tingkat, kolom, tetangga, bisaPindah, busyId, cari, onPind
   onPindah: (r: RiwayatRow, kelasBaruId: number) => void;
 }) {
   const kunci = `${tingkat ?? 'tanpa'}_${kolom.kelasId ?? 'tanpa'}`;
+  const { page, perPage, goFirst, setPage, setPerPage } = usePager(`pindah_kelas_${kunci}`);
   const tampil = useMemo(() => {
     const q = cari.trim().toLowerCase();
     if (!q) return kolom.baris;
@@ -258,19 +220,31 @@ function TabelKelas({ tingkat, kolom, tetangga, bisaPindah, busyId, cari, onPind
       (r.santri?.nama_lengkap ?? '').toLowerCase().includes(q)
       || (r.nis_lokal ?? '').toLowerCase().includes(q));
   }, [kolom.baris, cari]);
+  const lastPage = perPage === PER_PAGE_ALL ? 1 : Math.max(1, Math.ceil(tampil.length / perPage));
+  const barisHalaman = perPage === PER_PAGE_ALL
+    ? tampil
+    : tampil.slice((page - 1) * perPage, page * perPage);
   const aksi = tetangga.kiri != null || tetangga.kanan != null;
+
+  useEffect(() => {
+    goFirst();
+  }, [cari, goFirst]);
+
+  useEffect(() => {
+    if (page > lastPage) setPage(lastPage);
+  }, [lastPage, page, setPage]);
   return (
-    <section className="flex min-h-0 min-w-0 flex-col rounded-md border">
-      <div className="flex min-h-0 flex-1 flex-col px-2 pb-2">
+     <section className="flex min-h-0 min-w-0 flex-col rounded-md">
+       <div className="flex min-h-0 flex-1 flex-col pb-0">
         <ExcelTable
            tableKey={`pindah_kelas_${kunci}`}
-           header={<span>{kolom.kelasId == null ? 'Santri Belum Masuk Kelas' : `Kelas ${kolom.kelas}`} ({kolom.baris.length} santri)</span>}
+           header={<span>{kolom.kelasId == null ? 'Santri Belum Masuk Kelas' : `Kelas ${kolom.kelas}`}</span>}
            fields={[
             { key: 'nama', label: 'santri.nama_lengkap', kind: 'static', sumber: { tabel: 'santri', kolom: 'nama_lengkap' } },
             { key: 'nis_lokal', label: 'nis_lokal', kind: 'static', sumber: { tabel: 'lembaga_santri', kolom: 'nis_lokal' } },
             { key: 'no_absen', label: 'no_absen', kind: 'static', sumber: { tabel: 'riwayat_belajar', kolom: 'no_absen' } },
           ]}
-          rows={tampil}
+           rows={barisHalaman}
           getValues={(r) => ({
             nama: r.santri?.nama_lengkap ?? null,
             nis_lokal: r.nis_lokal ?? null,
@@ -306,9 +280,17 @@ function TabelKelas({ tingkat, kolom, tetangga, bisaPindah, busyId, cari, onPind
             </>
           ) : () => null}
           hideCheckbox
-          emptyText="Tidak ada santri pada kelas ini."
-        />
-      </div>
+           emptyText="Tidak ada santri pada kelas ini."
+         />
+         <Pager
+           page={page}
+           lastPage={lastPage}
+           total={tampil.length}
+           perPage={perPage}
+           onPage={setPage}
+           onPerPage={setPerPage}
+         />
+       </div>
     </section>
   );
 }

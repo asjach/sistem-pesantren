@@ -33,7 +33,7 @@ export default function Layout({ children }: { children: ReactNode }) {
                   <div className="flex min-h-0 flex-1 bg-background">
                     <FilterRail />
                     {/* Ganti lembaga/tahun ajaran aktif → remount halaman: filter & data ikut scope baru. */}
-                    <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto bg-background p-1">
+                    <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto bg-background p-0">
                       <Fragment key={`${jenjang ?? 'semua'}:${tahunAjaranNama ?? 'semua'}`}>{children}</Fragment>
                     </main>
                   </div>

@@ -2,6 +2,7 @@ import { api, apiUpload, downloadFile } from './client';
 import { appendQueryParam, type ScalarOrArray } from './query';
 import type { Paginate } from './master';
 import type { DokumenSantri } from './santri';
+import type { PotongHasil } from '@/components/ImportBertahapUmumDialog';
 
 // ---------- PSB (100: antrean, verifikasi/seleksi/ACC, dokumen) ----------
 
@@ -215,6 +216,36 @@ export function importPsb(input: { gelombang_id: number; jenjang: string; file: 
 
 export function downloadTemplatePsb() {
   return downloadFile('/psb/import-template', 'template-import-psb.xlsx');
+}
+
+// ---------- Import PSB bertahap (potongan JSON dari browser) ----------
+
+/** Kirim satu potongan baris (maks 1000). `gelombang_id` + `jenjang` adalah
+ *  konteks tetap sesi dan wajib dikirim ulang pada tiap potongan. */
+export function importPsbPotong(input: {
+  sesi_id?: number;
+  mode: 'periksa' | 'eksekusi';
+  total?: number;
+  gelombang_id: number;
+  jenjang: string;
+  baris: Record<string, unknown>[];
+  terakhir?: boolean;
+}) {
+  const { gelombang_id, jenjang, ...sisa } = input;
+  return api<PotongHasil>('/psb/import-potong', {
+    method: 'POST',
+    body: JSON.stringify({ ...sisa, gelombang_id, jenjang }),
+  });
+}
+
+/** Batalkan sesi import bertahap milik sendiri. */
+export function batalPotongPsb(sesiId: number) {
+  return api<{ pesan: string }>(`/psb/import-potong/${sesiId}/batal`, { method: 'POST' });
+}
+
+/** Unduh CSV galat sesi milik sendiri. */
+export function unduhGalatPsb(sesiId: number) {
+  return downloadFile(`/psb/import-potong/${sesiId}/galat`, 'galat-import-psb.csv');
 }
 
 export interface PsbGelombang {
