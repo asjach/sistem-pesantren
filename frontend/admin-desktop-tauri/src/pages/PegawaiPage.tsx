@@ -3,6 +3,7 @@ import { errorMessage } from '../api/client';
 import {
   KOLOM_IMPORT_PEGAWAI,
   batalPotongPegawai,
+  buatkanAkunPegawai,
   createPegawai,
   dataPegawaiExisting,
   deletePegawai,
@@ -12,6 +13,8 @@ import {
   unduhGalatPegawai,
   unduhTemplatePegawai,
   updatePegawai,
+  uploadFotoPegawai,
+  type AkunGuruBaru,
   type Pegawai,
 } from '../api/pegawai';
 import { Button } from '@/components/ui/button';
@@ -28,10 +31,10 @@ import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import ImportBertahapUmumDialog from '@/components/ImportBertahapUmumDialog';
-import { DeleteAction, EditAction } from '@/components/RowActions';
+import { DeleteAction, EditAction, ActionIcon } from '@/components/RowActions';
 import { useAuth } from '../auth/AuthContext';
 import { bisa } from '../api/auth';
-import { FileUp } from '@/icons';
+import { FileUp, ImageUp, UserCheck } from '@/icons';
 import { toast } from 'sonner';
 
 /** Seluruh kolom identitas Buku Induk Guru (cermin tabel `pegawai`). */
@@ -53,6 +56,27 @@ const FIELDS: ExcelField[] = [
   { key: 'tgl_sk_awal', label: 'pegawai.tgl_sk_awal', width: 140, kind: 'text', maxLength: 10, sumber: { tabel: 'pegawai', kolom: 'tgl_sk_awal' } },
   { key: 'pendidikan_terakhir', label: 'pegawai.pendidikan_terakhir', width: 150, kind: 'text', maxLength: 100, sumber: { tabel: 'pegawai', kolom: 'pendidikan_terakhir' } },
   { key: 'jenis_ptk', label: 'pegawai.jenis_ptk', width: 150, kind: 'text', maxLength: 100, sumber: { tabel: 'pegawai', kolom: 'jenis_ptk' } },
+  { key: 'status_pernikahan', label: 'pegawai.status_pernikahan', width: 150, kind: 'text', maxLength: 100, sumber: { tabel: 'pegawai', kolom: 'status_pernikahan' } },
+  { key: 'agama', label: 'pegawai.agama', width: 120, kind: 'text', maxLength: 100, sumber: { tabel: 'pegawai', kolom: 'agama' } },
+  { key: 'gol_darah', label: 'pegawai.gol_darah', width: 90, kind: 'text', maxLength: 10, sumber: { tabel: 'pegawai', kolom: 'gol_darah' } },
+  { key: 'npwp', label: 'pegawai.npwp', width: 180, kind: 'text', maxLength: 50, sumber: { tabel: 'pegawai', kolom: 'npwp' } },
+  { key: 'no_kk', label: 'pegawai.no_kk', width: 180, kind: 'text', maxLength: 20, sumber: { tabel: 'pegawai', kolom: 'no_kk' } },
+  { key: 'no_bpjs', label: 'pegawai.no_bpjs', width: 180, kind: 'text', maxLength: 50, sumber: { tabel: 'pegawai', kolom: 'no_bpjs' } },
+  { key: 'status_tempat_tinggal', label: 'pegawai.status_tempat_tinggal', width: 170, kind: 'text', maxLength: 100, sumber: { tabel: 'pegawai', kolom: 'status_tempat_tinggal' } },
+  { key: 'niat_npa', label: 'pegawai.niat_npa', width: 150, kind: 'text', maxLength: 100, sumber: { tabel: 'pegawai', kolom: 'niat_npa' } },
+  { key: 'jarak_ke_pesantren', label: 'pegawai.jarak_ke_pesantren', width: 160, kind: 'text', maxLength: 100, sumber: { tabel: 'pegawai', kolom: 'jarak_ke_pesantren' } },
+  { key: 'waktu_tempuh', label: 'pegawai.waktu_tempuh', width: 150, kind: 'text', maxLength: 100, sumber: { tabel: 'pegawai', kolom: 'waktu_tempuh' } },
+  { key: 'transportasi', label: 'pegawai.transportasi', width: 150, kind: 'text', maxLength: 100, sumber: { tabel: 'pegawai', kolom: 'transportasi' } },
+  { key: 'sertifikasi', label: 'pegawai.sertifikasi', width: 110, kind: 'text', maxLength: 10, sumber: { tabel: 'pegawai', kolom: 'sertifikasi' } },
+  { key: 'provinsi', label: 'pegawai.provinsi', width: 150, kind: 'text', maxLength: 100, sumber: { tabel: 'pegawai', kolom: 'provinsi' } },
+  { key: 'kab_kota', label: 'pegawai.kab_kota', width: 150, kind: 'text', maxLength: 100, sumber: { tabel: 'pegawai', kolom: 'kab_kota' } },
+  { key: 'kecamatan', label: 'pegawai.kecamatan', width: 150, kind: 'text', maxLength: 100, sumber: { tabel: 'pegawai', kolom: 'kecamatan' } },
+  { key: 'desa_kelurahan', label: 'pegawai.desa_kelurahan', width: 160, kind: 'text', maxLength: 100, sumber: { tabel: 'pegawai', kolom: 'desa_kelurahan' } },
+  { key: 'rt', label: 'pegawai.rt', width: 70, kind: 'text', maxLength: 3, sumber: { tabel: 'pegawai', kolom: 'rt' } },
+  { key: 'rw', label: 'pegawai.rw', width: 70, kind: 'text', maxLength: 3, sumber: { tabel: 'pegawai', kolom: 'rw' } },
+  { key: 'kode_pos', label: 'pegawai.kode_pos', width: 110, kind: 'text', maxLength: 10, sumber: { tabel: 'pegawai', kolom: 'kode_pos' } },
+  { key: 'alamat', label: 'pegawai.alamat', width: 240, kind: 'text', maxLength: 500, sumber: { tabel: 'pegawai', kolom: 'alamat' } },
+  { key: 'foto', label: 'Foto', width: 110, kind: 'static', sumber: { tabel: 'pegawai', kolom: 'foto_url' } },
   { key: 'akun', label: 'Akun', width: 160, kind: 'static', sumber: { tabel: 'pegawai', kolom: 'user_id' } },
 ];
 
@@ -75,6 +99,27 @@ function gridValues(p: Pegawai): Record<string, string | null> {
     tgl_sk_awal: p.tgl_sk_awal,
     pendidikan_terakhir: p.pendidikan_terakhir,
     jenis_ptk: p.jenis_ptk,
+    status_pernikahan: p.status_pernikahan,
+    agama: p.agama,
+    gol_darah: p.gol_darah,
+    npwp: p.npwp,
+    no_kk: p.no_kk,
+    no_bpjs: p.no_bpjs,
+    status_tempat_tinggal: p.status_tempat_tinggal,
+    niat_npa: p.niat_npa,
+    jarak_ke_pesantren: p.jarak_ke_pesantren,
+    waktu_tempuh: p.waktu_tempuh,
+    transportasi: p.transportasi,
+    sertifikasi: p.sertifikasi,
+    provinsi: p.provinsi,
+    kab_kota: p.kab_kota,
+    kecamatan: p.kecamatan,
+    desa_kelurahan: p.desa_kelurahan,
+    rt: p.rt,
+    rw: p.rw,
+    kode_pos: p.kode_pos,
+    alamat: p.alamat,
+    foto: p.foto_url ? 'Ada' : '—',
     akun: p.akun ? p.akun.name : '—',
   };
 }
@@ -94,6 +139,7 @@ export default function PegawaiPage() {
   const canTambah = bisa(user, 'pegawai.tambah');
   const canUbah = bisa(user, 'pegawai.ubah');
   const canHapus = bisa(user, 'pegawai.hapus');
+  const canBuatAkun = canUbah && bisa(user, 'pengguna.tambah');
   const { jenjangs, tahunAjaranNames } = useFilterGlobalAktif();
   const [cari, setCari] = useState('');
   const [status, setStatus] = useState('');
@@ -126,6 +172,9 @@ export default function PegawaiPage() {
   const [akunRow, setAkunRow] = useState<Pegawai | null>(null);
   const [akunId, setAkunId] = useState('');
   const [fileOpen, setFileOpen] = useState(false);
+  const [fotoRow, setFotoRow] = useState<Pegawai | null>(null);
+  const [fotoFile, setFotoFile] = useState<File | null>(null);
+  const [akunBaru, setAkunBaru] = useState<AkunGuruBaru | null>(null);
 
   const onTambah = useCallback(async () => {
     if (!fNama.trim()) return;
@@ -180,6 +229,38 @@ export default function PegawaiPage() {
   const renderActions = useCallback((p: Pegawai) => (
     <>
       {canUbah && <EditAction id={`btn_akun_pegawai_${p.id}`} onClick={() => { setAkunRow(p); setAkunId(p.user_id ? String(p.user_id) : ''); }} />}
+      {canBuatAkun && !p.user_id && p.email_pribadi && (
+        <ActionIcon
+          id={`btn_buatkan_akun_pegawai_${p.id}`}
+          title="Buatkan akun guru dari email pribadi"
+          aria-label={`Buatkan akun guru untuk ${p.nama_lengkap}`}
+          onClick={async () => {
+            setBusy(true);
+            try {
+              const res = await buatkanAkunPegawai(p.id);
+              toast.success(res.pesan);
+              setAkunBaru(res.data);
+              await load();
+            } catch (e) {
+              toast.error(errorMessage(e));
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          <UserCheck size={16} />
+        </ActionIcon>
+      )}
+      {canUbah && (
+        <ActionIcon
+          id={`btn_foto_pegawai_${p.id}`}
+          title="Upload foto"
+          aria-label={`Upload foto ${p.nama_lengkap}`}
+          onClick={() => { setFotoRow(p); setFotoFile(null); }}
+        >
+          <ImageUp size={16} />
+        </ActionIcon>
+      )}
       {canHapus && (
         <DeleteAction
           id={`btn_hapus_pegawai_${p.id}`}
@@ -189,7 +270,7 @@ export default function PegawaiPage() {
         />
       )}
     </>
-  ), [canUbah, canHapus, onHapus]);
+  ), [canUbah, canBuatAkun, canHapus, onHapus, load]);
 
   return (
     <div className={PAGE_SHELL}>
@@ -286,6 +367,55 @@ export default function PegawaiPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setAkunRow(null)}>Batal</Button>
             <Button id="btn_tautkan_akun_pegawai" disabled={busy} onClick={() => void onTautkan()}>Simpan</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={fotoRow !== null} onOpenChange={(o) => { if (!o) setFotoRow(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Upload foto: {fotoRow?.nama_lengkap}</DialogTitle>
+            <DialogDescription>JPG/PNG maks 2 MB.</DialogDescription>
+          </DialogHeader>
+          <Input id="input_foto_pegawai" type="file" accept="image/png,image/jpeg" onChange={(e) => setFotoFile(e.target.files?.[0] ?? null)} />
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setFotoRow(null)}>Batal</Button>
+            <Button id="btn_upload_foto_pegawai" disabled={!fotoFile || busy} onClick={async () => {
+              if (!fotoRow || !fotoFile) return;
+              setBusy(true);
+              try {
+                await uploadFotoPegawai(fotoRow.id, fotoFile);
+                toast.success('Foto diupload.');
+                setFotoRow(null);
+                await load();
+              } catch (e2) {
+                toast.error(errorMessage(e2));
+              } finally {
+                setBusy(false);
+              }
+            }}>Upload</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={akunBaru !== null} onOpenChange={(o) => { if (!o) setAkunBaru(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Akun guru dibuat: {akunBaru?.pegawai.nama_lengkap}</DialogTitle>
+            <DialogDescription>Bagikan kredensial ini ke guru bersangkutan.</DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-2">
+            <FieldLabel htmlFor="info_akun_email">Email</FieldLabel>
+            <Input id="info_akun_email" readOnly value={akunBaru?.email ?? ''} />
+            <FieldLabel htmlFor="info_akun_sandi">Sandi bawaan</FieldLabel>
+            <Input id="info_akun_sandi" readOnly value={akunBaru?.sandi_bawaan ?? ''} />
+          </div>
+          {akunBaru && akunBaru.catatan.length > 0 && (
+            <ul className="list-disc pl-5 text-sm text-amber-700">
+              {akunBaru.catatan.map((c) => <li key={c}>{c}</li>)}
+            </ul>
+          )}
+          <p className="text-sm text-muted-foreground">Role guru belum punya izin apa pun — beri izin lewat halaman Kelola Izin.</p>
+          <DialogFooter>
+            <Button id="btn_tutup_akun_baru" onClick={() => setAkunBaru(null)}>Tutup</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

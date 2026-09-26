@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\Concerns\ImporBertahap;
 use App\Http\Controllers\Api\Concerns\TenantGuard;
 use App\Http\Controllers\Api\Concerns\UrutDaftar;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\PegawaiFotoRequest;
 use App\Http\Requests\Admin\PegawaiPotongRequest;
 use App\Http\Requests\Admin\PegawaiStoreRequest;
 use App\Http\Requests\Admin\PegawaiUpdateRequest;
@@ -14,11 +15,14 @@ use App\Models\ImportSesi;
 use App\Models\KeaktifanPegawai;
 use App\Models\LembagaPegawai;
 use App\Models\Pegawai;
+use App\Models\User;
 use App\Services\PegawaiImporService;
 use App\Services\UrutKatalog;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Facades\Excel;
 
 /**
@@ -34,6 +38,9 @@ class PegawaiController extends Controller
     use UrutDaftar;
 
     private const SORT_NULLABLE = ['pegawai.nip', 'pegawai.nik', 'pegawai.tgl_mulai_kerja', 'pegawai.tgl_sk_awal'];
+
+    /** Sandi bawaan akun guru yang dibuat otomatis (sama seperti AkunSeeder dev; tanpa wajib ganti). */
+    public const SANDI_BAWAAN = 'rahayu45';
 
     /** GET /api/admin/pegawai — daftar buku induk (global; filter lembaga/TA via penempatan/keaktifan). */
     public function index(Request $request): JsonResponse
@@ -107,6 +114,103 @@ class PegawaiController extends Controller
         return response()->json(['pesan' => 'Akun ditautkan.', 'data' => $pegawai->fresh()]);
     }
 
+    /**
+     * POST /api/admin/pegawai/{pegawai}/buatkan-akun — buat user dari
+     * `email_pribadi` + `no_hp`, role `guru`, scope lembaga = penempatan aktif.
+     * Menolak bila sudah tertaut, email kosong/tak valid, atau email dipakai
+     * akun lain (tautkan manual saja). No. HP yang bentrok dikosongkan + dicatat.
+     */
+    public function buatkanAkun(Request $request, Pegawai $pegawai): JsonResponse
+    {
+        $this->authorize('create', User::class);
+        $auth = $request->user();
+
+        if ($pegawai->user_id !== null) {
+            return response()->json(['message' => 'Pegawai ini sudah tertaut ke akun.'], 422);
+        }
+        if (! in_array('guru', $auth->creatableRoles(), true)) {
+            return response()->json(['message' => 'Anda tidak berwenang membuat akun guru.'], 403);
+        }
+
+        $email = trim((string) $pegawai->email_pribadi);
+        if ($email === '' || ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return response()->json(['message' => 'Email pribadi pegawai kosong/tidak valid.'], 422);
+        }
+        if (User::where('email', $email)->exists()) {
+            return response()->json(['message' => 'Email sudah dipakai akun lain; tautkan manual lewat dialog akun.'], 422);
+        }
+
+        $telepon = trim((string) $pegawai->no_hp);
+        $telepon = $telepon === '' ? null : $telepon;
+        $catatan = [];
+        if ($telepon !== null && User::where('phone', $telepon)->exists()) {
+            $telepon = null;
+            $catatan[] = 'No. HP sudah dipakai akun lain; akun dibuat tanpa no. HP.';
+        }
+
+        $jenjangs = $pegawai->penempatan()->where('is_active_lembaga', LembagaPegawai::YA)->pluck('jenjang')->all();
+        foreach ($jenjangs as $jenjang) {
+            if (! $auth->canAccessLembaga($jenjang)) {
+                return response()->json(['message' => "Penempatan {$jenjang} di luar kewenangan Anda."], 403);
+            }
+        }
+        if ($jenjangs === [] && ! $auth->bolehPesantren()) {
+            $jenjangs = $auth->lembagaIds();
+            if ($jenjangs === []) {
+                return response()->json(['message' => 'Pegawai belum ditempatkan di lembaga mana pun.'], 422);
+            }
+            $catatan[] = 'Pegawai belum punya penempatan; scope akun mengikuti lembaga Anda.';
+        }
+
+        $user = DB::transaction(function () use ($pegawai, $email, $telepon, $jenjangs) {
+            $dibuat = User::create([
+                'name' => $pegawai->nama_lengkap,
+                'email' => $email,
+                'phone' => $telepon,
+                'password' => self::SANDI_BAWAAN,
+                'email_verified_at' => now(),
+            ]);
+            foreach ($jenjangs as $jenjang) {
+                DB::table('user_lembaga')->insert([
+                    'user_id' => $dibuat->id, 'jenjang' => $jenjang,
+                    'created_at' => now(), 'updated_at' => now(),
+                ]);
+            }
+            $dibuat->assignRole('guru');
+            $pegawai->update(['user_id' => $dibuat->id]);
+
+            return $dibuat;
+        });
+
+        return response()->json([
+            'pesan' => "Akun guru dibuat untuk {$pegawai->nama_lengkap}.",
+            'data' => [
+                'pegawai' => $pegawai->fresh(),
+                'user_id' => $user->id,
+                'email' => $email,
+                'sandi_bawaan' => self::SANDI_BAWAAN,
+                'catatan' => $catatan,
+            ],
+        ], 201);
+    }
+
+    // Upload foto profil pegawai. Storage: storage/app/pegawai/foto/* ; DB hanya path di pegawai.foto_url.
+    public function uploadFoto(PegawaiFotoRequest $request, Pegawai $pegawai): JsonResponse
+    {
+        $path = $request->file('foto')->store('pegawai/foto', 'local');
+
+        if ($pegawai->foto_url && Storage::disk('local')->exists($pegawai->foto_url)) {
+            Storage::disk('local')->delete($pegawai->foto_url);
+        }
+
+        $pegawai->update(['foto_url' => $path]);
+
+        return response()->json([
+            'pesan' => 'Foto pegawai diupload.',
+            'data' => $pegawai->fresh(),
+        ], 201);
+    }
+
     /** GET /api/admin/pegawai/aktif — opsi dropdown wali: pegawai aktif di lembaga + TA. */
     public function aktif(Request $request): JsonResponse
     {
@@ -165,6 +269,23 @@ class PegawaiController extends Controller
                 'status_pernikahan' => $p->status_pernikahan,
                 'agama' => $p->agama,
                 'gol_darah' => $p->gol_darah,
+                'npwp' => $p->npwp,
+                'no_kk' => $p->no_kk,
+                'no_bpjs' => $p->no_bpjs,
+                'status_tempat_tinggal' => $p->status_tempat_tinggal,
+                'niat_npa' => $p->niat_npa,
+                'jarak_ke_pesantren' => $p->jarak_ke_pesantren,
+                'waktu_tempuh' => $p->waktu_tempuh,
+                'transportasi' => $p->transportasi,
+                'sertifikasi' => $p->sertifikasi,
+                'provinsi' => $p->provinsi,
+                'kab_kota' => $p->kab_kota,
+                'kecamatan' => $p->kecamatan,
+                'desa_kelurahan' => $p->desa_kelurahan,
+                'rt' => $p->rt,
+                'rw' => $p->rw,
+                'kode_pos' => $p->kode_pos,
+                'alamat' => $p->alamat,
             ])->all();
 
         return response()->json([

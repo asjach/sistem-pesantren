@@ -31,6 +31,9 @@ class PegawaiTemplateExport extends DefaultValueBinder implements FromArray, Wit
             'no_hp', 'email_pribadi', 'email_gws', 'status_aktif',
             'tgl_mulai_kerja', 'no_sk_awal', 'tgl_sk_awal', 'pendidikan_terakhir', 'jenis_ptk',
             'status_pernikahan', 'agama', 'gol_darah',
+            'npwp', 'no_kk', 'no_bpjs', 'status_tempat_tinggal', 'niat_npa',
+            'jarak_ke_pesantren', 'waktu_tempuh', 'transportasi', 'sertifikasi',
+            'provinsi', 'kab_kota', 'kecamatan', 'desa_kelurahan', 'rt', 'rw', 'kode_pos', 'alamat',
         ];
     }
 
@@ -64,6 +67,9 @@ class PegawaiTemplateExport extends DefaultValueBinder implements FromArray, Wit
             '081234567890', 'siti@example.com', '', 'aktif',
             '2010-07-01', 'SK/001/2010', '2010-07-01', 'S1', 'Guru Kelas',
             'Menikah', 'Islam', 'O',
+            '', '', '', '', '',
+            '', '', '', 'belum',
+            'Jawa Timur', 'Bangkalan', 'Bangkalan', 'Mlajah', '001', '002', '69115', 'Jl. Raya No. 1',
         ]];
     }
 
@@ -98,6 +104,7 @@ class PegawaiTemplateExport extends DefaultValueBinder implements FromArray, Wit
                 $opsi = [
                     'jenis_kelamin' => ['L', 'P'],
                     'status_aktif' => ['aktif', 'cuti', 'keluar'],
+                    'sertifikasi' => ['sudah', 'belum'],
                 ];
                 $colSumber = 1;
                 foreach ($opsi as $nama => $nilai) {

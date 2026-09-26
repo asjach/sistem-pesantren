@@ -45,6 +45,23 @@ class PegawaiImporService extends ImporPotongan
             'status_pernikahan' => ['nullable', 'string', 'max:100'],
             'agama' => ['nullable', 'string', 'max:100'],
             'gol_darah' => ['nullable', 'string', 'max:10'],
+            'npwp' => ['nullable', 'string', 'max:50'],
+            'no_kk' => ['nullable', 'string', 'max:20'],
+            'no_bpjs' => ['nullable', 'string', 'max:50'],
+            'status_tempat_tinggal' => ['nullable', 'string', 'max:100'],
+            'niat_npa' => ['nullable', 'string', 'max:100'],
+            'jarak_ke_pesantren' => ['nullable', 'string', 'max:100'],
+            'waktu_tempuh' => ['nullable', 'string', 'max:100'],
+            'transportasi' => ['nullable', 'string', 'max:100'],
+            'sertifikasi' => ['nullable', 'in:sudah,belum'],
+            'provinsi' => ['nullable', 'string', 'max:100'],
+            'kab_kota' => ['nullable', 'string', 'max:100'],
+            'kecamatan' => ['nullable', 'string', 'max:100'],
+            'desa_kelurahan' => ['nullable', 'string', 'max:100'],
+            'rt' => ['nullable', 'string', 'max:3'],
+            'rw' => ['nullable', 'string', 'max:3'],
+            'kode_pos' => ['nullable', 'string', 'max:10'],
+            'alamat' => ['nullable', 'string'],
         ];
     }
 
@@ -101,7 +118,10 @@ class PegawaiImporService extends ImporPotongan
             foreach (['nama_lengkap', 'nip', 'nik', 'gelar_depan', 'gelar_belakang', 'jenis_kelamin',
                 'tempat_lahir', 'tanggal_lahir', 'no_hp', 'email_pribadi', 'email_gws',
                 'status_aktif', 'tgl_mulai_kerja', 'no_sk_awal', 'tgl_sk_awal', 'pendidikan_terakhir', 'jenis_ptk',
-                'status_pernikahan', 'agama', 'gol_darah'] as $kolom) {
+                'status_pernikahan', 'agama', 'gol_darah',
+                'npwp', 'no_kk', 'no_bpjs', 'status_tempat_tinggal', 'niat_npa',
+                'jarak_ke_pesantren', 'waktu_tempuh', 'transportasi', 'sertifikasi',
+                'provinsi', 'kab_kota', 'kecamatan', 'desa_kelurahan', 'rt', 'rw', 'kode_pos', 'alamat'] as $kolom) {
                 if (array_key_exists($kolom, $baris) && trim((string) $baris[$kolom]) !== '') {
                     $data[$kolom] = is_string($baris[$kolom]) ? trim($baris[$kolom]) : $baris[$kolom];
                 }

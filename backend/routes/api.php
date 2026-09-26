@@ -102,6 +102,8 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::match(['put', 'patch'], 'pegawai/{pegawai}', [PegawaiController::class, 'update'])->middleware('permission:pegawai.ubah');
         Route::delete('pegawai/{pegawai}', [PegawaiController::class, 'destroy'])->middleware('permission:pegawai.hapus');
         Route::post('pegawai/{pegawai}/tautkan-akun', [PegawaiController::class, 'tautkanAkun'])->middleware('permission:pegawai.ubah');
+        Route::post('pegawai/{pegawai}/buatkan-akun', [PegawaiController::class, 'buatkanAkun'])->middleware(['permission:pegawai.ubah', 'permission:pengguna.tambah']);
+        Route::post('pegawai/{pegawai}/foto', [PegawaiController::class, 'uploadFoto'])->middleware('permission:pegawai.ubah');
         Route::get('pegawai/import-template', [PegawaiController::class, 'templateImport'])->middleware('permission:pegawai.lihat');
         Route::get('pegawai/data-existing', [PegawaiController::class, 'dataExisting'])->middleware('permission:pegawai.lihat');
         Route::post('pegawai/import-potong', [PegawaiController::class, 'potongImport'])->middleware(['permission:pegawai.tambah', 'throttle:imports']);

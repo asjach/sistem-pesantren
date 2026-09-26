@@ -2,17 +2,21 @@
 
 namespace Tests\Feature;
 
+use App\Exports\PegawaiTemplateExport;
 use App\Models\KeaktifanPegawai;
 use App\Models\Lembaga;
 use App\Models\LembagaPegawai;
 use App\Models\Pegawai;
 use App\Models\TahunAjaran;
 use App\Models\User;
+use App\Services\PegawaiImporService;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class PegawaiModulTest extends TestCase
@@ -165,5 +169,137 @@ class PegawaiModulTest extends TestCase
         $this->actingAs($auth, 'sanctum')->postJson('/api/admin/pegawai/import-potong', $payload(null))
             ->assertOk()->assertJsonPath('ringkasan.dibuat', 1);
         $this->assertSame(1, Pegawai::count());
+    }
+
+    public function test_template_kolom_selaras_import_dan_data_existing(): void
+    {
+        $this->fixture();
+        $auth = $this->superAdmin();
+
+        $kolom = PegawaiTemplateExport::kolom();
+        $aturan = PegawaiImporService::rules();
+
+        // Tiap kolom template (kecuali kunci import) punya aturan validasi import.
+        foreach ($kolom as $nama) {
+            if ($nama === 'pegawai_id') {
+                continue;
+            }
+            $this->assertArrayHasKey($nama, $aturan, "Kolom template {$nama} tanpa aturan import.");
+        }
+
+        Pegawai::create([
+            'nama_lengkap' => 'Lengkap', 'jenis_kelamin' => 'P', 'nip' => 'NIP-L',
+            'npwp' => 'NPWP-1', 'no_kk' => 'KK-1', 'no_bpjs' => 'BPJS-1',
+            'provinsi' => 'Jawa Timur', 'rt' => '001', 'alamat' => 'Jl. Raya No. 1',
+            'sertifikasi' => 'belum',
+        ]);
+
+        // Kunci baris data-existing sama persis dengan kolom template.
+        $res = $this->actingAs($auth, 'sanctum')->getJson('/api/admin/pegawai/data-existing')->assertOk();
+        $this->assertSame($kolom, $res->json('kolom'));
+        $this->assertSame($kolom, array_keys($res->json('baris.0')));
+        $this->assertSame('NPWP-1', $res->json('baris.0.npwp'));
+    }
+
+    public function test_upload_foto_pegawai(): void
+    {
+        $this->fixture();
+        $auth = $this->superAdmin();
+        Storage::fake('local');
+
+        $pegawai = Pegawai::create(['nama_lengkap' => 'Berfoto', 'jenis_kelamin' => 'L']);
+
+        $this->actingAs($auth, 'sanctum')->post('/api/admin/pegawai/'.$pegawai->id.'/foto', [
+            'foto' => UploadedFile::fake()->image('wajah.jpg', 100, 100),
+        ])->assertCreated()->assertJsonFragment(['pesan' => 'Foto pegawai diupload.']);
+
+        $segar = $pegawai->fresh();
+        $this->assertNotNull($segar->foto_url);
+        Storage::disk('local')->assertExists($segar->foto_url);
+
+        // Upload kedua mengganti file lama (tak menumpuk).
+        $lama = $segar->foto_url;
+        $this->actingAs($auth, 'sanctum')->post('/api/admin/pegawai/'.$pegawai->id.'/foto', [
+            'foto' => UploadedFile::fake()->image('baru.png', 100, 100),
+        ])->assertCreated();
+        Storage::disk('local')->assertMissing($lama);
+        Storage::disk('local')->assertExists($pegawai->fresh()->foto_url);
+    }
+
+    public function test_buatkan_akun_guru_dari_email_pribadi(): void
+    {
+        $this->fixture();
+        $auth = $this->superAdmin();
+
+        $pegawai = Pegawai::create([
+            'nama_lengkap' => 'Guru Baru', 'jenis_kelamin' => 'L',
+            'email_pribadi' => 'guru.baru@example.com', 'no_hp' => '081234567890',
+        ]);
+        $this->actingAs($auth, 'sanctum')->postJson("/api/admin/pegawai/{$pegawai->id}/tempatkan", [
+            'jenjang' => 'MI',
+        ])->assertCreated();
+
+        $res = $this->actingAs($auth, 'sanctum')
+            ->postJson("/api/admin/pegawai/{$pegawai->id}/buatkan-akun")
+            ->assertCreated()
+            ->assertJsonFragment(['email' => 'guru.baru@example.com']);
+
+        $user = User::where('email', 'guru.baru@example.com')->firstOrFail();
+        $this->assertTrue($user->hasRole('guru'));
+        $this->assertSame('081234567890', $user->phone);
+        $this->assertSame($user->id, $pegawai->fresh()->user_id);
+        $this->assertTrue(
+            DB::table('user_lembaga')->where('user_id', $user->id)->where('jenjang', 'MI')->exists()
+        );
+        $this->assertSame([], $res->json('data.catatan'));
+
+        // Kedua kali ditolak (sudah tertaut).
+        $this->actingAs($auth, 'sanctum')
+            ->postJson("/api/admin/pegawai/{$pegawai->id}/buatkan-akun")
+            ->assertStatus(422);
+    }
+
+    public function test_buatkan_akun_tolak_tanpa_email_dan_email_bentrok(): void
+    {
+        $this->fixture();
+        $auth = $this->superAdmin();
+
+        $tanpaEmail = Pegawai::create(['nama_lengkap' => 'Tanpa Email', 'jenis_kelamin' => 'P']);
+        $this->actingAs($auth, 'sanctum')
+            ->postJson("/api/admin/pegawai/{$tanpaEmail->id}/buatkan-akun")
+            ->assertStatus(422);
+
+        User::create([
+            'name' => 'Pemakai Email', 'email' => 'dipakai@example.com', 'password' => 'password',
+        ]);
+        $bentrok = Pegawai::create([
+            'nama_lengkap' => 'Bentrok', 'jenis_kelamin' => 'L', 'email_pribadi' => 'dipakai@example.com',
+        ]);
+        $this->actingAs($auth, 'sanctum')
+            ->postJson("/api/admin/pegawai/{$bentrok->id}/buatkan-akun")
+            ->assertStatus(422);
+        $this->assertNull($bentrok->fresh()->user_id);
+    }
+
+    public function test_buatkan_akun_hp_bentrok_dikosongkan_dengan_catatan(): void
+    {
+        $this->fixture();
+        $auth = $this->superAdmin();
+
+        User::create([
+            'name' => 'Pemakai HP', 'email' => 'hp@example.com', 'phone' => '081111111111', 'password' => 'password',
+        ]);
+        $pegawai = Pegawai::create([
+            'nama_lengkap' => 'HP Bentrok', 'jenis_kelamin' => 'L',
+            'email_pribadi' => 'hp.bentrok@example.com', 'no_hp' => '081111111111',
+        ]);
+
+        $res = $this->actingAs($auth, 'sanctum')
+            ->postJson("/api/admin/pegawai/{$pegawai->id}/buatkan-akun")
+            ->assertCreated();
+
+        $user = User::where('email', 'hp.bentrok@example.com')->firstOrFail();
+        $this->assertNull($user->phone);
+        $this->assertNotEmpty($res->json('data.catatan'));
     }
 }

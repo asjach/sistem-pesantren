@@ -1,4 +1,4 @@
-import { api, downloadFile } from './client';
+import { api, apiUpload, downloadFile } from './client';
 import type { DataExistingPayload } from '@/lib/excelDataExisting';
 import { appendQueryParam, type ScalarOrArray } from './query';
 import type { Paginate } from './master';
@@ -29,6 +29,24 @@ export interface Pegawai {
   status_pernikahan: string | null;
   agama: string | null;
   gol_darah: string | null;
+  foto_url: string | null;
+  npwp: string | null;
+  no_kk: string | null;
+  no_bpjs: string | null;
+  status_tempat_tinggal: string | null;
+  niat_npa: string | null;
+  jarak_ke_pesantren: string | null;
+  waktu_tempuh: string | null;
+  transportasi: string | null;
+  sertifikasi: string | null;
+  provinsi: string | null;
+  kab_kota: string | null;
+  kecamatan: string | null;
+  desa_kelurahan: string | null;
+  rt: string | null;
+  rw: string | null;
+  kode_pos: string | null;
+  alamat: string | null;
   penempatan?: LembagaPegawai[];
   akun?: { id: number; name: string; email: string | null } | null;
 }
@@ -73,6 +91,18 @@ export function tautkanAkunPegawai(id: number, userId: number | null) {
     method: 'POST',
     body: JSON.stringify({ user_id: userId }),
   });
+}
+
+export interface AkunGuruBaru {
+  pegawai: Pegawai;
+  user_id: number;
+  email: string;
+  sandi_bawaan: string;
+  catatan: string[];
+}
+
+export function buatkanAkunPegawai(id: number) {
+  return api<{ pesan: string; data: AkunGuruBaru }>(`/admin/pegawai/${id}/buatkan-akun`, { method: 'POST' });
 }
 
 // ---------- Penempatan (lembaga_pegawai) ----------
@@ -203,7 +233,16 @@ export const KOLOM_IMPORT_PEGAWAI = [
   'no_hp', 'email_pribadi', 'email_gws', 'status_aktif',
   'tgl_mulai_kerja', 'no_sk_awal', 'tgl_sk_awal', 'pendidikan_terakhir', 'jenis_ptk',
   'status_pernikahan', 'agama', 'gol_darah',
+  'npwp', 'no_kk', 'no_bpjs', 'status_tempat_tinggal', 'niat_npa',
+  'jarak_ke_pesantren', 'waktu_tempuh', 'transportasi', 'sertifikasi',
+  'provinsi', 'kab_kota', 'kecamatan', 'desa_kelurahan', 'rt', 'rw', 'kode_pos', 'alamat',
 ];
+
+export function uploadFotoPegawai(pegawaiId: number, file: File) {
+  const fd = new FormData();
+  fd.set('foto', file);
+  return apiUpload<{ pesan: string; data: Pegawai }>(`/admin/pegawai/${pegawaiId}/foto`, fd);
+}
 
 export function unduhTemplatePegawai() {
   return downloadFile('/admin/pegawai/import-template', 'template-import-pegawai.xlsx');
