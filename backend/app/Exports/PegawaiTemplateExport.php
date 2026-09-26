@@ -29,7 +29,7 @@ class PegawaiTemplateExport extends DefaultValueBinder implements FromArray, Wit
             'pegawai_id', 'nama_lengkap', 'nip', 'nik', 'jenis_kelamin',
             'gelar_depan', 'gelar_belakang', 'tempat_lahir', 'tanggal_lahir',
             'no_hp', 'email_pribadi', 'email_gws', 'status_aktif',
-            'tgl_mulai_kerja', 'pendidikan_terakhir', 'jenis_ptk',
+            'tgl_mulai_kerja', 'no_sk_awal', 'tgl_sk_awal', 'pendidikan_terakhir', 'jenis_ptk',
             'status_pernikahan', 'agama', 'gol_darah',
         ];
     }
@@ -62,7 +62,7 @@ class PegawaiTemplateExport extends DefaultValueBinder implements FromArray, Wit
             '', 'Siti Rahayu', '198501012010012001', '3510010101850001', 'P',
             'Hj.', 'S.Pd.', 'Bangkalan', '1985-01-01',
             '081234567890', 'siti@example.com', '', 'aktif',
-            '2010-07-01', 'S1', 'Guru Kelas',
+            '2010-07-01', 'SK/001/2010', '2010-07-01', 'S1', 'Guru Kelas',
             'Menikah', 'Islam', 'O',
         ]];
     }

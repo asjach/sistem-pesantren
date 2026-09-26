@@ -53,7 +53,8 @@ class KeaktifanPegawaiController extends Controller
             $query->where(fn ($sub) => $sub
                 ->where('pegawai.nama_lengkap', 'like', "%{$q}%")
                 ->orWhere('pegawai.nip', 'like', "%{$q}%")
-                ->orWhere('lembaga_pegawai.nipp', 'like', "%{$q}%"));
+                ->orWhere('lembaga_pegawai.nipp', 'like', "%{$q}%")
+                ->orWhere('keaktifan_pegawai.no_sk', 'like', "%{$q}%"));
         }
         $this->terapkanUrut($query, $urut, [
             ['pegawai.nama_lengkap', 'naik'], ['keaktifan_pegawai.id', 'naik'],
@@ -85,6 +86,11 @@ class KeaktifanPegawaiController extends Controller
                 'tugas_utama' => $data['tugas_utama'] ?? $penempatan->tugas_utama,
                 'status_keaktifan' => $data['status_keaktifan'] ?? KeaktifanPegawai::AKTIF,
             ];
+            foreach (['no_sk', 'tgl_sk'] as $kolomSk) {
+                if (array_key_exists($kolomSk, $data)) {
+                    $nilai[$kolomSk] = $data[$kolomSk];
+                }
+            }
             if ($ada) {
                 $ada->update($nilai);
 

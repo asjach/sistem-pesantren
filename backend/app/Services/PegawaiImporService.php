@@ -19,7 +19,7 @@ class PegawaiImporService extends ImporPotongan
         'no_bpjs', 'npwp', 'niat_npa',
     ];
 
-    protected const KOLOM_TANGGAL = ['tanggal_lahir', 'tgl_mulai_kerja'];
+    protected const KOLOM_TANGGAL = ['tanggal_lahir', 'tgl_mulai_kerja', 'tgl_sk_awal'];
 
     public static function rules(): array
     {
@@ -38,6 +38,8 @@ class PegawaiImporService extends ImporPotongan
             'email_gws' => ['nullable', 'email', 'max:255'],
             'status_aktif' => ['nullable', 'in:aktif,cuti,keluar'],
             'tgl_mulai_kerja' => ['nullable', 'date'],
+            'no_sk_awal' => ['nullable', 'string', 'max:100'],
+            'tgl_sk_awal' => ['nullable', 'date'],
             'pendidikan_terakhir' => ['nullable', 'string', 'max:100'],
             'jenis_ptk' => ['nullable', 'string', 'max:100'],
             'status_pernikahan' => ['nullable', 'string', 'max:100'],
@@ -98,7 +100,7 @@ class PegawaiImporService extends ImporPotongan
             $data = [];
             foreach (['nama_lengkap', 'nip', 'nik', 'gelar_depan', 'gelar_belakang', 'jenis_kelamin',
                 'tempat_lahir', 'tanggal_lahir', 'no_hp', 'email_pribadi', 'email_gws',
-                'status_aktif', 'tgl_mulai_kerja', 'pendidikan_terakhir', 'jenis_ptk',
+                'status_aktif', 'tgl_mulai_kerja', 'no_sk_awal', 'tgl_sk_awal', 'pendidikan_terakhir', 'jenis_ptk',
                 'status_pernikahan', 'agama', 'gol_darah'] as $kolom) {
                 if (array_key_exists($kolom, $baris) && trim((string) $baris[$kolom]) !== '') {
                     $data[$kolom] = is_string($baris[$kolom]) ? trim($baris[$kolom]) : $baris[$kolom];

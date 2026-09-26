@@ -43,6 +43,11 @@ class PegawaiService
             if (array_key_exists('tgl_selesai', $atribut)) {
                 $data['tgl_selesai'] = $atribut['tgl_selesai'] ?: null;
             }
+            foreach (['no_sk_awal_ptk', 'tgl_sk_awal_ptk'] as $kolomSk) {
+                if (array_key_exists($kolomSk, $atribut)) {
+                    $data[$kolomSk] = $atribut[$kolomSk] ?: null;
+                }
+            }
 
             if ($row) {
                 // Aktifkan ulang bila sebelumnya nonaktif dan tak diminta nonaktif.

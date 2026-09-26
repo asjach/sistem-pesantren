@@ -32,11 +32,14 @@ class LembagaPegawai extends Model
         'tgl_masuk',
         'tgl_selesai',
         'tahaj_masuk',
+        'no_sk_awal_ptk',
+        'tgl_sk_awal_ptk',
     ];
 
     protected $casts = [
         'tgl_masuk' => 'date:Y-m-d',
         'tgl_selesai' => 'date:Y-m-d',
+        'tgl_sk_awal_ptk' => 'date:Y-m-d',
     ];
 
     public function pegawai(): BelongsTo

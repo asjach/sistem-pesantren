@@ -18,6 +18,7 @@ class Pegawai extends Model
     protected $casts = [
         'tanggal_lahir' => 'date:Y-m-d',
         'tgl_mulai_kerja' => 'date:Y-m-d',
+        'tgl_sk_awal' => 'date:Y-m-d',
     ];
 
     public function penempatan(): HasMany

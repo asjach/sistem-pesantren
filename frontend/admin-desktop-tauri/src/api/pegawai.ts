@@ -22,6 +22,8 @@ export interface Pegawai {
   email_gws: string | null;
   status_aktif: string;
   tgl_mulai_kerja: string | null;
+  no_sk_awal: string | null;
+  tgl_sk_awal: string | null;
   pendidikan_terakhir: string | null;
   jenis_ptk: string | null;
   status_pernikahan: string | null;
@@ -85,6 +87,8 @@ export interface LembagaPegawai {
   tgl_masuk: string | null;
   tgl_selesai: string | null;
   tahaj_masuk: string | null;
+  no_sk_awal_ptk: string | null;
+  tgl_sk_awal_ptk: string | null;
   pegawai?: Pegawai | null;
   lembaga?: { jenjang: string; nama: string } | null;
 }
@@ -144,6 +148,8 @@ export interface KeaktifanPegawai {
   tahun_ajaran: string;
   tugas_utama: string;
   status_keaktifan: string;
+  no_sk: string | null;
+  tgl_sk: string | null;
   pegawai?: Pegawai | null;
   lembaga?: { jenjang: string; nama: string } | null;
 }
@@ -195,7 +201,7 @@ export const KOLOM_IMPORT_PEGAWAI = [
   'pegawai_id', 'nama_lengkap', 'nip', 'nik', 'jenis_kelamin',
   'gelar_depan', 'gelar_belakang', 'tempat_lahir', 'tanggal_lahir',
   'no_hp', 'email_pribadi', 'email_gws', 'status_aktif',
-  'tgl_mulai_kerja', 'pendidikan_terakhir', 'jenis_ptk',
+  'tgl_mulai_kerja', 'no_sk_awal', 'tgl_sk_awal', 'pendidikan_terakhir', 'jenis_ptk',
   'status_pernikahan', 'agama', 'gol_darah',
 ];
 

@@ -43,6 +43,8 @@ const FIELDS_KANAN: ExcelField[] = [
   { key: 'tugas', label: 'Tugas', width: 160, kind: 'text', maxLength: 100, sumber: { tabel: 'lembaga_pegawai', kolom: 'tugas_utama' } },
   { key: 'aktif', label: 'Aktif', width: 90, kind: 'static', sumber: { tabel: 'lembaga_pegawai', kolom: 'is_active_lembaga' } },
   { key: 'tgl_masuk', label: 'Tgl Masuk', width: 130, kind: 'text', maxLength: 10, sumber: { tabel: 'lembaga_pegawai', kolom: 'tgl_masuk' } },
+  { key: 'no_sk_awal_ptk', label: 'No. SK Awal PTK', width: 180, kind: 'text', maxLength: 100, sumber: { tabel: 'lembaga_pegawai', kolom: 'no_sk_awal_ptk' } },
+  { key: 'tgl_sk_awal_ptk', label: 'Tgl SK Awal PTK', width: 140, kind: 'text', maxLength: 10, sumber: { tabel: 'lembaga_pegawai', kolom: 'tgl_sk_awal_ptk' } },
 ];
 
 function nilaiKiri(p: Pegawai): Record<string, string | null> {
@@ -57,6 +59,8 @@ function nilaiKanan(r: LembagaPegawai): Record<string, string | null> {
     tugas: r.tugas_utama,
     aktif: r.is_active_lembaga,
     tgl_masuk: r.tgl_masuk,
+    no_sk_awal_ptk: r.no_sk_awal_ptk,
+    tgl_sk_awal_ptk: r.tgl_sk_awal_ptk,
   };
 }
 
@@ -102,6 +106,8 @@ export default function LembagaPegawaiPage() {
   const [tNipp, setTNipp] = useState('');
   const [tTugas, setTTugas] = useState('Guru Pengampu');
   const [tMasuk, setTMasuk] = useState('');
+  const [tNoSkPtk, setTNoSkPtk] = useState('');
+  const [tTglSkPtk, setTTglSkPtk] = useState('');
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -122,10 +128,14 @@ export default function LembagaPegawaiPage() {
         nipp: tNipp.trim() || null,
         tugas_utama: tTugas.trim() || 'Guru Pengampu',
         tgl_masuk: tMasuk || null,
+        no_sk_awal_ptk: tNoSkPtk.trim() || null,
+        tgl_sk_awal_ptk: tTglSkPtk || null,
       });
       toast.success('Pegawai ditempatkan.');
       setTempatRow(null);
       setTNipp('');
+      setTNoSkPtk('');
+      setTTglSkPtk('');
       await kanan.load(1);
       await kiri.load();
     } catch (e) {
@@ -133,7 +143,7 @@ export default function LembagaPegawaiPage() {
     } finally {
       setBusy(false);
     }
-  }, [tempatRow, tLembaga, tNipp, tTugas, tMasuk, kanan, kiri]);
+  }, [tempatRow, tLembaga, tNipp, tTugas, tMasuk, tNoSkPtk, tTglSkPtk, kanan, kiri]);
 
   const onNonaktif = useCallback(async (r: LembagaPegawai) => {
     try {
@@ -160,6 +170,8 @@ export default function LembagaPegawaiPage() {
       ...(f.nipp !== undefined ? { nipp: f.nipp || null } : {}),
       ...(f.tugas !== undefined ? { tugas_utama: f.tugas || 'Guru Pengampu' } : {}),
       ...(f.tgl_masuk !== undefined ? { tgl_masuk: f.tgl_masuk || null } : {}),
+      ...(f.no_sk_awal_ptk !== undefined ? { no_sk_awal_ptk: f.no_sk_awal_ptk || null } : {}),
+      ...(f.tgl_sk_awal_ptk !== undefined ? { tgl_sk_awal_ptk: f.tgl_sk_awal_ptk || null } : {}),
     });
   }
 
@@ -276,6 +288,10 @@ export default function LembagaPegawaiPage() {
             <Input id="input_tempat_tugas" value={tTugas} onChange={(e) => setTTugas(e.target.value)} maxLength={100} />
             <FieldLabel htmlFor="input_tempat_masuk">Tgl masuk</FieldLabel>
             <Input id="input_tempat_masuk" type="date" value={tMasuk} onChange={(e) => setTMasuk(e.target.value)} />
+            <FieldLabel htmlFor="input_tempat_no_sk_ptk">No. SK awal PTK</FieldLabel>
+            <Input id="input_tempat_no_sk_ptk" value={tNoSkPtk} onChange={(e) => setTNoSkPtk(e.target.value)} maxLength={100} placeholder="No. SK awal sebagai PTK" />
+            <FieldLabel htmlFor="input_tempat_tgl_sk_ptk">Tgl SK awal PTK</FieldLabel>
+            <Input id="input_tempat_tgl_sk_ptk" type="date" value={tTglSkPtk} onChange={(e) => setTTglSkPtk(e.target.value)} />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setTempatRow(null)}>Batal</Button>

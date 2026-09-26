@@ -22,6 +22,8 @@ class LembagaPegawaiStoreRequest extends FormRequest
             'tgl_masuk' => ['nullable', 'date'],
             'tgl_selesai' => ['nullable', 'date'],
             'tahaj_masuk' => ['nullable', 'string', 'max:50'],
+            'no_sk_awal_ptk' => ['nullable', 'string', 'max:100'],
+            'tgl_sk_awal_ptk' => ['nullable', 'date'],
         ];
     }
 }

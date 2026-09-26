@@ -33,7 +33,7 @@ class PegawaiController extends Controller
     use TenantGuard;
     use UrutDaftar;
 
-    private const SORT_NULLABLE = ['pegawai.nip', 'pegawai.nik', 'pegawai.tgl_mulai_kerja'];
+    private const SORT_NULLABLE = ['pegawai.nip', 'pegawai.nik', 'pegawai.tgl_mulai_kerja', 'pegawai.tgl_sk_awal'];
 
     /** GET /api/admin/pegawai — daftar buku induk (global; filter lembaga/TA via penempatan/keaktifan). */
     public function index(Request $request): JsonResponse
@@ -58,7 +58,8 @@ class PegawaiController extends Controller
             $query->where(fn ($sub) => $sub
                 ->where('nama_lengkap', 'like', "%{$q}%")
                 ->orWhere('nip', 'like', "%{$q}%")
-                ->orWhere('nik', 'like', "%{$q}%"));
+                ->orWhere('nik', 'like', "%{$q}%")
+                ->orWhere('no_sk_awal', 'like', "%{$q}%"));
         }
 
         $this->terapkanUrut($query, $urut, [
@@ -157,6 +158,8 @@ class PegawaiController extends Controller
                 'email_gws' => $p->email_gws,
                 'status_aktif' => $p->status_aktif,
                 'tgl_mulai_kerja' => $p->tgl_mulai_kerja?->format('Y-m-d'),
+                'no_sk_awal' => $p->no_sk_awal,
+                'tgl_sk_awal' => $p->tgl_sk_awal?->format('Y-m-d'),
                 'pendidikan_terakhir' => $p->pendidikan_terakhir,
                 'jenis_ptk' => $p->jenis_ptk,
                 'status_pernikahan' => $p->status_pernikahan,

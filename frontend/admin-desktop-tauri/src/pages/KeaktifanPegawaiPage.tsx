@@ -4,6 +4,7 @@ import {
   aktifkanMassalKeaktifan,
   listKeaktifanPegawai,
   nonaktifkanKeaktifan,
+  simpanKeaktifanPegawai,
   type KeaktifanPegawai,
 } from '../api/pegawai';
 import { Button } from '@/components/ui/button';
@@ -27,6 +28,8 @@ const FIELDS: ExcelField[] = [
   { key: 'ta', label: 'tahun_ajaran.nama', width: 130, kind: 'static', sumber: { tabel: 'tahun_ajaran', kolom: 'nama' } },
   { key: 'tugas', label: 'Tugas', width: 180, kind: 'static', sumber: { tabel: 'keaktifan_pegawai', kolom: 'tugas_utama' } },
   { key: 'status', label: 'Status', width: 110, kind: 'static', sumber: { tabel: 'keaktifan_pegawai', kolom: 'status_keaktifan' } },
+  { key: 'no_sk', label: 'No. SK', width: 180, kind: 'text', maxLength: 100, sumber: { tabel: 'keaktifan_pegawai', kolom: 'no_sk' } },
+  { key: 'tgl_sk', label: 'Tgl SK', width: 130, kind: 'text', maxLength: 10, sumber: { tabel: 'keaktifan_pegawai', kolom: 'tgl_sk' } },
 ];
 
 function nilaiBaris(r: KeaktifanPegawai): Record<string, string | null> {
@@ -36,6 +39,8 @@ function nilaiBaris(r: KeaktifanPegawai): Record<string, string | null> {
     ta: r.tahun_ajaran,
     tugas: r.tugas_utama,
     status: r.status_keaktifan,
+    no_sk: r.no_sk,
+    tgl_sk: r.tgl_sk,
   };
 }
 
@@ -97,6 +102,18 @@ export default function KeaktifanPegawaiPage() {
     }
   }, [load]);
 
+  async function commitSk(id: number, f: Record<string, string | null>) {
+    const baris = rows.find((r) => r.id === id);
+    if (!baris) return;
+    await simpanKeaktifanPegawai({
+      pegawai_id: baris.pegawai_id,
+      jenjang: baris.jenjang,
+      tahun_ajaran: baris.tahun_ajaran,
+      ...(f.no_sk !== undefined ? { no_sk: f.no_sk || null } : {}),
+      ...(f.tgl_sk !== undefined ? { tgl_sk: f.tgl_sk || null } : {}),
+    });
+  }
+
   const renderActions = useCallback((r: KeaktifanPegawai) => (
     <>
       {canUbah && r.status_keaktifan === 'aktif' && (
@@ -116,7 +133,7 @@ export default function KeaktifanPegawaiPage() {
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
       <PengaturanHalaman tampil={{ semester: false, tingkat: false }} tabel={[{ key: 'pegawai_keaktifan', judul: 'Keaktifan', fields: FIELDS }]} />
-      <TopBarSearch value={cari} onChange={setCari} placeholder="Cari nama / NIP / NIPP…" />
+      <TopBarSearch value={cari} onChange={setCari} placeholder="Cari nama / NIP / NIPP / No. SK…" />
       {!taTunggal && <CatatanProsesTahunAjaran />}
       <ExcelTable
         tableKey="pegawai_keaktifan"
@@ -126,8 +143,8 @@ export default function KeaktifanPegawaiPage() {
         getValues={nilaiBaris}
         loading={loading}
         emptyText={taTunggal ? 'Belum ada guru aktif di TA ini.' : 'Pilih satu tahun ajaran di filter.'}
-        canEdit={false}
-        onCommit={async () => {}}
+        canEdit={canUbah}
+        onCommit={commitSk}
         onSaved={onSaved}
         urutAktif={urut}
         arahUrut={arahUrut}

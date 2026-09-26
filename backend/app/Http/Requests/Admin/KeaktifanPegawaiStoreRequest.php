@@ -19,6 +19,8 @@ class KeaktifanPegawaiStoreRequest extends FormRequest
             'jenjang' => ['required', Rule::exists('lembaga', 'jenjang')],
             'tahun_ajaran' => ['required', 'string', 'exists:tahun_ajaran,nama'],
             'tugas_utama' => ['nullable', 'string', 'max:100'],
+            'no_sk' => ['nullable', 'string', 'max:100'],
+            'tgl_sk' => ['nullable', 'date'],
             'status_keaktifan' => ['nullable', 'in:aktif,inaktif'],
         ];
     }

@@ -155,6 +155,7 @@ class UrutKatalog
             'jk' => ['pegawai.jenis_kelamin'],
             'status' => ['pegawai.status_aktif'],
             'mulai' => ['pegawai.tgl_mulai_kerja'],
+            'sk' => ['pegawai.no_sk_awal'],
             'id' => ['pegawai.id'],
         ],
         'pegawai_lembaga' => [
@@ -164,6 +165,7 @@ class UrutKatalog
             'tugas' => ['lembaga_pegawai.tugas_utama'],
             'aktif' => ['lembaga_pegawai.is_active_lembaga'],
             'mulai' => ['lembaga_pegawai.tgl_masuk'],
+            'sk' => ['lembaga_pegawai.no_sk_awal_ptk'],
             'id' => ['lembaga_pegawai.id'],
         ],
         'pegawai_keaktifan' => [
@@ -173,6 +175,7 @@ class UrutKatalog
             'ta' => ['keaktifan_pegawai.tahun_ajaran'],
             'tugas' => ['keaktifan_pegawai.tugas_utama'],
             'status' => ['keaktifan_pegawai.status_keaktifan'],
+            'sk' => ['keaktifan_pegawai.no_sk'],
             'id' => ['keaktifan_pegawai.id'],
         ],
     ];

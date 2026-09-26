@@ -48,6 +48,8 @@ class PegawaiStoreRequest extends FormRequest
             'kode_pos' => ['nullable', 'string', 'max:10'],
             'alamat' => ['nullable', 'string'],
             'tgl_mulai_kerja' => ['nullable', 'date'],
+            'no_sk_awal' => ['nullable', 'string', 'max:100'],
+            'tgl_sk_awal' => ['nullable', 'date'],
             'status_aktif' => ['nullable', 'in:aktif,cuti,keluar'],
             'user_id' => ['nullable', 'integer', 'exists:users,id'],
         ];

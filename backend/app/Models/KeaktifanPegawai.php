@@ -12,6 +12,10 @@ class KeaktifanPegawai extends Model
 
     protected $guarded = ['id'];
 
+    protected $casts = [
+        'tgl_sk' => 'date:Y-m-d',
+    ];
+
     public const AKTIF = 'aktif';
 
     public const INAKTIF = 'inaktif';

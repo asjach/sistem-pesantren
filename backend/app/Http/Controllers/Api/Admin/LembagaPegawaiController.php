@@ -26,6 +26,7 @@ class LembagaPegawaiController extends Controller
 
     private const SORT_NULLABLE = [
         'lembaga_pegawai.nipp', 'lembaga_pegawai.tgl_masuk', 'lembaga_pegawai.tgl_selesai',
+        'lembaga_pegawai.tgl_sk_awal_ptk',
     ];
 
     /** GET /api/admin/pegawai-lembaga — daftar penempatan lintas pegawai. */
@@ -49,7 +50,8 @@ class LembagaPegawaiController extends Controller
                 ->whereHas('pegawai', fn ($p) => $p
                     ->where('nama_lengkap', 'like', "%{$q}%")
                     ->orWhere('nip', 'like', "%{$q}%"))
-                ->orWhere('lembaga_pegawai.nipp', 'like', "%{$q}%"));
+                ->orWhere('lembaga_pegawai.nipp', 'like', "%{$q}%")
+                ->orWhere('lembaga_pegawai.no_sk_awal_ptk', 'like', "%{$q}%"));
         }
 
         $query->select('lembaga_pegawai.*')
