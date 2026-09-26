@@ -87,7 +87,12 @@ class RiwayatBelajarController extends Controller
             $query->where('riwayat_belajar.status_akhir', $request->input('status_akhir'));
         }
         if ($request->filled('status_awal')) {
-            $query->where('riwayat_belajar.status_awal', $request->input('status_awal'));
+            // Scalar (klasik) maupun array `status_awal[]` (halaman kenaikan).
+            $query->whereIn('riwayat_belajar.status_awal', (array) $request->input('status_awal'));
+        }
+        if ($request->filled('status_awal_bukan')) {
+            // `status_awal_bukan[]` = hasil kenaikan, mis. ['santri_baru'].
+            $query->whereNotIn('riwayat_belajar.status_awal', (array) $request->input('status_awal_bukan'));
         }
         if ($request->boolean('tanpa_kelas')) {
             $query->whereNull('riwayat_belajar.kelas_id');

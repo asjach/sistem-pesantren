@@ -454,4 +454,62 @@ class GlobalFilterTest extends TestCase
             ->assertOk();
         $this->assertCount(2, $res->json('data'));
     }
+
+    public function test_status_awal_array_dan_status_awal_bukan(): void
+    {
+        $f = $this->fixture();
+        $kelas = $this->makeKelas($f['mi'], $f['ta']->nama, 'MI-1A');
+        $buat = function (string $nama, string $statusAwal) use ($f, $kelas): Santri {
+            $santri = Santri::create(['nama_lengkap' => $nama, 'jk' => 'L']);
+            LembagaSantri::create([
+                'santri_id' => $santri->id,
+                'jenjang' => $f['mi']->jenjang,
+                'is_active_lembaga' => 'Ya',
+            ]);
+            RiwayatBelajar::create([
+                'santri_id' => $santri->id,
+                'jenjang' => $f['mi']->jenjang,
+                'tahun_ajaran' => $f['ta']->nama,
+                'semester' => '1',
+                'kelas_id' => $kelas->id,
+                'tingkat' => '1',
+                'status_awal' => $statusAwal,
+                'status_akhir' => 'aktif',
+                'is_active_riwayat' => 'Ya',
+            ]);
+
+            return $santri;
+        };
+        $naik = $buat('Naik', 'kenaikan');
+        $pindah = $buat('Pindah', 'pindahan');
+        $ulang = $buat('Ulang', 'mengulang');
+        $baru = $buat('Baru', 'santri_baru');
+        $user = $this->makeUser('super_admin');
+
+        $ids = fn ($res) => collect($res->json('data'))->pluck('santri_id')->all();
+
+        // Array `status_awal[]` (daftar hasil kenaikan, halaman Kenaikan).
+        $res = $this->actingAs($user, 'sanctum')->getJson('/api/admin/riwayat-belajar?'.http_build_query([
+            'jenjang' => [$f['mi']->jenjang],
+            'tahun_ajaran' => [$f['ta']->nama],
+            'status_awal' => ['kenaikan', 'pindahan'],
+        ], '', '&', PHP_QUERY_RFC3986))->assertOk();
+        $this->assertEqualsCanonicalizing([$naik->id, $pindah->id], $ids($res));
+
+        // Scalar lama tetap berlaku.
+        $res = $this->actingAs($user, 'sanctum')->getJson('/api/admin/riwayat-belajar?'.http_build_query([
+            'jenjang' => [$f['mi']->jenjang],
+            'tahun_ajaran' => [$f['ta']->nama],
+            'status_awal' => 'mengulang',
+        ], '', '&', PHP_QUERY_RFC3986))->assertOk();
+        $this->assertSame([$ulang->id], $ids($res));
+
+        // `status_awal_bukan[]` = semua hasil kenaikan kecualiForamFmCkZuCkZu.
+        $res = $this->actingAs($user, 'sanctum')->getJson('/api/admin/riwayat-belajar?'.http_build_query([
+            'jenjang' => [$f['mi']->jenjang],
+            'tahun_ajaran' => [$f['ta']->nama],
+            'status_awal_bukan' => ['santri_baru'],
+        ], '', '&', PHP_QUERY_RFC3986))->assertOk();
+        $this->assertEqualsCanonicalizing([$naik->id, $pindah->id, $ulang->id], $ids($res));
+    }
 }

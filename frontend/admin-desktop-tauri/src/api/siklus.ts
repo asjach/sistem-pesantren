@@ -163,7 +163,10 @@ export function listRiwayatBelajar(params: {
   q?: string;
   is_active_riwayat?: boolean | 'semua';
   keaktifan?: 'aktif' | 'nonaktif' | 'semua';
-  status_awal?: string;
+  /** Scalar tunggal atau daftar `status_awal[]` (hasil kenaikan). */
+  status_awal?: ScalarOrArray<string>;
+  /** `status_awal_bukan[]` — kebalikan dari `status_awal`. */
+  status_awal_bukan?: ScalarOrArray<string>;
   status_akhir?: string;
   sort?: string[];
   arah?: 'naik' | 'turun';
@@ -185,7 +188,8 @@ export function listRiwayatBelajar(params: {
   }
   if (params.keaktifan) q.set('keaktifan', params.keaktifan);
   if (params.status_akhir) q.set('status_akhir', params.status_akhir);
-  if (params.status_awal) q.set('status_awal', params.status_awal);
+  appendQueryParam(q, 'status_awal', params.status_awal);
+  appendQueryParam(q, 'status_awal_bukan', params.status_awal_bukan);
   if (params.sort?.length) q.set('sort', params.sort.join(','));
   if (params.arah) q.set('arah', params.arah);
   q.set('page', String(params.page ?? 1));
