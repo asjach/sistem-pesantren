@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\KeaktifanPegawai;
 use App\Models\Kelas;
 use App\Models\Lembaga;
+use App\Models\LembagaPegawai;
 use App\Models\Pegawai;
 use App\Models\TahunAjaran;
 use App\Models\User;
@@ -65,6 +66,10 @@ class KelasWalasTest extends TestCase
 
     protected function tugaskan(Pegawai $p, string $jenjang, string $ta, string $status = 'aktif'): void
     {
+        LembagaPegawai::create([
+            'pegawai_id' => $p->id, 'jenjang' => $jenjang,
+            'is_active_lembaga' => LembagaPegawai::YA,
+        ]);
         KeaktifanPegawai::create([
             'pegawai_id' => $p->id, 'jenjang' => $jenjang,
             'tahun_ajaran' => $ta, 'status_keaktifan' => $status,

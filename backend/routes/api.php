@@ -3,8 +3,10 @@
 use App\Http\Controllers\Api\Admin\AlumniArsipController;
 use App\Http\Controllers\Api\Admin\IzinController;
 use App\Http\Controllers\Api\Admin\KamusLabelController;
+use App\Http\Controllers\Api\Admin\KeaktifanPegawaiController;
 use App\Http\Controllers\Api\Admin\KelasController;
 use App\Http\Controllers\Api\Admin\LembagaController;
+use App\Http\Controllers\Api\Admin\LembagaPegawaiController;
 use App\Http\Controllers\Api\Admin\LembagaSantriController;
 use App\Http\Controllers\Api\Admin\MiMdController;
 use App\Http\Controllers\Api\Admin\MutasiKeluarArsipController;
@@ -94,6 +96,28 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::match(['put', 'patch'], 'kelas/{kela}', [KelasController::class, 'update'])->middleware('permission:kelas.ubah');
         Route::delete('kelas/{kela}', [KelasController::class, 'destroy'])->middleware('permission:kelas.hapus');
 
+        // Buku Induk Guru + penempatan + riwayat keaktifan (modul pegawai).
+        Route::get('pegawai', [PegawaiController::class, 'index'])->middleware('permission:pegawai.lihat');
+        Route::post('pegawai', [PegawaiController::class, 'store'])->middleware('permission:pegawai.tambah');
+        Route::match(['put', 'patch'], 'pegawai/{pegawai}', [PegawaiController::class, 'update'])->middleware('permission:pegawai.ubah');
+        Route::delete('pegawai/{pegawai}', [PegawaiController::class, 'destroy'])->middleware('permission:pegawai.hapus');
+        Route::post('pegawai/{pegawai}/tautkan-akun', [PegawaiController::class, 'tautkanAkun'])->middleware('permission:pegawai.ubah');
+        Route::get('pegawai/import-template', [PegawaiController::class, 'templateImport'])->middleware('permission:pegawai.lihat');
+        Route::get('pegawai/data-existing', [PegawaiController::class, 'dataExisting'])->middleware('permission:pegawai.lihat');
+        Route::post('pegawai/import-potong', [PegawaiController::class, 'potongImport'])->middleware(['permission:pegawai.tambah', 'throttle:imports']);
+        Route::post('pegawai/import-potong/{sesi}/batal', [PegawaiController::class, 'batalPotong'])->middleware('permission:pegawai.tambah');
+        Route::get('pegawai/import-potong/{sesi}/galat', [PegawaiController::class, 'galatPotong'])->middleware('permission:pegawai.lihat');
+        Route::get('pegawai-lembaga', [LembagaPegawaiController::class, 'index'])->middleware('permission:pegawai.lihat');
+        Route::get('pegawai/{pegawai}/penempatan', [LembagaPegawaiController::class, 'untuk'])->middleware('permission:pegawai.lihat');
+        Route::post('pegawai/{pegawai}/tempatkan', [LembagaPegawaiController::class, 'tempatkan'])->middleware('permission:pegawai.ubah');
+        Route::match(['put', 'patch'], 'pegawai-lembaga/{penempatan}', [LembagaPegawaiController::class, 'update'])->middleware('permission:pegawai.ubah');
+        Route::post('pegawai-lembaga/{penempatan}/nonaktifkan', [LembagaPegawaiController::class, 'nonaktifkan'])->middleware('permission:pegawai.ubah');
+        Route::post('pegawai-lembaga/{penempatan}/aktifkan', [LembagaPegawaiController::class, 'aktifkan'])->middleware('permission:pegawai.ubah');
+        Route::get('pegawai-keaktifan', [KeaktifanPegawaiController::class, 'index'])->middleware('permission:pegawai.lihat');
+        Route::post('pegawai-keaktifan', [KeaktifanPegawaiController::class, 'store'])->middleware('permission:pegawai.ubah');
+        Route::post('pegawai-keaktifan/aktifkan-massal', [KeaktifanPegawaiController::class, 'aktifkanMassal'])->middleware('permission:pegawai.ubah');
+        Route::post('pegawai-keaktifan/{keaktifan}/nonaktifkan', [KeaktifanPegawaiController::class, 'nonaktifkan'])->middleware('permission:pegawai.ubah');
+
         // Data Santri (101: master profil + import PPDB massal + foto/dokumen)
         Route::get('santri', [SantriController::class, 'index'])->middleware('permission:santri.lihat');
         Route::post('santri', [SantriController::class, 'store'])->middleware('permission:santri.tambah');
@@ -147,6 +171,8 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::get('akademik/rekap-santri', [SiklusController::class, 'rekapSantri'])->middleware('permission:rekap_santri.lihat');
         Route::post('santri/{santri}/lulus', [SiklusController::class, 'lulus'])->middleware('permission:kelulusan.ubah');
         Route::post('santri/{santri}/tidak-lulus', [SiklusController::class, 'tidakLulus'])->middleware('permission:kelulusan.ubah');
+        Route::post('santri/{santri}/batal-lulus', [SiklusController::class, 'batalLulus'])->middleware('permission:kelulusan.ubah');
+        Route::post('santri/{santri}/batal-tidak-lulus', [SiklusController::class, 'batalTidakLulus'])->middleware('permission:kelulusan.ubah');
         Route::post('santri/{santri}/batal-kenaikan', [SiklusController::class, 'batalKenaikan'])->middleware('permission:kenaikan.ubah');
         Route::post('santri/{santri}/batal-salin', [SiklusController::class, 'batalSalin'])->middleware('permission:kenaikan.ubah');
         Route::post('santri/{santri}/mutasi', [SiklusController::class, 'mutasiKeluar'])->middleware('permission:mutasi_keluar.ubah');
@@ -161,6 +187,7 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::post('mutasi-keluar/import-potong/{sesi}/batal', [MutasiKeluarArsipController::class, 'batalPotong'])->middleware('permission:mutasi_keluar.ubah');
         Route::get('mutasi-keluar/import-potong/{sesi}/galat', [MutasiKeluarArsipController::class, 'galatPotong'])->middleware('permission:mutasi_keluar.lihat');
         Route::get('alumni', [AlumniArsipController::class, 'index'])->middleware('permission:kelulusan.lihat');
+        Route::put('alumni/{alumni}', [AlumniArsipController::class, 'update'])->middleware('permission:kelulusan.ubah');
         Route::get('alumni/import-template', [AlumniArsipController::class, 'templateImport'])->middleware('permission:kelulusan.lihat');
         Route::get('alumni/data-existing', [AlumniArsipController::class, 'dataExisting'])->middleware('permission:kelulusan.lihat');
         Route::post('alumni/import-periksa', [AlumniArsipController::class, 'periksaImport'])->middleware(['permission:kelulusan.ubah', 'throttle:imports']);

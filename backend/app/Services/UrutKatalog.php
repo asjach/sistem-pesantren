@@ -154,7 +154,26 @@ class UrutKatalog
             'nip' => ['pegawai.nip'],
             'jk' => ['pegawai.jenis_kelamin'],
             'status' => ['pegawai.status_aktif'],
+            'mulai' => ['pegawai.tgl_mulai_kerja'],
             'id' => ['pegawai.id'],
+        ],
+        'pegawai_lembaga' => [
+            'nama' => ['pegawai.nama_lengkap'],
+            'nipp' => ['lembaga_pegawai.nipp'],
+            'lembaga' => ['lembaga_pegawai.jenjang'],
+            'tugas' => ['lembaga_pegawai.tugas_utama'],
+            'aktif' => ['lembaga_pegawai.is_active_lembaga'],
+            'mulai' => ['lembaga_pegawai.tgl_masuk'],
+            'id' => ['lembaga_pegawai.id'],
+        ],
+        'pegawai_keaktifan' => [
+            'nama' => ['pegawai.nama_lengkap'],
+            'nipp' => ['lembaga_pegawai.nipp'],
+            'lembaga' => ['keaktifan_pegawai.jenjang'],
+            'ta' => ['keaktifan_pegawai.tahun_ajaran'],
+            'tugas' => ['keaktifan_pegawai.tugas_utama'],
+            'status' => ['keaktifan_pegawai.status_keaktifan'],
+            'id' => ['keaktifan_pegawai.id'],
         ],
     ];
 

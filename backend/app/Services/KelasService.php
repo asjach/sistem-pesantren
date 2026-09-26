@@ -4,14 +4,16 @@ namespace App\Services;
 
 use App\Models\KeaktifanPegawai;
 use App\Models\Kelas;
+use App\Models\LembagaPegawai;
 use App\Models\Pegawai;
 use Illuminate\Validation\ValidationException;
 
 /**
  * Aturan wali kelas (`kelas.walas_id → pegawai`): 3 lapis —
- * (1) pegawai ada, (2) status aktif global, (3) keaktifan aktif di
- * lembaga + tahun ajaran kelas. Dipakai endpoint set-walas, update,
- * dan import file (kolom `walas`: NIP dulu, fallback nama).
+ * (1) pegawai ada, (2) status aktif global, (3) penempatan aktif di
+ * lembaga + keaktifan aktif di lembaga + tahun ajaran kelas. Dipakai
+ * endpoint set-walas, update, dan import file (kolom `walas`: NIP
+ * dulu, fallback nama).
  */
 class KelasService
 {
@@ -61,11 +63,18 @@ class KelasService
         return $cocok->first();
     }
 
-    /** Lapis 2–3: aktif global + keaktifan aktif di lembaga + TA kelas. */
+    /** Lapis 2–3: aktif global + penempatan aktif + keaktifan aktif di lembaga + TA kelas. */
     public function cekKelayakan(Kelas $kelas, Pegawai $pegawai, string $kunci = 'pegawai_id'): void
     {
         if ($pegawai->status_aktif !== Pegawai::AKTIF) {
             throw ValidationException::withMessages([$kunci => 'Pegawai tidak aktif.']);
+        }
+        $tempat = LembagaPegawai::where('pegawai_id', $pegawai->id)
+            ->where('jenjang', $kelas->jenjang)
+            ->where('is_active_lembaga', LembagaPegawai::YA)
+            ->exists();
+        if (! $tempat) {
+            throw ValidationException::withMessages([$kunci => 'Pegawai belum ditempatkan di lembaga kelas ini.']);
         }
         $tugas = KeaktifanPegawai::where('pegawai_id', $pegawai->id)
             ->where('jenjang', $kelas->jenjang)

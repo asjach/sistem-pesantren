@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\KeaktifanPegawai;
 use App\Models\Kelas;
 use App\Models\Lembaga;
+use App\Models\LembagaPegawai;
 use App\Models\LembagaTahunAjaran;
 use App\Models\Pegawai;
 use App\Models\TahunAjaran;
@@ -227,11 +228,13 @@ class KelasImportTest extends TestCase
     {
         $f = $this->baseFixture();
         $guru = Pegawai::create(['nama_lengkap' => 'Guru Wali', 'jenis_kelamin' => 'L', 'nip' => 'NIP101']);
+        LembagaPegawai::create(['pegawai_id' => $guru->id, 'jenjang' => $f['mi']->jenjang]);
         KeaktifanPegawai::create([
             'pegawai_id' => $guru->id, 'jenjang' => $f['mi']->jenjang,
             'tahun_ajaran' => $f['ta']->nama, 'status_keaktifan' => 'aktif',
         ]);
         $cuti = Pegawai::create(['nama_lengkap' => 'Guru Cuti', 'jenis_kelamin' => 'L', 'nip' => 'NIP102', 'status_aktif' => 'cuti']);
+        LembagaPegawai::create(['pegawai_id' => $cuti->id, 'jenjang' => $f['mi']->jenjang]);
         KeaktifanPegawai::create([
             'pegawai_id' => $cuti->id, 'jenjang' => $f['mi']->jenjang,
             'tahun_ajaran' => $f['ta']->nama, 'status_keaktifan' => 'aktif',
@@ -263,6 +266,7 @@ class KelasImportTest extends TestCase
     {
         $f = $this->baseFixture();
         $guru = Pegawai::create(['nama_lengkap' => 'Guru Wali', 'jenis_kelamin' => 'L', 'nip' => 'NIP201']);
+        LembagaPegawai::create(['pegawai_id' => $guru->id, 'jenjang' => $f['mi']->jenjang]);
         KeaktifanPegawai::create([
             'pegawai_id' => $guru->id, 'jenjang' => $f['mi']->jenjang,
             'tahun_ajaran' => $f['ta']->nama, 'status_keaktifan' => 'aktif',

@@ -702,7 +702,7 @@ Standar tampilan per lembaga (tema/tipografi/grid/preset aktif), disebar super_a
 - `created_at`, `updated_at`
 - INDEX(`pegawai_id`, `jenis_dokumen_pegawai`)
 
-### `keaktifan_pegawai`
+### `keaktifan_pegawai` (riwayat keaktifan per TA — konsep `riwayat_keaktifan_pegawai`)
 - `id` PK
 - `pegawai_id`: FK → pegawai [cascade]
 - `jenjang`: FK → lembaga [cascade]
@@ -711,6 +711,20 @@ Standar tampilan per lembaga (tema/tipografi/grid/preset aktif), disebar super_a
 - `status_keaktifan`: enum(aktif|inaktif) [default 'aktif']
 - `created_at`, `updated_at`
 - UNIQUE(`pegawai_id`, `jenjang`, `tahun_ajaran`, `uq_keaktifan_pegawai_plt`) — nama pendek: auto-name 61 char, margin aman dari limit 64
+- ATURAN: tulis hanya bila baris `lembaga_pegawai` ada; dropdown walas mensyaratkan penempatan aktif + keaktifan aktif + status pegawai aktif.
+
+### `lembaga_pegawai` (penempatan guru per lembaga — pivot kaya, cermin `lembaga_santri`)
+- `id` PK
+- `pegawai_id`: FK → pegawai [cascade]
+- `jenjang`: FK → lembaga [cascade]
+- `nipp`: string(30) [null] — Nomor Induk Pegawai Pesantren, unik per lembaga
+- `tugas_utama`: string [default 'Guru Pengampu'] — ref_tugas_utama
+- `is_active_lembaga`: enum('Ya','Tidak') [default 'Ya']
+- `tgl_masuk`, `tgl_selesai`: date [null]
+- `tahaj_masuk`: string(50) [null] — TA pertama masuk lembaga
+- `created_at`, `updated_at`
+- UNIQUE(`pegawai_id`, `jenjang`) · UNIQUE(`jenjang`, `nipp`) [multi-NULL boleh] · INDEX(`jenjang`,`is_active_lembaga`)
+- INVARIAN: 1 baris per (pegawai, lembaga); masuk-lagi = aktifkan ulang.
 
 ### `presensi_pegawai`
 - `id` PK
