@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 import ExcelTable, { type ExcelTableProps } from './ExcelTable';
@@ -116,6 +116,28 @@ describe('ExcelTable', () => {
     expect(container.querySelector('[data-col-key="check"]')).toBeNull();
     expect(container.querySelector('[data-col-key="__aksi"]')).toBeNull();
     await waitFor(() => expect(screen.getByText('A-01')).toBeInTheDocument());
+  });
+
+  it('menampilkan kontrol toolbar di baris judul, bukan baris toolbar', async () => {
+    const { container } = renderTabel({
+      awalanToolbar: <span>Awal uji</span>,
+      akhirToolbar: <span>Akhir uji</span>,
+      tengah: <span>Info tengah uji</span>,
+      renderBulkActions: (checked) => (
+        <button type="button">Bulk uji ({checked.length})</button>
+      ),
+    });
+    const kotak = container.querySelector('input.dsg-checkbox[data-row-id="1"]');
+    expect(kotak).not.toBeNull();
+    fireEvent.click(kotak as HTMLElement);
+
+    await waitFor(() => expect(screen.getByText('Bulk uji (1)')).toBeInTheDocument());
+    expect(container.querySelector('[data-part="toolbar_tabel"]')).toBeNull();
+    const header = screen.getByText('Bulk uji (1)').closest('[data-part="header_tabel"]');
+    expect(header).not.toBeNull();
+    expect(header).toHaveTextContent('Awal uji');
+    expect(header).toHaveTextContent('Akhir uji');
+    expect(header).toHaveTextContent('Info tengah uji');
   });
 });
 

@@ -80,7 +80,6 @@ import {
 } from './excel/cells';
 import { HeaderTitle, LEBAR_GAGANG_GESER } from './excel/header';
 import { useAntreanSimpan } from './excel/useAntreanSimpan';
-import ToolbarTabel from './excel/toolbar';
 import MenuAksiToolbar from '@/components/MenuAksiToolbar';
 import { ActionsCell, flattenAksi } from './excel/actions';
 import MenuKonteksGrid from './excel/konteksMenu';
@@ -107,13 +106,13 @@ export interface ExcelTableProps<T extends { id: string | number }> {
   /** Isi kolom Aksi (ikon Lihat/Ubah/Hapus, sudah digerbang role oleh halaman). */
   renderActions: (row: T) => ReactNode;
   filter?: ReactNode;
-  /** Label info halaman di zona tengah toolbar (baris 1; baris 2 = seleksi). */
+  /** Label info halaman di area judul tabel. */
   tengah?: ReactNode;
   header?: ReactNode;
-  /** Kontrol di awal toolbar (mis. pemilih
+  /** Kontrol di awal area judul (mis. pemilih
    *  tabel pada halaman Kamus Label). */
   awalanToolbar?: ReactNode;
-  /** Kontrol di ujung KANAN toolbar (setelah tombol aksi utama halaman). */
+  /** Kontrol di ujung KANAN area judul (sebelum tombol aksi utama halaman). */
   akhirToolbar?: ReactNode;
   /** Tombol aksi utama halaman (mis. "+ Tambah X"): diletakkan sebaris
    *  dengan pencarian/filter, di sisi kanan. */
@@ -557,7 +556,7 @@ export default function ExcelTable<T extends { id: string | number }>({
   // saat fokus di grid maupun di editor sel (input/select) — listener capture
   // berjalan sebelum handler editor, lalu editor ikut ditutup komponennya.
   // Dialog/dropdown yang sedang terbuka tetap dikecualikan agar Esc menutupnya;
-  // kotak filter di toolbar juga dikecualikan agar Esc saat mengetik tidak
+  // kotak filter di judul juga dikecualikan agar Esc saat mengetik tidak
   // keluar dari mode Edit/Input.
   useEffect(() => {
     if (!((canEdit && editMode) || showInput)) return;
@@ -565,7 +564,7 @@ export default function ExcelTable<T extends { id: string | number }>({
       if (e.key !== 'Escape') return;
       const t = e.target as HTMLElement | null;
       if (t?.closest?.('[role="dialog"], [role="listbox"], [role="menu"]')) return;
-      if (t?.closest?.('[data-part="toolbar_tabel"]')) return;
+      if (t?.closest?.('[data-part="header_tabel"]')) return;
       if (canEdit && editMode) setEditMode(false);
       if (showInput) setInputMode(false);
     }
@@ -1228,13 +1227,17 @@ export default function ExcelTable<T extends { id: string | number }>({
   const filterTampil = visToolbar.filter && hasFilter;
   const urutTampil = visToolbar.urut && hasUrut;
   const kolomTampil = visToolbar.kolom && !hidePreset;
-  const headerKontrolTampil = filterTampil || urutTampil || kolomTampil || (addButton !== undefined && addButton !== null);
+  const aksiMassal = renderBulkActions && checkedRows.length > 0
+    ? renderBulkActions(checkedRows, clearSelection)
+    : null;
+  const infoHeader = visToolbar.info ? tengah ?? null : null;
+  const adaKontrolJudul = aksiMassal != null
+    || awalanToolbar !== undefined
+    || akhirToolbar !== undefined
+    || infoHeader != null;
+  const headerKontrolTampil = filterTampil || urutTampil || kolomTampil || (addButton !== undefined && addButton !== null) || adaKontrolJudul;
   const headerTampil = header !== undefined || headerKontrolTampil;
   const judulHeader = header ?? judulTabel(tableKey);
-  const showToolbar = (visToolbar.info && tengah !== undefined && tengah !== null)
-    || checkedRows.length > 0
-    || awalanToolbar !== undefined
-    || akhirToolbar !== undefined;
 
   // Data context menu per area (header kolom / baris).
   const ctxHeader = ctx.area === 'header' ? ctx : null;
@@ -1263,10 +1266,20 @@ export default function ExcelTable<T extends { id: string | number }>({
           <ContextMenu>
             <ContextMenuTrigger asChild disabled={!bolehKelolaHalaman}>
               <div data-part="header_tabel" className="flex shrink-0 items-center justify-between gap-2 border-b bg-muted/40 px-3 py-1 text-sm font-medium">
-            <div className="min-w-0 flex-1 truncate">{judulHeader}</div>
+            <div className="flex min-w-0 flex-1 items-center gap-2">
+              <div className="min-w-0 flex-1 truncate">{judulHeader}</div>
+              {infoHeader ? (
+                <div className="flex max-w-full shrink-0 self-center flex-col items-center gap-0.5 rounded-full border bg-muted/60 px-4 py-1 text-center">
+                  <span className="max-w-[32rem] truncate text-[11px] text-muted-foreground">{tengah}</span>
+                </div>
+              ) : null}
+            </div>
             <div className="ml-auto flex shrink-0 items-center justify-end gap-2">
               <div className="flex shrink-0 items-center justify-end gap-2">
                 {filterTampil ? <div className="flex items-center gap-1.5 [&>*]:shrink-0">{filter}</div> : null}
+                {aksiMassal ? <div className="flex flex-nowrap items-center gap-1.5 [&>*]:shrink-0">{aksiMassal}</div> : null}
+                {awalanToolbar}
+                {akhirToolbar}
                 {urutTampil ? (
                   <PresetUrut
                     tableKey={tableKey}
@@ -1305,18 +1318,7 @@ export default function ExcelTable<T extends { id: string | number }>({
             ) : null}
           </ContextMenu>
         ) : null}
-        <ToolbarTabel
-          tableKey={tableKey}
-          showToolbar={showToolbar}
-          awalanToolbar={awalanToolbar}
-          akhirToolbar={akhirToolbar}
-          tengah={tengah}
-          checkedRows={checkedRows}
-          renderBulkActions={renderBulkActions}
-          clearSelection={clearSelection}
-          visToolbar={visToolbar}
-        />
-      </KonteksLebarFilter.Provider>
+       </KonteksLebarFilter.Provider>
 
       <div
         ref={wrapRef}
@@ -1339,7 +1341,7 @@ export default function ExcelTable<T extends { id: string | number }>({
         onClickCapture={toggleCheckByCell}
         className={cn(
           // Grid full-bleed: menempel tepi kiri-kanan area konten (imbangi padding
-          // layout p-1) tanpa sudut membulat; toolbar tetap berpadding.
+          // layout p-1) tanpa sudut membulat; judul tetap berpadding.
           'simpes-dsg relative flex flex-col',
           !headerTampil && '-mx-1',
           maxRows === undefined ? 'min-h-[280px] flex-1' : 'shrink-0',
