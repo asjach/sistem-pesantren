@@ -66,8 +66,6 @@ export default function KelulusanPage() {
   const [kiri, setKiri] = useState<RiwayatRow[]>([]);
   const [pilih, setPilih] = useState<Set<number>>(new Set());
   const [tidakLulus, setTidakLulus] = useState<{ santri_id: number; nama: string; kelas: string | null }[]>([]);
-  /** Panel santri tidak lulus bisa disembunyikan/ditampilkan. */
-  const [tampilTidakLulus, setTampilTidakLulus] = useState(true);
   const [alumni, setAlumni] = useState<Alumni[]>([]);
   const [err, setErr] = useState('');
   /** Pencarian tunggal halaman (topBar). */
@@ -246,8 +244,6 @@ export default function KelulusanPage() {
             </div>
           </section>
           </ResizableAutoHidePanel>
-          {tampilTidakLulus && (
-          <>
           <ResizableHandle withHandle orientation="vertical" id="gagang_kelulusan_baris" />
           <ResizablePanel defaultSize={50} minSize={15}>
            <section className="flex h-full min-h-0 min-w-0 flex-col rounded-md">
@@ -260,11 +256,6 @@ export default function KelulusanPage() {
                       Tandai tidak lulus ({tidakLulus.length})
                     </Button>
                   ) : undefined}
-                  akhirToolbar={(
-                   <Button id="btn_sembunyi_tidak_lulus" size="sm" variant="ghost" onClick={() => setTampilTidakLulus(false)}>
-                     Sembunyikan
-                   </Button>
-                 )}
                  fields={FIELDS_SANTRI}
                 rows={tidakLulus.map((b) => ({ ...b, id: b.santri_id }))}
                 getValues={(b) => ({ nama: b.nama, kelas: b.kelas })}
@@ -281,16 +272,7 @@ export default function KelulusanPage() {
             </div>
           </section>
           </ResizablePanel>
-          </>
-          )}
         </ResizablePanelGroup>
-        {!tampilTidakLulus && (
-          <div className="flex shrink-0 justify-end pt-2">
-            <Button id="btn_tampil_tidak_lulus" size="sm" variant="outline" onClick={() => setTampilTidakLulus(true)}>
-              Tampilkan santri tidak lulus ({tidakLulus.length})
-            </Button>
-          </div>
-        )}
         </div>
         </ResizablePanel>
       </ResizablePanelGroup>
