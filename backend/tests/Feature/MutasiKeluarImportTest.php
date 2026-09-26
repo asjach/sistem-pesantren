@@ -221,6 +221,31 @@ class MutasiKeluarImportTest extends TestCase
         $this->assertDatabaseHas('mutasi_keluar', ['santri_id' => $santri->id, 'kelas_terakhir_id' => $kelas->id]);
     }
 
+    public function test_04b_update_arsip_lama_dengan_nis_dan_jenjang_sama(): void
+    {
+        $f = $this->baseFixture();
+        $santri = $this->makeSantriAktif($f, 'Arsip Update', '1101010000000317');
+        $this->upload($f['super'], $this->makeCsv([[
+            'nis_lokal' => $this->nisOf($santri), 'jenjang' => 'MI',
+            'tanggal_mutasi' => '2026-05-01', 'alasan_mutasi' => 'Ikut pindah orang tua',
+            'nama_sekolah_tujuan' => 'SDN Lama',
+        ]]))->assertStatus(200);
+
+        $res = $this->upload($f['super'], $this->makeCsv([[
+            'nis_lokal' => $this->nisOf($santri), 'jenjang' => 'MI',
+            'tanggal_mutasi' => '2026-06-01', 'nama_sekolah_tujuan' => 'SDN Baru',
+        ]]))->assertStatus(200);
+
+        $this->assertSame(1, (int) $res->json('ringkasan.diperbarui'));
+        $this->assertSame(0, (int) $res->json('ringkasan.dibuat'));
+        $this->assertSame(1, MutasiKeluar::count());
+        $arsip = MutasiKeluar::where('santri_id', $santri->id)->firstOrFail();
+        $this->assertSame('2026-06-01', $arsip->tanggal_mutasi?->format('Y-m-d'));
+        $this->assertSame('SDN Baru', $arsip->nama_sekolah_tujuan);
+        // Alasan kosong di file tak menghapus nilai lama.
+        $this->assertSame('Ikut pindah orang tua', $arsip->alasan_mutasi);
+    }
+
     public function test_05_nama_kelas_ganda_wajib_tahun_ajaran(): void
     {
         $f = $this->baseFixture();

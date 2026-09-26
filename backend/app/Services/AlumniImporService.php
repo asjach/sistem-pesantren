@@ -15,10 +15,16 @@ use App\Support\Tanggal;
  * (Maatwebsite, App\Imports\AlumniImport sebagai pembungkus tipis) dan
  * potongan JSON bertahap dari browser (endpoint import-potong).
  *
- * Kunci: satu baris alumni per santri. Baris baru → dibuat; baris yang
- * isinya sama persis → dilewati (file boleh diimport ulang); selain itu
- * diperbarui. Santri aktif di jenjang itu ditutup seperti proses lulus
+ * Kunci: satu baris alumni per (**santri + lembaga**) — santri boleh punya
+ * arsip di beberapa lembaga (mis. lulus MI lalu MD). Baris baru → dibuat;
+ * baris yang isinya sama persis → dilewati (file boleh diimport ulang);
+ * selain itu diperbarui. Santri aktif di jenjang itu ditutup seperti proses lulus
  * (riwayat + keanggotaan nonaktif, status global dihitung ulang).
+ *
+ * `tanggal_lulus` boleh kosong → disimpan `NULL` (arsip historis); kolom
+ * nullable di DB. Form "Lulus" tetap mewajibkan tanggal. `tahun_ajaran_lulus`
+ * tetap wajib karena dipakai untuk resolusi `kelas_lulus`. Keanggotaan
+ * (`tgl_selesai`) diisi dari `tanggal_lulus` walau sudah nonaktif.
  *
  * Izin mengikuti akun per baris. Mode kering (`$kering = true`)
  * menjalankan SEMUA cek tanpa menulis (periksa bertahap).
@@ -63,11 +69,16 @@ class AlumniImporService extends ImporPotongan
             return;
         }
 
-        $tanggal = Tanggal::parse($baris['tanggal_lulus'] ?? null);
-        if ($tanggal === null) {
-            $this->fail($no, 'tanggal_lulus', 'Tanggal lulus tidak valid.');
+        // Arsip historis: tanggal boleh kosong (disimpan NULL). Terisi tapi
+        // tak valid → galat.
+        $tanggal = null;
+        if (trim((string) ($baris['tanggal_lulus'] ?? '')) !== '') {
+            $tanggal = Tanggal::parse($baris['tanggal_lulus']);
+            if ($tanggal === null) {
+                $this->fail($no, 'tanggal_lulus', 'Tanggal lulus tidak valid.');
 
-            return;
+                return;
+            }
         }
 
         $tahunAjaran = trim((string) ($baris['tahun_ajaran_lulus'] ?? ''));
@@ -92,7 +103,10 @@ class AlumniImporService extends ImporPotongan
             'catatan' => $this->teks($baris, 'catatan'),
         ];
 
-        $ada = Alumni::where('santri_id', $santri->id)->first();
+        // Kunci baris = santri + lembaga (santri bisa lulus di beberapa lembaga).
+        $ada = Alumni::where('santri_id', $santri->id)
+            ->where('lembaga_lulus', $jenjang)
+            ->first();
         $perluDiperbarui = $ada !== null && $this->berbeda($ada, $data);
         if ($ada === null) {
             $this->dibuat++;
@@ -176,36 +190,54 @@ class AlumniImporService extends ImporPotongan
         return (int) $kelas->id;
     }
 
-    protected function tutupRiwayatAktif(Santri $santri, string $jenjang, string $tanggal): void
+    /**
+     * Tutup riwayat aktif (status `lulus`) dan isi `tgl_selesai` keanggotaan.
+     *
+     * Arsip historis: santri sering sudah nonaktif di riwayat/keanggotaan,
+     * jadi `tgl_selesai` diisi dari `tanggal_lulus` untuk SEMUA baris
+     * keanggotaan di jenjang itu — bukan hanya yang masih aktif. Baris yang
+     * masih aktif ikut dinonaktifkan. `tanggal_lulus` kosong → `tgl_selesai`
+     * yang sudah ada tidak diubah (import tak menghapus data lama).
+     */
+    protected function tutupRiwayatAktif(Santri $santri, string $jenjang, ?string $tanggal): void
     {
         $riwayat = RiwayatBelajar::where('santri_id', $santri->id)
             ->where('jenjang', $jenjang)
             ->where('is_active_riwayat', RiwayatBelajar::YA)
             ->get(['id']);
-        if ($riwayat->isEmpty()) {
-            return;
+
+        if ($riwayat->isNotEmpty()) {
+            RiwayatBelajar::whereKey($riwayat->modelKeys())->update([
+                'status_akhir' => 'lulus',
+                'is_active_riwayat' => RiwayatBelajar::TIDAK,
+            ]);
         }
 
-        RiwayatBelajar::whereKey($riwayat->modelKeys())->update([
-            'status_akhir' => 'lulus',
-            'is_active_riwayat' => RiwayatBelajar::TIDAK,
-        ]);
-        LembagaSantri::where('santri_id', $santri->id)
-            ->where('jenjang', $jenjang)
-            ->where('is_active_lembaga', LembagaSantri::YA)
-            ->update(['is_active_lembaga' => LembagaSantri::TIDAK, 'tgl_selesai' => $tanggal]);
-        $santri->hitungUlangStatusGlobal();
+        $keanggotaan = LembagaSantri::where('santri_id', $santri->id)
+            ->where('jenjang', $jenjang);
+        if ($tanggal !== null) {
+            $keanggotaan->update(['tgl_selesai' => $tanggal]);
+        }
+        $keanggotaan->where('is_active_lembaga', LembagaSantri::YA)
+            ->update(['is_active_lembaga' => LembagaSantri::TIDAK]);
+
+        if ($riwayat->isNotEmpty()) {
+            $santri->hitungUlangStatusGlobal();
+        }
     }
 
     /** @param  array<string, mixed>  $data */
     protected function berbeda(Alumni $ada, array $data): bool
     {
+        // Kedua sisi dinormalkan ke ?string agar NULL vs '' tak dianggap beda
+        // (baris kosong tak boleh memicu update berulang saat import ulang).
         $tanggal = $ada->tanggal_lulus?->format('Y-m-d');
+        $tanggalBaru = $data['tanggal_lulus'] === null ? null : (string) $data['tanggal_lulus'];
 
         return (string) $ada->lembaga_lulus !== (string) $data['lembaga_lulus']
             || (string) $ada->kelas_lulus_id !== (string) ($data['kelas_lulus_id'] ?? '')
             || (string) $ada->tahun_ajaran_lulus !== (string) $data['tahun_ajaran_lulus']
-            || $tanggal !== (string) $data['tanggal_lulus']
+            || $tanggal !== $tanggalBaru
             || (string) $ada->nomor_ijazah !== (string) ($data['nomor_ijazah'] ?? '')
             || (string) $ada->no_peserta !== (string) ($data['no_peserta'] ?? '')
             || (string) $ada->skhun !== (string) ($data['skhun'] ?? '')

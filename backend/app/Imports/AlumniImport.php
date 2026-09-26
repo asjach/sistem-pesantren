@@ -62,7 +62,9 @@ class AlumniImport implements SkipsOnFailure, SkipsUnknownSheets, ToCollection, 
             'nis_lokal' => ['required'],
             'jenjang' => ['required', 'string', 'exists:lembaga,jenjang'],
             'tahun_ajaran_lulus' => ['required', 'string', 'exists:tahun_ajaran,nama'],
-            'tanggal_lulus' => ['required'],
+            // Tanggal boleh kosong (arsip historis → NULL); tanpa rule `date`
+            // karena serial Excel gagal rule itu — dicek di service.
+            'tanggal_lulus' => ['nullable'],
             'kelas_lulus' => ['nullable'],
             'nomor_ijazah' => ['nullable', 'string', 'max:255'],
             'no_surat_ijazah' => ['nullable', 'string', 'max:50'],

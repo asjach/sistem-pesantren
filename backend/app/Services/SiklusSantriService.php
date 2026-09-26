@@ -506,18 +506,24 @@ class SiklusSantriService
                 'melanjutkan' => $dataLulus['melanjutkan'] ?? null,
                 'catatan' => $dataLulus['catatan'] ?? null,
             ];
-            // NOTE last-wins terkunci: alumni unique per santri — paket MI+MD yang lulus
-            // berurutan menimpa baris yang sama (lembaga terakhir menang).
+            // Arsip unik per (santri + lembaga): paket MI+MD yang lulus berurutan
+            // menghasilkan dua baris (satu per lembaga), bukan saling menimpa.
             $usaha = 0;
             while (true) {
                 try {
-                    $alumni = Alumni::updateOrCreate(['santri_id' => $santri->id], $atribut);
+                    $alumni = Alumni::updateOrCreate([
+                        'santri_id' => $santri->id,
+                        'lembaga_lulus' => $jenjang,
+                    ], $atribut);
                     break;
                 } catch (QueryException $e) {
                     if (($e->errorInfo[1] ?? null) !== 1062 || ++$usaha >= 3) {
                         throw $e;
                     }
-                    $alumni = Alumni::where('santri_id', $santri->id)->lockForUpdate()->first();
+                    $alumni = Alumni::where('santri_id', $santri->id)
+                        ->where('lembaga_lulus', $jenjang)
+                        ->lockForUpdate()
+                        ->first();
                     if ($alumni) {
                         $alumni->update($atribut);
                         $alumni = $alumni->fresh();

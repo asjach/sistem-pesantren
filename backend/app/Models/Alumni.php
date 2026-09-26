@@ -6,8 +6,9 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-// 102 Fase A: max 1 baris per santri (unique santri_id, last-wins antar lembaga paket).
-// Ditulis hanya via SiklusSantriService::prosesLulusPerLembaga (updateOrCreate + retry 1062).
+// 102 Fase A: max 1 baris per (santri + lembaga_lulus) — satu Santri bisa lulus
+// di beberapa lembaga. Ditulis lewat SiklusSantriService::prosesLulusPerLembaga
+// (updateOrCreate + retry 1062) dan importer alumni.
 class Alumni extends Model
 {
     protected $table = 'alumni';

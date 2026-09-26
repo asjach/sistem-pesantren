@@ -581,6 +581,52 @@ class SiklusFlowTest extends TestCase
         $this->assertSame('Tidak', $santri->fresh()->is_active_pst);
     }
 
+    /** Santri boleh punya arsip alumni per lembaga (MI lalu MD = 2 baris). */
+    public function test_05b_lulus_di_mi_dan_md_membuat_dua_arsip(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang, $f['md']->jenjang]);
+        $santri = $this->makeSantri('Lulus Ganda');
+        $this->makeKeanggotaan($santri, $f['mi'], '25007');
+        $this->makeKeanggotaan($santri, $f['md'], '26007');
+        $kelasMi = $this->makeKelas($f['mi'], $f['taLama'], '6A', '6');
+        $kelasMd = $this->makeKelas($f['md'], $f['taBaru'], '6A', '6');
+        $this->makeRiwayat($santri, $f['taLama'], $f['mi'], '2', ['kelas_id' => $kelasMi->id, 'tingkat' => '6']);
+        $this->makeRiwayat($santri, $f['taBaru'], $f['md'], '2', ['kelas_id' => $kelasMd->id, 'tingkat' => '6']);
+
+        $this->actingAs($admin, 'sanctum')->postJson("/api/admin/santri/{$santri->id}/lulus", [
+            'jenjang' => $f['mi']->jenjang,
+            'tahun_ajaran_lulus' => $f['taLama']->nama,
+            'tanggal_lulus' => '2026-06-20',
+            'nomor_ijazah' => 'IJZ-MI',
+        ])->assertStatus(200);
+
+        $this->actingAs($admin, 'sanctum')->postJson("/api/admin/santri/{$santri->id}/lulus", [
+            'jenjang' => $f['md']->jenjang,
+            'tahun_ajaran_lulus' => $f['taBaru']->nama,
+            'tanggal_lulus' => '2027-06-20',
+            'nomor_ijazah' => 'IJZ-MD',
+        ])->assertStatus(200);
+
+        $this->assertSame(2, Alumni::count());
+        $this->assertDatabaseHas('alumni', [
+            'santri_id' => $santri->id, 'lembaga_lulus' => 'MI', 'nomor_ijazah' => 'IJZ-MI',
+        ]);
+        $this->assertDatabaseHas('alumni', [
+            'santri_id' => $santri->id, 'lembaga_lulus' => 'MD', 'nomor_ijazah' => 'IJZ-MD',
+        ]);
+
+        // Riwayat sudah tertutup semua → proses lulus ulang ditolak, arsip utuh.
+        $this->actingAs($admin, 'sanctum')->postJson("/api/admin/santri/{$santri->id}/lulus", [
+            'jenjang' => $f['mi']->jenjang,
+            'tahun_ajaran_lulus' => $f['taLama']->nama,
+            'tanggal_lulus' => '2026-06-25',
+            'nomor_ijazah' => 'IJZ-MI-2',
+        ])->assertStatus(403);
+
+        $this->assertSame(2, Alumni::count());
+    }
+
     // ---------- 06. mutasi keluar → arsip + tutup keanggotaan ----------
 
     public function test_06_mutasi_keluar_menulis_arsip(): void

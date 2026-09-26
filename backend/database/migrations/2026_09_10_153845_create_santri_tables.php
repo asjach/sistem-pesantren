@@ -168,7 +168,7 @@ return new class extends Migration
             $table->text('catatan')->nullable();
             $table->timestamps();
 
-            $table->unique(['santri_id']); // 1 santri = max 1 record alumni
+            $table->unique(['santri_id', 'lembaga_lulus']); // 1 santri = max 1 arsip alumni per lembaga
             $table->foreign('tahun_ajaran_lulus')->references('nama')->on('tahun_ajaran')
                 ->cascadeOnUpdate()->cascadeOnDelete();
         });

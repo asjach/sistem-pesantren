@@ -419,13 +419,13 @@ Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca
 - `tahun_ajaran_lulus`: varchar(9) FK → tahun_ajaran.nama [cascade update + delete]
 - `nomor_ijazah`: string [null]
 - `no_surat_ijazah`: string [null] — nomor surat pengantar/SKHU
-- `tanggal_lulus`: date
+- `tanggal_lulus`: date [null] — boleh kosong pada arsip historis diimport (form Lulus tetap mewajibkan)
 - `kegiatan_setelah_lulus`: string [null]
 - `penyerahan_ijazah`: enum(sudah|belum) [default 'belum']
 - `melanjutkan`: enum(ya|tidak) [null]
 - `catatan`: text [null]
 - `created_at`, `updated_at`
-- UNIQUE(`santri_id`) — 1 santri = max 1 record alumni
+- UNIQUE(`santri_id`, `lembaga_lulus`) — 1 santri = max 1 arsip alumni per lembaga (bisa lulus di MI sekaligus MD)
 
 ### `import_sesi`
 - `id` PK — sesi import bertahap (potongan JSON dari browser)

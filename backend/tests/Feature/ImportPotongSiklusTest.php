@@ -206,6 +206,48 @@ class ImportPotongSiklusTest extends TestCase
         $this->assertSame(2, MutasiKeluar::count());
     }
 
+    public function test_02b_mutasi_update_memakai_nis_dan_jenjang(): void
+    {
+        $f = $this->baseFixture();
+        $a = $this->makeSantriAktif('Mutasi Update', '28007', $f);
+        $kelasLama = Kelas::create([
+            'jenjang' => 'MI', 'tahun_ajaran' => $f['ta']->nama, 'nama_kelas' => '5A', 'tingkat' => '5',
+        ]);
+
+        $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/mutasi-keluar/import-potong', [
+            'mode' => 'eksekusi',
+            'total' => 1,
+            'terakhir' => true,
+            'baris' => [$this->barisMutasi('28007', '2027-01-10', [
+                'kelas_terakhir' => '5A', 'tahun_ajaran' => $f['ta']->nama,
+                'alasan_mutasi' => 'pindah', 'no_surat' => 'S-1', 'nama_sekolah_tujuan' => 'SDN Lama',
+            ])],
+        ])->assertStatus(200);
+        $this->assertSame(1, MutasiKeluar::count());
+
+        // Baris sama (NIS + jenjang) dengan tanggal & isi berubah → diperbarui.
+        $res = $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/mutasi-keluar/import-potong', [
+            'mode' => 'eksekusi',
+            'total' => 1,
+            'terakhir' => true,
+            'baris' => [$this->barisMutasi('28007', '2027-02-01', [
+                'kelas_terakhir' => '6A', 'tahun_ajaran' => $f['ta']->nama,
+                'alasan_mutasi' => 'pindah', 'nama_sekolah_tujuan' => 'SDN Baru',
+            ])],
+        ])->assertStatus(200);
+
+        $this->assertSame(0, $res->json('ringkasan.dibuat'));
+        $this->assertSame(1, $res->json('ringkasan.diperbarui'));
+        $this->assertSame(1, MutasiKeluar::count());
+        $arsip = MutasiKeluar::where('santri_id', $a->id)->firstOrFail();
+        $this->assertSame('2027-02-01', $arsip->tanggal_mutasi?->format('Y-m-d'));
+        $this->assertSame('SDN Baru', $arsip->nama_sekolah_tujuan);
+        $this->assertSame($f['kelas']->id, $arsip->kelas_terakhir_id);
+        // Sel kosong tidak menimpa nilai lama.
+        $this->assertSame('S-1', $arsip->no_surat);
+        $this->assertNotSame($kelasLama->id, $arsip->kelas_terakhir_id);
+    }
+
     public function test_03_mutasi_tanggal_tak_valid_dan_alasan_bebas_teks(): void
     {
         $f = $this->baseFixture();
@@ -304,6 +346,81 @@ class ImportPotongSiklusTest extends TestCase
         $this->assertSame('IJZ-2', Alumni::where('santri_id', $a->id)->value('nomor_ijazah'));
         $this->assertSame('PPTK-2027-0002', Alumni::where('santri_id', $a->id)->value('no_peserta'));
         $this->assertSame('SKHUN-2027-0002', Alumni::where('santri_id', $a->id)->value('skhun'));
+    }
+
+    public function test_05b_alumni_tanggal_kosong_tersimpan_null_dan_dilewati(): void
+    {
+        $f = $this->baseFixture();
+        $a = $this->makeSantriAktif('Alumni Tanpa Tanggal', '28104', $f);
+        $baris = $this->barisAlumni('28104', ['tanggal_lulus' => '', 'kelas_lulus' => '6A']);
+
+        $satu = $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/alumni/import-potong', [
+            'mode' => 'eksekusi',
+            'total' => 1,
+            'terakhir' => true,
+            'baris' => [$baris],
+        ])->assertStatus(200);
+
+        $this->assertSame(1, $satu->json('ringkasan.dibuat'));
+        $this->assertSame(0, $satu->json('ringkasan.baris_gagal'));
+        $arsip = Alumni::where('santri_id', $a->id)->firstOrFail();
+        $this->assertNull($arsip->tanggal_lulus);
+        $this->assertSame('lulus', RiwayatBelajar::where('santri_id', $a->id)->value('status_akhir'));
+
+        // Baris kosong yang sama → dilewati, bukan perpetually diperbarui.
+        $dua = $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/alumni/import-potong', [
+            'mode' => 'eksekusi',
+            'total' => 1,
+            'terakhir' => true,
+            'baris' => [$baris],
+        ])->assertStatus(200);
+
+        $this->assertSame(0, $dua->json('ringkasan.dibuat'));
+        $this->assertSame(0, $dua->json('ringkasan.diperbarui'));
+        $this->assertSame(1, $dua->json('ringkasan.baris_dilewati'));
+        $this->assertSame(1, Alumni::count());
+    }
+
+    public function test_05bb_alumni_tgl_selesai_diisi_walau_sudah_nonaktif(): void
+    {
+        $f = $this->baseFixture();
+        // Santri nonaktif di riwayat + keanggotaan (arsip lama tanpa proses lulus).
+        $a = $this->makeSantriAktif('Alumni Nonaktif', '28106', $f);
+        RiwayatBelajar::where('santri_id', $a->id)->update([
+            'status_akhir' => 'lulus', 'is_active_riwayat' => RiwayatBelajar::TIDAK,
+        ]);
+        LembagaSantri::where('santri_id', $a->id)->update(['is_active_lembaga' => 'Tidak']);
+
+        $res = $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/alumni/import-potong', [
+            'mode' => 'eksekusi',
+            'total' => 1,
+            'terakhir' => true,
+            'baris' => [$this->barisAlumni('28106')],
+        ])->assertStatus(200);
+
+        $this->assertSame(1, $res->json('ringkasan.dibuat'));
+        $this->assertSame(0, $res->json('ringkasan.baris_gagal'));
+        $keanggotaan = LembagaSantri::where('santri_id', $a->id)->firstOrFail();
+        $this->assertSame('Tidak', $keanggotaan->is_active_lembaga);
+        $this->assertSame('2027-06-30', $keanggotaan->tgl_selesai?->format('Y-m-d'));
+    }
+
+    public function test_05c_alumni_tanggal_terisi_tapi_tak_valid_gagal(): void
+    {
+        $f = $this->baseFixture();
+        $this->makeSantriAktif('Alumni Tanggal Salah', '28105', $f);
+
+        $res = $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/alumni/import-potong', [
+            'mode' => 'eksekusi',
+            'total' => 1,
+            'terakhir' => true,
+            'baris' => [$this->barisAlumni('28105', ['tanggal_lulus' => 'bukan-tanggal'])],
+        ])->assertStatus(200);
+
+        $this->assertSame(0, $res->json('ringkasan.dibuat'));
+        $this->assertSame(1, $res->json('ringkasan.baris_gagal'));
+        $this->assertSame('tanggal_lulus', $res->json('galat_contoh.0.kolom'));
+        $this->assertSame(0, Alumni::count());
     }
 
     // ---------------- Kunci sesi bersama ----------------

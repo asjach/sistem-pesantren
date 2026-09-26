@@ -277,6 +277,19 @@ Aturan beku kelas arsip: `alumni.kelas_lulus_id` terisi otomatis dari riwayat
 aktif terakhir saat lulus; `mutasi_keluar.kelas_terakhir_id` beku otomatis
 dari riwayat aktif terakhir, input manual menang bila diisi (validasi
 `nullable|exists:kelas,id` — sebelumnya input selalu terbuang).
+Kunci arsip kelulusan = **NIS lokal + jenjang** (santri + lembaga): satu Santri
+boleh punya arsip alumni per lembaga (lulus MI lalu MD = 2 baris), unique
+`santri_id + lembaga_lulus`. Berlaku untuk import alumni maupun tombol
+"Proses Lulus" (`updateOrCreate` per pasangan, tanpa last-wins).
+Aturan tanggal arsip: pada import, `tanggal_mutasi` (mutasi keluar) dan
+`tanggal_lulus` (alumni) boleh kosong → `NULL` (kolom dibuat nullable lewat
+migrasi alter); `tahun_ajaran_lulus` tetap wajib (dipakai untuk resolusi
+`kelas_lulus`). Perbandingan "baris sama" dinormalkan null-aware agar baris
+kosong tidak memicu `diperbarui` berulang saat import ulang. Form manual
+Proses Mutasi/Lulus tetap mewajibkan tanggal. Pada import alumni, `tgl_selesai`
+keanggotaan diisi dari `tanggal_lulus` untuk SEMUA baris keanggotaan di jenjang
+itu — termasuk yang sudah nonaktif (arsip historis sering tanpa proses lulus
+di sistem); `tanggal_lulus` kosong tidak mengubah `tgl_selesai` yang sudah ada.
 Aturan rombel: `no_absen` unik per (kelas, tahun ajaran, semester) dijaga di
 input manual/dialog, TIDAK di import (nilai file disimpan apa adanya;
 duplikat digenerate ulang menyusul); baris arsip tak membangunkan arsip
@@ -294,24 +307,28 @@ dan galat kelasDilaporkan pada kolom `nama_kelas`); endpoint upload file utuh
 santri/riwayat sudah dihapus.
 kelas tujuan se-lembaga + se-TA, tingkat cocok bila keduanya terisi; hanya
 riwayat aktif yang bisa diset/dipindah/dikosongkan kelasnya.
-Unduh data existing untuk dialog import: `kelas/ekspor-data`,
-`riwayat-belajar/ekspor-data`, `mutasi-keluar/ekspor-data` (izin `*.lihat`).
-Santri memakai endpoint lama `santri/data-gabungan` (opsi `jenjang[]`; tanpa
-parameter = seluruh lingkup `lembagaDiizinkan()` → super admin/admin pesantren
-semua lembaga, admin MI/MD milik + pasangan, admin lain miliknya saja).
+Data existing untuk dialog import: `kelas/data-existing`,
+`riwayat-belajar/data-existing`, `mutasi-keluar/data-existing`,
+`alumni/data-existing`, `santri/data-existing` (izin `*.lihat` / `kelulusan.lihat`)
+— **JSON** `{kolom, wajib, baris}`;
+berkas Excel disusun di browser (`xlsx-js-style`: header wajib/opsional,
+lebar kolom, autofilter, zebra). Opsi `jenjang[]`; tanpa parameter = seluruh
+lingkup akses (`jenjangUntukBerkas()` / `lembagaDiizinkan()` → super
+admin/admin pesantren semua lembaga, admin MI/MD milik + pasangan, admin lain
+miliknya saja).
 Heading PERSIS sama dengan template import modul tersebut (round-trip unduh →
 edit → import); isi data nyata dalam lingkup `jenjangUntukBerkas()` (filter
 `jenjang` bila ada, else seluruh lembaga yang boleh diakses akun). Kelas
 menulis `walas` sebagai NIP, riwayat menulis status sebagai LABEL, mutasi
 menulis `kelas_terakhir` sebagai nama rombel + `tahun_ajaran` rombelnya.
-Semua export data existing memakai trait `App\Exports\Concerns\GayaSheetExcel`
-(header wajib/opsional, freeze, autofilter, border, zebra hingga 5.000 baris).
 Import arsip mutasi keluar (`mutasi-keluar/import-template|periksa|import`,
 tombol di panel arsip, izin `mutasi_keluar.ubah`): kunci NIK → fallback NIS
 lokal + jenjang; `kelas_terakhir` cukup nama (id tetap diterima; nama ganda
 antar-TA wajib diiringi `tahun_ajaran`; kosong = beku dari riwayat terakhir);
-baris sama (santri+jenjang+tanggal) dilewati agar import idempoten; efek meniru
-tombol Mutasi (tutup riwayat + keanggotaan aktif bila ada). `tanggal_mutasi` dan
+kunci baris = **NIS lokal + jenjang** (1 arsip per santri per lembaga): baris
+yang sudah ada di-UPDATE kolom yang terisi saja (sel kosong = pertahankan, tak
+bisa mengosongkan), tanpa perubahan → `dilewati`; efek meniru tombol Mutasi
+(tutup riwayat + keanggotaan aktif bila ada). `tanggal_mutasi` dan
 `alasan_mutasi` opsional (kosong → `NULL`; tanggal kosong tetap satu nilai
 kunci idempotensi), sedangkan form Mutasi manual tetap mewajibkan keduanya.
 `alasan_mutasi` pada import arsip = **bebas teks** (maks 100 karakter, tak

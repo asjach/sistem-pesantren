@@ -19,8 +19,9 @@ use App\Support\Tanggal;
  * Efek per baris valid MENIRU tombol "Proses mutasi": arsip ditulis; bila
  * santri masih punya riwayat aktif di jenjang itu, riwayat ditutup
  * (`pindah_keluar`, nonaktif) + keanggotaan ditutup + status global
- * dihitung ulang. Idempoten: baris dengan (santri + jenjang + tanggal)
- * sama dilewati agar file boleh diimport ulang.
+ * dihitung ulang. Kunci baris = **NIS lokal + jenjang** (1 arsip mutasi
+ * per santri per lembaga): baris yang sudah ada di-UPDATE kolom yang terisi,
+ * sisanya dipertahankan; baris tanpa perubahan → dilewati.
  *
  * `tanggal_mutasi` dan `alasan_mutasi` boleh kosong → disimpan `null`
  * (arsip historis). Tanggal kosong tetap ikut jadi kunci idempotensi.
@@ -103,42 +104,53 @@ class MutasiKeluarImporService extends ImporPotongan
             return;
         }
 
-        // Idempoten: baris yang sama (santri + jenjang + tanggal) dilewati.
+        // Kunci baris: NIS lokal + jenjang (1 arsip mutasi per santri per
+        // lembaga). Baris sama → update kolom yang terisi; tak ada perubahan
+        // → dilewati. Sel kosong = pertahankan (tak bisa mengosongkan).
+        $teksKelas = trim((string) ($baris['kelas_terakhir'] ?? ''));
         $ada = MutasiKeluar::where('santri_id', $santri->id)
             ->where('jenjang', $jenjang)
-            ->when(
-                $tanggal === null,
-                fn ($q) => $q->whereNull('tanggal_mutasi'),
-                fn ($q) => $q->whereDate('tanggal_mutasi', $tanggal)
-            )
-            ->exists();
-        if ($ada) {
-            $this->dilewati++;
+            ->first();
+
+        if ($ada === null) {
+            $this->dibuat++;
             $this->valid++;
 
-            return;
+            if ($kering) {
+                return;
+            }
+
+            $ada = MutasiKeluar::create([
+                'santri_id' => $santri->id,
+                'jenjang' => $jenjang,
+                'kelas_terakhir_id' => $kelasId,
+                'tanggal_mutasi' => $tanggal,
+                'alasan_mutasi' => $alasan,
+                'no_surat' => $this->teks($baris, 'no_surat'),
+                'nama_sekolah_tujuan' => $this->teks($baris, 'nama_sekolah_tujuan'),
+                'npsn_sekolah_tujuan' => $this->teks($baris, 'npsn_sekolah_tujuan'),
+                'nsm_sekolah_tujuan' => $this->teks($baris, 'nsm_sekolah_tujuan'),
+                'alamat_sekolah_tujuan' => $this->teks($baris, 'alamat_sekolah_tujuan'),
+                'keterangan' => $this->teks($baris, 'keterangan'),
+            ]);
+        } else {
+            $ubah = $this->selisih($ada, $baris, $tanggal, $alasan, $kelasId, $teksKelas !== '');
+            if ($ubah === []) {
+                $this->dilewati++;
+                $this->valid++;
+
+                return;
+            }
+
+            $this->diperbarui++;
+            $this->valid++;
+
+            if ($kering) {
+                return;
+            }
+
+            $ada->update($ubah);
         }
-
-        $this->dibuat++;
-        $this->valid++;
-
-        if ($kering) {
-            return;
-        }
-
-        MutasiKeluar::create([
-            'santri_id' => $santri->id,
-            'jenjang' => $jenjang,
-            'kelas_terakhir_id' => $kelasId,
-            'tanggal_mutasi' => $tanggal,
-            'alasan_mutasi' => $alasan,
-            'no_surat' => $this->teks($baris, 'no_surat'),
-            'nama_sekolah_tujuan' => $this->teks($baris, 'nama_sekolah_tujuan'),
-            'npsn_sekolah_tujuan' => $this->teks($baris, 'npsn_sekolah_tujuan'),
-            'nsm_sekolah_tujuan' => $this->teks($baris, 'nsm_sekolah_tujuan'),
-            'alamat_sekolah_tujuan' => $this->teks($baris, 'alamat_sekolah_tujuan'),
-            'keterangan' => $this->teks($baris, 'keterangan'),
-        ]);
 
         // Tiru "Proses mutasi": tutup riwayat + keanggotaan aktif bila ada.
         $ditutup = RiwayatBelajar::where('santri_id', $santri->id)
@@ -152,6 +164,36 @@ class MutasiKeluarImporService extends ImporPotongan
                 ->update(['is_active_lembaga' => LembagaSantri::TIDAK, 'tgl_selesai' => $tanggal]);
             $santri->hitungUlangStatusGlobal();
         }
+    }
+
+    /**
+     * Selisih baris arsip yang sudah ada — hanya kolom TERISI di file yang
+     * menimpa (sel kosong = pertahankan), nilai lama tak dihapus.
+     *
+     * @param  array<string, mixed>  $baris
+     * @return array<string, mixed>
+     */
+    protected function selisih(MutasiKeluar $ada, array $baris, ?string $tanggal, ?string $alasan, ?int $kelasId, bool $kelasDiisi): array
+    {
+        $ubah = [];
+
+        if ($tanggal !== null && $ada->tanggal_mutasi?->format('Y-m-d') !== $tanggal) {
+            $ubah['tanggal_mutasi'] = $tanggal;
+        }
+        if ($alasan !== null && (string) $ada->alasan_mutasi !== $alasan) {
+            $ubah['alasan_mutasi'] = $alasan;
+        }
+        if ($kelasDiisi && (int) $ada->kelas_terakhir_id !== (int) $kelasId) {
+            $ubah['kelas_terakhir_id'] = $kelasId;
+        }
+        foreach (['no_surat', 'nama_sekolah_tujuan', 'npsn_sekolah_tujuan', 'nsm_sekolah_tujuan', 'alamat_sekolah_tujuan', 'keterangan'] as $kolom) {
+            $nilai = $this->teks($baris, $kolom);
+            if ($nilai !== null && (string) $ada->{$kolom} !== $nilai) {
+                $ubah[$kolom] = $nilai;
+            }
+        }
+
+        return $ubah;
     }
 
     /** Cari santri via `nis_lokal` + lembaga (kunci tunggal). */

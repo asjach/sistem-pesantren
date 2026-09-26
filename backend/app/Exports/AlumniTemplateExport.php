@@ -18,7 +18,7 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
 
 class AlumniTemplateExport extends DefaultValueBinder implements FromArray, WithCustomValueBinder, WithEvents, WithHeadings, WithTitle
 {
-    public const WAJIB = ['nis_lokal', 'jenjang', 'tahun_ajaran_lulus', 'tanggal_lulus'];
+    public const WAJIB = ['nis_lokal', 'jenjang', 'tahun_ajaran_lulus'];
 
     public function bindValue(Cell $cell, $value): bool
     {
