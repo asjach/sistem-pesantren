@@ -305,7 +305,6 @@ export function contohBagian(id: PartId): ReactElement {
       return (
         <div className="flex w-full max-w-md flex-wrap items-center gap-2 rounded border bg-card p-2">
           <span className="rounded border px-2 py-1 text-xs">Cari…</span>
-          <span className="text-xs text-muted-foreground">2 baris dipilih</span>
           <span className="ml-auto rounded border bg-primary px-2 py-1 text-xs text-primary-foreground">＋ Tambah</span>
         </div>
       );

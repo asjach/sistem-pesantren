@@ -1311,7 +1311,6 @@ export default function ExcelTable<T extends { id: string | number }>({
           awalanToolbar={awalanToolbar}
           akhirToolbar={akhirToolbar}
           tengah={tengah}
-          checkedCount={checkedIds.size}
           checkedRows={checkedRows}
           renderBulkActions={renderBulkActions}
           clearSelection={clearSelection}
