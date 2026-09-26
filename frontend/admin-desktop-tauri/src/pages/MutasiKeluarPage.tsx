@@ -9,7 +9,7 @@ import {
   listMutasiKeluar,
   mutasiSantri,
   unduhGalatMutasi,
-  unduhDataMutasi,
+  dataMutasiExisting,
   unduhTemplateMutasi,
   type MutasiKeluar,
   type RiwayatRow,
@@ -20,6 +20,7 @@ import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/field';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ResizableAutoHidePanel, ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
+import CatatanProsesTahunAjaran from '@/components/CatatanProsesTahunAjaran';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
@@ -72,6 +73,8 @@ export default function MutasiKeluarPage() {
   const { user } = useAuth();
   const {
     jenjangs,
+    tahunAjaranNames,
+    semesters: semesterAktif,
     tingkat: tingkatAktif,
     kelas: kelasAktif,
     loading: filterLoading,
@@ -108,10 +111,18 @@ export default function MutasiKeluarPage() {
     if (filterLoading || jenjangs.length === 0) { setKiri([]); return; }
     setErr('');
     try {
-      const res = await daftarKelas({ jenjang: jenjangs, tingkat: tingkatAktif, per_page: 0 });
+      // Proses mutasi: baris riwayat AKTIF pada semester terpilih. "Semua
+      // semester" → lintas periode, tetap dibatasi is_active_riwayat = 'Ya'.
+      const res = await daftarKelas({
+        jenjang: jenjangs,
+        semester: semesterAktif,
+        lintas_periode: semesterAktif.length === 0 || undefined,
+        tingkat: tingkatAktif,
+        per_page: 0,
+      });
       setKiri(res.data);
     } catch (e) { setErr(errorMessage(e)); }
-  }, [filterLoading, jenjangs, tingkatAktif]);
+  }, [filterLoading, jenjangs, semesterAktif, tingkatAktif]);
 
   const loadArsip = useCallback(async (
     p = pager.page, pp = pager.perPage,
@@ -123,6 +134,8 @@ export default function MutasiKeluarPage() {
       const a = f?.arah ?? arahUrut;
       const res = await listMutasiKeluar({
         jenjang: jenjangs,
+        // Arsip = riwayat, jadi ikut filter tahun ajaran (terpilih = semua).
+        tahun_ajaran: tahunAjaranNames,
         tingkat: tingkatAktif,
         q: cari || undefined,
         sort: u.length ? u : undefined,
@@ -191,9 +204,10 @@ export default function MutasiKeluarPage() {
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari santri…" />
-      <PengaturanHalaman tampil={{ tingkat: true, kelas: true }} tabel={[{ key: 'mutasi_santri_aktif', judul: 'Santri aktif', fields: FIELDS_AKTIF }, { key: 'mutasi_arsip', judul: 'Arsip mutasi keluar', fields: FIELDS_ARSIP }]} />
+      <CatatanProsesTahunAjaran />
+      <PengaturanHalaman tampil={{ tahun_ajaran: true, semester: true, tingkat: true, kelas: true }} tabel={[{ key: 'mutasi_santri_aktif', judul: 'Santri aktif', fields: FIELDS_AKTIF }, { key: 'mutasi_arsip', judul: 'Arsip mutasi keluar', fields: FIELDS_ARSIP }]} />
       <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1" id="grup_mutasi_kolom">
-        <ResizableAutoHidePanel id="panel_mutasi_santri_aktif" defaultSize="33" minSize="20">
+        <ResizableAutoHidePanel id="panel_mutasi_santri_aktif" defaultSize="33%" minSize="20%">
           <section className="flex h-full min-h-0 min-w-0 flex-col rounded-md">
             <div className="flex min-h-0 flex-1 flex-col px-2 pb-0">
               <ExcelTable
@@ -225,7 +239,7 @@ export default function MutasiKeluarPage() {
 
         <ResizableHandle orientation="horizontal" withHandle id="gagang_mutasi_kolom" />
 
-        <ResizablePanel defaultSize="67" minSize="20">
+        <ResizablePanel defaultSize="67%" minSize="20%">
         <section className="flex h-full min-h-0 min-w-0 flex-col rounded-md">
           <div className="flex min-h-0 flex-1 flex-col px-2 pb-0">
             <ExcelTable
@@ -291,7 +305,12 @@ export default function MutasiKeluarPage() {
           },
           labelTemplate: 'Unduh template Excel mutasi keluar',
           unduhTemplate: unduhTemplateMutasi,
-          unduhData: { label: 'Unduh data mutasi existing', jalankan: unduhDataMutasi },
+          unduhData: {
+            label: 'Unduh data mutasi existing',
+            ambil: dataMutasiExisting,
+            namaBerkas: 'data-mutasi-keluar-existing.xlsx',
+            judulSheet: 'Data Mutasi Keluar',
+          },
           kirim: ({ sesi_id, mode, total, baris, terakhir }) =>
             importMutasiPotong({
               ...(sesi_id === undefined ? {} : { sesi_id }),

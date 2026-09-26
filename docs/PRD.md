@@ -298,6 +298,19 @@
 | 2.244 | 2026-09-26 | Import bertahap dijalankan inline di dialog import Santri; pop-up terpisah "Buka import bertahap" dihapus (satu dialog: template, data existing, pilih file, Periksa, Import) |
 | 2.245 | 2026-09-26 | Layout dialog import Santri diterapkan ke semua dialog import (Kelas, Riwayat Belajar, Mutasi Keluar, Alumni, PSB): cards Template / Data existing (chip lembaga + unduh di kanan) / Import bertahap inline, `sm:max-w-3xl`, deskripsi singkat |
 | 2.246 | 2026-09-26 | Unduh data existing diberi style: header tebal (kuning = wajib, biru = opsional), baris 1 dibekukan, autofilter, border tipis, zebra baris data, dan lebar kolom per jenis data |
+| 2.247 | 2026-09-26 | Import arsip alumni: `tanggal_lulus` opsional (kosong disimpan `NULL` lewat migrasi alter; kolom jadi nullable), form Lulus tetap mewajibkan tanggal, dan perbandingan baris sama jadi null-aware |
+| 2.248 | 2026-09-26 | Import arsip alumni: `tgl_selesai` keanggotaan diisi dari `tanggal_lulus` walau keanggotaan sudah nonaktif; tanggal kosong tidak menimpa `tgl_selesai` lama |
+| 2.249 | 2026-09-26 | Import arsip mutasi keluar sekarang mendukung update: kunci baris `nis_lokal` + `jenjang` (bukan berdasarkan tanggal), kolom terisi ditimpa, sel kosong dipertahankan, tanpa perubahan → dilewati |
+| 2.250 | 2026-09-26 | Unduh data existing dipindah ke frontend: backend hanya mengirim JSON (`*/data-existing`), Excel disusun di browser dengan `xlsx-js-style` (header wajib/opsional, lebar kolom, autofilter, zebra) |
+| 2.251 | 2026-09-26 | Dialog import alumni bertambah kartu **Data existing** (endpoint `alumni/data-existing`, kelas ditulis sebagai nama rombel, `tanggal_lulus` boleh kosong) |
+| 2.252 | 2026-09-26 | Auto-hide resizable Kenaikan Kelas & Kelulusan diperbaiki: ukuran panel memakai persen (sebelumnya angka = piksel di react-resizable-panels v4) sehingga panel tersembunyi saat gagang diseret ke tepi kiri/bawah |
+| 2.253 | 2026-09-26 | Arsip kelulusan (alumni) menjadi unik per (santri + lembaga_lulus): satu Santri bisa punya arsip MI sekaligus MD; import & tombol Proses Lulus memakai kunci NIS lokal + jenjang, bukan last-wins |
+| 2.254 | 2026-09-26 | Panel bawah Kenaikan Kelas (Santri tidak naik) dan Kelulusan (Santri tidak lulus) kini auto-hide: seret gagang baris ke bawah hingga melewati batas → panel tersembunyi |
+| 2.255 | 2026-09-26 | Panel Santri tidak naik & Santri tidak lulus disembunyikan otomatis saat tabelnya kosong (`sembunyiOtomatis` pada ResizableAutoHidePanel: collapse/expand via panelRef), dan langsung muncul lagi begitu ada data |
+| 2.256 | 2026-09-26 | Filter tahun ajaran dimunculkan di Mutasi Keluar, Kenaikan Kelas, dan Kelulusan untuk melihat riwayat; tabel proses (Santri aktif/semester genap/tingkat akhir) tetap hanya Santri AKTIF periode aktif, disertai catatan `CatatanProsesTahunAjaran` |
+| 2.257 | 2026-09-26 | Mutasi Keluar mendapat filter semester: daftar proses memakai baris riwayat AKTIF pada semester terpilih (`lintas_periode` saat "Semua semester"), arsip tetap mengikuti filter tahun ajaran |
+| 2.258 | 2026-09-26 | Fix: `ResizableAutoHidePanel` tidak lagi meng-unmount isi panel saat panel terlihat (flag tersembunyi terbalik), sehingga tabel Santri aktif/tingkat akhir/semester genap kembali tampil; drag untuk sembunyi tetap berfungsi |
+| 2.259 | 2026-09-26 | Kenaikan Kelas dikunci pada semester genap: saat semester aktif ganjil seluruh tabel proses dikosongkan (tanpa request) + catatan解释了; filter semester tampil di halaman Kenaikan |
 
 ## Daftar Isi
 

@@ -10,6 +10,7 @@ import {
   lulusSantri,
   tidakLulusSantri,
   unduhGalatAlumni,
+  dataAlumniExisting,
   unduhTemplateAlumni,
   type Alumni,
   type RiwayatRow,
@@ -21,6 +22,7 @@ import { FieldLabel } from '@/components/ui/field';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { ResizableAutoHidePanel, ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
+import CatatanProsesTahunAjaran from '@/components/CatatanProsesTahunAjaran';
 import { targetTunggal, useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { TopBarSearch } from '@/components/TopBarSearch';
@@ -86,10 +88,10 @@ export default function KelulusanPage() {
     setErr('');
     const q = cari.trim().toLowerCase();
     try {
+      // Daftar proses = Santri AKTIF pada periode aktif; filter tahun ajaran
+      // tidak ikut (dipakai untuk melihat riwayat alumni).
       const res = await daftarKelas({
         jenjang: jenjangs,
-        tahun_ajaran: tahunAjaranNames,
-        lintas_periode: tahunAjaranNames.length === 0 || undefined,
         per_page: 0,
       });
       setKiri(res.data.filter((r) => (!tingkat || r.tingkat === tingkat)
@@ -169,10 +171,11 @@ export default function KelulusanPage() {
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari santri…" />
-      <PengaturanHalaman tampil={{}} tabel={[{ key: 'kelulusan_santri_akhir', judul: 'Santri tingkat akhir', fields: FIELDS_SANTRI }, { key: 'kelulusan_alumni', judul: 'Alumni', fields: FIELDS_ALUMNI }, { key: 'kelulusan_tidak_lulus', judul: 'Santri tidak lulus', fields: FIELDS_SANTRI }]} />
+      <CatatanProsesTahunAjaran />
+      <PengaturanHalaman tampil={{ tahun_ajaran: true }} tabel={[{ key: 'kelulusan_santri_akhir', judul: 'Santri tingkat akhir', fields: FIELDS_SANTRI }, { key: 'kelulusan_alumni', judul: 'Alumni', fields: FIELDS_ALUMNI }, { key: 'kelulusan_tidak_lulus', judul: 'Santri tidak lulus', fields: FIELDS_SANTRI }]} />
 
       <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1" id="grup_kelulusan_kolom">
-        <ResizableAutoHidePanel id="panel_kelulusan_santri_akhir" defaultSize={33} minSize={20}>
+        <ResizableAutoHidePanel id="panel_kelulusan_santri_akhir" defaultSize="33%" minSize="20%">
          <section className="flex h-full min-h-0 min-w-0 flex-col rounded-md">
            <div className="flex min-h-0 flex-1 flex-col pb-0">
             <ExcelTable
@@ -208,10 +211,10 @@ export default function KelulusanPage() {
         </section>
         </ResizableAutoHidePanel>
         <ResizableHandle withHandle orientation="horizontal" id="gagang_kelulusan_kolom" />
-        <ResizablePanel defaultSize={67} minSize={25}>
+        <ResizablePanel defaultSize="67%" minSize="25%">
         <div className="flex h-full min-h-0 flex-col">
         <ResizablePanelGroup orientation="vertical" className="min-h-0 flex-1" id="grup_kelulusan_baris">
-          <ResizableAutoHidePanel id="panel_kelulusan_alumni" defaultSize={50} minSize={15}>
+          <ResizableAutoHidePanel id="panel_kelulusan_alumni" defaultSize="50%" minSize="15%">
            <section className="flex h-full min-h-0 min-w-0 flex-col rounded-md">
              <div className="flex min-h-0 flex-1 flex-col pb-0">
               <ExcelTable
@@ -245,7 +248,7 @@ export default function KelulusanPage() {
           </section>
           </ResizableAutoHidePanel>
           <ResizableHandle withHandle orientation="vertical" id="gagang_kelulusan_baris" />
-          <ResizablePanel defaultSize={50} minSize={15}>
+          <ResizableAutoHidePanel id="panel_kelulusan_tidak_lulus" defaultSize="50%" minSize="15%" sembunyiOtomatis={tidakLulus.length === 0}>
            <section className="flex h-full min-h-0 min-w-0 flex-col rounded-md">
              <div className="flex min-h-0 flex-1 flex-col pb-0">
               <ExcelTable
@@ -271,7 +274,7 @@ export default function KelulusanPage() {
               />
             </div>
           </section>
-          </ResizablePanel>
+          </ResizableAutoHidePanel>
         </ResizablePanelGroup>
         </div>
         </ResizablePanel>
@@ -283,9 +286,9 @@ export default function KelulusanPage() {
          config={{
            idPrefix: 'alumni',
            judul: 'Import arsip alumni bertahap',
-           deskripsi: 'Kolom wajib: tahun_ajaran_lulus dan tanggal_lulus.',
+           deskripsi: 'Kolom wajib: tahun_ajaran_lulus.',
            kolom: KOLOM_IMPORT_ALUMNI,
-           wajib: ['nis_lokal', 'jenjang', 'tahun_ajaran_lulus', 'tanggal_lulus'],
+           wajib: ['nis_lokal', 'jenjang', 'tahun_ajaran_lulus'],
            idTombol: {
              template: 'btn_unduh_template_alumni',
              periksa: 'btn_periksa_import_alumni',
@@ -293,6 +296,12 @@ export default function KelulusanPage() {
            },
            labelTemplate: 'Unduh template Excel alumni',
            unduhTemplate: unduhTemplateAlumni,
+          unduhData: {
+            label: 'Unduh data alumni existing',
+            ambil: dataAlumniExisting,
+            namaBerkas: 'data-alumni-existing.xlsx',
+            judulSheet: 'Data Alumni',
+          },
            kirim: ({ sesi_id, mode, total, baris, terakhir }) =>
              importAlumniPotong({
                ...(sesi_id === undefined ? {} : { sesi_id }),

@@ -1,5 +1,5 @@
-import { useCallback, useState, type ComponentProps } from 'react';
-import { Group, Panel, Separator } from 'react-resizable-panels';
+import { useCallback, useEffect, useRef, useState, type ComponentProps, type MutableRefObject } from 'react';
+import { Group, Panel, Separator, type PanelImperativeHandle } from 'react-resizable-panels';
 import { GripVertical } from '@/icons';
 import { cn } from '@/lib/utils';
 
@@ -23,24 +23,61 @@ function ResizablePanel(props: ComponentProps<typeof Panel>) {
 type PropsAutoHidePanel = ComponentProps<typeof Panel>;
 type HandlerResizePanel = NonNullable<PropsAutoHidePanel['onResize']>;
 
-function ResizableAutoHidePanel({ children, onResize, ...props }: PropsAutoHidePanel) {
-  const [tampil, setTampil] = useState(true);
+type PropsAutoHidePanelTambahan = PropsAutoHidePanel & {
+  /** Panel disembunyikan otomatis saat bernilai true (mis. tabel kosong),
+   *  lalu expands lagi saat bernilai false. */
+  sembunyiOtomatis?: boolean;
+};
+
+function ResizableAutoHidePanel({
+  children,
+  onResize,
+  panelRef,
+  sembunyiOtomatis = false,
+  ...props
+}: PropsAutoHidePanelTambahan) {
+  /** Panel tersembunyi karena digeser ke 0% (bukan karena kosong). */
+  const [terkunciGeser, setTerkunciGeser] = useState(false);
+  const internalRef = useRef<PanelImperativeHandle | null>(null);
 
   const handleResize = useCallback<HandlerResizePanel>((size, id, previousSize) => {
-    const harusTampil = size.asPercentage > 0;
-    setTampil((current) => current === harusTampil ? current : harusTampil);
+    const tersembunyi = size.asPercentage <= 0;
+    setTerkunciGeser((current) => (current === tersembunyi ? current : tersembunyi));
     onResize?.(size, id, previousSize);
   }, [onResize]);
+
+  // Ref gabungan: internal (untuk collapse/expand) + ref dari pemanggil.
+  const setRefs = useCallback((node: PanelImperativeHandle | null) => {
+    internalRef.current = node;
+    if (typeof panelRef === 'function') {
+      panelRef(node);
+    } else if (panelRef) {
+      (panelRef as MutableRefObject<PanelImperativeHandle | null>).current = node;
+    }
+  }, [panelRef]);
+
+  useEffect(() => {
+    const panel = internalRef.current;
+    if (!panel) {
+      return;
+    }
+    if (sembunyiOtomatis) {
+      panel.collapse();
+    } else if (panel.isCollapsed()) {
+      panel.expand();
+    }
+  }, [sembunyiOtomatis]);
 
   return (
     <Panel
       {...props}
+      panelRef={setRefs}
       data-slot="resizable-panel"
       collapsible
       collapsedSize="0%"
       onResize={handleResize}
     >
-      {tampil ? children : null}
+      {!terkunciGeser && !sembunyiOtomatis ? children : null}
     </Panel>
   );
 }

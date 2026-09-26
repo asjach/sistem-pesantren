@@ -8,9 +8,11 @@ import { Input } from '@/components/ui/input';
 import FilterField from '@/components/FilterField';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { targetTunggal, useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
+import { useSemesterAktif } from '@/semesterAktif';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import { ResizableAutoHidePanel, ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
+import CatatanProsesTahunAjaran from '@/components/CatatanProsesTahunAjaran';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { toast } from 'sonner';
 
@@ -38,6 +40,9 @@ export default function KenaikanKelasPage() {
     kelas: kelasAktif,
     loading: filterLoading,
   } = useFilterGlobalAktif();
+  const { semester, loading: loadingSemester } = useSemesterAktif();
+  /** Kenaikan hanya dijalankan pada akhir semester genap. */
+  const semesterGenap = semester === '2';
   const targetJenjang = targetTunggal(jenjangs);
   const targetTahunAjaran = targetTunggal(tahunAjaranNames);
   /** Tanggal masuk kelas baru; bawaan hari ini (lokal). */
@@ -68,7 +73,7 @@ export default function KenaikanKelasPage() {
   const [busyId, setBusyId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
-    if (filterLoading) { setKiri([]); return; }
+    if (filterLoading || loadingSemester || !semesterGenap) { setKiri([]); return; }
     setErr('');
     try {
       const res = await listRiwayatBelajar({
@@ -81,7 +86,7 @@ export default function KenaikanKelasPage() {
       // Hanya tingkat 1–5; tingkat akhir lewat halaman Kelulusan.
       setKiri(res.data.filter((r) => /^[1-5]$/.test(String(r.tingkat ?? ''))));
     } catch (e) { setErr(errorMessage(e)); }
-  }, [filterLoading, jenjangs, tingkatAktif]);
+  }, [filterLoading, jenjangs, tingkatAktif, loadingSemester, semesterGenap]);
 
   /** Petakan baris riwayat aktif (kelas/tingkat tujuan) ke tabel hasil. */
   const barisHasil = (r: RiwayatRow): Baris => ({
@@ -94,7 +99,7 @@ export default function KenaikanKelasPage() {
   /** Hasil dimuat dari backend (persisten): status_awal kenaikan/mengulang
    *  yang masih aktif — bukan state sesi, jadi aman di-reload. */
   const muatHasil = useCallback(async () => {
-    if (filterLoading) { setHasilNaik([]); setHasilTidak([]); return; }
+    if (filterLoading || loadingSemester || !semesterGenap) { setHasilNaik([]); setHasilTidak([]); return; }
     try {
       const [naik, tidak] = await Promise.all([
         listRiwayatBelajar({ jenjang: jenjangs, tingkat: tingkatAktif, status_awal: 'kenaikan', is_active_riwayat: true, per_page: 500 }),
@@ -104,13 +109,13 @@ export default function KenaikanKelasPage() {
       setHasilNaik(naik.data.map(barisHasil));
       setHasilTidak(tidak.data.map(barisHasil));
     } catch (e) { setErr(errorMessage(e)); }
-  }, [filterLoading, jenjangs, tingkatAktif]);
+  }, [filterLoading, jenjangs, tingkatAktif, loadingSemester, semesterGenap]);
 
   useEffect(() => { void load(); void muatHasil(); }, [load, muatHasil]);
 
   /** Naik: sisa tabel kiri dianggap naik semua. */
   const prosesNaik = async () => {
-    if (!targetJenjang || !targetTahunAjaran || kiriTampil.length === 0 || !tglMasuk || busy) return;
+    if (!semesterGenap || !targetJenjang || !targetTahunAjaran || kiriTampil.length === 0 || !tglMasuk || busy) return;
     setBusy(true);
     try {
       const res = await naikKelasOtomatis({
@@ -164,10 +169,17 @@ export default function KenaikanKelasPage() {
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari santri…" />
-      <PengaturanHalaman tampil={{ tingkat: true, kelas: true }} tabel={[{ key: 'kenaikan_santri_genap', judul: 'Santri semester genap', fields: FIELDS_KENAIKAN }, { key: 'kenaikan_naik_kelas', judul: 'Santri naik kelas', fields: FIELDS_KENAIKAN }, { key: 'kenaikan_tidak_naik_kelas', judul: 'Santri tidak naik', fields: FIELDS_KENAIKAN }]} />
+      <CatatanProsesTahunAjaran />
+      {!filterLoading && !loadingSemester && !semesterGenap ? (
+        <p className="text-xs text-muted-foreground" id="catatan_semester_kenaikan">
+          Kenaikan kelas dijalankan pada akhir semester genap. Selama semester aktif ganjil, tabel
+          proses dikosongkan.
+        </p>
+      ) : null}
+      <PengaturanHalaman tampil={{ tahun_ajaran: true, tingkat: true, kelas: true }} tabel={[{ key: 'kenaikan_santri_genap', judul: 'Santri semester genap', fields: FIELDS_KENAIKAN }, { key: 'kenaikan_naik_kelas', judul: 'Santri naik kelas', fields: FIELDS_KENAIKAN }, { key: 'kenaikan_tidak_naik_kelas', judul: 'Santri tidak naik', fields: FIELDS_KENAIKAN }]} />
 
       <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1" id="grup_kenaikan_kolom">
-        <ResizableAutoHidePanel id="panel_kenaikan_santri_genap" defaultSize={50} minSize={25}>
+        <ResizableAutoHidePanel id="panel_kenaikan_santri_genap" defaultSize="50%" minSize="25%">
         <section className="flex h-full min-h-0 min-w-0 flex-col">
            <div className="flex min-h-0 flex-1 flex-col pb-0">
             <ExcelTable
@@ -208,10 +220,10 @@ export default function KenaikanKelasPage() {
         </section>
         </ResizableAutoHidePanel>
         <ResizableHandle withHandle orientation="horizontal" id="gagang_kenaikan_kolom" />
-        <ResizablePanel defaultSize={50} minSize={25}>
+        <ResizablePanel defaultSize="50%" minSize="25%">
         <div className="flex h-full min-h-0 flex-col">
         <ResizablePanelGroup orientation="vertical" className="min-h-0 flex-1" id="grup_kenaikan_baris">
-          <ResizableAutoHidePanel id="panel_kenaikan_naik_kelas" defaultSize={65} minSize={15}>
+          <ResizableAutoHidePanel id="panel_kenaikan_naik_kelas" defaultSize="65%" minSize="15%">
           <PanelDaftar
             idPrefix="naik_kelas"
              judul="Santri naik kelas"
@@ -225,7 +237,7 @@ export default function KenaikanKelasPage() {
           />
           </ResizableAutoHidePanel>
           <ResizableHandle withHandle orientation="vertical" id="gagang_kenaikan_baris" />
-          <ResizablePanel defaultSize={35} minSize={15}>
+          <ResizableAutoHidePanel id="panel_kenaikan_tidak_naik_kelas" defaultSize="35%" minSize="15%" sembunyiOtomatis={hasilTidak.length === 0}>
           <PanelDaftar
             idPrefix="tidak_naik_kelas"
              judul="Santri tidak naik"
@@ -237,7 +249,7 @@ export default function KenaikanKelasPage() {
               </Button>
             ) : undefined}
           />
-          </ResizablePanel>
+          </ResizableAutoHidePanel>
         </ResizablePanelGroup>
         </div>
         </ResizablePanel>
