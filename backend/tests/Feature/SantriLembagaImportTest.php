@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Exports\SantriLembagaDataExport;
 use App\Exports\SantriLembagaTemplateExport;
 use App\Models\Lembaga;
 use App\Models\LembagaSantri;
@@ -15,7 +14,6 @@ use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\DB;
-use PhpOffice\PhpSpreadsheet\IOFactory;
 use Tests\TestCase;
 
 /**
@@ -365,7 +363,7 @@ class SantriLembagaImportTest extends TestCase
         $this->assertDatabaseHas('lembaga_santri', ['santri_id' => $md->id, 'jenjang' => 'MD', 'nis_lokal' => '26402']);
     }
 
-    // ---------- 11. template & data-gabungan bisa diunduh ----------
+    // ---------- 11. template & data existing bisa diambil ----------
 
     public function test_11_unduh_template_dan_data(): void
     {
@@ -379,13 +377,13 @@ class SantriLembagaImportTest extends TestCase
             ->get('/api/admin/santri/import-template-gabungan')
             ->assertStatus(200);
 
-        $this->actingAs($admin, 'sanctum')
-            ->get('/api/admin/santri/data-gabungan?jenjang=MI')
-            ->assertStatus(200)
-            ->assertHeader('content-disposition', 'attachment; filename=data-siswa-MI.xlsx');
+        // Data existing dikirim sebagai JSON (berkas Excel disusun di browser).
+        $res = $this->actingAs($admin, 'sanctum')
+            ->getJson('/api/admin/santri/data-existing?jenjang=MI')
+            ->assertStatus(200);
+        $this->assertContains('santri_id', $res->json('kolom'));
 
-        // Isi pra-isi: santri_id + kode + nis di posisi blok lembaga.
-        $isi = (new SantriLembagaDataExport([$f['mi']->jenjang]))->array();
+        $isi = $res->json('baris');
         $this->assertCount(1, $isi);
         $this->assertSame((string) $santri->id, $isi[0][0]);
         $this->assertSame('MI', $isi[0][1]);
@@ -413,17 +411,19 @@ class SantriLembagaImportTest extends TestCase
         LembagaSantri::create(['santri_id' => $b->id, 'jenjang' => $f['md']->jenjang, 'nis_lokal' => '26201', 'is_active_lembaga' => 'Ya']);
 
         // Super admin tanpa parameter → semua operasional (MI + MD).
-        $this->actingAs($super, 'sanctum')
-            ->get('/api/admin/santri/data-gabungan')
+        $semua = $this->actingAs($super, 'sanctum')
+            ->getJson('/api/admin/santri/data-existing')
             ->assertStatus(200)
-            ->assertHeader('content-disposition', 'attachment; filename=data-siswa-pilihan.xlsx');
-        $semua = (new SantriLembagaDataExport([$f['mi']->jenjang, $f['md']->jenjang]))->array();
+            ->json('baris');
         $this->assertCount(2, $semua);
         $this->assertSame(['MD', 'MI'], array_map(fn ($r) => $r[1], $semua));
 
-        // Admin MI tanpa parameter → hanya MI (lingkup sendiri).
-        $isi = (new SantriLembagaDataExport([$f['mi']->jenjang]))->array();
-        $this->assertCount(1, $isi);
+        // Admin MI tanpa parameter → MI + pasangan MD.
+        $lingkup = $this->actingAs($adminMi, 'sanctum')
+            ->getJson('/api/admin/santri/data-existing')
+            ->assertStatus(200)
+            ->json('baris');
+        $this->assertSame(['MD', 'MI'], array_map(fn ($r) => $r[1], $lingkup));
 
         // Round-trip campuran sebagai super admin: cocok keduanya via santri_id.
         $this->upload($super, [
@@ -433,15 +433,15 @@ class SantriLembagaImportTest extends TestCase
         $this->assertSame('26102', LembagaSantri::where('santri_id', $a->id)->firstOrFail()->nis_lokal);
         $this->assertSame('26202', LembagaSantri::where('santri_id', $b->id)->firstOrFail()->nis_lokal);
 
-        // Multi ID eksplisit → hanya yang dipilih; id luar lingkup → 422.
-        $isi = (new SantriLembagaDataExport([$f['md']->jenjang]))->array();
-        $this->assertCount(1, $isi);
-        $this->assertSame('MD', $isi[0][1]);
-        $this->actingAs($super, 'sanctum')
-            ->get("/api/admin/santri/data-gabungan?jenjang[]={$f['mi']->jenjang}&jenjang[]={$f['md']->jenjang}")
-            ->assertStatus(200);
+        // Multi ID eksplisit → hanya yang dipilih.
+        $pilih = $this->actingAs($super, 'sanctum')
+            ->getJson("/api/admin/santri/data-existing?jenjang[]={$f['md']->jenjang}")
+            ->assertStatus(200)
+            ->json('baris');
+        $this->assertCount(1, $pilih);
+        $this->assertSame('MD', $pilih[0][1]);
         $this->actingAs($adminMi, 'sanctum')
-            ->get("/api/admin/santri/data-gabungan?jenjang[]={$f['mi']->jenjang}&jenjang[]={$f['md']->jenjang}")
+            ->getJson("/api/admin/santri/data-existing?jenjang[]={$f['mi']->jenjang}&jenjang[]={$f['md']->jenjang}")
             ->assertStatus(200);
     }
 
@@ -474,22 +474,12 @@ class SantriLembagaImportTest extends TestCase
             ]);
         }
 
-        $cakupan = function (User $user): array {
-            $res = $this->actingAs($user, 'sanctum')
-                ->get('/api/admin/santri/data-gabungan')
-                ->assertStatus(200);
-            $path = tempnam(sys_get_temp_dir(), 'cakupan').'.xlsx';
-            file_put_contents($path, $res->streamedContent() ?: $res->getContent());
-
-            try {
-                $isi = IOFactory::load($path)->getActiveSheet()->toArray();
-                array_shift($isi);
-
-                return array_values(array_unique(array_map(fn ($b) => (string) ($b[1] ?? ''), $isi)));
-            } finally {
-                @unlink($path);
-            }
-        };
+        $cakupan = fn (User $user): array => array_values(array_unique(
+            $this->actingAs($user, 'sanctum')
+                ->getJson('/api/admin/santri/data-existing')
+                ->assertStatus(200)
+                ->json('baris.*.1')
+        ));
 
         $this->assertSame(['MD', 'MI', 'MTS'], $cakupan($super));
         // Admin MI → MI + pasangan MD; admin MTS → MTS saja.

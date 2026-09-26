@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { errorMessage } from '@/api/client';
 import {
-  unduhDataSantriGabungan,
+  dataSantriExisting,
   unduhTemplateSantriGabungan,
 } from '@/api/santri';
 import { Button } from '@/components/ui/button';
@@ -56,7 +56,9 @@ export default function ImportSantriGabunganDialog({
             aktif={open}
             id="btn_unduh_data_gabungan"
             labelTombol="Unduh data"
-            unduh={unduhDataSantriGabungan}
+            ambil={dataSantriExisting}
+            namaBerkas="data-siswa-existing.xlsx"
+            judulSheet="Data Siswa"
           />
           <div className="flex flex-col gap-2 rounded-lg border bg-muted/40 p-4">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Langkah 2 — Import bertahap</p>

@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Api\Admin;
 
-use App\Exports\MutasiKeluarDataExport;
 use App\Exports\MutasiKeluarTemplateExport;
 use App\Http\Controllers\Api\Concerns\ImporBertahap;
 use App\Http\Controllers\Api\Concerns\ImporFileMassal;
@@ -15,6 +14,7 @@ use App\Imports\MutasiKeluarImport;
 use App\Models\ImportSesi;
 use App\Models\MutasiKeluar;
 use App\Models\Santri;
+use App\Services\Impor\DataMutasiKeluar;
 use App\Services\MutasiKeluarImporService;
 use App\Services\UrutKatalog;
 use Illuminate\Http\JsonResponse;
@@ -85,16 +85,21 @@ class MutasiKeluarArsipController extends Controller
         return Excel::download(new MutasiKeluarTemplateExport, 'template-import-mutasi-keluar.xlsx');
     }
 
-    /** GET /api/admin/mutasi-keluar/ekspor-data — unduh data arsip mutasi existing
-     *  (kolom = template import; kelas ditulis sebagai nama rombel). */
-    public function eksporData(Request $request)
+    /**
+     * GET /api/admin/mutasi-keluar/data-existing — data arsip mutasi existing
+     * sebagai JSON (kolom = template import; kelas = nama rombel). Berkas
+     * Excel disusun di browser.
+     */
+    public function dataExisting(Request $request): JsonResponse
     {
         $this->authorize('viewAny', Santri::class);
+        $data = new DataMutasiKeluar($this->jenjangUntukBerkas($request));
 
-        return Excel::download(
-            new MutasiKeluarDataExport($this->jenjangUntukBerkas($request)),
-            'data-mutasi-keluar-existing.xlsx'
-        );
+        return response()->json([
+            'kolom' => $data->kolom(),
+            'wajib' => $data->wajib(),
+            'baris' => $data->baris(),
+        ]);
     }
 
     /** POST /api/admin/mutasi-keluar/import-periksa — validasi file TANPA menulis (dry-run). */

@@ -3,6 +3,7 @@ import { appendQueryParam, type ScalarOrArray } from './query';
 import { PER_PAGE_DEFAULT } from '@/prefs';
 import type { ImportError } from './santri';
 import type { PotongHasil } from '@/components/ImportBertahapUmumDialog';
+import type { DataExistingPayload } from '@/lib/excelDataExisting';
 
 export interface Lembaga {
   /** Sama dengan `jenjang`; dipakai komponen tabel generik (butuh `id`). */
@@ -443,11 +444,12 @@ export function unduhTemplateKelas() {
   return downloadFile('/admin/kelas/import-template', 'template-import-kelas.xlsx');
 }
 
-/** Unduh data kelas existing (kolom identik template import; walas = NIP).
- *  Tanpa argumen = seluruh lingkup akses akun. */
-export function unduhDataKelas(jenjangs?: string[]) {
+/** Data kelas existing (kolom identik template import; walas = NIP). Backend
+ *  hanya mengirim JSON — berkas Excel disusun di browser. Tanpa argumen =
+ *  seluruh lingkup akses akun. */
+export function dataKelasExisting(jenjangs?: string[]) {
   const q = jenjangs?.length ? `?${jenjangs.map((j) => `jenjang[]=${encodeURIComponent(j)}`).join('&')}` : '';
-  return downloadFile(`/admin/kelas/ekspor-data${q}`, 'data-kelas-existing.xlsx');
+  return api<DataExistingPayload>(`/admin/kelas/data-existing${q}`);
 }
 
 function formImportKelas(file: File) {

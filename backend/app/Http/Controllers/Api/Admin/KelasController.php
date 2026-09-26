@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Api\Admin;
 
-use App\Exports\KelasDataExport;
 use App\Exports\KelasNamaExport;
 use App\Exports\KelasTemplateExport;
 use App\Http\Controllers\Api\Concerns\ImporBertahap;
@@ -22,6 +21,7 @@ use App\Models\ImportSesi;
 use App\Models\Kelas;
 use App\Models\Lembaga;
 use App\Models\TahunAjaran;
+use App\Services\Impor\DataKelas;
 use App\Services\KelasImporService;
 use App\Services\KelasService;
 use App\Services\RefService;
@@ -329,13 +329,19 @@ class KelasController extends Controller
         return Excel::download(new KelasTemplateExport, 'template-import-kelas.xlsx');
     }
 
-    /** GET /api/admin/kelas/ekspor-data — unduh data kelas existing (kolom = template import). */
-    public function eksporData(Request $request)
+    /**
+     * GET /api/admin/kelas/data-existing — data kelas existing sebagai JSON
+     * (kolom = template import). Berkas Excel disusun di browser.
+     */
+    public function dataExisting(Request $request): JsonResponse
     {
-        return Excel::download(
-            new KelasDataExport($this->jenjangUntukBerkas($request)),
-            'data-kelas-existing.xlsx'
-        );
+        $data = new DataKelas($this->jenjangUntukBerkas($request));
+
+        return response()->json([
+            'kolom' => $data->kolom(),
+            'wajib' => $data->wajib(),
+            'baris' => $data->baris(),
+        ]);
     }
 
     /** POST /api/admin/kelas/import-periksa — validasi file TANPA menulis (dry-run). */

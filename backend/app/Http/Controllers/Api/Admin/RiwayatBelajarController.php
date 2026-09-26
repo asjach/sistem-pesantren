@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Api\Admin;
 
-use App\Exports\RiwayatBelajarDataExport;
 use App\Exports\RiwayatBelajarTemplateExport;
 use App\Http\Controllers\Api\Concerns\ImporBertahap;
 use App\Http\Controllers\Api\Concerns\ImporFileMassal;
@@ -19,6 +18,7 @@ use App\Models\ImportSesi;
 use App\Models\LembagaSantri;
 use App\Models\RiwayatBelajar;
 use App\Models\Santri;
+use App\Services\Impor\DataRiwayatBelajar;
 use App\Services\PenerimaanService;
 use App\Services\RiwayatBelajarImporService;
 use App\Services\SiklusSantriService;
@@ -350,16 +350,21 @@ class RiwayatBelajarController extends Controller
         return Excel::download(new RiwayatBelajarTemplateExport, 'template-import-riwayat-belajar.xlsx');
     }
 
-    /** GET /api/admin/riwayat-belajar/ekspor-data — unduh data riwayat existing
-     *  (kolom = template import; status ditulis sebagai label). */
-    public function eksporData(Request $request)
+    /**
+     * GET /api/admin/riwayat-belajar/data-existing — data riwayat existing
+     * sebagai JSON (kolom = template import; status = label). Berkas Excel
+     * disusun di browser.
+     */
+    public function dataExisting(Request $request): JsonResponse
     {
         $this->authorize('viewAny', Santri::class);
+        $data = new DataRiwayatBelajar($this->jenjangUntukBerkas($request));
 
-        return Excel::download(
-            new RiwayatBelajarDataExport($this->jenjangUntukBerkas($request)),
-            'data-riwayat-belajar-existing.xlsx'
-        );
+        return response()->json([
+            'kolom' => $data->kolom(),
+            'wajib' => $data->wajib(),
+            'baris' => $data->baris(),
+        ]);
     }
 
     /** POST /api/admin/riwayat-belajar/import-periksa — dry-run tanpa menulis. */

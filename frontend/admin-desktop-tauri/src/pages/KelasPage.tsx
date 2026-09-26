@@ -9,7 +9,7 @@ import {
   listLembaga,
   listPegawaiAktif,
   listTahunAjaran,
-  unduhDataKelas,
+  dataKelasExisting,
   unduhTemplateKelas,
   updateKelas,
   batalPotongKelas,
@@ -835,7 +835,12 @@ export default function KelasPage() {
           },
           labelTemplate: 'Unduh template Excel kelas',
           unduhTemplate: unduhTemplateKelas,
-          unduhData: { label: 'Unduh data kelas existing', jalankan: unduhDataKelas },
+          unduhData: {
+            label: 'Unduh data kelas existing',
+            ambil: dataKelasExisting,
+            namaBerkas: 'data-kelas-existing.xlsx',
+            judulSheet: 'Data Kelas',
+          },
           kirim: ({ sesi_id, mode, total, baris, terakhir }) =>
             importKelasPotong({
               ...(sesi_id === undefined ? {} : { sesi_id }),

@@ -1,4 +1,5 @@
 import { api, apiUpload, downloadFile } from './client';
+import type { DataExistingPayload } from '@/lib/excelDataExisting';
 import { appendQueryParam, type ScalarOrArray } from './query';
 import type { Paginate } from './master';
 
@@ -219,13 +220,12 @@ export function unduhTemplateSantriGabungan() {
   return downloadFile('/admin/santri/import-template-gabungan', 'template-import-siswa-gabungan.xlsx');
 }
 
-/** Unduh data existing (pra-isi santri_id) untuk round-trip update. Tanpa argumen = semua lingkup. */
-export function unduhDataSantriGabungan(jenjangs?: string[]) {
+/** Data existing (pra-isi santri_id) untuk round-trip update. Backend hanya
+ *  mengirim JSON — berkas Excel disusun di browser. Tanpa argumen = semua
+ *  lingkup akses akun. */
+export function dataSantriExisting(jenjangs?: string[]) {
   const q = jenjangs?.length ? `?${jenjangs.map((j) => `jenjang[]=${encodeURIComponent(j)}`).join('&')}` : '';
-  return downloadFile(
-    `/admin/santri/data-gabungan${q}`,
-    jenjangs?.length === 1 ? `data-siswa-${jenjangs[0]}.xlsx` : 'data-siswa-pilihan.xlsx',
-  );
+  return api<DataExistingPayload>(`/admin/santri/data-existing${q}`);
 }
 
 // ---------- Import santri bertahap (potongan JSON 1000/panggilan) ----------

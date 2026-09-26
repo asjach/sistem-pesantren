@@ -1,66 +1,50 @@
 <?php
 
-namespace App\Exports;
+namespace App\Services\Impor;
 
-use App\Exports\Concerns\GayaSheetExcel;
+use App\Exports\RiwayatBelajarTemplateExport;
 use App\Models\RiwayatBelajar;
 use App\Services\RefService;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
-use Maatwebsite\Excel\Concerns\FromArray;
-use Maatwebsite\Excel\Concerns\WithCustomValueBinder;
-use Maatwebsite\Excel\Concerns\WithEvents;
-use Maatwebsite\Excel\Concerns\WithHeadings;
-use Maatwebsite\Excel\Concerns\WithTitle;
-use Maatwebsite\Excel\Events\AfterSheet;
-use PhpOffice\PhpSpreadsheet\Cell\Cell;
-use PhpOffice\PhpSpreadsheet\Cell\DataType;
-use PhpOffice\PhpSpreadsheet\Cell\DefaultValueBinder;
 
 /**
- * Unduh data riwayat belajar existing — kolom SAMA PERSIS dengan template
- * import (`RiwayatBelajarTemplateExport::KOLOM`), terisi data nyata. Alur
- * round-trip: unduh → edit sel → import lagi (kunci = NIS lokal + jenjang +
- * tahun ajaran + semester).
+ * Penyedia data riwayat belajar existing untuk dialog import (backend hanya
+ * mengirim data; berkas Excel disusun di browser). Kolom SAMA PERSIS dengan
+ * template import; kunci baris: NIS lokal + jenjang + tahun ajaran + semester.
  *
- * `status_awal`/`status_akhir` ditulis sebagai LABEL (import memetakan label →
- * kode, kode lama tetap diterima). Semua sel bertipe TEKS.
+ * `status_awal`/`status_akhir` dikirim sebagai LABEL (import memetakan label →
+ * kode, kode lama tetap diterima). Query langsung ke tabel ref (bukan cache
+ * `RefService`) agar data tidak bergantung cache lama.
  */
-class RiwayatBelajarDataExport extends DefaultValueBinder implements FromArray, WithCustomValueBinder, WithEvents, WithHeadings, WithTitle
+class DataRiwayatBelajar
 {
-    use GayaSheetExcel;
-
     /** @param  list<string>  $jenjang  lembaga yang boleh diakses (sudah disaring) */
     public function __construct(private array $jenjang) {}
 
-    public function bindValue(Cell $cell, $value): bool
-    {
-        $cell->setValueExplicit((string) $value, DataType::TYPE_STRING);
-
-        return true;
-    }
-
-    public function headings(): array
+    /** @return list<string> */
+    public function kolom(): array
     {
         return RiwayatBelajarTemplateExport::KOLOM;
     }
 
-    public function title(): string
+    /** @return list<string> */
+    public function wajib(): array
     {
-        return 'Data Riwayat Belajar';
+        return ['nis_lokal', 'jenjang', 'tahun_ajaran', 'semester'];
     }
 
-    public function array(): array
+    /** @return list<list<string>> */
+    public function baris(): array
     {
         if ($this->jenjang === []) {
             return [];
         }
 
         $label = $this->labelStatus();
-        $baris = $this->query()->get();
 
-        return $baris->map(fn (RiwayatBelajar $r) => [
+        return $this->query()->get()->map(fn (RiwayatBelajar $r) => [
             (string) ($r->nis_lokal ?? ''),
             (string) $r->jenjang,
             (string) $r->tahun_ajaran,
@@ -92,8 +76,6 @@ class RiwayatBelajarDataExport extends DefaultValueBinder implements FromArray, 
 
     /**
      * Kode → label status (label = nilai yang tampil di dropdown template).
-     * Query langsung ke tabel ref (bukan cache `RefService`) supaya berkas
-     * tak bergantung cache lama.
      *
      * @return array<string, array<string, string>>
      */
@@ -127,14 +109,5 @@ class RiwayatBelajarDataExport extends DefaultValueBinder implements FromArray, 
         }
 
         return (string) $nilai;
-    }
-
-    public function registerEvents(): array
-    {
-        return [
-            AfterSheet::class => function (AfterSheet $event) {
-                $this->gayaSheet($event->sheet->getDelegate(), RiwayatBelajarTemplateExport::KOLOM, ['nis_lokal', 'jenjang', 'tahun_ajaran', 'semester'], ['nama_kelas' => 16, 'tahun_ajaran' => 16, 'tgl_masuk' => 14]);
-            },
-        ];
     }
 }

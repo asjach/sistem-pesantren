@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Download } from '@/icons';
 import { toast } from 'sonner';
 import DataExistingCard from '@/components/DataExistingCard';
+import type { DataExistingPayload } from '@/lib/excelDataExisting';
 
 /** Maks baris per panggilan (disamakan batas backend `baris.max:1000`). */
 export const POTONGAN_IMPORT = 1000;
@@ -65,9 +66,15 @@ export interface KonfigurasiImportBertahap {
   /** Label tombol unduh template + aksi unduh. */
   labelTemplate: string;
   unduhTemplate: () => Promise<unknown>;
-  /** Unduh data existing (kolom identik template) bila tersedia; pilihan
-   *  lembaga diteruskan sebagai argumen (tanpa argumen = seluruh lingkup). */
-  unduhData?: { label: string; jalankan: (jenjangs?: string[]) => Promise<unknown> };
+  /** Data existing (kolom identik template) bila tersedia; backend mengirim
+   *  JSON, berkas Excel disusun di browser. Pilihan lembaga diteruskan sebagai
+   *  argumen (tanpa argumen = seluruh lingkup akses). */
+  unduhData?: {
+    label: string;
+    ambil: (jenjangs?: string[]) => Promise<DataExistingPayload>;
+    namaBerkas: string;
+    judulSheet?: string;
+  };
   /** Kirim satu potongan; `sesi_id` hanya pada panggilan lanjutan. */
   kirim: KirimPotongan;
   /** Batalkan sesi milik sendiri. */
@@ -253,7 +260,9 @@ export default function ImportBertahapUmumDialog({ open, onOpenChange, config }:
               aktif={open}
               id={`btn_unduh_data_${idPrefix}`}
               labelTombol={config.unduhData.label}
-              unduh={config.unduhData.jalankan}
+              ambil={config.unduhData.ambil}
+              namaBerkas={config.unduhData.namaBerkas}
+              judulSheet={config.unduhData.judulSheet}
             />
           )}
           <div className="flex flex-col gap-2 rounded-lg border bg-muted/40 p-4">

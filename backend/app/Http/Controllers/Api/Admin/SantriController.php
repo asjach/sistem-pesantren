@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Api\Admin;
 
-use App\Exports\SantriLembagaDataExport;
 use App\Exports\SantriLembagaTemplateExport;
 use App\Http\Controllers\Api\Concerns\ImporBertahap;
 use App\Http\Controllers\Api\Concerns\TenantGuard;
@@ -19,6 +18,7 @@ use App\Models\ImportSesi;
 use App\Models\Lembaga;
 use App\Models\Santri;
 use App\Models\User;
+use App\Services\Impor\DataSantri;
 use App\Services\PenerimaanService;
 use App\Services\RefService;
 use App\Services\SantriImporService;
@@ -309,19 +309,24 @@ class SantriController extends Controller
         );
     }
 
-    /** GET /api/admin/santri/data-gabungan — pra-isi data existing (round-trip update).
-     *  Satu lembaga via `jenjang`, beberapa via `jenjang[]`; tanpa parameter →
-     *  semua lembaga dalam lingkup pengunduh. */
-    public function dataGabungan(Request $request)
+    /**
+     * GET /api/admin/santri/data-existing — data siswa existing sebagai JSON
+     * (kolom = template gabungan, terisi `santri_id`) untuk round-trip update.
+     * `jenjang`/`jenjang[]` opsional; tanpa parameter = seluruh lingkup akses.
+     * Berkas Excel disusun di browser.
+     */
+    public function dataExisting(Request $request): JsonResponse
     {
         $this->authorize('viewAny', Santri::class);
 
         $ids = $this->resolveDaftarLembagaGabungan($request);
-        if (count($ids) === 1) {
-            return Excel::download(new SantriLembagaDataExport($ids), "data-siswa-{$ids[0]}.xlsx");
-        }
+        $data = new DataSantri($ids);
 
-        return Excel::download(new SantriLembagaDataExport($ids), 'data-siswa-pilihan.xlsx');
+        return response()->json([
+            'kolom' => $data->kolom(),
+            'wajib' => $data->wajib(),
+            'baris' => $data->baris(),
+        ]);
     }
 
     /** Daftar lembaga untuk unduh data: eksplisit (satu/lebih) atau semua dalam lingkup. */

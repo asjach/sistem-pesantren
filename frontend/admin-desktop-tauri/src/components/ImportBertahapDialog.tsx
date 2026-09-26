@@ -3,7 +3,7 @@ import { errorMessage } from '../api/client';
 import {
   batalPotongImport,
   potongImportRiwayat,
-  unduhDataRiwayatBelajar,
+  dataRiwayatBelajarExisting,
   unduhGalatPotong,
   unduhTemplateRiwayatBelajar,
   type ImportPotongHasil,
@@ -176,7 +176,9 @@ export default function ImportBertahapDialog({ open, onOpenChange, onSelesai }: 
             aktif={open}
             id="btn_unduh_data_riwayat"
             labelTombol="Unduh data"
-            unduh={unduhDataRiwayatBelajar}
+            ambil={dataRiwayatBelajarExisting}
+            namaBerkas="data-riwayat-belajar-existing.xlsx"
+            judulSheet="Data Riwayat Belajar"
           />
           <div className="flex flex-col gap-2 rounded-lg border bg-muted/40 p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Import bertahap</p>

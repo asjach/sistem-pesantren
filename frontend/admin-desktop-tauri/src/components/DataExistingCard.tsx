@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Download } from '@/icons';
 import { toast } from 'sonner';
+import { unduhExcelDataExisting, type DataExistingPayload } from '@/lib/excelDataExisting';
 
 /**
  * Card "Data existing (update)" — dipakai seragam oleh semua dialog import:
@@ -21,7 +22,9 @@ export default function DataExistingCard({
   deskripsi = 'Terisi — edit lalu import.',
   labelTombol = 'Unduh',
   judulTooltip,
-  unduh,
+  ambil,
+  namaBerkas,
+  judulSheet,
 }: {
   /** Dialog sedang terbuka (daftar diambil saat dibuka). */
   aktif: boolean;
@@ -31,8 +34,11 @@ export default function DataExistingCard({
   deskripsi?: string;
   labelTombol?: string;
   judulTooltip?: string;
-  /** Unduh data existing; tanpa argumen = seluruh lingkup akses akun. */
-  unduh: (jenjangs?: string[]) => Promise<unknown>;
+  /** Ambil data existing dari backend; tanpa argumen = seluruh lingkup akses. */
+  ambil: (jenjangs?: string[]) => Promise<DataExistingPayload>;
+  /** Nama berkas + judul sheet untuk unduhan. */
+  namaBerkas: string;
+  judulSheet?: string;
 }) {
   const [lembagas, setLembagas] = useState<Lembaga[]>([]);
   const [dataIds, setDataIds] = useState<string[]>([]);
@@ -109,7 +115,9 @@ export default function DataExistingCard({
             // Pilihan penuh = seluruh lingkup akses (tanpa parameter; backend
             // yang memutuskan cakupan sesuai peran akun).
             const ids = dataIds.length === lembagas.length ? undefined : dataIds;
-            void unduh(ids).catch((e) => toast.error(errorMessage(e)));
+            void ambil(ids)
+              .then((data) => unduhExcelDataExisting(data, namaBerkas, judulSheet))
+              .catch((e) => toast.error(errorMessage(e)));
           }}
         >
           <Download data-icon="inline-start" size={16} />

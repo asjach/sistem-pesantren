@@ -3,6 +3,7 @@ import { appendQueryParam, type ScalarOrArray } from './query';
 import type { Paginate } from './master';
 import type { ImportError, ImportPeriksa, LembagaSantri, Santri, SantriPenuh } from './santri';
 import type { PotongHasil } from '@/components/ImportBertahapUmumDialog';
+import type { DataExistingPayload } from '@/lib/excelDataExisting';
 
 // ---------- Riwayat belajar (102) + siklus akademik ----------
 
@@ -271,11 +272,11 @@ export function unduhTemplateRiwayatBelajar() {
   return downloadFile('/admin/riwayat-belajar/import-template', 'template-import-riwayat-belajar.xlsx');
 }
 
-/** Unduh data riwayat belajar existing (kolom identik template import).
- *  Tanpa argumen = seluruh lingkup akses akun. */
-export function unduhDataRiwayatBelajar(jenjangs?: string[]) {
+/** Data riwayat belajar existing (kolom identik template import; status =
+ *  label). Backend hanya mengirim JSON — Excel disusun di browser. */
+export function dataRiwayatBelajarExisting(jenjangs?: string[]) {
   const q = jenjangs?.length ? `?${jenjangs.map((j) => `jenjang[]=${encodeURIComponent(j)}`).join('&')}` : '';
-  return downloadFile(`/admin/riwayat-belajar/ekspor-data${q}`, 'data-riwayat-belajar-existing.xlsx');
+  return api<DataExistingPayload>(`/admin/riwayat-belajar/data-existing${q}`);
 }
 
 export function importRiwayatBelajar(input: { file: File }) {
@@ -511,6 +512,13 @@ export interface ImportAlumniHasil {
   errors: ImportError[];
 }
 
+/** Data arsip alumni existing (kolom identik template import; kelas = nama
+ *  rombel). Backend hanya mengirim JSON — Excel disusun di browser. */
+export function dataAlumniExisting(jenjangs?: string[]) {
+  const q = jenjangs?.length ? `?${jenjangs.map((j) => `jenjang[]=${encodeURIComponent(j)}`).join('&')}` : '';
+  return api<DataExistingPayload>(`/admin/alumni/data-existing${q}`);
+}
+
 export function unduhTemplateAlumni() {
   return downloadFile('/admin/alumni/import-template', 'template-import-alumni.xlsx');
 }
@@ -581,11 +589,11 @@ export function unduhTemplateMutasi() {
   return downloadFile('/admin/mutasi-keluar/import-template', 'template-import-mutasi-keluar.xlsx');
 }
 
-/** Unduh data arsip mutasi keluar existing (kolom identik template import).
- *  Tanpa argumen = seluruh lingkup akses akun. */
-export function unduhDataMutasi(jenjangs?: string[]) {
+/** Data arsip mutasi keluar existing (kolom identik template import). Backend
+ *  hanya mengirim JSON — Excel disusun di browser. */
+export function dataMutasiExisting(jenjangs?: string[]) {
   const q = jenjangs?.length ? `?${jenjangs.map((j) => `jenjang[]=${encodeURIComponent(j)}`).join('&')}` : '';
-  return downloadFile(`/admin/mutasi-keluar/ekspor-data${q}`, 'data-mutasi-keluar-existing.xlsx');
+  return api<DataExistingPayload>(`/admin/mutasi-keluar/data-existing${q}`);
 }
 
 function formImportMutasi(file: File) {

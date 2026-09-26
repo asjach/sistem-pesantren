@@ -15,6 +15,7 @@ use App\Models\Alumni;
 use App\Models\ImportSesi;
 use App\Models\Santri;
 use App\Services\AlumniImporService;
+use App\Services\Impor\DataAlumni;
 use App\Services\UrutKatalog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -76,6 +77,23 @@ class AlumniArsipController extends Controller
     public function templateImport()
     {
         return Excel::download(new AlumniTemplateExport, 'template-import-alumni.xlsx');
+    }
+
+    /**
+     * GET /api/admin/alumni/data-existing — data arsip alumni existing sebagai
+     * JSON (kolom = template import; kelas = nama rombel). Berkas Excel disusun
+     * di browser.
+     */
+    public function dataExisting(Request $request): JsonResponse
+    {
+        $this->authorize('viewAny', Santri::class);
+        $data = new DataAlumni($this->jenjangUntukBerkas($request));
+
+        return response()->json([
+            'kolom' => $data->kolom(),
+            'wajib' => $data->wajib(),
+            'baris' => $data->baris(),
+        ]);
     }
 
     public function periksaImport(AlumniImportRequest $request): JsonResponse
