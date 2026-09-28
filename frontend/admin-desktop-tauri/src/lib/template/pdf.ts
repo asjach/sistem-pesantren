@@ -29,6 +29,18 @@ export function poinKeMm(poin: number): number {
   return Math.round((poin / PT_PER_INCH) * MM_PER_INCH * 100) / 100;
 }
 
+/**
+ * Ukuran halaman dari viewport pdf.js, dalam milimeter.
+ *
+ * Ukuran diambil dari getViewport, bukan dari page.view. page.view hanya
+ * berisi empat angka (x0, y0, x1, y1); membacanya sebagai_pairs
+ * (lebar, tinggi) menghasilkan undefined sehingga ukuran halaman jadi NaN dan
+ * seluruh kanvas rusak.
+ */
+export function ukuranMmDariViewport(viewport: { width: number; height: number }): UkuranMm {
+  return { lebar_mm: poinKeMm(viewport.width), tinggi_mm: poinKeMm(viewport.height) };
+}
+
 export interface DokumenPdf {
   /** Jumlah halaman berkas. */
   jumlah: number;
@@ -58,9 +70,8 @@ export async function muatPdf(data: ArrayBuffer): Promise<DokumenPdf> {
 
   for (let nomor = 1; nomor <= doc.numPages; nomor += 1) {
     const page = await doc.getPage(nomor);
-    const [, , , , lebarPoin, tinggiPoin] = page.view;
 
-    ukuran.push({ lebar_mm: poinKeMm(lebarPoin), tinggi_mm: poinKeMm(tinggiPoin) });
+    ukuran.push(ukuranMmDariViewport(page.getViewport({ scale: 1 })));
 
     page.cleanup();
   }
@@ -70,8 +81,8 @@ export async function muatPdf(data: ArrayBuffer): Promise<DokumenPdf> {
     ukuran,
     render: async (nomor, canvas, lebarPx) => {
       const page = await doc.getPage(nomor);
-      const [, , , , lebarPoin] = page.view;
-      const skala = lebarPoin > 0 ? lebarPx / lebarPoin : 1;
+      const ukuranPoin = page.getViewport({ scale: 1 });
+      const skala = ukuranPoin.width > 0 ? lebarPx / ukuranPoin.width : 1;
 
       const viewport = page.getViewport({ scale: skala });
       const dpr = typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1;
