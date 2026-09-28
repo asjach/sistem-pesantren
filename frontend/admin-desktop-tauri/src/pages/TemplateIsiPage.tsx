@@ -104,6 +104,14 @@ export default function TemplateIsiPage() {
     [dipakai],
   );
 
+  /**
+   * Hanya template PDF eksternal yang butuh berkas diunggah lebih dulu.
+   * Template HTML digambar sendiri di desainer, jadi tidak punya berkas sama
+   * sekali. Menyambutnya sebagai belum siap akan membuat tombol cetak tidak
+   * bisa dipakai.
+   */
+  const perluBerkas = template?.jenis === 'pdf' && !template?.punya_berkas;
+
   useEffect(() => {
     let batal = false;
     const cakupan = { jenjang: jenjang ?? undefined };
@@ -353,11 +361,11 @@ export default function TemplateIsiPage() {
 
           <Separator />
 
-          <Button id="btn_buat_pdf_isi" className="w-full" onClick={buat} disabled={sibuk || !template?.punya_berkas}>
+          <Button id="btn_buat_pdf_isi" className="w-full" onClick={buat} disabled={sibuk || perluBerkas}>
             <FileCheck2 size={16} /> {sibuk ? 'Menyusun...' : 'Buat PDF'}
           </Button>
 
-          {!template?.punya_berkas && (
+          {perluBerkas && (
             <FieldDescription>Template ini belum memiliki berkas PDF. Unggah berkas pada halaman susun medan.</FieldDescription>
           )}
 

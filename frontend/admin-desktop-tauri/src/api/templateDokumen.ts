@@ -6,6 +6,7 @@ import type {
   DefinisiTemplate,
   HasilIsi,
   KatalogNilai,
+  JenisTemplate,
   KategoriTemplate,
   TemplateLengkap,
   TemplateRingkas,
@@ -16,7 +17,7 @@ export type { AsetDokumen, DefinisiTemplate, KatalogNilai, TemplateLengkap, Temp
 export interface TemplateListParams {
   q?: string;
   kategori?: KategoriTemplate | null;
-  jenis?: 'pdf' | 'html' | null;
+  jenis?: JenisTemplate | null;
   aktif?: boolean | null;
   jenjang?: ScalarOrArray<string> | null;
   sort?: string[];
@@ -52,7 +53,7 @@ export interface TemplateInput {
   nama: string;
   kode?: string | null;
   kategori: KategoriTemplate;
-  jenis: 'pdf' | 'html';
+  jenis: JenisTemplate;
   deskripsi?: string | null;
   jenjang?: string | null;
   aktif?: boolean;

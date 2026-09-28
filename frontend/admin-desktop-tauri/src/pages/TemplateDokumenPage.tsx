@@ -30,7 +30,14 @@ import { FieldDescription, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useLembagaAktif } from '@/lembagaAktif';
-import { KATEGORI_TEMPLATE, LABEL_KATEGORI, type KategoriTemplate } from '@/lib/template/tipe';
+import {
+  DESKRIPSI_JENIS,
+  KATEGORI_TEMPLATE,
+  LABEL_JENIS,
+  LABEL_KATEGORI,
+  type JenisTemplate,
+  type KategoriTemplate,
+} from '@/lib/template/tipe';
 import { Copy, FileCheck2, Pencil } from '@/icons';
 
 const TABLE_KEY = 'template_dokumen';
@@ -46,6 +53,7 @@ export default function TemplateDokumenPage() {
   const [galat, setGalat] = useState<string | null>(null);
   const [cari, setCari] = useState('');
   const [kategori, setKategori] = useState<string>(SEMUA);
+  const [jenis, setJenis] = useState<string>(SEMUA);
   const [tambahOpen, setTambahOpen] = useState(false);
 
   const bolehTambah = bisa(user, 'template_dokumen.tambah');
@@ -59,6 +67,7 @@ export default function TemplateDokumenPage() {
       const res = await listTemplate({
         q: cari.trim() || undefined,
         kategori: kategori === SEMUA ? undefined : (kategori as KategoriTemplate),
+        jenis: jenis === SEMUA ? undefined : (jenis as JenisTemplate),
         jenjang: jenjang ?? undefined,
         per_page: 200,
       });
@@ -68,7 +77,7 @@ export default function TemplateDokumenPage() {
     } finally {
       setLoading(false);
     }
-  }, [cari, kategori, jenjang]);
+  }, [cari, jenis, kategori, jenjang]);
 
   useEffect(() => {
     muat();
@@ -78,6 +87,7 @@ export default function TemplateDokumenPage() {
     () => [
       { key: 'nama', label: 'nama', width: 240, kind: 'static' },
       { key: 'kode', label: 'kode', width: 180, kind: 'static' },
+      { key: 'jenis', label: 'jenis', width: 130, kind: 'static' },
       { key: 'kategori', label: 'kategori', width: 120, kind: 'static' },
       { key: 'halaman', label: 'halaman', width: 90, kind: 'static' },
       { key: 'medan', label: 'medan', width: 80, kind: 'static' },
@@ -92,6 +102,7 @@ export default function TemplateDokumenPage() {
     (t: TemplateRingkas): Record<string, string | null> => ({
       nama: t.nama,
       kode: t.kode,
+      jenis: LABEL_JENIS[t.jenis] ?? t.jenis,
       kategori: LABEL_KATEGORI[t.kategori] ?? t.kategori,
       halaman: String(t.jumlah_halaman),
       medan: String(t.jumlah_medan),
@@ -185,6 +196,19 @@ export default function TemplateDokumenPage() {
                 className="w-56"
               />
             </FilterField>
+            <FilterField label="Jenis" htmlFor="select_jenis_template">
+              <Select value={jenis} onValueChange={setJenis}>
+                <SelectTrigger id="select_jenis_template" aria-label="Jenis template" size="sm" className="w-44">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={SEMUA}>Semua jenis</SelectItem>
+                  <SelectItem value="pdf">{LABEL_JENIS.pdf}</SelectItem>
+                  <SelectItem value="html">{LABEL_JENIS.html}</SelectItem>
+                </SelectContent>
+              </Select>
+            </FilterField>
+
             <FilterField label="Kategori" htmlFor="select_kategori_template">
               <Select value={kategori} onValueChange={setKategori}>
                 <SelectTrigger id="select_kategori_template" aria-label="Kategori template" size="sm" className="w-44">
@@ -218,10 +242,20 @@ export default function TemplateDokumenPage() {
         pilihanLembaga={pilihan}
         onSimpan={async (input) => {
           const dibuat = await createTemplate(input);
-          toast.success('Template dibuat. Berikutnya unggah berkas PDF template.');
           setTambahOpen(false);
           await muat();
-          navigate(`/template-dokumen/${dibuat.id}/medan`);
+
+          // Template PDF eksternal butuh berkas sebelum medan bisa
+          // diletakkan, jadi langsung ke editor. Template HTML tidak punya
+          // berkas sama sekali dan dicetak lewat endpoint yang sama, jadi
+          // sementara mendarat di Isi & Cetak sampai desainer tersedia.
+          if (input.jenis === 'pdf') {
+            toast.success('Template dibuat. Berikutnya unggah berkas PDF template.');
+            navigate(`/template-dokumen/${dibuat.id}/medan`);
+          } else {
+            toast.success('Template dibuat. Susun tata letaknya di desainer.');
+            navigate(`/template-dokumen/${dibuat.id}/isi`);
+          }
         }}
       />
 
@@ -237,7 +271,7 @@ interface DialogSimpanProps {
   onSimpan: (input: {
     nama: string;
     kategori: KategoriTemplate;
-    jenis: 'pdf' | 'html';
+    jenis: JenisTemplate;
     deskripsi: string | null;
     jenjang: string | null;
   }) => Promise<void>;
@@ -245,6 +279,7 @@ interface DialogSimpanProps {
 
 function DialogSimpan({ open, onOpenChange, jenjangBawaan, pilihanLembaga, onSimpan }: DialogSimpanProps) {
   const [nama, setNama] = useState('');
+  const [jenis, setJenis] = useState<JenisTemplate>('pdf');
   const [kategori, setKategori] = useState<KategoriTemplate>('surat');
   const [deskripsi, setDeskripsi] = useState('');
   const [jenjang, setJenjang] = useState('');
@@ -254,6 +289,7 @@ function DialogSimpan({ open, onOpenChange, jenjangBawaan, pilihanLembaga, onSim
   useEffect(() => {
     if (open) {
       setNama('');
+      setJenis('pdf');
       setKategori('surat');
       setDeskripsi('');
       setJenjang(jenjangBawaan);
@@ -272,7 +308,7 @@ function DialogSimpan({ open, onOpenChange, jenjangBawaan, pilihanLembaga, onSim
       await onSimpan({
         nama: nama.trim(),
         kategori,
-        jenis: 'pdf',
+        jenis,
         deskripsi: deskripsi.trim() || null,
         jenjang: jenjang || null,
       });
@@ -289,8 +325,8 @@ function DialogSimpan({ open, onOpenChange, jenjangBawaan, pilihanLembaga, onSim
         <DialogHeader>
           <DialogTitle>Template baru</DialogTitle>
           <DialogDescription>
-            Buat template dulu, lalu unggah berkas PDF yang dirancang di Word, CorelDRAW, atau Canva. Nilai dari
-            database ditambahkan kemudian di halaman penyusunan medan.
+            Nilai dari database ditambahkan kemudian di halaman penyusunan medan. Cara halaman cetak dibuat
+            ditentukan oleh jenis template.
           </DialogDescription>
         </DialogHeader>
 
@@ -304,6 +340,20 @@ function DialogSimpan({ open, onOpenChange, jenjangBawaan, pilihanLembaga, onSim
               maxLength={120}
               placeholder="Contoh: Surat Keterangan Santri"
             />
+          </div>
+
+          <div>
+            <FieldLabel htmlFor="select_jenis_baru">Jenis halaman</FieldLabel>
+            <Select value={jenis} onValueChange={(v) => setJenis(v as JenisTemplate)}>
+              <SelectTrigger id="select_jenis_baru" aria-label="Jenis halaman template" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="pdf">{LABEL_JENIS.pdf}</SelectItem>
+                <SelectItem value="html">{LABEL_JENIS.html}</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="mt-1 text-xs text-muted-foreground">{DESKRIPSI_JENIS[jenis]}</p>
           </div>
 
           <div>

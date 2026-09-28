@@ -53,6 +53,25 @@ export const KATEGORI_TEMPLATE = [
 ] as const;
 export type KategoriTemplate = (typeof KATEGORI_TEMPLATE)[number];
 
+/**
+ * Dua cara membuat halaman cetak.
+ *
+ * 'pdf' memakai berkas yang dirancang di luar aplikasi lalu diunggah.
+ * 'html' tata letaknya digambar sendiri di desainer dan dicetak oleh dompdf.
+ */
+export const JENIS_TEMPLATE = ['pdf', 'html'] as const;
+export type JenisTemplate = (typeof JENIS_TEMPLATE)[number];
+
+export const LABEL_JENIS: Record<JenisTemplate, string> = {
+  pdf: 'PDF eksternal',
+  html: 'HTML desainer',
+};
+
+export const DESKRIPSI_JENIS: Record<JenisTemplate, string> = {
+  pdf: 'Rancang halaman di Word, CorelDRAW, atau Canva lalu unggah PDF-nya di sini.',
+  html: 'Gambar sendiri tata letaknya di kanvas, tanpa berkas PDF.',
+};
+
 export const LABEL_KATEGORI: Record<KategoriTemplate, string> = {
   surat: 'Surat',
   sertifikat: 'Sertifikat',
