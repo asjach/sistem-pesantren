@@ -37,11 +37,24 @@ class TemplateIsiRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'id_santri.integer' => 'Santri yang dipilih tidak valid.',
             'id_santri.exists' => 'Santri yang dipilih tidak ditemukan.',
+            'id_pegawai.integer' => 'Pegawai yang dipilih tidak valid.',
             'id_pegawai.exists' => 'Pegawai yang dipilih tidak ditemukan.',
+            'id_psb_calon.integer' => 'Pendaftar yang dipilih tidak valid.',
+            'id_psb_calon.exists' => 'Pendaftar yang dipilih tidak ditemukan.',
+            'kelas_id.integer' => 'Kelas yang dipilih tidak valid.',
             'kelas_id.exists' => 'Kelas yang dipilih tidak ditemukan.',
+            'tahun_ajaran.string' => 'Tahun ajaran yang dipilih tidak valid.',
+            'tahun_ajaran.max' => 'Tahun ajaran yang dipilih tidak valid.',
             'tahun_ajaran.exists' => 'Tahun ajaran tidak dikenal.',
+            'semester.string' => 'Semester harus 1 (Ganjil) atau 2 (Genap).',
             'semester.in' => 'Semester harus 1 (Ganjil) atau 2 (Genap).',
+            'tanggal_absen.date_format' => 'Tanggal absen harus ditulis dengan format YYYY-MM-DD.',
+            'tetap.array' => 'Nilai tetap yang dikirim tidak valid.',
+            'tetap.teks.string' => 'Nilai tetap teks harus berupa teks.',
+            'tetap.teks.max' => 'Nilai tetap teks terlalu panjang.',
+            'tetap.tanggal.date_format' => 'Nilai tetap tanggal harus format YYYY-MM-DD.',
         ];
     }
 
