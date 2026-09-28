@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -16,6 +17,26 @@ class AsetDokumen extends Model
     protected $guarded = ['id'];
 
     protected $casts = ['lebar_px' => 'integer', 'tinggi_px' => 'integer', 'ukuran_byte' => 'integer'];
+
+    public function scopeCari(Builder $query, ?string $cari): Builder
+    {
+        if ($cari === null || trim($cari) === '') {
+            return $query;
+        }
+
+        return $query->where('nama', 'like', '%'.trim($cari).'%');
+    }
+
+    public function scopeTersedia(Builder $query, array $jenjang): Builder
+    {
+        return $query->where(function (Builder $dalam) use ($jenjang) {
+            $dalam->whereNull('jenjang');
+
+            if ($jenjang !== []) {
+                $dalam->orWhereIn('jenjang', $jenjang);
+            }
+        });
+    }
 
     public function lembaga(): BelongsTo
     {

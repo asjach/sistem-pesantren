@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\Admin\AlumniArsipController;
+use App\Http\Controllers\Api\Admin\AsetDokumenController;
 use App\Http\Controllers\Api\Admin\IzinController;
 use App\Http\Controllers\Api\Admin\KamusLabelController;
 use App\Http\Controllers\Api\Admin\KeaktifanPegawaiController;
@@ -22,6 +23,7 @@ use App\Http\Controllers\Api\Admin\SantriController;
 use App\Http\Controllers\Api\Admin\SemesterAktifController;
 use App\Http\Controllers\Api\Admin\SiklusController;
 use App\Http\Controllers\Api\Admin\TahunAjaranController;
+use App\Http\Controllers\Api\Admin\TemplateDokumenController;
 use App\Http\Controllers\Api\Admin\ToolbarPresetController;
 use App\Http\Controllers\Api\Admin\UrutPresetController;
 use App\Http\Controllers\Api\Admin\UserManagementController;
@@ -232,6 +234,27 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::get('dokumen-wajib', [PsbDokumenController::class, 'indexWajib'])->middleware('permission:dokumen_wajib.lihat');
         Route::post('dokumen-wajib', [PsbDokumenController::class, 'storeWajib'])->middleware('permission:dokumen_wajib.tambah');
         Route::delete('dokumen-wajib/{id}', [PsbDokumenController::class, 'destroyWajib'])->middleware('permission:dokumen_wajib.hapus');
+
+        // Template cetak: unggah PDF (Word/CorelDRAW/Canva), susun medan isian,
+        // lalu isi dengan nilai dari database. Pustaka aset tidak punya modul
+        // izin sendiri: unggah memakai template_dokumen.ubah, hapus memakai
+        // template_dokumen.hapus.
+        Route::get('template-dokumen', [TemplateDokumenController::class, 'index'])->middleware('permission:template_dokumen.lihat');
+        Route::get('template-dokumen/katalog', [TemplateDokumenController::class, 'katalog'])->middleware('permission:template_dokumen.lihat');
+        Route::post('template-dokumen', [TemplateDokumenController::class, 'store'])->middleware('permission:template_dokumen.tambah');
+        Route::get('template-dokumen/{template}', [TemplateDokumenController::class, 'show'])->middleware('permission:template_dokumen.lihat');
+        Route::match(['put', 'patch'], 'template-dokumen/{template}', [TemplateDokumenController::class, 'update'])->middleware('permission:template_dokumen.ubah');
+        Route::delete('template-dokumen/{template}', [TemplateDokumenController::class, 'destroy'])->middleware('permission:template_dokumen.hapus');
+        Route::post('template-dokumen/{template}/berkas', [TemplateDokumenController::class, 'unggahBerkas'])->middleware('permission:template_dokumen.ubah');
+        Route::post('template-dokumen/{template}/duplikat', [TemplateDokumenController::class, 'duplikat'])->middleware('permission:template_dokumen.tambah');
+        Route::post('template-dokumen/{template}/isi', [TemplateDokumenController::class, 'isiCetak'])->middleware('permission:template_dokumen.lihat');
+
+        Route::get('aset-dokumen', [AsetDokumenController::class, 'index'])->middleware('permission:template_dokumen.lihat');
+        Route::get('aset-dokumen/{aset}/berkas', [AsetDokumenController::class, 'berkas'])
+            ->name('api.aset-dokumen.berkas')
+            ->middleware('permission:template_dokumen.lihat');
+        Route::post('aset-dokumen', [AsetDokumenController::class, 'store'])->middleware('permission:template_dokumen.ubah');
+        Route::delete('aset-dokumen/{aset}', [AsetDokumenController::class, 'destroy'])->middleware('permission:template_dokumen.hapus');
 
         // Preset kolom tampilan tabel (per lembaga; global = admin pesantren).
         Route::get('preset-tabel', [PresetTabelController::class, 'index'])->middleware('permission:preset_tabel.lihat');

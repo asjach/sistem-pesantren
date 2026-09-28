@@ -189,31 +189,33 @@ class DefinisiMedan
      */
     public static function validasi(array $data, int $jumlahHalaman): void
     {
-        $validator = Validator::make(['medan' => $data['medan'] ?? []], [
-            'medan' => ['array', 'max:'.self::BATAS_MEDAN],
-            'medan.*.tipe' => ['required', 'string', 'in:'.implode(',', self::TIPE)],
-            'medan.*.label' => ['required', 'string', 'max:120'],
-            'medan.*.halaman' => ['required', 'integer', 'min:1', 'max:'.max(1, $jumlahHalaman)],
-            'medan.*.x' => ['required', 'numeric', 'min:0', 'max:2000'],
-            'medan.*.y' => ['required', 'numeric', 'min:0', 'max:2000'],
-            'medan.*.w' => ['required', 'numeric', 'min:1', 'max:2000'],
-            'medan.*.h' => ['required', 'numeric', 'min:1', 'max:2000'],
-            'medan.*.sumber' => ['nullable', 'string', 'max:40'],
-            'medan.*.kunci' => ['nullable', 'string', 'max:60'],
-            'medan.*.gaya.font' => ['nullable', 'string', 'in:'.implode(',', self::FONT)],
-            'medan.*.gaya.ukuran' => ['nullable', 'numeric', 'min:4', 'max:72'],
-            'medan.*.gaya.rata' => ['nullable', 'string', 'in:'.implode(',', self::RATA)],
-            'medan.*.gaya.warna' => ['nullable', 'string', 'regex:/^#[0-9a-fA-F]{6}$/'],
-            'medan.*.baris_berulang.sumber' => ['nullable', 'string', 'max:40'],
-            'medan.*.baris_berulang.jumlah' => ['nullable', 'integer', 'min:1', 'max:'.self::BATAS_BARIS],
-            'medan.*.baris_berulang.tinggi_baris' => ['nullable', 'numeric', 'min:2', 'max:200'],
-            'medan.*.baris_berulang.kolom' => ['array', 'max:'.self::BATAS_KOLOM],
-            'medan.*.baris_berulang.kolom.*.w' => ['required', 'numeric', 'min:1', 'max:2000'],
+        // Akar validasi disamakan dengan `definisi` supaya kunci error
+        // (`definisi.medan.0.halaman`) sejajar dengan aturan FormRequest.
+        $validator = Validator::make(['definisi' => $data], [
+            'definisi.medan' => ['array', 'max:'.self::BATAS_MEDAN],
+            'definisi.medan.*.tipe' => ['required', 'string', 'in:'.implode(',', self::TIPE)],
+            'definisi.medan.*.label' => ['required', 'string', 'max:120'],
+            'definisi.medan.*.halaman' => ['required', 'integer', 'min:1', 'max:'.max(1, $jumlahHalaman)],
+            'definisi.medan.*.x' => ['required', 'numeric', 'min:0', 'max:2000'],
+            'definisi.medan.*.y' => ['required', 'numeric', 'min:0', 'max:2000'],
+            'definisi.medan.*.w' => ['required', 'numeric', 'min:1', 'max:2000'],
+            'definisi.medan.*.h' => ['required', 'numeric', 'min:1', 'max:2000'],
+            'definisi.medan.*.sumber' => ['nullable', 'string', 'max:40'],
+            'definisi.medan.*.kunci' => ['nullable', 'string', 'max:60'],
+            'definisi.medan.*.gaya.font' => ['nullable', 'string', 'in:'.implode(',', self::FONT)],
+            'definisi.medan.*.gaya.ukuran' => ['nullable', 'numeric', 'min:4', 'max:72'],
+            'definisi.medan.*.gaya.rata' => ['nullable', 'string', 'in:'.implode(',', self::RATA)],
+            'definisi.medan.*.gaya.warna' => ['nullable', 'string', 'regex:/^#[0-9a-fA-F]{6}$/'],
+            'definisi.medan.*.baris_berulang.sumber' => ['nullable', 'string', 'max:40'],
+            'definisi.medan.*.baris_berulang.jumlah' => ['nullable', 'integer', 'min:1', 'max:'.self::BATAS_BARIS],
+            'definisi.medan.*.baris_berulang.tinggi_baris' => ['nullable', 'numeric', 'min:2', 'max:200'],
+            'definisi.medan.*.baris_berulang.kolom' => ['array', 'max:'.self::BATAS_KOLOM],
+            'definisi.medan.*.baris_berulang.kolom.*.w' => ['required', 'numeric', 'min:1', 'max:2000'],
         ], [
-            'medan.*.tipe.in' => 'Tipe medan ":attribute" tidak dikenal.',
-            'medan.*.halaman.max' => 'Medan menunjuk halaman :input, padahal berkas hanya punya :max halaman.',
-            'medan.*.gaya.warna.regex' => 'Warna medan harus berupa hex enam digit, contoh #1a2b3c.',
-            'medan.*.gaya.font.in' => 'Font ":input" tidak tersedia untuk pencetakan PDF.',
+            'definisi.medan.*.tipe.in' => 'Tipe medan ":attribute" tidak dikenal.',
+            'definisi.medan.*.halaman.max' => 'Medan menunjuk halaman :input, padahal berkas hanya punya :max halaman.',
+            'definisi.medan.*.gaya.warna.regex' => 'Warna medan harus berupa hex enam digit, contoh #1a2b3c.',
+            'definisi.medan.*.gaya.font.in' => 'Font ":input" tidak tersedia untuk pencetakan PDF.',
         ]);
 
         $validator->validate();
@@ -228,13 +230,13 @@ class DefinisiMedan
 
             if (empty($baris['sumber']) || ! KatalogNilai::dikenal((string) $baris['sumber'])) {
                 throw ValidationException::withMessages([
-                    "medan.{$i}.baris_berulang.sumber" => 'Pilih koleksi baris yang dikenal untuk medan baris berulang.',
+                    "definisi.medan.{$i}.baris_berulang.sOURCE" => 'Pilih koleksi baris yang dikenal untuk medan baris berulang.',
                 ]);
             }
 
             if (($baris['kolom'] ?? []) === []) {
                 throw ValidationException::withMessages([
-                    "medan.{$i}.baris_berulang.kolom" => 'Medan baris berulang minimal punya satu kolom.',
+                    "definisi.medan.{$i}.baris_berulang.kolom" => 'Medan baris berulang minimal punya satu kolom.',
                 ]);
             }
         }

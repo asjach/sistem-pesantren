@@ -56,20 +56,21 @@ class TemplateDokumenTest extends TestCase
         $mts = $this->template(['jenjang' => 'MTS']);
         $this->template(['jenjang' => 'MA']);
 
-        $terlihat = TemplateDokumen::tersedia('MTS')->pluck('id')->all();
+        $terlihat = TemplateDokumen::tersedia(['MTS'])->pluck('id')->all();
 
         $this->assertEqualsCanonicalizing([$global->id, $mts->id], $terlihat);
         $this->assertCount(2, $terlihat);
     }
 
-    public function test_daftar_template_tanpa_lembaga_aktif_hanya_menampilkan_global(): void
+    public function test_daftar_template_tanpa_lembaga_boleh_diakses_hanya_menampilkan_global(): void
     {
         $this->fixture();
 
         $global = $this->template(['jenjang' => null]);
         $this->template(['jenjang' => 'MTS']);
 
-        $this->assertSame([$global->id], TemplateDokumen::tersedia(null)->pluck('id')->all());
+        // Daftar kosong berarti hanya global, bukan "tampilkan semua".
+        $this->assertSame([$global->id], TemplateDokumen::tersedia([])->pluck('id')->all());
     }
 
     public function test_ukuran_halaman_membulatkan_pelaratan_dari_fpdi(): void

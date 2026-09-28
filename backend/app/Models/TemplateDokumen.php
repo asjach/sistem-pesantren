@@ -29,14 +29,20 @@ class TemplateDokumen extends Model
         'aktif' => 'boolean',
     ];
 
-    /** Daftar seluruh template yang boleh dilihat pengguna: global lebih dulu, lalu milik lembaga aktif. */
-    public function scopeTersedia(Builder $query, ?string $jenjang): Builder
+    /**
+     * Template yang boleh dilihat: yang global (jenjang null) plus yang milik
+     * lembaga pada daftar $jenjang. Daftar kosong berarti hanya global, bukan
+     * "tampilkan semua" — itu yang membuat filter tenant tetap rapat.
+     *
+     * @param  list<string>  $jenjang
+     */
+    public function scopeTersedia(Builder $query, array $jenjang): Builder
     {
         return $query->where(function (Builder $dalam) use ($jenjang) {
             $dalam->whereNull('jenjang');
 
-            if ($jenjang !== null && $jenjang !== '') {
-                $dalam->orWhere('jenjang', $jenjang);
+            if ($jenjang !== []) {
+                $dalam->orWhereIn('jenjang', $jenjang);
             }
         });
     }
