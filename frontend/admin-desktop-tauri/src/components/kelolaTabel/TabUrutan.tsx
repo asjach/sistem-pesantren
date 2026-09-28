@@ -153,7 +153,7 @@ export default function TabUrutan({ tableKey, onTutup }: { tableKey: string; onT
   }
 
   return (
-    <div className="flex min-h-0 flex-col gap-3">
+    <div className="flex h-full min-h-0 flex-col gap-3">
       <div className="flex max-h-[50vh] min-h-0 flex-col gap-2 overflow-y-auto pr-1">
         {draft.length === 0 ? (
           <p className="py-4 text-center text-xs text-muted-foreground">

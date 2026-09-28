@@ -2,6 +2,7 @@ import { api, apiUpload, downloadFile } from './client';
 import type { DataExistingPayload } from '@/lib/excelDataExisting';
 import { appendQueryParam, type ScalarOrArray } from './query';
 import type { Paginate } from './master';
+import { PER_PAGE_DEFAULT } from '@/prefs';
 import type { PotongHasil } from '@/components/ImportBertahapUmumDialog';
 
 // ---------- Buku Induk Guru ----------
@@ -10,6 +11,7 @@ export interface Pegawai {
   id: number;
   user_id: number | null;
   nip: string | null;
+  nipp: string | null;
   nik: string | null;
   nama_lengkap: string;
   gelar_depan: string | null;
@@ -49,6 +51,46 @@ export interface Pegawai {
   alamat: string | null;
   penempatan?: LembagaPegawai[];
   akun?: { id: number; name: string; email: string | null } | null;
+}
+
+export interface AkunPegawai {
+  id: number;
+  user_id: number;
+  nama_lengkap: string;
+  nipp: string | null;
+  email_pribadi: string | null;
+  no_hp: string | null;
+  status_aktif: string;
+  akun: {
+    id: number;
+    name: string;
+    email: string | null;
+    phone: string | null;
+    username: string | null;
+    roles: { id: number; name: string }[];
+    lembagas: { jenjang: string; nama: string; pivot?: { role: string | null } }[];
+  } | null;
+}
+
+export function listAkunPegawai(params: {
+  q?: string;
+  jenjang?: ScalarOrArray<string> | null;
+  status_aktif?: string;
+  sort?: string[];
+  arah?: 'naik' | 'turun';
+  page?: number;
+  per_page?: number;
+  signal?: AbortSignal;
+} = {}) {
+  const q = new URLSearchParams();
+  if (params.q) q.set('q', params.q);
+  appendQueryParam(q, 'jenjang', params.jenjang);
+  if (params.status_aktif) q.set('status_aktif', params.status_aktif);
+  if (params.sort?.length) q.set('sort', params.sort.join(','));
+  if (params.arah) q.set('arah', params.arah);
+  q.set('page', String(params.page ?? 1));
+  q.set('per_page', String(params.per_page ?? PER_PAGE_DEFAULT));
+  return api<Paginate<AkunPegawai>>(`/admin/pegawai-akun?${q.toString()}`, { signal: params.signal });
 }
 
 export function listPegawai(params: {
@@ -96,7 +138,8 @@ export function tautkanAkunPegawai(id: number, userId: number | null) {
 export interface AkunGuruBaru {
   pegawai: Pegawai;
   user_id: number;
-  email: string;
+  email: string | null;
+  telepon: string | null;
   sandi_bawaan: string;
   catatan: string[];
 }
@@ -105,13 +148,27 @@ export function buatkanAkunPegawai(id: number) {
   return api<{ pesan: string; data: AkunGuruBaru }>(`/admin/pegawai/${id}/buatkan-akun`, { method: 'POST' });
 }
 
+export interface HasilGenerateAkun {
+  dibuat: number;
+  diperbarui: number;
+  dilewati: number;
+  gagal: { pegawai_id: number; nama: string; alasan: string }[];
+}
+
+export function generateAkunPegawai(params: { q?: string; status_aktif?: string } = {}) {
+  const q = new URLSearchParams();
+  if (params.q) q.set('q', params.q);
+  if (params.status_aktif) q.set('status_aktif', params.status_aktif);
+  const suffix = q.toString() === '' ? '' : `?${q.toString()}`;
+  return api<{ pesan: string; data: HasilGenerateAkun }>(`/admin/pegawai/generate-akun${suffix}`, { method: 'POST' });
+}
+
 // ---------- Penempatan (lembaga_pegawai) ----------
 
 export interface LembagaPegawai {
   id: number;
   pegawai_id: number;
   jenjang: string;
-  nipp: string | null;
   tugas_utama: string;
   is_active_lembaga: string;
   tgl_masuk: string | null;
@@ -163,6 +220,10 @@ export function nonaktifkanPenempatan(id: number, tglSelesai?: string) {
     method: 'POST',
     body: JSON.stringify(tglSelesai ? { tgl_selesai: tglSelesai } : {}),
   });
+}
+
+export function hapusPenempatanPegawai(id: number) {
+  return api<{ pesan: string }>(`/admin/pegawai-lembaga/${id}`, { method: 'DELETE' });
 }
 
 export function aktifkanPenempatan(id: number) {
@@ -228,7 +289,7 @@ export function nonaktifkanKeaktifan(id: number) {
 // ---------- Import Buku Induk ----------
 
 export const KOLOM_IMPORT_PEGAWAI = [
-  'pegawai_id', 'nama_lengkap', 'nip', 'nik', 'jenis_kelamin',
+  'pegawai_id', 'nama_lengkap', 'nip', 'nipp', 'nik', 'jenis_kelamin',
   'gelar_depan', 'gelar_belakang', 'tempat_lahir', 'tanggal_lahir',
   'no_hp', 'email_pribadi', 'email_gws', 'status_aktif',
   'tgl_mulai_kerja', 'no_sk_awal', 'tgl_sk_awal', 'pendidikan_terakhir', 'jenis_ptk',

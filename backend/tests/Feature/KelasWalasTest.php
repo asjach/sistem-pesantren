@@ -56,7 +56,7 @@ class KelasWalasTest extends TestCase
         return compact('mi', 'mts', 'ta', 'super', 'kelas');
     }
 
-    protected function makePegawai(string $nama, ?string $nip = null, string $status = 'aktif'): Pegawai
+    protected function makePegawai(string $nama, ?string $nip = null, string $status = 'Ya'): Pegawai
     {
         return Pegawai::create([
             'nama_lengkap' => $nama, 'jenis_kelamin' => 'L',
@@ -110,7 +110,7 @@ class KelasWalasTest extends TestCase
     public function test_02_tiga_lapis_ditolak(): void
     {
         $f = $this->baseFixture();
-        $cuti = $this->makePegawai('Guru Cuti', 'NIP002', 'cuti');
+        $cuti = $this->makePegawai('Guru Cuti', 'NIP002', 'Tidak');
         $this->tugaskan($cuti, $f['mi']->jenjang, $f['ta']->nama);
         $tanpaTugas = $this->makePegawai('Guru Tanpa Tugas', 'NIP003');
         $bedaLembaga = $this->makePegawai('Guru MTS', 'NIP004');

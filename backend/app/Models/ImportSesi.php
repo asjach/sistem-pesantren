@@ -35,6 +35,8 @@ class ImportSesi extends Model
             'dibuat' => $this->dibuat,
             'diperbarui' => $this->diperbarui,
             'riwayat_dibuat' => (int) ($this->riwayat_dibuat ?? 0),
+            'akun_dibuat' => (int) ($this->akun_dibuat ?? 0),
+            'akun_dilewati' => (int) ($this->akun_dilewati ?? 0),
         ];
     }
 }

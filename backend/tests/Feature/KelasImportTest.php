@@ -233,7 +233,7 @@ class KelasImportTest extends TestCase
             'pegawai_id' => $guru->id, 'jenjang' => $f['mi']->jenjang,
             'tahun_ajaran' => $f['ta']->nama, 'status_keaktifan' => 'aktif',
         ]);
-        $cuti = Pegawai::create(['nama_lengkap' => 'Guru Cuti', 'jenis_kelamin' => 'L', 'nip' => 'NIP102', 'status_aktif' => 'cuti']);
+        $cuti = Pegawai::create(['nama_lengkap' => 'Guru Cuti', 'jenis_kelamin' => 'L', 'nip' => 'NIP102', 'status_aktif' => 'Tidak']);
         LembagaPegawai::create(['pegawai_id' => $cuti->id, 'jenjang' => $f['mi']->jenjang]);
         KeaktifanPegawai::create([
             'pegawai_id' => $cuti->id, 'jenjang' => $f['mi']->jenjang,

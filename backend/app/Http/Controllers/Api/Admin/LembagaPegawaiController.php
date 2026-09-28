@@ -9,6 +9,7 @@ use App\Http\Requests\Admin\LembagaPegawaiStoreRequest;
 use App\Http\Requests\Admin\LembagaPegawaiUpdateRequest;
 use App\Models\LembagaPegawai;
 use App\Models\Pegawai;
+use App\Services\AkunPegawaiService;
 use App\Services\PegawaiService;
 use App\Services\UrutKatalog;
 use Illuminate\Http\JsonResponse;
@@ -16,7 +17,7 @@ use Illuminate\Http\Request;
 
 /**
  * Penempatan pegawai per lembaga (`lembaga_pegawai`) — pivot kaya:
- * NIPP unik per lembaga, tugas, status, rentang tanggal.
+ * tugas, status, rentang tanggal. NIPP tinggal di `pegawai` (unik global).
  * 1 baris per (pegawai, lembaga); masuk-lagi = aktifkan ulang.
  */
 class LembagaPegawaiController extends Controller
@@ -25,7 +26,7 @@ class LembagaPegawaiController extends Controller
     use UrutDaftar;
 
     private const SORT_NULLABLE = [
-        'lembaga_pegawai.nipp', 'lembaga_pegawai.tgl_masuk', 'lembaga_pegawai.tgl_selesai',
+        'lembaga_pegawai.tgl_masuk', 'lembaga_pegawai.tgl_selesai',
         'lembaga_pegawai.tgl_sk_awal_ptk',
     ];
 
@@ -35,7 +36,7 @@ class LembagaPegawaiController extends Controller
         $urut = $this->parseUrut($request, UrutKatalog::peta('pegawai_lembaga'));
 
         $query = $this->scopeLembaga(
-            LembagaPegawai::with(['pegawai:id,nama_lengkap,nip,jenis_kelamin,status_aktif', 'lembaga:jenjang,nama']),
+            LembagaPegawai::with(['pegawai:id,nama_lengkap,nip,nipp,jenis_kelamin,status_aktif', 'lembaga:jenjang,nama']),
             $request->user(),
             $request,
             'lembaga_pegawai.jenjang'
@@ -49,8 +50,8 @@ class LembagaPegawaiController extends Controller
             $query->where(fn ($sub) => $sub
                 ->whereHas('pegawai', fn ($p) => $p
                     ->where('nama_lengkap', 'like', "%{$q}%")
-                    ->orWhere('nip', 'like', "%{$q}%"))
-                ->orWhere('lembaga_pegawai.nipp', 'like', "%{$q}%")
+                    ->orWhere('nip', 'like', "%{$q}%")
+                    ->orWhere('nipp', 'like', "%{$q}%"))
                 ->orWhere('lembaga_pegawai.no_sk_awal_ptk', 'like', "%{$q}%"));
         }
 
@@ -74,17 +75,20 @@ class LembagaPegawaiController extends Controller
     }
 
     /** POST /api/admin/pegawai/{pegawai}/tempatkan — buat/aktifkan penempatan (aksi →). */
-    public function tempatkan(LembagaPegawaiStoreRequest $request, Pegawai $pegawai, PegawaiService $layanan): JsonResponse
+    public function tempatkan(LembagaPegawaiStoreRequest $request, Pegawai $pegawai, PegawaiService $layanan, AkunPegawaiService $akun): JsonResponse
     {
         $data = $request->validated();
         $this->authorizeLembaga($request->user(), $data['jenjang']);
 
+        // Taut otomatis dulu (bila email dipakai akun yang memenuhi syarat)
+        // agar penempatan di bawah sekaligus menulis relasi user_lembaga.
+        $akun->cobaTautkan($pegawai, $request->user());
         $row = $layanan->pastikanPenempatan($pegawai, $data['jenjang'], $data);
 
         return response()->json(['pesan' => 'Pegawai ditempatkan di lembaga.', 'data' => $row], 201);
     }
 
-    /** PATCH /api/admin/pegawai-lembaga/{penempatan} — NIPP/tugas/tanggal. */
+    /** PATCH /api/admin/pegawai-lembaga/{penempatan} — tugas/tanggal/SK PTK. */
     public function update(LembagaPegawaiUpdateRequest $request, LembagaPegawai $penempatan, PegawaiService $layanan): JsonResponse
     {
         $this->authorizeLembaga($request->user(), $penempatan->jenjang);
@@ -98,7 +102,7 @@ class LembagaPegawaiController extends Controller
         return response()->json(['pesan' => 'Penempatan diperbarui.', 'data' => $row->fresh()]);
     }
 
-    /** POST /api/admin/pegawai-lembaga/{penempatan}/nonaktifkan — X (tutup + bekukan keaktifan berjalan). */
+    /** POST /api/admin/pegawai-lembaga/{penempatan}/nonaktifkan — tutup + bekukan keaktifan berjalan. */
     public function nonaktifkan(Request $request, LembagaPegawai $penempatan, PegawaiService $layanan): JsonResponse
     {
         $this->authorizeLembaga($request->user(), $penempatan->jenjang);
@@ -119,5 +123,15 @@ class LembagaPegawaiController extends Controller
             'pesan' => 'Penempatan diaktifkan.',
             'data' => $layanan->aktifkanPenempatan($penempatan),
         ]);
+    }
+
+    /** DELETE /api/admin/pegawai-lembaga/{penempatan} — hapus permanen + keaktifan terkait + akses akun. */
+    public function destroy(Request $request, LembagaPegawai $penempatan, PegawaiService $layanan): JsonResponse
+    {
+        $this->authorizeLembaga($request->user(), $penempatan->jenjang);
+
+        $layanan->hapusPenempatan($penempatan);
+
+        return response()->json(['pesan' => 'Penempatan dihapus.']);
     }
 }

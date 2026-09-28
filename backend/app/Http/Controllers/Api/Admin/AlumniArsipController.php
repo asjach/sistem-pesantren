@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\Concerns\UrutDaftar;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\AlumniImportRequest;
 use App\Http\Requests\Admin\AlumniPotongRequest;
+use App\Http\Requests\Admin\AlumniUpdateRequest;
 use App\Imports\AlumniImport;
 use App\Models\Alumni;
 use App\Models\ImportSesi;
@@ -77,6 +78,18 @@ class AlumniArsipController extends Controller
     public function templateImport()
     {
         return Excel::download(new AlumniTemplateExport, 'template-import-alumni.xlsx');
+    }
+
+    /**
+     * PUT /api/admin/alumni/{alumni} — koreksi field arsip alumni
+     * (tabel Alumni halaman Kelulusan, mode Edit). Kunci santri/lembaga/
+     * tahun tidak ikut divalidasi sehingga tak bisa diubah dari sini.
+     */
+    public function update(AlumniUpdateRequest $request, Alumni $alumni): JsonResponse
+    {
+        $alumni->update($request->validated());
+
+        return response()->json(['pesan' => 'Arsip alumni diperbarui.', 'data' => $alumni->fresh()]);
     }
 
     /**

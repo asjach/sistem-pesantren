@@ -142,6 +142,8 @@ class AlumniImportTest extends TestCase
             'tahun_ajaran_lulus' => '2026/2027',
             'no_peserta' => 'PPTK-2027-0001',
             'skhun' => 'SKHUN-2027-0001',
+            // Import tanpa kolom penyerahan → default "Sudah".
+            'penyerahan_ijazah' => 'sudah',
         ]);
         $this->assertSame('Tidak', RiwayatBelajar::where('santri_id', $santri->id)->value('is_active_riwayat'));
     }

@@ -106,7 +106,7 @@ export function ProfilSantriDialog({ santriId, open, onOpenChange }: {
           ],
           rows: profil.alumni.map((a) => ({
             lembaga: namaLembaga(a.lembaga_lulus) ?? '',
-            ta: a.tahunAjaranLulus?.nama ?? '',
+            ta: namaTahunAjaran(a.tahun_ajaran_lulus) ?? '',
             ijazah: a.nomor_ijazah ?? '',
             no_peserta: a.no_peserta ?? '',
             skhun: a.skhun ?? '',

@@ -13,7 +13,7 @@ class Pegawai extends Model
 
     protected $guarded = ['id'];
 
-    public const AKTIF = 'aktif';
+    public const AKTIF = 'Ya';
 
     protected $casts = [
         'tanggal_lahir' => 'date:Y-m-d',

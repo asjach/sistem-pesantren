@@ -8,7 +8,7 @@ export const MIN_COL_W = 50;
 export const AUTOFIT_MAX_W = 480;
 
 /** Ruang napas agar teks tidak menempel garis kolom saat AutoFit. */
-export const AUTOFIT_BUFFER = 16;
+export const AUTOFIT_BUFFER = 8;
 
 /** Lebar kolom Aksi saat belum terukur (3 tombol ikon + padding + napas). */
 export const ACTIONS_DEFAULT_W = 124;

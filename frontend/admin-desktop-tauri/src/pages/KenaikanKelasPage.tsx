@@ -12,8 +12,6 @@ import { Check, X } from '@/icons';
 import { targetTunggal, useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { TopBarSearch } from '@/components/TopBarSearch';
-import Pager from '@/components/Pager';
-import { usePager } from '@/hooks/usePager';
 import { ResizableAutoHidePanel, ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { toast } from 'sonner';
@@ -90,8 +88,6 @@ export default function KenaikanKelasPage() {
   const [kiri, setKiri] = useState<RiwayatRow[]>([]);
   const [hasilNaik, setHasilNaik] = useState<Baris[]>([]);
   const [hasilTidak, setHasilTidak] = useState<Baris[]>([]);
-  const [jumlah, setJumlah] = useState({ kiri: 0, naik: 0, tidak: 0 });
-  const [halamanTerakhir, setHalamanTerakhir] = useState({ kiri: 1, naik: 1, tidak: 1 });
   /** Baris tercentang pada tabel kandidat (untuk tombol naik/tidak naik). */
   const [tercentangKiri, setTercentangKiri] = useState<RiwayatRow[]>([]);
   /** Baris tercentang pada tabel hasil (untuk tombol Batalkan di header). */
@@ -99,16 +95,11 @@ export default function KenaikanKelasPage() {
   const [tercentangTidak, setTercentangTidak] = useState<Baris[]>([]);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
-  const pagerKiri = usePager('kenaikan_kandidat');
-  const pagerNaik = usePager('kenaikan_naik');
-  const pagerTidak = usePager('kenaikan_tidak_naik');
 
   /** Kandidat: semester 2 pada TA acuan, hanya baris berstatus akhir aktif. */
-  const loadKiri = useCallback(async (p = pagerKiri.page, pp = pagerKiri.perPage) => {
+  const loadKiri = useCallback(async () => {
     if (!siap || targetJenjang === null || tingkatKandidat.length === 0) {
       setKiri([]);
-      setJumlah((j) => ({ ...j, kiri: 0 }));
-      setHalamanTerakhir((h) => ({ ...h, kiri: 1 }));
       return;
     }
     setErr('');
@@ -120,14 +111,12 @@ export default function KenaikanKelasPage() {
         tingkat: tingkatKandidat,
         is_active_riwayat: true,
         q: cari || undefined,
-        page: p,
-        per_page: pp,
+        page: 1,
+        per_page: 0,
       });
       setKiri(res.data);
-      setJumlah((j) => ({ ...j, kiri: res.total }));
-      setHalamanTerakhir((h) => ({ ...h, kiri: res.last_page }));
     } catch (e) { setErr(errorMessage(e)); }
-  }, [siap, targetJenjang, tingkatKandidat, jenjangs, taDasar, cari, pagerKiri.page, pagerKiri.perPage]);
+  }, [siap, targetJenjang, tingkatKandidat, jenjangs, taDasar, cari]);
 
   /** Petakan baris riwayat (kelas/tingkat/TA/status awal) ke tabel hasil. */
   const barisHasil = useCallback((r: RiwayatRow): Baris => ({
@@ -141,11 +130,9 @@ export default function KenaikanKelasPage() {
   }), []);
 
   /** Tabel naik: tahun ajaran berikutnya, status awal selain `santri_baru`. */
-  const loadNaik = useCallback(async (p = pagerNaik.page, pp = pagerNaik.perPage) => {
+  const loadNaik = useCallback(async () => {
     if (!siap) {
       setHasilNaik([]);
-      setJumlah((j) => ({ ...j, naik: 0 }));
-      setHalamanTerakhir((h) => ({ ...h, naik: 1 }));
       return;
     }
     try {
@@ -156,21 +143,17 @@ export default function KenaikanKelasPage() {
         status_awal_bukan: STATUS_AWAL_DIKSUKAI,
         is_active_riwayat: true,
         q: cari || undefined,
-        page: p,
-        per_page: pp,
+        page: 1,
+        per_page: 0,
       });
       setHasilNaik(res.data.map(barisHasil));
-      setJumlah((j) => ({ ...j, naik: res.total }));
-      setHalamanTerakhir((h) => ({ ...h, naik: res.last_page }));
     } catch (e) { setErr(errorMessage(e)); }
-  }, [siap, jenjangs, taTahunDepan, tingkatAktif, cari, barisHasil, pagerNaik.page, pagerNaik.perPage]);
+  }, [siap, jenjangs, taTahunDepan, tingkatAktif, cari, barisHasil]);
 
   /** Tabel tidak naik: tahun ajaran berikutnya, status awal `mengulang`. */
-  const loadTidak = useCallback(async (p = pagerTidak.page, pp = pagerTidak.perPage) => {
+  const loadTidak = useCallback(async () => {
     if (!siap) {
       setHasilTidak([]);
-      setJumlah((j) => ({ ...j, tidak: 0 }));
-      setHalamanTerakhir((h) => ({ ...h, tidak: 1 }));
       return;
     }
     try {
@@ -181,33 +164,24 @@ export default function KenaikanKelasPage() {
         status_awal: 'mengulang',
         is_active_riwayat: true,
         q: cari || undefined,
-        page: p,
-        per_page: pp,
+        page: 1,
+        per_page: 0,
       });
       setHasilTidak(res.data.map(barisHasil));
-      setJumlah((j) => ({ ...j, tidak: res.total }));
-      setHalamanTerakhir((h) => ({ ...h, tidak: res.last_page }));
     } catch (e) { setErr(errorMessage(e)); }
-  }, [siap, jenjangs, taTahunDepan, tingkatAktif, cari, barisHasil, pagerTidak.page, pagerTidak.perPage]);
+  }, [siap, jenjangs, taTahunDepan, tingkatAktif, cari, barisHasil]);
 
   useEffect(() => { void loadKiri(); }, [loadKiri]);
   useEffect(() => { void loadNaik(); }, [loadNaik]);
   useEffect(() => { void loadTidak(); }, [loadTidak]);
 
-  /** Muat ulang semua tabel dari halaman pertama (setelah proses/batal). */
+  /** Muat ulang semua tabel (setelah proses/batal). */
   const muatUlang = useCallback(async () => {
     setTercentangKiri([]);
     setTercentangNaik([]);
     setTercentangTidak([]);
-    pagerKiri.goFirst();
-    pagerNaik.goFirst();
-    pagerTidak.goFirst();
-    await Promise.all([
-      loadKiri(1, pagerKiri.perPage),
-      loadNaik(1, pagerNaik.perPage),
-      loadTidak(1, pagerTidak.perPage),
-    ]);
-  }, [pagerKiri, pagerNaik, pagerTidak, loadKiri, loadNaik, loadTidak]);
+    await Promise.all([loadKiri(), loadNaik(), loadTidak()]);
+  }, [loadKiri, loadNaik, loadTidak]);
 
   /** Proses baris tercentang: naik (tingkat+1) atau tidak naik (mengulang). */
   const prosesMassal = useCallback(async (
@@ -323,7 +297,7 @@ export default function KenaikanKelasPage() {
       <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1" id="grup_kenaikan_kolom">
         <ResizableAutoHidePanel id="panel_kenaikan_santri_genap" defaultSize="50%" minSize="25%">
         <section className="flex h-full min-h-0 min-w-0 flex-col">
-           <div className="flex min-h-0 flex-1 flex-col px-2 pb-0">
+           <div className="flex min-h-0 flex-1 flex-col">
             <ExcelTable
                tableKey="kenaikan_santri_genap"
                 header={<span>Santri semester 2 — {taDasar ?? '—'}</span>}
@@ -363,15 +337,7 @@ export default function KenaikanKelasPage() {
                 </div>
               ) : null)}
                hidePreset
-              emptyText="Tidak ada Santri semester 2 aktif pada tahun ajaran ini."
-            />
-            <Pager
-              page={pagerKiri.page}
-              lastPage={halamanTerakhir.kiri}
-              total={jumlah.kiri}
-              perPage={pagerKiri.perPage}
-              onPage={(p) => { pagerKiri.setPage(p); void loadKiri(p); }}
-              onPerPage={(pp) => { pagerKiri.setPerPage(pp); void loadKiri(1, pp); }}
+               emptyText="Tidak ada Santri semester 2 aktif pada tahun ajaran ini."
             />
           </div>
         </section>
@@ -388,20 +354,10 @@ export default function KenaikanKelasPage() {
             tombolHeader={tombolBatalkan('naik_kelas', tercentangNaik)}
             onCheckedChange={setTercentangNaik}
             onBatalkan={(b) => void batalkan([b])}
-            kaki={(
-              <Pager
-                page={pagerNaik.page}
-                lastPage={halamanTerakhir.naik}
-                total={jumlah.naik}
-                perPage={pagerNaik.perPage}
-                onPage={(p) => { pagerNaik.setPage(p); void loadNaik(p); }}
-                onPerPage={(pp) => { pagerNaik.setPerPage(pp); void loadNaik(1, pp); }}
-              />
-            )}
           />
           </ResizableAutoHidePanel>
           <ResizableHandle withHandle orientation="vertical" id="gagang_kenaikan_baris" />
-          <ResizableAutoHidePanel id="panel_kenaikan_tidak_naik_kelas" defaultSize="35%" minSize="15%" sembunyiOtomatis={jumlah.tidak === 0}>
+          <ResizableAutoHidePanel id="panel_kenaikan_tidak_naik_kelas" defaultSize="35%" minSize="15%" sembunyiOtomatis={hasilTidak.length === 0}>
           <PanelDaftar
             idPrefix="tidak_naik_kelas"
             judul={`Santri tidak naik — ${taTahunDepan ?? '—'}`}
@@ -409,16 +365,6 @@ export default function KenaikanKelasPage() {
             tombolHeader={tombolBatalkan('tidak_naik_kelas', tercentangTidak)}
             onCheckedChange={setTercentangTidak}
             onBatalkan={(b) => void batalkan([b])}
-            kaki={(
-              <Pager
-                page={pagerTidak.page}
-                lastPage={halamanTerakhir.tidak}
-                total={jumlah.tidak}
-                perPage={pagerTidak.perPage}
-                onPage={(p) => { pagerTidak.setPage(p); void loadTidak(p); }}
-                onPerPage={(pp) => { pagerTidak.setPerPage(pp); void loadTidak(1, pp); }}
-              />
-            )}
           />
           </ResizableAutoHidePanel>
         </ResizablePanelGroup>
@@ -437,7 +383,6 @@ function PanelDaftar({
   tombolHeader,
   onCheckedChange,
   onBatalkan,
-  kaki,
 }: {
   idPrefix: string;
   judul: string;
@@ -445,7 +390,6 @@ function PanelDaftar({
   tombolHeader?: ReactNode;
   onCheckedChange: (tercentang: Baris[]) => void;
   onBatalkan: (b: Baris) => void;
-  kaki?: ReactNode;
 }) {
   // Memoized: ExcelTable membersihkan seleksi tiap `rows` berubah identitas.
   const rows = useMemo(() => baris.map((b) => ({ ...b, id: b.santri_id })), [baris]);
@@ -482,7 +426,6 @@ function PanelDaftar({
            hidePreset
            emptyText="Belum ada."
         />
-        {kaki}
       </div>
     </section>
   );

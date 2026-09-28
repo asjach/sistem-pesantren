@@ -4,6 +4,7 @@ namespace App\Http\Requests\Admin;
 
 use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class AttachLembagaRequest extends FormRequest
 {
@@ -25,6 +26,7 @@ class AttachLembagaRequest extends FormRequest
     {
         return [
             'jenjang' => ['required', 'string', 'exists:lembaga,jenjang'],
+            'role' => ['nullable', 'string', Rule::in(User::PERAN_LEMBAGA)],
         ];
     }
 }

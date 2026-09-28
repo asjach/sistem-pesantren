@@ -19,6 +19,8 @@ export interface PotongRingkasan {
   baris_dilewati: number;
   dibuat: number;
   diperbarui: number;
+  akun_dibuat?: number;
+  akun_dilewati?: number;
 }
 
 export interface PotongGalat {
@@ -285,7 +287,7 @@ export default function ImportBertahapUmumDialog({ open, onOpenChange, config }:
               <p className="mt-1 text-xs text-muted-foreground">
                 {offset.toLocaleString('id-ID')} / {baris.length.toLocaleString('id-ID')} ({persen}%) ·{' '}
                 {ringkasan
-                  ? `${ringkasan.dibuat} dibuat · ${ringkasan.diperbarui} diperbarui · ${ringkasan.baris_dilewati} dilewati · ${ringkasan.baris_gagal} gagal`
+                  ? `${ringkasan.dibuat} dibuat · ${ringkasan.diperbarui} diperbarui · ${ringkasan.baris_dilewati} dilewati · ${ringkasan.baris_gagal} gagal${(ringkasan.akun_dibuat ?? 0) > 0 || (ringkasan.akun_dilewati ?? 0) > 0 ? ` · ${ringkasan.akun_dibuat ?? 0} akun dibuat` : ''}`
                   : '…'}
               </p>
             </div>

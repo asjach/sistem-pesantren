@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Models\LoginAudit;
 use App\Models\User;
+use App\Support\Telepon;
 use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
@@ -14,8 +15,14 @@ class AuthController extends Controller
     {
         $identifier = trim($request->input('identifier'));
 
+        // Identifier no. HP dinormalkan juga (spasi/strip/kode negara
+        // diabaikan) agar cocok dengan phone kanonik `62...`; banding mentah
+        // dipertahankan untuk data lama.
+        $telepon = Telepon::normalisasi($identifier);
+
         $user = User::where('email', $identifier)
             ->orWhere('phone', $identifier)
+            ->when($telepon !== null && $telepon !== $identifier, fn ($q) => $q->orWhere('phone', $telepon))
             ->orWhere('username', $identifier)
             ->first();
 
@@ -75,11 +82,13 @@ class AuthController extends Controller
     public function me()
     {
         $user = request()->user();
+        $jenjang = request()->input('jenjang');
 
         return response()->json(array_merge(
             $user->load(['roles', 'lembagas:jenjang,nama'])->toArray(),
             // Saat bertindak sebagai lembaga: izin efektif setara admin.
-            ['permissions' => $user->izinEfektif()],
+            // ?jenjang=MI: izin efektif (global + peran tercatat di MI).
+            ['permissions' => $user->izinEfektif(is_string($jenjang) && $jenjang !== '' ? $jenjang : null)],
         ));
     }
 }

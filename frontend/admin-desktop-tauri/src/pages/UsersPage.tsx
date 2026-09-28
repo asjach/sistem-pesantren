@@ -3,8 +3,10 @@ import { useAuth } from '../auth/AuthContext';
 import { useLembagaAktif } from '@/lembagaAktif';
 import { bisa } from '../api/auth';
 import {
+  attachLembaga,
   createUser,
   deleteUser,
+  detachLembaga,
   listUsers,
   updateUser,
   type AdminUser,
@@ -30,11 +32,22 @@ import {
 } from '@/components/ui/dialog';
 import Pager from '@/components/Pager';
 import { useDaftarTabel } from '@/hooks/useDaftarTabel';
-import { DeleteAction, EditAction, ViewAction } from '@/components/RowActions';
+import { ActionIcon, DeleteAction, EditAction, ViewAction } from '@/components/RowActions';
+import { Landmark } from '@/icons';
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { toast } from 'sonner';
 
 const ALL_ROLES = ['super_admin', 'admin', 'guru', 'orang_tua', 'santri'];
 const ADMIN_ROLES = ['guru', 'orang_tua', 'santri'];
+/** Peran yang boleh dicatat per lembaga (super_admin selalu global). */
+const PERAN_LEMBAGA_OPSI = ['admin', 'guru', 'orang_tua', 'santri'];
 // Khusus dialog Tambah pengguna: admin boleh membuat role `admin` (lembaga
 // dibatasi backend). Dialog Ubah role & filter tetap memakai ADMIN_ROLES.
 const ADMIN_CREATE_ROLES = ['admin', ...ADMIN_ROLES];
@@ -102,7 +115,7 @@ function userGridValues(u: AdminUser): Record<string, string | null> {
     phone: u.phone,
     username: u.username,
     peran: u.roles.map((r) => r.name).join(', '),
-    lembaga: (u.lembagas ?? []).map((l) => l.jenjang).join(', '),
+    lembaga: (u.lembagas ?? []).map((l) => (l.pivot?.role ? `${l.jenjang} (${l.pivot.role})` : l.jenjang)).join(', '),
   };
 }
 
@@ -167,6 +180,10 @@ export default function UsersPage() {
   const [tambahOpen, setTambahOpen] = useState(false);
   const [editRoles, setEditRoles] = useState<string[]>([]);
   const [editLembaga, setEditLembaga] = useState<string[]>([]);
+  /** Dialog peran per lembaga: baris pivot (jenjang + peran tercatat). */
+  const [peranRow, setPeranRow] = useState<AdminUser | null>(null);
+  const [tambahJenjang, setTambahJenjang] = useState('');
+  const [tambahPeran, setTambahPeran] = useState('admin');
 
   const isSelf = useCallback((id: number) => me?.id === id, [me]);
   const locked = useCallback(
@@ -174,6 +191,42 @@ export default function UsersPage() {
     [isSuper, isSelf],
   );
   const roleLocked = useCallback((u: AdminUser) => isSelf(u.id) || locked(u), [isSelf, locked]);
+  /** Opsi peran per lembaga sesuai kewenangan (irisan daftar pivot × assignable). */
+  const peranOpsi = useMemo(
+    () => PERAN_LEMBAGA_OPSI.filter((r) => assignable.includes(r)),
+    [assignable],
+  );
+
+  const openPeran = useCallback((u: AdminUser) => {
+    setPeranRow(u);
+    setTambahJenjang('');
+    setTambahPeran('admin');
+  }, []);
+
+  async function onTambahPeran() {
+    if (!peranRow || !tambahJenjang) return;
+    try {
+      const res = await attachLembaga(peranRow.id, tambahJenjang, tambahPeran);
+      toast.success(`Peran ${tambahPeran} di ${tambahJenjang} ditambahkan.`);
+      setTambahJenjang('');
+      setPeranRow(res.user);
+      await load();
+    } catch (e) {
+      setErr(errorMessage(e));
+    }
+  }
+
+  async function onLepasPeran(jenjang: string, role: string | null) {
+    if (!peranRow) return;
+    try {
+      const res = await detachLembaga(peranRow.id, jenjang, role);
+      toast.success(`Akses ${jenjang}${role ? ` (${role})` : ''} dilepas.`);
+      setPeranRow(res.user);
+      await load();
+    } catch (e) {
+      setErr(errorMessage(e));
+    }
+  }
 
   const getValues = useCallback(userGridValues, []);
 
@@ -276,6 +329,16 @@ export default function UsersPage() {
       {canUbah && !roleLocked(u) && (
         <EditAction id={`btn_ubah_user_${u.id}`} onClick={() => openEdit(u)} />
       )}
+      {canUbah && !locked(u) && (!isSelf(u.id) || isSuper) && peranOpsi.length > 0 && (
+        <ActionIcon
+          id={`btn_peran_lembaga_${u.id}`}
+          title="Atur peran per lembaga"
+          aria-label={`Atur peran per lembaga untuk ${u.name}`}
+          onClick={() => openPeran(u)}
+        >
+          <Landmark size={16} />
+        </ActionIcon>
+      )}
       {canHapus && !isSelf(u.id) && !locked(u) && (
         <DeleteAction
           id={`btn_hapus_user_${u.id}`}
@@ -285,7 +348,7 @@ export default function UsersPage() {
         />
       )}
     </>
-  ), [openEdit, onDelete, roleLocked, isSelf, locked, canUbah, canHapus]);
+  ), [openEdit, onDelete, roleLocked, isSelf, locked, canUbah, canHapus, isSuper, peranOpsi.length, openPeran]);
 
   return (
     <div className={PAGE_SHELL}>
@@ -395,6 +458,66 @@ export default function UsersPage() {
         onOpenChange={(o) => { if (!o) setViewRow(null); }}
         user={viewRow}
       />
+      <Dialog open={peranRow !== null} onOpenChange={(o) => { if (!o) setPeranRow(null); }}>
+        <DialogContent className="sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Peran per lembaga{peranRow ? `: ${peranRow.name}` : ''}</DialogTitle>
+            <DialogDescription>
+              Satu akun bisa memegang peran berbeda di tiap lembaga (mis. admin di MI, guru di MLN).
+              Baris tanpa peran = cakupan data warisan.
+            </DialogDescription>
+          </DialogHeader>
+          <ul className="max-h-56 space-y-1 overflow-auto text-sm">
+            {(peranRow?.lembagas ?? []).map((l) => (
+              <li
+                key={`${l.jenjang}-${l.pivot?.role ?? 'cakupan'}`}
+                className="flex items-center justify-between gap-2 rounded border px-3 py-1.5"
+              >
+                <span>{l.jenjang} — {l.nama} · <b>{l.pivot?.role ?? 'cakupan'}</b></span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  id={`btn_lepas_peran_${l.jenjang}_${l.pivot?.role ?? 'cakupan'}`}
+                  onClick={() => void onLepasPeran(l.jenjang, l.pivot?.role ?? null)}
+                >
+                  Lepas
+                </Button>
+              </li>
+            ))}
+            {(peranRow?.lembagas ?? []).length === 0 && (
+              <li className="text-sm text-muted-foreground">Belum ada akses lembaga.</li>
+            )}
+          </ul>
+          <div className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-3">
+            <FieldLabel htmlFor="select_tambah_jenjang">Lembaga</FieldLabel>
+            <Select value={tambahJenjang || '_pilih'} onValueChange={(v) => setTambahJenjang(v === '_pilih' ? '' : v)}>
+              <SelectTrigger id="select_tambah_jenjang"><SelectValue placeholder="Pilih lembaga" /></SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value="_pilih">Pilih lembaga</SelectItem>
+                  {lembagas.map((l) => <SelectItem key={l.jenjang} value={l.jenjang}>{l.jenjang} — {l.nama}</SelectItem>)}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+            <FieldLabel htmlFor="select_tambah_peran">Peran</FieldLabel>
+            <Select value={tambahPeran} onValueChange={setTambahPeran}>
+              <SelectTrigger id="select_tambah_peran"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {peranOpsi.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setPeranRow(null)}>Tutup</Button>
+            <Button id="btn_tambah_peran_lembaga" disabled={!tambahJenjang} onClick={() => void onTambahPeran()}>
+              Tambah
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <Dialog open={editRow !== null} onOpenChange={(o) => { if (!o) setEditRow(null); }}>
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>

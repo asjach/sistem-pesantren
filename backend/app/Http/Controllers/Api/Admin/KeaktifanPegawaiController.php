@@ -44,16 +44,13 @@ class KeaktifanPegawaiController extends Controller
             $query->where('keaktifan_pegawai.status_keaktifan', $request->input('status_keaktifan'));
         }
         $query->select('keaktifan_pegawai.*')
-            ->leftJoin('pegawai', 'pegawai.id', '=', 'keaktifan_pegawai.pegawai_id')
-            ->leftJoin('lembaga_pegawai', fn ($j) => $j
-                ->on('lembaga_pegawai.pegawai_id', '=', 'keaktifan_pegawai.pegawai_id')
-                ->on('lembaga_pegawai.jenjang', '=', 'keaktifan_pegawai.jenjang'));
+            ->leftJoin('pegawai', 'pegawai.id', '=', 'keaktifan_pegawai.pegawai_id');
         if ($request->filled('q')) {
             $q = trim((string) $request->input('q'));
             $query->where(fn ($sub) => $sub
                 ->where('pegawai.nama_lengkap', 'like', "%{$q}%")
                 ->orWhere('pegawai.nip', 'like', "%{$q}%")
-                ->orWhere('lembaga_pegawai.nipp', 'like', "%{$q}%")
+                ->orWhere('pegawai.nipp', 'like', "%{$q}%")
                 ->orWhere('keaktifan_pegawai.no_sk', 'like', "%{$q}%"));
         }
         $this->terapkanUrut($query, $urut, [

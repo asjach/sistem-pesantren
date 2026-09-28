@@ -7,6 +7,7 @@ import {
   createPegawai,
   dataPegawaiExisting,
   deletePegawai,
+  generateAkunPegawai,
   importPegawaiPotong,
   listPegawai,
   tautkanAkunPegawai,
@@ -15,6 +16,7 @@ import {
   updatePegawai,
   uploadFotoPegawai,
   type AkunGuruBaru,
+  type HasilGenerateAkun,
   type Pegawai,
 } from '../api/pegawai';
 import { Button } from '@/components/ui/button';
@@ -26,7 +28,6 @@ import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import FilterField from '@/components/FilterField';
 import Pager from '@/components/Pager';
 import { useDaftarTabel } from '@/hooks/useDaftarTabel';
-import { useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
@@ -41,6 +42,7 @@ import { toast } from 'sonner';
 const FIELDS: ExcelField[] = [
   { key: 'nama_lengkap', label: 'pegawai.nama_lengkap', width: 220, kind: 'text', maxLength: 255, required: true, sumber: { tabel: 'pegawai', kolom: 'nama_lengkap' } },
   { key: 'nip', label: 'pegawai.nip', width: 190, kind: 'text', maxLength: 50, sumber: { tabel: 'pegawai', kolom: 'nip' } },
+  { key: 'nipp', label: 'pegawai.nipp', width: 150, kind: 'text', maxLength: 30, sumber: { tabel: 'pegawai', kolom: 'nipp' } },
   { key: 'nik', label: 'pegawai.nik', width: 190, kind: 'text', maxLength: 20, sumber: { tabel: 'pegawai', kolom: 'nik' } },
   { key: 'jenis_kelamin', label: 'pegawai.jenis_kelamin', width: 90, kind: 'text', maxLength: 1, sumber: { tabel: 'pegawai', kolom: 'jenis_kelamin' } },
   { key: 'gelar_depan', label: 'pegawai.gelar_depan', width: 110, kind: 'text', maxLength: 50, sumber: { tabel: 'pegawai', kolom: 'gelar_depan' } },
@@ -84,6 +86,7 @@ function gridValues(p: Pegawai): Record<string, string | null> {
   return {
     nama_lengkap: p.nama_lengkap,
     nip: p.nip,
+    nipp: p.nipp,
     nik: p.nik,
     jenis_kelamin: p.jenis_kelamin,
     gelar_depan: p.gelar_depan,
@@ -140,18 +143,17 @@ export default function PegawaiPage() {
   const canUbah = bisa(user, 'pegawai.ubah');
   const canHapus = bisa(user, 'pegawai.hapus');
   const canBuatAkun = canUbah && bisa(user, 'pengguna.tambah');
-  const { jenjangs, tahunAjaranNames } = useFilterGlobalAktif();
   const [cari, setCari] = useState('');
   const [status, setStatus] = useState('');
 
+  // Buku Induk bersifat global: abaikan filter global jenjang/TA agar pegawai
+  // tanpa penempatan tetap tampil. Filter penempatan hanya di halaman terkait.
   const { rows, loading, err, setErr, urut, arahUrut, terapkanUrut, load, lastPage, total, pager, onSaved } =
     useDaftarTabel<Pegawai>({
       tableKey: 'pegawai',
       search: cari,
       ambil: (a) => listPegawai({
         q: a.search || undefined,
-        jenjang: jenjangs,
-        tahun_ajaran: tahunAjaranNames,
         status_aktif: status || undefined,
         sort: a.urut.length ? a.urut : undefined,
         arah: a.urut.length ? a.arah : undefined,
@@ -159,13 +161,14 @@ export default function PegawaiPage() {
         per_page: a.perPage,
         signal: a.signal,
       }),
-      deps: [jenjangs, tahunAjaranNames, status],
+      deps: [status],
     });
 
   const [tambahOpen, setTambahOpen] = useState(false);
   const [fNama, setFNama] = useState('');
   const [fJk, setFJk] = useState('L');
   const [fNip, setFNip] = useState('');
+  const [fNipp, setFNipp] = useState('');
   const [fNik, setFNik] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -175,6 +178,7 @@ export default function PegawaiPage() {
   const [fotoRow, setFotoRow] = useState<Pegawai | null>(null);
   const [fotoFile, setFotoFile] = useState<File | null>(null);
   const [akunBaru, setAkunBaru] = useState<AkunGuruBaru | null>(null);
+  const [hasilGenerate, setHasilGenerate] = useState<HasilGenerateAkun | null>(null);
 
   const onTambah = useCallback(async () => {
     if (!fNama.trim()) return;
@@ -184,12 +188,14 @@ export default function PegawaiPage() {
         nama_lengkap: fNama.trim(),
         jenis_kelamin: fJk,
         nip: fNip.trim() || null,
+        nipp: fNipp.trim() || null,
         nik: fNik.trim() || null,
       });
       toast.success('Pegawai ditambahkan.');
       setTambahOpen(false);
       setFNama('');
       setFNip('');
+      setFNipp('');
       setFNik('');
       pager.goFirst();
       await load(1);
@@ -198,7 +204,24 @@ export default function PegawaiPage() {
     } finally {
       setBusy(false);
     }
-  }, [fNama, fJk, fNip, fNik, pager, load]);
+  }, [fNama, fJk, fNip, fNipp, fNik, pager, load]);
+
+  const onGenerateAkun = useCallback(async () => {
+    setBusy(true);
+    try {
+      const res = await generateAkunPegawai({
+        ...(cari.trim() === '' ? {} : { q: cari.trim() }),
+        ...(status === '' ? {} : { status_aktif: status }),
+      });
+      toast.success(res.pesan);
+      setHasilGenerate(res.data);
+      await load(1);
+    } catch (e) {
+      toast.error(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  }, [cari, status, load]);
 
   const onHapus = useCallback(async (id: number) => {
     try {
@@ -229,10 +252,10 @@ export default function PegawaiPage() {
   const renderActions = useCallback((p: Pegawai) => (
     <>
       {canUbah && <EditAction id={`btn_akun_pegawai_${p.id}`} onClick={() => { setAkunRow(p); setAkunId(p.user_id ? String(p.user_id) : ''); }} />}
-      {canBuatAkun && !p.user_id && p.email_pribadi && (
+      {canBuatAkun && !p.user_id && (p.email_pribadi || p.no_hp) && (
         <ActionIcon
           id={`btn_buatkan_akun_pegawai_${p.id}`}
-          title="Buatkan akun guru dari email pribadi"
+          title="Buatkan akun guru dari email/no. HP"
           aria-label={`Buatkan akun guru untuk ${p.nama_lengkap}`}
           onClick={async () => {
             setBusy(true);
@@ -299,21 +322,31 @@ export default function PegawaiPage() {
               </SelectTrigger>
               <SelectContent><SelectGroup>
                 <SelectItem value="semua">Semua</SelectItem>
-                <SelectItem value="aktif">Aktif</SelectItem>
-                <SelectItem value="cuti">Cuti</SelectItem>
-                <SelectItem value="keluar">Keluar</SelectItem>
+                <SelectItem value="Ya">Ya</SelectItem>
+                <SelectItem value="Tidak">Tidak</SelectItem>
               </SelectGroup></SelectContent>
             </Select>
           </FilterField>
         )}
-        addButton={canTambah ? (
+        addButton={(canTambah || canBuatAkun) ? (
           <>
-            <Button id="btn_buka_import_pegawai" variant="outline" onClick={() => setFileOpen(true)}>
-              <FileUp data-icon="inline-start" size={16} /> Import
-            </Button>
-            <Button id="btn_buka_tambah_pegawai" onClick={() => setTambahOpen(true)}>
-              + Pegawai
-            </Button>
+            {canTambah && (
+              <Button id="btn_buka_import_pegawai" variant="outline" onClick={() => setFileOpen(true)}>
+                <FileUp data-icon="inline-start" size={16} /> Import
+              </Button>
+            )}
+            {canBuatAkun && (
+              <Button id="btn_generate_akun_pegawai" variant="outline" disabled={busy}
+                title="Buatkan/selaraskan akun guru untuk hasil filter saat ini (sandi bawaan dev)"
+                onClick={() => void onGenerateAkun()}>
+                <UserCheck data-icon="inline-start" size={16} /> Generate akun
+              </Button>
+            )}
+            {canTambah && (
+              <Button id="btn_buka_tambah_pegawai" onClick={() => setTambahOpen(true)}>
+                + Pegawai
+              </Button>
+            )}
           </>
         ) : undefined}
         renderActions={renderActions}
@@ -345,6 +378,8 @@ export default function PegawaiPage() {
             </Select>
             <FieldLabel htmlFor="input_nip_pegawai">NIP</FieldLabel>
             <Input id="input_nip_pegawai" value={fNip} onChange={(e) => setFNip(e.target.value)} maxLength={50} />
+            <FieldLabel htmlFor="input_nipp_pegawai">NIPP</FieldLabel>
+            <Input id="input_nipp_pegawai" value={fNipp} onChange={(e) => setFNipp(e.target.value)} maxLength={30} placeholder="ID dari sistem lama" />
             <FieldLabel htmlFor="input_nik_pegawai">NIK</FieldLabel>
             <Input id="input_nik_pegawai" value={fNik} onChange={(e) => setFNik(e.target.value)} maxLength={20} />
           </div>
@@ -404,7 +439,9 @@ export default function PegawaiPage() {
           </DialogHeader>
           <div className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-2">
             <FieldLabel htmlFor="info_akun_email">Email</FieldLabel>
-            <Input id="info_akun_email" readOnly value={akunBaru?.email ?? ''} />
+            <Input id="info_akun_email" readOnly value={akunBaru?.email ?? '—'} />
+            <FieldLabel htmlFor="info_akun_telepon">No. HP</FieldLabel>
+            <Input id="info_akun_telepon" readOnly value={akunBaru?.telepon ?? '—'} />
             <FieldLabel htmlFor="info_akun_sandi">Sandi bawaan</FieldLabel>
             <Input id="info_akun_sandi" readOnly value={akunBaru?.sandi_bawaan ?? ''} />
           </div>
@@ -419,13 +456,33 @@ export default function PegawaiPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <Dialog open={hasilGenerate !== null} onOpenChange={(o) => { if (!o) setHasilGenerate(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Hasil generate akun</DialogTitle>
+            <DialogDescription>
+              {hasilGenerate ? `${hasilGenerate.dibuat} dibuat · ${hasilGenerate.diperbarui} diperbarui · ${hasilGenerate.dilewati} dilewati. Sandi akun baru = sandi bawaan dev.` : ''}
+            </DialogDescription>
+          </DialogHeader>
+          {hasilGenerate && hasilGenerate.gagal.length > 0 && (
+            <ul className="max-h-60 space-y-1 overflow-auto text-sm">
+              {hasilGenerate.gagal.map((g) => (
+                <li key={g.pegawai_id}>{g.nama} — {g.alasan}</li>
+              ))}
+            </ul>
+          )}
+          <DialogFooter>
+            <Button id="btn_tutup_hasil_generate" onClick={() => setHasilGenerate(null)}>Tutup</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <ImportBertahapUmumDialog
         open={fileOpen}
         onOpenChange={setFileOpen}
         config={{
           idPrefix: 'pegawai',
           judul: 'Import pegawai bertahap',
-          deskripsi: 'Import Buku Induk Guru (identitas saja). Penempatan ke lembaga dilakukan di halaman Lembaga Pegawai.',
+          deskripsi: 'Import Buku Induk Guru. Baris ber-email valid otomatis dibuatkan akun guru (sandi bawaan dev). Penempatan ke lembaga dilakukan di halaman Lembaga Pegawai.',
           kolom: KOLOM_IMPORT_PEGAWAI,
           wajib: ['nama_lengkap', 'jenis_kelamin'],
           idTombol: {

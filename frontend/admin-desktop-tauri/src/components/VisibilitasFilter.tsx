@@ -192,7 +192,10 @@ export function PengaturanHalaman({
   const pageKey = pageKeyDariPath(pathname);
   const konfigurasi = konfigurasiFilterHalaman(pageKey);
   const kunci = JSON.stringify(tampil);
-  const kunciTabel = JSON.stringify(tabel.map((t) => t.key));
+  // Kunci registrasi mencakup susunan field: perubahan kolom tanpa ganti
+  // key tabel (mis. rename key field) wajib mendaftarkan ulang agar tab
+  // Kolom/Urutan di dialog Kelola Halaman selalu sinkron dengan halaman.
+  const kunciTabel = JSON.stringify(tabel.map((t) => `${t.key}:${(t.fields ?? []).map((f) => f.key).join(',')}`));
   const tabelRef = useRef(tabel);
   tabelRef.current = tabel;
 

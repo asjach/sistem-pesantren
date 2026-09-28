@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Pegawai;
+use App\Models\User;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Validator;
 use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
@@ -10,16 +11,32 @@ use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 /**
  * Import identitas Buku Induk Guru per baris (`pegawai` saja; tanpa
  * penempatan — penempatan via halaman Lembaga Pegawai).
- * Kunci: `pegawai_id` eksak → `nip` eksak → buat baru (wajib nama + JK).
+ * Kunci: `pegawai_id` eksak → `nipp` eksak → buat baru (wajib nama + JK).
+ * `nip` hanya kolom data (unik), bukan kunci pencocokan.
  */
 class PegawaiImporService extends ImporPotongan
 {
     protected const KOLOM_TEKS = [
-        'nip', 'nik', 'no_kk', 'nisn', 'no_hp', 'rt', 'rw', 'kode_pos',
+        'nip', 'nipp', 'nik', 'no_kk', 'nisn', 'no_hp', 'rt', 'rw', 'kode_pos',
         'no_bpjs', 'npwp', 'niat_npa',
     ];
 
     protected const KOLOM_TANGGAL = ['tanggal_lahir', 'tgl_mulai_kerja', 'tgl_sk_awal'];
+
+    /** Akun yang mengimport (untuk provisioning akun otomatis); null = lewati akun. */
+    protected ?User $aktor = null;
+
+    /** Hasil provisioning akun per pemanggilan: dibuat vs dilewati. */
+    public int $akunDibuat = 0;
+
+    public int $akunDilewati = 0;
+
+    public function setAktor(User $aktor): static
+    {
+        $this->aktor = $aktor;
+
+        return $this;
+    }
 
     public static function rules(): array
     {
@@ -28,6 +45,7 @@ class PegawaiImporService extends ImporPotongan
             'nama_lengkap' => ['required_without:pegawai_id', 'nullable', 'string', 'max:255'],
             'jenis_kelamin' => ['required_without:pegawai_id', 'nullable', 'in:L,P'],
             'nip' => ['nullable', 'string', 'max:50'],
+            'nipp' => ['nullable', 'string', 'max:30'],
             'nik' => ['nullable', 'string', 'max:20'],
             'gelar_depan' => ['nullable', 'string', 'max:50'],
             'gelar_belakang' => ['nullable', 'string', 'max:50'],
@@ -36,7 +54,7 @@ class PegawaiImporService extends ImporPotongan
             'no_hp' => ['nullable', 'string', 'max:20'],
             'email_pribadi' => ['nullable', 'email', 'max:255'],
             'email_gws' => ['nullable', 'email', 'max:255'],
-            'status_aktif' => ['nullable', 'in:aktif,cuti,keluar'],
+            'status_aktif' => ['nullable', 'in:Ya,Tidak'],
             'tgl_mulai_kerja' => ['nullable', 'date'],
             'no_sk_awal' => ['nullable', 'string', 'max:100'],
             'tgl_sk_awal' => ['nullable', 'date'],
@@ -85,10 +103,10 @@ class PegawaiImporService extends ImporPotongan
     /** @param  array<string, mixed>  $baris */
     protected function prosesBaris(array $baris, int $no, bool $kering): void
     {
-        $nip = trim((string) ($baris['nip'] ?? ''));
-        $this->kunciAktif = $nip !== '' ? $nip : (trim((string) ($baris['nama_lengkap'] ?? '')) ?: null);
+        $nipp = trim((string) ($baris['nipp'] ?? ''));
+        $this->kunciAktif = $nipp !== '' ? $nipp : (trim((string) ($baris['nama_lengkap'] ?? '')) ?: null);
 
-        if (empty($baris['nama_lengkap']) && empty($baris['pegawai_id']) && empty($baris['nip']) && empty($baris['nik'])) {
+        if (empty($baris['nama_lengkap']) && empty($baris['pegawai_id']) && empty($baris['nipp']) && empty($baris['nik'])) {
             return;
         }
 
@@ -110,12 +128,12 @@ class PegawaiImporService extends ImporPotongan
 
                     return;
                 }
-            } elseif ($nip !== '') {
-                $pegawai = Pegawai::where('nip', $nip)->first();
+            } elseif ($nipp !== '') {
+                $pegawai = Pegawai::where('nipp', $nipp)->first();
             }
 
             $data = [];
-            foreach (['nama_lengkap', 'nip', 'nik', 'gelar_depan', 'gelar_belakang', 'jenis_kelamin',
+            foreach (['nama_lengkap', 'nip', 'nipp', 'nik', 'gelar_depan', 'gelar_belakang', 'jenis_kelamin',
                 'tempat_lahir', 'tanggal_lahir', 'no_hp', 'email_pribadi', 'email_gws',
                 'status_aktif', 'tgl_mulai_kerja', 'no_sk_awal', 'tgl_sk_awal', 'pendidikan_terakhir', 'jenis_ptk',
                 'status_pernikahan', 'agama', 'gol_darah',
@@ -132,6 +150,7 @@ class PegawaiImporService extends ImporPotongan
                     $pegawai->update($data);
                 }
                 $this->diperbarui++;
+                $this->sediakanAkun($pegawai->fresh() ?? $pegawai, $kering);
             } else {
                 if (! isset($data['nama_lengkap']) || ! isset($data['jenis_kelamin'])) {
                     $this->fail($no, 'nama_lengkap', 'Nama + JK wajib untuk pegawai baru.');
@@ -139,13 +158,41 @@ class PegawaiImporService extends ImporPotongan
                     return;
                 }
                 if (! $kering) {
-                    Pegawai::create($data);
+                    $pegawai = Pegawai::create($data);
+                    $this->sediakanAkun($pegawai, $kering);
+                } else {
+                    $this->sediakanAkun(new Pegawai($data), $kering);
                 }
                 $this->dibuat++;
             }
             $this->valid++;
         } catch (QueryException $e) {
-            $this->fail($no, 'basis_data', 'Gagal menyimpan baris ini (kemungkinan NIP/NIK ganda).');
+            $this->fail($no, 'basis_data', 'Gagal menyimpan baris ini (kemungkinan NIP/NIPP/NIK ganda).');
+        }
+    }
+
+    /**
+     * Provisioning akun guru otomatis bila data baris memenuhi syarat
+     * (email valid + belum dipakai). Kegagalan akun tak menggagalkan baris.
+     */
+    protected function sediakanAkun(Pegawai $pegawai, bool $kering): void
+    {
+        if ($this->aktor === null) {
+            return;
+        }
+
+        try {
+            $hasil = app(AkunPegawaiService::class)->sediakan($pegawai, $this->aktor, $kering);
+        } catch (QueryException $e) {
+            // Balapan unik di sisi akun: baris pegawai tetap sah, akun dilewati.
+            $this->akunDilewati++;
+
+            return;
+        }
+        if ($hasil['status'] === AkunPegawaiService::DILEWATI) {
+            $this->akunDilewati++;
+        } else {
+            $this->akunDibuat++;
         }
     }
 }

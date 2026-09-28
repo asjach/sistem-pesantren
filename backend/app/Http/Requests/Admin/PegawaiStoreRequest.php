@@ -16,6 +16,7 @@ class PegawaiStoreRequest extends FormRequest
         return [
             'nama_lengkap' => ['required', 'string', 'max:255'],
             'nip' => ['nullable', 'string', 'max:50'],
+            'nipp' => ['nullable', 'string', 'max:30'],
             'nik' => ['nullable', 'string', 'max:20'],
             'gelar_depan' => ['nullable', 'string', 'max:50'],
             'gelar_belakang' => ['nullable', 'string', 'max:50'],
@@ -50,7 +51,7 @@ class PegawaiStoreRequest extends FormRequest
             'tgl_mulai_kerja' => ['nullable', 'date'],
             'no_sk_awal' => ['nullable', 'string', 'max:100'],
             'tgl_sk_awal' => ['nullable', 'date'],
-            'status_aktif' => ['nullable', 'in:aktif,cuti,keluar'],
+            'status_aktif' => ['nullable', 'in:Ya,Tidak'],
             'user_id' => ['nullable', 'integer', 'exists:users,id'],
         ];
     }

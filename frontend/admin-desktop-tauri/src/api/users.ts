@@ -2,6 +2,13 @@ import { api } from './client';
 import { PER_PAGE_DEFAULT } from '@/prefs';
 import type { Role } from './auth';
 
+export interface LembagaAkses {
+  jenjang: string;
+  nama: string;
+  /** Peran tercatat di pivot (null = cakupan warisan tanpa peran). */
+  pivot?: { role: string | null };
+}
+
 export interface AdminUser {
   id: number;
   name: string;
@@ -9,7 +16,7 @@ export interface AdminUser {
   phone: string | null;
   username: string | null;
   roles: Role[];
-  lembagas?: { jenjang: string; nama: string }[];
+  lembagas?: LembagaAkses[];
 }
 
 export interface Paginate<T> {
@@ -60,17 +67,18 @@ export function updateUser(id: number, input: {
   return api<AdminUser>(`/admin/users/${id}`, { method: 'PUT', body: JSON.stringify(input) });
 }
 
-export function attachLembaga(userId: number, jenjang: string) {
-  return api(`/admin/users/${userId}/lembaga`, {
+export function attachLembaga(userId: number, jenjang: string, role?: string | null) {
+  return api<{ message: string; user: AdminUser }>(`/admin/users/${userId}/lembaga`, {
     method: 'POST',
-    body: JSON.stringify({ jenjang }),
+    body: JSON.stringify(role ? { jenjang, role } : { jenjang }),
   });
 }
 
-export function detachLembaga(userId: number, jenjang: string) {
-  return api(`/admin/users/${userId}/lembaga`, {
+export function detachLembaga(userId: number, jenjang: string, role?: string | null) {
+  return api<{ message: string; user: AdminUser }>(`/admin/users/${userId}/lembaga`, {
     method: 'DELETE',
-    body: JSON.stringify({ jenjang }),
+    // role undefined = lepas semua baris jenjang itu; null = hanya baris warisan.
+    body: JSON.stringify(role === undefined ? { jenjang } : { jenjang, role }),
   });
 }
 

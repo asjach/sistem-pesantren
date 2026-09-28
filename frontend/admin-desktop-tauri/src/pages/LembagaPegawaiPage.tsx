@@ -1,7 +1,8 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { errorMessage } from '../api/client';
 import {
   aktifkanPenempatan,
+  hapusPenempatanPegawai,
   listPegawai,
   listPenempatanPegawai,
   nonaktifkanPenempatan,
@@ -10,26 +11,20 @@ import {
   type LembagaPegawai,
   type Pegawai,
 } from '../api/pegawai';
-import { listLembaga, type Lembaga } from '../api/master';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { FieldLabel } from '@/components/ui/field';
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
-import Pager from '@/components/Pager';
 import { useDaftarTabel } from '@/hooks/useDaftarTabel';
-import { targetTunggal, useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
+import { useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { TopBarSearch } from '@/components/TopBarSearch';
-import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { ResizableAutoHidePanel, ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
-import { ActionIcon } from '@/components/RowActions';
-import { ArrowRight, X, RotateCcw } from '@/icons';
+import { ActionIcon, DeleteAction } from '@/components/RowActions';
+import { ArrowRight, Trash2 } from '@/icons';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Button } from '@/components/ui/button';
 import { useAuth } from '../auth/AuthContext';
 import { bisa } from '../api/auth';
 import { toast } from 'sonner';
-import { useEffect } from 'react';
 
 const FIELDS_KIRI: ExcelField[] = [
   { key: 'nama_lengkap', label: 'pegawai.nama_lengkap', width: 220, kind: 'static', sumber: { tabel: 'pegawai', kolom: 'nama_lengkap' } },
@@ -38,10 +33,10 @@ const FIELDS_KIRI: ExcelField[] = [
 
 const FIELDS_KANAN: ExcelField[] = [
   { key: 'nama', label: 'pegawai.nama_lengkap', width: 220, kind: 'static', sumber: { tabel: 'pegawai', kolom: 'nama_lengkap' } },
-  { key: 'nipp', label: 'NIPP', width: 130, kind: 'text', maxLength: 30, sumber: { tabel: 'lembaga_pegawai', kolom: 'nipp' } },
+  { key: 'nipp', label: 'pegawai.nipp', width: 130, kind: 'static', sumber: { tabel: 'pegawai', kolom: 'nipp' } },
   { key: 'lembaga', label: 'lembaga.jenjang', width: 100, kind: 'static', sumber: { tabel: 'lembaga', kolom: 'jenjang' } },
   { key: 'tugas', label: 'Tugas', width: 160, kind: 'text', maxLength: 100, sumber: { tabel: 'lembaga_pegawai', kolom: 'tugas_utama' } },
-  { key: 'aktif', label: 'Aktif', width: 90, kind: 'static', sumber: { tabel: 'lembaga_pegawai', kolom: 'is_active_lembaga' } },
+  { key: 'aktif', label: 'Aktif', width: 90, kind: 'toggle', sumber: { tabel: 'lembaga_pegawai', kolom: 'is_active_lembaga' } },
   { key: 'tgl_masuk', label: 'Tgl Masuk', width: 130, kind: 'text', maxLength: 10, sumber: { tabel: 'lembaga_pegawai', kolom: 'tgl_masuk' } },
   { key: 'no_sk_awal_ptk', label: 'No. SK Awal PTK', width: 180, kind: 'text', maxLength: 100, sumber: { tabel: 'lembaga_pegawai', kolom: 'no_sk_awal_ptk' } },
   { key: 'tgl_sk_awal_ptk', label: 'Tgl SK Awal PTK', width: 140, kind: 'text', maxLength: 10, sumber: { tabel: 'lembaga_pegawai', kolom: 'tgl_sk_awal_ptk' } },
@@ -54,10 +49,10 @@ function nilaiKiri(p: Pegawai): Record<string, string | null> {
 function nilaiKanan(r: LembagaPegawai): Record<string, string | null> {
   return {
     nama: r.pegawai?.nama_lengkap ?? '—',
-    nipp: r.nipp,
+    nipp: r.pegawai?.nipp ?? null,
     lembaga: r.lembaga?.jenjang ?? r.jenjang,
     tugas: r.tugas_utama,
-    aktif: r.is_active_lembaga,
+    aktif: r.is_active_lembaga === 'Ya' ? 'ya' : 'tidak',
     tgl_masuk: r.tgl_masuk,
     no_sk_awal_ptk: r.no_sk_awal_ptk,
     tgl_sk_awal_ptk: r.tgl_sk_awal_ptk,
@@ -68,10 +63,12 @@ function nilaiKanan(r: LembagaPegawai): Record<string, string | null> {
 export default function LembagaPegawaiPage() {
   const { user } = useAuth();
   const canUbah = bisa(user, 'pegawai.ubah');
+  const canHapus = bisa(user, 'pegawai.hapus');
   const { jenjangs } = useFilterGlobalAktif();
   const [cari, setCari] = useState('');
-  const [lembagas, setLembagas] = useState<Lembaga[]>([]);
 
+  // Halaman ini tanpa pagination: kedua tabel memuat seluruh baris sekaligus
+  // (per_page=0) dan mengisi seluruh ruang vertikal panel masing-masing.
   const kiri = useDaftarTabel<Pegawai>({
     tableKey: 'pegawai',
     search: cari,
@@ -79,8 +76,8 @@ export default function LembagaPegawaiPage() {
       q: a.search || undefined,
       sort: a.urut.length ? a.urut : undefined,
       arah: a.urut.length ? a.arah : undefined,
-      page: a.page,
-      per_page: a.perPage,
+      page: 1,
+      per_page: 0,
       signal: a.signal,
     }),
     deps: [],
@@ -94,48 +91,37 @@ export default function LembagaPegawaiPage() {
       q: a.search || undefined,
       sort: a.urut.length ? a.urut : undefined,
       arah: a.urut.length ? a.arah : undefined,
-      page: a.page,
-      per_page: a.perPage,
+      page: 1,
+      per_page: 0,
       signal: a.signal,
     }),
     deps: [jenjangs],
   });
 
-  const [tempatRow, setTempatRow] = useState<Pegawai | null>(null);
-  const [tLembaga, setTLembaga] = useState('');
-  const [tNipp, setTNipp] = useState('');
-  const [tTugas, setTTugas] = useState('Guru Pengampu');
-  const [tMasuk, setTMasuk] = useState('');
-  const [tNoSkPtk, setTNoSkPtk] = useState('');
-  const [tTglSkPtk, setTTglSkPtk] = useState('');
+  // Panel kiri = antrean penempatan: sembunyikan pegawai yang sudah masuk ke
+  // lembaga pada filter global. Tanpa filter lembaga, tampil semua (lembaga
+  // tujuan = toggle lembaga topbar) agar penempatan rangkap tetap bisa dilakukan.
+  const idSudahMasuk = useMemo(
+    () => new Set(kanan.rows.map((r) => r.pegawai_id)),
+    [kanan.rows],
+  );
+  const kiriTampil = useMemo(
+    () => (jenjangs.length > 0 ? kiri.rows.filter((p) => !idSudahMasuk.has(p.id)) : kiri.rows),
+    [kiri.rows, idSudahMasuk, jenjangs],
+  );
+  const kiriKosongSemuaMasuk = jenjangs.length > 0 && kiri.rows.length > 0 && kiriTampil.length === 0;
+
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
-    listLembaga({ per_page: 1000 }).then((p) => setLembagas(p.data)).catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    const tunggal = targetTunggal(jenjangs);
-    if (tunggal) setTLembaga(tunggal);
-  }, [jenjangs]);
-
-  const onTempatkan = useCallback(async () => {
-    if (!tempatRow || !tLembaga) return;
+  // Lempatkan langsung tanpa dialog: lembaga diambil dari toggle topbar.
+  const onTempatkan = useCallback(async (p: Pegawai) => {    if (jenjangs.length !== 1) {
+      toast.error('Pilih satu lembaga di topbar untuk menempatkan pegawai.');
+      return;
+    }
     setBusy(true);
     try {
-      await tempatkanPegawai(tempatRow.id, {
-        jenjang: tLembaga,
-        nipp: tNipp.trim() || null,
-        tugas_utama: tTugas.trim() || 'Guru Pengampu',
-        tgl_masuk: tMasuk || null,
-        no_sk_awal_ptk: tNoSkPtk.trim() || null,
-        tgl_sk_awal_ptk: tTglSkPtk || null,
-      });
-      toast.success('Pegawai ditempatkan.');
-      setTempatRow(null);
-      setTNipp('');
-      setTNoSkPtk('');
-      setTTglSkPtk('');
+      await tempatkanPegawai(p.id, { jenjang: jenjangs[0] });
+      toast.success(`${p.nama_lengkap} ditempatkan ke ${jenjangs[0]}.`);
       await kanan.load(1);
       await kiri.load();
     } catch (e) {
@@ -143,22 +129,12 @@ export default function LembagaPegawaiPage() {
     } finally {
       setBusy(false);
     }
-  }, [tempatRow, tLembaga, tNipp, tTugas, tMasuk, tNoSkPtk, tTglSkPtk, kanan, kiri]);
+  }, [jenjangs, kanan, kiri]);
 
-  const onNonaktif = useCallback(async (r: LembagaPegawai) => {
+  const onHapus = useCallback(async (r: LembagaPegawai) => {
     try {
-      await nonaktifkanPenempatan(r.id);
-      toast.success('Penempatan dinonaktifkan.');
-      await kanan.load();
-    } catch (e) {
-      toast.error(errorMessage(e));
-    }
-  }, [kanan]);
-
-  const onAktifkan = useCallback(async (r: LembagaPegawai) => {
-    try {
-      await aktifkanPenempatan(r.id);
-      toast.success('Penempatan diaktifkan.');
+      await hapusPenempatanPegawai(r.id);
+      toast.success('Penempatan dihapus.');
       await kanan.load();
     } catch (e) {
       toast.error(errorMessage(e));
@@ -166,8 +142,14 @@ export default function LembagaPegawaiPage() {
   }, [kanan]);
 
   async function commitKanan(id: number, f: Record<string, string | null>) {
+    // Toggle Aktif memakai endpoint khusus agar server yang menata tgl_selesai,
+    // keaktifan TA berjalan, dan akses akun tertaut (nonaktifkan/aktifkan).
+    if (f.aktif !== undefined) {
+      if (f.aktif === 'ya') await aktifkanPenempatan(id);
+      else await nonaktifkanPenempatan(id);
+      return;
+    }
     await updatePenempatanPegawai(id, {
-      ...(f.nipp !== undefined ? { nipp: f.nipp || null } : {}),
       ...(f.tugas !== undefined ? { tugas_utama: f.tugas || 'Guru Pengampu' } : {}),
       ...(f.tgl_masuk !== undefined ? { tgl_masuk: f.tgl_masuk || null } : {}),
       ...(f.no_sk_awal_ptk !== undefined ? { no_sk_awal_ptk: f.no_sk_awal_ptk || null } : {}),
@@ -180,40 +162,114 @@ export default function LembagaPegawaiPage() {
       {canUbah && (
         <ActionIcon
           id={`btn_tempatkan_pegawai_${p.id}`}
-          title="Tempatkan ke lembaga (→)"
+          title={`Tempatkan ke ${jenjangs.length === 1 ? jenjangs[0] : 'lembaga (pilih di topbar)'} (→)`}
           aria-label={`Tempatkan ${p.nama_lengkap} ke lembaga`}
-          onClick={() => setTempatRow(p)}
+          onClick={() => void onTempatkan(p)}
         >
           <ArrowRight size={16} />
         </ActionIcon>
       )}
     </>
-  ), [canUbah]);
+  ), [canUbah, onTempatkan, jenjangs]);
+
+  // Input bulk: tempatkan semua pegawai tercentang sekaligus ke lembaga topbar.
+  const renderBulkKiri = useCallback((tercentang: Pegawai[], clear: () => void) => {
+    if (!canUbah || jenjangs.length !== 1) return null;
+    return (
+      <Button
+        id="btn_bulk_tempatkan_pegawai_penempatan"
+        size="sm"
+        variant="default"
+        disabled={tercentang.length === 0 || busy}
+        onClick={async () => {
+          setBusy(true);
+          let sukses = 0;
+          const gagal: string[] = [];
+          for (const p of tercentang) {
+            try {
+              await tempatkanPegawai(p.id, { jenjang: jenjangs[0] });
+              sukses++;
+            } catch (e) {
+              gagal.push(p.nama_lengkap);
+            }
+          }
+          clear();
+          if (gagal.length === 0) {
+            toast.success(`${sukses} pegawai ditempatkan ke ${jenjangs[0]}.`);
+          } else {
+            toast.error(`${gagal.length} gagal: ${gagal.join(', ')}`);
+          }
+          await kanan.load(1);
+          await kiri.load();
+          setBusy(false);
+        }}
+      >
+        <ArrowRight size={14} />
+        Tempatkan ({tercentang.length})
+      </Button>
+    );
+  }, [canUbah, jenjangs, busy, kanan, kiri]);
 
   const renderKanan = useCallback((r: LembagaPegawai) => (
     <>
-      {canUbah && r.is_active_lembaga === 'Ya' && (
-        <ActionIcon
-          id={`btn_nonaktif_tempat_${r.id}`}
-          title="Nonaktifkan penempatan"
-          aria-label={`Nonaktifkan ${r.pegawai?.nama_lengkap}`}
-          onClick={() => void onNonaktif(r)}
-        >
-          <X size={16} />
-        </ActionIcon>
-      )}
-      {canUbah && r.is_active_lembaga !== 'Ya' && (
-        <ActionIcon
-          id={`btn_aktif_tempat_${r.id}`}
-          title="Aktifkan lagi"
-          aria-label={`Aktifkan ${r.pegawai?.nama_lengkap}`}
-          onClick={() => void onAktifkan(r)}
-        >
-          <RotateCcw size={16} />
-        </ActionIcon>
+      {canHapus && (
+        <DeleteAction
+          id={`btn_hapus_tempat_${r.id}`}
+          title="Hapus penempatan?"
+          description={`${r.pegawai?.nama_lengkap ?? 'Pegawai'} di ${r.lembaga?.jenjang ?? r.jenjang} akan dihapus permanen beserta riwayat keaktifannya.`}
+          onConfirm={() => onHapus(r)}
+        />
       )}
     </>
-  ), [canUbah, onNonaktif, onAktifkan]);
+  ), [canHapus, onHapus]);
+
+  // Bulk delete penempatan: baris tercentang dilaporkan via onCheckedChange,
+  // tombolnya hidup di hamburger aksi tabel kanan (setelah combobox Kolom).
+  const [tercentangKanan, setTercentangKanan] = useState<LembagaPegawai[]>([]);
+  const [bulkHapusOpen, setBulkHapusOpen] = useState(false);
+  const [bulkHapusProses, setBulkHapusProses] = useState(false);
+
+  const renderBulkHapusKanan = useCallback(() => {
+    if (!canHapus) return null;
+    return (
+      <Button
+        id="btn_bulk_hapus_tempat"
+        size="sm"
+        variant="destructive"
+        disabled={tercentangKanan.length === 0 || bulkHapusProses}
+        // Buka dialog async setelah menu hamburger tertutup: membuka AlertDialog
+        // sinkron dari onSelect dropdown membuat konflik fokus portal Radix
+        // (crash halaman blank).
+        onClick={() => { setTimeout(() => setBulkHapusOpen(true), 0); }}
+      >
+        <Trash2 size={14} />
+        Hapus ({tercentangKanan.length})
+      </Button>
+    );
+  }, [canHapus, tercentangKanan.length, bulkHapusProses]);
+
+  const jalankanBulkHapus = useCallback(async () => {
+    setBulkHapusProses(true);
+    let sukses = 0;
+    const gagal: string[] = [];
+    for (const r of tercentangKanan) {
+      try {
+        await hapusPenempatanPegawai(r.id);
+        sukses++;
+      } catch {
+        gagal.push(r.pegawai?.nama_lengkap ?? `#${r.id}`);
+      }
+    }
+    setBulkHapusOpen(false);
+    setTercentangKanan([]);
+    if (gagal.length === 0) {
+      toast.success(`${sukses} penempatan dihapus.`);
+    } else {
+      toast.error(`${gagal.length} gagal: ${gagal.join(', ')}`);
+    }
+    await kanan.load(1);
+    setBulkHapusProses(false);
+  }, [tercentangKanan, kanan]);
 
   return (
     <div className={PAGE_SHELL}>
@@ -224,29 +280,31 @@ export default function LembagaPegawaiPage() {
       ]} />
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari nama / NIP / NIPP…" />
       <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1" id="grup_pegawai_kolom">
-        <ResizableAutoHidePanel id="panel_pegawai_sumber" defaultSize="40%" minSize="20%">
+        <ResizableAutoHidePanel id="panel_pegawai_sumber" defaultSize="40%" minSize="20%" className="flex min-h-0 flex-col">
+          <div className="flex h-full min-h-0 flex-col">
           <ExcelTable
             tableKey="pegawai"
             sumberTabel="pegawai"
             fields={FIELDS_KIRI}
-            rows={kiri.rows}
+            rows={kiriTampil}
             getValues={nilaiKiri}
             loading={kiri.loading}
-            emptyText="Belum ada pegawai."
+            emptyText={kiriKosongSemuaMasuk ? 'Semua pegawai sudah masuk ke lembaga ini.' : 'Belum ada pegawai.'}
             canEdit={false}
+            aksiLangsung
             onCommit={async () => {}}
             onSaved={kiri.onSaved}
             urutAktif={kiri.urut}
             arahUrut={kiri.arahUrut}
             onUrut={kiri.terapkanUrut}
+            renderBulkActions={renderBulkKiri}
             renderActions={renderKiri}
           />
-          <Pager page={kiri.pager.page} lastPage={kiri.lastPage} total={kiri.total} perPage={kiri.pager.perPage}
-            onPage={(p) => { kiri.pager.setPage(p); kiri.load(p); }}
-            onPerPage={(pp) => { kiri.pager.setPerPage(pp); kiri.load(1, pp); }} />
+          </div>
         </ResizableAutoHidePanel>
         <ResizableHandle orientation="horizontal" withHandle id="gagang_pegawai_kolom" />
-        <ResizablePanel defaultSize="60%" minSize="20%">
+        <ResizablePanel defaultSize="60%" minSize="20%" className="flex min-h-0 flex-col">
+          <div className="flex h-full min-h-0 flex-col">
           <ExcelTable
             tableKey="pegawai_lembaga"
             sumberTabel="lembaga_pegawai"
@@ -256,49 +314,39 @@ export default function LembagaPegawaiPage() {
             loading={kanan.loading}
             emptyText="Belum ada penempatan di lembaga ini."
             canEdit={canUbah}
+            aksiLangsung
             onCommit={commitKanan}
             onSaved={kanan.onSaved}
             urutAktif={kanan.urut}
             arahUrut={kanan.arahUrut}
             onUrut={kanan.terapkanUrut}
+            onCheckedChange={setTercentangKanan}
+            addButton={renderBulkHapusKanan()}
             renderActions={renderKanan}
           />
-          <Pager page={kanan.pager.page} lastPage={kanan.lastPage} total={kanan.total} perPage={kanan.pager.perPage}
-            onPage={(p) => { kanan.pager.setPage(p); kanan.load(p); }}
-            onPerPage={(pp) => { kanan.pager.setPerPage(pp); kanan.load(1, pp); }} />
+          </div>
         </ResizablePanel>
       </ResizablePanelGroup>
-      <Dialog open={tempatRow !== null} onOpenChange={(o) => { if (!o) setTempatRow(null); }}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Tempatkan: {tempatRow?.nama_lengkap}</DialogTitle>
-            <DialogDescription>Input pegawai pesantren ke lembaga (satu baris per guru+lembaga).</DialogDescription>
-          </DialogHeader>
-          <div className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4">
-            <FieldLabel htmlFor="select_tempat_lembaga">Lembaga</FieldLabel>
-            <Select value={tLembaga} onValueChange={setTLembaga}>
-              <SelectTrigger id="select_tempat_lembaga"><SelectValue placeholder="Pilih lembaga" /></SelectTrigger>
-              <SelectContent><SelectGroup>
-                {lembagas.map((l) => <SelectItem key={l.jenjang} value={l.jenjang}>{l.jenjang}</SelectItem>)}
-              </SelectGroup></SelectContent>
-            </Select>
-            <FieldLabel htmlFor="input_tempat_nipp">NIPP</FieldLabel>
-            <Input id="input_tempat_nipp" value={tNipp} onChange={(e) => setTNipp(e.target.value)} maxLength={30} placeholder="Nomor Induk Pegawai Pesantren" />
-            <FieldLabel htmlFor="input_tempat_tugas">Tugas utama</FieldLabel>
-            <Input id="input_tempat_tugas" value={tTugas} onChange={(e) => setTTugas(e.target.value)} maxLength={100} />
-            <FieldLabel htmlFor="input_tempat_masuk">Tgl masuk</FieldLabel>
-            <Input id="input_tempat_masuk" type="date" value={tMasuk} onChange={(e) => setTMasuk(e.target.value)} />
-            <FieldLabel htmlFor="input_tempat_no_sk_ptk">No. SK awal PTK</FieldLabel>
-            <Input id="input_tempat_no_sk_ptk" value={tNoSkPtk} onChange={(e) => setTNoSkPtk(e.target.value)} maxLength={100} placeholder="No. SK awal sebagai PTK" />
-            <FieldLabel htmlFor="input_tempat_tgl_sk_ptk">Tgl SK awal PTK</FieldLabel>
-            <Input id="input_tempat_tgl_sk_ptk" type="date" value={tTglSkPtk} onChange={(e) => setTTglSkPtk(e.target.value)} />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setTempatRow(null)}>Batal</Button>
-            <Button id="btn_eksekusi_tempatkan" disabled={!tLembaga || busy} onClick={() => void onTempatkan()}>Tempatkan</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <AlertDialog open={bulkHapusOpen} onOpenChange={setBulkHapusOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus {tercentangKanan.length} penempatan?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Penempatan yang dihapus beserta riwayat keaktifannya tidak dapat dikembalikan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkHapusProses}>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={bulkHapusProses}
+              onClick={() => void jalankanBulkHapus()}
+            >
+              Hapus
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

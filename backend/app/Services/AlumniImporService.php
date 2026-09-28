@@ -98,7 +98,7 @@ class AlumniImporService extends ImporPotongan
             'no_surat_ijazah' => $this->teks($baris, 'no_surat_ijazah'),
             'tanggal_lulus' => $tanggal,
             'kegiatan_setelah_lulus' => $this->teks($baris, 'kegiatan_setelah_lulus'),
-            'penyerahan_ijazah' => $this->nilai($baris, 'penyerahan_ijazah', ['sudah', 'belum']) ?? 'belum',
+            'penyerahan_ijazah' => $this->nilai($baris, 'penyerahan_ijazah', ['sudah', 'belum']) ?? 'sudah',
             'melanjutkan' => $this->nilai($baris, 'melanjutkan', ['ya', 'tidak']),
             'catatan' => $this->teks($baris, 'catatan'),
         ];

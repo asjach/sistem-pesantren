@@ -107,7 +107,8 @@ export interface MutasiKeluar {
 export interface Alumni {
   id: number;
   santri_id: number;
-  tahun_ajaran_lulus: string;
+  /** String FK, atau objek relasi `{ nama }` bila backend memuat `tahunAjaranLulus`. */
+  tahun_ajaran_lulus: string | { nama: string };
   nomor_ijazah: string | null;
   no_peserta: string | null;
   skhun: string | null;
@@ -527,6 +528,27 @@ export function unduhTemplateAlumni() {
   return downloadFile('/admin/alumni/import-template', 'template-import-alumni.xlsx');
 }
 
+/** Koreksi satu baris arsip alumni (mode Edit tabel Alumni). */
+export function updateAlumni(
+  alumniId: number,
+  input: {
+    tanggal_lulus?: string | null;
+    nomor_ijazah?: string | null;
+    no_peserta?: string | null;
+    skhun?: string | null;
+    no_surat_ijazah?: string | null;
+    kegiatan_setelah_lulus?: string | null;
+    penyerahan_ijazah?: 'sudah' | 'belum' | null;
+    melanjutkan?: 'ya' | 'tidak' | null;
+    catatan?: string | null;
+  },
+) {
+  return api<{ pesan: string; data: Alumni }>(`/admin/alumni/${alumniId}`, {
+    method: 'PUT',
+    body: JSON.stringify(input),
+  });
+}
+
 function formImportAlumni(file: File) {
   const fd = new FormData();
   fd.set('file', file);
@@ -762,6 +784,22 @@ export function lulusSantri(
 
 export function tidakLulusSantri(santriId: number, jenjang: string) {
   return api<{ pesan: string; data: RiwayatRow }>(`/admin/santri/${santriId}/tidak-lulus`, {
+    method: 'POST',
+    body: JSON.stringify({ jenjang }),
+  });
+}
+
+/** Batalkan kelulusan: hapus arsip alumni, buka lagi riwayat + keanggotaan. */
+export function batalLulus(santriId: number, jenjang: string) {
+  return api<{ pesan: string; data: RiwayatRow }>(`/admin/santri/${santriId}/batal-lulus`, {
+    method: 'POST',
+    body: JSON.stringify({ jenjang }),
+  });
+}
+
+/** Batalkan tidak lulus: hapus baris mengulang, buka lagi baris asal. */
+export function batalTidakLulus(santriId: number, jenjang: string) {
+  return api<{ pesan: string; data: RiwayatRow }>(`/admin/santri/${santriId}/batal-tidak-lulus`, {
     method: 'POST',
     body: JSON.stringify({ jenjang }),
   });

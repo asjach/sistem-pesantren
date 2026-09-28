@@ -34,6 +34,7 @@ const KegiatanPsbPage = lazy(() => import('./pages/KegiatanPsbPage'));
 const SantriPage = lazy(() => import('./pages/SantriPage'));
 const PegawaiPage = lazy(() => import('./pages/PegawaiPage'));
 const LembagaPegawaiPage = lazy(() => import('./pages/LembagaPegawaiPage'));
+const AkunPegawaiPage = lazy(() => import('./pages/AkunPegawaiPage'));
 const KeaktifanPegawaiPage = lazy(() => import('./pages/KeaktifanPegawaiPage'));
 const KeanggotaanPage = lazy(() => import('./pages/KeanggotaanPage'));
 const RiwayatBelajarPage = lazy(() => import('./pages/RiwayatBelajarPage'));
@@ -113,6 +114,7 @@ export default function App() {
                       <Route path="/santri" element={<KhususIzin izin="santri.lihat"><SantriPage /></KhususIzin>} />
                       <Route path="/pegawai" element={<KhususIzin izin="pegawai.lihat"><PegawaiPage /></KhususIzin>} />
                       <Route path="/pegawai-penempatan" element={<KhususIzin izin="pegawai.lihat"><LembagaPegawaiPage /></KhususIzin>} />
+                      <Route path="/pegawai-akun" element={<KhususIzin izin="pegawai.lihat"><AkunPegawaiPage /></KhususIzin>} />
                       <Route path="/pegawai-keaktifan" element={<KhususIzin izin="pegawai.lihat"><KeaktifanPegawaiPage /></KhususIzin>} />
                       <Route path="/keanggotaan" element={<KhususIzin izin="santri.lihat"><KeanggotaanPage /></KhususIzin>} />
                       <Route path="/riwayat-belajar" element={<KhususIzin izin="riwayat_belajar.lihat"><RiwayatBelajarPage /></KhususIzin>} />

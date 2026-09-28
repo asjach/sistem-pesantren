@@ -26,7 +26,7 @@ class PegawaiTemplateExport extends DefaultValueBinder implements FromArray, Wit
     public static function kolom(): array
     {
         return [
-            'pegawai_id', 'nama_lengkap', 'nip', 'nik', 'jenis_kelamin',
+            'pegawai_id', 'nama_lengkap', 'nip', 'nipp', 'nik', 'jenis_kelamin',
             'gelar_depan', 'gelar_belakang', 'tempat_lahir', 'tanggal_lahir',
             'no_hp', 'email_pribadi', 'email_gws', 'status_aktif',
             'tgl_mulai_kerja', 'no_sk_awal', 'tgl_sk_awal', 'pendidikan_terakhir', 'jenis_ptk',
@@ -62,9 +62,9 @@ class PegawaiTemplateExport extends DefaultValueBinder implements FromArray, Wit
     public function array(): array
     {
         return [[
-            '', 'Siti Rahayu', '198501012010012001', '3510010101850001', 'P',
+            '', 'Siti Rahayu', '198501012010012001', 'PST-001', '3510010101850001', 'P',
             'Hj.', 'S.Pd.', 'Bangkalan', '1985-01-01',
-            '081234567890', 'siti@example.com', '', 'aktif',
+            '081234567890', 'siti@example.com', '', 'Ya',
             '2010-07-01', 'SK/001/2010', '2010-07-01', 'S1', 'Guru Kelas',
             'Menikah', 'Islam', 'O',
             '', '', '', '', '',
@@ -103,7 +103,7 @@ class PegawaiTemplateExport extends DefaultValueBinder implements FromArray, Wit
                 $referensi->setSheetState(Worksheet::SHEETSTATE_HIDDEN);
                 $opsi = [
                     'jenis_kelamin' => ['L', 'P'],
-                    'status_aktif' => ['aktif', 'cuti', 'keluar'],
+                    'status_aktif' => ['Ya', 'Tidak'],
                     'sertifikasi' => ['sudah', 'belum'],
                 ];
                 $colSumber = 1;

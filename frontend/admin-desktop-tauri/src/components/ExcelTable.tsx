@@ -131,6 +131,9 @@ export interface ExcelTableProps<T extends { id: string | number }> {
   hideCheckbox?: boolean;
   /** Tabel ringkas baca-saja: sembunyikan kolom Aksi. */
   hideActions?: boolean;
+  /** Selalu tampilkan ikon aksi langsung (tanpa hamburger titik-tiga),
+   *  mengabaikan status ringkas warisan tableKey yang dipakai bersama. */
+  aksiLangsung?: boolean;
   /** Tabel ringkas baca-saja: sembunyikan pemilih preset kolom di toolbar. */
   hidePreset?: boolean;
   /** Timpa lebar trigger dropdown Kolom (bawaan `w-44`), mis. tabel sempit. */
@@ -204,6 +207,7 @@ export default function ExcelTable<T extends { id: string | number }>({
   inputRowValues,
   hideCheckbox = false,
   hideActions = false,
+  aksiLangsung = false,
   hidePreset = false,
   presetKolomClassName,
   onCheckedChange,
@@ -1005,7 +1009,7 @@ export default function ExcelTable<T extends { id: string | number }>({
     cellClassName: 'simpes-dsg-col-last',
     component: ActionsCell,
     columnData: {
-      ringkas: aksiRingkas,
+      ringkas: aksiRingkas && !aksiLangsung,
       render: (id: string | number) => {
         if (String(id) === INPUT_ROW_ID) {
           return (
@@ -1031,7 +1035,7 @@ export default function ExcelTable<T extends { id: string | number }>({
     pasteValue: ({ rowData }: { rowData: GridRow }) => rowData,
     isCellEmpty: () => true,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [widths, autoWidths, tableKey, aksiRingkas]);
+  }), [widths, autoWidths, tableKey, aksiRingkas, aksiLangsung]);
 
   /** Posisi mousedown terakhir: klik setelah drag-seleksi bukan maksud mencentang. */
   const downPosRef = useRef<{ x: number; y: number } | null>(null);

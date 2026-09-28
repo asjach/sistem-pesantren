@@ -176,8 +176,9 @@ Tanpa kolom tenant — tenant = pivot `user_lembaga`.
 - `id` PK
 - `user_id`: FK → users [cascade]
 - `jenjang`: FK → lembaga [cascade]
+- `role`: string(30) [null] — peran tercatat di lembaga itu (admin/guru/orang_tua/santri); null = cakupan warisan; super_admin selalu global
 - `created_at`, `updated_at`
-- UNIQUE(`user_id`, `jenjang`)
+- UNIQUE(`user_id`, `jenjang`, `role`)
 
 ### Izin matriks (Spatie, guard `sanctum`)
 Izin = AKSI (`modul.aksi`, katalog `IzinKatalog::MODUL_AKSI`); pivot `user_lembaga` = CAKUPAN data.
@@ -223,6 +224,7 @@ Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca
 - `id` PK
 - `user_id`: FK → users [null, nullOnDelete] — akun login
 - `nip`: string [null]
+- `nipp`: string(30) [null, unique] — Nomor Induk Pegawai Pesantren, unik global; kunci import sistem lama
 - `nik`: string(16) [null]
 - `nama_lengkap`: string
 - `gelar_depan`: string [null]
@@ -257,7 +259,7 @@ Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca
 - `kode_pos`: string [null]
 - `alamat`: text [null] — jalan/detail
 - `tgl_mulai_kerja`: date [null]
-- `status_aktif`: enum(aktif|cuti|keluar) [default 'aktif']
+- `status_aktif`: enum(Ya|Tidak) [default 'Ya']
 - `created_at`, `updated_at`
 - UNIQUE(`nip`)
 - UNIQUE(`nik`)
@@ -717,13 +719,12 @@ Standar tampilan per lembaga (tema/tipografi/grid/preset aktif), disebar super_a
 - `id` PK
 - `pegawai_id`: FK → pegawai [cascade]
 - `jenjang`: FK → lembaga [cascade]
-- `nipp`: string(30) [null] — Nomor Induk Pegawai Pesantren, unik per lembaga
 - `tugas_utama`: string [default 'Guru Pengampu'] — ref_tugas_utama
 - `is_active_lembaga`: enum('Ya','Tidak') [default 'Ya']
 - `tgl_masuk`, `tgl_selesai`: date [null]
 - `tahaj_masuk`: string(50) [null] — TA pertama masuk lembaga
 - `created_at`, `updated_at`
-- UNIQUE(`pegawai_id`, `jenjang`) · UNIQUE(`jenjang`, `nipp`) [multi-NULL boleh] · INDEX(`jenjang`,`is_active_lembaga`)
+- UNIQUE(`pegawai_id`, `jenjang`) · INDEX(`jenjang`,`is_active_lembaga`)
 - INVARIAN: 1 baris per (pegawai, lembaga); masuk-lagi = aktifkan ulang.
 
 ### `presensi_pegawai`

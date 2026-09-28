@@ -407,6 +407,32 @@ class SiklusController extends Controller
         ]);
     }
 
+    /** POST /api/admin/santri/{santri}/batal-lulus — urungkan kelulusan (+hapus arsip alumni). */
+    public function batalLulus(SiklusLembagaRequest $request, Santri $santri): JsonResponse
+    {
+        $data = $request->validated();
+
+        // Arsip alumni = jejak nonaktif: otorisasi cukup di level lembaga
+        // (`authorizeAksiLembaga` butuh riwayat aktif yang justru tak ada di sini).
+        $this->authorizeLembaga($request->user(), $data['jenjang']);
+
+        $lama = $this->siklusService->batalLulus($santri, $data['jenjang']);
+
+        return response()->json(['pesan' => 'Kelulusan dibatalkan; santri kembali aktif di tingkat akhir.', 'data' => $lama]);
+    }
+
+    /** POST /api/admin/santri/{santri}/batal-tidak-lulus — urungkan hasil tidak lulus. */
+    public function batalTidakLulus(SiklusLembagaRequest $request, Santri $santri): JsonResponse
+    {
+        $data = $request->validated();
+
+        $this->authorizeAksiLembaga($request, $santri, $data['jenjang']);
+
+        $lama = $this->siklusService->batalTidakLulus($santri, $data['jenjang']);
+
+        return response()->json(['pesan' => 'Tidak lulus dibatalkan; santri kembali ke baris asal.', 'data' => $lama]);
+    }
+
     // ---------------- Mutasi / berhenti ----------------
 
     /** POST /api/admin/santri/{santri}/mutasi — mutasi keluar per lembaga. */

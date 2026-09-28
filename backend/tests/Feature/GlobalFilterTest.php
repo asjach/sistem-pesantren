@@ -346,6 +346,9 @@ class GlobalFilterTest extends TestCase
             ->getJson('/api/admin/alumni?'.$alumniQuery)
             ->assertOk();
         $this->assertCount(2, $alumni->json('data'));
+        // Relasi tahun lulus diserialkan sebagai objek pada kunci FK
+        // (`tahun_ajaran_lulus.nama`), bukan string mentah.
+        $this->assertSame($f['ta']->nama, $alumni->json('data.0.tahun_ajaran_lulus.nama'));
 
         $miMd = $this->actingAs($user, 'sanctum')
             ->getJson('/api/admin/mi-md?'.http_build_query([

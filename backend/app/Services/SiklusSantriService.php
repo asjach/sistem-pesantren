@@ -586,6 +586,104 @@ class SiklusSantriService
     }
 
     /**
+     * Batalkan kelulusan: hapus arsip alumni, buka kembali baris lulus yang
+     * ditutupnya, dan aktifkan lagi keanggotaan. Hanya bila belum ada
+     * transisi lanjutan (tidak ada riwayat aktif di lembaga ini).
+     */
+    public function batalLulus(Santri $santri, string $jenjang): RiwayatBelajar
+    {
+        return DB::transaction(function () use ($santri, $jenjang) {
+            $santri = Santri::whereKey($santri->id)->lockForUpdate()->firstOrFail();
+            foreach ([['status_akhir', 'lulus'], ['status_akhir', 'aktif']] as [$t, $k]) {
+                if (! in_array($k, RefService::kodeAktif($t, $jenjang), true)) {
+                    abort(422, "Status $k nonaktif di lembaga ini.");
+                }
+            }
+            $alumni = Alumni::where('santri_id', $santri->id)
+                ->where('lembaga_lulus', $jenjang)
+                ->lockForUpdate()->first();
+            if (! $alumni) {
+                throw ValidationException::withMessages(['alumni' => 'Tidak ada arsip alumni yang bisa dibatalkan.']);
+            }
+            if (RiwayatBelajar::where('santri_id', $santri->id)
+                ->where('jenjang', $jenjang)
+                ->where('is_active_riwayat', RiwayatBelajar::YA)->exists()) {
+                abort(422, 'Sudah ada riwayat aktif di lembaga ini — batal lulus tidak bisa dilanjutkan.');
+            }
+            $ditutup = RiwayatBelajar::where('santri_id', $santri->id)
+                ->where('jenjang', $jenjang)
+                ->where('status_akhir', 'lulus')
+                ->where('is_active_riwayat', RiwayatBelajar::TIDAK)
+                ->lockForUpdate()->latest('id')->get();
+            if ($ditutup->count() !== 1) {
+                throw ValidationException::withMessages(['riwayat' => 'Baris asal kelulusan tidak ditemukan.']);
+            }
+            $lama = $ditutup->first();
+
+            $alumni->delete();
+            // Invarian: is_active_riwayat='Ya' iff status_akhir='aktif'.
+            $lama->update(['status_akhir' => 'aktif', 'is_active_riwayat' => RiwayatBelajar::YA]);
+
+            if (LembagaSantri::aktif($santri->id, $jenjang) === null) {
+                $anggota = LembagaSantri::where('santri_id', $santri->id)
+                    ->where('jenjang', $jenjang)
+                    ->where('is_active_lembaga', LembagaSantri::TIDAK)
+                    ->lockForUpdate()->latest('id')->first();
+                if ($anggota) {
+                    $anggota->update(['is_active_lembaga' => LembagaSantri::YA, 'tgl_selesai' => null]);
+                } else {
+                    $this->pastikanKeanggotaanAktif($santri, $jenjang);
+                }
+            }
+
+            $santri->hitungUlangStatusGlobal();
+
+            return $lama->fresh();
+        });
+    }
+
+    /**
+     * Batalkan tidak lulus: hapus baris mengulang aktif dan buka kembali
+     * baris asal yang ditutupnya. Hanya bila belum ada transisi lanjutan
+     * (baris baru masih aktif).
+     */
+    public function batalTidakLulus(Santri $santri, string $jenjang): RiwayatBelajar
+    {
+        return DB::transaction(function () use ($santri, $jenjang) {
+            $santri = Santri::whereKey($santri->id)->lockForUpdate()->firstOrFail();
+            foreach ([['status_akhir', 'tidak_lulus'], ['status_awal', 'mengulang'], ['status_akhir', 'aktif']] as [$t, $k]) {
+                if (! in_array($k, RefService::kodeAktif($t, $jenjang), true)) {
+                    abort(422, "Status $k nonaktif di lembaga ini.");
+                }
+            }
+            $baru = RiwayatBelajar::where('santri_id', $santri->id)
+                ->where('jenjang', $jenjang)->where('is_active_riwayat', RiwayatBelajar::YA)
+                ->where('status_awal', 'mengulang')
+                ->lockForUpdate()->latest('id')->first();
+            if (! $baru) {
+                throw ValidationException::withMessages(['riwayat' => 'Tidak ada hasil tidak lulus aktif yang bisa dibatalkan.']);
+            }
+            $ditutup = RiwayatBelajar::where('santri_id', $santri->id)
+                ->where('jenjang', $jenjang)->where('is_active_riwayat', RiwayatBelajar::TIDAK)
+                ->where('status_akhir', 'tidak_lulus')
+                ->where('id', '!=', $baru->id)
+                ->lockForUpdate()->latest('id')->get();
+            if ($ditutup->count() !== 1) {
+                throw ValidationException::withMessages(['riwayat' => 'Baris asal tidak lulus tidak ditemukan.']);
+            }
+            $lama = $ditutup->first();
+
+            $baru->delete();
+            // Invarian: is_active_riwayat='Ya' iff status_akhir='aktif'.
+            $lama->update(['status_akhir' => 'aktif', 'is_active_riwayat' => RiwayatBelajar::YA]);
+
+            $santri->hitungUlangStatusGlobal();
+
+            return $lama->fresh();
+        });
+    }
+
+    /**
      * Berhenti satu jenjang (paket MI-MD: MD berhenti, MI lanjut): tutup riwayat
      * aktif + keanggotaan lembaga tsb. `status_akhir` dipertahankan sebagai arsip.
      */

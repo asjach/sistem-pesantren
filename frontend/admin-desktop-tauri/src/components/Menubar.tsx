@@ -20,6 +20,7 @@ const LABEL_MENU: Record<TabKategori, string> = {
   beranda: 'Berkas',
   master: 'Data Induk',
   santri: 'Santri',
+  pegawai: 'Pegawai',
   pengaturan: 'Pengaturan',
 };
 

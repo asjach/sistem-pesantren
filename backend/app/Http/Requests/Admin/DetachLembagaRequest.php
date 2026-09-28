@@ -4,6 +4,7 @@ namespace App\Http\Requests\Admin;
 
 use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class DetachLembagaRequest extends FormRequest
 {
@@ -25,6 +26,9 @@ class DetachLembagaRequest extends FormRequest
     {
         return [
             'jenjang' => ['required', 'string', 'exists:lembaga,jenjang'],
+            // Tanpa role = lepas semua baris jenjang itu; null eksplisit =
+            // hanya baris warisan; string = hanya baris peran itu.
+            'role' => ['sometimes', 'nullable', 'string', Rule::in(User::PERAN_LEMBAGA)],
         ];
     }
 }

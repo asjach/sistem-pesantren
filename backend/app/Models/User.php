@@ -12,6 +12,7 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Contracts\Permission;
+use Spatie\Permission\Models\Role;
 use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
@@ -23,6 +24,18 @@ class User extends Authenticatable
     }
 
     protected $guard_name = 'sanctum';
+
+    /**
+     * Peran yang boleh dicatat per lembaga di pivot `user_lembaga`.
+     * `super_admin` selalu global (tanpa baris pivot).
+     */
+    public const PERAN_LEMBAGA = ['admin', 'guru', 'orang_tua', 'santri'];
+
+    /** Cache izin per nama peran (guard sanctum) per instance. */
+    private array $izinPeranCache = [];
+
+    /** Cache peta peran pivot per instance (satu request). */
+    private ?array $peranLembagaCache = null;
 
     protected $fillable = [
         'name',
@@ -61,10 +74,12 @@ class User extends Authenticatable
     /** Relasi tenant: semua lembaga via pivot user_lembaga (kunci `jenjang`). */
     public function lembagas(): BelongsToMany
     {
-        return $this->belongsToMany(Lembaga::class, 'user_lembaga', 'user_id', 'jenjang');
+        return $this->belongsToMany(Lembaga::class, 'user_lembaga', 'user_id', 'jenjang')
+            ->withPivot('role')
+            ->distinct();
     }
 
-    /** Semua jenjang lembaga yang boleh diakses: pivot user_lembaga. */
+    /** Semua jenjang lembaga yang boleh diakses: pivot user_lembaga (peran apa pun). */
     public function lembagaIds(): array
     {
         // Mode "bertindak sebagai lembaga": scope menyempit ke lembaga peran.
@@ -72,9 +87,38 @@ class User extends Authenticatable
             return [$peran];
         }
 
-        return DB::table('user_lembaga')
+        return array_values(array_unique(DB::table('user_lembaga')
             ->where('user_id', $this->id)
-            ->pluck('jenjang')->all();
+            ->pluck('jenjang')->all()));
+    }
+
+    /**
+     * Peta peran per lembaga dari pivot: jenjang => daftar role.
+     * `null` = baris cakupan warisan (tanpa peran tercatat).
+     *
+     * @return array<string, list<string|null>>
+     */
+    public function peranLembaga(): array
+    {
+        if ($this->peranLembagaCache === null) {
+            $peta = [];
+            $baris = DB::table('user_lembaga')->where('user_id', $this->id)->get(['jenjang', 'role']);
+            foreach ($baris as $b) {
+                $peta[$b->jenjang][] = $b->role;
+            }
+            foreach ($peta as $jenjang => $daftar) {
+                $peta[$jenjang] = array_values(array_unique($daftar));
+            }
+            $this->peranLembagaCache = $peta;
+        }
+
+        return $this->peranLembagaCache;
+    }
+
+    /** Punya peran tercatat di lembaga? (`null`/baris warisan tidak dihitung.) */
+    public function punyaPeranDi(string $role, string $jenjang): bool
+    {
+        return in_array($role, $this->peranLembaga()[$jenjang] ?? [], true);
     }
 
     /**
@@ -117,30 +161,103 @@ class User extends Authenticatable
      * lembaga, 14 izin eksklusif super_admin nonaktif (efektif = set admin).
      * Semua gerbang `permission:` route, `$user->can()`, dan Gate::before
      * Spatie bermuara ke sini.
+     *
+     * Setelah peran global, izin peran tercatat di pivot `user_lembaga`
+     * untuk konteks lembaga tunggal ikut dihitung (act-as, atau filter
+     * `jenjang` request yang tepat satu).
      */
     public function hasPermissionTo($permission, ?string $guardName = null): bool
     {
-        if ($this->lembagaPeran() !== null) {
-            $nama = $permission instanceof Permission
-                ? $permission->name
-                : (string) $permission;
-            if (in_array($nama, IzinKatalog::EKSKLUSIF_SUPER_ADMIN, true)) {
-                return false;
-            }
+        $nama = $permission instanceof Permission
+            ? $permission->name
+            : (string) $permission;
+        if ($this->lembagaPeran() !== null && in_array($nama, IzinKatalog::EKSKLUSIF_SUPER_ADMIN, true)) {
+            return false;
+        }
+        if ($this->hasPermissionToBawaan($permission, $guardName)) {
+            return true;
         }
 
-        return $this->hasPermissionToBawaan($permission, $guardName);
+        return $this->punyaIzinLembaga($nama);
     }
 
-    /** Izin efektif untuk respons `/me` (diturunkan saat bertindak). */
-    public function izinEfektif(): array
+    /**
+     * Izin efektif untuk respons `/me`.
+     * - Tanpa konteks (global): izin peran global + GABUNGAN semua peran
+     *   tercatat (agar tombol yang memang dimiliki di suatu lembaga tampil;
+     *   backend tetap menegakkan per konteks lembaga).
+     * - `?jenjang=X`: global + peran tercatat di X saja.
+     * - Saat bertindak sebagai lembaga: seperti di atas lalu dikurangi izin
+     *   eksklusif super_admin.
+     */
+    public function izinEfektif(?string $jenjang = null): array
     {
         $semua = $this->getAllPermissions()->pluck('name')->values()->all();
+        $peta = $this->peranLembaga();
+        $lembaga = $jenjang ?? $this->lembagaPeran();
+        $daftar = $lembaga === null
+            ? array_merge(...array_values($peta ?: [[]]))
+            : ($peta[$lembaga] ?? []);
+        foreach ($daftar as $peran) {
+            if ($peran !== null) {
+                array_push($semua, ...$this->izinUntukPeran($peran));
+            }
+        }
+        $semua = array_values(array_unique($semua));
         if ($this->lembagaPeran() === null) {
             return $semua;
         }
 
         return array_values(array_diff($semua, IzinKatalog::EKSKLUSIF_SUPER_ADMIN));
+    }
+
+    /**
+     * Izin dari peran tercatat di pivot untuk konteks lembaga tunggal:
+     * header act-as, atau filter `jenjang` request yang tepat satu.
+     */
+    private function punyaIzinLembaga(string $izin): bool
+    {
+        $konteks = $this->konteksLembagaTunggal();
+        if ($konteks === null) {
+            return false;
+        }
+        foreach ($this->peranLembaga()[$konteks] ?? [] as $peran) {
+            if ($peran !== null && in_array($izin, $this->izinUntukPeran($peran), true)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** Konteks lembaga tunggal untuk resolusi peran pivot (null = global). */
+    private function konteksLembagaTunggal(): ?string
+    {
+        $aktif = app(LembagaAktif::class)->id();
+        if ($aktif !== null) {
+            return $aktif;
+        }
+        $nilai = request()->input('jenjang');
+        $daftar = is_array($nilai) ? $nilai : explode(',', (string) ($nilai ?? ''));
+        $daftar = array_values(array_unique(array_filter(array_map(
+            fn ($v) => trim((string) $v),
+            $daftar
+        ))));
+
+        return count($daftar) === 1 ? $daftar[0] : null;
+    }
+
+    /** Daftar izin guard sanctum untuk sebuah nama peran (cache instance). */
+    private function izinUntukPeran(string $peran): array
+    {
+        if (! array_key_exists($peran, $this->izinPeranCache)) {
+            $role = Role::where('name', $peran)->where('guard_name', 'sanctum')->first();
+            $this->izinPeranCache[$peran] = $role === null
+                ? []
+                : $role->permissions->pluck('name')->all();
+        }
+
+        return $this->izinPeranCache[$peran];
     }
 
     /** Admin full = role admin tanpa pivot (akses semua lembaga). */

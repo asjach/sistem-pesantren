@@ -83,12 +83,14 @@ class UserManagementController extends Controller
 
     protected function syncLembaga(User $user, array $ids): void
     {
-        DB::table('user_lembaga')->where('user_id', $user->id)->delete();
+        // Ganti hanya baris cakupan warisan (role null); baris berperang
+        // (mis. guru otomatis, admin per lembaga) dipertahankan.
+        DB::table('user_lembaga')->where('user_id', $user->id)->whereNull('role')->delete();
         foreach ($ids as $lid) {
-            DB::table('user_lembaga')->insert([
-                'user_id' => $user->id, 'jenjang' => $lid,
-                'created_at' => now(), 'updated_at' => now(),
-            ]);
+            DB::table('user_lembaga')->updateOrInsert(
+                ['user_id' => $user->id, 'jenjang' => $lid, 'role' => null],
+                ['created_at' => now(), 'updated_at' => now()]
+            );
         }
     }
 
@@ -348,7 +350,7 @@ class UserManagementController extends Controller
         return response()->json(['message' => 'Pengguna dihapus permanen.']);
     }
 
-    /** Tambah 1 lembaga ke user (multi-lembaga, vault 003 v5). */
+    /** Tambah 1 lembaga ke user, opsional dengan peran tercatat (vault 003 v5). */
     public function attachLembaga(AttachLembagaRequest $request, User $user)
     {
         $authUser = auth()->user();
@@ -364,9 +366,13 @@ class UserManagementController extends Controller
         if (! $authUser->canAccessLembaga($data['jenjang'])) {
             return response()->json(['message' => 'Akses ditolak untuk lembaga ini.'], 403);
         }
+        $role = $data['role'] ?? null;
+        if ($role !== null && ! in_array($role, $this->assignableRolesFor($authUser), true)) {
+            return response()->json(['message' => 'Anda tidak berwenang memberikan peran ini.'], 403);
+        }
 
         DB::table('user_lembaga')->updateOrInsert(
-            ['user_id' => $user->id, 'jenjang' => $data['jenjang']],
+            ['user_id' => $user->id, 'jenjang' => $data['jenjang'], 'role' => $role],
             ['created_at' => now(), 'updated_at' => now()]
         );
 
@@ -376,7 +382,7 @@ class UserManagementController extends Controller
         ]);
     }
 
-    /** Lepas 1 lembaga dari user (vault 003 v5). */
+    /** Lepas 1 lembaga dari user (tanpa role = semua baris jenjang itu). */
     public function detachLembaga(DetachLembagaRequest $request, User $user)
     {
         $data = $request->validated();
@@ -385,10 +391,15 @@ class UserManagementController extends Controller
             return response()->json(['message' => 'Akses ditolak untuk lembaga ini.'], 403);
         }
 
-        DB::table('user_lembaga')
+        $query = DB::table('user_lembaga')
             ->where('user_id', $user->id)
-            ->where('jenjang', $data['jenjang'])
-            ->delete();
+            ->where('jenjang', $data['jenjang']);
+        if (array_key_exists('role', $data)) {
+            $data['role'] === null
+                ? $query->whereNull('role')
+                : $query->where('role', $data['role']);
+        }
+        $query->delete();
 
         return response()->json([
             'message' => 'Lembaga berhasil dilepas.',

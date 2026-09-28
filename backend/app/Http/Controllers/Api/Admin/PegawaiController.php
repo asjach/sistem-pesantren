@@ -16,12 +16,12 @@ use App\Models\KeaktifanPegawai;
 use App\Models\LembagaPegawai;
 use App\Models\Pegawai;
 use App\Models\User;
+use App\Services\AkunPegawaiService;
 use App\Services\PegawaiImporService;
 use App\Services\UrutKatalog;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Facades\Excel;
 
@@ -38,9 +38,6 @@ class PegawaiController extends Controller
     use UrutDaftar;
 
     private const SORT_NULLABLE = ['pegawai.nip', 'pegawai.nik', 'pegawai.tgl_mulai_kerja', 'pegawai.tgl_sk_awal'];
-
-    /** Sandi bawaan akun guru yang dibuat otomatis (sama seperti AkunSeeder dev; tanpa wajib ganti). */
-    public const SANDI_BAWAAN = 'rahayu45';
 
     /** GET /api/admin/pegawai — daftar buku induk (global; filter lembaga/TA via penempatan/keaktifan). */
     public function index(Request $request): JsonResponse
@@ -81,7 +78,7 @@ class PegawaiController extends Controller
         try {
             $pegawai = Pegawai::create($request->validated());
         } catch (QueryException $e) {
-            return response()->json(['message' => 'NIP/NIK sudah dipakai pegawai lain.'], 422);
+            return response()->json(['message' => 'NIP/NIPP/NIK sudah dipakai pegawai lain.'], 422);
         }
 
         return response()->json(['pesan' => 'Pegawai disimpan.', 'data' => $pegawai], 201);
@@ -92,7 +89,7 @@ class PegawaiController extends Controller
         try {
             $pegawai->update($request->validated());
         } catch (QueryException $e) {
-            return response()->json(['message' => 'NIP/NIK sudah dipakai pegawai lain.'], 422);
+            return response()->json(['message' => 'NIP/NIPP/NIK sudah dipakai pegawai lain.'], 422);
         }
 
         return response()->json(['pesan' => 'Pegawai diperbarui.', 'data' => $pegawai->fresh()]);
@@ -117,81 +114,109 @@ class PegawaiController extends Controller
     /**
      * POST /api/admin/pegawai/{pegawai}/buatkan-akun — buat user dari
      * `email_pribadi` + `no_hp`, role `guru`, scope lembaga = penempatan aktif.
-     * Menolak bila sudah tertaut, email kosong/tak valid, atau email dipakai
-     * akun lain (tautkan manual saja). No. HP yang bentrok dikosongkan + dicatat.
+     * Tanpa email tapi `no_hp` bebas → akun dibuat tanpa email (login via
+     * no. HP). Menolak bila sudah tertaut, tanpa kontak layak, email dipakai
+     * akun lain (tautkan manual saja), atau no. HP dipakai akun lain.
      */
-    public function buatkanAkun(Request $request, Pegawai $pegawai): JsonResponse
+    public function buatkanAkun(Request $request, Pegawai $pegawai, AkunPegawaiService $akun): JsonResponse
     {
         $this->authorize('create', User::class);
-        $auth = $request->user();
 
         if ($pegawai->user_id !== null) {
             return response()->json(['message' => 'Pegawai ini sudah tertaut ke akun.'], 422);
         }
-        if (! in_array('guru', $auth->creatableRoles(), true)) {
+
+        $hasil = $akun->sediakan($pegawai, $request->user());
+
+        if ($hasil['status'] === AkunPegawaiService::DIBUAT) {
+            return response()->json([
+                'pesan' => "Akun guru dibuat untuk {$pegawai->nama_lengkap}.",
+                'data' => [
+                    'pegawai' => $pegawai->fresh(),
+                    'user_id' => $hasil['user']->id,
+                    'email' => $hasil['user']->email,
+                    'telepon' => $hasil['user']->phone,
+                    'sandi_bawaan' => AkunPegawaiService::SANDI_BAWAAN,
+                    'catatan' => $hasil['catatan'],
+                ],
+            ], 201);
+        }
+
+        return match ($hasil['kode']) {
+            'wewenang' => response()->json(['message' => 'Anda tidak berwenang membuat akun guru.'], 403),
+            'kontak_kosong' => response()->json(['message' => 'Tidak ada email/no. HP yang dapat dipakai untuk akun.'], 422),
+            'email_bentrok' => response()->json(['message' => 'Email sudah dipakai akun lain; tautkan manual lewat dialog akun.'], 422),
+            'telepon_bentrok' => response()->json(['message' => 'No. HP sudah dipakai akun lain; tautkan manual lewat dialog akun.'], 422),
+            'lembaga_akses' => response()->json(['message' => 'Penempatan pegawai di luar kewenangan Anda.'], 403),
+            default => response()->json(['message' => 'Pegawai belum ditempatkan di lembaga mana pun.'], 422),
+        };
+    }
+
+    /**
+     * POST /api/admin/pegawai/generate-akun — buat/selaraskan akun guru massal.
+     * Tanpa tautan + kontak layak → buat (sandi bawaan dev); email dipakai
+     * akun lain → tambahkan peran guru ke akun itu (tanpa menautkan);
+     * sudah tertaut → selaraskan nama + telepon + email + pastikan role +
+     * pastikan pivot `user_lembaga` untuk penempatan aktif. Filter `q` /
+     * `status_aktif` opsional membatasi cakupan.
+     */
+    public function generateAkun(Request $request, AkunPegawaiService $akun): JsonResponse
+    {
+        $this->authorize('create', User::class);
+        $aktor = $request->user();
+        if (! in_array('guru', $aktor->creatableRoles(), true)) {
             return response()->json(['message' => 'Anda tidak berwenang membuat akun guru.'], 403);
         }
 
-        $email = trim((string) $pegawai->email_pribadi);
-        if ($email === '' || ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            return response()->json(['message' => 'Email pribadi pegawai kosong/tidak valid.'], 422);
+        $alasan = [
+            'wewenang' => 'tanpa wewenang akun',
+            'kontak_kosong' => 'tanpa email/no. HP layak',
+            'email_bentrok' => 'email dipakai akun lain',
+            'telepon_bentrok' => 'no. HP dipakai akun lain',
+            'lembaga_akses' => 'di luar kewenangan',
+            'lembaga_kosong' => 'tanpa penempatan',
+        ];
+        $hasil = ['dibuat' => 0, 'diperbarui' => 0, 'dilewati' => 0];
+        $gagal = [];
+
+        $query = Pegawai::query();
+        if ($request->filled('q')) {
+            $q = trim((string) $request->input('q'));
+            $query->where(fn ($sub) => $sub
+                ->where('nama_lengkap', 'like', "%{$q}%")
+                ->orWhere('nip', 'like', "%{$q}%")
+                ->orWhere('nik', 'like', "%{$q}%")
+                ->orWhere('no_sk_awal', 'like', "%{$q}%"));
         }
-        if (User::where('email', $email)->exists()) {
-            return response()->json(['message' => 'Email sudah dipakai akun lain; tautkan manual lewat dialog akun.'], 422);
+        if ($request->filled('status_aktif')) {
+            $query->where('pegawai.status_aktif', $request->input('status_aktif'));
         }
 
-        $telepon = trim((string) $pegawai->no_hp);
-        $telepon = $telepon === '' ? null : $telepon;
-        $catatan = [];
-        if ($telepon !== null && User::where('phone', $telepon)->exists()) {
-            $telepon = null;
-            $catatan[] = 'No. HP sudah dipakai akun lain; akun dibuat tanpa no. HP.';
-        }
-
-        $jenjangs = $pegawai->penempatan()->where('is_active_lembaga', LembagaPegawai::YA)->pluck('jenjang')->all();
-        foreach ($jenjangs as $jenjang) {
-            if (! $auth->canAccessLembaga($jenjang)) {
-                return response()->json(['message' => "Penempatan {$jenjang} di luar kewenangan Anda."], 403);
+        $query->chunkById(200, function ($baris) use ($akun, $aktor, $alasan, &$hasil, &$gagal) {
+            foreach ($baris as $pegawai) {
+                $akun->cobaTautkan($pegawai, $aktor);
+                $r = $akun->sediakan($pegawai, $aktor, false, true, true);
+                if ($r['status'] === AkunPegawaiService::DIBUAT) {
+                    $hasil['dibuat']++;
+                } elseif ($r['status'] === AkunPegawaiService::DISINKRON && $r['diubah']) {
+                    $hasil['diperbarui']++;
+                } else {
+                    $hasil['dilewati']++;
+                    if (($r['kode'] ?? '') !== 'ok' && count($gagal) < 100) {
+                        $gagal[] = [
+                            'pegawai_id' => $pegawai->id,
+                            'nama' => $pegawai->nama_lengkap,
+                            'alasan' => $alasan[$r['kode']] ?? $r['kode'],
+                        ];
+                    }
+                }
             }
-        }
-        if ($jenjangs === [] && ! $auth->bolehPesantren()) {
-            $jenjangs = $auth->lembagaIds();
-            if ($jenjangs === []) {
-                return response()->json(['message' => 'Pegawai belum ditempatkan di lembaga mana pun.'], 422);
-            }
-            $catatan[] = 'Pegawai belum punya penempatan; scope akun mengikuti lembaga Anda.';
-        }
-
-        $user = DB::transaction(function () use ($pegawai, $email, $telepon, $jenjangs) {
-            $dibuat = User::create([
-                'name' => $pegawai->nama_lengkap,
-                'email' => $email,
-                'phone' => $telepon,
-                'password' => self::SANDI_BAWAAN,
-                'email_verified_at' => now(),
-            ]);
-            foreach ($jenjangs as $jenjang) {
-                DB::table('user_lembaga')->insert([
-                    'user_id' => $dibuat->id, 'jenjang' => $jenjang,
-                    'created_at' => now(), 'updated_at' => now(),
-                ]);
-            }
-            $dibuat->assignRole('guru');
-            $pegawai->update(['user_id' => $dibuat->id]);
-
-            return $dibuat;
         });
 
         return response()->json([
-            'pesan' => "Akun guru dibuat untuk {$pegawai->nama_lengkap}.",
-            'data' => [
-                'pegawai' => $pegawai->fresh(),
-                'user_id' => $user->id,
-                'email' => $email,
-                'sandi_bawaan' => self::SANDI_BAWAAN,
-                'catatan' => $catatan,
-            ],
-        ], 201);
+            'pesan' => "{$hasil['dibuat']} akun dibuat, {$hasil['diperbarui']} diperbarui, {$hasil['dilewati']} dilewati.",
+            'data' => $hasil + ['gagal' => $gagal],
+        ]);
     }
 
     // Upload foto profil pegawai. Storage: storage/app/pegawai/foto/* ; DB hanya path di pegawai.foto_url.
@@ -242,51 +267,62 @@ class PegawaiController extends Controller
         return Excel::download(new PegawaiTemplateExport, 'template-import-pegawai.xlsx');
     }
 
-    /** GET /api/admin/pegawai/data-existing — JSON kolom template + baris nyata (Excel dirakit di browser). */
+    /**
+     * GET /api/admin/pegawai/data-existing — JSON kolom template + baris nyata
+     * (Excel dirakit di browser). Baris dikembalikan posisional sejajar
+     * `kolom` (cermin `DataSantri::baris()`), karena perakit browser membaca
+     * per indeks, bukan per kunci.
+     */
     public function dataExisting(): JsonResponse
     {
         $kolom = PegawaiTemplateExport::kolom();
+        $teks = fn (mixed $nilai): string => $nilai === null ? '' : (string) $nilai;
         $baris = Pegawai::orderBy('nama_lengkap')->limit(5000)->get()
-            ->map(fn (Pegawai $p) => [
-                'pegawai_id' => $p->id,
-                'nama_lengkap' => $p->nama_lengkap,
-                'nip' => $p->nip,
-                'nik' => $p->nik,
-                'jenis_kelamin' => $p->jenis_kelamin,
-                'gelar_depan' => $p->gelar_depan,
-                'gelar_belakang' => $p->gelar_belakang,
-                'tempat_lahir' => $p->tempat_lahir,
-                'tanggal_lahir' => $p->tanggal_lahir?->format('Y-m-d'),
-                'no_hp' => $p->no_hp,
-                'email_pribadi' => $p->email_pribadi,
-                'email_gws' => $p->email_gws,
-                'status_aktif' => $p->status_aktif,
-                'tgl_mulai_kerja' => $p->tgl_mulai_kerja?->format('Y-m-d'),
-                'no_sk_awal' => $p->no_sk_awal,
-                'tgl_sk_awal' => $p->tgl_sk_awal?->format('Y-m-d'),
-                'pendidikan_terakhir' => $p->pendidikan_terakhir,
-                'jenis_ptk' => $p->jenis_ptk,
-                'status_pernikahan' => $p->status_pernikahan,
-                'agama' => $p->agama,
-                'gol_darah' => $p->gol_darah,
-                'npwp' => $p->npwp,
-                'no_kk' => $p->no_kk,
-                'no_bpjs' => $p->no_bpjs,
-                'status_tempat_tinggal' => $p->status_tempat_tinggal,
-                'niat_npa' => $p->niat_npa,
-                'jarak_ke_pesantren' => $p->jarak_ke_pesantren,
-                'waktu_tempuh' => $p->waktu_tempuh,
-                'transportasi' => $p->transportasi,
-                'sertifikasi' => $p->sertifikasi,
-                'provinsi' => $p->provinsi,
-                'kab_kota' => $p->kab_kota,
-                'kecamatan' => $p->kecamatan,
-                'desa_kelurahan' => $p->desa_kelurahan,
-                'rt' => $p->rt,
-                'rw' => $p->rw,
-                'kode_pos' => $p->kode_pos,
-                'alamat' => $p->alamat,
-            ])->all();
+            ->map(function (Pegawai $p) use ($kolom, $teks) {
+                $peta = [
+                    'pegawai_id' => (string) $p->id,
+                    'nama_lengkap' => $teks($p->nama_lengkap),
+                    'nip' => $teks($p->nip),
+                    'nipp' => $teks($p->nipp),
+                    'nik' => $teks($p->nik),
+                    'jenis_kelamin' => $teks($p->jenis_kelamin),
+                    'gelar_depan' => $teks($p->gelar_depan),
+                    'gelar_belakang' => $teks($p->gelar_belakang),
+                    'tempat_lahir' => $teks($p->tempat_lahir),
+                    'tanggal_lahir' => $p->tanggal_lahir?->format('Y-m-d') ?? '',
+                    'no_hp' => $teks($p->no_hp),
+                    'email_pribadi' => $teks($p->email_pribadi),
+                    'email_gws' => $teks($p->email_gws),
+                    'status_aktif' => $teks($p->status_aktif),
+                    'tgl_mulai_kerja' => $p->tgl_mulai_kerja?->format('Y-m-d') ?? '',
+                    'no_sk_awal' => $teks($p->no_sk_awal),
+                    'tgl_sk_awal' => $p->tgl_sk_awal?->format('Y-m-d') ?? '',
+                    'pendidikan_terakhir' => $teks($p->pendidikan_terakhir),
+                    'jenis_ptk' => $teks($p->jenis_ptk),
+                    'status_pernikahan' => $teks($p->status_pernikahan),
+                    'agama' => $teks($p->agama),
+                    'gol_darah' => $teks($p->gol_darah),
+                    'npwp' => $teks($p->npwp),
+                    'no_kk' => $teks($p->no_kk),
+                    'no_bpjs' => $teks($p->no_bpjs),
+                    'status_tempat_tinggal' => $teks($p->status_tempat_tinggal),
+                    'niat_npa' => $teks($p->niat_npa),
+                    'jarak_ke_pesantren' => $teks($p->jarak_ke_pesantren),
+                    'waktu_tempuh' => $teks($p->waktu_tempuh),
+                    'transportasi' => $teks($p->transportasi),
+                    'sertifikasi' => $teks($p->sertifikasi),
+                    'provinsi' => $teks($p->provinsi),
+                    'kab_kota' => $teks($p->kab_kota),
+                    'kecamatan' => $teks($p->kecamatan),
+                    'desa_kelurahan' => $teks($p->desa_kelurahan),
+                    'rt' => $teks($p->rt),
+                    'rw' => $teks($p->rw),
+                    'kode_pos' => $teks($p->kode_pos),
+                    'alamat' => $teks($p->alamat),
+                ];
+
+                return array_map(fn (string $kunci) => $peta[$kunci] ?? '', $kolom);
+            })->all();
 
         return response()->json([
             'kolom' => $kolom,
@@ -298,7 +334,12 @@ class PegawaiController extends Controller
     /** POST /api/admin/pegawai/import-potong — import bertahap 1000 baris/panggilan. */
     public function potongImport(PegawaiPotongRequest $request, PegawaiImporService $layanan): JsonResponse
     {
-        return $this->jalankanImporSesi($request, 'pegawai', $layanan);
+        $layanan->setAktor($request->user());
+
+        return $this->jalankanImporSesi($request, 'pegawai', $layanan, 'import', function (ImportSesi $sesi, $layanan) {
+            $sesi->akun_dibuat += $layanan->akunDibuat;
+            $sesi->akun_dilewati += $layanan->akunDilewati;
+        });
     }
 
     public function batalPotong(Request $request, ImportSesi $sesi): JsonResponse
@@ -309,5 +350,51 @@ class PegawaiController extends Controller
     public function galatPotong(Request $request, ImportSesi $sesi)
     {
         return $this->unduhGalatImpor($request, $sesi, 'galat-import-pegawai.csv');
+    }
+
+    /**
+     * GET /api/admin/pegawai-akun — guru yang sudah punya akun + info akunnya
+     * (login, peran, akses lembaga). Baca-saja untuk halaman Akun Pegawai.
+     */
+    public function akunIndex(Request $request): JsonResponse
+    {
+        $urut = $this->parseUrut($request, UrutKatalog::peta('pegawai_akun'));
+        $query = Pegawai::with([
+            'akun:id,name,email,phone,username',
+            'akun.roles:id,name',
+            'akun.lembagas:jenjang,nama',
+        ])->whereNotNull('user_id');
+
+        // Filter lembaga topbar = cakupan akses akun (pivot user_lembaga).
+        $lembaga = $this->nilaiFilter($request, 'jenjang');
+        $this->authorizeLembagaMany($request->user(), $lembaga);
+        if ($lembaga === [] && ! $request->user()->bolehPesantren()) {
+            $lembaga = $request->user()->lembagaIds();
+        }
+        if ($lembaga !== []) {
+            $query->whereHas('akun.lembagas', fn ($l) => $l->whereIn('lembaga.jenjang', $lembaga));
+        }
+
+        if ($request->filled('status_aktif')) {
+            $query->where('pegawai.status_aktif', $request->input('status_aktif'));
+        }
+        if ($request->filled('q')) {
+            $q = trim((string) $request->input('q'));
+            $query->where(fn ($sub) => $sub
+                ->where('nama_lengkap', 'like', "%{$q}%")
+                ->orWhere('nipp', 'like', "%{$q}%")
+                ->orWhere('email_pribadi', 'like', "%{$q}%")
+                ->orWhere('no_hp', 'like', "%{$q}%")
+                ->orWhereHas('akun', fn ($a) => $a
+                    ->where('email', 'like', "%{$q}%")
+                    ->orWhere('phone', 'like', "%{$q}%")
+                    ->orWhere('username', 'like', "%{$q}%")));
+        }
+
+        $this->terapkanUrut($query, $urut, [
+            ['pegawai.nama_lengkap', 'naik'], ['pegawai.id', 'naik'],
+        ], []);
+
+        return response()->json($query->paginate($this->perPage($request)));
     }
 }

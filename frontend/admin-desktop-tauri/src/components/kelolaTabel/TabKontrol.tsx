@@ -125,7 +125,7 @@ export default function TabKontrol({ tableKey, onTutup }: { tableKey: string; on
   }
 
   return (
-    <div className="flex min-h-0 flex-col gap-3">
+    <div className="flex h-full min-h-0 flex-col gap-3">
       <p className="rounded-md border border-amber-500/40 px-3 py-2 text-xs text-amber-600 dark:text-amber-400">
         Awas: menyembunyikan “Filter halaman” dapat mengunci alur yang bergantung padanya
         (mis. pilihan kelas tujuan di Riwayat Belajar).

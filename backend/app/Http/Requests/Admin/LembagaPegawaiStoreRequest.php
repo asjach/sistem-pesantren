@@ -16,7 +16,6 @@ class LembagaPegawaiStoreRequest extends FormRequest
     {
         return [
             'jenjang' => ['required', Rule::exists('lembaga', 'jenjang')],
-            'nipp' => ['nullable', 'string', 'max:30'],
             'tugas_utama' => ['nullable', 'string', 'max:100'],
             'is_active_lembaga' => ['nullable', 'in:Ya,Tidak'],
             'tgl_masuk' => ['nullable', 'date'],

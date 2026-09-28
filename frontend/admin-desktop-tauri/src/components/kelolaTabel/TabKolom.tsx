@@ -205,7 +205,7 @@ export default function TabKolom({
     <form
       id={`form_preset_kolom_${tableKey}`}
       onSubmit={simpan}
-      className={cn('flex flex-col gap-2', banyakKolom && 'lg:min-h-0')}
+      className={cn('flex h-full min-h-0 flex-col gap-2')}
     >
       <div className="flex items-end gap-3">
         <Field className="sm:max-w-xs">
@@ -234,9 +234,9 @@ export default function TabKolom({
 
       {/* Tiga panel: daftar preset (kiri), kolom tersedia (tengah), dan kolom
           terpilih berurutan yang bisa diseret (kanan). */}
-      <div className={cn('flex flex-col gap-2 lg:flex-row', banyakKolom && 'lg:min-h-0 lg:flex-1')}>
+      <div className={cn('flex flex-col gap-2 lg:min-h-0 lg:flex-1 lg:flex-row')}>
         {/* Panel 1 — preset */}
-        <section className="flex flex-col gap-2 lg:w-44 lg:shrink-0">
+        <section className="flex flex-col gap-2 lg:min-h-0 lg:w-44 lg:shrink-0">
           <FieldLabel>Preset</FieldLabel>
           <Button
             id={`btn_preset_baru_${tableKey}`}
@@ -247,14 +247,14 @@ export default function TabKolom({
           >
             + Preset baru
           </Button>
-          <div
-            className={cn(
-              'flex flex-col gap-1 overflow-auto rounded-md border p-1',
-              banyakKolom ? 'max-h-40 lg:max-h-none lg:min-h-0 lg:flex-1' : 'max-h-64',
-            )}
-          >
-            <button
-              id={`btn_preset_lengkap_${tableKey}`}
+            <div
+              className={cn(
+                'flex flex-col gap-1 overflow-auto rounded-md border p-1',
+                banyakKolom ? 'max-h-40 lg:max-h-none lg:min-h-0 lg:flex-1' : 'max-h-64 lg:max-h-none lg:min-h-0 lg:flex-1',
+              )}
+            >
+              <button
+                id={`btn_preset_lengkap_${tableKey}`}
               type="button"
               title="Semua kolom — kurangi lalu simpan sebagai preset baru"
               onClick={onPilihLengkap}
@@ -333,12 +333,7 @@ export default function TabKolom({
             placeholder="Cari kolom…"
             aria-label="Cari kolom"
           />
-          <div
-            className={cn(
-              'overflow-auto rounded-md border',
-              banyakKolom ? 'max-h-64 lg:max-h-none lg:min-h-0 lg:flex-1' : 'max-h-64',
-            )}
-          >
+          <div className="max-h-64 overflow-auto rounded-md border lg:max-h-none lg:min-h-0 lg:flex-1">
             <table className="w-full border-collapse text-xs">
               <thead className="sticky top-0 bg-muted/60 backdrop-blur">
                 <tr className="border-b">
@@ -382,12 +377,7 @@ export default function TabKolom({
         {/* Panel 3 — kolom terpilih & berurutan (seret untuk mengurutkan) */}
         <section className="flex min-h-0 flex-col gap-2 lg:w-64 lg:shrink-0">
           <FieldLabel>Kolom tampil ({kolom.length}) — seret untuk urutkan</FieldLabel>
-          <div
-            className={cn(
-              'flex flex-col gap-1 overflow-auto rounded-md border p-1',
-              banyakKolom ? 'max-h-64 lg:max-h-none lg:min-h-0 lg:flex-1' : 'max-h-64',
-            )}
-          >
+          <div className="flex max-h-64 flex-col gap-1 overflow-auto rounded-md border p-1 lg:max-h-none lg:min-h-0 lg:flex-1">
             {kolom.length === 0 ? (
               <p className="px-1 py-2 text-xs text-muted-foreground">
                 Belum ada kolom dipilih. Centang kolom di panel tengah.

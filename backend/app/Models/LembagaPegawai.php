@@ -8,7 +8,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * Penempatan pegawai di satu lembaga (pivot kaya, cermin `lembaga_santri`):
- * NIPP unik per lembaga, tugas utama, status aktif, rentang tanggal.
+ * NIPP sudah pindah ke `pegawai` (unik global); di sini tinggal tugas utama,
+ * status aktif, dan rentang tanggal.
  *
  * Invarian: maks 1 baris per (pegawai, lembaga). Masuk-lagi-setelah-keluar
  * = aktifkan ulang baris yang sama (bukan baris baru).
@@ -26,7 +27,6 @@ class LembagaPegawai extends Model
     protected $fillable = [
         'pegawai_id',
         'jenjang',
-        'nipp',
         'tugas_utama',
         'is_active_lembaga',
         'tgl_masuk',
@@ -66,20 +66,6 @@ class LembagaPegawai extends Model
         }
 
         return $query->whereIn('jenjang', $authUser->lembagaIdsDenganPasangan());
-    }
-
-    /** NIPP dipakai baris LAIN di lembaga yang sama. */
-    public static function nippDipakai(string $jenjang, ?string $nipp, ?int $kecualiId = null): bool
-    {
-        $nilai = $nipp !== null ? trim($nipp) : '';
-        if ($nilai === '') {
-            return false;
-        }
-
-        return static::where('jenjang', $jenjang)
-            ->where('nipp', $nilai)
-            ->when($kecualiId, fn (Builder $q) => $q->whereKeyNot($kecualiId))
-            ->exists();
     }
 
     /** Baris penempatan untuk pasangan pegawai+lembaga (maks 1). */
