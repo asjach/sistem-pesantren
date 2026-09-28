@@ -47,7 +47,7 @@ abstract class PencetakMedan
             return '';
         }
 
-        $teks = $nilai instanceof \BackedEnum ? (string) $nilai->value : (string) $nilai;
+        $teks = self::teksNilai($nilai);
         $gaya = $medan['gaya'];
 
         if ($gaya['huruf_besar']) {
@@ -141,7 +141,29 @@ abstract class PencetakMedan
 
         $mentah = $baris[$kunci] ?? null;
 
-        return $mentah === null ? '' : (string) $mentah;
+        return $mentah === null ? '' : self::teksNilai($mentah);
+    }
+
+    /**
+     * Ubah nilai mentah apa pun menjadi teks yang siap dicetak.
+     *
+     * Kolom tanggal dikembalikan Eloquent sebagai objek Carbon, dan casting ke
+     * string menghasilkan "1975-10-09 00:00:00" beserta jamnya. Jam tidak
+     * pernah relevan pada dokumen cetak, jadi tanggal ditulis sebagai
+     * Y-m-d, sama dengan nilai contoh di katalog supaya pratinjau desainer dan
+     * hasil cetak memakai bentuk yang sama.
+     */
+    public static function teksNilai(mixed $nilai): string
+    {
+        if ($nilai instanceof \BackedEnum) {
+            return (string) $nilai->value;
+        }
+
+        if ($nilai instanceof \DateTimeInterface) {
+            return $nilai->format('Y-m-d');
+        }
+
+        return (string) $nilai;
     }
 
     /**

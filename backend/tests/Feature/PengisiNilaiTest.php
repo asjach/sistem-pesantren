@@ -2,15 +2,18 @@
 
 namespace Tests\Feature;
 
+use App\Models\KeaktifanPegawai;
 use App\Models\Kelas;
 use App\Models\Lembaga;
 use App\Models\LembagaSantri;
+use App\Models\Pegawai;
 use App\Models\PsbCalonSantri;
 use App\Models\Santri;
 use App\Models\TahunAjaran;
 use App\Models\User;
 use App\Services\Template\KatalogNilai;
 use App\Services\Template\KonteksCetak;
+use App\Services\Template\PencetakMedan;
 use App\Services\Template\PengisiNilai;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -80,6 +83,9 @@ class PengisiNilaiTest extends TestCase
             pencetak: $isi['pencetak'] ?? null,
             tetap: $isi['tetap'] ?? [],
             tanggalAbsen: $isi['tanggal_absen'] ?? null,
+            idSantri: $isi['id_santri'] ?? null,
+            idPegawai: $isi['id_pegawai'] ?? null,
+            idPsbCalon: $isi['id_psb_calon'] ?? null,
         );
     }
 
@@ -298,5 +304,131 @@ class PengisiNilaiTest extends TestCase
         $nilai = (new PengisiNilai($this->konteks()))->untuk('santri', $santri->id);
 
         $this->assertNull($nilai['foto']);
+    }
+
+    /**
+     * Fixture pegawai untuk profil: satu pegawai dengan dua penempatan, riwayat
+     * keaktifan, dan akun tertaut.
+     */
+    private function fixturePegawai(): array
+    {
+        // Dua jenjang karena penempatan pegawai adalah relasi ke lembaga, dan
+        // profil sengaja memuat lebih dari satu untuk menguji tabel.
+        Lembaga::firstOrCreate(['jenjang' => 'MTS'], ['nama' => 'Pondasi WLAN 2', 'is_active' => true]);
+        Lembaga::firstOrCreate(['jenjang' => 'MA'], ['nama' => 'Pondasi WLAN 2 MA', 'is_active' => true]);
+        TahunAjaran::firstOrCreate(['nama' => '2026/2027'], ['is_aktif' => true]);
+
+        $pegawai = Pegawai::create([
+            'nama_lengkap' => 'Ahmad Fauzi', 'gelar_depan' => 'Drs.', 'gelar_belakang' => 'S.Pd.I.',
+            'nip' => '198705122011011004', 'jenis_kelamin' => 'L', 'tempat_lahir' => 'Bandung',
+            'tanggal_lahir' => '1987-05-12', 'agama' => 'Islam', 'gol_darah' => 'B',
+            'rt' => '002', 'rw' => '005', 'status_tempat_tinggal' => 'Milik sendiri',
+            'npwp' => '09.254.294.3-407.000', 'no_kk' => '3201234567890123', 'no_bpjs' => '0001234567890',
+            'email_gws' => 'a.fauzi@gws.sch.id', 'jarak_ke_pesantren' => '12 km',
+            'waktu_tempuh' => '30 menit', 'transportasi' => 'Sepeda motor',
+            'tgl_mulai_kerja' => '2012-07-01', 'no_sk_awal' => 'SK/001/2012', 'tgl_sk_awal' => '2012-07-01',
+            'status_aktif' => Pegawai::AKTIF,
+        ]);
+
+        $pegawai->penempatan()->create([
+            'jenjang' => 'MTS', 'tugas_utama' => 'Guru Matematika', 'is_active_lembaga' => 'Ya',
+            'tgl_masuk' => '2018-07-01', 'no_sk_awal_ptk' => 'SK/PTK/2018/01', 'tgl_sk_awal_ptk' => '2018-07-01',
+        ]);
+        $pegawai->penempatan()->create([
+            'jenjang' => 'MA', 'tugas_utama' => 'Wali Kelas', 'is_active_lembaga' => 'Tidak',
+            'tgl_masuk' => '2015-07-01', 'tgl_selesai' => '2024-12-31',
+        ]);
+
+        $pegawai->keaktifan()->create([
+            'tahun_ajaran' => '2026/2027', 'jenjang' => 'MTS', 'tugas_utama' => 'Guru Matematika',
+            'status_keaktifan' => KeaktifanPegawai::AKTIF, 'no_sk' => '800/SK/2026', 'tgl_sk' => '2026-07-15',
+        ]);
+
+        return compact('pegawai');
+    }
+
+    public function test_nama_pegawai_gabungan_gelar_depan_dan_belakang(): void
+    {
+        $pegawai = $this->fixturePegawai()['pegawai'];
+
+        $nilai = (new PengisiNilai($this->konteks(['id_pegawai' => $pegawai->id])))->untuk('pegawai', $pegawai->id);
+
+        $this->assertSame('Drs. Ahmad Fauzi, S.Pd.I.', $nilai['nama']);
+        $this->assertSame('Ahmad Fauzi', $nilai['nama_lengkap'], 'Nama tanpa gelar harus tetap tersedia.');
+    }
+
+    public function test_rt_rw_dan_status_keaktifan_dicetak_dalam_bahasa_indonesia(): void
+    {
+        $pegawai = $this->fixturePegawai()['pegawai'];
+
+        $nilai = (new PengisiNilai($this->konteks(['id_pegawai' => $pegawai->id])))->untuk('pegawai', $pegawai->id);
+
+        $this->assertSame('RT 002 / RW 005', $nilai['rt_rw']);
+        $this->assertSame('Aktif', $nilai['status_keaktifan_tercantum']);
+    }
+
+    public function test_setiap_kunci_katalog_pegawai_punya_nilai_yang_bisa_diambil(): void
+    {
+        $pegawai = $this->fixturePegawai()['pegawai'];
+        $pengisi = new PengisiNilai($this->konteks(['id_pegawai' => $pegawai->id]));
+
+        foreach (['pegawai', 'penempatan_pegawai', 'keaktifan_pegawai', 'lembaga'] as $sumber) {
+            $katalog = array_column(KatalogNilai::sumber()[$sumber]['medan'], 'kunci');
+            $tersedia = array_keys($pengisi->untuk($sumber, $pegawai->id));
+
+            $this->assertSame(
+                [],
+                array_values(array_diff($katalog, $tersedia)),
+                "Sumber {$sumber} punya kunci katalog yang tidak dikembalikan.",
+            );
+        }
+    }
+
+    public function test_koleksi_penempatan_pegawai_menghasilkan_satu_baris_per_lembaga(): void
+    {
+        $pegawai = $this->fixturePegawai()['pegawai'];
+        $pengisi = new PengisiNilai($this->konteks(['id_pegawai' => $pegawai->id]));
+
+        $baris = $pengisi->koleksi('penempatan_pegawai', $pegawai->id);
+
+        $this->assertCount(2, $baris);
+
+        // Baris diurutkan menurut jenjang seperti di buku induk, jadi MA lebih
+        // dulu dari MTS. Yang diperiksa isi kedua barisnya, bukan posisinya.
+        $this->assertSame([1, 2], array_column($baris, 'no_urut'));
+        $this->assertSame(['MA', 'MTS'], array_map(
+            fn (array $b): string => str_contains((string) $b['lembaga'], 'MA') && ! str_contains((string) $b['lembaga'], 'MTS') ? 'MA' : 'MTS',
+            $baris,
+        ));
+
+        $mts = $baris[1];
+        $this->assertSame('Aktif', $mts['status']);
+        $this->assertSame('Guru Matematika', $mts['tugas_utama']);
+
+        // Koleksi mengembalikan nilai mentah; pemformatan tanggal terjadi di
+        // lapisan cetak, jadi yang diuji bentuk yang benar-benar keluar.
+        $this->assertSame('2018-07-01', PencetakMedan::teksNilai($mts['tgl_masuk']));
+        $this->assertInstanceOf(\DateTimeInterface::class, $mts['tgl_masuk']);
+
+        // Nama lembaga memakai jenjang sebagai penanda supaya dua lembaga
+        // dengan nama serupa tidak tertukar di tabel.
+        $this->assertStringContainsString('(MTS)', (string) $mts['lembaga']);
+    }
+
+    public function test_koleksi_pegawai_kosong_bila_pegawai_belum_dipilih(): void
+    {
+        $pengisi = new PengisiNilai($this->konteks());
+
+        foreach (['penempatan_pegawai', 'keaktifan_pegawai_riwayat', 'akun_pegawai'] as $koleksi) {
+            $this->assertSame([], $pengisi->koleksi($koleksi, null), "Koleksi {$koleksi} harus kosong tanpa pegawai.");
+        }
+    }
+
+    public function test_koleksi_akun_kosong_bila_pegawai_tidak_punya_akun(): void
+    {
+        $pegawai = $this->fixturePegawai()['pegawai'];
+        $pengisi = new PengisiNilai($this->konteks(['id_pegawai' => $pegawai->id]));
+
+        $this->assertSame([], $pengisi->koleksi('akun_pegawai', $pegawai->id));
     }
 }

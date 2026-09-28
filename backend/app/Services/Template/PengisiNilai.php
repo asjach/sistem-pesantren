@@ -2,6 +2,7 @@
 
 namespace App\Services\Template;
 
+use App\Models\KeaktifanPegawai;
 use App\Models\Kelas;
 use App\Models\Lembaga;
 use App\Models\LembagaPegawai;
@@ -13,6 +14,7 @@ use App\Models\SemesterAktif;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 /**
  * Mengubah medan sebuah template menjadi nilai nyata dari database.
@@ -48,6 +50,7 @@ class PengisiNilai
             'lembaga' => $this->lembaga($id),
             'pegawai' => $this->pegawai($id),
             'penempatan_pegawai' => $this->penempatanPegawai($id),
+            'keaktifan_pegawai' => $this->keaktifanPegawai($id),
             'psb_calon' => $this->psbCalon($id),
             'tetap' => ['teks' => $this->konteks->tetap['teks'] ?? null, 'tanggal' => $this->konteks->tetap['tanggal'] ?? null],
             'sistem' => $this->sistem(),
@@ -78,6 +81,9 @@ class PengisiNilai
     {
         $baris = match ($kunci) {
             'daftar_santri_kelas' => $this->barisDaftarKelas(),
+            'penempatan_pegawai' => $this->barisPenempatanPegawai(),
+            'keaktifan_pegawai_riwayat' => $this->barisKeaktifanPegawai(),
+            'akun_pegawai' => $this->barisAkunPegawai(),
             'nilai_santri' => $this->barisNilai($santriId),
             'presensi_santri' => $this->barisPresensi($santriId),
             'pelanggaran_santri' => $this->barisPelanggaran($santriId),
@@ -143,8 +149,56 @@ class PengisiNilai
             'kelas_lengkap' => $this->kelasLengkap($mentah),
             'foto' => $this->jalurGambar($mentah['foto_url'] ?? null),
             'tanggal_indonesia' => $this->tanggalIndonesia($mentah['tanggal_hari_ini'] ?? null),
+            'nama_gelar' => $this->namaDenganGelar($mentah),
+            'rt_rw' => $this->rtRw($mentah),
+            'status_penempatan_tercantum' => $this->tercantum($mentah['is_active_lembaga'] ?? null, 'Ya'),
+            'status_keaktifan_tercantum' => $this->tercantum($mentah['status_aktif'] ?? null, Pegawai::AKTIF),
             default => null,
         };
+    }
+
+    /** Terjemahkan kode status menjadi "Aktif" atau "Nonaktif", null bila kosong. */
+    private function tercantum(?string $kode, string $nilaiAktif): ?string
+    {
+        if ($kode === null || $kode === '') {
+            return null;
+        }
+
+        return $kode === $nilaiAktif ? 'Aktif' : 'Nonaktif';
+    }
+
+    /** Nama pegawai dengan gelar depan dan gelar belakang, seperti di buku induk. */
+    private function namaDenganGelar(array $mentah): ?string
+    {
+        $nama = trim((string) ($mentah['nama_lengkap'] ?? ''));
+
+        if ($nama === '') {
+            return null;
+        }
+
+        $depan = trim((string) ($mentah['gelar_depan'] ?? ''));
+        $belakang = trim((string) ($mentah['gelar_belakang'] ?? ''));
+
+        // Gelar depan menempel di depan dan gelar belakang di belakang, dan
+        // keduanya boleh ada bersamaan.
+        return trim(
+            ($depan !== '' ? $depan.' ' : '')
+            .$nama
+            .($belakang !== '' ? ', '.$belakang : ''),
+        );
+    }
+
+    /** "RT 002 / RW 005", atau berantakan kalau salah satu kosong. */
+    private function rtRw(array $mentah): ?string
+    {
+        $rt = trim((string) ($mentah['rt'] ?? ''));
+        $rw = trim((string) ($mentah['rw'] ?? ''));
+        $bagian = array_filter([
+            $rt !== '' ? 'RT '.$rt : null,
+            $rw !== '' ? 'RW '.$rw : null,
+        ]);
+
+        return $bagian === [] ? null : implode(' / ', $bagian);
     }
 
     /** @return array<string, mixed> */
@@ -262,10 +316,13 @@ class PengisiNilai
         }
 
         $nilai = $pegawai->only([
-            'nama_lengkap', 'nip', 'nipp', 'nik', 'jenis_kelamin', 'tempat_lahir', 'tanggal_lahir', 'agama',
-            'gol_darah', 'pendidikan_terakhir', 'jenis_ptk', 'niat_npa', 'sertifikasi', 'status_pernikahan',
-            'no_hp', 'email_pribadi', 'alamat', 'kode_pos', 'rt', 'rw', 'desa_kelurahan', 'kecamatan',
-            'kab_kota', 'provinsi', 'tgl_mulai_kerja', 'no_sk_awal', 'status_aktif', 'foto_url',
+            'nama_lengkap', 'gelar_depan', 'gelar_belakang', 'nip', 'nipp', 'nik', 'jenis_kelamin',
+            'tempat_lahir', 'tanggal_lahir', 'agama', 'gol_darah', 'pendidikan_terakhir', 'jenis_ptk',
+            'niat_npa', 'sertifikasi', 'status_pernikahan', 'npwp', 'no_kk', 'no_bpjs', 'no_hp',
+            'email_pribadi', 'email_gws', 'alamat', 'kode_pos', 'rt', 'rw', 'desa_kelurahan',
+            'kecamatan', 'kab_kota', 'provinsi', 'status_tempat_tinggal', 'jarak_ke_pesantren',
+            'waktu_tempuh', 'transportasi', 'tgl_mulai_kerja', 'no_sk_awal', 'tgl_sk_awal',
+            'status_aktif', 'foto_url',
         ]);
 
         // Medianya berbeda nama dengan Santri (jenis_kelamin, bukan jk),
@@ -302,6 +359,44 @@ class PengisiNilai
             'tugas_utama' => $keaktifan?->tugas_utama ?? $penempatan?->tugas_utama,
             'jenjang' => $penempatan?->jenjang ?? $jenjang,
             'tahun_ajaran' => $this->konteks->tahunAjaran,
+            'status_keaktifan' => $keaktifan?->status_keaktifan,
+            'no_sk' => $keaktifan?->no_sk,
+            'tgl_sk' => $keaktifan?->tgl_sk,
+            'tgl_masuk' => $penempatan?->tgl_masuk,
+            'tgl_selesai' => $penempatan?->tgl_selesai,
+            'is_active_lembaga' => $penempatan?->is_active_lembaga,
+            'no_sk_awal_ptk' => $penempatan?->no_sk_awal_ptk,
+            'tgl_sk_awal_ptk' => $penempatan?->tgl_sk_awal_ptk,
+        ];
+    }
+
+    /**
+     * Keaktifan pegawai pada tahun ajaran dan jenjang terpilih, terpisah dari
+     * penempatan supaya surat yang hanya butuh tugas utama tidak ikut menarik
+     * riwayat keaktifan.
+     *
+     * @return array<string, mixed>
+     */
+    private function keaktifanPegawai(?int $id): array
+    {
+        $pegawai = $id === null ? null : Pegawai::find($id);
+
+        if ($pegawai === null) {
+            return [];
+        }
+
+        $jenjang = $this->konteks->jenjang;
+        $keaktifan = $this->konteks->tahunAjaran === null
+            ? null
+            : $pegawai->keaktifan()
+                ->where('tahun_ajaran', $this->konteks->tahunAjaran)
+                ->when($jenjang !== null, fn ($q) => $q->where('jenjang', $jenjang))
+                ->first();
+
+        return [
+            'tahun_ajaran' => $keaktifan?->tahun_ajaran ?? $this->konteks->tahunAjaran,
+            'jenjang' => $keaktifan?->jenjang ?? $jenjang,
+            'tugas_utama' => $keaktifan?->tugas_utama,
             'status_keaktifan' => $keaktifan?->status_keaktifan,
             'no_sk' => $keaktifan?->no_sk,
             'tgl_sk' => $keaktifan?->tgl_sk,
@@ -444,6 +539,108 @@ class PengisiNilai
     }
 
     /** @return list<array<string, mixed>> */
+    /**
+     * Semua lembaga tempat pegawai yang dipilih ditempatkan.
+     *
+     * Nama lembaga diambil lewat relasi supaya tidak perlu join; jumlahnya
+     * sedikit dan relasi sudah dimuat bersama.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function barisPenempatanPegawai(): array
+    {
+        $pegawai = $this->konteks->idPegawai === null ? null : Pegawai::find($this->konteks->idPegawai);
+
+        if ($pegawai === null) {
+            return [];
+        }
+
+        // jenjang ikut dipilih karena itu kunci relasinya; memuat nama saja
+        // membuat eager load tidak bisa mencocokkan barisnya.
+        return $pegawai->penempatan()
+            ->with('lembaga:jenjang,nama')
+            ->orderBy('jenjang')
+            ->get()
+            ->map(fn (LembagaPegawai $p): array => [
+                'lembaga' => $this->namaLembaga($p->lembaga?->nama, $p->jenjang),
+                'tugas_utama' => $p->tugas_utama,
+                'status' => $p->is_active_lembaga === LembagaPegawai::YA ? 'Aktif' : 'Nonaktif',
+                'tgl_masuk' => $p->tgl_masuk,
+                'tgl_selesai' => $p->tgl_selesai,
+                'no_sk_awal_ptk' => $p->no_sk_awal_ptk,
+                'tgl_sk_awal_ptk' => $p->tgl_sk_awal_ptk,
+            ])->all();
+    }
+
+    /**
+     * Riwayat keaktifan pegawai, terbaru lebih dulu.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function barisKeaktifanPegawai(): array
+    {
+        $pegawai = $this->konteks->idPegawai === null ? null : Pegawai::find($this->konteks->idPegawai);
+
+        if ($pegawai === null) {
+            return [];
+        }
+
+        return $pegawai->keaktifan()
+            ->with('lembaga:jenjang,nama')
+            ->orderByDesc('tahun_ajaran')
+            ->orderBy('jenjang')
+            ->get()
+            ->map(fn (KeaktifanPegawai $k): array => [
+                'tahun_ajaran' => $k->tahun_ajaran,
+                'lembaga' => $this->namaLembaga($k->lembaga?->nama, $k->jenjang),
+                'tugas_utama' => $k->tugas_utama,
+                'status' => $k->status_keaktifan === KeaktifanPegawai::AKTIF ? 'Aktif' : 'Nonaktif',
+                'no_sk' => $k->no_sk,
+                'tgl_sk' => $k->tgl_sk,
+            ])->all();
+    }
+
+    /**
+     * Akun sistem yang tertaut ke pegawai. Paling banyak satu, jadi tabelnya
+     * biasanya berisi nol atau satu baris.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function barisAkunPegawai(): array
+    {
+        $pegawai = $this->konteks->idPegawai === null ? null : Pegawai::find($this->konteks->idPegawai);
+        $akun = $pegawai?->akun;
+
+        if ($akun === null) {
+            return [];
+        }
+
+        $akun->loadMissing(['roles:id,name', 'lembagas:jenjang,nama']);
+
+        return [[
+            'nama' => $akun->name,
+            'login' => $akun->email ?: $akun->username,
+            'no_hp' => $akun->phone,
+            'peran' => $akun->roles->pluck('name')->map(fn (string $r): string => Str::headline($r))->implode(', '),
+            'akses_lembaga' => $akun->lembagas
+                ->map(fn (Lembaga $l): string => $l->jenjang.($l->pivot->role ? ' ('.Str::headline((string) $l->pivot->role).')' : ''))
+                ->implode(', '),
+        ]];
+    }
+
+    /** "Nama (JENJANG)", jatuh ke jenjang saja bila nama lembaga kosong. */
+    private function namaLembaga(?string $nama, ?string $jenjang): string
+    {
+        $nama = trim((string) $nama);
+        $jenjang = (string) $jenjang;
+
+        if ($nama === '') {
+            return $jenjang;
+        }
+
+        return $jenjang === '' ? $nama : $nama.' ('.$jenjang.')';
+    }
+
     private function barisDaftarKelas(): array
     {
         if ($this->konteks->kelasId === null) {

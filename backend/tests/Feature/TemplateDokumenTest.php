@@ -6,9 +6,11 @@ use App\Models\Lembaga;
 use App\Models\TemplateDokumen;
 use App\Services\IzinKatalog;
 use App\Services\Template\KatalogNilai;
+use App\Services\Template\PencetakMedan;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 class TemplateDokumenTest extends TestCase
@@ -185,5 +187,24 @@ class TemplateDokumenTest extends TestCase
     {
         $this->assertTrue(KatalogNilai::dikenal('aset'));
         $this->assertContains('aset', KatalogNilai::sumberDinamis());
+    }
+
+    public function test_tanggal_dicetak_tanpa_jam(): void
+    {
+        // Eloquent mengembalikan kolom tanggal sebagai objek Carbon. Casting ke
+        // string akan membawa jam 00:00:00 ikut tercetak, dan jam tidak pernah
+        // relevan pada dokumen.
+        $tanggal = new Carbon('1975-10-09 00:00:00');
+
+        $this->assertSame('1975-10-09', PencetakMedan::teksNilai($tanggal));
+        $this->assertSame('1975-10-09', PencetakMedan::teksNilai(new \DateTimeImmutable('1975-10-09 13:45:00')));
+    }
+
+    public function test_nilai_biasa_tertetap_apa_adanya(): void
+    {
+        $this->assertSame('Ahmad Fauzi', PencetakMedan::teksNilai('Ahmad Fauzi'));
+        $this->assertSame('198705122011011004', PencetakMedan::teksNilai('198705122011011004'));
+        $this->assertSame('12', PencetakMedan::teksNilai(12));
+        $this->assertSame('', PencetakMedan::teksNilai(null));
     }
 }
