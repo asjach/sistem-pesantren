@@ -249,6 +249,71 @@ class TemplateDokumenApiTest extends TestCase
             ->assertJsonValidationErrors('definisi.medan.0.halaman');
     }
 
+    public function test_patch_hanya_mengubah_kolom_yang_dikirim(): void
+    {
+        $this->fixture();
+        $auth = $this->superAdmin();
+        $template = $this->template([
+            'kategori' => 'surat',
+            'deskripsi' => 'Deskripsi yang harus bertahan',
+            'jenjang' => 'MTS',
+            'aktif' => false,
+        ]);
+
+        // Editor medan hanya mengirim nama dan definisi.
+        $this->actingAs($auth, 'sanctum')
+            ->patchJson('/api/admin/template-dokumen/'.$template->id, [
+                'nama' => 'Nama Baru',
+                'definisi' => ['medan' => [[
+                    'tipe' => 'teks', 'label' => 'Nama', 'halaman' => 1, 'x' => 20, 'y' => 50, 'w' => 170, 'h' => 8,
+                    'sumber' => 'santri', 'kunci' => 'nama_lengkap',
+                ]]],
+            ])
+            ->assertOk();
+
+        $template->refresh();
+
+        $this->assertSame('Nama Baru', $template->nama);
+        $this->assertSame('surat', $template->kategori, 'Kategori tidak boleh kosong setelah PATCH sebagian.');
+        $this->assertSame('Deskripsi yang harus bertahan', $template->deskripsi);
+        $this->assertSame('MTS', $template->jenjang, 'Cakupan lembaga tidak boleh hilang.');
+        $this->assertFalse($template->aktif, 'Template tidak boleh dinonaktifkan tanpa diminta.');
+        $this->assertCount(1, $template->definisi['medan']);
+    }
+
+    public function test_patch_memang_boleh_menghapus_kolom_yang_dikirim_kosong(): void
+    {
+        $this->fixture();
+        $auth = $this->superAdmin();
+        $template = $this->template(['kategori' => 'surat', 'deskripsi' => 'Ada', 'aktif' => true]);
+
+        $this->actingAs($auth, 'sanctum')
+            ->patchJson('/api/admin/template-dokumen/'.$template->id, [
+                'nama' => 'Surat Uji',
+                'deskripsi' => null,
+                'aktif' => false,
+            ])
+            ->assertOk();
+
+        $template->refresh();
+
+        $this->assertNull($template->deskripsi, 'Deskripsi kosong yang dikirim harus dihapus.');
+        $this->assertFalse($template->aktif);
+        $this->assertSame('surat', $template->kategori);
+    }
+
+    public function test_buat_template_tetap_wajib_memilih_kategori(): void
+    {
+        $this->fixture();
+        $auth = $this->superAdmin();
+
+        $this->actingAs($auth, 'sanctum')
+            ->postJson('/api/admin/template-dokumen', ['nama' => 'Tanpa Kategori', 'jenis' => 'pdf'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('kategori')
+            ->assertJsonFragment(['Kategori template wajib dipilih.']);
+    }
+
     public function test_medan_berhasil_disimpan_dan_dinormalisasi(): void
     {
         $this->fixture();

@@ -122,18 +122,37 @@ class TemplateDokumenController extends Controller
     {
         $this->pastikanTerlihat($request, $template);
 
-        $jumlahHalaman = (int) $template->jumlah_halaman;
-        $definisi = DefinisiMedan::normalisasi($request->input('definisi', []), $jumlahHalaman);
-        DefinisiMedan::validasi($request->input('definisi', []), $jumlahHalaman);
+        DefinisiMedan::validasi($request->input('definisi', []), (int) $template->jumlah_halaman);
 
-        $template->fill([
-            'nama' => $request->string('nama')->toString(),
-            'kategori' => $request->string('kategori')->toString(),
-            'deskripsi' => $request->input('deskripsi'),
-            'jenjang' => $this->validasiJenjang($request),
-            'aktif' => $request->boolean('aktif'),
-            'definisi' => $definisi,
-        ]);
+        $template->nama = $request->string('nama')->toString();
+
+        // PATCH bersifat sebagian: hanya kolom yang benar-benar dikirim yang
+        // ditimpa. Editor medan mengirim nama dan definisi saja, jadi tanpa
+        // pemeriksaan ini setiap penyimpanan medan akan mengosongkan kategori,
+        // deskripsi, dan cakupan lembaga, serta menonaktifkan template.
+        if ($request->has('kategori')) {
+            $template->kategori = $request->string('kategori')->toString();
+        }
+
+        if ($request->has('deskripsi')) {
+            $template->deskripsi = $request->input('deskripsi');
+        }
+
+        if ($request->has('jenjang')) {
+            $template->jenjang = $this->validasiJenjang($request);
+        }
+
+        if ($request->has('aktif')) {
+            $template->aktif = $request->boolean('aktif');
+        }
+
+        if ($request->has('definisi')) {
+            $template->definisi = DefinisiMedan::normalisasi(
+                $request->input('definisi', []),
+                (int) $template->jumlah_halaman,
+            );
+        }
+
         $template->save();
 
         return response()->json([
