@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 import ExcelTable, { type ExcelTableProps } from './ExcelTable';
@@ -138,6 +138,36 @@ describe('ExcelTable', () => {
     expect(header).toHaveTextContent('Awal uji');
     expect(header).toHaveTextContent('Akhir uji');
     expect(header).toHaveTextContent('Info tengah uji');
+  });
+});
+
+describe('ExcelTable — klik kanan baris', () => {
+  /** Elemen baris grid yang memuat teks tertentu. Cakupannya dibatasi ke
+   *  container tabel: span pengukur AutoFit di luar container ikut memuat
+   *  nilai sel yang sama. */
+  function baris(root: HTMLElement, nama: string): HTMLElement {
+    const el = within(root).getByText(nama).closest('.dsg-row');
+    expect(el).not.toBeNull();
+    return el as HTMLElement;
+  }
+
+  it('menu konteks baris kedua menunjuk baris itu sendiri, bukan baris berikutnya', async () => {
+    const { container } = renderTabel();
+
+    fireEvent.contextMenu(baris(container, 'Budi'));
+
+    const menu = await screen.findByRole('menu');
+    expect(menu).toHaveTextContent('Budi');
+    expect(menu).not.toHaveTextContent('Ahmad');
+  });
+
+  it('klik kanan pada baris terakhir tetap membuka menu', async () => {
+    const { container } = renderTabel();
+
+    fireEvent.contextMenu(baris(container, 'B-02'));
+
+    const menu = await screen.findByRole('menu');
+    expect(menu).toHaveTextContent('Budi');
   });
 });
 

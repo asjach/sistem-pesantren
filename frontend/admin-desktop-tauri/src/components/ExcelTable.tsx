@@ -1135,7 +1135,17 @@ export default function ExcelTable<T extends { id: string | number }>({
     }
     const rowEl = t.closest('.dsg-row:not(.dsg-row-header)') as HTMLElement | null;
     if (rowEl) {
-      const idx = Math.round((parseFloat(rowEl.style.top || '0') || 0) / effectiveH);
+      // Indeks baris dibaca dari NOMOR GUTTER DSG (sel `.dsg-cell-gutter`
+      // berisi rowIndex+1) — selalu ada, bahkan saat hideCheckbox. Jangan
+      // pakai `style.top`: virtualizer DSG memakai `paddingStart =
+      // headerRowHeight`, jadi nilainya sudah termasuk tinggi header dan
+      // hasil baginya meleset sebesar tinggi header (baris terakhir bahkan
+      // jatuh di luar array). Fallback tetap dikurangi tinggi header.
+      const nomor = Number.parseInt(rowEl.querySelector('.dsg-cell-gutter')?.textContent ?? '', 10);
+      const top = Number.parseFloat(rowEl.style.top || '0') || 0;
+      const idx = Number.isFinite(nomor)
+        ? nomor - 1
+        : Math.round((top - headerEfektifH) / effectiveH);
       const g = gridValue[idx];
       if (g && String(g.id) !== INPUT_ROW_ID) {
         const domain = rowsRef.current.find((r) => String(r.id) === String(g.id));

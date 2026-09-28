@@ -4,11 +4,14 @@
  * widthCache mengunci 0 dan grid tidak stabil. Stub merender struktur minimal
  * (header + sel isi) memakai komponen kolom yang disuntik ExcelTable, sehingga
  * CellProps (component/columnData) tetap ikut teruji. Kolom beku kanan
- * (stickyRightColumn, dipakai kolom Aksi) ikut dirender.
+ * (stickyRightColumn, dipakai kolom Aksi) ikut dirender. Baris data meniru
+ * struktur DSG untuk konteks menu: kelas `dsg-row`, `style.top` ber-padding
+ * tinggi header, dan sel gutter `.dsg-cell-gutter` bernomor baris.
  */
 import { forwardRef } from 'react';
 import type { Column } from 'react-datasheet-grid';
 
+import { cn } from '@/lib/utils';
 import type { GridRow } from './types';
 
 /** Props yang dipakai stub dari Column DSG. */
@@ -40,11 +43,15 @@ export const DynamicDataSheetGridStub = forwardRef(function DynamicDataSheetGrid
     value,
     rowClassName,
     stickyRightColumn,
+    rowHeight,
+    headerRowHeight,
   }: {
     columns: Column<GridRow>[];
     value: GridRow[];
     rowClassName?: (args: { rowIndex: number }) => string | undefined;
     stickyRightColumn?: Column<GridRow>;
+    rowHeight?: number;
+    headerRowHeight?: number;
   },
   _ref,
 ) {
@@ -52,17 +59,27 @@ export const DynamicDataSheetGridStub = forwardRef(function DynamicDataSheetGrid
     ...(columns as KolomStub[]),
     ...(stickyRightColumn ? [stickyRightColumn as KolomStub] : []),
   ];
+  const hBaris = typeof rowHeight === 'number' ? rowHeight : 0;
+  const hHeader = typeof headerRowHeight === 'number' ? headerRowHeight : 0;
   return (
     <div className="dsg">
       {/* Baris header */}
-      <div className="dsg-row-header">
+      <div className="dsg-row dsg-row-header">
+        <div className="dsg-cell dsg-cell-gutter" />
         {semua.map((k, i) => (
           <div key={`h${i}`}>{renderKolom(k, null)}</div>
         ))}
       </div>
-      {/* Baris data */}
+      {/* Baris data: `top` meniru virtualizer DSG (paddingStart = tinggi
+          header) dan sel gutter memuat nomor baris (rowIndex+1) — keduanya
+          dipakai ExcelTable saat klik kanan. */}
       {value.map((row, i) => (
-        <div key={String(row.id)} className={rowClassName?.({ rowIndex: i })}>
+        <div
+          key={String(row.id)}
+          className={cn('dsg-row', rowClassName?.({ rowIndex: i }))}
+          style={{ top: hHeader + i * hBaris }}
+        >
+          <div className="dsg-cell dsg-cell-gutter">{i + 1}</div>
           {semua.map((k, j) => (
             <div key={String(j)}>{renderKolom(k, row)}</div>
           ))}
