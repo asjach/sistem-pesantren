@@ -192,6 +192,8 @@ class KatalogNilai
                     ['kunci' => 'tanggal_masuk', 'label' => 'Tanggal Masuk', 'tipe' => 'tanggal', 'contoh' => '2026-07-20', 'hitung' => null],
                     ['kunci' => 'status_pendaftaran', 'label' => 'Status Pendaftaran', 'tipe' => 'teks', 'contoh' => 'Diterima', 'hitung' => null],
                     ['kunci' => 'jenjang', 'label' => 'Jenjang', 'tipe' => 'teks', 'contoh' => 'MTS', 'hitung' => null],
+                    ['kunci' => 'telp_ortu', 'label' => 'Telepon Orang Tua', 'tipe' => 'teks', 'contoh' => '081234567890', 'hitung' => null],
+                    ['kunci' => 'email_ortu', 'label' => 'Email Orang Tua', 'tipe' => 'teks', 'contoh' => 'ortu@contoh.sch.id', 'hitung' => null],
                     ['kunci' => 'catatan', 'label' => 'Catatan', 'tipe' => 'paragraf', 'contoh' => '-', 'hitung' => null],
                 ],
             ],
@@ -285,12 +287,14 @@ class KatalogNilai
             'rekap_tahfiz' => [
                 'label' => 'Rekap Tahfiz',
                 'kelompok' => 'Santri',
+                // Catatan: nama surah sengaja tidak ditawarkan. Kolom
+                // rekap_tahfiz_santri.surah_terakhir_id masih menggantung karena
+                // tabel master surah belum ada di database.
                 'catatan' => 'Progres hafalan Santri yang dipilih.',
                 'medan' => [
                     ['kunci' => 'no_urut', 'label' => 'No.', 'tipe' => 'angka', 'contoh' => 1],
                     ['kunci' => 'juz_mutqin', 'label' => 'Juz Mutqin', 'tipe' => 'angka', 'contoh' => 3],
                     ['kunci' => 'juz_ziyadah', 'label' => 'Juz Ziyadah', 'tipe' => 'angka', 'contoh' => 1],
-                    ['kunci' => 'surah_terakhir', 'label' => 'Surah Terakhir', 'tipe' => 'teks', 'contoh' => 'Al-Baqarah'],
                     ['kunci' => 'ayat_terakhir', 'label' => 'Ayat Terakhir', 'tipe' => 'angka', 'contoh' => 255],
                 ],
             ],
@@ -316,9 +320,11 @@ class KatalogNilai
         }
 
         $medan[] = ['kunci' => 'yang_membiayai', 'label' => 'Yang Membiayai', 'tipe' => 'teks', 'contoh' => 'Ayah', 'hitung' => null];
-        $medan[] = ['kunci' => 'email_ortu', 'label' => 'Email Orang Tua', 'tipe' => 'teks', 'contoh' => 'ortu@contoh.sch.id', 'hitung' => null];
-        $medan[] = ['kunci' => 'telp_ortu', 'label' => 'Telepon Orang Tua', 'tipe' => 'teks', 'contoh' => '081234567890', 'hitung' => null];
         $medan[] = ['kunci' => 'alamat_ortu', 'label' => 'Alamat Orang Tua Lengkap', 'tipe' => 'paragraf', 'contoh' => 'Jl. Cendana No. 12, Bandung, 40123', 'hitung' => 'alamat_ortu'];
+
+        // Catatan: telp_ortu & email_ortu sengaja tidak ada di sini. Kolomnya
+        // hanya ada di psb_calon_santri (yang sudah ada di $fillable), tidak
+        // ada di migrasi tabel santri maupun di Santri::$fillable.
 
         return $medan;
     }
