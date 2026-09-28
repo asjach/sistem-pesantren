@@ -8,12 +8,16 @@ use App\Models\LembagaSantri;
 use App\Models\Santri;
 use App\Models\TahunAjaran;
 use App\Models\TemplateDokumen;
+use App\Models\User;
 use App\Services\Template\KonteksCetak;
 use App\Services\Template\LebarHuruf;
 use App\Services\Template\PengisiNilai;
 use App\Services\Template\PerenderHtml;
+use Database\Seeders\PermissionSeeder;
+use Database\Seeders\RoleSeeder;
 use Dompdf\Dompdf;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -32,6 +36,9 @@ class PerenderHtmlTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->seed(RoleSeeder::class);
+        $this->seed(PermissionSeeder::class);
+        $this->withoutMiddleware(ThrottleRequests::class);
         Storage::fake('local');
     }
 
@@ -345,6 +352,49 @@ class PerenderHtmlTest extends TestCase
         }
 
         return compact('kelas');
+    }
+
+    public function test_endpoint_isi_memakai_renderer_html_untuk_template_jenis_html(): void
+    {
+        $this->actingAs($this->operator(), 'sanctum');
+
+        $id = $this->actingAs($this->operator(), 'sanctum')
+            ->postJson('/api/admin/template-dokumen', [
+                'nama' => 'Kop Madrasah', 'kategori' => 'surat', 'jenis' => 'html',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.jenis', 'html')
+            ->json('data.id');
+
+        $this->actingAs($this->operator(), 'sanctum')
+            ->patchJson('/api/admin/template-dokumen/'.$id, [
+                'nama' => 'Kop Madrasah', 'kategori' => 'surat',
+                'definisi' => ['medan' => [[
+                    'tipe' => 'teks', 'label' => 'Nama', 'halaman' => 1,
+                    'x' => 60, 'y' => 78.5, 'w' => 110, 'h' => 7,
+                    'sumber' => 'tetap', 'kunci' => 'teks',
+                ]]],
+            ])
+            ->assertOk();
+
+        $res = $this->actingAs($this->operator(), 'sanctum')
+            ->postJson('/api/admin/template-dokumen/'.$id.'/isi', [
+                'tetap' => ['teks' => 'NAMA SANTRI UJI'],
+            ])
+            ->assertOk();
+
+        $this->assertSame('application/pdf', $res->headers->get('content-type'));
+        $this->assertStringStartsWith('%PDF-', $res->getContent());
+    }
+
+    private function operator(): User
+    {
+        $user = User::create([
+            'name' => 'Operator TU', 'email' => 'tu-'.uniqid().'@example.com', 'password' => 'password',
+        ]);
+        $user->assignRole('super_admin');
+
+        return $user;
     }
 
     private function lebarHuruf(): LebarHuruf
