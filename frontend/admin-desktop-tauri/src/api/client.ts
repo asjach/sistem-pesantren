@@ -319,6 +319,38 @@ async function apiMentah<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 /**
+ * Ambil berkas biner (PDF template) sebagai ArrayBuffer. pdf.js butuh byte
+ * asli, bukan objek URL, dan pembacaannya harus memakai token serta header
+ * lembaga yang sama seperti permintaan lain.
+ */
+export async function ambilBerkas(path: string): Promise<ArrayBuffer> {
+  getCache.clear();
+  const [token, base] = await Promise.all([getToken(), getBaseUrl()]);
+  let res: Response;
+  try {
+    res = await fetch(`${base}${path}`, {
+      headers: {
+        Accept: '*/*',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...headerLembaga(),
+      },
+    });
+  } catch {
+    throw new ApiError(0, { message: `Tidak dapat menghubungi server (${base}). Periksa alamat di Pengaturan.` });
+  }
+
+  if (!res.ok) {
+    if (res.status === 401) {
+      await clearSession();
+      emitUnauthorized();
+    }
+    throw new ApiError(res.status, { message: await res.text().catch(() => 'Berkas tidak dapat dibaca.') });
+  }
+
+  return res.arrayBuffer();
+}
+
+/**
  * POST JSON yang jawabannya berkas (bukan JSON), lalu disimpan sebagai objek
  * URL. Dipakai untuk mengunduh PDF hasil isi template: endpointnya POST karena
  * perlu data formulir, sedangkan `downloadFile` hanya bisa GET.
