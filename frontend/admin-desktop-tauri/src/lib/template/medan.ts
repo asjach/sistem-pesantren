@@ -32,6 +32,9 @@ export function gayaBawaan(ubah: Partial<GayaMedan> = {}): GayaMedan {
     huruf_besar: false,
     skala_otomatis: true,
     huruf_min: 6,
+    // Dipakai tipe garis dan kotak: tebal dalam milimeter dan warna isian.
+    tebal_mm: 0.3,
+    isi: null,
     ...ubah,
   };
 }
@@ -45,6 +48,9 @@ const KOTAK_BAWAAN: Record<TipeMedan, Kotak> = {
   tanda_tangan: { x: 140, y: 240, w: 45, h: 22 },
   baris_berulang: { x: 20, y: 60, w: 170, h: 80 },
   halaman_otomatis: { x: 20, y: 285, w: 60, h: 6 },
+  // Garis memakai tinggi sebagai tebal, jadi tinggi bawaannya tipis.
+  garis: { x: 20, y: 45, w: 170, h: 0.4 },
+  kotak: { x: 20, y: 60, w: 170, h: 8 },
 };
 
 export function idBaru(medan: Medan[]): string {
@@ -120,6 +126,8 @@ function labelBawaan(tipe: TipeMedan): string {
       tanda_tangan: 'Tanda tangan',
       baris_berulang: 'Daftar baris',
       halaman_otomatis: 'Nomor halaman',
+      garis: 'Garis',
+      kotak: 'Kotak',
     }[tipe]
   );
 }

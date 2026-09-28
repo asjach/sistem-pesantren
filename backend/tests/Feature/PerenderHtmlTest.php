@@ -439,7 +439,7 @@ class PerenderHtmlTest extends TestCase
      *
      * @return list<array{x: float, y: float, w: float, h: float}>
      */
-    private function kotakTeras(string $pdf): array
+    private function kotakTeras(string $pdf, bool $tanpaLatar = false): array
     {
         $hasil = [];
 
@@ -459,6 +459,17 @@ class PerenderHtmlTest extends TestCase
                     continue;
                 }
 
+                if ($tanpaLatar) {
+                    $lebar = (float) $satu[3] * 25.4 / 72;
+                    $tinggi = (float) $satu[4] * 25.4 / 72;
+
+                    // Latar halaman juga digambar dengan re; yang dicari di sini
+                    // hanya kotak medan, jadi yang sebesar halaman dilewati.
+                    if ($lebar > 200.0 && $tinggi > 280.0) {
+                        continue;
+                    }
+                }
+
                 $hasil[] = [
                     'x' => round((float) $satu[1] * 25.4 / 72, 2),
                     'y' => round(((float) $satu[2] + (float) $satu[4]) * 25.4 / 72, 2),
@@ -469,6 +480,50 @@ class PerenderHtmlTest extends TestCase
         }
 
         return $hasil;
+    }
+
+    /**
+     * Garis horizontal yang digambar dompdf, dalam milimeter dan point.
+     *
+     * Garis ditulis sebagai path "x1 y1 m x1 y1 l ... S" dan bukan kotak
+     * potong, jadi dibaca dari operatornya.
+     *
+     * @return list<array{x: float, panjang: float, tebal_pt: float}>
+     */
+    private function garisTeras(string $pdf): array
+    {
+        $hasil = [];
+
+        foreach ($this->aliranIsi($pdf) as $isi) {
+            $pola = '/([0-9.]+)\s+w\s+0\s+J[^\n]*\n[^\n]*?([0-9.]+)\s+([0-9.]+)\s+m\s+([0-9.]+)\s+([0-9.]+)\s+l\s+S/';
+
+            if (preg_match_all($pola, $isi, $cocok, PREG_SET_ORDER) === 0) {
+                continue;
+            }
+
+            // Group: 1 lebar garis, 2 x awal, 3 y awal, 4 x akhir, 5 y akhir.
+            foreach ($cocok as $satu) {
+                $hasil[] = [
+                    'x' => (float) $satu[2] * 25.4 / 72,
+                    'panjang' => abs((float) $satu[2] - (float) $satu[4]) * 25.4 / 72,
+                    'tebal_pt' => (float) $satu[1],
+                ];
+            }
+        }
+
+        return $hasil;
+    }
+
+    /**
+     * Warna isian yang ditulis operator rg, dalam bentuk teks apa adanya.
+     *
+     * @return list<string>
+     */
+    private function warnaIsian(string $isi): array
+    {
+        preg_match_all('/([0-9.]+ [0-9.]+ [0-9.]+) rg/', $isi, $cocok);
+
+        return $cocok[1] ?? [];
     }
 
     /** @return array{lebar_mm: float, tinggi_mm: float}|null */
@@ -515,5 +570,69 @@ class PerenderHtmlTest extends TestCase
         return (string) base64_decode(
             'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
         );
+    }
+
+    public function test_garis_digambar_sebagai_garis_panjang_tebal_mm(): void
+    {
+        $pdf = $this->cetak(['medan' => [[
+            'tipe' => 'garis', 'label' => 'Garis kop', 'halaman' => 1,
+            'x' => 20, 'y' => 42, 'w' => 170, 'h' => 0.8,
+            'gaya' => ['warna' => '#000000', 'tebal_mm' => 0.8],
+        ]]]);
+
+        $garis = $this->garisTeras($pdf);
+
+        $this->assertCount(1, $garis, 'Garis harus digambar tepat satu.');
+        $this->assertEqualsWithDelta(20.0, $garis[0]['x'], 0.3, 'Garis mulai di kiri kotak.');
+        $this->assertEqualsWithDelta(170.0, $garis[0]['panjang'], 0.5, 'Panjang garis sama dengan lebar kotak.');
+        // 0,8 mm sama dengan 0,8 * 72 / 25,4 point.
+        $this->assertEqualsWithDelta(0.8 * 72 / 25.4, $garis[0]['tebal_pt'], 0.01, 'Tebal garis mengikuti gaya dalam milimeter.');
+    }
+
+    public function test_kotak_berborder_dan_berlatar_digambar(): void
+    {
+        $pdf = $this->cetak(['medan' => [[
+            'tipe' => 'kotak', 'label' => 'Judul seksi', 'halaman' => 1,
+            'x' => 20, 'y' => 50, 'w' => 170, 'h' => 7,
+            'gaya' => ['warna' => '#333333', 'tebal_mm' => 0.3, 'isi' => '#e8e8e8'],
+        ]]]);
+
+        $kotak = $this->kotakTeras($pdf, tanpaLatar: true);
+
+        $this->assertNotEmpty($kotak, 'Kotak harus menggambar garisnya sendiri.');
+        $satu = $kotak[0];
+
+        // Dompdf mengukur kotak dalam. Lebar dikurangi dua kali tebal border
+        // supaya ukuran luarnya tetap 170 mm seperti yang diminta desainer.
+        $this->assertEqualsWithDelta(170.0 - 2 * 0.3, $satu['w'], 0.3);
+        $this->assertEqualsWithDelta(7.0 - 2 * 0.3, $satu['h'], 0.3);
+
+        // kotakTeras mengembalikan tepi atas, jadi jarak dari atas halaman
+        // langsung mengurangi tinggi halaman dengan tepi itu.
+        $this->assertEqualsWithDelta(50.0, 297.0 - $satu['y'], 0.4, 'Tepi atas kotak di 50 mm dari atas.');
+
+        // Isian abu-abu (#e8e8e8) diteruskan sebagai operator rg.
+        $warna = $this->warnaIsian($this->aliranIsi($pdf)[0] ?? '');
+
+        $this->assertContains('0.910 0.910 0.910', $warna, 'Warna isian kotak harus diteruskan ke PDF.');
+    }
+
+    public function test_kotak_tanpa_isi_tidak_menggambar_latar(): void
+    {
+        $pdf = $this->cetak(['medan' => [[
+            'tipe' => 'kotak', 'label' => 'Pembatas', 'halaman' => 1,
+            'x' => 20, 'y' => 50, 'w' => 60, 'h' => 10,
+            'gaya' => ['warna' => '#000000', 'tebal_mm' => 0.3, 'isi' => null],
+        ]]]);
+
+        // Latar halaman sendiri berwarna putih, jadi yang diperiksa tidak boleh
+        // ada warna isian lain.
+        $warna = array_values(array_filter(
+            $this->warnaIsian($this->aliranIsi($pdf)[0] ?? ''),
+            fn (string $rgb): bool => trim($rgb) !== '1.000 1.000 1.000',
+        ));
+
+        $this->assertSame([], $warna, 'Kotak tanpa isian tidak boleh mengisi warna.');
+        $this->assertNotEmpty($this->kotakTeras($pdf, tanpaLatar: true), 'Border kotak tetap harus ada.');
     }
 }

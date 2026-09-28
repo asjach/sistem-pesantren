@@ -10,6 +10,7 @@ import {
   FONT_PDF,
   RATA,
   SIZEMODE,
+  TIPE_DEKORATIF,
   TIPE_TANDA,
   type GayaMedan,
   type KatalogNilai,
@@ -70,7 +71,8 @@ export default function InspekturMedan({
   }
 
   const gaya = medan.gaya;
-  const perluGaya = !TIPE_TANDA.includes(medan.tipe);
+  // Tipe dekoratif memakai panel tebal dan warna isian, bukan gaya huruf.
+  const perluGaya = !TIPE_TANDA.includes(medan.tipe) && !TIPE_DEKORATIF.includes(medan.tipe);
   const sumber = katalog?.sumber.find((s) => s.kunci === medan.sumber) ?? null;
   const koleksi = katalog?.koleksi.find((k) => k.kunci === medan.baris_berulang?.sumber) ?? null;
 
@@ -313,6 +315,60 @@ export default function InspekturMedan({
         </div>
       )}
 
+      {TIPE_DEKORATIF.includes(medan.tipe) && (
+        <>
+          <p className="text-xs text-muted-foreground">
+            {medan.tipe === 'garis'
+              ? 'Panjang garis memakai lebar kotak dan tebal memakai tingginya.'
+              : 'Isi medianya diisi medan lain. Warna isian boleh dikosongkan agar tetap transparan.'}
+          </p>
+
+          <AngkaMedan
+            id="input_tebal_garis_medan"
+            label={medan.tipe === 'garis' ? 'Tebal garis (mm)' : 'Tebal border (mm)'}
+            nilai={gaya.tebal_mm}
+            ubah={(nilai) => onUbahGaya(medan.id, { tebal_mm: nilai })}
+            langkah={0.1}
+            modeBaca={modeBaca}
+          />
+
+          {medan.tipe === 'kotak' && (
+            <div>
+              <FieldLabel htmlFor="input_warna_isi_medan">Warna isian</FieldLabel>
+              <Input
+                id="input_warna_isi_medan"
+                type="color"
+                value={gaya.isi ?? '#ffffff'}
+                disabled={modeBaca}
+                onChange={(e) => onUbahGaya(medan.id, { isi: e.target.value })}
+                className="h-8 w-20 p-1"
+              />
+              <label className="flex items-center gap-2 pt-1 text-sm">
+                <Checkbox
+                  id="checkbox_isi_kosong_medan"
+                  checked={gaya.isi === null}
+                  disabled={modeBaca}
+                  onCheckedChange={(benar) => onUbahGaya(medan.id, { isi: benar ? null : '#f1f1f1' })}
+                />
+                Tanpa isian
+              </label>
+            </div>
+          )}
+
+          <div>
+            <FieldLabel htmlFor="input_warna_garis_medan">Warna garis</FieldLabel>
+            <Input
+              id="input_warna_garis_medan"
+              type="color"
+              value={gaya.warna}
+              disabled={modeBaca}
+              onChange={(e) => onUbahGaya(medan.id, { warna: e.target.value })}
+              className="h-8 w-20 p-1"
+            />
+          </div>
+        </>
+      )}
+
       {TIPE_TANDA.includes(medan.tipe) ? (
         <FieldDescription>
           Medan ini hanya menandai tempat di kanvas dan tidak mencetak apa pun pada dokumen.
@@ -436,9 +492,10 @@ interface AngkaMedanProps {
   nilai: number;
   ubah: (nilai: number) => void;
   langkah?: number;
+  modeBaca?: boolean;
 }
 
-function AngkaMedan({ id, label, nilai, ubah, langkah = 0.5 }: AngkaMedanProps) {
+function AngkaMedan({ id, label, nilai, ubah, langkah = 0.5, modeBaca = false }: AngkaMedanProps) {
   return (
     <div>
       <FieldLabel htmlFor={id}>{label}</FieldLabel>
@@ -448,6 +505,7 @@ function AngkaMedan({ id, label, nilai, ubah, langkah = 0.5 }: AngkaMedanProps) 
         inputMode="decimal"
         step={langkah}
         defaultValue={nilai}
+        disabled={modeBaca}
         onBlur={(e) => ubah(bacaAngka(e.target.value, nilai))}
         onKeyDown={(e) => {
           if (e.key === 'Enter') {

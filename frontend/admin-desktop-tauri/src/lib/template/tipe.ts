@@ -15,6 +15,8 @@ export const TIPE_MEDAN = [
   'tanda_tangan',
   'baris_berulang',
   'halaman_otomatis',
+  'garis',
+  'kotak',
 ] as const;
 
 export type TipeMedan = (typeof TIPE_MEDAN)[number];
@@ -27,6 +29,14 @@ export const TIPE_TANDA: TipeMedan[] = ['tanda_tangan'];
 
 /** Tipe yang mengisi kotak dengan baris koleksi. */
 export const TIPE_BARIS: TipeMedan[] = ['baris_berulang'];
+
+/**
+ * Tipe gambar dekoratif: garis dan kotak.
+ *
+ * Isi medianya diisi medan lain; tipe ini hanya memakai sebagian ruang
+ * halaman, jadi panel gaya huruf tidak relevan untuknya.
+ */
+export const TIPE_DEKORATIF: TipeMedan[] = ['garis', 'kotak'];
 
 export const RATA = ['kiri', 'tengah', 'kanan'] as const;
 export type Rata = (typeof RATA)[number];
@@ -98,6 +108,10 @@ export interface GayaMedan {
   skala_otomatis: boolean;
   /** batas bawah ukuran huruf saat skala otomatis bekerja */
   huruf_min: number;
+  /** tebal border atau garis dalam milimeter; hanya dipakai tipe garis dan kotak */
+  tebal_mm: number;
+  /** warna isian kotak; null berarti transparan */
+  isi: string | null;
 }
 
 export interface KolomBaris {

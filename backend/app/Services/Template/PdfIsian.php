@@ -79,6 +79,8 @@ class PdfIsian extends PencetakMedan
         match ($medan['tipe']) {
             'tanda_tangan' => null,
             'halaman_otomatis' => $this->gambarHalamanOtomatis($pdf, $medan, $nomor, $jumlahHalaman),
+            'garis' => $this->gambarGaris($pdf, $medan),
+            'kotak' => $this->gambarKotak($pdf, $medan),
             'gambar' => $this->gambarGambar($pdf, $medan),
             'centang' => $this->gambarCentang($pdf, $medan),
             'paragraf' => $this->gambarTeks($pdf, $medan, $this->teks($medan), bungkus: true),
@@ -138,6 +140,54 @@ class PdfIsian extends PencetakMedan
         // Urutan argumen Cell: lebar, tinggi, teks, border, tebal garis,
         // perataan, isi, tautan, regangkan, abaikan tinggi minimum, kolom, baris.
         $pdf->Cell($lebar, $tinggi, $teks, 0, 0, $gaya['rata'], false, '', 0, false, 'L', 'M');
+    }
+
+    /**
+     * Garis horizontal. Panjang memakai lebar kotak dan tebal memakai
+     * tingginya, jadi keduanya(mm) punya arti yang sama seperti di desainer.
+     *
+     * @param  array<string, mixed>  $medan
+     */
+    private function gambarGaris(DokumenPdf $pdf, array $medan): void
+    {
+        $tebal = max(0.1, (float) $medan['gaya']['tebal_mm']);
+        $pdf->SetLineWidth($tebal);
+        $pdf->SetDrawColorArray($this->warnaKeArray((string) $medan['gaya']['warna']));
+        $pdf->Line(
+            (float) $medan['x'],
+            (float) $medan['y'] + $tebal,
+            (float) $medan['x'] + (float) $medan['w'],
+            (float) $medan['y'] + $tebal,
+        );
+    }
+
+    /**
+     * Kotak berborder, boleh berlatar.
+     *
+     * @param  array<string, mixed>  $medan
+     */
+    private function gambarKotak(DokumenPdf $pdf, array $medan): void
+    {
+        $gaya = $medan['gaya'];
+        $tebal = max(0.1, (float) $gaya['tebal_mm']);
+        $isi = $gaya['isi'] ?? null;
+
+        $pdf->SetLineWidth($tebal);
+        $pdf->SetDrawColorArray($this->warnaKeArray((string) $gaya['warna']));
+
+        if ($isi !== null) {
+            [$r, $g, $b] = $this->warnaKeArray((string) $isi);
+            $pdf->SetFillColor($r, $g, $b);
+        }
+
+        // 'DF' menggambar garis dan isian sekaligus, 'D' hanya garis.
+        $pdf->Rect(
+            (float) $medan['x'],
+            (float) $medan['y'],
+            (float) $medan['w'],
+            (float) $medan['h'],
+            $isi !== null ? 'DF' : 'D',
+        );
     }
 
     private function gambarHalamanOtomatis(DokumenPdf $pdf, array $medan, int $nomor, int $jumlahHalaman): void

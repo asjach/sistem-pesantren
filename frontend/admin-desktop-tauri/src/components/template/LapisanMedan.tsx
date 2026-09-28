@@ -34,6 +34,25 @@ interface LapisanMedanProps {
   contoh?: Record<string, string>;
 }
 
+/** Gaya supaya garis dan kotak di kanvas sama dengan yang keluar di PDF. */
+function gayaDekoratif(medan: Medan): CSSProperties {
+  if (medan.tipe === 'garis') {
+    return {
+      borderTop: `${medan.gaya.tebal_mm}mm solid ${medan.gaya.warna}`,
+      background: 'transparent',
+    };
+  }
+
+  if (medan.tipe === 'kotak') {
+    return {
+      border: `${medan.gaya.tebal_mm}mm solid ${medan.gaya.warna}`,
+      background: medan.gaya.isi ?? 'transparent',
+    };
+  }
+
+  return {};
+}
+
 function kotakDari(medan: Medan): Kotak {
   return { x: medan.x, y: medan.y, w: medan.w, h: medan.h };
 }
@@ -156,6 +175,9 @@ export default function LapisanMedan({
             top: mmKePx(m.y, zoom),
             width: mmKePx(m.w, zoom),
             height: mmKePx(m.h, zoom),
+            // Garis dan kotak memakai gaya sendiri supaya pratinjau terlihat
+            // sama dengan yang keluar di PDF.
+            ...gayaDekoratif(m),
           };
 
           return (
@@ -176,7 +198,13 @@ export default function LapisanMedan({
                 modeBaca && 'pointer-events-none',
               )}
             >
-              <span className="pointer-events-none absolute -top-4 left-0 max-w-full truncate text-[10px] leading-none text-primary">
+              <span
+                className={cn(
+                  'pointer-events-none absolute left-0 max-w-full truncate text-[10px] leading-none text-primary',
+                  m.tipe === 'garis' ? '-top-4' : '',
+                )}
+                style={m.tipe === 'garis' ? { right: 0 } : undefined}
+              >
                 {m.label}
               </span>
 

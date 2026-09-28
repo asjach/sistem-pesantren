@@ -102,6 +102,8 @@ class PerenderHtml extends PencetakMedan
     {
         return match ($medan['tipe']) {
             'tanda_tangan' => '',
+            'garis' => $this->medanGaris($medan),
+            'kotak' => $this->medanKotak($medan),
             'gambar' => $this->medanGambar($medan),
             'centang' => $this->medanCentang($medan),
             'halaman_otomatis' => $this->medanTeks(
@@ -112,6 +114,55 @@ class PerenderHtml extends PencetakMedan
             'baris_berulang' => $this->medanBarisBerulang($medan),
             default => $this->medanTeks($medan, $this->teks($medan)),
         };
+    }
+
+    /**
+     * Garis horizontal. Panjang memakai lebar kotak dan Tebal memakai
+     * tingginya, jadi keduanya(mm) punya arti yang sama seperti di desainer.
+     *
+     * @param  array<string, mixed>  $medan
+     */
+    private function medanGaris(array $medan): string
+    {
+        $tebal = max(0.1, (float) $medan['gaya']['tebal_mm']);
+        $gaya = 'position:absolute;'
+            .'left:'.$this->mm((float) $medan['x']).';'
+            .'top:'.$this->mm((float) $medan['y']).';'
+            .'width:'.$this->mm((float) $medan['w']).';'
+            .'height:0;'
+            .'border-top:'.$this->mm($tebal).' solid '.$medan['gaya']['warna'].';';
+
+        return '<div style="'.$gaya.'"></div>';
+    }
+
+    /**
+     * Kotak berborder, boleh berlatar. Dipakai untuk judul seksi berlatar dan
+     * pembatas kolom.
+     *
+     * @param  array<string, mixed>  $medan
+     */
+    private function medanKotak(array $medan): string
+    {
+        $gaya = $medan['gaya'];
+        $tebal = max(0.1, (float) $gaya['tebal_mm']);
+        $isi = $gaya['isi'] ?? null;
+
+        // dompdf memakai content-box, jadi ukuran yang dideklarasikan ditambah
+        // lebar border. Pendekaran dilakukan di sini supaya ukuran luar kotak
+        // tetap sama dengan kotak medan di desainer, tanpa bergantung pada
+        // box-sizing yang tidak didukung.
+        $gayaKotak = 'position:absolute;'
+            .'left:'.$this->mm((float) $medan['x']).';'
+            .'top:'.$this->mm((float) $medan['y']).';'
+            .'width:'.$this->mm((float) $medan['w'] - 2 * $tebal).';'
+            .'height:'.$this->mm((float) $medan['h'] - 2 * $tebal).';'
+            .'overflow:hidden;';
+
+        return '<div style="'
+            .$gayaKotak
+            .'border:'.$this->mm($tebal).' solid '.$gaya['warna'].';'
+            .($isi !== null ? 'background-color:'.$isi.';' : '')
+            .'"></div>';
     }
 
     /**

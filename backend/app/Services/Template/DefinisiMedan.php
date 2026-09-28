@@ -18,13 +18,25 @@ use Illuminate\Validation\ValidationException;
 class DefinisiMedan
 {
     /** Cara medan digambar di atas halaman PDF. */
-    public const TIPE = ['teks', 'paragraf', 'gambar', 'centang', 'tanda_tangan', 'baris_berulang', 'halaman_otomatis'];
+    public const TIPE = [
+        'teks', 'paragraf', 'gambar', 'centang', 'tanda_tangan', 'baris_berulang', 'halaman_otomatis',
+        'garis', 'kotak',
+    ];
 
     /** Tipe yang butuh posisi, ukuran, dan gaya teks. */
     public const TIPE_BERPOSISI = ['teks', 'paragraf', 'centang', 'halaman_otomatis'];
 
     /** Tipe yang hanya menandai tempat, tidak mencetak apa pun. */
     public const TIPE_TANDA = ['tanda_tangan'];
+
+    /**
+     * Tipe gambar dekoratif, bukan isi.
+     *
+     * Tanpa kedua tipe ini, dokumen yang punya struktur visual — garis kop,
+     * judul seksi berlatar, kotak pembatas — tidak bisa dibuat. Isinya tetap
+     * diisi medan lain; tipe ini hanya memakai sebagian ruang halaman.
+     */
+    public const TIPE_DEKORATIF = ['garis', 'kotak'];
 
     public const RATA = ['kiri', 'tengah', 'kanan'];
 
@@ -39,7 +51,7 @@ class DefinisiMedan
      */
     public const FONT = ['helvetica', 'times', 'courier', 'dejavusans'];
 
-    public const BATAS_MEDAN = 60;
+    public const BATAS_MEDAN = 200;
 
     public const BATAS_BARIS = 200;
 
@@ -178,6 +190,11 @@ class DefinisiMedan
             // Skala otomatis mengecilkan huruf bila teks meluber dari kotak.
             'skala_otomatis' => (bool) ($g['skala_otomatis'] ?? true),
             'huruf_min' => self::nomor($g['huruf_min'] ?? 6, 4, 72),
+            // Dipakai tipe garis dan kotak: tebal dalam milimeter, dan warna
+            // isian yang boleh null supaya kotaknya tetap transparan. Namanya
+            // tebal_mm, bukan tebal, karena `tebal` sudah berarti huruf tebal.
+            'tebal_mm' => self::nomor($g['tebal_mm'] ?? 0.3, 0, 5),
+            'isi' => ($g['isi'] ?? null) === null ? null : self::warna($g['isi'], '#ffffff'),
         ];
     }
 
@@ -206,6 +223,8 @@ class DefinisiMedan
             'definisi.medan.*.gaya.ukuran' => ['nullable', 'numeric', 'min:4', 'max:72'],
             'definisi.medan.*.gaya.rata' => ['nullable', 'string', 'in:'.implode(',', self::RATA)],
             'definisi.medan.*.gaya.warna' => ['nullable', 'string', 'regex:/^#[0-9a-fA-F]{6}$/'],
+            'definisi.medan.*.gaya.tebal_mm' => ['nullable', 'numeric', 'min:0', 'max:5'],
+            'definisi.medan.*.gaya.isi' => ['nullable', 'string', 'regex:/^#[0-9a-fA-F]{6}$/'],
             'definisi.medan.*.baris_berulang.sumber' => ['nullable', 'string', 'max:40'],
             'definisi.medan.*.baris_berulang.jumlah' => ['nullable', 'integer', 'min:1', 'max:'.self::BATAS_BARIS],
             'definisi.medan.*.baris_berulang.tinggi_baris' => ['nullable', 'numeric', 'min:2', 'max:200'],

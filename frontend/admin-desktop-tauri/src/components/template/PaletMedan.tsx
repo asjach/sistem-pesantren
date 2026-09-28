@@ -8,6 +8,8 @@ const LABEL: Record<TipeMedan, string> = {
   tanda_tangan: 'Tanda tangan',
   baris_berulang: 'Daftar baris',
   halaman_otomatis: 'Nomor halaman',
+  garis: 'Garis',
+  kotak: 'Kotak',
 };
 
 const KETERANGAN: Record<TipeMedan, string> = {
@@ -18,6 +20,8 @@ const KETERANGAN: Record<TipeMedan, string> = {
   tanda_tangan: 'Hanya penanda tempat, tidak dicetak.',
   baris_berulang: 'Tabel isi dari daftar di database.',
   halaman_otomatis: 'Nomor halaman berjalan.',
+  garis: 'Pemisah, garis kop, atau garis tabel.',
+  kotak: 'Pembatas kolom atau judul seksi berlatar.',
 };
 
 interface PaletMedanProps {
