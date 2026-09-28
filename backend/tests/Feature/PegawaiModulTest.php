@@ -10,6 +10,7 @@ use App\Models\Pegawai;
 use App\Models\TahunAjaran;
 use App\Models\User;
 use App\Services\PegawaiImporService;
+use App\Services\ProfilPegawaiCetak;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -947,5 +948,101 @@ class PegawaiModulTest extends TestCase
         $this->actingAs($tanpaIzin, 'sanctum')->getJson("/api/admin/pegawai/{$guru->id}/profil")
             ->assertForbidden();
         $this->actingAs($auth, 'sanctum')->getJson('/api/admin/pegawai/999999/profil')->assertNotFound();
+    }
+
+    /**
+     * Teks isi berkas PDF: dompdf mengompres stream dengan Flate, jadi
+     * di-inflate dulu agar isi cetak bisa diperiksa langsung dari berkasnya.
+     */
+    private function teksPdf(string $pdf): string
+    {
+        preg_match_all('/stream\r?\n(.*?)endstream/s', $pdf, $cocok);
+        $teks = '';
+        foreach ($cocok[1] as $stream) {
+            $urai = @gzuncompress($stream);
+            if ($urai === false) {
+                $urai = @gzinflate($stream);
+            }
+            if ($urai !== false) {
+                $teks .= $urai;
+            }
+        }
+
+        return $teks;
+    }
+
+    public function test_profil_pdf_tercetak_dengan_kop_dan_butuh_izin(): void
+    {
+        $this->fixture();
+        $auth = $this->superAdmin();
+
+        Lembaga::where('jenjang', 'MI')->update([
+            'nama' => 'Madrasah Ibtidaiyah', 'alamat' => 'Jl. Pesantren 1',
+            'telepon' => '0321-123456', 'nsm' => '111234567890',
+        ]);
+        $scoped = User::create([
+            'name' => 'Scoped PDF', 'email' => 'scoped-pdf-'.uniqid().'@example.com', 'password' => 'password',
+        ]);
+        $scoped->givePermissionTo('pegawai.lihat');
+        DB::table('user_lembaga')->insert([
+            'user_id' => $scoped->id, 'jenjang' => 'MI',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $guru = Pegawai::create([
+            'nama_lengkap' => 'Ahmad Fauzi', 'jenis_kelamin' => 'L',
+            'tempat_lahir' => 'Jombang', 'gelar_belakang' => 'S.Pd.',
+            'status_aktif' => Pegawai::AKTIF, 'user_id' => $scoped->id,
+        ]);
+        $this->actingAs($auth, 'sanctum')->postJson("/api/admin/pegawai/{$guru->id}/tempatkan", [
+            'jenjang' => 'MI', 'tugas_utama' => 'Guru Kelas',
+        ])->assertCreated();
+        $this->actingAs($auth, 'sanctum')->postJson('/api/admin/pegawai-keaktifan', [
+            'pegawai_id' => $guru->id, 'jenjang' => 'MI', 'tahun_ajaran' => '2026/2027',
+        ])->assertCreated();
+
+        // Isi cetak: kop lembaga + identitas + ketiga seksi benar-benar sampai ke Blade.
+        $data = ProfilPegawaiCetak::muat($guru->fresh());
+        $html = view('pdf.profil-pegawai', ProfilPegawaiCetak::tampilan(
+            $data, ProfilPegawaiCetak::lembagaKop($data['penempatan']), 'Petugas Uji',
+        ))->render();
+
+        $this->assertStringContainsString('Madrasah Ibtidaiyah', $html);
+        $this->assertStringContainsString('Jl. Pesantren 1', $html);
+        $this->assertStringContainsString('Ahmad Fauzi, S.Pd.', $html);
+        $this->assertStringContainsString('Jombang', $html);
+        $this->assertStringContainsString('Guru Kelas', $html);
+        $this->assertStringContainsString('2026/2027', $html);
+        $this->assertStringContainsString('Scoped PDF', $html);
+        $this->assertStringContainsString('Petugas Uji', $html);
+
+        // Kop otomatis dari penempatan aktif; berkas benar-benar berisi byte PDF.
+        $res = $this->actingAs($auth, 'sanctum')->get("/api/admin/pegawai/{$guru->id}/profil-pdf");
+        $res->assertOk();
+        $this->assertStringContainsString('application/pdf', (string) $res->headers->get('content-type'));
+        $this->assertStringContainsString('profil-pegawai-ahmad-fauzi.pdf', (string) $res->headers->get('content-disposition'));
+
+        $isi = $res->getContent();
+        $this->assertStringStartsWith('%PDF-', $isi);
+        $this->assertGreaterThan(2000, strlen($isi));
+
+        // Isi berkas PDF (stream-nya di-inflate): benar-benar memuat data pegawai.
+        $teksPdf = $this->teksPdf($isi);
+        $this->assertStringContainsString('PROFIL PEGAWAI', $teksPdf);
+        $this->assertStringContainsString('Madrasah Ibtidaiyah', $teksPdf);
+        $this->assertStringContainsString('Ahmad Fauzi, S.Pd.', $teksPdf);
+        $this->assertStringContainsString('Guru Kelas', $teksPdf);
+
+        // Param jenjang: boleh untuk lembaga sendiri, 403 di luar kewenangan.
+        $this->actingAs($scoped, 'sanctum')->get("/api/admin/pegawai/{$guru->id}/profil-pdf?jenjang=MI")
+            ->assertOk();
+        $this->actingAs($scoped, 'sanctum')->get("/api/admin/pegawai/{$guru->id}/profil-pdf?jenjang=MD")
+            ->assertForbidden();
+
+        // Tanpa izin pegawai.lihat → 403.
+        $tanpaIzin = User::create([
+            'name' => 'Tanpa Izin PDF', 'email' => 'tanpa-izin-pdf-'.uniqid().'@example.com', 'password' => 'password',
+        ]);
+        $this->actingAs($tanpaIzin, 'sanctum')->get("/api/admin/pegawai/{$guru->id}/profil-pdf")
+            ->assertForbidden();
     }
 }

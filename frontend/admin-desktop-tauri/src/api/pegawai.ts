@@ -314,6 +314,14 @@ export function profilPegawai(pegawaiId: number) {
   return api<ProfilPegawai>(`/admin/pegawai/${pegawaiId}/profil`);
 }
 
+/** Unduh profil pegawai sebagai PDF siap cetak (kop lembaga + tanda cetak). */
+export function unduhProfilPegawaiPdf(pegawaiId: number, jenjang?: string | null) {
+  const q = new URLSearchParams();
+  if (jenjang) q.set('jenjang', jenjang);
+  const suffix = q.toString() === '' ? '' : `?${q.toString()}`;
+  return downloadFile(`/admin/pegawai/${pegawaiId}/profil-pdf${suffix}`, `profil-pegawai-${pegawaiId}.pdf`);
+}
+
 // ---------- Import Buku Induk ----------
 
 export const KOLOM_IMPORT_PEGAWAI = [

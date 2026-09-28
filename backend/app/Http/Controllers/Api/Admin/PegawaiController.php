@@ -13,16 +13,21 @@ use App\Http\Requests\Admin\PegawaiStoreRequest;
 use App\Http\Requests\Admin\PegawaiUpdateRequest;
 use App\Models\ImportSesi;
 use App\Models\KeaktifanPegawai;
+use App\Models\Lembaga;
 use App\Models\LembagaPegawai;
 use App\Models\Pegawai;
 use App\Models\User;
 use App\Services\AkunPegawaiService;
 use App\Services\PegawaiImporService;
+use App\Services\ProfilPegawaiCetak;
 use App\Services\UrutKatalog;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Maatwebsite\Excel\Facades\Excel;
 
 /**
@@ -243,19 +248,29 @@ class PegawaiController extends Controller
      */
     public function profil(Pegawai $pegawai): JsonResponse
     {
-        return response()->json([
-            'pegawai' => $pegawai,
-            'penempatan' => LembagaPegawai::where('pegawai_id', $pegawai->id)
-                ->with('lembaga:jenjang,nama')
-                ->orderBy('jenjang')
-                ->get(),
-            'keaktifan' => KeaktifanPegawai::where('pegawai_id', $pegawai->id)
-                ->with('lembaga:jenjang,nama')
-                ->orderByDesc('tahun_ajaran')
-                ->orderBy('jenjang')
-                ->get(),
-            'akun' => $pegawai->akun?->load(['roles:id,name', 'lembagas:jenjang,nama']),
-        ]);
+        return response()->json(ProfilPegawaiCetak::muat($pegawai));
+    }
+
+    /**
+     * GET /api/admin/pegawai/{pegawai}/profil-pdf — cetak profil (A4) dengan
+     * kop lembaga. Param opsional `jenjang` memilih lembaga untuk kop/kewenangan;
+     * tanpa param, kop dari penempatan aktif pegawai (else penempatan pertama).
+     */
+    public function profilPdf(Request $request, Pegawai $pegawai): Response
+    {
+        $data = ProfilPegawaiCetak::muat($pegawai);
+        $jenjang = trim((string) $request->input('jenjang', ''));
+
+        if ($jenjang !== '') {
+            $this->authorizeLembaga($request->user(), $jenjang);
+        }
+
+        $kop = $jenjang !== '' ? Lembaga::find($jenjang) : ProfilPegawaiCetak::lembagaKop($data['penempatan']);
+        $namaBerkas = 'profil-pegawai-'.(Str::slug($pegawai->nama_lengkap) ?: $pegawai->id).'.pdf';
+
+        return Pdf::loadView('pdf.profil-pegawai', ProfilPegawaiCetak::tampilan($data, $kop, (string) $request->user()->name))
+            ->setPaper('a4')
+            ->download($namaBerkas);
     }
 
     /** GET /api/admin/pegawai/aktif — opsi dropdown wali: pegawai aktif di lembaga + TA. */

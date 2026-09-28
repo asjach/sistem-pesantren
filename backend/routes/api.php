@@ -112,6 +112,7 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::get('pegawai/import-potong/{sesi}/galat', [PegawaiController::class, 'galatPotong'])->middleware('permission:pegawai.lihat');
         Route::get('pegawai-akun', [PegawaiController::class, 'akunIndex'])->middleware('permission:pegawai.lihat');
         Route::get('pegawai/{pegawai}/profil', [PegawaiController::class, 'profil'])->middleware('permission:pegawai.lihat');
+        Route::get('pegawai/{pegawai}/profil-pdf', [PegawaiController::class, 'profilPdf'])->middleware('permission:pegawai.lihat');
         Route::get('pegawai-lembaga', [LembagaPegawaiController::class, 'index'])->middleware('permission:pegawai.lihat');
         Route::get('pegawai/{pegawai}/penempatan', [LembagaPegawaiController::class, 'untuk'])->middleware('permission:pegawai.lihat');
         Route::post('pegawai/{pegawai}/tempatkan', [LembagaPegawaiController::class, 'tempatkan'])->middleware('permission:pegawai.ubah');

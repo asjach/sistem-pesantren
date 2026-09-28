@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
@@ -50,12 +50,15 @@ export function ViewDialog({
   title,
   row,
   sections = [],
+  aksi,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   title: string;
   row: Record<string, unknown> | null;
   sections?: ViewDialogSection[];
+  /** Aksi tambahan di footer (mis. tombol unduh PDF) — tampil sebelum Tutup. */
+  aksi?: ReactNode;
 }) {
   const entries = useMemo(() => {
     if (!row) return [];
@@ -131,6 +134,7 @@ export function ViewDialog({
           </div>
         )}
         <DialogFooter>
+          {aksi}
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Tutup
           </Button>

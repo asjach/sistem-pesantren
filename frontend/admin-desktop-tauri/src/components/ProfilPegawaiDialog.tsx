@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { errorMessage } from '@/api/client';
-import { profilPegawai, type ProfilPegawai } from '@/api/pegawai';
+import { profilPegawai, unduhProfilPegawaiPdf, type ProfilPegawai } from '@/api/pegawai';
 import { ViewDialog, type ViewDialogSection } from '@/components/ViewDialog';
+import { Button } from '@/components/ui/button';
+import { Download } from '@/icons';
 import { formatStatus, namaLembaga, namaTahunAjaran } from '@/lib/nilaiTampil';
 import { toast } from 'sonner';
 
@@ -16,6 +18,20 @@ export function ProfilPegawaiDialog({ pegawaiId, open, onOpenChange }: {
   onOpenChange: (o: boolean) => void;
 }) {
   const [profil, setProfil] = useState<ProfilPegawai | null>(null);
+  const [unduh, setUnduh] = useState(false);
+
+  const onUnduhPdf = useCallback(async () => {
+    if (pegawaiId == null) return;
+    setUnduh(true);
+    try {
+      await unduhProfilPegawaiPdf(pegawaiId);
+      toast.success('Profil PDF diunduh.');
+    } catch (e) {
+      toast.error(errorMessage(e));
+    } finally {
+      setUnduh(false);
+    }
+  }, [pegawaiId]);
 
   useEffect(() => {
     if (!open || pegawaiId == null) return;
@@ -108,6 +124,17 @@ export function ProfilPegawaiDialog({ pegawaiId, open, onOpenChange }: {
       title={profil ? `Profil: ${profil.pegawai.nama_lengkap}` : 'Profil Pegawai'}
       row={profil ? (profil.pegawai as unknown as Record<string, unknown>) : null}
       sections={sections}
+      aksi={
+        <Button
+          id={`btn_unduh_pdf_pegawai_${pegawaiId ?? 0}`}
+          variant="outline"
+          disabled={unduh || profil === null}
+          title="Cetak profil pegawai ke PDF (kop lembaga)"
+          onClick={() => void onUnduhPdf()}
+        >
+          <Download data-icon="inline-start" size={16} /> Unduh PDF
+        </Button>
+      }
     />
   );
 }
