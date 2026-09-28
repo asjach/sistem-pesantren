@@ -31,8 +31,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import Pager from '@/components/Pager';
 import { useDaftarTabel } from '@/hooks/useDaftarTabel';
 import { ActionIcon } from '@/components/RowActions';
-import { ProfilSantriDialog } from '@/components/ProfilSantriDialog';
-import { FileUp, ImageUp, Plus, Upload } from '@/icons';
+import { useAksiProfilSantri } from '@/components/santri/useAksiProfilSantri';
+import { ImageUp, Plus, Upload } from '@/icons';
 import { useAuth } from '../auth/AuthContext';
 import { bisa } from '../api/auth';
 import { toast } from 'sonner';
@@ -102,6 +102,7 @@ export default function SantriPage() {
     deps: [statusGlobal, jenjangs],
   });
 
+  const { aksiProfil, dialogProfil } = useAksiProfilSantri();
   const [fotoRow, setFotoRow] = useState<Santri | null>(null);
   const [fotoFile, setFotoFile] = useState<File | null>(null);
 
@@ -110,8 +111,6 @@ export default function SantriPage() {
   const [dokJenis, setDokJenis] = useState('');
   const [dokFile, setDokFile] = useState<File | null>(null);
   const [dokCatatan, setDokCatatan] = useState('');
-
-  const [profilRow, setProfilRow] = useState<Santri | null>(null);
 
   // Dialog keanggotaan (NIS lokal/kemenag per lembaga).
   const [anggotaRow, setAnggotaRow] = useState<Santri | null>(null);
@@ -242,6 +241,7 @@ export default function SantriPage() {
         onUrut={terapkanUrut}
         renderActions={(s) => (
           <>
+            {aksiProfil(s.id)}
             {bisa(user, 'santri.tambah') && (
             <>
             <ActionIcon id={`btn_anggota_santri_${s.id}`} title="Keanggotaan lembaga" onClick={() => void bukaAnggota(s)}><Plus size={16} /></ActionIcon>
@@ -249,7 +249,6 @@ export default function SantriPage() {
             <ActionIcon id={`btn_dokumen_santri_${s.id}`} title="Dokumen santri" onClick={() => { setDokRow(s); setDokJenis(''); setDokFile(null); void muatDokumen(s); }}><Upload size={16} /></ActionIcon>
             </>
             )}
-            <ActionIcon id={`btn_profil_santri_${s.id}`} title="Profil santri" onClick={() => setProfilRow(s)}><FileUp size={16} /></ActionIcon>
           </>
         )}
         filter={(
@@ -506,7 +505,7 @@ export default function SantriPage() {
         </DialogContent>
       </Dialog>
 
-      <ProfilSantriDialog santriId={profilRow?.id ?? null} open={profilRow !== null} onOpenChange={(o) => { if (!o) setProfilRow(null); }} />
+      {dialogProfil}
     </div>
   );
 }

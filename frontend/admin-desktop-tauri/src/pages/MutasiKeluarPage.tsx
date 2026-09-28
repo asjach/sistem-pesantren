@@ -34,6 +34,7 @@ import { usePager } from '@/hooks/usePager';
 import ImportBertahapUmumDialog from '@/components/ImportBertahapUmumDialog';
 import { tokenUrut, type PetaArahKolom } from '@/lib/urut';
 import { toast } from 'sonner';
+import { useAksiProfilSantri } from '@/components/santri/useAksiProfilSantri';
 
 /** Mutasi Keluar: kiri santri aktif (nama + kelas) → kanan arsip mutasi. */
 
@@ -96,6 +97,7 @@ export default function MutasiKeluarPage() {
   const [arahKolom, setArahKolom] = useState<PetaArahKolom | undefined>(undefined);
   /** Pencarian tunggal halaman (topBar). */
   const [cari, setCari] = useState('');
+  const { aksiProfil, dialogProfil } = useAksiProfilSantri();
 
   const [baris, setBaris] = useState<RiwayatRow | null>(null);
   const [tanggal, setTanggal] = useState('');
@@ -226,15 +228,18 @@ export default function MutasiKeluarPage() {
                 onCommit={async () => {}}
                 onSaved={() => {}}
                 renderActions={(r) => (
-                  bisa(user, 'mutasi_keluar.ubah') ? (
-                    <ActionIcon
-                      id={`btn_mutasi_${r.id}`}
-                      title="Mutasi keluar"
-                      onClick={() => { setBaris(r); setTanggal(''); setAlasan(''); setNoSurat(''); setTujuan(''); setNpsn(''); setNsm(''); setKeterangan(''); }}
-                    >
-                      <ArrowRight size={16} />
-                    </ActionIcon>
-                  ) : null
+                  <>
+                    {aksiProfil(r.santri_id)}
+                    {bisa(user, 'mutasi_keluar.ubah') && (
+                      <ActionIcon
+                        id={`btn_mutasi_${r.id}`}
+                        title="Mutasi keluar"
+                        onClick={() => { setBaris(r); setTanggal(''); setAlasan(''); setNoSurat(''); setTujuan(''); setNpsn(''); setNsm(''); setKeterangan(''); }}
+                      >
+                        <ArrowRight size={16} />
+                      </ActionIcon>
+                    )}
+                  </>
                 )}
                 hideCheckbox
                 emptyText="Pilih lembaga dulu."
@@ -283,7 +288,7 @@ export default function MutasiKeluarPage() {
               canEdit={false}
               onCommit={async () => {}}
               onSaved={() => {}}
-              renderActions={() => null}
+              renderActions={(m) => aksiProfil(m.santri_id, 'arsip')}
               hideCheckbox
                hideActions
                emptyText="Belum ada arsip mutasi."
@@ -368,6 +373,7 @@ export default function MutasiKeluarPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {dialogProfil}
     </div>
   );
 }

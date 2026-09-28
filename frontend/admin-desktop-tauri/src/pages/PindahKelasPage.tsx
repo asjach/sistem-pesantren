@@ -17,6 +17,7 @@ import { ActionIcon } from '@/components/RowActions';
 import { ArrowRight } from '@/icons';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { toast } from 'sonner';
+import { useAksiProfilSantri, type AksiProfilSantri } from '@/components/santri/useAksiProfilSantri';
 
 interface KolomKelas {
   kelasId: number | null;
@@ -48,6 +49,7 @@ export default function PindahKelasPage() {
   const [rows, setRows] = useState<RiwayatRow[]>([]);
   /** Pencarian tunggal halaman (topBar) — disaring di tiap kolom kelas. */
   const [cari, setCari] = useState('');
+  const { aksiProfil, dialogProfil } = useAksiProfilSantri();
   const [kelas, setKelas] = useState<Kelas[]>([]);
   const [err, setErr] = useState('');
   const [busyId, setBusyId] = useState<number | null>(null);
@@ -188,20 +190,20 @@ export default function PindahKelasPage() {
                 bisaPindah={canPindah}
                 busyId={busyId}
                 cari={cari}
+                aksiProfil={aksiProfil}
                 onPindah={(r, tujuan) => void pindah(r, tujuan)}
               />
             ))}
           </div>
         </section>
       ))}
-
-
+      {dialogProfil}
     </div>
   );
 }
 
 /** Satu kolom kelas: tabel santri + panah pindah ke tetangga siklik. */
-function TabelKelas({ tingkat, kolom, tetangga, bisaPindah, busyId, cari, onPindah }: {
+function TabelKelas({ tingkat, kolom, tetangga, bisaPindah, busyId, cari, aksiProfil, onPindah }: {
   tingkat: string | null;
   kolom: KolomKelas;
   tetangga: { kiri: KolomKelas | null; kanan: KolomKelas | null };
@@ -209,6 +211,7 @@ function TabelKelas({ tingkat, kolom, tetangga, bisaPindah, busyId, cari, onPind
   busyId: number | null;
   /** Pencarian tunggal halaman (topBar) — disaring di tiap kolom. */
   cari: string;
+  aksiProfil: AksiProfilSantri['aksiProfil'];
   onPindah: (r: RiwayatRow, kelasBaruId: number) => void;
 }) {
   const kunci = `${tingkat ?? 'tanpa'}_${kolom.kelasId ?? 'tanpa'}`;
@@ -253,9 +256,10 @@ function TabelKelas({ tingkat, kolom, tetangga, bisaPindah, busyId, cari, onPind
           canEdit={false}
           onCommit={async () => {}}
           onSaved={() => {}}
-          renderActions={aksi && bisaPindah ? (r) => (
+          renderActions={(r) => (
             <>
-              {tetangga.kiri?.kelasId != null && tetangga.kiri.kelasId !== kolom.kelasId && (
+              {aksiProfil(r.santri_id, kunci)}
+              {aksi && bisaPindah && tetangga.kiri?.kelasId != null && tetangga.kiri.kelasId !== kolom.kelasId && (
                 <ActionIcon
                   id={`btn_pindah_kiri_${r.id}`}
                   title={`Pindah ke ${tetangga.kiri.kelas}`}
@@ -278,7 +282,7 @@ function TabelKelas({ tingkat, kolom, tetangga, bisaPindah, busyId, cari, onPind
                 </ActionIcon>
               )}
             </>
-          ) : () => null}
+          )}
           hideCheckbox
            emptyText="Tidak ada santri pada kelas ini."
          />

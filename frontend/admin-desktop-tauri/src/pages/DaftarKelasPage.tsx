@@ -11,12 +11,12 @@ import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { ActionIcon } from '@/components/RowActions';
-import { Eye, Pencil } from '@/icons';
+import { Pencil } from '@/icons';
 import FilterField from '@/components/FilterField';
 import Pager from '@/components/Pager';
 import { useDaftarTabel } from '@/hooks/useDaftarTabel';
-import { ProfilSantriDialog } from '@/components/ProfilSantriDialog';
 import { EditSantriDialog } from '@/components/santri/EditSantriDialog';
+import { useAksiProfilSantri } from '@/components/santri/useAksiProfilSantri';
 import {
   daftarKelasValues,
   medanDaftarKelas,
@@ -109,7 +109,7 @@ export default function DaftarKelasPage() {
     [canSantri, canRiwayat],
   );
   const commitDaftar = useMemo(() => pakaiCommitDaftarKelas(rows), [rows]);
-  const [profilRow, setProfilRow] = useState<SantriPenuh | null>(null);
+  const { aksiProfil, dialogProfil } = useAksiProfilSantri();
   const [editRow, setEditRow] = useState<SantriPenuh | null>(null);
 
   return (
@@ -130,14 +130,14 @@ export default function DaftarKelasPage() {
         urutAktif={urut}
         arahUrut={arahUrut}
         onUrut={terapkanUrut}
-        renderActions={(r) => (r.santri ? (
+        renderActions={(r) => (
           <>
-            <ActionIcon id={`btn_detail_santri_${r.id}`} title="Lihat detail santri" onClick={() => setProfilRow(r.santri as SantriPenuh)}><Eye size={16} /></ActionIcon>
-            {canSantri && (
+            {aksiProfil(r.santri_id)}
+            {canSantri && r.santri && (
               <ActionIcon id={`btn_edit_santri_${r.id}`} title="Ubah detail santri" onClick={() => setEditRow(r.santri as SantriPenuh)}><Pencil size={16} /></ActionIcon>
             )}
           </>
-        ) : null)}
+        )}
         filter={(
           <FilterField label="Status" htmlFor="select_status_daftar_kelas">
             <Select value={kelompok === '' ? '_semua' : kelompok} onValueChange={(v) => setKelompok(v === '_semua' ? '' : v)}>
@@ -164,17 +164,13 @@ export default function DaftarKelasPage() {
         onPerPage={(pp) => { pager.setPerPage(pp); load(1, pp); }}
       />
 
-      <ProfilSantriDialog
-        santriId={profilRow?.id ?? null}
-        open={profilRow !== null}
-        onOpenChange={(o) => { if (!o) setProfilRow(null); }}
-      />
       <EditSantriDialog
         santri={editRow}
         open={editRow !== null}
         onOpenChange={(o) => { if (!o) setEditRow(null); }}
         onSaved={load}
       />
+      {dialogProfil}
     </div>
   );
 }

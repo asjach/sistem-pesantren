@@ -30,6 +30,7 @@ import { FileUp } from '@/icons';
 import { noopCommit } from '@/components/siklus/bersama';
 import { formatStatus } from '@/lib/nilaiTampil';
 import { toast } from 'sonner';
+import { useAksiProfilSantri } from '@/components/santri/useAksiProfilSantri';
 
 const FIELDS_RIWAYAT: ExcelField[] = [
   { key: 'nama_lengkap', label: 'nama_lengkap', width: 200, kind: 'static', sumber: { tabel: 'santri', kolom: 'nama_lengkap' } },
@@ -57,6 +58,7 @@ export default function RiwayatBelajarPage() {
   const [keaktifan, setKeaktifan] = useState<'aktif' | 'nonaktif' | 'semua'>('semua');
   const filterRiwayatAktif = keaktifan;
   const [cari, setCari] = useState('');
+  const { aksiProfil, dialogProfil } = useAksiProfilSantri();
   const [pindahOpen, setPindahOpen] = useState(false);
   const [pindahBusy, setPindahBusy] = useState(false);
   const [ringkasanPindah, setRingkasanPindah] = useState<RingkasanPindahGenap | null>(null);
@@ -345,7 +347,7 @@ export default function RiwayatBelajarPage() {
                hidePreset
                onCommit={noopCommit}
                onSaved={noopCommit}
-               renderActions={() => null}
+               renderActions={(r) => aksiProfil(r.santri_id, 'ganjil')}
             />,
             <Pager
               page={kiri.pager.page}
@@ -401,7 +403,7 @@ export default function RiwayatBelajarPage() {
                hidePreset
                onCommit={noopCommit}
                onSaved={noopCommit}
-               renderActions={() => null}
+               renderActions={(r) => aksiProfil(r.santri_id, 'genap')}
             />,
             <Pager
               page={kanan.pager.page}
@@ -486,6 +488,7 @@ export default function RiwayatBelajarPage() {
       </Dialog>
 
       <ImportBertahapDialog open={bertahapOpen} onOpenChange={setBertahapOpen} onSelesai={() => void muatUlang()} />
+      {dialogProfil}
     </div>
   );
 }

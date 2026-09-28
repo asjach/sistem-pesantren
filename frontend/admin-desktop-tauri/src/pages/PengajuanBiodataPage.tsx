@@ -33,6 +33,7 @@ import { useDaftarTabel } from '@/hooks/useDaftarTabel';
 import { ActionIcon, SetAktifAction } from '@/components/RowActions';
 import { XCircle } from '@/icons';
 import { toast } from 'sonner';
+import { useAksiProfilSantri } from '@/components/santri/useAksiProfilSantri';
 
 const STATUS = ['diajukan', 'disetujui', 'ditolak'];
 
@@ -70,6 +71,7 @@ export default function PengajuanBiodataPage() {
   const [status, setStatus] = useState('diajukan');
   /** Pencarian tunggal halaman (topBar). */
   const [cari, setCari] = useState('');
+  const { aksiProfil, dialogProfil } = useAksiProfilSantri();
   const [badge, setBadge] = useState<Record<string, number>>({});
   const [busy, setBusy] = useState(false);
   const {
@@ -128,23 +130,26 @@ export default function PengajuanBiodataPage() {
   const onSaved = useCallback(() => load(), [load]);
 
   const renderActions = useCallback((p: PengajuanBiodata) => (
-    p.status === 'diajukan' && canProses ? (
-      <>
-        <SetAktifAction
-          id={`btn_setujui_pengajuan_${p.id}`}
-          onClick={() => run(() => setujuiPengajuan(p.id), 'Pengajuan disetujui.')}
-        />
-        <ActionIcon
-          id={`btn_tolak_pengajuan_${p.id}`}
-          title="Tolak"
-          className="text-destructive/70 hover:bg-destructive/10 hover:text-destructive"
-          onClick={() => { setTolakRow(p); setTolakCatatan(''); }}
-        >
-          <XCircle size={16} />
-        </ActionIcon>
-      </>
-    ) : null
-  ), [run, canProses]);
+    <>
+      {aksiProfil(p.santri_id)}
+      {p.status === 'diajukan' && canProses && (
+        <>
+          <SetAktifAction
+            id={`btn_setujui_pengajuan_${p.id}`}
+            onClick={() => run(() => setujuiPengajuan(p.id), 'Pengajuan disetujui.')}
+          />
+          <ActionIcon
+            id={`btn_tolak_pengajuan_${p.id}`}
+            title="Tolak"
+            className="text-destructive/70 hover:bg-destructive/10 hover:text-destructive"
+            onClick={() => { setTolakRow(p); setTolakCatatan(''); }}
+          >
+            <XCircle size={16} />
+          </ActionIcon>
+        </>
+      )}
+    </>
+  ), [run, canProses, aksiProfil]);
 
   return (
     <div className={PAGE_SHELL}>
@@ -209,6 +214,7 @@ export default function PengajuanBiodataPage() {
           </form>
         </DialogContent>
       </Dialog>
+      {dialogProfil}
     </div>
   );
 }

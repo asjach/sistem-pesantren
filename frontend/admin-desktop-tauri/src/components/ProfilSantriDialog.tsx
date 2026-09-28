@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { errorMessage } from '@/api/client';
 import { profilSantri, type ProfilSantri } from '@/api/siklus';
 import { TGL_KEYS, pihakFields } from '@/components/santri/kolomIdentitas';
@@ -11,7 +11,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { formatStatus, namaLembaga, namaTahunAjaran } from '@/lib/nilaiTampil';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -101,12 +100,12 @@ function kunciPihak(p: 'ayah' | 'ibu' | 'wali'): string[] {
 
 const PANEL_IDENTITAS: Panel[] = [
   {
-    judul: 'Identitas',
+    judul: 'Identitas dasar',
     kunci: ['nama_lengkap', 'nama_singkat', 'nik', 'nisn', 'jk', 'tipe_santri', 'id'],
   },
   {
     judul: 'Kelahiran',
-    kunci: ['tmp_lahir', 'tgl_lahir', 'anak_ke', 'j_saudara', 'agama'],
+    kunci: ['tmp_lahir', 'tgl_lahir', 'agama'],
   },
   { judul: 'Kontak', kunci: ['no_hp_santri', 'email_santri'] },
   {
@@ -135,11 +134,13 @@ const PANEL_ALAMAT: Panel[] = [
   },
 ];
 
+// Urutan mengikuti letak di grid 2 kolom: baris 1 Ayah | Ibu, baris 2
+// Wali | Kartu keluarga.
 const PANEL_KELUARGA: Panel[] = [
-  { judul: 'Kartu keluarga', kunci: ['no_kk', 'kepala_keluarga', 'yang_membiayai'] },
   { judul: 'Ayah', kunci: kunciPihak('ayah') },
   { judul: 'Ibu', kunci: kunciPihak('ibu') },
   { judul: 'Wali', kunci: kunciPihak('wali') },
+  { judul: 'Kartu keluarga', kunci: ['no_kk', 'kepala_keluarga', 'anak_ke', 'j_saudara', 'yang_membiayai'] },
 ];
 
 /** Nilai satu field sebagai teks tampil; string kosong bila tidak diisi. */
@@ -166,10 +167,22 @@ function Baris({ kunci, mentah }: { kunci: string; mentah: unknown }) {
 function PanelData({ panel, data }: { panel: Panel; data: Record<string, unknown> }) {
   return (
     <section className="space-y-1.5">
-      <h3 className="text-sm font-semibold">{panel.judul}</h3>
+      <h4 className="text-sm font-semibold">{panel.judul}</h4>
       <dl className="overflow-hidden rounded-lg border">
         {panel.kunci.map((k) => <Baris key={k} kunci={k} mentah={data[k]} />)}
       </dl>
+    </section>
+  );
+}
+
+/** Satu bagian profil: judul kelompok besar + isi (panel field atau tabel
+ *  relasi). Bagian ditumpuk dalam satu area gulir, bukan tab, agar seluruh
+ *  data terlihat sekilas dan tinggi dialog tidak berubah. */
+function Bagian({ judul, children }: { judul: string; children: ReactNode }) {
+  return (
+    <section className="space-y-3">
+      <h3 className="border-b pb-1 text-sm font-semibold">{judul}</h3>
+      {children}
     </section>
   );
 }
@@ -189,7 +202,7 @@ function Chip({ children, nada }: { children: string; nada?: 'aktif' | 'tidak' }
   );
 }
 
-/** Tabel relasi di bawah tab keanggotaan & riwayat. */
+/** Tabel relasi di dalam bagian keanggotaan & riwayat. */
 function TabelRelasi({ judul, jumlah, columns, rows }: {
   judul: string;
   jumlah: number;
@@ -198,9 +211,9 @@ function TabelRelasi({ judul, jumlah, columns, rows }: {
 }) {
   return (
     <section className="space-y-1.5">
-      <h3 className="text-sm font-semibold">
+      <h4 className="text-sm font-semibold">
         {judul} <span className="font-normal text-muted-foreground">({jumlah})</span>
-      </h3>
+      </h4>
       {rows.length === 0 ? (
         <p className="rounded-lg border border-dashed px-3 py-4 text-center text-sm text-muted-foreground">
           Tidak ada data.
@@ -237,9 +250,9 @@ function TabelRelasi({ judul, jumlah, columns, rows }: {
 
 const ymd = (v: string | null | undefined) => (v ? v.slice(0, 10) : '');
 
-/** Profil santri (baca-saja): data skalar dikelompokkan per tab (Identitas,
- *  Alamat, Keluarga) dan data relasi (keanggotaan, riwayat belajar, mutasi,
- *  alumni) dikumpulkan di tab tersendiri supaya mudah dipindai. */
+/** Profil santri (baca-saja): seluruh data (skalar `santri` + relasi
+ *  keanggotaan, riwayat belajar, mutasi, alumni) ditumpuk dalam satu area
+ *  gulir ber tinggi tetap, dikelompokkan per bagian supaya mudah dipindai. */
 export function ProfilSantriDialog({ santriId, open, onOpenChange }: {
   santriId: number | null;
   open: boolean;
@@ -293,30 +306,30 @@ export function ProfilSantriDialog({ santriId, open, onOpenChange }: {
         </DialogHeader>
 
         {profil ? (
-          <Tabs defaultValue="identitas" className="min-h-0">
-            <TabsList className="w-full justify-start">
-              <TabsTrigger id="tab_profil_identitas" value="identitas">Identitas</TabsTrigger>
-              <TabsTrigger id="tab_profil_alamat" value="alamat">Alamat</TabsTrigger>
-              <TabsTrigger id="tab_profil_keluarga" value="keluarga">Keluarga</TabsTrigger>
-              <TabsTrigger id="tab_profil_riwayat" value="riwayat">
-                Keanggotaan &amp; riwayat
-              </TabsTrigger>
-            </TabsList>
-
-            <div className="max-h-[60vh] overflow-y-auto pr-1">
-              <TabsContent value="identitas" className="mt-3 grid gap-4 sm:grid-cols-2">
+          /* Semua bagian ditumpuk dalam satu area gulir dengan tinggi tetap:
+             tidak ada tab yang disembunyikan, dan tinggi dialog tetap sama
+             berapa pun panjang datanya. */
+          <div data-part="isi_profil" className="h-[60vh] min-h-72 space-y-6 overflow-y-auto pr-1">
+            <Bagian judul="Identitas">
+              <div className="grid gap-4 sm:grid-cols-2">
                 {PANEL_IDENTITAS.map((p) => <PanelData key={p.judul} panel={p} data={data} />)}
-              </TabsContent>
+              </div>
+            </Bagian>
 
-              <TabsContent value="alamat" className="mt-3 grid gap-4 sm:grid-cols-2">
+            <Bagian judul="Alamat">
+              <div className="grid gap-4 sm:grid-cols-2">
                 {PANEL_ALAMAT.map((p) => <PanelData key={p.judul} panel={p} data={data} />)}
-              </TabsContent>
+              </div>
+            </Bagian>
 
-              <TabsContent value="keluarga" className="mt-3 grid gap-4 sm:grid-cols-2">
+            <Bagian judul="Keluarga">
+              <div className="grid gap-4 sm:grid-cols-2">
                 {PANEL_KELUARGA.map((p) => <PanelData key={p.judul} panel={p} data={data} />)}
-              </TabsContent>
+              </div>
+            </Bagian>
 
-              <TabsContent value="riwayat" className="mt-3 space-y-5">
+            <Bagian judul="Keanggotaan &amp; riwayat">
+              <div className="space-y-5">
                 <TabelRelasi
                   judul="Keanggotaan lembaga"
                   jumlah={profil.keanggotaan.length}
@@ -401,9 +414,9 @@ export function ProfilSantriDialog({ santriId, open, onOpenChange }: {
                     penyerahan: a.penyerahan_ijazah ?? '',
                   }))}
                 />
-              </TabsContent>
-            </div>
-          </Tabs>
+              </div>
+            </Bagian>
+          </div>
         ) : (
           <p className="py-6 text-center text-sm text-muted-foreground">Memuat data…</p>
         )}

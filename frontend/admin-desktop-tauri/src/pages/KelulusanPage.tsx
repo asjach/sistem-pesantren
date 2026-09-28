@@ -34,6 +34,7 @@ import { namaTahunAjaran } from '@/lib/nilaiTampil';
 import { tokenUrut, type PetaArahKolom } from '@/lib/urut';
 import ImportBertahapUmumDialog from '@/components/ImportBertahapUmumDialog';
 import { toast } from 'sonner';
+import { useAksiProfilSantri } from '@/components/santri/useAksiProfilSantri';
 
 /** Kelulusan: kiri santri tingkat akhir → kanan alumni & santri tidak lulus. */
 
@@ -149,6 +150,7 @@ export default function KelulusanPage() {
   const [arahKolom, setArahKolom] = useState<PetaArahKolom | undefined>(undefined);
   const [arahAlumni, setArahAlumni] = useState<'naik' | 'turun'>('naik');
   const [err, setErr] = useState('');
+  const { aksiProfil, dialogProfil } = useAksiProfilSantri();
   /** Pencarian tunggal halaman (topBar). */
   const [cari, setCari] = useState('');
   const [busy, setBusy] = useState(false);
@@ -390,7 +392,7 @@ export default function KelulusanPage() {
               canEdit={false}
               onCommit={async () => {}}
               onSaved={() => {}}
-              renderActions={() => null}
+              renderActions={(r) => aksiProfil(r.santri_id, 'tingkat_akhir')}
                onCheckedChange={(rows) => setPilih(new Set(rows.map((r) => r.santri_id)))}
                hidePreset
                emptyText="Tidak ada santri tingkat akhir aktif pada tahun ajaran ini."
@@ -438,17 +440,22 @@ export default function KelulusanPage() {
                  canEdit={canUbah}
                 onCommit={commitAlumni}
                 onSaved={() => void loadArsip()}
-                renderActions={(a) => (canUbah ? (
-                  <ActionIcon
-                    id={`btn_batal_lulus_alumni_${a.id}`}
-                    title="Batalkan kelulusan (hapus arsip alumni)"
-                    disabled={busy || targetJenjang === null}
-                    onClick={() => void batalkanLulus([a])}
-                    className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                  >
-                    <X size={16} />
-                  </ActionIcon>
-                ) : null)}
+                renderActions={(a) => (
+                  <>
+                    {aksiProfil(a.santri_id, 'alumni')}
+                    {canUbah && (
+                      <ActionIcon
+                        id={`btn_batal_lulus_alumni_${a.id}`}
+                        title="Batalkan kelulusan (hapus arsip alumni)"
+                        disabled={busy || targetJenjang === null}
+                        onClick={() => void batalkanLulus([a])}
+                        className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                      >
+                        <X size={16} />
+                      </ActionIcon>
+                    )}
+                  </>
+                )}
                 onCheckedChange={setTercentangAlumni}
                 urutAktif={urutAlumni}
                 arahUrut={arahAlumni}
@@ -482,17 +489,22 @@ export default function KelulusanPage() {
                 canEdit={false}
                 onCommit={async () => {}}
                 onSaved={() => {}}
-                renderActions={(b) => (canUbah ? (
-                  <ActionIcon
-                    id={`btn_batal_tidak_lulus_${b.santri_id}`}
-                    title="Batalkan tidak lulus (hapus baris mengulang)"
-                    disabled={busy || targetJenjang === null}
-                    onClick={() => void batalkanTidakLulus([b])}
-                    className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                  >
-                    <X size={16} />
-                  </ActionIcon>
-                ) : null)}
+                renderActions={(b) => (
+                  <>
+                    {aksiProfil(b.santri_id, 'tidak_lulus')}
+                    {canUbah && (
+                      <ActionIcon
+                        id={`btn_batal_tidak_lulus_${b.santri_id}`}
+                        title="Batalkan tidak lulus (hapus baris mengulang)"
+                        disabled={busy || targetJenjang === null}
+                        onClick={() => void batalkanTidakLulus([b])}
+                        className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                      >
+                        <X size={16} />
+                      </ActionIcon>
+                    )}
+                  </>
+                )}
                 onCheckedChange={setTercentangTidakLulus}
                  hidePreset
                  emptyText="Belum ada."
@@ -566,6 +578,7 @@ export default function KelulusanPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {dialogProfil}
     </div>
   );
 }

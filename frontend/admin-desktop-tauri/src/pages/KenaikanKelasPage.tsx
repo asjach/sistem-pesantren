@@ -15,6 +15,7 @@ import { TopBarSearch } from '@/components/TopBarSearch';
 import { ResizableAutoHidePanel, ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { toast } from 'sonner';
+import { useAksiProfilSantri, type AksiProfilSantri } from '@/components/santri/useAksiProfilSantri';
 
 /** Baris tabel hasil (kenaikan / tidak naik). */
 interface Baris {
@@ -94,6 +95,7 @@ export default function KenaikanKelasPage() {
   const [tercentangNaik, setTercentangNaik] = useState<Baris[]>([]);
   const [tercentangTidak, setTercentangTidak] = useState<Baris[]>([]);
   const [err, setErr] = useState('');
+  const { aksiProfil, dialogProfil } = useAksiProfilSantri();
   const [busy, setBusy] = useState(false);
 
   /** Kandidat: semester 2 pada TA acuan, hanya baris berstatus akhir aktif. */
@@ -314,8 +316,11 @@ export default function KenaikanKelasPage() {
                 canEdit={false}
               onCommit={async () => {}}
               onSaved={() => {}}
-              renderActions={(r) => (canUbah ? (
+              renderActions={(r) => (
                 <div className="flex items-center gap-0.5">
+                  {aksiProfil(r.santri_id, 'kandidat')}
+                  {canUbah && (
+                  <>
                   <ActionIcon
                     id={`btn_naik_santri_${r.santri_id}`}
                     title="Naik kelas"
@@ -334,8 +339,10 @@ export default function KenaikanKelasPage() {
                   >
                     <X size={16} />
                   </ActionIcon>
+                  </>
+                  )}
                 </div>
-              ) : null)}
+              )}
                hidePreset
                emptyText="Tidak ada Santri semester 2 aktif pada tahun ajaran ini."
             />
@@ -354,6 +361,7 @@ export default function KenaikanKelasPage() {
             tombolHeader={tombolBatalkan('naik_kelas', tercentangNaik)}
             onCheckedChange={setTercentangNaik}
             onBatalkan={(b) => void batalkan([b])}
+            aksiProfil={aksiProfil}
           />
           </ResizableAutoHidePanel>
           <ResizableHandle withHandle orientation="vertical" id="gagang_kenaikan_baris" />
@@ -365,12 +373,14 @@ export default function KenaikanKelasPage() {
             tombolHeader={tombolBatalkan('tidak_naik_kelas', tercentangTidak)}
             onCheckedChange={setTercentangTidak}
             onBatalkan={(b) => void batalkan([b])}
+            aksiProfil={aksiProfil}
           />
           </ResizableAutoHidePanel>
         </ResizablePanelGroup>
         </div>
         </ResizablePanel>
       </ResizablePanelGroup>
+      {dialogProfil}
     </div>
   );
 }
@@ -383,6 +393,7 @@ function PanelDaftar({
   tombolHeader,
   onCheckedChange,
   onBatalkan,
+  aksiProfil,
 }: {
   idPrefix: string;
   judul: string;
@@ -390,6 +401,7 @@ function PanelDaftar({
   tombolHeader?: ReactNode;
   onCheckedChange: (tercentang: Baris[]) => void;
   onBatalkan: (b: Baris) => void;
+  aksiProfil: AksiProfilSantri['aksiProfil'];
 }) {
   // Memoized: ExcelTable membersihkan seleksi tiap `rows` berubah identitas.
   const rows = useMemo(() => baris.map((b) => ({ ...b, id: b.santri_id })), [baris]);
@@ -411,7 +423,10 @@ function PanelDaftar({
           canEdit={false}
           onCommit={async () => {}}
           onSaved={() => {}}
-          renderActions={(b) => (bisaBatalkan(b) ? (
+          renderActions={(b) => (
+            <>
+              {aksiProfil(b.santri_id, idPrefix)}
+              {bisaBatalkan(b) ? (
             <ActionIcon
               id={`btn_batal_${idPrefix}_${b.santri_id}`}
               title="Batalkan kenaikan (kembali ke kandidat)"
@@ -420,9 +435,9 @@ function PanelDaftar({
             >
               <X size={16} />
             </ActionIcon>
-          ) : (
-            <span className="px-2 text-xs text-muted-foreground">—</span>
-          ))}
+          ) : null}
+            </>
+          )}
            hidePreset
            emptyText="Belum ada."
         />

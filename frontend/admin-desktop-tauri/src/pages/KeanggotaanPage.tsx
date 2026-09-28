@@ -34,6 +34,7 @@ import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { toast } from 'sonner';
+import { useAksiProfilSantri } from '@/components/santri/useAksiProfilSantri';
 
 /** Format tanggal sel grid: YYYY-MM-DD (kosong = boleh, berarti NULL). */
 const tglValidator = (v: string | null) =>
@@ -61,6 +62,7 @@ export default function KeanggotaanPage() {
 
   const [status, setStatus] = useState('');
   const [cari, setCari] = useState('');
+  const { aksiProfil, dialogProfil } = useAksiProfilSantri();
   /** Urut header: daftar nilai allowlist + arah global (maks 3 kunci). */
   const [urut, setUrut] = useState<string[]>([]);
   const [arahUrut, setArahUrut] = useState<'naik' | 'turun'>('naik');
@@ -364,6 +366,7 @@ export default function KeanggotaanPage() {
         onSaved={() => void load()}
         renderActions={(r) => (
           <>
+            {aksiProfil(r.santri_id)}
             {canUbah && (
               <Button id={`btn_ubah_anggota_${r.id}`} size="sm" variant="outline" disabled={busyId === r.id}
                 onClick={() => {
@@ -495,6 +498,7 @@ export default function KeanggotaanPage() {
       </Dialog>
 
       <ImportSantriGabunganDialog open={importOpen} onOpenChange={setImportOpen} onDone={() => load(1)} />
+      {dialogProfil}
     </div>
   );
 }

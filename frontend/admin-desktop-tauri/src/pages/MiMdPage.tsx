@@ -23,6 +23,7 @@ import type { PetaArahKolom } from '@/lib/urut';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import { toast } from 'sonner';
+import { useAksiProfilSantri } from '@/components/santri/useAksiProfilSantri';
 
 /** Halaman MI-MD: MI saja | MD semua | beda kelas by-nama + aksi samakan dua arah.
  *  Daftar mengikuti tahun ajaran pilihan topbar (default TA aktif). */
@@ -37,6 +38,7 @@ export default function MiMdPage() {
   const [err, setErr] = useState('');
   /** Pencarian tunggal halaman (topBar) untuk ketiga tabel. */
   const [cari, setCari] = useState('');
+  const { aksiProfil, dialogProfil } = useAksiProfilSantri();
   const [busyId, setBusyId] = useState<number | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
 
@@ -259,7 +261,7 @@ export default function MiMdPage() {
         canEdit={false}
         onCommit={async () => {}}
         onSaved={() => {}}
-        renderActions={aksi ? (r) => aksi(r) : () => null}
+        renderActions={(r) => (<>{aksiProfil(r.santri_id, key)}{aksi?.(r)}</>)}
         renderBulkActions={renderBulk}
         emptyText="Tidak ada data."
       />
@@ -427,6 +429,7 @@ export default function MiMdPage() {
           </ResizablePanelGroup>
         </>
       )}
+      {dialogProfil}
     </div>
   );
 }
