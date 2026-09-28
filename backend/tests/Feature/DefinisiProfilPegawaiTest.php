@@ -176,6 +176,77 @@ class DefinisiProfilPegawaiTest extends TestCase
         }
     }
 
+    public function test_tiap_tabel_memakai_gaya_grid_dan_kepala_miliknya(): void
+    {
+        $tabel = array_values(array_filter(
+            $this->medan(),
+            fn (array $m): bool => $m['tipe'] === 'baris_berulang',
+        ));
+
+        $this->assertCount(3, $tabel);
+
+        foreach ($tabel as $medan) {
+            $gaya = $medan['baris_berulang']['gaya'];
+
+            $this->assertGreaterThan(0.0, (float) $gaya['garis_sel'], 'Tabel harus bergaris sel.');
+            $this->assertSame('#7a7a7a', $gaya['warna_garis']);
+            $this->assertSame('#f1f1f1', $gaya['warna_kepala'], 'Kepala tabel berlatar abu.');
+            $this->assertTrue($gaya['tebal_kepala']);
+            $this->assertGreaterThan(0.0, (float) $medan['baris_berulang']['tinggi_kepala']);
+        }
+    }
+
+    public function test_kepala_kolom_disimpan_pada_kolom_tabel_bukan_medan_teks_tersisa(): void
+    {
+        $medan = $this->medan();
+        $tabel = array_values(array_filter($medan, fn (array $m): bool => $m['tipe'] === 'baris_berulang'));
+
+        $labelKolom = [];
+        $halamanTabel = [];
+
+        foreach ($tabel as $satu) {
+            foreach ($satu['baris_berulang']['kolom'] as $kolom) {
+                $labelKolom[] = $kolom['label'];
+            }
+
+            $halamanTabel[] = (int) $satu['halaman'];
+        }
+
+        // Kepala kolom digambar medan tabel, jadi di halaman yang sama tidak boleh
+        // ada medan teks terpisah berisi label kolom; kalau ada, label tercetak dua
+        // kali. Label yang sama di halaman lain tidak masalah: "No. HP" muncul
+        // sebagai label baris di blok domisili sekaligus sebagai kolom akun.
+        foreach ($medan as $satu) {
+            if (($satu['tipe'] ?? null) !== 'teks' || $satu['kunci'] !== null) {
+                continue;
+            }
+
+            if (! in_array((int) $satu['halaman'], $halamanTabel, true)) {
+                continue;
+            }
+
+            $this->assertNotContains(
+                (string) $satu['teks_tetap'],
+                $labelKolom,
+                sprintf('Label kolom "%s" jangan lagi jadi medan teks tersendiri.', $satu['teks_tetap']),
+            );
+        }
+    }
+
+    public function test_tinggi_tabel_menyertakan_kepala(): void
+    {
+        foreach ($this->medan() as $medan) {
+            if ($medan['tipe'] !== 'baris_berulang') {
+                continue;
+            }
+
+            $bagian = $medan['baris_berulang'];
+            $tinggi = (float) $bagian['tinggi_kepala'] + (int) $bagian['jumlah'] * (float) $bagian['tinggi_baris'];
+
+            $this->assertEqualsWithDelta($tinggi, (float) $medan['h'], 0.01, 'Kotak tabel memuat kepala dan baris.');
+        }
+    }
+
     public function test_konteks_memetakan_pilihan_data_ke_id_yang_tepat(): void
     {
         $konteks = new KonteksCetak(jenjang: 'MTS', idSantri: 7, idPegawai: 9, idPsbCalon: 11);

@@ -267,21 +267,30 @@ class PdfIsian extends PencetakMedan
         $baris = $this->pengisi->koleksi($koleksiKunci, $this->idUntukKoleksi($koleksiKunci));
         $jumlahSlot = min((int) $bagian['jumlah'], count($baris));
         $tinggiBaris = (float) $bagian['tinggi_baris'];
+        $tinggiKepala = (float) $bagian['tinggi_kepala'];
         $xAwal = (float) $medan['x'];
         $yAwal = (float) $medan['y'];
+        $gayaTabel = $bagian['gaya'];
+
+        // Tanpa data tidak ada tabel sama sekali, kepala pun tidak digambar.
+        if ($jumlahSlot === 0) {
+            return;
+        }
+
+        $this->gambarKepalaTabel($pdf, $bagian, $gayaTabel, $xAwal, $yAwal, $tinggiKepala);
+
+        // FPDF menggambar garis tepat di tepi sel. Dua sel yang bersebelahan
+        // memakai titik yang sama, jadi garisnya bertumpuk di satu tempat dan
+        // tetap setebal garis_sel — bukan dua kali lipat seperti di HTML.
+        $garis = (float) $gayaTabel['garis_sel'];
 
         for ($i = 0; $i < $jumlahSlot; $i++) {
             foreach ($bagian['kolom'] as $kolom) {
                 $teks = $this->teksKolom($kolom, $baris[$i], $i + 1);
-
-                if ($teks === '') {
-                    continue;
-                }
-
                 $gaya = $kolom['gaya'];
                 $ukuran = (float) $gaya['ukuran'];
 
-                if ($gaya['skala_otomatis']) {
+                if ($gaya['skala_otomatis'] && $teks !== '') {
                     $ukuran = $this->cariUkuranMuat(
                         $pdf,
                         $teks,
@@ -295,9 +304,83 @@ class PdfIsian extends PencetakMedan
                 }
 
                 $this->siapkanFont($pdf, $gaya, $ukuran);
-                $pdf->SetXY($xAwal + (float) $kolom['x'], $yAwal + $i * $tinggiBaris);
-                $pdf->Cell((float) $kolom['w'], $tinggiBaris, $teks, 0, 0, $gaya['rata'], false, '', 0, false, 'L', 'M');
+                $pdf->SetXY($xAwal + (float) $kolom['x'], $yAwal + $tinggiKepala + $i * $tinggiBaris);
+
+                if ($garis > 0.0) {
+                    $pdf->SetDrawColorArray($this->warnaKeArray((string) $gayaTabel['warna_garis']));
+                    $pdf->SetLineWidth($garis);
+                }
+
+                $pdf->Cell(
+                    (float) $kolom['w'],
+                    $tinggiBaris,
+                    $teks,
+                    $garis > 0.0 ? 1 : 0,
+                    0,
+                    $gaya['rata'],
+                    false,
+                    '',
+                    0,
+                    false,
+                    'L',
+                    'M',
+                );
             }
+        }
+    }
+
+    /**
+     * Baris kepala tabel: satu sel per kolom, memakai label kolom.
+     *
+     * @param  array<string, mixed>  $bagian
+     * @param  array<string, mixed>  $gayaTabel
+     */
+    private function gambarKepalaTabel(
+        DokumenPdf $pdf,
+        array $bagian,
+        array $gayaTabel,
+        float $xAwal,
+        float $yAwal,
+        float $tinggiKepala,
+    ): void {
+        $garis = (float) $gayaTabel['garis_sel'];
+        $latar = $gayaTabel['warna_kepala'];
+
+        foreach ($bagian['kolom'] as $kolom) {
+            $gaya = $kolom['gaya'];
+            $gaya['ukuran'] = (float) $gayaTabel['ukuran_kepala'];
+            $gaya['skala_otomatis'] = false;
+
+            if ($gayaTabel['tebal_kepala']) {
+                $gaya['tebal'] = true;
+            }
+
+            $this->siapkanFont($pdf, $gaya, (float) $gaya['ukuran']);
+            $pdf->SetXY($xAwal + (float) $kolom['x'], $yAwal);
+
+            if ($garis > 0.0) {
+                $pdf->SetDrawColorArray($this->warnaKeArray((string) $gayaTabel['warna_garis']));
+                $pdf->SetLineWidth($garis);
+            }
+
+            if ($latar !== null) {
+                $pdf->SetFillColorArray($this->warnaKeArray((string) $latar));
+            }
+
+            $pdf->Cell(
+                (float) $kolom['w'],
+                $tinggiKepala,
+                (string) $kolom['label'],
+                $garis > 0.0 ? 1 : 0,
+                0,
+                $gaya['rata'],
+                $latar !== null,
+                '',
+                0,
+                false,
+                'L',
+                'M',
+            );
         }
     }
 

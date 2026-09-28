@@ -205,18 +205,85 @@ class PerenderHtmlTest extends TestCase
 
         $kotak = $this->kotakTeras($pdf);
 
-        // Dua baris, dua kolom, tiap kolom punya kotak sendiri.
-        $this->assertCount(4, $kotak, 'Dua baris dua kolom harus menghasilkan empat kotak.');
+        // Dua kolom, masing-masing punya satu sel kepala plus dua sel baris.
+        $this->assertCount(6, $kotak, 'Dua kolom dua baris harus menghasilkan enam sel termasuk kepala.');
 
-        // Baris kedua harus setinggi satu baris di bawah baris pertama.
+        // Baris kedua harus setinggi satu baris di bawah baris pertama; kepala
+        // memiliki bandnya sendiri di atas keduanya.
         $kiri = array_values(array_filter($kotak, fn (array $s): bool => $s['x'] < 30.0));
-        $this->assertCount(2, $kiri, 'Kolom pertama harus punya dua kotak.');
+        $this->assertCount(3, $kiri, 'Kolom pertama harus punya sel kepala dan dua sel baris.');
 
         $tinggiBaris = array_map(fn (array $s): float => 297.0 - $s['y'], $kiri);
         sort($tinggiBaris);
 
-        $this->assertEqualsWithDelta(100.0, $tinggiBaris[0], 0.3, 'Baris pertama di 100 mm dari atas.');
-        $this->assertEqualsWithDelta(108.0, $tinggiBaris[1], 0.3, 'Baris kedua di 108 mm dari atas.');
+        $this->assertEqualsWithDelta(100.0, $tinggiBaris[0], 0.3, 'Kepala tabel di 100 mm dari atas.');
+        $this->assertEqualsWithDelta(106.0, $tinggiBaris[1], 0.3, 'Baris pertama di 106 mm dari atas.');
+        $this->assertEqualsWithDelta(114.0, $tinggiBaris[2], 0.3, 'Baris kedua di 114 mm dari atas.');
+    }
+
+    public function test_kepala_tabel_memakai_label_kolom_dan_latar_yang_dijukan(): void
+    {
+        $f = $this->fixtureKelas();
+        $pdf = $this->cetak(['medan' => [[
+            'tipe' => 'baris_berulang', 'label' => 'Daftar', 'halaman' => 1,
+            'x' => 20, 'y' => 100, 'w' => 170, 'h' => 40,
+            'baris_berulang' => [
+                'sumber' => 'daftar_santri_kelas',
+                'jumlah' => 1,
+                'tinggi_baris' => 8,
+                'tinggi_kepala' => 6,
+                'kolom' => [
+                    ['x' => 0, 'w' => 20, 'label' => 'No', 'sumber' => 'baris', 'kunci' => 'no_urut'],
+                    ['x' => 25, 'w' => 80, 'label' => 'Nama Lengkap', 'sumber' => 'baris', 'kunci' => 'nama_lengkap'],
+                ],
+                'gaya' => [
+                    'garis_sel' => 0.25,
+                    'warna_garis' => '#7a7a7a',
+                    'warna_kepala' => '#f1f1f1',
+                    'tebal_kepala' => true,
+                ],
+            ],
+        ]]], kelasId: $f['kelas']->id);
+
+        $aliran = implode('', $this->aliranIsi($pdf));
+
+        $this->assertStringContainsString('Nama Lengkap', $aliran, 'Kepala kolom memakai label kolom.');
+
+        // Dompdf menerjemahkan border dan latar jadi operasi canvas, bukan
+        // deklarasi CSS, jadi yang diperiksa adalah warna dan tebalnya.
+        $this->assertContains('0.478 0.478 0.478', $this->warnaGaris($aliran), 'Garis sel #7a7a7a.');
+        $this->assertContains('0.945 0.945 0.945', $this->warnaIsian($aliran), 'Kepala tabel berlatar #f1f1f1.');
+
+        // 0,125 mm = 0,3543 pt: setengah dari garis_sel 0,25 mm supaya garis
+        // antar-sel tidak menjadi dua kali tebal.
+        $this->assertMatchesRegularExpression(
+            '/0\.3543\d* w/',
+            $aliran,
+            'Tebal garis sel harus setengah dari garis_sel, seperti border-collapse.',
+        );
+    }
+
+    public function test_tabel_tanpa_garis_sel_tidak_menggambar_border(): void
+    {
+        $f = $this->fixtureKelas();
+        $pdf = $this->cetak(['medan' => [[
+            'tipe' => 'baris_berulang', 'label' => 'Daftar', 'halaman' => 1,
+            'x' => 20, 'y' => 100, 'w' => 170, 'h' => 40,
+            'baris_berulang' => [
+                'sumber' => 'daftar_santri_kelas',
+                'jumlah' => 1,
+                'tinggi_baris' => 8,
+                'kolom' => [
+                    ['x' => 0, 'w' => 20, 'label' => 'No', 'sumber' => 'baris', 'kunci' => 'no_urut'],
+                ],
+                'gaya' => ['garis_sel' => 0, 'warna_kepala' => null],
+            ],
+        ]]], kelasId: $f['kelas']->id);
+
+        $aliran = implode('', $this->aliranIsi($pdf));
+
+        $this->assertStringNotContainsString('re S', $aliran, 'Tanpa garis_sel tidak boleh ada sel yang digores.');
+        $this->assertStringNotContainsString('0.945 0.945 0.945', $aliran, 'Latar kepala harus kosong.');
     }
 
     public function test_medan_berulang_tanpa_kelas_tidak_menggambar_baris(): void
@@ -561,6 +628,14 @@ class PerenderHtmlTest extends TestCase
     private function warnaIsian(string $isi): array
     {
         preg_match_all('/([0-9.]+ [0-9.]+ [0-9.]+) rg/', $isi, $cocok);
+
+        return $cocok[1] ?? [];
+    }
+
+    /** @return list<string> */
+    private function warnaGaris(string $isi): array
+    {
+        preg_match_all('/([0-9.]+ [0-9.]+ [0-9.]+) RG/', $isi, $cocok);
 
         return $cocok[1] ?? [];
     }

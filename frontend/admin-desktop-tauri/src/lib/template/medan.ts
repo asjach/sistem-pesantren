@@ -46,7 +46,8 @@ const KOTAK_BAWAAN: Record<TipeMedan, Kotak> = {
   gambar: { x: 20, y: 100, w: 40, h: 55 },
   centang: { x: 20, y: 40, w: 6, h: 6 },
   tanda_tangan: { x: 140, y: 240, w: 45, h: 22 },
-  baris_berulang: { x: 20, y: 60, w: 170, h: 80 },
+  // Tabel bawaannya sudah memakai tinggi kepala, jadi h memuat kepala + baris.
+  baris_berulang: { x: 20, y: 60, w: 170, h: 86 },
   halaman_otomatis: { x: 20, y: 285, w: 60, h: 6 },
   // Garis memakai tinggi sebagai tebal, jadi tinggi bawaannya tipis.
   garis: { x: 20, y: 45, w: 170, h: 0.4 },
@@ -106,10 +107,18 @@ export function medanBaru(
       sumber: '',
       jumlah: 10,
       tinggi_baris: 8,
+      tinggi_kepala: 6,
       kolom: [
         { label: 'No', x: 0, w: 12, sumber: 'tetap', kunci: 'no_urut', gaya: gayaBawaan({ rata: 'tengah' }) },
         { label: 'Isi', x: 14, w: 120, sumber: 'baris', kunci: '', gaya: gayaBawaan() },
       ],
+      gaya: {
+        garis_sel: 0.25,
+        warna_garis: '#7a7a7a',
+        warna_kepala: '#f1f1f1',
+        tebal_kepala: true,
+        ukuran_kepala: 8.5,
+      },
     };
   }
 

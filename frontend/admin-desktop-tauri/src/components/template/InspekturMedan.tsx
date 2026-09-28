@@ -5,7 +5,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { bacaAngka, teksMm } from '@/lib/template/satuan';
-import { kunciAset, type AsetDokumen } from '@/lib/template/tipe';
+import { GAYA_TABEL_BAWAAN, kunciAset, type AsetDokumen, type GayaTabel } from '@/lib/template/tipe';
 import {
   FONT_PDF,
   RATA,
@@ -75,6 +75,8 @@ export default function InspekturMedan({
   const perluGaya = !TIPE_TANDA.includes(medan.tipe) && !TIPE_DEKORATIF.includes(medan.tipe);
   const sumber = katalog?.sumber.find((s) => s.kunci === medan.sumber) ?? null;
   const koleksi = katalog?.koleksi.find((k) => k.kunci === medan.baris_berulang?.sumber) ?? null;
+  // Definisi lama belum punya gaya tabel, jadi nilai bawaan dipakai di sini.
+  const gayaTabel: GayaTabel = medan.baris_berulang?.gaya ?? GAYA_TABEL_BAWAAN;
 
   return (
     <div className="flex flex-col gap-3 p-3">
@@ -411,6 +413,95 @@ export default function InspekturMedan({
               nilai={medan.baris_berulang?.tinggi_baris ?? 8}
               ubah={(tinggi_baris) => onUbah(medan.id, { baris_berulang: { ...medan.baris_berulang!, tinggi_baris } })}
             />
+            <AngkaMedan
+              id="input_tinggi_kepala_tabel"
+              label="Tinggi kepala (mm)"
+              nilai={medan.baris_berulang?.tinggi_kepala ?? 6}
+              ubah={(tinggi_kepala) => onUbah(medan.id, { baris_berulang: { ...medan.baris_berulang!, tinggi_kepala } })}
+            />
+            <AngkaMedan
+              id="input_garis_sel_tabel"
+              label="Garis sel (mm)"
+              nilai={medan.baris_berulang?.gaya?.garis_sel ?? 0}
+              ubah={(garis_sel) =>
+                onUbah(medan.id, { baris_berulang: { ...medan.baris_berulang!, gaya: { ...gayaTabel, garis_sel } } })
+              }
+              langkah={0.05}
+              modeBaca={modeBaca}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <AngkaMedan
+              id="input_ukuran_kepala_tabel"
+              label="Huruf kepala (pt)"
+              nilai={medan.baris_berulang?.gaya?.ukuran_kepala ?? 8.5}
+              ubah={(ukuran_kepala) =>
+                onUbah(medan.id, { baris_berulang: { ...medan.baris_berulang!, gaya: { ...gayaTabel, ukuran_kepala } } })
+              }
+              langkah={0.5}
+              modeBaca={modeBaca}
+            />
+            <div>
+              <FieldLabel htmlFor="input_warna_garis_tabel">Warna garis sel</FieldLabel>
+              <Input
+                id="input_warna_garis_tabel"
+                type="color"
+                value={gayaTabel.warna_garis}
+                disabled={modeBaca}
+                onChange={(e) =>
+                  onUbah(medan.id, {
+                    baris_berulang: { ...medan.baris_berulang!, gaya: { ...gayaTabel, warna_garis: e.target.value } },
+                  })
+                }
+                className="h-8 w-20 p-1"
+              />
+            </div>
+          </div>
+
+          <div>
+            <FieldLabel htmlFor="input_warna_kepala_tabel">Latar kepala</FieldLabel>
+            <Input
+              id="input_warna_kepala_tabel"
+              type="color"
+              value={gayaTabel.warna_kepala ?? '#f1f1f1'}
+              disabled={modeBaca}
+              onChange={(e) =>
+                onUbah(medan.id, {
+                  baris_berulang: { ...medan.baris_berulang!, gaya: { ...gayaTabel, warna_kepala: e.target.value } },
+                })
+              }
+              className="h-8 w-20 p-1"
+            />
+            <label className="flex items-center gap-2 pt-1 text-sm">
+              <Checkbox
+                id="checkbox_kepala_kosong_tabel"
+                checked={gayaTabel.warna_kepala === null}
+                disabled={modeBaca}
+                onCheckedChange={(benar) =>
+                  onUbah(medan.id, {
+                    baris_berulang: {
+                      ...medan.baris_berulang!,
+                      gaya: { ...gayaTabel, warna_kepala: benar ? null : '#f1f1f1' },
+                    },
+                  })
+                }
+              />
+              Tanpa latar
+            </label>
+            <label className="flex items-center gap-2 pt-1 text-sm">
+              <Checkbox
+                id="checkbox_kepala_tebal_tabel"
+                checked={gayaTabel.tebal_kepala}
+                disabled={modeBaca}
+                onCheckedChange={(tebal_kepala) =>
+                  onUbah(medan.id, {
+                    baris_berulang: { ...medan.baris_berulang!, gaya: { ...gayaTabel, tebal_kepala: !!tebal_kepala } },
+                  })
+                }
+              />
+              Kepala tebal
+            </label>
           </div>
 
           <ul className="grid gap-1 text-sm">

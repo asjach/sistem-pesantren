@@ -130,6 +130,25 @@ class PdfIsianTest extends TestCase
     }
 
     /**
+     * Isi stream halaman yang sudah ditiup, termasuk operator gambar. Dipakai
+     * untuk memeriksa warna dan garis, yang tidak muncul di teks.
+     */
+    private function isiPdf(string $bytes): string
+    {
+        $gabung = '';
+
+        foreach ($this->streamMentah($bytes) as $mentah) {
+            $stream = @gzuncompress($mentah);
+
+            if ($stream !== false) {
+                $gabung .= $stream;
+            }
+        }
+
+        return $gabung;
+    }
+
+    /**
      * Seluruh string literal di dalam stream halaman, sudah ditiup. Dengan
      * begitu assertion bisa menulis "nilai ini benar-benar tercetak".
      */
@@ -137,16 +156,14 @@ class PdfIsianTest extends TestCase
     {
         $gabung = '';
 
-        if (preg_match_all('/stream\r?\n(.*?)\r?\nendstream/s', $bytes, $cocok)) {
-            foreach ($cocok[1] as $mentah) {
-                $stream = @gzuncompress($mentah);
+        foreach ($this->streamMentah($bytes) as $mentah) {
+            $stream = @gzuncompress($mentah);
 
-                if ($stream === false) {
-                    continue;
-                }
-
-                $gabung .= $stream;
+            if ($stream === false) {
+                continue;
             }
+
+            $gabung .= $stream;
         }
 
         // Ambil literal ( ... ) yang ditulis TCPDF di operator Tj/TJ.
@@ -159,6 +176,39 @@ class PdfIsianTest extends TestCase
             fn (string $s) => str_replace(['\\(', '\\)', '\\\\'], ['(', ')', '\\'], $s),
             $literal[1] ?? [],
         ));
+    }
+
+    /**
+     * Stream mentah di dalam PDF. Panjang diambil dari `/Length` karena
+     * TCPDF tidak selalu menulis baris baru sebelum `endstream`.
+     *
+     * @return list<string>
+     */
+    private function streamMentah(string $bytes): array
+    {
+        $daftar = [];
+        $offset = 0;
+
+        while (preg_match('/\/Length\s+(\d+)/', $bytes, $cocok, PREG_OFFSET_CAPTURE, $offset) === 1) {
+            $panjang = (int) $cocok[1][0];
+            $mulai = strpos($bytes, 'stream', $cocok[1][1]);
+
+            if ($mulai === false) {
+                break;
+            }
+
+            $mulai += strlen('stream');
+            $mulai += strspn($bytes, "\r\n", $mulai);
+            $offset = $mulai + $panjang;
+
+            if ($offset > strlen($bytes)) {
+                break;
+            }
+
+            $daftar[] = substr($bytes, $mulai, $panjang);
+        }
+
+        return $daftar;
     }
 
     private function assertTercetak(string $bytes, string $harapan, string $pesan = ''): void
@@ -325,6 +375,69 @@ class PdfIsianTest extends TestCase
 
         $this->assertTercetak($hasil, 'Budi Santoso');
         $this->assertTidakTercetak($hasil, 'Ahmad Fauzi bin Abdul', 'kelas hanya punya satu slot baris');
+    }
+
+    public function test_tabel_menggambar_kepala_dan_garis_sel(): void
+    {
+        $f = $this->fixture();
+        $template = $this->template(['medan' => [
+            ['tipe' => 'baris_berulang', 'label' => 'Daftar', 'x' => 20, 'y' => 60, 'w' => 170, 'h' => 40,
+                'baris_berulang' => [
+                    'sumber' => 'daftar_santri_kelas', 'jumlah' => 2, 'tinggi_baris' => 8, 'tinggi_kepala' => 6,
+                    'kolom' => [
+                        ['label' => 'No Urut', 'x' => 0, 'w' => 12, 'sumber' => 'baris', 'kunci' => 'no_urut'],
+                        ['label' => 'Nama Lengkap', 'x' => 14, 'w' => 120, 'sumber' => 'baris', 'kunci' => 'nama_lengkap'],
+                    ],
+                    'gaya' => [
+                        'garis_sel' => 0.25,
+                        'warna_garis' => '#7a7a7a',
+                        'warna_kepala' => '#f1f1f1',
+                        'tebal_kepala' => true,
+                    ],
+                ]],
+        ]]);
+
+        $hasil = $this->cetak($template, ['id_santri' => $f['santri']->id, 'kelas_id' => $f['kelas']->id]);
+
+        // Kepala kolom ikut tercetak dari label kolom.
+        $this->assertTercetak($hasil, 'Nama Lengkap');
+        $this->assertTercetak($hasil, 'No Urut');
+
+        $aliran = $this->isiPdf($hasil);
+
+        // TCPDF menulis komponen warna dengan enam desimal.
+        $this->assertMatchesRegularExpression(
+            '/0\.4784\d* 0\.4784\d* 0\.4784\d* RG/',
+            $aliran,
+            'Garis sel memakai warna tabel #7a7a7a.',
+        );
+        $this->assertMatchesRegularExpression(
+            '/0\.9450\d* 0\.9450\d* 0\.9450\d* rg/',
+            $aliran,
+            'Kepala tabel memakai latar #f1f1f1.',
+        );
+    }
+
+    public function test_tabel_tanpa_garis_sel_tidak_menggambar_garis(): void
+    {
+        $f = $this->fixture();
+        $template = $this->template(['medan' => [
+            ['tipe' => 'baris_berulang', 'label' => 'Daftar', 'x' => 20, 'y' => 60, 'w' => 170, 'h' => 40,
+                'baris_berulang' => [
+                    'sumber' => 'daftar_santri_kelas', 'jumlah' => 1, 'tinggi_baris' => 8,
+                    'kolom' => [['label' => 'Nama', 'x' => 0, 'w' => 120, 'sumber' => 'baris', 'kunci' => 'nama_lengkap']],
+                    'gaya' => ['garis_sel' => 0, 'warna_kepala' => null],
+                ]],
+        ]]);
+
+        $hasil = $this->cetak($template, ['id_santri' => $f['santri']->id, 'kelas_id' => $f['kelas']->id]);
+
+        $this->assertTercetak($hasil, 'Budi Santoso');
+        $this->assertDoesNotMatchRegularExpression(
+            '/0\.4784\d* 0\.4784\d* 0\.4784\d* RG/',
+            $this->isiPdf($hasil),
+            'Tanpa garis_sel tidak boleh ada garis sel.',
+        );
     }
 
     public function test_gambar_ada_dan_hilang_tidak_menggagalkan_pencetakan(): void

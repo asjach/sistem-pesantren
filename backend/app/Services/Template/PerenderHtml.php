@@ -282,22 +282,30 @@ class PerenderHtml extends PencetakMedan
         $baris = $this->pengisi->koleksi($koleksiKunci, $this->idUntukKoleksi($koleksiKunci));
         $jumlahSlot = min((int) $bagian['jumlah'], count($baris));
         $tinggiBaris = (float) $bagian['tinggi_baris'];
-        $isi = '';
+        $gayaTabel = $bagian['gaya'];
+        $garis = (float) $gayaTabel['garis_sel'];
+
+        // Tanpa data tidak ada tabel sama sekali, kepala pun tidak digambar.
+        // Tabel kosong menambah deretan kosong tanpa menjelaskan apa pun.
+        if ($jumlahSlot === 0) {
+            return '';
+        }
+
+        // Baris kepala digambar oleh medan tabel itu sendiri, bukan medan teks
+        // terpisah, supaya satu gaya cukup mengatur grid dan warnanya.
+        $isi = $this->kepalaTabel($medan, $bagian, $gayaTabel);
 
         for ($i = 0; $i < $jumlahSlot; $i++) {
+            $y = (float) $bagian['tinggi_kepala'] + $i * $tinggiBaris;
+
             foreach ($bagian['kolom'] as $kolom) {
                 $teks = $this->teksKolom($kolom, $baris[$i], $i + 1);
-
-                if ($teks === '') {
-                    continue;
-                }
-
                 $gaya = $kolom['gaya'];
                 $ukuran = (float) $gaya['ukuran'];
                 $font = $this->fontCss($gaya);
                 $spasi = (float) $gaya['spasi'];
 
-                if ($gaya['skala_otomatis']) {
+                if ($gaya['skala_otomatis'] && $teks !== '') {
                     $ukuran = $this->lebarHuruf()->ukuranMuat(
                         $teks,
                         (float) $kolom['w'],
@@ -313,22 +321,107 @@ class PerenderHtml extends PencetakMedan
                 $gayaTeks = $this->gayaTeks($gaya, $ukuran, $font, $spasi);
                 $gayaTeks['line-height'] = $this->mm($tinggiBaris);
 
-                // Sel berada langsung di dalam halaman, jadi koordinatnya
-                // dihitung absolut dari titik awal medan. Kolom memakai x
-                // relatif terhadap kotak medan, bukan terhadap halaman.
-                $kotak = 'position:absolute;'
-                    .'left:'.$this->mm((float) $medan['x'] + (float) $kolom['x']).';'
-                    .'top:'.$this->mm((float) $medan['y'] + $i * $tinggiBaris).';'
-                    .'width:'.$this->mm((float) $kolom['w']).';'
-                    .'height:'.$this->mm($tinggiBaris).';'
-                    .'overflow:hidden;';
-
-                $isi .= '<div class="medan" style="'.$kotak.$this->gayaInline($gayaTeks).'">'
-                    .$this->sel($teks).'</div>';
+                $isi .= $this->selTabel(
+                    (float) $medan['x'] + (float) $kolom['x'],
+                    (float) $medan['y'] + $y,
+                    (float) $kolom['w'],
+                    $tinggiBaris,
+                    $teks,
+                    $gayaTeks,
+                    $garis,
+                    $gayaTabel['warna_garis'],
+                );
             }
         }
 
         return $isi;
+    }
+
+    /**
+     * Baris kepala tabel: satu sel per kolom, memakai label kolom.
+     *
+     * @param  array<string, mixed>  $medan
+     * @param  array<string, mixed>  $bagian
+     * @param  array<string, mixed>  $gayaTabel
+     */
+    private function kepalaTabel(array $medan, array $bagian, array $gayaTabel): string
+    {
+        $tinggi = (float) $bagian['tinggi_kepala'];
+        $garis = (float) $gayaTabel['garis_sel'];
+        $isi = '';
+
+        foreach ($bagian['kolom'] as $kolom) {
+            $gaya = $kolom['gaya'];
+            $gayaTeks = $this->gayaTeks(
+                $gaya,
+                (float) $gayaTabel['ukuran_kepala'],
+                $this->fontCss($gaya),
+                (float) $gaya['spasi'],
+            );
+            $gayaTeks['line-height'] = $this->mm($tinggi);
+
+            if ($gayaTabel['tebal_kepala']) {
+                $gayaTeks['font-weight'] = 'bold';
+            }
+
+            $isi .= $this->selTabel(
+                (float) $medan['x'] + (float) $kolom['x'],
+                (float) $medan['y'],
+                (float) $kolom['w'],
+                $tinggi,
+                (string) $kolom['label'],
+                $gayaTeks,
+                $garis,
+                $gayaTabel['warna_garis'],
+                $gayaTabel['warna_kepala'],
+            );
+        }
+
+        return $isi;
+    }
+
+    /**
+     * Satu sel tabel: kotak bergaris dengan teks di dalamnya.
+     *
+     * Dompdf tidak mengenal `box-sizing`, jadi lebar di sini adalah isi sel
+     * dan dikurangi dua kali border. Supaya garis antar-sel setebal `garis_sel`
+     * dan bukan dua kali lipat (efek `border-collapse: collapse`), setiap sel
+     * hanya menggambar setengah border di tiap sisi.
+     *
+     * @param  array<string, mixed>  $gayaTeks
+     */
+    private function selTabel(
+        float $x,
+        float $y,
+        float $w,
+        float $h,
+        string $teks,
+        array $gayaTeks,
+        float $garis,
+        string $warnaGaris,
+        ?string $latar = null,
+    ): string {
+        $setengah = $garis / 2;
+
+        $kotak = 'position:absolute;'
+            .'left:'.$this->mm($x + $setengah).';'
+            .'top:'.$this->mm($y + $setengah).';'
+            .'width:'.$this->mm(max(0.0, $w - $garis)).';'
+            .'height:'.$this->mm(max(0.0, $h - $garis)).';'
+            .'overflow:hidden;';
+
+        if ($garis > 0.0) {
+            $kotak .= 'border:'.$this->mm($setengah).' solid '.$warnaGaris.';';
+        }
+
+        if ($latar !== null) {
+            $kotak .= 'background-color:'.$latar.';';
+        }
+
+        $gayaTeks['padding'] = '0 '.$this->mm($setengah + 1.0);
+
+        return '<div class="medan" style="'.$kotak.$this->gayaInline($gayaTeks).'">'
+            .$this->sel($teks).'</div>';
     }
 
     /** @param array<string, mixed> $gaya */

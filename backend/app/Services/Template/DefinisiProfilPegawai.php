@@ -153,28 +153,12 @@ final class DefinisiProfilPegawai
     }
 
     /**
-     * Kolom satu tabel: label kepala dan satu sel per baris.
-     *
-     * @param  list<array{x: float, w: float, kunci: string, label: string, sumber: string}>  $kolom
-     * @return list<array<string, mixed>>
-     */
-    private static function kepalaTabel(float $y, array $kolom, int $halaman): array
-    {
-        $medan = [];
-
-        foreach ($kolom as $satu) {
-            $medan[] = self::label($satu['label'], self::KIRI + $satu['x'], $y, $satu['w'], 8.5, $halaman);
-        }
-
-        return $medan;
-    }
-
-    /**
      * @param  list<array{x: float, w: float, kunci: string, label: string, sumber: string}>  $kolom
      * @return array<string, mixed>
      */
     private static function selTabel(
         float $y,
+        float $tinggiKepala,
         float $tinggiBaris,
         array $kolom,
         string $sumber,
@@ -189,11 +173,12 @@ final class DefinisiProfilPegawai
             'x' => self::KIRI,
             'y' => round($y, 2),
             'w' => $lebarKeseluruhan,
-            'h' => round($tinggiBaris * $jumlahBaris, 2),
+            'h' => round($tinggiKepala + $tinggiBaris * $jumlahBaris, 2),
             'baris_berulang' => [
                 'sumber' => $sumber,
                 'jumlah' => $jumlahBaris,
                 'tinggi_baris' => $tinggiBaris,
+                'tinggi_kepala' => $tinggiKepala,
                 'kolom' => array_map(fn (array $satu): array => [
                     'x' => $satu['x'],
                     'w' => $satu['w'],
@@ -202,6 +187,15 @@ final class DefinisiProfilPegawai
                     'kunci' => $satu['kunci'],
                     'gaya' => ['ukuran' => 8.5, 'warna' => '#000000', 'rata' => 'kiri'],
                 ], $kolom),
+                // Grid penuh seperti tabel pada dokumen resmi: garis di setiap
+                // sisi sel, kepala berlatar abu dan tebal.
+                'gaya' => [
+                    'garis_sel' => 0.25,
+                    'warna_garis' => '#7a7a7a',
+                    'warna_kepala' => '#f1f1f1',
+                    'tebal_kepala' => true,
+                    'ukuran_kepala' => 8.5,
+                ],
             ],
         ];
     }
@@ -338,7 +332,12 @@ final class DefinisiProfilPegawai
         $kursor = 20.0;
         $medan = [];
 
-        $tabel = function (string $judul, array $kolom, string $sumber, int $jumlahBaris) use (&$kursor, $halaman): array {
+        // Kepala kolom dan garis tabel sekarang digambar oleh medan tabel itu
+        // sendiri, jadi tiap tabel cukup satu medan.
+        $tinggiKepala = 5.0;
+        $tinggiBaris = 6.0;
+
+        $tabel = function (string $judul, array $kolom, string $sumber, int $jumlahBaris) use (&$kursor, $halaman, $tinggiKepala, $tinggiBaris): array {
             $medan = [self::teks($judul, 'tetap', null, self::KIRI, $kursor, self::LEBAR_ISI, 5.0, [
                 'ukuran' => 9.5,
                 'tebal' => true,
@@ -346,16 +345,8 @@ final class DefinisiProfilPegawai
             ], $halaman, $judul)];
             $kursor += 6.0;
 
-            $medan = array_merge($medan, self::kepalaTabel($kursor, $kolom, $halaman));
-            $kursor += 5.0;
-            $medan[] = self::garis(self::KIRI, $kursor, self::LEBAR_ISI, 0.3, '#7a7a7a', $halaman);
-            $kursor += 0.5;
-
-            $medan[] = self::selTabel($kursor, 6.0, $kolom, $sumber, $jumlahBaris, $halaman);
-            $kursor += 6.0 * $jumlahBaris;
-
-            $medan[] = self::garis(self::KIRI, $kursor, self::LEBAR_ISI, 0.3, '#7a7a7a', $halaman);
-            $kursor += 5.0;
+            $medan[] = self::selTabel($kursor, $tinggiKepala, $tinggiBaris, $kolom, $sumber, $jumlahBaris, $halaman);
+            $kursor += $tinggiKepala + $tinggiBaris * $jumlahBaris + 5.0;
 
             return $medan;
         };

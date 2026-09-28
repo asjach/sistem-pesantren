@@ -123,11 +123,33 @@ export interface KolomBaris {
   gaya: GayaMedan;
 }
 
+/** Gaya grid tabel: garis sel dan baris kepala. */
+export interface GayaTabel {
+  /** tebal garis sel dalam milimeter; 0 = tanpa garis */
+  garis_sel: number;
+  warna_garis: string;
+  /** latar baris kepala; null = transparan */
+  warna_kepala: string | null;
+  tebal_kepala: boolean;
+  ukuran_kepala: number;
+}
+
+/** Gaya tabel bawaan untuk medan baru dan definisi lama tanpa gaya. */
+export const GAYA_TABEL_BAWAAN: GayaTabel = {
+  garis_sel: 0.25,
+  warna_garis: '#7a7a7a',
+  warna_kepala: '#f1f1f1',
+  tebal_kepala: true,
+  ukuran_kepala: 8.5,
+};
+
 export interface BagianBarisBerulang {
   sumber: string;
   jumlah: number;
   tinggi_baris: number;
+  tinggi_kepala: number;
   kolom: KolomBaris[];
+  gaya: GayaTabel;
 }
 
 export interface Medan {

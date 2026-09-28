@@ -143,7 +143,7 @@ class DefinisiMedan
 
     /**
      * @param  array<string, mixed>  $mentah
-     * @return array{sumber: ?string, jumlah: int, tinggi_baris: float, kolom: list<array<string, mixed>>}
+     * @return array{sumber: ?string, jumlah: int, tinggi_baris: float, tinggi_kepala: float, kolom: list<array<string, mixed>>, gaya: array<string, mixed>}
      */
     private static function bagianBarisBerulang(array $mentah): array
     {
@@ -172,7 +172,31 @@ class DefinisiMedan
             'sumber' => self::teks($bagian['sumber'] ?? null, 40),
             'jumlah' => max(1, min($jumlah, self::BATAS_BARIS)),
             'tinggi_baris' => $tinggi,
+            'tinggi_kepala' => self::nomor($bagian['tinggi_kepala'] ?? 6, 2, 200),
             'kolom' => $kolom,
+            'gaya' => self::gayaTabel($bagian['gaya'] ?? []),
+        ];
+    }
+
+    /**
+     * Gaya khusus tabel: garis sel dan baris kepala.
+     *
+     * Berbeda dari `gaya()` medan, gaya ini tidak mengatur huruf. Yang penting
+     * di sini `garis_sel` dalam milimeter, karena grid tabel butuh garis yang
+     * bisa diukur, bukan `tebal` boolean.
+     *
+     * @return array<string, mixed>
+     */
+    private static function gayaTabel(mixed $mentah): array
+    {
+        $g = is_array($mentah) ? $mentah : [];
+
+        return [
+            'garis_sel' => self::nomor($g['garis_sel'] ?? 0, 0, 5),
+            'warna_garis' => self::warna($g['warna_garis'] ?? null, '#7a7a7a'),
+            'warna_kepala' => ($g['warna_kepala'] ?? null) === null ? null : self::warna($g['warna_kepala'], '#f1f1f1'),
+            'tebal_kepala' => (bool) ($g['tebal_kepala'] ?? true),
+            'ukuran_kepala' => self::nomor($g['ukuran_kepala'] ?? 8.5, 4, 72),
         ];
     }
 
@@ -236,6 +260,12 @@ class DefinisiMedan
             'definisi.medan.*.baris_berulang.sumber' => ['nullable', 'string', 'max:40'],
             'definisi.medan.*.baris_berulang.jumlah' => ['nullable', 'integer', 'min:1', 'max:'.self::BATAS_BARIS],
             'definisi.medan.*.baris_berulang.tinggi_baris' => ['nullable', 'numeric', 'min:2', 'max:200'],
+            'definisi.medan.*.baris_berulang.tinggi_kepala' => ['nullable', 'numeric', 'min:2', 'max:200'],
+            'definisi.medan.*.baris_berulang.gaya' => ['nullable', 'array'],
+            'definisi.medan.*.baris_berulang.gaya.garis_sel' => ['nullable', 'numeric', 'min:0', 'max:5'],
+            'definisi.medan.*.baris_berulang.gaya.warna_garis' => ['nullable', 'string', 'max:7'],
+            'definisi.medan.*.baris_berulang.gaya.warna_kepala' => ['nullable', 'string', 'max:7'],
+            'definisi.medan.*.baris_berulang.gaya.ukuran_kepala' => ['nullable', 'numeric', 'min:4', 'max:72'],
             'definisi.medan.*.baris_berulang.kolom' => ['array', 'max:'.self::BATAS_KOLOM],
             'definisi.medan.*.baris_berulang.kolom.*.w' => ['required', 'numeric', 'min:1', 'max:2000'],
         ], [

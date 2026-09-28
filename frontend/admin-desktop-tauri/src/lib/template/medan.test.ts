@@ -34,6 +34,18 @@ describe('reducer medan template', () => {
     expect(m.gaya.skala_otomatis).toBe(true);
   });
 
+  it('median tabel baru memakai grid penuh dan kepala tersendiri', () => {
+    const m = medanBaru('baris_berulang', 1);
+    const tabel = m.baris_berulang!;
+
+    expect(tabel.tinggi_kepala).toBe(6);
+    expect(tabel.gaya.garis_sel).toBeGreaterThan(0);
+    expect(tabel.gaya.warna_kepala).toBe('#f1f1f1');
+    expect(tabel.gaya.tebal_kepala).toBe(true);
+    // Kotak medan harus memuat kepala ditambah seluruh slot baris.
+    expect(m.h).toBeCloseTo(tabel.tinggi_kepala + tabel.jumlah * tabel.tinggi_baris, 5);
+  });
+
   it('memberi nilai bawaan khas tiap tipe', () => {
     expect(medanBaru('centang', 1).huruf).toBe('✓');
     expect(medanBaru('centang', 1).huruf_kosong).toBe('');
