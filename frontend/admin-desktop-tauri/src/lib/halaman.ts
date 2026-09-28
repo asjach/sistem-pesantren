@@ -46,6 +46,10 @@ export interface HalamanDef {
   icon: Ikon;
   /** Izin matriks untuk melihat halaman (`modul.lihat`). */
   permission: string;
+  /** Tampil di sidebar dan pencarian topbar. Default true. Halaman detail
+   *  (editor, isi & cetak) memakai false: tetap punya judul dari
+   *  `halamanDariPath`, tapi tidak perlu entri menu. */
+  menu?: boolean;
 }
 
 export const HALAMAN: HalamanDef[] = [
@@ -76,6 +80,18 @@ export const HALAMAN: HalamanDef[] = [
   { to: '/pegawai-akun', label: 'Akun Pegawai', tab: 'pegawai', grid: true, icon: UserCheck, permission: 'pegawai.lihat' },
   { to: '/pegawai-keaktifan', label: 'Keaktifan Pegawai', tab: 'pegawai', grid: true, icon: CalendarCheck, permission: 'pegawai.lihat' },
   { to: '/referensi', label: 'Referensi', tab: 'master', grid: true, icon: BookMarked, permission: 'referensi.lihat' },
+  {
+    to: '/template-dokumen',
+    label: 'Template Cetak',
+    deskripsi:
+      'Unggah berkas PDF yang dirancang di Word, CorelDRAW, atau Canva, lalu letakkan medan isian untuk diisi dari database.',
+    tab: 'master',
+    grid: true,
+    icon: FileCheck2,
+    permission: 'template_dokumen.lihat',
+  },
+  { to: '/template-dokumen/:id/medan', label: 'Susun Medan', tab: 'master', menu: false, icon: FileCheck2, permission: 'template_dokumen.lihat' },
+  { to: '/template-dokumen/:id/isi', label: 'Isi dan Cetak', tab: 'master', menu: false, icon: FileCheck2, permission: 'template_dokumen.lihat' },
   { to: '/psb', label: 'Antrean PSB', deskripsi: 'Antrean calon per tahap (Pendaftar, Terdaftar, Daftar Ulang, Diterima, Mengundurkan Diri, Ditolak).', tab: 'santri', sub: 'psb', grid: true, icon: UserCheck, permission: 'psb.lihat' },
   { to: '/kegiatan-psb', label: 'Kegiatan PSB', tab: 'santri', sub: 'psb', grid: true, icon: CalendarRange, permission: 'kegiatan_psb.lihat' },
   {
@@ -211,9 +227,13 @@ export function jalurSubgrup(grup: TabKategori, sub: string): string[] | null {
   return cari(akar, []);
 }
 
+function diMenu(h: HalamanDef): boolean {
+  return h.menu !== false;
+}
+
 /** Halaman langsung grup (tanpa subgrup), mengikuti urutan registri. */
 export function halamanGrupLangsung(grup: TabKategori): HalamanDef[] {
-  return HALAMAN.filter((h) => h.tab === grup && !h.sub);
+  return HALAMAN.filter((h) => h.tab === grup && !h.sub && diMenu(h));
 }
 
 /** Blok isi grup sesuai urutan `anak`: subgrup bernama atau array halaman
@@ -238,7 +258,7 @@ export function blokGrup(grup: TabKategori): (SubgrupNav | HalamanDef[])[] {
 
 /** Halaman satu subgrup, mengikuti urutan registri. */
 export function halamanSubgrup(grup: TabKategori, sub: string): HalamanDef[] {
-  return HALAMAN.filter((h) => h.tab === grup && h.sub === sub);
+  return HALAMAN.filter((h) => h.tab === grup && h.sub === sub && diMenu(h));
 }
 
 /** Halaman yang cocok dengan rute (prefix terpanjang menang). */

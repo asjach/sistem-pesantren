@@ -318,6 +318,59 @@ async function apiMentah<T>(path: string, init: RequestInit = {}): Promise<T> {
   return parseResponse<T>(res);
 }
 
+/**
+ * POST JSON yang jawabannya berkas (bukan JSON), lalu disimpan sebagai objek
+ * URL. Dipakai untuk mengunduh PDF hasil isi template: endpointnya POST karena
+ * perlu data formulir, sedangkan `downloadFile` hanya bisa GET.
+ * Nama berkas diambil dari Content-Disposition bila ada.
+ */
+export async function postBlob(
+  path: string,
+  body: unknown,
+  fallbackName: string,
+): Promise<{ url: string; nama: string }> {
+  getCache.clear();
+  const [token, base] = await Promise.all([getToken(), getBaseUrl()]);
+  let res: Response;
+  try {
+    res = await fetch(`${base}${path}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: '*/*',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...headerLembaga(),
+      },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    throw new ApiError(0, { message: `Tidak dapat menghubungi server (${base}). Periksa alamat di Pengaturan.` });
+  }
+
+  if (!res.ok) {
+    if (res.status === 401) {
+      await clearSession();
+      emitUnauthorized();
+    }
+    // Pesan validasi dikirim sebagai JSON; teks apa adanya dipakai bila bukan.
+    const teks = await res.text().catch(() => '');
+    let pesan = fallbackName;
+    try {
+      const parsed = JSON.parse(teks) as { message?: string };
+      pesan = parsed.message ?? teks;
+    } catch {
+      pesan = teks;
+    }
+    throw new ApiError(res.status, { message: pesan });
+  }
+
+  const disposisi = res.headers.get('Content-Disposition') ?? '';
+  const cocok = /filename\*?=(?:UTF-8''|")?([^";]+)/i.exec(disposisi);
+  const nama = cocok ? decodeURIComponent(cocok[1].replace(/"/g, '')) : fallbackName;
+
+  return { url: URL.createObjectURL(await res.blob()), nama };
+}
+
 /** POST multipart (upload file): tanpa header Content-Type agar boundary otomatis. */
 export async function apiUpload<T>(path: string, body: FormData): Promise<T> {
   getCache.clear();
