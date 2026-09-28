@@ -290,6 +290,40 @@ export function hapusKeaktifanPegawai(id: number) {
   return api<{ pesan: string }>(`/admin/pegawai-keaktifan/${id}`, { method: 'DELETE' });
 }
 
+// ---------- Import riwayat keaktifan (potongan JSON bertahap) ----------
+
+export const KOLOM_IMPORT_KEAKTIFAN = [
+  'pegawai_id', 'nipp', 'nama_lengkap', 'jenjang', 'tahun_ajaran',
+  'tugas_utama', 'status_keaktifan', 'no_sk', 'tgl_sk',
+];
+
+export function unduhTemplateKeaktifan() {
+  return downloadFile('/admin/pegawai-keaktifan/import-template', 'template-import-keaktifan-pegawai.xlsx');
+}
+
+export function dataKeaktifanExisting(jenjangs?: string[]) {
+  const q = jenjangs?.length ? `?${jenjangs.map((j) => `jenjang[]=${encodeURIComponent(j)}`).join('&')}` : '';
+  return api<DataExistingPayload>(`/admin/pegawai-keaktifan/data-existing${q}`);
+}
+
+export function importKeaktifanPotong(input: {
+  sesi_id?: number;
+  mode: 'periksa' | 'eksekusi';
+  total?: number;
+  baris: Record<string, unknown>[];
+  terakhir?: boolean;
+}) {
+  return api<PotongHasil>('/admin/pegawai-keaktifan/import-potong', { method: 'POST', body: JSON.stringify(input) });
+}
+
+export function batalPotongKeaktifan(sesiId: number) {
+  return api<{ pesan: string }>(`/admin/pegawai-keaktifan/import-potong/${sesiId}/batal`, { method: 'POST' });
+}
+
+export function unduhGalatKeaktifan(sesiId: number) {
+  return downloadFile(`/admin/pegawai-keaktifan/import-potong/${sesiId}/galat`, 'galat-import-keaktifan.csv');
+}
+
 // ---------- Import Buku Induk ----------
 
 export const KOLOM_IMPORT_PEGAWAI = [

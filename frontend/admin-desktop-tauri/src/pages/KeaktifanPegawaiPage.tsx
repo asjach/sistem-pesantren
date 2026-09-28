@@ -2,10 +2,16 @@ import { useCallback, useState } from 'react';
 import { errorMessage } from '../api/client';
 import {
   aktifkanMassalKeaktifan,
+  batalPotongKeaktifan,
+  dataKeaktifanExisting,
   hapusKeaktifanPegawai,
+  importKeaktifanPotong,
+  KOLOM_IMPORT_KEAKTIFAN,
   listKeaktifanPegawai,
   nonaktifkanKeaktifan,
   simpanKeaktifanPegawai,
+  unduhGalatKeaktifan,
+  unduhTemplateKeaktifan,
   type KeaktifanPegawai,
 } from '../api/pegawai';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -20,8 +26,9 @@ import FilterField from '@/components/FilterField';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import CatatanProsesTahunAjaran from '@/components/CatatanProsesTahunAjaran';
+import ImportBertahapUmumDialog from '@/components/ImportBertahapUmumDialog';
 import { ActionIcon, DeleteAction } from '@/components/RowActions';
-import { Trash2, X } from '@/icons';
+import { FileUp, Trash2, X } from '@/icons';
 import { useAuth } from '../auth/AuthContext';
 import { bisa } from '../api/auth';
 import { toast } from 'sonner';
@@ -57,6 +64,7 @@ export default function KeaktifanPegawaiPage() {
   const { jenjangs, tahunAjaranNames } = useFilterGlobalAktif();
   const [cari, setCari] = useState('');
   const [status, setStatus] = useState('');
+  const [importOpen, setImportOpen] = useState(false);
   const taTunggal = targetTunggal(tahunAjaranNames);
   const jenjangTunggal = targetTunggal(jenjangs);
 
@@ -268,14 +276,56 @@ export default function KeaktifanPegawaiPage() {
         addButton={
           <>
             {canUbah && (
-              <Button id="btn_aktifkan_massal_keaktifan" variant="outline" disabled={!jenjangTunggal || !taTunggal} onClick={() => void onAktifkanMassal()}>
-                Aktifkan penempatan untuk TA ini
-              </Button>
+              <>
+                <Button id="btn_aktifkan_massal_keaktifan" variant="outline" disabled={!jenjangTunggal || !taTunggal} onClick={() => void onAktifkanMassal()}>
+                  Aktifkan penempatan untuk TA ini
+                </Button>
+                <Button id="btn_buka_import_keaktifan" variant="outline" title="Untuk file besar (puluhan hingga ratusan ribu baris)" onClick={() => setImportOpen(true)}>
+                  <FileUp data-icon="inline-start" size={16} /> Import
+                </Button>
+              </>
             )}
             {tombolBulkHapus}
           </>
         }
         renderActions={renderActions}
+      />
+      <ImportBertahapUmumDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        config={{
+          idPrefix: 'keaktifan',
+          judul: 'Import keaktifan pegawai',
+          deskripsi: 'Kolom wajib: jenjang + tahun_ajaran, plus identitas pegawai (pegawai_id / NIPP / nama unik). Baris hanya sah bila pegawai sudah ditempatkan di lembaga baris; tugas kosong mewarisi penempatan. Baris cocok diperbarui, hanya kolom terisi.',
+          kolom: KOLOM_IMPORT_KEAKTIFAN,
+          wajib: ['jenjang', 'tahun_ajaran'],
+          idTombol: {
+            template: 'btn_unduh_template_keaktifan',
+            periksa: 'btn_periksa_import_keaktifan',
+            mulai: 'btn_import_keaktifan',
+          },
+          labelTemplate: 'Unduh template Excel keaktifan',
+          unduhTemplate: unduhTemplateKeaktifan,
+          unduhData: {
+            label: 'Unduh data keaktifan existing',
+            ambil: dataKeaktifanExisting,
+            namaBerkas: 'data-keaktifan-existing.xlsx',
+            judulSheet: 'Data Keaktifan Pegawai',
+          },
+          kirim: ({ sesi_id, mode, total, baris, terakhir }) =>
+            importKeaktifanPotong({
+              ...(sesi_id === undefined ? {} : { sesi_id }),
+              mode, ...(sesi_id === undefined ? { total } : {}), baris,
+              ...(terakhir ? { terakhir } : {}),
+            }),
+          batal: batalPotongKeaktifan,
+          unduhGalat: unduhGalatKeaktifan,
+          onSelesai: () => {
+            setImportOpen(false);
+            pager.goFirst();
+            void load(1);
+          },
+        }}
       />
       <AlertDialog open={bulkHapusOpen} onOpenChange={setBulkHapusOpen}>
         <AlertDialogContent>

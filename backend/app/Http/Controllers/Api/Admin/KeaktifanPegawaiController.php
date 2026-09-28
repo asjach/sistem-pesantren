@@ -2,17 +2,24 @@
 
 namespace App\Http\Controllers\Api\Admin;
 
+use App\Exports\KeaktifanTemplateExport;
+use App\Http\Controllers\Api\Concerns\ImporBertahap;
 use App\Http\Controllers\Api\Concerns\TenantGuard;
 use App\Http\Controllers\Api\Concerns\UrutDaftar;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\KeaktifanPegawaiStoreRequest;
+use App\Http\Requests\Admin\KeaktifanPotongRequest;
+use App\Models\ImportSesi;
 use App\Models\KeaktifanPegawai;
 use App\Models\LembagaPegawai;
+use App\Services\Impor\DataKeaktifan;
+use App\Services\KeaktifanImporService;
 use App\Services\UrutKatalog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Maatwebsite\Excel\Facades\Excel;
 
 /**
  * Riwayat keaktifan guru per lembaga + TA (`keaktifan_pegawai`,
@@ -21,6 +28,7 @@ use Illuminate\Validation\ValidationException;
  */
 class KeaktifanPegawaiController extends Controller
 {
+    use ImporBertahap;
     use TenantGuard;
     use UrutDaftar;
 
@@ -152,5 +160,53 @@ class KeaktifanPegawaiController extends Controller
         $keaktifan->delete();
 
         return response()->json(['pesan' => 'Keaktifan dihapus.']);
+    }
+
+    // ---------------- Import riwayat keaktifan (potongan JSON bertahap) ----------------
+
+    /** GET /api/admin/pegawai-keaktifan/import-template — template Excel. */
+    public function templateImport()
+    {
+        return Excel::download(new KeaktifanTemplateExport, 'template-import-keaktifan-pegawai.xlsx');
+    }
+
+    /**
+     * GET /api/admin/pegawai-keaktifan/data-existing — data keaktifan existing
+     * sebagai JSON (kolom = template import; status = label). Berkas Excel
+     * disusun di browser.
+     */
+    public function dataExisting(Request $request): JsonResponse
+    {
+        $data = new DataKeaktifan($this->jenjangUntukBerkas($request));
+
+        return response()->json([
+            'kolom' => $data->kolom(),
+            'wajib' => $data->wajib(),
+            'baris' => $data->baris(),
+        ]);
+    }
+
+    /**
+     * POST /api/admin/pegawai-keaktifan/import-potong — satu potongan baris
+     * (maks 1000) dari browser. Panggilan pertama tanpa `sesi_id` membuat
+     * sesi (wajib `mode` + `total`); berikutnya wajib `sesi_id` milik sendiri.
+     * Frontend mengirim SEMUA baris data berurutan (termasuk yang kosong)
+     * agar nomor galat absolut selaras nomor Excel (1 = heading).
+     */
+    public function potongImport(KeaktifanPotongRequest $request, KeaktifanImporService $layanan): JsonResponse
+    {
+        return $this->jalankanImporSesi($request, 'keaktifan_pegawai', $layanan);
+    }
+
+    /** POST /api/admin/pegawai-keaktifan/import-potong/{sesi}/batal. */
+    public function batalPotong(Request $request, ImportSesi $sesi): JsonResponse
+    {
+        return $this->batalImporSesi($request, $sesi);
+    }
+
+    /** GET /api/admin/pegawai-keaktifan/import-potong/{sesi}/galat — unduh CSV galat. */
+    public function galatPotong(Request $request, ImportSesi $sesi)
+    {
+        return $this->unduhGalatImpor($request, $sesi, 'galat-import-keaktifan.csv');
     }
 }
