@@ -16,6 +16,13 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Laravel mendaftarkan redirect tamu ke route('login') sebagai bawaan.
+        // Aplikasi ini tidak punya route tersebut karena autentikasi sepenuhnya
+        // lewat API, jadi setiap permintaan tanpa token yang bukan JSON (unduhan
+        // dan unggahan memakai `Accept: */*`) akan menjawab 500, bukan 401.
+        // Dengan null, permintaan API ditangani shouldRenderJsonWhen di bawah.
+        $middleware->redirectGuestsTo(null);
+
         $middleware->alias([
             'role' => RoleMiddleware::class,
             'permission' => PermissionMiddleware::class,
