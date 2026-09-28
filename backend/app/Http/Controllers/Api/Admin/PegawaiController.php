@@ -236,6 +236,28 @@ class PegawaiController extends Controller
         ], 201);
     }
 
+    /**
+     * GET /api/admin/pegawai/{pegawai}/profil — detail baca-saja satu pegawai:
+     * identitas Buku Induk + penempatan per lembaga + riwayat keaktifan per TA
+     * + akun login yang tertaut (beserta peran & akses lembaganya).
+     */
+    public function profil(Pegawai $pegawai): JsonResponse
+    {
+        return response()->json([
+            'pegawai' => $pegawai,
+            'penempatan' => LembagaPegawai::where('pegawai_id', $pegawai->id)
+                ->with('lembaga:jenjang,nama')
+                ->orderBy('jenjang')
+                ->get(),
+            'keaktifan' => KeaktifanPegawai::where('pegawai_id', $pegawai->id)
+                ->with('lembaga:jenjang,nama')
+                ->orderByDesc('tahun_ajaran')
+                ->orderBy('jenjang')
+                ->get(),
+            'akun' => $pegawai->akun?->load(['roles:id,name', 'lembagas:jenjang,nama']),
+        ]);
+    }
+
     /** GET /api/admin/pegawai/aktif — opsi dropdown wali: pegawai aktif di lembaga + TA. */
     public function aktif(Request $request): JsonResponse
     {

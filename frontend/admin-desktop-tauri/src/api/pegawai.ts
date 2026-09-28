@@ -290,6 +290,30 @@ export function hapusKeaktifanPegawai(id: number) {
   return api<{ pesan: string }>(`/admin/pegawai-keaktifan/${id}`, { method: 'DELETE' });
 }
 
+// ---------- Profil pegawai (baca-saja) ----------
+
+export interface AkunTertaut {
+  id: number;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  username: string | null;
+  roles: { id: number; name: string }[];
+  lembagas: { jenjang: string; nama: string; pivot?: { role: string | null } }[];
+}
+
+export interface ProfilPegawai {
+  pegawai: Pegawai;
+  penempatan: LembagaPegawai[];
+  keaktifan: KeaktifanPegawai[];
+  akun: AkunTertaut | null;
+}
+
+/** Detail baca-saja satu pegawai: identitas + penempatan + keaktifan + akun. */
+export function profilPegawai(pegawaiId: number) {
+  return api<ProfilPegawai>(`/admin/pegawai/${pegawaiId}/profil`);
+}
+
 // ---------- Import Buku Induk ----------
 
 export const KOLOM_IMPORT_PEGAWAI = [

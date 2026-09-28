@@ -885,4 +885,67 @@ class PegawaiModulTest extends TestCase
         $this->actingAs($auth, 'sanctum')->getJson('/api/admin/pegawai-akun?jenjang=MLN')
             ->assertOk()->assertJsonPath('total', 0);
     }
+
+    public function test_profil_pegawai_lengkap_dan_butuh_izin(): void
+    {
+        $this->fixture();
+        $auth = $this->superAdmin();
+
+        $user = User::create([
+            'name' => 'Profil Akun', 'email' => 'profil.akun@example.com', 'password' => 'password',
+        ]);
+        $user->assignRole('guru');
+        DB::table('user_lembaga')->insert([
+            'user_id' => $user->id, 'jenjang' => 'MI', 'role' => 'guru',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $guru = Pegawai::create([
+            'nama_lengkap' => 'Profil Guru', 'jenis_kelamin' => 'L',
+            'tempat_lahir' => 'Jombang', 'user_id' => $user->id,
+        ]);
+
+        $this->actingAs($auth, 'sanctum')->postJson("/api/admin/pegawai/{$guru->id}/tempatkan", [
+            'jenjang' => 'MI', 'tugas_utama' => 'Guru Kelas',
+        ])->assertCreated();
+        $this->actingAs($auth, 'sanctum')->postJson('/api/admin/pegawai-keaktifan', [
+            'pegawai_id' => $guru->id, 'jenjang' => 'MI', 'tahun_ajaran' => '2026/2027',
+            'no_sk' => 'SK/77/2026',
+        ])->assertCreated();
+
+        $res = $this->actingAs($auth, 'sanctum')->getJson("/api/admin/pegawai/{$guru->id}/profil")->assertOk();
+
+        // Identitas Buku Induk apa adanya.
+        $this->assertSame('Profil Guru', $res->json('pegawai.nama_lengkap'));
+        $this->assertSame('Jombang', $res->json('pegawai.tempat_lahir'));
+
+        // Penempatan + keaktifan per TA, keduanya berlabel lembaga.
+        $this->assertSame('MI', $res->json('penempatan.0.jenjang'));
+        $this->assertSame('Guru Kelas', $res->json('penempatan.0.tugas_utama'));
+        $this->assertSame(LembagaPegawai::YA, $res->json('penempatan.0.is_active_lembaga'));
+        $this->assertSame('MI', $res->json('keaktifan.0.lembaga.nama'));
+        $this->assertSame('2026/2027', $res->json('keaktifan.0.tahun_ajaran'));
+        $this->assertSame(KeaktifanPegawai::AKTIF, $res->json('keaktifan.0.status_keaktifan'));
+        $this->assertSame('SK/77/2026', $res->json('keaktifan.0.no_sk'));
+
+        // Akun tertaut + peran & akses lembaganya.
+        $this->assertSame('profil.akun@example.com', $res->json('akun.email'));
+        $this->assertSame(['guru'], collect($res->json('akun.roles'))->pluck('name')->all());
+        $this->assertSame('guru', $res->json('akun.lembagas.0.pivot.role'));
+
+        // Pegawai tanpa penempatan/akun tetap 200 dengan seksi kosong.
+        $polos = Pegawai::create(['nama_lengkap' => 'Tanpa Jejak', 'jenis_kelamin' => 'P']);
+        $this->actingAs($auth, 'sanctum')->getJson("/api/admin/pegawai/{$polos->id}/profil")
+            ->assertOk()
+            ->assertJsonPath('penempatan', [])
+            ->assertJsonPath('keaktifan', [])
+            ->assertJsonPath('akun', null);
+
+        // Tanpa izin pegawai.lihat → 403; id tak ada → 404.
+        $tanpaIzin = User::create([
+            'name' => 'Tanpa Izin', 'email' => 'tanpa-izin-'.uniqid().'@example.com', 'password' => 'password',
+        ]);
+        $this->actingAs($tanpaIzin, 'sanctum')->getJson("/api/admin/pegawai/{$guru->id}/profil")
+            ->assertForbidden();
+        $this->actingAs($auth, 'sanctum')->getJson('/api/admin/pegawai/999999/profil')->assertNotFound();
+    }
 }
