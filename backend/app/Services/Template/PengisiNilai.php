@@ -33,11 +33,13 @@ class PengisiNilai
     /**
      * Nilai untuk satu sumber skalar.
      *
+     * @param  int|string|null  $id  id record, atau jenjang untuk sumber `lembaga`
+     *                               yang berkunci utama string
      * @return array<string, mixed> kunci => nilai; kunci yang tidak berlaku
      *                              tetap dikembalikan sebagai null
      *                              supaya medan tidak error.
      */
-    public function untuk(string $sumber, ?int $id = null): array
+    public function untuk(string $sumber, int|string|null $id = null): array
     {
         $mentah = match ($sumber) {
             'santri' => $this->santri($id),
@@ -223,12 +225,17 @@ class PengisiNilai
         ];
     }
 
-    /** @return array<string, mixed> */
-    private function lembaga(?int $id): array
+    /**
+     * Lembaga berkunci utama string `jenjang`, jadi parameternya boleh berupa
+     * jenjang maupun null (berarti pakai lembaga aktif dari konteks).
+     *
+     * @return array<string, mixed>
+     */
+    private function lembaga(int|string|null $id): array
     {
-        $lembaga = $id === null
-            ? ($this->konteks->jenjang === null ? null : Lembaga::find($this->konteks->jenjang))
-            : Lembaga::find($id);
+        $jenjang = is_string($id) && $id !== '' ? $id : $this->konteks->jenjang;
+
+        $lembaga = $jenjang === null ? null : Lembaga::find($jenjang);
 
         if ($lembaga === null) {
             return [];

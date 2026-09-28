@@ -16,7 +16,7 @@ use App\Models\User;
 final class KonteksCetak
 {
     /**
-     * @param  array<string, string>  $tetap  value typed once in the fill form (Nilai Tetap)
+     * @param  array<string, string>  $tetap  nilai diketik sekali di formulir isian (Nilai Tetap)
      */
     public function __construct(
         public readonly ?string $jenjang = null,
@@ -26,9 +26,17 @@ final class KonteksCetak
         public readonly ?User $pencetak = null,
         public readonly array $tetap = [],
         public readonly ?string $tanggalAbsen = null,
+        public readonly ?int $idSantri = null,
+        public readonly ?int $idPegawai = null,
+        public readonly ?int $idPsbCalon = null,
     ) {}
 
-    /** @param  array<string, string>  $tetap */
+    /**
+     * Turunkan konteks dengan sebagian atribut diganti. `idSantri` dan
+     * `idPegawai` menentukan record yang dipakai sumber nilai skalar.
+     *
+     * @param  array<string, mixed>  $atribut
+     */
     public function dengan(array $atribut): self
     {
         return new self(
@@ -39,6 +47,9 @@ final class KonteksCetak
             pencetak: $atribut['pencetak'] ?? $this->pencetak,
             tetap: $atribut['tetap'] ?? $this->tetap,
             tanggalAbsen: $atribut['tanggal_absen'] ?? $this->tanggalAbsen,
+            idSantri: $atribut['id_santri'] ?? $this->idSantri,
+            idPegawai: $atribut['id_pegawai'] ?? $this->idPegawai,
+            idPsbCalon: $atribut['id_psb_calon'] ?? $this->idPsbCalon,
         );
     }
 }
