@@ -86,7 +86,7 @@ class PsbPortalController extends Controller
             'data' => [
                 'calon' => $calon->fresh(),
                 'no_pendaftaran' => $calon->no_pendaftaran,
-                'signedUrlBukti' => URL::signedRoute('psb.bukti-pdf', ['calon' => $calon->id], now()->addDays(7)),
+                'signedUrlBukti' => URL::signedRoute('psb.bukti', ['calon' => $calon->id], now()->addDays(7)),
             ],
         ], 201);
     }

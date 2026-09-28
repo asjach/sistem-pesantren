@@ -293,9 +293,9 @@ Route::prefix('psb')->group(function () {
     Route::post('cek-nik', [PsbPublikController::class, 'cekNik'])->middleware('throttle:5,1');
     Route::post('daftar', [PsbPublikController::class, 'store'])->middleware('throttle:10,1');
     Route::post('daftar-paket', [PsbPublikController::class, 'storePaket'])->middleware('throttle:10,1');
-    Route::get('{calon}/bukti-pdf', [PsbPublikController::class, 'bukti'])
+    Route::get('{calon}/bukti', [PsbPublikController::class, 'bukti'])
         ->middleware('signed')
-        ->name('psb.bukti-pdf');
+        ->name('psb.bukti');
 });
 
 // PSB admin (auth + izin matriks, scope tenant lembaga per aksi).

@@ -1737,4 +1737,32 @@ class PsbFlowTest extends TestCase
         $this->assertTrue((bool) collect($res->json('data'))->firstWhere('jenjang', 'MI')['punya_asrama']);
         $this->assertFalse((bool) collect($res->json('data'))->firstWhere('jenjang', 'MD')['punya_asrama']);
     }
+
+    public function test_42_url_bukti_bertanda_tangan_dan_tidak_boleh_dibuka_bebas(): void
+    {
+        $f = $this->baseFixture();
+        $this->makeKuota($f['gel'], $f['mi'], $f['ta'], ['membutuhkan_seleksi' => false]);
+
+        $res = $this->postJson('/api/psb/daftar', $this->daftarPayload(
+            $f['gel'], $f['mi'], '1100000000000042', 'Calon Bukti', 'ortu42@example.com', '081222222222'
+        ));
+        $res->assertStatus(201);
+
+        $url = (string) $res->json('data.signedUrlBukti');
+        $calonId = $res->json('data.calon.id');
+
+        // Namanya "bukti", bukan "bukti-pdf": endpoint ini mengembalikan JSON,
+        // tidak pernah merender berkas PDF.
+        $this->assertStringContainsString("/api/psb/{$calonId}/bukti?", $url);
+        $this->assertStringNotContainsString('bukti-pdf', $url);
+
+        // Tanda tangan valid → ringkasan pendaftaran terpakai.
+        $bukti = $this->getJson($url)->assertOk();
+        $this->assertSame($res->json('data.no_pendaftaran'), $bukti->json('data.no_pendaftaran'));
+        $this->assertSame('Calon Bukti', $bukti->json('data.nama_lengkap'));
+
+        // Tanpa tanda tangan atau yang dimanipulasi → 403, bukan 200/500.
+        $this->getJson("/api/psb/{$calonId}/bukti")->assertForbidden();
+        $this->getJson($url.'&x=1')->assertForbidden();
+    }
 }

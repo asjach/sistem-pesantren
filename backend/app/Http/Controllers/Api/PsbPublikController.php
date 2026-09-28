@@ -139,8 +139,8 @@ class PsbPublikController extends Controller
     }
 
     /**
-     * GET /api/psb/{calon}/bukti-pdf (signed, expiry 7 hari).
-     * Kembalikan JSON ringkasan (tanpa render PDF).
+     * GET /api/psb/{calon}/bukti (signed, expiry 7 hari).
+     * Ringkasan pendaftaran dalam JSON — belum ada berkas PDF.
      */
     public function bukti(PsbCalonSantri $calon): JsonResponse
     {
@@ -163,7 +163,7 @@ class PsbPublikController extends Controller
 
     protected function signedBukti(int $calonId): string
     {
-        return URL::signedRoute('psb.bukti-pdf', ['calon' => $calonId], now()->addDays(7));
+        return URL::signedRoute('psb.bukti', ['calon' => $calonId], now()->addDays(7));
     }
 
     protected function tolakLanjutanPublik(array $data): void
