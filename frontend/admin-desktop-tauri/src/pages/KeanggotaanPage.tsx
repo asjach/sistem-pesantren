@@ -70,6 +70,8 @@ export default function KeanggotaanPage() {
   const [arahKolom, setArahKolom] = useState<PetaArahKolom | undefined>(undefined);
   const [lembagaOpsi, setLembagaOpsi] = useState<Lembaga[]>([]);
   const [rows, setRows] = useState<LembagaSantri[]>([]);
+  /** Urutan tabel asal untuk navigasi tetangga pada dialog profil. */
+  const daftarAnggota = useMemo(() => rows.map((r) => r.santri_id), [rows]);
   const [lastPage, setLastPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [err, setErr] = useState('');
@@ -366,7 +368,7 @@ export default function KeanggotaanPage() {
         onSaved={() => void load()}
         renderActions={(r) => (
           <>
-            {aksiProfil(r.santri_id)}
+            {aksiProfil(r.santri_id, { daftar: daftarAnggota })}
             {canUbah && (
               <Button id={`btn_ubah_anggota_${r.id}`} size="sm" variant="outline" disabled={busyId === r.id}
                 onClick={() => {

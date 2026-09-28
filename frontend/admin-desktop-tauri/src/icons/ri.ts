@@ -6,6 +6,7 @@ import type { ComponentType, SVGProps } from 'react';
 import IcAlignCenterRi from '~icons/ri/align-center';
 import IcAlignLeftRi from '~icons/ri/align-left';
 import IcAlignRightRi from '~icons/ri/align-right';
+import IcArrowLeftRi from '~icons/ri/arrow-left-line';
 import IcArrowRightRi from '~icons/ri/arrow-right-line';
 import IcBadgeCheckRi from '~icons/ri/certificate-line';
 import IcBanRi from '~icons/ri/prohibited-line';
@@ -24,6 +25,7 @@ import IcClipboardCheckRi from '~icons/ri/task-line';
 import IcClipboardListRi from '~icons/ri/clipboard-line';
 import IcCopyRi from '~icons/ri/file-copy-line';
 import IcEyeRi from '~icons/ri/eye-line';
+import IcExternalLinkRi from '~icons/ri/external-link-line';
 import IcFileCheck2Ri from '~icons/ri/file-check-line';
 import IcFileUpRi from '~icons/ri/file-upload-line';
 import IcFolderOpenRi from '~icons/ri/folder-open-line';
@@ -73,6 +75,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   AlignCenter: IcAlignCenterRi,
   AlignLeft: IcAlignLeftRi,
   AlignRight: IcAlignRightRi,
+  ArrowLeft: IcArrowLeftRi,
   ArrowRight: IcArrowRightRi,
   BadgeCheck: IcBadgeCheckRi,
   Ban: IcBanRi,
@@ -91,6 +94,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   ClipboardList: IcClipboardListRi,
   Copy: IcCopyRi,
   Eye: IcEyeRi,
+  ExternalLink: IcExternalLinkRi,
   FileCheck2: IcFileCheck2Ri,
   FileUp: IcFileUpRi,
   FolderOpen: IcFolderOpenRi,

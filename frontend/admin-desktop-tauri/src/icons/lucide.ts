@@ -6,6 +6,7 @@ import type { ComponentType, SVGProps } from 'react';
 import IcAlignCenterLucide from '~icons/lucide/align-center';
 import IcAlignLeftLucide from '~icons/lucide/align-left';
 import IcAlignRightLucide from '~icons/lucide/align-right';
+import IcArrowLeftLucide from '~icons/lucide/arrow-left';
 import IcArrowRightLucide from '~icons/lucide/arrow-right';
 import IcBadgeCheckLucide from '~icons/lucide/badge-check';
 import IcBanLucide from '~icons/lucide/ban';
@@ -24,6 +25,7 @@ import IcClipboardCheckLucide from '~icons/lucide/clipboard-check';
 import IcClipboardListLucide from '~icons/lucide/clipboard-list';
 import IcCopyLucide from '~icons/lucide/copy';
 import IcEyeLucide from '~icons/lucide/eye';
+import IcExternalLinkLucide from '~icons/lucide/external-link';
 import IcFileCheck2Lucide from '~icons/lucide/file-check-2';
 import IcFileUpLucide from '~icons/lucide/file-up';
 import IcFolderOpenLucide from '~icons/lucide/folder-open';
@@ -82,6 +84,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   AlignCenter: IcAlignCenterLucide,
   AlignLeft: IcAlignLeftLucide,
   AlignRight: IcAlignRightLucide,
+  ArrowLeft: IcArrowLeftLucide,
   ArrowRight: IcArrowRightLucide,
   BadgeCheck: IcBadgeCheckLucide,
   Ban: IcBanLucide,
@@ -100,6 +103,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   ClipboardList: IcClipboardListLucide,
   Copy: IcCopyLucide,
   Eye: IcEyeLucide,
+  ExternalLink: IcExternalLinkLucide,
   FileCheck2: IcFileCheck2Lucide,
   FileUp: IcFileUpLucide,
   FolderOpen: IcFolderOpenLucide,

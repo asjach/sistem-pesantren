@@ -185,6 +185,10 @@ export default function MutasiKeluarPage() {
     });
   }, [kiri, tingkatAktif, kelasAktif, cari]);
 
+  /** Urutan tiap tabel asal untuk navigasi tetangga pada dialog profil. */
+  const daftarAktif = useMemo(() => kiriTampil.map((r) => r.santri_id), [kiriTampil]);
+  const daftarArsip = useMemo(() => arsip.map((m) => m.santri_id), [arsip]);
+
   const simpan = async () => {
     if (!baris || !baris.jenjang || !tanggal || !alasan) return;
     setBusy(true);
@@ -229,7 +233,7 @@ export default function MutasiKeluarPage() {
                 onSaved={() => {}}
                 renderActions={(r) => (
                   <>
-                    {aksiProfil(r.santri_id)}
+                    {aksiProfil(r.santri_id, { daftar: daftarAktif })}
                     {bisa(user, 'mutasi_keluar.ubah') && (
                       <ActionIcon
                         id={`btn_mutasi_${r.id}`}
@@ -288,7 +292,7 @@ export default function MutasiKeluarPage() {
               canEdit={false}
               onCommit={async () => {}}
               onSaved={() => {}}
-              renderActions={(m) => aksiProfil(m.santri_id, 'arsip')}
+              renderActions={(m) => aksiProfil(m.santri_id, { prefix: 'arsip', daftar: daftarArsip })}
               hideCheckbox
                hideActions
                emptyText="Belum ada arsip mutasi."

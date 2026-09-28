@@ -1,4 +1,5 @@
 import { screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import { ProfilSantriDialog } from './ProfilSantriDialog';
@@ -9,7 +10,7 @@ const profil: ProfilSantri = {
   santri: {
     id: 7,
     nama_lengkap: 'Ahmad Fauzi',
-    nama_singkat: 'Fauzi',
+    nama_singkat: null,
     nik: '3201011505950001',
     nisn: '0123456789',
     tmp_lahir: 'Bandung',
@@ -37,13 +38,35 @@ const profil: ProfilSantri = {
   alumni: [],
 } as unknown as ProfilSantri;
 
-vi.mock('@/api/siklus', async (importOriginal) => {
-  const asli = await importOriginal<typeof import('@/api/siklus')>();
-  return { ...asli, profilSantri: vi.fn(async () => profil) };
+const salin = vi.fn(async (_teks: string) => true);
+vi.mock('@/lib/clipboard', async (importOriginal) => {
+  const asli = await importOriginal<typeof import('@/lib/clipboard')>();
+  return { ...asli, copyText: (t: string) => salin(t) };
 });
 
-function renderDialog() {
-  return renderDenganTema(<ProfilSantriDialog santriId={7} open onOpenChange={() => {}} />);
+const profilSantri = vi.fn(async (id: number) => ({ ...profil, santri: { ...profil.santri, id } }));
+vi.mock('@/api/siklus', async (importOriginal) => {
+  const asli = await importOriginal<typeof import('@/api/siklus')>();
+  return { ...asli, profilSantri: (id: number) => profilSantri(id) };
+});
+
+const onGanti = vi.fn();
+const onOpenChange = vi.fn();
+
+/** Render dialog untuk satu Santri, dengan urutan tabel asal bila ada. */
+function renderDialog(daftar?: number[]) {
+  return renderDenganTema(
+    <ProfilSantriDialog
+      target={{ id: 7, daftar: daftar ?? [] }}
+      onGanti={onGanti}
+      onOpenChange={onOpenChange}
+    />,
+  );
+}
+
+/** Penanda posisi "ke-berapa dari berapa" di kepala dialog. */
+function posisiTetangga(): HTMLElement {
+  return document.querySelector('[data-part="posisi_tetangga"]') as HTMLElement;
 }
 
 describe('ProfilSantriDialog', () => {
@@ -104,6 +127,137 @@ describe('ProfilSantriDialog', () => {
       .getAllByRole('heading', { level: 4 })
       .map((h) => h.textContent);
     expect(urutan).toEqual(['Ayah', 'Ibu', 'Wali', 'Kartu keluarga']);
+  });
+
+  it('setiap field punya tombol salin satuan, tanpa perlu blok lalu salin', async () => {
+    const user = userEvent.setup();
+    renderDialog();
+    await isiDialog();
+
+    // Tidak ada lagi tombol salin massal.
+    expect(screen.queryByRole('button', { name: /Salin semua/ })).not.toBeInTheDocument();
+
+    // "Salin NIK" juga milik kolom NIK Ayah, jadi klik lewat id.
+    await user.click(document.querySelector('#btn_salin_nik') as HTMLElement);
+
+    expect(salin).toHaveBeenCalledTimes(1);
+    expect(salin).toHaveBeenCalledWith('3201011505950001');
+  });
+
+  it('menyalin nilai mentah untuk field berkode, bukan teks terjemahan', async () => {
+    const user = userEvent.setup();
+    renderDialog();
+    await isiDialog();
+
+    // Tampil "Laki-laki", tapi yang harus masuk EMIS adalah kode "L".
+    expect(screen.getByText('Laki-laki')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Salin Jenis kelamin' }));
+
+    expect(salin).toHaveBeenCalledWith('L');
+  });
+
+  it('tombol salin hanya ada pada field yang terisi', async () => {
+    renderDialog();
+    await isiDialog();
+
+    // nama_singkat sengaja kosong pada fixture.
+    expect(screen.queryByRole('button', { name: 'Salin Nama singkat' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Salin Nama lengkap' })).toBeInTheDocument();
+  });
+
+  it('tombol salin tersembunyi sampai baris dilewati/difokus', async () => {
+    renderDialog();
+    await isiDialog();
+
+    const tombol = document.querySelector('#btn_salin_nik') as HTMLElement;
+    expect(tombol.className).toContain('opacity-0');
+    expect(tombol.className).toContain('group-hover:opacity-100');
+    expect(tombol.className).toContain('focus-visible:opacity-100');
+  });
+
+  it('navigasi tetangga: tombol Previous/Next berpindah sesuai urutan tabel asal', async () => {
+    const user = userEvent.setup();
+    renderDialog([5, 7, 9]);
+
+    // Posisi awal = Santri kedua dari tiga.
+    expect(posisiTetangga()).toHaveTextContent('2 / 3');
+    expect(screen.getByRole('button', { name: /Sebelumnya/ })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /Berikutnya/ })).toBeEnabled();
+
+    await user.click(screen.getByRole('button', { name: /Berikutnya/ }));
+    expect(onGanti).toHaveBeenCalledWith(9);
+
+    await user.click(screen.getByRole('button', { name: /Sebelumnya/ }));
+    expect(onGanti).toHaveBeenCalledWith(5);
+  });
+
+  it('navigasi tetangga: tombol mati di ujung daftar', async () => {
+    // Santri pertama → tidak ada tetangga sebelumnya.
+    renderDenganTema(
+      <ProfilSantriDialog
+        target={{ id: 5, daftar: [5, 7] }}
+        onGanti={onGanti}
+        onOpenChange={onOpenChange}
+      />,
+    );
+    await screen.findByRole('heading', { name: 'Ahmad Fauzi' });
+
+    expect(posisiTetangga()).toHaveTextContent('1 / 2');
+    expect(screen.getByRole('button', { name: /Sebelumnya/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Berikutnya/ })).toBeEnabled();
+  });
+
+  it('tanpa daftar tabel asal: tombol tetangga tidak muncul', async () => {
+    renderDialog();
+    await screen.findByRole('heading', { name: 'Ahmad Fauzi' });
+
+    expect(screen.queryByRole('button', { name: /Sebelumnya/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Berikutnya/ })).not.toBeInTheDocument();
+  });
+
+  it('tombol "Buka di tab baru" membuka rute profil mandiri di tab baru', async () => {
+    const user = userEvent.setup();
+    const buka = vi.fn(async () => 'dibuka' as const);
+    window.open = buka as unknown as typeof window.open;
+    renderDialog();
+    await isiDialog();
+
+    await user.click(screen.getByRole('button', { name: /Buka di tab baru/ }));
+
+    expect(buka).toHaveBeenCalledWith(
+      '/santri/7/profil',
+      '_blank',
+      'noopener,noreferrer',
+    );
+  });
+
+  it('baris tabel relasi juga dirapatkan', async () => {
+    renderDialog();
+    const isi = await isiDialog();
+
+    // Tabel riwayat belajar punya satu baris data; selnya <td> di dalam tabel.
+    const tabel = within(isi).getByRole('table');
+    expect(tabel.className).toContain('text-[13px]');
+    expect(tabel.className).toContain('leading-5');
+    const sel = tabel.querySelector('tbody td') as HTMLElement;
+    expect(sel.className).toContain('py-1');
+    expect(sel.className).not.toContain('py-1.5');
+    const kepala = tabel.querySelector('thead th') as HTMLElement;
+    expect(kepala.className).toContain('py-1');
+  });
+
+  it('baris label–nilai dirapatkan supaya banyak field muat tanpa menggulir', async () => {
+    renderDialog();
+    const isi = await isiDialog();
+
+    // Baris = <div> induk dari <dt> labelnya.
+    const baris = within(isi).getByText('Nama lengkap').parentElement as HTMLElement;
+    expect(baris.className).toContain('py-0.5');
+    expect(baris.className).not.toContain('py-1.5');
+    // Nilai 13px dengan line-height tetap → tinggi baris stabil antar panel.
+    const nilai = within(isi).getByText('3201011505950001');
+    expect(nilai.className).toContain('text-[13px]');
+    expect(nilai.className).toContain('leading-5');
   });
 
   it('anak ke dan jumlah saudara berada di panel Kartu keluarga, bukan Kelahiran', async () => {

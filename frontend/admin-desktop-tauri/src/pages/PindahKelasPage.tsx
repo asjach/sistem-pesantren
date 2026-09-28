@@ -258,7 +258,7 @@ function TabelKelas({ tingkat, kolom, tetangga, bisaPindah, busyId, cari, aksiPr
           onSaved={() => {}}
           renderActions={(r) => (
             <>
-              {aksiProfil(r.santri_id, kunci)}
+              {aksiProfil(r.santri_id, { prefix: kunci, daftar: tampil.map((x) => x.santri_id) })}
               {aksi && bisaPindah && tetangga.kiri?.kelasId != null && tetangga.kiri.kelasId !== kolom.kelasId && (
                 <ActionIcon
                   id={`btn_pindah_kiri_${r.id}`}

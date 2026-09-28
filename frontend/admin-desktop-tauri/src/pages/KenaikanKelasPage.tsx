@@ -96,6 +96,10 @@ export default function KenaikanKelasPage() {
   const [tercentangTidak, setTercentangTidak] = useState<Baris[]>([]);
   const [err, setErr] = useState('');
   const { aksiProfil, dialogProfil } = useAksiProfilSantri();
+  /** Urutan tiap tabel asal untuk navigasi tetangga pada dialog profil. */
+  const daftarKandidat = useMemo(() => kiri.map((r) => r.santri_id), [kiri]);
+  const daftarNaik = useMemo(() => hasilNaik.map((b) => b.santri_id), [hasilNaik]);
+  const daftarTidak = useMemo(() => hasilTidak.map((b) => b.santri_id), [hasilTidak]);
   const [busy, setBusy] = useState(false);
 
   /** Kandidat: semester 2 pada TA acuan, hanya baris berstatus akhir aktif. */
@@ -318,7 +322,7 @@ export default function KenaikanKelasPage() {
               onSaved={() => {}}
               renderActions={(r) => (
                 <div className="flex items-center gap-0.5">
-                  {aksiProfil(r.santri_id, 'kandidat')}
+                  {aksiProfil(r.santri_id, { prefix: 'kandidat', daftar: daftarKandidat })}
                   {canUbah && (
                   <>
                   <ActionIcon
@@ -362,6 +366,7 @@ export default function KenaikanKelasPage() {
             onCheckedChange={setTercentangNaik}
             onBatalkan={(b) => void batalkan([b])}
             aksiProfil={aksiProfil}
+            daftar={daftarNaik}
           />
           </ResizableAutoHidePanel>
           <ResizableHandle withHandle orientation="vertical" id="gagang_kenaikan_baris" />
@@ -374,6 +379,7 @@ export default function KenaikanKelasPage() {
             onCheckedChange={setTercentangTidak}
             onBatalkan={(b) => void batalkan([b])}
             aksiProfil={aksiProfil}
+            daftar={daftarTidak}
           />
           </ResizableAutoHidePanel>
         </ResizablePanelGroup>
@@ -394,6 +400,7 @@ function PanelDaftar({
   onCheckedChange,
   onBatalkan,
   aksiProfil,
+  daftar,
 }: {
   idPrefix: string;
   judul: string;
@@ -402,6 +409,8 @@ function PanelDaftar({
   onCheckedChange: (tercentang: Baris[]) => void;
   onBatalkan: (b: Baris) => void;
   aksiProfil: AksiProfilSantri['aksiProfil'];
+  /** Id Santri sesuai urutan baris tabel ini (untuk navigasi tetangga). */
+  daftar: number[];
 }) {
   // Memoized: ExcelTable membersihkan seleksi tiap `rows` berubah identitas.
   const rows = useMemo(() => baris.map((b) => ({ ...b, id: b.santri_id })), [baris]);
@@ -425,7 +434,7 @@ function PanelDaftar({
           onSaved={() => {}}
           renderActions={(b) => (
             <>
-              {aksiProfil(b.santri_id, idPrefix)}
+              {aksiProfil(b.santri_id, { prefix: idPrefix, daftar })}
               {bisaBatalkan(b) ? (
             <ActionIcon
               id={`btn_batal_${idPrefix}_${b.santri_id}`}

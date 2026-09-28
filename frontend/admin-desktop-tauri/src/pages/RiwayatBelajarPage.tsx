@@ -184,6 +184,10 @@ export default function RiwayatBelajarPage() {
     await Promise.all([kiri.load(kiri.pager.page), kanan.load(kanan.pager.page)]);
   }, [kiri, kanan]);
 
+  /** Urutan tiap tabel asal untuk navigasi tetangga pada dialog profil. */
+  const daftarGanjil = useMemo(() => kiri.rows.map((r) => r.santri_id), [kiri.rows]);
+  const daftarGenap = useMemo(() => kanan.rows.map((r) => r.santri_id), [kanan.rows]);
+
   const targetJenjang = jenjangs.length === 1 ? jenjangs[0] : null;
   const targetTahunAjaran = tahunAjaranNames.length === 1 ? tahunAjaranNames[0] : null;
   const pindahAktif = Boolean(
@@ -347,7 +351,7 @@ export default function RiwayatBelajarPage() {
                hidePreset
                onCommit={noopCommit}
                onSaved={noopCommit}
-               renderActions={(r) => aksiProfil(r.santri_id, 'ganjil')}
+               renderActions={(r) => aksiProfil(r.santri_id, { prefix: 'ganjil', daftar: daftarGanjil })}
             />,
             <Pager
               page={kiri.pager.page}
@@ -403,7 +407,7 @@ export default function RiwayatBelajarPage() {
                hidePreset
                onCommit={noopCommit}
                onSaved={noopCommit}
-               renderActions={(r) => aksiProfil(r.santri_id, 'genap')}
+               renderActions={(r) => aksiProfil(r.santri_id, { prefix: 'genap', daftar: daftarGenap })}
             />,
             <Pager
               page={kanan.pager.page}

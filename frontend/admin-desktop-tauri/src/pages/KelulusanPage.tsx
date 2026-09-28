@@ -151,6 +151,10 @@ export default function KelulusanPage() {
   const [arahAlumni, setArahAlumni] = useState<'naik' | 'turun'>('naik');
   const [err, setErr] = useState('');
   const { aksiProfil, dialogProfil } = useAksiProfilSantri();
+  /** Urutan tiap tabel asal untuk navigasi tetangga pada dialog profil. */
+  const daftarTingkatAkhir = useMemo(() => kiri.map((r) => r.santri_id), [kiri]);
+  const daftarAlumni = useMemo(() => alumni.map((a) => a.santri_id), [alumni]);
+  const daftarTidakLulus = useMemo(() => tidakLulus.map((b) => b.santri_id), [tidakLulus]);
   /** Pencarian tunggal halaman (topBar). */
   const [cari, setCari] = useState('');
   const [busy, setBusy] = useState(false);
@@ -392,7 +396,7 @@ export default function KelulusanPage() {
               canEdit={false}
               onCommit={async () => {}}
               onSaved={() => {}}
-              renderActions={(r) => aksiProfil(r.santri_id, 'tingkat_akhir')}
+              renderActions={(r) => aksiProfil(r.santri_id, { prefix: 'tingkat_akhir', daftar: daftarTingkatAkhir })}
                onCheckedChange={(rows) => setPilih(new Set(rows.map((r) => r.santri_id)))}
                hidePreset
                emptyText="Tidak ada santri tingkat akhir aktif pada tahun ajaran ini."
@@ -442,7 +446,7 @@ export default function KelulusanPage() {
                 onSaved={() => void loadArsip()}
                 renderActions={(a) => (
                   <>
-                    {aksiProfil(a.santri_id, 'alumni')}
+                    {aksiProfil(a.santri_id, { prefix: 'alumni', daftar: daftarAlumni })}
                     {canUbah && (
                       <ActionIcon
                         id={`btn_batal_lulus_alumni_${a.id}`}
@@ -491,7 +495,7 @@ export default function KelulusanPage() {
                 onSaved={() => {}}
                 renderActions={(b) => (
                   <>
-                    {aksiProfil(b.santri_id, 'tidak_lulus')}
+                    {aksiProfil(b.santri_id, { prefix: 'tidak_lulus', daftar: daftarTidakLulus })}
                     {canUbah && (
                       <ActionIcon
                         id={`btn_batal_tidak_lulus_${b.santri_id}`}

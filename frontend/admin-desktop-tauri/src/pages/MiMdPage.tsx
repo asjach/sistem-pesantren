@@ -247,12 +247,16 @@ export default function MiMdPage() {
     getValues: (r: Baris) => Record<string, string | null>,
     aksi?: (r: Baris) => ReactNode,
     renderBulk?: (checked: Baris[], clear: () => void) => ReactNode,
-  ) => (
+  ) => {
+    // Urutan tampil dipakai baris tabel DAN daftar tetangga dialog profil,
+    // supaya "Berikutnya" mengikuti urutan yang sedang dilihat.
+    const tampil = urutkan(rows, urutTabel[key].kolom, urutTabel[key].arah, urutTabel[key].arahKolom);
+    return (
     <section className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
       <ExcelTable
         tableKey={`mi_md_${key}`}
         fields={fields}
-        rows={urutkan(rows, urutTabel[key].kolom, urutTabel[key].arah, urutTabel[key].arahKolom)}
+        rows={tampil}
         getValues={getValues}
          header={<span>{judul}</span>}
         urutAktif={urutTabel[key].kolom}
@@ -261,12 +265,13 @@ export default function MiMdPage() {
         canEdit={false}
         onCommit={async () => {}}
         onSaved={() => {}}
-        renderActions={(r) => (<>{aksiProfil(r.santri_id, key)}{aksi?.(r)}</>)}
+        renderActions={(r) => (<>{aksiProfil(r.santri_id, { prefix: key, daftar: tampil.map((x) => x.santri_id) })}{aksi?.(r)}</>)}
         renderBulkActions={renderBulk}
         emptyText="Tidak ada data."
       />
     </section>
-  );
+    );
+  };
 
   const nilaiStatis = (r: Record<string, unknown>): Record<string, string | null> => {
     const out: Record<string, string | null> = {};

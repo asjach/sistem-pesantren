@@ -3,6 +3,7 @@
  * Regenerasi: node scripts/icons-gen.mjs */
 import type { ComponentType, SVGProps } from 'react';
 
+import IcArrowLeftHeroicons from '~icons/heroicons/arrow-left';
 import IcArrowRightHeroicons from '~icons/heroicons/arrow-right';
 import IcBadgeCheckHeroicons from '~icons/heroicons/check-badge';
 import IcBanHeroicons from '~icons/heroicons/no-symbol';
@@ -60,6 +61,7 @@ import IcPinHeroicons from '~icons/heroicons/map-pin';
 import IcColumns3Heroicons from '~icons/heroicons/view-columns';
 
 const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
+  ArrowLeft: IcArrowLeftHeroicons,
   ArrowRight: IcArrowRightHeroicons,
   BadgeCheck: IcBadgeCheckHeroicons,
   Ban: IcBanHeroicons,

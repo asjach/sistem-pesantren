@@ -6,6 +6,7 @@ import type { ComponentType, SVGProps } from 'react';
 import IcAlignCenterIconoir from '~icons/iconoir/align-center';
 import IcAlignLeftIconoir from '~icons/iconoir/align-left';
 import IcAlignRightIconoir from '~icons/iconoir/align-right';
+import IcArrowLeftIconoir from '~icons/iconoir/arrow-left';
 import IcArrowRightIconoir from '~icons/iconoir/arrow-right';
 import IcBadgeCheckIconoir from '~icons/iconoir/badge-check';
 import IcBanIconoir from '~icons/iconoir/cancel';
@@ -67,6 +68,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   AlignCenter: IcAlignCenterIconoir,
   AlignLeft: IcAlignLeftIconoir,
   AlignRight: IcAlignRightIconoir,
+  ArrowLeft: IcArrowLeftIconoir,
   ArrowRight: IcArrowRightIconoir,
   BadgeCheck: IcBadgeCheckIconoir,
   Ban: IcBanIconoir,

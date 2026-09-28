@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { bisa } from '../api/auth';
 import { errorMessage } from '../api/client';
@@ -128,10 +128,12 @@ export default function PengajuanBiodataPage() {
   }, [tolakRow, tolakCatatan, run]);
 
   const onSaved = useCallback(() => load(), [load]);
+  /** Urutan tabel asal untuk navigasi tetangga pada dialog profil. */
+  const daftarPengajuan = useMemo(() => rows.map((p) => p.santri_id), [rows]);
 
   const renderActions = useCallback((p: PengajuanBiodata) => (
     <>
-      {aksiProfil(p.santri_id)}
+      {aksiProfil(p.santri_id, { daftar: daftarPengajuan })}
       {p.status === 'diajukan' && canProses && (
         <>
           <SetAktifAction

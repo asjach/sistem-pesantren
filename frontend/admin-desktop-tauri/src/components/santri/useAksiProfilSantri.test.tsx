@@ -36,7 +36,7 @@ function HalamanSantri() {
     <div>
       <ul>
         <li>{aksiProfil(7)}</li>
-        <li>{aksiProfil(9, 'arsip')}</li>
+        <li>{aksiProfil(9, { prefix: 'arsip' })}</li>
         <li>{aksiProfil(null)}</li>
       </ul>
       {dialogProfil}

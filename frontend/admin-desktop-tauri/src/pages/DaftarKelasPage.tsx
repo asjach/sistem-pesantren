@@ -110,6 +110,8 @@ export default function DaftarKelasPage() {
   );
   const commitDaftar = useMemo(() => pakaiCommitDaftarKelas(rows), [rows]);
   const { aksiProfil, dialogProfil } = useAksiProfilSantri();
+  /** Urutan tabel asal untuk navigasi tetangga pada dialog profil. */
+  const daftarSantri = useMemo(() => rows.map((r) => r.santri_id), [rows]);
   const [editRow, setEditRow] = useState<SantriPenuh | null>(null);
 
   return (
@@ -132,7 +134,7 @@ export default function DaftarKelasPage() {
         onUrut={terapkanUrut}
         renderActions={(r) => (
           <>
-            {aksiProfil(r.santri_id)}
+            {aksiProfil(r.santri_id, { daftar: daftarSantri })}
             {canSantri && r.santri && (
               <ActionIcon id={`btn_edit_santri_${r.id}`} title="Ubah detail santri" onClick={() => setEditRow(r.santri as SantriPenuh)}><Pencil size={16} /></ActionIcon>
             )}

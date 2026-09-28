@@ -6,6 +6,7 @@ import type { ComponentType, SVGProps } from 'react';
 import IcAlignCenterRadix from '~icons/radix-icons/align-center';
 import IcAlignLeftRadix from '~icons/radix-icons/align-left';
 import IcAlignRightRadix from '~icons/radix-icons/align-right';
+import IcArrowLeftRadix from '~icons/radix-icons/arrow-left';
 import IcArrowRightRadix from '~icons/radix-icons/arrow-right';
 import IcBookMarkedRadix from '~icons/radix-icons/bookmark';
 import IcCalendarDaysRadix from '~icons/radix-icons/calendar';
@@ -18,6 +19,7 @@ import IcChevronRightRadix from '~icons/radix-icons/chevron-right';
 import IcClipboardListRadix from '~icons/radix-icons/clipboard';
 import IcCopyRadix from '~icons/radix-icons/copy';
 import IcEyeRadix from '~icons/radix-icons/eye-open';
+import IcExternalLinkRadix from '~icons/radix-icons/external-link';
 import IcHistoryRadix from '~icons/radix-icons/clock';
 import IcHomeRadix from '~icons/radix-icons/home';
 import IcLogOutRadix from '~icons/radix-icons/exit';
@@ -49,6 +51,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   AlignCenter: IcAlignCenterRadix,
   AlignLeft: IcAlignLeftRadix,
   AlignRight: IcAlignRightRadix,
+  ArrowLeft: IcArrowLeftRadix,
   ArrowRight: IcArrowRightRadix,
   BookMarked: IcBookMarkedRadix,
   CalendarDays: IcCalendarDaysRadix,
@@ -61,6 +64,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   ClipboardList: IcClipboardListRadix,
   Copy: IcCopyRadix,
   Eye: IcEyeRadix,
+  ExternalLink: IcExternalLinkRadix,
   History: IcHistoryRadix,
   Home: IcHomeRadix,
   LogOut: IcLogOutRadix,

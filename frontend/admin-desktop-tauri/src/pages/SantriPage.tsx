@@ -103,6 +103,8 @@ export default function SantriPage() {
   });
 
   const { aksiProfil, dialogProfil } = useAksiProfilSantri();
+  /** Urutan tabel asal untuk tombol Sebelumnya/Berikutnya di dialog profil. */
+  const daftarBukuInduk = useMemo(() => rows.map((s) => s.id), [rows]);
   const [fotoRow, setFotoRow] = useState<Santri | null>(null);
   const [fotoFile, setFotoFile] = useState<File | null>(null);
 
@@ -241,7 +243,7 @@ export default function SantriPage() {
         onUrut={terapkanUrut}
         renderActions={(s) => (
           <>
-            {aksiProfil(s.id)}
+            {aksiProfil(s.id, { daftar: daftarBukuInduk })}
             {bisa(user, 'santri.tambah') && (
             <>
             <ActionIcon id={`btn_anggota_santri_${s.id}`} title="Keanggotaan lembaga" onClick={() => void bukaAnggota(s)}><Plus size={16} /></ActionIcon>

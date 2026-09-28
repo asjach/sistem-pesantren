@@ -6,6 +6,7 @@ import type { ComponentType, SVGProps } from 'react';
 import IcAlignCenterBi from '~icons/bi/align-center';
 import IcAlignLeftBi from '~icons/bi/text-left';
 import IcAlignRightBi from '~icons/bi/text-right';
+import IcArrowLeftBi from '~icons/bi/arrow-left';
 import IcArrowRightBi from '~icons/bi/arrow-right';
 import IcBadgeCheckBi from '~icons/bi/patch-check';
 import IcBanBi from '~icons/bi/ban';
@@ -72,6 +73,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   AlignCenter: IcAlignCenterBi,
   AlignLeft: IcAlignLeftBi,
   AlignRight: IcAlignRightBi,
+  ArrowLeft: IcArrowLeftBi,
   ArrowRight: IcArrowRightBi,
   BadgeCheck: IcBadgeCheckBi,
   Ban: IcBanBi,

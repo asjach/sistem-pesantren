@@ -6,6 +6,7 @@ import type { ComponentType, SVGProps } from 'react';
 import IcAlignCenterMaterial from '~icons/material-symbols/align-center';
 import IcAlignLeftMaterial from '~icons/material-symbols/format-align-left';
 import IcAlignRightMaterial from '~icons/material-symbols/format-align-right';
+import IcArrowLeftMaterial from '~icons/material-symbols/arrow-left';
 import IcArrowRightMaterial from '~icons/material-symbols/arrow-right';
 import IcBadgeCheckMaterial from '~icons/material-symbols/verified';
 import IcBanMaterial from '~icons/material-symbols/block';
@@ -23,6 +24,7 @@ import IcClipboardCheckMaterial from '~icons/material-symbols/task';
 import IcClipboardListMaterial from '~icons/material-symbols/assignment';
 import IcCopyMaterial from '~icons/material-symbols/content-copy';
 import IcEyeMaterial from '~icons/material-symbols/visibility';
+import IcExternalLinkMaterial from '~icons/material-symbols/new-window';
 import IcFileUpMaterial from '~icons/material-symbols/upload-file';
 import IcFolderOpenMaterial from '~icons/material-symbols/folder-open';
 import IcGraduationCapMaterial from '~icons/material-symbols/school';
@@ -74,6 +76,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   AlignCenter: IcAlignCenterMaterial,
   AlignLeft: IcAlignLeftMaterial,
   AlignRight: IcAlignRightMaterial,
+  ArrowLeft: IcArrowLeftMaterial,
   ArrowRight: IcArrowRightMaterial,
   BadgeCheck: IcBadgeCheckMaterial,
   Ban: IcBanMaterial,
@@ -91,6 +94,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   ClipboardList: IcClipboardListMaterial,
   Copy: IcCopyMaterial,
   Eye: IcEyeMaterial,
+  ExternalLink: IcExternalLinkMaterial,
   FileUp: IcFileUpMaterial,
   FolderOpen: IcFolderOpenMaterial,
   GraduationCap: IcGraduationCapMaterial,

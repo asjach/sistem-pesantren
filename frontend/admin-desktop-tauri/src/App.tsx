@@ -32,6 +32,7 @@ const PengaturanServerPage = lazy(() => import('./pages/PengaturanServerPage'));
 const PsbPage = lazy(() => import('./pages/PsbPage'));
 const KegiatanPsbPage = lazy(() => import('./pages/KegiatanPsbPage'));
 const SantriPage = lazy(() => import('./pages/SantriPage'));
+const ProfilSantriPage = lazy(() => import('./pages/ProfilSantriPage'));
 const PegawaiPage = lazy(() => import('./pages/PegawaiPage'));
 const LembagaPegawaiPage = lazy(() => import('./pages/LembagaPegawaiPage'));
 const AkunPegawaiPage = lazy(() => import('./pages/AkunPegawaiPage'));
@@ -151,6 +152,23 @@ export default function App() {
                       />
                       <Route path="*" element={<Navigate to="/" replace />} />
                     </Route>
+                    {/* Profil mandiri: TANPA kerangka aplikasi (tanpa sidebar,
+                        topbar, dan rail filter) — tujuannya jendela/tab yang
+                        hanya berisi profil, supaya mudah disandingkan dengan
+                        aplikasi lain. Tetap dijaga ProtectedRoute + izin, jadi
+                        jendela ini bukan celah akses. */}
+                    <Route
+                      path="/santri/:id/profil"
+                      element={(
+                        <ProtectedRoute>
+                          <KhususIzin izin="santri.lihat">
+                            <Suspense fallback={<PageFallback />}>
+                              <ProfilSantriPage />
+                            </Suspense>
+                          </KhususIzin>
+                        </ProtectedRoute>
+                      )}
+                    />
                   </Routes>
                 </PickerProvider>
               </BrowserRouter>

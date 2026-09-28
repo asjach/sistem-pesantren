@@ -6,6 +6,7 @@ import type { ComponentType, SVGProps } from 'react';
 import IcAlignCenterPh from '~icons/ph/text-align-center';
 import IcAlignLeftPh from '~icons/ph/align-left';
 import IcAlignRightPh from '~icons/ph/align-right';
+import IcArrowLeftPh from '~icons/ph/arrow-left';
 import IcArrowRightPh from '~icons/ph/arrow-right';
 import IcBadgeCheckPh from '~icons/ph/seal-check';
 import IcBanPh from '~icons/ph/prohibit';
@@ -71,6 +72,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   AlignCenter: IcAlignCenterPh,
   AlignLeft: IcAlignLeftPh,
   AlignRight: IcAlignRightPh,
+  ArrowLeft: IcArrowLeftPh,
   ArrowRight: IcArrowRightPh,
   BadgeCheck: IcBadgeCheckPh,
   Ban: IcBanPh,

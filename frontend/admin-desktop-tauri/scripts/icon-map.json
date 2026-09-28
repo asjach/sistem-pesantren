@@ -32,6 +32,17 @@
   "bi": "text-right",
   "material": "format-align-right"
  },
+ "ArrowLeft": {
+  "lucide": "arrow-left",
+  "tabler": "arrow-left",
+  "ph": "arrow-left",
+  "heroicons": "arrow-left",
+  "ri": "arrow-left-line",
+  "iconoir": "arrow-left",
+  "radix": "arrow-left",
+  "bi": "arrow-left",
+  "material": "arrow-left"
+ },
  "ArrowRight": {
   "lucide": "arrow-right",
   "tabler": "arrow-right",
@@ -229,6 +240,17 @@
   "radix": "eye-open",
   "bi": "eye",
   "material": "visibility"
+ },
+ "ExternalLink": {
+  "lucide": "external-link",
+  "tabler": "external-link",
+  "ph": null,
+  "heroicons": null,
+  "ri": "external-link-line",
+  "iconoir": null,
+  "radix": "external-link",
+  "bi": null,
+  "material": "new-window"
  },
  "FileCheck2": {
   "lucide": "file-check-2",

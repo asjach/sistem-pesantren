@@ -1,5 +1,5 @@
 /* AUTO-GENERATED oleh scripts/icons-gen.mjs — JANGAN edit manual.
- * 74 ikon × 9 set (Iconify/unplugin-icons). Set aktif dari prefs
+ * 76 ikon × 9 set (Iconify/unplugin-icons). Set aktif dari prefs
  * `iconSet`; nama yang tidak tersedia di suatu set jatuh ke Lucide.
  * Regenerasi: node scripts/icons-gen.mjs */
 import type { ComponentType, SVGProps } from 'react';
@@ -55,6 +55,7 @@ function IkonDinamis({ nama, size = 24, className, ...rest }: IkonProps & { nama
 export const AlignCenter = (p: IkonProps) => <IkonDinamis {...p} nama="AlignCenter" />;
 export const AlignLeft = (p: IkonProps) => <IkonDinamis {...p} nama="AlignLeft" />;
 export const AlignRight = (p: IkonProps) => <IkonDinamis {...p} nama="AlignRight" />;
+export const ArrowLeft = (p: IkonProps) => <IkonDinamis {...p} nama="ArrowLeft" />;
 export const ArrowRight = (p: IkonProps) => <IkonDinamis {...p} nama="ArrowRight" />;
 export const BadgeCheck = (p: IkonProps) => <IkonDinamis {...p} nama="BadgeCheck" />;
 export const Ban = (p: IkonProps) => <IkonDinamis {...p} nama="Ban" />;
@@ -73,6 +74,7 @@ export const ClipboardCheck = (p: IkonProps) => <IkonDinamis {...p} nama="Clipbo
 export const ClipboardList = (p: IkonProps) => <IkonDinamis {...p} nama="ClipboardList" />;
 export const Copy = (p: IkonProps) => <IkonDinamis {...p} nama="Copy" />;
 export const Eye = (p: IkonProps) => <IkonDinamis {...p} nama="Eye" />;
+export const ExternalLink = (p: IkonProps) => <IkonDinamis {...p} nama="ExternalLink" />;
 export const FileCheck2 = (p: IkonProps) => <IkonDinamis {...p} nama="FileCheck2" />;
 export const FileUp = (p: IkonProps) => <IkonDinamis {...p} nama="FileUp" />;
 export const FolderOpen = (p: IkonProps) => <IkonDinamis {...p} nama="FolderOpen" />;
