@@ -2,11 +2,13 @@ import { useCallback, useState } from 'react';
 import { errorMessage } from '../api/client';
 import {
   aktifkanMassalKeaktifan,
+  hapusKeaktifanPegawai,
   listKeaktifanPegawai,
   nonaktifkanKeaktifan,
   simpanKeaktifanPegawai,
   type KeaktifanPegawai,
 } from '../api/pegawai';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import Pager from '@/components/Pager';
@@ -16,8 +18,8 @@ import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import CatatanProsesTahunAjaran from '@/components/CatatanProsesTahunAjaran';
-import { ActionIcon } from '@/components/RowActions';
-import { X } from '@/icons';
+import { ActionIcon, DeleteAction } from '@/components/RowActions';
+import { Trash2, X } from '@/icons';
 import { useAuth } from '../auth/AuthContext';
 import { bisa } from '../api/auth';
 import { toast } from 'sonner';
@@ -48,6 +50,7 @@ function nilaiBaris(r: KeaktifanPegawai): Record<string, string | null> {
 export default function KeaktifanPegawaiPage() {
   const { user } = useAuth();
   const canUbah = bisa(user, 'pegawai.ubah');
+  const canHapus = bisa(user, 'pegawai.hapus');
   const { jenjangs, tahunAjaranNames } = useFilterGlobalAktif();
   const [cari, setCari] = useState('');
   const [status, setStatus] = useState('');
@@ -102,6 +105,16 @@ export default function KeaktifanPegawaiPage() {
     }
   }, [load]);
 
+  const onHapus = useCallback(async (r: KeaktifanPegawai) => {
+    try {
+      await hapusKeaktifanPegawai(r.id);
+      toast.success('Keaktifan dihapus.');
+      await load();
+    } catch (e) {
+      toast.error(errorMessage(e));
+    }
+  }, [load]);
+
   async function commitSk(id: number, f: Record<string, string | null>) {
     const baris = rows.find((r) => r.id === id);
     if (!baris) return;
@@ -126,8 +139,62 @@ export default function KeaktifanPegawaiPage() {
           <X size={16} />
         </ActionIcon>
       )}
+      {canHapus && (
+        <DeleteAction
+          id={`btn_hapus_keaktifan_${r.id}`}
+          title="Hapus riwayat keaktifan?"
+          description={`${r.pegawai?.nama_lengkap ?? 'Pegawai'} — ${r.tahun_ajaran} akan dihapus permanen dari riwayat.`}
+          onConfirm={() => onHapus(r)}
+        />
+      )}
     </>
-  ), [canUbah, onNonaktif]);
+  ), [canUbah, canHapus, onNonaktif, onHapus]);
+
+  // Bulk hapus: baris tercentang dilaporkan via onCheckedChange, tombolnya
+  // hidup di hamburger aksi tabel (addButton, setelah combobox Kolom).
+  const [tercentang, setTercentang] = useState<KeaktifanPegawai[]>([]);
+  const [bulkHapusOpen, setBulkHapusOpen] = useState(false);
+  const [bulkHapusProses, setBulkHapusProses] = useState(false);
+
+  const tombolBulkHapus = canHapus ? (
+    <Button
+      id="btn_bulk_hapus_keaktifan"
+      size="sm"
+      variant="destructive"
+      disabled={tercentang.length === 0 || bulkHapusProses}
+      // Buka dialog async setelah menu hamburger tertutup: membuka AlertDialog
+      // sinkron dari onSelect dropdown membuat konflik fokus portal Radix
+      // (crash halaman blank).
+      onClick={() => { setTimeout(() => setBulkHapusOpen(true), 0); }}
+    >
+      <Trash2 size={14} />
+      Hapus ({tercentang.length})
+    </Button>
+  ) : null;
+
+  const jalankanBulkHapus = useCallback(async () => {
+    setBulkHapusProses(true);
+    let sukses = 0;
+    const gagal: string[] = [];
+    for (const r of tercentang) {
+      try {
+        await hapusKeaktifanPegawai(r.id);
+        sukses++;
+      } catch {
+        gagal.push(r.pegawai?.nama_lengkap ?? `#${r.id}`);
+      }
+    }
+    setBulkHapusOpen(false);
+    setTercentang([]);
+    if (gagal.length === 0) {
+      toast.success(`${sukses} keaktifan dihapus.`);
+    } else {
+      toast.error(`${gagal.length} gagal: ${gagal.join(', ')}`);
+    }
+    pager.goFirst();
+    await load(1);
+    setBulkHapusProses(false);
+  }, [tercentang, load, pager]);
 
   return (
     <div className={PAGE_SHELL}>
@@ -149,13 +216,39 @@ export default function KeaktifanPegawaiPage() {
         urutAktif={urut}
         arahUrut={arahUrut}
         onUrut={terapkanUrut}
-        addButton={canUbah ? (
-          <Button id="btn_aktifkan_massal_keaktifan" variant="outline" disabled={!jenjangTunggal || !taTunggal} onClick={() => void onAktifkanMassal()}>
-            Aktifkan penempatan untuk TA ini
-          </Button>
-        ) : undefined}
+        onCheckedChange={setTercentang}
+        addButton={
+          <>
+            {canUbah && (
+              <Button id="btn_aktifkan_massal_keaktifan" variant="outline" disabled={!jenjangTunggal || !taTunggal} onClick={() => void onAktifkanMassal()}>
+                Aktifkan penempatan untuk TA ini
+              </Button>
+            )}
+            {tombolBulkHapus}
+          </>
+        }
         renderActions={renderActions}
       />
+      <AlertDialog open={bulkHapusOpen} onOpenChange={setBulkHapusOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus {tercentang.length} riwayat keaktifan?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Riwayat keaktifan yang dihapus tidak dapat dikembalikan. Penempatan pegawai tidak ikut terhapus.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkHapusProses}>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={bulkHapusProses}
+              onClick={() => void jalankanBulkHapus()}
+            >
+              Hapus
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <Pager
         page={pager.page}
         lastPage={lastPage}

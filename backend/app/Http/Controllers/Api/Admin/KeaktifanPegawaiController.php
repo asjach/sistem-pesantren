@@ -144,4 +144,13 @@ class KeaktifanPegawaiController extends Controller
 
         return response()->json(['pesan' => 'Keaktifan dinonaktifkan.', 'data' => $keaktifan->fresh()]);
     }
+
+    /** DELETE /api/admin/pegawai-keaktifan/{keaktifan} — hapus permanen baris riwayat. */
+    public function destroy(Request $request, KeaktifanPegawai $keaktifan): JsonResponse
+    {
+        $this->authorizeLembaga($request->user(), $keaktifan->jenjang);
+        $keaktifan->delete();
+
+        return response()->json(['pesan' => 'Keaktifan dihapus.']);
+    }
 }

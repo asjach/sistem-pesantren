@@ -286,6 +286,10 @@ export function nonaktifkanKeaktifan(id: number) {
   return api<{ pesan: string; data: KeaktifanPegawai }>(`/admin/pegawai-keaktifan/${id}/nonaktifkan`, { method: 'POST' });
 }
 
+export function hapusKeaktifanPegawai(id: number) {
+  return api<{ pesan: string }>(`/admin/pegawai-keaktifan/${id}`, { method: 'DELETE' });
+}
+
 // ---------- Import Buku Induk ----------
 
 export const KOLOM_IMPORT_PEGAWAI = [

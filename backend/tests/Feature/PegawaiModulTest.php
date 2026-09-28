@@ -292,6 +292,30 @@ class PegawaiModulTest extends TestCase
             ->assertOk()->assertJsonMissing(['nama_lengkap' => 'Walas']);
     }
 
+    public function test_hapus_keaktifan_permen_dan_butuh_izin(): void
+    {
+        $this->fixture();
+        $auth = $this->superAdmin();
+        $guru = Pegawai::create(['nama_lengkap' => 'Hapus Riwayat', 'jenis_kelamin' => 'L']);
+        $this->actingAs($auth, 'sanctum')->postJson("/api/admin/pegawai/{$guru->id}/tempatkan", [
+            'jenjang' => 'MI',
+        ])->assertCreated();
+        $this->actingAs($auth, 'sanctum')->postJson('/api/admin/pegawai-keaktifan', [
+            'pegawai_id' => $guru->id, 'jenjang' => 'MI', 'tahun_ajaran' => '2026/2027',
+        ])->assertCreated();
+        $id = KeaktifanPegawai::first()->id;
+
+        // Hapus permanen: baris riwayat hilang, penempatan tetap ada.
+        $this->actingAs($auth, 'sanctum')->deleteJson("/api/admin/pegawai-keaktifan/{$id}")
+            ->assertOk()->assertJsonFragment(['pesan' => 'Keaktifan dihapus.']);
+        $this->assertSame(0, KeaktifanPegawai::count());
+        $this->assertSame(1, LembagaPegawai::where('pegawai_id', $guru->id)->count());
+
+        // ID yang sudah hilang → 404.
+        $this->actingAs($auth, 'sanctum')->deleteJson("/api/admin/pegawai-keaktifan/{$id}")
+            ->assertNotFound();
+    }
+
     public function test_import_potong_kering_dan_eksekusi(): void
     {
         $this->fixture();

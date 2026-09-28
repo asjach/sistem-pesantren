@@ -122,6 +122,7 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::post('pegawai-keaktifan', [KeaktifanPegawaiController::class, 'store'])->middleware('permission:pegawai.ubah');
         Route::post('pegawai-keaktifan/aktifkan-massal', [KeaktifanPegawaiController::class, 'aktifkanMassal'])->middleware('permission:pegawai.ubah');
         Route::post('pegawai-keaktifan/{keaktifan}/nonaktifkan', [KeaktifanPegawaiController::class, 'nonaktifkan'])->middleware('permission:pegawai.ubah');
+        Route::delete('pegawai-keaktifan/{keaktifan}', [KeaktifanPegawaiController::class, 'destroy'])->middleware('permission:pegawai.hapus');
 
         // Data Santri (101: master profil + import PPDB massal + foto/dokumen)
         Route::get('santri', [SantriController::class, 'index'])->middleware('permission:santri.lihat');
