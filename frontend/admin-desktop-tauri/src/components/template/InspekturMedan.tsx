@@ -5,6 +5,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { bacaAngka, teksMm } from '@/lib/template/satuan';
+import { kunciAset, type AsetDokumen } from '@/lib/template/tipe';
 import {
   FONT_PDF,
   RATA,
@@ -24,6 +25,8 @@ interface InspekturMedanProps {
   katalog: KatalogNilai | null;
   /** Jumlah halaman berkas, untuk membatasi pilihan halaman. */
   jumlahHalaman: number;
+  /** Pustaka aset, dipakai ketika medan menunjuk sumber Aset Dokumen. */
+  aset?: AsetDokumen[];
   onUbah: (id: string, ubah: Partial<Medan>) => void;
   onUbahGaya: (id: string, gaya: Partial<GayaMedan>) => void;
   onHapus: (id: string) => void;
@@ -51,6 +54,7 @@ export default function InspekturMedan({
   medan,
   katalog,
   jumlahHalaman,
+  aset = [],
   onUbah,
   onUbahGaya,
   onHapus,
@@ -385,7 +389,27 @@ export default function InspekturMedan({
             {sumber?.catatan && <FieldDescription>{sumber.catatan}</FieldDescription>}
           </div>
 
-          {sumber && (
+          {medan.sumber === 'aset' && (
+            <div>
+              <FieldLabel htmlFor="pilih_aset_medan">Aset</FieldLabel>
+              <ComboCari
+                id="pilih_aset_medan"
+                value={medan.kunci ?? ''}
+                onChange={(kunci) => onUbah(medan.id, { kunci: kunci || null })}
+                options={[
+                  { value: '', label: 'Pilih aset' },
+                  ...aset.map((satu) => ({ value: kunciAset(satu.id), label: satu.nama })),
+                ]}
+                className="w-full"
+                kosongText={aset.length === 0 ? 'Pustaka aset masih kosong.' : undefined}
+              />
+              <FieldDescription>
+                Logo, kop, stempel, atau tanda tangan dari pustaka aset.
+              </FieldDescription>
+            </div>
+          )}
+
+          {sumber && medan.sumber !== 'aset' && (
             <div>
               <FieldLabel htmlFor="pilih_kunci_medan">Medan</FieldLabel>
               <ComboCari

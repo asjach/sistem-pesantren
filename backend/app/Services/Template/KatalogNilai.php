@@ -209,6 +209,17 @@ class KatalogNilai
                 ],
             ],
 
+            'aset' => [
+                'label' => 'Aset Dokumen',
+                'kelompok' => 'Lain-lain',
+                'pilih_data' => null,
+                'catatan' => 'Logo, kop, stempel, atau tanda tangan dari pustaka aset. Dipilih di desainer, bukan dari daftar ini.',
+                // Daftar aset berasal dari basis data dan bisa bertambah kapan
+                // saja, jadi tidak bisa ditulis sebagai daftar kunci di sini.
+                // Kunci medan dibentuk sebagai "aset:<id>" oleh desainer.
+                'medan' => [],
+            ],
+
             'sistem' => [
                 'label' => 'Sistem',
                 'kelompok' => 'Lain-lain',
@@ -394,5 +405,47 @@ class KatalogNilai
     public static function dikenal(string $kunci): bool
     {
         return array_key_exists($kunci, self::sumber()) || array_key_exists($kunci, self::koleksi());
+    }
+
+    /**
+     * Awal kunci medan yang menunjuk satu aset, misalnya "aset:12".
+     *
+     * Aset tidak bisa ditulis sebagai daftar kunci di sumber() karena
+     * bertambah dan berkurang mengikuti isi pustaka. Karena itu kuncinya
+     * membawa nomor aset, dan satu tempat ini menjadi kesepakatan antara
+     * desainer di frontend dan resolver di backend.
+     */
+    public const AWAL_KUNCI_ASET = 'aset:';
+
+    public static function kunciAset(int $id): string
+    {
+        return self::AWAL_KUNCI_ASET.$id;
+    }
+
+    /**
+     * Sumber yang medannya tidak bisa ditulis sebagai daftar tetap karena
+     * berasal dari isi basis data.
+     *
+     * Daftar aset bertambah mengikuti pustaka aset, jadi tidak bisa ditulis di sini
+     * seperti nama atau tanggal. Pengecualian ini disebut eksplisit supaya
+     * pemeriksaan katalog tidak perlu menghafal nama sumbernya.
+     *
+     * @return list<string>
+     */
+    public static function sumberDinamis(): array
+    {
+        return ['aset'];
+    }
+
+    /** Nomor aset dari kunci medan, atau null bila bukan kunci aset. */
+    public static function idAsetDariKunci(?string $kunci): ?int
+    {
+        if ($kunci === null || ! str_starts_with($kunci, self::AWAL_KUNCI_ASET)) {
+            return null;
+        }
+
+        $id = substr($kunci, strlen(self::AWAL_KUNCI_ASET));
+
+        return ctype_digit($id) && (int) $id > 0 ? (int) $id : null;
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Services\Template;
 
+use App\Models\AsetDokumen;
 use App\Models\TemplateDokumen;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -91,10 +92,25 @@ abstract class PencetakMedan
     {
         $sumber = (string) ($medan['sumber'] ?? '');
 
+        // Aset dibaca dari pustaka aset, bukan dari nilai medan. Kuncinya
+        // "aset:<id>" sehingga gambar tetap milik template walau tabelnya
+        // berubah.
         if ($sumber === 'aset') {
-            $nilai = $this->pengisi->untuk('tetap')['teks'] ?? null;
+            $id = KatalogNilai::idAsetDariKunci((string) ($medan['kunci'] ?? ''));
 
-            return is_string($nilai) && is_file($nilai) ? $nilai : null;
+            if ($id === null) {
+                return null;
+            }
+
+            $aset = AsetDokumen::find($id);
+
+            if ($aset === null) {
+                return null;
+            }
+
+            $penuh = Storage::disk(AsetGambar::DISK)->path($aset->path);
+
+            return is_file($penuh) ? $penuh : null;
         }
 
         $nilai = $this->nilaiMedan($medan);
@@ -103,7 +119,7 @@ abstract class PencetakMedan
             return null;
         }
 
-        $penuh = Storage::disk('local')->path((string) $nilai);
+        $penuh = Storage::disk(AsetGambar::DISK)->path((string) $nilai);
 
         return is_file($penuh) ? $penuh : null;
     }

@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 
 import { errorMessage } from '@/api/client';
 import { bisa } from '@/api/auth';
+import { listAset } from '@/api/asetDokumen';
 import { ambilKatalogNilai, ambilTemplate, updateTemplate } from '@/api/templateDokumen';
 import { useAuth } from '@/auth/AuthContext';
 import { ErrorNotice } from '@/components/PageHeader';
@@ -33,6 +34,7 @@ import { mmKePx } from '@/lib/template/satuan';
 import {
   TIPE_MEDAN,
   type GayaMedan,
+  type AsetDokumen,
   type KatalogNilai,
   type KategoriTemplate,
   type Medan,
@@ -71,6 +73,7 @@ export default function TemplateHtmlPage() {
   const [jumlahHalaman, setJumlahHalaman] = useState(1);
   const [ukuran, setUkuran] = useState<UkuranHalaman>(ukuranA4());
   const [katalog, setKatalog] = useState<KatalogNilai | null>(null);
+  const [aset, setAset] = useState<AsetDokumen[]>([]);
   const [medan, setMedan] = useState<Medan[]>([]);
   const [halaman, setHalaman] = useState(1);
   const [zoom, setZoom] = useState(1);
@@ -94,7 +97,14 @@ export default function TemplateHtmlPage() {
     setGalat(null);
 
     try {
-      const [template, katalogNilai] = await Promise.all([ambilTemplate(templateId), ambilKatalogNilai()]);
+      // Pustaka aset dimuat bersama karena medan logo maupun stempel memilih
+      // dari sana. Kegagalan memuat aset tidak boleh menggagalkan seluruh
+      // desainer; medannya tetap bisa disusun tanpa aset.
+      const [template, katalogNilai, daftarAset] = await Promise.all([
+        ambilTemplate(templateId),
+        ambilKatalogNilai(),
+        listAset({ per_page: 100 }).then((r) => r.data).catch(() => [] as AsetDokumen[]),
+      ]);
 
       if (template.jenis !== 'html') {
         setGalat('Template ini memakai PDF eksternal. Susun medannya dari daftar template.');
@@ -106,6 +116,7 @@ export default function TemplateHtmlPage() {
       setJumlahHalaman(Math.max(1, template.jumlah_halaman));
       setUkuran(template.halaman[0] ?? ukuranA4());
       setKatalog(katalogNilai);
+      setAset(daftarAset);
 
       const medanAwal = normalisasiDefinisi(template.definisi).medan;
       setMedan(medanAwal);
@@ -123,6 +134,27 @@ export default function TemplateHtmlPage() {
       void muat();
     }
   }, [muat, templateId]);
+
+  /**
+   * Nilai contoh semua medan, dikelompokkan per kunci medan.
+   *
+   * Kunci antar sumber tidak pernah sama, jadi tidak perlu nama sumbernya.
+   * Ini membuat isi yang akan tercetak terlihat di kanvas tanpa perlu
+   * mencetak dokumen lebih dulu.
+   */
+  const contoh = useMemo(() => {
+    const hasil: Record<string, string> = {};
+
+    for (const sumber of katalog?.sumber ?? []) {
+      for (const satu of sumber.medan) {
+        if (satu.contoh !== null && satu.contoh !== undefined) {
+          hasil[satu.kunci] = String(satu.contoh);
+        }
+      }
+    }
+
+    return hasil;
+  }, [katalog]);
 
   const lebarPx = useMemo(() => Math.round(mmKePx(ukuran.lebar_mm, zoom)), [ukuran.lebar_mm, zoom]);
   const tinggiPx = Math.round((lebarPx * ukuran.tinggi_mm) / ukuran.lebar_mm);
@@ -371,6 +403,7 @@ export default function TemplateHtmlPage() {
                   onKotak={ubahKotak}
                   onGaris={setGaris}
                   modeBaca={!bolehUbah}
+                  contoh={contoh}
                 />
 
                 {garis &&
@@ -404,6 +437,7 @@ export default function TemplateHtmlPage() {
           <InspekturMedan
             medan={terpilihMedan}
             katalog={katalog}
+            aset={aset}
             jumlahHalaman={jumlahHalaman}
             modeBaca={!bolehUbah}
             onUbah={(medanId, ubah) => terapkan(gantiMedan(medan, medanId, ubah), false, true)}

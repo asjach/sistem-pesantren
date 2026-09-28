@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { DESKRIPSI_JENIS, JENIS_TEMPLATE, LABEL_JENIS } from './tipe';
+import { AWAL_KUNCI_ASET, DESKRIPSI_JENIS, idAsetDariKunci, JENIS_TEMPLATE, kunciAset, LABEL_JENIS } from './tipe';
 
 describe('jenis template', () => {
   it('mencakup dua cara membuat halaman cetak', () => {
@@ -26,4 +26,20 @@ describe('jenis template', () => {
     expect(DESKRIPSI_JENIS.html.toLowerCase()).toContain('kanvas');
   });
 
+
+  it('membentuk kunci aset dari nomor aset', () => {
+    expect(AWAL_KUNCI_ASET).toBe('aset:');
+    expect(kunciAset(12)).toBe('aset:12');
+    expect(idAsetDariKunci('aset:12')).toBe(12);
+  });
+
+  it('menolak kunci yang bukan aset', () => {
+    // Salah baca di sini membuat berkas aset yang salah yang tercetak, jadi
+    // bentuk yang bukan aset harus ditolak, bukan dianggap nomor.
+    const salah = [null, undefined, '', 'nama_lengkap', 'aset:', 'aset:abc', 'aset:0', 'aset:-3', 'aset:1.5', 'ASET:7'];
+
+    for (const satu of salah) {
+      expect(idAsetDariKunci(satu)).toBeNull();
+    }
+  });
 });

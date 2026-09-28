@@ -118,6 +118,11 @@ class TemplateDokumenTest extends TestCase
         $semua = array_merge($katalog['sumber'], $katalog['koleksi']);
 
         foreach ($semua as $sumber) {
+            if (in_array($sumber['kunci'], KatalogNilai::sumberDinamis(), true)) {
+                // Medannya berasal dari isi basis data, bukan dari daftar tetap.
+                continue;
+            }
+
             $this->assertNotEmpty($sumber['medan'], "{$sumber['kunci']} tidak punya medan");
 
             foreach ($sumber['medan'] as $medan) {
@@ -147,7 +152,7 @@ class TemplateDokumenTest extends TestCase
         $katalog = KatalogNilai::untukFrontend();
 
         foreach ($katalog['sumber'] as $sumber) {
-            $bolehKosong = in_array($sumber['kunci'], ['tetap', 'sistem'], true);
+            $bolehKosong = $sumber['pilih_data'] === null;
 
             if ($bolehKosong) {
                 $this->assertNull($sumber['pilih_data'], "{$sumber['kunci']} seharusnya tidak memilih data");
@@ -155,5 +160,30 @@ class TemplateDokumenTest extends TestCase
                 $this->assertNotNull($sumber['pilih_data'], "{$sumber['kunci']} harus menunjuk data yang dipilih");
             }
         }
+    }
+
+    public function test_kunci_aset_berbentuk_aset_dan_nomor(): void
+    {
+        $this->assertSame('aset:12', KatalogNilai::kunciAset(12));
+        $this->assertSame(12, KatalogNilai::idAsetDariKunci('aset:12'));
+        $this->assertSame(1, KatalogNilai::idAsetDariKunci('aset:1'));
+    }
+
+    public function test_kunci_bukan_aset_tidak_dianggap_sebagai_aset(): void
+    {
+        // Salah baca di sini membuat berkas aset yang salah yang tercetak, jadi
+        // bentuk yang bukan aset harus ditolak, bukan dianggap id.
+        foreach ([null, '', 'nama_lengkap', 'aset:', 'aset:abc', 'aset:0', 'aset:-3', 'aset:1.5', 'ASET:7', 'xaset:7'] as $salah) {
+            $this->assertNull(
+                KatalogNilai::idAsetDariKunci($salah),
+                'Kunci '.var_export($salah, true).' tidak boleh dianggap aset.',
+            );
+        }
+    }
+
+    public function test_aset_terdaftar_sebagai_sumber_katalog(): void
+    {
+        $this->assertTrue(KatalogNilai::dikenal('aset'));
+        $this->assertContains('aset', KatalogNilai::sumberDinamis());
     }
 }

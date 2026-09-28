@@ -27,6 +27,11 @@ interface LapisanMedanProps {
   onGaris: (garis: { x: number[]; y: number[] } | null) => void;
   /** Mode baca: kotak tidak bisa digeser dan pegangan resize disembunyikan. */
   modeBaca?: boolean;
+  /**
+   * Nilai contoh per "sumber.kunci" untuk setiap medan, supaya isi yang akan
+   * tercetak terlihat langsung di kanvas tanpa perlu mencetak lebih dulu.
+   */
+  contoh?: Record<string, string>;
 }
 
 function kotakDari(medan: Medan): Kotak {
@@ -44,6 +49,7 @@ export default function LapisanMedan({
   onKotak,
   onGaris,
   modeBaca = false,
+  contoh,
 }: LapisanMedanProps) {
   const seretRef = useRef<{ id: string; mulaiX: number; mulaiY: number; kotak: Kotak } | null>(null);
 
@@ -173,6 +179,12 @@ export default function LapisanMedan({
               <span className="pointer-events-none absolute -top-4 left-0 max-w-full truncate text-[10px] leading-none text-primary">
                 {m.label}
               </span>
+
+              {contoh?.[m.kunci ?? ''] && (
+                <span className="pointer-events-none block truncate text-[11px] leading-tight text-muted-foreground">
+                  {contoh[m.kunci ?? '']}
+                </span>
+              )}
 
               {!modeBaca &&
                 dipilih &&

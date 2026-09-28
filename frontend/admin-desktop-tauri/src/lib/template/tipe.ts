@@ -206,6 +206,30 @@ export interface KatalogNilai {
 
 /* ------------------------------------------------------------------ aset */
 
+/**
+ * Awal kunci medan gambar yang menunjuk satu aset, misalnya "aset:12".
+ *
+ * Daftar aset bertambah mengikuti isi pustaka, jadi tidak bisa ditulis sebagai daftar kunci
+ * di katalog. Kuncinya membawa nomor aset. Harus sama dengan
+ * App\Services\Template\KatalogNilai::AWAL_KUNCI_ASET di backend.
+ */
+export const AWAL_KUNCI_ASET = 'aset:';
+
+export function kunciAset(id: number): string {
+  return `${AWAL_KUNCI_ASET}${id}`;
+}
+
+/** Nomor aset dari kunci medan, atau null bila bukan kunci aset. */
+export function idAsetDariKunci(kunci: string | null | undefined): number | null {
+  if (!kunci?.startsWith(AWAL_KUNCI_ASET)) {
+    return null;
+  }
+
+  const id = kunci.slice(AWAL_KUNCI_ASET.length);
+
+  return /^\d+$/.test(id) && Number(id) > 0 ? Number(id) : null;
+}
+
 export interface AsetDokumen {
   id: number;
   nama: string;

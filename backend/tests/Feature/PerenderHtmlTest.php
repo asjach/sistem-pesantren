@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\AsetDokumen;
 use App\Models\Kelas;
 use App\Models\Lembaga;
 use App\Models\LembagaSantri;
@@ -9,6 +10,7 @@ use App\Models\Santri;
 use App\Models\TahunAjaran;
 use App\Models\TemplateDokumen;
 use App\Models\User;
+use App\Services\Template\KatalogNilai;
 use App\Services\Template\KonteksCetak;
 use App\Services\Template\LebarHuruf;
 use App\Services\Template\PengisiNilai;
@@ -196,28 +198,38 @@ class PerenderHtmlTest extends TestCase
 
     public function test_semua_tipe_medan_berhasil_dirender_tanpa_gagal(): void
     {
+        $aset = AsetDokumen::create([
+            'nama' => 'Stempel Madrasah', 'path' => 'aset/stempel.png', 'mime' => 'image/png',
+            'lebar_px' => 1, 'tinggi_px' => 1, 'ukuran_byte' => 68,
+        ]);
         Storage::disk('local')->put('aset/stempel.png', $this->gambarPng());
 
         $pdf = $this->cetak(['medan' => [
             ['tipe' => 'teks', 'label' => 'Nama', 'halaman' => 1, 'x' => 20, 'y' => 20, 'w' => 120, 'h' => 8, 'sumber' => 'tetap', 'kunci' => 'teks', 'gaya' => ['ukuran' => 12]],
             ['tipe' => 'paragraf', 'label' => 'Teks', 'halaman' => 1, 'x' => 20, 'y' => 40, 'w' => 170, 'h' => 30, 'sumber' => 'tetap', 'kunci' => 'teks', 'gaya' => ['ukuran' => 10]],
-            ['tipe' => 'gambar', 'label' => 'Logo', 'halaman' => 1, 'x' => 20, 'y' => 80, 'w' => 30, 'h' => 15, 'sumber' => 'aset', 'kunci' => 'path', 'gaya' => ['ukuran' => 10]],
+            ['tipe' => 'gambar', 'label' => 'Logo', 'halaman' => 1, 'x' => 20, 'y' => 80, 'w' => 30, 'h' => 15, 'sumber' => 'aset', 'kunci' => KatalogNilai::kunciAset($aset->id), 'gaya' => ['ukuran' => 10]],
             ['tipe' => 'centang', 'label' => 'Centang', 'halaman' => 1, 'x' => 60, 'y' => 80, 'w' => 6, 'h' => 6, 'sumber' => 'tetap', 'kunci' => 'teks', 'bawa' => 'NAMA SANTRI UJI', 'huruf' => 'X', 'huruf_kosong' => ' ', 'gaya' => ['ukuran' => 11]],
             ['tipe' => 'tanda_tangan', 'label' => 'Ttd', 'halaman' => 1, 'x' => 120, 'y' => 100, 'w' => 40, 'h' => 20, 'gaya' => ['ukuran' => 10]],
             ['tipe' => 'halaman_otomatis', 'label' => 'Hal', 'halaman' => 1, 'x' => 20, 'y' => 120, 'w' => 40, 'h' => 6, 'format' => 'Hal {halaman}/{jumlah}', 'gaya' => ['ukuran' => 9]],
-        ]], tetapTeks: Storage::disk('local')->path('aset/stempel.png'));
+        ]]);
 
         $this->assertStringStartsWith('%PDF-', $pdf);
         $this->assertStringContainsString('%%EOF', $pdf);
 
         // Tanda tangan memang sengaja tidak digambar, jadi hanya lima tipe
         // lain yang menghasilkan kotak.
-        // Teks, paragraf, centang, dan nomor halaman menggambar kotak potong.
-        // Gambar tidak memakainya, dan tanda tangan memang dilewati, jadi
-        // jumlah kotak di sini tepat empat.
-        $this->assertCount(4, $this->kotakTeras($pdf), 'Empat tipe berbasis teks harus menggambar kotak.');
+        // Tanda tangan memang dilewati, jadi enam tipe lain harus
+        // menggambar kotak potong, gambar ikut termasuk.
+        $kotak = $this->kotakTeras($pdf);
+        $this->assertCount(5, $kotak, 'Lima tipe selain tanda tangan harus menggambar kotak.');
 
-        // Gambar disematkan sebagai objek gambar, bukan kotak potong.
+        // Kotak gambar harus ikut bergeser bersama halaman.
+        $kotakGambar = array_values(array_filter($kotak, fn (array $s): bool => $s['w'] < 40.0 && $s['h'] < 20.0));
+        $this->assertNotEmpty($kotakGambar, 'Medan gambar harus punya kotak sendiri.');
+        $this->assertEqualsWithDelta(30.0, $kotakGambar[0]['w'], 0.3);
+        $this->assertEqualsWithDelta(15.0, $kotakGambar[0]['h'], 0.3);
+
+        // Gambar disematkan sebagai objek gambar di dalam kotak itu.
         $this->assertStringContainsString('/Subtype /Image', $pdf, 'Medan gambar harus tertanam di PDF.');
     }
 
