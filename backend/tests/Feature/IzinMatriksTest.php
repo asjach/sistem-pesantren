@@ -46,7 +46,13 @@ class IzinMatriksTest extends TestCase
         $unik = strtoupper(substr(uniqid(), -5));
         // Nama TA unik per panggilan namun tetap pola YYYY/YYYY (9 char,
         // sesuai varchar kolom `nama` — MySQL menegakkan panjang).
+        // Tahun harus benar-benar unique: `nama` punya UNIQUE constraint, dan
+        // dua panggilan berdekatan bisa mendapat dua digit heksadesimal yang
+        // sama dari uniqid() sehingga namanya kebetulan kembar.
         $thn = 2026 + (intval(substr($unik, -2), 16) % 40);
+        while (TahunAjaran::where('nama', sprintf('%04d/%04d', $thn, $thn + 1))->exists()) {
+            $thn++;
+        }
         $namaTa = sprintf('%04d/%04d', $thn, $thn + 1);
         $root = Lembaga::create([
             'nama' => 'Pesantren Root', 'jenjang' => 'PESANTREN'.$unik,
