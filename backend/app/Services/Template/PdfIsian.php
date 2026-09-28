@@ -2,9 +2,7 @@
 
 namespace App\Services\Template;
 
-use App\Models\TemplateDokumen;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use setasign\Fpdi\PdfParser\CrossReference\CrossReferenceException;
 use setasign\Fpdi\PdfParser\PdfParserException;
 use setasign\Fpdi\PdfParser\Type\PdfTypeException;
@@ -18,14 +16,8 @@ use setasign\Fpdi\PdfParser\Type\PdfTypeException;
  * ada HTML yang digenerate, seluruh keterbatasan CSS dompdf tidak relevan di
  * sini.
  */
-class PdfIsian
+class PdfIsian extends PencetakMedan
 {
-    public function __construct(
-        private readonly TemplateDokumen $template,
-        private readonly PengisiNilai $pengisi,
-        private readonly KonteksCetak $konteks,
-    ) {}
-
     /**
      * Hasil PDF dalam bentuk byte.
      *
@@ -77,13 +69,6 @@ class PdfIsian
         }
 
         return $pdf->Output('isi.pdf', 'S');
-    }
-
-    public function namaBerkas(string $akhiran = '.pdf'): string
-    {
-        $dasar = Str::slug($this->template->nama);
-
-        return ($dasar !== '' ? $dasar : 'template').'-'.now()->format('Ymd-His').$akhiran;
     }
 
     /**
@@ -264,100 +249,6 @@ class PdfIsian
                 $pdf->Cell((float) $kolom['w'], $tinggiBaris, $teks, 0, 0, $gaya['rata'], false, '', 0, false, 'L', 'M');
             }
         }
-    }
-
-    /**
-     * @param  array<string, mixed>  $kolom
-     * @param  array<string, mixed>  $baris
-     */
-    private function teksKolom(array $kolom, array $baris, int $urut): string
-    {
-        $sumber = (string) ($kolom['sumber'] ?? 'baris');
-        $kunci = (string) ($kolom['kunci'] ?? '');
-
-        // 'tetap' berarti isi kolom tidak bergantung pada baris data; kunci
-        // no_urut diisi nomor baris supaya tabel selalu bertanggal.
-        if ($sumber === 'tetap') {
-            return $kunci === 'no_urut' ? (string) $urut : $kunci;
-        }
-
-        $mentah = $baris[$kunci] ?? null;
-
-        return $mentah === null ? '' : (string) $mentah;
-    }
-
-    /**
-     * @param  array<string, mixed>  $medan
-     */
-    private function teks(array $medan): string
-    {
-        $nilai = $this->nilaiMedan($medan);
-
-        if ($nilai === null) {
-            return '';
-        }
-
-        $teks = $nilai instanceof \BackedEnum ? (string) $nilai->value : (string) $nilai;
-        $gaya = $medan['gaya'];
-
-        if ($gaya['huruf_besar']) {
-            $teks = mb_strtoupper($teks);
-        }
-
-        // Panjang dibatasi agar satu nilai anomalous tidak merusak dokumen.
-        return mb_substr($teks, 0, 4000);
-    }
-
-    /** @return array<string, mixed>|null */
-    private function nilaiMedan(array $medan): mixed
-    {
-        $sumber = (string) ($medan['sumber'] ?? '');
-        $kunci = (string) ($medan['kunci'] ?? '');
-
-        if ($sumber === '' || $kunci === '' || ! KatalogNilai::dikenal($sumber)) {
-            return null;
-        }
-
-        $nilai = $this->pengisi->untuk($sumber, $this->idUntukSumber($sumber));
-
-        return $nilai[$kunci] ?? null;
-    }
-
-    /** Sumber yang menunjuk satu record memakai id yang dikontekskan. */
-    private function idUntukSumber(string $sumber): ?int
-    {
-        $pilih = KatalogNilai::sumber()[$sumber]['pilih_data'] ?? null;
-
-        return match ($pilih) {
-            'santri' => $this->konteks->idSantri,
-            'pegawai' => $this->konteks->idPegawai,
-            'lembaga' => $this->konteks->jenjang !== null ? 1 : null,
-            default => null,
-        };
-    }
-
-    /**
-     * @param  array<string, mixed>  $medan
-     */
-    private function jalurGambarMedan(array $medan): ?string
-    {
-        $sumber = (string) ($medan['sumber'] ?? '');
-
-        if ($sumber === 'aset') {
-            $nilai = $this->pengisi->untuk('tetap')['teks'] ?? null;
-
-            return is_string($nilai) && is_file($nilai) ? $nilai : null;
-        }
-
-        $nilai = $this->nilaiMedan($medan);
-
-        if ($nilai === null || $nilai === '') {
-            return null;
-        }
-
-        $penuh = Storage::disk('local')->path((string) $nilai);
-
-        return is_file($penuh) ? $penuh : null;
     }
 
     private function jalurTemplate(): string

@@ -16,6 +16,7 @@ use App\Services\Template\DokumenPdf;
 use App\Services\Template\KatalogNilai;
 use App\Services\Template\PdfIsian;
 use App\Services\Template\PengisiNilai;
+use App\Services\Template\PerenderHtml;
 use App\Services\Template\TemplatePdfTidakValidException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -250,10 +251,15 @@ class TemplateDokumenController extends Controller
     {
         $this->pastikanTerlihat($request, $template);
 
-        $medan = DefinisiMedan::normalisasi($template->definisi ?? [], (int) $template->jumlah_halaman);
         $konteks = $request->konteks($this->jenjangKonteks($request));
+        $pengisi = new PengisiNilai($konteks);
 
-        $generator = new PdfIsian($template, new PengisiNilai($konteks), $konteks);
+        // Dua jenis template memakai dua mesin cetak. Pemilihannya di satu
+        // tempat supaya tidak ada endpoint yang diam-diam memakai renderer
+        // yang salah untuk jenis template tertentu.
+        $generator = $template->jenis === TemplateDokumen::JENIS_HTML
+            ? new PerenderHtml($template, $pengisi, $konteks)
+            : new PdfIsian($template, $pengisi, $konteks);
 
         try {
             $isi = $generator->hasil();
