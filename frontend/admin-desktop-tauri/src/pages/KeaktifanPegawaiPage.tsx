@@ -50,7 +50,7 @@ function nilaiBaris(r: KeaktifanPegawai): Record<string, string | null> {
     lembaga: r.lembaga?.jenjang ?? r.jenjang,
     ta: r.tahun_ajaran,
     tugas: r.tugas_utama,
-    status: r.status_keaktifan === 'aktif' ? 'ya' : 'tidak',
+    status: r.status_keaktifan === 'Ya' ? 'ya' : 'tidak',
     no_sk: r.no_sk,
     tgl_sk: r.tgl_sk,
   };
@@ -123,7 +123,7 @@ export default function KeaktifanPegawaiPage() {
         pegawai_id: r.pegawai_id,
         jenjang: r.jenjang,
         tahun_ajaran: r.tahun_ajaran,
-        status_keaktifan: 'aktif',
+        status_keaktifan: 'Ya',
       });
     } else {
       await nonaktifkanKeaktifan(r.id);
@@ -154,7 +154,7 @@ export default function KeaktifanPegawaiPage() {
         // Bila status ikut berubah dalam batch yang sama, kirim eksplisit —
         // endpoint store berstatus bawaan `aktif` sehingga tanpa ini toggle
         // padam akan tertimpa jadi aktif.
-        ...(f.status !== undefined ? { status_keaktifan: f.status === 'ya' ? 'aktif' : 'inaktif' } : {}),
+        ...(f.status !== undefined ? { status_keaktifan: f.status === 'ya' ? 'Ya' : 'Tidak' } : {}),
       });
       return;
     }
@@ -163,7 +163,7 @@ export default function KeaktifanPegawaiPage() {
 
   const renderActions = useCallback((r: KeaktifanPegawai) => (
     <>
-      {canUbah && r.status_keaktifan === 'aktif' && (
+      {canUbah && r.status_keaktifan === 'Ya' && (
         <ActionIcon
           id={`btn_nonaktif_keaktifan_${r.id}`}
           title="Nonaktifkan"
@@ -266,8 +266,8 @@ export default function KeaktifanPegawaiPage() {
               <SelectContent>
                 <SelectGroup>
                   <SelectItem value="semua">Semua status</SelectItem>
-                  <SelectItem value="aktif">Aktif</SelectItem>
-                  <SelectItem value="inaktif">Inaktif</SelectItem>
+                  <SelectItem value="Ya">Aktif</SelectItem>
+                  <SelectItem value="Tidak">Inaktif</SelectItem>
                 </SelectGroup>
               </SelectContent>
             </Select>

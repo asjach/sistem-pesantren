@@ -710,7 +710,7 @@ Standar tampilan per lembaga (tema/tipografi/grid/preset aktif), disebar super_a
 - `jenjang`: FK → lembaga [cascade]
 - `tahun_ajaran`: varchar(9) FK → tahun_ajaran.nama [cascade update + delete]
 - `tugas_utama`: string [default 'Guru Pengampu'] — ref_tugas_utama
-- `status_keaktifan`: enum(aktif|inaktif) [default 'aktif']
+- `status_keaktifan`: enum(Ya|Tidak) [default 'Ya'] — seragam dengan kolom status boolean lain; nilai lama 'aktif'/'inaktif' dinormalisasi oleh migrasi 2026_09_29_080000
 - `created_at`, `updated_at`
 - UNIQUE(`pegawai_id`, `jenjang`, `tahun_ajaran`, `uq_keaktifan_pegawai_plt`) — nama pendek: auto-name 61 char, margin aman dari limit 64
 - ATURAN: tulis hanya bila baris `lembaga_pegawai` ada; dropdown walas mensyaratkan penempatan aktif + keaktifan aktif + status pegawai aktif.

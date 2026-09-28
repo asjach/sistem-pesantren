@@ -60,7 +60,7 @@ class KeaktifanTemplateExport extends DefaultValueBinder implements FromArray, W
     {
         return [[
             '', 'PST-001', '', 'MI', '2025/2026',
-            'Guru Kelas', 'Aktif', 'SK/001/2025', '2025-07-01',
+            'Guru Kelas', 'Ya', 'SK/001/2025', '2025-07-01',
         ]];
     }
 
@@ -95,7 +95,7 @@ class KeaktifanTemplateExport extends DefaultValueBinder implements FromArray, W
 
                 $opsi = [
                     'jenjang' => ['MI', 'MD', 'MTS', 'MA', 'MLN'],
-                    'status_keaktifan' => ['Aktif', 'Inaktif'],
+                    'status_keaktifan' => ['Ya', 'Tidak'],
                 ];
                 $colSumber = 1;
                 foreach ($opsi as $nama => $nilai) {

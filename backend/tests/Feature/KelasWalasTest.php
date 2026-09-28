@@ -64,7 +64,7 @@ class KelasWalasTest extends TestCase
         ]);
     }
 
-    protected function tugaskan(Pegawai $p, string $jenjang, string $ta, string $status = 'aktif'): void
+    protected function tugaskan(Pegawai $p, string $jenjang, string $ta, string $status = 'Ya'): void
     {
         LembagaPegawai::create([
             'pegawai_id' => $p->id, 'jenjang' => $jenjang,

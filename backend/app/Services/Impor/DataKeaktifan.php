@@ -12,8 +12,8 @@ use Illuminate\Database\Eloquent\Builder;
  * mengirim data; berkas Excel disusun di browser). Kolom SAMA PERSIS dengan
  * template import; kunci baris: pegawai/nipp + jenjang + tahun ajaran.
  *
- * `status_keaktifan` dikirim sebagai LABEL (Aktif/Inaktif) — import
- * menerima label maupun kode kanonis. Baris posisional sejajar `kolom`.
+ * `status_keaktifan` dikirim sebagai nilai kanonis ('Ya'/'Tidak') — import
+ * juga menerima alias (Aktif/Inaktif/1/0). Baris posisional sejajar `kolom`.
  */
 class DataKeaktifan
 {
@@ -46,7 +46,7 @@ class DataKeaktifan
             (string) $r->jenjang,
             (string) $r->tahun_ajaran,
             (string) ($r->tugas_utama ?? ''),
-            $r->status_keaktifan === KeaktifanPegawai::INAKTIF ? 'Inaktif' : 'Aktif',
+            $r->status_keaktifan === KeaktifanPegawai::INAKTIF ? 'Tidak' : 'Ya',
             (string) ($r->no_sk ?? ''),
             $this->teks($r->tgl_sk),
         ])->all();

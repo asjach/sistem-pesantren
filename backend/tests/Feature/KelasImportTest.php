@@ -231,13 +231,13 @@ class KelasImportTest extends TestCase
         LembagaPegawai::create(['pegawai_id' => $guru->id, 'jenjang' => $f['mi']->jenjang]);
         KeaktifanPegawai::create([
             'pegawai_id' => $guru->id, 'jenjang' => $f['mi']->jenjang,
-            'tahun_ajaran' => $f['ta']->nama, 'status_keaktifan' => 'aktif',
+            'tahun_ajaran' => $f['ta']->nama, 'status_keaktifan' => 'Ya',
         ]);
         $cuti = Pegawai::create(['nama_lengkap' => 'Guru Cuti', 'jenis_kelamin' => 'L', 'nip' => 'NIP102', 'status_aktif' => 'Tidak']);
         LembagaPegawai::create(['pegawai_id' => $cuti->id, 'jenjang' => $f['mi']->jenjang]);
         KeaktifanPegawai::create([
             'pegawai_id' => $cuti->id, 'jenjang' => $f['mi']->jenjang,
-            'tahun_ajaran' => $f['ta']->nama, 'status_keaktifan' => 'aktif',
+            'tahun_ajaran' => $f['ta']->nama, 'status_keaktifan' => 'Ya',
         ]);
         Pegawai::create(['nama_lengkap' => 'Guru Kembar', 'jenis_kelamin' => 'L']);
         Pegawai::create(['nama_lengkap' => 'Guru Kembar', 'jenis_kelamin' => 'P']);
@@ -269,7 +269,7 @@ class KelasImportTest extends TestCase
         LembagaPegawai::create(['pegawai_id' => $guru->id, 'jenjang' => $f['mi']->jenjang]);
         KeaktifanPegawai::create([
             'pegawai_id' => $guru->id, 'jenjang' => $f['mi']->jenjang,
-            'tahun_ajaran' => $f['ta']->nama, 'status_keaktifan' => 'aktif',
+            'tahun_ajaran' => $f['ta']->nama, 'status_keaktifan' => 'Ya',
         ]);
         Kelas::create([
             'jenjang' => $f['mi']->jenjang, 'tahun_ajaran' => $f['ta']->nama,

@@ -113,7 +113,7 @@ class ImportPotongKeaktifanTest extends TestCase
         $baris = $res->json('baris.0');
         $this->assertSame('MI', $baris[3]);
         $this->assertSame('2026/2027', $baris[4]);
-        $this->assertSame('Aktif', $baris[6]);
+        $this->assertSame('Ya', $baris[6]);
     }
 
     public function test_03_periksa_kering_tanpa_menulis(): void
@@ -142,7 +142,7 @@ class ImportPotongKeaktifanTest extends TestCase
             'sesi_id' => $sesiId,
             'mode' => 'periksa',
             'terakhir' => true,
-            'baris' => [$this->baris(['nipp' => 'PST-002', 'status_keaktifan' => 'Inaktif'])],
+            'baris' => [$this->baris(['nipp' => 'PST-002', 'status_keaktifan' => 'Tidak'])],
         ])->assertStatus(200);
 
         $this->assertTrue((bool) $dua->json('selesai'));
@@ -184,7 +184,7 @@ class ImportPotongKeaktifanTest extends TestCase
 
         $row = KeaktifanPegawai::first();
         $this->assertSame('SK/9/2026', $row->no_sk);
-        $this->assertSame('inaktif', $row->status_keaktifan);
+        $this->assertSame('Tidak', $row->status_keaktifan);
         $this->assertSame('Guru Pengampu', $row->tugas_utama); // warisi penempatan
 
         // Sesi baru dengan baris identik (tanpa kolom terisi) = dilewati.
@@ -262,10 +262,10 @@ class ImportPotongKeaktifanTest extends TestCase
         $this->assertSame(1, $res->json('ringkasan.dibuat'));
         $this->assertSame(2, $res->json('ringkasan.baris_gagal'));
 
-        // Label/kapital/alias status diterima ('mts', 'TIDAK').
+        // Label/kapital/alias status diterima ('mts', 'TIDAK' → 'Tidak').
         $row = KeaktifanPegawai::first();
         $this->assertSame('MI', $row->jenjang);
-        $this->assertSame('aktif', $row->status_keaktifan);
+        $this->assertSame('Ya', $row->status_keaktifan);
     }
 
     public function test_07_izin_pegawai_ubah_diperlukan(): void

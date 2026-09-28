@@ -82,7 +82,7 @@ class KeaktifanImporService extends ImporPotongan
 
         $status = $this->normalisasiStatus($baris['status_keaktifan'] ?? null);
         if ($status === false) {
-            $this->fail($no, 'status_keaktifan', "Status '{$baris['status_keaktifan']}' tidak dikenal (isi Aktif/Inaktif).");
+            $this->fail($no, 'status_keaktifan', "Status '{$baris['status_keaktifan']}' tidak dikenal (isi Ya/Tidak).");
 
             return;
         }

@@ -287,7 +287,7 @@ class PegawaiModulTest extends TestCase
         $tempat = LembagaPegawai::untuk($guru->id, 'MI');
         $this->actingAs($auth, 'sanctum')->postJson("/api/admin/pegawai-lembaga/{$tempat->id}/nonaktifkan")
             ->assertOk();
-        $this->assertSame('inaktif', KeaktifanPegawai::first()->status_keaktifan);
+        $this->assertSame('Tidak', KeaktifanPegawai::first()->status_keaktifan);
         $this->actingAs($auth, 'sanctum')->getJson('/api/admin/pegawai/aktif?jenjang=MI&tahun_ajaran=2026/2027')
             ->assertOk()->assertJsonMissing(['nama_lengkap' => 'Walas']);
     }

@@ -21,7 +21,7 @@ class KeaktifanPegawaiStoreRequest extends FormRequest
             'tugas_utama' => ['nullable', 'string', 'max:100'],
             'no_sk' => ['nullable', 'string', 'max:100'],
             'tgl_sk' => ['nullable', 'date'],
-            'status_keaktifan' => ['nullable', 'in:aktif,inaktif'],
+            'status_keaktifan' => ['nullable', 'in:Ya,Tidak'],
         ];
     }
 }

@@ -16,9 +16,10 @@ class KeaktifanPegawai extends Model
         'tgl_sk' => 'date:Y-m-d',
     ];
 
-    public const AKTIF = 'aktif';
+    /** Nilai kanonis kolom status_keaktifan (ENUM Ya/Tidak, seragam dengan kolom status lain). */
+    public const AKTIF = 'Ya';
 
-    public const INAKTIF = 'inaktif';
+    public const INAKTIF = 'Tidak';
 
     public function pegawai(): BelongsTo
     {
