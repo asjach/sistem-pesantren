@@ -355,6 +355,52 @@ class TemplateDokumenApiTest extends TestCase
             ->assertJsonValidationErrors('tahun_ajaran');
     }
 
+    public function test_berkas_template_disajikan_untuk_editor(): void
+    {
+        $this->fixture();
+        $auth = $this->superAdmin();
+        $template = $this->template();
+
+        $res = $this->actingAs($auth, 'sanctum')
+            ->get('/api/admin/template-dokumen/'.$template->id.'/berkas')
+            ->assertOk();
+
+        $this->assertStringStartsWith('application/pdf', (string) $res->headers->get('Content-Type'));
+        // BinaryFileResponse tidak menahan isi di memori; isinya dibaca dari berkas.
+        $jalur = $res->baseResponse->getFile()?->getPathname();
+        $this->assertIsString($jalur);
+        $this->assertStringStartsWith('%PDF-', (string) file_get_contents($jalur));
+        // pdf.js membaca lewat Authorization, jadi tidak boleh disimpan di cache.
+        $this->assertStringContainsString('no-store', (string) $res->headers->get('Cache-Control'));
+    }
+
+    public function test_berkas_template_tanpa_berkas_menghasilkan_404(): void
+    {
+        $this->fixture();
+        $auth = $this->superAdmin();
+        $template = TemplateDokumen::create([
+            'kode' => 'kosong-'.uniqid(),
+            'nama' => 'Tanpa Berkas',
+            'definisi' => ['medan' => []],
+        ]);
+
+        $this->actingAs($auth, 'sanctum')
+            ->get('/api/admin/template-dokumen/'.$template->id.'/berkas')
+            ->assertNotFound();
+    }
+
+    public function test_berkas_template_milik_lembaga_lain_ditolak(): void
+    {
+        $this->fixture();
+        $auth = $this->tanpaIzin('guru');
+        $auth->lembagas()->attach('MTS');
+        $template = $this->template(['jenjang' => 'MA']);
+
+        $this->actingAs($auth, 'sanctum')
+            ->get('/api/admin/template-dokumen/'.$template->id.'/berkas')
+            ->assertStatus(403);
+    }
+
     public function test_endpoint_menuntut_izin(): void
     {
         $this->fixture();
@@ -364,6 +410,11 @@ class TemplateDokumenApiTest extends TestCase
         $this->actingAs($auth, 'sanctum')->getJson('/api/admin/template-dokumen/katalog')->assertStatus(403);
         $this->actingAs($auth, 'sanctum')->postJson('/api/admin/template-dokumen', [])->assertStatus(403);
         $this->actingAs($auth, 'sanctum')->getJson('/api/admin/aset-dokumen')->assertStatus(403);
+
+        $template = $this->template();
+        $this->actingAs($auth, 'sanctum')
+            ->get('/api/admin/template-dokumen/'.$template->id.'/berkas')
+            ->assertStatus(403);
     }
 
     public function test_tamu_ditolak(): void

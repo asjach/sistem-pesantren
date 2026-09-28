@@ -22,6 +22,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 /**
  * Template cetak: daftar, unggah berkas PDF, susun medan, dan isi & cetak.
@@ -180,6 +181,32 @@ class TemplateDokumenController extends Controller
         return response()->json([
             'pesan' => 'Berkas template berhasil diunggah.',
             'data' => $this->ringkas($template, lengkap: true),
+        ]);
+    }
+
+    /**
+     * Berkas PDF template untuk editor.
+     *
+     * Disajikan di sini, bukan lewat route storage disk lokal, karena route
+     * itu tidak dilindungi middleware auth. pdf.js di browser membaca
+     * jawaban ini dengan header Authorization milik pengguna.
+     */
+    public function berkas(Request $request, TemplateDokumen $template): Response|BinaryFileResponse
+    {
+        $this->pastikanTerlihat($request, $template);
+
+        $path = (string) ($template->path_pdf ?? '');
+
+        abort_if($path === '', 404, 'Template ini belum memiliki berkas PDF. Unggah berkas template terlebih dahulu.');
+
+        $penuh = Storage::disk(AsetGambar::DISK)->path($path);
+
+        abort_unless(is_file($penuh), 404, 'Berkas template tidak ditemukan. Silakan unggah ulang.');
+
+        return response()->file($penuh, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.$template->kode.'.pdf"',
+            'Cache-Control' => 'private, no-store',
         ]);
     }
 

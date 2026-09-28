@@ -246,6 +246,7 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::match(['put', 'patch'], 'template-dokumen/{template}', [TemplateDokumenController::class, 'update'])->middleware('permission:template_dokumen.ubah');
         Route::delete('template-dokumen/{template}', [TemplateDokumenController::class, 'destroy'])->middleware('permission:template_dokumen.hapus');
         Route::post('template-dokumen/{template}/berkas', [TemplateDokumenController::class, 'unggahBerkas'])->middleware('permission:template_dokumen.ubah');
+        Route::get('template-dokumen/{template}/berkas', [TemplateDokumenController::class, 'berkas'])->middleware('permission:template_dokumen.lihat');
         Route::post('template-dokumen/{template}/duplikat', [TemplateDokumenController::class, 'duplikat'])->middleware('permission:template_dokumen.tambah');
         Route::post('template-dokumen/{template}/isi', [TemplateDokumenController::class, 'isiCetak'])->middleware('permission:template_dokumen.lihat');
 
