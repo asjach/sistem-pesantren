@@ -174,14 +174,25 @@ abstract class PencetakMedan
      * dalam atribut style yang diapit kutip ganda. Kutip ganda di dalamnya
      * akan memutus atribut dan membuat seluruh medan hilang diam-diam.
      *
+     * Font inti PDF didahulukan dan DejaVu hanya cadangan. Alasannya nyata,
+     * bukan selera: font inti tidak perlu di-embed sehingga berkasnya jauh
+     * lebih kecil dan teksnya tetap berupa ASCII yang bisa dicari pembaca,
+     * sedangkan DejaVu Sans adalah font Unicode yang wajib di-embed (versi
+     * sempat membuat suite tes tembus memory_limit 128 MB). Dompdf berdesak
+     * ke font berikutnya per karakter, sehingga glif di luar cakupan font
+     * inti tetap tampil.
+     *
      * @param  array<string, mixed>  $gaya
      */
     protected function fontCss(array $gaya): string
     {
         $keluarga = match ((string) $gaya['font']) {
-            'times' => "'DejaVu Serif', 'Times New Roman', serif",
-            'courier' => "'DejaVu Sans Mono', 'Courier New', monospace",
-            default => "'DejaVu Sans', 'Helvetica Neue', Arial, sans-serif",
+            'times' => "Times, 'DejaVu Serif', serif",
+            'courier' => "Courier, 'DejaVu Sans Mono', monospace",
+            // Pilihan desainer yang memang meminta DejaVu; tidak ada padanan
+            // font inti, jadi tidak boleh jatuh ke Helvetica.
+            'dejavusans' => "'DejaVu Sans', sans-serif",
+            default => "Helvetica, 'DejaVu Sans', sans-serif",
         };
 
         return $keluarga.($gaya['tebal'] ? ' bold' : '').($gaya['miring'] ? ' italic' : '');

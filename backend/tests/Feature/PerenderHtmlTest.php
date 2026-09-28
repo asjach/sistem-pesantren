@@ -114,6 +114,45 @@ class PerenderHtmlTest extends TestCase
         $this->assertEqualsWithDelta(218.5, $kotak[0]['y'], 0.2);
     }
 
+    public function test_font_inti_pdf_tidak_di_embed_biar_berkasa_kecil_dan_teksnya_bisa_dicari(): void
+    {
+        foreach (['helvetica', 'times', 'courier'] as $font) {
+            $pdf = $this->cetak($this->medan([
+                'tipe' => 'teks', 'label' => 'Teks', 'halaman' => 1,
+                'x' => 20, 'y' => 30, 'w' => 120, 'h' => 8,
+                'sumber' => 'tetap', 'kunci' => 'teks',
+                'gaya' => ['font' => $font],
+            ]), tetapTeks: 'NIP 1234567890123456');
+
+            $this->assertStringNotContainsString(
+                '/FontFile',
+                $pdf,
+                "Font inti $font tidak boleh di-embed; gly-nya sudah ada di pembaca PDF.",
+            );
+            $this->assertStringContainsString(
+                'NIP 1234567890123456',
+                implode('', $this->aliranIsi($pdf)),
+                "Teks pada font inti $font harus tetap ASCII yang bisa dicari.",
+            );
+        }
+    }
+
+    public function test_pilihan_dejavusans_tetap_memakai_dejavusans(): void
+    {
+        $pdf = $this->cetak($this->medan([
+            'tipe' => 'teks', 'label' => 'Teks', 'halaman' => 1,
+            'x' => 20, 'y' => 30, 'w' => 120, 'h' => 8,
+            'sumber' => 'tetap', 'kunci' => 'teks',
+            'gaya' => ['font' => 'dejavusans'],
+        ]), tetapTeks: 'NIP 1234567890123456');
+
+        // Pilihan desainer harus dihormati, bukan jatuh ke Helvetica.
+        $this->assertMatchesRegularExpression(
+            '/\/BaseFont\s*\/?[A-Z]{6}\+?DejaVuSans/',
+            $pdf,
+        );
+    }
+
     public function test_ukuran_halaman_mengikuti_template_bukan_selalu_a4(): void
     {
         $pdf = $this->cetak(
@@ -544,17 +583,40 @@ class PerenderHtmlTest extends TestCase
         return preg_match_all('#/Type\s*/Page[^s]#', $pdf) ?: 0;
     }
 
-    /** @return list<string> */
+    /**
+     * Isi setiap stream PDF, sudah diurai dari Flate.
+     *
+     * Panjang stream diambil dari `/Length` di dictionary, bukan dari
+     * jarak sampai `endstream`: dompdf tidak selalu menulis baris baru
+     * sebelum `endstream`, sehingga pencarian berbasis pola bisa memotong
+     * data dan gagal diurai.
+     *
+     * @return list<string>
+     */
     private function aliranIsi(string $pdf): array
     {
         $daftar = [];
+        $offset = 0;
 
-        if (preg_match_all('/stream\r?\n(.*?)\r?\nendstream/s', $pdf, $cocok) === 0) {
-            return $daftar;
-        }
+        while (preg_match('/\/Length\s+(\d+)/', $pdf, $cocok, PREG_OFFSET_CAPTURE, $offset) === 1) {
+            $panjang = (int) $cocok[1][0];
+            $mulai = strpos($pdf, 'stream', $cocok[1][1]);
 
-        foreach ($cocok[1] as $mentah) {
-            $isi = @gzuncompress($mentah);
+            if ($mulai === false) {
+                break;
+            }
+
+            // Lewati kata 'stream' dan baris baru setelahnya.
+            $mulai += strlen('stream');
+            $mulai += strspn($pdf, "\r\n", $mulai);
+            $offset = $mulai + $panjang;
+
+            if ($offset > strlen($pdf)) {
+                break;
+            }
+
+            $mentah = substr($pdf, $mulai, $panjang);
+            $isi = @gzuncompress($mentah) ?: @gzinflate($mentah);
 
             if ($isi !== false) {
                 $daftar[] = $isi;

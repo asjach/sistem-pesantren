@@ -52,7 +52,7 @@ class PerenderHtml extends PencetakMedan
             'isRemoteEnabled' => false,
             'isHtml5ParserEnabled' => true,
             'isPhpEnabled' => false,
-            'defaultFont' => "'DejaVu Sans', sans-serif",
+            'defaultFont' => "Helvetica, 'DejaVu Sans', sans-serif",
             'defaultPaperSize' => 'a4',
             'defaultFontSize' => 10,
         ];
