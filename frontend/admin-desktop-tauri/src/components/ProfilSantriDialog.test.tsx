@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -206,6 +206,10 @@ describe('ProfilSantriDialog', () => {
     expect(screen.getByRole('button', { name: /Sebelumnya/ })).toBeDisabled();
     expect(screen.getByRole('button', { name: /Berikutnya/ })).toBeEnabled();
   });
+
+
+
+
 
   it('tanpa daftar tabel asal: tombol tetangga tidak muncul', async () => {
     renderDialog();

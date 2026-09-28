@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { profilSantri, type ProfilSantri } from '@/api/siklus';
 import { errorMessage } from '@/api/client';
-import { TGL_KEYS, pihakFields } from '@/components/santri/kolomIdentitas';
+import { BAGIAN_IDENTITAS, type PanelIdentitas } from '@/components/santri/bagianIdentitas';
+import { TGL_KEYS } from '@/components/santri/kolomIdentitas';
 import { Copy } from '@/icons';
 import { copyText } from '@/lib/clipboard';
 import { formatStatus, namaLembaga, namaTahunAjaran } from '@/lib/nilaiTampil';
@@ -78,70 +79,6 @@ const PILIHAN: Record<string, Record<string, string>> = {
   jk: { L: 'Laki-laki', P: 'Perempuan' },
   tipe_santri: { asrama: 'Asrama', non_asrama: 'Non-asrama' },
 };
-
-/** Satu kelompok kunci di bawah sebuah panel. */
-interface Panel {
-  judul: string;
-  kunci: string[];
-}
-
-/** Kunci data orang tua/wali — diambil dari definisi kolom yang sama dengan
- *  Buku Induk agar tidak ada yang terlewat. */
-function kunciPihak(p: 'ayah' | 'ibu' | 'wali'): string[] {
-  return pihakFields(p, p).map((f) => f.key);
-}
-
-const PANEL_IDENTITAS: Panel[] = [
-  {
-    judul: 'Identitas dasar',
-    kunci: ['nama_lengkap', 'nama_singkat', 'nik', 'nisn', 'jk', 'tipe_santri', 'id'],
-  },
-  {
-    judul: 'Kelahiran',
-    kunci: ['tmp_lahir', 'tgl_lahir', 'agama'],
-  },
-  { judul: 'Kontak', kunci: ['no_hp_santri', 'email_santri'] },
-  {
-    judul: 'Tambahan',
-    kunci: [
-      'kewarganegaraan', 'bahasa_sehari', 'cita_cita', 'hobi',
-      'kebutuhan_khusus', 'kebutuhan_disabilitas', 'nomor_kip',
-    ],
-  },
-];
-
-const PANEL_ALAMAT: Panel[] = [
-  {
-    judul: 'Domisili',
-    kunci: [
-      'alamat', 'rt', 'rw', 'desa_kelurahan', 'kecamatan',
-      'kab_kota', 'provinsi', 'kode_pos',
-    ],
-  },
-  {
-    judul: 'Kondisi dan perjalanan',
-    kunci: [
-      'status_tempat_tinggal', 'jarak_ke_pesantren', 'waktu_tempuh',
-      'transportasi', 'tanggal_masuk',
-    ],
-  },
-];
-
-// Urutan mengikuti letak di grid 2 kolom: baris 1 Ayah | Ibu, baris 2
-// Wali | Kartu keluarga.
-const PANEL_KELUARGA: Panel[] = [
-  { judul: 'Ayah', kunci: kunciPihak('ayah') },
-  { judul: 'Ibu', kunci: kunciPihak('ibu') },
-  { judul: 'Wali', kunci: kunciPihak('wali') },
-  { judul: 'Kartu keluarga', kunci: ['no_kk', 'kepala_keluarga', 'anak_ke', 'j_saudara', 'yang_membiayai'] },
-];
-
-/** Bagian berpanel field — sumber tunggal urutan bagian di profil. */
-const BAGIAN: { judul: string; panels: Panel[] }[] = [
-  { judul: 'Identitas', panels: PANEL_IDENTITAS },
-  { judul: 'Alamat', panels: PANEL_ALAMAT },
-  { judul: 'Keluarga', panels: PANEL_KELUARGA },
-];
 
 /** Satu tabel relasi: judul, kolom, dan baris yang sudah diformat. */
 interface Relasi {
@@ -243,7 +180,7 @@ function Baris({ kunci, mentah, onSalin }: {
 
 /** Panel sekelompok field dengan judul. */
 function PanelData({ panel, data, onSalin }: {
-  panel: Panel;
+  panel: PanelIdentitas;
   data: Record<string, unknown>;
   onSalin: (kunci: string) => void;
 }) {
@@ -443,7 +380,7 @@ export function IsiProfilSantri({ profil, className }: {
 
   return (
     <div data-part="isi_profil" className={cn('space-y-6 overflow-y-auto pr-1', className)}>
-      {BAGIAN.map((b) => (
+      {BAGIAN_IDENTITAS.map((b) => (
         <Bagian key={b.judul} judul={b.judul}>
           <div className="grid gap-4 sm:grid-cols-2">
             {b.panels.map((p) => (
