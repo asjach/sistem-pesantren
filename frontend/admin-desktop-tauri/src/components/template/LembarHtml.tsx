@@ -1,8 +1,11 @@
 import { mmKePx } from '@/lib/template/satuan';
 import type { UkuranHalaman } from '@/lib/template/tipe';
 
-/** Jarak antar garis guide dalam milimeter. */
-const JARAK_GUIDE_MM = 10;
+/** Jarak antar garis guide tipis, dalam milimeter. */
+const JARAK_GUIDE_MM = 5;
+
+/** Jarak garis guide yang ditebalkan, dalam milimeter. */
+const JARAK_GUIDE_BESAR_MM = 25;
 
 interface LembarHtmlProps {
   ukuran: UkuranHalaman;
@@ -27,6 +30,13 @@ export default function LembarHtml({ ukuran, lebarPx, zoom, tampilGuide = true, 
   const garisX = tampilGuide ? deret(0, ukuran.lebar_mm, JARAK_GUIDE_MM) : [];
   const garisY = tampilGuide ? deret(0, ukuran.tinggi_mm, JARAK_GUIDE_MM) : [];
 
+  // Guide dipakai sebagai pengatur posisi, bukan sebagai isi halaman. Kalau
+  // semua garis sama tebalnya, halaman terlihat seperti kertas grafik dan
+  // kotak medan sulit dibaca. Jadi lima milimeter sangat tipis dan
+  // tiap dua puluh lima milimeter ditebalkan sebagai pembatas.
+  const gayaTipis = 'pointer-events-none absolute bg-slate-500/20';
+  const gayaBesar = 'pointer-events-none absolute bg-slate-500/40';
+
   return (
     <div
       className={className}
@@ -36,15 +46,15 @@ export default function LembarHtml({ ukuran, lebarPx, zoom, tampilGuide = true, 
       {garisX.map((mm) => (
         <span
           key={`x${mm}`}
-          className="pointer-events-none absolute w-px bg-border"
-          style={{ left: mmKePx(mm, zoom), top: 0, height: '100%' }}
+          className={mm % JARAK_GUIDE_BESAR_MM === 0 ? gayaBesar : gayaTipis}
+          style={{ left: mmKePx(mm, zoom), top: 0, height: '100%', width: 1 }}
         />
       ))}
       {garisY.map((mm) => (
         <span
           key={`y${mm}`}
-          className="pointer-events-none absolute h-px bg-border"
-          style={{ top: mmKePx(mm, zoom), left: 0, width: '100%' }}
+          className={mm % JARAK_GUIDE_BESAR_MM === 0 ? gayaBesar : gayaTipis}
+          style={{ top: mmKePx(mm, zoom), left: 0, width: '100%', height: 1 }}
         />
       ))}
     </div>
