@@ -239,11 +239,30 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Ambil pesan yang layak ditampilkan dari badan jawaban.
+ *
+ * Aplikasi ini memakai kunci `pesan`, sedangkan Laravel memakai `message`
+ * untuk amplop validasi. Keduanya diperiksa karena banyak jawaban 422
+ * berniat bisnis seperti "aset masih dipakai medan" sengaja tidak punya
+ * `errors`, dan tanpa membaca `pesan` pengguna hanya melihat "Validasi
+ * gagal" tanpa tahu harus memperbaiki apa.
+ *
+ * `pesan` didahulukan karena sudah berbahasa Indonesia, sedangkan `message`
+ * bawaan Laravel berbahasa Inggris.
+ */
 function messageOf(body: unknown, fallback: string): string {
-  if (body && typeof body === 'object' && 'message' in body) {
-    const m = (body as { message?: unknown }).message;
-    if (typeof m === 'string' && m) return m;
+  if (body && typeof body === 'object') {
+    for (const kunci of ['pesan', 'message'] as const) {
+      if (kunci in body) {
+        const nilai = (body as Record<string, unknown>)[kunci];
+        // Spasi saja dianggap kosong, kalau tidak notifikasi akan tampil
+        // dengan teks yang tidak terbaca.
+        if (typeof nilai === 'string' && nilai.trim()) return nilai;
+      }
+    }
   }
+
   return fallback;
 }
 

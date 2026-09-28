@@ -6,6 +6,7 @@ export type { AsetDokumen };
 
 export interface AsetListParams {
   q?: string;
+  jenjang?: string | null;
   sort?: string[];
   arah?: 'naik' | 'turun';
   page?: number;
@@ -16,6 +17,7 @@ export interface AsetListParams {
 export function listAset(params: AsetListParams = {}) {
   const q = new URLSearchParams();
   if (params.q) q.set('q', params.q);
+  if (params.jenjang) q.set('jenjang', params.jenjang);
   if (params.sort?.length) q.set('sort', params.sort.join(','));
   if (params.arah) q.set('arah', params.arah);
   q.set('page', String(params.page ?? 1));

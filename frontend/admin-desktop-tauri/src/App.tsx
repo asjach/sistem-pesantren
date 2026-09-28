@@ -33,6 +33,7 @@ const PsbPage = lazy(() => import('./pages/PsbPage'));
 const KegiatanPsbPage = lazy(() => import('./pages/KegiatanPsbPage'));
 const TemplateDokumenPage = lazy(() => import('./pages/TemplateDokumenPage'));
 const TemplateIsiPage = lazy(() => import('./pages/TemplateIsiPage'));
+const AsetDokumenPage = lazy(() => import('./pages/AsetDokumenPage'));
 const TemplateHtmlPage = lazy(() => import('./pages/TemplateHtmlPage'));
 const TemplateMedanPage = lazy(() => import('./pages/TemplateMedanPage'));
 const SantriPage = lazy(() => import('./pages/SantriPage'));
@@ -137,6 +138,7 @@ export default function App() {
                       <Route path="/template-dokumen/:id/medan" element={<KhususIzin izin="template_dokumen.lihat"><TemplateMedanPage /></KhususIzin>} />
                       <Route path="/template-dokumen/:id/html" element={<KhususIzin izin="template_dokumen.lihat"><TemplateHtmlPage /></KhususIzin>} />
                       <Route path="/template-dokumen/:id/isi" element={<KhususIzin izin="template_dokumen.lihat"><TemplateIsiPage /></KhususIzin>} />
+                      <Route path="/aset-dokumen" element={<KhususIzin izin="template_dokumen.lihat"><AsetDokumenPage /></KhususIzin>} />
                       <Route path="/pengaturan" element={<Navigate to="/pengaturan/tampilan" replace />} />
                       <Route path="/pengaturan/tampilan" element={<KhususIzin izin="tampilan.lihat"><PengaturanTampilanPage /></KhususIzin>} />
                       <Route path="/pengaturan/izin" element={<KhususIzin izin="izin.lihat"><KelolaIzinPage /></KhususIzin>} />
