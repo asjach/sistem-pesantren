@@ -87,10 +87,23 @@ class TemplateDokumen extends Model
         return $this->belongsTo(User::class, 'dibuat_oleh');
     }
 
+    /**
+     * Ukuran satu halaman dalam milimeter.
+     *
+     * Template 'pdf' menyimpan satu entri per halaman karena ukuran tiap
+     * halaman dibaca dari berkasnya. Template 'html' hanya menyimpan satu
+     * ukuran yang dipakai bersama seluruh halaman, jadi halaman kedua dan
+     * seterusnya memakai entri pertama, bukan A4.
+     */
     public function ukuranHalaman(int $nomor): array
     {
         $daftar = $this->halaman ?? [];
-        $halaman = $daftar[$nomor - 1] ?? null;
+
+        // Template html menyimpan satu ukuran untuk seluruh halaman, jadi
+        // nomor halaman diabaikan dan entri pertama yang dipakai.
+        $halaman = $this->jenis === self::JENIS_HTML
+            ? ($daftar[0] ?? null)
+            : ($daftar[$nomor - 1] ?? null);
 
         return [
             'lebar_mm' => round((float) ($halaman['lebar_mm'] ?? 210), 2),

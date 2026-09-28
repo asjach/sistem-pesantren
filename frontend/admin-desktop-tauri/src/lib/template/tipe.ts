@@ -156,7 +156,7 @@ export interface TemplateRingkas {
   kode: string;
   nama: string;
   kategori: KategoriTemplate;
-  jenis: 'pdf' | 'html';
+  jenis: JenisTemplate;
   deskripsi: string | null;
   jenjang: string | null;
   jumlah_halaman: number;

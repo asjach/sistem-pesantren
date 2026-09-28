@@ -10,6 +10,7 @@ import type {
   KategoriTemplate,
   TemplateLengkap,
   TemplateRingkas,
+  UkuranHalaman,
 } from '@/lib/template/tipe';
 
 export type { AsetDokumen, DefinisiTemplate, KatalogNilai, TemplateLengkap, TemplateRingkas };
@@ -58,6 +59,9 @@ export interface TemplateInput {
   jenjang?: string | null;
   aktif?: boolean;
   definisi?: DefinisiTemplate;
+  /** Hanya untuk jenis 'html'; server menolak untuk template PDF. */
+  jumlah_halaman?: number;
+  halaman?: UkuranHalaman[];
 }
 
 export function createTemplate(input: TemplateInput) {

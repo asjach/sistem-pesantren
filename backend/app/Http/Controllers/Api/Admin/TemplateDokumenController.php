@@ -123,8 +123,6 @@ class TemplateDokumenController extends Controller
     {
         $this->pastikanTerlihat($request, $template);
 
-        DefinisiMedan::validasi($request->input('definisi', []), (int) $template->jumlah_halaman);
-
         $template->nama = $request->string('nama')->toString();
 
         // PATCH bersifat sebagian: hanya kolom yang benar-benar dikirim yang
@@ -146,6 +144,26 @@ class TemplateDokumenController extends Controller
         if ($request->has('aktif')) {
             $template->aktif = $request->boolean('aktif');
         }
+
+        // Jumlah dan ukuran halaman diterapkan lebih dulu karena normalisasi
+        // medan bergantung padanya. Kalau urutannya dibalik, medan pada
+        // halaman yang baru saja ditambah akan ditolak sebagai di luar
+        // jangkauan.
+        if ($request->has('jumlah_halaman')) {
+            $template->jumlah_halaman = (int) $request->input('jumlah_halaman');
+        }
+
+        if ($request->has('halaman')) {
+            $template->halaman = array_map(
+                fn (array $satu): array => [
+                    'lebar_mm' => round((float) $satu['lebar_mm'], 2),
+                    'tinggi_mm' => round((float) $satu['tinggi_mm'], 2),
+                ],
+                $request->input('halaman', []),
+            );
+        }
+
+        DefinisiMedan::validasi($request->input('definisi', []), (int) $template->jumlah_halaman);
 
         if ($request->has('definisi')) {
             $template->definisi = DefinisiMedan::normalisasi(
@@ -405,7 +423,18 @@ class TemplateDokumenController extends Controller
             return $data;
         }
 
-        $data['halaman'] = $template->halaman;
+        // Ukuran halaman selalu dikirim sebagai daftar yang tidak kosong.
+        // Kolomnya nullable di basis data karena template PDF eksternal belum
+        // punya ukuran sampai berkasnya diunggah, sedangkan desainer selalu
+        // memakai entri pertama untuk menggambar kanvas.
+        $ukuran = [];
+        $jumlah = max(1, (int) $template->jumlah_halaman);
+
+        for ($nomor = 1; $nomor <= $jumlah; $nomor++) {
+            $ukuran[] = $template->ukuranHalaman($nomor);
+        }
+
+        $data['halaman'] = $ukuran;
         $data['definisi'] = DefinisiMedan::normalisasi($template->definisi ?? [], (int) $template->jumlah_halaman);
 
         return $data;

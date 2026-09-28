@@ -302,6 +302,98 @@ class TemplateDokumenApiTest extends TestCase
         $this->assertSame('surat', $template->kategori);
     }
 
+    public function test_template_html_bisa_mengubah_jumlah_dan_ukuran_halaman(): void
+    {
+        $this->fixture();
+        $auth = $this->superAdmin();
+        $template = $this->template([
+            'jenis' => TemplateDokumen::JENIS_HTML,
+            'path_pdf' => null,
+            'halaman' => [['lebar_mm' => 210.0, 'tinggi_mm' => 297.0]],
+        ]);
+
+        $this->actingAs($auth, 'sanctum')
+            ->patchJson('/api/admin/template-dokumen/'.$template->id, [
+                'nama' => 'Surat Uji', 'kategori' => 'surat',
+                'jumlah_halaman' => 3,
+                'halaman' => [['lebar_mm' => 148.5, 'tinggi_mm' => 210.0]],
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.jumlah_halaman', 3);
+
+        $template->refresh();
+
+        $this->assertSame(3, $template->jumlah_halaman);
+        // Nilai menyimpan JSON tidak selalu menjaga nilai asli bertipe float,
+        // jadi dibandingkan angkanya.
+        $this->assertEqualsWithDelta(148.5, (float) $template->halaman[0]['lebar_mm'], 0.01);
+        $this->assertEqualsWithDelta(210.0, (float) $template->halaman[0]['tinggi_mm'], 0.01);
+        $this->assertSame(148.5, $template->ukuranHalaman(2)['lebar_mm'], 'Semua halaman memakai ukuran yang sama.');
+    }
+
+    public function test_medan_pada_halaman_baru_diterima_bersamaan_dengan_jumlah_halaman(): void
+    {
+        $this->fixture();
+        $auth = $this->superAdmin();
+        $template = $this->template([
+            'jenis' => TemplateDokumen::JENIS_HTML,
+            'path_pdf' => null,
+            'halaman' => [['lebar_mm' => 210.0, 'tinggi_mm' => 297.0]],
+        ]);
+
+        // Menaikkan jumlah halaman dan menambah medan di halaman yang sama
+        // harus berhasil. Kalau jumlah halaman belum tersimpan saat medan
+        // divalidasi, medan ini ditolak sebagai di luar jangkauan.
+        $this->actingAs($auth, 'sanctum')
+            ->patchJson('/api/admin/template-dokumen/'.$template->id, [
+                'nama' => 'Surat Uji', 'kategori' => 'surat',
+                'jumlah_halaman' => 3,
+                'definisi' => ['medan' => [
+                    ['tipe' => 'teks', 'label' => 'Satu', 'halaman' => 1, 'x' => 20, 'y' => 20, 'w' => 100, 'h' => 8],
+                    ['tipe' => 'teks', 'label' => 'Tiga', 'halaman' => 3, 'x' => 20, 'y' => 20, 'w' => 100, 'h' => 8],
+                ]],
+            ])
+            ->assertOk();
+
+        $this->assertCount(2, $template->refresh()->definisi['medan']);
+    }
+
+    public function test_template_pdf_menolak_perubahan_jumlah_halaman(): void
+    {
+        $this->fixture();
+        $auth = $this->superAdmin();
+        $template = $this->template();
+
+        $this->actingAs($auth, 'sanctum')
+            ->patchJson('/api/admin/template-dokumen/'.$template->id, [
+                'nama' => 'Surat Uji', 'kategori' => 'surat', 'jumlah_halaman' => 5,
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('jumlah_halaman')
+            ->assertJsonFragment(['Jumlah halaman hanya bisa diubah pada template HTML.']);
+
+        $this->assertSame(1, $template->refresh()->jumlah_halaman);
+    }
+
+    public function test_ukuran_halaman_ditolak_bila_di_luar_batas_wajar(): void
+    {
+        $this->fixture();
+        $auth = $this->superAdmin();
+        $template = $this->template([
+            'jenis' => TemplateDokumen::JENIS_HTML,
+            'path_pdf' => null,
+            'halaman' => [['lebar_mm' => 210.0, 'tinggi_mm' => 297.0]],
+        ]);
+
+        $this->actingAs($auth, 'sanctum')
+            ->patchJson('/api/admin/template-dokumen/'.$template->id, [
+                'nama' => 'Surat Uji', 'kategori' => 'surat',
+                'halaman' => [['lebar_mm' => 5, 'tinggi_mm' => 297.0]],
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('halaman.0.lebar_mm');
+    }
+
     public function test_buat_template_tetap_wajib_memilih_kategori(): void
     {
         $this->fixture();

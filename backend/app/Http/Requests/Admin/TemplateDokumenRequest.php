@@ -18,8 +18,7 @@ class TemplateDokumenRequest extends FormRequest
 
     public function rules(): array
     {
-        $id = $this->route('template_dokumen');
-        $id = $id instanceof TemplateDokumen ? $id->id : $id;
+        $id = $this->templateDipakai()?->id;
 
         $buat = $this->isMethod('post');
 
@@ -45,9 +44,58 @@ class TemplateDokumenRequest extends FormRequest
             'jenjang' => ['nullable', 'string', 'max:20', 'exists:lembaga,jenjang'],
             'aktif' => ['nullable', 'boolean'],
             'berkas' => ['nullable', 'file', 'mimes:pdf', 'max:'.AsetGambar::MAKS_UPLOAD_PDF],
+            // Jumlah dan ukuran halaman hanya boleh diubah untuk template
+            // jenis 'html'. Template 'pdf' mengikuti ukuran halaman berkasnya
+            // sendiri, jadi writablean di sini akan bertentangan dengan
+            // FPDI yang membacanya ulang setiap kali dicetak.
+            'jumlah_halaman' => [
+                'nullable', 'integer', 'min:1', 'max:'.self::MAKS_HALAMAN,
+                Rule::prohibitedIf($this->jenisTemplate() === TemplateDokumen::JENIS_PDF),
+            ],
+            'halaman' => [
+                'nullable', 'array', 'max:'.self::MAKS_HALAMAN,
+                Rule::prohibitedIf($this->jenisTemplate() === TemplateDokumen::JENIS_PDF),
+            ],
+            'halaman.*.lebar_mm' => ['required', 'numeric', 'min:50', 'max:600'],
+            'halaman.*.tinggi_mm' => ['required', 'numeric', 'min:50', 'max:600'],
             'definisi' => ['nullable', 'array'],
             'definisi.medan' => ['array', 'max:'.DefinisiMedan::BATAS_MEDAN],
         ];
+    }
+
+    /** Batas halaman yang masih wajar untuk dipratinjau dan dicetak. */
+    public const MAKS_HALAMAN = 50;
+
+    /**
+     * Template yang sedang diubah, atau null saat membuat.
+     *
+     * Nama parameter rutenya `{template}`. Setelah SubstituteBindings, nilainya
+     * sudah berupa model. Membaca nama yang keliru membuat validateUnique
+     * mengabaikan dirinya sendiri, sehingga template tidak bisa disimpan tanpa
+     * mengganti kode.
+     */
+    private function templateDipakai(): ?TemplateDokumen
+    {
+        $template = $this->route('template') ?? $this->route('template_dokumen');
+
+        return $template instanceof TemplateDokumen ? $template : null;
+    }
+
+    /**
+     * Jenis template yang sedang dealt.
+     *
+     * Saat PATCH jenis biasanya tidak ikut dikirim, jadi jenis dari model
+     * yang dipakai, bukan dari badan permintaan.
+     */
+    private function jenisTemplate(): ?string
+    {
+        $dariBadan = $this->input('jenis');
+
+        if (is_string($dariBadan) && $dariBadan !== '') {
+            return $dariBadan;
+        }
+
+        return $this->templateDipakai()?->jenis;
     }
 
     public function messages(): array
@@ -66,6 +114,18 @@ class TemplateDokumenRequest extends FormRequest
             'berkas.mimes' => 'Berkas template harus berupa PDF.',
             'berkas.max' => 'Ukuran berkas template maksimal 20 MB.',
             'definisi.medan.max' => 'Satu template maksimal '.DefinisiMedan::BATAS_MEDAN.' medan.',
+            'jumlah_halaman.integer' => 'Jumlah halaman harus berupa angka.',
+            'jumlah_halaman.min' => 'Jumlah halaman minimal 1 halaman.',
+            'jumlah_halaman.max' => 'Jumlah halaman maksimal '.self::MAKS_HALAMAN.' halaman.',
+            'jumlah_halaman.prohibited' => 'Jumlah halaman hanya bisa diubah pada template HTML.',
+            'halaman.prohibited' => 'Ukuran halaman hanya bisa diubah pada template HTML.',
+            'halaman.max' => 'Jumlah halaman maksimal '.self::MAKS_HALAMAN.' halaman.',
+            'halaman.*.lebar_mm.required' => 'Lebar halaman wajib diisi.',
+            'halaman.*.tinggi_mm.required' => 'Tinggi halaman wajib diisi.',
+            'halaman.*.lebar_mm.min' => 'Lebar halaman minimal 50 mm.',
+            'halaman.*.tinggi_mm.min' => 'Tinggi halaman minimal 50 mm.',
+            'halaman.*.lebar_mm.max' => 'Lebar halaman maksimal 600 mm.',
+            'halaman.*.tinggi_mm.max' => 'Tinggi halaman maksimal 600 mm.',
         ];
     }
 

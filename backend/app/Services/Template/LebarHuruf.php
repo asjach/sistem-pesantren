@@ -19,6 +19,16 @@ class LebarHuruf
 {
     private const MM_PER_PT = 25.4 / 72;
 
+    /**
+     * Sisa ruang yang dibiarkan kosong di tepi kotak, dalam persen.
+     *
+     * Dompdf memotong teks pada batas kotak persis. Bila lebar teks sama
+     * dengan lebar kotak, huruf pertama dapat tergeser keluar kotaknya dan
+     * terpotong. Menahan dua persen membuat teks yang nyaris penuh tetap
+     * terbaca utuh.
+     */
+    private const MARGIN_SAFE = 0.98;
+
     public function __construct(private readonly FontMetrics $metrik) {}
 
     /**
@@ -162,11 +172,13 @@ class LebarHuruf
         float $baris,
         bool $bungkus,
     ): bool {
+        $lebarBoleh = $lebarMm * self::MARGIN_SAFE;
+
         if (! $bungkus) {
-            return $this->lebar($teks, $ukuran, $font, $spasi) <= $lebarMm;
+            return $this->lebar($teks, $ukuran, $font, $spasi) <= $lebarBoleh;
         }
 
-        $jumlah = $this->jumlahBaris($teks, $lebarMm, $ukuran, $font, $spasi);
+        $jumlah = $this->jumlahBaris($teks, $lebarBoleh, $ukuran, $font, $spasi);
         $tinggiBarisMm = $ukuran * $baris * self::MM_PER_PT;
 
         return $jumlah * $tinggiBarisMm <= $tinggiMm;

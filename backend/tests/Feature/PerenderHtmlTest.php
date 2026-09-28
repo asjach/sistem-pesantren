@@ -289,6 +289,21 @@ class PerenderHtmlTest extends TestCase
         $this->assertLessThanOrEqual(20.0, $lebar->lebar($potong, 11, $font));
     }
 
+    public function test_teks_yang_memenuhi_kotak_disisakan_margin_aman(): void
+    {
+        $lebar = $this->lebarHuruf();
+        $font = "'DejaVu Sans', sans-serif";
+        $teks = 'Halaman 2 dari 2';
+
+        // Lebar teks persis seukuran kotak akan menggigit tepi potong dompdf,
+        // jadi ukuran yang dipilih harus lebih kecil daripada ukuran yang
+        // persis muat.
+        $ukuranPas = $lebar->ukuranMuat($teks, $lebar->lebar($teks, 9, $font), 6, 9, 6, $font);
+        $this->assertLessThan(9.0, $ukuranPas, 'Teks yang tepat sebanding kotak harus dikecilkan sedikit.');
+        $this->assertGreaterThanOrEqual(6.0, $ukuranPas);
+        $this->assertLessThanOrEqual($lebar->lebar($teks, 9, $font), $lebar->lebar($teks, $ukuranPas, $font));
+    }
+
     public function test_jumlah_baris_makin_sempit_kotak_makin_banyak(): void
     {
         $lebar = $this->lebarHuruf();

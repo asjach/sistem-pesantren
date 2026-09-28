@@ -118,8 +118,8 @@ export default function TemplateDokumenPage() {
       <div className="flex items-center gap-0.5">
         <ActionIcon
           id={`btn_susun_medan_${t.id}`}
-          title="Susun medan isian"
-          onClick={() => navigate(`/template-dokumen/${t.id}/medan`)}
+          title={t.jenis === 'html' ? 'Buka desainer tata letak' : 'Susun medan isian'}
+          onClick={() => navigate(`/template-dokumen/${t.id}/${t.jenis === 'html' ? 'html' : 'medan'}`)}
         >
           <Pencil size={16} />
         </ActionIcon>
@@ -245,16 +245,15 @@ export default function TemplateDokumenPage() {
           setTambahOpen(false);
           await muat();
 
-          // Template PDF eksternal butuh berkas sebelum medan bisa
-          // diletakkan, jadi langsung ke editor. Template HTML tidak punya
-          // berkas sama sekali dan dicetak lewat endpoint yang sama, jadi
-          // sementara mendarat di Isi & Cetak sampai desainer tersedia.
+          // Template PDF eksternal butuh berkas diunggah sebelum medan bisa
+          // diletakkan. Template HTML digambar sendiri, jadi langsung ke
+          // desainer tanpa ada berkas sama sekali.
           if (input.jenis === 'pdf') {
             toast.success('Template dibuat. Berikutnya unggah berkas PDF template.');
             navigate(`/template-dokumen/${dibuat.id}/medan`);
           } else {
             toast.success('Template dibuat. Susun tata letaknya di desainer.');
-            navigate(`/template-dokumen/${dibuat.id}/isi`);
+            navigate(`/template-dokumen/${dibuat.id}/html`);
           }
         }}
       />
