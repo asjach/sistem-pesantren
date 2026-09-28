@@ -14,8 +14,6 @@ namespace App\Services;
  *   rekap_santri, mutasi_keluar, server, izin —
  *   sebagian plus `ubah` untuk aksinya (pindah_kelas, kenaikan, kelulusan,
  *   mutasi_keluar, izin).
- * - Pustaka aset (stempel, tanda tangan) tidak punya modul sendiri; unggah
- *   memakai `template_dokumen.ubah` dan hapus memakai `template_dokumen.hapus`.
  */
 class IzinKatalog
 {
@@ -41,7 +39,6 @@ class IzinKatalog
         'rekap_santri' => ['lihat'],
         'mutasi_keluar' => ['lihat', 'ubah'],
         'pengajuan_biodata' => ['lihat', 'ubah'],
-        'template_dokumen' => ['lihat', 'tambah', 'ubah', 'hapus'],
         'preset_tabel' => ['lihat', 'tambah', 'ubah', 'hapus'],
         'kamus_label' => ['lihat', 'tambah', 'ubah', 'hapus'],
         'urut_preset' => ['lihat', 'tambah', 'ubah', 'hapus'],

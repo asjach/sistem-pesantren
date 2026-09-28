@@ -60,7 +60,7 @@ envelope `{pesan, data}` for portal endpoints, standard pagination elsewhere.
 ### 3. Tech stack
 
 * Backend: Laravel 13 (PHP 8.4+), Sanctum (`guard: sanctum`), Spatie Permission
-  (`guard_name: sanctum`), MySQL, Maatwebsite Excel, DomPDF (rapor),
+  (`guard_name: sanctum`), MySQL, Maatwebsite Excel,
   Service Layer pattern, `DB::transaction()` + `lockForUpdate()` for critical ops.
 * Admin Tauri: Tauri 2 + frontend webview (to be decided: React/Vue/Svelte).
 * Mobile (×4): React Native (shared API client design, separate apps/releases).

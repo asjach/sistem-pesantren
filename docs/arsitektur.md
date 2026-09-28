@@ -238,7 +238,7 @@ Contoh kamus ringkas:
 
 ### 8.1 Tumpukan Terkunci
 
-Laravel 13 / PHP 8.4+, Sanctum (`sanctum`), Spatie (`sanctum`), MySQL, Excel, DomPDF, Service Layer. FE: Tauri/PySide/RN (Flutter dihentikan).
+Laravel 13 / PHP 8.4+, Sanctum (`sanctum`), Spatie (`sanctum`), MySQL, Excel, Service Layer. FE: Tauri/PySide/RN (Flutter dihentikan).
 
 ### 8.2 Strategi Migration (per alur, per-modul per-file)
 

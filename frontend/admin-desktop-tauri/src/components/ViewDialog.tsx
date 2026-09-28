@@ -57,7 +57,7 @@ export function ViewDialog({
   title: string;
   row: Record<string, unknown> | null;
   sections?: ViewDialogSection[];
-  /** Aksi tambahan di footer (mis. tombol unduh PDF) — tampil sebelum Tutup. */
+  /** Aksi tambahan di footer — tampil sebelum Tutup. */
   aksi?: ReactNode;
 }) {
   const entries = useMemo(() => {

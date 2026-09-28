@@ -32,8 +32,7 @@ import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import ImportBertahapUmumDialog from '@/components/ImportBertahapUmumDialog';
-import { DeleteAction, EditAction, ActionIcon, ViewAction } from '@/components/RowActions';
-import { ProfilPegawaiDialog } from '@/components/ProfilPegawaiDialog';
+import { DeleteAction, EditAction, ActionIcon } from '@/components/RowActions';
 import { useAuth } from '../auth/AuthContext';
 import { bisa } from '../api/auth';
 import { FileUp, ImageUp, UserCheck } from '@/icons';
@@ -173,7 +172,6 @@ export default function PegawaiPage() {
   const [fNik, setFNik] = useState('');
   const [busy, setBusy] = useState(false);
 
-  const [profilRow, setProfilRow] = useState<Pegawai | null>(null);
   const [akunRow, setAkunRow] = useState<Pegawai | null>(null);
   const [akunId, setAkunId] = useState('');
   const [fileOpen, setFileOpen] = useState(false);
@@ -253,7 +251,6 @@ export default function PegawaiPage() {
 
   const renderActions = useCallback((p: Pegawai) => (
     <>
-      <ViewAction id={`btn_lihat_pegawai_${p.id}`} onClick={() => setProfilRow(p)} />
       {canUbah && <EditAction id={`btn_akun_pegawai_${p.id}`} onClick={() => { setAkunRow(p); setAkunId(p.user_id ? String(p.user_id) : ''); }} />}
       {canBuatAkun && !p.user_id && (p.email_pribadi || p.no_hp) && (
         <ActionIcon
@@ -353,11 +350,6 @@ export default function PegawaiPage() {
           </>
         ) : undefined}
         renderActions={renderActions}
-      />
-      <ProfilPegawaiDialog
-        pegawaiId={profilRow?.id ?? null}
-        open={profilRow !== null}
-        onOpenChange={(o) => { if (!o) setProfilRow(null); }}
       />
       <Pager
         page={pager.page}
