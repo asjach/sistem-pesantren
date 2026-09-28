@@ -132,7 +132,7 @@ class ProfilPegawaiCetak
             [
                 'judul' => 'Kepegawaian',
                 'baris' => [
-                    [['Status kepegawaian', self::teks($p->status_aktif)], ['Mulai kerja', self::tglTampil($p->tgl_mulai_kerja)]],
+                    [['Status kepegawaian', $p->status_aktif === Pegawai::AKTIF ? 'Aktif' : 'Nonaktif'], ['Mulai kerja', self::tglTampil($p->tgl_mulai_kerja)]],
                     [['No. SK awal', self::teks($p->no_sk_awal)], ['Tanggal SK awal', self::tglTampil($p->tgl_sk_awal)]],
                     [['Pendidikan terakhir', self::teks($p->pendidikan_terakhir)], ['Jenis PTK', self::teks($p->jenis_ptk)]],
                     [['Sertifikasi', self::teks($p->sertifikasi)], ['', '']],

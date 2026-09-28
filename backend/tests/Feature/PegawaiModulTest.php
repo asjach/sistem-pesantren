@@ -1002,9 +1002,8 @@ class PegawaiModulTest extends TestCase
 
         // Isi cetak: kop lembaga + identitas + ketiga seksi benar-benar sampai ke Blade.
         $data = ProfilPegawaiCetak::muat($guru->fresh());
-        $html = view('pdf.profil-pegawai', ProfilPegawaiCetak::tampilan(
-            $data, ProfilPegawaiCetak::lembagaKop($data['penempatan']), 'Petugas Uji',
-        ))->render();
+        $tampilan = ProfilPegawaiCetak::tampilan($data, ProfilPegawaiCetak::lembagaKop($data['penempatan']), 'Petugas Uji');
+        $html = view('pdf.profil-pegawai', $tampilan)->render();
 
         $this->assertStringContainsString('Madrasah Ibtidaiyah', $html);
         $this->assertStringContainsString('Jl. Pesantren 1', $html);
@@ -1012,6 +1011,11 @@ class PegawaiModulTest extends TestCase
         $this->assertStringContainsString('Jombang', $html);
         $this->assertStringContainsString('Guru Kelas', $html);
         $this->assertStringContainsString('2026/2027', $html);
+
+        // Status kepegawaian dibaca sebagai kata ('Aktif'), bukan nilai mentah 'Ya'.
+        $sel = collect($tampilan['identitas'])->flatMap(fn (array $blok) => $blok['baris'])
+            ->flatten(1)->firstWhere(0, 'Status kepegawaian');
+        $this->assertSame('Aktif', $sel[1]);
         $this->assertStringContainsString('Scoped PDF', $html);
         $this->assertStringContainsString('Petugas Uji', $html);
 
