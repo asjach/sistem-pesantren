@@ -1,14 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { errorMessage } from '../api/client';
 import type { Paginate } from '../api/master';
+import { tokenUrut, type PetaArahKolom } from '../lib/urut';
 import { usePager } from './usePager';
 
 export interface ArgsMuat {
   search: string;
   page: number;
   perPage: number;
+  /** Token urut siap kirim — kode ber-arah sendiri sudah bersufiks (`kode:turun`). */
   urut: string[];
   arah: 'naik' | 'turun';
+  /** Arah per kode urut (dari preset, opsional) — menimpa `arah` global. */
+  arahKolom?: PetaArahKolom;
   /** Sinyal pembatalan request (di-abort saat muat ulang / unmount). */
   signal?: AbortSignal;
 }
@@ -16,6 +20,8 @@ export interface ArgsMuat {
 export interface OpsiMuatUrut {
   urut?: string[];
   arah?: 'naik' | 'turun';
+  /** Arah per kode urut (opsional) — menimpa `arah` global. */
+  arahKolom?: PetaArahKolom;
 }
 
 /**
@@ -60,6 +66,8 @@ export function useDaftarTabel<T, R extends Paginate<T> = Paginate<T>>({
   const [searchTertunda, setSearchTertunda] = useState('');
   const [urut, setUrut] = useState<string[]>(awalUrut);
   const [arahUrut, setArahUrut] = useState<'naik' | 'turun'>(awalArah);
+  /** Arah per kode urut (dari preset dengan arah_kolom) — menyertai urut aktif. */
+  const [arahKolom, setArahKolom] = useState<PetaArahKolom | undefined>(undefined);
   const [rows, setRows] = useState<T[]>([]);
   const pager = usePager(tableKey);
   const [lastPage, setLastPage] = useState(1);
@@ -86,8 +94,13 @@ export function useDaftarTabel<T, R extends Paginate<T> = Paginate<T>>({
       try {
         const u = o?.urut ?? urut;
         const a = o?.arah ?? arahUrut;
+        const ak = o?.arahKolom ?? arahKolom;
+        // Arah per kode ditokenkan ke `sort` (`kode:naik`/`kode:turun`) —
+        // backend mengenali sufiks sehingga halaman tak perlu meneruskan
+        // field terpisah; kode tanpa pengaturan mengikuti `arah` global.
+        const token = tokenUrut(u, ak);
         const res = await ambilRef.current({
-          search: searchTertunda, page: p, perPage: pp, urut: u, arah: a, signal: ac.signal,
+          search: searchTertunda, page: p, perPage: pp, urut: token, arah: a, arahKolom: ak, signal: ac.signal,
         });
         if (req !== reqRef.current) return;
         const fix = pager.sync(res.current_page, res.last_page);
@@ -108,16 +121,21 @@ export function useDaftarTabel<T, R extends Paginate<T> = Paginate<T>>({
         if (req === reqRef.current) setLoading(false);
       }
     },
-    [searchTertunda, urut, arahUrut, pager.page, pager.perPage, pager.sync],
+    [searchTertunda, urut, arahUrut, arahKolom, pager.page, pager.perPage, pager.sync],
   );
 
-  /** Ubah urutan dari header tabel: simpan lalu muat ulang dari halaman 1. */
+  /**
+   * Ubah urutan (dropdown Urutkan / header): simpan lalu muat ulang halaman 1.
+   * `arahKolom` opsional = arah per kode dari preset (menimpa arah global).
+   */
   const terapkanUrut = useCallback(
-    (nilai: string[], arah: 'naik' | 'turun') => {
+    (nilai: string[], arah: 'naik' | 'turun', arahKolomBaru?: PetaArahKolom) => {
+      const peta = nilai.length > 0 ? arahKolomBaru : undefined;
       setUrut(nilai);
       setArahUrut(arah);
+      setArahKolom(peta);
       pager.goFirst();
-      void load(1, pager.perPage, { urut: nilai, arah });
+      void load(1, pager.perPage, { urut: nilai, arah, arahKolom: peta });
     },
     [load, pager.goFirst, pager.perPage],
   );

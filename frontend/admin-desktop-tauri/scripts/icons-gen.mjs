@@ -101,6 +101,8 @@ const IKON = {
   Pin: ['pin', 'push-pin', 'pushpin', 'thumbtack', 'pin-2', 'pin-line', 'attachment', 'map-pin'],
   PinOff: ['pin-off', 'pushpin-off', 'unpin', 'pin-off-line', 'pin-slash'],
   Columns3: ['columns-3', 'columns-2', 'columns', 'view-columns', 'layout-columns', 'table-columns', 'gallery-horizontal'],
+  ArrowUpAZ: ['arrow-up-a-z', 'arrow-up-az', 'sort-ascending', 'sort-asc', 'arrow-up-short-wide', 'text-sort-ascending'],
+  ArrowDownAZ: ['arrow-down-a-z', 'arrow-down-az', 'sort-descending', 'sort-desc', 'arrow-down-wide-narrow', 'text-sort-descending'],
 };
 
 const NAMA = Object.keys(IKON);

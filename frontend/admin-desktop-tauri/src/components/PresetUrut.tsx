@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   muatUrutPreset,
+  type ArahUrut,
   type PresetUrutData,
 } from '@/api/urutPreset';
 import FilterField from '@/components/FilterField';
@@ -18,7 +19,10 @@ import { ChevronDown, ChevronUp, Pin } from '@/icons';
 const TANPA = '_tanpa';
 
 /** Dropdown Urutkan yang sumbernya Preset Urut (global per tabel).
- *  Pengelolaan opsi hanya lewat dialog Kelola Halaman (tab Urutan). */
+ *  Pengelolaan opsi hanya lewat dialog Kelola Halaman (tab Urutan).
+ *  Opsi dengan `arah_kolom` mengirim arah per kode ke `onUrut` (token
+ *  `kode:arah`) sehingga tiap kolom bisa beda orientasi (mis. aktif DESC,
+ *  nama ASC). */ 
 export default function PresetUrut({
   tableKey,
   urutAktif,
@@ -30,7 +34,8 @@ export default function PresetUrut({
   tableKey: string;
   urutAktif?: string[];
   arahUrut?: 'naik' | 'turun';
-  onUrut?: (nilai: string[], arah: 'naik' | 'turun') => void;
+  /** `arahKolom` = arah per kode (bila opsi preset punya pengaturan sendiri). */
+  onUrut?: (nilai: string[], arah: 'naik' | 'turun', arahKolom?: Record<string, ArahUrut>) => void;
   wrapperClassName?: string;
   /** Lebar trigger dropdown (px) dari tab Kontrol; kosong = 100 bawaan. */
   lebarTrigger?: number;
@@ -59,13 +64,27 @@ export default function PresetUrut({
   const idxAktif = opsi.findIndex((o) => o.kode.join(',') === kunciAktif);
   const nilaiSelect = idxAktif >= 0 ? String(idxAktif) : kunciAktif === '' ? TANPA : '';
 
+  /** Arah per kode dari opsi preset (hanya kode yang benar-benar diatur). */
+  function arahKolomOpsi(o: (typeof opsi)[number]): Record<string, ArahUrut> | undefined {
+    const peta = o.arah_kolom;
+    if (!peta || Object.keys(peta).length === 0) return undefined;
+    const keluar: Record<string, ArahUrut> = {};
+    for (const k of o.kode) {
+      if (peta[k] === 'naik' || peta[k] === 'turun') keluar[k] = peta[k];
+    }
+    return Object.keys(keluar).length > 0 ? keluar : undefined;
+  }
+
   // Terapkan opsi bawaan sekali saat preset termuat & halaman belum punya urutan.
   useEffect(() => {
     if (!data || !onUrut) return;
     if ((urutAktif ?? []).length > 0 || sudahRef.current === tableKey) return;
     sudahRef.current = tableKey;
     const bawaan = data.opsi.find((o) => o.bawaan);
-    if (bawaan) onUrut(bawaan.kode, bawaan.arah ?? arahUrut ?? 'naik');
+    if (bawaan) {
+      const globalArah = bawaan.arah ?? arahUrut ?? 'naik';
+      onUrut(bawaan.kode, globalArah, arahKolomOpsi(bawaan));
+    }
   }, [data, tableKey, urutAktif, arahUrut, onUrut]);
 
   function pilihNilai(v: string) {
@@ -74,7 +93,7 @@ export default function PresetUrut({
       return;
     }
     const it = opsi[Number(v)];
-    if (it) onUrut?.(it.kode, it.arah ?? arahUrut ?? 'naik');
+    if (it) onUrut?.(it.kode, it.arah ?? arahUrut ?? 'naik', arahKolomOpsi(it));
   }
 
   function balikArah() {

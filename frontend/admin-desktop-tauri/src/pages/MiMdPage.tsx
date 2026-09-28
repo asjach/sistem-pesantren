@@ -19,6 +19,7 @@ import { ArrowRight, X } from '@/icons';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
+import type { PetaArahKolom } from '@/lib/urut';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import { toast } from 'sonner';
@@ -57,23 +58,27 @@ export default function MiMdPage() {
   }, [load]);
 
   type Baris = { id: number; santri_id: number } & Record<string, string | boolean | number | null>;
-  const [urutTabel, setUrutTabel] = useState<Record<string, { kolom: string[]; arah: 'naik' | 'turun' }>>({
+  const [urutTabel, setUrutTabel] = useState<Record<string, { kolom: string[]; arah: 'naik' | 'turun'; arahKolom?: PetaArahKolom }>>({
     mi: { kolom: ['nama'], arah: 'naik' },
     md: { kolom: ['nama'], arah: 'naik' },
     beda: { kolom: ['nama'], arah: 'naik' },
   });
 
-  const terapkanUrut = useCallback((tableKey: string, kolom: string[], arah: 'naik' | 'turun') => {
-    setUrutTabel((saatIni) => ({ ...saatIni, [tableKey]: { kolom, arah } }));
+  const terapkanUrut = useCallback((tableKey: string, kolom: string[], arah: 'naik' | 'turun', arahKolom?: PetaArahKolom) => {
+    setUrutTabel((saatIni) => ({ ...saatIni, [tableKey]: { kolom, arah, arahKolom: kolom.length > 0 ? arahKolom : undefined } }));
   }, []);
 
-  const urutkan = useCallback((rows: Baris[], kolom: string[], arah: 'naik' | 'turun'): Baris[] => {
+  const urutkan = useCallback((rows: Baris[], kolom: string[], arah: 'naik' | 'turun', arahKolom?: PetaArahKolom): Baris[] => {
     if (kolom.length === 0) return rows;
     const nilai = (v: string | boolean | number | null) => v == null ? '' : String(v).trim().toLocaleLowerCase('id');
     return [...rows].sort((a, b) => {
       for (const key of kolom) {
         const bandingkan = nilai(a[key]).localeCompare(nilai(b[key]), 'id', { numeric: true, sensitivity: 'base' });
-        if (bandingkan !== 0) return arah === 'turun' ? -bandingkan : bandingkan;
+        if (bandingkan !== 0) {
+          // Arah per kolom menimpa arah global (mis. aktif turun, nama naik).
+          const arahKey = arahKolom?.[key] ?? arah;
+          return arahKey === 'turun' ? -bandingkan : bandingkan;
+        }
       }
       return a.santri_id - b.santri_id;
     });
@@ -245,12 +250,12 @@ export default function MiMdPage() {
       <ExcelTable
         tableKey={`mi_md_${key}`}
         fields={fields}
-        rows={urutkan(rows, urutTabel[key].kolom, urutTabel[key].arah)}
+        rows={urutkan(rows, urutTabel[key].kolom, urutTabel[key].arah, urutTabel[key].arahKolom)}
         getValues={getValues}
          header={<span>{judul}</span>}
         urutAktif={urutTabel[key].kolom}
         arahUrut={urutTabel[key].arah}
-        onUrut={(kolom, arah) => terapkanUrut(key, kolom, arah)}
+        onUrut={(kolom, arah, arahKolom) => terapkanUrut(key, kolom, arah, arahKolom)}
         canEdit={false}
         onCommit={async () => {}}
         onSaved={() => {}}

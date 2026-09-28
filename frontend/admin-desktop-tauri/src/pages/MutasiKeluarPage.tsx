@@ -32,6 +32,7 @@ import { ActionIcon } from '@/components/RowActions';
 import Pager from '@/components/Pager';
 import { usePager } from '@/hooks/usePager';
 import ImportBertahapUmumDialog from '@/components/ImportBertahapUmumDialog';
+import { tokenUrut, type PetaArahKolom } from '@/lib/urut';
 import { toast } from 'sonner';
 
 /** Mutasi Keluar: kiri santri aktif (nama + kelas) → kanan arsip mutasi. */
@@ -91,6 +92,8 @@ export default function MutasiKeluarPage() {
   /** Urut header arsip: daftar nilai allowlist + arah global (maks 3 kunci). */
   const [urut, setUrut] = useState<string[]>([]);
   const [arahUrut, setArahUrut] = useState<'naik' | 'turun'>('naik');
+  /** Arah per kode dari preset urut (opsional) — menimpa arah global. */
+  const [arahKolom, setArahKolom] = useState<PetaArahKolom | undefined>(undefined);
   /** Pencarian tunggal halaman (topBar). */
   const [cari, setCari] = useState('');
 
@@ -126,19 +129,20 @@ export default function MutasiKeluarPage() {
 
   const loadArsip = useCallback(async (
     p = pager.page, pp = pager.perPage,
-    f?: { urut?: string[]; arah?: 'naik' | 'turun' },
+    f?: { urut?: string[]; arah?: 'naik' | 'turun'; arahKolom?: PetaArahKolom },
   ) => {
     if (filterLoading || jenjangs.length === 0) { setArsip([]); return; }
     try {
       const u = f?.urut ?? urut;
       const a = f?.arah ?? arahUrut;
+      const ak = f?.arahKolom ?? arahKolom;
       const res = await listMutasiKeluar({
         jenjang: jenjangs,
         // Arsip = riwayat, jadi ikut filter tahun ajaran (terpilih = semua).
         tahun_ajaran: tahunAjaranNames,
         tingkat: tingkatAktif,
         q: cari || undefined,
-        sort: u.length ? u : undefined,
+        sort: u.length ? tokenUrut(u, ak) : undefined,
         arah: u.length ? a : undefined,
         page: p, per_page: pp,
       });
@@ -146,14 +150,16 @@ export default function MutasiKeluarPage() {
       setLastPage(res.last_page);
       setTotal(res.total);
     } catch (e) { setErr(errorMessage(e)); }
-  }, [filterLoading, jenjangs, tingkatAktif, cari, pager.page, pager.perPage, urut, arahUrut]);
+  }, [filterLoading, jenjangs, tingkatAktif, cari, pager.page, pager.perPage, urut, arahUrut, arahKolom]);
 
   /** Klik header: simpan urut baru lalu muat ulang arsip dari halaman 1. */
-  function terapkanUrut(nilai: string[], arah: 'naik' | 'turun') {
+  function terapkanUrut(nilai: string[], arah: 'naik' | 'turun', arahKolomBaru?: PetaArahKolom) {
+    const peta = nilai.length > 0 ? arahKolomBaru : undefined;
     setUrut(nilai);
     setArahUrut(arah);
+    setArahKolom(peta);
     pager.goFirst();
-    void loadArsip(1, pager.perPage, { urut: nilai, arah });
+    void loadArsip(1, pager.perPage, { urut: nilai, arah, arahKolom: peta });
   }
 
   useEffect(() => { void loadKiri(); }, [loadKiri]);

@@ -14,6 +14,7 @@ import {
   type Santri,
 } from '../api/santri';
 import { listLembaga, type Lembaga } from '../api/master';
+import { tokenUrut, type PetaArahKolom } from '@/lib/urut';
 import {
   SANTRI_IDENTITAS_FIELDS,
   hanyaIdentitas,
@@ -63,6 +64,8 @@ export default function KeanggotaanPage() {
   /** Urut header: daftar nilai allowlist + arah global (maks 3 kunci). */
   const [urut, setUrut] = useState<string[]>([]);
   const [arahUrut, setArahUrut] = useState<'naik' | 'turun'>('naik');
+  /** Arah per kode dari preset urut (opsional) — menimpa arah global. */
+  const [arahKolom, setArahKolom] = useState<PetaArahKolom | undefined>(undefined);
   const [lembagaOpsi, setLembagaOpsi] = useState<Lembaga[]>([]);
   const [rows, setRows] = useState<LembagaSantri[]>([]);
   const [lastPage, setLastPage] = useState(1);
@@ -91,16 +94,16 @@ export default function KeanggotaanPage() {
 
   const load = useCallback(async (
     p = pager.page, pp = pager.perPage,
-    f?: { jenjangs?: readonly string[]; status?: string; cari?: string; urut?: string[]; arah?: 'naik' | 'turun' },
+    f?: { jenjangs?: readonly string[]; status?: string; cari?: string; urut?: string[]; arah?: 'naik' | 'turun'; arahKolom?: PetaArahKolom },
   ) => {
     setErr('');
     try {
-      const fl = f ?? { jenjangs, status, cari, urut, arah: arahUrut };
+      const fl = f ?? { jenjangs, status, cari, urut, arah: arahUrut, arahKolom };
       const res = await listKeanggotaan({
         jenjang: fl.jenjangs,
         is_active_lembaga: fl.status === '' ? null : fl.status === '1',
         search: fl.cari || undefined,
-        sort: fl.urut?.length ? fl.urut : undefined,
+        sort: fl.urut?.length ? tokenUrut(fl.urut, fl.arahKolom) : undefined,
         arah: fl.urut?.length ? (fl.arah ?? 'naik') : undefined,
         page: p,
         per_page: pp,
@@ -110,14 +113,16 @@ export default function KeanggotaanPage() {
       setLastPage(res.last_page);
       setTotal(res.total);
     } catch (e) { setErr(errorMessage(e)); }
-  }, [pager, jenjangs, status, cari, urut, arahUrut]);
+  }, [pager, jenjangs, status, cari, urut, arahUrut, arahKolom]);
 
   /** Klik header: simpan urut baru lalu muat ulang dari halaman 1. */
-  function terapkanUrut(nilai: string[], arah: 'naik' | 'turun') {
+  function terapkanUrut(nilai: string[], arah: 'naik' | 'turun', arahKolomBaru?: PetaArahKolom) {
+    const peta = nilai.length > 0 ? arahKolomBaru : undefined;
     setUrut(nilai);
     setArahUrut(arah);
+    setArahKolom(peta);
     pager.goFirst();
-    void load(1, pager.perPage, { jenjangs, status, cari, urut: nilai, arah });
+    void load(1, pager.perPage, { jenjangs, status, cari, urut: nilai, arah, arahKolom: peta });
   }
 
   useEffect(() => { void listLembaga({ per_page: 100 }).then((r) => setLembagaOpsi(r.data)).catch(() => {}); }, []);

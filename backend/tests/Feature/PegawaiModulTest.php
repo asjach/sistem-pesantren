@@ -292,6 +292,31 @@ class PegawaiModulTest extends TestCase
             ->assertOk()->assertJsonMissing(['nama_lengkap' => 'Walas']);
     }
 
+    public function test_parse_urut_dukung_sufiks_arah_per_token(): void
+    {
+        $this->fixture();
+        $auth = $this->superAdmin();
+        $guru = Pegawai::create(['nama_lengkap' => 'Urut Arah', 'jenis_kelamin' => 'L', 'nipp' => 'UR-1']);
+        $this->actingAs($auth, 'sanctum')->postJson("/api/admin/pegawai/{$guru->id}/tempatkan", [
+            'jenjang' => 'MI',
+        ])->assertCreated();
+
+        // Token `aktif:turun` menimpa arah global `naik`; token polos ikut global.
+        $this->actingAs($auth, 'sanctum')
+            ->getJson('/api/admin/pegawai-lembaga?sort=aktif:turun,nama&arah=naik')
+            ->assertOk();
+
+        // Sufiks DESC (alias) juga dikenali.
+        $this->actingAs($auth, 'sanctum')
+            ->getJson('/api/admin/pegawai-lembaga?sort=aktif:DESC')
+            ->assertOk();
+
+        // Token tak dikenal tetap ditolak.
+        $this->actingAs($auth, 'sanctum')
+            ->getJson('/api/admin/pegawai-lembaga?sort=kolom_hantu:turun')
+            ->assertStatus(422);
+    }
+
     public function test_hapus_keaktifan_permen_dan_butuh_izin(): void
     {
         $this->fixture();

@@ -149,6 +149,26 @@ class UrutPresetTest extends TestCase
         $this->assertFalse($opsi[1]['bawaan']);
     }
 
+    public function test_simpan_arah_per_kolom_dan_buang_kunci_asing(): void
+    {
+        $pusat = $this->makeUser('super_admin');
+
+        $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/urut-preset', [
+            'table_key' => 'pegawai_lembaga',
+            'opsi' => [
+                [
+                    'kode' => ['aktif', 'nama'], 'label' => 'Aktif dulu', 'bawaan' => true,
+                    'arah' => 'naik',
+                    'arah_kolom' => ['aktif' => 'turun', 'nama' => 'naik', 'kode_hantu' => 'naik'],
+                ],
+            ],
+        ])->assertStatus(200);
+
+        $opsi = UrutPreset::where('table_key', 'pegawai_lembaga')->first()->opsi;
+        // Kunci asing dibuang; dua kunci sah tetap tersimpan.
+        $this->assertSame(['aktif' => 'turun', 'nama' => 'naik'], $opsi[0]['arah_kolom']);
+    }
+
     public function test_table_key_tak_dikenal_ditolak(): void
     {
         $pusat = $this->makeUser('super_admin');

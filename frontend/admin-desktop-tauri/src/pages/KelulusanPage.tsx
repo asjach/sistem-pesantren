@@ -31,6 +31,7 @@ import { TopBarSearch } from '@/components/TopBarSearch';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { Download, FileUp, X } from '@/icons';
 import { namaTahunAjaran } from '@/lib/nilaiTampil';
+import { tokenUrut, type PetaArahKolom } from '@/lib/urut';
 import ImportBertahapUmumDialog from '@/components/ImportBertahapUmumDialog';
 import { toast } from 'sonner';
 
@@ -144,6 +145,8 @@ export default function KelulusanPage() {
   const [tercentangTidakLulus, setTercentangTidakLulus] = useState<TidakLulus[]>([]);
   /** Urut header tabel alumni: daftar nilai allowlist + arah global (maks 3 kunci). */
   const [urutAlumni, setUrutAlumni] = useState<string[]>([]);
+  /** Arah per kode dari preset urut (opsional) — menimpa arah global. */
+  const [arahKolom, setArahKolom] = useState<PetaArahKolom | undefined>(undefined);
   const [arahAlumni, setArahAlumni] = useState<'naik' | 'turun'>('naik');
   const [err, setErr] = useState('');
   /** Pencarian tunggal halaman (topBar). */
@@ -214,35 +217,38 @@ export default function KelulusanPage() {
   }, [siap, jenjangs, taDepan, tingkatAkhir, cari, barisTidakLulus]);
 
   const loadArsip = useCallback(async (
-    f?: { urut?: string[]; arah?: 'naik' | 'turun' },
+    f?: { urut?: string[]; arah?: 'naik' | 'turun'; arahKolom?: PetaArahKolom },
   ) => {
     if (!siap || jenjangs.length === 0) { setAlumni([]); return; }
     setErr('');
     try {
       const u = f?.urut ?? urutAlumni;
       const a = f?.arah ?? arahAlumni;
+      const ak = f?.arahKolom ?? arahKolom;
       const res = await listAlumni({
         jenjang: jenjangs,
         tahun_ajaran_lulus: taDasar,
         q: cari || undefined,
-        sort: u.length ? u : undefined,
+        sort: u.length ? tokenUrut(u, ak) : undefined,
         arah: u.length ? a : undefined,
         page: 1,
         per_page: 0,
       });
       setAlumni(res.data);
     } catch (e) { setErr(errorMessage(e)); }
-  }, [siap, jenjangs, taDasar, cari, urutAlumni, arahAlumni]);
+  }, [siap, jenjangs, taDasar, cari, urutAlumni, arahAlumni, arahKolom]);
 
   useEffect(() => { void loadKiri(); }, [loadKiri]);
   useEffect(() => { void loadTidak(); }, [loadTidak]);
   useEffect(() => { void loadArsip(); }, [loadArsip]);
 
   /** Klik combobox Urutkan: simpan urut baru lalu muat ulang arsip alumni. */
-  function terapkanUrutAlumni(nilai: string[], arah: 'naik' | 'turun') {
+  function terapkanUrutAlumni(nilai: string[], arah: 'naik' | 'turun', arahKolomBaru?: PetaArahKolom) {
+    const peta = nilai.length > 0 ? arahKolomBaru : undefined;
     setUrutAlumni(nilai);
     setArahAlumni(arah);
-    void loadArsip({ urut: nilai, arah });
+    setArahKolom(peta);
+    void loadArsip({ urut: nilai, arah, arahKolom: peta });
   }
 
   const namaTerpilih = kiri.filter((r) => pilih.has(r.santri_id));

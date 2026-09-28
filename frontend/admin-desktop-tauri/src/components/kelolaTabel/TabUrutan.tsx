@@ -23,15 +23,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { GripVertical, Plus, Trash2 } from '@/icons';
+import { ArrowDownAZ, ArrowUpAZ, GripVertical, Plus, Trash2 } from '@/icons';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
 const IKUT = '_ikut';
 
 /** Tab Urutan dialog Kelola Halaman: susun opsi urut (global, berlaku semua
- *  lembaga), atur arah & opsi bawaan. Draft = salinan penuh opsi tersimpan;
- *  Simpan mengganti seluruh daftar (semantik sama seperti dialog lama). */
+ *  lembaga), atur arah per opsi maupun per kolom & opsi bawaan. Draft =
+ *  salinan penuh opsi tersimpan; Simpan mengganti seluruh daftar. */
 export default function TabUrutan({ tableKey, onTutup }: { tableKey: string; onTutup: () => void }) {
   // Kelola urutan = pengaturan global super_admin EFEKTIF (mati saat bertindak).
   const { efektifSuper: bolehSimpan } = useLembagaAktif();
@@ -44,7 +44,7 @@ export default function TabUrutan({ tableKey, onTutup }: { tableKey: string; onT
     try {
       const res = await muatUrutPreset(tableKey);
       setData(res.data);
-      setDraft(res.data.opsi.map((o) => ({ ...o, kode: [...o.kode] })));
+      setDraft(res.data.opsi.map((o) => ({ ...o, kode: [...o.kode], arah_kolom: o.arah_kolom ? { ...o.arah_kolom } : null })));
     } catch {
       setData({ table_key: tableKey, opsi: [], tersedia: [] });
       setDraft([]);
@@ -91,6 +91,21 @@ export default function TabUrutan({ tableKey, onTutup }: { tableKey: string; onT
     }));
   }
 
+  /** Arah satu kolom dalam satu opsi: khusus (arah_kolom) atau ikut global. */
+  function arahKolomDari(o: OpsiUrut, kode: string): ArahUrut | null {
+    return o.arah_kolom?.[kode] ?? null;
+  }
+
+  function setArahKolom(i: number, kode: string, arah: ArahUrut | null) {
+    setDraft((d) => d.map((o, j) => {
+      if (j !== i) return o;
+      const peta = { ...(o.arah_kolom ?? {}) };
+      if (arah === null) delete peta[kode];
+      else peta[kode] = arah;
+      return { ...o, arah_kolom: Object.keys(peta).length === 0 ? null : peta };
+    }));
+  }
+
   function setBawaan(i: number) {
     setDraft((d) => d.map((o, j) => ({ ...o, bawaan: j === i })));
   }
@@ -123,6 +138,7 @@ export default function TabUrutan({ tableKey, onTutup }: { tableKey: string; onT
         kode: o.kode,
         label: o.label.trim() || labelKode(o.kode),
         arah: o.arah,
+        arah_kolom: o.arah_kolom && Object.keys(o.arah_kolom).length > 0 ? o.arah_kolom : null,
         bawaan: o.bawaan,
       });
     }
@@ -226,7 +242,7 @@ export default function TabUrutan({ tableKey, onTutup }: { tableKey: string; onT
               >
                 <SelectTrigger
                   id={`select_arah_urut_${tableKey}_${i}`}
-                  title="Arah urut"
+                  title="Arah untuk kolom tanpa pengaturan sendiri"
                   className="h-7 w-28 shrink-0 text-xs"
                 >
                   <SelectValue />
@@ -260,6 +276,48 @@ export default function TabUrutan({ tableKey, onTutup }: { tableKey: string; onT
               >
                 <Trash2 size={14} />
               </Button>
+              {/* Arah per kolom: muncul hanya bila opsi memilih ≥ 2 kolom. */}
+              {o.kode.length >= 2 && bolehSimpan && (
+                <div
+                  className="flex w-full flex-wrap items-center gap-1.5 border-t pt-1.5 pl-7"
+                  data-part="arah_kolom_urut"
+                >
+                  <span className="text-[11px] text-muted-foreground">Arah per kolom:</span>
+                  {o.kode.map((k) => {
+                    const arahIni = arahKolomDari(o, k);
+                    return (
+                      <span
+                        key={k}
+                        className="inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px]"
+                      >
+                        <span className="max-w-40 truncate">{labelKode([k])}</span>
+                        <button
+                          type="button"
+                          id={`btn_arah_kolom_${tableKey}_${i}_${k.replace(/[^a-z0-9_]/gi, '_')}`}
+                          title={arahIni === null ? `Arah ${labelKode([k])}: ikut global (${o.arah === 'turun' ? 'turun' : 'naik'}) — klik untuk ganti` : `Arah ${labelKode([k])}: ${arahIni} — klik untuk ganti`}
+                          aria-label={`Arah kolom ${labelKode([k])}: ${arahIni === 'turun' ? 'turun' : arahIni === 'naik' ? 'naik' : 'ikut global'}`}
+                          disabled={!bolehSimpan}
+                          onClick={() => {
+                            // Siklus: ikut global → naik → turun → ikut global.
+                            setArahKolom(i, k, arahIni === null ? 'naik' : arahIni === 'naik' ? 'turun' : null);
+                          }}
+                          className={cn(
+                            'grid size-5 place-items-center rounded hover:bg-accent disabled:opacity-50',
+                            arahIni === 'turun' && 'text-blue-600 dark:text-blue-400',
+                            arahIni === 'naik' && 'text-emerald-600 dark:text-emerald-400',
+                          )}
+                        >
+                          {arahIni === 'turun'
+                            ? <ArrowDownAZ size={12} />
+                            : arahIni === 'naik'
+                              ? <ArrowUpAZ size={12} />
+                              : <span className="text-[10px] text-muted-foreground">ikut</span>}
+                        </button>
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           ))
         )}
@@ -272,7 +330,7 @@ export default function TabUrutan({ tableKey, onTutup }: { tableKey: string; onT
             variant="outline"
             id={`btn_urut_tambah_${tableKey}`}
             disabled={!bolehSimpan}
-            onClick={() => setDraft((d) => [...d, { kode: [], label: '', arah: null, bawaan: d.length === 0 }])}
+            onClick={() => setDraft((d) => [...d, { kode: [], label: '', arah: null, arah_kolom: null, bawaan: d.length === 0 }])}
           >
             <Plus size={14} /> Opsi
           </Button>

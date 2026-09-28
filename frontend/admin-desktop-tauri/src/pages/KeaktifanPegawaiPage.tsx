@@ -16,6 +16,8 @@ import { useDaftarTabel } from '@/hooks/useDaftarTabel';
 import { targetTunggal, useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { TopBarSearch } from '@/components/TopBarSearch';
+import FilterField from '@/components/FilterField';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import CatatanProsesTahunAjaran from '@/components/CatatanProsesTahunAjaran';
 import { ActionIcon, DeleteAction } from '@/components/RowActions';
@@ -29,7 +31,8 @@ const FIELDS: ExcelField[] = [
   { key: 'lembaga', label: 'lembaga.jenjang', width: 100, kind: 'static', sumber: { tabel: 'lembaga', kolom: 'jenjang' } },
   { key: 'ta', label: 'tahun_ajaran.nama', width: 130, kind: 'static', sumber: { tabel: 'tahun_ajaran', kolom: 'nama' } },
   { key: 'tugas', label: 'Tugas', width: 180, kind: 'static', sumber: { tabel: 'keaktifan_pegawai', kolom: 'tugas_utama' } },
-  { key: 'status', label: 'Status', width: 110, kind: 'static', sumber: { tabel: 'keaktifan_pegawai', kolom: 'status_keaktifan' } },
+  // Toggle langsung (tanpa Mode Edit): gerbang izin mengikuti `canEdit` tabel.
+  { key: 'status', label: 'Status', width: 110, kind: 'toggle', sumber: { tabel: 'keaktifan_pegawai', kolom: 'status_keaktifan' } },
   { key: 'no_sk', label: 'No. SK', width: 180, kind: 'text', maxLength: 100, sumber: { tabel: 'keaktifan_pegawai', kolom: 'no_sk' } },
   { key: 'tgl_sk', label: 'Tgl SK', width: 130, kind: 'text', maxLength: 10, sumber: { tabel: 'keaktifan_pegawai', kolom: 'tgl_sk' } },
 ];
@@ -40,7 +43,7 @@ function nilaiBaris(r: KeaktifanPegawai): Record<string, string | null> {
     lembaga: r.lembaga?.jenjang ?? r.jenjang,
     ta: r.tahun_ajaran,
     tugas: r.tugas_utama,
-    status: r.status_keaktifan,
+    status: r.status_keaktifan === 'aktif' ? 'ya' : 'tidak',
     no_sk: r.no_sk,
     tgl_sk: r.tgl_sk,
   };
@@ -105,6 +108,20 @@ export default function KeaktifanPegawaiPage() {
     }
   }, [load]);
 
+  /** Toggle Aktif: nyala → simpan status aktif; padam → nonaktifkan baris. */
+  const onToggleStatus = useCallback(async (r: KeaktifanPegawai, aktif: boolean) => {
+    if (aktif) {
+      await simpanKeaktifanPegawai({
+        pegawai_id: r.pegawai_id,
+        jenjang: r.jenjang,
+        tahun_ajaran: r.tahun_ajaran,
+        status_keaktifan: 'aktif',
+      });
+    } else {
+      await nonaktifkanKeaktifan(r.id);
+    }
+  }, []);
+
   const onHapus = useCallback(async (r: KeaktifanPegawai) => {
     try {
       await hapusKeaktifanPegawai(r.id);
@@ -115,16 +132,25 @@ export default function KeaktifanPegawaiPage() {
     }
   }, [load]);
 
-  async function commitSk(id: number, f: Record<string, string | null>) {
+  async function commitBaris(id: number, f: Record<string, string | null>) {
     const baris = rows.find((r) => r.id === id);
     if (!baris) return;
-    await simpanKeaktifanPegawai({
-      pegawai_id: baris.pegawai_id,
-      jenjang: baris.jenjang,
-      tahun_ajaran: baris.tahun_ajaran,
-      ...(f.no_sk !== undefined ? { no_sk: f.no_sk || null } : {}),
-      ...(f.tgl_sk !== undefined ? { tgl_sk: f.tgl_sk || null } : {}),
-    });
+    const ubahSk = f.no_sk !== undefined || f.tgl_sk !== undefined;
+    if (ubahSk) {
+      await simpanKeaktifanPegawai({
+        pegawai_id: baris.pegawai_id,
+        jenjang: baris.jenjang,
+        tahun_ajaran: baris.tahun_ajaran,
+        ...(f.no_sk !== undefined ? { no_sk: f.no_sk || null } : {}),
+        ...(f.tgl_sk !== undefined ? { tgl_sk: f.tgl_sk || null } : {}),
+        // Bila status ikut berubah dalam batch yang sama, kirim eksplisit —
+        // endpoint store berstatus bawaan `aktif` sehingga tanpa ini toggle
+        // padam akan tertimpa jadi aktif.
+        ...(f.status !== undefined ? { status_keaktifan: f.status === 'ya' ? 'aktif' : 'inaktif' } : {}),
+      });
+      return;
+    }
+    if (f.status !== undefined) await onToggleStatus(baris, f.status === 'ya');
   }
 
   const renderActions = useCallback((r: KeaktifanPegawai) => (
@@ -211,12 +237,34 @@ export default function KeaktifanPegawaiPage() {
         loading={loading}
         emptyText={taTunggal ? 'Belum ada guru aktif di TA ini.' : 'Pilih satu tahun ajaran di filter.'}
         canEdit={canUbah}
-        onCommit={commitSk}
+        onCommit={commitBaris}
         onSaved={onSaved}
         urutAktif={urut}
         arahUrut={arahUrut}
         onUrut={terapkanUrut}
         onCheckedChange={setTercentang}
+        filter={
+          <FilterField label="Status" htmlFor="select_status_keaktifan">
+            <Select
+              value={status === '' ? 'semua' : status}
+              onValueChange={(v) => {
+                setStatus(v === 'semua' ? '' : v);
+                pager.goFirst();
+              }}
+            >
+              <SelectTrigger id="select_status_keaktifan" title="Status keaktifan" aria-label="Status keaktifan" size="sm" className="w-36">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value="semua">Semua status</SelectItem>
+                  <SelectItem value="aktif">Aktif</SelectItem>
+                  <SelectItem value="inaktif">Inaktif</SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </FilterField>
+        }
         addButton={
           <>
             {canUbah && (

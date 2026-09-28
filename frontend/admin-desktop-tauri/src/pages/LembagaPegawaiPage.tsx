@@ -1,5 +1,6 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { errorMessage } from '../api/client';
+import { referensiList } from '../api/master';
 import {
   aktifkanPenempatan,
   hapusPenempatanPegawai,
@@ -31,17 +32,6 @@ const FIELDS_KIRI: ExcelField[] = [
   { key: 'nip', label: 'pegawai.nip', width: 180, kind: 'static', sumber: { tabel: 'pegawai', kolom: 'nip' } },
 ];
 
-const FIELDS_KANAN: ExcelField[] = [
-  { key: 'nama', label: 'pegawai.nama_lengkap', width: 220, kind: 'static', sumber: { tabel: 'pegawai', kolom: 'nama_lengkap' } },
-  { key: 'nipp', label: 'pegawai.nipp', width: 130, kind: 'static', sumber: { tabel: 'pegawai', kolom: 'nipp' } },
-  { key: 'lembaga', label: 'lembaga.jenjang', width: 100, kind: 'static', sumber: { tabel: 'lembaga', kolom: 'jenjang' } },
-  { key: 'tugas', label: 'Tugas', width: 160, kind: 'text', maxLength: 100, sumber: { tabel: 'lembaga_pegawai', kolom: 'tugas_utama' } },
-  { key: 'aktif', label: 'Aktif', width: 90, kind: 'toggle', sumber: { tabel: 'lembaga_pegawai', kolom: 'is_active_lembaga' } },
-  { key: 'tgl_masuk', label: 'Tgl Masuk', width: 130, kind: 'text', maxLength: 10, sumber: { tabel: 'lembaga_pegawai', kolom: 'tgl_masuk' } },
-  { key: 'no_sk_awal_ptk', label: 'No. SK Awal PTK', width: 180, kind: 'text', maxLength: 100, sumber: { tabel: 'lembaga_pegawai', kolom: 'no_sk_awal_ptk' } },
-  { key: 'tgl_sk_awal_ptk', label: 'Tgl SK Awal PTK', width: 140, kind: 'text', maxLength: 10, sumber: { tabel: 'lembaga_pegawai', kolom: 'tgl_sk_awal_ptk' } },
-];
-
 function nilaiKiri(p: Pegawai): Record<string, string | null> {
   return { nama_lengkap: p.nama_lengkap, nip: p.nip };
 }
@@ -66,6 +56,26 @@ export default function LembagaPegawaiPage() {
   const canHapus = bisa(user, 'pegawai.hapus');
   const { jenjangs } = useFilterGlobalAktif();
   const [cari, setCari] = useState('');
+
+  // Pilihan Tugas dari kamus referensi per lembaga (mengikuti filter global).
+  const [tugasOpsi, setTugasOpsi] = useState<{ value: string; label: string }[]>([]);
+  useEffect(() => {
+    let hidup = true;
+    referensiList('tugas_utama', jenjangs)
+      .then((r) => {
+        if (!hidup) return;
+        const opsi = [...new Map(r.map((x) => [x.nama, x.nama])).keys()]
+          .filter((n): n is string => !!n)
+          .map((n) => ({ value: n, label: n }));
+        // Default 'Guru Pengampu' selalu tersedia (bila belum ada di kamus).
+        if (!opsi.some((o) => o.value === 'Guru Pengampu')) {
+          opsi.unshift({ value: 'Guru Pengampu', label: 'Guru Pengampu' });
+        }
+        setTugasOpsi(opsi);
+      })
+      .catch(() => { if (hidup) setTugasOpsi([{ value: 'Guru Pengampu', label: 'Guru Pengampu' }]); });
+    return () => { hidup = false; };
+  }, [jenjangs]);
 
   // Halaman ini tanpa pagination: kedua tabel memuat seluruh baris sekaligus
   // (per_page=0) dan mengisi seluruh ruang vertikal panel masing-masing.
@@ -210,6 +220,17 @@ export default function LembagaPegawaiPage() {
     );
   }, [canUbah, jenjangs, busy, kanan, kiri]);
 
+  const fieldsKanan = useMemo<ExcelField[]>(() => [
+    { key: 'nama', label: 'pegawai.nama_lengkap', width: 220, kind: 'static', sumber: { tabel: 'pegawai', kolom: 'nama_lengkap' } },
+    { key: 'nipp', label: 'pegawai.nipp', width: 130, kind: 'static', sumber: { tabel: 'pegawai', kolom: 'nipp' } },
+    { key: 'lembaga', label: 'lembaga.jenjang', width: 100, kind: 'static', sumber: { tabel: 'lembaga', kolom: 'jenjang' } },
+    { key: 'tugas', label: 'Tugas', width: 160, kind: 'select', selectTanpaEdit: true, choices: tugasOpsi, sumber: { tabel: 'lembaga_pegawai', kolom: 'tugas_utama' } },
+    { key: 'aktif', label: 'Aktif', width: 90, kind: 'toggle', sumber: { tabel: 'lembaga_pegawai', kolom: 'is_active_lembaga' } },
+    { key: 'tgl_masuk', label: 'Tgl Masuk', width: 130, kind: 'text', maxLength: 10, sumber: { tabel: 'lembaga_pegawai', kolom: 'tgl_masuk' } },
+    { key: 'no_sk_awal_ptk', label: 'No. SK Awal PTK', width: 180, kind: 'text', maxLength: 100, sumber: { tabel: 'lembaga_pegawai', kolom: 'no_sk_awal_ptk' } },
+    { key: 'tgl_sk_awal_ptk', label: 'Tgl SK Awal PTK', width: 140, kind: 'text', maxLength: 10, sumber: { tabel: 'lembaga_pegawai', kolom: 'tgl_sk_awal_ptk' } },
+  ], [tugasOpsi]);
+
   const renderKanan = useCallback((r: LembagaPegawai) => (
     <>
       {canHapus && (
@@ -276,7 +297,7 @@ export default function LembagaPegawaiPage() {
       <ErrorNotice>{kiri.err || kanan.err}</ErrorNotice>
       <PengaturanHalaman tampil={{ semester: false, tingkat: false }} tabel={[
         { key: 'pegawai', judul: 'Pegawai (sumber)', fields: FIELDS_KIRI },
-        { key: 'pegawai_lembaga', judul: 'Penempatan', fields: FIELDS_KANAN },
+        { key: 'pegawai_lembaga', judul: 'Penempatan', fields: fieldsKanan },
       ]} />
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari nama / NIP / NIPP…" />
       <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1" id="grup_pegawai_kolom">
@@ -308,7 +329,7 @@ export default function LembagaPegawaiPage() {
           <ExcelTable
             tableKey="pegawai_lembaga"
             sumberTabel="lembaga_pegawai"
-            fields={FIELDS_KANAN}
+            fields={fieldsKanan}
             rows={kanan.rows}
             getValues={nilaiKanan}
             loading={kanan.loading}

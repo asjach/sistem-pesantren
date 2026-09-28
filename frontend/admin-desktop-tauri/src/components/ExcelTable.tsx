@@ -143,8 +143,9 @@ export interface ExcelTableProps<T extends { id: string | number }> {
   /** Daftar nilai urut aktif berurutan (maks 3) + arah global. */
   urutAktif?: string[];
   arahUrut?: 'naik' | 'turun';
-  /** Niat urut dari klik header: halaman me-refetch lalu mengisi urutAktif. */
-  onUrut?: (nilai: string[], arah: 'naik' | 'turun') => void;
+  /** Niat urut dari dropdown Urutkan: halaman me-refetch lalu mengisi urutAktif.
+   *  `arahKolom` = arah per kode dari preset (bila preset mengaturnya sendiri). */
+  onUrut?: (nilai: string[], arah: 'naik' | 'turun', arahKolom?: Record<string, 'naik' | 'turun'>) => void;
   /** Tabel database utama grid ini: kolom tanpa `sumber` dianggap berasal dari
    *  tabel ini (nama kolom = key-nya), kecuali `sumber: null`. */
   sumberTabel?: string;
@@ -890,6 +891,7 @@ export default function ExcelTable<T extends { id: string | number }>({
           });
         }
       } else if (f.kind === 'select') {
+        const langsung = !!f.selectTanpaEdit;
         cols.push({
           ...common,
           component: SelectCell,
@@ -903,17 +905,18 @@ export default function ExcelTable<T extends { id: string | number }>({
             // Mode Input aktif: klik 2× tidak menyalakan mode Edit (baris
             // input cukup buka editor sel).
             onDblClick: (id: string | number) => {
-              if (!showInput && String(id) !== INPUT_ROW_ID) enableEditByDoubleClick();
+              if (langsung || showInput || String(id) === INPUT_ROW_ID) return;
+              enableEditByDoubleClick();
             },
             onClickCell: (id: string | number) => {
               if (String(id) === INPUT_ROW_ID) openEditorForActiveCell();
-              else openEditorByClick();
+              else if (!langsung) openEditorByClick();
             },
           },
           disableKeys: true,
           keepFocus: false,
           disabled: ({ rowData }: { rowData: GridRow }) =>
-            !(editing || isInputRow(rowData)),
+            !(editing || isInputRow(rowData) || (langsung && canEdit)),
           deleteValue: ({ rowData }) => (editing ? ({ ...rowData, [f.key]: null }) as GridRow : rowData),
           copyValue: ({ rowData }) => String(rowData[f.key] ?? ''),
           pasteValue: ({ rowData, value }: { rowData: GridRow; value: string }) => {

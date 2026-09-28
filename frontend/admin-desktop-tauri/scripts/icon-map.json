@@ -790,5 +790,27 @@
   "radix": "columns",
   "bi": "columns",
   "material": null
+ },
+ "ArrowUpAZ": {
+  "lucide": "arrow-up-a-z",
+  "tabler": "sort-ascending",
+  "ph": "sort-ascending",
+  "heroicons": null,
+  "ri": "sort-asc",
+  "iconoir": null,
+  "radix": null,
+  "bi": null,
+  "material": null
+ },
+ "ArrowDownAZ": {
+  "lucide": "arrow-down-a-z",
+  "tabler": "sort-descending",
+  "ph": "sort-descending",
+  "heroicons": null,
+  "ri": "sort-desc",
+  "iconoir": null,
+  "radix": null,
+  "bi": null,
+  "material": null
  }
 }

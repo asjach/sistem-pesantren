@@ -69,6 +69,8 @@ import IcLoader2Tabler from '~icons/tabler/loader-2';
 import IcTriangleAlertTabler from '~icons/tabler/alert-triangle';
 import IcPinTabler from '~icons/tabler/pin';
 import IcColumns3Tabler from '~icons/tabler/columns-3';
+import IcArrowUpAZTabler from '~icons/tabler/sort-ascending';
+import IcArrowDownAZTabler from '~icons/tabler/sort-descending';
 
 const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   AlignCenter: IcAlignCenterTabler,
@@ -137,6 +139,8 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   TriangleAlert: IcTriangleAlertTabler,
   Pin: IcPinTabler,
   Columns3: IcColumns3Tabler,
+  ArrowUpAZ: IcArrowUpAZTabler,
+  ArrowDownAZ: IcArrowDownAZTabler,
 };
 
 export default set;

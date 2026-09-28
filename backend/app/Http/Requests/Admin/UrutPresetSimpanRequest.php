@@ -22,6 +22,8 @@ class UrutPresetSimpanRequest extends FormRequest
             'opsi.*.kode.*' => ['string', 'max:60'],
             'opsi.*.label' => ['required', 'string', 'max:60'],
             'opsi.*.arah' => ['nullable', Rule::in(['naik', 'turun'])],
+            'opsi.*.arah_kolom' => ['nullable', 'array', 'max:3'],
+            'opsi.*.arah_kolom.*' => ['string', 'max:80'],
             'opsi.*.bawaan' => ['sometimes', 'boolean'],
         ];
     }

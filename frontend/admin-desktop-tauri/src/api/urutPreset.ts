@@ -3,11 +3,13 @@ import { api } from './client';
 export type ArahUrut = 'naik' | 'turun';
 
 /** Satu opsi urut yang tampil di dropdown: kode backend berurut + label +
- *  arah bawaan + penanda bawaan (dipakai saat halaman pertama dibuka). */
+ *  arah bawaan + penanda bawaan (dipakai saat halaman pertama dibuka).
+ *  `arah_kolom` = arah per kode (opsional); kode tak tercantum mengikuti `arah`. */
 export interface OpsiUrut {
   kode: string[];
   label: string;
   arah: ArahUrut | null;
+  arah_kolom?: Record<string, ArahUrut> | null;
   bawaan: boolean;
 }
 

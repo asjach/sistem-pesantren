@@ -66,6 +66,8 @@ import IcInfoRi from '~icons/ri/information-line';
 import IcLoader2Ri from '~icons/ri/loader-2-line';
 import IcPinRi from '~icons/ri/pushpin-line';
 import IcPinOffRi from '~icons/ri/unpin-line';
+import IcArrowUpAZRi from '~icons/ri/sort-asc';
+import IcArrowDownAZRi from '~icons/ri/sort-desc';
 
 const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   AlignCenter: IcAlignCenterRi,
@@ -131,6 +133,8 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   Loader2: IcLoader2Ri,
   Pin: IcPinRi,
   PinOff: IcPinOffRi,
+  ArrowUpAZ: IcArrowUpAZRi,
+  ArrowDownAZ: IcArrowDownAZRi,
 };
 
 export default set;

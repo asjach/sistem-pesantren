@@ -62,6 +62,7 @@ class UrutPresetController extends Controller
                 'kode' => $kode,
                 'label' => trim((string) $opsi['label']),
                 'arah' => $opsi['arah'] ?? null,
+                'arah_kolom' => $this->normalArahKolom($opsi['arah_kolom'] ?? null, $kode),
                 'bawaan' => $bawaan,
             ];
         }
@@ -91,6 +92,31 @@ class UrutPresetController extends Controller
         if (! UrutKatalog::kenal($tableKey)) {
             throw ValidationException::withMessages(['table_key' => 'Tabel ini tidak punya opsi urut.']);
         }
+    }
+
+    /**
+     * Normalisasi `arah_kolom` (peta kode → naik/turun): buang kunci tak dikenal,
+    *  nilai tak valid dianggap tidak disetel (ikut global).
+     *
+     * @param  array<string, mixed>|null  $mentah
+     * @param  list<string>  $kode
+     * @return array<string, 'naik'|'turun'>|null
+     */
+    protected function normalArahKolom($mentah, array $kode): ?array
+    {
+        if (! is_array($mentah) || $mentah === []) {
+            return null;
+        }
+        $bersih = [];
+        foreach ($mentah as $k => $v) {
+            $kunci = trim((string) $k);
+            $nilai = is_string($v) ? strtolower(trim($v)) : '';
+            if (in_array($kunci, $kode, true) && in_array($nilai, ['naik', 'turun'], true)) {
+                $bersih[$kunci] = $nilai;
+            }
+        }
+
+        return $bersih === [] ? null : $bersih;
     }
 
     protected function pastikanAdminPesantren(): void
