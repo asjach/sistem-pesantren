@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
+import { RenderDibatalkan } from '@/lib/template/pdf';
 import type { DokumenPdf, UkuranMm } from '@/lib/template/pdf';
 import { cn } from '@/lib/utils';
 
@@ -31,19 +32,27 @@ export default function LembarPdf({ doc, nomor, lebarPx, className }: LembarPdfP
       return;
     }
 
-    let batal = false;
+    let dibatalkan = false;
     setGalat(null);
 
     doc
       .render(nomor, canvas, lebarPx)
       .catch((e: unknown) => {
-        if (!batal) {
-          setGalat(e instanceof Error ? e.message : 'Halaman gagal ditampilkan.');
+        // Render yang dibatalkan karena halaman atau zoom berubah adalah hal
+        // biasa, bukan kegagalan. Menampilkannya akan berkedip setiap kali
+        // pengguna berpindah halaman.
+        if (dibatalkan || e instanceof RenderDibatalkan) {
+          return;
         }
+
+        setGalat(e instanceof Error ? e.message : 'Halaman gagal ditampilkan.');
       });
 
     return () => {
-      batal = true;
+      dibatalkan = true;
+      // Render yang masih jalan pada kanvas ini harus berhenti, kalau tidak
+      // pdf.js menolak render berikutnya pada kanvas yang sama.
+      doc.batalkan();
     };
   }, [doc, nomor, lebarPx]);
 

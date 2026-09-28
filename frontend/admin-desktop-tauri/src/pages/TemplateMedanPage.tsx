@@ -35,7 +35,15 @@ import { muatPdf, type DokumenPdf } from '@/lib/template/pdf';
 import { mmKePx } from '@/lib/template/satuan';
 import { Riwayat } from '@/lib/template/Riwayat';
 import type { Kotak } from '@/lib/template/snap';
-import { TIPE_MEDAN, type GayaMedan, type KatalogNilai, type Medan, type TipeMedan, type UkuranHalaman } from '@/lib/template/tipe';
+import {
+  TIPE_MEDAN,
+  type GayaMedan,
+  type KategoriTemplate,
+  type KatalogNilai,
+  type Medan,
+  type TipeMedan,
+  type UkuranHalaman,
+} from '@/lib/template/tipe';
 import { ChevronLeft, Minus, Plus, Save, Undo2, ArrowRight } from '@/icons';
 
 const LEBAR_KANVAS_PX = 760;
@@ -52,6 +60,7 @@ export default function TemplateMedanPage() {
   const bolehUbah = bisa(user, 'template_dokumen.ubah');
 
   const [nama, setNama] = useState('');
+  const [kategori, setKategori] = useState<KategoriTemplate>('surat');
   const [doc, setDoc] = useState<DokumenPdf | null>(null);
   const [katalog, setKatalog] = useState<KatalogNilai | null>(null);
   const [medan, setMedan] = useState<Medan[]>([]);
@@ -87,6 +96,7 @@ export default function TemplateMedanPage() {
       ]);
 
       setNama(template.nama);
+      setKategori(template.kategori);
       setKatalog(katalogNilai);
 
       const medanAwal = normalisasiDefinisi(template.definisi).medan;
@@ -193,14 +203,14 @@ export default function TemplateMedanPage() {
   const simpan = useCallback(async () => {
     setMenyimpan(true);
     try {
-      await updateTemplate(templateId, { nama, definisi: { versi: 1, medan } });
+      await updateTemplate(templateId, { nama, kategori, definisi: { versi: 1, medan } });
       toast.success('Medan template tersimpan.');
     } catch (e) {
       toast.error(errorMessage(e));
     } finally {
       setMenyimpan(false);
     }
-  }, [medan, nama, templateId]);
+  }, [kategori, medan, nama, templateId]);
 
   const unggahBerkas = useCallback(
     async (berkas: File) => {
