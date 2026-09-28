@@ -41,6 +41,14 @@ abstract class PencetakMedan
      */
     protected function teks(array $medan): string
     {
+        // Teks statis didahulukan karena tidak bergantung pada sumber nilai,
+        // dan membuat dokumen bisa punya judul serta kepala kolom.
+        $statis = trim((string) ($medan['teks_tetap'] ?? ''));
+
+        if ($statis !== '') {
+            return $statis;
+        }
+
         $nilai = $this->nilaiMedan($medan);
 
         if ($nilai === null) {
@@ -75,14 +83,7 @@ abstract class PencetakMedan
     /** Sumber yang menunjuk satu record memakai id yang dikontekskan. */
     protected function idUntukSumber(string $sumber): ?int
     {
-        $pilih = KatalogNilai::sumber()[$sumber]['pilih_data'] ?? null;
-
-        return match ($pilih) {
-            'santri' => $this->konteks->idSantri,
-            'pegawai' => $this->konteks->idPegawai,
-            'lembaga' => $this->konteks->jenjang !== null ? 1 : null,
-            default => null,
-        };
+        return $this->konteks->idUntuk(KatalogNilai::sumber()[$sumber]['pilih_data'] ?? null);
     }
 
     /**

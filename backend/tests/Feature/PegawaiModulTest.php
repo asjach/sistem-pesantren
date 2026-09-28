@@ -10,9 +10,9 @@ use App\Models\Pegawai;
 use App\Models\TahunAjaran;
 use App\Models\User;
 use App\Services\PegawaiImporService;
-use App\Services\ProfilPegawaiCetak;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
+use Database\Seeders\TemplateDokumenSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Routing\Middleware\ThrottleRequests;
@@ -950,27 +950,6 @@ class PegawaiModulTest extends TestCase
         $this->actingAs($auth, 'sanctum')->getJson('/api/admin/pegawai/999999/profil')->assertNotFound();
     }
 
-    /**
-     * Teks isi berkas PDF: dompdf mengompres stream dengan Flate, jadi
-     * di-inflate dulu agar isi cetak bisa diperiksa langsung dari berkasnya.
-     */
-    private function teksPdf(string $pdf): string
-    {
-        preg_match_all('/stream\r?\n(.*?)endstream/s', $pdf, $cocok);
-        $teks = '';
-        foreach ($cocok[1] as $stream) {
-            $urai = @gzuncompress($stream);
-            if ($urai === false) {
-                $urai = @gzinflate($stream);
-            }
-            if ($urai !== false) {
-                $teks .= $urai;
-            }
-        }
-
-        return $teks;
-    }
-
     public function test_profil_pdf_tercetak_dengan_kop_dan_butuh_izin(): void
     {
         $this->fixture();
@@ -1000,24 +979,13 @@ class PegawaiModulTest extends TestCase
             'pegawai_id' => $guru->id, 'jenjang' => 'MI', 'tahun_ajaran' => '2026/2027',
         ])->assertCreated();
 
-        // Isi cetak: kop lembaga + identitas + ketiga seksi benar-benar sampai ke Blade.
-        $data = ProfilPegawaiCetak::muat($guru->fresh());
-        $tampilan = ProfilPegawaiCetak::tampilan($data, ProfilPegawaiCetak::lembagaKop($data['penempatan']), 'Petugas Uji');
-        $html = view('pdf.profil-pegawai', $tampilan)->render();
+        // Template profilAbsent dulu, supaya endpoint menjawab dengan pesan jelas
+        // alih-alih mengunduh PDF kosong.
+        $belum = $this->actingAs($auth, 'sanctum')->get("/api/admin/pegawai/{$guru->id}/profil-pdf");
+        $belum->assertStatus(422);
+        $this->assertStringContainsString('TemplateDokumenSeeder', (string) $belum->json('pesan'));
 
-        $this->assertStringContainsString('Madrasah Ibtidaiyah', $html);
-        $this->assertStringContainsString('Jl. Pesantren 1', $html);
-        $this->assertStringContainsString('Ahmad Fauzi, S.Pd.', $html);
-        $this->assertStringContainsString('Jombang', $html);
-        $this->assertStringContainsString('Guru Kelas', $html);
-        $this->assertStringContainsString('2026/2027', $html);
-
-        // Status kepegawaian dibaca sebagai kata ('Aktif'), bukan nilai mentah 'Ya'.
-        $sel = collect($tampilan['identitas'])->flatMap(fn (array $blok) => $blok['baris'])
-            ->flatten(1)->firstWhere(0, 'Status kepegawaian');
-        $this->assertSame('Aktif', $sel[1]);
-        $this->assertStringContainsString('Scoped PDF', $html);
-        $this->assertStringContainsString('Petugas Uji', $html);
+        $this->seed(TemplateDokumenSeeder::class);
 
         // Kop otomatis dari penempatan aktif; berkas benar-benar berisi byte PDF.
         $res = $this->actingAs($auth, 'sanctum')->get("/api/admin/pegawai/{$guru->id}/profil-pdf");
@@ -1029,12 +997,10 @@ class PegawaiModulTest extends TestCase
         $this->assertStringStartsWith('%PDF-', $isi);
         $this->assertGreaterThan(2000, strlen($isi));
 
-        // Isi berkas PDF (stream-nya di-inflate): benar-benar memuat data pegawai.
-        $teksPdf = $this->teksPdf($isi);
-        $this->assertStringContainsString('PROFIL PEGAWAI', $teksPdf);
-        $this->assertStringContainsString('Madrasah Ibtidaiyah', $teksPdf);
-        $this->assertStringContainsString('Ahmad Fauzi, S.Pd.', $teksPdf);
-        $this->assertStringContainsString('Guru Kelas', $teksPdf);
+        // Renderer html me-embed font ter-subset, jadi isi PDF tidak bisa
+        // dicari sebagai ASCII mentah; yang diuji di sini bentuk berkasnya.
+        // Isi datanya dijamin tes DefinisiProfilPegawaiTest & PengisiNilaiTest.
+        $this->assertSame(2, substr_count($isi, '/Type /Page') - substr_count($isi, '/Type /Pages'), 'harus dua halaman');
 
         // Param jenjang: boleh untuk lembaga sendiri, 403 di luar kewenangan.
         $this->actingAs($scoped, 'sanctum')->get("/api/admin/pegawai/{$guru->id}/profil-pdf?jenjang=MI")

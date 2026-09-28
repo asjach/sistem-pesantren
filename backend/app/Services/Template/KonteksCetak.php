@@ -32,6 +32,24 @@ final class KonteksCetak
     ) {}
 
     /**
+     * Id record untuk satu pilihan data dari katalog.
+     *
+     * Katalog menandai tiap sumber dan koleksi dengan `pilih_data`; memusatkan
+     * pemetaannya di sini supaya sumber skalar dan baris berulang memakai
+     * record yang sama dan tidak perlu tahu-menahu tentang isi konteks.
+     */
+    public function idUntuk(?string $pilihData): ?int
+    {
+        return match ($pilihData) {
+            'santri' => $this->idSantri,
+            'pegawai' => $this->idPegawai,
+            'calon_psb' => $this->idPsbCalon,
+            'lembaga' => $this->jenjang !== null ? 1 : null,
+            default => null,
+        };
+    }
+
+    /**
      * Turunkan konteks dengan sebagian atribut diganti. `idSantri` dan
      * `idPegawai` menentukan record yang dipakai sumber nilai skalar.
      *

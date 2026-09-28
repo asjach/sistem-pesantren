@@ -123,6 +123,13 @@ class DefinisiMedan
             $medan['sizemode'] = in_array($mentah['sizemode'] ?? '', self::SIZEMODE, true) ? $mentah['sizemode'] : 'sesuaikan';
         }
 
+        // Teks statis dipakai untuk judul dokumen dan kepala kolom tabel yang
+        // isinya tidak datang dari database. Tanpa ini, medan teks selalu
+        // bergantung pada sumber nilai dan tidak bisa dipakai sebagai heading.
+        if ($tipe === 'teks' || $tipe === 'paragraf') {
+            $medan['teks_tetap'] = self::teks($mentah['teks_tetap'] ?? null, 200);
+        }
+
         if ($tipe === 'halaman_otomatis') {
             $medan['format'] = self::teks($mentah['format'] ?? null, 80) ?? 'Halaman {halaman} dari {jumlah}';
         }
@@ -218,6 +225,7 @@ class DefinisiMedan
             'definisi.medan.*.w' => ['required', 'numeric', 'min:1', 'max:2000'],
             'definisi.medan.*.h' => ['required', 'numeric', 'min:1', 'max:2000'],
             'definisi.medan.*.sumber' => ['nullable', 'string', 'max:40'],
+            'definisi.medan.*.teks_tetap' => ['nullable', 'string', 'max:200'],
             'definisi.medan.*.kunci' => ['nullable', 'string', 'max:60'],
             'definisi.medan.*.gaya.font' => ['nullable', 'string', 'in:'.implode(',', self::FONT)],
             'definisi.medan.*.gaya.ukuran' => ['nullable', 'numeric', 'min:4', 'max:72'],

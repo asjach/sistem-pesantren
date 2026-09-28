@@ -16,12 +16,16 @@ use App\Models\KeaktifanPegawai;
 use App\Models\Lembaga;
 use App\Models\LembagaPegawai;
 use App\Models\Pegawai;
+use App\Models\TemplateDokumen;
 use App\Models\User;
 use App\Services\AkunPegawaiService;
 use App\Services\PegawaiImporService;
 use App\Services\ProfilPegawaiCetak;
+use App\Services\Template\DefinisiProfilPegawai;
+use App\Services\Template\KonteksCetak;
+use App\Services\Template\PengisiNilai;
+use App\Services\Template\PerenderHtml;
 use App\Services\UrutKatalog;
-use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -252,25 +256,51 @@ class PegawaiController extends Controller
     }
 
     /**
-     * GET /api/admin/pegawai/{pegawai}/profil-pdf — cetak profil (A4) dengan
-     * kop lembaga. Param opsional `jenjang` memilih lembaga untuk kop/kewenangan;
-     * tanpa param, kop dari penempatan aktif pegawai (else penempatan pertama).
+     * GET /api/admin/pegawai/{pegawai}/profil-pdf — cetak profil memakai
+     * template_dokumen berkode 'profil-pegawai' (jenis html).
+     *
+     * Param opsional `jenjang` memilih lembaga untuk kop dan isi; tanpa param,
+     * dipakai jenjang dari penempatan aktif pegawai.
      */
-    public function profilPdf(Request $request, Pegawai $pegawai): Response
+    public function profilPdf(Request $request, Pegawai $pegawai): Response|JsonResponse
     {
-        $data = ProfilPegawaiCetak::muat($pegawai);
         $jenjang = trim((string) $request->input('jenjang', ''));
+
+        if ($jenjang === '') {
+            $penempatan = $pegawai->penempatan()
+                ->orderByDesc('is_active_lembaga')
+                ->orderBy('id')
+                ->get();
+            $jenjang = (string) ($penempatan->first()?->jenjang ?? '');
+        }
 
         if ($jenjang !== '') {
             $this->authorizeLembaga($request->user(), $jenjang);
         }
 
-        $kop = $jenjang !== '' ? Lembaga::find($jenjang) : ProfilPegawaiCetak::lembagaKop($data['penempatan']);
+        $template = TemplateDokumen::where('kode', DefinisiProfilPegawai::KODE)->first();
+
+        if ($template === null) {
+            return response()->json([
+                'pesan' => 'Template "'.DefinisiProfilPegawai::NAMA.'" belum terdaftar. Jalankan `php artisan db:seed --class=TemplateDokumenSeeder` lalu coba lagi.',
+            ], 422);
+        }
+
+        $konteks = new KonteksCetak(
+            jenjang: $jenjang !== '' ? $jenjang : null,
+            pencetak: $request->user(),
+            idPegawai: $pegawai->id,
+        );
+
+        $pengisi = new PengisiNilai($konteks);
+        $isi = (new PerenderHtml($template, $pengisi, $konteks))->hasil();
         $namaBerkas = 'profil-pegawai-'.(Str::slug($pegawai->nama_lengkap) ?: $pegawai->id).'.pdf';
 
-        return Pdf::loadView('pdf.profil-pegawai', ProfilPegawaiCetak::tampilan($data, $kop, (string) $request->user()->name))
-            ->setPaper('a4')
-            ->download($namaBerkas);
+        return response()->make($isi, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="'.$namaBerkas.'"',
+            'Content-Length' => (string) strlen($isi),
+        ]);
     }
 
     /** GET /api/admin/pegawai/aktif — opsi dropdown wali: pegawai aktif di lembaga + TA. */

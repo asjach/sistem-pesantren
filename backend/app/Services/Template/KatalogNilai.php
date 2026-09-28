@@ -287,6 +287,7 @@ class KatalogNilai
             'daftar_santri_kelas' => [
                 'label' => 'Daftar Santri (Kelas Aktif)',
                 'kelompok' => 'Santri',
+                'pilih_data' => 'santri',
                 'catatan' => 'Mengikuti kelas yang sedang aktif. Cocok untuk daftar hadir & absen.',
                 'medan' => [
                     ['kunci' => 'no_urut', 'label' => 'No. Urut', 'tipe' => 'angka', 'contoh' => 1],
@@ -301,6 +302,7 @@ class KatalogNilai
             'penempatan_pegawai' => [
                 'label' => 'Daftar Penempatan Pegawai',
                 'kelompok' => 'Pegawai',
+                'pilih_data' => 'pegawai',
                 'catatan' => 'Semua lembaga tempat pegawai ditempatkan, untuk tabel pada profil.',
                 'medan' => [
                     ['kunci' => 'lembaga', 'label' => 'Lembaga', 'tipe' => 'teks', 'contoh' => 'Pondasi WLAN 2 (MTS)'],
@@ -315,6 +317,7 @@ class KatalogNilai
             'keaktifan_pegawai_riwayat' => [
                 'label' => 'Daftar Keaktifan Pegawai',
                 'kelompok' => 'Pegawai',
+                'pilih_data' => 'pegawai',
                 'catatan' => 'Riwayat keaktifan per tahun ajaran, untuk tabel pada profil.',
                 'medan' => [
                     ['kunci' => 'tahun_ajaran', 'label' => 'Tahun Ajaran', 'tipe' => 'teks', 'contoh' => '2026/2027'],
@@ -328,6 +331,7 @@ class KatalogNilai
             'akun_pegawai' => [
                 'label' => 'Akun Login Pegawai',
                 'kelompok' => 'Pegawai',
+                'pilih_data' => 'pegawai',
                 'catatan' => 'Akun sistem yang tertaut ke pegawai, untuk tabel pada profil.',
                 'medan' => [
                     ['kunci' => 'nama', 'label' => 'Nama Akun', 'tipe' => 'teks', 'contoh' => 'Operator TU'],
@@ -340,6 +344,7 @@ class KatalogNilai
             'nilai_santri' => [
                 'label' => 'Nilai Santri',
                 'kelompok' => 'Santri',
+                'pilih_data' => 'santri',
                 'catatan' => 'Mengikuti Santri, tahun ajaran, dan semester aktif. Cocok untuk tabel nilai rapor.',
                 'medan' => [
                     ['kunci' => 'no_urut', 'label' => 'No.', 'tipe' => 'angka', 'contoh' => 1],
@@ -353,6 +358,7 @@ class KatalogNilai
             'presensi_santri' => [
                 'label' => 'Presensi Santri',
                 'kelompok' => 'Santri',
+                'pilih_data' => 'santri',
                 'catatan' => 'Riwayat kehadiran Santri yang dipilih.',
                 'medan' => [
                     ['kunci' => 'no_urut', 'label' => 'No.', 'tipe' => 'angka', 'contoh' => 1],
@@ -364,6 +370,7 @@ class KatalogNilai
             'pelanggaran_santri' => [
                 'label' => 'Pelanggaran Santri',
                 'kelompok' => 'Santri',
+                'pilih_data' => 'santri',
                 'catatan' => 'Catatan pelanggaran Santri yang dipilih.',
                 'medan' => [
                     ['kunci' => 'no_urut', 'label' => 'No.', 'tipe' => 'angka', 'contoh' => 1],
@@ -376,6 +383,7 @@ class KatalogNilai
             'rekap_tahfiz' => [
                 'label' => 'Rekap Tahfiz',
                 'kelompok' => 'Santri',
+                'pilih_data' => 'santri',
                 // Catatan: nama surah sengaja tidak ditawarkan. Kolom
                 // rekap_tahfiz_santri.surah_terakhir_id masih menggantung karena
                 // tabel master surah belum ada di database.

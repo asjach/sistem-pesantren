@@ -297,7 +297,7 @@ class PengisiNilai
 
         $nilai = $lembaga->only([
             'nama', 'nama_singkat', 'jenjang', 'npsn', 'nsm', 'akreditasi', 'mudir_am', 'alamat', 'provinsi',
-            'kab_kota', 'kecamatan', 'kode_pos', 'telepon', 'email', 'website', 'logo_url',
+            'kab_kota', 'kecamatan', 'desa', 'kode_pos', 'telepon', 'email', 'website', 'logo_url',
         ]);
 
         $nilai['alamat_lengkap'] = $this->alamatLengkap($nilai);

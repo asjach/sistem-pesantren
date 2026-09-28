@@ -279,7 +279,7 @@ class PerenderHtml extends PencetakMedan
             return '';
         }
 
-        $baris = $this->pengisi->koleksi($koleksiKunci, $this->konteks->idSantri);
+        $baris = $this->pengisi->koleksi($koleksiKunci, $this->idUntukKoleksi($koleksiKunci));
         $jumlahSlot = min((int) $bagian['jumlah'], count($baris));
         $tinggiBaris = (float) $bagian['tinggi_baris'];
         $isi = '';
@@ -394,5 +394,11 @@ class PerenderHtml extends PencetakMedan
         return $this->lebar ??= new LebarHuruf(
             (new Dompdf($this->opsiDompdf()))->getFontMetrics()
         );
+    }
+
+    /** Koleksi memakai id record sesuai penentu data yang deklarasikan. */
+    private function idUntukKoleksi(string $koleksi): ?int
+    {
+        return $this->konteks->idUntuk(KatalogNilai::koleksi()[$koleksi]['pilih_data'] ?? null);
     }
 }
