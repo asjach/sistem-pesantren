@@ -78,6 +78,11 @@ class DokumenHalamanTest extends TestCase
         $row = DokumenLembaga::find($id);
         $this->assertSame('izin-2026.pdf', $row->nama_file);
         $this->assertNotNull($row->path_file);
+        $this->assertMatchesRegularExpression(
+            '{^lembaga/dokumen/madrasah_ibtidaiyah_izin_operasional_sk_kemenag_\d{8}_\d{6}\.pdf$}',
+            $row->path_file,
+        );
+        Storage::disk('local')->assertExists($row->path_file);
 
         // Unduh berkas: nama asli sebagai nama unduhan.
         $unduh = $this->actingAs($auth, 'sanctum')->get("/api/admin/dokumen/lembaga/{$id}/unduh");
@@ -109,7 +114,11 @@ class DokumenHalamanTest extends TestCase
         ], ['Accept' => 'application/json'])->assertStatus(201);
         $dok = DokumenSantri::first();
         $this->assertSame('kk-ahmad.jpg', $dok->nama_file);
-        $this->assertNotNull($dok->path_file);
+        $this->assertMatchesRegularExpression(
+            '{^santri/dokumen/ahmad_santri_kartu_keluarga_\d{8}_\d{6}\.jpg$}',
+            $dok->path_file,
+        );
+        Storage::disk('local')->assertExists($dok->path_file);
 
         $this->actingAs($auth, 'sanctum')->post('/api/admin/dokumen/pegawai', [
             'pegawai_id' => $f['guru']->id,
@@ -118,12 +127,43 @@ class DokumenHalamanTest extends TestCase
             'file' => UploadedFile::fake()->create('ijazah.pdf', 100, 'application/pdf'),
         ], ['Accept' => 'application/json'])->assertStatus(201);
         $this->assertSame('ijazah.pdf', DB::table('dokumen_pegawai')->where('pegawai_id', $f['guru']->id)->value('nama_file'));
+        $this->assertMatchesRegularExpression(
+            '{^pegawai/dokumen/ustadz_guru_ijazah_s1_\d{8}_\d{6}\.pdf$}',
+            DB::table('dokumen_pegawai')->where('pegawai_id', $f['guru']->id)->value('path_file'),
+        );
 
         // Daftar kedua halaman.
         $this->actingAs($auth, 'sanctum')->getJson('/api/admin/dokumen/santri?jenjang[]=MI')
             ->assertOk()->assertJsonFragment(['pemilik' => 'Ahmad Santri']);
         $this->actingAs($auth, 'sanctum')->getJson('/api/admin/dokumen/pegawai?jenjang[]=MI')
             ->assertOk()->assertJsonFragment(['pemilik' => 'Ustadz Guru']);
+    }
+
+    public function test_nama_berkas_template_dan_unik_akhiran(): void
+    {
+        $f = $this->fixture();
+        $auth = $this->superAdmin();
+
+        // Unggah dua kali data sama → nama kedua berakhiran penomoran.
+        for ($i = 0; $i < 2; $i++) {
+            $this->actingAs($auth, 'sanctum')->post('/api/admin/dokumen/santri', [
+                'santri_id' => $f['santri']->id,
+                'jenis_dokumen' => 'Kartu Keluarga',
+                'file' => UploadedFile::fake()->image('kk.jpg'),
+            ], ['Accept' => 'application/json'])->assertStatus(201);
+        }
+
+        $paths = DokumenSantri::orderBy('id')->pluck('path_file')->all();
+        $this->assertMatchesRegularExpression(
+            '{^santri/dokumen/ahmad_santri_kartu_keluarga_\d{8}_\d{6}\.jpg$}',
+            $paths[0],
+        );
+        $this->assertNotSame($paths[0], $paths[1]);
+        $this->assertMatchesRegularExpression(
+            '{^santri/dokumen/ahmad_santri_kartu_keluarga_\d{8}_\d{6}(-\d+)?\.jpg$}',
+            $paths[1],
+        );
+        Storage::disk('local')->assertExists($paths);
     }
 
     public function test_import_bertahap_lembaga_periksa_dan_eksekusi(): void

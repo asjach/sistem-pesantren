@@ -7,20 +7,23 @@ use App\Http\Controllers\Api\Concerns\ImporBertahap;
 use App\Http\Controllers\Api\Concerns\TenantGuard;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\DokumenPotongRequest;
-use App\Imports\DokumenImport;
 use App\Models\DokumenLembaga;
 use App\Models\DokumenSantri;
+use App\Models\ImportSesi;
 use App\Models\Lembaga;
 use App\Models\LembagaSantri;
 use App\Models\Pegawai;
 use App\Models\Santri;
 use App\Services\DokumenImporService;
+use App\Support\NamaBerkasDokumen;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Maatwebsite\Excel\Facades\Excel;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 /**
@@ -154,7 +157,9 @@ class DokumenController extends Controller
 
         $row = DB::transaction(function () use ($request, $tipe, $data) {
             $berkas = $request->file('file');
-            $path = $berkas?->store($tipe === 'lembaga' ? 'lembaga/dokumen' : "{$tipe}/dokumen", 'local');
+            $path = $berkas ? $this->simpanBerkasTemplate(
+                $berkas, $tipe, $this->namaPemilik($tipe, $data), $data['jenis_dokumen'], $data['catatan'] ?? null,
+            ) : null;
 
             if ($tipe === 'santri') {
                 return DokumenSantri::create([
@@ -220,7 +225,7 @@ class DokumenController extends Controller
             $ubah['catatan'] = $data['catatan'];
         }
 
-        if ($model instanceof \Illuminate\Database\Eloquent\Model) {
+        if ($model instanceof Model) {
             $model->update($ubah);
 
             return response()->json(['pesan' => 'Dokumen diubah.', 'data' => $model->fresh()]);
@@ -241,10 +246,16 @@ class DokumenController extends Controller
         $request->validate(['file' => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:10240']]);
 
         $berkas = $request->file('file');
-        $path = $berkas->store($tipe === 'lembaga' ? 'lembaga/dokumen' : "{$tipe}/dokumen", 'local');
+        $nama = match ($tipe) {
+            'santri' => $model->santri?->nama_lengkap ?? 'santri-'.$model->santri_id,
+            'pegawai' => Pegawai::find($model->pegawai_id)?->nama_lengkap ?? 'pegawai-'.$model->pegawai_id,
+            default => Lembaga::where('jenjang', $model->jenjang)->value('nama') ?? $model->jenjang,
+        };
+        $jenis = $tipe === 'santri' ? $model->jenis_dokumen_santri : ($tipe === 'pegawai' ? $model->jenis_dokumen_pegawai : $model->jenis_dokumen);
+        $path = $this->simpanBerkasTemplate($berkas, $tipe, (string) $nama, (string) $jenis, $model->catatan ?? null);
         $ubah = ['path_file' => $path, 'nama_file' => $berkas->getClientOriginalName()];
 
-        if ($model instanceof \Illuminate\Database\Eloquent\Model) {
+        if ($model instanceof Model) {
             // Berkas lama dibuang agar storage tak menumpuk.
             if ($model->path_file) {
                 Storage::disk('local')->delete($model->path_file);
@@ -271,7 +282,7 @@ class DokumenController extends Controller
         $model = $this->temukan($tipe, $id, $request);
 
         $path = $model->path_file ?? null;
-        if ($model instanceof \Illuminate\Database\Eloquent\Model) {
+        if ($model instanceof Model) {
             $model->delete();
         } else {
             DB::table('dokumen_pegawai')->where('id', $id)->delete();
@@ -305,7 +316,7 @@ class DokumenController extends Controller
     {
         $this->cekTipe($tipe);
 
-        return \Maatwebsite\Excel\Facades\Excel::download(
+        return Excel::download(
             new DokumenTemplateExport($tipe),
             "template-import-dokumen-{$tipe}.xlsx",
         );
@@ -320,7 +331,7 @@ class DokumenController extends Controller
     }
 
     /** POST /api/admin/dokumen/{tipe}/import-potong/{sesi}/batal. */
-    public function batalPotong(Request $request, string $tipe, \App\Models\ImportSesi $sesi): JsonResponse
+    public function batalPotong(Request $request, string $tipe, ImportSesi $sesi): JsonResponse
     {
         $this->cekTipe($tipe);
 
@@ -328,7 +339,7 @@ class DokumenController extends Controller
     }
 
     /** GET /api/admin/dokumen/{tipe}/import-potong/{sesi}/galat — unduh CSV galat. */
-    public function galatPotong(Request $request, string $tipe, \App\Models\ImportSesi $sesi)
+    public function galatPotong(Request $request, string $tipe, ImportSesi $sesi)
     {
         $this->cekTipe($tipe);
 
@@ -342,6 +353,28 @@ class DokumenController extends Controller
         if (! in_array($tipe, self::TIPE, true)) {
             abort(404);
         }
+    }
+
+    /** Direktori storage per tipe (cermin aturan lama `store()`). */
+    private function direktoriBerkas(string $tipe): string
+    {
+        return $tipe === 'lembaga' ? 'lembaga/dokumen' : "{$tipe}/dokumen";
+    }
+
+    /** Simpan berkas memakai template nama; kembalikan path relatif storage. */
+    private function simpanBerkasTemplate(UploadedFile $berkas, string $tipe, string $nama, string $jenis, ?string $catatan): string
+    {
+        return NamaBerkasDokumen::simpan($berkas, 'local', $this->direktoriBerkas($tipe), $nama, $jenis, $catatan);
+    }
+
+    /** Nama pemilik untuk segmen template (fallback id bila relasi hilang). */
+    private function namaPemilik(string $tipe, array $data): string
+    {
+        return match ($tipe) {
+            'santri' => (string) (Santri::find($data['santri_id'])?->nama_lengkap ?? 'santri-'.$data['santri_id']),
+            'pegawai' => (string) (Pegawai::find($data['pegawai_id'])?->nama_lengkap ?? 'pegawai-'.$data['pegawai_id']),
+            default => (string) (Lembaga::where('jenjang', $data['jenjang'])->value('nama') ?? $data['jenjang']),
+        };
     }
 
     /** Cakupan lembaga dokumen: wajib satu filter lembaga (semua baris milik lembaga). */

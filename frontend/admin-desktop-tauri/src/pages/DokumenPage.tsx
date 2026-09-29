@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { errorMessage } from '../api/client';
 import { bisa } from '../api/auth';
 import { useAuth } from '../auth/AuthContext';
@@ -52,6 +53,7 @@ const KONFIG: Record<TipeDokumen, Konfig> = {
 /** Satu implementasi untuk tiga halaman dokumen; perbedaan hanya konfigurasi. */
 export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const izin = izinDokumen(tipe);
   const canTambah = bisa(user, izin.tambah);
   const canUbah = bisa(user, izin.ubah);
@@ -240,7 +242,12 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
         onSaved={() => {}}
         addButton={canTambah ? (
           <>
-            <Button id={`btn_tambah_dok_${tipe}`} onClick={bukaTambah}>Tambah</Button>
+            <Button
+              id={`btn_tambah_dok_${tipe}`}
+              onClick={() => { if (tipe === 'santri') navigate('/dokumen-santri/tambah'); else bukaTambah(); }}
+            >
+              Tambah
+            </Button>
             <Button id={`btn_import_dok_${tipe}`} variant="outline" onClick={() => setImportOpen(true)}>
               <FileUp data-icon="inline-start" size={16} /> Import
             </Button>
