@@ -709,7 +709,7 @@ Standar tampilan per lembaga (tema/tipografi/grid/preset aktif), disebar super_a
 - `pegawai_id`: FK → pegawai [cascade]
 - `jenjang`: FK → lembaga [cascade]
 - `tahun_ajaran`: varchar(9) FK → tahun_ajaran.nama [cascade update + delete]
-- `tugas_utama`: string [default 'Guru Pengampu'] — ref_tugas_utama
+- `tugas_utama`: string nullable [tanpa default] — ref_tugas_utama (isi eksplisit dari kamus)
 - `status_keaktifan`: enum(Ya|Tidak) [default 'Ya'] — seragam dengan kolom status boolean lain; nilai lama 'aktif'/'inaktif' dinormalisasi oleh migrasi 2026_09_29_080000
 - `created_at`, `updated_at`
 - UNIQUE(`pegawai_id`, `jenjang`, `tahun_ajaran`, `uq_keaktifan_pegawai_plt`) — nama pendek: auto-name 61 char, margin aman dari limit 64
@@ -719,7 +719,7 @@ Standar tampilan per lembaga (tema/tipografi/grid/preset aktif), disebar super_a
 - `id` PK
 - `pegawai_id`: FK → pegawai [cascade]
 - `jenjang`: FK → lembaga [cascade]
-- `tugas_utama`: string [default 'Guru Pengampu'] — ref_tugas_utama
+- `tugas_utama`: string nullable [tanpa default] — ref_tugas_utama (isi eksplisit dari kamus)
 - `is_active_lembaga`: enum('Ya','Tidak') [default 'Ya']
 - `tgl_masuk`, `tgl_selesai`: date [null]
 - `tahaj_masuk`: string(50) [null] — TA pertama masuk lembaga

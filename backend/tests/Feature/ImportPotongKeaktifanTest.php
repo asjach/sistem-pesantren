@@ -185,7 +185,7 @@ class ImportPotongKeaktifanTest extends TestCase
         $row = KeaktifanPegawai::first();
         $this->assertSame('SK/9/2026', $row->no_sk);
         $this->assertSame('Tidak', $row->status_keaktifan);
-        $this->assertSame('Guru Pengampu', $row->tugas_utama); // warisi penempatan
+        $this->assertSame(null, $row->tugas_utama); // warisi penempatan (tanpa tugas)
 
         // Sesi baru dengan baris identik (tanpa kolom terisi) = dilewati.
         $tiga = $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/pegawai-keaktifan/import-potong', [

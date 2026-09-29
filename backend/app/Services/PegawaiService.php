@@ -27,10 +27,14 @@ class PegawaiService
             $row = LembagaPegawai::untuk((int) $pegawai->id, $jenjang);
 
             $data = [
-                'tugas_utama' => $atribut['tugas_utama'] ?? 'Guru Pengampu',
                 'tahaj_masuk' => $atribut['tahaj_masuk'] ?? null,
                 'tgl_masuk' => $atribut['tgl_masuk'] ?? null,
             ];
+            // Tugas tanpa default: hanya diset bila dikirim eksplisit, agar
+            // penempatan ulang tanpa tugas tidak menghapus nilai lama.
+            if (array_key_exists('tugas_utama', $atribut)) {
+                $data['tugas_utama'] = $atribut['tugas_utama'];
+            }
             if (array_key_exists('is_active_lembaga', $atribut)) {
                 $data['is_active_lembaga'] = $atribut['is_active_lembaga'];
             }

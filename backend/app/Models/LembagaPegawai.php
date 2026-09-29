@@ -22,7 +22,7 @@ class LembagaPegawai extends Model
 
     protected $table = 'lembaga_pegawai';
 
-    protected $attributes = ['is_active_lembaga' => self::YA, 'tugas_utama' => 'Guru Pengampu'];
+    protected $attributes = ['is_active_lembaga' => self::YA];
 
     protected $fillable = [
         'pegawai_id',

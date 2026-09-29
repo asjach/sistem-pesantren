@@ -67,13 +67,9 @@ export default function LembagaPegawaiPage() {
         const opsi = [...new Map(r.map((x) => [x.nama, x.nama])).keys()]
           .filter((n): n is string => !!n)
           .map((n) => ({ value: n, label: n }));
-        // Default 'Guru Pengampu' selalu tersedia (bila belum ada di kamus).
-        if (!opsi.some((o) => o.value === 'Guru Pengampu')) {
-          opsi.unshift({ value: 'Guru Pengampu', label: 'Guru Pengampu' });
-        }
         setTugasOpsi(opsi);
       })
-      .catch(() => { if (hidup) setTugasOpsi([{ value: 'Guru Pengampu', label: 'Guru Pengampu' }]); });
+      .catch(() => { if (hidup) setTugasOpsi([]); });
     return () => { hidup = false; };
   }, [jenjangs]);
 
@@ -160,7 +156,7 @@ export default function LembagaPegawaiPage() {
       return;
     }
     await updatePenempatanPegawai(id, {
-      ...(f.tugas !== undefined ? { tugas_utama: f.tugas || 'Guru Pengampu' } : {}),
+      ...(f.tugas !== undefined ? { tugas_utama: f.tugas || null } : {}),
       ...(f.tgl_masuk !== undefined ? { tgl_masuk: f.tgl_masuk || null } : {}),
       ...(f.no_sk_awal_ptk !== undefined ? { no_sk_awal_ptk: f.no_sk_awal_ptk || null } : {}),
       ...(f.tgl_sk_awal_ptk !== undefined ? { tgl_sk_awal_ptk: f.tgl_sk_awal_ptk || null } : {}),
