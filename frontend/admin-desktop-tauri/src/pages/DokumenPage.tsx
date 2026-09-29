@@ -1,0 +1,389 @@
+import { useCallback, useMemo, useState } from 'react';
+import { errorMessage } from '../api/client';
+import { bisa } from '../api/auth';
+import { useAuth } from '../auth/AuthContext';
+import { listLembaga, type Lembaga } from '../api/master';
+import { listSantri } from '../api/santri';
+import { listPegawai } from '../api/pegawai';
+import {
+  hapusDokumen,
+  izinDokumen,
+  listDokumen,
+  simpanDokumen,
+  ubahDokumen,
+  unggahBerkasDokumen,
+  unduhBerkasDokumen,
+  type DokumenRow,
+  type TipeDokumen,
+} from '../api/dokumen';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { FieldLabel } from '@/components/ui/field';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import ComboCari from '@/components/ComboCari';
+import { useDaftarTabel } from '@/hooks/useDaftarTabel';
+import { useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
+import { PengaturanHalaman } from '@/components/VisibilitasFilter';
+import { TopBarSearch } from '@/components/TopBarSearch';
+import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
+import Pager from '@/components/Pager';
+import { Download, FileUp, Trash2, Upload } from '@/icons';
+import DokumenImportDialog from '@/components/dokumen/DokumenImportDialog';
+import { toast } from 'sonner';
+import { useEffect } from 'react';
+
+const STATUS = [
+  { value: 'menunggu', label: 'Menunggu' },
+  { value: 'valid', label: 'Valid' },
+  { value: 'ditolak', label: 'Ditolak' },
+];
+
+interface Konfig {
+  judul: string;
+  tableKey: string;
+  pemilikLabel: string;
+  /** Kolom identitas pemilik pada dialog tambah (santri/pegawai pakai pemilih; lembaga pakai jenjang). */
+  pemilihPemilik: 'santri' | 'pegawai' | 'jenjang';
+}
+
+const KONFIG: Record<TipeDokumen, Konfig> = {
+  santri: { judul: 'Dokumen Santri', tableKey: 'dokumen_santri', pemilikLabel: 'Santri', pemilihPemilik: 'santri' },
+  pegawai: { judul: 'Dokumen Guru', tableKey: 'dokumen_pegawai', pemilikLabel: 'Guru', pemilihPemilik: 'pegawai' },
+  lembaga: { judul: 'Dokumen Lembaga', tableKey: 'dokumen_lembaga', pemilikLabel: 'Lembaga', pemilihPemilik: 'jenjang' },
+};
+
+/** Satu implementasi untuk tiga halaman dokumen; perbedaan hanya konfigurasi. */
+export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
+  const { user } = useAuth();
+  const izin = izinDokumen(tipe);
+  const canTambah = bisa(user, izin.tambah);
+  const canUbah = bisa(user, izin.ubah);
+  const canHapus = bisa(user, izin.hapus);
+  const konfig = KONFIG[tipe];
+  const { jenjangs } = useFilterGlobalAktif();
+
+  const [cari, setCari] = useState('');
+  const [status, setStatus] = useState('');
+  const [importOpen, setImportOpen] = useState(false);
+  const [tambahOpen, setTambahOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [hapusRow, setHapusRow] = useState<DokumenRow | null>(null);
+
+  // Opsi pemilik (santri/pegawai) + lembaga untuk dialog tambah.
+  const [lembagas, setLembagas] = useState<Lembaga[]>([]);
+  const [opsiPemilik, setOpsiPemilik] = useState<{ value: string; label: string }[]>([]);
+  const [pemilik, setPemilik] = useState('');
+  const [jenjangPemilik, setJenjangPemilik] = useState('');
+  const [jenis, setJenis] = useState('');
+  const [statusBaru, setStatusBaru] = useState('menunggu');
+  const [catatan, setCatatan] = useState('');
+  const [file, setFile] = useState<File | null>(null);
+  const [unggahRow, setUnggahRow] = useState<DokumenRow | null>(null);
+  const [unggahFile, setUnggahFile] = useState<File | null>(null);
+
+  useEffect(() => {
+    let hidup = true;
+    listLembaga({ per_page: 1000 }).then((p) => { if (hidup) setLembagas(p.data); }).catch(() => {});
+    return () => { hidup = false; };
+  }, []);
+
+  const bukaTambah = useCallback(() => {
+    setPemilik(''); setJenjangPemilik(''); setJenis(''); setStatusBaru('menunggu'); setCatatan(''); setFile(null);
+    setOpsiPemilik([]);
+    setTambahOpen(true);
+    if (konfig.pemilihPemilik !== 'jenjang') {
+      if (konfig.pemilihPemilik === 'santri') {
+        listSantri({ jenjang: jenjangs.length ? jenjangs : undefined, per_page: 1000 })
+          .then((p) => setOpsiPemilik(p.data.map((s) => ({ value: String(s.id), label: s.nama_lengkap }))))
+          .catch((e) => toast.error(errorMessage(e)));
+      } else {
+        listPegawai({ jenjang: jenjangs.length ? jenjangs : undefined, per_page: 1000 })
+          .then((p) => setOpsiPemilik(p.data.map((s) => ({ value: String(s.id), label: s.nama_lengkap }))))
+          .catch((e) => toast.error(errorMessage(e)));
+      }
+    }
+  }, [konfig.pemilihPemilik, jenjangs]);
+
+  const { rows, loading, err, load, lastPage, total, pager } = useDaftarTabel<DokumenRow>({
+    tableKey: konfig.tableKey,
+    search: cari,
+    ambil: (a) => listDokumen(tipe, {
+      jenjang: jenjangs.length ? jenjangs : undefined,
+      q: a.search || undefined,
+      status_verifikasi: status || undefined,
+      page: a.page,
+      per_page: a.perPage,
+      signal: a.signal,
+    }),
+    deps: [jenjangs, status],
+  });
+
+  const fields: ExcelField[] = useMemo(() => [
+    { key: 'pemilik', label: konfig.pemilikLabel, width: 200, kind: 'static', sumber: null },
+    ...(tipe === 'santri' ? [{ key: 'nis', label: 'NIS Lokal', width: 110, kind: 'static' as const, sumber: null }] : []),
+    ...(tipe === 'lembaga' ? [{ key: 'lembaga_nama', label: 'Nama Lembaga', width: 180, kind: 'static' as const, sumber: null }] : []),
+    { key: 'jenis_dokumen', label: 'Jenis Dokumen', width: 170, kind: 'text', maxLength: 100, sumber: null },
+    { key: 'nama_file', label: 'Nama Berkas', width: 190, kind: 'static', sumber: null },
+    { key: 'status_verifikasi', label: 'Status', width: 110, kind: 'select', choices: STATUS, sumber: null },
+    { key: 'catatan', label: 'Catatan', width: 220, kind: 'text', sumber: null },
+  ], [konfig.pemilikLabel, tipe]);
+
+  const nilaiBaris = useCallback((r: DokumenRow): Record<string, string | null> => ({
+    pemilik: r.pemilik ?? '—',
+    nis: r.nis_lokal ?? '—',
+    lembaga_nama: r.lembaga_nama ?? r.lembaga_jenjang ?? '—',
+    jenis_dokumen: r.jenis_dokumen ?? '',
+    nama_file: r.path_file ? (r.nama_file ?? 'ada') : null,
+    status_verifikasi: r.status_verifikasi,
+    catatan: r.catatan ?? '',
+  }), []);
+
+  async function commitBaris(id: number, f: Record<string, string | null>) {
+    await ubahDokumen(tipe, id, {
+      ...(f.jenis_dokumen !== undefined ? { jenis_dokumen: f.jenis_dokumen || null } : {}),
+      ...(f.status_verifikasi !== undefined ? { status_verifikasi: f.status_verifikasi } : {}),
+      ...(f.catatan !== undefined ? { catatan: f.catatan || null } : {}),
+    });
+  }
+
+  const onTambah = useCallback(async () => {
+    setBusy(true);
+    try {
+      await simpanDokumen(tipe, {
+        ...(tipe === 'santri' ? { santri_id: Number(pemilik) } : {}),
+        ...(tipe === 'pegawai' ? { pegawai_id: Number(pemilik), jenjang: jenjangPemilik } : {}),
+        ...(tipe === 'lembaga' ? { jenjang: jenjangPemilik } : {}),
+        jenis_dokumen: jenis,
+        status_verifikasi: statusBaru,
+        ...(catatan ? { catatan } : {}),
+      }, file ?? undefined);
+      toast.success('Dokumen disimpan.');
+      setTambahOpen(false);
+      pager.goFirst();
+      await load(1);
+    } catch (e) {
+      toast.error(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  }, [tipe, pemilik, jenjangPemilik, jenis, statusBaru, catatan, file, pager, load]);
+
+  const onUnggah = useCallback(async () => {
+    if (!unggahRow || !unggahFile) return;
+    setBusy(true);
+    try {
+      await unggahBerkasDokumen(tipe, unggahRow.id, unggahFile);
+      toast.success('Berkas diunggah.');
+      setUnggahRow(null);
+      setUnggahFile(null);
+      await load();
+    } catch (e) {
+      toast.error(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  }, [tipe, unggahRow, unggahFile, load]);
+
+  const onHapus = useCallback(async () => {
+    if (!hapusRow) return;
+    setBusy(true);
+    try {
+      await hapusDokumen(tipe, hapusRow.id);
+      toast.success('Dokumen dihapus.');
+      setHapusRow(null);
+      await load();
+    } catch (e) {
+      toast.error(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  }, [tipe, hapusRow, load]);
+
+  const renderActions = useCallback((r: DokumenRow) => (
+    <>
+      {canUbah && (
+        <Button
+          id={`btn_unggah_dok_${r.id}`}
+          size="sm"
+          variant="outline"
+          title={r.path_file ? 'Ganti berkas' : 'Unggah berkas'}
+          onClick={() => { setUnggahFile(null); setUnggahRow(r); }}
+        >
+          <Upload size={14} />
+        </Button>
+      )}
+      {r.path_file && (
+        <Button
+          id={`btn_unduh_dok_${r.id}`}
+          size="sm"
+          variant="outline"
+          title="Unduh berkas"
+          onClick={() => void unduhBerkasDokumen(tipe, r.id, r.nama_file ?? 'dokumen').catch((e) => toast.error(errorMessage(e)))}
+        >
+          <Download size={14} />
+        </Button>
+      )}
+      {canHapus && (
+        <Button id={`btn_hapus_dok_${r.id}`} size="sm" variant="destructive" title="Hapus dokumen" onClick={() => setHapusRow(r)}>
+          <Trash2 size={14} />
+        </Button>
+      )}
+    </>
+  ), [canUbah, canHapus, tipe]);
+
+  const bisaSimpanTambah = tipe === 'santri' ? pemilik !== '' : (tipe === 'pegawai' ? pemilik !== '' && jenjangPemilik !== '' : jenjangPemilik !== '');
+
+  return (
+    <div className={PAGE_SHELL}>
+      <ErrorNotice>{err}</ErrorNotice>
+      <PengaturanHalaman tampil={{ semester: false, tingkat: false, kelas: false }} tabel={[{ key: konfig.tableKey, judul: konfig.judul, fields }]} />
+      <TopBarSearch value={cari} onChange={setCari} placeholder={`Cari ${konfig.judul.toLowerCase()}…`} />
+      <ExcelTable
+        tableKey={konfig.tableKey}
+        fields={fields}
+        rows={rows}
+        getValues={nilaiBaris}
+        loading={loading}
+        emptyText="Belum ada dokumen."
+        canEdit={canUbah}
+        onCommit={commitBaris}
+        onSaved={() => {}}
+        filter={
+          <Select value={status === '' ? 'semua' : status} onValueChange={(v) => { setStatus(v === 'semua' ? '' : v); pager.goFirst(); }}>
+            <SelectTrigger id={`select_status_dok_${tipe}`} title="Status verifikasi" aria-label="Status verifikasi" size="sm" className="w-36">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectItem value="semua">Semua status</SelectItem>
+                {STATUS.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        }
+        addButton={canTambah ? (
+          <>
+            <Button id={`btn_tambah_dok_${tipe}`} onClick={bukaTambah}>Tambah</Button>
+            <Button id={`btn_import_dok_${tipe}`} variant="outline" onClick={() => setImportOpen(true)}>
+              <FileUp data-icon="inline-start" size={16} /> Import
+            </Button>
+          </>
+        ) : null}
+        renderActions={renderActions}
+      />
+      <Pager
+        page={pager.page}
+        lastPage={lastPage}
+        total={total}
+        perPage={pager.perPage}
+        onPage={(p) => { pager.setPage(p); load(p); }}
+        onPerPage={(pp) => { pager.setPerPage(pp); load(1, pp); }}
+      />
+
+      <Dialog open={tambahOpen} onOpenChange={setTambahOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Tambah dokumen {konfig.judul.toLowerCase()}</DialogTitle>
+            <DialogDescription>Berkas opsional — boleh diisi kemudian lewat tombol unggah di baris.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3">
+            {konfig.pemilihPemilik === 'jenjang' ? (
+              <div className="grid gap-1.5">
+                <FieldLabel htmlFor={`select_lembaga_dok_${tipe}`}>Lembaga</FieldLabel>
+                <Select value={jenjangPemilik} onValueChange={setJenjangPemilik}>
+                  <SelectTrigger id={`select_lembaga_dok_${tipe}`}><SelectValue placeholder="Pilih lembaga" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {lembagas.map((l) => <SelectItem key={l.jenjang} value={l.jenjang}>{l.jenjang} — {l.nama}</SelectItem>)}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : (
+              <div className="grid gap-1.5">
+                <FieldLabel htmlFor={`combo_pemilik_dok_${tipe}`}>{konfig.pemilikLabel}</FieldLabel>
+                <ComboCari id={`combo_pemilik_dok_${tipe}`} value={pemilik} onChange={setPemilik} options={opsiPemilik} placeholder={`Pilih ${konfig.pemilikLabel.toLowerCase()}…`} />
+              </div>
+            )}
+            {tipe === 'pegawai' && (
+              <div className="grid gap-1.5">
+                <FieldLabel htmlFor={`select_lembaga_dok_${tipe}`}>Lembaga penempatan</FieldLabel>
+                <Select value={jenjangPemilik} onValueChange={setJenjangPemilik}>
+                  <SelectTrigger id={`select_lembaga_dok_${tipe}`}><SelectValue placeholder="Pilih lembaga" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {(jenjangs.length ? lembagas.filter((l) => jenjangs.includes(l.jenjang)) : lembagas).map((l) => <SelectItem key={l.jenjang} value={l.jenjang}>{l.jenjang} — {l.nama}</SelectItem>)}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <div className="grid gap-1.5">
+              <FieldLabel htmlFor={`input_jenis_dok_${tipe}`}>Jenis dokumen</FieldLabel>
+              <Input id={`input_jenis_dok_${tipe}`} value={jenis} onChange={(e) => setJenis(e.target.value)} maxLength={100} placeholder="mis. Kartu Keluarga / Ijazah / Izin Operasional" />
+            </div>
+            <div className="grid gap-1.5">
+              <FieldLabel htmlFor={`select_status_dok_tambah_${tipe}`}>Status verifikasi</FieldLabel>
+              <Select value={statusBaru} onValueChange={setStatusBaru}>
+                <SelectTrigger id={`select_status_dok_tambah_${tipe}`}><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {STATUS.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-1.5">
+              <FieldLabel htmlFor={`input_catatan_dok_${tipe}`}>Catatan</FieldLabel>
+              <Input id={`input_catatan_dok_${tipe}`} value={catatan} onChange={(e) => setCatatan(e.target.value)} />
+            </div>
+            <div className="grid gap-1.5">
+              <FieldLabel htmlFor={`input_file_dok_${tipe}`}>Berkas (JPG/PNG/PDF, maks 10 MB)</FieldLabel>
+              <Input id={`input_file_dok_${tipe}`} type="file" accept=".jpg,.jpeg,.png,.pdf" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTambahOpen(false)}>Batal</Button>
+            <Button id={`btn_simpan_dok_${tipe}`} disabled={!bisaSimpanTambah || jenis.trim() === '' || busy} onClick={() => void onTambah()}>Simpan</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={unggahRow !== null} onOpenChange={(o) => { if (!o) setUnggahRow(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Unggah berkas: {unggahRow?.jenis_dokumen}</DialogTitle>
+            <DialogDescription>{unggahRow?.pemilik} — berkas lama (bila ada) akan diganti.</DialogDescription>
+          </DialogHeader>
+          <Input id={`input_unggah_dok_${tipe}`} type="file" accept=".jpg,.jpeg,.png,.pdf" onChange={(e) => setUnggahFile(e.target.files?.[0] ?? null)} />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setUnggahRow(null)}>Batal</Button>
+            <Button id={`btn_proses_unggah_dok_${tipe}`} disabled={!unggahFile || busy} onClick={() => void onUnggah()}>Unggah</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={hapusRow !== null} onOpenChange={(o) => { if (!o) setHapusRow(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus dokumen "{hapusRow?.jenis_dokumen}"?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Dokumen milik {hapusRow?.pemilik ?? '—'} dihapus permanen beserta berkas fisiknya.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={busy}>Batal</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" disabled={busy} onClick={() => void onHapus()}>
+              Hapus
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <DokumenImportDialog open={importOpen} onOpenChange={setImportOpen} tipe={tipe} onSelesai={() => { pager.goFirst(); void load(1); }} />
+    </div>
+  );
+}

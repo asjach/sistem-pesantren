@@ -26,6 +26,7 @@ use App\Http\Controllers\Api\Admin\ToolbarPresetController;
 use App\Http\Controllers\Api\Admin\UrutPresetController;
 use App\Http\Controllers\Api\Admin\UserManagementController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\Admin\DokumenController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\KamusController;
 use App\Http\Controllers\Api\PengajuanBiodataController;
@@ -235,6 +236,18 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::get('dokumen-wajib', [PsbDokumenController::class, 'indexWajib'])->middleware('permission:dokumen_wajib.lihat');
         Route::post('dokumen-wajib', [PsbDokumenController::class, 'storeWajib'])->middleware('permission:dokumen_wajib.tambah');
         Route::delete('dokumen-wajib/{id}', [PsbDokumenController::class, 'destroyWajib'])->middleware('permission:dokumen_wajib.hapus');
+
+        // Tiga halaman dokumen (santri/pegawai/lembaga): izin per tipe lewat context middleware.
+        Route::get('dokumen/{tipe}', [DokumenController::class, 'index'])->middleware('permission:dokumen_santri.lihat');
+        Route::post('dokumen/{tipe}', [DokumenController::class, 'store'])->middleware('permission:dokumen_santri.tambah');
+        Route::match(['put', 'patch'], 'dokumen/{tipe}/{id}', [DokumenController::class, 'update'])->middleware('permission:dokumen_santri.ubah');
+        Route::post('dokumen/{tipe}/{id}/unggah', [DokumenController::class, 'unggah'])->middleware('permission:dokumen_santri.ubah');
+        Route::delete('dokumen/{tipe}/{id}', [DokumenController::class, 'destroy'])->middleware('permission:dokumen_santri.hapus');
+        Route::get('dokumen/{tipe}/{id}/unduh', [DokumenController::class, 'unduh'])->middleware('permission:dokumen_santri.lihat');
+        Route::get('dokumen/{tipe}/import-template', [DokumenController::class, 'templateImport'])->middleware('permission:dokumen_santri.lihat');
+        Route::post('dokumen/{tipe}/import-potong', [DokumenController::class, 'potongImport'])->middleware(['permission:dokumen_santri.tambah', 'throttle:imports']);
+        Route::post('dokumen/{tipe}/import-potong/{sesi}/batal', [DokumenController::class, 'batalPotong'])->middleware('permission:dokumen_santri.tambah');
+        Route::get('dokumen/{tipe}/import-potong/{sesi}/galat', [DokumenController::class, 'galatPotong'])->middleware('permission:dokumen_santri.lihat');
 
         // Preset kolom tampilan tabel (per lembaga; global = admin pesantren).
         Route::get('preset-tabel', [PresetTabelController::class, 'index'])->middleware('permission:preset_tabel.lihat');
