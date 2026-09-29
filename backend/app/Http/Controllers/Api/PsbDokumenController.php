@@ -33,6 +33,7 @@ class PsbDokumenController extends Controller
             'psb_calon_santri_id' => $calon->id,
             'jenis_dokumen_santri' => $data['jenis_dokumen_santri'],
             'path_file' => $path,
+            'nama_file' => $request->file('file')->getClientOriginalName(),
             'catatan' => $data['catatan'] ?? null,
         ]);
         $dok->file_url = Storage::url($path);

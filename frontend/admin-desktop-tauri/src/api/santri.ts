@@ -149,6 +149,7 @@ export interface DokumenSantri {
   psb_calon_santri_id: number | null;
   jenis_dokumen_santri: string;
   path_file: string | null;
+  nama_file: string | null;
   status_verifikasi: 'menunggu' | 'valid' | 'ditolak';
   tidak_memiliki: boolean;
   catatan: string | null;

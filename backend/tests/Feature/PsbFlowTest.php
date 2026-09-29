@@ -1279,6 +1279,8 @@ class PsbFlowTest extends TestCase
             'file' => UploadedFile::fake()->image('kk.jpg'),
         ], ['Accept' => 'application/json'])->assertStatus(201);
         $this->assertNotNull(DokumenSantri::find($kk->id)->path_file);
+        // Nama asli berkas tersimpan (label), terpisah dari path ter-hash.
+        $this->assertSame('kk.jpg', DokumenSantri::find($kk->id)->nama_file);
         $this->assertEquals(2, DokumenSantri::where('santri_id', $santriId)->count());
 
         // Cek box "tidak memiliki dokumen" — tersimpan, tanpa menahan proses apa pun.

@@ -280,6 +280,7 @@ class PsbService
                 'psb_calon_santri_id' => $calon->id,
                 'jenis_dokumen_santri' => 'bukti_transfer',
                 'path_file' => $path,
+                'nama_file' => $file instanceof UploadedFile ? $file->getClientOriginalName() : null,
             ]);
         }
     }

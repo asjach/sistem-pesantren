@@ -180,6 +180,7 @@ class SantriController extends Controller
         if ($dok) {
             $dok->update([
                 'path_file' => $path,
+                'nama_file' => $request->file('file')->getClientOriginalName(),
                 'catatan' => $data['catatan'] ?? $dok->catatan,
                 'tidak_memiliki' => false,
             ]);
@@ -188,6 +189,7 @@ class SantriController extends Controller
                 'santri_id' => $santri->id,
                 'jenis_dokumen_santri' => $data['jenis_dokumen_santri'],
                 'path_file' => $path,
+                'nama_file' => $request->file('file')->getClientOriginalName(),
                 'catatan' => $data['catatan'] ?? null,
             ]);
         }
