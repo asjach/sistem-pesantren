@@ -2,6 +2,7 @@
 
 namespace App\Exports;
 
+use App\Services\RefService;
 use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\WithCustomValueBinder;
 use Maatwebsite\Excel\Concerns\WithEvents;
@@ -112,6 +113,9 @@ class PegawaiTemplateExport extends DefaultValueBinder implements FromArray, Wit
                     'jenis_kelamin' => ['L', 'P'],
                     'status_aktif' => ['Ya', 'Tidak'],
                     'sertifikasi' => ['sudah', 'belum'],
+                    // efektifSemuaLembaga mengembalikan BARIS objek → petakan ke nama.
+                    'jenis_ptk' => array_map(fn ($r) => (string) $r->nama, RefService::efektifSemuaLembaga('jenis_ptk')),
+                    'status_pernikahan' => array_map(fn ($r) => (string) $r->nama, RefService::efektifSemuaLembaga('status_pernikahan')),
                 ];
                 $colSumber = 1;
                 foreach ($opsi as $nama => $nilai) {

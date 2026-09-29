@@ -7,6 +7,7 @@ use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use PhpOffice\PhpSpreadsheet\Cell\DataValidation;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
@@ -83,6 +84,33 @@ class PsbTemplateExport implements FromArray, WithEvents, WithHeadings
                     'font' => ['italic' => true, 'size' => 10, 'color' => ['argb' => 'FF6B7280']],
                     'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFF3F4F6']],
                 ]);
+
+                // Validasi inline (tanpa sheet tersembunyi): daftar literal.
+                // PsbImport hanya membaca sheet pertama tanpa SkipsUnknownSheets,
+                // jadi sheet Referensi tambahan tidak dipakai di sini.
+                $opsi = [
+                    'jk' => ['L', 'P'],
+                    'tipe_santri' => ['asrama', 'non_asrama'],
+                ];
+                foreach ($opsi as $nama => $nilai) {
+                    $posisi = array_search($nama, $kolom, true);
+                    if ($posisi === false) {
+                        continue;
+                    }
+                    $target = Coordinate::stringFromColumnIndex($posisi + 1);
+                    $validasi = new DataValidation;
+                    // CATAT: atribut OOXML `showDropDown` INVERTED — setShowDropDown(true)
+                    // membuat panah dropdown TAMPIL di Excel.
+                    $validasi->setType(DataValidation::TYPE_LIST)
+                        ->setShowDropDown(true)
+                        ->setErrorStyle(DataValidation::STYLE_STOP)
+                        ->setAllowBlank(true)
+                        ->setShowErrorMessage(true)
+                        ->setErrorTitle('Nilai tidak valid')
+                        ->setError('Pilih nilai dari daftar.')
+                        ->setFormula1('"'.implode(',', $nilai).'"');
+                    $sheet->setDataValidation("{$target}2:{$target}5001", $validasi);
+                }
             },
         ];
     }

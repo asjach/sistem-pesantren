@@ -3,6 +3,7 @@
 namespace App\Exports;
 
 use App\Services\RefService;
+use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\WithCustomValueBinder;
 use Maatwebsite\Excel\Concerns\WithEvents;
@@ -78,6 +79,7 @@ class RiwayatBelajarTemplateExport extends DefaultValueBinder implements FromArr
         );
 
         return [
+            'jenjang' => DB::table('lembaga')->orderBy('jenjang')->pluck('jenjang')->all(),
             'semester' => ['1', '2'],
             'status_awal' => $label('status_awal'),
             'status_akhir' => $label('status_akhir'),

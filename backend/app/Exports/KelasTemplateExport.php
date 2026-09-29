@@ -8,9 +8,11 @@ use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithTitle;
 use Maatwebsite\Excel\Events\AfterSheet;
+use Illuminate\Support\Facades\DB;
 use PhpOffice\PhpSpreadsheet\Cell\Cell;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
+use PhpOffice\PhpSpreadsheet\Cell\DataValidation;
 use PhpOffice\PhpSpreadsheet\Cell\DefaultValueBinder;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
@@ -79,6 +81,34 @@ class KelasTemplateExport extends DefaultValueBinder implements FromArray, WithC
                 }
                 $sheet->freezePane('A2');
                 $sheet->setAutoFilter("A1:{$lastCol}1");
+
+                // Validasi inline (tanpa sheet tersembunyi): daftar literal.
+                $opsi = [
+                    'jenjang' => DB::table('lembaga')->orderBy('jenjang')->pluck('jenjang')->all(),
+                    'tahun_ajaran' => DB::table('tahun_ajaran')->orderBy('nama')->pluck('nama')->all(),
+                ];
+                foreach ($opsi as $nama => $nilai) {
+                    if ($nilai === []) {
+                        continue;
+                    }
+                    $posisi = array_search($nama, $kolom, true);
+                    if ($posisi === false) {
+                        continue;
+                    }
+                    $target = Coordinate::stringFromColumnIndex($posisi + 1);
+                    $validasi = new DataValidation;
+                    // CATAT: atribut OOXML `showDropDown` INVERTED — setShowDropDown(true)
+                    // membuat panah dropdown TAMPIL di Excel.
+                    $validasi->setType(DataValidation::TYPE_LIST)
+                        ->setShowDropDown(true)
+                        ->setErrorStyle(DataValidation::STYLE_STOP)
+                        ->setAllowBlank(true)
+                        ->setShowErrorMessage(true)
+                        ->setErrorTitle('Nilai tidak valid')
+                        ->setError('Pilih nilai dari daftar.')
+                        ->setFormula1('"'.implode(',', $nilai).'"');
+                    $sheet->setDataValidation("{$target}2:{$target}5001", $validasi);
+                }
             },
         ];
     }

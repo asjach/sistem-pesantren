@@ -76,7 +76,7 @@ class SantriTemplateExport extends DefaultValueBinder implements FromArray, With
         'desa_kelurahan' => 'desa_kelurahan',
     ];
 
-    public function __construct(private ?string $lembagaId = null) {}
+    public function __construct(private array $kodeDiizinkan = []) {}
 
     public function bindValue(Cell $cell, $value): bool
     {
@@ -120,7 +120,12 @@ class SantriTemplateExport extends DefaultValueBinder implements FromArray, With
 
         foreach (self::REF_KOLOM as $kolom => $tipe) {
             if (! array_key_exists($kolom, $pilihan)) {
-                $pilihan[$kolom] = RefService::kodeAktif($tipe, $this->lembagaId);
+                // Tanpa penyaring lembaga → union nilai aktif semua lembaga
+                // (super admin); dengan penyaring → kamus lembaga itu.
+                // efektifSemuaLembaga mengembalikan BARIS objek → petakan ke nama.
+                $pilihan[$kolom] = $this->kodeDiizinkan === []
+                    ? array_map(fn ($r) => (string) $r->nama, RefService::efektifSemuaLembaga($tipe))
+                    : RefService::kodeAktif($tipe, $this->kodeDiizinkan[0]);
             }
         }
 

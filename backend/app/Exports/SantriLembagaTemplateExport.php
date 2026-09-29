@@ -97,7 +97,12 @@ class SantriLembagaTemplateExport extends DefaultValueBinder implements FromArra
 
         foreach (SantriTemplateExport::REF_KOLOM as $kolom => $tipe) {
             if (! array_key_exists($kolom, $pilihan)) {
-                $pilihan[$kolom] = RefService::kodeAktif($tipe, $this->lembagaId);
+                // Tanpa penyaring lembaga → union nilai aktif semua lembaga
+                // (super admin); dengan penyaring → kamus lembaga itu.
+                // efektifSemuaLembaga mengembalikan BARIS objek → petakan ke nama.
+                $pilihan[$kolom] = ($this->kodeDiizinkan === [] && $this->lembagaId === null)
+                    ? array_map(fn ($r) => (string) $r->nama, RefService::efektifSemuaLembaga($tipe))
+                    : RefService::kodeAktif($tipe, $this->lembagaId);
             }
         }
 
@@ -111,11 +116,14 @@ class SantriLembagaTemplateExport extends DefaultValueBinder implements FromArra
             return array_values($this->kodeDiizinkan);
         }
 
-        return Lembaga::query()
+        $daftar = Lembaga::query()
             ->when($this->lembagaId !== null, fn ($q) => $q->where('jenjang', $this->lembagaId))
             ->orderBy('jenjang')
             ->pluck('jenjang')
             ->all();
+
+        // Super admin tanpa penyaring: jangan sampai kosong (dropdown mati).
+        return $daftar !== [] ? $daftar : Lembaga::query()->orderBy('jenjang')->pluck('jenjang')->all();
     }
 
     public function headings(): array
