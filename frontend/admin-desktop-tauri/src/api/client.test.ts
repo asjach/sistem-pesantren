@@ -37,6 +37,9 @@ describe('errorMessage', () => {
 
   it('menangani galat yang bukan ApiError', () => {
     expect(errorMessage(new Error('jaringan putus'))).toBe('jaringan putus');
-    expect(errorMessage('entah')).toBe('Gagal terhubung ke server.');
+    // String (mis. galat IPC Tauri) ditampilkan apa adanya.
+    expect(errorMessage('entah')).toBe('entah');
+    expect(errorMessage('   ')).toBe('Gagal terhubung ke server.');
+    expect(errorMessage(undefined)).toBe('Gagal terhubung ke server.');
   });
 });

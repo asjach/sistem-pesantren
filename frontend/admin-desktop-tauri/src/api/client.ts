@@ -509,5 +509,10 @@ export function errorMessage(e: unknown): string {
     if (e.status === 429) return 'Terlalu banyak percobaan. Tunggu sebentar (throttle).';
     return messageOf(e.body, `Gagal (${e.status}).`);
   }
+  if (typeof e === 'string') {
+    // Galat IPC Tauri (dialog/filesystem) berbentuk string — tampilkan apa
+    // adanya, jangan disamarkan jadi galat server.
+    return e.trim() !== '' ? e : 'Gagal terhubung ke server.';
+  }
   return e instanceof Error ? e.message : 'Gagal terhubung ke server.';
 }

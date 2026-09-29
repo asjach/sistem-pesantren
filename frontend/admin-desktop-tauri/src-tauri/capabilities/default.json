@@ -23,9 +23,10 @@
     "fs:allow-exists",
     "fs:allow-remove",
     "fs:allow-size",
+    "fs:allow-stat",
     {
       "identifier": "fs:scope",
-      "allow": ["$HOME/**"]
+      "allow": ["$HOME/**", "/Volumes/**", "D:/**", "E:/**"]
     }
   ]
 }

@@ -198,8 +198,20 @@ export default function TambahDokumenSantriPage() {
     let url: string | null = null;
     (async () => {
       if (berkasPath && desktop) {
-        const { convertFileSrc } = await import('@tauri-apps/api/core');
-        if (hidup) setPratinjau(convertFileSrc(berkasPath));
+        // Baca byte via fs + blob URL: tak bergantung protokol asset/CSP.
+        try {
+          const { readFile } = await import('@tauri-apps/plugin-fs');
+          const bytes = await readFile(berkasPath);
+          if (!hidup) return;
+          const buf = new Uint8Array(bytes).buffer as ArrayBuffer;
+          url = URL.createObjectURL(new Blob([buf], { type: berkasMime || 'application/octet-stream' }));
+          setPratinjau(url);
+        } catch (e) {
+          if (hidup) {
+            setPratinjau(null);
+            toast.error(`Pratinjau gagal dibaca: ${errorMessage(e)}`);
+          }
+        }
       } else if (berkasWeb) {
         url = URL.createObjectURL(berkasWeb);
         if (hidup) setPratinjau(url);
@@ -212,7 +224,7 @@ export default function TambahDokumenSantriPage() {
       hidup = false;
       if (url) URL.revokeObjectURL(url);
     };
-  }, [berkasPath, berkasWeb, desktop]);
+  }, [berkasPath, berkasWeb, desktop, berkasMime]);
 
   function resetBerkas() {
     setBerkasPath(null);
