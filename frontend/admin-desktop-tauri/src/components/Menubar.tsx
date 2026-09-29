@@ -1,5 +1,5 @@
-import { NavLink, useNavigate } from 'react-router-dom';
-import { NAV_GRUP, blokGrup, halamanSubgrup, type HalamanDef, type SubgrupNav, type TabKategori } from '@/lib/halaman';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { NAV_GRUP, blokGrup, halamanDariPath, halamanSubgrup, type HalamanDef, type SubgrupNav, type TabKategori } from '@/lib/halaman';
 import { bisa, logout } from '@/api/auth';
 import { useAuth } from '@/auth/AuthContext';
 import { useLembagaAktif } from '@/lembagaAktif';
@@ -34,6 +34,8 @@ export default function Menubar() {
   const { user, logoutLocal } = useAuth();
   const { bertindak } = useLembagaAktif();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const halAktif = halamanDariPath(pathname);
 
   async function onLogout() {
     await logout();
@@ -86,21 +88,20 @@ export default function Menubar() {
   }
   function itemMenu(h: HalamanDef) {
     const Icon = h.icon;
+    const aktif = halAktif === h;
     return (
       <DropdownMenuItem key={h.to} asChild>
-        <NavLink
+        <Link
           to={h.to}
-          end={h.to === '/'}
-          className={({ isActive }) =>
-            cn(
-              'flex w-full cursor-pointer items-center gap-2',
-              isActive && 'bg-accent font-medium text-accent-foreground',
-            )
-          }
+          aria-current={aktif ? 'page' : undefined}
+          className={cn(
+            'flex w-full cursor-pointer items-center gap-2',
+            aktif && 'bg-accent font-medium text-accent-foreground',
+          )}
         >
           <Icon size={16} />
           {h.label}
-        </NavLink>
+        </Link>
       </DropdownMenuItem>
     );
   }

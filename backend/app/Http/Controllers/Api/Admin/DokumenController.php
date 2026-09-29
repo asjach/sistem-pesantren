@@ -81,6 +81,9 @@ class DokumenController extends Controller
                     ->orWhere('dokumen_santri.jenis_dokumen_santri', 'like', "%{$q}%")
                     ->orWhereExists(fn ($s) => $penempatan($s)->where('ls.nis_lokal', 'like', "%{$q}%")));
             }
+            if ($request->filled('santri_id')) {
+                $query->where('dokumen_santri.santri_id', (int) $request->input('santri_id'));
+            }
             if ($status) {
                 $query->where('dokumen_santri.status_verifikasi', $status);
             }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { NAV_GRUP, blokGrup, halamanDariPath, halamanSubgrup, jalurSubgrup, type AnakNav, type HalamanDef, type SubgrupNav, type TabKategori } from '@/lib/halaman';
 import { bisa } from '@/api/auth';
 import { useAuth } from '@/auth/AuthContext';
@@ -169,26 +169,28 @@ export default function Sidebar() {
    *  tanpa ikon; selain itu ikon + label penuh. */
   function tautanHalaman(h: HalamanDef, ikonSaja: boolean, anak = false) {
     const Icon = h.icon;
+    // Aktif = halaman ini pemenang prefix-terpanjang (halamanDariPath),
+    // bukan sekadar prefix (bawaan NavLink) — mis. /dokumen-santri tidak
+    // ikut tersorot saat berada di /dokumen-santri/tambah.
+    const aktif = halAktif === h;
     return (
-      <NavLink
+      <Link
         key={h.to}
         to={h.to}
-        end={h.to === '/'}
+        aria-current={aktif ? 'page' : undefined}
         title={ikonSaja ? h.label : undefined}
-        className={({ isActive }) =>
-          cn(
-            itemBase,
-            ikonSaja && 'justify-center px-0',
-            anak && ['py-1 text-[13px]', cabang(isActive)],
-            isActive
-              ? 'bg-white/20 font-semibold text-white'
-              : 'text-white/75 hover:bg-white/10 hover:text-white',
-          )
-        }
+        className={cn(
+          itemBase,
+          ikonSaja && 'justify-center px-0',
+          anak && ['py-1 text-[13px]', cabang(aktif)],
+          aktif
+            ? 'bg-white/20 font-semibold text-white'
+            : 'text-white/75 hover:bg-white/10 hover:text-white',
+        )}
       >
         {!anak && <Icon size={16} />}
         {!ikonSaja && <span className="truncate">{h.label}</span>}
-      </NavLink>
+      </Link>
     );
   }
 

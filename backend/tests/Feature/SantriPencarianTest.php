@@ -12,19 +12,16 @@ use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
- * Pencarian daftar santri (`GET /api/admin/santri?q=`) — termasuk jalur FULLTEXT
- * ngram yang HANYA aktif di MySQL/MariaDB (driver lain memakai LIKE substring).
+ * Pencarian daftar santri (`GET /api/admin/santri?q=`) — LIKE substring untuk
+ * semua driver (nama, NISN, nama ayah/ibu).
  *
- * Kelas ini sengaja memakai `DatabaseMigrations`, bukan `RefreshDatabase`:
- * index FULLTEXT InnoDB baru dapat melihat baris SETELAH di-commit, sedangkan
- * `RefreshDatabase` membungkus tiap tes dalam transaksi yang belum di-commit —
- * sehingga baris milik tes itu sendiri tak terlihat oleh `MATCH ... AGAINST`.
- * Tanpa transaksi pembungkus, data tes di-commit sebagaimana di produksi
- * (setiap request adalah transaksi yang sudah commit), jadi perilaku pencarian
- * nyata ikut teruji dan CI tidak perlu mengecualikan tes ini di jalur MySQL.
+ * Jalur FULLTEXT ngram MySQL sengaja dihapus: index-nya terbukti tak
+ * mengembalikan baris apa pun di DB produksi (dicek langsung — `MATCH`
+ * kosong untuk semua istilah sementara `LIKE` menemukan data), dan tes di
+ * sini berjalan di SQLite sehingga bug itu lolos tanpa terdeteksi.
  *
- * Harga yang dibayar: migrasi dijalankan ulang per tes (kelas ini sengaja
- * dipertahankan kecil agar tetap murah).
+ * Kelas ini tetap memakai `DatabaseMigrations`, bukan `RefreshDatabase`,
+ * agar data ter-commit seperti di produksi.
  */
 class SantriPencarianTest extends TestCase
 {
@@ -91,7 +88,7 @@ class SantriPencarianTest extends TestCase
         ], $opt));
     }
 
-    /** Substring tengah nama (MySQL: FULLTEXT ngram; lain: LIKE), NISN, nama ayah/ibu, dan tak cocok. */
+    /** Substring awal/tengah/akhir nama (semua driver LIKE), NISN, nama ayah/ibu, dan tak cocok. */
     public function test_pencarian_q_substring_nama_nisn_ayah_ibu(): void
     {
         $f = $this->baseFixture();
@@ -101,11 +98,21 @@ class SantriPencarianTest extends TestCase
             'nisn' => '0099009901', 'ayah_nama' => 'SUPANDI', 'ibu_nama' => 'SITI AMINAH',
         ]);
         $this->makeSantri('BUDI SANTOSO');
+        $this->makeSantri('CITRA AYU LESTARI');
 
         // Substring di tengah nama.
         $nama = $this->actingAs($admin, 'sanctum')->getJson('/api/admin/santri?q=NDA')->assertStatus(200);
         $this->assertCount(1, $nama->json('data'));
         $this->assertStringContainsString('ADINDA', $nama->json('data.0.nama_lengkap'));
+
+        // Kata tengah nama.
+        $tengah = $this->actingAs($admin, 'sanctum')->getJson('/api/admin/santri?q=AYU')->assertStatus(200);
+        $this->assertCount(1, $tengah->json('data'));
+        $this->assertStringContainsString('CITRA AYU', $tengah->json('data.0.nama_lengkap'));
+
+        // Kata akhir nama.
+        $akhir = $this->actingAs($admin, 'sanctum')->getJson('/api/admin/santri?q=LESTARI')->assertStatus(200);
+        $this->assertCount(1, $akhir->json('data'));
 
         // Lewat NISN.
         $nisn = $this->actingAs($admin, 'sanctum')->getJson('/api/admin/santri?q=0099')->assertStatus(200);

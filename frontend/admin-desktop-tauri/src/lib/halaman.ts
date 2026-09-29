@@ -193,7 +193,7 @@ export const NAV_GRUP: GrupNav[] = [
       },
       // Daftar Kelas (halaman langsung) tampil di sini.
       { langsung: true },
-      { id: 'dokumen-santri', label: 'Dokumen Santri', icon: FolderOpen },
+      { id: 'dokumen-santri', label: 'Dokumen', icon: FolderOpen },
       { id: 'penempatan', label: 'Penempatan', icon: Pin },
       { id: 'akademik', label: 'Akademik', icon: ScrollText },
       { id: 'lain-lain', label: 'Lain-lain', icon: MoreVertical },

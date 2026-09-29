@@ -42,6 +42,7 @@ export function listDokumen(tipe: TipeDokumen, params: {
   jenjang?: ScalarOrArray<string> | null;
   q?: string;
   status_verifikasi?: string;
+  santri_id?: number;
   page?: number;
   per_page?: number;
   signal?: AbortSignal;
@@ -50,6 +51,7 @@ export function listDokumen(tipe: TipeDokumen, params: {
   appendQueryParam(q, 'jenjang', params.jenjang);
   if (params.q) q.set('q', params.q);
   if (params.status_verifikasi) q.set('status_verifikasi', params.status_verifikasi);
+  if (params.santri_id != null) q.set('santri_id', String(params.santri_id));
   q.set('page', String(params.page ?? 1));
   q.set('per_page', String(params.per_page ?? 50));
   return api<Paginate<DokumenRow>>(`${base(tipe)}?${q.toString()}`, { signal: params.signal });

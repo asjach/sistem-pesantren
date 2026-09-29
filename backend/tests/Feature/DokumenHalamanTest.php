@@ -166,6 +166,26 @@ class DokumenHalamanTest extends TestCase
         Storage::disk('local')->assertExists($paths);
     }
 
+    public function test_daftar_dokumen_santri_filter_santri_id(): void
+    {
+        $f = $this->fixture();
+        $auth = $this->superAdmin();
+        $lain = Santri::create(['nama_lengkap' => 'Santri Lain', 'jk' => 'L', 'is_active_pst' => 'Ya']);
+        LembagaSantri::create(['santri_id' => $lain->id, 'jenjang' => 'MI', 'nis_lokal' => '26002', 'is_active_lembaga' => 'Ya']);
+
+        foreach ([$f['santri']->id, $lain->id] as $sid) {
+            $this->actingAs($auth, 'sanctum')->post('/api/admin/dokumen/santri', [
+                'santri_id' => $sid, 'jenis_dokumen' => 'Kartu Keluarga',
+            ], ['Accept' => 'application/json'])->assertStatus(201);
+        }
+
+        $data = $this->actingAs($auth, 'sanctum')
+            ->getJson("/api/admin/dokumen/santri?santri_id={$f['santri']->id}")
+            ->assertOk()->json('data');
+        $this->assertCount(1, $data);
+        $this->assertSame('Ahmad Santri', $data[0]['pemilik']);
+    }
+
     public function test_import_bertahap_lembaga_periksa_dan_eksekusi(): void
     {
         $this->fixture();
