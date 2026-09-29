@@ -15,6 +15,7 @@ use App\Models\RiwayatBelajar;
 use App\Models\Santri;
 use App\Models\TahunAjaran;
 use App\Models\User;
+use App\Support\NamaBerkasDokumen;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -268,19 +269,26 @@ class PsbService
         });
     }
 
-    /** Bukti transfer -> storage/app/psb/bukti/* ; DB hanya path. Dipakai alur satuan & paket. */
+    /** Bukti transfer -> storage/app/santri/dokumen/* (unifikasi dgn dokumen santri) ; DB hanya path. Dipakai alur satuan & paket. */
     protected function simpanBuktiTransfer(PsbCalonSantri $calon, mixed $file): void
     {
         if (empty($file)) {
             return;
         }
-        $path = $file instanceof UploadedFile ? $file->store('psb/bukti', 'local') : (is_string($file) ? $file : null);
+        if ($file instanceof UploadedFile) {
+            $path = NamaBerkasDokumen::simpan(
+                $file, 'local', 'santri/dokumen',
+                (string) ($calon->nama_lengkap ?? 'calon-'.$calon->id),
+                'bukti_transfer', null,
+            );
+        } else {
+            $path = is_string($file) ? $file : null;
+        }
         if ($path) {
             DokumenSantri::create([
                 'psb_calon_santri_id' => $calon->id,
                 'jenis_dokumen_santri' => 'bukti_transfer',
-                'path_file' => $path,
-                'nama_file' => $file instanceof UploadedFile ? $file->getClientOriginalName() : null,
+                'nama_file' => basename($path),
             ]);
         }
     }
@@ -537,7 +545,6 @@ class PsbService
                         DokumenSantri::create([
                             'santri_id' => $santri->id,
                             'jenis_dokumen_santri' => $jenis,
-                            'path_file' => null,
                             'status_verifikasi' => 'menunggu',
                             'tidak_memiliki' => false,
                         ]);

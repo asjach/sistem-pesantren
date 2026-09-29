@@ -235,7 +235,7 @@ class PsbFlowTest extends TestCase
             ->postJson("/api/portal/psb/{$calonId}/ajukan-daftar-ulang")
             ->assertStatus(201);
 
-        DokumenSantri::create(['psb_calon_santri_id' => $calonId, 'jenis_dokumen_santri' => 'kk', 'path_file' => 'psb/dokumen/kk1.pdf']);
+        DokumenSantri::create(['psb_calon_santri_id' => $calonId, 'jenis_dokumen_santri' => 'kk', 'nama_file' => 'kk1.pdf']);
 
         $acc = $this->actingAs($adminMi, 'sanctum')->postJson("/api/psb/{$calonId}/acc-daftar-ulang");
         $acc->assertStatus(201);
@@ -1270,7 +1270,7 @@ class PsbFlowTest extends TestCase
         // Checklist otomatis (wajib & opsional) dengan file kosong.
         $rows = DokumenSantri::where('santri_id', $santriId)->get();
         $this->assertEqualsCanonicalizing(['Kartu Keluarga', 'Akta Kelahiran'], $rows->pluck('jenis_dokumen_santri')->all());
-        $this->assertTrue($rows->every(fn ($r) => $r->path_file === null));
+        $this->assertTrue($rows->every(fn ($r) => $r->nama_file === null));
 
         // Upload mengisi baris placeholder, bukan menambah baris baru.
         $kk = $rows->firstWhere('jenis_dokumen_santri', 'Kartu Keluarga');
@@ -1278,9 +1278,12 @@ class PsbFlowTest extends TestCase
             'jenis_dokumen_santri' => 'Kartu Keluarga',
             'file' => UploadedFile::fake()->image('kk.jpg'),
         ], ['Accept' => 'application/json'])->assertStatus(201);
-        $this->assertNotNull(DokumenSantri::find($kk->id)->path_file);
-        // Nama asli berkas tersimpan (label), terpisah dari path ter-hash.
-        $this->assertSame('kk.jpg', DokumenSantri::find($kk->id)->nama_file);
+        $this->assertNotNull(DokumenSantri::find($kk->id)->nama_file);
+        // Nama template tersimpan (label = nama kanonis berkas).
+        $this->assertMatchesRegularExpression(
+            '/\.jpg$/',
+            (string) DokumenSantri::find($kk->id)->nama_file,
+        );
         $this->assertEquals(2, DokumenSantri::where('santri_id', $santriId)->count());
 
         // Cek box "tidak memiliki dokumen" — tersimpan, tanpa menahan proses apa pun.
@@ -1676,7 +1679,7 @@ class PsbFlowTest extends TestCase
         $this->actingAs($wali, 'sanctum')
             ->postJson("/api/portal/psb/{$calonId}/ajukan-daftar-ulang")
             ->assertStatus(201);
-        DokumenSantri::create(['psb_calon_santri_id' => $calonId, 'jenis_dokumen_santri' => 'kk', 'path_file' => 'psb/dokumen/kk38.pdf']);
+        DokumenSantri::create(['psb_calon_santri_id' => $calonId, 'jenis_dokumen_santri' => 'kk', 'nama_file' => 'kk38.pdf']);
 
         $acc = $this->actingAs($adminMi, 'sanctum')->postJson("/api/psb/{$calonId}/acc-daftar-ulang");
         $acc->assertStatus(201);

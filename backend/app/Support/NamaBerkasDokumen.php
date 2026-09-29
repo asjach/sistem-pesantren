@@ -47,8 +47,10 @@ class NamaBerkasDokumen
 
     /**
      * Cari nama unik di direktori disk (tambah `-2`, `-3`, … sebelum ekstensi).
+     * `$kecuali` = basename yang diabaikan dari cek tabrakan (berkas itu sendiri
+     * saat dirapikan ulang).
      */
-    public static function unik(string $disk, string $direktori, string $nama): string
+    public static function unik(string $disk, string $direktori, string $nama, ?string $kecuali = null): string
     {
         $direktori = trim($direktori, '/');
         $titik = strrpos($nama, '.');
@@ -56,12 +58,33 @@ class NamaBerkasDokumen
         $ekstensi = $titik === false ? '' : substr($nama, $titik);
         $calon = $nama;
         $nomor = 1;
-        while (Storage::disk($disk)->exists("{$direktori}/{$calon}")) {
+        while ($calon !== $kecuali && Storage::disk($disk)->exists("{$direktori}/{$calon}")) {
             $nomor++;
             $calon = "{$dasar}-{$nomor}{$ekstensi}";
         }
 
         return $calon;
+    }
+
+    /**
+     * Direktori kanonis per tipe (cermin aturan lama `store()`).
+     */
+    public static function direktori(string $tipe): string
+    {
+        return $tipe === 'lembaga' ? 'lembaga/dokumen' : "{$tipe}/dokumen";
+    }
+
+    /**
+     * Path relatif storage dari nama berkas (null bila tanpa berkas).
+     * Satu-satunya cara membaca lokasi fisik pasca-unifikasi.
+     */
+    public static function jalur(string $tipe, ?string $nama): ?string
+    {
+        if ($nama === null || trim($nama) === '') {
+            return null;
+        }
+
+        return self::direktori($tipe).'/'.ltrim($nama, '/');
     }
 
     /**

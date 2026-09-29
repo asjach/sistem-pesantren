@@ -13,6 +13,7 @@ use App\Models\DokumenWajibLembaga;
 use App\Models\PsbCalonSantri;
 use App\Models\User;
 use App\Services\RefService;
+use App\Support\NamaBerkasDokumen;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -28,12 +29,16 @@ class PsbDokumenController extends Controller
         if (! in_array($data['jenis_dokumen_santri'], RefService::kodeAktif('jenis_dokumen_santri', $calon->jenjang), true)) {
             abort(422, 'Jenis dokumen tidak aktif di lembaga ini.');
         }
-        $path = $request->file('file')->store('psb/dokumen', 'local');
+        $berkas = $request->file('file');
+        $path = NamaBerkasDokumen::simpan(
+            $berkas, 'local', 'santri/dokumen',
+            (string) ($calon->nama_lengkap ?? 'calon-'.$calon->id),
+            $data['jenis_dokumen_santri'], $data['catatan'] ?? null,
+        );
         $dok = DokumenSantri::create([
             'psb_calon_santri_id' => $calon->id,
             'jenis_dokumen_santri' => $data['jenis_dokumen_santri'],
-            'path_file' => $path,
-            'nama_file' => $request->file('file')->getClientOriginalName(),
+            'nama_file' => basename($path),
             'catatan' => $data['catatan'] ?? null,
         ]);
         $dok->file_url = Storage::url($path);

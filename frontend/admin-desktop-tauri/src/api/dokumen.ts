@@ -17,7 +17,6 @@ export interface DokumenRow {
   lembaga_jenjang?: string | null;
   lembaga_nama?: string | null;
   nama_file: string | null;
-  path_file: string | null;
   status_verifikasi: 'menunggu' | 'valid' | 'ditolak';
   tidak_memiliki?: boolean;
   catatan: string | null;

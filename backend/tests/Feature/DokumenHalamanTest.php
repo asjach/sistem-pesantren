@@ -76,18 +76,17 @@ class DokumenHalamanTest extends TestCase
             'file' => UploadedFile::fake()->create('izin-2026.pdf', 100, 'application/pdf'),
         ], ['Accept' => 'application/json'])->assertOk();
         $row = DokumenLembaga::find($id);
-        $this->assertSame('izin-2026.pdf', $row->nama_file);
-        $this->assertNotNull($row->path_file);
         $this->assertMatchesRegularExpression(
-            '{^lembaga/dokumen/madrasah_ibtidaiyah_izin_operasional_sk_kemenag_\d{8}_\d{6}\.pdf$}',
-            $row->path_file,
+            '{^madrasah_ibtidaiyah_izin_operasional_sk_kemenag_\d{8}_\d{6}\.pdf$}',
+            (string) $row->nama_file,
         );
-        Storage::disk('local')->assertExists($row->path_file);
+        $jalur = 'lembaga/dokumen/'.$row->nama_file;
+        Storage::disk('local')->assertExists($jalur);
 
-        // Unduh berkas: nama asli sebagai nama unduhan.
+        // Unduh berkas: nama template sebagai nama unduhan.
         $unduh = $this->actingAs($auth, 'sanctum')->get("/api/admin/dokumen/lembaga/{$id}/unduh");
         $unduh->assertOk();
-        $this->assertStringContainsString('izin-2026.pdf', (string) $unduh->headers->get('content-disposition'));
+        $this->assertStringContainsString((string) $row->nama_file, (string) $unduh->headers->get('content-disposition'));
 
         // Ubah status.
         $this->actingAs($auth, 'sanctum')->patchJson("/api/admin/dokumen/lembaga/{$id}", [
@@ -96,10 +95,9 @@ class DokumenHalamanTest extends TestCase
         $this->assertSame('valid', DokumenLembaga::find($id)->status_verifikasi);
 
         // Hapus → berkas fisik ikut hilang.
-        $path = $row->path_file;
         $this->actingAs($auth, 'sanctum')->deleteJson("/api/admin/dokumen/lembaga/{$id}")->assertOk();
         $this->assertNull(DokumenLembaga::find($id));
-        Storage::disk('local')->assertMissing($path);
+        Storage::disk('local')->assertMissing($jalur);
     }
 
     public function test_dokumen_santri_dan_guru_simpan_dengan_berkas(): void
@@ -113,12 +111,11 @@ class DokumenHalamanTest extends TestCase
             'file' => UploadedFile::fake()->image('kk-ahmad.jpg'),
         ], ['Accept' => 'application/json'])->assertStatus(201);
         $dok = DokumenSantri::first();
-        $this->assertSame('kk-ahmad.jpg', $dok->nama_file);
         $this->assertMatchesRegularExpression(
-            '{^santri/dokumen/ahmad_santri_kartu_keluarga_\d{8}_\d{6}\.jpg$}',
-            $dok->path_file,
+            '{^ahmad_santri_kartu_keluarga_\d{8}_\d{6}\.jpg$}',
+            (string) $dok->nama_file,
         );
-        Storage::disk('local')->assertExists($dok->path_file);
+        Storage::disk('local')->assertExists('santri/dokumen/'.$dok->nama_file);
 
         $this->actingAs($auth, 'sanctum')->post('/api/admin/dokumen/pegawai', [
             'pegawai_id' => $f['guru']->id,
@@ -126,11 +123,12 @@ class DokumenHalamanTest extends TestCase
             'jenis_dokumen' => 'Ijazah S1',
             'file' => UploadedFile::fake()->create('ijazah.pdf', 100, 'application/pdf'),
         ], ['Accept' => 'application/json'])->assertStatus(201);
-        $this->assertSame('ijazah.pdf', DB::table('dokumen_pegawai')->where('pegawai_id', $f['guru']->id)->value('nama_file'));
+        $namaGuru = (string) DB::table('dokumen_pegawai')->where('pegawai_id', $f['guru']->id)->value('nama_file');
         $this->assertMatchesRegularExpression(
-            '{^pegawai/dokumen/ustadz_guru_ijazah_s1_\d{8}_\d{6}\.pdf$}',
-            DB::table('dokumen_pegawai')->where('pegawai_id', $f['guru']->id)->value('path_file'),
+            '{^ustadz_guru_ijazah_s1_\d{8}_\d{6}\.pdf$}',
+            $namaGuru,
         );
+        Storage::disk('local')->assertExists('pegawai/dokumen/'.$namaGuru);
 
         // Daftar kedua halaman.
         $this->actingAs($auth, 'sanctum')->getJson('/api/admin/dokumen/santri?jenjang[]=MI')
@@ -153,17 +151,17 @@ class DokumenHalamanTest extends TestCase
             ], ['Accept' => 'application/json'])->assertStatus(201);
         }
 
-        $paths = DokumenSantri::orderBy('id')->pluck('path_file')->all();
+        $namas = DokumenSantri::orderBy('id')->pluck('nama_file')->all();
         $this->assertMatchesRegularExpression(
-            '{^santri/dokumen/ahmad_santri_kartu_keluarga_\d{8}_\d{6}\.jpg$}',
-            $paths[0],
+            '{^ahmad_santri_kartu_keluarga_\d{8}_\d{6}\.jpg$}',
+            $namas[0],
         );
-        $this->assertNotSame($paths[0], $paths[1]);
+        $this->assertNotSame($namas[0], $namas[1]);
         $this->assertMatchesRegularExpression(
-            '{^santri/dokumen/ahmad_santri_kartu_keluarga_\d{8}_\d{6}(-\d+)?\.jpg$}',
-            $paths[1],
+            '{^ahmad_santri_kartu_keluarga_\d{8}_\d{6}(-\d+)?\.jpg$}',
+            $namas[1],
         );
-        Storage::disk('local')->assertExists($paths);
+        Storage::disk('local')->assertExists(['santri/dokumen/'.$namas[0], 'santri/dokumen/'.$namas[1]]);
     }
 
     public function test_daftar_dokumen_santri_filter_santri_id(): void
@@ -184,6 +182,56 @@ class DokumenHalamanTest extends TestCase
             ->assertOk()->json('data');
         $this->assertCount(1, $data);
         $this->assertSame('Ahmad Santri', $data[0]['pemilik']);
+    }
+
+    public function test_simpan_lokal_tanpa_berkas_cadangkan_nama(): void
+    {
+        $f = $this->fixture();
+        $auth = $this->superAdmin();
+
+        $this->actingAs($auth, 'sanctum')->postJson('/api/admin/dokumen/santri', [
+            'santri_id' => $f['santri']->id,
+            'jenis_dokumen' => 'Kartu Keluarga',
+            'tujuan' => 'lokal',
+            'ekstensi' => 'jpg',
+        ])->assertStatus(201);
+
+        $dok = DokumenSantri::first();
+        $this->assertMatchesRegularExpression(
+            '{^ahmad_santri_kartu_keluarga_\d{8}_\d{6}\.jpg$}',
+            (string) $dok->nama_file,
+        );
+        Storage::disk('local')->assertMissing('santri/dokumen/'.$dok->nama_file);
+    }
+
+    public function test_mode_server_menolak_simpanan_lokal(): void
+    {
+        config()->set('dokumen.mode', 'server');
+        $f = $this->fixture();
+        $auth = $this->superAdmin();
+
+        $this->actingAs($auth, 'sanctum')->postJson('/api/admin/dokumen/santri', [
+            'santri_id' => $f['santri']->id,
+            'jenis_dokumen' => 'Kartu Keluarga',
+            'tujuan' => 'lokal',
+            'ekstensi' => 'jpg',
+        ])->assertStatus(422);
+        $this->assertSame(0, DokumenSantri::count());
+    }
+
+    public function test_tujuan_lokal_dengan_berkas_ditolak(): void
+    {
+        $f = $this->fixture();
+        $auth = $this->superAdmin();
+
+        $this->actingAs($auth, 'sanctum')->post('/api/admin/dokumen/santri', [
+            'santri_id' => $f['santri']->id,
+            'jenis_dokumen' => 'Kartu Keluarga',
+            'tujuan' => 'lokal',
+            'ekstensi' => 'jpg',
+            'file' => UploadedFile::fake()->image('kk.jpg'),
+        ], ['Accept' => 'application/json'])->assertStatus(422);
+        $this->assertSame(0, DokumenSantri::count());
     }
 
     public function test_import_bertahap_lembaga_periksa_dan_eksekusi(): void

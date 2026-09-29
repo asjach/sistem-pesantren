@@ -128,7 +128,8 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
     nis: r.nis_lokal ?? '—',
     lembaga_nama: r.lembaga_nama ?? r.lembaga_jenjang ?? '—',
     jenis_dokumen: r.jenis_dokumen ?? '',
-    nama_file: r.path_file ? (r.nama_file ?? 'ada') : null,
+    // Tampil = nama template langsung (kolom path sudah dicabut).
+    nama_file: r.nama_file ?? null,
     catatan: r.catatan ?? '',
   }), []);
 
@@ -198,13 +199,13 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
           id={`btn_unggah_dok_${r.id}`}
           size="sm"
           variant="outline"
-          title={r.path_file ? 'Ganti berkas' : 'Unggah berkas'}
+          title={r.nama_file ? 'Ganti berkas' : 'Unggah berkas'}
           onClick={() => { setUnggahFile(null); setUnggahRow(r); }}
         >
           <Upload size={14} />
         </Button>
       )}
-      {r.path_file && (
+      {r.nama_file && (
         <Button
           id={`btn_unduh_dok_${r.id}`}
           size="sm"

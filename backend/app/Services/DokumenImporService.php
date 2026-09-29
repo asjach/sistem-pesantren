@@ -94,7 +94,7 @@ class DokumenImporService extends ImporPotongan
     }
 
     /**
-     * Santri: kunci (santri, jenis) — path_file dibiarkan apa adanya
+     * Santri: kunci (santri, jenis) — nama_file dibiarkan apa adanya
      * (import tak pernah menimpa/menghapus berkas fisik).
      *
      * @param  array<string, mixed>  $baris

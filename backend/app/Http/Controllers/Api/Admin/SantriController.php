@@ -23,6 +23,7 @@ use App\Services\PenerimaanService;
 use App\Services\RefService;
 use App\Services\SantriImporService;
 use App\Services\UrutKatalog;
+use App\Support\NamaBerkasDokumen;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -151,16 +152,20 @@ class SantriController extends Controller
         if (! in_array($data['jenis_dokumen_santri'], RefService::kodeAktif('jenis_dokumen_santri', $lembagaUntukKamus), true)) {
             abort(422, 'Jenis dokumen tidak aktif di lembaga ini.');
         }
-        $path = $request->file('file')->store('santri/dokumen', 'local');
+        $berkas = $request->file('file');
+        $path = NamaBerkasDokumen::simpan(
+            $berkas, 'local', 'santri/dokumen',
+            (string) ($santri->nama_lengkap ?? 'santri-'.$santri->id),
+            $data['jenis_dokumen_santri'], $data['catatan'] ?? null,
+        );
         $dok = DokumenSantri::where('santri_id', $santri->id)
             ->where('jenis_dokumen_santri', $data['jenis_dokumen_santri'])
-            ->whereNull('path_file')
+            ->whereNull('nama_file')
             ->latest('id')
             ->first();
         if ($dok) {
             $dok->update([
-                'path_file' => $path,
-                'nama_file' => $request->file('file')->getClientOriginalName(),
+                'nama_file' => basename($path),
                 'catatan' => $data['catatan'] ?? $dok->catatan,
                 'tidak_memiliki' => false,
             ]);
@@ -168,8 +173,7 @@ class SantriController extends Controller
             $dok = DokumenSantri::create([
                 'santri_id' => $santri->id,
                 'jenis_dokumen_santri' => $data['jenis_dokumen_santri'],
-                'path_file' => $path,
-                'nama_file' => $request->file('file')->getClientOriginalName(),
+                'nama_file' => basename($path),
                 'catatan' => $data['catatan'] ?? null,
             ]);
         }

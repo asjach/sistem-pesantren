@@ -12,6 +12,10 @@ import { isTauri } from '@/api/client';
 export const FOLDER_SUDAH = 'sudah';
 /** Akar arsip dokumen di dalam Documents. */
 export const ROOT_ARSIP_DOKUMEN = 'SIMPES-Dokumen';
+/** Kunci pref: root arsip custom (absolut). Kosong = bawaan Documents. */
+export const PREF_FOLDER_ARSIP = 'simpes_folder_arsip';
+/** Kunci pref: mode penyimpanan perangkat (`server` | `lokal`). */
+export const PREF_MODE_DOKUMEN = 'simpes_mode_dokumen';
 /** Batas ukuran berkas (sama seperti validasi backend): 10 MB. */
 export const BATAS_BERKAS = 10 * 1024 * 1024;
 /** Ekstensi yang diterima (tanpa titik, huruf kecil). */
@@ -111,12 +115,13 @@ export async function bacaBerkasUntukUnggah(berkas: BerkasTerpilih): Promise<Fil
   return new File([buf], berkas.nama, { type: berkas.mime });
 }
 
-/** Salin berkas ke `Documents/SIMPES-Dokumen/<jenis>/` dengan nama template.
- *  Mengembalikan path tujuan. */
-export async function salinKeArsip(pathSumber: string, namaFile: string, jenis: string): Promise<string> {
+/** Salin berkas ke `<root>/<jenis>/` dengan nama template.
+ *  `root` absolut custom (pref) atau bawaan Documents. Mengembalikan path tujuan. */
+export async function salinKeArsip(pathSumber: string, namaFile: string, jenis: string, root?: string | null): Promise<string> {
   const { copyFile, exists, mkdir } = await import('@tauri-apps/plugin-fs');
   const { documentDir, join } = await import('@tauri-apps/api/path');
-  const folderJenis = await join(await documentDir(), ROOT_ARSIP_DOKUMEN, slugSegmen(jenis) || 'lainnya');
+  const akar = root && root.trim() !== '' ? root : await join(await documentDir(), ROOT_ARSIP_DOKUMEN);
+  const folderJenis = await join(akar, slugSegmen(jenis) || 'lainnya');
   await mkdir(folderJenis, { recursive: true });
   const tujuan = await join(folderJenis, await namaUnik(folderJenis, namaFile));
   await copyFile(pathSumber, tujuan);

@@ -487,7 +487,7 @@ export default function SantriPage() {
                   <tr key={d.id} className="border-t">
                     <td className="p-2">{d.jenis_dokumen_santri}</td>
                     <td className="p-2">{d.tidak_memiliki ? 'tidak memiliki' : d.status_verifikasi}</td>
-                    <td className="p-2">{d.path_file ? (d.nama_file ?? 'ada') : '—'}</td>
+                    <td className="p-2">{d.nama_file ?? '—'}</td>
                     <td className="p-2 text-right">
                       <Button id={`btn_tidak_miliki_dok_${d.id}`} size="sm" variant="outline" onClick={() => dokRow && void (async () => {
                         try {

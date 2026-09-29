@@ -23,6 +23,8 @@ import { cn } from '@/lib/utils';
 import {
   BATAS_BERKAS,
   EKSTENSI_BOLEH,
+  PREF_FOLDER_ARSIP,
+  PREF_MODE_DOKUMEN,
   bacaBerkasUntukUnggah,
   ekstensiDariNama,
   formatUkuran,
@@ -260,6 +262,11 @@ export default function TambahDokumenSantriPage() {
   const [inputLainnya, setInputLainnya] = useState(false);
   const [pindahSudah, setPindahSudah] = useState(true);
   const [busy, setBusy] = useState(false);
+  // Mode penyimpanan perangkat (diatur di Pengaturan → Server; hanya dibaca).
+  const [modeDokumen, setModeDokumen] = useState<'server' | 'lokal'>('server');
+  const [folderArsip, setFolderArsip] = useState('');
+  // Mode lokal butuh filesystem desktop; browser selalu server.
+  const modeEfektif = desktop && modeDokumen === 'lokal' ? 'lokal' : 'server';
 
   // Persistensi pilihan radio/checkbox per perangkat (pola pager/sidebar).
   const [prefSiap, setPrefSiap] = useState(false);
@@ -267,17 +274,21 @@ export default function TambahDokumenSantriPage() {
     let hidup = true;
     (async () => {
       try {
-        const [s, l, u, q] = await Promise.all([
+        const [s, l, u, q, m, f] = await Promise.all([
           prefGet('simpes_tambah_dok_sumber'),
           prefGet('simpes_tambah_dok_lainnya'),
           prefGet('simpes_tambah_dok_sudah'),
           prefGet('simpes_tambah_dok_cari'),
+          prefGet(PREF_MODE_DOKUMEN),
+          prefGet(PREF_FOLDER_ARSIP),
         ]);
         if (!hidup) return;
         if (s === 'filter' || s === 'buku') setSumber(s);
         if (l === '1' || l === '0') setInputLainnya(l === '1');
         if (u === '1' || u === '0') setPindahSudah(u === '1');
         if (typeof q === 'string' && q !== '') { setCari(q); setCariTunda(q); }
+        if (m === 'server' || m === 'lokal') setModeDokumen(m);
+        if (typeof f === 'string') setFolderArsip(f);
       } catch {
         /* penyimpanan terkunci: pakai bawaan */
       }
@@ -301,7 +312,10 @@ export default function TambahDokumenSantriPage() {
     if (!prefSiap) return;
     prefSet('simpes_tambah_dok_cari', cari).catch(() => {});
   }, [prefSiap, cari]);
-  const bisaSimpan = santriId != null && jenis.trim() !== '' && !busy;
+  /** Berkas wajib hanya di mode lokal (satu-satunya salinan). */
+  const berkasAda = desktop ? berkasPath !== null : berkasWeb !== null;
+  const bisaSimpan = santriId != null && jenis.trim() !== '' && !busy
+    && (modeEfektif === 'server' || berkasAda);
 
   async function bukaPilihLagi() {
     if (desktop) {
@@ -327,41 +341,64 @@ export default function TambahDokumenSantriPage() {
     if (!bisaSimpan || santriId == null) return;
     setBusy(true);
     try {
-      let fileUp: File | undefined;
-      if (berkasPath && desktop) {
-        fileUp = await bacaBerkasUntukUnggah({
-          path: berkasPath, nama: berkasNama, ukuran: berkasUkuran, mime: berkasMime,
+      if (modeEfektif === 'lokal') {
+        // Mode lokal: metadata + cadangan nama ke server, byte hanya di drive.
+        if (!berkasAda || (!berkasPath && !berkasWeb)) {
+          toast.error('Pilih berkas dulu (mode lokal).');
+          return;
+        }
+        const ekstensi = ekstensiDariNama(berkasNama);
+        const tersimpan = await simpanDokumen('santri', {
+          santri_id: santriId,
+          jenis_dokumen: jenis.trim(),
+          ...(catatan.trim() ? { catatan: catatan.trim() } : {}),
+          tujuan: 'lokal',
+          ekstensi,
         });
-      } else if (berkasWeb) {
-        fileUp = berkasWeb;
-      }
-      await simpanDokumen('santri', {
-        santri_id: santriId,
-        jenis_dokumen: jenis.trim(),
-        ...(catatan.trim() ? { catatan: catatan.trim() } : {}),
-      }, fileUp);
-      // Arsip lokal (desktop + ada berkas): salin selalu, pindah bila dicentang.
-      if (desktop && berkasPath) {
-        try {
-          const namaFileArsip = namaArsip(
-            santriTerpilih?.nama_lengkap ?? `santri-${santriId}`,
-            jenis.trim(),
-            catatan.trim(),
-            ekstensiDariNama(berkasNama),
-          );
-          await salinKeArsip(berkasPath, namaFileArsip, jenis.trim());
-          let pesan = 'Dokumen disimpan dan disalin ke arsip.';
-          if (pindahSudah) {
-            await pindahKeSudah(berkasPath);
-            pesan += ' File asli dipindah ke folder sudah.';
+        const namaArsipBaru = tersimpan.data?.nama_file
+          || namaArsip(santriTerpilih?.nama_lengkap ?? `santri-${santriId}`, jenis.trim(), catatan.trim(), ekstensi);
+        if (desktop && berkasPath) {
+          try {
+            await salinKeArsip(berkasPath, namaArsipBaru, jenis.trim(), folderArsip || undefined);
+            let pesan = 'Dokumen disimpan (lokal).';
+            if (pindahSudah) {
+              await pindahKeSudah(berkasPath);
+              pesan += ' File asli dipindah ke folder sudah.';
+            }
+            toast.success(pesan);
+          } catch (e) {
+            toast.success('Metadata disimpan; arsip lokal gagal.');
+            toast.warning(`Arsip lokal gagal: ${errorMessage(e)}`);
           }
-          toast.success(pesan);
-        } catch (e) {
-          toast.success('Dokumen disimpan.');
-          toast.warning(`Arsip lokal gagal: ${errorMessage(e)}`);
+        } else {
+          toast.success('Dokumen disimpan (lokal).');
         }
       } else {
-        toast.success('Dokumen disimpan.');
+        // Mode server: byte ke server; pindah-sudah tetap independen.
+        let fileUp: File | undefined;
+        if (berkasPath && desktop) {
+          fileUp = await bacaBerkasUntukUnggah({
+            path: berkasPath, nama: berkasNama, ukuran: berkasUkuran, mime: berkasMime,
+          });
+        } else if (berkasWeb) {
+          fileUp = berkasWeb;
+        }
+        await simpanDokumen('santri', {
+          santri_id: santriId,
+          jenis_dokumen: jenis.trim(),
+          ...(catatan.trim() ? { catatan: catatan.trim() } : {}),
+        }, fileUp);
+        if (desktop && berkasPath && pindahSudah) {
+          try {
+            await pindahKeSudah(berkasPath);
+            toast.success('Dokumen disimpan. File asli dipindah ke folder sudah.');
+          } catch (e) {
+            toast.success('Dokumen disimpan.');
+            toast.warning(`Pemindahan ke folder sudah gagal: ${errorMessage(e)}`);
+          }
+        } else {
+          toast.success('Dokumen disimpan.');
+        }
       }
       // Reset form (pilihan santri + checkbox dipertahankan).
       setJenis('');
@@ -537,6 +574,9 @@ export default function TambahDokumenSantriPage() {
           </div>
           <Separator />
           <div className="flex justify-end gap-2">
+            <span className="mr-auto self-center text-xs text-muted-foreground">
+              Mode: {modeEfektif === 'lokal' ? 'Lokal (berkas di drive perangkat ini)' : 'Server'}
+            </span>
             <Button variant="outline" onClick={() => navigate('/dokumen-santri')}>
               Batal
             </Button>

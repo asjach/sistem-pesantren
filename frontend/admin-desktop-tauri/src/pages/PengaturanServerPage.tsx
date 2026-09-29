@@ -4,17 +4,21 @@ import {
   errorMessage,
   getBaseUrl,
   isTauri,
+  prefGet,
+  prefSet,
   resetBaseUrl,
   setBaseUrl,
   api,
 } from '../api/client';
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { RibbonSlot } from '@/components/RibbonSlot';
 import { RibbonCmd, RibbonGroup } from '@/components/topbar/primitives';
 import { RotateCcw, Server } from '@/icons';
 import { toast } from 'sonner';
+import { PREF_FOLDER_ARSIP, PREF_MODE_DOKUMEN, ROOT_ARSIP_DOKUMEN } from '@/lib/arsipDokumen';
 
 // Base URL backend bisa diganti runtime (lokal dulu, server belakangan)
 // tanpa rebuild binary. Disimpan di plugin-store (desktop) / localStorage (web).
@@ -51,6 +55,48 @@ export default function PengaturanServerPage() {
     toast.success(`Kembali ke bawaan (${DEFAULT_API_BASE_URL}).`);
   }
 
+  // ----- Arsip dokumen perangkat ini (mode + folder root) -----
+  const desktop = isTauri();
+  const [modeDokumen, setModeDokumen] = useState<'server' | 'lokal'>('server');
+  const [folderArsip, setFolderArsip] = useState('');
+  const [prefSiap, setPrefSiap] = useState(false);
+  useEffect(() => {
+    let hidup = true;
+    (async () => {
+      try {
+        const [m, f] = await Promise.all([prefGet(PREF_MODE_DOKUMEN), prefGet(PREF_FOLDER_ARSIP)]);
+        if (!hidup) return;
+        if (m === 'server' || m === 'lokal') setModeDokumen(m);
+        if (typeof f === 'string') setFolderArsip(f);
+      } catch {
+        /* abaikan */
+      }
+      if (hidup) setPrefSiap(true);
+    })();
+    return () => { hidup = false; };
+  }, []);
+  useEffect(() => {
+    if (!prefSiap) return;
+    prefSet(PREF_MODE_DOKUMEN, modeDokumen).catch(() => {});
+  }, [prefSiap, modeDokumen]);
+  useEffect(() => {
+    if (!prefSiap) return;
+    prefSet(PREF_FOLDER_ARSIP, folderArsip).catch(() => {});
+  }, [prefSiap, folderArsip]);
+
+  async function onPilihFolder() {
+    try {
+      const { open } = await import('@tauri-apps/plugin-dialog');
+      const dipilih = await open({ multiple: false, directory: true });
+      if (typeof dipilih === 'string' && dipilih !== '') {
+        setFolderArsip(dipilih);
+        toast.success('Folder arsip diubah.');
+      }
+    } catch (e) {
+      toast.error(errorMessage(e));
+    }
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <RibbonSlot label="Server">
@@ -85,6 +131,51 @@ export default function PengaturanServerPage() {
             </Field>
           </FieldGroup>
         </form>
+      </section>
+
+      <section className="flex w-full max-w-none flex-col gap-3 rounded-xl border bg-card p-5">
+        <h2 className="text-base font-semibold">Arsip dokumen perangkat ini</h2>
+        <p className="text-sm text-muted-foreground">
+          Mode Server menyimpan berkas ke server; mode Lokal menyimpan berkas ke drive perangkat ini
+          (server hanya metadata). Bisa diganti kapan saja; hanya memengaruhi simpanan berikutnya.
+        </p>
+        <div id="radio_mode_dokumen" role="radiogroup" aria-label="Mode penyimpanan dokumen" className="flex flex-wrap gap-2">
+          {([
+            ['server', 'Server'],
+            ['lokal', 'Lokal'],
+          ] as const).map(([nilai, label]) => (
+            <label
+              key={nilai}
+              htmlFor={`radio_mode_dokumen_${nilai}`}
+              title={nilai === 'lokal' && !desktop ? 'Hanya tersedia di aplikasi desktop' : undefined}
+              className={`inline-flex h-6 cursor-pointer items-center gap-2 rounded-full border bg-card px-3 py-0 text-xs has-checked:border-primary has-checked:bg-accent has-checked:font-semibold${nilai === 'lokal' && !desktop ? ' cursor-not-allowed opacity-50' : ''}`}
+            >
+              <input
+                type="radio"
+                id={`radio_mode_dokumen_${nilai}`}
+                name="mode_dokumen"
+                value={nilai}
+                checked={modeDokumen === nilai}
+                disabled={nilai === 'lokal' && !desktop}
+                onChange={() => setModeDokumen(nilai)}
+              />
+              {label}
+            </label>
+          ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground" title={folderArsip || undefined}>
+            Folder arsip: {folderArsip !== '' ? folderArsip : `Documents/${ROOT_ARSIP_DOKUMEN} (bawaan)`}
+          </span>
+          <Button variant="outline" size="sm" disabled={!desktop} title={desktop ? 'Pilih folder arsip' : 'Hanya tersedia di aplikasi desktop'} onClick={() => void onPilihFolder()}>
+            Ubah…
+          </Button>
+          {folderArsip !== '' && (
+            <Button variant="ghost" size="sm" onClick={() => setFolderArsip('')}>
+              Bawaan
+            </Button>
+          )}
+        </div>
       </section>
     </div>
   );

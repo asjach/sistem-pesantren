@@ -29,8 +29,9 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 /**
  * Tiga halaman dokumen (santri / pegawai-guru / lembaga) dalam satu controller:
  * pola identik, yang membedakan hanya tabel + identitas pemiliknya.
- * Unduh berkas = `Storage::download($path_file, $nama_file)` — pasangan
- * kolom yang selalu dijaga bersama.
+ * Unduh berkas = `Storage::download($path_file, basename($path_file))` —
+ *  tampil & unduh memakai nama template; `nama_file` menyimpan nama asli
+ *  pengunggah sebagai arsip.
  */
 class DokumenController extends Controller
 {
@@ -160,16 +161,30 @@ class DokumenController extends Controller
 
         $row = DB::transaction(function () use ($request, $tipe, $data) {
             $berkas = $request->file('file');
-            $path = $berkas ? $this->simpanBerkasTemplate(
-                $berkas, $tipe, $this->namaPemilik($tipe, $data), $data['jenis_dokumen'], $data['catatan'] ?? null,
-            ) : null;
+            $tujuan = $data['tujuan'] ?? 'server';
+            if ($tujuan === 'lokal' && config('dokumen.mode') === 'server') {
+                throw ValidationException::withMessages(['tujuan' => 'Mode server menolak penyimpanan lokal.']);
+            }
+            if ($tujuan === 'lokal' && $berkas) {
+                throw ValidationException::withMessages(['tujuan' => 'Pilih satu: berkas untuk server, tanpa berkas untuk lokal.']);
+            }
+            if ($tujuan === 'lokal' && empty($data['ekstensi'])) {
+                throw ValidationException::withMessages(['ekstensi' => 'Ekstensi wajib untuk simpanan lokal.']);
+            }
+            $namaPemilik = $this->namaPemilik($tipe, $data);
+            $nama = $berkas
+                ? basename($this->simpanBerkasTemplate(
+                    $berkas, $tipe, $namaPemilik, $data['jenis_dokumen'], $data['catatan'] ?? null,
+                ))
+                : ($tujuan === 'lokal'
+                    ? NamaBerkasDokumen::buat($namaPemilik, $data['jenis_dokumen'], $data['catatan'] ?? null, $data['ekstensi'])
+                    : null);
 
             if ($tipe === 'santri') {
                 return DokumenSantri::create([
                     'santri_id' => $data['santri_id'],
                     'jenis_dokumen_santri' => $data['jenis_dokumen'],
-                    'path_file' => $path,
-                    'nama_file' => $berkas?->getClientOriginalName(),
+                    'nama_file' => $nama,
                     'status_verifikasi' => $data['status_verifikasi'] ?? 'menunggu',
                     'catatan' => $data['catatan'] ?? null,
                 ]);
@@ -179,8 +194,7 @@ class DokumenController extends Controller
                 $id = DB::table('dokumen_pegawai')->insertGetId([
                     'pegawai_id' => $data['pegawai_id'],
                     'jenis_dokumen_pegawai' => $data['jenis_dokumen'],
-                    'path_file' => $path,
-                    'nama_file' => $berkas?->getClientOriginalName(),
+                    'nama_file' => $nama,
                     'status_verifikasi' => $data['status_verifikasi'] ?? 'menunggu',
                     'catatan' => $data['catatan'] ?? null,
                     'created_at' => now(),
@@ -195,8 +209,7 @@ class DokumenController extends Controller
             return DokumenLembaga::create([
                 'jenjang' => $data['jenjang'],
                 'jenis_dokumen' => $data['jenis_dokumen'],
-                'path_file' => $path,
-                'nama_file' => $berkas?->getClientOriginalName(),
+                'nama_file' => $nama,
                 'status_verifikasi' => $data['status_verifikasi'] ?? 'menunggu',
                 'catatan' => $data['catatan'] ?? null,
             ]);
@@ -256,12 +269,13 @@ class DokumenController extends Controller
         };
         $jenis = $tipe === 'santri' ? $model->jenis_dokumen_santri : ($tipe === 'pegawai' ? $model->jenis_dokumen_pegawai : $model->jenis_dokumen);
         $path = $this->simpanBerkasTemplate($berkas, $tipe, (string) $nama, (string) $jenis, $model->catatan ?? null);
-        $ubah = ['path_file' => $path, 'nama_file' => $berkas->getClientOriginalName()];
+        $ubah = ['nama_file' => basename($path)];
 
         if ($model instanceof Model) {
-            // Berkas lama dibuang agar storage tak menumpuk.
-            if ($model->path_file) {
-                Storage::disk('local')->delete($model->path_file);
+            // Berkas lama dibuang agar storage tak menumpuk (lokasi dari nama).
+            $lama = NamaBerkasDokumen::jalur($tipe, $model->nama_file ?? null);
+            if ($lama) {
+                Storage::disk('local')->delete($lama);
             }
             $model->update($ubah);
 
@@ -269,8 +283,9 @@ class DokumenController extends Controller
         }
 
         $lama = DB::table('dokumen_pegawai')->find($id);
-        if ($lama?->path_file) {
-            Storage::disk('local')->delete($lama->path_file);
+        $jalurLama = NamaBerkasDokumen::jalur($tipe, $lama->nama_file ?? null);
+        if ($jalurLama) {
+            Storage::disk('local')->delete($jalurLama);
         }
         $ubah['updated_at'] = now();
         DB::table('dokumen_pegawai')->where('id', $id)->update($ubah);
@@ -284,7 +299,7 @@ class DokumenController extends Controller
         $this->cekTipe($tipe);
         $model = $this->temukan($tipe, $id, $request);
 
-        $path = $model->path_file ?? null;
+        $path = NamaBerkasDokumen::jalur($tipe, $model->nama_file ?? null);
         if ($model instanceof Model) {
             $model->delete();
         } else {
@@ -297,20 +312,21 @@ class DokumenController extends Controller
         return response()->json(['pesan' => 'Dokumen dihapus.']);
     }
 
-    /** GET /api/admin/dokumen/{tipe}/{id}/unduh — unduh berkas (nama asli). */
+    /** GET /api/admin/dokumen/{tipe}/{id}/unduh — unduh berkas (nama template). */
     public function unduh(Request $request, string $tipe, int $id): BinaryFileResponse
     {
         $this->cekTipe($tipe);
         $model = $this->temukan($tipe, $id, $request);
 
-        if (empty($model->path_file) || ! Storage::disk('local')->exists($model->path_file)) {
+        $path = NamaBerkasDokumen::jalur($tipe, $model->nama_file ?? null);
+        if ($path === null || ! Storage::disk('local')->exists($path)) {
             abort(404, 'Berkas tidak ditemukan.');
         }
         $disk = Storage::disk('local');
 
         return response()->download(
-            $disk->path($model->path_file),
-            $model->nama_file ?? basename($model->path_file),
+            $disk->path($path),
+            basename($path),
         );
     }
 
@@ -358,10 +374,10 @@ class DokumenController extends Controller
         }
     }
 
-    /** Direktori storage per tipe (cermin aturan lama `store()`). */
+    /** Direktori storage per tipe (sumber tunggal: helper penamaan). */
     private function direktoriBerkas(string $tipe): string
     {
-        return $tipe === 'lembaga' ? 'lembaga/dokumen' : "{$tipe}/dokumen";
+        return NamaBerkasDokumen::direktori($tipe);
     }
 
     /** Simpan berkas memakai template nama; kembalikan path relatif storage. */
@@ -433,6 +449,9 @@ class DokumenController extends Controller
             'status_verifikasi' => ['sometimes', 'in:menunggu,valid,ditolak'],
             'catatan' => ['nullable', 'string'],
             'file' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:10240'],
+            // Simpanan lokal (dev): tanpa byte, nama dicadangkan untuk arsip perangkat.
+            'tujuan' => ['sometimes', 'in:server,lokal'],
+            'ekstensi' => ['sometimes', 'nullable', 'string', 'regex:/^[a-z0-9]{2,5}$/'],
         ]);
 
         // Cakupan lembaga: pemilik harus milik lembaga yang boleh diakses.
