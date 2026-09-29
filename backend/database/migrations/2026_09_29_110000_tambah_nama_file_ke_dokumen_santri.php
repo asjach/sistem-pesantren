@@ -6,7 +6,8 @@ use Illuminate\Support\Facades\Schema;
 
 /**
  * Tambah `nama_file` ke `dokumen_santri` — nama asli berkas yang diunggah
- * pengguna (label tetap), sejajar `pegawai_dokumen.nama_file`. Dibutuhkan
+ * pengguna (label tetap), sejajar `dokumen_pegawai.nama_file` (dulu
+ * `pegawai_dokumen`). Dibutuhkan
  * karena `path_file` disimpan hasil `store()` yang meng-hash nama berkas.
  * Data eksisting tidak di-backfill: nama asli tidak dapat direkonstruksi
  * dari path ter-hash.

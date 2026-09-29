@@ -404,7 +404,7 @@ Aturan pasangan kini global (v2.61) — lihat butir Tenant di §7.
 
 **200 Personnel.** Global `pegawai` master (+11 EMIS cols), multi-lembaga via
 `keaktifan_pegawai`, `tugas_utama` kamus, one-to-one `pegawai_sertifikasi`
-(auto-sync flag), `keluarga_pegawai`, `pegawai_dokumen`, manual account link
+(auto-sync flag), `keluarga_pegawai`, `dokumen_pegawai` (dulu `pegawai_dokumen`), manual account link
 (full-admin only), `setWalas()` 3-layer validation (FE filters active keaktifan).
 Status: 🟡 `pegawai` table exists; service/policy pending.
 

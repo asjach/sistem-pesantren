@@ -693,7 +693,7 @@ Standar tampilan per lembaga (tema/tipografi/grid/preset aktif), disebar super_a
 - `created_at`, `updated_at`
 - INDEX(`pegawai_id`, `hubungan`)
 
-### `pegawai_dokumen`
+### `dokumen_pegawai` (dulu `pegawai_dokumen` — rename 2026_09_29_120000)
 - `id` PK
 - `pegawai_id`: FK → pegawai [cascade]
 - `jenis_dokumen_pegawai`: string [null] — ref_jenis_dokumen_pegawai

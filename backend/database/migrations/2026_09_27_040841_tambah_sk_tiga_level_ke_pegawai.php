@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     /**
-     * SK tiga level (nomor + tanggal, dokumen di pegawai_dokumen terpisah):
+     * SK tiga level (nomor + tanggal, dokumen di `dokumen_pegawai` terpisah —
      * - pegawai: no_sk_awal + tgl_sk_awal (global)
      * - lembaga_pegawai: no_sk_awal_ptk + tgl_sk_awal_ptk (per jenjang)
      * - keaktifan_pegawai: no_sk + tgl_sk (tahunan; satu fisik SK multi-lembaga
