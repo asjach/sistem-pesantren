@@ -30,7 +30,7 @@ import {
 } from '@/icons';
 
 /** Kategori navigasi (grup di sidebar). */
-export type TabKategori = 'beranda' | 'master' | 'santri' | 'pegawai' | 'pengaturan';
+export type TabKategori = 'beranda' | 'master' | 'madrasah' | 'santri' | 'pegawai' | 'pengaturan';
 
 export interface HalamanDef {
   to: string;
@@ -72,11 +72,11 @@ export const HALAMAN: HalamanDef[] = [
     icon: Landmark,
     permission: 'lembaga.lihat',
   },
-  { to: '/dokumen-lembaga', label: 'Dokumen Lembaga', deskripsi: 'Berkas tingkat lembaga (izin operasional, akreditasi, SK, dll).', tab: 'master', grid: true, icon: FolderOpen, permission: 'dokumen_lembaga.lihat' },
+  { to: '/dokumen-madrasah', label: 'Dokumen Madrasah', deskripsi: 'Berkas tingkat madrasah (izin operasional, akreditasi, SK, dll).', tab: 'madrasah', grid: true, icon: FolderOpen, permission: 'dokumen_lembaga.lihat' },
   { to: '/tahun-ajaran', label: 'Tahun Ajaran', tab: 'master', grid: true, icon: CalendarDays, permission: 'tahun_ajaran.lihat' },
   { to: '/kelas', label: 'Kelas', tab: 'master', grid: true, icon: BookOpen, permission: 'kelas.lihat' },
   { to: '/santri', label: 'Buku Induk', tab: 'master', grid: true, icon: GraduationCap, permission: 'santri.lihat' },
-  { to: '/dokumen-santri', label: 'Dokumen Santri', deskripsi: 'Berkas dokumen santri (KK, akta, ijazah, dll).', tab: 'santri', grid: true, icon: FolderOpen, permission: 'dokumen_santri.lihat' },
+  { to: '/dokumen-santri', label: 'Dokumen Santri', deskripsi: 'Berkas dokumen santri (KK, akta, ijazah, dll).', tab: 'santri', sub: 'dokumen-santri', grid: true, icon: FolderOpen, permission: 'dokumen_santri.lihat' },
   { to: '/pegawai', label: 'Pegawai', tab: 'pegawai', grid: true, icon: Users, permission: 'pegawai.lihat' },
   { to: '/pegawai-penempatan', label: 'Lembaga Pegawai', tab: 'pegawai', grid: true, icon: BadgeCheck, permission: 'pegawai.lihat' },
   { to: '/pegawai-akun', label: 'Akun Pegawai', tab: 'pegawai', grid: true, icon: UserCheck, permission: 'pegawai.lihat' },
@@ -168,6 +168,9 @@ export interface GrupNav {
   label: string;
   icon: Ikon;
   anak?: AnakNav[];
+  /** Paksa tampil sebagai baris induk collapsible meski hanya berisi satu
+   *  halaman (bawaan: grup satu halaman jadi tautan langsung). */
+  paksaGrup?: boolean;
 }
 
 /** Urutan & label grup sidebar (hanya grup yang punya halaman yang tampil).
@@ -176,6 +179,7 @@ export interface GrupNav {
 export const NAV_GRUP: GrupNav[] = [
   { id: 'beranda', label: 'Beranda', icon: Home },
   { id: 'master', label: 'Data Induk', icon: FolderOpen },
+  { id: 'madrasah', label: 'Madrasah', icon: Landmark, paksaGrup: true },
   {
     id: 'santri',
     label: 'Santri',
@@ -188,6 +192,7 @@ export const NAV_GRUP: GrupNav[] = [
       },
       // Daftar Kelas (halaman langsung) tampil di sini.
       { langsung: true },
+      { id: 'dokumen-santri', label: 'Dokumen Santri', icon: FolderOpen },
       { id: 'penempatan', label: 'Penempatan', icon: Pin },
       { id: 'akademik', label: 'Akademik', icon: ScrollText },
       { id: 'lain-lain', label: 'Lain-lain', icon: MoreVertical },

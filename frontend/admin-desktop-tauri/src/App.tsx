@@ -135,7 +135,8 @@ export default function App() {
                       <Route path="/dokumen-wajib" element={<KhususIzin izin="dokumen_wajib.lihat"><DokumenWajibPage /></KhususIzin>} />
                       <Route path="/dokumen-santri" element={<KhususIzin izin="dokumen_santri.lihat"><DokumenSantriPage /></KhususIzin>} />
                       <Route path="/dokumen-guru" element={<KhususIzin izin="dokumen_pegawai.lihat"><DokumenGuruPage /></KhususIzin>} />
-                      <Route path="/dokumen-lembaga" element={<KhususIzin izin="dokumen_lembaga.lihat"><DokumenLembagaPage /></KhususIzin>} />
+                      <Route path="/dokumen-madrasah" element={<KhususIzin izin="dokumen_lembaga.lihat"><DokumenLembagaPage /></KhususIzin>} />
+                      <Route path="/dokumen-lembaga" element={<Navigate to="/dokumen-madrasah" replace />} />
                       <Route path="/pengaturan" element={<Navigate to="/pengaturan/tampilan" replace />} />
                       <Route path="/pengaturan/tampilan" element={<KhususIzin izin="tampilan.lihat"><PengaturanTampilanPage /></KhususIzin>} />
                       <Route path="/pengaturan/izin" element={<KhususIzin izin="izin.lihat"><KelolaIzinPage /></KhususIzin>} />

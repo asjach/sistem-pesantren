@@ -11,7 +11,7 @@ import {
 const LABEL_TIPE: Record<TipeDokumen, string> = {
   santri: 'santri',
   pegawai: 'guru',
-  lembaga: 'lembaga',
+  lembaga: 'madrasah',
 };
 
 const WAJIB: Record<TipeDokumen, string[]> = {

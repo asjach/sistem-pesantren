@@ -35,12 +35,6 @@ import DokumenImportDialog from '@/components/dokumen/DokumenImportDialog';
 import { toast } from 'sonner';
 import { useEffect } from 'react';
 
-const STATUS = [
-  { value: 'menunggu', label: 'Menunggu' },
-  { value: 'valid', label: 'Valid' },
-  { value: 'ditolak', label: 'Ditolak' },
-];
-
 interface Konfig {
   judul: string;
   tableKey: string;
@@ -52,7 +46,7 @@ interface Konfig {
 const KONFIG: Record<TipeDokumen, Konfig> = {
   santri: { judul: 'Dokumen Santri', tableKey: 'dokumen_santri', pemilikLabel: 'Santri', pemilihPemilik: 'santri' },
   pegawai: { judul: 'Dokumen Guru', tableKey: 'dokumen_pegawai', pemilikLabel: 'Guru', pemilihPemilik: 'pegawai' },
-  lembaga: { judul: 'Dokumen Lembaga', tableKey: 'dokumen_lembaga', pemilikLabel: 'Lembaga', pemilihPemilik: 'jenjang' },
+  lembaga: { judul: 'Dokumen Madrasah', tableKey: 'dokumen_lembaga', pemilikLabel: 'Lembaga', pemilihPemilik: 'jenjang' },
 };
 
 /** Satu implementasi untuk tiga halaman dokumen; perbedaan hanya konfigurasi. */
@@ -66,7 +60,6 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
   const { jenjangs } = useFilterGlobalAktif();
 
   const [cari, setCari] = useState('');
-  const [status, setStatus] = useState('');
   const [importOpen, setImportOpen] = useState(false);
   const [tambahOpen, setTambahOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -78,7 +71,6 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
   const [pemilik, setPemilik] = useState('');
   const [jenjangPemilik, setJenjangPemilik] = useState('');
   const [jenis, setJenis] = useState('');
-  const [statusBaru, setStatusBaru] = useState('menunggu');
   const [catatan, setCatatan] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [unggahRow, setUnggahRow] = useState<DokumenRow | null>(null);
@@ -91,7 +83,7 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
   }, []);
 
   const bukaTambah = useCallback(() => {
-    setPemilik(''); setJenjangPemilik(''); setJenis(''); setStatusBaru('menunggu'); setCatatan(''); setFile(null);
+    setPemilik(''); setJenjangPemilik(''); setJenis(''); setCatatan(''); setFile(null);
     setOpsiPemilik([]);
     setTambahOpen(true);
     if (konfig.pemilihPemilik !== 'jenjang') {
@@ -113,12 +105,11 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
     ambil: (a) => listDokumen(tipe, {
       jenjang: jenjangs.length ? jenjangs : undefined,
       q: a.search || undefined,
-      status_verifikasi: status || undefined,
       page: a.page,
       per_page: a.perPage,
       signal: a.signal,
     }),
-    deps: [jenjangs, status],
+    deps: [jenjangs],
   });
 
   const fields: ExcelField[] = useMemo(() => [
@@ -127,7 +118,6 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
     ...(tipe === 'lembaga' ? [{ key: 'lembaga_nama', label: 'Nama Lembaga', width: 180, kind: 'static' as const, sumber: null }] : []),
     { key: 'jenis_dokumen', label: 'Jenis Dokumen', width: 170, kind: 'text', maxLength: 100, sumber: null },
     { key: 'nama_file', label: 'Nama Berkas', width: 190, kind: 'static', sumber: null },
-    { key: 'status_verifikasi', label: 'Status', width: 110, kind: 'select', choices: STATUS, sumber: null },
     { key: 'catatan', label: 'Catatan', width: 220, kind: 'text', sumber: null },
   ], [konfig.pemilikLabel, tipe]);
 
@@ -137,14 +127,12 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
     lembaga_nama: r.lembaga_nama ?? r.lembaga_jenjang ?? '—',
     jenis_dokumen: r.jenis_dokumen ?? '',
     nama_file: r.path_file ? (r.nama_file ?? 'ada') : null,
-    status_verifikasi: r.status_verifikasi,
     catatan: r.catatan ?? '',
   }), []);
 
   async function commitBaris(id: number, f: Record<string, string | null>) {
     await ubahDokumen(tipe, id, {
       ...(f.jenis_dokumen !== undefined ? { jenis_dokumen: f.jenis_dokumen || null } : {}),
-      ...(f.status_verifikasi !== undefined ? { status_verifikasi: f.status_verifikasi } : {}),
       ...(f.catatan !== undefined ? { catatan: f.catatan || null } : {}),
     });
   }
@@ -157,7 +145,6 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
         ...(tipe === 'pegawai' ? { pegawai_id: Number(pemilik), jenjang: jenjangPemilik } : {}),
         ...(tipe === 'lembaga' ? { jenjang: jenjangPemilik } : {}),
         jenis_dokumen: jenis,
-        status_verifikasi: statusBaru,
         ...(catatan ? { catatan } : {}),
       }, file ?? undefined);
       toast.success('Dokumen disimpan.');
@@ -169,7 +156,7 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
     } finally {
       setBusy(false);
     }
-  }, [tipe, pemilik, jenjangPemilik, jenis, statusBaru, catatan, file, pager, load]);
+  }, [tipe, pemilik, jenjangPemilik, jenis, catatan, file, pager, load]);
 
   const onUnggah = useCallback(async () => {
     if (!unggahRow || !unggahFile) return;
@@ -251,19 +238,6 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
         canEdit={canUbah}
         onCommit={commitBaris}
         onSaved={() => {}}
-        filter={
-          <Select value={status === '' ? 'semua' : status} onValueChange={(v) => { setStatus(v === 'semua' ? '' : v); pager.goFirst(); }}>
-            <SelectTrigger id={`select_status_dok_${tipe}`} title="Status verifikasi" aria-label="Status verifikasi" size="sm" className="w-36">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectItem value="semua">Semua status</SelectItem>
-                {STATUS.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        }
         addButton={canTambah ? (
           <>
             <Button id={`btn_tambah_dok_${tipe}`} onClick={bukaTambah}>Tambah</Button>
@@ -324,17 +298,6 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
             <div className="grid gap-1.5">
               <FieldLabel htmlFor={`input_jenis_dok_${tipe}`}>Jenis dokumen</FieldLabel>
               <Input id={`input_jenis_dok_${tipe}`} value={jenis} onChange={(e) => setJenis(e.target.value)} maxLength={100} placeholder="mis. Kartu Keluarga / Ijazah / Izin Operasional" />
-            </div>
-            <div className="grid gap-1.5">
-              <FieldLabel htmlFor={`select_status_dok_tambah_${tipe}`}>Status verifikasi</FieldLabel>
-              <Select value={statusBaru} onValueChange={setStatusBaru}>
-                <SelectTrigger id={`select_status_dok_tambah_${tipe}`}><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    {STATUS.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
             </div>
             <div className="grid gap-1.5">
               <FieldLabel htmlFor={`input_catatan_dok_${tipe}`}>Catatan</FieldLabel>

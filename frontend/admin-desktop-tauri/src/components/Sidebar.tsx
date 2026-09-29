@@ -332,8 +332,10 @@ export default function Sidebar() {
               </div>
             );
           }
-          // Grup satu halaman tanpa subgrup (mis. Beranda): tautan langsung.
-          if (entri.length === 1 && 'hal' in entri[0]) {
+          // Grup satu halaman tanpa subgrup (mis. Beranda): tautan langsung,
+          // kecuali grup ber-flag `paksaGrup` (mis. Madrasah) yang tetap
+          // tampil sebagai baris induk collapsible.
+          if (entri.length === 1 && 'hal' in entri[0] && !g.paksaGrup) {
             return (
               <div key={g.id} className="mb-1.5">
                 {tautanHalaman(entri[0].hal, false)}
