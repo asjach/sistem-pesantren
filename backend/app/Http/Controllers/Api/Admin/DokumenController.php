@@ -47,22 +47,36 @@ class DokumenController extends Controller
         $status = $request->input('status_verifikasi');
 
         if ($tipe === 'santri') {
+            // Penempatan aktif via whereExists (bukan join) agar santri dengan
+            // lebih dari satu penempatan aktif (mis. MI + MD) tidak duplikat.
+            $penempatan = function ($w, array $jenjang = []) {
+                $w->from('lembaga_santri as ls')
+                    ->whereColumn('ls.santri_id', 'dokumen_santri.santri_id')
+                    ->where('ls.is_active_lembaga', LembagaSantri::YA);
+                if ($jenjang !== []) {
+                    $w->whereIn('ls.jenjang', $jenjang);
+                }
+
+                return $w;
+            };
             $query = DokumenSantri::query()
                 ->whereNotNull('dokumen_santri.santri_id')
                 ->select('dokumen_santri.*')
                 ->join('santri', 'santri.id', '=', 'dokumen_santri.santri_id')
-                ->leftJoin('lembaga_santri', function ($j) {
-                    $j->on('lembaga_santri.santri_id', '=', 'dokumen_santri.santri_id')
-                        ->where('lembaga_santri.is_active_lembaga', LembagaSantri::YA);
-                })
-                ->with('santri:id,nama_lengkap,nip')
-                ->addSelect('lembaga_santri.nis_lokal', 'lembaga_santri.jenjang as lembaga_jenjang');
-            $this->scopeDokumen($query, $auth, $lembaga, 'lembaga_santri.jenjang');
+                ->with('santri:id,nama_lengkap')
+                ->addSelect(DB::raw("(select ls.nis_lokal from lembaga_santri ls where ls.santri_id = dokumen_santri.santri_id and ls.is_active_lembaga = 'Ya' order by ls.id limit 1) as nis_lokal"))
+                ->addSelect(DB::raw("(select ls.jenjang from lembaga_santri ls where ls.santri_id = dokumen_santri.santri_id and ls.is_active_lembaga = 'Ya' order by ls.id limit 1) as lembaga_jenjang"));
+            if ($lembaga !== []) {
+                $query->whereExists(fn ($w) => $penempatan($w, $lembaga));
+            } elseif (! $auth->bolehPesantren()) {
+                $ids = $auth->lembagaIdsDenganPasangan();
+                $ids === [] ? $query->whereRaw('1 = 0') : $query->whereExists(fn ($w) => $penempatan($w, $ids));
+            }
             if ($q !== '') {
                 $query->where(fn ($w) => $w
                     ->where('santri.nama_lengkap', 'like', "%{$q}%")
                     ->orWhere('dokumen_santri.jenis_dokumen_santri', 'like', "%{$q}%")
-                    ->orWhere('lembaga_santri.nis_lokal', 'like', "%{$q}%"));
+                    ->orWhereExists(fn ($s) => $penempatan($s)->where('ls.nis_lokal', 'like', "%{$q}%")));
             }
             if ($status) {
                 $query->where('dokumen_santri.status_verifikasi', $status);
@@ -76,14 +90,27 @@ class DokumenController extends Controller
         }
 
         if ($tipe === 'pegawai') {
+            // Penempatan aktif via whereExists agar pegawai di >1 lembaga tidak duplikat.
+            $penempatanPeg = function ($w, array $jenjang = []) {
+                $w->from('lembaga_pegawai as lp')
+                    ->whereColumn('lp.pegawai_id', 'dokumen_pegawai.pegawai_id')
+                    ->where('lp.is_active_lembaga', 'Ya');
+                if ($jenjang !== []) {
+                    $w->whereIn('lp.jenjang', $jenjang);
+                }
+
+                return $w;
+            };
             $query = DB::table('dokumen_pegawai')
                 ->join('pegawai', 'pegawai.id', '=', 'dokumen_pegawai.pegawai_id')
-                ->leftJoin('lembaga_pegawai', function ($j) {
-                    $j->on('lembaga_pegawai.pegawai_id', '=', 'dokumen_pegawai.pegawai_id')
-                        ->where('lembaga_pegawai.is_active_lembaga', 'Ya');
-                })
-                ->select('dokumen_pegawai.*', 'pegawai.nama_lengkap', 'pegawai.nipp', 'lembaga_pegawai.jenjang as lembaga_jenjang');
-            $this->scopeDokumen($query, $auth, $lembaga, 'lembaga_pegawai.jenjang');
+                ->select('dokumen_pegawai.*', 'pegawai.nama_lengkap', 'pegawai.nipp')
+                ->addSelect(DB::raw("(select lp.jenjang from lembaga_pegawai lp where lp.pegawai_id = dokumen_pegawai.pegawai_id and lp.is_active_lembaga = 'Ya' order by lp.id limit 1) as lembaga_jenjang"));
+            if ($lembaga !== []) {
+                $query->whereExists(fn ($w) => $penempatanPeg($w, $lembaga));
+            } elseif (! $auth->bolehPesantren()) {
+                $ids = $auth->lembagaIdsDenganPasangan();
+                $ids === [] ? $query->whereRaw('1 = 0') : $query->whereExists(fn ($w) => $penempatanPeg($w, $ids));
+            }
             if ($q !== '') {
                 $query->where(fn ($w) => $w
                     ->where('pegawai.nama_lengkap', 'like', "%{$q}%")
