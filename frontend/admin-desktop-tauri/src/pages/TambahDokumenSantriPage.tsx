@@ -24,7 +24,11 @@ import {
   BATAS_BERKAS,
   EKSTENSI_BOLEH,
   PREF_FOLDER_ARSIP,
+  PREF_FOLDER_ARSIP_TEST,
   PREF_MODE_DOKUMEN,
+  ROOT_ARSIP_DOKUMEN,
+  ROOT_ARSIP_TEST,
+  akarArsip,
   bacaBerkasUntukUnggah,
   ekstensiDariNama,
   formatUkuran,
@@ -263,10 +267,13 @@ export default function TambahDokumenSantriPage() {
   const [pindahSudah, setPindahSudah] = useState(true);
   const [busy, setBusy] = useState(false);
   // Mode penyimpanan perangkat (diatur di Pengaturan → Server; hanya dibaca).
-  const [modeDokumen, setModeDokumen] = useState<'server' | 'lokal'>('server');
+  const [modeDokumen, setModeDokumen] = useState<'server' | 'lokal' | 'test'>('server');
   const [folderArsip, setFolderArsip] = useState('');
-  // Mode lokal butuh filesystem desktop; browser selalu server.
-  const modeEfektif = desktop && modeDokumen === 'lokal' ? 'lokal' : 'server';
+  const [folderArsipTest, setFolderArsipTest] = useState('');
+
+  const modeEfektif = desktop && modeDokumen !== 'server' ? 'lokal' : 'server';
+  /** Mode test = perilaku lokal ke folder uji; folder `sudah/` tidak disentuh saat test. */
+  const modeTest = desktop && modeDokumen === 'test';
 
   // Persistensi pilihan radio/checkbox per perangkat (pola pager/sidebar).
   const [prefSiap, setPrefSiap] = useState(false);
@@ -274,21 +281,23 @@ export default function TambahDokumenSantriPage() {
     let hidup = true;
     (async () => {
       try {
-        const [s, l, u, q, m, f] = await Promise.all([
+        const [s, l, u, q, m, f, ft] = await Promise.all([
           prefGet('simpes_tambah_dok_sumber'),
           prefGet('simpes_tambah_dok_lainnya'),
           prefGet('simpes_tambah_dok_sudah'),
           prefGet('simpes_tambah_dok_cari'),
           prefGet(PREF_MODE_DOKUMEN),
           prefGet(PREF_FOLDER_ARSIP),
+          prefGet(PREF_FOLDER_ARSIP_TEST),
         ]);
         if (!hidup) return;
         if (s === 'filter' || s === 'buku') setSumber(s);
         if (l === '1' || l === '0') setInputLainnya(l === '1');
         if (u === '1' || u === '0') setPindahSudah(u === '1');
         if (typeof q === 'string' && q !== '') { setCari(q); setCariTunda(q); }
-        if (m === 'server' || m === 'lokal') setModeDokumen(m);
+        if (m === 'server' || m === 'lokal' || m === 'test') setModeDokumen(m);
         if (typeof f === 'string') setFolderArsip(f);
+        if (typeof ft === 'string') setFolderArsipTest(ft);
       } catch {
         /* penyimpanan terkunci: pakai bawaan */
       }
@@ -312,10 +321,9 @@ export default function TambahDokumenSantriPage() {
     if (!prefSiap) return;
     prefSet('simpes_tambah_dok_cari', cari).catch(() => {});
   }, [prefSiap, cari]);
-  /** Berkas wajib hanya di mode lokal (satu-satunya salinan). */
+  /** Berkas wajib di halaman ini (baris + file-nya sekaligus). */
   const berkasAda = desktop ? berkasPath !== null : berkasWeb !== null;
-  const bisaSimpan = santriId != null && jenis.trim() !== '' && !busy
-    && (modeEfektif === 'server' || berkasAda);
+  const bisaSimpan = santriId != null && jenis.trim() !== '' && berkasAda && !busy;
 
   async function bukaPilihLagi() {
     if (desktop) {
@@ -359,9 +367,13 @@ export default function TambahDokumenSantriPage() {
           || namaArsip(santriTerpilih?.nama_lengkap ?? `santri-${santriId}`, jenis.trim(), catatan.trim(), ekstensi);
         if (desktop && berkasPath) {
           try {
-            await salinKeArsip(berkasPath, namaArsipBaru, jenis.trim(), folderArsip || undefined);
-            let pesan = 'Dokumen disimpan (lokal).';
-            if (pindahSudah) {
+            const akar = await akarArsip(
+              modeTest ? folderArsipTest : folderArsip,
+              modeTest ? ROOT_ARSIP_TEST : ROOT_ARSIP_DOKUMEN,
+            );
+            await salinKeArsip(berkasPath, namaArsipBaru, jenis.trim(), akar);
+            let pesan = modeTest ? 'Dokumen disimpan (test).' : 'Dokumen disimpan (lokal).';
+            if (pindahSudah && !modeTest) {
               await pindahKeSudah(berkasPath);
               pesan += ' File asli dipindah ke folder sudah.';
             }
@@ -575,7 +587,7 @@ export default function TambahDokumenSantriPage() {
           <Separator />
           <div className="flex justify-end gap-2">
             <span className="mr-auto self-center text-xs text-muted-foreground">
-              Mode: {modeEfektif === 'lokal' ? 'Lokal (berkas di drive perangkat ini)' : 'Server'}
+              Mode: {modeTest ? 'Test (folder uji)' : (modeEfektif === 'lokal' ? 'Lokal (berkas di drive perangkat ini)' : 'Server')}
             </span>
             <Button variant="outline" onClick={() => navigate('/dokumen-santri')}>
               Batal
@@ -597,14 +609,14 @@ export default function TambahDokumenSantriPage() {
             </label>
             <label
               htmlFor="check_pindah_sudah"
-              title={desktop ? 'Pindahkan file asli ke folder sudah setelah simpan' : 'Hanya tersedia di aplikasi desktop'}
-              className={cn('inline-flex items-center gap-2 text-xs', !desktop && 'cursor-not-allowed opacity-50')}
+              title={modeTest ? 'Nonaktif dalam mode test' : (desktop ? 'Pindahkan file asli ke folder sudah setelah simpan' : 'Hanya tersedia di aplikasi desktop')}
+              className={cn('inline-flex items-center gap-2 text-xs', (!desktop || modeTest) && 'cursor-not-allowed opacity-50')}
             >
               <Checkbox
                 id="check_pindah_sudah"
                 className="size-3.5"
-                checked={desktop && pindahSudah}
-                disabled={!desktop}
+                checked={desktop && pindahSudah && !modeTest}
+                disabled={!desktop || modeTest}
                 onCheckedChange={(v) => setPindahSudah(v === true)}
               />
               Pindahkan ke folder SUDAH <span className="text-xs text-muted-foreground">(aktif di aplikasi desktop)</span>

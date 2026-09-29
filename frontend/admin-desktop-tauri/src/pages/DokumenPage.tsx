@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { errorMessage } from '../api/client';
+import { errorMessage, isTauri, prefGet } from '../api/client';
 import { bisa } from '../api/auth';
 import { useAuth } from '../auth/AuthContext';
 import { listLembaga, type Lembaga } from '../api/master';
@@ -181,8 +181,32 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
     if (!hapusRow) return;
     setBusy(true);
     try {
+      const nama = hapusRow.nama_file;
+      const jenis = hapusRow.jenis_dokumen;
       await hapusDokumen(tipe, hapusRow.id);
       toast.success('Dokumen dihapus.');
+      // Bersihkan salinan arsip lokal (desktop, best-effort, diam bila tak ada).
+      // File asli di folder `sudah/` milik pengguna — tidak disentuh.
+      if (isTauri() && nama) {
+        try {
+          const { exists, remove } = await import('@tauri-apps/plugin-fs');
+          const { PREF_FOLDER_ARSIP, PREF_FOLDER_ARSIP_TEST, ROOT_ARSIP_DOKUMEN, ROOT_ARSIP_TEST, akarArsip, jalurArsip } = await import('@/lib/arsipDokumen');
+          const [r1, r2] = await Promise.all([
+            prefGet(PREF_FOLDER_ARSIP).catch(() => null),
+            prefGet(PREF_FOLDER_ARSIP_TEST).catch(() => null),
+          ]);
+          const akars = await Promise.all([
+            akarArsip(typeof r1 === 'string' ? r1 : '', ROOT_ARSIP_DOKUMEN),
+            akarArsip(typeof r2 === 'string' ? r2 : '', ROOT_ARSIP_TEST),
+          ]);
+          for (const akar of akars) {
+            const target = await jalurArsip(nama, jenis, akar);
+            if (await exists(target)) await remove(target);
+          }
+        } catch (e) {
+          toast.warning(`Arsip lokal gagal dibersihkan: ${errorMessage(e)}`);
+        }
+      }
       setHapusRow(null);
       await load();
     } catch (e) {

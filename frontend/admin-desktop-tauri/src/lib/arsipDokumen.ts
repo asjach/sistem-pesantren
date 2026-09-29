@@ -12,10 +12,16 @@ import { isTauri } from '@/api/client';
 export const FOLDER_SUDAH = 'sudah';
 /** Akar arsip dokumen di dalam Documents. */
 export const ROOT_ARSIP_DOKUMEN = 'SIMPES-Dokumen';
+/** Akar arsip mode test di dalam Documents. */
+export const ROOT_ARSIP_TEST = 'SIMPES-Dokumen-Test';
 /** Kunci pref: root arsip custom (absolut). Kosong = bawaan Documents. */
 export const PREF_FOLDER_ARSIP = 'simpes_folder_arsip';
-/** Kunci pref: mode penyimpanan perangkat (`server` | `lokal`). */
+/** Kunci pref: root arsip mode test (absolut). Kosong = bawaan Documents. */
+export const PREF_FOLDER_ARSIP_TEST = 'simpes_folder_arsip_test';
+/** Kunci pref: mode penyimpanan perangkat (`server` | `lokal` | `test`). */
 export const PREF_MODE_DOKUMEN = 'simpes_mode_dokumen';
+/** Mode penyimpanan yang dikenal. `test` = perilaku lokal ke folder uji. */
+export type ModeDokumen = 'server' | 'lokal' | 'test';
 /** Batas ukuran berkas (sama seperti validasi backend): 10 MB. */
 export const BATAS_BERKAS = 10 * 1024 * 1024;
 /** Ekstensi yang diterima (tanpa titik, huruf kecil). */
@@ -115,13 +121,26 @@ export async function bacaBerkasUntukUnggah(berkas: BerkasTerpilih): Promise<Fil
   return new File([buf], berkas.nama, { type: berkas.mime });
 }
 
-/** Salin berkas ke `<root>/<jenis>/` dengan nama template.
- *  `root` absolut custom (pref) atau bawaan Documents. Mengembalikan path tujuan. */
-export async function salinKeArsip(pathSumber: string, namaFile: string, jenis: string, root?: string | null): Promise<string> {
-  const { copyFile, exists, mkdir } = await import('@tauri-apps/plugin-fs');
+/** Selesaikan akar arsip: pref absolut bila diisi, sonst bawaan Documents. */
+export async function akarArsip(folderPref: string, bawaan: string): Promise<string> {
+  if (folderPref.trim() !== '') return folderPref;
   const { documentDir, join } = await import('@tauri-apps/api/path');
-  const akar = root && root.trim() !== '' ? root : await join(await documentDir(), ROOT_ARSIP_DOKUMEN);
-  const folderJenis = await join(akar, slugSegmen(jenis) || 'lainnya');
+  return join(await documentDir(), bawaan);
+}
+
+/** Path lengkap arsip untuk satu nama berkas (tanpa menyentuh disk).
+ *  `akar` = hasil `akarArsip()` (sudah final). */
+export async function jalurArsip(namaFile: string, jenis: string, akar: string): Promise<string> {
+  const { join } = await import('@tauri-apps/api/path');
+  return join(akar, slugSegmen(jenis) || 'lainnya', namaFile);
+}
+
+/** Salin berkas ke `<akar>/<jenis>/` dengan nama template.
+ *  `akar` = hasil `akarArsip()`. Mengembalikan path tujuan. */
+export async function salinKeArsip(pathSumber: string, namaFile: string, jenis: string, akar: string): Promise<string> {
+  const { copyFile, exists, mkdir } = await import('@tauri-apps/plugin-fs');
+  const { dirname, join } = await import('@tauri-apps/api/path');
+  const folderJenis = await dirname(await jalurArsip(namaFile, jenis, akar));
   await mkdir(folderJenis, { recursive: true });
   const tujuan = await join(folderJenis, await namaUnik(folderJenis, namaFile));
   await copyFile(pathSumber, tujuan);
