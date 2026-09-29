@@ -67,7 +67,7 @@ class ReferensiSeeder extends Seeder
             'ref_gol_darah' => ['A', 'B', 'AB', 'O'],
             'ref_jenis_ptk' => ['Pendidik', 'Tenaga Kependidikan'],
             'ref_jenjang_sertifikasi' => ['RA', 'MI', 'MTS', 'MA', 'MAK', 'SLB'],
-            'ref_tugas_utama' => ['Guru Mapel', 'Guru Kelas'],
+            'ref_tugas_utama' => ['Guru Mapel', 'Guru Kelas', 'Tata Usaha', 'Operator', 'Kepala Madrasah'],
             'ref_tipe_pelanggaran' => ['ringan', 'sedang', 'berat'],
             'ref_jalur_sertifikasi' => ['PSPL/PF/PLPG', 'PPG SM-3T', 'PPG S1 Basic Science Berasrama', 'PPG S1 PPGD Berasrama', 'PPG SMK Kolaboratif', 'PPG Terintegrasi', 'PPG Sertifikasi Jalur Pendidikan', 'PPG Kemenag', 'PLPG 2015', 'PPGJ 2015', 'PLPG 2016', 'PLPG 2017', 'PPG Pra Jabatan', 'PPG Dalam Jabatan'],
         ] as $tabel => $daftar) {
