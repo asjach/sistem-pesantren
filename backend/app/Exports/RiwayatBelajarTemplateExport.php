@@ -109,6 +109,13 @@ class RiwayatBelajarTemplateExport extends DefaultValueBinder implements FromArr
                 $sheet->freezePane('A2');
                 $sheet->setAutoFilter("A1:{$lastCol}1");
 
+                // Baris 2 (CONTOH): italic abu-abu + isian abu muda — tanda wajib diganti/dihapus.
+                $sheet->getRowDimension(2)->setRowHeight(20);
+                $sheet->getStyle("A2:{$lastCol}2")->applyFromArray([
+                    'font' => ['italic' => true, 'size' => 10, 'color' => ['argb' => 'FF6B7280']],
+                    'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFF3F4F6']],
+                ]);
+
                 // Dropdown dari sheet Referensi tersembunyi.
                 $referensi = $sheet->getParent()->createSheet();
                 $referensi->setTitle('Referensi');
