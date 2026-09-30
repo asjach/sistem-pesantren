@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Button } from '@/components/ui/button';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import TombolIkon from '@/components/TombolIkon';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import DialRuler from './DialRuler';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { errorMessage } from '../../api/client';
@@ -25,7 +26,7 @@ import {
   type HasilGambar,
   type KualitasSimpan,
 } from '@/lib/olahGambar';
-import { Check, ChevronLeft, ChevronRight, Crop, Download, Focus, Fullscreen, Link2, Minus, Moon, Plus, RefreshCcw, RefreshCw, RotateCcw, RotateCw, Scaling, Sun, Unlink, X } from '@/icons';
+import { Check, ChevronLeft, ChevronRight, Crop, Download, Focus, Fullscreen, Grid, ImageUp, Link2, Minus, Plus, RotateCcw, RotateCw, Ruler, Scaling, Unlink, X } from '@/icons';
 import { toast } from 'sonner';
 import type { PDFDocumentProxy, RenderTask } from 'pdfjs-dist';
 
@@ -46,6 +47,9 @@ interface Props {
   teksKosong?: string;
   /** Dilaporkan tiap ada/tidaknya perubahan (edisi putar/crop/resize atau hasil editor). */
   onKotor?: (kotor: boolean) => void;
+  /** Dilaporkan saat pipeline keluaran sibuk/selesai — induk mengunci Simpan
+   *  selama sibuk agar tak mengunggah byte basi (balapan edisi vs keluaran). */
+  onProses?: (sibuk: boolean) => void;
 }
 
 const ZOOM_MIN = 0.25;
@@ -66,6 +70,113 @@ function ekstensiDariNama(nama: string): string {
   return i >= 0 ? nama.slice(i + 1).toLowerCase() : '';
 }
 
+function formatMiring(v: number): string {
+  const r = Math.round(v * 10) / 10;
+  return `${Number.isInteger(r) ? r : r.toFixed(1)}°`;
+}
+
+/** Posisi bawaan garis acuan (fraksi): tengah + sepertiga. */
+const POS_PANDUAN_BAWAN = { v: [1 / 3, 1 / 2, 2 / 3], h: [1 / 3, 1 / 2, 2 / 3] };
+
+/** Satu garis acuan putus-putus yang bisa digeser (seret/keyboard/klik-ganda reset). */
+function GarisPanduan({
+  id,
+  vertikal,
+  fraksi,
+  bawaan,
+  tengah,
+  label,
+  warna,
+  padaUbah,
+}: {
+  id: string;
+  vertikal: boolean;
+  fraksi: number;
+  bawaan: number;
+  tengah: boolean;
+  label: string;
+  warna: string;
+  padaUbah: (f: number) => void;
+}) {
+  const seret = useRef<{ dasar: number } | null>(null);
+
+  function mulaiSeret(e: React.PointerEvent) {
+    if (e.button !== 0) return;
+    seret.current = { dasar: fraksi };
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+  }
+
+  function gerakSeret(e: React.PointerEvent) {
+    const s = seret.current;
+    if (!s || !(e.buttons & 1)) return;
+    const kotak = (e.currentTarget as HTMLElement).parentElement?.getBoundingClientRect();
+    if (!kotak) return;
+    const pos = vertikal ? e.clientX - kotak.left : e.clientY - kotak.top;
+    const ukuran = vertikal ? kotak.width : kotak.height;
+    if (ukuran <= 0) return;
+    padaUbah(Math.min(1, Math.max(0, pos / ukuran)));
+  }
+
+  function tombol(e: React.KeyboardEvent) {
+    const langkah = e.shiftKey ? 0.1 : 0.01;
+    const kurang = vertikal ? ['ArrowLeft', 'ArrowDown'] : ['ArrowUp', 'ArrowLeft'];
+    const tambah = vertikal ? ['ArrowRight', 'ArrowUp'] : ['ArrowDown', 'ArrowRight'];
+    if (kurang.includes(e.key)) {
+      e.preventDefault();
+      padaUbah(Math.min(1, Math.max(0, fraksi - langkah)));
+    } else if (tambah.includes(e.key)) {
+      e.preventDefault();
+      padaUbah(Math.min(1, Math.max(0, fraksi + langkah)));
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      padaUbah(0);
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      padaUbah(1);
+    }
+  }
+
+  const persen = Math.round(fraksi * 100);
+  return (
+    <div
+      id={id}
+      role="slider"
+      tabIndex={0}
+      data-seret
+      aria-label={label}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={persen}
+      aria-valuetext={`${persen}%`}
+      onPointerDown={mulaiSeret}
+      onPointerMove={gerakSeret}
+      onPointerUp={() => { seret.current = null; }}
+      onPointerCancel={() => { seret.current = null; }}
+      onDoubleClick={() => padaUbah(bawaan)}
+      onKeyDown={tombol}
+      title={`${label} — seret untuk geser, klik ganda untuk kembali`}
+      className={cn(
+        'pointer-events-auto absolute touch-none rounded outline-none select-none focus-visible:bg-white/15',
+        vertikal
+          ? 'inset-y-0 w-[9px] -translate-x-1/2 cursor-ew-resize'
+          : 'inset-x-0 h-[9px] -translate-y-1/2 cursor-ns-resize',
+      )}
+      style={vertikal ? { left: `${persen}%` } : { top: `${persen}%` }}
+    >
+      <span
+        aria-hidden
+        className={cn(
+          'absolute border-dashed',
+          vertikal
+            ? 'inset-y-0 left-1/2 border-l'
+            : 'inset-x-0 top-1/2 border-t',
+        )}
+        style={{ borderColor: warna, opacity: tengah ? 0.9 : 0.45 }}
+      />
+    </div>
+  );
+}
+
 function namaTanpaEkstensi(nama: string): string {
   const i = nama.lastIndexOf('.');
   return i >= 0 ? nama.slice(0, i) : nama;
@@ -80,7 +191,7 @@ interface RectBox {
 
 /** Viewer berkas dokumen: gambar (zoom/putar/crop/kompres) atau PDF (zoom/halaman).
  *  Edisi gambar dilaporkan sebagai byte keluaran untuk alur simpan. */
-export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluaran, idPrefix = 'penampil', bisaUbah = true, teksKosong, onKotor }: Props) {
+export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluaran, idPrefix = 'penampil', bisaUbah = true, teksKosong, onKotor, onProses }: Props) {
   const p = idPrefix;
   /** Hasil bekukan putaran menimpa sumber prop (edisi toolbar direset) — alur simpan tak berubah. */
   const [sumberEdit, setSumberEdit] = useState<SumberBerkas | null>(null);
@@ -90,8 +201,9 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
 
   const [edisi, setEdisi] = useState<EdisiGambar>(EDISI_KOSONG);
   const [zoom, setZoom] = useState(1);
-  const [gelap, setGelap] = useState(true);
   const [keluaran, setKeluaran] = useState<HasilGambar | null>(null);
+  /** Pipeline keluaran sedang menghitung (induk mengunci Simpan selama ini). */
+  const [memproses, setMemproses] = useState(false);
   const [modeCrop, setModeCrop] = useState(false);
   const [drafCrop, setDrafCrop] = useState<RectBox | null>(null);
   /** Mode putar: tampil/sembunyi bar kontrol bawah (nilai edisi tetap tersimpan). */
@@ -101,11 +213,29 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
   /** Kunci rasio resize + aspek terkunci (ditangkap saat aktivasi). */
   const [kunciUkuran, setKunciUkuran] = useState(true);
   const [aspekUkuran, setAspekUkuran] = useState(1);
-  /** Teks spinbox miring (null = ikut edisi); dikomit saat blur/Enter agar desimal bisa diketik. */
-  const [teksMiring, setTeksMiring] = useState<string | null>(null);
+  /** Target dial panel putar: kemiringan atau skala (zoom). */
+  const [modeDial, setModeDial] = useState<'rotasi' | 'skala'>('rotasi');
+  /** Garis acuan putus-putus (tengah + sepertiga) untuk meluruskan. */
+  const [panduan, setPanduan] = useState(false);
+  /** Warna garis acuan (hex). */
+  const [warnaPanduan, setWarnaPanduan] = useState('#525252');
+  /** Posisi garis acuan (fraksi kotak tampil) — bisa digeser per garis. */
+  const [posPanduan, setPosPanduan] = useState(POS_PANDUAN_BAWAN);
+  /** Mode penggaris: seret garis di gambar, lepas untuk meluruskan otomatis. */
+  const [modeLurus, setModeLurus] = useState(false);
+  /** Acuan penggaris tegak (vertikal) bila true, datar bila false. */
+  const [lurusTegak, setLurusTegak] = useState(false);
+  /** Garis penggaris sementara (koordinat px kotak tampil). */
+  const [garisLurus, setGarisLurus] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
+  const garisRef = useRef<typeof garisLurus>(null);
+  garisRef.current = garisLurus;
 
   const bungkusRef = useRef<HTMLDivElement | null>(null);
   const [ukuranWadah, setUkuranWadah] = useState({ w: 0, h: 0 });
+  /** Cermin ref untuk listener roda (tetap segar tanpa pasang-copot ulang). */
+  const zoomRef = useRef(zoom);
+  zoomRef.current = zoom;
+  const dimensiRef = useRef<{ w: number; h: number } | null>(null);
 
   // Reset tampilan saat sumber berganti.
   useEffect(() => {
@@ -116,8 +246,15 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
     setModeResize(false);
     setKunciUkuran(true);
     setDrafCrop(null);
-    setTeksMiring(null);
+    setModeDial('rotasi');
+    setPanduan(false);
+    setWarnaPanduan('#525252');
+    setPosPanduan(POS_PANDUAN_BAWAN);
+    setModeLurus(false);
+    setLurusTegak(false);
+    setGarisLurus(null);
     setSumberEdit(null);
+    setMemproses(false);
   }, [sumberProp]);
 
   // Ukur wadah untuk skala pas/1:1.
@@ -130,6 +267,56 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
     amati.observe(el);
     return () => amati.disconnect();
   }, []);
+
+  /** Seret latar/kanvas untuk menggeser pandangan (pan). Abaikan yang
+   *  bertanda data-seret (overlay crop/penggaris/garis punya handler sendiri). */
+  const geserPandangan = useRef<{ x0: number; y0: number; sl: number; st: number } | null>(null);
+  function mulaiGeser(e: React.PointerEvent) {
+    // Klik tengah = reset zoom 100%.
+    if (e.button === 1) {
+      e.preventDefault();
+      aturZoom(1);
+      return;
+    }
+    if (e.button !== 0) return;
+    if ((e.target as HTMLElement).closest?.('[data-seret]')) return;
+    const el = bungkusRef.current;
+    if (!el) return;
+    geserPandangan.current = { x0: e.clientX, y0: e.clientY, sl: el.scrollLeft, st: el.scrollTop };
+    el.setPointerCapture?.(e.pointerId);
+  }
+  function gerakGeser(e: React.PointerEvent) {
+    const s = geserPandangan.current;
+    const el = bungkusRef.current;
+    if (!s || !el || !(e.buttons & 1)) return;
+    if ((e.target as HTMLElement).closest?.('[data-seret]')) return;
+    el.scrollLeft = s.sl - (e.clientX - s.x0);
+    el.scrollTop = s.st - (e.clientY - s.y0);
+  }
+  function selesaiGeser() {
+    geserPandangan.current = null;
+  }
+
+  /** Roda mouse = zoom (tengah pandangan dijaga). Listener native non-pasif
+   *  agar preventDefault menahan scroll halaman. */
+  useEffect(() => {
+    const el = bungkusRef.current;
+    if (!el) return;
+    const padaRoda = (e: WheelEvent) => {
+      if (!sumber || (gambar && !dimensiRef.current)) return;
+      e.preventDefault();
+      const dy = e.deltaY * (e.deltaMode === 1 ? 16 : 1);
+      const z = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(zoomRef.current * Math.exp(-dy * 0.0015) * 100) / 100));
+      if (z === zoomRef.current) return;
+      const fx = (el.scrollLeft + el.clientWidth / 2) / Math.max(1, el.scrollWidth);
+      const fy = (el.scrollTop + el.clientHeight / 2) / Math.max(1, el.scrollHeight);
+      flushSync(() => setZoom(z));
+      el.scrollLeft = fx * el.scrollWidth - el.clientWidth / 2;
+      el.scrollTop = fy * el.scrollHeight - el.clientHeight / 2;
+    };
+    el.addEventListener('wheel', padaRoda, { passive: false });
+    return () => el.removeEventListener('wheel', padaRoda);
+  }, [sumber, gambar]);
 
   // URL blob sumber (stabil per sumber; crop/zoom hanya transform CSS).
   const urlSumber = useMemo(() => {
@@ -145,12 +332,17 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
   useEffect(() => {
     if (!sumber || !gambar) {
       setDimensi(null);
+      dimensiRef.current = null;
       return;
     }
     let hidup = true;
     muatGambar(sumber.bytes, sumber.mime)
-      .then((img) => { if (hidup) setDimensi({ w: img.naturalWidth, h: img.naturalHeight }); })
-      .catch(() => { if (hidup) setDimensi(null); });
+      .then((img) => {
+        if (!hidup) return;
+        setDimensi({ w: img.naturalWidth, h: img.naturalHeight });
+        dimensiRef.current = { w: img.naturalWidth, h: img.naturalHeight };
+      })
+      .catch(() => { if (hidup) { setDimensi(null); dimensiRef.current = null; } });
     return () => { hidup = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sumber]);
@@ -159,20 +351,24 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
   useEffect(() => {
     if (!sumber) {
       setKeluaran(null);
+      setMemproses(false);
       return;
     }
     let hidup = true;
+    setMemproses(true);
     if (gambar) {
       hasilkanGambar(sumber.bytes, sumber.mime, edisi, kualitas)
-        .then((h) => { if (hidup) setKeluaran(h); })
+        .then((h) => { if (hidup) { setKeluaran(h); setMemproses(false); } })
         .catch((e) => {
           if (hidup) {
             setKeluaran(null);
+            setMemproses(false);
             toast.error(errorMessage(e));
           }
         });
     } else {
       setKeluaran({ bytes: sumber.bytes, mime: sumber.mime, ext: ekstensiDariNama(sumber.nama) || 'pdf' });
+      setMemproses(false);
     }
     return () => { hidup = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -189,6 +385,11 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
     onKotor?.(kotor);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kotor]);
+
+  useEffect(() => {
+    onProses?.(memproses);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [memproses]);
 
   // ----- PDF: dokumen + render halaman -----
   const [dokPdf, setDokPdf] = useState<PDFDocumentProxy | null>(null);
@@ -271,7 +472,8 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
   type SeretCrop =
     | { jenis: 'baru'; x0: number; y0: number }
     | { jenis: 'pindah'; dx: number; dy: number }
-    | { jenis: 'ubah'; sudut: 'nw' | 'ne' | 'sw' | 'se' };
+    | { jenis: 'ubah'; sudut: 'nw' | 'ne' | 'sw' | 'se' }
+    | { jenis: 'sisi'; sisi: 'n' | 's' | 'w' | 'e' };
   const seretCropRef = useRef<SeretCrop | null>(null);
   const JANGKAU_HANDLE = 12;
   const MIN_CROP = 8;
@@ -330,6 +532,21 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
           return;
         }
       }
+      // Rasio bebas: sisi tengah bisa digeser (atas/bawah/kiri/kanan).
+      if (rasioCrop === null) {
+        const sisi: ['n' | 's' | 'w' | 'e', number, number][] = [
+          ['n', d.x + d.w / 2, d.y],
+          ['s', d.x + d.w / 2, d.y + d.h],
+          ['w', d.x, d.y + d.h / 2],
+          ['e', d.x + d.w, d.y + d.h / 2],
+        ];
+        for (const [s, hx, hy] of sisi) {
+          if (Math.abs(x - hx) <= JANGKAU_HANDLE && Math.abs(y - hy) <= JANGKAU_HANDLE) {
+            seretCropRef.current = { jenis: 'sisi', sisi: s };
+            return;
+          }
+        }
+      }
       if (x >= d.x && x <= d.x + d.w && y >= d.y && y <= d.y + d.h) {
         seretCropRef.current = { jenis: 'pindah', dx: x - d.x, dy: y - d.y };
         return;
@@ -368,6 +585,8 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
         setDrafCrop({ x: jepit(x - s.dx, rw - d.w), y: jepit(y - s.dy, rh - d.h), w: d.w, h: d.h });
         return;
       }
+      // Sisi hanya ada saat rasio bebas — abaikan defensif di jalur terkunci.
+      if (s.jenis === 'sisi') return;
       const jangkar = {
         nw: { x: d.x + d.w, y: d.y + d.h },
         ne: { x: d.x, y: d.y + d.h },
@@ -398,6 +617,20 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
     }
     const kanan = d.x + d.w;
     const bawah = d.y + d.h;
+    if (s.jenis === 'sisi') {
+      if (s.sisi === 'n') {
+        const y0 = jepit(y, bawah - MIN_CROP);
+        setDrafCrop({ x: d.x, y: y0, w: d.w, h: bawah - y0 });
+      } else if (s.sisi === 's') {
+        setDrafCrop({ x: d.x, y: d.y, w: d.w, h: Math.max(MIN_CROP, Math.min(y - d.y, rh - d.y)) });
+      } else if (s.sisi === 'w') {
+        const x0 = jepit(x, kanan - MIN_CROP);
+        setDrafCrop({ x: x0, y: d.y, w: kanan - x0, h: d.h });
+      } else {
+        setDrafCrop({ x: d.x, y: d.y, w: Math.max(MIN_CROP, Math.min(x - d.x, rw - d.x)), h: d.h });
+      }
+      return;
+    }
     if (s.sudut === 'nw') {
       const x0 = jepit(x, kanan - MIN_CROP);
       const y0 = jepit(y, bawah - MIN_CROP);
@@ -442,6 +675,42 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
     setRasioCrop(null);
   }
 
+  /** Penggaris pelurus: seret garis acuan di gambar, lepas untuk putar otomatis.
+   *  Garis dianggap seharusnya datar (atau tegak bila lurusTegak). */
+  function mulaiLurus(e: React.PointerEvent) {
+    if (e.button !== 0) return;
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const p = { x: e.clientX - r.left, y: e.clientY - r.top };
+    setGarisLurus({ x0: p.x, y0: p.y, x1: p.x, y1: p.y });
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+  }
+
+  function gerakLurus(e: React.PointerEvent) {
+    if (!(e.buttons & 1)) return;
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    setGarisLurus((g) => (g ? { ...g, x1: e.clientX - r.left, y1: e.clientY - r.top } : g));
+  }
+
+  function selesaiLurus() {
+    const g = garisRef.current;
+    garisRef.current = null;
+    setGarisLurus(null);
+    if (!g) return;
+    const dx = g.x1 - g.x0;
+    const dy = g.y1 - g.y0;
+    if (Math.hypot(dx, dy) < 8) {
+      toast.warning('Garis terlalu pendek — seret lebih panjang.');
+      return;
+    }
+    // Sudut garis searah jarum jam dari horizontal (layar y ke bawah).
+    const sudut = (Math.atan2(dy, dx) * 180) / Math.PI;
+    let delta = lurusTegak ? 90 - sudut : -sudut;
+    while (delta > 90) delta -= 180;
+    while (delta < -90) delta += 180;
+    setEdisi((e) => ({ ...e, miring: jepitMiring(e.miring + delta) }));
+    toast.success(`${lurusTegak ? 'Tegak' : 'Datar'}: putar ${formatMiring(delta)}.`);
+  }
+
   /** Bekukan putaran (90°/miring) menjadi piksel sumber baru — kualitas Asli
    *  agar tak ada kompresi ganda (simpanan akhir yang menerapkan kualitas). */
   async function bekukanPutaran(): Promise<boolean> {
@@ -450,7 +719,6 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
       const hasil = await hasilkanGambar(sumber.bytes, sumber.mime, edisi, 'asli');
       setSumberEdit({ bytes: hasil.bytes, mime: hasil.mime, nama: `${namaTanpaEkstensi(sumber.nama)}.${hasil.ext}` });
       setEdisi(EDISI_KOSONG);
-      setTeksMiring(null);
       setDrafCrop(null);
       return true;
     } catch (e) {
@@ -459,12 +727,23 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
     }
   }
 
+  /** Mode edit eksklusif (satu panel bawah terbuka): tutup lainnya.
+   *  Draf crop dipertahankan (hanya overlay disembunyikan). */
+  function tutupModeLain(kecuali: 'putar' | 'crop' | 'resize') {
+    if (kecuali !== 'putar') setModePutar(false);
+    if (kecuali !== 'crop') setModeCrop(false);
+    if (kecuali !== 'resize') setModeResize(false);
+    setModeLurus(false);
+    setGarisLurus(null);
+  }
+
   /** Mulai/sunting crop; bila sedang miring, putaran dibekukan dulu otomatis. */
   async function mulaiModeCrop() {
     if (modeCrop) {
       batalCrop();
       return;
     }
+    tutupModeLain('crop');
     if (edisi.miring !== 0) {
       const ok = await bekukanPutaran();
       if (!ok) return;
@@ -478,23 +757,6 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
       setDrafCrop(null);
     }
     setModeCrop(true);
-  }
-
-  /** Komit teks spinbox miring (jepit ±MAKS_MIRING). */
-  const komitMiring = useCallback(() => {
-    setTeksMiring((t) => {
-      if (t !== null) {
-        const angka = Number.parseFloat(t.replace(',', '.'));
-        setEdisi((e) => ({ ...e, miring: jepitMiring(angka) }));
-      }
-      return null;
-    });
-  }, []);
-
-  /** Lompat ke sudut eksak (tombol ikon posisi slider). */
-  function lompatMiring(derajat: number) {
-    setTeksMiring(null);
-    setEdisi((e) => ({ ...e, miring: jepitMiring(derajat) }));
   }
 
   // ----- Resize eksplisit (W×H citra tegak; menang atas hemat) -----
@@ -553,6 +815,7 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
 
   function toggleResize() {
     if (!modeResize) {
+      tutupModeLain('resize');
       setAspekUkuran(benihUkuran.w / Math.max(1, benihUkuran.h));
       setKunciUkuran(true);
     }
@@ -628,14 +891,18 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
     () => (dimensi ? kotakPutar(totalPutar, dimensi.w * sxTampil, dimensi.h * syTampil) : null),
     [dimensi, totalPutar, sxTampil, syTampil],
   );
-  const pas = kotakLuar && ukuranWadah.w > 0 && ukuranWadah.h > 0
-    ? Math.min(ukuranWadah.w / kotakLuar.w, ukuranWadah.h / kotakLuar.h)
+  /** Padding wadah kanvas (p-2 dua sisi) dikurangkan agar 100% pas tanpa scrollbar. */
+  const PAD_KANVAS = 16;
+  const isiW = Math.max(0, ukuranWadah.w - PAD_KANVAS);
+  const isiH = Math.max(0, ukuranWadah.h - PAD_KANVAS);
+  const pas = kotakLuar && isiW > 0 && isiH > 0
+    ? Math.min(isiW / kotakLuar.w, isiH / kotakLuar.h)
     : 1;
   const skalaTampil = pas * zoom;
-  const dasarLebar = dimensi ? Math.max(1, Math.round(dimensi.w * skalaTampil)) : 0;
-  const dasarTinggi = dimensi ? Math.max(1, Math.round(dimensi.h * skalaTampil)) : 0;
-  const pxLebar = kotakLuar ? Math.max(1, Math.round(kotakLuar.w * skalaTampil)) : 0;
-  const pxTinggi = kotakLuar ? Math.max(1, Math.round(kotakLuar.h * skalaTampil)) : 0;
+  const dasarLebar = dimensi ? Math.max(1, Math.floor(dimensi.w * skalaTampil)) : 0;
+  const dasarTinggi = dimensi ? Math.max(1, Math.floor(dimensi.h * skalaTampil)) : 0;
+  const pxLebar = kotakLuar ? Math.max(1, Math.floor(kotakLuar.w * skalaTampil)) : 0;
+  const pxTinggi = kotakLuar ? Math.max(1, Math.floor(kotakLuar.h * skalaTampil)) : 0;
   const aturZoom = (z: number) => setZoom(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(z * 100) / 100)));
 
   /** Pratinjau crop-menempel: kotak + skala dari keluaran eksak (crop, bukan penuh). */
@@ -643,14 +910,16 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
   const outCrop = cropMenempel && edisi.crop
     ? dimsKeluaran(edisi, kualitas, edisi.crop.w, edisi.crop.h)
     : null;
-  const pasCrop = outCrop && ukuranWadah.w > 0 && ukuranWadah.h > 0
-    ? Math.min(ukuranWadah.w / outCrop.w, ukuranWadah.h / outCrop.h)
+  const pasCrop = outCrop && isiW > 0 && isiH > 0
+    ? Math.min(isiW / outCrop.w, isiH / outCrop.h)
     : 1;
   const tCrop = pasCrop * zoom;
   const boxCropW = outCrop ? Math.max(1, Math.round(outCrop.w * tCrop)) : 0;
   const boxCropH = outCrop ? Math.max(1, Math.round(outCrop.h * tCrop)) : 0;
   const kotakLebar = cropMenempel ? boxCropW : pxLebar;
   const kotakTinggi = cropMenempel ? boxCropH : pxTinggi;
+  /** Scroll hanya bila kotak melebihi ruang (100% pas = hidden, tanpa lingkaran umpan-balik scrollbar). */
+  const perluGulir = kotakLebar > isiW || kotakTinggi > isiH;
 
   /** Cache decode gambar per sumber (redraw slider tetap cepat). */
   const imgCacheRef = useRef<{ src: SumberBerkas | null; img: HTMLImageElement | null }>({ src: null, img: null });
@@ -721,77 +990,13 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
     <section
       ref={seksiRef}
       aria-label="Pratinjau berkas"
-      className={cn(
-        'flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border bg-card',
-        gelap && 'bg-neutral-950',
-      )}
+      className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border bg-card"
     >
-      {/* Kepala: info + bg + penuh */}
-      <div className="flex shrink-0 items-center gap-2 border-b px-3 py-1.5">
-        <span className="min-w-0 flex-1 truncate text-xs" title={sumber?.nama ?? undefined}>
-          {sumber ? `${sumber.nama} (${ukuranSumber}${ukuranKeluar ? ` → ${ukuranKeluar}` : ''})` : 'Belum ada berkas'}
-        </span>
-        <TombolIkon tip={gelap ? 'Latar terang' : 'Latar gelap'} id={`btn_bg_${p}`} size="sm" variant="ghost" onClick={() => setGelap((g) => !g)}>
-          {gelap ? <Sun size={14} /> : <Moon size={14} />}
-        </TombolIkon>
-        <TombolIkon tip="Layar penuh" id={`btn_layar_penuh_${p}`} size="icon" variant="ghost" onClick={layarPenuh} disabled={!sumber}>
-          <Fullscreen size={14} />
-        </TombolIkon>
-      </div>
-      {/* Toolbar konteks */}
+      {/* Toolbar: ubah (kiri) | zoom (tengah) | penuh + unduh (kanan) */}
       {sumber && (
         <>
         <div className="flex shrink-0 flex-wrap items-center gap-1 border-b px-2 py-1">
-          {gambar ? (
-            <>
-              <TombolIkon tip="Perkecil" id={`btn_zoom_kurang_${p}`} size="sm" variant="ghost" onClick={() => aturZoom(zoom / 1.25)}>
-                <Minus size={14} />
-              </TombolIkon>
-              <span className="min-w-12 text-center text-xs text-muted-foreground">{Math.round(zoom * 100)}%</span>
-              <TombolIkon tip="Perbesar" id={`btn_zoom_tambah_${p}`} size="sm" variant="ghost" onClick={() => aturZoom(zoom * 1.25)}>
-                <Plus size={14} />
-              </TombolIkon>
-              <TombolIkon tip="Pas layar" id={`btn_zoom_pas_${p}`} size="icon" variant="ghost" onClick={() => aturZoom(1)}>
-                <Focus size={14} />
-              </TombolIkon>
-              {bisaUbah && (
-              <>
-              <TombolIkon
-                tip={modePutar ? 'Sembunyikan kontrol putar' : 'Putar: tampilkan kontrol derajat'}
-                id={`btn_mode_putar_${p}`}
-                size="sm"
-                variant={modePutar ? 'secondary' : 'ghost'}
-                onClick={() => setModePutar((m) => !m)}
-              >
-                <RotateCw size={14} />
-              </TombolIkon>
-              <TombolIkon
-                tip={modeCrop ? 'Batal crop' : (edisi.crop ? 'Sunting crop' : (edisi.miring !== 0 ? 'Crop: putaran dibekukan otomatis dulu' : 'Crop: aktifkan lalu seret area pada gambar'))}
-                id={`btn_crop_${p}`}
-                size="icon"
-                variant={modeCrop ? 'secondary' : 'ghost'}
-                onClick={() => void mulaiModeCrop()}
-              >
-                <Crop size={14} />
-              </TombolIkon>
-              {edisi.crop && (
-                <TombolIkon tip="Hapus crop" id={`btn_crop_hapus_${p}`} size="sm" variant="ghost" onClick={() => setEdisi((e) => ({ ...e, crop: null }))}>
-                  <X size={14} />
-                </TombolIkon>
-              )}
-              <TombolIkon
-                tip={modeResize ? 'Sembunyikan kontrol resize' : 'Resize: tampilkan kontrol ukuran'}
-                id={`btn_mode_resize_${p}`}
-                size="sm"
-                variant={modeResize ? 'secondary' : 'ghost'}
-                onClick={toggleResize}
-              >
-                <Scaling size={14} />
-              </TombolIkon>
-              </>
-              )}
-            </>
-          ) : (
+          {pdf && (
             <>
               <TombolIkon tip="Halaman sebelumnya" id={`btn_pdf_sebelum_${p}`} size="sm" variant="ghost" disabled={halPdf <= 1} onClick={() => setHalPdf((h) => Math.max(1, h - 1))}>
                 <ChevronLeft size={14} />
@@ -802,30 +1007,97 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
               <TombolIkon tip="Halaman berikutnya" id={`btn_pdf_berikut_${p}`} size="sm" variant="ghost" disabled={halPdf >= totalHal} onClick={() => setHalPdf((h) => Math.min(Math.max(totalHal, 1), h + 1))}>
                 <ChevronRight size={14} />
               </TombolIkon>
-              <TombolIkon tip="Perkecil" id={`btn_zoom_kurang_${p}`} size="sm" variant="ghost" onClick={() => aturZoom(zoom / 1.25)}>
-                <Minus size={14} />
-              </TombolIkon>
-              <span className="min-w-12 text-center text-xs text-muted-foreground">{Math.round(zoom * 100)}%</span>
-              <TombolIkon tip="Perbesar" id={`btn_zoom_tambah_${p}`} size="sm" variant="ghost" onClick={() => aturZoom(zoom * 1.25)}>
-                <Plus size={14} />
-              </TombolIkon>
-              <TombolIkon tip="Pas lebar" id={`btn_zoom_pas_${p}`} size="icon" variant="ghost" onClick={() => aturZoom(1)}>
-                <Focus size={14} />
-              </TombolIkon>
+              <span aria-hidden className="mx-1 h-5 w-px shrink-0 bg-border" />
             </>
           )}
+          {gambar && bisaUbah && (
+            <div className="flex items-center gap-0.5 rounded-md border border-input p-0.5" role="group" aria-label="Mode ubah">
+                <TombolIkon
+                  tip={modePutar ? 'Sembunyikan kontrol putar' : 'Putar: tampilkan kontrol derajat'}
+                  id={`btn_mode_putar_${p}`}
+                  size="sm"
+                  variant={modePutar ? 'secondary' : 'ghost'}
+                  onClick={() => {
+                    if (modePutar) {
+                      setModePutar(false);
+                      setModeLurus(false);
+                      setGarisLurus(null);
+                    } else {
+                      tutupModeLain('putar');
+                      setModePutar(true);
+                    }
+                  }}
+                >
+                  <RotateCw size={14} />
+                </TombolIkon>
+                <TombolIkon
+                  tip={modeCrop ? 'Batal crop' : (edisi.crop ? 'Sunting crop' : (edisi.miring !== 0 ? 'Crop: putaran dibekukan otomatis dulu' : 'Crop: aktifkan lalu seret area pada gambar'))}
+                  id={`btn_crop_${p}`}
+                  size="sm"
+                  variant={modeCrop ? 'secondary' : 'ghost'}
+                  onClick={() => void mulaiModeCrop()}
+                >
+                  <Crop size={14} />
+                </TombolIkon>
+                {edisi.crop && (
+                  <TombolIkon tip="Hapus crop" id={`btn_crop_hapus_${p}`} size="sm" variant="ghost" onClick={() => setEdisi((e) => ({ ...e, crop: null }))}>
+                    <X size={14} />
+                  </TombolIkon>
+                )}
+                <TombolIkon
+                  tip={modeResize ? 'Sembunyikan kontrol resize' : 'Resize: tampilkan kontrol ukuran'}
+                  id={`btn_mode_resize_${p}`}
+                  size="sm"
+                  variant={modeResize ? 'secondary' : 'ghost'}
+                  onClick={toggleResize}
+                >
+                  <Scaling size={14} />
+                </TombolIkon>
+              </div>
+          )}
+          <span className="min-w-1 flex-1" />
+          {/* Grup tampil (tengah) */}
+          <TombolIkon tip="Perkecil" id={`btn_zoom_kurang_${p}`} size="sm" variant="ghost" onClick={() => aturZoom(zoom / 1.25)}>
+            <Minus size={14} />
+          </TombolIkon>
+          <span className="min-w-12 text-center text-xs text-muted-foreground">{Math.round(zoom * 100)}%</span>
+          <TombolIkon tip="Perbesar" id={`btn_zoom_tambah_${p}`} size="sm" variant="ghost" onClick={() => aturZoom(zoom * 1.25)}>
+            <Plus size={14} />
+          </TombolIkon>
+          <TombolIkon tip={gambar ? 'Pas layar' : 'Pas lebar'} id={`btn_zoom_pas_${p}`} size="icon" variant="ghost" onClick={() => aturZoom(1)}>
+            <Focus size={14} />
+          </TombolIkon>
+          <span className="min-w-1 flex-1" />
+          {/* Grup kanan: penuh + unduh */}
+          <TombolIkon tip="Layar penuh" id={`btn_layar_penuh_${p}`} size="icon" variant="ghost" onClick={layarPenuh} disabled={!sumber}>
+            <Fullscreen size={14} />
+          </TombolIkon>
           <TombolIkon tip="Unduh yang tampil" id={`btn_unduh_pilih_${p}`} size="sm" variant="ghost" onClick={unduhPilih}>
             <Download size={14} />
           </TombolIkon>
         </div>
         </>
       )}
-      {/* Kanvas */}
-      <div ref={bungkusRef} className="flex min-h-0 flex-1 items-start justify-center overflow-auto p-2">
+      {/* Kanvas: seret untuk geser, roda untuk zoom */}
+      <div
+        ref={bungkusRef}
+        onPointerDown={mulaiGeser}
+        onPointerMove={gerakGeser}
+        onPointerUp={selesaiGeser}
+        onPointerCancel={selesaiGeser}
+        onMouseDown={(e) => { if (e.button === 1) e.preventDefault(); }}
+        className={cn(
+          'flex min-h-0 flex-1 items-start justify-center p-2 select-none',
+          perluGulir ? 'overflow-auto cursor-grab active:cursor-grabbing' : 'overflow-hidden',
+        )}
+      >
         {!sumber ? (
-            <p className="m-auto px-6 text-center text-sm text-muted-foreground">
-              {teksKosong ?? 'Belum ada berkas dipilih — pilih lewat Browse untuk melihat pratinjau di sini.'}
-            </p>
+            <div className="m-auto flex flex-col items-center gap-2 px-6 text-center">
+              <ImageUp size={28} className="text-muted-foreground/50" />
+              <p className="text-sm text-muted-foreground">
+                {teksKosong ?? 'Belum ada berkas dipilih — pilih lewat Browse untuk melihat pratinjau di sini.'}
+              </p>
+            </div>
         ) : gambar && dimensi && urlSumber ? (
           <div className="relative m-auto shrink-0 overflow-hidden" style={{ width: kotakLebar, height: kotakTinggi }}>
             {cropMenempel ? (
@@ -856,6 +1128,7 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
             {modeCrop && (
               <div
                 aria-label="Area crop: seret untuk memilih/geser/ubah, lalu Terapkan"
+                data-seret
                 className="absolute inset-0 cursor-crosshair touch-none select-none"
                 onPointerDown={mulaiSeretCrop}
                 onPointerMove={gerakSeretCrop}
@@ -869,8 +1142,16 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
                   >
                     <span className="absolute -top-1.5 -left-1.5 h-3 w-3 cursor-nwse-resize rounded-sm border border-white bg-primary" />
                     <span className="absolute -top-1.5 -right-1.5 h-3 w-3 cursor-nesw-resize rounded-sm border border-white bg-primary" />
-                    <span className="absolute -bottom-1.5 -left-1.5 h-3 w-3 cursor-nesw-resize rounded-sm border border-white bg-primary" />
                     <span className="absolute -right-1.5 -bottom-1.5 h-3 w-3 cursor-nwse-resize rounded-sm border border-white bg-primary" />
+                    <span className="absolute -bottom-1.5 -left-1.5 h-3 w-3 cursor-nesw-resize rounded-sm border border-white bg-primary" />
+                    {rasioCrop === null && (
+                      <>
+                        <span className="absolute -top-1.5 left-1/2 h-3 w-3 -translate-x-1/2 cursor-ns-resize rounded-sm border border-white bg-primary" />
+                        <span className="absolute -bottom-1.5 left-1/2 h-3 w-3 -translate-x-1/2 cursor-ns-resize rounded-sm border border-white bg-primary" />
+                        <span className="absolute top-1/2 -left-1.5 h-3 w-3 -translate-y-1/2 cursor-ew-resize rounded-sm border border-white bg-primary" />
+                        <span className="absolute top-1/2 -right-1.5 h-3 w-3 -translate-y-1/2 cursor-ew-resize rounded-sm border border-white bg-primary" />
+                      </>
+                    )}
                   </div>
                 )}
               </div>
@@ -880,6 +1161,66 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
                 className="pointer-events-none absolute border-2 border-dashed border-primary/70"
                 style={{ left: rectTampil.x, top: rectTampil.y, width: rectTampil.w, height: rectTampil.h }}
               />
+            )}
+            {/* Garis acuan geser (khusus putar): tengah tegas + sepertiga redup. */}
+            {panduan && modePutar && (
+              <div role="group" aria-label="Garis acuan geser" className="pointer-events-none absolute inset-0">
+                {posPanduan.v.map((f, i) => (
+                  <GarisPanduan
+                    key={`pv${i}`}
+                    id={`garis_panduan_${p}_v${i}`}
+                    vertikal
+                    fraksi={f}
+                    bawaan={POS_PANDUAN_BAWAN.v[i]}
+                    tengah={i === 1}
+                    label={`Garis acuan vertikal ${i + 1}`}
+                    warna={warnaPanduan}
+                    padaUbah={(nf) => setPosPanduan((s) => ({ ...s, v: s.v.map((x, j) => (j === i ? nf : x)) }))}
+                  />
+                ))}
+                {posPanduan.h.map((f, i) => (
+                  <GarisPanduan
+                    key={`ph${i}`}
+                    id={`garis_panduan_${p}_h${i}`}
+                    vertikal={false}
+                    fraksi={f}
+                    bawaan={POS_PANDUAN_BAWAN.h[i]}
+                    tengah={i === 1}
+                    label={`Garis acuan horizontal ${i + 1}`}
+                    warna={warnaPanduan}
+                    padaUbah={(nf) => setPosPanduan((s) => ({ ...s, h: s.h.map((x, j) => (j === i ? nf : x)) }))}
+                  />
+                ))}
+              </div>
+            )}
+            {/* Overlay penggaris: seret garis acuan, lepas untuk meluruskan. */}
+            {modeLurus && (
+              <div
+                aria-label="Penggaris pelurus: seret garis pada gambar lalu lepas"
+                data-seret
+                className="absolute inset-0 cursor-crosshair touch-none select-none"
+                onPointerDown={mulaiLurus}
+                onPointerMove={gerakLurus}
+                onPointerUp={selesaiLurus}
+                onPointerCancel={() => setGarisLurus(null)}
+              >
+                {garisLurus && (
+                  <svg aria-hidden className="absolute inset-0 h-full w-full">
+                    <line
+                      x1={garisLurus.x0}
+                      y1={garisLurus.y0}
+                      x2={garisLurus.x1}
+                      y2={garisLurus.y1}
+                      stroke="white"
+                      strokeWidth={1.5}
+                      strokeDasharray="6 3"
+                      style={{ filter: 'drop-shadow(0 0 2px black)' }}
+                    />
+                    <circle cx={garisLurus.x0} cy={garisLurus.y0} r={3.5} fill="white" style={{ filter: 'drop-shadow(0 0 2px black)' }} />
+                    <circle cx={garisLurus.x1} cy={garisLurus.y1} r={3.5} fill="white" style={{ filter: 'drop-shadow(0 0 2px black)' }} />
+                  </svg>
+                )}
+              </div>
             )}
           </div>
         ) : pdf ? (
@@ -892,109 +1233,189 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
           <p className="m-auto px-6 text-center text-sm text-muted-foreground">Memuat…</p>
         )}
       </div>
-      {/* Bar putar ala Pintura: angka di atas, slider + tombol posisi di bawahnya. */}
+      {/* Panel putar: dial + segmented Putar|Skala (dial Skala = zoom). */}
       {gambar && sumber && modePutar && (
-        <div className="flex shrink-0 items-center justify-center gap-2 border-t bg-muted/40 px-4 py-2">
-          <div className="flex min-w-0 w-full max-w-xl flex-1 flex-col items-center gap-1">
-            <div className="flex shrink-0 items-center gap-1">
-              <input
-                id={`input_miring_${p}`}
-                type="number"
+        <div className="flex shrink-0 flex-col items-center gap-1 border-t border-neutral-800 bg-neutral-950 px-4 py-1.5">
+          <div className="flex w-full max-w-xl items-center gap-2">
+          <div className="min-w-0 flex-1">
+            {modeDial === 'rotasi' ? (
+              <DialRuler
+                id={`dial_putar_${p}`}
                 min={-MAKS_MIRING}
                 max={MAKS_MIRING}
                 step={0.1}
-                value={teksMiring ?? String(Math.round(edisi.miring * 10) / 10)}
+                value={edisi.miring}
+                dots={[-180, -135, -90, -45, 0, 45, 90, 135, 180]}
+                snap={1.5}
+                minor={5}
+                ppu={2.5}
+                format={formatMiring}
                 disabled={!!edisi.crop || modeCrop}
-                title={edisi.crop || modeCrop ? 'Selesaikan/batalkan crop dulu untuk memutar' : 'Kemiringan (derajat, Enter untuk terapkan)'}
-                aria-label="Kemiringan derajat (spinbox)"
-                onChange={(e) => {
-                  const t = e.target.value;
-                  setTeksMiring(t);
-                  // Live: nilai valid langsung ke pratinjau; teks mentah tetap bisa diketik.
-                  const angka = Number.parseFloat(t.replace(',', '.'));
-                  if (!Number.isNaN(angka)) {
-                    setEdisi((ed) => ({ ...ed, miring: jepitMiring(angka) }));
-                  }
-                }}
-                onBlur={komitMiring}
-                onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-                onFocus={(e) => e.target.select()}
-                className="w-20 shrink-0 rounded-md border border-input bg-background px-1.5 py-1 text-center text-xs"
+                ariaLabel="Dial kemiringan: seret untuk memutar, panah untuk halus, klik titik untuk loncat, klik ganda untuk lurus"
+                resetValue={0}
+                onChange={(v) => setEdisi((e) => ({ ...e, miring: jepitMiring(v) }))}
               />
-              <span className="shrink-0 text-xs text-muted-foreground">°</span>
-            </div>
-          <div className="relative min-w-0 w-full flex-1">
+            ) : (
+              <DialRuler
+                id={`dial_skala_${p}`}
+                min={25}
+                max={400}
+                step={1}
+                value={Math.round(zoom * 100)}
+                dots={[50, 100, 200, 400]}
+                snap={4}
+                minor={5}
+                ppu={2}
+                format={(v) => `${Math.round(v)}%`}
+                ariaLabel="Dial skala: seret untuk zoom, panah untuk halus, klik titik untuk loncat, klik ganda untuk 100%"
+                resetValue={100}
+                onChange={(v) => aturZoom(v / 100)}
+              />
+            )}
+          </div>
+          </div>
+          <div className="flex items-center gap-1">
+          <div role="group" aria-label="Target dial" className="flex rounded-full bg-white/10 p-1">
+            {(['rotasi', 'skala'] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                id={`seg_dial_${m}_${p}`}
+                aria-pressed={modeDial === m}
+                onClick={() => setModeDial(m)}
+                className={cn(
+                  'rounded-full px-4 py-0.5 text-xs transition-colors',
+                  modeDial === m ? 'bg-white/20 text-white ring-1 ring-white/25' : 'text-neutral-400 hover:text-white',
+                )}
+              >
+                {m === 'rotasi' ? 'Putar' : 'Skala'}
+              </button>
+            ))}
+          </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                id={`btn_dial_reset_${p}`}
+                aria-label={modeDial === 'rotasi' ? 'Luruskan (0°)' : 'Skala 100%'}
+                disabled={modeDial === 'rotasi' && (!!edisi.crop || modeCrop)}
+                onClick={() => {
+                  if (modeDial === 'rotasi') setEdisi((e) => ({ ...e, miring: 0 }));
+                  else aturZoom(1);
+                }}
+                className="rounded-full p-1.5 text-neutral-400 transition-colors hover:bg-white/10 hover:text-white disabled:pointer-events-none disabled:opacity-40"
+              >
+                <RotateCcw size={14} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{modeDial === 'rotasi' ? 'Luruskan (0°)' : 'Skala 100%'}</p>
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                id={`btn_panduan_${p}`}
+                aria-label={panduan ? 'Sembunyikan garis acuan' : 'Tampilkan garis acuan'}
+                aria-pressed={panduan}
+                onClick={() => setPanduan((v) => !v)}
+                className={cn(
+                  'rounded-full p-1.5 transition-colors hover:bg-white/10 hover:text-white',
+                  panduan ? 'bg-white/20 text-white ring-1 ring-white/25' : 'text-neutral-400',
+                )}
+              >
+                <Grid size={14} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{panduan ? 'Sembunyikan garis acuan' : 'Tampilkan garis acuan'}</p>
+            </TooltipContent>
+          </Tooltip>
+          {panduan && (
             <input
-              id={`geser_miring_${p}`}
-              type="range"
-              min={-MAKS_MIRING}
-              max={MAKS_MIRING}
-              step={0.1}
-              value={edisi.miring}
-              disabled={!!edisi.crop || modeCrop}
-              title={edisi.crop || modeCrop ? 'Selesaikan/batalkan crop dulu untuk memutar' : 'Kemiringan: 0 di tengah, ±180° (menempel ke 0 bila < 0,5°)'}
-              aria-label="Kemiringan derajat"
-              onChange={(e) => {
-                setTeksMiring(null);
-                const mentah = Number(e.target.value);
-                // Deten tengah: dua rentang 0→180 dan 0→-180, menempel ke 0 bila dekat.
-                const nilai = Math.abs(mentah) <= 0.5 ? 0 : mentah;
-                setEdisi((ed) => ({ ...ed, miring: jepitMiring(nilai) }));
-              }}
-              className="w-full accent-primary"
+              type="color"
+              id={`warna_panduan_${p}`}
+              aria-label="Warna garis acuan"
+              title="Warna garis acuan"
+              value={warnaPanduan}
+              onChange={(e) => setWarnaPanduan(e.target.value)}
+              className="size-6 cursor-pointer rounded-full border border-white/25 bg-transparent p-0.5"
             />
-            <span aria-hidden className="pointer-events-none absolute top-1/2 left-1/2 h-3 w-px -translate-x-1/2 -translate-y-1/2 bg-muted-foreground/60" />
-            {/* Tombol posisi tepat di bawah nilainya (kompensasi setengah thumb ±8px). */}
-            <div className="relative mt-0.5 h-8">
-              {(
-                [
-                  { nilai: -180, kiri: 'calc(0% + 8px)', ikon: RefreshCcw, jud: 'Putar -180°', id: 'miring_min180' },
-                  { nilai: -90, kiri: 'calc(25% + 4px)', ikon: RotateCcw, jud: 'Putar -90°', id: 'miring_min90' },
-                  { nilai: 0, kiri: '50%', ikon: X, jud: 'Luruskan (0°)', id: 'miring_nol' },
-                  { nilai: 90, kiri: 'calc(75% - 4px)', ikon: RotateCw, jud: 'Putar 90°', id: 'miring_90' },
-                  { nilai: 180, kiri: 'calc(100% - 8px)', ikon: RefreshCw, jud: 'Putar 180°', id: 'miring_180' },
-                ] as const
-              ).map((t) => (
-                <TombolIkon
-                  key={t.id}
-                  tip={edisi.crop || modeCrop ? 'Selesaikan/batalkan crop dulu untuk memutar' : t.jud}
-                  id={`btn_${t.id}_${p}`}
-                  size="sm"
-                  variant={edisi.miring === t.nilai ? 'secondary' : 'ghost'}
-                  disabled={!!edisi.crop || modeCrop}
-                  onClick={() => lompatMiring(t.nilai)}
-                  className="absolute top-0 -translate-x-1/2 px-2"
-                  style={{ left: t.kiri }}
+          )}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                id={`btn_lurus_${p}`}
+                aria-label={modeLurus ? 'Tutup penggaris pelurus' : 'Penggaris pelurus: seret garis untuk meluruskan'}
+                aria-pressed={modeLurus}
+                disabled={modeCrop}
+                onClick={() => { setGarisLurus(null); setModeLurus((v) => !v); }}
+                className={cn(
+                  'rounded-full p-1.5 transition-colors hover:bg-white/10 hover:text-white disabled:pointer-events-none disabled:opacity-40',
+                  modeLurus ? 'bg-white/20 text-white ring-1 ring-white/25' : 'text-neutral-400',
+                )}
+              >
+                <Ruler size={14} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{modeLurus ? 'Tutup penggaris pelurus' : 'Penggaris pelurus: seret garis untuk meluruskan'}</p>
+            </TooltipContent>
+          </Tooltip>
+          {modeLurus && (
+            <div role="group" aria-label="Acuan penggaris" className="flex shrink-0 rounded-full bg-white/10 p-0.5">
+              {(['datar', 'tegak'] as const).map((a) => (
+                <button
+                  key={a}
+                  type="button"
+                  id={`seg_lurus_${a}_${p}`}
+                  aria-pressed={(a === 'tegak') === lurusTegak}
+                  title={a === 'datar' ? 'Garis acuan datar (horizontal)' : 'Garis acuan tegak (vertikal)'}
+                  onClick={() => setLurusTegak(a === 'tegak')}
+                  className={cn(
+                    'rounded-full px-2.5 py-0.5 text-[11px] whitespace-nowrap transition-colors',
+                    (a === 'tegak') === lurusTegak ? 'bg-white/20 text-white ring-1 ring-white/25' : 'text-neutral-400 hover:text-white',
+                  )}
                 >
-                  <t.ikon size={14} />
-                </TombolIkon>
+                  {a === 'datar' ? 'Datar' : 'Tegak'}
+                </button>
               ))}
             </div>
-          </div>
+          )}
           </div>
         </div>
       )}
-      {/* Bar crop: rasio + terapkan/batal (kontrol bawah, aktivasi tombol Crop atas). */}
+      {/* Panel crop: pil rasio + terapkan/batal. */}
       {gambar && sumber && modeCrop && (
-        <div className="flex shrink-0 flex-wrap items-center justify-center gap-1 border-t bg-muted/40 px-4 py-2">
-          <span className="px-1 text-xs text-muted-foreground">Rasio:</span>
-          {RASIO_CROP.map((c) => (
-            <Tooltip key={c.id}>
-              <TooltipTrigger asChild>
-                <Button
+        <div className="flex shrink-0 items-center gap-2 border-t bg-muted/40 px-4 py-2">
+          <span className="shrink-0 text-xs text-muted-foreground">Rasio</span>
+          <div className="flex min-w-0 flex-1 items-center overflow-x-auto">
+          <div id={`grup_rasio_crop_${p}`} role="group" aria-label="Rasio crop" className="m-auto flex items-center gap-1 py-0.5">
+            {RASIO_CROP.map((c) => {
+              const aktif = (c.r === null && rasioCrop === null) || (c.r !== null && rasioCrop === c.r);
+              return (
+                <button
+                  key={c.id}
+                  type="button"
                   id={`btn_rasio_crop_${p}_${c.id}`}
-                  size="sm"
-                  variant={(c.r === null && rasioCrop === null) || (c.r !== null && rasioCrop === c.r) ? 'secondary' : 'ghost'}
+                  aria-pressed={aktif}
+                  title={c.r === null ? 'Crop bebas' : `Kunci rasio ${c.label}`}
                   onClick={() => pilihRasioCrop(c.r)}
+                  className={cn(
+                    'shrink-0 rounded-full px-2.5 py-1 text-xs whitespace-nowrap transition-colors',
+                    aktif
+                      ? 'bg-primary font-medium text-primary-foreground'
+                      : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                  )}
                 >
                   {c.label}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>{c.r === null ? 'Crop bebas' : `Kunci rasio ${c.label}`}</p>
-              </TooltipContent>
-            </Tooltip>
-          ))}
+                </button>
+              );
+            })}
+          </div>
+          </div>
           <TombolIkon
             tip="Terapkan crop"
             id={`btn_crop_terapkan_${p}`}
@@ -1002,7 +1423,6 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
             variant="default"
             disabled={!drafCrop}
             onClick={terapkanCrop}
-            className="ml-2"
           >
             <Check size={14} />
           </TombolIkon>
@@ -1011,68 +1431,85 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
           </TombolIkon>
         </div>
       )}
-      {/* Bar resize: W×H + kunci rasio + kembali asli + caption keluaran eksak. */}
+      {/* Bar resize: dua baris kompak (W×H+kunci / template+caption). */}
       {gambar && sumber && modeResize && (
-        <div className="flex shrink-0 flex-wrap items-center justify-center gap-2 border-t bg-muted/40 px-4 py-2">
-          <span className="text-xs text-muted-foreground">Lebar</span>
-          <input
-            id={`input_ukuran_lebar_${p}`}
-            type="number"
-            min={1}
-            max={MAKS_UKURAN}
-            step={1}
-            value={edisi.ukuran?.w ?? benihUkuran.w}
-            title="Lebar keluaran (px)"
-            aria-label="Lebar keluaran piksel"
-            onChange={(e) => ubahLebar(e.target.value)}
-            onFocus={(e) => e.target.select()}
-            className="w-20 shrink-0 rounded-md border border-input bg-background px-1.5 py-1 text-center text-xs"
-          />
-          <span className="text-xs text-muted-foreground">×</span>
-          <span className="text-xs text-muted-foreground">Tinggi</span>
-          <input
-            id={`input_ukuran_tinggi_${p}`}
-            type="number"
-            min={1}
-            max={MAKS_UKURAN}
-            step={1}
-            value={edisi.ukuran?.h ?? benihUkuran.h}
-            title="Tinggi keluaran (px)"
-            aria-label="Tinggi keluaran piksel"
-            onChange={(e) => ubahTinggi(e.target.value)}
-            onFocus={(e) => e.target.select()}
-            className="w-20 shrink-0 rounded-md border border-input bg-background px-1.5 py-1 text-center text-xs"
-          />
-          <span className="text-xs text-muted-foreground">px</span>
-          <TombolIkon
-            tip={kunciUkuran ? 'Buka kunci rasio' : 'Kunci rasio'}
-            id={`btn_ukuran_kunci_${p}`}
-            size="sm"
-            variant={kunciUkuran ? 'secondary' : 'ghost'}
-            onClick={kunciUlang}
-          >
-            {kunciUkuran ? <Link2 size={14} /> : <Unlink size={14} />}
-          </TombolIkon>
-          <span className="px-1 text-xs text-muted-foreground">Template:</span>
-          <Select
-            value={presetResize.find((t) => (t.asli ? !edisi.ukuran : edisi.ukuran?.w === t.w && edisi.ukuran?.h === t.h))?.id ?? ''}
-            onValueChange={(id) => {
-              const t = presetResize.find((x) => x.id === id);
-              if (t) pilihPresetResize(t);
-            }}
-          >
-            <SelectTrigger id={`select_resize_preset_${p}`} className="w-36" aria-label="Template resize">
-              <SelectValue placeholder="Pilih template" />
-            </SelectTrigger>
-            <SelectContent>
-              {presetResize.map((t) => (
-                <SelectItem key={t.id} value={t.id}>
-                  {t.label} — {t.w}×{t.h}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <span className="px-1 text-xs text-muted-foreground">{captionUkuran}</span>
+        <div className="flex shrink-0 flex-col items-center gap-1.5 border-t bg-muted/40 px-4 py-2">
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <span className="text-xs text-muted-foreground">Lebar</span>
+            <input
+              id={`input_ukuran_lebar_${p}`}
+              type="number"
+              min={1}
+              max={MAKS_UKURAN}
+              step={1}
+              value={edisi.ukuran?.w ?? benihUkuran.w}
+              aria-label="Lebar keluaran piksel"
+              onChange={(e) => ubahLebar(e.target.value)}
+              onFocus={(e) => e.target.select()}
+              className="w-20 shrink-0 rounded-md border border-input bg-background px-1.5 py-1 text-center text-xs"
+            />
+            <span className="text-xs text-muted-foreground">×</span>
+            <span className="text-xs text-muted-foreground">Tinggi</span>
+            <input
+              id={`input_ukuran_tinggi_${p}`}
+              type="number"
+              min={1}
+              max={MAKS_UKURAN}
+              step={1}
+              value={edisi.ukuran?.h ?? benihUkuran.h}
+              aria-label="Tinggi keluaran piksel"
+              onChange={(e) => ubahTinggi(e.target.value)}
+              onFocus={(e) => e.target.select()}
+              className="w-20 shrink-0 rounded-md border border-input bg-background px-1.5 py-1 text-center text-xs"
+            />
+            <span className="text-xs text-muted-foreground">px</span>
+            <TombolIkon
+              tip={kunciUkuran ? 'Buka kunci rasio' : 'Kunci rasio'}
+              id={`btn_ukuran_kunci_${p}`}
+              size="sm"
+              variant={kunciUkuran ? 'secondary' : 'ghost'}
+              onClick={kunciUlang}
+            >
+              {kunciUkuran ? <Link2 size={14} /> : <Unlink size={14} />}
+            </TombolIkon>
+          </div>
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <span className="text-xs text-muted-foreground">Template</span>
+            <Select
+              value={presetResize.find((t) => (t.asli ? !edisi.ukuran : edisi.ukuran?.w === t.w && edisi.ukuran?.h === t.h))?.id ?? ''}
+              onValueChange={(id) => {
+                const t = presetResize.find((x) => x.id === id);
+                if (t) pilihPresetResize(t);
+              }}
+            >
+              <SelectTrigger id={`select_resize_preset_${p}`} className="w-36" aria-label="Template resize">
+                <SelectValue placeholder="Pilih template" />
+              </SelectTrigger>
+              <SelectContent>
+                {presetResize.map((t) => (
+                  <SelectItem key={t.id} value={t.id}>
+                    {t.label} — {t.w}×{t.h}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <span className="px-1 text-xs text-muted-foreground">{captionUkuran}</span>
+          </div>
+        </div>
+      )}
+      {/* Status bar: nama berkas + dimensi + keluaran saat diedit. */}
+      {sumber && (
+        <div className="flex shrink-0 items-center gap-2 border-t px-3 py-1 text-[11px] text-muted-foreground">
+          <span className="min-w-0 flex-1 truncate" title={sumber.nama}>
+            {sumber.nama}
+          </span>
+          {gambar && dimensi && <span className="shrink-0">{dimensi.w} × {dimensi.h} px · {ukuranSumber}</span>}
+          {kotor && (
+            <>
+              <span className="shrink-0 rounded-full bg-primary/15 px-1.5 py-px font-medium text-primary">Diedit</span>
+              <span className="shrink-0">{captionUkuran}{ukuranKeluar ? ` · ${ukuranKeluar}` : ''}</span>
+            </>
+          )}
         </div>
       )}
     </section>

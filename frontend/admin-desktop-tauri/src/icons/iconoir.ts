@@ -28,6 +28,8 @@ import IcCropIconoir from '~icons/iconoir/crop';
 import IcEyeIconoir from '~icons/iconoir/eye';
 import IcFolderOpenIconoir from '~icons/iconoir/folder';
 import IcGraduationCapIconoir from '~icons/iconoir/graduation-cap';
+import IcGridIconoir from '~icons/iconoir/view-grid';
+import IcRulerIconoir from '~icons/iconoir/ruler';
 import IcHistoryIconoir from '~icons/iconoir/clock';
 import IcHomeIconoir from '~icons/iconoir/home';
 import IcImageUpIconoir from '~icons/iconoir/media-image-plus';
@@ -93,6 +95,8 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   Eye: IcEyeIconoir,
   FolderOpen: IcFolderOpenIconoir,
   GraduationCap: IcGraduationCapIconoir,
+  Grid: IcGridIconoir,
+  Ruler: IcRulerIconoir,
   History: IcHistoryIconoir,
   Home: IcHomeIconoir,
   ImageUp: IcImageUpIconoir,

@@ -1,5 +1,5 @@
 /* AUTO-GENERATED oleh scripts/icons-gen.mjs — JANGAN edit manual.
- * 85 ikon × 9 set (Iconify/unplugin-icons). Set aktif dari prefs
+ * 87 ikon × 9 set (Iconify/unplugin-icons). Set aktif dari prefs
  * `iconSet`; nama yang tidak tersedia di suatu set jatuh ke Lucide.
  * Regenerasi: node scripts/icons-gen.mjs */
 import type { ComponentType, SVGProps } from 'react';
@@ -82,6 +82,8 @@ export const FolderOpen = (p: IkonProps) => <IkonDinamis {...p} nama="FolderOpen
 export const Focus = (p: IkonProps) => <IkonDinamis {...p} nama="Focus" />;
 export const Fullscreen = (p: IkonProps) => <IkonDinamis {...p} nama="Fullscreen" />;
 export const GraduationCap = (p: IkonProps) => <IkonDinamis {...p} nama="GraduationCap" />;
+export const Grid = (p: IkonProps) => <IkonDinamis {...p} nama="Grid" />;
+export const Ruler = (p: IkonProps) => <IkonDinamis {...p} nama="Ruler" />;
 export const History = (p: IkonProps) => <IkonDinamis {...p} nama="History" />;
 export const Home = (p: IkonProps) => <IkonDinamis {...p} nama="Home" />;
 export const ImageUp = (p: IkonProps) => <IkonDinamis {...p} nama="ImageUp" />;

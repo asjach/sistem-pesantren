@@ -249,6 +249,8 @@ export default function TambahDokumenSantriPage() {
   const [sumberBerkas, setSumberBerkas] = useState<SumberBerkas | null>(null);
   const [berkasPath, setBerkasPath] = useState<string | null>(null);
   const [keluaran, setKeluaran] = useState<HasilGambar | null>(null);
+  /** Pipeline viewer sibuk: Simpan dikunci agar tak menyimpan byte basi. */
+  const [prosesViewer, setProsesViewer] = useState(false);
   const inputWebRef = useRef<HTMLInputElement>(null);
   const btnBrowseRef = useRef<HTMLButtonElement>(null);
 
@@ -359,7 +361,7 @@ export default function TambahDokumenSantriPage() {
     prefSet('simpes_tambah_dok_sudah', pindahSudah ? '1' : '0').catch(() => {});
   }, [prefSiap, pindahSudah]);
   /** Berkas wajib di halaman ini (baris + file-nya sekaligus). */
-  const bisaSimpan = santriId != null && jenis.trim() !== '' && sumberBerkas !== null && keluaran !== null && !busy;
+  const bisaSimpan = santriId != null && jenis.trim() !== '' && sumberBerkas !== null && keluaran !== null && !prosesViewer && !busy;
 
   async function bukaPilihLagi() {
     await onBrowse();
@@ -662,7 +664,7 @@ export default function TambahDokumenSantriPage() {
         <ResizableHandle withHandle orientation="horizontal" id="gagang_tambah_dokumen" aria-label="Atur lebar kolom form dan pratinjau" />
         {/* Kolom 2: viewer (sisa). */}
         <ResizablePanel minSize="25%" id="panel_tambah_dokumen_pratinjau" className="min-h-0 min-w-0">
-          <PenampilBerkas sumber={sumberBerkas} kualitas="asli" onKeluaran={setKeluaran} idPrefix="tambah_dokumen" />
+          <PenampilBerkas sumber={sumberBerkas} kualitas="asli" onKeluaran={setKeluaran} onProses={setProsesViewer} idPrefix="tambah_dokumen" />
         </ResizablePanel>
       </ResizablePanelGroup>
       <ProfilSantriDialog

@@ -27,6 +27,7 @@ import IcEyePh from '~icons/ph/eye';
 import IcFileUpPh from '~icons/ph/file-arrow-up';
 import IcFolderOpenPh from '~icons/ph/folder-open';
 import IcGraduationCapPh from '~icons/ph/graduation-cap';
+import IcRulerPh from '~icons/ph/ruler';
 import IcHistoryPh from '~icons/ph/clock-counter-clockwise';
 import IcHomePh from '~icons/ph/house';
 import IcLandmarkPh from '~icons/ph/bank';
@@ -99,6 +100,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   FileUp: IcFileUpPh,
   FolderOpen: IcFolderOpenPh,
   GraduationCap: IcGraduationCapPh,
+  Ruler: IcRulerPh,
   History: IcHistoryPh,
   Home: IcHomePh,
   Landmark: IcLandmarkPh,

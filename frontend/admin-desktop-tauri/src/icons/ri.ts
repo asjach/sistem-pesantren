@@ -33,6 +33,8 @@ import IcFolderOpenRi from '~icons/ri/folder-open-line';
 import IcFocusRi from '~icons/ri/focus-line';
 import IcFullscreenRi from '~icons/ri/fullscreen-line';
 import IcGraduationCapRi from '~icons/ri/graduation-cap-line';
+import IcGridRi from '~icons/ri/grid-line';
+import IcRulerRi from '~icons/ri/ruler-line';
 import IcHistoryRi from '~icons/ri/history-line';
 import IcHomeRi from '~icons/ri/home-line';
 import IcImageUpRi from '~icons/ri/image-upload-line';
@@ -107,6 +109,8 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   Focus: IcFocusRi,
   Fullscreen: IcFullscreenRi,
   GraduationCap: IcGraduationCapRi,
+  Grid: IcGridRi,
+  Ruler: IcRulerRi,
   History: IcHistoryRi,
   Home: IcHomeRi,
   ImageUp: IcImageUpRi,

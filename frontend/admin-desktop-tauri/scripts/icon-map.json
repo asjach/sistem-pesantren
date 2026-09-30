@@ -329,6 +329,28 @@
   "bi": "mortarboard",
   "material": "school"
  },
+ "Grid": {
+  "lucide": "grid-3x3",
+  "tabler": "grid-3x3",
+  "ph": null,
+  "heroicons": null,
+  "ri": "grid-line",
+  "iconoir": "view-grid",
+  "radix": "grid",
+  "bi": "grid-3x3",
+  "material": "grid-3x3"
+ },
+ "Ruler": {
+  "lucide": "ruler",
+  "tabler": "ruler",
+  "ph": "ruler",
+  "heroicons": null,
+  "ri": "ruler-line",
+  "iconoir": "ruler",
+  "radix": null,
+  "bi": null,
+  "material": "straighten"
+ },
  "History": {
   "lucide": "history",
   "tabler": "history",

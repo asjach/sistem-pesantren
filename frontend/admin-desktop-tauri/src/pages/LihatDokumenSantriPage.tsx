@@ -562,6 +562,8 @@ export default function LihatDokumenSantriPage() {
   /** Keluaran viewer (hasil putar/crop/resize/editor) + status kotor. */
   const [keluaran, setKeluaran] = useState<HasilGambar | null>(null);
   const [kotor, setKotor] = useState(false);
+  /** Pipeline viewer sibuk: Simpan dikunci agar tak mengunggah byte basi. */
+  const [prosesViewer, setProsesViewer] = useState(false);
   /** Kunci remount viewer (Buang perubahan mengembalikan tampilan asli). */
   const [kunciViewer, setKunciViewer] = useState(0);
   /** Baris yang sedang dipratinjau — dasar mengaktifkan tombol ubah viewer. */
@@ -781,12 +783,12 @@ export default function LihatDokumenSantriPage() {
             {kotor && keluaran && dokId !== null && (
               <div className="flex shrink-0 items-center gap-2 rounded-md border border-dashed px-2 py-1">
                 <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
-                  Ada perubahan belum disimpan.
+                  {prosesViewer ? 'Menyiapkan hasil…' : 'Ada perubahan belum disimpan.'}
                 </span>
                 <TombolIkon tip="Buang perubahan" variant="outline" size="icon" onClick={() => setKunciViewer((k) => k + 1)}>
                   <Undo2 size={14} />
                 </TombolIkon>
-                <TombolIkon tip="Simpan hasil edit" id="btn_simpan_edit_dok_lihat" size="icon" disabled={busy} onClick={() => void onSimpanEdit()}>
+                <TombolIkon tip={prosesViewer ? 'Menyiapkan hasil…' : 'Simpan hasil edit'} id="btn_simpan_edit_dok_lihat" size="icon" disabled={busy || prosesViewer} onClick={() => void onSimpanEdit()}>
                   <Save size={14} />
                 </TombolIkon>
               </div>
@@ -798,6 +800,7 @@ export default function LihatDokumenSantriPage() {
                 kualitas="asli"
                 onKeluaran={setKeluaran}
                 onKotor={setKotor}
+                onProses={setProsesViewer}
                 idPrefix="lihat_dokumen"
                 bisaUbah={bisaUbahViewer}
                 teksKosong="Belum ada dokumen dipilih — pilih santri lalu klik baris dokumen."

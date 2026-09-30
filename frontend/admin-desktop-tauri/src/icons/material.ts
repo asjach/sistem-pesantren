@@ -30,6 +30,8 @@ import IcFileUpMaterial from '~icons/material-symbols/upload-file';
 import IcFolderOpenMaterial from '~icons/material-symbols/folder-open';
 import IcFullscreenMaterial from '~icons/material-symbols/fullscreen';
 import IcGraduationCapMaterial from '~icons/material-symbols/school';
+import IcGridMaterial from '~icons/material-symbols/grid-3x3';
+import IcRulerMaterial from '~icons/material-symbols/straighten';
 import IcHistoryMaterial from '~icons/material-symbols/history';
 import IcHomeMaterial from '~icons/material-symbols/home';
 import IcImageUpMaterial from '~icons/material-symbols/add-photo-alternate';
@@ -106,6 +108,8 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   FolderOpen: IcFolderOpenMaterial,
   Fullscreen: IcFullscreenMaterial,
   GraduationCap: IcGraduationCapMaterial,
+  Grid: IcGridMaterial,
+  Ruler: IcRulerMaterial,
   History: IcHistoryMaterial,
   Home: IcHomeMaterial,
   ImageUp: IcImageUpMaterial,

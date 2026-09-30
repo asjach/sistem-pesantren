@@ -59,6 +59,8 @@ const IKON = {
   Focus: ['focus'],
   Fullscreen: ['fullscreen'],
   GraduationCap: ['graduation-cap', 'graduation-cap-2', 'mortar-board', 'school', 'graduation', 'student', 'academic-cap', 'mortarboard'],
+  Grid: ['grid-3x3', 'grid', 'layout-grid', 'grid-2x2', 'view-grid'],
+  Ruler: ['ruler', 'ruler-2', 'straighten', 'measure'],
   History: ['history', 'clock-rotate-left', 'time-machine', 'history-2', 'clock-counter-clockwise', 'recent', 'clock', 'clock-history'],
   Home: ['home', 'house', 'home-2', 'home-line', 'home-4'],
   ImageUp: ['image-up', 'image-upload', 'photo-up', 'picture-arrow-up', 'image-plus', 'photo-add', 'add-photo', 'media-image-plus', 'add-photo-alternate'],

@@ -33,6 +33,8 @@ import IcFolderOpenLucide from '~icons/lucide/folder-open';
 import IcFocusLucide from '~icons/lucide/focus';
 import IcFullscreenLucide from '~icons/lucide/fullscreen';
 import IcGraduationCapLucide from '~icons/lucide/graduation-cap';
+import IcGridLucide from '~icons/lucide/grid-3x3';
+import IcRulerLucide from '~icons/lucide/ruler';
 import IcHistoryLucide from '~icons/lucide/history';
 import IcHomeLucide from '~icons/lucide/home';
 import IcImageUpLucide from '~icons/lucide/image-up';
@@ -120,6 +122,8 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   Focus: IcFocusLucide,
   Fullscreen: IcFullscreenLucide,
   GraduationCap: IcGraduationCapLucide,
+  Grid: IcGridLucide,
+  Ruler: IcRulerLucide,
   History: IcHistoryLucide,
   Home: IcHomeLucide,
   ImageUp: IcImageUpLucide,

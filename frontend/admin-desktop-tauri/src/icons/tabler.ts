@@ -32,6 +32,8 @@ import IcFileUpTabler from '~icons/tabler/file-upload';
 import IcFolderOpenTabler from '~icons/tabler/folder-open';
 import IcFocusTabler from '~icons/tabler/focus';
 import IcGraduationCapTabler from '~icons/tabler/school';
+import IcGridTabler from '~icons/tabler/grid-3x3';
+import IcRulerTabler from '~icons/tabler/ruler';
 import IcHistoryTabler from '~icons/tabler/history';
 import IcHomeTabler from '~icons/tabler/home';
 import IcImageUpTabler from '~icons/tabler/photo-up';
@@ -110,6 +112,8 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   FolderOpen: IcFolderOpenTabler,
   Focus: IcFocusTabler,
   GraduationCap: IcGraduationCapTabler,
+  Grid: IcGridTabler,
+  Ruler: IcRulerTabler,
   History: IcHistoryTabler,
   Home: IcHomeTabler,
   ImageUp: IcImageUpTabler,

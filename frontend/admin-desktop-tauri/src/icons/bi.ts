@@ -31,6 +31,7 @@ import IcFileUpBi from '~icons/bi/file-arrow-up';
 import IcFolderOpenBi from '~icons/bi/folder';
 import IcFullscreenBi from '~icons/bi/fullscreen';
 import IcGraduationCapBi from '~icons/bi/mortarboard';
+import IcGridBi from '~icons/bi/grid-3x3';
 import IcHistoryBi from '~icons/bi/clock';
 import IcHomeBi from '~icons/bi/house';
 import IcLandmarkBi from '~icons/bi/bank';
@@ -103,6 +104,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   FolderOpen: IcFolderOpenBi,
   Fullscreen: IcFullscreenBi,
   GraduationCap: IcGraduationCapBi,
+  Grid: IcGridBi,
   History: IcHistoryBi,
   Home: IcHomeBi,
   Landmark: IcLandmarkBi,

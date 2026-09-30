@@ -7,7 +7,6 @@ import { useLembagaAktif } from '@/lembagaAktif';
 import { useTheme } from '@/theme';
 import { cn } from '@/lib/utils';
 import { ChevronDown } from '@/icons';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 const itemBase =
   'flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--sidebar-foreground)]/60';
@@ -243,33 +242,26 @@ export default function Sidebar() {
     const idx = indeksNode(n);
     return (
       <div key={n.kunci}>
-        <div className={segmenSub(terakhir, buka, segAktif, lanjutAktif)}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                id={`btn_grup_sidebar_${idAman}`}
-                type="button"
-                aria-expanded={buka}
-                aria-controls={`grup_sidebar_${idAman}`}
-                aria-label={`${buka ? 'Tutup' : 'Buka'} grup ${n.def.label}`}
-                onClick={() => jungkitGrup(n.kunci)}
-                className={cn(
-                  itemBase,
-                  'w-full py-1 text-[13px]',
-                  cabang(jalurAktif.includes(n.kunci)),
-                  'text-white/75 hover:bg-white/10 hover:text-white',
-                )}
-              >
-                <SubIkon size={14} />
-                <span className="flex-1 truncate text-left">{n.def.label}</span>
-                <ChevronDown size={12} className={cn('shrink-0 text-white/60 transition-transform', !buka && '-rotate-90')} />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>{`${buka ? 'Tutup' : 'Buka'} grup ${n.def.label}`}</p>
-            </TooltipContent>
-          </Tooltip>
-        </div>
+          <div className={segmenSub(terakhir, buka, segAktif, lanjutAktif)}>
+            <button
+              id={`btn_grup_sidebar_${idAman}`}
+              type="button"
+              aria-expanded={buka}
+              aria-controls={`grup_sidebar_${idAman}`}
+              aria-label={`${buka ? 'Tutup' : 'Buka'} grup ${n.def.label}`}
+              onClick={() => jungkitGrup(n.kunci)}
+              className={cn(
+                itemBase,
+                'w-full py-1 text-[13px]',
+                cabang(jalurAktif.includes(n.kunci)),
+                'text-white/75 hover:bg-white/10 hover:text-white',
+              )}
+            >
+              <SubIkon size={14} />
+              <span className="flex-1 truncate text-left">{n.def.label}</span>
+              <ChevronDown size={12} className={cn('shrink-0 text-white/60 transition-transform', !buka && '-rotate-90')} />
+            </button>
+          </div>
         {buka && (
           <div
             id={`grup_sidebar_${idAman}`}
@@ -360,30 +352,23 @@ export default function Sidebar() {
             : halAktif === e.hal));
           return (
             <div key={g.id} className="mb-1.5">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    id={`btn_grup_sidebar_${g.id}`}
-                    type="button"
-                    aria-expanded={terbuka}
-                    aria-controls={`grup_sidebar_${g.id}`}
-                    aria-label={`${terbuka ? 'Tutup' : 'Buka'} grup ${g.label}`}
-                    onClick={() => jungkitGrup(g.id)}
-                    className={cn(
-                      itemBase,
-                      'w-full',
-                      'text-white/75 hover:bg-white/10 hover:text-white',
-                    )}
-                  >
-                    <GrupIkon size={16} />
-                    <span className="flex-1 truncate text-left">{g.label}</span>
-                    <ChevronDown size={14} className={cn('shrink-0 text-white/60 transition-transform', !terbuka && '-rotate-90')} />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>{`${terbuka ? 'Tutup' : 'Buka'} grup ${g.label}`}</p>
-                </TooltipContent>
-              </Tooltip>
+              <button
+                id={`btn_grup_sidebar_${g.id}`}
+                type="button"
+                aria-expanded={terbuka}
+                aria-controls={`grup_sidebar_${g.id}`}
+                aria-label={`${terbuka ? 'Tutup' : 'Buka'} grup ${g.label}`}
+                onClick={() => jungkitGrup(g.id)}
+                className={cn(
+                  itemBase,
+                  'w-full',
+                  'text-white/75 hover:bg-white/10 hover:text-white',
+                )}
+              >
+                <GrupIkon size={16} />
+                <span className="flex-1 truncate text-left">{g.label}</span>
+                <ChevronDown size={14} className={cn('shrink-0 text-white/60 transition-transform', !terbuka && '-rotate-90')} />
+              </button>
               {terbuka && (
                 <div
                   id={`grup_sidebar_${g.id}`}
