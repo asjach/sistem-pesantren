@@ -12,6 +12,8 @@ import { useLembagaAktif } from '@/lembagaAktif';
 import { useKamusPeta } from '@/components/useKamusPeta';
 import MultiSelect from '@/components/MultiSelect';
 import { Button } from '@/components/ui/button';
+import TombolIkon from '@/components/TombolIkon';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { DialogFooter } from '@/components/ui/dialog';
@@ -267,15 +269,15 @@ export default function TabUrutan({ tableKey, onTutup }: { tableKey: string; onT
                 />
                 Bawaan
               </label>
-              <Button
+              <TombolIkon
                 type="button" variant="outline" size="icon-sm"
                 id={`btn_urut_hapus_${tableKey}_${i}`}
-                title="Hapus opsi" aria-label="Hapus opsi"
+                tip="Hapus opsi"
                 disabled={!bolehSimpan}
                 onClick={() => setDraft((d) => d.filter((_, j) => j !== i))}
               >
                 <Trash2 size={14} />
-              </Button>
+              </TombolIkon>
               {/* Arah per kolom: muncul hanya bila opsi memilih ≥ 2 kolom. */}
               {o.kode.length >= 2 && bolehSimpan && (
                 <div
@@ -291,28 +293,34 @@ export default function TabUrutan({ tableKey, onTutup }: { tableKey: string; onT
                         className="inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px]"
                       >
                         <span className="max-w-40 truncate">{labelKode([k])}</span>
-                        <button
-                          type="button"
-                          id={`btn_arah_kolom_${tableKey}_${i}_${k.replace(/[^a-z0-9_]/gi, '_')}`}
-                          title={arahIni === null ? `Arah ${labelKode([k])}: ikut global (${o.arah === 'turun' ? 'turun' : 'naik'}) — klik untuk ganti` : `Arah ${labelKode([k])}: ${arahIni} — klik untuk ganti`}
-                          aria-label={`Arah kolom ${labelKode([k])}: ${arahIni === 'turun' ? 'turun' : arahIni === 'naik' ? 'naik' : 'ikut global'}`}
-                          disabled={!bolehSimpan}
-                          onClick={() => {
-                            // Siklus: ikut global → naik → turun → ikut global.
-                            setArahKolom(i, k, arahIni === null ? 'naik' : arahIni === 'naik' ? 'turun' : null);
-                          }}
-                          className={cn(
-                            'grid size-5 place-items-center rounded hover:bg-accent disabled:opacity-50',
-                            arahIni === 'turun' && 'text-blue-600 dark:text-blue-400',
-                            arahIni === 'naik' && 'text-emerald-600 dark:text-emerald-400',
-                          )}
-                        >
-                          {arahIni === 'turun'
-                            ? <ArrowDownAZ size={12} />
-                            : arahIni === 'naik'
-                              ? <ArrowUpAZ size={12} />
-                              : <span className="text-[10px] text-muted-foreground">ikut</span>}
-                        </button>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              type="button"
+                              id={`btn_arah_kolom_${tableKey}_${i}_${k.replace(/[^a-z0-9_]/gi, '_')}`}
+                              aria-label={`Arah kolom ${labelKode([k])}: ${arahIni === 'turun' ? 'turun' : arahIni === 'naik' ? 'naik' : 'ikut global'}`}
+                              disabled={!bolehSimpan}
+                              onClick={() => {
+                                // Siklus: ikut global → naik → turun → ikut global.
+                                setArahKolom(i, k, arahIni === null ? 'naik' : arahIni === 'naik' ? 'turun' : null);
+                              }}
+                              className={cn(
+                                'grid size-5 place-items-center rounded hover:bg-accent disabled:opacity-50',
+                                arahIni === 'turun' && 'text-blue-600 dark:text-blue-400',
+                                arahIni === 'naik' && 'text-emerald-600 dark:text-emerald-400',
+                              )}
+                            >
+                              {arahIni === 'turun'
+                                ? <ArrowDownAZ size={12} />
+                                : arahIni === 'naik'
+                                  ? <ArrowUpAZ size={12} />
+                                  : <span className="text-[10px] text-muted-foreground">ikut</span>}
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{arahIni === null ? `Arah ${labelKode([k])}: ikut global (${o.arah === 'turun' ? 'turun' : 'naik'}) — klik untuk ganti` : `Arah ${labelKode([k])}: ${arahIni} — klik untuk ganti`}</p>
+                          </TooltipContent>
+                        </Tooltip>
                       </span>
                     );
                   })}

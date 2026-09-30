@@ -1,7 +1,8 @@
 import { Children, Fragment, isValidElement, useState, type ReactElement, type ReactNode } from 'react';
 import type { CellProps } from 'react-datasheet-grid';
 import { ActionIcon, DeleteAction, EditAction, SetAktifAction, ViewAction } from '@/components/RowActions';
-import { buttonVariants } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -110,11 +111,26 @@ export function ActionsCell({ rowData, columnData }: CellProps<GridRow, ActionsC
   return (
     <div className="simpes-dsg-actions flex h-full flex-1 items-center justify-end gap-1" {...stop}>
       <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
-        <DropdownMenuTrigger asChild>
-          <ActionIcon id={`btn_aksi_lain_${rowData.id}`} title="Aksi lainnya">
-            <MoreVertical size={16} />
-          </ActionIcon>
-        </DropdownMenuTrigger>
+        {/* Rantai asChild ganda (menu→tooltip→button) agar pemicu hamburger
+            tetap satu elemen sekaligus ber-tooltip shadcn. */}
+        <Tooltip>
+          <DropdownMenuTrigger asChild>
+            <TooltipTrigger asChild>
+              <Button
+                id={`btn_aksi_lain_${rowData.id}`}
+                aria-label="Aksi lainnya"
+                variant="ghost"
+                size="icon-sm"
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <MoreVertical size={16} />
+              </Button>
+            </TooltipTrigger>
+          </DropdownMenuTrigger>
+          <TooltipContent>
+            <p>Aksi lainnya</p>
+          </TooltipContent>
+        </Tooltip>
         <DropdownMenuContent align="end" className="min-w-44">
           {aksi.map((el, i) => {
             const m = metaAksi(el);

@@ -23,15 +23,18 @@ import IcChevronRightMaterial from '~icons/material-symbols/chevron-right';
 import IcClipboardCheckMaterial from '~icons/material-symbols/task';
 import IcClipboardListMaterial from '~icons/material-symbols/assignment';
 import IcCopyMaterial from '~icons/material-symbols/content-copy';
+import IcCropMaterial from '~icons/material-symbols/crop';
 import IcEyeMaterial from '~icons/material-symbols/visibility';
 import IcExternalLinkMaterial from '~icons/material-symbols/new-window';
 import IcFileUpMaterial from '~icons/material-symbols/upload-file';
 import IcFolderOpenMaterial from '~icons/material-symbols/folder-open';
+import IcFullscreenMaterial from '~icons/material-symbols/fullscreen';
 import IcGraduationCapMaterial from '~icons/material-symbols/school';
 import IcHistoryMaterial from '~icons/material-symbols/history';
 import IcHomeMaterial from '~icons/material-symbols/home';
 import IcImageUpMaterial from '~icons/material-symbols/add-photo-alternate';
 import IcLandmarkMaterial from '~icons/material-symbols/museum';
+import IcLink2Material from '~icons/material-symbols/link-2';
 import IcLogOutMaterial from '~icons/material-symbols/logout';
 import IcMinusMaterial from '~icons/material-symbols/remove';
 import IcMonitorMaterial from '~icons/material-symbols/monitor';
@@ -46,13 +49,16 @@ import IcPlusMaterial from '~icons/material-symbols/add';
 import IcPlusCircleMaterial from '~icons/material-symbols/add-circle';
 import IcReceiptTextMaterial from '~icons/material-symbols/receipt';
 import IcRotateCcwMaterial from '~icons/material-symbols/rotate-left';
+import IcRotateCwMaterial from '~icons/material-symbols/rotate-right';
 import IcSaveMaterial from '~icons/material-symbols/save';
+import IcScalingMaterial from '~icons/material-symbols/scale';
 import IcScrollTextMaterial from '~icons/material-symbols/notes';
 import IcSearchMaterial from '~icons/material-symbols/search';
 import IcServerMaterial from '~icons/material-symbols/dns';
 import IcSunMaterial from '~icons/material-symbols/light-mode';
 import IcTrash2Material from '~icons/material-symbols/delete';
 import IcUndo2Material from '~icons/material-symbols/undo';
+import IcUnlinkMaterial from '~icons/material-symbols/link-off';
 import IcUploadMaterial from '~icons/material-symbols/upload';
 import IcDownloadMaterial from '~icons/material-symbols/download';
 import IcUserCheckMaterial from '~icons/material-symbols/person-check';
@@ -93,15 +99,18 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   ClipboardCheck: IcClipboardCheckMaterial,
   ClipboardList: IcClipboardListMaterial,
   Copy: IcCopyMaterial,
+  Crop: IcCropMaterial,
   Eye: IcEyeMaterial,
   ExternalLink: IcExternalLinkMaterial,
   FileUp: IcFileUpMaterial,
   FolderOpen: IcFolderOpenMaterial,
+  Fullscreen: IcFullscreenMaterial,
   GraduationCap: IcGraduationCapMaterial,
   History: IcHistoryMaterial,
   Home: IcHomeMaterial,
   ImageUp: IcImageUpMaterial,
   Landmark: IcLandmarkMaterial,
+  Link2: IcLink2Material,
   LogOut: IcLogOutMaterial,
   Minus: IcMinusMaterial,
   Monitor: IcMonitorMaterial,
@@ -116,13 +125,16 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   PlusCircle: IcPlusCircleMaterial,
   ReceiptText: IcReceiptTextMaterial,
   RotateCcw: IcRotateCcwMaterial,
+  RotateCw: IcRotateCwMaterial,
   Save: IcSaveMaterial,
+  Scaling: IcScalingMaterial,
   ScrollText: IcScrollTextMaterial,
   Search: IcSearchMaterial,
   Server: IcServerMaterial,
   Sun: IcSunMaterial,
   Trash2: IcTrash2Material,
   Undo2: IcUndo2Material,
+  Unlink: IcUnlinkMaterial,
   Upload: IcUploadMaterial,
   Download: IcDownloadMaterial,
   UserCheck: IcUserCheckMaterial,

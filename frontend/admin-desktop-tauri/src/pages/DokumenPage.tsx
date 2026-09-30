@@ -19,6 +19,7 @@ import {
 } from '../api/dokumen';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
+import TombolIkon from '@/components/TombolIkon';
 import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/field';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -274,40 +275,40 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
   const renderActions = useCallback((r: DokumenRow) => (
     <>
       {canUbah && (
-        <Button
+        <TombolIkon
+          tip={perluDesktop(r) ? 'Baris arsip perangkat hanya bisa diganti lewat aplikasi desktop' : (r.nama_file ? 'Ganti berkas' : 'Unggah berkas')}
           id={`btn_unggah_dok_${r.id}`}
           size="sm"
           variant="outline"
-          title={perluDesktop(r) ? 'Baris arsip perangkat hanya bisa diganti lewat aplikasi desktop' : (r.nama_file ? 'Ganti berkas' : 'Unggah berkas')}
           disabled={perluDesktop(r)}
           onClick={() => { setUnggahFile(null); setUnggahRow(r); }}
         >
           <Upload size={14} />
-        </Button>
+        </TombolIkon>
       )}
       {r.nama_file && (
-        <Button
+        <TombolIkon
+          tip={perluDesktop(r) ? 'Berkas hanya ada di arsip perangkat — buka lewat aplikasi desktop' : 'Unduh berkas'}
           id={`btn_unduh_dok_${r.id}`}
           size="sm"
           variant="outline"
-          title={perluDesktop(r) ? 'Berkas hanya ada di arsip perangkat — buka lewat aplikasi desktop' : 'Unduh berkas'}
           disabled={perluDesktop(r)}
           onClick={() => void unduhCerdas(r)}
         >
           <Download size={14} />
-        </Button>
+        </TombolIkon>
       )}
       {canHapus && (
-        <Button
+        <TombolIkon
+          tip={perluDesktop(r) ? 'Baris arsip perangkat hanya bisa dihapus lewat aplikasi desktop (agar salinannya ikut bersih)' : 'Hapus dokumen'}
           id={`btn_hapus_dok_${r.id}`}
           size="sm"
           variant="destructive"
-          title={perluDesktop(r) ? 'Baris arsip perangkat hanya bisa dihapus lewat aplikasi desktop (agar salinannya ikut bersih)' : 'Hapus dokumen'}
           disabled={perluDesktop(r)}
           onClick={() => setHapusRow(r)}
         >
           <Trash2 size={14} />
-        </Button>
+        </TombolIkon>
       )}
     </>
   ), [canUbah, canHapus, tipe, unduhCerdas, perluDesktop]);

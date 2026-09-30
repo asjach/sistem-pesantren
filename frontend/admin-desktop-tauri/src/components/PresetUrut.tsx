@@ -5,7 +5,7 @@ import {
   type PresetUrutData,
 } from '@/api/urutPreset';
 import FilterField from '@/components/FilterField';
-import { Button } from '@/components/ui/button';
+import TombolIkon from '@/components/TombolIkon';
 import {
   Select,
   SelectContent,
@@ -133,18 +133,17 @@ export default function PresetUrut({
           </SelectContent>
         </Select>
       </FilterField>
-      <Button
+      <TombolIkon
         id={`btn_arah_urut_${tableKey}`}
         variant="outline"
         size="icon-sm"
         className="rounded-l-none border-l"
-        title={`Balik arah urutan (kini: ${arahUrut === 'naik' ? 'naik' : 'turun'})`}
-        aria-label={`Arah urutan: ${arahUrut === 'naik' ? 'naik' : 'turun'}`}
+        tip={`Balik arah urutan (kini: ${arahUrut === 'naik' ? 'naik' : 'turun'})`}
         disabled={(urutAktif ?? []).length === 0}
         onClick={balikArah}
       >
         {arahUrut === 'naik' ? <ChevronUp /> : <ChevronDown />}
-      </Button>
+      </TombolIkon>
     </span>
   );
 }

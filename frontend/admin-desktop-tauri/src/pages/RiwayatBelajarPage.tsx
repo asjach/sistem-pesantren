@@ -13,6 +13,7 @@ import {
 import { daftarSemester } from '../api/semesterAktif';
 import { listKelas, listTahunAjaran, type Kelas } from '../api/master';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -329,17 +330,21 @@ export default function RiwayatBelajarPage() {
                      </Select>
                    </FilterField>
                  )}
-                 addButton={canPindah ? (
-                   <Button
-                     id="btn_pindah_semester_riwayat"
-                     size="sm"
-                     disabled={!pindahAktif || pindahBusy || ringkasanPindahLoading}
-                     title={!pindahAktif ? 'Pindah hanya aktif pada tahun ajaran aktif dan semester aktif Ganjil.' : 'Pindahkan semua data aktif pada filter ini'}
-                     onClick={() => void bukaPindah()}
-                   >
-                     Salin ke Genap
-                   </Button>
-                 ) : undefined}
+                  addButton={canPindah ? (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          id="btn_pindah_semester_riwayat"
+                          size="sm"
+                          disabled={!pindahAktif || pindahBusy || ringkasanPindahLoading}
+                          onClick={() => void bukaPindah()}
+                        >
+                          Salin ke Genap
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent><p>{!pindahAktif ? 'Pindah hanya aktif pada tahun ajaran aktif dan semester aktif Ganjil.' : 'Pindahkan semua data aktif pada filter ini'}</p></TooltipContent>
+                    </Tooltip>
+                  ) : undefined}
                 fields={FIELDS_RIWAYAT}
                rows={kiri.rows}
                getValues={riwayatBelajarValues}
@@ -371,29 +376,37 @@ export default function RiwayatBelajarPage() {
                  header={<span>Semester Genap</span>}
                addButton={canPindah || canTambah ? (
                  <>
-                   {canPindah ? (
-                     <Button
-                       id="btn_batal_semester_riwayat"
-                       size="sm"
-                       variant="outline"
-                       disabled={!batalAktif || batalBusy}
-                       title={!batalAktif ? 'Batal hanya tersedia pada tahun ajaran aktif.' : 'Batalkan pemindahan semester 2 pada filter ini'}
-                       onClick={() => setBatalOpen(true)}
-                     >
-                       Batal
-                     </Button>
-                   ) : null}
-                   {canTambah ? (
-                     <Button
-                       id="btn_buka_import_bertahap"
-                       size="sm"
-                       variant="outline"
-                       title="Untuk file besar (puluhan hingga ratusan ribu baris)"
-                       onClick={() => setBertahapOpen(true)}
-                     >
-                       <FileUp data-icon="inline-start" size={16} /> Import bertahap
-                     </Button>
-                   ) : null}
+                    {canPindah ? (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            id="btn_batal_semester_riwayat"
+                            size="sm"
+                            variant="outline"
+                            disabled={!batalAktif || batalBusy}
+                            onClick={() => setBatalOpen(true)}
+                          >
+                            Batal
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent><p>{!batalAktif ? 'Batal hanya tersedia pada tahun ajaran aktif.' : 'Batalkan pemindahan semester 2 pada filter ini'}</p></TooltipContent>
+                      </Tooltip>
+                    ) : null}
+                    {canTambah ? (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            id="btn_buka_import_bertahap"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setBertahapOpen(true)}
+                          >
+                            <FileUp data-icon="inline-start" size={16} /> Import bertahap
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent><p>Untuk file besar (puluhan hingga ratusan ribu baris)</p></TooltipContent>
+                      </Tooltip>
+                    ) : null}
                  </>
                ) : undefined}
                fields={FIELDS_RIWAYAT}

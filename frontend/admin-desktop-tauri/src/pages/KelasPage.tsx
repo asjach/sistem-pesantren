@@ -21,6 +21,8 @@ import {
   type TahunAjaran,
 } from '../api/master';
 import { Button } from '@/components/ui/button';
+import TombolIkon from '@/components/TombolIkon';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/field';
 import {
@@ -606,14 +608,18 @@ export default function KelasPage() {
                 </Button>
               </>
             )}
-            <Button
-              id="btn_buka_import_kelas"
-              variant="outline"
-              title="Import file kelas (multi-lembaga & multi-tahun ajaran; izin per baris mengikuti akun)"
-              onClick={() => setFileOpen(true)}
-            >
-              <FileUp data-icon="inline-start" size={16} /> Import
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  id="btn_buka_import_kelas"
+                  variant="outline"
+                  onClick={() => setFileOpen(true)}
+                >
+                  <FileUp data-icon="inline-start" size={16} /> Import
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent><p>Import file kelas (multi-lembaga & multi-tahun ajaran; izin per baris mengikuti akun)</p></TooltipContent>
+            </Tooltip>
             <Button id="btn_buka_tambah_kelas" onClick={bukaTambah}>
               + Kelas
             </Button>
@@ -726,18 +732,17 @@ export default function KelasPage() {
                     value={b.kapasitas}
                     onChange={(e) => ubahBaris(i, 'kapasitas', e.target.value)}
                   />
-                  <Button
+                  <TombolIkon
+                    tip="Hapus baris"
                     id={`btn_hapus_baris_kelas_${i}`}
                     type="button"
                     variant="ghost"
                     size="icon-sm"
-                    title="Hapus baris"
-                    aria-label={`Hapus baris ${i + 1}`}
                     disabled={barisKelas.length <= 1}
                     onClick={() => hapusBaris(i)}
                   >
                     <X size={16} />
-                  </Button>
+                  </TombolIkon>
                 </div>
               ))}
               <Button

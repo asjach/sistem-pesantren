@@ -4,6 +4,7 @@ import { errorMessage } from '@/api/client';
 import { BAGIAN_IDENTITAS, type PanelIdentitas } from '@/components/santri/bagianIdentitas';
 import { TGL_KEYS } from '@/components/santri/kolomIdentitas';
 import { Copy } from '@/icons';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { copyText } from '@/lib/clipboard';
 import { formatStatus, namaLembaga, namaTahunAjaran } from '@/lib/nilaiTampil';
 import { cn } from '@/lib/utils';
@@ -163,16 +164,22 @@ function Baris({ kunci, mentah, onSalin }: {
         {nilai || '—'}
       </dd>
       {nilai !== '' && (
-        <button
-          type="button"
-          id={`btn_salin_${kunci}`}
-          title={`Salin ${label}`}
-          aria-label={`Salin ${label}`}
-          onClick={() => onSalin(kunci)}
-          className="grid size-4 shrink-0 place-items-center self-center rounded text-muted-foreground opacity-0 transition-opacity hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100"
-        >
-          <Copy size={12} />
-        </button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              id={`btn_salin_${kunci}`}
+              aria-label={`Salin ${label}`}
+              onClick={() => onSalin(kunci)}
+              className="grid size-4 shrink-0 place-items-center self-center rounded text-muted-foreground opacity-0 transition-opacity hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100"
+            >
+              <Copy size={12} />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>{`Salin ${label}`}</p>
+          </TooltipContent>
+        </Tooltip>
       )}
     </div>
   );

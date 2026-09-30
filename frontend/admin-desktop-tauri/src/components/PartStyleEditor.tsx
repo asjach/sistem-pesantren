@@ -22,6 +22,8 @@ import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useDefaultLayout } from 'react-resizable-panels';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import TombolIkon from '@/components/TombolIkon';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
   AlertDialog,
@@ -146,17 +148,17 @@ function WarnaField({
           if (n) onChange(n);
         }}
       />
-      <Button
+      <TombolIkon
         id={`${id}_reset`}
         type="button"
         variant="ghost"
         size="icon-sm"
-        title="Kembalikan ke bawaan"
+        tip="Kembalikan ke bawaan"
         disabled={nilai == null}
         onClick={() => onChange(undefined)}
       >
         <RotateCcw size={14} />
-      </Button>
+      </TombolIkon>
     </div>
   );
 }
@@ -201,17 +203,23 @@ function AngkaField({
     <div className="flex items-center gap-1.5">
       <Label htmlFor={id} className="w-20 shrink-0">{label}</Label>
       <div className="flex h-6 min-w-0 flex-1 items-stretch overflow-hidden rounded-md border bg-transparent focus-within:ring-2 focus-within:ring-ring/40">
-        <button
-          type="button"
-          id={`${id}_kurang`}
-          aria-label={`${label} kurang`}
-          title={`${label} −1`}
-          disabled={basis <= min}
-          onClick={() => langkah(-1)}
-          className={tombol}
-        >
-          <Minus size={12} />
-        </button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              id={`${id}_kurang`}
+              aria-label={`${label} kurang`}
+              disabled={basis <= min}
+              onClick={() => langkah(-1)}
+              className={tombol}
+            >
+              <Minus size={12} />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>{`${label} −1`}</p>
+          </TooltipContent>
+        </Tooltip>
         <input
           id={id}
           type="text"
@@ -227,17 +235,23 @@ function AngkaField({
             if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
           }}
         />
-        <button
-          type="button"
-          id={`${id}_tambah`}
-          aria-label={`${label} tambah`}
-          title={`${label} +1`}
-          disabled={basis >= max}
-          onClick={() => langkah(1)}
-          className={tombol}
-        >
-          <Plus size={12} />
-        </button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              id={`${id}_tambah`}
+              aria-label={`${label} tambah`}
+              disabled={basis >= max}
+              onClick={() => langkah(1)}
+              className={tombol}
+            >
+              <Plus size={12} />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>{`${label} +1`}</p>
+          </TooltipContent>
+        </Tooltip>
       </div>
       <span className="w-4 shrink-0 text-xs text-muted-foreground">px</span>
     </div>
@@ -464,32 +478,37 @@ export default function PartStyleEditor() {
 
   /** Tombol satu bagian (dipakai di dalam sub-kelompok). */
   const tombolBagian = (p: (typeof PARTS)[number]) => (
-    <button
-      key={p.id}
-      id={`btn_bagian_${p.id}`}
-      type="button"
-      title={p.hint}
-      data-part="daftar_bagian"
-      onClick={() => setAktif(p.id)}
-      className={cn(
-        'flex min-w-0 flex-1 items-center gap-2 rounded px-2 py-1.5 text-left text-xs transition-colors',
-        p.id === aktif ? 'bg-accent font-medium text-accent-foreground' : 'hover:bg-muted',
-        p.belumDipakai && p.id !== aktif && 'text-muted-foreground',
-      )}
-    >
-      <span className="flex-1 truncate">{p.label}</span>
-      {p.belumDipakai && (
-        <span
-          className="shrink-0 rounded-sm border px-1 text-[9px] leading-4 text-muted-foreground"
-          title="Belum dipakai di aplikasi — pengaturan hanya tampak di pratinjau"
+    <Tooltip key={p.id}>
+      <TooltipTrigger asChild>
+        <button
+          id={`btn_bagian_${p.id}`}
+          type="button"
+          data-part="daftar_bagian"
+          onClick={() => setAktif(p.id)}
+          className={cn(
+            'flex min-w-0 flex-1 items-center gap-2 rounded px-2 py-1.5 text-left text-xs transition-colors',
+            p.id === aktif ? 'bg-accent font-medium text-accent-foreground' : 'hover:bg-muted',
+            p.belumDipakai && p.id !== aktif && 'text-muted-foreground',
+          )}
         >
-          belum
-        </span>
-      )}
-      {diatur(p.id) && (
-        <span className="size-1.5 shrink-0 rounded-full bg-primary" title="Ada pengaturan" />
-      )}
-    </button>
+          <span className="flex-1 truncate">{p.label}</span>
+          {p.belumDipakai && (
+            <span
+              className="shrink-0 rounded-sm border px-1 text-[9px] leading-4 text-muted-foreground"
+              title="Belum dipakai di aplikasi — pengaturan hanya tampak di pratinjau"
+            >
+              belum
+            </span>
+          )}
+          {diatur(p.id) && (
+            <span className="size-1.5 shrink-0 rounded-full bg-primary" title="Ada pengaturan" />
+          )}
+        </button>
+      </TooltipTrigger>
+      <TooltipContent>
+        <p>{p.hint}</p>
+      </TooltipContent>
+    </Tooltip>
   );
 
   /** Baris satu bagian; bila punya sub-komponen, tampilkan anak bersarang. */
@@ -501,16 +520,22 @@ export default function PartStyleEditor() {
     return (
       <div key={p.id} className="flex flex-col gap-0.5">
         <div className="flex items-center gap-0.5">
-          <button
-            type="button"
-            id={`btn_sub_bagian_${p.id}`}
-            aria-expanded={buka}
-            title={tertutup[kunci] ? `Buka sub ${p.label}` : `Tutup sub ${p.label}`}
-            onClick={() => alihGrup(kunci)}
-            className="grid size-5 shrink-0 place-items-center rounded text-muted-foreground/80 hover:bg-muted"
-          >
-            <ChevronDown size={11} className={cn('transition-transform', !buka && '-rotate-90')} />
-          </button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                id={`btn_sub_bagian_${p.id}`}
+                aria-expanded={buka}
+                onClick={() => alihGrup(kunci)}
+                className="grid size-5 shrink-0 place-items-center rounded text-muted-foreground/80 hover:bg-muted"
+              >
+                <ChevronDown size={11} className={cn('transition-transform', !buka && '-rotate-90')} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{tertutup[kunci] ? `Buka sub ${p.label}` : `Tutup sub ${p.label}`}</p>
+            </TooltipContent>
+          </Tooltip>
           {tombolBagian(p)}
         </div>
         {buka && anak.length > 0 && (
@@ -544,18 +569,24 @@ export default function PartStyleEditor() {
               Tampilkan yang belum dipakai
             </Label>
           </div>
-          <Button
-            id="btn_pilih_komponen"
-            type="button"
-            variant={picker.aktif ? 'default' : 'outline'}
-            size="sm"
-            className="w-full"
-            data-picker-abaikan
-            onClick={() => (picker.aktif ? picker.batal() : picker.mulai())}
-            title="Klik komponen mana pun di halaman ini untuk membuka pengaturannya"
-          >
-            <SquareMousePointer size={14} /> {picker.aktif ? 'Batal pilih (Esc)' : 'Pilih komponen'}
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                id="btn_pilih_komponen"
+                type="button"
+                variant={picker.aktif ? 'default' : 'outline'}
+                size="sm"
+                className="w-full"
+                data-picker-abaikan
+                onClick={() => (picker.aktif ? picker.batal() : picker.mulai())}
+              >
+                <SquareMousePointer size={14} /> {picker.aktif ? 'Batal pilih (Esc)' : 'Pilih komponen'}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Klik komponen mana pun di halaman ini untuk membuka pengaturannya</p>
+            </TooltipContent>
+          </Tooltip>
           {picker.aktif && (
             <p className="rounded-md border border-dashed px-2 py-1 text-[11px] text-muted-foreground">
               Klik komponen mana pun untuk membukanya. Esc untuk batal.
@@ -567,38 +598,50 @@ export default function PartStyleEditor() {
             return (
               <div key={gr.nama}>
                 <div className="flex items-center gap-0.5">
-                  <button
-                    id={`btn_grup_${slug(gr.nama)}`}
-                    type="button"
-                    aria-expanded={bukaGrup}
-                    title={tertutup[kunciGrup] ? `Buka grup ${gr.nama}` : `Tutup grup ${gr.nama}`}
-                    onClick={() => alihGrup(kunciGrup)}
-                    className="flex w-full items-center gap-1 rounded px-1 py-1 text-left hover:bg-muted"
-                  >
-                    <ChevronDown
-                      size={12}
-                      className={cn('shrink-0 text-muted-foreground transition-transform', !bukaGrup && '-rotate-90')}
-                    />
-                    <span className="flex-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      {gr.nama}
-                    </span>
-                    {gr.diatur > 0 && (
-                      <Badge variant="secondary" className="h-4 px-1 text-[10px] leading-none">
-                        {gr.diatur}
-                      </Badge>
-                    )}
-                  </button>
-                  <button
-                    type="button"
-                    id={`btn_reset_grup_${slug(gr.nama)}`}
-                    title={`Reset grup ${gr.nama}`}
-                    aria-label={`Reset grup ${gr.nama}`}
-                    disabled={gr.diatur === 0}
-                    onClick={() => resetGrup(gr.nama)}
-                    className="grid size-5 shrink-0 place-items-center rounded text-muted-foreground hover:bg-muted disabled:pointer-events-none disabled:opacity-30"
-                  >
-                    <RotateCcw size={11} />
-                  </button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        id={`btn_grup_${slug(gr.nama)}`}
+                        type="button"
+                        aria-expanded={bukaGrup}
+                        onClick={() => alihGrup(kunciGrup)}
+                        className="flex w-full items-center gap-1 rounded px-1 py-1 text-left hover:bg-muted"
+                      >
+                        <ChevronDown
+                          size={12}
+                          className={cn('shrink-0 text-muted-foreground transition-transform', !bukaGrup && '-rotate-90')}
+                        />
+                        <span className="flex-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          {gr.nama}
+                        </span>
+                        {gr.diatur > 0 && (
+                          <Badge variant="secondary" className="h-4 px-1 text-[10px] leading-none">
+                            {gr.diatur}
+                          </Badge>
+                        )}
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{tertutup[kunciGrup] ? `Buka grup ${gr.nama}` : `Tutup grup ${gr.nama}`}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        id={`btn_reset_grup_${slug(gr.nama)}`}
+                        aria-label={`Reset grup ${gr.nama}`}
+                        disabled={gr.diatur === 0}
+                        onClick={() => resetGrup(gr.nama)}
+                        className="grid size-5 shrink-0 place-items-center rounded text-muted-foreground hover:bg-muted disabled:pointer-events-none disabled:opacity-30"
+                      >
+                        <RotateCcw size={11} />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{`Reset grup ${gr.nama}`}</p>
+                    </TooltipContent>
+                  </Tooltip>
                 </div>
                 {bukaGrup && (
                   <div className="flex flex-col gap-1 pl-2">
@@ -614,30 +657,36 @@ export default function PartStyleEditor() {
                       const bukaSub = mencari || !tertutup[kunciSub];
                       return (
                         <div key={sb.nama}>
-                          <button
-                            id={`btn_sub_${slug(gr.nama)}_${slug(sb.nama)}`}
-                            type="button"
-                            aria-expanded={bukaSub}
-                            title={tertutup[kunciSub] ? `Buka sub ${sb.nama}` : `Tutup sub ${sb.nama}`}
-                            onClick={() => alihGrup(kunciSub)}
-                            className="flex w-full items-center gap-1 rounded px-1 py-0.5 text-left hover:bg-muted"
-                          >
-                            <ChevronDown
-                              size={11}
-                              className={cn(
-                                'shrink-0 text-muted-foreground/80 transition-transform',
-                                !bukaSub && '-rotate-90',
-                              )}
-                            />
-                            <span className="flex-1 text-[11px] font-medium text-muted-foreground">
-                              {sb.nama}
-                            </span>
-                            {sb.diatur > 0 && (
-                              <Badge variant="secondary" className="h-4 px-1 text-[10px] leading-none">
-                                {sb.diatur}
-                              </Badge>
-                            )}
-                          </button>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                id={`btn_sub_${slug(gr.nama)}_${slug(sb.nama)}`}
+                                type="button"
+                                aria-expanded={bukaSub}
+                                onClick={() => alihGrup(kunciSub)}
+                                className="flex w-full items-center gap-1 rounded px-1 py-0.5 text-left hover:bg-muted"
+                              >
+                                <ChevronDown
+                                  size={11}
+                                  className={cn(
+                                    'shrink-0 text-muted-foreground/80 transition-transform',
+                                    !bukaSub && '-rotate-90',
+                                  )}
+                                />
+                                <span className="flex-1 text-[11px] font-medium text-muted-foreground">
+                                  {sb.nama}
+                                </span>
+                                {sb.diatur > 0 && (
+                                  <Badge variant="secondary" className="h-4 px-1 text-[10px] leading-none">
+                                    {sb.diatur}
+                                  </Badge>
+                                )}
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{tertutup[kunciSub] ? `Buka sub ${sb.nama}` : `Tutup sub ${sb.nama}`}</p>
+                            </TooltipContent>
+                          </Tooltip>
                           {bukaSub && (
                             <div className="flex flex-col gap-0.5 pl-3">{sb.items.map(barisBagian)}</div>
                           )}
@@ -659,18 +708,17 @@ export default function PartStyleEditor() {
     <div className="flex flex-col rounded-xl border bg-card p-4 md:h-full md:min-h-0">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <span className="text-sm font-medium">Pratinjau</span>
-        <Button
+        <TombolIkon
           id="btn_reset_semua_bagian"
           type="button"
           variant="outline"
           size="sm"
+          tip="Reset semua"
           disabled={jumlahDiatur === 0}
           onClick={() => setKonfirmReset(true)}
-          title="Reset semua"
-          aria-label="Reset semua"
         >
           <RotateCcw size={14} />
-        </Button>
+        </TombolIkon>
       </div>
       <div id="pratinjau_bagian" className="grid gap-3 md:flex-1 md:grid-cols-2">
         <style>{bangunCssPratinjau(aktif, g, wTerang, selPratinjau, '#pratinjau_terang')}</style>

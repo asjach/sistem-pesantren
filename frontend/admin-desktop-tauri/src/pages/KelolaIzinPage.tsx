@@ -3,6 +3,7 @@ import { errorMessage } from '../api/client';
 import { getMatriks, simpanIzin, type MatriksIzin } from '../api/izin';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { X } from '@/icons';
@@ -107,16 +108,20 @@ export default function KelolaIzinPage() {
               className="w-35 pr-7"
             />
             {cari ? (
-              <button
-                type="button"
-                id="input_cari_izin_hapus"
-                title="Hapus isi pencarian"
-                aria-label="Hapus isi pencarian"
-                onClick={() => setCari('')}
-                className="absolute top-1/2 right-1.5 grid size-4 -translate-y-1/2 place-items-center rounded-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-              >
-                <X size={12} />
-              </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    id="input_cari_izin_hapus"
+                    aria-label="Hapus isi pencarian"
+                    onClick={() => setCari('')}
+                    className="absolute top-1/2 right-1.5 grid size-4 -translate-y-1/2 place-items-center rounded-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                  >
+                    <X size={12} />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent><p>Hapus isi pencarian</p></TooltipContent>
+              </Tooltip>
             ) : null}
           </div>
         </div>

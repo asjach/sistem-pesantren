@@ -1,14 +1,16 @@
-import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ComponentType } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import TombolIkon from '@/components/TombolIkon';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { errorMessage } from '../../api/client';
 import { formatUkuran } from '@/lib/arsipDokumen';
-import { TERJEMAHAN_EDITOR_ID } from '@/lib/terjemahEditor';
 import {
   bingkaiPutar,
   dimsKeluaran,
   EDISI_KOSONG,
+  edisiAktif,
   hasilkanGambar,
   jepitMiring,
   jepitUkuran,
@@ -23,14 +25,9 @@ import {
   type HasilGambar,
   type KualitasSimpan,
 } from '@/lib/olahGambar';
-import { ChevronLeft, ChevronRight, Download, Link2, Minus, Moon, Pencil, Plus, RefreshCcw, RefreshCw, RotateCcw, RotateCw, Scaling, Sun, Unlink, X } from '@/icons';
+import { Check, ChevronLeft, ChevronRight, Crop, Download, Focus, Fullscreen, Link2, Minus, Moon, Plus, RefreshCcw, RefreshCw, RotateCcw, RotateCw, Scaling, Sun, Unlink, X } from '@/icons';
 import { toast } from 'sonner';
 import type { PDFDocumentProxy, RenderTask } from 'pdfjs-dist';
-
-/** Editor lengkap (Filerobot) dimuat malas agar bundle awal tetap ramping. */
-const EditorLengkap = lazy(() =>
-  import('react-filerobot-image-editor').then((m) => ({ default: m.default as unknown as ComponentType<Record<string, unknown>> })),
-);
 
 export interface SumberBerkas {
   bytes: Uint8Array;
@@ -43,6 +40,12 @@ interface Props {
   kualitas: KualitasSimpan;
   onKeluaran: (hasil: HasilGambar | null) => void;
   idPrefix?: string;
+  /** `false` = sembunyikan tombol ubah (putar/crop/resize/editor) — mode lihat saja. */
+  bisaUbah?: boolean;
+  /** Teks saat belum ada berkas (bawaan: arahan Browse tambah dokumen). */
+  teksKosong?: string;
+  /** Dilaporkan tiap ada/tidaknya perubahan (edisi putar/crop/resize atau hasil editor). */
+  onKotor?: (kotor: boolean) => void;
 }
 
 const ZOOM_MIN = 0.25;
@@ -77,9 +80,9 @@ interface RectBox {
 
 /** Viewer berkas dokumen: gambar (zoom/putar/crop/kompres) atau PDF (zoom/halaman).
  *  Edisi gambar dilaporkan sebagai byte keluaran untuk alur simpan. */
-export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluaran, idPrefix = 'penampil' }: Props) {
+export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluaran, idPrefix = 'penampil', bisaUbah = true, teksKosong, onKotor }: Props) {
   const p = idPrefix;
-  /** Hasil editor lengkap menimpa sumber prop (edisi toolbar direset) — alur simpan tak berubah. */
+  /** Hasil bekukan putaran menimpa sumber prop (edisi toolbar direset) — alur simpan tak berubah. */
   const [sumberEdit, setSumberEdit] = useState<SumberBerkas | null>(null);
   const sumber = sumberEdit ?? sumberProp;
   const gambar = sumber != null && sumber.mime.startsWith('image/');
@@ -100,14 +103,6 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
   const [aspekUkuran, setAspekUkuran] = useState(1);
   /** Teks spinbox miring (null = ikut edisi); dikomit saat blur/Enter agar desimal bisa diketik. */
   const [teksMiring, setTeksMiring] = useState<string | null>(null);
-  /** Editor lengkap: url data + buka/tutup. */
-  const [urlEditor, setUrlEditor] = useState<string | null>(null);
-  const [editorBuka, setEditorBuka] = useState(false);
-  /** Fungsi tarik-data FIE (diisi editor via prop) — ambil hasil tanpa dialog save-as. */
-  type MintaDataEditor = (info?: { name?: string; extension?: string }) => {
-    imageData?: { imageBase64?: string; name?: string };
-  };
-  const mintaDataEditor = useRef<MintaDataEditor | null>(null);
 
   const bungkusRef = useRef<HTMLDivElement | null>(null);
   const [ukuranWadah, setUkuranWadah] = useState({ w: 0, h: 0 });
@@ -123,8 +118,6 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
     setDrafCrop(null);
     setTeksMiring(null);
     setSumberEdit(null);
-    setEditorBuka(false);
-    setUrlEditor(null);
   }, [sumberProp]);
 
   // Ukur wadah untuk skala pas/1:1.
@@ -189,6 +182,13 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
     onKeluaran(keluaran);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [keluaran]);
+
+  // Laporkan status kotor (edisi putar/crop/resize aktif atau hasil editor lengkap).
+  const kotor = edisiAktif(edisi) || sumberEdit !== null;
+  useEffect(() => {
+    onKotor?.(kotor);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kotor]);
 
   // ----- PDF: dokumen + render halaman -----
   const [dokPdf, setDokPdf] = useState<PDFDocumentProxy | null>(null);
@@ -582,63 +582,6 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
     setKunciUkuran((k) => !k);
   }
 
-  // ----- Editor lengkap (Filerobot): hasil kembali sebagai sumber baru -----
-  const bukaEditor = useCallback(() => {
-    if (!sumber || !gambar) return;
-    const blob = new Blob([sumber.bytes.buffer as ArrayBuffer], { type: sumber.mime });
-    const baca = new FileReader();
-    baca.onload = () => {
-      setUrlEditor(typeof baca.result === 'string' ? baca.result : null);
-      setEditorBuka(true);
-    };
-    baca.onerror = () => toast.error('Gagal menyiapkan editor.');
-    baca.readAsDataURL(blob);
-  }, [sumber, gambar]);
-
-  async function simpanEditor(data: { imageBase64?: string; name?: string }) {
-    try {
-      if (!data.imageBase64 || !sumber) throw new Error('Hasil editor kosong.');
-      const res = await fetch(data.imageBase64);
-      const buf = new Uint8Array(await res.arrayBuffer());
-      const mimeUrl = data.imageBase64.slice(5, data.imageBase64.indexOf(';'));
-      const mime = mimeUrl.startsWith('image/') ? mimeUrl : sumber.mime;
-      const nama = data.name && data.name.includes('.')
-        ? data.name
-        : `${namaTanpaEkstensi(sumber.nama)}.${ekstensiDariNama(sumber.nama) || 'jpg'}`;
-      setSumberEdit({ bytes: buf, mime, nama });
-      setEdisi(EDISI_KOSONG);
-      setTeksMiring(null);
-      setModeCrop(false);
-      setModePutar(false);
-      setModeResize(false);
-      setKunciUkuran(true);
-      setDrafCrop(null);
-      setEditorBuka(false);
-      toast.success('Hasil editor diterapkan.');
-    } catch (e) {
-      toast.error(errorMessage(e));
-    }
-  }
-
-  /** Terapkan hasil editor langsung (tanpa save-as FIE) — dipakai tombol internal & cegatan save. */
-  function terapkanEditor() {
-    const minta = mintaDataEditor.current;
-    if (!minta || !sumber) {
-      toast.warning('Editor belum siap.');
-      return;
-    }
-    try {
-      const { imageData } = minta({
-        name: namaTanpaEkstensi(sumber.nama),
-        extension: sumber.mime === 'image/png' ? 'png' : 'jpeg',
-      });
-      if (!imageData?.imageBase64) throw new Error('Hasil editor kosong.');
-      void simpanEditor(imageData);
-    } catch (e) {
-      toast.error(errorMessage(e));
-    }
-  }
-
   // ----- Layar penuh + unduh -----
   const seksiRef = useRef<HTMLElement | null>(null);
   function layarPenuh() {
@@ -788,12 +731,12 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
         <span className="min-w-0 flex-1 truncate text-xs" title={sumber?.nama ?? undefined}>
           {sumber ? `${sumber.nama} (${ukuranSumber}${ukuranKeluar ? ` → ${ukuranKeluar}` : ''})` : 'Belum ada berkas'}
         </span>
-        <Button id={`btn_bg_${p}`} size="sm" variant="ghost" title={gelap ? 'Latar terang' : 'Latar gelap'} onClick={() => setGelap((g) => !g)}>
+        <TombolIkon tip={gelap ? 'Latar terang' : 'Latar gelap'} id={`btn_bg_${p}`} size="sm" variant="ghost" onClick={() => setGelap((g) => !g)}>
           {gelap ? <Sun size={14} /> : <Moon size={14} />}
-        </Button>
-        <Button id={`btn_layar_penuh_${p}`} size="sm" variant="ghost" title="Layar penuh" onClick={layarPenuh} disabled={!sumber}>
-          Penuh
-        </Button>
+        </TombolIkon>
+        <TombolIkon tip="Layar penuh" id={`btn_layar_penuh_${p}`} size="icon" variant="ghost" onClick={layarPenuh} disabled={!sumber}>
+          <Fullscreen size={14} />
+        </TombolIkon>
       </div>
       {/* Toolbar konteks */}
       {sumber && (
@@ -801,94 +744,88 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
         <div className="flex shrink-0 flex-wrap items-center gap-1 border-b px-2 py-1">
           {gambar ? (
             <>
-              <Button id={`btn_zoom_kurang_${p}`} size="sm" variant="ghost" title="Perkecil" onClick={() => aturZoom(zoom / 1.25)}>
+              <TombolIkon tip="Perkecil" id={`btn_zoom_kurang_${p}`} size="sm" variant="ghost" onClick={() => aturZoom(zoom / 1.25)}>
                 <Minus size={14} />
-              </Button>
+              </TombolIkon>
               <span className="min-w-12 text-center text-xs text-muted-foreground">{Math.round(zoom * 100)}%</span>
-              <Button id={`btn_zoom_tambah_${p}`} size="sm" variant="ghost" title="Perbesar" onClick={() => aturZoom(zoom * 1.25)}>
+              <TombolIkon tip="Perbesar" id={`btn_zoom_tambah_${p}`} size="sm" variant="ghost" onClick={() => aturZoom(zoom * 1.25)}>
                 <Plus size={14} />
-              </Button>
-              <Button id={`btn_zoom_pas_${p}`} size="sm" variant="ghost" title="Pas layar" onClick={() => aturZoom(1)}>
-                Pas
-              </Button>
-              <Button
+              </TombolIkon>
+              <TombolIkon tip="Pas layar" id={`btn_zoom_pas_${p}`} size="icon" variant="ghost" onClick={() => aturZoom(1)}>
+                <Focus size={14} />
+              </TombolIkon>
+              {bisaUbah && (
+              <>
+              <TombolIkon
+                tip={modePutar ? 'Sembunyikan kontrol putar' : 'Putar: tampilkan kontrol derajat'}
                 id={`btn_mode_putar_${p}`}
                 size="sm"
                 variant={modePutar ? 'secondary' : 'ghost'}
-                title={modePutar ? 'Sembunyikan kontrol putar' : 'Putar: tampilkan kontrol derajat'}
                 onClick={() => setModePutar((m) => !m)}
               >
                 <RotateCw size={14} />
-              </Button>
-              <Button
+              </TombolIkon>
+              <TombolIkon
+                tip={modeCrop ? 'Batal crop' : (edisi.crop ? 'Sunting crop' : (edisi.miring !== 0 ? 'Crop: putaran dibekukan otomatis dulu' : 'Crop: aktifkan lalu seret area pada gambar'))}
                 id={`btn_crop_${p}`}
-                size="sm"
+                size="icon"
                 variant={modeCrop ? 'secondary' : 'ghost'}
-                title={modeCrop ? 'Batal crop' : (edisi.crop ? 'Sunting crop' : (edisi.miring !== 0 ? 'Crop: putaran dibekukan otomatis dulu' : 'Crop: aktifkan lalu seret area pada gambar'))}
                 onClick={() => void mulaiModeCrop()}
               >
-                Crop
-              </Button>
+                <Crop size={14} />
+              </TombolIkon>
               {edisi.crop && (
-                <Button id={`btn_crop_hapus_${p}`} size="sm" variant="ghost" title="Hapus crop" onClick={() => setEdisi((e) => ({ ...e, crop: null }))}>
+                <TombolIkon tip="Hapus crop" id={`btn_crop_hapus_${p}`} size="sm" variant="ghost" onClick={() => setEdisi((e) => ({ ...e, crop: null }))}>
                   <X size={14} />
-                </Button>
+                </TombolIkon>
               )}
-              <Button
+              <TombolIkon
+                tip={modeResize ? 'Sembunyikan kontrol resize' : 'Resize: tampilkan kontrol ukuran'}
                 id={`btn_mode_resize_${p}`}
                 size="sm"
                 variant={modeResize ? 'secondary' : 'ghost'}
-                title={modeResize ? 'Sembunyikan kontrol resize' : 'Resize: tampilkan kontrol ukuran'}
                 onClick={toggleResize}
               >
                 <Scaling size={14} />
-              </Button>
-              <Button
-                id={`btn_editor_lengkap_${p}`}
-                size="sm"
-                variant="ghost"
-                title="Editor lengkap: filter, anotasi, teks, tanda air, resize"
-                onClick={bukaEditor}
-              >
-                <Pencil size={14} />
-                <span className="ml-1">Editor</span>
-              </Button>
+              </TombolIkon>
+              </>
+              )}
             </>
           ) : (
             <>
-              <Button id={`btn_pdf_sebelum_${p}`} size="sm" variant="ghost" title="Halaman sebelumnya" disabled={halPdf <= 1} onClick={() => setHalPdf((h) => Math.max(1, h - 1))}>
+              <TombolIkon tip="Halaman sebelumnya" id={`btn_pdf_sebelum_${p}`} size="sm" variant="ghost" disabled={halPdf <= 1} onClick={() => setHalPdf((h) => Math.max(1, h - 1))}>
                 <ChevronLeft size={14} />
-              </Button>
+              </TombolIkon>
               <span className="min-w-16 text-center text-xs text-muted-foreground">
                 {totalHal > 0 ? `hal ${Math.min(halPdf, totalHal)} / ${totalHal}` : '…'}
               </span>
-              <Button id={`btn_pdf_berikut_${p}`} size="sm" variant="ghost" title="Halaman berikutnya" disabled={halPdf >= totalHal} onClick={() => setHalPdf((h) => Math.min(Math.max(totalHal, 1), h + 1))}>
+              <TombolIkon tip="Halaman berikutnya" id={`btn_pdf_berikut_${p}`} size="sm" variant="ghost" disabled={halPdf >= totalHal} onClick={() => setHalPdf((h) => Math.min(Math.max(totalHal, 1), h + 1))}>
                 <ChevronRight size={14} />
-              </Button>
-              <Button id={`btn_zoom_kurang_${p}`} size="sm" variant="ghost" title="Perkecil" onClick={() => aturZoom(zoom / 1.25)}>
+              </TombolIkon>
+              <TombolIkon tip="Perkecil" id={`btn_zoom_kurang_${p}`} size="sm" variant="ghost" onClick={() => aturZoom(zoom / 1.25)}>
                 <Minus size={14} />
-              </Button>
+              </TombolIkon>
               <span className="min-w-12 text-center text-xs text-muted-foreground">{Math.round(zoom * 100)}%</span>
-              <Button id={`btn_zoom_tambah_${p}`} size="sm" variant="ghost" title="Perbesar" onClick={() => aturZoom(zoom * 1.25)}>
+              <TombolIkon tip="Perbesar" id={`btn_zoom_tambah_${p}`} size="sm" variant="ghost" onClick={() => aturZoom(zoom * 1.25)}>
                 <Plus size={14} />
-              </Button>
-              <Button id={`btn_zoom_pas_${p}`} size="sm" variant="ghost" title="Pas lebar" onClick={() => aturZoom(1)}>
-                Pas
-              </Button>
+              </TombolIkon>
+              <TombolIkon tip="Pas lebar" id={`btn_zoom_pas_${p}`} size="icon" variant="ghost" onClick={() => aturZoom(1)}>
+                <Focus size={14} />
+              </TombolIkon>
             </>
           )}
-          <Button id={`btn_unduh_pilih_${p}`} size="sm" variant="ghost" title="Unduh yang tampil" onClick={unduhPilih}>
+          <TombolIkon tip="Unduh yang tampil" id={`btn_unduh_pilih_${p}`} size="sm" variant="ghost" onClick={unduhPilih}>
             <Download size={14} />
-          </Button>
+          </TombolIkon>
         </div>
         </>
       )}
       {/* Kanvas */}
       <div ref={bungkusRef} className="flex min-h-0 flex-1 items-start justify-center overflow-auto p-2">
         {!sumber ? (
-          <p className="m-auto px-6 text-center text-sm text-muted-foreground">
-            Belum ada berkas dipilih — pilih lewat Browse untuk melihat pratinjau di sini.
-          </p>
+            <p className="m-auto px-6 text-center text-sm text-muted-foreground">
+              {teksKosong ?? 'Belum ada berkas dipilih — pilih lewat Browse untuk melihat pratinjau di sini.'}
+            </p>
         ) : gambar && dimensi && urlSumber ? (
           <div className="relative m-auto shrink-0 overflow-hidden" style={{ width: kotakLebar, height: kotakTinggi }}>
             {cropMenempel ? (
@@ -1018,19 +955,19 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
                   { nilai: 180, kiri: 'calc(100% - 8px)', ikon: RefreshCw, jud: 'Putar 180°', id: 'miring_180' },
                 ] as const
               ).map((t) => (
-                <Button
+                <TombolIkon
                   key={t.id}
+                  tip={edisi.crop || modeCrop ? 'Selesaikan/batalkan crop dulu untuk memutar' : t.jud}
                   id={`btn_${t.id}_${p}`}
                   size="sm"
                   variant={edisi.miring === t.nilai ? 'secondary' : 'ghost'}
-                  title={edisi.crop || modeCrop ? 'Selesaikan/batalkan crop dulu untuk memutar' : t.jud}
                   disabled={!!edisi.crop || modeCrop}
                   onClick={() => lompatMiring(t.nilai)}
                   className="absolute top-0 -translate-x-1/2 px-2"
                   style={{ left: t.kiri }}
                 >
                   <t.ikon size={14} />
-                </Button>
+                </TombolIkon>
               ))}
             </div>
           </div>
@@ -1042,31 +979,36 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
         <div className="flex shrink-0 flex-wrap items-center justify-center gap-1 border-t bg-muted/40 px-4 py-2">
           <span className="px-1 text-xs text-muted-foreground">Rasio:</span>
           {RASIO_CROP.map((c) => (
-            <Button
-              key={c.id}
-              id={`btn_rasio_crop_${p}_${c.id}`}
-              size="sm"
-              variant={(c.r === null && rasioCrop === null) || (c.r !== null && rasioCrop === c.r) ? 'secondary' : 'ghost'}
-              title={c.r === null ? 'Crop bebas' : `Kunci rasio ${c.label}`}
-              onClick={() => pilihRasioCrop(c.r)}
-            >
-              {c.label}
-            </Button>
+            <Tooltip key={c.id}>
+              <TooltipTrigger asChild>
+                <Button
+                  id={`btn_rasio_crop_${p}_${c.id}`}
+                  size="sm"
+                  variant={(c.r === null && rasioCrop === null) || (c.r !== null && rasioCrop === c.r) ? 'secondary' : 'ghost'}
+                  onClick={() => pilihRasioCrop(c.r)}
+                >
+                  {c.label}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{c.r === null ? 'Crop bebas' : `Kunci rasio ${c.label}`}</p>
+              </TooltipContent>
+            </Tooltip>
           ))}
-          <Button
+          <TombolIkon
+            tip="Terapkan crop"
             id={`btn_crop_terapkan_${p}`}
-            size="sm"
+            size="icon"
             variant="default"
-            title="Terapkan crop"
             disabled={!drafCrop}
             onClick={terapkanCrop}
             className="ml-2"
           >
-            Terapkan
-          </Button>
-          <Button id={`btn_crop_batal_${p}`} size="sm" variant="outline" title="Batal crop" onClick={batalCrop}>
-            Batal
-          </Button>
+            <Check size={14} />
+          </TombolIkon>
+          <TombolIkon tip="Batal crop" id={`btn_crop_batal_${p}`} size="icon" variant="outline" onClick={batalCrop}>
+            <X size={14} />
+          </TombolIkon>
         </div>
       )}
       {/* Bar resize: W×H + kunci rasio + kembali asli + caption keluaran eksak. */}
@@ -1102,15 +1044,15 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
             className="w-20 shrink-0 rounded-md border border-input bg-background px-1.5 py-1 text-center text-xs"
           />
           <span className="text-xs text-muted-foreground">px</span>
-          <Button
+          <TombolIkon
+            tip={kunciUkuran ? 'Buka kunci rasio' : 'Kunci rasio'}
             id={`btn_ukuran_kunci_${p}`}
             size="sm"
             variant={kunciUkuran ? 'secondary' : 'ghost'}
-            title={kunciUkuran ? 'Buka kunci rasio' : 'Kunci rasio'}
             onClick={kunciUlang}
           >
             {kunciUkuran ? <Link2 size={14} /> : <Unlink size={14} />}
-          </Button>
+          </TombolIkon>
           <span className="px-1 text-xs text-muted-foreground">Template:</span>
           <Select
             value={presetResize.find((t) => (t.asli ? !edisi.ukuran : edisi.ukuran?.w === t.w && edisi.ukuran?.h === t.h))?.id ?? ''}
@@ -1131,31 +1073,6 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
             </SelectContent>
           </Select>
           <span className="px-1 text-xs text-muted-foreground">{captionUkuran}</span>
-        </div>
-      )}
-      {/* Modal editor lengkap (hanya gambar). */}
-      {editorBuka && urlEditor && sumber && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" role="dialog" aria-label="Editor gambar lengkap">
-          <div className="h-[88vh] w-[min(1100px,94vw)] overflow-hidden rounded-xl bg-white">
-            <Suspense fallback={<p className="p-6 text-sm text-muted-foreground">Memuat editor…</p>}>
-              <EditorLengkap
-                source={urlEditor}
-                useBackendTranslations={false}
-                // Tombol Simpan FIE berlabel Terapkan; save-as bawaan diblokir
-                // (nama final ditentukan aplikasi saat Simpan dokumen).
-                translations={{ ...TERJEMAHAN_EDITOR_ID, save: 'Terapkan' }}
-                tabsIds={['Adjust', 'Finetune', 'Filters', 'Annotate', 'Watermark', 'Resize']}
-                defaultTabId="Adjust"
-                defaultSavedImageName={namaTanpaEkstensi(sumber.nama)}
-                defaultSavedImageType={sumber.mime === 'image/png' ? 'png' : 'jpeg'}
-                defaultSavedImageQuality={0.92}
-                getCurrentImgDataFnRef={mintaDataEditor}
-                onBeforeSave={() => { terapkanEditor(); return false; }}
-                onSave={(d: { imageBase64?: string; name?: string }) => void simpanEditor(d)}
-                onClose={() => setEditorBuka(false)}
-              />
-            </Suspense>
-          </div>
         </div>
       )}
     </section>

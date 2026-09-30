@@ -8,6 +8,7 @@ import {
   type SantriPotongRingkasan,
 } from '../api/santri';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Input } from '@/components/ui/input';
 import { Download } from '@/icons';
 import { toast } from 'sonner';
@@ -225,10 +226,14 @@ export default function ImportSantriBertahapPanel({ onSelesai, onSibuk }: {
         <Button id="btn_mulai_periksa_santri_bertahap" type="button" variant="outline"
           disabled={sibuk || baris.length === 0 || fase === 'jalan'}
           onClick={() => void jalan('periksa')}>Periksa</Button>
-        <Button id="btn_mulai_import_santri_bertahap" type="button"
-          disabled={sibuk || !bersih || mode !== 'periksa'}
-          title={bersih ? 'Jalankan import setelah periksa bersih' : 'Periksa dulu hingga bersih'}
-          onClick={() => void jalan('eksekusi')}>Import</Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button id="btn_mulai_import_santri_bertahap" type="button"
+              disabled={sibuk || !bersih || mode !== 'periksa'}
+              onClick={() => void jalan('eksekusi')}>Import</Button>
+          </TooltipTrigger>
+          <TooltipContent><p>{bersih ? 'Jalankan import setelah periksa bersih' : 'Periksa dulu hingga bersih'}</p></TooltipContent>
+        </Tooltip>
       </div>
     </div>
   );

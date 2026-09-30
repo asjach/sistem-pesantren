@@ -231,6 +231,10 @@ class DokumenController extends Controller
             'jenis_dokumen' => ['sometimes', 'string', 'max:100'],
             'status_verifikasi' => ['sometimes', 'in:menunggu,valid,ditolak'],
             'catatan' => ['sometimes', 'nullable', 'string'],
+            // `true` = pemanggil menjamin byte ikut dipindah (server: backend
+            // di bawah; arsip perangkat: aplikasi desktop asal). Tanpa ini
+            // nama berkas tidak diubah agar DB tak beda dari fisik.
+            'selaraskan_nama' => ['sometimes', 'boolean'],
         ]);
 
         $kolomJenis = $tipe === 'santri' ? 'jenis_dokumen_santri' : ($tipe === 'pegawai' ? 'jenis_dokumen_pegawai' : 'jenis_dokumen');
@@ -243,6 +247,35 @@ class DokumenController extends Controller
         }
         if (array_key_exists('catatan', $data)) {
             $ubah['catatan'] = $data['catatan'];
+        }
+
+        // Jenis/catatan adalah segmen template nama — bila berubah dan
+        // pemanggil menjamin byte ikut pindah, susun ulang nama berkas.
+        $jenisEfektif = $data['jenis_dokumen'] ?? $model->{$kolomJenis};
+        $catatanEfektif = array_key_exists('catatan', $data) ? $data['catatan'] : $model->catatan;
+        $namaLama = $model->nama_file ?? null;
+        if (
+            $request->boolean('selaraskan_nama')
+            && is_string($namaLama) && $namaLama !== ''
+            && ($jenisEfektif !== $model->{$kolomJenis} || $catatanEfektif !== $model->catatan)
+        ) {
+            $namaPemilik = match ($tipe) {
+                'santri' => (string) ($model->santri?->nama_lengkap ?? 'santri-'.$model->santri_id),
+                'pegawai' => (string) (Pegawai::find($model->pegawai_id)?->nama_lengkap ?? 'pegawai-'.$model->pegawai_id),
+                default => (string) (Lembaga::where('jenjang', $model->jenjang)->value('nama') ?? $model->jenjang),
+            };
+            $titik = strrpos($namaLama, '.');
+            $ekstensi = $titik === false ? 'pdf' : substr($namaLama, $titik + 1);
+            $namaBaru = NamaBerkasDokumen::buat($namaPemilik, (string) $jenisEfektif, $catatanEfektif, $ekstensi);
+            if (($model->penyimpanan ?? 'server') === 'server') {
+                $direktori = $this->direktoriBerkas($tipe);
+                $namaBaru = NamaBerkasDokumen::unik('local', $direktori, $namaBaru, $namaLama);
+                $jalurLama = NamaBerkasDokumen::jalur($tipe, $namaLama);
+                if ($jalurLama && Storage::disk('local')->exists($jalurLama)) {
+                    Storage::disk('local')->move($jalurLama, "{$direktori}/{$namaBaru}");
+                }
+            }
+            $ubah['nama_file'] = $namaBaru;
         }
 
         if ($model instanceof Model) {

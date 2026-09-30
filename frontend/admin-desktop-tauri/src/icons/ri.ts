@@ -24,16 +24,20 @@ import IcChevronRightRi from '~icons/ri/arrow-right-s-line';
 import IcClipboardCheckRi from '~icons/ri/task-line';
 import IcClipboardListRi from '~icons/ri/clipboard-line';
 import IcCopyRi from '~icons/ri/file-copy-line';
+import IcCropRi from '~icons/ri/crop-line';
 import IcEyeRi from '~icons/ri/eye-line';
 import IcExternalLinkRi from '~icons/ri/external-link-line';
 import IcFileCheck2Ri from '~icons/ri/file-check-line';
 import IcFileUpRi from '~icons/ri/file-upload-line';
 import IcFolderOpenRi from '~icons/ri/folder-open-line';
+import IcFocusRi from '~icons/ri/focus-line';
+import IcFullscreenRi from '~icons/ri/fullscreen-line';
 import IcGraduationCapRi from '~icons/ri/graduation-cap-line';
 import IcHistoryRi from '~icons/ri/history-line';
 import IcHomeRi from '~icons/ri/home-line';
 import IcImageUpRi from '~icons/ri/image-upload-line';
 import IcLandmarkRi from '~icons/ri/bank-line';
+import IcLink2Ri from '~icons/ri/link';
 import IcLogOutRi from '~icons/ri/logout-box-r-line';
 import IcMinusRi from '~icons/ri/subtract-line';
 import IcMonitorRi from '~icons/ri/computer-line';
@@ -48,6 +52,7 @@ import IcPlusRi from '~icons/ri/add-line';
 import IcPlusCircleRi from '~icons/ri/add-circle-line';
 import IcReceiptTextRi from '~icons/ri/file-text-line';
 import IcRotateCcwRi from '~icons/ri/restart-line';
+import IcRotateCwRi from '~icons/ri/restart-line';
 import IcSaveRi from '~icons/ri/save-fill';
 import IcScrollTextRi from '~icons/ri/file-text-line';
 import IcSearchRi from '~icons/ri/search-line';
@@ -93,16 +98,20 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   ClipboardCheck: IcClipboardCheckRi,
   ClipboardList: IcClipboardListRi,
   Copy: IcCopyRi,
+  Crop: IcCropRi,
   Eye: IcEyeRi,
   ExternalLink: IcExternalLinkRi,
   FileCheck2: IcFileCheck2Ri,
   FileUp: IcFileUpRi,
   FolderOpen: IcFolderOpenRi,
+  Focus: IcFocusRi,
+  Fullscreen: IcFullscreenRi,
   GraduationCap: IcGraduationCapRi,
   History: IcHistoryRi,
   Home: IcHomeRi,
   ImageUp: IcImageUpRi,
   Landmark: IcLandmarkRi,
+  Link2: IcLink2Ri,
   LogOut: IcLogOutRi,
   Minus: IcMinusRi,
   Monitor: IcMonitorRi,
@@ -117,6 +126,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   PlusCircle: IcPlusCircleRi,
   ReceiptText: IcReceiptTextRi,
   RotateCcw: IcRotateCcwRi,
+  RotateCw: IcRotateCwRi,
   Save: IcSaveRi,
   ScrollText: IcScrollTextRi,
   Search: IcSearchRi,

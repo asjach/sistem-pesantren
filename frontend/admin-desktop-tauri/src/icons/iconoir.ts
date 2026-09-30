@@ -24,6 +24,7 @@ import IcChevronRightIconoir from '~icons/iconoir/nav-arrow-right';
 import IcClipboardCheckIconoir from '~icons/iconoir/clipboard-check';
 import IcClipboardListIconoir from '~icons/iconoir/task-list';
 import IcCopyIconoir from '~icons/iconoir/copy';
+import IcCropIconoir from '~icons/iconoir/crop';
 import IcEyeIconoir from '~icons/iconoir/eye';
 import IcFolderOpenIconoir from '~icons/iconoir/folder';
 import IcGraduationCapIconoir from '~icons/iconoir/graduation-cap';
@@ -31,6 +32,7 @@ import IcHistoryIconoir from '~icons/iconoir/clock';
 import IcHomeIconoir from '~icons/iconoir/home';
 import IcImageUpIconoir from '~icons/iconoir/media-image-plus';
 import IcLandmarkIconoir from '~icons/iconoir/bank';
+import IcLink2Iconoir from '~icons/iconoir/link';
 import IcLogOutIconoir from '~icons/iconoir/log-out';
 import IcMinusIconoir from '~icons/iconoir/minus';
 import IcMonitorIconoir from '~icons/iconoir/computer';
@@ -43,6 +45,7 @@ import IcPlusIconoir from '~icons/iconoir/plus';
 import IcPlusCircleIconoir from '~icons/iconoir/plus-circle';
 import IcReceiptTextIconoir from '~icons/iconoir/page';
 import IcRotateCcwIconoir from '~icons/iconoir/refresh-double';
+import IcRotateCwIconoir from '~icons/iconoir/refresh-double';
 import IcSaveIconoir from '~icons/iconoir/floppy-disk';
 import IcScrollTextIconoir from '~icons/iconoir/notes';
 import IcSearchIconoir from '~icons/iconoir/search';
@@ -86,6 +89,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   ClipboardCheck: IcClipboardCheckIconoir,
   ClipboardList: IcClipboardListIconoir,
   Copy: IcCopyIconoir,
+  Crop: IcCropIconoir,
   Eye: IcEyeIconoir,
   FolderOpen: IcFolderOpenIconoir,
   GraduationCap: IcGraduationCapIconoir,
@@ -93,6 +97,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   Home: IcHomeIconoir,
   ImageUp: IcImageUpIconoir,
   Landmark: IcLandmarkIconoir,
+  Link2: IcLink2Iconoir,
   LogOut: IcLogOutIconoir,
   Minus: IcMinusIconoir,
   Monitor: IcMonitorIconoir,
@@ -105,6 +110,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   PlusCircle: IcPlusCircleIconoir,
   ReceiptText: IcReceiptTextIconoir,
   RotateCcw: IcRotateCcwIconoir,
+  RotateCw: IcRotateCwIconoir,
   Save: IcSaveIconoir,
   ScrollText: IcScrollTextIconoir,
   Search: IcSearchIconoir,

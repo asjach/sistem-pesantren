@@ -42,6 +42,7 @@ import BannerBertindak from '@/components/BannerBertindak';
 import DialogKelolaHalaman from '@/components/kelolaHalaman/DialogKelolaHalaman';
 import { halamanDariPath } from '@/lib/halaman';
 import { RibbonTabel } from './topbar/RibbonTabel';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 // ---------- Header: judul halaman + area akun (atas) & baris tools (bawah) ----------
 
@@ -251,17 +252,23 @@ export default function TopBar() {
       {/* Baris 1: judul halaman (kiri) + area akun (kanan). */}
       <div className="flex items-center gap-2 py-1.5 pl-1 pr-3 md:pr-5">
         {navigasi === 'sidebar' && (
-          <button
-            id="btn_lipat_sidebar"
-            type="button"
-            title={collapsed ? 'Buka navigasi (Ctrl/Cmd+B)' : 'Lipat navigasi (Ctrl/Cmd+B)'}
-            aria-label={collapsed ? 'Buka navigasi' : 'Lipat navigasi'}
-            aria-expanded={!collapsed}
-            onClick={() => setCollapsed(!collapsed)}
-            className="mr-1 grid h-6 w-[42px] shrink-0 place-items-center rounded-md text-white/75 transition-colors hover:bg-white/10 hover:text-white"
-          >
-            {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
-          </button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                id="btn_lipat_sidebar"
+                type="button"
+                aria-label={collapsed ? 'Buka navigasi' : 'Lipat navigasi'}
+                aria-expanded={!collapsed}
+                onClick={() => setCollapsed(!collapsed)}
+                className="mr-1 grid h-6 w-[42px] shrink-0 place-items-center rounded-md text-white/75 transition-colors hover:bg-white/10 hover:text-white"
+              >
+                {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{collapsed ? 'Buka navigasi (Ctrl/Cmd+B)' : 'Lipat navigasi (Ctrl/Cmd+B)'}</p>
+            </TooltipContent>
+          </Tooltip>
         )}
         {!searchAda && (
           <span id="judul_bar_halaman" className="truncate text-sm font-semibold">
@@ -269,20 +276,26 @@ export default function TopBar() {
           </span>
         )}
         {adaTools && (
-          <button
-            id="btn_tampil_tools"
-            type="button"
-            title={toolsTampil ? 'Sembunyikan toolbar' : 'Tampilkan toolbar'}
-            aria-label={toolsTampil ? 'Sembunyikan toolbar' : 'Tampilkan toolbar'}
-            aria-pressed={toolsTampil}
-            onClick={togolTools}
-            className={cn(
-              'mr-1 grid h-6 w-[42px] place-items-center rounded-md text-white/75 transition-colors hover:bg-white/10 hover:text-white',
-              toolsTampil && 'bg-white/15 text-white',
-            )}
-          >
-            {toolsTampil ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-          </button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                id="btn_tampil_tools"
+                type="button"
+                aria-label={toolsTampil ? 'Sembunyikan toolbar' : 'Tampilkan toolbar'}
+                aria-pressed={toolsTampil}
+                onClick={togolTools}
+                className={cn(
+                  'mr-1 grid h-6 w-[42px] place-items-center rounded-md text-white/75 transition-colors hover:bg-white/10 hover:text-white',
+                  toolsTampil && 'bg-white/15 text-white',
+                )}
+              >
+                {toolsTampil ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{toolsTampil ? 'Sembunyikan toolbar' : 'Tampilkan toolbar'}</p>
+            </TooltipContent>
+          </Tooltip>
         )}
         {/* Pencarian tunggal halaman (portal) — menggantikan judul saat ada. */}
         <div ref={searchHostRef} className={cn('flex min-w-0 items-center', searchAda && 'w-[150px] shrink-0')} />
@@ -355,32 +368,44 @@ export default function TopBar() {
           </div>
           {/* Perenggang kanan: filter global tetap di tengah; akun di kanan. */}
           <div aria-hidden="true" className="min-w-0 flex-1" />
-          <button
-            id="btn_pilih_komponen_global"
-            type="button"
-            data-picker-abaikan
-            title={picker.aktif ? 'Batal pilih komponen (Esc)' : 'Pilih komponen (klik komponen di halaman)'}
-            aria-label="Pilih komponen"
-            aria-pressed={picker.aktif}
-            onClick={() => (picker.aktif ? picker.batal() : picker.mulai())}
-            className={cn(
-              'mr-1 grid size-6 place-items-center rounded-md text-white/75 transition-colors hover:bg-white/10 hover:text-white',
-              picker.aktif && 'bg-white/25 text-white',
-            )}
-          >
-            <SquareMousePointer size={14} />
-          </button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                id="btn_pilih_komponen_global"
+                type="button"
+                data-picker-abaikan
+                aria-label="Pilih komponen"
+                aria-pressed={picker.aktif}
+                onClick={() => (picker.aktif ? picker.batal() : picker.mulai())}
+                className={cn(
+                  'mr-1 grid size-6 place-items-center rounded-md text-white/75 transition-colors hover:bg-white/10 hover:text-white',
+                  picker.aktif && 'bg-white/25 text-white',
+                )}
+              >
+                <SquareMousePointer size={14} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{picker.aktif ? 'Batal pilih komponen (Esc)' : 'Pilih komponen (klik komponen di halaman)'}</p>
+            </TooltipContent>
+          </Tooltip>
           {registrasi && efektifSuper ? (
-            <button
-              id="btn_kelola_halaman"
-              type="button"
-              title="Kelola halaman (filter, kolom, urutan, toolbar)"
-              aria-label="Kelola halaman"
-              onClick={() => setKelolaHalamanOpen(true)}
-              className="mr-1 grid size-6 place-items-center rounded-md text-white/75 transition-colors hover:bg-white/10 hover:text-white"
-            >
-              <NotebookTabs size={14} />
-            </button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  id="btn_kelola_halaman"
+                  type="button"
+                  aria-label="Kelola halaman"
+                  onClick={() => setKelolaHalamanOpen(true)}
+                  className="mr-1 grid size-6 place-items-center rounded-md text-white/75 transition-colors hover:bg-white/10 hover:text-white"
+                >
+                  <NotebookTabs size={14} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Kelola halaman (filter, kolom, urutan, toolbar)</p>
+              </TooltipContent>
+            </Tooltip>
           ) : null}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

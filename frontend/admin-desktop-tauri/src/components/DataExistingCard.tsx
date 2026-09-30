@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { errorMessage } from '@/api/client';
 import { listLembaga, type Lembaga } from '@/api/master';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Download } from '@/icons';
 import { toast } from 'sonner';
@@ -104,25 +105,31 @@ export default function DataExistingCard({
             </label>
           ))}
         </div>
-        <Button
-          id={id}
-          type="button"
-          variant="link"
-          className="h-auto shrink-0 px-0"
-          disabled={dataIds.length === 0}
-          title={judulTooltip ?? 'Unduh data existing untuk diedit lalu diimport kembali'}
-          onClick={() => {
-            // Pilihan penuh = seluruh lingkup akses (tanpa parameter; backend
-            // yang memutuskan cakupan sesuai peran akun).
-            const ids = dataIds.length === lembagas.length ? undefined : dataIds;
-            void ambil(ids)
-              .then((data) => unduhExcelDataExisting(data, namaBerkas, judulSheet))
-              .catch((e) => toast.error(errorMessage(e)));
-          }}
-        >
-          <Download data-icon="inline-start" size={16} />
-          {labelTombol}{dataIds.length > 0 && dataIds.length < lembagas.length ? ` (${dataIds.length})` : ''}
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              id={id}
+              type="button"
+              variant="link"
+              className="h-auto shrink-0 px-0"
+              disabled={dataIds.length === 0}
+              onClick={() => {
+                // Pilihan penuh = seluruh lingkup akses (tanpa parameter; backend
+                // yang memutuskan cakupan sesuai peran akun).
+                const ids = dataIds.length === lembagas.length ? undefined : dataIds;
+                void ambil(ids)
+                  .then((data) => unduhExcelDataExisting(data, namaBerkas, judulSheet))
+                  .catch((e) => toast.error(errorMessage(e)));
+              }}
+            >
+              <Download data-icon="inline-start" size={16} />
+              {labelTombol}{dataIds.length > 0 && dataIds.length < lembagas.length ? ` (${dataIds.length})` : ''}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>{judulTooltip ?? 'Unduh data existing untuk diedit lalu diimport kembali'}</p>
+          </TooltipContent>
+        </Tooltip>
       </div>
     </div>
   );

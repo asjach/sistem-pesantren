@@ -1,5 +1,5 @@
 /* AUTO-GENERATED oleh scripts/icons-gen.mjs — JANGAN edit manual.
- * 76 ikon × 9 set (Iconify/unplugin-icons). Set aktif dari prefs
+ * 85 ikon × 9 set (Iconify/unplugin-icons). Set aktif dari prefs
  * `iconSet`; nama yang tidak tersedia di suatu set jatuh ke Lucide.
  * Regenerasi: node scripts/icons-gen.mjs */
 import type { ComponentType, SVGProps } from 'react';
@@ -73,16 +73,20 @@ export const ChevronRight = (p: IkonProps) => <IkonDinamis {...p} nama="ChevronR
 export const ClipboardCheck = (p: IkonProps) => <IkonDinamis {...p} nama="ClipboardCheck" />;
 export const ClipboardList = (p: IkonProps) => <IkonDinamis {...p} nama="ClipboardList" />;
 export const Copy = (p: IkonProps) => <IkonDinamis {...p} nama="Copy" />;
+export const Crop = (p: IkonProps) => <IkonDinamis {...p} nama="Crop" />;
 export const Eye = (p: IkonProps) => <IkonDinamis {...p} nama="Eye" />;
 export const ExternalLink = (p: IkonProps) => <IkonDinamis {...p} nama="ExternalLink" />;
 export const FileCheck2 = (p: IkonProps) => <IkonDinamis {...p} nama="FileCheck2" />;
 export const FileUp = (p: IkonProps) => <IkonDinamis {...p} nama="FileUp" />;
 export const FolderOpen = (p: IkonProps) => <IkonDinamis {...p} nama="FolderOpen" />;
+export const Focus = (p: IkonProps) => <IkonDinamis {...p} nama="Focus" />;
+export const Fullscreen = (p: IkonProps) => <IkonDinamis {...p} nama="Fullscreen" />;
 export const GraduationCap = (p: IkonProps) => <IkonDinamis {...p} nama="GraduationCap" />;
 export const History = (p: IkonProps) => <IkonDinamis {...p} nama="History" />;
 export const Home = (p: IkonProps) => <IkonDinamis {...p} nama="Home" />;
 export const ImageUp = (p: IkonProps) => <IkonDinamis {...p} nama="ImageUp" />;
 export const Landmark = (p: IkonProps) => <IkonDinamis {...p} nama="Landmark" />;
+export const Link2 = (p: IkonProps) => <IkonDinamis {...p} nama="Link2" />;
 export const LogOut = (p: IkonProps) => <IkonDinamis {...p} nama="LogOut" />;
 export const Minus = (p: IkonProps) => <IkonDinamis {...p} nama="Minus" />;
 export const Monitor = (p: IkonProps) => <IkonDinamis {...p} nama="Monitor" />;
@@ -97,20 +101,19 @@ export const Pencil = (p: IkonProps) => <IkonDinamis {...p} nama="Pencil" />;
 export const Plus = (p: IkonProps) => <IkonDinamis {...p} nama="Plus" />;
 export const PlusCircle = (p: IkonProps) => <IkonDinamis {...p} nama="PlusCircle" />;
 export const ReceiptText = (p: IkonProps) => <IkonDinamis {...p} nama="ReceiptText" />;
+export const RefreshCcw = (p: IkonProps) => <IkonDinamis {...p} nama="RefreshCcw" />;
+export const RefreshCw = (p: IkonProps) => <IkonDinamis {...p} nama="RefreshCw" />;
 export const RotateCcw = (p: IkonProps) => <IkonDinamis {...p} nama="RotateCcw" />;
 export const RotateCw = (p: IkonProps) => <IkonDinamis {...p} nama="RotateCw" />;
-export const RefreshCw = (p: IkonProps) => <IkonDinamis {...p} nama="RefreshCw" />;
-export const RefreshCcw = (p: IkonProps) => <IkonDinamis {...p} nama="RefreshCcw" />;
-export const Scaling = (p: IkonProps) => <IkonDinamis {...p} nama="Scaling" />;
-export const Link2 = (p: IkonProps) => <IkonDinamis {...p} nama="Link2" />;
-export const Unlink = (p: IkonProps) => <IkonDinamis {...p} nama="Unlink" />;
 export const Save = (p: IkonProps) => <IkonDinamis {...p} nama="Save" />;
+export const Scaling = (p: IkonProps) => <IkonDinamis {...p} nama="Scaling" />;
 export const ScrollText = (p: IkonProps) => <IkonDinamis {...p} nama="ScrollText" />;
 export const Search = (p: IkonProps) => <IkonDinamis {...p} nama="Search" />;
 export const Server = (p: IkonProps) => <IkonDinamis {...p} nama="Server" />;
 export const Sun = (p: IkonProps) => <IkonDinamis {...p} nama="Sun" />;
 export const Trash2 = (p: IkonProps) => <IkonDinamis {...p} nama="Trash2" />;
 export const Undo2 = (p: IkonProps) => <IkonDinamis {...p} nama="Undo2" />;
+export const Unlink = (p: IkonProps) => <IkonDinamis {...p} nama="Unlink" />;
 export const Upload = (p: IkonProps) => <IkonDinamis {...p} nama="Upload" />;
 export const Download = (p: IkonProps) => <IkonDinamis {...p} nama="Download" />;
 export const UserCheck = (p: IkonProps) => <IkonDinamis {...p} nama="UserCheck" />;

@@ -1,6 +1,7 @@
 import { useRef, useState, type ReactNode } from 'react';
 import { errorMessage } from '../api/client';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Download } from '@/icons';
@@ -323,14 +324,22 @@ export default function ImportBertahapUmumDialog({ open, onOpenChange, config }:
                 Batalkan
               </Button>
             ) : null}
-            <Button id={idPeriksa} type="button" variant="outline"
-              disabled={sibuk || !bisaMulai || fase === 'jalan'}
-              title={konteksSiap ? undefined : 'Lengkapi pilihan di atas dulu'}
-              onClick={() => void jalan('periksa')}>Periksa</Button>
-            <Button id={idMulai} type="button"
-              disabled={sibuk || !bersih || mode !== 'periksa'}
-              title={bersih ? 'Jalankan import setelah periksa bersih' : 'Periksa dulu hingga bersih'}
-              onClick={() => void jalan('eksekusi')}>Import</Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button id={idPeriksa} type="button" variant="outline"
+                  disabled={sibuk || !bisaMulai || fase === 'jalan'}
+                  onClick={() => void jalan('periksa')}>Periksa</Button>
+              </TooltipTrigger>
+              <TooltipContent><p>{konteksSiap ? undefined : 'Lengkapi pilihan di atas dulu'}</p></TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button id={idMulai} type="button"
+                  disabled={sibuk || !bersih || mode !== 'periksa'}
+                  onClick={() => void jalan('eksekusi')}>Import</Button>
+              </TooltipTrigger>
+              <TooltipContent><p>{bersih ? 'Jalankan import setelah periksa bersih' : 'Periksa dulu hingga bersih'}</p></TooltipContent>
+            </Tooltip>
           </div>
           </div>
         </div>

@@ -22,6 +22,7 @@ import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -258,30 +259,42 @@ export default function KamusLabelPage() {
         }
         addButton={
           <>
-            <Button
-              id="btn_label_upper"
-              title="Isi label semua kolom dengan huruf kapital (underscore → spasi)"
-              disabled={!bolehGenerate}
-              onClick={() => setModeTunggu('upper')}
-            >
-              UPPERCASE
-            </Button>
-            <Button
-              id="btn_label_proper"
-              title="Isi label semua kolom dengan huruf awal kapital (underscore → spasi)"
-              disabled={!bolehGenerate}
-              onClick={() => setModeTunggu('proper')}
-            >
-              Proper Case
-            </Button>
-            <Button
-              id="btn_label_lower"
-              title="Isi label semua kolom dengan huruf kecil (underscore → spasi)"
-              disabled={!bolehGenerate}
-              onClick={() => setModeTunggu('lower')}
-            >
-              lower case
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  id="btn_label_upper"
+                  disabled={!bolehGenerate}
+                  onClick={() => setModeTunggu('upper')}
+                >
+                  UPPERCASE
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent><p>Isi label semua kolom dengan huruf kapital (underscore → spasi)</p></TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  id="btn_label_proper"
+                  disabled={!bolehGenerate}
+                  onClick={() => setModeTunggu('proper')}
+                >
+                  Proper Case
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent><p>Isi label semua kolom dengan huruf awal kapital (underscore → spasi)</p></TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  id="btn_label_lower"
+                  disabled={!bolehGenerate}
+                  onClick={() => setModeTunggu('lower')}
+                >
+                  lower case
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent><p>Isi label semua kolom dengan huruf kecil (underscore → spasi)</p></TooltipContent>
+            </Tooltip>
           </>
         }
         renderActions={(r) => (

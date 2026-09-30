@@ -12,6 +12,7 @@ import {
 } from '../api/client';
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { RibbonSlot } from '@/components/RibbonSlot';
@@ -176,9 +177,14 @@ export default function PengaturanServerPage() {
           <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground" title={folderArsip || undefined}>
             Folder arsip: {folderArsip !== '' ? folderArsip : `Documents/${ROOT_ARSIP_DOKUMEN} (bawaan)`}
           </span>
-          <Button variant="outline" size="sm" disabled={!desktop} title={desktop ? 'Pilih folder arsip' : 'Hanya tersedia di aplikasi desktop'} onClick={() => void onPilihFolder()}>
-            Ubah…
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="outline" size="sm" disabled={!desktop} onClick={() => void onPilihFolder()}>
+                Ubah…
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent><p>{desktop ? 'Pilih folder arsip' : 'Hanya tersedia di aplikasi desktop'}</p></TooltipContent>
+          </Tooltip>
           {folderArsip !== '' && (
             <Button variant="ghost" size="sm" onClick={() => setFolderArsip('')}>
               Bawaan
@@ -189,9 +195,14 @@ export default function PengaturanServerPage() {
           <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground" title={folderArsipTest || undefined}>
             Folder uji: {folderArsipTest !== '' ? folderArsipTest : `Documents/${ROOT_ARSIP_TEST} (bawaan)`}
           </span>
-          <Button variant="outline" size="sm" disabled={!desktop} title={desktop ? 'Pilih folder uji' : 'Hanya tersedia di aplikasi desktop'} onClick={() => void onPilihFolder(true)}>
-            Ubah…
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="outline" size="sm" disabled={!desktop} onClick={() => void onPilihFolder(true)}>
+                Ubah…
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent><p>{desktop ? 'Pilih folder uji' : 'Hanya tersedia di aplikasi desktop'}</p></TooltipContent>
+          </Tooltip>
           {folderArsipTest !== '' && (
             <Button variant="ghost" size="sm" onClick={() => setFolderArsipTest('')}>
               Bawaan

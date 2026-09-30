@@ -24,14 +24,17 @@ import IcChevronRightBi from '~icons/bi/chevron-right';
 import IcClipboardCheckBi from '~icons/bi/clipboard-check';
 import IcClipboardListBi from '~icons/bi/clipboard';
 import IcCopyBi from '~icons/bi/copy';
+import IcCropBi from '~icons/bi/crop';
 import IcEyeBi from '~icons/bi/eye';
 import IcFileCheck2Bi from '~icons/bi/file-check';
 import IcFileUpBi from '~icons/bi/file-arrow-up';
 import IcFolderOpenBi from '~icons/bi/folder';
+import IcFullscreenBi from '~icons/bi/fullscreen';
 import IcGraduationCapBi from '~icons/bi/mortarboard';
 import IcHistoryBi from '~icons/bi/clock';
 import IcHomeBi from '~icons/bi/house';
 import IcLandmarkBi from '~icons/bi/bank';
+import IcLink2Bi from '~icons/bi/link';
 import IcLogOutBi from '~icons/bi/box-arrow-right';
 import IcMinusBi from '~icons/bi/dash';
 import IcMonitorBi from '~icons/bi/display';
@@ -45,7 +48,9 @@ import IcPencilBi from '~icons/bi/pencil';
 import IcPlusBi from '~icons/bi/plus';
 import IcPlusCircleBi from '~icons/bi/plus-circle';
 import IcReceiptTextBi from '~icons/bi/receipt';
+import IcRefreshCwBi from '~icons/bi/arrow-clockwise';
 import IcRotateCcwBi from '~icons/bi/arrow-counterclockwise';
+import IcRotateCwBi from '~icons/bi/arrow-clockwise';
 import IcSaveBi from '~icons/bi/save';
 import IcScrollTextBi from '~icons/bi/journal-text';
 import IcSearchBi from '~icons/bi/search';
@@ -91,14 +96,17 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   ClipboardCheck: IcClipboardCheckBi,
   ClipboardList: IcClipboardListBi,
   Copy: IcCopyBi,
+  Crop: IcCropBi,
   Eye: IcEyeBi,
   FileCheck2: IcFileCheck2Bi,
   FileUp: IcFileUpBi,
   FolderOpen: IcFolderOpenBi,
+  Fullscreen: IcFullscreenBi,
   GraduationCap: IcGraduationCapBi,
   History: IcHistoryBi,
   Home: IcHomeBi,
   Landmark: IcLandmarkBi,
+  Link2: IcLink2Bi,
   LogOut: IcLogOutBi,
   Minus: IcMinusBi,
   Monitor: IcMonitorBi,
@@ -112,7 +120,9 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   Plus: IcPlusBi,
   PlusCircle: IcPlusCircleBi,
   ReceiptText: IcReceiptTextBi,
+  RefreshCw: IcRefreshCwBi,
   RotateCcw: IcRotateCcwBi,
+  RotateCw: IcRotateCwBi,
   Save: IcSaveBi,
   ScrollText: IcScrollTextBi,
   Search: IcSearchBi,

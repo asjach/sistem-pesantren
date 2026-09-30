@@ -24,22 +24,5 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     target: 'es2021',
-    rollupOptions: {
-      output: {
-        // Editor gambar lengkap (Filerobot + konva) hanya dipakai on-demand —
-        // kunci dalam chunk sendiri agar bundle awal tetap ramping.
-        manualChunks(id) {
-          if (
-            id.includes('react-filerobot-image-editor')
-            || id.includes('react-konva')
-            || id.includes('node_modules/konva/')
-            || id.includes('node_modules/styled-components/')
-          ) {
-            return 'editor-lengkap';
-          }
-          return undefined;
-        },
-      },
-    },
   },
 });

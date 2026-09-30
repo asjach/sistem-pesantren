@@ -3,6 +3,7 @@ import { GridPrefsProvider } from '@/components/GridPrefs';
 import { RibbonTableProvider } from '@/components/RibbonTable';
 import { RibbonSlotProvider } from '@/components/RibbonSlot';
 import { TopBarSearchProvider } from '@/components/TopBarSearch';
+import { CariGlobalProvider } from '@/hooks/useCariGlobal';
 import { VisibilitasFilterProvider } from '@/components/VisibilitasFilter';
 import Sidebar from '@/components/Sidebar';
 import FilterRail from '@/components/FilterRail';
@@ -24,6 +25,7 @@ export default function Layout({ children }: { children: ReactNode }) {
       <RibbonTableProvider>
         <RibbonSlotProvider>
           <VisibilitasFilterProvider>
+            <CariGlobalProvider>
             <TopBarSearchProvider>
               <div className="flex h-screen overflow-hidden bg-background">
                 {!pakaiMenubar && <Sidebar />}
@@ -40,6 +42,7 @@ export default function Layout({ children }: { children: ReactNode }) {
                 </div>
               </div>
             </TopBarSearchProvider>
+            </CariGlobalProvider>
           </VisibilitasFilterProvider>
         </RibbonSlotProvider>
       </RibbonTableProvider>

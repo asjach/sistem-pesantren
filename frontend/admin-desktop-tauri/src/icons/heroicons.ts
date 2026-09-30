@@ -28,6 +28,7 @@ import IcGraduationCapHeroicons from '~icons/heroicons/academic-cap';
 import IcHistoryHeroicons from '~icons/heroicons/clock';
 import IcHomeHeroicons from '~icons/heroicons/home';
 import IcLandmarkHeroicons from '~icons/heroicons/building-library';
+import IcLink2Heroicons from '~icons/heroicons/link';
 import IcLogOutHeroicons from '~icons/heroicons/arrow-right-start-on-rectangle';
 import IcMinusHeroicons from '~icons/heroicons/minus';
 import IcMonitorHeroicons from '~icons/heroicons/computer-desktop';
@@ -41,6 +42,8 @@ import IcPlusHeroicons from '~icons/heroicons/plus';
 import IcPlusCircleHeroicons from '~icons/heroicons/plus-circle';
 import IcReceiptTextHeroicons from '~icons/heroicons/receipt-percent';
 import IcRotateCcwHeroicons from '~icons/heroicons/arrow-uturn-left';
+import IcRotateCwHeroicons from '~icons/heroicons/arrow-uturn-right';
+import IcScalingHeroicons from '~icons/heroicons/scale';
 import IcScrollTextHeroicons from '~icons/heroicons/document-text';
 import IcSearchHeroicons from '~icons/heroicons/magnifying-glass';
 import IcServerHeroicons from '~icons/heroicons/server';
@@ -86,6 +89,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   History: IcHistoryHeroicons,
   Home: IcHomeHeroicons,
   Landmark: IcLandmarkHeroicons,
+  Link2: IcLink2Heroicons,
   LogOut: IcLogOutHeroicons,
   Minus: IcMinusHeroicons,
   Monitor: IcMonitorHeroicons,
@@ -99,6 +103,8 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   PlusCircle: IcPlusCircleHeroicons,
   ReceiptText: IcReceiptTextHeroicons,
   RotateCcw: IcRotateCcwHeroicons,
+  RotateCw: IcRotateCwHeroicons,
+  Scaling: IcScalingHeroicons,
   ScrollText: IcScrollTextHeroicons,
   Search: IcSearchHeroicons,
   Server: IcServerHeroicons,

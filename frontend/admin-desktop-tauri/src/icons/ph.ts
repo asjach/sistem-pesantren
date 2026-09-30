@@ -22,6 +22,7 @@ import IcChevronLeftPh from '~icons/ph/caret-left';
 import IcChevronRightPh from '~icons/ph/caret-right';
 import IcClipboardListPh from '~icons/ph/clipboard';
 import IcCopyPh from '~icons/ph/copy';
+import IcCropPh from '~icons/ph/crop';
 import IcEyePh from '~icons/ph/eye';
 import IcFileUpPh from '~icons/ph/file-arrow-up';
 import IcFolderOpenPh from '~icons/ph/folder-open';
@@ -29,6 +30,7 @@ import IcGraduationCapPh from '~icons/ph/graduation-cap';
 import IcHistoryPh from '~icons/ph/clock-counter-clockwise';
 import IcHomePh from '~icons/ph/house';
 import IcLandmarkPh from '~icons/ph/bank';
+import IcLink2Ph from '~icons/ph/link';
 import IcLogOutPh from '~icons/ph/sign-out';
 import IcMinusPh from '~icons/ph/minus';
 import IcMonitorPh from '~icons/ph/monitor';
@@ -42,8 +44,12 @@ import IcPencilPh from '~icons/ph/pencil';
 import IcPlusPh from '~icons/ph/plus';
 import IcPlusCirclePh from '~icons/ph/plus-circle';
 import IcReceiptTextPh from '~icons/ph/receipt';
+import IcRefreshCcwPh from '~icons/ph/arrow-counter-clockwise';
+import IcRefreshCwPh from '~icons/ph/arrow-clockwise';
 import IcRotateCcwPh from '~icons/ph/arrow-counter-clockwise';
+import IcRotateCwPh from '~icons/ph/arrow-clockwise';
 import IcSavePh from '~icons/ph/floppy-disk';
+import IcScalingPh from '~icons/ph/resize';
 import IcScrollTextPh from '~icons/ph/scroll';
 import IcSearchPh from '~icons/ph/magnifying-glass';
 import IcServerPh from '~icons/ph/hard-drives';
@@ -88,6 +94,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   ChevronRight: IcChevronRightPh,
   ClipboardList: IcClipboardListPh,
   Copy: IcCopyPh,
+  Crop: IcCropPh,
   Eye: IcEyePh,
   FileUp: IcFileUpPh,
   FolderOpen: IcFolderOpenPh,
@@ -95,6 +102,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   History: IcHistoryPh,
   Home: IcHomePh,
   Landmark: IcLandmarkPh,
+  Link2: IcLink2Ph,
   LogOut: IcLogOutPh,
   Minus: IcMinusPh,
   Monitor: IcMonitorPh,
@@ -108,8 +116,12 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   Plus: IcPlusPh,
   PlusCircle: IcPlusCirclePh,
   ReceiptText: IcReceiptTextPh,
+  RefreshCcw: IcRefreshCcwPh,
+  RefreshCw: IcRefreshCwPh,
   RotateCcw: IcRotateCcwPh,
+  RotateCw: IcRotateCwPh,
   Save: IcSavePh,
+  Scaling: IcScalingPh,
   ScrollText: IcScrollTextPh,
   Search: IcSearchPh,
   Server: IcServerPh,

@@ -16,6 +16,7 @@ import {
 } from '../api/pegawai';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import Pager from '@/components/Pager';
 import { useDaftarTabel } from '@/hooks/useDaftarTabel';
@@ -280,9 +281,14 @@ export default function KeaktifanPegawaiPage() {
                 <Button id="btn_aktifkan_massal_keaktifan" variant="outline" disabled={!jenjangTunggal || !taTunggal} onClick={() => void onAktifkanMassal()}>
                   Aktifkan penempatan untuk TA ini
                 </Button>
-                <Button id="btn_buka_import_keaktifan" variant="outline" title="Untuk file besar (puluhan hingga ratusan ribu baris)" onClick={() => setImportOpen(true)}>
-                  <FileUp data-icon="inline-start" size={16} /> Import
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button id="btn_buka_import_keaktifan" variant="outline" onClick={() => setImportOpen(true)}>
+                      <FileUp data-icon="inline-start" size={16} /> Import
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent><p>Untuk file besar (puluhan hingga ratusan ribu baris)</p></TooltipContent>
+                </Tooltip>
               </>
             )}
             {tombolBulkHapus}

@@ -6,9 +6,10 @@ import { listDokumen } from '../api/dokumen';
 import { listKelas, referensiList, type Kelas, type ReferensiRow } from '../api/master';
 import { listRiwayatBelajar } from '../api/siklus';
 import { simpanDokumen } from '../api/dokumen';
-import { Button } from '@/components/ui/button';
+import TombolIkon from '@/components/TombolIkon';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Badge } from '@/components/ui/badge';
-import { Check } from '@/icons';
+import { Check, FolderOpen, Save, X } from '@/icons';
 import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/field';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -21,6 +22,7 @@ import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { ProfilSantriDialog } from '@/components/ProfilSantriDialog';
 import { useProfilSantri } from '@/components/santri/IsiProfilSantri';
 import { cn } from '@/lib/utils';
+import { jenjangTampilSantri, urutSantriFilter, type InfoUrutSantri } from '@/lib/urut';
 import {
   BATAS_BERKAS,
   EKSTENSI_BOLEH,
@@ -156,9 +158,11 @@ export default function TambahDokumenSantriPage() {
 
   /** Kelas per santri (kunci: santri_id) dari riwayat belajar sesuai filter. */
   const [kelasSantri, setKelasSantri] = useState<Record<number, string>>({});
-  const muatKelasSantri = useCallback(async (): Promise<Record<number, string>> => {
+  /** Tingkat per santri (kunci: santri_id) — segmen urut mode filter. */
+  const [tingkatSantri, setTingkatSantri] = useState<Record<number, string>>({});
+  const muatKelasSantri = useCallback(async (): Promise<{ kelas: Record<number, string>; tingkat: Record<number, string> }> => {
     try {
-      if (filterLoading || jenjangs.length === 0) return {};
+      if (filterLoading || jenjangs.length === 0) return { kelas: {}, tingkat: {} };
       const p = await listRiwayatBelajar({
         jenjang: jenjangs,
         ...(sumber === 'filter'
@@ -169,25 +173,31 @@ export default function TambahDokumenSantriPage() {
               kelas_id: kelasFilterIds.length ? kelasFilterIds : undefined,
             }
           : {}),
+        // Bawaan backend hanya baris aktif (kosong untuk filter historis) —
+        // minta semua, lalu utamakan yang aktif per santri di bawah.
+        is_active_riwayat: 'semua',
         per_page: 0,
       });
-      const peta: Record<number, { nama: string; aktif: boolean }> = {};
+      const peta: Record<number, { nama: string; tingkat: string; aktif: boolean }> = {};
       for (const r of p.data) {
         const nama = r.kelas?.nama_kelas?.trim();
         if (!nama) continue;
         const aktif = r.is_active_riwayat === 'Ya';
         if (!peta[r.santri_id] || (aktif && !peta[r.santri_id].aktif)) {
-          peta[r.santri_id] = { nama, aktif };
+          peta[r.santri_id] = { nama, tingkat: r.tingkat?.trim() ?? '', aktif };
         }
       }
-      return Object.fromEntries(Object.entries(peta).map(([k, v]) => [Number(k), v.nama]));
+      return {
+        kelas: Object.fromEntries(Object.entries(peta).map(([k, v]) => [Number(k), v.nama])),
+        tingkat: Object.fromEntries(Object.entries(peta).map(([k, v]) => [Number(k), v.tingkat])),
+      };
     } catch {
-      return {};
+      return { kelas: {}, tingkat: {} };
     }
   }, [sumber, filterLoading, jenjangs, tahunAjaranNames, semesters, tingkatAktif, kelasFilterIds]);
   useEffect(() => {
     let hidup = true;
-    void muatKelasSantri().then((m) => { if (hidup) setKelasSantri(m); });
+    void muatKelasSantri().then((m) => { if (hidup) { setKelasSantri(m.kelas); setTingkatSantri(m.tingkat); } });
     return () => { hidup = false; };
   }, [muatKelasSantri]);
 
@@ -313,11 +323,10 @@ export default function TambahDokumenSantriPage() {
     let hidup = true;
     (async () => {
       try {
-        const [s, l, u, q, m, f, ft] = await Promise.all([
+        const [s, l, u, m, f, ft] = await Promise.all([
           prefGet('simpes_tambah_dok_sumber'),
           prefGet('simpes_tambah_dok_lainnya'),
           prefGet('simpes_tambah_dok_sudah'),
-          prefGet('simpes_tambah_dok_cari'),
           prefGet(PREF_MODE_DOKUMEN),
           prefGet(PREF_FOLDER_ARSIP),
           prefGet(PREF_FOLDER_ARSIP_TEST),
@@ -326,7 +335,7 @@ export default function TambahDokumenSantriPage() {
         if (s === 'filter' || s === 'buku') setSumber(s);
         if (l === '1' || l === '0') setInputLainnya(l === '1');
         if (u === '1' || u === '0') setPindahSudah(u === '1');
-        if (typeof q === 'string' && q !== '') { setCari(q); setCariTunda(q); }
+        // Nilai cari dari search global (TopBarSearch mengadopsi otomatis).
         if (m === 'server' || m === 'lokal' || m === 'test') setModeDokumen(m);
         if (typeof f === 'string') setFolderArsip(f);
         if (typeof ft === 'string') setFolderArsipTest(ft);
@@ -349,10 +358,6 @@ export default function TambahDokumenSantriPage() {
     if (!prefSiap) return;
     prefSet('simpes_tambah_dok_sudah', pindahSudah ? '1' : '0').catch(() => {});
   }, [prefSiap, pindahSudah]);
-  useEffect(() => {
-    if (!prefSiap) return;
-    prefSet('simpes_tambah_dok_cari', cari).catch(() => {});
-  }, [prefSiap, cari]);
   /** Berkas wajib di halaman ini (baris + file-nya sekaligus). */
   const bisaSimpan = santriId != null && jenis.trim() !== '' && sumberBerkas !== null && keluaran !== null && !busy;
 
@@ -437,6 +442,23 @@ export default function TambahDokumenSantriPage() {
 
   const daftarIds = useMemo(() => santris.map((s) => s.id), [santris]);
 
+  /** Mode filter: urut jenjang → tingkat → kelas → nama → jk. */
+  const infoUrutSantri = useMemo(() => {
+    const m: Record<number, InfoUrutSantri> = {};
+    for (const s of santris) {
+      m[s.id] = {
+        jenjang: jenjangTampilSantri(s),
+        tingkat: tingkatSantri[s.id] ?? '',
+        kelas: kelasSantri[s.id] ?? '',
+      };
+    }
+    return m;
+  }, [santris, tingkatSantri, kelasSantri]);
+  const santriTampil = useMemo(
+    () => (sumber === 'filter' ? urutSantriFilter(santris, infoUrutSantri) : santris),
+    [sumber, santris, infoUrutSantri],
+  );
+
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
@@ -474,17 +496,17 @@ export default function TambahDokumenSantriPage() {
               <table className="w-full text-xs">
                 <thead className="sticky top-0 bg-muted">
                   <tr className="text-left">
-                    <th className="px-2 py-1.5 font-medium">Nama</th>
-                    <th className="px-2 py-1.5 font-medium">Kelas</th>
-                    <th className="px-2 py-1.5 font-medium">Dok</th>
+                    <th className="px-2 py-1 font-medium">Nama</th>
+                    <th className="px-2 py-1 font-medium">Kelas</th>
+                    <th className="px-2 py-1 font-medium">Dok</th>
                   </tr>
                 </thead>
                 <tbody>
                   {loadingSantri ? (
-                    <tr><td colSpan={3} className="px-2 py-3 text-center text-muted-foreground">Memuat…</td></tr>
-                  ) : santris.length === 0 ? (
-                    <tr><td colSpan={3} className="px-2 py-3 text-center text-muted-foreground">{sumber === 'filter' ? 'Tidak ada santri pada filter ini.' : 'Tidak ada santri.'}</td></tr>
-                  ) : santris.map((s) => {
+                    <tr><td colSpan={3} className="px-2 py-1 text-center text-muted-foreground">Memuat…</td></tr>
+                  ) : santriTampil.length === 0 ? (
+                    <tr><td colSpan={3} className="px-2 py-1 text-center text-muted-foreground">{sumber === 'filter' ? 'Tidak ada santri pada filter ini.' : 'Tidak ada santri.'}</td></tr>
+                  ) : santriTampil.map((s) => {
                     const aktif = s.id === santriId;
                     const n = jumlahSantri[s.id] ?? 0;
                     return (
@@ -499,9 +521,12 @@ export default function TambahDokumenSantriPage() {
                           aktif ? 'bg-accent font-medium' : 'hover:bg-muted/60',
                         )}
                       >
-                        <td className="px-2 py-1.5">{s.nama_lengkap}</td>
-                        <td className="px-2 py-1.5 text-muted-foreground">{kelasSantri[s.id] ?? '—'}</td>
-                        <td className="px-2 py-1.5"><Badge variant={n > 0 ? 'secondary' : 'outline'}>{n}</Badge></td>
+                        <td className="px-2 py-1">
+                          {s.nama_lengkap}
+                          {s.is_active_pst !== 'Ya' && <Badge variant="destructive" className="ml-1 py-0 align-middle text-[9px] leading-3">Nonaktif</Badge>}
+                        </td>
+                        <td className="px-2 py-1 text-muted-foreground">{kelasSantri[s.id] ?? '—'}</td>
+                        <td className="px-2 py-1"><Badge variant={n > 0 ? 'secondary' : 'outline'} className="py-0 leading-4">{n}</Badge></td>
                       </tr>
                     );
                   })}
@@ -536,22 +561,27 @@ export default function TambahDokumenSantriPage() {
                   const jumlah = jumlahJenis[o.value.trim().toLowerCase()] ?? 0;
                   const aktif = jenis === o.value;
                   return (
-                    <button
-                      key={o.value}
-                      type="button"
-                      role="option"
-                      aria-selected={aktif}
-                      title={santriTerpilih ? `${jumlah} dokumen ${o.label} milik ${santriTerpilih.nama_lengkap}` : o.label}
-                      onClick={() => setJenis(o.value)}
-                      className={cn(
-                        'flex w-full cursor-pointer items-center gap-2 px-2.5 py-1 text-left text-xs',
-                        aktif ? 'bg-accent font-medium' : 'hover:bg-muted/60',
-                      )}
-                    >
-                      <Check size={12} className={cn('shrink-0', aktif ? 'opacity-100' : 'opacity-0')} />
-                      <span className="min-w-0 flex-1 truncate">{o.label}</span>
-                      <Badge variant={jumlah > 0 ? 'secondary' : 'outline'}>{jumlah}</Badge>
-                    </button>
+                    <Tooltip key={o.value}>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          role="option"
+                          aria-selected={aktif}
+                          onClick={() => setJenis(o.value)}
+                          className={cn(
+                            'flex w-full cursor-pointer items-center gap-2 px-2.5 py-1 text-left text-xs',
+                            aktif ? 'bg-accent font-medium' : 'hover:bg-muted/60',
+                          )}
+                        >
+                          <Check size={12} className={cn('shrink-0', aktif ? 'opacity-100' : 'opacity-0')} />
+                          <span className="min-w-0 flex-1 truncate">{o.label}</span>
+                          <Badge variant={jumlah > 0 ? 'secondary' : 'outline'} className="py-0 text-[10px] leading-3">{jumlah}</Badge>
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{santriTerpilih ? `${jumlah} dokumen ${o.label} milik ${santriTerpilih.nama_lengkap}` : o.label}</p>
+                      </TooltipContent>
+                    </Tooltip>
                   );
                 })}
               </div>
@@ -569,16 +599,16 @@ export default function TambahDokumenSantriPage() {
           </div>
           <div id="box_browse_tambah_dokumen" className="grid gap-1.5 rounded-md border border-dashed bg-muted/40 p-2.5">
             <div className="flex items-center gap-2">
-              <Button ref={btnBrowseRef} variant="outline" onClick={() => void onBrowse()}>
-                Browse…
-              </Button>
+              <TombolIkon tip="Pilih berkas" ref={btnBrowseRef} variant="outline" size="icon" onClick={() => void onBrowse()}>
+                <FolderOpen size={14} />
+              </TombolIkon>
               <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground" title={sumberBerkas?.nama}>
                 {sumberBerkas ? `${sumberBerkas.nama} (${formatUkuran(sumberBerkas.bytes.length)})` : 'Belum ada berkas dipilih.'}
               </span>
               {sumberBerkas && (
-                <Button variant="ghost" size="sm" onClick={resetBerkas} title="Hapus pilihan berkas">
-                  Hapus
-                </Button>
+                <TombolIkon tip="Hapus pilihan berkas" variant="ghost" size="icon" onClick={resetBerkas}>
+                  <X size={14} />
+                </TombolIkon>
               )}
             </div>
             <input
@@ -594,12 +624,12 @@ export default function TambahDokumenSantriPage() {
             <span className="mr-auto self-center text-xs text-muted-foreground">
               Mode: {modeTest ? 'Test (folder uji)' : (modeEfektif === 'lokal' ? 'Lokal (berkas di drive perangkat ini)' : 'Server')}
             </span>
-            <Button variant="outline" onClick={() => navigate('/dokumen-santri')}>
-              Batal
-            </Button>
-            <Button id="btn_simpan_tambah_dokumen" disabled={!bisaSimpan} onClick={() => void onSimpan()}>
-              Simpan
-            </Button>
+            <TombolIkon tip="Batal" variant="outline" size="icon" onClick={() => navigate('/dokumen-santri')}>
+              <X size={14} />
+            </TombolIkon>
+            <TombolIkon tip="Simpan" id="btn_simpan_tambah_dokumen" size="icon" disabled={!bisaSimpan} onClick={() => void onSimpan()}>
+              <Save size={14} />
+            </TombolIkon>
           </div>
           <Separator />
           <div className="flex flex-row flex-wrap items-center gap-x-4 gap-y-2">

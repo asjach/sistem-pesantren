@@ -1,6 +1,8 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, X } from '@/icons';
+import { useCariGlobal } from '@/hooks/useCariGlobal';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 /** Slot pencarian tunggal di baris atas TopBar (menggantikan judul halaman).
  *
@@ -30,7 +32,11 @@ export function useTopBarSearchCtx() {
   return useContext(Ctx);
 }
 
-/** Input pencarian halaman di TopBar. Lepas otomatis saat halaman unmount. */
+/** Input pencarian halaman di TopBar. Lepas otomatis saat halaman unmount.
+ *
+ *  Nilai bersifat global lintas halaman: saat dipasang, state lokal halaman
+ *  mengadopsi nilai global (pindah halaman membawa kata kunci); tiap ketikan
+ *  menulis balik ke global sekaligus ke state halaman. */
 export function TopBarSearch({
   value,
   onChange,
@@ -47,6 +53,20 @@ export function TopBarSearch({
     setAda(true);
     return () => setAda(false);
   }, [setAda]);
+  const { nilai: cariGlobal, ubah: ubahGlobal } = useCariGlobal();
+  // Adopsi sekali per pemasangan (StrictMode: ref direset saat remount,
+  // tapi value sudah sama dengan global sehingga no-op).
+  const adopsiRef = useRef(false);
+  useEffect(() => {
+    if (!adopsiRef.current && value !== cariGlobal) {
+      adopsiRef.current = true;
+      onChange(cariGlobal);
+    }
+  }, [value, cariGlobal, onChange]);
+  const ketik = (v: string) => {
+    ubahGlobal(v);
+    onChange(v);
+  };
 
   if (!ctx?.el) return null;
   return createPortal(
@@ -60,21 +80,27 @@ export function TopBarSearch({
         id="input_cari_topbar"
         type="search"
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => ketik(e.target.value)}
         aria-label={placeholder}
         className="h-6 w-full rounded-md border border-white/20 bg-white/10 pr-6 pl-7 text-xs text-white outline-none focus:border-white/40 focus:bg-white/15 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:appearance-none"
       />
       {value !== '' && (
-        <button
-          type="button"
-          id="btn_hapus_cari_topbar"
-          title="Bersihkan pencarian"
-          aria-label="Bersihkan pencarian"
-          onClick={() => onChange('')}
-          className="absolute top-1/2 right-1 grid size-4 -translate-y-1/2 place-items-center rounded text-white/60 hover:bg-white/10 hover:text-white"
-        >
-          <X size={12} />
-        </button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              id="btn_hapus_cari_topbar"
+              aria-label="Bersihkan pencarian"
+              onClick={() => ketik('')}
+              className="absolute top-1/2 right-1 grid size-4 -translate-y-1/2 place-items-center rounded text-white/60 hover:bg-white/10 hover:text-white"
+            >
+              <X size={12} />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Bersihkan pencarian</p>
+          </TooltipContent>
+        </Tooltip>
       )}
     </form>,
     ctx.el,

@@ -20,6 +20,7 @@ import {
   type Pegawai,
 } from '../api/pegawai';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/field';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -336,11 +337,15 @@ export default function PegawaiPage() {
               </Button>
             )}
             {canBuatAkun && (
-              <Button id="btn_generate_akun_pegawai" variant="outline" disabled={busy}
-                title="Buatkan/selaraskan akun guru untuk hasil filter saat ini (sandi bawaan dev)"
-                onClick={() => void onGenerateAkun()}>
-                <UserCheck data-icon="inline-start" size={16} /> Generate akun
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button id="btn_generate_akun_pegawai" variant="outline" disabled={busy}
+                    onClick={() => void onGenerateAkun()}>
+                    <UserCheck data-icon="inline-start" size={16} /> Generate akun
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent><p>Buatkan/selaraskan akun guru untuk hasil filter saat ini (sandi bawaan dev)</p></TooltipContent>
+              </Tooltip>
             )}
             {canTambah && (
               <Button id="btn_buka_tambah_pegawai" onClick={() => setTambahOpen(true)}>

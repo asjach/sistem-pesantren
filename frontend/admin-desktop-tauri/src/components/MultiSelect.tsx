@@ -7,6 +7,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 export interface MultiSelectOption {
   value: string;
@@ -91,26 +92,38 @@ export default function MultiSelect({
               <span className="min-w-0 flex-1 truncate">{o.label}</span>
               {terpilih && onMove ? (
                 <span className="flex shrink-0 items-center" onClick={(e) => e.stopPropagation()}>
-                  <button
-                    type="button"
-                    title="Geser ke kiri (lebih utama)"
-                    aria-label={`Geser ${o.label} ke kiri`}
-                    disabled={disabled || pos === 0}
-                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); onMove(pos, pos - 1); }}
-                    className="grid size-5 place-items-center rounded hover:bg-accent disabled:opacity-30"
-                  >
-                    <ChevronLeft size={12} />
-                  </button>
-                  <button
-                    type="button"
-                    title="Geser ke kanan"
-                    aria-label={`Geser ${o.label} ke kanan`}
-                    disabled={disabled || pos === values.length - 1}
-                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); onMove(pos, pos + 1); }}
-                    className="grid size-5 place-items-center rounded hover:bg-accent disabled:opacity-30"
-                  >
-                    <ChevronRight size={12} />
-                  </button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        aria-label={`Geser ${o.label} ke kiri`}
+                        disabled={disabled || pos === 0}
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); onMove(pos, pos - 1); }}
+                        className="grid size-5 place-items-center rounded hover:bg-accent disabled:opacity-30"
+                      >
+                        <ChevronLeft size={12} />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Geser ke kiri (lebih utama)</p>
+                    </TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        aria-label={`Geser ${o.label} ke kanan`}
+                        disabled={disabled || pos === values.length - 1}
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); onMove(pos, pos + 1); }}
+                        className="grid size-5 place-items-center rounded hover:bg-accent disabled:opacity-30"
+                      >
+                        <ChevronRight size={12} />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Geser ke kanan</p>
+                    </TooltipContent>
+                  </Tooltip>
                 </span>
               ) : null}
             </DropdownMenuItem>

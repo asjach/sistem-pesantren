@@ -11,6 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { useLembagaAktif } from '@/lembagaAktif';
 import type { ModeFilterGlobal } from '@/lib/filterHalaman';
 import { cn } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { toast } from 'sonner';
 
 type RailGroup = 'tingkat' | 'kelas';
@@ -286,19 +287,25 @@ export default function FilterRail() {
             onChange={(next) => { void ubahMode('tingkat', next); }}
           />
            {!hideTingkatAll ? (
-             <button
-               id="filter_rail_tingkat_all"
-               type="button"
-               disabled={loading}
-               aria-label="Pilih semua tingkat"
-               aria-pressed={tingkat.length === 0}
-               title="Semua tingkat"
-               onClick={() => pilihTingkat([])}
-               className={itemClass(tingkat.length === 0)}
-             >
-               All
-             </button>
-           ) : null}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    id="filter_rail_tingkat_all"
+                    type="button"
+                    disabled={loading}
+                    aria-label="Pilih semua tingkat"
+                    aria-pressed={tingkat.length === 0}
+                    onClick={() => pilihTingkat([])}
+                    className={itemClass(tingkat.length === 0)}
+                  >
+                    All
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Semua tingkat</p>
+                </TooltipContent>
+              </Tooltip>
+            ) : null}
            {tingkatReferensiLoading ? (
              <span className="block px-1 py-3 text-center text-[10px] text-muted-foreground">Memuat…</span>
            ) : tingkatReferensiGagal ? (
@@ -306,21 +313,26 @@ export default function FilterRail() {
            ) : tingkatOpsi.length > 0 ? tingkatOpsi.map((value, index) => {
              const active = tingkat.includes(value);
              return (
-               <button
-                 key={value}
-                 id={idNilai('filter_rail_tingkat', value, index)}
-                 type="button"
-                 disabled={loading}
-                 aria-label={`Pilih tingkat ${value}`}
-                 aria-pressed={active}
-                 title={modeTingkat === 'single' && active ? `${value} · klik untuk Semua` : `Pilih tingkat ${value}`}
-                 onPointerDown={(event) => startDrag('tingkat', value, event)}
-                 onPointerEnter={(event) => continueDrag('tingkat', value, event)}
-                  onClick={(event) => clickValue('tingkat', value, event)}
-                 className={itemClass(active)}
-               >
-                 {value}
-               </button>
+                <Tooltip key={value}>
+                  <TooltipTrigger asChild>
+                    <button
+                      id={idNilai('filter_rail_tingkat', value, index)}
+                      type="button"
+                      disabled={loading}
+                      aria-label={`Pilih tingkat ${value}`}
+                      aria-pressed={active}
+                      onPointerDown={(event) => startDrag('tingkat', value, event)}
+                      onPointerEnter={(event) => continueDrag('tingkat', value, event)}
+                       onClick={(event) => clickValue('tingkat', value, event)}
+                      className={itemClass(active)}
+                    >
+                      {value}
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{modeTingkat === 'single' && active ? `${value} · klik untuk Semua` : `Pilih tingkat ${value}`}</p>
+                  </TooltipContent>
+                </Tooltip>
              );
            }) : (
              <span className="block px-1 py-3 text-center text-[10px] text-muted-foreground">Tidak ada tingkat</span>
@@ -337,39 +349,50 @@ export default function FilterRail() {
             onChange={(next) => { void ubahMode('kelas', next); }}
           />
           <div className="min-h-0 flex-1 overflow-y-auto">
-            <button
-              id="filter_rail_kelas_all"
-               type="button"
-               disabled={loading}
-               aria-label="Pilih semua kelas"
-              aria-pressed={kelas.length === 0}
-              title="Semua kelas"
-              onClick={() => pilihKelas([])}
-              className={itemClass(kelas.length === 0)}
-            >
-              All
-            </button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  id="filter_rail_kelas_all"
+                   type="button"
+                   disabled={loading}
+                   aria-label="Pilih semua kelas"
+                  aria-pressed={kelas.length === 0}
+                  onClick={() => pilihKelas([])}
+                  className={itemClass(kelas.length === 0)}
+                >
+                  All
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Semua kelas</p>
+              </TooltipContent>
+            </Tooltip>
              {loading ? (
                <span className="block px-2 py-3 text-center text-xs text-muted-foreground">Memuat…</span>
              ) : kelasOpsi.length > 0 ? kelasOpsi.map((value, index) => {
                const active = kelas.includes(value);
-               return (
-                 <button
-                   key={value}
-                   id={idNilai('filter_rail_kelas', value, index)}
-                   type="button"
-                   disabled={loading}
-                   aria-label={`Pilih kelas ${value}`}
-                   aria-pressed={active}
-                   title={modeKelas === 'single' && active ? `${value} · klik untuk Semua` : `Pilih kelas ${value}`}
-                   onPointerDown={(event) => startDrag('kelas', value, event)}
-                   onPointerEnter={(event) => continueDrag('kelas', value, event)}
-                    onClick={(event) => clickValue('kelas', value, event)}
-                   className={itemClass(active)}
-                 >
-                   <span className="max-w-full truncate">{value}</span>
-                 </button>
-               );
+                return (
+                  <Tooltip key={value}>
+                    <TooltipTrigger asChild>
+                      <button
+                        id={idNilai('filter_rail_kelas', value, index)}
+                        type="button"
+                        disabled={loading}
+                        aria-label={`Pilih kelas ${value}`}
+                        aria-pressed={active}
+                        onPointerDown={(event) => startDrag('kelas', value, event)}
+                        onPointerEnter={(event) => continueDrag('kelas', value, event)}
+                         onClick={(event) => clickValue('kelas', value, event)}
+                        className={itemClass(active)}
+                      >
+                        <span className="max-w-full truncate">{value}</span>
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{modeKelas === 'single' && active ? `${value} · klik untuk Semua` : `Pilih kelas ${value}`}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                );
              }) : (
                <span className="block px-2 py-3 text-center text-xs text-muted-foreground">Tidak ada kelas</span>
              )}

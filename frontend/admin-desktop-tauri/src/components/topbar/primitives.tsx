@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Minus, Plus, type Ikon } from '@/icons';
 
 export function clamp(n: number, lo: number, hi: number) {
@@ -129,27 +130,33 @@ export function RibbonCmd({
   iconOnly?: boolean;
 }) {
   return (
-    <button
-      id={id}
-      type="button"
-      title={label}
-      aria-label={label}
-      aria-pressed={aktif}
-      disabled={disabled}
-      onClick={onClick}
-      data-part="menu_ribbon"
-      className={cn(
-        'flex h-6 items-center gap-1.5 rounded-md text-xs whitespace-nowrap transition-colors',
-        iconOnly ? 'w-6 justify-center' : 'px-2',
-        aktif
-          ? 'bg-white/20 font-semibold text-white'
-          : 'text-white/85 hover:bg-white/10 hover:text-white',
-        'disabled:pointer-events-none disabled:opacity-40',
-      )}
-    >
-      <Icon size={14} />
-      {!iconOnly && <span>{label}</span>}
-    </button>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          id={id}
+          type="button"
+          aria-label={label}
+          aria-pressed={aktif}
+          disabled={disabled}
+          onClick={onClick}
+          data-part="menu_ribbon"
+          className={cn(
+            'flex h-6 items-center gap-1.5 rounded-md text-xs whitespace-nowrap transition-colors',
+            iconOnly ? 'w-6 justify-center' : 'px-2',
+            aktif
+              ? 'bg-white/20 font-semibold text-white'
+              : 'text-white/85 hover:bg-white/10 hover:text-white',
+            'disabled:pointer-events-none disabled:opacity-40',
+          )}
+        >
+          <Icon size={14} />
+          {!iconOnly && <span>{label}</span>}
+        </button>
+      </TooltipTrigger>
+      <TooltipContent>
+        <p>{label}</p>
+      </TooltipContent>
+    </Tooltip>
   );
 }
 

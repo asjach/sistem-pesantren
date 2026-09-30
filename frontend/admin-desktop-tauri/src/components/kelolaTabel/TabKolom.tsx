@@ -8,6 +8,8 @@ import {
   type PresetTabel,
 } from '../../api/preset';
 import { Button } from '@/components/ui/button';
+import TombolIkon from '@/components/TombolIkon';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Input } from '@/components/ui/input';
 import { Field, FieldLabel } from '@/components/ui/field';
 import { DialogFooter } from '@/components/ui/dialog';
@@ -253,37 +255,49 @@ export default function TabKolom({
                 banyakKolom ? 'max-h-40 lg:max-h-none lg:min-h-0 lg:flex-1' : 'max-h-64 lg:max-h-none lg:min-h-0 lg:flex-1',
               )}
             >
-              <button
-                id={`btn_preset_lengkap_${tableKey}`}
-              type="button"
-              title="Semua kolom — kurangi lalu simpan sebagai preset baru"
-              onClick={onPilihLengkap}
-              className={cn(
-                'rounded-md px-2 py-1 text-left text-xs transition-colors hover:bg-accent/60',
-                mulaiLengkap && editId === null ? 'bg-accent font-medium' : '',
-              )}
-            >
-              <span className="block truncate">Lengkap (semua kolom)</span>
-            </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    id={`btn_preset_lengkap_${tableKey}`}
+                    type="button"
+                    onClick={onPilihLengkap}
+                    className={cn(
+                      'rounded-md px-2 py-1 text-left text-xs transition-colors hover:bg-accent/60',
+                      mulaiLengkap && editId === null ? 'bg-accent font-medium' : '',
+                    )}
+                  >
+                    <span className="block truncate">Lengkap (semua kolom)</span>
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Semua kolom — kurangi lalu simpan sebagai preset baru</p>
+                </TooltipContent>
+              </Tooltip>
             {presets.length === 0 ? (
               <p className="px-1 text-xs text-muted-foreground">Belum ada preset lain.</p>
             ) : presets.map((p) => {
               const tanda = p.id === bawaanId;
               return (
                 <div key={p.id} className="group flex items-center gap-0.5">
-                  <button
-                    type="button"
-                    onClick={() => onPilihPreset(p)}
-                    title={tanda ? `${p.nama} (bawaan)` : p.nama}
-                    className={cn(
-                      'min-w-0 flex-1 rounded-md px-2 py-1 text-left text-xs transition-colors',
-                      editId === p.id ? 'bg-accent font-medium' : 'hover:bg-accent/60',
-                    )}
-                  >
-                    <span className="block truncate">
-                      {p.nama}
-                    </span>
-                  </button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        onClick={() => onPilihPreset(p)}
+                        className={cn(
+                          'min-w-0 flex-1 rounded-md px-2 py-1 text-left text-xs transition-colors',
+                          editId === p.id ? 'bg-accent font-medium' : 'hover:bg-accent/60',
+                        )}
+                      >
+                        <span className="block truncate">
+                          {p.nama}
+                        </span>
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{tanda ? `${p.nama} (bawaan)` : p.nama}</p>
+                    </TooltipContent>
+                  </Tooltip>
                   {tanda ? (
                     <span
                       title="Preset bawaan"
@@ -304,26 +318,38 @@ export default function TabKolom({
           <div className="flex items-center justify-between gap-2">
             <FieldLabel>Kolom tersedia</FieldLabel>
             <span className="flex shrink-0 items-center gap-2">
-              <button
-                id={`btn_pilih_semua_kolom_${tableKey}`}
-                type="button"
-                disabled={kolomTampil.length === 0 || semuaTampilTerpilih}
-                title={cariKolom.trim() ? 'Pilih semua kolom hasil pencarian' : 'Pilih semua kolom'}
-                className="text-xs text-muted-foreground underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
-                onClick={() => aturSemuaTampil(true)}
-              >
-                Pilih semua
-              </button>
-              <button
-                id={`btn_kosongkan_kolom_${tableKey}`}
-                type="button"
-                disabled={kolomTampil.length === 0 || kolomTampil.every((f) => !kolom.includes(f.key))}
-                title={cariKolom.trim() ? 'Batalkan pilihan kolom hasil pencarian' : 'Batalkan semua pilihan kolom'}
-                className="text-xs text-muted-foreground underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
-                onClick={() => aturSemuaTampil(false)}
-              >
-                Kosongkan
-              </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    id={`btn_pilih_semua_kolom_${tableKey}`}
+                    type="button"
+                    disabled={kolomTampil.length === 0 || semuaTampilTerpilih}
+                    className="text-xs text-muted-foreground underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+                    onClick={() => aturSemuaTampil(true)}
+                  >
+                    Pilih semua
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{cariKolom.trim() ? 'Pilih semua kolom hasil pencarian' : 'Pilih semua kolom'}</p>
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    id={`btn_kosongkan_kolom_${tableKey}`}
+                    type="button"
+                    disabled={kolomTampil.length === 0 || kolomTampil.every((f) => !kolom.includes(f.key))}
+                    className="text-xs text-muted-foreground underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+                    onClick={() => aturSemuaTampil(false)}
+                  >
+                    Kosongkan
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{cariKolom.trim() ? 'Batalkan pilihan kolom hasil pencarian' : 'Batalkan semua pilihan kolom'}</p>
+                </TooltipContent>
+              </Tooltip>
             </span>
           </div>
           <Input
@@ -423,17 +449,16 @@ export default function TabKolom({
                   </span>
                   <span className="w-4 shrink-0 text-right text-xs tabular-nums text-muted-foreground">{i + 1}.</span>
                   <span className="min-w-0 flex-1 truncate text-xs" title={f.label}>{f.label}</span>
-                  <Button
+                  <TombolIkon
                     type="button"
                     variant="outline"
                     size="icon-sm"
                     id={`btn_kolom_hapus_${tableKey}_${k}`}
-                    title="Sembunyikan kolom ini"
-                    aria-label={`Sembunyikan ${f.label}`}
+                    tip="Sembunyikan kolom ini"
                     onClick={() => togolKolom(k, false)}
                   >
                     <X size={12} />
-                  </Button>
+                  </TombolIkon>
                 </div>
               );
             })}

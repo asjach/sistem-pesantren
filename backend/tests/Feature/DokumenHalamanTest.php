@@ -235,6 +235,52 @@ class DokumenHalamanTest extends TestCase
         $this->assertSame(0, DokumenSantri::count());
     }
 
+    public function test_ubah_tanpa_selaraskan_nama_tidak_mengubah_nama_berkas(): void
+    {
+        $f = $this->fixture();
+        $auth = $this->superAdmin();
+
+        $this->actingAs($auth, 'sanctum')->post('/api/admin/dokumen/santri', [
+            'santri_id' => $f['santri']->id,
+            'jenis_dokumen' => 'Kartu Keluarga',
+            'file' => UploadedFile::fake()->image('kk-ahmad.jpg'),
+        ], ['Accept' => 'application/json'])->assertStatus(201);
+        $dok = DokumenSantri::first();
+        $namaAwal = (string) $dok->nama_file;
+
+        $this->actingAs($auth, 'sanctum')->patchJson("/api/admin/dokumen/santri/{$dok->id}", [
+            'jenis_dokumen' => 'Akta Kelahiran',
+        ])->assertOk();
+
+        $this->assertSame($namaAwal, DokumenSantri::find($dok->id)->nama_file);
+        Storage::disk('local')->assertExists('santri/dokumen/'.$namaAwal);
+    }
+
+    public function test_ubah_selaraskan_nama_menyusun_ulang_nama_dan_memindah_fisik(): void
+    {
+        $f = $this->fixture();
+        $auth = $this->superAdmin();
+
+        $this->actingAs($auth, 'sanctum')->post('/api/admin/dokumen/santri', [
+            'santri_id' => $f['santri']->id,
+            'jenis_dokumen' => 'Kartu Keluarga',
+            'file' => UploadedFile::fake()->image('kk-ahmad.jpg'),
+        ], ['Accept' => 'application/json'])->assertStatus(201);
+        $dok = DokumenSantri::first();
+        $namaAwal = (string) $dok->nama_file;
+
+        $this->actingAs($auth, 'sanctum')->patchJson("/api/admin/dokumen/santri/{$dok->id}", [
+            'jenis_dokumen' => 'Akta Kelahiran',
+            'selaraskan_nama' => true,
+        ])->assertOk();
+
+        $namaBaru = (string) DokumenSantri::find($dok->id)->nama_file;
+        $this->assertNotSame($namaAwal, $namaBaru);
+        $this->assertMatchesRegularExpression('{^ahmad_santri_akta_kelahiran_\d{8}_\d{6}\.jpg$}', $namaBaru);
+        Storage::disk('local')->assertMissing('santri/dokumen/'.$namaAwal);
+        Storage::disk('local')->assertExists('santri/dokumen/'.$namaBaru);
+    }
+
     public function test_unggah_memindahkan_penyimpanan_ke_server(): void
     {
         $f = $this->fixture();

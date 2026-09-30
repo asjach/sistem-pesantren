@@ -13,6 +13,7 @@ import {
 import { bisa } from '../api/auth';
 import { useAuth } from '../auth/AuthContext';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ResizableAutoHidePanel, ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { ActionIcon } from '@/components/RowActions';
 import { ArrowRight, X } from '@/icons';
@@ -316,16 +317,20 @@ export default function MiMdPage() {
                       : undefined,
                     canDaftar
                       ? (checked, clear) => (
-                        <Button
-                          id="btn_bulk_daftar_md"
-                          size="sm"
-                          variant="outline"
-                          disabled={bulkBusy}
-                          title="Daftarkan yang tercentang ke MD"
-                          onClick={() => void daftarkanBanyak(checked, clear)}
-                        >
-                          Ke MD ({checked.length})
-                        </Button>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              id="btn_bulk_daftar_md"
+                              size="sm"
+                              variant="outline"
+                              disabled={bulkBusy}
+                              onClick={() => void daftarkanBanyak(checked, clear)}
+                            >
+                              Ke MD ({checked.length})
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent><p>Daftarkan yang tercentang ke MD</p></TooltipContent>
+                        </Tooltip>
                       )
                       : undefined,
                   )}
@@ -342,54 +347,70 @@ export default function MiMdPage() {
                     canSamakan
                       ? (r) => (
                         <div className="flex gap-1">
-                          <Button
-                            id={`btn_samakan_mi_${r.santri_id}`}
-                            size="sm"
-                            variant="outline"
-                            disabled={busyId === r.santri_id}
-                            title="Samakan MD dengan MI (buatkan riwayat bila belum ada)"
-                            onClick={() => void samakan(r.santri_id, 'ke_md')}
-                          >
-                            <ArrowRight data-icon="inline-start" />
-                            MI
-                          </Button>
-                          <Button
-                            id={`btn_samakan_md_${r.santri_id}`}
-                            size="sm"
-                            variant="outline"
-                            disabled={busyId === r.santri_id}
-                            title="Samakan MI dengan MD (buatkan riwayat bila belum ada)"
-                            onClick={() => void samakan(r.santri_id, 'ke_mi')}
-                          >
-                            <ArrowRight data-icon="inline-start" />
-                            MD
-                          </Button>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                id={`btn_samakan_mi_${r.santri_id}`}
+                                size="sm"
+                                variant="outline"
+                                disabled={busyId === r.santri_id}
+                                onClick={() => void samakan(r.santri_id, 'ke_md')}
+                              >
+                                <ArrowRight data-icon="inline-start" />
+                                MI
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent><p>Samakan MD dengan MI (buatkan riwayat bila belum ada)</p></TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                id={`btn_samakan_md_${r.santri_id}`}
+                                size="sm"
+                                variant="outline"
+                                disabled={busyId === r.santri_id}
+                                onClick={() => void samakan(r.santri_id, 'ke_mi')}
+                              >
+                                <ArrowRight data-icon="inline-start" />
+                                MD
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent><p>Samakan MI dengan MD (buatkan riwayat bila belum ada)</p></TooltipContent>
+                          </Tooltip>
                         </div>
                       )
                       : undefined,
                     canSamakan
                       ? (checked, clear) => (
                         <div className="flex gap-1">
-                          <Button
-                            id="btn_bulk_samakan_mi"
-                            size="sm"
-                            variant="outline"
-                            disabled={bulkBusy}
-                            title="Samakan yang tercentang dengan MI"
-                            onClick={() => void samakanBanyak(checked, 'ke_md', clear)}
-                          >
-                            Ikut MI ({checked.length})
-                          </Button>
-                          <Button
-                            id="btn_bulk_samakan_md"
-                            size="sm"
-                            variant="outline"
-                            disabled={bulkBusy}
-                            title="Samakan yang tercentang dengan MD"
-                            onClick={() => void samakanBanyak(checked, 'ke_mi', clear)}
-                          >
-                            Ikut MD ({checked.length})
-                          </Button>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                id="btn_bulk_samakan_mi"
+                                size="sm"
+                                variant="outline"
+                                disabled={bulkBusy}
+                                onClick={() => void samakanBanyak(checked, 'ke_md', clear)}
+                              >
+                                Ikut MI ({checked.length})
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent><p>Samakan yang tercentang dengan MI</p></TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                id="btn_bulk_samakan_md"
+                                size="sm"
+                                variant="outline"
+                                disabled={bulkBusy}
+                                onClick={() => void samakanBanyak(checked, 'ke_mi', clear)}
+                              >
+                                Ikut MD ({checked.length})
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent><p>Samakan yang tercentang dengan MD</p></TooltipContent>
+                          </Tooltip>
                         </div>
                       )
                       : undefined,
@@ -416,17 +437,21 @@ export default function MiMdPage() {
                   : undefined,
                 canHentikan
                   ? (checked, clear) => (
-                    <Button
-                      id="btn_bulk_hentikan_md"
-                      size="sm"
-                      variant="outline"
-                      className="text-destructive"
-                      disabled={bulkBusy}
-                      title="Keluarkan yang tercentang dari MD (murni MD dilewati)"
-                      onClick={() => void hentikanBanyak(checked, clear)}
-                    >
-                      Keluarkan ({checked.length})
-                    </Button>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          id="btn_bulk_hentikan_md"
+                          size="sm"
+                          variant="outline"
+                          className="text-destructive"
+                          disabled={bulkBusy}
+                          onClick={() => void hentikanBanyak(checked, clear)}
+                        >
+                          Keluarkan ({checked.length})
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent><p>Keluarkan yang tercentang dari MD (murni MD dilewati)</p></TooltipContent>
+                    </Tooltip>
                   )
                   : undefined,
               )}

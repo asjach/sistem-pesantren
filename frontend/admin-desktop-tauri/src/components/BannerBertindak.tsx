@@ -4,6 +4,7 @@ import { useLembagaAktif } from '@/lembagaAktif';
 import { useStandarTampilan } from '@/standarTampilan';
 import { hasOpenEditor } from '@/components/excel/helpers';
 import { cn } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { RotateCcw, TriangleAlert } from '@/icons';
 
 /** Tombol cepat peran (urutan tetap sesuai permintaan). */
@@ -104,37 +105,48 @@ export default function BannerBertindak({ terbuka, onTutup }: {
         {tombol.map((p) => {
           const aktif = p.jenjang === peranJenjang;
           return (
-            <button
-              key={p.jenjang}
-              id={`btn_peran_lembaga_${p.jenjang.toLowerCase()}`}
-              type="button"
-              title={p.nama}
-              aria-label={`Berperan sebagai ${p.nama}`}
-              aria-pressed={aktif}
-              onClick={() => { pilihPeran(p.jenjang); onTutup(); }}
-              className={cn(
-                'rounded-md px-2.5 py-1 font-medium transition-colors',
-                aktif
-                  ? 'bg-black/25 dark:bg-white/25'
-                  : 'bg-black/10 hover:bg-black/20 dark:bg-white/15 dark:hover:bg-white/25',
-              )}
-            >
-              {p.jenjang}
-            </button>
+            <Tooltip key={p.jenjang}>
+              <TooltipTrigger asChild>
+                <button
+                  id={`btn_peran_lembaga_${p.jenjang.toLowerCase()}`}
+                  type="button"
+                  aria-label={`Berperan sebagai ${p.nama}`}
+                  aria-pressed={aktif}
+                  onClick={() => { pilihPeran(p.jenjang); onTutup(); }}
+                  className={cn(
+                    'rounded-md px-2.5 py-1 font-medium transition-colors',
+                    aktif
+                      ? 'bg-black/25 dark:bg-white/25'
+                      : 'bg-black/10 hover:bg-black/20 dark:bg-white/15 dark:hover:bg-white/25',
+                  )}
+                >
+                  {p.jenjang}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{p.nama}</p>
+              </TooltipContent>
+            </Tooltip>
           );
         })}
       </span>
 
       {/* Selalu tampil selama banner terbuka: menutup pemilih / keluar dari peran. */}
-      <button
-        id="btn_kembali_dari_bertindak"
-        type="button"
-        title="Kembali ke mode super_admin (Semua lembaga)"
-        onClick={() => { pilihPeran(null); onTutup(); }}
-        className="inline-flex items-center gap-1.5 rounded-md bg-black/10 px-2.5 py-1 font-medium transition-colors hover:bg-black/20 dark:bg-white/15 dark:hover:bg-white/25"
-      >
-        <RotateCcw size={13} aria-hidden="true" /> Kembali ke {user?.name}
-      </button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            id="btn_kembali_dari_bertindak"
+            type="button"
+            onClick={() => { pilihPeran(null); onTutup(); }}
+            className="inline-flex items-center gap-1.5 rounded-md bg-black/10 px-2.5 py-1 font-medium transition-colors hover:bg-black/20 dark:bg-white/15 dark:hover:bg-white/25"
+          >
+            <RotateCcw size={13} aria-hidden="true" /> Kembali ke {user?.name}
+          </button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>Kembali ke mode super_admin (Semua lembaga)</p>
+        </TooltipContent>
+      </Tooltip>
     </div>
   );
 }

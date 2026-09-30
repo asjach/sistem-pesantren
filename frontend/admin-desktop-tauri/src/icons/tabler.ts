@@ -24,16 +24,19 @@ import IcChevronRightTabler from '~icons/tabler/chevron-right';
 import IcClipboardCheckTabler from '~icons/tabler/clipboard-check';
 import IcClipboardListTabler from '~icons/tabler/clipboard-list';
 import IcCopyTabler from '~icons/tabler/copy';
+import IcCropTabler from '~icons/tabler/crop';
 import IcEyeTabler from '~icons/tabler/eye';
 import IcExternalLinkTabler from '~icons/tabler/external-link';
 import IcFileCheck2Tabler from '~icons/tabler/file-check';
 import IcFileUpTabler from '~icons/tabler/file-upload';
 import IcFolderOpenTabler from '~icons/tabler/folder-open';
+import IcFocusTabler from '~icons/tabler/focus';
 import IcGraduationCapTabler from '~icons/tabler/school';
 import IcHistoryTabler from '~icons/tabler/history';
 import IcHomeTabler from '~icons/tabler/home';
 import IcImageUpTabler from '~icons/tabler/photo-up';
 import IcLandmarkTabler from '~icons/tabler/building-bank';
+import IcLink2Tabler from '~icons/tabler/link';
 import IcLogOutTabler from '~icons/tabler/logout';
 import IcMinusTabler from '~icons/tabler/minus';
 import IcMonitorTabler from '~icons/tabler/device-desktop';
@@ -48,13 +51,16 @@ import IcPlusTabler from '~icons/tabler/plus';
 import IcPlusCircleTabler from '~icons/tabler/circle-plus';
 import IcReceiptTextTabler from '~icons/tabler/receipt';
 import IcRotateCcwTabler from '~icons/tabler/reload';
+import IcRotateCwTabler from '~icons/tabler/rotate-clockwise';
 import IcSaveTabler from '~icons/tabler/device-floppy';
+import IcScalingTabler from '~icons/tabler/scale';
 import IcScrollTextTabler from '~icons/tabler/notes';
 import IcSearchTabler from '~icons/tabler/search';
 import IcServerTabler from '~icons/tabler/server';
 import IcSunTabler from '~icons/tabler/sun';
 import IcTrash2Tabler from '~icons/tabler/trash';
 import IcUndo2Tabler from '~icons/tabler/corner-up-left';
+import IcUnlinkTabler from '~icons/tabler/unlink';
 import IcUploadTabler from '~icons/tabler/upload';
 import IcDownloadTabler from '~icons/tabler/download';
 import IcUserCheckTabler from '~icons/tabler/user-check';
@@ -96,16 +102,19 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   ClipboardCheck: IcClipboardCheckTabler,
   ClipboardList: IcClipboardListTabler,
   Copy: IcCopyTabler,
+  Crop: IcCropTabler,
   Eye: IcEyeTabler,
   ExternalLink: IcExternalLinkTabler,
   FileCheck2: IcFileCheck2Tabler,
   FileUp: IcFileUpTabler,
   FolderOpen: IcFolderOpenTabler,
+  Focus: IcFocusTabler,
   GraduationCap: IcGraduationCapTabler,
   History: IcHistoryTabler,
   Home: IcHomeTabler,
   ImageUp: IcImageUpTabler,
   Landmark: IcLandmarkTabler,
+  Link2: IcLink2Tabler,
   LogOut: IcLogOutTabler,
   Minus: IcMinusTabler,
   Monitor: IcMonitorTabler,
@@ -120,13 +129,16 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   PlusCircle: IcPlusCircleTabler,
   ReceiptText: IcReceiptTextTabler,
   RotateCcw: IcRotateCcwTabler,
+  RotateCw: IcRotateCwTabler,
   Save: IcSaveTabler,
+  Scaling: IcScalingTabler,
   ScrollText: IcScrollTextTabler,
   Search: IcSearchTabler,
   Server: IcServerTabler,
   Sun: IcSunTabler,
   Trash2: IcTrash2Tabler,
   Undo2: IcUndo2Tabler,
+  Unlink: IcUnlinkTabler,
   Upload: IcUploadTabler,
   Download: IcDownloadTabler,
   UserCheck: IcUserCheckTabler,

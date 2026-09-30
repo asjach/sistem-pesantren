@@ -18,10 +18,12 @@ import IcChevronLeftRadix from '~icons/radix-icons/chevron-left';
 import IcChevronRightRadix from '~icons/radix-icons/chevron-right';
 import IcClipboardListRadix from '~icons/radix-icons/clipboard';
 import IcCopyRadix from '~icons/radix-icons/copy';
+import IcCropRadix from '~icons/radix-icons/crop';
 import IcEyeRadix from '~icons/radix-icons/eye-open';
 import IcExternalLinkRadix from '~icons/radix-icons/external-link';
 import IcHistoryRadix from '~icons/radix-icons/clock';
 import IcHomeRadix from '~icons/radix-icons/home';
+import IcLink2Radix from '~icons/radix-icons/link-2';
 import IcLogOutRadix from '~icons/radix-icons/exit';
 import IcMinusRadix from '~icons/radix-icons/minus';
 import IcMonitorRadix from '~icons/radix-icons/desktop';
@@ -33,6 +35,7 @@ import IcPlusRadix from '~icons/radix-icons/plus';
 import IcPlusCircleRadix from '~icons/radix-icons/plus-circled';
 import IcReceiptTextRadix from '~icons/radix-icons/file-text';
 import IcRotateCcwRadix from '~icons/radix-icons/rotate-counter-clockwise';
+import IcRotateCwRadix from '~icons/radix-icons/reload';
 import IcSearchRadix from '~icons/radix-icons/magnifying-glass';
 import IcServerRadix from '~icons/radix-icons/server';
 import IcSunRadix from '~icons/radix-icons/sun';
@@ -63,10 +66,12 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   ChevronRight: IcChevronRightRadix,
   ClipboardList: IcClipboardListRadix,
   Copy: IcCopyRadix,
+  Crop: IcCropRadix,
   Eye: IcEyeRadix,
   ExternalLink: IcExternalLinkRadix,
   History: IcHistoryRadix,
   Home: IcHomeRadix,
+  Link2: IcLink2Radix,
   LogOut: IcLogOutRadix,
   Minus: IcMinusRadix,
   Monitor: IcMonitorRadix,
@@ -78,6 +83,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   PlusCircle: IcPlusCircleRadix,
   ReceiptText: IcReceiptTextRadix,
   RotateCcw: IcRotateCcwRadix,
+  RotateCw: IcRotateCwRadix,
   Search: IcSearchRadix,
   Server: IcServerRadix,
   Sun: IcSunRadix,

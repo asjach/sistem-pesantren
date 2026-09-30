@@ -9,6 +9,7 @@ import {
 import type { PresetKolomApi } from '@/components/PresetKolom';
 import type { AlignName } from '@/components/GridPrefs';
 import { cn } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { AlignCenter, AlignLeft, AlignRight, ChevronLeft, ChevronRight, Columns3, Copy, MoveHorizontal, Pin, PinOff, RotateCcw } from '@/icons';
 import { flattenAksi, metaAksi } from './actions';
 import type { AksiMenu } from './types';
@@ -96,101 +97,148 @@ export default function MenuKonteksGrid({
             ]).map(({ nilai, label, Icon }) => {
               const aktif = (align[header.colKey] ?? 'center') === nilai;
               return (
-                <button
-                  key={nilai}
-                  type="button"
-                  id={`btn_ctx_align_${nilai}_${tableKey}`}
-                  title={`Rata ${label.toLowerCase()} (berlaku semua tabel)`}
-                  aria-label={`Rata ${label.toLowerCase()}`}
-                  aria-pressed={aktif}
-                  onClick={() => setAlign(header.colKey, nilai)}
-                  className={cn(ikonBtn, aktif && 'bg-accent text-foreground')}
-                >
-                  <Icon size={16} />
-                </button>
+                <Tooltip key={nilai}>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      id={`btn_ctx_align_${nilai}_${tableKey}`}
+                      aria-label={`Rata ${label.toLowerCase()}`}
+                      aria-pressed={aktif}
+                      onClick={() => setAlign(header.colKey, nilai)}
+                      className={cn(ikonBtn, aktif && 'bg-accent text-foreground')}
+                    >
+                      <Icon size={16} />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{`Rata ${label.toLowerCase()} (berlaku semua tabel)`}</p>
+                  </TooltipContent>
+                </Tooltip>
               );
             })}
             <span className="mx-0.5 h-5 w-px bg-border" aria-hidden="true" />
-            <button
-              type="button"
-              id={`btn_ctx_autofit_kolom_${tableKey}`}
-              title="Sesuaikan lebar kolom ini"
-              aria-label="Sesuaikan lebar kolom ini"
-              onClick={() => onAutoFit(header.colKey)}
-              className={ikonBtn}
-            >
-              <MoveHorizontal size={16} />
-            </button>
-            <button
-              type="button"
-              id={`btn_ctx_autofit_semua_${tableKey}`}
-              title="Sesuaikan lebar semua kolom"
-              aria-label="Sesuaikan lebar semua kolom"
-              onClick={() => onAutoFitAll()}
-              className={ikonBtn}
-            >
-              <Columns3 size={16} />
-            </button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  id={`btn_ctx_autofit_kolom_${tableKey}`}
+                  aria-label="Sesuaikan lebar kolom ini"
+                  onClick={() => onAutoFit(header.colKey)}
+                  className={ikonBtn}
+                >
+                  <MoveHorizontal size={16} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Sesuaikan lebar kolom ini</p>
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  id={`btn_ctx_autofit_semua_${tableKey}`}
+                  aria-label="Sesuaikan lebar semua kolom"
+                  onClick={() => onAutoFitAll()}
+                  className={ikonBtn}
+                >
+                  <Columns3 size={16} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Sesuaikan lebar semua kolom</p>
+              </TooltipContent>
+            </Tooltip>
             <span className="mx-0.5 h-5 w-px bg-border" aria-hidden="true" />
-            <button
-              type="button"
-              id={`btn_ctx_bekukan_${tableKey}`}
-              title="Freeze Column"
-              aria-label="Freeze Column"
-              disabled={headerIdx < 0 || freezeAktif >= headerIdx + 1}
-              onClick={() => headerIdx >= 0 && ubahFreeze(headerIdx + 1)}
-              className={cn(ikonBtn, 'disabled:pointer-events-none disabled:opacity-40')}
-            >
-              <Pin size={16} />
-            </button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  id={`btn_ctx_bekukan_${tableKey}`}
+                  aria-label="Freeze Column"
+                  disabled={headerIdx < 0 || freezeAktif >= headerIdx + 1}
+                  onClick={() => headerIdx >= 0 && ubahFreeze(headerIdx + 1)}
+                  className={cn(ikonBtn, 'disabled:pointer-events-none disabled:opacity-40')}
+                >
+                  <Pin size={16} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Freeze Column</p>
+              </TooltipContent>
+            </Tooltip>
             {freezeAktif > 0 && (
-              <button
-                type="button"
-                id={`btn_ctx_lepas_bekukan_${tableKey}`}
-                title="Lepas Semua Beku"
-                aria-label="Lepas Semua Beku"
-                onClick={() => ubahFreeze(0)}
-                className={ikonBtn}
-              >
-                <PinOff size={16} />
-              </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    id={`btn_ctx_lepas_bekukan_${tableKey}`}
+                    aria-label="Lepas Semua Beku"
+                    onClick={() => ubahFreeze(0)}
+                    className={ikonBtn}
+                  >
+                    <PinOff size={16} />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Lepas Semua Beku</p>
+                </TooltipContent>
+              </Tooltip>
             )}
             <span className="mx-0.5 h-5 w-px bg-border" aria-hidden="true" />
-            <button
-              type="button"
-              id={`btn_ctx_salin_kolom_${tableKey}`}
-              title="Salin kolom (TSV)"
-              aria-label="Salin kolom (TSV)"
-              onClick={() => salinKolom(header.colKey)}
-              className={ikonBtn}
-            >
-              <Copy size={16} />
-            </button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  id={`btn_ctx_salin_kolom_${tableKey}`}
+                  aria-label="Salin kolom (TSV)"
+                  onClick={() => salinKolom(header.colKey)}
+                  className={ikonBtn}
+                >
+                  <Copy size={16} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Salin kolom (TSV)</p>
+              </TooltipContent>
+            </Tooltip>
             {bolehGeser && (
               <>
                 <span className="mx-0.5 h-5 w-px bg-border" aria-hidden="true" />
-                <button
-                  type="button"
-                  id={`btn_ctx_geser_kiri_${tableKey}`}
-                  title="Geser kolom ke kiri (global)"
-                  aria-label="Geser kolom ke kiri"
-                  disabled={headerIdx <= 0}
-                  onClick={onGeserKiri}
-                  className={cn(ikonBtn, 'disabled:pointer-events-none disabled:opacity-40')}
-                >
-                  <ChevronLeft size={16} />
-                </button>
-                <button
-                  type="button"
-                  id={`btn_ctx_geser_kanan_${tableKey}`}
-                  title="Geser kolom ke kanan (global)"
-                  aria-label="Geser kolom ke kanan"
-                  disabled={headerIdx < 0 || headerIdx >= jumlahKolom - 1}
-                  onClick={onGeserKanan}
-                  className={cn(ikonBtn, 'disabled:pointer-events-none disabled:opacity-40')}
-                >
-                  <ChevronRight size={16} />
-                </button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      id={`btn_ctx_geser_kiri_${tableKey}`}
+                      aria-label="Geser kolom ke kiri"
+                      disabled={headerIdx <= 0}
+                      onClick={onGeserKiri}
+                      className={cn(ikonBtn, 'disabled:pointer-events-none disabled:opacity-40')}
+                    >
+                      <ChevronLeft size={16} />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Geser kolom ke kiri (global)</p>
+                  </TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      id={`btn_ctx_geser_kanan_${tableKey}`}
+                      aria-label="Geser kolom ke kanan"
+                      disabled={headerIdx < 0 || headerIdx >= jumlahKolom - 1}
+                      onClick={onGeserKanan}
+                      className={cn(ikonBtn, 'disabled:pointer-events-none disabled:opacity-40')}
+                    >
+                      <ChevronRight size={16} />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Geser kolom ke kanan (global)</p>
+                  </TooltipContent>
+                </Tooltip>
               </>
             )}
           </div>

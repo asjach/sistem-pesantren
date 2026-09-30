@@ -1,6 +1,7 @@
 import { Check, Eye, Pencil, Trash2 } from '@/icons';
 import { forwardRef, type ComponentPropsWithoutRef, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import ConfirmDelete from '@/components/ConfirmDelete';
 import { cn } from '@/lib/utils';
 
@@ -13,26 +14,35 @@ interface ActionIconProps {
   children: ReactNode;
 }
 
-/** Tombol aksi baris: ikon saja (tanpa label teks). forwardRef agar bisa
- *  dipakai sebagai trigger Radix `asChild` (mis. AlertDialog di ConfirmDelete). */
+/** Tombol aksi baris: ikon saja (tanpa label teks) + tooltip shadcn.
+ *  forwardRef ke Button dalam (bukan ke Tooltip) agar komposisi langsung aman.
+ *  PENGECUALIAN: jangan dibungkus elemen apa pun bila dipakai sebagai anak
+ *  `*Trigger asChild` (mis. di dalam ConfirmDelete) — gunakan Button telanjang
+ *  + `tip` pada ConfirmDelete (lihat DeleteAction). */
 export const ActionIcon = forwardRef<
   HTMLButtonElement,
   ActionIconProps & ComponentPropsWithoutRef<'button'>
 >(function ActionIcon({ id, title, onClick, className, children, ...rest }, ref) {
   return (
-    <Button
-      ref={ref}
-      id={id}
-      title={title}
-      aria-label={title}
-      variant="ghost"
-      size="icon-sm"
-      onClick={onClick}
-      className={cn('text-muted-foreground hover:text-foreground', className)}
-      {...rest}
-    >
-      {children}
-    </Button>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          ref={ref}
+          id={id}
+          aria-label={title}
+          variant="ghost"
+          size="icon-sm"
+          onClick={onClick}
+          className={cn('text-muted-foreground hover:text-foreground', className)}
+          {...rest}
+        >
+          {children}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>
+        <p>{title}</p>
+      </TooltipContent>
+    </Tooltip>
   );
 });
 
@@ -64,14 +74,16 @@ export function DeleteAction({
   onConfirm: () => void;
 }) {
   return (
-    <ConfirmDelete title={title} description={description} onConfirm={onConfirm}>
-      <ActionIcon
+    <ConfirmDelete title={title} description={description} onConfirm={onConfirm} tip="Hapus">
+      <Button
         id={id}
-        title="Hapus"
+        aria-label="Hapus"
+        variant="ghost"
+        size="icon-sm"
         className="text-destructive/70 hover:bg-destructive/10 hover:text-destructive"
       >
         <Trash2 size={16} />
-      </ActionIcon>
+      </Button>
     </ConfirmDelete>
   );
 }

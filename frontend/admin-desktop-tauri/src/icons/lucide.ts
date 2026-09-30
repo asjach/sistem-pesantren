@@ -24,16 +24,20 @@ import IcChevronRightLucide from '~icons/lucide/chevron-right';
 import IcClipboardCheckLucide from '~icons/lucide/clipboard-check';
 import IcClipboardListLucide from '~icons/lucide/clipboard-list';
 import IcCopyLucide from '~icons/lucide/copy';
+import IcCropLucide from '~icons/lucide/crop';
 import IcEyeLucide from '~icons/lucide/eye';
 import IcExternalLinkLucide from '~icons/lucide/external-link';
 import IcFileCheck2Lucide from '~icons/lucide/file-check-2';
 import IcFileUpLucide from '~icons/lucide/file-up';
 import IcFolderOpenLucide from '~icons/lucide/folder-open';
+import IcFocusLucide from '~icons/lucide/focus';
+import IcFullscreenLucide from '~icons/lucide/fullscreen';
 import IcGraduationCapLucide from '~icons/lucide/graduation-cap';
 import IcHistoryLucide from '~icons/lucide/history';
 import IcHomeLucide from '~icons/lucide/home';
 import IcImageUpLucide from '~icons/lucide/image-up';
 import IcLandmarkLucide from '~icons/lucide/landmark';
+import IcLink2Lucide from '~icons/lucide/link-2';
 import IcLogOutLucide from '~icons/lucide/log-out';
 import IcMinusLucide from '~icons/lucide/minus';
 import IcMonitorLucide from '~icons/lucide/monitor';
@@ -48,20 +52,19 @@ import IcPencilLucide from '~icons/lucide/pencil';
 import IcPlusLucide from '~icons/lucide/plus';
 import IcPlusCircleLucide from '~icons/lucide/circle-plus';
 import IcReceiptTextLucide from '~icons/lucide/receipt-text';
+import IcRefreshCcwLucide from '~icons/lucide/refresh-ccw';
+import IcRefreshCwLucide from '~icons/lucide/refresh-cw';
 import IcRotateCcwLucide from '~icons/lucide/rotate-ccw';
 import IcRotateCwLucide from '~icons/lucide/rotate-cw';
-import IcScalingLucide from '~icons/lucide/scaling';
-import IcLink2Lucide from '~icons/lucide/link-2';
-import IcUnlinkLucide from '~icons/lucide/unlink';
-import IcRefreshCwLucide from '~icons/lucide/refresh-cw';
-import IcRefreshCcwLucide from '~icons/lucide/refresh-ccw';
 import IcSaveLucide from '~icons/lucide/save';
+import IcScalingLucide from '~icons/lucide/scaling';
 import IcScrollTextLucide from '~icons/lucide/scroll-text';
 import IcSearchLucide from '~icons/lucide/search';
 import IcServerLucide from '~icons/lucide/server';
 import IcSunLucide from '~icons/lucide/sun';
 import IcTrash2Lucide from '~icons/lucide/trash-2';
 import IcUndo2Lucide from '~icons/lucide/undo-2';
+import IcUnlinkLucide from '~icons/lucide/unlink';
 import IcUploadLucide from '~icons/lucide/upload';
 import IcDownloadLucide from '~icons/lucide/download';
 import IcUserCheckLucide from '~icons/lucide/user-check';
@@ -108,16 +111,20 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   ClipboardCheck: IcClipboardCheckLucide,
   ClipboardList: IcClipboardListLucide,
   Copy: IcCopyLucide,
+  Crop: IcCropLucide,
   Eye: IcEyeLucide,
   ExternalLink: IcExternalLinkLucide,
   FileCheck2: IcFileCheck2Lucide,
   FileUp: IcFileUpLucide,
   FolderOpen: IcFolderOpenLucide,
+  Focus: IcFocusLucide,
+  Fullscreen: IcFullscreenLucide,
   GraduationCap: IcGraduationCapLucide,
   History: IcHistoryLucide,
   Home: IcHomeLucide,
   ImageUp: IcImageUpLucide,
   Landmark: IcLandmarkLucide,
+  Link2: IcLink2Lucide,
   LogOut: IcLogOutLucide,
   Minus: IcMinusLucide,
   Monitor: IcMonitorLucide,
@@ -132,20 +139,19 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   Plus: IcPlusLucide,
   PlusCircle: IcPlusCircleLucide,
   ReceiptText: IcReceiptTextLucide,
+  RefreshCcw: IcRefreshCcwLucide,
+  RefreshCw: IcRefreshCwLucide,
   RotateCcw: IcRotateCcwLucide,
   RotateCw: IcRotateCwLucide,
-  Scaling: IcScalingLucide,
-  Link2: IcLink2Lucide,
-  Unlink: IcUnlinkLucide,
-  RefreshCw: IcRefreshCwLucide,
-  RefreshCcw: IcRefreshCcwLucide,
   Save: IcSaveLucide,
+  Scaling: IcScalingLucide,
   ScrollText: IcScrollTextLucide,
   Search: IcSearchLucide,
   Server: IcServerLucide,
   Sun: IcSunLucide,
   Trash2: IcTrash2Lucide,
   Undo2: IcUndo2Lucide,
+  Unlink: IcUnlinkLucide,
   Upload: IcUploadLucide,
   Download: IcDownloadLucide,
   UserCheck: IcUserCheckLucide,

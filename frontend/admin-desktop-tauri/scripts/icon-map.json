@@ -230,6 +230,17 @@
   "bi": "copy",
   "material": "content-copy"
  },
+ "Crop": {
+  "lucide": "crop",
+  "tabler": "crop",
+  "ph": "crop",
+  "heroicons": null,
+  "ri": "crop-line",
+  "iconoir": "crop",
+  "radix": "crop",
+  "bi": "crop",
+  "material": "crop"
+ },
  "Eye": {
   "lucide": "eye",
   "tabler": "eye",
@@ -285,6 +296,28 @@
   "bi": "folder",
   "material": "folder-open"
  },
+ "Focus": {
+  "lucide": "focus",
+  "tabler": "focus",
+  "ph": null,
+  "heroicons": null,
+  "ri": "focus-line",
+  "iconoir": null,
+  "radix": null,
+  "bi": null,
+  "material": null
+ },
+ "Fullscreen": {
+  "lucide": "fullscreen",
+  "tabler": null,
+  "ph": null,
+  "heroicons": null,
+  "ri": "fullscreen-line",
+  "iconoir": null,
+  "radix": null,
+  "bi": "fullscreen",
+  "material": "fullscreen"
+ },
  "GraduationCap": {
   "lucide": "graduation-cap",
   "tabler": "school",
@@ -339,6 +372,17 @@
   "radix": null,
   "bi": "bank",
   "material": "museum"
+ },
+ "Link2": {
+  "lucide": "link-2",
+  "tabler": "link",
+  "ph": "link",
+  "heroicons": "link",
+  "ri": "link",
+  "iconoir": "link",
+  "radix": "link-2",
+  "bi": "link",
+  "material": "link-2"
  },
  "LogOut": {
   "lucide": "log-out",
@@ -494,6 +538,28 @@
   "bi": "receipt",
   "material": "receipt"
  },
+ "RefreshCcw": {
+  "lucide": "refresh-ccw",
+  "tabler": null,
+  "ph": "arrow-counter-clockwise",
+  "heroicons": null,
+  "ri": null,
+  "iconoir": null,
+  "radix": null,
+  "bi": null,
+  "material": null
+ },
+ "RefreshCw": {
+  "lucide": "refresh-cw",
+  "tabler": null,
+  "ph": "arrow-clockwise",
+  "heroicons": null,
+  "ri": null,
+  "iconoir": null,
+  "radix": null,
+  "bi": "arrow-clockwise",
+  "material": null
+ },
  "RotateCcw": {
   "lucide": "rotate-ccw",
   "tabler": "reload",
@@ -505,6 +571,17 @@
   "bi": "arrow-counterclockwise",
   "material": "rotate-left"
  },
+ "RotateCw": {
+  "lucide": "rotate-cw",
+  "tabler": "rotate-clockwise",
+  "ph": "arrow-clockwise",
+  "heroicons": "arrow-uturn-right",
+  "ri": "restart-line",
+  "iconoir": "refresh-double",
+  "radix": "reload",
+  "bi": "arrow-clockwise",
+  "material": "rotate-right"
+ },
  "Save": {
   "lucide": "save",
   "tabler": "device-floppy",
@@ -515,6 +592,17 @@
   "radix": null,
   "bi": "save",
   "material": "save"
+ },
+ "Scaling": {
+  "lucide": "scaling",
+  "tabler": "scale",
+  "ph": "resize",
+  "heroicons": "scale",
+  "ri": null,
+  "iconoir": null,
+  "radix": null,
+  "bi": null,
+  "material": "scale"
  },
  "ScrollText": {
   "lucide": "scroll-text",
@@ -581,6 +669,17 @@
   "radix": null,
   "bi": "reply",
   "material": "undo"
+ },
+ "Unlink": {
+  "lucide": "unlink",
+  "tabler": "unlink",
+  "ph": null,
+  "heroicons": null,
+  "ri": null,
+  "iconoir": null,
+  "radix": null,
+  "bi": null,
+  "material": "link-off"
  },
  "Upload": {
   "lucide": "upload",
