@@ -49,6 +49,12 @@ import IcPlusLucide from '~icons/lucide/plus';
 import IcPlusCircleLucide from '~icons/lucide/circle-plus';
 import IcReceiptTextLucide from '~icons/lucide/receipt-text';
 import IcRotateCcwLucide from '~icons/lucide/rotate-ccw';
+import IcRotateCwLucide from '~icons/lucide/rotate-cw';
+import IcScalingLucide from '~icons/lucide/scaling';
+import IcLink2Lucide from '~icons/lucide/link-2';
+import IcUnlinkLucide from '~icons/lucide/unlink';
+import IcRefreshCwLucide from '~icons/lucide/refresh-cw';
+import IcRefreshCcwLucide from '~icons/lucide/refresh-ccw';
 import IcSaveLucide from '~icons/lucide/save';
 import IcScrollTextLucide from '~icons/lucide/scroll-text';
 import IcSearchLucide from '~icons/lucide/search';
@@ -127,6 +133,12 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   PlusCircle: IcPlusCircleLucide,
   ReceiptText: IcReceiptTextLucide,
   RotateCcw: IcRotateCcwLucide,
+  RotateCw: IcRotateCwLucide,
+  Scaling: IcScalingLucide,
+  Link2: IcLink2Lucide,
+  Unlink: IcUnlinkLucide,
+  RefreshCw: IcRefreshCwLucide,
+  RefreshCcw: IcRefreshCcwLucide,
   Save: IcSaveLucide,
   ScrollText: IcScrollTextLucide,
   Search: IcSearchLucide,

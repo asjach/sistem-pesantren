@@ -120,6 +120,7 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
     ...(tipe === 'lembaga' ? [{ key: 'lembaga_nama', label: 'Nama Lembaga', width: 180, kind: 'static' as const, sumber: null }] : []),
     { key: 'jenis_dokumen', label: 'Jenis Dokumen', width: 170, kind: 'text', maxLength: 100, sumber: null },
     { key: 'nama_file', label: 'Nama Berkas', width: 190, kind: 'static', sumber: null },
+    { key: 'lokasi', label: 'Lokasi', width: 90, kind: 'static', sumber: null },
     { key: 'catatan', label: 'Catatan', width: 220, kind: 'text', sumber: null },
   ], [konfig.pemilikLabel, tipe]);
 
@@ -130,6 +131,7 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
     jenis_dokumen: r.jenis_dokumen ?? '',
     // Tampil = nama template langsung (kolom path sudah dicabut).
     nama_file: r.nama_file ?? null,
+    lokasi: r.penyimpanan === 'lokal' ? 'Lokal' : r.penyimpanan === 'test' ? 'Test' : 'Server',
     catatan: r.catatan ?? '',
   }), []);
 
@@ -161,12 +163,40 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
     }
   }, [tipe, pemilik, jenjangPemilik, jenis, catatan, file, pager, load]);
 
+  /** Bersihkan salinan arsip lokal (desktop, best-effort, diam bila tak ada).
+   *  File asli di folder `sudah/` milik pengguna — tidak disentuh. */
+  const bersihkanArsip = useCallback(async (nama: string | null, jenis: string) => {
+    if (!isTauri() || !nama) return;
+    try {
+      const { exists, remove } = await import('@tauri-apps/plugin-fs');
+      const { PREF_FOLDER_ARSIP, PREF_FOLDER_ARSIP_TEST, ROOT_ARSIP_DOKUMEN, ROOT_ARSIP_TEST, akarArsip, jalurArsip } = await import('@/lib/arsipDokumen');
+      const [r1, r2] = await Promise.all([
+        prefGet(PREF_FOLDER_ARSIP).catch(() => null),
+        prefGet(PREF_FOLDER_ARSIP_TEST).catch(() => null),
+      ]);
+      const akars = await Promise.all([
+        akarArsip(typeof r1 === 'string' ? r1 : '', ROOT_ARSIP_DOKUMEN),
+        akarArsip(typeof r2 === 'string' ? r2 : '', ROOT_ARSIP_TEST),
+      ]);
+      for (const akar of akars) {
+        const target = await jalurArsip(nama, jenis, akar);
+        if (await exists(target)) await remove(target);
+      }
+    } catch (e) {
+      toast.warning(`Arsip lokal gagal dibersihkan: ${errorMessage(e)}`);
+    }
+  }, []);
+
   const onUnggah = useCallback(async () => {
     if (!unggahRow || !unggahFile) return;
     setBusy(true);
+    // Tangkap nama lama sebelum refresh — salinan arsipnya ikut dibuang bila ganti berhasil.
+    const namaLama = unggahRow.nama_file;
+    const jenisLama = unggahRow.jenis_dokumen;
     try {
       await unggahBerkasDokumen(tipe, unggahRow.id, unggahFile);
       toast.success('Berkas diunggah.');
+      await bersihkanArsip(namaLama, jenisLama);
       setUnggahRow(null);
       setUnggahFile(null);
       await load();
@@ -175,7 +205,7 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
     } finally {
       setBusy(false);
     }
-  }, [tipe, unggahRow, unggahFile, load]);
+  }, [tipe, unggahRow, unggahFile, load, bersihkanArsip]);
 
   const onHapus = useCallback(async () => {
     if (!hapusRow) return;
@@ -185,28 +215,7 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
       const jenis = hapusRow.jenis_dokumen;
       await hapusDokumen(tipe, hapusRow.id);
       toast.success('Dokumen dihapus.');
-      // Bersihkan salinan arsip lokal (desktop, best-effort, diam bila tak ada).
-      // File asli di folder `sudah/` milik pengguna — tidak disentuh.
-      if (isTauri() && nama) {
-        try {
-          const { exists, remove } = await import('@tauri-apps/plugin-fs');
-          const { PREF_FOLDER_ARSIP, PREF_FOLDER_ARSIP_TEST, ROOT_ARSIP_DOKUMEN, ROOT_ARSIP_TEST, akarArsip, jalurArsip } = await import('@/lib/arsipDokumen');
-          const [r1, r2] = await Promise.all([
-            prefGet(PREF_FOLDER_ARSIP).catch(() => null),
-            prefGet(PREF_FOLDER_ARSIP_TEST).catch(() => null),
-          ]);
-          const akars = await Promise.all([
-            akarArsip(typeof r1 === 'string' ? r1 : '', ROOT_ARSIP_DOKUMEN),
-            akarArsip(typeof r2 === 'string' ? r2 : '', ROOT_ARSIP_TEST),
-          ]);
-          for (const akar of akars) {
-            const target = await jalurArsip(nama, jenis, akar);
-            if (await exists(target)) await remove(target);
-          }
-        } catch (e) {
-          toast.warning(`Arsip lokal gagal dibersihkan: ${errorMessage(e)}`);
-        }
-      }
+      await bersihkanArsip(nama, jenis);
       setHapusRow(null);
       await load();
     } catch (e) {
@@ -214,44 +223,53 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
     } finally {
       setBusy(false);
     }
-  }, [tipe, hapusRow, load]);
+  }, [tipe, hapusRow, load, bersihkanArsip]);
 
-  /** Unduh cerdas: arsip lokal via dialog simpan native (desktop), lalu server.
-   *  Baris mode lokal tak punya byte di server — tanpa ini selalu 404. */
+  /** Unduh menurut kolom penyimpanan: server langsung; lokal/test via
+   *  dialog simpan native dari arsip perangkat (desktop). Tanpa tebak-tebakan. */
   const unduhCerdas = useCallback(async (r: DokumenRow) => {
-    if (isTauri() && r.nama_file) {
-      try {
-        const { exists, readFile, writeFile } = await import('@tauri-apps/plugin-fs');
-        const { save } = await import('@tauri-apps/plugin-dialog');
-        const { PREF_FOLDER_ARSIP, PREF_FOLDER_ARSIP_TEST, ROOT_ARSIP_DOKUMEN, ROOT_ARSIP_TEST, akarArsip, jalurArsip } = await import('@/lib/arsipDokumen');
-        const [a, b] = await Promise.all([
-          prefGet(PREF_FOLDER_ARSIP).catch(() => null),
-          prefGet(PREF_FOLDER_ARSIP_TEST).catch(() => null),
-        ]);
-        const akars = await Promise.all([
-          akarArsip(typeof a === 'string' ? a : '', ROOT_ARSIP_DOKUMEN),
-          akarArsip(typeof b === 'string' ? b : '', ROOT_ARSIP_TEST),
-        ]);
-        for (const akar of akars) {
-          const target = await jalurArsip(r.nama_file, r.jenis_dokumen, akar);
-          if (await exists(target)) {
-            const bytes = await readFile(target);
-            const tujuan = await save({
-              defaultPath: r.nama_file,
-              filters: [{ name: 'Dokumen', extensions: ['jpg', 'jpeg', 'png', 'pdf'] }],
-            });
-            if (!tujuan) return;
-            await writeFile(tujuan, bytes);
-            toast.success(`Tersimpan: ${String(tujuan).split('/').pop() ?? r.nama_file}`);
-            return;
-          }
-        }
-      } catch (e) {
-        toast.warning(`Arsip lokal gagal dibaca: ${errorMessage(e)}`);
-      }
+    const lokasi = r.penyimpanan ?? 'server';
+    if (lokasi === 'server' || !isTauri() || !r.nama_file) {
+      await unduhBerkasDokumen(tipe, r.id, r.nama_file ?? 'dokumen').catch((e) => toast.error(errorMessage(e)));
+      return;
     }
-    await unduhBerkasDokumen(tipe, r.id, r.nama_file ?? 'dokumen').catch((e) => toast.error(errorMessage(e)));
+    try {
+      const { exists, readFile, writeFile } = await import('@tauri-apps/plugin-fs');
+      const { save } = await import('@tauri-apps/plugin-dialog');
+      const { PREF_FOLDER_ARSIP, PREF_FOLDER_ARSIP_TEST, ROOT_ARSIP_DOKUMEN, ROOT_ARSIP_TEST, akarArsip, jalurArsip } = await import('@/lib/arsipDokumen');
+      const [a, b] = await Promise.all([
+        prefGet(PREF_FOLDER_ARSIP).catch(() => null),
+        prefGet(PREF_FOLDER_ARSIP_TEST).catch(() => null),
+      ]);
+      const akars = await Promise.all([
+        akarArsip(typeof a === 'string' ? a : '', ROOT_ARSIP_DOKUMEN),
+        akarArsip(typeof b === 'string' ? b : '', ROOT_ARSIP_TEST),
+      ]);
+      for (const akar of akars) {
+        const target = await jalurArsip(r.nama_file, r.jenis_dokumen, akar);
+        if (await exists(target)) {
+          const bytes = await readFile(target);
+          const tujuan = await save({
+            defaultPath: r.nama_file,
+            filters: [{ name: 'Dokumen', extensions: ['jpg', 'jpeg', 'png', 'pdf'] }],
+          });
+          if (!tujuan) return;
+          await writeFile(tujuan, bytes);
+          toast.success(`Tersimpan: ${String(tujuan).split('/').pop() ?? r.nama_file}`);
+          return;
+        }
+      }
+      toast.error('Berkas tidak ada di arsip perangkat ini — hanya tersimpan di perangkat asal.');
+    } catch (e) {
+      toast.warning(`Arsip lokal gagal dibaca: ${errorMessage(e)}`);
+    }
   }, [tipe]);
+
+  /** Aksi butuh desktop bila byte hanya ada di arsip perangkat tapi dibuka dari web. */
+  const perluDesktop = useCallback(
+    (r: DokumenRow) => !isTauri() && (r.penyimpanan ?? 'server') !== 'server',
+    [],
+  );
 
   const renderActions = useCallback((r: DokumenRow) => (
     <>
@@ -260,7 +278,8 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
           id={`btn_unggah_dok_${r.id}`}
           size="sm"
           variant="outline"
-          title={r.nama_file ? 'Ganti berkas' : 'Unggah berkas'}
+          title={perluDesktop(r) ? 'Baris arsip perangkat hanya bisa diganti lewat aplikasi desktop' : (r.nama_file ? 'Ganti berkas' : 'Unggah berkas')}
+          disabled={perluDesktop(r)}
           onClick={() => { setUnggahFile(null); setUnggahRow(r); }}
         >
           <Upload size={14} />
@@ -271,19 +290,27 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
           id={`btn_unduh_dok_${r.id}`}
           size="sm"
           variant="outline"
-          title="Unduh berkas"
+          title={perluDesktop(r) ? 'Berkas hanya ada di arsip perangkat — buka lewat aplikasi desktop' : 'Unduh berkas'}
+          disabled={perluDesktop(r)}
           onClick={() => void unduhCerdas(r)}
         >
           <Download size={14} />
         </Button>
       )}
       {canHapus && (
-        <Button id={`btn_hapus_dok_${r.id}`} size="sm" variant="destructive" title="Hapus dokumen" onClick={() => setHapusRow(r)}>
+        <Button
+          id={`btn_hapus_dok_${r.id}`}
+          size="sm"
+          variant="destructive"
+          title={perluDesktop(r) ? 'Baris arsip perangkat hanya bisa dihapus lewat aplikasi desktop (agar salinannya ikut bersih)' : 'Hapus dokumen'}
+          disabled={perluDesktop(r)}
+          onClick={() => setHapusRow(r)}
+        >
           <Trash2 size={14} />
         </Button>
       )}
     </>
-  ), [canUbah, canHapus, tipe, unduhCerdas]);
+  ), [canUbah, canHapus, tipe, unduhCerdas, perluDesktop]);
 
   const bisaSimpanTambah = tipe === 'santri' ? pemilik !== '' : (tipe === 'pegawai' ? pemilik !== '' && jenjangPemilik !== '' : jenjangPemilik !== '');
 
@@ -388,7 +415,7 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Unggah berkas: {unggahRow?.jenis_dokumen}</DialogTitle>
-            <DialogDescription>{unggahRow?.pemilik} — berkas lama (bila ada) akan diganti.</DialogDescription>
+            <DialogDescription>{unggahRow?.pemilik} — berkas lama (bila ada) akan diganti dan lokasi baris menjadi Server.</DialogDescription>
           </DialogHeader>
           <Input id={`input_unggah_dok_${tipe}`} type="file" accept=".jpg,.jpeg,.png,.pdf" onChange={(e) => setUnggahFile(e.target.files?.[0] ?? null)} />
           <DialogFooter>

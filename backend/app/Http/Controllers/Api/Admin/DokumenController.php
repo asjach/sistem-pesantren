@@ -162,13 +162,14 @@ class DokumenController extends Controller
         $row = DB::transaction(function () use ($request, $tipe, $data) {
             $berkas = $request->file('file');
             $tujuan = $data['tujuan'] ?? 'server';
-            if ($tujuan === 'lokal' && config('dokumen.mode') === 'server') {
+            $arsipPerangkat = in_array($tujuan, ['lokal', 'test'], true);
+            if ($arsipPerangkat && config('dokumen.mode') === 'server') {
                 throw ValidationException::withMessages(['tujuan' => 'Mode server menolak penyimpanan lokal.']);
             }
-            if ($tujuan === 'lokal' && $berkas) {
+            if ($arsipPerangkat && $berkas) {
                 throw ValidationException::withMessages(['tujuan' => 'Pilih satu: berkas untuk server, tanpa berkas untuk lokal.']);
             }
-            if ($tujuan === 'lokal' && empty($data['ekstensi'])) {
+            if ($arsipPerangkat && empty($data['ekstensi'])) {
                 throw ValidationException::withMessages(['ekstensi' => 'Ekstensi wajib untuk simpanan lokal.']);
             }
             $namaPemilik = $this->namaPemilik($tipe, $data);
@@ -176,7 +177,7 @@ class DokumenController extends Controller
                 ? basename($this->simpanBerkasTemplate(
                     $berkas, $tipe, $namaPemilik, $data['jenis_dokumen'], $data['catatan'] ?? null,
                 ))
-                : ($tujuan === 'lokal'
+                : ($arsipPerangkat
                     ? NamaBerkasDokumen::buat($namaPemilik, $data['jenis_dokumen'], $data['catatan'] ?? null, $data['ekstensi'])
                     : null);
 
@@ -185,6 +186,7 @@ class DokumenController extends Controller
                     'santri_id' => $data['santri_id'],
                     'jenis_dokumen_santri' => $data['jenis_dokumen'],
                     'nama_file' => $nama,
+                    'penyimpanan' => $tujuan,
                     'status_verifikasi' => $data['status_verifikasi'] ?? 'menunggu',
                     'catatan' => $data['catatan'] ?? null,
                 ]);
@@ -195,6 +197,7 @@ class DokumenController extends Controller
                     'pegawai_id' => $data['pegawai_id'],
                     'jenis_dokumen_pegawai' => $data['jenis_dokumen'],
                     'nama_file' => $nama,
+                    'penyimpanan' => $tujuan,
                     'status_verifikasi' => $data['status_verifikasi'] ?? 'menunggu',
                     'catatan' => $data['catatan'] ?? null,
                     'created_at' => now(),
@@ -210,6 +213,7 @@ class DokumenController extends Controller
                 'jenjang' => $data['jenjang'],
                 'jenis_dokumen' => $data['jenis_dokumen'],
                 'nama_file' => $nama,
+                'penyimpanan' => $tujuan,
                 'status_verifikasi' => $data['status_verifikasi'] ?? 'menunggu',
                 'catatan' => $data['catatan'] ?? null,
             ]);
@@ -269,7 +273,8 @@ class DokumenController extends Controller
         };
         $jenis = $tipe === 'santri' ? $model->jenis_dokumen_santri : ($tipe === 'pegawai' ? $model->jenis_dokumen_pegawai : $model->jenis_dokumen);
         $path = $this->simpanBerkasTemplate($berkas, $tipe, (string) $nama, (string) $jenis, $model->catatan ?? null);
-        $ubah = ['nama_file' => basename($path)];
+        // Byte kini di server — baris arsip perangkat ikut pindah ke server.
+        $ubah = ['nama_file' => basename($path), 'penyimpanan' => 'server'];
 
         if ($model instanceof Model) {
             // Berkas lama dibuang agar storage tak menumpuk (lokasi dari nama).
@@ -320,7 +325,10 @@ class DokumenController extends Controller
 
         $path = NamaBerkasDokumen::jalur($tipe, $model->nama_file ?? null);
         if ($path === null || ! Storage::disk('local')->exists($path)) {
-            abort(404, 'Berkas tidak ditemukan.');
+            $lokasi = $model->penyimpanan ?? 'server';
+            abort(404, $lokasi === 'server'
+                ? 'Berkas tidak ditemukan.'
+                : 'Berkas tersimpan di arsip perangkat, bukan di server.');
         }
         $disk = Storage::disk('local');
 
@@ -449,8 +457,8 @@ class DokumenController extends Controller
             'status_verifikasi' => ['sometimes', 'in:menunggu,valid,ditolak'],
             'catatan' => ['nullable', 'string'],
             'file' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:10240'],
-            // Simpanan lokal (dev): tanpa byte, nama dicadangkan untuk arsip perangkat.
-            'tujuan' => ['sometimes', 'in:server,lokal'],
+            // Simpanan lokal/test (dev): tanpa byte, nama dicadangkan untuk arsip perangkat.
+            'tujuan' => ['sometimes', 'in:server,lokal,test'],
             'ekstensi' => ['sometimes', 'nullable', 'string', 'regex:/^[a-z0-9]{2,5}$/'],
         ]);
 

@@ -4,13 +4,14 @@ import { errorMessage, isTauri, prefGet, prefSet } from '../api/client';
 import { listSantri, type Santri, type SantriPenuh } from '../api/santri';
 import { listDokumen } from '../api/dokumen';
 import { listKelas, referensiList, type Kelas, type ReferensiRow } from '../api/master';
+import { listRiwayatBelajar } from '../api/siklus';
 import { simpanDokumen } from '../api/dokumen';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Check } from '@/icons';
 import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/field';
 import { Checkbox } from '@/components/ui/checkbox';
-import Pager from '@/components/Pager';
-import { usePager } from '@/hooks/usePager';
 import { useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { Separator } from '@/components/ui/separator';
@@ -38,15 +39,9 @@ import {
   tulisArsip,
 } from '@/lib/arsipDokumen';
 import PenampilBerkas, { type SumberBerkas } from '@/components/dokumen/PenampilBerkas';
-import type { HasilGambar, KualitasSimpan } from '@/lib/olahGambar';
+import type { HasilGambar } from '@/lib/olahGambar';
 import { gantiEkstensi } from '@/lib/olahGambar';
 import { toast } from 'sonner';
-
-/** Keanggotaan aktif (untuk NIS & jenjang tampil) atau baris pertama. */
-function anggotaTampil(s: Santri) {
-  const aktif = s.lembaga_aktif?.find((l) => l.is_active_lembaga === 'Ya');
-  return aktif ?? s.lembaga_aktif?.[0] ?? null;
-}
 
 /** Halaman Tambah Dokumen Santri — dua kolom: form (400px) + viewer berkas.
  *  Alur: klik nama santri di tabel → pilih jenis dokumen → pilih berkas
@@ -92,11 +87,10 @@ export default function TambahDokumenSantriPage() {
   const [santris, setSantris] = useState<Santri[]>([]);
   const [loadingSantri, setLoadingSantri] = useState(false);
   const [err, setErr] = useState('');
-  const [lastPage, setLastPage] = useState(1);
-  const [total, setTotal] = useState(0);
-  const pager = usePager('tambah_dokumen_santri');
-  const muatSantri = useCallback(async (halaman: number, perPage: number, signal?: AbortSignal) => {
-    if (!pager.ready || filterLoading || jenjangs.length === 0) { setSantris([]); return; }
+
+  /** Daftar santri dimuat utuh tanpa pagination (per_page=0 = semua baris). */
+  const muatSantri = useCallback(async (signal?: AbortSignal) => {
+    if (filterLoading || jenjangs.length === 0) { setSantris([]); return; }
     setLoadingSantri(true);
     setErr('');
     try {
@@ -111,14 +105,10 @@ export default function TambahDokumenSantriPage() {
             }
           : {}),
         q: cariTunda || undefined,
-        page: halaman,
-        per_page: perPage,
+        per_page: 0,
         signal,
       });
       setSantris(res.data);
-      setTotal(res.total);
-      setLastPage(res.last_page);
-      pager.sync(res.current_page, res.last_page);
     } catch (e) {
       // Request yang dibatalkan (ganti filter/cari, StrictMode) tiba sebagai
       // ApiError(0) — abaikan seperti pola useDaftarTabel.
@@ -127,16 +117,14 @@ export default function TambahDokumenSantriPage() {
     } finally {
       setLoadingSantri(false);
     }
-  }, [pager, sumber, filterLoading, jenjangs, tahunAjaranNames, semesters, tingkatAktif, kelasFilterIds, cariTunda]);
+  }, [sumber, filterLoading, jenjangs, tahunAjaranNames, semesters, tingkatAktif, kelasFilterIds, cariTunda]);
 
   useEffect(() => {
-    if (!pager.ready) return;
     const c = new AbortController();
-    pager.goFirst();
-    void muatSantri(1, pager.perPage, c.signal);
+    void muatSantri(c.signal);
     return () => c.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pager.ready, sumber, filterLoading, jenjangs, tahunAjaranNames, semesters, tingkatAktif, kelasFilterIds, cariTunda]);
+  }, [sumber, filterLoading, jenjangs, tahunAjaranNames, semesters, tingkatAktif, kelasFilterIds, cariTunda]);
 
   const [santriId, setSantriId] = useState<number | null>(null);
   /** Profil yang dibuka via klik kanan baris (verifikasi identitas). */
@@ -166,30 +154,91 @@ export default function TambahDokumenSantriPage() {
   const [jenis, setJenis] = useState('');
   const [catatan, setCatatan] = useState('');
 
+  /** Kelas per santri (kunci: santri_id) dari riwayat belajar sesuai filter. */
+  const [kelasSantri, setKelasSantri] = useState<Record<number, string>>({});
+  const muatKelasSantri = useCallback(async (): Promise<Record<number, string>> => {
+    try {
+      if (filterLoading || jenjangs.length === 0) return {};
+      const p = await listRiwayatBelajar({
+        jenjang: jenjangs,
+        ...(sumber === 'filter'
+          ? {
+              tahun_ajaran: tahunAjaranNames.length ? tahunAjaranNames : undefined,
+              semester: semesters.length ? semesters : undefined,
+              tingkat: tingkatAktif.length ? tingkatAktif : undefined,
+              kelas_id: kelasFilterIds.length ? kelasFilterIds : undefined,
+            }
+          : {}),
+        per_page: 0,
+      });
+      const peta: Record<number, { nama: string; aktif: boolean }> = {};
+      for (const r of p.data) {
+        const nama = r.kelas?.nama_kelas?.trim();
+        if (!nama) continue;
+        const aktif = r.is_active_riwayat === 'Ya';
+        if (!peta[r.santri_id] || (aktif && !peta[r.santri_id].aktif)) {
+          peta[r.santri_id] = { nama, aktif };
+        }
+      }
+      return Object.fromEntries(Object.entries(peta).map(([k, v]) => [Number(k), v.nama]));
+    } catch {
+      return {};
+    }
+  }, [sumber, filterLoading, jenjangs, tahunAjaranNames, semesters, tingkatAktif, kelasFilterIds]);
+  useEffect(() => {
+    let hidup = true;
+    void muatKelasSantri().then((m) => { if (hidup) setKelasSantri(m); });
+    return () => { hidup = false; };
+  }, [muatKelasSantri]);
+
+  /** Jumlah dokumen per santri (kunci: santri_id) — satu fetch per jenjang. */
+  const [jumlahSantri, setJumlahSantri] = useState<Record<number, number>>({});
+  const muatJumlahSantri = useCallback(async (): Promise<Record<number, number>> => {
+    try {
+      if (jenjangs.length === 0) return {};
+      const p = await listDokumen('santri', { jenjang: jenjangs, per_page: 0 });
+      const hitung: Record<number, number> = {};
+      for (const d of p.data) {
+        const sid = d.santri_id;
+        if (sid != null) hitung[sid] = (hitung[sid] ?? 0) + 1;
+      }
+      return hitung;
+    } catch {
+      return {};
+    }
+  }, [jenjangs]);
+  useEffect(() => {
+    let hidup = true;
+    void muatJumlahSantri().then((h) => { if (hidup) setJumlahSantri(h); });
+    return () => { hidup = false; };
+  }, [muatJumlahSantri]);
+
   /** Jumlah dokumen per jenis milik santri terpilih (kunci: lowercase). */
   const [jumlahJenis, setJumlahJenis] = useState<Record<string, number>>({});
+  const muatJumlahJenis = useCallback(async (sid: number): Promise<Record<string, number>> => {
+    try {
+      const p = await listDokumen('santri', { santri_id: sid, per_page: 1000 });
+      const hitung: Record<string, number> = {};
+      for (const d of p.data) {
+        const kunci = (d.jenis_dokumen ?? '').trim().toLowerCase();
+        if (kunci) hitung[kunci] = (hitung[kunci] ?? 0) + 1;
+      }
+      return hitung;
+    } catch {
+      return {};
+    }
+  }, []);
   useEffect(() => {
     if (santriId == null) { setJumlahJenis({}); return; }
     let hidup = true;
-    listDokumen('santri', { santri_id: santriId, per_page: 1000 })
-      .then((p) => {
-        if (!hidup) return;
-        const hitung: Record<string, number> = {};
-        for (const d of p.data) {
-          const kunci = (d.jenis_dokumen ?? '').trim().toLowerCase();
-          if (kunci) hitung[kunci] = (hitung[kunci] ?? 0) + 1;
-        }
-        setJumlahJenis(hitung);
-      })
-      .catch(() => { if (hidup) setJumlahJenis({}); });
+    void muatJumlahJenis(santriId).then((h) => { if (hidup) setJumlahJenis(h); });
     return () => { hidup = false; };
-  }, [santriId]);
+  }, [santriId, muatJumlahJenis]);
 
   // ----- Berkas: sumber byte + path asli (desktop, untuk sudah) -----
   const [sumberBerkas, setSumberBerkas] = useState<SumberBerkas | null>(null);
   const [berkasPath, setBerkasPath] = useState<string | null>(null);
   const [keluaran, setKeluaran] = useState<HasilGambar | null>(null);
-  const [kualitas, setKualitas] = useState<KualitasSimpan>('asli');
   const inputWebRef = useRef<HTMLInputElement>(null);
   const btnBrowseRef = useRef<HTMLButtonElement>(null);
 
@@ -264,7 +313,7 @@ export default function TambahDokumenSantriPage() {
     let hidup = true;
     (async () => {
       try {
-        const [s, l, u, q, m, f, ft, k] = await Promise.all([
+        const [s, l, u, q, m, f, ft] = await Promise.all([
           prefGet('simpes_tambah_dok_sumber'),
           prefGet('simpes_tambah_dok_lainnya'),
           prefGet('simpes_tambah_dok_sudah'),
@@ -272,7 +321,6 @@ export default function TambahDokumenSantriPage() {
           prefGet(PREF_MODE_DOKUMEN),
           prefGet(PREF_FOLDER_ARSIP),
           prefGet(PREF_FOLDER_ARSIP_TEST),
-          prefGet('simpes_tambah_dok_kualitas'),
         ]);
         if (!hidup) return;
         if (s === 'filter' || s === 'buku') setSumber(s);
@@ -282,7 +330,6 @@ export default function TambahDokumenSantriPage() {
         if (m === 'server' || m === 'lokal' || m === 'test') setModeDokumen(m);
         if (typeof f === 'string') setFolderArsip(f);
         if (typeof ft === 'string') setFolderArsipTest(ft);
-        if (k === 'asli' || k === 'hemat') setKualitas(k);
       } catch {
         /* penyimpanan terkunci: pakai bawaan */
       }
@@ -306,10 +353,6 @@ export default function TambahDokumenSantriPage() {
     if (!prefSiap) return;
     prefSet('simpes_tambah_dok_cari', cari).catch(() => {});
   }, [prefSiap, cari]);
-  useEffect(() => {
-    if (!prefSiap) return;
-    prefSet('simpes_tambah_dok_kualitas', kualitas).catch(() => {});
-  }, [prefSiap, kualitas]);
   /** Berkas wajib di halaman ini (baris + file-nya sekaligus). */
   const bisaSimpan = santriId != null && jenis.trim() !== '' && sumberBerkas !== null && keluaran !== null && !busy;
 
@@ -323,12 +366,12 @@ export default function TambahDokumenSantriPage() {
     setBusy(true);
     try {
       if (modeEfektif === 'lokal') {
-        // Mode lokal: metadata + cadangan nama ke server, byte hanya di drive.
+        // Mode lokal/test: metadata + cadangan nama ke server, byte hanya di drive.
         const tersimpan = await simpanDokumen('santri', {
           santri_id: santriId,
           jenis_dokumen: jenis.trim(),
           ...(catatan.trim() ? { catatan: catatan.trim() } : {}),
-          tujuan: 'lokal',
+          tujuan: modeTest ? 'test' : 'lokal',
           ekstensi: keluaran.ext,
         });
         const namaArsipBaru = tersimpan.data?.nama_file
@@ -377,6 +420,9 @@ export default function TambahDokumenSantriPage() {
           toast.success('Dokumen disimpan.');
         }
       }
+      // Angka jenis dokumen langsung terupdate tanpa ganti santri.
+      void muatJumlahJenis(santriId).then(setJumlahJenis);
+      void muatJumlahSantri().then(setJumlahSantri);
       // Reset form (pilihan santri + checkbox dipertahankan).
       setJenis('');
       setCatatan('');
@@ -429,17 +475,18 @@ export default function TambahDokumenSantriPage() {
                 <thead className="sticky top-0 bg-muted">
                   <tr className="text-left">
                     <th className="px-2 py-1.5 font-medium">Nama</th>
-                    <th className="px-2 py-1.5 font-medium">Jenjang</th>
+                    <th className="px-2 py-1.5 font-medium">Kelas</th>
+                    <th className="px-2 py-1.5 font-medium">Dok</th>
                   </tr>
                 </thead>
                 <tbody>
                   {loadingSantri ? (
-                    <tr><td colSpan={2} className="px-2 py-3 text-center text-muted-foreground">Memuat…</td></tr>
+                    <tr><td colSpan={3} className="px-2 py-3 text-center text-muted-foreground">Memuat…</td></tr>
                   ) : santris.length === 0 ? (
-                    <tr><td colSpan={2} className="px-2 py-3 text-center text-muted-foreground">{sumber === 'filter' ? 'Tidak ada santri pada filter ini.' : 'Tidak ada santri.'}</td></tr>
+                    <tr><td colSpan={3} className="px-2 py-3 text-center text-muted-foreground">{sumber === 'filter' ? 'Tidak ada santri pada filter ini.' : 'Tidak ada santri.'}</td></tr>
                   ) : santris.map((s) => {
-                    const a = anggotaTampil(s);
                     const aktif = s.id === santriId;
+                    const n = jumlahSantri[s.id] ?? 0;
                     return (
                       <tr
                         key={s.id}
@@ -453,21 +500,14 @@ export default function TambahDokumenSantriPage() {
                         )}
                       >
                         <td className="px-2 py-1.5">{s.nama_lengkap}</td>
-                        <td className="px-2 py-1.5 text-muted-foreground">{a?.jenjang ?? '—'}</td>
+                        <td className="px-2 py-1.5 text-muted-foreground">{kelasSantri[s.id] ?? '—'}</td>
+                        <td className="px-2 py-1.5"><Badge variant={n > 0 ? 'secondary' : 'outline'}>{n}</Badge></td>
                       </tr>
                     );
                   })}
                 </tbody>
               </table>
             </div>
-            <Pager
-              page={pager.page}
-              lastPage={lastPage}
-              total={total}
-              perPage={pager.perPage}
-              onPage={(p) => { pager.setPage(p); void muatSantri(p, pager.perPage); }}
-              onPerPage={(pp) => { pager.setPerPage(pp); void muatSantri(1, pp); }}
-            />
             <div id="info_santri_terpilih" className="min-h-[86px] rounded-md border bg-muted/40 px-2.5 py-2 text-xs">
               {santriTerpilih ? (
                 <dl className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5">
@@ -504,28 +544,29 @@ export default function TambahDokumenSantriPage() {
                       title={santriTerpilih ? `${jumlah} dokumen ${o.label} milik ${santriTerpilih.nama_lengkap}` : o.label}
                       onClick={() => setJenis(o.value)}
                       className={cn(
-                        'flex w-full cursor-pointer items-center justify-between gap-2 px-2.5 py-1.5 text-left text-xs',
+                        'flex w-full cursor-pointer items-center gap-2 px-2.5 py-1 text-left text-xs',
                         aktif ? 'bg-accent font-medium' : 'hover:bg-muted/60',
                       )}
                     >
-                      <span className="truncate">{o.label}</span>
-                      <span className="shrink-0 text-muted-foreground">({jumlah})</span>
+                      <Check size={12} className={cn('shrink-0', aktif ? 'opacity-100' : 'opacity-0')} />
+                      <span className="min-w-0 flex-1 truncate">{o.label}</span>
+                      <Badge variant={jumlah > 0 ? 'secondary' : 'outline'}>{jumlah}</Badge>
                     </button>
                   );
                 })}
               </div>
             )}
           </div>
-          <Separator />
-          <div className="grid gap-1.5">
-            <FieldLabel htmlFor="input_catatan_tambah_dokumen">Catatan (opsional)</FieldLabel>
+          <div className="flex items-center gap-2">
+            <FieldLabel htmlFor="input_catatan_tambah_dokumen" className="shrink-0">Catatan</FieldLabel>
             <Input
               id="input_catatan_tambah_dokumen"
               value={catatan}
               onChange={(e) => setCatatan(e.target.value)}
+              placeholder="opsional"
+              className="min-w-0 flex-1"
             />
           </div>
-          <Separator />
           <div id="box_browse_tambah_dokumen" className="grid gap-1.5 rounded-md border border-dashed bg-muted/40 p-2.5">
             <div className="flex items-center gap-2">
               <Button ref={btnBrowseRef} variant="outline" onClick={() => void onBrowse()}>
@@ -540,20 +581,6 @@ export default function TambahDokumenSantriPage() {
                 </Button>
               )}
             </div>
-            {sumberBerkas?.mime.startsWith('image/') && (
-              <div className="flex items-center gap-2">
-                <FieldLabel htmlFor="select_kualitas_tambah_dokumen" className="text-xs">Kualitas simpan</FieldLabel>
-                <select
-                  id="select_kualitas_tambah_dokumen"
-                  value={kualitas}
-                  onChange={(e) => setKualitas(e.target.value === 'hemat' ? 'hemat' : 'asli')}
-                  className="h-6 rounded-md border border-input bg-transparent px-1.5 text-xs shadow-xs outline-none focus-visible:border-ring"
-                >
-                  <option value="asli">Asli</option>
-                  <option value="hemat">Hemat (≤1600px, JPEG 82%)</option>
-                </select>
-              </div>
-            )}
             <input
               ref={inputWebRef}
               id="input_berkas_web_tambah_dokumen"
@@ -563,7 +590,6 @@ export default function TambahDokumenSantriPage() {
               onChange={onFileWeb}
             />
           </div>
-          <Separator />
           <div className="flex justify-end gap-2">
             <span className="mr-auto self-center text-xs text-muted-foreground">
               Mode: {modeTest ? 'Test (folder uji)' : (modeEfektif === 'lokal' ? 'Lokal (berkas di drive perangkat ini)' : 'Server')}
@@ -576,7 +602,7 @@ export default function TambahDokumenSantriPage() {
             </Button>
           </div>
           <Separator />
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-row flex-wrap items-center gap-x-4 gap-y-2">
             <label htmlFor="check_dok_lainnya" className="inline-flex cursor-pointer items-center gap-2 text-xs">
               <Checkbox
                 id="check_dok_lainnya"
@@ -598,7 +624,7 @@ export default function TambahDokumenSantriPage() {
                 disabled={!desktop || modeTest}
                 onCheckedChange={(v) => setPindahSudah(v === true)}
               />
-              Pindahkan ke folder SUDAH <span className="text-xs text-muted-foreground">(aktif di aplikasi desktop)</span>
+                Pindah ke SUDAH
             </label>
           </div>
           </div>
@@ -606,7 +632,7 @@ export default function TambahDokumenSantriPage() {
         <ResizableHandle withHandle orientation="horizontal" id="gagang_tambah_dokumen" aria-label="Atur lebar kolom form dan pratinjau" />
         {/* Kolom 2: viewer (sisa). */}
         <ResizablePanel minSize="25%" id="panel_tambah_dokumen_pratinjau" className="min-h-0 min-w-0">
-          <PenampilBerkas sumber={sumberBerkas} kualitas={kualitas} onKeluaran={setKeluaran} idPrefix="tambah_dokumen" />
+          <PenampilBerkas sumber={sumberBerkas} kualitas="asli" onKeluaran={setKeluaran} idPrefix="tambah_dokumen" />
         </ResizablePanel>
       </ResizablePanelGroup>
       <ProfilSantriDialog

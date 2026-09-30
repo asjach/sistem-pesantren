@@ -197,11 +197,80 @@ class DokumenHalamanTest extends TestCase
         ])->assertStatus(201);
 
         $dok = DokumenSantri::first();
+        $this->assertSame('lokal', $dok->penyimpanan);
         $this->assertMatchesRegularExpression(
             '{^ahmad_santri_kartu_keluarga_\d{8}_\d{6}\.jpg$}',
             (string) $dok->nama_file,
         );
         Storage::disk('local')->assertMissing('santri/dokumen/'.$dok->nama_file);
+    }
+
+    public function test_simpan_test_mencatat_penyimpanan_test(): void
+    {
+        $f = $this->fixture();
+        $auth = $this->superAdmin();
+
+        $this->actingAs($auth, 'sanctum')->postJson('/api/admin/dokumen/santri', [
+            'santri_id' => $f['santri']->id,
+            'jenis_dokumen' => 'Kartu Keluarga',
+            'tujuan' => 'test',
+            'ekstensi' => 'jpg',
+        ])->assertStatus(201);
+
+        $this->assertSame('test', DokumenSantri::first()->penyimpanan);
+    }
+
+    public function test_mode_server_menolak_simpanan_test(): void
+    {
+        config()->set('dokumen.mode', 'server');
+        $f = $this->fixture();
+        $auth = $this->superAdmin();
+
+        $this->actingAs($auth, 'sanctum')->postJson('/api/admin/dokumen/santri', [
+            'santri_id' => $f['santri']->id,
+            'jenis_dokumen' => 'Kartu Keluarga',
+            'tujuan' => 'test',
+            'ekstensi' => 'jpg',
+        ])->assertStatus(422);
+        $this->assertSame(0, DokumenSantri::count());
+    }
+
+    public function test_unggah_memindahkan_penyimpanan_ke_server(): void
+    {
+        $f = $this->fixture();
+        $auth = $this->superAdmin();
+
+        $this->actingAs($auth, 'sanctum')->postJson('/api/admin/dokumen/santri', [
+            'santri_id' => $f['santri']->id,
+            'jenis_dokumen' => 'Kartu Keluarga',
+            'tujuan' => 'lokal',
+            'ekstensi' => 'jpg',
+        ])->assertStatus(201);
+        $id = DokumenSantri::first()->id;
+
+        $this->actingAs($auth, 'sanctum')->post("/api/admin/dokumen/santri/{$id}/unggah", [
+            'file' => UploadedFile::fake()->image('kk.jpg'),
+        ], ['Accept' => 'application/json'])->assertOk();
+
+        $this->assertSame('server', DokumenSantri::find($id)->penyimpanan);
+    }
+
+    public function test_unduh_baris_lokal_pesan_arsip_perangkat(): void
+    {
+        $f = $this->fixture();
+        $auth = $this->superAdmin();
+
+        $this->actingAs($auth, 'sanctum')->postJson('/api/admin/dokumen/santri', [
+            'santri_id' => $f['santri']->id,
+            'jenis_dokumen' => 'Kartu Keluarga',
+            'tujuan' => 'lokal',
+            'ekstensi' => 'jpg',
+        ])->assertStatus(201);
+        $id = DokumenSantri::first()->id;
+
+        $this->actingAs($auth, 'sanctum')->getJson("/api/admin/dokumen/santri/{$id}/unduh")
+            ->assertStatus(404)
+            ->assertJsonPath('message', 'Berkas tersimpan di arsip perangkat, bukan di server.');
     }
 
     public function test_mode_server_menolak_simpanan_lokal(): void
