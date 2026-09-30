@@ -216,6 +216,43 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
     }
   }, [tipe, hapusRow, load]);
 
+  /** Unduh cerdas: arsip lokal via dialog simpan native (desktop), lalu server.
+   *  Baris mode lokal tak punya byte di server — tanpa ini selalu 404. */
+  const unduhCerdas = useCallback(async (r: DokumenRow) => {
+    if (isTauri() && r.nama_file) {
+      try {
+        const { exists, readFile, writeFile } = await import('@tauri-apps/plugin-fs');
+        const { save } = await import('@tauri-apps/plugin-dialog');
+        const { PREF_FOLDER_ARSIP, PREF_FOLDER_ARSIP_TEST, ROOT_ARSIP_DOKUMEN, ROOT_ARSIP_TEST, akarArsip, jalurArsip } = await import('@/lib/arsipDokumen');
+        const [a, b] = await Promise.all([
+          prefGet(PREF_FOLDER_ARSIP).catch(() => null),
+          prefGet(PREF_FOLDER_ARSIP_TEST).catch(() => null),
+        ]);
+        const akars = await Promise.all([
+          akarArsip(typeof a === 'string' ? a : '', ROOT_ARSIP_DOKUMEN),
+          akarArsip(typeof b === 'string' ? b : '', ROOT_ARSIP_TEST),
+        ]);
+        for (const akar of akars) {
+          const target = await jalurArsip(r.nama_file, r.jenis_dokumen, akar);
+          if (await exists(target)) {
+            const bytes = await readFile(target);
+            const tujuan = await save({
+              defaultPath: r.nama_file,
+              filters: [{ name: 'Dokumen', extensions: ['jpg', 'jpeg', 'png', 'pdf'] }],
+            });
+            if (!tujuan) return;
+            await writeFile(tujuan, bytes);
+            toast.success(`Tersimpan: ${String(tujuan).split('/').pop() ?? r.nama_file}`);
+            return;
+          }
+        }
+      } catch (e) {
+        toast.warning(`Arsip lokal gagal dibaca: ${errorMessage(e)}`);
+      }
+    }
+    await unduhBerkasDokumen(tipe, r.id, r.nama_file ?? 'dokumen').catch((e) => toast.error(errorMessage(e)));
+  }, [tipe]);
+
   const renderActions = useCallback((r: DokumenRow) => (
     <>
       {canUbah && (
@@ -235,7 +272,7 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
           size="sm"
           variant="outline"
           title="Unduh berkas"
-          onClick={() => void unduhBerkasDokumen(tipe, r.id, r.nama_file ?? 'dokumen').catch((e) => toast.error(errorMessage(e)))}
+          onClick={() => void unduhCerdas(r)}
         >
           <Download size={14} />
         </Button>
@@ -246,7 +283,7 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
         </Button>
       )}
     </>
-  ), [canUbah, canHapus, tipe]);
+  ), [canUbah, canHapus, tipe, unduhCerdas]);
 
   const bisaSimpanTambah = tipe === 'santri' ? pemilik !== '' : (tipe === 'pegawai' ? pemilik !== '' && jenjangPemilik !== '' : jenjangPemilik !== '');
 

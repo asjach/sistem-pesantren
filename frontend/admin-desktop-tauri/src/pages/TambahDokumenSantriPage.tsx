@@ -29,15 +29,17 @@ import {
   ROOT_ARSIP_DOKUMEN,
   ROOT_ARSIP_TEST,
   akarArsip,
-  bacaBerkasUntukUnggah,
   ekstensiDariNama,
   formatUkuran,
   mimeDariEkstensi,
   namaArsip,
   pilihBerkasDokumen,
   pindahKeSudah,
-  salinKeArsip,
+  tulisArsip,
 } from '@/lib/arsipDokumen';
+import PenampilBerkas, { type SumberBerkas } from '@/components/dokumen/PenampilBerkas';
+import type { HasilGambar, KualitasSimpan } from '@/lib/olahGambar';
+import { gantiEkstensi } from '@/lib/olahGambar';
 import { toast } from 'sonner';
 
 /** Keanggotaan aktif (untuk NIS & jenjang tampil) atau baris pertama. */
@@ -183,56 +185,23 @@ export default function TambahDokumenSantriPage() {
     return () => { hidup = false; };
   }, [santriId]);
 
-  // ----- Berkas: path lokal (desktop) atau File (browser) -----
+  // ----- Berkas: sumber byte + path asli (desktop, untuk sudah) -----
+  const [sumberBerkas, setSumberBerkas] = useState<SumberBerkas | null>(null);
   const [berkasPath, setBerkasPath] = useState<string | null>(null);
-  const [berkasWeb, setBerkasWeb] = useState<File | null>(null);
-  const [berkasNama, setBerkasNama] = useState('');
-  const [berkasUkuran, setBerkasUkuran] = useState(0);
-  const [berkasMime, setBerkasMime] = useState('');
+  const [keluaran, setKeluaran] = useState<HasilGambar | null>(null);
+  const [kualitas, setKualitas] = useState<KualitasSimpan>('asli');
   const inputWebRef = useRef<HTMLInputElement>(null);
   const btnBrowseRef = useRef<HTMLButtonElement>(null);
 
-  const [pratinjau, setPratinjau] = useState<string | null>(null);
-  useEffect(() => {
-    let hidup = true;
-    let url: string | null = null;
-    (async () => {
-      if (berkasPath && desktop) {
-        // Baca byte via fs + blob URL: tak bergantung protokol asset/CSP.
-        try {
-          const { readFile } = await import('@tauri-apps/plugin-fs');
-          const bytes = await readFile(berkasPath);
-          if (!hidup) return;
-          const buf = new Uint8Array(bytes).buffer as ArrayBuffer;
-          url = URL.createObjectURL(new Blob([buf], { type: berkasMime || 'application/octet-stream' }));
-          setPratinjau(url);
-        } catch (e) {
-          if (hidup) {
-            setPratinjau(null);
-            toast.error(`Pratinjau gagal dibaca: ${errorMessage(e)}`);
-          }
-        }
-      } else if (berkasWeb) {
-        url = URL.createObjectURL(berkasWeb);
-        if (hidup) setPratinjau(url);
-        else URL.revokeObjectURL(url);
-      } else if (hidup) {
-        setPratinjau(null);
-      }
-    })();
-    return () => {
-      hidup = false;
-      if (url) URL.revokeObjectURL(url);
-    };
-  }, [berkasPath, berkasWeb, desktop, berkasMime]);
-
   function resetBerkas() {
+    setSumberBerkas(null);
     setBerkasPath(null);
-    setBerkasWeb(null);
-    setBerkasNama('');
-    setBerkasUkuran(0);
-    setBerkasMime('');
     if (inputWebRef.current) inputWebRef.current.value = '';
+  }
+
+  async function terapkanPilihan(nama: string, bytes: Uint8Array, mime: string) {
+    resetBerkas();
+    setSumberBerkas({ bytes, mime, nama });
   }
 
   async function onBrowse() {
@@ -240,11 +209,11 @@ export default function TambahDokumenSantriPage() {
       try {
         const b = await pilihBerkasDokumen();
         if (!b) return;
+        const { readFile } = await import('@tauri-apps/plugin-fs');
+        const bytes = await readFile(b.path);
         resetBerkas();
         setBerkasPath(b.path);
-        setBerkasNama(b.nama);
-        setBerkasUkuran(b.ukuran);
-        setBerkasMime(b.mime);
+        setSumberBerkas({ bytes: new Uint8Array(bytes), mime: b.mime, nama: b.nama });
       } catch (e) {
         toast.error(errorMessage(e));
       }
@@ -253,7 +222,7 @@ export default function TambahDokumenSantriPage() {
     inputWebRef.current?.click();
   }
 
-  function onFileWeb(e: React.ChangeEvent<HTMLInputElement>) {
+  async function onFileWeb(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0] ?? null;
     if (!f) return;
     const ext = ekstensiDariNama(f.name);
@@ -267,11 +236,13 @@ export default function TambahDokumenSantriPage() {
       e.target.value = '';
       return;
     }
-    resetBerkas();
-    setBerkasWeb(f);
-    setBerkasNama(f.name);
-    setBerkasUkuran(f.size);
-    setBerkasMime(f.type || mimeDariEkstensi(ext));
+    try {
+      const buf = await f.arrayBuffer();
+      await terapkanPilihan(f.name, new Uint8Array(buf), f.type || mimeDariEkstensi(ext));
+    } catch (err) {
+      toast.error(errorMessage(err));
+      e.target.value = '';
+    }
   }
 
   // ----- Opsi pasca-simpan -----
@@ -293,7 +264,7 @@ export default function TambahDokumenSantriPage() {
     let hidup = true;
     (async () => {
       try {
-        const [s, l, u, q, m, f, ft] = await Promise.all([
+        const [s, l, u, q, m, f, ft, k] = await Promise.all([
           prefGet('simpes_tambah_dok_sumber'),
           prefGet('simpes_tambah_dok_lainnya'),
           prefGet('simpes_tambah_dok_sudah'),
@@ -301,6 +272,7 @@ export default function TambahDokumenSantriPage() {
           prefGet(PREF_MODE_DOKUMEN),
           prefGet(PREF_FOLDER_ARSIP),
           prefGet(PREF_FOLDER_ARSIP_TEST),
+          prefGet('simpes_tambah_dok_kualitas'),
         ]);
         if (!hidup) return;
         if (s === 'filter' || s === 'buku') setSumber(s);
@@ -310,6 +282,7 @@ export default function TambahDokumenSantriPage() {
         if (m === 'server' || m === 'lokal' || m === 'test') setModeDokumen(m);
         if (typeof f === 'string') setFolderArsip(f);
         if (typeof ft === 'string') setFolderArsipTest(ft);
+        if (k === 'asli' || k === 'hemat') setKualitas(k);
       } catch {
         /* penyimpanan terkunci: pakai bawaan */
       }
@@ -333,57 +306,40 @@ export default function TambahDokumenSantriPage() {
     if (!prefSiap) return;
     prefSet('simpes_tambah_dok_cari', cari).catch(() => {});
   }, [prefSiap, cari]);
+  useEffect(() => {
+    if (!prefSiap) return;
+    prefSet('simpes_tambah_dok_kualitas', kualitas).catch(() => {});
+  }, [prefSiap, kualitas]);
   /** Berkas wajib di halaman ini (baris + file-nya sekaligus). */
-  const berkasAda = desktop ? berkasPath !== null : berkasWeb !== null;
-  const bisaSimpan = santriId != null && jenis.trim() !== '' && berkasAda && !busy;
+  const bisaSimpan = santriId != null && jenis.trim() !== '' && sumberBerkas !== null && keluaran !== null && !busy;
 
   async function bukaPilihLagi() {
-    if (desktop) {
-      try {
-        const b = await pilihBerkasDokumen();
-        if (!b) return;
-        resetBerkas();
-        setBerkasPath(b.path);
-        setBerkasNama(b.nama);
-        setBerkasUkuran(b.ukuran);
-        setBerkasMime(b.mime);
-      } catch (e) {
-        toast.error(errorMessage(e));
-      }
-      return;
-    }
-    // Browser dapat memblokir dialog terprogram: coba buka, fallback fokus.
-    inputWebRef.current?.click();
-    btnBrowseRef.current?.focus();
+    await onBrowse();
+    if (!desktop) btnBrowseRef.current?.focus();
   }
 
   async function onSimpan() {
-    if (!bisaSimpan || santriId == null) return;
+    if (!bisaSimpan || santriId == null || !sumberBerkas || !keluaran) return;
     setBusy(true);
     try {
       if (modeEfektif === 'lokal') {
         // Mode lokal: metadata + cadangan nama ke server, byte hanya di drive.
-        if (!berkasAda || (!berkasPath && !berkasWeb)) {
-          toast.error('Pilih berkas dulu (mode lokal).');
-          return;
-        }
-        const ekstensi = ekstensiDariNama(berkasNama);
         const tersimpan = await simpanDokumen('santri', {
           santri_id: santriId,
           jenis_dokumen: jenis.trim(),
           ...(catatan.trim() ? { catatan: catatan.trim() } : {}),
           tujuan: 'lokal',
-          ekstensi,
+          ekstensi: keluaran.ext,
         });
         const namaArsipBaru = tersimpan.data?.nama_file
-          || namaArsip(santriTerpilih?.nama_lengkap ?? `santri-${santriId}`, jenis.trim(), catatan.trim(), ekstensi);
+          || namaArsip(santriTerpilih?.nama_lengkap ?? `santri-${santriId}`, jenis.trim(), catatan.trim(), keluaran.ext);
         if (desktop && berkasPath) {
           try {
             const akar = await akarArsip(
               modeTest ? folderArsipTest : folderArsip,
               modeTest ? ROOT_ARSIP_TEST : ROOT_ARSIP_DOKUMEN,
             );
-            await salinKeArsip(berkasPath, namaArsipBaru, jenis.trim(), akar);
+            await tulisArsip(keluaran.bytes, namaArsipBaru, jenis.trim(), akar);
             let pesan = modeTest ? 'Dokumen disimpan (test).' : 'Dokumen disimpan (lokal).';
             if (pindahSudah && !modeTest) {
               await pindahKeSudah(berkasPath);
@@ -398,15 +354,12 @@ export default function TambahDokumenSantriPage() {
           toast.success('Dokumen disimpan (lokal).');
         }
       } else {
-        // Mode server: byte ke server; pindah-sudah tetap independen.
-        let fileUp: File | undefined;
-        if (berkasPath && desktop) {
-          fileUp = await bacaBerkasUntukUnggah({
-            path: berkasPath, nama: berkasNama, ukuran: berkasUkuran, mime: berkasMime,
-          });
-        } else if (berkasWeb) {
-          fileUp = berkasWeb;
-        }
+        // Mode server: byte (hasil edisi bila ada) ke server.
+        const fileUp = new File(
+          [keluaran.bytes.buffer as ArrayBuffer],
+          gantiEkstensi(sumberBerkas.nama, keluaran.ext),
+          { type: keluaran.mime },
+        );
         await simpanDokumen('santri', {
           santri_id: santriId,
           jenis_dokumen: jenis.trim(),
@@ -578,15 +531,29 @@ export default function TambahDokumenSantriPage() {
               <Button ref={btnBrowseRef} variant="outline" onClick={() => void onBrowse()}>
                 Browse…
               </Button>
-              <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground" title={berkasNama}>
-                {berkasNama ? `${berkasNama} (${formatUkuran(berkasUkuran)})` : 'Belum ada berkas dipilih.'}
+              <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground" title={sumberBerkas?.nama}>
+                {sumberBerkas ? `${sumberBerkas.nama} (${formatUkuran(sumberBerkas.bytes.length)})` : 'Belum ada berkas dipilih.'}
               </span>
-              {berkasNama && (
+              {sumberBerkas && (
                 <Button variant="ghost" size="sm" onClick={resetBerkas} title="Hapus pilihan berkas">
                   Hapus
                 </Button>
               )}
             </div>
+            {sumberBerkas?.mime.startsWith('image/') && (
+              <div className="flex items-center gap-2">
+                <FieldLabel htmlFor="select_kualitas_tambah_dokumen" className="text-xs">Kualitas simpan</FieldLabel>
+                <select
+                  id="select_kualitas_tambah_dokumen"
+                  value={kualitas}
+                  onChange={(e) => setKualitas(e.target.value === 'hemat' ? 'hemat' : 'asli')}
+                  className="h-6 rounded-md border border-input bg-transparent px-1.5 text-xs shadow-xs outline-none focus-visible:border-ring"
+                >
+                  <option value="asli">Asli</option>
+                  <option value="hemat">Hemat (≤1600px, JPEG 82%)</option>
+                </select>
+              </div>
+            )}
             <input
               ref={inputWebRef}
               id="input_berkas_web_tambah_dokumen"
@@ -639,18 +606,7 @@ export default function TambahDokumenSantriPage() {
         <ResizableHandle withHandle orientation="horizontal" id="gagang_tambah_dokumen" aria-label="Atur lebar kolom form dan pratinjau" />
         {/* Kolom 2: viewer (sisa). */}
         <ResizablePanel minSize="25%" id="panel_tambah_dokumen_pratinjau" className="min-h-0 min-w-0">
-          <section aria-label="Pratinjau berkas" className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border bg-card">
-          {!pratinjau ? (
-            <p className="m-auto px-6 text-center text-sm text-muted-foreground">
-              Belum ada berkas dipilih — pilih lewat Browse untuk melihat pratinjau di sini.
-            </p>
-          ) : berkasMime.startsWith('image/') ? (
-            // eslint-disable-next-line jsx-a11y/alt-text
-            <img src={pratinjau} alt="" className="m-auto max-h-full max-w-full object-contain p-2" />
-          ) : (
-            <iframe title="Pratinjau PDF" src={pratinjau} className="min-h-0 flex-1" />
-          )}
-          </section>
+          <PenampilBerkas sumber={sumberBerkas} kualitas={kualitas} onKeluaran={setKeluaran} idPrefix="tambah_dokumen" />
         </ResizablePanel>
       </ResizablePanelGroup>
       <ProfilSantriDialog

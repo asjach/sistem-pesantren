@@ -135,15 +135,15 @@ export async function jalurArsip(namaFile: string, jenis: string, akar: string):
   return join(akar, slugSegmen(jenis) || 'lainnya', namaFile);
 }
 
-/** Salin berkas ke `<akar>/<jenis>/` dengan nama template.
- *  `akar` = hasil `akarArsip()`. Mengembalikan path tujuan. */
-export async function salinKeArsip(pathSumber: string, namaFile: string, jenis: string, akar: string): Promise<string> {
-  const { copyFile, exists, mkdir } = await import('@tauri-apps/plugin-fs');
+/** Tulis byte ke `<akar>/<jenis>/` dengan nama template (untuk hasil edisi).
+ *  Mengembalikan path tujuan. */
+export async function tulisArsip(data: Uint8Array, namaFile: string, jenis: string, akar: string): Promise<string> {
+  const { exists, mkdir, writeFile } = await import('@tauri-apps/plugin-fs');
   const { dirname, join } = await import('@tauri-apps/api/path');
   const folderJenis = await dirname(await jalurArsip(namaFile, jenis, akar));
   await mkdir(folderJenis, { recursive: true });
   const tujuan = await join(folderJenis, await namaUnik(folderJenis, namaFile));
-  await copyFile(pathSumber, tujuan);
+  await writeFile(tujuan, data);
   if (!(await exists(tujuan))) throw new Error('Salinan arsip tidak terbentuk.');
   return tujuan;
 }
