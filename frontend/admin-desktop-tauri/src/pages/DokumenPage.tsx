@@ -33,8 +33,10 @@ import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import Pager from '@/components/Pager';
-import { Download, FileUp, Trash2, Upload } from '@/icons';
+import { Download, FileUp, RefreshCw, Trash2, Upload } from '@/icons';
 import DokumenImportDialog from '@/components/dokumen/DokumenImportDialog';
+import DialogSinkronDokumen from '@/components/dokumen/DialogSinkronDokumen';
+import { ambilSemuaBaris } from '@/lib/sinkronDokumen';
 import { toast } from 'sonner';
 import { useEffect } from 'react';
 
@@ -64,6 +66,9 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
   const { jenjangs } = useFilterGlobalAktif();
 
   const [cari, setCari] = useState('');
+  const [sinkronTerbuka, setSinkronTerbuka] = useState(false);
+  /** Sinkron massal: sementara lingkup santri (pola dipakai ulang tipe lain). */
+  const sinkronMassal = tipe === 'santri' && isTauri() && canUbah;
   const [importOpen, setImportOpen] = useState(false);
   const [tambahOpen, setTambahOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -345,17 +350,31 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
         canEdit={canUbah}
         onCommit={commitBaris}
         onSaved={() => {}}
-        addButton={canTambah ? (
+        addButton={(canTambah || sinkronMassal) ? (
           <>
-            <Button
-              id={`btn_tambah_dok_${tipe}`}
-              onClick={() => { if (tipe === 'santri') navigate('/dokumen-santri/tambah'); else bukaTambah(); }}
-            >
-              Tambah
-            </Button>
-            <Button id={`btn_import_dok_${tipe}`} variant="outline" onClick={() => setImportOpen(true)}>
-              <FileUp data-icon="inline-start" size={16} /> Import
-            </Button>
+            {canTambah && (
+              <>
+                <Button
+                  id={`btn_tambah_dok_${tipe}`}
+                  onClick={() => { if (tipe === 'santri') navigate('/dokumen-santri/tambah'); else bukaTambah(); }}
+                >
+                  Tambah
+                </Button>
+                <Button id={`btn_import_dok_${tipe}`} variant="outline" onClick={() => setImportOpen(true)}>
+                  <FileUp data-icon="inline-start" size={16} /> Import
+                </Button>
+              </>
+            )}
+            {sinkronMassal && (
+              <Button
+                id="btn_sinkron_dok_santri"
+                variant="outline"
+                onClick={() => setSinkronTerbuka(true)}
+                title="Sinkronkan SEMUA dokumen santri dalam filter/pencarian aktif (cermin dua arah)"
+              >
+                <RefreshCw data-icon="inline-start" size={16} /> Sinkronkan
+              </Button>
+            )}
           </>
         ) : null}
         renderActions={renderActions}
@@ -369,6 +388,19 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
         onPerPage={(pp) => { pager.setPerPage(pp); load(1, pp); }}
       />
 
+      {sinkronMassal && (
+        <DialogSinkronDokumen
+          tipe="santri"
+          terbuka={sinkronTerbuka}
+          onTutup={() => setSinkronTerbuka(false)}
+          ambilBaris={() => ambilSemuaBaris('santri', {
+            jenjang: jenjangs.length ? jenjangs : undefined,
+            q: cari || undefined,
+          })}
+          lingkup={`Semua dokumen santri (filter: ${jenjangs.join(', ') || 'semua jenjang'}${cari ? `, cari: ${cari}` : ''})`}
+          onSelesai={() => { void load(pager.page); }}
+        />
+      )}
       <Dialog open={tambahOpen} onOpenChange={setTambahOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
