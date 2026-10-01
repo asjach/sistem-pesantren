@@ -28,6 +28,7 @@ import {
   tulisTepatArsip,
   type TipeArsip,
 } from '@/lib/arsipDokumen';
+import { errorMessage } from '@/api/client';
 
 export type AksiSinkron = 'sudah-sama' | 'naik' | 'turun' | 'ditandai' | 'dilewati' | 'galat';
 
@@ -195,7 +196,7 @@ export async function sinkronkanDaftar(
     } catch (e) {
       ringkas.selesai += 1;
       ringkas.galat += 1;
-      ringkas.galatDaftar.push({ nama: row.nama_file ?? `#${row.id}`, pesan: e instanceof Error ? e.message : String(e) });
+      ringkas.galatDaftar.push({ nama: row.nama_file ?? `#${row.id}`, pesan: errorMessage(e) });
     }
     opsi.lapor?.(ringkas);
   }

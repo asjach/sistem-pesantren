@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { ApiError } from '@/api/client';
 import type { DokumenRow, StatusBerkasServer } from '@/api/dokumen';
 import {
   hashSha256,
@@ -158,6 +159,18 @@ describe('sinkronkanDaftar', () => {
     expect(hasil.total).toBe(250);
     expect(hasil.galat).toBe(250);
     expect(lapor.at(-1)).toBe(250);
+  });
+
+  it('galat API menampilkan pesan validasi, bukan "API 422"', async () => {
+    const d = depsPalsu();
+    d.bacaLokal = async () => lokal(1);
+    d.statusServer = async () => ({});
+    d.unggahServer = async () => {
+      throw new ApiError(422, { message: 'The file field must be a file of type: jpg, jpeg, png, pdf.', errors: {} });
+    };
+    const hasil = await sinkronkanDaftar([baris()], d);
+    expect(hasil.galat).toBe(1);
+    expect(hasil.galatDaftar[0].pesan).toContain('must be a file of type');
   });
 
   it('batal di tengah → berhenti + flag', async () => {
