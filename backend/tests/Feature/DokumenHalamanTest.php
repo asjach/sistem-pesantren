@@ -411,8 +411,6 @@ class DokumenHalamanTest extends TestCase
         DokumenSantri::create([
             'santri_id' => $f['santri']->id,
             'jenis_dokumen_santri' => 'Kartu Keluarga',
-            'status_verifikasi' => 'valid',
-            'tidak_memiliki' => false,
             'catatan' => 'Arsip',
         ]);
         DB::table('dokumen_pegawai')->insert([
@@ -431,8 +429,8 @@ class DokumenHalamanTest extends TestCase
         ]);
 
         $santri = $this->actingAs($auth, 'sanctum')->getJson('/api/admin/dokumen/santri/data-existing')->assertOk();
-        $this->assertSame(['nis_lokal', 'jenjang', 'jenis_dokumen', 'status_verifikasi', 'tidak_memiliki', 'catatan'], $santri->json('kolom'));
-        $this->assertSame([['26001', 'MI', 'Kartu Keluarga', 'Valid', 'Tidak', 'Arsip']], $santri->json('baris'));
+        $this->assertSame(['nis_lokal', 'jenjang', 'jenis_dokumen', 'catatan'], $santri->json('kolom'));
+        $this->assertSame([['26001', 'MI', 'Kartu Keluarga', 'Arsip']], $santri->json('baris'));
 
         $guru = $this->actingAs($auth, 'sanctum')->getJson('/api/admin/dokumen/pegawai/data-existing')->assertOk();
         $this->assertSame(['pegawai_id', 'nipp', 'nama_lengkap', 'jenjang', 'jenis_dokumen', 'status_verifikasi', 'catatan'], $guru->json('kolom'));
@@ -452,10 +450,34 @@ class DokumenHalamanTest extends TestCase
             'total' => 1,
             'terakhir' => true,
             'baris' => [
-                ['nis_lokal' => '26001', 'jenjang' => 'MI', 'jenis_dokumen' => 'Kartu Keluarga', 'status_verifikasi' => 'Valid', 'tidak_memiliki' => 'Tidak', 'catatan' => 'Arsip'],
+                ['nis_lokal' => '26001', 'jenjang' => 'MI', 'jenis_dokumen' => 'Kartu Keluarga', 'catatan' => 'Arsip'],
             ],
         ])->assertOk();
         $this->assertSame(0, $ulang->json('ringkasan.baris_gagal'));
+    }
+
+    public function test_dokumen_santri_menolak_status_verifikasi(): void
+    {
+        $f = $this->fixture();
+        $auth = $this->superAdmin();
+
+        // Kolom status sudah dicabut dari tabel santri: simpan menolaknya.
+        $this->actingAs($auth, 'sanctum')->postJson('/api/admin/dokumen/santri', [
+            'santri_id' => $f['santri']->id,
+            'jenis_dokumen' => 'Kartu Keluarga',
+            'status_verifikasi' => 'valid',
+        ])->assertStatus(422);
+        $this->assertSame(0, DokumenSantri::count());
+
+        $dok = DokumenSantri::create([
+            'santri_id' => $f['santri']->id,
+            'jenis_dokumen_santri' => 'Kartu Keluarga',
+        ]);
+
+        // Ubah pun menolaknya; tipe pegawai tetap boleh.
+        $this->actingAs($auth, 'sanctum')->patchJson("/api/admin/dokumen/santri/{$dok->id}", [
+            'status_verifikasi' => 'valid',
+        ])->assertStatus(422);
     }
 
     public function test_izin_dokumen_lembaga_tidak_diakses_admin_lain(): void

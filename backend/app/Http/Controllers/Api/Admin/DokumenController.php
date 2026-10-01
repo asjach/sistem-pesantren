@@ -86,9 +86,6 @@ class DokumenController extends Controller
             if ($request->filled('santri_id')) {
                 $query->where('dokumen_santri.santri_id', (int) $request->input('santri_id'));
             }
-            if ($status) {
-                $query->where('dokumen_santri.status_verifikasi', $status);
-            }
             $this->tersierSort($query);
             $hasil = $query->orderBy('santri.nama_lengkap')->orderBy('dokumen_santri.id')
                 ->paginate($this->perPage($request));
@@ -188,7 +185,6 @@ class DokumenController extends Controller
                     'jenis_dokumen_santri' => $data['jenis_dokumen'],
                     'nama_file' => $nama,
                     'penyimpanan' => $tujuan,
-                    'status_verifikasi' => $data['status_verifikasi'] ?? 'menunggu',
                     'catatan' => $data['catatan'] ?? null,
                 ]);
             }
@@ -230,7 +226,8 @@ class DokumenController extends Controller
         $model = $this->temukan($tipe, $id, $request);
         $data = $request->validate([
             'jenis_dokumen' => ['sometimes', 'string', 'max:100'],
-            'status_verifikasi' => ['sometimes', 'in:menunggu,valid,ditolak'],
+            // Kolom status hanya ada di tabel pegawai/lembaga.
+            'status_verifikasi' => $tipe === 'santri' ? ['prohibited'] : ['sometimes', 'in:menunggu,valid,ditolak'],
             'catatan' => ['sometimes', 'nullable', 'string'],
             // `true` = pemanggil menjamin byte ikut dipindah (server: backend
             // di bawah; arsip perangkat: aplikasi desktop asal). Tanpa ini
@@ -243,7 +240,7 @@ class DokumenController extends Controller
         if (isset($data['jenis_dokumen'])) {
             $ubah[$kolomJenis] = $data['jenis_dokumen'];
         }
-        if (isset($data['status_verifikasi'])) {
+        if (isset($data['status_verifikasi']) && $tipe !== 'santri') {
             $ubah['status_verifikasi'] = $data['status_verifikasi'];
         }
         if (array_key_exists('catatan', $data)) {
@@ -502,7 +499,8 @@ class DokumenController extends Controller
             'pegawai_id' => $tipe === 'pegawai' ? $aturanPemilik : ['prohibited'],
             'jenjang' => $tipe === 'lembaga' ? $aturanPemilik : ($tipe === 'pegawai' ? ['required', 'string', 'exists:lembaga,jenjang'] : ['nullable', 'string']),
             'jenis_dokumen' => ['required', 'string', 'max:100'],
-            'status_verifikasi' => ['sometimes', 'in:menunggu,valid,ditolak'],
+            // Kolom status hanya ada di tabel pegawai/lembaga.
+            'status_verifikasi' => $tipe === 'santri' ? ['prohibited'] : ['sometimes', 'in:menunggu,valid,ditolak'],
             'catatan' => ['nullable', 'string'],
             'file' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:10240'],
             // Simpanan lokal/test (dev): tanpa byte, nama dicadangkan untuk arsip perangkat.

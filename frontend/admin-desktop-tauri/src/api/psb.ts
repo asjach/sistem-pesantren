@@ -401,13 +401,6 @@ export function listDokumenCalon(calonId: number) {
   return api<{ pesan: string; data: DokumenSantri[] }>(`/portal/psb/${calonId}/dokumen`);
 }
 
-export function verifikasiDokumen(dokumenId: number, input: { status: 'menunggu' | 'valid' | 'ditolak'; catatan?: string }) {
-  return api<{ pesan: string; data: DokumenSantri }>(`/psb/dokumen/${dokumenId}/verifikasi`, {
-    method: 'POST',
-    body: JSON.stringify(input),
-  });
-}
-
 export interface DokumenWajib {
   id: number;
   psb_kegiatan_id: number;

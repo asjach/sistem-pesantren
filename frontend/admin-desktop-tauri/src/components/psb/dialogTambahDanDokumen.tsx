@@ -164,13 +164,11 @@ export function DialogTambahPendaftar({ open, gelombangs, lembagas, busy, f, set
   );
 }
 
-/** Dialog dokumen calon: daftar dokumen + aksi validasi/tolak. */
-export function DialogDokumenCalon({ calon, dokumen, busy, onClose, onVerifikasi }: {
+/** Dialog dokumen calon: daftar dokumen terupload (baca-saja). */
+export function DialogDokumenCalon({ calon, dokumen, onClose }: {
   calon: PsbCalon | null;
   dokumen: DokumenSantri[];
-  busy: boolean;
   onClose: () => void;
-  onVerifikasi: (id: number, status: 'valid' | 'ditolak') => void;
 }) {
   return (
     <Dialog open={calon !== null} onOpenChange={(o) => { if (!o) onClose(); }}>
@@ -178,7 +176,7 @@ export function DialogDokumenCalon({ calon, dokumen, busy, onClose, onVerifikasi
         <DialogHeader>
           <DialogTitle>Dokumen: {calon?.nama_lengkap}</DialogTitle>
           <DialogDescription className="sr-only">
-            Daftar dokumen calon beserta status verifikasi dan aksinya.
+            Daftar dokumen calon yang sudah diupload.
           </DialogDescription>
         </DialogHeader>
         {dokumen.length === 0 ? (
@@ -188,27 +186,7 @@ export function DialogDokumenCalon({ calon, dokumen, busy, onClose, onVerifikasi
             {dokumen.map((d) => (
               <li key={d.id} className="flex flex-wrap items-center gap-2 p-2 text-sm">
                 <span className="font-medium">{d.jenis_dokumen_santri}</span>
-                <span className="text-muted-foreground">{d.status_verifikasi}</span>
-                <div className="ml-auto flex gap-1.5">
-                  <Button
-                    id={`btn_dok_valid_${d.id}`}
-                    size="sm"
-                    variant="outline"
-                    disabled={busy}
-                    onClick={() => onVerifikasi(d.id, 'valid')}
-                  >
-                    Valid
-                  </Button>
-                  <Button
-                    id={`btn_dok_tolak_${d.id}`}
-                    size="sm"
-                    variant="outline"
-                    disabled={busy}
-                    onClick={() => onVerifikasi(d.id, 'ditolak')}
-                  >
-                    Tolak
-                  </Button>
-                </div>
+                <span className="text-muted-foreground">{d.nama_file ?? '—'}</span>
               </li>
             ))}
           </ul>

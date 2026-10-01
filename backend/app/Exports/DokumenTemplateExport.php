@@ -11,11 +11,12 @@ use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Cell\Cell;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
-use PhpOffice\PhpSpreadsheet\Cell\DefaultValueBinder;
 use PhpOffice\PhpSpreadsheet\Cell\DataValidation;
+use PhpOffice\PhpSpreadsheet\Cell\DefaultValueBinder;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 /**
  * Template import daftar dokumen (checklist) — satu kelas untuk tiga tipe
@@ -35,7 +36,7 @@ class DokumenTemplateExport extends DefaultValueBinder implements FromArray, Wit
     public static function kolom(string $tipe): array
     {
         return match ($tipe) {
-            'santri' => ['nis_lokal', 'jenjang', 'jenis_dokumen', 'status_verifikasi', 'tidak_memiliki', 'catatan'],
+            'santri' => ['nis_lokal', 'jenjang', 'jenis_dokumen', 'catatan'],
             'pegawai' => ['pegawai_id', 'nipp', 'nama_lengkap', 'jenjang', 'jenis_dokumen', 'status_verifikasi', 'catatan'],
             'lembaga' => ['jenjang', 'jenis_dokumen', 'status_verifikasi', 'catatan'],
             default => [],
@@ -72,14 +73,14 @@ class DokumenTemplateExport extends DefaultValueBinder implements FromArray, Wit
     public function array(): array
     {
         $contoh = match ($this->tipe) {
-            'santri' => ['26001', 'MI', 'Kartu Keluarga', 'Menunggu', 'Tidak', ''],
+            'santri' => ['26001', 'MI', 'Kartu Keluarga', ''],
             'pegawai' => ['', 'PST-001', '', 'MI', 'Ijazah S1', 'Valid', 'Sesuai arsip'],
             'lembaga' => ['MI', 'Izin Operasional', 'Valid', 'SK Kemenag 2026'],
         };
         // Petakan posisional sejajar kolom (kunci tak dipakai di array()).
         $kolom = self::kolom($this->tipe);
         $urut = match ($this->tipe) {
-            'santri' => ['nis_lokal' => 0, 'jenjang' => 1, 'jenis_dokumen' => 2, 'status_verifikasi' => 3, 'tidak_memiliki' => 4, 'catatan' => 5],
+            'santri' => ['nis_lokal' => 0, 'jenjang' => 1, 'jenis_dokumen' => 2, 'catatan' => 3],
             'pegawai' => ['pegawai_id' => 0, 'nipp' => 1, 'nama_lengkap' => 2, 'jenjang' => 3, 'jenis_dokumen' => 4, 'status_verifikasi' => 5, 'catatan' => 6],
             'lembaga' => ['jenjang' => 0, 'jenis_dokumen' => 1, 'status_verifikasi' => 2, 'catatan' => 3],
         };
@@ -95,7 +96,6 @@ class DokumenTemplateExport extends DefaultValueBinder implements FromArray, Wit
         return [
             'jenjang' => ['MI', 'MD', 'MTS', 'MA', 'MLN'],
             'status_verifikasi' => ['Menunggu', 'Valid', 'Ditolak'],
-            'tidak_memiliki' => ['Ya', 'Tidak'],
         ];
     }
 
@@ -116,7 +116,7 @@ class DokumenTemplateExport extends DefaultValueBinder implements FromArray, Wit
     }
 
     /** Header: wajib = kuning, opsional = biru; bekukan baris 1 + autofilter. */
-    private function gayaHeader(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet, array $kolom, array $wajib, string $lastCol): void
+    private function gayaHeader(Worksheet $sheet, array $kolom, array $wajib, string $lastCol): void
     {
         $sheet->getRowDimension(1)->setRowHeight(34);
 
@@ -139,7 +139,7 @@ class DokumenTemplateExport extends DefaultValueBinder implements FromArray, Wit
     }
 
     /** Baris 2 (CONTOH): italic abu-abu + isian abu muda — tanda wajib diganti/dihapus. */
-    private function gayaContoh(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet, string $lastCol): void
+    private function gayaContoh(Worksheet $sheet, string $lastCol): void
     {
         $sheet->getRowDimension(2)->setRowHeight(20);
 
@@ -150,11 +150,11 @@ class DokumenTemplateExport extends DefaultValueBinder implements FromArray, Wit
     }
 
     /** Dropdown data-validation + daftar nilai di sheet tersembunyi "Referensi". */
-    private function isiDropdown(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet, array $kolom): void
+    private function isiDropdown(Worksheet $sheet, array $kolom): void
     {
         $referensi = $sheet->getParent()->createSheet();
         $referensi->setTitle('Referensi');
-        $referensi->setSheetState(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet::SHEETSTATE_HIDDEN);
+        $referensi->setSheetState(Worksheet::SHEETSTATE_HIDDEN);
 
         $opsi = $this->pilihan();
         $colSumber = 1;

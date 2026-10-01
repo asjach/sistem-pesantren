@@ -11,7 +11,6 @@ use App\Http\Requests\Admin\SantriDokumenRequest;
 use App\Http\Requests\Admin\SantriFotoRequest;
 use App\Http\Requests\Admin\SantriPotongRequest;
 use App\Http\Requests\Admin\SantriStoreRequest;
-use App\Http\Requests\Admin\SantriTidakMemilikiRequest;
 use App\Http\Requests\Admin\SantriUpdateRequest;
 use App\Models\DokumenSantri;
 use App\Models\ImportSesi;
@@ -167,7 +166,6 @@ class SantriController extends Controller
             $dok->update([
                 'nama_file' => basename($path),
                 'catatan' => $data['catatan'] ?? $dok->catatan,
-                'tidak_memiliki' => false,
             ]);
         } else {
             $dok = DokumenSantri::create([
@@ -190,18 +188,6 @@ class SantriController extends Controller
             'pesan' => 'Dokumen santri berhasil dimuat.',
             'data' => DokumenSantri::where('santri_id', $santri->id)->latest('id')->get(),
         ]);
-    }
-
-    // Tandai "tidak memiliki dokumen" (tidak menghalangi proses apa pun).
-    public function tidakMemiliki(SantriTidakMemilikiRequest $request, Santri $santri, DokumenSantri $dokumen): JsonResponse
-    {
-        if ((int) $dokumen->santri_id !== (int) $santri->id) {
-            abort(404, 'Dokumen tidak tertaut ke santri ini.');
-        }
-        $data = $request->validated();
-        $dokumen->update(['tidak_memiliki' => $data['tidak_memiliki']]);
-
-        return response()->json(['pesan' => 'Status dokumen diperbarui.', 'data' => $dokumen->fresh()]);
     }
 
     /** Izin tulis gabungan: tambah (santri baru) DAN ubah (update + keanggotaan). */

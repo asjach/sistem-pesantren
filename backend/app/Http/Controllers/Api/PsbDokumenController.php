@@ -7,7 +7,6 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\PsbDokumenIndexWajibRequest;
 use App\Http\Requests\PsbDokumenStoreWajibRequest;
 use App\Http\Requests\PsbDokumenUploadCalonRequest;
-use App\Http\Requests\PsbDokumenVerifikasiRequest;
 use App\Models\DokumenSantri;
 use App\Models\DokumenWajibLembaga;
 use App\Models\PsbCalonSantri;
@@ -60,26 +59,6 @@ class PsbDokumenController extends Controller
             'pesan' => 'Dokumen calon berhasil dimuat.',
             'data' => DokumenSantri::where('psb_calon_santri_id', $calon->id)->latest('id')->get(),
         ]);
-    }
-
-    /**
-     * POST /api/psb/dokumen/{dokumen}/verifikasi (admin, {status: menunggu|valid|ditolak, catatan?}).
-     * Deviasi spec snippet: $this->authorize('verifikasi', $dokumen) diganti cek
-     * canAccessLembaga — tidak ada DokumenSantriPolicy terdaftar di repo.
-     */
-    public function verifikasi(PsbDokumenVerifikasiRequest $request, DokumenSantri $dokumen): JsonResponse
-    {
-        $dokumen->load(['calon:id,jenjang', 'santri:id,jenjang']);
-        $lembagaId = $dokumen->calon?->jenjang ?? $dokumen->santri?->jenjang;
-        if (! $lembagaId) {
-            abort(404, 'Dokumen tidak tertaut ke calon/santri.');
-        }
-        $this->authorizeLembaga($request->user(), $lembagaId);
-
-        $data = $request->validated();
-        $dokumen->update(['status_verifikasi' => $data['status'], 'catatan' => $data['catatan'] ?? $dokumen->catatan]);
-
-        return response()->json(['pesan' => 'Verifikasi disimpan.', 'data' => $dokumen->fresh()]);
     }
 
     /** GET /api/admin/dokumen-wajib?psb_kegiatan_id=&jenjang= (admin; jenjang opsional). */

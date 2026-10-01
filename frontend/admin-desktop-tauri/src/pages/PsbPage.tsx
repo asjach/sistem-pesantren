@@ -24,7 +24,6 @@ import {
   promosiCalon,
   pulihkanCalon,
   verifikasiCalon,
-  verifikasiDokumen,
   type BulkHasil,
   type PsbCalon,
   type PsbGelombang,
@@ -762,12 +761,7 @@ export default function PsbPage() {
       <DialogDokumenCalon
         calon={dokRow}
         dokumen={dokumen}
-        busy={busy}
         onClose={() => setDokRow(null)}
-        onVerifikasi={(id, status) => void run(
-          () => verifikasiDokumen(id, { status }),
-          status === 'valid' ? 'Dokumen divalidasi.' : 'Dokumen ditolak.',
-        )}
       />
 
       <DialogImportPsb

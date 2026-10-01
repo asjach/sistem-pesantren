@@ -75,7 +75,7 @@ class DokumenImporService extends ImporPotongan
             return;
         }
 
-        $status = $this->normalisasiStatus($baris['status_verifikasi'] ?? null);
+        $status = $this->tipe === 'santri' ? null : $this->normalisasiStatus($baris['status_verifikasi'] ?? null);
         if ($status === false) {
             $this->fail($no, 'status_verifikasi', "Status '{$baris['status_verifikasi']}' tidak dikenal (isi Menunggu/Valid/Ditolak).");
 
@@ -86,7 +86,7 @@ class DokumenImporService extends ImporPotongan
         $catatan = $catatan !== '' ? $catatan : null;
 
         match ($this->tipe) {
-            'santri' => $this->prosesSantri($baris, $no, $jenjang, $jenis, $status, $catatan, $kering),
+            'santri' => $this->prosesSantri($baris, $no, $jenjang, $jenis, $catatan, $kering),
             'pegawai' => $this->prosesPegawai($baris, $no, $jenjang, $jenis, $status, $catatan, $kering),
             'lembaga' => $this->prosesLembaga($baris, $no, $jenjang, $jenis, $status, $catatan, $kering),
             default => throw ValidationException::withMessages(['tipe' => 'Tipe dokumen tidak dikenal.']),
@@ -99,7 +99,7 @@ class DokumenImporService extends ImporPotongan
      *
      * @param  array<string, mixed>  $baris
      */
-    protected function prosesSantri(array $baris, int $no, string $jenjang, string $jenis, ?string $status, ?string $catatan, bool $kering): void
+    protected function prosesSantri(array $baris, int $no, string $jenjang, string $jenis, ?string $catatan, bool $kering): void
     {
         $santri = $this->cariSantri($baris, $jenjang, $no);
         if ($santri === null) {
@@ -115,29 +115,17 @@ class DokumenImporService extends ImporPotongan
             return;
         }
 
-        DB::transaction(function () use ($lama, $santri, $jenis, $status, $catatan, $baris): void {
+        DB::transaction(function () use ($lama, $santri, $jenis, $catatan): void {
             if ($lama === null) {
                 DokumenSantri::create([
                     'santri_id' => $santri->id,
                     'jenis_dokumen_santri' => $jenis,
-                    'status_verifikasi' => $status !== '' && $status !== null ? $status : 'menunggu',
-                    'tidak_memiliki' => ($baris['tidak_memiliki'] ?? '') === 'Ya',
                     'catatan' => $catatan,
                 ]);
                 $this->dibuat++;
             } else {
-                $ubah = [];
-                if ($status !== null && $status !== '') {
-                    $ubah['status_verifikasi'] = $status;
-                }
-                if (array_key_exists('tidak_memiliki', $baris) && trim((string) $baris['tidak_memiliki']) !== '') {
-                    $ubah['tidak_memiliki'] = $baris['tidak_memiliki'] === 'Ya';
-                }
                 if ($catatan !== null) {
-                    $ubah['catatan'] = $catatan;
-                }
-                if ($ubah !== []) {
-                    $lama->update($ubah);
+                    $lama->update(['catatan' => $catatan]);
                     $this->diperbarui++;
                 } else {
                     $this->dilewati++;

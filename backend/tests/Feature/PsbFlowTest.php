@@ -1217,7 +1217,7 @@ class PsbFlowTest extends TestCase
         $this->assertNotEmpty($index->json('data.rows'));
     }
 
-    public function test_31_dokumen_per_kegiatan_checklist_santri_dan_tidak_memiliki(): void
+    public function test_31_dokumen_per_kegiatan_checklist_santri(): void
     {
         Storage::fake('local');
         $f = $this->baseFixture();
@@ -1285,13 +1285,6 @@ class PsbFlowTest extends TestCase
             (string) DokumenSantri::find($kk->id)->nama_file,
         );
         $this->assertEquals(2, DokumenSantri::where('santri_id', $santriId)->count());
-
-        // Cek box "tidak memiliki dokumen" — tersimpan, tanpa menahan proses apa pun.
-        $akta = DokumenSantri::where('santri_id', $santriId)->where('jenis_dokumen_santri', 'Akta Kelahiran')->firstOrFail();
-        $this->actingAs($admin, 'sanctum')->postJson("/api/admin/santri/{$santriId}/dokumen/{$akta->id}/tidak-memiliki", [
-            'tidak_memiliki' => true,
-        ])->assertStatus(200);
-        $this->assertTrue((bool) DokumenSantri::find($akta->id)->tidak_memiliki);
 
         $list = $this->actingAs($admin, 'sanctum')->getJson("/api/admin/santri/{$santriId}/dokumen");
         $list->assertStatus(200);

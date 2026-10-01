@@ -20,8 +20,8 @@ export interface DokumenRow {
   /** Lokasi byte: server | lokal | test (arsip perangkat). */
   penyimpanan?: 'server' | 'lokal' | 'test';
   santri_id?: number | null;
-  status_verifikasi: 'menunggu' | 'valid' | 'ditolak';
-  tidak_memiliki?: boolean;
+  /** Ada di baris pegawai/lembaga; tabel santri sudah tanpa kolom ini. */
+  status_verifikasi?: 'menunggu' | 'valid' | 'ditolak';
   catatan: string | null;
   unduh_url: string;
 }
@@ -92,7 +92,7 @@ export function unduhBerkasDokumen(tipe: TipeDokumen, id: number, fallback: stri
 // ---------- Import daftar dokumen (potongan JSON bertahap) ----------
 
 export const KOLOM_IMPORT_DOKUMEN: Record<TipeDokumen, string[]> = {
-  santri: ['nis_lokal', 'jenjang', 'jenis_dokumen', 'status_verifikasi', 'tidak_memiliki', 'catatan'],
+  santri: ['nis_lokal', 'jenjang', 'jenis_dokumen', 'catatan'],
   pegawai: ['pegawai_id', 'nipp', 'nama_lengkap', 'jenjang', 'jenis_dokumen', 'status_verifikasi', 'catatan'],
   lembaga: ['jenjang', 'jenis_dokumen', 'status_verifikasi', 'catatan'],
 };

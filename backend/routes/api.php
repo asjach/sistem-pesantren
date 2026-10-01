@@ -145,7 +145,6 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::post('santri/{santri}/foto', [SantriController::class, 'uploadFoto'])->middleware('permission:santri.tambah');
         Route::get('santri/{santri}/dokumen', [SantriController::class, 'listDokumen'])->middleware('permission:santri.lihat');
         Route::post('santri/{santri}/dokumen', [SantriController::class, 'uploadDokumen'])->middleware('permission:santri.tambah');
-        Route::post('santri/{santri}/dokumen/{dokumen}/tidak-memiliki', [SantriController::class, 'tidakMemiliki'])->middleware('permission:santri.ubah');
 
         // Keanggotaan per lembaga (buku induk: NIS lokal/kemenag, status, tanggal)
         Route::get('lembaga-santri', [LembagaSantriController::class, 'daftar'])->middleware('permission:santri.lihat');
@@ -346,7 +345,6 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::post('import-potong/{sesi}/batal', [PsbController::class, 'batalPotong'])->middleware('permission:psb.tambah');
         Route::get('import-potong/{sesi}/galat', [PsbController::class, 'galatPotong'])->middleware('permission:psb.lihat');
         Route::get('import-template', [PsbController::class, 'template'])->middleware('permission:psb.lihat');
-        Route::post('dokumen/{dokumen}/verifikasi', [PsbDokumenController::class, 'verifikasi'])->middleware('permission:psb.ubah');
     });
 
 // Portal orang tua (auth + role orang_tua, envelope pesan/data, cek pemilik B5).

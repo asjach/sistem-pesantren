@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\DB;
  * nis_lokal + jenjang; pegawai: pegawai_id/nipp/nama; lembaga: jenjang).
  *
  * Status dikirim berlabel (Menunggu/Valid/Ditolak) seperti contoh template;
- * import menerimanya tanpa peduli kapital. `tidak_memiliki` = Ya/Tidak.
+ * import menerimanya tanpa peduli kapital.
  * Baris yang pemiliknya tak punya penempatan dalam lingkup dilewati agar
  * hasilnya selalu bisa diimport kembali apa adanya.
  */
@@ -73,8 +73,6 @@ class DataDokumen
                 (string) ($tempat[$d->santri_id]->nis_lokal ?? ''),
                 (string) $tempat[$d->santri_id]->jenjang,
                 (string) $d->jenis_dokumen_santri,
-                $this->status($d->status_verifikasi),
-                $d->tidak_memiliki ? 'Ya' : 'Tidak',
                 (string) ($d->catatan ?? ''),
             ])
             ->values()

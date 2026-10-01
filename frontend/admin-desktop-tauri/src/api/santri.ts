@@ -149,8 +149,6 @@ export interface DokumenSantri {
   psb_calon_santri_id: number | null;
   jenis_dokumen_santri: string;
   nama_file: string | null;
-  status_verifikasi: 'menunggu' | 'valid' | 'ditolak';
-  tidak_memiliki: boolean;
   catatan: string | null;
   file_url?: string;
 }
@@ -399,11 +397,4 @@ export function uploadDokumenSantri(
 
 export function listDokumenSantri(santriId: number) {
   return api<{ pesan: string; data: DokumenSantri[] }>(`/admin/santri/${santriId}/dokumen`);
-}
-
-export function tidakMemilikiDokumen(santriId: number, dokumenId: number, tidakMemiliki: boolean) {
-  return api<{ pesan: string; data: DokumenSantri }>(`/admin/santri/${santriId}/dokumen/${dokumenId}/tidak-memiliki`, {
-    method: 'POST',
-    body: JSON.stringify({ tidak_memiliki: tidakMemiliki }),
-  });
 }

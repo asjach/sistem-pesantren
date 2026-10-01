@@ -527,7 +527,7 @@ class PsbService
                 ->update(['santri_id' => $santri->id, 'psb_calon_santri_id' => null]);
 
             // Checklist dokumen dari ketentuan kegiatan (wajib & opsional, tanpa file) — penekanan saja,
-            // tidak menahan proses. Centang "tidak memiliki" tersedia di UI.
+            // tidak menahan proses.
             $kegiatanId = $calon->gelombang?->psb_kegiatan_id;
             if ($kegiatanId) {
                 $jenjangs = $calon->lembagaDetail()->pluck('jenjang');
@@ -545,8 +545,6 @@ class PsbService
                         DokumenSantri::create([
                             'santri_id' => $santri->id,
                             'jenis_dokumen_santri' => $jenis,
-                            'status_verifikasi' => 'menunggu',
-                            'tidak_memiliki' => false,
                         ]);
                     }
                 }
