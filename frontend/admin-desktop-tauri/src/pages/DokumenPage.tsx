@@ -367,7 +367,7 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
               <>
                 <Button
                   id={`btn_tambah_dok_${tipe}`}
-                  onClick={() => { if (tipe === 'santri') navigate('/dokumen-santri/tambah'); else bukaTambah(); }}
+                  onClick={() => { if (tipe === 'santri') navigate('/dokumen-santri/tambah'); else if (tipe === 'pegawai') navigate('/dokumen-guru/tambah'); else bukaTambah(); }}
                 >
                   Tambah
                 </Button>

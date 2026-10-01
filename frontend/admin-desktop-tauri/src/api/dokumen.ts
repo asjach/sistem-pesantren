@@ -24,6 +24,7 @@ export interface DokumenRow {
   /** Waktu penyamaan terakhir (ISO). */
   tersinkron_pada?: string | null;
   santri_id?: number | null;
+  pegawai_id?: number | null;
   /** Konteks lembaga pemakaian (santri; null = tanpa lembaga). */
   lembaga?: string | null;
   /** Penanda aktif (santri; satu per kunci). */

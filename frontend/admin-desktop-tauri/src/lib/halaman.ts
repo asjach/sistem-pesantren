@@ -84,7 +84,8 @@ export const HALAMAN: HalamanDef[] = [
   { to: '/pegawai-penempatan', label: 'Lembaga Pegawai', tab: 'pegawai', grid: true, icon: BadgeCheck, permission: 'pegawai.lihat' },
   { to: '/pegawai-akun', label: 'Akun Pegawai', tab: 'pegawai', grid: true, icon: UserCheck, permission: 'pegawai.lihat' },
   { to: '/pegawai-keaktifan', label: 'Keaktifan Pegawai', tab: 'pegawai', grid: true, icon: CalendarCheck, permission: 'pegawai.lihat' },
-  { to: '/dokumen-guru', label: 'Dokumen Guru', deskripsi: 'Berkas dokumen guru (ijazah, sertifikat, SK, dll).', tab: 'pegawai', grid: true, icon: FolderOpen, permission: 'dokumen_pegawai.lihat' },
+  { to: '/dokumen-guru', label: 'Dokumen Guru', deskripsi: 'Berkas dokumen guru (ijazah, sertifikat, SK, dll).', tab: 'pegawai', sub: 'dokumen', grid: true, icon: FolderOpen, permission: 'dokumen_pegawai.lihat' },
+  { to: '/dokumen-guru/tambah', label: 'Tambah Dokumen', deskripsi: 'Form tambah berkas dokumen pegawai.', tab: 'pegawai', sub: 'dokumen', icon: Plus, permission: 'dokumen_pegawai.tambah' },
   { to: '/referensi', label: 'Referensi', tab: 'master', grid: true, icon: BookMarked, permission: 'referensi.lihat' },
   { to: '/psb', label: 'Antrean PSB', deskripsi: 'Antrean calon per tahap (Pendaftar, Terdaftar, Daftar Ulang, Diterima, Mengundurkan Diri, Ditolak).', tab: 'santri', sub: 'psb', grid: true, icon: UserCheck, permission: 'psb.lihat' },
   { to: '/kegiatan-psb', label: 'Kegiatan PSB', tab: 'santri', sub: 'psb', grid: true, icon: CalendarRange, permission: 'kegiatan_psb.lihat' },
@@ -191,7 +192,16 @@ export const NAV_GRUP: GrupNav[] = [
       { id: 'lain-lain', label: 'Lain-lain', icon: MoreVertical },
     ],
   },
-  { id: 'pegawai', label: 'Pegawai', icon: Users },
+  {
+    id: 'pegawai',
+    label: 'Pegawai',
+    icon: Users,
+    anak: [
+      // Halaman langsung (Buku Induk, Penempatan, Akun, Keaktifan) tampil di sini.
+      { langsung: true },
+      { id: 'dokumen', label: 'Dokumen', icon: FolderOpen },
+    ],
+  },
   { id: 'pengaturan', label: 'Pengaturan', icon: Palette },
 ];
 

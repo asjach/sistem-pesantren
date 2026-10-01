@@ -78,6 +78,7 @@ export const KONFIGURASI_FILTER_HALAMAN = {
   dokumen_santri_tambah: buatKonfigurasi(FILTER_SEMUA, { tingkat: true, kelas: true }),
   dokumen_santri_lihat: buatKonfigurasi(FILTER_SEMUA, { tingkat: true, kelas: true }),
   dokumen_guru: buatKonfigurasi(['lembaga']),
+  dokumen_guru_tambah: buatKonfigurasi(FILTER_KELULUSAN),
   dokumen_madrasah: buatKonfigurasi(['lembaga']),
   santri: buatKonfigurasi(['lembaga']),
   keanggotaan: buatKonfigurasi(['lembaga']),
