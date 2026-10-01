@@ -429,8 +429,8 @@ class DokumenHalamanTest extends TestCase
         ]);
 
         $santri = $this->actingAs($auth, 'sanctum')->getJson('/api/admin/dokumen/santri/data-existing')->assertOk();
-        $this->assertSame(['nis_lokal', 'jenjang', 'jenis_dokumen', 'catatan'], $santri->json('kolom'));
-        $this->assertSame([['26001', 'MI', 'Kartu Keluarga', 'Arsip']], $santri->json('baris'));
+        $this->assertSame(['nis_lokal', 'jenjang', 'jenis_dokumen', 'catatan', 'nama_lengkap', 'nama_file', 'penyimpanan'], $santri->json('kolom'));
+        $this->assertSame([['26001', 'MI', 'Kartu Keluarga', 'Arsip', 'Ahmad Santri', '', 'server']], $santri->json('baris'));
 
         $guru = $this->actingAs($auth, 'sanctum')->getJson('/api/admin/dokumen/pegawai/data-existing')->assertOk();
         $this->assertSame(['pegawai_id', 'nipp', 'nama_lengkap', 'jenjang', 'jenis_dokumen', 'status_verifikasi', 'catatan'], $guru->json('kolom'));

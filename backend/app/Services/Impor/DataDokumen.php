@@ -11,14 +11,14 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * Penyedia data dokumen existing untuk dialog import (backend hanya
- * mengirim data; berkas Excel disusun di browser). Kolom SAMA PERSIS dengan
- * template import per tipe; kunci baris mengikuti kunci import (santri:
- * nis_lokal + jenjang; pegawai: pegawai_id/nipp/nama; lembaga: jenjang).
+ * mengirim data; berkas Excel disusun di browser). Kolom import SAMA PERSIS
+ * dengan template per tipe; tipe santri mendapat tambahan kolom info
+ * (`nama_lengkap`, `nama_file`, `penyimpanan`) yang diabaikan saat import
+ * kembali. Kunci baris mengikuti kunci import (santri: nis_lokal + jenjang;
+ * pegawai: pegawai_id/nipp/nama; lembaga: jenjang).
  *
  * Status dikirim berlabel (Menunggu/Valid/Ditolak) seperti contoh template;
  * import menerimanya tanpa peduli kapital.
- * Baris yang pemiliknya tak punya penempatan dalam lingkup dilewati agar
- * hasilnya selalu bisa diimport kembali apa adanya.
  */
 class DataDokumen
 {
@@ -28,6 +28,12 @@ class DataDokumen
     /** @return list<string> */
     public function kolom(): array
     {
+        if ($this->tipe === 'santri') {
+            // Kolom import + info baca-saja (parser import mengabaikan
+            // kolom tak dikenal, jadi berkas ini tetap bisa diimport kembali).
+            return [...DokumenTemplateExport::kolom($this->tipe), 'nama_lengkap', 'nama_file', 'penyimpanan'];
+        }
+
         return DokumenTemplateExport::kolom($this->tipe);
     }
 
@@ -66,6 +72,7 @@ class DataDokumen
 
         return DokumenSantri::query()
             ->whereNotNull('santri_id')
+            ->with('santri:id,nama_lengkap')
             ->orderBy('id')
             ->get()
             ->filter(fn ($d) => isset($tempat[$d->santri_id]))
@@ -74,6 +81,9 @@ class DataDokumen
                 (string) $tempat[$d->santri_id]->jenjang,
                 (string) $d->jenis_dokumen_santri,
                 (string) ($d->catatan ?? ''),
+                (string) ($d->santri?->nama_lengkap ?? ''),
+                (string) ($d->nama_file ?? ''),
+                (string) ($d->penyimpanan ?? ''),
             ])
             ->values()
             ->all();
