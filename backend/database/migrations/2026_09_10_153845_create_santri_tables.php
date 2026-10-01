@@ -18,7 +18,7 @@ return new class extends Migration
             // Keanggotaan per lembaga ada di `lembaga_santri`, akademik di `riwayat_belajar`.
             $table->string('nama_lengkap');
             $table->string('nama_singkat')->nullable();
-            $table->string('nik', 16)->nullable();
+            $table->string('nik', 20)->nullable(); // 20: muat penanda tak valid 'X-...'
             $table->string('nisn', 10)->nullable(); // berlaku RA–S3 (nasional)
             $table->string('tmp_lahir')->nullable(); // kamus ref_tmp_lahir
             $table->date('tgl_lahir')->nullable();
@@ -39,7 +39,7 @@ return new class extends Migration
 
             // Orang Tua & Wali (alamat pisah per pihak; kamus via ref_*)
             $table->string('ayah_nama')->nullable();
-            $table->string('ayah_nik', 16)->nullable();
+            $table->string('ayah_nik', 20)->nullable();
             $table->string('ayah_tmp_lahir')->nullable(); // ref_tmp_lahir
             $table->date('ayah_tgl_lahir')->nullable();
             $table->string('ayah_status')->nullable(); // ref_status_ortu
@@ -51,7 +51,7 @@ return new class extends Migration
             $table->string('ayah_status_tempat_tinggal')->nullable(); // ref_status_tinggal
 
             $table->string('ibu_nama')->nullable();
-            $table->string('ibu_nik', 16)->nullable();
+            $table->string('ibu_nik', 20)->nullable();
             $table->string('ibu_tmp_lahir')->nullable(); // ref_tmp_lahir
             $table->date('ibu_tgl_lahir')->nullable();
             $table->string('ibu_status')->nullable(); // ref_status_ortu
@@ -63,7 +63,7 @@ return new class extends Migration
             $table->string('ibu_status_tempat_tinggal')->nullable(); // ref_status_tinggal
 
             $table->string('wali_nama')->nullable();
-            $table->string('wali_nik', 16)->nullable();
+            $table->string('wali_nik', 20)->nullable();
             $table->string('wali_tmp_lahir')->nullable(); // ref_tmp_lahir
             $table->date('wali_tgl_lahir')->nullable();
             $table->string('wali_status')->nullable(); // ref_status_ortu
@@ -76,7 +76,8 @@ return new class extends Migration
             $table->string('yang_membiayai')->nullable(); // ref_yang_membiayai
 
             // EMIS santri tambahan:
-            $table->string('no_kk', 16)->nullable();
+            $table->string('no_kk', 20)->nullable();
+            $table->string('kepala_keluarga')->nullable();
             $table->string('kewarganegaraan')->default('WNI');
             $table->string('bahasa_sehari')->nullable(); // ref_bahasa_sehari_hari
             $table->string('status_tempat_tinggal')->nullable(); // ref_status_tinggal
@@ -97,7 +98,8 @@ return new class extends Migration
 
             // Flag ringkas: true = punya >=1 riwayat_belajar aktif (turunan murni, default false).
             $table->string('foto_url')->nullable();
-            $table->boolean('status_global')->default(false);
+            // Turunan: 'Ya' iff ada >=1 riwayat_belajar aktif (dihitung ulang service).
+            $table->enum('is_active_pst', ['Ya', 'Tidak'])->default('Tidak');
 
             $table->timestamps();
 
@@ -126,7 +128,7 @@ return new class extends Migration
             // Ganjil→genap: ganjil ditutup (is_aktif=false, arsip), genap aktif — 1 aktif per santri-lembaga terjaga.
             // Berhenti satu jenjang (paket MD berhenti, MI lanjut): baris MD (is_aktif=false, status_akhir dipertahankan).
             // santri.status_global=false hanya jika SELURUH riwayat non-aktif (dihitung ulang di 102).
-            $table->boolean('is_aktif')->default(true);
+            $table->enum('is_active_riwayat', ['Ya', 'Tidak'])->default('Ya');
             $table->timestamps();
 
             $table->unique(['santri_id', 'tahun_ajaran', 'jenjang', 'semester'], 'uq_riwayat_belajar_stls'); // nama pendek: auto-name 68 char > limit MySQL 64
@@ -159,9 +161,12 @@ return new class extends Migration
             $table->string('lembaga_lulus', 20);
             $table->foreign('lembaga_lulus')->references('jenjang')->on('lembaga')->cascadeOnUpdate()->cascadeOnDelete();
             $table->string('tahun_ajaran_lulus', 9); // FK ke tahun_ajaran.nama
+            $table->foreignId('kelas_lulus_id')->nullable()->constrained('kelas')->nullOnDelete();
             $table->string('nomor_ijazah')->nullable();
             $table->string('no_surat_ijazah')->nullable(); // nomor surat pengantar/SKHU
-            $table->date('tanggal_lulus');
+            $table->string('no_peserta')->nullable(); // nomor peserta ujian
+            $table->string('skhun')->nullable(); // nomor SKHUN
+            $table->date('tanggal_lulus')->nullable();
             $table->string('kegiatan_setelah_lulus')->nullable();
             $table->enum('penyerahan_ijazah', ['sudah', 'belum'])->default('belum');
             $table->enum('melanjutkan', ['ya', 'tidak'])->nullable();

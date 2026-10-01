@@ -17,6 +17,8 @@ return new class extends Migration
             $table->id();
             $table->string('page_key', 60)->unique();
             $table->json('filter');
+            // Mode tiap filter (mis. 'dan'/'atau'); absen = bawaan kode halaman.
+            $table->json('filter_mode')->nullable();
             $table->foreignId('dibuat_oleh')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
         });

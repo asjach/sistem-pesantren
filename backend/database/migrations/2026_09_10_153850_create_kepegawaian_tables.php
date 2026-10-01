@@ -59,12 +59,13 @@ return new class extends Migration
             $table->index(['pegawai_id', 'hubungan']);
         });
 
-        Schema::create('pegawai_dokumen', function (Blueprint $table) {
+        // Nama tabel diselaraskan dengan dokumen_santri/dokumen_lembaga.
+        Schema::create('dokumen_pegawai', function (Blueprint $table) {
             $table->id();
             $table->foreignId('pegawai_id')->constrained('pegawai')->cascadeOnDelete();
             $table->string('jenis_dokumen_pegawai')->nullable(); // ref_jenis_dokumen_pegawai
-            $table->string('nama_file')->nullable(); // label asli file (tetap dipertahankan)
-            $table->string('path_file')->nullable();
+            $table->string('nama_file')->nullable(); // nama template berkas (tampil/unduh)
+            $table->string('penyimpanan', 10)->default('server'); // lokasi byte: server|lokal|test
             $table->enum('status_verifikasi', ['menunggu', 'valid', 'ditolak'])->default('menunggu');
             $table->text('catatan')->nullable();
             $table->timestamps();
@@ -78,11 +79,14 @@ return new class extends Migration
             $table->string('jenjang', 20);
             $table->foreign('jenjang')->references('jenjang')->on('lembaga')->cascadeOnUpdate()->cascadeOnDelete();
             $table->string('tahun_ajaran', 9); // FK ke tahun_ajaran.nama
-            $table->string('tugas_utama')->default('Guru Pengampu'); // ref_tugas_utama
-            $table->enum('status_keaktifan', ['aktif', 'inaktif'])->default('aktif');
+            $table->string('tugas_utama')->nullable(); // ref_tugas_utama (diisi eksplisit dari kamus)
+            $table->string('no_sk', 100)->nullable(); // nomor SK tahunan (boleh sama lintas lembaga)
+            $table->date('tgl_sk')->nullable();
+            $table->enum('status_keaktifan', ['Ya', 'Tidak'])->default('Ya');
             $table->timestamps();
 
             $table->unique(['pegawai_id', 'jenjang', 'tahun_ajaran'], 'uq_keaktifan_pegawai_plt'); // nama pendek: auto-name 61 char, margin aman dari limit 64
+            $table->index(['tahun_ajaran', 'jenjang'], 'idx_keaktifan_ta_jenjang_sk');
             $table->foreign('tahun_ajaran')->references('nama')->on('tahun_ajaran')
                 ->cascadeOnUpdate()->cascadeOnDelete();
         });
@@ -125,7 +129,7 @@ return new class extends Migration
         Schema::dropIfExists('pengaturan_hari_lembaga');
         Schema::dropIfExists('presensi_pegawai');
         Schema::dropIfExists('keaktifan_pegawai');
-        Schema::dropIfExists('pegawai_dokumen');
+        Schema::dropIfExists('dokumen_pegawai');
         Schema::dropIfExists('keluarga_pegawai');
         Schema::dropIfExists('pegawai_sertifikasi');
         Schema::dropIfExists('pegawai_pendidikan');

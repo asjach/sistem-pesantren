@@ -20,6 +20,7 @@ return new class extends Migration
             $table->string('tingkat')->nullable(); // ref_tingkat ('7','8','9'); grouping saat kelas_id null di riwayat
             $table->integer('urutan')->default(0); // urutan tampil per lingkup (0 = belum diatur)
             $table->string('nama_kelas'); // 'VII-A'
+            $table->string('nama_alias', 50)->nullable(); // nama tampil ringkas/alias
             $table->integer('kapasitas')->nullable();
             $table->timestamps();
 

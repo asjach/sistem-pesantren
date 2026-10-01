@@ -176,9 +176,8 @@ return new class extends Migration
             $table->foreignId('santri_id')->nullable()->constrained('santri')->cascadeOnDelete();
             $table->foreignId('psb_calon_santri_id')->nullable()->constrained('psb_calon_santri')->cascadeOnDelete();
             $table->string('jenis_dokumen_santri')->nullable(); // ref_jenis_dokumen_santri
-            $table->string('path_file')->nullable(); // null = baris checklist (belum diunggah)
-            $table->enum('status_verifikasi', ['menunggu', 'valid', 'ditolak'])->default('menunggu');
-            $table->boolean('tidak_memiliki')->default(false); // tanda "tidak memiliki dokumen ini"
+            $table->string('nama_file')->nullable(); // nama template berkas (tampil/unduh)
+            $table->string('penyimpanan', 10)->default('server'); // lokasi byte: server|lokal|test
             $table->text('catatan')->nullable();
             $table->timestamps();
 

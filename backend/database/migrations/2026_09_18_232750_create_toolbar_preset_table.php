@@ -18,6 +18,10 @@ return new class extends Migration
             $table->id();
             $table->string('table_key', 60)->unique();
             $table->json('visibilitas');
+            // Peta kontrol → lebar (px); absen = bawaan frontend.
+            $table->json('lebar')->nullable();
+            // Urutan kolom data per table_key (array key kolom); absen = urutan fields halaman.
+            $table->json('urutan')->nullable();
             $table->foreignId('dibuat_oleh')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
         });

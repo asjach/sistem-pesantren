@@ -15,6 +15,8 @@ return new class extends Migration
                     $table->id();
                     $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete(); // akun login
                     $table->string('nip')->nullable();
+                    // NIPP = identitas unik global per orang (jembatan sistem lama).
+                    $table->string('nipp', 30)->nullable();
                     $table->string('nik', 16)->nullable();
                     $table->string('nama_lengkap');
                     $table->string('gelar_depan')->nullable();
@@ -50,11 +52,14 @@ return new class extends Migration
                     $table->string('kode_pos')->nullable();
                     $table->text('alamat')->nullable(); // jalan/detail
                     $table->date('tgl_mulai_kerja')->nullable();
-                    $table->enum('status_aktif', ['aktif', 'cuti', 'keluar'])->default('aktif');
+                    $table->string('no_sk_awal', 100)->nullable();
+                    $table->date('tgl_sk_awal')->nullable();
+                    $table->enum('status_aktif', ['Ya', 'Tidak'])->default('Ya');
                     $table->timestamps();
 
                     // Unik global (single-pesantren; NIP/NIK ganda antar pesantren tidak relevan lagi)
                     $table->unique('nip');
+                    $table->unique('nipp');
                     $table->unique('nik');
                 });
     }

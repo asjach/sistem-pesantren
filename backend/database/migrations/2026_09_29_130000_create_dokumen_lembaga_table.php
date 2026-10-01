@@ -19,8 +19,8 @@ return new class extends Migration
             $table->string('jenjang', 20);
             $table->foreign('jenjang')->references('jenjang')->on('lembaga')->cascadeOnUpdate()->cascadeOnDelete();
             $table->string('jenis_dokumen')->nullable(); // bebas teks (mis. Izin Operasional, Akreditasi)
-            $table->string('nama_file')->nullable(); // nama asli berkas terunggah
-            $table->string('path_file')->nullable(); // null = baris checklist (belum diunggah)
+            $table->string('nama_file')->nullable(); // nama template berkas (tampil/unduh)
+            $table->string('penyimpanan', 10)->default('server'); // lokasi byte: server|lokal|test
             $table->enum('status_verifikasi', ['menunggu', 'valid', 'ditolak'])->default('menunggu');
             $table->text('catatan')->nullable();
             $table->timestamps();

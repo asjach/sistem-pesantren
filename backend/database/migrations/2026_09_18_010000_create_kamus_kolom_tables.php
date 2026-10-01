@@ -22,8 +22,7 @@ return new class extends Migration
             $table->enum('align', ['left', 'center', 'right'])->nullable();
             $table->integer('lebar')->nullable();
             $table->boolean('kunci_lebar')->default(false);
-            $table->boolean('bisa_urut')->default(true);
-            $table->enum('arah_bawaan', ['naik', 'turun'])->nullable();
+            // Kontrol urut pindah ke tabel `urut_preset` (global per tabel).
             $table->string('tooltip', 200)->nullable();
             $table->string('format', 32)->nullable();
             $table->timestamps();

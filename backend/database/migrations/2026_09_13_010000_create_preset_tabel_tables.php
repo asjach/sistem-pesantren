@@ -16,6 +16,10 @@ return new class extends Migration
             $table->string('table_key', 60);
             $table->string('nama', 50);
             $table->json('kolom');
+            // Nama header kustom per kolom (key = key kolom grid); kosong = label bawaan.
+            $table->json('label')->nullable();
+            // Satu preset bawaan per table_key (eksklusivitas dijaga service).
+            $table->boolean('is_default')->default(false);
             $table->foreignId('dibuat_oleh')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
 

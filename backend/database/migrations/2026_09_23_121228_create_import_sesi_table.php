@@ -23,6 +23,9 @@ return new class extends Migration
             $table->unsignedInteger('offset')->default(0);
             $table->unsignedInteger('dibuat')->default(0);
             $table->unsignedInteger('diperbarui')->default(0);
+            $table->unsignedInteger('riwayat_dibuat')->default(0);
+            $table->unsignedInteger('akun_dibuat')->default(0);
+            $table->unsignedInteger('akun_dilewati')->default(0);
             $table->unsignedInteger('gagal')->default(0);
             $table->json('galat_contoh')->nullable(); // maks 200 pertama
             $table->string('galat_file')->nullable(); // path relatif storage/app
