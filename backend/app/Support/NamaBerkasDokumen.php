@@ -67,12 +67,12 @@ class NamaBerkasDokumen
     }
 
     /**
-     * Direktori kanonis: `{lokasi}/{tipe}` — cermin arsip perangkat
-     * (`SIMPES-Dokumen/lokal/{tipe}/`). Server memakai lokasi `server`.
+     * Direktori kanonis: `dokumen/{tipe}` — byte dokumen server sejajar
+     * foto profil (`dokumen/{tipe}/foto_profil/`).
      */
     public static function direktori(string $tipe, string $lokasi = 'server'): string
     {
-        return "{$lokasi}/{$tipe}";
+        return "dokumen/{$tipe}";
     }
 
     /**

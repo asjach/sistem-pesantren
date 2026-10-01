@@ -80,7 +80,7 @@ class DokumenHalamanTest extends TestCase
             '{^madrasah_ibtidaiyah_izin_operasional_sk_kemenag_\d{8}_\d{6}\.pdf$}',
             (string) $row->nama_file,
         );
-        $jalur = 'server/lembaga/'.$row->nama_file;
+        $jalur = 'dokumen/lembaga/'.$row->nama_file;
         Storage::disk('local')->assertExists($jalur);
 
         // Unduh berkas: nama template sebagai nama unduhan.
@@ -115,7 +115,7 @@ class DokumenHalamanTest extends TestCase
             '{^ahmad_santri_kartu_keluarga_\d{8}_\d{6}\.jpg$}',
             (string) $dok->nama_file,
         );
-        Storage::disk('local')->assertExists('server/santri/'.$dok->nama_file);
+        Storage::disk('local')->assertExists('dokumen/santri/'.$dok->nama_file);
 
         $this->actingAs($auth, 'sanctum')->post('/api/admin/dokumen/pegawai', [
             'pegawai_id' => $f['guru']->id,
@@ -128,7 +128,7 @@ class DokumenHalamanTest extends TestCase
             '{^ustadz_guru_ijazah_s1_\d{8}_\d{6}\.pdf$}',
             $namaGuru,
         );
-        Storage::disk('local')->assertExists('server/pegawai/'.$namaGuru);
+        Storage::disk('local')->assertExists('dokumen/pegawai/'.$namaGuru);
 
         // Daftar kedua halaman.
         $this->actingAs($auth, 'sanctum')->getJson('/api/admin/dokumen/santri?jenjang[]=MI')
@@ -161,7 +161,7 @@ class DokumenHalamanTest extends TestCase
             '{^ahmad_santri_kartu_keluarga_\d{8}_\d{6}(-\d+)?\.jpg$}',
             $namas[1],
         );
-        Storage::disk('local')->assertExists(['server/santri/'.$namas[0], 'server/santri/'.$namas[1]]);
+        Storage::disk('local')->assertExists(['dokumen/santri/'.$namas[0], 'dokumen/santri/'.$namas[1]]);
     }
 
     public function test_daftar_dokumen_santri_filter_santri_id(): void
@@ -202,7 +202,7 @@ class DokumenHalamanTest extends TestCase
             '{^ahmad_santri_kartu_keluarga_\d{8}_\d{6}\.jpg$}',
             (string) $dok->nama_file,
         );
-        Storage::disk('local')->assertMissing('server/santri/'.$dok->nama_file);
+        Storage::disk('local')->assertMissing('dokumen/santri/'.$dok->nama_file);
     }
 
     public function test_simpan_test_mencatat_penyimpanan_test(): void
@@ -253,7 +253,7 @@ class DokumenHalamanTest extends TestCase
         ])->assertOk();
 
         $this->assertSame($namaAwal, DokumenSantri::find($dok->id)->nama_file);
-        Storage::disk('local')->assertExists('server/santri/'.$namaAwal);
+        Storage::disk('local')->assertExists('dokumen/santri/'.$namaAwal);
     }
 
     public function test_ubah_selaraskan_nama_menyusun_ulang_nama_dan_memindah_fisik(): void
@@ -277,8 +277,8 @@ class DokumenHalamanTest extends TestCase
         $namaBaru = (string) DokumenSantri::find($dok->id)->nama_file;
         $this->assertNotSame($namaAwal, $namaBaru);
         $this->assertMatchesRegularExpression('{^ahmad_santri_akta_kelahiran_\d{8}_\d{6}\.jpg$}', $namaBaru);
-        Storage::disk('local')->assertMissing('server/santri/'.$namaAwal);
-        Storage::disk('local')->assertExists('server/santri/'.$namaBaru);
+        Storage::disk('local')->assertMissing('dokumen/santri/'.$namaAwal);
+        Storage::disk('local')->assertExists('dokumen/santri/'.$namaBaru);
     }
 
     public function test_unggah_memindahkan_penyimpanan_ke_server(): void
