@@ -126,10 +126,10 @@ class SantriController extends Controller
         return response()->json(['pesan' => 'Data santri diperbarui.', 'data' => $santri->fresh()]);
     }
 
-    // Upload foto profil santri. Storage: storage/app/santri/foto/* ; DB hanya path di santri.foto_url.
+    // Upload foto profil santri. Storage: dokumen/santri/foto_profil/* ; DB hanya path di santri.foto_url.
     public function uploadFoto(SantriFotoRequest $request, Santri $santri): JsonResponse
     {
-        $path = $request->file('foto')->store('santri/foto', 'local');
+        $path = $request->file('foto')->store('dokumen/santri/foto_profil', 'local');
 
         if ($santri->foto_url && Storage::disk('local')->exists($santri->foto_url)) {
             Storage::disk('local')->delete($santri->foto_url);

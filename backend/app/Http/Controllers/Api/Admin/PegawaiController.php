@@ -220,10 +220,10 @@ class PegawaiController extends Controller
         ]);
     }
 
-    // Upload foto profil pegawai. Storage: storage/app/pegawai/foto/* ; DB hanya path di pegawai.foto_url.
+    // Upload foto profil pegawai. Storage: dokumen/guru/foto_profil/* ; DB hanya path di pegawai.foto_url.
     public function uploadFoto(PegawaiFotoRequest $request, Pegawai $pegawai): JsonResponse
     {
-        $path = $request->file('foto')->store('pegawai/foto', 'local');
+        $path = $request->file('foto')->store('dokumen/guru/foto_profil', 'local');
 
         if ($pegawai->foto_url && Storage::disk('local')->exists($pegawai->foto_url)) {
             Storage::disk('local')->delete($pegawai->foto_url);
