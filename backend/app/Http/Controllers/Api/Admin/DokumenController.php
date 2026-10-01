@@ -180,13 +180,22 @@ class DokumenController extends Controller
                     : null);
 
             if ($tipe === 'santri') {
-                return DokumenSantri::create([
+                $dok = DokumenSantri::create([
                     'santri_id' => $data['santri_id'],
                     'jenis_dokumen_santri' => $data['jenis_dokumen'],
+                    'lembaga' => $data['lembaga'] ?? null,
                     'nama_file' => $nama,
                     'penyimpanan' => $tujuan,
                     'catatan' => $data['catatan'] ?? null,
                 ]);
+                // Satu aktif per kunci: baris baru yang terakhir.
+                DokumenSantri::where('santri_id', $dok->santri_id)
+                    ->where('jenis_dokumen_santri', $dok->jenis_dokumen_santri)
+                    ->where('lembaga', $dok->lembaga)
+                    ->where('id', '!=', $dok->id)
+                    ->update(['is_active' => false]);
+
+                return $dok;
             }
 
             if ($tipe === 'pegawai') {
@@ -228,6 +237,9 @@ class DokumenController extends Controller
             'jenis_dokumen' => ['sometimes', 'string', 'max:100'],
             // Kolom status hanya ada di tabel pegawai/lembaga.
             'status_verifikasi' => $tipe === 'santri' ? ['prohibited'] : ['sometimes', 'in:menunggu,valid,ditolak'],
+            // Konteks lembaga + penanda aktif hanya ada di tabel santri.
+            'lembaga' => $tipe === 'santri' ? ['sometimes', 'nullable', 'string', 'exists:lembaga,jenjang'] : ['prohibited'],
+            'is_active' => $tipe === 'santri' ? ['sometimes', 'boolean'] : ['prohibited'],
             'catatan' => ['sometimes', 'nullable', 'string'],
             // `true` = pemanggil menjamin byte ikut dipindah (server: backend
             // di bawah; arsip perangkat: aplikasi desktop asal). Tanpa ini
@@ -242,6 +254,12 @@ class DokumenController extends Controller
         }
         if (isset($data['status_verifikasi']) && $tipe !== 'santri') {
             $ubah['status_verifikasi'] = $data['status_verifikasi'];
+        }
+        if ($tipe === 'santri' && array_key_exists('lembaga', $data)) {
+            $ubah['lembaga'] = $data['lembaga'];
+        }
+        if ($tipe === 'santri' && array_key_exists('is_active', $data)) {
+            $ubah['is_active'] = $data['is_active'];
         }
         if (array_key_exists('catatan', $data)) {
             $ubah['catatan'] = $data['catatan'];
@@ -278,6 +296,15 @@ class DokumenController extends Controller
 
         if ($model instanceof Model) {
             $model->update($ubah);
+            // Invarian satu aktif per kunci: baris aktif menonaktifkan
+            // saudara se-kunci (mencakup pindah jenis/lembaga).
+            if ($tipe === 'santri' && (bool) $model->is_active) {
+                DokumenSantri::where('santri_id', $model->santri_id)
+                    ->where('jenis_dokumen_santri', $model->jenis_dokumen_santri)
+                    ->where('lembaga', $model->lembaga)
+                    ->where('id', '!=', $model->id)
+                    ->update(['is_active' => false]);
+            }
 
             return response()->json(['pesan' => 'Dokumen diubah.', 'data' => $model->fresh()]);
         }
@@ -501,6 +528,8 @@ class DokumenController extends Controller
             'jenis_dokumen' => ['required', 'string', 'max:100'],
             // Kolom status hanya ada di tabel pegawai/lembaga.
             'status_verifikasi' => $tipe === 'santri' ? ['prohibited'] : ['sometimes', 'in:menunggu,valid,ditolak'],
+            // Konteks lembaga pemakaian hanya ada di tabel santri.
+            'lembaga' => $tipe === 'santri' ? ['sometimes', 'nullable', 'string', 'exists:lembaga,jenjang'] : ['prohibited'],
             'catatan' => ['nullable', 'string'],
             'file' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:10240'],
             // Simpanan lokal/test (dev): tanpa byte, nama dicadangkan untuk arsip perangkat.

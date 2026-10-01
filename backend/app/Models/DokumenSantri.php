@@ -12,6 +12,8 @@ class DokumenSantri extends Model
 
     protected $guarded = ['id'];
 
+    protected $casts = ['is_active' => 'boolean'];
+
     public function calon(): BelongsTo
     {
         return $this->belongsTo(PsbCalonSantri::class, 'psb_calon_santri_id');

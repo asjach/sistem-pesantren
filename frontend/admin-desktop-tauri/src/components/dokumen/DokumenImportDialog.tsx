@@ -22,7 +22,7 @@ const WAJIB: Record<TipeDokumen, string[]> = {
 };
 
 const DESKRIPSI: Record<TipeDokumen, string> = {
-  santri: 'Kolom wajib: nis_lokal + jenis_dokumen + nama_file + penyimpanan (Server/Lokal/Test). NIS lokal unik per santri sehingga tanpa kolom jenjang. Yang diimport adalah data dokumen (bukan berkas fisik); baris cocok diperbarui hanya kolom terisi.',
+  santri: 'Kolom wajib: nis_lokal + jenis_dokumen + nama_file + penyimpanan (Server/Lokal/Test); opsional: lembaga (konteks MI/MTs/MLN, kunci rangkap). NIS lokal unik per santri sehingga tanpa kolom jenjang. Yang diimport adalah data dokumen (bukan berkas fisik); baris cocok diperbarui hanya kolom terisi.',
   pegawai: 'Kolom wajib: jenjang + jenis_dokumen, plus identitas pegawai (pegawai_id / NIPP / nama unik). Yang diimport adalah data dokumen (bukan berkas fisik).',
   lembaga: 'Kolom wajib: jenjang + jenis_dokumen. Yang diimport adalah data dokumen (bukan berkas fisik); baris cocok diperbarui hanya kolom terisi.',
 };

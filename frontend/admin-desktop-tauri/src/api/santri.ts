@@ -148,6 +148,8 @@ export interface DokumenSantri {
   santri_id: number | null;
   psb_calon_santri_id: number | null;
   jenis_dokumen_santri: string;
+  lembaga?: string | null;
+  is_active?: boolean;
   nama_file: string | null;
   catatan: string | null;
   file_url?: string;

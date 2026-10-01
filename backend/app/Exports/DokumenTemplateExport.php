@@ -2,6 +2,7 @@
 
 namespace App\Exports;
 
+use App\Models\Lembaga;
 use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\WithCustomValueBinder;
 use Maatwebsite\Excel\Concerns\WithEvents;
@@ -36,7 +37,7 @@ class DokumenTemplateExport extends DefaultValueBinder implements FromArray, Wit
     public static function kolom(string $tipe): array
     {
         return match ($tipe) {
-            'santri' => ['nis_lokal', 'jenis_dokumen', 'nama_file', 'penyimpanan', 'catatan'],
+            'santri' => ['nis_lokal', 'jenis_dokumen', 'lembaga', 'nama_file', 'penyimpanan', 'catatan'],
             'pegawai' => ['pegawai_id', 'nipp', 'nama_lengkap', 'jenjang', 'jenis_dokumen', 'status_verifikasi', 'catatan'],
             'lembaga' => ['jenjang', 'jenis_dokumen', 'status_verifikasi', 'catatan'],
             default => [],
@@ -73,14 +74,14 @@ class DokumenTemplateExport extends DefaultValueBinder implements FromArray, Wit
     public function array(): array
     {
         $contoh = match ($this->tipe) {
-            'santri' => ['26001', 'Kartu Keluarga', '', 'Server', ''],
+            'santri' => ['26001', 'Kartu Keluarga', 'MI', '', 'Server', ''],
             'pegawai' => ['', 'PST-001', '', 'MI', 'Ijazah S1', 'Valid', 'Sesuai arsip'],
             'lembaga' => ['MI', 'Izin Operasional', 'Valid', 'SK Kemenag 2026'],
         };
         // Petakan posisional sejajar kolom (kunci tak dipakai di array()).
         $kolom = self::kolom($this->tipe);
         $urut = match ($this->tipe) {
-            'santri' => ['nis_lokal' => 0, 'jenis_dokumen' => 1, 'nama_file' => 2, 'penyimpanan' => 3, 'catatan' => 4],
+            'santri' => ['nis_lokal' => 0, 'jenis_dokumen' => 1, 'lembaga' => 2, 'nama_file' => 3, 'penyimpanan' => 4, 'catatan' => 5],
             'pegawai' => ['pegawai_id' => 0, 'nipp' => 1, 'nama_lengkap' => 2, 'jenjang' => 3, 'jenis_dokumen' => 4, 'status_verifikasi' => 5, 'catatan' => 6],
             'lembaga' => ['jenjang' => 0, 'jenis_dokumen' => 1, 'status_verifikasi' => 2, 'catatan' => 3],
         };
@@ -95,6 +96,7 @@ class DokumenTemplateExport extends DefaultValueBinder implements FromArray, Wit
     {
         return [
             'jenjang' => ['MI', 'MD', 'MTS', 'MA', 'MLN'],
+            'lembaga' => Lembaga::orderBy('jenjang')->pluck('jenjang')->all(),
             'status_verifikasi' => ['Menunggu', 'Valid', 'Ditolak'],
             'penyimpanan' => ['Server', 'Lokal', 'Test'],
         ];

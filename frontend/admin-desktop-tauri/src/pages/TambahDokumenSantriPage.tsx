@@ -7,6 +7,7 @@ import { listKelas, referensiList, type Kelas, type ReferensiRow } from '../api/
 import { listRiwayatBelajar } from '../api/siklus';
 import { simpanDokumen } from '../api/dokumen';
 import TombolIkon from '@/components/TombolIkon';
+import ComboCari from '@/components/ComboCari';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Badge } from '@/components/ui/badge';
 import { Check, FolderOpen, Save, X } from '@/icons';
@@ -154,6 +155,7 @@ export default function TambahDokumenSantriPage() {
     [jenisRows],
   );
   const [jenis, setJenis] = useState('');
+  const [lembagaDok, setLembagaDok] = useState('');
   const [catatan, setCatatan] = useState('');
 
   /** Kelas per santri (kunci: santri_id) dari riwayat belajar sesuai filter. */
@@ -377,6 +379,7 @@ export default function TambahDokumenSantriPage() {
         const tersimpan = await simpanDokumen('santri', {
           santri_id: santriId,
           jenis_dokumen: jenis.trim(),
+          ...(lembagaDok ? { lembaga: lembagaDok } : {}),
           ...(catatan.trim() ? { catatan: catatan.trim() } : {}),
           tujuan: modeTest ? 'test' : 'lokal',
           ekstensi: keluaran.ext,
@@ -389,7 +392,7 @@ export default function TambahDokumenSantriPage() {
               modeTest ? folderArsipTest : folderArsip,
               modeTest ? ROOT_ARSIP_TEST : ROOT_ARSIP_DOKUMEN,
             );
-            await tulisArsip(keluaran.bytes, namaArsipBaru, jenis.trim(), akar);
+            await tulisArsip(keluaran.bytes, namaArsipBaru, akar);
             let pesan = modeTest ? 'Dokumen disimpan (test).' : 'Dokumen disimpan (lokal).';
             if (pindahSudah && !modeTest) {
               await pindahKeSudah(berkasPath);
@@ -413,6 +416,7 @@ export default function TambahDokumenSantriPage() {
         await simpanDokumen('santri', {
           santri_id: santriId,
           jenis_dokumen: jenis.trim(),
+          ...(lembagaDok ? { lembaga: lembagaDok } : {}),
           ...(catatan.trim() ? { catatan: catatan.trim() } : {}),
         }, fileUp);
         if (desktop && berkasPath && pindahSudah) {
@@ -595,6 +599,18 @@ export default function TambahDokumenSantriPage() {
               id="input_catatan_tambah_dokumen"
               value={catatan}
               onChange={(e) => setCatatan(e.target.value)}
+              placeholder="opsional"
+              className="min-w-0 flex-1"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <FieldLabel htmlFor="combo_lembaga_tambah_dokumen" className="shrink-0">Lembaga</FieldLabel>
+            <ComboCari
+              id="combo_lembaga_tambah_dokumen"
+              inputId="input_lembaga_tambah_dokumen"
+              value={lembagaDok}
+              onChange={setLembagaDok}
+              options={[{ value: '', label: '—' }, ...jenjangs.map((j) => ({ value: j, label: j }))]}
               placeholder="opsional"
               className="min-w-0 flex-1"
             />

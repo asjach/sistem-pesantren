@@ -429,8 +429,8 @@ class DokumenHalamanTest extends TestCase
         ]);
 
         $santri = $this->actingAs($auth, 'sanctum')->getJson('/api/admin/dokumen/santri/data-existing')->assertOk();
-        $this->assertSame(['nis_lokal', 'jenis_dokumen', 'nama_file', 'penyimpanan', 'catatan', 'nama_lengkap'], $santri->json('kolom'));
-        $this->assertSame([['26001', 'Kartu Keluarga', '', 'server', 'Arsip', 'Ahmad Santri']], $santri->json('baris'));
+        $this->assertSame(['nis_lokal', 'jenis_dokumen', 'lembaga', 'nama_file', 'penyimpanan', 'catatan', 'nama_lengkap', 'is_active'], $santri->json('kolom'));
+        $this->assertSame([['26001', 'Kartu Keluarga', '', '', 'server', 'Arsip', 'Ahmad Santri', 'Ya']], $santri->json('baris'));
 
         $guru = $this->actingAs($auth, 'sanctum')->getJson('/api/admin/dokumen/pegawai/data-existing')->assertOk();
         $this->assertSame(['pegawai_id', 'nipp', 'nama_lengkap', 'jenjang', 'jenis_dokumen', 'status_verifikasi', 'catatan'], $guru->json('kolom'));
@@ -522,6 +522,79 @@ class DokumenHalamanTest extends TestCase
         $this->assertSame(0, $res->json('ringkasan.dibuat'));
         $this->assertSame(1, $res->json('ringkasan.baris_gagal'));
         $this->assertSame(0, DokumenSantri::count());
+    }
+
+    public function test_import_santri_rangkap_beda_lembaga_dan_satu_aktif(): void
+    {
+        $f = $this->fixture();
+        $auth = $this->superAdmin();
+
+        // Duplikat warisan se-kunci: yang disentuh import jadi aktif,
+        // sisanya dinonaktifkan.
+        DokumenSantri::create([
+            'santri_id' => $f['santri']->id, 'jenis_dokumen_santri' => 'Pas Foto', 'lembaga' => null,
+            'nama_file' => 'lama.jpg', 'is_active' => true,
+        ]);
+        DokumenSantri::create([
+            'santri_id' => $f['santri']->id, 'jenis_dokumen_santri' => 'Pas Foto', 'lembaga' => null,
+            'nama_file' => 'kuno.jpg', 'is_active' => true,
+        ]);
+
+        $res = $this->actingAs($auth, 'sanctum')->postJson('/api/admin/dokumen/santri/import-potong', [
+            'mode' => 'eksekusi',
+            'total' => 3,
+            'terakhir' => true,
+            'baris' => [
+                ['nis_lokal' => '26001', 'jenis_dokumen' => 'Pas Foto', 'lembaga' => 'MI', 'nama_file' => 'foto-mi.jpg', 'penyimpanan' => 'Server'],
+                ['nis_lokal' => '26001', 'jenis_dokumen' => 'Pas Foto', 'lembaga' => 'MTS', 'nama_file' => 'foto-mts.jpg', 'penyimpanan' => 'Server'],
+                ['nis_lokal' => '26001', 'jenis_dokumen' => 'Pas Foto', 'nama_file' => 'foto-baru.jpg', 'penyimpanan' => 'Server'],
+            ],
+        ])->assertOk();
+        $this->assertSame(2, $res->json('ringkasan.dibuat'));
+        $this->assertSame(1, $res->json('ringkasan.diperbarui'));
+
+        // Tiga kunci (MI + MTS + tanpa lembaga); kunci tanpa lembaga
+        // menunjuk berkas terbaru yang aktif, warisannya nonaktif.
+        $this->assertSame(4, DokumenSantri::where('santri_id', $f['santri']->id)->count());
+        $polos = DokumenSantri::where('santri_id', $f['santri']->id)->whereNull('lembaga')->orderBy('id')->get();
+        $this->assertSame('foto-baru.jpg', $polos[0]->nama_file);
+        $this->assertTrue((bool) $polos[0]->is_active);
+        $this->assertFalse((bool) $polos[1]->is_active);
+        $this->assertTrue((bool) DokumenSantri::where('santri_id', $f['santri']->id)->where('lembaga', 'MI')->firstOrFail()->is_active);
+        $this->assertTrue((bool) DokumenSantri::where('santri_id', $f['santri']->id)->where('lembaga', 'MTS')->firstOrFail()->is_active);
+
+        // Lembaga tak terdaftar menggagalkan baris.
+        $salah = $this->actingAs($auth, 'sanctum')->postJson('/api/admin/dokumen/santri/import-potong', [
+            'mode' => 'eksekusi',
+            'total' => 1,
+            'terakhir' => true,
+            'baris' => [
+                ['nis_lokal' => '26001', 'jenis_dokumen' => 'Pas Foto', 'lembaga' => 'ZZZ', 'nama_file' => 'x.jpg', 'penyimpanan' => 'Server'],
+            ],
+        ])->assertOk();
+        $this->assertSame(1, $salah->json('ringkasan.baris_gagal'));
+    }
+
+    public function test_ubah_aktif_menonaktifkan_saudara_sekunci(): void
+    {
+        $f = $this->fixture();
+        $auth = $this->superAdmin();
+
+        $lama = DokumenSantri::create([
+            'santri_id' => $f['santri']->id, 'jenis_dokumen_santri' => 'Pas Foto', 'lembaga' => 'MI',
+            'nama_file' => 'lama.jpg', 'is_active' => true,
+        ]);
+        $baru = DokumenSantri::create([
+            'santri_id' => $f['santri']->id, 'jenis_dokumen_santri' => 'Pas Foto', 'lembaga' => 'MI',
+            'nama_file' => 'baru.jpg', 'is_active' => false,
+        ]);
+
+        $this->actingAs($auth, 'sanctum')->patchJson("/api/admin/dokumen/santri/{$baru->id}", [
+            'is_active' => true,
+        ])->assertOk();
+
+        $this->assertTrue((bool) DokumenSantri::find($baru->id)->is_active);
+        $this->assertFalse((bool) DokumenSantri::find($lama->id)->is_active);
     }
 
     public function test_izin_dokumen_lembaga_tidak_diakses_admin_lain(): void

@@ -157,8 +157,10 @@ class SantriController extends Controller
             (string) ($santri->nama_lengkap ?? 'santri-'.$santri->id),
             $data['jenis_dokumen_santri'], $data['catatan'] ?? null,
         );
+        $lembaga = $data['lembaga'] ?? null;
         $dok = DokumenSantri::where('santri_id', $santri->id)
             ->where('jenis_dokumen_santri', $data['jenis_dokumen_santri'])
+            ->where('lembaga', $lembaga)
             ->whereNull('nama_file')
             ->latest('id')
             ->first();
@@ -166,15 +168,23 @@ class SantriController extends Controller
             $dok->update([
                 'nama_file' => basename($path),
                 'catatan' => $data['catatan'] ?? $dok->catatan,
+                'is_active' => true,
             ]);
         } else {
             $dok = DokumenSantri::create([
                 'santri_id' => $santri->id,
                 'jenis_dokumen_santri' => $data['jenis_dokumen_santri'],
+                'lembaga' => $lembaga,
                 'nama_file' => basename($path),
                 'catatan' => $data['catatan'] ?? null,
             ]);
         }
+        // Satu aktif per kunci: berkas yang baru diupload yang terakhir.
+        DokumenSantri::where('santri_id', $santri->id)
+            ->where('jenis_dokumen_santri', $data['jenis_dokumen_santri'])
+            ->where('lembaga', $lembaga)
+            ->where('id', '!=', $dok->id)
+            ->update(['is_active' => false]);
 
         return response()->json(['pesan' => 'Dokumen diupload.', 'data' => $dok], 201);
     }

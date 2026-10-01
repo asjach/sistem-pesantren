@@ -597,6 +597,8 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 - `santri_id`: FK → santri [null, cascade]
 - `psb_calon_santri_id`: FK → psb_calon_santri [null, cascade]
 - `jenis_dokumen_santri`: string [null] — ref_jenis_dokumen_santri
+- `lembaga`: FK → lembaga [null] — konteks pemakaian (foto MI dipakai di MI); kunci rangkap (santri, jenis, lembaga)
+- `is_active`: boolean [default true] — satu aktif per kunci (dokumen terakhir)
 - `nama_file`: string [null] — nama template berkas (tampil/unduh)
 - `penyimpanan`: string(10) [default 'server'] — lokasi byte: server|lokal|test
 - `catatan`: text [null]

@@ -101,9 +101,13 @@ class DokumenImporService extends ImporPotongan
     }
 
     /**
-     * Santri: kunci (santri, jenis) — santri dicari by NIS lokal saja
-     * (unik per santri di seluruh lembaga). Izin lolos bila akun boleh
+     * Santri: kunci (santri, jenis, lembaga) — santri dicari by NIS lokal
+     * saja (unik per santri di seluruh lembaga). Izin lolos bila akun boleh
      * mengakses salah satu penempatan santri tersebut.
+     *
+     * `lembaga` konteks pemakaian (opsional; harus terdaftar bila diisi).
+     * Baris yang diproses menjadi aktif; saudara se-kunci dinonaktifkan
+     * (satu aktif per kunci = dokumen terakhir).
      *
      * `nama_file` dicatat apa adanya (basename; tanpa byte, unduhan
      * mengikuti aturan lokasi), `penyimpanan` dinormalisasi
@@ -128,6 +132,14 @@ class DokumenImporService extends ImporPotongan
             return;
         }
 
+        $lembaga = mb_strtoupper(trim((string) ($baris['lembaga'] ?? '')));
+        $lembaga = $lembaga !== '' ? $lembaga : null;
+        if ($lembaga !== null && ! Lembaga::whereKey($lembaga)->exists()) {
+            $this->fail($no, 'lembaga', 'Lembaga tidak valid (isi jenjang, mis. MI/MD).');
+
+            return;
+        }
+
         $namaFile = trim((string) ($baris['nama_file'] ?? ''));
         if ($namaFile === '') {
             $this->fail($no, 'nama_file', 'Nama berkas wajib diisi.');
@@ -142,7 +154,11 @@ class DokumenImporService extends ImporPotongan
             return;
         }
 
-        $lama = DokumenSantri::where('santri_id', $santri->id)->where('jenis_dokumen_santri', $jenis)->first();
+        $lama = DokumenSantri::where('santri_id', $santri->id)
+            ->where('jenis_dokumen_santri', $jenis)
+            ->where('lembaga', $lembaga)
+            ->orderBy('id')
+            ->first();
 
         if ($kering) {
             $lama === null ? $this->dibuat++ : $this->diperbarui++;
@@ -151,24 +167,31 @@ class DokumenImporService extends ImporPotongan
             return;
         }
 
-        DB::transaction(function () use ($lama, $santri, $jenis, $catatan, $namaFile, $simpan): void {
+        DB::transaction(function () use ($lama, $santri, $jenis, $lembaga, $catatan, $namaFile, $simpan): void {
             if ($lama === null) {
-                DokumenSantri::create([
+                $lama = DokumenSantri::create([
                     'santri_id' => $santri->id,
                     'jenis_dokumen_santri' => $jenis,
+                    'lembaga' => $lembaga,
                     'nama_file' => $namaFile,
                     'penyimpanan' => $simpan,
                     'catatan' => $catatan,
                 ]);
                 $this->dibuat++;
             } else {
-                $ubah = ['nama_file' => $namaFile, 'penyimpanan' => $simpan];
+                $ubah = ['nama_file' => $namaFile, 'penyimpanan' => $simpan, 'is_active' => true];
                 if ($catatan !== null) {
                     $ubah['catatan'] = $catatan;
                 }
                 $lama->update($ubah);
                 $this->diperbarui++;
             }
+            // Satu aktif per kunci: baris ini yang terakhir.
+            DokumenSantri::where('santri_id', $santri->id)
+                ->where('jenis_dokumen_santri', $jenis)
+                ->where('lembaga', $lembaga)
+                ->where('id', '!=', $lama->id)
+                ->update(['is_active' => false]);
         });
 
         $this->valid++;

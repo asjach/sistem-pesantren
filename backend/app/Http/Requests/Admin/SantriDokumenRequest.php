@@ -17,6 +17,7 @@ class SantriDokumenRequest extends FormRequest
         return [
             'jenis_dokumen_santri' => ['required', 'string', 'max:50'],
             'file' => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'lembaga' => ['sometimes', 'nullable', 'string', 'exists:lembaga,jenjang'],
             'catatan' => ['nullable', 'string'],
         ];
     }
