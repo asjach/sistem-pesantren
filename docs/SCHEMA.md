@@ -76,7 +76,6 @@ Tanpa kolom tenant — tenant = pivot `user_lembaga`.
 - `waktu_belajar`: enum(pagi|siang|pagi_siang) [null] — Operasional: / pagi_siang = "pagi dan siang"
 - `mode_rapor`: enum(terpisah|digabung) [default 'digabung'] — Kolom Modul 202 (mode rapor):
 - `template_rapor`: string [default 'default']
-- `psb_butuh_seleksi_default`: bool [default false] — Kolom Modul 100 PSB (konfigurasi jalur fleksibel): / false = jalur langsung (A), true = jalur seleksi (B)
 - `is_seleksi`: bool [default false] — lembaga ber-seleksi (kuota `membutuhkan_seleksi` null ikut nilai ini; daftar ulang wajib kirim status lolos)
 - `kelompok_psb`: enum(combo_mi_md|eksklusif) [default 'eksklusif'] — combo khusus MI/MD (pool kuota & daftar ganda gabungan); selain itu eksklusif (pool & aturan ganda sendiri)
 - `is_active`: bool [default true] — nonaktifkan tanpa hapus
