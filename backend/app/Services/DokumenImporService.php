@@ -321,7 +321,7 @@ class DokumenImporService extends ImporPotongan
             }
         }
 
-        $this->fail($no, 'nis_lokal', 'Santri tidak ditemukan (cocokkan NIS lokal).');
+        $this->fail($no, 'nis_lokal', "Santri tidak ditemukan (NIS '{$nisLokal}' tidak ada di penempatan lembaga).");
 
         return null;
     }
