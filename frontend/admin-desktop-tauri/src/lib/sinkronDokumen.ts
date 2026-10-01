@@ -21,9 +21,9 @@ import {
   type TipeDokumen,
 } from '@/api/dokumen';
 import {
-  cariLokal,
   ekstensiDariNama,
   mimeDariEkstensi,
+  statLokal,
   targetTulisLokal,
   tulisTepatArsip,
   type TipeArsip,
@@ -56,15 +56,16 @@ export interface RingkasanSinkron {
 }
 
 export interface ByteLokal {
-  bytes: Uint8Array;
-  /** Detik epoch. */
+  /** Detik epoch (dari stat ringan, tanpa baca isi). */
   mtime: number;
+  /** Baca isi — panggil hanya bila perlu transfer/hash. */
+  baca: () => Promise<Uint8Array>;
 }
 
 /** Titik jahit I/O agar mesin murni dan mudah dites (produksi: `depsPerangkat`). */
 export interface DepsSinkron {
   statusServer(nama: string[]): Promise<Record<string, StatusBerkasServer>>;
-  bacaLokal(row: DokumenRow): Promise<ByteLokal | null>;
+  statLokal(row: DokumenRow): Promise<ByteLokal | null>;
   tulisLokal(row: DokumenRow, bytes: Uint8Array): Promise<void>;
   unggahServer(row: DokumenRow, bytes: Uint8Array, hash: string, mtime: number): Promise<void>;
   unduhServer(row: DokumenRow): Promise<Uint8Array>;
@@ -113,8 +114,9 @@ export async function sinkronSatuBaris(
     return { id: row.id, nama, aksi: 'galat', pesan: 'Berkas tidak ada di lokal maupun server.' };
   }
   if (lokal && !server?.ada) {
-    const hash = await hashSha256(lokal.bytes);
-    await deps.unggahServer(row, lokal.bytes, hash, lokal.mtime);
+    const bytes = await lokal.baca();
+    const hash = await hashSha256(bytes);
+    await deps.unggahServer(row, bytes, hash, lokal.mtime);
     return { id: row.id, nama, aksi: 'naik' };
   }
   if (!lokal && server?.ada) {
@@ -133,7 +135,7 @@ export async function sinkronSatuBaris(
   ) {
     return { id: row.id, nama, aksi: 'dilewati' };
   }
-  const hashLokal = await hashSha256((lokal as ByteLokal).bytes);
+  const hashLokal = await hashSha256(await (lokal as ByteLokal).baca());
   if (shaServer && hashLokal.toLowerCase() === shaServer.toLowerCase()) {
     if (row.penyimpanan === 'cermin' && (row.sinkron_hash ?? '').toLowerCase() === hashLokal.toLowerCase()) {
       return { id: row.id, nama, aksi: 'sudah-sama' };
@@ -151,7 +153,7 @@ export async function sinkronSatuBaris(
     return { id: row.id, nama, aksi: 'turun', seri: true, pesan: 'Waktu ubah seri; server dimenangkan.' };
   }
   if (mLokal > mServer) {
-    await deps.unggahServer(row, (lokal as ByteLokal).bytes, hashLokal, mLokal);
+    await deps.unggahServer(row, await (lokal as ByteLokal).baca(), hashLokal, mLokal);
     return { id: row.id, nama, aksi: 'naik' };
   }
   const bytes = await deps.unduhServer(row);
@@ -179,7 +181,7 @@ export async function sinkronkanDaftar(
   for (const row of rows) {
     if (opsi.dibatalkan?.()) { ringkas.dibatalkan = true; break; }
     try {
-      const lokal = (row.nama_file ?? '') !== '' ? await deps.bacaLokal(row) : null;
+      const lokal = (row.nama_file ?? '') !== '' ? await deps.statLokal(row) : null;
       const hasil = await sinkronSatuBaris(row, lokal, statusSemua[row.nama_file as string], deps);
       ringkas.selesai += 1;
       if (hasil.aksi === 'galat') {
@@ -204,37 +206,28 @@ export async function sinkronkanDaftar(
   return ringkas;
 }
 
-/** Ambil seluruh baris tipe (paginasi) untuk lingkup sinkron. */
+/** Ambil seluruh baris tipe sekaligus (`per_page=0` = semua) untuk sinkron massal. */
 export async function ambilSemuaBaris(
   tipe: TipeDokumen,
-  params: { jenjang?: string[] | null; q?: string; santri_id?: number; signal?: AbortSignal } = {},
+  params: { jenjang?: readonly string[] | null; q?: string; santri_id?: number; signal?: AbortSignal } = {},
 ): Promise<DokumenRow[]> {
-  const semua: DokumenRow[] = [];
-  const perPage = 500;
-  for (let page = 1; ; page += 1) {
-    const hasil = await listDokumen(tipe, { ...params, page, per_page: perPage });
-    semua.push(...hasil.data);
-    if (page >= hasil.last_page || hasil.data.length === 0) break;
-  }
-  return semua;
+  return (await listDokumen(tipe, { ...params, per_page: 0 })).data;
 }
 
 // ---------------- Dependensi perangkat (Tauri) ----------------
 
 /** Dependensi nyata ke arsip perangkat + API (hanya desktop). */
 export function depsPerangkat(tipe: TipeDokumen): DepsSinkron {
-  const baca = async (row: DokumenRow): Promise<(ByteLokal & { akar: string; lokasi: import('@/lib/arsipDokumen').LokasiArsip }) | null> => {
-    const nama = row.nama_file ?? '';
-    if (nama === '') return null;
-    return cariLokal(nama, row.jenis_dokumen, tipe as TipeArsip, row.penyimpanan ?? 'server');
-  };
   return {
     statusServer: async (nama) => (await statusBerkasDokumen(tipe, nama)).data,
-    bacaLokal: baca,
+    statLokal: async (row) => {
+      const nama = row.nama_file ?? '';
+      if (nama === '') return null;
+      return statLokal(nama, row.jenis_dokumen, tipe as TipeArsip, row.penyimpanan ?? 'server');
+    },
     tulisLokal: async (row, bytes) => {
       const nama = row.nama_file as string;
-      const ketemu = await baca(row);
-      const target = ketemu ?? await targetTulisLokal(nama, row.jenis_dokumen, tipe as TipeArsip, row.penyimpanan ?? 'server');
+      const target = await targetTulisLokal(nama, row.jenis_dokumen, tipe as TipeArsip, row.penyimpanan ?? 'server');
       await tulisTepatArsip(bytes, nama, target.akar, tipe as TipeArsip, target.lokasi);
     },
     unggahServer: async (row, bytes, hash, mtime) => {

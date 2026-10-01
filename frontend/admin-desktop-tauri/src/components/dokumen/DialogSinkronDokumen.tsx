@@ -27,12 +27,14 @@ export default function DialogSinkronDokumen({
   onTutup,
   ambilBaris,
   onSelesai,
+  lingkup,
 }: {
   tipe: TipeDokumen;
   terbuka: boolean;
   onTutup: () => void;
   ambilBaris: () => Promise<DokumenRow[]>;
   onSelesai: () => void;
+  lingkup: string;
 }) {
   const [fase, setFase] = useState<'siap' | 'jalan' | 'selesai'>('siap');
   const [ringkas, setRingkas] = useState<RingkasanSinkron>(() => ringkasanAwal(0));
@@ -74,8 +76,8 @@ export default function DialogSinkronDokumen({
         <DialogHeader>
           <DialogTitle id="judul_sinkron_dokumen">Sinkronkan arsip perangkat ↔ server</DialogTitle>
           <DialogDescription>
-            Baris yang hilang di satu sisi disalin dari sisi yang ada; isi yang beda
-            dimenangkan waktu ubah terbaru. Aman diulang — baris yang sudah sama dilewati.
+            Lingkup: {lingkup}. Baris yang hilang di satu sisi disalin dari sisi yang ada;
+            isi yang beda dimenangkan waktu ubah terbaru. Aman diulang — baris yang sudah sama dilewati.
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-3">

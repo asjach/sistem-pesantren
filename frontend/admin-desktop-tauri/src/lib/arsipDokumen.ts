@@ -386,6 +386,44 @@ export async function targetTulisLokal(
   return (await kandidatAkarArsip(penyimpanan))[0];
 }
 
+/** mtime (detik) satu arsip; null bila tak ada. Tanpa membaca isi. */
+export async function statArsip(
+  namaFile: string,
+  jenis: string,
+  akar: string,
+  tipe: TipeArsip,
+  lokasi: LokasiArsip,
+): Promise<number | null> {
+  try {
+    const { stat } = await import('@tauri-apps/plugin-fs');
+    const target = await cariArsip(namaFile, jenis, akar, tipe, lokasi);
+    if (!target) return null;
+    return normalisasiMtime((await stat(target)).mtime);
+  } catch {
+    return null;
+  }
+}
+
+/** Stat ringan di semua kandidat + pembaca malas (byte dibaca hanya bila
+ *  perlu transfer/hash — penting untuk sinkron massal ribuan baris). */
+export async function statLokal(
+  namaFile: string,
+  jenis: string,
+  tipe: TipeArsip,
+  penyimpanan: string,
+): Promise<{ mtime: number; baca: () => Promise<Uint8Array> } | null> {
+  for (const { akar, lokasi } of await kandidatAkarArsip(penyimpanan)) {
+    const mtime = await statArsip(namaFile, jenis, akar, tipe, lokasi);
+    if (mtime !== null) {
+      return {
+        mtime,
+        baca: async () => (await bacaArsip(namaFile, jenis, akar, tipe, lokasi))?.bytes ?? new Uint8Array(),
+      };
+    }
+  }
+  return null;
+}
+
 /** Pindahkan file asli ke `<folder-asal>/sudah/`. Rename atomik dulu;
  *  bila gagal (mis. lintas volume) fallback salin + verifikasi ukuran + hapus.
  *  Mengembalikan path tujuan. */

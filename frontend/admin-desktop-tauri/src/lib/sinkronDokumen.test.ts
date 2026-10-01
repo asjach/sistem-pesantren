@@ -21,7 +21,7 @@ function baris(sebagian: Partial<DokumenRow> = {}): DokumenRow {
 }
 
 function lokal(mtime: number, bytes = TEKS_A): ByteLokal {
-  return { bytes, mtime };
+  return { mtime, baca: async () => bytes };
 }
 
 function server(sebagian: Partial<StatusBerkasServer> = {}): StatusBerkasServer {
@@ -39,7 +39,7 @@ function depsPalsu(unduh = TEKS_A): DepsSinkron & {
   return {
     naik, turun, ditandai,
     statusServer: async () => ({}),
-    bacaLokal: async () => null,
+    statLokal: async () => null,
     tulisLokal: async (_r, b) => { turun.push(b); },
     unggahServer: async (row, _b, hash) => { naik.push({ row, hash }); },
     unduhServer: async () => unduh,
@@ -151,7 +151,7 @@ describe('sinkronkanDaftar', () => {
     const d = depsPalsu();
     const panggilBatch: number[] = [];
     d.statusServer = async (nama) => { panggilBatch.push(nama.length); return {}; };
-    d.bacaLokal = async () => null;
+    d.statLokal = async () => null;
     const rows = Array.from({ length: 250 }, (_, i) => baris({ id: i + 1, nama_file: `f${i}.pdf` }));
     const lapor: number[] = [];
     const hasil = await sinkronkanDaftar(rows, d, { lapor: (r) => { lapor.push(r.selesai); } });
@@ -163,7 +163,7 @@ describe('sinkronkanDaftar', () => {
 
   it('galat API menampilkan pesan validasi, bukan "API 422"', async () => {
     const d = depsPalsu();
-    d.bacaLokal = async () => lokal(1);
+    d.statLokal = async () => lokal(1);
     d.statusServer = async () => ({});
     d.unggahServer = async () => {
       throw new ApiError(422, { message: 'The file field must be a file of type: jpg, jpeg, png, pdf.', errors: {} });
@@ -173,9 +173,29 @@ describe('sinkronkanDaftar', () => {
     expect(hasil.galatDaftar[0].pesan).toContain('must be a file of type');
   });
 
+  it('jalan pintas dan sudah-sama tidak membaca isi berkas', async () => {
+    const d = depsPalsu();
+    const baca = vi.fn(async () => TEKS_A);
+    const sha = await hashSha256(TEKS_A);
+    const cermin = baris({
+      penyimpanan: 'cermin', sinkron_hash: sha,
+      tersinkron_pada: new Date(3000 * 1000).toISOString(),
+    });
+    const r1 = await sinkronSatuBaris(cermin, { mtime: 2000, baca }, server({ sha256: sha, mtime: 2500 }), d);
+    expect(r1.aksi).toBe('dilewati');
+    expect(baca).not.toHaveBeenCalled();
+    // Sudah-sama tanpa bukti waktu tetap butuh 1x baca untuk hash.
+    const r2 = await sinkronSatuBaris(
+      baris({ penyimpanan: 'cermin', sinkron_hash: sha }),
+      { mtime: 2000, baca }, server({ sha256: sha }), d,
+    );
+    expect(r2.aksi).toBe('sudah-sama');
+    expect(baca).toHaveBeenCalledTimes(1);
+  });
+
   it('batal di tengah → berhenti + flag', async () => {
     const d = depsPalsu();
-    d.bacaLokal = async () => null;
+    d.statLokal = async () => null;
     let jalan = 0;
     const hasil = await sinkronkanDaftar(
       [baris({ id: 1 }), baris({ id: 2 }), baris({ id: 3 })], d,

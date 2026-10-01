@@ -34,6 +34,7 @@ import {
 } from '@/lib/arsipDokumen';
 import PenampilBerkas, { type SumberBerkas } from '@/components/dokumen/PenampilBerkas';
 import DialogSinkronDokumen from '@/components/dokumen/DialogSinkronDokumen';
+import { ambilSemuaBaris } from '@/lib/sinkronDokumen';
 import { gantiEkstensi, type HasilGambar } from '@/lib/olahGambar';
 import { Check, Download, FolderOpen, MoreVertical, Pencil, RefreshCw, Save, Trash2, Undo2, Upload, X } from '@/icons';
 import { toast } from 'sonner';
@@ -336,8 +337,13 @@ export default function LihatDokumenSantriPage() {
   // ----- Hapus dokumen -----
   const [hapusRow, setHapusRow] = useState<DokumenRow | null>(null);
 
-  // ----- Sinkron cermin (desktop saja) -----
+  // ----- Sinkron cermin (desktop saja): santri ini atau semua (filter aktif) -----
   const [sinkronTerbuka, setSinkronTerbuka] = useState(false);
+  const [sinkronMode, setSinkronMode] = useState<'santri' | 'semua'>('santri');
+  const namaSantriAktif = useMemo(
+    () => santris.find((x) => x.id === santriId)?.nama_lengkap ?? '',
+    [santris, santriId],
+  );
   const segarkanSetelahSinkron = useCallback(async () => {
     if (santriId == null) return;
     await muatDokumen(santriId);
@@ -734,15 +740,26 @@ export default function LihatDokumenSantriPage() {
             <div className="flex items-center justify-between gap-2">
               <FieldLabel id="label_daftar_dokumen_lihat">Daftar dokumen{santriId != null && dokumens.length > 0 ? ` (${dokumens.length})` : ''}</FieldLabel>
               {desktop && canUbah && santriId != null && (
-                <Button
-                  id="tombol_sinkron_dok_lihat"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setSinkronTerbuka(true)}
-                  title="Sinkronkan arsip perangkat dengan server (cermin dua arah)"
-                >
-                  <RefreshCw size={14} /> Sinkronkan
-                </Button>
+                <span className="inline-flex gap-1">
+                  <Button
+                    id="tombol_sinkron_dok_lihat"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => { setSinkronMode('santri'); setSinkronTerbuka(true); }}
+                    title="Sinkronkan dokumen santri ini (cermin dua arah)"
+                  >
+                    <RefreshCw size={14} /> Sinkronkan
+                  </Button>
+                  <Button
+                    id="tombol_sinkron_semua_dok_lihat"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => { setSinkronMode('semua'); setSinkronTerbuka(true); }}
+                    title="Sinkronkan dokumen SEMUA santri dalam filter aktif — bisa ribuan baris, aman dibatalkan dan diulang"
+                  >
+                    <RefreshCw size={14} /> Semua
+                  </Button>
+                </span>
               )}
             </div>
             <div className="min-h-[120px] flex-1 overflow-y-auto rounded-md border">
@@ -909,7 +926,13 @@ export default function LihatDokumenSantriPage() {
         tipe="santri"
         terbuka={sinkronTerbuka}
         onTutup={() => setSinkronTerbuka(false)}
-        ambilBaris={async () => (santriId == null ? [] : (await listDokumen('santri', { santri_id: santriId, per_page: 0 })).data)}
+        ambilBaris={async () => {
+          if (sinkronMode === 'semua') return ambilSemuaBaris('santri', { jenjang: jenjangs });
+          return santriId == null ? [] : (await listDokumen('santri', { santri_id: santriId, per_page: 0 })).data;
+        }}
+        lingkup={sinkronMode === 'semua'
+          ? `Semua santri (filter: ${jenjangs.join(', ') || 'semua jenjang'})`
+          : `Santri: ${namaSantriAktif || `#${santriId ?? ''}`}`}
         onSelesai={() => { void segarkanSetelahSinkron(); }}
       />
       <AlertDialog open={hapusRow !== null} onOpenChange={(o) => { if (!o) setHapusRow(null); }}>
