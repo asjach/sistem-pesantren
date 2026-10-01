@@ -101,13 +101,13 @@ class DokumenImporService extends ImporPotongan
     }
 
     /**
-     * Santri: kunci (santri, jenis, lembaga) — santri dicari by NIS lokal
-     * saja (unik per santri di seluruh lembaga). Izin lolos bila akun boleh
-     * mengakses salah satu penempatan santri tersebut.
+     * Santri: kunci (santri, jenis, lembaga, nama_file) — santri dicari by
+     * NIS lokal saja (unik per santri di seluruh lembaga). Izin lolos bila
+     * akun boleh mengakses salah satu penempatan santri tersebut.
      *
      * `lembaga` konteks pemakaian (opsional; harus terdaftar bila diisi).
-     * Baris yang diproses menjadi aktif; saudara se-kunci dinonaktifkan
-     * (satu aktif per kunci = dokumen terakhir).
+     * Baris yang diproses menjadi aktif; saudara se-(santri, jenis, lembaga)
+     * dinonaktifkan (satu aktif per kelompok).
      *
      * `nama_file` dicatat apa adanya (basename; tanpa byte, unduhan
      * mengikuti aturan lokasi), `penyimpanan` dinormalisasi
@@ -157,6 +157,7 @@ class DokumenImporService extends ImporPotongan
         $lama = DokumenSantri::where('santri_id', $santri->id)
             ->where('jenis_dokumen_santri', $jenis)
             ->where('lembaga', $lembaga)
+            ->where('nama_file', $namaFile)
             ->orderBy('id')
             ->first();
 
