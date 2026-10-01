@@ -84,6 +84,12 @@ export default function DialogSinkronDokumen({
           <div id="progres_sinkron_dokumen" className="h-2 overflow-hidden rounded bg-muted" role="progressbar" aria-valuenow={persen} aria-valuemin={0} aria-valuemax={100}>
             <div className="h-full bg-primary transition-all" style={{ width: `${persen}%` }} />
           </div>
+          {fase !== 'siap' && ringkas.total > 0 && ringkas.lokalAda === 0 && (
+            <p id="peringatan_arsip_sinkron" className="rounded border border-destructive/50 bg-destructive/10 p-2 text-xs">
+              Tidak satu pun berkas ditemukan di arsip perangkat ini — kemungkinan folder arsip salah.
+              Periksa di Pengaturan (folder arsip dokumen), lalu Jalankan lagi.
+            </p>
+          )}
           <p id="teks_progres_sinkron" className="text-xs text-muted-foreground">
             {fase === 'siap' && 'Siap dimulai.'}
             {fase === 'jalan' && `Berjalan… ${ringkas.selesai}/${ringkas.total} (${persen}%)`}

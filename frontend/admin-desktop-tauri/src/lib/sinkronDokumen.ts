@@ -47,6 +47,8 @@ export interface HasilSinkronBaris {
 export interface RingkasanSinkron {
   total: number;
   selesai: number;
+  /** Baris yang salinan lokalnya ditemukan (0 + total>0 = folder arsip salah). */
+  lokalAda: number;
   naik: number;
   turun: number;
   sama: number;
@@ -96,7 +98,7 @@ export const AMBANG_SERI_DETIK = 2;
 export const BATCH_STATUS = 100;
 
 export function ringkasanAwal(total: number): RingkasanSinkron {
-  return { total, selesai: 0, naik: 0, turun: 0, sama: 0, ditandai: 0, dilewati: 0, seri: 0, konversi: 0, galat: 0, galatDaftar: [], dibatalkan: false };
+  return { total, selesai: 0, lokalAda: 0, naik: 0, turun: 0, sama: 0, ditandai: 0, dilewati: 0, seri: 0, konversi: 0, galat: 0, galatDaftar: [], dibatalkan: false };
 }
 
 /** SHA-256 hex (Web Crypto; backend mengirim sha256 di status-berkas). */
@@ -220,6 +222,7 @@ export async function sinkronkanDaftar(
     if (opsi.dibatalkan?.()) { ringkas.dibatalkan = true; break; }
     try {
       const lokal = (row.nama_file ?? '') !== '' ? await deps.statLokal(row) : null;
+      if (lokal) ringkas.lokalAda += 1;
       const hasil = await sinkronSatuBaris(row, lokal, statusSemua[row.nama_file as string], deps);
       ringkas.selesai += 1;
       if (hasil.aksi === 'galat') {

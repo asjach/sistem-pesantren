@@ -164,6 +164,7 @@ describe('sinkronkanDaftar', () => {
     expect(panggilBatch).toEqual([100, 100, 50]);
     expect(hasil.total).toBe(250);
     expect(hasil.galat).toBe(250);
+    expect(hasil.lokalAda).toBe(0);
     expect(lapor.at(-1)).toBe(250);
   });
 
@@ -214,6 +215,7 @@ describe('sinkronkanDaftar', () => {
     expect(hasil.naik).toBe(1);
     expect(hasil.konversi).toBe(1);
     expect(hasil.galat).toBe(0);
+    expect(hasil.lokalAda).toBe(1);
     expect(urutan).toEqual(['tulis:foto.jpg', 'ubah:foto.jpg', 'unggah:foto.jpg']);
     expect(d.hapus).toEqual(['foto.heic']);
     expect(d.naik[0].hash).toBe(await hashSha256(JPG));
