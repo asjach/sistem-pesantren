@@ -11,7 +11,6 @@ use App\Models\DokumenLembaga;
 use App\Models\DokumenSantri;
 use App\Models\ImportSesi;
 use App\Models\Lembaga;
-use App\Models\LembagaSantri;
 use App\Models\Pegawai;
 use App\Models\Santri;
 use App\Services\DokumenImporService;
@@ -52,12 +51,14 @@ class DokumenController extends Controller
         $status = $request->input('status_verifikasi');
 
         if ($tipe === 'santri') {
-            // Penempatan aktif via whereExists (bukan join) agar santri dengan
-            // lebih dari satu penempatan aktif (mis. MI + MD) tidak duplikat.
+            // Penempatan via whereExists (bukan join) agar santri dengan
+            // lebih dari satu penempatan (mis. MI + MD) tidak duplikat.
+            // Sengaja TANPA syarat aktif: lingkup lembaga memakai riwayat
+            // penempatan, agar dokumen santri yang sudah pindah/keluar
+            // tetap tampil di lembaga konteksnya.
             $penempatan = function ($w, array $jenjang = []) {
                 $w->from('lembaga_santri as ls')
-                    ->whereColumn('ls.santri_id', 'dokumen_santri.santri_id')
-                    ->where('ls.is_active_lembaga', LembagaSantri::YA);
+                    ->whereColumn('ls.santri_id', 'dokumen_santri.santri_id');
                 if ($jenjang !== []) {
                     $w->whereIn('ls.jenjang', $jenjang);
                 }
@@ -685,7 +686,9 @@ class DokumenController extends Controller
             if ($row->santri_id === null) {
                 abort(404);
             }
-            $jenjang = $row->santri->lembagaAktif()->value('jenjang');
+            // Akses mengikuti konteks lembaga baris dulu (selaras lingkup
+            // daftar yang memakai riwayat penempatan), baru penempatan aktif.
+            $jenjang = $row->lembaga ?? $row->santri->lembagaAktif()->value('jenjang');
             if ($jenjang !== null && ! $request->user()->canAccessLembaga($jenjang)) {
                 abort(403, 'Akses ditolak.');
             }

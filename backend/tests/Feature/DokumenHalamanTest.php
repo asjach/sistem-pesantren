@@ -204,6 +204,43 @@ class DokumenHalamanTest extends TestCase
         $this->assertSame('MI', $data[0]['lembaga_jenjang']);
     }
 
+    public function test_lingkup_lembaga_memakai_riwayat_bukan_hanya_aktif(): void
+    {
+        $f = $this->fixture();
+        $this->superAdmin();
+        $mi = User::create(['name' => 'Admin MI', 'email' => 'mi-'.uniqid().'@example.com', 'password' => 'password']);
+        $mi->assignRole('admin');
+        DB::table('user_lembaga')->insert(['user_id' => $mi->id, 'jenjang' => 'MI', 'created_at' => now(), 'updated_at' => now()]);
+
+        // Santri pindah/keluar: tanpa penempatan aktif sama sekali.
+        LembagaSantri::where('santri_id', $f['santri']->id)->update(['is_active_lembaga' => 'Tidak']);
+        $dok = DokumenSantri::create([
+            'santri_id' => $f['santri']->id,
+            'jenis_dokumen_santri' => 'Kartu Keluarga',
+            'lembaga' => 'MI',
+            'nama_file' => 'kk.jpg',
+            'penyimpanan' => 'lokal',
+        ]);
+
+        // Tetap tampil di lingkup MI + bisa dibuka/diubah admin MI.
+        $list = $this->actingAs($mi, 'sanctum')->getJson('/api/admin/dokumen/santri?jenjang[]=MI')
+            ->assertOk()->json('data');
+        $this->assertCount(1, $list);
+        $this->actingAs($mi, 'sanctum')->patchJson(
+            "/api/admin/dokumen/santri/{$dok->id}",
+            ['catatan' => 'arsip lama']
+        )->assertOk();
+
+        // Admin MTS tetap tidak bisa (konteks MI).
+        $mts = User::create(['name' => 'Admin MTS', 'email' => 'mts2-'.uniqid().'@example.com', 'password' => 'password']);
+        $mts->assignRole('admin');
+        DB::table('user_lembaga')->insert(['user_id' => $mts->id, 'jenjang' => 'MTS', 'created_at' => now(), 'updated_at' => now()]);
+        $this->actingAs($mts, 'sanctum')->getJson('/api/admin/dokumen/santri?jenjang[]=MTS')
+            ->assertOk()->assertJsonCount(0, 'data');
+        $this->actingAs($mts, 'sanctum')->patchJson("/api/admin/dokumen/santri/{$dok->id}", ['catatan' => 'x'])
+            ->assertStatus(403);
+    }
+
     public function test_simpan_lokal_tanpa_berkas_cadangkan_nama(): void
     {
         $f = $this->fixture();
