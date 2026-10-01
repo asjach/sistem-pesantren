@@ -34,6 +34,7 @@ import {
 } from '@/lib/arsipDokumen';
 import PenampilBerkas, { type SumberBerkas } from '@/components/dokumen/PenampilBerkas';
 import DialogSinkronDokumen from '@/components/dokumen/DialogSinkronDokumen';
+import { siapkanFileUntukServer } from '@/lib/konversiHeic';
 import { gantiEkstensi, type HasilGambar } from '@/lib/olahGambar';
 import { Check, Download, FolderOpen, MoreVertical, Pencil, RefreshCw, Save, Trash2, Undo2, Upload, X } from '@/icons';
 import { toast } from 'sonner';
@@ -558,7 +559,9 @@ export default function LihatDokumenSantriPage() {
         }
         return true;
       }
-      await unggahBerkasDokumen('santri', row.id, file);
+      const siap = await siapkanFileUntukServer(file);
+      if (siap.dikonversi) toast.info('Berkas HEIC dikonversi ke JPG.');
+      await unggahBerkasDokumen('santri', row.id, siap.file);
       toast.success('Berkas diganti.');
       await bersihkanArsip(namaLama, jenisLama, lokasi === 'test' ? 'test' : 'lokal');
       if (santriId != null) {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { butuhKonversiHeic, magicHeic, namaJpg } from './konversiHeic';
+import { butuhKonversiHeic, magicHeic, namaJpg, siapkanFileUntukServer } from './konversiHeic';
 
 function ftyp(brand: string): Uint8Array {
   const b = new Uint8Array(12);
@@ -31,5 +31,17 @@ describe('deteksi HEIC', () => {
   it('namaJpg mengganti ekstensi', () => {
     expect(namaJpg('25.26.01.0062-X_Kartu Keluarga_030646.heic')).toBe('25.26.01.0062-X_Kartu Keluarga_030646.jpg');
     expect(namaJpg('tanpa-ekstensi')).toBe('tanpa-ekstensi.jpg');
+  });
+});
+
+describe('siapkanFileUntukServer', () => {
+  it('non-HEIC dikembalikan apa adanya', async () => {
+    const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xe0]);
+    const file = new File([bytes], 'foto.jpg', { type: 'image/jpeg' });
+    // jsdom File tanpa arrayBuffer — tempel dari byte yang sama.
+    (file as File & { arrayBuffer?: () => Promise<ArrayBuffer> }).arrayBuffer = async () => bytes.buffer as ArrayBuffer;
+    const hasil = await siapkanFileUntukServer(file);
+    expect(hasil.dikonversi).toBe(false);
+    expect(hasil.file).toBe(file);
   });
 });

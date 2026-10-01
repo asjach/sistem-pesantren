@@ -37,6 +37,7 @@ import { Download, FileUp, RefreshCw, Trash2, Upload } from '@/icons';
 import DokumenImportDialog from '@/components/dokumen/DokumenImportDialog';
 import DialogSinkronDokumen from '@/components/dokumen/DialogSinkronDokumen';
 import { ambilSemuaBaris } from '@/lib/sinkronDokumen';
+import { siapkanFileUntukServer } from '@/lib/konversiHeic';
 import { toast } from 'sonner';
 import { useEffect } from 'react';
 
@@ -152,13 +153,19 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
   const onTambah = useCallback(async () => {
     setBusy(true);
     try {
+      let fileKirim: File | undefined;
+      if (file) {
+        const siapTambah = await siapkanFileUntukServer(file);
+        if (siapTambah.dikonversi) toast.info('Berkas HEIC dikonversi ke JPG.');
+        fileKirim = siapTambah.file;
+      }
       await simpanDokumen(tipe, {
         ...(tipe === 'santri' ? { santri_id: Number(pemilik) } : {}),
         ...(tipe === 'pegawai' ? { pegawai_id: Number(pemilik), jenjang: jenjangPemilik } : {}),
         ...(tipe === 'lembaga' ? { jenjang: jenjangPemilik } : {}),
         jenis_dokumen: jenis,
         ...(catatan ? { catatan } : {}),
-      }, file ?? undefined);
+      }, fileKirim);
       toast.success('Dokumen disimpan.');
       setTambahOpen(false);
       pager.goFirst();
@@ -223,7 +230,9 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
         await load();
         return;
       }
-      await unggahBerkasDokumen(tipe, unggahRow.id, unggahFile);
+      const siapGanti = await siapkanFileUntukServer(unggahFile);
+      if (siapGanti.dikonversi) toast.info('Berkas HEIC dikonversi ke JPG.');
+      await unggahBerkasDokumen(tipe, unggahRow.id, siapGanti.file);
       toast.success('Berkas diunggah.');
       await bersihkanArsip(namaLama, jenisLama, lokasi === 'test' ? 'test' : 'lokal');
       setUnggahRow(null);

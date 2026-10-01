@@ -47,3 +47,15 @@ export async function konversiHeicKeJpg(data: Uint8Array, quality = KUALITAS_HEI
   if (!pertama) throw new Error('Konversi HEIC gagal (tanpa keluaran).');
   return new Uint8Array(await pertama.arrayBuffer());
 }
+
+/** Siapkan File untuk unggah server: konversi HEIC → JPG bila perlu
+ *  (nama ikut menjadi .jpg agar jujur). Non-HEIC dikembalikan apa adanya. */
+export async function siapkanFileUntukServer(file: File): Promise<{ file: File; dikonversi: boolean }> {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  if (!butuhKonversiHeic(file.name, bytes)) return { file, dikonversi: false };
+  const hasil = await konversiHeicKeJpg(bytes);
+  return {
+    file: new File([hasil.slice().buffer as ArrayBuffer], namaJpg(file.name), { type: 'image/jpeg' }),
+    dikonversi: true,
+  };
+}
