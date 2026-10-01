@@ -1,9 +1,9 @@
 /** Arsip lokal berkas dokumen — KHUSUS aplikasi desktop (Tauri).
  *
- *  Alur: salin ke folder khusus dokumen
- *  (`Documents/SIMPES-Dokumen/<jenis>/`), lalu (opsional, via checkbox)
- *  pindahkan file asli ke `<folder-asal>/sudah/`. Semua operasi aman-gagal:
- *  file asli tidak pernah dihapus sebelum salinan terverifikasi.
+ *  Alur: salin ke folder arsip per tipe pemilik
+ *  (`Documents/SIMPES-Dokumen/{santri|pegawai|lembaga}/`), lalu (opsional,
+ *  via checkbox) pindahkan file asli ke `<folder-asal>/sudah/`. Semua operasi
+ *  aman-gagal: file asli tidak pernah dihapus sebelum salinan terverifikasi.
  *  Di browser biasa modul ini tidak dipakai (penjagaan `isTauri()` di halaman).
  */
 import { isTauri } from '@/api/client';
@@ -128,21 +128,50 @@ export async function akarArsip(folderPref: string, bawaan: string): Promise<str
   return join(await documentDir(), bawaan);
 }
 
-/** Path lengkap arsip untuk satu nama berkas (tanpa menyentuh disk).
- *  `akar` = hasil `akarArsip()` (sudah final). */
-export async function jalurArsip(namaFile: string, jenis: string, akar: string): Promise<string> {
+/** Pemilik arsip: folder tujuan di bawah akar arsip. */
+export type TipeArsip = 'santri' | 'pegawai' | 'lembaga';
+
+/** Path lengkap arsip untuk satu nama berkas (tanpa menyentuh disk):
+ *  `<akar>/<tipe>/nama`. `akar` = hasil `akarArsip()` (sudah final). */
+export async function jalurArsip(namaFile: string, akar: string, tipe: TipeArsip): Promise<string> {
   const { join } = await import('@tauri-apps/api/path');
-  return join(akar, slugSegmen(jenis) || 'lainnya', namaFile);
+  return join(akar, tipe, namaFile);
 }
 
-/** Tulis byte ke `<akar>/<jenis>/` dengan nama template (untuk hasil edisi).
+/** Tata lama (pra-partisi): datar `<akar>/nama`, lalu `<akar>/<slug-jenis>/nama`. */
+async function jalurArsipLama(namaFile: string, jenis: string, akar: string): Promise<string[]> {
+  const { join } = await import('@tauri-apps/api/path');
+  return [await join(akar, namaFile), await join(akar, slugSegmen(jenis) || 'lainnya', namaFile)];
+}
+
+/** Selesaikan lokasi baca: folder tipe dulu, lalu tata lama (kompatibel
+ *  arsip yang telanjur tersimpan datar/per-jenis). Null bila tak ada. */
+export async function cariArsip(namaFile: string, jenis: string, akar: string, tipe: TipeArsip): Promise<string | null> {
+  const { exists } = await import('@tauri-apps/plugin-fs');
+  const datar = await jalurArsip(namaFile, akar, tipe);
+  if (await exists(datar)) return datar;
+  for (const lama of await jalurArsipLama(namaFile, jenis, akar)) {
+    if (await exists(lama)) return lama;
+  }
+  return null;
+}
+
+/** Hapus salinan arsip di semua tata (tipe + lama); diam bila tak ada. */
+export async function hapusArsip(namaFile: string, jenis: string, akar: string, tipe: TipeArsip): Promise<void> {
+  const { exists, remove } = await import('@tauri-apps/plugin-fs');
+  for (const target of [await jalurArsip(namaFile, akar, tipe), ...(await jalurArsipLama(namaFile, jenis, akar))]) {
+    if (await exists(target)) await remove(target);
+  }
+}
+
+/** Tulis byte ke arsip `<akar>/<tipe>/` dengan nama template (untuk hasil edisi).
  *  Mengembalikan path tujuan. */
-export async function tulisArsip(data: Uint8Array, namaFile: string, jenis: string, akar: string): Promise<string> {
+export async function tulisArsip(data: Uint8Array, namaFile: string, akar: string, tipe: TipeArsip): Promise<string> {
   const { exists, mkdir, writeFile } = await import('@tauri-apps/plugin-fs');
-  const { dirname, join } = await import('@tauri-apps/api/path');
-  const folderJenis = await dirname(await jalurArsip(namaFile, jenis, akar));
-  await mkdir(folderJenis, { recursive: true });
-  const tujuan = await join(folderJenis, await namaUnik(folderJenis, namaFile));
+  const { join } = await import('@tauri-apps/api/path');
+  const folder = await join(akar, tipe);
+  await mkdir(folder, { recursive: true });
+  const tujuan = await join(folder, await namaUnik(folder, namaFile));
   await writeFile(tujuan, data);
   if (!(await exists(tujuan))) throw new Error('Salinan arsip tidak terbentuk.');
   return tujuan;

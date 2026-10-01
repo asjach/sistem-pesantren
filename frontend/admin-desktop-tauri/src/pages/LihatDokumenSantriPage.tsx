@@ -220,7 +220,7 @@ export default function LihatDokumenSantriPage() {
         for (const d of perlu) {
           let ketemu = false;
           for (const akar of akars) {
-            if ((await cariArsip(d.nama_file as string, d.jenis_dokumen, akar)) !== null) { ketemu = true; break; }
+            if ((await cariArsip(d.nama_file as string, d.jenis_dokumen, akar, 'santri')) !== null) { ketemu = true; break; }
           }
           peta[d.id] = ketemu;
         }
@@ -271,7 +271,7 @@ export default function LihatDokumenSantriPage() {
           akarArsip(typeof b === 'string' ? b : '', ROOT_ARSIP_TEST),
         ]);
         for (const akar of akars) {
-          const target = await cariArsip(r.nama_file, r.jenis_dokumen, akar);
+          const target = await cariArsip(r.nama_file, r.jenis_dokumen, akar, 'santri');
           if (target) {
             const bytes = await readFile(target);
             setPratinjau({ bytes: new Uint8Array(bytes), mime, nama });
@@ -313,7 +313,7 @@ export default function LihatDokumenSantriPage() {
         akarArsip(typeof b === 'string' ? b : '', ROOT_ARSIP_TEST),
       ]);
       for (const akar of akars) {
-        const target = await cariArsip(r.nama_file, r.jenis_dokumen, akar);
+        const target = await cariArsip(r.nama_file, r.jenis_dokumen, akar, 'santri');
         if (target) {
           const bytes = await readFile(target);
           const tujuan = await save({
@@ -352,7 +352,7 @@ export default function LihatDokumenSantriPage() {
         akarArsip(typeof r2 === 'string' ? r2 : '', ROOT_ARSIP_TEST),
       ]);
       for (const akar of akars) {
-        await hapusArsip(nama, jenis, akar);
+        await hapusArsip(nama, jenis, akar, 'santri');
       }
     } catch (e) {
       toast.warning(`Arsip lokal gagal dibersihkan: ${errorMessage(e)}`);
@@ -466,10 +466,11 @@ export default function LihatDokumenSantriPage() {
           ]);
           let pindah = false;
           for (const akar of akars) {
-            const lama = await cariArsip(namaLama, jenisLama, akar);
+            const lama = await cariArsip(namaLama, jenisLama, akar, 'santri');
             if (!lama) continue;
-            await mkdir(akar, { recursive: true });
-            const baru = await join(akar, namaBaru);
+            const folderTipe = await join(akar, 'santri');
+            await mkdir(folderTipe, { recursive: true });
+            const baru = await join(folderTipe, namaBaru);
             if (await exists(baru)) {
               toast.warning('Metadata berubah; nama baru sudah dipakai di arsip — salinan lama dibiarkan.');
               pindah = true;

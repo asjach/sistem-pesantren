@@ -169,8 +169,7 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
   const bersihkanArsip = useCallback(async (nama: string | null, jenis: string) => {
     if (!isTauri() || !nama) return;
     try {
-      const { exists, remove } = await import('@tauri-apps/plugin-fs');
-      const { PREF_FOLDER_ARSIP, PREF_FOLDER_ARSIP_TEST, ROOT_ARSIP_DOKUMEN, ROOT_ARSIP_TEST, akarArsip, jalurArsip } = await import('@/lib/arsipDokumen');
+      const { PREF_FOLDER_ARSIP, PREF_FOLDER_ARSIP_TEST, ROOT_ARSIP_DOKUMEN, ROOT_ARSIP_TEST, akarArsip, hapusArsip } = await import('@/lib/arsipDokumen');
       const [r1, r2] = await Promise.all([
         prefGet(PREF_FOLDER_ARSIP).catch(() => null),
         prefGet(PREF_FOLDER_ARSIP_TEST).catch(() => null),
@@ -180,8 +179,7 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
         akarArsip(typeof r2 === 'string' ? r2 : '', ROOT_ARSIP_TEST),
       ]);
       for (const akar of akars) {
-        const target = await jalurArsip(nama, jenis, akar);
-        if (await exists(target)) await remove(target);
+        await hapusArsip(nama, jenis, akar, tipe);
       }
     } catch (e) {
       toast.warning(`Arsip lokal gagal dibersihkan: ${errorMessage(e)}`);
@@ -237,7 +235,7 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
     try {
       const { exists, readFile, writeFile } = await import('@tauri-apps/plugin-fs');
       const { save } = await import('@tauri-apps/plugin-dialog');
-      const { PREF_FOLDER_ARSIP, PREF_FOLDER_ARSIP_TEST, ROOT_ARSIP_DOKUMEN, ROOT_ARSIP_TEST, akarArsip, jalurArsip } = await import('@/lib/arsipDokumen');
+      const { PREF_FOLDER_ARSIP, PREF_FOLDER_ARSIP_TEST, ROOT_ARSIP_DOKUMEN, ROOT_ARSIP_TEST, akarArsip, cariArsip } = await import('@/lib/arsipDokumen');
       const [a, b] = await Promise.all([
         prefGet(PREF_FOLDER_ARSIP).catch(() => null),
         prefGet(PREF_FOLDER_ARSIP_TEST).catch(() => null),
@@ -247,8 +245,8 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
         akarArsip(typeof b === 'string' ? b : '', ROOT_ARSIP_TEST),
       ]);
       for (const akar of akars) {
-        const target = await jalurArsip(r.nama_file, r.jenis_dokumen, akar);
-        if (await exists(target)) {
+        const target = await cariArsip(r.nama_file, r.jenis_dokumen, akar, tipe);
+        if (target) {
           const bytes = await readFile(target);
           const tujuan = await save({
             defaultPath: r.nama_file,
