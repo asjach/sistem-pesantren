@@ -293,7 +293,9 @@ class DokumenController extends Controller
             $titik = strrpos($namaLama, '.');
             $ekstensi = $titik === false ? 'pdf' : substr($namaLama, $titik + 1);
             $namaBaru = NamaBerkasDokumen::buat($namaPemilik, (string) $jenisEfektif, $catatanEfektif, $ekstensi);
-            if (($model->penyimpanan ?? 'server') === 'server') {
+            // Baris cermin ikut rename sisi server; pemanggil (desktop)
+            // me-rename sisi lokal dari nama_baru di respons.
+            if (in_array($model->penyimpanan ?? 'server', ['server', 'cermin'], true)) {
                 $direktori = $this->direktoriBerkas($tipe);
                 $namaBaru = NamaBerkasDokumen::unik('local', $direktori, $namaBaru, $namaLama);
                 $jalurLama = NamaBerkasDokumen::jalur($tipe, $namaLama);
@@ -385,7 +387,7 @@ class DokumenController extends Controller
         return response()->json(['pesan' => 'Dokumen dihapus.']);
     }
 
-    /** GET /api/admin/dokumen/{tipe}/{id}/unduh — unduh berkas (nama template). */
+    /** GET /api/admin/dokumen/{tipe}/unduh — unduh berkas (nama template). */
     public function unduh(Request $request, string $tipe, int $id): BinaryFileResponse
     {
         $this->cekTipe($tipe);
@@ -394,7 +396,7 @@ class DokumenController extends Controller
         $path = NamaBerkasDokumen::jalur($tipe, $model->nama_file ?? null);
         if ($path === null || ! Storage::disk('local')->exists($path)) {
             $lokasi = $model->penyimpanan ?? 'server';
-            abort(404, $lokasi === 'server'
+            abort(404, in_array($lokasi, ['server', 'cermin'], true)
                 ? 'Berkas tidak ditemukan.'
                 : 'Berkas tersimpan di arsip perangkat, bukan di server.');
         }
@@ -404,6 +406,87 @@ class DokumenController extends Controller
             $disk->path($path),
             basename($path),
         );
+    }
+
+    /** GET /api/admin/dokumen/{tipe}/status-berkas — status byte server per
+     *  nama (batch ≤100, sinkronus tanpa antrean untuk shared hosting). */
+    public function statusBerkas(Request $request, string $tipe): JsonResponse
+    {
+        $this->cekTipe($tipe);
+        $data = $request->validate([
+            'nama' => ['required', 'array', 'max:100'],
+            'nama.*' => ['required', 'string', 'max:255'],
+        ]);
+
+        $disk = Storage::disk('local');
+        $hasil = [];
+        foreach ($data['nama'] as $mentah) {
+            $nama = basename(trim((string) $mentah));
+            if ($nama === '') {
+                continue;
+            }
+            $path = NamaBerkasDokumen::jalur($tipe, $nama);
+            if ($path === null || ! $disk->exists($path)) {
+                $hasil[$nama] = ['ada' => false];
+
+                continue;
+            }
+            $hasil[$nama] = [
+                'ada' => true,
+                'ukuran' => $disk->size($path),
+                'mtime' => $disk->lastModified($path),
+                'md5' => md5_file($disk->path($path)),
+                // SHA-256 untuk klien (Web Crypto tidak menyediakan MD5).
+                'sha256' => hash_file('sha256', $disk->path($path)),
+            ];
+        }
+
+        return response()->json(['data' => $hasil]);
+    }
+
+    /** POST /api/admin/dokumen/{tipe}/{id}/sinkron-unggah — terima byte lokal
+     *  TANPA ganti nama (identitas cermin = nama_file sama di kedua sisi).
+     *  Hash diklaim pemanggil diverifikasi ulang; beda = transfer rusak. */
+    public function sinkronUnggah(Request $request, string $tipe, int $id): JsonResponse
+    {
+        $this->cekTipe($tipe);
+        $model = $this->temukan($tipe, $id, $request);
+        $data = $request->validate([
+            'file' => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:10240'],
+            'hash' => ['required', 'string', 'regex:/^[a-f0-9]{32}([a-f0-9]{32})?$/i'],
+            'mtime' => ['required', 'integer', 'min:0'],
+        ]);
+
+        $nama = basename((string) ($model->nama_file ?? ''));
+        if ($nama === '') {
+            abort(422, 'Baris tanpa nama_file tidak bisa disinkron.');
+        }
+        $path = $data['file']->storeAs($this->direktoriBerkas($tipe), $nama, 'local');
+        if (strtolower((string) md5_file(Storage::disk('local')->path($path))) !== strtolower($data['hash'])) {
+            Storage::disk('local')->delete($path);
+            throw ValidationException::withMessages(['file' => 'Berkas rusak saat transfer (hash beda); ulangi.']);
+        }
+
+        return response()->json([
+            'pesan' => 'Berkas tersinkron ke server.',
+            'data' => $this->tandaiSinkronModel($tipe, $id, $model, strtolower($data['hash'])),
+        ]);
+    }
+
+    /** PATCH /api/admin/dokumen/{tipe}/{id}/tandai-sinkron — catat sisi lokal
+     *  sudah sama (pemanggil menjamin byte sudah tertulis di perangkat). */
+    public function tandaiSinkron(Request $request, string $tipe, int $id): JsonResponse
+    {
+        $this->cekTipe($tipe);
+        $model = $this->temukan($tipe, $id, $request);
+        $data = $request->validate([
+            'hash' => ['required', 'string', 'regex:/^[a-f0-9]{32}([a-f0-9]{32})?$/i'],
+        ]);
+
+        return response()->json([
+            'pesan' => 'Sinkron dicatat.',
+            'data' => $this->tandaiSinkronModel($tipe, $id, $model, strtolower($data['hash'])),
+        ]);
     }
 
     /** GET /api/admin/dokumen/{tipe}/import-template — template Excel per tipe. */
@@ -468,6 +551,23 @@ class DokumenController extends Controller
     private function direktoriBerkas(string $tipe): string
     {
         return NamaBerkasDokumen::direktori($tipe);
+    }
+
+    /** Tandai baris tersinkron (cermin): hash + waktu; kembalikan baris segar. */
+    private function tandaiSinkronModel(string $tipe, int $id, object $model, string $hash): object
+    {
+        $tandai = ['penyimpanan' => 'cermin', 'sinkron_hash' => $hash, 'tersinkron_pada' => now()];
+        if ($model instanceof Model) {
+            $model->update($tandai);
+
+            return $model->fresh();
+        }
+
+        // stdClass (tabel pegawai tanpa model).
+        $tandai['updated_at'] = now();
+        DB::table('dokumen_pegawai')->where('id', $id)->update($tandai);
+
+        return DB::table('dokumen_pegawai')->find($id);
     }
 
     /** Simpan berkas memakai template nama; kembalikan path relatif storage. */

@@ -12,7 +12,7 @@ class DokumenLembaga extends Model
 
     protected $guarded = ['id'];
 
-    protected $casts = ['status_verifikasi' => 'string'];
+    protected $casts = ['status_verifikasi' => 'string', 'tersinkron_pada' => 'datetime'];
 
     public function lembaga(): BelongsTo
     {

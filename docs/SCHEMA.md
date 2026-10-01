@@ -600,7 +600,9 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 - `lembaga`: FK → lembaga [null] — konteks pemakaian (foto MI dipakai di MI); kunci rangkap (santri, jenis, lembaga)
 - `is_active`: boolean [default true] — satu aktif per kunci (dokumen terakhir)
 - `nama_file`: string [null] — nama template berkas (tampil/unduh)
-- `penyimpanan`: string(10) [default 'server'] — lokasi byte: server|lokal|test
+- `penyimpanan`: string(10) [default 'server'] — lokasi byte: server|lokal|test|cermin
+- `sinkron_hash`: string(64) [null] — hash isi terakhir yang sama di kedua sisi
+- `tersinkron_pada`: timestamp [null] — waktu penyamaan terakhir
 - `catatan`: text [null]
 - `created_at`, `updated_at`
 - INDEX(`santri_id`, `jenis_dokumen_santri`)
@@ -612,7 +614,9 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 - `jenjang`: FK → lembaga [cascade]
 - `jenis_dokumen`: string [null] — bebas teks (mis. Izin Operasional, Akreditasi)
 - `nama_file`: string [null] — nama template berkas (tampil/unduh)
-- `penyimpanan`: string(10) [default 'server'] — lokasi byte: server|lokal|test
+- `penyimpanan`: string(10) [default 'server'] — lokasi byte: server|lokal|test|cermin
+- `sinkron_hash`: string(64) [null] — hash isi terakhir yang sama di kedua sisi
+- `tersinkron_pada`: timestamp [null] — waktu penyamaan terakhir
 - `status_verifikasi`: enum(menunggu|valid|ditolak) [default 'menunggu']
 - `catatan`: text [null]
 - `created_at`, `updated_at`
@@ -758,7 +762,9 @@ Standar tampilan per lembaga (tema/tipografi/grid/preset aktif), disebar super_a
 - `pegawai_id`: FK → pegawai [cascade]
 - `jenis_dokumen_pegawai`: string [null] — ref_jenis_dokumen_pegawai
 - `nama_file`: string [null] — nama template berkas (tampil/unduh)
-- `penyimpanan`: string(10) [default 'server'] — lokasi byte: server|lokal|test
+- `penyimpanan`: string(10) [default 'server'] — lokasi byte: server|lokal|test|cermin
+- `sinkron_hash`: string(64) [null] — hash isi terakhir yang sama di kedua sisi
+- `tersinkron_pada`: timestamp [null] — waktu penyamaan terakhir
 - `status_verifikasi`: enum(menunggu|valid|ditolak) [default 'menunggu']
 - `catatan`: text [null]
 - `created_at`, `updated_at`

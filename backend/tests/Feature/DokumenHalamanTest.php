@@ -657,4 +657,121 @@ class DokumenHalamanTest extends TestCase
         $id = DokumenLembaga::first()->id;
         $this->actingAs($lain, 'sanctum')->deleteJson("/api/admin/dokumen/lembaga/{$id}")->assertStatus(403);
     }
+
+    public function test_status_berkas_batch_ada_dan_hilang(): void
+    {
+        $f = $this->fixture();
+        $auth = $this->superAdmin();
+        Storage::disk('local')->put('dokumen/santri/ada.pdf', 'isi-ada');
+
+        $res = $this->actingAs($auth, 'sanctum')
+            ->getJson('/api/admin/dokumen/santri/status-berkas?nama[]=ada.pdf&nama[]=hilang.pdf')
+            ->assertOk()->json('data');
+        $this->assertTrue($res['ada.pdf']['ada']);
+        $this->assertSame(7, $res['ada.pdf']['ukuran']);
+        $this->assertSame(md5('isi-ada'), $res['ada.pdf']['md5']);
+        $this->assertSame(hash('sha256', 'isi-ada'), $res['ada.pdf']['sha256']);
+        $this->assertIsInt($res['ada.pdf']['mtime']);
+        $this->assertFalse($res['hilang.pdf']['ada']);
+
+        // Lebih dari 100 nama ditolak.
+        $banyak = implode('&', array_map(fn ($i) => "nama[]=f{$i}.pdf", range(1, 101)));
+        $this->actingAs($auth, 'sanctum')
+            ->getJson("/api/admin/dokumen/santri/status-berkas?{$banyak}")
+            ->assertStatus(422);
+    }
+
+    public function test_sinkron_unggah_tanpa_ganti_nama(): void
+    {
+        $f = $this->fixture();
+        $auth = $this->superAdmin();
+        $dok = DokumenSantri::create([
+            'santri_id' => $f['santri']->id,
+            'jenis_dokumen_santri' => 'Kartu Keluarga',
+            'nama_file' => 'ahmad_kartu_keluarga.pdf',
+            'penyimpanan' => 'lokal',
+        ]);
+
+        $this->actingAs($auth, 'sanctum')->post("/api/admin/dokumen/santri/{$dok->id}/sinkron-unggah", [
+            'file' => UploadedFile::fake()->createWithContent('ahmad_kartu_keluarga.pdf', 'isi-lokal', 'application/pdf'),
+            'hash' => md5('isi-lokal'),
+            'mtime' => time(),
+        ], ['Accept' => 'application/json'])->assertOk();
+
+        $segar = $dok->fresh();
+        $this->assertSame('ahmad_kartu_keluarga.pdf', $segar->nama_file);
+        $this->assertSame('cermin', $segar->penyimpanan);
+        $this->assertSame(md5('isi-lokal'), $segar->sinkron_hash);
+        $this->assertNotNull($segar->tersinkron_pada);
+        $this->assertSame('isi-lokal', Storage::disk('local')->get('dokumen/santri/ahmad_kartu_keluarga.pdf'));
+    }
+
+    public function test_sinkron_unggah_hash_beda_ditolak_dan_dibersihkan(): void
+    {
+        $f = $this->fixture();
+        $auth = $this->superAdmin();
+        $dok = DokumenSantri::create([
+            'santri_id' => $f['santri']->id,
+            'jenis_dokumen_santri' => 'Kartu Keluarga',
+            'nama_file' => 'rusak.pdf',
+            'penyimpanan' => 'lokal',
+        ]);
+
+        $this->actingAs($auth, 'sanctum')->post("/api/admin/dokumen/santri/{$dok->id}/sinkron-unggah", [
+            'file' => UploadedFile::fake()->createWithContent('rusak.pdf', 'isi-asli', 'application/pdf'),
+            'hash' => md5('isi-lain'),
+            'mtime' => time(),
+        ], ['Accept' => 'application/json'])->assertStatus(422);
+
+        $this->assertFalse(Storage::disk('local')->exists('dokumen/santri/rusak.pdf'));
+        $this->assertSame('lokal', $dok->fresh()->penyimpanan);
+    }
+
+    public function test_tandai_sinkron_mencatat_cermin(): void
+    {
+        $f = $this->fixture();
+        $auth = $this->superAdmin();
+        $dok = DokumenSantri::create([
+            'santri_id' => $f['santri']->id,
+            'jenis_dokumen_santri' => 'Akta Kelahiran',
+            'nama_file' => 'akta.pdf',
+            'penyimpanan' => 'server',
+        ]);
+        Storage::disk('local')->put('dokumen/santri/akta.pdf', 'isi-server');
+
+        $this->actingAs($auth, 'sanctum')->patchJson(
+            "/api/admin/dokumen/santri/{$dok->id}/tandai-sinkron",
+            ['hash' => md5('isi-server')]
+        )->assertOk();
+
+        $segar = $dok->fresh();
+        $this->assertSame('cermin', $segar->penyimpanan);
+        $this->assertSame(md5('isi-server'), $segar->sinkron_hash);
+        $this->assertNotNull($segar->tersinkron_pada);
+    }
+
+    public function test_unduh_dan_rename_baris_cermin(): void
+    {
+        $f = $this->fixture();
+        $auth = $this->superAdmin();
+        $dok = DokumenSantri::create([
+            'santri_id' => $f['santri']->id,
+            'jenis_dokumen_santri' => 'Kartu Keluarga',
+            'nama_file' => 'lama.pdf',
+            'penyimpanan' => 'cermin',
+        ]);
+        Storage::disk('local')->put('dokumen/santri/lama.pdf', 'isi');
+
+        // Unduh baris cermin = berkas server.
+        $this->actingAs($auth, 'sanctum')->get("/api/admin/dokumen/santri/{$dok->id}/unduh")->assertOk();
+
+        // Rename template memindah sisi server + mengembalikan nama baru.
+        $res = $this->actingAs($auth, 'sanctum')->patchJson("/api/admin/dokumen/santri/{$dok->id}", [
+            'jenis_dokumen' => 'Akta Kelahiran',
+            'selaraskan_nama' => true,
+        ])->assertOk()->json('data');
+        $this->assertStringStartsWith('ahmad_santri_akta_kelahiran_', $res['nama_file']);
+        $this->assertFalse(Storage::disk('local')->exists('dokumen/santri/lama.pdf'));
+        $this->assertTrue(Storage::disk('local')->exists('dokumen/santri/'.$res['nama_file']));
+    }
 }

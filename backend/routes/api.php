@@ -239,6 +239,9 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::post('dokumen/{tipe}/{id}/unggah', [DokumenController::class, 'unggah'])->middleware('permission:dokumen_santri.ubah');
         Route::delete('dokumen/{tipe}/{id}', [DokumenController::class, 'destroy'])->middleware('permission:dokumen_santri.hapus');
         Route::get('dokumen/{tipe}/{id}/unduh', [DokumenController::class, 'unduh'])->middleware('permission:dokumen_santri.lihat');
+        Route::get('dokumen/{tipe}/status-berkas', [DokumenController::class, 'statusBerkas'])->middleware('permission:dokumen_santri.lihat');
+        Route::post('dokumen/{tipe}/{id}/sinkron-unggah', [DokumenController::class, 'sinkronUnggah'])->middleware('permission:dokumen_santri.ubah');
+        Route::match(['put', 'patch'], 'dokumen/{tipe}/{id}/tandai-sinkron', [DokumenController::class, 'tandaiSinkron'])->middleware('permission:dokumen_santri.ubah');
         Route::get('dokumen/{tipe}/import-template', [DokumenController::class, 'templateImport'])->middleware('permission:dokumen_santri.lihat');
         Route::get('dokumen/{tipe}/data-existing', [DokumenController::class, 'dataExisting'])->middleware('permission:dokumen_santri.lihat');
         Route::post('dokumen/{tipe}/import-potong', [DokumenController::class, 'potongImport'])->middleware(['permission:dokumen_santri.tambah', 'throttle:imports']);
