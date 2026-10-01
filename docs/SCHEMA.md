@@ -583,14 +583,13 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 - `santri_id`: FK → santri [null, cascade]
 - `psb_calon_santri_id`: FK → psb_calon_santri [null, cascade]
 - `jenis_dokumen_santri`: string [null] — ref_jenis_dokumen_santri
-- `path_file`: string [null] — null = baris checklist (belum ada file)
-- `status_verifikasi`: enum(menunggu|valid|ditolak) [default 'menunggu']
-- `tidak_memiliki`: bool [default false] — centang "tidak memiliki dokumen" (penekanan; tidak menahan proses)
+- `nama_file`: string [null] — nama template berkas (tampil/unduh)
+- `penyimpanan`: string(10) [default 'server'] — lokasi byte: server|lokal|test
 - `catatan`: text [null]
 - `created_at`, `updated_at`
 - INDEX(`santri_id`, `jenis_dokumen_santri`)
 - INDEX(`psb_calon_santri_id`, `jenis_dokumen_santri`)
-- Alur: file calon PINDAH ke santri saat ACC; baris checklist (path null) dibuat otomatis dari ketentuan kegiatan × lembaga (wajib & opsional)
+- Alur: file calon PINDAH ke santri saat ACC; baris checklist (nama_file null) dibuat otomatis dari ketentuan kegiatan × lembaga (wajib & opsional)
 
 ### `dokumen_wajib_lembaga`
 - `id` PK
@@ -697,8 +696,8 @@ Standar tampilan per lembaga (tema/tipografi/grid/preset aktif), disebar super_a
 - `id` PK
 - `pegawai_id`: FK → pegawai [cascade]
 - `jenis_dokumen_pegawai`: string [null] — ref_jenis_dokumen_pegawai
-- `nama_file`: string [null] — label asli file (tetap dipertahankan)
-- `path_file`: string [null]
+- `nama_file`: string [null] — nama template berkas (tampil/unduh)
+- `penyimpanan`: string(10) [default 'server'] — lokasi byte: server|lokal|test
 - `status_verifikasi`: enum(menunggu|valid|ditolak) [default 'menunggu']
 - `catatan`: text [null]
 - `created_at`, `updated_at`

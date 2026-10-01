@@ -79,8 +79,8 @@ class DokumenImport implements SkipsOnFailure, SkipsUnknownSheets, ToCollection,
             'nama_lengkap' => ['sometimes', 'nullable'],
             'jenjang' => ['required', 'string'],
             'jenis_dokumen' => ['required', 'string', 'max:100'],
+            // Hanya dipakai tipe pegawai/lembaga; tabel santri tanpa kolom status.
             'status_verifikasi' => ['nullable'],
-            'tidak_memiliki' => ['nullable'],
             'catatan' => ['nullable', 'string'],
         ];
     }

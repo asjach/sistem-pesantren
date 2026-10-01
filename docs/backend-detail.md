@@ -173,8 +173,7 @@ semua fase kecuali fase diterima/`daftar_ulang` (santri sudah dibuat).
 `butuh_pemberkasan` hanya penanda
 lengkapi berkas. Ketentuan dokumen
 per kegiatan PSB × lembaga (`dokumen_wajib_lembaga`) bersifat penekanan — tidak menahan
-daftar ulang; saat ACC baris checklist dibuat di `dokumen_santri` (boleh ditandai
-"tidak memiliki"). Aturan pendaftaran: santri baru wajib tingkat entry
+daftar ulang; saat ACC baris checklist dibuat di `dokumen_santri`. Aturan pendaftaran: santri baru wajib tingkat entry
 (MI/MD = 1, MTS = 7, MLN = 10), pindahan dari daftar tingkat yang diizinkan;
 eksklusif (non-combo) tak boleh daftar ganda aktif, combo MI/MD maks 2
 pendaftaran aktif; `no_pendaftaran` unik global (gagal 1062 generate ulang,
@@ -378,8 +377,8 @@ setujui NIK didedup `nik+nama+tgl_lahir` kecualikan diri sendiri; batal hanya
 oleh pemilik saat masih `diajukan`. Status: ✅ live (terpisah dari portal 203 🟡).
 
 **Dokumen wajib.** Ketentuan dokumen per kegiatan PSB × lembaga; bersifat
-penekanan — tidak menahan daftar ulang; saat ACC baris checklist dibuat
-(boleh ditandai "tidak memiliki"). Jenis dokumen harus aktif di kamus lembaga;
+penekanan — tidak menahan daftar ulang; saat ACC baris checklist dibuat.
+Jenis dokumen harus aktif di kamus lembaga;
 berkas calon/santri `mimes:jpg,jpeg,png,pdf` maks 5.120 KB. Status: ✅ live.
 
 **Tahun ajaran (perilaku).** Selalu milik lembaga operasional (root ditolak di
