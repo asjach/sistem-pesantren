@@ -6,7 +6,7 @@
  *  aman-gagal: file asli tidak pernah dihapus sebelum salinan terverifikasi.
  *  Di browser biasa modul ini tidak dipakai (penjagaan `isTauri()` di halaman).
  */
-import { isTauri } from '@/api/client';
+import { isTauri, prefGet } from '@/api/client';
 
 /** Nama folder tujuan file asli di lokasi sumbernya. */
 export const FOLDER_SUDAH = 'sudah';
@@ -156,6 +156,36 @@ export async function cariArsip(namaFile: string, jenis: string, akar: string, t
   return null;
 }
 
+/** Tulis balik hasil edit viewer ke arsip perangkat (lokasi DB tak berubah).
+ *  Menimpa di folder tempat berkas ditemukan (tata tipe/baru didahulukan);
+ *  bila nama berubah (ganti format), salinan lama dibersihkan. */
+export async function tulisBalikArsip(namaLama: string, namaBaru: string, jenis: string, data: Uint8Array, tipe: TipeArsip): Promise<void> {
+  const { mkdir, writeFile } = await import('@tauri-apps/plugin-fs');
+  const { join } = await import('@tauri-apps/api/path');
+  const [a, b] = await Promise.all([
+    prefGet(PREF_FOLDER_ARSIP).catch(() => null),
+    prefGet(PREF_FOLDER_ARSIP_TEST).catch(() => null),
+  ]);
+  const akars = await Promise.all([
+    akarArsip(typeof a === 'string' ? a : '', ROOT_ARSIP_DOKUMEN),
+    akarArsip(typeof b === 'string' ? b : '', ROOT_ARSIP_TEST),
+  ]);
+  let folder: string | null = null;
+  for (const akar of akars) {
+    const ketemu = await cariArsip(namaLama, jenis, akar, tipe);
+    if (ketemu) {
+      const { dirname } = await import('@tauri-apps/api/path');
+      folder = await dirname(ketemu);
+      break;
+    }
+  }
+  folder ??= await join(akars[0], tipe);
+  await mkdir(folder, { recursive: true });
+  await writeFile(await join(folder, namaBaru), data);
+  if (namaBaru !== namaLama) {
+    for (const akar of akars) await hapusArsip(namaLama, jenis, akar, tipe);
+  }
+}
 /** Hapus salinan arsip di semua tata (tipe + lama); diam bila tak ada. */
 export async function hapusArsip(namaFile: string, jenis: string, akar: string, tipe: TipeArsip): Promise<void> {
   const { exists, remove } = await import('@tauri-apps/plugin-fs');

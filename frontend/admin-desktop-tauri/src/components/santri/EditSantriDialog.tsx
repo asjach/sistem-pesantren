@@ -3,7 +3,7 @@ import { ambilBerkas, errorMessage, isTauri, prefGet } from '@/api/client';
 import { bisa } from '@/api/auth';
 import { useAuth } from '@/auth/AuthContext';
 import { updateSantri, type SantriPenuh } from '@/api/santri';
-import { listDokumen, unggahBerkasDokumen, type DokumenRow } from '@/api/dokumen';
+import { listDokumen, ubahDokumen, unggahBerkasDokumen, type DokumenRow } from '@/api/dokumen';
 import { gantiEkstensi, type HasilGambar } from '@/lib/olahGambar';
 import { Button } from '@/components/ui/button';
 import { FieldLabel } from '@/components/ui/field';
@@ -242,14 +242,27 @@ export function EditSantriDialog({ santri, daftar = [], onGanti, open, onOpenCha
     }
   }
 
-  /** Simpan hasil edit viewer sebagai ganti berkas tersimpan. */
+  /** Simpan hasil edit viewer: arsip perangkat ditulis balik di tempat
+   *  (lokasi tak berubah); server diunggah seperti Ganti. */
   async function onSimpanEdit() {
     if (!dokAktif || !keluaran || !pratinjau || !santri) return;
-    setBusy(true);
+    const lokasi = dokAktif.penyimpanan ?? 'server';
     const namaLama = dokAktif.nama_file;
     const jenisLama = dokAktif.jenis_dokumen;
     const idLama = dokAktif.id;
+    setBusy(true);
     try {
+      if (lokasi !== 'server' && isTauri() && namaLama) {
+        const namaBaru = gantiEkstensi(pratinjau.nama, keluaran.ext);
+        const { tulisBalikArsip } = await import('@/lib/arsipDokumen');
+        await tulisBalikArsip(namaLama, namaBaru, jenisLama, keluaran.bytes, 'santri');
+        if (namaBaru !== namaLama) {
+          await ubahDokumen('santri', idLama, { nama_file: namaBaru });
+        }
+        toast.success('Berkas diganti.');
+        await segarkanDokumen(santri.id, idLama);
+        return;
+      }
       const file = new File(
         [keluaran.bytes.buffer as ArrayBuffer],
         gantiEkstensi(pratinjau.nama, keluaran.ext),

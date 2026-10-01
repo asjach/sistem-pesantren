@@ -589,16 +589,41 @@ export default function LihatDokumenSantriPage() {
   const dokPratinjau = useMemo(() => dokumens.find((d) => d.id === dokId) ?? null, [dokumens, dokId]);
   const bisaUbahViewer = canUbah && dokPratinjau !== null && !perluDesktop(dokPratinjau);
 
-  /** Simpan hasil edit viewer sebagai ganti berkas tersimpan. */
+  /** Simpan hasil edit viewer: arsip perangkat ditulis balik di tempat
+   *  (lokasi tak berubah); server diunggah seperti Ganti. */
   const onSimpanEdit = useCallback(async () => {
     if (!dokPratinjau || !keluaran || !pratinjau) return;
+    const lokasi = dokPratinjau.penyimpanan ?? 'server';
+    if (lokasi !== 'server' && isTauri() && dokPratinjau.nama_file) {
+      setBusy(true);
+      try {
+        const namaBaru = gantiEkstensi(pratinjau.nama, keluaran.ext);
+        const { tulisBalikArsip } = await import('@/lib/arsipDokumen');
+        await tulisBalikArsip(dokPratinjau.nama_file, namaBaru, dokPratinjau.jenis_dokumen, keluaran.bytes, 'santri');
+        if (namaBaru !== dokPratinjau.nama_file) {
+          await ubahDokumen('santri', dokPratinjau.id, { nama_file: namaBaru });
+        }
+        toast.success('Berkas diganti.');
+        if (santriId != null) {
+          await muatDokumen(santriId);
+          const p = await listDokumen('santri', { santri_id: santriId, per_page: 0 });
+          const baru = p.data.find((d) => d.id === dokPratinjau.id);
+          if (baru) void muatPratinjau(baru);
+        }
+      } catch (e) {
+        toast.error(errorMessage(e));
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
     const file = new File(
       [keluaran.bytes.buffer as ArrayBuffer],
       gantiEkstensi(pratinjau.nama, keluaran.ext),
       { type: keluaran.mime },
     );
     await terapkanGanti(dokPratinjau, file);
-  }, [dokPratinjau, keluaran, pratinjau, terapkanGanti]);
+  }, [dokPratinjau, keluaran, pratinjau, terapkanGanti, santriId, muatDokumen, muatPratinjau]);
 
   /** Mode filter: urut jenjang → tingkat → kelas → nama → jk. */
   const infoUrutSantri = useMemo(() => {

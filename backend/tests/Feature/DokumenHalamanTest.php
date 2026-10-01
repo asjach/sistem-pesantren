@@ -612,6 +612,29 @@ class DokumenHalamanTest extends TestCase
         $this->assertFalse((bool) DokumenSantri::find($lama->id)->is_active);
     }
 
+    public function test_ubah_nama_file_hanya_basename_dan_ditolak_untuk_pegawai(): void
+    {
+        $f = $this->fixture();
+        $auth = $this->superAdmin();
+
+        $dok = DokumenSantri::create([
+            'santri_id' => $f['santri']->id, 'jenis_dokumen_santri' => 'Pas Foto', 'nama_file' => 'lama.jpg',
+        ]);
+
+        $this->actingAs($auth, 'sanctum')->patchJson("/api/admin/dokumen/santri/{$dok->id}", [
+            'nama_file' => '../jahat.png',
+        ])->assertOk();
+        $this->assertSame('jahat.png', DokumenSantri::find($dok->id)->nama_file);
+
+        $guru = DB::table('dokumen_pegawai')->insertGetId([
+            'pegawai_id' => $f['guru']->id, 'jenis_dokumen_pegawai' => 'Ijazah S1',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $this->actingAs($auth, 'sanctum')->patchJson("/api/admin/dokumen/pegawai/{$guru}", [
+            'nama_file' => 'x.jpg',
+        ])->assertStatus(422);
+    }
+
     public function test_izin_dokumen_lembaga_tidak_diakses_admin_lain(): void
     {
         $f = $this->fixture();
