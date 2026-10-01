@@ -46,7 +46,7 @@ class DokumenTemplateExport extends DefaultValueBinder implements FromArray, Wit
     public static function kolomWajib(string $tipe): array
     {
         return match ($tipe) {
-            'santri' => ['nis_lokal', 'jenjang', 'jenis_dokumen'],
+            'santri' => ['nis_lokal', 'jenjang', 'jenis_dokumen', 'nama_file', 'penyimpanan'],
             'pegawai' => ['jenjang', 'jenis_dokumen'],
             'lembaga' => ['jenjang', 'jenis_dokumen'],
             default => [],

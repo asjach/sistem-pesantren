@@ -16,13 +16,13 @@ const LABEL_TIPE: Record<TipeDokumen, string> = {
 };
 
 const WAJIB: Record<TipeDokumen, string[]> = {
-  santri: ['nis_lokal', 'jenjang', 'jenis_dokumen'],
+  santri: ['nis_lokal', 'jenjang', 'jenis_dokumen', 'nama_file', 'penyimpanan'],
   pegawai: ['jenjang', 'jenis_dokumen'],
   lembaga: ['jenjang', 'jenis_dokumen'],
 };
 
 const DESKRIPSI: Record<TipeDokumen, string> = {
-  santri: 'Kolom wajib: nis_lokal + jenjang + jenis_dokumen; opsional: nama_file, penyimpanan (Server/Lokal/Test). Yang diimport adalah data dokumen (bukan berkas fisik); baris cocok diperbarui hanya kolom terisi.',
+  santri: 'Kolom wajib: nis_lokal + jenjang + jenis_dokumen + nama_file + penyimpanan (Server/Lokal/Test). Yang diimport adalah data dokumen (bukan berkas fisik); baris cocok diperbarui hanya kolom terisi.',
   pegawai: 'Kolom wajib: jenjang + jenis_dokumen, plus identitas pegawai (pegawai_id / NIPP / nama unik). Yang diimport adalah data dokumen (bukan berkas fisik).',
   lembaga: 'Kolom wajib: jenjang + jenis_dokumen. Yang diimport adalah data dokumen (bukan berkas fisik); baris cocok diperbarui hanya kolom terisi.',
 };

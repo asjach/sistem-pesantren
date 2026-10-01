@@ -394,7 +394,7 @@ class DokumenHalamanTest extends TestCase
             'total' => 2,
             'terakhir' => true,
             'baris' => [
-                ['nis_lokal' => '26001', 'jenjang' => 'MI', 'jenis_dokumen' => 'Akta Kelahiran'],
+                ['nis_lokal' => '26001', 'jenjang' => 'MI', 'jenis_dokumen' => 'Akta Kelahiran', 'nama_file' => 'akta.jpg', 'penyimpanan' => 'Server'],
                 ['nis_lokal' => '99999', 'jenjang' => 'MI', 'jenis_dokumen' => 'Tidak Ada'],
             ],
         ])->assertOk();
@@ -487,15 +487,17 @@ class DokumenHalamanTest extends TestCase
 
         $res = $this->actingAs($auth, 'sanctum')->postJson('/api/admin/dokumen/santri/import-potong', [
             'mode' => 'eksekusi',
-            'total' => 2,
+            'total' => 4,
             'terakhir' => true,
             'baris' => [
                 ['nis_lokal' => '26001', 'jenjang' => 'MI', 'jenis_dokumen' => 'Kartu Keluarga', 'nama_file' => 'kk.jpg', 'penyimpanan' => 'Lokal'],
                 ['nis_lokal' => '26001', 'jenjang' => 'MI', 'jenis_dokumen' => 'Akta Kelahiran', 'penyimpanan' => 'Awan'],
+                ['nis_lokal' => '26001', 'jenjang' => 'MI', 'jenis_dokumen' => 'Ijazah', 'penyimpanan' => 'Server'],
+                ['nis_lokal' => '26001', 'jenjang' => 'MI', 'jenis_dokumen' => 'Rapor', 'nama_file' => 'rapor.jpg'],
             ],
         ])->assertOk();
         $this->assertSame(1, $res->json('ringkasan.dibuat'));
-        $this->assertSame(1, $res->json('ringkasan.baris_gagal'));
+        $this->assertSame(3, $res->json('ringkasan.baris_gagal'));
 
         $kk = DokumenSantri::where('jenis_dokumen_santri', 'Kartu Keluarga')->firstOrFail();
         $this->assertSame('kk.jpg', $kk->nama_file);

@@ -112,10 +112,15 @@ class DokumenImporService extends ImporPotongan
         }
 
         $namaFile = trim((string) ($baris['nama_file'] ?? ''));
-        $namaFile = $namaFile !== '' ? basename($namaFile) : null;
+        if ($namaFile === '') {
+            $this->fail($no, 'nama_file', 'Nama berkas wajib diisi.');
+
+            return;
+        }
+        $namaFile = basename($namaFile);
         $simpan = $this->normalisasiPenyimpanan($baris['penyimpanan'] ?? null);
-        if ($simpan === false) {
-            $this->fail($no, 'penyimpanan', "Lokasi '{$baris['penyimpanan']}' tidak dikenal (isi Server/Lokal/Test).");
+        if ($simpan === false || $simpan === null) {
+            $this->fail($no, 'penyimpanan', "Lokasi wajib diisi Server/Lokal/Test (terima '".trim((string) ($baris['penyimpanan'] ?? ''))."').");
 
             return;
         }
@@ -135,27 +140,17 @@ class DokumenImporService extends ImporPotongan
                     'santri_id' => $santri->id,
                     'jenis_dokumen_santri' => $jenis,
                     'nama_file' => $namaFile,
-                    'penyimpanan' => $simpan ?? 'server',
+                    'penyimpanan' => $simpan,
                     'catatan' => $catatan,
                 ]);
                 $this->dibuat++;
             } else {
-                $ubah = [];
-                if ($namaFile !== null) {
-                    $ubah['nama_file'] = $namaFile;
-                }
-                if ($simpan !== null) {
-                    $ubah['penyimpanan'] = $simpan;
-                }
+                $ubah = ['nama_file' => $namaFile, 'penyimpanan' => $simpan];
                 if ($catatan !== null) {
                     $ubah['catatan'] = $catatan;
                 }
-                if ($ubah !== []) {
-                    $lama->update($ubah);
-                    $this->diperbarui++;
-                } else {
-                    $this->dilewati++;
-                }
+                $lama->update($ubah);
+                $this->diperbarui++;
             }
         });
 
