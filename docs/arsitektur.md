@@ -149,12 +149,12 @@ Service Layer + Policy + transaction; notifikasi DB agregat.
 | ID | Modul (kode + nama) | Tabel inti | Status |
 |---|---|---|---|
 | FR-003 | 003 Auth Login | `users`, `user_lembaga`, `user_asrama`, `login_audits`, `permissions`, `role_has_permissions` | Detail |
-| FR-004 | 004 Referensi-Master | `lembaga`, `tahun_ajaran`, `kelas`, 34 `ref_*` | Detail |
-| FR-100 | 100 PSB Penerimaan | `psb_*`, `dokumen_santri` | Detail |
-| FR-101 | 101 Santri Master | `santri` | Detail |
+| FR-004 | 004 Referensi-Master | `lembaga`, `tahun_ajaran`, `lembaga_tahun_ajaran`, `semester_aktif`, `kelas`, 34 `ref_*` | Detail |
+| FR-100 | 100 PSB Penerimaan | `psb_*`, `dokumen_santri`, `dokumen_lembaga` | Detail |
+| FR-101 | 101 Santri Master | `santri`, `lembaga_santri` | Detail |
 | FR-102 | 102 Siklus Santri | `riwayat_belajar`, `mutasi_keluar`, `alumni` | Detail |
 | FR-203 | 203 Portal Wali subset | `wali_*`, `pengajuan_biodata_santri` | Detail G3 |
-| FR-200, FR-201, FR-202 | 200 Pegawai, 201 Kurikulum-Mapel, 202 Nilai-Rapor | Lihat arsip | Persiapan |
+| FR-200, FR-201, FR-202 | 200 Pegawai, 201 Kurikulum-Mapel, 202 Nilai-Rapor | `pegawai`, `lembaga_pegawai`, `keaktifan_pegawai`, `dokumen_pegawai`, `pegawai_pendidikan`, `pegawai_sertifikasi`, `keluarga_pegawai`, `presensi_pegawai`, `pengaturan_hari_lembaga`, `kurikulum*`, `nilai_santri` | Persiapan |
 | FR-505 | 505 Asrama | `asrama`, `asrama_kamar`, `asrama_penghuni`, `asrama_izin_pulang`, `asrama_kegiatan`, `user_asrama` | Gambaran umum (**pasca production**) |
 
 ### 5.3 Alur Data Utama (G0–G3)
@@ -174,16 +174,16 @@ Service Layer + Policy + transaction; notifikasi DB agregat.
 
 | ID | Modul (kode + nama) | Tabel inti | Relasi kunci |
 |---|---|---|---|
-| 6.1 | 003 Auth Login, 004 Referensi-Master | `lembaga`, 34 `ref_*`, `users`, `user_lembaga`, `tahun_ajaran`, `pegawai`, `kelas` | `tahun_ajaran` global (kunci `nama`, mis. '2025/2026'); visibilitas per lembaga via pivot `lembaga_tahun_ajaran`; `lembaga 1—N kelas`; `kelas.walas_id` inline; ref global + shadow lembaga |
-| 6.2 | 101 Santri Master, 102 Siklus Santri | `santri`, `riwayat_belajar`, `mutasi_keluar`, `alumni` | `santri 1—N riwayat_belajar`; `riwayat N—1 kelas`; `id` stabil, NIK index tanpa unique; santri tanpa kolom lembaga (lembaga dari riwayat/keanggotaan), `is_active_pst` turunan |
-| 6.3 | 100 PSB Penerimaan | `psb_*`, `dokumen_santri` | `calon` ke `santri` saat ACC; dokumen pindah ke santri |
+| 6.1 | 003 Auth Login, 004 Referensi-Master | `lembaga`, 34 `ref_*`, `users`, `user_lembaga`, `tahun_ajaran`, `lembaga_tahun_ajaran`, `semester_aktif`, `pegawai`, `kelas` | `tahun_ajaran` global (kunci `nama`, mis. '2025/2026'); visibilitas per lembaga via pivot `lembaga_tahun_ajaran`; semester berjalan per lembaga di `semester_aktif`; `lembaga 1—N kelas`; `kelas.walas_id` inline; ref global + shadow lembaga |
+| 6.2 | 101 Santri Master, 102 Siklus Santri | `santri`, `lembaga_santri`, `riwayat_belajar`, `mutasi_keluar`, `alumni` | `santri 1—N riwayat_belajar`; `santri 1—N lembaga_santri`; `riwayat N—1 kelas`; `id` stabil, NIK index tanpa unique; santri tanpa kolom lembaga (lembaga dari riwayat/keanggotaan), `is_active_pst` turunan |
+| 6.3 | 100 PSB Penerimaan | `psb_*`, `dokumen_santri`, `dokumen_lembaga` | `calon` ke `santri` saat ACC; dokumen pindah ke santri |
 | 6.5 | 200 Pegawai, 201 Kurikulum-Mapel, 202 Nilai-Rapor, 203 Portal Wali | `kurikulum_mapel` pivot, `wali_*`, `pengajuan_biodata_santri` | `kurikulum N—M mapel` via `kurikulum_mapel`; wali via `wali_santri_relasi` |
 | 6.6 | 505 Asrama (gambaran umum — **pasca production**) | `asrama`, `asrama_kamar`, `asrama_penghuni`, `asrama_izin_pulang`, `asrama_kegiatan`, `user_asrama` | `asrama 1—N kamar/penghuni/izin/kegiatan`; `santri 1—N penghuni`; pengurus via `user_asrama` (asrama bukan `lembaga`) |
 
 Contoh kamus ringkas:
 
-**`santri`:** `id INT PK`; `nik VARCHAR(16) INDEX nullable` (fiktif boleh, dedup service); `nis VARCHAR(20) nullable` (maks 20 karakter); `is_active_pst ENUM('Ya','Tidak') DEFAULT 'Tidak'` (turunan: punya ≥1 riwayat aktif); `kepala_keluarga VARCHAR NULL`; `kelas_id INT FK NULL`.
-**`riwayat_belajar`:** `status_awal VARCHAR`; `status_akhir VARCHAR`; `is_active_riwayat ENUM('Ya','Tidak')` (tulis via service); `semester CHAR(1)`.
+**`santri`:** `id INT PK`; `nik VARCHAR(20) INDEX nullable` (fiktif boleh; digit bukan 16 tersimpan berawalan `X-`; dedup service); `nisn VARCHAR(10) nullable`; `is_active_pst ENUM('Ya','Tidak') DEFAULT 'Tidak'` (turunan: punya ≥1 riwayat aktif); `kepala_keluarga VARCHAR NULL`. Identitas murni — TANPA `kelas_id`/`lembaga_id` (lembaga & kelas lewat `lembaga_santri`/`riwayat_belajar`).
+**`riwayat_belajar`:** `status_awal VARCHAR`; `status_akhir VARCHAR`; `is_active_riwayat ENUM('Ya','Tidak')` (tulis via service); `semester VARCHAR(2) DEFAULT '1'`.
 **`asrama`:** `id INT PK`; `jenis_kelamin ENUM(L,P)`; `user_asrama(user_id, asrama_id)`; tidak memakai `riwayat_belajar`.
 
 ---
@@ -246,10 +246,12 @@ Migration per-modul (timestamp bawaan, urutan FK); spec di `docs/SCHEMA.md`. Uru
 
 | ID | Alur (Bab 4) | Modul | Tabel (BLOK) |
 |---|---|---|---|
-| 8.2.1 | PSB | 100 PSB Penerimaan | `psb_gelombang`, `psb_kuota_biaya`, `psb_calon_santri`, `dokumen_santri`, `dokumen_wajib_lembaga`, `psb_log_status` |
-| 8.2.2 | Santri/Siklus | 101 Santri Master, 102 Siklus Santri | `santri`, `riwayat_belajar`, `mutasi_keluar`, `alumni` |
-| 8.2.4 | Akademik/Nilai/Portal | 200, 201, 202, 203 | `kurikulum*`, `pengampu_mapel`, `nilai_santri`, `rapor_catatan_wali`, `wali_*` |
-| 8.2.5 | Asrama (gambaran umum — **pasca production**, belum dibuat) | 505 Asrama | `asrama`, `asrama_kamar`, `asrama_penghuni`, `asrama_izin_pulang`, `asrama_kegiatan`, `user_asrama`; perubahan `santri` (status_global default false — dibahas terpisah) |
+| 8.2.1 | PSB | 100 PSB Penerimaan | `psb_gelombang`, `psb_kuota_biaya`, `psb_calon_santri`, `psb_calon_lembaga`, `dokumen_santri`, `dokumen_lembaga`, `dokumen_wajib_lembaga`, `psb_log_status` |
+| 8.2.2 | Santri/Siklus | 101 Santri Master, 102 Siklus Santri | `santri`, `lembaga_santri`, `riwayat_belajar`, `mutasi_keluar`, `alumni` |
+| 8.2.3 | Kepegawaian | 200 Pegawai | `pegawai`, `lembaga_pegawai`, `keaktifan_pegawai`, `dokumen_pegawai`, `pegawai_pendidikan`, `pegawai_sertifikasi`, `keluarga_pegawai`, `presensi_pegawai`, `pengaturan_hari_lembaga` |
+| 8.2.4 | Akademik/Nilai/Presensi/Portal | 200, 201, 202, 203 | `kurikulum*`, `pengampu_mapel`, `nilai_santri`, `rapor_catatan_wali`, `sesi_presensi`, `presensi_santri`, `pelanggaran_santri`, `target_tahfiz`, `setoran_tahfiz`, `rekap_tahfiz_santri`, `wali_*` |
+| 8.2.5 | Asrama (gambaran umum — **pasca production**, belum dibuat) | 505 Asrama | `asrama`, `asrama_kamar`, `asrama_penghuni`, `asrama_izin_pulang`, `asrama_kegiatan`, `user_asrama`; perubahan `santri` (`is_active_pst` turunan — dibahas terpisah) |
+| 8.2.6 | Lintas modul | Preset/kamus/impor | `preset_tabel`, `preset_tabel_aktif`, `urut_preset`, `toolbar_preset`, `pengaturan_halaman`, `pengaturan_tampilan`, `label_kolom`, `import_sesi`, `notifications` |
 
 ### 8.3 Konvensi Kode
 
