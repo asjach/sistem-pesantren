@@ -51,7 +51,7 @@ class DokumenImporService extends ImporPotongan
     /** @param  array<string, mixed>  $baris */
     protected function prosesBaris(array $baris, int $no, bool $kering): void
     {
-        $jenis = trim((string) ($baris['jenis_dokumen'] ?? ''));
+        $jenis = $this->bersihkanTeks($baris['jenis_dokumen'] ?? '');
         $this->kunciAktif = $jenis !== '' ? $jenis : null;
 
         // Baris kosong/pemisah: tanpa jenis dokumen.
@@ -59,7 +59,7 @@ class DokumenImporService extends ImporPotongan
             return;
         }
 
-        $catatan = trim((string) ($baris['catatan'] ?? ''));
+        $catatan = $this->bersihkanTeks($baris['catatan'] ?? '');
         $catatan = $catatan !== '' ? $catatan : null;
 
         // Santri tanpa kolom jenjang (NIS lokal unik per santri): validasi
@@ -132,7 +132,7 @@ class DokumenImporService extends ImporPotongan
             return;
         }
 
-        $lembaga = mb_strtoupper(trim((string) ($baris['lembaga'] ?? '')));
+        $lembaga = mb_strtoupper($this->bersihkanTeks($baris['lembaga'] ?? ''));
         $lembaga = $lembaga !== '' ? $lembaga : null;
         if ($lembaga !== null && ! Lembaga::whereKey($lembaga)->exists()) {
             $this->fail($no, 'lembaga', 'Lembaga tidak valid (isi jenjang, mis. MI/MD).');
@@ -140,7 +140,7 @@ class DokumenImporService extends ImporPotongan
             return;
         }
 
-        $namaFile = trim((string) ($baris['nama_file'] ?? ''));
+        $namaFile = $this->bersihkanTeks($baris['nama_file'] ?? '');
         if ($namaFile === '') {
             $this->fail($no, 'nama_file', 'Nama berkas wajib diisi.');
 
@@ -382,6 +382,16 @@ class DokumenImporService extends ImporPotongan
         }
 
         return false;
+    }
+
+    /**
+     * Bersihkan teks sel Excel: spasi non-standar (NBSP dari salinan
+     * spreadsheet) menjadi spasi biasa, lalu trim. Tanpa ini nama berkas
+     * berisi NBSP tak cocok dengan nama file asli di arsip.
+     */
+    protected function bersihkanTeks(mixed $nilai): string
+    {
+        return trim(str_replace("\u{00a0}", ' ', (string) ($nilai ?? '')));
     }
 
     /** Lokasi penyimpanan: Server/Lokal/Test (apa pun kapitalnya); kosong = null; selain itu false. */

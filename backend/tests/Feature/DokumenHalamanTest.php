@@ -504,6 +504,25 @@ class DokumenHalamanTest extends TestCase
         $this->assertSame('lokal', $kk->penyimpanan);
     }
 
+    public function test_import_santri_membersihkan_nbsp_dari_excel(): void
+    {
+        $f = $this->fixture();
+        $auth = $this->superAdmin();
+        $nbsp = "\u{00a0}";
+
+        $this->actingAs($auth, 'sanctum')->postJson('/api/admin/dokumen/santri/import-potong', [
+            'mode' => 'eksekusi',
+            'total' => 1,
+            'terakhir' => true,
+            'baris' => [
+                ['nis_lokal' => '26001', 'jenis_dokumen' => 'Kartu Keluarga', 'nama_file' => "kk{$nbsp}(1).jpg", 'penyimpanan' => 'Lokal'],
+            ],
+        ])->assertOk();
+
+        // NBSP menjadi spasi biasa agar cocok dengan nama file asli di arsip.
+        $this->assertSame('kk (1).jpg', DokumenSantri::firstOrFail()->nama_file);
+    }
+
     public function test_import_santri_menolak_nis_ganda(): void
     {
         $f = $this->fixture();
