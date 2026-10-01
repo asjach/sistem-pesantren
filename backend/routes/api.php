@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\Admin\AlumniArsipController;
+use App\Http\Controllers\Api\Admin\DokumenController;
 use App\Http\Controllers\Api\Admin\IzinController;
 use App\Http\Controllers\Api\Admin\KamusLabelController;
 use App\Http\Controllers\Api\Admin\KeaktifanPegawaiController;
@@ -26,7 +27,6 @@ use App\Http\Controllers\Api\Admin\ToolbarPresetController;
 use App\Http\Controllers\Api\Admin\UrutPresetController;
 use App\Http\Controllers\Api\Admin\UserManagementController;
 use App\Http\Controllers\Api\AuthController;
-use App\Http\Controllers\Api\Admin\DokumenController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\KamusController;
 use App\Http\Controllers\Api\PengajuanBiodataController;
@@ -245,6 +245,7 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::delete('dokumen/{tipe}/{id}', [DokumenController::class, 'destroy'])->middleware('permission:dokumen_santri.hapus');
         Route::get('dokumen/{tipe}/{id}/unduh', [DokumenController::class, 'unduh'])->middleware('permission:dokumen_santri.lihat');
         Route::get('dokumen/{tipe}/import-template', [DokumenController::class, 'templateImport'])->middleware('permission:dokumen_santri.lihat');
+        Route::get('dokumen/{tipe}/data-existing', [DokumenController::class, 'dataExisting'])->middleware('permission:dokumen_santri.lihat');
         Route::post('dokumen/{tipe}/import-potong', [DokumenController::class, 'potongImport'])->middleware(['permission:dokumen_santri.tambah', 'throttle:imports']);
         Route::post('dokumen/{tipe}/import-potong/{sesi}/batal', [DokumenController::class, 'batalPotong'])->middleware('permission:dokumen_santri.tambah');
         Route::get('dokumen/{tipe}/import-potong/{sesi}/galat', [DokumenController::class, 'galatPotong'])->middleware('permission:dokumen_santri.lihat');

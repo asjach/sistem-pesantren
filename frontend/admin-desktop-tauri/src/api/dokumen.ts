@@ -101,6 +101,14 @@ export function unduhTemplateDokumen(tipe: TipeDokumen) {
   return downloadFile(`${base(tipe)}/import-template`, `template-import-dokumen-${tipe}.xlsx`);
 }
 
+/** Data dokumen existing (kolom identik template import; santri: nis+jenjang,
+ *  pegawai: id/nipp/nama+jenjang, lembaga: jenjang). Backend hanya mengirim
+ *  JSON — berkas Excel disusun di browser. Tanpa argumen = seluruh lingkup akses. */
+export function dataDokumenExisting(tipe: TipeDokumen, jenjangs?: string[]) {
+  const q = jenjangs?.length ? `?${jenjangs.map((j) => `jenjang[]=${encodeURIComponent(j)}`).join('&')}` : '';
+  return api<DataExistingPayload>(`${base(tipe)}/data-existing${q}`);
+}
+
 export function importDokumenPotong(tipe: TipeDokumen, input: {
   sesi_id?: number;
   mode: 'periksa' | 'eksekusi';

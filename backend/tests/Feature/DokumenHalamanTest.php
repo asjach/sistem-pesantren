@@ -403,6 +403,61 @@ class DokumenHalamanTest extends TestCase
         $this->assertSame(1, DokumenSantri::count());
     }
 
+    public function test_data_existing_dokumen_kolom_identik_template_per_tipe(): void
+    {
+        $f = $this->fixture();
+        $auth = $this->superAdmin();
+
+        DokumenSantri::create([
+            'santri_id' => $f['santri']->id,
+            'jenis_dokumen_santri' => 'Kartu Keluarga',
+            'status_verifikasi' => 'valid',
+            'tidak_memiliki' => false,
+            'catatan' => 'Arsip',
+        ]);
+        DB::table('dokumen_pegawai')->insert([
+            'pegawai_id' => $f['guru']->id,
+            'jenis_dokumen_pegawai' => 'Ijazah S1',
+            'status_verifikasi' => 'menunggu',
+            'catatan' => null,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DokumenLembaga::create([
+            'jenjang' => 'MI',
+            'jenis_dokumen' => 'Akreditasi',
+            'status_verifikasi' => 'ditolak',
+            'catatan' => 'Revisi',
+        ]);
+
+        $santri = $this->actingAs($auth, 'sanctum')->getJson('/api/admin/dokumen/santri/data-existing')->assertOk();
+        $this->assertSame(['nis_lokal', 'jenjang', 'jenis_dokumen', 'status_verifikasi', 'tidak_memiliki', 'catatan'], $santri->json('kolom'));
+        $this->assertSame([['26001', 'MI', 'Kartu Keluarga', 'Valid', 'Tidak', 'Arsip']], $santri->json('baris'));
+
+        $guru = $this->actingAs($auth, 'sanctum')->getJson('/api/admin/dokumen/pegawai/data-existing')->assertOk();
+        $this->assertSame(['pegawai_id', 'nipp', 'nama_lengkap', 'jenjang', 'jenis_dokumen', 'status_verifikasi', 'catatan'], $guru->json('kolom'));
+        $barisGuru = $guru->json('baris');
+        $this->assertCount(1, $barisGuru);
+        $this->assertSame('PST-001', $barisGuru[0][1]);
+        $this->assertSame('Ustadz Guru', $barisGuru[0][2]);
+        $this->assertSame(['MI', 'Ijazah S1', 'Menunggu', ''], array_slice($barisGuru[0], 3));
+
+        $madrasah = $this->actingAs($auth, 'sanctum')->getJson('/api/admin/dokumen/lembaga/data-existing')->assertOk();
+        $this->assertSame(['jenjang', 'jenis_dokumen', 'status_verifikasi', 'catatan'], $madrasah->json('kolom'));
+        $this->assertSame([['MI', 'Akreditasi', 'Ditolak', 'Revisi']], $madrasah->json('baris'));
+
+        // Baris existing bisa diimport kembali (round-trip periksa).
+        $ulang = $this->actingAs($auth, 'sanctum')->postJson('/api/admin/dokumen/santri/import-potong', [
+            'mode' => 'periksa',
+            'total' => 1,
+            'terakhir' => true,
+            'baris' => [
+                ['nis_lokal' => '26001', 'jenjang' => 'MI', 'jenis_dokumen' => 'Kartu Keluarga', 'status_verifikasi' => 'Valid', 'tidak_memiliki' => 'Tidak', 'catatan' => 'Arsip'],
+            ],
+        ])->assertOk();
+        $this->assertSame(0, $ulang->json('ringkasan.baris_gagal'));
+    }
+
     public function test_izin_dokumen_lembaga_tidak_diakses_admin_lain(): void
     {
         $f = $this->fixture();

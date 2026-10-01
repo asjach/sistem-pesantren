@@ -15,6 +15,7 @@ use App\Models\LembagaSantri;
 use App\Models\Pegawai;
 use App\Models\Santri;
 use App\Services\DokumenImporService;
+use App\Services\Impor\DataDokumen;
 use App\Support\NamaBerkasDokumen;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
@@ -380,6 +381,20 @@ class DokumenController extends Controller
             new DokumenTemplateExport($tipe),
             "template-import-dokumen-{$tipe}.xlsx",
         );
+    }
+
+    /** GET /api/admin/dokumen/{tipe}/data-existing — data dokumen existing
+     *  sebagai JSON (kolom = template import). Berkas Excel disusun di browser. */
+    public function dataExisting(Request $request, string $tipe): JsonResponse
+    {
+        $this->cekTipe($tipe);
+        $data = new DataDokumen($tipe, $this->jenjangUntukBerkas($request));
+
+        return response()->json([
+            'kolom' => $data->kolom(),
+            'wajib' => $data->wajib(),
+            'baris' => $data->baris(),
+        ]);
     }
 
     /** POST /api/admin/dokumen/{tipe}/import-potong — potongan JSON 1000 baris. */

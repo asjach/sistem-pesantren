@@ -1,6 +1,7 @@
 import ImportBertahapUmumDialog from '@/components/ImportBertahapUmumDialog';
 import {
   batalPotongDokumen,
+  dataDokumenExisting,
   importDokumenPotong,
   KOLOM_IMPORT_DOKUMEN,
   unduhGalatDokumen,
@@ -47,6 +48,12 @@ export default function DokumenImportDialog({ open, onOpenChange, tipe, onSelesa
         wajib: WAJIB[tipe],
         labelTemplate: `Unduh template Excel ${LABEL_TIPE[tipe]}`,
         unduhTemplate: () => unduhTemplateDokumen(tipe),
+        unduhData: {
+          label: `Unduh data dokumen ${LABEL_TIPE[tipe]} existing`,
+          ambil: (jenjangs) => dataDokumenExisting(tipe, jenjangs),
+          namaBerkas: `data-dokumen-${tipe}-existing.xlsx`,
+          judulSheet: 'Data Dokumen',
+        },
         kirim: ({ sesi_id, mode, total, baris, terakhir }) =>
           importDokumenPotong(tipe, {
             ...(sesi_id === undefined ? {} : { sesi_id }),
