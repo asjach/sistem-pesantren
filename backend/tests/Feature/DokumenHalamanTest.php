@@ -701,9 +701,33 @@ class DokumenHalamanTest extends TestCase
         $segar = $dok->fresh();
         $this->assertSame('ahmad_kartu_keluarga.pdf', $segar->nama_file);
         $this->assertSame('cermin', $segar->penyimpanan);
-        $this->assertSame(md5('isi-lokal'), $segar->sinkron_hash);
+        $this->assertSame(hash('sha256', 'isi-lokal'), $segar->sinkron_hash);
         $this->assertNotNull($segar->tersinkron_pada);
         $this->assertSame('isi-lokal', Storage::disk('local')->get('dokumen/santri/ahmad_kartu_keluarga.pdf'));
+    }
+
+    public function test_sinkron_unggah_klaim_sha256_jalur_klien(): void
+    {
+        $f = $this->fixture();
+        $auth = $this->superAdmin();
+        $dok = DokumenSantri::create([
+            'santri_id' => $f['santri']->id,
+            'jenis_dokumen_santri' => 'Kartu Keluarga',
+            'nama_file' => 'klaim-sha.pdf',
+            'penyimpanan' => 'lokal',
+        ]);
+
+        // Klien Web Crypto hanya punya SHA-256 (64 hex) — verifikasi backend
+        // wajib memakai algoritma yang sama (regresi: dulu md5 vs sha256).
+        $this->actingAs($auth, 'sanctum')->post("/api/admin/dokumen/santri/{$dok->id}/sinkron-unggah", [
+            'file' => UploadedFile::fake()->createWithContent('klaim-sha.pdf', 'isi-lokal', 'application/pdf'),
+            'hash' => hash('sha256', 'isi-lokal'),
+            'mtime' => time(),
+        ], ['Accept' => 'application/json'])->assertOk();
+
+        $segar = $dok->fresh();
+        $this->assertSame('cermin', $segar->penyimpanan);
+        $this->assertSame(hash('sha256', 'isi-lokal'), $segar->sinkron_hash);
     }
 
     public function test_sinkron_unggah_hash_beda_ditolak_dan_dibersihkan(): void

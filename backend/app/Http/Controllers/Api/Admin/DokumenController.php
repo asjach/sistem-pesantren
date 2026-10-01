@@ -462,14 +462,19 @@ class DokumenController extends Controller
             abort(422, 'Baris tanpa nama_file tidak bisa disinkron.');
         }
         $path = $data['file']->storeAs($this->direktoriBerkas($tipe), $nama, 'local');
-        if (strtolower((string) md5_file(Storage::disk('local')->path($path))) !== strtolower($data['hash'])) {
+        // Verifikasi integritas dengan algoritma sesuai panjang hash yang
+        // diklaim (32 = md5, 64 = sha256; klien Web Crypto hanya punya sha256).
+        $penuh = Storage::disk('local')->path($path);
+        $klaim = strtolower($data['hash']);
+        $cocok = $klaim === strtolower((string) (strlen($klaim) === 64 ? hash_file('sha256', $penuh) : md5_file($penuh)));
+        if (! $cocok) {
             Storage::disk('local')->delete($path);
             throw ValidationException::withMessages(['file' => 'Berkas rusak saat transfer (hash beda); ulangi.']);
         }
 
         return response()->json([
             'pesan' => 'Berkas tersinkron ke server.',
-            'data' => $this->tandaiSinkronModel($tipe, $id, $model, strtolower($data['hash'])),
+            'data' => $this->tandaiSinkronModel($tipe, $id, $model, strtolower((string) hash_file('sha256', $penuh))),
         ]);
     }
 
