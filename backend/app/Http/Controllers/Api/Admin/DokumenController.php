@@ -69,8 +69,8 @@ class DokumenController extends Controller
                 ->select('dokumen_santri.*')
                 ->join('santri', 'santri.id', '=', 'dokumen_santri.santri_id')
                 ->with('santri:id,nama_lengkap')
-                ->addSelect(DB::raw("(select ls.nis_lokal from lembaga_santri ls where ls.santri_id = dokumen_santri.santri_id and ls.is_active_lembaga = 'Ya' order by ls.id limit 1) as nis_lokal"))
-                ->addSelect(DB::raw("(select ls.jenjang from lembaga_santri ls where ls.santri_id = dokumen_santri.santri_id and ls.is_active_lembaga = 'Ya' order by ls.id limit 1) as lembaga_jenjang"));
+                ->addSelect(DB::raw("(select ls.nis_lokal from lembaga_santri ls where ls.santri_id = dokumen_santri.santri_id order by ls.is_active_lembaga = 'Ya' desc, ls.id limit 1) as nis_lokal"))
+                ->addSelect(DB::raw("(select ls.jenjang from lembaga_santri ls where ls.santri_id = dokumen_santri.santri_id order by ls.is_active_lembaga = 'Ya' desc, ls.id limit 1) as lembaga_jenjang"));
             if ($lembaga !== []) {
                 $query->whereExists(fn ($w) => $penempatan($w, $lembaga));
             } elseif (! $auth->bolehPesantren()) {

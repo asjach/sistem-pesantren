@@ -184,6 +184,26 @@ class DokumenHalamanTest extends TestCase
         $this->assertSame('Ahmad Santri', $data[0]['pemilik']);
     }
 
+    public function test_daftar_tampil_nis_penempatan_nonaktif_bila_tak_ada_aktif(): void
+    {
+        $f = $this->fixture();
+        $auth = $this->superAdmin();
+        // Nonaktifkan satu-satunya penempatan: NIS tetap tampil dari sana.
+        LembagaSantri::where('santri_id', $f['santri']->id)->update(['is_active_lembaga' => 'Tidak']);
+        DokumenSantri::create([
+            'santri_id' => $f['santri']->id,
+            'jenis_dokumen_santri' => 'Kartu Keluarga',
+            'nama_file' => 'kk.jpg',
+            'penyimpanan' => 'lokal',
+        ]);
+
+        $data = $this->actingAs($auth, 'sanctum')
+            ->getJson("/api/admin/dokumen/santri?santri_id={$f['santri']->id}")
+            ->assertOk()->json('data');
+        $this->assertSame('26001', $data[0]['nis_lokal']);
+        $this->assertSame('MI', $data[0]['lembaga_jenjang']);
+    }
+
     public function test_simpan_lokal_tanpa_berkas_cadangkan_nama(): void
     {
         $f = $this->fixture();
