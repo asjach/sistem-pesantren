@@ -4,7 +4,7 @@ import { bisa } from '../api/auth';
 import { useAuth } from '../auth/AuthContext';
 import { listSantri, type Santri } from '../api/santri';
 import { listDokumen, hapusDokumen, ubahDokumen, unggahBerkasDokumen, unduhBerkasDokumen, type DokumenRow } from '../api/dokumen';
-import { listKelas, type Kelas } from '../api/master';
+import { listKelas, referensiList, type Kelas, type ReferensiRow } from '../api/master';
 import { listRiwayatBelajar } from '../api/siklus';
 import { Button } from '@/components/ui/button';
 import TombolIkon from '@/components/TombolIkon';
@@ -20,6 +20,7 @@ import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
+import ComboCari from '@/components/ComboCari';
 import { ProfilSantriDialog } from '@/components/ProfilSantriDialog';
 import { cn } from '@/lib/utils';
 import { jenjangTampilSantri, urutSantriFilter, type InfoUrutSantri } from '@/lib/urut';
@@ -406,6 +407,24 @@ export default function LihatDokumenSantriPage() {
   const [editRow, setEditRow] = useState<DokumenRow | null>(null);
   const [editJenis, setEditJenis] = useState('');
   const [editCatatan, setEditCatatan] = useState('');
+
+  /** Opsi jenis dari referensi (sama dengan halaman Tambah). */
+  const [jenisRows, setJenisRows] = useState<ReferensiRow[]>([]);
+  useEffect(() => {
+    if (jenjangs.length === 0) { setJenisRows([]); return; }
+    let hidup = true;
+    referensiList('jenis_dokumen_santri', jenjangs)
+      .then((r) => { if (hidup) setJenisRows(r); })
+      .catch(() => { if (hidup) setJenisRows([]); });
+    return () => { hidup = false; };
+  }, [jenjangs]);
+  const opsiJenisUbah = useMemo(() => {
+    const opsi = jenisRows.map((r) => ({ value: String(r.nama ?? r.kode), label: String(r.nama ?? r.kode) }));
+    // Nilai tersimpan yang tak ada di referensi tetap bisa tampil/terpilih.
+    const kini = editJenis.trim();
+    if (kini !== '' && !opsi.some((o) => o.value === kini)) opsi.push({ value: kini, label: kini });
+    return opsi;
+  }, [jenisRows, editJenis]);
 
   function bukaUbah(r: DokumenRow) {
     setEditJenis(r.jenis_dokumen ?? '');
@@ -850,12 +869,15 @@ export default function LihatDokumenSantriPage() {
           </DialogHeader>
           <div className="grid gap-3">
             <div className="grid gap-1.5">
-              <FieldLabel htmlFor="input_ubah_jenis_dok_lihat">Jenis dokumen</FieldLabel>
-              <Input
-                id="input_ubah_jenis_dok_lihat"
+              <FieldLabel htmlFor="combo_ubah_jenis_dok_lihat">Jenis dokumen</FieldLabel>
+              <ComboCari
+                id="combo_ubah_jenis_dok_lihat"
+                inputId="input_ubah_jenis_dok_lihat"
                 value={editJenis}
-                onChange={(e) => setEditJenis(e.target.value)}
-                maxLength={100}
+                onChange={setEditJenis}
+                options={opsiJenisUbah}
+                placeholder="Pilih jenis…"
+                className="w-full"
               />
             </div>
             <div className="grid gap-1.5">
