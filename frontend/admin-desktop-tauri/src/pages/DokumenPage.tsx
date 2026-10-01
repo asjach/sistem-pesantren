@@ -210,14 +210,16 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
       // Arsip perangkat: tulis ulang di lokasi yang sama (lokasi tak berubah).
       if (lokasi !== 'server' && isTauri()) {
         const { ekstensiDariNama, targetTulisLokal, tulisGantiArsip } = await import('@/lib/arsipDokumen');
+        const siapLokal = await siapkanFileUntukServer(unggahFile);
+        if (siapLokal.dikonversi) toast.info('Berkas dikonversi ke JPG.');
         const target = await targetTulisLokal(namaLama ?? '', unggahRow.jenis_dokumen, tipe, lokasi);
         const namaBaru = await tulisGantiArsip({
           namaLama,
           jenis: unggahRow.jenis_dokumen,
           pemilik: unggahRow.pemilik ?? '',
           catatan: unggahRow.catatan ?? '',
-          ext: ekstensiDariNama(unggahFile.name),
-          data: new Uint8Array(await unggahFile.arrayBuffer()),
+          ext: ekstensiDariNama(siapLokal.file.name),
+          data: new Uint8Array(await siapLokal.file.arrayBuffer()),
           lokasi: target.lokasi,
           tipe,
         });
@@ -458,7 +460,7 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
             </div>
             <div className="grid gap-1.5">
               <FieldLabel htmlFor={`input_file_dok_${tipe}`}>Berkas (JPG/PNG/PDF, maks 10 MB)</FieldLabel>
-              <Input id={`input_file_dok_${tipe}`} type="file" accept=".jpg,.jpeg,.png,.pdf" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+              <Input id={`input_file_dok_${tipe}`} type="file" accept=".jpg,.jpeg,.png,.pdf,.heic,.heif,.webp" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
             </div>
           </div>
           <DialogFooter>
@@ -474,7 +476,7 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
             <DialogTitle>Unggah berkas: {unggahRow?.jenis_dokumen}</DialogTitle>
             <DialogDescription>{unggahRow?.pemilik} — berkas lama (bila ada) akan diganti di lokasi yang sama.</DialogDescription>
           </DialogHeader>
-          <Input id={`input_unggah_dok_${tipe}`} type="file" accept=".jpg,.jpeg,.png,.pdf" onChange={(e) => setUnggahFile(e.target.files?.[0] ?? null)} />
+          <Input id={`input_unggah_dok_${tipe}`} type="file" accept=".jpg,.jpeg,.png,.pdf,.heic,.heif,.webp" onChange={(e) => setUnggahFile(e.target.files?.[0] ?? null)} />
           <DialogFooter>
             <Button variant="outline" onClick={() => setUnggahRow(null)}>Batal</Button>
             <Button id={`btn_proses_unggah_dok_${tipe}`} disabled={!unggahFile || busy} onClick={() => void onUnggah()}>Unggah</Button>

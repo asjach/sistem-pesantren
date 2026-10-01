@@ -136,7 +136,7 @@ async function naikKonversi(
   await deps.ubahNamaServer(row, konv.nama);
   await deps.unggahServer(barisBaru, konv.bytes, hash, mtime);
   await deps.hapusLokal(row, namaLama);
-  return { id: row.id, nama: konv.nama, aksi: 'naik', dikonversi: true, pesan: `${namaLama} dikonversi HEIC → JPG.` };
+  return { id: row.id, nama: konv.nama, aksi: 'naik', dikonversi: true, pesan: `${namaLama} dikonversi ke JPG.` };
 }
 
 /** Satu baris: bandingkan sisi lokal vs server lalu samakan. Murni (I/O via deps). */
@@ -280,10 +280,11 @@ export function depsPerangkat(tipe: TipeDokumen): DepsSinkron {
       await sinkronUnggahDokumen(tipe, row.id, file, hash, mtime);
     },
     konversiJikaPerlu: async (row, bytes) => {
-      const { butuhKonversiHeic, konversiHeicKeJpg, namaJpg } = await import('@/lib/konversiHeic');
+      const { formatKonversi, konversiKeJpg, namaJpg } = await import('@/lib/konversiHeic');
       const nama = row.nama_file ?? '';
-      if (!butuhKonversiHeic(nama, bytes)) return null;
-      return { bytes: await konversiHeicKeJpg(bytes), nama: namaJpg(nama) };
+      const format = formatKonversi(nama, bytes);
+      if (!format) return null;
+      return { bytes: await konversiKeJpg(bytes, format), nama: namaJpg(nama) };
     },
     ubahNamaServer: async (row, namaBaru) => {
       await ubahDokumen(tipe, row.id, { nama_file: namaBaru });

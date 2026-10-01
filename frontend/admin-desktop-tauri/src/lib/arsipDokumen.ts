@@ -28,6 +28,8 @@ export type ModeDokumen = 'server' | 'lokal' | 'test';
 export const BATAS_BERKAS = 10 * 1024 * 1024;
 /** Ekstensi yang diterima (tanpa titik, huruf kecil). */
 export const EKSTENSI_BOLEH = ['jpg', 'jpeg', 'png', 'pdf'];
+/** Ekstensi yang bisa dipilih (termasuk yang dikonversi otomatis ke JPG). */
+export const EKSTENSI_PILIH = [...EKSTENSI_BOLEH, 'heic', 'heif', 'webp'];
 
 export interface BerkasTerpilih {
   path: string;
@@ -103,13 +105,13 @@ export async function pilihBerkasDokumen(): Promise<BerkasTerpilih | null> {
   const dipilih = await open({
     multiple: false,
     directory: false,
-    filters: [{ name: 'Dokumen', extensions: [...EKSTENSI_BOLEH] }],
+    filters: [{ name: 'Dokumen', extensions: [...EKSTENSI_PILIH] }],
   });
   if (!dipilih || Array.isArray(dipilih)) return null;
   const path = String(dipilih);
   const nama = await basename(path);
   const ext = ekstensiDariNama(nama);
-  if (!EKSTENSI_BOLEH.includes(ext)) throw new Error(`Berkas harus ${EKSTENSI_BOLEH.join('/').toUpperCase()}.`);
+  if (!EKSTENSI_PILIH.includes(ext)) throw new Error(`Berkas harus ${EKSTENSI_PILIH.join('/').toUpperCase()}.`);
   const info = await stat(path);
   if ((info.size ?? 0) > BATAS_BERKAS) throw new Error('Berkas melebihi 10 MB.');
   return { path, nama, ukuran: info.size ?? 0, mime: mimeDariEkstensi(ext) };

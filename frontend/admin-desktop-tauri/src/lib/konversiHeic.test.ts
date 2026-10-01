@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { butuhKonversiHeic, magicHeic, namaJpg, siapkanFileUntukServer } from './konversiHeic';
+import { butuhKonversiHeic, formatKonversi, magicHeic, magicWebp, namaJpg, siapkanFileUntukServer } from './konversiHeic';
 
 function ftyp(brand: string): Uint8Array {
   const b = new Uint8Array(12);
@@ -43,5 +43,25 @@ describe('siapkanFileUntukServer', () => {
     const hasil = await siapkanFileUntukServer(file);
     expect(hasil.dikonversi).toBe(false);
     expect(hasil.file).toBe(file);
+  });
+});
+
+describe('deteksi WEBP', () => {
+  const RIFF_WEBP = new Uint8Array([0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50]);
+  it('magic RIFF-WEBP walau bernama .jpg', () => {
+    expect(magicWebp(RIFF_WEBP)).toBe(true);
+    expect(formatKonversi('foto_031141.jpg', RIFF_WEBP)).toBe('webp');
+  });
+  it('ekstensi .webp', () => {
+    expect(formatKonversi('a.webp', new Uint8Array(12))).toBe('webp');
+  });
+  it('bukan webp: pendek / RIFF lain', () => {
+    expect(magicWebp(new Uint8Array(11))).toBe(false);
+    expect(formatKonversi('a.jpg', new Uint8Array([0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x41, 0x56, 0x49, 0x46]))).toBeNull();
+  });
+  it('dispatcher: heic vs webp vs langsung', () => {
+    const heic = new Uint8Array([0, 0, 0, 0, 0x66, 0x74, 0x79, 0x70, 0x68, 0x65, 0x69, 0x63]);
+    expect(formatKonversi('a.heic', heic)).toBe('heic');
+    expect(formatKonversi('a.jpg', new Uint8Array([0xff, 0xd8, 0xff, 0xe0]))).toBeNull();
   });
 });

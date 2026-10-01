@@ -28,6 +28,7 @@ import { jenjangTampilSantri, urutSantriFilter, type InfoUrutSantri } from '@/li
 import {
   BATAS_BERKAS,
   EKSTENSI_BOLEH,
+  EKSTENSI_PILIH,
   ekstensiDariNama,
   mimeDariEkstensi,
   pilihBerkasDokumen,
@@ -509,8 +510,8 @@ export default function LihatDokumenSantriPage() {
     const f = e.target.files?.[0] ?? null;
     if (!f) return;
     const ext = ekstensiDariNama(f.name);
-    if (!EKSTENSI_BOLEH.includes(ext)) {
-      toast.error(`Berkas harus ${EKSTENSI_BOLEH.join('/').toUpperCase()}.`);
+    if (!EKSTENSI_PILIH.includes(ext)) {
+      toast.error(`Berkas harus ${EKSTENSI_PILIH.join('/').toUpperCase()} (HEIC/WEBP otomatis dikonversi).`);
       e.target.value = '';
       return;
     }
@@ -533,14 +534,16 @@ export default function LihatDokumenSantriPage() {
     try {
       if (lokasi !== 'server' && isTauri()) {
         const { targetTulisLokal, tulisGantiArsip } = await import('@/lib/arsipDokumen');
+        const siapLokal = await siapkanFileUntukServer(file);
+        if (siapLokal.dikonversi) toast.info('Berkas dikonversi ke JPG.');
         const target = await targetTulisLokal(namaLama ?? '', row.jenis_dokumen, 'santri', lokasi);
         const namaBaru = await tulisGantiArsip({
           namaLama,
           jenis: row.jenis_dokumen,
           pemilik: row.pemilik ?? '',
           catatan: row.catatan ?? '',
-          ext: ekstensiDariNama(file.name),
-          data: new Uint8Array(await file.arrayBuffer()),
+          ext: ekstensiDariNama(siapLokal.file.name),
+          data: new Uint8Array(await siapLokal.file.arrayBuffer()),
           lokasi: target.lokasi,
           tipe: 'santri',
         });
@@ -1016,7 +1019,7 @@ export default function LihatDokumenSantriPage() {
             ref={inputGantiWebRef}
             id="input_ganti_dok_lihat"
             type="file"
-            accept=".jpg,.jpeg,.png,.pdf"
+            accept=".jpg,.jpeg,.png,.pdf,.heic,.heif,.webp"
             className="hidden"
             onChange={onFileGantiWeb}
           />
