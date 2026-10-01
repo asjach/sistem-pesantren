@@ -59,6 +59,17 @@ class DokumenImporService extends ImporPotongan
             return;
         }
 
+        $catatan = trim((string) ($baris['catatan'] ?? ''));
+        $catatan = $catatan !== '' ? $catatan : null;
+
+        // Santri tanpa kolom jenjang (NIS lokal unik per santri): validasi
+        // lembaga + izin mengikuti penempatan yang ditemukan.
+        if ($this->tipe === 'santri') {
+            $this->prosesSantri($baris, $no, $jenis, $catatan, $kering);
+
+            return;
+        }
+
         $jenjang = mb_strtoupper(trim((string) ($baris['jenjang'] ?? '')));
         if ($jenjang === '' || ! Lembaga::whereKey($jenjang)->exists()) {
             $this->fail($no, 'jenjang', 'Lembaga tidak valid (isi jenjang, mis. MI/MD).');
@@ -75,18 +86,14 @@ class DokumenImporService extends ImporPotongan
             return;
         }
 
-        $status = $this->tipe === 'santri' ? null : $this->normalisasiStatus($baris['status_verifikasi'] ?? null);
+        $status = $this->normalisasiStatus($baris['status_verifikasi'] ?? null);
         if ($status === false) {
             $this->fail($no, 'status_verifikasi', "Status '{$baris['status_verifikasi']}' tidak dikenal (isi Menunggu/Valid/Ditolak).");
 
             return;
         }
 
-        $catatan = trim((string) ($baris['catatan'] ?? ''));
-        $catatan = $catatan !== '' ? $catatan : null;
-
         match ($this->tipe) {
-            'santri' => $this->prosesSantri($baris, $no, $jenjang, $jenis, $catatan, $kering),
             'pegawai' => $this->prosesPegawai($baris, $no, $jenjang, $jenis, $status, $catatan, $kering),
             'lembaga' => $this->prosesLembaga($baris, $no, $jenjang, $jenis, $status, $catatan, $kering),
             default => throw ValidationException::withMessages(['tipe' => 'Tipe dokumen tidak dikenal.']),
@@ -94,20 +101,30 @@ class DokumenImporService extends ImporPotongan
     }
 
     /**
-     * Santri: kunci (santri, jenis) — nama_file dibiarkan apa adanya
-     * (import tak pernah menimpa/menghapus berkas fisik).
+     * Santri: kunci (santri, jenis) — santri dicari by NIS lokal saja
+     * (unik per santri di seluruh lembaga). Izin lolos bila akun boleh
+     * mengakses salah satu penempatan santri tersebut.
      *
      * `nama_file` dicatat apa adanya (basename; tanpa byte, unduhan
      * mengikuti aturan lokasi), `penyimpanan` dinormalisasi
-     * Server/Lokal/Test (apa pun kapitalnya). Baris cocok diperbarui hanya
-     * kolom terisi.
+     * Server/Lokal/Test (apa pun kapitalnya).
      *
      * @param  array<string, mixed>  $baris
      */
-    protected function prosesSantri(array $baris, int $no, string $jenjang, string $jenis, ?string $catatan, bool $kering): void
+    protected function prosesSantri(array $baris, int $no, string $jenis, ?string $catatan, bool $kering): void
     {
-        $santri = $this->cariSantri($baris, $jenjang, $no);
+        $santri = $this->cariSantri($baris, $no);
         if ($santri === null) {
+            return;
+        }
+
+        $auth = auth()->user();
+        $boleh = LembagaSantri::where('santri_id', $santri->id)
+            ->pluck('jenjang')
+            ->contains(fn ($j) => $auth && $auth->canAccessLembaga($j));
+        if (! $boleh) {
+            $this->fail($no, 'nis_lokal', 'Santri di luar lingkup akses Anda.');
+
             return;
         }
 
@@ -258,36 +275,30 @@ class DokumenImporService extends ImporPotongan
     }
 
     /**
-     * Cari santri via nis_lokal + jenjang (fallback pasangan MI↔MD),
-     * pola RiwayatBelajarImporService::cariSantri.
+     * Cari santri via NIS lokal saja (unik per santri lintas lembaga).
+     * NIS ganda untuk santri berbeda ditolak sebagai ambiguitas.
      *
      * @param  array<string, mixed>  $baris
      */
-    protected function cariSantri(array $baris, string $jenjang, int $no): ?Santri
+    protected function cariSantri(array $baris, int $no): ?Santri
     {
         $nisLokal = trim((string) ($baris['nis_lokal'] ?? ''));
         if ($nisLokal !== '') {
-            $ls = LembagaSantri::where('jenjang', $jenjang)->where('nis_lokal', $nisLokal)->first();
-            if ($ls) {
-                $santri = Santri::find($ls->santri_id);
+            $ids = LembagaSantri::where('nis_lokal', $nisLokal)->distinct()->pluck('santri_id');
+            if ($ids->count() === 1) {
+                $santri = Santri::find($ids->first());
                 if ($santri) {
                     return $santri;
                 }
             }
+            if ($ids->count() > 1) {
+                $this->fail($no, 'nis_lokal', 'NIS dipakai lebih dari satu santri — perbaiki datanya dulu.');
 
-            $pasangan = Lembaga::pasanganJenjang($jenjang);
-            if ($pasangan !== null) {
-                $kandidat = LembagaSantri::where('jenjang', $pasangan)->where('nis_lokal', $nisLokal)->first();
-                if ($kandidat) {
-                    $santri = Santri::find($kandidat->santri_id);
-                    if ($santri) {
-                        return $santri;
-                    }
-                }
+                return null;
             }
         }
 
-        $this->fail($no, 'nis_lokal', 'Santri tidak ditemukan (cocokkan NIS lokal + lembaga).');
+        $this->fail($no, 'nis_lokal', 'Santri tidak ditemukan (cocokkan NIS lokal).');
 
         return null;
     }

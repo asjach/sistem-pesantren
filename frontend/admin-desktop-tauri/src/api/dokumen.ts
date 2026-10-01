@@ -92,7 +92,7 @@ export function unduhBerkasDokumen(tipe: TipeDokumen, id: number, fallback: stri
 // ---------- Import daftar dokumen (potongan JSON bertahap) ----------
 
 export const KOLOM_IMPORT_DOKUMEN: Record<TipeDokumen, string[]> = {
-  santri: ['nis_lokal', 'jenjang', 'jenis_dokumen', 'nama_file', 'penyimpanan', 'catatan'],
+  santri: ['nis_lokal', 'jenis_dokumen', 'nama_file', 'penyimpanan', 'catatan'],
   pegawai: ['pegawai_id', 'nipp', 'nama_lengkap', 'jenjang', 'jenis_dokumen', 'status_verifikasi', 'catatan'],
   lembaga: ['jenjang', 'jenis_dokumen', 'status_verifikasi', 'catatan'],
 };

@@ -13,8 +13,8 @@ use Illuminate\Support\Facades\DB;
  * Penyedia data dokumen existing untuk dialog import (backend hanya
  * mengirim data; berkas Excel disusun di browser). Kolom import SAMA PERSIS
  * dengan template per tipe; tipe santri mendapat tambahan kolom info
- * (`nama_lengkap`, `nama_file`, `penyimpanan`) yang diabaikan saat import
- * kembali. Kunci baris mengikuti kunci import (santri: nis_lokal + jenjang;
+ * (`nama_lengkap`) yang diabaikan saat import
+ * kembali. Kunci baris mengikuti kunci import (santri: nis_lokal;
  * pegawai: pegawai_id/nipp/nama; lembaga: jenjang).
  *
  * Status dikirim berlabel (Menunggu/Valid/Ditolak) seperti contoh template;
@@ -61,12 +61,12 @@ class DataDokumen
     /** Satu baris per dokumen santri yang penempatannya masuk lingkup. */
     protected function barisSantri(): array
     {
-        // Penempatan dalam lingkup, aktif diutamakan per santri.
+        // Penempatan dalam lingkup, aktif diutamakan per santri (untuk NIS).
         $tempat = LembagaSantri::query()
             ->whereIn('jenjang', $this->jenjang)
             ->orderByRaw("is_active_lembaga = 'Ya' desc")
             ->orderBy('id')
-            ->get(['santri_id', 'jenjang', 'nis_lokal'])
+            ->get(['santri_id', 'nis_lokal'])
             ->unique('santri_id')
             ->keyBy('santri_id');
 
@@ -78,7 +78,6 @@ class DataDokumen
             ->filter(fn ($d) => isset($tempat[$d->santri_id]))
             ->map(fn ($d) => [
                 (string) ($tempat[$d->santri_id]->nis_lokal ?? ''),
-                (string) $tempat[$d->santri_id]->jenjang,
                 (string) $d->jenis_dokumen_santri,
                 (string) ($d->nama_file ?? ''),
                 (string) ($d->penyimpanan ?? ''),
