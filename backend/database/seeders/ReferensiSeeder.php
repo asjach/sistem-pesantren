@@ -48,7 +48,7 @@ class ReferensiSeeder extends Seeder
         // 20 kamus EMIS + dokumen + pegawai + 6 no.50. No.51: nilai per-tabel.
         // 'Formulir Pendaftaran' di no. 7 (urutan kanonis ditegakkan di bawah
         // agar baris lama yang menempati urutan >= 6 ikut bergeser).
-        $dokSantri = ['Kartu Keluarga', 'Pas Foto', 'Akta Kelahiran', 'Ijazah', 'Transkrip Ijazah', 'Surat Pindah', 'Formulir Pendaftaran', 'Surat Kenal Lahir'];
+        $dokSantri = ['Kartu Keluarga', 'Pas Foto', 'Akta Kelahiran', 'Ijazah', 'Transkrip Ijazah', 'Surat Pindah', 'Formulir Pendaftaran', 'Surat Kenal Lahir', 'Surat'];
         foreach ([
             'ref_penghasilan' => ['dibawah 800.000', '800.001 - 1.200.000', '1.200.001 - 2.000.000', '2.000.001 - 3.000.000', 'diatas 3.000.000', 'Tidak Berpenghasilan'],
             'ref_transportasi' => ['Jalan Kaki', 'Sepeda', 'Sepeda Motor', 'Mobil Pribadi', 'Antar Jemput Sekolah', 'Angkutan Umum', 'Perahu/Sampan', 'Kendaraan Pribadi', 'Kereta Api', 'Ojek', 'Andong/Bendi/Sado/Dokarr/Delman/Becak', 'Lainnya'],
