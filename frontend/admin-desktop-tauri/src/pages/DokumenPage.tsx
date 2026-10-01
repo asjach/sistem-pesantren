@@ -192,7 +192,30 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
     // Tangkap nama lama sebelum refresh — salinan arsipnya ikut dibuang bila ganti berhasil.
     const namaLama = unggahRow.nama_file;
     const jenisLama = unggahRow.jenis_dokumen;
+    const lokasi = unggahRow.penyimpanan ?? 'server';
     try {
+      // Arsip perangkat: tulis ulang di lokasi yang sama (lokasi tak berubah).
+      if (lokasi !== 'server' && isTauri()) {
+        const { ekstensiDariNama, tulisGantiArsip } = await import('@/lib/arsipDokumen');
+        const namaBaru = await tulisGantiArsip({
+          namaLama,
+          jenis: unggahRow.jenis_dokumen,
+          pemilik: unggahRow.pemilik ?? '',
+          catatan: unggahRow.catatan ?? '',
+          ext: ekstensiDariNama(unggahFile.name),
+          data: new Uint8Array(await unggahFile.arrayBuffer()),
+          lokasi,
+          tipe,
+        });
+        if (namaBaru !== namaLama) {
+          await ubahDokumen(tipe, unggahRow.id, { nama_file: namaBaru });
+        }
+        toast.success('Berkas diunggah.');
+        setUnggahRow(null);
+        setUnggahFile(null);
+        await load();
+        return;
+      }
       await unggahBerkasDokumen(tipe, unggahRow.id, unggahFile);
       toast.success('Berkas diunggah.');
       await bersihkanArsip(namaLama, jenisLama);
@@ -414,7 +437,7 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Unggah berkas: {unggahRow?.jenis_dokumen}</DialogTitle>
-            <DialogDescription>{unggahRow?.pemilik} — berkas lama (bila ada) akan diganti dan lokasi baris menjadi Server.</DialogDescription>
+            <DialogDescription>{unggahRow?.pemilik} — berkas lama (bila ada) akan diganti di lokasi yang sama.</DialogDescription>
           </DialogHeader>
           <Input id={`input_unggah_dok_${tipe}`} type="file" accept=".jpg,.jpeg,.png,.pdf" onChange={(e) => setUnggahFile(e.target.files?.[0] ?? null)} />
           <DialogFooter>

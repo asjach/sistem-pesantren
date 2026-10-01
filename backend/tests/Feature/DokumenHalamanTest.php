@@ -612,7 +612,7 @@ class DokumenHalamanTest extends TestCase
         $this->assertFalse((bool) DokumenSantri::find($lama->id)->is_active);
     }
 
-    public function test_ubah_nama_file_hanya_basename_dan_ditolak_untuk_pegawai(): void
+    public function test_ubah_nama_file_hanya_basename_untuk_semua_tipe(): void
     {
         $f = $this->fixture();
         $auth = $this->superAdmin();
@@ -631,8 +631,9 @@ class DokumenHalamanTest extends TestCase
             'created_at' => now(), 'updated_at' => now(),
         ]);
         $this->actingAs($auth, 'sanctum')->patchJson("/api/admin/dokumen/pegawai/{$guru}", [
-            'nama_file' => 'x.jpg',
-        ])->assertStatus(422);
+            'nama_file' => 'ijazah-baru.pdf',
+        ])->assertOk();
+        $this->assertSame('ijazah-baru.pdf', DB::table('dokumen_pegawai')->find($guru)->nama_file);
     }
 
     public function test_izin_dokumen_lembaga_tidak_diakses_admin_lain(): void

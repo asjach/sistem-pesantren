@@ -539,13 +539,42 @@ export default function LihatDokumenSantriPage() {
     setGantiFile(f);
   }
 
-  /** Ganti isi berkas: unggah ke server (baris pindah ke Server) + salinan arsip lama dibuang. */
+  /** Ganti isi berkas di lokasi yang sama (server diunggah, arsip
+   *  perangkat ditulis ulang) + salinan arsip lama dibuang. */
   const terapkanGanti = useCallback(async (row: DokumenRow, file: File): Promise<boolean> => {
     setBusy(true);
     const namaLama = row.nama_file;
     const jenisLama = row.jenis_dokumen;
     const idLama = row.id;
+    const lokasi = row.penyimpanan ?? 'server';
     try {
+      if (lokasi !== 'server' && isTauri()) {
+        const { tulisGantiArsip } = await import('@/lib/arsipDokumen');
+        const namaBaru = await tulisGantiArsip({
+          namaLama,
+          jenis: row.jenis_dokumen,
+          pemilik: row.pemilik ?? '',
+          catatan: row.catatan ?? '',
+          ext: ekstensiDariNama(file.name),
+          data: new Uint8Array(await file.arrayBuffer()),
+          lokasi,
+          tipe: 'santri',
+        });
+        if (namaBaru !== namaLama) {
+          await ubahDokumen('santri', row.id, { nama_file: namaBaru });
+        }
+        toast.success('Berkas diganti.');
+        if (santriId != null) {
+          await muatDokumen(santriId);
+          void muatJumlahSantri().then(setJumlahSantri);
+        }
+        if (dokId === idLama && santriId != null) {
+          const p = await listDokumen('santri', { santri_id: santriId, per_page: 0 });
+          const baru = p.data.find((d) => d.id === idLama);
+          if (baru) void muatPratinjau(baru);
+        }
+        return true;
+      }
       await unggahBerkasDokumen('santri', row.id, file);
       toast.success('Berkas diganti.');
       await bersihkanArsip(namaLama, jenisLama);
@@ -963,7 +992,7 @@ export default function LihatDokumenSantriPage() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Ganti berkas: {gantiRow?.jenis_dokumen}</DialogTitle>
-            <DialogDescription>Berkas lama diganti dan lokasi baris menjadi Server; salinan arsip lama (bila ada) ikut dibuang.</DialogDescription>
+            <DialogDescription>Berkas lama diganti di lokasi yang sama; salinan arsip lama (bila ada) ikut dibuang.</DialogDescription>
           </DialogHeader>
           <div className="flex items-center gap-2">
             <TombolIkon tip="Pilih berkas" variant="outline" size="icon" onClick={() => void onBrowseGanti()}>

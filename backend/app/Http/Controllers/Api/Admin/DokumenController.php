@@ -240,9 +240,9 @@ class DokumenController extends Controller
             // Konteks lembaga + penanda aktif hanya ada di tabel santri.
             'lembaga' => $tipe === 'santri' ? ['sometimes', 'nullable', 'string', 'exists:lembaga,jenjang'] : ['prohibited'],
             'is_active' => $tipe === 'santri' ? ['sometimes', 'boolean'] : ['prohibited'],
-            // Nama berkas hasil edit viewer arsip perangkat (disanitasi
+            // Nama berkas hasil tulis arsip perangkat (disanitasi
             // basename; byte ditulis langsung oleh aplikasi desktop).
-            'nama_file' => $tipe === 'santri' ? ['sometimes', 'string', 'max:255'] : ['prohibited'],
+            'nama_file' => ['sometimes', 'string', 'max:255'],
             'catatan' => ['sometimes', 'nullable', 'string'],
             // `true` = pemanggil menjamin byte ikut dipindah (server: backend
             // di bawah; arsip perangkat: aplikasi desktop asal). Tanpa ini
@@ -264,7 +264,7 @@ class DokumenController extends Controller
         if ($tipe === 'santri' && array_key_exists('is_active', $data)) {
             $ubah['is_active'] = $data['is_active'];
         }
-        if ($tipe === 'santri' && isset($data['nama_file'])) {
+        if (isset($data['nama_file'])) {
             $bersih = basename(trim($data['nama_file']));
             $ubah['nama_file'] = $bersih !== '' ? $bersih : null;
         }

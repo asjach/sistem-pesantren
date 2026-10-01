@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { cariArsip, hapusArsip, jalurArsip, tulisBalikArsip } from './arsipDokumen';
+import { cariArsip, hapusArsip, jalurArsip, tulisBalikArsip, tulisGantiArsip } from './arsipDokumen';
 
 /** File pura-pura di disk: himpunan path yang "ada". */
 let ada = new Set<string>();
@@ -78,5 +78,27 @@ describe('arsip per tipe', () => {
     await tulisBalikArsip('berkas.jpg', 'berkas.png', 'Kartu Keluarga', new Uint8Array([9]), 'santri');
     expect(ditulis.map(([p]) => p)).toEqual(['/arsip/santri/berkas.png']);
     expect(dihapus).toEqual(['/arsip/santri/berkas.jpg']);
+  });
+
+  it('tulisGantiArsip menulis nama template unik + membersihkan lama', async () => {
+    ada = new Set(['/arsip/kartu_keluarga/lama.jpg']);
+    const nama = await tulisGantiArsip({
+      namaLama: 'lama.jpg', jenis: 'Kartu Keluarga', pemilik: 'Ahmad', catatan: '',
+      ext: 'jpg', data: new Uint8Array([7]), lokasi: 'lokal', tipe: 'santri',
+    });
+    expect(nama).toMatch(/^ahmad_kartu_keluarga_\d{8}_\d{6}\.jpg$/);
+    expect(ditulis.map(([p]) => p)).toEqual([`/arsip/santri/${nama}`]);
+    expect(dihapus).toEqual(['/arsip/kartu_keluarga/lama.jpg']);
+  });
+
+  it('tulisGantiArsip menolak ekstensi dan ukuran liar', async () => {
+    await expect(tulisGantiArsip({
+      namaLama: null, jenis: 'Kartu Keluarga', pemilik: 'Ahmad', catatan: '',
+      ext: 'exe', data: new Uint8Array([1]), lokasi: 'lokal', tipe: 'santri',
+    })).rejects.toThrow('JPG');
+    await expect(tulisGantiArsip({
+      namaLama: null, jenis: 'Kartu Keluarga', pemilik: 'Ahmad', catatan: '',
+      ext: 'jpg', data: new Uint8Array(11 * 1024 * 1024), lokasi: 'lokal', tipe: 'santri',
+    })).rejects.toThrow('10 MB');
   });
 });

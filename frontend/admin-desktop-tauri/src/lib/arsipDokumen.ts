@@ -207,6 +207,42 @@ export async function tulisArsip(data: Uint8Array, namaFile: string, akar: strin
   return tujuan;
 }
 
+/** Ganti isi berkas di arsip perangkat (lokasi DB tak berubah).
+ *  Menulis dengan nama template baru yang unik di folder tipe, memverifikasi,
+ *  lalu membersihkan salinan lama di semua tata. Mengembalikan nama efektif. */
+export async function tulisGantiArsip(input: {
+  namaLama: string | null;
+  jenis: string;
+  pemilik: string;
+  catatan: string;
+  ext: string;
+  data: Uint8Array;
+  lokasi: 'lokal' | 'test';
+  tipe: TipeArsip;
+}): Promise<string> {
+  const ext = input.ext.toLowerCase().replace(/^\./, '');
+  if (!EKSTENSI_BOLEH.includes(ext)) throw new Error(`Berkas harus ${EKSTENSI_BOLEH.join('/').toUpperCase()}.`);
+  if (input.data.length > BATAS_BERKAS) throw new Error('Berkas melebihi 10 MB.');
+  const { exists, mkdir, writeFile } = await import('@tauri-apps/plugin-fs');
+  const { join } = await import('@tauri-apps/api/path');
+  const [a, b] = await Promise.all([
+    prefGet(PREF_FOLDER_ARSIP).catch(() => null),
+    prefGet(PREF_FOLDER_ARSIP_TEST).catch(() => null),
+  ]);
+  const akarDokumen = await akarArsip(typeof a === 'string' ? a : '', ROOT_ARSIP_DOKUMEN);
+  const akarTest = await akarArsip(typeof b === 'string' ? b : '', ROOT_ARSIP_TEST);
+  const folder = await join(input.lokasi === 'test' ? akarTest : akarDokumen, input.tipe);
+  await mkdir(folder, { recursive: true });
+  const namaBaru = await namaUnik(folder, namaArsip(input.pemilik, input.jenis, input.catatan, ext));
+  const tujuan = await join(folder, namaBaru);
+  await writeFile(tujuan, input.data);
+  if (!(await exists(tujuan))) throw new Error('Salinan arsip tidak terbentuk.');
+  if (input.namaLama) {
+    for (const akar of [akarDokumen, akarTest]) await hapusArsip(input.namaLama, input.jenis, akar, input.tipe);
+  }
+  return namaBaru;
+}
+
 /** Pindahkan file asli ke `<folder-asal>/sudah/`. Rename atomik dulu;
  *  bila gagal (mis. lintas volume) fallback salin + verifikasi ukuran + hapus.
  *  Mengembalikan path tujuan. */
