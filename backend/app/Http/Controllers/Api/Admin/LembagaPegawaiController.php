@@ -2,18 +2,25 @@
 
 namespace App\Http\Controllers\Api\Admin;
 
+use App\Exports\PenempatanPegawaiTemplateExport;
+use App\Http\Controllers\Api\Concerns\ImporBertahap;
 use App\Http\Controllers\Api\Concerns\TenantGuard;
 use App\Http\Controllers\Api\Concerns\UrutDaftar;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\LembagaPegawaiStoreRequest;
 use App\Http\Requests\Admin\LembagaPegawaiUpdateRequest;
+use App\Http\Requests\Admin\PenempatanPegawaiPotongRequest;
+use App\Models\ImportSesi;
 use App\Models\LembagaPegawai;
 use App\Models\Pegawai;
 use App\Services\AkunPegawaiService;
+use App\Services\Impor\DataPenempatanPegawai;
 use App\Services\PegawaiService;
+use App\Services\PenempatanPegawaiImporService;
 use App\Services\UrutKatalog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Maatwebsite\Excel\Facades\Excel;
 
 /**
  * Penempatan pegawai per lembaga (`lembaga_pegawai`) — pivot kaya:
@@ -22,6 +29,7 @@ use Illuminate\Http\Request;
  */
 class LembagaPegawaiController extends Controller
 {
+    use ImporBertahap;
     use TenantGuard;
     use UrutDaftar;
 
@@ -133,5 +141,52 @@ class LembagaPegawaiController extends Controller
         $layanan->hapusPenempatan($penempatan);
 
         return response()->json(['pesan' => 'Penempatan dihapus.']);
+    }
+
+    // ---------------- Import penempatan (potongan JSON bertahap) ----------------
+
+    /** GET /api/admin/pegawai-lembaga/import-template — template Excel. */
+    public function templateImport()
+    {
+        return Excel::download(new PenempatanPegawaiTemplateExport, 'template-import-penempatan-pegawai.xlsx');
+    }
+
+    /**
+     * GET /api/admin/pegawai-lembaga/data-existing — data penempatan existing
+     * sebagai JSON (kolom = template import). Berkas Excel disusun di browser.
+     */
+    public function dataExisting(Request $request): JsonResponse
+    {
+        $data = new DataPenempatanPegawai($this->jenjangUntukBerkas($request));
+
+        return response()->json([
+            'kolom' => $data->kolom(),
+            'wajib' => $data->wajib(),
+            'baris' => $data->baris(),
+        ]);
+    }
+
+    /**
+     * POST /api/admin/pegawai-lembaga/import-potong — satu potongan baris
+     * (maks 1000) dari browser. Panggilan pertama tanpa `sesi_id` membuat
+     * sesi (wajib `mode` + `total`); berikutnya wajib `sesi_id` milik sendiri.
+     * Frontend mengirim SEMUA baris data berurutan (termasuk yang kosong)
+     * agar nomor galat absolut selaras nomor Excel (1 = heading).
+     */
+    public function potongImport(PenempatanPegawaiPotongRequest $request, PenempatanPegawaiImporService $layanan): JsonResponse
+    {
+        return $this->jalankanImporSesi($request, 'penempatan_pegawai', $layanan);
+    }
+
+    /** POST /api/admin/pegawai-lembaga/import-potong/{sesi}/batal. */
+    public function batalPotong(Request $request, ImportSesi $sesi): JsonResponse
+    {
+        return $this->batalImporSesi($request, $sesi);
+    }
+
+    /** GET /api/admin/pegawai-lembaga/import-potong/{sesi}/galat — unduh CSV galat. */
+    public function galatPotong(Request $request, ImportSesi $sesi)
+    {
+        return $this->unduhGalatImpor($request, $sesi, 'galat-import-penempatan.csv');
     }
 }

@@ -230,6 +230,41 @@ export function aktifkanPenempatan(id: number) {
   return api<{ pesan: string; data: LembagaPegawai }>(`/admin/pegawai-lembaga/${id}/aktifkan`, { method: 'POST' });
 }
 
+// ---------- Import penempatan (lembaga_pegawai) ----------
+
+export const KOLOM_IMPORT_PENEMPATAN = [
+  'pegawai_id', 'nipp', 'nama_lengkap', 'jenjang', 'tugas_utama',
+  'is_active_lembaga', 'tgl_masuk', 'tgl_selesai', 'tahaj_masuk',
+  'no_sk_awal_ptk', 'tgl_sk_awal_ptk',
+];
+
+export function unduhTemplatePenempatan() {
+  return downloadFile('/admin/pegawai-lembaga/import-template', 'template-import-penempatan-pegawai.xlsx');
+}
+
+export function dataPenempatanExisting(jenjangs?: string[]) {
+  const q = jenjangs?.length ? `?${jenjangs.map((j) => `jenjang[]=${encodeURIComponent(j)}`).join('&')}` : '';
+  return api<DataExistingPayload>(`/admin/pegawai-lembaga/data-existing${q}`);
+}
+
+export function importPenempatanPotong(input: {
+  sesi_id?: number;
+  mode: 'periksa' | 'eksekusi';
+  total?: number;
+  baris: Record<string, unknown>[];
+  terakhir?: boolean;
+}) {
+  return api<PotongHasil>('/admin/pegawai-lembaga/import-potong', { method: 'POST', body: JSON.stringify(input) });
+}
+
+export function batalPotongPenempatan(sesiId: number) {
+  return api<{ pesan: string }>(`/admin/pegawai-lembaga/import-potong/${sesiId}/batal`, { method: 'POST' });
+}
+
+export function unduhGalatPenempatan(sesiId: number) {
+  return downloadFile(`/admin/pegawai-lembaga/import-potong/${sesiId}/galat`, 'galat-import-penempatan.csv');
+}
+
 // ---------- Riwayat keaktifan (keaktifan_pegawai) ----------
 
 export interface KeaktifanPegawai {
@@ -312,6 +347,8 @@ export function importKeaktifanPotong(input: {
   total?: number;
   baris: Record<string, unknown>[];
   terakhir?: boolean;
+  /** Mode gabungan: buatkan penempatan aktif bila belum ada. */
+  buat_penempatan?: boolean;
 }) {
   return api<PotongHasil>('/admin/pegawai-keaktifan/import-potong', { method: 'POST', body: JSON.stringify(input) });
 }

@@ -418,7 +418,7 @@ class RiwayatBelajarController extends Controller
      */
     public function potongImport(RiwayatPotongRequest $request, RiwayatBelajarImporService $layanan): JsonResponse
     {
-        return $this->jalankanImporSesi($request, 'riwayat', $layanan);
+        return $this->jalankanImporSesi($request, 'riwayat', $layanan->setBuatKeanggotaan($request->boolean('buat_keanggotaan')));
     }
 
     /** POST /api/admin/riwayat-belajar/import-potong/{sesi}/batal. */

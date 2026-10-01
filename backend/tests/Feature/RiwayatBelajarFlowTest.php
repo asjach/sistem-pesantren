@@ -278,9 +278,10 @@ class RiwayatBelajarFlowTest extends TestCase
         $admin = $this->makeUser();
 
         $export = new RiwayatBelajarTemplateExport;
-        // Kunci hanya nis_lokal + jenjang (tanpa nik).
+        // Kunci nis_lokal + jenjang (tanpa nik); santri_id/nama = identitas
+        // cadangan mode gabungan (buatkan keanggotaan).
         $this->assertSame(
-            ['nis_lokal', 'jenjang', 'tahun_ajaran', 'nama_kelas', 'semester', 'tgl_masuk', 'no_absen', 'tingkat', 'status_awal', 'status_akhir'],
+            ['nis_lokal', 'santri_id', 'nama_lengkap', 'jenjang', 'tahun_ajaran', 'nama_kelas', 'semester', 'tgl_masuk', 'no_absen', 'tingkat', 'status_awal', 'status_akhir'],
             $export->headings()
         );
         // Dropdown status memakai label Proper Case, bukan kode.

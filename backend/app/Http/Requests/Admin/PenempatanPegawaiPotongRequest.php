@@ -4,14 +4,14 @@ namespace App\Http\Requests\Admin;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class RiwayatPotongRequest extends FormRequest
+class PenempatanPegawaiPotongRequest extends FormRequest
 {
     public function authorize(): bool
     {
         return true;
     }
 
-    /** Import bertahap: potongan baris JSON (maks 1000/panggilan). */
+    /** Import penempatan bertahap: potongan baris JSON (maks 1000/panggilan). */
     public function rules(): array
     {
         return [
@@ -21,9 +21,6 @@ class RiwayatPotongRequest extends FormRequest
             'baris' => ['required', 'array', 'min:1', 'max:1000'],
             'baris.*' => ['array'],
             'terakhir' => ['sometimes', 'boolean'],
-            // Mode gabungan: buatkan keanggotaan bila santri belum punya
-            // (cocok via santri_id / nama unik bila NIS tak terdaftar).
-            'buat_keanggotaan' => ['sometimes', 'boolean'],
         ];
     }
 }

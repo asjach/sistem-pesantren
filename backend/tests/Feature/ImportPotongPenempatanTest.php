@@ -3,11 +3,9 @@
 namespace Tests\Feature;
 
 use App\Models\ImportSesi;
-use App\Models\KeaktifanPegawai;
 use App\Models\Lembaga;
 use App\Models\LembagaPegawai;
 use App\Models\Pegawai;
-use App\Models\TahunAjaran;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -15,9 +13,9 @@ use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
-// Import riwayat keaktifan pegawai bertahap (potongan JSON 1000/panggilan):
+// Import penempatan pegawai bertahap (potongan JSON 1000/panggilan):
 // periksa kering, eksekusi upsert idempoten, galat per baris, dan lingkup lembaga.
-class ImportPotongKeaktifanTest extends TestCase
+class ImportPotongPenempatanTest extends TestCase
 {
     use RefreshDatabase;
 
@@ -40,13 +38,9 @@ class ImportPotongKeaktifanTest extends TestCase
             'nama' => 'Tsanawiyah', 'jenjang' => 'MTS',
             'is_seleksi' => false, 'kelompok_psb' => 'eksklusif', 'is_active' => true,
         ]);
-        $ta = TahunAjaran::create([
-            'nama' => '2026/2027',
-            'tanggal_mulai' => '2026-07-01', 'tanggal_selesai' => '2027-06-30', 'is_aktif' => true,
-        ]);
         $super = $this->makeAdmin([], 'super_admin');
 
-        return compact('mi', 'mts', 'ta', 'super');
+        return compact('mi', 'mts', 'super');
     }
 
     protected function makeAdmin(array $jenjangs, string $role = 'admin'): User
@@ -54,7 +48,7 @@ class ImportPotongKeaktifanTest extends TestCase
         $this->userSeq++;
         $u = User::create([
             'name' => 'Admin '.$this->userSeq,
-            'email' => "keaktifan_u{$this->userSeq}_".uniqid().'@example.com',
+            'email' => "penempatan_u{$this->userSeq}_".uniqid().'@example.com',
             'phone' => '08'.str_pad((string) (9500000000 + $this->userSeq * 37), 10, '0', STR_PAD_LEFT),
             'password' => 'password',
         ]);
@@ -69,7 +63,7 @@ class ImportPotongKeaktifanTest extends TestCase
         return $u;
     }
 
-    protected function buatPegawai(string $nama, ?string $nipp = null, ?string $jenjangPenempatan = 'MI'): Pegawai
+    protected function buatPegawai(string $nama, ?string $nipp = null, ?string $jenjangPenempatan = null): Pegawai
     {
         $p = Pegawai::create(['nama_lengkap' => $nama, 'jenis_kelamin' => 'L', 'nipp' => $nipp]);
         if ($jenjangPenempatan !== null) {
@@ -82,7 +76,7 @@ class ImportPotongKeaktifanTest extends TestCase
     protected function baris(array $tambah = []): array
     {
         return array_merge([
-            'nipp' => 'PST-001', 'jenjang' => 'MI', 'tahun_ajaran' => '2026/2027',
+            'nipp' => 'PST-001', 'jenjang' => 'MI',
         ], $tambah);
     }
 
@@ -90,7 +84,7 @@ class ImportPotongKeaktifanTest extends TestCase
     {
         $f = $this->baseFixture();
 
-        $res = $this->actingAs($f['super'], 'sanctum')->get('/api/admin/pegawai-keaktifan/import-template');
+        $res = $this->actingAs($f['super'], 'sanctum')->get('/api/admin/pegawai-lembaga/import-template');
         $res->assertStatus(200);
         $this->assertStringContainsString('attachment', (string) $res->headers->get('content-disposition'));
     }
@@ -99,21 +93,23 @@ class ImportPotongKeaktifanTest extends TestCase
     {
         $f = $this->baseFixture();
         $guru = $this->buatPegawai('Ahmad', 'PST-001');
-        KeaktifanPegawai::create([
-            'pegawai_id' => $guru->id, 'jenjang' => 'MI', 'tahun_ajaran' => '2026/2027',
-            'tugas_utama' => 'Guru Kelas', 'no_sk' => 'SK/1/2026', 'tgl_sk' => '2026-07-01',
+        LembagaPegawai::create([
+            'pegawai_id' => $guru->id, 'jenjang' => 'MI',
+            'tugas_utama' => 'Guru Kelas', 'is_active_lembaga' => 'Ya',
+            'tgl_masuk' => '2025-07-01', 'no_sk_awal_ptk' => 'SK/1/2025',
         ]);
 
-        $res = $this->actingAs($f['super'], 'sanctum')->getJson('/api/admin/pegawai-keaktifan/data-existing');
+        $res = $this->actingAs($f['super'], 'sanctum')->getJson('/api/admin/pegawai-lembaga/data-existing');
         $res->assertStatus(200);
         $this->assertSame('pegawai_id', $res->json('kolom.0'));
         $this->assertSame('jenjang', $res->json('kolom.3'));
-        $this->assertSame('tahun_ajaran', $res->json('kolom.4'));
-        $this->assertSame(['jenjang', 'tahun_ajaran'], $res->json('wajib'));
+        $this->assertSame('tugas_utama', $res->json('kolom.4'));
+        $this->assertSame(['jenjang'], $res->json('wajib'));
         $baris = $res->json('baris.0');
         $this->assertSame('MI', $baris[3]);
-        $this->assertSame('2026/2027', $baris[4]);
-        $this->assertSame('Ya', $baris[6]);
+        $this->assertSame('Guru Kelas', $baris[4]);
+        $this->assertSame('Ya', $baris[5]);
+        $this->assertSame('2025-07-01', $baris[6]);
     }
 
     public function test_03_periksa_kering_tanpa_menulis(): void
@@ -122,12 +118,12 @@ class ImportPotongKeaktifanTest extends TestCase
         $this->buatPegawai('Ahmad', 'PST-001');
         $this->buatPegawai('Budi', 'PST-002');
 
-        $satu = $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/pegawai-keaktifan/import-potong', [
+        $satu = $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/pegawai-lembaga/import-potong', [
             'mode' => 'periksa',
             'total' => 3,
             'baris' => [
                 $this->baris(),
-                $this->baris(['nipp' => 'PST-002']),
+                $this->baris(['nipp' => 'PST-002', 'tugas_utama' => 'Guru Mapel']),
             ],
         ])->assertStatus(200);
 
@@ -136,19 +132,19 @@ class ImportPotongKeaktifanTest extends TestCase
         $this->assertFalse((bool) $satu->json('selesai'));
         $this->assertSame(2, $satu->json('ringkasan.dibuat'));
         $this->assertSame(0, $satu->json('ringkasan.baris_gagal'));
-        $this->assertSame(0, KeaktifanPegawai::count());
+        $this->assertSame(0, LembagaPegawai::count());
 
-        $dua = $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/pegawai-keaktifan/import-potong', [
+        $dua = $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/pegawai-lembaga/import-potong', [
             'sesi_id' => $sesiId,
             'mode' => 'periksa',
             'terakhir' => true,
-            'baris' => [$this->baris(['nipp' => 'PST-002', 'status_keaktifan' => 'Tidak'])],
+            'baris' => [$this->baris(['nipp' => 'PST-002', 'is_active_lembaga' => 'Tidak'])],
         ])->assertStatus(200);
 
         $this->assertTrue((bool) $dua->json('selesai'));
         $this->assertSame(3, $dua->json('offset'));
         $this->assertSame(3, $dua->json('ringkasan.dibuat'));
-        $this->assertSame(0, KeaktifanPegawai::count());
+        $this->assertSame(0, LembagaPegawai::count());
         $this->assertSame(ImportSesi::SELESAI, ImportSesi::find($sesiId)->status);
     }
 
@@ -157,38 +153,38 @@ class ImportPotongKeaktifanTest extends TestCase
         $f = $this->baseFixture();
         $guru = $this->buatPegawai('Ahmad', 'PST-001');
 
-        $satu = $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/pegawai-keaktifan/import-potong', [
+        $satu = $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/pegawai-lembaga/import-potong', [
             'mode' => 'eksekusi',
             'total' => 3,
             'baris' => [
-                $this->baris(),
+                $this->baris(['tugas_utama' => 'Guru Kelas']),
                 $this->baris(['nipp' => 'PST-TIDAK-ADA']),
             ],
         ])->assertStatus(200);
 
         $this->assertSame(1, $satu->json('ringkasan.dibuat'));
         $this->assertSame(1, $satu->json('ringkasan.baris_gagal'));
-        $this->assertSame(1, KeaktifanPegawai::count());
+        $this->assertSame(1, LembagaPegawai::count());
 
-        // Baris cocok: hanya kolom terisi yang menimpa; tugas kosong warisi penempatan.
-        $dua = $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/pegawai-keaktifan/import-potong', [
+        // Baris cocok: hanya kolom terisi yang menimpa; tugas lama dipertahankan.
+        $dua = $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/pegawai-lembaga/import-potong', [
             'sesi_id' => $satu->json('sesi_id'),
             'mode' => 'eksekusi',
             'terakhir' => true,
-            'baris' => [$this->baris(['no_sk' => 'SK/9/2026', 'status_keaktifan' => 'Inaktif'])],
+            'baris' => [$this->baris(['no_sk_awal_ptk' => 'SK/9/2026', 'is_active_lembaga' => 'Inaktif'])],
         ])->assertStatus(200);
 
         $this->assertSame(1, $dua->json('ringkasan.dibuat'));
         $this->assertSame(1, $dua->json('ringkasan.diperbarui'));
-        $this->assertSame(1, KeaktifanPegawai::count());
+        $this->assertSame(1, LembagaPegawai::count());
 
-        $row = KeaktifanPegawai::first();
-        $this->assertSame('SK/9/2026', $row->no_sk);
-        $this->assertSame('Tidak', $row->status_keaktifan);
-        $this->assertSame(null, $row->tugas_utama); // warisi penempatan (tanpa tugas)
+        $row = LembagaPegawai::first();
+        $this->assertSame('SK/9/2026', $row->no_sk_awal_ptk);
+        $this->assertSame('Tidak', $row->is_active_lembaga);
+        $this->assertSame('Guru Kelas', $row->tugas_utama);
 
         // Sesi baru dengan baris identik (tanpa kolom terisi) = dilewati.
-        $tiga = $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/pegawai-keaktifan/import-potong', [
+        $tiga = $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/pegawai-lembaga/import-potong', [
             'mode' => 'eksekusi',
             'total' => 1,
             'terakhir' => true,
@@ -197,24 +193,23 @@ class ImportPotongKeaktifanTest extends TestCase
         $this->assertSame(0, $tiga->json('ringkasan.dibuat'));
         $this->assertSame(0, $tiga->json('ringkasan.diperbarui'));
         $this->assertSame(1, $tiga->json('ringkasan.baris_dilewati'));
-        $this->assertSame(1, KeaktifanPegawai::count());
+        $this->assertSame(1, LembagaPegawai::count());
     }
 
     public function test_05_galat_per_baris_dan_unduh_csv(): void
     {
         $f = $this->baseFixture();
         $this->buatPegawai('Ahmad', 'PST-001');
-        $tanpaTempat = Pegawai::create(['nama_lengkap' => 'Cici', 'jenis_kelamin' => 'P', 'nipp' => 'PST-003']);
 
-        $res = $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/pegawai-keaktifan/import-potong', [
+        $res = $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/pegawai-lembaga/import-potong', [
             'mode' => 'eksekusi',
             'total' => 4,
             'terakhir' => true,
             'baris' => [
                 $this->baris(),
                 $this->baris(['jenjang' => 'ZZZ']),
-                $this->baris(['nipp' => 'PST-003']),
                 $this->baris(['nipp' => 'PST-404']),
+                $this->baris(['tgl_masuk' => 'bukan-tanggal']),
             ],
         ])->assertStatus(200);
 
@@ -222,39 +217,38 @@ class ImportPotongKeaktifanTest extends TestCase
         $this->assertSame(3, $res->json('ringkasan.baris_gagal'));
         $this->assertTrue((bool) $res->json('galat_unduh'));
 
-        // Pegawai tanpa penempatan → galat jenjang dengan pesan jelas.
         $sesi = ImportSesi::find($res->json('sesi_id'));
         $this->assertFileExists(storage_path('app/'.$sesi->galat_file));
         $isi = (string) file_get_contents(storage_path('app/'.$sesi->galat_file));
-        $this->assertStringContainsString('belum ditempatkan', $isi);
+        $this->assertStringContainsString('Lembaga tidak valid', $isi);
 
         $unduh = $this->actingAs($f['super'], 'sanctum')
-            ->get("/api/admin/pegawai-keaktifan/import-potong/{$sesi->id}/galat");
+            ->get("/api/admin/pegawai-lembaga/import-potong/{$sesi->id}/galat");
         $unduh->assertStatus(200);
 
         $batal = $this->actingAs($f['super'], 'sanctum')
-            ->post("/api/admin/pegawai-keaktifan/import-potong/{$sesi->id}/batal");
+            ->post("/api/admin/pegawai-lembaga/import-potong/{$sesi->id}/batal");
         $batal->assertStatus(200);
         $this->assertSame(ImportSesi::BATAL, ImportSesi::find($sesi->id)->status);
-        $this->assertSame(1, KeaktifanPegawai::count()); // tulisan per potongan tetap
+        $this->assertSame(1, LembagaPegawai::count()); // tulisan per potongan tetap
     }
 
-    public function test_06_lingkup_lembaga_dan_status_label_kapital(): void
+    public function test_06_lingkup_lembaga_dan_alias_kapital(): void
     {
         $f = $this->baseFixture();
-        $this->buatPegawai('Ahmad', 'PST-001', 'MI');
-        $this->buatPegawai('Budi', 'PST-002', 'MTS');
+        $this->buatPegawai('Ahmad', 'PST-001');
+        $this->buatPegawai('Budi', 'PST-002');
 
         $admin = $this->makeAdmin(['MI']);
 
-        $res = $this->actingAs($admin, 'sanctum')->postJson('/api/admin/pegawai-keaktifan/import-potong', [
+        $res = $this->actingAs($admin, 'sanctum')->postJson('/api/admin/pegawai-lembaga/import-potong', [
             'mode' => 'eksekusi',
             'total' => 3,
             'terakhir' => true,
             'baris' => [
                 $this->baris(['nipp' => 'PST-001']),
                 $this->baris(['nipp' => 'PST-002', 'jenjang' => 'MTS']),
-                $this->baris(['nipp' => 'PST-002', 'jenjang' => 'mts', 'status_keaktifan' => 'TIDAK']),
+                $this->baris(['nipp' => 'PST-002', 'jenjang' => 'mts', 'is_active_lembaga' => 'TIDAK']),
             ],
         ])->assertStatus(200);
 
@@ -262,10 +256,10 @@ class ImportPotongKeaktifanTest extends TestCase
         $this->assertSame(1, $res->json('ringkasan.dibuat'));
         $this->assertSame(2, $res->json('ringkasan.baris_gagal'));
 
-        // Label/kapital/alias status diterima ('mts', 'TIDAK' → 'Tidak').
-        $row = KeaktifanPegawai::first();
+        // Alias kapital diterima ('mts', 'TIDAK' → 'Tidak').
+        $row = LembagaPegawai::first();
         $this->assertSame('MI', $row->jenjang);
-        $this->assertSame('Ya', $row->status_keaktifan);
+        $this->assertSame('Ya', $row->is_active_lembaga);
     }
 
     public function test_07_izin_pegawai_ubah_diperlukan(): void
@@ -277,47 +271,10 @@ class ImportPotongKeaktifanTest extends TestCase
         $guru = $this->makeAdmin(['MI'], 'guru');
         $guru->syncPermissions(['pegawai.lihat']);
 
-        $this->actingAs($guru, 'sanctum')->postJson('/api/admin/pegawai-keaktifan/import-potong', [
+        $this->actingAs($guru, 'sanctum')->postJson('/api/admin/pegawai-lembaga/import-potong', [
             'mode' => 'periksa',
             'total' => 1,
             'baris' => [$this->baris()],
         ])->assertStatus(403);
-    }
-
-    public function test_08_mode_gabungan_buatkan_penempatan(): void
-    {
-        $f = $this->baseFixture();
-        $guru = $this->buatPegawai('Ahmad', 'PST-001', null);
-
-        // Kering + flag: cek jalan, tanpa menulis apa pun.
-        $kering = $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/pegawai-keaktifan/import-potong', [
-            'mode' => 'periksa',
-            'total' => 1,
-            'terakhir' => true,
-            'baris' => [$this->baris(['tugas_utama' => 'Guru Kelas'])],
-            'buat_penempatan' => true,
-        ])->assertStatus(200);
-        $this->assertSame(1, $kering->json('ringkasan.dibuat'));
-        $this->assertSame(0, LembagaPegawai::count());
-        $this->assertSame(0, KeaktifanPegawai::count());
-
-        // Eksekusi + flag: penempatan aktif + keaktifan terbuat sekaligus.
-        $res = $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/pegawai-keaktifan/import-potong', [
-            'mode' => 'eksekusi',
-            'total' => 1,
-            'terakhir' => true,
-            'baris' => [$this->baris(['tugas_utama' => 'Guru Kelas'])],
-            'buat_penempatan' => true,
-        ])->assertStatus(200);
-        $this->assertSame(1, $res->json('ringkasan.dibuat'));
-
-        $tempat = LembagaPegawai::where('pegawai_id', $guru->id)->where('jenjang', 'MI')->first();
-        $this->assertNotNull($tempat);
-        $this->assertSame('Ya', $tempat->is_active_lembaga);
-        $this->assertSame('Guru Kelas', $tempat->tugas_utama);
-
-        $aktif = KeaktifanPegawai::where('pegawai_id', $guru->id)->first();
-        $this->assertNotNull($aktif);
-        $this->assertSame('Guru Kelas', $aktif->tugas_utama);
     }
 }

@@ -195,7 +195,7 @@ class KeaktifanPegawaiController extends Controller
      */
     public function potongImport(KeaktifanPotongRequest $request, KeaktifanImporService $layanan): JsonResponse
     {
-        return $this->jalankanImporSesi($request, 'keaktifan_pegawai', $layanan);
+        return $this->jalankanImporSesi($request, 'keaktifan_pegawai', $layanan->setBuatPenempatan($request->boolean('buat_penempatan')));
     }
 
     /** POST /api/admin/pegawai-keaktifan/import-potong/{sesi}/batal. */

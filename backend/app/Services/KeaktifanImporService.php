@@ -18,14 +18,28 @@ use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
  * (sel kosong tak bisa mengosongkan/mengarsipkan diam-diam); baru → dibuat
  * (status bawaan aktif, tugas warisi penempatan). Pegawai dicocokkan
  * `pegawai_id` eksak → `nipp` eksak → nama unik; baris hanya sah bila
- * penempatan (`lembaga_pegawai`) ada di lembaga baris. Mode kering
- * (`$kering = true`) menjalankan SEMUA cek tanpa menulis.
+ * penempatan (`lembaga_pegawai`) ada di lembaga baris — kecuali mode
+ * gabungan (`setBuatPenempatan(true)`) yang membuatkan penempatan aktif
+ * dulu (tugas dari sel bila terisi). Mode kering (`$kering = true`)
+ * menjalankan SEMUA cek tanpa menulis.
  */
 class KeaktifanImporService extends ImporPotongan
 {
     protected const KOLOM_TEKS = ['pegawai_id', 'nipp', 'no_sk'];
 
     protected const KOLOM_TANGGAL = ['tgl_sk'];
+
+    /** Mode gabungan: buatkan penempatan aktif bila belum ada. */
+    private bool $buatPenempatan = false;
+
+    public function __construct(private PegawaiService $penempatan) {}
+
+    public function setBuatPenempatan(bool $nilai): static
+    {
+        $this->buatPenempatan = $nilai;
+
+        return $this;
+    }
 
     /** @param  array<string, mixed>  $baris */
     public function normalisasiBaris(array $baris): array
@@ -99,18 +113,29 @@ class KeaktifanImporService extends ImporPotongan
             return;
         }
 
-        // Invarian modul: tulis keaktifan hanya bila penempatan ada.
-        $penempatan = LembagaPegawai::untuk((int) $pegawai->id, $jenjang);
-        if (! $penempatan) {
-            $this->fail($no, 'jenjang', 'Pegawai belum ditempatkan di lembaga ini (tempatkan dulu di halaman Lembaga Pegawai).');
-
-            return;
-        }
-
-        // Sel terisi (untuk update: hanya sel terisi yang menimpa).
+        // Invarian modul: tulis keaktifan hanya bila penempatan ada —
+        // kecuali mode gabungan yang membuatkan penempatan aktif dulu.
+        // (Sel terisi dihitung duluan karena tugas dipakai penempatan baru.)
         $terisi = fn (string $kunci) => array_key_exists($kunci, $baris) && trim((string) $baris[$kunci]) !== '';
         $tugas = $terisi('tugas_utama') ? trim((string) $baris['tugas_utama']) : null;
         $noSk = $terisi('no_sk') ? trim((string) $baris['no_sk']) : null;
+
+        $penempatan = LembagaPegawai::untuk((int) $pegawai->id, $jenjang);
+        if (! $penempatan) {
+            if (! $this->buatPenempatan) {
+                $this->fail($no, 'jenjang', 'Pegawai belum ditempatkan di lembaga ini (tempatkan dulu di halaman Lembaga Pegawai, atau centang "Buatkan penempatan" saat import).');
+
+                return;
+            }
+            if ($kering) {
+                // Kering: penempatan bayangan agar cek lanjutan tetap jalan.
+                $penempatan = new LembagaPegawai(['tugas_utama' => $tugas]);
+            } else {
+                $penempatan = $this->penempatan->pastikanPenempatan(
+                    $pegawai, $jenjang, $tugas !== null ? ['tugas_utama' => $tugas] : []
+                );
+            }
+        }
 
         $kunci = ['pegawai_id' => $pegawai->id, 'jenjang' => $jenjang, 'tahun_ajaran' => $ta];
         $lama = KeaktifanPegawai::where($kunci)->first();

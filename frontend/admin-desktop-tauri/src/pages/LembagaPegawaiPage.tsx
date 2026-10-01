@@ -3,24 +3,32 @@ import { errorMessage } from '../api/client';
 import { referensiList } from '../api/master';
 import {
   aktifkanPenempatan,
+  batalPotongPenempatan,
+  dataPenempatanExisting,
   hapusPenempatanPegawai,
+  importPenempatanPotong,
   listPegawai,
   listPenempatanPegawai,
   nonaktifkanPenempatan,
   tempatkanPegawai,
+  unduhGalatPenempatan,
+  unduhTemplatePenempatan,
   updatePenempatanPegawai,
+  KOLOM_IMPORT_PENEMPATAN,
   type LembagaPegawai,
   type Pegawai,
 } from '../api/pegawai';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import ImportBertahapUmumDialog from '@/components/ImportBertahapUmumDialog';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useDaftarTabel } from '@/hooks/useDaftarTabel';
 import { useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import { ResizableAutoHidePanel, ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { ActionIcon, DeleteAction } from '@/components/RowActions';
-import { ArrowRight, Trash2 } from '@/icons';
+import { ArrowRight, FileUp, Trash2 } from '@/icons';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '../auth/AuthContext';
@@ -118,6 +126,7 @@ export default function LembagaPegawaiPage() {
   const kiriKosongSemuaMasuk = jenjangs.length > 0 && kiri.rows.length > 0 && kiriTampil.length === 0;
 
   const [busy, setBusy] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   // Lempatkan langsung tanpa dialog: lembaga diambil dari toggle topbar.
   const onTempatkan = useCallback(async (p: Pegawai) => {    if (jenjangs.length !== 1) {
@@ -338,7 +347,21 @@ export default function LembagaPegawaiPage() {
             arahUrut={kanan.arahUrut}
             onUrut={kanan.terapkanUrut}
             onCheckedChange={setTercentangKanan}
-            addButton={renderBulkHapusKanan()}
+            addButton={(
+              <>
+                {canUbah && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button id="btn_buka_import_penempatan" variant="outline" size="sm" onClick={() => setImportOpen(true)}>
+                        <FileUp data-icon="inline-start" size={16} /> Import
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent><p>Untuk file besar (puluhan hingga ratusan ribu baris)</p></TooltipContent>
+                  </Tooltip>
+                )}
+                {renderBulkHapusKanan()}
+              </>
+            )}
             renderActions={renderKanan}
           />
           </div>
@@ -364,6 +387,43 @@ export default function LembagaPegawaiPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <ImportBertahapUmumDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        config={{
+          idPrefix: 'penempatan',
+          judul: 'Import penempatan pegawai',
+          deskripsi: 'Kolom wajib: jenjang, plus identitas pegawai (pegawai_id / NIPP / nama unik). Kunci baris (pegawai, lembaga): cocok diperbarui hanya kolom terisi, baru dibuat aktif. Pindah lembaga tidak bisa lewat import — buat baris baru.',
+          kolom: KOLOM_IMPORT_PENEMPATAN,
+          wajib: ['jenjang'],
+          idTombol: {
+            template: 'btn_unduh_template_penempatan',
+            periksa: 'btn_periksa_import_penempatan',
+            mulai: 'btn_import_penempatan',
+          },
+          labelTemplate: 'Unduh template Excel penempatan',
+          unduhTemplate: unduhTemplatePenempatan,
+          unduhData: {
+            label: 'Unduh data penempatan existing',
+            ambil: dataPenempatanExisting,
+            namaBerkas: 'data-penempatan-existing.xlsx',
+            judulSheet: 'Data Penempatan Pegawai',
+          },
+          kirim: ({ sesi_id, mode, total, baris, terakhir }) =>
+            importPenempatanPotong({
+              ...(sesi_id === undefined ? {} : { sesi_id }),
+              mode, ...(sesi_id === undefined ? { total } : {}), baris,
+              ...(terakhir ? { terakhir } : {}),
+            }),
+          batal: batalPotongPenempatan,
+          unduhGalat: unduhGalatPenempatan,
+          onSelesai: () => {
+            setImportOpen(false);
+            void kanan.load(1);
+            void kiri.load();
+          },
+        }}
+      />
     </div>
   );
 }

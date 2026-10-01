@@ -10,6 +10,7 @@ import {
   type ImportPotongRingkasan,
 } from '../api/siklus';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -19,7 +20,7 @@ import DataExistingCard from '@/components/DataExistingCard';
 
 /** Kolom template yang dikirim (kunci lain dari file diabaikan). */
 const KOLOM_KIRIM = [
-  'nis_lokal', 'jenjang', 'tahun_ajaran', 'nama_kelas',
+  'nis_lokal', 'santri_id', 'nama_lengkap', 'jenjang', 'tahun_ajaran', 'nama_kelas',
   'semester', 'tgl_masuk', 'no_absen', 'tingkat', 'status_awal', 'status_akhir',
 ];
 
@@ -46,6 +47,9 @@ export default function ImportBertahapDialog({ open, onOpenChange, onSelesai }: 
   const [contoh, setContoh] = useState<ImportPotongHasil['galat_contoh']>([]);
   const [galatUnduh, setGalatUnduh] = useState(false);
   const [sibuk, setSibuk] = useState(false);
+  /** Mode gabungan: buatkan keanggotaan bila santri belum punya (cocok via
+   *  santri_id / nama unik bila NIS tak terdaftar). */
+  const [buatAnggota, setBuatAnggota] = useState(false);
   const batalRef = useRef(false);
 
   function reset() {
@@ -124,6 +128,7 @@ export default function ImportBertahapDialog({ open, onOpenChange, onSelesai }: 
           ...(sid === null ? { mode: modeJalan, total: baris.length } : { sesi_id: sid, mode: modeJalan }),
           baris: potong,
           ...(i + POTONGAN >= baris.length ? { terakhir: true } : {}),
+          ...(buatAnggota ? { buat_keanggotaan: true } : {}),
         });
         sid = res.sesi_id;
         setSesiId(sid);
@@ -160,6 +165,7 @@ export default function ImportBertahapDialog({ open, onOpenChange, onSelesai }: 
             Untuk file besar (puluhan hingga ratusan ribu baris). File dibaca di browser lalu
             dikirim 1000 baris per panggilan dengan progres — backend tetap ringan.
             Kunci: NIS lokal + lembaga; baris cocok diperbarui, hanya kolom terisi.
+            Centang di bawah untuk mengisi keanggotaan + riwayat sekaligus.
           </DialogDescription>
         </DialogHeader>
         <div className="grid grid-cols-1 gap-4">
@@ -184,6 +190,15 @@ export default function ImportBertahapDialog({ open, onOpenChange, onSelesai }: 
           <div className="flex flex-col gap-2 rounded-lg border bg-muted/40 p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Import bertahap</p>
           <p className="text-xs text-muted-foreground">1000 baris per panggilan — ringan untuk ribuan baris.</p>
+          <label htmlFor="check_import_riwayat_buat_keanggotaan" className="inline-flex cursor-pointer items-center gap-2 text-xs">
+            <Checkbox
+              id="check_import_riwayat_buat_keanggotaan"
+              className="size-3.5"
+              checked={buatAnggota}
+              onCheckedChange={(v) => setBuatAnggota(v === true)}
+            />
+            Buatkan keanggotaan bila santri belum punya (cocok via santri_id / nama unik bila NIS tak terdaftar)
+          </label>
           <Input id="input_file_import_bertahap" type="file" accept=".xlsx,.xls,.csv"
             className="h-11 cursor-pointer py-2 file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-1 file:text-xs file:font-medium"
             disabled={sibuk} onChange={(e) => void pilihFile(e.target.files?.[0] ?? null)} />

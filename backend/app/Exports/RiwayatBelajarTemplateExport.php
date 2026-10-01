@@ -24,14 +24,17 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
  * Template import riwayat belajar — nama kolom mengikuti tabel `riwayat_belajar`
  * (tanpa `nis`; NIS ada di `lembaga_santri`), kecuali kelas memakai
  * `nama_kelas` (nama rombel, mis. '1A') agar ramah diisi. Kunci pencocokan
- * santri: `nis_lokal` + `jenjang` (unik per lembaga di DB).
+ * santri: `nis_lokal` + `jenjang` (unik per lembaga di DB); bila NIS belum
+ * terdaftar di mana pun, isi `santri_id` (diutamakan) atau `nama_lengkap`
+ * (harus unik) + centang "Buatkan keanggotaan" saat import agar keanggotaan
+ * (`lembaga_santri`) dibuatkan dulu.
  */
 class RiwayatBelajarTemplateExport extends DefaultValueBinder implements FromArray, WithCustomValueBinder, WithEvents, WithHeadings, WithTitle
 {
     private const BARIS_TERAKHIR = 501;
 
     public const KOLOM = [
-        'nis_lokal', 'jenjang', 'tahun_ajaran', 'nama_kelas',
+        'nis_lokal', 'santri_id', 'nama_lengkap', 'jenjang', 'tahun_ajaran', 'nama_kelas',
         'semester', 'tgl_masuk', 'no_absen', 'tingkat', 'status_awal', 'status_akhir',
     ];
 
@@ -56,6 +59,8 @@ class RiwayatBelajarTemplateExport extends DefaultValueBinder implements FromArr
     {
         return [[
             'nis_lokal' => '26001',
+            'santri_id' => '',
+            'nama_lengkap' => '',
             'jenjang' => '2',
             'tahun_ajaran' => '2025/2026',
             'nama_kelas' => '1A',

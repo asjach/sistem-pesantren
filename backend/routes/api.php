@@ -119,6 +119,11 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::post('pegawai-lembaga/{penempatan}/nonaktifkan', [LembagaPegawaiController::class, 'nonaktifkan'])->middleware('permission:pegawai.ubah');
         Route::post('pegawai-lembaga/{penempatan}/aktifkan', [LembagaPegawaiController::class, 'aktifkan'])->middleware('permission:pegawai.ubah');
         Route::delete('pegawai-lembaga/{penempatan}', [LembagaPegawaiController::class, 'destroy'])->middleware('permission:pegawai.hapus');
+        Route::get('pegawai-lembaga/import-template', [LembagaPegawaiController::class, 'templateImport'])->middleware('permission:pegawai.lihat');
+        Route::get('pegawai-lembaga/data-existing', [LembagaPegawaiController::class, 'dataExisting'])->middleware('permission:pegawai.lihat');
+        Route::post('pegawai-lembaga/import-potong', [LembagaPegawaiController::class, 'potongImport'])->middleware(['permission:pegawai.ubah', 'throttle:imports']);
+        Route::post('pegawai-lembaga/import-potong/{sesi}/batal', [LembagaPegawaiController::class, 'batalPotong'])->middleware('permission:pegawai.ubah');
+        Route::get('pegawai-lembaga/import-potong/{sesi}/galat', [LembagaPegawaiController::class, 'galatPotong'])->middleware('permission:pegawai.lihat');
         Route::get('pegawai-keaktifan', [KeaktifanPegawaiController::class, 'index'])->middleware('permission:pegawai.lihat');
         Route::post('pegawai-keaktifan', [KeaktifanPegawaiController::class, 'store'])->middleware('permission:pegawai.ubah');
         Route::post('pegawai-keaktifan/aktifkan-massal', [KeaktifanPegawaiController::class, 'aktifkanMassal'])->middleware('permission:pegawai.ubah');

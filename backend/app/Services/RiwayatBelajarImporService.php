@@ -19,13 +19,26 @@ use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
  *
  * UPSERT per kunci (santri, tahun ajaran, jenjang, semester): kunci baru →
  * dibuat; kunci cocok → update hanya kolom yang terisi. Pencocokan santri:
- * `nis_lokal` + `jenjang`, fallback NIS sama di pasangan MI↔MD. Mode kering
+ * `nis_lokal` + `jenjang`, fallback NIS sama di pasangan MI↔MD — kecuali
+ * mode gabungan (`setBuatKeanggotaan(true)`) yang, bila NIS tak terdaftar di
+ * mana pun, mencocokkan `santri_id` eksak → `nama_lengkap` unik lalu
+ * membuatkan keanggotaan (`lembaga_santri`) dulu. Mode kering
  * (`$kering = true`) menjalankan SEMUA cek tanpa menulis — untuk periksa
  * bertahap (pengganti rollback-transaksi yang berat di file besar).
  */ class RiwayatBelajarImporService extends ImporPotongan
 {
     /** (santri, jenjang) tersentuh potongan berjalan; disinkronkan di akhir potongan. */
     protected array $tersentuh = [];
+
+    /** Mode gabungan: buatkan keanggotaan bila santri belum punya. */
+    private bool $buatKeanggotaan = false;
+
+    public function setBuatKeanggotaan(bool $nilai): static
+    {
+        $this->buatKeanggotaan = $nilai;
+
+        return $this;
+    }
 
     public function ringkasan(): array
     {
@@ -330,7 +343,53 @@ use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
             }
         }
 
+        // Mode gabungan: NIS tak terdaftar di mana pun → cocokkan identitas
+        // cadangan (keanggotaan dibuatkan di bawah via pastikanKeanggotaan).
+        if ($this->buatKeanggotaan
+            && (! empty($row['santri_id']) || trim((string) ($row['nama_lengkap'] ?? '')) !== '')
+        ) {
+            $alternatif = $this->cariSantriAlternatif($row, $no);
+            if ($alternatif !== null) {
+                return [$alternatif, true];
+            }
+
+            return null;
+        }
+
         $this->fail($no, 'nis_lokal', 'Santri tidak ditemukan (cocokkan NIS lokal + lembaga).');
+
+        return null;
+    }
+
+    /**
+     * Identitas cadangan mode gabungan: `santri_id` eksak → `nama_lengkap`
+     * unik. Gagal dicatat di sini (kembalikan null).
+     *
+     * @param  array<string, mixed>  $row
+     */
+    protected function cariSantriAlternatif(array $row, int $no): ?Santri
+    {
+        if (! empty($row['santri_id'])) {
+            $santri = Santri::find((int) $row['santri_id']);
+            if ($santri) {
+                return $santri;
+            }
+        }
+
+        $nama = trim((string) ($row['nama_lengkap'] ?? ''));
+        if ($nama !== '') {
+            $kandidat = Santri::where('nama_lengkap', $nama)->get();
+            if ($kandidat->count() === 1) {
+                return $kandidat->first();
+            }
+            if ($kandidat->count() > 1) {
+                $this->fail($no, 'nama_lengkap', 'Nama santri tidak unik — isi santri_id.');
+
+                return null;
+            }
+        }
+
+        $this->fail($no, 'nis_lokal', 'Santri tidak ditemukan (cocokkan NIS lokal + lembaga, atau santri_id / nama unik).');
 
         return null;
     }

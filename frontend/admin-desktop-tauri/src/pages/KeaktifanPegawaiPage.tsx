@@ -25,6 +25,7 @@ import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import FilterField from '@/components/FilterField';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import CatatanProsesTahunAjaran from '@/components/CatatanProsesTahunAjaran';
 import ImportBertahapUmumDialog from '@/components/ImportBertahapUmumDialog';
@@ -66,6 +67,8 @@ export default function KeaktifanPegawaiPage() {
   const [cari, setCari] = useState('');
   const [status, setStatus] = useState('');
   const [importOpen, setImportOpen] = useState(false);
+  /** Mode gabungan import: buatkan penempatan aktif bila belum ada. */
+  const [buatPenempatan, setBuatPenempatan] = useState(false);
   const taTunggal = targetTunggal(tahunAjaranNames);
   const jenjangTunggal = targetTunggal(jenjangs);
 
@@ -302,9 +305,21 @@ export default function KeaktifanPegawaiPage() {
         config={{
           idPrefix: 'keaktifan',
           judul: 'Import keaktifan pegawai',
-          deskripsi: 'Kolom wajib: jenjang + tahun_ajaran, plus identitas pegawai (pegawai_id / NIPP / nama unik). Baris hanya sah bila pegawai sudah ditempatkan di lembaga baris; tugas kosong mewarisi penempatan. Baris cocok diperbarui, hanya kolom terisi.',
+          deskripsi: 'Kolom wajib: jenjang + tahun_ajaran, plus identitas pegawai (pegawai_id / NIPP / nama unik). Baris hanya sah bila pegawai sudah ditempatkan di lembaga baris; tugas kosong mewarisi penempatan. Baris cocok diperbarui, hanya kolom terisi. Centang di bawah untuk mengisi penempatan + keaktifan sekaligus.',
           kolom: KOLOM_IMPORT_KEAKTIFAN,
           wajib: ['jenjang', 'tahun_ajaran'],
+          children: (
+            <label htmlFor="check_import_keaktifan_buat_penempatan" className="inline-flex cursor-pointer items-center gap-2 text-xs">
+              <Checkbox
+                id="check_import_keaktifan_buat_penempatan"
+                className="size-3.5"
+                checked={buatPenempatan}
+                onCheckedChange={(v) => setBuatPenempatan(v === true)}
+              />
+              Buatkan penempatan aktif bila belum ada (tugas dari kolom bila terisi)
+            </label>
+          ),
+          konteks: (): Record<string, string | number> => (buatPenempatan ? { buat_penempatan: 1 } : {}),
           idTombol: {
             template: 'btn_unduh_template_keaktifan',
             periksa: 'btn_periksa_import_keaktifan',
@@ -318,11 +333,12 @@ export default function KeaktifanPegawaiPage() {
             namaBerkas: 'data-keaktifan-existing.xlsx',
             judulSheet: 'Data Keaktifan Pegawai',
           },
-          kirim: ({ sesi_id, mode, total, baris, terakhir }) =>
+          kirim: ({ sesi_id, mode, total, konteks, baris, terakhir }) =>
             importKeaktifanPotong({
               ...(sesi_id === undefined ? {} : { sesi_id }),
               mode, ...(sesi_id === undefined ? { total } : {}), baris,
               ...(terakhir ? { terakhir } : {}),
+              ...(konteks.buat_penempatan ? { buat_penempatan: true } : {}),
             }),
           batal: batalPotongKeaktifan,
           unduhGalat: unduhGalatKeaktifan,

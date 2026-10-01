@@ -330,4 +330,52 @@ class ImportPotongTest extends TestCase
         $this->assertSame('nama_kelas', $res->json('galat_contoh.0.kolom'));
         $this->assertSame(0, RiwayatBelajar::count());
     }
+
+    public function test_10_mode_gabungan_buatkan_keanggotaan(): void
+    {
+        $f = $this->baseFixture();
+        // Santri tanpa keanggotaan sama sekali (hanya buku induk).
+        $santri = Santri::create(['nama_lengkap' => 'Gabung Tanpa Anggota', 'jk' => 'L']);
+
+        // Tanpa flag: NIS tak terdaftar → gagal seperti dulu.
+        $gagal = $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/riwayat-belajar/import-potong', [
+            'mode' => 'periksa',
+            'total' => 1,
+            'terakhir' => true,
+            'baris' => [$this->baris('27990', 'MI', '2026/2027', ['santri_id' => $santri->id])],
+        ])->assertStatus(200);
+        $this->assertSame(1, $gagal->json('ringkasan.baris_gagal'));
+        $this->assertSame(0, LembagaSantri::count());
+
+        // Kering + flag: cek jalan (cocok via santri_id), tanpa menulis.
+        $kering = $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/riwayat-belajar/import-potong', [
+            'mode' => 'periksa',
+            'total' => 1,
+            'terakhir' => true,
+            'baris' => [$this->baris('27990', 'MI', '2026/2027', ['santri_id' => $santri->id])],
+            'buat_keanggotaan' => true,
+        ])->assertStatus(200);
+        $this->assertSame(1, $kering->json('ringkasan.dibuat'));
+        $this->assertSame(0, LembagaSantri::count());
+        $this->assertSame(0, RiwayatBelajar::count());
+
+        // Eksekusi + flag: keanggotaan + riwayat terbuat sekaligus (cocok via nama unik).
+        $res = $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/riwayat-belajar/import-potong', [
+            'mode' => 'eksekusi',
+            'total' => 1,
+            'terakhir' => true,
+            'baris' => [$this->baris('27990', 'MI', '2026/2027', ['nama_lengkap' => 'Gabung Tanpa Anggota'])],
+            'buat_keanggotaan' => true,
+        ])->assertStatus(200);
+        $this->assertSame(1, $res->json('ringkasan.dibuat'));
+
+        $anggota = LembagaSantri::where('santri_id', $santri->id)->where('jenjang', 'MI')->first();
+        $this->assertNotNull($anggota);
+        $this->assertSame('27990', $anggota->nis_lokal);
+        $this->assertSame('Ya', $anggota->is_active_lembaga);
+
+        $riwayat = RiwayatBelajar::where('santri_id', $santri->id)->first();
+        $this->assertNotNull($riwayat);
+        $this->assertSame('2026/2027', $riwayat->tahun_ajaran);
+    }
 }

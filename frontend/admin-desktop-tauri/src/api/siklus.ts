@@ -333,6 +333,8 @@ export function potongImportRiwayat(input: {
   total?: number;
   baris: Record<string, unknown>[];
   terakhir?: boolean;
+  /** Mode gabungan: buatkan keanggotaan bila santri belum punya. */
+  buat_keanggotaan?: boolean;
 }) {
   return api<ImportPotongHasil>('/admin/riwayat-belajar/import-potong', {
     method: 'POST',

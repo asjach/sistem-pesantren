@@ -46,6 +46,8 @@ class DataRiwayatBelajar
 
         return $this->query()->get()->map(fn (RiwayatBelajar $r) => [
             (string) ($r->nis_lokal ?? ''),
+            (string) $r->santri_id,
+            (string) ($r->nama_lengkap ?? ''),
             (string) $r->jenjang,
             (string) $r->tahun_ajaran,
             (string) ($r->nama_kelas ?? ''),
@@ -66,8 +68,9 @@ class DataRiwayatBelajar
                     ->on('lembaga_santri.jenjang', '=', 'riwayat_belajar.jenjang');
             })
             ->leftJoin('kelas', 'kelas.id', '=', 'riwayat_belajar.kelas_id')
+            ->leftJoin('santri', 'santri.id', '=', 'riwayat_belajar.santri_id')
             ->whereIn('riwayat_belajar.jenjang', $this->jenjang)
-            ->select('riwayat_belajar.*', 'lembaga_santri.nis_lokal', 'kelas.nama_kelas')
+            ->select('riwayat_belajar.*', 'lembaga_santri.nis_lokal', 'kelas.nama_kelas', 'santri.nama_lengkap')
             ->orderBy('riwayat_belajar.jenjang')
             ->orderBy('riwayat_belajar.tahun_ajaran')
             ->orderBy('riwayat_belajar.semester')
