@@ -1,10 +1,29 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { ReactNode } from 'react';
 
 import { EditSantriDialog } from './EditSantriDialog';
 import { updateSantri, type SantriPenuh } from '@/api/santri';
 import { renderDenganTema } from '@/test/utils';
+
+// react-resizable-panels tidak jalan di jsdom — ganti panel bungkus datar.
+vi.mock('@/components/ui/resizable', () => ({
+  ResizablePanelGroup: ({ children }: { children: ReactNode }) => <>{children}</>,
+  ResizablePanel: ({ children }: { children: ReactNode }) => <>{children}</>,
+  ResizableHandle: () => null,
+}));
+// Dialog butuh izin lihat dokumen untuk kolom viewer.
+vi.mock('@/auth/AuthContext', () => ({
+  useAuth: () => ({ user: { permissions: ['dokumen_santri.lihat'], roles: [{ name: 'super_admin' }] } }),
+}));
+vi.mock('@/api/dokumen', async (importOriginal) => {
+  const asli = await importOriginal<typeof import('@/api/dokumen')>();
+  return {
+    ...asli,
+    listDokumen: vi.fn(async () => ({ data: [], current_page: 1, last_page: 1, total: 0 })),
+  };
+});
 
 const update = vi.fn(async (_id: number, _p: unknown) => {});
 // Pesan validasi lewat toast; tanpa <Toaster /> di test cukup memeriksa pemanggilnya.
@@ -41,6 +60,12 @@ function renderDialog() {
 
 beforeEach(() => {
   update.mockClear();
+  // PenampilBerkas mengukur wadah via ResizeObserver (tak ada di jsdom).
+  vi.stubGlobal('ResizeObserver', class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  });
 });
 
 describe('EditSantriDialog', () => {
@@ -50,7 +75,7 @@ describe('EditSantriDialog', () => {
     for (const judul of ['Identitas', 'Alamat', 'Keluarga']) {
       expect(screen.getByRole('heading', { level: 3, name: judul })).toBeInTheDocument();
     }
-    for (const judul of ['Identitas dasar', 'Kelahiran', 'Kontak', 'Ayah', 'Ibu', 'Wali', 'Kartu keluarga']) {
+    for (const judul of ['Identitas dasar', 'Tambahan', 'Ayah', 'Ibu', 'Wali', 'Kartu keluarga']) {
       expect(screen.getByText(judul)).toBeInTheDocument();
     }
   });
@@ -88,7 +113,7 @@ describe('EditSantriDialog', () => {
     const kelas = baris.className;
 
     // Dua kolom: label | kontrol, disejajarkan di tengah baris.
-    expect(kelas).toContain('grid-cols-[minmax(0,10rem)_minmax(0,1fr)]');
+    expect(kelas).toContain('grid-cols-[minmax(0,8rem)_minmax(0,1fr)]');
     expect(kelas).toContain('items-center');
     // Baris berdempet: dipisah garis, bukan jarak.
     expect(kelas).toContain('border-t');
@@ -122,14 +147,18 @@ describe('EditSantriDialog', () => {
     expect(nik.className).toContain('bg-accent/15');
   });
 
-  it('area isi ber tinggi tetap dan menggulir, sama seperti dialog profil', async () => {
+  it('dialog penuhi layar bermargin 24px dan area isi mengisi sisa tinggi', async () => {
     renderDialog();
 
+    const konten = document.querySelector('[role="dialog"]') as HTMLElement;
+    expect(konten.style.inset).toBe('24px');
+    expect(konten.style.display).toBe('flex');
+
     const form = document.querySelector('form') as HTMLElement;
-    expect(form.className).toContain('h-[60vh]');
-    expect(form.className).toContain('min-h-72');
+    expect(form.className).toContain('h-full');
+    expect(form.className).toContain('min-h-0');
     expect(form.className).toContain('overflow-y-auto');
-    expect(form.className).not.toContain('max-h-[60vh]');
+    expect(form.className).not.toContain('h-[60vh]');
   });
 
   it('menyimpan isian yang diubah', async () => {
@@ -158,5 +187,28 @@ describe('EditSantriDialog', () => {
     await vi.waitFor(() => expect(toastError).toHaveBeenCalled());
     expect(toastError.mock.calls[0][0]).toMatch(/NISN harus 10 digit angka/);
     expect(update).not.toHaveBeenCalled();
+  });
+
+  it('navigasi santri tetangga melingkar seurutan daftar', async () => {
+    const user = userEvent.setup();
+    const ganti = vi.fn();
+    const kedua = { ...SANTRI, id: 8, nama_lengkap: 'Budi Santoso' };
+    renderDenganTema(
+      <EditSantriDialog santri={SANTRI as SantriPenuh} daftar={[SANTRI as SantriPenuh, kedua as SantriPenuh]} onGanti={ganti} open onOpenChange={() => {}} />
+    );
+
+    await user.click(document.querySelector('#btn_santri_berikut_edit_santri') as HTMLElement);
+    expect(ganti).toHaveBeenCalledWith(kedua);
+    ganti.mockClear();
+    // Dari santri pertama, mundur melingkar ke terakhir (= kedua di daftar 2 ini).
+    await user.click(document.querySelector('#btn_santri_sebelum_edit_santri') as HTMLElement);
+    expect(ganti).toHaveBeenCalledWith(kedua);
+  });
+
+  it('tanpa daftar tidak ada navigasi santri', async () => {
+    renderDialog();
+
+    expect(document.querySelector('#btn_santri_sebelum_edit_santri')).toBeNull();
+    expect(document.querySelector('#btn_santri_berikut_edit_santri')).toBeNull();
   });
 });

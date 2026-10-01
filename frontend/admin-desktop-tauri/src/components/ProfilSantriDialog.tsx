@@ -2,16 +2,44 @@ import { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { IsiProfilSantri, KepalaProfil, useProfilSantri } from '@/components/santri/IsiProfilSantri';
-import { ChevronLeft, ChevronRight, ExternalLink } from '@/icons';
+import { Skeleton } from '@/components/ui/skeleton';
+import { IsiProfilSantri, KepalaProfil, TAUT_BAGIAN_PROFIL, useProfilSantri } from '@/components/santri/IsiProfilSantri';
+import { ChevronLeft, ChevronRight, ExternalLink, X } from '@/icons';
 import { bukaDiTabBaru } from '@/lib/tabBaru';
 import { toast } from 'sonner';
+
+/** Awalan id jangkar tiap bagian isi profil di dialog ini. */
+const JANGKAR_PROFIL = 'profil_santri';
+
+/** Kerangka isi selagi data dimuat — bentuknya menyerupai isi asli (judul +
+ *  panel ganda) supaya tinggi dialog tidak melompat saat data tiba. */
+function KerangkaProfil() {
+  return (
+    <div role="status" aria-label="Memuat profil" className="h-[60vh] min-h-72 space-y-6 overflow-hidden pr-1">
+      <span className="sr-only">Memuat profil…</span>
+      {[0, 1].map((b) => (
+        <div key={b} className="space-y-3">
+          <Skeleton className="h-5 w-32" />
+          <div className="grid gap-4 sm:grid-cols-2">
+            {[0, 1].map((p) => (
+              <div key={p} className="space-y-1.5">
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-28 w-full" />
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 /** Santri yang sedang dibuka + urutan tabel asal (untuk mencari tetangga). */
 export interface TargetProfil {
@@ -59,11 +87,25 @@ export function ProfilSantriDialog({ target, onGanti, onOpenChange }: ProfilSant
     if (hasil === 'gagal') toast.error('Gagal membuka tab baru.');
   }
 
+  /** Gulir halus ke bagian isi profil (di dalam area gulir dialog). */
+  function lompatKeBagian(slug: string) {
+    document.getElementById(`${JANGKAR_PROFIL}_${slug}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-4xl">
+      <DialogContent className="px-3 py-3 sm:max-w-4xl" showCloseButton={false}>
+        {/* Tombol tutup merah (pengganti bawaan yang disembunyikan). */}
+        <DialogClose
+          aria-label="Tutup"
+          className="absolute top-3 right-3 flex size-6 items-center justify-center rounded-xs text-destructive ring-offset-background transition-opacity hover:opacity-100 focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
+        >
+          <X size={16} />
+        </DialogClose>
         <DialogHeader>
-          <div className="flex items-start justify-between gap-3">
+          {/* Ruang kanan untuk tombol tutup (absolut kanan-atas)
+              agar tak menimpa tombol Sebelumnya/Berikutnya. */}
+          <div className="flex items-start justify-between gap-3 pr-10">
             <div className="min-w-0">
               <DialogTitle>{profil ? profil.santri.nama_lengkap : 'Profil Santri'}</DialogTitle>
               <DialogDescription className="flex flex-wrap items-center gap-1.5">
@@ -105,10 +147,28 @@ export function ProfilSantriDialog({ target, onGanti, onOpenChange }: ProfilSant
           </div>
         </DialogHeader>
 
+        {/* Lompat cepat ke tiap bagian — isi profil panjang (60+ baris). */}
+        {profil && (
+          <nav aria-label="Lompat ke bagian profil" className="flex shrink-0 flex-wrap gap-1">
+            {TAUT_BAGIAN_PROFIL.map((t) => (
+              <Button
+                key={t.slug}
+                id={`btn_lompat_${t.slug}`}
+                variant="outline"
+                size="sm"
+                className="h-7 px-2 text-xs"
+                onClick={() => lompatKeBagian(t.slug)}
+              >
+                {t.judul}
+              </Button>
+            ))}
+          </nav>
+        )}
+
         {profil ? (
-          <IsiProfilSantri profil={profil} className="h-[60vh] min-h-72" />
+          <IsiProfilSantri profil={profil} className="h-[60vh] min-h-72" jangkar={JANGKAR_PROFIL} />
         ) : (
-          <p className="py-6 text-center text-sm text-muted-foreground">Memuat data…</p>
+          <KerangkaProfil />
         )}
 
         <DialogFooter>

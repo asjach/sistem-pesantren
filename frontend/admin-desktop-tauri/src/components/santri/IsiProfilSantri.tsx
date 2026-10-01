@@ -203,15 +203,26 @@ function PanelData({ panel, data, onSalin }: {
 
 /** Satu bagian profil: judul kelompok besar + isi (panel field atau tabel
  *  relasi). Bagian ditumpuk dalam satu area gulir, bukan tab, agar seluruh
- *  data terlihat sekilas dan tinggi tidak berubah. */
-function Bagian({ judul, children }: { judul: string; children: ReactNode }) {
+ *  data terlihat sekilas dan tinggi tidak berubah. Judul dibuat lengket di
+ *  atas area gulir supaya konteks tetap kelihatan saat menggulir puluhan
+ *  baris; `jangkar` memberi id agar bisa dilompati dari navigasi dialog. */
+function Bagian({ judul, jangkar, children }: { judul: string; jangkar?: string; children: ReactNode }) {
   return (
-    <section className="space-y-3">
-      <h3 className="border-b pb-1 text-sm font-semibold">{judul}</h3>
+    <section id={jangkar} className="scroll-mt-1 space-y-3">
+      <h3 className="sticky top-0 z-10 border-b bg-background/95 py-1 text-sm font-semibold backdrop-blur-sm">{judul}</h3>
       {children}
     </section>
   );
 }
+
+/** Daftar bagian profil untuk navigasi lompat (chip di dialog). Urutan dan
+ *  slug sejajar dengan `BAGIAN_IDENTITAS` + bagian riwayat di bawahnya. */
+export const TAUT_BAGIAN_PROFIL = [
+  { slug: 'identitas', judul: 'Identitas' },
+  { slug: 'alamat', judul: 'Alamat' },
+  { slug: 'keluarga', judul: 'Keluarga' },
+  { slug: 'riwayat', judul: 'Riwayat' },
+] as const;
 
 /** Tabel relasi di dalam bagian keanggotaan & riwayat. Baris dibuat rapat
  *  (padding + huruf 13px, line-height tetap) agar tabel panjang — riwayat
@@ -278,10 +289,13 @@ export function KepalaProfil({ profil }: { profil: ProfilSantri }) {
 
 /** Isi profil: seluruh bagian ditumpuk dalam satu area gulir ber tinggi tetap
  *  (dialog) atau mengisi sisa tinggi (halaman). Tinggi diberikan lewat
- *  `className` agar keduanya tidak melompat. */
-export function IsiProfilSantri({ profil, className }: {
+ *  `className` agar keduanya tidak melompat. `jangkar` mengaktifkan id tiap
+ *  bagian (`${jangkar}_${slug}`) untuk navigasi lompat di dialog; halaman
+ *  profil tidak memakainya sehingga tak ada id ganda. */
+export function IsiProfilSantri({ profil, className, jangkar }: {
   profil: ProfilSantri;
   className: string;
+  jangkar?: string;
 }) {
   const data = useMemo(
     () => profil.santri as unknown as Record<string, unknown>,
@@ -387,8 +401,12 @@ export function IsiProfilSantri({ profil, className }: {
 
   return (
     <div data-part="isi_profil" className={cn('space-y-6 overflow-y-auto pr-1', className)}>
-      {BAGIAN_IDENTITAS.map((b) => (
-        <Bagian key={b.judul} judul={b.judul}>
+      {BAGIAN_IDENTITAS.map((b, i) => (
+        <Bagian
+          key={b.judul}
+          judul={b.judul}
+          jangkar={jangkar ? `${jangkar}_${TAUT_BAGIAN_PROFIL[i].slug}` : undefined}
+        >
           <div className="grid gap-4 sm:grid-cols-2">
             {b.panels.map((p) => (
               <PanelData key={p.judul} panel={p} data={data} onSalin={salinNilai} />
@@ -397,7 +415,7 @@ export function IsiProfilSantri({ profil, className }: {
         </Bagian>
       ))}
 
-      <Bagian judul="Keanggotaan &amp; riwayat">
+      <Bagian judul="Keanggotaan &amp; riwayat" jangkar={jangkar ? `${jangkar}_riwayat` : undefined}>
         <div className="space-y-5">
           {relasi.map((t) => (
             <TabelRelasi

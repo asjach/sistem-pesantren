@@ -19,15 +19,15 @@ export const tglValidator = (v: string | null) =>
 export const angkaValidator = (v: string | null) => (!v || v.trim() === '' || /^\d+$/.test(v.trim()) ? null : 'Harus angka.');
 
 export function teks(key: string, label: string, width = 140, maxLength = 255): ExcelField {
-  return { key, label: key, width, kind: 'text', maxLength };
+  return { key, label, width, kind: 'text', maxLength };
 }
 
 export function tgl(key: string, label: string, width = 110): ExcelField {
-  return { key, label: key, width, kind: 'text', maxLength: 10, validate: tglValidator };
+  return { key, label, width, kind: 'text', maxLength: 10, validate: tglValidator };
 }
 
 export function angka(key: string, label: string, width = 90): ExcelField {
-  return { key, label: key, width, kind: 'text', maxLength: 4, validate: angkaValidator };
+  return { key, label, width, kind: 'text', maxLength: 4, validate: angkaValidator };
 }
 
 export function pihakFields(prefix: 'ayah' | 'ibu' | 'wali', judul: string): ExcelField[] {

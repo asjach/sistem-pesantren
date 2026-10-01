@@ -297,13 +297,16 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
     geserPandangan.current = null;
   }
 
-  /** Roda mouse = zoom (tengah pandangan dijaga). Listener native non-pasif
-   *  agar preventDefault menahan scroll halaman. */
+  /** Roda mouse: Ctrl/Cmd+scroll = zoom (tengah pandangan dijaga);
+   *  scroll biasa = geser vertikal, Shift+scroll = geser horizontal (bawaan).
+   *  Listener native non-pasif agar preventDefault menahan zoom halaman. */
   useEffect(() => {
     const el = bungkusRef.current;
     if (!el) return;
     const padaRoda = (e: WheelEvent) => {
       if (!sumber || (gambar && !dimensiRef.current)) return;
+      // Tanpa Ctrl/Cmd: biarkan perilaku bawaan (vertikal / Shift = horizontal).
+      if (!e.ctrlKey && !e.metaKey) return;
       e.preventDefault();
       const dy = e.deltaY * (e.deltaMode === 1 ? 16 : 1);
       const z = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(zoomRef.current * Math.exp(-dy * 0.0015) * 100) / 100));

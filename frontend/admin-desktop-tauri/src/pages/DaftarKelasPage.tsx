@@ -112,6 +112,15 @@ export default function DaftarKelasPage() {
   const { aksiProfil, dialogProfil } = useAksiProfilSantri();
   /** Urutan tabel asal untuk navigasi tetangga pada dialog profil. */
   const daftarSantri = useMemo(() => rows.map((r) => r.santri_id), [rows]);
+  /** Daftar objek santri unik seurutan tabel untuk navigasi dialog ubah. */
+  const daftarEdit = useMemo(() => {
+    const m = new Map<number, SantriPenuh>();
+    for (const r of rows) {
+      const s = r.santri as SantriPenuh | null | undefined;
+      if (s && s.id != null && !m.has(s.id)) m.set(s.id, s);
+    }
+    return [...m.values()];
+  }, [rows]);
   const [editRow, setEditRow] = useState<SantriPenuh | null>(null);
 
   return (
@@ -168,6 +177,8 @@ export default function DaftarKelasPage() {
 
       <EditSantriDialog
         santri={editRow}
+        daftar={daftarEdit}
+        onGanti={setEditRow}
         open={editRow !== null}
         onOpenChange={(o) => { if (!o) setEditRow(null); }}
         onSaved={load}

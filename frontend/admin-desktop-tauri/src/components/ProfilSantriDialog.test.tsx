@@ -264,7 +264,7 @@ describe('ProfilSantriDialog', () => {
     expect(nilai.className).toContain('leading-5');
   });
 
-  it('anak ke dan jumlah saudara berada di panel Kartu keluarga, bukan Kelahiran', async () => {
+  it('tempat/tanggal lahir dan agama berada di panel Identitas dasar', async () => {
     renderDialog();
     const isi = await isiDialog();
 
@@ -272,13 +272,21 @@ describe('ProfilSantriDialog', () => {
     const panel = (judul: string) =>
       within(isi).getByRole('heading', { level: 4, name: judul }).parentElement as HTMLElement;
 
+    // Panel Kelahiran sudah dilebur: tidak ada lagi.
+    expect(within(isi).queryByRole('heading', { level: 4, name: 'Kelahiran' })).not.toBeInTheDocument();
+
+    const dasar = panel('Identitas dasar');
+    for (const label of ['Tempat lahir', 'Tanggal lahir', 'Agama']) {
+      expect(within(dasar).getByText(label)).toBeInTheDocument();
+    }
+    expect(within(dasar).getByText('Bandung')).toBeInTheDocument();
+    expect(within(dasar).getByText('1995-05-15')).toBeInTheDocument();
+    expect(within(dasar).getByText('Islam')).toBeInTheDocument();
+
+    // Anak ke dan jumlah saudara tetap di Kartu keluarga.
     const kartu = panel('Kartu keluarga');
     expect(within(kartu).getByText('Anak ke')).toBeInTheDocument();
     expect(within(kartu).getByText('Jumlah saudara')).toBeInTheDocument();
-
-    const kelahiran = panel('Kelahiran');
-    expect(within(kelahiran).queryByText('Anak ke')).not.toBeInTheDocument();
-    expect(within(kelahiran).queryByText('Jumlah saudara')).not.toBeInTheDocument();
   });
 
   it('bagian keanggotaan & riwayat: jumlah baris per tabel dan pesan kosong', async () => {
@@ -301,5 +309,62 @@ describe('ProfilSantriDialog', () => {
     expect(kelas).toContain('h-[60vh]');
     expect(kelas).toContain('min-h-72');
     expect(kelas).not.toContain('max-h-');
+  });
+
+  it('selagi memuat tampil kerangka, bukan teks polos', () => {
+    renderDialog();
+
+    // Promise profil belum selesai: kerangka status terlihat, isi belum ada.
+    expect(screen.getByRole('status', { name: 'Memuat profil' })).toBeInTheDocument();
+    expect(document.querySelector('[data-part="isi_profil"]')).toBeNull();
+  });
+
+  it('judul tiap bagian lengket agar konteks kelihatan saat menggulir', async () => {
+    renderDialog();
+    const isi = await isiDialog();
+
+    for (const judul of ['Identitas', 'Alamat', 'Keluarga', 'Keanggotaan & riwayat']) {
+      const h = within(isi).getByRole('heading', { name: judul });
+      expect(h.className).toContain('sticky');
+      expect(h.className).toContain('top-0');
+      expect(h.className).toContain('bg-background/95');
+    }
+  });
+
+  it('chip lompat menggulir halus ke bagian yang dituju', async () => {
+    const user = userEvent.setup();
+    const gulir = vi.fn();
+    window.HTMLElement.prototype.scrollIntoView = gulir;
+    renderDialog();
+    await isiDialog();
+
+    await user.click(screen.getByRole('button', { name: 'Keluarga' }));
+
+    expect(gulir).toHaveBeenCalledTimes(1);
+    expect(gulir).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' });
+    // Penerima guliran = section Keluarga (pemilik heading-nya).
+    const tujuan = within(await isiDialog()).getByRole('heading', { name: 'Keluarga' }).parentElement as HTMLElement;
+    expect(tujuan.id).toBe('profil_santri_keluarga');
+  });
+
+  it('kepala dialog memberi ruang untuk tombol X bawaan', async () => {
+    renderDialog([5, 7, 9]);
+    await screen.findByRole('heading', { name: 'Ahmad Fauzi' });
+
+    // Baris judul + tombol tetangga berada di wadah ber-padding kanan
+    // agar tombol tutup (absolut kanan-atas) tak menimpanya.
+    const wadah = screen.getByRole('button', { name: /Berikutnya/ }).closest('div.pr-10');
+    expect(wadah).not.toBeNull();
+  });
+
+  it('tombol tutup (X) berwarna merah', async () => {
+    renderDialog();
+    await screen.findByRole('heading', { name: 'Ahmad Fauzi' });
+
+    // Dua tombol bernama "Tutup": X kanan-atas + tombol footer.
+    const merah = screen
+      .getAllByRole('button', { name: 'Tutup' })
+      .filter((b) => b.className.includes('text-destructive'));
+    expect(merah).toHaveLength(1);
   });
 });

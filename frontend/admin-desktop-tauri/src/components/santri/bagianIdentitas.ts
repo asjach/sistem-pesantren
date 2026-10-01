@@ -30,13 +30,12 @@ export const BAGIAN_IDENTITAS: BagianIdentitas[] = [
       {
         judul: 'Identitas dasar',
         // `id` hanya tampil di profil (baca-saja), tidak bisa diedit.
-        kunci: ['nama_lengkap', 'nama_singkat', 'nik', 'nisn', 'jk', 'tipe_santri', 'id'],
+        kunci: ['nama_lengkap', 'nama_singkat', 'nik', 'nisn', 'jk', 'tipe_santri', 'tmp_lahir', 'tgl_lahir', 'agama', 'id'],
       },
-      { judul: 'Kelahiran', kunci: ['tmp_lahir', 'tgl_lahir', 'agama'] },
-      { judul: 'Kontak', kunci: ['no_hp_santri', 'email_santri'] },
       {
         judul: 'Tambahan',
         kunci: [
+          'no_hp_santri', 'email_santri',
           'kewarganegaraan', 'bahasa_sehari', 'cita_cita', 'hobi',
           'kebutuhan_khusus', 'kebutuhan_disabilitas', 'nomor_kip',
         ],

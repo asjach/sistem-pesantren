@@ -178,6 +178,14 @@
   display: none;
 }
 
+/* Sembunyikan scrollbar (isi mentok tepi; gulir roda/sentuh tetap jalan). */
+.scroll-tanpa-bar {
+  scrollbar-width: none;
+}
+.scroll-tanpa-bar::-webkit-scrollbar {
+  display: none;
+}
+
 /* ---------- Spreadsheet DSG (Pos): ikut semua tema + dark via var aplikasi ---------- */
 .simpes-dsg {
   --dsg-border-color: var(--part-tabel_sel-border, var(--border));
