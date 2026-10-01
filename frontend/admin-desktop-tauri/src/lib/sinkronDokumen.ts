@@ -16,6 +16,7 @@ import {
   sinkronUnggahDokumen,
   statusBerkasDokumen,
   tandaiSinkronDokumen,
+  ubahDokumen,
   type DokumenRow,
   type StatusBerkasServer,
   type TipeDokumen,
@@ -38,6 +39,8 @@ export interface HasilSinkronBaris {
   aksi: AksiSinkron;
   /** True bila hash beda tetapi mtime seri sehingga server dimenangkan. */
   seri?: boolean;
+  /** True bila HEIC dikonversi ke JPG pada jalur naik. */
+  dikonversi?: boolean;
   pesan?: string;
 }
 
@@ -50,6 +53,7 @@ export interface RingkasanSinkron {
   ditandai: number;
   dilewati: number;
   seri: number;
+  konversi: number;
   galat: number;
   galatDaftar: { nama: string; pesan: string }[];
   dibatalkan: boolean;
@@ -67,6 +71,12 @@ export interface DepsSinkron {
   statusServer(nama: string[]): Promise<Record<string, StatusBerkasServer>>;
   statLokal(row: DokumenRow): Promise<ByteLokal | null>;
   tulisLokal(row: DokumenRow, bytes: Uint8Array): Promise<void>;
+  /** Konversi format sebelum naik (HEIC → JPG); null = langsung unggah. */
+  konversiJikaPerlu?(row: DokumenRow, bytes: Uint8Array): Promise<{ bytes: Uint8Array; nama: string } | null>;
+  /** Ganti nama baris di server (dipakai hasil konversi). */
+  ubahNamaServer?(row: DokumenRow, namaBaru: string): Promise<void>;
+  /** Buang salinan lokal nama lama (dipakai hasil konversi). */
+  hapusLokal?(row: DokumenRow, namaLama: string): Promise<void>;
   unggahServer(row: DokumenRow, bytes: Uint8Array, hash: string, mtime: number): Promise<void>;
   unduhServer(row: DokumenRow): Promise<Uint8Array>;
   tandaiServer(row: DokumenRow, hash: string): Promise<void>;
@@ -86,7 +96,7 @@ export const AMBANG_SERI_DETIK = 2;
 export const BATCH_STATUS = 100;
 
 export function ringkasanAwal(total: number): RingkasanSinkron {
-  return { total, selesai: 0, naik: 0, turun: 0, sama: 0, ditandai: 0, dilewati: 0, seri: 0, galat: 0, galatDaftar: [], dibatalkan: false };
+  return { total, selesai: 0, naik: 0, turun: 0, sama: 0, ditandai: 0, dilewati: 0, seri: 0, konversi: 0, galat: 0, galatDaftar: [], dibatalkan: false };
 }
 
 /** SHA-256 hex (Web Crypto; backend mengirim sha256 di status-berkas). */
@@ -99,6 +109,32 @@ function detikTersinkron(row: DokumenRow): number | null {
   if (!row.tersinkron_pada) return null;
   const t = Date.parse(row.tersinkron_pada);
   return Number.isFinite(t) ? Math.floor(t / 1000) : null;
+}
+
+/** Jalur naik hasil konversi (mis. HEIC → JPG): tulis lokal baru → ganti
+ *  nama DB → unggah → buang lama. Urutan ini pulih-sendiri: gagal di tengah,
+ *  jalan-ulang lanjut sebagai naik biasa. */
+async function naikKonversi(
+  row: DokumenRow,
+  namaLama: string,
+  mtime: number,
+  konv: { bytes: Uint8Array; nama: string },
+  deps: DepsSinkron,
+): Promise<HasilSinkronBaris> {
+  if (!deps.ubahNamaServer || !deps.hapusLokal) {
+    throw new Error('Konversi butuh ubahNamaServer/hapusLokal.');
+  }
+  const tabrakan = await deps.statusServer([konv.nama]);
+  if (tabrakan[konv.nama]?.ada) {
+    return { id: row.id, nama: namaLama, aksi: 'galat', pesan: `Hasil konversi ${konv.nama} sudah ada di server — selesaikan manual.` };
+  }
+  const barisBaru = { ...row, nama_file: konv.nama };
+  const hash = await hashSha256(konv.bytes);
+  await deps.tulisLokal(barisBaru, konv.bytes);
+  await deps.ubahNamaServer(row, konv.nama);
+  await deps.unggahServer(barisBaru, konv.bytes, hash, mtime);
+  await deps.hapusLokal(row, namaLama);
+  return { id: row.id, nama: konv.nama, aksi: 'naik', dikonversi: true, pesan: `${namaLama} dikonversi HEIC → JPG.` };
 }
 
 /** Satu baris: bandingkan sisi lokal vs server lalu samakan. Murni (I/O via deps). */
@@ -114,9 +150,11 @@ export async function sinkronSatuBaris(
     return { id: row.id, nama, aksi: 'galat', pesan: 'Berkas tidak ada di lokal maupun server.' };
   }
   if (lokal && !server?.ada) {
-    const bytes = await lokal.baca();
-    const hash = await hashSha256(bytes);
-    await deps.unggahServer(row, bytes, hash, lokal.mtime);
+    const bytesAsli = await lokal.baca();
+    const konv = await deps.konversiJikaPerlu?.(row, bytesAsli);
+    if (konv) return naikKonversi(row, nama, lokal.mtime, konv, deps);
+    const hash = await hashSha256(bytesAsli);
+    await deps.unggahServer(row, bytesAsli, hash, lokal.mtime);
     return { id: row.id, nama, aksi: 'naik' };
   }
   if (!lokal && server?.ada) {
@@ -194,6 +232,7 @@ export async function sinkronkanDaftar(
         if (hasil.aksi === 'ditandai') ringkas.ditandai += 1;
         if (hasil.aksi === 'dilewati') ringkas.dilewati += 1;
         if (hasil.seri) ringkas.seri += 1;
+        if (hasil.dikonversi) ringkas.konversi += 1;
       }
     } catch (e) {
       ringkas.selesai += 1;
@@ -236,6 +275,21 @@ export function depsPerangkat(tipe: TipeDokumen): DepsSinkron {
         type: mimeDariEkstensi(ekstensiDariNama(nama)),
       });
       await sinkronUnggahDokumen(tipe, row.id, file, hash, mtime);
+    },
+    konversiJikaPerlu: async (row, bytes) => {
+      const { butuhKonversiHeic, konversiHeicKeJpg, namaJpg } = await import('@/lib/konversiHeic');
+      const nama = row.nama_file ?? '';
+      if (!butuhKonversiHeic(nama, bytes)) return null;
+      return { bytes: await konversiHeicKeJpg(bytes), nama: namaJpg(nama) };
+    },
+    ubahNamaServer: async (row, namaBaru) => {
+      await ubahDokumen(tipe, row.id, { nama_file: namaBaru });
+    },
+    hapusLokal: async (row, namaLama) => {
+      const { hapusArsip, kandidatAkarArsip } = await import('@/lib/arsipDokumen');
+      for (const { akar, lokasi } of await kandidatAkarArsip(row.penyimpanan ?? 'server')) {
+        await hapusArsip(namaLama, row.jenis_dokumen, akar, tipe as TipeArsip, lokasi);
+      }
     },
     unduhServer: async (row) => ambilByteDokumen(tipe, row.id),
     tandaiServer: async (row, hash) => {

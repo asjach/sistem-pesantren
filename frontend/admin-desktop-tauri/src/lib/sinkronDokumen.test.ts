@@ -32,14 +32,20 @@ function depsPalsu(unduh = TEKS_A): DepsSinkron & {
   naik: { row: DokumenRow; hash: string }[];
   turun: Uint8Array[];
   ditandai: string[];
+  hapus: string[];
+  ubah: string[];
 } {
   const naik: { row: DokumenRow; hash: string }[] = [];
   const turun: Uint8Array[] = [];
   const ditandai: string[] = [];
+  const hapus: string[] = [];
+  const ubah: string[] = [];
   return {
-    naik, turun, ditandai,
+    naik, turun, ditandai, hapus, ubah,
     statusServer: async () => ({}),
     statLokal: async () => null,
+    hapusLokal: async (_r, nama) => { hapus.push(nama); },
+    ubahNamaServer: async (_r, nama) => { ubah.push(nama); },
     tulisLokal: async (_r, b) => { turun.push(b); },
     unggahServer: async (row, _b, hash) => { naik.push({ row, hash }); },
     unduhServer: async () => unduh,
@@ -191,6 +197,41 @@ describe('sinkronkanDaftar', () => {
     );
     expect(r2.aksi).toBe('sudah-sama');
     expect(baca).toHaveBeenCalledTimes(1);
+  });
+
+  it('HEIC dikonversi: tulis baru → ubah nama → unggah → buang lama', async () => {
+    const d = depsPalsu();
+    const JPG = new TextEncoder().encode('jpeg-bytes');
+    const urutan: string[] = [];
+    d.statLokal = async () => lokal(1000, TEKS_A);
+    d.statusServer = async () => ({});
+    d.konversiJikaPerlu = async () => ({ bytes: JPG, nama: 'foto.jpg' });
+    d.tulisLokal = async (r) => { urutan.push(`tulis:${r.nama_file}`); };
+    d.ubahNamaServer = async (_r, nama) => { urutan.push(`ubah:${nama}`); };
+    const unggahAsli = d.unggahServer;
+    d.unggahServer = async (r, b, h, m) => { urutan.push(`unggah:${r.nama_file}`); await unggahAsli(r, b, h, m); };
+    const hasil = await sinkronkanDaftar([baris({ nama_file: 'foto.heic' })], d);
+    expect(hasil.naik).toBe(1);
+    expect(hasil.konversi).toBe(1);
+    expect(hasil.galat).toBe(0);
+    expect(urutan).toEqual(['tulis:foto.jpg', 'ubah:foto.jpg', 'unggah:foto.jpg']);
+    expect(d.hapus).toEqual(['foto.heic']);
+    expect(d.naik[0].hash).toBe(await hashSha256(JPG));
+  });
+
+  it('tabrakan nama hasil konversi → galat tanpa transfer', async () => {
+    const d = depsPalsu();
+    d.statLokal = async () => lokal(1000, TEKS_A);
+    d.statusServer = async () => ({ 'foto.jpg': { ada: true } });
+    d.konversiJikaPerlu = async () => ({ bytes: new Uint8Array([1]), nama: 'foto.jpg' });
+    const tulis = vi.fn();
+    d.tulisLokal = tulis;
+    const hasil = await sinkronkanDaftar([baris({ nama_file: 'foto.heic' })], d);
+    expect(hasil.galat).toBe(1);
+    expect(hasil.naik).toBe(0);
+    expect(hasil.galatDaftar[0].pesan).toContain('sudah ada di server');
+    expect(tulis).not.toHaveBeenCalled();
+    expect(d.naik).toHaveLength(0);
   });
 
   it('batal di tengah → berhenti + flag', async () => {
