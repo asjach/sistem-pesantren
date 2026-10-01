@@ -7,13 +7,14 @@ use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 /**
- * Penjaga drift dua arah antara `docs/SCHEMA.md` dan skema nyata:
- *  - arah maju: setiap tabel/kolom yang didokumentasikan harus ada di DB;
+ * Penjaga drift antara `docs/SCHEMA.md` dan skema nyata:
+ *  - arah maju: tabel/kolom/index/FK yang didokumentasikan harus ada di DB;
  *  - arah balik: setiap tabel/kolom di DB harus terdokumentasikan, agar tabel
- *    baru tidak luput dari dokumentasi.
+ *    atau kolom baru tidak luput dari dokumentasi.
  *
- * Parser sengaja konservatif: hanya baris berbentuk definisi kolom yang dibaca,
- * sehingga baris catatan (INVARIAN/ATURAN/Alur/UNIQUE/INDEX) tidak salah dibaca.
+ * Parser sengaja konservatif: hanya baris berbentuk definisi kolom yang dibaca
+ * untuk daftar kolom, dan hanya `NAMA(...)` pada baris batasan yang dibaca
+ * untuk index/unique/PK, sehingga baris catatan tidak salah ditafsirkan.
  */
 class SchemaDocTest extends TestCase
 {
@@ -56,11 +57,11 @@ class SchemaDocTest extends TestCase
 
     public function test_kolom_dokumentasi_schema_md_ada_di_db(): void
     {
-        $dokumen = $this->uraiSchema();
-        $this->pastikanParserMembaca($dokumen);
+        $dokumen = $this->uraiDokumen();
+        $this->pastikanParserMembaca($dokumen['kolom']);
 
         $masalah = [];
-        foreach ($dokumen as $tabel => $kolom) {
+        foreach ($dokumen['kolom'] as $tabel => $kolom) {
             if (! Schema::hasTable($tabel)) {
                 if (! in_array($tabel, self::TABEL_PRA_PRODUCTION, true)) {
                     $masalah[] = "tabel `{$tabel}` didokumentasikan tetapi tidak ada di DB";
@@ -81,8 +82,8 @@ class SchemaDocTest extends TestCase
 
     public function test_tabel_dan_kolom_db_ikut_terdokumentasi(): void
     {
-        $dokumen = $this->uraiSchema();
-        $this->pastikanParserMembaca($dokumen);
+        $dokumen = $this->uraiDokumen();
+        $this->pastikanParserMembaca($dokumen['kolom']);
 
         $masalah = [];
         foreach ($this->tabelDiDb() as $tabel) {
@@ -90,20 +91,96 @@ class SchemaDocTest extends TestCase
                 continue;
             }
 
-            if (! array_key_exists($tabel, $dokumen)) {
+            if (! array_key_exists($tabel, $dokumen['kolom'])) {
                 $masalah[] = "tabel `{$tabel}` ada di DB tetapi belum didokumentasikan";
 
                 continue;
             }
 
             foreach (Schema::getColumnListing($tabel) as $kolom) {
-                if (! in_array($kolom, $dokumen[$tabel], true)) {
+                if (! in_array($kolom, $dokumen['kolom'][$tabel], true)) {
                     $masalah[] = "`{$tabel}.{$kolom}` ada di DB tetapi belum didokumentasikan";
                 }
             }
         }
 
         $this->assertSame([], $masalah, "Ada tabel/kolom DB yang belum masuk SCHEMA.md:\n".implode("\n", $masalah));
+    }
+
+    public function test_index_unik_dan_pk_dokumentasi_ada_di_db(): void
+    {
+        $masalah = [];
+        $daftarBatas = $this->uraiDokumen()['batas'];
+        // Penjaga parser: format SCHEMA.md berubah -> gagal keras, bukan lolos senyap.
+        $this->assertGreaterThanOrEqual(50, array_sum(array_map('count', $daftarBatas)), 'Terlalu sedikit index/unique terbaca dari SCHEMA.md — parser meleset?');
+        foreach ($daftarBatas as $tabel => $daftar) {
+            if (! Schema::hasTable($tabel) || in_array($tabel, self::TABEL_PRA_PRODUCTION, true)) {
+                continue;
+            }
+
+            $indeks = Schema::getIndexes($tabel);
+            foreach ($daftar as $batas) {
+                // Token boleh berupa kolom atau nama index eksplisit (mis.
+                // `uq_riwayat_belajar_stls`); selain itu dianggap salah ketik.
+                [$kolom, $ganjil] = $this->pisahTokenBatas($tabel, $batas['kolom']);
+                if ($ganjil !== []) {
+                    $masalah[] = "{$batas['jenis']}(".implode(', ', $batas['kolom']).") pada `{$tabel}` memuat token tak dikenal: ".implode(', ', $ganjil);
+
+                    continue;
+                }
+                if ($kolom === []) {
+                    continue;
+                }
+
+                $ada = collect($indeks)->contains(function (array $i) use ($batas, $kolom): bool {
+                    if (! $this->himpunanSama($i['columns'], $kolom)) {
+                        return false;
+                    }
+
+                    return match ($batas['jenis']) {
+                        'primary' => (bool) $i['primary'],
+                        'unique' => (bool) $i['unique'] && ! (bool) $i['primary'],
+                        default => ! (bool) $i['unique'] && ! (bool) $i['primary'],
+                    };
+                });
+
+                if (! $ada) {
+                    $masalah[] = "{$batas['jenis']}(".implode(', ', $kolom).") pada `{$tabel}` didokumentasikan tetapi tidak ada di DB";
+                }
+            }
+        }
+
+        $this->assertSame([], $masalah, "Index/unique yang didokumentasikan tidak cocok dengan DB:\n".implode("\n", $masalah));
+    }
+
+    public function test_foreign_key_dokumentasi_ada_di_db(): void
+    {
+        $masalah = [];
+        $daftarFk = $this->uraiDokumen()['fk'];
+        $this->assertGreaterThanOrEqual(90, array_sum(array_map('count', $daftarFk)), 'Terlalu sedikit foreign key terbaca dari SCHEMA.md — parser meleset?');
+        foreach ($daftarFk as $tabel => $daftar) {
+            if (! Schema::hasTable($tabel) || in_array($tabel, self::TABEL_PRA_PRODUCTION, true)) {
+                continue;
+            }
+
+            $fk = Schema::getForeignKeys($tabel);
+            foreach ($daftar as $relasi) {
+                if (! Schema::hasColumn($tabel, $relasi['kolom'])) {
+                    continue; // kesalahan kolom sudah dilaporkan test arah maju.
+                }
+
+                $ada = collect($fk)->contains(
+                    fn (array $f): bool => array_values($f['columns']) === [$relasi['kolom']]
+                        && (string) $f['foreign_table'] === $relasi['tabel'],
+                );
+
+                if (! $ada) {
+                    $masalah[] = "`{$tabel}.{$relasi['kolom']}` didokumentasikan FK → {$relasi['tabel']} tetapi tidak ada di DB";
+                }
+            }
+        }
+
+        $this->assertSame([], $masalah, "Foreign key yang didokumentasikan tidak cocok dengan DB:\n".implode("\n", $masalah));
     }
 
     /** @return list<string> */
@@ -123,33 +200,81 @@ class SchemaDocTest extends TestCase
             || in_array($tabel, self::TABEL_DI_LUAR_DOKUMEN, true);
     }
 
-    /** @param  array<string, list<string>>  $dokumen */
-    private function pastikanParserMembaca(array $dokumen): void
+    /**
+     * Pisahkan token batasan menjadi kolom nyata dan token tak dikenal
+     * (bukan kolom, bukan pula nama index yang ada di DB).
+     *
+     * @param  list<string>  $token
+     * @return array{0: list<string>, 1: list<string>}
+     */
+    private function pisahTokenBatas(string $tabel, array $token): array
+    {
+        $nyata = Schema::getColumnListing($tabel);
+        $namaIndeks = collect(Schema::getIndexes($tabel))
+            ->map(fn (array $i): string => strtolower((string) $i['name']))
+            ->all();
+
+        $kolom = [];
+        $ganjil = [];
+        foreach ($token as $t) {
+            if (in_array($t, $nyata, true)) {
+                $kolom[] = $t;
+            } elseif (! in_array(strtolower($t), $namaIndeks, true)) {
+                $ganjil[] = $t;
+            }
+        }
+
+        return [$kolom, $ganjil];
+    }
+
+    /**
+     * Bandingkan dua daftar kolom tanpa peduli urutan/huruf besar-kecil.
+     *
+     * @param  list<string>  $a
+     * @param  list<string>  $b
+     */
+    private function himpunanSama(array $a, array $b): bool
+    {
+        $normal = fn (array $x): array => collect($x)->map(fn ($v) => strtolower((string) $v))->sort()->values()->all();
+
+        return $normal($a) === $normal($b);
+    }
+
+    /** @param  array<string, list<string>>  $kolom */
+    private function pastikanParserMembaca(array $kolom): void
     {
         foreach (['lembaga', 'santri', 'riwayat_belajar', 'alumni', 'dokumen_santri'] as $wajib) {
-            $this->assertArrayHasKey($wajib, $dokumen, "Parser tidak menemukan tabel `{$wajib}` di SCHEMA.md.");
+            $this->assertArrayHasKey($wajib, $kolom, "Parser tidak menemukan tabel `{$wajib}` di SCHEMA.md.");
         }
-        $totalKolom = array_sum(array_map('count', $dokumen));
-        $this->assertGreaterThanOrEqual(50, count($dokumen), 'Terlalu sedikit tabel terbaca dari SCHEMA.md — parser meleset?');
+        $totalKolom = array_sum(array_map('count', $kolom));
+        $this->assertGreaterThanOrEqual(50, count($kolom), 'Terlalu sedikit tabel terbaca dari SCHEMA.md — parser meleset?');
         $this->assertGreaterThanOrEqual(400, $totalKolom, 'Terlalu sedikit kolom terbaca dari SCHEMA.md — parser meleset?');
     }
 
     /**
-     * Peta `tabel => daftar kolom` dari SCHEMA.md.
+     * Urai SCHEMA.md menjadi kolom, batasan (index/unique/PK), dan foreign key
+     * per tabel.
      *
-     * @return array<string, list<string>>
+     * @return array{
+     *     kolom: array<string, list<string>>,
+     *     batas: array<string, list<array{jenis: string, kolom: list<string>}>>,
+     *     fk: array<string, list<array{kolom: string, tabel: string}>>
+     * }
      */
-    private function uraiSchema(): array
+    private function uraiDokumen(): array
     {
         $berkas = dirname(base_path()).'/docs/SCHEMA.md';
         $this->assertFileExists($berkas, 'SCHEMA.md tidak ditemukan.');
 
-        $hasil = [];
+        $kolom = [];
+        $batas = [];
+        $fk = [];
         $tabel = null;
+
         foreach (explode("\n", (string) file_get_contents($berkas)) as $baris) {
             if (preg_match('/^### `([a-z_][a-z0-9_]*)`/', $baris, $judul) === 1) {
                 $tabel = $judul[1];
-                $hasil[$tabel] ??= [];
+                $kolom[$tabel] ??= [];
 
                 continue;
             }
@@ -165,13 +290,21 @@ class SchemaDocTest extends TestCase
                 continue;
             }
 
-            $kolom = $this->kolomDariBaris($baris);
-            if ($kolom !== []) {
-                $hasil[$tabel] = array_values(array_unique([...$hasil[$tabel], ...$kolom]));
+            $namaKolom = $this->kolomDariBaris($baris);
+            if ($namaKolom !== []) {
+                $kolom[$tabel] = array_values(array_unique([...$kolom[$tabel], ...$namaKolom]));
+            }
+
+            foreach ($this->batasDariBaris($baris) as $satu) {
+                $batas[$tabel][] = $satu;
+            }
+
+            if (preg_match('/^-\s*`([a-z_][a-z0-9_]*)`[^:]*:\s*[^—]*?\bFK → ([a-z_][a-z0-9_]*)/u', $baris, $cocok) === 1) {
+                $fk[$tabel][] = ['kolom' => $cocok[1], 'tabel' => $cocok[2]];
             }
         }
 
-        return $hasil;
+        return ['kolom' => $kolom, 'batas' => $batas, 'fk' => $fk];
     }
 
     /**
@@ -205,5 +338,34 @@ class SchemaDocTest extends TestCase
         }
 
         return [];
+    }
+
+    /**
+     * Batasan `NAMA(...)` pada satu baris (boleh beberapa, dipisah titik tengah).
+     *
+     * @return list<array{jenis: string, kolom: list<string>}>
+     */
+    private function batasDariBaris(string $baris): array
+    {
+        $hasil = [];
+        foreach (preg_split('/·/u', $baris) ?: [] as $potong) {
+            // Harus MENGAWALI butir — menghindari prosa seperti "index (boleh ...)".
+            if (preg_match('/^(?:-\s*)?(PK|PRIMARY|UNIQUE|INDEX)\s*\(([^)]*)\)/iu', trim($potong), $cocok) !== 1) {
+                continue;
+            }
+
+            preg_match_all('/`([^`]+)`/u', $cocok[2], $nama);
+            if ($nama[1] === []) {
+                continue;
+            }
+
+            $jenis = strtoupper($cocok[1]);
+            $hasil[] = [
+                'jenis' => $jenis === 'UNIQUE' ? 'unique' : ($jenis === 'INDEX' ? 'index' : 'primary'),
+                'kolom' => $nama[1],
+            ];
+        }
+
+        return $hasil;
     }
 }
