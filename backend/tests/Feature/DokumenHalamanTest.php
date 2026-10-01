@@ -429,8 +429,8 @@ class DokumenHalamanTest extends TestCase
         ]);
 
         $santri = $this->actingAs($auth, 'sanctum')->getJson('/api/admin/dokumen/santri/data-existing')->assertOk();
-        $this->assertSame(['nis_lokal', 'jenjang', 'jenis_dokumen', 'catatan', 'nama_lengkap', 'nama_file', 'penyimpanan'], $santri->json('kolom'));
-        $this->assertSame([['26001', 'MI', 'Kartu Keluarga', 'Arsip', 'Ahmad Santri', '', 'server']], $santri->json('baris'));
+        $this->assertSame(['nis_lokal', 'jenjang', 'jenis_dokumen', 'nama_file', 'penyimpanan', 'catatan', 'nama_lengkap'], $santri->json('kolom'));
+        $this->assertSame([['26001', 'MI', 'Kartu Keluarga', '', 'server', 'Arsip', 'Ahmad Santri']], $santri->json('baris'));
 
         $guru = $this->actingAs($auth, 'sanctum')->getJson('/api/admin/dokumen/pegawai/data-existing')->assertOk();
         $this->assertSame(['pegawai_id', 'nipp', 'nama_lengkap', 'jenjang', 'jenis_dokumen', 'status_verifikasi', 'catatan'], $guru->json('kolom'));
@@ -450,7 +450,7 @@ class DokumenHalamanTest extends TestCase
             'total' => 1,
             'terakhir' => true,
             'baris' => [
-                ['nis_lokal' => '26001', 'jenjang' => 'MI', 'jenis_dokumen' => 'Kartu Keluarga', 'catatan' => 'Arsip'],
+                ['nis_lokal' => '26001', 'jenjang' => 'MI', 'jenis_dokumen' => 'Kartu Keluarga', 'nama_file' => 'kk.jpg', 'penyimpanan' => 'Lokal', 'catatan' => 'Arsip', 'nama_lengkap' => 'Abaikan'],
             ],
         ])->assertOk();
         $this->assertSame(0, $ulang->json('ringkasan.baris_gagal'));
@@ -478,6 +478,28 @@ class DokumenHalamanTest extends TestCase
         $this->actingAs($auth, 'sanctum')->patchJson("/api/admin/dokumen/santri/{$dok->id}", [
             'status_verifikasi' => 'valid',
         ])->assertStatus(422);
+    }
+
+    public function test_import_santri_menyimpan_nama_file_dan_penyimpanan(): void
+    {
+        $f = $this->fixture();
+        $auth = $this->superAdmin();
+
+        $res = $this->actingAs($auth, 'sanctum')->postJson('/api/admin/dokumen/santri/import-potong', [
+            'mode' => 'eksekusi',
+            'total' => 2,
+            'terakhir' => true,
+            'baris' => [
+                ['nis_lokal' => '26001', 'jenjang' => 'MI', 'jenis_dokumen' => 'Kartu Keluarga', 'nama_file' => 'kk.jpg', 'penyimpanan' => 'Lokal'],
+                ['nis_lokal' => '26001', 'jenjang' => 'MI', 'jenis_dokumen' => 'Akta Kelahiran', 'penyimpanan' => 'Awan'],
+            ],
+        ])->assertOk();
+        $this->assertSame(1, $res->json('ringkasan.dibuat'));
+        $this->assertSame(1, $res->json('ringkasan.baris_gagal'));
+
+        $kk = DokumenSantri::where('jenis_dokumen_santri', 'Kartu Keluarga')->firstOrFail();
+        $this->assertSame('kk.jpg', $kk->nama_file);
+        $this->assertSame('lokal', $kk->penyimpanan);
     }
 
     public function test_izin_dokumen_lembaga_tidak_diakses_admin_lain(): void

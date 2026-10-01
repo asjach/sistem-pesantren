@@ -97,12 +97,26 @@ class DokumenImporService extends ImporPotongan
      * Santri: kunci (santri, jenis) — nama_file dibiarkan apa adanya
      * (import tak pernah menimpa/menghapus berkas fisik).
      *
+     * `nama_file` dicatat apa adanya (basename; tanpa byte, unduhan
+     * mengikuti aturan lokasi), `penyimpanan` dinormalisasi
+     * Server/Lokal/Test (apa pun kapitalnya). Baris cocok diperbarui hanya
+     * kolom terisi.
+     *
      * @param  array<string, mixed>  $baris
      */
     protected function prosesSantri(array $baris, int $no, string $jenjang, string $jenis, ?string $catatan, bool $kering): void
     {
         $santri = $this->cariSantri($baris, $jenjang, $no);
         if ($santri === null) {
+            return;
+        }
+
+        $namaFile = trim((string) ($baris['nama_file'] ?? ''));
+        $namaFile = $namaFile !== '' ? basename($namaFile) : null;
+        $simpan = $this->normalisasiPenyimpanan($baris['penyimpanan'] ?? null);
+        if ($simpan === false) {
+            $this->fail($no, 'penyimpanan', "Lokasi '{$baris['penyimpanan']}' tidak dikenal (isi Server/Lokal/Test).");
+
             return;
         }
 
@@ -115,17 +129,29 @@ class DokumenImporService extends ImporPotongan
             return;
         }
 
-        DB::transaction(function () use ($lama, $santri, $jenis, $catatan): void {
+        DB::transaction(function () use ($lama, $santri, $jenis, $catatan, $namaFile, $simpan): void {
             if ($lama === null) {
                 DokumenSantri::create([
                     'santri_id' => $santri->id,
                     'jenis_dokumen_santri' => $jenis,
+                    'nama_file' => $namaFile,
+                    'penyimpanan' => $simpan ?? 'server',
                     'catatan' => $catatan,
                 ]);
                 $this->dibuat++;
             } else {
+                $ubah = [];
+                if ($namaFile !== null) {
+                    $ubah['nama_file'] = $namaFile;
+                }
+                if ($simpan !== null) {
+                    $ubah['penyimpanan'] = $simpan;
+                }
                 if ($catatan !== null) {
-                    $lama->update(['catatan' => $catatan]);
+                    $ubah['catatan'] = $catatan;
+                }
+                if ($ubah !== []) {
+                    $lama->update($ubah);
                     $this->diperbarui++;
                 } else {
                     $this->dilewati++;
@@ -321,6 +347,22 @@ class DokumenImporService extends ImporPotongan
         }
         foreach (['menunggu', 'valid', 'ditolak'] as $kode) {
             if (strcasecmp($teks, $kode) === 0) {
+                return $kode;
+            }
+        }
+
+        return false;
+    }
+
+    /** Lokasi penyimpanan: Server/Lokal/Test (apa pun kapitalnya); kosong = null; selain itu false. */
+    protected function normalisasiPenyimpanan(mixed $nilai): string|null|false
+    {
+        $teks = mb_strtolower(trim((string) ($nilai ?? '')));
+        if ($teks === '') {
+            return null;
+        }
+        foreach (['server', 'lokal', 'test'] as $kode) {
+            if ($teks === $kode) {
                 return $kode;
             }
         }

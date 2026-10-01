@@ -31,7 +31,7 @@ class DataDokumen
         if ($this->tipe === 'santri') {
             // Kolom import + info baca-saja (parser import mengabaikan
             // kolom tak dikenal, jadi berkas ini tetap bisa diimport kembali).
-            return [...DokumenTemplateExport::kolom($this->tipe), 'nama_lengkap', 'nama_file', 'penyimpanan'];
+            return [...DokumenTemplateExport::kolom($this->tipe), 'nama_lengkap'];
         }
 
         return DokumenTemplateExport::kolom($this->tipe);
@@ -80,10 +80,10 @@ class DataDokumen
                 (string) ($tempat[$d->santri_id]->nis_lokal ?? ''),
                 (string) $tempat[$d->santri_id]->jenjang,
                 (string) $d->jenis_dokumen_santri,
-                (string) ($d->catatan ?? ''),
-                (string) ($d->santri?->nama_lengkap ?? ''),
                 (string) ($d->nama_file ?? ''),
                 (string) ($d->penyimpanan ?? ''),
+                (string) ($d->catatan ?? ''),
+                (string) ($d->santri?->nama_lengkap ?? ''),
             ])
             ->values()
             ->all();
