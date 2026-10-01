@@ -1,7 +1,9 @@
 # Skema Database — SIMPES (dokumentasi, bukan kode)
 
-> Sumber: 29 file migrasi (+ `lembaga_santri`, `preset_tabel`,
-> `pengaturan_tampilan`, `alumni.kelas_lulus_id`, `label_kolom`, `urut_preset`). Bahasa Indonesia persis DB. Tipe logis umum.
+> Sumber: 40 file migrasi (32 create + 8 data/seed). Seluruh migrasi alter
+> 2026-09-17…2026-10-01 telah disatukan ke file create masing-masing
+> (konsolidasi 2026-10-01), jadi kolom di bawah = skema final hasil `migrate:fresh`.
+> Bahasa Indonesia persis DB. Tipe logis umum.
 > Keputusan: single-pesantren via `lembaga` + pivot `user_lembaga` (no.40);
 > 34 `ref_*` global+shadow (no.50); seed no.51; pitfall multi-NULL MySQL →
 > dedup di service, bukan index (`002` catatan 9). Matriks izin (v2.38):
@@ -219,6 +221,13 @@ Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca
 - `created_at`, `updated_at`
 - UNIQUE(`jenjang`, `tahun_ajaran`)
 
+### `semester_aktif` (semester berjalan per lembaga operasional)
+- `id` PK
+- `jenjang`: FK → lembaga [unique, cascade] — satu baris per lembaga (root pesantren tanpa semester)
+- `semester`: char(1) — '1' ganjil, '2' genap
+- `diubah_oleh`: FK → users [null, nullOnDelete]
+- `created_at`, `updated_at`
+- UNIQUE(`jenjang`) — absen baris = belum diatur
 
 ### `pegawai`
 - `id` PK
@@ -259,10 +268,11 @@ Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca
 - `kode_pos`: string [null]
 - `alamat`: text [null] — jalan/detail
 - `tgl_mulai_kerja`: date [null]
+- `no_sk_awal`: string(100) [null] — nomor SK awal (global, level pegawai)
+- `tgl_sk_awal`: date [null]
 - `status_aktif`: enum(Ya|Tidak) [default 'Ya']
 - `created_at`, `updated_at`
-- UNIQUE(`nip`)
-- UNIQUE(`nik`)
+- UNIQUE(`nip`) · UNIQUE(`nipp`) · UNIQUE(`nik`)
 
 ### `kelas`
 - `id` PK
@@ -357,7 +367,7 @@ Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca
 - `kode_pos`: string [null]
 - `foto_url`: string [null]
 - `kepala_keluarga`: string [null] — nama kepala keluarga
-- `status_global` → **`is_active_pst`**: enum('Ya','Tidak') [default 'Tidak'] — TURUNAN murni: 'Ya' iff punya ≥1 `riwayat_belajar.is_active_riwayat='Ya'`. Bukan input manual; dihitung ulang tiap transisi (ACC/penerimaan, penempatan kelas, naik, mutasi, lulus, berhenti). Lulus/mutasi tidak disimpan di sini — dibaca dari tabel alumni / mutasi_keluar. Santri legacy tanpa riwayat tetap 'Tidak' (nonaktif) sampai ditempatkan.
+- `is_active_pst`: enum('Ya','Tidak') [default 'Tidak'] — TURUNAN murni: 'Ya' iff punya ≥1 `riwayat_belajar.is_active_riwayat='Ya'`. Bukan input manual; dihitung ulang tiap transisi (ACC/penerimaan, penempatan kelas, naik, mutasi, lulus, berhenti). Lulus/mutasi tidak disimpan di sini — dibaca dari tabel alumni / mutasi_keluar. Santri legacy tanpa riwayat tetap 'Tidak' (nonaktif) sampai ditempatkan.
 - CATATAN visibilitas: santri legacy (tanpa riwayat) boleh dilihat/dikelola pemegang `santri.lihat`; guru/wali tetap lewat jalur masing-masing (bukan endpoint admin).
 - `created_at`, `updated_at`
 - INDEX(`nik`)
@@ -378,7 +388,8 @@ Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca
 - `tgl_masuk`: date [null] — saat diterima (PSB/dialog/import); dulu `tgl_mulai`
 - `tgl_selesai`: date [null] — saat kelulusan/mutasi
 - `created_at`, `updated_at`
-- UNIQUE(`jenjang`, `nis_lokal`) · UNIQUE(`jenjang`, `nis_kemenag`) [multi-NULL boleh] · INDEX(`santri_id`,`is_active_lembaga`) · INDEX(`jenjang`,`is_active_lembaga`)
+- UNIQUE(`jenjang`, `nis_lokal`) [multi-NULL boleh] · INDEX(`santri_id`,`is_active_lembaga`) · INDEX(`jenjang`,`is_active_lembaga`)
+- NIS Kemenag hasil generate boleh digenerate ulang & duplikat — TANPA unique.
 - PENGECUALIAN PASANGAN MI↔MD (global sejak v2.61, timbal-balik): admin scoped pemegang MI/MD bisa baca-tulis sisi pasangannya di semua endpoint; non-pasangan tetap terisolasi, act-as tetap ketat.
 
 ### `riwayat_belajar`
@@ -421,6 +432,8 @@ Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca
 - `tahun_ajaran_lulus`: varchar(9) FK → tahun_ajaran.nama [cascade update + delete]
 - `nomor_ijazah`: string [null]
 - `no_surat_ijazah`: string [null] — nomor surat pengantar/SKHU
+- `no_peserta`: string [null] — nomor peserta ujian
+- `skhun`: string [null] — nomor SKHUN
 - `tanggal_lulus`: date [null] — boleh kosong pada arsip historis diimport (form Lulus tetap mewajibkan)
 - `kegiatan_setelah_lulus`: string [null]
 - `penyerahan_ijazah`: enum(sudah|belum) [default 'belum']
@@ -434,7 +447,7 @@ Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca
 - `user_id`: FK → users [cascade] — sesi milik pembuat saja
 - `tipe`: string(20) [default 'riwayat']
 - `mode`: string(10) — periksa (kering) | eksekusi
-- `total`, `offset`, `dibuat`, `diperbarui`, `gagal`: unsigned int — akumulator progres
+- `total`, `offset`, `dibuat`, `diperbarui`, `riwayat_dibuat`, `akun_dibuat`, `akun_dilewati`, `gagal`: unsigned int — akumulator progres
 - `galat_contoh`: json [null] — maks 200 pertama untuk tampil
 - `galat_file`: string [null] — path relatif CSV semua galat (bisa diunduh)
 - `status`: string(10) [default 'jalan'] — jalan|selesai|batal
@@ -591,6 +604,17 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 - INDEX(`psb_calon_santri_id`, `jenis_dokumen_santri`)
 - Alur: file calon PINDAH ke santri saat ACC; baris checklist (nama_file null) dibuat otomatis dari ketentuan kegiatan × lembaga (wajib & opsional)
 
+### `dokumen_lembaga` (berkas tingkat lembaga)
+- `id` PK
+- `jenjang`: FK → lembaga [cascade]
+- `jenis_dokumen`: string [null] — bebas teks (mis. Izin Operasional, Akreditasi)
+- `nama_file`: string [null] — nama template berkas (tampil/unduh)
+- `penyimpanan`: string(10) [default 'server'] — lokasi byte: server|lokal|test
+- `status_verifikasi`: enum(menunggu|valid|ditolak) [default 'menunggu']
+- `catatan`: text [null]
+- `created_at`, `updated_at`
+- INDEX(`jenjang`, `jenis_dokumen`)
+
 ### `dokumen_wajib_lembaga`
 - `id` PK
 - `psb_kegiatan_id`: FK → psb_kegiatan [cascade] — syarat diikat ke satu kegiatan PSB
@@ -617,6 +641,8 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 - `table_key`: string(60) — kunci tabel (mis. `psb`, `kegiatan_psb_dokumen`)
 - `nama`: string(50) — nama preset (mis. 'default', 'nama saja'); 'lengkap' dipakai bawaan sistem
 - `kolom`: json — array key kolom yang ditampilkan **berurutan** (urutan array = urutan tampil kolom, mis. `["nama","lembaga"]`); tiap preset boleh beda urutan
+- `label`: json [null] — nama header kustom per kolom (key = key kolom; kosong = label bawaan)
+- `is_default`: bool [default false] — satu preset bawaan per `table_key` (eksklusivitas dijaga service)
 - `dibuat_oleh`: FK → users [null, nullOnDelete]
 - `created_at`, `updated_at`
 - INDEX(`jenjang`, `table_key`)
@@ -646,6 +672,38 @@ Standar tampilan per lembaga (tema/tipografi/grid/preset aktif), disebar super_a
 - `versi`: int unsigned [default 1]
 - `diubah_oleh`: FK → users [null, nullOnDelete]
 - `created_at`, `updated_at`
+
+### `label_kolom` (kamus kolom level tabel database)
+- `id` PK
+- `tabel`: string(64)
+- `kolom`: string(64)
+- `label`: string(100) [null] — nama header; kosong = label bawaan
+- `align`: enum(left|center|right) [null]
+- `lebar`: int [null]
+- `kunci_lebar`: bool [default false]
+- `tooltip`: string(200) [null]
+- `format`: string(32) [null] — format tampil
+- `created_at`, `updated_at`
+- UNIQUE(`tabel`, `kolom`) — satu baris per kolom tabel, berlaku lintas halaman
+
+### `toolbar_preset` (visibilitas/lebar/urutan kontrol toolbar, global per `table_key`)
+- `id` PK
+- `table_key`: string(60) [unik]
+- `visibilitas`: json — peta kontrol → bool; hanya `false` yang menyembunyikan (absen = tampil)
+- `lebar`: json [null] — peta kontrol → lebar px; absen = bawaan frontend
+- `urutan`: json [null] — array key kolom data; absen = urutan fields halaman
+- `dibuat_oleh`: FK → users [null, nullOnDelete]
+- `created_at`, `updated_at`
+- UNIQUE(`table_key`)
+
+### `pengaturan_halaman` (visibilitas + mode filter topBar, global per `page_key`)
+- `id` PK
+- `page_key`: string(60) [unik]
+- `filter`: json — peta filter → bool (visibilitas)
+- `filter_mode`: json [null] — peta filter → 'single'|'multiple'; absen = bawaan kode halaman
+- `dibuat_oleh`: FK → users [null, nullOnDelete]
+- `created_at`, `updated_at`
+- UNIQUE(`page_key`)
 
 ## BLOK 4 — Kepegawaian lanjutan (Modul 200 Kepegawaian)
 
@@ -692,7 +750,7 @@ Standar tampilan per lembaga (tema/tipografi/grid/preset aktif), disebar super_a
 - `created_at`, `updated_at`
 - INDEX(`pegawai_id`, `hubungan`)
 
-### `dokumen_pegawai` (dulu `pegawai_dokumen` — rename 2026_09_29_120000)
+### `dokumen_pegawai` (dulu `pegawai_dokumen`)
 - `id` PK
 - `pegawai_id`: FK → pegawai [cascade]
 - `jenis_dokumen_pegawai`: string [null] — ref_jenis_dokumen_pegawai
@@ -709,9 +767,12 @@ Standar tampilan per lembaga (tema/tipografi/grid/preset aktif), disebar super_a
 - `jenjang`: FK → lembaga [cascade]
 - `tahun_ajaran`: varchar(9) FK → tahun_ajaran.nama [cascade update + delete]
 - `tugas_utama`: string nullable [tanpa default] — ref_tugas_utama (isi eksplisit dari kamus)
-- `status_keaktifan`: enum(Ya|Tidak) [default 'Ya'] — seragam dengan kolom status boolean lain; nilai lama 'aktif'/'inaktif' dinormalisasi oleh migrasi 2026_09_29_080000
+- `no_sk`: string(100) [null] — nomor SK tahunan (satu fisik SK boleh sama lintas lembaga)
+- `tgl_sk`: date [null]
+- `status_keaktifan`: enum(Ya|Tidak) [default 'Ya'] — seragam dengan kolom status boolean lain
 - `created_at`, `updated_at`
 - UNIQUE(`pegawai_id`, `jenjang`, `tahun_ajaran`, `uq_keaktifan_pegawai_plt`) — nama pendek: auto-name 61 char, margin aman dari limit 64
+- INDEX(`tahun_ajaran`, `jenjang`, `idx_keaktifan_ta_jenjang_sk`)
 - ATURAN: tulis hanya bila baris `lembaga_pegawai` ada; dropdown walas mensyaratkan penempatan aktif + keaktifan aktif + status pegawai aktif.
 
 ### `lembaga_pegawai` (penempatan guru per lembaga — pivot kaya, cermin `lembaga_santri`)
@@ -719,6 +780,8 @@ Standar tampilan per lembaga (tema/tipografi/grid/preset aktif), disebar super_a
 - `pegawai_id`: FK → pegawai [cascade]
 - `jenjang`: FK → lembaga [cascade]
 - `tugas_utama`: string nullable [tanpa default] — ref_tugas_utama (isi eksplisit dari kamus)
+- `no_sk_awal_ptk`: string(100) [null] — nomor SK awal PTK per jenjang
+- `tgl_sk_awal_ptk`: date [null]
 - `is_active_lembaga`: enum('Ya','Tidak') [default 'Ya']
 - `tgl_masuk`, `tgl_selesai`: date [null]
 - `tahaj_masuk`: string(50) [null] — TA pertama masuk lembaga
