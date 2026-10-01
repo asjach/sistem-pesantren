@@ -392,7 +392,7 @@ export default function TambahDokumenSantriPage() {
               modeTest ? folderArsipTest : folderArsip,
               modeTest ? ROOT_ARSIP_TEST : ROOT_ARSIP_DOKUMEN,
             );
-            await tulisArsip(keluaran.bytes, namaArsipBaru, akar, 'santri');
+            await tulisArsip(keluaran.bytes, namaArsipBaru, akar, 'santri', modeTest ? 'test' : 'lokal');
             let pesan = modeTest ? 'Dokumen disimpan (test).' : 'Dokumen disimpan (lokal).';
             if (pindahSudah && !modeTest) {
               await pindahKeSudah(berkasPath);

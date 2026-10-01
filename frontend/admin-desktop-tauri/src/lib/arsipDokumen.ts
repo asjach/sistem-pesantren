@@ -1,10 +1,12 @@
 /** Arsip lokal berkas dokumen — KHUSUS aplikasi desktop (Tauri).
  *
- *  Alur: salin ke folder arsip per tipe pemilik
- *  (`Documents/SIMPES-Dokumen/{santri|pegawai|lembaga}/`), lalu (opsional,
- *  via checkbox) pindahkan file asli ke `<folder-asal>/sudah/`. Semua operasi
- *  aman-gagal: file asli tidak pernah dihapus sebelum salinan terverifikasi.
- *  Di browser biasa modul ini tidak dipakai (penjagaan `isTauri()` di halaman).
+ *  Pola seragam `{lokasi}/{tipe}/` cermin server (`server/{tipe}/`):
+ *  `SIMPES-Dokumen/lokal/{santri|pegawai|lembaga}/` (dan root uji
+ *  `SIMPES-Dokumen-Test/test/{...}/`). Alur: salin ke folder arsip, lalu
+ *  (opsional, via checkbox) pindahkan file asli ke `<folder-asal>/sudah/`.
+ *  Semua operasi aman-gagal: file asli tidak pernah dihapus sebelum salinan
+ *  terverifikasi. Di browser biasa modul ini tidak dipakai (penjagaan
+ *  `isTauri()` di halaman).
  */
 import { isTauri, prefGet } from '@/api/client';
 
@@ -131,26 +133,40 @@ export async function akarArsip(folderPref: string, bawaan: string): Promise<str
 /** Pemilik arsip: folder tujuan di bawah akar arsip. */
 export type TipeArsip = 'santri' | 'pegawai' | 'lembaga';
 
-/** Path lengkap arsip untuk satu nama berkas (tanpa menyentuh disk):
- *  `<akar>/<tipe>/nama`. `akar` = hasil `akarArsip()` (sudah final). */
-export async function jalurArsip(namaFile: string, akar: string, tipe: TipeArsip): Promise<string> {
+/** Lokasi arsip perangkat: segmen pertama di bawah akar. */
+export type LokasiArsip = 'lokal' | 'test';
+
+/** Folder `<akar>/<lokasi>/<tipe>/` (tanpa menyentuh disk). */
+export async function folderArsip(akar: string, lokasi: LokasiArsip, tipe: TipeArsip): Promise<string> {
   const { join } = await import('@tauri-apps/api/path');
-  return join(akar, tipe, namaFile);
+  return join(akar, lokasi, tipe);
 }
 
-/** Tata lama (pra-partisi): datar `<akar>/nama`, lalu `<akar>/<slug-jenis>/nama`. */
-async function jalurArsipLama(namaFile: string, jenis: string, akar: string): Promise<string[]> {
+/** Path lengkap arsip untuk satu nama berkas (tanpa menyentuh disk).
+ *  `akar` = hasil `akarArsip()` (sudah final). */
+export async function jalurArsip(namaFile: string, akar: string, tipe: TipeArsip, lokasi: LokasiArsip): Promise<string> {
   const { join } = await import('@tauri-apps/api/path');
-  return [await join(akar, namaFile), await join(akar, slugSegmen(jenis) || 'lainnya', namaFile)];
+  return join(await folderArsip(akar, lokasi, tipe), namaFile);
 }
 
-/** Selesaikan lokasi baca: folder tipe dulu, lalu tata lama (kompatibel
- *  arsip yang telanjur tersimpan datar/per-jenis). Null bila tak ada. */
-export async function cariArsip(namaFile: string, jenis: string, akar: string, tipe: TipeArsip): Promise<string | null> {
+/** Tata lama (pra-segmen-lokasi): `<akar>/<tipe>/nama`, datar `<akar>/nama`,
+ *  lalu `<akar>/<slug-jenis>/nama`. */
+async function jalurArsipLama(namaFile: string, jenis: string, akar: string, tipe: TipeArsip): Promise<string[]> {
+  const { join } = await import('@tauri-apps/api/path');
+  return [
+    await join(akar, tipe, namaFile),
+    await join(akar, namaFile),
+    await join(akar, slugSegmen(jenis) || 'lainnya', namaFile),
+  ];
+}
+
+/** Selesaikan lokasi baca: tata baru dulu, lalu tata lama (kompatibel
+ *  arsip yang telanjur tersimpan). Null bila tak ada. */
+export async function cariArsip(namaFile: string, jenis: string, akar: string, tipe: TipeArsip, lokasi: LokasiArsip): Promise<string | null> {
   const { exists } = await import('@tauri-apps/plugin-fs');
-  const datar = await jalurArsip(namaFile, akar, tipe);
-  if (await exists(datar)) return datar;
-  for (const lama of await jalurArsipLama(namaFile, jenis, akar)) {
+  const baru = await jalurArsip(namaFile, akar, tipe, lokasi);
+  if (await exists(baru)) return baru;
+  for (const lama of await jalurArsipLama(namaFile, jenis, akar, tipe)) {
     if (await exists(lama)) return lama;
   }
   return null;
@@ -159,7 +175,7 @@ export async function cariArsip(namaFile: string, jenis: string, akar: string, t
 /** Tulis balik hasil edit viewer ke arsip perangkat (lokasi DB tak berubah).
  *  Menimpa di folder tempat berkas ditemukan (tata tipe/baru didahulukan);
  *  bila nama berubah (ganti format), salinan lama dibersihkan. */
-export async function tulisBalikArsip(namaLama: string, namaBaru: string, jenis: string, data: Uint8Array, tipe: TipeArsip): Promise<void> {
+export async function tulisBalikArsip(namaLama: string, namaBaru: string, jenis: string, data: Uint8Array, tipe: TipeArsip, lokasi: LokasiArsip): Promise<void> {
   const { mkdir, writeFile } = await import('@tauri-apps/plugin-fs');
   const { join } = await import('@tauri-apps/api/path');
   const [a, b] = await Promise.all([
@@ -172,34 +188,34 @@ export async function tulisBalikArsip(namaLama: string, namaBaru: string, jenis:
   ]);
   let folder: string | null = null;
   for (const akar of akars) {
-    const ketemu = await cariArsip(namaLama, jenis, akar, tipe);
+    const ketemu = await cariArsip(namaLama, jenis, akar, tipe, lokasi);
     if (ketemu) {
       const { dirname } = await import('@tauri-apps/api/path');
       folder = await dirname(ketemu);
       break;
     }
   }
-  folder ??= await join(akars[0], tipe);
+  folder ??= await folderArsip(akars[0], lokasi, tipe);
   await mkdir(folder, { recursive: true });
   await writeFile(await join(folder, namaBaru), data);
   if (namaBaru !== namaLama) {
-    for (const akar of akars) await hapusArsip(namaLama, jenis, akar, tipe);
+    for (const akar of akars) await hapusArsip(namaLama, jenis, akar, tipe, lokasi);
   }
 }
-/** Hapus salinan arsip di semua tata (tipe + lama); diam bila tak ada. */
-export async function hapusArsip(namaFile: string, jenis: string, akar: string, tipe: TipeArsip): Promise<void> {
+/** Hapus salinan arsip di semua tata (baru + lama); diam bila tak ada. */
+export async function hapusArsip(namaFile: string, jenis: string, akar: string, tipe: TipeArsip, lokasi: LokasiArsip): Promise<void> {
   const { exists, remove } = await import('@tauri-apps/plugin-fs');
-  for (const target of [await jalurArsip(namaFile, akar, tipe), ...(await jalurArsipLama(namaFile, jenis, akar))]) {
+  for (const target of [await jalurArsip(namaFile, akar, tipe, lokasi), ...(await jalurArsipLama(namaFile, jenis, akar, tipe))]) {
     if (await exists(target)) await remove(target);
   }
 }
 
-/** Tulis byte ke arsip `<akar>/<tipe>/` dengan nama template (untuk hasil edisi).
+/** Tulis byte ke arsip `<akar>/<lokasi>/<tipe>/` dengan nama template (untuk hasil edisi).
  *  Mengembalikan path tujuan. */
-export async function tulisArsip(data: Uint8Array, namaFile: string, akar: string, tipe: TipeArsip): Promise<string> {
+export async function tulisArsip(data: Uint8Array, namaFile: string, akar: string, tipe: TipeArsip, lokasi: LokasiArsip): Promise<string> {
   const { exists, mkdir, writeFile } = await import('@tauri-apps/plugin-fs');
   const { join } = await import('@tauri-apps/api/path');
-  const folder = await join(akar, tipe);
+  const folder = await folderArsip(akar, lokasi, tipe);
   await mkdir(folder, { recursive: true });
   const tujuan = await join(folder, await namaUnik(folder, namaFile));
   await writeFile(tujuan, data);
@@ -231,14 +247,14 @@ export async function tulisGantiArsip(input: {
   ]);
   const akarDokumen = await akarArsip(typeof a === 'string' ? a : '', ROOT_ARSIP_DOKUMEN);
   const akarTest = await akarArsip(typeof b === 'string' ? b : '', ROOT_ARSIP_TEST);
-  const folder = await join(input.lokasi === 'test' ? akarTest : akarDokumen, input.tipe);
+  const folder = await folderArsip(input.lokasi === 'test' ? akarTest : akarDokumen, input.lokasi, input.tipe);
   await mkdir(folder, { recursive: true });
   const namaBaru = await namaUnik(folder, namaArsip(input.pemilik, input.jenis, input.catatan, ext));
   const tujuan = await join(folder, namaBaru);
   await writeFile(tujuan, input.data);
   if (!(await exists(tujuan))) throw new Error('Salinan arsip tidak terbentuk.');
   if (input.namaLama) {
-    for (const akar of [akarDokumen, akarTest]) await hapusArsip(input.namaLama, input.jenis, akar, input.tipe);
+    for (const akar of [akarDokumen, akarTest]) await hapusArsip(input.namaLama, input.jenis, akar, input.tipe, input.lokasi);
   }
   return namaBaru;
 }

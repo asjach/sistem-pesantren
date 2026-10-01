@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ambilBerkas, errorMessage, isTauri, prefGet } from '@/api/client';
+import type { LokasiArsip } from '@/lib/arsipDokumen';
 import { bisa } from '@/api/auth';
 import { useAuth } from '@/auth/AuthContext';
 import { updateSantri, type SantriPenuh } from '@/api/santri';
@@ -136,7 +137,7 @@ export function EditSantriDialog({ santri, daftar = [], onGanti, open, onOpenCha
             akarArsip(typeof b === 'string' ? b : '', ROOT_ARSIP_TEST),
           ]);
           for (const akar of akars) {
-            const target = await cariArsip(nama, r.jenis_dokumen, akar, 'santri');
+            const target = await cariArsip(nama, r.jenis_dokumen, akar, 'santri', (r.penyimpanan ?? 'server') === 'test' ? 'test' : 'lokal');
             if (target) {
               const bytes = await readFile(target);
               if (hidup) setPratinjau({ bytes: new Uint8Array(bytes), mime, nama });
@@ -207,7 +208,7 @@ export function EditSantriDialog({ santri, daftar = [], onGanti, open, onOpenCha
   const bisaUbahViewer = canUbahDok && dokAktif !== null && !perluDesktop(dokAktif);
 
   /** Bersihkan salinan arsip lokal (desktop, best-effort, diam bila tak ada). */
-  async function bersihkanArsip(nama: string | null, jenis: string) {
+  async function bersihkanArsip(nama: string | null, jenis: string, lokasi: LokasiArsip) {
     if (!isTauri() || !nama) return;
     try {
       const { PREF_FOLDER_ARSIP, PREF_FOLDER_ARSIP_TEST, ROOT_ARSIP_DOKUMEN, ROOT_ARSIP_TEST, akarArsip, hapusArsip } = await import('@/lib/arsipDokumen');
@@ -220,7 +221,7 @@ export function EditSantriDialog({ santri, daftar = [], onGanti, open, onOpenCha
         akarArsip(typeof r2 === 'string' ? r2 : '', ROOT_ARSIP_TEST),
       ]);
       for (const akar of akars) {
-        await hapusArsip(nama, jenis, akar, 'santri');
+        await hapusArsip(nama, jenis, akar, 'santri', lokasi);
       }
     } catch (e) {
       toast.warning(`Arsip lokal gagal dibersihkan: ${errorMessage(e)}`);
@@ -255,7 +256,7 @@ export function EditSantriDialog({ santri, daftar = [], onGanti, open, onOpenCha
       if (lokasi !== 'server' && isTauri() && namaLama) {
         const namaBaru = gantiEkstensi(pratinjau.nama, keluaran.ext);
         const { tulisBalikArsip } = await import('@/lib/arsipDokumen');
-        await tulisBalikArsip(namaLama, namaBaru, jenisLama, keluaran.bytes, 'santri');
+        await tulisBalikArsip(namaLama, namaBaru, jenisLama, keluaran.bytes, 'santri', lokasi === 'test' ? 'test' : 'lokal');
         if (namaBaru !== namaLama) {
           await ubahDokumen('santri', idLama, { nama_file: namaBaru });
         }
@@ -270,7 +271,7 @@ export function EditSantriDialog({ santri, daftar = [], onGanti, open, onOpenCha
       );
       await unggahBerkasDokumen('santri', dokAktif.id, file);
       toast.success('Berkas diganti.');
-      await bersihkanArsip(namaLama, jenisLama);
+      await bersihkanArsip(namaLama, jenisLama, (dokAktif.penyimpanan ?? 'server') === 'test' ? 'test' : 'lokal');
       await segarkanDokumen(santri.id, idLama);
     } catch (e) {
       toast.error(errorMessage(e));

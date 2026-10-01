@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { errorMessage, isTauri, prefGet } from '../api/client';
+import type { LokasiArsip } from '@/lib/arsipDokumen';
 import { bisa } from '../api/auth';
 import { useAuth } from '../auth/AuthContext';
 import { listLembaga, type Lembaga } from '../api/master';
@@ -166,7 +167,7 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
 
   /** Bersihkan salinan arsip lokal (desktop, best-effort, diam bila tak ada).
    *  File asli di folder `sudah/` milik pengguna — tidak disentuh. */
-  const bersihkanArsip = useCallback(async (nama: string | null, jenis: string) => {
+  const bersihkanArsip = useCallback(async (nama: string | null, jenis: string, lokasi: LokasiArsip) => {
     if (!isTauri() || !nama) return;
     try {
       const { PREF_FOLDER_ARSIP, PREF_FOLDER_ARSIP_TEST, ROOT_ARSIP_DOKUMEN, ROOT_ARSIP_TEST, akarArsip, hapusArsip } = await import('@/lib/arsipDokumen');
@@ -179,7 +180,7 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
         akarArsip(typeof r2 === 'string' ? r2 : '', ROOT_ARSIP_TEST),
       ]);
       for (const akar of akars) {
-        await hapusArsip(nama, jenis, akar, tipe);
+        await hapusArsip(nama, jenis, akar, tipe, lokasi);
       }
     } catch (e) {
       toast.warning(`Arsip lokal gagal dibersihkan: ${errorMessage(e)}`);
@@ -218,7 +219,7 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
       }
       await unggahBerkasDokumen(tipe, unggahRow.id, unggahFile);
       toast.success('Berkas diunggah.');
-      await bersihkanArsip(namaLama, jenisLama);
+      await bersihkanArsip(namaLama, jenisLama, lokasi === 'test' ? 'test' : 'lokal');
       setUnggahRow(null);
       setUnggahFile(null);
       await load();
@@ -237,7 +238,7 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
       const jenis = hapusRow.jenis_dokumen;
       await hapusDokumen(tipe, hapusRow.id);
       toast.success('Dokumen dihapus.');
-      await bersihkanArsip(nama, jenis);
+      await bersihkanArsip(nama, jenis, (hapusRow.penyimpanan ?? 'server') === 'test' ? 'test' : 'lokal');
       setHapusRow(null);
       await load();
     } catch (e) {
@@ -268,7 +269,7 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
         akarArsip(typeof b === 'string' ? b : '', ROOT_ARSIP_TEST),
       ]);
       for (const akar of akars) {
-        const target = await cariArsip(r.nama_file, r.jenis_dokumen, akar, tipe);
+        const target = await cariArsip(r.nama_file, r.jenis_dokumen, akar, tipe, (r.penyimpanan ?? 'server') === 'test' ? 'test' : 'lokal');
         if (target) {
           const bytes = await readFile(target);
           const tujuan = await save({

@@ -67,12 +67,12 @@ class NamaBerkasDokumen
     }
 
     /**
-     * Direktori kanonis per tipe — cermin arsip lokal
-     * (`SIMPES-Dokumen/{tipe}/`): root `dokumen/` berisi folder tipe.
+     * Direktori kanonis: `{lokasi}/{tipe}` — cermin arsip perangkat
+     * (`SIMPES-Dokumen/lokal/{tipe}/`). Server memakai lokasi `server`.
      */
-    public static function direktori(string $tipe): string
+    public static function direktori(string $tipe, string $lokasi = 'server'): string
     {
-        return "dokumen/{$tipe}";
+        return "{$lokasi}/{$tipe}";
     }
 
     /**

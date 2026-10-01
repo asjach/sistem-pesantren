@@ -38,46 +38,46 @@ describe('arsip per tipe', () => {
   });
 
   it('jalurArsip di folder tipe (<akar>/santri/nama)', async () => {
-    await expect(jalurArsip('berkas.jpg', '/arsip', 'santri')).resolves.toBe('/arsip/santri/berkas.jpg');
-    await expect(jalurArsip('berkas.jpg', '/arsip', 'pegawai')).resolves.toBe('/arsip/pegawai/berkas.jpg');
+    await expect(jalurArsip('berkas.jpg', '/arsip', 'santri', 'lokal')).resolves.toBe('/arsip/lokal/santri/berkas.jpg');
+    await expect(jalurArsip('berkas.jpg', '/arsip', 'pegawai', 'test')).resolves.toBe('/arsip/test/pegawai/berkas.jpg');
   });
 
   it('cariArsip mengutamakan folder tipe', async () => {
-    ada = new Set(['/arsip/santri/berkas.jpg', '/arsip/berkas.jpg', '/arsip/kartu_keluarga/berkas.jpg']);
-    await expect(cariArsip('berkas.jpg', 'Kartu Keluarga', '/arsip', 'santri')).resolves.toBe('/arsip/santri/berkas.jpg');
+    ada = new Set(['/arsip/lokal/santri/berkas.jpg', '/arsip/santri/berkas.jpg', '/arsip/berkas.jpg', '/arsip/kartu_keluarga/berkas.jpg']);
+    await expect(cariArsip('berkas.jpg', 'Kartu Keluarga', '/arsip', 'santri', 'lokal')).resolves.toBe('/arsip/lokal/santri/berkas.jpg');
   });
 
   it('cariArsip jatuh ke tata lama (datar, lalu per-jenis)', async () => {
     ada = new Set(['/arsip/berkas.jpg', '/arsip/kartu_keluarga/berkas.jpg']);
-    await expect(cariArsip('berkas.jpg', 'Kartu Keluarga', '/arsip', 'santri')).resolves.toBe('/arsip/berkas.jpg');
+    await expect(cariArsip('berkas.jpg', 'Kartu Keluarga', '/arsip', 'santri', 'lokal')).resolves.toBe('/arsip/berkas.jpg');
     ada = new Set(['/arsip/kartu_keluarga/berkas.jpg']);
-    await expect(cariArsip('berkas.jpg', 'Kartu Keluarga', '/arsip', 'santri')).resolves.toBe('/arsip/kartu_keluarga/berkas.jpg');
+    await expect(cariArsip('berkas.jpg', 'Kartu Keluarga', '/arsip', 'santri', 'lokal')).resolves.toBe('/arsip/kartu_keluarga/berkas.jpg');
   });
 
   it('cariArsip null bila tak ada di semua tata', async () => {
-    await expect(cariArsip('hilang.jpg', 'Kartu Keluarga', '/arsip', 'lembaga')).resolves.toBeNull();
+    await expect(cariArsip('hilang.jpg', 'Kartu Keluarga', '/arsip', 'lembaga', 'lokal')).resolves.toBeNull();
   });
 
   it('hapusArsip membersihkan semua tata', async () => {
-    ada = new Set(['/arsip/santri/berkas.jpg', '/arsip/berkas.jpg', '/arsip/kartu_keluarga/berkas.jpg']);
-    await hapusArsip('berkas.jpg', 'Kartu Keluarga', '/arsip', 'santri');
-    expect(dihapus).toEqual(['/arsip/santri/berkas.jpg', '/arsip/berkas.jpg', '/arsip/kartu_keluarga/berkas.jpg']);
+    ada = new Set(['/arsip/lokal/santri/berkas.jpg', '/arsip/santri/berkas.jpg', '/arsip/berkas.jpg', '/arsip/kartu_keluarga/berkas.jpg']);
+    await hapusArsip('berkas.jpg', 'Kartu Keluarga', '/arsip', 'santri', 'lokal');
+    expect(dihapus).toEqual(['/arsip/lokal/santri/berkas.jpg', '/arsip/santri/berkas.jpg', '/arsip/berkas.jpg', '/arsip/kartu_keluarga/berkas.jpg']);
     expect(ada.size).toBe(0);
   });
 
   it('tulisBalikArsip menimpa di folder asal tanpa menghapus', async () => {
     ada = new Set(['/arsip/kartu_keluarga/berkas.jpg']);
     const bytes = new Uint8Array([1, 2, 3]);
-    await tulisBalikArsip('berkas.jpg', 'berkas.jpg', 'Kartu Keluarga', bytes, 'santri');
+    await tulisBalikArsip('berkas.jpg', 'berkas.jpg', 'Kartu Keluarga', bytes, 'santri', 'lokal');
     expect(ditulis).toEqual([['/arsip/kartu_keluarga/berkas.jpg', bytes]]);
     expect(dihapus).toEqual([]);
   });
 
   it('tulisBalikArsip membersihkan nama lama bila format berubah', async () => {
-    ada = new Set(['/arsip/santri/berkas.jpg']);
-    await tulisBalikArsip('berkas.jpg', 'berkas.png', 'Kartu Keluarga', new Uint8Array([9]), 'santri');
-    expect(ditulis.map(([p]) => p)).toEqual(['/arsip/santri/berkas.png']);
-    expect(dihapus).toEqual(['/arsip/santri/berkas.jpg']);
+    ada = new Set(['/arsip/lokal/santri/berkas.jpg']);
+    await tulisBalikArsip('berkas.jpg', 'berkas.png', 'Kartu Keluarga', new Uint8Array([9]), 'santri', 'lokal');
+    expect(ditulis.map(([p]) => p)).toEqual(['/arsip/lokal/santri/berkas.png']);
+    expect(dihapus).toEqual(['/arsip/lokal/santri/berkas.jpg']);
   });
 
   it('tulisGantiArsip menulis nama template unik + membersihkan lama', async () => {
@@ -87,7 +87,7 @@ describe('arsip per tipe', () => {
       ext: 'jpg', data: new Uint8Array([7]), lokasi: 'lokal', tipe: 'santri',
     });
     expect(nama).toMatch(/^ahmad_kartu_keluarga_\d{8}_\d{6}\.jpg$/);
-    expect(ditulis.map(([p]) => p)).toEqual([`/arsip/santri/${nama}`]);
+    expect(ditulis.map(([p]) => p)).toEqual([`/arsip/lokal/santri/${nama}`]);
     expect(dihapus).toEqual(['/arsip/kartu_keluarga/lama.jpg']);
   });
 

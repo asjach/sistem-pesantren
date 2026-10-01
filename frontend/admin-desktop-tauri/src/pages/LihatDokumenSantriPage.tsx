@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ambilBerkas, errorMessage, isTauri, prefGet } from '../api/client';
+import type { LokasiArsip } from '@/lib/arsipDokumen';
 import { bisa } from '../api/auth';
 import { useAuth } from '../auth/AuthContext';
 import { listSantri, type Santri } from '../api/santri';
@@ -220,7 +221,7 @@ export default function LihatDokumenSantriPage() {
         for (const d of perlu) {
           let ketemu = false;
           for (const akar of akars) {
-            if ((await cariArsip(d.nama_file as string, d.jenis_dokumen, akar, 'santri')) !== null) { ketemu = true; break; }
+            if ((await cariArsip(d.nama_file as string, d.jenis_dokumen, akar, 'santri', (d.penyimpanan ?? 'server') === 'test' ? 'test' : 'lokal')) !== null) { ketemu = true; break; }
           }
           peta[d.id] = ketemu;
         }
@@ -271,7 +272,7 @@ export default function LihatDokumenSantriPage() {
           akarArsip(typeof b === 'string' ? b : '', ROOT_ARSIP_TEST),
         ]);
         for (const akar of akars) {
-          const target = await cariArsip(r.nama_file, r.jenis_dokumen, akar, 'santri');
+          const target = await cariArsip(r.nama_file, r.jenis_dokumen, akar, 'santri', (r.penyimpanan ?? 'server') === 'test' ? 'test' : 'lokal');
           if (target) {
             const bytes = await readFile(target);
             setPratinjau({ bytes: new Uint8Array(bytes), mime, nama });
@@ -313,7 +314,7 @@ export default function LihatDokumenSantriPage() {
         akarArsip(typeof b === 'string' ? b : '', ROOT_ARSIP_TEST),
       ]);
       for (const akar of akars) {
-        const target = await cariArsip(r.nama_file, r.jenis_dokumen, akar, 'santri');
+        const target = await cariArsip(r.nama_file, r.jenis_dokumen, akar, 'santri', (r.penyimpanan ?? 'server') === 'test' ? 'test' : 'lokal');
         if (target) {
           const bytes = await readFile(target);
           const tujuan = await save({
@@ -339,7 +340,7 @@ export default function LihatDokumenSantriPage() {
   );
 
   /** Bersihkan salinan arsip lokal (desktop, best-effort, diam bila tak ada). */
-  const bersihkanArsip = useCallback(async (nama: string | null, jenis: string) => {
+  const bersihkanArsip = useCallback(async (nama: string | null, jenis: string, lokasi: LokasiArsip) => {
     if (!isTauri() || !nama) return;
     try {
       const { PREF_FOLDER_ARSIP, PREF_FOLDER_ARSIP_TEST, ROOT_ARSIP_DOKUMEN, ROOT_ARSIP_TEST, akarArsip, hapusArsip } = await import('@/lib/arsipDokumen');
@@ -352,7 +353,7 @@ export default function LihatDokumenSantriPage() {
         akarArsip(typeof r2 === 'string' ? r2 : '', ROOT_ARSIP_TEST),
       ]);
       for (const akar of akars) {
-        await hapusArsip(nama, jenis, akar, 'santri');
+        await hapusArsip(nama, jenis, akar, 'santri', lokasi);
       }
     } catch (e) {
       toast.warning(`Arsip lokal gagal dibersihkan: ${errorMessage(e)}`);
@@ -371,7 +372,7 @@ export default function LihatDokumenSantriPage() {
       const idHapus = hapusRow.id;
       await hapusDokumen('santri', hapusRow.id);
       toast.success('Dokumen dihapus.');
-      await bersihkanArsip(nama, jenis);
+      await bersihkanArsip(nama, jenis, (hapusRow.penyimpanan ?? 'server') === 'test' ? 'test' : 'lokal');
       setHapusRow(null);
       if (dokId === idHapus) { setDokId(null); setPratinjau(null); }
       if (santriId != null) {
@@ -465,10 +466,11 @@ export default function LihatDokumenSantriPage() {
             akarArsip(typeof b === 'string' ? b : '', ROOT_ARSIP_TEST),
           ]);
           let pindah = false;
+          const lokasiArsip = (editRow?.penyimpanan ?? 'server') === 'test' ? 'test' : 'lokal';
           for (const akar of akars) {
-            const lama = await cariArsip(namaLama, jenisLama, akar, 'santri');
+            const lama = await cariArsip(namaLama, jenisLama, akar, 'santri', lokasiArsip);
             if (!lama) continue;
-            const folderTipe = await join(akar, 'santri');
+            const folderTipe = await join(akar, lokasiArsip, 'santri');
             await mkdir(folderTipe, { recursive: true });
             const baru = await join(folderTipe, namaBaru);
             if (await exists(baru)) {
@@ -577,7 +579,7 @@ export default function LihatDokumenSantriPage() {
       }
       await unggahBerkasDokumen('santri', row.id, file);
       toast.success('Berkas diganti.');
-      await bersihkanArsip(namaLama, jenisLama);
+      await bersihkanArsip(namaLama, jenisLama, lokasi === 'test' ? 'test' : 'lokal');
       if (santriId != null) {
         await muatDokumen(santriId);
         void muatJumlahSantri().then(setJumlahSantri);
@@ -628,7 +630,7 @@ export default function LihatDokumenSantriPage() {
       try {
         const namaBaru = gantiEkstensi(pratinjau.nama, keluaran.ext);
         const { tulisBalikArsip } = await import('@/lib/arsipDokumen');
-        await tulisBalikArsip(dokPratinjau.nama_file, namaBaru, dokPratinjau.jenis_dokumen, keluaran.bytes, 'santri');
+        await tulisBalikArsip(dokPratinjau.nama_file, namaBaru, dokPratinjau.jenis_dokumen, keluaran.bytes, 'santri', lokasi === 'test' ? 'test' : 'lokal');
         if (namaBaru !== dokPratinjau.nama_file) {
           await ubahDokumen('santri', dokPratinjau.id, { nama_file: namaBaru });
         }
