@@ -279,6 +279,7 @@ Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca
 - `tahun_ajaran`: varchar(9) FK → tahun_ajaran.nama [cascade update + delete]
 - `walas_id`: FK → pegawai [null, nullOnDelete] — wali kelas → pegawai
 - `tingkat`: string [null] — ref_tingkat ('7','8','9'); grouping saat kelas_id null di riwayat
+- `urutan`: int [default 0] — urutan tampil per lingkup (0 = belum diatur)
 - `nama_kelas`: string — 'VII-A'; dinormalisasi model (trim + rapat spasi)
 - `nama_alias`: string(50) [null] — nama tampilan alternatif (mis. 'Umar bin Khattab')
 - `kapasitas`: int [null]
@@ -567,6 +568,7 @@ Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca
 - `status_pendaftaran`: string [default 'baru'] — baru,terverifikasi,lolos,tidak_lolos,pemberkasan,ajukan_daftar_ulang,daftar_ulang,mengundurkan_diri,ditolak,waiting_list (tanpa status seleksi)
 - `is_duplikat_kontak`: bool [default false]
 - `is_lanjutan`: bool [default false] — true jika santri_asal_id terisi
+- `is_pindahan`: bool [default false] — jenis PSB: false = santri baru, true = pindahan
 - `tanggal_daftar`: date [null]
 - `catatan`: text [null] — catatan admin (manual)
 - `catatan_sistem`: text [null] — auto: duplikat email/telp/nik
