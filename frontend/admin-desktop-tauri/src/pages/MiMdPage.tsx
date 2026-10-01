@@ -346,7 +346,7 @@ export default function MiMdPage() {
                     nilaiStatis,
                     canSamakan
                       ? (r) => (
-                        <div className="flex gap-1">
+                        <>
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <Button
@@ -377,7 +377,7 @@ export default function MiMdPage() {
                             </TooltipTrigger>
                             <TooltipContent><p>Samakan MI dengan MD (buatkan riwayat bila belum ada)</p></TooltipContent>
                           </Tooltip>
-                        </div>
+                        </>
                       )
                       : undefined,
                     canSamakan

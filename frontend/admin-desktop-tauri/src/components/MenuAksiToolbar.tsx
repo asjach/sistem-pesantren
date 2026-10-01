@@ -6,15 +6,27 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Tooltip, TooltipTrigger } from '@/components/ui/tooltip';
 import { MoreVertical } from '@/icons';
 
-/** Ratakan tombol aksi (boleh fragment/bersyarat) jadi daftar elemen. */
+/** Ratakan tombol aksi (boleh fragment/bersyarat) jadi daftar elemen.
+ *  Pembungkus Tooltip/TooltipTrigger diteruskan (diambil tombol pemicunya;
+ *  konten tooltip diabaikan) agar tombol ber-tooltip — mis. Import di
+ *  halaman Kelas — tetap bisa diklik dari dalam menu. */
 function ratakan(node: ReactNode): ReactElement[] {
   const out: ReactElement[] = [];
   Children.forEach(node, (child) => {
     if (!isValidElement(child)) return;
-    if (child.type === Fragment) {
+    if (child.type === Fragment || child.type === TooltipTrigger) {
       out.push(...ratakan((child.props as { children?: ReactNode }).children));
+      return;
+    }
+    if (child.type === Tooltip) {
+      Children.forEach((child.props as { children?: ReactNode }).children, (c) => {
+        if (isValidElement(c) && c.type === TooltipTrigger) {
+          out.push(...ratakan((c.props as { children?: ReactNode }).children));
+        }
+      });
       return;
     }
     out.push(child);

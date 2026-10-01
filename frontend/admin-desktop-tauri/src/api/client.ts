@@ -348,6 +348,9 @@ export async function ambilBerkas(path: string): Promise<ArrayBuffer> {
   let res: Response;
   try {
     res = await fetch(`${base}${path}`, {
+      // Biner harus segar tiap unduh (server mengirim Cache-Control: public;
+      // tanpa ini WebView bisa menyajikan template/berkas lama dari cache).
+      cache: 'no-store',
       headers: {
         Accept: '*/*',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -485,6 +488,7 @@ export async function downloadFile(path: string, fallbackName: string): Promise<
   let res: Response;
   try {
     res = await fetch(`${base}${path}`, {
+      cache: 'no-store',
       headers: {
         Accept: '*/*',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),

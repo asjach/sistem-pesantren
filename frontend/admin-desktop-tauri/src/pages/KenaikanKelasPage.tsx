@@ -321,7 +321,7 @@ export default function KenaikanKelasPage() {
               onCommit={async () => {}}
               onSaved={() => {}}
               renderActions={(r) => (
-                <div className="flex items-center gap-0.5">
+                <>
                   {aksiProfil(r.santri_id, { prefix: 'kandidat', daftar: daftarKandidat })}
                   {canUbah && (
                   <>
@@ -345,7 +345,7 @@ export default function KenaikanKelasPage() {
                   </ActionIcon>
                   </>
                   )}
-                </div>
+                </>
               )}
                hidePreset
                emptyText="Tidak ada Santri semester 2 aktif pada tahun ajaran ini."

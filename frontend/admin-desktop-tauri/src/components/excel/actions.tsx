@@ -23,13 +23,23 @@ import { Check, Eye, MoreVertical, Pencil, Trash2 } from '@/icons';
 import { cn } from '@/lib/utils';
 import type { AksiMenu, ActionsColData, GridRow } from './types';
 
-/** Ratakan aksi (bisa berupa fragment/conditional) menjadi daftar elemen. */
+/** Ratakan aksi (bisa berupa fragment/conditional) menjadi daftar elemen.
+ *  Pembungkus Tooltip/TooltipTrigger diteruskan agar tombol ber-tooltip
+ *  tetap terhitung satu aksi (bukan elemen luarnya). */
 export function flattenAksi(node: ReactNode): ReactElement[] {
   const out: ReactElement[] = [];
   Children.forEach(node, (child) => {
     if (!isValidElement(child)) return;
-    if (child.type === Fragment) {
+    if (child.type === Fragment || child.type === TooltipTrigger) {
       out.push(...flattenAksi((child.props as { children?: ReactNode }).children));
+      return;
+    }
+    if (child.type === Tooltip) {
+      Children.forEach((child.props as { children?: ReactNode }).children, (c) => {
+        if (isValidElement(c) && c.type === TooltipTrigger) {
+          out.push(...flattenAksi((c.props as { children?: ReactNode }).children));
+        }
+      });
       return;
     }
     out.push(child);
@@ -48,6 +58,9 @@ export function ikonAksi(node: ReactNode): ReactNode {
 export function metaAksi(el: ReactElement): AksiMenu {
   const p = el.props as {
     title?: string;
+    /** TombolIkon memakai `tip` (bukan `title`) — dibaca juga agar label
+     *  menu hamburger tidak jatuh ke "Aksi" generik. */
+    tip?: string;
     onClick?: () => void;
     onConfirm?: () => void;
     confirmLabel?: string;
@@ -64,7 +77,7 @@ export function metaAksi(el: ReactElement): AksiMenu {
   if (el.type === EditAction) return { label: 'Ubah', icon: <Pencil size={16} />, onClick: p.onClick };
   if (el.type === ViewAction) return { label: 'Lihat', icon: <Eye size={16} />, onClick: p.onClick };
   if (el.type === SetAktifAction) return { label: 'Set aktif', icon: <Check size={16} />, onClick: p.onClick };
-  const title = typeof p.title === 'string' ? p.title.replace(/\?$/, '') : 'Aksi';
+  const title = typeof p.title === 'string' ? p.title.replace(/\?$/, '') : (typeof p.tip === 'string' ? p.tip : 'Aksi');
   // Pembungkus konfirmasi umum (mis. ConfirmDelete): teruskan ke dialog konfirmasi menu.
   if (typeof p.onConfirm === 'function') {
     return {

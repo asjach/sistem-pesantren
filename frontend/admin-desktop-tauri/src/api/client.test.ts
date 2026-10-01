@@ -91,4 +91,14 @@ describe('downloadFile', () => {
 
     expect(writeMock).not.toHaveBeenCalled();
   });
+
+  it('fetch biner tanpa cache agar template/berkas selalu segar', async () => {
+    (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__ = {};
+
+    await downloadFile('/admin/dokumen/santri/import-template', 'jatuh.xlsx');
+
+    const fetchMock = globalThis.fetch as unknown as ReturnType<typeof vi.fn>;
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({ cache: 'no-store' });
+  });
 });
