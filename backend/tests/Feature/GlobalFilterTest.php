@@ -380,7 +380,7 @@ class GlobalFilterTest extends TestCase
         $this->assertSame([$santri->id], collect($res->json('data'))->pluck('santri_id')->all());
     }
 
-    public function test_psb_antrean_dan_dokumen_wajib_menerima_multi_lembaga(): void
+    public function test_psb_antrean_menerima_multi_lembaga(): void
     {
         $f = $this->fixture();
         $kegiatan = PsbKegiatan::create([
@@ -451,11 +451,6 @@ class GlobalFilterTest extends TestCase
             [$calonMi->id, $calonMd->id],
             collect($res->json('data.data'))->pluck('id')->all()
         );
-
-        $res = $this->actingAs($user, 'sanctum')
-            ->getJson('/api/admin/dokumen-wajib?psb_kegiatan_id='.$kegiatan->id.'&'.$query)
-            ->assertOk();
-        $this->assertCount(2, $res->json('data'));
     }
 
     public function test_status_awal_array_dan_status_awal_bukan(): void

@@ -3,27 +3,23 @@ import { errorMessage } from '../api/client';
 import {
   createPsbGelombang,
   createPsbKegiatan,
-  hapusDokumenWajib,
   deleteKuotaBiaya,
   deletePsbGelombang,
   deletePsbKegiatan,
   getKuotaBiaya,
-  listDokumenWajib,
   listGelombangPsb,
   listLembagaPsb,
   listPsbKegiatan,
-  simpanDokumenWajib,
   upsertKuotaBiaya,
   updatePsbGelombang,
   updatePsbKegiatan,
-  type DokumenWajib,
   type KuotaBiayaInput,
   type PsbGelombangMaster,
   type PsbKegiatan,
   type PsbKuotaBiayaRow,
   type PsbLembagaOpsi,
 } from '../api/psb';
-import { listTahunAjaran, referensiList, type ReferensiRow, type TahunAjaran } from '../api/master';
+import { listTahunAjaran, type TahunAjaran } from '../api/master';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -46,7 +42,6 @@ import { tanggal } from '../lib/tanggal';
 import { toast } from 'sonner';
 import { Plus } from '@/icons';
 import {
-  DOKUMEN_FIELDS,
   KEGIATAN_FIELDS,
   KUOTA_FIELDS,
   angka,
@@ -54,13 +49,10 @@ import {
   nilaiSelect,
 } from '@/components/psb/kegiatanBersama';
 import {
-  DialogDokumen,
   DialogGelombang,
   DialogKegiatan,
   DialogKuota,
 } from '@/components/psb/kegiatanDialogs';
-
-async function noopCommit() {}
 
 export default function KegiatanPsbPage() {
   const { user: me } = useAuth();
@@ -105,13 +97,6 @@ export default function KegiatanPsbPage() {
   const [qPaketTersedia, setQPaketTersedia] = useState(false);
   const [qSeleksi, setQSeleksi] = useState('default');
   const [qPemberkasan, setQPemberkasan] = useState('ya');
-
-  const [dokumenRows, setDokumenRows] = useState<DokumenWajib[]>([]);
-  const [dokOpen, setDokOpen] = useState(false);
-  const [dokLembagas, setDokLembagas] = useState<string[]>([]);
-  const [dokJenis, setDokJenis] = useState('');
-  const [dokJenisOpsi, setDokJenisOpsi] = useState<ReferensiRow[]>([]);
-  const [dokSifat, setDokSifat] = useState<'wajib' | 'opsional'>('wajib');
 
   const kegiatan = useMemo(() => kegiatans.find((k) => k.id === kegiatanId) ?? null, [kegiatans, kegiatanId]);
   const gelombang = useMemo(() => gelombangs.find((g) => g.id === gelombangId) ?? null, [gelombangs, gelombangId]);
@@ -176,15 +161,6 @@ export default function KegiatanPsbPage() {
     setLembagaOpsi(res.data);
   }, []);
 
-  const loadDokumen = useCallback(async (kid: number | null) => {
-    if (!kid) {
-      setDokumenRows([]);
-      return;
-    }
-    const res = await listDokumenWajib(kid);
-    setDokumenRows(res.data);
-  }, []);
-
   useEffect(() => {
     (async () => {
       setLoading(true);
@@ -198,7 +174,6 @@ export default function KegiatanPsbPage() {
         if (kegId) {
           const gid = await loadGelombang(kegId);
           await loadKuota(gid);
-          await loadDokumen(kegId);
         }
       } catch (e) {
         setErr(errorMessage(e));
@@ -214,7 +189,6 @@ export default function KegiatanPsbPage() {
     try {
       const gid = await loadGelombang(id);
       await loadKuota(gid);
-      await loadDokumen(id);
     } catch (e) {
       setErr(errorMessage(e));
     }
@@ -263,7 +237,6 @@ export default function KegiatanPsbPage() {
       const kid = await loadKegiatan(targetId ?? undefined);
       const gid = await loadGelombang(kid);
       await loadKuota(gid);
-      await loadDokumen(kid);
     } catch (e2) {
       setErr(errorMessage(e2));
     } finally {
@@ -278,7 +251,6 @@ export default function KegiatanPsbPage() {
       const kid = await loadKegiatan();
       const gid = await loadGelombang(kid);
       await loadKuota(gid);
-      await loadDokumen(kid);
     } catch (e) {
       setErr(errorMessage(e));
     }
@@ -437,33 +409,10 @@ export default function KegiatanPsbPage() {
     await loadKuota(gelombangId);
   }, [gelombangId, loadKuota]);
 
-  const dokumenGridRows = useMemo(() => {
-    const peta = new Map<string, { id: string; lembaga: string; wajib: string[]; opsional: string[] }>();
-    for (const d of dokumenRows) {
-      if (!peta.has(d.jenjang)) {
-        peta.set(d.jenjang, {
-          id: d.jenjang,
-          lembaga: d.lembaga?.jenjang ?? d.lembaga?.nama ?? lembagaTampil.find((l) => l.jenjang === d.jenjang)?.jenjang ?? lembagaTampil.find((l) => l.jenjang === d.jenjang)?.nama ?? String(d.jenjang),
-          wajib: [],
-          opsional: [],
-        });
-      }
-      const grup = peta.get(d.jenjang)!;
-      if (d.is_wajib) grup.wajib.push(d.jenis_dokumen_santri);
-      else grup.opsional.push(d.jenis_dokumen_santri);
-    }
-    return [...peta.values()].sort((a, b) => a.lembaga.localeCompare(b.lembaga));
-  }, [dokumenRows, lembagaTampil]);
-
-  /** Filter ketiga tabel dengan pencarian tunggal topBar (sisi klien). */
+  /** Filter kedua tabel dengan pencarian tunggal topBar (sisi klien). */
   const q = cari.trim().toLowerCase();
   const cocok = (...vals: (string | number | null | undefined)[]) =>
     q === '' || vals.some((v) => String(v ?? '').toLowerCase().includes(q));
-  const dokumenTampil = useMemo(
-    () => dokumenGridRows.filter((d) => cocok(d.lembaga, ...d.wajib, ...d.opsional)),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [dokumenGridRows, q],
-  );
   const gelombangTampil = useMemo(
     () => gelombangs.filter((g) => cocok(g.nama, g.nomor)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -475,97 +424,11 @@ export default function KegiatanPsbPage() {
     [kuotaTampil, q],
   );
 
-  const getDokumenValues = useCallback(
-    (d: { id: string; lembaga: string; wajib: string[]; opsional: string[] }) => ({
-      lembaga: d.lembaga,
-      wajib: d.wajib.join(', '),
-      opsional: d.opsional.join(', '),
-    }),
-    [],
-  );
-
-  const reloadDokumen = useCallback(async () => {
-    await loadDokumen(kegiatanId);
-  }, [kegiatanId, loadDokumen]);
-
-  async function hapusDokumenLembaga(row: { id: string; lembaga: string }) {
-    try {
-      const target = dokumenRows.filter((d) => d.jenjang === row.id);
-      for (const d of target) await hapusDokumenWajib(d.id);
-      toast.success(`Ketentuan dokumen ${row.lembaga} dihapus.`);
-      await loadDokumen(kegiatanId);
-    } catch (e) {
-      setErr(errorMessage(e));
-    }
-  }
-
-  function bukaDokumen() {
-    const awal = lembagaAwalDialog ? [lembagaAwalDialog] : [];
-    setDokLembagas(awal);
-    setDokJenis('');
-    setDokJenisOpsi([]);
-    setDokSifat('wajib');
-    setDokOpen(true);
-    // Lembaga sudah pasti (bertindak sebagai / satu lembaga) → langsung muat
-    // pilihan jenis dokumennya tanpa perlu diklik dulu.
-    if (awal.length) void pilihLembagaDokumen(awal);
-  }
-
-  async function pilihLembagaDokumen(v: string[]) {
-    setDokLembagas(v);
-    setDokJenis('');
-    setDokJenisOpsi([]);
-    if (v.length === 0) return;
-    try {
-      const hasil = await Promise.all(
-        v.map((id) => referensiList('jenis_dokumen_santri', id)),
-      );
-      const gabung = new Map<string, ReferensiRow>();
-      for (const list of hasil) {
-        for (const r of list) {
-          const nama = String(r.nama ?? r.kode);
-          if (!gabung.has(nama)) gabung.set(nama, r);
-        }
-      }
-      setDokJenisOpsi([...gabung.values()]);
-    } catch {
-      setDokJenisOpsi([]);
-    }
-  }
-
-  async function simpanDokumenBaru(e: React.FormEvent) {
-    e.preventDefault();
-    if (!kegiatanId || dokLembagas.length === 0 || !dokJenis) return;
-    setBusy(true);
-    setErr('');
-    try {
-      for (const jenjang of dokLembagas) {
-        await simpanDokumenWajib({
-          psb_kegiatan_id: kegiatanId,
-          jenjang: jenjang,
-          jenis_dokumen_santri: dokJenis,
-          is_wajib: dokSifat === 'wajib',
-        });
-      }
-      toast.success(
-        dokLembagas.length > 1
-          ? `Ketentuan dokumen disimpan untuk ${dokLembagas.length} lembaga.`
-          : 'Ketentuan dokumen disimpan.',
-      );
-      setDokOpen(false);
-      await loadDokumen(kegiatanId);
-    } catch (e2) {
-      setErr(errorMessage(e2));
-    } finally {
-      setBusy(false);
-    }
-  }
-
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari…" />
-      <PengaturanHalaman tampil={{}} tabel={[{ key: 'kegiatan_psb_dokumen', judul: 'Dokumen', fields: DOKUMEN_FIELDS }, { key: 'kegiatan_psb_gelombang', judul: 'Gelombang', fields: KEGIATAN_FIELDS }, { key: 'kegiatan_psb_kuota', judul: 'Kuota', fields: KUOTA_FIELDS }]} />
+      <PengaturanHalaman tampil={{}} tabel={[{ key: 'kegiatan_psb_gelombang', judul: 'Gelombang', fields: KEGIATAN_FIELDS }, { key: 'kegiatan_psb_kuota', judul: 'Kuota', fields: KUOTA_FIELDS }]} />
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <div className="min-w-64">
@@ -609,36 +472,7 @@ export default function KegiatanPsbPage() {
 
       {kegiatanId ? (
         <>
-          <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            Dokumen per lembaga (berlaku kegiatan ini)
-          </h2>
-          <ExcelTable
-            tableKey="kegiatan_psb_dokumen"
-            maxRows={8}
-            fields={DOKUMEN_FIELDS}
-            rows={dokumenTampil}
-            getValues={getDokumenValues}
-            loading={loading}
-            emptyText="Belum ada ketentuan dokumen di kegiatan ini."
-            canEdit={false}
-            onCommit={noopCommit}
-            onSaved={reloadDokumen}
-            addButton={bisa(me, 'dokumen_wajib.tambah') ? (
-              <Button id="btn_tambah_dokumen_psb" onClick={bukaDokumen} disabled={!kegiatanId}>+ Dokumen</Button>
-            ) : undefined}
-            renderActions={(r) => (
-              bisa(me, 'dokumen_wajib.hapus') ? (
-              <DeleteAction
-                id={`btn_hapus_dokumen_psb_${r.id}`}
-                title="Hapus ketentuan dokumen lembaga ini?"
-                description={`Semua ketentuan dokumen ${r.lembaga} di kegiatan ini akan dihapus.`}
-                onConfirm={() => hapusDokumenLembaga(r)}
-              />
-              ) : null
-            )}
-          />
-
-          <h2 className="mb-2 mt-6 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Gelombang</h2>
+          <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Gelombang</h2>
           <ExcelTable
             tableKey="kegiatan_psb_gelombang"
             maxRows={3}
@@ -774,22 +608,6 @@ export default function KegiatanPsbPage() {
         onPemberkasan={setQPemberkasan}
         onClose={() => setKuotaOpen(false)}
         onSubmit={simpanKuota}
-      />
-
-      <DialogDokumen
-        open={dokOpen}
-        terkunci={terkunci}
-        lembagaOpsi={lembagaDialog}
-        lembagas={dokLembagas}
-        jenis={dokJenis}
-        jenisOpsi={dokJenisOpsi}
-        sifat={dokSifat}
-        busy={busy}
-        onLembagas={(v) => void pilihLembagaDokumen(v)}
-        onJenis={setDokJenis}
-        onSifat={setDokSifat}
-        onClose={() => setDokOpen(false)}
-        onSubmit={simpanDokumenBaru}
       />
     </div>
   );

@@ -400,34 +400,3 @@ export function createCalonPsb(input: PsbCalonInput) {
 export function listDokumenCalon(calonId: number) {
   return api<{ pesan: string; data: DokumenSantri[] }>(`/portal/psb/${calonId}/dokumen`);
 }
-
-export interface DokumenWajib {
-  id: number;
-  psb_kegiatan_id: number;
-  jenjang: string;
-  jenis_dokumen_santri: string;
-  is_wajib: boolean;
-  lembaga?: { jenjang: string; nama: string } | null;
-}
-
-export function listDokumenWajib(kegiatanId: number, jenjang?: ScalarOrArray<string>) {
-  const q = new URLSearchParams({ psb_kegiatan_id: String(kegiatanId) });
-  appendQueryParam(q, 'jenjang', jenjang);
-  return api<{ pesan: string; data: DokumenWajib[] }>(`/admin/dokumen-wajib?${q.toString()}`);
-}
-
-export function simpanDokumenWajib(input: {
-  psb_kegiatan_id: number;
-  jenjang: string;
-  jenis_dokumen_santri: string;
-  is_wajib?: boolean;
-}) {
-  return api<{ pesan: string; data: DokumenWajib }>('/admin/dokumen-wajib', {
-    method: 'POST',
-    body: JSON.stringify(input),
-  });
-}
-
-export function hapusDokumenWajib(id: number) {
-  return api<{ pesan: string }>(`/admin/dokumen-wajib/${id}`, { method: 'DELETE' });
-}

@@ -17,7 +17,6 @@ const JUDUL_TABEL: Record<string, string> = {
   pengajuan_biodata: 'Pengajuan Biodata',
   psb: 'PSB',
   pegawai: 'Pegawai',
-  dokumen_wajib: 'Dokumen Wajib',
   kamus_label_kolom: 'Kamus Label',
 };
 

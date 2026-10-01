@@ -61,12 +61,6 @@ export const KUOTA_FIELDS: ExcelField[] = [
   },
 ];
 
-export const DOKUMEN_FIELDS: ExcelField[] = [
-  { key: 'lembaga', label: 'lembaga.jenjang', width: 200, kind: 'static', sumber: { tabel: 'lembaga', kolom: 'jenjang' } },
-  { key: 'wajib', label: 'Dokumen wajib', width: 300, kind: 'static', sumber: null },
-  { key: 'opsional', label: 'Dokumen opsional', width: 300, kind: 'static', sumber: null },
-];
-
 /** Boolean tiga-estado → nilai select (default = ikut lembaga). */
 export function nilaiSelect(v: boolean | null | undefined): string {
   if (v === null || v === undefined) return 'default';

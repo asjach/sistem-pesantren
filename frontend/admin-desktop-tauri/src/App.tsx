@@ -47,7 +47,6 @@ const MiMdPage = lazy(() => import('./pages/MiMdPage'));
 const RekapSantriPage = lazy(() => import('./pages/RekapSantriPage'));
 const MutasiKeluarPage = lazy(() => import('./pages/MutasiKeluarPage'));
 const PengajuanBiodataPage = lazy(() => import('./pages/PengajuanBiodataPage'));
-const DokumenWajibPage = lazy(() => import('./pages/DokumenWajibPage'));
 const DokumenSantriPage = lazy(() => import('./pages/DokumenSantriPage'));
 const TambahDokumenSantriPage = lazy(() => import('./pages/TambahDokumenSantriPage'));
 const LihatDokumenSantriPage = lazy(() => import('./pages/LihatDokumenSantriPage'));
@@ -134,7 +133,6 @@ export default function App() {
                       <Route path="/mutasi-keluar" element={<KhususIzin izin="mutasi_keluar.lihat"><MutasiKeluarPage /></KhususIzin>} />
                       <Route path="/siklus" element={<Navigate to="/riwayat-belajar" replace />} />
                       <Route path="/pengajuan-biodata" element={<KhususIzin izin="pengajuan_biodata.lihat"><PengajuanBiodataPage /></KhususIzin>} />
-                      <Route path="/dokumen-wajib" element={<KhususIzin izin="dokumen_wajib.lihat"><DokumenWajibPage /></KhususIzin>} />
                       <Route path="/dokumen-santri" element={<KhususIzin izin="dokumen_santri.lihat"><DokumenSantriPage /></KhususIzin>} />
                       <Route path="/dokumen-santri/tambah" element={<KhususIzin izin="dokumen_santri.tambah"><TambahDokumenSantriPage /></KhususIzin>} />
                       <Route path="/dokumen-santri/lihat" element={<KhususIzin izin="dokumen_santri.lihat"><LihatDokumenSantriPage /></KhususIzin>} />

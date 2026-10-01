@@ -232,10 +232,6 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::post('pengajuan-biodata/{id}/setujui', [PengajuanBiodataController::class, 'setujui'])->middleware('permission:pengajuan_biodata.ubah');
         Route::post('pengajuan-biodata/{id}/tolak', [PengajuanBiodataController::class, 'tolak'])->middleware('permission:pengajuan_biodata.ubah');
 
-        Route::get('dokumen-wajib', [PsbDokumenController::class, 'indexWajib'])->middleware('permission:dokumen_wajib.lihat');
-        Route::post('dokumen-wajib', [PsbDokumenController::class, 'storeWajib'])->middleware('permission:dokumen_wajib.tambah');
-        Route::delete('dokumen-wajib/{id}', [PsbDokumenController::class, 'destroyWajib'])->middleware('permission:dokumen_wajib.hapus');
-
         // Tiga halaman dokumen (santri/pegawai/lembaga): izin per tipe lewat context middleware.
         Route::get('dokumen/{tipe}', [DokumenController::class, 'index'])->middleware('permission:dokumen_santri.lihat');
         Route::post('dokumen/{tipe}', [DokumenController::class, 'store'])->middleware('permission:dokumen_santri.tambah');

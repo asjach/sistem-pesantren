@@ -4,11 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Api\Concerns\TenantGuard;
 use App\Http\Controllers\Controller;
-use App\Http\Requests\PsbDokumenIndexWajibRequest;
-use App\Http\Requests\PsbDokumenStoreWajibRequest;
 use App\Http\Requests\PsbDokumenUploadCalonRequest;
 use App\Models\DokumenSantri;
-use App\Models\DokumenWajibLembaga;
 use App\Models\PsbCalonSantri;
 use App\Models\User;
 use App\Services\RefService;
@@ -59,48 +56,6 @@ class PsbDokumenController extends Controller
             'pesan' => 'Dokumen calon berhasil dimuat.',
             'data' => DokumenSantri::where('psb_calon_santri_id', $calon->id)->latest('id')->get(),
         ]);
-    }
-
-    /** GET /api/admin/dokumen-wajib?psb_kegiatan_id=&jenjang= (admin; jenjang opsional). */
-    public function indexWajib(PsbDokumenIndexWajibRequest $request): JsonResponse
-    {
-        $data = $request->validated();
-
-        $query = DokumenWajibLembaga::with('lembaga:jenjang,nama')
-            ->where('psb_kegiatan_id', $data['psb_kegiatan_id']);
-        $query = $this->scopeLembaga($query, $request->user(), $request);
-
-        return response()->json([
-            'pesan' => 'Ketentuan dokumen wajib berhasil dimuat.',
-            'data' => $query->latest('id')->get(),
-        ]);
-    }
-
-    /** POST /api/admin/dokumen-wajib (admin). */
-    public function storeWajib(PsbDokumenStoreWajibRequest $request): JsonResponse
-    {
-        $data = $request->validated();
-        $this->authorizeLembaga($request->user(), $data['jenjang']);
-
-        $row = DokumenWajibLembaga::updateOrCreate(
-            [
-                'psb_kegiatan_id' => $data['psb_kegiatan_id'],
-                'jenjang' => $data['jenjang'],
-                'jenis_dokumen_santri' => $data['jenis_dokumen_santri'],
-            ],
-            ['is_wajib' => $data['is_wajib'] ?? true]
-        );
-
-        return response()->json(['pesan' => 'Ketentuan disimpan.', 'data' => $row]);
-    }
-
-    /** DELETE /api/admin/dokumen-wajib/{id} (admin). */
-    public function destroyWajib(DokumenWajibLembaga $wajib): JsonResponse
-    {
-        $this->authorizeLembaga(auth()->user(), $wajib->jenjang);
-        $wajib->delete();
-
-        return response()->json(['pesan' => 'Ketentuan dihapus.']);
     }
 
     /** Cek pemilik B5 (mirror PsbService::ajukanDaftarUlang). */

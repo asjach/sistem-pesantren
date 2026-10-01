@@ -74,7 +74,6 @@ export const KONFIGURASI_FILTER_HALAMAN = {
   psb_mengundurkan_diri: buatKonfigurasi(FILTER_PSB),
   psb_ditolak: buatKonfigurasi(FILTER_PSB),
   kegiatan_psb: buatKonfigurasi([]),
-  dokumen_wajib: buatKonfigurasi(['lembaga']),
   dokumen_santri: buatKonfigurasi(['lembaga']),
   dokumen_santri_tambah: buatKonfigurasi(FILTER_SEMUA, { tingkat: true, kelas: true }),
   dokumen_santri_lihat: buatKonfigurasi(FILTER_SEMUA, { tingkat: true, kelas: true }),

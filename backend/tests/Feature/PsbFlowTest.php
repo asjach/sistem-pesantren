@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Exports\PsbTemplateExport;
 use App\Models\DokumenSantri;
+use App\Models\DokumenWajibLembaga;
 use App\Models\Kelas;
 use App\Models\Lembaga;
 use App\Models\LembagaSantri;
@@ -1226,33 +1227,25 @@ class PsbFlowTest extends TestCase
         $this->makeKuota($f['gel'], $f['mi'], $f['ta'], ['membutuhkan_seleksi' => false]);
 
         // Ketentuan per kegiatan + lembaga: wajib (kk) & opsional (akta).
+        // Input dikelola langsung via model (endpoint kelola dicabut; desain ulang menyusul).
         foreach ([['Kartu Keluarga', true], ['Akta Kelahiran', false]] as [$jenis, $wajib]) {
-            $this->actingAs($admin, 'sanctum')->postJson('/api/admin/dokumen-wajib', [
+            DokumenWajibLembaga::create([
                 'psb_kegiatan_id' => $f['keg']->id, 'jenjang' => $f['mi']->jenjang,
                 'jenis_dokumen_santri' => $jenis, 'is_wajib' => $wajib,
-            ])->assertStatus(200);
+            ]);
         }
-        $index = $this->actingAs($admin, 'sanctum')->getJson(
-            "/api/admin/dokumen-wajib?psb_kegiatan_id={$f['keg']->id}&jenjang={$f['mi']->jenjang}"
-        );
-        $index->assertStatus(200);
-        $this->assertCount(2, $index->json('data'));
+        $this->assertCount(2, DokumenWajibLembaga::where('psb_kegiatan_id', $f['keg']->id)->where('jenjang', $f['mi']->jenjang)->get());
 
         // Tanpa filter lembaga: admin lembaga hanya melihat lembaganya; pusat melihat semua.
         $pusat = $this->makeUser('admin');
-        $this->actingAs($pusat, 'sanctum')->postJson('/api/admin/dokumen-wajib', [
+        DokumenWajibLembaga::create([
             'psb_kegiatan_id' => $f['keg']->id, 'jenjang' => $f['mts']->jenjang,
             'jenis_dokumen_santri' => 'Pas Foto', 'is_wajib' => true,
-        ])->assertStatus(200);
+        ]);
 
-        $milikMi = $this->actingAs($admin, 'sanctum')->getJson("/api/admin/dokumen-wajib?psb_kegiatan_id={$f['keg']->id}");
-        $milikMi->assertStatus(200);
-        $this->assertCount(2, $milikMi->json('data'));
-        $this->assertEquals('Madrasah Ibtidaiyah', $milikMi->json('data.0.lembaga.nama'));
+        $this->assertCount(2, DokumenWajibLembaga::where('psb_kegiatan_id', $f['keg']->id)->where('jenjang', $f['mi']->jenjang)->get());
 
-        $semua = $this->actingAs($pusat, 'sanctum')->getJson("/api/admin/dokumen-wajib?psb_kegiatan_id={$f['keg']->id}");
-        $semua->assertStatus(200);
-        $this->assertCount(3, $semua->json('data'));
+        $this->assertCount(3, DokumenWajibLembaga::where('psb_kegiatan_id', $f['keg']->id)->get());
 
         // Daftar -> verifikasi -> ajukan daftar ulang TANPA upload dokumen (tidak menahan).
         $daftar = $this->postJson('/api/psb/daftar', $this->daftarPayload(
