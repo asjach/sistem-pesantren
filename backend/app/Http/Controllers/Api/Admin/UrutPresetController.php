@@ -96,7 +96,8 @@ class UrutPresetController extends Controller
 
     /**
      * Normalisasi `arah_kolom` (peta kode → naik/turun): buang kunci tak dikenal,
-    *  nilai tak valid dianggap tidak disetel (ikut global).
+     *  nilai tak valid dianggap tidak disetel (ikut global). Urutan keluaran
+     *  mengikuti `kode` agar deterministik apa pun urutan kunci di request.
      *
      * @param  array<string, mixed>|null  $mentah
      * @param  list<string>  $kode
@@ -108,10 +109,12 @@ class UrutPresetController extends Controller
             return null;
         }
         $bersih = [];
-        foreach ($mentah as $k => $v) {
-            $kunci = trim((string) $k);
-            $nilai = is_string($v) ? strtolower(trim($v)) : '';
-            if (in_array($kunci, $kode, true) && in_array($nilai, ['naik', 'turun'], true)) {
+        foreach ($kode as $kunci) {
+            if (! array_key_exists($kunci, $mentah)) {
+                continue;
+            }
+            $nilai = is_string($mentah[$kunci]) ? strtolower(trim($mentah[$kunci])) : '';
+            if (in_array($nilai, ['naik', 'turun'], true)) {
                 $bersih[$kunci] = $nilai;
             }
         }

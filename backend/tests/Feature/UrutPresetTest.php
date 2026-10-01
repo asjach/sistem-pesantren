@@ -165,8 +165,12 @@ class UrutPresetTest extends TestCase
         ])->assertStatus(200);
 
         $opsi = UrutPreset::where('table_key', 'pegawai_lembaga')->first()->opsi;
-        // Kunci asing dibuang; dua kunci sah tetap tersimpan.
-        $this->assertSame(['aktif' => 'turun', 'nama' => 'naik'], $opsi[0]['arah_kolom']);
+        // Kunci asing dibuang; dua kunci sah tetap tersimpan. Bandingkan
+        // tanpa urutan: kolom JSON di MySQL menormalisasi ulang urutan kunci
+        // objek, sedangkan SQLite (TEXT) mempertahankan urutan tulis.
+        $aktual = $opsi[0]['arah_kolom'];
+        ksort($aktual);
+        $this->assertSame(['aktif' => 'turun', 'nama' => 'naik'], $aktual);
     }
 
     public function test_table_key_tak_dikenal_ditolak(): void
