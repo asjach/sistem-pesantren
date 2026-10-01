@@ -366,7 +366,10 @@ class PegawaiModulTest extends TestCase
         $this->assertSame(0, Pegawai::count());
 
         $sesi = $cek->json('sesi_id');
-        DB::table('import_sesi')->whereKey($sesi)->update(['status' => 'selesai']);
+        // whereKey hanya ada di Eloquent; di query builder ia menjadi
+        // dynamic-where kolom `key` (tak ada di tabel). Di SQLite itu
+        // no-op diam-diam (DQS string fallback), di MySQL galat 1054.
+        DB::table('import_sesi')->where('id', $sesi)->update(['status' => 'selesai']);
 
         $this->actingAs($auth, 'sanctum')->postJson('/api/admin/pegawai/import-potong', $payload(null))
             ->assertOk()->assertJsonPath('ringkasan.dibuat', 1);
