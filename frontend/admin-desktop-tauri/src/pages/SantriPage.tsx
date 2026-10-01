@@ -7,7 +7,6 @@ import {
   listDokumenSantri,
   listLembagaSantri,
   listSantri,
-  tidakMemilikiDokumen,
   updateLembagaSantri,
   updateSantri,
   uploadDokumenSantri,
@@ -480,22 +479,13 @@ export default function SantriPage() {
           <div className="max-h-56 overflow-auto rounded-md border">
             <table className="w-full text-sm">
               <thead className="bg-muted/50 text-left">
-                <tr><th className="p-2">Jenis</th><th className="p-2">Status</th><th className="p-2">File</th><th className="p-2" /></tr>
+                <tr><th className="p-2">Jenis</th><th className="p-2">File</th></tr>
               </thead>
               <tbody>
-                {dokRows.length === 0 ? <tr><td colSpan={4} className="p-3 text-center text-muted-foreground">Belum ada dokumen.</td></tr> : dokRows.map((d) => (
+                {dokRows.length === 0 ? <tr><td colSpan={2} className="p-3 text-center text-muted-foreground">Belum ada dokumen.</td></tr> : dokRows.map((d) => (
                   <tr key={d.id} className="border-t">
                     <td className="p-2">{d.jenis_dokumen_santri}</td>
-                    <td className="p-2">{d.tidak_memiliki ? 'tidak memiliki' : d.status_verifikasi}</td>
                     <td className="p-2">{d.nama_file ?? '—'}</td>
-                    <td className="p-2 text-right">
-                      <Button id={`btn_tidak_miliki_dok_${d.id}`} size="sm" variant="outline" onClick={() => dokRow && void (async () => {
-                        try {
-                          await tidakMemilikiDokumen(dokRow.id, d.id, !d.tidak_memiliki);
-                          await muatDokumen(dokRow);
-                        } catch (e) { toast.error(errorMessage(e)); }
-                      })()}>Tandai</Button>
-                    </td>
                   </tr>
                 ))}
               </tbody>
