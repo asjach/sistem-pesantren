@@ -46,6 +46,9 @@ class ReferensiSeeder extends Seeder
         $isi('ref_kebutuhan_khusus', 'nama', $nama(['Tidak Ada', 'Lamban Belajar', 'Kesulitan Belajar Spesifik', 'Gangguan Komunikasi', 'Berbakat/memiliki kemampuan dan kecerdasan luar biasa', 'Lainnya']));
 
         // 20 kamus EMIS + dokumen + pegawai + 6 no.50. No.51: nilai per-tabel.
+        // 'Formulir Pendaftaran' di no. 7 (urutan kanonis ditegakkan di bawah
+        // agar baris lama yang menempati urutan >= 6 ikut bergeser).
+        $dokSantri = ['Kartu Keluarga', 'Pas Foto', 'Akta Kelahiran', 'Ijazah', 'Transkrip Ijazah', 'Surat Pindah', 'Formulir Pendaftaran', 'Surat Kenal Lahir'];
         foreach ([
             'ref_penghasilan' => ['dibawah 800.000', '800.001 - 1.200.000', '1.200.001 - 2.000.000', '2.000.001 - 3.000.000', 'diatas 3.000.000', 'Tidak Berpenghasilan'],
             'ref_transportasi' => ['Jalan Kaki', 'Sepeda', 'Sepeda Motor', 'Mobil Pribadi', 'Antar Jemput Sekolah', 'Angkutan Umum', 'Perahu/Sampan', 'Kendaraan Pribadi', 'Kereta Api', 'Ojek', 'Andong/Bendi/Sado/Dokarr/Delman/Becak', 'Lainnya'],
@@ -61,7 +64,7 @@ class ReferensiSeeder extends Seeder
             'ref_kecamatan' => ['Margaasih', 'Lainnya'],
             'ref_desa_kelurahan' => ['Rahayu', 'Lainnya'],
             'ref_alasan_mutasi' => ['Kendala Ekonomi', 'Kendala Akademik', 'Sakit', 'Menikah', 'Ikut pindah orang tua', 'pelanggaran disiplin', 'kurang perhatian orang tua', 'pengaruh teman/lingkungan', 'Hilang/Tidak ada kabar', 'Lainnya'],
-            'ref_jenis_dokumen_santri' => ['Kartu Keluarga', 'Pas Foto', 'Akta Kelahiran', 'Ijazah', 'Transkrip Ijazah', 'Surat Pindah', 'Surat Kenal Lahir'],
+            'ref_jenis_dokumen_santri' => $dokSantri,
             'ref_jenis_dokumen_pegawai' => ['Kartu Keluarga', 'KTP', 'Nomor Rekening', 'NPWP', 'BPJS', 'SK', 'Kartu Anggota'],
             'ref_status_pernikahan' => ['Lajang', 'Gadis', 'Menikah', 'Duda/Janda'],
             'ref_gol_darah' => ['A', 'B', 'AB', 'O'],
@@ -72,6 +75,17 @@ class ReferensiSeeder extends Seeder
             'ref_jalur_sertifikasi' => ['PSPL/PF/PLPG', 'PPG SM-3T', 'PPG S1 Basic Science Berasrama', 'PPG S1 PPGD Berasrama', 'PPG SMK Kolaboratif', 'PPG Terintegrasi', 'PPG Sertifikasi Jalur Pendidikan', 'PPG Kemenag', 'PLPG 2015', 'PPGJ 2015', 'PLPG 2016', 'PLPG 2017', 'PPG Pra Jabatan', 'PPG Dalam Jabatan'],
         ] as $tabel => $daftar) {
             $isi($tabel, 'nama', $nama($daftar));
+        }
+
+        // Tegakkan urutan kanonis jenis dokumen santri per lembaga (idempoten:
+        // dijalankan ulang tetap sama). Baris kustom milik lembaga tak disentuh.
+        foreach ($lembagas as $lid) {
+            foreach ($dokSantri as $i => $nilai) {
+                DB::table('ref_jenis_dokumen_santri')
+                    ->where('jenjang', $lid)
+                    ->where('nama', $nilai)
+                    ->update(['urutan' => $i]);
+            }
         }
 
         // Seed kota no.51: Kab. Bandung, Kota Bandung, Bandung.
