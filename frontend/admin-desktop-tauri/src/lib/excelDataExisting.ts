@@ -1,5 +1,7 @@
 import * as XLSX from 'xlsx-js-style';
 
+import { simpanUnduhan } from '@/api/client';
+
 /** Payload data existing dari backend (kolom identik template import). */
 export interface DataExistingPayload {
   kolom: string[];
@@ -24,13 +26,14 @@ const HEADER_BELUM = {
  * Susun + unduh berkas Excel data existing di browser. Gaya seragam dengan
  * template: header tebal — kuning = wajib diisi, biru = opsional — plus lebar
  * kolom, autofilter, dan zebra baris data. Freeze baris 1 tidak didukung
- * penulis SheetJS, jadi dilewati.
+ * penulis SheetJS, jadi dilewati. Penulisan lewat `simpanUnduhan` agar jalan
+ * juga di desktop (trik anchor bawaan SheetJS mati di WebView Tauri).
  */
-export function unduhExcelDataExisting(
+export async function unduhExcelDataExisting(
   data: DataExistingPayload,
   namaBerkas: string,
   judulSheet = 'Data',
-): void {
+): Promise<void> {
   const wajib = new Set(data.wajib);
   const header = data.kolom.map((nama) => ({
     v: nama,
@@ -74,7 +77,8 @@ export function unduhExcelDataExisting(
 
   const book = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(book, sheet, judulSheet.slice(0, 31));
-  XLSX.writeFile(book, namaBerkas);
+  const bytes = XLSX.write(book, { bookType: 'xlsx', type: 'array' }) as unknown as Uint8Array;
+  await simpanUnduhan(namaBerkas, bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes));
 }
 
 function thin() {

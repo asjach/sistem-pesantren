@@ -456,7 +456,30 @@ async function parseResponse<T>(res: Response): Promise<T> {
   return body as T;
 }
 
-/** Unduh file ber-token (template/impor): fetch blob → anchor download. */
+/** Simpan byte sebagai berkas unduhan. WebView desktop (Tauri) tidak
+ *  menjalankan unduhan anchor blob — pakai dialog simpan native + tulis
+ *  berkas langsung; di web pakai anchor seperti biasa. Batal di dialog =
+ *  diam, tanpa galat. */
+export async function simpanUnduhan(nama: string, data: Uint8Array): Promise<void> {
+  if (isTauri()) {
+    const { save } = await import('@tauri-apps/plugin-dialog');
+    const { writeFile } = await import('@tauri-apps/plugin-fs');
+    const tujuan = await save({ defaultPath: nama });
+    if (!tujuan) return;
+    await writeFile(tujuan, data);
+    return;
+  }
+  const url = URL.createObjectURL(new Blob([data.buffer as ArrayBuffer]));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = nama;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+/** Unduh file ber-token (template/impor): fetch blob → simpan unduhan. */
 export async function downloadFile(path: string, fallbackName: string): Promise<void> {
   const [token, base] = await Promise.all([getToken(), getBaseUrl()]);
   let res: Response;
@@ -482,14 +505,7 @@ export async function downloadFile(path: string, fallbackName: string): Promise<
   const disposisi = res.headers.get('Content-Disposition') ?? '';
   const match = /filename\*?=(?:UTF-8''|")?([^";]+)/i.exec(disposisi);
   const nama = match ? decodeURIComponent(match[1].replace(/"/g, '')) : fallbackName;
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = nama;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
+  await simpanUnduhan(nama, new Uint8Array(await blob.arrayBuffer()));
 }
 
 function safeJson(text: string): unknown {
