@@ -126,28 +126,19 @@ export function EditSantriDialog({ santri, daftar = [], onGanti, open, onOpenCha
         const mime = mimeDariEkstensi(ext);
         const lokasi = r.penyimpanan ?? 'server';
         if (lokasi !== 'server' && desktop) {
-          const { readFile } = await import('@tauri-apps/plugin-fs');
-          const { PREF_FOLDER_ARSIP, PREF_FOLDER_ARSIP_TEST, ROOT_ARSIP_DOKUMEN, ROOT_ARSIP_TEST, akarArsip, cariArsip } = await import('@/lib/arsipDokumen');
-          const [a, b] = await Promise.all([
-            prefGet(PREF_FOLDER_ARSIP).catch(() => null),
-            prefGet(PREF_FOLDER_ARSIP_TEST).catch(() => null),
-          ]);
-          const akars = await Promise.all([
-            akarArsip(typeof a === 'string' ? a : '', ROOT_ARSIP_DOKUMEN),
-            akarArsip(typeof b === 'string' ? b : '', ROOT_ARSIP_TEST),
-          ]);
-          for (const akar of akars) {
-            const target = await cariArsip(nama, r.jenis_dokumen, akar, 'santri', (r.penyimpanan ?? 'server') === 'test' ? 'test' : 'lokal');
-            if (target) {
-              const bytes = await readFile(target);
-              if (hidup) setPratinjau({ bytes: new Uint8Array(bytes), mime, nama });
-              return;
-            }
+          const { cariLokal } = await import('@/lib/arsipDokumen');
+          const ketemu = await cariLokal(nama, r.jenis_dokumen, 'santri', lokasi);
+          if (ketemu) {
+            if (hidup) setPratinjau({ bytes: ketemu.bytes, mime, nama });
+            return;
           }
-          if (hidup) setGalatPratinjau('Berkas tidak ada di arsip perangkat ini — hanya tersimpan di perangkat asal.');
-          return;
+          // Cermin: salinan server selalu ada — jatuh ke unduh di bawah.
+          if (lokasi !== 'cermin') {
+            if (hidup) setGalatPratinjau('Berkas tidak ada di arsip perangkat ini — hanya tersimpan di perangkat asal.');
+            return;
+          }
         }
-        if (lokasi !== 'server' && !desktop) {
+        if ((lokasi === 'lokal' || lokasi === 'test') && !desktop) {
           setGalatPratinjau('Berkas tersimpan di arsip perangkat, bukan di server. Buka lewat aplikasi desktop.');
           return;
         }

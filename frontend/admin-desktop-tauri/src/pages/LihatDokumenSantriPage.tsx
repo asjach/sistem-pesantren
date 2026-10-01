@@ -33,8 +33,9 @@ import {
   pilihBerkasDokumen,
 } from '@/lib/arsipDokumen';
 import PenampilBerkas, { type SumberBerkas } from '@/components/dokumen/PenampilBerkas';
+import DialogSinkronDokumen from '@/components/dokumen/DialogSinkronDokumen';
 import { gantiEkstensi, type HasilGambar } from '@/lib/olahGambar';
-import { Check, Download, FolderOpen, MoreVertical, Pencil, Save, Trash2, Undo2, Upload, X } from '@/icons';
+import { Check, Download, FolderOpen, MoreVertical, Pencil, RefreshCw, Save, Trash2, Undo2, Upload, X } from '@/icons';
 import { toast } from 'sonner';
 
 /** Halaman Lihat Dokumen — tata letak sama dengan Tambah Dokumen.
@@ -208,22 +209,12 @@ export default function LihatDokumenSantriPage() {
       const perlu = p.data.filter((d) => (d.penyimpanan ?? 'server') !== 'server' && d.nama_file);
       if (perlu.length === 0) { setArsipAda({}); return; }
       try {
-        const { PREF_FOLDER_ARSIP, PREF_FOLDER_ARSIP_TEST, ROOT_ARSIP_DOKUMEN, ROOT_ARSIP_TEST, akarArsip, cariArsip } = await import('@/lib/arsipDokumen');
-        const [a, b] = await Promise.all([
-          prefGet(PREF_FOLDER_ARSIP).catch(() => null),
-          prefGet(PREF_FOLDER_ARSIP_TEST).catch(() => null),
-        ]);
-        const akars = await Promise.all([
-          akarArsip(typeof a === 'string' ? a : '', ROOT_ARSIP_DOKUMEN),
-          akarArsip(typeof b === 'string' ? b : '', ROOT_ARSIP_TEST),
-        ]);
+        const { cariLokal } = await import('@/lib/arsipDokumen');
         const peta: Record<number, boolean> = {};
         for (const d of perlu) {
-          let ketemu = false;
-          for (const akar of akars) {
-            if ((await cariArsip(d.nama_file as string, d.jenis_dokumen, akar, 'santri', (d.penyimpanan ?? 'server') === 'test' ? 'test' : 'lokal')) !== null) { ketemu = true; break; }
-          }
-          peta[d.id] = ketemu;
+          peta[d.id] = d.nama_file
+            ? (await cariLokal(d.nama_file, d.jenis_dokumen, 'santri', d.penyimpanan ?? 'server')) !== null
+            : false;
         }
         if (!signal?.aborted) setArsipAda(peta);
       } catch {
@@ -261,28 +252,19 @@ export default function LihatDokumenSantriPage() {
       const mime = mimeDariEkstensi(ext);
       const lokasi = r.penyimpanan ?? 'server';
       if (lokasi !== 'server' && desktop && r.nama_file) {
-        const { exists, readFile } = await import('@tauri-apps/plugin-fs');
-        const { PREF_FOLDER_ARSIP, PREF_FOLDER_ARSIP_TEST, ROOT_ARSIP_DOKUMEN, ROOT_ARSIP_TEST, akarArsip, cariArsip } = await import('@/lib/arsipDokumen');
-        const [a, b] = await Promise.all([
-          prefGet(PREF_FOLDER_ARSIP).catch(() => null),
-          prefGet(PREF_FOLDER_ARSIP_TEST).catch(() => null),
-        ]);
-        const akars = await Promise.all([
-          akarArsip(typeof a === 'string' ? a : '', ROOT_ARSIP_DOKUMEN),
-          akarArsip(typeof b === 'string' ? b : '', ROOT_ARSIP_TEST),
-        ]);
-        for (const akar of akars) {
-          const target = await cariArsip(r.nama_file, r.jenis_dokumen, akar, 'santri', (r.penyimpanan ?? 'server') === 'test' ? 'test' : 'lokal');
-          if (target) {
-            const bytes = await readFile(target);
-            setPratinjau({ bytes: new Uint8Array(bytes), mime, nama });
-            return;
-          }
+        const { cariLokal } = await import('@/lib/arsipDokumen');
+        const ketemu = await cariLokal(r.nama_file, r.jenis_dokumen, 'santri', lokasi);
+        if (ketemu) {
+          setPratinjau({ bytes: ketemu.bytes, mime, nama });
+          return;
         }
-        toast.error('Berkas tidak ada di arsip perangkat ini — hanya tersimpan di perangkat asal.');
-        return;
+        // Cermin: salinan server selalu ada — jatuh ke unduh di bawah.
+        if (lokasi !== 'cermin') {
+          toast.error('Berkas tidak ada di arsip perangkat ini — hanya tersimpan di perangkat asal.');
+          return;
+        }
       }
-      if (lokasi !== 'server' && !desktop) {
+      if ((lokasi === 'lokal' || lokasi === 'test') && !desktop) {
         toast.error('Berkas tersimpan di arsip perangkat, bukan di server. Buka lewat aplikasi desktop.');
         return;
       }
@@ -302,32 +284,23 @@ export default function LihatDokumenSantriPage() {
       return;
     }
     try {
-      const { exists, readFile, writeFile } = await import('@tauri-apps/plugin-fs');
+      const { writeFile } = await import('@tauri-apps/plugin-fs');
       const { save } = await import('@tauri-apps/plugin-dialog');
-      const { PREF_FOLDER_ARSIP, PREF_FOLDER_ARSIP_TEST, ROOT_ARSIP_DOKUMEN, ROOT_ARSIP_TEST, akarArsip, cariArsip } = await import('@/lib/arsipDokumen');
-      const [a, b] = await Promise.all([
-        prefGet(PREF_FOLDER_ARSIP).catch(() => null),
-        prefGet(PREF_FOLDER_ARSIP_TEST).catch(() => null),
-      ]);
-      const akars = await Promise.all([
-        akarArsip(typeof a === 'string' ? a : '', ROOT_ARSIP_DOKUMEN),
-        akarArsip(typeof b === 'string' ? b : '', ROOT_ARSIP_TEST),
-      ]);
-      for (const akar of akars) {
-        const target = await cariArsip(r.nama_file, r.jenis_dokumen, akar, 'santri', (r.penyimpanan ?? 'server') === 'test' ? 'test' : 'lokal');
-        if (target) {
-          const bytes = await readFile(target);
-          const tujuan = await save({
-            defaultPath: r.nama_file,
-            filters: [{ name: 'Dokumen', extensions: ['jpg', 'jpeg', 'png', 'pdf'] }],
-          });
-          if (!tujuan) return;
-          await writeFile(tujuan, bytes);
-          toast.success(`Tersimpan: ${String(tujuan).split('/').pop() ?? r.nama_file}`);
-          return;
-        }
+      const { cariLokal } = await import('@/lib/arsipDokumen');
+      const ketemu = await cariLokal(r.nama_file, r.jenis_dokumen, 'santri', lokasi);
+      if (!ketemu && lokasi !== 'cermin') {
+        toast.error('Berkas tidak ada di arsip perangkat ini — hanya tersimpan di perangkat asal.');
+        return;
       }
-      toast.error('Berkas tidak ada di arsip perangkat ini — hanya tersimpan di perangkat asal.');
+      // Cermin tanpa salinan lokal: salinan server selalu ada.
+      const bytes = ketemu?.bytes ?? new Uint8Array(await ambilBerkas(`/admin/dokumen/santri/${r.id}/unduh`));
+      const tujuan = await save({
+        defaultPath: r.nama_file,
+        filters: [{ name: 'Dokumen', extensions: ['jpg', 'jpeg', 'png', 'pdf'] }],
+      });
+      if (!tujuan) return;
+      await writeFile(tujuan, bytes);
+      toast.success(`Tersimpan: ${String(tujuan).split('/').pop() ?? r.nama_file}`);
     } catch (e) {
       toast.warning(`Arsip lokal gagal dibaca: ${errorMessage(e)}`);
     }
@@ -335,7 +308,7 @@ export default function LihatDokumenSantriPage() {
 
   /** Aksi butuh desktop bila byte hanya ada di arsip perangkat tapi dibuka dari web. */
   const perluDesktop = useCallback(
-    (r: DokumenRow) => !isTauri() && (r.penyimpanan ?? 'server') !== 'server',
+    (r: DokumenRow) => !isTauri() && ((r.penyimpanan ?? 'server') === 'lokal' || (r.penyimpanan ?? 'server') === 'test'),
     [],
   );
 
@@ -362,6 +335,18 @@ export default function LihatDokumenSantriPage() {
 
   // ----- Hapus dokumen -----
   const [hapusRow, setHapusRow] = useState<DokumenRow | null>(null);
+
+  // ----- Sinkron cermin (desktop saja) -----
+  const [sinkronTerbuka, setSinkronTerbuka] = useState(false);
+  const segarkanSetelahSinkron = useCallback(async () => {
+    if (santriId == null) return;
+    await muatDokumen(santriId);
+    if (dokId != null) {
+      const p = await listDokumen('santri', { santri_id: santriId, per_page: 0 });
+      const baru = p.data.find((d) => d.id === dokId);
+      if (baru) void muatPratinjau(baru);
+    }
+  }, [santriId, dokId, muatDokumen, muatPratinjau]);
 
   const onHapus = useCallback(async () => {
     if (!hapusRow) return;
@@ -456,18 +441,9 @@ export default function LihatDokumenSantriPage() {
         try {
           const { exists, mkdir, rename } = await import('@tauri-apps/plugin-fs');
           const { join } = await import('@tauri-apps/api/path');
-          const { PREF_FOLDER_ARSIP, PREF_FOLDER_ARSIP_TEST, ROOT_ARSIP_DOKUMEN, ROOT_ARSIP_TEST, akarArsip, cariArsip } = await import('@/lib/arsipDokumen');
-          const [a, b] = await Promise.all([
-            prefGet(PREF_FOLDER_ARSIP).catch(() => null),
-            prefGet(PREF_FOLDER_ARSIP_TEST).catch(() => null),
-          ]);
-          const akars = await Promise.all([
-            akarArsip(typeof a === 'string' ? a : '', ROOT_ARSIP_DOKUMEN),
-            akarArsip(typeof b === 'string' ? b : '', ROOT_ARSIP_TEST),
-          ]);
+          const { kandidatAkarArsip, cariArsip } = await import('@/lib/arsipDokumen');
           let pindah = false;
-          const lokasiArsip = (editRow?.penyimpanan ?? 'server') === 'test' ? 'test' : 'lokal';
-          for (const akar of akars) {
+          for (const { akar, lokasi: lokasiArsip } of await kandidatAkarArsip(editRow?.penyimpanan ?? 'server')) {
             const lama = await cariArsip(namaLama, jenisLama, akar, 'santri', lokasiArsip);
             if (!lama) continue;
             const folderTipe = await join(akar, lokasiArsip, 'santri');
@@ -551,7 +527,8 @@ export default function LihatDokumenSantriPage() {
     const lokasi = row.penyimpanan ?? 'server';
     try {
       if (lokasi !== 'server' && isTauri()) {
-        const { tulisGantiArsip } = await import('@/lib/arsipDokumen');
+        const { targetTulisLokal, tulisGantiArsip } = await import('@/lib/arsipDokumen');
+        const target = await targetTulisLokal(namaLama ?? '', row.jenis_dokumen, 'santri', lokasi);
         const namaBaru = await tulisGantiArsip({
           namaLama,
           jenis: row.jenis_dokumen,
@@ -559,7 +536,7 @@ export default function LihatDokumenSantriPage() {
           catatan: row.catatan ?? '',
           ext: ekstensiDariNama(file.name),
           data: new Uint8Array(await file.arrayBuffer()),
-          lokasi,
+          lokasi: target.lokasi,
           tipe: 'santri',
         });
         if (namaBaru !== namaLama) {
@@ -629,8 +606,9 @@ export default function LihatDokumenSantriPage() {
       setBusy(true);
       try {
         const namaBaru = gantiEkstensi(pratinjau.nama, keluaran.ext);
-        const { tulisBalikArsip } = await import('@/lib/arsipDokumen');
-        await tulisBalikArsip(dokPratinjau.nama_file, namaBaru, dokPratinjau.jenis_dokumen, keluaran.bytes, 'santri', lokasi === 'test' ? 'test' : 'lokal');
+        const { targetTulisLokal, tulisBalikArsip } = await import('@/lib/arsipDokumen');
+        const target = await targetTulisLokal(dokPratinjau.nama_file, dokPratinjau.jenis_dokumen, 'santri', lokasi);
+        await tulisBalikArsip(dokPratinjau.nama_file, namaBaru, dokPratinjau.jenis_dokumen, keluaran.bytes, 'santri', target.lokasi);
         if (namaBaru !== dokPratinjau.nama_file) {
           await ubahDokumen('santri', dokPratinjau.id, { nama_file: namaBaru });
         }
@@ -673,7 +651,9 @@ export default function LihatDokumenSantriPage() {
     [sumber, santris, infoUrutSantri],
   );
   const lokasiLabel = (r: DokumenRow) =>
-    (r.penyimpanan ?? 'server') === 'lokal' ? 'Lokal' : (r.penyimpanan ?? 'server') === 'test' ? 'Test' : 'Server';
+    (r.penyimpanan ?? 'server') === 'lokal' ? 'Lokal'
+    : (r.penyimpanan ?? 'server') === 'test' ? 'Test'
+    : (r.penyimpanan ?? 'server') === 'cermin' ? 'Cermin' : 'Server';
 
   return (
     <div className={PAGE_SHELL}>
@@ -751,7 +731,20 @@ export default function LihatDokumenSantriPage() {
             </div>
           </div>
           <div className="flex min-h-0 flex-1 flex-col gap-1.5">
-            <FieldLabel id="label_daftar_dokumen_lihat">Daftar dokumen{santriId != null && dokumens.length > 0 ? ` (${dokumens.length})` : ''}</FieldLabel>
+            <div className="flex items-center justify-between gap-2">
+              <FieldLabel id="label_daftar_dokumen_lihat">Daftar dokumen{santriId != null && dokumens.length > 0 ? ` (${dokumens.length})` : ''}</FieldLabel>
+              {desktop && canUbah && santriId != null && (
+                <Button
+                  id="tombol_sinkron_dok_lihat"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setSinkronTerbuka(true)}
+                  title="Sinkronkan arsip perangkat dengan server (cermin dua arah)"
+                >
+                  <RefreshCw size={14} /> Sinkronkan
+                </Button>
+              )}
+            </div>
             <div className="min-h-[120px] flex-1 overflow-y-auto rounded-md border">
               <table className="w-full text-xs">
                 <thead className="sticky top-0 bg-muted">
@@ -911,6 +904,13 @@ export default function LihatDokumenSantriPage() {
         target={profilId != null ? { id: profilId, daftar: daftarIds } : null}
         onGanti={(id) => setProfilId(id)}
         onOpenChange={(o) => { if (!o) setProfilId(null); }}
+      />
+      <DialogSinkronDokumen
+        tipe="santri"
+        terbuka={sinkronTerbuka}
+        onTutup={() => setSinkronTerbuka(false)}
+        ambilBaris={async () => (santriId == null ? [] : (await listDokumen('santri', { santri_id: santriId, per_page: 0 })).data)}
+        onSelesai={() => { void segarkanSetelahSinkron(); }}
       />
       <AlertDialog open={hapusRow !== null} onOpenChange={(o) => { if (!o) setHapusRow(null); }}>
         <AlertDialogContent>

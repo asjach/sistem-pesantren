@@ -259,6 +259,133 @@ export async function tulisGantiArsip(input: {
   return namaBaru;
 }
 
+/** Normalisasi mtime stat (Date | milidetik | detik → detik epoch); cadangan bila tak valid. */
+export function normalisasiMtime(mtime: Date | number | null | undefined, cadangan = 0): number {
+  if (mtime == null) return cadangan;
+  const detik = mtime instanceof Date ? mtime.getTime() / 1000 : mtime > 1e11 ? mtime / 1000 : mtime;
+  return Number.isFinite(detik) && detik >= 0 ? Math.floor(detik) : cadangan;
+}
+
+/** Baca byte + mtime (detik) satu arsip; null bila tak ada di semua tata. */
+export async function bacaArsip(
+  namaFile: string,
+  jenis: string,
+  akar: string,
+  tipe: TipeArsip,
+  lokasi: LokasiArsip,
+): Promise<{ bytes: Uint8Array; mtime: number } | null> {
+  const { readFile, stat } = await import('@tauri-apps/plugin-fs');
+  const target = await cariArsip(namaFile, jenis, akar, tipe, lokasi);
+  if (!target) return null;
+  const [bytes, info] = await Promise.all([readFile(target), stat(target)]);
+  return { bytes: new Uint8Array(bytes), mtime: normalisasiMtime(info.mtime) };
+}
+
+/** Tulis byte dengan NAMA TEPAT (tanpa akhiran `-2`) untuk cermin; menimpa
+ *  bila ada, lalu membersihkan duplikat tata lama. Mengembalikan path tujuan. */
+export async function tulisTepatArsip(
+  data: Uint8Array,
+  namaFile: string,
+  akar: string,
+  tipe: TipeArsip,
+  lokasi: LokasiArsip,
+): Promise<string> {
+  const { exists, mkdir, remove, writeFile } = await import('@tauri-apps/plugin-fs');
+  const { join } = await import('@tauri-apps/api/path');
+  const folder = await folderArsip(akar, lokasi, tipe);
+  await mkdir(folder, { recursive: true });
+  const tujuan = await join(folder, namaFile);
+  await writeFile(tujuan, data);
+  if (!(await exists(tujuan))) throw new Error('Salinan arsip tidak terbentuk.');
+  for (const lama of await jalurArsipLama(namaFile, '', akar, tipe)) {
+    if (lama !== tujuan && (await exists(lama))) await remove(lama);
+  }
+  return tujuan;
+}
+
+/** Ganti nama berkas arsip di tempat (ke folder kanonis bila dari tata lama).
+ *  Rename atomik dulu; lintas volume fallback salin + verifikasi + hapus.
+ *  Mengembalikan path tujuan. */
+export async function gantiNamaArsip(
+  namaLama: string,
+  namaBaru: string,
+  jenis: string,
+  akar: string,
+  tipe: TipeArsip,
+  lokasi: LokasiArsip,
+): Promise<string> {
+  const { copyFile, exists, mkdir, remove, rename, size } = await import('@tauri-apps/plugin-fs');
+  const { join } = await import('@tauri-apps/api/path');
+  const asal = await cariArsip(namaLama, jenis, akar, tipe, lokasi);
+  if (!asal) throw new Error('Berkas lama tidak ditemukan di arsip.');
+  const folder = await folderArsip(akar, lokasi, tipe);
+  await mkdir(folder, { recursive: true });
+  const tujuan = await join(folder, namaBaru);
+  if (asal !== tujuan) {
+    try {
+      await rename(asal, tujuan);
+    } catch {
+      await copyFile(asal, tujuan);
+      const [a, b] = await Promise.all([size(asal), size(tujuan)]);
+      if (a !== b) {
+        await remove(tujuan);
+        throw new Error('Salinan tak sama besar; nama lama dipertahankan.');
+      }
+      await remove(asal);
+      if (await exists(asal)) throw new Error('Berkas lama gagal dihapus setelah disalin.');
+    }
+  }
+  if (!(await exists(tujuan))) throw new Error('Ganti nama arsip gagal.');
+  for (const lama of await jalurArsipLama(namaLama, jenis, akar, tipe)) {
+    if (lama !== asal && (await exists(lama))) await remove(lama);
+  }
+  return tujuan;
+}
+
+/** Kandidat (akar, lokasi) perangkat untuk satu nilai penyimpanan: test →
+ *  uji; lokal → dokumen; server/cermin → keduanya (dokumen dulu). */
+export async function kandidatAkarArsip(penyimpanan: string): Promise<{ akar: string; lokasi: LokasiArsip }[]> {
+  const [a, b] = await Promise.all([
+    prefGet(PREF_FOLDER_ARSIP).catch(() => null),
+    prefGet(PREF_FOLDER_ARSIP_TEST).catch(() => null),
+  ]);
+  const akarDokumen = await akarArsip(typeof a === 'string' ? a : '', ROOT_ARSIP_DOKUMEN);
+  const akarTest = await akarArsip(typeof b === 'string' ? b : '', ROOT_ARSIP_TEST);
+  if (penyimpanan === 'test') return [{ akar: akarTest, lokasi: 'test' }];
+  if (penyimpanan === 'lokal') return [{ akar: akarDokumen, lokasi: 'lokal' }];
+  return [
+    { akar: akarDokumen, lokasi: 'lokal' },
+    { akar: akarTest, lokasi: 'test' },
+  ];
+}
+
+/** Cari byte lokal di semua kandidat (cermin = dua-duanya); null bila tak ada.
+ *  Mengembalikan juga (akar, lokasi) tempat ditemukan — dasar tulis balik. */
+export async function cariLokal(
+  namaFile: string,
+  jenis: string,
+  tipe: TipeArsip,
+  penyimpanan: string,
+): Promise<{ bytes: Uint8Array; mtime: number; akar: string; lokasi: LokasiArsip } | null> {
+  for (const { akar, lokasi } of await kandidatAkarArsip(penyimpanan)) {
+    const hasil = await bacaArsip(namaFile, jenis, akar, tipe, lokasi);
+    if (hasil) return { ...hasil, akar, lokasi };
+  }
+  return null;
+}
+
+/** Target tulis perangkat: lokasi file ditemukan, atau bawaan (dokumen/lokal). */
+export async function targetTulisLokal(
+  namaFile: string,
+  jenis: string,
+  tipe: TipeArsip,
+  penyimpanan: string,
+): Promise<{ akar: string; lokasi: LokasiArsip }> {
+  const ketemu = await cariLokal(namaFile, jenis, tipe, penyimpanan);
+  if (ketemu) return { akar: ketemu.akar, lokasi: ketemu.lokasi };
+  return (await kandidatAkarArsip(penyimpanan))[0];
+}
+
 /** Pindahkan file asli ke `<folder-asal>/sudah/`. Rename atomik dulu;
  *  bila gagal (mis. lintas volume) fallback salin + verifikasi ukuran + hapus.
  *  Mengembalikan path tujuan. */

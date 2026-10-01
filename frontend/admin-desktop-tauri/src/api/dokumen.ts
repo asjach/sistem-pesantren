@@ -1,4 +1,4 @@
-import { api, apiUpload, downloadFile } from './client';
+import { ambilBerkas, api, apiUpload, downloadFile } from './client';
 import { appendQueryParam, type ScalarOrArray } from './query';
 import type { Paginate } from './master';
 import type { DataExistingPayload } from '@/lib/excelDataExisting';
@@ -17,8 +17,12 @@ export interface DokumenRow {
   lembaga_jenjang?: string | null;
   lembaga_nama?: string | null;
   nama_file: string | null;
-  /** Lokasi byte: server | lokal | test (arsip perangkat). */
-  penyimpanan?: 'server' | 'lokal' | 'test';
+  /** Lokasi byte: server | lokal | test (arsip perangkat) | cermin (dua-duanya). */
+  penyimpanan?: 'server' | 'lokal' | 'test' | 'cermin';
+  /** Hash isi terakhir yang sama di kedua sisi (baris cermin). */
+  sinkron_hash?: string | null;
+  /** Waktu penyamaan terakhir (ISO). */
+  tersinkron_pada?: string | null;
   santri_id?: number | null;
   /** Konteks lembaga pemakaian (santri; null = tanpa lembaga). */
   lembaga?: string | null;
@@ -91,6 +95,46 @@ export function hapusDokumen(tipe: TipeDokumen, id: number) {
 
 export function unduhBerkasDokumen(tipe: TipeDokumen, id: number, fallback: string) {
   return downloadFile(`${base(tipe)}/${id}/unduh`, fallback);
+}
+
+// ---------- Sinkron cermin dua arah (lokal ↔ server, tanpa antrean) ----------
+
+export interface StatusBerkasServer {
+  ada: boolean;
+  ukuran?: number;
+  /** Waktu ubah server (detik epoch). */
+  mtime?: number;
+  md5?: string;
+  sha256?: string;
+}
+
+/** Status byte server per nama (batch ≤100). */
+export function statusBerkasDokumen(tipe: TipeDokumen, nama: string[]) {
+  const q = new URLSearchParams();
+  for (const n of nama) q.append('nama[]', n);
+  return api<{ data: Record<string, StatusBerkasServer> }>(`${base(tipe)}/status-berkas?${q.toString()}`);
+}
+
+/** Unggah byte lokal TANPA ganti nama (identitas cermin = nama_file sama). */
+export function sinkronUnggahDokumen(tipe: TipeDokumen, id: number, file: File, hash: string, mtime: number) {
+  const fd = new FormData();
+  fd.set('file', file);
+  fd.set('hash', hash);
+  fd.set('mtime', String(mtime));
+  return apiUpload<{ pesan: string; data: DokumenRow }>(`${base(tipe)}/${id}/sinkron-unggah`, fd);
+}
+
+/** Catat sisi lokal sudah sama (byte sudah tertulis di perangkat). */
+export function tandaiSinkronDokumen(tipe: TipeDokumen, id: number, hash: string) {
+  return api<{ pesan: string; data: DokumenRow }>(`${base(tipe)}/${id}/tandai-sinkron`, {
+    method: 'PATCH',
+    body: JSON.stringify({ hash }),
+  });
+}
+
+/** Ambil byte server ke memori (untuk ditulis ke arsip lokal). */
+export async function ambilByteDokumen(tipe: TipeDokumen, id: number): Promise<Uint8Array> {
+  return new Uint8Array(await ambilBerkas(`${base(tipe)}/${id}/unduh`));
 }
 
 // ---------- Import daftar dokumen (potongan JSON bertahap) ----------

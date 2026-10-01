@@ -133,7 +133,7 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
     jenis_dokumen: r.jenis_dokumen ?? '',
     // Tampil = nama template langsung (kolom path sudah dicabut).
     nama_file: r.nama_file ?? null,
-    lokasi: r.penyimpanan === 'lokal' ? 'Lokal' : r.penyimpanan === 'test' ? 'Test' : 'Server',
+    lokasi: r.penyimpanan === 'lokal' ? 'Lokal' : r.penyimpanan === 'test' ? 'Test' : r.penyimpanan === 'cermin' ? 'Cermin' : 'Server',
     catatan: r.catatan ?? '',
   }), []);
 
@@ -197,7 +197,8 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
     try {
       // Arsip perangkat: tulis ulang di lokasi yang sama (lokasi tak berubah).
       if (lokasi !== 'server' && isTauri()) {
-        const { ekstensiDariNama, tulisGantiArsip } = await import('@/lib/arsipDokumen');
+        const { ekstensiDariNama, targetTulisLokal, tulisGantiArsip } = await import('@/lib/arsipDokumen');
+        const target = await targetTulisLokal(namaLama ?? '', unggahRow.jenis_dokumen, tipe, lokasi);
         const namaBaru = await tulisGantiArsip({
           namaLama,
           jenis: unggahRow.jenis_dokumen,
@@ -205,7 +206,7 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
           catatan: unggahRow.catatan ?? '',
           ext: ekstensiDariNama(unggahFile.name),
           data: new Uint8Array(await unggahFile.arrayBuffer()),
-          lokasi,
+          lokasi: target.lokasi,
           tipe,
         });
         if (namaBaru !== namaLama) {
@@ -257,32 +258,24 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
       return;
     }
     try {
-      const { exists, readFile, writeFile } = await import('@tauri-apps/plugin-fs');
+      const { writeFile } = await import('@tauri-apps/plugin-fs');
       const { save } = await import('@tauri-apps/plugin-dialog');
-      const { PREF_FOLDER_ARSIP, PREF_FOLDER_ARSIP_TEST, ROOT_ARSIP_DOKUMEN, ROOT_ARSIP_TEST, akarArsip, cariArsip } = await import('@/lib/arsipDokumen');
-      const [a, b] = await Promise.all([
-        prefGet(PREF_FOLDER_ARSIP).catch(() => null),
-        prefGet(PREF_FOLDER_ARSIP_TEST).catch(() => null),
-      ]);
-      const akars = await Promise.all([
-        akarArsip(typeof a === 'string' ? a : '', ROOT_ARSIP_DOKUMEN),
-        akarArsip(typeof b === 'string' ? b : '', ROOT_ARSIP_TEST),
-      ]);
-      for (const akar of akars) {
-        const target = await cariArsip(r.nama_file, r.jenis_dokumen, akar, tipe, (r.penyimpanan ?? 'server') === 'test' ? 'test' : 'lokal');
-        if (target) {
-          const bytes = await readFile(target);
-          const tujuan = await save({
-            defaultPath: r.nama_file,
-            filters: [{ name: 'Dokumen', extensions: ['jpg', 'jpeg', 'png', 'pdf'] }],
-          });
-          if (!tujuan) return;
-          await writeFile(tujuan, bytes);
-          toast.success(`Tersimpan: ${String(tujuan).split('/').pop() ?? r.nama_file}`);
-          return;
-        }
+      const { cariLokal } = await import('@/lib/arsipDokumen');
+      const { ambilBerkas } = await import('@/api/client');
+      const ketemu = await cariLokal(r.nama_file, r.jenis_dokumen, tipe, lokasi);
+      if (!ketemu && lokasi !== 'cermin') {
+        toast.error('Berkas tidak ada di arsip perangkat ini — hanya tersimpan di perangkat asal.');
+        return;
       }
-      toast.error('Berkas tidak ada di arsip perangkat ini — hanya tersimpan di perangkat asal.');
+      // Cermin tanpa salinan lokal: salinan server selalu ada.
+      const bytes = ketemu?.bytes ?? new Uint8Array(await ambilBerkas(`/admin/dokumen/${tipe}/${r.id}/unduh`));
+      const tujuan = await save({
+        defaultPath: r.nama_file,
+        filters: [{ name: 'Dokumen', extensions: ['jpg', 'jpeg', 'png', 'pdf'] }],
+      });
+      if (!tujuan) return;
+      await writeFile(tujuan, bytes);
+      toast.success(`Tersimpan: ${String(tujuan).split('/').pop() ?? r.nama_file}`);
     } catch (e) {
       toast.warning(`Arsip lokal gagal dibaca: ${errorMessage(e)}`);
     }
@@ -290,7 +283,7 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
 
   /** Aksi butuh desktop bila byte hanya ada di arsip perangkat tapi dibuka dari web. */
   const perluDesktop = useCallback(
-    (r: DokumenRow) => !isTauri() && (r.penyimpanan ?? 'server') !== 'server',
+    (r: DokumenRow) => !isTauri() && ((r.penyimpanan ?? 'server') === 'lokal' || (r.penyimpanan ?? 'server') === 'test'),
     [],
   );
 
