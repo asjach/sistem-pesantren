@@ -153,7 +153,7 @@ class SantriController extends Controller
         }
         $berkas = $request->file('file');
         $path = NamaBerkasDokumen::simpan(
-            $berkas, 'local', 'santri/dokumen',
+            $berkas, 'local', NamaBerkasDokumen::direktori('santri'),
             (string) ($santri->nama_lengkap ?? 'santri-'.$santri->id),
             $data['jenis_dokumen_santri'], $data['catatan'] ?? null,
         );

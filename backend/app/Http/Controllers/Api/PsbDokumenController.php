@@ -27,7 +27,7 @@ class PsbDokumenController extends Controller
         }
         $berkas = $request->file('file');
         $path = NamaBerkasDokumen::simpan(
-            $berkas, 'local', 'santri/dokumen',
+            $berkas, 'local', NamaBerkasDokumen::direktori('santri'),
             (string) ($calon->nama_lengkap ?? 'calon-'.$calon->id),
             $data['jenis_dokumen_santri'], $data['catatan'] ?? null,
         );

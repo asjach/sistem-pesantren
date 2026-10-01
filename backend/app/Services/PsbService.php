@@ -269,7 +269,7 @@ class PsbService
         });
     }
 
-    /** Bukti transfer -> storage/app/santri/dokumen/* (unifikasi dgn dokumen santri) ; DB hanya path. Dipakai alur satuan & paket. */
+    /** Bukti transfer -> storage dokumen/santri/* (unifikasi dgn dokumen santri) ; DB hanya path. Dipakai alur satuan & paket. */
     protected function simpanBuktiTransfer(PsbCalonSantri $calon, mixed $file): void
     {
         if (empty($file)) {
@@ -277,7 +277,7 @@ class PsbService
         }
         if ($file instanceof UploadedFile) {
             $path = NamaBerkasDokumen::simpan(
-                $file, 'local', 'santri/dokumen',
+                $file, 'local', NamaBerkasDokumen::direktori('santri'),
                 (string) ($calon->nama_lengkap ?? 'calon-'.$calon->id),
                 'bukti_transfer', null,
             );

@@ -67,11 +67,12 @@ class NamaBerkasDokumen
     }
 
     /**
-     * Direktori kanonis per tipe (cermin aturan lama `store()`).
+     * Direktori kanonis per tipe — cermin arsip lokal
+     * (`SIMPES-Dokumen/{tipe}/`): root `dokumen/` berisi folder tipe.
      */
     public static function direktori(string $tipe): string
     {
-        return $tipe === 'lembaga' ? 'lembaga/dokumen' : "{$tipe}/dokumen";
+        return "dokumen/{$tipe}";
     }
 
     /**

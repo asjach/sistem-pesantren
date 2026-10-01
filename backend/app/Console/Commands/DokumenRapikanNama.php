@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 #[Signature('dokumen:rapikan-nama {--dry-run : Tampilkan rencana tanpa memindah berkas/ubah baris}')]
-#[Description('Rapikan berkas dokumen lama ke direktori kanonis + nama template (santri/dokumen, pegawai/dokumen, lembaga/dokumen).')]
+#[Description('Rapikan berkas dokumen lama ke direktori kanonis + nama template (dokumen/santri, dokumen/pegawai, dokumen/lembaga).')]
 class DokumenRapikanNama extends Command
 {
     /** Backfill satu-kali: samakan fisik + nama_file ke template sebelum kolom path_file dicabut. */
@@ -33,7 +33,7 @@ class DokumenRapikanNama extends Command
             $baris[] = [
                 'tipe' => 'santri', 'id' => $r->id, 'path' => $r->path_file,
                 'nama' => $this->namaSantri($r), 'jenis' => (string) ($r->jenis_dokumen_santri ?? ''),
-                'catatan' => $r->catatan, 'waktu' => $r->created_at, 'dir' => 'santri/dokumen',
+                'catatan' => $r->catatan, 'waktu' => $r->created_at, 'dir' => NamaBerkasDokumen::direktori('santri'),
                 'simpan' => fn (string $path, string $nama) => $r->update(['path_file' => $path, 'nama_file' => $nama]),
             ];
         }
@@ -42,7 +42,7 @@ class DokumenRapikanNama extends Command
                 'tipe' => 'pegawai', 'id' => $r->id, 'path' => $r->path_file,
                 'nama' => (string) (Pegawai::find($r->pegawai_id)?->nama_lengkap ?? 'pegawai-'.$r->pegawai_id),
                 'jenis' => (string) ($r->jenis_dokumen_pegawai ?? ''),
-                'catatan' => $r->catatan, 'waktu' => $r->created_at, 'dir' => 'pegawai/dokumen',
+                'catatan' => $r->catatan, 'waktu' => $r->created_at, 'dir' => NamaBerkasDokumen::direktori('pegawai'),
                 'simpan' => fn (string $path, string $nama) => DB::table('dokumen_pegawai')->where('id', $r->id)->update([
                     'path_file' => $path, 'nama_file' => $nama, 'updated_at' => now(),
                 ]),
@@ -53,7 +53,7 @@ class DokumenRapikanNama extends Command
                 'tipe' => 'lembaga', 'id' => $r->id, 'path' => $r->path_file,
                 'nama' => (string) (Lembaga::where('jenjang', $r->jenjang)->value('nama') ?? $r->jenjang),
                 'jenis' => (string) ($r->jenis_dokumen ?? ''),
-                'catatan' => $r->catatan, 'waktu' => $r->created_at, 'dir' => 'lembaga/dokumen',
+                'catatan' => $r->catatan, 'waktu' => $r->created_at, 'dir' => NamaBerkasDokumen::direktori('lembaga'),
                 'simpan' => fn (string $path, string $nama) => $r->update(['path_file' => $path, 'nama_file' => $nama]),
             ];
         }
