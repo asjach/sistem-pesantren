@@ -14,6 +14,18 @@ describe('labelKolom', () => {
     expect(labelKolom('nis_lokal')).toBe('NIS Lokal');
     expect(labelKolom('no_peserta')).toBe('No Peserta');
     expect(labelKolom('k1')).toBe('K1');
+    expect(labelKolom('nik')).toBe('NIK');
+    expect(labelKolom('nipp')).toBe('NIPP');
+    expect(labelKolom('jenis_ptk')).toBe('Jenis PTK');
+    expect(labelKolom('no_bpjs')).toBe('No BPJS');
+    expect(labelKolom('rt_rw')).toBe('RT RW');
+    expect(labelKolom('no_hp')).toBe('No HP');
+  });
+
+  it('kolom boolean is_ hanya tampilkan nama state', () => {
+    expect(labelKolom('is_aktif')).toBe('Aktif');
+    expect(labelKolom('is_seleksi')).toBe('Seleksi');
+    expect(labelKolom('is_active_lembaga')).toBe('Active Lembaga');
   });
 
   it('pangkas nama tabel lalu humanize', () => {

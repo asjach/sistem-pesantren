@@ -75,7 +75,7 @@ const FIELDS: ExcelField[] = [
   },
   { key: 'wali', label: 'wali kelas', width: 180, kind: 'static' },
   { key: 'lembaga', label: 'lembaga.jenjang', width: 110, kind: 'static' },
-  { key: 'ta', label: 'tahun_ajaran.nama', width: 160, kind: 'static',  },
+  { key: 'ta', label: 'Tahun Ajaran', width: 160, kind: 'static',  },
   {
     key: 'tingkat', label: 'tingkat', width: 120, kind: 'text', maxLength: 20,
     

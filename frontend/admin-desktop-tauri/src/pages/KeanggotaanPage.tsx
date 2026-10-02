@@ -292,7 +292,7 @@ export default function KeanggotaanPage() {
     { key: 'npsn_sekolah_asal', label: 'npsn_sekolah_asal', kind: 'text', maxLength: 20, width: 130 },
     { key: 'nss_sekolah_asal', label: 'nss_sekolah_asal', kind: 'text', maxLength: 30, width: 130 },
     { key: 'alamat_sekolah_asal', label: 'alamat_sekolah_asal', kind: 'text', maxLength: 500, width: 200 },
-    { key: 'aktif', label: 'is_active_lembaga', kind: 'static', width: 90 },
+    { key: 'aktif', label: 'Aktif', kind: 'static', width: 90 },
     { key: 'masuk', label: 'tgl_masuk', kind: 'text', maxLength: 10, width: 110, validate: tglValidator },
     { key: 'selesai', label: 'tgl_selesai', kind: 'text', maxLength: 10, width: 110, validate: tglValidator,  },
   ], []);

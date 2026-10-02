@@ -192,13 +192,13 @@ export default function ReferensiPage() {
           { key: 'urutan', label: 'urutan', width: 80, kind: 'static' },
           ...(isStatusAkhir ? [{ key: 'sifat', label: 'Sifat', width: 170, kind: 'static' as const }] : []),
           { key: 'sumber', label: 'Sumber', width: 170, kind: 'static' },
-          { key: 'tampil', label: 'is_active', width: 130, kind: 'toggle', toggleTanpaEdit: true, bolehToggle: toggleBolehId },
+          { key: 'tampil', label: 'Tampil', width: 130, kind: 'toggle', toggleTanpaEdit: true, bolehToggle: toggleBolehId },
         ]
       : [
           { key: 'nama', label: 'nama', width: 220, kind: 'static' },
           { key: 'urutan', label: 'urutan', width: 80, kind: 'static' },
           { key: 'sumber', label: 'Sumber', width: 170, kind: 'static' },
-          { key: 'tampil', label: 'is_active', width: 130, kind: 'toggle', toggleTanpaEdit: true, bolehToggle: toggleBolehId,  },
+          { key: 'tampil', label: 'Tampil', width: 130, kind: 'toggle', toggleTanpaEdit: true, bolehToggle: toggleBolehId,  },
         ],
     [isStatus, isStatusAkhir, toggleBolehId],
   );

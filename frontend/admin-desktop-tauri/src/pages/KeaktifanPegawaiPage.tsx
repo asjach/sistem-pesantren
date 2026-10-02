@@ -38,7 +38,7 @@ import { toast } from 'sonner';
 const FIELDS: ExcelField[] = [
   { key: 'nama', label: 'pegawai.nama_lengkap', width: 220, kind: 'static' },
   { key: 'lembaga', label: 'lembaga.jenjang', width: 100, kind: 'static' },
-  { key: 'ta', label: 'tahun_ajaran.nama', width: 130, kind: 'static' },
+  { key: 'ta', label: 'Tahun Ajaran', width: 130, kind: 'static' },
   { key: 'tugas', label: 'Tugas', width: 180, kind: 'static' },
   // Toggle langsung (tanpa Mode Edit): gerbang izin mengikuti `canEdit` tabel.
   { key: 'status', label: 'Status', width: 110, kind: 'toggle' },

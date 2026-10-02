@@ -97,7 +97,7 @@ const PILIHAN_MELANJUTKAN = [
 ];
 const FIELDS_ALUMNI: ExcelField[] = [
   { key: 'nama', label: 'santri.nama_lengkap', kind: 'static' },
-  { key: 'lembaga', label: 'lembaga.nama', kind: 'static' },
+  { key: 'lembaga', label: 'Nama Lembaga', kind: 'static' },
   { key: 'tahun_ajaran_lulus', label: 'tahun_ajaran_lulus', kind: 'static',  },
   {
     key: 'tanggal_lulus',

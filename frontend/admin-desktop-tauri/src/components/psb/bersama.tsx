@@ -38,7 +38,7 @@ export function psbFields(gelombangChoices: ExcelChoice[]): ExcelField[] {
     },
     { key: 'lembaga', label: 'lembaga.jenjang', width: 180, kind: 'static',  },
     {
-      key: 'gelombang', label: 'psb_gelombang.nama', width: 140, kind: 'static',
+      key: 'gelombang', label: 'Nama Gelombang', width: 140, kind: 'static',
       inputKind: 'select', required: true, inputChoices: gelombangChoices,
     },
     { key: 'paket', label: 'Paket', width: 120, kind: 'static' },

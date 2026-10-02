@@ -62,32 +62,32 @@ function privileged(u: AdminUser) {
 
 const USER_FIELDS_BASE: ExcelField[] = [
   {
-    key: 'nama', label: 'name', width: 200, kind: 'text', maxLength: 255,
+    key: 'nama', label: 'Nama', width: 200, kind: 'text', maxLength: 255,
     
     required: true,
     validate: (v) => (!v || !v.trim() ? 'Nama wajib diisi.' : null),
   },
   {
-    key: 'email', label: 'email', width: 220, kind: 'text', maxLength: 255,
+    key: 'email', label: 'Email', width: 220, kind: 'text', maxLength: 255,
     
     validate: emailRule,
   },
   {
-    key: 'phone', label: 'phone', width: 150, kind: 'text', maxLength: 20,
+    key: 'phone', label: 'No. HP', width: 150, kind: 'text', maxLength: 20,
     
   },
   {
-    key: 'username', label: 'username', width: 150, kind: 'text', maxLength: 50,
+    key: 'username', label: 'Nama Pengguna', width: 150, kind: 'text', maxLength: 50,
     
   },
   // Kolom khusus mode Input: kata sandi & peran/lembaga (baca-saja di mode
   // biasa). Default peran = orang_tua (lihat inputRowValues).
   {
-    key: 'sandi', label: 'password', width: 150, kind: 'static',
+    key: 'sandi', label: 'Kata Sandi', width: 150, kind: 'static',
     inputKind: 'text', maxLength: 100, required: true,
     validate: (v) => (!v || v.trim().length < 8 ? 'Kata sandi minimal 8 karakter.' : null),
   },
-  { key: 'peran', label: 'roles.name', width: 200, kind: 'static', inputKind: 'select' },
+  { key: 'peran', label: 'Peran', width: 200, kind: 'static', inputKind: 'select' },
   { key: 'lembaga', label: 'lembaga.jenjang', width: 200, kind: 'static', inputKind: 'select',  },
 ];
 

@@ -40,10 +40,10 @@ const STATUS = ['diajukan', 'disetujui', 'ditolak'];
 const FIELDS: ExcelField[] = [
   { key: 'santri', label: 'santri.nama_lengkap', width: 200, kind: 'static' },
   { key: 'nik', label: 'santri.nik', width: 160, kind: 'static' },
-  { key: 'wali', label: 'users.name', width: 160, kind: 'static' },
-  { key: 'perubahan', label: 'perubahan_json', width: 320, kind: 'static' },
+  { key: 'wali', label: 'Nama Wali', width: 160, kind: 'static' },
+  { key: 'perubahan', label: 'Perubahan', width: 320, kind: 'static' },
   { key: 'status', label: 'status', width: 110, kind: 'static' },
-  { key: 'tanggal', label: 'created_at', width: 110, kind: 'static',  },
+  { key: 'tanggal', label: 'Dibuat', width: 110, kind: 'static',  },
 ];
 
 function gridValues(p: PengajuanBiodata): Record<string, string | null> {

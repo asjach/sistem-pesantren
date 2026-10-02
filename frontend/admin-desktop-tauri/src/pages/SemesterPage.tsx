@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 /** Kolom tabel semester aktif per lembaga. */
 const FIELDS_SEMESTER: ExcelField[] = [
   { key: 'jenjang', label: 'lembaga.jenjang', kind: 'static' },
-  { key: 'nama', label: 'lembaga.nama', kind: 'static' },
+  { key: 'nama', label: 'Nama Lembaga', kind: 'static' },
   { key: 'semester', label: 'semester_aktif.semester', kind: 'static',  },
 ];
 

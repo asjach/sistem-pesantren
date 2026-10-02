@@ -4,8 +4,9 @@
 
 /** Singkatan yang tetap kapital saat nama kolom di-humanize. */
 const AKRONIM = new Set([
-  'nip', 'nis', 'nism', 'nisn', 'npsn', 'npwp', 'ktp', 'kk', 'kkb', 'psb',
-  'pdf', 'id', 'url', 'api', 'skhun', 'sks', 'kb', 'mb',
+  'nip', 'nipp', 'nis', 'nism', 'nisn', 'npsn', 'nss', 'npwp', 'ktp', 'kk',
+  'kkb', 'psb', 'pdf', 'id', 'url', 'api', 'skhun', 'sks', 'kb', 'mb',
+  'nik', 'ptk', 'bpjs', 'rt', 'rw', 'hp', 'npa', 'json', 'pos', 'sk', 'gws',
 ]);
 
 /** Bentuk label yang masih berupa kode kolom: huruf kecil + angka + `_`. */
@@ -34,5 +35,7 @@ export function labelKolom(teks: string | null | undefined): string {
   const dasar = /^[a-z0-9_]+\.([a-z0-9_]+)$/.exec(mentah)?.[1] ?? mentah;
   if (!POLA_KODE.test(dasar)) return dasar;
 
-  return dasar.split('_').map(kapitalkanKata).join(' ');
+  // Kolom boolean diawali `is_`: tampilkan nama state-nya saja, bukan "Is ...".
+  const inti = dasar.startsWith('is_') ? dasar.slice(3) : dasar;
+  return inti.split('_').map(kapitalkanKata).join(' ');
 }
