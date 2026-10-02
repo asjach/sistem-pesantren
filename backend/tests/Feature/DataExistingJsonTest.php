@@ -135,8 +135,13 @@ class DataExistingJsonTest extends TestCase
             ->assertStatus(200);
 
         $this->assertSame(RiwayatBelajarTemplateExport::KOLOM, $res->json('kolom'));
+        // `santri_id` diambil dari id yang benar-benar dibuat, bukan angka
+        // tetap: auto-increment berbeda antara mesin lokal dan CI.
         $this->assertSame(
-            [['26001', '1', 'Anwar', 'MI', '2026/2027', '1A', '1', '2026-07-01', '4', '1', 'Santri Baru', 'Aktif']],
+            [[
+                '26001', (string) $santri->id, 'Anwar', 'MI', '2026/2027', '1A',
+                '1', '2026-07-01', '4', '1', 'Santri Baru', 'Aktif',
+            ]],
             $res->json('baris')
         );
     }
