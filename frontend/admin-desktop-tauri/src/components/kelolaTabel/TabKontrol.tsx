@@ -9,7 +9,7 @@ import { useLembagaAktif } from '@/lembagaAktif';
 import { useBagian, useAksiBagian } from '@/components/kelolaHalaman/kotor';
 import { labelKolom } from '@/lib/labelKolom';
 import { Input } from '@/components/ui/input';
-import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import { EVENT_TOOLBAR_BERUBAH, KONTROL_TOOLBAR, LEBAR_BAWAHAN_FILTER, LEBAR_BAWAHAN_TOOLBAR, bacaLebarFilter, bacaLebarToolbar, bacaVisToolbar, type KontrolLebar, type VisToolbar, type LebarToolbar } from './jenis';
 import { daftarFilter, kunciFilterBawaan } from '@/components/excel/lebarFilter';
@@ -164,15 +164,20 @@ export default function TabKontrol({ tableKey }: { tableKey: string }) {
       ) : null}
       <div className="flex flex-col gap-1 overflow-auto rounded-md border p-1">
         {KONTROL_TOOLBAR.map(({ kunci, label, ket, lebar: punyaLebar }) => (
-          <label
+          <div
             key={kunci}
-            htmlFor={punyaLebar ? undefined : `switch_toolbar_${tableKey}_${kunci}`}
             className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1 hover:bg-accent/40"
+            onClick={() => {
+              if (!bolehUbah || busy) return;
+              setVis((v) => ({ ...v, [kunci]: !v[kunci] }));
+            }}
           >
-            <Switch
-              id={`switch_toolbar_${tableKey}_${kunci}`}
+            <Checkbox
+              id={`chk_toolbar_${tableKey}_${kunci}`}
               checked={vis[kunci]}
               disabled={!bolehUbah || busy}
+              aria-label={`Tampilkan kontrol ${label}`}
+              onClick={(e) => e.stopPropagation()}
               onCheckedChange={(c) => setVis((v) => ({ ...v, [kunci]: !!c }))}
             />
             <span
@@ -182,7 +187,7 @@ export default function TabKontrol({ tableKey }: { tableKey: string }) {
               {label}
             </span>
             {punyaLebar ? (
-              <span className="flex shrink-0 items-center gap-1" onClick={(e) => e.preventDefault()}>
+              <span className="flex shrink-0 items-center gap-1" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
                 <Input
                   id={`input_lebar_toolbar_${tableKey}_${kunci}`}
                   type="number"
@@ -200,7 +205,7 @@ export default function TabKontrol({ tableKey }: { tableKey: string }) {
                 <span className="text-xs text-muted-foreground">px</span>
               </span>
             ) : null}
-          </label>
+          </div>
         ))}
       </div>
 

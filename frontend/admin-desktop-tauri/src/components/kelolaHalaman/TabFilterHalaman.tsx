@@ -10,6 +10,7 @@ import {
 } from '@/api/halaman';
 import { useLembagaAktif } from '@/lembagaAktif';
 import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import {
   EVENT_HALAMAN_BERUBAH,
@@ -162,14 +163,19 @@ export default function TabFilterHalaman({
         ) : filterTampil.map(({ kunci, label, ket }) => (
           <div
             key={kunci}
-            className="flex items-center gap-2 border-b px-2 py-1 last:border-0 hover:bg-accent/40"
+            className="flex cursor-pointer items-center gap-2 border-b px-2 py-1 last:border-0 hover:bg-accent/40"
+            onClick={() => {
+              if (!bolehUbah || busy) return;
+              setNilai((v) => ({ ...v, [kunci]: !v[kunci] }));
+            }}
           >
-            <Switch
-              id={`switch_filter_halaman_${pageKey}_${kunci}`}
+            <Checkbox
+              id={`chk_filter_halaman_${pageKey}_${kunci}`}
               checked={nilai[kunci]}
               disabled={!bolehUbah || busy}
               aria-label={`Tampilkan filter ${label}`}
               title={`Tampilkan filter ${label} — ${nilai[kunci] ? 'tampil' : 'tersembunyi'}`}
+              onClick={(e) => e.stopPropagation()}
               onCheckedChange={(c) => setNilai((v) => ({ ...v, [kunci]: !!c }))}
             />
             <span className="min-w-0 flex-1 truncate text-xs" title={ket}>
@@ -178,6 +184,7 @@ export default function TabFilterHalaman({
             <label
               htmlFor={`switch_mode_filter_halaman_${pageKey}_${kunci}`}
               className="flex shrink-0 items-center gap-1.5"
+              onClick={(e) => e.stopPropagation()}
             >
               <span className="text-[11px] text-muted-foreground">Mode</span>
               <Switch
