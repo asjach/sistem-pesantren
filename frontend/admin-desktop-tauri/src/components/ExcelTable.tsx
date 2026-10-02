@@ -301,15 +301,16 @@ export default function ExcelTable<T extends { id: string | number }>({
   }, [fields, kamus, sumberField]);
 
   /** Nama tampil kolom: kamus DB > label preset > label bawaan field.
-   *  Semua header ditampilkan KAPITAL dan underscore jadi spasi (aturan v2.74);
-   *  label placeholder bertipe `tabel.kolom` dipangkas jadi nama kolomnya saja.
-   *  Nilai tersimpan kamus/preset tidak diubah, hanya tampilan. */
+   *  Underscore jadi spasi; huruf TIDAK diubah casing-nya, sehingga label
+   *  dari Kamus Label (UPPERCASE / Proper Case / lower case) tampil sesuai
+   *  apa yang disimpan. Label placeholder bertipe `tabel.kolom` dipangkas
+   *  jadi nama kolomnya saja. */
   const labelKolom = useCallback((key: string, bawaan: string) => {
     const dariKamus = attrByKey.get(key)?.label?.trim();
     const kustom = presetLabel?.[key]?.trim();
     const teks = dariKamus || kustom || bawaan;
     const dasar = /^[a-z0-9_]+\.[a-z0-9_]+$/.test(teks) ? teks.slice(teks.indexOf('.') + 1) : teks;
-    return dasar.replace(/_+/g, ' ').toUpperCase();
+    return dasar.replace(/_+/g, ' ');
   }, [presetLabel, attrByKey]);
   /** Perataan efektif: kamus DB > preferensi pribadi > tengah. */
   const alignEfektif = useCallback((key: string): AlignName => (

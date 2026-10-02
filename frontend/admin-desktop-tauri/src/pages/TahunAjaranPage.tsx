@@ -45,6 +45,7 @@ const namaRule = (v: string | null) =>
 const FIELDS: ExcelField[] = [
   {
     key: 'nama', label: 'nama', width: 160, kind: 'text', maxLength: 50,
+    sumber: { tabel: 'tahun_ajaran', kolom: 'nama' },
     required: true,
     validate: namaRule,
   },

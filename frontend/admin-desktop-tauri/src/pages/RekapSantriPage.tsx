@@ -97,7 +97,7 @@ export default function RekapSantriPage() {
             tableKey="rekap_per_tahun_ajaran"
             judul="Per tahun ajaran"
             kolom={[
-              { key: 'ta', label: 'Tahun ajaran' },
+              { key: 'ta', label: 'Tahun ajaran', sumber: { tabel: 'tahun_ajaran', kolom: 'nama' } },
               { key: 'l', label: 'L' },
               { key: 'p', label: 'P' },
               { key: 'jumlah', label: 'JML' },
@@ -117,7 +117,7 @@ export default function RekapSantriPage() {
                     judul="Per tingkat"
                     kolom={[
                       { key: 'lembaga', label: 'Lembaga' },
-                      { key: 'tingkat', label: 'Tingkat' },
+                      { key: 'tingkat', label: 'Tingkat', sumber: { tabel: 'riwayat_belajar', kolom: 'tingkat' } },
                       { key: 'l', label: 'L' },
                       { key: 'p', label: 'P' },
                       { key: 'jumlah', label: 'JML' },
@@ -135,7 +135,7 @@ export default function RekapSantriPage() {
                     tableKey="rekap_per_kelas"
                     judul="Per kelas"
                     kolom={[
-                      { key: 'kelas', label: 'Kelas' },
+                      { key: 'kelas', label: 'Kelas', sumber: { tabel: 'kelas', kolom: 'nama_kelas' } },
                       { key: 'lembaga', label: 'Lembaga' },
                       { key: 'l', label: 'L' },
                       { key: 'p', label: 'P' },
@@ -163,7 +163,7 @@ export default function RekapSantriPage() {
                 judul="Usia per tingkat"
                 emptyText="Belum ada data usia (tgl lahir kosong)."
                 kolom={[
-                  { key: 'tingkat', label: 'Tingkat' },
+                  { key: 'tingkat', label: 'Tingkat', sumber: { tabel: 'riwayat_belajar', kolom: 'tingkat' } },
                   { key: 'jumlah', label: 'Jumlah' },
                   { key: 'rata', label: 'Rata usia' },
                   { key: 'min', label: 'Min' },

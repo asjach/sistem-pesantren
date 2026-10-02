@@ -96,8 +96,8 @@ const PILIHAN_MELANJUTKAN = [
   { value: 'tidak', label: 'Tidak' },
 ];
 const FIELDS_ALUMNI: ExcelField[] = [
-  { key: 'nama', label: 'santri.nama_lengkap', kind: 'static', sumber: null },
-  { key: 'lembaga', label: 'lembaga.nama', kind: 'static', sumber: null },
+  { key: 'nama', label: 'santri.nama_lengkap', kind: 'static', sumber: { tabel: 'santri', kolom: 'nama_lengkap' } },
+  { key: 'lembaga', label: 'lembaga.nama', kind: 'static', sumber: { tabel: 'lembaga', kolom: 'nama' } },
   { key: 'tahun_ajaran_lulus', label: 'tahun_ajaran_lulus', kind: 'static', sumber: { tabel: 'alumni', kolom: 'tahun_ajaran_lulus' } },
   {
     key: 'tanggal_lulus',
@@ -106,7 +106,7 @@ const FIELDS_ALUMNI: ExcelField[] = [
     sumber: { tabel: 'alumni', kolom: 'tanggal_lulus' },
     validate: (v) => (!v || /^\d{4}-\d{2}-\d{2}$/.test(v) ? null : 'Format tanggal: YYYY-MM-DD.'),
   },
-  { key: 'kelas_lulus', label: 'kelas.nama_kelas', kind: 'static', sumber: null },
+  { key: 'kelas_lulus', label: 'kelas.nama_kelas', kind: 'static', sumber: { tabel: 'kelas', kolom: 'nama_kelas' } },
   { key: 'nomor_ijazah', label: 'nomor_ijazah', kind: 'text', sumber: { tabel: 'alumni', kolom: 'nomor_ijazah' } },
   { key: 'no_peserta', label: 'no_peserta', kind: 'text', sumber: { tabel: 'alumni', kolom: 'no_peserta' } },
   { key: 'skhun', label: 'skhun', kind: 'text', sumber: { tabel: 'alumni', kolom: 'skhun' } },

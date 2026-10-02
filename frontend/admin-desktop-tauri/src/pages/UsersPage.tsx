@@ -69,13 +69,16 @@ const USER_FIELDS_BASE: ExcelField[] = [
   },
   {
     key: 'email', label: 'email', width: 220, kind: 'text', maxLength: 255,
+    sumber: { tabel: 'users', kolom: 'email' },
     validate: emailRule,
   },
   {
     key: 'phone', label: 'phone', width: 150, kind: 'text', maxLength: 20,
+    sumber: { tabel: 'users', kolom: 'phone' },
   },
   {
     key: 'username', label: 'username', width: 150, kind: 'text', maxLength: 50,
+    sumber: { tabel: 'users', kolom: 'username' },
   },
   // Kolom khusus mode Input: kata sandi & peran/lembaga (baca-saja di mode
   // biasa). Default peran = orang_tua (lihat inputRowValues).

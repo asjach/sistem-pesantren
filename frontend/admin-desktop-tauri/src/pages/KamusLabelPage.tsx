@@ -60,13 +60,14 @@ const MODE_LABEL: Record<ModeLabel, string> = {
 };
 
 const FIELDS: ExcelField[] = [
-  { key: 'kolom', label: 'kolom', width: 190, kind: 'static' },
-  { key: 'label', label: 'label', width: 200, kind: 'text', maxLength: 100 },
-  { key: 'align', label: 'align', width: 70, kind: 'select', choices: ALIGN_CHOICES },
-  { key: 'tooltip', label: 'tooltip', width: 220, kind: 'text', maxLength: 200 },
-  { key: 'format', label: 'format', width: 120, kind: 'select', choices: FORMAT_CHOICES },
+  { key: 'kolom', label: 'kolom', width: 190, kind: 'static', sumber: { tabel: 'label_kolom', kolom: 'kolom' } },
+  { key: 'label', label: 'label', width: 200, kind: 'text', maxLength: 100, sumber: { tabel: 'label_kolom', kolom: 'label' } },
+  { key: 'align', label: 'align', width: 70, kind: 'select', choices: ALIGN_CHOICES, sumber: { tabel: 'label_kolom', kolom: 'align' } },
+  { key: 'tooltip', label: 'tooltip', width: 220, kind: 'text', maxLength: 200, sumber: { tabel: 'label_kolom', kolom: 'tooltip' } },
+  { key: 'format', label: 'format', width: 120, kind: 'select', choices: FORMAT_CHOICES, sumber: { tabel: 'label_kolom', kolom: 'format' } },
   {
     key: 'lebar', label: 'lebar', width: 90, kind: 'text', maxLength: 3,
+    sumber: { tabel: 'label_kolom', kolom: 'lebar' },
     validate: (v) => {
       if (v === null || v === undefined || v.trim() === '') return null;
       const n = Number(v);

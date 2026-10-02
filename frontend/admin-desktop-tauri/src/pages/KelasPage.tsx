@@ -79,9 +79,11 @@ const FIELDS: ExcelField[] = [
   { key: 'ta', label: 'tahun_ajaran.nama', width: 160, kind: 'static', sumber: { tabel: 'tahun_ajaran', kolom: 'nama' } },
   {
     key: 'tingkat', label: 'tingkat', width: 120, kind: 'text', maxLength: 20,
+    sumber: { tabel: 'kelas', kolom: 'tingkat' },
   },
   {
     key: 'urutan', label: 'urutan', width: 90, kind: 'text', maxLength: 6,
+    sumber: { tabel: 'kelas', kolom: 'urutan' },
     validate: (v) => {
       if (v === null || v === undefined || v.trim() === '') return null;
       const n = Number(v);
@@ -90,6 +92,7 @@ const FIELDS: ExcelField[] = [
   },
   {
     key: 'kapasitas', label: 'kapasitas', width: 120, kind: 'text', maxLength: 10,
+    sumber: { tabel: 'kelas', kolom: 'kapasitas' },
     validate: (v) => {
       if (!v) return null;
       const n = Number(v);

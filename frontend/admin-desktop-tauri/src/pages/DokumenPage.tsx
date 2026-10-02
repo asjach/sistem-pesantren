@@ -44,14 +44,17 @@ interface Konfig {
   judul: string;
   tableKey: string;
   pemilikLabel: string;
-  /** Kolom identitas pemilik pada dialog tambah (santri/pegawai pakai pemilih; lembaga pakai jenjang). */
+  /** Kolom identitas pemilik pada dialog tambah (santri/pegawai memakai pemilih; lembaga memakai jenjang). */
   pemilihPemilik: 'santri' | 'pegawai' | 'jenjang';
+  /** Nama kolom penyimpan jenis dokumen pada tabel ini — tiap tabel dokumen
+   *  memakai nama berbeda, jadi tidak bisa diasumsikan sama. */
+  kolomJenis: string;
 }
 
 const KONFIG: Record<TipeDokumen, Konfig> = {
-  santri: { judul: 'Dokumen Santri', tableKey: 'dokumen_santri', pemilikLabel: 'Santri', pemilihPemilik: 'santri' },
-  pegawai: { judul: 'Dokumen Guru', tableKey: 'dokumen_pegawai', pemilikLabel: 'Guru', pemilihPemilik: 'pegawai' },
-  lembaga: { judul: 'Dokumen Madrasah', tableKey: 'dokumen_lembaga', pemilikLabel: 'Lembaga', pemilihPemilik: 'jenjang' },
+  santri: { judul: 'Dokumen Santri', tableKey: 'dokumen_santri', pemilikLabel: 'Santri', pemilihPemilik: 'santri', kolomJenis: 'jenis_dokumen_santri' },
+  pegawai: { judul: 'Dokumen Guru', tableKey: 'dokumen_pegawai', pemilikLabel: 'Guru', pemilihPemilik: 'pegawai', kolomJenis: 'jenis_dokumen_pegawai' },
+  lembaga: { judul: 'Dokumen Madrasah', tableKey: 'dokumen_lembaga', pemilikLabel: 'Lembaga', pemilihPemilik: 'jenjang', kolomJenis: 'jenis_dokumen' },
 };
 
 /** Satu implementasi untuk tiga halaman dokumen; perbedaan hanya konfigurasi. */
@@ -129,10 +132,10 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
     { key: 'pemilik', label: konfig.pemilikLabel, width: 200, kind: 'static', sumber: null },
     ...(tipe === 'santri' ? [{ key: 'nis', label: 'NIS Lokal', width: 110, kind: 'static' as const, sumber: null }] : []),
     ...(tipe === 'lembaga' ? [{ key: 'lembaga_nama', label: 'Nama Lembaga', width: 180, kind: 'static' as const, sumber: null }] : []),
-    { key: 'jenis_dokumen', label: 'Jenis Dokumen', width: 170, kind: 'text', maxLength: 100, sumber: null },
-    { key: 'nama_file', label: 'Nama Berkas', width: 190, kind: 'static', sumber: null },
+    { key: 'jenis_dokumen', label: 'Jenis Dokumen', width: 170, kind: 'text', maxLength: 100, sumber: { tabel: konfig.tableKey, kolom: konfig.kolomJenis } },
+    { key: 'nama_file', label: 'Nama Berkas', width: 190, kind: 'static', sumber: { tabel: konfig.tableKey, kolom: 'nama_file' } },
     { key: 'lokasi', label: 'Lokasi', width: 90, kind: 'static', sumber: null },
-    { key: 'catatan', label: 'Catatan', width: 220, kind: 'text', sumber: null },
+    { key: 'catatan', label: 'Catatan', width: 220, kind: 'text', sumber: { tabel: konfig.tableKey, kolom: 'catatan' } },
   ], [konfig.pemilikLabel, tipe]);
 
   const nilaiBaris = useCallback((r: DokumenRow): Record<string, string | null> => ({
