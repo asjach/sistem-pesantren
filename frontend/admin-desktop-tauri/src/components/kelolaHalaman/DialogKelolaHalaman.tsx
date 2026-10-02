@@ -167,16 +167,23 @@ export default function DialogKelolaHalaman({
   const [tabelAktif, setTabelAktif] = useState<string>(tabel[0]?.key ?? '');
   const refTab = useRef<(HTMLButtonElement | null)[]>([]);
   /** Ada perubahan belum tersimpan di tab aktif (dilaporkan tab). */
-  const [kotor, setKotor] = useState(false);
+  const [, setKotor] = useState(false);
+  /** Cermin `kotor` untuk keputusan sinkron: `laporKotor(false)` yang dipanggil
+   *  tepat sebelum menutup (setelah menyimpan) harus langsung berlaku, sedangkan
+   *  state React baru terlihat pada render berikutnya. */
+  const kotorRef = useRef(false);
   /** Aksi tertunda yang menunggu konfirmasi "buang perubahan?". */
   const [aksiTertunda, setAksiTertunda] = useState<(() => void) | null>(null);
-  const laporKotor = useCallback((v: boolean) => setKotor(v), []);
+  const laporKotor = useCallback((v: boolean) => {
+    kotorRef.current = v;
+    setKotor(v);
+  }, []);
 
   /** Jalankan aksi, tapi tanya dulu bila ada perubahan belum tersimpan. */
   const coba = useCallback((aksi: () => void) => {
-    if (kotor) setAksiTertunda(() => aksi);
+    if (kotorRef.current) setAksiTertunda(() => aksi);
     else aksi();
-  }, [kotor]);
+  }, []);
 
   const tutup = useCallback(() => coba(() => onOpenChange(false)), [coba, onOpenChange]);
   /** Ganti tab + ingat pilihannya agar bukaan berikutnya langsung ke tab itu. */
@@ -228,6 +235,7 @@ export default function DialogKelolaHalaman({
   const butuhPilihTabel = tabel.length > 1 && tab !== 'filter';
   // Tab/tabel berganti = komponen tab di-remount: penanda lama tidak berlaku.
   useEffect(() => {
+    kotorRef.current = false;
     setKotor(false);
   }, [tab, tabelAktif, open]);
 

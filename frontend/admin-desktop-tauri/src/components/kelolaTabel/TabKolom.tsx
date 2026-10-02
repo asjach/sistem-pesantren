@@ -17,10 +17,14 @@ import { useLaporKotor } from '@/components/kelolaHalaman/kotor';
 import { DialogFooter } from '@/components/ui/dialog';
 import ConfirmDelete from '@/components/ConfirmDelete';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { GripVertical, Pin, X } from '@/icons';
+import { GripVertical, X } from '@/icons';
 import { toast } from 'sonner';
 import type { ExcelField } from '../excel/types';
+
+/** Nilai khusus di dropdown preset: bukan id preset, tapi mode semua kolom. */
+const PRESET_LENGKAP = '__lengkap';
 
 export interface TabKolomProps {
   tableKey: string;
@@ -115,8 +119,25 @@ export default function TabKolom({
     );
   }, [fields, cariKolom, labelOf]);
   const semuaTampilTerpilih = kolomTampil.length > 0 && kolomTampil.every((f) => kolom.includes(f.key));
-  /** Atribut field per key (untuk panel "Kolom tampil" berurutan). */
+  /** Atribut field per key (untuk daftar kolom berurutan). */
   const fieldByKey = useMemo(() => new Map(fields.map((f) => [f.key, f])), [fields]);
+  /** Baris daftar gabungan: kolom tampil (urutan `kolom`) lebih dulu, lalu
+   *  kolom tersembunyi. `indeks` = posisi asli di `kolom`, jadi pengurutan
+   *  lewat panah tetap benar walau daftar sedang tersaring pencarian. */
+  const barisKolom = useMemo(() => {
+    const q = cariKolom.trim().toLowerCase();
+    const cocok = (f: ExcelField) => (
+      q === '' || labelOf(f).toLowerCase().includes(q) || f.key.toLowerCase().includes(q)
+    );
+    const tampil = kolom
+      .map((k, i) => ({ f: fieldByKey.get(k), i }))
+      .filter((x): x is { f: ExcelField; i: number } => !!x.f && cocok(x.f))
+      .map(({ f, i }) => ({ f, tampil: true as const, indeks: i as number | null }));
+    const sembunyi = fields
+      .filter((f) => !kolom.includes(f.key) && cocok(f))
+      .map((f) => ({ f, tampil: false as const, indeks: null as number | null }));
+    return [...tampil, ...sembunyi];
+  }, [kolom, fields, fieldByKey, cariKolom, labelOf]);
 
   function togolKolom(key: string, aktif: boolean) {
     setKolom((prev) => {
@@ -172,6 +193,9 @@ export default function TabKolom({
       // Mode Lengkap tanpa nama: terapkan langsung ke tabel, tanpa membuat preset.
       if (modeLengkap) {
         onPakaiLengkap(kolom, {});
+        // Sudah diterapkan: jangan biarkan penjaga perubahan ikut memblokir
+        // penutupan (kalau tidak, dialog minta konfirmasi setelah menyimpan).
+        laporKotor(false);
         onTutup();
       }
       return;
@@ -206,6 +230,7 @@ export default function TabKolom({
       toast.success(pesan);
       setEditId(saved.id);
       await onTersimpan(saved.id);
+      laporKotor(false);
       onTutup();
     } catch (e2) {
       toast.error(errorMessage(e2));
@@ -234,7 +259,8 @@ export default function TabKolom({
       onSubmit={simpan}
       className={cn('flex h-full min-h-0 flex-col gap-2')}
     >
-      <div className="flex items-end gap-3">
+      {/* Baris atas: identitas preset, pemilih preset, dan preset baru. */}
+      <div className="flex flex-wrap items-end gap-3">
         <Field className="sm:max-w-xs">
           <FieldLabel htmlFor={`input_nama_preset_${tableKey}`}>Nama preset</FieldLabel>
           <Input
@@ -257,244 +283,173 @@ export default function TabKolom({
           />
           Bawaan
         </label>
+        <Field className="sm:max-w-56">
+          <FieldLabel htmlFor={`select_preset_${tableKey}`}>Preset aktif</FieldLabel>
+          <Select
+            value={editId === null ? PRESET_LENGKAP : String(editId)}
+            onValueChange={(v) => {
+              if (v === PRESET_LENGKAP) {
+                onPilihLengkap();
+                return;
+              }
+              const p = presets.find((x) => x.id === Number(v));
+              if (p) onPilihPreset(p);
+            }}
+          >
+            <SelectTrigger id={`select_preset_${tableKey}`} size="sm" className="w-full">
+              <SelectValue placeholder="Pilih preset" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={PRESET_LENGKAP}>Lengkap (semua kolom)</SelectItem>
+              {presets.map((p) => (
+                <SelectItem key={p.id} value={String(p.id)}>
+                  {p.id === bawaanId ? `${p.nama} (bawaan)` : p.nama}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+        <Button
+          id={`btn_preset_baru_${tableKey}`}
+          type="button"
+          variant="outline"
+          className="mb-0.5 shrink-0"
+          onClick={() => onPilihPreset(null)}
+        >
+          + Preset baru
+        </Button>
       </div>
 
-      {/* Tiga panel: daftar preset (kiri), kolom tersedia (tengah), dan kolom
-          terpilih berurutan yang bisa diseret (kanan). */}
-      <div className={cn('flex flex-col gap-2 lg:min-h-0 lg:flex-1 lg:flex-row')}>
-        {/* Panel 1 — preset */}
-        <section className="flex flex-col gap-2 lg:min-h-0 lg:w-44 lg:shrink-0">
-          <FieldLabel>Preset</FieldLabel>
-          <Button
-            id={`btn_preset_baru_${tableKey}`}
-            type="button"
-            variant="outline"
-            className="shrink-0"
-            onClick={() => onPilihPreset(null)}
-          >
-            + Preset baru
-          </Button>
-            <div
-              className={cn(
-                'flex flex-col gap-1 overflow-auto rounded-md border p-1',
-                banyakKolom ? 'max-h-40 lg:max-h-none lg:min-h-0 lg:flex-1' : 'max-h-64 lg:max-h-none lg:min-h-0 lg:flex-1',
-              )}
-            >
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    id={`btn_preset_lengkap_${tableKey}`}
-                    type="button"
-                    onClick={onPilihLengkap}
-                    className={cn(
-                      'rounded-md px-2 py-1 text-left text-xs transition-colors hover:bg-accent/60',
-                      mulaiLengkap && editId === null ? 'bg-accent font-medium' : '',
-                    )}
-                  >
-                    <span className="block truncate">Lengkap (semua kolom)</span>
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Semua kolom — kurangi lalu simpan sebagai preset baru</p>
-                </TooltipContent>
-              </Tooltip>
-            {presets.length === 0 ? (
-              <p className="px-1 text-xs text-muted-foreground">Belum ada preset lain.</p>
-            ) : presets.map((p) => {
-              const tanda = p.id === bawaanId;
-              return (
-                <div key={p.id} className="group flex items-center gap-0.5">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        type="button"
-                        onClick={() => onPilihPreset(p)}
-                        className={cn(
-                          'min-w-0 flex-1 rounded-md px-2 py-1 text-left text-xs transition-colors',
-                          editId === p.id ? 'bg-accent font-medium' : 'hover:bg-accent/60',
-                        )}
-                      >
-                        <span className="block truncate">
-                          {p.nama}
-                        </span>
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>{tanda ? `${p.nama} (bawaan)` : p.nama}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                  {tanda ? (
-                    <span
-                      title="Preset bawaan"
-                      aria-label="Preset bawaan"
-                      className="grid size-6 shrink-0 place-items-center text-foreground"
-                    >
-                      <Pin size={13} />
-                    </span>
-                  ) : null}
-                </div>
-              );
-            })}
-          </div>
-        </section>
-
-        {/* Panel 2 — seluruh kolom yang bisa dipilih */}
-        <section className="flex min-h-0 flex-col gap-2 lg:min-w-0 lg:flex-1">
-          <div className="flex items-center justify-between gap-2">
-            <FieldLabel>Kolom tersedia — centang untuk menampilkan</FieldLabel>
-            <span className="flex shrink-0 items-center gap-2">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    id={`btn_pilih_semua_kolom_${tableKey}`}
-                    type="button"
-                    disabled={kolomTampil.length === 0 || semuaTampilTerpilih}
-                    className="text-xs text-muted-foreground underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
-                    onClick={() => aturSemuaTampil(true)}
-                  >
-                    Pilih semua
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>{cariKolom.trim() ? 'Pilih semua kolom hasil pencarian' : 'Pilih semua kolom'}</p>
-                </TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    id={`btn_kosongkan_kolom_${tableKey}`}
-                    type="button"
-                    disabled={kolomTampil.length === 0 || kolomTampil.every((f) => !kolom.includes(f.key))}
-                    className="text-xs text-muted-foreground underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
-                    onClick={() => aturSemuaTampil(false)}
-                  >
-                    Kosongkan
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>{cariKolom.trim() ? 'Batalkan pilihan kolom hasil pencarian' : 'Batalkan semua pilihan kolom'}</p>
-                </TooltipContent>
-              </Tooltip>
-            </span>
-          </div>
-          <Input
-            id={`input_cari_kolom_${tableKey}`}
-            value={cariKolom}
-            onChange={(e) => setCariKolom(e.target.value)}
-            placeholder="Cari kolom…"
-            aria-label="Cari kolom"
-          />
-          <div className="max-h-64 overflow-auto rounded-md border lg:max-h-none lg:min-h-0 lg:flex-1">
-            <table className="w-full border-collapse text-xs">
-              <thead className="sticky top-0 bg-muted/60 backdrop-blur">
-                <tr className="border-b">
-                  <th className="w-10 px-2 py-1.5 text-center font-medium" title="Tampilkan kolom">Tampil</th>
-                  <th className="px-2 py-1.5 text-left font-medium">Kolom</th>
-                </tr>
-              </thead>
-              <tbody>
-                {kolomTampil.length === 0 ? (
-                  <tr>
-                    <td colSpan={2} className="px-2 py-3 text-center text-muted-foreground">
-                      Tidak ada kolom cocok.
-                    </td>
-                  </tr>
-                ) : kolomTampil.map((f) => {
-                  const aktif = kolom.includes(f.key);
-                  const teks = labelOf(f);
-                  return (
-                    <tr
-                      key={f.key}
-                      // Kolom terpilih ditandai latar, bukan diredupkan: kolom
-                      // tak tampil tetap terbaca jelas, jadi daftar tidak
-                      // terlihat rusak saat preset belum memilih kolom apa pun.
-                      className={cn('border-b last:border-0 hover:bg-accent/40', aktif && 'bg-accent/30')}
-                    >
-                      <td className="px-2 py-1 text-center">
-                        <Checkbox
-                          id={`chk_kolom_${tableKey}_${f.key}`}
-                          checked={aktif}
-                          onCheckedChange={(c) => togolKolom(f.key, !!c)}
-                          aria-label={`Tampilkan ${teks}`}
-                        />
-                      </td>
-                      <td className="truncate px-2 py-1" title={teks}>
-                        {teks}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        {/* Panel 3 — kolom terpilih & berurutan (seret untuk mengurutkan) */}
-        <section className="flex min-h-0 flex-col gap-2 lg:w-64 lg:shrink-0">
-          <FieldLabel>Kolom tampil ({kolom.length}) — seret untuk urutkan</FieldLabel>
-          <div className="flex max-h-64 flex-col gap-1 overflow-auto rounded-md border p-1 lg:max-h-none lg:min-h-0 lg:flex-1">
-            {kolom.length === 0 ? (
-              <p className="px-1 py-2 text-xs text-muted-foreground">
-                Belum ada kolom dipilih. Centang di panel tengah, atau tekan
-                &quot;Pilih semua&quot;.
-              </p>
-            ) : kolom.map((k, i) => {
-              const f = fieldByKey.get(k);
-              if (!f) return null;
-              return (
-                <div
-                  key={k}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    setTujuanSeret(k);
-                  }}
-                  onDrop={() => jatuhSeret(k, false)}
-                  onDragEnd={() => {
-                    seretRef.current = null;
-                    setTujuanSeret(null);
-                  }}
-                  className={cn(
-                    'flex items-center gap-1 rounded-md border px-1 py-0.5',
-                    tujuanSeret === k && seretRef.current !== k && 'border-accent bg-accent/20',
-                  )}
+      {/* Satu daftar kolom: centang = tampil, seret gagang = urutan.
+          Kolom tersembunyi ikut tampil di bawah (latar redup) agar tidak perlu
+          berpindah panel untuk menambahkannya kembali. */}
+      <section className="flex min-h-0 flex-1 flex-col gap-2">
+        <div className="flex items-center justify-between gap-2">
+          <FieldLabel>
+            Kolom — {kolom.length} tampil dari {fields.length} (seret untuk mengurutkan)
+          </FieldLabel>
+          <span className="flex shrink-0 items-center gap-2">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  id={`btn_pilih_semua_kolom_${tableKey}`}
+                  type="button"
+                  disabled={kolomTampil.length === 0 || semuaTampilTerpilih}
+                  className="text-xs text-muted-foreground underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+                  onClick={() => aturSemuaTampil(true)}
                 >
-                  <span
-                    role="button"
-                    tabIndex={0}
-                    aria-label={`Seret untuk memindah ${labelOf(f)}`}
-                    title="Seret untuk memindah posisi kolom"
-                    draggable
-                    onDragStart={(e) => {
-                      seretRef.current = k;
-                      e.dataTransfer.effectAllowed = 'move';
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
-                      e.preventDefault();
-                      geserTerpilih(i, e.key === 'ArrowUp' ? -1 : 1);
-                    }}
-                    className="grid size-6 shrink-0 cursor-grab place-items-center rounded text-muted-foreground hover:bg-accent hover:text-foreground active:cursor-grabbing"
-                  >
-                    <GripVertical size={14} />
-                  </span>
-                  <span className="w-4 shrink-0 text-right text-xs tabular-nums text-muted-foreground">{i + 1}.</span>
-                  <span className="min-w-0 flex-1 truncate text-xs" title={labelOf(f)}>{labelOf(f)}</span>
+                  Pilih semua
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{cariKolom.trim() ? 'Pilih semua kolom hasil pencarian' : 'Pilih semua kolom'}</p>
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  id={`btn_kosongkan_kolom_${tableKey}`}
+                  type="button"
+                  disabled={kolomTampil.length === 0 || kolomTampil.every((f) => !kolom.includes(f.key))}
+                  className="text-xs text-muted-foreground underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+                  onClick={() => aturSemuaTampil(false)}
+                >
+                  Kosongkan
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{cariKolom.trim() ? 'Batalkan pilihan kolom hasil pencarian' : 'Batalkan semua pilihan kolom'}</p>
+              </TooltipContent>
+            </Tooltip>
+          </span>
+        </div>
+        <Input
+          id={`input_cari_kolom_${tableKey}`}
+          value={cariKolom}
+          onChange={(e) => setCariKolom(e.target.value)}
+          placeholder="Cari kolom…"
+          aria-label="Cari kolom"
+        />
+        <div
+          className={cn(
+            'flex min-h-0 flex-1 flex-col overflow-auto rounded-md border',
+            banyakKolom ? 'max-h-[45vh] lg:max-h-none' : 'max-h-[55vh] lg:max-h-none',
+          )}
+        >
+          {barisKolom.length === 0 ? (
+            <p className="px-3 py-4 text-xs text-muted-foreground">Tidak ada kolom cocok.</p>
+          ) : barisKolom.map(({ f, tampil, indeks }) => {
+            const teks = labelOf(f);
+            return (
+              <div
+                key={f.key}
+                onDragOver={tampil ? (e) => { e.preventDefault(); setTujuanSeret(f.key); } : undefined}
+                onDrop={tampil ? () => jatuhSeret(f.key, false) : undefined}
+                onDragEnd={() => {
+                  seretRef.current = null;
+                  setTujuanSeret(null);
+                }}
+                className={cn(
+                  'flex items-center gap-2 border-b px-2 py-1 last:border-0 transition-colors',
+                  tampil ? 'hover:bg-accent/30' : 'bg-muted/40 text-muted-foreground',
+                  tujuanSeret === f.key && seretRef.current !== f.key && 'bg-accent/30 ring-1 ring-inset ring-accent',
+                )}
+              >
+                {tampil && indeks !== null ? (
+                  <>
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Seret untuk memindah ${teks}`}
+                      title="Seret untuk memindah posisi kolom"
+                      draggable
+                      onDragStart={(e) => {
+                        seretRef.current = f.key;
+                        e.dataTransfer.effectAllowed = 'move';
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+                        e.preventDefault();
+                        geserTerpilih(indeks, e.key === 'ArrowUp' ? -1 : 1);
+                      }}
+                      className="grid size-6 shrink-0 cursor-grab place-items-center rounded text-muted-foreground hover:bg-accent hover:text-foreground active:cursor-grabbing"
+                    >
+                      <GripVertical size={14} />
+                    </span>
+                    <span className="w-6 shrink-0 text-right text-xs tabular-nums text-muted-foreground">
+                      {indeks + 1}.
+                    </span>
+                  </>
+                ) : (
+                  // Ruang gagang hanya dikosongkan agar nama kolom tetap sejajar.
+                  <span aria-hidden className="w-6 shrink-0" />
+                )}
+                <Checkbox
+                  id={`chk_kolom_${tableKey}_${f.key}`}
+                  checked={tampil}
+                  onCheckedChange={(c) => togolKolom(f.key, !!c)}
+                  aria-label={`Tampilkan ${teks}`}
+                />
+                <span className="min-w-0 flex-1 truncate text-xs" title={teks}>
+                  {teks}
+                </span>
+                {tampil ? (
                   <TombolIkon
                     type="button"
                     variant="outline"
                     size="icon-sm"
-                    id={`btn_kolom_hapus_${tableKey}_${k}`}
+                    id={`btn_kolom_hapus_${tableKey}_${f.key}`}
                     tip="Sembunyikan kolom ini"
-                    onClick={() => togolKolom(k, false)}
+                    onClick={() => togolKolom(f.key, false)}
                   >
                     <X size={12} />
                   </TombolIkon>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      </div>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+      </section>
 
       <DialogFooter className="mt-auto">
         {editId ? (
