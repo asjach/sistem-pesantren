@@ -6,10 +6,8 @@ import {
   simpanToolbarPreset,
 } from '@/api/toolbarPreset';
 import { useLembagaAktif } from '@/lembagaAktif';
-import { useBagian } from '@/components/kelolaHalaman/kotor';
+import { useBagian, useAksiBagian } from '@/components/kelolaHalaman/kotor';
 import { labelKolom } from '@/lib/labelKolom';
-import { Button } from '@/components/ui/button';
-import { DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
@@ -38,6 +36,11 @@ export default function TabKontrol({ tableKey }: { tableKey: string }) {
   const [filterW, setFilterW] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const laporKotor = useBagian('kontrol', () => void simpan());
+  useAksiBagian('kontrol', {
+    label: 'Kembalikan ke bawaan tabel',
+    onClick: () => void kembalikan(),
+    disabled: !bolehUbah || busy,
+  });
   /** Setelan terakhir yang sama dengan isi server (acuan deteksi kotor).
    *  Diisi nilai bawaan sejak awal supaya tab tidak sempat dianggap kotor
    *  sebelum permintaan muat selesai. */
@@ -248,18 +251,6 @@ export default function TabKontrol({ tableKey }: { tableKey: string }) {
           </div>
         </>
       ) : null}
-
-      <DialogFooter className="mt-auto gap-2 sm:justify-between">
-        <Button
-          type="button"
-          variant="outline"
-          id={`btn_toolbar_bawaan_${tableKey}`}
-          disabled={!bolehUbah || busy}
-          onClick={() => void kembalikan()}
-        >
-          Kembalikan bawaan
-        </Button>
-      </DialogFooter>
     </div>
   );
 }

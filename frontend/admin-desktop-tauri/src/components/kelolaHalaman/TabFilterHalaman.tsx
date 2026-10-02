@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useBagian } from '@/components/kelolaHalaman/kotor';
+import { useBagian, useAksiBagian } from '@/components/kelolaHalaman/kotor';
 import { errorMessage } from '@/api/client';
 import {
   hapusPengaturanHalaman,
@@ -9,8 +9,6 @@ import {
   type FilterModeHalaman,
 } from '@/api/halaman';
 import { useLembagaAktif } from '@/lembagaAktif';
-import { Button } from '@/components/ui/button';
-import { DialogFooter } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import {
@@ -50,6 +48,11 @@ export default function TabFilterHalaman({
   const [adaSimpanan, setAdaSimpanan] = useState(false);
   const [busy, setBusy] = useState(false);
   const laporKotor = useBagian('filter', () => void simpan());
+  useAksiBagian('filter', {
+    label: 'Kembalikan ke bawaan halaman',
+    onClick: () => void kembalikan(),
+    disabled: !bolehUbah || busy || !adaSimpanan,
+  });
   /** Nilai terakhir yang sama dengan isi server (acuan deteksi kotor).
    *  Diisi nilai bawaan sejak awal supaya tab tidak sempat dianggap kotor
    *  sebelum permintaan muat selesai. */
@@ -195,18 +198,6 @@ export default function TabFilterHalaman({
           </div>
         ))}
       </div>
-
-      <DialogFooter className="mt-auto gap-2 sm:justify-between">
-        <Button
-          type="button"
-          variant="outline"
-          id={`btn_filter_halaman_bawaan_${pageKey}`}
-          disabled={!bolehUbah || busy || !adaSimpanan}
-          onClick={() => void kembalikan()}
-        >
-          Kembalikan bawaan
-        </Button>
-      </DialogFooter>
     </div>
   );
 }

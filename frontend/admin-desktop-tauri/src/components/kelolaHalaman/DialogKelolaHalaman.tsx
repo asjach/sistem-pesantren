@@ -23,7 +23,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { BagianProvider, useRegistriBagian } from './kotor';
+import { BagianProvider, useRegistriBagian, type AksiBagian } from './kotor';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { RotateCcw } from '@/icons';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import type { ExcelField } from '../excel/types';
@@ -138,14 +140,39 @@ function KelolaKolomHalaman({
  *  WAJIB di scope modul: kalau didefinisikan di dalam komponen, identitasnya
  *  berubah tiap render sehingga isi bagian di-remount dan state lokalnya
  *  (centang, penanda kotor) selalu kembali ke awal. */
-function Bagian({ id, judul, children }: {
+function Bagian({ id, judul, aksi, children }: {
   id: string;
   judul: string;
+  /** Aksi ikon di kanan judul (mis. kembalikan bawaan). */
+  aksi?: AksiBagian;
   children: ReactNode;
 }) {
   return (
     <section id={id} aria-label={judul} className="flex flex-col gap-1.5">
-      <h3 className="border-b pb-1 text-xs font-semibold">{judul}</h3>
+      <div className="flex items-center gap-2 border-b pb-1">
+        <h3 className="text-xs font-semibold">{judul}</h3>
+        {aksi ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-xs"
+                id={`btn_kembalikan_${id}`}
+                className="ml-auto"
+                aria-label={aksi.label}
+                disabled={aksi.disabled}
+                onClick={aksi.onClick}
+              >
+                <RotateCcw />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{aksi.label}</p>
+            </TooltipContent>
+          </Tooltip>
+        ) : null}
+      </div>
       {children}
     </section>
   );
@@ -176,6 +203,8 @@ export default function DialogKelolaHalaman({
   const [kotorBagian, setKotorBagian] = useState<Record<string, boolean>>({});
   /** Fungsi simpan tiap bagian, dipakai tombol Simpan terpadu. */
   const simpanBagianRef = useRef<Record<string, () => void>>({});
+  /** Aksi ikon tiap bagian (mis. kembalikan bawaan). */
+  const [aksiBagian, setAksiBagian] = useState<Record<string, AksiBagian>>({});
   const [menyimpan, setMenyimpan] = useState(false);
   /** Aksi tertunda yang menunggu konfirmasi "buang perubahan?". */
   const [aksiTertunda, setAksiTertunda] = useState<(() => void) | null>(null);
@@ -193,7 +222,18 @@ export default function DialogKelolaHalaman({
     if (simpan) simpanBagianRef.current[id] = simpan;
     else delete simpanBagianRef.current[id];
   }, []);
-  const registri = useRegistriBagian(lapor, daftarSimpan);
+  const daftarAksi = useCallback((id: string, aksi: AksiBagian | null) => {
+    setAksiBagian((prev) => {
+      if (aksi === null) {
+        if (!(id in prev)) return prev;
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      }
+      return { ...prev, [id]: aksi };
+    });
+  }, []);
+  const registri = useRegistriBagian(lapor, daftarSimpan, daftarAksi);
   /** Urutan simpan: filter lebih dulu, lalu bagian per tabel. */
   const URUTAN_BAGIAN = ['kolom', 'urutan', 'kontrol', 'filter'] as const;
   const adaKotor = Object.values(kotorBagian).some(Boolean);
@@ -292,6 +332,7 @@ return (
                 <Bagian
                   id="bagian_toolbar_tabel"
                   judul="Toolbar"
+                  aksi={aksiBagian.kontrol}
                 >
                   <TabKontrol key={tabelTerpilih.key} tableKey={tabelTerpilih.key} />
                 </Bagian>
@@ -302,7 +343,7 @@ return (
               </p>
             )}
 
-            <Bagian id="bagian_filter_halaman" judul="Filter">
+            <Bagian id="bagian_filter_halaman" judul="Filter" aksi={aksiBagian.filter}>
               <TabFilterHalaman
                 pageKey={pageKey}
                 filterRelevan={konfigurasi.filter}
