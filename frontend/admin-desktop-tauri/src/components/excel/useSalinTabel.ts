@@ -111,6 +111,15 @@ export function useSalinTabel<T extends { id: string | number }>({
     else toast.error('Gagal menyalin.');
   }
 
+  /** Tulis TSV + toast; true bila ada yang ditulis. */
+  async function tulisTSV(header: string[], body: string[][], pesan: string): Promise<boolean> {
+    if (body.length === 0) return false;
+    const ok = await copyText(toTSV(header, body));
+    if (ok) toast.success(pesan);
+    else toast.error('Gagal menyalin.');
+    return ok;
+  }
+
   /** Salin (ribbon/Ctrl+C): baris tercentang menang di atas blok seleksi. */
   async function onCopy() {
     const rows = rowsRef.current;
@@ -122,34 +131,88 @@ export function useSalinTabel<T extends { id: string | number }>({
       header = visibleFieldsRef.current.map((f) => labelKolom(f.key, f.label));
       body = checkedRows.map((r) => visibleFieldsRef.current.map((f) => displayOf(r.id, f.key)));
     } else if (rangeRef.current) {
-      const range = rangeRef.current;
-      const gridValue = gridValueRef.current;
-      const r0 = Math.max(0, Math.min(range.min.row, range.max.row));
-      const r1 = Math.min(gridValue.length - 1, Math.max(range.min.row, range.max.row));
-      const keys = gridColumnKeys();
-      const picked: { key: string; label: string }[] = [];
-      for (let c = Math.min(range.min.col, range.max.col); c <= Math.max(range.min.col, range.max.col); c++) {
-        const k = keys[c];
-        if (!k || k === 'check' || k === '__aksi') continue;
-        const f = visibleFieldsRef.current.find((v) => v.key === k);
-        if (f) picked.push({ key: f.key, label: labelKolom(f.key, f.label) });
-      }
-      if (r1 < r0 || picked.length === 0) return;
-      header = picked.map((p) => p.label);
-      body = [];
-      for (let r = r0; r <= r1; r++) {
-        const g = gridValue[r];
-        if (!g) continue;
-        body.push(picked.map((p) => displayOf(g.id, p.key)));
-      }
+      const tulisan = susunBlok(rangeRef.current);
+      if (!tulisan) return;
+      ({ header, body } = tulisan);
     } else {
       return;
     }
-    if (body.length === 0) return;
     const n = checkedRows.length > 0 ? checkedRows.length : body.length;
-    const ok = await copyText(toTSV(header, body));
-    if (ok) toast.success(`${n} baris disalin (TSV, siap tempel ke Excel).`);
-    else toast.error('Gagal menyalin. Coba blok manual + Ctrl+C.');
+    await tulisTSV(header, body, `${n} baris disalin (TSV, siap tempel ke Excel).`);
+  }
+
+  /** Susun header + body blok seleksi; null bila blok kosong/bukan data. */
+  function susunBlok(range: GridSelection): { header: string[]; body: string[][] } | null {
+    const gridValue = gridValueRef.current;
+    const r0 = Math.max(0, Math.min(range.min.row, range.max.row));
+    const r1 = Math.min(gridValue.length - 1, Math.max(range.min.row, range.max.row));
+    const keys = gridColumnKeys();
+    const picked: { key: string; label: string }[] = [];
+    for (let c = Math.min(range.min.col, range.max.col); c <= Math.max(range.min.col, range.max.col); c++) {
+      const k = keys[c];
+      if (!k || k === 'check' || k === '__aksi') continue;
+      const f = visibleFieldsRef.current.find((v) => v.key === k);
+      if (f) picked.push({ key: f.key, label: labelKolom(f.key, f.label) });
+    }
+    if (r1 < r0 || picked.length === 0) return null;
+    const body: string[][] = [];
+    for (let r = r0; r <= r1; r++) {
+      const g = gridValue[r];
+      if (!g) continue;
+      body.push(picked.map((p) => displayOf(g.id, p.key)));
+    }
+    if (body.length === 0) return null;
+    return { header: picked.map((p) => p.label), body };
+  }
+
+  /** Pratinjau sinkron teks yang akan disalin (tanpa efek samping):
+   *  TSV baris tercentang / blok seleksi, atau satu nilai sel tunggal.
+   *  Null bila tak ada yang bisa disalin — dipakai agar handler Ctrl/Cmd+C
+   *  desktop bisa menulis clipboardData sinkron sebelum tulis async plugin. */
+  function teksSalinan(): string | null {
+    const rows = rowsRef.current;
+    const checkedIds = checkedIdsRef.current;
+    const checkedRows = rows.filter((r) => checkedIds.has(r.id));
+    if (checkedRows.length > 0) {
+      const header = visibleFieldsRef.current.map((f) => labelKolom(f.key, f.label));
+      const body = checkedRows.map((r) => visibleFieldsRef.current.map((f) => displayOf(r.id, f.key)));
+      return toTSV(header, body);
+    }
+    const range = rangeRef.current;
+    if (!range) return null;
+    const tulisan = susunBlok(range);
+    if (!tulisan) return null;
+    const tunggal = range.min.col === range.max.col && range.min.row === range.max.row;
+    if (tunggal) return tulisan.body[0]?.[0] ?? '';
+    return toTSV(tulisan.header, tulisan.body);
+  }
+
+  /** Salin fisik untuk intersepsi Ctrl/Cmd+C desktop: clipboard ditulis via
+   *  plugin (bukan clipboardData webview yang tak andal). Semantik = DSG:
+   *  baris tercentang / blok multi-sel sebagai TSV, sel tunggal tanpa
+   *  header. True = tertulis (pemanggil wajib preventDefault). */
+  async function salinFisik(): Promise<boolean> {
+    const teks = teksSalinan();
+    if (teks == null) return false;
+    const rows = rowsRef.current;
+    const checkedIds = checkedIdsRef.current;
+    const checkedRows = rows.filter((r) => checkedIds.has(r.id));
+    if (checkedRows.length > 0) {
+      const header = visibleFieldsRef.current.map((f) => labelKolom(f.key, f.label));
+      const body = checkedRows.map((r) => visibleFieldsRef.current.map((f) => displayOf(r.id, f.key)));
+      return tulisTSV(header, body, `${checkedRows.length} baris disalin (TSV, siap tempel ke Excel).`);
+    }
+    const range = rangeRef.current;
+    const tulisan = range ? susunBlok(range) : null;
+    if (!tulisan || !range) return false;
+    const tunggal = range.min.col === range.max.col && range.min.row === range.max.row;
+    if (tunggal) {
+      const ok = await copyText(teks);
+      if (ok) toast.success('Nilai sel disalin.');
+      else toast.error('Gagal menyalin.');
+      return ok;
+    }
+    return tulisTSV(tulisan.header, tulisan.body, `${tulisan.body.length} baris disalin (TSV, siap tempel ke Excel).`);
   }
 
   return {
@@ -160,5 +223,7 @@ export function useSalinTabel<T extends { id: string | number }>({
     salinSelCtx,
     salinKolomCtx,
     onCopy,
+    salinFisik,
+    teksSalinan,
   };
 }

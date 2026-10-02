@@ -52,6 +52,7 @@ const TambahDokumenSantriPage = lazy(() => import('./pages/TambahDokumenSantriPa
 const LihatDokumenSantriPage = lazy(() => import('./pages/LihatDokumenSantriPage'));
 const DokumenGuruPage = lazy(() => import('./pages/DokumenGuruPage'));
 const TambahDokumenPegawaiPage = lazy(() => import('./pages/TambahDokumenPegawaiPage'));
+const LihatDokumenPegawaiPage = lazy(() => import('./pages/LihatDokumenPegawaiPage'));
 const DokumenLembagaPage = lazy(() => import('./pages/DokumenLembagaPage'));
 const KelolaIzinPage = lazy(() => import('./pages/KelolaIzinPage'));
 
@@ -139,6 +140,7 @@ export default function App() {
                       <Route path="/dokumen-santri/lihat" element={<KhususIzin izin="dokumen_santri.lihat"><LihatDokumenSantriPage /></KhususIzin>} />
                       <Route path="/dokumen-guru" element={<KhususIzin izin="dokumen_pegawai.lihat"><DokumenGuruPage /></KhususIzin>} />
                       <Route path="/dokumen-guru/tambah" element={<KhususIzin izin="dokumen_pegawai.tambah"><TambahDokumenPegawaiPage /></KhususIzin>} />
+                      <Route path="/dokumen-guru/lihat" element={<KhususIzin izin="dokumen_pegawai.lihat"><LihatDokumenPegawaiPage /></KhususIzin>} />
                       <Route path="/dokumen-madrasah" element={<KhususIzin izin="dokumen_lembaga.lihat"><DokumenLembagaPage /></KhususIzin>} />
                       <Route path="/dokumen-lembaga" element={<Navigate to="/dokumen-madrasah" replace />} />
                       <Route path="/pengaturan" element={<Navigate to="/pengaturan/tampilan" replace />} />
