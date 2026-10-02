@@ -136,7 +136,7 @@ class DataExistingJsonTest extends TestCase
 
         $this->assertSame(RiwayatBelajarTemplateExport::KOLOM, $res->json('kolom'));
         $this->assertSame(
-            [['26001', 'MI', '2026/2027', '1A', '1', '2026-07-01', '4', '1', 'Santri Baru', 'Aktif']],
+            [['26001', '1', 'Anwar', 'MI', '2026/2027', '1A', '1', '2026-07-01', '4', '1', 'Santri Baru', 'Aktif']],
             $res->json('baris')
         );
     }
