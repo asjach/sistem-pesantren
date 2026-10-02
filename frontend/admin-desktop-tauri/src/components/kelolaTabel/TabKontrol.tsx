@@ -6,7 +6,7 @@ import {
   simpanToolbarPreset,
 } from '@/api/toolbarPreset';
 import { useLembagaAktif } from '@/lembagaAktif';
-import { useLaporKotor } from '@/components/kelolaHalaman/kotor';
+import { useBagian } from '@/components/kelolaHalaman/kotor';
 import { Button } from '@/components/ui/button';
 import { DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -30,7 +30,7 @@ export default function TabKontrol({ tableKey }: { tableKey: string }) {
   /** Isian lebar filter (string; kosong = hapus override → bawaan halaman). */
   const [filterW, setFilterW] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
-  const laporKotor = useLaporKotor('kontrol');
+  const laporKotor = useBagian('kontrol', () => void simpan());
   /** Setelan terakhir yang sama dengan isi server (acuan deteksi kotor).
    *  Diisi nilai bawaan sejak awal supaya tab tidak sempat dianggap kotor
    *  sebelum permintaan muat selesai. */
@@ -255,16 +255,6 @@ export default function TabKontrol({ tableKey }: { tableKey: string }) {
         >
           Kembalikan bawaan
         </Button>
-        <span className="flex gap-2">
-                    <Button
-            type="button"
-            id={`btn_toolbar_simpan_${tableKey}`}
-            disabled={!bolehUbah || busy}
-            onClick={() => void simpan()}
-          >
-            {busy ? 'Menyimpan…' : 'Simpan'}
-          </Button>
-        </span>
       </DialogFooter>
     </div>
   );

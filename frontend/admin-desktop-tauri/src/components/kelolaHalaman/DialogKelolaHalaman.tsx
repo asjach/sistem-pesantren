@@ -24,7 +24,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { KotorProvider } from './kotor';
+import { BagianProvider, useRegistriBagian } from './kotor';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import type { ExcelField } from '../excel/types';
@@ -179,6 +179,9 @@ export default function DialogKelolaHalaman({
   const [tabelAktif, setTabelAktif] = useState<string>(tabel[0]?.key ?? '');
   /** Status kotor per bagian (semua bagian tampil sekaligus). */
   const [kotorBagian, setKotorBagian] = useState<Record<string, boolean>>({});
+  /** Fungsi simpan tiap bagian, dipakai tombol Simpan terpadu. */
+  const simpanBagianRef = useRef<Record<string, () => void>>({});
+  const [menyimpan, setMenyimpan] = useState(false);
   /** Aksi tertunda yang menunggu konfirmasi "buang perubahan?". */
   const [aksiTertunda, setAksiTertunda] = useState<(() => void) | null>(null);
 
@@ -191,6 +194,27 @@ export default function DialogKelolaHalaman({
   const lapor = useCallback((id: string, v: boolean) => {
     setKotorBagian((prev) => (prev[id] === v ? prev : { ...prev, [id]: v }));
   }, []);
+  const daftarSimpan = useCallback((id: string, simpan: (() => void) | null) => {
+    if (simpan) simpanBagianRef.current[id] = simpan;
+    else delete simpanBagianRef.current[id];
+  }, []);
+  const registri = useRegistriBagian(lapor, daftarSimpan);
+  /** Urutan simpan: filter lebih dulu, lalu bagian per tabel. */
+  const URUTAN_BAGIAN = ['filter', 'kolom', 'urutan', 'kontrol'] as const;
+  const adaKotor = Object.values(kotorBagian).some(Boolean);
+  /** Simpan semua bagian yang berubah, berurutan. */
+  const simpanSemua = useCallback(async () => {
+    setMenyimpan(true);
+    try {
+      for (const id of URUTAN_BAGIAN) {
+        if (!kotorBagian[id]) continue;
+        const fn = simpanBagianRef.current[id];
+        if (fn) await fn();
+      }
+    } finally {
+      setMenyimpan(false);
+    }
+  }, [kotorBagian]);
 
   /** Jalankan aksi, tapi tanya dulu bila ada perubahan belum tersimpan. */
   const coba = useCallback((aksi: () => void) => {
@@ -214,7 +238,7 @@ export default function DialogKelolaHalaman({
 return (
     <Dialog open={open} onOpenChange={(v) => (v ? onOpenChange(true) : tutup())}>
       <DialogContent className="!flex h-[85dvh] max-h-[85dvh] flex-col !overflow-hidden sm:max-w-2xl lg:max-w-4xl">
-        <KotorProvider value={lapor}>
+        <BagianProvider value={registri}>
           <DialogHeader className="shrink-0">
             <DialogTitle>Kelola halaman: {judul}</DialogTitle>
             <DialogDescription>
@@ -306,12 +330,20 @@ return (
             )}
           </div>
 
-          <DialogFooter className="shrink-0 pt-2">
+          <DialogFooter className="shrink-0 gap-2 pt-2">
             <Button type="button" variant="outline" id="btn_tutup_kelola_halaman" onClick={tutup}>
               Tutup
             </Button>
+            <Button
+              type="button"
+              id="btn_simpan_kelola_halaman"
+              disabled={!adaKotor || menyimpan}
+              onClick={() => void simpanSemua()}
+            >
+              {menyimpan ? 'Menyimpan…' : 'Simpan'}
+            </Button>
           </DialogFooter>
-        </KotorProvider>
+        </BagianProvider>
       </DialogContent>
 
       {/* Konfirmasi sebelum perubahan belum tersimpan dibuang. */}

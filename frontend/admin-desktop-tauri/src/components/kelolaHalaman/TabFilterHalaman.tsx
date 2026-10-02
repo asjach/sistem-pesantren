@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useLaporKotor } from '@/components/kelolaHalaman/kotor';
+import { useBagian } from '@/components/kelolaHalaman/kotor';
 import { errorMessage } from '@/api/client';
 import {
   hapusPengaturanHalaman,
@@ -49,7 +49,7 @@ export default function TabFilterHalaman({
   /** Ada baris tersimpan di DB (untuk status tombol Kembalikan). */
   const [adaSimpanan, setAdaSimpanan] = useState(false);
   const [busy, setBusy] = useState(false);
-  const laporKotor = useLaporKotor('filter');
+  const laporKotor = useBagian('filter', () => void simpan());
   /** Nilai terakhir yang sama dengan isi server (acuan deteksi kotor).
    *  Diisi nilai bawaan sejak awal supaya tab tidak sempat dianggap kotor
    *  sebelum permintaan muat selesai. */
@@ -214,16 +214,6 @@ export default function TabFilterHalaman({
         >
           Kembalikan bawaan
         </Button>
-        <span className="flex gap-2">
-                    <Button
-            type="button"
-            id={`btn_filter_halaman_simpan_${pageKey}`}
-            disabled={!bolehUbah || busy || filterRelevan.length === 0}
-            onClick={() => void simpan()}
-          >
-            {busy ? 'Menyimpan…' : 'Simpan'}
-          </Button>
-        </span>
       </DialogFooter>
     </div>
   );

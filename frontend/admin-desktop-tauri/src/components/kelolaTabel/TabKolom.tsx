@@ -13,7 +13,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { Input } from '@/components/ui/input';
 import { Field, FieldLabel } from '@/components/ui/field';
 import { labelKolom } from '@/lib/labelKolom';
-import { useLaporKotor } from '@/components/kelolaHalaman/kotor';
+import { useBagian } from '@/components/kelolaHalaman/kotor';
 import { DialogFooter } from '@/components/ui/dialog';
 import ConfirmDelete from '@/components/ConfirmDelete';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -94,7 +94,7 @@ export default function TabKolom({
   const kustomAwal = editId === null && !!kolomAwal && kolomAwal.length > 0;
   const [cariKolom, setCariKolom] = useState('');
   const [busy, setBusy] = useState(false);
-  const laporKotor = useLaporKotor('kolom');
+  const laporKotor = useBagian('kolom', () => void simpanPreset());
   /** Acuan "tersimpan" untuk mendeteksi perubahan belum disimpan. */
   const awalNamaRef = useRef(presetAwal?.nama ?? '');
   const awalKolomRef = useRef(kolom);
@@ -196,6 +196,11 @@ export default function TabKolom({
 
   async function simpan(e: React.FormEvent) {
     e.preventDefault();
+    await simpanPreset();
+  }
+
+  /** Simpan bagian ini (dipanggil form maupun tombol Simpan terpadu). */
+  async function simpanPreset() {
     if (kolom.length === 0) return;
     if (!nama.trim()) {
       // Mode Lengkap tanpa nama: terapkan langsung ke tabel, tanpa membuat preset.
@@ -470,13 +475,6 @@ export default function TabKolom({
             </Button>
           </ConfirmDelete>
         ) : null}
-        <Button
-          id={`btn_simpan_preset_${tableKey}`}
-          type="submit"
-          disabled={busy || kolom.length === 0 || (!modeLengkap && !nama.trim())}
-        >
-          {modeLengkap && !nama.trim() ? 'Terapkan' : modeLengkap ? 'Simpan sebagai preset' : 'Simpan'}
-        </Button>
       </DialogFooter>
     </form>
   );

@@ -1,5 +1,5 @@
 import { labelKolom } from '@/lib/labelKolom';
-import { useLaporKotor } from '@/components/kelolaHalaman/kotor';
+import { useBagian } from '@/components/kelolaHalaman/kotor';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { errorMessage } from '@/api/client';
 import {
@@ -42,7 +42,7 @@ export default function TabUrutan({ tableKey }: { tableKey: string }) {
   const [data, setData] = useState<PresetUrutData | null>(null);
   const [draft, setDraft] = useState<OpsiUrut[]>([]);
   const [busy, setBusy] = useState(false);
-  const laporKotor = useLaporKotor('urutan');
+  const laporKotor = useBagian('urutan', () => void simpan());
   /** Draf terakhir yang sama dengan isi server (acuan deteksi kotor). */
   const acuanRef = useRef('[]');
 
@@ -352,16 +352,6 @@ export default function TabUrutan({ tableKey }: { tableKey: string }) {
             onClick={() => void kosongkan()}
           >
             Kosongkan
-          </Button>
-        </span>
-        <span className="flex gap-2">
-                    <Button
-            type="button"
-            id={`btn_urut_simpan_${tableKey}`}
-            disabled={!bolehSimpan || busy}
-            onClick={() => void simpan()}
-          >
-            {busy ? 'Menyimpan…' : 'Simpan'}
           </Button>
         </span>
       </DialogFooter>
