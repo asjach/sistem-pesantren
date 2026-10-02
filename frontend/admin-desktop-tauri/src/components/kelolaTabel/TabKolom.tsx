@@ -56,7 +56,6 @@ export interface TabKolomProps {
   /** Preset dihapus → induk menyegarkan daftar + mengosongkan preset aktif. */
   onDihapus: () => Promise<void>;
   /** Tutup dialog. */
-  onTutup: () => void;
 }
 
 /** Tab Kolom dialog Kelola Halaman: preset kolom GLOBAL (satu definisi untuk
@@ -77,7 +76,6 @@ export default function TabKolom({
   onTersimpan,
   onPakaiLengkap,
   onDihapus,
-  onTutup,
 }: TabKolomProps) {
   const [editId, setEditId] = useState<number | null>(presetAwal?.id ?? null);
   const [nama, setNama] = useState(presetAwal?.nama ?? '');
@@ -96,7 +94,7 @@ export default function TabKolom({
   const kustomAwal = editId === null && !!kolomAwal && kolomAwal.length > 0;
   const [cariKolom, setCariKolom] = useState('');
   const [busy, setBusy] = useState(false);
-  const laporKotor = useLaporKotor();
+  const laporKotor = useLaporKotor('kolom');
   /** Acuan "tersimpan" untuk mendeteksi perubahan belum disimpan. */
   const awalNamaRef = useRef(presetAwal?.nama ?? '');
   const awalKolomRef = useRef(kolom);
@@ -203,10 +201,8 @@ export default function TabKolom({
       // Mode Lengkap tanpa nama: terapkan langsung ke tabel, tanpa membuat preset.
       if (modeLengkap) {
         onPakaiLengkap(kolom, {});
-        // Sudah diterapkan: jangan biarkan penjaga perubahan ikut memblokir
-        // penutupan (kalau tidak, dialog minta konfirmasi setelah menyimpan).
+        // Sudah diterapkan: bagian ini kembali bersih (dialog tetap terbuka).
         laporKotor(false);
-        onTutup();
       }
       return;
     }
@@ -241,7 +237,6 @@ export default function TabKolom({
       setEditId(saved.id);
       await onTersimpan(saved.id);
       laporKotor(false);
-      onTutup();
     } catch (e2) {
       toast.error(errorMessage(e2));
     } finally {
@@ -475,7 +470,6 @@ export default function TabKolom({
             </Button>
           </ConfirmDelete>
         ) : null}
-        <Button type="button" variant="outline" onClick={onTutup}>Tutup</Button>
         <Button
           id={`btn_simpan_preset_${tableKey}`}
           type="submit"

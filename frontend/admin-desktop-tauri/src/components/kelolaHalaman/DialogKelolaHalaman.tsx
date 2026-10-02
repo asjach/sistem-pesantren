@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { errorMessage, prefGet, prefSet } from '@/api/client';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { errorMessage } from '@/api/client';
 import {
   listPresetTabel,
   setPresetAktif,
@@ -9,9 +9,11 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,20 +36,6 @@ import TabFilterHalaman from './TabFilterHalaman';
 import { konfigurasiFilterHalaman } from '@/lib/filterHalaman';
 import type { KunciFilterGlobal, TabelHalaman } from '../VisibilitasFilter';
 
-/** Tab dialog Kelola Halaman. */
-export type TabHalaman = 'filter' | 'kolom' | 'urutan' | 'kontrol';
-
-/** Tab terakhir yang dipakai (per perangkat) — dialog dibuka kembali pada tab
- *  yang sama, bukan selalu balik ke tab pertama. */
-const TAB_TERAKHIR_KEY = 'simpes_kelola_tab';
-
-const TAB_META: { kunci: TabHalaman; label: string }[] = [
-  { kunci: 'filter', label: 'Filter' },
-  { kunci: 'kolom', label: 'Kolom' },
-  { kunci: 'urutan', label: 'Urutan' },
-  { kunci: 'kontrol', label: 'Toolbar' },
-];
-
 /** Kabari grid tabel terkait agar memuat ulang preset/susunan kolomnya. */
 function kabariPreset(tableKey: string) {
   window.dispatchEvent(new CustomEvent(EVENT_PRESET_BERUBAH, { detail: { tableKey } }));
@@ -59,11 +47,9 @@ function kabariPreset(tableKey: string) {
 function KelolaKolomHalaman({
   tableKey,
   fields,
-  onTutup,
 }: {
   tableKey: string;
   fields: ExcelField[];
-  onTutup: () => void;
 }) {
   const [presets, setPresets] = useState<PresetTabel[]>([]);
   const [bawaanId, setBawaanId] = useState<number | null>(null);
@@ -145,8 +131,28 @@ function KelolaKolomHalaman({
         kabariPreset(tableKey);
         await muat();
       }}
-      onTutup={onTutup}
     />
+  );
+}
+
+/** Bagian dialog: judul + keterangan singkat, isi mengikuti (tanpa tab).
+ *  WAJIB di scope modul: kalau didefinisikan di dalam komponen, identitasnya
+ *  berubah tiap render sehingga isi bagian di-remount dan state lokalnya
+ *  (centang, penanda kotor) selalu kembali ke awal. */
+function Bagian({ id, judul, keterangan, children }: {
+  id: string;
+  judul: string;
+  keterangan: string;
+  children: ReactNode;
+}) {
+  return (
+    <section id={id} aria-label={judul} className="flex flex-col gap-2">
+      <div className="border-b pb-1.5">
+        <h3 className="text-sm font-semibold">{judul}</h3>
+        <p className="text-xs text-muted-foreground">{keterangan}</p>
+      </div>
+      {children}
+    </section>
   );
 }
 
@@ -170,20 +176,20 @@ export default function DialogKelolaHalaman({
   /** Bawaan filter kode (untuk tab Filter). */
   filterBawaan: Record<KunciFilterGlobal, boolean>;
 }) {
-  const [tab, setTab] = useState<TabHalaman>('filter');
   const [tabelAktif, setTabelAktif] = useState<string>(tabel[0]?.key ?? '');
-  const refTab = useRef<(HTMLButtonElement | null)[]>([]);
-  /** Ada perubahan belum tersimpan di tab aktif (dilaporkan tab). */
-  const [, setKotor] = useState(false);
-  /** Cermin `kotor` untuk keputusan sinkron: `laporKotor(false)` yang dipanggil
-   *  tepat sebelum menutup (setelah menyimpan) harus langsung berlaku, sedangkan
-   *  state React baru terlihat pada render berikutnya. */
-  const kotorRef = useRef(false);
+  /** Status kotor per bagian (semua bagian tampil sekaligus). */
+  const [kotorBagian, setKotorBagian] = useState<Record<string, boolean>>({});
   /** Aksi tertunda yang menunggu konfirmasi "buang perubahan?". */
   const [aksiTertunda, setAksiTertunda] = useState<(() => void) | null>(null);
-  const laporKotor = useCallback((v: boolean) => {
-    kotorRef.current = v;
-    setKotor(v);
+
+  /** Ada perubahan belum tersimpan di bagian mana pun. */
+  const kotor = Object.values(kotorBagian).some(Boolean);
+  /** Cermin `kotor` untuk keputusan sinkron (state React baru terlihat pada
+   *  render berikutnya). */
+  const kotorRef = useRef(false);
+  kotorRef.current = kotor;
+  const lapor = useCallback((id: string, v: boolean) => {
+    setKotorBagian((prev) => (prev[id] === v ? prev : { ...prev, [id]: v }));
   }, []);
 
   /** Jalankan aksi, tapi tanya dulu bila ada perubahan belum tersimpan. */
@@ -193,180 +199,118 @@ export default function DialogKelolaHalaman({
   }, []);
 
   const tutup = useCallback(() => coba(() => onOpenChange(false)), [coba, onOpenChange]);
-  /** Ganti tab + ingat pilihannya agar bukaan berikutnya langsung ke tab itu. */
-  const gantiTab = useCallback((t: TabHalaman) => {
-    coba(() => {
-      setTab(t);
-      prefSet(TAB_TERAKHIR_KEY, t).catch(() => {});
-    });
-  }, [coba]);
   const konfigurasi = useMemo(() => konfigurasiFilterHalaman(pageKey), [pageKey]);
-  const tabMeta = useMemo(
-    () => tabel.length > 0 ? TAB_META : TAB_META.filter((item) => item.kunci === 'filter'),
-    [tabel.length],
-  );
-  /** Navigasi tab ala WAI-ARIA: panah kiri/kanan, Home, End. */
-  const onKeyDownTab = useCallback((e: React.KeyboardEvent, idx: number) => {
-    const n = tabMeta.length;
-    let berikut = -1;
-    if (e.key === 'ArrowRight') berikut = (idx + 1) % n;
-    else if (e.key === 'ArrowLeft') berikut = (idx - 1 + n) % n;
-    else if (e.key === 'Home') berikut = 0;
-    else if (e.key === 'End') berikut = n - 1;
-    if (berikut < 0) return;
-    e.preventDefault();
-    gantiTab(tabMeta[berikut].kunci);
-    refTab.current[berikut]?.focus();
-  }, [tabMeta, gantiTab]);
 
-  // Saat dibuka: pilih tabel pertama lagi, dan kembalikan tab terakhir yang
-  // dipakai — selama tab itu memang tersedia untuk halaman ini.
+  // Saat dibuka: pilih tabel pertama lagi, dan bersihkan penanda kotor.
   useEffect(() => {
     if (!open) return;
     setTabelAktif(tabel[0]?.key ?? '');
-    let batal = false;
-    prefGet(TAB_TERAKHIR_KEY)
-      .then((v) => {
-        if (batal) return;
-        const tersedia = tabMeta.some((m) => m.kunci === v);
-        setTab(tersedia ? (v as TabHalaman) : 'filter');
-      })
-      .catch(() => setTab('filter'));
-    return () => {
-      batal = true;
-    };
+    setKotorBagian({});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, pageKey]);
 
   const tabelTerpilih = tabel.find((t) => t.key === tabelAktif) ?? tabel[0];
-  const butuhPilihTabel = tabel.length > 1 && tab !== 'filter';
-  // Tab/tabel berganti = komponen tab di-remount: penanda lama tidak berlaku.
-  useEffect(() => {
-    kotorRef.current = false;
-    setKotor(false);
-  }, [tab, tabelAktif, open]);
 
-  return (
+return (
     <Dialog open={open} onOpenChange={(v) => (v ? onOpenChange(true) : tutup())}>
-      <DialogContent
-        className={cn(
-          '!flex max-h-[80dvh] flex-col !overflow-hidden sm:max-w-2xl lg:max-w-4xl',
-          // Tab Filter isinya sering pendek (1-4 baris): biarkan dialog mengikuti
-          // isi agar tidak menyisakan ruang kosong. Tab padat (Kolom/Urutan/
-          // Toolbar) butuh tinggi pasti untuk scroll internalnya.
-          tab === 'filter' ? 'h-auto min-h-0' : 'h-[70dvh]',
-        )}
-      >
-        <KotorProvider value={laporKotor}>
-        <DialogHeader className="shrink-0">
-          <DialogTitle>Kelola halaman: {judul}</DialogTitle>
-          <DialogDescription>
-            Atur filter, kolom, urutan, dan toolbar untuk halaman ini. Tab
-            <span className="font-medium"> Filter</span> mengatur filter global di bilah atas;
-            tab lain berlaku per tabel. Perubahan baru tersimpan setelah menekan
-            <span className="font-medium"> Simpan</span>.
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent className="!flex h-[85dvh] max-h-[85dvh] flex-col !overflow-hidden sm:max-w-2xl lg:max-w-4xl">
+        <KotorProvider value={lapor}>
+          <DialogHeader className="shrink-0">
+            <DialogTitle>Kelola halaman: {judul}</DialogTitle>
+            <DialogDescription>
+              Atur filter, kolom, urutan, dan toolbar dalam satu tempat. Filter berlaku
+              untuk bilah atas halaman; bagian lain berlaku per tabel. Tekan
+              <span className="font-medium"> Simpan</span> di bagian yang diubah agar
+              tersimpan.
+            </DialogDescription>
+          </DialogHeader>
 
-        <div className="flex shrink-0 items-start gap-1 border-b pb-2" role="tablist" aria-label="Kelola halaman">
-          {tabMeta.map((t, idx) => (
-            <button
-              key={t.kunci}
-              ref={(el) => { refTab.current[idx] = el; }}
-              type="button"
-              role="tab"
-              aria-selected={tab === t.kunci}
-              aria-controls={`panel_kelola_halaman_${t.kunci}`}
-              tabIndex={tab === t.kunci ? 0 : -1}
-              id={`tab_kelola_halaman_${t.kunci}`}
-              onClick={() => gantiTab(t.kunci)}
-              onKeyDown={(e) => onKeyDownTab(e, idx)}
-              className={cn(
-                'h-fit rounded-md px-3 py-1.5 text-sm transition-colors',
-                tab === t.kunci ? 'bg-accent font-medium' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground',
-              )}
+          {tabel.length > 1 ? (
+            <div className="flex shrink-0 flex-wrap items-center gap-1.5" role="group" aria-label="Pilih tabel">
+              <span className="text-xs text-muted-foreground">Tabel:</span>
+              {tabel.map((t) => (
+                <button
+                  key={t.key}
+                  type="button"
+                  id={`btn_pilih_tabel_halaman_${t.key}`}
+                  aria-pressed={t.key === tabelTerpilih?.key}
+                  onClick={() => coba(() => setTabelAktif(t.key))}
+                  className={cn(
+                    'rounded-full border px-2.5 py-1 text-xs transition-colors',
+                    t.key === tabelTerpilih?.key
+                      ? 'border-accent bg-accent/20 font-medium text-foreground'
+                      : 'border-transparent text-muted-foreground hover:border-border hover:bg-accent/40 hover:text-foreground',
+                  )}
+                >
+                  {t.judul ?? t.key}
+                </button>
+              ))}
+            </div>
+          ) : null}
+
+          <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto pr-1">
+            <Bagian
+              id="bagian_filter_halaman"
+              judul="Filter halaman"
+              keterangan="Filter global yang tampil di bilah atas halaman ini."
             >
-              {t.label}
-            </button>
-          ))}
-        </div>
-
-        {butuhPilihTabel ? (
-          <div className="flex shrink-0 flex-wrap items-center gap-1.5" role="group" aria-label="Pilih tabel">
-            <span className="text-xs text-muted-foreground">Tabel:</span>
-            {tabel.map((t) => (
-              <button
-                key={t.key}
-                type="button"
-                id={`btn_pilih_tabel_halaman_${t.key}`}
-                aria-pressed={t.key === tabelTerpilih?.key}
-                onClick={() => coba(() => setTabelAktif(t.key))}
-                className={cn(
-                  // Pil bergaris, bukan blok abu seperti tab di atasnya, supaya
-                  // "tabel mana" tidak tertukar dengan "tab mana".
-                  'rounded-full border px-2.5 py-1 text-xs transition-colors',
-                  t.key === tabelTerpilih?.key
-                    ? 'border-accent bg-accent/20 font-medium text-foreground'
-                    : 'border-transparent text-muted-foreground hover:border-border hover:bg-accent/40 hover:text-foreground',
-                )}
-              >
-                {t.judul ?? t.key}
-              </button>
-            ))}
-          </div>
-        ) : null}
-
-        <div
-          role="tabpanel"
-          id={`panel_kelola_halaman_${tab}`}
-          aria-labelledby={`tab_kelola_halaman_${tab}`}
-          tabIndex={0}
-          className="flex min-h-0 flex-1 flex-col focus-visible:outline-none"
-        >
-        {tab === 'filter' && (
-          <div className="flex min-h-0 flex-col">
-            <TabFilterHalaman
-              pageKey={pageKey}
-              filterRelevan={konfigurasi.filter}
-              bawaan={filterBawaan}
-              modeBawaan={konfigurasi.mode}
-              onTutup={tutup}
-            />
-          </div>
-        )}
-        {tab === 'kolom' && tabelTerpilih && (
-          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-            {tabelTerpilih.fields ? (
-              <KelolaKolomHalaman
-                key={tabelTerpilih.key}
-                tableKey={tabelTerpilih.key}
-                fields={tabelTerpilih.fields}
-                onTutup={tutup}
+              <TabFilterHalaman
+                pageKey={pageKey}
+                filterRelevan={konfigurasi.filter}
+                bawaan={filterBawaan}
+                modeBawaan={konfigurasi.mode}
               />
+            </Bagian>
+
+            {tabelTerpilih ? (
+              <>
+                <Bagian
+                  id="bagian_kolom_tabel"
+                  judul="Kolom"
+                  keterangan="Kolom yang tampil dan urutannya (seret untuk mengurutkan)."
+                >
+                  {tabelTerpilih.fields ? (
+                    <KelolaKolomHalaman
+                      key={tabelTerpilih.key}
+                      tableKey={tabelTerpilih.key}
+                      fields={tabelTerpilih.fields}
+                    />
+                  ) : (
+                    <p className="rounded-md border px-3 py-2 text-xs text-muted-foreground">
+                      Tabel “{tabelTerpilih.judul ?? tabelTerpilih.key}” tidak memakai preset
+                      kolom — kelola kolomnya dari toolbar tabel masing-masing.
+                    </p>
+                  )}
+                </Bagian>
+
+                <Bagian
+                  id="bagian_urutan_tabel"
+                  judul="Urutan"
+                  keterangan="Opsi urutkan dan arah tiap kolom pada toolbar tabel."
+                >
+                  <TabUrutan key={tabelTerpilih.key} tableKey={tabelTerpilih.key} />
+                </Bagian>
+
+                <Bagian
+                  id="bagian_toolbar_tabel"
+                  judul="Toolbar"
+                  keterangan="Kontrol yang tampil dan lebar masing-masing."
+                >
+                  <TabKontrol key={tabelTerpilih.key} tableKey={tabelTerpilih.key} />
+                </Bagian>
+              </>
             ) : (
               <p className="rounded-md border px-3 py-2 text-xs text-muted-foreground">
-                Tabel “{tabelTerpilih.judul ?? tabelTerpilih.key}” tidak memakai preset kolom —
-                kelola kolomnya dari toolbar tabel masing-masing.
+                Halaman ini tidak mendaftarkan tabel — hanya filter yang bisa diatur.
               </p>
             )}
           </div>
-        )}
-        {tab === 'urutan' && tabelTerpilih && (
-          <div key={tabelTerpilih.key} className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-            <TabUrutan tableKey={tabelTerpilih.key} onTutup={tutup} />
-          </div>
-        )}
-        {tab === 'kontrol' && tabelTerpilih && (
-          <div key={tabelTerpilih.key} className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-            <TabKontrol tableKey={tabelTerpilih.key} onTutup={tutup} />
-          </div>
-        )}
-        {tab !== 'filter' && !tabelTerpilih ? (
-          <p className="rounded-md border px-3 py-2 text-xs text-muted-foreground">
-            Halaman ini tidak mendaftarkan tabel — tab ini belum tersedia.
-          </p>
-        ) : null}
-        </div>
+
+          <DialogFooter className="shrink-0 pt-2">
+            <Button type="button" variant="outline" id="btn_tutup_kelola_halaman" onClick={tutup}>
+              Tutup
+            </Button>
+          </DialogFooter>
         </KotorProvider>
       </DialogContent>
 

@@ -35,13 +35,11 @@ export default function TabFilterHalaman({
   filterRelevan,
   bawaan,
   modeBawaan,
-  onTutup,
 }: {
   pageKey: string;
   filterRelevan: readonly KunciFilterGlobal[];
   bawaan: TampilFilterGlobal;
   modeBawaan: ModeSemuaFilterGlobal;
-  onTutup: () => void;
 }) {
   /** Visibilitas filter = super_admin EFEKTIF (mati saat bertindak). */
   const { efektifSuper: bolehUbah } = useLembagaAktif();
@@ -51,7 +49,7 @@ export default function TabFilterHalaman({
   /** Ada baris tersimpan di DB (untuk status tombol Kembalikan). */
   const [adaSimpanan, setAdaSimpanan] = useState(false);
   const [busy, setBusy] = useState(false);
-  const laporKotor = useLaporKotor();
+  const laporKotor = useLaporKotor('filter');
   /** Nilai terakhir yang sama dengan isi server (acuan deteksi kotor).
    *  Diisi nilai bawaan sejak awal supaya tab tidak sempat dianggap kotor
    *  sebelum permintaan muat selesai. */
@@ -109,6 +107,10 @@ export default function TabFilterHalaman({
         filterMode[k] = nilaiMode[k];
       }
       const res = await simpanPengaturanHalaman(pageKey, filter, filterMode);
+      // Nilai kini = isi server. Efek pemantau tidak akan jalan (nilai tidak
+      // berubah), jadi lapor bersih secara eksplisit.
+      acuanRef.current = JSON.stringify({ nilai, mode: nilaiMode });
+      laporKotor(false);
       setAdaSimpanan(true);
       toast.success(res.pesan);
       kabariBerubah();
@@ -124,8 +126,12 @@ export default function TabFilterHalaman({
     setBusy(true);
     try {
       const res = await hapusPengaturanHalaman(pageKey);
-      setNilai({ ...bawaan });
-      setNilaiMode({ ...modeBawaan });
+      const nilaiBawaan = { ...bawaan };
+      const modeBawaanSemua = { ...modeBawaan };
+      setNilai(nilaiBawaan);
+      setNilaiMode(modeBawaanSemua);
+      acuanRef.current = JSON.stringify({ nilai: nilaiBawaan, mode: modeBawaanSemua });
+      laporKotor(false);
       setAdaSimpanan(false);
       toast.success(res.pesan);
       kabariBerubah();
@@ -209,8 +215,7 @@ export default function TabFilterHalaman({
           Kembalikan bawaan
         </Button>
         <span className="flex gap-2">
-          <Button type="button" variant="outline" onClick={onTutup}>Tutup</Button>
-          <Button
+                    <Button
             type="button"
             id={`btn_filter_halaman_simpan_${pageKey}`}
             disabled={!bolehUbah || busy || filterRelevan.length === 0}

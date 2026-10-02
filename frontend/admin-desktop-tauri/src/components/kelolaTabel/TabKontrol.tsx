@@ -18,7 +18,7 @@ import { daftarFilter, kunciFilterBawaan } from '@/components/excel/lebarFilter'
 /** Tab Toolbar dialog Kelola Halaman: tampil/sembunyikan kontrol toolbar
  *  generik per tabel — GLOBAL untuk seluruh lembaga, khusus super_admin.
  *  Bukan dihapus: kontrol yang disembunyikan tetap ada, hanya tak dirender. */
-export default function TabKontrol({ tableKey, onTutup }: { tableKey: string; onTutup: () => void }) {
+export default function TabKontrol({ tableKey }: { tableKey: string }) {
   /** Visibilitas kontrol = super_admin EFEKTIF (mati saat bertindak). */
   const { efektifSuper: bolehUbah } = useLembagaAktif();
 
@@ -30,7 +30,7 @@ export default function TabKontrol({ tableKey, onTutup }: { tableKey: string; on
   /** Isian lebar filter (string; kosong = hapus override → bawaan halaman). */
   const [filterW, setFilterW] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
-  const laporKotor = useLaporKotor();
+  const laporKotor = useLaporKotor('kontrol');
   /** Setelan terakhir yang sama dengan isi server (acuan deteksi kotor).
    *  Diisi nilai bawaan sejak awal supaya tab tidak sempat dianggap kotor
    *  sebelum permintaan muat selesai. */
@@ -256,8 +256,7 @@ export default function TabKontrol({ tableKey, onTutup }: { tableKey: string; on
           Kembalikan bawaan
         </Button>
         <span className="flex gap-2">
-          <Button type="button" variant="outline" onClick={onTutup}>Tutup</Button>
-          <Button
+                    <Button
             type="button"
             id={`btn_toolbar_simpan_${tableKey}`}
             disabled={!bolehUbah || busy}

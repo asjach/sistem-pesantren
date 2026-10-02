@@ -35,14 +35,14 @@ const IKUT = '_ikut';
 /** Tab Urutan dialog Kelola Halaman: susun opsi urut (global, berlaku semua
  *  lembaga), atur arah per opsi maupun per kolom & opsi bawaan. Draft =
  *  salinan penuh opsi tersimpan; Simpan mengganti seluruh daftar. */
-export default function TabUrutan({ tableKey, onTutup }: { tableKey: string; onTutup: () => void }) {
+export default function TabUrutan({ tableKey }: { tableKey: string }) {
   // Kelola urutan = pengaturan global super_admin EFEKTIF (mati saat bertindak).
   const { efektifSuper: bolehSimpan } = useLembagaAktif();
 
   const [data, setData] = useState<PresetUrutData | null>(null);
   const [draft, setDraft] = useState<OpsiUrut[]>([]);
   const [busy, setBusy] = useState(false);
-  const laporKotor = useLaporKotor();
+  const laporKotor = useLaporKotor('urutan');
   /** Draf terakhir yang sama dengan isi server (acuan deteksi kotor). */
   const acuanRef = useRef('[]');
 
@@ -355,8 +355,7 @@ export default function TabUrutan({ tableKey, onTutup }: { tableKey: string; onT
           </Button>
         </span>
         <span className="flex gap-2">
-          <Button type="button" variant="outline" onClick={onTutup}>Tutup</Button>
-          <Button
+                    <Button
             type="button"
             id={`btn_urut_simpan_${tableKey}`}
             disabled={!bolehSimpan || busy}

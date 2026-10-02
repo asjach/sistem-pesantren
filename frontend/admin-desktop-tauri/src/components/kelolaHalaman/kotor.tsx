@@ -1,15 +1,21 @@
-import { createContext, useContext } from 'react';
+import { createContext, useCallback, useContext, useEffect } from 'react';
 
-/** Pelaporan "ada perubahan belum tersimpan" dari tab dialog ke cangkangnya.
+/** Pelaporan "ada perubahan belum tersimpan" dari bagian dialog ke cangkangnya.
  *
- *  Tiap tab menyimpan draf lokal; cangkang perlu tahu apakah draf itu berbeda
- *  dari yang tersimpan, supaya menutup dialog atau berpindah tab tidak
- *  membuang perubahan diam-diam. Tab memanggil `laporKotor(true)` saat ada
- *  perubahan dan `laporKotor(false)` saat kembali bersih. */
-const KotorCtx = createContext<(kotor: boolean) => void>(() => {});
+ *  Semua bagian kini tampil sekaligus (tanpa tab), jadi cangkang perlu tahu
+ *  status tiap bagian dan menggabungkannya: satu bagian kotor = dialog kotor.
+ *  Tiap bagian memakai {@link useLaporKotor} dengan id unik. */
+type Lapor = (id: string, kotor: boolean) => void;
+
+const KotorCtx = createContext<Lapor>(() => {});
 
 export const KotorProvider = KotorCtx.Provider;
 
-export function useLaporKotor(): (kotor: boolean) => void {
-  return useContext(KotorCtx);
+/** Kembalikan pelapor untuk bagian ini. Panggil `lapor(boolean)` saat status
+ *  berubah; saat komponen dilepas, entrinya otomatis dibersihkan. */
+export function useLaporKotor(id: string): (kotor: boolean) => void {
+  const lapor = useContext(KotorCtx);
+  const kirim = useCallback((kotor: boolean) => lapor(id, kotor), [lapor, id]);
+  useEffect(() => () => lapor(id, false), [lapor, id]);
+  return kirim;
 }
