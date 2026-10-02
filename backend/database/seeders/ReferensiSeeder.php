@@ -65,7 +65,7 @@ class ReferensiSeeder extends Seeder
             'ref_desa_kelurahan' => ['Rahayu', 'Lainnya'],
             'ref_alasan_mutasi' => ['Kendala Ekonomi', 'Kendala Akademik', 'Sakit', 'Menikah', 'Ikut pindah orang tua', 'pelanggaran disiplin', 'kurang perhatian orang tua', 'pengaruh teman/lingkungan', 'Hilang/Tidak ada kabar', 'Lainnya'],
             'ref_jenis_dokumen_santri' => $dokSantri,
-            'ref_jenis_dokumen_pegawai' => ['Kartu Keluarga', 'KTP', 'Nomor Rekening', 'NPWP', 'BPJS', 'SK', 'Kartu Anggota'],
+            'ref_jenis_dokumen_pegawai' => ['Kartu Keluarga', 'KTP', 'Nomor Rekening', 'NPWP', 'BPJS', 'SK', 'Kartu Anggota', 'Ijazah', 'Foto', 'Tanda Tangan Elektronik', 'Dokumen Simpatika', 'Dokumen EMISGTK', 'Foto Profil'],
             'ref_status_pernikahan' => ['Lajang', 'Gadis', 'Menikah', 'Duda/Janda'],
             'ref_gol_darah' => ['A', 'B', 'AB', 'O'],
             'ref_jenis_ptk' => ['Pendidik', 'Tenaga Kependidikan'],
