@@ -195,7 +195,7 @@ export default function DialogKelolaHalaman({
   }, []);
   const registri = useRegistriBagian(lapor, daftarSimpan);
   /** Urutan simpan: filter lebih dulu, lalu bagian per tabel. */
-  const URUTAN_BAGIAN = ['filter', 'kolom', 'urutan', 'kontrol'] as const;
+  const URUTAN_BAGIAN = ['kolom', 'urutan', 'kontrol', 'filter'] as const;
   const adaKotor = Object.values(kotorBagian).some(Boolean);
   /** Simpan semua bagian yang berubah, berurutan. */
   const simpanSemua = useCallback(async () => {
@@ -232,7 +232,7 @@ export default function DialogKelolaHalaman({
 
 return (
     <Dialog open={open} onOpenChange={(v) => (v ? onOpenChange(true) : tutup())}>
-      <DialogContent className="!flex h-[85dvh] max-h-[85dvh] flex-col !overflow-hidden sm:max-w-2xl lg:max-w-4xl">
+      <DialogContent className="!flex h-[85dvh] max-h-[85dvh] flex-col !overflow-hidden !p-2 sm:max-w-2xl lg:max-w-4xl [&>[data-slot=dialog-close]]:top-2 [&>[data-slot=dialog-close]]:right-2">
         <BagianProvider value={registri}>
           <DialogHeader className="shrink-0">
             <DialogTitle>Kelola halaman: {judul}</DialogTitle>
@@ -262,18 +262,6 @@ return (
           ) : null}
 
           <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-1">
-            <Bagian
-              id="bagian_filter_halaman"
-              judul="Filter halaman"
-            >
-              <TabFilterHalaman
-                pageKey={pageKey}
-                filterRelevan={konfigurasi.filter}
-                bawaan={filterBawaan}
-                modeBawaan={konfigurasi.mode}
-              />
-            </Bagian>
-
             {tabelTerpilih ? (
               <>
                 <Bagian
@@ -313,6 +301,15 @@ return (
                 Halaman ini tidak mendaftarkan tabel — hanya filter yang bisa diatur.
               </p>
             )}
+
+            <Bagian id="bagian_filter_halaman" judul="Filter">
+              <TabFilterHalaman
+                pageKey={pageKey}
+                filterRelevan={konfigurasi.filter}
+                bawaan={filterBawaan}
+                modeBawaan={konfigurasi.mode}
+              />
+            </Bagian>
           </div>
 
           <DialogFooter className="shrink-0 gap-2 pt-2">
