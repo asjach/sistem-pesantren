@@ -85,6 +85,14 @@ export default function PresetKolom({
         target = daftar.find((p) => p.id === res.data.default_preset_id) ?? null;
       }
       setAktifId(target?.id ?? null);
+      // Susunan "Lengkap kustom" tersimpan (mis. sebagian kolom disembunyikan)
+      // dipakai saat memang tidak ada preset aktif/bawaan. Hanya pada muat
+      // alami - saat pemanggil menentukan `pilihId`, pilihan itu yang berlaku.
+      const kolomKustom = pilihId === undefined && target === null ? res.data.aktif_kolom : null;
+      if (kolomKustom && kolomKustom.length > 0) {
+        terapkan({ kolom: kolomKustom, label: res.data.aktif_label ?? {} } as PresetTabel);
+        return;
+      }
       terapkan(target);
     } catch (e) {
       setPresets([]);
@@ -100,12 +108,7 @@ export default function PresetKolom({
     const segarkan = (e: Event) => {
       const d = (e as CustomEvent).detail;
       if (d?.tableKey !== tableKey) return;
-      // Susunan Lengkap kustom dari dialog Kelola Halaman: terapkan langsung
-      // (server sudah di-nol-kan pemanggil sebelum event dikirim).
-      if (d?.lengkap) {
-        terapkan({ kolom: d.lengkap.keys ?? [], label: d.lengkap.label ?? {} } as PresetTabel);
-        return;
-      }
+      // Muat ulang: susunan aktif (termasuk Lengkap kustom) dibaca dari server.
       void muat();
     };
     window.addEventListener(EVENT_PRESET_BERUBAH, segarkan);

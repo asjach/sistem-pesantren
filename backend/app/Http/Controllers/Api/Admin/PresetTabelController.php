@@ -33,7 +33,7 @@ class PresetTabelController extends Controller
 
         $aktif = PresetTabelAktif::where('user_id', $user->id)
             ->where('table_key', $data['table_key'])
-            ->value('preset_id');
+            ->first();
 
         $bawaan = PresetTabel::where('table_key', $data['table_key'])
             ->where('is_default', true)
@@ -43,8 +43,11 @@ class PresetTabelController extends Controller
             'pesan' => 'Preset kolom dimuat.',
             'data' => [
                 'presets' => $presets,
-                'aktif_preset_id' => $aktif ? (int) $aktif : null,
+                'aktif_preset_id' => $aktif?->preset_id ? (int) $aktif->preset_id : null,
                 'default_preset_id' => $bawaan ? (int) $bawaan : null,
+                // Susunan "Lengkap kustom" (kolom sebagian) saat tanpa preset.
+                'aktif_kolom' => $aktif && $aktif->preset_id === null ? $aktif->kolom : null,
+                'aktif_label' => $aktif && $aktif->preset_id === null ? $aktif->label : null,
             ],
         ]);
     }
@@ -130,9 +133,20 @@ class PresetTabelController extends Controller
             }
         }
 
+        // Saat tanpa preset: simpan susunan kolom kustom (bila ada) supaya
+        // bertahan antar muat ulang. Saat memilih preset, susunan kustom
+        // dibersihkan karena preset yang menentukan kolomnya.
+        $kolom = null;
+        $label = null;
+        if ($presetId === null) {
+            $kolomMentah = array_values(array_unique($data['kolom'] ?? []));
+            $kolom = $kolomMentah === [] ? null : $kolomMentah;
+            $label = $kolom === null ? null : ($this->bersihkanLabel($data['label'] ?? null, $kolom) ?: null);
+        }
+
         PresetTabelAktif::updateOrCreate(
             ['user_id' => $request->user()->id, 'table_key' => $data['table_key']],
-            ['preset_id' => $presetId],
+            ['preset_id' => $presetId, 'kolom' => $kolom, 'label' => $label],
         );
 
         return response()->json(['pesan' => 'Preset aktif disimpan.']);

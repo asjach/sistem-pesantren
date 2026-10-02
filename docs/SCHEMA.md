@@ -660,6 +660,8 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 - `user_id`: FK → users [cascade]
 - `table_key`: string(60)
 - `preset_id`: FK → preset_tabel [null, cascade] — null = Lengkap
+- `kolom`: json [null] — susunan "Lengkap kustom" (daftar key kolom, urut) saat `preset_id` null; null = semua kolom
+- `label`: json [null] — label kustom per key untuk susunan kustom di atas
 - `created_at`, `updated_at`
 - UNIQUE(`user_id`, `table_key`) — ingatan pilihan preset terakhir per user per tabel
 

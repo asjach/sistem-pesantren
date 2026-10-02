@@ -25,6 +25,8 @@ import type { ExcelField } from '../excel/types';
 
 /** Nilai khusus di dropdown preset: bukan id preset, tapi mode semua kolom. */
 const PRESET_LENGKAP = '__lengkap';
+/** Nilai khusus: susunan "Lengkap kustom" yang tersimpan (bukan preset). */
+const PRESET_KUSTOM = '__kustom';
 
 export interface TabKolomProps {
   tableKey: string;
@@ -32,6 +34,8 @@ export interface TabKolomProps {
   fieldKeys: Set<string>;
   presets: PresetTabel[];
   banyakKolom: boolean;
+  /** Susunan "Lengkap kustom" tersimpan (null = semua kolom). */
+  kolomAwal?: string[] | null;
   /** Preset yang dibuka untuk diedit (null = preset baru). Induk me-remount
    *  tab setiap kali preset awal berubah lewat `key`. */
   presetAwal: PresetTabel | null;
@@ -64,6 +68,7 @@ export default function TabKolom({
   fieldKeys,
   presets,
   banyakKolom,
+  kolomAwal = null,
   presetAwal,
   mulaiLengkap,
   onPilihLengkap,
@@ -81,9 +86,14 @@ export default function TabKolom({
   const awalBawaan = useRef(presetAwal ? presetAwal.id === bawaanId : false);
   /** Kolom terpilih BERURUTAN: urutan array = urutan tampil kolom (disimpan
    *  ke `preset_tabel.kolom`). Preset berbeda boleh punya urutan berbeda. */
-  const [kolom, setKolom] = useState<string[]>(
-    () => (presetAwal ? presetAwal.kolom.filter((k) => fieldKeys.has(k)) : mulaiLengkap ? [...fieldKeys] : []),
-  );
+  const [kolom, setKolom] = useState<string[]>(() => {
+    if (presetAwal) return presetAwal.kolom.filter((k) => fieldKeys.has(k));
+    // Lengkap kustom dari server: pakai susunannya, bukan semua kolom.
+    if (kolomAwal && kolomAwal.length > 0) return kolomAwal.filter((k) => fieldKeys.has(k));
+    return mulaiLengkap ? [...fieldKeys] : [];
+  });
+  /** Susunan yang dimuat memang "Lengkap kustom" (bukan semua kolom). */
+  const kustomAwal = editId === null && !!kolomAwal && kolomAwal.length > 0;
   const [cariKolom, setCariKolom] = useState('');
   const [busy, setBusy] = useState(false);
   const laporKotor = useLaporKotor();
@@ -286,12 +296,13 @@ export default function TabKolom({
         <Field className="sm:max-w-56">
           <FieldLabel htmlFor={`select_preset_${tableKey}`}>Preset aktif</FieldLabel>
           <Select
-            value={editId === null ? PRESET_LENGKAP : String(editId)}
+            value={editId === null ? (kustomAwal ? PRESET_KUSTOM : PRESET_LENGKAP) : String(editId)}
             onValueChange={(v) => {
               if (v === PRESET_LENGKAP) {
                 onPilihLengkap();
                 return;
               }
+              if (v === PRESET_KUSTOM) return;
               const p = presets.find((x) => x.id === Number(v));
               if (p) onPilihPreset(p);
             }}
@@ -301,6 +312,7 @@ export default function TabKolom({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value={PRESET_LENGKAP}>Lengkap (semua kolom)</SelectItem>
+              {kustomAwal ? <SelectItem value={PRESET_KUSTOM}>Lengkap (kustom)</SelectItem> : null}
               {presets.map((p) => (
                 <SelectItem key={p.id} value={String(p.id)}>
                   {p.id === bawaanId ? `${p.nama} (bawaan)` : p.nama}

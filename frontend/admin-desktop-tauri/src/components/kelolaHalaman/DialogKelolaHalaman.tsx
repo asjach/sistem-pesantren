@@ -48,9 +48,9 @@ const TAB_META: { kunci: TabHalaman; label: string }[] = [
   { kunci: 'kontrol', label: 'Toolbar' },
 ];
 
-/** Kabari grid tabel terkait agar memuat ulang preset kolomnya. */
-function kabariPreset(tableKey: string, lengkap?: { keys: string[]; label: Record<string, string> }) {
-  window.dispatchEvent(new CustomEvent(EVENT_PRESET_BERUBAH, { detail: lengkap ? { tableKey, lengkap } : { tableKey } }));
+/** Kabari grid tabel terkait agar memuat ulang preset/susunan kolomnya. */
+function kabariPreset(tableKey: string) {
+  window.dispatchEvent(new CustomEvent(EVENT_PRESET_BERUBAH, { detail: { tableKey } }));
 }
 
 /** Isi tab Kolom untuk satu tabel: lem preset kolom (cermin logika
@@ -72,9 +72,13 @@ function KelolaKolomHalaman({
   // `lengkap: true` = mode "Lengkap (semua kolom)": keadaan awal sebelum data
   // preset termuat. Tanpa ini tab Kolom terbuka dengan 0 kolom terpilih, dan
   // tombol Simpan mati — terlihat seperti form yang rusak.
-  const [kelola, setKelola] = useState<{ preset: PresetTabel | null; lengkap: boolean; nonce: number }>({
-    preset: null, lengkap: true, nonce: 0,
-  });
+  const [kelola, setKelola] = useState<{
+    preset: PresetTabel | null;
+    lengkap: boolean;
+    /** Susunan "Lengkap kustom" tersimpan (null = semua kolom). */
+    kolomAwal: string[] | null;
+    nonce: number;
+  }>({ preset: null, lengkap: true, kolomAwal: null, nonce: 0 });
 
   const fieldKeys = useMemo(() => new Set(fields.map((f) => f.key)), [fields]);
   const banyakKolom = fields.length > 30;
@@ -88,7 +92,8 @@ function KelolaKolomHalaman({
       // bila ada, kalau tidak "Lengkap (semua kolom)". Dialog jadi mencerminkan
       // isi tabel, bukan daftar kosong.
       const aktif = res.data.presets.find((p) => p.id === res.data.aktif_preset_id) ?? null;
-      setKelola((s) => ({ preset: aktif, lengkap: aktif === null, nonce: s.nonce + 1 }));
+      const kolomKustom = aktif === null ? res.data.aktif_kolom ?? null : null;
+      setKelola((s) => ({ preset: aktif, lengkap: aktif === null, kolomAwal: kolomKustom, nonce: s.nonce + 1 }));
     } catch (e) {
       setPresets([]);
       setBawaanId(null);
@@ -97,21 +102,22 @@ function KelolaKolomHalaman({
   }, [tableKey]);
 
   useEffect(() => {
-    setKelola({ preset: null, lengkap: true, nonce: 0 });
+    setKelola({ preset: null, lengkap: true, kolomAwal: null, nonce: 0 });
     void muat();
   }, [muat]);
 
-  /** Terapkan susunan Lengkap kustom langsung (tanpa menyimpan preset). */
+  /** Simpan susunan "Lengkap kustom" (tanpa preset bernama) ke server supaya
+   *  bertahan antar muat ulang, lalu minta grid memuatnya. */
   const pakaiLengkap = useCallback((keys: string[], label: Record<string, string>) => {
     const efektif = keys.filter((k) => fieldKeys.has(k));
     const labelBersih: Record<string, string> = {};
     for (const [k, v] of Object.entries(label)) {
       if (fieldKeys.has(k) && v.trim() !== '') labelBersih[k] = v.trim();
     }
-    void setPresetAktif(tableKey, null)
-      .then(() => kabariPreset(tableKey, { keys: efektif, label: labelBersih }))
+    void setPresetAktif(tableKey, null, efektif, Object.keys(labelBersih).length > 0 ? labelBersih : null)
+      .then(() => kabariPreset(tableKey))
       .catch((e: unknown) => toast.error(errorMessage(e)));
-    toast.success('Susunan kolom diterapkan.');
+    toast.success('Susunan kolom disimpan.');
   }, [fieldKeys, tableKey]);
 
   return (
@@ -119,14 +125,15 @@ function KelolaKolomHalaman({
       key={kelola.nonce}
       tableKey={tableKey}
       fields={fields}
+      kolomAwal={kelola.kolomAwal}
       fieldKeys={fieldKeys}
       presets={presets}
       banyakKolom={banyakKolom}
       presetAwal={kelola.preset}
       mulaiLengkap={kelola.lengkap}
-      onPilihLengkap={() => setKelola((s) => ({ preset: null, lengkap: true, nonce: s.nonce + 1 }))}
+      onPilihLengkap={() => setKelola((s) => ({ preset: null, lengkap: true, kolomAwal: null, nonce: s.nonce + 1 }))}
       bawaanId={bawaanId}
-      onPilihPreset={(p) => setKelola((s) => ({ preset: p, lengkap: false, nonce: s.nonce + 1 }))}
+      onPilihPreset={(p) => setKelola((s) => ({ preset: p, lengkap: false, kolomAwal: null, nonce: s.nonce + 1 }))}
       onTersimpan={async (id) => {
         await setPresetAktif(tableKey, id);
         kabariPreset(tableKey);

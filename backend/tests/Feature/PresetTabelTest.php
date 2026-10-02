@@ -207,4 +207,38 @@ class PresetTabelTest extends TestCase
         $this->actingAs($pusat, 'sanctum')->getJson('/api/admin/preset-tabel?table_key=psb')
             ->assertJsonPath('data.default_preset_id', null);
     }
+    public function test_set_aktif_tanpa_preset_menyimpan_susunan_kolom_kustom(): void
+    {
+        $pusat = $this->makeUser('super_admin');
+
+        // Simpan susunan "Lengkap kustom" (tanpa preset) -> bertahan di index.
+        $this->actingAs($pusat, 'sanctum')->postJson('/api/admin/preset-tabel/aktif', [
+            'table_key' => 'santri',
+            'preset_id' => null,
+            'kolom' => ['nama', 'jk'],
+        ])->assertStatus(200);
+
+        $this->actingAs($pusat, 'sanctum')->getJson('/api/admin/preset-tabel?table_key=santri')
+            ->assertJsonPath('data.aktif_preset_id', null)
+            ->assertJsonPath('data.aktif_kolom', ['nama', 'jk']);
+
+        // Memilih preset membersihkan susunan kustom (preset yang menentukan).
+        $id = PresetTabel::create([
+            'jenjang' => null, 'table_key' => 'santri', 'nama' => 'ringkas', 'kolom' => ['nama'],
+        ])->id;
+        $this->actingAs($pusat, 'sanctum')->postJson('/api/admin/preset-tabel/aktif', [
+            'table_key' => 'santri', 'preset_id' => $id,
+        ])->assertStatus(200);
+        $this->actingAs($pusat, 'sanctum')->getJson('/api/admin/preset-tabel?table_key=santri')
+            ->assertJsonPath('data.aktif_preset_id', $id)
+            ->assertJsonPath('data.aktif_kolom', null);
+
+        // Lengkap tanpa kolom = semua kolom -> susunan kustom kosong.
+        $this->actingAs($pusat, 'sanctum')->postJson('/api/admin/preset-tabel/aktif', [
+            'table_key' => 'santri', 'preset_id' => null,
+        ])->assertStatus(200);
+        $this->actingAs($pusat, 'sanctum')->getJson('/api/admin/preset-tabel?table_key=santri')
+            ->assertJsonPath('data.aktif_kolom', null);
+    }
+
 }

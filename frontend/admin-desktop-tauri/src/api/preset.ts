@@ -16,7 +16,14 @@ export interface PresetTabel {
 export function listPresetTabel(tableKey: string) {
   return api<{
     pesan: string;
-    data: { presets: PresetTabel[]; aktif_preset_id: number | null; default_preset_id: number | null };
+    data: {
+      presets: PresetTabel[];
+      aktif_preset_id: number | null;
+      default_preset_id: number | null;
+      /** Susunan "Lengkap kustom" saat tanpa preset (null = semua kolom). */
+      aktif_kolom: string[] | null;
+      aktif_label: Record<string, string> | null;
+    };
   }>(
     `/admin/preset-tabel?table_key=${encodeURIComponent(tableKey)}`,
   );
@@ -48,10 +55,21 @@ export function deletePresetTabel(id: number) {
   return api<{ pesan: string }>(`/admin/preset-tabel/${id}`, { method: 'DELETE' });
 }
 
-export function setPresetAktif(tableKey: string, presetId: number | null) {
+/** Simpan pilihan preset aktif. Saat `presetId` null, `kolom`+`label` (bila
+ *  ada) menyimpan susunan "Lengkap kustom" supaya bertahan antar muat ulang. */
+export function setPresetAktif(
+  tableKey: string,
+  presetId: number | null,
+  kolom?: string[] | null,
+  label?: Record<string, string> | null,
+) {
   return api<{ pesan: string }>('/admin/preset-tabel/aktif', {
     method: 'POST',
-    body: JSON.stringify({ table_key: tableKey, preset_id: presetId }),
+    body: JSON.stringify({
+      table_key: tableKey,
+      preset_id: presetId,
+      ...(presetId === null ? { kolom: kolom ?? [], label: label ?? null } : {}),
+    }),
   });
 }
 
