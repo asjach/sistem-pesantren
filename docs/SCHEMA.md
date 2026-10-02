@@ -761,11 +761,12 @@ Standar tampilan per lembaga (tema/tipografi/grid/preset aktif), disebar super_a
 - `id` PK
 - `pegawai_id`: FK → pegawai [cascade]
 - `jenis_dokumen_pegawai`: string [null] — ref_jenis_dokumen_pegawai
+- `lembaga`: FK → lembaga [null] — konteks pemakaian; kunci rangkap (pegawai, jenis, lembaga)
+- `is_active`: boolean [default true] — satu aktif per kunci (dokumen terakhir)
 - `nama_file`: string [null] — nama template berkas (tampil/unduh)
 - `penyimpanan`: string(10) [default 'server'] — lokasi byte: server|lokal|test|cermin
 - `sinkron_hash`: string(64) [null] — hash isi terakhir yang sama di kedua sisi
 - `tersinkron_pada`: timestamp [null] — waktu penyamaan terakhir
-- `status_verifikasi`: enum(menunggu|valid|ditolak) [default 'menunggu']
 - `catatan`: text [null]
 - `created_at`, `updated_at`
 - INDEX(`pegawai_id`, `jenis_dokumen_pegawai`)

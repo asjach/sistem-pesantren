@@ -14,9 +14,9 @@ use Illuminate\Validation\ValidationException;
 /**
  * Import daftar dokumen (checklist) per baris — dipakai tiga halaman dokumen:
  * santri / pegawai (guru) / lembaga. Yang diimport adalah DATA dokumen
- * (pemilik + jenis + status + catatan), bukan berkas fisik; baris cocok
- * diperbarui hanya kolom terisi. Mode kering ($kering = true) menjalankan
- * semua cek tanpa menulis.
+ * (pemilik + jenis + catatan; status hanya lembaga), bukan berkas fisik;
+ * baris cocok diperbarui hanya kolom terisi. Mode kering ($kering = true)
+ * menjalankan semua cek tanpa menulis.
  *
  * Kunci pemilik per tipe:
  * - santri : nis_lokal + jenjang (unik per lembaga di DB).
@@ -86,15 +86,20 @@ class DokumenImporService extends ImporPotongan
             return;
         }
 
-        $status = $this->normalisasiStatus($baris['status_verifikasi'] ?? null);
-        if ($status === false) {
-            $this->fail($no, 'status_verifikasi', "Status '{$baris['status_verifikasi']}' tidak dikenal (isi Menunggu/Valid/Ditolak).");
+        // Status verifikasi hanya tersisa di tipe lembaga (santri/pegawai tanpa
+        // kolom status).
+        $status = null;
+        if ($this->tipe === 'lembaga') {
+            $status = $this->normalisasiStatus($baris['status_verifikasi'] ?? null);
+            if ($status === false) {
+                $this->fail($no, 'status_verifikasi', "Status '{$baris['status_verifikasi']}' tidak dikenal (isi Menunggu/Valid/Ditolak).");
 
-            return;
+                return;
+            }
         }
 
         match ($this->tipe) {
-            'pegawai' => $this->prosesPegawai($baris, $no, $jenjang, $jenis, $status, $catatan, $kering),
+            'pegawai' => $this->prosesPegawai($baris, $no, $jenjang, $jenis, $catatan, $kering),
             'lembaga' => $this->prosesLembaga($baris, $no, $jenjang, $jenis, $status, $catatan, $kering),
             default => throw ValidationException::withMessages(['tipe' => 'Tipe dokumen tidak dikenal.']),
         };
@@ -199,19 +204,32 @@ class DokumenImporService extends ImporPotongan
     }
 
     /**
-     * Pegawai: kunci (pegawai, jenis_dokumen_pegawai).
+     * Pegawai: kunci (pegawai, jenis_dokumen_pegawai, lembaga). `lembaga`
+     * konteks pemakaian (opsional; harus terdaftar bila diisi). Baris yang
+     * diproses menjadi aktif; saudara se-kunci dinonaktifkan (cermin santri).
      *
      * @param  array<string, mixed>  $baris
      */
-    protected function prosesPegawai(array $baris, int $no, string $jenjang, string $jenis, ?string $status, ?string $catatan, bool $kering): void
+    protected function prosesPegawai(array $baris, int $no, string $jenjang, string $jenis, ?string $catatan, bool $kering): void
     {
         $pegawai = $this->cariPegawai($baris, $jenjang, $no);
         if ($pegawai === null) {
             return;
         }
 
-        $tabel = DB::table('dokumen_pegawai');
-        $lama = $tabel->where('pegawai_id', $pegawai->id)->where('jenis_dokumen_pegawai', $jenis)->first();
+        $lembaga = mb_strtoupper($this->bersihkanTeks($baris['lembaga'] ?? ''));
+        $lembaga = $lembaga !== '' ? $lembaga : null;
+        if ($lembaga !== null && ! Lembaga::whereKey($lembaga)->exists()) {
+            $this->fail($no, 'lembaga', 'Lembaga tidak valid (isi jenjang, mis. MI/MD).');
+
+            return;
+        }
+
+        $lama = DB::table('dokumen_pegawai')
+            ->where('pegawai_id', $pegawai->id)
+            ->where('jenis_dokumen_pegawai', $jenis)
+            ->where('lembaga', $lembaga)
+            ->first();
 
         if ($kering) {
             $lama === null ? $this->dibuat++ : $this->diperbarui++;
@@ -220,37 +238,34 @@ class DokumenImporService extends ImporPotongan
             return;
         }
 
-        $data = [
-            'status_verifikasi' => $status ?? 'menunggu',
-            'catatan' => $catatan,
-        ];
         if ($lama === null) {
-            DB::table('dokumen_pegawai')->insert([
+            $id = DB::table('dokumen_pegawai')->insertGetId([
                 'pegawai_id' => $pegawai->id,
                 'jenis_dokumen_pegawai' => $jenis,
-                'status_verifikasi' => $status !== '' && $status !== null ? $status : 'menunggu',
+                'lembaga' => $lembaga,
                 'catatan' => $catatan,
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
             $this->dibuat++;
         } else {
-            $ubah = [];
-            if ($status !== null && $status !== '') {
-                $ubah['status_verifikasi'] = $status;
-            }
+            $id = $lama->id;
+            $ubah = ['is_active' => true];
             if ($catatan !== null) {
                 $ubah['catatan'] = $catatan;
             }
-            if ($ubah !== []) {
-                $ubah['updated_at'] = now();
-                DB::table('dokumen_pegawai')->where('id', $lama->id)->update($ubah);
-                $this->diperbarui++;
-            } else {
-                $this->dilewati++;
-            }
+            $ubah['updated_at'] = now();
+            DB::table('dokumen_pegawai')->where('id', $id)->update($ubah);
+            $this->diperbarui++;
         }
-        unset($data);
+
+        // Satu aktif per kunci: baris ini yang terakhir.
+        DB::table('dokumen_pegawai')
+            ->where('pegawai_id', $pegawai->id)
+            ->where('jenis_dokumen_pegawai', $jenis)
+            ->where('lembaga', $lembaga)
+            ->where('id', '!=', $id)
+            ->update(['is_active' => false]);
 
         $this->valid++;
     }

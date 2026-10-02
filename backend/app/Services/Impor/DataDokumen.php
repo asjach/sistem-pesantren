@@ -17,8 +17,8 @@ use Illuminate\Support\Facades\DB;
  * kembali. Kunci baris mengikuti kunci import (santri: nis_lokal;
  * pegawai: pegawai_id/nipp/nama; lembaga: jenjang).
  *
- * Status dikirim berlabel (Menunggu/Valid/Ditolak) seperti contoh template;
- * import menerimanya tanpa peduli kapital.
+ * Status (khusus lembaga) dikirim berlabel (Menunggu/Valid/Ditolak) seperti
+ * contoh template; import menerimanya tanpa peduli kapital.
  */
 class DataDokumen
 {
@@ -32,6 +32,9 @@ class DataDokumen
             // Kolom import + info baca-saja (parser import mengabaikan
             // kolom tak dikenal, jadi berkas ini tetap bisa diimport kembali).
             return [...DokumenTemplateExport::kolom($this->tipe), 'nama_lengkap', 'is_active'];
+        }
+        if ($this->tipe === 'pegawai') {
+            return [...DokumenTemplateExport::kolom($this->tipe), 'is_active'];
         }
 
         return DokumenTemplateExport::kolom($this->tipe);
@@ -113,8 +116,9 @@ class DataDokumen
                 (string) ($d->nama_lengkap ?? ''),
                 (string) $tempat[$d->pegawai_id]->jenjang,
                 (string) $d->jenis_dokumen_pegawai,
-                $this->status($d->status_verifikasi),
+                (string) ($d->lembaga ?? ''),
                 (string) ($d->catatan ?? ''),
+                $d->is_active ? 'Ya' : 'Tidak',
             ])
             ->values()
             ->all();

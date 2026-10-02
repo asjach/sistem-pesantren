@@ -123,8 +123,8 @@ class DokumenController extends Controller
                     ->orWhere('dokumen_pegawai.jenis_dokumen_pegawai', 'like', "%{$q}%")
                     ->orWhere('pegawai.nipp', 'like', "%{$q}%"));
             }
-            if ($status) {
-                $query->where('dokumen_pegawai.status_verifikasi', $status);
+            if ($request->filled('pegawai_id')) {
+                $query->where('dokumen_pegawai.pegawai_id', (int) $request->input('pegawai_id'));
             }
             $hasil = $query->orderBy('pegawai.nama_lengkap')->orderBy('dokumen_pegawai.id')
                 ->paginate($this->perPage($request));
@@ -203,17 +203,22 @@ class DokumenController extends Controller
                 $id = DB::table('dokumen_pegawai')->insertGetId([
                     'pegawai_id' => $data['pegawai_id'],
                     'jenis_dokumen_pegawai' => $data['jenis_dokumen'],
+                    'lembaga' => $data['lembaga'] ?? null,
                     'nama_file' => $nama,
                     'penyimpanan' => $tujuan,
-                    'status_verifikasi' => $data['status_verifikasi'] ?? 'menunggu',
                     'catatan' => $data['catatan'] ?? null,
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
-                $row = DB::table('dokumen_pegawai')->find($id);
-                $row->id = $row->id;
+                // Satu aktif per kunci: baris baru yang terakhir.
+                DB::table('dokumen_pegawai')
+                    ->where('pegawai_id', $data['pegawai_id'])
+                    ->where('jenis_dokumen_pegawai', $data['jenis_dokumen'])
+                    ->where('lembaga', $data['lembaga'] ?? null)
+                    ->where('id', '!=', $id)
+                    ->update(['is_active' => false]);
 
-                return $row;
+                return DB::table('dokumen_pegawai')->find($id);
             }
 
             return DokumenLembaga::create([
@@ -236,11 +241,11 @@ class DokumenController extends Controller
         $model = $this->temukan($tipe, $id, $request);
         $data = $request->validate([
             'jenis_dokumen' => ['sometimes', 'string', 'max:100'],
-            // Kolom status hanya ada di tabel pegawai/lembaga.
-            'status_verifikasi' => $tipe === 'santri' ? ['prohibited'] : ['sometimes', 'in:menunggu,valid,ditolak'],
-            // Konteks lembaga + penanda aktif hanya ada di tabel santri.
-            'lembaga' => $tipe === 'santri' ? ['sometimes', 'nullable', 'string', 'exists:lembaga,jenjang'] : ['prohibited'],
-            'is_active' => $tipe === 'santri' ? ['sometimes', 'boolean'] : ['prohibited'],
+            // Kolom status hanya tersisa di tabel lembaga.
+            'status_verifikasi' => $tipe === 'lembaga' ? ['sometimes', 'in:menunggu,valid,ditolak'] : ['prohibited'],
+            // Konteks lembaga + penanda aktif ada di tabel santri & pegawai.
+            'lembaga' => in_array($tipe, ['santri', 'pegawai'], true) ? ['sometimes', 'nullable', 'string', 'exists:lembaga,jenjang'] : ['prohibited'],
+            'is_active' => in_array($tipe, ['santri', 'pegawai'], true) ? ['sometimes', 'boolean'] : ['prohibited'],
             // Nama berkas hasil tulis arsip perangkat (disanitasi
             // basename; byte ditulis langsung oleh aplikasi desktop).
             'nama_file' => ['sometimes', 'string', 'max:255'],
@@ -256,13 +261,13 @@ class DokumenController extends Controller
         if (isset($data['jenis_dokumen'])) {
             $ubah[$kolomJenis] = $data['jenis_dokumen'];
         }
-        if (isset($data['status_verifikasi']) && $tipe !== 'santri') {
+        if (isset($data['status_verifikasi']) && $tipe === 'lembaga') {
             $ubah['status_verifikasi'] = $data['status_verifikasi'];
         }
-        if ($tipe === 'santri' && array_key_exists('lembaga', $data)) {
+        if (in_array($tipe, ['santri', 'pegawai'], true) && array_key_exists('lembaga', $data)) {
             $ubah['lembaga'] = $data['lembaga'];
         }
-        if ($tipe === 'santri' && array_key_exists('is_active', $data)) {
+        if (in_array($tipe, ['santri', 'pegawai'], true) && array_key_exists('is_active', $data)) {
             $ubah['is_active'] = $data['is_active'];
         }
         if (isset($data['nama_file'])) {
@@ -325,6 +330,16 @@ class DokumenController extends Controller
         // stdClass (tabel pegawai tanpa model).
         $ubah['updated_at'] = now();
         DB::table('dokumen_pegawai')->where('id', $id)->update($ubah);
+        // Invarian satu aktif per kunci untuk pegawai (cermin santri).
+        if ((bool) ($ubah['is_active'] ?? false)) {
+            $segar = DB::table('dokumen_pegawai')->find($id);
+            DB::table('dokumen_pegawai')
+                ->where('pegawai_id', $segar->pegawai_id)
+                ->where('jenis_dokumen_pegawai', $segar->jenis_dokumen_pegawai)
+                ->where('lembaga', $segar->lembaga)
+                ->where('id', '!=', $id)
+                ->update(['is_active' => false]);
+        }
 
         return response()->json(['pesan' => 'Dokumen diubah.', 'data' => DB::table('dokumen_pegawai')->find($id)]);
     }
@@ -642,10 +657,10 @@ class DokumenController extends Controller
             'pegawai_id' => $tipe === 'pegawai' ? $aturanPemilik : ['prohibited'],
             'jenjang' => $tipe === 'lembaga' ? $aturanPemilik : ($tipe === 'pegawai' ? ['required', 'string', 'exists:lembaga,jenjang'] : ['nullable', 'string']),
             'jenis_dokumen' => ['required', 'string', 'max:100'],
-            // Kolom status hanya ada di tabel pegawai/lembaga.
-            'status_verifikasi' => $tipe === 'santri' ? ['prohibited'] : ['sometimes', 'in:menunggu,valid,ditolak'],
-            // Konteks lembaga pemakaian hanya ada di tabel santri.
-            'lembaga' => $tipe === 'santri' ? ['sometimes', 'nullable', 'string', 'exists:lembaga,jenjang'] : ['prohibited'],
+            // Kolom status hanya tersisa di tabel lembaga.
+            'status_verifikasi' => $tipe === 'lembaga' ? ['sometimes', 'in:menunggu,valid,ditolak'] : ['prohibited'],
+            // Konteks lembaga pemakaian ada di tabel santri & pegawai.
+            'lembaga' => in_array($tipe, ['santri', 'pegawai'], true) ? ['sometimes', 'nullable', 'string', 'exists:lembaga,jenjang'] : ['prohibited'],
             'catatan' => ['nullable', 'string'],
             'file' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:10240'],
             // Simpanan lokal/test (dev): tanpa byte, nama dicadangkan untuk arsip perangkat.
