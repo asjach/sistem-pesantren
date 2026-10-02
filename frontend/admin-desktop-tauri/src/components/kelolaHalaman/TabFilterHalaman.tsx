@@ -169,8 +169,8 @@ export default function TabFilterHalaman({
               title={`Tampilkan filter ${label} — ${nilai[kunci] ? 'tampil' : 'tersembunyi'}`}
               onCheckedChange={(c) => setNilai((v) => ({ ...v, [kunci]: !!c }))}
             />
-            <span className="min-w-0 flex-1 truncate text-xs" title={`${label} — ${ket}`}>
-              {label} <span className="text-muted-foreground">— {ket}</span>
+            <span className="min-w-0 flex-1 truncate text-xs" title={ket}>
+              {label}
             </span>
             <label
               htmlFor={`switch_mode_filter_halaman_${pageKey}_${kunci}`}
@@ -195,11 +195,6 @@ export default function TabFilterHalaman({
           </div>
         ))}
       </div>
-      <p className="text-xs text-muted-foreground">
-        {adaSimpanan
-          ? 'Halaman ini memakai pengaturan tersimpan (menang atas bawaan kode).'
-          : 'Belum ada pengaturan tersimpan — halaman ikut bawaan kode.'}
-      </p>
 
       <DialogFooter className="mt-auto gap-2 sm:justify-between">
         <Button

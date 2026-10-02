@@ -8,7 +8,6 @@ import {
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -135,24 +134,18 @@ function KelolaKolomHalaman({
   );
 }
 
-/** Bagian dialog: judul + keterangan singkat, isi mengikuti (tanpa tab).
+/** Bagian dialog: judul + isi, tanpa tab.
  *  WAJIB di scope modul: kalau didefinisikan di dalam komponen, identitasnya
  *  berubah tiap render sehingga isi bagian di-remount dan state lokalnya
  *  (centang, penanda kotor) selalu kembali ke awal. */
-function Bagian({ id, judul, keterangan, children }: {
+function Bagian({ id, judul, children }: {
   id: string;
   judul: string;
-  keterangan: string;
   children: ReactNode;
 }) {
   return (
     <section id={id} aria-label={judul} className="flex flex-col gap-1.5">
-      <div className="flex items-baseline gap-2 border-b pb-1">
-        <h3 className="shrink-0 text-xs font-semibold">{judul}</h3>
-        <p className="min-w-0 truncate text-[11px] text-muted-foreground" title={keterangan}>
-          {keterangan}
-        </p>
-      </div>
+      <h3 className="border-b pb-1 text-xs font-semibold">{judul}</h3>
       {children}
     </section>
   );
@@ -243,10 +236,6 @@ return (
         <BagianProvider value={registri}>
           <DialogHeader className="shrink-0">
             <DialogTitle>Kelola halaman: {judul}</DialogTitle>
-            <DialogDescription>
-              Filter berlaku untuk bilah atas; bagian lain per tabel. Tekan
-              <span className="font-medium"> Simpan</span> untuk menyimpan yang diubah.
-            </DialogDescription>
           </DialogHeader>
 
           {tabel.length > 1 ? (
@@ -276,7 +265,6 @@ return (
             <Bagian
               id="bagian_filter_halaman"
               judul="Filter halaman"
-              keterangan="Filter global yang tampil di bilah atas halaman ini."
             >
               <TabFilterHalaman
                 pageKey={pageKey}
@@ -291,7 +279,6 @@ return (
                 <Bagian
                   id="bagian_kolom_tabel"
                   judul="Kolom"
-                  keterangan="Kolom yang tampil dan urutannya (seret untuk mengurutkan)."
                 >
                   {tabelTerpilih.fields ? (
                     <KelolaKolomHalaman
@@ -310,7 +297,6 @@ return (
                 <Bagian
                   id="bagian_urutan_tabel"
                   judul="Urutan"
-                  keterangan="Opsi urutkan dan arah tiap kolom pada toolbar tabel."
                 >
                   <TabUrutan key={tabelTerpilih.key} tableKey={tabelTerpilih.key} />
                 </Bagian>
@@ -318,7 +304,6 @@ return (
                 <Bagian
                   id="bagian_toolbar_tabel"
                   judul="Toolbar"
-                  keterangan="Kontrol yang tampil dan lebar masing-masing."
                 >
                   <TabKontrol key={tabelTerpilih.key} tableKey={tabelTerpilih.key} />
                 </Bagian>

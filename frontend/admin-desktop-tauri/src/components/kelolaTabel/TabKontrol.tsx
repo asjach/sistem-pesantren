@@ -7,6 +7,7 @@ import {
 } from '@/api/toolbarPreset';
 import { useLembagaAktif } from '@/lembagaAktif';
 import { useBagian } from '@/components/kelolaHalaman/kotor';
+import { labelKolom } from '@/lib/labelKolom';
 import { Button } from '@/components/ui/button';
 import { DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -14,6 +15,12 @@ import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { EVENT_TOOLBAR_BERUBAH, KONTROL_TOOLBAR, LEBAR_BAWAHAN_FILTER, LEBAR_BAWAHAN_TOOLBAR, bacaLebarFilter, bacaLebarToolbar, bacaVisToolbar, type KontrolLebar, type VisToolbar, type LebarToolbar } from './jenis';
 import { daftarFilter, kunciFilterBawaan } from '@/components/excel/lebarFilter';
+
+/** Peringatan khusus kontrol "Filter halaman" (dipindah ke tooltip agar tidak
+ *  memakan satu baris penuh di dialog). */
+const PERINGATAN_FILTER_HALAMAN =
+  'Menyembunyikan “Filter halaman” dapat mengunci alur yang bergantung padanya '
+  + '(mis. pilihan kelas tujuan di Riwayat Belajar).';
 
 /** Tab Toolbar dialog Kelola Halaman: tampil/sembunyikan kontrol toolbar
  *  generik per tabel — GLOBAL untuk seluruh lembaga, khusus super_admin.
@@ -147,9 +154,6 @@ export default function TabKontrol({ tableKey }: { tableKey: string }) {
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-2">
-      <p className="truncate rounded-md border border-amber-500/40 px-2 py-1 text-[11px] text-amber-600 dark:text-amber-400" title="Menyembunyikan “Filter halaman” dapat mengunci alur yang bergantung padanya (mis. pilihan kelas tujuan di Riwayat Belajar).">
-        Awas: menyembunyikan “Filter halaman” dapat mengunci alur yang bergantung padanya.
-      </p>
       {!bolehUbah ? (
         <p className="rounded-md border px-3 py-2 text-xs text-muted-foreground">
           Hanya super_admin yang dapat mengubah visibilitas kontrol.
@@ -168,8 +172,11 @@ export default function TabKontrol({ tableKey }: { tableKey: string }) {
               disabled={!bolehUbah || busy}
               onCheckedChange={(c) => setVis((v) => ({ ...v, [kunci]: !!c }))}
             />
-            <span className="min-w-0 flex-1 truncate text-xs" title={`${label} — ${ket}`}>
-              {label} <span className="text-muted-foreground">— {ket}</span>
+            <span
+              className="min-w-0 flex-1 truncate text-xs"
+              title={kunci === 'filter' ? `${label} — ${PERINGATAN_FILTER_HALAMAN}` : ket}
+            >
+              {label}
             </span>
             {punyaLebar ? (
               <span className="flex shrink-0 items-center gap-1" onClick={(e) => e.preventDefault()}>
@@ -196,16 +203,15 @@ export default function TabKontrol({ tableKey }: { tableKey: string }) {
 
       {daftar.length > 0 ? (
         <>
-          <p className="text-sm font-medium">Lebar combobox filter halaman</p>
+          <p className="text-xs font-semibold">Lebar combobox filter halaman</p>
           <div className="flex flex-col gap-1 overflow-auto rounded-md border p-1">
             {daftar.map(({ kunci, label, bawaanPx }) => (
               <div
                 key={kunci}
-                className="flex items-center gap-3 rounded-md px-2 py-1.5 hover:bg-accent/40"
+                className="flex items-center gap-2 rounded-md px-2 py-1 hover:bg-accent/40"
               >
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm" title={label}>{label}</span>
-                  <span className="block truncate text-xs text-muted-foreground" title={kunci}>{kunci}</span>
+                <span className="min-w-0 flex-1 truncate text-xs" title={kunci}>
+                  {labelKolom(label) || labelKolom(kunci)}
                 </span>
                 <span className="flex shrink-0 items-center gap-1">
                   <Input
