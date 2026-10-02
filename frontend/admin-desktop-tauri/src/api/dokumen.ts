@@ -29,7 +29,7 @@ export interface DokumenRow {
   lembaga?: string | null;
   /** Penanda aktif (santri; satu per kunci). */
   is_active?: boolean;
-  /** Ada di baris pegawai/lembaga; tabel santri sudah tanpa kolom ini. */
+  /** Ada di baris lembaga; tabel santri & pegawai sudah tanpa kolom ini. */
   status_verifikasi?: 'menunggu' | 'valid' | 'ditolak';
   catatan: string | null;
   unduh_url: string;
@@ -54,6 +54,7 @@ export function listDokumen(tipe: TipeDokumen, params: {
   q?: string;
   status_verifikasi?: string;
   santri_id?: number;
+  pegawai_id?: number;
   page?: number;
   per_page?: number;
   signal?: AbortSignal;
@@ -63,6 +64,7 @@ export function listDokumen(tipe: TipeDokumen, params: {
   if (params.q) q.set('q', params.q);
   if (params.status_verifikasi) q.set('status_verifikasi', params.status_verifikasi);
   if (params.santri_id != null) q.set('santri_id', String(params.santri_id));
+  if (params.pegawai_id != null) q.set('pegawai_id', String(params.pegawai_id));
   q.set('page', String(params.page ?? 1));
   q.set('per_page', String(params.per_page ?? 50));
   return api<Paginate<DokumenRow>>(`${base(tipe)}?${q.toString()}`, { signal: params.signal });
@@ -142,7 +144,7 @@ export async function ambilByteDokumen(tipe: TipeDokumen, id: number): Promise<U
 
 export const KOLOM_IMPORT_DOKUMEN: Record<TipeDokumen, string[]> = {
   santri: ['nis_lokal', 'jenis_dokumen', 'lembaga', 'nama_file', 'penyimpanan', 'catatan'],
-  pegawai: ['pegawai_id', 'nipp', 'nama_lengkap', 'jenjang', 'jenis_dokumen', 'status_verifikasi', 'catatan'],
+  pegawai: ['pegawai_id', 'nipp', 'nama_lengkap', 'jenjang', 'jenis_dokumen', 'lembaga', 'catatan'],
   lembaga: ['jenjang', 'jenis_dokumen', 'status_verifikasi', 'catatan'],
 };
 

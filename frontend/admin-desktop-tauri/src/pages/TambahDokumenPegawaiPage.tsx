@@ -43,7 +43,8 @@ import { toast } from 'sonner';
 
 /** Halaman Tambah Dokumen Pegawai — dua kolom: form (400px) + viewer berkas.
  *  Alur: klik nama pegawai di tabel → pilih lembaga penempatan (wajib) →
- *  pilih jenis dokumen → pilih berkas (catatan opsional) → Simpan.
+ *  pilih jenis dokumen → pilih berkas (catatan + lembaga pemakaian
+ *  opsional) → Simpan.
  *  Di aplikasi desktop, berkas disalin ke arsip lokal dan (opsional via
  *  checkbox) file asli dipindah ke folder `sudah`. */
 export default function TambahDokumenPegawaiPage() {
@@ -165,6 +166,8 @@ export default function TambahDokumenPegawaiPage() {
   );
   const [jenis, setJenis] = useState('');
   const [catatan, setCatatan] = useState('');
+  /** Konteks lembaga pemakaian dokumen (opsional, kolom `lembaga`). */
+  const [lembagaPemakaian, setLembagaPemakaian] = useState('');
 
   /** Jumlah dokumen per pegawai (kunci: pegawai_id) — satu fetch; tanpa
    *  filter = seluruh lingkup akses. */
@@ -343,6 +346,7 @@ export default function TambahDokumenPegawaiPage() {
           pegawai_id: pegawaiId,
           jenjang: jenjangDok,
           jenis_dokumen: jenis.trim(),
+          ...(lembagaPemakaian ? { lembaga: lembagaPemakaian } : {}),
           ...(catatan.trim() ? { catatan: catatan.trim() } : {}),
           tujuan: modeTest ? 'test' : 'lokal',
           ekstensi: keluaran.ext,
@@ -380,6 +384,7 @@ export default function TambahDokumenPegawaiPage() {
           pegawai_id: pegawaiId,
           jenjang: jenjangDok,
           jenis_dokumen: jenis.trim(),
+          ...(lembagaPemakaian ? { lembaga: lembagaPemakaian } : {}),
           ...(catatan.trim() ? { catatan: catatan.trim() } : {}),
         }, fileUp);
         if (desktop && berkasPath && pindahSudah) {
@@ -554,6 +559,18 @@ export default function TambahDokumenPegawaiPage() {
               id="input_catatan_tambah_dokumen_pegawai"
               value={catatan}
               onChange={(e) => setCatatan(e.target.value)}
+              placeholder="opsional"
+              className="min-w-0 flex-1"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <FieldLabel htmlFor="combo_lembaga_pemakaian_tambah_dokumen_pegawai" className="shrink-0">Lembaga pemakaian</FieldLabel>
+            <ComboCari
+              id="combo_lembaga_pemakaian_tambah_dokumen_pegawai"
+              inputId="input_lembaga_pemakaian_tambah_dokumen_pegawai"
+              value={lembagaPemakaian}
+              onChange={setLembagaPemakaian}
+              options={[{ value: '', label: '—' }, ...opsiJenjang]}
               placeholder="opsional"
               className="min-w-0 flex-1"
             />

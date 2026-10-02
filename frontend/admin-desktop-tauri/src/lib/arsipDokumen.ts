@@ -1,9 +1,10 @@
 /** Arsip lokal berkas dokumen — KHUSUS aplikasi desktop (Tauri).
  *
- *  Pola seragam `{lokasi}/{tipe}/` cermin server (`server/{tipe}/`):
- *  `SIMPES-Dokumen/lokal/{santri|pegawai|lembaga}/` (dan root uji
- *  `SIMPES-Dokumen-Test/test/{...}/`). Alur: salin ke folder arsip, lalu
- *  (opsional, via checkbox) pindahkan file asli ke `<folder-asal>/sudah/`.
+ *  Pola sejajar server (`dokumen/{tipe}/`): langsung `{tipe}/` di bawah akar,
+ *  tanpa segmen lokasi — `SIMPES-Dokumen/{santri|pegawai|lembaga}/` (dan root
+ *  uji `SIMPES-Dokumen-Test/{...}/`). Pembedaan lokal vs uji dipegang akarnya
+ *  (bukan subfolder). Alur: salin ke folder arsip, lalu (opsional, via
+ *  checkbox) pindahkan file asli ke `<folder-asal>/sudah/`.
  *  Semua operasi aman-gagal: file asli tidak pernah dihapus sebelum salinan
  *  terverifikasi. Di browser biasa modul ini tidak dipakai (penjagaan
  *  `isTauri()` di halaman).
@@ -135,13 +136,15 @@ export async function akarArsip(folderPref: string, bawaan: string): Promise<str
 /** Pemilik arsip: folder tujuan di bawah akar arsip. */
 export type TipeArsip = 'santri' | 'pegawai' | 'lembaga';
 
-/** Lokasi arsip perangkat: segmen pertama di bawah akar. */
+/** Lokasi arsip perangkat: memilih AKAR (dokumen vs uji), bukan segmen
+ *  folder — tata tulis selalu `<akar>/<tipe>/` sejajar server. */
 export type LokasiArsip = 'lokal' | 'test';
 
-/** Folder `<akar>/<lokasi>/<tipe>/` (tanpa menyentuh disk). */
+/** Folder `<akar>/<tipe>/` (tanpa menyentuh disk). */
 export async function folderArsip(akar: string, lokasi: LokasiArsip, tipe: TipeArsip): Promise<string> {
+  void lokasi;
   const { join } = await import('@tauri-apps/api/path');
-  return join(akar, lokasi, tipe);
+  return join(akar, tipe);
 }
 
 /** Path lengkap arsip untuk satu nama berkas (tanpa menyentuh disk).
@@ -151,12 +154,14 @@ export async function jalurArsip(namaFile: string, akar: string, tipe: TipeArsip
   return join(await folderArsip(akar, lokasi, tipe), namaFile);
 }
 
-/** Tata lama (pra-segmen-lokasi): `<akar>/<tipe>/nama`, datar `<akar>/nama`,
- *  lalu `<akar>/<slug-jenis>/nama`. */
+/** Tata lama: era segmen-lokasi (`<akar>/lokal|test/<tipe>/nama`), lalu
+ *  datar `<akar>/nama`, lalu `<akar>/<slug-jenis>/nama`. Kanonis kini
+ *  (`<akar>/<tipe>/nama`) diselesaikan pemanggil via `jalurArsip`. */
 async function jalurArsipLama(namaFile: string, jenis: string, akar: string, tipe: TipeArsip): Promise<string[]> {
   const { join } = await import('@tauri-apps/api/path');
   return [
-    await join(akar, tipe, namaFile),
+    await join(akar, 'lokal', tipe, namaFile),
+    await join(akar, 'test', tipe, namaFile),
     await join(akar, namaFile),
     await join(akar, slugSegmen(jenis) || 'lainnya', namaFile),
   ];
@@ -212,7 +217,7 @@ export async function hapusArsip(namaFile: string, jenis: string, akar: string, 
   }
 }
 
-/** Tulis byte ke arsip `<akar>/<lokasi>/<tipe>/` dengan nama template (untuk hasil edisi).
+/** Tulis byte ke arsip `<akar>/<tipe>/` dengan nama template (untuk hasil edisi).
  *  Mengembalikan path tujuan. */
 export async function tulisArsip(data: Uint8Array, namaFile: string, akar: string, tipe: TipeArsip, lokasi: LokasiArsip): Promise<string> {
   const { exists, mkdir, writeFile } = await import('@tauri-apps/plugin-fs');

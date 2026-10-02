@@ -86,6 +86,7 @@ export const HALAMAN: HalamanDef[] = [
   { to: '/pegawai-keaktifan', label: 'Keaktifan Pegawai', tab: 'pegawai', grid: true, icon: CalendarCheck, permission: 'pegawai.lihat' },
   { to: '/dokumen-guru', label: 'Dokumen Guru', deskripsi: 'Berkas dokumen guru (ijazah, sertifikat, SK, dll).', tab: 'pegawai', sub: 'dokumen', grid: true, icon: FolderOpen, permission: 'dokumen_pegawai.lihat' },
   { to: '/dokumen-guru/tambah', label: 'Tambah Dokumen', deskripsi: 'Form tambah berkas dokumen pegawai.', tab: 'pegawai', sub: 'dokumen', icon: Plus, permission: 'dokumen_pegawai.tambah' },
+  { to: '/dokumen-guru/lihat', label: 'Lihat Dokumen', deskripsi: 'Pratinjau dokumen per pegawai (lihat, unduh, ganti).', tab: 'pegawai', sub: 'dokumen', icon: Eye, permission: 'dokumen_pegawai.lihat' },
   { to: '/referensi', label: 'Referensi', tab: 'master', grid: true, icon: BookMarked, permission: 'referensi.lihat' },
   { to: '/psb', label: 'Antrean PSB', deskripsi: 'Antrean calon per tahap (Pendaftar, Terdaftar, Daftar Ulang, Diterima, Mengundurkan Diri, Ditolak).', tab: 'santri', sub: 'psb', grid: true, icon: UserCheck, permission: 'psb.lihat' },
   { to: '/kegiatan-psb', label: 'Kegiatan PSB', tab: 'santri', sub: 'psb', grid: true, icon: CalendarRange, permission: 'kegiatan_psb.lihat' },

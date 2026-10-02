@@ -251,7 +251,7 @@ export async function sinkronkanDaftar(
 /** Ambil seluruh baris tipe sekaligus (`per_page=0` = semua) untuk sinkron massal. */
 export async function ambilSemuaBaris(
   tipe: TipeDokumen,
-  params: { jenjang?: readonly string[] | null; q?: string; santri_id?: number; signal?: AbortSignal } = {},
+  params: { jenjang?: readonly string[] | null; q?: string; santri_id?: number; pegawai_id?: number; signal?: AbortSignal } = {},
 ): Promise<DokumenRow[]> {
   return (await listDokumen(tipe, { ...params, per_page: 0 })).data;
 }
