@@ -8,10 +8,8 @@ import {
   type PresetTabel,
 } from '../../api/preset';
 import { Button } from '@/components/ui/button';
-import TombolIkon from '@/components/TombolIkon';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Input } from '@/components/ui/input';
-import { Field, FieldLabel } from '@/components/ui/field';
 import { labelKolom } from '@/lib/labelKolom';
 import { useBagian } from '@/components/kelolaHalaman/kotor';
 import { DialogFooter } from '@/components/ui/dialog';
@@ -19,7 +17,7 @@ import ConfirmDelete from '@/components/ConfirmDelete';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { GripVertical, X } from '@/icons';
+import { GripVertical } from '@/icons';
 import { toast } from 'sonner';
 import type { ExcelField } from '../excel/types';
 
@@ -269,20 +267,19 @@ export default function TabKolom({
       onSubmit={simpan}
       className={cn('flex h-full min-h-0 flex-col gap-2')}
     >
-      {/* Baris atas: identitas preset, pemilih preset, dan preset baru. */}
-      <div className="flex flex-wrap items-end gap-3">
-        <Field className="sm:max-w-xs">
-          <FieldLabel htmlFor={`input_nama_preset_${tableKey}`}>Nama preset</FieldLabel>
-          <Input
-            id={`input_nama_preset_${tableKey}`}
-            value={nama}
-            onChange={(e) => setNama(e.target.value)}
-            maxLength={50}
-            placeholder="mis. default"
-          />
-        </Field>
+      {/* Baris atas: satu baris rapat — nama preset, bawaan, preset aktif, baru. */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Input
+          id={`input_nama_preset_${tableKey}`}
+          value={nama}
+          onChange={(e) => setNama(e.target.value)}
+          maxLength={50}
+          placeholder="Nama preset (mis. default)"
+          aria-label="Nama preset"
+          className="w-44"
+        />
         <label
-          className="flex shrink-0 cursor-pointer items-center gap-1.5 pb-2 text-xs whitespace-nowrap"
+          className="flex shrink-0 cursor-pointer items-center gap-1.5 text-xs whitespace-nowrap"
           title="Preset ini dipakai otomatis bila user belum memilih preset"
         >
           <Checkbox
@@ -293,8 +290,7 @@ export default function TabKolom({
           />
           Bawaan
         </label>
-        <Field className="sm:max-w-56">
-          <FieldLabel htmlFor={`select_preset_${tableKey}`}>Preset aktif</FieldLabel>
+        <div className="w-52">
           <Select
             value={editId === null ? (kustomAwal ? PRESET_KUSTOM : PRESET_LENGKAP) : String(editId)}
             onValueChange={(v) => {
@@ -307,7 +303,7 @@ export default function TabKolom({
               if (p) onPilihPreset(p);
             }}
           >
-            <SelectTrigger id={`select_preset_${tableKey}`} size="sm" className="w-full">
+            <SelectTrigger id={`select_preset_${tableKey}`} size="sm" className="w-full" aria-label="Preset aktif">
               <SelectValue placeholder="Pilih preset" />
             </SelectTrigger>
             <SelectContent>
@@ -320,12 +316,12 @@ export default function TabKolom({
               ))}
             </SelectContent>
           </Select>
-        </Field>
+        </div>
         <Button
           id={`btn_preset_baru_${tableKey}`}
           type="button"
           variant="outline"
-          className="mb-0.5 shrink-0"
+          className="shrink-0"
           onClick={() => onPilihPreset(null)}
         >
           + Preset baru
@@ -335,11 +331,19 @@ export default function TabKolom({
       {/* Satu daftar kolom: centang = tampil, seret gagang = urutan.
           Kolom tersembunyi ikut tampil di bawah (latar redup) agar tidak perlu
           berpindah panel untuk menambahkannya kembali. */}
-      <section className="flex min-h-0 flex-1 flex-col gap-2">
-        <div className="flex items-center justify-between gap-2">
-          <FieldLabel>
-            Kolom — {kolom.length} tampil dari {fields.length} (seret untuk mengurutkan)
-          </FieldLabel>
+      <section className="flex min-h-0 flex-1 flex-col gap-1.5">
+        <div className="flex flex-wrap items-center gap-2">
+          <Input
+            id={`input_cari_kolom_${tableKey}`}
+            value={cariKolom}
+            onChange={(e) => setCariKolom(e.target.value)}
+            placeholder="Cari kolom…"
+            aria-label="Cari kolom"
+            className="w-40 shrink-0"
+          />
+          <span className="min-w-0 flex-1 truncate text-[11px] text-muted-foreground">
+            {kolom.length} tampil dari {fields.length} — seret untuk mengurutkan
+          </span>
           <span className="flex shrink-0 items-center gap-2">
             <Tooltip>
               <TooltipTrigger asChild>
@@ -375,13 +379,6 @@ export default function TabKolom({
             </Tooltip>
           </span>
         </div>
-        <Input
-          id={`input_cari_kolom_${tableKey}`}
-          value={cariKolom}
-          onChange={(e) => setCariKolom(e.target.value)}
-          placeholder="Cari kolom…"
-          aria-label="Cari kolom"
-        />
         <div
           className={cn(
             'flex min-h-0 flex-1 flex-col overflow-auto rounded-md border',
@@ -402,7 +399,7 @@ export default function TabKolom({
                   setTujuanSeret(null);
                 }}
                 className={cn(
-                  'flex items-center gap-2 border-b px-2 py-1 last:border-0 transition-colors',
+                  'flex items-center gap-1.5 border-b px-1.5 py-0.5 last:border-0 transition-colors',
                   tampil ? 'hover:bg-accent/30' : 'bg-muted/40 text-muted-foreground',
                   tujuanSeret === f.key && seretRef.current !== f.key && 'bg-accent/30 ring-1 ring-inset ring-accent',
                 )}
@@ -424,7 +421,7 @@ export default function TabKolom({
                         e.preventDefault();
                         geserTerpilih(indeks, e.key === 'ArrowUp' ? -1 : 1);
                       }}
-                      className="grid size-6 shrink-0 cursor-grab place-items-center rounded text-muted-foreground hover:bg-accent hover:text-foreground active:cursor-grabbing"
+                      className="grid size-5 shrink-0 cursor-grab place-items-center rounded text-muted-foreground hover:bg-accent hover:text-foreground active:cursor-grabbing"
                     >
                       <GripVertical size={14} />
                     </span>
@@ -445,18 +442,6 @@ export default function TabKolom({
                 <span className="min-w-0 flex-1 truncate text-xs" title={teks}>
                   {teks}
                 </span>
-                {tampil ? (
-                  <TombolIkon
-                    type="button"
-                    variant="outline"
-                    size="icon-sm"
-                    id={`btn_kolom_hapus_${tableKey}_${f.key}`}
-                    tip="Sembunyikan kolom ini"
-                    onClick={() => togolKolom(f.key, false)}
-                  >
-                    <X size={12} />
-                  </TombolIkon>
-                ) : null}
               </div>
             );
           })}

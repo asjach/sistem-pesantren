@@ -146,10 +146,12 @@ function Bagian({ id, judul, keterangan, children }: {
   children: ReactNode;
 }) {
   return (
-    <section id={id} aria-label={judul} className="flex flex-col gap-2">
-      <div className="border-b pb-1.5">
-        <h3 className="text-sm font-semibold">{judul}</h3>
-        <p className="text-xs text-muted-foreground">{keterangan}</p>
+    <section id={id} aria-label={judul} className="flex flex-col gap-1.5">
+      <div className="flex items-baseline gap-2 border-b pb-1">
+        <h3 className="shrink-0 text-xs font-semibold">{judul}</h3>
+        <p className="min-w-0 truncate text-[11px] text-muted-foreground" title={keterangan}>
+          {keterangan}
+        </p>
       </div>
       {children}
     </section>
@@ -242,10 +244,8 @@ return (
           <DialogHeader className="shrink-0">
             <DialogTitle>Kelola halaman: {judul}</DialogTitle>
             <DialogDescription>
-              Atur filter, kolom, urutan, dan toolbar dalam satu tempat. Filter berlaku
-              untuk bilah atas halaman; bagian lain berlaku per tabel. Tekan
-              <span className="font-medium"> Simpan</span> di bagian yang diubah agar
-              tersimpan.
+              Filter berlaku untuk bilah atas; bagian lain per tabel. Tekan
+              <span className="font-medium"> Simpan</span> untuk menyimpan yang diubah.
             </DialogDescription>
           </DialogHeader>
 
@@ -272,7 +272,7 @@ return (
             </div>
           ) : null}
 
-          <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto pr-1">
+          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-1">
             <Bagian
               id="bagian_filter_halaman"
               judul="Filter halaman"

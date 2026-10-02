@@ -146,10 +146,9 @@ export default function TabKontrol({ tableKey }: { tableKey: string }) {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3">
-      <p className="rounded-md border border-amber-500/40 px-3 py-2 text-xs text-amber-600 dark:text-amber-400">
-        Awas: menyembunyikan “Filter halaman” dapat mengunci alur yang bergantung padanya
-        (mis. pilihan kelas tujuan di Riwayat Belajar).
+    <div className="flex h-full min-h-0 flex-col gap-2">
+      <p className="truncate rounded-md border border-amber-500/40 px-2 py-1 text-[11px] text-amber-600 dark:text-amber-400" title="Menyembunyikan “Filter halaman” dapat mengunci alur yang bergantung padanya (mis. pilihan kelas tujuan di Riwayat Belajar).">
+        Awas: menyembunyikan “Filter halaman” dapat mengunci alur yang bergantung padanya.
       </p>
       {!bolehUbah ? (
         <p className="rounded-md border px-3 py-2 text-xs text-muted-foreground">
@@ -161,7 +160,7 @@ export default function TabKontrol({ tableKey }: { tableKey: string }) {
           <label
             key={kunci}
             htmlFor={punyaLebar ? undefined : `switch_toolbar_${tableKey}_${kunci}`}
-            className="flex cursor-pointer items-center gap-3 rounded-md px-2 py-2 hover:bg-accent/40"
+            className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1 hover:bg-accent/40"
           >
             <Switch
               id={`switch_toolbar_${tableKey}_${kunci}`}
@@ -169,9 +168,8 @@ export default function TabKontrol({ tableKey }: { tableKey: string }) {
               disabled={!bolehUbah || busy}
               onCheckedChange={(c) => setVis((v) => ({ ...v, [kunci]: !!c }))}
             />
-            <span className="min-w-0 flex-1">
-              <span className="block text-sm">{label}</span>
-              <span className="block truncate text-xs text-muted-foreground" title={ket}>{ket}</span>
+            <span className="min-w-0 flex-1 truncate text-xs" title={`${label} — ${ket}`}>
+              {label} <span className="text-muted-foreground">— {ket}</span>
             </span>
             {punyaLebar ? (
               <span className="flex shrink-0 items-center gap-1" onClick={(e) => e.preventDefault()}>
@@ -187,7 +185,7 @@ export default function TabKontrol({ tableKey }: { tableKey: string }) {
                   onBlur={(e) => setLebar((v) => ({ ...v, [kunci]: jepit(Number(e.target.value) || v[kunci as KontrolLebar]) }))}
                   aria-label={`Lebar ${label} (px)`}
                   title={`Lebar ${label} dalam px (40–480)`}
-                  className="h-7 w-20 text-right text-xs"
+                  className="h-6 w-16 text-right text-xs"
                 />
                 <span className="text-xs text-muted-foreground">px</span>
               </span>
@@ -235,7 +233,7 @@ export default function TabKontrol({ tableKey }: { tableKey: string }) {
                     }}
                     aria-label={`Lebar filter ${label} (px)`}
                     title={`Lebar filter ${label} dalam px (40–480); kosongkan untuk bawaan halaman`}
-                    className="h-7 w-20 text-right text-xs"
+                    className="h-6 w-16 text-right text-xs"
                   />
                   <span className="text-xs text-muted-foreground">px</span>
                 </span>

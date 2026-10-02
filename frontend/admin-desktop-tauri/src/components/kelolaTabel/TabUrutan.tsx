@@ -173,10 +173,10 @@ export default function TabUrutan({ tableKey }: { tableKey: string }) {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3">
-      <div className="flex max-h-[50vh] min-h-0 flex-col gap-2 overflow-y-auto pr-1">
+    <div className="flex h-full min-h-0 flex-col gap-2">
+      <div className="flex max-h-[45vh] min-h-0 flex-col gap-1 overflow-y-auto pr-1">
         {draft.length === 0 ? (
-          <p className="py-4 text-center text-xs text-muted-foreground">
+          <p className="py-2 text-center text-xs text-muted-foreground">
             Belum ada opsi. Klik “+ Opsi”.
           </p>
         ) : (
@@ -187,7 +187,7 @@ export default function TabUrutan({ tableKey }: { tableKey: string }) {
               onDrop={() => jatuhSeret(i)}
               onDragEnd={() => { seretRef.current = null; setTujuanSeret(null); }}
               className={cn(
-                'flex items-center gap-1.5 rounded-md border p-1.5',
+                'flex items-center gap-1 rounded-md border p-1',
                 tujuanSeret === i && seretRef.current !== i && 'border-accent bg-accent/20',
               )}
             >
@@ -216,7 +216,7 @@ export default function TabUrutan({ tableKey }: { tableKey: string }) {
               </span>
               <Input
                 id={`input_label_urut_${tableKey}_${i}`}
-                className="h-7 w-40 shrink-0"
+                className="h-6 w-36 shrink-0"
                 value={o.label}
                 maxLength={60}
                 placeholder={labelKode(o.kode) || 'Label opsi'}

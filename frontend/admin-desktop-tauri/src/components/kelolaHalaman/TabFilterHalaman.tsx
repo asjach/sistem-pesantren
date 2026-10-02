@@ -145,13 +145,13 @@ export default function TabFilterHalaman({
   const filterTampil = LABEL_FILTER.filter(({ kunci }) => filterRelevan.includes(kunci));
 
   return (
-    <div className="flex min-h-0 flex-col gap-3">
+    <div className="flex min-h-0 flex-col gap-2">
       {!bolehUbah ? (
         <p className="rounded-md border px-3 py-2 text-xs text-muted-foreground">
           Hanya super_admin yang dapat mengubah filter halaman.
         </p>
       ) : null}
-      <div className="flex max-h-[50vh] flex-col overflow-auto rounded-md border">
+      <div className="flex max-h-[40vh] flex-col overflow-auto rounded-md border">
         {filterTampil.length === 0 ? (
           <p className="px-3 py-4 text-sm text-muted-foreground">
             Halaman ini tidak memiliki filter global yang relevan.
@@ -159,27 +159,24 @@ export default function TabFilterHalaman({
         ) : filterTampil.map(({ kunci, label, ket }) => (
           <div
             key={kunci}
-            className="flex flex-wrap items-center gap-3 rounded-md px-2 py-2 hover:bg-accent/40"
+            className="flex items-center gap-2 border-b px-2 py-1 last:border-0 hover:bg-accent/40"
           >
             <Switch
               id={`switch_filter_halaman_${pageKey}_${kunci}`}
               checked={nilai[kunci]}
               disabled={!bolehUbah || busy}
               aria-label={`Tampilkan filter ${label}`}
+              title={`Tampilkan filter ${label} — ${nilai[kunci] ? 'tampil' : 'tersembunyi'}`}
               onCheckedChange={(c) => setNilai((v) => ({ ...v, [kunci]: !!c }))}
             />
-            <span className="min-w-40 flex-1">
-              <span className="block text-sm">{label}</span>
-              <span className="block truncate text-xs text-muted-foreground" title={ket}>{ket}</span>
-            </span>
-            <span className="shrink-0 text-xs text-muted-foreground">
-              {nilai[kunci] ? 'Tampil' : 'Tersembunyi'}
+            <span className="min-w-0 flex-1 truncate text-xs" title={`${label} — ${ket}`}>
+              {label} <span className="text-muted-foreground">— {ket}</span>
             </span>
             <label
               htmlFor={`switch_mode_filter_halaman_${pageKey}_${kunci}`}
-              className="flex shrink-0 items-center gap-2"
+              className="flex shrink-0 items-center gap-1.5"
             >
-              <span className="text-xs text-muted-foreground">Mode</span>
+              <span className="text-[11px] text-muted-foreground">Mode</span>
               <Switch
                 id={`switch_mode_filter_halaman_${pageKey}_${kunci}`}
                 size="sm"
@@ -191,7 +188,7 @@ export default function TabFilterHalaman({
                   [kunci]: c ? 'multiple' : 'single',
                 }))}
               />
-              <span className="min-w-14 text-xs">
+              <span className="w-12 text-[11px]">
                 {nilaiMode[kunci] === 'multiple' ? 'Jamak' : 'Tunggal'}
               </span>
             </label>
