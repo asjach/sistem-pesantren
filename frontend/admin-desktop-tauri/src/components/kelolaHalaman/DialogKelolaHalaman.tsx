@@ -328,14 +328,6 @@ return (
                 >
                   <TabUrutan key={tabelTerpilih.key} tableKey={tabelTerpilih.key} />
                 </Bagian>
-
-                <Bagian
-                  id="bagian_toolbar_tabel"
-                  judul="Toolbar"
-                  aksi={aksiBagian.kontrol}
-                >
-                  <TabKontrol key={tabelTerpilih.key} tableKey={tabelTerpilih.key} />
-                </Bagian>
               </>
             ) : (
               <p className="rounded-md border px-3 py-2 text-xs text-muted-foreground">
@@ -343,14 +335,22 @@ return (
               </p>
             )}
 
-            <Bagian id="bagian_filter_halaman" judul="Filter" aksi={aksiBagian.filter}>
-              <TabFilterHalaman
-                pageKey={pageKey}
-                filterRelevan={konfigurasi.filter}
-                bawaan={filterBawaan}
-                modeBawaan={konfigurasi.mode}
-              />
-            </Bagian>
+            {/* Toolbar (kiri) dan Filter (kanan) berdampingan; menumpuk di layar sempit. */}
+            <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
+              {tabelTerpilih ? (
+                <Bagian id="bagian_toolbar_tabel" judul="Toolbar" aksi={aksiBagian.kontrol}>
+                  <TabKontrol key={tabelTerpilih.key} tableKey={tabelTerpilih.key} />
+                </Bagian>
+              ) : null}
+              <Bagian id="bagian_filter_halaman" judul="Filter" aksi={aksiBagian.filter}>
+                <TabFilterHalaman
+                  pageKey={pageKey}
+                  filterRelevan={konfigurasi.filter}
+                  bawaan={filterBawaan}
+                  modeBawaan={konfigurasi.mode}
+                />
+              </Bagian>
+            </div>
           </div>
 
           <DialogFooter className="shrink-0 gap-2 pt-2">
