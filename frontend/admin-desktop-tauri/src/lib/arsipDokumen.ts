@@ -71,9 +71,29 @@ export function ekstensiDariNama(nama: string): string {
 }
 
 export function mimeDariEkstensi(ext: string): string {
-  if (ext === 'pdf') return 'application/pdf';
-  if (ext === 'png') return 'image/png';
-  return 'image/jpeg';
+  const peta: Record<string, string> = {
+    pdf: 'application/pdf',
+    png: 'image/png',
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    gif: 'image/gif',
+    webp: 'image/webp',
+    heic: 'image/heic',
+    heif: 'image/heif',
+    txt: 'text/plain',
+    csv: 'text/csv',
+    doc: 'application/msword',
+    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    xls: 'application/vnd.ms-excel',
+    xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    ppt: 'application/vnd.ms-powerpoint',
+    pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    zip: 'application/zip',
+    rar: 'application/vnd.rar',
+    mp3: 'audio/mpeg',
+    mp4: 'video/mp4',
+  };
+  return peta[ext.toLowerCase()] ?? 'application/octet-stream';
 }
 
 export function formatUkuran(bytes: number): string {
@@ -98,21 +118,22 @@ export async function namaUnik(dir: string, namaDasar: string): Promise<string> 
   return basename(await join(dir, calon));
 }
 
-/** Dialog pilih berkas dokumen (gambar/PDF) + validasi ukuran. Null = batal. */
-export async function pilihBerkasDokumen(): Promise<BerkasTerpilih | null> {
+/** Dialog pilih berkas dokumen + validasi ukuran. `bebas` = tanpa filter
+ *  ekstensi (dokumen pegawai menerima semua jenis berkas). Null = batal. */
+export async function pilihBerkasDokumen(bebas = false): Promise<BerkasTerpilih | null> {
   const { open } = await import('@tauri-apps/plugin-dialog');
   const { stat } = await import('@tauri-apps/plugin-fs');
   const { basename } = await import('@tauri-apps/api/path');
   const dipilih = await open({
     multiple: false,
     directory: false,
-    filters: [{ name: 'Dokumen', extensions: [...EKSTENSI_PILIH] }],
+    ...(bebas ? {} : { filters: [{ name: 'Dokumen', extensions: [...EKSTENSI_PILIH] }] }),
   });
   if (!dipilih || Array.isArray(dipilih)) return null;
   const path = String(dipilih);
   const nama = await basename(path);
   const ext = ekstensiDariNama(nama);
-  if (!EKSTENSI_PILIH.includes(ext)) throw new Error(`Berkas harus ${EKSTENSI_PILIH.join('/').toUpperCase()}.`);
+  if (!bebas && !EKSTENSI_PILIH.includes(ext)) throw new Error(`Berkas harus ${EKSTENSI_PILIH.join('/').toUpperCase()}.`);
   const info = await stat(path);
   if ((info.size ?? 0) > BATAS_BERKAS) throw new Error('Berkas melebihi 10 MB.');
   return { path, nama, ukuran: info.size ?? 0, mime: mimeDariEkstensi(ext) };
@@ -181,7 +202,9 @@ export async function cariArsip(namaFile: string, jenis: string, akar: string, t
 
 /** Tulis balik hasil edit viewer ke arsip perangkat (lokasi DB tak berubah).
  *  Menimpa di folder tempat berkas ditemukan (tata tipe/baru didahulukan);
- *  bila nama berubah (ganti format), salinan lama dibersihkan. */
+ *  bila tak ditemukan, jatuh ke akar sesuai lokasi (uji untuk test) —
+ *  bukan selalu akar dokumen. Bila nama berubah (ganti format), salinan
+ *  lama dibersihkan. */
 export async function tulisBalikArsip(namaLama: string, namaBaru: string, jenis: string, data: Uint8Array, tipe: TipeArsip, lokasi: LokasiArsip): Promise<void> {
   const { mkdir, writeFile } = await import('@tauri-apps/plugin-fs');
   const { join } = await import('@tauri-apps/api/path');
@@ -202,7 +225,7 @@ export async function tulisBalikArsip(namaLama: string, namaBaru: string, jenis:
       break;
     }
   }
-  folder ??= await folderArsip(akars[0], lokasi, tipe);
+  folder ??= await folderArsip(lokasi === 'test' ? akars[1] : akars[0], lokasi, tipe);
   await mkdir(folder, { recursive: true });
   await writeFile(await join(folder, namaBaru), data);
   if (namaBaru !== namaLama) {
@@ -244,7 +267,8 @@ export async function tulisGantiArsip(input: {
   tipe: TipeArsip;
 }): Promise<string> {
   const ext = input.ext.toLowerCase().replace(/^\./, '');
-  if (!EKSTENSI_BOLEH.includes(ext)) throw new Error(`Berkas harus ${EKSTENSI_BOLEH.join('/').toUpperCase()}.`);
+  // Dokumen pegawai bebas semua jenis berkas; tipe lain tetap gambar/PDF.
+  if (input.tipe !== 'pegawai' && !EKSTENSI_BOLEH.includes(ext)) throw new Error(`Berkas harus ${EKSTENSI_BOLEH.join('/').toUpperCase()}.`);
   if (input.data.length > BATAS_BERKAS) throw new Error('Berkas melebihi 10 MB.');
   const { exists, mkdir, writeFile } = await import('@tauri-apps/plugin-fs');
   const { join } = await import('@tauri-apps/api/path');

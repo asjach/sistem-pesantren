@@ -1233,7 +1233,9 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
             <canvas ref={kanvasRef} className="m-auto shrink-0 rounded bg-white shadow" />
           )
         ) : (
-          <p className="m-auto px-6 text-center text-sm text-muted-foreground">Memuat…</p>
+          <p className="m-auto px-6 text-center text-sm text-muted-foreground">
+            Pratinjau tidak tersedia untuk berkas ini — tetap bisa disimpan/diunduh.
+          </p>
         )}
       </div>
       {/* Panel putar: dial + segmented Putar|Skala (dial Skala = zoom). */}

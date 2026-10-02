@@ -101,6 +101,13 @@ describe('arsip per tipe', () => {
     expect(dihapus).toEqual(['/arsip/santri/berkas.jpg']);
   });
 
+  it('tulisBalikArsip tak ditemukan jatuh ke akar sesuai lokasi (test → uji)', async () => {
+    await tulisBalikArsip('hilang.jpg', 'hilang.jpg', 'Kartu Keluarga', new Uint8Array([1]), 'santri', 'test');
+    expect(ditulis.map(([p]) => p)).toEqual(['/arsip-test/santri/hilang.jpg']);
+    await tulisBalikArsip('hilang2.jpg', 'hilang2.jpg', 'Kartu Keluarga', new Uint8Array([1]), 'santri', 'lokal');
+    expect(ditulis.map(([p]) => p)).toEqual(['/arsip-test/santri/hilang.jpg', '/arsip/santri/hilang2.jpg']);
+  });
+
   it('tulisGantiArsip menulis nama template unik + membersihkan lama', async () => {
     ada = new Set(['/arsip/kartu_keluarga/lama.jpg']);
     const nama = await tulisGantiArsip({
