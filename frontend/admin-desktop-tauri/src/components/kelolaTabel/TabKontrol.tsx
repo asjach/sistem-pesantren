@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { errorMessage } from '@/api/client';
 import {
   hapusToolbarPreset,
@@ -6,6 +6,7 @@ import {
   simpanToolbarPreset,
 } from '@/api/toolbarPreset';
 import { useLembagaAktif } from '@/lembagaAktif';
+import { useLaporKotor } from '@/components/kelolaHalaman/kotor';
 import { Button } from '@/components/ui/button';
 import { DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -29,20 +30,36 @@ export default function TabKontrol({ tableKey, onTutup }: { tableKey: string; on
   /** Isian lebar filter (string; kosong = hapus override → bawaan halaman). */
   const [filterW, setFilterW] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
+  const laporKotor = useLaporKotor();
+  /** Setelan terakhir yang sama dengan isi server (acuan deteksi kotor).
+   *  Diisi nilai bawaan sejak awal supaya tab tidak sempat dianggap kotor
+   *  sebelum permintaan muat selesai. */
+  const acuanRef = useRef(JSON.stringify({
+    vis: { info: true, urut: true, kolom: true, filter: true },
+    lebar: { ...LEBAR_BAWAHAN_TOOLBAR },
+    filterW: {},
+  }));
 
   const muat = useCallback(async () => {
     try {
       const res = await muatToolbarPreset(tableKey);
-      setVis(bacaVisToolbar(res.data.visibilitas));
-      setLebar(bacaLebarToolbar(res.data.lebar));
+      const visBaru = bacaVisToolbar(res.data.visibilitas);
+      const lebarBaru = bacaLebarToolbar(res.data.lebar);
       const tersimpan = bacaLebarFilter(res.data.lebar);
+      const filterWBaru = Object.fromEntries(Object.entries(tersimpan).map(([k, v]) => [k, String(v)]));
+      setVis(visBaru);
+      setLebar(lebarBaru);
       setLebarFilterSimpan(tersimpan);
-      setFilterW(Object.fromEntries(Object.entries(tersimpan).map(([k, v]) => [k, String(v)])));
+      setFilterW(filterWBaru);
+      acuanRef.current = JSON.stringify({ vis: visBaru, lebar: lebarBaru, filterW: filterWBaru });
     } catch {
-      setVis({ info: true, urut: true, kolom: true, filter: true });
-      setLebar({ ...LEBAR_BAWAHAN_TOOLBAR });
+      const visBawaan = { info: true, urut: true, kolom: true, filter: true };
+      const lebarBawaan = { ...LEBAR_BAWAHAN_TOOLBAR };
+      setVis(visBawaan);
+      setLebar(lebarBawaan);
       setLebarFilterSimpan({});
       setFilterW({});
+      acuanRef.current = JSON.stringify({ vis: visBawaan, lebar: lebarBawaan, filterW: {} });
     }
   }, [tableKey]);
 
@@ -61,6 +78,10 @@ export default function TabKontrol({ tableKey, onTutup }: { tableKey: string; on
   useEffect(() => {
     void muat();
   }, [muat]);
+
+  useEffect(() => {
+    laporKotor(JSON.stringify({ vis, lebar, filterW }) !== acuanRef.current);
+  }, [vis, lebar, filterW, laporKotor]);
 
   function kabariBerubah() {
     window.dispatchEvent(new CustomEvent(EVENT_TOOLBAR_BERUBAH, { detail: { tableKey } }));

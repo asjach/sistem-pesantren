@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { errorMessage } from '@/api/client';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { errorMessage, prefGet, prefSet } from '@/api/client';
 import {
   listPresetTabel,
   setPresetAktif,
@@ -11,6 +11,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { KotorProvider } from './kotor';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import type { ExcelField } from '../excel/types';
@@ -24,6 +35,10 @@ import type { KunciFilterGlobal, TabelHalaman } from '../VisibilitasFilter';
 
 /** Tab dialog Kelola Halaman. */
 export type TabHalaman = 'filter' | 'kolom' | 'urutan' | 'kontrol';
+
+/** Tab terakhir yang dipakai (per perangkat) — dialog dibuka kembali pada tab
+ *  yang sama, bukan selalu balik ke tab pertama. */
+const TAB_TERAKHIR_KEY = 'simpes_kelola_tab';
 
 const TAB_META: { kunci: TabHalaman; label: string }[] = [
   { kunci: 'filter', label: 'Filter' },
@@ -53,8 +68,11 @@ function KelolaKolomHalaman({
   const [bawaanId, setBawaanId] = useState<number | null>(null);
   /** Preset yang dibuka + mulai-lengkap + penanda remount (agar state lokal
    *  TabKolom ter-reset). */
+  // `lengkap: true` = mode "Lengkap (semua kolom)": keadaan awal sebelum data
+  // preset termuat. Tanpa ini tab Kolom terbuka dengan 0 kolom terpilih, dan
+  // tombol Simpan mati — terlihat seperti form yang rusak.
   const [kelola, setKelola] = useState<{ preset: PresetTabel | null; lengkap: boolean; nonce: number }>({
-    preset: null, lengkap: false, nonce: 0,
+    preset: null, lengkap: true, nonce: 0,
   });
 
   const fieldKeys = useMemo(() => new Set(fields.map((f) => f.key)), [fields]);
@@ -65,6 +83,11 @@ function KelolaKolomHalaman({
       const res = await listPresetTabel(tableKey);
       setPresets(res.data.presets);
       setBawaanId(res.data.default_preset_id);
+      // Buka pada susunan yang benar-benar dipakai halaman ini: preset aktif
+      // bila ada, kalau tidak "Lengkap (semua kolom)". Dialog jadi mencerminkan
+      // isi tabel, bukan daftar kosong.
+      const aktif = res.data.presets.find((p) => p.id === res.data.aktif_preset_id) ?? null;
+      setKelola((s) => ({ preset: aktif, lengkap: aktif === null, nonce: s.nonce + 1 }));
     } catch (e) {
       setPresets([]);
       setBawaanId(null);
@@ -73,7 +96,7 @@ function KelolaKolomHalaman({
   }, [tableKey]);
 
   useEffect(() => {
-    setKelola({ preset: null, lengkap: false, nonce: 0 });
+    setKelola({ preset: null, lengkap: true, nonce: 0 });
     void muat();
   }, [muat]);
 
@@ -141,43 +164,95 @@ export default function DialogKelolaHalaman({
 }) {
   const [tab, setTab] = useState<TabHalaman>('filter');
   const [tabelAktif, setTabelAktif] = useState<string>(tabel[0]?.key ?? '');
-  const tutup = () => onOpenChange(false);
+  const refTab = useRef<(HTMLButtonElement | null)[]>([]);
+  /** Ada perubahan belum tersimpan di tab aktif (dilaporkan tab). */
+  const [kotor, setKotor] = useState(false);
+  /** Aksi tertunda yang menunggu konfirmasi "buang perubahan?". */
+  const [aksiTertunda, setAksiTertunda] = useState<(() => void) | null>(null);
+  const laporKotor = useCallback((v: boolean) => setKotor(v), []);
+
+  /** Jalankan aksi, tapi tanya dulu bila ada perubahan belum tersimpan. */
+  const coba = useCallback((aksi: () => void) => {
+    if (kotor) setAksiTertunda(() => aksi);
+    else aksi();
+  }, [kotor]);
+
+  const tutup = useCallback(() => coba(() => onOpenChange(false)), [coba, onOpenChange]);
+  /** Ganti tab + ingat pilihannya agar bukaan berikutnya langsung ke tab itu. */
+  const gantiTab = useCallback((t: TabHalaman) => {
+    coba(() => {
+      setTab(t);
+      prefSet(TAB_TERAKHIR_KEY, t).catch(() => {});
+    });
+  }, [coba]);
   const konfigurasi = useMemo(() => konfigurasiFilterHalaman(pageKey), [pageKey]);
   const tabMeta = useMemo(
     () => tabel.length > 0 ? TAB_META : TAB_META.filter((item) => item.kunci === 'filter'),
     [tabel.length],
   );
+  /** Navigasi tab ala WAI-ARIA: panah kiri/kanan, Home, End. */
+  const onKeyDownTab = useCallback((e: React.KeyboardEvent, idx: number) => {
+    const n = tabMeta.length;
+    let berikut = -1;
+    if (e.key === 'ArrowRight') berikut = (idx + 1) % n;
+    else if (e.key === 'ArrowLeft') berikut = (idx - 1 + n) % n;
+    else if (e.key === 'Home') berikut = 0;
+    else if (e.key === 'End') berikut = n - 1;
+    if (berikut < 0) return;
+    e.preventDefault();
+    gantiTab(tabMeta[berikut].kunci);
+    refTab.current[berikut]?.focus();
+  }, [tabMeta, gantiTab]);
 
-  // Reset pilihan saat halaman/ganti dialog dibuka.
+  // Saat dibuka: pilih tabel pertama lagi, dan kembalikan tab terakhir yang
+  // dipakai — selama tab itu memang tersedia untuk halaman ini.
   useEffect(() => {
-    if (open) {
-      setTab('filter');
-      setTabelAktif(tabel[0]?.key ?? '');
-    }
+    if (!open) return;
+    setTabelAktif(tabel[0]?.key ?? '');
+    let batal = false;
+    prefGet(TAB_TERAKHIR_KEY)
+      .then((v) => {
+        if (batal) return;
+        const tersedia = tabMeta.some((m) => m.kunci === v);
+        setTab(tersedia ? (v as TabHalaman) : 'filter');
+      })
+      .catch(() => setTab('filter'));
+    return () => {
+      batal = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, pageKey]);
 
   const tabelTerpilih = tabel.find((t) => t.key === tabelAktif) ?? tabel[0];
   const butuhPilihTabel = tabel.length > 1 && tab !== 'filter';
+  // Tab/tabel berganti = komponen tab di-remount: penanda lama tidak berlaku.
+  useEffect(() => {
+    setKotor(false);
+  }, [tab, tabelAktif, open]);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(v) => (v ? onOpenChange(true) : tutup())}>
       <DialogContent
         className="!flex h-[70dvh] max-h-[70dvh] flex-col !overflow-hidden sm:max-w-2xl lg:max-w-4xl"
       >
+        <KotorProvider value={laporKotor}>
         <DialogHeader className="shrink-0">
           <DialogTitle>Kelola halaman: {judul}</DialogTitle>
         </DialogHeader>
 
         <div className="flex shrink-0 items-start gap-1 border-b pb-2" role="tablist" aria-label="Kelola halaman">
-          {tabMeta.map((t) => (
+          {tabMeta.map((t, idx) => (
             <button
               key={t.kunci}
+              ref={(el) => { refTab.current[idx] = el; }}
               type="button"
               role="tab"
               aria-selected={tab === t.kunci}
+              aria-controls={`panel_kelola_halaman_${t.kunci}`}
+              tabIndex={tab === t.kunci ? 0 : -1}
               id={`tab_kelola_halaman_${t.kunci}`}
-              onClick={() => setTab(t.kunci)}
+              onClick={() => gantiTab(t.kunci)}
+              onKeyDown={(e) => onKeyDownTab(e, idx)}
               className={cn(
                 'h-fit rounded-md px-3 py-1.5 text-sm transition-colors',
                 tab === t.kunci ? 'bg-accent font-medium' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground',
@@ -197,7 +272,7 @@ export default function DialogKelolaHalaman({
                 type="button"
                 id={`btn_pilih_tabel_halaman_${t.key}`}
                 aria-pressed={t.key === tabelTerpilih?.key}
-                onClick={() => setTabelAktif(t.key)}
+                onClick={() => coba(() => setTabelAktif(t.key))}
                 className={cn(
                   'rounded-md px-2.5 py-1 text-xs transition-colors',
                   t.key === tabelTerpilih?.key ? 'bg-accent font-medium' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground',
@@ -209,6 +284,13 @@ export default function DialogKelolaHalaman({
           </div>
         ) : null}
 
+        <div
+          role="tabpanel"
+          id={`panel_kelola_halaman_${tab}`}
+          aria-labelledby={`tab_kelola_halaman_${tab}`}
+          tabIndex={0}
+          className="flex min-h-0 flex-1 flex-col focus-visible:outline-none"
+        >
         {tab === 'filter' && (
           <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
             <TabFilterHalaman
@@ -252,7 +334,35 @@ export default function DialogKelolaHalaman({
             Halaman ini tidak mendaftarkan tabel — tab ini belum tersedia.
           </p>
         ) : null}
+        </div>
+        </KotorProvider>
       </DialogContent>
+
+      {/* Konfirmasi sebelum perubahan belum tersimpan dibuang. */}
+      <AlertDialog open={aksiTertunda !== null} onOpenChange={(o) => { if (!o) setAksiTertunda(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Perubahan belum disimpan</AlertDialogTitle>
+            <AlertDialogDescription>
+              Perubahan di tab ini akan hilang bila dilanjutkan. Pilih Batal lalu tekan
+              Simpan untuk menyimpannya.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              id="btn_buang_perubahan_kelola_halaman"
+              onClick={() => {
+                const lanjut = aksiTertunda;
+                setAksiTertunda(null);
+                lanjut?.();
+              }}
+            >
+              Buang perubahan
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }

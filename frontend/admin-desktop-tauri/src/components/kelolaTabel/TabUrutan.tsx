@@ -1,4 +1,5 @@
 import { labelKolom } from '@/lib/labelKolom';
+import { useLaporKotor } from '@/components/kelolaHalaman/kotor';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { errorMessage } from '@/api/client';
 import {
@@ -41,21 +42,31 @@ export default function TabUrutan({ tableKey, onTutup }: { tableKey: string; onT
   const [data, setData] = useState<PresetUrutData | null>(null);
   const [draft, setDraft] = useState<OpsiUrut[]>([]);
   const [busy, setBusy] = useState(false);
+  const laporKotor = useLaporKotor();
+  /** Draf terakhir yang sama dengan isi server (acuan deteksi kotor). */
+  const acuanRef = useRef('[]');
 
   const muat = useCallback(async () => {
     try {
       const res = await muatUrutPreset(tableKey);
       setData(res.data);
-      setDraft(res.data.opsi.map((o) => ({ ...o, kode: [...o.kode], arah_kolom: o.arah_kolom ? { ...o.arah_kolom } : null })));
+      const bersih = res.data.opsi.map((o) => ({ ...o, kode: [...o.kode], arah_kolom: o.arah_kolom ? { ...o.arah_kolom } : null }));
+      setDraft(bersih);
+      acuanRef.current = JSON.stringify(bersih);
     } catch {
       setData({ table_key: tableKey, opsi: [], tersedia: [] });
       setDraft([]);
+      acuanRef.current = '[]';
     }
   }, [tableKey]);
 
   useEffect(() => {
     void muat();
   }, [muat]);
+
+  useEffect(() => {
+    laporKotor(JSON.stringify(draft) !== acuanRef.current);
+  }, [draft, laporKotor]);
 
   /** Nama tampilan sebuah kode urut: nama kolom saja (mis. `nama_lengkap`). */
   const labelKode = useCallback(

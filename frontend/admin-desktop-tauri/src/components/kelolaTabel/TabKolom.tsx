@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { errorMessage } from '../../api/client';
 import {
   createPresetTabel,
@@ -12,6 +12,8 @@ import TombolIkon from '@/components/TombolIkon';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Input } from '@/components/ui/input';
 import { Field, FieldLabel } from '@/components/ui/field';
+import { labelKolom } from '@/lib/labelKolom';
+import { useLaporKotor } from '@/components/kelolaHalaman/kotor';
 import { DialogFooter } from '@/components/ui/dialog';
 import ConfirmDelete from '@/components/ConfirmDelete';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -80,15 +82,38 @@ export default function TabKolom({
   );
   const [cariKolom, setCariKolom] = useState('');
   const [busy, setBusy] = useState(false);
+  const laporKotor = useLaporKotor();
+  /** Acuan "tersimpan" untuk mendeteksi perubahan belum disimpan. */
+  const awalNamaRef = useRef(presetAwal?.nama ?? '');
+  const awalKolomRef = useRef(kolom);
+  useEffect(() => {
+    const berubah =
+      nama !== awalNamaRef.current ||
+      bawaan !== awalBawaan.current ||
+      kolom.length !== awalKolomRef.current.length ||
+      kolom.some((k, i) => k !== awalKolomRef.current[i]);
+    laporKotor(berubah);
+  }, [nama, bawaan, kolom, laporKotor]);
   /** Mode Lengkap: bukan hasil edit preset (tanpa id) — perubahan disimpan
    *  sebagai preset baru sehingga nama wajib diisi saat submit. */
   const modeLengkap = mulaiLengkap && editId === null;
 
+  /** Label tampilan kolom: label di kode bisa berupa nama kolom mentah
+   *  (`nama_lengkap`), jadi dilewatkan humanizer agar sama dengan header
+   *  tabel. `fieldKeys` dipakai bila label kosong. */
+  const labelOf = useCallback(
+    (f: ExcelField) => labelKolom(f.label) || labelKolom(f.key),
+    [],
+  );
+  /** Pencarian mencocokkan teks yang tampil maupun nama kolom aslinya, jadi
+   *  mengetik `nama_lengkap` tetap menemukan kolom "Nama Lengkap". */
   const kolomTampil = useMemo(() => {
     const q = cariKolom.trim().toLowerCase();
     if (!q) return fields;
-    return fields.filter((f) => f.label.toLowerCase().includes(q));
-  }, [fields, cariKolom]);
+    return fields.filter(
+      (f) => labelOf(f).toLowerCase().includes(q) || f.key.toLowerCase().includes(q),
+    );
+  }, [fields, cariKolom, labelOf]);
   const semuaTampilTerpilih = kolomTampil.length > 0 && kolomTampil.every((f) => kolom.includes(f.key));
   /** Atribut field per key (untuk panel "Kolom tampil" berurutan). */
   const fieldByKey = useMemo(() => new Map(fields.map((f) => [f.key, f])), [fields]);
@@ -316,7 +341,7 @@ export default function TabKolom({
         {/* Panel 2 — seluruh kolom yang bisa dipilih */}
         <section className="flex min-h-0 flex-col gap-2 lg:min-w-0 lg:flex-1">
           <div className="flex items-center justify-between gap-2">
-            <FieldLabel>Kolom tersedia</FieldLabel>
+            <FieldLabel>Kolom tersedia — centang untuk menampilkan</FieldLabel>
             <span className="flex shrink-0 items-center gap-2">
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -376,21 +401,25 @@ export default function TabKolom({
                   </tr>
                 ) : kolomTampil.map((f) => {
                   const aktif = kolom.includes(f.key);
+                  const teks = labelOf(f);
                   return (
                     <tr
                       key={f.key}
-                      className={cn('border-b last:border-0 hover:bg-accent/40', !aktif && 'opacity-50')}
+                      // Kolom terpilih ditandai latar, bukan diredupkan: kolom
+                      // tak tampil tetap terbaca jelas, jadi daftar tidak
+                      // terlihat rusak saat preset belum memilih kolom apa pun.
+                      className={cn('border-b last:border-0 hover:bg-accent/40', aktif && 'bg-accent/30')}
                     >
                       <td className="px-2 py-1 text-center">
                         <Checkbox
                           id={`chk_kolom_${tableKey}_${f.key}`}
                           checked={aktif}
                           onCheckedChange={(c) => togolKolom(f.key, !!c)}
-                          aria-label={`Tampilkan ${f.label}`}
+                          aria-label={`Tampilkan ${teks}`}
                         />
                       </td>
-                      <td className="truncate px-2 py-1" title={f.label}>
-                        {f.label}
+                      <td className="truncate px-2 py-1" title={teks}>
+                        {teks}
                       </td>
                     </tr>
                   );
@@ -406,7 +435,8 @@ export default function TabKolom({
           <div className="flex max-h-64 flex-col gap-1 overflow-auto rounded-md border p-1 lg:max-h-none lg:min-h-0 lg:flex-1">
             {kolom.length === 0 ? (
               <p className="px-1 py-2 text-xs text-muted-foreground">
-                Belum ada kolom dipilih. Centang kolom di panel tengah.
+                Belum ada kolom dipilih. Centang di panel tengah, atau tekan
+                &quot;Pilih semua&quot;.
               </p>
             ) : kolom.map((k, i) => {
               const f = fieldByKey.get(k);
@@ -431,7 +461,7 @@ export default function TabKolom({
                   <span
                     role="button"
                     tabIndex={0}
-                    aria-label={`Seret untuk memindah ${f.label}`}
+                    aria-label={`Seret untuk memindah ${labelOf(f)}`}
                     title="Seret untuk memindah posisi kolom"
                     draggable
                     onDragStart={(e) => {
@@ -448,7 +478,7 @@ export default function TabKolom({
                     <GripVertical size={14} />
                   </span>
                   <span className="w-4 shrink-0 text-right text-xs tabular-nums text-muted-foreground">{i + 1}.</span>
-                  <span className="min-w-0 flex-1 truncate text-xs" title={f.label}>{f.label}</span>
+                  <span className="min-w-0 flex-1 truncate text-xs" title={labelOf(f)}>{labelOf(f)}</span>
                   <TombolIkon
                     type="button"
                     variant="outline"
