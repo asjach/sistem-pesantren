@@ -25,14 +25,19 @@ export interface DokumenRow {
   tersinkron_pada?: string | null;
   santri_id?: number | null;
   pegawai_id?: number | null;
+  /** Nama + NIPP pemilik (ada di baris pegawai via join). */
+  nama_lengkap?: string | null;
+  nipp?: string | null;
   /** Konteks lembaga pemakaian (santri; null = tanpa lembaga). */
   lembaga?: string | null;
-  /** Penanda aktif (santri; satu per kunci). */
+  /** Penanda aktif (satu per kunci). */
   is_active?: boolean;
   /** Ada di baris lembaga; tabel santri & pegawai sudah tanpa kolom ini. */
   status_verifikasi?: 'menunggu' | 'valid' | 'ditolak';
   catatan: string | null;
   unduh_url: string;
+  created_at?: string | null;
+  updated_at?: string | null;
 }
 
 const PER_TIPE: Record<TipeDokumen, { lihat: string; tambah: string; ubah: string; hapus: string }> = {
@@ -144,7 +149,7 @@ export async function ambilByteDokumen(tipe: TipeDokumen, id: number): Promise<U
 
 export const KOLOM_IMPORT_DOKUMEN: Record<TipeDokumen, string[]> = {
   santri: ['nis_lokal', 'jenis_dokumen', 'lembaga', 'nama_file', 'penyimpanan', 'catatan'],
-  pegawai: ['pegawai_id', 'nipp', 'nama_lengkap', 'jenjang', 'jenis_dokumen', 'lembaga', 'catatan'],
+  pegawai: ['pegawai_id', 'nipp', 'nama_lengkap', 'jenis_dokumen', 'catatan', 'penyimpanan', 'nama_file', 'is_active'],
   lembaga: ['jenjang', 'jenis_dokumen', 'status_verifikasi', 'catatan'],
 };
 
@@ -153,7 +158,7 @@ export function unduhTemplateDokumen(tipe: TipeDokumen) {
 }
 
 /** Data dokumen existing (kolom identik template import; santri: nis+jenjang,
- *  pegawai: id/nipp/nama+jenjang, lembaga: jenjang). Backend hanya mengirim
+ *  pegawai: id/nipp/nama, lembaga: jenjang). Backend hanya mengirim
  *  JSON — berkas Excel disusun di browser. Tanpa argumen = seluruh lingkup akses. */
 export function dataDokumenExisting(tipe: TipeDokumen, jenjangs?: string[]) {
   const q = jenjangs?.length ? `?${jenjangs.map((j) => `jenjang[]=${encodeURIComponent(j)}`).join('&')}` : '';

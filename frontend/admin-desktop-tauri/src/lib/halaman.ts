@@ -22,7 +22,7 @@ import {
   NotebookTabs,
   Palette,
   Pin,
-  Plus,  ReceiptText,
+  ReceiptText,
   ScrollText,
   Server,
   UserCheck,
@@ -31,7 +31,7 @@ import {
 } from '@/icons';
 
 /** Kategori navigasi (grup di sidebar). */
-export type TabKategori = 'beranda' | 'master' | 'madrasah' | 'santri' | 'pegawai' | 'pengaturan';
+export type TabKategori = 'beranda' | 'master' | 'santri' | 'pegawai' | 'dokumen' | 'pengaturan';
 
 export interface HalamanDef {
   to: string;
@@ -73,20 +73,18 @@ export const HALAMAN: HalamanDef[] = [
     icon: Landmark,
     permission: 'lembaga.lihat',
   },
-  { to: '/dokumen-madrasah', label: 'Dokumen Madrasah', deskripsi: 'Berkas tingkat madrasah (izin operasional, akreditasi, SK, dll).', tab: 'madrasah', grid: true, icon: FolderOpen, permission: 'dokumen_lembaga.lihat' },
   { to: '/tahun-ajaran', label: 'Tahun Ajaran', tab: 'master', grid: true, icon: CalendarDays, permission: 'tahun_ajaran.lihat' },
   { to: '/kelas', label: 'Kelas', tab: 'master', grid: true, icon: BookOpen, permission: 'kelas.lihat' },
   { to: '/santri', label: 'Buku Induk', tab: 'master', grid: true, icon: GraduationCap, permission: 'santri.lihat' },
-  { to: '/dokumen-santri', label: 'Dokumen Santri', deskripsi: 'Berkas dokumen santri (KK, akta, ijazah, dll).', tab: 'santri', sub: 'dokumen-santri', grid: true, icon: FolderOpen, permission: 'dokumen_santri.lihat' },
-  { to: '/dokumen-santri/tambah', label: 'Tambah Dokumen', deskripsi: 'Form tambah berkas dokumen santri.', tab: 'santri', sub: 'dokumen-santri', icon: Plus, permission: 'dokumen_santri.tambah' },
-  { to: '/dokumen-santri/lihat', label: 'Lihat Dokumen', deskripsi: 'Pratinjau dokumen per santri (lihat, unduh, ganti).', tab: 'santri', sub: 'dokumen-santri', icon: Eye, permission: 'dokumen_santri.lihat' },
+  { to: '/dokumen-santri', label: 'Daftar Dokumen Santri', deskripsi: 'Berkas dokumen santri (KK, akta, ijazah, dll).', tab: 'dokumen', sub: 'santri', grid: true, icon: FolderOpen, permission: 'dokumen_santri.lihat' },
+  { to: '/dokumen-santri/lihat', label: 'Dokumen Santri', deskripsi: 'Pratinjau dokumen per santri (lihat, unduh, ganti).', tab: 'dokumen', sub: 'santri', icon: Eye, permission: 'dokumen_santri.lihat' },
   { to: '/pegawai', label: 'Pegawai', tab: 'pegawai', grid: true, icon: Users, permission: 'pegawai.lihat' },
   { to: '/pegawai-penempatan', label: 'Lembaga Pegawai', tab: 'pegawai', grid: true, icon: BadgeCheck, permission: 'pegawai.lihat' },
   { to: '/pegawai-akun', label: 'Akun Pegawai', tab: 'pegawai', grid: true, icon: UserCheck, permission: 'pegawai.lihat' },
   { to: '/pegawai-keaktifan', label: 'Keaktifan Pegawai', tab: 'pegawai', grid: true, icon: CalendarCheck, permission: 'pegawai.lihat' },
-  { to: '/dokumen-guru', label: 'Dokumen Guru', deskripsi: 'Berkas dokumen guru (ijazah, sertifikat, SK, dll).', tab: 'pegawai', sub: 'dokumen', grid: true, icon: FolderOpen, permission: 'dokumen_pegawai.lihat' },
-  { to: '/dokumen-guru/tambah', label: 'Tambah Dokumen', deskripsi: 'Form tambah berkas dokumen pegawai.', tab: 'pegawai', sub: 'dokumen', icon: Plus, permission: 'dokumen_pegawai.tambah' },
-  { to: '/dokumen-guru/lihat', label: 'Lihat Dokumen', deskripsi: 'Pratinjau dokumen per pegawai (lihat, unduh, ganti).', tab: 'pegawai', sub: 'dokumen', icon: Eye, permission: 'dokumen_pegawai.lihat' },
+  { to: '/dokumen-guru', label: 'Daftar Dokumen Pegawai', deskripsi: 'Berkas dokumen pegawai (ijazah, sertifikat, SK, dll).', tab: 'dokumen', sub: 'pegawai', grid: true, icon: FolderOpen, permission: 'dokumen_pegawai.lihat' },
+  { to: '/dokumen-guru/lihat', label: 'Dokumen Pegawai', deskripsi: 'Pratinjau dokumen per pegawai (lihat, unduh, ganti).', tab: 'dokumen', sub: 'pegawai', icon: Eye, permission: 'dokumen_pegawai.lihat' },
+  { to: '/dokumen-madrasah', label: 'Dokumen Madrasah', deskripsi: 'Berkas tingkat madrasah (izin operasional, akreditasi, SK, dll).', tab: 'dokumen', grid: true, icon: FolderOpen, permission: 'dokumen_lembaga.lihat' },
   { to: '/referensi', label: 'Referensi', tab: 'master', grid: true, icon: BookMarked, permission: 'referensi.lihat' },
   { to: '/psb', label: 'Antrean PSB', deskripsi: 'Antrean calon per tahap (Pendaftar, Terdaftar, Daftar Ulang, Diterima, Mengundurkan Diri, Ditolak).', tab: 'santri', sub: 'psb', grid: true, icon: UserCheck, permission: 'psb.lihat' },
   { to: '/kegiatan-psb', label: 'Kegiatan PSB', tab: 'santri', sub: 'psb', grid: true, icon: CalendarRange, permission: 'kegiatan_psb.lihat' },
@@ -174,7 +172,6 @@ export interface GrupNav {
 export const NAV_GRUP: GrupNav[] = [
   { id: 'beranda', label: 'Beranda', icon: Home },
   { id: 'master', label: 'Data Induk', icon: FolderOpen },
-  { id: 'madrasah', label: 'Madrasah', icon: Landmark, paksaGrup: true },
   {
     id: 'santri',
     label: 'Santri',
@@ -187,7 +184,6 @@ export const NAV_GRUP: GrupNav[] = [
       },
       // Daftar Kelas (halaman langsung) tampil di sini.
       { langsung: true },
-      { id: 'dokumen-santri', label: 'Dokumen', icon: FolderOpen },
       { id: 'penempatan', label: 'Penempatan', icon: Pin },
       { id: 'akademik', label: 'Akademik', icon: ScrollText },
       { id: 'lain-lain', label: 'Lain-lain', icon: MoreVertical },
@@ -200,7 +196,17 @@ export const NAV_GRUP: GrupNav[] = [
     anak: [
       // Halaman langsung (Buku Induk, Penempatan, Akun, Keaktifan) tampil di sini.
       { langsung: true },
-      { id: 'dokumen', label: 'Dokumen', icon: FolderOpen },
+    ],
+  },
+  {
+    id: 'dokumen',
+    label: 'Dokumen',
+    icon: FolderOpen,
+    anak: [
+      { id: 'santri', label: 'Santri', icon: GraduationCap },
+      { id: 'pegawai', label: 'Pegawai', icon: Users },
+      // Dokumen Madrasah (halaman langsung) tampil di sini.
+      { langsung: true },
     ],
   },
   { id: 'pengaturan', label: 'Pengaturan', icon: Palette },

@@ -47,13 +47,11 @@ const MiMdPage = lazy(() => import('./pages/MiMdPage'));
 const RekapSantriPage = lazy(() => import('./pages/RekapSantriPage'));
 const MutasiKeluarPage = lazy(() => import('./pages/MutasiKeluarPage'));
 const PengajuanBiodataPage = lazy(() => import('./pages/PengajuanBiodataPage'));
+const DaftarDokumenSantriPage = lazy(() => import('./pages/DaftarDokumenSantriPage'));
 const DokumenSantriPage = lazy(() => import('./pages/DokumenSantriPage'));
-const TambahDokumenSantriPage = lazy(() => import('./pages/TambahDokumenSantriPage'));
-const LihatDokumenSantriPage = lazy(() => import('./pages/LihatDokumenSantriPage'));
-const DokumenGuruPage = lazy(() => import('./pages/DokumenGuruPage'));
-const TambahDokumenPegawaiPage = lazy(() => import('./pages/TambahDokumenPegawaiPage'));
-const LihatDokumenPegawaiPage = lazy(() => import('./pages/LihatDokumenPegawaiPage'));
-const DokumenLembagaPage = lazy(() => import('./pages/DokumenLembagaPage'));
+const DaftarDokumenPegawaiPage = lazy(() => import('./pages/DaftarDokumenPegawaiPage'));
+const DokumenPegawaiPage = lazy(() => import('./pages/DokumenPegawaiPage'));
+const DokumenMadrasahPage = lazy(() => import('./pages/DokumenMadrasahPage'));
 const KelolaIzinPage = lazy(() => import('./pages/KelolaIzinPage'));
 
 // Shell dipasang SEKALI sebagai rute induk: TopBar/ribbon + provider tetap
@@ -135,13 +133,11 @@ export default function App() {
                       <Route path="/mutasi-keluar" element={<KhususIzin izin="mutasi_keluar.lihat"><MutasiKeluarPage /></KhususIzin>} />
                       <Route path="/siklus" element={<Navigate to="/riwayat-belajar" replace />} />
                       <Route path="/pengajuan-biodata" element={<KhususIzin izin="pengajuan_biodata.lihat"><PengajuanBiodataPage /></KhususIzin>} />
-                      <Route path="/dokumen-santri" element={<KhususIzin izin="dokumen_santri.lihat"><DokumenSantriPage /></KhususIzin>} />
-                      <Route path="/dokumen-santri/tambah" element={<KhususIzin izin="dokumen_santri.tambah"><TambahDokumenSantriPage /></KhususIzin>} />
-                      <Route path="/dokumen-santri/lihat" element={<KhususIzin izin="dokumen_santri.lihat"><LihatDokumenSantriPage /></KhususIzin>} />
-                      <Route path="/dokumen-guru" element={<KhususIzin izin="dokumen_pegawai.lihat"><DokumenGuruPage /></KhususIzin>} />
-                      <Route path="/dokumen-guru/tambah" element={<KhususIzin izin="dokumen_pegawai.tambah"><TambahDokumenPegawaiPage /></KhususIzin>} />
-                      <Route path="/dokumen-guru/lihat" element={<KhususIzin izin="dokumen_pegawai.lihat"><LihatDokumenPegawaiPage /></KhususIzin>} />
-                      <Route path="/dokumen-madrasah" element={<KhususIzin izin="dokumen_lembaga.lihat"><DokumenLembagaPage /></KhususIzin>} />
+                      <Route path="/dokumen-santri" element={<KhususIzin izin="dokumen_santri.lihat"><DaftarDokumenSantriPage /></KhususIzin>} />
+                      <Route path="/dokumen-santri/lihat" element={<KhususIzin izin="dokumen_santri.lihat"><DokumenSantriPage /></KhususIzin>} />
+                      <Route path="/dokumen-guru" element={<KhususIzin izin="dokumen_pegawai.lihat"><DaftarDokumenPegawaiPage /></KhususIzin>} />
+                      <Route path="/dokumen-guru/lihat" element={<KhususIzin izin="dokumen_pegawai.lihat"><DokumenPegawaiPage /></KhususIzin>} />
+                      <Route path="/dokumen-madrasah" element={<KhususIzin izin="dokumen_lembaga.lihat"><DokumenMadrasahPage /></KhususIzin>} />
                       <Route path="/dokumen-lembaga" element={<Navigate to="/dokumen-madrasah" replace />} />
                       <Route path="/pengaturan" element={<Navigate to="/pengaturan/tampilan" replace />} />
                       <Route path="/pengaturan/tampilan" element={<KhususIzin izin="tampilan.lihat"><PengaturanTampilanPage /></KhususIzin>} />
