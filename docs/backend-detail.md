@@ -253,14 +253,16 @@ labelnya; 1–3 aksi tetap tampil langsung. Berlaku di semua tabel `ExcelTable`.
 bawaan 50 per tabel; "Semua" dikirim `per_page=0` (batas 100.000), pager tetap
 tampil agar bisa dikembalikan. Status: ✅ live.
 
+**Setelan tampilan = per perangkat.** Tampilan (tema, warna, density, icon set,
+gaya per bagian UI, lebar kolom, beku, tinggi baris, perataan, preset aktif)
+disimpan di prefs perangkat; tidak ada lagi standar tampilan lembaga, "Rekam
+Visual", maupun halaman editor `/pengaturan/tampilan` (v2.284). Gaya per bagian
+UI hanya bisa diubah lewat ribbon Tabel (font/warna header & sel).
+Endpoint `pengaturan-tampilan`, tabelnya, dan izin `tampilan.*` dihapus.
+
 **Pengaturan server (lintas modul).** Halaman pengaturan ganti base-URL backend
 tanpa rebuild (token/base-URL via plugin-store di desktop); aksi uji koneksi +
 kembalikan bawaan; izin `server.lihat` eksklusif `super_admin`. Status: ✅ live.
-
-**Sebar standar tampilan (lintas modul).** Endpoint sebar ke lembaga
-(`jenjangs` wajib; lembaga tak teresolusi → 422) dikunci super_admin
-(Rekam Visual + API langsung ikut terkunci); halaman sebar terpisah dihapus,
-Rekam Visual (bertindak + tombol rekam) mencakupnya. Status: ✅ live.
 
 **102 Santri lifecycle.** `riwayat_belajar` (`status_awal`: santri_baru/
 mengulang/pindahan; `status_akhir`: aktif/naik/tidak_naik/pindah_keluar/

@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 import { useAuth } from '@/auth/AuthContext';
 import { useLembagaAktif } from '@/lembagaAktif';
-import { useStandarTampilan } from '@/standarTampilan';
 import { hasOpenEditor } from '@/components/excel/helpers';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -23,7 +22,6 @@ export default function BannerBertindak({ terbuka, onTutup }: {
   const { user } = useAuth();
   /** Opsi peran SELALU penuh (pilihan filter menyempit saat bertindak). */
   const { peranJenjang, peran, pilihanPeran: pilihan, pilihPeran } = useLembagaAktif();
-  const { rekam, setRekam, menyimpan } = useStandarTampilan();
 
   const superAdmin = !!user?.roles.some((r) => r.name === 'super_admin');
   const bertindak = peranJenjang != null;
@@ -73,31 +71,6 @@ export default function BannerBertindak({ terbuka, onTutup }: {
       ) : (
         <span>
           Pilih peran lembaga <b>(Esc = batal)</b>
-        </span>
-      )}
-
-      {bertindak && (
-        <span className="mx-auto inline-flex items-center gap-1.5">
-          <label
-            htmlFor="chk_rekam_visual"
-            className="inline-flex cursor-pointer items-center gap-1.5 rounded-md bg-black/10 px-2 py-0.5 font-medium dark:bg-white/15"
-            title="Jika aktif, perubahan tampilan ikut mengubah standar lembaga ini."
-          >
-            <input
-              id="chk_rekam_visual"
-              type="checkbox"
-              checked={rekam}
-              onChange={(e) => setRekam(e.target.checked)}
-              className="size-3.5 accent-current"
-              style={{ accentColor: 'currentColor' }}
-            />
-            Rekam visual
-          </label>
-          {rekam && (
-            <span className="opacity-80">
-              {menyimpan ? '· menyimpan standar…' : '· perubahan tampilan tersimpan ke standar lembaga ini'}
-            </span>
-          )}
         </span>
       )}
 

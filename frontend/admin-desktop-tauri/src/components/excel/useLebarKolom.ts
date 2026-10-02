@@ -2,7 +2,6 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject }
 
 import { prefSet } from '@/api/client';
 import { DEFAULT_HEADER_H, MAX_HEADER_H } from '@/components/GridPrefs';
-import { type TampilanData } from '@/api/tampilan';
 import { toast } from 'sonner';
 
 import { lebarJudulDuaBaris, ukurAutoFit } from './autofit';
@@ -27,16 +26,6 @@ interface LiveRef<T> {
   current: T;
 }
 
-/** Potongan state standar tampilan yang dipakai pengelolaan lebar. */
-export interface StdLebarApi {
-  tampilan: TampilanData | null;
-  isPribadi: (key: string) => boolean;
-  tandai: (...keys: string[]) => void;
-  hapus: (...keys: string[]) => void;
-  merekam: boolean;
-  simpanKeStandar: (patch: TampilanData) => void;
-}
-
 export interface LebarKolomOptions<T extends { id: string | number }> {
   tableKey: string;
   fields: ExcelField[];
@@ -57,7 +46,6 @@ export interface LebarKolomOptions<T extends { id: string | number }> {
   hideActions: boolean;
   hideCheckbox: boolean;
   loading: boolean;
-  standar: StdLebarApi;
   headerH: number | null;
   fontPx: number | null;
   fontFamily: string;
@@ -90,7 +78,6 @@ export function useLebarKolom<T extends { id: string | number }>({
   hideActions,
   hideCheckbox,
   loading,
-  standar: { tampilan: standarTampilan, isPribadi, tandai, hapus, merekam, simpanKeStandar },
   headerH,
   fontPx,
   fontFamily,
@@ -134,11 +121,6 @@ export function useLebarKolom<T extends { id: string | number }>({
   /** Listener resize aktif (dibersihkan saat unmount bila masih menyeret). */
   const resizeListenersRef = useRef<{ move: (ev: MouseEvent) => void; up: () => void } | null>(null);
   const measureCtxRef = useRef<CanvasRenderingContext2D | null>(null);
-
-  // Standar lembaga untuk tabel ini (diabaikan bila user menyesuaikan sendiri).
-  const stdLebar = merekam
-    ? (standarTampilan?.lebar?.[tableKey] ?? undefined)
-    : (isPribadi(`lebar.${tableKey}`) ? undefined : standarTampilan?.lebar?.[tableKey] ?? undefined);
 
   // Muat lebar dari disk (dilewati bila cache sesi sudah ada).
   useEffect(() => {
@@ -372,20 +354,10 @@ export function useLebarKolom<T extends { id: string | number }>({
       window.removeEventListener('mouseup', onUp);
       resizeListenersRef.current = null;
       resizeRef.current = null;
-      if (merekam) {
-        // Bertindak sebagai lembaga → lebar kolom disimpan ke standar lembaga.
-        const map = { ...(stdLebar ?? {}), ...widthsRef.current };
-        hapus(`lebar.${tableKey}`);
-        simpanKeStandar({ lebar: { [tableKey]: map } });
-        setWidths({});
-        prefSet(widthsKey(tableKey), '{}').catch(() => {});
-        return;
-      }
       setWidths((prev) => {
         persistWidths(prev);
         return prev;
       });
-      tandai(`lebar.${tableKey}`);
     };
     resizeListenersRef.current = { move: onMove, up: onUp };
     window.addEventListener('mousemove', onMove);
@@ -412,19 +384,6 @@ export function useLebarKolom<T extends { id: string | number }>({
     const w = autoFitWidth(key);
     if (w == null) return;
     setAutoWidths((prev) => ({ ...prev, [key]: w }));
-    if (merekam) {
-      // Bertindak sebagai lembaga → lepas lebar kolom itu dari standar lembaga.
-      const map = { ...(stdLebar ?? {}) };
-      delete map[key];
-      hapus(`lebar.${tableKey}`);
-      simpanKeStandar({
-        lebar: { [tableKey]: Object.keys(map).length > 0 ? map : null },
-      });
-      setWidths({});
-      prefSet(widthsKey(tableKey), '{}').catch(() => {});
-      toast.success('Lebar kolom disesuaikan dengan isi.');
-      return;
-    }
     setWidths((prev) => {
       if (prev[key] === undefined) return prev;
       const next = { ...prev };
@@ -432,8 +391,6 @@ export function useLebarKolom<T extends { id: string | number }>({
       persistWidths(next);
       return next;
     });
-    // AutoFit = user menentukan lebar sendiri → lepas dari standar lembaga.
-    tandai(`lebar.${tableKey}`);
     toast.success('Lebar kolom disesuaikan dengan isi.');
   }
 
@@ -449,20 +406,11 @@ export function useLebarKolom<T extends { id: string | number }>({
       }
     }
     setAutoWidths(nextAuto);
-    if (merekam) {
-      hapus(`lebar.${tableKey}`);
-      simpanKeStandar({ lebar: { [tableKey]: null } });
-      setWidths({});
-      prefSet(widthsKey(tableKey), '{}').catch(() => {});
-      toast.success(n > 0 ? `${n} kolom disesuaikan lebarnya.` : 'Tidak ada kolom yang bisa disesuaikan.');
-      return;
-    }
     setWidths((prev) => {
       if (Object.keys(prev).length === 0) return prev;
       persistWidths({});
       return {};
     });
-    tandai(`lebar.${tableKey}`);
     toast.success(n > 0 ? `${n} kolom disesuaikan lebarnya.` : 'Tidak ada kolom yang bisa disesuaikan.');
   }
 
@@ -582,9 +530,7 @@ export function useLebarKolom<T extends { id: string | number }>({
   function resetLebar() {
     setWidths({});
     prefSet(widthsKey(tableKey), '{}').catch(() => {});
-    // Kembali ke standar/bawaan = lebar menyesuaikan isi (dihitung ulang).
-    hapus(`lebar.${tableKey}`);
-    if (merekam) simpanKeStandar({ lebar: { [tableKey]: null } });
+    // Kembali ke bawaan = lebar menyesuaikan isi (dihitung ulang).
     fittedRef.current = null;
     setAutoWidths(computeAutoWidths(true));
   }
@@ -595,7 +541,6 @@ export function useLebarKolom<T extends { id: string | number }>({
     widthsReady,
     lebarStabil,
     headerAutoH,
-    stdLebar,
     syncAutoWidths,
     startResize,
     onAutoFit,

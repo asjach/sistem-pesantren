@@ -53,7 +53,7 @@ Aturan terkunci:
 - Role `super_admin` selalu full (barisnya terkunci di matriks; API menolak `PUT` untuknya) — anti-lockout.
 - Halaman Kelola Izin + endpoint `/api/admin/izin` hanya pemilik `izin.*` (= super_admin).
 - Portal orang_tua/santri dan grup campuran (`portal/psb/{calon}/dokumen`) tetap role-based (pengecualian terdokumentasi, di luar matriks).
-- Aturan struktural tetap di kode (bukan matriks): tambah lembaga, sebar standar tampilan, mutasi target privileged, dan kunci role diri = super_admin saja.
+- Aturan struktural tetap di kode (bukan matriks): tambah lembaga, mutasi target privileged, dan kunci role diri = super_admin saja.
 - Halaman baru wajib didaftarkan di katalog + `HALAMAN.permission`; `frontend/admin-desktop-tauri/scripts/audit-izin.mjs` (predev/prebuild/pretypecheck) dan test pengerasan route menggagalkan drift.
 
 ### 2.4 Asumsi dan Batasan
@@ -226,11 +226,9 @@ Contoh kamus ringkas:
 
 ### 7.6 Font
 - Bawaan tabel: Roboto Light (300), sel dan header masing-masing 11 px; UI: Aptos (isi), display (judul), Aptos Narrow, monospace kode.
-- 29 opsi font (sistem + Aptos + Google Fonts yang disimpan lokal sehingga offline); pilihan tersimpan per perangkat dan tersinkron antara ribbon dan halaman Tampilan.
+- 29 opsi font (sistem + Aptos + Google Fonts yang disimpan lokal sehingga offline); pilihan tersimpan per perangkat dan diatur lewat ribbon Tabel.
 
 ### 7.7 Pengaturan tampilan
-- Halaman Tampilan (pribadi): cari bagian, pratinjau langsung, reset per bagian/banyak/semua; badge "Standar lembaga · versi N" + tombol kembali ke standar bila super_admin menyebar standar.
-- Rekam Visual (super_admin bertindak + tombol rekam): ubahan lewat UI normal tersimpan otomatis ke standar lembaga aktif (tema, gaya bagian, grid, preset, lebar/beku) via endpoint sebar yang sama; halaman sebar terpisah dihapus (Rekam mencakupnya).
 
 ---
 
@@ -251,7 +249,7 @@ Migration per-modul (timestamp bawaan, urutan FK); spec di `docs/SCHEMA.md`. Uru
 | 8.2.3 | Kepegawaian | 200 Pegawai | `pegawai`, `lembaga_pegawai`, `keaktifan_pegawai`, `dokumen_pegawai`, `pegawai_pendidikan`, `pegawai_sertifikasi`, `keluarga_pegawai`, `presensi_pegawai`, `pengaturan_hari_lembaga` |
 | 8.2.4 | Akademik/Nilai/Presensi/Portal | 200, 201, 202, 203 | `kurikulum*`, `pengampu_mapel`, `nilai_santri`, `rapor_catatan_wali`, `sesi_presensi`, `presensi_santri`, `pelanggaran_santri`, `target_tahfiz`, `setoran_tahfiz`, `rekap_tahfiz_santri`, `wali_*` |
 | 8.2.5 | Asrama (gambaran umum — **pasca production**, belum dibuat) | 505 Asrama | `asrama`, `asrama_kamar`, `asrama_penghuni`, `asrama_izin_pulang`, `asrama_kegiatan`, `user_asrama`; perubahan `santri` (`is_active_pst` turunan — dibahas terpisah) |
-| 8.2.6 | Lintas modul | Preset/kamus/impor | `preset_tabel`, `preset_tabel_aktif`, `urut_preset`, `toolbar_preset`, `pengaturan_halaman`, `pengaturan_tampilan`, `import_sesi`, `notifications` |
+| 8.2.6 | Lintas modul | Preset/kamus/impor | `preset_tabel`, `preset_tabel_aktif`, `urut_preset`, `toolbar_preset`, `pengaturan_halaman`, `import_sesi`, `notifications` |
 
 ### 8.3 Konvensi Kode
 

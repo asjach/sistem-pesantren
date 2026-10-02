@@ -13,7 +13,6 @@ import { useTheme } from '@/theme';
 import { isTauri, prefSet } from '@/api/client';
 import { buttonVariants } from '@/components/ui/button';
 import { DEFAULT_FONT_PX, DEFAULT_HEADER_H, FONT_FAMILY_DEFAULT, FONT_OPTIONS, useGridPrefs, type AlignName } from '@/components/GridPrefs';
-import { useStandarTampilan } from '@/standarTampilan';
 import { useLembagaAktif } from '@/lembagaAktif';
 import { EVENT_KELOLA_HALAMAN, useVisibilitasFilter } from '@/components/VisibilitasFilter';
 import PresetKolom, { type PresetKolomApi } from '@/components/PresetKolom';
@@ -222,7 +221,6 @@ export default function ExcelTable<T extends { id: string | number }>({
   // Preferensi tampilan tabel global (dikontrol dari top bar).
   const { rowH, headerH, fontPx, fontFamily, align, setAlign } = useGridPrefs();
   // Standar tampilan lembaga: lebar & kolom beku bawaan (bisa ditimpa user).
-  const { tampilan: standar, isPribadi, tandai, hapus, merekam, simpanKeStandar } = useStandarTampilan();
 
   const [editMode, setEditModeRaw] = useState(false);
   const [inputMode, setInputModeRaw] = useState(false);
@@ -355,10 +353,6 @@ export default function ExcelTable<T extends { id: string | number }>({
   const visibleFieldsRef = useRef(visibleFields);
   const gridRef = useRef<DataSheetGridRef>(null);
 
-  const stdBeku = merekam
-    ? (standar?.beku?.[tableKey] ?? undefined)
-    : (isPribadi(`beku.${tableKey}`) ? undefined : standar?.beku?.[tableKey] ?? undefined);
-
   // Muat jumlah kolom beku tabel ini; clamp bila preset menyembunyikan kolom.
   useEffect(() => {
     let batal = false;
@@ -370,21 +364,14 @@ export default function ExcelTable<T extends { id: string | number }>({
     };
   }, [tableKey]);
 
-  const freezeEfektif = stdBeku != null && !isPribadi(`beku.${tableKey}`) ? stdBeku : freeze;
-  const freezeAktif = Math.min(freezeEfektif, visibleFields.length);
+  const freezeAktif = Math.min(freeze, visibleFields.length);
   const ubahFreeze = useCallback(
     (n: number) => {
       const v = Math.max(0, Math.min(visibleFields.length, Math.round(n)));
-      if (merekam) {
-        hapus(`beku.${tableKey}`);
-        simpanKeStandar({ beku: { [tableKey]: v } });
-        return;
-      }
       setFreeze(v);
       prefSet(freezeKey(tableKey), String(v)).catch(() => {});
-      tandai(`beku.${tableKey}`);
     },
-    [tableKey, visibleFields.length, tandai, hapus, merekam, simpanKeStandar],
+    [tableKey, visibleFields.length],
   );
   visibleFieldsRef.current = visibleFields;
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -423,7 +410,6 @@ export default function ExcelTable<T extends { id: string | number }>({
     autoWidths,
     lebarStabil,
     headerAutoH,
-    stdLebar,
     syncAutoWidths,
     startResize,
     onAutoFit,
@@ -446,7 +432,6 @@ export default function ExcelTable<T extends { id: string | number }>({
     hideActions,
     hideCheckbox,
     loading,
-    standar: { tampilan: standar, isPribadi, tandai, hapus, merekam, simpanKeStandar },
     headerH,
     fontPx,
     fontFamily,
@@ -859,7 +844,7 @@ export default function ExcelTable<T extends { id: string | number }>({
         ),
         headerClassName: cn(alignClass(f.key), bekuCls, tepiCls, lastCls),
         basis:
-          (widths[f.key] ?? stdLebar?.[f.key] ?? autoWidths[f.key] ?? syncAutoWidths[f.key] ?? f.width ?? 150) +
+          (widths[f.key] ?? autoWidths[f.key] ?? syncAutoWidths[f.key] ?? f.width ?? 150) +
           // Gagang geser memakan ruang judul: tambah lebarnya agar area
           // label tetap sama (hanya saat grip tampil = super_admin).
           (bolehGeser ? LEBAR_GAGANG_GESER : 0),
@@ -1030,7 +1015,7 @@ export default function ExcelTable<T extends { id: string | number }>({
     }
     return cols;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fields, visibleFields, editing, widths, stdLebar, autoWidths, syncAutoWidths, align, showInput, freezeAktif, hideCheckbox, labelKolom, alignEfektif, drafts, bolehGeser, seret, dragMulaiKolom, dragLewatKolom, dragJatuhKolom, dragSelesaiKolom]);
+  }, [fields, visibleFields, editing, widths, autoWidths, syncAutoWidths, align, showInput, freezeAktif, hideCheckbox, labelKolom, alignEfektif, drafts, bolehGeser, seret, dragMulaiKolom, dragLewatKolom, dragJatuhKolom, dragSelesaiKolom]);
 
   /** Logika baris input (mode Input): draft, validasi, simpan, kursor. */
   const {

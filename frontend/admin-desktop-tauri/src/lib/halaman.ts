@@ -98,7 +98,6 @@ export const HALAMAN: HalamanDef[] = [
   { to: '/kelulusan', label: 'Kelulusan', tab: 'santri', sub: 'akademik', grid: true, icon: GraduationCap, permission: 'kelulusan.lihat' },
   { to: '/rekap-santri', label: 'Rekap Santri', tab: 'santri', sub: 'lain-lain', grid: true, icon: ReceiptText, permission: 'rekap_santri.lihat' },
   { to: '/pengajuan-biodata', label: 'Pengajuan Biodata', tab: 'santri', sub: 'lain-lain', grid: true, icon: NotebookTabs, permission: 'pengajuan_biodata.lihat' },
-  { to: '/pengaturan/tampilan', label: 'Tampilan', tab: 'pengaturan', icon: Palette, permission: 'tampilan.lihat' },
   {
     to: '/pengaturan/semester',
     label: 'Semester',

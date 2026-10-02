@@ -104,7 +104,7 @@ function profilFields(boleh: boolean): ExcelField[] {
     }));
   }
   return [
-    teks('nama_singkat', 'Nama singkat'),
+    teks('nama_singkat', 'Nama Singkat'),
     { key: 'nik', label: 'nik', width: 160, kind: 'text', maxLength: 20, validate: nikValidator },
     { key: 'nisn', label: 'nisn', width: 120, kind: 'text', maxLength: 10, validate: digitValidator(10, 'NISN') },
     { key: 'jk', label: 'jk', width: 60, kind: 'select', choices: [{ value: 'L', label: 'L' }, { value: 'P', label: 'P' }] },

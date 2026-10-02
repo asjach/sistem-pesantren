@@ -10,7 +10,6 @@ import { useVisibilitasFilter, EVENT_KELOLA_HALAMAN, TAMPIL_BAWAAN } from '@/com
 import type { ModeFilterGlobal } from '@/lib/filterHalaman';
 import { FilterSelect, FilterToggleGroup } from '@/components/FilterMulti';
 import { useTheme, type ModeName, type ThemeName } from '@/theme';
-import { usePicker } from '@/picker';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
@@ -34,7 +33,7 @@ import {
 import { ICON_SETS } from '@/iconSets';
 import { THEME_PRESETS } from '@/themes';
 import { DEFAULT_PREFS, WARNA_UI } from '@/prefs';
-import { Blend, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, LogOut, Monitor, Moon, NotebookTabs, Paintbrush, Palette, SquareMousePointer, Sun, Users } from '@/icons';
+import { Blend, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, LogOut, Monitor, Moon, NotebookTabs, Paintbrush, Palette, Sun, Users } from '@/icons';
 import { useRibbonTable } from '@/components/RibbonTable';
 import { useRibbonSlotCtx } from '@/components/RibbonSlot';
 import { useTopBarSearchCtx } from '@/components/TopBarSearch';
@@ -126,7 +125,6 @@ export default function TopBar() {
   const classFilterLembaga = cn('mr-0', daftarLembaga.length === 1 ? 'w-[80px]' : 'w-[160px]');
   const taPilihanTerurut = [...taPilihan].sort((a, b) => b.nama.localeCompare(a.nama, 'id', { numeric: true }));
   const { theme, mode, dark, iconSet, warnaUI, navigasi, collapsed, setTheme, setMode, setCollapsed, setIconSet, setWarnaUI, setNavigasi } = useTheme();
-  const picker = usePicker();
   const nav = useNavigate();
   const { pathname } = useLocation();
   const ribbon = useRibbonTable();
@@ -368,27 +366,6 @@ export default function TopBar() {
           </div>
           {/* Perenggang kanan: filter global tetap di tengah; akun di kanan. */}
           <div aria-hidden="true" className="min-w-0 flex-1" />
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                id="btn_pilih_komponen_global"
-                type="button"
-                data-picker-abaikan
-                aria-label="Pilih komponen"
-                aria-pressed={picker.aktif}
-                onClick={() => (picker.aktif ? picker.batal() : picker.mulai())}
-                className={cn(
-                  'mr-1 grid size-6 place-items-center rounded-md text-white/75 transition-colors hover:bg-white/10 hover:text-white',
-                  picker.aktif && 'bg-white/25 text-white',
-                )}
-              >
-                <SquareMousePointer size={14} />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>{picker.aktif ? 'Batal pilih komponen (Esc)' : 'Pilih komponen (klik komponen di halaman)'}</p>
-            </TooltipContent>
-          </Tooltip>
           {registrasi && efektifSuper ? (
             <Tooltip>
               <TooltipTrigger asChild>

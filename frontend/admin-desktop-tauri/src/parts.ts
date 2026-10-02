@@ -27,7 +27,6 @@ export type PartId =
   | 'menubar'
   | 'navigation_menu'
   | 'sidebar'
-  | 'daftar_bagian'
   | 'judul_halaman'
   | 'subjudul'
   | 'teks_isi'
@@ -316,16 +315,6 @@ export const PARTS: PartMeta[] = [
     hint: 'Sidebar aplikasi (komponen sidebar).',
     sel: "[data-slot='sidebar'], [data-slot='sidebar-container']",
   },
-  {
-    id: 'daftar_bagian',
-    label: 'Daftar bagian UI',
-    grup: 'Navigasi',
-    sub: 'Bilah',
-    kendali: true,
-    hint: 'Tombol daftar bagian di halaman Tampilan (editor).',
-    sel: "[data-part='daftar_bagian']",
-  },
-
   // ---------- Teks ----------
   {
     id: 'judul_halaman',

@@ -10,7 +10,6 @@ import {
 import { prefGet, prefSet } from '@/api/client';
 import { useTheme } from '@/theme';
 import { FONT_FAMILY_DEFAULT, FONT_OPTIONS, FONT_TABEL_DEFAULT } from '@/fonts';
-import { useStandarTampilan } from '@/standarTampilan';
 
 /** Tinggi baris grid (px). */
 export const MIN_ROW_H = 20;
@@ -45,9 +44,6 @@ export type AlignName = 'left' | 'center' | 'right';
 export type AlignMap = Record<string, AlignName>;
 
 /** Kunci pribadi untuk tinggi/perataan (menang atas standar lembaga). */
-const PRIBADI_ROWH = 'grid.rowH';
-const PRIBADI_HEADERH = 'grid.headerH';
-const pribadiAlign = (fieldKey: string) => `grid.align.${fieldKey}`;
 
 async function loadRowH(): Promise<number | null> {
   try {
@@ -112,7 +108,6 @@ const Ctx = createContext<GridPrefsState | null>(null);
  *  Disediakan di Layout agar kontrol di top bar dan grid berbagi state sama. */
 export function GridPrefsProvider({ children }: { children: ReactNode }) {
   const { parts, setGayaBagian } = useTheme();
-  const { tampilan: standar, isPribadi, tandai, hapus, merekam, simpanKeStandar } = useStandarTampilan();
   const [rowHDevice, setRowHState] = useState<number | null>(null);
   const [headerHDevice, setHeaderHState] = useState<number | null>(null);
   const [alignDevice, setAlignState] = useState<AlignMap>({});
@@ -130,52 +125,21 @@ export function GridPrefsProvider({ children }: { children: ReactNode }) {
     loadAlign().then(setAlignState);
   }, []);
 
-  // Saat bertindak sebagai lembaga, override pribadi diabaikan (murni standar).
-  const pribadiAktif = useCallback((key: string) => (merekam ? false : isPribadi(key)), [merekam, isPribadi]);
-
-  // ---- Gabungan pribadi ⊕ standar ----
-  const rowH = pribadiAktif(PRIBADI_ROWH) || standar?.grid?.rowH == null
-    ? rowHDevice
-    : standar.grid.rowH;
-  const headerH = pribadiAktif(PRIBADI_HEADERH) || standar?.grid?.headerH == null
-    ? headerHDevice
-    : standar.grid.headerH;
-
-  const align = useMemo<AlignMap>(() => {
-    const out: AlignMap = { ...(standar?.grid?.align ?? {}) };
-    for (const k of Object.keys(out)) {
-      if (pribadiAktif(pribadiAlign(k))) delete out[k];
-    }
-    for (const [k, v] of Object.entries(alignDevice)) {
-      if (pribadiAktif(pribadiAlign(k))) out[k] = v;
-    }
-    return out;
-  }, [standar, alignDevice, pribadiAktif]);
+  // Preferensi tabel global = setelan perangkat pengguna.
+  const rowH = rowHDevice;
+  const headerH = headerHDevice;
+  const align = alignDevice;
 
   const setRowH = useCallback((n: number | null) => {
-    if (merekam) {
-      hapus(PRIBADI_ROWH);
-      simpanKeStandar({ grid: { rowH: n } });
-      return;
-    }
     setRowHState(n);
-    // `null` = kembali ke standar/bawaan → lepas penanda pribadi.
+    // `null` = kembali ke bawaan.
     prefSet(GLOBAL_ROWH_KEY, n != null ? String(n) : '').catch(() => {});
-    if (n != null) tandai(PRIBADI_ROWH);
-    else hapus(PRIBADI_ROWH);
-  }, [merekam, simpanKeStandar, tandai, hapus]);
+  }, []);
 
   const setHeaderH = useCallback((n: number | null) => {
-    if (merekam) {
-      hapus(PRIBADI_HEADERH);
-      simpanKeStandar({ grid: { headerH: n } });
-      return;
-    }
     setHeaderHState(n);
     prefSet(GLOBAL_HEADER_H_KEY, n != null ? String(n) : '').catch(() => {});
-    if (n != null) tandai(PRIBADI_HEADERH);
-    else hapus(PRIBADI_HEADERH);
-  }, [merekam, simpanKeStandar, tandai, hapus]);
+  }, []);
 
   // Menulis ke bagian `tabel_sel`: `null`/`_bawaan` = hapus override → bawaan.
   const setFontPx = useCallback((n: number | null) => {
@@ -187,18 +151,12 @@ export function GridPrefsProvider({ children }: { children: ReactNode }) {
   }, [setGayaBagian]);
 
   const setAlign = useCallback((fieldKey: string, a: AlignName) => {
-    if (merekam) {
-      hapus(pribadiAlign(fieldKey));
-      simpanKeStandar({ grid: { align: { [fieldKey]: a } } });
-      return;
-    }
     setAlignState((prev) => {
       const next = { ...prev, [fieldKey]: a };
       prefSet(GLOBAL_ALIGN_KEY, JSON.stringify(next)).catch(() => {});
       return next;
     });
-    tandai(pribadiAlign(fieldKey));
-  }, [merekam, simpanKeStandar, tandai, hapus]);
+  }, []);
 
   const value = useMemo<GridPrefsState>(
     () => ({ rowH, headerH, fontPx, fontFamily, align, setRowH, setHeaderH, setFontPx, setFontFamily, setAlign }),

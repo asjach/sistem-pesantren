@@ -426,18 +426,36 @@
 .simpes-dsg .simpes-dsg-resizer:hover {
   background: color-mix(in srgb, var(--accent) 35%, transparent);
 }
-/* Gagang geser urutan kolom (super_admin): di kiri judul, kursor pindah. */
+/* Gagang geser urutan kolom (super_admin): dikunci di tepi kiri judul dengan
+   jarak aman dari teks, bukan elemen inline yang menempel pada label.
+   Absolut terhadap `.simpes-dsg-headtitle` (position: relative). */
 .simpes-dsg-geser {
+  position: absolute;
+  left: 2px;
+  top: 50%;
+  transform: translateY(-50%);
   display: inline-flex;
   align-items: center;
-  margin-left: -4px;
-  margin-right: 2px;
-  padding: 2px 1px;
+  justify-content: center;
+  width: 14px;
+  padding: 2px 0;
   border-radius: 4px;
   color: var(--muted-foreground);
   cursor: grab;
   touch-action: none;
-  flex: none;
+}
+/* Saat gagang tampil, teks judul mundur dari gagang. Padding kiri dan kanan
+   sama supaya judul tetap terpusat di tengah sel (bukan terdorong ke kanan);
+   ruang tambahan ini sudah diimbangi `LEBAR_GAGANG_GESER` saat hitung lebar. */
+.simpes-dsg-headtitle-ada-geser {
+  padding-left: 20px;
+  padding-right: 20px;
+}
+/* Teks judul: `min-width: 0` supaya boleh menyusut ke lebarAvailable dan
+   membungkus baris, bukan meluber ke area gagang pada kolom sempit. */
+.simpes-dsg-teks-judul {
+  min-width: 0;
+  overflow-wrap: break-word;
 }
 .simpes-dsg-geser:hover {
   background: color-mix(in srgb, var(--accent) 35%, transparent);

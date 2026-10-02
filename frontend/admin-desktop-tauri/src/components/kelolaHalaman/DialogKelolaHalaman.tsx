@@ -5,7 +5,6 @@ import {
   setPresetAktif,
   type PresetTabel,
 } from '@/api/preset';
-import { useStandarTampilan } from '../../standarTampilan';
 import {
   Dialog,
   DialogContent,
@@ -59,7 +58,6 @@ function KelolaKolomHalaman({
   });
 
   const fieldKeys = useMemo(() => new Set(fields.map((f) => f.key)), [fields]);
-  const { tandai, hapus: hapusPribadi, merekam, simpanKeStandar } = useStandarTampilan();
   const banyakKolom = fields.length > 30;
 
   const muat = useCallback(async () => {
@@ -86,17 +84,11 @@ function KelolaKolomHalaman({
     for (const [k, v] of Object.entries(label)) {
       if (fieldKeys.has(k) && v.trim() !== '') labelBersih[k] = v.trim();
     }
-    if (merekam) {
-      hapusPribadi(`preset.${tableKey}`);
-      simpanKeStandar({ presetAktif: { [tableKey]: null } });
-    } else {
-      tandai(`preset.${tableKey}`);
-      void setPresetAktif(tableKey, null)
-        .then(() => kabariPreset(tableKey, { keys: efektif, label: labelBersih }))
-        .catch((e: unknown) => toast.error(errorMessage(e)));
-    }
+    void setPresetAktif(tableKey, null)
+      .then(() => kabariPreset(tableKey, { keys: efektif, label: labelBersih }))
+      .catch((e: unknown) => toast.error(errorMessage(e)));
     toast.success('Susunan kolom diterapkan.');
-  }, [fieldKeys, merekam, hapusPribadi, simpanKeStandar, tableKey, tandai]);
+  }, [fieldKeys, tableKey]);
 
   return (
     <TabKolom

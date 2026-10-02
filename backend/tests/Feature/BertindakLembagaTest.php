@@ -123,14 +123,6 @@ class BertindakLembagaTest extends TestCase
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.jenjang', $l['mi']->jenjang);
 
-        // Standar tampilan lembaga lain ditolak; sebar "semua" ditolak.
-        $this->actingAs($pusat, 'sanctum')->withHeaders($hdr)
-            ->getJson("/api/admin/pengaturan-tampilan?jenjang={$l['md']->jenjang}")->assertStatus(403);
-        $this->actingAs($pusat, 'sanctum')->withHeaders($hdr)->putJson('/api/admin/pengaturan-tampilan', [
-            'jenjangs' => 'semua',
-            'data' => ['tema' => ['theme' => 'geist']],
-        ])->assertStatus(403);
-
         // Referensi global: baris otomatis milik lembaga aktif (bukan global).
         $this->actingAs($pusat, 'sanctum')->withHeaders($hdr)->postJson('/api/admin/referensi/tingkat', [
             'nama' => 'Kelas 1', 'kode' => '1',
@@ -196,25 +188,6 @@ class BertindakLembagaTest extends TestCase
         $this->actingAs($pusat, 'sanctum')->withHeaders($hdr)
             ->postJson("/api/admin/preset-tabel/{$presetId}/bawaan")
             ->assertStatus(403);
-    }
-
-    public function test_bertindak_boleh_simpan_standar_lembaga_sendiri(): void
-    {
-        $l = $this->lembaga();
-        $pusat = $this->makeUser('super_admin');
-        $hdr = ['X-Lembaga-Aktif' => (string) $l['mi']->jenjang];
-
-        // Rekam visual milik sendiri: 201.
-        $this->actingAs($pusat, 'sanctum')->withHeaders($hdr)->putJson('/api/admin/pengaturan-tampilan', [
-            'jenjangs' => [$l['mi']->jenjang],
-            'data' => ['tema' => ['theme' => 'geist']],
-        ])->assertStatus(201);
-
-        // Lembaga lain tetap 403.
-        $this->actingAs($pusat, 'sanctum')->withHeaders($hdr)->putJson('/api/admin/pengaturan-tampilan', [
-            'jenjangs' => [$l['md']->jenjang],
-            'data' => ['tema' => ['theme' => 'geist']],
-        ])->assertStatus(403);
     }
 
     public function test_header_lembaga_tidak_dikenal_ditolak(): void

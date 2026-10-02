@@ -15,7 +15,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useStandarTampilan } from '../standarTampilan';
 import { Pin } from '@/icons';
 import { toast } from 'sonner';
 import FilterField from './FilterField';
@@ -59,7 +58,6 @@ export default function PresetKolom({
   const [bawaanId, setBawaanId] = useState<number | null>(null);
 
   const fieldKeys = useMemo(() => new Set(fields.map((f) => f.key)), [fields]);
-  const { tandai, hapus: hapusPribadi, merekam, simpanKeStandar } = useStandarTampilan();
 
   const terapkan = useCallback((preset: PresetTabel | null) => {
     if (!preset) {
@@ -149,14 +147,6 @@ export default function PresetKolom({
     const target = id === null ? null : presets.find((p) => p.id === id) ?? null;
     setAktifId(target?.id ?? null);
     terapkan(target);
-    if (merekam) {
-      // Bertindak sebagai lembaga → preset aktif ikut disimpan ke standar lembaga.
-      hapusPribadi(`preset.${tableKey}`);
-      simpanKeStandar({ presetAktif: { [tableKey]: target?.nama ?? null } });
-      return;
-    }
-    // Pilihan user menang atas preset aktif dari standar lembaga.
-    tandai(`preset.${tableKey}`);
     try {
       await setPresetAktif(tableKey, target?.id ?? null);
     } catch (e) {

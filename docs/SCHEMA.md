@@ -671,15 +671,6 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 - `created_at`, `updated_at`
 - UNIQUE(`table_key`) — satu daftar opsi global per tabel
 
-### `pengaturan_tampilan`
-Standar tampilan per lembaga (tema/tipografi/grid/preset aktif), disebar super_admin; `versi` naik tiap perubahan agar klien memantau & memuat ulang.
-- `id` PK
-- `jenjang`: FK → lembaga [unique, cascade] — satu baris per lembaga
-- `data`: json — isi standar tampilan
-- `versi`: int unsigned [default 1]
-- `diubah_oleh`: FK → users [null, nullOnDelete]
-- `created_at`, `updated_at`
-
 ### `toolbar_preset` (visibilitas/lebar/urutan kontrol toolbar, global per `table_key`)
 - `id` PK
 - `table_key`: string(60) [unik]

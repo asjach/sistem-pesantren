@@ -10,9 +10,7 @@ import { TahunAjaranAktifProvider } from './tahunAjaranAktif';
 import { SemesterAktifProvider } from './semesterAktif';
 import { TingkatAktifProvider } from './tingkatAktif';
 import { KelasAktifProvider } from './kelasAktif';
-import { StandarTampilanProvider } from './standarTampilan';
 import { ThemeProvider } from './theme';
-import { PickerProvider } from './picker';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 import LoginPage from './pages/LoginPage';
@@ -26,7 +24,6 @@ const ReferensiPage = lazy(() => import('./pages/ReferensiPage'));
 const TahunAjaranPage = lazy(() => import('./pages/TahunAjaranPage'));
 const SemesterPage = lazy(() => import('./pages/SemesterPage'));
 const KelasPage = lazy(() => import('./pages/KelasPage'));
-const PengaturanTampilanPage = lazy(() => import('./pages/PengaturanTampilanPage'));
 const PengaturanServerPage = lazy(() => import('./pages/PengaturanServerPage'));
 const PsbPage = lazy(() => import('./pages/PsbPage'));
 const KegiatanPsbPage = lazy(() => import('./pages/KegiatanPsbPage'));
@@ -96,10 +93,8 @@ export default function App() {
           <SemesterAktifProvider>
           <TingkatAktifProvider>
           <KelasAktifProvider>
-          <StandarTampilanProvider>
             <ThemeProvider>
               <BrowserRouter>
-                <PickerProvider>
                   <Toaster richColors position="top-center" />
                   <Routes>
                     <Route path="/login" element={<LoginPage />} />
@@ -137,10 +132,8 @@ export default function App() {
                       <Route path="/dokumen-guru/lihat" element={<KhususIzin izin="dokumen_pegawai.lihat"><DokumenPegawaiPage /></KhususIzin>} />
                       <Route path="/dokumen-madrasah" element={<KhususIzin izin="dokumen_lembaga.lihat"><DokumenMadrasahPage /></KhususIzin>} />
                       <Route path="/dokumen-lembaga" element={<Navigate to="/dokumen-madrasah" replace />} />
-                      <Route path="/pengaturan" element={<Navigate to="/pengaturan/tampilan" replace />} />
-                      <Route path="/pengaturan/tampilan" element={<KhususIzin izin="tampilan.lihat"><PengaturanTampilanPage /></KhususIzin>} />
+                      <Route path="/pengaturan" element={<Navigate to="/pengaturan/izin" replace />} />
                       <Route path="/pengaturan/izin" element={<KhususIzin izin="izin.lihat"><KelolaIzinPage /></KhususIzin>} />
-                      <Route path="/pengaturan/bagian" element={<Navigate to="/pengaturan/tampilan" replace />} />
                       <Route
                         path="/pengaturan/server"
                         element={(
@@ -177,10 +170,8 @@ export default function App() {
                       )}
                     />
                   </Routes>
-                </PickerProvider>
               </BrowserRouter>
             </ThemeProvider>
-          </StandarTampilanProvider>
           </KelasAktifProvider>
           </TingkatAktifProvider>
           </SemesterAktifProvider>

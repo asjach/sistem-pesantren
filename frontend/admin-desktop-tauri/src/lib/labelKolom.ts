@@ -7,6 +7,7 @@ const AKRONIM = new Set([
   'nip', 'nipp', 'nis', 'nism', 'nisn', 'npsn', 'nss', 'npwp', 'ktp', 'kk',
   'kkb', 'psb', 'pdf', 'id', 'url', 'api', 'skhun', 'sks', 'kb', 'mb',
   'nik', 'ptk', 'bpjs', 'rt', 'rw', 'hp', 'npa', 'json', 'pos', 'sk', 'gws',
+  'jk',
 ]);
 
 /** Bentuk label yang masih berupa kode kolom: huruf kecil + angka + `_`. */

@@ -332,6 +332,9 @@
 | 2.279 | 2026-10-02 | Nama header kolom tabel dipindah dari basis data ke kode: label ditulis di tiap halaman sebagai `ExcelField.label`, dan label berupa nama kolom mentah di-humanize otomatis `lib/labelKolom` (snake_case → Proper Case, `tabel.kolom` dipangkas, singkatan `nip`/`nis` tetap kapital) |
 | 2.280 | 2026-10-02 | `ExcelField.sumber` di-drop beserta 238 deklarasi; atribut perataan/kunci-lebar/tooltip/format ikut hilang. Format isi sel kini lewat `ExcelField.format` (`angka`/`tanggal`/`ya_tidak`); kolom hitung tanpa kolom asal otomatis mengikuti humanizer |
 | 2.281 | 2026-10-02 | Preset Tabel (`preset_tabel`, `toolbar_preset`, `urut_preset`) dipastikan fitur terpisah dan tidak terpengaruh penghapusan Kamus Label |
+| 2.282 | 2026-10-02 | Standar tampilan lembaga dihapus: checkbox "Rekam Visual", provider `standarTampilan`, API `pengaturan-tampilan`, `PengaturanTampilanController`, model + request, dan tabel `pengaturan_tampilan` (drop via migrasi). Setelan tampilan kini murni per perangkat prefs |
+| 2.283 | 2026-10-02 | Konsekuensi penghapusan: `ExcelTable` memakai lebar/beku milik user saja, `useLebarKolom` tanpa opsi `standar`, `GridPrefs` tanpa `rowH/headerH/align` dari standar, `PresetKolom` & `DialogKelolaHalaman` tanpa preset aktif standar, `BannerBertindak` tanpa tombol rekam. Halaman `/pengaturan/tampilan` masih ada sebagai editor gaya per pengguna (di-hapus lagi pada v2.284) |
+| 2.284 | 2026-10-02 | Halaman Tampilan dihapus: route `/pengaturan/tampilan` & `/pengaturan/bagian` (alias), `PartStyleEditor`, alat "pilih komponen" (`picker`), entri navigasi & filter, izin `tampilan.*`, part UI `daftar_bagian`, dan fungsi `resetBagian`/`resetBagianBanyak`/`resetSemuaBagian`. `/pengaturan` kini ke `/pengaturan/izin`. Gaya per bagian UI tetap bisa diubah dari ribbon Tabel |
 
 ## Daftar Isi
 

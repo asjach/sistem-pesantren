@@ -20,6 +20,7 @@ describe('labelKolom', () => {
     expect(labelKolom('no_bpjs')).toBe('No BPJS');
     expect(labelKolom('rt_rw')).toBe('RT RW');
     expect(labelKolom('no_hp')).toBe('No HP');
+    expect(labelKolom('jk')).toBe('JK');
   });
 
   it('kolom boolean is_ hanya tampilkan nama state', () => {

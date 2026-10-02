@@ -95,7 +95,6 @@ export const KONFIGURASI_FILTER_HALAMAN = {
   pegawai_penempatan: buatKonfigurasi(['lembaga']),
   pegawai_akun: buatKonfigurasi(['lembaga']),
   pegawai_keaktifan: buatKonfigurasi(FILTER_KELULUSAN),
-  pengaturan_tampilan: buatKonfigurasi(['lembaga']),
   pengaturan_izin: buatKonfigurasi([]),
   pengaturan_server: buatKonfigurasi([]),
 } satisfies Record<string, KonfigurasiFilterHalaman>;

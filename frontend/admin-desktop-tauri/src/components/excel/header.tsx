@@ -1,10 +1,16 @@
 import type { DragEvent } from 'react';
 import { Ban, GripVertical } from '@/icons';
 
-/** Lebar horizontal yang dipakai gagang geser (ikon 12px + padding/margin).
- *  WAJIB sama dengan CSS `.simpes-dsg-geser`; dipakai ExcelTable untuk
- *  menambah basis lebar kolom agar judul tak menyempit saat grip tampil. */
-export const LEBAR_GAGANG_GESER = 14;
+/** Lebar ekstra yang dibutuhkan judul saat gagang geser tampil.
+ *
+ *  Padding `.simpes-dsg-headtitle`  8px per sisi; saat gagang tampil jadi
+ *  20px per sisi (`.simpes-dsg-headtitle-ada-geser`) supaya ada jalur dari tepi
+ *  kiri sel ke teks. Selisihnya 12 + 12 = 24px, dan inilah yang harus
+ *  ditambahkan ke lebar kolom — kalau kurang, judul terjepit dan kata
+ *  terpotong baris (mis. "Jml saudara" jadi tiga baris).
+ *
+ *  WAJIB sinkron dengan CSS; dipakai ExcelTable & AutoFit. */
+export const LEBAR_GAGANG_GESER = 24;
 
 /** Judul kolom dengan gagang seret pengubah lebar (drag di tepi kanan).
  *  Klik 2× pada gagang = AutoFit lebar mengikuti isi (seperti Excel).
@@ -49,7 +55,7 @@ export function HeaderTitle({
 }) {
   return (
     <span
-      className={`simpes-dsg-headtitle${sedangDiseret ? ' simpes-dsg-diseret' : ''}${targetSeret === 'kiri' ? ' simpes-dsg-target-kiri' : ''}${targetSeret === 'kanan' ? ' simpes-dsg-target-kanan' : ''}`}
+      className={`simpes-dsg-headtitle${bisaGeser && onDragMulai ? ' simpes-dsg-headtitle-ada-geser' : ''}${sedangDiseret ? ' simpes-dsg-diseret' : ''}${targetSeret === 'kiri' ? ' simpes-dsg-target-kiri' : ''}${targetSeret === 'kanan' ? ' simpes-dsg-target-kanan' : ''}`}
       data-col-key={colKey}
       onDragOver={onDragLewat ? (e) => { e.preventDefault(); onDragLewat(colKey, e); } : undefined}
       onDrop={onDragJatuh ? (e) => { e.preventDefault(); onDragJatuh(colKey, e); } : undefined}
@@ -68,7 +74,7 @@ export function HeaderTitle({
           <GripVertical size={12} />
         </span>
       ) : null}
-      {label}
+      <span className="simpes-dsg-teks-judul">{label}</span>
       {required ? (
         <span className="simpes-dsg-wajib-tanda" title="Wajib diisi pada mode Input">
           *
@@ -118,14 +124,16 @@ export function ukurPerluTinggiHeader(akar: HTMLElement): number {
     const lh = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.2 || 15;
     const pad = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
     let baris = 1;
-    // Judul teks bisa bukan anak pertama (mis. ada gagang geser di depannya).
-    const node = Array.from(ht.childNodes).find(
-      (n) => n.nodeType === Node.TEXT_NODE && (n.textContent ?? '').trim() !== '',
-    );
+    // Teks judul dibungkus span `.simpes-dsg-teks-judul` (bukan anak pertama,
+    // karena gagang geser mendahuluinya).
+    const judul = ht.querySelector('.simpes-dsg-teks-judul');
+    const node = judul?.firstChild
+      ?? Array.from(ht.childNodes).find(
+        (n) => n.nodeType === Node.TEXT_NODE && (n.textContent ?? '').trim() !== '',
+      );
     if (node) {
       const r = document.createRange();
-      r.setStart(node, 0);
-      r.setEnd(node, (node.textContent ?? '').length);
+      r.selectNodeContents(node);
       baris = Math.max(1, r.getClientRects().length);
     }
     maks = Math.max(maks, Math.ceil(baris * lh + pad));

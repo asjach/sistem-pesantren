@@ -49,7 +49,7 @@ export function pihakFields(prefix: 'ayah' | 'ibu' | 'wali', judul: string): Exc
 /** Kolom identitas santri: identitas murni + Status turunan. */
 export const SANTRI_IDENTITAS_FIELDS: ExcelField[] = [
   { key: 'nama', label: 'nama_lengkap', width: 220, kind: 'text', maxLength: 255, validate: (v) => (v && v.trim() ? null : 'Nama wajib diisi.') },
-  teks('nama_singkat', 'Nama singkat', 140),
+  teks('nama_singkat', 'Nama Singkat', 140),
   { key: 'nik', label: 'nik', width: 160, kind: 'text', maxLength: 20, validate: nikValidator },
   { key: 'nisn', label: 'nisn', width: 120, kind: 'text', maxLength: 10, validate: digitValidator(10, 'NISN') },
   { key: 'jk', label: 'jk', width: 60, kind: 'select', choices: [{ value: 'L', label: 'L' }, { value: 'P', label: 'P' }] },
