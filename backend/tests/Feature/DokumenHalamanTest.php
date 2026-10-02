@@ -343,6 +343,32 @@ class DokumenHalamanTest extends TestCase
         Storage::disk('local')->assertExists('dokumen/santri/'.$namaBaru);
     }
 
+    public function test_ubah_pegawai_selaraskan_nama_menyusun_ulang_nama_dan_memindah_fisik(): void
+    {
+        $f = $this->fixture();
+        $auth = $this->superAdmin();
+
+        $this->actingAs($auth, 'sanctum')->post('/api/admin/dokumen/pegawai', [
+            'pegawai_id' => $f['guru']->id,
+            'jenjang' => 'MI',
+            'jenis_dokumen' => 'Ijazah S1',
+            'file' => UploadedFile::fake()->create('ijazah.pdf', 100, 'application/pdf'),
+        ], ['Accept' => 'application/json'])->assertStatus(201);
+        $id = (int) DB::table('dokumen_pegawai')->where('pegawai_id', $f['guru']->id)->value('id');
+        $namaAwal = (string) DB::table('dokumen_pegawai')->find($id)->nama_file;
+
+        $this->actingAs($auth, 'sanctum')->patchJson("/api/admin/dokumen/pegawai/{$id}", [
+            'jenis_dokumen' => 'SK',
+            'selaraskan_nama' => true,
+        ])->assertOk();
+
+        $namaBaru = (string) DB::table('dokumen_pegawai')->find($id)->nama_file;
+        $this->assertNotSame($namaAwal, $namaBaru);
+        $this->assertMatchesRegularExpression('{^ustadz_guru_sk_\d{8}_\d{6}\.pdf$}', $namaBaru);
+        Storage::disk('local')->assertMissing('dokumen/pegawai/'.$namaAwal);
+        Storage::disk('local')->assertExists('dokumen/pegawai/'.$namaBaru);
+    }
+
     public function test_unggah_memindahkan_penyimpanan_ke_server(): void
     {
         $f = $this->fixture();
@@ -494,12 +520,12 @@ class DokumenHalamanTest extends TestCase
         $this->assertSame([['26001', 'Kartu Keluarga', '', '', 'server', 'Arsip', 'Ahmad Santri', 'Ya']], $santri->json('baris'));
 
         $guru = $this->actingAs($auth, 'sanctum')->getJson('/api/admin/dokumen/pegawai/data-existing')->assertOk();
-        $this->assertSame(['pegawai_id', 'nipp', 'nama_lengkap', 'jenjang', 'jenis_dokumen', 'lembaga', 'catatan', 'is_active'], $guru->json('kolom'));
+        $this->assertSame(['pegawai_id', 'nipp', 'nama_lengkap', 'jenis_dokumen', 'catatan', 'penyimpanan', 'nama_file', 'is_active'], $guru->json('kolom'));
         $barisGuru = $guru->json('baris');
         $this->assertCount(1, $barisGuru);
         $this->assertSame('PST-001', $barisGuru[0][1]);
         $this->assertSame('Ustadz Guru', $barisGuru[0][2]);
-        $this->assertSame(['MI', 'Ijazah S1', '', '', 'Ya'], array_slice($barisGuru[0], 3));
+        $this->assertSame(['Ijazah S1', '', 'server', '', 'Ya'], array_slice($barisGuru[0], 3));
 
         $madrasah = $this->actingAs($auth, 'sanctum')->getJson('/api/admin/dokumen/lembaga/data-existing')->assertOk();
         $this->assertSame(['jenjang', 'jenis_dokumen', 'status_verifikasi', 'catatan'], $madrasah->json('kolom'));
@@ -715,19 +741,17 @@ class DokumenHalamanTest extends TestCase
         $f = $this->fixture();
         $auth = $this->superAdmin();
 
-        // Simpan dua baris se-kunci via endpoint: yang terakhir jadi aktif.
+        // Simpan dua baris se-kunci (pegawai, jenis) via endpoint: yang terakhir jadi aktif.
         foreach ([1, 2] as $ignored) {
             $this->actingAs($auth, 'sanctum')->postJson('/api/admin/dokumen/pegawai', [
                 'pegawai_id' => $f['guru']->id,
                 'jenjang' => 'MI',
                 'jenis_dokumen' => 'Pas Foto',
-                'lembaga' => 'MI',
             ])->assertStatus(201);
         }
 
         $rows = DB::table('dokumen_pegawai')->where('pegawai_id', $f['guru']->id)->orderBy('id')->get();
         $this->assertCount(2, $rows);
-        $this->assertSame('MI', $rows[1]->lembaga);
         $this->assertFalse((bool) $rows[0]->is_active);
         $this->assertTrue((bool) $rows[1]->is_active);
 
@@ -739,38 +763,160 @@ class DokumenHalamanTest extends TestCase
         $this->assertFalse((bool) DB::table('dokumen_pegawai')->find($rows[1]->id)->is_active);
     }
 
-    public function test_import_pegawai_rangkap_lembaga_dan_satu_aktif(): void
+    public function test_import_pegawai_rangkap_dan_satu_aktif(): void
     {
         $f = $this->fixture();
         $auth = $this->superAdmin();
 
         $this->actingAs($auth, 'sanctum')->postJson('/api/admin/dokumen/pegawai/import-potong', [
             'mode' => 'eksekusi',
-            'total' => 2,
+            'total' => 3,
             'terakhir' => true,
             'baris' => [
-                ['pegawai_id' => $f['guru']->id, 'jenjang' => 'MI', 'jenis_dokumen' => 'Pas Foto', 'lembaga' => 'MI', 'catatan' => 'A'],
-                ['pegawai_id' => $f['guru']->id, 'jenjang' => 'MI', 'jenis_dokumen' => 'Pas Foto', 'lembaga' => 'MI', 'catatan' => 'B'],
+                ['nipp' => 'PST-001', 'jenis_dokumen' => 'Pas Foto', 'catatan' => 'A', 'penyimpanan' => 'Lokal', 'nama_file' => 'foto-a.jpg', 'is_active' => 'Ya'],
+                ['nipp' => 'PST-001', 'jenis_dokumen' => 'Pas Foto', 'catatan' => 'B', 'penyimpanan' => 'Server', 'nama_file' => 'foto-a.jpg', 'is_active' => 'Ya'],
+                ['nipp' => 'PST-001', 'jenis_dokumen' => 'Pas Foto', 'catatan' => 'C', 'penyimpanan' => 'Server', 'nama_file' => 'foto-b.jpg', 'is_active' => 'Ya'],
             ],
         ])->assertOk();
 
-        // Kunci sama (pegawai, jenis, lembaga): baris kedua memperbarui.
-        $this->assertSame(1, DB::table('dokumen_pegawai')->where('pegawai_id', $f['guru']->id)->count());
-        $row = DB::table('dokumen_pegawai')->where('pegawai_id', $f['guru']->id)->first();
-        $this->assertSame('MI', $row->lembaga);
-        $this->assertSame('B', $row->catatan);
-        $this->assertTrue((bool) $row->is_active);
+        // Kunci (pegawai, jenis, nama_file): nama sama diperbarui (1 baris),
+        // nama beda jadi baris terpisah yang sama-sama aktif.
+        $rows = DB::table('dokumen_pegawai')->where('pegawai_id', $f['guru']->id)->orderBy('id')->get();
+        $this->assertCount(2, $rows);
+        $this->assertSame('B', $rows[0]->catatan);
+        $this->assertSame('server', $rows[0]->penyimpanan);
+        $this->assertSame('foto-a.jpg', $rows[0]->nama_file);
+        $this->assertSame('C', $rows[1]->catatan);
+        $this->assertSame('foto-b.jpg', $rows[1]->nama_file);
+        $this->assertTrue((bool) $rows[0]->is_active);
+        $this->assertTrue((bool) $rows[1]->is_active);
 
-        // Lembaga tak dikenal ditolak per baris.
+        // NIPP wajib: baris tanpa NIPP gagal.
         $res = $this->actingAs($auth, 'sanctum')->postJson('/api/admin/dokumen/pegawai/import-potong', [
             'mode' => 'periksa',
             'total' => 1,
             'terakhir' => true,
             'baris' => [
-                ['pegawai_id' => $f['guru']->id, 'jenjang' => 'MI', 'jenis_dokumen' => 'Pas Foto', 'lembaga' => 'ZZ'],
+                ['pegawai_id' => $f['guru']->id, 'jenis_dokumen' => 'Pas Foto'],
             ],
         ])->assertOk();
         $this->assertSame(1, $res->json('ringkasan.baris_gagal'));
+
+        // Penyimpanan + is_active tak dikenal + nama_file kosong ditolak per baris.
+        $res = $this->actingAs($auth, 'sanctum')->postJson('/api/admin/dokumen/pegawai/import-potong', [
+            'mode' => 'periksa',
+            'total' => 3,
+            'terakhir' => true,
+            'baris' => [
+                ['nipp' => 'PST-001', 'jenis_dokumen' => 'Pas Foto', 'nama_file' => 'x.jpg', 'penyimpanan' => 'Bulan'],
+                ['nipp' => 'PST-001', 'jenis_dokumen' => 'Pas Foto', 'nama_file' => 'x.jpg', 'is_active' => 'Mungkin'],
+                ['nipp' => 'PST-001', 'jenis_dokumen' => 'Pas Foto'],
+            ],
+        ])->assertOk();
+        $this->assertSame(3, $res->json('ringkasan.baris_gagal'));
+
+        // Kolom lembaga warisan (mis. ZZ) diabaikan, bukan galat per baris.
+        $res = $this->actingAs($auth, 'sanctum')->postJson('/api/admin/dokumen/pegawai/import-potong', [
+            'mode' => 'periksa',
+            'total' => 1,
+            'terakhir' => true,
+            'baris' => [
+                ['nipp' => 'PST-001', 'jenis_dokumen' => 'Pas Foto', 'nama_file' => 'foto-a.jpg', 'lembaga' => 'ZZ'],
+            ],
+        ])->assertOk();
+        $this->assertSame(0, $res->json('ringkasan.baris_gagal'));
+    }
+
+    public function test_dokumen_pegawai_ubah_langsung_nama_lokasi_status(): void
+    {
+        $f = $this->fixture();
+        $auth = $this->superAdmin();
+
+        $id = DB::table('dokumen_pegawai')->insertGetId([
+            'pegawai_id' => $f['guru']->id,
+            'jenis_dokumen_pegawai' => 'Pas Foto',
+            'nama_file' => 'lama.jpg',
+            'penyimpanan' => 'server',
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        // Status/nama/lokasi = edit data langsung (tanpa selaras nama).
+        $this->actingAs($auth, 'sanctum')->patchJson("/api/admin/dokumen/pegawai/{$id}", [
+            'nama_file' => 'baru.jpg',
+            'penyimpanan' => 'lokal',
+            'is_active' => false,
+        ])->assertOk();
+
+        $row = DB::table('dokumen_pegawai')->find($id);
+        $this->assertSame('baru.jpg', $row->nama_file);
+        $this->assertSame('lokal', $row->penyimpanan);
+        $this->assertFalse((bool) $row->is_active);
+        $this->assertSame('Pas Foto', $row->jenis_dokumen_pegawai);
+
+        // Kontrak API: is_active boolean asli (bukan 0/1) di daftar + ubah.
+        $list = $this->actingAs($auth, 'sanctum')->getJson('/api/admin/dokumen/pegawai?pegawai_id='.$f['guru']->id)
+            ->assertOk()->json('data');
+        $this->assertSame(false, $list[0]['is_active']);
+        $ubah = $this->actingAs($auth, 'sanctum')->patchJson("/api/admin/dokumen/pegawai/{$id}", [
+            'is_active' => true,
+        ])->assertOk();
+        $this->assertSame(true, $ubah->json('data.is_active'));
+
+        // Lokasi asing ditolak.
+        $this->actingAs($auth, 'sanctum')->patchJson("/api/admin/dokumen/pegawai/{$id}", [
+            'penyimpanan' => 'bulan',
+        ])->assertStatus(422);
+    }
+
+    public function test_dokumen_pegawai_bebas_jenis_berkas_santri_tetap_gambar_pdf(): void
+    {
+        $f = $this->fixture();
+        $auth = $this->superAdmin();
+
+        $this->actingAs($auth, 'sanctum')->post('/api/admin/dokumen/pegawai', [
+            'pegawai_id' => $f['guru']->id,
+            'jenjang' => 'MI',
+            'jenis_dokumen' => 'SK',
+            'file' => UploadedFile::fake()->create('sk.docx', 100, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'),
+        ], ['Accept' => 'application/json'])->assertStatus(201);
+        $nama = (string) DB::table('dokumen_pegawai')->where('pegawai_id', $f['guru']->id)->value('nama_file');
+        $this->assertMatchesRegularExpression('{^ustadz_guru_sk_\d{8}_\d{6}\.docx$}', $nama);
+
+        $this->actingAs($auth, 'sanctum')->post('/api/admin/dokumen/santri', [
+            'santri_id' => $f['santri']->id,
+            'jenis_dokumen' => 'Ijazah',
+            'file' => UploadedFile::fake()->create('ijazah.docx', 100, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'),
+        ], ['Accept' => 'application/json'])->assertStatus(422);
+        $this->assertSame(0, DokumenSantri::count());
+    }
+
+    public function test_dokumen_pegawai_menolak_kolom_lembaga(): void
+    {
+        $f = $this->fixture();
+        $auth = $this->superAdmin();
+
+        // Simpan menolak kolom lembaga untuk pegawai.
+        $this->actingAs($auth, 'sanctum')->postJson('/api/admin/dokumen/pegawai', [
+            'pegawai_id' => $f['guru']->id,
+            'jenjang' => 'MI',
+            'jenis_dokumen' => 'Pas Foto',
+            'lembaga' => 'MI',
+        ])->assertStatus(422);
+        $this->assertSame(0, DB::table('dokumen_pegawai')->count());
+
+        $id = DB::table('dokumen_pegawai')->insertGetId([
+            'pegawai_id' => $f['guru']->id,
+            'jenis_dokumen_pegawai' => 'Pas Foto',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        // Ubah pun menolaknya.
+        $this->actingAs($auth, 'sanctum')->patchJson("/api/admin/dokumen/pegawai/{$id}", [
+            'lembaga' => 'MI',
+        ])->assertStatus(422);
     }
 
     public function test_ubah_nama_file_hanya_basename_untuk_semua_tipe(): void

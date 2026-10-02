@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\DokumenLembaga;
 use App\Models\DokumenSantri;
 use App\Models\Lembaga;
+use App\Models\LembagaPegawai;
 use App\Models\LembagaSantri;
 use App\Models\Pegawai;
 use App\Models\Santri;
@@ -70,6 +71,14 @@ class DokumenImporService extends ImporPotongan
             return;
         }
 
+        // Pegawai tanpa kolom jenjang: NIPP wajib, izin mengikuti penempatan
+        // yang ditemukan (cermin santri).
+        if ($this->tipe === 'pegawai') {
+            $this->prosesPegawai($baris, $no, $jenis, $catatan, $kering);
+
+            return;
+        }
+
         $jenjang = mb_strtoupper(trim((string) ($baris['jenjang'] ?? '')));
         if ($jenjang === '' || ! Lembaga::whereKey($jenjang)->exists()) {
             $this->fail($no, 'jenjang', 'Lembaga tidak valid (isi jenjang, mis. MI/MD).');
@@ -99,7 +108,6 @@ class DokumenImporService extends ImporPotongan
         }
 
         match ($this->tipe) {
-            'pegawai' => $this->prosesPegawai($baris, $no, $jenjang, $jenis, $catatan, $kering),
             'lembaga' => $this->prosesLembaga($baris, $no, $jenjang, $jenis, $status, $catatan, $kering),
             default => throw ValidationException::withMessages(['tipe' => 'Tipe dokumen tidak dikenal.']),
         };
@@ -204,31 +212,66 @@ class DokumenImporService extends ImporPotongan
     }
 
     /**
-     * Pegawai: kunci (pegawai, jenis_dokumen_pegawai, lembaga). `lembaga`
-     * konteks pemakaian (opsional; harus terdaftar bila diisi). Baris yang
-     * diproses menjadi aktif; saudara se-kunci dinonaktifkan (cermin santri).
+     * Pegawai: kunci (pegawai, jenis_dokumen_pegawai, nama_file) — seorang
+     * pegawai boleh punya beberapa berkas sejenis (mis. ijazah S1/S2).
+     * NIPP wajib; pegawai dicari pegawai_id eksak → nipp eksak → nama unik.
+     * Izin lolos bila akun boleh mengakses salah satu penempatan pegawai.
+     *
+     * `nama_file` wajib diisi (basename; tanpa byte), `penyimpanan`
+     * dinormalisasi Server/Lokal/Test (kosong = server), `is_active`
+     * Ya/Tidak (kosong = Ya). Baris aktif menonaktifkan saudara se-kunci.
      *
      * @param  array<string, mixed>  $baris
      */
-    protected function prosesPegawai(array $baris, int $no, string $jenjang, string $jenis, ?string $catatan, bool $kering): void
+    protected function prosesPegawai(array $baris, int $no, string $jenis, ?string $catatan, bool $kering): void
     {
-        $pegawai = $this->cariPegawai($baris, $jenjang, $no);
+        if (trim((string) ($baris['nipp'] ?? '')) === '') {
+            $this->fail($no, 'nipp', 'NIPP wajib diisi.');
+
+            return;
+        }
+
+        $pegawai = $this->cariPegawai($baris, $no);
         if ($pegawai === null) {
             return;
         }
 
-        $lembaga = mb_strtoupper($this->bersihkanTeks($baris['lembaga'] ?? ''));
-        $lembaga = $lembaga !== '' ? $lembaga : null;
-        if ($lembaga !== null && ! Lembaga::whereKey($lembaga)->exists()) {
-            $this->fail($no, 'lembaga', 'Lembaga tidak valid (isi jenjang, mis. MI/MD).');
+        $auth = auth()->user();
+        $boleh = LembagaPegawai::where('pegawai_id', $pegawai->id)
+            ->pluck('jenjang')
+            ->contains(fn ($j) => $auth && $auth->canAccessLembaga($j));
+        if (! $boleh) {
+            $this->fail($no, 'nipp', 'Pegawai di luar lingkup akses Anda.');
 
             return;
         }
 
+        $simpan = $this->normalisasiPenyimpanan($baris['penyimpanan'] ?? null);
+        if ($simpan === false) {
+            $this->fail($no, 'penyimpanan', 'Lokasi tidak dikenal (isi Server/Lokal/Test).');
+
+            return;
+        }
+
+        $aktif = $this->normalisasiAktif($baris['is_active'] ?? null);
+        if ($aktif === null) {
+            $this->fail($no, 'is_active', 'Status aktif tidak dikenal (isi Ya/Tidak).');
+
+            return;
+        }
+
+        $namaFile = $this->bersihkanTeks($baris['nama_file'] ?? '');
+        if ($namaFile === '') {
+            $this->fail($no, 'nama_file', 'Nama berkas wajib diisi.');
+
+            return;
+        }
+        $namaFile = basename($namaFile);
+
         $lama = DB::table('dokumen_pegawai')
             ->where('pegawai_id', $pegawai->id)
             ->where('jenis_dokumen_pegawai', $jenis)
-            ->where('lembaga', $lembaga)
+            ->where('nama_file', $namaFile)
             ->first();
 
         if ($kering) {
@@ -242,7 +285,9 @@ class DokumenImporService extends ImporPotongan
             $id = DB::table('dokumen_pegawai')->insertGetId([
                 'pegawai_id' => $pegawai->id,
                 'jenis_dokumen_pegawai' => $jenis,
-                'lembaga' => $lembaga,
+                'nama_file' => $namaFile,
+                'penyimpanan' => $simpan ?? 'server',
+                'is_active' => $aktif,
                 'catatan' => $catatan,
                 'created_at' => now(),
                 'updated_at' => now(),
@@ -250,22 +295,27 @@ class DokumenImporService extends ImporPotongan
             $this->dibuat++;
         } else {
             $id = $lama->id;
-            $ubah = ['is_active' => true];
+            $ubah = ['nama_file' => $namaFile, 'is_active' => $aktif, 'updated_at' => now()];
+            if ($simpan !== null) {
+                $ubah['penyimpanan'] = $simpan;
+            }
             if ($catatan !== null) {
                 $ubah['catatan'] = $catatan;
             }
-            $ubah['updated_at'] = now();
             DB::table('dokumen_pegawai')->where('id', $id)->update($ubah);
             $this->diperbarui++;
         }
 
-        // Satu aktif per kunci: baris ini yang terakhir.
-        DB::table('dokumen_pegawai')
-            ->where('pegawai_id', $pegawai->id)
-            ->where('jenis_dokumen_pegawai', $jenis)
-            ->where('lembaga', $lembaga)
-            ->where('id', '!=', $id)
-            ->update(['is_active' => false]);
+        // Satu aktif per kunci: baris aktif menonaktifkan saudara se-kunci
+        // (nama_file sama; berkas sejenis lain tidak tersentuh).
+        if ($aktif) {
+            DB::table('dokumen_pegawai')
+                ->where('pegawai_id', $pegawai->id)
+                ->where('jenis_dokumen_pegawai', $jenis)
+                ->where('nama_file', $namaFile)
+                ->where('id', '!=', $id)
+                ->update(['is_active' => false]);
+        }
 
         $this->valid++;
     }
@@ -343,12 +393,11 @@ class DokumenImporService extends ImporPotongan
     }
 
     /**
-     * Cari pegawai: pegawai_id eksak → nipp eksak → nama unik (wajib
-     * ditempatkan di lembaga baris agar cakupan lembaga bermakna).
+     * Cari pegawai: pegawai_id eksak → nipp eksak → nama unik.
      *
      * @param  array<string, mixed>  $baris
      */
-    protected function cariPegawai(array $baris, string $jenjang, int $no): ?Pegawai
+    protected function cariPegawai(array $baris, int $no): ?Pegawai
     {
         if (! empty($baris['pegawai_id'])) {
             $p = Pegawai::find((int) $baris['pegawai_id']);
@@ -379,6 +428,20 @@ class DokumenImporService extends ImporPotongan
         }
 
         $this->fail($no, 'nipp', 'Pegawai tidak ditemukan (cocokkan pegawai_id / NIPP / nama).');
+
+        return null;
+    }
+
+    /** Status aktif: Ya/1 (apa pun kapitalnya) → true; Tidak/0 → false; kosong = true; selain itu null. */
+    protected function normalisasiAktif(mixed $nilai): ?bool
+    {
+        $teks = mb_strtolower(trim((string) ($nilai ?? '')));
+        if ($teks === '' || $teks === 'ya' || $teks === '1') {
+            return true;
+        }
+        if ($teks === 'tidak' || $teks === '0') {
+            return false;
+        }
 
         return null;
     }

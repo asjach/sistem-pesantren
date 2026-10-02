@@ -38,7 +38,7 @@ class DokumenTemplateExport extends DefaultValueBinder implements FromArray, Wit
     {
         return match ($tipe) {
             'santri' => ['nis_lokal', 'jenis_dokumen', 'lembaga', 'nama_file', 'penyimpanan', 'catatan'],
-            'pegawai' => ['pegawai_id', 'nipp', 'nama_lengkap', 'jenjang', 'jenis_dokumen', 'lembaga', 'catatan'],
+            'pegawai' => ['pegawai_id', 'nipp', 'nama_lengkap', 'jenis_dokumen', 'catatan', 'penyimpanan', 'nama_file', 'is_active'],
             'lembaga' => ['jenjang', 'jenis_dokumen', 'status_verifikasi', 'catatan'],
             default => [],
         };
@@ -48,7 +48,7 @@ class DokumenTemplateExport extends DefaultValueBinder implements FromArray, Wit
     {
         return match ($tipe) {
             'santri' => ['nis_lokal', 'jenis_dokumen', 'nama_file', 'penyimpanan'],
-            'pegawai' => ['jenjang', 'jenis_dokumen'],
+            'pegawai' => ['nipp', 'jenis_dokumen', 'nama_file'],
             'lembaga' => ['jenjang', 'jenis_dokumen'],
             default => [],
         };
@@ -75,14 +75,14 @@ class DokumenTemplateExport extends DefaultValueBinder implements FromArray, Wit
     {
         $contoh = match ($this->tipe) {
             'santri' => ['26001', 'Kartu Keluarga', 'MI', '', 'Server', ''],
-            'pegawai' => ['', 'PST-001', '', 'MI', 'Ijazah S1', '', 'Sesuai arsip'],
+            'pegawai' => ['', 'PST-001', '', 'Ijazah S1', 'Sesuai arsip', 'Server', '', 'Ya'],
             'lembaga' => ['MI', 'Izin Operasional', 'Valid', 'SK Kemenag 2026'],
         };
         // Petakan posisional sejajar kolom (kunci tak dipakai di array()).
         $kolom = self::kolom($this->tipe);
         $urut = match ($this->tipe) {
             'santri' => ['nis_lokal' => 0, 'jenis_dokumen' => 1, 'lembaga' => 2, 'nama_file' => 3, 'penyimpanan' => 4, 'catatan' => 5],
-            'pegawai' => ['pegawai_id' => 0, 'nipp' => 1, 'nama_lengkap' => 2, 'jenjang' => 3, 'jenis_dokumen' => 4, 'lembaga' => 5, 'catatan' => 6],
+            'pegawai' => ['pegawai_id' => 0, 'nipp' => 1, 'nama_lengkap' => 2, 'jenis_dokumen' => 3, 'catatan' => 4, 'penyimpanan' => 5, 'nama_file' => 6, 'is_active' => 7],
             'lembaga' => ['jenjang' => 0, 'jenis_dokumen' => 1, 'status_verifikasi' => 2, 'catatan' => 3],
         };
 
@@ -99,6 +99,7 @@ class DokumenTemplateExport extends DefaultValueBinder implements FromArray, Wit
             'lembaga' => Lembaga::orderBy('jenjang')->pluck('jenjang')->all(),
             'status_verifikasi' => ['Menunggu', 'Valid', 'Ditolak'],
             'penyimpanan' => ['Server', 'Lokal', 'Test'],
+            'is_active' => ['Ya', 'Tidak'],
         ];
     }
 

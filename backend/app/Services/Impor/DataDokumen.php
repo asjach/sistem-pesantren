@@ -34,7 +34,8 @@ class DataDokumen
             return [...DokumenTemplateExport::kolom($this->tipe), 'nama_lengkap', 'is_active'];
         }
         if ($this->tipe === 'pegawai') {
-            return [...DokumenTemplateExport::kolom($this->tipe), 'is_active'];
+            // Template pegawai sudah memuat is_active sebagai kolom import.
+            return DokumenTemplateExport::kolom($this->tipe);
         }
 
         return DokumenTemplateExport::kolom($this->tipe);
@@ -114,10 +115,10 @@ class DataDokumen
                 (string) $d->pegawai_id,
                 (string) ($d->nipp ?? ''),
                 (string) ($d->nama_lengkap ?? ''),
-                (string) $tempat[$d->pegawai_id]->jenjang,
                 (string) $d->jenis_dokumen_pegawai,
-                (string) ($d->lembaga ?? ''),
                 (string) ($d->catatan ?? ''),
+                (string) ($d->penyimpanan ?? ''),
+                (string) ($d->nama_file ?? ''),
                 $d->is_active ? 'Ya' : 'Tidak',
             ])
             ->values()
