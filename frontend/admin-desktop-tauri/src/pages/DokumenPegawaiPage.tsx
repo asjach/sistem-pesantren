@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/field';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
@@ -24,27 +25,28 @@ import ComboCari from '@/components/ComboCari';
 import { cn } from '@/lib/utils';
 import {
   BATAS_BERKAS,
-  EKSTENSI_PILIH,
   ekstensiDariNama,
   mimeDariEkstensi,
   pilihBerkasDokumen,
 } from '@/lib/arsipDokumen';
 import PenampilBerkas, { type SumberBerkas } from '@/components/dokumen/PenampilBerkas';
 import DialogSinkronDokumen from '@/components/dokumen/DialogSinkronDokumen';
+import TambahDokumenPegawaiDialog from '@/components/dokumen/TambahDokumenPegawaiDialog';
 import { siapkanFileUntukServer } from '@/lib/konversiHeic';
 import { gantiEkstensi, type HasilGambar } from '@/lib/olahGambar';
-import { Check, Download, FolderOpen, MoreVertical, Pencil, RefreshCw, Save, Trash2, Undo2, Upload, X } from '@/icons';
+import { Check, Download, FolderOpen, MoreVertical, Plus, RefreshCw, Save, Trash2, Undo2, Upload, X } from '@/icons';
 import { toast } from 'sonner';
 
-/** Halaman Lihat Dokumen Pegawai — tata letak sama dengan Tambah Dokumen.
+/** Halaman Dokumen Pegawai — tata letak sama dengan Tambah Dokumen.
  *  Kolom 1 baris 1: tabel Daftar Pegawai; baris 2: tabel Daftar Dokumen
  *  milik pegawai terpilih (klik baris = pratinjau di kolom 2).
  *  Kolom 2: pratinjau baca-saja + aksi Unduh/Ganti per baris. */
-export default function LihatDokumenPegawaiPage() {
+export default function DokumenPegawaiPage() {
   const { user } = useAuth();
   const desktop = isTauri();
   const canUbah = bisa(user, 'dokumen_pegawai.ubah');
   const canHapus = bisa(user, 'dokumen_pegawai.hapus');
+  const canTambah = bisa(user, 'dokumen_pegawai.tambah');
   const { jenjangs, tahunAjaranNames, loading: filterLoading } = useFilterGlobalAktif();
 
   // ----- Daftar pegawai (kolom 1, baris 1) -----
@@ -62,8 +64,18 @@ export default function LihatDokumenPegawaiPage() {
   const [loadingPegawai, setLoadingPegawai] = useState(false);
   const [err, setErr] = useState('');
 
+  /** True bila pegawai punya penempatan aktif di lembaga_pegawai. Saat
+   *  `jenjang` tidak kosong, penempatan aktif harus di salah satu jenjang itu. */
+  function punyaPenempatanAktif(p: Pegawai, jenjang: readonly string[]): boolean {
+    return (p.penempatan ?? []).some((t) => t.is_active_lembaga === 'Ya'
+      && (jenjang.length === 0 || jenjang.includes(t.jenjang)));
+  }
+
   /** Daftar pegawai dimuat utuh tanpa pagination (per_page=0 = semua baris).
-   *  Filter kosong (mode "Semua") = tanpa filter, bukan daftar kosong. */
+   *  Filter kosong (mode "Semua") = tanpa filter, bukan daftar kosong.
+   *  Mode "Filter Pegawai" hanya menampilkan pegawai dengan penempatan AKTIF
+   *  di lembaga_pegawai (dalam lingkup jenjang filter); mode "Buku Induk"
+   *  menampilkan seluruh baris pegawai, aktif maupun tidak. */
   const muatPegawai = useCallback(async (signal?: AbortSignal) => {
     if (filterLoading) { setPegawais([]); return; }
     setLoadingPegawai(true);
@@ -81,7 +93,7 @@ export default function LihatDokumenPegawaiPage() {
         signal,
       });
       const urut = [...res.data].sort((a, b) => a.nama_lengkap.localeCompare(b.nama_lengkap, 'id'));
-      setPegawais(urut);
+      setPegawais(sumber === 'filter' ? urut.filter((p) => punyaPenempatanAktif(p, jenjangs)) : urut);
     } catch (e) {
       if (signal?.aborted) return;
       setErr(errorMessage(e));
@@ -102,9 +114,12 @@ export default function LihatDokumenPegawaiPage() {
   /** Jumlah dokumen per pegawai (kunci: pegawai_id) — satu fetch; tanpa
    *  filter = seluruh lingkup akses. */
   const [jumlahPegawai, setJumlahPegawai] = useState<Record<number, number>>({});
+  // Tanpa filter jenjang + satu baris per dokumen: sama dengan daftar dokumen
+  // per pegawai (yang hanya disaring pegawai_id), sehingga badge "Dok"
+  // tidak pernah lebih kecil dari isi daftar.
   const muatJumlahPegawai = useCallback(async (): Promise<Record<number, number>> => {
     try {
-      const p = await listDokumen('pegawai', { jenjang: jenjangs.length ? jenjangs : undefined, per_page: 0 });
+      const p = await listDokumen('pegawai', { per_page: 0 });
       const hitung: Record<number, number> = {};
       for (const d of p.data) {
         const pid = d.pegawai_id;
@@ -114,7 +129,7 @@ export default function LihatDokumenPegawaiPage() {
     } catch {
       return {};
     }
-  }, [jenjangs]);
+  }, []);
   useEffect(() => {
     let hidup = true;
     void muatJumlahPegawai().then((h) => { if (hidup) setJumlahPegawai(h); });
@@ -265,13 +280,15 @@ export default function LihatDokumenPegawaiPage() {
   // ----- Hapus dokumen -----
   const [hapusRow, setHapusRow] = useState<DokumenRow | null>(null);
 
-  // ----- Sinkron cermin pegawai ini -----
+  // ----- Sinkron cermin (pegawai ini / semua pegawai) -----
   const [sinkronTerbuka, setSinkronTerbuka] = useState(false);
+  const [tambahTerbuka, setTambahTerbuka] = useState(false);
   const namaPegawaiAktif = useMemo(
     () => pegawais.find((x) => x.id === pegawaiId)?.nama_lengkap ?? '',
     [pegawais, pegawaiId],
   );
   const segarkanSetelahSinkron = useCallback(async () => {
+    void muatJumlahPegawai().then(setJumlahPegawai);
     if (pegawaiId == null) return;
     await muatDokumen(pegawaiId);
     if (dokId != null) {
@@ -279,7 +296,7 @@ export default function LihatDokumenPegawaiPage() {
       const baru = p.data.find((d) => d.id === dokId);
       if (baru) void muatPratinjau(baru);
     }
-  }, [pegawaiId, dokId, muatDokumen, muatPratinjau]);
+  }, [pegawaiId, dokId, muatDokumen, muatJumlahPegawai, muatPratinjau]);
 
   const onHapus = useCallback(async () => {
     if (!hapusRow) return;
@@ -312,18 +329,29 @@ export default function LihatDokumenPegawaiPage() {
     return desktop && arsipAda[r.id] === true;
   }, [desktop, arsipAda]);
   const judulSelaras = useCallback((r: DokumenRow) => {
-    if ((r.penyimpanan ?? 'server') === 'server') return 'Ubah jenis/lembaga/catatan — nama berkas ikut diselaraskan';
+    if ((r.penyimpanan ?? 'server') === 'server') return 'Ubah jenis/catatan — nama berkas ikut diselaraskan';
     if (!desktop) return 'Baris arsip perangkat hanya bisa diubah lewat aplikasi desktop';
     return arsipAda[r.id] === true
-      ? 'Ubah jenis/lembaga/catatan — salinan arsip ikut dipindah'
+      ? 'Ubah jenis/catatan — salinan arsip ikut dipindah'
       : 'Salinan arsip tidak ada di perangkat ini — ubah dari perangkat asal';
   }, [desktop, arsipAda]);
 
-  // ----- Ubah jenis/status/catatan -----
-  const [editRow, setEditRow] = useState<DokumenRow | null>(null);
+  // ----- Ubah inline di segmen Info dokumen (jenis + catatan memicu
+  //  selaras nama berkas; status/nama/lokasi edit data langsung) -----
   const [editJenis, setEditJenis] = useState('');
-  const [editLembaga, setEditLembaga] = useState('');
   const [editCatatan, setEditCatatan] = useState('');
+  const [editAktif, setEditAktif] = useState('Ya');
+  const [editNama, setEditNama] = useState('');
+  const [editLokasi, setEditLokasi] = useState('server');
+  // Ganti baris terpilih → editor mengikuti nilai baris baru.
+  useEffect(() => {
+    const baris = dokumens.find((d) => d.id === dokId) ?? null;
+    setEditJenis(baris?.jenis_dokumen ?? '');
+    setEditCatatan(baris?.catatan ?? '');
+    setEditAktif(baris?.is_active === false ? 'Tidak' : 'Ya');
+    setEditNama(baris?.nama_file ?? '');
+    setEditLokasi(baris?.penyimpanan ?? 'server');
+  }, [dokId, dokumens]);
 
   /** Opsi jenis dari referensi (sama dengan halaman Tambah). */
   const [jenisRows, setJenisRows] = useState<ReferensiRow[]>([]);
@@ -353,31 +381,36 @@ export default function LihatDokumenPegawaiPage() {
     return opsi;
   }, [jenisRows, editJenis]);
 
-  function bukaUbah(r: DokumenRow) {
-    setEditJenis(r.jenis_dokumen ?? '');
-    setEditLembaga(r.lembaga ?? '');
-    setEditCatatan(r.catatan ?? '');
-    setEditRow(r);
-  }
-
   const onUbah = useCallback(async () => {
-    if (!editRow || editJenis.trim() === '') return;
+    // Cari langsung (bukan dokPratinjau) agar callback bisa dideklarasikan
+    // sebelum memo baris terpilih.
+    const baris = dokumens.find((d) => d.id === dokId) ?? null;
+    if (!baris || editJenis.trim() === '') return;
+    // Hanya field yang berubah yang dikirim; jenis/catatan memicu selaras
+    // nama berkas, sisanya edit data langsung.
+    const payload: Record<string, unknown> = { selaraskan_nama: true };
+    if (editJenis.trim() !== (baris.jenis_dokumen ?? '')) payload.jenis_dokumen = editJenis.trim();
+    if ((editCatatan.trim() || '') !== (baris.catatan ?? '')) payload.catatan = editCatatan.trim() || null;
+    const aktifAwal = baris.is_active === false ? 'Tidak' : 'Ya';
+    if (editAktif !== aktifAwal) payload.is_active = editAktif === 'Ya';
+    if (editNama.trim() !== (baris.nama_file ?? '')) payload.nama_file = editNama.trim() || null;
+    if (editLokasi !== (baris.penyimpanan ?? 'server')) payload.penyimpanan = editLokasi;
+    if (Object.keys(payload).length <= 1) return;
     setBusy(true);
-    const namaLama = editRow.nama_file;
-    const jenisLama = editRow.jenis_dokumen;
+    const namaLama = baris.nama_file;
+    const jenisLama = baris.jenis_dokumen;
     const jenisBaru = editJenis.trim();
-    const idUbah = editRow.id;
-    const lokasi = editRow.penyimpanan ?? 'server';
+    const idUbah = baris.id;
+    const lokasi = baris.penyimpanan ?? 'server';
     try {
-      const hasil = await ubahDokumen('pegawai', editRow.id, {
-        jenis_dokumen: jenisBaru,
-        lembaga: editLembaga || null,
-        catatan: editCatatan.trim() || null,
-        // Pemanggil menjamin byte ikut pindah (lihat bisaSelaras).
-        selaraskan_nama: true,
-      });
+      const hasil = await ubahDokumen('pegawai', baris.id, payload);
       toast.success('Dokumen diubah.');
-      setEditRow(null);
+      const segar = hasil.data;
+      setEditJenis(segar?.jenis_dokumen ?? jenisBaru);
+      setEditCatatan(segar?.catatan ?? '');
+      setEditAktif(segar?.is_active === false ? 'Tidak' : 'Ya');
+      setEditNama(segar?.nama_file ?? '');
+      setEditLokasi(segar?.penyimpanan ?? 'server');
       // Desktop: pindahkan salinan arsip mengikuti nama + folder baru.
       const namaBaru = hasil.data?.nama_file ?? null;
       if (desktop && lokasi !== 'server' && namaLama && namaBaru && namaBaru !== namaLama) {
@@ -386,10 +419,11 @@ export default function LihatDokumenPegawaiPage() {
           const { join } = await import('@tauri-apps/api/path');
           const { kandidatAkarArsip, cariArsip } = await import('@/lib/arsipDokumen');
           let pindah = false;
-          for (const { akar, lokasi: lokasiArsip } of await kandidatAkarArsip(editRow?.penyimpanan ?? 'server')) {
+          for (const { akar, lokasi: lokasiArsip } of await kandidatAkarArsip(lokasi)) {
             const lama = await cariArsip(namaLama, jenisLama, akar, 'pegawai', lokasiArsip);
             if (!lama) continue;
-            const folderTipe = await join(akar, lokasiArsip, 'pegawai');
+            const { folderArsip } = await import('@/lib/arsipDokumen');
+            const folderTipe = await folderArsip(akar, lokasiArsip, 'pegawai');
             await mkdir(folderTipe, { recursive: true });
             const baru = await join(folderTipe, namaBaru);
             if (await exists(baru)) {
@@ -419,7 +453,7 @@ export default function LihatDokumenPegawaiPage() {
     } finally {
       setBusy(false);
     }
-  }, [editRow, editJenis, editLembaga, editCatatan, pegawaiId, dokId, desktop, muatDokumen, muatPratinjau]);
+  }, [dokumens, editJenis, editCatatan, editAktif, editNama, editLokasi, pegawaiId, dokId, desktop, muatDokumen, muatPratinjau]);
 
   // ----- Ganti berkas -----
   const [gantiRow, setGantiRow] = useState<DokumenRow | null>(null);
@@ -430,7 +464,7 @@ export default function LihatDokumenPegawaiPage() {
   async function onBrowseGanti() {
     if (desktop) {
       try {
-        const b = await pilihBerkasDokumen();
+        const b = await pilihBerkasDokumen(true);
         if (!b) return;
         const { readFile } = await import('@tauri-apps/plugin-fs');
         const bytes = await readFile(b.path);
@@ -446,12 +480,6 @@ export default function LihatDokumenPegawaiPage() {
   function onFileGantiWeb(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0] ?? null;
     if (!f) return;
-    const ext = ekstensiDariNama(f.name);
-    if (!EKSTENSI_PILIH.includes(ext)) {
-      toast.error(`Berkas harus ${EKSTENSI_PILIH.join('/').toUpperCase()} (HEIC/WEBP otomatis dikonversi).`);
-      e.target.value = '';
-      return;
-    }
     if (f.size > BATAS_BERKAS) {
       toast.error('Berkas melebihi 10 MB.');
       e.target.value = '';
@@ -540,6 +568,17 @@ export default function LihatDokumenPegawaiPage() {
   const [kunciViewer, setKunciViewer] = useState(0);
   /** Baris yang sedang dipratinjau — dasar mengaktifkan tombol ubah viewer. */
   const dokPratinjau = useMemo(() => dokumens.find((d) => d.id === dokId) ?? null, [dokumens, dokId]);
+  /** Pegawai terpilih (fallback nama guru bila baris tak memuat join). */
+  const pegawaiDipilih = useMemo(() => pegawais.find((p) => p.id === pegawaiId) ?? null, [pegawais, pegawaiId]);
+  /** Baris terpilih boleh diubah inline (izin + arsip tersedia bila perangkat). */
+  const infoBisaUbah = dokPratinjau != null && canUbah && bisaSelaras(dokPratinjau);
+  /** Ada perubahan yang belum disimpan (lima field edit inline). */
+  const infoKotor = dokPratinjau != null
+    && (editJenis.trim() !== (dokPratinjau.jenis_dokumen ?? '')
+      || (editCatatan.trim() || '') !== (dokPratinjau.catatan ?? '')
+      || editAktif !== (dokPratinjau.is_active === false ? 'Tidak' : 'Ya')
+      || editNama.trim() !== (dokPratinjau.nama_file ?? '')
+      || editLokasi !== (dokPratinjau.penyimpanan ?? 'server'));
   const bisaUbahViewer = canUbah && dokPratinjau !== null && !perluDesktop(dokPratinjau);
 
   /** Simpan hasil edit viewer: arsip perangkat ditulis balik di tempat
@@ -578,6 +617,21 @@ export default function LihatDokumenPegawaiPage() {
     );
     await terapkanGanti(dokPratinjau, file);
   }, [dokPratinjau, keluaran, pratinjau, terapkanGanti, pegawaiId, muatDokumen, muatPratinjau]);
+
+  /** Toggle aktif via klik kanan: aktif → nonaktifkan & sebaliknya. */
+  const onToggleAktif = useCallback(async (row: DokumenRow) => {
+    setBusy(true);
+    try {
+      const jadiAktif = !(row.is_active ?? true);
+      await ubahDokumen('pegawai', row.id, { is_active: jadiAktif });
+      toast.success(jadiAktif ? 'Dokumen diaktifkan.' : 'Dokumen dinonaktifkan.');
+      if (pegawaiId != null) await muatDokumen(pegawaiId);
+    } catch (e) {
+      toast.error(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  }, [pegawaiId, muatDokumen]);
 
   const lokasiLabel = (r: DokumenRow) =>
     (r.penyimpanan ?? 'server') === 'lokal' ? 'Lokal'
@@ -677,7 +731,7 @@ export default function LihatDokumenPegawaiPage() {
                 <thead className="sticky top-0 bg-muted">
                   <tr className="text-left">
                     <th className="px-2 py-1 font-medium">Jenis</th>
-                    <th className="px-2 py-1 font-medium">Berkas</th>
+                    <th className="px-2 py-1 font-medium">Catatan</th>
                     <th className="px-2 py-1 text-right font-medium">Aksi</th>
                   </tr>
                 </thead>
@@ -692,8 +746,9 @@ export default function LihatDokumenPegawaiPage() {
                     const aktif = d.id === dokId;
                     const kunci = perluDesktop(d);
                     return (
+                      <ContextMenu key={d.id}>
+                        <ContextMenuTrigger asChild>
                       <tr
-                        key={d.id}
                         onClick={() => { if (!kunci) void muatPratinjau(d); }}
                         title={kunci ? 'Berkas hanya ada di arsip perangkat — buka lewat aplikasi desktop' : 'Klik untuk pratinjau'}
                         aria-selected={aktif}
@@ -703,15 +758,18 @@ export default function LihatDokumenPegawaiPage() {
                           aktif ? 'bg-accent font-medium' : (!kunci && 'hover:bg-muted/60'),
                         )}
                       >
-                        <td className="px-2 py-1">
+                        <td className="px-2">
+                          <span
+                            title={d.is_active === false ? 'Nonaktif' : 'Aktif'}
+                            className={cn(
+                              'mr-1.5 inline-block size-2 rounded-full align-middle',
+                              d.is_active === false ? 'bg-red-500' : 'bg-green-500',
+                            )}
+                          />
                           {d.jenis_dokumen}
-                          {d.lembaga ? <Badge variant="outline" className="ml-1 py-0 text-[10px] leading-3">{d.lembaga}</Badge> : null}
-                          {d.is_active === false ? <span className="ml-1 text-[10px] text-muted-foreground">(nonaktif)</span> : null}
                         </td>
-                        <td className="max-w-40 truncate px-2 py-1 text-muted-foreground" title={d.nama_file ?? undefined}>
-                          {d.nama_file ?? '—'} · {lokasiLabel(d)}
-                        </td>
-                        <td className="px-2 py-1 text-right">
+                        <td className="max-w-40 truncate px-2 text-muted-foreground" title={d.catatan ?? undefined}>{d.catatan || '—'}</td>
+                        <td className="px-2 text-right">
                           <span className="inline-block" onClick={(e) => e.stopPropagation()}>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
@@ -726,15 +784,6 @@ export default function LihatDokumenPegawaiPage() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                {canUbah && (
-                                  <DropdownMenuItem
-                                    disabled={!bisaSelaras(d)}
-                                    title={judulSelaras(d)}
-                                    onClick={() => bukaUbah(d)}
-                                  >
-                                    <Pencil size={14} /> Ubah
-                                  </DropdownMenuItem>
-                                )}
                                 {d.nama_file && (
                                   <DropdownMenuItem
                                     disabled={kunci}
@@ -756,18 +805,7 @@ export default function LihatDokumenPegawaiPage() {
                                 {canUbah && d.is_active === false && (
                                   <DropdownMenuItem
                                     title="Jadikan dokumen aktif (menonaktifkan yang lain se-kunci)"
-                                    onClick={() => void (async () => {
-                                      setBusy(true);
-                                      try {
-                                        await ubahDokumen('pegawai', d.id, { is_active: true });
-                                        toast.success('Dokumen diaktifkan.');
-                                        if (pegawaiId != null) await muatDokumen(pegawaiId);
-                                      } catch (e) {
-                                        toast.error(errorMessage(e));
-                                      } finally {
-                                        setBusy(false);
-                                      }
-                                    })()}
+                                    onClick={() => void onToggleAktif(d)}
                                   >
                                     <Check size={14} /> Jadikan aktif
                                   </DropdownMenuItem>
@@ -786,12 +824,169 @@ export default function LihatDokumenPegawaiPage() {
                           </span>
                         </td>
                       </tr>
+                        </ContextMenuTrigger>
+                        <ContextMenuContent>
+                          {canUbah && (
+                            <ContextMenuItem
+                              id={`menu_toggle_aktif_dok_lihat_pegawai_${d.id}`}
+                              disabled={busy}
+                              onClick={() => void onToggleAktif(d)}
+                            >
+                              {d.is_active === false ? <Check size={14} /> : <X size={14} />}
+                              {d.is_active === false ? 'Aktifkan' : 'Nonaktifkan'}
+                            </ContextMenuItem>
+                          )}
+                        </ContextMenuContent>
+                      </ContextMenu>
                     );
                   })}
                 </tbody>
               </table>
             </div>
           </div>
+          <div className="flex shrink-0 flex-col gap-1.5">
+            <div className="flex items-center justify-between gap-2">
+              <FieldLabel id="label_info_dokumen_lihat_pegawai">Info dokumen</FieldLabel>
+              {infoKotor && (
+                <>
+                  <TombolIkon
+                    tip="Kembalikan ke nilai awal"
+                    id="btn_reset_info_dok_lihat_pegawai"
+                    size="icon"
+                    variant="ghost"
+                    className="size-6"
+                    disabled={busy}
+                    onClick={() => {
+                      setEditJenis(dokPratinjau?.jenis_dokumen ?? '');
+                      setEditCatatan(dokPratinjau?.catatan ?? '');
+                      setEditAktif(dokPratinjau?.is_active === false ? 'Tidak' : 'Ya');
+                      setEditNama(dokPratinjau?.nama_file ?? '');
+                      setEditLokasi(dokPratinjau?.penyimpanan ?? 'server');
+                    }}
+                  >
+                    <Undo2 size={14} />
+                  </TombolIkon>
+                  <TombolIkon
+                    tip="Simpan perubahan jenis/catatan"
+                    id="btn_simpan_info_dok_lihat_pegawai"
+                    size="icon"
+                    variant="ghost"
+                    className="size-6"
+                    disabled={busy || editJenis.trim() === '' || !infoBisaUbah}
+                    onClick={() => void onUbah()}
+                  >
+                    <Save size={14} />
+                  </TombolIkon>
+                </>
+              )}
+            </div>
+            {dokPratinjau == null ? (
+              <div className="h-44 overflow-y-auto rounded-md border px-2 py-1.5">
+                <p className="text-xs text-muted-foreground">Pilih baris dokumen untuk melihat info.</p>
+              </div>
+            ) : (
+              <dl id="info_dokumen_lihat_pegawai" className="grid h-44 grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 overflow-y-auto rounded-md border px-2 py-1.5 text-xs">
+                <dt className="text-muted-foreground">Nama guru</dt>
+                <dd>{dokPratinjau.nama_lengkap ?? pegawaiDipilih?.nama_lengkap ?? '—'}</dd>
+                <dt className="text-muted-foreground">Jenis</dt>
+                <dd>
+                  {infoBisaUbah ? (
+                    <ComboCari
+                      id="combo_jenis_info_dok_lihat_pegawai"
+                      inputId="input_jenis_info_dok_lihat_pegawai"
+                      value={editJenis}
+                      onChange={setEditJenis}
+                      options={opsiJenisUbah}
+                      placeholder="Pilih jenis…"
+                      className="w-full"
+                    />
+                  ) : (
+                    <span title={canUbah && dokPratinjau ? judulSelaras(dokPratinjau) : undefined}>{dokPratinjau.jenis_dokumen}</span>
+                  )}
+                </dd>
+                <dt className="text-muted-foreground">Status</dt>
+                <dd>
+                  {infoBisaUbah ? (
+                    <ComboCari
+                      id="combo_status_info_dok_lihat_pegawai"
+                      inputId="input_status_info_dok_lihat_pegawai"
+                      value={editAktif}
+                      onChange={setEditAktif}
+                      options={[{ value: 'Ya', label: 'Aktif' }, { value: 'Tidak', label: 'Nonaktif' }]}
+                      placeholder="Pilih status…"
+                      className="w-full"
+                    />
+                  ) : (
+                    dokPratinjau.is_active === false ? 'Nonaktif' : 'Aktif'
+                  )}
+                </dd>
+                <dt className="text-muted-foreground">Nama berkas</dt>
+                <dd>
+                  {infoBisaUbah ? (
+                    <Input
+                      id="input_nama_info_dok_lihat_pegawai"
+                      value={editNama}
+                      onChange={(e) => setEditNama(e.target.value)}
+                      placeholder="nama berkas…"
+                      className="h-6 text-xs"
+                    />
+                  ) : (
+                    <span className="block truncate" title={dokPratinjau.nama_file ?? undefined}>{dokPratinjau.nama_file ?? '—'}</span>
+                  )}
+                </dd>
+                <dt className="text-muted-foreground">Lokasi</dt>
+                <dd>
+                  {infoBisaUbah ? (
+                    <ComboCari
+                      id="combo_lokasi_info_dok_lihat_pegawai"
+                      inputId="input_lokasi_info_dok_lihat_pegawai"
+                      value={editLokasi}
+                      onChange={setEditLokasi}
+                      options={[
+                        { value: 'server', label: 'Server' },
+                        { value: 'lokal', label: 'Lokal' },
+                        { value: 'test', label: 'Test' },
+                        ...((dokPratinjau.penyimpanan ?? 'server') === 'cermin'
+                          ? [{ value: 'cermin', label: 'Cermin' }]
+                          : []),
+                      ]}
+                      placeholder="Pilih lokasi…"
+                      className="w-full"
+                    />
+                  ) : (
+                    lokasiLabel(dokPratinjau)
+                  )}
+                </dd>
+                <dt className="text-muted-foreground">Catatan</dt>
+                <dd>
+                  {infoBisaUbah ? (
+                    <Input
+                      id="input_catatan_info_dok_lihat_pegawai"
+                      value={editCatatan}
+                      onChange={(e) => setEditCatatan(e.target.value)}
+                      placeholder="opsional"
+                      className="h-6 text-xs"
+                    />
+                  ) : (
+                    <span className="block truncate" title={dokPratinjau.catatan ?? undefined}>{dokPratinjau.catatan || '—'}</span>
+                  )}
+                </dd>
+              </dl>
+            )}
+          </div>
+          {canTambah && (
+            <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+              <Button
+                id="tombol_tambah_dok_lihat_pegawai"
+                size="sm"
+                disabled={!pegawaiDipilih}
+                onClick={() => setTambahTerbuka(true)}
+                title={pegawaiDipilih ? 'Tambah dokumen untuk pegawai ini' : 'Pilih pegawai dahulu'}
+              >
+                <Plus size={14} /> Tambah Dokumen
+              </Button>
+            </div>
+          )}
           </div>
         </ResizablePanel>
         <ResizableHandle withHandle orientation="horizontal" id="gagang_lihat_dokumen_pegawai" aria-label="Atur lebar kolom daftar dan pratinjau" />
@@ -827,12 +1022,29 @@ export default function LihatDokumenPegawaiPage() {
           </div>
         </ResizablePanel>
       </ResizablePanelGroup>
+      {pegawaiDipilih && (
+        <TambahDokumenPegawaiDialog
+          terbuka={tambahTerbuka}
+          pemilik={{
+            id: pegawaiDipilih.id,
+            namaLengkap: pegawaiDipilih.nama_lengkap,
+            nipp: pegawaiDipilih.nipp,
+            penempatanAktif: [...new Set((pegawaiDipilih.penempatan ?? [])
+              .filter((t) => t.is_active_lembaga === 'Ya')
+              .map((t) => t.jenjang))],
+          }}
+          onTutup={() => setTambahTerbuka(false)}
+          onSelesai={() => { void segarkanSetelahSinkron(); }}
+        />
+      )}
       <DialogSinkronDokumen
         tipe="pegawai"
         terbuka={sinkronTerbuka}
         onTutup={() => setSinkronTerbuka(false)}
-        ambilBaris={async () => (pegawaiId == null ? [] : (await listDokumen('pegawai', { pegawai_id: pegawaiId, per_page: 0 })).data)}
-        lingkup={`Pegawai: ${namaPegawaiAktif || `#${pegawaiId ?? ''}`}`}
+        ambilBaris={async () => (pegawaiId == null
+          ? []
+          : (await listDokumen('pegawai', { pegawai_id: pegawaiId, per_page: 0 })).data)}
+        lingkup={pegawaiId == null ? 'Pegawai belum dipilih' : `Pegawai: ${namaPegawaiAktif || `#${pegawaiId}`}`}
         onSelesai={() => { void segarkanSetelahSinkron(); }}
       />
       <AlertDialog open={hapusRow !== null} onOpenChange={(o) => { if (!o) setHapusRow(null); }}>
@@ -863,56 +1075,6 @@ export default function LihatDokumenPegawaiPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      <Dialog open={editRow !== null} onOpenChange={(o) => { if (!o) setEditRow(null); }}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Ubah dokumen</DialogTitle>
-            <DialogDescription>Jenis, lembaga pemakaian, dan catatan milik pegawai terpilih.</DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-3">
-            <div className="grid gap-1.5">
-              <FieldLabel htmlFor="combo_ubah_jenis_dok_lihat_pegawai">Jenis dokumen</FieldLabel>
-              <ComboCari
-                id="combo_ubah_jenis_dok_lihat_pegawai"
-                inputId="input_ubah_jenis_dok_lihat_pegawai"
-                value={editJenis}
-                onChange={setEditJenis}
-                options={opsiJenisUbah}
-                placeholder="Pilih jenis…"
-                className="w-full"
-              />
-            </div>
-            <div className="grid gap-1.5">
-              <FieldLabel htmlFor="combo_ubah_lembaga_dok_lihat_pegawai">Lembaga pemakaian (opsional)</FieldLabel>
-              <ComboCari
-                id="combo_ubah_lembaga_dok_lihat_pegawai"
-                inputId="input_ubah_lembaga_dok_lihat_pegawai"
-                value={editLembaga}
-                onChange={setEditLembaga}
-                options={[{ value: '', label: '—' }, ...jenjangs.map((j) => ({ value: j, label: j }))]}
-                placeholder="Tanpa lembaga…"
-                className="w-full"
-              />
-            </div>
-            <div className="grid gap-1.5">
-              <FieldLabel htmlFor="input_ubah_catatan_dok_lihat_pegawai">Catatan</FieldLabel>
-              <Input
-                id="input_ubah_catatan_dok_lihat_pegawai"
-                value={editCatatan}
-                onChange={(e) => setEditCatatan(e.target.value)}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <TombolIkon tip="Batal" variant="outline" size="icon" onClick={() => setEditRow(null)}>
-              <X size={14} />
-            </TombolIkon>
-            <TombolIkon tip="Simpan perubahan" id="btn_proses_ubah_dok_lihat_pegawai" size="icon" disabled={editJenis.trim() === '' || busy} onClick={() => void onUbah()}>
-              <Save size={14} />
-            </TombolIkon>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
       <Dialog open={gantiRow !== null} onOpenChange={(o) => { if (!o) setGantiRow(null); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -927,14 +1089,13 @@ export default function LihatDokumenPegawaiPage() {
               {gantiFile ? `${gantiFile.name} (${(gantiFile.size / 1024).toFixed(0)} KB)` : 'Belum ada berkas dipilih.'}
             </span>
           </div>
-          <input
-            ref={inputGantiWebRef}
-            id="input_ganti_dok_lihat_pegawai"
-            type="file"
-            accept=".jpg,.jpeg,.png,.pdf,.heic,.heif,.webp"
-            className="hidden"
-            onChange={onFileGantiWeb}
-          />
+            <input
+              ref={inputGantiWebRef}
+              id="input_ganti_dok_lihat_pegawai"
+              type="file"
+              className="hidden"
+              onChange={onFileGantiWeb}
+            />
           <DialogFooter>
             <TombolIkon tip="Batal" variant="outline" size="icon" onClick={() => setGantiRow(null)}>
               <X size={14} />

@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/field';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
@@ -35,20 +36,22 @@ import {
 } from '@/lib/arsipDokumen';
 import PenampilBerkas, { type SumberBerkas } from '@/components/dokumen/PenampilBerkas';
 import DialogSinkronDokumen from '@/components/dokumen/DialogSinkronDokumen';
+import TambahDokumenSantriDialog from '@/components/dokumen/TambahDokumenSantriDialog';
 import { siapkanFileUntukServer } from '@/lib/konversiHeic';
 import { gantiEkstensi, type HasilGambar } from '@/lib/olahGambar';
-import { Check, Download, FolderOpen, MoreVertical, Pencil, RefreshCw, Save, Trash2, Undo2, Upload, X } from '@/icons';
+import { Check, Download, FolderOpen, MoreVertical, Plus, RefreshCw, Save, Trash2, Undo2, Upload, X } from '@/icons';
 import { toast } from 'sonner';
 
-/** Halaman Lihat Dokumen — tata letak sama dengan Tambah Dokumen.
+/** Halaman Dokumen Santri — tata letak sama dengan Tambah Dokumen.
  *  Kolom 1 baris 1: tabel Daftar Santri; baris 2: tabel Daftar Dokumen
  *  milik santri terpilih (klik baris = pratinjau di kolom 2).
  *  Kolom 2: pratinjau baca-saja + aksi Unduh/Ganti per baris. */
-export default function LihatDokumenSantriPage() {
+export default function DokumenSantriPage() {
   const { user } = useAuth();
   const desktop = isTauri();
   const canUbah = bisa(user, 'dokumen_santri.ubah');
   const canHapus = bisa(user, 'dokumen_santri.hapus');
+  const canTambah = bisa(user, 'dokumen_santri.tambah');
   const {
     jenjangs,
     tahunAjaranNames,
@@ -338,13 +341,15 @@ export default function LihatDokumenSantriPage() {
   // ----- Hapus dokumen -----
   const [hapusRow, setHapusRow] = useState<DokumenRow | null>(null);
 
-  // ----- Sinkron cermin santri ini (massal ada di halaman Dokumen Santri) -----
+  // ----- Sinkron cermin (santri ini / semua santri) -----
   const [sinkronTerbuka, setSinkronTerbuka] = useState(false);
+  const [tambahTerbuka, setTambahTerbuka] = useState(false);
   const namaSantriAktif = useMemo(
     () => santris.find((x) => x.id === santriId)?.nama_lengkap ?? '',
     [santris, santriId],
   );
   const segarkanSetelahSinkron = useCallback(async () => {
+    void muatJumlahSantri().then(setJumlahSantri);
     if (santriId == null) return;
     await muatDokumen(santriId);
     if (dokId != null) {
@@ -352,7 +357,7 @@ export default function LihatDokumenSantriPage() {
       const baru = p.data.find((d) => d.id === dokId);
       if (baru) void muatPratinjau(baru);
     }
-  }, [santriId, dokId, muatDokumen, muatPratinjau]);
+  }, [santriId, dokId, muatDokumen, muatJumlahSantri, muatPratinjau]);
 
   const onHapus = useCallback(async () => {
     if (!hapusRow) return;
@@ -392,11 +397,24 @@ export default function LihatDokumenSantriPage() {
       : 'Salinan arsip tidak ada di perangkat ini — ubah dari perangkat asal';
   }, [desktop, arsipAda]);
 
-  // ----- Ubah jenis/catatan -----
-  const [editRow, setEditRow] = useState<DokumenRow | null>(null);
+  // ----- Ubah inline di segmen Info dokumen (jenis/lembaga/catatan
+  //  memicu selaras nama berkas; status/nama/lokasi edit data langsung) -----
   const [editJenis, setEditJenis] = useState('');
   const [editLembaga, setEditLembaga] = useState('');
   const [editCatatan, setEditCatatan] = useState('');
+  const [editAktif, setEditAktif] = useState('Ya');
+  const [editNama, setEditNama] = useState('');
+  const [editLokasi, setEditLokasi] = useState('server');
+  // Ganti baris terpilih → editor mengikuti nilai baris baru.
+  useEffect(() => {
+    const baris = dokumens.find((d) => d.id === dokId) ?? null;
+    setEditJenis(baris?.jenis_dokumen ?? '');
+    setEditLembaga(baris?.lembaga ?? '');
+    setEditCatatan(baris?.catatan ?? '');
+    setEditAktif(baris?.is_active === false ? 'Tidak' : 'Ya');
+    setEditNama(baris?.nama_file ?? '');
+    setEditLokasi(baris?.penyimpanan ?? 'server');
+  }, [dokId, dokumens]);
 
   /** Opsi jenis dari referensi (sama dengan halaman Tambah). */
   const [jenisRows, setJenisRows] = useState<ReferensiRow[]>([]);
@@ -416,31 +434,38 @@ export default function LihatDokumenSantriPage() {
     return opsi;
   }, [jenisRows, editJenis]);
 
-  function bukaUbah(r: DokumenRow) {
-    setEditJenis(r.jenis_dokumen ?? '');
-    setEditLembaga(r.lembaga ?? '');
-    setEditCatatan(r.catatan ?? '');
-    setEditRow(r);
-  }
-
   const onUbah = useCallback(async () => {
-    if (!editRow || editJenis.trim() === '') return;
+    // Cari langsung (bukan dokPratinjau) agar callback bisa dideklarasikan
+    // sebelum memo baris terpilih.
+    const baris = dokumens.find((d) => d.id === dokId) ?? null;
+    if (!baris || editJenis.trim() === '') return;
+    // Hanya field yang berubah yang dikirim; jenis/lembaga/catatan memicu
+    // selaras nama berkas, sisanya edit data langsung.
+    const payload: Record<string, unknown> = { selaraskan_nama: true };
+    if (editJenis.trim() !== (baris.jenis_dokumen ?? '')) payload.jenis_dokumen = editJenis.trim();
+    if (editLembaga !== (baris.lembaga ?? '')) payload.lembaga = editLembaga || null;
+    if ((editCatatan.trim() || '') !== (baris.catatan ?? '')) payload.catatan = editCatatan.trim() || null;
+    const aktifAwal = baris.is_active === false ? 'Tidak' : 'Ya';
+    if (editAktif !== aktifAwal) payload.is_active = editAktif === 'Ya';
+    if (editNama.trim() !== (baris.nama_file ?? '')) payload.nama_file = editNama.trim() || null;
+    if (editLokasi !== (baris.penyimpanan ?? 'server')) payload.penyimpanan = editLokasi;
+    if (Object.keys(payload).length <= 1) return;
     setBusy(true);
-    const namaLama = editRow.nama_file;
-    const jenisLama = editRow.jenis_dokumen;
+    const namaLama = baris.nama_file;
+    const jenisLama = baris.jenis_dokumen;
     const jenisBaru = editJenis.trim();
-    const idUbah = editRow.id;
-    const lokasi = editRow.penyimpanan ?? 'server';
+    const idUbah = baris.id;
+    const lokasi = baris.penyimpanan ?? 'server';
     try {
-      const hasil = await ubahDokumen('santri', editRow.id, {
-        jenis_dokumen: jenisBaru,
-        lembaga: editLembaga || null,
-        catatan: editCatatan.trim() || null,
-        // Pemanggil menjamin byte ikut pindah (lihat bisaSelaras).
-        selaraskan_nama: true,
-      });
+      const hasil = await ubahDokumen('santri', baris.id, payload);
       toast.success('Dokumen diubah.');
-      setEditRow(null);
+      const segar = hasil.data;
+      setEditJenis(segar?.jenis_dokumen ?? jenisBaru);
+      setEditLembaga(segar?.lembaga ?? '');
+      setEditCatatan(segar?.catatan ?? '');
+      setEditAktif(segar?.is_active === false ? 'Tidak' : 'Ya');
+      setEditNama(segar?.nama_file ?? '');
+      setEditLokasi(segar?.penyimpanan ?? 'server');
       // Desktop: pindahkan salinan arsip mengikuti nama + folder baru.
       const namaBaru = hasil.data?.nama_file ?? null;
       if (desktop && lokasi !== 'server' && namaLama && namaBaru && namaBaru !== namaLama) {
@@ -449,10 +474,11 @@ export default function LihatDokumenSantriPage() {
           const { join } = await import('@tauri-apps/api/path');
           const { kandidatAkarArsip, cariArsip } = await import('@/lib/arsipDokumen');
           let pindah = false;
-          for (const { akar, lokasi: lokasiArsip } of await kandidatAkarArsip(editRow?.penyimpanan ?? 'server')) {
+          for (const { akar, lokasi: lokasiArsip } of await kandidatAkarArsip(lokasi)) {
             const lama = await cariArsip(namaLama, jenisLama, akar, 'santri', lokasiArsip);
             if (!lama) continue;
-            const folderTipe = await join(akar, lokasiArsip, 'santri');
+            const { folderArsip } = await import('@/lib/arsipDokumen');
+            const folderTipe = await folderArsip(akar, lokasiArsip, 'santri');
             await mkdir(folderTipe, { recursive: true });
             const baru = await join(folderTipe, namaBaru);
             if (await exists(baru)) {
@@ -482,7 +508,22 @@ export default function LihatDokumenSantriPage() {
     } finally {
       setBusy(false);
     }
-  }, [editRow, editJenis, editLembaga, editCatatan, santriId, dokId, desktop, muatDokumen, muatPratinjau]);
+  }, [dokumens, editJenis, editLembaga, editCatatan, editAktif, editNama, editLokasi, santriId, dokId, desktop, muatDokumen, muatPratinjau]);
+
+  /** Toggle aktif via klik kanan: aktif → nonaktifkan & sebaliknya. */
+  const onToggleAktif = useCallback(async (row: DokumenRow) => {
+    setBusy(true);
+    try {
+      const jadiAktif = !(row.is_active ?? true);
+      await ubahDokumen('santri', row.id, { is_active: jadiAktif });
+      toast.success(jadiAktif ? 'Dokumen diaktifkan.' : 'Dokumen dinonaktifkan.');
+      if (santriId != null) await muatDokumen(santriId);
+    } catch (e) {
+      toast.error(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  }, [santriId, muatDokumen]);
 
   // ----- Ganti berkas -----
   const [gantiRow, setGantiRow] = useState<DokumenRow | null>(null);
@@ -605,6 +646,18 @@ export default function LihatDokumenSantriPage() {
   const [kunciViewer, setKunciViewer] = useState(0);
   /** Baris yang sedang dipratinjau — dasar mengaktifkan tombol ubah viewer. */
   const dokPratinjau = useMemo(() => dokumens.find((d) => d.id === dokId) ?? null, [dokumens, dokId]);
+  /** Santri terpilih (fallback nama bila baris tak memuat join). */
+  const santriDipilih = useMemo(() => santris.find((p) => p.id === santriId) ?? null, [santris, santriId]);
+  /** Baris terpilih boleh diubah inline (izin + arsip tersedia bila perangkat). */
+  const infoBisaUbah = dokPratinjau != null && canUbah && bisaSelaras(dokPratinjau);
+  /** Ada perubahan yang belum disimpan (enam field edit inline). */
+  const infoKotor = dokPratinjau != null
+    && (editJenis.trim() !== (dokPratinjau.jenis_dokumen ?? '')
+      || editLembaga !== (dokPratinjau.lembaga ?? '')
+      || (editCatatan.trim() || '') !== (dokPratinjau.catatan ?? '')
+      || editAktif !== (dokPratinjau.is_active === false ? 'Tidak' : 'Ya')
+      || editNama.trim() !== (dokPratinjau.nama_file ?? '')
+      || editLokasi !== (dokPratinjau.penyimpanan ?? 'server'));
   const bisaUbahViewer = canUbah && dokPratinjau !== null && !perluDesktop(dokPratinjau);
 
   /** Simpan hasil edit viewer: arsip perangkat ditulis balik di tempat
@@ -741,7 +794,7 @@ export default function LihatDokumenSantriPage() {
             </div>
           </div>
           <div className="flex min-h-0 flex-1 flex-col gap-1.5">
-            <div className="flex items-center justify-between gap-2">
+             <div className="flex items-center justify-between gap-2">
               <FieldLabel id="label_daftar_dokumen_lihat">Daftar dokumen{santriId != null && dokumens.length > 0 ? ` (${dokumens.length})` : ''}</FieldLabel>
               {desktop && canUbah && santriId != null && (
                 <Button
@@ -760,7 +813,7 @@ export default function LihatDokumenSantriPage() {
                 <thead className="sticky top-0 bg-muted">
                   <tr className="text-left">
                     <th className="px-2 py-1 font-medium">Jenis</th>
-                    <th className="px-2 py-1 font-medium">Berkas</th>
+                    <th className="px-2 py-1 font-medium">Catatan</th>
                     <th className="px-2 py-1 text-right font-medium">Aksi</th>
                   </tr>
                 </thead>
@@ -775,8 +828,9 @@ export default function LihatDokumenSantriPage() {
                     const aktif = d.id === dokId;
                     const kunci = perluDesktop(d);
                     return (
+                      <ContextMenu key={d.id}>
+                        <ContextMenuTrigger asChild>
                       <tr
-                        key={d.id}
                         onClick={() => { if (!kunci) void muatPratinjau(d); }}
                         title={kunci ? 'Berkas hanya ada di arsip perangkat — buka lewat aplikasi desktop' : 'Klik untuk pratinjau'}
                         aria-selected={aktif}
@@ -786,15 +840,19 @@ export default function LihatDokumenSantriPage() {
                           aktif ? 'bg-accent font-medium' : (!kunci && 'hover:bg-muted/60'),
                         )}
                       >
-                        <td className="px-2 py-1">
+                        <td className="px-2">
+                          <span
+                            title={d.is_active === false ? 'Nonaktif' : 'Aktif'}
+                            className={cn(
+                              'mr-1.5 inline-block size-2 rounded-full align-middle',
+                              d.is_active === false ? 'bg-red-500' : 'bg-green-500',
+                            )}
+                          />
                           {d.jenis_dokumen}
                           {d.lembaga ? <Badge variant="outline" className="ml-1 py-0 text-[10px] leading-3">{d.lembaga}</Badge> : null}
-                          {d.is_active === false ? <span className="ml-1 text-[10px] text-muted-foreground">(nonaktif)</span> : null}
                         </td>
-                        <td className="max-w-40 truncate px-2 py-1 text-muted-foreground" title={d.nama_file ?? undefined}>
-                          {d.nama_file ?? '—'} · {lokasiLabel(d)}
-                        </td>
-                        <td className="px-2 py-1 text-right">
+                        <td className="max-w-40 truncate px-2 text-muted-foreground" title={d.catatan ?? undefined}>{d.catatan || '—'}</td>
+                        <td className="px-2 text-right">
                           <span className="inline-block" onClick={(e) => e.stopPropagation()}>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
@@ -809,15 +867,6 @@ export default function LihatDokumenSantriPage() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                {canUbah && (
-                                  <DropdownMenuItem
-                                    disabled={!bisaSelaras(d)}
-                                    title={judulSelaras(d)}
-                                    onClick={() => bukaUbah(d)}
-                                  >
-                                    <Pencil size={14} /> Ubah
-                                  </DropdownMenuItem>
-                                )}
                                 {d.nama_file && (
                                   <DropdownMenuItem
                                     disabled={kunci}
@@ -839,18 +888,7 @@ export default function LihatDokumenSantriPage() {
                                 {canUbah && d.is_active === false && (
                                   <DropdownMenuItem
                                     title="Jadikan dokumen aktif (menonaktifkan yang lain se-kunci)"
-                                    onClick={() => void (async () => {
-                                      setBusy(true);
-                                      try {
-                                        await ubahDokumen('santri', d.id, { is_active: true });
-                                        toast.success('Dokumen diaktifkan.');
-                                        if (santriId != null) await muatDokumen(santriId);
-                                      } catch (e) {
-                                        toast.error(errorMessage(e));
-                                      } finally {
-                                        setBusy(false);
-                                      }
-                                    })()}
+                                    onClick={() => void onToggleAktif(d)}
                                   >
                                     <Check size={14} /> Jadikan aktif
                                   </DropdownMenuItem>
@@ -869,12 +907,188 @@ export default function LihatDokumenSantriPage() {
                           </span>
                         </td>
                       </tr>
+                        </ContextMenuTrigger>
+                        <ContextMenuContent>
+                          {canUbah && (
+                            <ContextMenuItem
+                              id={`menu_toggle_aktif_dok_lihat_${d.id}`}
+                              disabled={busy}
+                              onClick={() => void onToggleAktif(d)}
+                            >
+                              {d.is_active === false ? <Check size={14} /> : <X size={14} />}
+                              {d.is_active === false ? 'Aktifkan' : 'Nonaktifkan'}
+                            </ContextMenuItem>
+                          )}
+                        </ContextMenuContent>
+                      </ContextMenu>
                     );
                   })}
                 </tbody>
               </table>
             </div>
           </div>
+          <div className="flex shrink-0 flex-col gap-1.5">
+            <div className="flex items-center justify-between gap-2">
+              <FieldLabel id="label_info_dokumen_lihat">Info dokumen</FieldLabel>
+              {infoKotor && (
+                <>
+                  <TombolIkon
+                    tip="Kembalikan ke nilai awal"
+                    id="btn_reset_info_dok_lihat"
+                    size="icon"
+                    variant="ghost"
+                    className="size-6"
+                    disabled={busy}
+                    onClick={() => {
+                      setEditJenis(dokPratinjau?.jenis_dokumen ?? '');
+                      setEditLembaga(dokPratinjau?.lembaga ?? '');
+                      setEditCatatan(dokPratinjau?.catatan ?? '');
+                      setEditAktif(dokPratinjau?.is_active === false ? 'Tidak' : 'Ya');
+                      setEditNama(dokPratinjau?.nama_file ?? '');
+                      setEditLokasi(dokPratinjau?.penyimpanan ?? 'server');
+                    }}
+                  >
+                    <Undo2 size={14} />
+                  </TombolIkon>
+                  <TombolIkon
+                    tip="Simpan perubahan"
+                    id="btn_simpan_info_dok_lihat"
+                    size="icon"
+                    variant="ghost"
+                    className="size-6"
+                    disabled={busy || editJenis.trim() === '' || !infoBisaUbah}
+                    onClick={() => void onUbah()}
+                  >
+                    <Save size={14} />
+                  </TombolIkon>
+                </>
+              )}
+            </div>
+            {dokPratinjau == null ? (
+              <div className="h-56 overflow-y-auto rounded-md border px-2 py-1.5">
+                <p className="text-xs text-muted-foreground">Pilih baris dokumen untuk melihat info.</p>
+              </div>
+            ) : (
+              <dl id="info_dokumen_lihat" className="grid h-56 grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 overflow-y-auto rounded-md border px-2 py-1.5 text-xs">
+                <dt className="text-muted-foreground">Nama santri</dt>
+                <dd>{dokPratinjau.pemilik ?? santriDipilih?.nama_lengkap ?? '—'}</dd>
+                <dt className="text-muted-foreground">NIS Lokal</dt>
+                <dd>{dokPratinjau.nis_lokal ?? '—'}</dd>
+                <dt className="text-muted-foreground">Jenis</dt>
+                <dd>
+                  {infoBisaUbah ? (
+                    <ComboCari
+                      id="combo_jenis_info_dok_lihat"
+                      inputId="input_jenis_info_dok_lihat"
+                      value={editJenis}
+                      onChange={setEditJenis}
+                      options={opsiJenisUbah}
+                      placeholder="Pilih jenis…"
+                      className="w-full"
+                    />
+                  ) : (
+                    <span title={canUbah && dokPratinjau ? judulSelaras(dokPratinjau) : undefined}>{dokPratinjau.jenis_dokumen}</span>
+                  )}
+                </dd>
+                <dt className="text-muted-foreground">Lembaga</dt>
+                <dd>
+                  {infoBisaUbah ? (
+                    <ComboCari
+                      id="combo_lembaga_info_dok_lihat"
+                      inputId="input_lembaga_info_dok_lihat"
+                      value={editLembaga}
+                      onChange={setEditLembaga}
+                      options={[{ value: '', label: '—' }, ...jenjangs.map((j) => ({ value: j, label: j }))]}
+                      placeholder="Tanpa lembaga…"
+                      className="w-full"
+                    />
+                  ) : (
+                    dokPratinjau.lembaga ?? '—'
+                  )}
+                </dd>
+                <dt className="text-muted-foreground">Status</dt>
+                <dd>
+                  {infoBisaUbah ? (
+                    <ComboCari
+                      id="combo_status_info_dok_lihat"
+                      inputId="input_status_info_dok_lihat"
+                      value={editAktif}
+                      onChange={setEditAktif}
+                      options={[{ value: 'Ya', label: 'Aktif' }, { value: 'Tidak', label: 'Nonaktif' }]}
+                      placeholder="Pilih status…"
+                      className="w-full"
+                    />
+                  ) : (
+                    dokPratinjau.is_active === false ? 'Nonaktif' : 'Aktif'
+                  )}
+                </dd>
+                <dt className="text-muted-foreground">Nama berkas</dt>
+                <dd>
+                  {infoBisaUbah ? (
+                    <Input
+                      id="input_nama_info_dok_lihat"
+                      value={editNama}
+                      onChange={(e) => setEditNama(e.target.value)}
+                      placeholder="nama berkas…"
+                      className="h-6 text-xs"
+                    />
+                  ) : (
+                    <span className="block truncate" title={dokPratinjau.nama_file ?? undefined}>{dokPratinjau.nama_file ?? '—'}</span>
+                  )}
+                </dd>
+                <dt className="text-muted-foreground">Lokasi</dt>
+                <dd>
+                  {infoBisaUbah ? (
+                    <ComboCari
+                      id="combo_lokasi_info_dok_lihat"
+                      inputId="input_lokasi_info_dok_lihat"
+                      value={editLokasi}
+                      onChange={setEditLokasi}
+                      options={[
+                        { value: 'server', label: 'Server' },
+                        { value: 'lokal', label: 'Lokal' },
+                        { value: 'test', label: 'Test' },
+                        ...((dokPratinjau.penyimpanan ?? 'server') === 'cermin'
+                          ? [{ value: 'cermin', label: 'Cermin' }]
+                          : []),
+                      ]}
+                      placeholder="Pilih lokasi…"
+                      className="w-full"
+                    />
+                  ) : (
+                    lokasiLabel(dokPratinjau)
+                  )}
+                </dd>
+                <dt className="text-muted-foreground">Catatan</dt>
+                <dd>
+                  {infoBisaUbah ? (
+                    <Input
+                      id="input_catatan_info_dok_lihat"
+                      value={editCatatan}
+                      onChange={(e) => setEditCatatan(e.target.value)}
+                      placeholder="opsional"
+                      className="h-6 text-xs"
+                    />
+                  ) : (
+                    <span className="block truncate" title={dokPratinjau.catatan ?? undefined}>{dokPratinjau.catatan || '—'}</span>
+                  )}
+                </dd>
+              </dl>
+            )}
+          </div>
+          {canTambah && (
+            <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+              <Button
+                id="tombol_tambah_dok_lihat"
+                size="sm"
+                disabled={!santriDipilih}
+                onClick={() => setTambahTerbuka(true)}
+                title={santriDipilih ? 'Tambah dokumen untuk santri ini' : 'Pilih santri dahulu'}
+              >
+                <Plus size={14} /> Tambah Dokumen
+              </Button>
+            </div>
+          )}
           </div>
         </ResizablePanel>
         <ResizableHandle withHandle orientation="horizontal" id="gagang_lihat_dokumen" aria-label="Atur lebar kolom daftar dan pratinjau" />
@@ -915,12 +1129,22 @@ export default function LihatDokumenSantriPage() {
         onGanti={(id) => setProfilId(id)}
         onOpenChange={(o) => { if (!o) setProfilId(null); }}
       />
+      {santriDipilih && (
+        <TambahDokumenSantriDialog
+          terbuka={tambahTerbuka}
+          pemilik={{ id: santriDipilih.id, namaLengkap: santriDipilih.nama_lengkap }}
+          onTutup={() => setTambahTerbuka(false)}
+          onSelesai={() => { void segarkanSetelahSinkron(); }}
+        />
+      )}
       <DialogSinkronDokumen
         tipe="santri"
         terbuka={sinkronTerbuka}
         onTutup={() => setSinkronTerbuka(false)}
-        ambilBaris={async () => (santriId == null ? [] : (await listDokumen('santri', { santri_id: santriId, per_page: 0 })).data)}
-        lingkup={`Santri: ${namaSantriAktif || `#${santriId ?? ''}`}`}
+        ambilBaris={async () => (santriId == null
+          ? []
+          : (await listDokumen('santri', { santri_id: santriId, per_page: 0 })).data)}
+        lingkup={santriId == null ? 'Santri belum dipilih' : `Santri: ${namaSantriAktif || `#${santriId}`}`}
         onSelesai={() => { void segarkanSetelahSinkron(); }}
       />
       <AlertDialog open={hapusRow !== null} onOpenChange={(o) => { if (!o) setHapusRow(null); }}>
@@ -951,56 +1175,6 @@ export default function LihatDokumenSantriPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      <Dialog open={editRow !== null} onOpenChange={(o) => { if (!o) setEditRow(null); }}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Ubah dokumen</DialogTitle>
-            <DialogDescription>Jenis dan catatan milik santri terpilih.</DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-3">
-            <div className="grid gap-1.5">
-              <FieldLabel htmlFor="combo_ubah_jenis_dok_lihat">Jenis dokumen</FieldLabel>
-              <ComboCari
-                id="combo_ubah_jenis_dok_lihat"
-                inputId="input_ubah_jenis_dok_lihat"
-                value={editJenis}
-                onChange={setEditJenis}
-                options={opsiJenisUbah}
-                placeholder="Pilih jenis…"
-                className="w-full"
-              />
-            </div>
-            <div className="grid gap-1.5">
-              <FieldLabel htmlFor="combo_ubah_lembaga_dok_lihat">Lembaga pemakaian (opsional)</FieldLabel>
-              <ComboCari
-                id="combo_ubah_lembaga_dok_lihat"
-                inputId="input_ubah_lembaga_dok_lihat"
-                value={editLembaga}
-                onChange={setEditLembaga}
-                options={[{ value: '', label: '—' }, ...jenjangs.map((j) => ({ value: j, label: j }))]}
-                placeholder="Tanpa lembaga…"
-                className="w-full"
-              />
-            </div>
-            <div className="grid gap-1.5">
-              <FieldLabel htmlFor="input_ubah_catatan_dok_lihat">Catatan</FieldLabel>
-              <Input
-                id="input_ubah_catatan_dok_lihat"
-                value={editCatatan}
-                onChange={(e) => setEditCatatan(e.target.value)}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <TombolIkon tip="Batal" variant="outline" size="icon" onClick={() => setEditRow(null)}>
-              <X size={14} />
-            </TombolIkon>
-            <TombolIkon tip="Simpan perubahan" id="btn_proses_ubah_dok_lihat" size="icon" disabled={editJenis.trim() === '' || busy} onClick={() => void onUbah()}>
-              <Save size={14} />
-            </TombolIkon>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
       <Dialog open={gantiRow !== null} onOpenChange={(o) => { if (!o) setGantiRow(null); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>

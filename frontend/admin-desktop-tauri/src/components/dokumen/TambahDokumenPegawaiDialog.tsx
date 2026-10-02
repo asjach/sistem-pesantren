@@ -1,27 +1,24 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { errorMessage, isTauri, prefGet, prefSet } from '../api/client';
-import { listPegawai, type Pegawai } from '../api/pegawai';
-import { listDokumen, simpanDokumen } from '../api/dokumen';
-import { referensiList, listLembaga, type Lembaga, type ReferensiRow } from '../api/master';
+import { errorMessage, isTauri, prefGet } from '@/api/client';
+import { listPegawai, type Pegawai } from '@/api/pegawai';
+import { listDokumen, simpanDokumen } from '@/api/dokumen';
+import { referensiList, listLembaga, type Lembaga, type ReferensiRow } from '@/api/master';
 import TombolIkon from '@/components/TombolIkon';
 import ComboCari from '@/components/ComboCari';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Check, FolderOpen, Save, X } from '@/icons';
 import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/field';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
-import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { Separator } from '@/components/ui/separator';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
-import { TopBarSearch } from '@/components/TopBarSearch';
-import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
+import { PAGE_SHELL } from '@/components/PageHeader';
 import { cn } from '@/lib/utils';
 import {
   BATAS_BERKAS,
-  EKSTENSI_BOLEH,
   PREF_FOLDER_ARSIP,
   PREF_FOLDER_ARSIP_TEST,
   PREF_MODE_DOKUMEN,
@@ -41,104 +38,36 @@ import type { HasilGambar } from '@/lib/olahGambar';
 import { gantiEkstensi } from '@/lib/olahGambar';
 import { toast } from 'sonner';
 
-/** Halaman Tambah Dokumen Pegawai — dua kolom: form (400px) + viewer berkas.
+/** Dialog Tambah Dokumen Pegawai — isi dua kolom: form (400px) + viewer berkas.
  *  Alur: klik nama pegawai di tabel → pilih lembaga penempatan (wajib) →
- *  pilih jenis dokumen → pilih berkas (catatan + lembaga pemakaian
- *  opsional) → Simpan.
+ *  pilih jenis dokumen → pilih berkas (catatan opsional) → Simpan.
  *  Di aplikasi desktop, berkas disalin ke arsip lokal dan (opsional via
  *  checkbox) file asli dipindah ke folder `sudah`. */
-export default function TambahDokumenPegawaiPage() {
-  const navigate = useNavigate();
+export default function TambahDokumenPegawaiDialog({
+  terbuka,
+  onTutup,
+  onSelesai,
+  pemilik,
+}: {
+  terbuka: boolean;
+  onTutup: () => void;
+  /** Dipanggil setelah simpan berhasil (pemanggil memuat ulang daftar). */
+  onSelesai?: () => void;
+  /** Pegawai pemilik dokumen — terkunci dari halaman pemanggil (dialog ini tak
+   *  punya tabel daftar; pegawai dipilih di halaman Dokumen Pegawai). */
+  pemilik: { id: number; namaLengkap: string; nipp: string | null; penempatanAktif: string[] };
+}) {
   const desktop = isTauri();
   const { jenjangs, tahunAjaranNames, loading: filterLoading } = useFilterGlobalAktif();
 
-  // ----- Daftar pegawai -----
-  const [cari, setCari] = useState('');
-  const [cariTunda, setCariTunda] = useState('');
-  useEffect(() => {
-    const t = setTimeout(() => setCariTunda(cari), 350);
-    return () => clearTimeout(t);
-  }, [cari]);
-
-  const [pegawais, setPegawais] = useState<Pegawai[]>([]);
-  const [loadingPegawai, setLoadingPegawai] = useState(false);
-  const [err, setErr] = useState('');
-
-  /** Sumber daftar: filter aktif (jenjang + TA) vs buku induk (tabel pegawai langsung). */
-  const [sumber, setSumber] = useState<'filter' | 'buku'>('filter');
-
-  /** Daftar pegawai dimuat utuh tanpa pagination (per_page=0 = semua baris).
-   *  Filter kosong (mode "Semua") = tanpa filter jenjang, bukan daftar kosong. */
-  const muatPegawai = useCallback(async (signal?: AbortSignal) => {
-    if (filterLoading) { setPegawais([]); return; }
-    setLoadingPegawai(true);
-    setErr('');
-    try {
-      const res = await listPegawai({
-        ...(sumber === 'filter'
-          ? {
-              jenjang: jenjangs.length ? jenjangs : undefined,
-              tahun_ajaran: tahunAjaranNames.length ? tahunAjaranNames : undefined,
-            }
-          : {}),
-        q: cariTunda || undefined,
-        per_page: 0,
-        signal,
-      });
-      const urut = [...res.data].sort((a, b) => a.nama_lengkap.localeCompare(b.nama_lengkap, 'id'));
-      setPegawais(urut);
-    } catch (e) {
-      if (signal?.aborted) return;
-      setErr(errorMessage(e));
-    } finally {
-      setLoadingPegawai(false);
-    }
-  }, [sumber, filterLoading, jenjangs, tahunAjaranNames, cariTunda]);
-
-  useEffect(() => {
-    const c = new AbortController();
-    void muatPegawai(c.signal);
-    return () => c.abort();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sumber, filterLoading, jenjangs, tahunAjaranNames, cariTunda]);
-
-  const [pegawaiId, setPegawaiId] = useState<number | null>(null);
+  // ----- Pemilik terkunci dari halaman pemanggil -----
+  const pegawaiId = pemilik.id;
   const pegawaiTerpilih = useMemo(
-    () => pegawais.find((p) => p.id === pegawaiId) ?? null,
-    [pegawais, pegawaiId],
+    () => ({ id: pemilik.id, nama_lengkap: pemilik.namaLengkap, nipp: pemilik.nipp }),
+    [pemilik.id, pemilik.namaLengkap, pemilik.nipp],
   );
-
-  /** Jenjang penempatan aktif milik pegawai terpilih (opsi lembaga dokumen). */
-  const penempatanAktif = useMemo(() => {
-    const semua = pegawaiTerpilih?.penempatan ?? [];
-    const aktif = semua.filter((p) => p.is_active_lembaga === 'Ya').map((p) => p.jenjang);
-    if (aktif.length > 0) return [...new Set(aktif)];
-    return [...new Set(semua.map((p) => p.jenjang))];
-  }, [pegawaiTerpilih]);
-
-  // ----- Lembaga penempatan (wajib di backend) -----
-  const [jenjangDok, setJenjangDok] = useState('');
-  /** Seluruh lembaga (fallback opsi bila pegawai tanpa penempatan + filter "Semua"). */
-  const [lembagas, setLembagas] = useState<Lembaga[]>([]);
-  useEffect(() => {
-    let hidup = true;
-    listLembaga({ per_page: 1000 }).then((p) => { if (hidup) setLembagas(p.data); }).catch(() => {});
-    return () => { hidup = false; };
-  }, []);
-  useEffect(() => {
-    if (penempatanAktif.length === 1) {
-      setJenjangDok(penempatanAktif[0]);
-    } else if (penempatanAktif.length > 1 && !penempatanAktif.includes(jenjangDok)) {
-      setJenjangDok('');
-    } else if (penempatanAktif.length === 0) {
-      setJenjangDok('');
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pegawaiId]);
-  const opsiJenjang = useMemo(
-    () => (penempatanAktif.length > 0 ? penempatanAktif : (jenjangs.length > 0 ? [...jenjangs] : lembagas.map((l) => l.jenjang))).map((j) => ({ value: j, label: j })),
-    [penempatanAktif, jenjangs, lembagas],
-  );
+  /** Penempatan aktif pegawai = opsi field Lembaga (wajib). */
+  const penempatanAktif = pemilik.penempatanAktif;
 
   // ----- Jenis dokumen (ref; tanpa filter = semua lembaga) -----
   const [jenisRows, setJenisRows] = useState<ReferensiRow[]>([]);
@@ -166,8 +95,6 @@ export default function TambahDokumenPegawaiPage() {
   );
   const [jenis, setJenis] = useState('');
   const [catatan, setCatatan] = useState('');
-  /** Konteks lembaga pemakaian dokumen (opsional, kolom `lembaga`). */
-  const [lembagaPemakaian, setLembagaPemakaian] = useState('');
 
   /** Jumlah dokumen per pegawai (kunci: pegawai_id) — satu fetch; tanpa
    *  filter = seluruh lingkup akses. */
@@ -237,7 +164,7 @@ export default function TambahDokumenPegawaiPage() {
   async function onBrowse() {
     if (desktop) {
       try {
-        const b = await pilihBerkasDokumen();
+        const b = await pilihBerkasDokumen(true);
         if (!b) return;
         const { readFile } = await import('@tauri-apps/plugin-fs');
         const bytes = await readFile(b.path);
@@ -256,11 +183,6 @@ export default function TambahDokumenPegawaiPage() {
     const f = e.target.files?.[0] ?? null;
     if (!f) return;
     const ext = ekstensiDariNama(f.name);
-    if (!EKSTENSI_BOLEH.includes(ext)) {
-      toast.error(`Berkas harus ${EKSTENSI_BOLEH.join('/').toUpperCase()}.`);
-      e.target.value = '';
-      return;
-    }
     if (f.size > BATAS_BERKAS) {
       toast.error('Berkas melebihi 10 MB.');
       e.target.value = '';
@@ -276,7 +198,7 @@ export default function TambahDokumenPegawaiPage() {
   }
 
   // ----- Opsi pasca-simpan -----
-  const [inputLainnya, setInputLainnya] = useState(false);
+  const [inputLainnya, setInputLainnya] = useState(true);
   const [pindahSudah, setPindahSudah] = useState(true);
   const [busy, setBusy] = useState(false);
   // Mode penyimpanan perangkat (diatur di Pengaturan → Server; hanya dibaca).
@@ -288,46 +210,33 @@ export default function TambahDokumenPegawaiPage() {
   /** Mode test = perilaku lokal ke folder uji; folder `sudah/` tidak disentuh saat test. */
   const modeTest = desktop && modeDokumen === 'test';
 
-  // Persistensi pilihan checkbox per perangkat (pola pager/sidebar).
-  const [prefSiap, setPrefSiap] = useState(false);
+  // Persistensi setelan perangkat (pola pager/sidebar). Checkbox "input
+  // dokumen lainnya" & "pindah ke SUDAH" sengaja tak disimpan: selalu true.
   useEffect(() => {
     let hidup = true;
     (async () => {
       try {
-        const [s, l, u, m, f, ft] = await Promise.all([
-          prefGet('simpes_tambah_dok_pegawai_sumber'),
-          prefGet('simpes_tambah_dok_pegawai_lainnya'),
-          prefGet('simpes_tambah_dok_pegawai_sudah'),
+        const [m, f, ft] = await Promise.all([
           prefGet(PREF_MODE_DOKUMEN),
           prefGet(PREF_FOLDER_ARSIP),
           prefGet(PREF_FOLDER_ARSIP_TEST),
         ]);
         if (!hidup) return;
-        if (s === 'filter' || s === 'buku') setSumber(s);
-        if (l === '1' || l === '0') setInputLainnya(l === '1');
-        if (u === '1' || u === '0') setPindahSudah(u === '1');
         if (m === 'server' || m === 'lokal' || m === 'test') setModeDokumen(m);
         if (typeof f === 'string') setFolderArsip(f);
         if (typeof ft === 'string') setFolderArsipTest(ft);
       } catch {
         /* penyimpanan terkunci: pakai bawaan */
       }
-      if (hidup) setPrefSiap(true);
     })();
     return () => { hidup = false; };
   }, []);
+  /** Lembaga penempatan (wajib di backend): bawaan penempatan aktif tunggal. */
+  const [jenjangDok, setJenjangDok] = useState('');
   useEffect(() => {
-    if (!prefSiap) return;
-    prefSet('simpes_tambah_dok_pegawai_sumber', sumber).catch(() => {});
-  }, [prefSiap, sumber]);
-  useEffect(() => {
-    if (!prefSiap) return;
-    prefSet('simpes_tambah_dok_pegawai_lainnya', inputLainnya ? '1' : '0').catch(() => {});
-  }, [prefSiap, inputLainnya]);
-  useEffect(() => {
-    if (!prefSiap) return;
-    prefSet('simpes_tambah_dok_pegawai_sudah', pindahSudah ? '1' : '0').catch(() => {});
-  }, [prefSiap, pindahSudah]);
+    if (terbuka) setJenjangDok(penempatanAktif.length === 1 ? penempatanAktif[0] : '');
+  }, [terbuka, penempatanAktif]);
+
   /** Berkas + lembaga penempatan wajib di halaman ini. */
   const bisaSimpan = pegawaiId != null && jenjangDok !== '' && jenis.trim() !== '' && sumberBerkas !== null && keluaran !== null && !prosesViewer && !busy;
 
@@ -346,7 +255,6 @@ export default function TambahDokumenPegawaiPage() {
           pegawai_id: pegawaiId,
           jenjang: jenjangDok,
           jenis_dokumen: jenis.trim(),
-          ...(lembagaPemakaian ? { lembaga: lembagaPemakaian } : {}),
           ...(catatan.trim() ? { catatan: catatan.trim() } : {}),
           tujuan: modeTest ? 'test' : 'lokal',
           ekstensi: keluaran.ext,
@@ -384,7 +292,6 @@ export default function TambahDokumenPegawaiPage() {
           pegawai_id: pegawaiId,
           jenjang: jenjangDok,
           jenis_dokumen: jenis.trim(),
-          ...(lembagaPemakaian ? { lembaga: lembagaPemakaian } : {}),
           ...(catatan.trim() ? { catatan: catatan.trim() } : {}),
         }, fileUp);
         if (desktop && berkasPath && pindahSudah) {
@@ -402,11 +309,12 @@ export default function TambahDokumenPegawaiPage() {
       // Angka jenis dokumen langsung terupdate tanpa ganti pegawai.
       void muatJumlahJenis(pegawaiId).then(setJumlahJenis);
       void muatJumlahPegawai().then(setJumlahPegawai);
-      // Reset form (pilihan pegawai + lembaga + checkbox dipertahankan).
+      // Reset form (pilihan pegawai + lembaga penempatan + checkbox dipertahankan).
       setJenis('');
       setCatatan('');
       resetBerkas();
       if (inputLainnya) await bukaPilihLagi();
+      onSelesai?.();
     } catch (e) {
       toast.error(errorMessage(e));
     } finally {
@@ -415,93 +323,41 @@ export default function TambahDokumenPegawaiPage() {
   }
 
   return (
-    <div className={PAGE_SHELL}>
-      <ErrorNotice>{err}</ErrorNotice>
-      <TopBarSearch value={cari} onChange={setCari} placeholder="Cari pegawai…" />
-      <PengaturanHalaman tampil={{}} />
+    <Dialog open={terbuka} onOpenChange={(o) => { if (!o && !busy) onTutup(); }}>
+      {/* Close bawaan (absolute top-4 right-4) disembunyikan: pada dialog
+          selayar penuh ia menimpa judul. Dipasang sendiri sebaris judul. */}
+      {/* ESC menutup dialog lewat onOpenChange; onEscapeKeyDown mencegah
+          penutupan saat proses simpan berjalan agar data tak hilang sendiri. */}
+      <DialogContent
+        showCloseButton={false}
+        onEscapeKeyDown={(e) => { if (busy) e.preventDefault(); }}
+        className="flex h-[calc(100dvh-3rem)] max-h-[calc(100dvh-3rem)] w-[calc(100vw-3rem)] max-w-none flex-col gap-0 overflow-hidden rounded-xl p-0 sm:max-w-none">
+        <DialogHeader className="flex-row items-center justify-between gap-2 border-b px-2 py-2">
+          <DialogTitle>Tambah Dokumen Pegawai</DialogTitle>
+          <DialogClose asChild>
+            <Button variant="ghost" size="icon" aria-label="Tutup" onClick={onTutup}>
+              <X size={14} />
+            </Button>
+          </DialogClose>
+        </DialogHeader>
+        <div className={cn(PAGE_SHELL, 'min-h-0 overflow-y-auto p-0')}>
       <ResizablePanelGroup orientation="horizontal" id="grup_tambah_dokumen_pegawai" className="min-h-0 flex-1 overflow-hidden">
         {/* Kolom 1: form (400px, bisa digeser). */}
         <ResizablePanel defaultSize={400} minSize={300} maxSize="70%" id="panel_tambah_dokumen_pegawai_form" className="min-h-0">
           <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto rounded-xl border bg-card p-4">
-          <div className="flex min-h-0 flex-1 flex-col gap-1.5">
-            <FieldLabel id="label_sumber_pegawai">Daftar pegawai</FieldLabel>
-            <div id="radio_sumber_pegawai" role="radiogroup" aria-labelledby="label_sumber_pegawai" className="flex flex-wrap gap-2">
-              {([
-                ['filter', 'Filter Pegawai'],
-                ['buku', 'Buku Induk'],
-              ] as const).map(([nilai, label]) => (
-                <label
-                  key={nilai}
-                  htmlFor={`radio_sumber_pegawai_${nilai}`}
-                  className="inline-flex h-6 cursor-pointer items-center gap-2 rounded-full border bg-card px-3 py-0 text-xs has-checked:border-primary has-checked:bg-accent has-checked:font-semibold"
-                >
-                  <input
-                    type="radio"
-                    id={`radio_sumber_pegawai_${nilai}`}
-                    name="sumber_pegawai"
-                    value={nilai}
-                    checked={sumber === nilai}
-                    onChange={() => { setSumber(nilai); setPegawaiId(null); }}
-                  />
-                  {label}
-                </label>
-              ))}
-            </div>
-            <div className="min-h-[120px] flex-1 overflow-y-auto rounded-md border">
-              <table className="w-full text-xs">
-                <thead className="sticky top-0 bg-muted">
-                  <tr className="text-left">
-                    <th className="px-2 py-1 font-medium">Nama</th>
-                    <th className="px-2 py-1 font-medium">NIPP</th>
-                    <th className="px-2 py-1 font-medium">Dok</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {loadingPegawai ? (
-                    <tr><td colSpan={3} className="px-2 py-1 text-center text-muted-foreground">Memuat…</td></tr>
-                  ) : pegawais.length === 0 ? (
-                    <tr><td colSpan={3} className="px-2 py-1 text-center text-muted-foreground">{sumber === 'filter' ? 'Tidak ada pegawai pada filter ini.' : 'Tidak ada pegawai.'}</td></tr>
-                  ) : pegawais.map((p) => {
-                    const aktif = p.id === pegawaiId;
-                    const n = jumlahPegawai[p.id] ?? 0;
-                    return (
-                      <tr
-                        key={p.id}
-                        onClick={() => setPegawaiId(p.id)}
-                        title="Klik untuk memilih"
-                        aria-selected={aktif}
-                        className={cn(
-                          'cursor-pointer border-t',
-                          aktif ? 'bg-accent font-medium' : 'hover:bg-muted/60',
-                        )}
-                      >
-                        <td className="px-2 py-1">
-                          {p.nama_lengkap}
-                          {p.status_aktif !== 'Ya' && <Badge variant="destructive" className="ml-1 py-0 align-middle text-[9px] leading-3">Nonaktif</Badge>}
-                        </td>
-                        <td className="px-2 py-1 text-muted-foreground">{p.nipp ?? '—'}</td>
-                        <td className="px-2 py-1"><Badge variant={n > 0 ? 'secondary' : 'outline'} className="py-0 leading-4">{n}</Badge></td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-            <div id="info_pegawai_terpilih" className="min-h-[86px] rounded-md border bg-muted/40 px-2.5 py-2 text-xs">
-              {pegawaiTerpilih ? (
-                <dl className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5">
-                  <dt className="text-muted-foreground">ID</dt>
-                  <dd>{pegawaiTerpilih.id}</dd>
-                  <dt className="text-muted-foreground">Nama</dt>
-                  <dd className="font-medium">{pegawaiTerpilih.nama_lengkap}</dd>
-                  <dt className="text-muted-foreground">NIPP</dt>
-                  <dd>{pegawaiTerpilih.nipp || '—'}</dd>
-                  <dt className="text-muted-foreground">Penempatan</dt>
-                  <dd>{penempatanAktif.length > 0 ? penempatanAktif.join(', ') : '—'}</dd>
-                </dl>
-              ) : (
-                <p className="text-muted-foreground">Pilih pegawai di tabel untuk melihat info.</p>
-              )}
+          <div className="flex flex-col gap-1.5">
+            <FieldLabel htmlFor="info_pegawai_tambah_dokumen">Pegawai</FieldLabel>
+            <div id="info_pegawai_tambah_dokumen" className="rounded-md border bg-muted/40 px-2.5 py-2 text-xs">
+              <dl className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5">
+                <dt className="text-muted-foreground">ID</dt>
+                <dd>{pemilik.id}</dd>
+                <dt className="text-muted-foreground">Nama</dt>
+                <dd className="font-medium">{pemilik.namaLengkap}</dd>
+                <dt className="text-muted-foreground">NIPP</dt>
+                <dd>{pemilik.nipp || "-" + ""}</dd>
+                <dt className="text-muted-foreground">Penempatan</dt>
+                <dd>{pemilik.penempatanAktif.length > 0 ? pemilik.penempatanAktif.join(", ") : "-"}</dd>
+              </dl>
             </div>
           </div>
           <Separator />
@@ -512,8 +368,8 @@ export default function TambahDokumenPegawaiPage() {
               inputId="input_lembaga_tambah_dokumen_pegawai"
               value={jenjangDok}
               onChange={setJenjangDok}
-              options={opsiJenjang}
-              placeholder={pegawaiTerpilih ? 'Pilih penempatan…' : 'Pilih pegawai dulu…'}
+              options={penempatanAktif.map((j) => ({ value: j, label: j }))}
+              placeholder={penempatanAktif.length > 0 ? 'Pilih penempatan…' : 'Pegawai tanpa penempatan aktif'}
               className="min-w-0 flex-1"
             />
           </div>
@@ -527,27 +383,21 @@ export default function TambahDokumenPegawaiPage() {
                   const jumlah = jumlahJenis[o.value.trim().toLowerCase()] ?? 0;
                   const aktif = jenis === o.value;
                   return (
-                    <Tooltip key={o.value}>
-                      <TooltipTrigger asChild>
-                        <button
-                          type="button"
-                          role="option"
-                          aria-selected={aktif}
-                          onClick={() => setJenis(o.value)}
-                          className={cn(
-                            'flex w-full cursor-pointer items-center gap-2 px-2.5 py-1 text-left text-xs',
-                            aktif ? 'bg-accent font-medium' : 'hover:bg-muted/60',
-                          )}
-                        >
-                          <Check size={12} className={cn('shrink-0', aktif ? 'opacity-100' : 'opacity-0')} />
-                          <span className="min-w-0 flex-1 truncate">{o.label}</span>
-                          <Badge variant={jumlah > 0 ? 'secondary' : 'outline'} className="py-0 text-[10px] leading-3">{jumlah}</Badge>
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>{pegawaiTerpilih ? `${jumlah} dokumen ${o.label} milik ${pegawaiTerpilih.nama_lengkap}` : o.label}</p>
-                      </TooltipContent>
-                    </Tooltip>
+                    <button
+                      key={o.value}
+                      type="button"
+                      role="option"
+                      aria-selected={aktif}
+                      onClick={() => setJenis(o.value)}
+                      className={cn(
+                        'flex w-full cursor-pointer items-center gap-2 px-2.5 py-1 text-left text-xs',
+                        aktif ? 'bg-accent font-medium' : 'hover:bg-muted/60',
+                      )}
+                    >
+                      <Check size={12} className={cn('shrink-0', aktif ? 'opacity-100' : 'opacity-0')} />
+                      <span className="min-w-0 flex-1 truncate">{o.label}</span>
+                      <Badge variant={jumlah > 0 ? 'secondary' : 'outline'} className="py-0 text-[10px] leading-3">{jumlah}</Badge>
+                    </button>
                   );
                 })}
               </div>
@@ -559,18 +409,6 @@ export default function TambahDokumenPegawaiPage() {
               id="input_catatan_tambah_dokumen_pegawai"
               value={catatan}
               onChange={(e) => setCatatan(e.target.value)}
-              placeholder="opsional"
-              className="min-w-0 flex-1"
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <FieldLabel htmlFor="combo_lembaga_pemakaian_tambah_dokumen_pegawai" className="shrink-0">Lembaga pemakaian</FieldLabel>
-            <ComboCari
-              id="combo_lembaga_pemakaian_tambah_dokumen_pegawai"
-              inputId="input_lembaga_pemakaian_tambah_dokumen_pegawai"
-              value={lembagaPemakaian}
-              onChange={setLembagaPemakaian}
-              options={[{ value: '', label: '—' }, ...opsiJenjang]}
               placeholder="opsional"
               className="min-w-0 flex-1"
             />
@@ -593,7 +431,6 @@ export default function TambahDokumenPegawaiPage() {
               ref={inputWebRef}
               id="input_berkas_web_tambah_dokumen_pegawai"
               type="file"
-              accept=".jpg,.jpeg,.png,.pdf"
               className="hidden"
               onChange={onFileWeb}
             />
@@ -602,12 +439,6 @@ export default function TambahDokumenPegawaiPage() {
             <span className="mr-auto self-center text-xs text-muted-foreground">
               Mode: {modeTest ? 'Test (folder uji)' : (modeEfektif === 'lokal' ? 'Lokal (berkas di drive perangkat ini)' : 'Server')}
             </span>
-            <TombolIkon tip="Batal" variant="outline" size="icon" onClick={() => navigate('/dokumen-guru')}>
-              <X size={14} />
-            </TombolIkon>
-            <TombolIkon tip="Simpan" id="btn_simpan_tambah_dokumen_pegawai" size="icon" disabled={!bisaSimpan} onClick={() => void onSimpan()}>
-              <Save size={14} />
-            </TombolIkon>
           </div>
           <Separator />
           <div className="flex flex-row flex-wrap items-center gap-x-4 gap-y-2">
@@ -643,6 +474,14 @@ export default function TambahDokumenPegawaiPage() {
           <PenampilBerkas sumber={sumberBerkas} kualitas="asli" onKeluaran={setKeluaran} onProses={setProsesViewer} idPrefix="tambah_dokumen_pegawai" />
         </ResizablePanel>
       </ResizablePanelGroup>
-    </div>
+        </div>
+        <DialogFooter className="border-t px-2 py-2">
+          <Button variant="outline" onClick={onTutup} disabled={busy}>Batal</Button>
+          <Button id="btn_simpan_tambah_dokumen_pegawai" onClick={() => void onSimpan()} disabled={!bisaSimpan}>
+            Simpan
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

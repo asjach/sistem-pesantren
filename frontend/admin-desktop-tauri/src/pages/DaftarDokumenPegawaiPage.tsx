@@ -1,6 +1,6 @@
 import DokumenPage from './DokumenPage';
 
-/** Halaman Dokumen Guru — varian tipe `pegawai` dari DokumenPage. */
-export default function DokumenGuruPage() {
+/** Halaman Daftar Dokumen Pegawai — varian tipe `pegawai` dari DokumenPage. */
+export default function DaftarDokumenPegawaiPage() {
   return <DokumenPage tipe="pegawai" />;
 }

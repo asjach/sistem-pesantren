@@ -1,6 +1,6 @@
 import DokumenPage from './DokumenPage';
 
-/** Halaman Dokumen Santri — varian tipe `santri` dari DokumenPage. */
-export default function DokumenSantriPage() {
+/** Halaman Daftar Dokumen Santri — varian tipe `santri` dari DokumenPage. */
+export default function DaftarDokumenSantriPage() {
   return <DokumenPage tipe="santri" />;
 }

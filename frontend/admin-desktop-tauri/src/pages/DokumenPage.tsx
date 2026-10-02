@@ -1,5 +1,4 @@
 import { useCallback, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { errorMessage, isTauri, prefGet } from '../api/client';
 import type { LokasiArsip } from '@/lib/arsipDokumen';
 import { bisa } from '../api/auth';
@@ -58,7 +57,6 @@ const KONFIG: Record<TipeDokumen, Konfig> = {
 /** Satu implementasi untuk tiga halaman dokumen; perbedaan hanya konfigurasi. */
 export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const izin = izinDokumen(tipe);
   const canTambah = bisa(user, izin.tambah);
   const canUbah = bisa(user, izin.ubah);
@@ -68,10 +66,15 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
 
   const [cari, setCari] = useState('');
   const [sinkronTerbuka, setSinkronTerbuka] = useState(false);
-  /** Sinkron massal: sementara lingkup santri (pola dipakai ulang tipe lain). */
-  const sinkronMassal = tipe === 'santri' && isTauri() && canUbah;
+  /** Sinkron massal (desktop):lingen bourgeoisie & pegawai; tiap tipe pakai
+   *  lingkup dan label sendiri. Madrasah tak punya salin perangkat. */
+  const sinkronMassal = (tipe === 'santri' || tipe === 'pegawai') && isTauri() && canUbah;
+  /** Kata benda untuk teks tombol & lingkup dialog sinkron. */
+  const subjek = tipe === 'pegawai' ? 'pegawai' : 'santri';
   const [importOpen, setImportOpen] = useState(false);
   const [tambahOpen, setTambahOpen] = useState(false);
+  /** TambahSantri/Pegawai kini dialog; Madrasah tetap dialog dalam halaman. */
+  const [tambahDialog, setTambahDialog] = useState(false);
   const [busy, setBusy] = useState(false);
   const [hapusRow, setHapusRow] = useState<DokumenRow | null>(null);
 
@@ -365,12 +368,14 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
           <>
             {canTambah && (
               <>
+                {tipe === 'lembaga' && (
                 <Button
                   id={`btn_tambah_dok_${tipe}`}
-                  onClick={() => { if (tipe === 'santri') navigate('/dokumen-santri/tambah'); else if (tipe === 'pegawai') navigate('/dokumen-guru/tambah'); else bukaTambah(); }}
+                  onClick={() => { if (tipe === 'lembaga') bukaTambah(); else setTambahDialog(true); }}
                 >
                   Tambah
                 </Button>
+                )}
                 <Button id={`btn_import_dok_${tipe}`} variant="outline" onClick={() => setImportOpen(true)}>
                   <FileUp data-icon="inline-start" size={16} /> Import
                 </Button>
@@ -378,12 +383,12 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
             )}
             {sinkronMassal && (
               <Button
-                id="btn_sinkron_dok_santri"
+                id={`btn_sinkron_semua_dok_${tipe}`}
                 variant="outline"
                 onClick={() => setSinkronTerbuka(true)}
-                title="Sinkronkan SEMUA dokumen santri dalam filter/pencarian aktif (cermin dua arah)"
+                title={`Sinkronkan SEMUA dokumen ${subjek} dalam filter/pencarian aktif (cermin dua arah)`}
               >
-                <RefreshCw data-icon="inline-start" size={16} /> Sinkronkan
+                <RefreshCw data-icon="inline-start" size={16} /> Sinkron semua
               </Button>
             )}
           </>
@@ -401,14 +406,14 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
 
       {sinkronMassal && (
         <DialogSinkronDokumen
-          tipe="santri"
+          tipe={tipe}
           terbuka={sinkronTerbuka}
           onTutup={() => setSinkronTerbuka(false)}
-          ambilBaris={() => ambilSemuaBaris('santri', {
+          ambilBaris={() => ambilSemuaBaris(tipe, {
             jenjang: jenjangs.length ? jenjangs : undefined,
             q: cari || undefined,
           })}
-          lingkup={`Semua dokumen santri (filter: ${jenjangs.join(', ') || 'semua jenjang'}${cari ? `, cari: ${cari}` : ''})`}
+          lingkup={`Semua dokumen ${subjek} (filter: ${jenjangs.join(', ') || 'semua jenjang'}${cari ? `, cari: ${cari}` : ''})`}
           onSelesai={() => { void load(pager.page); }}
         />
       )}
