@@ -108,17 +108,17 @@ export function hostUkur(): HTMLDivElement | null {
 
 /** Teks yang BENAR-BENAR dirender sel untuk sebuah nilai grid. Kolom `select`
  *  menampilkan label pilihannya (`Ikut lembaga`), bukan nilai mentahnya
- *  (`default`), dan kolom ber-format kamus (angka/tanggal/ya_tidak) memakai
+ *  (`default`), dan kolom ber-format (angka/tanggal/ya_tidak) memakai
  *  hasil `formatNilai` — pengukuran lebar kolom (AutoFit & lebar awal) wajib
  *  memakai teks ini, kalau tidak kolom jadi sempit dan isi terpotong. */
-export function teksTampilSel(f: ExcelField, raw: unknown, format?: string | null): string {
+export function teksTampilSel(f: ExcelField, raw: unknown): string {
   if (raw == null) return '';
   if (f.kind === 'toggle') return '';
   const s = String(raw);
   if (f.kind === 'select') {
     return (f.choices ?? []).find((c) => c.value === s)?.label ?? s;
   }
-  return format ? formatNilai(s, format) : s;
+  return f.format ? formatNilai(s, f.format) : s;
 }
 
 /** Editor sel DSG (input teks / select) sedang terbuka dan fokus? */

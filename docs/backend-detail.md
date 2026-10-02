@@ -527,21 +527,15 @@ Status: 🔲 not scaffolded (backend 201/202 pending).
   pengajuan-biodata, antrean PSB, lembaga-santri. Tabel kecil non-halaman
   (referensi, kegiatan, kuota, grup MI-MD, tabel kerja daftar-kelas) tetap
   urutan bawaan.
-* Kamus kolom level tabel database (v2.68–2.73, `label_kolom`, halaman Kamus
-  Label): nama header, perataan, lebar (+`kunci_lebar`), tooltip, dan format
-  tampil diatur SEKALI per pasangan tabel+kolom — berlaku di semua halaman yang
-  menampilkannya. Grid mengikat kolomnya lewat `ExcelField.sumber` (atau
-  `sumberTabel` untuk kolom yang namanya sama dengan kolom DB). Presedensi:
-  kamus DB → preset halaman/preferensi perangkat → bawaan kode; visibilitas
-  kolom tetap preset per halaman. Baca bebas (izin `kamus_label.lihat`), tulis
-  khusus admin pesantren. Halaman menampilkan dropdown tabel + grid berisi satu
-  baris per kolom tabel itu; `GET kamus-kolom/skema` menyediakan daftar tabel +
-  kolom nyata (dari `Schema::getTables/getColumns`, tanpa tabel infra) dan
-  pasangan tabel+kolom divalidasi ada di DB saat simpan. `POST kamus-kolom/
-  generasi` mengisi label SELURUH kolom semua tabel dari nama kolom (underscore
-  → spasi; mode `upper`/`proper`/`lower`), melewati kolom teknis (`id`, `*_id`,
-  `*_at`, `*_by`, `password`, `remember_token`) dan menimpa label lama lewat
-  upsert massal tanpa menyentuh atribut lain.
+* Nama header kolom TIDAK lagi disimpan di server (Kamus Label dihapus pada
+  v2.278). Label ditulis di kode tiap halaman sebagai `ExcelField.label`;
+  label yang masih berupa nama kolom mentah di-humanize di frontend
+  (`lib/labelKolom.ts`: `nama_lengkap` → `Nama Lengkap`, `santri.nama_lengkap`
+  → `Nama Lengkap`, singkatan seperti `nip`/`nis` tetap kapital). Tidak ada
+  query label saat memuat tabel. Presedensi: label preset per tabel (bila
+  diatur lewat dialog Kelola Halaman) → label field. Format isi sel pindah ke
+  `ExcelField.format` (`angka`/`tanggal`/`ya_tidak`); perataan & lebar tetap
+  milik preferensi pengguna dan preset tabel.
 * Preset urut daftar (v2.73): allowlist kode urut = satu sumber di
   `App\Services\UrutKatalog` (`table_key` grid → `kode` → kolom ORDER BY),
   dipakai `UrutDaftar::parseUrut` semua controller sekaligus endpoint

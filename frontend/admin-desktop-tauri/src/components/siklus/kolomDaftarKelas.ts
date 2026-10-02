@@ -23,33 +23,33 @@ const angkaValidator = (v: string | null) => (!v || v.trim() === '' || /^\d+$/.t
 const emailValidator = (v: string | null) =>
   (!v || v.trim() === '' || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()) ? null : 'Format email tidak valid.');
 
-function teks(key: string, label: string, tabel: string, kolom: string, width = 140, maxLength = 255): ExcelField {
-  return { key, label, width, kind: 'text', maxLength, sumber: { tabel, kolom } };
+function teks(key: string, label: string, width = 140, maxLength = 255): ExcelField {
+  return { key, label, width, kind: 'text', maxLength };
 }
 
-function tgl(key: string, label: string, tabel: string, kolom: string, width = 110): ExcelField {
-  return { key, label, width, kind: 'text', maxLength: 10, validate: tglValidator, sumber: { tabel, kolom } };
+function tgl(key: string, label: string, width = 110): ExcelField {
+  return { key, label, width, kind: 'text', maxLength: 10, validate: tglValidator };
 }
 
-function angka(key: string, label: string, tabel: string, kolom: string, width = 90): ExcelField {
-  return { key, label, width, kind: 'text', maxLength: 4, validate: angkaValidator, sumber: { tabel, kolom } };
+function angka(key: string, label: string, width = 90): ExcelField {
+  return { key, label, width, kind: 'text', maxLength: 4, validate: angkaValidator };
 }
 
 function pihakFields(prefix: 'ayah' | 'ibu' | 'wali', judul: string, boleh: boolean): ExcelField[] {
   const statis = !boleh;
   const t = (key: string, label: string, width = 140, maxLength = 255): ExcelField =>
     statis
-      ? { key, label, width, kind: 'static', sumber: { tabel: 'santri', kolom: key } }
-      : teks(key, label, 'santri', key, width, maxLength);
+      ? { key, label, width, kind: 'static' }
+      : teks(key, label, width, maxLength);
   return [
     t(`${prefix}_nama`, `${judul} — Nama`, 160),
     statis
-      ? { key: `${prefix}_nik`, label: `${prefix}_nik`, width: 150, kind: 'static', sumber: { tabel: 'santri', kolom: `${prefix}_nik` } }
-      : { key: `${prefix}_nik`, label: `${prefix}_nik`, width: 150, kind: 'text', maxLength: 20, validate: nikValidator, sumber: { tabel: 'santri', kolom: `${prefix}_nik` } },
+      ? { key: `${prefix}_nik`, label: `${prefix}_nik`, width: 150, kind: 'static' }
+      : { key: `${prefix}_nik`, label: `${prefix}_nik`, width: 150, kind: 'text', maxLength: 20, validate: nikValidator },
     t(`${prefix}_tmp_lahir`, `${judul} — Tempat lahir`),
     statis
-      ? { key: `${prefix}_tgl_lahir`, label: `${judul} — Tgl lahir`, width: 120, kind: 'static', sumber: { tabel: 'santri', kolom: `${prefix}_tgl_lahir` } }
-      : tgl(`${prefix}_tgl_lahir`, `${judul} — Tgl lahir`, 'santri', `${prefix}_tgl_lahir`, 120),
+      ? { key: `${prefix}_tgl_lahir`, label: `${judul} — Tgl lahir`, width: 120, kind: 'static' }
+      : tgl(`${prefix}_tgl_lahir`, `${judul} — Tgl lahir`, 120),
     t(`${prefix}_status`, `${judul} — Status`, 110),
     t(`${prefix}_pekerjaan`, `${judul} — Pekerjaan`),
     t(`${prefix}_pendidikan`, `${judul} — Pendidikan`),
@@ -100,117 +100,117 @@ function potongTgl(v: unknown): string | null {
 function profilFields(boleh: boolean): ExcelField[] {
   if (!boleh) {
     return SANTRI_EDIT_KEYS.map((k) => ({
-      key: k, label: k, width: 140, kind: 'static' as const, sumber: { tabel: 'santri', kolom: k },
+      key: k, label: k, width: 140, kind: 'static' as const
     }));
   }
   return [
-    teks('nama_singkat', 'Nama singkat', 'santri', 'nama_singkat'),
-    { key: 'nik', label: 'nik', width: 160, kind: 'text', maxLength: 20, validate: nikValidator, sumber: { tabel: 'santri', kolom: 'nik' } },
-    { key: 'nisn', label: 'nisn', width: 120, kind: 'text', maxLength: 10, validate: digitValidator(10, 'NISN'), sumber: { tabel: 'santri', kolom: 'nisn' } },
-    { key: 'jk', label: 'jk', width: 60, kind: 'select', choices: [{ value: 'L', label: 'L' }, { value: 'P', label: 'P' }], sumber: { tabel: 'santri', kolom: 'jk' } },
-    teks('tmp_lahir', 'Tempat lahir', 'santri', 'tmp_lahir'),
-    tgl('tgl_lahir', 'Tgl lahir', 'santri', 'tgl_lahir'),
-    angka('anak_ke', 'Anak ke', 'santri', 'anak_ke', 80),
-    angka('j_saudara', 'Jml saudara', 'santri', 'j_saudara', 100),
-    { key: 'tipe_santri', label: 'tipe_santri', width: 120, kind: 'select', choices: [{ value: 'asrama', label: 'asrama' }, { value: 'non_asrama', label: 'non_asrama' }], sumber: { tabel: 'santri', kolom: 'tipe_santri' } },
-    teks('no_hp_santri', 'HP santri', 'santri', 'no_hp_santri', 130, 20),
-    { key: 'email_santri', label: 'email_santri', width: 180, kind: 'text', maxLength: 255, validate: emailValidator, sumber: { tabel: 'santri', kolom: 'email_santri' } },
-    teks('agama', 'Agama', 'santri', 'agama', 100),
-    teks('cita_cita', 'Cita-cita', 'santri', 'cita_cita', 130),
-    teks('hobi', 'Hobi', 'santri', 'hobi', 130),
-    teks('kebutuhan_khusus', 'Kebutuhan khusus', 'santri', 'kebutuhan_khusus', 150),
-    teks('kebutuhan_disabilitas', 'Disabilitas', 'santri', 'kebutuhan_disabilitas', 130),
-    teks('nomor_kip', 'No. KIP', 'santri', 'nomor_kip', 130),
-    { key: 'no_kk', label: 'no_kk', width: 150, kind: 'text', maxLength: 20, validate: nikValidator, sumber: { tabel: 'santri', kolom: 'no_kk' } },
-    teks('kewarganegaraan', 'Kewarganegaraan', 'santri', 'kewarganegaraan', 130),
-    teks('bahasa_sehari', 'Bahasa sehari-hari', 'santri', 'bahasa_sehari', 150),
-    teks('status_tempat_tinggal', 'Tempat tinggal', 'santri', 'status_tempat_tinggal', 150),
-    teks('jarak_ke_pesantren', 'Jarak', 'santri', 'jarak_ke_pesantren', 110),
-    teks('waktu_tempuh', 'Waktu tempuh', 'santri', 'waktu_tempuh', 120),
-    teks('transportasi', 'Transportasi', 'santri', 'transportasi', 130),
-    tgl('tanggal_masuk', 'Tgl masuk santri', 'santri', 'tanggal_masuk'),
-    teks('alamat', 'Alamat', 'santri', 'alamat', 220, 500),
-    teks('rt', 'RT', 'santri', 'rt', 60, 3),
-    teks('rw', 'RW', 'santri', 'rw', 60, 3),
-    teks('kode_pos', 'Kode pos', 'santri', 'kode_pos', 90, 10),
-    teks('provinsi', 'Provinsi', 'santri', 'provinsi', 150),
-    teks('kab_kota', 'Kab/Kota', 'santri', 'kab_kota', 150),
-    teks('kecamatan', 'Kecamatan', 'santri', 'kecamatan', 150),
-    teks('desa_kelurahan', 'Desa/Kelurahan', 'santri', 'desa_kelurahan', 150),
+    teks('nama_singkat', 'Nama singkat'),
+    { key: 'nik', label: 'nik', width: 160, kind: 'text', maxLength: 20, validate: nikValidator },
+    { key: 'nisn', label: 'nisn', width: 120, kind: 'text', maxLength: 10, validate: digitValidator(10, 'NISN') },
+    { key: 'jk', label: 'jk', width: 60, kind: 'select', choices: [{ value: 'L', label: 'L' }, { value: 'P', label: 'P' }] },
+    teks('tmp_lahir', 'Tempat lahir'),
+    tgl('tgl_lahir', 'Tgl lahir'),
+    angka('anak_ke', 'Anak ke', 80),
+    angka('j_saudara', 'Jml saudara', 100),
+    { key: 'tipe_santri', label: 'tipe_santri', width: 120, kind: 'select', choices: [{ value: 'asrama', label: 'asrama' }, { value: 'non_asrama', label: 'non_asrama' }] },
+    teks('no_hp_santri', 'HP santri', 130, 20),
+    { key: 'email_santri', label: 'email_santri', width: 180, kind: 'text', maxLength: 255, validate: emailValidator },
+    teks('agama', 'Agama', 100),
+    teks('cita_cita', 'Cita-cita', 130),
+    teks('hobi', 'Hobi', 130),
+    teks('kebutuhan_khusus', 'Kebutuhan khusus', 150),
+    teks('kebutuhan_disabilitas', 'Disabilitas', 130),
+    teks('nomor_kip', 'No. KIP', 130),
+    { key: 'no_kk', label: 'no_kk', width: 150, kind: 'text', maxLength: 20, validate: nikValidator,  },
+    teks('kewarganegaraan', 'Kewarganegaraan', 130),
+    teks('bahasa_sehari', 'Bahasa sehari-hari', 150),
+    teks('status_tempat_tinggal', 'Tempat tinggal', 150),
+    teks('jarak_ke_pesantren', 'Jarak', 110),
+    teks('waktu_tempuh', 'Waktu tempuh', 120),
+    teks('transportasi', 'Transportasi', 130),
+    tgl('tanggal_masuk', 'Tgl masuk santri'),
+    teks('alamat', 'Alamat', 220, 500),
+    teks('rt', 'RT', 60, 3),
+    teks('rw', 'RW', 60, 3),
+    teks('kode_pos', 'Kode pos', 90, 10),
+    teks('provinsi', 'Provinsi', 150),
+    teks('kab_kota', 'Kab/Kota', 150),
+    teks('kecamatan', 'Kecamatan', 150),
+    teks('desa_kelurahan', 'Desa/Kelurahan', 150),
     ...pihakFields('ayah', 'Ayah', true),
     ...pihakFields('ibu', 'Ibu', true),
     ...pihakFields('wali', 'Wali', true),
-    teks('yang_membiayai', 'Yang membiayai', 'santri', 'yang_membiayai'),
+    teks('yang_membiayai', 'Yang membiayai'),
   ];
 }
 
 /** Seluruh kolom grid Daftar Kelas. `bolehSantri` = izin santri.ubah,
  *  `bolehRiwayat` = izin riwayat_belajar.ubah (tanpa izin → static). */
 export function medanDaftarKelas({ bolehSantri, bolehRiwayat }: { bolehSantri: boolean; bolehRiwayat: boolean }): ExcelField[] {
-  const statis = (key: string, label: string, tabel: string, kolom: string, width = 110): ExcelField =>
-    ({ key, label, width, kind: 'static', sumber: { tabel, kolom } });
+  const statis = (key: string, label: string, width = 110): ExcelField =>
+    ({ key, label, width, kind: 'static' });
   return [
     // Identitas + konteks baris (urutan lama dipertahankan di depan).
     bolehSantri
-      ? { key: 'nama_lengkap', label: 'santri.nama_lengkap', width: 200, kind: 'text', maxLength: 255, sumber: { tabel: 'santri', kolom: 'nama_lengkap' }, validate: (v) => (v && v.trim() ? null : 'Nama wajib diisi.') }
-      : statis('nama_lengkap', 'santri.nama_lengkap', 'santri', 'nama_lengkap', 200),
+      ? { key: 'nama_lengkap', label: 'santri.nama_lengkap', width: 200, kind: 'text', maxLength: 255, validate: (v) => (v && v.trim() ? null : 'Nama wajib diisi.') }
+      : statis('nama_lengkap', 'santri.nama_lengkap', 200),
     bolehSantri
-      ? { key: 'nis_lokal', label: 'nis_lokal', width: 110, kind: 'text', maxLength: 20, sumber: { tabel: 'lembaga_santri', kolom: 'nis_lokal' } }
-      : statis('nis_lokal', 'nis_lokal', 'lembaga_santri', 'nis_lokal'),
-    statis('lembaga', 'lembaga.jenjang', 'lembaga', 'jenjang'),
-    statis('ta', 'tahun_ajaran.nama', 'tahun_ajaran', 'nama', 110),
+      ? { key: 'nis_lokal', label: 'nis_lokal', width: 110, kind: 'text', maxLength: 20 }
+      : statis('nis_lokal', 'nis_lokal'),
+    statis('lembaga', 'lembaga.jenjang'),
+    statis('ta', 'tahun_ajaran.nama', 110),
     bolehRiwayat
-      ? { key: 'semester', label: 'semester', width: 60, kind: 'select', choices: [{ value: '1', label: '1' }, { value: '2', label: '2' }], sumber: { tabel: 'riwayat_belajar', kolom: 'semester' } }
-      : statis('semester', 'semester', 'riwayat_belajar', 'semester', 60),
+      ? { key: 'semester', label: 'semester', width: 60, kind: 'select', choices: [{ value: '1', label: '1' }, { value: '2', label: '2' }] }
+      : statis('semester', 'semester', 60),
     bolehRiwayat
-      ? teks('tingkat', 'tingkat', 'riwayat_belajar', 'tingkat', 80, 20)
-      : statis('tingkat', 'tingkat', 'riwayat_belajar', 'tingkat', 80),
-    statis('kelas', 'kelas.nama_kelas', 'kelas', 'nama_kelas', 140),
+      ? teks('tingkat', 'tingkat', 80, 20)
+      : statis('tingkat', 'tingkat', 80),
+    statis('kelas', 'kelas.nama_kelas', 140),
     bolehRiwayat
-      ? { key: 'no_absen', label: 'no_absen', width: 70, kind: 'text', maxLength: 4, validate: angkaValidator, sumber: { tabel: 'riwayat_belajar', kolom: 'no_absen' } }
-      : statis('no_absen', 'no_absen', 'riwayat_belajar', 'no_absen', 70),
-    statis('status_awal', 'status_awal', 'riwayat_belajar', 'status_awal', 130),
-    statis('status_akhir', 'status_akhir', 'riwayat_belajar', 'status_akhir', 110),
-    statis('is_active_riwayat', 'is_active_riwayat', 'riwayat_belajar', 'is_active_riwayat', 80),
+      ? { key: 'no_absen', label: 'no_absen', width: 70, kind: 'text', maxLength: 4, validate: angkaValidator }
+      : statis('no_absen', 'no_absen', 70),
+    statis('status_awal', 'status_awal', 130),
+    statis('status_akhir', 'status_akhir', 110),
+    statis('is_active_riwayat', 'is_active_riwayat', 80),
     bolehRiwayat
-      ? tgl('tgl_masuk', 'tgl_masuk', 'riwayat_belajar', 'tgl_masuk')
-      : statis('tgl_masuk', 'tgl_masuk', 'riwayat_belajar', 'tgl_masuk'),
+      ? tgl('tgl_masuk', 'tgl_masuk')
+      : statis('tgl_masuk', 'tgl_masuk'),
     // Keanggotaan (lembaga_santri).
-    statis('anggota_id', 'anggota_id', 'lembaga_santri', 'id', 90),
+    statis('anggota_id', 'anggota_id', 90),
     bolehSantri
-      ? { key: 'nis_kemenag', label: 'nis_kemenag', width: 150, kind: 'text', maxLength: 20, sumber: { tabel: 'lembaga_santri', kolom: 'nis_kemenag' } }
-      : statis('nis_kemenag', 'nis_kemenag', 'lembaga_santri', 'nis_kemenag', 150),
+      ? { key: 'nis_kemenag', label: 'nis_kemenag', width: 150, kind: 'text', maxLength: 20 }
+      : statis('nis_kemenag', 'nis_kemenag', 150),
     bolehSantri
-      ? { key: 'anggota_aktif', label: 'anggota_aktif', width: 90, kind: 'toggle', sumber: { tabel: 'lembaga_santri', kolom: 'is_active_lembaga' } }
-      : statis('anggota_aktif', 'anggota_aktif', 'lembaga_santri', 'is_active_lembaga', 90),
+      ? { key: 'anggota_aktif', label: 'anggota_aktif', width: 90, kind: 'toggle' }
+      : statis('anggota_aktif', 'anggota_aktif', 90),
     bolehSantri
-      ? teks('tahaj_masuk', 'tahaj_masuk', 'lembaga_santri', 'tahaj_masuk', 120, 50)
-      : statis('tahaj_masuk', 'tahaj_masuk', 'lembaga_santri', 'tahaj_masuk', 120),
+      ? teks('tahaj_masuk', 'tahaj_masuk', 120, 50)
+      : statis('tahaj_masuk', 'tahaj_masuk', 120),
     bolehSantri
-      ? teks('tingkat_masuk', 'tingkat_masuk', 'lembaga_santri', 'tingkat_masuk', 110, 20)
-      : statis('tingkat_masuk', 'tingkat_masuk', 'lembaga_santri', 'tingkat_masuk', 110),
+      ? teks('tingkat_masuk', 'tingkat_masuk', 110, 20)
+      : statis('tingkat_masuk', 'tingkat_masuk', 110),
     bolehSantri
-      ? teks('no_urut', 'no_urut', 'lembaga_santri', 'no_urut', 90, 20)
-      : statis('no_urut', 'no_urut', 'lembaga_santri', 'no_urut', 90),
+      ? teks('no_urut', 'no_urut', 90, 20)
+      : statis('no_urut', 'no_urut', 90),
     bolehSantri
-      ? teks('nama_sekolah_asal', 'nama_sekolah_asal', 'lembaga_santri', 'nama_sekolah_asal', 180)
-      : statis('nama_sekolah_asal', 'nama_sekolah_asal', 'lembaga_santri', 'nama_sekolah_asal', 180),
+      ? teks('nama_sekolah_asal', 'nama_sekolah_asal', 180)
+      : statis('nama_sekolah_asal', 'nama_sekolah_asal', 180),
     bolehSantri
-      ? teks('npsn_sekolah_asal', 'npsn_sekolah_asal', 'lembaga_santri', 'npsn_sekolah_asal', 130, 20)
-      : statis('npsn_sekolah_asal', 'npsn_sekolah_asal', 'lembaga_santri', 'npsn_sekolah_asal', 130),
+      ? teks('npsn_sekolah_asal', 'npsn_sekolah_asal', 130, 20)
+      : statis('npsn_sekolah_asal', 'npsn_sekolah_asal', 130),
     bolehSantri
-      ? teks('nss_sekolah_asal', 'nss_sekolah_asal', 'lembaga_santri', 'nss_sekolah_asal', 130, 30)
-      : statis('nss_sekolah_asal', 'nss_sekolah_asal', 'lembaga_santri', 'nss_sekolah_asal', 130),
+      ? teks('nss_sekolah_asal', 'nss_sekolah_asal', 130, 30)
+      : statis('nss_sekolah_asal', 'nss_sekolah_asal', 130),
     bolehSantri
-      ? teks('alamat_sekolah_asal', 'alamat_sekolah_asal', 'lembaga_santri', 'alamat_sekolah_asal', 200, 500)
-      : statis('alamat_sekolah_asal', 'alamat_sekolah_asal', 'lembaga_santri', 'alamat_sekolah_asal', 200),
+      ? teks('alamat_sekolah_asal', 'alamat_sekolah_asal', 200, 500)
+      : statis('alamat_sekolah_asal', 'alamat_sekolah_asal', 200),
     bolehSantri
-      ? { key: 'tgl_selesai', label: 'tgl_selesai', width: 110, kind: 'text', maxLength: 10, validate: tglValidator, sumber: { tabel: 'lembaga_santri', kolom: 'tgl_selesai' } }
-      : statis('tgl_selesai', 'tgl_selesai', 'lembaga_santri', 'tgl_selesai'),
+      ? { key: 'tgl_selesai', label: 'tgl_selesai', width: 110, kind: 'text', maxLength: 10, validate: tglValidator,  }
+      : statis('tgl_selesai', 'tgl_selesai'),
     // Profil santri penuh.
     ...profilFields(bolehSantri),
-    statis('status_pst', 'is_active_pst', 'santri', 'is_active_pst', 100),
-    statis('foto_url', 'foto_url', 'santri', 'foto_url', 160),
+    statis('status_pst', 'is_active_pst', 100),
+    statis('foto_url', 'foto_url', 160),
   ];
 }
 

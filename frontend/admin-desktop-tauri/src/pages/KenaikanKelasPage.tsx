@@ -49,10 +49,10 @@ function bisaBatalkan(b: Baris): boolean {
 
 /** Kolom tabel kandidat (santri semester 2) + tabel hasil (naik/tidak naik). */
 const FIELDS_KENAIKAN: ExcelField[] = [
-  { key: 'nama', label: 'santri.nama_lengkap', kind: 'static', sumber: { tabel: 'santri', kolom: 'nama_lengkap' } },
-  { key: 'kelas', label: 'kelas.nama_kelas', kind: 'static', sumber: { tabel: 'kelas', kolom: 'nama_kelas' } },
-  { key: 'tingkat', label: 'tingkat', kind: 'static', sumber: { tabel: 'riwayat_belajar', kolom: 'tingkat' } },
-  { key: 'tahun_ajaran', label: 'tahun_ajaran', kind: 'static', sumber: { tabel: 'riwayat_belajar', kolom: 'tahun_ajaran' } },
+  { key: 'nama', label: 'santri.nama_lengkap', kind: 'static' },
+  { key: 'kelas', label: 'kelas.nama_kelas', kind: 'static' },
+  { key: 'tingkat', label: 'tingkat', kind: 'static' },
+  { key: 'tahun_ajaran', label: 'tahun_ajaran', kind: 'static',  },
 ];
 
 /** Kenaikan kelas: kandidat = baris semester 2 yang masih berstatus akhir

@@ -36,10 +36,10 @@ export interface ExcelField {
   /** Pilihan dropdown untuk inputKind 'select' (bila beda dari `choices`).
    *  Boleh fungsi atas nilai baris input — mis. kolom mengikuti tabel terpilih. */
   inputChoices?: ExcelChoice[] | ((draft: Record<string, string | null>) => ExcelChoice[]);
-  /** Sumber kolom database: mengikat kolom grid ke kamus label
-   *  (nama header, perataan, lebar, tooltip, format, kontrol urut global).
-   *  `null` = kolom sengaja tidak terikat kamus. */
-  sumber?: { tabel: string; kolom: string } | null;
+  /** Format isi sel: `angka` (pemisah ribuan id-ID), `tanggal` (dd/mm/yyyy),
+   *  atau `ya_tidak` (Ya/Tidak). Kosong = tampil apa adanya. Berlaku juga
+   *  saat pengukuran lebar kolom supaya isi tidak terpotong. */
+  format?: 'angka' | 'tanggal' | 'ya_tidak' | null;
 }
 
 /** Baris grid: id + checklist + nilai string per field. */

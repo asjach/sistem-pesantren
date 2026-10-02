@@ -66,24 +66,23 @@ const KOLOM_IMPORT_KELAS = [
 const FIELDS: ExcelField[] = [
   {
     key: 'nama', label: 'nama_kelas', width: 160, kind: 'text', maxLength: 50,
-    sumber: { tabel: 'kelas', kolom: 'nama_kelas' },
+    
     required: true,
     validate: (v) => (!v || !v.trim() ? 'Nama kelas wajib diisi.' : null),
   },
   {
-    key: 'alias', label: 'nama_alias', width: 160, kind: 'text', maxLength: 50,
-    sumber: { tabel: 'kelas', kolom: 'nama_alias' },
+    key: 'alias', label: 'nama_alias', width: 160, kind: 'text', maxLength: 50
   },
-  { key: 'wali', label: 'wali kelas', width: 180, kind: 'static', sumber: { tabel: 'pegawai', kolom: 'nama_lengkap' } },
-  { key: 'lembaga', label: 'lembaga.jenjang', width: 110, kind: 'static', sumber: { tabel: 'lembaga', kolom: 'jenjang' } },
-  { key: 'ta', label: 'tahun_ajaran.nama', width: 160, kind: 'static', sumber: { tabel: 'tahun_ajaran', kolom: 'nama' } },
+  { key: 'wali', label: 'wali kelas', width: 180, kind: 'static' },
+  { key: 'lembaga', label: 'lembaga.jenjang', width: 110, kind: 'static' },
+  { key: 'ta', label: 'tahun_ajaran.nama', width: 160, kind: 'static',  },
   {
     key: 'tingkat', label: 'tingkat', width: 120, kind: 'text', maxLength: 20,
-    sumber: { tabel: 'kelas', kolom: 'tingkat' },
+    
   },
   {
     key: 'urutan', label: 'urutan', width: 90, kind: 'text', maxLength: 6,
-    sumber: { tabel: 'kelas', kolom: 'urutan' },
+    
     validate: (v) => {
       if (v === null || v === undefined || v.trim() === '') return null;
       const n = Number(v);
@@ -92,7 +91,7 @@ const FIELDS: ExcelField[] = [
   },
   {
     key: 'kapasitas', label: 'kapasitas', width: 120, kind: 'text', maxLength: 10,
-    sumber: { tabel: 'kelas', kolom: 'kapasitas' },
+    
     validate: (v) => {
       if (!v) return null;
       const n = Number(v);

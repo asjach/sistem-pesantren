@@ -153,7 +153,7 @@ export default function TabKolom({
     }
     setBusy(true);
     try {
-      // Nama header tunggal dari Kamus Label; label kustom preset tak dikelola
+      // Nama header tunggal dari label field di kode; label preset tak dikelola
       // lagi (null = bersihkan sisa lama bila ada).
       let saved: PresetTabel | undefined;
       let pesan = 'Preset kolom disimpan.';

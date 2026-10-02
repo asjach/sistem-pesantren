@@ -1,4 +1,4 @@
-/** Format tampil kolom dari kamus label (bawaan: apa adanya). */
+/** Format isi sel kolom (bawaan: apa adanya). */
 export function formatNilai(v: string | null | undefined, format: string | null | undefined): string {
   if (v == null || v === '') return '';
   switch (format) {

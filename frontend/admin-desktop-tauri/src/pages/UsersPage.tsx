@@ -63,33 +63,32 @@ function privileged(u: AdminUser) {
 const USER_FIELDS_BASE: ExcelField[] = [
   {
     key: 'nama', label: 'name', width: 200, kind: 'text', maxLength: 255,
-    sumber: { tabel: 'users', kolom: 'name' },
+    
     required: true,
     validate: (v) => (!v || !v.trim() ? 'Nama wajib diisi.' : null),
   },
   {
     key: 'email', label: 'email', width: 220, kind: 'text', maxLength: 255,
-    sumber: { tabel: 'users', kolom: 'email' },
+    
     validate: emailRule,
   },
   {
     key: 'phone', label: 'phone', width: 150, kind: 'text', maxLength: 20,
-    sumber: { tabel: 'users', kolom: 'phone' },
+    
   },
   {
     key: 'username', label: 'username', width: 150, kind: 'text', maxLength: 50,
-    sumber: { tabel: 'users', kolom: 'username' },
+    
   },
   // Kolom khusus mode Input: kata sandi & peran/lembaga (baca-saja di mode
   // biasa). Default peran = orang_tua (lihat inputRowValues).
   {
     key: 'sandi', label: 'password', width: 150, kind: 'static',
-    sumber: null,
     inputKind: 'text', maxLength: 100, required: true,
     validate: (v) => (!v || v.trim().length < 8 ? 'Kata sandi minimal 8 karakter.' : null),
   },
-  { key: 'peran', label: 'roles.name', width: 200, kind: 'static', inputKind: 'select', sumber: { tabel: 'roles', kolom: 'name' } },
-  { key: 'lembaga', label: 'lembaga.jenjang', width: 200, kind: 'static', inputKind: 'select', sumber: { tabel: 'lembaga', kolom: 'jenjang' } },
+  { key: 'peran', label: 'roles.name', width: 200, kind: 'static', inputKind: 'select' },
+  { key: 'lembaga', label: 'lembaga.jenjang', width: 200, kind: 'static', inputKind: 'select',  },
 ];
 
 /** Kolom grid pengguna: pilihan peran (sesuai kewenangan) & lembaga disuntik. */

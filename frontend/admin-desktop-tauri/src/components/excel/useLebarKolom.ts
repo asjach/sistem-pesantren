@@ -1,7 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
 
 import { prefSet } from '@/api/client';
-import { type KamusKolomAttr } from '@/api/kamusLabel';
 import { DEFAULT_HEADER_H, MAX_HEADER_H } from '@/components/GridPrefs';
 import { type TampilanData } from '@/api/tampilan';
 import { toast } from 'sonner';
@@ -53,7 +52,6 @@ export interface LebarKolomOptions<T extends { id: string | number }> {
   wrapRef: RefObject<HTMLDivElement | null>;
   /** Key kolom grid terseleksi (resize multi-kolom saat blok terseleksi). */
   getSelectedColumnKeys: () => string[];
-  attrByKey: Map<string, KamusKolomAttr>;
   labelKolom: (key: string, bawaan: string) => string;
   bolehGeser: boolean;
   hideActions: boolean;
@@ -87,7 +85,6 @@ export function useLebarKolom<T extends { id: string | number }>({
   visibleFields,
   wrapRef,
   getSelectedColumnKeys,
-  attrByKey,
   labelKolom,
   bolehGeser,
   hideActions,
@@ -246,8 +243,7 @@ export function useLebarKolom<T extends { id: string | number }>({
       fields: fieldsRef.current,
       rows: rowsRef.current,
       labelKolom,
-      teksSel: (f, rowId, k) =>
-        teksTampilSel(f, gridByIdRef.current.get(String(rowId))?.[k], attrByKey.get(k)?.format),
+      teksSel: (f, rowId) => teksTampilSel(f, gridByIdRef.current.get(String(rowId))?.[f.key]),
       dapatkanCtx: () => (measureCtxRef.current ??= document.createElement('canvas').getContext('2d')),
     });
   }
@@ -571,14 +567,14 @@ export function useLebarKolom<T extends { id: string | number }>({
         (text) => lebar(headProbe, csHeadCont, text),
       ) + padHead + AUTOFIT_BUFFER + (bolehGeser ? LEBAR_GAGANG_GESER : 0);
       for (const v of values) {
-        const s = teksTampilSel(f, v[f.key], attrByKey.get(f.key)?.format);
+        const s = teksTampilSel(f, v[f.key]);
         if (!s) continue;
         w = Math.max(w, lebar(cellProbe, csCell, s) + padCell + AUTOFIT_BUFFER);
       }
       out[f.key] = Math.min(AUTOFIT_MAX_W, Math.max(MIN_COL_W, Math.ceil(w)));
     }
     return out;
-  }, [rows, visibleFields, effectiveFont, fontStack, fontStackWeight, labelKolom, attrByKey, bolehGeser, getValuesRef]);
+  }, [rows, visibleFields, effectiveFont, fontStack, fontStackWeight, labelKolom, bolehGeser, getValuesRef]);
 
   /** Reset bagian lebar dari "kembalikan tampilan bawaan" (ribbon): buang
    *  lebar simpanan, hitung ulang AutoFit penuh. Seleksi & toast tetap di

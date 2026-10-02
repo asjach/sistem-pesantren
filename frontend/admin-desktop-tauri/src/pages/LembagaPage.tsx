@@ -41,7 +41,7 @@ import { toast } from 'sonner';
 const FIELDS: ExcelField[] = [
   {
     key: 'jenjang', label: 'jenjang', width: 110, kind: 'text', maxLength: 20,
-    sumber: { tabel: 'lembaga', kolom: 'jenjang' },
+    
     required: true,
     validate: (v) => {
       const t = (v ?? '').trim().toUpperCase();
@@ -51,12 +51,11 @@ const FIELDS: ExcelField[] = [
   },
   {
     key: 'nama', label: 'nama', width: 260, kind: 'text', maxLength: 100,
-    sumber: { tabel: 'lembaga', kolom: 'nama' },
     required: true,
     validate: (v) => (!v || !v.trim() ? 'Nama lembaga wajib diisi.' : null),
   },
-  { key: 'kelompok', label: 'kelompok_psb', width: 140, kind: 'static', sumber: { tabel: 'lembaga', kolom: 'kelompok_psb' } },
-  { key: 'seleksi', label: 'is_seleksi', width: 100, kind: 'static', sumber: { tabel: 'lembaga', kolom: 'is_seleksi' } },
+  { key: 'kelompok', label: 'kelompok_psb', width: 140, kind: 'static' },
+  { key: 'seleksi', label: 'is_seleksi', width: 100, kind: 'static',  },
 ];
 
 function gridValues(l: Lembaga): Record<string, string | null> {

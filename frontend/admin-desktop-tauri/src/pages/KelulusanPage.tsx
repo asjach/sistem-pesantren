@@ -71,19 +71,19 @@ const KOLOM_IMPORT_ALUMNI = [
 
 /** Kolom santri tingkat akhir. */
 const FIELDS_SANTRI: ExcelField[] = [
-  { key: 'nama', label: 'santri.nama_lengkap', kind: 'static', sumber: { tabel: 'santri', kolom: 'nama_lengkap' } },
-  { key: 'kelas', label: 'kelas.nama_kelas', kind: 'static', sumber: { tabel: 'kelas', kolom: 'nama_kelas' } },
-  { key: 'tingkat', label: 'tingkat', kind: 'static', sumber: { tabel: 'riwayat_belajar', kolom: 'tingkat' } },
-  { key: 'tahun_ajaran', label: 'tahun_ajaran', kind: 'static', sumber: { tabel: 'riwayat_belajar', kolom: 'tahun_ajaran' } },
+  { key: 'nama', label: 'santri.nama_lengkap', kind: 'static' },
+  { key: 'kelas', label: 'kelas.nama_kelas', kind: 'static' },
+  { key: 'tingkat', label: 'tingkat', kind: 'static' },
+  { key: 'tahun_ajaran', label: 'tahun_ajaran', kind: 'static' },
 ];
 
 /** Kolom santri tidak lulus (pengulang tahun berikutnya). */
 const FIELDS_TIDAK_LULUS: ExcelField[] = [
-  { key: 'nama', label: 'santri.nama_lengkap', kind: 'static', sumber: { tabel: 'santri', kolom: 'nama_lengkap' } },
-  { key: 'kelas', label: 'kelas.nama_kelas', kind: 'static', sumber: { tabel: 'kelas', kolom: 'nama_kelas' } },
-  { key: 'tingkat', label: 'tingkat', kind: 'static', sumber: { tabel: 'riwayat_belajar', kolom: 'tingkat' } },
-  { key: 'tahun_ajaran', label: 'tahun_ajaran', kind: 'static', sumber: { tabel: 'riwayat_belajar', kolom: 'tahun_ajaran' } },
-  { key: 'status_awal', label: 'status_awal', kind: 'static', sumber: { tabel: 'riwayat_belajar', kolom: 'status_awal' } },
+  { key: 'nama', label: 'santri.nama_lengkap', kind: 'static' },
+  { key: 'kelas', label: 'kelas.nama_kelas', kind: 'static' },
+  { key: 'tingkat', label: 'tingkat', kind: 'static' },
+  { key: 'tahun_ajaran', label: 'tahun_ajaran', kind: 'static' },
+  { key: 'status_awal', label: 'status_awal', kind: 'static' },
 ];
 
 /** Kolom arsip alumni: seluruh field tabel alumni (kunci santri/lembaga/tahun/kelas baca-saja). */
@@ -96,25 +96,24 @@ const PILIHAN_MELANJUTKAN = [
   { value: 'tidak', label: 'Tidak' },
 ];
 const FIELDS_ALUMNI: ExcelField[] = [
-  { key: 'nama', label: 'santri.nama_lengkap', kind: 'static', sumber: { tabel: 'santri', kolom: 'nama_lengkap' } },
-  { key: 'lembaga', label: 'lembaga.nama', kind: 'static', sumber: { tabel: 'lembaga', kolom: 'nama' } },
-  { key: 'tahun_ajaran_lulus', label: 'tahun_ajaran_lulus', kind: 'static', sumber: { tabel: 'alumni', kolom: 'tahun_ajaran_lulus' } },
+  { key: 'nama', label: 'santri.nama_lengkap', kind: 'static' },
+  { key: 'lembaga', label: 'lembaga.nama', kind: 'static' },
+  { key: 'tahun_ajaran_lulus', label: 'tahun_ajaran_lulus', kind: 'static',  },
   {
     key: 'tanggal_lulus',
     label: 'tanggal_lulus',
     kind: 'text',
-    sumber: { tabel: 'alumni', kolom: 'tanggal_lulus' },
     validate: (v) => (!v || /^\d{4}-\d{2}-\d{2}$/.test(v) ? null : 'Format tanggal: YYYY-MM-DD.'),
   },
-  { key: 'kelas_lulus', label: 'kelas.nama_kelas', kind: 'static', sumber: { tabel: 'kelas', kolom: 'nama_kelas' } },
-  { key: 'nomor_ijazah', label: 'nomor_ijazah', kind: 'text', sumber: { tabel: 'alumni', kolom: 'nomor_ijazah' } },
-  { key: 'no_peserta', label: 'no_peserta', kind: 'text', sumber: { tabel: 'alumni', kolom: 'no_peserta' } },
-  { key: 'skhun', label: 'skhun', kind: 'text', sumber: { tabel: 'alumni', kolom: 'skhun' } },
-  { key: 'no_surat_ijazah', label: 'no_surat_ijazah', kind: 'text', sumber: { tabel: 'alumni', kolom: 'no_surat_ijazah' } },
-  { key: 'kegiatan_setelah_lulus', label: 'kegiatan_setelah_lulus', kind: 'text', sumber: { tabel: 'alumni', kolom: 'kegiatan_setelah_lulus' } },
-  { key: 'penyerahan_ijazah', label: 'penyerahan_ijazah', kind: 'select', choices: PILIHAN_SERAH_IJAZAH, sumber: { tabel: 'alumni', kolom: 'penyerahan_ijazah' } },
-  { key: 'melanjutkan', label: 'melanjutkan', kind: 'select', choices: PILIHAN_MELANJUTKAN, sumber: { tabel: 'alumni', kolom: 'melanjutkan' } },
-  { key: 'catatan', label: 'catatan', kind: 'text', sumber: { tabel: 'alumni', kolom: 'catatan' } },
+  { key: 'kelas_lulus', label: 'kelas.nama_kelas', kind: 'static' },
+  { key: 'nomor_ijazah', label: 'nomor_ijazah', kind: 'text' },
+  { key: 'no_peserta', label: 'no_peserta', kind: 'text' },
+  { key: 'skhun', label: 'skhun', kind: 'text' },
+  { key: 'no_surat_ijazah', label: 'no_surat_ijazah', kind: 'text' },
+  { key: 'kegiatan_setelah_lulus', label: 'kegiatan_setelah_lulus', kind: 'text' },
+  { key: 'penyerahan_ijazah', label: 'penyerahan_ijazah', kind: 'select', choices: PILIHAN_SERAH_IJAZAH },
+  { key: 'melanjutkan', label: 'melanjutkan', kind: 'select', choices: PILIHAN_MELANJUTKAN },
+  { key: 'catatan', label: 'catatan', kind: 'text',  },
 ];
 export default function KelulusanPage() {
   const { user } = useAuth();

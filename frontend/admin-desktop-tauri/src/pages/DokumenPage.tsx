@@ -129,13 +129,13 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
   });
 
   const fields: ExcelField[] = useMemo(() => [
-    { key: 'pemilik', label: konfig.pemilikLabel, width: 200, kind: 'static', sumber: null },
-    ...(tipe === 'santri' ? [{ key: 'nis', label: 'NIS Lokal', width: 110, kind: 'static' as const, sumber: null }] : []),
-    ...(tipe === 'lembaga' ? [{ key: 'lembaga_nama', label: 'Nama Lembaga', width: 180, kind: 'static' as const, sumber: null }] : []),
-    { key: 'jenis_dokumen', label: 'Jenis Dokumen', width: 170, kind: 'text', maxLength: 100, sumber: { tabel: konfig.tableKey, kolom: konfig.kolomJenis } },
-    { key: 'nama_file', label: 'Nama Berkas', width: 190, kind: 'static', sumber: { tabel: konfig.tableKey, kolom: 'nama_file' } },
-    { key: 'lokasi', label: 'Lokasi', width: 90, kind: 'static', sumber: null },
-    { key: 'catatan', label: 'Catatan', width: 220, kind: 'text', sumber: { tabel: konfig.tableKey, kolom: 'catatan' } },
+    { key: 'pemilik', label: konfig.pemilikLabel, width: 200, kind: 'static' },
+    ...(tipe === 'santri' ? [{ key: 'nis', label: 'NIS Lokal', width: 110, kind: 'static' as const }] : []),
+    ...(tipe === 'lembaga' ? [{ key: 'lembaga_nama', label: 'Nama Lembaga', width: 180, kind: 'static' as const }] : []),
+    { key: 'jenis_dokumen', label: 'Jenis Dokumen', width: 170, kind: 'text', maxLength: 100 },
+    { key: 'nama_file', label: 'Nama Berkas', width: 190, kind: 'static' },
+    { key: 'lokasi', label: 'Lokasi', width: 90, kind: 'static' },
+    { key: 'catatan', label: 'Catatan', width: 220, kind: 'text',  },
   ], [konfig.pemilikLabel, tipe]);
 
   const nilaiBaris = useCallback((r: DokumenRow): Record<string, string | null> => ({

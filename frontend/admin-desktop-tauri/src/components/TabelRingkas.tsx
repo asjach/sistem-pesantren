@@ -9,9 +9,6 @@ export interface RingkasKolom {
   /** Lebar kolom awal (px); bila kosong memakai hasil pengukuran isi. */
   width?: number;
   align?: 'left' | 'center' | 'right';
-  /** Sumber kolom database untuk mengikat header ke Kamus Label; `null`/absen
-   *  = kolom hitung yang tidak punya kolom asalnya, memakai `label` apa adanya. */
-  sumber?: ExcelField['sumber'];
 }
 
 interface TabelRingkasProps {
@@ -50,7 +47,6 @@ export default function TabelRingkas({
         label: k.label,
         kind: 'static',
         ...(k.width != null ? { width: k.width } : {}),
-        ...(k.sumber ? { sumber: k.sumber } : {}),
       })),
     [kolom],
   );

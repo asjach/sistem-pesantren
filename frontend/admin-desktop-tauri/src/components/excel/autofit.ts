@@ -20,9 +20,9 @@ export function lebarJudulDuaBaris(label: string, ukur: (text: string) => number
 export interface OpsiAutoFit {
   fields: ExcelField[];
   rows: { id: string | number }[];
-  /** Label efektif kolom (kamus/preset) untuk header. */
+  /** Label efektif kolom (preset per tabel) untuk header. */
   labelKolom: (key: string, bawaan: string) => string;
-  /** Teks tampil satu sel (format kamus sudah diterapkan). */
+  /** Teks tampil satu sel (format kolom sudah diterapkan). */
   teksSel: (f: ExcelField, rowId: string, key: string) => string;
   /** Konteks canvas (dibuat malas; null bila tak tersedia). */
   dapatkanCtx: () => CanvasRenderingContext2D | null;

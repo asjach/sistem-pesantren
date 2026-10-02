@@ -281,21 +281,20 @@ export default function KeanggotaanPage() {
   const fields = useMemo<ExcelField[]>(() => [
     ...SANTRI_IDENTITAS_FIELDS,
     {
-      key: 'lembaga', label: 'lembaga.jenjang', kind: 'static',
-      sumber: { tabel: 'lembaga', kolom: 'jenjang' },
+      key: 'lembaga', label: 'lembaga.jenjang', kind: 'static'
     },
-    { key: 'nis_lokal', label: 'nis_lokal', kind: 'text', maxLength: 20, sumber: { tabel: 'lembaga_santri', kolom: 'nis_lokal' } },
-    { key: 'nis_kemenag', label: 'nis_kemenag', kind: 'text', maxLength: 20, sumber: { tabel: 'lembaga_santri', kolom: 'nis_kemenag' } },
-    { key: 'tahaj_masuk', label: 'tahaj_masuk', kind: 'text', maxLength: 50, width: 120, sumber: { tabel: 'lembaga_santri', kolom: 'tahaj_masuk' } },
-    { key: 'tingkat_masuk', label: 'tingkat_masuk', kind: 'text', maxLength: 20, width: 110, sumber: { tabel: 'lembaga_santri', kolom: 'tingkat_masuk' } },
-    { key: 'no_urut', label: 'no_urut', kind: 'text', maxLength: 20, width: 90, sumber: { tabel: 'lembaga_santri', kolom: 'no_urut' } },
-    { key: 'nama_sekolah_asal', label: 'nama_sekolah_asal', kind: 'text', maxLength: 255, width: 180, sumber: { tabel: 'lembaga_santri', kolom: 'nama_sekolah_asal' } },
-    { key: 'npsn_sekolah_asal', label: 'npsn_sekolah_asal', kind: 'text', maxLength: 20, width: 130, sumber: { tabel: 'lembaga_santri', kolom: 'npsn_sekolah_asal' } },
-    { key: 'nss_sekolah_asal', label: 'nss_sekolah_asal', kind: 'text', maxLength: 30, width: 130, sumber: { tabel: 'lembaga_santri', kolom: 'nss_sekolah_asal' } },
-    { key: 'alamat_sekolah_asal', label: 'alamat_sekolah_asal', kind: 'text', maxLength: 500, width: 200, sumber: { tabel: 'lembaga_santri', kolom: 'alamat_sekolah_asal' } },
-    { key: 'aktif', label: 'is_active_lembaga', kind: 'static', width: 90, sumber: { tabel: 'lembaga_santri', kolom: 'is_active_lembaga' } },
-    { key: 'masuk', label: 'tgl_masuk', kind: 'text', maxLength: 10, width: 110, validate: tglValidator, sumber: { tabel: 'lembaga_santri', kolom: 'tgl_masuk' } },
-    { key: 'selesai', label: 'tgl_selesai', kind: 'text', maxLength: 10, width: 110, validate: tglValidator, sumber: { tabel: 'lembaga_santri', kolom: 'tgl_selesai' } },
+    { key: 'nis_lokal', label: 'nis_lokal', kind: 'text', maxLength: 20 },
+    { key: 'nis_kemenag', label: 'nis_kemenag', kind: 'text', maxLength: 20 },
+    { key: 'tahaj_masuk', label: 'tahaj_masuk', kind: 'text', maxLength: 50, width: 120 },
+    { key: 'tingkat_masuk', label: 'tingkat_masuk', kind: 'text', maxLength: 20, width: 110 },
+    { key: 'no_urut', label: 'no_urut', kind: 'text', maxLength: 20, width: 90 },
+    { key: 'nama_sekolah_asal', label: 'nama_sekolah_asal', kind: 'text', maxLength: 255, width: 180 },
+    { key: 'npsn_sekolah_asal', label: 'npsn_sekolah_asal', kind: 'text', maxLength: 20, width: 130 },
+    { key: 'nss_sekolah_asal', label: 'nss_sekolah_asal', kind: 'text', maxLength: 30, width: 130 },
+    { key: 'alamat_sekolah_asal', label: 'alamat_sekolah_asal', kind: 'text', maxLength: 500, width: 200 },
+    { key: 'aktif', label: 'is_active_lembaga', kind: 'static', width: 90 },
+    { key: 'masuk', label: 'tgl_masuk', kind: 'text', maxLength: 10, width: 110, validate: tglValidator },
+    { key: 'selesai', label: 'tgl_selesai', kind: 'text', maxLength: 10, width: 110, validate: tglValidator,  },
   ], []);
 
   return (

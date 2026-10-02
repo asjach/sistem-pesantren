@@ -108,16 +108,7 @@ export const HALAMAN: HalamanDef[] = [
     icon: CalendarCheck,
     permission: 'semester.aktivasi',
   },
-  {
-    to: '/pengaturan/kamus-label',
-    label: 'Kamus Label',
-    deskripsi: 'Satu acuan nama header, perataan, dan lebar kolom untuk semua halaman (berbasis tabel database). Urut bawaan per endpoint juga diatur di sini. Hanya super_admin.',
-    tab: 'pengaturan',
-    grid: true,
-    icon: NotebookTabs,
-    permission: 'kamus_label.lihat',
-  },
-  {
+    {
     to: '/pengaturan/izin',
     label: 'Kelola Izin',
     deskripsi: 'Matriks izin role × modul. Hanya super_admin.',

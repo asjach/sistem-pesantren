@@ -3,7 +3,6 @@
 use App\Http\Controllers\Api\Admin\AlumniArsipController;
 use App\Http\Controllers\Api\Admin\DokumenController;
 use App\Http\Controllers\Api\Admin\IzinController;
-use App\Http\Controllers\Api\Admin\KamusLabelController;
 use App\Http\Controllers\Api\Admin\KeaktifanPegawaiController;
 use App\Http\Controllers\Api\Admin\KelasController;
 use App\Http\Controllers\Api\Admin\LembagaController;
@@ -261,15 +260,6 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::post('preset-tabel/{preset}/bawaan', [PresetTabelController::class, 'setBawaan'])->middleware('permission:preset_tabel.ubah');
         Route::delete('preset-tabel/{preset}', [PresetTabelController::class, 'destroy'])->middleware('permission:preset_tabel.hapus');
 
-        Route::get('kamus-kolom', [KamusLabelController::class, 'index'])->middleware('permission:kamus_label.lihat');
-        // Peta + skema = metadata tampilan untuk semua grid (baca bebas,
-        // tanpa middleware izin agar label kustom tetap tampil untuk admin).
-        Route::get('kamus-kolom/peta', [KamusLabelController::class, 'peta']);
-        Route::get('kamus-kolom/skema', [KamusLabelController::class, 'skema']);
-        Route::post('kamus-kolom/generasi', [KamusLabelController::class, 'generasi'])->middleware(['permission:kamus_label.tambah', 'permission:kamus_label.ubah']);
-        Route::post('kamus-kolom', [KamusLabelController::class, 'store'])->middleware('permission:kamus_label.tambah');
-        Route::match(['put', 'patch'], 'kamus-kolom/{labelKolom}', [KamusLabelController::class, 'update'])->middleware('permission:kamus_label.ubah');
-        Route::delete('kamus-kolom/{labelKolom}', [KamusLabelController::class, 'destroy'])->middleware('permission:kamus_label.hapus');
         Route::get('urut-preset', [UrutPresetController::class, 'index'])->middleware('permission:urut_preset.lihat');
         Route::put('urut-preset', [UrutPresetController::class, 'simpan'])->middleware('permission:urut_preset.tambah|urut_preset.ubah');
         Route::delete('urut-preset', [UrutPresetController::class, 'hapus'])->middleware('permission:urut_preset.hapus');

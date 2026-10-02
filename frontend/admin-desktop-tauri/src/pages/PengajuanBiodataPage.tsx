@@ -38,12 +38,12 @@ import { useAksiProfilSantri } from '@/components/santri/useAksiProfilSantri';
 const STATUS = ['diajukan', 'disetujui', 'ditolak'];
 
 const FIELDS: ExcelField[] = [
-  { key: 'santri', label: 'santri.nama_lengkap', width: 200, kind: 'static', sumber: { tabel: 'santri', kolom: 'nama_lengkap' } },
-  { key: 'nik', label: 'santri.nik', width: 160, kind: 'static', sumber: { tabel: 'santri', kolom: 'nik' } },
-  { key: 'wali', label: 'users.name', width: 160, kind: 'static', sumber: { tabel: 'users', kolom: 'name' } },
-  { key: 'perubahan', label: 'perubahan_json', width: 320, kind: 'static', sumber: null },
-  { key: 'status', label: 'status', width: 110, kind: 'static', sumber: { tabel: 'pengajuan_biodata_santri', kolom: 'status' } },
-  { key: 'tanggal', label: 'created_at', width: 110, kind: 'static', sumber: { tabel: 'pengajuan_biodata_santri', kolom: 'created_at' } },
+  { key: 'santri', label: 'santri.nama_lengkap', width: 200, kind: 'static' },
+  { key: 'nik', label: 'santri.nik', width: 160, kind: 'static' },
+  { key: 'wali', label: 'users.name', width: 160, kind: 'static' },
+  { key: 'perubahan', label: 'perubahan_json', width: 320, kind: 'static' },
+  { key: 'status', label: 'status', width: 110, kind: 'static' },
+  { key: 'tanggal', label: 'created_at', width: 110, kind: 'static',  },
 ];
 
 function gridValues(p: PengajuanBiodata): Record<string, string | null> {

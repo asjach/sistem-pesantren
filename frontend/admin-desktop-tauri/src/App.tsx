@@ -23,7 +23,6 @@ import DashboardPage from './pages/DashboardPage';
 const UsersPage = lazy(() => import('./pages/UsersPage'));
 const LembagaPage = lazy(() => import('./pages/LembagaPage'));
 const ReferensiPage = lazy(() => import('./pages/ReferensiPage'));
-const KamusLabelPage = lazy(() => import('./pages/KamusLabelPage'));
 const TahunAjaranPage = lazy(() => import('./pages/TahunAjaranPage'));
 const SemesterPage = lazy(() => import('./pages/SemesterPage'));
 const KelasPage = lazy(() => import('./pages/KelasPage'));
@@ -112,7 +111,6 @@ export default function App() {
                       <Route path="/pengaturan/semester" element={<KhususIzin izin="semester.aktivasi"><SemesterPage /></KhususIzin>} />
                       <Route path="/kelas" element={<KhususIzin izin="kelas.lihat"><KelasPage /></KhususIzin>} />
                       <Route path="/referensi" element={<KhususIzin izin="referensi.lihat"><ReferensiPage /></KhususIzin>} />
-                      <Route path="/pengaturan/kamus-label" element={<KhususIzin izin="kamus_label.lihat"><KamusLabelPage /></KhususIzin>} />
                       <Route path="/psb" element={<Navigate to="/psb/pendaftar" replace />} />
                       <Route path="/psb/:tahap" element={<KhususIzin izin="psb.lihat"><PsbPage /></KhususIzin>} />
                       <Route path="/kegiatan-psb" element={<KhususIzin izin="kegiatan_psb.lihat"><KegiatanPsbPage /></KhususIzin>} />

@@ -1,6 +1,5 @@
 <?php
 
-use App\Services\KamusKolomService;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 
@@ -13,7 +12,6 @@ return new class extends Migration
             ->where('kolom', 'is_active_riwayat')
             ->update(['label' => 'AKTIF', 'updated_at' => now()]);
 
-        KamusKolomService::bump();
     }
 
     public function down(): void
@@ -23,6 +21,5 @@ return new class extends Migration
             ->where('kolom', 'is_active_riwayat')
             ->update(['label' => 'Is Active Riwayat', 'updated_at' => now()]);
 
-        KamusKolomService::bump();
     }
 };

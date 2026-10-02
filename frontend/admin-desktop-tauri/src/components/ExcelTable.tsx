@@ -27,8 +27,6 @@ import { useSalinTabel } from './excel/useSalinTabel';
 import { copyText, tulisPolosSinkron } from '@/lib/clipboard';
 import { useBarisInput } from './excel/useBarisInput';
 import { KonteksLebarFilter } from './excel/lebarFilter';
-import { useKamusPeta } from '@/components/useKamusPeta';
-import { type KamusKolomAttr } from '@/api/kamusLabel';
 import { useRibbonTable } from '@/components/RibbonTable';
 import {
   ContextMenu,
@@ -54,6 +52,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { labelKolom as labelKolomTeks } from '@/lib/labelKolom';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -111,7 +110,7 @@ export interface ExcelTableProps<T extends { id: string | number }> {
   tengah?: ReactNode;
   header?: ReactNode;
   /** Kontrol di awal area judul (mis. pemilih
-   *  tabel pada halaman Kamus Label). */
+   *  tabel pada halaman pengaturannya). */
   awalanToolbar?: ReactNode;
   /** Kontrol di ujung KANAN area judul (sebelum tombol aksi utama halaman). */
   akhirToolbar?: ReactNode;
@@ -274,53 +273,17 @@ export default function ExcelTable<T extends { id: string | number }>({
     setPresetAktifId(presetId ?? null);
   }, []);
 
-  /** Sumber efektif sebuah kolom: `sumber` eksplisit, atau tabel utama grid
-   *  dengan nama kolom = key (kecuali `sumber: null`). */
-  const sumberField = useCallback((f: ExcelField): { tabel: string; kolom: string } | null => {
-    if (f.sumber === null) return null;
-    if (f.sumber) return f.sumber;
-    return sumberTabel ? { tabel: sumberTabel, kolom: f.key } : null;
-  }, [sumberTabel]);
-  /** Kamus kolom level tabel database (global): label, perataan, lebar,
-   *  tooltip, format, kontrol urut. Dibaca sekali per kombinasi tabel. */
-  const tabelKamus = useMemo(
-    () => [...new Set(fields.map((f) => sumberField(f)?.tabel).filter((t): t is string => !!t))],
-    [fields, sumberField],
-  );
-  const kamus = useKamusPeta(tabelKamus);
-  /** Atribut kamus per key kolom grid. */
-  const attrByKey = useMemo(() => {
-    const m = new Map<string, KamusKolomAttr>();
-    for (const f of fields) {
-      const s = sumberField(f);
-      if (!s) continue;
-      const a = kamus[`${s.tabel}.${s.kolom}`];
-      if (a) m.set(f.key, a);
-    }
-    return m;
-  }, [fields, kamus, sumberField]);
 
-  /** Nama tampil kolom: kamus DB > label preset > label bawaan field.
-   *  Underscore jadi spasi; huruf TIDAK diubah casing-nya, sehingga label
-   *  dari Kamus Label (UPPERCASE / Proper Case / lower case) tampil sesuai
-   *  apa yang disimpan. Label placeholder bertipe `tabel.kolom` dipangkas
-   *  jadi nama kolomnya saja. */
-  const labelKolom = useCallback((key: string, bawaan: string) => {
-    const dariKamus = attrByKey.get(key)?.label?.trim();
-    const kustom = presetLabel?.[key]?.trim();
-    const teks = dariKamus || kustom || bawaan;
-    const dasar = /^[a-z0-9_]+\.[a-z0-9_]+$/.test(teks) ? teks.slice(teks.indexOf('.') + 1) : teks;
-    return dasar.replace(/_+/g, ' ');
-  }, [presetLabel, attrByKey]);
-  /** Perataan efektif: kamus DB > preferensi pribadi > tengah. */
+  /** Nama tampilan kolom: label preset per tabel (kalau ada) > label field.
+   *  Label berupa nama kolom mentah di-humanize supaya header tidak pernah
+   *  tampil apa adanya; lihat `lib/labelKolom`. */
+  const labelKolom = useCallback((key: string, bawaan: string) => (
+    labelKolomTeks(presetLabel?.[key]?.trim() || bawaan || key)
+  ), [presetLabel]);
+  /** Perataan efektif: preferensi pribadi per kolom > tengah. */
   const alignEfektif = useCallback((key: string): AlignName => (
-    attrByKey.get(key)?.align ?? align[key] ?? 'center'
-  ), [attrByKey, align]);
-  /** Lebar terkunci kamus (kolom tidak bisa diseret/di-AutoFit). */
-  const lebarKunci = useCallback((key: string): number | null => {
-    const a = attrByKey.get(key);
-    return a?.kunci_lebar && a.lebar ? a.lebar : null;
-  }, [attrByKey]);
+    align[key] ?? 'center'
+  ), [align]);
   /** Seleksi bersifat per halaman/filter: baris berganti = seleksi dibersihkan. */
   useEffect(() => {
     setCheckedIds(new Set<T['id']>());
@@ -478,7 +441,6 @@ export default function ExcelTable<T extends { id: string | number }>({
     visibleFields,
     wrapRef,
     getSelectedColumnKeys: () => selectedColumnKeys(),
-    attrByKey,
     labelKolom,
     bolehGeser,
     hideActions,
@@ -514,7 +476,6 @@ export default function ExcelTable<T extends { id: string | number }>({
     gridByIdRef,
     checkedIdsRef,
     rangeRef,
-    attrByKey,
     labelKolom,
   });
   const [gridH, setGridH] = useState(() =>
@@ -841,7 +802,7 @@ export default function ExcelTable<T extends { id: string | number }>({
   }
 
   const dsgColumns: Column<GridRow>[] = useMemo(() => {
-    /** Kelas perataan kolom: kamus DB > preferensi pribadi (bawaan tengah). */
+    /** Kelas perataan kolom: preferensi pribadi per kolom (bawaan tengah). */
     const alignClass = (key: string) =>
       alignEfektif(key) === 'right'
         ? 'simpes-dsg-align-right'
@@ -872,7 +833,6 @@ export default function ExcelTable<T extends { id: string | number }>({
       // Tanpa kolom Aksi, kolom data terakhir yang menggambar tepi kanan tabel.
       const lastCls = hideActions && iData === visibleFields.length - 1 ? ' simpes-dsg-col-last' : '';
       const isInputRow = (rowData: GridRow) => showInput && String(rowData.id) === INPUT_ROW_ID;
-      const lebarTerkunci = lebarKunci(f.key);
       const common = {
         id: f.key,
         title: (
@@ -888,8 +848,6 @@ export default function ExcelTable<T extends { id: string | number }>({
                 : undefined
             }
             onAutoFit={onAutoFit}
-            tooltip={attrByKey.get(f.key)?.tooltip ?? null}
-            terkunci={lebarKunci(f.key) != null}
             bisaGeser={bolehGeser}
             sedangDiseret={seret?.dari === f.key}
             targetSeret={seret && seret.ke === f.key ? (seret.sesudah ? 'kanan' : 'kiri') : null}
@@ -901,7 +859,7 @@ export default function ExcelTable<T extends { id: string | number }>({
         ),
         headerClassName: cn(alignClass(f.key), bekuCls, tepiCls, lastCls),
         basis:
-          (lebarTerkunci ?? widths[f.key] ?? stdLebar?.[f.key] ?? autoWidths[f.key] ?? syncAutoWidths[f.key] ?? f.width ?? 150) +
+          (widths[f.key] ?? stdLebar?.[f.key] ?? autoWidths[f.key] ?? syncAutoWidths[f.key] ?? f.width ?? 150) +
           // Gagang geser memakan ruang judul: tambah lebarnya agar area
           // label tetap sama (hanya saat grip tampil = super_admin).
           (bolehGeser ? LEBAR_GAGANG_GESER : 0),
@@ -1072,7 +1030,7 @@ export default function ExcelTable<T extends { id: string | number }>({
     }
     return cols;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fields, visibleFields, editing, widths, stdLebar, autoWidths, syncAutoWidths, align, showInput, freezeAktif, hideCheckbox, labelKolom, attrByKey, alignEfektif, lebarKunci, drafts, bolehGeser, seret, dragMulaiKolom, dragLewatKolom, dragJatuhKolom, dragSelesaiKolom]);
+  }, [fields, visibleFields, editing, widths, stdLebar, autoWidths, syncAutoWidths, align, showInput, freezeAktif, hideCheckbox, labelKolom, alignEfektif, drafts, bolehGeser, seret, dragMulaiKolom, dragLewatKolom, dragJatuhKolom, dragSelesaiKolom]);
 
   /** Logika baris input (mode Input): draft, validasi, simpan, kursor. */
   const {

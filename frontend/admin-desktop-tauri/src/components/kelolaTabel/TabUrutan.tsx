@@ -1,3 +1,4 @@
+import { labelKolom } from '@/lib/labelKolom';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { errorMessage } from '@/api/client';
 import {
@@ -9,7 +10,6 @@ import {
   type PresetUrutData,
 } from '@/api/urutPreset';
 import { useLembagaAktif } from '@/lembagaAktif';
-import { useKamusPeta } from '@/components/useKamusPeta';
 import MultiSelect from '@/components/MultiSelect';
 import { Button } from '@/components/ui/button';
 import TombolIkon from '@/components/TombolIkon';
@@ -57,22 +57,13 @@ export default function TabUrutan({ tableKey, onTutup }: { tableKey: string; onT
     void muat();
   }, [muat]);
 
-  const tabelKamus = useMemo(
-    () => [...new Set((data?.tersedia ?? []).flatMap((k) => k.kolom.map((c) => c.split('.')[0])))],
-    [data],
-  );
-  const kamus = useKamusPeta(tabelKamus);
-
-  /** Nama tampil sebuah kode urut: label kamus kolom (bila ada) / nama kolom. */
+  /** Nama tampilan sebuah kode urut: nama kolom saja (mis. `nama_lengkap`). */
   const labelKode = useCallback(
     (kolom: string[]) =>
       kolom
-        .map((k) => {
-          const namaKolom = k.split('.')[1] ?? k;
-          return kamus[k]?.label?.trim() || namaKolom.replace(/_/g, ' ');
-        })
+        .map((k) => labelKolom(k.split('.')[1] ?? k))
         .join(' + '),
-    [kamus],
+    [],
   );
 
   const opsi = data?.opsi ?? [];

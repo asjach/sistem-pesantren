@@ -12,11 +12,11 @@ import { TopBarSearch } from '@/components/TopBarSearch';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 
 const FIELDS: ExcelField[] = [
-  { key: 'nama', label: 'pegawai.nama_lengkap', width: 220, kind: 'static', sumber: { tabel: 'pegawai', kolom: 'nama_lengkap' } },
-  { key: 'nipp', label: 'pegawai.nipp', width: 130, kind: 'static', sumber: { tabel: 'pegawai', kolom: 'nipp' } },
-  { key: 'email_pegawai', label: 'pegawai.email_pribadi', width: 220, kind: 'static', sumber: { tabel: 'pegawai', kolom: 'email_pribadi' } },
-  { key: 'hp_pegawai', label: 'pegawai.no_hp', width: 150, kind: 'static', sumber: { tabel: 'pegawai', kolom: 'no_hp' } },
-  { key: 'login', label: 'Login Akun', width: 220, kind: 'static', sumber: { tabel: 'users', kolom: 'email' } },
+  { key: 'nama', label: 'pegawai.nama_lengkap', width: 220, kind: 'static' },
+  { key: 'nipp', label: 'pegawai.nipp', width: 130, kind: 'static' },
+  { key: 'email_pegawai', label: 'pegawai.email_pribadi', width: 220, kind: 'static' },
+  { key: 'hp_pegawai', label: 'pegawai.no_hp', width: 150, kind: 'static' },
+  { key: 'login', label: 'Login Akun', width: 220, kind: 'static',  },
 ];
 
 function nilaiBaris(r: AkunPegawai): Record<string, string | null> {

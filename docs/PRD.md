@@ -328,7 +328,10 @@
 | 2.274 | 2026-09-26 | Kelulusan: default `penyerahan_ijazah` dari import adalah “Sudah”, sedangkan dari aksi Luluskan tetap “Belum”.
 | 2.275 | 2026-09-26 | Kelulusan: combobox Urutkan dan Kolom ditampilkan di judul tabel Alumni (sebelum tombol aksi); pilihan urut dikirim sebagai `sort`/`arah` ke endpoint arsip alumni.
 | 2.276 | 2026-09-26 | Fix sinkron dialog Kelola Halaman: registrasi tabel kini mencakup susunan key field, sehingga perubahan kolom tanpa ganti key tabel tetap mendaftarkan ulang dan tab Kolom/Urutan selalu sama dengan halaman.
-| 2.277 | 2026-09-26 | Fix layout tab Kolom/Urutan/Toolbar dialog Kelola Halaman: form mengisi tinggi dialog, panel daftar ikut meregang dengan scroll internal, dan tombol Tutup/Simpan menempel di bawah (tidak ada ruang kosong menggantung).
+| 2.278 | 2026-10-02 | Kamus Label dihapus seluruhnya: halaman + route `/pengaturan/kamus-label`, API `kamus-kolom/*`, model `LabelKolom`, service `KamusKolomService`, izin `kamus_label.*`, dan tabel `label_kolom` (drop via migrasi) |
+| 2.279 | 2026-10-02 | Nama header kolom tabel dipindah dari basis data ke kode: label ditulis di tiap halaman sebagai `ExcelField.label`, dan label berupa nama kolom mentah di-humanize otomatis `lib/labelKolom` (snake_case → Proper Case, `tabel.kolom` dipangkas, singkatan `nip`/`nis` tetap kapital) |
+| 2.280 | 2026-10-02 | `ExcelField.sumber` di-drop beserta 238 deklarasi; atribut perataan/kunci-lebar/tooltip/format ikut hilang. Format isi sel kini lewat `ExcelField.format` (`angka`/`tanggal`/`ya_tidak`); kolom hitung tanpa kolom asal otomatis mengikuti humanizer |
+| 2.281 | 2026-10-02 | Preset Tabel (`preset_tabel`, `toolbar_preset`, `urut_preset`) dipastikan fitur terpisah dan tidak terpengaruh penghapusan Kamus Label |
 
 ## Daftar Isi
 

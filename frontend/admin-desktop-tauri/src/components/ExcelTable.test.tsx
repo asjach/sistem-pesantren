@@ -30,11 +30,6 @@ vi.mock('@/api/urutPreset', () => ({
   hapusUrutPreset: vi.fn(),
 }));
 
-vi.mock('@/api/kamusLabel', async (importOriginal) => {
-  const asli = await importOriginal<typeof import('@/api/kamusLabel')>();
-  return { ...asli, petaKolom: vi.fn(async () => ({})) };
-});
-
 // ---- Stub jsdom untuk react-datasheet-grid ----
 
 vi.mock('react-datasheet-grid', async (importOriginal) => {

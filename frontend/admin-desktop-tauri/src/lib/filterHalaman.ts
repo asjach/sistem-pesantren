@@ -66,7 +66,6 @@ export const KONFIGURASI_FILTER_HALAMAN = {
   pengaturan_semester: buatKonfigurasi([]),
   kelas: buatKonfigurasi(FILTER_KELAS, { tingkat: true }),
   referensi: buatKonfigurasi(['lembaga']),
-  pengaturan_kamus_label: buatKonfigurasi([]),
   psb_pendaftar: buatKonfigurasi(FILTER_PSB),
   psb_terdaftar: buatKonfigurasi(FILTER_PSB),
   psb_daftar_ulang: buatKonfigurasi(FILTER_PSB),

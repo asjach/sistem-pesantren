@@ -47,28 +47,28 @@ const KOLOM_IMPORT_MUTASI = [
 
 /** Kolom tabel kiri (santri aktif). */
 const FIELDS_AKTIF: ExcelField[] = [
-  { key: 'nama', label: 'santri.nama_lengkap', kind: 'static', sumber: { tabel: 'santri', kolom: 'nama_lengkap' } },
-  { key: 'kelas', label: 'kelas.nama_kelas', kind: 'static', sumber: { tabel: 'kelas', kolom: 'nama_kelas' } },
+  { key: 'nama', label: 'santri.nama_lengkap', kind: 'static' },
+  { key: 'kelas', label: 'kelas.nama_kelas', kind: 'static' },
 ];
 
 /** Kolom tabel kanan (arsip mutasi keluar). */
 const FIELDS_ARSIP: ExcelField[] = [
-  { key: 'id', label: 'ID Mutasi', kind: 'static', width: 90, sumber: { tabel: 'mutasi_keluar', kolom: 'id' } },
-  { key: 'santri_id', label: 'ID Santri', kind: 'static', width: 90, sumber: { tabel: 'mutasi_keluar', kolom: 'santri_id' } },
-  { key: 'santri', label: 'Nama Santri', kind: 'static', width: 200, sumber: { tabel: 'santri', kolom: 'nama_lengkap' } },
-  { key: 'jenjang', label: 'Jenjang', kind: 'static', width: 80, sumber: { tabel: 'mutasi_keluar', kolom: 'jenjang' } },
-  { key: 'kelas_terakhir_id', label: 'ID Kelas Terakhir', kind: 'static', width: 120, sumber: { tabel: 'mutasi_keluar', kolom: 'kelas_terakhir_id' } },
-  { key: 'kelas_terakhir', label: 'Kelas Terakhir', kind: 'static', width: 140, sumber: { tabel: 'kelas', kolom: 'nama_kelas' } },
-  { key: 'tanggal', label: 'Tanggal Mutasi', kind: 'static', width: 140, sumber: { tabel: 'mutasi_keluar', kolom: 'tanggal_mutasi' } },
-  { key: 'alasan', label: 'Alasan Mutasi', kind: 'static', width: 220, sumber: { tabel: 'mutasi_keluar', kolom: 'alasan_mutasi' } },
-  { key: 'no_surat', label: 'No. Surat', kind: 'static', width: 140, sumber: { tabel: 'mutasi_keluar', kolom: 'no_surat' } },
-  { key: 'tujuan', label: 'Nama Sekolah Tujuan', kind: 'static', width: 220, sumber: { tabel: 'mutasi_keluar', kolom: 'nama_sekolah_tujuan' } },
-  { key: 'npsn_sekolah_tujuan', label: 'NPSN Sekolah Tujuan', kind: 'static', width: 170, sumber: { tabel: 'mutasi_keluar', kolom: 'npsn_sekolah_tujuan' } },
-  { key: 'nsm_sekolah_tujuan', label: 'NSM Sekolah Tujuan', kind: 'static', width: 170, sumber: { tabel: 'mutasi_keluar', kolom: 'nsm_sekolah_tujuan' } },
-  { key: 'alamat_sekolah_tujuan', label: 'Alamat Sekolah Tujuan', kind: 'static', width: 280, sumber: { tabel: 'mutasi_keluar', kolom: 'alamat_sekolah_tujuan' } },
-  { key: 'keterangan', label: 'Keterangan', kind: 'static', width: 240, sumber: { tabel: 'mutasi_keluar', kolom: 'keterangan' } },
-  { key: 'created_at', label: 'Dibuat', kind: 'static', width: 190, sumber: { tabel: 'mutasi_keluar', kolom: 'created_at' } },
-  { key: 'updated_at', label: 'Diperbarui', kind: 'static', width: 190, sumber: { tabel: 'mutasi_keluar', kolom: 'updated_at' } },
+  { key: 'id', label: 'ID Mutasi', kind: 'static', width: 90 },
+  { key: 'santri_id', label: 'ID Santri', kind: 'static', width: 90 },
+  { key: 'santri', label: 'Nama Santri', kind: 'static', width: 200 },
+  { key: 'jenjang', label: 'Jenjang', kind: 'static', width: 80 },
+  { key: 'kelas_terakhir_id', label: 'ID Kelas Terakhir', kind: 'static', width: 120 },
+  { key: 'kelas_terakhir', label: 'Kelas Terakhir', kind: 'static', width: 140 },
+  { key: 'tanggal', label: 'Tanggal Mutasi', kind: 'static', width: 140 },
+  { key: 'alasan', label: 'Alasan Mutasi', kind: 'static', width: 220 },
+  { key: 'no_surat', label: 'No. Surat', kind: 'static', width: 140 },
+  { key: 'tujuan', label: 'Nama Sekolah Tujuan', kind: 'static', width: 220 },
+  { key: 'npsn_sekolah_tujuan', label: 'NPSN Sekolah Tujuan', kind: 'static', width: 170 },
+  { key: 'nsm_sekolah_tujuan', label: 'NSM Sekolah Tujuan', kind: 'static', width: 170 },
+  { key: 'alamat_sekolah_tujuan', label: 'Alamat Sekolah Tujuan', kind: 'static', width: 280 },
+  { key: 'keterangan', label: 'Keterangan', kind: 'static', width: 240 },
+  { key: 'created_at', label: 'Dibuat', kind: 'static', width: 190 },
+  { key: 'updated_at', label: 'Diperbarui', kind: 'static', width: 190,  },
 ];
 
 export default function MutasiKeluarPage() {

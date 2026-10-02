@@ -680,19 +680,6 @@ Standar tampilan per lembaga (tema/tipografi/grid/preset aktif), disebar super_a
 - `diubah_oleh`: FK → users [null, nullOnDelete]
 - `created_at`, `updated_at`
 
-### `label_kolom` (kamus kolom level tabel database)
-- `id` PK
-- `tabel`: string(64)
-- `kolom`: string(64)
-- `label`: string(100) [null] — nama header; kosong = label bawaan
-- `align`: enum(left|center|right) [null]
-- `lebar`: int [null]
-- `kunci_lebar`: bool [default false]
-- `tooltip`: string(200) [null]
-- `format`: string(32) [null] — format tampil
-- `created_at`, `updated_at`
-- UNIQUE(`tabel`, `kolom`) — satu baris per kolom tabel, berlaku lintas halaman
-
 ### `toolbar_preset` (visibilitas/lebar/urutan kontrol toolbar, global per `table_key`)
 - `id` PK
 - `table_key`: string(60) [unik]

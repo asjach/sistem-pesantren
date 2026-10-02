@@ -243,9 +243,9 @@ function TabelKelas({ tingkat, kolom, tetangga, bisaPindah, busyId, cari, aksiPr
            tableKey={`pindah_kelas_${kunci}`}
            header={<span>{kolom.kelasId == null ? 'Santri Belum Masuk Kelas' : `Kelas ${kolom.kelas}`}</span>}
            fields={[
-            { key: 'nama', label: 'santri.nama_lengkap', kind: 'static', sumber: { tabel: 'santri', kolom: 'nama_lengkap' } },
-            { key: 'nis_lokal', label: 'nis_lokal', kind: 'static', sumber: { tabel: 'lembaga_santri', kolom: 'nis_lokal' } },
-            { key: 'no_absen', label: 'no_absen', kind: 'static', sumber: { tabel: 'riwayat_belajar', kolom: 'no_absen' } },
+            { key: 'nama', label: 'santri.nama_lengkap', kind: 'static' },
+            { key: 'nis_lokal', label: 'nis_lokal', kind: 'static' },
+            { key: 'no_absen', label: 'no_absen', kind: 'static',  },
           ]}
            rows={barisHalaman}
           getValues={(r) => ({

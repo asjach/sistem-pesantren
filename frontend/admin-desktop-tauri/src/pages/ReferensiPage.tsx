@@ -184,29 +184,23 @@ export default function ReferensiPage() {
 
   const toggleBolehId = useCallback((id: string | number) => toggleBoleh.get(String(id)) ?? false, [toggleBoleh]);
 
-  /** Tabel database tabel referensi aktif (`ref_<tipe>`), dipakai untuk mengikat
-   *  kolom ke Kamus Label. Semua tabel ref punya `nama`, `urutan`, `is_active`;
-   *  `kode` hanya ada di status awal/akhir. Tipe kosong (sebelum daftar dimuat)
-   *  menghasilkan nama tabel tak dikenal -> Kamus Label dilewati. */
-  const refTable = useMemo(() => (tipe ? `ref_${tipe}` : ''), [tipe]);
-
   const fields = useMemo<ExcelField[]>(
     () => isStatus
       ? [
-          { key: 'kode', label: 'kode', width: 150, kind: 'static', sumber: { tabel: refTable, kolom: 'kode' } },
-          { key: 'nama', label: 'nama', width: 200, kind: 'static', sumber: { tabel: refTable, kolom: 'nama' } },
-          { key: 'urutan', label: 'urutan', width: 80, kind: 'static', sumber: { tabel: refTable, kolom: 'urutan' } },
+          { key: 'kode', label: 'kode', width: 150, kind: 'static' },
+          { key: 'nama', label: 'nama', width: 200, kind: 'static' },
+          { key: 'urutan', label: 'urutan', width: 80, kind: 'static' },
           ...(isStatusAkhir ? [{ key: 'sifat', label: 'Sifat', width: 170, kind: 'static' as const }] : []),
           { key: 'sumber', label: 'Sumber', width: 170, kind: 'static' },
-          { key: 'tampil', label: 'is_active', width: 130, kind: 'toggle', toggleTanpaEdit: true, bolehToggle: toggleBolehId, sumber: { tabel: refTable, kolom: 'is_active' } },
+          { key: 'tampil', label: 'is_active', width: 130, kind: 'toggle', toggleTanpaEdit: true, bolehToggle: toggleBolehId },
         ]
       : [
-          { key: 'nama', label: 'nama', width: 220, kind: 'static', sumber: { tabel: refTable, kolom: 'nama' } },
-          { key: 'urutan', label: 'urutan', width: 80, kind: 'static', sumber: { tabel: refTable, kolom: 'urutan' } },
+          { key: 'nama', label: 'nama', width: 220, kind: 'static' },
+          { key: 'urutan', label: 'urutan', width: 80, kind: 'static' },
           { key: 'sumber', label: 'Sumber', width: 170, kind: 'static' },
-          { key: 'tampil', label: 'is_active', width: 130, kind: 'toggle', toggleTanpaEdit: true, bolehToggle: toggleBolehId, sumber: { tabel: refTable, kolom: 'is_active' } },
+          { key: 'tampil', label: 'is_active', width: 130, kind: 'toggle', toggleTanpaEdit: true, bolehToggle: toggleBolehId,  },
         ],
-    [isStatus, isStatusAkhir, toggleBolehId, refTable],
+    [isStatus, isStatusAkhir, toggleBolehId],
   );
 
   const gridValues = useCallback((r: ReferensiRow): Record<string, string | null> => ({

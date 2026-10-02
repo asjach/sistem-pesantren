@@ -34,11 +34,11 @@ import { toast } from 'sonner';
 import { useAksiProfilSantri } from '@/components/santri/useAksiProfilSantri';
 
 const FIELDS_RIWAYAT: ExcelField[] = [
-  { key: 'nama_lengkap', label: 'nama_lengkap', width: 200, kind: 'static', sumber: { tabel: 'santri', kolom: 'nama_lengkap' } },
-  { key: 'kelas', label: 'kelas', width: 140, kind: 'static', sumber: { tabel: 'kelas', kolom: 'nama_kelas' } },
-  { key: 'status_awal', label: 'status_awal', width: 130, kind: 'static', sumber: { tabel: 'riwayat_belajar', kolom: 'status_awal' } },
-  { key: 'status_akhir', label: 'status_akhir', width: 130, kind: 'static', sumber: { tabel: 'riwayat_belajar', kolom: 'status_akhir' } },
-  { key: 'is_active_riwayat', label: 'AKTIF', width: 130, kind: 'static', sumber: { tabel: 'riwayat_belajar', kolom: 'is_active_riwayat' } },
+  { key: 'nama_lengkap', label: 'nama_lengkap', width: 200, kind: 'static' },
+  { key: 'kelas', label: 'kelas', width: 140, kind: 'static' },
+  { key: 'status_awal', label: 'status_awal', width: 130, kind: 'static' },
+  { key: 'status_akhir', label: 'status_akhir', width: 130, kind: 'static' },
+  { key: 'is_active_riwayat', label: 'AKTIF', width: 130, kind: 'static',  },
 ];
 
 function riwayatBelajarValues(r: RiwayatRow): Record<string, string | null> {

@@ -36,8 +36,8 @@ import { bisa } from '../api/auth';
 import { toast } from 'sonner';
 
 const FIELDS_KIRI: ExcelField[] = [
-  { key: 'nama_lengkap', label: 'pegawai.nama_lengkap', width: 220, kind: 'static', sumber: { tabel: 'pegawai', kolom: 'nama_lengkap' } },
-  { key: 'nip', label: 'pegawai.nip', width: 180, kind: 'static', sumber: { tabel: 'pegawai', kolom: 'nip' } },
+  { key: 'nama_lengkap', label: 'pegawai.nama_lengkap', width: 220, kind: 'static' },
+  { key: 'nip', label: 'pegawai.nip', width: 180, kind: 'static' },
 ];
 
 function nilaiKiri(p: Pegawai): Record<string, string | null> {
@@ -226,14 +226,14 @@ export default function LembagaPegawaiPage() {
   }, [canUbah, jenjangs, busy, kanan, kiri]);
 
   const fieldsKanan = useMemo<ExcelField[]>(() => [
-    { key: 'nama', label: 'pegawai.nama_lengkap', width: 220, kind: 'static', sumber: { tabel: 'pegawai', kolom: 'nama_lengkap' } },
-    { key: 'nipp', label: 'pegawai.nipp', width: 130, kind: 'static', sumber: { tabel: 'pegawai', kolom: 'nipp' } },
-    { key: 'lembaga', label: 'lembaga.jenjang', width: 100, kind: 'static', sumber: { tabel: 'lembaga', kolom: 'jenjang' } },
-    { key: 'tugas', label: 'Tugas', width: 160, kind: 'select', selectTanpaEdit: true, choices: tugasOpsi, sumber: { tabel: 'lembaga_pegawai', kolom: 'tugas_utama' } },
-    { key: 'aktif', label: 'Aktif', width: 90, kind: 'toggle', sumber: { tabel: 'lembaga_pegawai', kolom: 'is_active_lembaga' } },
-    { key: 'tgl_masuk', label: 'Tgl Masuk', width: 130, kind: 'text', maxLength: 10, sumber: { tabel: 'lembaga_pegawai', kolom: 'tgl_masuk' } },
-    { key: 'no_sk_awal_ptk', label: 'No. SK Awal PTK', width: 180, kind: 'text', maxLength: 100, sumber: { tabel: 'lembaga_pegawai', kolom: 'no_sk_awal_ptk' } },
-    { key: 'tgl_sk_awal_ptk', label: 'Tgl SK Awal PTK', width: 140, kind: 'text', maxLength: 10, sumber: { tabel: 'lembaga_pegawai', kolom: 'tgl_sk_awal_ptk' } },
+    { key: 'nama', label: 'pegawai.nama_lengkap', width: 220, kind: 'static' },
+    { key: 'nipp', label: 'pegawai.nipp', width: 130, kind: 'static' },
+    { key: 'lembaga', label: 'lembaga.jenjang', width: 100, kind: 'static' },
+    { key: 'tugas', label: 'Tugas', width: 160, kind: 'select', selectTanpaEdit: true, choices: tugasOpsi },
+    { key: 'aktif', label: 'Aktif', width: 90, kind: 'toggle' },
+    { key: 'tgl_masuk', label: 'Tgl Masuk', width: 130, kind: 'text', maxLength: 10 },
+    { key: 'no_sk_awal_ptk', label: 'No. SK Awal PTK', width: 180, kind: 'text', maxLength: 100 },
+    { key: 'tgl_sk_awal_ptk', label: 'Tgl SK Awal PTK', width: 140, kind: 'text', maxLength: 10,  },
   ], [tugasOpsi]);
 
   const renderKanan = useCallback((r: LembagaPegawai) => (

@@ -36,14 +36,14 @@ import { bisa } from '../api/auth';
 import { toast } from 'sonner';
 
 const FIELDS: ExcelField[] = [
-  { key: 'nama', label: 'pegawai.nama_lengkap', width: 220, kind: 'static', sumber: { tabel: 'pegawai', kolom: 'nama_lengkap' } },
-  { key: 'lembaga', label: 'lembaga.jenjang', width: 100, kind: 'static', sumber: { tabel: 'lembaga', kolom: 'jenjang' } },
-  { key: 'ta', label: 'tahun_ajaran.nama', width: 130, kind: 'static', sumber: { tabel: 'tahun_ajaran', kolom: 'nama' } },
-  { key: 'tugas', label: 'Tugas', width: 180, kind: 'static', sumber: { tabel: 'keaktifan_pegawai', kolom: 'tugas_utama' } },
+  { key: 'nama', label: 'pegawai.nama_lengkap', width: 220, kind: 'static' },
+  { key: 'lembaga', label: 'lembaga.jenjang', width: 100, kind: 'static' },
+  { key: 'ta', label: 'tahun_ajaran.nama', width: 130, kind: 'static' },
+  { key: 'tugas', label: 'Tugas', width: 180, kind: 'static' },
   // Toggle langsung (tanpa Mode Edit): gerbang izin mengikuti `canEdit` tabel.
-  { key: 'status', label: 'Status', width: 110, kind: 'toggle', sumber: { tabel: 'keaktifan_pegawai', kolom: 'status_keaktifan' } },
-  { key: 'no_sk', label: 'No. SK', width: 180, kind: 'text', maxLength: 100, sumber: { tabel: 'keaktifan_pegawai', kolom: 'no_sk' } },
-  { key: 'tgl_sk', label: 'Tgl SK', width: 130, kind: 'text', maxLength: 10, sumber: { tabel: 'keaktifan_pegawai', kolom: 'tgl_sk' } },
+  { key: 'status', label: 'Status', width: 110, kind: 'toggle' },
+  { key: 'no_sk', label: 'No. SK', width: 180, kind: 'text', maxLength: 100 },
+  { key: 'tgl_sk', label: 'Tgl SK', width: 130, kind: 'text', maxLength: 10,  },
 ];
 
 function nilaiBaris(r: KeaktifanPegawai): Record<string, string | null> {

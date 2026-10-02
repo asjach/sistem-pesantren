@@ -251,7 +251,7 @@ Migration per-modul (timestamp bawaan, urutan FK); spec di `docs/SCHEMA.md`. Uru
 | 8.2.3 | Kepegawaian | 200 Pegawai | `pegawai`, `lembaga_pegawai`, `keaktifan_pegawai`, `dokumen_pegawai`, `pegawai_pendidikan`, `pegawai_sertifikasi`, `keluarga_pegawai`, `presensi_pegawai`, `pengaturan_hari_lembaga` |
 | 8.2.4 | Akademik/Nilai/Presensi/Portal | 200, 201, 202, 203 | `kurikulum*`, `pengampu_mapel`, `nilai_santri`, `rapor_catatan_wali`, `sesi_presensi`, `presensi_santri`, `pelanggaran_santri`, `target_tahfiz`, `setoran_tahfiz`, `rekap_tahfiz_santri`, `wali_*` |
 | 8.2.5 | Asrama (gambaran umum — **pasca production**, belum dibuat) | 505 Asrama | `asrama`, `asrama_kamar`, `asrama_penghuni`, `asrama_izin_pulang`, `asrama_kegiatan`, `user_asrama`; perubahan `santri` (`is_active_pst` turunan — dibahas terpisah) |
-| 8.2.6 | Lintas modul | Preset/kamus/impor | `preset_tabel`, `preset_tabel_aktif`, `urut_preset`, `toolbar_preset`, `pengaturan_halaman`, `pengaturan_tampilan`, `label_kolom`, `import_sesi`, `notifications` |
+| 8.2.6 | Lintas modul | Preset/kamus/impor | `preset_tabel`, `preset_tabel_aktif`, `urut_preset`, `toolbar_preset`, `pengaturan_halaman`, `pengaturan_tampilan`, `import_sesi`, `notifications` |
 
 ### 8.3 Konvensi Kode
 

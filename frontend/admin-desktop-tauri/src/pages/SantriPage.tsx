@@ -141,7 +141,7 @@ export default function SantriPage() {
       width: 110,
       kind: 'text' as const,
       maxLength: 20,
-      sumber: { tabel: 'lembaga_santri', kolom: 'nis_lokal' },
+      
     })),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [lembagas],

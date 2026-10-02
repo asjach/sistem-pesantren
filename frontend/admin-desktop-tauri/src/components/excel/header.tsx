@@ -19,8 +19,6 @@ export function HeaderTitle({
   onResizeStart,
   onResizePrev,
   onAutoFit,
-  tooltip = null,
-  terkunci = false,
   bisaGeser = false,
   sedangDiseret = false,
   targetSeret = null,
@@ -38,10 +36,6 @@ export function HeaderTitle({
    *  (gagang kanan tertutup oleh sel beku di sebelahnya). */
   onResizePrev?: (e: { preventDefault(): void; stopPropagation(): void; clientX: number }) => void;
   onAutoFit: (key: string) => void;
-  /** Teks bantuan dari kamus kolom (hover header). */
-  tooltip?: string | null;
-  /** Lebar dikunci kamus: gagang seret/AutoFit disembunyikan. */
-  terkunci?: boolean;
   /** Seret urutan kolom diizinkan (super_admin efektif). */
   bisaGeser?: boolean;
   /** Kolom ini sedang diseret. */
@@ -57,7 +51,6 @@ export function HeaderTitle({
     <span
       className={`simpes-dsg-headtitle${sedangDiseret ? ' simpes-dsg-diseret' : ''}${targetSeret === 'kiri' ? ' simpes-dsg-target-kiri' : ''}${targetSeret === 'kanan' ? ' simpes-dsg-target-kanan' : ''}`}
       data-col-key={colKey}
-      title={tooltip ?? undefined}
       onDragOver={onDragLewat ? (e) => { e.preventDefault(); onDragLewat(colKey, e); } : undefined}
       onDrop={onDragJatuh ? (e) => { e.preventDefault(); onDragJatuh(colKey, e); } : undefined}
     >
@@ -90,7 +83,7 @@ export function HeaderTitle({
           <Ban size={11} />
         </span>
       ) : null}
-      {onResizePrev && !terkunci ? (
+      {onResizePrev ? (
         <span
           className="simpes-dsg-resizer simpes-dsg-resizer-kiri"
           title="Seret untuk ubah lebar kolom di kiri"
@@ -98,15 +91,7 @@ export function HeaderTitle({
           onClick={(e) => e.stopPropagation()}
         />
       ) : null}
-      {terkunci ? (
-        <span
-          className="simpes-dsg-tak-input"
-          title="Lebar dikunci kamus kolom"
-          aria-label="Lebar dikunci kamus"
-        >
-          🔒
-        </span>
-      ) : (
+      {(
         <span
           className="simpes-dsg-resizer"
           title="Seret untuk ubah lebar • klik 2× untuk sesuaikan isi"

@@ -1,7 +1,7 @@
-import { type KamusKolomAttr } from '@/api/kamusLabel';
 import { copyText, toTSV } from '@/lib/clipboard';
-import { formatNilai } from '@/lib/nilaiTampil';
 import { toast } from 'sonner';
+
+import { teksTampilSel } from './helpers';
 
 import type { ExcelField, GridRow, GridSelection } from './types';
 
@@ -24,8 +24,6 @@ export interface SalinTabelOptions<T extends { id: string | number }> {
   checkedIdsRef: LiveRef<Set<T['id']>>;
   /** Blok seleksi spreadsheet (untuk salin blok & resize multi-kolom). */
   rangeRef: LiveRef<GridSelection | null>;
-  /** Atribut kamus per key kolom (format tampil). */
-  attrByKey: Map<string, KamusKolomAttr>;
   /** Nama tampil kolom (closure render terkini). */
   labelKolom: (key: string, bawaan: string) => string;
 }
@@ -35,7 +33,7 @@ export interface SalinTabelOptions<T extends { id: string | number }> {
  * baris/sel/kolom, salin blok seleksi atau baris tercentang sebagai TSV,
  * serta pemetaan indeks→key kolom grid (`gridColumnKeys`,
  * `selectedColumnKeys` — dipakai juga untuk resize multi-kolom) dan
- * `displayOf` (teks tampil draft-merged dengan format kamus). Semua fungsi
+ * `displayOf` (teks tampil draft-merged dengan format kolom). Semua fungsi
  * sengaja dibuat ulang tiap render (bukan useCallback) — semantik sama
  * dengan kode asli di ExcelTable.
  */
@@ -49,7 +47,6 @@ export function useSalinTabel<T extends { id: string | number }>({
   gridByIdRef,
   checkedIdsRef,
   rangeRef,
-  attrByKey,
   labelKolom,
 }: SalinTabelOptions<T>) {
   /** Urutan id kolom grid (tanpa gutter) — untuk memetakan indeks seleksi. */
@@ -76,12 +73,10 @@ export function useSalinTabel<T extends { id: string | number }>({
     return out;
   }
 
-  /** Teks tampil sebuah sel (draft-merged, dengan format kamus bila ada). */
+  /** Teks tampil sebuah sel (draft-merged, dengan format kolom bila ada). */
   function displayOf(id: string | number, key: string): string {
-    const v = gridByIdRef.current.get(String(id))?.[key];
-    if (v == null) return '';
-    const format = attrByKey.get(key)?.format;
-    return format ? formatNilai(String(v), format) : String(v);
+    const f = fieldsRef.current.find((x) => x.key === key);
+    return f ? teksTampilSel(f, gridByIdRef.current.get(String(id))?.[key]) : '';
   }
 
   /** Salin satu baris (kolom terlihat) sebagai TSV. */
