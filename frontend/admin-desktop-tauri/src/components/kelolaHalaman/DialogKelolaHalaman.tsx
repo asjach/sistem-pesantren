@@ -8,6 +8,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -233,11 +234,23 @@ export default function DialogKelolaHalaman({
   return (
     <Dialog open={open} onOpenChange={(v) => (v ? onOpenChange(true) : tutup())}>
       <DialogContent
-        className="!flex h-[70dvh] max-h-[70dvh] flex-col !overflow-hidden sm:max-w-2xl lg:max-w-4xl"
+        className={cn(
+          '!flex max-h-[80dvh] flex-col !overflow-hidden sm:max-w-2xl lg:max-w-4xl',
+          // Tab Filter isinya sering pendek (1-4 baris): biarkan dialog mengikuti
+          // isi agar tidak menyisakan ruang kosong. Tab padat (Kolom/Urutan/
+          // Toolbar) butuh tinggi pasti untuk scroll internalnya.
+          tab === 'filter' ? 'h-auto min-h-0' : 'h-[70dvh]',
+        )}
       >
         <KotorProvider value={laporKotor}>
         <DialogHeader className="shrink-0">
           <DialogTitle>Kelola halaman: {judul}</DialogTitle>
+          <DialogDescription>
+            Atur filter, kolom, urutan, dan toolbar untuk halaman ini. Tab
+            <span className="font-medium"> Filter</span> mengatur filter global di bilah atas;
+            tab lain berlaku per tabel. Perubahan baru tersimpan setelah menekan
+            <span className="font-medium"> Simpan</span>.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="flex shrink-0 items-start gap-1 border-b pb-2" role="tablist" aria-label="Kelola halaman">
@@ -274,8 +287,12 @@ export default function DialogKelolaHalaman({
                 aria-pressed={t.key === tabelTerpilih?.key}
                 onClick={() => coba(() => setTabelAktif(t.key))}
                 className={cn(
-                  'rounded-md px-2.5 py-1 text-xs transition-colors',
-                  t.key === tabelTerpilih?.key ? 'bg-accent font-medium' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground',
+                  // Pil bergaris, bukan blok abu seperti tab di atasnya, supaya
+                  // "tabel mana" tidak tertukar dengan "tab mana".
+                  'rounded-full border px-2.5 py-1 text-xs transition-colors',
+                  t.key === tabelTerpilih?.key
+                    ? 'border-accent bg-accent/20 font-medium text-foreground'
+                    : 'border-transparent text-muted-foreground hover:border-border hover:bg-accent/40 hover:text-foreground',
                 )}
               >
                 {t.judul ?? t.key}
@@ -292,7 +309,7 @@ export default function DialogKelolaHalaman({
           className="flex min-h-0 flex-1 flex-col focus-visible:outline-none"
         >
         {tab === 'filter' && (
-          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+          <div className="flex min-h-0 flex-col">
             <TabFilterHalaman
               pageKey={pageKey}
               filterRelevan={konfigurasi.filter}
