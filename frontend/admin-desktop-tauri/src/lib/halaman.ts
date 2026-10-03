@@ -27,11 +27,12 @@ import {
   Server,
   UserCheck,
   Users,
+  Wallet,
   type Ikon,
 } from '@/icons';
 
 /** Kategori navigasi (grup di sidebar). */
-export type TabKategori = 'beranda' | 'master' | 'santri' | 'pegawai' | 'dokumen' | 'pengaturan';
+export type TabKategori = 'beranda' | 'master' | 'santri' | 'pegawai' | 'dokumen' | 'keuangan' | 'pengaturan';
 
 export interface HalamanDef {
   to: string;
@@ -97,6 +98,7 @@ export const HALAMAN: HalamanDef[] = [
   { to: '/kenaikan', label: 'Kenaikan Kelas', tab: 'santri', sub: 'akademik', grid: true, icon: ChevronUp, permission: 'kenaikan.lihat' },
   { to: '/kelulusan', label: 'Kelulusan', tab: 'santri', sub: 'akademik', grid: true, icon: GraduationCap, permission: 'kelulusan.lihat' },
   { to: '/rekap-santri', label: 'Rekap Santri', tab: 'santri', sub: 'lain-lain', grid: true, icon: ReceiptText, permission: 'rekap_santri.lihat' },
+  { to: '/keuangan', label: 'Keuangan', deskripsi: 'Tagihan, tunggakan, dan pembayaran santri.', tab: 'keuangan', grid: true, icon: Wallet, permission: 'keuangan.lihat' },
   { to: '/pengajuan-biodata', label: 'Pengajuan Biodata', tab: 'santri', sub: 'lain-lain', grid: true, icon: NotebookTabs, permission: 'pengajuan_biodata.lihat' },
   {
     to: '/pengaturan/semester',
@@ -199,6 +201,7 @@ export const NAV_GRUP: GrupNav[] = [
       { langsung: true },
     ],
   },
+  { id: 'keuangan', label: 'Keuangan', icon: Wallet },
   { id: 'pengaturan', label: 'Pengaturan', icon: Palette },
 ];
 

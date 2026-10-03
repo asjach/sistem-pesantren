@@ -336,6 +336,9 @@
 | 2.283 | 2026-10-02 | Konsekuensi penghapusan: `ExcelTable` memakai lebar/beku milik user saja, `useLebarKolom` tanpa opsi `standar`, `GridPrefs` tanpa `rowH/headerH/align` dari standar, `PresetKolom` & `DialogKelolaHalaman` tanpa preset aktif standar, `BannerBertindak` tanpa tombol rekam. Halaman `/pengaturan/tampilan` masih ada sebagai editor gaya per pengguna (di-hapus lagi pada v2.284) |
 | 2.284 | 2026-10-02 | Halaman Tampilan dihapus: route `/pengaturan/tampilan` & `/pengaturan/bagian` (alias), `PartStyleEditor`, alat "pilih komponen" (`picker`), entri navigasi & filter, izin `tampilan.*`, part UI `daftar_bagian`, dan fungsi `resetBagian`/`resetBagianBanyak`/`resetSemuaBagian`. `/pengaturan` kini ke `/pengaturan/izin`. Gaya per bagian UI tetap bisa diubah dari ribbon Tabel |
 | 2.285 | 2026-10-02 | Susunan "Lengkap kustom" (kolom sebagian tanpa preset bernama) kini tersimpan di `preset_tabel_aktif.kolom`/`label` per user per tabel, sehingga bertahan antar muat ulang. Tombol "Terapkan" di dialog Kelola Halaman menyimpannya ke server (dulu hanya berlaku sesi itu); dropdown preset menampilkan "Lengkap (kustom)" sebagai keadaan tersendiri; `GET preset-tabel` mengembalikan `aktif_kolom`/`aktif_label`, dan grid memakainya saat tidak ada preset aktif/bawaan |
+| 2.286 | 2026-10-03 | Modul Keuangan (G2) dihidupkan kembali sebagai inti pencatatan tagihan/tunggakan/pembayaran santri: tabel `jenis_tagihan`, `tarif_tagihan`, `tagihan`, `pembayaran`; tarif per lembaga + paket + tahun ajaran (MI/MD/MI-MD); generate massal; angsuran; tunggakan per siswa; kas memetakan posisi uang (TU/bank lembaga/bank pesantren); pembayaran asrama dicatat di kas asrama (bukan pendapatan lembaga); izin `keuangan.*`; halaman `/keuangan`. |
+| 2.287 | 2026-10-03 | Tagihan dihapus permanen (bukan soft-delete; izin `keuangan.hapus`): tagihan ber-pembayaran aktif wajib dibatalkan pembayarannya dulu, baru bisa dihapus (cascade ikut menghapus baris pembayaran yang sudah batal). Jenis tagihan bercakupan global (null) atau khusus satu lembaga (`jenis_tagihan.jenjang`); jenis global hanya boleh dibuat/diubah super_admin; daftar & generate menyaring jenis per lembaga. |
+| 2.288 | 2026-10-03 | Pembayaran bisa dihapus permanen (`DELETE pembayaran`; izin `keuangan.hapus`): total tagihan menyesuaikan (hapus yang aktif mengurangi terbayar; hapus yang batal tidak mengubah total). Dialog riwayat pembayaran per tagihan (ikon History di aksi baris) untuk melihat & menghapus. |
 
 ## Daftar Isi
 
@@ -400,3 +403,10 @@ Lihat Lampiran D. Inti: `lembaga` (PK `jenjang`: MI/MD/MTS/MLN), `tahun_ajaran`,
 - Wawancara pengurus (Agu 2026), kurikulum 2026/2027, tata tertib.
 
 ---
+
+## Modul Keuangan — Konsep (v2.286)
+- Inti: pencatatan **tagihan**, **tunggakan**, **pembayaran** santri (lembaga & asrama). Penerimaan lain (dana BOS), pengeluaran, tabungan, pindah buku, barcode/WhatsApp/kasir-mobile masuk menyusul.
+- Jenis tagihan: bulanan/rutin (Infaq Bulanan, Infaq Bulanan Asrama) vs sekali (ASAS, ASAT, Ujian, HIPA, Pendaftaran, Biaya Masuk, biaya asrama lain). HIPA setahun sekali; kelas akhir diganti Biaya Ujian (HIPA sudah termasuk). Cakupan per jenis: global (semua lembaga) atau khusus satu lembaga; daftar tarif & generate menyaring jenis yang berlaku untuk lembaga itu.
+- Tarif per lembaga + paket (MI/MD/MI-MD) + tahun ajaran; nominal boleh berubah per TA. MI-MD = satu tagihan tunggal tarif MI-MD, ditagih di lembaga primer MI. Perubahan status/penyesuaian tarif: tagihan lama tetap; nominal baru berlaku di tagihan periode berikutnya; pembayaran lama dikreditkan.
+- Keringanan: putra pegawai (override tarif). Status tagihan: belum/sebagian/lunas; batal/hapus pembayaran menyesuaikan total tagihan; hapus tagihan permanen (wajib batalkan dulu pembayaran aktifnya). Pindah/mutasi: tunggakan tetap lembaga asal.
+- Pembayaran: TU/Admin/Kasir lembaga berkemampuan sama (catat + hapus/batal), kwitansi karakter acak; kas memetakan posisi uang (tunai TU | bank lembaga | bank pesantren). Asrama: dibayar melalui TU lalu dicatat di kas asrama (bukan pendapatan lembaga). Tunggakan dibaca per siswa/kelas/semua (admin, TU, bendahara, pimpinan, orang tua).

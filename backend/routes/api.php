@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\Admin\DokumenController;
 use App\Http\Controllers\Api\Admin\IzinController;
 use App\Http\Controllers\Api\Admin\KeaktifanPegawaiController;
 use App\Http\Controllers\Api\Admin\KelasController;
+use App\Http\Controllers\Api\Admin\KeuanganController;
 use App\Http\Controllers\Api\Admin\LembagaController;
 use App\Http\Controllers\Api\Admin\LembagaPegawaiController;
 use App\Http\Controllers\Api\Admin\LembagaSantriController;
@@ -75,6 +76,23 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::post('tahun-ajaran/set-aktif', [TahunAjaranController::class, 'setAktif'])->middleware('permission:tahun_ajaran.ubah');
         Route::post('tahun-ajaran/sembunyikan', [TahunAjaranController::class, 'sembunyikan'])->middleware('permission:tahun_ajaran.ubah');
         Route::post('tahun-ajaran/tampilkan', [TahunAjaranController::class, 'tampilkan'])->middleware('permission:tahun_ajaran.ubah');
+
+        Route::get('keuangan/jenis', [KeuanganController::class, 'indexJenis'])->middleware('permission:keuangan.lihat');
+        Route::post('keuangan/jenis', [KeuanganController::class, 'storeJenis'])->middleware('permission:keuangan.tambah');
+        Route::match(['put', 'patch'], 'keuangan/jenis/{jenis}', [KeuanganController::class, 'updateJenis'])->middleware('permission:keuangan.ubah');
+        Route::get('keuangan/tarif', [KeuanganController::class, 'indexTarif'])->middleware('permission:keuangan.lihat');
+        Route::post('keuangan/tarif', [KeuanganController::class, 'storeTarif'])->middleware('permission:keuangan.tambah');
+        Route::match(['put', 'patch'], 'keuangan/tarif/{tarif}', [KeuanganController::class, 'updateTarif'])->middleware('permission:keuangan.ubah');
+        Route::delete('keuangan/tarif/{tarif}', [KeuanganController::class, 'destroyTarif'])->middleware('permission:keuangan.hapus');
+        Route::get('keuangan/tagihan', [KeuanganController::class, 'indexTagihan'])->middleware('permission:keuangan.lihat');
+        Route::post('keuangan/tagihan', [KeuanganController::class, 'storeTagihan'])->middleware('permission:keuangan.tambah');
+        Route::delete('keuangan/tagihan/{tagihan}', [KeuanganController::class, 'destroyTagihan'])->middleware('permission:keuangan.hapus');
+        Route::post('keuangan/tagihan/generate', [KeuanganController::class, 'generateTagihan'])->middleware('permission:keuangan.tambah');
+        Route::post('keuangan/pembayaran', [KeuanganController::class, 'storePembayaran'])->middleware('permission:keuangan.tambah');
+        Route::post('keuangan/pembayaran/{pembayaran}/batal', [KeuanganController::class, 'batalPembayaran'])->middleware('permission:keuangan.ubah');
+        Route::delete('keuangan/pembayaran/{pembayaran}', [KeuanganController::class, 'destroyPembayaran'])->middleware('permission:keuangan.hapus');
+        Route::get('keuangan/tagihan/{tagihan}/pembayaran', [KeuanganController::class, 'pembayaranTagihan'])->middleware('permission:keuangan.lihat');
+        Route::get('keuangan/tunggakan', [KeuanganController::class, 'tunggakan'])->middleware('permission:keuangan.lihat');
 
         Route::get('semester-aktif', [SemesterAktifController::class, 'index'])->middleware('permission:semester.lihat');
         Route::put('semester-aktif', [SemesterAktifController::class, 'upsert'])->middleware('permission:semester.ubah');

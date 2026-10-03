@@ -1082,3 +1082,53 @@ Lifecycle mandiri (tidak lewat `riwayat_belajar`); masuk/keluar bisa kapan saja.
 - Prinsip: tagihan dibuat dari **lembaga**; pengurus **asrama** boleh membayar dan membaca keuangan santri asramanya; ubah terbatas lingkup asrama; hapus **hanya admin lembaga**.
 - Mekanisme penanda (dulu `pos_keuangan.kategori`) ditetapkan saat modul keuangan dirumuskan ulang.
 
+
+## BLOK 11 — Keuangan (Modul Keuangan, G2)
+
+### `jenis_tagihan`
+- `id` PK
+- `nama`: string — unik, daftar jenis (Infaq Bulanan, ASAS, ASAT, Ujian, HIPA, Pendaftaran, Biaya Masuk, …)
+- `tipe`: enum('bulanan','sekali') [default 'sekali'] — frekuensi: bulanan/rutin vs sekali (ASAS/ASAT berkala, Ujian tingkat akhir, HIPA setahun, tarif masuk/daftar)
+- `jenjang`: string(50) [null] — null = berlaku semua lembaga; terisi = khusus lembaga itu
+- `is_active`: bool [default true]
+- `created_at`, `updated_at`
+- UNIQUE(`nama`)
+
+### `tarif_tagihan`
+- `id` PK
+- `jenjang`: string(50) — lembaga penerbit tagihan; paket MI-MD dibumpkan ke MI
+- `paket`: string(20) — konteks pendaftaran santri: MI | MD | MI-MD | MTS | MLN | …
+- `tahun_ajaran`: string(20) — tarif boleh berubah/tetap per tahun ajaran
+- `jenis_id`: FK → jenis_tagihan [cascade]
+- `tingkat`: string(100) [null] — scope opsional per tingkat
+- `nominal`: unsignedBigInteger
+- `is_active`: bool [default true]
+- `created_at`, `updated_at`
+- UNIQUE(`jenjang`, `paket`, `tahun_ajaran`, `jenis_id`, `tingkat`) — nama `uq_tarif_tagihan`
+
+### `tagihan`
+- `id` PK
+- `santri_id`: FK → santri [cascade]
+- `jenjang`: string(50) — lembaga penerbit
+- `paket`: string(20)
+- `tahun_ajaran`: string(20)
+- `jenis_id`: FK → jenis_tagihan
+- `periode`: string(20) [null] — mis. '2025-07' (bulanan) / '2025-G1' (semester) / null (sekali)
+- `nominal`: unsignedBigInteger
+- `terbayar`: unsignedBigInteger [default 0]
+- `status`: enum('belum','sebagian','lunas') [default 'belum']
+- `jatuh_tempo`: date [null]
+- `created_at`, `updated_at`
+- INDEX(`santri_id`, `tahun_ajaran`, `jenis_id`); UNIQUE(`santri_id`, `jenis_id`, `periode`) — nama `uq_tagihan_santri_jenis_periode`
+
+### `pembayaran`
+- `id` PK
+- `tagihan_id`: FK → tagihan [cascade]
+- `jumlah`: unsignedBigInteger
+- `metode`: enum('tunai','transfer') [default 'tunai']
+- `kas`: enum('tunai_tu','bank_lembaga','bank_pesantren') [default 'tunai_tu'] — memetakan posisi uang (penerima tetap TU/Admin/Kasir lembaga)
+- `no_kwitansi`: string [null, unik] — karakter acak
+- `diterima_oleh`: FK → users [null, nullOnDelete]
+- `status`: enum('aktif','batal') [default 'aktif'] — batal mengembalikan status tagihan (tidak hapus baris)
+- `catatan`: string [null]
+- `created_at`, `updated_at`

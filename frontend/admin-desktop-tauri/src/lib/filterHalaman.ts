@@ -89,6 +89,7 @@ export const KONFIGURASI_FILTER_HALAMAN = {
   mutasi_keluar: buatKonfigurasi(FILTER_SEMUA, { tingkat: true, kelas: true }),
   kenaikan: buatKonfigurasi(['lembaga', 'tahun_ajaran', 'tingkat'], { tingkat: true }),
   kelulusan: buatKonfigurasi(FILTER_KELULUSAN),
+  keuangan: buatKonfigurasi(FILTER_KELULUSAN),
   rekap_santri: buatKonfigurasi(FILTER_REKAP),
   pengajuan_biodata: buatKonfigurasi([]),
   pegawai: buatKonfigurasi([]),

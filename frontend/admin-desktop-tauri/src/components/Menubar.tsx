@@ -22,6 +22,7 @@ const LABEL_MENU: Record<TabKategori, string> = {
   santri: 'Santri',
   pegawai: 'Pegawai',
   dokumen: 'Dokumen',
+  keuangan: 'Keuangan',
   pengaturan: 'Pengaturan',
 };
 
