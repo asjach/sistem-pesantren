@@ -275,13 +275,21 @@ export default function TopBar() {
         {halaman?.label ?? 'SIMPES Admin'}
       </h1>
 
-      {/* Baris 1: judul halaman (kiri) + area akun (kanan). */}
-      <div className="relative flex items-center gap-2 py-1.5 pl-1 pr-3 md:pr-5">
-        {/* Strip navigasi: satu tombol untuk dua arah — chevron kiri
+      {/* Baris 1: judul halaman (kiri) + area akun (kanan). Padding kiri
+          menyisakan ruang untuk kenop navigasi yang melintasi border. */}
+      <div className="relative flex items-center gap-2 py-1.5 pl-6 pr-3 md:pr-5">
+        {/* Kenop navigasi: satu tombol untuk dua arah — chevron kiri
             menyembunyikan rail (saat tampil), chevron kanan menampilkannya
-            kembali (saat tertutup). Berdampingan di sebelah kiri kotak
-            pencarian (jarak `gap-2` baris ini), jadi posisinya tetap sama
-            dalam kedua kondisi. */}
+            kembali (saat tertutup). Saat rail tampil, tombol melintasi garis
+            border vertikalnya (tepi kiri header = border kanan rail),
+            persis seperti tab ribbon yang melintasi border bawahnya. Saat
+            rail tertutup garis itu tidak ada, jadi tombol digeser masuk penuh
+            ke dalam header agar tidak terpotong tepi layar; pergeserannya
+            mengikuti animasi lebar rail lewat `transition-[left]` bersamaan
+            `duration-200` milik rail itu sendiri.
+            Dijangkarkan ke baris judul lewat `top-1/2` + `-translate-y-1/2`,
+            jadi tetap di titik tengah yang sama baik saat ribbon tampil
+            maupun disembunyikan. */}
         {navigasi === 'sidebar' && (
           <Tooltip>
             <TooltipTrigger asChild>
@@ -291,7 +299,8 @@ export default function TopBar() {
                 aria-label={collapsed ? 'Buka navigasi' : 'Lipat navigasi'}
                 aria-expanded={!collapsed}
                 onClick={() => setCollapsed(!collapsed)}
-                className="grid h-6 w-3 shrink-0 place-items-center text-white/75 transition-colors hover:bg-white/10 hover:text-white"
+                style={{ left: collapsed ? '0px' : '-6px' }}
+                className="absolute top-1/2 z-20 grid h-6 w-3 -translate-y-1/2 place-items-center rounded-full border border-white/20 bg-[var(--sidebar)] text-white/75 transition-[left,color] duration-200 hover:border-white/40 hover:text-white"
               >
                 {collapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
               </button>
