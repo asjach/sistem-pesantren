@@ -10,7 +10,6 @@ import {
   FileCheck2,
   FolderOpen,
   GraduationCap,
-  History,
   Home,
   LogOut,
   MoreVertical,
@@ -85,6 +84,23 @@ export const HALAMAN_DATA_INDUK: HalamanDef = {
   ],
 };
 
+/** Halaman Penempatan: satu halaman berisi tiga tab penempatan santri
+ *  (Santri Per Lembaga, MI-MD, Riwayat Belajar) — pola sama dengan Data Induk;
+ *  rute tiap tab tetap rute lamanya. */
+export const HALAMAN_PENEMPATAN: HalamanDef = {
+  to: '/penempatan',
+  label: 'Penempatan',
+  deskripsi: 'Penempatan santri: santri per lembaga, MI-MD, dan riwayat belajar.',
+  tab: 'santri',
+  grid: true,
+  icon: Pin,
+  tabHalaman: [
+    { to: '/keanggotaan', label: 'Santri Per Lembaga', permission: 'santri.lihat' },
+    { to: '/mi-md', label: 'MI-MD', permission: 'rekap_santri.lihat' },
+    { to: '/riwayat-belajar', label: 'Riwayat Belajar', permission: 'riwayat_belajar.lihat' },
+  ],
+};
+
 export const HALAMAN: HalamanDef[] = [
   { to: '/', label: 'Dashboard', deskripsi: 'Ringkasan data pesantren.', tab: 'beranda', icon: Home, permission: 'dashboard.lihat' },
   HALAMAN_DATA_INDUK,
@@ -99,10 +115,8 @@ export const HALAMAN: HalamanDef[] = [
   { to: '/dokumen-madrasah', label: 'Dokumen Madrasah', deskripsi: 'Berkas tingkat madrasah (izin operasional, akreditasi, SK, dll).', tab: 'dokumen', grid: true, icon: FolderOpen, permission: 'dokumen_lembaga.lihat' },
   { to: '/psb', label: 'Antrean PSB', deskripsi: 'Antrean calon per tahap (Pendaftar, Terdaftar, Daftar Ulang, Diterima, Mengundurkan Diri, Ditolak).', tab: 'santri', sub: 'psb', grid: true, icon: UserCheck, permission: 'psb.lihat' },
   { to: '/kegiatan-psb', label: 'Kegiatan PSB', tab: 'santri', sub: 'psb', grid: true, icon: CalendarRange, permission: 'kegiatan_psb.lihat' },
-  { to: '/keanggotaan', label: 'Santri Per Lembaga', tab: 'santri', sub: 'penempatan', grid: true, icon: BadgeCheck, permission: 'santri.lihat' },
-  { to: '/mi-md', label: 'MI-MD', tab: 'santri', sub: 'penempatan', grid: true, icon: MoveHorizontal, permission: 'rekap_santri.lihat' },
-  { to: '/riwayat-belajar', label: 'Riwayat Belajar', tab: 'santri', sub: 'penempatan', grid: true, icon: History, permission: 'riwayat_belajar.lihat' },
   { to: '/daftar-kelas', label: 'Daftar Kelas', tab: 'santri', grid: true, icon: ClipboardList, permission: 'daftar_kelas.lihat' },
+  HALAMAN_PENEMPATAN,
   { to: '/pindah-kelas', label: 'Pindah Kelas', tab: 'santri', sub: 'akademik', grid: true, icon: MoveHorizontal, permission: 'pindah_kelas.lihat' },
   { to: '/mutasi-keluar', label: 'Mutasi Keluar', tab: 'santri', sub: 'akademik', grid: true, icon: LogOut, permission: 'mutasi_keluar.lihat' },
   { to: '/kenaikan', label: 'Kenaikan Kelas', tab: 'santri', sub: 'akademik', grid: true, icon: ChevronUp, permission: 'kenaikan.lihat' },
@@ -184,9 +198,8 @@ export const NAV_GRUP: GrupNav[] = [
         label: 'PSB',
         icon: ClipboardCheck,
       },
-      // Daftar Kelas (halaman langsung) tampil di sini.
+      // Daftar Kelas & Penempatan (halaman langsung) tampil di sini.
       { langsung: true },
-      { id: 'penempatan', label: 'Penempatan', icon: Pin },
       { id: 'akademik', label: 'Akademik', icon: ScrollText },
       { id: 'lain-lain', label: 'Lain-lain', icon: MoreVertical },
     ],

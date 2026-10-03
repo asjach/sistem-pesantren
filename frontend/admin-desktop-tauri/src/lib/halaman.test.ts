@@ -2,15 +2,18 @@ import { describe, expect, it } from 'vitest';
 import {
   HALAMAN,
   HALAMAN_DATA_INDUK,
+  HALAMAN_PENEMPATAN,
   halamanDariPath,
   halamanGrupLangsung,
   izinHalaman,
+  type HalamanDef,
 } from './halaman';
 
-describe('halamanDariPath & halaman bertab (Data Induk)', () => {
-  it('rute tiap tab dikenali sebagai halaman Data Induk', () => {
-    const tab = HALAMAN_DATA_INDUK.tabHalaman ?? [];
-    expect(tab.map((t) => t.to)).toEqual([
+const ruteTab = (def: HalamanDef) => (def.tabHalaman ?? []).map((t) => t.to);
+
+describe('halamanDariPath & halaman bertab', () => {
+  it('rute tiap tab Data Induk dikenali sebagai halaman Data Induk', () => {
+    expect(ruteTab(HALAMAN_DATA_INDUK)).toEqual([
       '/users',
       '/lembaga',
       '/tahun-ajaran',
@@ -18,17 +21,26 @@ describe('halamanDariPath & halaman bertab (Data Induk)', () => {
       '/santri',
       '/referensi',
     ]);
-    for (const t of tab) {
-      expect(halamanDariPath(t.to)?.to).toBe('/data-induk');
+    for (const rute of ruteTab(HALAMAN_DATA_INDUK)) {
+      expect(halamanDariPath(rute)?.to).toBe('/data-induk');
     }
   });
 
-  it('rute /data-induk dan turunannya dikenali', () => {
-    expect(halamanDariPath('/data-induk')?.to).toBe('/data-induk');
-    expect(halamanDariPath('/data-induk/apa-saja')?.to).toBe('/data-induk');
+  it('rute tiap tab Penempatan dikenali sebagai halaman Penempatan', () => {
+    expect(ruteTab(HALAMAN_PENEMPATAN)).toEqual(['/keanggotaan', '/mi-md', '/riwayat-belajar']);
+    for (const rute of ruteTab(HALAMAN_PENEMPATAN)) {
+      expect(halamanDariPath(rute)?.to).toBe('/penempatan');
+    }
   });
 
-  it('rute lama di luar Data Induk tidak berubah', () => {
+  it('rute halaman gabungan dan turunannya dikenali', () => {
+    expect(halamanDariPath('/data-induk')?.to).toBe('/data-induk');
+    expect(halamanDariPath('/data-induk/apa-saja')?.to).toBe('/data-induk');
+    expect(halamanDariPath('/penempatan')?.to).toBe('/penempatan');
+    expect(halamanDariPath('/penempatan/apa-saja')?.to).toBe('/penempatan');
+  });
+
+  it('rute lama di luar halaman gabungan tidak berubah', () => {
     expect(halamanDariPath('/')?.label).toBe('Dashboard');
     expect(halamanDariPath('/pegawai')?.label).toBe('Pegawai');
     expect(halamanDariPath('/keuangan')?.label).toBe('Keuangan');
@@ -37,8 +49,9 @@ describe('halamanDariPath & halaman bertab (Data Induk)', () => {
     expect(halamanDariPath('/santri/12/profil')?.to).toBe('/data-induk');
   });
 
-  it('grup Data Induk kini satu entri menu (tab menggantikan submenu)', () => {
+  it('grup Data Induk satu entri; grup Santri: Daftar Kelas + Penempatan langsung', () => {
     expect(halamanGrupLangsung('master').map((h) => h.to)).toEqual(['/data-induk']);
+    expect(halamanGrupLangsung('santri').map((h) => h.to)).toEqual(['/daftar-kelas', '/penempatan']);
   });
 
   it('izin halaman gabungan = gabungan izin semua tab', () => {
@@ -49,6 +62,11 @@ describe('halamanDariPath & halaman bertab (Data Induk)', () => {
       'kelas.lihat',
       'santri.lihat',
       'referensi.lihat',
+    ]);
+    expect(izinHalaman(HALAMAN_PENEMPATAN)).toEqual([
+      'santri.lihat',
+      'rekap_santri.lihat',
+      'riwayat_belajar.lihat',
     ]);
   });
 
