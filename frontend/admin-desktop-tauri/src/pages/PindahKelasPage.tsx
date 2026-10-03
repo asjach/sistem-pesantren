@@ -17,14 +17,18 @@ import { ActionIcon } from '@/components/RowActions';
 import { ArrowRight } from '@/icons';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { toast } from 'sonner';
-import { useAksiProfilSantri, type AksiProfilSantri } from '@/components/santri/useAksiProfilSantri';
 
 /** Kolom tabel kelas — SAMA untuk semua kelas di halaman ini, jadi dipakai
- *  bersama oleh tiap grid dan oleh registrasi Kelola Halaman. */
+ *  bersama oleh tiap grid dan oleh registrasi Kelola Halaman.
+ *  `jk` dan `alamat` diambil dari profil santri (relasi `santri` sudah
+ *  dimuat penuh oleh endpoint daftar-kelas), keduanya baca-saja karena
+ *  halaman ini hanya berpindah kelas, bukan mengubah data Santri. */
 const FIELDS_PINDAH_KELAS: ExcelField[] = [
   { key: 'nama', label: 'santri.nama_lengkap', kind: 'static' },
   { key: 'nis_lokal', label: 'nis_lokal', kind: 'static' },
   { key: 'no_absen', label: 'no_absen', kind: 'static' },
+  { key: 'jk', label: 'jk', width: 60, kind: 'static' },
+  { key: 'alamat', label: 'santri.alamat', width: 220, kind: 'static' },
 ];
 
 interface KolomKelas {
@@ -57,7 +61,6 @@ export default function PindahKelasPage() {
   const [rows, setRows] = useState<RiwayatRow[]>([]);
   /** Pencarian tunggal halaman (topBar) — disaring di tiap kolom kelas. */
   const [cari, setCari] = useState('');
-  const { aksiProfil, dialogProfil } = useAksiProfilSantri();
   const [kelas, setKelas] = useState<Kelas[]>([]);
   const [err, setErr] = useState('');
   const [busyId, setBusyId] = useState<number | null>(null);
@@ -201,20 +204,18 @@ export default function PindahKelasPage() {
                 bisaPindah={canPindah}
                 busyId={busyId}
                 cari={cari}
-                aksiProfil={aksiProfil}
                 onPindah={(r, tujuan) => void pindah(r, tujuan)}
               />
             ))}
           </div>
         </section>
       ))}
-      {dialogProfil}
     </div>
   );
 }
 
 /** Satu kolom kelas: tabel santri + panah pindah ke tetangga siklik. */
-function TabelKelas({ tingkat, kolom, tetangga, bisaPindah, busyId, cari, aksiProfil, onPindah }: {
+function TabelKelas({ tingkat, kolom, tetangga, bisaPindah, busyId, cari, onPindah }: {
   tingkat: string | null;
   kolom: KolomKelas;
   tetangga: { kiri: KolomKelas | null; kanan: KolomKelas | null };
@@ -222,7 +223,6 @@ function TabelKelas({ tingkat, kolom, tetangga, bisaPindah, busyId, cari, aksiPr
   busyId: number | null;
   /** Pencarian tunggal halaman (topBar) — disaring di tiap kolom. */
   cari: string;
-  aksiProfil: AksiProfilSantri['aksiProfil'];
   onPindah: (r: RiwayatRow, kelasBaruId: number) => void;
 }) {
   const kunci = `${tingkat ?? 'tanpa'}_${kolom.kelasId ?? 'tanpa'}`;
@@ -259,19 +259,21 @@ function TabelKelas({ tingkat, kolom, tetangga, bisaPindah, busyId, cari, aksiPr
             nama: r.santri?.nama_lengkap ?? null,
             nis_lokal: r.nis_lokal ?? null,
             no_absen: r.no_absen != null ? String(r.no_absen) : null,
+            jk: r.santri?.jk ?? null,
+            alamat: r.santri?.alamat ?? null,
           })}
           canEdit={false}
           onCommit={async () => {}}
           onSaved={() => {}}
           renderActions={(r) => (
             <>
-              {aksiProfil(r.santri_id, { prefix: kunci, daftar: tampil.map((x) => x.santri_id) })}
               {aksi && bisaPindah && tetangga.kiri?.kelasId != null && tetangga.kiri.kelasId !== kolom.kelasId && (
                 <ActionIcon
                   id={`btn_pindah_kiri_${r.id}`}
                   title={`Pindah ke ${tetangga.kiri.kelas}`}
                   aria-label={`Pindah ke ${tetangga.kiri.kelas}`}
                   disabled={busyId === r.id}
+                  className="h-6 w-5 px-0"
                   onClick={() => onPindah(r, tetangga.kiri!.kelasId!)}
                 >
                   <ArrowRight size={16} className="rotate-180" />
@@ -283,6 +285,7 @@ function TabelKelas({ tingkat, kolom, tetangga, bisaPindah, busyId, cari, aksiPr
                   title={`Pindah ke ${tetangga.kanan.kelas}`}
                   aria-label={`Pindah ke ${tetangga.kanan.kelas}`}
                   disabled={busyId === r.id}
+                  className="-ml-1 h-6 w-5 px-0"
                   onClick={() => onPindah(r, tetangga.kanan!.kelasId!)}
                 >
                   <ArrowRight size={16} />
