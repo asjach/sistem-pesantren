@@ -13,6 +13,7 @@ import { KelasAktifProvider } from './kelasAktif';
 import { ThemeProvider } from './theme';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
+import DataIndukTabs, { ArahDataInduk } from './components/DataIndukTabs';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 
@@ -101,16 +102,23 @@ export default function App() {
                     <Route path="/login" element={<LoginPage />} />
                     <Route element={<Shell />}>
                       <Route path="/" element={<KhususIzin izin="dashboard.lihat"><DashboardPage /></KhususIzin>} />
-                      <Route path="/users" element={<KhususIzin izin="pengguna.lihat"><UsersPage /></KhususIzin>} />
-                      <Route path="/lembaga" element={<KhususIzin izin="lembaga.lihat"><LembagaPage /></KhususIzin>} />
-                      <Route path="/tahun-ajaran" element={<KhususIzin izin="tahun_ajaran.lihat"><TahunAjaranPage /></KhususIzin>} />
+                      {/* Data Induk: satu halaman, beberapa tab (Pengguna,
+                          Lembaga, Tahun Ajaran, Kelas, Buku Induk, Referensi).
+                          Rute tiap tab tetap rute lamanya agar pengaturan
+                          halaman, filter, dan tautan lama tak berubah. */}
+                      <Route path="/data-induk" element={<ArahDataInduk />} />
+                      <Route element={<DataIndukTabs />}>
+                        <Route path="/users" element={<KhususIzin izin="pengguna.lihat"><UsersPage /></KhususIzin>} />
+                        <Route path="/lembaga" element={<KhususIzin izin="lembaga.lihat"><LembagaPage /></KhususIzin>} />
+                        <Route path="/tahun-ajaran" element={<KhususIzin izin="tahun_ajaran.lihat"><TahunAjaranPage /></KhususIzin>} />
+                        <Route path="/kelas" element={<KhususIzin izin="kelas.lihat"><KelasPage /></KhususIzin>} />
+                        <Route path="/santri" element={<KhususIzin izin="santri.lihat"><SantriPage /></KhususIzin>} />
+                        <Route path="/referensi" element={<KhususIzin izin="referensi.lihat"><ReferensiPage /></KhususIzin>} />
+                      </Route>
                       <Route path="/pengaturan/semester" element={<KhususIzin izin="semester.aktivasi"><SemesterPage /></KhususIzin>} />
-                      <Route path="/kelas" element={<KhususIzin izin="kelas.lihat"><KelasPage /></KhususIzin>} />
-                      <Route path="/referensi" element={<KhususIzin izin="referensi.lihat"><ReferensiPage /></KhususIzin>} />
                       <Route path="/psb" element={<Navigate to="/psb/pendaftar" replace />} />
                       <Route path="/psb/:tahap" element={<KhususIzin izin="psb.lihat"><PsbPage /></KhususIzin>} />
                       <Route path="/kegiatan-psb" element={<KhususIzin izin="kegiatan_psb.lihat"><KegiatanPsbPage /></KhususIzin>} />
-                      <Route path="/santri" element={<KhususIzin izin="santri.lihat"><SantriPage /></KhususIzin>} />
                       <Route path="/pegawai" element={<KhususIzin izin="pegawai.lihat"><PegawaiPage /></KhususIzin>} />
                       <Route path="/pegawai-penempatan" element={<KhususIzin izin="pegawai.lihat"><LembagaPegawaiPage /></KhususIzin>} />
                       <Route path="/pegawai-akun" element={<KhususIzin izin="pegawai.lihat"><AkunPegawaiPage /></KhususIzin>} />

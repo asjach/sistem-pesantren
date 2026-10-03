@@ -1,10 +1,7 @@
 /** Registri halaman: sumber tunggal judul/deskripsi/ikon untuk sidebar & judul. */
 import {
   BadgeCheck,
-  BookMarked,
-  BookOpen,
   CalendarCheck,
-  CalendarDays,
   CalendarRange,
   ChevronUp,
   ClipboardCheck,
@@ -15,7 +12,6 @@ import {
   GraduationCap,
   History,
   Home,
-  Landmark,
   LogOut,
   MoreVertical,
   MoveHorizontal,
@@ -34,6 +30,16 @@ import {
 /** Kategori navigasi (grup di sidebar). */
 export type TabKategori = 'beranda' | 'master' | 'santri' | 'pegawai' | 'dokumen' | 'keuangan' | 'pengaturan';
 
+/** Tab dalam satu halaman gabungan (mis. Data Induk punya 6 tab). */
+export interface TabHalamanDef {
+  /** Rute tab. Tetap rute tersendiri supaya pengaturan halaman, filter,
+   *  tautan lama, dan guard izin per tab tidak berubah. */
+  to: string;
+  label: string;
+  /** Izin matriks untuk melihat tab (`modul.lihat`). */
+  permission: string;
+}
+
 export interface HalamanDef {
   to: string;
   label: string;
@@ -46,37 +52,42 @@ export interface HalamanDef {
   grid?: boolean;
   /** Ikon di sidebar. */
   icon: Ikon;
-  /** Izin matriks untuk melihat halaman (`modul.lihat`). */
-  permission: string;
+  /** Izin matriks untuk melihat halaman (`modul.lihat`). Kosong untuk halaman
+   *  gabungan: izinnya diambil dari tiap tab (`tabHalaman`), cukup salah satu. */
+  permission?: string;
+  /** Sub-halaman yang tampil sebagai tab dalam SATU halaman (mis. Data Induk
+   *  menampung Pengguna … Referensi). `halamanDariPath` mengenali rute tiap
+   *  tab sebagai halaman ini. */
+  tabHalaman?: TabHalamanDef[];
   /** Tampil di sidebar dan pencarian topbar. Default true. Halaman detail
    *  (editor, isi & cetak) memakai false: tetap punya judul dari
    *  `halamanDariPath`, tapi tidak perlu entri menu. */
   menu?: boolean;
 }
 
+/** Halaman Data Induk: satu halaman berisi beberapa tab (pola sama dengan
+ *  Keuangan). Rute tiap tab tetap rute lamanya agar pengaturan halaman,
+ *  filter, tautan lama, dan izin per halaman lestari. */
+export const HALAMAN_DATA_INDUK: HalamanDef = {
+  to: '/data-induk',
+  label: 'Data Induk',
+  deskripsi: 'Data acuan pesantren: pengguna, lembaga, tahun ajaran, kelas, buku induk, referensi.',
+  tab: 'master',
+  grid: true,
+  icon: FolderOpen,
+  tabHalaman: [
+    { to: '/users', label: 'Pengguna', permission: 'pengguna.lihat' },
+    { to: '/lembaga', label: 'Lembaga', permission: 'lembaga.lihat' },
+    { to: '/tahun-ajaran', label: 'Tahun Ajaran', permission: 'tahun_ajaran.lihat' },
+    { to: '/kelas', label: 'Kelas', permission: 'kelas.lihat' },
+    { to: '/santri', label: 'Buku Induk', permission: 'santri.lihat' },
+    { to: '/referensi', label: 'Referensi', permission: 'referensi.lihat' },
+  ],
+};
+
 export const HALAMAN: HalamanDef[] = [
   { to: '/', label: 'Dashboard', deskripsi: 'Ringkasan data pesantren.', tab: 'beranda', icon: Home, permission: 'dashboard.lihat' },
-  {
-    to: '/users',
-    label: 'Pengguna',
-    deskripsi: 'Role diri sendiri terkunci untuk semua peran. Baris pemegang admin/super_admin hanya bisa diubah super_admin; hanya super_admin yang dapat memberi role admin/super_admin.',
-    tab: 'master',
-    grid: true,
-    icon: Users,
-    permission: 'pengguna.lihat',
-  },
-  {
-    to: '/lembaga',
-    label: 'Lembaga',
-    deskripsi: 'Tambah/ubah/hapus lembaga hanya super_admin.',
-    tab: 'master',
-    grid: true,
-    icon: Landmark,
-    permission: 'lembaga.lihat',
-  },
-  { to: '/tahun-ajaran', label: 'Tahun Ajaran', tab: 'master', grid: true, icon: CalendarDays, permission: 'tahun_ajaran.lihat' },
-  { to: '/kelas', label: 'Kelas', tab: 'master', grid: true, icon: BookOpen, permission: 'kelas.lihat' },
-  { to: '/santri', label: 'Buku Induk', tab: 'master', grid: true, icon: GraduationCap, permission: 'santri.lihat' },
+  HALAMAN_DATA_INDUK,
   { to: '/dokumen-santri', label: 'Daftar Dokumen Santri', deskripsi: 'Berkas dokumen santri (KK, akta, ijazah, dll).', tab: 'dokumen', sub: 'santri', grid: true, icon: FolderOpen, permission: 'dokumen_santri.lihat' },
   { to: '/dokumen-santri/lihat', label: 'Dokumen Santri', deskripsi: 'Pratinjau dokumen per santri (lihat, unduh, ganti).', tab: 'dokumen', sub: 'santri', icon: Eye, permission: 'dokumen_santri.lihat' },
   { to: '/pegawai', label: 'Pegawai', tab: 'pegawai', grid: true, icon: Users, permission: 'pegawai.lihat' },
@@ -86,7 +97,6 @@ export const HALAMAN: HalamanDef[] = [
   { to: '/dokumen-guru', label: 'Daftar Dokumen Pegawai', deskripsi: 'Berkas dokumen pegawai (ijazah, sertifikat, SK, dll).', tab: 'dokumen', sub: 'pegawai', grid: true, icon: FolderOpen, permission: 'dokumen_pegawai.lihat' },
   { to: '/dokumen-guru/lihat', label: 'Dokumen Pegawai', deskripsi: 'Pratinjau dokumen per pegawai (lihat, unduh, ganti).', tab: 'dokumen', sub: 'pegawai', icon: Eye, permission: 'dokumen_pegawai.lihat' },
   { to: '/dokumen-madrasah', label: 'Dokumen Madrasah', deskripsi: 'Berkas tingkat madrasah (izin operasional, akreditasi, SK, dll).', tab: 'dokumen', grid: true, icon: FolderOpen, permission: 'dokumen_lembaga.lihat' },
-  { to: '/referensi', label: 'Referensi', tab: 'master', grid: true, icon: BookMarked, permission: 'referensi.lihat' },
   { to: '/psb', label: 'Antrean PSB', deskripsi: 'Antrean calon per tahap (Pendaftar, Terdaftar, Daftar Ulang, Diterima, Mengundurkan Diri, Ditolak).', tab: 'santri', sub: 'psb', grid: true, icon: UserCheck, permission: 'psb.lihat' },
   { to: '/kegiatan-psb', label: 'Kegiatan PSB', tab: 'santri', sub: 'psb', grid: true, icon: CalendarRange, permission: 'kegiatan_psb.lihat' },
   { to: '/keanggotaan', label: 'Santri Per Lembaga', tab: 'santri', sub: 'penempatan', grid: true, icon: BadgeCheck, permission: 'santri.lihat' },
@@ -260,16 +270,35 @@ export function halamanSubgrup(grup: TabKategori, sub: string): HalamanDef[] {
   return HALAMAN.filter((h) => h.tab === grup && h.sub === sub && diMenu(h));
 }
 
-/** Halaman yang cocok dengan rute (prefix terpanjang menang). */
+/** Semua izin yang membolehkan halaman: izin utama, atau seluruh izin tab
+ *  untuk halaman gabungan (mis. Data Induk). Cukup salah satu. */
+export function izinHalaman(h: HalamanDef): string[] {
+  return [
+    ...(h.permission ? [h.permission] : []),
+    ...(h.tabHalaman ?? []).map((t) => t.permission),
+  ];
+}
+
+/** Rute yang dikenali halaman: rutenya sendiri + rute tiap tab. */
+function ruteHalaman(h: HalamanDef): string[] {
+  return [h.to, ...(h.tabHalaman ?? []).map((t) => t.to)];
+}
+
+/** Halaman yang cocok dengan rute (prefix terpanjang menang; rute tab
+ *  halaman gabungan ikut dikenali). */
 export function halamanDariPath(pathname: string): HalamanDef | null {
   let best: HalamanDef | null = null;
+  let panjang = 0;
   for (const h of HALAMAN) {
-    if (h.to === '/') {
-      if (pathname === '/') return h;
-      continue;
-    }
-    if (pathname === h.to || pathname.startsWith(`${h.to}/`)) {
-      if (!best || h.to.length > best.to.length) best = h;
+    for (const rute of ruteHalaman(h)) {
+      if (rute === '/') {
+        if (pathname === '/') return h;
+        continue;
+      }
+      if ((pathname === rute || pathname.startsWith(`${rute}/`)) && rute.length > panjang) {
+        best = h;
+        panjang = rute.length;
+      }
     }
   }
   return best;

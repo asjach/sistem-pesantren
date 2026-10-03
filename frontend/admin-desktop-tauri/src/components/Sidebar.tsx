@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { NAV_GRUP, blokGrup, halamanDariPath, halamanSubgrup, jalurSubgrup, type AnakNav, type HalamanDef, type SubgrupNav, type TabKategori } from '@/lib/halaman';
+import { NAV_GRUP, blokGrup, halamanDariPath, halamanSubgrup, izinHalaman, jalurSubgrup, type AnakNav, type HalamanDef, type SubgrupNav, type TabKategori } from '@/lib/halaman';
 import { bisa } from '@/api/auth';
 import { useAuth } from '@/auth/AuthContext';
 import { useLembagaAktif } from '@/lembagaAktif';
@@ -139,9 +139,10 @@ export default function Sidebar() {
     simpanGrupTutup(next);
   }
 
-  /** Halaman diizinkan untuk user ini (termasuk penguncian saat bertindak). */
+  /** Halaman diizinkan untuk user ini (termasuk penguncian saat bertindak).
+   *  Halaman gabungan (mis. Data Induk) cukup punya SALAH SATU izin tab. */
   function bolehLihat(h: HalamanDef): boolean {
-    return bisa(user, h.permission) && !(bertindak && terkunci.has(h.permission));
+    return izinHalaman(h).some((izin) => bisa(user, izin) && !(bertindak && terkunci.has(izin)));
   }
 
   /** Kunci jalur halaman aktif (grup + tiap tingkat sub) untuk sorot induk. */

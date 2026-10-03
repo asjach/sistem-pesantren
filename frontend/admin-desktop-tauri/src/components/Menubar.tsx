@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { NAV_GRUP, blokGrup, halamanDariPath, halamanSubgrup, type HalamanDef, type SubgrupNav, type TabKategori } from '@/lib/halaman';
+import { NAV_GRUP, blokGrup, halamanDariPath, halamanSubgrup, izinHalaman, type HalamanDef, type SubgrupNav, type TabKategori } from '@/lib/halaman';
 import { bisa, logout } from '@/api/auth';
 import { useAuth } from '@/auth/AuthContext';
 import { useLembagaAktif } from '@/lembagaAktif';
@@ -44,8 +44,9 @@ export default function Menubar() {
     navigate('/login');
   }
 
+  /** Halaman gabungan (mis. Data Induk) cukup punya SALAH SATU izin tab. */
   function bolehLihat(h: HalamanDef): boolean {
-    return bisa(user, h.permission) && !(bertindak && TERKUNCI.has(h.permission));
+    return izinHalaman(h).some((izin) => bisa(user, izin) && !(bertindak && TERKUNCI.has(izin)));
   }
 
   /** Submenu siap render (rekursif): halaman terizin + anak terisi. */
