@@ -79,6 +79,34 @@ const navIdle =
 /** Preferensi tampil/sembunyi baris toolbar (per perangkat). */
 const TOOLS_TAMPIL_KEY = 'simpes_tools_tampil';
 
+/** Tab buka/sembunyinya ribbon tools. Dijangkarkan ke baris judul/filter TopBar
+ *  (bukan ke tepi bawah header), jadi posisinya sama persis baik saat ribbon
+ *  tampil maupun disembunyikan. Berupa kenop pipih yang menempel tepat pada
+ *  garis border di bawah baris itu: sisi atas rata persis di garis (karena itu
+ *  sudutnya siku) lalu menggantung ke bawah. Dipusatkan karena titik tengah
+ *  baris tersebut kosong, sehingga tak pernah menutupi kendali lain. */
+function TabRibbon({ tampil, onToggle }: { tampil: boolean; onToggle: () => void }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          id="btn_tampil_tools"
+          type="button"
+          aria-label={tampil ? 'Sembunyikan ribbon' : 'Tampilkan ribbon'}
+          aria-expanded={tampil}
+          onClick={onToggle}
+          className="absolute left-1/2 top-full z-20 grid h-3 w-8 -translate-x-1/2 place-items-center rounded-b-md border-x border-b border-white/20 bg-[var(--sidebar)] text-white/70 transition-colors hover:border-white/40 hover:text-white"
+        >
+          {tampil ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
+        </button>
+      </TooltipTrigger>
+      <TooltipContent>
+        <p>{tampil ? 'Sembunyikan ribbon' : 'Tampilkan ribbon'}</p>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
 /** Header aplikasi: bar judul halaman + area akun, lalu baris ribbon tools
  *  (kontrol tabel aktif atau tools yang disumbang halaman lewat `RibbonSlot`).
  *  Navigasi halaman ada di Sidebar, bukan di sini. */
@@ -239,7 +267,7 @@ export default function TopBar() {
     <ContextMenu>
       <ContextMenuTrigger asChild disabled={!bolehKelolaHalaman}>
         <header
-          className="shrink-0 border-b border-white/10 text-white"
+          className="relative shrink-0 border-b border-white/10 text-white"
           style={{ background: 'linear-gradient(90deg, var(--sidebar-deep), var(--sidebar))' }}
         >
       {/* Judul halaman untuk pembaca layar (visual tampil di bar judul). */}
@@ -248,7 +276,12 @@ export default function TopBar() {
       </h1>
 
       {/* Baris 1: judul halaman (kiri) + area akun (kanan). */}
-      <div className="flex items-center gap-2 py-1.5 pl-1 pr-3 md:pr-5">
+      <div className="relative flex items-center gap-2 py-1.5 pl-1 pr-3 md:pr-5">
+        {/* Strip navigasi: satu tombol untuk dua arah — chevron kiri
+            menyembunyikan rail (saat tampil), chevron kanan menampilkannya
+            kembali (saat tertutup). Berdampingan di sebelah kiri kotak
+            pencarian (jarak `gap-2` baris ini), jadi posisinya tetap sama
+            dalam kedua kondisi. */}
         {navigasi === 'sidebar' && (
           <Tooltip>
             <TooltipTrigger asChild>
@@ -258,9 +291,9 @@ export default function TopBar() {
                 aria-label={collapsed ? 'Buka navigasi' : 'Lipat navigasi'}
                 aria-expanded={!collapsed}
                 onClick={() => setCollapsed(!collapsed)}
-                className="mr-1 grid h-6 w-[42px] shrink-0 place-items-center rounded-md text-white/75 transition-colors hover:bg-white/10 hover:text-white"
+                className="grid h-6 w-3 shrink-0 place-items-center text-white/75 transition-colors hover:bg-white/10 hover:text-white"
               >
-                {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+                {collapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
               </button>
             </TooltipTrigger>
             <TooltipContent>
@@ -272,28 +305,6 @@ export default function TopBar() {
           <span id="judul_bar_halaman" className="truncate text-sm font-semibold">
             {halaman?.label ?? 'SIMPES Admin'}
           </span>
-        )}
-        {adaTools && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                id="btn_tampil_tools"
-                type="button"
-                aria-label={toolsTampil ? 'Sembunyikan toolbar' : 'Tampilkan toolbar'}
-                aria-pressed={toolsTampil}
-                onClick={togolTools}
-                className={cn(
-                  'mr-1 grid h-6 w-[42px] place-items-center rounded-md text-white/75 transition-colors hover:bg-white/10 hover:text-white',
-                  toolsTampil && 'bg-white/15 text-white',
-                )}
-              >
-                {toolsTampil ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>{toolsTampil ? 'Sembunyikan toolbar' : 'Tampilkan toolbar'}</p>
-            </TooltipContent>
-          </Tooltip>
         )}
         {/* Pencarian tunggal halaman (portal) — menggantikan judul saat ada. */}
         <div ref={searchHostRef} className={cn('flex min-w-0 items-center', searchAda && 'w-[150px] shrink-0')} />
@@ -539,13 +550,17 @@ export default function TopBar() {
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
+
+        {/* Tab pembuka/penutup ribbon: menempel di baris ini (lihat
+            `TabRibbon`), jadi tidak bergeser saat ribbon buka/tutup. */}
+        {adaTools && <TabRibbon tampil={toolsTampil} onToggle={togolTools} />}
       </div>
 
       {/* Banner "bertindak sebagai lembaga": di atas ribbon agar selalu terlihat. */}
       <BannerBertindak terbuka={false} onTutup={() => {}} />
 
-      {/* Baris 2: ribbon tools kontekstual (kontrol tabel / tools halaman). */}
-      {tampilTools && (
+      {/* Baris 2: isi ribbon tools kontekstual (kontrol tabel / tools halaman). */}
+      {adaTools && tampilTools && (
         <div className="border-t border-white/10 bg-white/5">
           {banyakTab && (
             <div className="flex items-center gap-0.5 border-b border-white/10 px-3 pt-1 md:px-5">
@@ -577,6 +592,7 @@ export default function TopBar() {
           </div>
         </div>
       )}
+
       {registrasi && (
         <DialogKelolaHalaman
           open={kelolaHalamanOpen}

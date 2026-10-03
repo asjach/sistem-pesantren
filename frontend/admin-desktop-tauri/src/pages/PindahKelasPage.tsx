@@ -5,7 +5,7 @@ import { errorMessage } from '../api/client';
 import { daftarKelas, pindahKelas, type RiwayatRow } from '../api/siklus';
 import { listKelas, type Kelas } from '../api/master';
 import { Button } from '@/components/ui/button';
-import ExcelTable from '@/components/ExcelTable';
+import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import Pager from '@/components/Pager';
 import { useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
 import { useTingkatAktif } from '@/tingkatAktif';
@@ -18,6 +18,14 @@ import { ArrowRight } from '@/icons';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { toast } from 'sonner';
 import { useAksiProfilSantri, type AksiProfilSantri } from '@/components/santri/useAksiProfilSantri';
+
+/** Kolom tabel kelas — SAMA untuk semua kelas di halaman ini, jadi dipakai
+ *  bersama oleh tiap grid dan oleh registrasi Kelola Halaman. */
+const FIELDS_PINDAH_KELAS: ExcelField[] = [
+  { key: 'nama', label: 'santri.nama_lengkap', kind: 'static' },
+  { key: 'nis_lokal', label: 'nis_lokal', kind: 'static' },
+  { key: 'no_absen', label: 'no_absen', kind: 'static' },
+];
 
 interface KolomKelas {
   kelasId: number | null;
@@ -158,7 +166,10 @@ export default function PindahKelasPage() {
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari santri…" />
-      <PengaturanHalaman tampil={{ tingkat: true, kelas: true }} />
+      <PengaturanHalaman
+        tampil={{ tingkat: true, kelas: true }}
+        tabel={[{ key: 'pindah_kelas', judul: 'Pindah Kelas', fields: FIELDS_PINDAH_KELAS }]}
+      />
 
       {grup.length === 0 ? (
         <p className="text-sm text-muted-foreground">Tidak ada santri aktif pada filter ini.</p>
@@ -240,13 +251,9 @@ function TabelKelas({ tingkat, kolom, tetangga, bisaPindah, busyId, cari, aksiPr
      <section className="flex min-h-0 min-w-0 flex-col rounded-md">
        <div className="flex min-h-0 flex-1 flex-col pb-0">
         <ExcelTable
-           tableKey={`pindah_kelas_${kunci}`}
+           tableKey="pindah_kelas"
            header={<span>{kolom.kelasId == null ? 'Santri Belum Masuk Kelas' : `Kelas ${kolom.kelas}`}</span>}
-           fields={[
-            { key: 'nama', label: 'santri.nama_lengkap', kind: 'static' },
-            { key: 'nis_lokal', label: 'nis_lokal', kind: 'static' },
-            { key: 'no_absen', label: 'no_absen', kind: 'static',  },
-          ]}
+           fields={FIELDS_PINDAH_KELAS}
            rows={barisHalaman}
           getValues={(r) => ({
             nama: r.santri?.nama_lengkap ?? null,

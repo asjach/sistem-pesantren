@@ -292,7 +292,7 @@ export default function Sidebar() {
       data-slot="sidebar"
       aria-label="Navigasi utama"
       className={cn(
-        'flex h-full shrink-0 flex-col overflow-hidden border-r border-white/10 text-white transition-[width] duration-200',
+        'relative flex h-full shrink-0 flex-col overflow-hidden border-r border-white/10 text-white transition-[width] duration-200',
         collapsed ? 'w-0 border-r-0' : 'w-60',
       )}
       style={{ background: 'linear-gradient(180deg, var(--sidebar-deep), var(--sidebar))' }}
