@@ -44,7 +44,7 @@ class KeuanganController extends Controller
         $actor = $request->user();
         $data = $request->validate([
             'nama' => 'required|string|max:100|unique:jenis_tagihan,nama',
-            'tipe' => 'in:bulanan,sekali',
+            'tipe' => 'in:bulanan,non_bulanan',
             'jenjang' => 'nullable|string|max:50',
         ]);
         if (! empty($data['jenjang'])) {
@@ -53,7 +53,7 @@ class KeuanganController extends Controller
             abort(403, 'Jenis global hanya boleh dibuat super_admin.');
         }
 
-        return response()->json(JenisTagihan::create(['nama' => $data['nama'], 'tipe' => $data['tipe'] ?? 'sekali', 'jenjang' => $data['jenjang'] ?? null, 'is_active' => true]), 201);
+        return response()->json(JenisTagihan::create(['nama' => $data['nama'], 'tipe' => $data['tipe'] ?? 'non_bulanan', 'jenjang' => $data['jenjang'] ?? null, 'is_active' => true]), 201);
     }
 
     public function updateJenis(Request $request, JenisTagihan $jenis)
@@ -61,7 +61,7 @@ class KeuanganController extends Controller
         $actor = $request->user();
         $data = $request->validate([
             'nama' => 'required|string|max:100|unique:jenis_tagihan,nama,'.$jenis->id,
-            'tipe' => 'in:bulanan,sekali',
+            'tipe' => 'in:bulanan,non_bulanan',
             'is_active' => 'boolean',
             'jenjang' => 'nullable|string|max:50',
         ]);

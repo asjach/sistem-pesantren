@@ -2,7 +2,7 @@ import { api } from './client';
 import type { Paginate } from './master';
 import { appendQueryParam, type ScalarOrArray } from './query';
 
-export interface JenisTagihan { id: number; nama: string; tipe: 'bulanan' | 'sekali'; jenjang: string | null; is_active: boolean }
+export interface JenisTagihan { id: number; nama: string; tipe: 'bulanan' | 'non_bulanan'; jenjang: string | null; is_active: boolean }
 
 export interface Tarif {
   id: number; jenjang: string; paket: string; tahun_ajaran: string; jenis_id: number;
@@ -27,11 +27,11 @@ export function daftarJenis() {
   return api<JenisTagihan[]>('/admin/keuangan/jenis');
 }
 
-export function ubahJenis(id: number, data: { nama: string; tipe: 'bulanan' | 'sekali'; jenjang?: string | null; is_active: boolean }) {
+export function ubahJenis(id: number, data: { nama: string; tipe: 'bulanan' | 'non_bulanan'; jenjang?: string | null; is_active: boolean }) {
   return api<JenisTagihan>(`/admin/keuangan/jenis/${id}`, { method: 'PUT', body: JSON.stringify(data) });
 }
 
-export function buatJenis(nama: string, tipe: 'bulanan' | 'sekali', jenjang?: string | null) {
+export function buatJenis(nama: string, tipe: 'bulanan' | 'non_bulanan', jenjang?: string | null) {
   return api<JenisTagihan>('/admin/keuangan/jenis', { method: 'POST', body: JSON.stringify({ nama, tipe, jenjang: jenjang ?? null }) });
 }
 

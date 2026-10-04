@@ -12,12 +12,12 @@ class JenisTagihanSeeder extends Seeder
     {
         $jenis = [
             ['nama' => 'Infaq Bulanan', 'tipe' => 'bulanan'],
-            ['nama' => 'ASAS', 'tipe' => 'sekali'],
-            ['nama' => 'ASAT', 'tipe' => 'sekali'],
-            ['nama' => 'Ujian', 'tipe' => 'sekali'],
-            ['nama' => 'HIPA', 'tipe' => 'sekali'],
-            ['nama' => 'Pendaftaran', 'tipe' => 'sekali'],
-            ['nama' => 'Biaya Masuk', 'tipe' => 'sekali'],
+            ['nama' => 'ASAS', 'tipe' => 'non_bulanan'],
+            ['nama' => 'ASAT', 'tipe' => 'non_bulanan'],
+            ['nama' => 'Ujian', 'tipe' => 'non_bulanan'],
+            ['nama' => 'HIPA', 'tipe' => 'non_bulanan'],
+            ['nama' => 'Pendaftaran', 'tipe' => 'non_bulanan'],
+            ['nama' => 'Biaya Masuk', 'tipe' => 'non_bulanan'],
             ['nama' => 'Infaq Bulanan Asrama', 'tipe' => 'bulanan'],
         ];
         foreach ($jenis as $j) {

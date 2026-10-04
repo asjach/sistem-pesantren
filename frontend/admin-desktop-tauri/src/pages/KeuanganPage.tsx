@@ -135,11 +135,11 @@ export default function KeuanganPage() {
   const [editJenis, setEditJenis] = useState<JenisTagihan | null>(null);
   const [editTarif, setEditTarif] = useState<Tarif | null>(null);
   const [eNama, setENama] = useState('');
-  const [eTipe, setETipe] = useState<'bulanan' | 'sekali'>('sekali');
+  const [eTipe, setETipe] = useState<'bulanan' | 'non_bulanan'>('non_bulanan');
   const [eJenjang, setEJenjang] = useState('');
   const [eAktif, setEAktif] = useState(true);
   const [eNominal, setENominal] = useState('');
-  const [tipeJenis, setTipeJenis] = useState<'bulanan' | 'sekali'>('sekali');
+  const [tipeJenis, setTipeJenis] = useState<'bulanan' | 'non_bulanan'>('non_bulanan');
   const [lembagaJenis, setLembagaJenis] = useState('');
   const [tfJenjang, setTfJenjang] = useState('MI');
   const [tfPaket, setTfPaket] = useState('MI');
@@ -233,7 +233,7 @@ export default function KeuanganPage() {
             tableKey="keuangan_jenis"
             fields={FIELDS_JENIS}
             rows={jenis.map((j) => ({ ...j, id: j.id }))}
-            getValues={(r) => ({ nama: r.nama, tipe: r.tipe, lembaga: r.jenjang ?? 'Semua', aktif: r.is_active ? 'Aktif' : 'Nonaktif' })}
+            getValues={(r) => ({ nama: r.nama, tipe: r.tipe === 'bulanan' ? 'Bulanan' : 'Non-bulanan', lembaga: r.jenjang ?? 'Semua', aktif: r.is_active ? 'Aktif' : 'Nonaktif' })}
             loading={loading}
             emptyText="Belum ada jenis tagihan."
             canEdit={false}
@@ -246,7 +246,7 @@ export default function KeuanganPage() {
             )}
             hideCheckbox
             addButtonLangsung
-            addButton={<Button id="btn_jenis_tambah_buka" size="icon" variant="outline" aria-label="Tambah jenis tagihan" title="Tambah jenis tagihan" onClick={() => { setNamaJenis(''); setTipeJenis('sekali'); setLembagaJenis(peranJenjang ?? ''); setTambahJenisOpen(true); }}><Plus size={16} /></Button>}
+            addButton={<Button id="btn_jenis_tambah_buka" size="icon" variant="outline" aria-label="Tambah jenis tagihan" title="Tambah jenis tagihan" onClick={() => { setNamaJenis(''); setTipeJenis('non_bulanan'); setLembagaJenis(peranJenjang ?? ''); setTambahJenisOpen(true); }}><Plus size={16} /></Button>}
           />
         </TabsContent>
 
@@ -413,7 +413,7 @@ export default function KeuanganPage() {
             <Input id="inp_gen_dari" type="month" value={genDari} onChange={(e) => setGenDari(e.target.value)} />
             <FieldLabel htmlFor="inp_gen_sampai">Sampai Bulan</FieldLabel>
             <Input id="inp_gen_sampai" type="month" value={genSampai} onChange={(e) => setGenSampai(e.target.value)} />
-            <p className="col-span-2 text-xs text-muted-foreground">Jenis bulanan: isi keduanya untuk sekaligus setahun (mis. 2025-07 s/d 2026-06). Kosongkan Sampai untuk satu bulan; kosongkan keduanya untuk jenis sekali.</p>
+            <p className="col-span-2 text-xs text-muted-foreground">Jenis bulanan: isi keduanya untuk sekaligus setahun (mis. 2025-07 s/d 2026-06). Kosongkan Sampai untuk satu bulan; kosongkan keduanya untuk jenis non-bulanan.</p>
             <DialogFooter className="col-span-2">
               <Button type="button" variant="outline" onClick={() => setGenerateOpen(false)}>Batal</Button>
               <Button id="btn_gen_generate" type="submit">Buat</Button>
@@ -465,8 +465,8 @@ export default function KeuanganPage() {
             <FieldLabel htmlFor="inp_jenis_nama">Nama</FieldLabel>
             <Input id="inp_jenis_nama" placeholder="mis. HIPA" value={namaJenis} required onChange={(e) => setNamaJenis(e.target.value)} />
             <FieldLabel htmlFor="sel_jenis_tipe">Tipe</FieldLabel>
-            <select id="sel_jenis_tipe" className="border rounded px-2" value={tipeJenis} onChange={(e) => setTipeJenis(e.target.value as 'bulanan' | 'sekali')}>
-              <option value="sekali">Sekali</option>
+            <select id="sel_jenis_tipe" className="border rounded px-2" value={tipeJenis} onChange={(e) => setTipeJenis(e.target.value as 'bulanan' | 'non_bulanan')}>
+              <option value="non_bulanan">Non-bulanan</option>
               <option value="bulanan">Bulanan</option>
             </select>
             <FieldLabel htmlFor="sel_jenis_lembaga">Lembaga</FieldLabel>
@@ -488,8 +488,8 @@ export default function KeuanganPage() {
             <FieldLabel htmlFor="inp_jenis_edit_nama">Nama</FieldLabel>
             <Input id="inp_jenis_edit_nama" value={eNama} onChange={(e) => setENama(e.target.value)} required />
             <FieldLabel htmlFor="sel_jenis_edit_tipe">Tipe</FieldLabel>
-            <select id="sel_jenis_edit_tipe" className="border rounded px-2" value={eTipe} onChange={(e) => setETipe(e.target.value as 'bulanan' | 'sekali')}>
-              <option value="sekali">Sekali</option><option value="bulanan">Bulanan</option>
+            <select id="sel_jenis_edit_tipe" className="border rounded px-2" value={eTipe} onChange={(e) => setETipe(e.target.value as 'bulanan' | 'non_bulanan')}>
+              <option value="non_bulanan">Non-bulanan</option><option value="bulanan">Bulanan</option>
             </select>
             <FieldLabel htmlFor="sel_jenis_edit_lembaga">Lembaga</FieldLabel>
             <select id="sel_jenis_edit_lembaga" className="border rounded px-2" value={eJenjang} onChange={(e) => setEJenjang(e.target.value)}>

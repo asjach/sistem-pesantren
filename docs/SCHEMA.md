@@ -1088,7 +1088,7 @@ Lifecycle mandiri (tidak lewat `riwayat_belajar`); masuk/keluar bisa kapan saja.
 ### `jenis_tagihan`
 - `id` PK
 - `nama`: string — unik, daftar jenis (Infaq Bulanan, ASAS, ASAT, Ujian, HIPA, Pendaftaran, Biaya Masuk, …)
-- `tipe`: enum('bulanan','sekali') [default 'sekali'] — frekuensi: bulanan/rutin vs sekali (ASAS/ASAT berkala, Ujian tingkat akhir, HIPA setahun, tarif masuk/daftar)
+- `tipe`: enum('bulanan','non_bulanan') [default 'non_bulanan'] — frekuensi: bulanan/rutin vs non-bulanan (satu periode per generate; ASAS/ASAT berkala, Ujian tingkat akhir, HIPA setahun, tarif masuk/daftar)
 - `jenjang`: string(50) [null] — null = berlaku semua lembaga; terisi = khusus lembaga itu
 - `is_active`: bool [default true]
 - `created_at`, `updated_at`

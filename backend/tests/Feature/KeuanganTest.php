@@ -76,7 +76,7 @@ class KeuanganTest extends TestCase
             'nama' => 'Infaq Bulanan', 'tipe' => 'bulanan',
         ])->assertStatus(201)->json('id');
         $this->actingAs($pusat)->postJson('/api/admin/keuangan/jenis', [
-            'nama' => 'Kas MI', 'tipe' => 'sekali', 'jenjang' => 'MI',
+            'nama' => 'Kas MI', 'tipe' => 'non_bulanan', 'jenjang' => 'MI',
         ])->assertStatus(201);
 
         // Filter lembaga: global selalu ikut.
@@ -87,13 +87,13 @@ class KeuanganTest extends TestCase
 
         // Admin lembaga: tak boleh membuat jenis global, boleh khusus lembaganya.
         $this->actingAs($adminMi)->postJson('/api/admin/keuangan/jenis', [
-            'nama' => 'Pungutan Umum', 'tipe' => 'sekali',
+            'nama' => 'Pungutan Umum', 'tipe' => 'non_bulanan',
         ])->assertStatus(403);
         $this->actingAs($adminMi)->postJson('/api/admin/keuangan/jenis', [
-            'nama' => 'Pungutan Umum', 'tipe' => 'sekali', 'jenjang' => 'MTS',
+            'nama' => 'Pungutan Umum', 'tipe' => 'non_bulanan', 'jenjang' => 'MTS',
         ])->assertStatus(403);
         $this->actingAs($adminMi)->postJson('/api/admin/keuangan/jenis', [
-            'nama' => 'Pungutan Umum', 'tipe' => 'sekali', 'jenjang' => 'MI',
+            'nama' => 'Pungutan Umum', 'tipe' => 'non_bulanan', 'jenjang' => 'MI',
         ])->assertStatus(201);
 
         // Tanpa filter: admin hanya melihat global + miliknya.
@@ -110,12 +110,12 @@ class KeuanganTest extends TestCase
     {
         $pusat = $this->admin();
         $global = JenisTagihan::create(['nama' => 'Infaq Bulanan', 'tipe' => 'bulanan']);
-        $milikMi = JenisTagihan::create(['nama' => 'Kas MI', 'tipe' => 'sekali', 'jenjang' => 'MI']);
+        $milikMi = JenisTagihan::create(['nama' => 'Kas MI', 'tipe' => 'non_bulanan', 'jenjang' => 'MI']);
         $hdr = ['X-Lembaga-Aktif' => 'MI'];
 
         // Bertindak sebagai MI: buat/ubah jenis global ditolak.
         $this->actingAs($pusat, 'sanctum')->withHeaders($hdr)->postJson('/api/admin/keuangan/jenis', [
-            'nama' => 'Pungutan Global', 'tipe' => 'sekali',
+            'nama' => 'Pungutan Global', 'tipe' => 'non_bulanan',
         ])->assertStatus(403);
         $this->actingAs($pusat, 'sanctum')->withHeaders($hdr)->putJson("/api/admin/keuangan/jenis/{$global->id}", [
             'nama' => 'Infaq Bulanan', 'tipe' => 'bulanan', 'is_active' => false,
@@ -124,7 +124,7 @@ class KeuanganTest extends TestCase
 
         // Jenis milik lembaga yang diperankan tetap boleh diubah.
         $this->actingAs($pusat, 'sanctum')->withHeaders($hdr)->putJson("/api/admin/keuangan/jenis/{$milikMi->id}", [
-            'nama' => 'Kas MI', 'tipe' => 'sekali', 'is_active' => false,
+            'nama' => 'Kas MI', 'tipe' => 'non_bulanan', 'is_active' => false,
         ])->assertStatus(200);
         $this->assertFalse($milikMi->fresh()->is_active);
 
@@ -139,7 +139,7 @@ class KeuanganTest extends TestCase
     public function test_hapus_tagihan(): void
     {
         $admin = $this->admin();
-        $jenis = JenisTagihan::create(['nama' => 'HIPA', 'tipe' => 'sekali']);
+        $jenis = JenisTagihan::create(['nama' => 'HIPA', 'tipe' => 'non_bulanan']);
         $santri = Santri::create(['nama_lengkap' => 'Santri Hapus', 'jk' => 'L']);
         $tagihan = Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'nominal' => 100000]);
 
@@ -168,7 +168,7 @@ class KeuanganTest extends TestCase
     public function test_pembayaran_dan_sisa(): void
     {
         $admin = $this->admin();
-        $jenis = JenisTagihan::create(['nama' => 'Ujian', 'tipe' => 'sekali']);
+        $jenis = JenisTagihan::create(['nama' => 'Ujian', 'tipe' => 'non_bulanan']);
         $santri = Santri::create(['nama_lengkap' => 'Santri Ujian', 'jk' => 'L']);
         $tagihan = Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'nominal' => 800000]);
 
@@ -199,7 +199,7 @@ class KeuanganTest extends TestCase
     public function test_hapus_pembayaran(): void
     {
         $admin = $this->admin();
-        $jenis = JenisTagihan::create(['nama' => 'HIPA', 'tipe' => 'sekali']);
+        $jenis = JenisTagihan::create(['nama' => 'HIPA', 'tipe' => 'non_bulanan']);
         $santri = Santri::create(['nama_lengkap' => 'Santri Hapus Bayar', 'jk' => 'L']);
         $tagihan = Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'nominal' => 100000]);
 

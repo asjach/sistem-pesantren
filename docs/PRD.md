@@ -360,6 +360,7 @@
 | 2.307 | 2026-10-04 | Panel tab (`TabsContent`) diberi border + `gap-1`; margin bar tab jadi 4px (`my-1`); gap antar panel/tabel di tab Pindah Kelas (grid kelas) dan Mutasi (gagang split `w-1` tanpa grip, padding panel `px-0`) dirapatkan ke 4px |
 | 2.308 | 2026-10-04 | Fix act-as di Keuangan: super_admin yang "bertindak sebagai lembaga" tidak lagi bisa membuat/mengubah jenis tagihan global (`hasRole('super_admin')` → `bolehSuperAdmin()` di store/updateJenis); tes `KeuanganTest::test_jenis_tagihan_act_as_tidak_bisa_ubah_global` |
 | 2.309 | 2026-10-04 | Keuangan UI: tombol "+ Tambah Jenis" jadi ikon (`Plus`) di toolbar (prop baru `ExcelTable.addButtonLangsung`), kolom Status Aktif/Nonaktif di tabel jenis, serta guard UI act-as — opsi "Semua (global)" & tombol Ubah jenis global disembunyikan saat bertindak sebagai lembaga |
+| 2.310 | 2026-10-04 | Tipe jenis tagihan `sekali` → `non_bulanan` (semantik: bukan sekali seumur, satu periode per generate): migrasi enum + konversi data, seeder, validasi/default backend, tipe & label FE ("Non-bulanan", tabel ikut label), `SCHEMA.md`; logika generate tetap `bulanan` vs bukan |
 
 ## Daftar Isi
 
