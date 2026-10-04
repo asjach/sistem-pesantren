@@ -349,6 +349,8 @@
 | 2.296 | 2026-10-04 | Keaktifan Pegawai berganti label jadi **PTK Aktif** (rute `/pegawai-keaktifan` tetap) dan diposisikan urutan pertama grup Pegawai, sebelum Penempatan |
 | 2.297 | 2026-10-04 | Grup navigasi "Pegawai" berganti label jadi **PTK** (kategori `pegawai` tetap) |
 | 2.298 | 2026-10-04 | Label tab halaman Penempatan (PTK) diperbarui: "Pegawai" → **Buku Induk PTK**, "Lembaga Pegawai" → **PTK Per Jenjang**, "Akun Pegawai" → **Akun PTK** (rute tab tetap) |
+| 2.299 | 2026-10-04 | Fix pergeseran TopBar saat berpindah tab berfilter ↔ tanpa filter: pembungkus filter selalu dirender (border transparan saat tanpa filter) sehingga tinggi baris (30px), posisi tombol ribbon, dan baris tools identik di semua halaman |
+| 2.300 | 2026-10-04 | Tombol show/hide ribbon didesain ulang jadi gagang strip tipis (4px) selebar baris judul, menempel pada garis batas bawah baris dengan chevron di tengah; klik area mana pun pada strip untuk buka/tutup (sebelumnya kenop kecil di bawah pembungkus filter). Variabel `--warna-panel-filter` dihapus |
 
 ## Daftar Isi
 

@@ -79,12 +79,11 @@ const navIdle =
 /** Preferensi tampil/sembunyi baris toolbar (per perangkat). */
 const TOOLS_TAMPIL_KEY = 'simpes_tools_tampil';
 
-/** Tab buka/sembunyinya ribbon tools. Dijangkarkan ke baris judul/filter TopBar
- *  (bukan ke tepi bawah header), jadi posisinya sama persis baik saat ribbon
- *  tampil maupun disembunyikan. Berupa kenop pipih yang menempel tepat pada
- *  garis border di bawah baris itu: sisi atas rata persis di garis (karena itu
- *  sudutnya siku) lalu menggantung ke bawah. Dipusatkan karena titik tengah
- *  baris tersebut kosong, sehingga tak pernah menutupi kendali lain. */
+/** Gagang buka/tutup ribbon tools: strip tipis selebar baris judul/filter,
+ *  menempel pada garis batas bawah baris (di atas border baris ribbon) dengan
+ *  chevron di tengah; klik area mana pun pada strip untuk membuka/menutup.
+ *  Dijangkarkan ke baris judul — bukan ke tepi bawah header — jadi posisinya
+ *  sama persis baik saat ribbon tampil maupun disembunyikan. */
 function TabRibbon({ tampil, onToggle }: { tampil: boolean; onToggle: () => void }) {
   return (
     <Tooltip>
@@ -95,7 +94,7 @@ function TabRibbon({ tampil, onToggle }: { tampil: boolean; onToggle: () => void
           aria-label={tampil ? 'Sembunyikan ribbon' : 'Tampilkan ribbon'}
           aria-expanded={tampil}
           onClick={onToggle}
-          className="absolute left-1/2 top-[calc(100%+1px)] z-20 grid h-3 w-8 -translate-x-1/2 place-items-center rounded-b-md border-x border-b border-white/15 bg-[var(--warna-panel-filter)] text-white/70 transition-colors hover:border-white/40 hover:text-white"
+          className="absolute inset-x-0 bottom-0 z-20 flex h-1 items-center justify-center bg-transparent text-white/60 transition-colors hover:bg-white/15 hover:text-white"
         >
           {tampil ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
         </button>
@@ -325,8 +324,15 @@ export default function TopBar() {
         <div data-part="area_akun" className="ml-2 flex min-w-0 flex-1 items-center gap-0.5">
           {/* Perenggang kiri: mendorong filter global ke tengah bar. */}
           <div aria-hidden="true" className="min-w-0 flex-1" />
-          {adaFilterTopBar && (
-          <div className="relative flex min-w-0 items-center gap-0 rounded-md border border-white/15 bg-white/5 p-0">
+          {/* Pembungkus filter SELALU dirender — border transparan saat tak
+              ada filter — supaya tinggi baris dan jangkar tombol ribbon tidak
+              bergeser saat berpindah tab berfilter ↔ tanpa filter. */}
+          <div
+            className={cn(
+              'relative flex min-h-[26px] min-w-0 items-center gap-0 rounded-md border p-0',
+              adaFilterTopBar ? 'border-white/15 bg-white/5' : 'border-transparent',
+            )}
+          >
             {tampil.lembaga && (adaSemua || banyakPilihan) && daftarLembaga.length > 0 && (
             <FilterToggleGroup
               id="btn_menu_lembaga_aktif"
@@ -388,11 +394,7 @@ export default function TopBar() {
               disabled={semesterLoading}
             />
           )}
-            {/* Tab buka/tutup ribbon menutup border bawah pembungkus filter
-                tepat di tengah, sehingga keduanya tampak satu kesatuan. */}
-            {adaTools && <TabRibbon tampil={toolsTampil} onToggle={togolTools} />}
           </div>
-          )}
           {/* Perenggang kanan: filter global tetap di tengah; akun di kanan. */}
           <div aria-hidden="true" className="min-w-0 flex-1" />
           {registrasi && efektifSuper ? (
@@ -569,9 +571,9 @@ export default function TopBar() {
           </DropdownMenu>
         </div>
 
-        {/* Tab pembuka/penutup ribbon tanpa filter topBar: menempel di tengah
-            border toolbar (header) ExcelTable, yaitu pusat baris ini. */}
-        {adaTools && !adaFilterTopBar && <TabRibbon tampil={toolsTampil} onToggle={togolTools} />}
+        {/* Gagang ribbon: strip tipis selebar baris, menempel di garis batas
+            bawah baris judul/filter (lihat `TabRibbon`). */}
+        {adaTools && <TabRibbon tampil={toolsTampil} onToggle={togolTools} />}
       </div>
 
       {/* Banner "bertindak sebagai lembaga": di atas ribbon agar selalu terlihat. */}
