@@ -3,7 +3,6 @@ import {
   BadgeCheck,
   CalendarCheck,
   CalendarRange,
-  ChevronUp,
   ClipboardCheck,
   ClipboardList,
   Eye,
@@ -11,9 +10,7 @@ import {
   FolderOpen,
   GraduationCap,
   Home,
-  LogOut,
   MoreVertical,
-  MoveHorizontal,
   NotebookTabs,
   Palette,
   Pin,
@@ -101,6 +98,24 @@ export const HALAMAN_PENEMPATAN: HalamanDef = {
   ],
 };
 
+/** Halaman Akademik: satu halaman berisi empat tab akademik santri (Pindah
+ *  Kelas, Mutasi Keluar, Kenaikan Kelas, Kelulusan) — pola sama dengan
+ *  Penempatan; rute tiap tab tetap rute lamanya. */
+export const HALAMAN_AKADEMIK: HalamanDef = {
+  to: '/akademik',
+  label: 'Akademik',
+  deskripsi: 'Akademik santri: pindah kelas, mutasi keluar, kenaikan kelas, kelulusan.',
+  tab: 'santri',
+  grid: true,
+  icon: ScrollText,
+  tabHalaman: [
+    { to: '/pindah-kelas', label: 'Pindah Kelas', permission: 'pindah_kelas.lihat' },
+    { to: '/mutasi-keluar', label: 'Mutasi Keluar', permission: 'mutasi_keluar.lihat' },
+    { to: '/kenaikan', label: 'Kenaikan Kelas', permission: 'kenaikan.lihat' },
+    { to: '/kelulusan', label: 'Kelulusan', permission: 'kelulusan.lihat' },
+  ],
+};
+
 export const HALAMAN: HalamanDef[] = [
   { to: '/', label: 'Dashboard', deskripsi: 'Ringkasan data pesantren.', tab: 'beranda', icon: Home, permission: 'dashboard.lihat' },
   HALAMAN_DATA_INDUK,
@@ -117,10 +132,7 @@ export const HALAMAN: HalamanDef[] = [
   { to: '/kegiatan-psb', label: 'Kegiatan PSB', tab: 'santri', sub: 'psb', grid: true, icon: CalendarRange, permission: 'kegiatan_psb.lihat' },
   { to: '/daftar-kelas', label: 'Daftar Kelas', tab: 'santri', grid: true, icon: ClipboardList, permission: 'daftar_kelas.lihat' },
   HALAMAN_PENEMPATAN,
-  { to: '/pindah-kelas', label: 'Pindah Kelas', tab: 'santri', sub: 'akademik', grid: true, icon: MoveHorizontal, permission: 'pindah_kelas.lihat' },
-  { to: '/mutasi-keluar', label: 'Mutasi Keluar', tab: 'santri', sub: 'akademik', grid: true, icon: LogOut, permission: 'mutasi_keluar.lihat' },
-  { to: '/kenaikan', label: 'Kenaikan Kelas', tab: 'santri', sub: 'akademik', grid: true, icon: ChevronUp, permission: 'kenaikan.lihat' },
-  { to: '/kelulusan', label: 'Kelulusan', tab: 'santri', sub: 'akademik', grid: true, icon: GraduationCap, permission: 'kelulusan.lihat' },
+  HALAMAN_AKADEMIK,
   { to: '/rekap-santri', label: 'Rekap Santri', tab: 'santri', sub: 'lain-lain', grid: true, icon: ReceiptText, permission: 'rekap_santri.lihat' },
   { to: '/keuangan', label: 'Keuangan', deskripsi: 'Tagihan, tunggakan, dan pembayaran santri.', tab: 'keuangan', grid: true, icon: Wallet, permission: 'keuangan.lihat' },
   { to: '/pengajuan-biodata', label: 'Pengajuan Biodata', tab: 'santri', sub: 'lain-lain', grid: true, icon: NotebookTabs, permission: 'pengajuan_biodata.lihat' },
@@ -198,9 +210,8 @@ export const NAV_GRUP: GrupNav[] = [
         label: 'PSB',
         icon: ClipboardCheck,
       },
-      // Daftar Kelas & Penempatan (halaman langsung) tampil di sini.
+      // Daftar Kelas, Penempatan, & Akademik (halaman langsung) tampil di sini.
       { langsung: true },
-      { id: 'akademik', label: 'Akademik', icon: ScrollText },
       { id: 'lain-lain', label: 'Lain-lain', icon: MoreVertical },
     ],
   },

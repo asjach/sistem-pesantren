@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import HalamanTabs, { ArahHalamanTabs } from './HalamanTabs';
-import { HALAMAN_DATA_INDUK, HALAMAN_PENEMPATAN } from '@/lib/halaman';
+import { HALAMAN_AKADEMIK, HALAMAN_DATA_INDUK, HALAMAN_PENEMPATAN } from '@/lib/halaman';
 
 /** Status sesi & pref perangkat yang dibaca komponen (dimock di bawah). */
 const status = vi.hoisted(() => ({
@@ -32,6 +32,12 @@ const IZIN_DATA_INDUK = [
   'referensi.lihat',
 ];
 const IZIN_PENEMPATAN = ['santri.lihat', 'rekap_santri.lihat', 'riwayat_belajar.lihat'];
+const IZIN_AKADEMIK = [
+  'pindah_kelas.lihat',
+  'mutasi_keluar.lihat',
+  'kenaikan.lihat',
+  'kelulusan.lihat',
+];
 
 /** Rute tiruan: dua halaman gabungan + penanda teks tiap tab. */
 function Halaman({ path }: { path: string }) {
@@ -53,6 +59,13 @@ function Halaman({ path }: { path: string }) {
           <Route path="/mi-md" element={<p>ISI MI-MD</p>} />
           <Route path="/riwayat-belajar" element={<p>ISI RIWAYAT BELAJAR</p>} />
         </Route>
+        <Route path="/akademik" element={<ArahHalamanTabs def={HALAMAN_AKADEMIK} />} />
+        <Route element={<HalamanTabs def={HALAMAN_AKADEMIK} />}>
+          <Route path="/pindah-kelas" element={<p>ISI PINDAH KELAS</p>} />
+          <Route path="/mutasi-keluar" element={<p>ISI MUTASI KELUAR</p>} />
+          <Route path="/kenaikan" element={<p>ISI KENAIKAN KELAS</p>} />
+          <Route path="/kelulusan" element={<p>ISI KELULUSAN</p>} />
+        </Route>
         <Route path="/" element={<p>BERANDA</p>} />
       </Routes>
     </MemoryRouter>
@@ -60,7 +73,7 @@ function Halaman({ path }: { path: string }) {
 }
 
 beforeEach(() => {
-  status.user = { permissions: [...IZIN_DATA_INDUK, ...IZIN_PENEMPATAN] };
+  status.user = { permissions: [...IZIN_DATA_INDUK, ...IZIN_PENEMPATAN, ...IZIN_AKADEMIK] };
   for (const kunci of Object.keys(status.pref)) delete status.pref[kunci];
 });
 
@@ -140,6 +153,43 @@ describe('HalamanTabs — Penempatan', () => {
   });
 });
 
+describe('HalamanTabs — Akademik', () => {
+  it('menampilkan empat tab dan isi tab aktif', () => {
+    render(<Halaman path="/kelulusan" />);
+
+    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual([
+      'Pindah Kelas',
+      'Mutasi Keluar',
+      'Kenaikan Kelas',
+      'Kelulusan',
+    ]);
+    expect(screen.getByRole('tab', { name: 'Kelulusan' })).toHaveAttribute('data-state', 'active');
+    expect(screen.getByText('ISI KELULUSAN')).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Mutasi Keluar' })).toHaveAttribute(
+      'id',
+      'tab_akademik_mutasi_keluar',
+    );
+  });
+
+  it('klik tab mengubah rute dan mengingat tab terakhir', async () => {
+    const pengguna = userEvent.setup();
+    render(<Halaman path="/pindah-kelas" />);
+
+    await pengguna.click(screen.getByRole('tab', { name: 'Kenaikan Kelas' }));
+
+    expect(await screen.findByText('ISI KENAIKAN KELAS')).toBeInTheDocument();
+    expect(status.pref.simpes_akademik_tab).toBe('/kenaikan');
+  });
+
+  it('hanya menampilkan tab yang diizinkan', () => {
+    status.user = { permissions: ['kenaikan.lihat'] };
+    render(<Halaman path="/kenaikan" />);
+
+    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['Kenaikan Kelas']);
+    expect(screen.getByText('ISI KENAIKAN KELAS')).toBeInTheDocument();
+  });
+});
+
 describe('ArahHalamanTabs (rute halaman gabungan)', () => {
   it('Data Induk: kembali ke tab terakhir yang masih diizinkan', async () => {
     status.pref.simpes_data_induk_tab = '/kelas';
@@ -153,6 +203,13 @@ describe('ArahHalamanTabs (rute halaman gabungan)', () => {
     render(<Halaman path="/penempatan" />);
 
     expect(await screen.findByText('ISI MI-MD')).toBeInTheDocument();
+  });
+
+  it('Akademik: kembali ke tab terakhir yang masih diizinkan', async () => {
+    status.pref.simpes_akademik_tab = '/kelulusan';
+    render(<Halaman path="/akademik" />);
+
+    expect(await screen.findByText('ISI KELULUSAN')).toBeInTheDocument();
   });
 
   it('tab terakhir yang tak diizinkan → tab pertama yang diizinkan', async () => {

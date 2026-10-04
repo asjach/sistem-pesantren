@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   HALAMAN,
+  HALAMAN_AKADEMIK,
   HALAMAN_DATA_INDUK,
   HALAMAN_PENEMPATAN,
   halamanDariPath,
@@ -33,11 +34,25 @@ describe('halamanDariPath & halaman bertab', () => {
     }
   });
 
+  it('rute tiap tab Akademik dikenali sebagai halaman Akademik', () => {
+    expect(ruteTab(HALAMAN_AKADEMIK)).toEqual([
+      '/pindah-kelas',
+      '/mutasi-keluar',
+      '/kenaikan',
+      '/kelulusan',
+    ]);
+    for (const rute of ruteTab(HALAMAN_AKADEMIK)) {
+      expect(halamanDariPath(rute)?.to).toBe('/akademik');
+    }
+  });
+
   it('rute halaman gabungan dan turunannya dikenali', () => {
     expect(halamanDariPath('/data-induk')?.to).toBe('/data-induk');
     expect(halamanDariPath('/data-induk/apa-saja')?.to).toBe('/data-induk');
     expect(halamanDariPath('/penempatan')?.to).toBe('/penempatan');
     expect(halamanDariPath('/penempatan/apa-saja')?.to).toBe('/penempatan');
+    expect(halamanDariPath('/akademik')?.to).toBe('/akademik');
+    expect(halamanDariPath('/akademik/apa-saja')?.to).toBe('/akademik');
   });
 
   it('rute lama di luar halaman gabungan tidak berubah', () => {
@@ -49,9 +64,13 @@ describe('halamanDariPath & halaman bertab', () => {
     expect(halamanDariPath('/santri/12/profil')?.to).toBe('/data-induk');
   });
 
-  it('grup Data Induk satu entri; grup Santri: Daftar Kelas + Penempatan langsung', () => {
+  it('grup Data Induk satu entri; grup Santri: Daftar Kelas + Penempatan + Akademik langsung', () => {
     expect(halamanGrupLangsung('master').map((h) => h.to)).toEqual(['/data-induk']);
-    expect(halamanGrupLangsung('santri').map((h) => h.to)).toEqual(['/daftar-kelas', '/penempatan']);
+    expect(halamanGrupLangsung('santri').map((h) => h.to)).toEqual([
+      '/daftar-kelas',
+      '/penempatan',
+      '/akademik',
+    ]);
   });
 
   it('izin halaman gabungan = gabungan izin semua tab', () => {
@@ -67,6 +86,12 @@ describe('halamanDariPath & halaman bertab', () => {
       'santri.lihat',
       'rekap_santri.lihat',
       'riwayat_belajar.lihat',
+    ]);
+    expect(izinHalaman(HALAMAN_AKADEMIK)).toEqual([
+      'pindah_kelas.lihat',
+      'mutasi_keluar.lihat',
+      'kenaikan.lihat',
+      'kelulusan.lihat',
     ]);
   });
 
