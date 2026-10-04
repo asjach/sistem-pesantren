@@ -304,6 +304,7 @@ export default function KeuanganPage() {
             canEdit={false}
             onCommit={async () => {}}
             onSaved={() => {}}
+            addButtonLangsung
             addButton={<Button id="btn_gen_buka" onClick={() => setGenerateOpen(true)}>+ Buat Tagihan</Button>}
             renderActions={(t) => (
               bayarId === t.id ? (
