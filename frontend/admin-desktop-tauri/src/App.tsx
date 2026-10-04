@@ -14,7 +14,7 @@ import { ThemeProvider } from './theme';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 import HalamanTabs, { ArahHalamanTabs } from './components/HalamanTabs';
-import { HALAMAN_AKADEMIK, HALAMAN_DATA_INDUK, HALAMAN_PENEMPATAN, HALAMAN_SANTRI_AKTIF } from './lib/halaman';
+import { HALAMAN_AKADEMIK, HALAMAN_DATA_INDUK, HALAMAN_PENEMPATAN, HALAMAN_PENEMPATAN_PEGAWAI, HALAMAN_SANTRI_AKTIF } from './lib/halaman';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 
@@ -120,9 +120,15 @@ export default function App() {
                       <Route path="/psb" element={<Navigate to="/psb/pendaftar" replace />} />
                       <Route path="/psb/:tahap" element={<KhususIzin izin="psb.lihat"><PsbPage /></KhususIzin>} />
                       <Route path="/kegiatan-psb" element={<KhususIzin izin="kegiatan_psb.lihat"><KegiatanPsbPage /></KhususIzin>} />
-                      <Route path="/pegawai" element={<KhususIzin izin="pegawai.lihat"><PegawaiPage /></KhususIzin>} />
-                      <Route path="/pegawai-penempatan" element={<KhususIzin izin="pegawai.lihat"><LembagaPegawaiPage /></KhususIzin>} />
-                      <Route path="/pegawai-akun" element={<KhususIzin izin="pegawai.lihat"><AkunPegawaiPage /></KhususIzin>} />
+                      {/* Penempatan (Pegawai): satu halaman, tiga tab (Pegawai,
+                          Lembaga Pegawai, Akun Pegawai) — pola sama dengan
+                          Penempatan santri; rute tab tetap rute lamanya. */}
+                      <Route path="/penempatan-pegawai" element={<ArahHalamanTabs def={HALAMAN_PENEMPATAN_PEGAWAI} />} />
+                      <Route element={<HalamanTabs def={HALAMAN_PENEMPATAN_PEGAWAI} />}>
+                        <Route path="/pegawai" element={<KhususIzin izin="pegawai.lihat"><PegawaiPage /></KhususIzin>} />
+                        <Route path="/pegawai-penempatan" element={<KhususIzin izin="pegawai.lihat"><LembagaPegawaiPage /></KhususIzin>} />
+                        <Route path="/pegawai-akun" element={<KhususIzin izin="pegawai.lihat"><AkunPegawaiPage /></KhususIzin>} />
+                      </Route>
                       <Route path="/pegawai-keaktifan" element={<KhususIzin izin="pegawai.lihat"><KeaktifanPegawaiPage /></KhususIzin>} />
                       {/* Penempatan: satu halaman, tiga tab (Santri Per
                           Lembaga, MI-MD, Riwayat Belajar) — pola sama dengan

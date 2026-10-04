@@ -4,7 +4,13 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import HalamanTabs, { ArahHalamanTabs } from './HalamanTabs';
-import { HALAMAN_AKADEMIK, HALAMAN_DATA_INDUK, HALAMAN_PENEMPATAN, HALAMAN_SANTRI_AKTIF } from '@/lib/halaman';
+import {
+  HALAMAN_AKADEMIK,
+  HALAMAN_DATA_INDUK,
+  HALAMAN_PENEMPATAN,
+  HALAMAN_PENEMPATAN_PEGAWAI,
+  HALAMAN_SANTRI_AKTIF,
+} from '@/lib/halaman';
 
 /** Status sesi & pref perangkat yang dibaca komponen (dimock di bawah). */
 const status = vi.hoisted(() => ({
@@ -40,6 +46,7 @@ const IZIN_AKADEMIK = [
   'kelulusan.lihat',
 ];
 const IZIN_SANTRI_AKTIF = ['daftar_kelas.lihat', 'rekap_santri.lihat', 'pengajuan_biodata.lihat'];
+const IZIN_PENEMPATAN_PEGAWAI = ['pegawai.lihat'];
 
 /** Rute tiruan: dua halaman gabungan + penanda teks tiap tab. */
 function Halaman({ path }: { path: string }) {
@@ -68,6 +75,15 @@ function Halaman({ path }: { path: string }) {
           <Route path="/rekap-santri" element={<p>ISI REKAP</p>} />
           <Route path="/pengajuan-biodata" element={<p>ISI PENGAJUAN BIODATA</p>} />
         </Route>
+        <Route
+          path="/penempatan-pegawai"
+          element={<ArahHalamanTabs def={HALAMAN_PENEMPATAN_PEGAWAI} />}
+        />
+        <Route element={<HalamanTabs def={HALAMAN_PENEMPATAN_PEGAWAI} />}>
+          <Route path="/pegawai" element={<p>ISI PEGAWAI</p>} />
+          <Route path="/pegawai-penempatan" element={<p>ISI LEMBAGA PEGAWAI</p>} />
+          <Route path="/pegawai-akun" element={<p>ISI AKUN PEGAWAI</p>} />
+        </Route>
         <Route path="/akademik" element={<ArahHalamanTabs def={HALAMAN_AKADEMIK} />} />
         <Route element={<HalamanTabs def={HALAMAN_AKADEMIK} />}>
           <Route path="/pindah-kelas" element={<p>ISI PINDAH KELAS</p>} />
@@ -83,7 +99,13 @@ function Halaman({ path }: { path: string }) {
 
 beforeEach(() => {
   status.user = {
-    permissions: [...IZIN_DATA_INDUK, ...IZIN_PENEMPATAN, ...IZIN_AKADEMIK, ...IZIN_SANTRI_AKTIF],
+    permissions: [
+      ...IZIN_DATA_INDUK,
+      ...IZIN_PENEMPATAN,
+      ...IZIN_AKADEMIK,
+      ...IZIN_SANTRI_AKTIF,
+      ...IZIN_PENEMPATAN_PEGAWAI,
+    ],
   };
   for (const kunci of Object.keys(status.pref)) delete status.pref[kunci];
 });
@@ -193,6 +215,37 @@ describe('HalamanTabs — Santri Aktif', () => {
   });
 });
 
+describe('HalamanTabs — Penempatan (Pegawai)', () => {
+  it('menampilkan tiga tab dan isi tab aktif', () => {
+    render(<Halaman path="/pegawai-penempatan" />);
+
+    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual([
+      'Pegawai',
+      'Lembaga Pegawai',
+      'Akun Pegawai',
+    ]);
+    expect(screen.getByRole('tab', { name: 'Lembaga Pegawai' })).toHaveAttribute(
+      'data-state',
+      'active',
+    );
+    expect(screen.getByText('ISI LEMBAGA PEGAWAI')).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Akun Pegawai' })).toHaveAttribute(
+      'id',
+      'tab_penempatan_pegawai_pegawai_akun',
+    );
+  });
+
+  it('klik tab mengubah rute dan mengingat tab terakhir', async () => {
+    const pengguna = userEvent.setup();
+    render(<Halaman path="/pegawai" />);
+
+    await pengguna.click(screen.getByRole('tab', { name: 'Akun Pegawai' }));
+
+    expect(await screen.findByText('ISI AKUN PEGAWAI')).toBeInTheDocument();
+    expect(status.pref.simpes_penempatan_pegawai_tab).toBe('/pegawai-akun');
+  });
+});
+
 describe('HalamanTabs — Akademik', () => {
   it('menampilkan empat tab dan isi tab aktif', () => {
     render(<Halaman path="/kelulusan" />);
@@ -250,6 +303,13 @@ describe('ArahHalamanTabs (rute halaman gabungan)', () => {
     render(<Halaman path="/santri-aktif" />);
 
     expect(await screen.findByText('ISI REKAP')).toBeInTheDocument();
+  });
+
+  it('Penempatan (Pegawai): kembali ke tab terakhir yang masih diizinkan', async () => {
+    status.pref.simpes_penempatan_pegawai_tab = '/pegawai-akun';
+    render(<Halaman path="/penempatan-pegawai" />);
+
+    expect(await screen.findByText('ISI AKUN PEGAWAI')).toBeInTheDocument();
   });
 
   it('Akademik: kembali ke tab terakhir yang masih diizinkan', async () => {

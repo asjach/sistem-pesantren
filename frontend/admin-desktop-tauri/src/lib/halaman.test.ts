@@ -4,6 +4,7 @@ import {
   HALAMAN_AKADEMIK,
   HALAMAN_DATA_INDUK,
   HALAMAN_PENEMPATAN,
+  HALAMAN_PENEMPATAN_PEGAWAI,
   HALAMAN_SANTRI_AKTIF,
   NAV_GRUP,
   halamanDariPath,
@@ -49,6 +50,17 @@ describe('halamanDariPath & halaman bertab', () => {
     }
   });
 
+  it('rute tiap tab Penempatan Pegawai dikenali sebagai halaman Penempatan (Pegawai)', () => {
+    expect(ruteTab(HALAMAN_PENEMPATAN_PEGAWAI)).toEqual([
+      '/pegawai',
+      '/pegawai-penempatan',
+      '/pegawai-akun',
+    ]);
+    for (const rute of ruteTab(HALAMAN_PENEMPATAN_PEGAWAI)) {
+      expect(halamanDariPath(rute)?.to).toBe('/penempatan-pegawai');
+    }
+  });
+
   it('rute tiap tab Akademik dikenali sebagai halaman Akademik', () => {
     expect(ruteTab(HALAMAN_AKADEMIK)).toEqual([
       '/pindah-kelas',
@@ -70,11 +82,13 @@ describe('halamanDariPath & halaman bertab', () => {
     expect(halamanDariPath('/akademik/apa-saja')?.to).toBe('/akademik');
     expect(halamanDariPath('/santri-aktif')?.to).toBe('/santri-aktif');
     expect(halamanDariPath('/santri-aktif/apa-saja')?.to).toBe('/santri-aktif');
+    expect(halamanDariPath('/penempatan-pegawai')?.to).toBe('/penempatan-pegawai');
+    expect(halamanDariPath('/penempatan-pegawai/apa-saja')?.to).toBe('/penempatan-pegawai');
   });
 
   it('rute lama di luar halaman gabungan tidak berubah', () => {
     expect(halamanDariPath('/')?.label).toBe('Dashboard');
-    expect(halamanDariPath('/pegawai')?.label).toBe('Pegawai');
+    expect(halamanDariPath('/pegawai-keaktifan')?.label).toBe('Keaktifan Pegawai');
     expect(halamanDariPath('/keuangan')?.label).toBe('Keuangan');
     expect(halamanDariPath('/dokumen-santri/lihat')?.label).toBe('Dokumen Santri');
     // Profil santri (jendela terpisah) tetap memakai judul Buku Induk/Data Induk.
@@ -91,6 +105,11 @@ describe('halamanDariPath & halaman bertab', () => {
     // Tidak ada lagi subgrup "lain-lain" di Santri (Rekap & Pengajuan pindah
     // jadi tab Santri Aktif).
     expect(halamanSubgrup('santri', 'lain-lain')).toEqual([]);
+    // Pegawai: Penempatan (3 tab) + Keaktifan Pegawai langsung, tanpa subgrup.
+    expect(halamanGrupLangsung('pegawai').map((h) => h.to)).toEqual([
+      '/penempatan-pegawai',
+      '/pegawai-keaktifan',
+    ]);
   });
 
   it('PSB kini grup tersendiri di atas Santri (dua halaman, tanpa subgrup)', () => {
@@ -137,6 +156,11 @@ describe('halamanDariPath & halaman bertab', () => {
       'daftar_kelas.lihat',
       'rekap_santri.lihat',
       'pengajuan_biodata.lihat',
+    ]);
+    expect(izinHalaman(HALAMAN_PENEMPATAN_PEGAWAI)).toEqual([
+      'pegawai.lihat',
+      'pegawai.lihat',
+      'pegawai.lihat',
     ]);
   });
 
