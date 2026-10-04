@@ -89,7 +89,8 @@ describe('halamanDariPath & halaman bertab', () => {
   it('rute lama di luar halaman gabungan tidak berubah', () => {
     expect(halamanDariPath('/')?.label).toBe('Dashboard');
     expect(halamanDariPath('/pegawai-keaktifan')?.label).toBe('PTK Aktif');
-    expect(halamanDariPath('/keuangan')?.label).toBe('Keuangan');
+    expect(halamanDariPath('/keuangan')?.label).toBe('Pengaturan');
+    expect(halamanDariPath('/pembayaran')?.label).toBe('Pembayaran');
     expect(halamanDariPath('/dokumen-santri/lihat')?.label).toBe('Dokumen Santri');
     // Profil santri (jendela terpisah) tetap memakai judul Buku Induk/Data Induk.
     expect(halamanDariPath('/santri/12/profil')?.to).toBe('/data-induk');
@@ -109,6 +110,11 @@ describe('halamanDariPath & halaman bertab', () => {
     expect(halamanGrupLangsung('pegawai').map((h) => h.to)).toEqual([
       '/pegawai-keaktifan',
       '/penempatan-pegawai',
+    ]);
+    // Keuangan: Pengaturan (dulu halaman Keuangan) + Pembayaran (kasir).
+    expect(halamanGrupLangsung('keuangan').map((h) => h.to)).toEqual([
+      '/keuangan',
+      '/pembayaran',
     ]);
   });
 

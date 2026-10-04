@@ -141,8 +141,19 @@ class KeuanganController extends Controller
         if ($request->filled('status')) {
             $q->where('status', $request->input('status'));
         }
+        if ($request->boolean('belum_lunas')) {
+            $q->where('status', '!=', 'lunas');
+        }
+        if ($request->filled('santri_id')) {
+            $q->where('santri_id', (int) $request->input('santri_id'));
+        }
         if ($request->filled('santri')) {
-            $q->whereHas('santri', fn ($s) => $s->where('nama_lengkap', 'like', '%'.$request->input('santri').'%'));
+            // Cari santri: nama, NISN, atau NIS lokal per lembaga.
+            $cari = $request->input('santri');
+            $q->whereHas('santri', fn ($s) => $s
+                ->where('nama_lengkap', 'like', '%'.$cari.'%')
+                ->orWhere('nisn', 'like', '%'.$cari.'%')
+                ->orWhereHas('lembagaSantri', fn ($ls) => $ls->where('nis_lokal', 'like', '%'.$cari.'%')));
         }
 
         return response()->json($q->paginate($this->perPage($request)));

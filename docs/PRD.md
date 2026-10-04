@@ -362,6 +362,7 @@
 | 2.309 | 2026-10-04 | Keuangan UI: tombol "+ Tambah Jenis" jadi ikon (`Plus`) di toolbar (prop baru `ExcelTable.addButtonLangsung`), kolom Status Aktif/Nonaktif di tabel jenis, serta guard UI act-as — opsi "Semua (global)" & tombol Ubah jenis global disembunyikan saat bertindak sebagai lembaga |
 | 2.310 | 2026-10-04 | Tipe jenis tagihan `sekali` → `non_bulanan` (semantik: bukan sekali seumur, satu periode per generate): migrasi enum + konversi data, seeder, validasi/default backend, tipe & label FE ("Non-bulanan", tabel ikut label), `SCHEMA.md`; logika generate tetap `bulanan` vs bukan |
 | 2.311 | 2026-10-04 | Keuangan tarif: daftar terfilter lembaga & tahun ajaran (server-side `applyFilter` array; FE refetch saat filter berubah), dialog Tambah Tarif memakai TA dari filter topbar, tombol tambah jadi ikon, kolom aksi dapat Hapus dengan guard 422 bila tarif sudah dipakai tagihan |
+| 2.312 | 2026-10-04 | Grup navigasi Keuangan kini dua halaman: **Pengaturan** (eks halaman Keuangan: jenis tagihan/tarif/tagihan/tunggakan) dan **Pembayaran** (kasir admin lembaga): cari santri (nama/NISN/NIS lokal) → daftar tagihan belum lunas → form bayar (jumlah default sisa, metode, kas, catatan) → dialog nomor kwitansi. Backend `indexTagihan` menambah filter `belum_lunas`, `santri_id`, dan pencarian NIS |
 
 ## Daftar Isi
 

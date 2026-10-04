@@ -55,7 +55,7 @@ export function hapusTarif(id: number) {
   return api<{ pesan: string }>(`/admin/keuangan/tarif/${id}`, { method: 'DELETE' });
 }
 
-export function daftarTagihan(params: { page?: string; per_page?: string; jenjang?: ScalarOrArray<string>; tahun_ajaran?: ScalarOrArray<string>; jenis_id?: string; status?: string } = {}) {
+export function daftarTagihan(params: { page?: string; per_page?: string; jenjang?: ScalarOrArray<string>; tahun_ajaran?: ScalarOrArray<string>; jenis_id?: string; status?: string; belum_lunas?: boolean; santri?: string; santri_id?: number | string } = {}) {
   const q = new URLSearchParams();
   if (params.page) q.set('page', params.page);
   if (params.per_page) q.set('per_page', params.per_page);
@@ -63,6 +63,9 @@ export function daftarTagihan(params: { page?: string; per_page?: string; jenjan
   appendQueryParam(q, 'tahun_ajaran', params.tahun_ajaran);
   if (params.jenis_id) q.set('jenis_id', params.jenis_id);
   if (params.status) q.set('status', params.status);
+  if (params.belum_lunas) q.set('belum_lunas', '1');
+  if (params.santri) q.set('santri', params.santri);
+  if (params.santri_id !== undefined && params.santri_id !== '') q.set('santri_id', String(params.santri_id));
   const s = q.toString();
   return api<Paginate<TagihanRow>>(`/admin/keuangan/tagihan${s ? `?${s}` : ''}`);
 }

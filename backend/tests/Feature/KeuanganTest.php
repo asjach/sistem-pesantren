@@ -179,6 +179,36 @@ class KeuanganTest extends TestCase
         $this->assertDatabaseMissing('tarif_tagihan', ['id' => $bebas->id]);
     }
 
+    public function test_index_tagihan_filter_belum_lunas_dan_cari_nis_lokal(): void
+    {
+        $admin = $this->admin();
+        $jenis = JenisTagihan::create(['nama' => 'Infaq Bulanan', 'tipe' => 'bulanan']);
+        $santri = Santri::create(['nama_lengkap' => 'Santri Kasir', 'jk' => 'L']);
+        DB::table('lembaga_santri')->insert([
+            'santri_id' => $santri->id, 'jenjang' => 'MI', 'nis_lokal' => '99001',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $lain = Santri::create(['nama_lengkap' => 'Santri Lain', 'jk' => 'P']);
+
+        $belum = Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'periode' => '2025-07', 'nominal' => 75000]);
+        Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'periode' => '2025-08', 'nominal' => 75000, 'terbayar' => 75000, 'status' => 'lunas']);
+        Tagihan::create(['santri_id' => $lain->id, 'jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'periode' => '2025-07', 'nominal' => 75000]);
+
+        // Cari NIS lokal + hanya belum lunas → hanya tagihan sasaran.
+        $this->actingAs($admin)->getJson('/api/admin/keuangan/tagihan?belum_lunas=1&santri=99001')
+            ->assertStatus(200)->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $belum->id);
+
+        // Cari nama juga menemukan (semua status).
+        $this->actingAs($admin)->getJson('/api/admin/keuangan/tagihan?santri=Santri Kasir')
+            ->assertStatus(200)->assertJsonCount(2, 'data');
+
+        // Filter santri_id langsung.
+        $this->actingAs($admin)->getJson("/api/admin/keuangan/tagihan?santri_id={$lain->id}&belum_lunas=1")
+            ->assertStatus(200)->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.santri_id', $lain->id);
+    }
+
     public function test_hapus_tagihan(): void
     {
         $admin = $this->admin();

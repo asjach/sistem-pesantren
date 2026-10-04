@@ -12,6 +12,7 @@ import {
   Home,
   Palette,
   Pin,
+  ReceiptText,
   ScrollText,
   Server,
   UserCheck,
@@ -163,7 +164,8 @@ export const HALAMAN: HalamanDef[] = [
   HALAMAN_SANTRI_AKTIF,
   HALAMAN_PENEMPATAN,
   HALAMAN_AKADEMIK,
-  { to: '/keuangan', label: 'Keuangan', deskripsi: 'Tagihan, tunggakan, dan pembayaran santri.', tab: 'keuangan', grid: true, icon: Wallet, permission: 'keuangan.lihat' },
+  { to: '/keuangan', label: 'Pengaturan', deskripsi: 'Jenis tagihan, tarif, tagihan, dan tunggakan.', tab: 'keuangan', grid: true, icon: Wallet, permission: 'keuangan.lihat' },
+  { to: '/pembayaran', label: 'Pembayaran', deskripsi: 'Kasir: cari santri, lihat tagihan belum lunas, catat pembayaran.', tab: 'keuangan', grid: true, icon: ReceiptText, permission: 'keuangan.lihat' },
   {
     to: '/pengaturan/izin',
     label: 'Kelola Izin',
