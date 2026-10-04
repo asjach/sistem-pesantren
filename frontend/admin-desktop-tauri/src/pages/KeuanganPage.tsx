@@ -17,11 +17,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { FieldLabel } from '@/components/ui/field';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import ConfirmDelete from '@/components/ConfirmDelete';
-import { Trash2 } from '@/icons';
+import { Plus, Trash2 } from '@/icons';
 import { ActionIcon, DeleteAction } from '@/components/RowActions';
 import { History } from '@/icons';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { useFilterGlobalAktif, targetTunggal } from '@/hooks/useFilterGlobalAktif';
+import { useLembagaAktif } from '@/lembagaAktif';
 import Pager from '@/components/Pager';
 import { usePager } from '@/hooks/usePager';
 import { EditAction } from '@/components/RowActions';
@@ -30,6 +31,7 @@ const FIELDS_JENIS: ExcelField[] = [
   { key: 'nama', label: 'Jenis Tagihan', kind: 'static' },
   { key: 'tipe', label: 'Tipe', kind: 'static', width: 90 },
   { key: 'lembaga', label: 'Lembaga', kind: 'static', width: 130 },
+  { key: 'aktif', label: 'Status', kind: 'static', width: 80 },
 ];
 
 const FIELDS_TARIF: ExcelField[] = [
@@ -85,6 +87,8 @@ export default function KeuanganPage() {
   const [tagihanLastPage, setTagihanLastPage] = useState(1);
   const [tagihanTotal, setTagihanTotal] = useState(0);
   const { jenjangs, tahunAjaranNames, loading: filterLoading } = useFilterGlobalAktif();
+  /** Jenis global (Semua) hanya untuk super_admin efektif — mati saat bertindak. */
+  const { efektifSuper, peranJenjang, pilihan: pilihanLembaga } = useLembagaAktif();
 
   const loadTagihan = useCallback(async (page: number, perPage: number, jenjang: readonly string[], ta: readonly string[]) => {
     try {
@@ -229,17 +233,20 @@ export default function KeuanganPage() {
             tableKey="keuangan_jenis"
             fields={FIELDS_JENIS}
             rows={jenis.map((j) => ({ ...j, id: j.id }))}
-            getValues={(r) => ({ nama: r.nama, tipe: r.tipe, lembaga: r.jenjang ?? 'Semua' })}
+            getValues={(r) => ({ nama: r.nama, tipe: r.tipe, lembaga: r.jenjang ?? 'Semua', aktif: r.is_active ? 'Aktif' : 'Nonaktif' })}
             loading={loading}
             emptyText="Belum ada jenis tagihan."
             canEdit={false}
             onCommit={async () => {}}
             onSaved={() => {}}
             renderActions={(j) => (
-              <EditAction id={`btn_jenis_ubah_${j.id}`} onClick={() => { setEditJenis(j); setENama(j.nama); setETipe(j.tipe); setEJenjang(j.jenjang ?? ''); setEAktif(j.is_active); }} />
+              (j.jenjang !== null || efektifSuper)
+                ? <EditAction id={`btn_jenis_ubah_${j.id}`} onClick={() => { setEditJenis(j); setENama(j.nama); setETipe(j.tipe); setEJenjang(j.jenjang ?? ''); setEAktif(j.is_active); }} />
+                : null
             )}
             hideCheckbox
-            addButton={<Button id="btn_jenis_tambah_buka" onClick={() => { setNamaJenis(''); setTipeJenis('sekali'); setLembagaJenis(''); setTambahJenisOpen(true); }}>+ Tambah Jenis</Button>}
+            addButtonLangsung
+            addButton={<Button id="btn_jenis_tambah_buka" size="icon" variant="outline" aria-label="Tambah jenis tagihan" title="Tambah jenis tagihan" onClick={() => { setNamaJenis(''); setTipeJenis('sekali'); setLembagaJenis(peranJenjang ?? ''); setTambahJenisOpen(true); }}><Plus size={16} /></Button>}
           />
         </TabsContent>
 
@@ -464,8 +471,8 @@ export default function KeuanganPage() {
             </select>
             <FieldLabel htmlFor="sel_jenis_lembaga">Lembaga</FieldLabel>
             <select id="sel_jenis_lembaga" className="border rounded px-2" value={lembagaJenis} onChange={(e) => setLembagaJenis(e.target.value)}>
-              <option value="">Semua (global)</option>
-              {lembagas.map((l) => <option key={l.jenjang} value={l.jenjang}>{l.jenjang} — {l.nama}</option>)}
+              {efektifSuper ? <option value="">Semua (global)</option> : null}
+              {pilihanLembaga.map((l) => <option key={l.jenjang} value={l.jenjang}>{l.jenjang} — {l.nama}</option>)}
             </select>
             <DialogFooter className="col-span-2">
               <Button type="button" variant="outline" onClick={() => setTambahJenisOpen(false)}>Batal</Button>
@@ -486,8 +493,8 @@ export default function KeuanganPage() {
             </select>
             <FieldLabel htmlFor="sel_jenis_edit_lembaga">Lembaga</FieldLabel>
             <select id="sel_jenis_edit_lembaga" className="border rounded px-2" value={eJenjang} onChange={(e) => setEJenjang(e.target.value)}>
-              <option value="">Semua (global)</option>
-              {lembagas.map((l) => <option key={l.jenjang} value={l.jenjang}>{l.jenjang} — {l.nama}</option>)}
+              {efektifSuper ? <option value="">Semua (global)</option> : null}
+              {pilihanLembaga.map((l) => <option key={l.jenjang} value={l.jenjang}>{l.jenjang} — {l.nama}</option>)}
             </select>
             <FieldLabel htmlFor="chk_jenis_edit_aktif">Aktif</FieldLabel>
             <input id="chk_jenis_edit_aktif" type="checkbox" checked={eAktif} onChange={(e) => setEAktif(e.target.checked)} />

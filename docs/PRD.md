@@ -358,6 +358,8 @@
 | 2.305 | 2026-10-04 | Standar ukuran teks UI statis seragam 12px: seluruh `text-sm`/`base`/`lg`/`xl`/`2xl` dan arbitrary (`13px`, `13.5px`, `26px`) diturunkan ke `text-xs` (49 file, termasuk komponen shadcn); tinggi baris ikut `text-xs` (16px). Ukuran huruf sel/header tabel tetap bisa diatur lewat ribbon |
 | 2.306 | 2026-10-04 | Gaya tab halaman diseragamkan lewat konstanta bersama (`HalamanTabs`): TabsList tinggi 26px tanpa padding + margin vertikal 8px (bar center di antara ribbon & tabel), trigger mengisi penuh area (`h-full`, label 11px) dengan state aktif primary; Antrean PSB & Keuangan memakai konstanta yang sama |
 | 2.307 | 2026-10-04 | Panel tab (`TabsContent`) diberi border + `gap-1`; margin bar tab jadi 4px (`my-1`); gap antar panel/tabel di tab Pindah Kelas (grid kelas) dan Mutasi (gagang split `w-1` tanpa grip, padding panel `px-0`) dirapatkan ke 4px |
+| 2.308 | 2026-10-04 | Fix act-as di Keuangan: super_admin yang "bertindak sebagai lembaga" tidak lagi bisa membuat/mengubah jenis tagihan global (`hasRole('super_admin')` → `bolehSuperAdmin()` di store/updateJenis); tes `KeuanganTest::test_jenis_tagihan_act_as_tidak_bisa_ubah_global` |
+| 2.309 | 2026-10-04 | Keuangan UI: tombol "+ Tambah Jenis" jadi ikon (`Plus`) di toolbar (prop baru `ExcelTable.addButtonLangsung`), kolom Status Aktif/Nonaktif di tabel jenis, serta guard UI act-as — opsi "Semua (global)" & tombol Ubah jenis global disembunyikan saat bertindak sebagai lembaga |
 
 ## Daftar Isi
 
@@ -429,4 +431,3 @@ Lihat Lampiran D. Inti: `lembaga` (PK `jenjang`: MI/MD/MTS/MLN), `tahun_ajaran`,
 - Tarif per lembaga + paket (MI/MD/MI-MD) + tahun ajaran; nominal boleh berubah per TA. MI-MD = satu tagihan tunggal tarif MI-MD, ditagih di lembaga primer MI. Perubahan status/penyesuaian tarif: tagihan lama tetap; nominal baru berlaku di tagihan periode berikutnya; pembayaran lama dikreditkan.
 - Keringanan: putra pegawai (override tarif). Status tagihan: belum/sebagian/lunas; batal/hapus pembayaran menyesuaikan total tagihan; hapus tagihan permanen (wajib batalkan dulu pembayaran aktifnya). Pindah/mutasi: tunggakan tetap lembaga asal.
 - Pembayaran: TU/Admin/Kasir lembaga berkemampuan sama (catat + hapus/batal), kwitansi karakter acak; kas memetakan posisi uang (tunai TU | bank lembaga | bank pesantren). Asrama: dibayar melalui TU lalu dicatat di kas asrama (bukan pendapatan lembaga). Tunggakan dibaca per siswa/kelas/semua (admin, TU, bendahara, pimpinan, orang tua).
-| 2.308 | 2026-10-04 | Fix act-as di Keuangan: super_admin yang "bertindak sebagai lembaga" tidak lagi bisa membuat/mengubah jenis tagihan global (`hasRole('super_admin')` → `bolehSuperAdmin()` di store/updateJenis); tes `KeuanganTest::test_jenis_tagihan_act_as_tidak_bisa_ubah_global` |

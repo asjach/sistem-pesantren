@@ -110,6 +110,8 @@ export interface ExcelTableProps<T extends { id: string | number }> {
   /** Tombol aksi utama halaman (mis. "+ Tambah X"): diletakkan sebaris
    *  dengan pencarian/filter, di sisi kanan. */
   addButton?: ReactNode;
+  /** Tampilkan `addButton` langsung (tanpa dibungkus menu hamburger Aksi). */
+  addButtonLangsung?: boolean;
   /** Aksi massal untuk baris tercentang (mis. verifikasi/ACC/hapus).
    *  `clearSelection` memanggil ulang setelah aksi selesai. */
   renderBulkActions?: (checkedRows: T[], clearSelection: () => void) => ReactNode;
@@ -199,6 +201,7 @@ export default function ExcelTable<T extends { id: string | number }>({
   awalanToolbar,
   akhirToolbar,
   addButton,
+  addButtonLangsung = false,
   renderBulkActions,
   maxRows,
   onCreateRow,
@@ -1332,7 +1335,11 @@ export default function ExcelTable<T extends { id: string | number }>({
                   />
                 ) : null}
               </div>
-              {addButton ? <div className="shrink-0"><MenuAksiToolbar triggerId={`btn_aksi_${tableKey}`}>{addButton}</MenuAksiToolbar></div> : null}
+              {addButton ? (
+                addButtonLangsung
+                  ? <div className="shrink-0">{addButton}</div>
+                  : <div className="shrink-0"><MenuAksiToolbar triggerId={`btn_aksi_${tableKey}`}>{addButton}</MenuAksiToolbar></div>
+              ) : null}
               </div>
             </div>
             </ContextMenuTrigger>
