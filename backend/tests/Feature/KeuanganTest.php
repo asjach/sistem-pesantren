@@ -36,32 +36,116 @@ class KeuanganTest extends TestCase
         return $u;
     }
 
-    public function test_generate_tagihan_per_paket(): void
+    public function test_kandidat_kelompok_santri_dan_generate_terpilih(): void
     {
         $admin = $this->admin();
         $jenis = JenisTagihan::create(['nama' => 'Infaq Bulanan', 'tipe' => 'bulanan']);
 
-        $miOnly = Santri::create(['nama_lengkap' => 'Santri MI', 'jk' => 'L']);
-        $mimd = Santri::create(['nama_lengkap' => 'Santri MIMD', 'jk' => 'P']);
+        $miSaja = Santri::create(['nama_lengkap' => 'Ahmad MI', 'jk' => 'L']);
+        $mdSaja = Santri::create(['nama_lengkap' => 'Badri MD', 'jk' => 'L']);
+        $miMd = Santri::create(['nama_lengkap' => 'Cahya MIMD', 'jk' => 'P']);
+        $keluar = Santri::create(['nama_lengkap' => 'Dodi Keluar', 'jk' => 'L']);
+
         DB::table('riwayat_belajar')->insert([
-            ['santri_id' => $miOnly->id, 'tahun_ajaran' => '2025/2026', 'jenjang' => 'MI', 'semester' => '1', 'is_active_riwayat' => 'Ya', 'created_at' => now(), 'updated_at' => now()],
-            ['santri_id' => $mimd->id, 'tahun_ajaran' => '2025/2026', 'jenjang' => 'MI', 'semester' => '1', 'is_active_riwayat' => 'Ya', 'created_at' => now(), 'updated_at' => now()],
-            ['santri_id' => $mimd->id, 'tahun_ajaran' => '2025/2026', 'jenjang' => 'MD', 'semester' => '1', 'is_active_riwayat' => 'Ya', 'created_at' => now(), 'updated_at' => now()],
+            ['santri_id' => $miSaja->id, 'tahun_ajaran' => '2025/2026', 'jenjang' => 'MI', 'tingkat' => '3', 'semester' => '1', 'status_akhir' => 'aktif', 'is_active_riwayat' => 'Ya', 'created_at' => now(), 'updated_at' => now()],
+            ['santri_id' => $mdSaja->id, 'tahun_ajaran' => '2025/2026', 'jenjang' => 'MD', 'tingkat' => '4', 'semester' => '1', 'status_akhir' => 'aktif', 'is_active_riwayat' => 'Ya', 'created_at' => now(), 'updated_at' => now()],
+            ['santri_id' => $miMd->id, 'tahun_ajaran' => '2025/2026', 'jenjang' => 'MI', 'tingkat' => '6', 'semester' => '1', 'status_akhir' => 'aktif', 'is_active_riwayat' => 'Ya', 'created_at' => now(), 'updated_at' => now()],
+            ['santri_id' => $miMd->id, 'tahun_ajaran' => '2025/2026', 'jenjang' => 'MD', 'tingkat' => '2', 'semester' => '1', 'status_akhir' => 'aktif', 'is_active_riwayat' => 'Ya', 'created_at' => now(), 'updated_at' => now()],
+            ['santri_id' => $keluar->id, 'tahun_ajaran' => '2025/2026', 'jenjang' => 'MI', 'tingkat' => '3', 'semester' => '1', 'status_akhir' => 'pindah_keluar', 'is_active_riwayat' => 'Tidak', 'created_at' => now(), 'updated_at' => now()],
         ]);
 
-        TarifTagihan::create(['jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'nominal' => 75000]);
-        TarifTagihan::create(['jenjang' => 'MI', 'paket' => 'MI-MD', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'nominal' => 75000]);
+        $ids = fn (array $json) => array_column($json['data'], 'santri_id');
+        $kandidat = fn (string $kelompok) => $this->actingAs($admin)->getJson(
+            "/api/admin/keuangan/tagihan/kandidat?tahun_ajaran=2025/2026&kelompok={$kelompok}&per_page=50"
+        )->assertStatus(200)->json();
 
-        $res = $this->actingAs($admin)->postJson('/api/admin/keuangan/tagihan/generate', [
-            'jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'periode' => '2025-07',
-        ])->assertStatus(200);
-        $this->assertDatabaseCount('tagihan', 1);
-        $this->assertSame('2025-07', Tagihan::first()->periode);
+        // Kriteria per kelompok; santri pindah_keluar selalu keluar.
+        $this->assertSame([$miSaja->id], $ids($kandidat('mi_saja')));
+        $this->assertSame([$mdSaja->id], $ids($kandidat('md_saja')));
+        $this->assertSame([$miMd->id], $ids($kandidat('mi_md')));
+        $this->assertEqualsCanonicalizing([$miSaja->id, $miMd->id], $ids($kandidat('mi')));
+        $this->assertEqualsCanonicalizing([$mdSaja->id, $miMd->id], $ids($kandidat('md')));
+        $this->assertEqualsCanonicalizing([$miSaja->id, $mdSaja->id, $miMd->id], $ids($kandidat('aktif')));
+        $this->assertSame([$miMd->id], $ids($kandidat('kelas_akhir')));
+        $this->assertEqualsCanonicalizing([$miSaja->id, $mdSaja->id], $ids($kandidat('selain_kelas_akhir')));
+
+        // Pencarian NIS lokal + baris MI-MD menampilkan paket gabungan.
+        DB::table('lembaga_santri')->insert([
+            'santri_id' => $miMd->id, 'jenjang' => 'MI', 'nis_lokal' => '88001', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $cariNis = $this->actingAs($admin)
+            ->getJson('/api/admin/keuangan/tagihan/kandidat?tahun_ajaran=2025/2026&kelompok=aktif&q=88001')
+            ->assertStatus(200)->json();
+        $this->assertSame([$miMd->id], $ids($cariNis));
+        $this->assertSame('MI-MD', $cariNis['data'][0]['paket']);
+
+        // Generate hanya santri pada tabel terpilih, nominal default + override.
+        $this->actingAs($admin)->postJson('/api/admin/keuangan/tagihan/generate', [
+            'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'periode' => '2025-07',
+            'nominal' => 75000,
+            'santri' => [
+                ['santri_id' => $miSaja->id],
+                ['santri_id' => $miMd->id, 'nominal' => 50000],
+            ],
+        ])->assertStatus(200)->assertJson(['dibuat' => 2, 'dilewati' => 0]);
+
+        $tagihanMi = Tagihan::where('santri_id', $miSaja->id)->firstOrFail();
+        $this->assertSame(75000, $tagihanMi->nominal);
+        $this->assertSame('MI', $tagihanMi->paket);
+        $tagihanMimd = Tagihan::where('santri_id', $miMd->id)->firstOrFail();
+        $this->assertSame(50000, $tagihanMimd->nominal);
+        $this->assertSame('MI-MD', $tagihanMimd->paket);
+        $this->assertSame('MI', $tagihanMimd->jenjang);
+    }
+
+    public function test_kandidat_sembunyikan_sudah_ada_dan_range_bulanan(): void
+    {
+        $admin = $this->admin();
+        $jenis = JenisTagihan::create(['nama' => 'Infaq Bulanan', 'tipe' => 'bulanan']);
+
+        $a = Santri::create(['nama_lengkap' => 'Ani', 'jk' => 'P']);
+        $b = Santri::create(['nama_lengkap' => 'Budi', 'jk' => 'L']);
+        DB::table('riwayat_belajar')->insert([
+            ['santri_id' => $a->id, 'tahun_ajaran' => '2025/2026', 'jenjang' => 'MI', 'tingkat' => '2', 'semester' => '1', 'status_akhir' => 'aktif', 'is_active_riwayat' => 'Ya', 'created_at' => now(), 'updated_at' => now()],
+            ['santri_id' => $b->id, 'tahun_ajaran' => '2025/2026', 'jenjang' => 'MI', 'tingkat' => '2', 'semester' => '1', 'status_akhir' => 'aktif', 'is_active_riwayat' => 'Ya', 'created_at' => now(), 'updated_at' => now()],
+        ]);
+
+        // A sudah punya tagihan Juli → hilang dari kandidat periode itu.
+        Tagihan::create(['santri_id' => $a->id, 'jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'periode' => '2025-07', 'nominal' => 75000]);
+        $this->actingAs($admin)->getJson("/api/admin/keuangan/tagihan/kandidat?tahun_ajaran=2025/2026&kelompok=aktif&jenis_id={$jenis->id}&periode=2025-07")
+            ->assertStatus(200)->assertJsonCount(1, 'data')->assertJsonPath('data.0.santri_id', $b->id);
+
+        // Juli–September untuk A baru 1 dari 3 → tetap muncul (belum lengkap).
+        $urlRange = "/api/admin/keuangan/tagihan/kandidat?tahun_ajaran=2025/2026&kelompok=aktif&jenis_id={$jenis->id}&periode=2025-07&periode_sampai=2025-09";
+        $this->actingAs($admin)->getJson($urlRange)->assertStatus(200)->assertJsonCount(2, 'data');
+
+        // Generate rentang 3 bulan untuk B → dibuat 3; diulang → dilewati 3.
+        $payload = [
+            'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id,
+            'periode' => '2025-07', 'periode_sampai' => '2025-09',
+            'nominal' => 75000, 'santri' => [['santri_id' => $b->id]],
+        ];
+        $this->actingAs($admin)->postJson('/api/admin/keuangan/tagihan/generate', $payload)
+            ->assertStatus(200)->assertJson(['dibuat' => 3, 'dilewati' => 0]);
+        $this->actingAs($admin)->postJson('/api/admin/keuangan/tagihan/generate', $payload)
+            ->assertStatus(200)->assertJson(['dibuat' => 0, 'dilewati' => 3]);
+
+        // B lengkap → kandidat rentang hanya menyisakan A yang masih bolong.
+        $this->actingAs($admin)->getJson($urlRange)
+            ->assertStatus(200)->assertJsonCount(1, 'data')->assertJsonPath('data.0.santri_id', $a->id);
+    }
+
+    public function test_generate_menolak_santri_tanpa_riwayat_ta(): void
+    {
+        $admin = $this->admin();
+        $jenis = JenisTagihan::create(['nama' => 'HIPA', 'tipe' => 'non_bulanan']);
+        $santri = Santri::create(['nama_lengkap' => 'Tanpa Riwayat', 'jk' => 'L']);
 
         $this->actingAs($admin)->postJson('/api/admin/keuangan/tagihan/generate', [
-            'jenjang' => 'MI', 'paket' => 'MI-MD', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'periode' => '2025-07',
-        ])->assertStatus(200);
-        $this->assertDatabaseCount('tagihan', 2);
+            'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'nominal' => 10000,
+            'santri' => [['santri_id' => $santri->id]],
+        ])->assertStatus(422);
+        $this->assertDatabaseCount('tagihan', 0);
     }
 
     public function test_jenis_tagihan_scoping_lembaga(): void

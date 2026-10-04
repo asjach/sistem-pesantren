@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import { errorMessage, prefGet, prefSet } from '../api/client';
 import {
   daftarJenis, buatJenis, ubahJenis, buatTarif, daftarTarif, ubahTarif, hapusTarif,
-  daftarTagihan, generateTagihan, hapusTagihan, catatPembayaran, daftarTunggakan,
+  daftarTagihan, hapusTagihan, catatPembayaran, daftarTunggakan,
   riwayatPembayaran, hapusPembayaran,
   type JenisTagihan, type Tarif, type TagihanRow, type TunggakanRow, type PembayaranRow,
 } from '../api/keuangan';
@@ -26,6 +26,7 @@ import { useLembagaAktif } from '@/lembagaAktif';
 import Pager from '@/components/Pager';
 import { usePager } from '@/hooks/usePager';
 import { EditAction } from '@/components/RowActions';
+import GenerateTagihanDialog from '@/components/keuangan/GenerateTagihanDialog';
 
 const FIELDS_JENIS: ExcelField[] = [
   { key: 'nama', label: 'Jenis Tagihan', kind: 'static' },
@@ -83,7 +84,7 @@ export default function KeuanganPage() {
     return () => { hidup = false; };
   }, []);
 
-  const { page: tagihanPage, perPage: tagihanPerPage, ready: tagihanPagerReady, setPage: setTagihanPage, setPerPage: setTagihanPerPage, goFirst: tagihanGoFirst, sync: tagihanSync } = usePager('keuangan_tagihan');
+  const { page: tagihanPage, perPage: tagihanPerPage, ready: tagihanPagerReady, setPage: setTagihanPage, setPerPage: setTagihanPerPage, sync: tagihanSync } = usePager('keuangan_tagihan');
   const [tagihanLastPage, setTagihanLastPage] = useState(1);
   const [tagihanTotal, setTagihanTotal] = useState(0);
   const { jenjangs, tahunAjaranNames, loading: filterLoading } = useFilterGlobalAktif();
@@ -134,7 +135,6 @@ export default function KeuanganPage() {
       const diLembaga = (v: string) => v !== '' && l.data.some((x) => x.jenjang === v);
       const jenjangBawaan = l.data.some((x) => x.jenjang === 'MI') ? 'MI' : (l.data[0]?.jenjang ?? '');
       setTfJenjang((v) => (diLembaga(v) ? v : jenjangBawaan));
-      setGenJenjang((v) => (diLembaga(v) ? v : jenjangBawaan));
     } catch (e) { setErr(errorMessage(e)); } finally { setLoading(false); }
   }, []);
   useEffect(() => { void load(); }, [load]);
@@ -158,12 +158,7 @@ export default function KeuanganPage() {
   const [tfTA, setTfTA] = useState('2025/2026');
   const [tfJenis, setTfJenis] = useState<number | ''>('');
   const [tfNominal, setTfNominal] = useState('');
-  const [genJenjang, setGenJenjang] = useState('MI');
-  const [genPaket, setGenPaket] = useState('MI');
   const genTAtopbar = targetTunggal(tahunAjaranNames);
-  const [genJenis, setGenJenis] = useState<number | ''>('');
-  const [genDari, setGenDari] = useState('');
-  const [genSampai, setGenSampai] = useState('');
   const [bayarId, setBayarId] = useState<number | null>(null);
   const [bayarJumlah, setBayarJumlah] = useState('');
   const [bayarMetode, setBayarMetode] = useState<'tunai' | 'transfer'>('tunai');
@@ -309,7 +304,7 @@ export default function KeuanganPage() {
             canEdit={false}
             onCommit={async () => {}}
             onSaved={() => {}}
-            addButton={<Button id="btn_gen_buka" onClick={() => { setGenJenis(''); const m = (genTAtopbar ?? '').match(/^(\d{4})\/(\d{4})$/); if (m) { setGenDari(`${m[1]}-07`); setGenSampai(`${m[2]}-06`); } else { setGenDari(''); setGenSampai(''); } setGenerateOpen(true); }}>+ Buat Tagihan</Button>}
+            addButton={<Button id="btn_gen_buka" onClick={() => setGenerateOpen(true)}>+ Buat Tagihan</Button>}
             renderActions={(t) => (
               bayarId === t.id ? (
                 <form className="flex gap-1" onSubmit={async (e) => { e.preventDefault(); if (!bayarJumlah) return; try { await catatPembayaran({ tagihan_id: t.id, jumlah: Number(bayarJumlah), metode: bayarMetode, kas: bayarKas }); toast.success('Tercatat.'); setBayarId(null); setBayarJumlah(''); await load(); await loadTagihan(tagihanPage, tagihanPerPage, jenjangs, tahunAjaranNames); } catch (e2) { toast.error(errorMessage(e2)); } }}>
@@ -405,43 +400,18 @@ export default function KeuanganPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      <Dialog open={generateOpen} onOpenChange={setGenerateOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Buat Tagihan</DialogTitle>
-            <DialogDescription className="sr-only">Formulir pembuatan tagihan massal dari tarif.</DialogDescription>
-          </DialogHeader>
-          <form id="form_gen_tagihan" className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4" onSubmit={async (e) => { e.preventDefault(); if (genJenis === '' || genTAtopbar === null) { if (genTAtopbar === null) toast.error('Pilih satu tahun ajaran pada filter di atas.'); return; } try { const r = await generateTagihan({ jenjang: genJenjang, paket: genPaket, tahun_ajaran: genTAtopbar, jenis_id: Number(genJenis), periode: genDari || null, periode_sampai: genSampai || null }); toast.success(`Dibuat ${r.dibuat}, dilewati ${r.dilewati}.`); setGenJenis(''); setGenDari(''); setGenSampai(''); setGenerateOpen(false); await load(); tagihanGoFirst(); } catch (e2) { toast.error(errorMessage(e2)); } }}>
-            <FieldLabel htmlFor="sel_gen_jenjang">Jenjang</FieldLabel>
-            <select id="sel_gen_jenjang" className="border rounded px-2" value={genJenjang} onChange={(e) => setGenJenjang(e.target.value)} required>
-              {lembagas.map((l) => <option key={l.jenjang} value={l.jenjang}>{l.jenjang} — {l.nama}</option>)}
-            </select>
-            <FieldLabel htmlFor="sel_gen_paket">Paket</FieldLabel>
-            <select id="sel_gen_paket" className="border rounded px-2" value={genPaket} onChange={(e) => setGenPaket(e.target.value)} required>
-              {OPSI_PAKET.map((x) => <option key={x} value={x}>{x}</option>)}
-            </select>
-            <FieldLabel htmlFor="sel_gen_ta">Tahun Ajaran</FieldLabel>
-            {genTAtopbar === null ? (
-              <p id="sel_gen_ta" className="text-xs text-destructive">Pilih satu tahun ajaran pada filter di atas.</p>
-            ) : (
-              <p id="sel_gen_ta" className="text-xs">{genTAtopbar} <span className="text-muted-foreground">(mengikuti filter atas)</span></p>
-            )}
-            <FieldLabel htmlFor="sel_gen_jenis">Jenis</FieldLabel>
-            <select id="sel_gen_jenis" className="border rounded px-2" value={genJenis} onChange={(e) => setGenJenis(e.target.value === '' ? '' : Number(e.target.value))} required>
-              <option value="">Jenis…</option>{jenis.filter((j) => j.jenjang === null || j.jenjang === genJenjang).map((j) => <option key={j.id} value={j.id}>{j.nama}</option>)}
-            </select>
-            <FieldLabel htmlFor="inp_gen_dari">Dari Bulan</FieldLabel>
-            <Input id="inp_gen_dari" type="month" value={genDari} onChange={(e) => setGenDari(e.target.value)} />
-            <FieldLabel htmlFor="inp_gen_sampai">Sampai Bulan</FieldLabel>
-            <Input id="inp_gen_sampai" type="month" value={genSampai} onChange={(e) => setGenSampai(e.target.value)} />
-            <p className="col-span-2 text-xs text-muted-foreground">Jenis bulanan: isi keduanya untuk sekaligus setahun (mis. 2025-07 s/d 2026-06). Kosongkan Sampai untuk satu bulan; kosongkan keduanya untuk jenis non-bulanan.</p>
-            <DialogFooter className="col-span-2">
-              <Button type="button" variant="outline" onClick={() => setGenerateOpen(false)}>Batal</Button>
-              <Button id="btn_gen_generate" type="submit">Buat</Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <GenerateTagihanDialog
+        open={generateOpen}
+        onOpenChange={setGenerateOpen}
+        jenis={jenis}
+        tarif={tarif}
+        tahunAjaran={genTAtopbar}
+        onSelesai={async () => {
+          await load();
+          setTagihanPage(1);
+          await loadTagihan(1, tagihanPerPage, jenjangs, tahunAjaranNames);
+        }}
+      />
 
       <Dialog open={tambahTarifOpen} onOpenChange={setTambahTarifOpen}>
         <DialogContent className="sm:max-w-lg">

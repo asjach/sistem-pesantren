@@ -1,0 +1,347 @@
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { toast } from 'sonner';
+import { errorMessage } from '../../api/client';
+import {
+  generateTagihan, kandidatTagihan,
+  type JenisTagihan, type KandidatTagihanRow, type KelompokKandidat, type Tarif,
+} from '../../api/keuangan';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { FieldLabel } from '@/components/ui/field';
+import {
+  Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog';
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
+import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import { ActionIcon } from '@/components/RowActions';
+import { ErrorNotice } from '@/components/PageHeader';
+import Pager from '@/components/Pager';
+import { ArrowRight, Trash2, X } from '@/icons';
+import { type PerPage } from '@/prefs';
+
+const OPSI_KELOMPOK: { value: KelompokKandidat; label: string }[] = [
+  { value: 'aktif', label: 'Santri Aktif' },
+  { value: 'mi', label: 'MI (MI + MI-MD)' },
+  { value: 'md', label: 'MD (MD + MI-MD)' },
+  { value: 'mi_saja', label: 'MI Saja (tanpa MD)' },
+  { value: 'md_saja', label: 'MD Saja (tanpa MI)' },
+  { value: 'mi_md', label: 'MI-MD' },
+  { value: 'kelas_akhir', label: 'Kelas Akhir' },
+  { value: 'selain_kelas_akhir', label: 'Selain Kelas Akhir' },
+  { value: 'custom', label: 'Custom' },
+];
+
+const FIELDS_KANDIDAT: ExcelField[] = [
+  { key: 'nama', label: 'Santri', kind: 'static' },
+  { key: 'nis', label: 'NIS/NISN', kind: 'static', width: 110 },
+  { key: 'paket', label: 'Paket', kind: 'static', width: 80 },
+  { key: 'tingkat', label: 'Tkt', kind: 'static', width: 50 },
+  { key: 'kelas', label: 'Kelas', kind: 'static', width: 90 },
+  { key: 'status_akhir', label: 'Status', kind: 'static', width: 90 },
+];
+
+type KandidatRow = KandidatTagihanRow & { id: number };
+type BarisTerpilih = KandidatTagihanRow & { nominal: string; nominalManual: boolean };
+
+interface Props {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  jenis: JenisTagihan[];
+  tarif: Tarif[];
+  tahunAjaran: string | null;
+  onSelesai: () => void | Promise<void>;
+}
+
+/** Dialog generate tagihan: kandidat per kelompok santri (tabel kiri, bisa
+ *  dicari & dipilih) dipindahkan ke daftar final (tabel kanan) yang akan
+ *  dibuatkan tagihan; nominal default dari tarif/manual, bisa dioverride. */
+export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif, tahunAjaran, onSelesai }: Props) {
+  const [kelompok, setKelompok] = useState<KelompokKandidat>('aktif');
+  const [jenisId, setJenisId] = useState<number | ''>('');
+  const [tarifId, setTarifId] = useState<number | ''>('');
+  const [nominalDefault, setNominalDefault] = useState('');
+  const [periodeDari, setPeriodeDari] = useState('');
+  const [periodeSampai, setPeriodeSampai] = useState('');
+  const [jatuhTempo, setJatuhTempo] = useState('');
+
+  const [cari, setCari] = useState('');
+  const [kandidat, setKandidat] = useState<KandidatRow[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState<PerPage>(50);
+  const [lastPage, setLastPage] = useState(1);
+  const [total, setTotal] = useState(0);
+
+  const [terpilih, setTerpilih] = useState<BarisTerpilih[]>([]);
+  const [busy, setBusy] = useState(false);
+
+  // Buka dialog: bersihkan pilihan; isi default periode setahun dari TA.
+  useEffect(() => {
+    if (!open) return;
+    setTerpilih([]); setCari(''); setKelompok('aktif'); setJenisId(''); setTarifId('');
+    setNominalDefault(''); setJatuhTempo(''); setErr('');
+    const m = (tahunAjaran ?? '').match(/^(\d{4})\/(\d{4})$/);
+    if (m) { setPeriodeDari(`${m[1]}-07`); setPeriodeSampai(`${m[2]}-06`); }
+    else { setPeriodeDari(''); setPeriodeSampai(''); }
+  }, [open, tahunAjaran]);
+
+  const muatKandidat = useCallback(async (halaman: number, jumlah: PerPage) => {
+    if (!open || tahunAjaran === null) return;
+    setErr(''); setLoading(true);
+    try {
+      const res = await kandidatTagihan({
+        tahun_ajaran: tahunAjaran,
+        kelompok,
+        jenis_id: jenisId,
+        periode: periodeDari || undefined,
+        periode_sampai: periodeSampai || undefined,
+        q: cari.trim() || undefined,
+        page: halaman,
+        per_page: jumlah === 0 ? 'all' : String(jumlah),
+      });
+      setKandidat(res.data.map((r) => ({ ...r, id: r.santri_id })));
+      setPage(res.current_page); setLastPage(res.last_page); setTotal(res.total);
+    } catch (e) { setErr(errorMessage(e)); } finally { setLoading(false); }
+  }, [open, tahunAjaran, kelompok, jenisId, periodeDari, periodeSampai, cari]);
+
+  // Ketikan ditahan sebentar agar tidak memanggil API tiap karakter.
+  useEffect(() => {
+    if (!open) return;
+    const t = setTimeout(() => { void muatKandidat(1, perPage); }, 250);
+    return () => clearTimeout(t);
+  }, [open, muatKandidat, perPage]);
+
+  /** Baris kandidat yang sudah pindah ke tabel kanan disembunyikan. */
+  const idTerpilih = useMemo(() => new Set(terpilih.map((r) => r.santri_id)), [terpilih]);
+  const kandidatTampil = useMemo(() => kandidat.filter((r) => !idTerpilih.has(r.santri_id)), [kandidat, idTerpilih]);
+
+  const ubahNominalDefault = (v: string) => {
+    setNominalDefault(v);
+    setTerpilih((rows) => rows.map((r) => (r.nominalManual ? r : { ...r, nominal: v })));
+  };
+
+  const pindahkan = useCallback((rows: KandidatRow[]) => {
+    if (rows.length === 0) return;
+    setTerpilih((lama) => {
+      const ada = new Set(lama.map((r) => r.santri_id));
+      const baru = rows
+        .filter((r) => !ada.has(r.santri_id))
+        .map((r) => ({ ...r, nominal: nominalDefault, nominalManual: false }));
+      return [...lama, ...baru];
+    });
+  }, [nominalDefault]);
+
+  const pilihTarif = (id: number | '') => {
+    setTarifId(id);
+    if (id !== '') {
+      const t = tarif.find((x) => x.id === id);
+      if (t) ubahNominalDefault(String(t.nominal));
+      if (t && jenisId === '') setJenisId(t.jenis_id);
+    }
+  };
+
+  const ubahJenis = (id: number | '') => {
+    setJenisId(id);
+    if (id !== '' && tarifId !== '') {
+      const t = tarif.find((x) => x.id === tarifId);
+      if (t && t.jenis_id !== id) setTarifId('');
+    }
+  };
+
+  const simpan = async () => {
+    if (tahunAjaran === null) { toast.error('Pilih satu tahun ajaran pada filter di atas.'); return; }
+    if (jenisId === '') { toast.error('Pilih jenis tagihan.'); return; }
+    if (terpilih.length === 0) { toast.error('Pindahkan minimal satu santri ke daftar generate.'); return; }
+    const nominal = Number(nominalDefault);
+    if (!Number.isInteger(nominal) || nominal < 0) { toast.error('Nominal default tidak valid.'); return; }
+
+    const santri: { santri_id: number; nominal?: number }[] = [];
+    for (const r of terpilih) {
+      if (r.nominal.trim() === '') { santri.push({ santri_id: r.santri_id }); continue; }
+      const n = Number(r.nominal);
+      if (!Number.isInteger(n) || n < 0) { toast.error(`Nominal ${r.nama_lengkap} tidak valid.`); return; }
+      santri.push({ santri_id: r.santri_id, nominal: n });
+    }
+
+    setBusy(true);
+    try {
+      const r = await generateTagihan({
+        tahun_ajaran: tahunAjaran, jenis_id: Number(jenisId),
+        periode: periodeDari || null, periode_sampai: periodeSampai || null,
+        jatuh_tempo: jatuhTempo || null, nominal, santri,
+      });
+      toast.success(`Dibuat ${r.dibuat}, dilewati ${r.dilewati}.`);
+      await onSelesai();
+      onOpenChange(false);
+    } catch (e) { toast.error(errorMessage(e)); } finally { setBusy(false); }
+  };
+
+  const totalNominal = terpilih.reduce((s, r) => s + (Number(r.nominal) || 0), 0);
+  const tarifTampil = jenisId === '' ? tarif : tarif.filter((t) => t.jenis_id === jenisId);
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!busy) onOpenChange(o); }}>
+      <DialogContent
+        showCloseButton={false}
+        onEscapeKeyDown={(e) => { if (busy) e.preventDefault(); }}
+        className="flex h-[calc(100dvh-3rem)] max-h-[calc(100dvh-3rem)] w-[calc(100vw-3rem)] max-w-none flex-col gap-0 overflow-hidden rounded-xl p-0 sm:max-w-none"
+      >
+        <DialogHeader className="flex-row items-center justify-between gap-2 border-b px-2 py-2">
+          <DialogTitle>Buat Tagihan</DialogTitle>
+          <DialogDescription className="sr-only">Pilih kandidat santri per kelompok, lalu generate tagihan untuk daftar terpilih.</DialogDescription>
+          <DialogClose asChild>
+            <Button variant="ghost" size="icon" aria-label="Tutup" id="btn_gen_tutup"><X size={14} /></Button>
+          </DialogClose>
+        </DialogHeader>
+
+        <div className="flex flex-wrap items-end gap-3 border-b px-2 py-2">
+          <div className="flex flex-col gap-1">
+            <FieldLabel htmlFor="sel_gen_kelompok">Kelompok Santri</FieldLabel>
+            <select id="sel_gen_kelompok" className="h-8 rounded border px-2 text-sm" value={kelompok} onChange={(e) => setKelompok(e.target.value as KelompokKandidat)}>
+              {OPSI_KELOMPOK.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <FieldLabel htmlFor="sel_gen_jenis">Jenis Tagihan</FieldLabel>
+            <select id="sel_gen_jenis" className="h-8 rounded border px-2 text-sm" value={jenisId} onChange={(e) => ubahJenis(e.target.value === '' ? '' : Number(e.target.value))} required>
+              <option value="">Jenis…</option>
+              {jenis.map((j) => <option key={j.id} value={j.id}>{j.nama}{j.jenjang ? ` (${j.jenjang})` : ''}</option>)}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <FieldLabel htmlFor="sel_gen_tarif">Tarif (opsional)</FieldLabel>
+            <select id="sel_gen_tarif" className="h-8 max-w-64 rounded border px-2 text-sm" value={tarifId} onChange={(e) => pilihTarif(e.target.value === '' ? '' : Number(e.target.value))}>
+              <option value="">Manual…</option>
+              {tarifTampil.map((t) => <option key={t.id} value={t.id}>{t.jenjang} {t.paket} · {t.jenis?.nama ?? t.jenis_id} · Rp {t.nominal.toLocaleString('id')}</option>)}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <FieldLabel htmlFor="inp_gen_nominal">Nominal Default</FieldLabel>
+            <Input id="inp_gen_nominal" type="number" min={0} className="h-8 w-32" value={nominalDefault} onChange={(e) => ubahNominalDefault(e.target.value)} required />
+          </div>
+          <div className="flex flex-col gap-1">
+            <FieldLabel htmlFor="inp_gen_dari">Dari Bulan</FieldLabel>
+            <Input id="inp_gen_dari" type="month" className="h-8" value={periodeDari} onChange={(e) => setPeriodeDari(e.target.value)} />
+          </div>
+          <div className="flex flex-col gap-1">
+            <FieldLabel htmlFor="inp_gen_sampai">Sampai Bulan</FieldLabel>
+            <Input id="inp_gen_sampai" type="month" className="h-8" value={periodeSampai} onChange={(e) => setPeriodeSampai(e.target.value)} />
+          </div>
+          <div className="flex flex-col gap-1">
+            <FieldLabel htmlFor="inp_gen_jatuh_tempo">Jatuh Tempo</FieldLabel>
+            <Input id="inp_gen_jatuh_tempo" type="date" className="h-8" value={jatuhTempo} onChange={(e) => setJatuhTempo(e.target.value)} />
+          </div>
+          <p className="pb-1 text-xs text-muted-foreground">
+            {tahunAjaran === null
+              ? <span className="text-destructive">Pilih satu tahun ajaran pada filter di atas.</span>
+              : <>TA {tahunAjaran}. Jenis bulanan: isi keduanya untuk rentang (maks 24 bulan).</>}
+          </p>
+        </div>
+
+        {err !== '' && <div className="px-2 pt-2"><ErrorNotice>{err}</ErrorNotice></div>}
+
+        <ResizablePanelGroup orientation="horizontal" id="grup_gen_tagihan" className="min-h-0 flex-1 overflow-hidden">
+          <ResizablePanel defaultSize="50%" minSize="25%" id="panel_gen_kandidat" className="min-h-0 min-w-0">
+            <div className="flex h-full min-h-0 flex-col gap-1 p-2">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-medium">Kandidat</p>
+                <Input id="inp_gen_cari" placeholder="Cari nama / NIS…" className="h-8 max-w-56" value={cari} onChange={(e) => setCari(e.target.value)} />
+              </div>
+              <div className="flex min-h-0 flex-1 flex-col">
+                <ExcelTable<KandidatRow>
+                  tableKey="keuangan_gen_kandidat"
+                  fields={FIELDS_KANDIDAT}
+                  rows={kandidatTampil}
+                  getValues={(r) => ({
+                    nama: r.nama_lengkap, nis: r.nis_lokal ?? r.nisn, paket: r.paket,
+                    tingkat: r.tingkat, kelas: r.kelas, status_akhir: r.status_akhir,
+                  })}
+                  loading={loading}
+                  emptyText={jenisId === '' ? 'Pilih jenis tagihan untuk menghitung tagihan yang sudah ada.' : 'Tidak ada kandidat untuk kriteria ini.'}
+                  canEdit={false}
+                  onCommit={async () => {}}
+                  onSaved={() => {}}
+                  aksiLangsung
+                  renderActions={(r) => (
+                    <ActionIcon id={`btn_gen_pindah_${r.santri_id}`} title="Pindahkan ke daftar generate" onClick={() => pindahkan([r])}>
+                      <ArrowRight size={16} />
+                    </ActionIcon>
+                  )}
+                  renderBulkActions={(checked, clear) => checked.length === 0 ? null : (
+                    <Button id="btn_gen_pindah" size="sm" disabled={busy} onClick={() => { pindahkan(checked); clear(); }}>
+                      <ArrowRight data-icon="inline-start" size={14} /> Pindahkan ({checked.length})
+                    </Button>
+                  )}
+                />
+              </div>
+              <Pager page={page} lastPage={lastPage} total={total} perPage={perPage} onPage={(p) => void muatKandidat(p, perPage)} onPerPage={(pp) => setPerPage(pp)} />
+            </div>
+          </ResizablePanel>
+          <ResizableHandle orientation="horizontal" withHandle id="gagang_gen_tagihan" aria-label="Atur lebar kandidat dan daftar generate" />
+          <ResizablePanel defaultSize="50%" minSize="25%" id="panel_gen_terpilih" className="min-h-0 min-w-0">
+            <div className="flex h-full min-h-0 flex-col gap-1 p-2">
+              <p className="text-sm font-medium">Akan digenerate ({terpilih.length})</p>
+              <div className="min-h-0 flex-1 overflow-auto rounded-xl border bg-card">
+                <table className="w-full text-sm">
+                  <thead className="sticky top-0 bg-muted/40">
+                    <tr>
+                      <th className="p-2 text-left">Santri</th>
+                      <th className="w-20 p-2 text-left">Paket</th>
+                      <th className="w-28 p-2 text-left">Tkt / Kelas</th>
+                      <th className="w-36 p-2 text-right">Nominal</th>
+                      <th className="w-10 p-2" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {terpilih.map((r) => (
+                      <tr key={r.santri_id} className="border-t">
+                        <td className="p-2">{r.nama_lengkap}</td>
+                        <td className="p-2">{r.paket}</td>
+                        <td className="p-2">{[r.tingkat, r.kelas].filter(Boolean).join(' / ') || '—'}</td>
+                        <td className="p-2">
+                          <Input
+                            id={`inp_gen_nominal_${r.santri_id}`}
+                            type="number"
+                            min={0}
+                            className="h-8 w-full text-right"
+                            value={r.nominal}
+                            onChange={(e) => setTerpilih((rows) => rows.map((x) => (
+                              x.santri_id === r.santri_id ? { ...x, nominal: e.target.value, nominalManual: true } : x
+                            )))}
+                          />
+                        </td>
+                        <td className="p-2">
+                          <ActionIcon id={`btn_gen_hapus_${r.santri_id}`} title="Keluarkan dari daftar" onClick={() => setTerpilih((rows) => rows.filter((x) => x.santri_id !== r.santri_id))}>
+                            <Trash2 size={14} />
+                          </ActionIcon>
+                        </td>
+                      </tr>
+                    ))}
+                    {terpilih.length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="p-8 text-center text-muted-foreground">
+                          Pindahkan santri dari daftar kandidat (centang lalu Pindahkan, atau ikon →).
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </ResizablePanel>
+        </ResizablePanelGroup>
+
+        <DialogFooter className="flex-row items-center justify-between gap-2 border-t px-2 py-2 sm:justify-between">
+          <p className="text-sm text-muted-foreground">
+            {terpilih.length} santri · total Rp {totalNominal.toLocaleString('id')}
+          </p>
+          <div className="flex gap-2">
+            <Button type="button" variant="outline" disabled={busy} onClick={() => onOpenChange(false)}>Batal</Button>
+            <Button id="btn_gen_generate" type="button" disabled={busy} onClick={() => void simpan()}>Generate</Button>
+          </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}

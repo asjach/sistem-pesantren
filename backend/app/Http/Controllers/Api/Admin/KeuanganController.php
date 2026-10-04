@@ -10,6 +10,7 @@ use App\Models\Santri;
 use App\Models\Tagihan;
 use App\Models\TarifTagihan;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 
 /** Keuangan: jenis tagihan, tarif, tagihan, pembayaran, tunggakan. */
@@ -177,59 +178,119 @@ class KeuanganController extends Controller
         return response()->json($tagihan, 201);
     }
 
-    /** Buat tagihan massal per tarif untuk santri aktif pada TA+paket terkait. */
+    /** Tingkat akhir per jenjang (sinkron peta TINGKAT_AKHIR halaman Kelulusan). */
+    private const TINGKAT_AKHIR = ['MI' => '6', 'MD' => '6', 'MTS' => '9', 'MLN' => '12'];
+
+    private const KELOMPOK_KANDIDAT = [
+        'mi_saja', 'md_saja', 'mi', 'md', 'mi_md',
+        'aktif', 'kelas_akhir', 'selain_kelas_akhir', 'custom',
+    ];
+
+    /**
+     * Kandidat santri generate: daftar santri aktif pada satu TA sesuai
+     * kelompok kriteria, sudah dihitung paket/jenjang/tingkat/kelasnya.
+     * Santri yang sudah punya tagihan lengkap untuk jenis+periode terpilih
+     * disembunyikan dari kandidat.
+     */
+    public function kandidatTagihan(Request $request)
+    {
+        $data = $request->validate([
+            'tahun_ajaran' => 'required|string|max:9',
+            'kelompok' => 'required|string|in:'.implode(',', self::KELOMPOK_KANDIDAT),
+            'jenis_id' => 'nullable|integer|exists:jenis_tagihan,id',
+            'periode' => 'nullable|string|max:20',
+            'periode_sampai' => 'nullable|string|max:20',
+            'q' => 'nullable|string|max:100',
+        ]);
+        $actor = $request->user();
+
+        $peta = $this->petaSantriGenerate($data['tahun_ajaran'], [], $data['q'] ?? null);
+
+        $jenis = isset($data['jenis_id']) ? JenisTagihan::find($data['jenis_id']) : null;
+        $periodes = $jenis !== null
+            ? $this->periodesTagihan($jenis, $data['periode'] ?? null, $data['periode_sampai'] ?? null)
+            : [];
+        $lengkap = $jenis !== null && $periodes !== []
+            ? $this->santriSudahLengkap(array_keys($peta), $jenis->id, $periodes)
+            : [];
+
+        $hasil = [];
+        foreach ($peta as $id => $info) {
+            if (! $this->lolosKelompok($info, $data['kelompok'])) {
+                continue;
+            }
+            if (! $actor->canAccessLembaga($info['jenjang_utama'])) {
+                continue;
+            }
+            if (isset($lengkap[$id])) {
+                continue;
+            }
+            $hasil[] = [
+                'santri_id' => $id,
+                'nama_lengkap' => $info['nama_lengkap'],
+                'nisn' => $info['nisn'],
+                'nis_lokal' => $info['nis_lokal'],
+                'paket' => $info['paket'],
+                'jenjang' => $info['jenjang_utama'],
+                'tingkat' => $info['tingkat'],
+                'kelas' => $info['kelas'],
+                'status_akhir' => $info['status_akhir'],
+            ];
+        }
+
+        $page = max(1, (int) $request->input('page', 1));
+        $perPage = $this->perPage($request);
+
+        return response()->json(new LengthAwarePaginator(
+            array_slice($hasil, ($page - 1) * $perPage, $perPage),
+            count($hasil),
+            $perPage,
+            $page,
+        ));
+    }
+
+    /**
+     * Buat tagihan massal untuk daftar santri terpilih (tabel kedua dialog
+     * generate). Paket/jenjang tiap santri dihitung dari riwayat TA terkait;
+     * nominal boleh dioverride per santri.
+     */
     public function generateTagihan(Request $request)
     {
         $data = $request->validate([
-            'jenjang' => 'required|string',
-            'paket' => 'required|string|max:20',
             'tahun_ajaran' => 'required|string|max:9',
             'jenis_id' => 'required|integer|exists:jenis_tagihan,id',
             'periode' => 'nullable|string|max:20',
             'periode_sampai' => 'nullable|string|max:20',
             'jatuh_tempo' => 'nullable|date',
+            'nominal' => 'required|integer|min:0',
+            'santri' => 'required|array|min:1',
+            'santri.*.santri_id' => 'required|integer|distinct|exists:santri,id',
+            'santri.*.nominal' => 'nullable|integer|min:0',
         ]);
-        $this->canLembaga($request->user(), $data['jenjang']) || abort(403);
+        $actor = $request->user();
 
-        $tarif = TarifTagihan::where('jenjang', $data['jenjang'])
-            ->where('paket', $data['paket'])
-            ->where('tahun_ajaran', $data['tahun_ajaran'])
-            ->where('jenis_id', $data['jenis_id'])
-            ->where('is_active', true)
-            ->first() ?? abort(422, 'Tarif belum diatur untuk kombinasi ini.');
+        $jenis = JenisTagihan::findOrFail($data['jenis_id']);
+        $periodes = $this->periodesTagihan($jenis, $data['periode'] ?? null, $data['periode_sampai'] ?? null);
 
-        // Periode: satu nilai, atau rentang bulan (YYYY-MM s/d YYYY-MM, maks 24)
-        // khusus jenis bulanan — mis. Juli 2025 s/d Juni 2026 untuk setahun ajaran.
-        $periodes = [$data['periode'] ?? null];
-        $jenis = $tarif->jenis;
-        if ($jenis && $jenis->tipe === 'bulanan'
-            && preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', (string) ($data['periode'] ?? ''))
-            && preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', (string) ($data['periode_sampai'] ?? ''))) {
-            $mulai = new \DateTime($data['periode'].'-01');
-            $akhir = new \DateTime($data['periode_sampai'].'-01');
-            if ($akhir >= $mulai) {
-                $periodes = [];
-                $b = clone $mulai;
-                while ($b <= $akhir && count($periodes) < 24) {
-                    $periodes[] = $b->format('Y-m');
-                    $b->modify('+1 month');
-                }
-            }
-        }
+        $diminta = collect($data['santri'])->keyBy(fn ($s) => (int) $s['santri_id']);
+        $peta = $this->petaSantriGenerate($data['tahun_ajaran'], $diminta->keys()->all());
 
         $dibuat = 0;
         $dilewati = 0;
-        $satu = $this->paketAktifSantri($data['tahun_ajaran']);
-        foreach ($periodes as $periode) {
-            foreach ($satu as $santriId => $paketCode) {
-                if ($paketCode !== $data['paket']) {
-                    continue;
-                }
+        foreach ($diminta as $santriId => $s) {
+            $info = $peta[$santriId] ?? null;
+            if ($info === null) {
+                abort(422, "Santri #{$santriId} tidak aktif pada tahun ajaran {$data['tahun_ajaran']}.");
+            }
+            $this->canLembaga($actor, $info['jenjang_utama']) || abort(403);
+
+            $nominal = $s['nominal'] ?? $data['nominal'];
+            foreach ($periodes as $periode) {
                 $tagihan = Tagihan::firstOrCreate(
-                    ['santri_id' => $santriId, 'jenis_id' => $data['jenis_id'], 'periode' => $periode],
+                    ['santri_id' => $santriId, 'jenis_id' => $jenis->id, 'periode' => $periode],
                     [
-                        'jenjang' => $tarif->jenjang, 'paket' => $data['paket'],
-                        'tahun_ajaran' => $data['tahun_ajaran'], 'nominal' => $tarif->nominal,
+                        'jenjang' => $info['jenjang_utama'], 'paket' => $info['paket'],
+                        'tahun_ajaran' => $data['tahun_ajaran'], 'nominal' => $nominal,
                         'jatuh_tempo' => $data['jatuh_tempo'] ?? null, 'status' => 'belum', 'terbayar' => 0,
                     ]
                 );
@@ -240,46 +301,158 @@ class KeuanganController extends Controller
         return response()->json(['dibuat' => $dibuat, 'dilewati' => $dilewati]);
     }
 
-    /** Paket per santri dari riwayat aktif pada TA terkait (MI+MD bersama = MI-MD). */
-    private function paketAktifSantri(string $tahunAjaran): array
+    /**
+     * Periode tagihan dari input: satu nilai, atau rentang bulan (YYYY-MM s/d
+     * YYYY-MM, maks 24) khusus jenis bulanan — mis. Juli 2025 s/d Juni 2026
+     * untuk setahun ajaran. `[null]` = sekali tagih.
+     *
+     * @return list<string|null>
+     */
+    private function periodesTagihan(?JenisTagihan $jenis, ?string $periode, ?string $periodeSampai): array
     {
-        $baris = DB::table('riwayat_belajar')
-            ->where('is_active_riwayat', 'Ya')
-            ->where('tahun_ajaran', $tahunAjaran)
-            ->get(['santri_id', 'jenjang']);
+        if ($jenis !== null && $jenis->tipe === 'bulanan'
+            && preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', (string) $periode)
+            && preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', (string) $periodeSampai)) {
+            $mulai = new \DateTime($periode.'-01');
+            $akhir = new \DateTime($periodeSampai.'-01');
+            if ($akhir >= $mulai) {
+                $periodes = [];
+                $b = clone $mulai;
+                while ($b <= $akhir && count($periodes) < 24) {
+                    $periodes[] = $b->format('Y-m');
+                    $b->modify('+1 month');
+                }
+
+                return $periodes;
+            }
+        }
+
+        return [$periode];
+    }
+
+    /**
+     * Peta santri dari riwayat_belajar pada satu TA. Aktif = `status_akhir`
+     * bukan `pindah_keluar` (bukan flag `is_active_riwayat`, agar TA lampau
+     * tetap bisa digenerate). Baris semester 2 menang sebagai baris tampilan.
+     *
+     * @param  list<int>  $santriIds
+     * @return array<int, array{santri_id:int, nama_lengkap:string, nisn:?string, nis_lokal:?string, per_jenjang:array<string, array{semester:?string, tingkat:?string, kelas:?string, status:?string}>, paket:string, jenjang_utama:string, tingkat:?string, kelas:?string, status_akhir:?string, kelas_akhir:bool}>
+     */
+    private function petaSantriGenerate(string $ta, array $santriIds = [], ?string $cari = null): array
+    {
+        $baris = DB::table('riwayat_belajar as rb')
+            ->join('santri as s', 's.id', '=', 'rb.santri_id')
+            ->leftJoin('kelas as k', 'k.id', '=', 'rb.kelas_id')
+            ->leftJoin('lembaga_santri as ls', function ($j) {
+                $j->on('ls.santri_id', '=', 'rb.santri_id')->on('ls.jenjang', '=', 'rb.jenjang');
+            })
+            ->where('rb.tahun_ajaran', $ta)
+            ->where('rb.status_akhir', '!=', 'pindah_keluar')
+            ->when($santriIds !== [], fn ($q) => $q->whereIn('rb.santri_id', $santriIds))
+            ->when($cari !== null && $cari !== '', fn ($q) => $q->whereIn('rb.santri_id', DB::table('santri as s2')
+                ->leftJoin('lembaga_santri as ls2', 'ls2.santri_id', '=', 's2.id')
+                ->where(fn ($w) => $w
+                    ->where('s2.nama_lengkap', 'like', '%'.$cari.'%')
+                    ->orWhere('s2.nisn', 'like', '%'.$cari.'%')
+                    ->orWhere('ls2.nis_lokal', 'like', '%'.$cari.'%'))
+                ->select('s2.id')))
+            ->orderBy('s.nama_lengkap')
+            ->get(['rb.santri_id', 'rb.jenjang', 'rb.tingkat', 'rb.semester', 'rb.status_akhir', 's.nama_lengkap', 's.nisn', 'ls.nis_lokal', 'k.nama_kelas']);
+
         $peta = [];
         foreach ($baris as $b) {
-            $peta[$b->santri_id] ??= [];
-            $peta[$b->santri_id][] = $b->jenjang;
+            $id = (int) $b->santri_id;
+            $peta[$id] ??= [
+                'santri_id' => $id,
+                'nama_lengkap' => (string) $b->nama_lengkap,
+                'nisn' => $b->nisn,
+                'nis_lokal' => $b->nis_lokal,
+                'per_jenjang' => [],
+            ];
+            $lama = $peta[$id]['per_jenjang'][$b->jenjang] ?? null;
+            if ($lama === null || ($lama['semester'] !== '2' && $b->semester === '2')) {
+                $peta[$id]['per_jenjang'][$b->jenjang] = [
+                    'semester' => $b->semester,
+                    'tingkat' => $b->tingkat,
+                    'kelas' => $b->nama_kelas,
+                    'status' => $b->status_akhir,
+                ];
+            }
         }
+
+        foreach ($peta as &$info) {
+            $jenjangs = array_keys($info['per_jenjang']);
+            $has = fn (string $j) => in_array($j, $jenjangs, true);
+            $info['paket'] = $has('MI') && $has('MD') ? 'MI-MD' : ($has('MI') ? 'MI' : ($has('MD') ? 'MD' : ($jenjangs[0] ?? '')));
+            $info['jenjang_utama'] = $has('MI') ? 'MI' : ($has('MD') ? 'MD' : ($jenjangs[0] ?? ''));
+            $utama = $info['per_jenjang'][$info['jenjang_utama']] ?? null;
+            $info['tingkat'] = $utama['tingkat'] ?? null;
+            $info['kelas'] = $utama['kelas'] ?? null;
+            $info['status_akhir'] = $utama['status'] ?? null;
+            $info['kelas_akhir'] = false;
+            foreach ($info['per_jenjang'] as $jenjang => $row) {
+                if ($row['tingkat'] !== null && (self::TINGKAT_AKHIR[$jenjang] ?? null) === $row['tingkat']) {
+                    $info['kelas_akhir'] = true;
+                }
+            }
+        }
+        unset($info);
+
+        return $peta;
+    }
+
+    /**
+     * Filter kelompok kriteria terhadap peta santri.
+     *
+     * @param  array{per_jenjang:array<string, mixed>, kelas_akhir:bool}  $info
+     */
+    private function lolosKelompok(array $info, string $kelompok): bool
+    {
+        $jenjangs = array_keys($info['per_jenjang']);
+        $has = fn (string $j) => in_array($j, $jenjangs, true);
+
+        return match ($kelompok) {
+            'mi_saja' => $has('MI') && ! $has('MD'),
+            'md_saja' => $has('MD') && ! $has('MI'),
+            'mi' => $has('MI'),
+            'md' => $has('MD'),
+            'mi_md' => $has('MI') && $has('MD'),
+            'kelas_akhir' => $info['kelas_akhir'],
+            'selain_kelas_akhir' => ! $info['kelas_akhir'],
+            default => true, // aktif & custom = semua santri aktif
+        };
+    }
+
+    /**
+     * Santri yang sudah punya tagihan untuk seluruh periode terpilih.
+     *
+     * @param  list<int>  $santriIds
+     * @param  list<string|null>  $periodes
+     * @return array<int, true>
+     */
+    private function santriSudahLengkap(array $santriIds, int $jenisId, array $periodes): array
+    {
+        if ($santriIds === [] || $periodes === []) {
+            return [];
+        }
+
+        $q = Tagihan::query()->where('jenis_id', $jenisId)->whereIn('santri_id', $santriIds);
+        $jumlah = 'count(*)';
+        if ($periodes === [null]) {
+            $q->whereNull('periode');
+        } else {
+            $q->whereIn('periode', $periodes);
+            $jumlah = 'count(distinct periode)';
+        }
+
+        $baris = $q->selectRaw("santri_id, {$jumlah} as jumlah")
+            ->groupBy('santri_id')
+            ->havingRaw("{$jumlah} >= ?", [count($periodes)])
+            ->pluck('jumlah', 'santri_id');
+
         $hasil = [];
-        foreach ($peta as $santriId => $jenjangs) {
-            $has = fn ($j) => in_array($j, $jenjangs, true);
-            if ($has('MI') && $has('MD')) {
-                $hasil[$santriId] = 'MI-MD';
-
-                continue;
-            }
-            if ($has('MI')) {
-                $hasil[$santriId] = 'MI';
-
-                continue;
-            }
-            if ($has('MD')) {
-                $hasil[$santriId] = 'MD';
-
-                continue;
-            }
-            if ($has('MTS')) {
-                $hasil[$santriId] = 'MTS';
-
-                continue;
-            }
-            if ($has('MLN')) {
-                $hasil[$santriId] = 'MLN';
-
-                continue;
-            }
+        foreach ($baris as $santriId => $_) {
+            $hasil[(int) $santriId] = true;
         }
 
         return $hasil;

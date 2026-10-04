@@ -70,8 +70,34 @@ export function daftarTagihan(params: { page?: string; per_page?: string; jenjan
   return api<Paginate<TagihanRow>>(`/admin/keuangan/tagihan${s ? `?${s}` : ''}`);
 }
 
-export function generateTagihan(data: Record<string, unknown>) {
+export function generateTagihan(data: {
+  tahun_ajaran: string; jenis_id: number; periode?: string | null; periode_sampai?: string | null;
+  jatuh_tempo?: string | null; nominal: number; santri: { santri_id: number; nominal?: number | null }[];
+}) {
   return api<{ dibuat: number; dilewati: number }>('/admin/keuangan/tagihan/generate', { method: 'POST', body: JSON.stringify(data) });
+}
+
+export type KelompokKandidat = 'mi_saja' | 'md_saja' | 'mi' | 'md' | 'mi_md' | 'aktif' | 'kelas_akhir' | 'selain_kelas_akhir' | 'custom';
+
+export interface KandidatTagihanRow {
+  santri_id: number; nama_lengkap: string; nisn: string | null; nis_lokal: string | null;
+  paket: string; jenjang: string; tingkat: string | null; kelas: string | null; status_akhir: string | null;
+}
+
+export function kandidatTagihan(params: {
+  tahun_ajaran: string; kelompok: KelompokKandidat; jenis_id?: number | ''; periode?: string;
+  periode_sampai?: string; q?: string; page?: number; per_page?: string;
+}) {
+  const q = new URLSearchParams();
+  q.set('tahun_ajaran', params.tahun_ajaran);
+  q.set('kelompok', params.kelompok);
+  if (params.jenis_id !== undefined && params.jenis_id !== '') q.set('jenis_id', String(params.jenis_id));
+  if (params.periode) q.set('periode', params.periode);
+  if (params.periode_sampai) q.set('periode_sampai', params.periode_sampai);
+  if (params.q) q.set('q', params.q);
+  if (params.page) q.set('page', String(params.page));
+  if (params.per_page) q.set('per_page', params.per_page);
+  return api<Paginate<KandidatTagihanRow>>(`/admin/keuangan/tagihan/kandidat?${q.toString()}`);
 }
 
 export function hapusTagihan(id: number) {
