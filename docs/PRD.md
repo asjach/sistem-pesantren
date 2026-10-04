@@ -346,6 +346,9 @@
 | 2.293 | 2026-10-04 | Halaman Semester (`/pengaturan/semester`) pindah dari grup Pengaturan jadi tab Data Induk, urutan setelah Tahun Ajaran; rute tab tetap rute lamanya sehingga pengaturan halaman, filter, dan izin `semester.aktivasi` lestari |
 | 2.294 | 2026-10-04 | Halaman **Santri Aktif** (`/santri-aktif`) menggabungkan Daftar Kelas, Rekap Santri, dan Pengajuan Biodata jadi satu halaman 3 tab (label halaman "Santri Aktif", tab tetap Daftar Kelas/Rekap/Pengajuan Biodata); rute tiap tab tetap rute lamanya (`/daftar-kelas`, `/rekap-santri`, `/pengajuan-biodata`); subgrup "Lain-lain" di grup Santri dihapus (kosong); sidebar/menubar 3 entri → 1 |
 | 2.295 | 2026-10-04 | Halaman **Penempatan** di grup Pegawai (`/penempatan-pegawai`) menggabungkan Pegawai, Lembaga Pegawai, dan Akun Pegawai jadi satu halaman 3 tab; rute tiap tab tetap rute lamanya (`/pegawai`, `/pegawai-penempatan`, `/pegawai-akun`); Keaktifan Pegawai tetap halaman tersendiri; grup Pegawai tanpa subgrup |
+| 2.296 | 2026-10-04 | Keaktifan Pegawai berganti label jadi **PTK Aktif** (rute `/pegawai-keaktifan` tetap) dan diposisikan urutan pertama grup Pegawai, sebelum Penempatan |
+| 2.297 | 2026-10-04 | Grup navigasi "Pegawai" berganti label jadi **PTK** (kategori `pegawai` tetap) |
+| 2.298 | 2026-10-04 | Label tab halaman Penempatan (PTK) diperbarui: "Pegawai" → **Buku Induk PTK**, "Lembaga Pegawai" → **PTK Per Jenjang**, "Akun Pegawai" → **Akun PTK** (rute tab tetap) |
 
 ## Daftar Isi
 

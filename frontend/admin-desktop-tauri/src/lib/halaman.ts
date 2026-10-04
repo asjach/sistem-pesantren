@@ -142,9 +142,9 @@ export const HALAMAN_PENEMPATAN_PEGAWAI: HalamanDef = {
   grid: true,
   icon: BadgeCheck,
   tabHalaman: [
-    { to: '/pegawai', label: 'Pegawai', permission: 'pegawai.lihat' },
-    { to: '/pegawai-penempatan', label: 'Lembaga Pegawai', permission: 'pegawai.lihat' },
-    { to: '/pegawai-akun', label: 'Akun Pegawai', permission: 'pegawai.lihat' },
+    { to: '/pegawai', label: 'Buku Induk PTK', permission: 'pegawai.lihat' },
+    { to: '/pegawai-penempatan', label: 'PTK Per Jenjang', permission: 'pegawai.lihat' },
+    { to: '/pegawai-akun', label: 'Akun PTK', permission: 'pegawai.lihat' },
   ],
 };
 
@@ -153,8 +153,8 @@ export const HALAMAN: HalamanDef[] = [
   HALAMAN_DATA_INDUK,
   { to: '/dokumen-santri', label: 'Daftar Dokumen Santri', deskripsi: 'Berkas dokumen santri (KK, akta, ijazah, dll).', tab: 'dokumen', sub: 'santri', grid: true, icon: FolderOpen, permission: 'dokumen_santri.lihat' },
   { to: '/dokumen-santri/lihat', label: 'Dokumen Santri', deskripsi: 'Pratinjau dokumen per santri (lihat, unduh, ganti).', tab: 'dokumen', sub: 'santri', icon: Eye, permission: 'dokumen_santri.lihat' },
+  { to: '/pegawai-keaktifan', label: 'PTK Aktif', tab: 'pegawai', grid: true, icon: CalendarCheck, permission: 'pegawai.lihat' },
   HALAMAN_PENEMPATAN_PEGAWAI,
-  { to: '/pegawai-keaktifan', label: 'Keaktifan Pegawai', tab: 'pegawai', grid: true, icon: CalendarCheck, permission: 'pegawai.lihat' },
   { to: '/dokumen-guru', label: 'Daftar Dokumen Pegawai', deskripsi: 'Berkas dokumen pegawai (ijazah, sertifikat, SK, dll).', tab: 'dokumen', sub: 'pegawai', grid: true, icon: FolderOpen, permission: 'dokumen_pegawai.lihat' },
   { to: '/dokumen-guru/lihat', label: 'Dokumen Pegawai', deskripsi: 'Pratinjau dokumen per pegawai (lihat, unduh, ganti).', tab: 'dokumen', sub: 'pegawai', icon: Eye, permission: 'dokumen_pegawai.lihat' },
   { to: '/dokumen-madrasah', label: 'Dokumen Madrasah', deskripsi: 'Berkas tingkat madrasah (izin operasional, akreditasi, SK, dll).', tab: 'dokumen', grid: true, icon: FolderOpen, permission: 'dokumen_lembaga.lihat' },
@@ -224,9 +224,9 @@ export const NAV_GRUP: GrupNav[] = [
   // Santri kini tanpa subgrup: Santri Aktif, Penempatan, Akademik (halaman
   // langsung semua, mengikuti urutan registri).
   { id: 'santri', label: 'Santri', icon: GraduationCap },
-  // Pegawai tanpa subgrup: Penempatan (Pegawai, Lembaga Pegawai, Akun
-  // Pegawai) + Keaktifan Pegawai (halaman langsung).
-  { id: 'pegawai', label: 'Pegawai', icon: Users },
+  // Grup PTK (kategori `pegawai`): PTK Aktif + Penempatan (Pegawai,
+  // Lembaga Pegawai, Akun Pegawai).
+  { id: 'pegawai', label: 'PTK', icon: Users },
   {
     id: 'dokumen',
     label: 'Dokumen',

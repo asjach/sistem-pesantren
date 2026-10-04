@@ -220,16 +220,16 @@ describe('HalamanTabs — Penempatan (Pegawai)', () => {
     render(<Halaman path="/pegawai-penempatan" />);
 
     expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual([
-      'Pegawai',
-      'Lembaga Pegawai',
-      'Akun Pegawai',
+      'Buku Induk PTK',
+      'PTK Per Jenjang',
+      'Akun PTK',
     ]);
-    expect(screen.getByRole('tab', { name: 'Lembaga Pegawai' })).toHaveAttribute(
+    expect(screen.getByRole('tab', { name: 'PTK Per Jenjang' })).toHaveAttribute(
       'data-state',
       'active',
     );
     expect(screen.getByText('ISI LEMBAGA PEGAWAI')).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Akun Pegawai' })).toHaveAttribute(
+    expect(screen.getByRole('tab', { name: 'Akun PTK' })).toHaveAttribute(
       'id',
       'tab_penempatan_pegawai_pegawai_akun',
     );
@@ -239,7 +239,7 @@ describe('HalamanTabs — Penempatan (Pegawai)', () => {
     const pengguna = userEvent.setup();
     render(<Halaman path="/pegawai" />);
 
-    await pengguna.click(screen.getByRole('tab', { name: 'Akun Pegawai' }));
+    await pengguna.click(screen.getByRole('tab', { name: 'Akun PTK' }));
 
     expect(await screen.findByText('ISI AKUN PEGAWAI')).toBeInTheDocument();
     expect(status.pref.simpes_penempatan_pegawai_tab).toBe('/pegawai-akun');

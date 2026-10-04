@@ -88,7 +88,7 @@ describe('halamanDariPath & halaman bertab', () => {
 
   it('rute lama di luar halaman gabungan tidak berubah', () => {
     expect(halamanDariPath('/')?.label).toBe('Dashboard');
-    expect(halamanDariPath('/pegawai-keaktifan')?.label).toBe('Keaktifan Pegawai');
+    expect(halamanDariPath('/pegawai-keaktifan')?.label).toBe('PTK Aktif');
     expect(halamanDariPath('/keuangan')?.label).toBe('Keuangan');
     expect(halamanDariPath('/dokumen-santri/lihat')?.label).toBe('Dokumen Santri');
     // Profil santri (jendela terpisah) tetap memakai judul Buku Induk/Data Induk.
@@ -105,10 +105,10 @@ describe('halamanDariPath & halaman bertab', () => {
     // Tidak ada lagi subgrup "lain-lain" di Santri (Rekap & Pengajuan pindah
     // jadi tab Santri Aktif).
     expect(halamanSubgrup('santri', 'lain-lain')).toEqual([]);
-    // Pegawai: Penempatan (3 tab) + Keaktifan Pegawai langsung, tanpa subgrup.
+    // Pegawai: PTK Aktif lalu Penempatan (3 tab), tanpa subgrup.
     expect(halamanGrupLangsung('pegawai').map((h) => h.to)).toEqual([
-      '/penempatan-pegawai',
       '/pegawai-keaktifan',
+      '/penempatan-pegawai',
     ]);
   });
 
