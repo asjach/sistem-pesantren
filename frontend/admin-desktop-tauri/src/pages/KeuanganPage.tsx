@@ -11,6 +11,7 @@ import { listLembaga, listTahunAjaran, type Lembaga, type TahunAjaran } from '..
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { KELAS_LIST_TAB, KELAS_TRIGGER } from '@/components/HalamanTabs';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { FieldLabel } from '@/components/ui/field';
@@ -215,12 +216,12 @@ export default function KeuanganPage() {
           { key: 'keuangan_tunggakan', judul: 'Tunggakan', fields: FIELDS_TUNGGAKAN },
         ]}
       />
-      <Tabs value={tab} onValueChange={(v) => { setTab(v); prefSet('simpes_keuangan_tab', v).catch(() => {}); }} className="flex min-h-0 flex-1 flex-col gap-0 pt-2">
-        <TabsList className="mx-auto gap-x-2 border border-border p-0 group-data-[orientation=horizontal]/tabs:h-6">
-          <TabsTrigger value="jenis" id="keu_tab_jenis" className="py-0 text-[11px] data-[state=active]:border-primary data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow dark:data-[state=active]:border-primary dark:data-[state=active]:bg-primary dark:data-[state=active]:text-primary-foreground">Jenis Tagihan</TabsTrigger>
-          <TabsTrigger value="tarif" id="keu_tab_tarif" className="py-0 text-[11px] data-[state=active]:border-primary data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow dark:data-[state=active]:border-primary dark:data-[state=active]:bg-primary dark:data-[state=active]:text-primary-foreground">Tarif</TabsTrigger>
-          <TabsTrigger value="tagihan" id="keu_tab_tagihan" className="py-0 text-[11px] data-[state=active]:border-primary data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow dark:data-[state=active]:border-primary dark:data-[state=active]:bg-primary dark:data-[state=active]:text-primary-foreground">Tagihan</TabsTrigger>
-          <TabsTrigger value="tunggakan" id="keu_tab_tunggakan" className="py-0 text-[11px] data-[state=active]:border-primary data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow dark:data-[state=active]:border-primary dark:data-[state=active]:bg-primary dark:data-[state=active]:text-primary-foreground">Tunggakan</TabsTrigger>
+      <Tabs value={tab} onValueChange={(v) => { setTab(v); prefSet('simpes_keuangan_tab', v).catch(() => {}); }} className="flex min-h-0 flex-1 flex-col gap-0">
+        <TabsList className={KELAS_LIST_TAB}>
+          <TabsTrigger value="jenis" id="keu_tab_jenis" className={KELAS_TRIGGER}>Jenis Tagihan</TabsTrigger>
+          <TabsTrigger value="tarif" id="keu_tab_tarif" className={KELAS_TRIGGER}>Tarif</TabsTrigger>
+          <TabsTrigger value="tagihan" id="keu_tab_tagihan" className={KELAS_TRIGGER}>Tagihan</TabsTrigger>
+          <TabsTrigger value="tunggakan" id="keu_tab_tunggakan" className={KELAS_TRIGGER}>Tunggakan</TabsTrigger>
         </TabsList>
 
         <TabsContent value="jenis" className="min-h-0 flex-1 flex flex-col gap-2">

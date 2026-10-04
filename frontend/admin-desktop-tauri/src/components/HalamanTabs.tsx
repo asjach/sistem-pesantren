@@ -7,9 +7,18 @@ import type { HalamanDef, TabHalamanDef } from '@/lib/halaman';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PAGE_SHELL } from '@/components/PageHeader';
 
-/** Gaya tombol tab — disamakan dengan halaman Keuangan. */
-const KELAS_TRIGGER =
-  'py-0 text-[11px] data-[state=active]:border-primary data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow dark:data-[state=active]:border-primary dark:data-[state=active]:bg-primary dark:data-[state=active]:text-primary-foreground';
+/** Gaya tab bersama (dipakai halaman gabungan, Antrean PSB, & Keuangan):
+ *  trigger aktif berlatar primary, tanpa padding vertikal, dan tingginya
+ *  mengisi PENUH area tab (`h-full` = 26px) sehingga seluruh area bisa diklik. */
+export const KELAS_TRIGGER =
+  'h-full py-0 text-[11px] data-[state=active]:border-primary data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow dark:data-[state=active]:border-primary dark:data-[state=active]:bg-primary dark:data-[state=active]:text-primary-foreground';
+
+/** Area tab: bisa digulir bila lebih lebar dari area konten (mis. jendela
+ *  sempit + sidebar terbuka), tetap di tengah halaman; tinggi tetap 26px
+ *  (`group-data-…:h-[26px]` menimpa `h-9` bawaan komponen), tanpa padding,
+ *  margin vertikal 8px (`my-2`) supaya bar center di antara ribbon & tabel. */
+export const KELAS_LIST_TAB =
+  'mx-auto my-2 max-w-full scroll-tanpa-bar gap-x-2 overflow-x-auto overflow-y-hidden border border-border p-0 group-data-[orientation=horizontal]/tabs:h-[26px]';
 
 /** Id elemen snake_case dari rute (`/tahun-ajaran` → `tahun_ajaran`). */
 function idRute(to: string): string {
@@ -80,11 +89,11 @@ export default function HalamanTabs({ def }: { def: HalamanDef }) {
       <Tabs
         value={aktif}
         onValueChange={(v) => navigate(v)}
-        className="flex min-h-0 flex-1 flex-col gap-0 pt-2"
+        className="flex min-h-0 flex-1 flex-col gap-0"
       >
         {/* `max-w-full overflow-x-auto`: tab bisa lebih lebar dari area konten
             (mis. jendela sempit + sidebar terbuka) — tetap bisa digulir. */}
-        <TabsList className="mx-auto max-w-full scroll-tanpa-bar gap-x-2 overflow-x-auto overflow-y-hidden border border-border p-0 group-data-[orientation=horizontal]/tabs:h-6">
+        <TabsList className={KELAS_LIST_TAB}>
           {tabs.map((t) => (
             <TabsTrigger
               key={t.to}

@@ -41,6 +41,7 @@ import {
 } from '@/components/ui/select';
 import ExcelTable from '@/components/ExcelTable';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { KELAS_LIST_TAB, KELAS_TRIGGER } from '@/components/HalamanTabs';
 import { targetTunggal, useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
 import FilterField from '@/components/FilterField';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
@@ -610,14 +611,14 @@ export default function PsbPage() {
       <PengaturanHalaman tampil={{}} tabel={[{ key: 'psb', judul: 'Pendaftar', fields: psbFieldsMemo }]} />
 
       <Tabs value={stage} onValueChange={(v) => navigate(`/psb/${v}`)} className="contents">
-        <TabsList id="tabs_psb" className="mb-2 h-auto w-fit gap-1 p-1">
+        <TabsList id="tabs_psb" className={KELAS_LIST_TAB}>
           {TAHAP_PSB.map((t) => {
             const n = t.statuses.reduce((s, st) => s + (badge[st] ?? 0), 0);
             return (
-              <TabsTrigger key={t.id} id={`tab_psb_${t.id}`} value={t.id} className="px-4 py-2">
+              <TabsTrigger key={t.id} id={`tab_psb_${t.id}`} value={t.id} className={KELAS_TRIGGER}>
                 {t.label}
                 {n > 0 && (
-                  <span className="ml-1.5 rounded-full bg-foreground/10 px-1.5 text-[11px] tabular-nums">{n}</span>
+                  <span className="rounded-full bg-foreground/10 px-1.5 text-[11px] tabular-nums">{n}</span>
                 )}
               </TabsTrigger>
             );

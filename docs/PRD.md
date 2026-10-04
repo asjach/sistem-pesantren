@@ -356,6 +356,7 @@
 | 2.303 | 2026-10-04 | Seret-untuk-pindah urutan kolom di header grid dihapus (rawan bergeser tak sengaja saat seleksi/resize): gagang geser, 4 handler drag, gaya CSS, dan opsi `bolehGeser` di AutoFit dibuang. Urutan tetap bisa diubah lewat menu klik-kanan header (Geser kiri/kanan, Kembalikan urutan bawaan) dan Tab Kolom preset |
 | 2.304 | 2026-10-04 | Fix AutoFit header membungkus 1 huruf ("Jenjan g", "Semest er"): padding horizontal pembungkus judul `.simpes-dsg-headtitle` (16px) yang tak terbaca dari sel header (padding sel = 0) kini ikut dihitung kandidat lebar judul (`PAD_JUDUL_X` di `ukurAutoFit` + `syncAutoWidths`), sinkron dengan CSS |
 | 2.305 | 2026-10-04 | Standar ukuran teks UI statis seragam 12px: seluruh `text-sm`/`base`/`lg`/`xl`/`2xl` dan arbitrary (`13px`, `13.5px`, `26px`) diturunkan ke `text-xs` (49 file, termasuk komponen shadcn); tinggi baris ikut `text-xs` (16px). Ukuran huruf sel/header tabel tetap bisa diatur lewat ribbon |
+| 2.306 | 2026-10-04 | Gaya tab halaman diseragamkan lewat konstanta bersama (`HalamanTabs`): TabsList tinggi 26px tanpa padding + margin vertikal 8px (bar center di antara ribbon & tabel), trigger mengisi penuh area (`h-full`, label 11px) dengan state aktif primary; Antrean PSB & Keuangan memakai konstanta yang sama |
 
 ## Daftar Isi
 
