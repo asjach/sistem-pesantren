@@ -10,11 +10,8 @@ import {
   FolderOpen,
   GraduationCap,
   Home,
-  MoreVertical,
-  NotebookTabs,
   Palette,
   Pin,
-  ReceiptText,
   ScrollText,
   Server,
   UserCheck,
@@ -67,7 +64,7 @@ export interface HalamanDef {
 export const HALAMAN_DATA_INDUK: HalamanDef = {
   to: '/data-induk',
   label: 'Data Induk',
-  deskripsi: 'Data acuan pesantren: pengguna, lembaga, tahun ajaran, kelas, buku induk, referensi.',
+  deskripsi: 'Data acuan pesantren: pengguna, lembaga, tahun ajaran, semester, kelas, buku induk, referensi.',
   tab: 'master',
   grid: true,
   icon: FolderOpen,
@@ -75,6 +72,7 @@ export const HALAMAN_DATA_INDUK: HalamanDef = {
     { to: '/users', label: 'Pengguna', permission: 'pengguna.lihat' },
     { to: '/lembaga', label: 'Lembaga', permission: 'lembaga.lihat' },
     { to: '/tahun-ajaran', label: 'Tahun Ajaran', permission: 'tahun_ajaran.lihat' },
+    { to: '/pengaturan/semester', label: 'Semester', permission: 'semester.aktivasi' },
     { to: '/kelas', label: 'Kelas', permission: 'kelas.lihat' },
     { to: '/santri', label: 'Buku Induk', permission: 'santri.lihat' },
     { to: '/referensi', label: 'Referensi', permission: 'referensi.lihat' },
@@ -116,6 +114,23 @@ export const HALAMAN_AKADEMIK: HalamanDef = {
   ],
 };
 
+/** Halaman Santri Aktif: satu halaman berisi tiga tab (Daftar Kelas, Rekap,
+ *  Pengajuan Biodata) — pola sama dengan Penempatan; rute tiap tab tetap rute
+ *  lamanya. Label halaman "Santri Aktif"; tab pertama tetap "Daftar Kelas". */
+export const HALAMAN_SANTRI_AKTIF: HalamanDef = {
+  to: '/santri-aktif',
+  label: 'Santri Aktif',
+  deskripsi: 'Santri aktif: daftar kelas, rekap, dan pengajuan biodata.',
+  tab: 'santri',
+  grid: true,
+  icon: ClipboardList,
+  tabHalaman: [
+    { to: '/daftar-kelas', label: 'Daftar Kelas', permission: 'daftar_kelas.lihat' },
+    { to: '/rekap-santri', label: 'Rekap', permission: 'rekap_santri.lihat' },
+    { to: '/pengajuan-biodata', label: 'Pengajuan Biodata', permission: 'pengajuan_biodata.lihat' },
+  ],
+};
+
 export const HALAMAN: HalamanDef[] = [
   { to: '/', label: 'Dashboard', deskripsi: 'Ringkasan data pesantren.', tab: 'beranda', icon: Home, permission: 'dashboard.lihat' },
   HALAMAN_DATA_INDUK,
@@ -130,22 +145,11 @@ export const HALAMAN: HalamanDef[] = [
   { to: '/dokumen-madrasah', label: 'Dokumen Madrasah', deskripsi: 'Berkas tingkat madrasah (izin operasional, akreditasi, SK, dll).', tab: 'dokumen', grid: true, icon: FolderOpen, permission: 'dokumen_lembaga.lihat' },
   { to: '/psb', label: 'Antrean PSB', deskripsi: 'Antrean calon per tahap (Pendaftar, Terdaftar, Daftar Ulang, Diterima, Mengundurkan Diri, Ditolak).', tab: 'psb', grid: true, icon: UserCheck, permission: 'psb.lihat' },
   { to: '/kegiatan-psb', label: 'Kegiatan PSB', tab: 'psb', grid: true, icon: CalendarRange, permission: 'kegiatan_psb.lihat' },
-  { to: '/daftar-kelas', label: 'Daftar Kelas', tab: 'santri', grid: true, icon: ClipboardList, permission: 'daftar_kelas.lihat' },
+  HALAMAN_SANTRI_AKTIF,
   HALAMAN_PENEMPATAN,
   HALAMAN_AKADEMIK,
-  { to: '/rekap-santri', label: 'Rekap Santri', tab: 'santri', sub: 'lain-lain', grid: true, icon: ReceiptText, permission: 'rekap_santri.lihat' },
   { to: '/keuangan', label: 'Keuangan', deskripsi: 'Tagihan, tunggakan, dan pembayaran santri.', tab: 'keuangan', grid: true, icon: Wallet, permission: 'keuangan.lihat' },
-  { to: '/pengajuan-biodata', label: 'Pengajuan Biodata', tab: 'santri', sub: 'lain-lain', grid: true, icon: NotebookTabs, permission: 'pengajuan_biodata.lihat' },
   {
-    to: '/pengaturan/semester',
-    label: 'Semester',
-    deskripsi: 'Aktivasi semester berjalan per lembaga. Hanya super_admin.',
-    tab: 'pengaturan',
-    grid: true,
-    icon: CalendarCheck,
-    permission: 'semester.aktivasi',
-  },
-    {
     to: '/pengaturan/izin',
     label: 'Kelola Izin',
     deskripsi: 'Matriks izin role × modul. Hanya super_admin.',
@@ -202,16 +206,9 @@ export const NAV_GRUP: GrupNav[] = [
   { id: 'master', label: 'Data Induk', icon: FolderOpen },
   // PSB kini grup tersendiri (dulu subgrup di dalam Santri), di atas Santri.
   { id: 'psb', label: 'PSB', icon: ClipboardCheck },
-  {
-    id: 'santri',
-    label: 'Santri',
-    icon: GraduationCap,
-    anak: [
-      // Daftar Kelas, Penempatan, & Akademik (halaman langsung) tampil di sini.
-      { langsung: true },
-      { id: 'lain-lain', label: 'Lain-lain', icon: MoreVertical },
-    ],
-  },
+  // Santri kini tanpa subgrup: Santri Aktif, Penempatan, Akademik (halaman
+  // langsung semua, mengikuti urutan registri).
+  { id: 'santri', label: 'Santri', icon: GraduationCap },
   {
     id: 'pegawai',
     label: 'Pegawai',

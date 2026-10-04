@@ -343,6 +343,8 @@
 | 2.290 | 2026-10-04 | Kerangka tab digeneralisasi (`HalamanTabs`/`ArahHalamanTabs`; kunci pref `simpes_<halaman>_tab`) dan dipakai grup Santri: subgrup Penempatan jadi satu halaman 3 tab (`/penempatan`; Santri Per Lembaga, MI-MD, Riwayat Belajar) dengan rute tab tetap rute lama; sidebar 3 entri → 1 (setelah Daftar Kelas, sebelum Akademik) |
 | 2.291 | 2026-10-04 | Subgrup Akademik (Santri) jadi satu halaman 4 tab (`/akademik`; Pindah Kelas, Mutasi Keluar, Kenaikan Kelas, Kelulusan) dengan rute tab tetap rute lama; sidebar 4 entri → 1 (setelah Penempatan, sebelum Lain-lain) |
 | 2.292 | 2026-10-04 | Subgrup PSB naik jadi grup navigasi tersendiri "PSB" (kategori `psb`) di atas grup Santri; halaman Antrean PSB (`/psb/:tahap`) & Kegiatan PSB tetap; grup Santri kini Daftar Kelas → Penempatan → Akademik → Lain-lain |
+| 2.293 | 2026-10-04 | Halaman Semester (`/pengaturan/semester`) pindah dari grup Pengaturan jadi tab Data Induk, urutan setelah Tahun Ajaran; rute tab tetap rute lamanya sehingga pengaturan halaman, filter, dan izin `semester.aktivasi` lestari |
+| 2.294 | 2026-10-04 | Halaman **Santri Aktif** (`/santri-aktif`) menggabungkan Daftar Kelas, Rekap Santri, dan Pengajuan Biodata jadi satu halaman 3 tab (label halaman "Santri Aktif", tab tetap Daftar Kelas/Rekap/Pengajuan Biodata); rute tiap tab tetap rute lamanya (`/daftar-kelas`, `/rekap-santri`, `/pengajuan-biodata`); subgrup "Lain-lain" di grup Santri dihapus (kosong); sidebar/menubar 3 entri → 1 |
 
 ## Daftar Isi
 

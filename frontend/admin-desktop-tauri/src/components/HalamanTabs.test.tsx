@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import HalamanTabs, { ArahHalamanTabs } from './HalamanTabs';
-import { HALAMAN_AKADEMIK, HALAMAN_DATA_INDUK, HALAMAN_PENEMPATAN } from '@/lib/halaman';
+import { HALAMAN_AKADEMIK, HALAMAN_DATA_INDUK, HALAMAN_PENEMPATAN, HALAMAN_SANTRI_AKTIF } from '@/lib/halaman';
 
 /** Status sesi & pref perangkat yang dibaca komponen (dimock di bawah). */
 const status = vi.hoisted(() => ({
@@ -27,6 +27,7 @@ const IZIN_DATA_INDUK = [
   'pengguna.lihat',
   'lembaga.lihat',
   'tahun_ajaran.lihat',
+  'semester.aktivasi',
   'kelas.lihat',
   'santri.lihat',
   'referensi.lihat',
@@ -38,6 +39,7 @@ const IZIN_AKADEMIK = [
   'kenaikan.lihat',
   'kelulusan.lihat',
 ];
+const IZIN_SANTRI_AKTIF = ['daftar_kelas.lihat', 'rekap_santri.lihat', 'pengajuan_biodata.lihat'];
 
 /** Rute tiruan: dua halaman gabungan + penanda teks tiap tab. */
 function Halaman({ path }: { path: string }) {
@@ -49,6 +51,7 @@ function Halaman({ path }: { path: string }) {
           <Route path="/users" element={<p>ISI PENGGUNA</p>} />
           <Route path="/lembaga" element={<p>ISI LEMBAGA</p>} />
           <Route path="/tahun-ajaran" element={<p>ISI TAHUN AJARAN</p>} />
+          <Route path="/pengaturan/semester" element={<p>ISI SEMESTER</p>} />
           <Route path="/kelas" element={<p>ISI KELAS</p>} />
           <Route path="/santri" element={<p>ISI BUKU INDUK</p>} />
           <Route path="/referensi" element={<p>ISI REFERENSI</p>} />
@@ -58,6 +61,12 @@ function Halaman({ path }: { path: string }) {
           <Route path="/keanggotaan" element={<p>ISI SANTRI PER LEMBAGA</p>} />
           <Route path="/mi-md" element={<p>ISI MI-MD</p>} />
           <Route path="/riwayat-belajar" element={<p>ISI RIWAYAT BELAJAR</p>} />
+        </Route>
+        <Route path="/santri-aktif" element={<ArahHalamanTabs def={HALAMAN_SANTRI_AKTIF} />} />
+        <Route element={<HalamanTabs def={HALAMAN_SANTRI_AKTIF} />}>
+          <Route path="/daftar-kelas" element={<p>ISI DAFTAR KELAS</p>} />
+          <Route path="/rekap-santri" element={<p>ISI REKAP</p>} />
+          <Route path="/pengajuan-biodata" element={<p>ISI PENGAJUAN BIODATA</p>} />
         </Route>
         <Route path="/akademik" element={<ArahHalamanTabs def={HALAMAN_AKADEMIK} />} />
         <Route element={<HalamanTabs def={HALAMAN_AKADEMIK} />}>
@@ -73,18 +82,21 @@ function Halaman({ path }: { path: string }) {
 }
 
 beforeEach(() => {
-  status.user = { permissions: [...IZIN_DATA_INDUK, ...IZIN_PENEMPATAN, ...IZIN_AKADEMIK] };
+  status.user = {
+    permissions: [...IZIN_DATA_INDUK, ...IZIN_PENEMPATAN, ...IZIN_AKADEMIK, ...IZIN_SANTRI_AKTIF],
+  };
   for (const kunci of Object.keys(status.pref)) delete status.pref[kunci];
 });
 
 describe('HalamanTabs — Data Induk', () => {
-  it('menampilkan enam tab dan isi tab aktif', () => {
+  it('menampilkan tujuh tab dan isi tab aktif', () => {
     render(<Halaman path="/kelas" />);
 
     expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual([
       'Pengguna',
       'Lembaga',
       'Tahun Ajaran',
+      'Semester',
       'Kelas',
       'Buku Induk',
       'Referensi',
@@ -153,6 +165,34 @@ describe('HalamanTabs — Penempatan', () => {
   });
 });
 
+describe('HalamanTabs — Santri Aktif', () => {
+  it('menampilkan tiga tab dan isi tab aktif', () => {
+    render(<Halaman path="/rekap-santri" />);
+
+    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual([
+      'Daftar Kelas',
+      'Rekap',
+      'Pengajuan Biodata',
+    ]);
+    expect(screen.getByRole('tab', { name: 'Rekap' })).toHaveAttribute('data-state', 'active');
+    expect(screen.getByText('ISI REKAP')).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Daftar Kelas' })).toHaveAttribute(
+      'id',
+      'tab_santri_aktif_daftar_kelas',
+    );
+  });
+
+  it('klik tab mengubah rute dan mengingat tab terakhir', async () => {
+    const pengguna = userEvent.setup();
+    render(<Halaman path="/daftar-kelas" />);
+
+    await pengguna.click(screen.getByRole('tab', { name: 'Pengajuan Biodata' }));
+
+    expect(await screen.findByText('ISI PENGAJUAN BIODATA')).toBeInTheDocument();
+    expect(status.pref.simpes_santri_aktif_tab).toBe('/pengajuan-biodata');
+  });
+});
+
 describe('HalamanTabs — Akademik', () => {
   it('menampilkan empat tab dan isi tab aktif', () => {
     render(<Halaman path="/kelulusan" />);
@@ -203,6 +243,13 @@ describe('ArahHalamanTabs (rute halaman gabungan)', () => {
     render(<Halaman path="/penempatan" />);
 
     expect(await screen.findByText('ISI MI-MD')).toBeInTheDocument();
+  });
+
+  it('Santri Aktif: kembali ke tab terakhir yang masih diizinkan', async () => {
+    status.pref.simpes_santri_aktif_tab = '/rekap-santri';
+    render(<Halaman path="/santri-aktif" />);
+
+    expect(await screen.findByText('ISI REKAP')).toBeInTheDocument();
   });
 
   it('Akademik: kembali ke tab terakhir yang masih diizinkan', async () => {

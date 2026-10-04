@@ -4,6 +4,7 @@ import {
   HALAMAN_AKADEMIK,
   HALAMAN_DATA_INDUK,
   HALAMAN_PENEMPATAN,
+  HALAMAN_SANTRI_AKTIF,
   NAV_GRUP,
   halamanDariPath,
   halamanGrupLangsung,
@@ -20,6 +21,7 @@ describe('halamanDariPath & halaman bertab', () => {
       '/users',
       '/lembaga',
       '/tahun-ajaran',
+      '/pengaturan/semester',
       '/kelas',
       '/santri',
       '/referensi',
@@ -33,6 +35,17 @@ describe('halamanDariPath & halaman bertab', () => {
     expect(ruteTab(HALAMAN_PENEMPATAN)).toEqual(['/keanggotaan', '/mi-md', '/riwayat-belajar']);
     for (const rute of ruteTab(HALAMAN_PENEMPATAN)) {
       expect(halamanDariPath(rute)?.to).toBe('/penempatan');
+    }
+  });
+
+  it('rute tiap tab Santri Aktif dikenali sebagai halaman Santri Aktif', () => {
+    expect(ruteTab(HALAMAN_SANTRI_AKTIF)).toEqual([
+      '/daftar-kelas',
+      '/rekap-santri',
+      '/pengajuan-biodata',
+    ]);
+    for (const rute of ruteTab(HALAMAN_SANTRI_AKTIF)) {
+      expect(halamanDariPath(rute)?.to).toBe('/santri-aktif');
     }
   });
 
@@ -55,6 +68,8 @@ describe('halamanDariPath & halaman bertab', () => {
     expect(halamanDariPath('/penempatan/apa-saja')?.to).toBe('/penempatan');
     expect(halamanDariPath('/akademik')?.to).toBe('/akademik');
     expect(halamanDariPath('/akademik/apa-saja')?.to).toBe('/akademik');
+    expect(halamanDariPath('/santri-aktif')?.to).toBe('/santri-aktif');
+    expect(halamanDariPath('/santri-aktif/apa-saja')?.to).toBe('/santri-aktif');
   });
 
   it('rute lama di luar halaman gabungan tidak berubah', () => {
@@ -66,13 +81,16 @@ describe('halamanDariPath & halaman bertab', () => {
     expect(halamanDariPath('/santri/12/profil')?.to).toBe('/data-induk');
   });
 
-  it('grup Data Induk satu entri; grup Santri: Daftar Kelas + Penempatan + Akademik langsung', () => {
+  it('grup Data Induk satu entri; grup Santri: Santri Aktif + Penempatan + Akademik langsung', () => {
     expect(halamanGrupLangsung('master').map((h) => h.to)).toEqual(['/data-induk']);
     expect(halamanGrupLangsung('santri').map((h) => h.to)).toEqual([
-      '/daftar-kelas',
+      '/santri-aktif',
       '/penempatan',
       '/akademik',
     ]);
+    // Tidak ada lagi subgrup "lain-lain" di Santri (Rekap & Pengajuan pindah
+    // jadi tab Santri Aktif).
+    expect(halamanSubgrup('santri', 'lain-lain')).toEqual([]);
   });
 
   it('PSB kini grup tersendiri di atas Santri (dua halaman, tanpa subgrup)', () => {
@@ -99,6 +117,7 @@ describe('halamanDariPath & halaman bertab', () => {
       'pengguna.lihat',
       'lembaga.lihat',
       'tahun_ajaran.lihat',
+      'semester.aktivasi',
       'kelas.lihat',
       'santri.lihat',
       'referensi.lihat',
@@ -113,6 +132,11 @@ describe('halamanDariPath & halaman bertab', () => {
       'mutasi_keluar.lihat',
       'kenaikan.lihat',
       'kelulusan.lihat',
+    ]);
+    expect(izinHalaman(HALAMAN_SANTRI_AKTIF)).toEqual([
+      'daftar_kelas.lihat',
+      'rekap_santri.lihat',
+      'pengajuan_biodata.lihat',
     ]);
   });
 
