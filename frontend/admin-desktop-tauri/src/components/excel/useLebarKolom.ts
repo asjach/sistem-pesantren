@@ -17,7 +17,7 @@ import {
   widthsKey,
   writeWidthCache,
 } from './helpers';
-import { ukurPerluTinggiHeader } from './header';
+import { PAD_JUDUL_X, ukurPerluTinggiHeader } from './header';
 import { measureActionsWidth, bersihkanProbe } from './measure';
 import type { ExcelField, GridRow } from './types';
 
@@ -502,7 +502,9 @@ export function useLebarKolom<T extends { id: string | number }>({
     const padOf = (cs: CSSStyleDeclaration) =>
       (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
     const padCell = padOf(csCell);
-    const padHead = padOf(csHeadCell) + padOf(csHeadCont);
+    // Padding horizontal pembungkus judul tak terbaca dari sel header
+    // (padding sel = 0) — ikutkan agar judul tidak membungkus 1 huruf.
+    const padHead = padOf(csHeadCell) + padOf(csHeadCont) + PAD_JUDUL_X;
     const out: Record<string, number> = {};
     const values = rows.map((r) => getValuesRef.current(r) as Record<string, unknown>);
     for (const f of visibleFields) {

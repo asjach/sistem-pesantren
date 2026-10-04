@@ -1,5 +1,12 @@
 import { Ban } from '@/icons';
 
+/** Padding horizontal pembungkus judul `.simpes-dsg-headtitle` (8px kiri +
+ *  8px kanan) yang TIDAK terbaca dari sel header (sel header `padding: 0`).
+ *  Wajib ikut dihitung AutoFit/lebar awal kolom — kalau tidak, kolom yang
+ *  lebarnya ditentukan judul meleset ~8px dan huruf terakhir membungkus ke
+ *  baris kedua ("Jenjan g", "Semest er"). WAJIB sinkron dengan CSS. */
+export const PAD_JUDUL_X = 16;
+
 /** Judul kolom dengan gagang seret pengubah lebar (drag di tepi kanan).
  *  Klik 2× pada gagang = AutoFit lebar mengikuti isi (seperti Excel).
  *  Field wajib (mode Input) ditandai bintang merah; kolom otomatis (tidak

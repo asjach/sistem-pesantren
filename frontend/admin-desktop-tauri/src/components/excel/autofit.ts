@@ -1,4 +1,5 @@
 import { AUTOFIT_BUFFER, AUTOFIT_MAX_W, MIN_COL_W } from './helpers';
+import { PAD_JUDUL_X } from './header';
 import { measureActionsWidth, measureTextWidth } from './measure';
 import type { ExcelField } from './types';
 
@@ -55,7 +56,10 @@ export function ukurAutoFit(root: HTMLElement | null, key: string, o: OpsiAutoFi
 
   const csHead = getComputedStyle(headEl);
   const headCont = headEl.querySelector<HTMLElement>('.dsg-cell-header-container');
-  const padHead = padOf(csHead) + (headCont ? padOf(getComputedStyle(headCont)) : 0);
+  const padHead =
+    padOf(csHead) +
+    (headCont ? padOf(getComputedStyle(headCont)) : 0) +
+    PAD_JUDUL_X;
   const csCell = getComputedStyle(cellEl);
   const padCell = padOf(csCell);
 
