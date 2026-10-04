@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { errorMessage } from '../../api/client';
 import {
-  generateTagihan, kandidatTagihan,
-  type JenisTagihan, type KandidatTagihanRow, type KelompokKandidat, type Tarif,
+  generateTagihan, kandidatTagihan, daftarDispensasi,
+  type JenisTagihan, type KandidatTagihanRow, type KelompokKandidat, type Tarif, type Dispensasi,
 } from '../../api/keuangan';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -41,7 +41,45 @@ const FIELDS_KANDIDAT: ExcelField[] = [
 ];
 
 type KandidatRow = KandidatTagihanRow & { id: number };
-type BarisTerpilih = KandidatTagihanRow & { nominal: string; nominalManual: boolean };
+type BarisTerpilih = KandidatTagihanRow & {
+  nominal: string; nominalManual: boolean;
+  potongan: number; dispensasiIds: number[] | null; dispensasiLabel: string | null;
+};
+
+/** Dispensasi yang cocok untuk satu baris santri (kriteria akademik / santri khusus). */
+function saringDispensasi(daftar: Dispensasi[], r: KandidatTagihanRow): Dispensasi[] {
+  return daftar.filter((d) => {
+    const santriIds = d.santri_ids ?? [];
+    if (santriIds.length > 0 && santriIds.includes(r.santri_id)) return true;
+    const paket = d.paket ?? [];
+    const kandidatPaket = r.paket === 'MI-MD' ? ['MI-MD', 'MI', 'MD'] : [r.paket];
+    if (paket.length > 0 && !paket.some((p) => kandidatPaket.includes(p))) return false;
+    const tingkat = d.tingkat ?? [];
+    if (tingkat.length > 0 && (r.tingkat === null || !tingkat.includes(r.tingkat))) return false;
+    const kelas = d.kelas_id ?? [];
+    if (kelas.length > 0 && (r.kelas_id === null || !kelas.includes(r.kelas_id))) return false;
+    return true;
+  });
+}
+
+/** Akumulatif urut prioritas lalu id — sama dengan DispensasiService di backend. */
+function hitungDispensasi(nominalAwal: number, cocok: Dispensasi[]) {
+  const urut = [...cocok].sort((a, b) => (a.prioritas - b.prioritas) || (a.id - b.id));
+  let nominal = nominalAwal;
+  for (const d of urut) {
+    nominal = d.tipe === 'persen'
+      ? Math.floor(nominal * (100 - Math.min(100, Math.max(0, d.nilai))) / 100)
+      : d.tipe === 'bebas'
+        ? 0
+        : Math.max(0, nominal - Math.max(0, d.nilai));
+  }
+  return {
+    nominal,
+    potongan: Math.max(0, nominalAwal - nominal),
+    ids: urut.map((d) => d.id),
+    label: urut.map((d) => d.nama).join(', '),
+  };
+}
 
 interface Props {
   open: boolean;
@@ -75,6 +113,7 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
 
   const [terpilih, setTerpilih] = useState<BarisTerpilih[]>([]);
   const [busy, setBusy] = useState(false);
+  const [daftarDispen, setDaftarDispen] = useState<Dispensasi[]>([]);
 
   const jenisTerpilih = useMemo(() => jenis.find((j) => j.id === jenisId) ?? null, [jenis, jenisId]);
   const bulanan = jenisTerpilih?.tipe === 'bulanan';
@@ -83,7 +122,7 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
   useEffect(() => {
     if (!open) return;
     setTerpilih([]); setCari(''); setKelompok('aktif'); setJenisId(''); setTarifId('');
-    setNominalDefault(''); setJatuhTempo(''); setErr('');
+    setNominalDefault(''); setJatuhTempo(''); setErr(''); setDaftarDispen([]);
     const m = (tahunAjaran ?? '').match(/^(\d{4})\/(\d{4})$/);
     if (m) { setPeriodeDari(`${m[1]}-07`); setPeriodeSampai(`${m[2]}-06`); }
     else { setPeriodeDari(''); setPeriodeSampai(''); }
@@ -119,9 +158,41 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
   const idTerpilih = useMemo(() => new Set(terpilih.map((r) => r.santri_id)), [terpilih]);
   const kandidatTampil = useMemo(() => kandidat.filter((r) => !idTerpilih.has(r.santri_id)), [kandidat, idTerpilih]);
 
+  // Dispensasi aktif untuk TA+jenis terpilih (dipakai pratinjau nominal).
+  useEffect(() => {
+    if (!open || tahunAjaran === null || jenisId === '') { setDaftarDispen([]); return; }
+    let hidup = true;
+    void (async () => {
+      try {
+        const d = await daftarDispensasi({ tahun_ajaran: tahunAjaran, jenis_id: jenisId, is_active: true });
+        if (hidup) setDaftarDispen(d);
+      } catch { if (hidup) setDaftarDispen([]); }
+    })();
+    return () => { hidup = false; };
+  }, [open, tahunAjaran, jenisId]);
+
+  /** Susun baris otomatis: nominal default + dispensasi (manual tidak diubah). */
+  const susunBaris = useCallback((r: KandidatTagihanRow, nominalStr: string): BarisTerpilih => {
+    const awal = Number(nominalStr);
+    if (jenisId === '' || !Number.isInteger(awal) || awal < 0) {
+      return { ...r, nominal: nominalStr, nominalManual: false, potongan: 0, dispensasiIds: null, dispensasiLabel: null };
+    }
+    const h = hitungDispensasi(awal, saringDispensasi(daftarDispen, r));
+    return {
+      ...r, nominal: String(h.nominal), nominalManual: false,
+      potongan: h.potongan, dispensasiIds: h.ids.length > 0 ? h.ids : null,
+      dispensasiLabel: h.label === '' ? null : h.label,
+    };
+  }, [daftarDispen, jenisId]);
+
+  // Nominal default / dispensasi berubah → baris otomatis dihitung ulang.
+  useEffect(() => {
+    if (!open) return;
+    setTerpilih((rows) => rows.map((r) => (r.nominalManual ? r : susunBaris(r, nominalDefault))));
+  }, [open, nominalDefault, susunBaris]);
+
   const ubahNominalDefault = (v: string) => {
     setNominalDefault(v);
-    setTerpilih((rows) => rows.map((r) => (r.nominalManual ? r : { ...r, nominal: v })));
   };
 
   const pindahkan = useCallback((rows: KandidatRow[]) => {
@@ -130,10 +201,10 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
       const ada = new Set(lama.map((r) => r.santri_id));
       const baru = rows
         .filter((r) => !ada.has(r.santri_id))
-        .map((r) => ({ ...r, nominal: nominalDefault, nominalManual: false }));
+        .map((r) => susunBaris(r, nominalDefault));
       return [...lama, ...baru];
     });
-  }, [nominalDefault]);
+  }, [nominalDefault, susunBaris]);
 
   const pilihTarif = (id: number | '') => {
     setTarifId(id);
@@ -162,7 +233,9 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
 
     const santri: { santri_id: number; nominal?: number }[] = [];
     for (const r of terpilih) {
-      if (r.nominal.trim() === '') { santri.push({ santri_id: r.santri_id }); continue; }
+      // Baris otomatis: nominal dihitung backend (termasuk dispensasi);
+      // baris hasil edit manual dikirim apa adanya (dispensasi tidak diterapkan).
+      if (!r.nominalManual) { santri.push({ santri_id: r.santri_id }); continue; }
       const n = Number(r.nominal);
       if (!Number.isInteger(n) || n < 0) { toast.error(`Nominal ${r.nama_lengkap} tidak valid.`); return; }
       santri.push({ santri_id: r.santri_id, nominal: n });
@@ -325,9 +398,16 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
                             className="h-8 w-full text-right"
                             value={r.nominal}
                             onChange={(e) => setTerpilih((rows) => rows.map((x) => (
-                              x.santri_id === r.santri_id ? { ...x, nominal: e.target.value, nominalManual: true } : x
+                              x.santri_id === r.santri_id
+                                ? { ...x, nominal: e.target.value, nominalManual: true, potongan: 0, dispensasiIds: null, dispensasiLabel: null }
+                                : x
                             )))}
                           />
+                          {r.dispensasiLabel !== null && (
+                            <p className="mt-0.5 text-right text-[10px] text-muted-foreground" title={r.dispensasiLabel}>
+                              −Rp {r.potongan.toLocaleString('id')} · {r.dispensasiLabel}
+                            </p>
+                          )}
                         </td>
                         <td className="p-2">
                           <ActionIcon id={`btn_gen_hapus_${r.santri_id}`} title="Keluarkan dari daftar" onClick={() => setTerpilih((rows) => rows.filter((x) => x.santri_id !== r.santri_id))}>

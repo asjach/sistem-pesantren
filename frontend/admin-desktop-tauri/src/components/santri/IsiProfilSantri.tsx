@@ -292,10 +292,12 @@ export function KepalaProfil({ profil }: { profil: ProfilSantri }) {
  *  `className` agar keduanya tidak melompat. `jangkar` mengaktifkan id tiap
  *  bagian (`${jangkar}_${slug}`) untuk navigasi lompat di dialog; halaman
  *  profil tidak memakainya sehingga tak ada id ganda. */
-export function IsiProfilSantri({ profil, className, jangkar }: {
+export function IsiProfilSantri({ profil, className, jangkar, ekstra }: {
   profil: ProfilSantri;
   className: string;
   jangkar?: string;
+  /** Bagian tambahan dari pemanggil (mis. panel dispensasi di dialog profil). */
+  ekstra?: ReactNode;
 }) {
   const data = useMemo(
     () => profil.santri as unknown as Record<string, unknown>,
@@ -428,6 +430,8 @@ export function IsiProfilSantri({ profil, className, jangkar }: {
           ))}
         </div>
       </Bagian>
+
+      {ekstra}
     </div>
   );
 }

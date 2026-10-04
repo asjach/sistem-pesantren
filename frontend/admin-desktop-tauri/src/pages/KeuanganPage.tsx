@@ -4,8 +4,8 @@ import { errorMessage, prefGet, prefSet } from '../api/client';
 import {
   daftarJenis, buatJenis, ubahJenis, buatTarif, daftarTarif, ubahTarif, hapusTarif,
   daftarTagihan, hapusTagihan, catatPembayaran, daftarTunggakan,
-  riwayatPembayaran, hapusPembayaran,
-  type JenisTagihan, type Tarif, type TagihanRow, type TunggakanRow, type PembayaranRow,
+  riwayatPembayaran, hapusPembayaran, daftarDispensasi, hapusDispensasi,
+  type JenisTagihan, type Tarif, type TagihanRow, type TunggakanRow, type PembayaranRow, type Dispensasi,
 } from '../api/keuangan';
 import { listLembaga, listTahunAjaran, type Lembaga, type TahunAjaran } from '../api/master';
 import { Button } from '@/components/ui/button';
@@ -27,6 +27,7 @@ import Pager from '@/components/Pager';
 import { usePager } from '@/hooks/usePager';
 import { EditAction } from '@/components/RowActions';
 import GenerateTagihanDialog from '@/components/keuangan/GenerateTagihanDialog';
+import DispensasiDialog from '@/components/keuangan/DispensasiDialog';
 
 const FIELDS_JENIS: ExcelField[] = [
   { key: 'nama', label: 'Jenis Tagihan', kind: 'static' },
@@ -61,8 +62,18 @@ const FIELDS_TUNGGAKAN: ExcelField[] = [
   { key: 'tunggakan', label: 'Tunggakan', kind: 'static', width: 110 },
 ];
 
+const FIELDS_DISPENSASI: ExcelField[] = [
+  { key: 'nama', label: 'Dispensasi', kind: 'static' },
+  { key: 'jenis', label: 'Jenis', kind: 'static', width: 140 },
+  { key: 'target', label: 'Sasaran', kind: 'static' },
+  { key: 'nilai', label: 'Potongan', kind: 'static', width: 110 },
+  { key: 'tahun_ajaran', label: 'TA', kind: 'static', width: 100 },
+  { key: 'prioritas', label: 'Prioritas', kind: 'static', width: 80 },
+  { key: 'status', label: 'Status', kind: 'static', width: 80 },
+];
+
 const OPSI_PAKET = ['MI', 'MD', 'MI-MD', 'MTS', 'MLN'];
-const TAB_KEUANGAN = ['jenis', 'tarif', 'tagihan', 'tunggakan'] as const;
+const TAB_KEUANGAN = ['jenis', 'tarif', 'tagihan', 'tunggakan', 'dispensasi'] as const;
 
 /** Halaman Keuangan: jenis tagihan, tarif, tagihan, pembayaran, tunggakan. */
 export default function KeuanganPage() {
@@ -70,6 +81,7 @@ export default function KeuanganPage() {
   const [tarif, setTarif] = useState<Tarif[]>([]);
   const [tagihan, setTagihan] = useState<TagihanRow[]>([]);
   const [tunggakan, setTunggakan] = useState<TunggakanRow[]>([]);
+  const [dispensasi, setDispensasi] = useState<Dispensasi[]>([]);
   const [lembagas, setLembagas] = useState<Lembaga[]>([]);
   const [daftarTA, setDaftarTA] = useState<TahunAjaran[]>([]);
   const [err, setErr] = useState('');
@@ -126,9 +138,9 @@ export default function KeuanganPage() {
   const load = useCallback(async () => {
     setErr(''); setLoading(true);
     try {
-      const [j, w, l, tas] = await Promise.all([daftarJenis(), daftarTunggakan(), listLembaga({ per_page: 100 }), listTahunAjaran({ per_page: 100 })]);
+      const [j, w, l, tas, dispen] = await Promise.all([daftarJenis(), daftarTunggakan(), listLembaga({ per_page: 100 }), listTahunAjaran({ per_page: 100 }), daftarDispensasi()]);
       setJenis(j); setTunggakan(w.per_santri);
-      setLembagas(l.data); setDaftarTA(tas.data);
+      setLembagas(l.data); setDaftarTA(tas.data); setDispensasi(dispen);
       const taAktif = tas.data.find((x) => x.is_aktif)?.nama ?? tas.data[0]?.nama ?? '';
       const diTA = (v: string) => v !== '' && tas.data.some((x) => x.nama === v);
       setTfTA((v) => (diTA(v) ? v : taAktif));
@@ -144,6 +156,8 @@ export default function KeuanganPage() {
   const [tambahJenisOpen, setTambahJenisOpen] = useState(false);
   const [tambahTarifOpen, setTambahTarifOpen] = useState(false);
   const [generateOpen, setGenerateOpen] = useState(false);
+  const [dispensasiOpen, setDispensasiOpen] = useState(false);
+  const [editDispensasi, setEditDispensasi] = useState<Dispensasi | null>(null);
   const [editJenis, setEditJenis] = useState<JenisTagihan | null>(null);
   const [editTarif, setEditTarif] = useState<Tarif | null>(null);
   const [eNama, setENama] = useState('');
@@ -225,6 +239,7 @@ export default function KeuanganPage() {
           { key: 'keuangan_tarif', judul: 'Tarif', fields: FIELDS_TARIF },
           { key: 'keuangan_tagihan', judul: 'Tagihan', fields: FIELDS_TAGIHAN },
           { key: 'keuangan_tunggakan', judul: 'Tunggakan', fields: FIELDS_TUNGGAKAN },
+          { key: 'keuangan_dispensasi', judul: 'Dispensasi', fields: FIELDS_DISPENSASI },
         ]}
       />
       <Tabs value={tab} onValueChange={(v) => { setTab(v); prefSet('simpes_keuangan_tab', v).catch(() => {}); }} className="flex min-h-0 flex-1 flex-col gap-0">
@@ -233,6 +248,7 @@ export default function KeuanganPage() {
           <TabsTrigger value="tarif" id="keu_tab_tarif" className={KELAS_TRIGGER}>Tarif</TabsTrigger>
           <TabsTrigger value="tagihan" id="keu_tab_tagihan" className={KELAS_TRIGGER}>Tagihan</TabsTrigger>
           <TabsTrigger value="tunggakan" id="keu_tab_tunggakan" className={KELAS_TRIGGER}>Tunggakan</TabsTrigger>
+          <TabsTrigger value="dispensasi" id="keu_tab_dispensasi" className={KELAS_TRIGGER}>Dispensasi</TabsTrigger>
         </TabsList>
 
         <TabsContent value="jenis" className={`min-h-0 flex-1 flex flex-col gap-1 ${KELAS_PANEL_TAB}`}>
@@ -362,6 +378,47 @@ export default function KeuanganPage() {
             hideCheckbox
           />
         </TabsContent>
+
+        <TabsContent value="dispensasi" className={`min-h-0 flex-1 flex flex-col gap-1 ${KELAS_PANEL_TAB}`}>
+          <ExcelTable<Dispensasi & { id: number }>
+            tableKey="keuangan_dispensasi"
+            fields={FIELDS_DISPENSASI}
+            rows={dispensasi}
+            getValues={(r) => ({
+              nama: r.nama,
+              jenis: r.jenis?.nama ?? 'Semua jenis',
+              target: [
+                (r.paket ?? []).join(', '),
+                (r.tingkat ?? []).map((t) => `Tkt ${t}`).join(', '),
+                (r.kelas_id ?? []).length > 0 ? `${(r.kelas_id ?? []).length} kelas` : '',
+                (r.santri_ids ?? []).length > 0 ? `${(r.santri_ids ?? []).length} santri` : '',
+              ].filter(Boolean).join(' · ') || 'Semua santri',
+              nilai: r.tipe === 'persen' ? `${r.nilai}%` : r.tipe === 'bebas' ? 'Bebas penuh' : `Rp ${r.nilai.toLocaleString('id')}`,
+              tahun_ajaran: r.tahun_ajaran,
+              prioritas: String(r.prioritas),
+              status: r.is_active ? 'Aktif' : 'Nonaktif',
+            })}
+            loading={loading}
+            emptyText="Belum ada dispensasi."
+            canEdit={false}
+            onCommit={async () => {}}
+            onSaved={() => {}}
+            renderActions={(r) => (
+              <>
+                <EditAction id={`btn_dispensasi_ubah_${r.id}`} onClick={() => { setEditDispensasi(r); setDispensasiOpen(true); }} />
+                <DeleteAction
+                  id={`btn_dispensasi_hapus_${r.id}`}
+                  title="Hapus dispensasi?"
+                  description="Dispensasi dihapus permanen. Dispensasi yang sudah dipakai tagihan tidak bisa dihapus — nonaktifkan saja."
+                  onConfirm={() => { void (async () => { try { await hapusDispensasi(r.id); toast.success('Dispensasi dihapus.'); await load(); } catch (e2) { toast.error(errorMessage(e2)); } })(); }}
+                />
+              </>
+            )}
+            hideCheckbox
+            addButtonLangsung
+            addButton={<Button id="btn_dispensasi_tambah_buka" size="icon" variant="outline" aria-label="Tambah dispensasi" title="Tambah dispensasi" onClick={() => { setEditDispensasi(null); setDispensasiOpen(true); }}><Plus size={16} /></Button>}
+          />
+        </TabsContent>
       </Tabs>
       <Dialog open={riwayatTagihan !== null} onOpenChange={(o) => { if (!o) setRiwayatTagihan(null); }}>
         <DialogContent className="sm:max-w-2xl">
@@ -412,6 +469,15 @@ export default function KeuanganPage() {
           setTagihanPage(1);
           await loadTagihan(1, tagihanPerPage, jenjangs, tahunAjaranNames);
         }}
+      />
+      <DispensasiDialog
+        open={dispensasiOpen}
+        onOpenChange={setDispensasiOpen}
+        editing={editDispensasi}
+        jenis={jenis}
+        daftarTA={daftarTA}
+        taBawaan={genTAtopbar}
+        onSaved={load}
       />
 
       <Dialog open={tambahTarifOpen} onOpenChange={setTambahTarifOpen}>

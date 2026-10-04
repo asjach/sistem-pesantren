@@ -84,6 +84,10 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::post('keuangan/tarif', [KeuanganController::class, 'storeTarif'])->middleware('permission:keuangan.tambah');
         Route::match(['put', 'patch'], 'keuangan/tarif/{tarif}', [KeuanganController::class, 'updateTarif'])->middleware('permission:keuangan.ubah');
         Route::delete('keuangan/tarif/{tarif}', [KeuanganController::class, 'destroyTarif'])->middleware('permission:keuangan.hapus');
+        Route::get('keuangan/dispensasi', [KeuanganController::class, 'indexDispensasi'])->middleware('permission:keuangan.lihat');
+        Route::post('keuangan/dispensasi', [KeuanganController::class, 'storeDispensasi'])->middleware('permission:keuangan.tambah');
+        Route::match(['put', 'patch'], 'keuangan/dispensasi/{dispensasi}', [KeuanganController::class, 'updateDispensasi'])->middleware('permission:keuangan.ubah');
+        Route::delete('keuangan/dispensasi/{dispensasi}', [KeuanganController::class, 'destroyDispensasi'])->middleware('permission:keuangan.hapus');
         Route::get('keuangan/tagihan', [KeuanganController::class, 'indexTagihan'])->middleware('permission:keuangan.lihat');
         Route::post('keuangan/tagihan', [KeuanganController::class, 'storeTagihan'])->middleware('permission:keuangan.tambah');
         Route::delete('keuangan/tagihan/{tagihan}', [KeuanganController::class, 'destroyTagihan'])->middleware('permission:keuangan.hapus');

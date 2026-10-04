@@ -12,7 +12,13 @@ class Tagihan extends Model
 
     protected $guarded = ['id'];
 
-    protected $casts = ['nominal' => 'integer', 'terbayar' => 'integer', 'jatuh_tempo' => 'date'];
+    protected $casts = [
+        'nominal' => 'integer',
+        'potongan' => 'integer',
+        'terbayar' => 'integer',
+        'jatuh_tempo' => 'date',
+        'dispensasi_ids' => 'array',
+    ];
 
     public function santri(): BelongsTo
     {

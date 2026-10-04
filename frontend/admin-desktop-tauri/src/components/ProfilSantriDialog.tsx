@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { IsiProfilSantri, KepalaProfil, TAUT_BAGIAN_PROFIL, useProfilSantri } from '@/components/santri/IsiProfilSantri';
+import DispensasiSantriPanel from '@/components/keuangan/DispensasiSantriPanel';
 import { ChevronLeft, ChevronRight, ExternalLink, X } from '@/icons';
 import { bukaDiTabBaru } from '@/lib/tabBaru';
 import { toast } from 'sonner';
@@ -166,7 +167,12 @@ export function ProfilSantriDialog({ target, onGanti, onOpenChange }: ProfilSant
         )}
 
         {profil ? (
-          <IsiProfilSantri profil={profil} className="h-[60vh] min-h-72" jangkar={JANGKAR_PROFIL} />
+          <IsiProfilSantri
+            profil={profil}
+            className="h-[60vh] min-h-72"
+            jangkar={JANGKAR_PROFIL}
+            ekstra={<DispensasiSantriPanel santri={{ id: profil.santri.id, nama_lengkap: profil.santri.nama_lengkap }} />}
+          />
         ) : (
           <KerangkaProfil />
         )}

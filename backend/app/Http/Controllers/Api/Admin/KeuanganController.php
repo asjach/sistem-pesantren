@@ -4,11 +4,13 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Api\Concerns\TenantGuard;
 use App\Http\Controllers\Controller;
+use App\Models\Dispensasi;
 use App\Models\JenisTagihan;
 use App\Models\Pembayaran;
 use App\Models\Santri;
 use App\Models\Tagihan;
 use App\Models\TarifTagihan;
+use App\Services\DispensasiService;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
@@ -131,6 +133,137 @@ class KeuanganController extends Controller
         return response()->json(['pesan' => 'Tarif dihapus.']);
     }
 
+    /**
+     * Daftar dispensasi. Filter TA/jenis/status; `santri_id` = hanya yang
+     * berlaku untuk santri itu (dipakai profil santri).
+     */
+    public function indexDispensasi(Request $request)
+    {
+        $data = $request->validate([
+            'tahun_ajaran' => 'nullable|string|max:20',
+            'jenis_id' => 'nullable|integer|exists:jenis_tagihan,id',
+            'santri_id' => 'nullable|integer|exists:santri,id',
+        ]);
+
+        $q = Dispensasi::with('jenis')->orderBy('tahun_ajaran')->orderBy('nama');
+        if (! empty($data['tahun_ajaran'])) {
+            $q->where('tahun_ajaran', $data['tahun_ajaran']);
+        }
+        if (! empty($data['jenis_id'])) {
+            $q->where(fn ($w) => $w->whereNull('jenis_id')->orWhere('jenis_id', $data['jenis_id']));
+        }
+        if ($request->filled('is_active')) {
+            $q->where('is_active', $request->boolean('is_active'));
+        }
+
+        $daftar = $q->get();
+
+        if (! empty($data['santri_id'])) {
+            if (empty($data['tahun_ajaran'])) {
+                abort(422, 'Sertakan tahun ajaran untuk melihat dispensasi satu santri.');
+            }
+            $peta = $this->petaSantriGenerate($data['tahun_ajaran'], [(int) $data['santri_id']]);
+            $info = $peta[(int) $data['santri_id']] ?? null;
+            if ($info === null) {
+                return response()->json([]);
+            }
+            $this->canLembaga($request->user(), $info['jenjang_utama']) || abort(403);
+            $daftar = app(DispensasiService::class)->saring($daftar, $info);
+        }
+
+        return response()->json($daftar->values());
+    }
+
+    public function storeDispensasi(Request $request)
+    {
+        $data = $this->validasiDispensasi($request);
+        $this->authorizeDispensasi($request->user(), $data);
+
+        return response()->json(Dispensasi::create($this->bersihkanDispensasi($data)), 201);
+    }
+
+    public function updateDispensasi(Request $request, Dispensasi $dispensasi)
+    {
+        $data = $this->validasiDispensasi($request);
+        $this->authorizeDispensasi($request->user(), $data);
+        $dispensasi->update($this->bersihkanDispensasi($data));
+
+        return response()->json($dispensasi);
+    }
+
+    public function destroyDispensasi(Dispensasi $dispensasi)
+    {
+        if (Tagihan::whereJsonContains('dispensasi_ids', $dispensasi->id)->exists()) {
+            abort(422, 'Dispensasi sudah dipakai tagihan. Nonaktifkan saja bila tidak ingin dipakai lagi.');
+        }
+        $dispensasi->delete();
+
+        return response()->json(['pesan' => 'Dispensasi dihapus.']);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function validasiDispensasi(Request $request): array
+    {
+        $data = $request->validate([
+            'nama' => 'required|string|max:100',
+            'keterangan' => 'nullable|string|max:255',
+            'tahun_ajaran' => 'required|string|exists:tahun_ajaran,nama',
+            'jenis_id' => 'nullable|integer|exists:jenis_tagihan,id',
+            'paket' => 'nullable|array',
+            'paket.*' => 'string|max:20',
+            'tingkat' => 'nullable|array',
+            'tingkat.*' => 'string|max:20',
+            'kelas_id' => 'nullable|array',
+            'kelas_id.*' => 'integer|exists:kelas,id',
+            'santri_ids' => 'nullable|array',
+            'santri_ids.*' => 'integer|exists:santri,id',
+            'tipe' => 'required|in:persen,nominal,bebas',
+            'nilai' => 'required|integer|min:0',
+            'prioritas' => 'nullable|integer',
+            'is_active' => 'nullable|boolean',
+        ]);
+        if ($data['tipe'] === 'persen' && $data['nilai'] > 100) {
+            abort(422, 'Nilai persen maksimal 100.');
+        }
+
+        return $data;
+    }
+
+    /**
+     * Dispensasi tanpa batas paket & tanpa santri khusus = global (semua
+     * lembaga) → super_admin saja; paket yang dipilih wajib boleh diakses.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function authorizeDispensasi($actor, array $data): void
+    {
+        $paket = array_values(array_filter($data['paket'] ?? [], fn ($v) => $v !== null && $v !== ''));
+        if ($paket !== []) {
+            $this->authorizeLembagaMany($actor, $paket);
+
+            return;
+        }
+        if (empty($data['santri_ids']) && ! $actor->bolehSuperAdmin()) {
+            abort(403, 'Dispensasi global (semua paket) hanya boleh dibuat super_admin.');
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function bersihkanDispensasi(array $data): array
+    {
+        foreach (['paket', 'tingkat', 'kelas_id', 'santri_ids'] as $kunci) {
+            $nilai = array_values(array_filter($data[$kunci] ?? [], fn ($v) => $v !== null && $v !== ''));
+            $data[$kunci] = $nilai === [] ? null : $nilai;
+        }
+
+        return $data;
+    }
+
     public function indexTagihan(Request $request)
     {
         $q = Tagihan::with(['jenis', 'santri'])->orderByDesc('id');
@@ -234,6 +367,7 @@ class KeuanganController extends Controller
                 'jenjang' => $info['jenjang_utama'],
                 'tingkat' => $info['tingkat'],
                 'kelas' => $info['kelas'],
+                'kelas_id' => $info['kelas_id'],
                 'status_akhir' => $info['status_akhir'],
             ];
         }
@@ -275,6 +409,15 @@ class KeuanganController extends Controller
         $diminta = collect($data['santri'])->keyBy(fn ($s) => (int) $s['santri_id']);
         $peta = $this->petaSantriGenerate($data['tahun_ajaran'], $diminta->keys()->all());
 
+        // Dispensasi aktif untuk TA+jenis ini; baris tanpa override manual
+        // dihitung ulang di sini (otoritatif), override manual menang.
+        $daftarDispensasi = Dispensasi::with('jenis')
+            ->where('tahun_ajaran', $data['tahun_ajaran'])
+            ->where('is_active', true)
+            ->where(fn ($w) => $w->whereNull('jenis_id')->orWhere('jenis_id', $jenis->id))
+            ->get();
+        $aturan = app(DispensasiService::class);
+
         $dibuat = 0;
         $dilewati = 0;
         foreach ($diminta as $santriId => $s) {
@@ -284,13 +427,24 @@ class KeuanganController extends Controller
             }
             $this->canLembaga($actor, $info['jenjang_utama']) || abort(403);
 
-            $nominal = $s['nominal'] ?? $data['nominal'];
+            if (array_key_exists('nominal', $s) && $s['nominal'] !== null) {
+                $nominal = (int) $s['nominal'];
+                $potongan = 0;
+                $dispensasiIds = null;
+            } else {
+                $hasil = $aturan->terapkan((int) $data['nominal'], $aturan->saring($daftarDispensasi, $info));
+                $nominal = $hasil['nominal'];
+                $potongan = $hasil['potongan'];
+                $dispensasiIds = $hasil['ids'] === [] ? null : $hasil['ids'];
+            }
+
             foreach ($periodes as $periode) {
                 $tagihan = Tagihan::firstOrCreate(
                     ['santri_id' => $santriId, 'jenis_id' => $jenis->id, 'periode' => $periode],
                     [
                         'jenjang' => $info['jenjang_utama'], 'paket' => $info['paket'],
                         'tahun_ajaran' => $data['tahun_ajaran'], 'nominal' => $nominal,
+                        'potongan' => $potongan, 'dispensasi_ids' => $dispensasiIds,
                         'jatuh_tempo' => $data['jatuh_tempo'] ?? null, 'status' => 'belum', 'terbayar' => 0,
                     ]
                 );
@@ -363,7 +517,7 @@ class KeuanganController extends Controller
      * tetap bisa digenerate). Baris semester 2 menang sebagai baris tampilan.
      *
      * @param  list<int>  $santriIds
-     * @return array<int, array{santri_id:int, nama_lengkap:string, nisn:?string, nis_lokal:?string, per_jenjang:array<string, array{semester:?string, tingkat:?string, kelas:?string, status:?string}>, paket:string, jenjang_utama:string, tingkat:?string, kelas:?string, status_akhir:?string, kelas_akhir:bool}>
+     * @return array<int, array{santri_id:int, nama_lengkap:string, nisn:?string, nis_lokal:?string, per_jenjang:array<string, array{semester:?string, tingkat:?string, kelas:?string, kelas_id:?int, status:?string}>, paket:string, jenjang_utama:string, tingkat:?string, kelas:?string, kelas_id:?int, status_akhir:?string, kelas_akhir:bool}>
      */
     private function petaSantriGenerate(string $ta, array $santriIds = [], ?string $cari = null): array
     {
@@ -384,7 +538,7 @@ class KeuanganController extends Controller
                     ->orWhere('ls2.nis_lokal', 'like', '%'.$cari.'%'))
                 ->select('s2.id')))
             ->orderBy('s.nama_lengkap')
-            ->get(['rb.santri_id', 'rb.jenjang', 'rb.tingkat', 'rb.semester', 'rb.status_akhir', 's.nama_lengkap', 's.nisn', 'ls.nis_lokal', 'k.nama_kelas']);
+            ->get(['rb.santri_id', 'rb.jenjang', 'rb.tingkat', 'rb.kelas_id', 'rb.semester', 'rb.status_akhir', 's.nama_lengkap', 's.nisn', 'ls.nis_lokal', 'k.nama_kelas']);
 
         $peta = [];
         foreach ($baris as $b) {
@@ -402,6 +556,7 @@ class KeuanganController extends Controller
                     'semester' => $b->semester,
                     'tingkat' => $b->tingkat,
                     'kelas' => $b->nama_kelas,
+                    'kelas_id' => $b->kelas_id === null ? null : (int) $b->kelas_id,
                     'status' => $b->status_akhir,
                 ];
             }
@@ -415,6 +570,7 @@ class KeuanganController extends Controller
             $utama = $info['per_jenjang'][$info['jenjang_utama']] ?? null;
             $info['tingkat'] = $utama['tingkat'] ?? null;
             $info['kelas'] = $utama['kelas'] ?? null;
+            $info['kelas_id'] = $utama['kelas_id'] ?? null;
             $info['status_akhir'] = $utama['status'] ?? null;
             $info['kelas_akhir'] = false;
             foreach ($info['per_jenjang'] as $jenjang => $row) {

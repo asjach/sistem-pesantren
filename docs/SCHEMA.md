@@ -1106,6 +1106,23 @@ Lifecycle mandiri (tidak lewat `riwayat_belajar`); masuk/keluar bisa kapan saja.
 - `created_at`, `updated_at`
 - UNIQUE(`jenjang`, `paket`, `tahun_ajaran`, `jenis_id`, `tingkat`) — nama `uq_tarif_tagihan`
 
+### `dispensasi`
+- `id` PK
+- `nama`: string(100) — label dispensasi (mis. Anak Pegawai, Beasiswa Yatim)
+- `keterangan`: string(255) [null]
+- `tahun_ajaran`: string(20) — FK → tahun_ajaran [cascadeOnUpdate, cascadeOnDelete]; dispensasi terikat TA
+- `jenis_id`: FK → jenis_tagihan [null, nullOnDelete] — null = semua jenis
+- `paket`: json [null] — daftar paket sasaran (MI/D/MI-MD/MTS/MLN); kosong = semua paket
+- `tingkat`: json [null] — daftar tingkat sasaran; kosong = semua tingkat
+- `kelas_id`: json [null] — daftar FK kelas sasaran; kosong = semua kelas
+- `santri_ids`: json [null] — tambahan santri individual (menang langsung tanpa cek kriteria)
+- `tipe`: enum('persen','nominal','bebas') [default 'nominal'] — bebas penuh = tagihan bernominal 0
+- `nilai`: unsignedInteger [default 0] — persen (maks 100) atau nominal rupiah
+- `prioritas`: integer [default 0] — urutan penerapan akumulatif (kecil dulu)
+- `is_active`: bool [default true]
+- `created_at`, `updated_at`
+- INDEX(`tahun_ajaran`, `is_active`)
+
 ### `tagihan`
 - `id` PK
 - `santri_id`: FK → santri [cascade]
@@ -1113,8 +1130,10 @@ Lifecycle mandiri (tidak lewat `riwayat_belajar`); masuk/keluar bisa kapan saja.
 - `paket`: string(20)
 - `tahun_ajaran`: string(20)
 - `jenis_id`: FK → jenis_tagihan
-- `periode`: string(20) [null] — mis. '2025-07' (bulanan) / '2025-G1' (semester) / null (sekali)
-- `nominal`: unsignedBigInteger
+- `periode`: string(20) [null] — mis. '2025-07' (bulanan) / '2025/2026' (non-bulanan, otomatis kode TA) / null (legacy)
+- `nominal`: unsignedBigInteger — nilai setelah dispensasi (bila ada)
+- `potongan`: unsignedBigInteger [default 0] — total potongan dispensasi saat generate
+- `dispensasi_ids`: json [null] — id dispensasi yang diterapkan (jejak audit)
 - `terbayar`: unsignedBigInteger [default 0]
 - `status`: enum('belum','sebagian','lunas') [default 'belum']
 - `jatuh_tempo`: date [null]

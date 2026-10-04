@@ -81,7 +81,8 @@ export type KelompokKandidat = 'mi_saja' | 'md_saja' | 'mi' | 'md' | 'mi_md' | '
 
 export interface KandidatTagihanRow {
   santri_id: number; nama_lengkap: string; nisn: string | null; nis_lokal: string | null;
-  paket: string; jenjang: string; tingkat: string | null; kelas: string | null; status_akhir: string | null;
+  paket: string; jenjang: string; tingkat: string | null; kelas: string | null; kelas_id: number | null;
+  status_akhir: string | null;
 }
 
 export function kandidatTagihan(params: {
@@ -98,6 +99,44 @@ export function kandidatTagihan(params: {
   if (params.page) q.set('page', String(params.page));
   if (params.per_page) q.set('per_page', params.per_page);
   return api<Paginate<KandidatTagihanRow>>(`/admin/keuangan/tagihan/kandidat?${q.toString()}`);
+}
+
+export type TipeDispensasi = 'persen' | 'nominal' | 'bebas';
+
+export interface Dispensasi {
+  id: number; nama: string; keterangan: string | null; tahun_ajaran: string;
+  jenis_id: number | null; paket: string[] | null; tingkat: string[] | null;
+  kelas_id: number[] | null; santri_ids: number[] | null;
+  tipe: TipeDispensasi; nilai: number; prioritas: number; is_active: boolean;
+  jenis?: { id: number; nama: string } | null;
+}
+
+export interface DispensasiInput {
+  nama: string; keterangan?: string | null; tahun_ajaran: string; jenis_id?: number | null;
+  paket?: string[] | null; tingkat?: string[] | null; kelas_id?: number[] | null; santri_ids?: number[] | null;
+  tipe: TipeDispensasi; nilai: number; prioritas?: number; is_active?: boolean;
+}
+
+export function daftarDispensasi(params: { tahun_ajaran?: string; jenis_id?: number | ''; is_active?: boolean; santri_id?: number } = {}) {
+  const q = new URLSearchParams();
+  if (params.tahun_ajaran) q.set('tahun_ajaran', params.tahun_ajaran);
+  if (params.jenis_id !== undefined && params.jenis_id !== '') q.set('jenis_id', String(params.jenis_id));
+  if (params.is_active !== undefined) q.set('is_active', params.is_active ? '1' : '0');
+  if (params.santri_id !== undefined) q.set('santri_id', String(params.santri_id));
+  const s = q.toString();
+  return api<Dispensasi[]>(`/admin/keuangan/dispensasi${s ? `?${s}` : ''}`);
+}
+
+export function buatDispensasi(data: DispensasiInput) {
+  return api<Dispensasi>('/admin/keuangan/dispensasi', { method: 'POST', body: JSON.stringify(data) });
+}
+
+export function ubahDispensasi(id: number, data: DispensasiInput) {
+  return api<Dispensasi>(`/admin/keuangan/dispensasi/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+}
+
+export function hapusDispensasi(id: number) {
+  return api<{ pesan: string }>(`/admin/keuangan/dispensasi/${id}`, { method: 'DELETE' });
 }
 
 export function hapusTagihan(id: number) {
