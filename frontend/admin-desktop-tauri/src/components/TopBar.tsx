@@ -95,7 +95,7 @@ function TabRibbon({ tampil, onToggle }: { tampil: boolean; onToggle: () => void
           aria-label={tampil ? 'Sembunyikan ribbon' : 'Tampilkan ribbon'}
           aria-expanded={tampil}
           onClick={onToggle}
-          className="absolute left-1/2 top-full z-20 grid h-3 w-8 -translate-x-1/2 place-items-center rounded-b-md border-x border-b border-white/20 bg-[var(--sidebar)] text-white/70 transition-colors hover:border-white/40 hover:text-white"
+          className="absolute left-1/2 top-[calc(100%+1px)] z-20 grid h-3 w-8 -translate-x-1/2 place-items-center rounded-b-md border-x border-b border-white/15 bg-[var(--warna-panel-filter)] text-white/70 transition-colors hover:border-white/40 hover:text-white"
         >
           {tampil ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
         </button>
@@ -150,7 +150,7 @@ export default function TopBar() {
     return index === -1 ? urutanLembaga.length : index;
   };
   const daftarLembaga = [...pilihan].sort((a, b) => posisiLembaga(a.jenjang) - posisiLembaga(b.jenjang));
-  const classFilterLembaga = cn('mr-0', daftarLembaga.length === 1 ? 'w-[80px]' : 'w-[160px]');
+  const classFilterLembaga = cn('relative mr-0 after:pointer-events-none after:absolute after:inset-y-0 after:right-0 after:z-20 after:w-px after:bg-white/15', daftarLembaga.length === 1 ? 'w-[80px]' : 'w-[160px]');
   const taPilihanTerurut = [...taPilihan].sort((a, b) => b.nama.localeCompare(a.nama, 'id', { numeric: true }));
   const { theme, mode, dark, iconSet, warnaUI, navigasi, collapsed, setTheme, setMode, setCollapsed, setIconSet, setWarnaUI, setNavigasi } = useTheme();
   const nav = useNavigate();
@@ -204,6 +204,10 @@ export default function TopBar() {
   // Dua sumber tools (halaman + tabel) → baris tools memakai tab agar ringkas.
   const banyakTab = adaToolsHalaman && adaToolsTabel;
   const tampilTools = adaTools && toolsTampil;
+  /** Ada filter global yang benar-benar dirender di topBar (tempat TabRibbon menempel). */
+  const adaFilterTopBar = (tampil.lembaga && (adaSemua || banyakPilihan) && daftarLembaga.length > 0)
+    || (tampil.tahun_ajaran && taPilihanTerurut.length > 0)
+    || tampil.semester;
 
   // Elemen target portal tools halaman (lihat `RibbonSlot`).
   const hostRef = useCallback((el: HTMLDivElement | null) => setSlotEl?.(el), [setSlotEl]);
@@ -267,7 +271,7 @@ export default function TopBar() {
     <ContextMenu>
       <ContextMenuTrigger asChild disabled={!bolehKelolaHalaman}>
         <header
-          className="relative shrink-0 border-b border-white/10 text-white"
+          className="relative shrink-0 border-b border-white/15 px-0.5 pt-1 text-white"
           style={{ background: 'linear-gradient(90deg, var(--sidebar-deep), var(--sidebar))' }}
         >
       {/* Judul halaman untuk pembaca layar (visual tampil di bar judul). */}
@@ -277,7 +281,7 @@ export default function TopBar() {
 
       {/* Baris 1: judul halaman (kiri) + area akun (kanan). Padding kiri
           menyisakan ruang untuk kenop navigasi yang melintasi border. */}
-      <div className="relative flex items-center gap-2 py-1.5 pl-6 pr-3 md:pr-5">
+      <div data-part="area_judul" className="relative flex items-center gap-2 py-0 pb-1 pl-6 pr-3 md:pr-5">
         {/* Kenop navigasi: satu tombol untuk dua arah — chevron kiri
             menyembunyikan rail (saat tampil), chevron kanan menampilkannya
             kembali (saat tertutup). Saat rail tampil, tombol melintasi garis
@@ -321,7 +325,8 @@ export default function TopBar() {
         <div data-part="area_akun" className="ml-2 flex min-w-0 flex-1 items-center gap-0.5">
           {/* Perenggang kiri: mendorong filter global ke tengah bar. */}
           <div aria-hidden="true" className="min-w-0 flex-1" />
-          <div className="flex min-w-0 items-center gap-0 rounded-md border border-white/15 bg-white/5 p-0.5 empty:hidden">
+          {adaFilterTopBar && (
+          <div className="relative flex min-w-0 items-center gap-0 rounded-md border border-white/15 bg-white/5 p-0">
             {tampil.lembaga && (adaSemua || banyakPilihan) && daftarLembaga.length > 0 && (
             <FilterToggleGroup
               id="btn_menu_lembaga_aktif"
@@ -376,14 +381,18 @@ export default function TopBar() {
               }))}
               dipilih={nilaiDropdown(semesters, modeSemester)}
               tampilkanSemua={false}
-              className="mr-0 w-[160px]"
+              className="relative mr-0 w-[160px] before:pointer-events-none before:absolute before:inset-y-0 before:left-0 before:z-20 before:w-px before:bg-white/15"
               itemClassName="min-w-0 flex-1 shrink"
               onPilih={pilihSemesterNilai}
               onSemua={() => pilihSemester(null)}
               disabled={semesterLoading}
             />
           )}
+            {/* Tab buka/tutup ribbon menutup border bawah pembungkus filter
+                tepat di tengah, sehingga keduanya tampak satu kesatuan. */}
+            {adaTools && <TabRibbon tampil={toolsTampil} onToggle={togolTools} />}
           </div>
+          )}
           {/* Perenggang kanan: filter global tetap di tengah; akun di kanan. */}
           <div aria-hidden="true" className="min-w-0 flex-1" />
           {registrasi && efektifSuper ? (
@@ -560,9 +569,9 @@ export default function TopBar() {
           </DropdownMenu>
         </div>
 
-        {/* Tab pembuka/penutup ribbon: menempel di baris ini (lihat
-            `TabRibbon`), jadi tidak bergeser saat ribbon buka/tutup. */}
-        {adaTools && <TabRibbon tampil={toolsTampil} onToggle={togolTools} />}
+        {/* Tab pembuka/penutup ribbon tanpa filter topBar: menempel di tengah
+            border toolbar (header) ExcelTable, yaitu pusat baris ini. */}
+        {adaTools && !adaFilterTopBar && <TabRibbon tampil={toolsTampil} onToggle={togolTools} />}
       </div>
 
       {/* Banner "bertindak sebagai lembaga": di atas ribbon agar selalu terlihat. */}

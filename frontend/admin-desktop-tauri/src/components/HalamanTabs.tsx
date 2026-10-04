@@ -80,11 +80,11 @@ export default function HalamanTabs({ def }: { def: HalamanDef }) {
       <Tabs
         value={aktif}
         onValueChange={(v) => navigate(v)}
-        className="flex min-h-0 flex-1 flex-col gap-0 pt-3"
+        className="flex min-h-0 flex-1 flex-col gap-0 pt-2"
       >
         {/* `max-w-full overflow-x-auto`: tab bisa lebih lebar dari area konten
             (mis. jendela sempit + sidebar terbuka) — tetap bisa digulir. */}
-        <TabsList className="mx-auto max-w-full gap-x-2 overflow-x-auto border border-border px-1 py-1 group-data-[orientation=horizontal]/tabs:h-8">
+        <TabsList className="mx-auto max-w-full scroll-tanpa-bar gap-x-2 overflow-x-auto overflow-y-hidden border border-border p-0 group-data-[orientation=horizontal]/tabs:h-6">
           {tabs.map((t) => (
             <TabsTrigger
               key={t.to}

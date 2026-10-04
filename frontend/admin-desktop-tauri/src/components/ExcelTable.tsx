@@ -1318,7 +1318,7 @@ export default function ExcelTable<T extends { id: string | number }>({
         {headerTampil ? (
           <ContextMenu>
             <ContextMenuTrigger asChild disabled={!bolehKelolaHalaman}>
-              <div data-part="header_tabel" className="flex shrink-0 items-center justify-between gap-2 border-b bg-muted/40 px-3 py-1 text-sm font-medium">
+              <div data-part="header_tabel" className="flex shrink-0 items-center justify-between gap-2 border-b border-[color:var(--warna-border-ribbon)] bg-muted/40 px-3 py-1 text-sm font-medium">
             <div className="flex min-w-0 flex-1 items-center gap-2">
               <div className="min-w-0 flex-1 truncate">{judulHeader}</div>
               {infoHeader ? (

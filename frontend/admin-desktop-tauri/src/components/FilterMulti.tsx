@@ -6,7 +6,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import type { ModeFilterGlobal } from '@/lib/filterHalaman';
 
 const navBase =
-  'flex items-center gap-2 rounded-md px-2.5 py-1 text-xs whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--sidebar-foreground)]/60';
+  'flex items-center gap-2 rounded-none px-2.5 py-1 text-xs whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--sidebar-foreground)]/60';
 const navIdle =
   'text-[var(--sidebar-foreground)] hover:bg-[color-mix(in_srgb,var(--sidebar-foreground)_14%,transparent)] hover:text-white';
 
@@ -63,7 +63,7 @@ export function FilterDropdown({
           disabled={disabled}
           title={judul}
           aria-label={ariaLabel ?? label}
-          className={cn(navBase, navIdle, 'mr-1 data-[state=open]:bg-white/15')}
+          className={cn(navBase, navIdle, 'mr-0 data-[state=open]:bg-white/15')}
         >
           <span className="hidden max-w-[9rem] truncate sm:inline">{teks}</span>
           <ChevronDown size={13} className="opacity-70" />
@@ -168,16 +168,16 @@ export function FilterSelect({
         title={title ?? labelTerpilihFallback(dipilih, label)}
         aria-label={ariaLabel ?? label}
         className={cn(
-          'mr-1 h-6 max-w-[12rem] border-0 bg-transparent px-2.5 text-white/90 hover:bg-white/10 data-[placeholder]:text-white/70',
+          'mr-0 h-6 max-w-[12rem] rounded-none border-0 bg-transparent px-2.5 text-white hover:bg-white/10 data-[placeholder]:text-white dark:bg-transparent dark:hover:bg-white/10 [&_svg]:hidden',
           className,
         )}
       >
         <SelectValue placeholder={tampilkanSemua ? 'Semua' : label} />
       </SelectTrigger>
-      <SelectContent align="center" position="popper" sideOffset={4} className="min-w-[12rem]">
+      <SelectContent align="center" position="popper" sideOffset={4} className="min-w-[var(--radix-select-trigger-width)]">
         <SelectGroup>
           {tampilkanSemua ? (
-            <SelectItem id={idSemua ?? `${id}_semua`} value={NILAI_SEMUA} className="justify-center pr-8 pl-8">
+            <SelectItem id={idSemua ?? `${id}_semua`} value={NILAI_SEMUA} className="justify-center pr-6 pl-6">
               Semua
             </SelectItem>
           ) : null}
@@ -186,7 +186,7 @@ export function FilterSelect({
               key={item.nilai}
               id={item.id ?? `${id}_${item.nilai.replace(/[^a-z0-9]+/gi, '_').toLowerCase() || 'opsi'}`}
               value={item.nilai}
-              className="justify-center pr-8 pl-8"
+              className="justify-center pr-6 pl-6"
             >
               {item.label}
             </SelectItem>
@@ -280,7 +280,7 @@ export function FilterToggleGroup({
           value={item.nilai}
           title={item.label}
           aria-label={`${label}: ${item.label}`}
-          className={cn('h-6 max-w-full rounded-none px-2 text-xs font-normal', itemClassName)}
+          className={cn('h-6 max-w-full rounded-none px-2 text-xs font-normal data-[spacing=0]:first:rounded-none data-[spacing=0]:last:rounded-none', itemClassName)}
         >
           <span className="max-w-full truncate">{item.label}</span>
         </ToggleGroupItem>
@@ -292,7 +292,7 @@ export function FilterToggleGroup({
     disabled,
     spacing: 0,
     'aria-label': ariaLabel ?? label,
-    className: cn('mr-1 flex h-6 max-w-full gap-0 overflow-hidden rounded-md', className),
+    className: cn('mr-1 flex h-6 max-w-full gap-0 overflow-hidden rounded-none', className),
   };
 
   return mode === 'single' ? (

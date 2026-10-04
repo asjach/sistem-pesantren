@@ -215,8 +215,8 @@ export default function KeuanganPage() {
           { key: 'keuangan_tunggakan', judul: 'Tunggakan', fields: FIELDS_TUNGGAKAN },
         ]}
       />
-      <Tabs value={tab} onValueChange={(v) => { setTab(v); prefSet('simpes_keuangan_tab', v).catch(() => {}); }} className="flex min-h-0 flex-1 flex-col gap-0 pt-3">
-        <TabsList className="mx-auto gap-x-2 border border-border px-1 py-1 group-data-[orientation=horizontal]/tabs:h-8">
+      <Tabs value={tab} onValueChange={(v) => { setTab(v); prefSet('simpes_keuangan_tab', v).catch(() => {}); }} className="flex min-h-0 flex-1 flex-col gap-0 pt-2">
+        <TabsList className="mx-auto gap-x-2 border border-border p-0 group-data-[orientation=horizontal]/tabs:h-6">
           <TabsTrigger value="jenis" id="keu_tab_jenis" className="py-0 text-[11px] data-[state=active]:border-primary data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow dark:data-[state=active]:border-primary dark:data-[state=active]:bg-primary dark:data-[state=active]:text-primary-foreground">Jenis Tagihan</TabsTrigger>
           <TabsTrigger value="tarif" id="keu_tab_tarif" className="py-0 text-[11px] data-[state=active]:border-primary data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow dark:data-[state=active]:border-primary dark:data-[state=active]:bg-primary dark:data-[state=active]:text-primary-foreground">Tarif</TabsTrigger>
           <TabsTrigger value="tagihan" id="keu_tab_tagihan" className="py-0 text-[11px] data-[state=active]:border-primary data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow dark:data-[state=active]:border-primary dark:data-[state=active]:bg-primary dark:data-[state=active]:text-primary-foreground">Tagihan</TabsTrigger>

@@ -56,6 +56,16 @@
   /* Kontrol native (scrollbar, spinner input, date picker) ikut mode terang. */
   color-scheme: light;
 
+  /* Warna garis bilah ribbon (bawaan: 10% putih di atas latar sidebar —
+     sama dengan border-white/10 pada header). Dipakai juga oleh bar judul
+     tabel ExcelTable agar seragam; ikut kustomisasi bagian "Bilah ribbon"
+     (--part-ribbon-border) bila pengguna mengaturnya. */
+  --warna-border-ribbon: var(--part-ribbon-border, color-mix(in srgb, var(--sidebar) 90%, white));
+  /* Warna panel filter topBar (5% putih di atas tengah gradien header) —
+     opaque, dipakai tombol show/hide ribbon agar sama persis dengan panel
+     filter dan tidak menembus garis/latar di belakangnya. */
+  --warna-panel-filter: color-mix(in srgb, color-mix(in srgb, var(--sidebar-deep) 50%, var(--sidebar)) 95%, white);
+
   /* ---------- hierarki font (Aptos bundel lokal + fallback sistem) ----------
      --font-sans: isi/body, tabel, navigasi (netral).
      --font-display: judul (h1–h3), brand sidebar, header grid.
