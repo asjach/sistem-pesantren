@@ -1,6 +1,6 @@
 import { labelKolom } from '@/lib/labelKolom';
 import { useBagian } from '@/components/kelolaHalaman/kotor';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { errorMessage } from '@/api/client';
 import {
   hapusUrutPreset,

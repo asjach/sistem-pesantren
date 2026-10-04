@@ -19,7 +19,7 @@ import {
 import { Button } from '@/components/ui/button';
 import MultiSelect from '@/components/MultiSelect';
 import type { PsbGelombangMaster, PsbKegiatan, PsbKuotaBiayaRow } from '@/api/psb';
-import type { ReferensiRow, TahunAjaran } from '@/api/master';
+import type { TahunAjaran } from '@/api/master';
 
 /** Dialog tambah/ubah kegiatan PSB (satu per tahun ajaran). */
 export function DialogKegiatan({ open, edit, taTersedia, nama, ta, aktif, busy, onNama, onTa, onAktif, onClose, onSubmit }: {

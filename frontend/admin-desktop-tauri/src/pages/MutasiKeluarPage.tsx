@@ -27,7 +27,7 @@ import { useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
-import { FileUp, Download, ArrowRight } from '@/icons';
+import { FileUp, ArrowRight } from '@/icons';
 import { ActionIcon } from '@/components/RowActions';
 import Pager from '@/components/Pager';
 import { usePager } from '@/hooks/usePager';

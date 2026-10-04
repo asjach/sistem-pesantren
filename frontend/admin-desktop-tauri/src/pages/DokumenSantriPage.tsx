@@ -29,7 +29,6 @@ import { cn } from '@/lib/utils';
 import { jenjangTampilSantri, urutSantriFilter, type InfoUrutSantri } from '@/lib/urut';
 import {
   BATAS_BERKAS,
-  EKSTENSI_BOLEH,
   EKSTENSI_PILIH,
   ekstensiDariNama,
   mimeDariEkstensi,

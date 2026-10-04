@@ -9,7 +9,7 @@
  *  terverifikasi. Di browser biasa modul ini tidak dipakai (penjagaan
  *  `isTauri()` di halaman).
  */
-import { isTauri, prefGet } from '@/api/client';
+import { prefGet } from '@/api/client';
 
 /** Nama folder tujuan file asli di lokasi sumbernya. */
 export const FOLDER_SUDAH = 'sudah';
@@ -23,8 +23,6 @@ export const PREF_FOLDER_ARSIP = 'simpes_folder_arsip';
 export const PREF_FOLDER_ARSIP_TEST = 'simpes_folder_arsip_test';
 /** Kunci pref: mode penyimpanan perangkat (`server` | `lokal` | `test`). */
 export const PREF_MODE_DOKUMEN = 'simpes_mode_dokumen';
-/** Mode penyimpanan yang dikenal. `test` = perilaku lokal ke folder uji. */
-export type ModeDokumen = 'server' | 'lokal' | 'test';
 /** Batas ukuran berkas (sama seperti validasi backend): 10 MB. */
 export const BATAS_BERKAS = 10 * 1024 * 1024;
 /** Ekstensi yang diterima (tanpa titik, huruf kecil). */
@@ -137,14 +135,6 @@ export async function pilihBerkasDokumen(bebas = false): Promise<BerkasTerpilih 
   const info = await stat(path);
   if ((info.size ?? 0) > BATAS_BERKAS) throw new Error('Berkas melebihi 10 MB.');
   return { path, nama, ukuran: info.size ?? 0, mime: mimeDariEkstensi(ext) };
-}
-
-/** Baca berkas lokal menjadi `File` untuk diunggah via API yang sudah ada. */
-export async function bacaBerkasUntukUnggah(berkas: BerkasTerpilih): Promise<File> {
-  const { readFile } = await import('@tauri-apps/plugin-fs');
-  const bytes = await readFile(berkas.path);
-  const buf = new Uint8Array(bytes).buffer as ArrayBuffer;
-  return new File([buf], berkas.nama, { type: berkas.mime });
 }
 
 /** Selesaikan akar arsip: pref absolut bila diisi, sonst bawaan Documents. */
@@ -478,9 +468,4 @@ export async function pindahKeSudah(pathSumber: string): Promise<string> {
     if (await exists(pathSumber)) throw new Error('File asli gagal dihapus setelah disalin.');
     return tujuanAkhir;
   }
-}
-
-/** Penjaga ganda: hanya desktop yang boleh memanggil operasi file lokal. */
-export function wajibDesktop(): void {
-  if (!isTauri()) throw new Error('Arsip lokal hanya tersedia di aplikasi desktop.');
 }

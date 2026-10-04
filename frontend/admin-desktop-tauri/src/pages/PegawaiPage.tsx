@@ -149,7 +149,7 @@ export default function PegawaiPage() {
 
   // Buku Induk bersifat global: abaikan filter global jenjang/TA agar pegawai
   // tanpa penempatan tetap tampil. Filter penempatan hanya di halaman terkait.
-  const { rows, loading, err, setErr, urut, arahUrut, terapkanUrut, load, lastPage, total, pager, onSaved } =
+  const { rows, loading, err, urut, arahUrut, terapkanUrut, load, lastPage, total, pager, onSaved } =
     useDaftarTabel<Pegawai>({
       tableKey: 'pegawai',
       search: cari,

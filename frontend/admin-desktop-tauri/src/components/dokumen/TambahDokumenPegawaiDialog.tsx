@@ -1,14 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { errorMessage, isTauri, prefGet } from '@/api/client';
-import { listPegawai, type Pegawai } from '@/api/pegawai';
 import { listDokumen, simpanDokumen } from '@/api/dokumen';
-import { referensiList, listLembaga, type Lembaga, type ReferensiRow } from '@/api/master';
+import { referensiList, type ReferensiRow } from '@/api/master';
 import TombolIkon from '@/components/TombolIkon';
 import ComboCari from '@/components/ComboCari';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Check, FolderOpen, Save, X } from '@/icons';
+import { Check, FolderOpen, X } from '@/icons';
 import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/field';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -58,7 +57,7 @@ export default function TambahDokumenPegawaiDialog({
   pemilik: { id: number; namaLengkap: string; nipp: string | null; penempatanAktif: string[] };
 }) {
   const desktop = isTauri();
-  const { jenjangs, tahunAjaranNames, loading: filterLoading } = useFilterGlobalAktif();
+  const { jenjangs, loading: filterLoading } = useFilterGlobalAktif();
 
   // ----- Pemilik terkunci dari halaman pemanggil -----
   const pegawaiId = pemilik.id;
@@ -98,7 +97,7 @@ export default function TambahDokumenPegawaiDialog({
 
   /** Jumlah dokumen per pegawai (kunci: pegawai_id) — satu fetch; tanpa
    *  filter = seluruh lingkup akses. */
-  const [jumlahPegawai, setJumlahPegawai] = useState<Record<number, number>>({});
+  const [, setJumlahPegawai] = useState<Record<number, number>>({});
   const muatJumlahPegawai = useCallback(async (): Promise<Record<number, number>> => {
     try {
       const p = await listDokumen('pegawai', { jenjang: jenjangs.length ? jenjangs : undefined, per_page: 0 });

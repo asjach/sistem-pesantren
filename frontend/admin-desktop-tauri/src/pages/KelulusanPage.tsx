@@ -29,7 +29,7 @@ import { targetTunggal, useFilterGlobalAktif } from '@/hooks/useFilterGlobalAkti
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
-import { Download, FileUp, X } from '@/icons';
+import { FileUp, X } from '@/icons';
 import { namaTahunAjaran } from '@/lib/nilaiTampil';
 import { tokenUrut, type PetaArahKolom } from '@/lib/urut';
 import ImportBertahapUmumDialog from '@/components/ImportBertahapUmumDialog';

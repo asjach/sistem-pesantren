@@ -242,7 +242,7 @@ export default function MiMdPage() {
   const panel = (
     key: string,
     judul: string,
-    jumlah: number,
+    _jumlah: number,
     fields: ExcelField[],
     rows: Baris[],
     getValues: (r: Baris) => Record<string, string | null>,

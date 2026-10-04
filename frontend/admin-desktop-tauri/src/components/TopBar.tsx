@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { logout } from '@/api/auth';
 import { isTauri, prefGet, prefSet } from '@/api/client';
@@ -113,8 +113,6 @@ export default function TopBar() {
   const { user, logoutLocal } = useAuth();
   const {
     jenjangs,
-    jenjang,
-    lembaga,
     pilihan,
     adaSemua,
     banyakPilihan,

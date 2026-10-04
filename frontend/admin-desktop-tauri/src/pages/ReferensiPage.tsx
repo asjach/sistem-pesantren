@@ -22,7 +22,6 @@ import {
   SelectContent,
   SelectGroup,
   SelectItem,
-  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
@@ -81,7 +80,7 @@ export default function ReferensiPage() {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
-  const [tick, setTick] = useState(0);
+  const [tick] = useState(0);
 
   const [tambahOpen, setTambahOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);

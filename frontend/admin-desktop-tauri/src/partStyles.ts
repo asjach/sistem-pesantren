@@ -1,6 +1,4 @@
 import { fontParts } from './fonts';
-import { onAccentFor } from './prefs';
-import { findPreset, type ThemeName } from './themes';
 import {
   PARTS,
   PART_BY_ID,
@@ -181,69 +179,3 @@ export function terapkanGayaBagian(parts: PartOverrides): void {
   el.textContent = bangunCssBagian(parts);
 }
 
-/** CSS pratinjau editor: deklarasi sama seperti aslinya, tanpa pengecualian
- *  antar-bagian (mode dipisah lewat `scope` kanvas).
- *  `sel` = selektor bagian yang cocok di markup pratinjau (sub-komponen selalu
- *  memakainya); `null` = pakai pembungkus pratinjau sebagai fallback. */
-export function bangunCssPratinjau(
-  id: PartId,
-  g?: PartGaya,
-  w?: PartWarna,
-  sel?: string | null,
-  scope = '#pratinjau_bagian',
-): string {
-  const meta = PART_BY_ID.get(id);
-  const akar = sel ? `${scope} :is(${sel})` : `${scope} [data-pratinjau-part]`;
-  const desc = `${akar} *${tolakKontrol(meta?.kendali)}`;
-  const gaya = deklGaya(g ?? {});
-  const warna = deklWarna(w);
-  const permukaan = [...gaya.permukaan, ...warna.permukaan];
-  const teks = [...gaya.teks, ...warna.teks];
-  let css = '';
-  if (permukaan.length || teks.length) css += `${akar}{${[...permukaan, ...teks].join(';')}}\n`;
-  if (teks.length) css += `${desc}{${teks.join(';')}}\n`;
-  return css;
-}
-
-/** Variabel wajah tema (terang/gelap) untuk kanvas pratinjau editor — meniru
- *  yang dipasang `applyPrefs` di <html>, supaya pratinjau mengikuti mode yang
- *  sedang diedit, bukan mode global aplikasi. */
-export function variabelWajah(theme: ThemeName, gelap: boolean): Record<string, string> {
-  const t = findPreset(theme);
-  const bg = gelap ? t.gelap.bg : t.terang.bg;
-  const fg = gelap ? t.gelap.fg : t.terang.fg;
-  const accent = gelap ? t.gelap.accent : t.terang.accent;
-  const mix = (a: string, pa: number, b: string) => `color-mix(in srgb, ${a} ${pa}%, ${b})`;
-  return {
-    '--background': bg,
-    '--foreground': fg,
-    '--accent': accent,
-    '--on-accent': onAccentFor(accent),
-    '--sidebar': t.sidebar,
-    '--sidebar-deep': t.sidebarDeep,
-    '--accent-readable': mix(accent, 72, fg),
-    '--card': mix(fg, 5, bg),
-    '--card-foreground': fg,
-    '--popover': mix(fg, 5, bg),
-    '--popover-foreground': fg,
-    '--primary': accent,
-    '--primary-foreground': onAccentFor(accent),
-    '--secondary': mix(fg, 8, bg),
-    '--secondary-foreground': fg,
-    '--muted': mix(fg, 8, bg),
-    '--muted-foreground': mix(fg, 68, bg),
-    '--accent-soft': mix(accent, 16, bg),
-    '--accent-soft-foreground': mix(accent, 70, fg),
-    '--border': mix(fg, 12, bg),
-    '--input': mix(fg, 12, bg),
-    '--ring': accent,
-    '--destructive': gelap ? '#e0685f' : '#a12622',
-    '--destructive-foreground': gelap ? '#1a0b0a' : '#ffffff',
-    '--warning': gelap ? '#fbbf24' : '#b45309',
-    '--warning-foreground': gelap ? '#fcd34d' : '#92400e',
-    '--success': mix('#16a34a', 72, fg),
-    '--success-foreground': '#ffffff',
-    '--info': mix('#2563eb', 72, fg),
-    '--info-foreground': '#ffffff',
-  };
-}

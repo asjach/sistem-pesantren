@@ -47,10 +47,6 @@ export function ubahTarif(id: number, nominal: number, is_active: boolean) {
   return api<Tarif>(`/admin/keuangan/tarif/${id}`, { method: 'PUT', body: JSON.stringify({ nominal, is_active }) });
 }
 
-export function hapusTarif(id: number) {
-  return api<{ pesan: string }>(`/admin/keuangan/tarif/${id}`, { method: 'DELETE' });
-}
-
 export function daftarTagihan(params: { page?: string; per_page?: string; jenjang?: ScalarOrArray<string>; tahun_ajaran?: ScalarOrArray<string>; jenis_id?: string; status?: string } = {}) {
   const q = new URLSearchParams();
   if (params.page) q.set('page', params.page);
@@ -73,10 +69,6 @@ export function hapusTagihan(id: number) {
 
 export function catatPembayaran(data: Record<string, unknown>) {
   return api<{ id: number; no_kwitansi: string }>('/admin/keuangan/pembayaran', { method: 'POST', body: JSON.stringify(data) });
-}
-
-export function batalPembayaran(id: number) {
-  return api<{ pesan: string }>(`/admin/keuangan/pembayaran/${id}/batal`, { method: 'POST' });
 }
 
 export function hapusPembayaran(id: number) {

@@ -195,40 +195,6 @@ function namaTanpaEkstensi(nama: string): string {
   return i >= 0 ? nama.slice(0, i) : nama;
 }
 
-/** Petakan rect tampilan (px dalam kotak gambar) ke koordinat natural. */
-export function rectKeNatural(
-  rectTampil: { x: number; y: number; w: number; h: number },
-  tampilW: number,
-  tampilH: number,
-  naturalW: number,
-  naturalH: number,
-): CropPiksel {
-  const sx = naturalW / tampilW;
-  const sy = naturalH / tampilH;
-  return {
-    x: Math.round(rectTampil.x * sx),
-    y: Math.round(rectTampil.y * sy),
-    w: Math.round(rectTampil.w * sx),
-    h: Math.round(rectTampil.h * sy),
-  };
-}
-
-/** Petakan crop natural kembali ke rect tampil (untuk menggambar overlay). */
-export function naturalKeRect(
-  crop: CropPiksel,
-  tampilW: number,
-  tampilH: number,
-  naturalW: number,
-  naturalH: number,
-): { x: number; y: number; w: number; h: number } {
-  return {
-    x: (crop.x / naturalW) * tampilW,
-    y: (crop.y / naturalH) * tampilH,
-    w: (crop.w / naturalW) * tampilW,
-    h: (crop.h / naturalH) * tampilH,
-  };
-}
-
 /** Putar koordinat ternormalisasi [0,1] searah jarum jam (kelipatan 90°). */
 function putarUV(u: number, v: number, rotasi: 0 | 90 | 180 | 270): [number, number] {
   if (rotasi === 90) return [1 - v, u];

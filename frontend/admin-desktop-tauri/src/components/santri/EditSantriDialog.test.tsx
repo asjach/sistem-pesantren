@@ -1,10 +1,10 @@
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
 
 import { EditSantriDialog } from './EditSantriDialog';
-import { updateSantri, type SantriPenuh } from '@/api/santri';
+import type { SantriPenuh } from '@/api/santri';
 import { renderDenganTema } from '@/test/utils';
 
 // react-resizable-panels tidak jalan di jsdom — ganti panel bungkus datar.

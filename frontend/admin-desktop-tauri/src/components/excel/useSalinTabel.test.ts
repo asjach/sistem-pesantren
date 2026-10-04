@@ -43,7 +43,7 @@ function pasang(range: GridSelection | null, checked: (string | number)[] = []) 
     gridByIdRef: { current: new Map(grid.map((g) => [String(g.id), g])) },
     checkedIdsRef: { current: new Set<Baris['id']>(checked as Baris['id'][]) },
     rangeRef: { current: range },
-    labelKolom: (key, bawaan) => bawaan,
+    labelKolom: (_key, bawaan) => bawaan,
   }));
 }
 

@@ -14,7 +14,7 @@ interface LiveRef<T> {
 /** Drafts: id baris → field → nilai. */
 type Drafts = Record<string, Record<string, string | null>>;
 
-export interface BarisInputOptions<T extends { id: string | number }> {
+export interface BarisInputOptions {
   /** Buat record baru dari baris input (absen = mode Input tidak aktif). */
   onCreateRow: ((fields: Record<string, string | null>) => Promise<void>) | undefined;
   /** Kolom tampil saat ini (validasi mengikuti kolom terlihat). */
@@ -39,7 +39,7 @@ export interface BarisInputOptions<T extends { id: string | number }> {
  * (`enterInputRow` — kursor boleh turun bila valid), dan pemindahan kursor
  * kembali ke baris input setelah reload (`pindahKeInput` via efek).
  */
-export function useBarisInput<T extends { id: string | number }>({
+export function useBarisInput({
   onCreateRow,
   visibleFieldsRef,
   inputRowValues,
@@ -47,7 +47,7 @@ export function useBarisInput<T extends { id: string | number }>({
   loading,
   gridValueRef,
   gridRef,
-}: BarisInputOptions<T>) {
+}: BarisInputOptions) {
   /** Nilai TERBARU baris input (ditulis handleChange) — dipakai saat Enter
    *  agar simpan tidak membaca state yang belum ter-flush. */
   const inputDraftRef = useRef<Record<string, string | null>>({});

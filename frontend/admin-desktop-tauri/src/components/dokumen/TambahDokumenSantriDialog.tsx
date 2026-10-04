@@ -1,27 +1,22 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { errorMessage, isTauri, prefGet } from '@/api/client';
-import { listSantri, type Santri, type SantriPenuh } from '@/api/santri';
 import { listDokumen } from '@/api/dokumen';
-import { listKelas, referensiList, type Kelas, type ReferensiRow } from '@/api/master';
-import { listRiwayatBelajar } from '@/api/siklus';
+import { referensiList, type ReferensiRow } from '@/api/master';
 import { simpanDokumen } from '@/api/dokumen';
 import TombolIkon from '@/components/TombolIkon';
 import { Button } from '@/components/ui/button';
 import ComboCari from '@/components/ComboCari';
 import { Badge } from '@/components/ui/badge';
-import { Check, FolderOpen, Save, X } from '@/icons';
+import { Check, FolderOpen, X } from '@/icons';
 import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/field';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
-import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { Separator } from '@/components/ui/separator';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
-import { TopBarSearch } from '@/components/TopBarSearch';
-import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
+import { PAGE_SHELL } from '@/components/PageHeader';
 import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
-import { jenjangTampilSantri, urutSantriFilter, type InfoUrutSantri } from '@/lib/urut';
 import {
   BATAS_BERKAS,
   EKSTENSI_BOLEH,
@@ -63,14 +58,7 @@ export default function TambahDokumenSantriDialog({
   pemilik: { id: number; namaLengkap: string };
 }) {
   const desktop = isTauri();
-  const {
-    jenjangs,
-    tahunAjaranNames,
-    semesters,
-    tingkat: tingkatAktif,
-    kelas: kelasAktif,
-    loading: filterLoading,
-  } = useFilterGlobalAktif();
+  const { jenjangs } = useFilterGlobalAktif();
 
   /** Santri pemilik — berasal dari halaman pemanggil (dialog tanpa daftar). */
   const santriId = pemilik.id;

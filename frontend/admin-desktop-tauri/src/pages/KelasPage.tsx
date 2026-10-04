@@ -52,7 +52,7 @@ import Pager from '@/components/Pager';
 import { useDaftarTabel } from '@/hooks/useDaftarTabel';
 import { useAuth } from '../auth/AuthContext';
 import { bisa } from '../api/auth';
-import { X, FileUp, Download } from '@/icons';
+import { X, FileUp } from '@/icons';
 import { DeleteAction, EditAction, ViewAction } from '@/components/RowActions';
 import ImportBertahapUmumDialog from '@/components/ImportBertahapUmumDialog';
 import { namaLembaga, namaTahunAjaran } from '@/lib/nilaiTampil';

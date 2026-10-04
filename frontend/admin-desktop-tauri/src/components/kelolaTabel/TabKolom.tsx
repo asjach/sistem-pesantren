@@ -91,7 +91,7 @@ export default function TabKolom({
   /** Susunan yang dimuat memang "Lengkap kustom" (bukan semua kolom). */
   const kustomAwal = editId === null && !!kolomAwal && kolomAwal.length > 0;
   const [cariKolom, setCariKolom] = useState('');
-  const [busy, setBusy] = useState(false);
+  const [, setBusy] = useState(false);
   const laporKotor = useBagian('kolom', () => void simpanPreset());
   /** Acuan "tersimpan" untuk mendeteksi perubahan belum disimpan. */
   const awalNamaRef = useRef(presetAwal?.nama ?? '');

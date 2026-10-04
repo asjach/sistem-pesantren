@@ -82,16 +82,3 @@ export function detachLembaga(userId: number, jenjang: string, role?: string | n
   });
 }
 
-export function assignRole(userId: number, role: string) {
-  return api<{ message: string; user: AdminUser }>(`/admin/users/${userId}/roles`, {
-    method: 'POST',
-    body: JSON.stringify({ role }),
-  });
-}
-
-export function removeRole(userId: number, role: string) {
-  return api<{ message: string; user: AdminUser }>(`/admin/users/${userId}/roles`, {
-    method: 'DELETE',
-    body: JSON.stringify({ role }),
-  });
-}

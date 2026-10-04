@@ -1,7 +1,7 @@
-import { api, apiUpload, downloadFile } from './client';
+import { api, downloadFile } from './client';
 import { appendQueryParam, type ScalarOrArray } from './query';
 import type { Paginate } from './master';
-import type { ImportError, ImportPeriksa, LembagaSantri, Santri, SantriPenuh } from './santri';
+import type { LembagaSantri, Santri, SantriPenuh } from './santri';
 import type { PotongHasil } from '@/components/ImportBertahapUmumDialog';
 import type { DataExistingPayload } from '@/lib/excelDataExisting';
 
@@ -198,24 +198,6 @@ export function listRiwayatBelajar(params: {
   return api<Paginate<RiwayatRow>>(`/admin/riwayat-belajar?${q.toString()}`, { signal: params.signal });
 }
 
-/** Dialog input riwayat / penerimaan santri ke lembaga (satu pintu). */
-export function createRiwayatBelajar(input: {
-  santri_id: number;
-  jenjang: string;
-  tahun_ajaran: string;
-  kelas_id?: number | null;
-  tingkat?: string | null;
-  no_absen?: number | null;
-  status_awal?: string | null;
-  tgl_masuk?: string | null;
-  nis_lokal?: string | null;
-}) {
-  return api<{ pesan: string; data: RiwayatRow }>('/admin/riwayat-belajar', {
-    method: 'POST',
-    body: JSON.stringify(input),
-  });
-}
-
 export function setKelas(riwayatId: number, kelasId: number) {
   return api<{ pesan: string; data: RiwayatRow }>(`/admin/riwayat-belajar/${riwayatId}/set-kelas`, {
     method: 'POST',
@@ -230,13 +212,6 @@ export function pindahKelas(riwayatId: number, kelasBaruId: number) {
   });
 }
 
-/** Batalkan penempatan kelas (kelas_id=NULL). */
-export function keluarKelas(riwayatId: number) {
-  return api<{ pesan: string; data: RiwayatRow }>(`/admin/riwayat-belajar/${riwayatId}/keluar-kelas`, {
-    method: 'POST',
-  });
-}
-
 /** Ubah kolom skalar riwayat (semester/tingkat/no_absen/tgl_masuk).
  *  Status & kelas dikunci backend (pintu lifecycle / set-pindah-kelas). */
 export function updateRiwayatBelajar(id: number, changes: Record<string, string | number | null>) {
@@ -244,31 +219,6 @@ export function updateRiwayatBelajar(id: number, changes: Record<string, string 
     method: 'PATCH',
     body: JSON.stringify(changes),
   });
-}
-
-/** Batalkan baris riwayat aktif (hard delete fisik). */
-export function batalRiwayat(riwayatId: number) {
-  return api<{ pesan: string }>(`/admin/riwayat-belajar/${riwayatId}`, {
-    method: 'DELETE',
-  });
-}
-
-/** Panel kiri halaman ganjil: anggota aktif tanpa riwayat (siap dipanah masuk). */
-export function listBelumMasukRiwayat(params: {
-  jenjang: string;
-  tahun_ajaran: string;
-  q?: string;
-  page?: number;
-  per_page?: number;
-  signal?: AbortSignal;
-}) {
-  const q = new URLSearchParams();
-  q.set('jenjang', params.jenjang);
-  q.set('tahun_ajaran', params.tahun_ajaran);
-  if (params.q) q.set('q', params.q);
-  q.set('page', String(params.page ?? 1));
-  if (params.per_page != null) q.set('per_page', String(params.per_page));
-  return api<Paginate<LembagaSantri>>(`/admin/riwayat-belajar/belum-masuk?${q.toString()}`, { signal: params.signal });
 }
 
 // ---------- Import riwayat belajar (terpisah dari import identitas) ----------
@@ -282,18 +232,6 @@ export function unduhTemplateRiwayatBelajar() {
 export function dataRiwayatBelajarExisting(jenjangs?: string[]) {
   const q = jenjangs?.length ? `?${jenjangs.map((j) => `jenjang[]=${encodeURIComponent(j)}`).join('&')}` : '';
   return api<DataExistingPayload>(`/admin/riwayat-belajar/data-existing${q}`);
-}
-
-export function importRiwayatBelajar(input: { file: File }) {
-  const fd = new FormData();
-  fd.set('file', input.file);
-  return apiUpload<{ pesan: string; errors?: ImportError[] }>('/admin/riwayat-belajar/import-lengkap', fd);
-}
-
-export function periksaImportRiwayatBelajar(input: { file: File }) {
-  const fd = new FormData();
-  fd.set('file', input.file);
-  return apiUpload<ImportPeriksa>('/admin/riwayat-belajar/import-periksa', fd);
 }
 
 // ---------- Import riwayat bertahap (potongan JSON dari browser) ----------
@@ -503,22 +441,6 @@ export function listAlumni(
   return api<Paginate<Alumni>>(`/admin/alumni?${q.toString()}`);
 }
 
-export interface ImportAlumniRingkasan {
-  baris_diproses: number;
-  baris_valid: number;
-  baris_gagal: number;
-  dibuat: number;
-  diperbarui: number;
-  dilewati: number;
-}
-
-export interface ImportAlumniHasil {
-  pesan: string;
-  siap_import: boolean;
-  ringkasan: ImportAlumniRingkasan;
-  errors: ImportError[];
-}
-
 /** Data arsip alumni existing (kolom identik template import; kelas = nama
  *  rombel). Backend hanya mengirim JSON — Excel disusun di browser. */
 export function dataAlumniExisting(jenjangs?: string[]) {
@@ -551,23 +473,6 @@ export function updateAlumni(
   });
 }
 
-function formImportAlumni(file: File) {
-  const fd = new FormData();
-  fd.set('file', file);
-  return fd;
-}
-
-export function periksaImportAlumni(file: File) {
-  return apiUpload<ImportAlumniHasil>('/admin/alumni/import-periksa', formImportAlumni(file));
-}
-
-export function importAlumniFile(file: File) {
-  return apiUpload<{ pesan: string; ringkasan: ImportAlumniRingkasan; errors?: ImportError[] }>(
-    '/admin/alumni/import',
-    formImportAlumni(file),
-  );
-}
-
 // ---------- Import alumni bertahap (potongan JSON dari browser) ----------
 
 /** Kirim satu potongan baris (maks 1000); panggilan pertama tanpa sesi_id
@@ -597,21 +502,6 @@ export function unduhGalatAlumni(sesiId: number) {
 
 // ---------- Import arsip mutasi keluar ----------
 
-export interface ImportMutasiRingkasan {
-  baris_diproses: number;
-  baris_valid: number;
-  baris_gagal: number;
-  dibuat: number;
-  dilewati: number;
-}
-
-export interface ImportMutasiHasil {
-  pesan: string;
-  siap_import: boolean;
-  ringkasan: ImportMutasiRingkasan;
-  errors: ImportError[];
-}
-
 /** Unduh template Excel import arsip mutasi keluar. */
 export function unduhTemplateMutasi() {
   return downloadFile('/admin/mutasi-keluar/import-template', 'template-import-mutasi-keluar.xlsx');
@@ -622,25 +512,6 @@ export function unduhTemplateMutasi() {
 export function dataMutasiExisting(jenjangs?: string[]) {
   const q = jenjangs?.length ? `?${jenjangs.map((j) => `jenjang[]=${encodeURIComponent(j)}`).join('&')}` : '';
   return api<DataExistingPayload>(`/admin/mutasi-keluar/data-existing${q}`);
-}
-
-function formImportMutasi(file: File) {
-  const fd = new FormData();
-  fd.set('file', file);
-  return fd;
-}
-
-/** Periksa file arsip mutasi tanpa menulis (dry-run). */
-export function periksaImportMutasi(file: File) {
-  return apiUpload<ImportMutasiHasil>('/admin/mutasi-keluar/import-periksa', formImportMutasi(file));
-}
-
-/** Eksekusi import arsip mutasi (baris sama dilewati, gagal dilaporkan). */
-export function importMutasiFile(file: File) {
-  return apiUpload<{ pesan: string; ringkasan: ImportMutasiRingkasan; errors?: ImportError[] }>(
-    '/admin/mutasi-keluar/import',
-    formImportMutasi(file),
-  );
 }
 
 // ---------- Import mutasi keluar bertahap (potongan JSON dari browser) ----------
@@ -705,25 +576,6 @@ export function salinGenapMassal(input: {
 }) {
   return api<{ pesan: string; berhasil: number; gagal: { santri_id: number | null; pesan: string }[] }>(
     '/admin/akademik/salin-genap',
-    { method: 'POST', body: JSON.stringify(input) },
-  );
-}
-
-export interface NaikKelasItem {
-  santri_id: number;
-  status: 'naik' | 'tidak_naik';
-  tgl_masuk?: string;
-  no_absen?: number;
-}
-
-export function naikKelasMassal(input: {
-  jenjang: string;
-  tahun_ajaran_baru: string;
-  tingkat: string;
-  siswa: NaikKelasItem[];
-}) {
-  return api<{ pesan: string; berhasil: number; gagal: { santri_id: number | null; pesan: string }[] }>(
-    '/admin/akademik/naik-kelas',
     { method: 'POST', body: JSON.stringify(input) },
   );
 }
@@ -825,13 +677,6 @@ export function mutasiSantri(
   return api<{ pesan: string; data: MutasiKeluar }>(`/admin/santri/${santriId}/mutasi`, {
     method: 'POST',
     body: JSON.stringify(input),
-  });
-}
-
-export function berhentiJenjang(santriId: number, jenjang: string) {
-  return api<{ pesan: string; data: unknown }>(`/admin/santri/${santriId}/berhenti-jenjang`, {
-    method: 'POST',
-    body: JSON.stringify({ jenjang }),
   });
 }
 

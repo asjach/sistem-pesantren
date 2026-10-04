@@ -1,4 +1,4 @@
-import { api, apiUpload, downloadFile } from './client';
+import { api, downloadFile } from './client';
 import { appendQueryParam, type ScalarOrArray } from './query';
 import type { Paginate } from './master';
 import type { DokumenSantri } from './santri';
@@ -88,13 +88,6 @@ export function verifikasiCalon(id: number) {
   return api<{ pesan: string; data: PsbCalon }>(`/psb/${id}/verifikasi`, { method: 'POST' });
 }
 
-export function seleksiCalon(id: number, input: { lolos: boolean; catatan?: string }) {
-  return api<{ pesan: string; data: PsbCalon }>(`/psb/${id}/seleksi`, {
-    method: 'POST',
-    body: JSON.stringify(input),
-  });
-}
-
 export function daftarUlangCalon(id: number, input: { lolos?: boolean; catatan?: string } = {}) {
   return api<{ pesan: string; data: PsbCalon }>(`/psb/${id}/daftar-ulang`, {
     method: 'POST',
@@ -154,13 +147,6 @@ export function bulkVerifikasi(ids: number[]) {
   });
 }
 
-export function bulkSeleksi(ids: number[], lolos: boolean, catatan?: string) {
-  return api<{ pesan: string; data: BulkHasil }>('/psb/bulk/seleksi', {
-    method: 'POST',
-    body: JSON.stringify({ ids, lolos, catatan }),
-  });
-}
-
 export function bulkAcc(ids: number[], nis?: Record<number, string>) {
   const bersih = Object.fromEntries(
     Object.entries(nis ?? {}).filter(([, v]) => (v ?? '').trim() !== ''),
@@ -204,14 +190,6 @@ export function bulkPulihkan(ids: number[]) {
     method: 'POST',
     body: JSON.stringify({ ids }),
   });
-}
-
-export function importPsb(input: { gelombang_id: number; jenjang: string; file: File }) {
-  const fd = new FormData();
-  fd.set('gelombang_id', String(input.gelombang_id));
-  fd.set('jenjang', input.jenjang);
-  fd.set('file', input.file);
-  return apiUpload<{ pesan: string; errors?: { row: number; attribute: string; errors: string[] }[] }>('/psb/import', fd);
 }
 
 export function downloadTemplatePsb() {

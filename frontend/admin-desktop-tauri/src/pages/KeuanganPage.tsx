@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { errorMessage, prefGet, prefSet } from '../api/client';
 import {
-  daftarJenis, buatJenis, ubahJenis, buatTarif, daftarTarif, ubahTarif, hapusTarif,
+  daftarJenis, buatJenis, ubahJenis, buatTarif, daftarTarif, ubahTarif,
   daftarTagihan, generateTagihan, hapusTagihan, catatPembayaran, daftarTunggakan,
   riwayatPembayaran, hapusPembayaran,
   type JenisTagihan, type Tarif, type TagihanRow, type TunggakanRow, type PembayaranRow,

@@ -1,7 +1,6 @@
-import { api, apiUpload, downloadFile } from './client';
+import { api, downloadFile } from './client';
 import { appendQueryParam, type ScalarOrArray } from './query';
 import { PER_PAGE_DEFAULT } from '@/prefs';
-import type { ImportError } from './santri';
 import type { PotongHasil } from '@/components/ImportBertahapUmumDialog';
 import type { DataExistingPayload } from '@/lib/excelDataExisting';
 
@@ -358,14 +357,6 @@ export function updateKelas(
   return api<Kelas>(`/admin/kelas/${id}`, { method: 'PUT', body: JSON.stringify(input) });
 }
 
-/** Tetapkan/lepas wali kelas (null = lepas). */
-export function setWalasKelas(id: number, pegawaiId: number | null) {
-  return api<{ pesan: string; data: Kelas }>(`/admin/kelas/${id}/set-walas`, {
-    method: 'POST',
-    body: JSON.stringify({ pegawai_id: pegawaiId }),
-  });
-}
-
 // ---------- Pegawai aktif (opsi wali) ----------
 
 export interface PegawaiAktif {
@@ -413,31 +404,7 @@ export function importNamaKelas(
   });
 }
 
-/** Unduh daftar nama kelas satu lembaga + TA (pasangan import-nama). */
-export function unduhDaftarKelas(jenjang: string, tahunAjaran: string) {
-  return downloadFile(
-    `/admin/kelas/export-nama?jenjang=${encodeURIComponent(jenjang)}&tahun_ajaran=${encodeURIComponent(tahunAjaran)}`,
-    `daftar-kelas-${jenjang}.xlsx`,
-  );
-}
-
 // ---------- Import file kelas satu lingkup ----------
-
-export interface ImportKelasRingkasan {
-  baris_diproses: number;
-  baris_valid: number;
-  baris_gagal: number;
-  dibuat: number;
-  diperbarui: number;
-  dilewati: number;
-}
-
-export interface ImportKelasHasil {
-  pesan: string;
-  siap_import: boolean;
-  ringkasan: ImportKelasRingkasan;
-  errors: ImportError[];
-}
 
 /** Unduh template Excel import kelas (kolom: jenjang, tahun_ajaran, nama_kelas, tingkat, urutan, kapasitas). */
 export function unduhTemplateKelas() {
@@ -450,25 +417,6 @@ export function unduhTemplateKelas() {
 export function dataKelasExisting(jenjangs?: string[]) {
   const q = jenjangs?.length ? `?${jenjangs.map((j) => `jenjang[]=${encodeURIComponent(j)}`).join('&')}` : '';
   return api<DataExistingPayload>(`/admin/kelas/data-existing${q}`);
-}
-
-function formImportKelas(file: File) {
-  const fd = new FormData();
-  fd.set('file', file);
-  return fd;
-}
-
-/** Periksa file kelas tanpa menulis (dry-run). */
-export function periksaImportKelas(file: File) {
-  return apiUpload<ImportKelasHasil>('/admin/kelas/import-periksa', formImportKelas(file));
-}
-
-/** Eksekusi import file kelas (duplikat dilewati, per-baris gagal dilaporkan). */
-export function importKelasFile(file: File) {
-  return apiUpload<{ pesan: string; ringkasan: ImportKelasRingkasan; errors?: ImportError[] }>(
-    '/admin/kelas/import',
-    formImportKelas(file),
-  );
 }
 
 // ---------- Import kelas bertahap (potongan JSON dari browser) ----------

@@ -11,7 +11,7 @@ import type { AlignName } from '@/components/GridPrefs';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { AlignCenter, AlignLeft, AlignRight, ChevronLeft, ChevronRight, Columns3, Copy, MoveHorizontal, Pin, PinOff, RotateCcw } from '@/icons';
-import { flattenAksi, metaAksi } from './actions';
+import { metaAksi } from './actions';
 import type { AksiMenu } from './types';
 
 export interface KonteksHeader {

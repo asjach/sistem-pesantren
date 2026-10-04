@@ -82,14 +82,6 @@ export const SANTRI_EDIT_KEYS = [
 /** Kolom skalar riwayat yang bisa diedit (sisanya dikunci backend). */
 export const RIWAYAT_EDIT_KEYS = ['semester', 'tingkat', 'no_absen', 'tgl_masuk'];
 
-/** Kolom keanggotaan yang bisa diedit. */
-export const ANGGOTA_EDIT_KEYS = [
-  'nis_lokal', 'nis_kemenag', 'anggota_aktif',
-  'tahaj_masuk', 'tingkat_masuk', 'no_urut',
-  'nama_sekolah_asal', 'npsn_sekolah_asal', 'nss_sekolah_asal', 'alamat_sekolah_asal',
-  'tgl_selesai',
-];
-
 const TGL_SANTRI_KEYS = new Set(['tgl_lahir', 'ayah_tgl_lahir', 'ibu_tgl_lahir', 'wali_tgl_lahir', 'tanggal_masuk']);
 
 function potongTgl(v: unknown): string | null {

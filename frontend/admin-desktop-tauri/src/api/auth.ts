@@ -60,10 +60,3 @@ export async function logout(): Promise<void> {
   }
 }
 
-export async function logoutAll(): Promise<void> {
-  try {
-    await api('/auth/logout-all', { method: 'POST' });
-  } finally {
-    await clearSession();
-  }
-}

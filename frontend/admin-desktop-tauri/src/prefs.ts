@@ -23,7 +23,6 @@ export const DENSITY_PX: Record<DensityName, number> = {
 
 /** Mode navigasi utama: rail kiri atau bar menu atas. */
 export type NavigasiName = 'sidebar' | 'menubar';
-export const NAVIGASI: NavigasiName[] = ['sidebar', 'menubar'];
 
 /** Nilai "Semua" pada pilihan baris per halaman: dikirim sebagai `per_page=0`
  *  dan diartikan backend sebagai tanpa batas (semua baris dalam satu halaman). */
@@ -98,16 +97,6 @@ export function onAccentFor(hex: string): string {
   const l = luminance(hex);
   const contrastWhite = 1.05 / (l + 0.05);
   return contrastWhite >= 4.5 ? '#ffffff' : '#111511';
-}
-
-export function normalizeHex(v: string): string | null {
-  let s = v.trim().toLowerCase();
-  if (/^[0-9a-f]{6}$/.test(s)) s = `#${s}`;
-  if (/^#[0-9a-f]{6}$/.test(s)) return s;
-  if (/^#[0-9a-f]{3}$/.test(s)) {
-    return `#${s[1]}${s[1]}${s[2]}${s[2]}${s[3]}${s[3]}`;
-  }
-  return null;
 }
 
 export async function loadPrefs(): Promise<Prefs> {

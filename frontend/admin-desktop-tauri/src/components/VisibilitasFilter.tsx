@@ -16,12 +16,10 @@ import {
   type PengaturanHalamanData,
 } from '../api/halaman';
 import {
-  KUNCI_FILTER_GLOBAL,
   TAMPIL_BAWAAN_GLOBAL,
   konfigurasiFilterHalaman,
   tampilEfektifFilterHalaman,
   type KunciFilterGlobal,
-  type KonfigurasiFilterHalaman,
   type ModeFilterGlobal,
   type ModeSemuaFilterGlobal,
   type TampilFilterGlobal,
@@ -29,9 +27,6 @@ import {
 
 /** Kunci filter global di topBar. */
 export type { KunciFilterGlobal, ModeFilterGlobal };
-
-/** Kunci filter yang dikenal dialog Kelola Halaman (sama dengan backend). */
-export const KUNCI_FILTER_HALAMAN = KUNCI_FILTER_GLOBAL;
 
 /** Tampil bawaan: lembaga/TA/semester selalu; tingkat/kelas hanya bila halaman
  *  memintanya lewat `<PengaturanHalaman>`. */

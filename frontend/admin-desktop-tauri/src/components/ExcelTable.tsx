@@ -3,7 +3,6 @@ import {
   DynamicDataSheetGrid as DataSheetGrid,
   checkboxColumn,
   keyColumn,
-  type CellProps,
   type Column,
   type DataSheetGridRef,
 } from 'react-datasheet-grid';
@@ -35,12 +34,6 @@ import {
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
 import { ActionIcon } from '@/components/RowActions';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { NotebookTabs, Pencil, PlusCircle, Save } from '@/icons';
 import {
   AlertDialog,
@@ -220,7 +213,6 @@ export default function ExcelTable<T extends { id: string | number }>({
   urutAktif,
   arahUrut = 'naik',
   onUrut,
-  sumberTabel,
 }: ExcelTableProps<T>) {
   const { density } = useTheme();
   const densityPx = DENSITY_PX[density];
@@ -256,7 +248,7 @@ export default function ExcelTable<T extends { id: string | number }>({
   const { efektifSuper: bolehGeser } = useLembagaAktif();
   const visHalaman = useVisibilitasFilter();
   const bolehKelolaHalaman = !!visHalaman?.registrasi && bolehGeser;
-  const { visToolbar, lebarToolbar, lebarKolomDb, lebarFilter, urutanDb, setUrutanDb, konteksLebarFilter } = useToolbarPresetState(tableKey);
+  const { visToolbar, lebarToolbar, lebarKolomDb, urutanDb, setUrutanDb, konteksLebarFilter } = useToolbarPresetState(tableKey);
   /** Baris input hanya tersedia bila halaman menyediakan onCreateRow.
    *  Tidak bergantung mode Edit: halaman boleh mendukung create saja. */
   const inputEnabled = !!onCreateRow;
@@ -448,7 +440,6 @@ export default function ExcelTable<T extends { id: string | number }>({
 
   /** Perintah salin (menu konteks, ribbon, Ctrl+C) + pemetaan kolom grid. */
   const {
-    gridColumnKeys,
     selectedColumnKeys,
     displayOf,
     salinBarisCtx,
@@ -1028,7 +1019,7 @@ export default function ExcelTable<T extends { id: string | number }>({
     inputDraftRef,
     inputEnterRef,
     inputAksiRef,
-  } = useBarisInput<T>({
+  } = useBarisInput({
     onCreateRow,
     visibleFieldsRef,
     inputRowValues,

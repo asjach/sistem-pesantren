@@ -200,19 +200,6 @@ export function updateSantri(id: number, changes: Record<string, string | number
   });
 }
 
-export interface ImportError {
-  row: number;
-  attribute: string;
-  errors: string[];
-}
-
-export interface ImportPeriksa {
-  pesan: string;
-  siap_import: boolean;
-  ringkasan: { baris_diproses: number; baris_valid: number; baris_gagal: number; baris_diperbarui?: number; baris_riwayat_dibuat?: number; dibuat?: number; diperbarui?: number };
-  errors: ImportError[];
-}
-
 // ---------- Import gabungan siswa (identitas + keanggotaan) ----------
 
 /** Unduh template gabungan: blok keanggotaan dulu, lalu seluruh kolom profil. */
@@ -350,34 +337,6 @@ export function generateNiskBulk(filter: { jenjang?: ScalarOrArray<string>; is_a
     '/admin/lembaga-santri/generate-nisk-bulk',
     { method: 'POST', body: JSON.stringify(filter) },
   );
-}
-
-// ---------- Samakan NIS paket MI↔MD ----------
-
-export interface SamakanNisRincian {
-  santri_id: number;
-  nama: string;
-  status: 'disamakan' | 'beda' | 'tabrakan';
-  dari?: string;
-  ke?: string;
-  nis?: string;
-  mi?: string;
-  md?: string;
-}
-
-export interface SamakanNisHasil {
-  pesan: string;
-  periksa: boolean;
-  ringkasan: { kandidat: number; disamakan: number; beda: number; tabrakan: number };
-  rincian: SamakanNisRincian[];
-}
-
-/** Pratinjau (periksa=true, tanpa menulis) atau eksekusi penyamaan NIS MI↔MD. */
-export function samakanNis(periksa: boolean) {
-  return api<SamakanNisHasil>('/admin/santri/samakan-nis', {
-    method: 'POST',
-    body: JSON.stringify({ periksa }),
-  });
 }
 
 export function uploadFotoSantri(santriId: number, file: File) {

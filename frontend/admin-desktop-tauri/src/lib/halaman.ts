@@ -194,7 +194,7 @@ export interface SubgrupNav {
 
 /** Penanda sisip: halaman langsung grup tampil di posisi ini (di antara
  *  subgrup), bukan selalu di akhir. */
-export interface PenandaLangsung {
+interface PenandaLangsung {
   langsung: true;
 }
 
@@ -203,7 +203,7 @@ export type AnakNav = SubgrupNav | PenandaLangsung;
 
 /** Grup navigasi sidebar/menubar; `anak` = subgrup/penanda sisip halaman
  *  langsung sesuai urutan tampil. */
-export interface GrupNav {
+interface GrupNav {
   id: TabKategori;
   label: string;
   icon: Ikon;
@@ -241,11 +241,6 @@ export const NAV_GRUP: GrupNav[] = [
   { id: 'keuangan', label: 'Keuangan', icon: Wallet },
   { id: 'pengaturan', label: 'Pengaturan', icon: Palette },
 ];
-
-/** Kunci lipat subgrup (jalur penuh, mis. `santri:psb:antrean`). */
-export function kunciSubgrup(grup: TabKategori, ...jalur: string[]): string {
-  return [grup, ...jalur].join(':');
-}
 
 /** Jalur subgrup dari akar tab ke daun (mis. `['psb', 'antrean']`); null bila
  *  id tak terdaftar. */

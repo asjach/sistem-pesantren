@@ -77,7 +77,6 @@ export default function SantriPage() {
     rows,
     loading,
     err,
-    setErr,
     urut,
     arahUrut,
     terapkanUrut,

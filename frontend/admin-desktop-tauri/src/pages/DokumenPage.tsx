@@ -77,7 +77,7 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
   const [importOpen, setImportOpen] = useState(false);
   const [tambahOpen, setTambahOpen] = useState(false);
   /** TambahSantri/Pegawai kini dialog; Madrasah tetap dialog dalam halaman. */
-  const [tambahDialog, setTambahDialog] = useState(false);
+  const [, setTambahDialog] = useState(false);
   const [busy, setBusy] = useState(false);
   const [hapusRow, setHapusRow] = useState<DokumenRow | null>(null);
 

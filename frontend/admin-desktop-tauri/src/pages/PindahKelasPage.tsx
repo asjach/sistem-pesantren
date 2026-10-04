@@ -4,7 +4,6 @@ import { bisa } from '../api/auth';
 import { errorMessage } from '../api/client';
 import { daftarKelas, pindahKelas, type RiwayatRow } from '../api/siklus';
 import { listKelas, type Kelas } from '../api/master';
-import { Button } from '@/components/ui/button';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import Pager from '@/components/Pager';
 import { useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';

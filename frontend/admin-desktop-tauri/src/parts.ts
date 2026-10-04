@@ -980,7 +980,6 @@ for (const p of PARTS) {
 
 export const PART_IDS: PartId[] = PARTS.map((p) => p.id);
 export const PART_BY_ID = new Map<PartId, PartMeta>(PARTS.map((p) => [p.id, p]));
-export const PART_GROUPS: string[] = [...new Set(PARTS.map((p) => p.grup))];
 export const EMPTY_PARTS: PartOverrides = { gaya: {}, terang: {}, gelap: {} };
 
 const HEX = /^#[0-9a-f]{6}$/i;

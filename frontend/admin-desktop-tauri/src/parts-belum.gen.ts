@@ -12,6 +12,7 @@ export const BELUM_DIPAKAI: ReadonlySet<string> = new Set([
   'navigation_menu',
   'kbd',
   'empty',
+  'accordion',
   'tabel',
   'input_group',
   'textarea',
@@ -30,4 +31,7 @@ export const BELUM_DIPAKAI: ReadonlySet<string> = new Set([
   'avatar',
   'carousel',
   'chart',
+  'accordion_item',
+  'accordion_judul',
+  'accordion_isi',
 ]);

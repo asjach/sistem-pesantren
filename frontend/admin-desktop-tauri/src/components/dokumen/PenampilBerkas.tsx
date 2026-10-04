@@ -597,7 +597,6 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
         se: { x: d.x, y: d.y },
       }[s.sudut];
       const batasW = s.sudut === 'nw' || s.sudut === 'sw' ? jangkar.x : rw - jangkar.x;
-      const batasH = s.sudut === 'nw' || s.sudut === 'ne' ? jangkar.y : rh - jangkar.y;
       const w = Math.max(MIN_CROP, Math.min(Math.abs(x - jangkar.x), batasW, Math.abs(y - jangkar.y) * r));
       const h = w / r;
       setDrafCrop({
