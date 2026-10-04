@@ -176,8 +176,8 @@ export default function PindahKelasPage() {
       {grup.length === 0 ? (
         <p className="text-xs text-muted-foreground">Tidak ada santri aktif pada filter ini.</p>
       ) : grup.map((g, gi) => (
-         <section key={g.tingkat ?? 'tanpa'} className="flex min-h-0 flex-1 flex-col gap-2">
-           <div className="grid min-h-0 flex-1 gap-3 [grid-template-columns:repeat(auto-fit,minmax(300px,1fr))]">
+         <section key={g.tingkat ?? 'tanpa'} className="flex min-h-0 flex-1 flex-col gap-1">
+           <div className="grid min-h-0 flex-1 gap-1 [grid-template-columns:repeat(auto-fit,minmax(300px,1fr))]">
             {g.kolom.map((k, ki) => (
               <TabelKelas
                 key={k.kelasId ?? 'tanpa'}

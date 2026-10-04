@@ -11,7 +11,7 @@ import { listLembaga, listTahunAjaran, type Lembaga, type TahunAjaran } from '..
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { KELAS_LIST_TAB, KELAS_TRIGGER } from '@/components/HalamanTabs';
+import { KELAS_LIST_TAB, KELAS_PANEL_TAB, KELAS_TRIGGER } from '@/components/HalamanTabs';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { FieldLabel } from '@/components/ui/field';
@@ -224,7 +224,7 @@ export default function KeuanganPage() {
           <TabsTrigger value="tunggakan" id="keu_tab_tunggakan" className={KELAS_TRIGGER}>Tunggakan</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="jenis" className="min-h-0 flex-1 flex flex-col gap-2">
+        <TabsContent value="jenis" className={`min-h-0 flex-1 flex flex-col gap-1 ${KELAS_PANEL_TAB}`}>
           <ExcelTable<JenisTagihan & { id: number }>
             tableKey="keuangan_jenis"
             fields={FIELDS_JENIS}
@@ -243,7 +243,7 @@ export default function KeuanganPage() {
           />
         </TabsContent>
 
-        <TabsContent value="tarif" className="min-h-0 flex-1 flex flex-col gap-2">
+        <TabsContent value="tarif" className={`min-h-0 flex-1 flex flex-col gap-1 ${KELAS_PANEL_TAB}`}>
           <ExcelTable<Tarif & { id: number }>
             tableKey="keuangan_tarif"
             fields={FIELDS_TARIF}
@@ -266,7 +266,7 @@ export default function KeuanganPage() {
           />
         </TabsContent>
 
-        <TabsContent value="tagihan" className="min-h-0 flex-1 flex flex-col gap-2">
+        <TabsContent value="tagihan" className={`min-h-0 flex-1 flex flex-col gap-1 ${KELAS_PANEL_TAB}`}>
           <ExcelTable<TagihanRow & { id: number }>
             tableKey="keuangan_tagihan"
             fields={FIELDS_TAGIHAN}
@@ -318,7 +318,7 @@ export default function KeuanganPage() {
           />
         </TabsContent>
 
-        <TabsContent value="tunggakan" className="min-h-0 flex-1 flex flex-col gap-2">
+        <TabsContent value="tunggakan" className={`min-h-0 flex-1 flex flex-col gap-1 ${KELAS_PANEL_TAB}`}>
           <ExcelTable<TunggakanRow & { id: number }>
             tableKey="keuangan_tunggakan"
             fields={FIELDS_TUNGGAKAN}

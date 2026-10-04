@@ -221,7 +221,7 @@ export default function MutasiKeluarPage() {
       <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1" id="grup_mutasi_kolom">
         <ResizableAutoHidePanel id="panel_mutasi_santri_aktif" defaultSize="33%" minSize="20%">
           <section className="flex h-full min-h-0 min-w-0 flex-col rounded-md">
-            <div className="flex min-h-0 flex-1 flex-col px-2 pb-0">
+            <div className="flex min-h-0 flex-1 flex-col px-0 pb-0">
               <ExcelTable
                 tableKey="mutasi_santri_aktif"
                 rail
@@ -253,11 +253,11 @@ export default function MutasiKeluarPage() {
           </section>
         </ResizableAutoHidePanel>
 
-        <ResizableHandle orientation="horizontal" withHandle id="gagang_mutasi_kolom" />
+        <ResizableHandle orientation="horizontal" className="w-1" id="gagang_mutasi_kolom" />
 
         <ResizablePanel defaultSize="67%" minSize="20%">
         <section className="flex h-full min-h-0 min-w-0 flex-col rounded-md">
-          <div className="flex min-h-0 flex-1 flex-col px-2 pb-0">
+          <div className="flex min-h-0 flex-1 flex-col px-0 pb-0">
             <ExcelTable
                tableKey="mutasi_arsip"
                 header={<span>Arsip mutasi keluar</span>}

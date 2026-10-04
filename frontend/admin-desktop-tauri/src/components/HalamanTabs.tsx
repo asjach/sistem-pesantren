@@ -16,9 +16,12 @@ export const KELAS_TRIGGER =
 /** Area tab: bisa digulir bila lebih lebar dari area konten (mis. jendela
  *  sempit + sidebar terbuka), tetap di tengah halaman; tinggi tetap 26px
  *  (`group-data-…:h-[26px]` menimpa `h-9` bawaan komponen), tanpa padding,
- *  margin vertikal 8px (`my-2`) supaya bar center di antara ribbon & tabel. */
+ *  margin vertikal 4px (`my-1`) supaya bar center di antara ribbon & tabel. */
 export const KELAS_LIST_TAB =
-  'mx-auto my-2 max-w-full scroll-tanpa-bar gap-x-2 overflow-x-auto overflow-y-hidden border border-border p-0 group-data-[orientation=horizontal]/tabs:h-[26px]';
+  'mx-auto my-1 max-w-full scroll-tanpa-bar gap-x-2 overflow-x-auto overflow-y-hidden border border-border p-0 group-data-[orientation=horizontal]/tabs:h-[26px]';
+
+/** Panel tab (TabsContent): kotak berbingkai agar area isi tab jelas. */
+export const KELAS_PANEL_TAB = 'border border-border';
 
 /** Id elemen snake_case dari rute (`/tahun-ajaran` → `tahun_ajaran`). */
 function idRute(to: string): string {
@@ -105,7 +108,7 @@ export default function HalamanTabs({ def }: { def: HalamanDef }) {
             </TabsTrigger>
           ))}
         </TabsList>
-        <TabsContent value={aktif ?? ''} className="min-h-0 flex-1 flex flex-col gap-2">
+        <TabsContent value={aktif ?? ''} className={`min-h-0 flex-1 flex flex-col gap-1 ${KELAS_PANEL_TAB}`}>
           <Outlet />
         </TabsContent>
       </Tabs>

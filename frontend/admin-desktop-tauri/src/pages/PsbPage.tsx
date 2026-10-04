@@ -41,7 +41,7 @@ import {
 } from '@/components/ui/select';
 import ExcelTable from '@/components/ExcelTable';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { KELAS_LIST_TAB, KELAS_TRIGGER } from '@/components/HalamanTabs';
+import { KELAS_LIST_TAB, KELAS_PANEL_TAB, KELAS_TRIGGER } from '@/components/HalamanTabs';
 import { targetTunggal, useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
 import FilterField from '@/components/FilterField';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
@@ -624,7 +624,7 @@ export default function PsbPage() {
             );
           })}
         </TabsList>
-        <TabsContent value={stage} className="contents">
+        <TabsContent value={stage} className={`flex min-h-0 flex-1 flex-col gap-1 ${KELAS_PANEL_TAB}`}>
 
       <ExcelTable
         tableKey="psb"
