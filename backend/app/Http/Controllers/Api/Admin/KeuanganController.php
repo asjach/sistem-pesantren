@@ -208,7 +208,7 @@ class KeuanganController extends Controller
 
         $jenis = isset($data['jenis_id']) ? JenisTagihan::find($data['jenis_id']) : null;
         $periodes = $jenis !== null
-            ? $this->periodesTagihan($jenis, $data['periode'] ?? null, $data['periode_sampai'] ?? null)
+            ? $this->periodesTagihan($jenis, $data['tahun_ajaran'], $data['periode'] ?? null, $data['periode_sampai'] ?? null, false)
             : [];
         $lengkap = $jenis !== null && $periodes !== []
             ? $this->santriSudahLengkap(array_keys($peta), $jenis->id, $periodes)
@@ -270,7 +270,7 @@ class KeuanganController extends Controller
         $actor = $request->user();
 
         $jenis = JenisTagihan::findOrFail($data['jenis_id']);
-        $periodes = $this->periodesTagihan($jenis, $data['periode'] ?? null, $data['periode_sampai'] ?? null);
+        $periodes = $this->periodesTagihan($jenis, $data['tahun_ajaran'], $data['periode'] ?? null, $data['periode_sampai'] ?? null);
 
         $diminta = collect($data['santri'])->keyBy(fn ($s) => (int) $s['santri_id']);
         $peta = $this->petaSantriGenerate($data['tahun_ajaran'], $diminta->keys()->all());
@@ -302,32 +302,59 @@ class KeuanganController extends Controller
     }
 
     /**
-     * Periode tagihan dari input: satu nilai, atau rentang bulan (YYYY-MM s/d
-     * YYYY-MM, maks 24) khusus jenis bulanan — mis. Juli 2025 s/d Juni 2026
-     * untuk setahun ajaran. `[null]` = sekali tagih.
+     * Periode tagihan efektif per tipe jenis:
+     * - non_bulanan: satu tagihan per generate, periode = kode TA (mis. "2025/2026")
+     *   sehingga bisa digenerate ulang tiap tahun ajaran;
+     * - bulanan: satu bulan (YYYY-MM) wajib, atau rentang mulai s/d maks 24 bulan.
+     * `$ketat` (generate) → abort 422 saat periode bulanan tidak valid;
+     * `$ketat=false` (kandidat, input masih diketik) → `[]` = tanpa filter.
      *
-     * @return list<string|null>
+     * @return list<string>
      */
-    private function periodesTagihan(?JenisTagihan $jenis, ?string $periode, ?string $periodeSampai): array
+    private function periodesTagihan(JenisTagihan $jenis, string $tahunAjaran, ?string $periode, ?string $sampai, bool $ketat = true): array
     {
-        if ($jenis !== null && $jenis->tipe === 'bulanan'
-            && preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', (string) $periode)
-            && preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', (string) $periodeSampai)) {
-            $mulai = new \DateTime($periode.'-01');
-            $akhir = new \DateTime($periodeSampai.'-01');
-            if ($akhir >= $mulai) {
-                $periodes = [];
-                $b = clone $mulai;
-                while ($b <= $akhir && count($periodes) < 24) {
-                    $periodes[] = $b->format('Y-m');
-                    $b->modify('+1 month');
-                }
-
-                return $periodes;
-            }
+        if ($jenis->tipe !== 'bulanan') {
+            return [$tahunAjaran];
         }
 
-        return [$periode];
+        if (! preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', (string) $periode)) {
+            if ($ketat) {
+                abort(422, 'Isi bulan periode (YYYY-MM) untuk jenis bulanan.');
+            }
+
+            return [];
+        }
+
+        if ($sampai === null || $sampai === '') {
+            return [$periode];
+        }
+
+        if (! preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', (string) $sampai)) {
+            if ($ketat) {
+                abort(422, 'Format bulan sampai tidak valid (YYYY-MM).');
+            }
+
+            return [$periode];
+        }
+
+        $mulai = new \DateTime($periode.'-01');
+        $akhir = new \DateTime($sampai.'-01');
+        if ($akhir < $mulai) {
+            if ($ketat) {
+                abort(422, 'Bulan sampai lebih awal dari bulan mulai.');
+            }
+
+            return [$periode];
+        }
+
+        $periodes = [];
+        $b = clone $mulai;
+        while ($b <= $akhir && count($periodes) < 24) {
+            $periodes[] = $b->format('Y-m');
+            $b->modify('+1 month');
+        }
+
+        return $periodes;
     }
 
     /**
@@ -427,7 +454,7 @@ class KeuanganController extends Controller
      * Santri yang sudah punya tagihan untuk seluruh periode terpilih.
      *
      * @param  list<int>  $santriIds
-     * @param  list<string|null>  $periodes
+     * @param  list<string>  $periodes
      * @return array<int, true>
      */
     private function santriSudahLengkap(array $santriIds, int $jenisId, array $periodes): array
@@ -436,18 +463,13 @@ class KeuanganController extends Controller
             return [];
         }
 
-        $q = Tagihan::query()->where('jenis_id', $jenisId)->whereIn('santri_id', $santriIds);
-        $jumlah = 'count(*)';
-        if ($periodes === [null]) {
-            $q->whereNull('periode');
-        } else {
-            $q->whereIn('periode', $periodes);
-            $jumlah = 'count(distinct periode)';
-        }
-
-        $baris = $q->selectRaw("santri_id, {$jumlah} as jumlah")
+        $baris = Tagihan::query()
+            ->where('jenis_id', $jenisId)
+            ->whereIn('santri_id', $santriIds)
+            ->whereIn('periode', $periodes)
+            ->selectRaw('santri_id, count(distinct periode) as jumlah')
             ->groupBy('santri_id')
-            ->havingRaw("{$jumlah} >= ?", [count($periodes)])
+            ->havingRaw('count(distinct periode) >= ?', [count($periodes)])
             ->pluck('jumlah', 'santri_id');
 
         $hasil = [];

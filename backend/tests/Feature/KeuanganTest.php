@@ -148,6 +148,53 @@ class KeuanganTest extends TestCase
         $this->assertDatabaseCount('tagihan', 0);
     }
 
+    public function test_generate_bulanan_validasi_dan_non_bulanan_periode_otomatis_ta(): void
+    {
+        $admin = $this->admin();
+        $nonBulanan = JenisTagihan::create(['nama' => 'HIPA', 'tipe' => 'non_bulanan']);
+        $bulanan = JenisTagihan::create(['nama' => 'Infaq Bulanan', 'tipe' => 'bulanan']);
+        $santri = Santri::create(['nama_lengkap' => 'Santri Tipe', 'jk' => 'L']);
+        DB::table('riwayat_belajar')->insert([
+            ['santri_id' => $santri->id, 'tahun_ajaran' => '2025/2026', 'jenjang' => 'MI', 'tingkat' => '1', 'semester' => '1', 'status_akhir' => 'aktif', 'is_active_riwayat' => 'Ya', 'created_at' => now(), 'updated_at' => now()],
+        ]);
+
+        // Non-bulanan: periode otomatis kode TA (input bulan diabaikan).
+        $payloadNon = [
+            'tahun_ajaran' => '2025/2026', 'jenis_id' => $nonBulanan->id, 'periode' => '2025-07',
+            'nominal' => 10000, 'santri' => [['santri_id' => $santri->id]],
+        ];
+        $this->actingAs($admin)->postJson('/api/admin/keuangan/tagihan/generate', $payloadNon)
+            ->assertStatus(200)->assertJson(['dibuat' => 1, 'dilewati' => 0]);
+        $this->assertSame('2025/2026', Tagihan::where('jenis_id', $nonBulanan->id)->value('periode'));
+
+        // Generate ulang TA yang sama → dilewati (label periode sama).
+        $this->actingAs($admin)->postJson('/api/admin/keuangan/tagihan/generate', $payloadNon)
+            ->assertStatus(200)->assertJson(['dibuat' => 0, 'dilewati' => 1]);
+
+        // Kandidat non-bulanan menyembunyikan yang sudah punya tagihan TA itu.
+        $this->actingAs($admin)->getJson("/api/admin/keuangan/tagihan/kandidat?tahun_ajaran=2025/2026&kelompok=aktif&jenis_id={$nonBulanan->id}")
+            ->assertStatus(200)->assertJsonCount(0, 'data');
+
+        // Bulanan tanpa periode → 422; sampai lebih awal dari mulai → 422.
+        $this->actingAs($admin)->postJson('/api/admin/keuangan/tagihan/generate', [
+            'tahun_ajaran' => '2025/2026', 'jenis_id' => $bulanan->id, 'nominal' => 10000,
+            'santri' => [['santri_id' => $santri->id]],
+        ])->assertStatus(422);
+        $this->actingAs($admin)->postJson('/api/admin/keuangan/tagihan/generate', [
+            'tahun_ajaran' => '2025/2026', 'jenis_id' => $bulanan->id,
+            'periode' => '2025-09', 'periode_sampai' => '2025-07', 'nominal' => 10000,
+            'santri' => [['santri_id' => $santri->id]],
+        ])->assertStatus(422);
+
+        // Bulanan valid satu bulan; Sampai kosong = satu bulan saja.
+        $this->actingAs($admin)->postJson('/api/admin/keuangan/tagihan/generate', [
+            'tahun_ajaran' => '2025/2026', 'jenis_id' => $bulanan->id,
+            'periode' => '2025-08', 'nominal' => 10000,
+            'santri' => [['santri_id' => $santri->id]],
+        ])->assertStatus(200)->assertJson(['dibuat' => 1, 'dilewati' => 0]);
+        $this->assertDatabaseHas('tagihan', ['santri_id' => $santri->id, 'jenis_id' => $bulanan->id, 'periode' => '2025-08']);
+    }
+
     public function test_jenis_tagihan_scoping_lembaga(): void
     {
         $pusat = $this->admin();

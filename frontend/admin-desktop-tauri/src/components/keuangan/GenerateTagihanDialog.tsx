@@ -76,6 +76,9 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
   const [terpilih, setTerpilih] = useState<BarisTerpilih[]>([]);
   const [busy, setBusy] = useState(false);
 
+  const jenisTerpilih = useMemo(() => jenis.find((j) => j.id === jenisId) ?? null, [jenis, jenisId]);
+  const bulanan = jenisTerpilih?.tipe === 'bulanan';
+
   // Buka dialog: bersihkan pilihan; isi default periode setahun dari TA.
   useEffect(() => {
     if (!open) return;
@@ -94,8 +97,8 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
         tahun_ajaran: tahunAjaran,
         kelompok,
         jenis_id: jenisId,
-        periode: periodeDari || undefined,
-        periode_sampai: periodeSampai || undefined,
+        periode: bulanan ? (periodeDari || undefined) : undefined,
+        periode_sampai: bulanan ? (periodeSampai || undefined) : undefined,
         q: cari.trim() || undefined,
         page: halaman,
         per_page: jumlah === 0 ? 'all' : String(jumlah),
@@ -103,7 +106,7 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
       setKandidat(res.data.map((r) => ({ ...r, id: r.santri_id })));
       setPage(res.current_page); setLastPage(res.last_page); setTotal(res.total);
     } catch (e) { setErr(errorMessage(e)); } finally { setLoading(false); }
-  }, [open, tahunAjaran, kelompok, jenisId, periodeDari, periodeSampai, cari]);
+  }, [open, tahunAjaran, kelompok, jenisId, bulanan, periodeDari, periodeSampai, cari]);
 
   // Ketikan ditahan sebentar agar tidak memanggil API tiap karakter.
   useEffect(() => {
@@ -153,6 +156,7 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
     if (tahunAjaran === null) { toast.error('Pilih satu tahun ajaran pada filter di atas.'); return; }
     if (jenisId === '') { toast.error('Pilih jenis tagihan.'); return; }
     if (terpilih.length === 0) { toast.error('Pindahkan minimal satu santri ke daftar generate.'); return; }
+    if (bulanan && periodeDari === '') { toast.error('Isi Dari Bulan untuk jenis bulanan.'); return; }
     const nominal = Number(nominalDefault);
     if (!Number.isInteger(nominal) || nominal < 0) { toast.error('Nominal default tidak valid.'); return; }
 
@@ -168,7 +172,8 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
     try {
       const r = await generateTagihan({
         tahun_ajaran: tahunAjaran, jenis_id: Number(jenisId),
-        periode: periodeDari || null, periode_sampai: periodeSampai || null,
+        periode: bulanan ? periodeDari : null,
+        periode_sampai: bulanan ? (periodeSampai || null) : null,
         jatuh_tempo: jatuhTempo || null, nominal, santri,
       });
       toast.success(`Dibuat ${r.dibuat}, dilewati ${r.dilewati}.`);
@@ -220,14 +225,25 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
             <FieldLabel htmlFor="inp_gen_nominal">Nominal Default</FieldLabel>
             <Input id="inp_gen_nominal" type="number" min={0} className="h-8 w-32" value={nominalDefault} onChange={(e) => ubahNominalDefault(e.target.value)} required />
           </div>
-          <div className="flex flex-col gap-1">
-            <FieldLabel htmlFor="inp_gen_dari">Dari Bulan</FieldLabel>
-            <Input id="inp_gen_dari" type="month" className="h-8" value={periodeDari} onChange={(e) => setPeriodeDari(e.target.value)} />
-          </div>
-          <div className="flex flex-col gap-1">
-            <FieldLabel htmlFor="inp_gen_sampai">Sampai Bulan</FieldLabel>
-            <Input id="inp_gen_sampai" type="month" className="h-8" value={periodeSampai} onChange={(e) => setPeriodeSampai(e.target.value)} />
-          </div>
+          {bulanan ? (
+            <>
+              <div className="flex flex-col gap-1">
+                <FieldLabel htmlFor="inp_gen_dari">Dari Bulan</FieldLabel>
+                <Input id="inp_gen_dari" type="month" className="h-8" value={periodeDari} onChange={(e) => setPeriodeDari(e.target.value)} />
+              </div>
+              <div className="flex flex-col gap-1">
+                <FieldLabel htmlFor="inp_gen_sampai">Sampai Bulan</FieldLabel>
+                <Input id="inp_gen_sampai" type="month" className="h-8" value={periodeSampai} onChange={(e) => setPeriodeSampai(e.target.value)} />
+              </div>
+            </>
+          ) : (
+            <div className="flex flex-col gap-1">
+              <FieldLabel htmlFor="info_gen_periode">Periode</FieldLabel>
+              <p id="info_gen_periode" className="flex h-8 items-center text-xs text-muted-foreground">
+                Otomatis {tahunAjaran ?? '—'} (satu tagihan per TA)
+              </p>
+            </div>
+          )}
           <div className="flex flex-col gap-1">
             <FieldLabel htmlFor="inp_gen_jatuh_tempo">Jatuh Tempo</FieldLabel>
             <Input id="inp_gen_jatuh_tempo" type="date" className="h-8" value={jatuhTempo} onChange={(e) => setJatuhTempo(e.target.value)} />
@@ -235,7 +251,9 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
           <p className="pb-1 text-xs text-muted-foreground">
             {tahunAjaran === null
               ? <span className="text-destructive">Pilih satu tahun ajaran pada filter di atas.</span>
-              : <>TA {tahunAjaran}. Jenis bulanan: isi keduanya untuk rentang (maks 24 bulan).</>}
+              : bulanan
+                ? <>TA {tahunAjaran}. Isi Dari Bulan; Sampai Bulan opsional (kosong = satu bulan, maks 24 bulan).</>
+                : <>TA {tahunAjaran}. Jenis non-bulanan: periode otomatis kode TA — bisa digenerate lagi di tahun ajaran berikutnya.</>}
           </p>
         </div>
 
