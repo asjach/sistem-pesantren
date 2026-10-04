@@ -106,6 +106,36 @@ class KeuanganTest extends TestCase
         ])->assertStatus(403);
     }
 
+    public function test_jenis_tagihan_act_as_tidak_bisa_ubah_global(): void
+    {
+        $pusat = $this->admin();
+        $global = JenisTagihan::create(['nama' => 'Infaq Bulanan', 'tipe' => 'bulanan']);
+        $milikMi = JenisTagihan::create(['nama' => 'Kas MI', 'tipe' => 'sekali', 'jenjang' => 'MI']);
+        $hdr = ['X-Lembaga-Aktif' => 'MI'];
+
+        // Bertindak sebagai MI: buat/ubah jenis global ditolak.
+        $this->actingAs($pusat, 'sanctum')->withHeaders($hdr)->postJson('/api/admin/keuangan/jenis', [
+            'nama' => 'Pungutan Global', 'tipe' => 'sekali',
+        ])->assertStatus(403);
+        $this->actingAs($pusat, 'sanctum')->withHeaders($hdr)->putJson("/api/admin/keuangan/jenis/{$global->id}", [
+            'nama' => 'Infaq Bulanan', 'tipe' => 'bulanan', 'is_active' => false,
+        ])->assertStatus(403);
+        $this->assertTrue($global->fresh()->is_active);
+
+        // Jenis milik lembaga yang diperankan tetap boleh diubah.
+        $this->actingAs($pusat, 'sanctum')->withHeaders($hdr)->putJson("/api/admin/keuangan/jenis/{$milikMi->id}", [
+            'nama' => 'Kas MI', 'tipe' => 'sekali', 'is_active' => false,
+        ])->assertStatus(200);
+        $this->assertFalse($milikMi->fresh()->is_active);
+
+        // Kembali penuh (tanpa header): jenis global boleh diubah.
+        $this->flushHeaders();
+        $this->actingAs($pusat, 'sanctum')->putJson("/api/admin/keuangan/jenis/{$global->id}", [
+            'nama' => 'Infaq Bulanan', 'tipe' => 'bulanan', 'is_active' => false,
+        ])->assertStatus(200);
+        $this->assertFalse($global->fresh()->is_active);
+    }
+
     public function test_hapus_tagihan(): void
     {
         $admin = $this->admin();

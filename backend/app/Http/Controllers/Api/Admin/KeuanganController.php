@@ -49,7 +49,7 @@ class KeuanganController extends Controller
         ]);
         if (! empty($data['jenjang'])) {
             $this->authorizeLembaga($actor, $data['jenjang']);
-        } elseif (! $actor->hasRole('super_admin')) {
+        } elseif (! $actor->bolehSuperAdmin()) {
             abort(403, 'Jenis global hanya boleh dibuat super_admin.');
         }
 
@@ -68,7 +68,7 @@ class KeuanganController extends Controller
         $jenjangBaru = array_key_exists('jenjang', $data) ? $data['jenjang'] : $jenis->jenjang;
         if (! empty($jenjangBaru)) {
             $this->authorizeLembaga($actor, $jenjangBaru);
-        } elseif (! $actor->hasRole('super_admin')) {
+        } elseif (! $actor->bolehSuperAdmin()) {
             abort(403, 'Jenis global hanya boleh diubah super_admin.');
         }
         $jenis->update($data);
