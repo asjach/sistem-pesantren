@@ -24,7 +24,7 @@ import {
 } from '@/icons';
 
 /** Kategori navigasi (grup di sidebar). */
-export type TabKategori = 'beranda' | 'master' | 'santri' | 'pegawai' | 'dokumen' | 'keuangan' | 'pengaturan';
+export type TabKategori = 'beranda' | 'master' | 'psb' | 'santri' | 'pegawai' | 'dokumen' | 'keuangan' | 'pengaturan';
 
 /** Tab dalam satu halaman gabungan (mis. Data Induk punya 6 tab). */
 export interface TabHalamanDef {
@@ -128,8 +128,8 @@ export const HALAMAN: HalamanDef[] = [
   { to: '/dokumen-guru', label: 'Daftar Dokumen Pegawai', deskripsi: 'Berkas dokumen pegawai (ijazah, sertifikat, SK, dll).', tab: 'dokumen', sub: 'pegawai', grid: true, icon: FolderOpen, permission: 'dokumen_pegawai.lihat' },
   { to: '/dokumen-guru/lihat', label: 'Dokumen Pegawai', deskripsi: 'Pratinjau dokumen per pegawai (lihat, unduh, ganti).', tab: 'dokumen', sub: 'pegawai', icon: Eye, permission: 'dokumen_pegawai.lihat' },
   { to: '/dokumen-madrasah', label: 'Dokumen Madrasah', deskripsi: 'Berkas tingkat madrasah (izin operasional, akreditasi, SK, dll).', tab: 'dokumen', grid: true, icon: FolderOpen, permission: 'dokumen_lembaga.lihat' },
-  { to: '/psb', label: 'Antrean PSB', deskripsi: 'Antrean calon per tahap (Pendaftar, Terdaftar, Daftar Ulang, Diterima, Mengundurkan Diri, Ditolak).', tab: 'santri', sub: 'psb', grid: true, icon: UserCheck, permission: 'psb.lihat' },
-  { to: '/kegiatan-psb', label: 'Kegiatan PSB', tab: 'santri', sub: 'psb', grid: true, icon: CalendarRange, permission: 'kegiatan_psb.lihat' },
+  { to: '/psb', label: 'Antrean PSB', deskripsi: 'Antrean calon per tahap (Pendaftar, Terdaftar, Daftar Ulang, Diterima, Mengundurkan Diri, Ditolak).', tab: 'psb', grid: true, icon: UserCheck, permission: 'psb.lihat' },
+  { to: '/kegiatan-psb', label: 'Kegiatan PSB', tab: 'psb', grid: true, icon: CalendarRange, permission: 'kegiatan_psb.lihat' },
   { to: '/daftar-kelas', label: 'Daftar Kelas', tab: 'santri', grid: true, icon: ClipboardList, permission: 'daftar_kelas.lihat' },
   HALAMAN_PENEMPATAN,
   HALAMAN_AKADEMIK,
@@ -200,16 +200,13 @@ export interface GrupNav {
 export const NAV_GRUP: GrupNav[] = [
   { id: 'beranda', label: 'Beranda', icon: Home },
   { id: 'master', label: 'Data Induk', icon: FolderOpen },
+  // PSB kini grup tersendiri (dulu subgrup di dalam Santri), di atas Santri.
+  { id: 'psb', label: 'PSB', icon: ClipboardCheck },
   {
     id: 'santri',
     label: 'Santri',
     icon: GraduationCap,
     anak: [
-      {
-        id: 'psb',
-        label: 'PSB',
-        icon: ClipboardCheck,
-      },
       // Daftar Kelas, Penempatan, & Akademik (halaman langsung) tampil di sini.
       { langsung: true },
       { id: 'lain-lain', label: 'Lain-lain', icon: MoreVertical },

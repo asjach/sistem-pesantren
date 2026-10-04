@@ -342,6 +342,7 @@
 | 2.289 | 2026-10-04 | Data Induk jadi satu halaman 6 tab ala Keuangan (Pengguna, Lembaga, Tahun Ajaran, Kelas, Buku Induk, Referensi): sidebar/menubar 6 entri → 1; rute tiap tab tetap rute lamanya (`/users`, `/lembaga`, `/tahun-ajaran`, `/kelas`, `/santri`, `/referensi`) agar pengaturan halaman, filter, izin, dan tautan lama lestari; rute `/data-induk` mengarah ke tab terakhir dibuka (pref `simpes_data_induk_tab`); izin halaman gabungan cukup salah satu izin tab (`izinHalaman`) |
 | 2.290 | 2026-10-04 | Kerangka tab digeneralisasi (`HalamanTabs`/`ArahHalamanTabs`; kunci pref `simpes_<halaman>_tab`) dan dipakai grup Santri: subgrup Penempatan jadi satu halaman 3 tab (`/penempatan`; Santri Per Lembaga, MI-MD, Riwayat Belajar) dengan rute tab tetap rute lama; sidebar 3 entri → 1 (setelah Daftar Kelas, sebelum Akademik) |
 | 2.291 | 2026-10-04 | Subgrup Akademik (Santri) jadi satu halaman 4 tab (`/akademik`; Pindah Kelas, Mutasi Keluar, Kenaikan Kelas, Kelulusan) dengan rute tab tetap rute lama; sidebar 4 entri → 1 (setelah Penempatan, sebelum Lain-lain) |
+| 2.292 | 2026-10-04 | Subgrup PSB naik jadi grup navigasi tersendiri "PSB" (kategori `psb`) di atas grup Santri; halaman Antrean PSB (`/psb/:tahap`) & Kegiatan PSB tetap; grup Santri kini Daftar Kelas → Penempatan → Akademik → Lain-lain |
 
 ## Daftar Isi
 

@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils';
 const LABEL_MENU: Record<TabKategori, string> = {
   beranda: 'Berkas',
   master: 'Data Induk',
+  psb: 'PSB',
   santri: 'Santri',
   pegawai: 'Pegawai',
   dokumen: 'Dokumen',

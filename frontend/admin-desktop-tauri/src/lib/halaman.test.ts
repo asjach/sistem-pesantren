@@ -4,8 +4,10 @@ import {
   HALAMAN_AKADEMIK,
   HALAMAN_DATA_INDUK,
   HALAMAN_PENEMPATAN,
+  NAV_GRUP,
   halamanDariPath,
   halamanGrupLangsung,
+  halamanSubgrup,
   izinHalaman,
   type HalamanDef,
 } from './halaman';
@@ -71,6 +73,25 @@ describe('halamanDariPath & halaman bertab', () => {
       '/penempatan',
       '/akademik',
     ]);
+  });
+
+  it('PSB kini grup tersendiri di atas Santri (dua halaman, tanpa subgrup)', () => {
+    expect(NAV_GRUP.map((g) => g.id)).toEqual([
+      'beranda',
+      'master',
+      'psb',
+      'santri',
+      'pegawai',
+      'dokumen',
+      'keuangan',
+      'pengaturan',
+    ]);
+    expect(halamanGrupLangsung('psb').map((h) => h.to)).toEqual(['/psb', '/kegiatan-psb']);
+    expect(halamanDariPath('/psb')?.tab).toBe('psb');
+    expect(halamanDariPath('/psb/pendaftar')?.tab).toBe('psb');
+    expect(halamanDariPath('/kegiatan-psb')?.tab).toBe('psb');
+    // Tidak ada lagi halaman ber-subgrup psb di dalam Santri.
+    expect(halamanSubgrup('santri', 'psb')).toEqual([]);
   });
 
   it('izin halaman gabungan = gabungan izin semua tab', () => {
