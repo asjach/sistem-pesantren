@@ -17,7 +17,7 @@ import {
   widthsKey,
   writeWidthCache,
 } from './helpers';
-import { LEBAR_GAGANG_GESER, ukurPerluTinggiHeader } from './header';
+import { ukurPerluTinggiHeader } from './header';
 import { measureActionsWidth, bersihkanProbe } from './measure';
 import type { ExcelField, GridRow } from './types';
 
@@ -42,7 +42,6 @@ export interface LebarKolomOptions<T extends { id: string | number }> {
   /** Key kolom grid terseleksi (resize multi-kolom saat blok terseleksi). */
   getSelectedColumnKeys: () => string[];
   labelKolom: (key: string, bawaan: string) => string;
-  bolehGeser: boolean;
   hideActions: boolean;
   hideCheckbox: boolean;
   loading: boolean;
@@ -74,7 +73,6 @@ export function useLebarKolom<T extends { id: string | number }>({
   wrapRef,
   getSelectedColumnKeys,
   labelKolom,
-  bolehGeser,
   hideActions,
   hideCheckbox,
   loading,
@@ -508,12 +506,10 @@ export function useLebarKolom<T extends { id: string | number }>({
     const out: Record<string, number> = {};
     const values = rows.map((r) => getValuesRef.current(r) as Record<string, unknown>);
     for (const f of visibleFields) {
-      // Gagang geser (super_admin) memakan ruang judul: hitung dalam AutoFit
-      // agar judul 1–2 baris tak terpotong/terbungkus sia-sia.
       let w = lebarJudulDuaBaris(
         labelKolom(f.key, f.label),
         (text) => lebar(headProbe, csHeadCont, text),
-      ) + padHead + AUTOFIT_BUFFER + (bolehGeser ? LEBAR_GAGANG_GESER : 0);
+      ) + padHead + AUTOFIT_BUFFER;
       for (const v of values) {
         const s = teksTampilSel(f, v[f.key]);
         if (!s) continue;
@@ -522,7 +518,7 @@ export function useLebarKolom<T extends { id: string | number }>({
       out[f.key] = Math.min(AUTOFIT_MAX_W, Math.max(MIN_COL_W, Math.ceil(w)));
     }
     return out;
-  }, [rows, visibleFields, effectiveFont, fontStack, fontStackWeight, labelKolom, bolehGeser, getValuesRef]);
+  }, [rows, visibleFields, effectiveFont, fontStack, fontStackWeight, labelKolom, getValuesRef]);
 
   /** Reset bagian lebar dari "kembalikan tampilan bawaan" (ribbon): buang
    *  lebar simpanan, hitung ulang AutoFit penuh. Seleksi & toast tetap di

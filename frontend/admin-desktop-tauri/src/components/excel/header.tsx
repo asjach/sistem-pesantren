@@ -1,22 +1,9 @@
-import type { DragEvent } from 'react';
-import { Ban, GripVertical } from '@/icons';
-
-/** Lebar ekstra yang dibutuhkan judul saat gagang geser tampil.
- *
- *  Padding `.simpes-dsg-headtitle`  8px per sisi; saat gagang tampil jadi
- *  20px per sisi (`.simpes-dsg-headtitle-ada-geser`) supaya ada jalur dari tepi
- *  kiri sel ke teks. Selisihnya 12 + 12 = 24px, dan inilah yang harus
- *  ditambahkan ke lebar kolom — kalau kurang, judul terjepit dan kata
- *  terpotong baris (mis. "Jml saudara" jadi tiga baris).
- *
- *  WAJIB sinkron dengan CSS; dipakai ExcelTable & AutoFit. */
-export const LEBAR_GAGANG_GESER = 24;
+import { Ban } from '@/icons';
 
 /** Judul kolom dengan gagang seret pengubah lebar (drag di tepi kanan).
  *  Klik 2× pada gagang = AutoFit lebar mengikuti isi (seperti Excel).
  *  Field wajib (mode Input) ditandai bintang merah; kolom otomatis (tidak
- *  bisa diisi manual saat mode Input) ditandai ikon merah.
- *  Super_admin bisa menyeret urutan kolom via gagang geser (global). */
+ *  bisa diisi manual saat mode Input) ditandai ikon merah. */
 export function HeaderTitle({
   label,
   colKey,
@@ -25,13 +12,6 @@ export function HeaderTitle({
   onResizeStart,
   onResizePrev,
   onAutoFit,
-  bisaGeser = false,
-  sedangDiseret = false,
-  targetSeret = null,
-  onDragMulai,
-  onDragLewat,
-  onDragJatuh,
-  onDragSelesai,
 }: {
   label: string;
   colKey: string;
@@ -42,38 +22,9 @@ export function HeaderTitle({
    *  (gagang kanan tertutup oleh sel beku di sebelahnya). */
   onResizePrev?: (e: { preventDefault(): void; stopPropagation(): void; clientX: number }) => void;
   onAutoFit: (key: string) => void;
-  /** Seret urutan kolom diizinkan (super_admin efektif). */
-  bisaGeser?: boolean;
-  /** Kolom ini sedang diseret. */
-  sedangDiseret?: boolean;
-  /** Kolom ini target drop: indikator di kiri/kanan. */
-  targetSeret?: 'kiri' | 'kanan' | null;
-  onDragMulai?: (key: string, e: DragEvent) => void;
-  onDragLewat?: (key: string, e: DragEvent) => void;
-  onDragJatuh?: (key: string, e: DragEvent) => void;
-  onDragSelesai?: () => void;
 }) {
   return (
-    <span
-      className={`simpes-dsg-headtitle${bisaGeser && onDragMulai ? ' simpes-dsg-headtitle-ada-geser' : ''}${sedangDiseret ? ' simpes-dsg-diseret' : ''}${targetSeret === 'kiri' ? ' simpes-dsg-target-kiri' : ''}${targetSeret === 'kanan' ? ' simpes-dsg-target-kanan' : ''}`}
-      data-col-key={colKey}
-      onDragOver={onDragLewat ? (e) => { e.preventDefault(); onDragLewat(colKey, e); } : undefined}
-      onDrop={onDragJatuh ? (e) => { e.preventDefault(); onDragJatuh(colKey, e); } : undefined}
-    >
-      {bisaGeser && onDragMulai ? (
-        <span
-          className="simpes-dsg-geser"
-          title="Seret untuk pindah posisi kolom (global, tersimpan otomatis)"
-          aria-label="Seret untuk pindah posisi kolom"
-          draggable
-          onDragStart={(e) => onDragMulai(colKey, e)}
-          onDragEnd={() => onDragSelesai?.()}
-          onMouseDown={(e) => e.stopPropagation()}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <GripVertical size={12} />
-        </span>
-      ) : null}
+    <span className="simpes-dsg-headtitle" data-col-key={colKey}>
       <span className="simpes-dsg-teks-judul">{label}</span>
       {required ? (
         <span className="simpes-dsg-wajib-tanda" title="Wajib diisi pada mode Input">
@@ -124,8 +75,7 @@ export function ukurPerluTinggiHeader(akar: HTMLElement): number {
     const lh = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.2 || 15;
     const pad = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
     let baris = 1;
-    // Teks judul dibungkus span `.simpes-dsg-teks-judul` (bukan anak pertama,
-    // karena gagang geser mendahuluinya).
+    // Teks judul dibungkus span `.simpes-dsg-teks-judul`.
     const judul = ht.querySelector('.simpes-dsg-teks-judul');
     const node = judul?.firstChild
       ?? Array.from(ht.childNodes).find(

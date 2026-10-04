@@ -71,7 +71,7 @@ import {
   TextCell,
   ToggleCell,
 } from './excel/cells';
-import { HeaderTitle, LEBAR_GAGANG_GESER } from './excel/header';
+import { HeaderTitle } from './excel/header';
 import { useAntreanSimpan } from './excel/useAntreanSimpan';
 import MenuAksiToolbar from '@/components/MenuAksiToolbar';
 import { ActionsCell, flattenAksi } from './excel/actions';
@@ -259,7 +259,7 @@ export default function ExcelTable<T extends { id: string | number }>({
 
   const [presetKeys, setPresetKeys] = useState<string[] | null>(null);
   /** Id preset aktif (null = Lengkap/tanpa preset): urutan kolom mengikuti
-   *  susunan preset; seret kolom di grid menyimpan balik ke preset ini. */
+   *  susunan preset; geser dari menu konteks menyimpan balik ke preset ini. */
   const [presetAktifId, setPresetAktifId] = useState<number | null>(null);
   /** Nama header kustom dari preset aktif (key kolom → nama tampil). */
   const [presetLabel, setPresetLabel] = useState<Record<string, string> | null>(null);
@@ -374,16 +374,8 @@ export default function ExcelTable<T extends { id: string | number }>({
   visibleFieldsRef.current = visibleFields;
   const wrapRef = useRef<HTMLDivElement>(null);
 
-  /** Seret & simpan urutan kolom (state cermin ref ada di dalam hook). */
-  const {
-    seret,
-    geserKolom,
-    kembalikanUrutan,
-    dragMulaiKolom,
-    dragLewatKolom,
-    dragJatuhKolom,
-    dragSelesaiKolom,
-  } = useUrutanKolom({
+  /** Geser & simpan urutan kolom dari menu konteks header. */
+  const { geserKolom, kembalikanUrutan } = useUrutanKolom({
     tableKey,
     presetAktifId,
     setPresetKeys,
@@ -426,7 +418,6 @@ export default function ExcelTable<T extends { id: string | number }>({
     wrapRef,
     getSelectedColumnKeys: () => selectedColumnKeys(),
     labelKolom,
-    bolehGeser,
     hideActions,
     hideCheckbox,
     loading,
@@ -830,21 +821,10 @@ export default function ExcelTable<T extends { id: string | number }>({
                 : undefined
             }
             onAutoFit={onAutoFit}
-            bisaGeser={bolehGeser}
-            sedangDiseret={seret?.dari === f.key}
-            targetSeret={seret && seret.ke === f.key ? (seret.sesudah ? 'kanan' : 'kiri') : null}
-            onDragMulai={bolehGeser ? dragMulaiKolom : undefined}
-            onDragLewat={bolehGeser ? dragLewatKolom : undefined}
-            onDragJatuh={bolehGeser ? dragJatuhKolom : undefined}
-            onDragSelesai={bolehGeser ? dragSelesaiKolom : undefined}
           />
         ),
         headerClassName: cn(alignClass(f.key), bekuCls, tepiCls, lastCls),
-        basis:
-          (widths[f.key] ?? autoWidths[f.key] ?? syncAutoWidths[f.key] ?? f.width ?? 150) +
-          // Gagang geser memakan ruang judul: tambah lebarnya agar area
-          // label tetap sama (hanya saat grip tampil = super_admin).
-          (bolehGeser ? LEBAR_GAGANG_GESER : 0),
+        basis: widths[f.key] ?? autoWidths[f.key] ?? syncAutoWidths[f.key] ?? f.width ?? 150,
         // Semua kolom fixed (grow 0): lebar hanya berubah saat digagang
         // seret atau di-AutoFit, persis seperti Excel. Sisa ruang di kanan
         // dibiarkan kosong, bukan dibagi ke kolom elastis.
@@ -1012,7 +992,7 @@ export default function ExcelTable<T extends { id: string | number }>({
     }
     return cols;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fields, visibleFields, editing, widths, autoWidths, syncAutoWidths, align, showInput, freezeAktif, hideCheckbox, labelKolom, alignEfektif, drafts, bolehGeser, seret, dragMulaiKolom, dragLewatKolom, dragJatuhKolom, dragSelesaiKolom]);
+  }, [fields, visibleFields, editing, widths, autoWidths, syncAutoWidths, align, showInput, freezeAktif, hideCheckbox, labelKolom, alignEfektif, drafts]);
 
   /** Logika baris input (mode Input): draft, validasi, simpan, kursor. */
   const {

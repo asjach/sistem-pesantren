@@ -353,6 +353,7 @@
 | 2.300 | 2026-10-04 | Tombol show/hide ribbon didesain ulang jadi gagang strip tipis (4px) selebar baris judul, menempel pada garis batas bawah baris dengan chevron di tengah; klik area mana pun pada strip untuk buka/tutup (sebelumnya kenop kecil di bawah pembungkus filter). Variabel `--warna-panel-filter` dihapus |
 | 2.301 | 2026-10-04 | Filter global TopBar selalu tepat di tengah halaman: baris judul jadi grid `1fr auto 1fr` (kolom filter di tengah, lepas dari lebar judul/search & area akun) dan padding kanan disamakan (`md:pr-6`) sehingga titik tengah filter = titik tengah baris/halaman; tidak ada overlap di lebar minimum jendela (1024) |
 | 2.302 | 2026-10-04 | Rel filter Tingkat/Kelas dipindah ke dalam area tabel (prop `rail` pada `ExcelTable`): tampil di kiri grid tepat di bawah bar judul tabel sehingga bagian atasnya sejajar judul kolom grid; baris tab dan bar judul tabel melebar penuh. Satu rel per halaman (hanya tabel utama — Kenaikan, Riwayat, Mutasi, MI-MD, Pindah Kelas memakai tabel pertama; halaman Dokumen Santri memakai rel di kiri panel). `Layout` tidak lagi merender rel global |
+| 2.303 | 2026-10-04 | Seret-untuk-pindah urutan kolom di header grid dihapus (rawan bergeser tak sengaja saat seleksi/resize): gagang geser, 4 handler drag, gaya CSS, dan opsi `bolehGeser` di AutoFit dibuang. Urutan tetap bisa diubah lewat menu klik-kanan header (Geser kiri/kanan, Kembalikan urutan bawaan) dan Tab Kolom preset |
 
 ## Daftar Isi
 

@@ -1,17 +1,10 @@
-import { useCallback, useEffect, useRef, useState, type DragEvent } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 
 import { errorMessage } from '@/api/client';
 import { simpanToolbarPreset } from '@/api/toolbarPreset';
 import { updatePresetTabel } from '@/api/preset';
 import { EVENT_PRESET_BERUBAH, EVENT_TOOLBAR_BERUBAH } from '@/components/kelolaTabel/jenis';
 import { toast } from 'sonner';
-
-/** Status seret kolom: kolom asal + kolom target (null = belum di atas target). */
-export interface SeretKolom {
-  dari: string;
-  ke: string | null;
-  sesudah: boolean;
-}
 
 export interface UrutanKolomOptions {
   tableKey: string;
@@ -28,10 +21,9 @@ export interface UrutanKolomOptions {
 }
 
 /**
- * Seret & simpan urutan kolom (super_admin): state seret untuk umpan balik
- * visual, handler drag HTML5, penyimpanan ter-debounce (preset aktif → urutan
- * masuk ke preset itu; tanpa preset → urutan global per halaman), serta geser
- * satu langkah & reset urutan dari menu konteks header.
+ * Simpan urutan kolom (super_admin) dari menu konteks header: geser satu
+ * langkah & reset urutan; penyimpanan ter-debounce (preset aktif → urutan
+ * masuk ke preset itu; tanpa preset → urutan global per halaman).
  */
 export function useUrutanKolom({
   tableKey,
@@ -41,9 +33,6 @@ export function useUrutanKolom({
   getVisibleKeys,
   getFieldKeys,
 }: UrutanKolomOptions) {
-  const [seret, setSeret] = useState<SeretKolom | null>(null);
-  /** Cermin ref agar drop membaca nilai terbaru tanpa bikin ulang callback. */
-  const seretRef = useRef<SeretKolom | null>(null);
   const tundaSimpanUrutan = useRef<number | undefined>(undefined);
   useEffect(() => () => window.clearTimeout(tundaSimpanUrutan.current), []);
 
@@ -86,17 +75,6 @@ export function useUrutanKolom({
     simpanUrutan(next);
   }, [simpanUrutan, getVisibleKeys]);
 
-  /** Pindahkan kolom `dari` ke posisi kolom `ke` (sesudah = di kanannya). */
-  const pindahKolomKe = useCallback((dari: string, ke: string, sesudah: boolean) => {
-    if (dari === ke) return;
-    const kini = getVisibleKeys().filter((k) => k !== dari);
-    let idx = kini.indexOf(ke);
-    if (idx < 0) return;
-    if (sesudah) idx += 1;
-    kini.splice(idx, 0, dari);
-    simpanUrutan(kini);
-  }, [simpanUrutan, getVisibleKeys]);
-
   const kembalikanUrutan = useCallback(() => {
     // Preset aktif: kembalikan ke urutan bawaan halaman untuk kolom tampil.
     if (presetAktifId !== null) {
@@ -107,40 +85,5 @@ export function useUrutanKolom({
     simpanUrutan([]);
   }, [presetAktifId, simpanUrutan, getVisibleKeys, getFieldKeys]);
 
-  const dragMulaiKolom = useCallback((key: string, e: DragEvent) => {
-    e.dataTransfer.effectAllowed = 'move';
-    try {
-      e.dataTransfer.setData('text/plain', key);
-    } catch {
-      /* abaikan */
-    }
-    const s = { dari: key, ke: null as string | null, sesudah: false };
-    seretRef.current = s;
-    setSeret(s);
-  }, []);
-  const dragLewatKolom = useCallback((key: string, e: DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    const sesudah = e.clientX > r.left + r.width / 2;
-    const s = seretRef.current;
-    if (s && s.dari !== key && (s.ke !== key || s.sesudah !== sesudah)) {
-      const next = { ...s, ke: key, sesudah };
-      seretRef.current = next;
-      setSeret(next);
-    }
-  }, []);
-  const dragJatuhKolom = useCallback((key: string, e: DragEvent) => {
-    e.preventDefault();
-    const s = seretRef.current;
-    seretRef.current = null;
-    setSeret(null);
-    if (s && s.dari !== key) pindahKolomKe(s.dari, key, s.sesudah);
-  }, [pindahKolomKe]);
-  const dragSelesaiKolom = useCallback(() => {
-    seretRef.current = null;
-    setSeret(null);
-  }, []);
-
-  return { seret, geserKolom, kembalikanUrutan, dragMulaiKolom, dragLewatKolom, dragJatuhKolom, dragSelesaiKolom };
+  return { geserKolom, kembalikanUrutan };
 }
