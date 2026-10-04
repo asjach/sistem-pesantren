@@ -136,6 +136,49 @@ class KeuanganTest extends TestCase
         $this->assertFalse($global->fresh()->is_active);
     }
 
+    public function test_index_tarif_terfilter_lembaga_dan_tahun_ajaran(): void
+    {
+        $admin = $this->admin();
+        $jenis = JenisTagihan::create(['nama' => 'Infaq Bulanan', 'tipe' => 'bulanan']);
+        TarifTagihan::create(['jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'nominal' => 75000]);
+        TarifTagihan::create(['jenjang' => 'MD', 'paket' => 'MD', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'nominal' => 60000]);
+        TarifTagihan::create(['jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2024/2025', 'jenis_id' => $jenis->id, 'nominal' => 70000]);
+
+        // Tanpa filter: semua tarif.
+        $this->actingAs($admin)->getJson('/api/admin/keuangan/tarif')
+            ->assertStatus(200)->assertJsonCount(3);
+
+        // Filter lembaga + TA (array) → hanya kombinasi yang cocok.
+        $this->actingAs($admin)->getJson('/api/admin/keuangan/tarif?jenjang[]=MI&tahun_ajaran[]=2025/2026')
+            ->assertStatus(200)->assertJsonCount(1)
+            ->assertJsonPath('0.jenjang', 'MI');
+        $this->actingAs($admin)->getJson('/api/admin/keuangan/tarif?jenjang[]=MI&jenjang[]=MD')
+            ->assertStatus(200)->assertJsonCount(3);
+        $this->actingAs($admin)->getJson('/api/admin/keuangan/tarif?tahun_ajaran[]=2024/2025')
+            ->assertStatus(200)->assertJsonCount(1);
+    }
+
+    public function test_hapus_tarif_ditolak_bila_sudah_dipakai(): void
+    {
+        $admin = $this->admin();
+        $jenis = JenisTagihan::create(['nama' => 'Infaq Bulanan', 'tipe' => 'bulanan']);
+        $dipakai = TarifTagihan::create(['jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'nominal' => 75000]);
+        $bebas = TarifTagihan::create(['jenjang' => 'MD', 'paket' => 'MD', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'nominal' => 60000]);
+
+        $santri = Santri::create(['nama_lengkap' => 'Santri Tarif', 'jk' => 'L']);
+        Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'periode' => '2025-07', 'nominal' => 75000]);
+
+        // Sudah dipakai tagihan → 422, tarif tetap ada.
+        $this->actingAs($admin)->deleteJson("/api/admin/keuangan/tarif/{$dipakai->id}")
+            ->assertStatus(422);
+        $this->assertDatabaseHas('tarif_tagihan', ['id' => $dipakai->id]);
+
+        // Belum dipakai tagihan → boleh dihapus.
+        $this->actingAs($admin)->deleteJson("/api/admin/keuangan/tarif/{$bebas->id}")
+            ->assertStatus(200);
+        $this->assertDatabaseMissing('tarif_tagihan', ['id' => $bebas->id]);
+    }
+
     public function test_hapus_tagihan(): void
     {
         $admin = $this->admin();

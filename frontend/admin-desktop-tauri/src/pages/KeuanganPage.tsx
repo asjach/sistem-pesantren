@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { errorMessage, prefGet, prefSet } from '../api/client';
 import {
-  daftarJenis, buatJenis, ubahJenis, buatTarif, daftarTarif, ubahTarif,
+  daftarJenis, buatJenis, ubahJenis, buatTarif, daftarTarif, ubahTarif, hapusTarif,
   daftarTagihan, generateTagihan, hapusTagihan, catatPembayaran, daftarTunggakan,
   riwayatPembayaran, hapusPembayaran,
   type JenisTagihan, type Tarif, type TagihanRow, type TunggakanRow, type PembayaranRow,
@@ -108,13 +108,25 @@ export default function KeuanganPage() {
     void loadTagihan(tagihanPage, tagihanPerPage, jenjangs, tahunAjaranNames);
   }, [tagihanPagerReady, filterLoading, tagihanPage, tagihanPerPage, jenjangs, tahunAjaranNames, loadTagihan]);
 
+  /** Tarif mengikuti filter lembaga & tahun ajaran (server-side; kosong = semua). */
+  const loadTarif = useCallback(async (jenjang: readonly string[], ta: readonly string[]) => {
+    try {
+      setTarif(await daftarTarif({ jenjang, tahun_ajaran: ta }));
+    } catch (e) { setErr(errorMessage(e)); }
+  }, []);
+
+  useEffect(() => {
+    if (filterLoading) return;
+    void loadTarif(jenjangs, tahunAjaranNames);
+  }, [filterLoading, jenjangs, tahunAjaranNames, loadTarif]);
+
   useEffect(() => { setTagihanPage(1); }, [jenjangs, tahunAjaranNames]);
 
   const load = useCallback(async () => {
     setErr(''); setLoading(true);
     try {
-      const [j, t, w, l, tas] = await Promise.all([daftarJenis(), daftarTarif(), daftarTunggakan(), listLembaga({ per_page: 100 }), listTahunAjaran({ per_page: 100 })]);
-      setJenis(j); setTarif(t); setTunggakan(w.per_santri);
+      const [j, w, l, tas] = await Promise.all([daftarJenis(), daftarTunggakan(), listLembaga({ per_page: 100 }), listTahunAjaran({ per_page: 100 })]);
+      setJenis(j); setTunggakan(w.per_santri);
       setLembagas(l.data); setDaftarTA(tas.data);
       const taAktif = tas.data.find((x) => x.is_aktif)?.nama ?? tas.data[0]?.nama ?? '';
       const diTA = (v: string) => v !== '' && tas.data.some((x) => x.nama === v);
@@ -266,10 +278,19 @@ export default function KeuanganPage() {
             onCommit={async () => {}}
             onSaved={() => {}}
             renderActions={(r) => (
-              <EditAction id={`btn_tarif_ubah_${r.id}`} onClick={() => { setEditTarif(r); setENominal(String(r.nominal)); setEAktif(r.is_active); }} />
+              <>
+                <EditAction id={`btn_tarif_ubah_${r.id}`} onClick={() => { setEditTarif(r); setENominal(String(r.nominal)); setEAktif(r.is_active); }} />
+                <DeleteAction
+                  id={`btn_tarif_hapus_${r.id}`}
+                  title="Hapus tarif?"
+                  description="Tarif dihapus permanen. Tarif yang sudah dipakai pada tagihan tidak bisa dihapus — nonaktifkan saja."
+                  onConfirm={() => { void (async () => { try { await hapusTarif(r.id); toast.success('Tarif dihapus.'); await loadTarif(jenjangs, tahunAjaranNames); } catch (e2) { toast.error(errorMessage(e2)); } })(); }}
+                />
+              </>
             )}
             hideCheckbox
-            addButton={<Button id="btn_tarif_tambah_buka" onClick={() => { setTfJenis(''); setTfNominal(''); setTambahTarifOpen(true); }}>+ Tambah Tarif</Button>}
+            addButtonLangsung
+            addButton={<Button id="btn_tarif_tambah_buka" size="icon" variant="outline" aria-label="Tambah tarif" title="Tambah tarif" onClick={() => { setTfJenis(''); setTfNominal(''); if (genTAtopbar && daftarTA.some((x) => x.nama === genTAtopbar)) setTfTA(genTAtopbar); setTambahTarifOpen(true); }}><Plus size={16} /></Button>}
           />
         </TabsContent>
 
@@ -428,7 +449,7 @@ export default function KeuanganPage() {
             <DialogTitle>Tambah Tarif</DialogTitle>
             <DialogDescription className="sr-only">Formulir penambahan tarif tagihan.</DialogDescription>
           </DialogHeader>
-          <form id="form_tambah_tarif" className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4" onSubmit={async (e) => { e.preventDefault(); if (tfJenis === '') return; try { await buatTarif({ jenjang: tfJenjang, paket: tfPaket, tahun_ajaran: tfTA, jenis_id: Number(tfJenis), nominal: Number(tfNominal) }); toast.success('Tarif dibuat.'); setTfJenis(''); setTfNominal(''); setTambahTarifOpen(false); await load(); } catch (e2) { toast.error(errorMessage(e2)); } }}>
+          <form id="form_tambah_tarif" className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4" onSubmit={async (e) => { e.preventDefault(); if (tfJenis === '') return; try { await buatTarif({ jenjang: tfJenjang, paket: tfPaket, tahun_ajaran: tfTA, jenis_id: Number(tfJenis), nominal: Number(tfNominal) }); toast.success('Tarif dibuat.'); setTfJenis(''); setTfNominal(''); setTambahTarifOpen(false); await load(); await loadTarif(jenjangs, tahunAjaranNames); } catch (e2) { toast.error(errorMessage(e2)); } }}>
             <FieldLabel htmlFor="sel_tarif_jenjang">Jenjang</FieldLabel>
             <select id="sel_tarif_jenjang" className="border rounded px-2" value={tfJenjang} onChange={(e) => setTfJenjang(e.target.value)} required>
               {lembagas.map((l) => <option key={l.jenjang} value={l.jenjang}>{l.jenjang} — {l.nama}</option>)}
@@ -509,7 +530,7 @@ export default function KeuanganPage() {
       <Dialog open={editTarif !== null} onOpenChange={(o) => { if (!o) setEditTarif(null); }}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader><DialogTitle>Ubah Tarif</DialogTitle></DialogHeader>
-          <form id="form_ubah_tarif" className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4" onSubmit={async (e) => { e.preventDefault(); if (!editTarif) return; try { await ubahTarif(editTarif.id, Number(eNominal), eAktif); toast.success('Tersimpan.'); setEditTarif(null); await load(); } catch (e2) { toast.error(errorMessage(e2)); } }}>
+          <form id="form_ubah_tarif" className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4" onSubmit={async (e) => { e.preventDefault(); if (!editTarif) return; try { await ubahTarif(editTarif.id, Number(eNominal), eAktif); toast.success('Tersimpan.'); setEditTarif(null); await load(); await loadTarif(jenjangs, tahunAjaranNames); } catch (e2) { toast.error(errorMessage(e2)); } }}>
             <FieldLabel htmlFor="inp_tarif_edit_nominal">Nominal</FieldLabel>
             <Input id="inp_tarif_edit_nominal" type="number" value={eNominal} onChange={(e) => setENominal(e.target.value)} required />
             <FieldLabel htmlFor="chk_tarif_edit_aktif">Aktif</FieldLabel>

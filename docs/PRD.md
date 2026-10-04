@@ -361,6 +361,7 @@
 | 2.308 | 2026-10-04 | Fix act-as di Keuangan: super_admin yang "bertindak sebagai lembaga" tidak lagi bisa membuat/mengubah jenis tagihan global (`hasRole('super_admin')` → `bolehSuperAdmin()` di store/updateJenis); tes `KeuanganTest::test_jenis_tagihan_act_as_tidak_bisa_ubah_global` |
 | 2.309 | 2026-10-04 | Keuangan UI: tombol "+ Tambah Jenis" jadi ikon (`Plus`) di toolbar (prop baru `ExcelTable.addButtonLangsung`), kolom Status Aktif/Nonaktif di tabel jenis, serta guard UI act-as — opsi "Semua (global)" & tombol Ubah jenis global disembunyikan saat bertindak sebagai lembaga |
 | 2.310 | 2026-10-04 | Tipe jenis tagihan `sekali` → `non_bulanan` (semantik: bukan sekali seumur, satu periode per generate): migrasi enum + konversi data, seeder, validasi/default backend, tipe & label FE ("Non-bulanan", tabel ikut label), `SCHEMA.md`; logika generate tetap `bulanan` vs bukan |
+| 2.311 | 2026-10-04 | Keuangan tarif: daftar terfilter lembaga & tahun ajaran (server-side `applyFilter` array; FE refetch saat filter berubah), dialog Tambah Tarif memakai TA dari filter topbar, tombol tambah jadi ikon, kolom aksi dapat Hapus dengan guard 422 bila tarif sudah dipakai tagihan |
 
 ## Daftar Isi
 

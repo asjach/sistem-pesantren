@@ -79,12 +79,9 @@ class KeuanganController extends Controller
     public function indexTarif(Request $request)
     {
         $q = TarifTagihan::with('jenis')->orderBy('jenjang')->orderBy('tahun_ajaran');
-        if ($request->filled('jenjang')) {
-            $q->where('jenjang', $request->input('jenjang'));
-        }
-        if ($request->filled('tahun_ajaran')) {
-            $q->where('tahun_ajaran', $request->input('tahun_ajaran'));
-        }
+        // Filter global (boleh banyak nilai): `jenjang[]` dan `tahun_ajaran[]`.
+        $this->applyFilter($q, $request, 'jenjang', 'jenjang');
+        $this->applyFilter($q, $request, 'tahun_ajaran', 'tahun_ajaran');
 
         return response()->json($q->get());
     }
@@ -116,6 +113,18 @@ class KeuanganController extends Controller
     public function destroyTarif(Request $request, TarifTagihan $tarif)
     {
         $this->canLembaga($request->user(), $tarif->jenjang) || abort(403);
+
+        // Tarif yang sudah dipakai generate tagihan tidak boleh dihapus
+        // (kombinasi inilah yang disalin ke baris tagihan).
+        $dipakai = Tagihan::where('jenjang', $tarif->jenjang)
+            ->where('paket', $tarif->paket)
+            ->where('tahun_ajaran', $tarif->tahun_ajaran)
+            ->where('jenis_id', $tarif->jenis_id)
+            ->exists();
+        if ($dipakai) {
+            abort(422, 'Tarif tidak bisa dihapus karena sudah dipakai pada tagihan. Nonaktifkan saja bila tidak ingin dipakai lagi.');
+        }
+
         $tarif->delete();
 
         return response()->json(['pesan' => 'Tarif dihapus.']);

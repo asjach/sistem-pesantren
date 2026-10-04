@@ -35,8 +35,12 @@ export function buatJenis(nama: string, tipe: 'bulanan' | 'non_bulanan', jenjang
   return api<JenisTagihan>('/admin/keuangan/jenis', { method: 'POST', body: JSON.stringify({ nama, tipe, jenjang: jenjang ?? null }) });
 }
 
-export function daftarTarif() {
-  return api<Tarif[]>('/admin/keuangan/tarif');
+export function daftarTarif(params: { jenjang?: ScalarOrArray<string>; tahun_ajaran?: ScalarOrArray<string> } = {}) {
+  const q = new URLSearchParams();
+  appendQueryParam(q, 'jenjang', params.jenjang);
+  appendQueryParam(q, 'tahun_ajaran', params.tahun_ajaran);
+  const s = q.toString();
+  return api<Tarif[]>(`/admin/keuangan/tarif${s ? `?${s}` : ''}`);
 }
 
 export function buatTarif(data: Partial<Tarif>) {
@@ -45,6 +49,10 @@ export function buatTarif(data: Partial<Tarif>) {
 
 export function ubahTarif(id: number, nominal: number, is_active: boolean) {
   return api<Tarif>(`/admin/keuangan/tarif/${id}`, { method: 'PUT', body: JSON.stringify({ nominal, is_active }) });
+}
+
+export function hapusTarif(id: number) {
+  return api<{ pesan: string }>(`/admin/keuangan/tarif/${id}`, { method: 'DELETE' });
 }
 
 export function daftarTagihan(params: { page?: string; per_page?: string; jenjang?: ScalarOrArray<string>; tahun_ajaran?: ScalarOrArray<string>; jenis_id?: string; status?: string } = {}) {
