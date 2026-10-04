@@ -278,9 +278,12 @@ export default function TopBar() {
         {halaman?.label ?? 'SIMPES Admin'}
       </h1>
 
-      {/* Baris 1: judul halaman (kiri) + area akun (kanan). Padding kiri
-          menyisakan ruang untuk kenop navigasi yang melintasi border. */}
-      <div data-part="area_judul" className="relative flex items-center gap-2 py-0 pb-1 pl-6 pr-3 md:pr-5">
+      {/* Baris 1: judul/pencarian (kiri), filter global (tengah), area akun
+          (kanan). Grid `1fr auto 1fr` membuat titik tengah kolom filter
+          SELALU sama dengan titik tengah baris/halaman — lepas dari lebar
+          judul/search maupun area akun. Padding kiri menyisakan ruang untuk
+          kenop navigasi yang melintasi border. */}
+      <div data-part="area_judul" className="relative grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 py-0 pb-1 pl-6 pr-3 md:pr-6">
         {/* Kenop navigasi: satu tombol untuk dua arah — chevron kiri
             menyembunyikan rail (saat tampil), chevron kanan menampilkannya
             kembali (saat tertutup). Saat rail tampil, tombol melintasi garis
@@ -313,26 +316,27 @@ export default function TopBar() {
             </TooltipContent>
           </Tooltip>
         )}
-        {!searchAda && (
-          <span id="judul_bar_halaman" className="truncate text-sm font-semibold">
-            {halaman?.label ?? 'SIMPES Admin'}
-          </span>
-        )}
-        {/* Pencarian tunggal halaman (portal) — menggantikan judul saat ada. */}
-        <div ref={searchHostRef} className={cn('flex min-w-0 items-center', searchAda && 'w-[150px] shrink-0')} />
+        {/* Kolom kiri: judul halaman / pencarian tunggal (portal). */}
+        <div className="flex min-w-0 items-center gap-2">
+          {!searchAda && (
+            <span id="judul_bar_halaman" className="truncate text-sm font-semibold">
+              {halaman?.label ?? 'SIMPES Admin'}
+            </span>
+          )}
+          {/* Pencarian tunggal halaman (portal) — menggantikan judul saat ada. */}
+          <div ref={searchHostRef} className={cn('flex min-w-0 items-center', searchAda && 'w-[150px] shrink-0')} />
+        </div>
 
-        <div data-part="area_akun" className="ml-2 flex min-w-0 flex-1 items-center gap-0.5">
-          {/* Perenggang kiri: mendorong filter global ke tengah bar. */}
-          <div aria-hidden="true" className="min-w-0 flex-1" />
-          {/* Pembungkus filter SELALU dirender — border transparan saat tak
-              ada filter — supaya tinggi baris dan jangkar tombol ribbon tidak
-              bergeser saat berpindah tab berfilter ↔ tanpa filter. */}
-          <div
-            className={cn(
-              'relative flex min-h-[26px] min-w-0 items-center gap-0 rounded-md border p-0',
-              adaFilterTopBar ? 'border-white/15 bg-white/5' : 'border-transparent',
-            )}
-          >
+        {/* Kolom tengah: filter global — selalu di tengah baris. Pembungkus
+            SELALU dirender (border transparan saat tak ada filter) supaya
+            tinggi baris dan jangkar tombol ribbon tidak bergeser saat
+            berpindah tab berfilter ↔ tanpa filter. */}
+        <div
+          className={cn(
+            'relative flex min-h-[26px] min-w-0 items-center gap-0 rounded-md border p-0',
+            adaFilterTopBar ? 'border-white/15 bg-white/5' : 'border-transparent',
+          )}
+        >
             {tampil.lembaga && (adaSemua || banyakPilihan) && daftarLembaga.length > 0 && (
             <FilterToggleGroup
               id="btn_menu_lembaga_aktif"
@@ -394,9 +398,10 @@ export default function TopBar() {
               disabled={semesterLoading}
             />
           )}
-          </div>
-          {/* Perenggang kanan: filter global tetap di tengah; akun di kanan. */}
-          <div aria-hidden="true" className="min-w-0 flex-1" />
+        </div>
+
+        {/* Kolom kanan: area akun. */}
+        <div data-part="area_akun" className="flex min-w-0 items-center justify-end gap-0.5">
           {registrasi && efektifSuper ? (
             <Tooltip>
               <TooltipTrigger asChild>
