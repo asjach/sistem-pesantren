@@ -98,12 +98,12 @@ export default function DialogSinkronDokumen({
               : `Selesai: ${ringkas.selesai}/${ringkas.total} baris.`)}
           </p>
           <div id="ringkasan_sinkron_dokumen" className="grid grid-cols-3 gap-2 text-center text-xs">
-            <div className="rounded border p-2"><div className="text-lg font-semibold">{ringkas.naik}</div>naik ke server</div>
-            <div className="rounded border p-2"><div className="text-lg font-semibold">{ringkas.turun}</div>turun ke lokal</div>
-            <div className="rounded border p-2"><div className="text-lg font-semibold">{ringkas.sama + ringkas.ditandai + ringkas.dilewati}</div>sudah sama</div>
-            <div className="rounded border p-2"><div className="text-lg font-semibold">{ringkas.seri}</div>seri (server menang)</div>
-            <div className="rounded border p-2"><div className="text-lg font-semibold">{ringkas.konversi}</div>Dikonversi JPG</div>
-            <div className="rounded border p-2"><div className="text-lg font-semibold">{ringkas.galat}</div>galat</div>
+            <div className="rounded border p-2"><div className="text-xs font-semibold">{ringkas.naik}</div>naik ke server</div>
+            <div className="rounded border p-2"><div className="text-xs font-semibold">{ringkas.turun}</div>turun ke lokal</div>
+            <div className="rounded border p-2"><div className="text-xs font-semibold">{ringkas.sama + ringkas.ditandai + ringkas.dilewati}</div>sudah sama</div>
+            <div className="rounded border p-2"><div className="text-xs font-semibold">{ringkas.seri}</div>seri (server menang)</div>
+            <div className="rounded border p-2"><div className="text-xs font-semibold">{ringkas.konversi}</div>Dikonversi JPG</div>
+            <div className="rounded border p-2"><div className="text-xs font-semibold">{ringkas.galat}</div>galat</div>
           </div>
           {galatFatal !== '' && <p id="galat_sinkron_dokumen" className="text-xs text-destructive">{galatFatal}</p>}
           {ringkas.galatDaftar.length > 0 && (

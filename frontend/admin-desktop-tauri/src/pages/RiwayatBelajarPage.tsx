@@ -306,7 +306,7 @@ export default function RiwayatBelajarPage() {
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari santri…" />
       <PengaturanHalaman tampil={{ tingkat: true, kelas: true }} tabel={[{ key: 'riwayat_belum_masuk', judul: 'Semester Ganjil', fields: FIELDS_RIWAYAT }, { key: 'riwayat_belajar', judul: 'Semester Genap', fields: FIELDS_RIWAYAT }]} />
       {!siap ? (
-        <p className="text-sm text-muted-foreground">Pilih lembaga dan tahun ajaran di topbar dulu untuk memuat kedua tabel.</p>
+        <p className="text-xs text-muted-foreground">Pilih lembaga dan tahun ajaran di topbar dulu untuk memuat kedua tabel.</p>
       ) : (
          <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1" id="grup_riwayat_belajar">
            <ResizableAutoHidePanel id="panel_riwayat_ganjil" defaultSize="50%" minSize="20%">
@@ -443,25 +443,25 @@ export default function RiwayatBelajarPage() {
             <DialogDescription>Semua data Semester 1 dengan status akhir selain Pindah/Keluar pada filter halaman akan dipindahkan. Data Semester 1 diarsipkan dan dibuatkan baris Semester 2 pada tahun ajaran yang sama.</DialogDescription>
           </DialogHeader>
           {ringkasanPindahLoading ? (
-            <p className="text-sm text-muted-foreground">Memuat ringkasan siswa…</p>
+            <p className="text-xs text-muted-foreground">Memuat ringkasan siswa…</p>
           ) : ringkasanPindahError ? (
-            <p className="text-sm text-destructive">{ringkasanPindahError}</p>
+            <p className="text-xs text-destructive">{ringkasanPindahError}</p>
           ) : ringkasanPindah ? (
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-2">
                 <div className="rounded-md border p-3">
                   <p className="text-xs text-muted-foreground">Santri aktif</p>
-                  <p className="text-2xl font-semibold">{ringkasanPindah.aktif}</p>
+                  <p className="text-xs font-semibold">{ringkasanPindah.aktif}</p>
                 </div>
                 <div className="rounded-md border p-3">
                   <p className="text-xs text-muted-foreground">Santri tidak aktif</p>
-                  <p className="text-2xl font-semibold">{ringkasanPindah.tidak_aktif}</p>
+                  <p className="text-xs font-semibold">{ringkasanPindah.tidak_aktif}</p>
                 </div>
               </div>
               {ringkasanPindah.nama_tidak_aktif.length > 0 ? (
                 <div className="rounded-md border p-3">
-                  <p className="mb-2 text-sm font-medium">Nama siswa tidak aktif</p>
-                  <ul className="max-h-40 space-y-1 overflow-y-auto text-sm text-muted-foreground">
+                  <p className="mb-2 text-xs font-medium">Nama siswa tidak aktif</p>
+                  <ul className="max-h-40 space-y-1 overflow-y-auto text-xs text-muted-foreground">
                     {ringkasanPindah.nama_tidak_aktif.map((nama, index) => <li key={`${nama}-${index}`}>{nama}</li>)}
                   </ul>
                 </div>

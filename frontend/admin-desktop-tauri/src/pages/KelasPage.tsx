@@ -647,7 +647,7 @@ export default function KelasPage() {
           <form id="form_tambah_kelas" onSubmit={onCreate} className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4">
             <FieldLabel htmlFor="select_tambah_lembaga_kelas">Lembaga</FieldLabel>
             {singleLembagaId !== null ? (
-              <p className="text-sm text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 {lembagas.find((l) => l.jenjang === singleLembagaId)?.jenjang ?? lembagas.find((l) => l.jenjang === singleLembagaId)?.nama ?? singleLembagaId} (otomatis)
               </p>
             ) : (
@@ -790,7 +790,7 @@ export default function KelasPage() {
             </DialogDescription>
           </DialogHeader>
           {imporHasil ? (
-            <div className="flex flex-col gap-3 text-sm" id="hasil_import_nama_kelas">
+            <div className="flex flex-col gap-3 text-xs" id="hasil_import_nama_kelas">
               <p className="font-medium">
                 {imporHasil.sumber.kode} ({imporHasil.sumber.tahun_ajaran ?? '—'}) → {imporHasil.tujuan.kode} ({imporHasil.tujuan.tahun_ajaran ?? '—'}):{' '}
                 {imporHasil.ringkasan.sumber} kelas ·{' '}
@@ -812,7 +812,7 @@ export default function KelasPage() {
               )}
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">{imporBusy ? 'Memuat pratinjau…' : '—'}</p>
+            <p className="text-xs text-muted-foreground">{imporBusy ? 'Memuat pratinjau…' : '—'}</p>
           )}
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setImporOpen(false)}>Tutup</Button>

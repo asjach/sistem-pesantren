@@ -1096,7 +1096,7 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
         {!sumber ? (
             <div className="m-auto flex flex-col items-center gap-2 px-6 text-center">
               <ImageUp size={28} className="text-muted-foreground/50" />
-              <p className="text-sm text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 {teksKosong ?? 'Belum ada berkas dipilih — pilih lewat Browse untuk melihat pratinjau di sini.'}
               </p>
             </div>
@@ -1227,12 +1227,12 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
           </div>
         ) : pdf ? (
           galatPdf ? (
-            <p className="m-auto px-6 text-center text-sm text-destructive">{galatPdf}</p>
+            <p className="m-auto px-6 text-center text-xs text-destructive">{galatPdf}</p>
           ) : (
             <canvas ref={kanvasRef} className="m-auto shrink-0 rounded bg-white shadow" />
           )
         ) : (
-          <p className="m-auto px-6 text-center text-sm text-muted-foreground">
+          <p className="m-auto px-6 text-center text-xs text-muted-foreground">
             Pratinjau tidak tersedia untuk berkas ini — tetap bisa disimpan/diunduh.
           </p>
         )}

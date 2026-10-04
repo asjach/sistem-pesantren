@@ -447,7 +447,7 @@ export default function KeanggotaanPage() {
                 <span />
                 <div className="max-h-32 overflow-y-auto rounded border">
                   {tHasil.map((s) => (
-                    <button key={s.id} type="button" className="block w-full px-2 py-1 text-left text-sm hover:bg-muted"
+                    <button key={s.id} type="button" className="block w-full px-2 py-1 text-left text-xs hover:bg-muted"
                       onClick={() => setTPilih(s)}>
                       {s.nama_lengkap}
                     </button>
@@ -458,7 +458,7 @@ export default function KeanggotaanPage() {
             {tPilih && (
               <>
                 <span />
-                <div className="text-sm">Terpilih: <b>{tPilih.nama_lengkap}</b> <Button type="button" variant="ghost" size="sm" onClick={() => setTPilih(null)}>Ganti</Button></div>
+                <div className="text-xs">Terpilih: <b>{tPilih.nama_lengkap}</b> <Button type="button" variant="ghost" size="sm" onClick={() => setTPilih(null)}>Ganti</Button></div>
               </>
             )}
             <FieldLabel htmlFor="select_lembaga_anggota">Lembaga</FieldLabel>

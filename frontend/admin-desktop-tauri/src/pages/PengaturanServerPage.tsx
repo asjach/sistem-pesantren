@@ -114,16 +114,16 @@ export default function PengaturanServerPage() {
         </RibbonGroup>
       </RibbonSlot>
 
-      <p id="info_server" className="text-sm text-muted-foreground">
+      <p id="info_server" className="text-xs text-muted-foreground">
         Aktif: <b className="text-foreground">{aktif}</b> · Mode:{' '}
         <Badge variant="secondary">{isTauri() ? 'desktop' : 'web'}</Badge>
       </p>
 
       <section className="flex w-full max-w-none flex-col gap-3 rounded-xl border bg-card p-5">
-        <h2 className="text-base font-semibold">Server backend</h2>
-        <p className="text-sm text-muted-foreground">Bawaan: {DEFAULT_API_BASE_URL}</p>
+        <h2 className="text-xs font-semibold">Server backend</h2>
+        <p className="text-xs text-muted-foreground">Bawaan: {DEFAULT_API_BASE_URL}</p>
         {err && (
-          <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">{err}</p>
+          <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">{err}</p>
         )}
         <form id="form_server" onSubmit={(e) => { e.preventDefault(); onUji(); }} className="flex flex-col gap-3">
           <FieldGroup className="gap-3">
@@ -142,8 +142,8 @@ export default function PengaturanServerPage() {
       </section>
 
       <section className="flex w-full max-w-none flex-col gap-3 rounded-xl border bg-card p-5">
-        <h2 className="text-base font-semibold">Arsip dokumen perangkat ini</h2>
-        <p className="text-sm text-muted-foreground">
+        <h2 className="text-xs font-semibold">Arsip dokumen perangkat ini</h2>
+        <p className="text-xs text-muted-foreground">
           Mode Server menyimpan berkas ke server; mode Lokal menyimpan berkas ke drive perangkat ini;
           mode Test seperti Lokal tetapi ke folder uji (tanpa folder sudah).
           Bisa diganti kapan saja; hanya memengaruhi simpanan berikutnya.

@@ -353,7 +353,7 @@ export default function SantriPage() {
             <DialogDescription>NIS lokal per lembaga; NIS Kemenag digenerate dari Buku Induk.</DialogDescription>
           </DialogHeader>
           <div className="max-h-64 overflow-auto rounded-md border">
-            <table className="w-full text-sm">
+            <table className="w-full text-xs">
               <thead className="bg-muted/50 text-left">
                 <tr>
                   <th className="p-2">Lembaga</th>
@@ -476,7 +476,7 @@ export default function SantriPage() {
             }}>Upload</Button>
           </div>
           <div className="max-h-56 overflow-auto rounded-md border">
-            <table className="w-full text-sm">
+            <table className="w-full text-xs">
               <thead className="bg-muted/50 text-left">
                 <tr><th className="p-2">Jenis</th><th className="p-2">File</th></tr>
               </thead>

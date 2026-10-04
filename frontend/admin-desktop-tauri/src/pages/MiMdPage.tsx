@@ -298,7 +298,7 @@ export default function MiMdPage() {
         ]}
       />
       {loading && !data ? (
-        <p className="text-sm text-muted-foreground">Memuat…</p>
+        <p className="text-xs text-muted-foreground">Memuat…</p>
       ) : (
         <>
            <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1" id="grup_mi_md">

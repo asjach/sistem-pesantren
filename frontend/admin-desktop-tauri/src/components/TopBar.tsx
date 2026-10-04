@@ -317,7 +317,7 @@ export default function TopBar() {
         {/* Kolom kiri: judul halaman / pencarian tunggal (portal). */}
         <div className="flex min-w-0 items-center gap-2">
           {!searchAda && (
-            <span id="judul_bar_halaman" className="truncate text-sm font-semibold">
+            <span id="judul_bar_halaman" className="truncate text-xs font-semibold">
               {halaman?.label ?? 'SIMPES Admin'}
             </span>
           )}

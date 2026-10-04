@@ -84,7 +84,7 @@ export default function RekapSantriPage() {
             </SelectContent>
           </Select>
         </FilterField>
-        <span className="rounded-md border px-3 py-2 text-sm">
+        <span className="rounded-md border px-3 py-2 text-xs">
           {keaktifan === 'nonaktif' ? 'Tidak aktif' : keaktifan === 'aktif' ? 'Aktif' : 'Semua status'}
           {' · '}{semesters.length ? `semester ${semesters.join(', ')}` : 'semua semester'}: <strong>{data?.total_aktif ?? 0}</strong>
         </span>

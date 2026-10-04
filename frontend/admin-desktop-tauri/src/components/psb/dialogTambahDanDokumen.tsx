@@ -126,7 +126,7 @@ export function DialogTambahPendaftar({ open, gelombangs, lembagas, busy, f, set
           <FieldLabel htmlFor="input_ibu_pendaftar">Nama ibu</FieldLabel>
           <Input id="input_ibu_pendaftar" value={f.ibu} onChange={(e) => set.ibu(e.target.value)} maxLength={100} />
           <FieldLabel htmlFor="check_pindahan_pendaftar">Pindahan</FieldLabel>
-          <label htmlFor="check_pindahan_pendaftar" className="flex cursor-pointer items-center gap-2 text-sm">
+          <label htmlFor="check_pindahan_pendaftar" className="flex cursor-pointer items-center gap-2 text-xs">
             <input
               id="check_pindahan_pendaftar"
               type="checkbox"
@@ -180,11 +180,11 @@ export function DialogDokumenCalon({ calon, dokumen, onClose }: {
           </DialogDescription>
         </DialogHeader>
         {dokumen.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Belum ada dokumen diupload.</p>
+          <p className="text-xs text-muted-foreground">Belum ada dokumen diupload.</p>
         ) : (
           <ul className="divide-y rounded-md border">
             {dokumen.map((d) => (
-              <li key={d.id} className="flex flex-wrap items-center gap-2 p-2 text-sm">
+              <li key={d.id} className="flex flex-wrap items-center gap-2 p-2 text-xs">
                 <span className="font-medium">{d.jenis_dokumen_santri}</span>
                 <span className="text-muted-foreground">{d.nama_file ?? '—'}</span>
               </li>

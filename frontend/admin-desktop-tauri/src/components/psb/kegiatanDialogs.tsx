@@ -63,7 +63,7 @@ export function DialogKegiatan({ open, edit, taTersedia, nama, ta, aktif, busy, 
           <FieldLabel htmlFor="input_nama_kegiatan_psb">Nama kegiatan (otomatis dari tahun ajaran)</FieldLabel>
           <Input id="input_nama_kegiatan_psb" value={nama} onChange={(e) => onNama(e.target.value)} required maxLength={100} placeholder="PSB 2026/2027" disabled={!ta} />
           <FieldLabel htmlFor="chk_aktif_kegiatan_psb">Aktif</FieldLabel>
-          <label htmlFor="chk_aktif_kegiatan_psb" className="flex cursor-pointer items-center gap-2 text-sm">
+          <label htmlFor="chk_aktif_kegiatan_psb" className="flex cursor-pointer items-center gap-2 text-xs">
             <input id="chk_aktif_kegiatan_psb" type="checkbox" checked={aktif} onChange={(e) => onAktif(e.target.checked)} className="size-4 accent-[var(--accent)]" />
             <span className="text-muted-foreground">Jadikan kegiatan aktif (hanya satu kegiatan aktif)</span>
           </label>
@@ -171,7 +171,7 @@ export function DialogKuota({ open, edit, terkunci, lembagaOpsi, lembagas, tipe,
           <FieldLabel htmlFor="input_kuota_psb">Kuota pool (kosong = tanpa batas)</FieldLabel>
           <Input id="input_kuota_psb" type="number" min={0} value={kuota} onChange={(e) => onKuota(e.target.value)} placeholder="100" />
           <FieldLabel htmlFor="chk_paket_psb">Paket MI-MD</FieldLabel>
-          <label htmlFor="chk_paket_psb" className="flex cursor-pointer items-center gap-2 text-sm">
+          <label htmlFor="chk_paket_psb" className="flex cursor-pointer items-center gap-2 text-xs">
             <input id="chk_paket_psb" type="checkbox" checked={paket} onChange={(e) => onPaket(e.target.checked)} className="size-4 accent-[var(--accent)]" />
             <span className="text-muted-foreground">Tawarkan paket MI-MD (baris primer MI)</span>
           </label>

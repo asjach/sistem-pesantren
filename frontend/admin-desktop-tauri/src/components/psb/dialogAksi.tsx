@@ -118,7 +118,7 @@ export function DialogUndurDiri({ calon, catatan, busy, err, onCatatan, onClose,
           <FieldLabel htmlFor="input_catatan_undur">Catatan / alasan (opsional)</FieldLabel>
           <Input id="input_catatan_undur" value={catatan} onChange={(e) => onCatatan(e.target.value)} maxLength={255} />
           {err ? (
-            <p id="error_undur_psb" className="col-span-2 text-sm text-destructive" role="alert">{err}</p>
+            <p id="error_undur_psb" className="col-span-2 text-xs text-destructive" role="alert">{err}</p>
           ) : null}
           <DialogFooter className="col-span-2">
             <Button type="button" variant="outline" onClick={onClose}>Batal</Button>
@@ -156,7 +156,7 @@ export function DialogAccSantri({ rows, nis, proses, onNis, onClose, onSubmit }:
             {(rows ?? []).map((c) => (
               <li key={c.id} className="flex items-center gap-2 p-2">
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{c.nama_lengkap}</p>
+                  <p className="truncate text-xs font-medium">{c.nama_lengkap}</p>
                   <p className="truncate text-xs text-muted-foreground">{c.no_pendaftaran ?? `#${c.id}`}</p>
                 </div>
                 <Input

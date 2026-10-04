@@ -203,7 +203,7 @@ export default function ImportBertahapDialog({ open, onOpenChange, onSelesai }: 
             className="h-11 cursor-pointer py-2 file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-1 file:text-xs file:font-medium"
             disabled={sibuk} onChange={(e) => void pilihFile(e.target.files?.[0] ?? null)} />
           {fase !== 'pilih' && (
-            <p className="text-sm text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               {namaFile} · {baris.length.toLocaleString('id-ID')} baris data
             </p>
           )}
@@ -219,7 +219,7 @@ export default function ImportBertahapDialog({ open, onOpenChange, onSelesai }: 
             </div>
           )}
           {ringkasan && ringkasan.baris_gagal > 0 && (
-            <div className="rounded-md border p-3 text-sm" id="hasil_import_bertahap">
+            <div className="rounded-md border p-3 text-xs" id="hasil_import_bertahap">
               <p className="font-medium">{ringkasan.baris_gagal.toLocaleString('id-ID')} baris bermasalah{mode === 'eksekusi' ? ' (dilewati)' : ''}:</p>
               <ul className="mt-2 max-h-40 space-y-1 overflow-auto text-xs text-destructive">
                 {contoh.map((x, i) => (
@@ -237,7 +237,7 @@ export default function ImportBertahapDialog({ open, onOpenChange, onSelesai }: 
             </div>
           )}
           {fase === 'selesai' && bersih && (
-            <p className="text-sm text-emerald-600" id="hasil_import_bertahap">
+            <p className="text-xs text-emerald-600" id="hasil_import_bertahap">
               {mode === 'periksa' ? 'Tidak ada masalah — siap diimport.' : 'Import selesai tanpa galat.'}
             </p>
           )}

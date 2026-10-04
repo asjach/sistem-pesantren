@@ -157,7 +157,7 @@ export default function TabFilterHalaman({
       ) : null}
       <div className="flex max-h-[40vh] flex-col overflow-auto rounded-md border">
         {filterTampil.length === 0 ? (
-          <p className="px-3 py-4 text-sm text-muted-foreground">
+          <p className="px-3 py-4 text-xs text-muted-foreground">
             Halaman ini tidak memiliki filter global yang relevan.
           </p>
         ) : filterTampil.map(({ kunci, label, ket }) => (

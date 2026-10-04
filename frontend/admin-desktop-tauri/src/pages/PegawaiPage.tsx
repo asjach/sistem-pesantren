@@ -451,11 +451,11 @@ export default function PegawaiPage() {
             <Input id="info_akun_sandi" readOnly value={akunBaru?.sandi_bawaan ?? ''} />
           </div>
           {akunBaru && akunBaru.catatan.length > 0 && (
-            <ul className="list-disc pl-5 text-sm text-amber-700">
+            <ul className="list-disc pl-5 text-xs text-amber-700">
               {akunBaru.catatan.map((c) => <li key={c}>{c}</li>)}
             </ul>
           )}
-          <p className="text-sm text-muted-foreground">Role guru belum punya izin apa pun — beri izin lewat halaman Kelola Izin.</p>
+          <p className="text-xs text-muted-foreground">Role guru belum punya izin apa pun — beri izin lewat halaman Kelola Izin.</p>
           <DialogFooter>
             <Button id="btn_tutup_akun_baru" onClick={() => setAkunBaru(null)}>Tutup</Button>
           </DialogFooter>
@@ -470,7 +470,7 @@ export default function PegawaiPage() {
             </DialogDescription>
           </DialogHeader>
           {hasilGenerate && hasilGenerate.gagal.length > 0 && (
-            <ul className="max-h-60 space-y-1 overflow-auto text-sm">
+            <ul className="max-h-60 space-y-1 overflow-auto text-xs">
               {hasilGenerate.gagal.map((g) => (
                 <li key={g.pegawai_id}>{g.nama} — {g.alasan}</li>
               ))}

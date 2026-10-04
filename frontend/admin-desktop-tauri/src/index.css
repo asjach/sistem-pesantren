@@ -135,7 +135,7 @@
     font-family: var(--font-sans);
     /* Bobot dasar mengikuti pilihan "Font antarmuka" (Light/Normal). */
     font-weight: var(--font-ui-weight, 400);
-    font-size: 14.5px;
+    font-size: 12px;
     line-height: 1.5;
     margin: 0;
   }

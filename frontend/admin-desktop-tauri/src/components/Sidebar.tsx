@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 import { ChevronDown } from '@/icons';
 
 const itemBase =
-  'flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--sidebar-foreground)]/60';
+  'flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-xs transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--sidebar-foreground)]/60';
 
 /** Konektor cabang pohon: garis horizontal dari garis panduan vertikal ke
  *  baris anak (induk = wadah `pl-2`, jadi tick `-left-2`/`w-2` pas menyentuh
@@ -183,7 +183,7 @@ export default function Sidebar() {
         className={cn(
           itemBase,
           ikonSaja && 'justify-center px-0',
-          anak && ['py-1 text-[13px]', cabang(aktif)],
+          anak && ['py-1 text-[11px]', cabang(aktif)],
           aktif
             ? 'bg-white/20 font-semibold text-white'
             : 'text-white/75 hover:bg-white/10 hover:text-white',
@@ -253,7 +253,7 @@ export default function Sidebar() {
               onClick={() => jungkitGrup(n.kunci)}
               className={cn(
                 itemBase,
-                'w-full py-1 text-[13px]',
+                'w-full py-1 text-[11px]',
                 cabang(jalurAktif.includes(n.kunci)),
                 'text-white/75 hover:bg-white/10 hover:text-white',
               )}
@@ -301,7 +301,7 @@ export default function Sidebar() {
       {!collapsed ? (
         <div className="flex items-center gap-2 px-3 py-3">
           <span
-            className="truncate text-sm font-semibold tracking-wide"
+            className="truncate text-xs font-semibold tracking-wide"
             style={{ fontFamily: 'var(--font-display)' }}
           >
             SIMPES
@@ -329,7 +329,7 @@ export default function Sidebar() {
           // Rail lipat: semua halaman tetap terjangkau sebagai ikon datar.
           if (collapsed) {
             return (
-              <div key={g.id} className="mb-1.5">
+              <div key={g.id} className="mb-0.5">
                 {semua.map((h) => tautanHalaman(h, true))}
               </div>
             );
@@ -339,7 +339,7 @@ export default function Sidebar() {
           // tampil sebagai baris induk collapsible.
           if (entri.length === 1 && 'hal' in entri[0] && !g.paksaGrup) {
             return (
-              <div key={g.id} className="mb-1.5">
+              <div key={g.id} className="mb-0.5">
                 {tautanHalaman(entri[0].hal, false)}
               </div>
             );
@@ -352,7 +352,7 @@ export default function Sidebar() {
             ? jalurAktif.includes(e.sub.kunci)
             : halAktif === e.hal));
           return (
-            <div key={g.id} className="mb-1.5">
+            <div key={g.id} className="mb-0.5">
               <button
                 id={`btn_grup_sidebar_${g.id}`}
                 type="button"

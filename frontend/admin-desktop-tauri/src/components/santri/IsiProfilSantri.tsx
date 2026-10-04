@@ -160,7 +160,7 @@ function Baris({ kunci, mentah, onSalin }: {
   return (
     <div className="group grid grid-cols-[minmax(0,8rem)_minmax(0,1fr)_1rem] items-baseline gap-2 border-t px-2.5 py-0.5 first:border-t-0">
       <dt className="truncate text-xs leading-5 text-muted-foreground">{label}</dt>
-      <dd className={cn('text-[13px] leading-5 break-words', nilai === '' && 'text-muted-foreground')}>
+      <dd className={cn('text-xs leading-5 break-words', nilai === '' && 'text-muted-foreground')}>
         {nilai || '—'}
       </dd>
       {nilai !== '' && (
@@ -193,7 +193,7 @@ function PanelData({ panel, data, onSalin }: {
 }) {
   return (
     <section className="space-y-1.5">
-      <h4 className="text-sm font-semibold">{panel.judul}</h4>
+      <h4 className="text-xs font-semibold">{panel.judul}</h4>
       <dl className="overflow-hidden rounded-lg border">
         {panel.kunci.map((k) => <Baris key={k} kunci={k} mentah={data[k]} onSalin={onSalin} />)}
       </dl>
@@ -209,7 +209,7 @@ function PanelData({ panel, data, onSalin }: {
 function Bagian({ judul, jangkar, children }: { judul: string; jangkar?: string; children: ReactNode }) {
   return (
     <section id={jangkar} className="scroll-mt-1 space-y-3">
-      <h3 className="sticky top-0 z-10 border-b bg-background/95 py-1 text-sm font-semibold backdrop-blur-sm">{judul}</h3>
+      <h3 className="sticky top-0 z-10 border-b bg-background/95 py-1 text-xs font-semibold backdrop-blur-sm">{judul}</h3>
       {children}
     </section>
   );
@@ -235,16 +235,16 @@ function TabelRelasi({ judul, jumlah, columns, rows }: {
 }) {
   return (
     <section className="space-y-1.5">
-      <h4 className="text-sm font-semibold">
+      <h4 className="text-xs font-semibold">
         {judul} <span className="font-normal text-muted-foreground">({jumlah})</span>
       </h4>
       {rows.length === 0 ? (
-        <p className="rounded-lg border border-dashed px-3 py-4 text-center text-sm text-muted-foreground">
+        <p className="rounded-lg border border-dashed px-3 py-4 text-center text-xs text-muted-foreground">
           Tidak ada data.
         </p>
       ) : (
         <div className="overflow-x-auto rounded-lg border">
-          <table className="w-full text-[13px] leading-5">
+          <table className="w-full text-xs leading-5">
             <thead className="bg-muted/50 text-muted-foreground">
               <tr>
                 {columns.map((c) => (

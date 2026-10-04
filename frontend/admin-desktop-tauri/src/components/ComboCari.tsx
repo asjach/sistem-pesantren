@@ -112,7 +112,7 @@ export default function ComboCari({
                   setCari('');
                 }}
                 className={cn(
-                  'flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent hover:text-accent-foreground',
+                  'flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-xs hover:bg-accent hover:text-accent-foreground',
                   o.value === value && 'bg-accent/60',
                 )}
               >

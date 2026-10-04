@@ -59,7 +59,7 @@ export default function Pager({ page, lastPage, total, onPage, perPage, onPerPag
         >
           <ChevronLeft size={16} />
         </Button>
-        <span className="flex h-6 items-center text-sm text-muted-foreground">
+        <span className="flex h-6 items-center text-xs text-muted-foreground">
           Hal {page} / {Math.max(1, lastPage)}
         </span>
         <Button
@@ -75,7 +75,7 @@ export default function Pager({ page, lastPage, total, onPage, perPage, onPerPag
           <ChevronRight size={16} />
         </Button>
       </div>
-      <span className="flex h-6 min-w-0 items-center justify-self-end text-right text-sm text-muted-foreground">
+      <span className="flex h-6 min-w-0 items-center justify-self-end text-right text-xs text-muted-foreground">
         {total} data
       </span>
     </div>

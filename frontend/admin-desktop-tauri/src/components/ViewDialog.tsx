@@ -79,7 +79,7 @@ export function ViewDialog({
           <DialogDescription>Detail data (baca-saja).</DialogDescription>
         </DialogHeader>
         {kosong ? (
-          <p className="text-sm text-muted-foreground">Tidak ada detail.</p>
+          <p className="text-xs text-muted-foreground">Tidak ada detail.</p>
         ) : (
           <div className="max-h-[60vh] space-y-4 overflow-y-auto">
             {entries.length > 0 && (
@@ -88,7 +88,7 @@ export function ViewDialog({
                   <div
                     key={k}
                     className={cn(
-                      'grid grid-cols-[9rem_1fr] gap-x-4 px-3 py-2 text-sm',
+                      'grid grid-cols-[9rem_1fr] gap-x-4 px-3 py-2 text-xs',
                       i > 0 && 'border-t',
                     )}
                   >
@@ -100,12 +100,12 @@ export function ViewDialog({
             )}
             {sections.map((s) => (
               <section key={s.title} className="space-y-1.5">
-                <h3 className="text-sm font-semibold">{s.title}</h3>
+                <h3 className="text-xs font-semibold">{s.title}</h3>
                 {s.rows.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Tidak ada data.</p>
+                  <p className="text-xs text-muted-foreground">Tidak ada data.</p>
                 ) : (
                   <div className="overflow-x-auto rounded-lg border">
-                    <table className="w-full text-sm">
+                    <table className="w-full text-xs">
                       <thead className="bg-muted/50 text-muted-foreground">
                         <tr>
                           {s.columns.map((c) => (

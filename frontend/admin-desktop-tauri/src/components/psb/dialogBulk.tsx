@@ -110,7 +110,7 @@ export function DialogBulkHasil({ hasil, onClose }: {
           </DialogDescription>
         </DialogHeader>
         {hasil && hasil.gagal.length > 0 ? (
-          <ul className="max-h-64 divide-y overflow-auto rounded-md border text-sm">
+          <ul className="max-h-64 divide-y overflow-auto rounded-md border text-xs">
             {hasil.gagal.map((g) => (
               <li key={g.id} className="flex flex-col gap-0.5 p-2">
                 <span className="font-medium">
@@ -121,7 +121,7 @@ export function DialogBulkHasil({ hasil, onClose }: {
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-muted-foreground">Semua calon berhasil diproses.</p>
+          <p className="text-xs text-muted-foreground">Semua calon berhasil diproses.</p>
         )}
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Tutup</Button>

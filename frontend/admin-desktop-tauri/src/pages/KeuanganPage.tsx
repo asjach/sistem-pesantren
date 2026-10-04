@@ -345,9 +345,9 @@ export default function KeuanganPage() {
             <DialogDescription className="sr-only">Daftar pembayaran tagihan ini.</DialogDescription>
           </DialogHeader>
           {riwayatRows.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Belum ada pembayaran.</p>
+            <p className="text-xs text-muted-foreground">Belum ada pembayaran.</p>
           ) : (
-            <table className="w-full text-sm border">
+            <table className="w-full text-xs border">
               <thead><tr className="bg-muted/40"><th className="p-2">Tanggal</th><th className="p-2">Jumlah</th><th className="p-2">Metode</th><th className="p-2">Kas</th><th className="p-2">Kwitansi</th><th className="p-2">Status</th><th className="p-2">Aksi</th></tr></thead>
               <tbody>
                 {riwayatRows.map((p) => (
@@ -393,9 +393,9 @@ export default function KeuanganPage() {
             </select>
             <FieldLabel htmlFor="sel_gen_ta">Tahun Ajaran</FieldLabel>
             {genTAtopbar === null ? (
-              <p id="sel_gen_ta" className="text-sm text-destructive">Pilih satu tahun ajaran pada filter di atas.</p>
+              <p id="sel_gen_ta" className="text-xs text-destructive">Pilih satu tahun ajaran pada filter di atas.</p>
             ) : (
-              <p id="sel_gen_ta" className="text-sm">{genTAtopbar} <span className="text-muted-foreground">(mengikuti filter atas)</span></p>
+              <p id="sel_gen_ta" className="text-xs">{genTAtopbar} <span className="text-muted-foreground">(mengikuti filter atas)</span></p>
             )}
             <FieldLabel htmlFor="sel_gen_jenis">Jenis</FieldLabel>
             <select id="sel_gen_jenis" className="border rounded px-2" value={genJenis} onChange={(e) => setGenJenis(e.target.value === '' ? '' : Number(e.target.value))} required>
@@ -514,7 +514,7 @@ export default function KeuanganPage() {
         </DialogContent>
       </Dialog>
 
-      {loading && <p className="text-sm text-muted-foreground">Memuat…</p>}
+      {loading && <p className="text-xs text-muted-foreground">Memuat…</p>}
     </div>
   );
 }

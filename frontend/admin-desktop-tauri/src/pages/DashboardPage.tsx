@@ -57,16 +57,16 @@ export default function DashboardPage() {
                 <Icon size={20} />
               </span>
               <div className="min-w-0">
-                <div className="truncate text-[13px] text-muted-foreground">{s.label}</div>
-                <div className="text-[26px] font-bold leading-tight tabular-nums">{data[s.key]}</div>
+                <div className="truncate text-xs text-muted-foreground">{s.label}</div>
+                <div className="text-xs font-bold leading-tight tabular-nums">{data[s.key]}</div>
               </div>
             </div>
           );
         })}
       </div>
-      <h2 className="mt-6 mb-2 text-base font-semibold">Tahun aktif</h2>
+      <h2 className="mt-6 mb-2 text-xs font-semibold">Tahun aktif</h2>
       {data.tahun_aktif.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Belum ada tahun ajaran aktif.</p>
+        <p className="text-xs text-muted-foreground">Belum ada tahun ajaran aktif.</p>
       ) : (
         <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {data.tahun_aktif.map((t) => (

@@ -408,7 +408,7 @@ export default function UsersPage() {
 
             <FieldLabel className="self-start pt-1.5">Role</FieldLabel>
             <div className="flex flex-col gap-2">
-              <p className="text-sm text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 {isSuper ? 'Pilih 1 atau lebih (5 opsi).' : 'Pilih 1 atau lebih (5 opsi — termasuk admin untuk lembaga Anda).'}
               </p>
               <div id="group_role_baru" className="flex flex-wrap gap-2">
@@ -430,7 +430,7 @@ export default function UsersPage() {
 
             <FieldLabel className="self-start pt-1.5">Lembaga</FieldLabel>
             <div className="flex flex-col gap-2">
-              <p className="text-sm text-muted-foreground">Kosong = ikut pivot saya bila scoped.</p>
+              <p className="text-xs text-muted-foreground">Kosong = ikut pivot saya bila scoped.</p>
               <div id="group_lembaga_baru" className="flex flex-wrap gap-2">
                 {lembagas.map((l) => (
                   <label
@@ -469,7 +469,7 @@ export default function UsersPage() {
               Baris tanpa peran = cakupan data warisan.
             </DialogDescription>
           </DialogHeader>
-          <ul className="max-h-56 space-y-1 overflow-auto text-sm">
+          <ul className="max-h-56 space-y-1 overflow-auto text-xs">
             {(peranRow?.lembagas ?? []).map((l) => (
               <li
                 key={`${l.jenjang}-${l.pivot?.role ?? 'cakupan'}`}
@@ -488,7 +488,7 @@ export default function UsersPage() {
               </li>
             ))}
             {(peranRow?.lembagas ?? []).length === 0 && (
-              <li className="text-sm text-muted-foreground">Belum ada akses lembaga.</li>
+              <li className="text-xs text-muted-foreground">Belum ada akses lembaga.</li>
             )}
           </ul>
           <div className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-3">
@@ -529,7 +529,7 @@ export default function UsersPage() {
           <div className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4">
             <FieldLabel className="self-start pt-1.5">Role</FieldLabel>
             <div className="flex flex-col gap-2">
-              <p className="text-sm text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 {isSuper ? 'Pilih 1 atau lebih (6 opsi).' : 'Pilih 1 atau lebih (4 opsi — tanpa admin/super_admin).'}
               </p>
               <div id="group_ubah_role" className="flex flex-wrap gap-2">
@@ -554,7 +554,7 @@ export default function UsersPage() {
                 <label
                   key={l.jenjang}
                   htmlFor={`check_ubah_lembaga_${l.jenjang}`}
-                  className="inline-flex h-[30px] cursor-pointer items-center gap-2 rounded-full border bg-card px-3.5 py-0 text-[13.5px] has-checked:border-primary has-checked:bg-accent has-checked:font-semibold"
+                  className="inline-flex h-[30px] cursor-pointer items-center gap-2 rounded-full border bg-card px-3.5 py-0 text-xs has-checked:border-primary has-checked:bg-accent has-checked:font-semibold"
                 >
                   <Checkbox
                     id={`check_ubah_lembaga_${l.jenjang}`}

@@ -19,7 +19,7 @@ export function ErrorNotice({
       role="alert"
       data-part="pesan_galat"
       className={cn(
-        'mb-4 rounded-lg border border-destructive/30 bg-destructive/10 px-3.5 py-2.5 text-sm text-destructive',
+        'mb-4 rounded-lg border border-destructive/30 bg-destructive/10 px-3.5 py-2.5 text-xs text-destructive',
         className,
       )}
     >

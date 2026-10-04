@@ -58,12 +58,12 @@ export function UserViewDialog({
         {user && (
           <>
             <div className="flex items-center gap-3">
-              <div className="grid size-12 shrink-0 place-items-center rounded-full bg-accent text-base font-semibold text-accent-foreground">
+              <div className="grid size-12 shrink-0 place-items-center rounded-full bg-accent text-xs font-semibold text-accent-foreground">
                 {inisial(user.name)}
               </div>
               <div className="min-w-0">
                 <div className="truncate font-semibold">{user.name}</div>
-                <div className="truncate text-sm text-muted-foreground">
+                <div className="truncate text-xs text-muted-foreground">
                   {user.email ?? user.username ?? 'Tanpa kontak'}
                 </div>
               </div>
@@ -71,7 +71,7 @@ export function UserViewDialog({
 
             <Separator />
 
-            <dl className="grid grid-cols-[7rem_1fr] items-start gap-x-4 gap-y-3 text-sm">
+            <dl className="grid grid-cols-[7rem_1fr] items-start gap-x-4 gap-y-3 text-xs">
               <dt className="text-muted-foreground">Username</dt>
               <dd className="font-medium">{user.username ?? '—'}</dd>
               <dt className="text-muted-foreground">Email</dt>
@@ -85,7 +85,7 @@ export function UserViewDialog({
             <Separator />
 
             <div className="flex flex-col gap-2">
-              <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <Users size={16} /> Peran
               </div>
               <div className="flex flex-wrap gap-2">
@@ -96,13 +96,13 @@ export function UserViewDialog({
                     </Badge>
                   ))
                 ) : (
-                  <span className="text-sm text-muted-foreground">Belum ada peran.</span>
+                  <span className="text-xs text-muted-foreground">Belum ada peran.</span>
                 )}
               </div>
             </div>
 
             <div className="flex flex-col gap-2">
-              <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <Landmark size={16} /> Lembaga
               </div>
               <div className="flex flex-wrap gap-2">
@@ -113,7 +113,7 @@ export function UserViewDialog({
                     </Badge>
                   ))
                 ) : (
-                  <span className="text-sm text-muted-foreground">Tanpa lembaga (admin global).</span>
+                  <span className="text-xs text-muted-foreground">Tanpa lembaga (admin global).</span>
                 )}
               </div>
             </div>

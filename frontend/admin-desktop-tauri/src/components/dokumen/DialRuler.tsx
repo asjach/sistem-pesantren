@@ -146,7 +146,7 @@ export default function DialRuler({
       <span aria-hidden className="absolute top-0.5 left-1/2 h-1 w-px -translate-x-1/2 bg-white/70" />
       <span
         aria-hidden
-        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-neutral-950 px-1.5 text-sm leading-none font-semibold text-white tabular-nums"
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-neutral-950 px-1.5 text-xs leading-none font-semibold text-white tabular-nums"
       >
         {format(value)}
       </span>

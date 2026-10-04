@@ -94,7 +94,7 @@ export default function KelolaIzinPage() {
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
       {loading || !matriks ? (
-        <p className="py-8 text-sm text-muted-foreground">{loading ? 'Memuat matriks izin…' : 'Matriks izin tidak tersedia.'}</p>
+        <p className="py-8 text-xs text-muted-foreground">{loading ? 'Memuat matriks izin…' : 'Matriks izin tidak tersedia.'}</p>
       ) : (
         <>
         <div className="mb-3 flex justify-center">
@@ -126,7 +126,7 @@ export default function KelolaIzinPage() {
           </div>
         </div>
         <div className="overflow-x-auto rounded-xl border bg-card">
-          <table className="w-full min-w-160 border-collapse text-sm">
+          <table className="w-full min-w-160 border-collapse text-xs">
             <thead>
               <tr className="border-b bg-muted/40">
                 <th className="px-3 py-2 text-left font-medium">Modul · aksi</th>

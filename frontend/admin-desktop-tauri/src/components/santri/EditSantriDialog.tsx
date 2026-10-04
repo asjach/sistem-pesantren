@@ -367,7 +367,7 @@ export function EditSantriDialog({ santri, daftar = [], onGanti, open, onOpenCha
           >
           {BAGIAN_IDENTITAS.map((b) => (
             <section key={b.judul} className="space-y-3">
-              <h3 className="border-b pb-1 text-sm font-semibold">{b.judul}</h3>
+              <h3 className="border-b pb-1 text-xs font-semibold">{b.judul}</h3>
               {/* Satu kolom: panel susun ke bawah, tiap panel melebar penuh
                   supaya baris label–kontrol punya ruang lega dan mudah dibaca. */}
               <div className="space-y-4">
@@ -381,7 +381,7 @@ export function EditSantriDialog({ santri, daftar = [], onGanti, open, onOpenCha
                   if (isi.length === 0) return null;
                   return (
                     <fieldset key={p.judul} className="min-w-0">
-                      <legend className="mb-1.5 text-sm font-semibold">{p.judul}</legend>
+                      <legend className="mb-1.5 text-xs font-semibold">{p.judul}</legend>
                       {/* Tampilan tabel: label dan kontrol sebaris, baris
                           berdempet tanpa jarak — dipisah garis tipis, sama
                           seperti baris label–nilai pada dialog profil. */}

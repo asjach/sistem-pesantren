@@ -38,8 +38,8 @@ export default function LoginPage() {
         className="flex w-full max-w-sm flex-col gap-4 rounded-xl border bg-card p-6"
       >
         <div>
-          <h1 className="text-xl font-bold">Masuk Admin</h1>
-          <p className="text-sm text-muted-foreground">super_admin / admin · throttle 6/mnt</p>
+          <h1 className="text-xs font-bold">Masuk Admin</h1>
+          <p className="text-xs text-muted-foreground">super_admin / admin · throttle 6/mnt</p>
         </div>
         <FieldGroup className="gap-4">
           <Field>
@@ -68,7 +68,7 @@ export default function LoginPage() {
           <p
             id="text_error"
             role="alert"
-            className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+            className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive"
           >
             {err}
           </p>

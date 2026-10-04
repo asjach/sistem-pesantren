@@ -20,7 +20,7 @@ export default function ProfilSantriPage() {
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b px-3 py-2">
         <div className="flex min-w-0 flex-col gap-1">
           <div className="flex items-center gap-2">
-            <h1 className="truncate text-base font-semibold">
+            <h1 className="truncate text-xs font-semibold">
               {profil ? profil.santri.nama_lengkap : 'Profil Santri'}
             </h1>
             {profil && <KepalaProfil profil={profil} />}
@@ -37,7 +37,7 @@ export default function ProfilSantriPage() {
       {profil ? (
         <IsiProfilSantri profil={profil} className="min-h-0 flex-1 px-3" />
       ) : (
-        <p className="py-10 text-center text-sm text-muted-foreground">Memuat data…</p>
+        <p className="py-10 text-center text-xs text-muted-foreground">Memuat data…</p>
       )}
     </div>
   );

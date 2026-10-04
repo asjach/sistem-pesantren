@@ -54,7 +54,7 @@ function ContextMenuItem({
     <ContextMenuPrimitive.Item
       data-slot="context-menu-item"
       className={cn(
-        'relative flex cursor-pointer select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors',
+        'relative flex cursor-pointer select-none items-center gap-2 rounded-sm px-2 py-1.5 text-xs outline-none transition-colors',
         'focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
         className,
       )}
@@ -74,7 +74,7 @@ function ContextMenuCheckboxItem({
       data-slot="context-menu-checkbox-item"
       checked={checked}
       className={cn(
-        'relative flex cursor-pointer select-none items-center gap-2 rounded-sm py-1.5 pr-2 pl-7 text-sm outline-none transition-colors',
+        'relative flex cursor-pointer select-none items-center gap-2 rounded-sm py-1.5 pr-2 pl-7 text-xs outline-none transition-colors',
         'focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
         className,
       )}

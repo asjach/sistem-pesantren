@@ -241,7 +241,7 @@ describe('ProfilSantriDialog', () => {
 
     // Tabel riwayat belajar punya satu baris data; selnya <td> di dalam tabel.
     const tabel = within(isi).getByRole('table');
-    expect(tabel.className).toContain('text-[13px]');
+    expect(tabel.className).toContain('text-xs');
     expect(tabel.className).toContain('leading-5');
     const sel = tabel.querySelector('tbody td') as HTMLElement;
     expect(sel.className).toContain('py-1');
@@ -260,7 +260,7 @@ describe('ProfilSantriDialog', () => {
     expect(baris.className).not.toContain('py-1.5');
     // Nilai 13px dengan line-height tetap → tinggi baris stabil antar panel.
     const nilai = within(isi).getByText('3201011505950001');
-    expect(nilai.className).toContain('text-[13px]');
+    expect(nilai.className).toContain('text-xs');
     expect(nilai.className).toContain('leading-5');
   });
 

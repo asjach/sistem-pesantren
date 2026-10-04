@@ -472,7 +472,7 @@ export default function KegiatanPsbPage() {
 
       {kegiatanId ? (
         <>
-          <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Gelombang</h2>
+          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Gelombang</h2>
           <ExcelTable
             tableKey="kegiatan_psb_gelombang"
             maxRows={3}
@@ -503,7 +503,7 @@ export default function KegiatanPsbPage() {
           />
 
           <div className="mb-2 mt-6 flex flex-wrap items-center gap-3">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Kuota pendaftaran</h2>
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Kuota pendaftaran</h2>
             <div className="min-w-56">
               <Select value={gelombangId ? String(gelombangId) : ''} onValueChange={(v) => void pilihGelombang(Number(v))}>
                 <SelectTrigger id="select_gelombang_psb" className="w-full">
@@ -556,7 +556,7 @@ export default function KegiatanPsbPage() {
           />
         </>
       ) : (
-        <p className="py-8 text-sm text-muted-foreground">Belum ada kegiatan PSB. Tambahkan kegiatan terlebih dahulu.</p>
+        <p className="py-8 text-xs text-muted-foreground">Belum ada kegiatan PSB. Tambahkan kegiatan terlebih dahulu.</p>
       )}
 
       <DialogKegiatan

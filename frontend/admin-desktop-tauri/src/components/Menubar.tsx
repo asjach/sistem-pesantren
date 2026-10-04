@@ -116,7 +116,7 @@ export default function Menubar() {
       className="flex shrink-0 items-center gap-0.5 border-b bg-[var(--sidebar-deep)] px-2 py-1 text-white"
     >
       <span
-        className="mr-2 truncate px-1 text-sm font-semibold tracking-wide"
+        className="mr-2 truncate px-1 text-xs font-semibold tracking-wide"
         style={{ fontFamily: 'var(--font-display)' }}
       >
         SIMPES
@@ -139,7 +139,7 @@ export default function Menubar() {
           <DropdownMenu key={g.id}>
             <DropdownMenuTrigger
               id={`menu_${g.id}`}
-              className="rounded-md px-2.5 py-1 text-sm text-white/80 outline-none hover:bg-white/10 hover:text-white focus-visible:ring-2 focus-visible:ring-white/60 data-[state=open]:bg-white/20 data-[state=open]:text-white"
+              className="rounded-md px-2.5 py-1 text-xs text-white/80 outline-none hover:bg-white/10 hover:text-white focus-visible:ring-2 focus-visible:ring-white/60 data-[state=open]:bg-white/20 data-[state=open]:text-white"
             >
               {LABEL_MENU[g.id]}
             </DropdownMenuTrigger>
