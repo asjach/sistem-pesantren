@@ -151,11 +151,11 @@ export const HALAMAN_PENEMPATAN_PEGAWAI: HalamanDef = {
 export const HALAMAN: HalamanDef[] = [
   { to: '/', label: 'Dashboard', deskripsi: 'Ringkasan data pesantren.', tab: 'beranda', icon: Home, permission: 'dashboard.lihat' },
   HALAMAN_DATA_INDUK,
-  { to: '/dokumen-santri', label: 'Daftar Dokumen Santri', deskripsi: 'Berkas dokumen santri (KK, akta, ijazah, dll).', tab: 'dokumen', sub: 'santri', grid: true, icon: FolderOpen, permission: 'dokumen_santri.lihat' },
+  { to: '/dokumen-santri', label: 'Daftar Dokumen', deskripsi: 'Berkas dokumen santri (KK, akta, ijazah, dll).', tab: 'dokumen', sub: 'santri', grid: true, icon: FolderOpen, permission: 'dokumen_santri.lihat' },
   { to: '/dokumen-santri/lihat', label: 'Dokumen Santri', deskripsi: 'Pratinjau dokumen per santri (lihat, unduh, ganti).', tab: 'dokumen', sub: 'santri', icon: Eye, permission: 'dokumen_santri.lihat' },
   { to: '/pegawai-keaktifan', label: 'PTK Aktif', tab: 'pegawai', grid: true, icon: CalendarCheck, permission: 'pegawai.lihat' },
   HALAMAN_PENEMPATAN_PEGAWAI,
-  { to: '/dokumen-guru', label: 'Daftar Dokumen Pegawai', deskripsi: 'Berkas dokumen pegawai (ijazah, sertifikat, SK, dll).', tab: 'dokumen', sub: 'pegawai', grid: true, icon: FolderOpen, permission: 'dokumen_pegawai.lihat' },
+  { to: '/dokumen-guru', label: 'Daftar Dokumen', deskripsi: 'Berkas dokumen pegawai (ijazah, sertifikat, SK, dll).', tab: 'dokumen', sub: 'pegawai', grid: true, icon: FolderOpen, permission: 'dokumen_pegawai.lihat' },
   { to: '/dokumen-guru/lihat', label: 'Dokumen Pegawai', deskripsi: 'Pratinjau dokumen per pegawai (lihat, unduh, ganti).', tab: 'dokumen', sub: 'pegawai', icon: Eye, permission: 'dokumen_pegawai.lihat' },
   { to: '/dokumen-madrasah', label: 'Dokumen Madrasah', deskripsi: 'Berkas tingkat madrasah (izin operasional, akreditasi, SK, dll).', tab: 'dokumen', grid: true, icon: FolderOpen, permission: 'dokumen_lembaga.lihat' },
   { to: '/psb', label: 'Antrean PSB', deskripsi: 'Antrean calon per tahap (Pendaftar, Terdaftar, Daftar Ulang, Diterima, Mengundurkan Diri, Ditolak).', tab: 'psb', grid: true, icon: UserCheck, permission: 'psb.lihat' },
