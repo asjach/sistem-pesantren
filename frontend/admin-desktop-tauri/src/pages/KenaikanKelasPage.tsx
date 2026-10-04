@@ -306,6 +306,7 @@ export default function KenaikanKelasPage() {
            <div className="flex min-h-0 flex-1 flex-col">
             <ExcelTable
                tableKey="kenaikan_santri_genap"
+               rail
                 header={<span>Santri semester 2 — {taDasar ?? '—'}</span>}
                 filter={tombolKandidat}
                 onCheckedChange={setTercentangKiri}

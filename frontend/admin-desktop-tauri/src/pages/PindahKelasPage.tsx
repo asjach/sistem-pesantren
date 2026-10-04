@@ -176,14 +176,15 @@ export default function PindahKelasPage() {
 
       {grup.length === 0 ? (
         <p className="text-sm text-muted-foreground">Tidak ada santri aktif pada filter ini.</p>
-      ) : grup.map((g) => (
+      ) : grup.map((g, gi) => (
          <section key={g.tingkat ?? 'tanpa'} className="flex min-h-0 flex-1 flex-col gap-2">
            <div className="grid min-h-0 flex-1 gap-3 [grid-template-columns:repeat(auto-fit,minmax(300px,1fr))]">
-            {g.kolom.map((k) => (
+            {g.kolom.map((k, ki) => (
               <TabelKelas
                 key={k.kelasId ?? 'tanpa'}
                 tingkat={g.tingkat}
                 kolom={k}
+                rail={gi === 0 && ki === 0}
                 tetangga={k.kelasId == null
                   // Kolom Tanpa kelas: kiri = kelas nyata terakhir,
                   // kanan = kelas nyata pertama.
@@ -215,7 +216,7 @@ export default function PindahKelasPage() {
 }
 
 /** Satu kolom kelas: tabel santri + panah pindah ke tetangga siklik. */
-function TabelKelas({ tingkat, kolom, tetangga, bisaPindah, busyId, cari, onPindah }: {
+function TabelKelas({ tingkat, kolom, tetangga, bisaPindah, busyId, cari, onPindah, rail }: {
   tingkat: string | null;
   kolom: KolomKelas;
   tetangga: { kiri: KolomKelas | null; kanan: KolomKelas | null };
@@ -224,6 +225,8 @@ function TabelKelas({ tingkat, kolom, tetangga, bisaPindah, busyId, cari, onPind
   /** Pencarian tunggal halaman (topBar) — disaring di tiap kolom. */
   cari: string;
   onPindah: (r: RiwayatRow, kelasBaruId: number) => void;
+  /** Rel Tingkat/Kelas — hanya pada tabel pertama halaman. */
+  rail?: boolean;
 }) {
   const kunci = `${tingkat ?? 'tanpa'}_${kolom.kelasId ?? 'tanpa'}`;
   const { page, perPage, goFirst, setPage, setPerPage } = usePager(`pindah_kelas_${kunci}`);
@@ -252,6 +255,7 @@ function TabelKelas({ tingkat, kolom, tetangga, bisaPindah, busyId, cari, onPind
        <div className="flex min-h-0 flex-1 flex-col pb-0">
         <ExcelTable
            tableKey="pindah_kelas"
+           rail={rail}
            header={<span>{kolom.kelasId == null ? 'Santri Belum Masuk Kelas' : `Kelas ${kolom.kelas}`}</span>}
            fields={FIELDS_PINDAH_KELAS}
            rows={barisHalaman}

@@ -313,6 +313,7 @@ export default function RiwayatBelajarPage() {
           {panel(
             <ExcelTable<RiwayatRow>
                tableKey="riwayat_belum_masuk"
+               rail
                  header={<span>Semester Ganjil</span>}
                  filter={(
                    <FilterField label="Keaktifan" htmlFor="select_keaktifan_riwayat_belajar">

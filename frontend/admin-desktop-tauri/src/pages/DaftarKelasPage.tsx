@@ -130,6 +130,7 @@ export default function DaftarKelasPage() {
       <PengaturanHalaman tampil={{ tingkat: true, kelas: true }} tabel={[{ key: 'daftar_kelas', judul: 'Daftar kelas', fields }]} />
       <ExcelTable<RiwayatRow>
         tableKey="daftar_kelas"
+        rail
         fields={fields}
         rows={rows}
         getValues={daftarKelasValues}

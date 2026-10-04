@@ -584,6 +584,7 @@ export default function KelasPage() {
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari kelas…" />
       <ExcelTable
         tableKey="kelas"
+        rail
         sumberTabel="kelas"
         fields={FIELDS}
         rows={rows}

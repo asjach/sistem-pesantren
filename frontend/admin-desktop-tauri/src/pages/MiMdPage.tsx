@@ -248,6 +248,7 @@ export default function MiMdPage() {
     getValues: (r: Baris) => Record<string, string | null>,
     aksi?: (r: Baris) => ReactNode,
     renderBulk?: (checked: Baris[], clear: () => void) => ReactNode,
+    rail?: boolean,
   ) => {
     // Urutan tampil dipakai baris tabel DAN daftar tetangga dialog profil,
     // supaya "Berikutnya" mengikuti urutan yang sedang dilihat.
@@ -256,6 +257,7 @@ export default function MiMdPage() {
     <section className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
       <ExcelTable
         tableKey={`mi_md_${key}`}
+        rail={rail}
         fields={fields}
         rows={tampil}
         getValues={getValues}
@@ -333,6 +335,7 @@ export default function MiMdPage() {
                         </Tooltip>
                       )
                       : undefined,
+                    true,
                   )}
                 </ResizableAutoHidePanel>
                 <ResizableHandle withHandle orientation="vertical" id="gagang_mi_md_mi_beda" aria-label="Atur tinggi tabel MI Only dan Perbandingan Kelas" />

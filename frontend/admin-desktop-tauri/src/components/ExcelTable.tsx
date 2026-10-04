@@ -15,6 +15,7 @@ import { buttonVariants } from '@/components/ui/button';
 import { DEFAULT_FONT_PX, DEFAULT_HEADER_H, FONT_FAMILY_DEFAULT, FONT_OPTIONS, useGridPrefs, type AlignName } from '@/components/GridPrefs';
 import { useLembagaAktif } from '@/lembagaAktif';
 import { EVENT_KELOLA_HALAMAN, useVisibilitasFilter } from '@/components/VisibilitasFilter';
+import FilterRail from '@/components/FilterRail';
 import PresetKolom, { type PresetKolomApi } from '@/components/PresetKolom';
 import PresetUrut from '@/components/PresetUrut';
 import { gabungUrutan } from './excel/urutanKolom';
@@ -137,6 +138,10 @@ export interface ExcelTableProps<T extends { id: string | number }> {
   hidePreset?: boolean;
   /** Timpa lebar trigger dropdown Kolom (bawaan `w-44`), mis. tabel sempit. */
   presetKolomClassName?: string;
+  /** Tampilkan rel filter Tingkat/Kelas di kiri grid (di bawah bar judul
+   *  tabel, sejajar judul kolom). Pakai hanya pada tabel utama halaman —
+   *  satu rel per halaman. */
+  rail?: boolean;
   /** Kabarkan baris tercentang setiap seleksi berubah (opsional). */
   onCheckedChange?: (rows: T[]) => void;
   /** Daftar nilai urut aktif berurutan (maks 3) + arah global. */
@@ -210,6 +215,7 @@ export default function ExcelTable<T extends { id: string | number }>({
   aksiLangsung = false,
   hidePreset = false,
   presetKolomClassName,
+  rail = false,
   onCheckedChange,
   urutAktif,
   arahUrut = 'naik',
@@ -1373,6 +1379,11 @@ export default function ExcelTable<T extends { id: string | number }>({
         ) : null}
        </KonteksLebarFilter.Provider>
 
+      {/* Rel Tingkat/Kelas (bila `rail`): di kiri grid, tepat di bawah bar
+          judul tabel sehingga bagian atasnya sejajar judul kolom grid.
+          Tanpa `rail`, kontainer `contents` tidak mengubah tata letak. */}
+      <div className={cn(rail ? 'flex min-h-0 flex-1' : 'contents')}>
+        {rail ? <FilterRail /> : null}
       <div
         ref={wrapRef}
         style={
@@ -1395,7 +1406,7 @@ export default function ExcelTable<T extends { id: string | number }>({
         className={cn(
           // Grid full-bleed: menempel tepi kiri-kanan area konten (imbangi padding
           // layout p-1) tanpa sudut membulat; judul tetap berpadding.
-          'simpes-dsg relative flex flex-col',
+          'simpes-dsg relative flex min-w-0 flex-col',
           !headerTampil && '-mx-1',
           maxRows === undefined ? 'min-h-[280px] flex-1' : 'shrink-0',
           !editing && 'simpes-dsg-readonly',
@@ -1509,6 +1520,7 @@ export default function ExcelTable<T extends { id: string | number }>({
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+      </div>
       </div>
 
       {/* Bilah status mode di bawah tabel (bagian badan halaman): menandai Mode

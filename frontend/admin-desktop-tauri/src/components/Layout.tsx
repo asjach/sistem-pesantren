@@ -6,7 +6,6 @@ import { TopBarSearchProvider } from '@/components/TopBarSearch';
 import { CariGlobalProvider } from '@/hooks/useCariGlobal';
 import { VisibilitasFilterProvider } from '@/components/VisibilitasFilter';
 import Sidebar from '@/components/Sidebar';
-import FilterRail from '@/components/FilterRail';
 import Menubar from '@/components/Menubar';
 import TopBar from '@/components/TopBar';
 import { useTheme } from '@/theme';
@@ -33,7 +32,6 @@ export default function Layout({ children }: { children: ReactNode }) {
                   {pakaiMenubar && <Menubar />}
                   <TopBar />
                   <div className="flex min-h-0 flex-1 bg-background">
-                    <FilterRail />
                     {/* Ganti lembaga/tahun ajaran aktif → remount halaman: filter & data ikut scope baru. */}
                     <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto bg-background p-0">
                       <Fragment key={`${jenjang ?? 'semua'}:${tahunAjaranNama ?? 'semua'}`}>{children}</Fragment>

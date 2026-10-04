@@ -224,6 +224,7 @@ export default function MutasiKeluarPage() {
             <div className="flex min-h-0 flex-1 flex-col px-2 pb-0">
               <ExcelTable
                 tableKey="mutasi_santri_aktif"
+                rail
                  header={<span>Santri aktif</span>}
                 fields={FIELDS_AKTIF}
                 rows={kiriTampil}

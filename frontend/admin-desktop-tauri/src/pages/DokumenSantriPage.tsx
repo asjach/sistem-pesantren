@@ -8,6 +8,7 @@ import { listDokumen, hapusDokumen, ubahDokumen, unggahBerkasDokumen, unduhBerka
 import { listKelas, referensiList, type Kelas, type ReferensiRow } from '../api/master';
 import { listRiwayatBelajar } from '../api/siklus';
 import { Button } from '@/components/ui/button';
+import FilterRail from '@/components/FilterRail';
 import TombolIkon from '@/components/TombolIkon';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Badge } from '@/components/ui/badge';
@@ -723,7 +724,11 @@ export default function DokumenSantriPage() {
       <ErrorNotice>{err}</ErrorNotice>
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari santri…" />
       <PengaturanHalaman tampil={sumber === 'filter' ? { tahun_ajaran: true, semester: true, tingkat: true, kelas: true } : {}} />
-      <ResizablePanelGroup orientation="horizontal" id="grup_lihat_dokumen" className="min-h-0 flex-1 overflow-hidden">
+      {/* Rel Tingkat/Kelas di kiri konten (halaman tanpa grid: sejajar atas
+          panel dokumen) — hanya saat sumber daftar = Filter Santri. */}
+      <div className="flex min-h-0 flex-1">
+        {sumber === 'filter' ? <FilterRail /> : null}
+      <ResizablePanelGroup orientation="horizontal" id="grup_lihat_dokumen" className="min-h-0 min-w-0 flex-1 overflow-hidden">
         {/* Kolom 1: daftar santri (baris 1) + daftar dokumen (baris 2). */}
         <ResizablePanel defaultSize={400} minSize={300} maxSize="70%" id="panel_lihat_dokumen_daftar" className="min-h-0">
           <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto rounded-xl border bg-card p-4">
@@ -1124,6 +1129,7 @@ export default function DokumenSantriPage() {
           </div>
         </ResizablePanel>
       </ResizablePanelGroup>
+      </div>
       <ProfilSantriDialog
         target={profilId != null ? { id: profilId, daftar: daftarIds } : null}
         onGanti={(id) => setProfilId(id)}
