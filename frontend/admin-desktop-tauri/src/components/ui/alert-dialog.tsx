@@ -12,13 +12,15 @@ function AlertDialog({
   return <AlertDialogPrimitive.Root data-slot="alert-dialog" {...props} />
 }
 
-function AlertDialogTrigger({
-  ...props
-}: React.ComponentProps<typeof AlertDialogPrimitive.Trigger>) {
-  return (
-    <AlertDialogPrimitive.Trigger data-slot="alert-dialog-trigger" {...props} />
-  )
-}
+// Trigger dipakai sebagai anak `asChild` komponen lain (mis. TooltipTrigger),
+// jadi wrapper wajib forwardRef (React 18) agar ref tidak hilang.
+const AlertDialogTrigger = React.forwardRef<
+  React.ElementRef<typeof AlertDialogPrimitive.Trigger>,
+  React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Trigger>
+>((props, ref) => (
+  <AlertDialogPrimitive.Trigger ref={ref} data-slot="alert-dialog-trigger" {...props} />
+))
+AlertDialogTrigger.displayName = "AlertDialogTrigger"
 
 function AlertDialogPortal({
   ...props

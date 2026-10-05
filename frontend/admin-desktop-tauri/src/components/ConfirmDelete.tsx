@@ -21,23 +21,21 @@ interface Props {
   onConfirm: () => void;
   children: React.ReactNode;
   /** Tooltip shadcn untuk tombol pemicu. Anak harus tombol telanjang
-   *  (tanpa pembungkus) agar rantai `asChild` AlertDialog→Tooltip→Button utuh. */
+   *  (tanpa pembungkus) agar rantai `asChild` Tooltip→AlertDialog→Button utuh
+   *  (urutan ini penting: AlertDialogTrigger di dalam TooltipTrigger, bukan
+   *  sebaliknya, agar ref diteruskan ke komponen forwardRef). */
   tip?: string;
 }
 
 /** Tombol hapus dengan dialog konfirmasi (AlertDialog: role="alertdialog"). */
 export default function ConfirmDelete({ title, description, confirmLabel = 'Hapus', onConfirm, children, tip }: Props) {
   const [open, setOpen] = useState(false);
-  const pemicu = (
-    <AlertDialogTrigger asChild>
-      {tip ? <TooltipTrigger asChild>{children}</TooltipTrigger> : children}
-    </AlertDialogTrigger>
-  );
+  const pemicu = <AlertDialogTrigger asChild>{children}</AlertDialogTrigger>;
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
       {tip ? (
         <Tooltip>
-          {pemicu}
+          <TooltipTrigger asChild>{pemicu}</TooltipTrigger>
           <TooltipContent>
             <p>{tip}</p>
           </TooltipContent>

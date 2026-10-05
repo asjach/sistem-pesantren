@@ -163,7 +163,7 @@ export default function TabFilterTabel({
       {catatan ? (
         <p className="rounded-md border px-3 py-2 text-xs text-muted-foreground">{catatan}</p>
       ) : null}
-      <div className="flex max-h-[40vh] flex-col overflow-auto rounded-md border">
+      <div className="flex flex-col rounded-md border">
         {filterTampil.length === 0 ? (
           <p className="px-3 py-4 text-xs text-muted-foreground">
             Tabel ini tidak memiliki filter global yang relevan.

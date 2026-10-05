@@ -69,17 +69,20 @@ function KelolaKolomTabel({
   }>({ preset: null, lengkap: true, kolomAwal: null, nonce: 0 });
 
   const fieldKeys = useMemo(() => new Set(fields.map((f) => f.key)), [fields]);
-  const banyakKolom = fields.length > 30;
 
   const muat = useCallback(async () => {
     try {
       const res = await listPresetTabel(tableKey);
       setPresets(res.data.presets);
       setBawaanId(res.data.default_preset_id);
-      // Buka pada susunan yang benar-benar dipakai halaman ini: preset aktif
-      // bila ada, kalau tidak "Lengkap (semua kolom)". Dialog jadi mencerminkan
-      // isi tabel, bukan daftar kosong.
-      const aktif = res.data.presets.find((p) => p.id === res.data.aktif_preset_id) ?? null;
+      // Buka pada susunan yang benar-benar dipakai halaman ini: preset aktif,
+      // lalu preset bawaan (cermin `PresetKolom`), kalau tidak "Lengkap
+      // (semua kolom)"/"Lengkap kustom". Dialog jadi mencerminkan isi tabel,
+      // bukan daftar kosong.
+      const aktifId = res.data.aktif_preset_id ?? res.data.default_preset_id;
+      const aktif = aktifId === null
+        ? null
+        : res.data.presets.find((p) => p.id === aktifId) ?? null;
       const kolomKustom = aktif === null ? res.data.aktif_kolom ?? null : null;
       setKelola((s) => ({ preset: aktif, lengkap: aktif === null, kolomAwal: kolomKustom, nonce: s.nonce + 1 }));
     } catch (e) {
@@ -118,7 +121,6 @@ function KelolaKolomTabel({
       kolomAwal={kelola.kolomAwal}
       fieldKeys={fieldKeys}
       presets={presets}
-      banyakKolom={banyakKolom}
       presetAwal={kelola.preset}
       mulaiLengkap={kelola.lengkap}
       onPilihLengkap={() => setKelola((s) => ({ preset: null, lengkap: true, kolomAwal: null, nonce: s.nonce + 1 }))}
@@ -151,9 +153,9 @@ function Bagian({ id, judul, aksi, children }: {
   children: ReactNode;
 }) {
   return (
-    <section id={id} aria-label={judul} className="flex flex-col gap-1.5">
-      <div className="flex items-center gap-2 border-b pb-1">
-        <h3 className="text-xs font-semibold">{judul}</h3>
+    <section id={id} aria-label={judul} className="flex flex-col gap-2 rounded-lg border bg-card/40 p-2">
+      <div className="flex items-center gap-2">
+        <h3 className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">{judul}</h3>
         {aksi ? (
           <Tooltip>
             <TooltipTrigger asChild>
@@ -306,8 +308,12 @@ export default function DialogKelolaTabel({
               <TabUrutan key={tableKey} tableKey={tableKey} />
             </Bagian>
 
-            {/* Toolbar (kiri) dan Filter (kanan) berdampingan; menumpuk di layar sempit. */}
-            <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
+            {/* Toolbar (kiri) dan Filter (kanan) berdampingan; menumpuk di
+                layar sempit, dan Toolbar melebar penuh bila tabel tanpa filter. */}
+            <div className={cn(
+              'grid grid-cols-1 items-start gap-4',
+              adaFilter && 'lg:grid-cols-2',
+            )}>
               <Bagian id="bagian_toolbar_tabel" judul="Toolbar" aksi={aksiBagian.kontrol}>
                 <TabKontrol key={tableKey} tableKey={tableKey} />
               </Bagian>

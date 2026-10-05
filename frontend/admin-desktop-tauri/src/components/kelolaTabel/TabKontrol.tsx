@@ -169,7 +169,7 @@ export default function TabKontrol({ tableKey }: { tableKey: string }) {
           Hanya super_admin yang dapat mengubah visibilitas kontrol.
         </p>
       ) : null}
-      <div className="flex flex-col gap-1 overflow-auto rounded-md border p-1">
+      <div className="flex flex-col gap-1 rounded-md border p-1">
         {KONTROL_TOOLBAR.map(({ kunci, label, ket, lebar: punyaLebar }) => (
           <div
             key={kunci}
@@ -219,7 +219,7 @@ export default function TabKontrol({ tableKey }: { tableKey: string }) {
       {daftar.length > 0 ? (
         <>
           <p className="text-xs font-semibold">Lebar combobox filter halaman</p>
-          <div className="flex flex-col gap-1 overflow-auto rounded-md border p-1">
+          <div className="flex flex-col gap-1 rounded-md border p-1">
             {daftar.map(({ kunci, label, bawaanPx }) => (
               <div
                 key={kunci}

@@ -174,7 +174,7 @@ export default function TabUrutan({ tableKey }: { tableKey: string }) {
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-2">
-      <div className="flex max-h-[45vh] min-h-0 flex-col gap-1 overflow-y-auto pr-1">
+      <div className="flex flex-col gap-1">
         {draft.length === 0 ? (
           <p className="py-2 text-center text-xs text-muted-foreground">
             Belum ada opsi. Klik “+ Opsi”.
