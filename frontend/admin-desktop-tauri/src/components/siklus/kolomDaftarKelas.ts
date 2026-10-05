@@ -150,7 +150,7 @@ export function medanDaftarKelas({ bolehSantri, bolehRiwayat }: { bolehSantri: b
       ? { key: 'nis_lokal', label: 'nis_lokal', width: 110, kind: 'text', maxLength: 20 }
       : statis('nis_lokal', 'nis_lokal'),
     statis('lembaga', 'lembaga.jenjang'),
-    statis('ta', 'tahun_ajaran.nama', 110),
+    statis('ta', 'Tahun Ajaran', 110),
     bolehRiwayat
       ? { key: 'semester', label: 'semester', width: 60, kind: 'select', choices: [{ value: '1', label: '1' }, { value: '2', label: '2' }] }
       : statis('semester', 'semester', 60),
