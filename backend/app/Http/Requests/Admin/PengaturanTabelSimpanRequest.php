@@ -2,13 +2,13 @@
 
 namespace App\Http\Requests\Admin;
 
-use App\Http\Controllers\Api\Admin\PengaturanHalamanController;
+use App\Http\Controllers\Api\Admin\PengaturanTabelController;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class PengaturanHalamanSimpanRequest extends FormRequest
+class PengaturanTabelSimpanRequest extends FormRequest
 {
-    /** Filter halaman hanya dikelola super_admin (403 sebelum validasi). */
+    /** Filter tabel hanya dikelola super_admin (403 sebelum validasi). */
     public function authorize(): bool
     {
         return $this->user()?->bolehSuperAdmin() ?? false;
@@ -17,18 +17,18 @@ class PengaturanHalamanSimpanRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'page_key' => ['required', 'string', 'max:60'],
+            'table_key' => ['required', 'string', 'max:60'],
             'filter' => ['sometimes', 'array', 'max:20'],
             'filter.*' => ['boolean'],
             'filter_mode' => [
                 'sometimes',
-                'array:'.implode(',', PengaturanHalamanController::KUNCI),
+                'array:'.implode(',', PengaturanTabelController::KUNCI),
                 'max:5',
             ],
             'filter_mode.*' => [
                 'required',
                 'string',
-                Rule::in(PengaturanHalamanController::MODE_FILTER),
+                Rule::in(PengaturanTabelController::MODE_FILTER),
             ],
         ];
     }

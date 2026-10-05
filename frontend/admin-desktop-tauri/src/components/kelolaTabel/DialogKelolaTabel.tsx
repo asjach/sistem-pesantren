@@ -8,6 +8,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -23,29 +24,29 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { BagianProvider, useRegistriBagian, type AksiBagian } from './kotor';
+import { BagianProvider, useRegistriBagian, type AksiBagian } from '@/components/kelolaHalaman/kotor';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { RotateCcw } from '@/icons';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import type { ExcelField } from '../excel/types';
-import TabKolom from '../kelolaTabel/TabKolom';
-import TabUrutan from '../kelolaTabel/TabUrutan';
-import TabKontrol from '../kelolaTabel/TabKontrol';
-import { EVENT_PRESET_BERUBAH } from '../kelolaTabel/jenis';
-import TabFilterHalaman from './TabFilterHalaman';
-import { konfigurasiFilterHalaman } from '@/lib/filterHalaman';
-import type { KunciFilterGlobal, TabelHalaman } from '../VisibilitasFilter';
+import TabKolom from './TabKolom';
+import TabUrutan from './TabUrutan';
+import TabKontrol from './TabKontrol';
+import TabFilterTabel from './TabFilterTabel';
+import { EVENT_PRESET_BERUBAH } from './jenis';
+import type { KunciFilterGlobal } from '@/components/VisibilitasFilter';
+import type { ModeSemuaFilterGlobal, TampilFilterGlobal } from '@/lib/filterHalaman';
 
 /** Kabari grid tabel terkait agar memuat ulang preset/susunan kolomnya. */
 function kabariPreset(tableKey: string) {
   window.dispatchEvent(new CustomEvent(EVENT_PRESET_BERUBAH, { detail: { tableKey } }));
 }
 
-/** Isi tab Kolom untuk satu tabel: lem preset kolom (cermin logika
+/** Isi section Kolom untuk satu tabel: lem preset kolom (cermin logika
  *  `PresetKolom`, tanpa dropdown pemilih) — hasil simpan diterapkan ke grid
  *  lewat event agar grid terkait menyegarkan dirinya sendiri. */
-function KelolaKolomHalaman({
+function KelolaKolomTabel({
   tableKey,
   fields,
 }: {
@@ -102,9 +103,11 @@ function KelolaKolomHalaman({
       if (fieldKeys.has(k) && v.trim() !== '') labelBersih[k] = v.trim();
     }
     void setPresetAktif(tableKey, null, efektif, Object.keys(labelBersih).length > 0 ? labelBersih : null)
-      .then(() => kabariPreset(tableKey))
+      .then(() => {
+        kabariPreset(tableKey);
+        toast.success('Susunan kolom disimpan.');
+      })
       .catch((e: unknown) => toast.error(errorMessage(e)));
-    toast.success('Susunan kolom disimpan.');
   }, [fieldKeys, tableKey]);
 
   return (
@@ -126,7 +129,7 @@ function KelolaKolomHalaman({
         kabariPreset(tableKey);
         await muat();
       }}
-      onPakaiLengkap={(keys, label) => pakaiLengkap(keys, label)}
+      onPakaiLengkap={pakaiLengkap}
       onDihapus={async () => {
         await setPresetAktif(tableKey, null);
         kabariPreset(tableKey);
@@ -178,27 +181,34 @@ function Bagian({ id, judul, aksi, children }: {
   );
 }
 
-/** Satu pintu pengaturan halaman: filter topBar + preset kolom + preset
- *  urutan + visibilitas toolbar. Pengelolaan tabel hanya lewat sini. */
-export default function DialogKelolaHalaman({
+/** Satu pintu pengaturan satu tabel: filter topBar + preset kolom + preset
+ *  urutan + visibilitas toolbar. Dibuka dari tabel terkait (menu konteks
+ *  header) atau dari topBar halaman yang hanya punya satu tabel. */
+export default function DialogKelolaTabel({
   open,
   onOpenChange,
-  pageKey,
+  tableKey,
   judul,
-  tabel,
+  fields,
+  filterRelevan = [],
   filterBawaan,
+  filterModeBawaan,
+  jumlahTabel = 1,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  pageKey: string;
-  /** Judul halaman tampil (dari route). */
-  judul: string;
-  /** Daftar tabel halaman ini (satu atau banyak). */
-  tabel: TabelHalaman[];
-  /** Bawaan filter kode (untuk tab Filter). */
-  filterBawaan: Record<KunciFilterGlobal, boolean>;
+  tableKey: string;
+  /** Judul tabel tampil (boleh node, mis. header kaya dari grid). */
+  judul: ReactNode;
+  /** Fields tabel (dari grid); tanpa fields section Kolom diganti keterangan. */
+  fields?: ExcelField[];
+  /** Konteks filter halaman (dari registrasi halaman, bila ada). */
+  filterRelevan?: readonly KunciFilterGlobal[];
+  filterBawaan?: TampilFilterGlobal;
+  filterModeBawaan?: ModeSemuaFilterGlobal;
+  /** Jumlah tabel halaman (untuk catatan merge filter). */
+  jumlahTabel?: number;
 }) {
-  const [tabelAktif, setTabelAktif] = useState<string>(tabel[0]?.key ?? '');
   /** Status kotor per bagian (semua bagian tampil sekaligus). */
   const [kotorBagian, setKotorBagian] = useState<Record<string, boolean>>({});
   /** Fungsi simpan tiap bagian, dipakai tombol Simpan terpadu. */
@@ -210,11 +220,11 @@ export default function DialogKelolaHalaman({
   const [aksiTertunda, setAksiTertunda] = useState<(() => void) | null>(null);
 
   /** Ada perubahan belum tersimpan di bagian mana pun. */
-  const kotor = Object.values(kotorBagian).some(Boolean);
-  /** Cermin `kotor` untuk keputusan sinkron (state React baru terlihat pada
-   *  render berikutnya). */
+  const adaKotor = Object.values(kotorBagian).some(Boolean);
+  /** Cermin `adaKotor` untuk keputusan sinkron (state React baru terlihat
+   *  pada render berikutnya). */
   const kotorRef = useRef(false);
-  kotorRef.current = kotor;
+  kotorRef.current = adaKotor;
   const lapor = useCallback((id: string, v: boolean) => {
     setKotorBagian((prev) => (prev[id] === v ? prev : { ...prev, [id]: v }));
   }, []);
@@ -234,9 +244,10 @@ export default function DialogKelolaHalaman({
     });
   }, []);
   const registri = useRegistriBagian(lapor, daftarSimpan, daftarAksi);
-  /** Urutan simpan: filter lebih dulu, lalu bagian per tabel. */
+  /** Urutan simpan: bagian per tabel dulu (kolom, urutan, toolbar), filter
+   *  terakhir agar penanda halaman disegarkan setelah setelan lain selesai. */
   const URUTAN_BAGIAN = ['kolom', 'urutan', 'kontrol', 'filter'] as const;
-  const adaKotor = Object.values(kotorBagian).some(Boolean);
+
   /** Simpan semua bagian yang berubah, berurutan. */
   const simpanSemua = useCallback(async () => {
     setMenyimpan(true);
@@ -258,108 +269,71 @@ export default function DialogKelolaHalaman({
   }, []);
 
   const tutup = useCallback(() => coba(() => onOpenChange(false)), [coba, onOpenChange]);
-  const konfigurasi = useMemo(() => konfigurasiFilterHalaman(pageKey), [pageKey]);
 
-  // Saat dibuka: pilih tabel pertama lagi, dan bersihkan penanda kotor.
+  // Saat dibuka: bersihkan penanda kotor dan aksi tertunda.
   useEffect(() => {
     if (!open) return;
-    setTabelAktif(tabel[0]?.key ?? '');
     setKotorBagian({});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, pageKey]);
+    setAksiTertunda(null);
+  }, [open, tableKey]);
 
-  const tabelTerpilih = tabel.find((t) => t.key === tabelAktif) ?? tabel[0];
+  const adaFilter = filterRelevan.length > 0 && !!filterBawaan && !!filterModeBawaan;
 
-return (
+  return (
     <Dialog open={open} onOpenChange={(v) => (v ? onOpenChange(true) : tutup())}>
       <DialogContent className="!flex h-[85dvh] max-h-[85dvh] flex-col !overflow-hidden !p-2 sm:max-w-2xl lg:max-w-4xl [&>[data-slot=dialog-close]]:top-2 [&>[data-slot=dialog-close]]:right-2">
         <BagianProvider value={registri}>
           <DialogHeader className="shrink-0">
-            <DialogTitle>Kelola halaman: {judul}</DialogTitle>
+            <DialogTitle>Kelola tabel: {judul}</DialogTitle>
+            <DialogDescription className="sr-only">
+              Atur kolom, urutan, toolbar, dan filter tabel ini.
+            </DialogDescription>
           </DialogHeader>
 
-          {tabel.length > 1 ? (
-            <div className="flex shrink-0 flex-wrap items-center gap-1.5" role="group" aria-label="Pilih tabel">
-              <span className="text-xs text-muted-foreground">Tabel:</span>
-              {tabel.map((t) => (
-                <button
-                  key={t.key}
-                  type="button"
-                  id={`btn_pilih_tabel_halaman_${t.key}`}
-                  aria-pressed={t.key === tabelTerpilih?.key}
-                  onClick={() => coba(() => setTabelAktif(t.key))}
-                  className={cn(
-                    'rounded-full border px-2.5 py-1 text-xs transition-colors',
-                    t.key === tabelTerpilih?.key
-                      ? 'border-accent bg-accent/20 font-medium text-foreground'
-                      : 'border-transparent text-muted-foreground hover:border-border hover:bg-accent/40 hover:text-foreground',
-                  )}
-                >
-                  {t.judul ?? t.key}
-                </button>
-              ))}
-            </div>
-          ) : null}
-
           <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-1">
-            {tabelTerpilih ? (
-              <>
-                <Bagian
-                  id="bagian_kolom_tabel"
-                  judul="Kolom"
-                >
-                  {tabelTerpilih.fields ? (
-                    <KelolaKolomHalaman
-                      key={tabelTerpilih.key}
-                      tableKey={tabelTerpilih.key}
-                      fields={tabelTerpilih.fields}
-                    />
-                  ) : (
-                    <p className="rounded-md border px-3 py-2 text-xs text-muted-foreground">
-                      Tabel “{tabelTerpilih.judul ?? tabelTerpilih.key}” tidak memakai preset
-                      kolom — kelola kolomnya dari toolbar tabel masing-masing.
-                    </p>
-                  )}
-                </Bagian>
+            <Bagian id="bagian_kolom_tabel" judul="Kolom">
+              {fields ? (
+                <KelolaKolomTabel key={tableKey} tableKey={tableKey} fields={fields} />
+              ) : (
+                <p className="rounded-md border px-3 py-2 text-xs text-muted-foreground">
+                  Tabel “{judul}” tidak memakai preset kolom — kelola kolomnya dari toolbar tabel
+                  masing-masing.
+                </p>
+              )}
+            </Bagian>
 
-                <Bagian
-                  id="bagian_urutan_tabel"
-                  judul="Urutan"
-                >
-                  <TabUrutan key={tabelTerpilih.key} tableKey={tabelTerpilih.key} />
-                </Bagian>
-              </>
-            ) : (
-              <p className="rounded-md border px-3 py-2 text-xs text-muted-foreground">
-                Halaman ini tidak mendaftarkan tabel — hanya filter yang bisa diatur.
-              </p>
-            )}
+            <Bagian id="bagian_urutan_tabel" judul="Urutan">
+              <TabUrutan key={tableKey} tableKey={tableKey} />
+            </Bagian>
 
             {/* Toolbar (kiri) dan Filter (kanan) berdampingan; menumpuk di layar sempit. */}
             <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
-              {tabelTerpilih ? (
-                <Bagian id="bagian_toolbar_tabel" judul="Toolbar" aksi={aksiBagian.kontrol}>
-                  <TabKontrol key={tabelTerpilih.key} tableKey={tabelTerpilih.key} />
+              <Bagian id="bagian_toolbar_tabel" judul="Toolbar" aksi={aksiBagian.kontrol}>
+                <TabKontrol key={tableKey} tableKey={tableKey} />
+              </Bagian>
+              {adaFilter ? (
+                <Bagian id="bagian_filter_tabel" judul="Filter" aksi={aksiBagian.filter}>
+                  <TabFilterTabel
+                    tableKey={tableKey}
+                    filterRelevan={filterRelevan}
+                    bawaan={filterBawaan}
+                    modeBawaan={filterModeBawaan}
+                    catatan={jumlahTabel > 1
+                      ? 'Filter topBar dipakai bersama seluruh tabel halaman ini — digabung: tampil bila ada tabel yang mengaktifkan, mode Jamak menang.'
+                      : undefined}
+                  />
                 </Bagian>
               ) : null}
-              <Bagian id="bagian_filter_halaman" judul="Filter" aksi={aksiBagian.filter}>
-                <TabFilterHalaman
-                  pageKey={pageKey}
-                  filterRelevan={konfigurasi.filter}
-                  bawaan={filterBawaan}
-                  modeBawaan={konfigurasi.mode}
-                />
-              </Bagian>
             </div>
           </div>
 
           <DialogFooter className="shrink-0 gap-2 pt-2">
-            <Button type="button" variant="outline" id="btn_tutup_kelola_halaman" onClick={tutup}>
+            <Button type="button" variant="outline" id="btn_tutup_kelola_tabel" onClick={tutup}>
               Tutup
             </Button>
             <Button
               type="button"
-              id="btn_simpan_kelola_halaman"
+              id="btn_simpan_kelola_tabel"
               disabled={!adaKotor || menyimpan}
               onClick={() => void simpanSemua()}
             >
@@ -375,14 +349,14 @@ return (
           <AlertDialogHeader>
             <AlertDialogTitle>Perubahan belum disimpan</AlertDialogTitle>
             <AlertDialogDescription>
-              Perubahan di tab ini akan hilang bila dilanjutkan. Pilih Batal lalu tekan
+              Perubahan yang belum disimpan akan hilang bila dilanjutkan. Pilih Batal lalu tekan
               Simpan untuk menyimpannya.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Batal</AlertDialogCancel>
             <AlertDialogAction
-              id="btn_buang_perubahan_kelola_halaman"
+              id="btn_buang_perubahan_kelola_tabel"
               onClick={() => {
                 const lanjut = aksiTertunda;
                 setAksiTertunda(null);

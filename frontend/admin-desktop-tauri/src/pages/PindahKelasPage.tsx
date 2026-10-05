@@ -18,7 +18,7 @@ import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { toast } from 'sonner';
 
 /** Kolom tabel kelas — SAMA untuk semua kelas di halaman ini, jadi dipakai
- *  bersama oleh tiap grid dan oleh registrasi Kelola Halaman.
+ *  bersama oleh tiap grid dan oleh registrasi Kelola Tabel.
  *  `jk` dan `alamat` diambil dari profil santri (relasi `santri` sudah
  *  dimuat penuh oleh endpoint daftar-kelas), keduanya baca-saja karena
  *  halaman ini hanya berpindah kelas, bukan mengubah data Santri. */

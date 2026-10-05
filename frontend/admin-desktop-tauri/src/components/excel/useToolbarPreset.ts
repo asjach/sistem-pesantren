@@ -18,7 +18,7 @@ import {
  * saat event EVENT_TOOLBAR_BERUBAH untuk tableKey yang sama.
  */
 export function useToolbarPresetState(tableKey: string) {
-  /** Visibilitas kontrol toolbar generik (tab Toolbar dialog Kelola Halaman). */
+  /** Visibilitas kontrol toolbar generik (section Toolbar dialog Kelola Tabel). */
   const [visToolbar, setVisToolbar] = useState<VisToolbar>({ info: true, urut: true, kolom: true, filter: true });
   /** Lebar efektif kontrol berlebar (px); nilai awal = bawaan meski belum tersimpan. */
   const [lebarToolbar, setLebarToolbar] = useState<LebarToolbar>({ ...LEBAR_BAWAHAN_TOOLBAR });

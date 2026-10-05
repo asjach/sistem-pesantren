@@ -19,7 +19,7 @@ import { ChevronDown, ChevronUp, Pin } from '@/icons';
 const TANPA = '_tanpa';
 
 /** Dropdown Urutkan yang sumbernya Preset Urut (global per tabel).
- *  Pengelolaan opsi hanya lewat dialog Kelola Halaman (tab Urutan).
+ *  Pengelolaan opsi hanya lewat dialog Kelola Tabel (section Urutan).
  *  Opsi dengan `arah_kolom` mengirim arah per kode ke `onUrut` (token
  *  `kode:arah`) sehingga tiap kolom bisa beda orientasi (mis. aktif DESC,
  *  nama ASC). */ 

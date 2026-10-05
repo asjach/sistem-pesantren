@@ -2,12 +2,12 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useBagian, useAksiBagian } from '@/components/kelolaHalaman/kotor';
 import { errorMessage } from '@/api/client';
 import {
-  hapusPengaturanHalaman,
-  muatPengaturanHalaman,
-  simpanPengaturanHalaman,
-  type FilterHalaman,
-  type FilterModeHalaman,
-} from '@/api/halaman';
+  hapusPengaturanTabel,
+  muatPengaturanTabel,
+  simpanPengaturanTabel,
+  type FilterTabel,
+  type FilterModeTabel,
+} from '@/api/pengaturanTabel';
 import { useLembagaAktif } from '@/lembagaAktif';
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -26,19 +26,27 @@ const LABEL_FILTER: { kunci: KunciFilterGlobal; label: string; ket: string }[] =
   { kunci: 'kelas', label: 'Kelas', ket: 'Filter kelas global' },
 ];
 
-/** Tab Filter dialog Kelola Halaman: tampil/sembunyikan filter topBar per
- *  halaman — GLOBAL untuk seluruh lembaga, khusus super_admin. Tanpa
- *  simpanan = halaman ikut bawaan kode. */
-export default function TabFilterHalaman({
-  pageKey,
+/** Section Filter dialog Kelola Tabel: tampil/sembunyikan filter topBar —
+ *  GLOBAL untuk seluruh lembaga, khusus super_admin. Halaman dengan beberapa
+ *  tabel menggabungkan setelan tabelnya (tampil = OR, mode Jamak menang).
+ *  Tanpa simpanan = tabel ikut bawaan kode. Halaman tanpa tabel memakai
+ *  page_key sebagai `tableKey`. */
+export default function TabFilterTabel({
+  tableKey,
   filterRelevan,
   bawaan,
   modeBawaan,
+  labelKembalikan = 'Kembalikan ke bawaan tabel',
+  catatan,
 }: {
-  pageKey: string;
+  tableKey: string;
   filterRelevan: readonly KunciFilterGlobal[];
   bawaan: TampilFilterGlobal;
   modeBawaan: ModeSemuaFilterGlobal;
+  /** Label aksi kembalikan (halaman tanpa tabel memakai "bawaan halaman"). */
+  labelKembalikan?: string;
+  /** Catatan konteks (mis. aturan merge halaman multi-tabel). */
+  catatan?: string;
 }) {
   /** Visibilitas filter = super_admin EFEKTIF (mati saat bertindak). */
   const { efektifSuper: bolehUbah } = useLembagaAktif();
@@ -50,7 +58,7 @@ export default function TabFilterHalaman({
   const [busy, setBusy] = useState(false);
   const laporKotor = useBagian('filter', () => void simpan());
   useAksiBagian('filter', {
-    label: 'Kembalikan ke bawaan halaman',
+    label: labelKembalikan,
     onClick: () => void kembalikan(),
     disabled: !bolehUbah || busy || !adaSimpanan,
   });
@@ -61,22 +69,19 @@ export default function TabFilterHalaman({
 
   const muat = useCallback(async () => {
     try {
-      const res = await muatPengaturanHalaman(pageKey);
+      const res = await muatPengaturanTabel([tableKey]);
+      const data = res.data[tableKey];
       const bersih: TampilFilterGlobal = { ...bawaan };
       const modeBersih: ModeSemuaFilterGlobal = { ...modeBawaan };
-      let ada = false;
       for (const k of filterRelevan) {
-        const v = res.data.filter?.[k];
-        const m = res.data.filter_mode?.[k];
-        if (typeof v === 'boolean') {
-          bersih[k] = v;
-          ada = true;
-        }
+        const v = data?.filter?.[k];
+        const m = data?.filter_mode?.[k];
+        if (typeof v === 'boolean') bersih[k] = v;
         if (m === 'single' || m === 'multiple') modeBersih[k] = m;
       }
       setNilai(bersih);
       setNilaiMode(modeBersih);
-      setAdaSimpanan(ada);
+      setAdaSimpanan(data?.ada ?? false);
       acuanRef.current = JSON.stringify({ nilai: bersih, mode: modeBersih });
     } catch {
       const nilaiBawaan = { ...bawaan };
@@ -86,7 +91,7 @@ export default function TabFilterHalaman({
       setAdaSimpanan(false);
       acuanRef.current = JSON.stringify({ nilai: nilaiBawaan, mode: modeBawaanSemua });
     }
-  }, [pageKey, filterRelevan, bawaan, modeBawaan]);
+  }, [tableKey, filterRelevan, bawaan, modeBawaan]);
 
   useEffect(() => {
     void muat();
@@ -97,20 +102,20 @@ export default function TabFilterHalaman({
   }, [nilai, nilaiMode, laporKotor]);
 
   function kabariBerubah() {
-    window.dispatchEvent(new CustomEvent(EVENT_HALAMAN_BERUBAH, { detail: { pageKey } }));
+    window.dispatchEvent(new CustomEvent(EVENT_HALAMAN_BERUBAH, { detail: { tableKey } }));
   }
 
   async function simpan() {
     if (!bolehUbah || filterRelevan.length === 0) return;
     setBusy(true);
     try {
-      const filter: FilterHalaman = {};
-      const filterMode: FilterModeHalaman = {};
+      const filter: FilterTabel = {};
+      const filterMode: FilterModeTabel = {};
       for (const k of filterRelevan) {
         filter[k] = nilai[k];
         filterMode[k] = nilaiMode[k];
       }
-      const res = await simpanPengaturanHalaman(pageKey, filter, filterMode);
+      const res = await simpanPengaturanTabel(tableKey, filter, filterMode);
       // Nilai kini = isi server. Efek pemantau tidak akan jalan (nilai tidak
       // berubah), jadi lapor bersih secara eksplisit.
       acuanRef.current = JSON.stringify({ nilai, mode: nilaiMode });
@@ -129,7 +134,7 @@ export default function TabFilterHalaman({
     if (!bolehUbah) return;
     setBusy(true);
     try {
-      const res = await hapusPengaturanHalaman(pageKey);
+      const res = await hapusPengaturanTabel(tableKey);
       const nilaiBawaan = { ...bawaan };
       const modeBawaanSemua = { ...modeBawaan };
       setNilai(nilaiBawaan);
@@ -152,13 +157,16 @@ export default function TabFilterHalaman({
     <div className="flex min-h-0 flex-col gap-2">
       {!bolehUbah ? (
         <p className="rounded-md border px-3 py-2 text-xs text-muted-foreground">
-          Hanya super_admin yang dapat mengubah filter halaman.
+          Hanya super_admin yang dapat mengubah filter tabel.
         </p>
+      ) : null}
+      {catatan ? (
+        <p className="rounded-md border px-3 py-2 text-xs text-muted-foreground">{catatan}</p>
       ) : null}
       <div className="flex max-h-[40vh] flex-col overflow-auto rounded-md border">
         {filterTampil.length === 0 ? (
           <p className="px-3 py-4 text-xs text-muted-foreground">
-            Halaman ini tidak memiliki filter global yang relevan.
+            Tabel ini tidak memiliki filter global yang relevan.
           </p>
         ) : filterTampil.map(({ kunci, label, ket }) => (
           <div
@@ -170,7 +178,7 @@ export default function TabFilterHalaman({
             }}
           >
             <Checkbox
-              id={`chk_filter_halaman_${pageKey}_${kunci}`}
+              id={`chk_filter_tabel_${tableKey}_${kunci}`}
               checked={nilai[kunci]}
               disabled={!bolehUbah || busy}
               aria-label={`Tampilkan filter ${label}`}
@@ -182,13 +190,13 @@ export default function TabFilterHalaman({
               {label}
             </span>
             <label
-              htmlFor={`switch_mode_filter_halaman_${pageKey}_${kunci}`}
+              htmlFor={`switch_mode_filter_tabel_${tableKey}_${kunci}`}
               className="flex shrink-0 items-center gap-1.5"
               onClick={(e) => e.stopPropagation()}
             >
               <span className="text-[11px] text-muted-foreground">Mode</span>
               <Switch
-                id={`switch_mode_filter_halaman_${pageKey}_${kunci}`}
+                id={`switch_mode_filter_tabel_${tableKey}_${kunci}`}
                 size="sm"
                 checked={nilaiMode[kunci] === 'multiple'}
                 disabled={!bolehUbah || busy}

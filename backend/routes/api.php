@@ -12,7 +12,7 @@ use App\Http\Controllers\Api\Admin\LembagaSantriController;
 use App\Http\Controllers\Api\Admin\MiMdController;
 use App\Http\Controllers\Api\Admin\MutasiKeluarArsipController;
 use App\Http\Controllers\Api\Admin\PegawaiController;
-use App\Http\Controllers\Api\Admin\PengaturanHalamanController;
+use App\Http\Controllers\Api\Admin\PengaturanTabelController;
 use App\Http\Controllers\Api\Admin\PresetTabelController;
 use App\Http\Controllers\Api\Admin\PsbBiayaController;
 use App\Http\Controllers\Api\Admin\PsbKegiatanController;
@@ -291,10 +291,10 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::put('toolbar-preset', [ToolbarPresetController::class, 'simpan'])->middleware('permission:toolbar_preset.tambah|toolbar_preset.ubah');
         Route::delete('toolbar-preset', [ToolbarPresetController::class, 'hapus'])->middleware('permission:toolbar_preset.hapus');
 
-        // Visibilitas filter topBar (global per halaman; tulis super_admin saja).
-        Route::get('pengaturan-halaman', [PengaturanHalamanController::class, 'index'])->middleware('permission:pengaturan_halaman.lihat');
-        Route::put('pengaturan-halaman', [PengaturanHalamanController::class, 'simpan'])->middleware('permission:pengaturan_halaman.tambah|pengaturan_halaman.ubah');
-        Route::delete('pengaturan-halaman', [PengaturanHalamanController::class, 'hapus'])->middleware('permission:pengaturan_halaman.hapus');
+        // Visibilitas filter topBar (global per tabel; tulis super_admin saja).
+        Route::get('pengaturan-tabel', [PengaturanTabelController::class, 'index'])->middleware('permission:pengaturan_halaman.lihat');
+        Route::put('pengaturan-tabel', [PengaturanTabelController::class, 'simpan'])->middleware('permission:pengaturan_halaman.tambah|pengaturan_halaman.ubah');
+        Route::delete('pengaturan-tabel', [PengaturanTabelController::class, 'hapus'])->middleware('permission:pengaturan_halaman.hapus');
 
         // Master modul PSB: kegiatan -> gelombang -> kuota/biaya pendaftaran per lembaga,
         // plus biaya masuk/asrama per lembaga (lintas gelombang).

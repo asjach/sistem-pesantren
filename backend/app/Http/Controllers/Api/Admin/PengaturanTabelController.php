@@ -3,55 +3,64 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Admin\PengaturanHalamanHapusRequest;
-use App\Http\Requests\Admin\PengaturanHalamanIndexRequest;
-use App\Http\Requests\Admin\PengaturanHalamanSimpanRequest;
-use App\Models\PengaturanHalaman;
+use App\Http\Requests\Admin\PengaturanTabelHapusRequest;
+use App\Http\Requests\Admin\PengaturanTabelIndexRequest;
+use App\Http\Requests\Admin\PengaturanTabelSimpanRequest;
+use App\Models\PengaturanTabel;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Visibilitas filter topBar, GLOBAL per `page_key` (satu baris = peta
+ * Visibilitas filter topBar, GLOBAL per `table_key` (satu baris = peta
  * filter → boolean). Baca bebas (semua admin, agar semua peramban
  * merender sama); tulis khusus super_admin untuk seluruh lembaga.
+ * Halaman tanpa tabel memakai page_key sebagai nilai `table_key`.
  */
-class PengaturanHalamanController extends Controller
+class PengaturanTabelController extends Controller
 {
     /** Kunci filter yang dikenal frontend (di luar ini ditolak). */
     public const KUNCI = ['lembaga', 'tahun_ajaran', 'semester', 'tingkat', 'kelas'];
 
     public const MODE_FILTER = ['single', 'multiple'];
 
-    /** GET /api/admin/pengaturan-halaman?page_key=daftar_kelas */
-    public function index(PengaturanHalamanIndexRequest $request): JsonResponse
+    /** GET /api/admin/pengaturan-tabel?keys[]=psb&keys[]=pegawai_lembaga */
+    public function index(PengaturanTabelIndexRequest $request): JsonResponse
     {
         $data = $request->validated();
+        $keys = array_values(array_unique($data['keys']));
 
-        $row = PengaturanHalaman::where('page_key', $data['page_key'])->first();
+        $rows = PengaturanTabel::whereIn('table_key', $keys)->get()->keyBy('table_key');
 
-        return response()->json([
-            'pesan' => 'Pengaturan halaman dimuat.',
-            'data' => [
-                'page_key' => $data['page_key'],
+        $hasil = [];
+        foreach ($keys as $key) {
+            $row = $rows->get($key);
+            $hasil[$key] = [
+                'table_key' => $key,
                 'filter' => $row?->filter ?? [],
                 'filter_mode' => $this->normalisasiMode($row?->filter_mode),
-            ],
+                'ada' => $row !== null,
+            ];
+        }
+
+        return response()->json([
+            'pesan' => 'Pengaturan tabel dimuat.',
+            'data' => $hasil,
         ]);
     }
 
-    /** PUT /api/admin/pengaturan-halaman — upsert gabung: hanya kunci yang
+    /** PUT /api/admin/pengaturan-tabel — upsert gabung: hanya kunci yang
      *  dikirim yang ditimpa, kunci lain dipertahankan. */
-    public function simpan(PengaturanHalamanSimpanRequest $request): JsonResponse
+    public function simpan(PengaturanTabelSimpanRequest $request): JsonResponse
     {
         $data = $request->validated();
 
         if (! array_key_exists('filter', $data) && ! array_key_exists('filter_mode', $data)) {
             throw ValidationException::withMessages([
-                'page_key' => 'Kirim minimal filter atau filter_mode.',
+                'table_key' => 'Kirim minimal filter atau filter_mode.',
             ]);
         }
 
-        $row = PengaturanHalaman::firstOrNew(['page_key' => $data['page_key']]);
+        $row = PengaturanTabel::firstOrNew(['table_key' => $data['table_key']]);
 
         // Kolom filter NOT NULL: baris baru tanpa filter = ikut bawaan kode.
         if ($row->filter === null) {
@@ -79,17 +88,17 @@ class PengaturanHalamanController extends Controller
         $row->dibuat_oleh = $request->user()->id;
         $row->save();
 
-        return response()->json(['pesan' => 'Pengaturan halaman disimpan.', 'data' => $row]);
+        return response()->json(['pesan' => 'Pengaturan tabel disimpan.', 'data' => $row]);
     }
 
-    /** DELETE /api/admin/pengaturan-halaman?page_key=daftar_kelas — kembali ikut bawaan kode. */
-    public function hapus(PengaturanHalamanHapusRequest $request): JsonResponse
+    /** DELETE /api/admin/pengaturan-tabel?table_key=psb — kembali ikut bawaan kode. */
+    public function hapus(PengaturanTabelHapusRequest $request): JsonResponse
     {
         $data = $request->validated();
 
-        PengaturanHalaman::where('page_key', $data['page_key'])->delete();
+        PengaturanTabel::where('table_key', $data['table_key'])->delete();
 
-        return response()->json(['pesan' => 'Pengaturan halaman dikembalikan ke bawaan (ikut bawaan kode).']);
+        return response()->json(['pesan' => 'Pengaturan tabel dikembalikan ke bawaan (ikut bawaan kode).']);
     }
 
     private function normalisasiMode(?array $mode): array

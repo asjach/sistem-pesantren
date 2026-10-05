@@ -32,7 +32,7 @@ import { toast } from 'sonner';
 
 const IKUT = '_ikut';
 
-/** Tab Urutan dialog Kelola Halaman: susun opsi urut (global, berlaku semua
+/** Section Urutan dialog Kelola Tabel: susun opsi urut (global, berlaku semua
  *  lembaga), atur arah per opsi maupun per kolom & opsi bawaan. Draft =
  *  salinan penuh opsi tersimpan; Simpan mengganti seluruh daftar. */
 export default function TabUrutan({ tableKey }: { tableKey: string }) {

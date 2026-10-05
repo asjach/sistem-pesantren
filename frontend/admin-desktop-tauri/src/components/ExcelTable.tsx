@@ -13,7 +13,8 @@ import { isTauri, prefSet } from '@/api/client';
 import { buttonVariants } from '@/components/ui/button';
 import { DEFAULT_FONT_PX, DEFAULT_HEADER_H, FONT_FAMILY_DEFAULT, FONT_OPTIONS, useGridPrefs, type AlignName } from '@/components/GridPrefs';
 import { useLembagaAktif } from '@/lembagaAktif';
-import { EVENT_KELOLA_HALAMAN, useVisibilitasFilter } from '@/components/VisibilitasFilter';
+import { useVisibilitasFilter } from '@/components/VisibilitasFilter';
+import DialogKelolaTabel from '@/components/kelolaTabel/DialogKelolaTabel';
 import FilterRail from '@/components/FilterRail';
 import PresetKolom, { type PresetKolomApi } from '@/components/PresetKolom';
 import PresetUrut from '@/components/PresetUrut';
@@ -251,6 +252,7 @@ export default function ExcelTable<T extends { id: string | number }>({
   const { efektifSuper: bolehGeser } = useLembagaAktif();
   const visHalaman = useVisibilitasFilter();
   const bolehKelolaHalaman = !!visHalaman?.registrasi && bolehGeser;
+  const [kelolaTabelOpen, setKelolaTabelOpen] = useState(false);
   const { visToolbar, lebarToolbar, lebarKolomDb, urutanDb, setUrutanDb, konteksLebarFilter } = useToolbarPresetState(tableKey);
   /** Baris input hanya tersedia bila halaman menyediakan onCreateRow.
    *  Tidak bergantung mode Edit: halaman boleh mendukung create saja. */
@@ -1346,10 +1348,10 @@ export default function ExcelTable<T extends { id: string | number }>({
             {bolehKelolaHalaman ? (
               <ContextMenuContent>
                 <ContextMenuItem
-                  id={`menu_kelola_halaman_${tableKey}`}
-                  onSelect={() => window.dispatchEvent(new CustomEvent(EVENT_KELOLA_HALAMAN))}
+                  id={`menu_kelola_tabel_${tableKey}`}
+                  onSelect={() => setKelolaTabelOpen(true)}
                 >
-                  <NotebookTabs data-icon="inline-start" size={16} /> Kelola Halaman
+                  <NotebookTabs data-icon="inline-start" size={16} /> Kelola Tabel
                 </ContextMenuItem>
               </ContextMenuContent>
             ) : null}
@@ -1529,6 +1531,21 @@ export default function ExcelTable<T extends { id: string | number }>({
           )}
         </div>
       )}
+
+      {/* Dialog pengaturan tabel ini: kolom, urutan, toolbar, dan filter. */}
+      {visHalaman?.registrasi ? (
+        <DialogKelolaTabel
+          open={kelolaTabelOpen}
+          onOpenChange={setKelolaTabelOpen}
+          tableKey={tableKey}
+          judul={judulHeader}
+          fields={fields}
+          filterRelevan={visHalaman.registrasi.filterRelevan}
+          filterBawaan={visHalaman.registrasi.bawaan}
+          filterModeBawaan={visHalaman.registrasi.modeBawaan}
+          jumlahTabel={visHalaman.registrasi.tabel.length}
+        />
+      ) : null}
     </div>
   );
 }

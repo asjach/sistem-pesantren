@@ -535,7 +535,7 @@ Status: 🔲 not scaffolded (backend 201/202 pending).
   (`lib/labelKolom.ts`: `nama_lengkap` → `Nama Lengkap`, `santri.nama_lengkap`
   → `Nama Lengkap`, singkatan seperti `nip`/`nis` tetap kapital). Tidak ada
   query label saat memuat tabel. Presedensi: label preset per tabel (bila
-  diatur lewat dialog Kelola Halaman) → label field. Format isi sel pindah ke
+  diatur lewat dialog Kelola Tabel) → label field. Format isi sel pindah ke
   `ExcelField.format` (`angka`/`tanggal`/`ya_tidak`); perataan & lebar tetap
   milik preferensi pengguna dan preset tabel.
 * Preset urut daftar (v2.73): allowlist kode urut = satu sumber di

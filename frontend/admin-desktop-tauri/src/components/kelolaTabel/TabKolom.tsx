@@ -12,6 +12,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { Input } from '@/components/ui/input';
 import { labelKolom } from '@/lib/labelKolom';
 import { useBagian } from '@/components/kelolaHalaman/kotor';
+import { useLembagaAktif } from '@/lembagaAktif';
 import { DialogFooter } from '@/components/ui/dialog';
 import ConfirmDelete from '@/components/ConfirmDelete';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -56,7 +57,7 @@ export interface TabKolomProps {
   /** Tutup dialog. */
 }
 
-/** Tab Kolom dialog Kelola Halaman: preset kolom GLOBAL (satu definisi untuk
+/** Section Kolom dialog Kelola Tabel: preset kolom GLOBAL (satu definisi untuk
  *  semua lembaga), dikelola super_admin. Pilih/atur kolom tampil + nama
  *  header kustom. */
 export default function TabKolom({
@@ -75,6 +76,10 @@ export default function TabKolom({
   onPakaiLengkap,
   onDihapus,
 }: TabKolomProps) {
+  /** Preset kolom = pengaturan global super_admin EFEKTIF (mati saat
+   *  bertindak; lapis pertahanan kedua karena dialog pun hanya untuk
+   *  super_admin). */
+  const { efektifSuper: bolehUbah } = useLembagaAktif();
   const [editId, setEditId] = useState<number | null>(presetAwal?.id ?? null);
   const [nama, setNama] = useState(presetAwal?.nama ?? '');
   /** Status bawaan = bagian form (tersimpan via Simpan, boleh dikosongkan). */
@@ -199,14 +204,19 @@ export default function TabKolom({
 
   /** Simpan bagian ini (dipanggil form maupun tombol Simpan terpadu). */
   async function simpanPreset() {
-    if (kolom.length === 0) return;
+    if (kolom.length === 0) {
+      toast.error('Pilih minimal satu kolom.');
+      return;
+    }
     if (!nama.trim()) {
       // Mode Lengkap tanpa nama: terapkan langsung ke tabel, tanpa membuat preset.
       if (modeLengkap) {
         onPakaiLengkap(kolom, {});
         // Sudah diterapkan: bagian ini kembali bersih (dialog tetap terbuka).
         laporKotor(false);
+        return;
       }
+      toast.error('Nama preset wajib diisi.');
       return;
     }
     setBusy(true);
@@ -259,6 +269,14 @@ export default function TabKolom({
     } catch (e2) {
       toast.error(errorMessage(e2));
     }
+  }
+
+  if (!bolehUbah) {
+    return (
+      <p className="rounded-md border px-3 py-2 text-xs text-muted-foreground">
+        Hanya super_admin yang dapat mengubah preset kolom.
+      </p>
+    );
   }
 
   return (

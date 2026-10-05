@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { useLocation } from 'react-router-dom';
 import { errorMessage } from '@/api/client';
-import { simpanPengaturanHalaman, type FilterModeHalaman } from '@/api/halaman';
+import { simpanPengaturanTabel, type FilterModeTabel } from '@/api/pengaturanTabel';
 import { listKelas, referensiList, type Kelas, type ReferensiRow } from '@/api/master';
 import { useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
 import { useKelasAktif } from '@/kelasAktif';
@@ -100,9 +100,13 @@ export default function FilterRail() {
     const previous = current;
     setMode((values) => ({ ...values, [group]: next }));
     setModeBusy(group);
-    const changes: FilterModeHalaman = group === 'tingkat' ? { tingkat: next } : { kelas: next };
+    const changes: FilterModeTabel = group === 'tingkat' ? { tingkat: next } : { kelas: next };
+    // Filter disimpan per tabel; halaman tanpa tabel memakai pageKey.
+    const kunciSimpan = filter?.registrasi?.tabel.length
+      ? filter.registrasi.tabel.map((t) => t.key)
+      : [pageKey];
     try {
-      await simpanPengaturanHalaman(pageKey, {}, changes);
+      await Promise.all(kunciSimpan.map((kunci) => simpanPengaturanTabel(kunci, {}, changes)));
     } catch (error) {
       setMode((values) => ({ ...values, [group]: previous }));
       toast.error(errorMessage(error));

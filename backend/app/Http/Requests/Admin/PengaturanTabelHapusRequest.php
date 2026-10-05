@@ -4,7 +4,7 @@ namespace App\Http\Requests\Admin;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class PengaturanHalamanHapusRequest extends FormRequest
+class PengaturanTabelHapusRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -14,7 +14,7 @@ class PengaturanHalamanHapusRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'page_key' => ['required', 'string', 'max:60'],
+            'table_key' => ['required', 'string', 'max:60'],
         ];
     }
 }

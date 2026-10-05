@@ -38,7 +38,16 @@ import { useRibbonTable } from '@/components/RibbonTable';
 import { useRibbonSlotCtx } from '@/components/RibbonSlot';
 import { useTopBarSearchCtx } from '@/components/TopBarSearch';
 import BannerBertindak from '@/components/BannerBertindak';
-import DialogKelolaHalaman from '@/components/kelolaHalaman/DialogKelolaHalaman';
+import DialogFilterHalaman from '@/components/kelolaHalaman/DialogFilterHalaman';
+import DialogKelolaTabel from '@/components/kelolaTabel/DialogKelolaTabel';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { halamanDariPath } from '@/lib/halaman';
 import { RibbonTabel } from './topbar/RibbonTabel';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -168,16 +177,29 @@ export default function TopBar() {
   const modeLembaga = filterMode?.lembaga ?? 'single';
   const modeTahunAjaran = filterMode?.tahun_ajaran ?? 'single';
   const modeSemester = filterMode?.semester ?? 'single';
-  /** Registrasi halaman aktif (untuk dialog Kelola Halaman). */
+  /** Registrasi halaman aktif (untuk dialog Kelola Tabel). */
   const registrasi = visCtx?.registrasi ?? null;
-  const [kelolaHalamanOpen, setKelolaHalamanOpen] = useState(false);
+  /** Dialog aktif: kelola tabel tertentu, pemilih tabel, atau filter halaman
+   *  (halaman tanpa tabel). */
+  const [tabelKelola, setTabelKelola] = useState<string | null>(null);
+  const [pilihTabelOpen, setPilihTabelOpen] = useState(false);
+  const [filterHalamanOpen, setFilterHalamanOpen] = useState(false);
+  const bukaKelola = useCallback(() => {
+    if (!registrasi || !efektifSuper) return;
+    if (registrasi.tabel.length === 0) {
+      setFilterHalamanOpen(true);
+      return;
+    }
+    if (registrasi.tabel.length === 1) {
+      setTabelKelola(registrasi.tabel[0].key);
+      return;
+    }
+    setPilihTabelOpen(true);
+  }, [registrasi, efektifSuper]);
   useEffect(() => {
-    const bukaKelolaHalaman = () => {
-      if (registrasi && efektifSuper) setKelolaHalamanOpen(true);
-    };
-    window.addEventListener(EVENT_KELOLA_HALAMAN, bukaKelolaHalaman);
-    return () => window.removeEventListener(EVENT_KELOLA_HALAMAN, bukaKelolaHalaman);
-  }, [efektifSuper, registrasi]);
+    window.addEventListener(EVENT_KELOLA_HALAMAN, bukaKelola);
+    return () => window.removeEventListener(EVENT_KELOLA_HALAMAN, bukaKelola);
+  }, [bukaKelola]);
   function pilihLembagaNilai(v: string) {
     pilihNilaiFilter(v, jenjangs, modeLembaga, pilihBanyakLembaga, pilihLembaga);
   }
@@ -192,6 +214,10 @@ export default function TopBar() {
     pilihNilaiFilter(v, semesters, modeSemester, pilihBanyakSemester);
   }
   const halaman = halamanDariPath(pathname);
+  /** Tabel yang dibuka di dialog Kelola Tabel (null = tidak ada). */
+  const tabelKelolaData = tabelKelola === null
+    ? null
+    : registrasi?.tabel.find((t) => t.key === tabelKelola) ?? registrasi?.tabel[0] ?? null;
   const [toolsTampil, setToolsTampil] = useState(true);
   const [tabTools, setTabTools] = useState<'halaman' | 'tabel'>('halaman');
   const isSuperAdmin = !!user?.roles.some((r) => r.name === 'super_admin');
@@ -406,15 +432,19 @@ export default function TopBar() {
                 <button
                   id="btn_kelola_halaman"
                   type="button"
-                  aria-label="Kelola halaman"
-                  onClick={() => setKelolaHalamanOpen(true)}
+                  aria-label={registrasi.tabel.length === 0 ? 'Kelola filter halaman' : 'Kelola tabel'}
+                  onClick={bukaKelola}
                   className="mr-1 grid size-6 place-items-center rounded-md text-white/75 transition-colors hover:bg-white/10 hover:text-white"
                 >
                   <NotebookTabs size={14} />
                 </button>
               </TooltipTrigger>
               <TooltipContent>
-                <p>Kelola halaman (filter, kolom, urutan, toolbar)</p>
+                <p>
+                  {registrasi.tabel.length === 0
+                    ? 'Kelola filter halaman'
+                    : 'Kelola tabel (kolom, urutan, toolbar, filter)'}
+                </p>
               </TooltipContent>
             </Tooltip>
           ) : null}
@@ -616,16 +646,61 @@ export default function TopBar() {
         </div>
       )}
 
-      {registrasi && (
-        <DialogKelolaHalaman
-          open={kelolaHalamanOpen}
-          onOpenChange={setKelolaHalamanOpen}
+      {registrasi && efektifSuper && tabelKelolaData ? (
+        <DialogKelolaTabel
+          open
+          onOpenChange={(o) => { if (!o) setTabelKelola(null); }}
+          tableKey={tabelKelolaData.key}
+          judul={tabelKelolaData.judul ?? tabelKelolaData.key}
+          fields={tabelKelolaData.fields}
+          filterRelevan={registrasi.filterRelevan}
+          filterBawaan={registrasi.bawaan}
+          filterModeBawaan={registrasi.modeBawaan}
+          jumlahTabel={registrasi.tabel.length}
+        />
+      ) : null}
+
+      {registrasi && efektifSuper && registrasi.tabel.length > 1 ? (
+        <Dialog open={pilihTabelOpen} onOpenChange={setPilihTabelOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Kelola tabel</DialogTitle>
+              <DialogDescription>
+                Halaman ini punya beberapa tabel. Pilih tabel yang ingin diatur.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col gap-1.5">
+              {registrasi.tabel.map((t) => (
+                <Button
+                  key={t.key}
+                  type="button"
+                  variant="outline"
+                  id={`btn_pilih_tabel_${t.key}`}
+                  className="justify-start"
+                  onClick={() => {
+                    setPilihTabelOpen(false);
+                    setTabelKelola(t.key);
+                  }}
+                >
+                  {t.judul ?? t.key}
+                </Button>
+              ))}
+            </div>
+          </DialogContent>
+        </Dialog>
+      ) : null}
+
+      {registrasi && efektifSuper && registrasi.tabel.length === 0 ? (
+        <DialogFilterHalaman
+          open={filterHalamanOpen}
+          onOpenChange={setFilterHalamanOpen}
           pageKey={registrasi.pageKey}
           judul={halaman?.label ?? registrasi.pageKey}
-          tabel={registrasi.tabel}
-          filterBawaan={registrasi.bawaan}
+          filterRelevan={registrasi.filterRelevan}
+          bawaan={registrasi.bawaan}
+          modeBawaan={registrasi.modeBawaan}
         />
-      )}
+      ) : null}
         </header>
       </ContextMenuTrigger>
       {bolehKelolaHalaman ? (
@@ -634,7 +709,8 @@ export default function TopBar() {
             id="menu_kelola_halaman"
             onSelect={() => window.dispatchEvent(new CustomEvent(EVENT_KELOLA_HALAMAN))}
           >
-            <NotebookTabs data-icon="inline-start" size={16} /> Kelola Halaman
+            <NotebookTabs data-icon="inline-start" size={16} />
+            {registrasi?.tabel.length === 0 ? 'Kelola Filter Halaman' : 'Kelola Tabel'}
           </ContextMenuItem>
         </ContextMenuContent>
       ) : null}

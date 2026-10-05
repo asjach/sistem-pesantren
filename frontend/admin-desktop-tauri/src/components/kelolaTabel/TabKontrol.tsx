@@ -20,7 +20,7 @@ const PERINGATAN_FILTER_HALAMAN =
   'Menyembunyikan “Filter halaman” dapat mengunci alur yang bergantung padanya '
   + '(mis. pilihan kelas tujuan di Riwayat Belajar).';
 
-/** Tab Toolbar dialog Kelola Halaman: tampil/sembunyikan kontrol toolbar
+/** Section Toolbar dialog Kelola Tabel: tampil/sembunyikan kontrol toolbar
  *  generik per tabel — GLOBAL untuk seluruh lembaga, khusus super_admin.
  *  Bukan dihapus: kontrol yang disembunyikan tetap ada, hanya tak dirender. */
 export default function TabKontrol({ tableKey }: { tableKey: string }) {
@@ -35,11 +35,13 @@ export default function TabKontrol({ tableKey }: { tableKey: string }) {
   /** Isian lebar filter (string; kosong = hapus override → bawaan halaman). */
   const [filterW, setFilterW] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
+  /** Ada baris preset tersimpan (untuk status tombol Kembalikan). */
+  const [adaSimpanan, setAdaSimpanan] = useState(false);
   const laporKotor = useBagian('kontrol', () => void simpan());
   useAksiBagian('kontrol', {
     label: 'Kembalikan ke bawaan tabel',
     onClick: () => void kembalikan(),
-    disabled: !bolehUbah || busy,
+    disabled: !bolehUbah || busy || !adaSimpanan,
   });
   /** Setelan terakhir yang sama dengan isi server (acuan deteksi kotor).
    *  Diisi nilai bawaan sejak awal supaya tab tidak sempat dianggap kotor
@@ -61,6 +63,11 @@ export default function TabKontrol({ tableKey }: { tableKey: string }) {
       setLebar(lebarBaru);
       setLebarFilterSimpan(tersimpan);
       setFilterW(filterWBaru);
+      setAdaSimpanan(
+        Object.keys(res.data.visibilitas ?? {}).length > 0
+        || Object.keys(res.data.lebar ?? {}).length > 0
+        || (res.data.urutan?.length ?? 0) > 0,
+      );
       acuanRef.current = JSON.stringify({ vis: visBaru, lebar: lebarBaru, filterW: filterWBaru });
     } catch {
       const visBawaan = { info: true, urut: true, kolom: true, filter: true };
@@ -69,6 +76,7 @@ export default function TabKontrol({ tableKey }: { tableKey: string }) {
       setLebar(lebarBawaan);
       setLebarFilterSimpan({});
       setFilterW({});
+      setAdaSimpanan(false);
       acuanRef.current = JSON.stringify({ vis: visBawaan, lebar: lebarBawaan, filterW: {} });
     }
   }, [tableKey]);
@@ -142,10 +150,9 @@ export default function TabKontrol({ tableKey }: { tableKey: string }) {
     setBusy(true);
     try {
       const res = await hapusToolbarPreset(tableKey);
-      setVis({ info: true, urut: true, kolom: true, filter: true });
-      setLebar({ ...LEBAR_BAWAHAN_TOOLBAR });
-      setLebarFilterSimpan({});
-      setFilterW({});
+      // Muat ulang agar acuan kotor ikut kembali ke bawaan (bukan nilai lama).
+      await muat();
+      laporKotor(false);
       toast.success(res.pesan);
       kabariBerubah();
     } catch (e) {

@@ -301,7 +301,7 @@ export default function LembagaPegawaiPage() {
     <div className={PAGE_SHELL}>
       <ErrorNotice>{kiri.err || kanan.err}</ErrorNotice>
       <PengaturanHalaman tampil={{ semester: false, tingkat: false }} tabel={[
-        { key: 'pegawai', judul: 'Pegawai (sumber)', fields: FIELDS_KIRI },
+        { key: 'pegawai_ringkas', judul: 'Pegawai (sumber)', fields: FIELDS_KIRI },
         { key: 'pegawai_lembaga', judul: 'Penempatan', fields: fieldsKanan },
       ]} />
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari nama / NIP / NIPP…" />
@@ -309,7 +309,7 @@ export default function LembagaPegawaiPage() {
         <ResizableAutoHidePanel id="panel_pegawai_sumber" defaultSize="40%" minSize="20%" className="flex min-h-0 flex-col">
           <div className="flex h-full min-h-0 flex-col">
           <ExcelTable
-            tableKey="pegawai"
+            tableKey="pegawai_ringkas"
             sumberTabel="pegawai"
             fields={FIELDS_KIRI}
             rows={kiriTampil}

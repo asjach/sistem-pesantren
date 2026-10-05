@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef } from 'react';
 
-/** Registri bagian dialog Kelola Halaman.
+/** Registri bagian dialog Kelola Tabel / Filter Halaman.
  *
  *  Semua bagian tampil sekaligus (tanpa tab) dan kini memakai satu tombol
  *  Simpan di footer. Tiap bagian mendaftarkan dua hal ke cangkang: status

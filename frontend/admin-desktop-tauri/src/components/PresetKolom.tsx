@@ -24,13 +24,13 @@ const LENGKAP = '_lengkap';
 
 /** API imperatif PresetKolom untuk dipakai pemanggil (mis. context menu header
  *  tabel: tampil/sembunyikan kolom pada preset tanpa membuka dialog).
- *  Pengelolaan preset (tambah/ubah/hapus) hanya lewat dialog Kelola Halaman. */
+ *  Pengelolaan preset (tambah/ubah/hapus) hanya lewat dialog Kelola Tabel. */
 export interface PresetKolomApi {
   presets: PresetTabel[];
   toggleKolom: (presetId: number, key: string, tampil: boolean) => Promise<void>;
 }
 
-/** Combobox preset kolom tampilan tabel (kelola global via Kelola Halaman). */
+/** Combobox preset kolom tampilan tabel (kelola global via Kelola Tabel). */
 export default function PresetKolom({
   tableKey,
   fields,
@@ -50,7 +50,7 @@ export default function PresetKolom({
   /** Lebar trigger dropdown (px) dari tab Kontrol; menang atas triggerClassName. */
   lebarTrigger?: number;
 }) {
-  /** Memilih preset untuk dilihat bisa semua role (kelola via Kelola Halaman). */
+  /** Memilih preset untuk dilihat bisa semua role (kelola via Kelola Tabel). */
 
   const [presets, setPresets] = useState<PresetTabel[]>([]);
   const [aktifId, setAktifId] = useState<number | null>(null);

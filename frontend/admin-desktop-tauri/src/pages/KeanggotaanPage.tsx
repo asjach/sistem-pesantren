@@ -277,7 +277,7 @@ export default function KeanggotaanPage() {
 
   /** Kolom grid: identitas santri (bisa diedit) dulu, lalu konteks lembaga, lalu
    *  keanggotaan (`lembaga_santri`) yang bisa diedit. Urutan & kolom tampil
-   *  diatur lewat Kelola Halaman → tab Kolom (per preset). */
+   *  diatur lewat Kelola Tabel → section Kolom (per preset). */
   const fields = useMemo<ExcelField[]>(() => [
     ...SANTRI_IDENTITAS_FIELDS,
     {

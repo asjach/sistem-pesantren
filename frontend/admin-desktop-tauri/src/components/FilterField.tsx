@@ -9,7 +9,7 @@ import { daftarkanFilter, hapusFilter, pakaiLebarFilter } from './excel/lebarFil
  *
  *  Bila ter-render di dalam toolbar tabel (konteks lebar tersedia), punya
  *  `htmlFor`, dan `kelolaLebar` tidak dimatikan, filter otomatis terdaftar
- *  di tab Toolbar Kelola Halaman (kunci = `htmlFor`) dengan lebar bawaan
+ *  di section Toolbar dialog Kelola Tabel (kunci = `htmlFor`) dengan lebar bawaan
  *  terukur — dan override lebar tersimpan diterapkan ke kontrol anak via
  *  `style`. Tanpa override, anak Select/ComboCari diseragamkan 120px (bawaan toolbar);
  *  anak selain combobox (mis. input tanggal) memakai lebar alami. Kontrol
