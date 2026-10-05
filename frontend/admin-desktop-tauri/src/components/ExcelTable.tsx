@@ -11,10 +11,11 @@ import { DENSITY_PX } from '@/prefs';
 import { useTheme } from '@/theme';
 import { isTauri, prefSet } from '@/api/client';
 import { buttonVariants } from '@/components/ui/button';
-import { DEFAULT_FONT_PX, DEFAULT_HEADER_H, FONT_FAMILY_DEFAULT, FONT_OPTIONS, useGridPrefs, type AlignName } from '@/components/GridPrefs';
+import { DEFAULT_FONT_PX, DEFAULT_HEADER_H, FONT_FAMILY_DEFAULT, FONT_OPTIONS, useGridPrefs } from '@/components/GridPrefs';
 import { useLembagaAktif } from '@/lembagaAktif';
 import { useVisibilitasFilter } from '@/components/VisibilitasFilter';
 import DialogKelolaTabel from '@/components/kelolaTabel/DialogKelolaTabel';
+import type { AlignKolom } from '@/components/kelolaTabel/jenis';
 import FilterRail from '@/components/FilterRail';
 import PresetKolom, { type PresetKolomApi } from '@/components/PresetKolom';
 import PresetUrut from '@/components/PresetUrut';
@@ -221,7 +222,7 @@ export default function ExcelTable<T extends { id: string | number }>({
   const { density } = useTheme();
   const densityPx = DENSITY_PX[density];
   // Preferensi tampilan tabel global (dikontrol dari top bar).
-  const { rowH, headerH, fontPx, fontFamily, align, setAlign } = useGridPrefs();
+  const { rowH, headerH, fontPx, fontFamily } = useGridPrefs();
   // Standar tampilan lembaga: lebar & kolom beku bawaan (bisa ditimpa user).
 
   const [editMode, setEditModeRaw] = useState(false);
@@ -253,7 +254,7 @@ export default function ExcelTable<T extends { id: string | number }>({
   const visHalaman = useVisibilitasFilter();
   const bolehKelolaHalaman = !!visHalaman?.registrasi && bolehGeser;
   const [kelolaTabelOpen, setKelolaTabelOpen] = useState(false);
-  const { visToolbar, lebarToolbar, lebarKolomDb, alignDb, urutanDb, setUrutanDb, konteksLebarFilter } = useToolbarPresetState(tableKey);
+  const { visToolbar, lebarToolbar, lebarKolomDb, alignDb, urutanDb, setUrutanDb, simpanAlign, konteksLebarFilter } = useToolbarPresetState(tableKey);
   /** Baris input hanya tersedia bila halaman menyediakan onCreateRow.
    *  Tidak bergantung mode Edit: halaman boleh mendukung create saja. */
   const inputEnabled = !!onCreateRow;
@@ -281,10 +282,11 @@ export default function ExcelTable<T extends { id: string | number }>({
   const labelKolom = useCallback((key: string, bawaan: string) => (
     labelKolomTeks(presetLabel?.[key]?.trim() || bawaan || key)
   ), [presetLabel]);
-  /** Perataan efektif: preferensi pribadi per kolom > perataan global tabel > tengah. */
-  const alignEfektif = useCallback((key: string): AlignName => (
-    align[key] ?? alignDb[key] ?? 'center'
-  ), [align, alignDb]);
+  /** Perataan efektif = standar global per tabel (DB; satu sumber dengan
+   *  dialog Kelola Tabel); absen = tengah. */
+  const alignEfektif = useCallback((key: string): AlignKolom => (
+    alignDb[key] ?? 'center'
+  ), [alignDb]);
   /** Seleksi bersifat per halaman/filter: baris berganti = seleksi dibersihkan. */
   useEffect(() => {
     setCheckedIds(new Set<T['id']>());
@@ -780,7 +782,7 @@ export default function ExcelTable<T extends { id: string | number }>({
   }
 
   const dsgColumns: Column<GridRow>[] = useMemo(() => {
-    /** Kelas perataan kolom: preferensi pribadi > perataan global tabel (bawaan tengah). */
+    /** Kelas perataan kolom dari standar global tabel (bawaan tengah). */
     const alignClass = (key: string) =>
       alignEfektif(key) === 'right'
         ? 'simpes-dsg-align-right'
@@ -997,7 +999,7 @@ export default function ExcelTable<T extends { id: string | number }>({
     }
     return cols;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fields, visibleFields, editing, widths, autoWidths, syncAutoWidths, align, showInput, freezeAktif, hideCheckbox, labelKolom, alignEfektif, drafts]);
+  }, [fields, visibleFields, editing, widths, autoWidths, syncAutoWidths, showInput, freezeAktif, hideCheckbox, labelKolom, alignEfektif, drafts]);
 
   /** Logika baris input (mode Input): draft, validasi, simpan, kursor. */
   const {
@@ -1455,8 +1457,8 @@ export default function ExcelTable<T extends { id: string | number }>({
             ubahFreeze={ubahFreeze}
             onAutoFit={onAutoFit}
             onAutoFitAll={onAutoFitAll}
-            align={align}
-            setAlign={setAlign}
+            align={alignDb}
+            onUbahAlign={simpanAlign}
             presetApiRef={presetApiRef}
             bolehKelola={bolehGeser}
             salinBaris={(id) => void salinBarisCtx(id as T['id'])}

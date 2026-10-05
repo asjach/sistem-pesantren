@@ -131,7 +131,9 @@ function KelolaKolomTabel({
   }, [fieldKeys, tableKey]);
 
   return (
-    <>
+    /* Kolom (kiri) dan Nama & Perataan (kanan) berdampingan; menumpuk di
+       layar sempit. */
+    <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
       <Bagian id="bagian_kolom_tabel" judul="Kolom">
         <TabKolom
           key={kelola.nonce}
@@ -180,7 +182,7 @@ function KelolaKolomTabel({
           setLabel={setLabel}
         />
       </Bagian>
-    </>
+    </div>
   );
 }
 

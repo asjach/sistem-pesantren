@@ -11,7 +11,7 @@ import { labelKolom } from '@/lib/labelKolom';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
-import { EVENT_TOOLBAR_BERUBAH, KONTROL_TOOLBAR, LEBAR_BAWAHAN_FILTER, LEBAR_BAWAHAN_TOOLBAR, bacaLebarFilter, bacaLebarToolbar, bacaVisToolbar, type KontrolLebar, type VisToolbar, type LebarToolbar } from './jenis';
+import { KONTROL_TOOLBAR, LEBAR_BAWAHAN_FILTER, LEBAR_BAWAHAN_TOOLBAR, bacaLebarFilter, bacaLebarToolbar, bacaVisToolbar, kabariToolbar, type KontrolLebar, type VisToolbar, type LebarToolbar } from './jenis';
 import { daftarFilter, kunciFilterBawaan } from '@/components/excel/lebarFilter';
 
 /** Peringatan khusus kontrol "Filter halaman" (dipindah ke tooltip agar tidak
@@ -102,8 +102,9 @@ export default function TabKontrol({ tableKey }: { tableKey: string }) {
     laporKotor(JSON.stringify({ vis, lebar, filterW }) !== acuanRef.current);
   }, [vis, lebar, filterW, laporKotor]);
 
+  /** Kabari grid tabel terkait agar memuat ulang preset toolbar-nya. */
   function kabariBerubah() {
-    window.dispatchEvent(new CustomEvent(EVENT_TOOLBAR_BERUBAH, { detail: { tableKey } }));
+    kabariToolbar(tableKey);
   }
 
   /** Jepit ke rentang valid backend (40–480 px). */

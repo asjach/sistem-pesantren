@@ -7,7 +7,7 @@ import {
   ContextMenuSeparator,
 } from '@/components/ui/context-menu';
 import type { PresetKolomApi } from '@/components/PresetKolom';
-import type { AlignName } from '@/components/GridPrefs';
+import type { AlignKolom } from '@/components/kelolaTabel/jenis';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { AlignCenter, AlignLeft, AlignRight, ChevronLeft, ChevronRight, Columns3, Copy, MoveHorizontal, Pin, PinOff, RotateCcw } from '@/icons';
@@ -38,8 +38,10 @@ export interface MenuKonteksGridProps {
   ubahFreeze: (n: number) => void;
   onAutoFit: (key: string) => void;
   onAutoFitAll: () => void;
-  align: Record<string, AlignName>;
-  setAlign: (key: string, a: AlignName) => void;
+  /** Perataan global per tabel (DB; satu sumber dengan Kelola Tabel). */
+  align: Partial<Record<string, AlignKolom>>;
+  /** Tulis perataan ke DB global (jalan pintas dialog Kelola Tabel). */
+  onUbahAlign: (key: string, a: AlignKolom) => void;
   presetApiRef: MutableRefObject<PresetKolomApi | null>;
   /** Kelola preset = super_admin saja (sembunyikan seksi tampil preset). */
   bolehKelola: boolean;
@@ -69,7 +71,7 @@ export default function MenuKonteksGrid({
   onAutoFit,
   onAutoFitAll,
   align,
-  setAlign,
+  onUbahAlign,
   presetApiRef,
   bolehKelola,
   salinBaris,
@@ -104,7 +106,7 @@ export default function MenuKonteksGrid({
                       id={`btn_ctx_align_${nilai}_${tableKey}`}
                       aria-label={`Rata ${label.toLowerCase()}`}
                       aria-pressed={aktif}
-                      onClick={() => setAlign(header.colKey, nilai)}
+                      onClick={() => onUbahAlign(header.colKey, nilai)}
                       className={cn(ikonBtn, aktif && 'bg-accent text-foreground')}
                     >
                       <Icon size={16} />

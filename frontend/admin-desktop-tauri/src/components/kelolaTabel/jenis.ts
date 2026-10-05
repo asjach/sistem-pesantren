@@ -58,7 +58,7 @@ export function bacaVisToolbar(vis: Record<string, boolean> | undefined): VisToo
 }
 
 /** Perataan kolom tersimpan (key kolom → left|center|right); kunci asing
- *  dan nilai tak dikenal diabaikan. Absen = preferensi pribadi, lalu tengah. */
+ *  dan nilai tak dikenal diabaikan. Absen = tengah. */
 export function bacaAlign(align: Record<string, unknown> | undefined): Partial<Record<string, AlignKolom>> {
   const hasil: Partial<Record<string, AlignKolom>> = {};
   for (const [k, v] of Object.entries(align ?? {})) {
@@ -71,6 +71,11 @@ export function bacaAlign(align: Record<string, unknown> | undefined): Partial<R
 /** Event jendela setelah visibilitas tersimpan: tiap grid memuat ulang
  *  visibilitas tabelnya sendiri. */
 export const EVENT_TOOLBAR_BERUBAH = 'simpes:toolbar-berubah';
+
+/** Sebarkan perubahan toolbar agar grid lain dengan tableKey sama memuat ulang. */
+export function kabariToolbar(tableKey: string) {
+  window.dispatchEvent(new CustomEvent(EVENT_TOOLBAR_BERUBAH, { detail: { tableKey } }));
+}
 
 /** Event jendela setelah susunan kolom sebuah preset berubah (mis. dari seret
  *  kolom di grid): pemilih preset tabel terkait memuat ulang daftarnya. */

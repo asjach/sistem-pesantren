@@ -12,19 +12,13 @@ import { useBagian } from '@/components/kelolaHalaman/kotor';
 import { useLembagaAktif } from '@/lembagaAktif';
 import { cn } from '@/lib/utils';
 import { Check, Pencil, X, AlignCenter, AlignLeft, AlignRight } from '@/icons';
-import { EVENT_TOOLBAR_BERUBAH, bacaAlign, type AlignKolom } from './jenis';
+import { bacaAlign, kabariToolbar, type AlignKolom } from './jenis';
 import { toast } from 'sonner';
 import type { ExcelField } from '../excel/types';
 
 /** Bandingkan peta align tanpa peduli urutan kunci. */
 function kanonAlign(o: Partial<Record<string, AlignKolom>>): string {
   return JSON.stringify(Object.keys(o).sort().map((k) => [k, o[k]]));
-}
-
-/** Kabari grid tabel terkait agar memuat ulang preset toolbar-nya
- *  (termasuk perataan kolom). */
-function kabariToolbar(tableKey: string) {
-  window.dispatchEvent(new CustomEvent(EVENT_TOOLBAR_BERUBAH, { detail: { tableKey } }));
 }
 
 /** Section Nama & Perataan dialog Kelola Tabel: tulis-ulang nama header tiap
@@ -99,7 +93,7 @@ export default function TabNamaPerataan({
   }, [muatAlign]);
 
   /** Siklus perataan satu kolom: tengah → kiri → kanan → tengah (absen).
-   *  Nilai tengah tidak disimpan (ikut preferensi pribadi pengguna). */
+   *  Nilai tengah tidak disimpan (ikut bawaan tengah global). */
   function sikulAlign(key: string) {
     setAlign((prev) => {
       const cur = prev[key] ?? 'center';

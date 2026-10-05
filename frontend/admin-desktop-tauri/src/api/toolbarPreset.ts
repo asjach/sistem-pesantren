@@ -15,7 +15,7 @@ export interface ToolbarPresetData {
   lebar: LebarToolbarApi;
   /** Urutan key kolom data (global); kosong = urutan bawaan halaman. */
   urutan: string[];
-  /** Perataan kolom (absen = preferensi pribadi, lalu tengah). */
+  /** Perataan kolom (absen = tengah). */
   align: AlignKolomApi;
 }
 
