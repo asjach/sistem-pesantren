@@ -34,6 +34,24 @@ const PRESET_KUSTOM = '__kustom';
 /** Nilai khusus: preset baru yang belum disimpan. */
 const PRESET_BARU = '__baru';
 
+/** Bersihkan peta label: hanya kolom yang ada + teks tak kosong. */
+function bersihLabel(
+  mentah: Record<string, string> | null | undefined,
+  fieldKeys: Set<string>,
+): Record<string, string> {
+  const hasil: Record<string, string> = {};
+  for (const [k, v] of Object.entries(mentah ?? {})) {
+    const t = v.trim().slice(0, 60);
+    if (fieldKeys.has(k) && t !== '') hasil[k] = t;
+  }
+  return hasil;
+}
+
+/** Bandingkan peta label tanpa peduli urutan kunci. */
+function kanonLabel(o: Record<string, string>): string {
+  return JSON.stringify(Object.keys(o).sort().map((k) => [k, o[k]]));
+}
+
 /** Bandingkan peta align tanpa peduli urutan kunci. */
 function kanonAlign(o: Partial<Record<string, AlignKolom>>): string {
   return JSON.stringify(Object.keys(o).sort().map((k) => [k, o[k]]));
@@ -52,6 +70,8 @@ export interface TabKolomProps {
   presets: PresetTabel[];
   /** Susunan "Lengkap kustom" tersimpan (null = semua kolom). */
   kolomAwal?: string[] | null;
+  /** Nama header kustom "Lengkap kustom" (null = tanpa kustom). */
+  labelAwal?: Record<string, string> | null;
   /** Preset yang dibuka untuk diedit (null = preset baru). Induk me-remount
    *  tab setiap kali preset awal berubah lewat `key`. */
   presetAwal: PresetTabel | null;
@@ -83,6 +103,7 @@ export default function TabKolom({
   fieldKeys,
   presets,
   kolomAwal = null,
+  labelAwal = null,
   presetAwal,
   mulaiLengkap,
   onPilihLengkap,
@@ -119,6 +140,15 @@ export default function TabKolom({
   const [align, setAlign] = useState<Partial<Record<string, AlignKolom>>>({});
   /** Acuan align tersimpan (kanonik) untuk deteksi kotor. */
   const alignAwalRef = useRef<string>(kanonAlign({}));
+  /** Nama header kustom per kolom (kosong = label bawaan). */
+  const [label, setLabel] = useState<Record<string, string>>(() =>
+    bersihLabel(presetAwal?.label ?? labelAwal, fieldKeys),
+  );
+  /** Acuan label tersimpan (kanonik) untuk deteksi kotor. */
+  const awalLabelRef = useRef<string>(kanonLabel(bersihLabel(presetAwal?.label ?? labelAwal, fieldKeys)));
+  /** Baris yang sedang diedit namanya (null = tidak ada). */
+  const [editLabelKey, setEditLabelKey] = useState<string | null>(null);
+  const [drafLabel, setDrafLabel] = useState('');
   const laporKotor = useBagian('kolom', () => void simpanBagian());
   /** Acuan "tersimpan" untuk mendeteksi perubahan belum disimpan. */
   const awalNamaRef = useRef(presetAwal?.nama ?? '');
@@ -133,9 +163,13 @@ export default function TabKolom({
     () => kanonAlign(align) !== alignAwalRef.current,
     [align],
   );
+  const kotorLabel = useCallback(
+    () => kanonLabel(label) !== awalLabelRef.current,
+    [label],
+  );
   useEffect(() => {
-    laporKotor(kotorPreset() || kotorAlign());
-  }, [kotorPreset, kotorAlign, laporKotor]);
+    laporKotor(kotorPreset() || kotorAlign() || kotorLabel());
+  }, [kotorPreset, kotorAlign, kotorLabel, laporKotor]);
   /** Mode Lengkap (tanpa preset): perubahan disimpan sebagai "Lengkap kustom". */
   const modeLengkap = mulaiLengkap && editId === null;
   /** Mode preset baru: belum punya id, nama wajib diisi saat Simpan. */
@@ -221,6 +255,22 @@ export default function TabKolom({
     });
   }
 
+  /** Simpan draf nama header satu baris (kosong = kembali ke bawaan). */
+  function simpanLabelBaris(key: string) {
+    const t = drafLabel.trim().slice(0, 60);
+    setLabel((prev) => {
+      if (t === '') {
+        if (!(key in prev)) return prev;
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      }
+      if (prev[key] === t) return prev;
+      return { ...prev, [key]: t };
+    });
+    setEditLabelKey(null);
+  }
+
   /** Geser satu item kolom terpilih ke atas/bawah (tombol panah/WASD). */
   function geserTerpilih(dari: number, arah: -1 | 1) {
     setKolom((prev) => {
@@ -255,7 +305,8 @@ export default function TabKolom({
     await simpanBagian();
   }
 
-  /** Simpan section ini: perataan dulu, lalu preset (keduanya independen). */
+  /** Simpan section ini: perataan + nama header dulu, lalu preset
+   *  (ketiganya independen). */
   async function simpanBagian() {
     await simpanAlign();
     await simpanPreset();
@@ -284,11 +335,15 @@ export default function TabKolom({
       toast.error('Pilih minimal satu kolom.');
       return;
     }
+    // Nama header kustom yang ikut tersimpan (null = tanpa kustom).
+    const labelSimpan = bersihLabel(label, fieldKeys);
+    const labelKirim = Object.keys(labelSimpan).length > 0 ? labelSimpan : null;
     if (!nama.trim()) {
       // Mode Lengkap tanpa nama: terapkan langsung ke tabel, tanpa membuat preset.
       if (modeLengkap) {
-        onPakaiLengkap(kolom, {});
-        // Sudah diterapkan: preset kembali bersih (perataan mungkin masih kotor).
+        onPakaiLengkap(kolom, labelSimpan);
+        // Sudah diterapkan: preset + label kembali bersih.
+        awalLabelRef.current = kanonLabel(labelSimpan);
         laporKotor(kotorAlign());
         return;
       }
@@ -297,12 +352,10 @@ export default function TabKolom({
     }
     setBusy(true);
     try {
-      // Nama header tunggal dari label field di kode; label preset tak dikelola
-      // lagi (null = bersihkan sisa lama bila ada).
       let saved: PresetTabel | undefined;
       let pesan = 'Preset kolom disimpan.';
       if (editId) {
-        const res = await updatePresetTabel(editId, { nama: nama.trim(), kolom, label: null });
+        const res = await updatePresetTabel(editId, { nama: nama.trim(), kolom, label: labelKirim });
         saved = res.data[0];
         pesan = res.pesan;
       } else {
@@ -310,6 +363,7 @@ export default function TabKolom({
           table_key: tableKey,
           nama: nama.trim(),
           kolom,
+          label: labelKirim,
         });
         saved = res.data[0];
         pesan = res.pesan;
@@ -326,8 +380,8 @@ export default function TabKolom({
       setEditId(saved.id);
       setUbahNama(false);
       await onTersimpan(saved.id);
-      // Induk me-remount section ini; laporkan sisa kotor (perataan).
-      laporKotor(kotorAlign());
+      // Induk me-remount section ini; laporkan sisa kotor (perataan/label).
+      laporKotor(kotorAlign() || kotorLabel());
     } catch (e2) {
       toast.error(errorMessage(e2));
     } finally {
@@ -343,6 +397,7 @@ export default function TabKolom({
       setEditId(null);
       setNama('');
       setKolom([]);
+      setLabel({});
       await onDihapus();
     } catch (e2) {
       toast.error(errorMessage(e2));
@@ -352,6 +407,7 @@ export default function TabKolom({
   /** Satu baris kolom; baris tersembunyi diklik untuk menampilkan. */
   function renderBaris(f: ExcelField, tampil: boolean, indeks: number | null) {
     const teks = labelOf(f);
+    const kustom = label[f.key] !== undefined;
     return (
       <div
         key={f.key}
@@ -409,9 +465,66 @@ export default function TabKolom({
           onCheckedChange={(c) => togolKolom(f.key, !!c)}
           aria-label={tampil ? `Sembunyikan ${teks}` : `Tampilkan ${teks}`}
         />
-        <span className="min-w-0 flex-1 truncate text-xs" title={teks}>
-          {teks}
-        </span>
+        {editLabelKey === f.key ? (
+          <span className="flex min-w-0 flex-1 items-center gap-1" onClick={(e) => e.stopPropagation()}>
+            <Input
+              id={`input_label_kolom_${tableKey}_${f.key}`}
+              autoFocus
+              value={drafLabel}
+              onChange={(e) => setDrafLabel(e.target.value)}
+              maxLength={60}
+              placeholder={teks}
+              aria-label={`Nama header ${teks} (kosongkan untuk bawaan)`}
+              className="h-6 min-w-0 flex-1 text-xs"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') { e.preventDefault(); simpanLabelBaris(f.key); }
+                if (e.key === 'Escape') setEditLabelKey(null);
+              }}
+            />
+            <button
+              type="button"
+              id={`btn_simpan_label_kolom_${tableKey}_${f.key}`}
+              aria-label={`Simpan nama header ${teks}`}
+              title="Simpan (kosong = kembali ke bawaan)"
+              onClick={() => simpanLabelBaris(f.key)}
+              className="grid size-5 shrink-0 place-items-center rounded text-foreground hover:bg-accent"
+            >
+              <Check size={12} />
+            </button>
+            <button
+              type="button"
+              id={`btn_batal_label_kolom_${tableKey}_${f.key}`}
+              aria-label={`Batal ubah nama header ${teks}`}
+              title="Batal"
+              onClick={() => setEditLabelKey(null)}
+              className="grid size-5 shrink-0 place-items-center rounded text-muted-foreground hover:bg-accent hover:text-foreground"
+            >
+              <X size={12} />
+            </button>
+          </span>
+        ) : (
+          <>
+            <span
+              className={cn('min-w-0 flex-1 truncate text-xs', kustom && 'font-medium text-foreground')}
+              title={kustom ? `${teks} → ${label[f.key]}` : teks}
+            >
+              {label[f.key] ?? teks}
+            </span>
+            <button
+              type="button"
+              id={`btn_label_kolom_${tableKey}_${f.key}`}
+              aria-label={kustom ? `Ubah nama header ${teks} (kini: ${label[f.key]})` : `Ubah nama header ${teks}`}
+              title={kustom ? `Nama kustom: ${label[f.key]} — klik untuk ubah` : 'Ubah nama header'}
+              onClick={(e) => { e.stopPropagation(); setEditLabelKey(f.key); setDrafLabel(label[f.key] ?? ''); }}
+              className={cn(
+                'grid size-5 shrink-0 place-items-center rounded hover:bg-accent hover:text-foreground',
+                kustom ? 'text-foreground' : 'text-muted-foreground/60',
+              )}
+            >
+              <Pencil size={12} />
+            </button>
+          </>
+        )}
         {(() => {
           const a = align[f.key] ?? 'center';
           const Ikon = a === 'left' ? AlignLeft : a === 'right' ? AlignRight : AlignCenter;
@@ -687,7 +800,7 @@ export default function TabKolom({
                   <span className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
                     Tampil · {barisKolom.tampil.length}
                   </span>
-                  <span className="text-[11px] text-muted-foreground">seret untuk mengurutkan · ikon rata untuk perataan</span>
+                  <span className="text-[11px] text-muted-foreground">seret: urutan · ikon: perataan & nama</span>
                 </div>
                 {barisKolom.tampil.map(({ f, indeks }) => renderBaris(f, true, indeks))}
               </>

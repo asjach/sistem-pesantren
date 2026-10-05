@@ -372,6 +372,7 @@
 | 2.319 | 2026-10-05 | Perataan kolom masuk dialog Kelola Tabel (satu nilai per kolom per tabel, bukan per preset): tombol siklus kiri→tengah→kanan di tiap baris grup Tampil/Sembunyi, ikut Simpan + deteksi kotor; tersimpan di `toolbar_preset.align` (migrasi + endpoint merge + tes). Resolusi grid: preferensi pribadi (klik kanan) > align global > tengah; klik kanan Perataan tetap sebagai override pribadi |
 | 2.320 | 2026-10-05 | Fix regresi setting urutan tabel `pegawai_ringkas` (Lembaga Pegawai): `UrutKatalog` ditambah entri `pegawai_ringkas` (kolom daftar Pegawai), migrasi menyalin opsi `pegawai` yang ada, dan kunci pager kiri disamakan. Section Urutan kini menampilkan pesan galat muat + tombol Coba lagi (tidak lagi gagal diam-diam) |
 | 2.321 | 2026-10-05 | Hapus konvensi label `tabel.kolom`: 74 label di 17 file ditulis ulang jadi prosa eksplisit (tampilan tidak berubah), logika pangkas prefiks di `lib/labelKolom` dihapus (string bertitik kini lolos apa adanya agar salah tulis langsung terlihat) + tes diperbarui |
+| 2.322 | 2026-10-05 | Tulis-ulang nama header kolom dari UI: tiap baris section Kolom dapat ikon pensil → inline input (Enter/simpan, Esc/batal, kosong = kembali ke bawaan); label kustom ditandai tegas + tooltip nilai asal. Tersimpan per preset / Lengkap kustom via `preset_tabel(.aktif).label` yang memang sudah didukung API + grid (tanpa migrasi/backend baru). Ikut Simpan + deteksi kotor section Kolom; infra tes: stub `ResizeObserver` di setup vitest + `TabKolom.test.tsx` (4 tes) |
 
 ## Daftar Isi
 
