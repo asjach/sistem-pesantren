@@ -66,7 +66,8 @@ export default function TabKontrol({ tableKey }: { tableKey: string }) {
       setAdaSimpanan(
         Object.keys(res.data.visibilitas ?? {}).length > 0
         || Object.keys(res.data.lebar ?? {}).length > 0
-        || (res.data.urutan?.length ?? 0) > 0,
+        || (res.data.urutan?.length ?? 0) > 0
+        || Object.keys(res.data.align ?? {}).length > 0,
       );
       acuanRef.current = JSON.stringify({ vis: visBaru, lebar: lebarBaru, filterW: filterWBaru });
     } catch {

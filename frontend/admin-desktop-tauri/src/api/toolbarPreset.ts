@@ -6,12 +6,17 @@ export type VisibilitasToolbar = Record<string, boolean>;
 /** Peta kontrol → lebar px (urut/kolom/filter.*). */
 export type LebarToolbarApi = Record<string, number>;
 
+/** Peta key kolom → perataan (satu nilai per kolom per tabel, bukan per preset). */
+export type AlignKolomApi = Record<string, 'left' | 'center' | 'right'>;
+
 export interface ToolbarPresetData {
   table_key: string;
   visibilitas: VisibilitasToolbar;
   lebar: LebarToolbarApi;
   /** Urutan key kolom data (global); kosong = urutan bawaan halaman. */
   urutan: string[];
+  /** Perataan kolom (absen = preferensi pribadi, lalu tengah). */
+  align: AlignKolomApi;
 }
 
 export function muatToolbarPreset(tableKey: string) {
@@ -20,7 +25,7 @@ export function muatToolbarPreset(tableKey: string) {
   );
 }
 
-export function simpanToolbarPreset(tableKey: string, visibilitas?: VisibilitasToolbar, lebar?: LebarToolbarApi, urutan?: string[]) {
+export function simpanToolbarPreset(tableKey: string, visibilitas?: VisibilitasToolbar, lebar?: LebarToolbarApi, urutan?: string[], align?: AlignKolomApi) {
   return api<{ pesan: string; data: unknown }>('/admin/toolbar-preset', {
     method: 'PUT',
     body: JSON.stringify({
@@ -28,6 +33,7 @@ export function simpanToolbarPreset(tableKey: string, visibilitas?: VisibilitasT
       ...(visibilitas ? { visibilitas } : {}),
       ...(lebar ? { lebar } : {}),
       ...(urutan ? { urutan } : {}),
+      ...(align ? { align } : {}),
     }),
   });
 }

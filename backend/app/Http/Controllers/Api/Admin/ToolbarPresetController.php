@@ -38,19 +38,20 @@ class ToolbarPresetController extends Controller
                 'visibilitas' => $row?->visibilitas ?? [],
                 'lebar' => $row?->lebar ?? [],
                 'urutan' => $row?->urutan ?? [],
+                'align' => $row?->align ?? [],
             ],
         ]);
     }
 
     /** PUT /api/admin/toolbar-preset — upsert gabung: hanya kunci yang
-     *  dikirim yang ditimpa (visibilitas/lebar/urutan independen). */
+     *  dikirim yang ditimpa (visibilitas/lebar/urutan/align independen). */
     public function simpan(ToolbarPresetSimpanRequest $request): JsonResponse
     {
         $data = $request->validated();
 
-        if (! array_key_exists('visibilitas', $data) && ! array_key_exists('lebar', $data) && ! array_key_exists('urutan', $data)) {
+        if (! array_key_exists('visibilitas', $data) && ! array_key_exists('lebar', $data) && ! array_key_exists('urutan', $data) && ! array_key_exists('align', $data)) {
             throw ValidationException::withMessages([
-                'table_key' => 'Kirim minimal satu dari visibilitas, lebar, atau urutan.',
+                'table_key' => 'Kirim minimal satu dari visibilitas, lebar, urutan, atau align.',
             ]);
         }
 
@@ -97,6 +98,19 @@ class ToolbarPresetController extends Controller
                 }
             }
             $row->urutan = $urutan === [] ? null : $urutan;
+        }
+
+        if (array_key_exists('align', $data)) {
+            $align = [];
+            foreach ($data['align'] as $kunci => $nilai) {
+                if (preg_match('/^[a-z0-9_]{1,60}$/', (string) $kunci) !== 1) {
+                    throw ValidationException::withMessages([
+                        'align' => "Kunci perataan \"{$kunci}\" tidak dikenal.",
+                    ]);
+                }
+                $align[$kunci] = $nilai;
+            }
+            $row->align = $align === [] ? null : $align;
         }
 
         $row->dibuat_oleh = $request->user()->id;

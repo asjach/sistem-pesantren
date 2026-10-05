@@ -2,6 +2,8 @@
  *  Kotak cari tidak ada lagi (pencarian tunggal di topBar). */
 export type KontrolToolbar = 'info' | 'urut' | 'kolom' | 'filter';
 
+export type AlignKolom = 'left' | 'center' | 'right';
+
 /** Kunci kontrol yang punya pengaturan lebar (px). */
 export type KontrolLebar = 'urut' | 'kolom';
 
@@ -53,6 +55,17 @@ export function bacaVisToolbar(vis: Record<string, boolean> | undefined): VisToo
     kolom: vis?.kolom !== false,
     filter: vis?.filter !== false,
   };
+}
+
+/** Perataan kolom tersimpan (key kolom → left|center|right); kunci asing
+ *  dan nilai tak dikenal diabaikan. Absen = preferensi pribadi, lalu tengah. */
+export function bacaAlign(align: Record<string, unknown> | undefined): Partial<Record<string, AlignKolom>> {
+  const hasil: Partial<Record<string, AlignKolom>> = {};
+  for (const [k, v] of Object.entries(align ?? {})) {
+    if (!/^[a-z0-9_]{1,60}$/.test(k)) continue;
+    if (v === 'left' || v === 'center' || v === 'right') hasil[k] = v;
+  }
+  return hasil;
 }
 
 /** Event jendela setelah visibilitas tersimpan: tiap grid memuat ulang

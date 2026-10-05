@@ -4,6 +4,7 @@ import { muatToolbarPreset } from '@/api/toolbarPreset';
 import {
   EVENT_TOOLBAR_BERUBAH,
   LEBAR_BAWAHAN_TOOLBAR,
+  bacaAlign,
   bacaLebarFilter,
   bacaLebarToolbar,
   bacaVisToolbar,
@@ -14,8 +15,9 @@ import {
 /**
  * State + pemuatan preset toolbar per tabel: visibilitas kontrol (info/urut/
  * kolom/filter), lebar kontrol berlebar, lebar kolom trigger preset, lebar
- * filter halaman, dan urutan kolom tersimpan di DB. Dimuat ulang otomatis
- * saat event EVENT_TOOLBAR_BERUBAH untuk tableKey yang sama.
+ * filter halaman, urutan kolom tersimpan di DB, dan perataan kolom global.
+ * Dimuat ulang otomatis saat event EVENT_TOOLBAR_BERUBAH untuk tableKey
+ * yang sama.
  */
 export function useToolbarPresetState(tableKey: string) {
   /** Visibilitas kontrol toolbar generik (section Toolbar dialog Kelola Tabel). */
@@ -26,6 +28,8 @@ export function useToolbarPresetState(tableKey: string) {
   const [lebarKolomDb, setLebarKolomDb] = useState<number | undefined>(undefined);
   /** Lebar filter halaman tersimpan (kunci → px); absen = bawaan halaman. */
   const [lebarFilter, setLebarFilter] = useState<Record<string, number>>({});
+  /** Perataan kolom global per tabel (absen = preferensi pribadi, lalu tengah). */
+  const [alignDb, setAlignDb] = useState<Partial<Record<string, 'left' | 'center' | 'right'>>>({});
   /** Urutan kolom tersimpan di DB (null = belum dimuat; [] = bawaan halaman). */
   const [urutanDb, setUrutanDb] = useState<string[] | null>(null);
   const konteksLebarFilter = useMemo(() => ({ tableKey, lebar: lebarFilter }), [tableKey, lebarFilter]);
@@ -39,6 +43,7 @@ export function useToolbarPresetState(tableKey: string) {
         setVisToolbar(bacaVisToolbar(res.data.visibilitas));
         setLebarToolbar(bacaLebarToolbar(res.data.lebar));
         setLebarFilter(bacaLebarFilter(res.data.lebar));
+        setAlignDb(bacaAlign(res.data.align));
         setUrutanDb(Array.isArray(res.data.urutan) ? res.data.urutan : []);
         const tersimpan = res.data.lebar?.kolom;
         setLebarKolomDb(typeof tersimpan === 'number' && tersimpan >= 40 && tersimpan <= 480 ? tersimpan : undefined);
@@ -47,6 +52,7 @@ export function useToolbarPresetState(tableKey: string) {
         setVisToolbar({ info: true, urut: true, kolom: true, filter: true });
         setLebarToolbar({ ...LEBAR_BAWAHAN_TOOLBAR });
         setLebarFilter({});
+        setAlignDb({});
         setUrutanDb([]);
         setLebarKolomDb(undefined);
       }
@@ -62,5 +68,5 @@ export function useToolbarPresetState(tableKey: string) {
     };
   }, [tableKey]);
 
-  return { visToolbar, lebarToolbar, lebarKolomDb, lebarFilter, urutanDb, setUrutanDb, konteksLebarFilter };
+  return { visToolbar, lebarToolbar, lebarKolomDb, lebarFilter, alignDb, urutanDb, setUrutanDb, konteksLebarFilter };
 }

@@ -253,7 +253,7 @@ export default function ExcelTable<T extends { id: string | number }>({
   const visHalaman = useVisibilitasFilter();
   const bolehKelolaHalaman = !!visHalaman?.registrasi && bolehGeser;
   const [kelolaTabelOpen, setKelolaTabelOpen] = useState(false);
-  const { visToolbar, lebarToolbar, lebarKolomDb, urutanDb, setUrutanDb, konteksLebarFilter } = useToolbarPresetState(tableKey);
+  const { visToolbar, lebarToolbar, lebarKolomDb, alignDb, urutanDb, setUrutanDb, konteksLebarFilter } = useToolbarPresetState(tableKey);
   /** Baris input hanya tersedia bila halaman menyediakan onCreateRow.
    *  Tidak bergantung mode Edit: halaman boleh mendukung create saja. */
   const inputEnabled = !!onCreateRow;
@@ -281,10 +281,10 @@ export default function ExcelTable<T extends { id: string | number }>({
   const labelKolom = useCallback((key: string, bawaan: string) => (
     labelKolomTeks(presetLabel?.[key]?.trim() || bawaan || key)
   ), [presetLabel]);
-  /** Perataan efektif: preferensi pribadi per kolom > tengah. */
+  /** Perataan efektif: preferensi pribadi per kolom > perataan global tabel > tengah. */
   const alignEfektif = useCallback((key: string): AlignName => (
-    align[key] ?? 'center'
-  ), [align]);
+    align[key] ?? alignDb[key] ?? 'center'
+  ), [align, alignDb]);
   /** Seleksi bersifat per halaman/filter: baris berganti = seleksi dibersihkan. */
   useEffect(() => {
     setCheckedIds(new Set<T['id']>());
@@ -780,7 +780,7 @@ export default function ExcelTable<T extends { id: string | number }>({
   }
 
   const dsgColumns: Column<GridRow>[] = useMemo(() => {
-    /** Kelas perataan kolom: preferensi pribadi per kolom (bawaan tengah). */
+    /** Kelas perataan kolom: preferensi pribadi > perataan global tabel (bawaan tengah). */
     const alignClass = (key: string) =>
       alignEfektif(key) === 'right'
         ? 'simpes-dsg-align-right'

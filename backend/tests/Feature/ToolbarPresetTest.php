@@ -223,4 +223,59 @@ class ToolbarPresetTest extends TestCase
             'lebar' => ['filter.besar!' => 100],
         ])->assertStatus(422)->assertJsonValidationErrors(['lebar']);
     }
+
+    public function test_simpan_dan_baca_align_kolom(): void
+    {
+        $pusat = $this->makeUser('super_admin');
+        $scoped = $this->makeUser('admin');
+
+        // Belum ada baris: align kosong (frontend memakai preferensi/bawaan).
+        $this->actingAs($scoped, 'sanctum')
+            ->getJson('/api/admin/toolbar-preset?table_key=santri')
+            ->assertStatus(200)
+            ->assertJsonPath('data.align', []);
+
+        // Admin biasa ditolak menulis align (403).
+        $this->actingAs($scoped, 'sanctum')->putJson('/api/admin/toolbar-preset', [
+            'table_key' => 'santri',
+            'align' => ['nama_lengkap' => 'left'],
+        ])->assertStatus(403);
+
+        // Super_admin menyimpan + membaca kembali.
+        $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/toolbar-preset', [
+            'table_key' => 'santri',
+            'align' => ['nama_lengkap' => 'left', 'nisn' => 'center', 'jk' => 'right'],
+        ])->assertStatus(200);
+        $this->actingAs($scoped, 'sanctum')
+            ->getJson('/api/admin/toolbar-preset?table_key=santri')
+            ->assertStatus(200)
+            ->assertJsonPath('data.align.nama_lengkap', 'left')
+            ->assertJsonPath('data.align.nisn', 'center')
+            ->assertJsonPath('data.align.jk', 'right');
+
+        // Simpan align saja tak menghapus visibilitas/lebar yang sudah ada.
+        $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/toolbar-preset', [
+            'table_key' => 'santri',
+            'visibilitas' => ['info' => false],
+        ])->assertStatus(200);
+        $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/toolbar-preset', [
+            'table_key' => 'santri',
+            'align' => ['nama_lengkap' => 'right'],
+        ])->assertStatus(200);
+        $this->actingAs($pusat, 'sanctum')
+            ->getJson('/api/admin/toolbar-preset?table_key=santri')
+            ->assertStatus(200)
+            ->assertJsonPath('data.visibilitas', ['info' => false])
+            ->assertJsonPath('data.align', ['nama_lengkap' => 'right']);
+
+        // Nilai & kunci align asing ditolak.
+        $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/toolbar-preset', [
+            'table_key' => 'santri',
+            'align' => ['nama_lengkap' => 'justify'],
+        ])->assertStatus(422)->assertJsonValidationErrors(['align.nama_lengkap']);
+        $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/toolbar-preset', [
+            'table_key' => 'santri',
+            'align' => ['Kolom Asing!' => 'left'],
+        ])->assertStatus(422)->assertJsonValidationErrors(['align']);
+    }
 }

@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Admin;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class ToolbarPresetSimpanRequest extends FormRequest
 {
@@ -22,6 +23,8 @@ class ToolbarPresetSimpanRequest extends FormRequest
             'lebar.*' => ['integer', 'min:40', 'max:480'],
             'urutan' => ['sometimes', 'array', 'max:300'],
             'urutan.*' => ['string', 'max:80', 'regex:/^[a-z0-9_]{1,80}$/'],
+            'align' => ['sometimes', 'array', 'max:200'],
+            'align.*' => ['string', Rule::in(['left', 'center', 'right'])],
         ];
     }
 }
