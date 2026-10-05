@@ -570,9 +570,15 @@ class KeuanganController extends Controller
     }
 
     /**
-     * Peta santri dari riwayat_belajar pada satu TA. Aktif = `status_akhir`
-     * bukan `pindah_keluar` (bukan flag `is_active_riwayat`, agar TA lampau
-     * tetap bisa digenerate). Baris semester 2 menang sebagai baris tampilan.
+     * Peta santri dari riwayat_belajar pada satu TA.
+     *
+     * Patokan keaktifan (sengaja): `status_akhir` bukan `pindah_keluar`.
+     * Flag `is_active_riwayat` maupun `santri.is_active_pst` TIDAK dipakai —
+     * supaya status `lulus`/`naik`/`lanjut` (santri yang sudah naik jenjang
+     * atau lulus di TA tsb) tetap bisa digenerate tagihan, misalnya untuk
+     * penagihan tunggakan TA sebelumnya.
+     *
+     * Baris semester 2 menang sebagai baris tampilan.
      *
      * @param  list<int>  $santriIds
      * @return array<int, array{santri_id:int, nama_lengkap:string, jk:?string, nisn:?string, nis_lokal:?string, per_jenjang:array<string, array{semester:?string, tingkat:?string, kelas:?string, kelas_id:?int, status:?string}>, paket:string, jenjang_utama:string, tingkat:?string, kelas:?string, kelas_id:?int, status_akhir:?string, kelas_akhir:bool}>
@@ -646,6 +652,10 @@ class KeuanganController extends Controller
     /**
      * Filter kelompok kriteria terhadap peta santri.
      *
+     * Patokan keaktifan sudah ditegakkan di query peta: yang tersaring hanya
+     * `pindah_keluar`, jadi kelompok di sini murni soal pola paket/jenjang
+     * atau tingkat akhir — bukan status aktif.
+     *
      * @param  array{per_jenjang:array<string, mixed>, kelas_akhir:bool}  $info
      */
     private function lolosKelompok(array $info, string $kelompok): bool
@@ -661,7 +671,7 @@ class KeuanganController extends Controller
             'mi_md' => $has('MI') && $has('MD'),
             'kelas_akhir' => $info['kelas_akhir'],
             'selain_kelas_akhir' => ! $info['kelas_akhir'],
-            default => true, // aktif & custom = semua santri aktif
+            default => true, // 'aktif' & 'custom' = semua (pindah keluar sudah tersaring)
         };
     }
 

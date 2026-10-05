@@ -22,7 +22,7 @@ import { ArrowRight, Trash2, X } from '@/icons';
 import { type PerPage } from '@/prefs';
 
 const OPSI_KELOMPOK: { value: KelompokKandidat; label: string }[] = [
-  { value: 'aktif', label: 'Santri Aktif' },
+  { value: 'aktif', label: 'Semua (kecuali pindah keluar)' },
   { value: 'mi', label: 'MI (MI + MI-MD)' },
   { value: 'md', label: 'MD (MD + MI-MD)' },
   { value: 'mi_saja', label: 'MI Saja (tanpa MD)' },

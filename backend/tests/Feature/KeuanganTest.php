@@ -129,6 +129,63 @@ class KeuanganTest extends TestCase
         $this->assertSame('MI', $tagihanMimd->jenjang);
     }
 
+    /**
+     * Tes penjaga patokan keaktifan kandidat generate tagihan: yang diLUAR
+     * hanya `pindah_keluar`. Status `lulus`/`naik`/`lanjut` (is_active_riwayat
+     * = 'Tidak') tetap menjadi kandidat agar tunggakan TA sebelumnya bisa
+     * ditagih. Jangan "diperbaiki" menjadi filter is_active_riwayat/pst.
+     */
+    public function test_kandidat_menyertakan_status_lulus_naik_lanjut(): void
+    {
+        $admin = $this->admin();
+        $jenis = JenisTagihan::create(['nama' => 'Infaq Bulanan', 'tipe' => 'bulanan']);
+
+        $aktif = Santri::create(['nama_lengkap' => 'Ani Aktif', 'jk' => 'P']);
+        $lulus = Santri::create(['nama_lengkap' => 'Budi Lulus', 'jk' => 'L']);
+        $naik = Santri::create(['nama_lengkap' => 'Citra Naik', 'jk' => 'P']);
+        $lanjut = Santri::create(['nama_lengkap' => 'Dewi Lanjut', 'jk' => 'P']);
+        $keluar = Santri::create(['nama_lengkap' => 'Eka Keluar', 'jk' => 'L']);
+
+        $baris = fn ($santri, string $status, string $isAktif) => [
+            'santri_id' => $santri->id, 'tahun_ajaran' => '2025/2026', 'jenjang' => 'MI',
+            'tingkat' => '3', 'semester' => '1', 'status_akhir' => $status,
+            'is_active_riwayat' => $isAktif, 'created_at' => now(), 'updated_at' => now(),
+        ];
+        DB::table('riwayat_belajar')->insert([
+            $baris($aktif, 'aktif', 'Ya'),
+            $baris($lulus, 'lulus', 'Tidak'),
+            $baris($naik, 'naik', 'Tidak'),
+            $baris($lanjut, 'lanjut', 'Tidak'),
+            $baris($keluar, 'pindah_keluar', 'Tidak'),
+        ]);
+
+        $ids = fn (string $kelompok) => array_column($this->actingAs($admin)
+            ->getJson("/api/admin/keuangan/tagihan/kandidat?tahun_ajaran=2025/2026&kelompok={$kelompok}&per_page=50")
+            ->assertStatus(200)->json('data'), 'santri_id');
+
+        $harusMasuk = [$aktif->id, $lulus->id, $naik->id, $lanjut->id];
+
+        // Kelompok MI: semua status selain pindah keluar tetap masuk.
+        $this->assertEqualsCanonicalizing($harusMasuk, $ids('mi'));
+        // Kelompok 'aktif' (semua) juga sama.
+        $this->assertEqualsCanonicalizing($harusMasuk, $ids('aktif'));
+        // Cuma pindah_keluar yang dibuang.
+        $this->assertNotContains($keluar->id, $ids('aktif'));
+
+        // Re-validasi POST generate memakai aturan sama → 'lulus' tidak 422.
+        $this->actingAs($admin)->postJson('/api/admin/keuangan/tagihan/generate', [
+            'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'periode' => '2025-07',
+            'nominal' => 75000,
+            'santri' => [['santri_id' => $lulus->id], ['santri_id' => $naik->id]],
+        ])->assertStatus(200)->assertJson(['dibuat' => 2, 'dilewati' => 0]);
+
+        // Santri pindah keluar tetap ditolak generate (422).
+        $this->actingAs($admin)->postJson('/api/admin/keuangan/tagihan/generate', [
+            'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'periode' => '2025-07',
+            'nominal' => 75000, 'santri' => [['santri_id' => $keluar->id]],
+        ])->assertStatus(422);
+    }
+
     public function test_kandidat_sembunyikan_sudah_ada_dan_range_bulanan(): void
     {
         $admin = $this->admin();
