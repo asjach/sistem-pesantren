@@ -145,11 +145,11 @@ export function medanDaftarKelas({ bolehSantri, bolehRiwayat }: { bolehSantri: b
     // Identitas + konteks baris (urutan lama dipertahankan di depan).
     bolehSantri
       ? { key: 'nama_lengkap', label: 'Nama Lengkap', width: 200, kind: 'text', maxLength: 255, validate: (v) => (v && v.trim() ? null : 'Nama wajib diisi.') }
-      : statis('nama_lengkap', 'santri.nama_lengkap', 200),
+      : statis('nama_lengkap', 'Nama Lengkap', 200),
     bolehSantri
       ? { key: 'nis_lokal', label: 'nis_lokal', width: 110, kind: 'text', maxLength: 20 }
       : statis('nis_lokal', 'nis_lokal'),
-    statis('lembaga', 'lembaga.jenjang'),
+    statis('lembaga', 'Jenjang'),
     statis('ta', 'Tahun Ajaran', 110),
     bolehRiwayat
       ? { key: 'semester', label: 'semester', width: 60, kind: 'select', choices: [{ value: '1', label: '1' }, { value: '2', label: '2' }] }
@@ -157,7 +157,7 @@ export function medanDaftarKelas({ bolehSantri, bolehRiwayat }: { bolehSantri: b
     bolehRiwayat
       ? teks('tingkat', 'tingkat', 80, 20)
       : statis('tingkat', 'tingkat', 80),
-    statis('kelas', 'kelas.nama_kelas', 140),
+    statis('kelas', 'Nama Kelas', 140),
     bolehRiwayat
       ? { key: 'no_absen', label: 'no_absen', width: 70, kind: 'text', maxLength: 4, validate: angkaValidator }
       : statis('no_absen', 'no_absen', 70),
