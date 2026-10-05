@@ -351,6 +351,9 @@ export default function RiwayatBelajarPage() {
                getValues={riwayatBelajarValues}
                loading={kiri.loading}
                emptyText="Tidak ada data semester ganjil."
+               urutAktif={kiri.urut}
+               arahUrut={kiri.arahUrut}
+               onUrut={kiri.terapkanUrut}
                canEdit={false}
                hideCheckbox
                hideActions
@@ -415,6 +418,9 @@ export default function RiwayatBelajarPage() {
                getValues={riwayatBelajarValues}
                loading={kanan.loading}
                emptyText="Tidak ada data semester genap."
+               urutAktif={kanan.urut}
+               arahUrut={kanan.arahUrut}
+               onUrut={kanan.terapkanUrut}
                canEdit={false}
                hideCheckbox
                hideActions

@@ -23,8 +23,12 @@ export interface TunggakanRow {
   tunggakan: number; jumlah_tagihan: number;
 }
 
-export function daftarJenis() {
-  return api<JenisTagihan[]>('/admin/keuangan/jenis');
+export function daftarJenis(params: { sort?: string[]; arah?: 'naik' | 'turun' } = {}) {
+  const q = new URLSearchParams();
+  if (params.sort?.length) q.set('sort', params.sort.join(','));
+  if (params.arah) q.set('arah', params.arah);
+  const s = q.toString();
+  return api<JenisTagihan[]>(`/admin/keuangan/jenis${s ? `?${s}` : ''}`);
 }
 
 export function ubahJenis(id: number, data: { nama: string; tipe: 'bulanan' | 'non_bulanan'; jenjang?: string | null; is_active: boolean }) {
@@ -35,10 +39,12 @@ export function buatJenis(nama: string, tipe: 'bulanan' | 'non_bulanan', jenjang
   return api<JenisTagihan>('/admin/keuangan/jenis', { method: 'POST', body: JSON.stringify({ nama, tipe, jenjang: jenjang ?? null }) });
 }
 
-export function daftarTarif(params: { jenjang?: ScalarOrArray<string>; tahun_ajaran?: ScalarOrArray<string> } = {}) {
+export function daftarTarif(params: { jenjang?: ScalarOrArray<string>; tahun_ajaran?: ScalarOrArray<string>; sort?: string[]; arah?: 'naik' | 'turun' } = {}) {
   const q = new URLSearchParams();
   appendQueryParam(q, 'jenjang', params.jenjang);
   appendQueryParam(q, 'tahun_ajaran', params.tahun_ajaran);
+  if (params.sort?.length) q.set('sort', params.sort.join(','));
+  if (params.arah) q.set('arah', params.arah);
   const s = q.toString();
   return api<Tarif[]>(`/admin/keuangan/tarif${s ? `?${s}` : ''}`);
 }
@@ -55,7 +61,7 @@ export function hapusTarif(id: number) {
   return api<{ pesan: string }>(`/admin/keuangan/tarif/${id}`, { method: 'DELETE' });
 }
 
-export function daftarTagihan(params: { page?: string; per_page?: string; jenjang?: ScalarOrArray<string>; tahun_ajaran?: ScalarOrArray<string>; jenis_id?: string; status?: string; belum_lunas?: boolean; santri?: string; santri_id?: number | string } = {}) {
+export function daftarTagihan(params: { page?: string; per_page?: string; jenjang?: ScalarOrArray<string>; tahun_ajaran?: ScalarOrArray<string>; jenis_id?: string; status?: string; belum_lunas?: boolean; santri?: string; santri_id?: number | string; sort?: string[]; arah?: 'naik' | 'turun' } = {}) {
   const q = new URLSearchParams();
   if (params.page) q.set('page', params.page);
   if (params.per_page) q.set('per_page', params.per_page);
@@ -66,6 +72,8 @@ export function daftarTagihan(params: { page?: string; per_page?: string; jenjan
   if (params.belum_lunas) q.set('belum_lunas', '1');
   if (params.santri) q.set('santri', params.santri);
   if (params.santri_id !== undefined && params.santri_id !== '') q.set('santri_id', String(params.santri_id));
+  if (params.sort?.length) q.set('sort', params.sort.join(','));
+  if (params.arah) q.set('arah', params.arah);
   const s = q.toString();
   return api<Paginate<TagihanRow>>(`/admin/keuangan/tagihan${s ? `?${s}` : ''}`);
 }
@@ -87,7 +95,7 @@ export interface KandidatTagihanRow {
 
 export function kandidatTagihan(params: {
   tahun_ajaran: string; kelompok: KelompokKandidat; jenis_id?: number | ''; periode?: string;
-  periode_sampai?: string; q?: string; page?: number; per_page?: string;
+  periode_sampai?: string; q?: string; page?: number; per_page?: string; sort?: string[]; arah?: 'naik' | 'turun';
 }) {
   const q = new URLSearchParams();
   q.set('tahun_ajaran', params.tahun_ajaran);
@@ -98,6 +106,8 @@ export function kandidatTagihan(params: {
   if (params.q) q.set('q', params.q);
   if (params.page) q.set('page', String(params.page));
   if (params.per_page) q.set('per_page', params.per_page);
+  if (params.sort?.length) q.set('sort', params.sort.join(','));
+  if (params.arah) q.set('arah', params.arah);
   return api<Paginate<KandidatTagihanRow>>(`/admin/keuangan/tagihan/kandidat?${q.toString()}`);
 }
 
@@ -117,12 +127,14 @@ export interface DispensasiInput {
   tipe: TipeDispensasi; nilai: number; prioritas?: number; is_active?: boolean;
 }
 
-export function daftarDispensasi(params: { tahun_ajaran?: string; jenis_id?: number | ''; is_active?: boolean; santri_id?: number } = {}) {
+export function daftarDispensasi(params: { tahun_ajaran?: string; jenis_id?: number | ''; is_active?: boolean; santri_id?: number; sort?: string[]; arah?: 'naik' | 'turun' } = {}) {
   const q = new URLSearchParams();
   if (params.tahun_ajaran) q.set('tahun_ajaran', params.tahun_ajaran);
   if (params.jenis_id !== undefined && params.jenis_id !== '') q.set('jenis_id', String(params.jenis_id));
   if (params.is_active !== undefined) q.set('is_active', params.is_active ? '1' : '0');
   if (params.santri_id !== undefined) q.set('santri_id', String(params.santri_id));
+  if (params.sort?.length) q.set('sort', params.sort.join(','));
+  if (params.arah) q.set('arah', params.arah);
   const s = q.toString();
   return api<Dispensasi[]>(`/admin/keuangan/dispensasi${s ? `?${s}` : ''}`);
 }
@@ -160,6 +172,10 @@ export function riwayatPembayaran(tagihanId: number) {
   return api<PembayaranRow[]>(`/admin/keuangan/tagihan/${tagihanId}/pembayaran`);
 }
 
-export function daftarTunggakan() {
-  return api<{ per_santri: TunggakanRow[] }>('/admin/keuangan/tunggakan');
+export function daftarTunggakan(params: { sort?: string[]; arah?: 'naik' | 'turun' } = {}) {
+  const q = new URLSearchParams();
+  if (params.sort?.length) q.set('sort', params.sort.join(','));
+  if (params.arah) q.set('arah', params.arah);
+  const s = q.toString();
+  return api<{ per_santri: TunggakanRow[] }>(`/admin/keuangan/tunggakan${s ? `?${s}` : ''}`);
 }

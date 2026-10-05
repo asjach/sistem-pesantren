@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Api\Concerns\TenantGuard;
+use App\Http\Controllers\Api\Concerns\UrutDaftar;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\PsbKuotaIndexRequest;
 use App\Http\Requests\Admin\PsbKuotaUpsertRequest;
@@ -10,11 +11,13 @@ use App\Models\Lembaga;
 use App\Models\PsbGelombang;
 use App\Models\PsbKuotaBiaya;
 use App\Services\PsbService;
+use App\Services\UrutKatalog;
 use Illuminate\Http\JsonResponse;
 
 class PsbBiayaController extends Controller
 {
     use TenantGuard;
+    use UrutDaftar;
 
     /** GET /api/admin/psb/kuota-biaya?gelombang_id= — isian per lembaga untuk satu gelombang. */
     public function indexKuota(PsbKuotaIndexRequest $request): JsonResponse
@@ -22,10 +25,14 @@ class PsbBiayaController extends Controller
         $data = $request->validated();
         $gelombang = PsbGelombang::with('kegiatan:id,nama')->findOrFail($data['gelombang_id']);
 
-        $rows = PsbKuotaBiaya::where('gelombang_id', $gelombang->id)
-            ->orderBy('jenjang')
-            ->orderBy('tipe_santri')
-            ->get();
+        $rows = PsbKuotaBiaya::where('gelombang_id', $gelombang->id);
+        $urut = $this->parseUrut($request, UrutKatalog::peta('kegiatan_psb_kuota'));
+        if ($urut === null) {
+            $rows->orderBy('jenjang')->orderBy('tipe_santri');
+        } else {
+            $this->terapkanUrut($rows, $urut, [['psb_kuota_biaya.jenjang', 'naik'], ['psb_kuota_biaya.tipe_santri', 'naik']]);
+        }
+        $rows = $rows->get();
 
         return response()->json([
             'pesan' => 'Kuota dimuat.',

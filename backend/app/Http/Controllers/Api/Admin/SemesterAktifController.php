@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Api\Concerns\TenantGuard;
+use App\Http\Controllers\Api\Concerns\UrutDaftar;
 use App\Http\Controllers\Controller;
 use App\Models\Lembaga;
 use App\Models\SemesterAktif;
@@ -18,6 +19,7 @@ use Illuminate\Validation\Rule;
 class SemesterAktifController extends Controller
 {
     use TenantGuard;
+    use UrutDaftar;
 
     /** GET /api/admin/semester-aktif — lembaga operasional + semester aktifnya. */
     public function index(Request $request): JsonResponse
@@ -36,6 +38,12 @@ class SemesterAktifController extends Controller
                 'semester' => $aktif->get($l->jenjang),
                 'label' => $aktif->has($l->jenjang) ? SemesterAktif::label((string) $aktif->get($l->jenjang)) : null,
             ])->values()->all();
+        $data = $this->terapkanUrutKoleksi($request, $data, [
+            'jenjang' => 'jenjang',
+            'nama' => 'nama',
+            'semester' => 'semester',
+            'id' => 'jenjang',
+        ]);
 
         return response()->json(['data' => $data]);
     }

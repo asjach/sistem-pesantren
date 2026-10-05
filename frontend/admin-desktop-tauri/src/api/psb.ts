@@ -237,10 +237,12 @@ export interface PsbGelombang {
   tahun_ajaran?: { id: number; nama: string } | null;
 }
 
-export function listGelombangPsb(params: { kegiatan_id?: number; tahun_ajaran?: string } = {}) {
+export function listGelombangPsb(params: { kegiatan_id?: number; tahun_ajaran?: string; sort?: string[]; arah?: 'naik' | 'turun' } = {}) {
   const q = new URLSearchParams();
   if (params.kegiatan_id) q.set('kegiatan_id', String(params.kegiatan_id));
   if (params.tahun_ajaran) q.set('tahun_ajaran', params.tahun_ajaran);
+  if (params.sort?.length) q.set('sort', params.sort.join(','));
+  if (params.arah) q.set('arah', params.arah);
   const suffix = q.toString() ? `?${q.toString()}` : '';
   return api<{ pesan: string; data: PsbGelombang[] }>(`/psb/gelombang${suffix}`);
 }
@@ -324,11 +326,15 @@ export function listLembagaPsb() {
   return api<{ pesan: string; data: PsbLembagaOpsi[] }>('/admin/psb/lembaga');
 }
 
-export function getKuotaBiaya(gelombangId: number) {
+export function getKuotaBiaya(gelombangId: number, params: { sort?: string[]; arah?: 'naik' | 'turun' } = {}) {
+  const q = new URLSearchParams();
+  if (params.sort?.length) q.set('sort', params.sort.join(','));
+  if (params.arah) q.set('arah', params.arah);
+  const suffix = q.toString() ? `&${q.toString()}` : '';
   return api<{
     pesan: string;
     data: { gelombang: PsbGelombangMaster; lembaga: PsbLembagaOpsi[]; rows: PsbKuotaBiayaRow[] };
-  }>(`/admin/psb/kuota-biaya?gelombang_id=${gelombangId}`);
+  }>(`/admin/psb/kuota-biaya?gelombang_id=${gelombangId}${suffix}`);
 }
 
 export interface KuotaBiayaInput {

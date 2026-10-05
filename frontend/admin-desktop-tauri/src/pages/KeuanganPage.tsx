@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { errorMessage, prefGet, prefSet } from '../api/client';
+import { tokenUrut, type PetaArahKolom } from '@/lib/urut';
 import {
   daftarJenis, buatJenis, ubahJenis, buatTarif, daftarTarif, ubahTarif, hapusTarif,
   daftarTagihan, hapusTagihan, catatPembayaran, daftarTunggakan,
@@ -75,6 +76,20 @@ const FIELDS_DISPENSASI: ExcelField[] = [
 const OPSI_PAKET = ['MI', 'MD', 'MI-MD', 'MTS', 'MLN'];
 const TAB_KEUANGAN = ['jenis', 'tarif', 'tagihan', 'tunggakan', 'dispensasi'] as const;
 
+/** State urut satu tabel; perubahan state memicu muat ulang via effect. */
+function useUrutTabel() {
+  const [urut, setUrut] = useState<string[]>([]);
+  const [arah, setArah] = useState<'naik' | 'turun'>('naik');
+  const [arahKolom, setArahKolom] = useState<PetaArahKolom | undefined>(undefined);
+  const terapkan = useCallback((nilai: string[], a: 'naik' | 'turun', peta?: PetaArahKolom) => {
+    const p = nilai.length > 0 ? peta : undefined;
+    setUrut(nilai);
+    setArah(a);
+    setArahKolom(p);
+  }, []);
+  return { urut, arah, arahKolom, terapkan };
+}
+
 /** Halaman Keuangan: jenis tagihan, tarif, tagihan, pembayaran, tunggakan. */
 export default function KeuanganPage() {
   const [jenis, setJenis] = useState<JenisTagihan[]>([]);
@@ -102,19 +117,30 @@ export default function KeuanganPage() {
   const { jenjangs, tahunAjaranNames, loading: filterLoading } = useFilterGlobalAktif();
   /** Jenis global (Semua) hanya untuk super_admin efektif — mati saat bertindak. */
   const { efektifSuper, peranJenjang, pilihan: pilihanLembaga } = useLembagaAktif();
+  /** Urut header tiap tabel (perubahan memicu muat ulang via effect). */
+  const uJenis = useUrutTabel();
+  const uTarif = useUrutTabel();
+  const uTagihan = useUrutTabel();
+  const uTunggakan = useUrutTabel();
+  const uDispensasi = useUrutTabel();
 
   const loadTagihan = useCallback(async (page: number, perPage: number, jenjang: readonly string[], ta: readonly string[]) => {
     try {
-      const res = await daftarTagihan({ page: String(page), per_page: String(perPage), jenjang, tahun_ajaran: ta });
+      const peta = {
+        page: String(page), per_page: String(perPage), jenjang, tahun_ajaran: ta,
+        sort: uTagihan.urut.length ? tokenUrut(uTagihan.urut, uTagihan.arahKolom) : undefined,
+        arah: uTagihan.urut.length ? uTagihan.arah : undefined,
+      };
+      const res = await daftarTagihan(peta);
       const koreksi = tagihanSync(res.current_page, res.last_page);
       if (koreksi !== null) {
-        const r2 = await daftarTagihan({ page: String(koreksi), per_page: String(perPage), jenjang, tahun_ajaran: ta });
+        const r2 = await daftarTagihan({ ...peta, page: String(koreksi) });
         setTagihan(r2.data); setTagihanLastPage(r2.last_page); setTagihanTotal(r2.total);
       } else {
         setTagihan(res.data); setTagihanLastPage(res.last_page); setTagihanTotal(res.total);
       }
     } catch (e) { setErr(errorMessage(e)); }
-  }, [tagihanSync]);
+  }, [tagihanSync, uTagihan.urut, uTagihan.arah, uTagihan.arahKolom]);
 
   useEffect(() => {
     if (!tagihanPagerReady || filterLoading || jenjangs.length === 0) { if (!filterLoading && jenjangs.length === 0) setTagihan([]); return; }
@@ -124,9 +150,13 @@ export default function KeuanganPage() {
   /** Tarif mengikuti filter lembaga & tahun ajaran (server-side; kosong = semua). */
   const loadTarif = useCallback(async (jenjang: readonly string[], ta: readonly string[]) => {
     try {
-      setTarif(await daftarTarif({ jenjang, tahun_ajaran: ta }));
+      setTarif(await daftarTarif({
+        jenjang, tahun_ajaran: ta,
+        sort: uTarif.urut.length ? tokenUrut(uTarif.urut, uTarif.arahKolom) : undefined,
+        arah: uTarif.urut.length ? uTarif.arah : undefined,
+      }));
     } catch (e) { setErr(errorMessage(e)); }
-  }, []);
+  }, [uTarif.urut, uTarif.arah, uTarif.arahKolom]);
 
   useEffect(() => {
     if (filterLoading) return;
@@ -138,7 +168,22 @@ export default function KeuanganPage() {
   const load = useCallback(async () => {
     setErr(''); setLoading(true);
     try {
-      const [j, w, l, tas, dispen] = await Promise.all([daftarJenis(), daftarTunggakan(), listLembaga({ per_page: 100 }), listTahunAjaran({ per_page: 100 }), daftarDispensasi()]);
+      const [j, w, l, tas, dispen] = await Promise.all([
+        daftarJenis({
+          sort: uJenis.urut.length ? tokenUrut(uJenis.urut, uJenis.arahKolom) : undefined,
+          arah: uJenis.urut.length ? uJenis.arah : undefined,
+        }),
+        daftarTunggakan({
+          sort: uTunggakan.urut.length ? tokenUrut(uTunggakan.urut, uTunggakan.arahKolom) : undefined,
+          arah: uTunggakan.urut.length ? uTunggakan.arah : undefined,
+        }),
+        listLembaga({ per_page: 100 }),
+        listTahunAjaran({ per_page: 100 }),
+        daftarDispensasi({
+          sort: uDispensasi.urut.length ? tokenUrut(uDispensasi.urut, uDispensasi.arahKolom) : undefined,
+          arah: uDispensasi.urut.length ? uDispensasi.arah : undefined,
+        }),
+      ]);
       setJenis(j); setTunggakan(w.per_santri);
       setLembagas(l.data); setDaftarTA(tas.data); setDispensasi(dispen);
       const taAktif = tas.data.find((x) => x.is_aktif)?.nama ?? tas.data[0]?.nama ?? '';
@@ -148,7 +193,7 @@ export default function KeuanganPage() {
       const jenjangBawaan = l.data.some((x) => x.jenjang === 'MI') ? 'MI' : (l.data[0]?.jenjang ?? '');
       setTfJenjang((v) => (diLembaga(v) ? v : jenjangBawaan));
     } catch (e) { setErr(errorMessage(e)); } finally { setLoading(false); }
-  }, []);
+  }, [uJenis.urut, uJenis.arah, uJenis.arahKolom, uTunggakan.urut, uTunggakan.arah, uTunggakan.arahKolom, uDispensasi.urut, uDispensasi.arah, uDispensasi.arahKolom]);
   useEffect(() => { void load(); }, [load]);
 
   // Form sederhana
@@ -256,6 +301,9 @@ export default function KeuanganPage() {
             tableKey="keuangan_jenis"
             fields={FIELDS_JENIS}
             rows={jenis.map((j) => ({ ...j, id: j.id }))}
+            urutAktif={uJenis.urut}
+            arahUrut={uJenis.arah}
+            onUrut={uJenis.terapkan}
             getValues={(r) => ({ nama: r.nama, tipe: r.tipe === 'bulanan' ? 'Bulanan' : 'Non-bulanan', lembaga: r.jenjang ?? 'Semua', aktif: r.is_active ? 'Aktif' : 'Nonaktif' })}
             loading={loading}
             emptyText="Belum ada jenis tagihan."
@@ -278,6 +326,9 @@ export default function KeuanganPage() {
             tableKey="keuangan_tarif"
             fields={FIELDS_TARIF}
             rows={tarif.map((t) => ({ ...t, id: t.id }))}
+            urutAktif={uTarif.urut}
+            arahUrut={uTarif.arah}
+            onUrut={uTarif.terapkan}
             getValues={(r) => ({
               jenjang: r.jenjang, paket: r.paket, tahun_ajaran: r.tahun_ajaran,
               jenis: r.jenis?.nama ?? null, nominal: r.nominal.toLocaleString('id'),
@@ -310,6 +361,9 @@ export default function KeuanganPage() {
             tableKey="keuangan_tagihan"
             fields={FIELDS_TAGIHAN}
             rows={tagihan.map((t) => ({ ...t, id: t.id }))}
+            urutAktif={uTagihan.urut}
+            arahUrut={uTagihan.arah}
+            onUrut={(nilai, arah, peta) => { setTagihanPage(1); uTagihan.terapkan(nilai, arah, peta); }}
             getValues={(r) => ({
               santri: r.santri?.nama_lengkap ?? null, jenis: r.jenis?.nama ?? null,
               periode: r.periode, nominal: r.nominal.toLocaleString('id'),
@@ -363,6 +417,9 @@ export default function KeuanganPage() {
             tableKey="keuangan_tunggakan"
             fields={FIELDS_TUNGGAKAN}
             rows={tunggakan.map((w) => ({ ...w, id: w.santri_id }))}
+            urutAktif={uTunggakan.urut}
+            arahUrut={uTunggakan.arah}
+            onUrut={uTunggakan.terapkan}
             getValues={(r) => ({
               nama: r.nama, jumlah_tagihan: String(r.jumlah_tagihan),
               total_tagihan: r.total_tagihan.toLocaleString('id'),
@@ -384,6 +441,9 @@ export default function KeuanganPage() {
             tableKey="keuangan_dispensasi"
             fields={FIELDS_DISPENSASI}
             rows={dispensasi}
+            urutAktif={uDispensasi.urut}
+            arahUrut={uDispensasi.arah}
+            onUrut={uDispensasi.terapkan}
             getValues={(r) => ({
               nama: r.nama,
               jenis: r.jenis?.nama ?? 'Semua jenis',

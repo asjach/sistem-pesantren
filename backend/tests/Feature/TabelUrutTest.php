@@ -3,14 +3,21 @@
 namespace Tests\Feature;
 
 use App\Models\Alumni;
+use App\Models\Dispensasi;
+use App\Models\JenisTagihan;
 use App\Models\Kelas;
 use App\Models\Lembaga;
 use App\Models\MutasiKeluar;
 use App\Models\PengajuanBiodataSantri;
 use App\Models\PsbCalonSantri;
+use App\Models\PsbGelombang;
+use App\Models\PsbKegiatan;
+use App\Models\PsbKuotaBiaya;
 use App\Models\RiwayatBelajar;
 use App\Models\Santri;
+use App\Models\Tagihan;
 use App\Models\TahunAjaran;
+use App\Models\TarifTagihan;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -365,5 +372,161 @@ class TabelUrutTest extends TestCase
         $this->actingAs($this->super(), 'sanctum')
             ->getJson('/api/psb/antrean-daftar-ulang?status=ajukan_daftar_ulang&sort=password')
             ->assertStatus(422);
+    }
+
+    // ---------- keuangan ----------
+
+    public function test_keuangan_jenis_urut_nama(): void
+    {
+        foreach (['Zakat', 'Infaq'] as $nama) {
+            JenisTagihan::create(['nama' => $nama, 'tipe' => 'non_bulanan']);
+        }
+        $res = $this->actingAs($this->super(), 'sanctum')
+            ->getJson('/api/admin/keuangan/jenis?sort=nama&arah=naik')
+            ->assertStatus(200);
+
+        $this->assertSame(['Infaq', 'Zakat'], array_column($res->json(), 'nama'));
+    }
+
+    public function test_keuangan_jenis_nilai_liar_ditolak(): void
+    {
+        $this->actingAs($this->super(), 'sanctum')
+            ->getJson('/api/admin/keuangan/jenis?sort=password')
+            ->assertStatus(422);
+    }
+
+    public function test_keuangan_tarif_urut_nominal(): void
+    {
+        $jenis = JenisTagihan::create(['nama' => 'SPP', 'tipe' => 'bulanan']);
+        foreach ([200000, 100000] as $nominal) {
+            TarifTagihan::create([
+                'jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2026/2027',
+                'jenis_id' => $jenis->id, 'nominal' => $nominal,
+            ]);
+        }
+        $res = $this->actingAs($this->super(), 'sanctum')
+            ->getJson('/api/admin/keuangan/tarif?sort=nominal&arah=naik')
+            ->assertStatus(200);
+
+        $this->assertSame([100000, 200000], array_column($res->json(), 'nominal'));
+    }
+
+    public function test_keuangan_tagihan_urut_nominal_dan_santri(): void
+    {
+        $zed = Santri::create(['nama_lengkap' => 'Zed', 'jk' => 'L']);
+        $alfa = Santri::create(['nama_lengkap' => 'Alfa', 'jk' => 'L']);
+        $jenis = JenisTagihan::create(['nama' => 'SPP', 'tipe' => 'bulanan']);
+        Tagihan::create([
+            'santri_id' => $zed->id, 'jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2026/2027',
+            'jenis_id' => $jenis->id, 'periode' => '2026-07', 'nominal' => 300000, 'status' => 'belum', 'terbayar' => 0,
+        ]);
+        Tagihan::create([
+            'santri_id' => $alfa->id, 'jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2026/2027',
+            'jenis_id' => $jenis->id, 'periode' => '2026-07', 'nominal' => 100000, 'status' => 'belum', 'terbayar' => 0,
+        ]);
+        $this->assertSame(
+            ['Alfa', 'Zed'],
+            $this->kolom($this->super(), '/api/admin/keuangan/tagihan?per_page=50&sort=nominal&arah=naik', 'santri.nama_lengkap')
+        );
+        $this->assertSame(
+            ['Zed', 'Alfa'],
+            $this->kolom($this->super(), '/api/admin/keuangan/tagihan?per_page=50&sort=santri&arah=turun', 'santri.nama_lengkap')
+        );
+    }
+
+    public function test_keuangan_dispensasi_urut_nama(): void
+    {
+        $this->dasar();
+        foreach (['Zeta', 'Alfa'] as $nama) {
+            Dispensasi::create(['nama' => $nama, 'tahun_ajaran' => '2026/2027', 'tipe' => 'nominal', 'nilai' => 1000]);
+        }
+        $res = $this->actingAs($this->super(), 'sanctum')
+            ->getJson('/api/admin/keuangan/dispensasi?sort=nama&arah=naik')
+            ->assertStatus(200);
+
+        $this->assertSame(['Alfa', 'Zeta'], array_column($res->json(), 'nama'));
+    }
+
+    public function test_keuangan_tunggakan_urut_sisa(): void
+    {
+        $besar = Santri::create(['nama_lengkap' => 'Besar', 'jk' => 'L']);
+        $kecil = Santri::create(['nama_lengkap' => 'Kecil', 'jk' => 'L']);
+        $jenis = JenisTagihan::create(['nama' => 'SPP', 'tipe' => 'bulanan']);
+        Tagihan::create([
+            'santri_id' => $besar->id, 'jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2026/2027',
+            'jenis_id' => $jenis->id, 'periode' => '2026-07', 'nominal' => 100000, 'status' => 'sebagian', 'terbayar' => 50000,
+        ]);
+        Tagihan::create([
+            'santri_id' => $kecil->id, 'jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2026/2027',
+            'jenis_id' => $jenis->id, 'periode' => '2026-07', 'nominal' => 100000, 'status' => 'sebagian', 'terbayar' => 90000,
+        ]);
+        $this->assertSame(
+            ['Besar', 'Kecil'],
+            $this->kolom($this->super(), '/api/admin/keuangan/tunggakan?sort=sisa&arah=turun', 'nama', 'per_santri')
+        );
+    }
+
+    public function test_kandidat_urut_nama(): void
+    {
+        $f = $this->dasar();
+        $zed = Santri::create(['nama_lengkap' => 'Zed', 'jk' => 'L']);
+        $alfa = Santri::create(['nama_lengkap' => 'Alfa', 'jk' => 'L']);
+        foreach ([$zed, $alfa] as $s) {
+            RiwayatBelajar::create([
+                'santri_id' => $s->id, 'tahun_ajaran' => $f['ta']->nama,
+                'jenjang' => $f['mi']->jenjang, 'semester' => '1',
+            ]);
+        }
+        $this->assertSame(
+            ['Alfa', 'Zed'],
+            $this->kolom($this->super(), '/api/admin/keuangan/tagihan/kandidat?tahun_ajaran=2026/2027&kelompok=aktif&sort=nama&arah=naik', 'nama_lengkap')
+        );
+    }
+
+    public function test_kandidat_nilai_liar_ditolak(): void
+    {
+        $this->actingAs($this->super(), 'sanctum')
+            ->getJson('/api/admin/keuangan/tagihan/kandidat?tahun_ajaran=2026/2027&kelompok=aktif&sort=password')
+            ->assertStatus(422);
+    }
+
+    // ---------- psb gelombang & kuota ----------
+
+    public function test_gelombang_urut_nama(): void
+    {
+        $this->dasar();
+        $keg = PsbKegiatan::create(['tahun_ajaran' => '2026/2027', 'nama' => 'PSB 2026']);
+        PsbGelombang::create(['psb_kegiatan_id' => $keg->id, 'nomor' => 2, 'nama' => 'Zulu']);
+        PsbGelombang::create(['psb_kegiatan_id' => $keg->id, 'nomor' => 1, 'nama' => 'Alfa']);
+        $this->assertSame(
+            ['Alfa', 'Zulu'],
+            $this->kolom($this->super(), '/api/psb/gelombang?sort=nama&arah=naik', 'nama')
+        );
+    }
+
+    public function test_kuota_urut_kuota(): void
+    {
+        $this->dasar();
+        $keg = PsbKegiatan::create(['tahun_ajaran' => '2026/2027', 'nama' => 'PSB 2026']);
+        $gel = PsbGelombang::create(['psb_kegiatan_id' => $keg->id, 'nomor' => 1, 'nama' => 'G1']);
+        foreach ([['semua', 30], ['asrama', 10]] as [$tipe, $kuota]) {
+            PsbKuotaBiaya::create(['gelombang_id' => $gel->id, 'jenjang' => 'MI', 'tipe_santri' => $tipe, 'kuota' => $kuota]);
+        }
+        $res = $this->actingAs($this->super(), 'sanctum')
+            ->getJson("/api/admin/psb/kuota-biaya?gelombang_id={$gel->id}&sort=kuota&arah=naik")
+            ->assertStatus(200);
+
+        $this->assertSame([10, 30], array_column($res->json('data.rows'), 'kuota'));
+    }
+
+    // ---------- semester aktif ----------
+
+    public function test_semester_aktif_urut_nama(): void
+    {
+        $this->dasar();
+        $this->assertSame(
+            ['Madrasah Ibtidaiyah', 'Pesantren Root'],
+            $this->kolom($this->super(), '/api/admin/semester-aktif?sort=nama&arah=naik', 'nama')
+        );
     }
 }

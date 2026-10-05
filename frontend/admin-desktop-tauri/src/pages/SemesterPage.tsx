@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { errorMessage } from '../api/client';
 import { daftarSemester, tetapkanSemester, type SemesterLembaga } from '../api/semesterAktif';
+import { tokenUrut, type PetaArahKolom } from '@/lib/urut';
 import { Button } from '@/components/ui/button';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { TopBarSearch } from '@/components/TopBarSearch';
@@ -23,17 +24,31 @@ export default function SemesterPage() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
+  /** Urut header tabel semester (perubahan memicu muat ulang via effect). */
+  const [urut, setUrut] = useState<string[]>([]);
+  const [arahUrut, setArahUrut] = useState<'naik' | 'turun'>('naik');
+  const [arahKolom, setArahKolom] = useState<PetaArahKolom | undefined>(undefined);
 
   const load = useCallback(async () => {
     setErr('');
     setLoading(true);
     try {
-      const res = await daftarSemester();
+      const res = await daftarSemester({
+        sort: urut.length ? tokenUrut(urut, arahKolom) : undefined,
+        arah: urut.length ? arahUrut : undefined,
+      });
       setRows(res.data);
     } catch (e) { setErr(errorMessage(e)); } finally { setLoading(false); }
-  }, []);
+  }, [urut, arahUrut, arahKolom]);
 
   useEffect(() => { void load(); }, [load]);
+
+  /** Klik header: simpan urut baru (effect memuat ulang). */
+  function terapkanUrut(nilai: string[], arah: 'naik' | 'turun', peta?: PetaArahKolom) {
+    setUrut(nilai);
+    setArahUrut(arah);
+    setArahKolom(nilai.length > 0 ? peta : undefined);
+  }
 
   const q = cari.trim().toLowerCase();
   const rowsTampil = q === ''
@@ -59,6 +74,9 @@ export default function SemesterPage() {
         tableKey="semester_aktif"
         fields={FIELDS_SEMESTER}
         rows={rowsTampil.map((r) => ({ ...r, id: r.jenjang }))}
+        urutAktif={urut}
+        arahUrut={arahUrut}
+        onUrut={terapkanUrut}
         getValues={(r) => ({
           jenjang: r.jenjang,
           nama: r.nama,

@@ -16,6 +16,7 @@ import { ResizableAutoHidePanel, ResizableHandle, ResizablePanel, ResizablePanel
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { toast } from 'sonner';
 import { useAksiProfilSantri, type AksiProfilSantri } from '@/components/santri/useAksiProfilSantri';
+import { tokenUrut, type PetaArahKolom } from '@/lib/urut';
 
 /** Baris tabel hasil (kenaikan / tidak naik). */
 interface Baris {
@@ -101,15 +102,30 @@ export default function KenaikanKelasPage() {
   const daftarNaik = useMemo(() => hasilNaik.map((b) => b.santri_id), [hasilNaik]);
   const daftarTidak = useMemo(() => hasilTidak.map((b) => b.santri_id), [hasilTidak]);
   const [busy, setBusy] = useState(false);
+  /** Urut header ketiga tabel (pola KelulusanPage). */
+  const [urutKiri, setUrutKiri] = useState<string[]>([]);
+  const [arahKiri, setArahKiri] = useState<'naik' | 'turun'>('naik');
+  const [arahKolomKiri, setArahKolomKiri] = useState<PetaArahKolom | undefined>(undefined);
+  const [urutNaik, setUrutNaik] = useState<string[]>([]);
+  const [arahNaik, setArahNaik] = useState<'naik' | 'turun'>('naik');
+  const [arahKolomNaik, setArahKolomNaik] = useState<PetaArahKolom | undefined>(undefined);
+  const [urutTidak, setUrutTidak] = useState<string[]>([]);
+  const [arahTidak, setArahTidak] = useState<'naik' | 'turun'>('naik');
+  const [arahKolomTidak, setArahKolomTidak] = useState<PetaArahKolom | undefined>(undefined);
 
   /** Kandidat: semester 2 pada TA acuan, hanya baris berstatus akhir aktif. */
-  const loadKiri = useCallback(async () => {
+  const loadKiri = useCallback(async (
+    f?: { urut?: string[]; arah?: 'naik' | 'turun'; arahKolom?: PetaArahKolom },
+  ) => {
     if (!siap || targetJenjang === null || tingkatKandidat.length === 0) {
       setKiri([]);
       return;
     }
     setErr('');
     try {
+      const u = f?.urut ?? urutKiri;
+      const a = f?.arah ?? arahKiri;
+      const ak = f?.arahKolom ?? arahKolomKiri;
       const res = await listRiwayatBelajar({
         jenjang: jenjangs,
         tahun_ajaran: taDasar,
@@ -117,12 +133,14 @@ export default function KenaikanKelasPage() {
         tingkat: tingkatKandidat,
         is_active_riwayat: true,
         q: cari || undefined,
+        sort: u.length ? tokenUrut(u, ak) : undefined,
+        arah: u.length ? a : undefined,
         page: 1,
         per_page: 0,
       });
       setKiri(res.data);
     } catch (e) { setErr(errorMessage(e)); }
-  }, [siap, targetJenjang, tingkatKandidat, jenjangs, taDasar, cari]);
+  }, [siap, targetJenjang, tingkatKandidat, jenjangs, taDasar, cari, urutKiri, arahKiri, arahKolomKiri]);
 
   /** Petakan baris riwayat (kelas/tingkat/TA/status awal) ke tabel hasil. */
   const barisHasil = useCallback((r: RiwayatRow): Baris => ({
@@ -136,12 +154,17 @@ export default function KenaikanKelasPage() {
   }), []);
 
   /** Tabel naik: tahun ajaran berikutnya, status awal selain `santri_baru`. */
-  const loadNaik = useCallback(async () => {
+  const loadNaik = useCallback(async (
+    f?: { urut?: string[]; arah?: 'naik' | 'turun'; arahKolom?: PetaArahKolom },
+  ) => {
     if (!siap) {
       setHasilNaik([]);
       return;
     }
     try {
+      const u = f?.urut ?? urutNaik;
+      const a = f?.arah ?? arahNaik;
+      const ak = f?.arahKolom ?? arahKolomNaik;
       const res = await listRiwayatBelajar({
         jenjang: jenjangs,
         tahun_ajaran: taTahunDepan,
@@ -149,20 +172,27 @@ export default function KenaikanKelasPage() {
         status_awal_bukan: STATUS_AWAL_DIKSUKAI,
         is_active_riwayat: true,
         q: cari || undefined,
+        sort: u.length ? tokenUrut(u, ak) : undefined,
+        arah: u.length ? a : undefined,
         page: 1,
         per_page: 0,
       });
       setHasilNaik(res.data.map(barisHasil));
     } catch (e) { setErr(errorMessage(e)); }
-  }, [siap, jenjangs, taTahunDepan, tingkatAktif, cari, barisHasil]);
+  }, [siap, jenjangs, taTahunDepan, tingkatAktif, cari, barisHasil, urutNaik, arahNaik, arahKolomNaik]);
 
   /** Tabel tidak naik: tahun ajaran berikutnya, status awal `mengulang`. */
-  const loadTidak = useCallback(async () => {
+  const loadTidak = useCallback(async (
+    f?: { urut?: string[]; arah?: 'naik' | 'turun'; arahKolom?: PetaArahKolom },
+  ) => {
     if (!siap) {
       setHasilTidak([]);
       return;
     }
     try {
+      const u = f?.urut ?? urutTidak;
+      const a = f?.arah ?? arahTidak;
+      const ak = f?.arahKolom ?? arahKolomTidak;
       const res = await listRiwayatBelajar({
         jenjang: jenjangs,
         tahun_ajaran: taTahunDepan,
@@ -170,12 +200,14 @@ export default function KenaikanKelasPage() {
         status_awal: 'mengulang',
         is_active_riwayat: true,
         q: cari || undefined,
+        sort: u.length ? tokenUrut(u, ak) : undefined,
+        arah: u.length ? a : undefined,
         page: 1,
         per_page: 0,
       });
       setHasilTidak(res.data.map(barisHasil));
     } catch (e) { setErr(errorMessage(e)); }
-  }, [siap, jenjangs, taTahunDepan, tingkatAktif, cari, barisHasil]);
+  }, [siap, jenjangs, taTahunDepan, tingkatAktif, cari, barisHasil, urutTidak, arahTidak, arahKolomTidak]);
 
   useEffect(() => { void loadKiri(); }, [loadKiri]);
   useEffect(() => { void loadNaik(); }, [loadNaik]);
@@ -188,6 +220,30 @@ export default function KenaikanKelasPage() {
     setTercentangTidak([]);
     await Promise.all([loadKiri(), loadNaik(), loadTidak()]);
   }, [loadKiri, loadNaik, loadTidak]);
+
+  function terapkanUrutKiri(nilai: string[], arah: 'naik' | 'turun', arahKolomBaru?: PetaArahKolom) {
+    const peta = nilai.length > 0 ? arahKolomBaru : undefined;
+    setUrutKiri(nilai);
+    setArahKiri(arah);
+    setArahKolomKiri(peta);
+    void loadKiri({ urut: nilai, arah, arahKolom: peta });
+  }
+
+  function terapkanUrutNaik(nilai: string[], arah: 'naik' | 'turun', arahKolomBaru?: PetaArahKolom) {
+    const peta = nilai.length > 0 ? arahKolomBaru : undefined;
+    setUrutNaik(nilai);
+    setArahNaik(arah);
+    setArahKolomNaik(peta);
+    void loadNaik({ urut: nilai, arah, arahKolom: peta });
+  }
+
+  function terapkanUrutTidak(nilai: string[], arah: 'naik' | 'turun', arahKolomBaru?: PetaArahKolom) {
+    const peta = nilai.length > 0 ? arahKolomBaru : undefined;
+    setUrutTidak(nilai);
+    setArahTidak(arah);
+    setArahKolomTidak(peta);
+    void loadTidak({ urut: nilai, arah, arahKolom: peta });
+  }
 
   /** Proses baris tercentang: naik (tingkat+1) atau tidak naik (mengulang). */
   const prosesMassal = useCallback(async (
@@ -312,6 +368,9 @@ export default function KenaikanKelasPage() {
                 onCheckedChange={setTercentangKiri}
                 fields={FIELDS_KENAIKAN}
               rows={kiri}
+              urutAktif={urutKiri}
+              arahUrut={arahKiri}
+              onUrut={terapkanUrutKiri}
               getValues={(r) => ({
                 nama: r.santri?.nama_lengkap ?? null,
                 kelas: r.kelas?.nama_kelas ?? null,
@@ -363,6 +422,9 @@ export default function KenaikanKelasPage() {
             idPrefix="naik_kelas"
             judul={`Santri naik kelas — ${taTahunDepan ?? '—'}`}
             baris={hasilNaik}
+            urutAktif={urutNaik}
+            arahUrut={arahNaik}
+            onUrut={terapkanUrutNaik}
             tombolHeader={tombolBatalkan('naik_kelas', tercentangNaik)}
             onCheckedChange={setTercentangNaik}
             onBatalkan={(b) => void batalkan([b])}
@@ -376,6 +438,9 @@ export default function KenaikanKelasPage() {
             idPrefix="tidak_naik_kelas"
             judul={`Santri tidak naik — ${taTahunDepan ?? '—'}`}
             baris={hasilTidak}
+            urutAktif={urutTidak}
+            arahUrut={arahTidak}
+            onUrut={terapkanUrutTidak}
             tombolHeader={tombolBatalkan('tidak_naik_kelas', tercentangTidak)}
             onCheckedChange={setTercentangTidak}
             onBatalkan={(b) => void batalkan([b])}
@@ -402,6 +467,9 @@ function PanelDaftar({
   onBatalkan,
   aksiProfil,
   daftar,
+  urutAktif,
+  arahUrut,
+  onUrut,
 }: {
   idPrefix: string;
   judul: string;
@@ -412,6 +480,9 @@ function PanelDaftar({
   aksiProfil: AksiProfilSantri['aksiProfil'];
   /** Id Santri sesuai urutan baris tabel ini (untuk navigasi tetangga). */
   daftar: number[];
+  urutAktif?: string[];
+  arahUrut?: 'naik' | 'turun';
+  onUrut?: (nilai: string[], arah: 'naik' | 'turun', arahKolom?: PetaArahKolom) => void;
 }) {
   // Memoized: ExcelTable membersihkan seleksi tiap `rows` berubah identitas.
   const rows = useMemo(() => baris.map((b) => ({ ...b, id: b.santri_id })), [baris]);
@@ -428,6 +499,9 @@ function PanelDaftar({
            )}
            fields={FIELDS_KENAIKAN}
           rows={rows}
+          urutAktif={urutAktif}
+          arahUrut={arahUrut}
+          onUrut={onUrut}
           getValues={(b) => ({ nama: b.nama, kelas: b.kelas, tingkat: b.tingkat, tahun_ajaran: b.tahun_ajaran })}
           onCheckedChange={onCheckedChange}
           canEdit={false}

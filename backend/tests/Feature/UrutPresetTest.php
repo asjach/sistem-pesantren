@@ -224,6 +224,36 @@ class UrutPresetTest extends TestCase
         $this->assertSame(0, UrutPreset::where('table_key', 'santri')->count());
     }
 
+    public function test_katalog_kunci_baru_dikenal(): void
+    {
+        $pusat = $this->makeUser('super_admin');
+
+        foreach ([
+            'pembayaran_kasir',
+            'keuangan_tagihan',
+            'keuangan_jenis',
+            'keuangan_tarif',
+            'keuangan_dispensasi',
+            'keuangan_tunggakan',
+            'keuangan_gen_kandidat',
+            'mutasi_santri_aktif',
+            'pindah_kelas',
+            'riwayat_belum_masuk',
+            'kelulusan_santri_akhir',
+            'kelulusan_tidak_lulus',
+            'kenaikan_naik_kelas',
+            'kenaikan_tidak_naik_kelas',
+            'kegiatan_psb_gelombang',
+            'kegiatan_psb_kuota',
+            'semester_aktif',
+        ] as $tableKey) {
+            $res = $this->actingAs($pusat, 'sanctum')
+                ->getJson("/api/admin/urut-preset?table_key={$tableKey}")
+                ->assertOk();
+            $this->assertNotEmpty(array_column($res->json('data.tersedia'), 'kode'), "tersedia kosong: {$tableKey}");
+        }
+    }
+
     public function test_admin_scoped_hanya_boleh_membaca(): void
     {
         $root = Lembaga::create([

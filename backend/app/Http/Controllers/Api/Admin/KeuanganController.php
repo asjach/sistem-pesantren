@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Api\Concerns\TenantGuard;
+use App\Http\Controllers\Api\Concerns\UrutDaftar;
 use App\Http\Controllers\Controller;
 use App\Models\Dispensasi;
 use App\Models\JenisTagihan;
@@ -11,6 +12,7 @@ use App\Models\Santri;
 use App\Models\Tagihan;
 use App\Models\TarifTagihan;
 use App\Services\DispensasiService;
+use App\Services\UrutKatalog;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
@@ -19,6 +21,7 @@ use Illuminate\Support\Facades\DB;
 class KeuanganController extends Controller
 {
     use TenantGuard;
+    use UrutDaftar;
 
     private function canLembaga($actor, string $jenjang): bool
     {
@@ -28,7 +31,8 @@ class KeuanganController extends Controller
     public function indexJenis(Request $request)
     {
         $actor = $request->user();
-        $q = JenisTagihan::orderBy('nama');
+        $urut = $this->parseUrut($request, UrutKatalog::peta('keuangan_jenis'));
+        $q = JenisTagihan::query();
         $lembagaIds = $this->nilaiFilter($request, 'jenjang');
         $this->authorizeLembagaMany($actor, $lembagaIds);
         if ($lembagaIds !== []) {
@@ -37,6 +41,11 @@ class KeuanganController extends Controller
         } elseif (! $actor->bolehPesantren()) {
             $milik = $actor->lembagaIds();
             $q->where(fn ($w) => $w->whereNull('jenjang')->orWhereIn('jenjang', $milik));
+        }
+        if ($urut === null) {
+            $q->orderBy('nama');
+        } else {
+            $this->terapkanUrut($q, $urut, [['jenis_tagihan.nama', 'naik']]);
         }
 
         return response()->json($q->get());
@@ -81,10 +90,18 @@ class KeuanganController extends Controller
 
     public function indexTarif(Request $request)
     {
-        $q = TarifTagihan::with('jenis')->orderBy('jenjang')->orderBy('tahun_ajaran');
+        $urut = $this->parseUrut($request, UrutKatalog::peta('keuangan_tarif'));
+        $q = TarifTagihan::with('jenis');
         // Filter global (boleh banyak nilai): `jenjang[]` dan `tahun_ajaran[]`.
         $this->applyFilter($q, $request, 'jenjang', 'jenjang');
         $this->applyFilter($q, $request, 'tahun_ajaran', 'tahun_ajaran');
+        if ($urut === null) {
+            $q->orderBy('jenjang')->orderBy('tahun_ajaran');
+        } else {
+            $q->select('tarif_tagihan.*')
+                ->leftJoin('jenis_tagihan', 'jenis_tagihan.id', '=', 'tarif_tagihan.jenis_id');
+            $this->terapkanUrut($q, $urut, [['tarif_tagihan.jenjang', 'naik'], ['tarif_tagihan.tahun_ajaran', 'naik']]);
+        }
 
         return response()->json($q->get());
     }
@@ -145,7 +162,7 @@ class KeuanganController extends Controller
             'santri_id' => 'nullable|integer|exists:santri,id',
         ]);
 
-        $q = Dispensasi::with('jenis')->orderBy('tahun_ajaran')->orderBy('nama');
+        $q = Dispensasi::with('jenis');
         if (! empty($data['tahun_ajaran'])) {
             $q->where('tahun_ajaran', $data['tahun_ajaran']);
         }
@@ -154,6 +171,14 @@ class KeuanganController extends Controller
         }
         if ($request->filled('is_active')) {
             $q->where('is_active', $request->boolean('is_active'));
+        }
+        $urut = $this->parseUrut($request, UrutKatalog::peta('keuangan_dispensasi'));
+        if ($urut === null) {
+            $q->orderBy('tahun_ajaran')->orderBy('nama');
+        } else {
+            $q->select('dispensasi.*')
+                ->leftJoin('jenis_tagihan', 'jenis_tagihan.id', '=', 'dispensasi.jenis_id');
+            $this->terapkanUrut($q, $urut, [['dispensasi.tahun_ajaran', 'naik'], ['dispensasi.nama', 'naik']]);
         }
 
         $daftar = $q->get();
@@ -266,7 +291,7 @@ class KeuanganController extends Controller
 
     public function indexTagihan(Request $request)
     {
-        $q = Tagihan::with(['jenis', 'santri'])->orderByDesc('id');
+        $q = Tagihan::with(['jenis', 'santri']);
         $this->applyFilter($q, $request, 'jenjang', 'jenjang');
         $this->applyFilter($q, $request, 'tahun_ajaran', 'tahun_ajaran');
         if ($request->filled('jenis_id')) {
@@ -288,6 +313,15 @@ class KeuanganController extends Controller
                 ->where('nama_lengkap', 'like', '%'.$cari.'%')
                 ->orWhere('nisn', 'like', '%'.$cari.'%')
                 ->orWhereHas('lembagaSantri', fn ($ls) => $ls->where('nis_lokal', 'like', '%'.$cari.'%')));
+        }
+        $urut = $this->parseUrut($request, UrutKatalog::peta('keuangan_tagihan'));
+        if ($urut === null) {
+            $q->orderByDesc('id');
+        } else {
+            $q->select('tagihan.*')
+                ->leftJoin('santri', 'santri.id', '=', 'tagihan.santri_id')
+                ->leftJoin('jenis_tagihan', 'jenis_tagihan.id', '=', 'tagihan.jenis_id');
+            $this->terapkanUrut($q, $urut, [['tagihan.id', 'turun']]);
         }
 
         return response()->json($q->paginate($this->perPage($request)));
@@ -373,15 +407,28 @@ class KeuanganController extends Controller
             ];
         }
 
-        // Urut: kelas (tanpa kelas paling bawah) → JK (L dulu) → nama.
-        usort($hasil, function ($a, $b) {
-            if (($a['kelas'] === null) !== ($b['kelas'] === null)) {
-                return $a['kelas'] === null ? 1 : -1;
-            }
+        // Urut bawaan: kelas (tanpa kelas paling bawah) → JK (L dulu) → nama.
+        // Param `sort` menimpa bawaan (sort koleksi, kolom keluaran di PETA).
+        $hasil = $this->terapkanUrutKoleksi($request, $hasil, [
+            'nama' => 'nama_lengkap',
+            'jk' => 'jk',
+            'nis' => 'nis_lokal',
+            'paket' => 'paket',
+            'tingkat' => 'tingkat',
+            'kelas' => 'kelas',
+            'status' => 'status_akhir',
+            'id' => 'santri_id',
+        ]);
+        if ($request->input('sort') === null || $request->input('sort') === '' || $request->input('sort') === []) {
+            usort($hasil, function ($a, $b) {
+                if (($a['kelas'] === null) !== ($b['kelas'] === null)) {
+                    return $a['kelas'] === null ? 1 : -1;
+                }
 
-            return [$a['kelas'] ?? '', $a['jk'] ?? '', $a['nama_lengkap']]
-                <=> [$b['kelas'] ?? '', $b['jk'] ?? '', $b['nama_lengkap']];
-        });
+                return [$a['kelas'] ?? '', $a['jk'] ?? '', $a['nama_lengkap']]
+                    <=> [$b['kelas'] ?? '', $b['jk'] ?? '', $b['nama_lengkap']];
+            });
+        }
 
         $page = max(1, (int) $request->input('page', 1));
         $perPage = $this->perPage($request);
@@ -755,6 +802,15 @@ class KeuanganController extends Controller
                 'jumlah_tagihan' => $rows->count(),
             ];
         })->values();
+
+        $perSantri = $this->terapkanUrutKoleksi($request, $perSantri->all(), [
+            'nama' => 'nama',
+            'total' => 'total_tagihan',
+            'bayar' => 'terbayar',
+            'sisa' => 'tunggakan',
+            'jumlah' => 'jumlah_tagihan',
+            'id' => 'santri_id',
+        ]);
 
         return response()->json(['per_santri' => $perSantri]);
     }

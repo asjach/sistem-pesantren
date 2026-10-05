@@ -8,8 +8,12 @@ export interface SemesterLembaga {
   label: string | null;
 }
 
-export function daftarSemester() {
-  return api<{ data: SemesterLembaga[] }>('/admin/semester-aktif');
+export function daftarSemester(params: { sort?: string[]; arah?: 'naik' | 'turun' } = {}) {
+  const q = new URLSearchParams();
+  if (params.sort?.length) q.set('sort', params.sort.join(','));
+  if (params.arah) q.set('arah', params.arah);
+  const suffix = q.toString() ? `?${q.toString()}` : '';
+  return api<{ data: SemesterLembaga[] }>(`/admin/semester-aktif${suffix}`);
 }
 
 export function tetapkanSemester(jenjang: string, semester: '1' | '2') {

@@ -13,6 +13,7 @@ import { PER_PAGE_ALL } from '@/prefs';
 import { PengaturanHalaman, useVisibilitasFilter } from '@/components/VisibilitasFilter';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import { ActionIcon } from '@/components/RowActions';
+import { tokenUrut, type PetaArahKolom } from '@/lib/urut';
 import { ArrowRight } from '@/icons';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { toast } from 'sonner';
@@ -58,6 +59,10 @@ export default function PindahKelasPage() {
   } = useFilterGlobalAktif();
   const { pilih: pilihTingkat, loading: loadingTingkat } = useTingkatAktif();
   const [rows, setRows] = useState<RiwayatRow[]>([]);
+  /** Urut header (satu untuk semua kolom kelas; sort diterapkan ke fetch global). */
+  const [urut, setUrut] = useState<string[]>([]);
+  const [arahUrut, setArahUrut] = useState<'naik' | 'turun'>('naik');
+  const [arahKolom, setArahKolom] = useState<PetaArahKolom | undefined>(undefined);
   /** Pencarian tunggal halaman (topBar) — disaring di tiap kolom kelas. */
   const [cari, setCari] = useState('');
   const [kelas, setKelas] = useState<Kelas[]>([]);
@@ -65,24 +70,40 @@ export default function PindahKelasPage() {
   const [busyId, setBusyId] = useState<number | null>(null);
   const defaultTerapkan = useRef(false);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (
+    f?: { urut?: string[]; arah?: 'naik' | 'turun'; arahKolom?: PetaArahKolom },
+  ) => {
     if (filterLoading || jenjangs.length === 0) { setRows([]); return; }
     setErr('');
     try {
       const lintasPeriode = tahunAjaranNames.length === 0 || semesters.length === 0;
+      const u = f?.urut ?? urut;
+      const a = f?.arah ?? arahUrut;
+      const ak = f?.arahKolom ?? arahKolom;
       const res = await daftarKelas({
         jenjang: jenjangs,
         tahun_ajaran: tahunAjaranNames,
         semester: semesters,
         tingkat: tingkatAktif,
         lintas_periode: lintasPeriode || undefined,
+        sort: u.length ? tokenUrut(u, ak) : undefined,
+        arah: u.length ? a : undefined,
         per_page: 0,
       });
       setRows(res.data);
     } catch (e) { setErr(errorMessage(e)); }
-  }, [filterLoading, jenjangs, tahunAjaranNames, semesters, tingkatAktif]);
+  }, [filterLoading, jenjangs, tahunAjaranNames, semesters, tingkatAktif, urut, arahUrut, arahKolom]);
 
   useEffect(() => { void load(); }, [load]);
+
+  /** Klik header: simpan urut baru lalu muat ulang fetch global. */
+  function terapkanUrut(nilai: string[], arah: 'naik' | 'turun', arahKolomBaru?: PetaArahKolom) {
+    const peta = nilai.length > 0 ? arahKolomBaru : undefined;
+    setUrut(nilai);
+    setArahUrut(arah);
+    setArahKolom(peta);
+    void load({ urut: nilai, arah, arahKolom: peta });
+  }
 
   useEffect(() => {
     if (filterLoading || jenjangs.length === 0) { setKelas([]); return; }
@@ -184,6 +205,9 @@ export default function PindahKelasPage() {
                 tingkat={g.tingkat}
                 kolom={k}
                 rail={gi === 0 && ki === 0}
+                urutAktif={urut}
+                arahUrut={arahUrut}
+                onUrut={terapkanUrut}
                 tetangga={k.kelasId == null
                   // Kolom Tanpa kelas: kiri = kelas nyata terakhir,
                   // kanan = kelas nyata pertama.
@@ -215,7 +239,7 @@ export default function PindahKelasPage() {
 }
 
 /** Satu kolom kelas: tabel santri + panah pindah ke tetangga siklik. */
-function TabelKelas({ tingkat, kolom, tetangga, bisaPindah, busyId, cari, onPindah, rail }: {
+function TabelKelas({ tingkat, kolom, tetangga, bisaPindah, busyId, cari, onPindah, rail, urutAktif, arahUrut, onUrut }: {
   tingkat: string | null;
   kolom: KolomKelas;
   tetangga: { kiri: KolomKelas | null; kanan: KolomKelas | null };
@@ -226,6 +250,9 @@ function TabelKelas({ tingkat, kolom, tetangga, bisaPindah, busyId, cari, onPind
   onPindah: (r: RiwayatRow, kelasBaruId: number) => void;
   /** Rel Tingkat/Kelas — hanya pada tabel pertama halaman. */
   rail?: boolean;
+  urutAktif?: string[];
+  arahUrut?: 'naik' | 'turun';
+  onUrut?: (nilai: string[], arah: 'naik' | 'turun', arahKolom?: PetaArahKolom) => void;
 }) {
   const kunci = `${tingkat ?? 'tanpa'}_${kolom.kelasId ?? 'tanpa'}`;
   const { page, perPage, goFirst, setPage, setPerPage } = usePager(`pindah_kelas_${kunci}`);
@@ -258,6 +285,9 @@ function TabelKelas({ tingkat, kolom, tetangga, bisaPindah, busyId, cari, onPind
            header={<span>{kolom.kelasId == null ? 'Santri Belum Masuk Kelas' : `Kelas ${kolom.kelas}`}</span>}
            fields={FIELDS_PINDAH_KELAS}
            rows={barisHalaman}
+          urutAktif={urutAktif}
+          arahUrut={arahUrut}
+          onUrut={onUrut}
           getValues={(r) => ({
             nama: r.santri?.nama_lengkap ?? null,
             nis_lokal: r.nis_lokal ?? null,

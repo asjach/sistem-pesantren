@@ -3,6 +3,7 @@ import { useAuth } from '../auth/AuthContext';
 import { bisa } from '../api/auth';
 import { errorMessage } from '../api/client';
 import { catatPembayaran, daftarTagihan, type TagihanRow } from '../api/keuangan';
+import { tokenUrut, type PetaArahKolom } from '@/lib/urut';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -47,6 +48,17 @@ export default function PembayaranPage() {
   const [cari, setCari] = useState('');
   const [rows, setRows] = useState<TagihanRow[]>([]);
   const [loading, setLoading] = useState(false);
+  /** Urut header tabel kasir (perubahan memicu muat ulang via effect). */
+  const [urut, setUrut] = useState<string[]>([]);
+  const [arahUrut, setArahUrut] = useState<'naik' | 'turun'>('naik');
+  const [arahKolom, setArahKolom] = useState<PetaArahKolom | undefined>(undefined);
+
+  /** Klik header: simpan urut baru (effect memuat ulang). */
+  function terapkanUrut(nilai: string[], arah: 'naik' | 'turun', peta?: PetaArahKolom) {
+    setUrut(nilai);
+    setArahUrut(arah);
+    setArahKolom(nilai.length > 0 ? peta : undefined);
+  }
   const [err, setErr] = useState('');
   const [bayarId, setBayarId] = useState<number | null>(null);
   const [jumlah, setJumlah] = useState('');
@@ -66,10 +78,12 @@ export default function PembayaranPage() {
         jenjang: jenjangs,
         tahun_ajaran: tahunAjaranNames,
         per_page: '200',
+        sort: urut.length ? tokenUrut(urut, arahKolom) : undefined,
+        arah: urut.length ? arahUrut : undefined,
       });
       setRows(res.data);
     } catch (e) { setErr(errorMessage(e)); } finally { setLoading(false); }
-  }, [cari, filterLoading, jenjangs, tahunAjaranNames]);
+  }, [cari, filterLoading, jenjangs, tahunAjaranNames, urut, arahUrut, arahKolom]);
 
   // Ketikan ditahan sebentar agar tidak memanggil API tiap karakter.
   useEffect(() => {
@@ -106,6 +120,9 @@ export default function PembayaranPage() {
         tableKey="pembayaran_kasir"
         fields={FIELDS}
         rows={rows}
+        urutAktif={urut}
+        arahUrut={arahUrut}
+        onUrut={terapkanUrut}
         getValues={(r) => ({
           santri: r.santri?.nama_lengkap ?? null,
           jenis: r.jenis?.nama ?? null,

@@ -40,6 +40,7 @@ import { useAuth } from '../auth/AuthContext';
 import { bisa } from '../api/auth';
 import { tanggal } from '../lib/tanggal';
 import { toast } from 'sonner';
+import { tokenUrut, type PetaArahKolom } from '@/lib/urut';
 import { Plus } from '@/icons';
 import {
   KEGIATAN_FIELDS,
@@ -132,28 +133,74 @@ export default function KegiatanPsbPage() {
     return target;
   }, [kegiatanId]);
 
-  const loadGelombang = useCallback(async (kid: number | null, pilihId?: number) => {
+  /** Urut header kedua tabel (perubahan memicu muat ulang via effect). */
+  const [urutGelombang, setUrutGelombang] = useState<string[]>([]);
+  const [arahGelombang, setArahGelombang] = useState<'naik' | 'turun'>('naik');
+  const [arahKolomGelombang, setArahKolomGelombang] = useState<PetaArahKolom | undefined>(undefined);
+  const [urutKuota, setUrutKuota] = useState<string[]>([]);
+  const [arahKuota, setArahKuota] = useState<'naik' | 'turun'>('naik');
+  const [arahKolomKuota, setArahKolomKuota] = useState<PetaArahKolom | undefined>(undefined);
+
+  const loadGelombang = useCallback(async (
+    kid: number | null,
+    pilihId?: number,
+    f?: { urut?: string[]; arah?: 'naik' | 'turun'; arahKolom?: PetaArahKolom },
+  ) => {
     if (!kid) {
       setGelombangs([]);
       setGelombangId(null);
       return null;
     }
-    const res = await listGelombangPsb({ kegiatan_id: kid });
+    const u = f?.urut ?? urutGelombang;
+    const a = f?.arah ?? arahGelombang;
+    const ak = f?.arahKolom ?? arahKolomGelombang;
+    const res = await listGelombangPsb({
+      kegiatan_id: kid,
+      sort: u.length ? tokenUrut(u, ak) : undefined,
+      arah: u.length ? a : undefined,
+    });
     setGelombangs(res.data as PsbGelombangMaster[]);
     const target = pilihId ?? res.data[0]?.id ?? null;
     setGelombangId(target);
     return target;
-  }, []);
+  }, [urutGelombang, arahGelombang, arahKolomGelombang]);
 
-  const loadKuota = useCallback(async (gid: number | null) => {
+  const loadKuota = useCallback(async (
+    gid: number | null,
+    f?: { urut?: string[]; arah?: 'naik' | 'turun'; arahKolom?: PetaArahKolom },
+  ) => {
     if (!gid) {
       setKuotaRows([]);
       return;
     }
-    const res = await getKuotaBiaya(gid);
+    const u = f?.urut ?? urutKuota;
+    const a = f?.arah ?? arahKuota;
+    const ak = f?.arahKolom ?? arahKolomKuota;
+    const res = await getKuotaBiaya(gid, {
+      sort: u.length ? tokenUrut(u, ak) : undefined,
+      arah: u.length ? a : undefined,
+    });
     setLembagaOpsi(res.data.lembaga);
     setKuotaRows(res.data.rows);
-  }, []);
+  }, [urutKuota, arahKuota, arahKolomKuota]);
+
+  /** Klik header: simpan urut baru lalu muat ulang (seleksi dipertahankan). */
+  function terapkanUrutGelombang(nilai: string[], arah: 'naik' | 'turun', peta?: PetaArahKolom) {
+    const p = nilai.length > 0 ? peta : undefined;
+    setUrutGelombang(nilai);
+    setArahGelombang(arah);
+    setArahKolomGelombang(p);
+    if (kegiatanId) void loadGelombang(kegiatanId, gelombangId ?? undefined, { urut: nilai, arah, arahKolom: p });
+  }
+
+  /** Klik header: simpan urut baru lalu muat ulang kuota. */
+  function terapkanUrutKuota(nilai: string[], arah: 'naik' | 'turun', peta?: PetaArahKolom) {
+    const p = nilai.length > 0 ? peta : undefined;
+    setUrutKuota(nilai);
+    setArahKuota(arah);
+    setArahKolomKuota(p);
+    if (gelombangId) void loadKuota(gelombangId, { urut: nilai, arah, arahKolom: p });
+  }
 
   /** Daftar lembaga PSB (tak terikat gelombang) — pengisi pemilih lembaga. */
   const loadLembaga = useCallback(async () => {
@@ -478,6 +525,9 @@ export default function KegiatanPsbPage() {
             maxRows={3}
             fields={KEGIATAN_FIELDS}
             rows={gelombangTampil}
+            urutAktif={urutGelombang}
+            arahUrut={arahGelombang}
+            onUrut={terapkanUrutGelombang}
             getValues={getGelombangValues}
             loading={loading}
             emptyText="Belum ada gelombang di kegiatan ini."
@@ -531,6 +581,9 @@ export default function KegiatanPsbPage() {
             maxRows={6}
             fields={KUOTA_FIELDS}
             rows={kuotaFilter}
+            urutAktif={urutKuota}
+            arahUrut={arahKuota}
+            onUrut={terapkanUrutKuota}
             getValues={getKuotaValues}
             loading={loading}
             emptyText="Belum ada konfigurasi kuota di gelombang ini."

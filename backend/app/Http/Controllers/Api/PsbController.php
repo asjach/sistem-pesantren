@@ -368,12 +368,16 @@ class PsbController extends Controller
     /** GET /api/psb/gelombang — dropdown gelombang admin (opsional ?kegiatan_id=/?tahun_ajaran=). */
     public function gelombang(Request $request): JsonResponse
     {
+        $urut = $this->parseUrut($request, UrutKatalog::peta('kegiatan_psb_gelombang'));
         $rows = PsbGelombang::with('kegiatan:id,nama,tahun_ajaran')
             ->when($request->filled('kegiatan_id'), fn ($q) => $q->where('psb_kegiatan_id', $request->integer('kegiatan_id')))
-            ->when($request->filled('tahun_ajaran'), fn ($q) => $q->whereHas('kegiatan', fn ($qq) => $qq->where('tahun_ajaran', $request->input('tahun_ajaran'))))
-            ->orderBy('psb_kegiatan_id')
-            ->orderBy('nomor')
-            ->get(['id', 'psb_kegiatan_id', 'nomor', 'nama', 'tgl_buka', 'tgl_tutup'])
+            ->when($request->filled('tahun_ajaran'), fn ($q) => $q->whereHas('kegiatan', fn ($qq) => $qq->where('tahun_ajaran', $request->input('tahun_ajaran'))));
+        if ($urut === null) {
+            $rows = $rows->orderBy('psb_kegiatan_id')->orderBy('nomor');
+        } else {
+            $this->terapkanUrut($rows, $urut, [['psb_gelombang.psb_kegiatan_id', 'naik'], ['psb_gelombang.nomor', 'naik']]);
+        }
+        $rows = $rows->get(['id', 'psb_kegiatan_id', 'nomor', 'nama', 'tgl_buka', 'tgl_tutup'])
             ->map(fn (PsbGelombang $g) => [
                 'id' => $g->id,
                 'psb_kegiatan_id' => $g->psb_kegiatan_id,

@@ -95,6 +95,10 @@ export default function MutasiKeluarPage() {
   const [arahUrut, setArahUrut] = useState<'naik' | 'turun'>('naik');
   /** Arah per kode dari preset urut (opsional) — menimpa arah global. */
   const [arahKolom, setArahKolom] = useState<PetaArahKolom | undefined>(undefined);
+  /** Urut header tabel santri aktif (pola sama dengan arsip). */
+  const [urutKiri, setUrutKiri] = useState<string[]>([]);
+  const [arahKiri, setArahKiri] = useState<'naik' | 'turun'>('naik');
+  const [arahKolomKiri, setArahKolomKiri] = useState<PetaArahKolom | undefined>(undefined);
   /** Pencarian tunggal halaman (topBar). */
   const [cari, setCari] = useState('');
   const { aksiProfil, dialogProfil } = useAksiProfilSantri();
@@ -112,22 +116,29 @@ export default function MutasiKeluarPage() {
   const canImportMutasi = bisa(user, 'mutasi_keluar.ubah');
   const [fileOpen, setFileOpen] = useState(false);
 
-  const loadKiri = useCallback(async () => {
+  const loadKiri = useCallback(async (
+    f?: { urut?: string[]; arah?: 'naik' | 'turun'; arahKolom?: PetaArahKolom },
+  ) => {
     if (filterLoading || jenjangs.length === 0) { setKiri([]); return; }
     setErr('');
     try {
       // Proses mutasi: baris riwayat AKTIF pada semester terpilih. "Semua
       // semester" → lintas periode, tetap dibatasi is_active_riwayat = 'Ya'.
+      const u = f?.urut ?? urutKiri;
+      const a = f?.arah ?? arahKiri;
+      const ak = f?.arahKolom ?? arahKolomKiri;
       const res = await daftarKelas({
         jenjang: jenjangs,
         semester: semesterAktif,
         lintas_periode: semesterAktif.length === 0 || undefined,
         tingkat: tingkatAktif,
+        sort: u.length ? tokenUrut(u, ak) : undefined,
+        arah: u.length ? a : undefined,
         per_page: 0,
       });
       setKiri(res.data);
     } catch (e) { setErr(errorMessage(e)); }
-  }, [filterLoading, jenjangs, semesterAktif, tingkatAktif]);
+  }, [filterLoading, jenjangs, semesterAktif, tingkatAktif, urutKiri, arahKiri, arahKolomKiri]);
 
   const loadArsip = useCallback(async (
     p = pager.page, pp = pager.perPage,
@@ -162,6 +173,15 @@ export default function MutasiKeluarPage() {
     setArahKolom(peta);
     pager.goFirst();
     void loadArsip(1, pager.perPage, { urut: nilai, arah, arahKolom: peta });
+  }
+
+  /** Klik header tabel santri aktif: simpan urut baru lalu muat ulang. */
+  function terapkanUrutKiri(nilai: string[], arah: 'naik' | 'turun', arahKolomBaru?: PetaArahKolom) {
+    const peta = nilai.length > 0 ? arahKolomBaru : undefined;
+    setUrutKiri(nilai);
+    setArahKiri(arah);
+    setArahKolomKiri(peta);
+    void loadKiri({ urut: nilai, arah, arahKolom: peta });
   }
 
   useEffect(() => { void loadKiri(); }, [loadKiri]);
@@ -228,6 +248,9 @@ export default function MutasiKeluarPage() {
                  header={<span>Santri aktif</span>}
                 fields={FIELDS_AKTIF}
                 rows={kiriTampil}
+                urutAktif={urutKiri}
+                arahUrut={arahKiri}
+                onUrut={terapkanUrutKiri}
                 getValues={(r) => ({ nama: r.santri?.nama_lengkap ?? null, kelas: r.kelas?.nama_kelas ?? null })}
                 canEdit={false}
                 onCommit={async () => {}}

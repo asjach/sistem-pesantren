@@ -79,6 +79,60 @@ trait UrutDaftar
     }
 
     /**
+     * Urutkan baris in-memory (koleksi/agregat tanpa ORDER BY SQL) dengan
+     * kontrak param yang sama (`sort` + `arah`, token boleh `:naik`/`:turun`).
+     * Kode harus ada di `$peta` (kode => kunci baris), selainnya 422.
+     * Tanpa sort = baris dikembalikan apa adanya (bawaan pemanggil).
+     *
+     * @param  array<int, array<string, mixed>>  $baris
+     * @param  array<string, string>  $peta
+     * @return array<int, array<string, mixed>>
+     */
+    protected function terapkanUrutKoleksi(Request $request, array $baris, array $peta): array
+    {
+        $mentah = $request->input('sort');
+        if ($mentah === null || $mentah === '' || $mentah === []) {
+            return $baris;
+        }
+        $daftar = is_array($mentah) ? $mentah : explode(',', (string) $mentah);
+        $daftar = array_values(array_filter(array_map(fn ($v) => trim((string) $v), $daftar)));
+        if ($daftar === []) {
+            return $baris;
+        }
+
+        $request->validate(['arah' => ['nullable', Rule::in(['naik', 'turun'])]]);
+
+        validator(
+            ['sort' => array_map(fn ($v) => explode(':', $v, 2)[0], $daftar)],
+            ['sort' => ['array', 'min:1', 'max:3'], 'sort.*' => [Rule::in(array_keys($peta))]]
+        )->validate();
+
+        $arahGlobal = (string) $request->input('arah', 'naik');
+        $kriteria = [];
+        foreach ($daftar as $token) {
+            $potong = explode(':', $token, 2);
+            $sufiks = isset($potong[1]) ? strtolower(trim($potong[1])) : '';
+            $kriteria[] = [
+                $peta[$potong[0]],
+                in_array($sufiks, ['desc', 'turun'], true) ? 'turun' : (in_array($sufiks, ['asc', 'naik'], true) ? 'naik' : $arahGlobal),
+            ];
+        }
+
+        usort($baris, function ($a, $b) use ($kriteria) {
+            foreach ($kriteria as [$kunci, $arah]) {
+                $banding = ($a[$kunci] ?? null) <=> ($b[$kunci] ?? null);
+                if ($banding !== 0) {
+                    return $arah === 'naik' ? $banding : -$banding;
+                }
+            }
+
+            return 0;
+        });
+
+        return $baris;
+    }
+
+    /**
      * @param  array<int, array{0: string, 1: 'naik'|'turun'}>  $bawaan  urutan lama.
      * @param  string[]  $nullable  kolom boleh-NULL (selalu di bawah).
      * @param  array<string, 'naik'|'turun'>|null  $arah  arah per kolom (bila null: pakai `$urut['arah']` global).

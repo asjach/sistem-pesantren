@@ -17,6 +17,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { ActionIcon } from '@/components/RowActions';
 import { ErrorNotice } from '@/components/PageHeader';
 import Pager from '@/components/Pager';
+import { tokenUrut, type PetaArahKolom } from '@/lib/urut';
 import { ArrowRight, Trash2, X } from '@/icons';
 import { type PerPage } from '@/prefs';
 
@@ -112,6 +113,18 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
   const [perPage, setPerPage] = useState<PerPage>(50);
   const [lastPage, setLastPage] = useState(1);
   const [total, setTotal] = useState(0);
+  /** Urut header tabel kandidat (perubahan memicu muat ulang via effect). */
+  const [urut, setUrut] = useState<string[]>([]);
+  const [arahUrut, setArahUrut] = useState<'naik' | 'turun'>('naik');
+  const [arahKolom, setArahKolom] = useState<PetaArahKolom | undefined>(undefined);
+
+  /** Klik header: simpan urut baru + kembali ke halaman 1 (effect memuat ulang). */
+  function terapkanUrut(nilai: string[], arah: 'naik' | 'turun', peta?: PetaArahKolom) {
+    setUrut(nilai);
+    setArahUrut(arah);
+    setArahKolom(nilai.length > 0 ? peta : undefined);
+    setPage(1);
+  }
 
   const [terpilih, setTerpilih] = useState<BarisTerpilih[]>([]);
   const [busy, setBusy] = useState(false);
@@ -143,11 +156,13 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
         q: cari.trim() || undefined,
         page: halaman,
         per_page: jumlah === 0 ? 'all' : String(jumlah),
+        sort: urut.length ? tokenUrut(urut, arahKolom) : undefined,
+        arah: urut.length ? arahUrut : undefined,
       });
       setKandidat(res.data.map((r) => ({ ...r, id: r.santri_id })));
       setPage(res.current_page); setLastPage(res.last_page); setTotal(res.total);
     } catch (e) { setErr(errorMessage(e)); } finally { setLoading(false); }
-  }, [open, tahunAjaran, kelompok, jenisId, bulanan, periodeDari, periodeSampai, cari]);
+  }, [open, tahunAjaran, kelompok, jenisId, bulanan, periodeDari, periodeSampai, cari, urut, arahUrut, arahKolom]);
 
   // Ketikan ditahan sebentar agar tidak memanggil API tiap karakter.
   useEffect(() => {
@@ -366,6 +381,9 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
                   tableKey="keuangan_gen_kandidat"
                   fields={FIELDS_KANDIDAT}
                   rows={kandidatTampil}
+                  urutAktif={urut}
+                  arahUrut={arahUrut}
+                  onUrut={terapkanUrut}
                   getValues={(r) => ({
                     nama: r.nama_lengkap, jk: r.jk, nis: r.nis_lokal ?? r.nisn, paket: r.paket,
                     tingkat: r.tingkat, kelas: r.kelas, status_akhir: r.status_akhir,
