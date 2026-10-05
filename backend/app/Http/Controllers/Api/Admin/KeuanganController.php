@@ -162,7 +162,7 @@ class KeuanganController extends Controller
             'santri_id' => 'nullable|integer|exists:santri,id',
         ]);
 
-        $q = Dispensasi::with('jenis');
+        $q = Dispensasi::with(['jenis', 'santriTambahan']);
         if (! empty($data['tahun_ajaran'])) {
             $q->where('tahun_ajaran', $data['tahun_ajaran']);
         }
@@ -204,7 +204,10 @@ class KeuanganController extends Controller
         $data = $this->validasiDispensasi($request);
         $this->authorizeDispensasi($request->user(), $data);
 
-        return response()->json(Dispensasi::create($this->bersihkanDispensasi($data)), 201);
+        $dispensasi = Dispensasi::create($this->bersihkanDispensasi($data));
+        $dispensasi->santriTambahan()->sync($this->normalisasiSantriIds($data['santri_ids'] ?? null));
+
+        return response()->json($dispensasi->load(['jenis', 'santriTambahan']), 201);
     }
 
     public function updateDispensasi(Request $request, Dispensasi $dispensasi)
@@ -212,8 +215,9 @@ class KeuanganController extends Controller
         $data = $this->validasiDispensasi($request);
         $this->authorizeDispensasi($request->user(), $data);
         $dispensasi->update($this->bersihkanDispensasi($data));
+        $dispensasi->santriTambahan()->sync($this->normalisasiSantriIds($data['santri_ids'] ?? null));
 
-        return response()->json($dispensasi);
+        return response()->json($dispensasi->load(['jenis', 'santriTambahan']));
     }
 
     public function destroyDispensasi(Dispensasi $dispensasi)
@@ -281,12 +285,25 @@ class KeuanganController extends Controller
      */
     private function bersihkanDispensasi(array $data): array
     {
-        foreach (['paket', 'tingkat', 'kelas_id', 'santri_ids'] as $kunci) {
+        foreach (['paket', 'tingkat', 'kelas_id'] as $kunci) {
             $nilai = array_values(array_filter($data[$kunci] ?? [], fn ($v) => $v !== null && $v !== ''));
             $data[$kunci] = $nilai === [] ? null : $nilai;
         }
+        unset($data['santri_ids']);
 
         return $data;
+    }
+
+    /** Normalisasi daftar santri tambahan menjadi id unik terurut. */
+    private function normalisasiSantriIds(mixed $nilai): array
+    {
+        if (! is_array($nilai)) {
+            return [];
+        }
+        $ids = array_values(array_unique(array_map('intval', array_filter($nilai, fn ($v) => $v !== null && $v !== ''))));
+        sort($ids);
+
+        return array_values(array_filter($ids, fn ($id) => $id > 0));
     }
 
     public function indexTagihan(Request $request)
@@ -469,7 +486,7 @@ class KeuanganController extends Controller
 
         // Dispensasi aktif untuk TA+jenis ini; baris tanpa override manual
         // dihitung ulang di sini (otoritatif), override manual menang.
-        $daftarDispensasi = Dispensasi::with('jenis')
+        $daftarDispensasi = Dispensasi::with(['jenis', 'santriTambahan'])
             ->where('tahun_ajaran', $data['tahun_ajaran'])
             ->where('is_active', true)
             ->where(fn ($w) => $w->whereNull('jenis_id')->orWhere('jenis_id', $jenis->id))

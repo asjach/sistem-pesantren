@@ -1116,13 +1116,20 @@ Lifecycle mandiri (tidak lewat `riwayat_belajar`); masuk/keluar bisa kapan saja.
 - `paket`: json [null] — daftar paket sasaran (MI/D/MI-MD/MTS/MLN); kosong = semua paket
 - `tingkat`: json [null] — daftar tingkat sasaran; kosong = semua tingkat
 - `kelas_id`: json [null] — daftar FK kelas sasaran; kosong = semua kelas
-- `santri_ids`: json [null] — tambahan santri individual (menang langsung tanpa cek kriteria)
+- ~~`santri_ids`: json~~ → pindah ke tabel pivot `santri_dispensasi` (kolom dihapus 2026-10-05); API tetap menyerialkan `santri_ids` dari pivot
 - `tipe`: enum('persen','nominal','bebas') [default 'nominal'] — bebas penuh = tagihan bernominal 0
 - `nilai`: unsignedInteger [default 0] — persen (maks 100) atau nominal rupiah
 - `prioritas`: integer [default 0] — urutan penerapan akumulatif (kecil dulu)
 - `is_active`: bool [default true]
 - `created_at`, `updated_at`
 - INDEX(`tahun_ajaran`, `is_active`)
+
+### `santri_dispensasi` (pivot santri tambahan dispensasi)
+- `id` PK
+- `dispensasi_id`: FK → dispensasi [cascadeOnDelete]
+- `santri_id`: FK → santri [cascadeOnDelete]
+- `created_at`, `updated_at`
+- UNIQUE(`dispensasi_id`, `santri_id`), INDEX(`santri_id`)
 
 ### `tagihan`
 - `id` PK

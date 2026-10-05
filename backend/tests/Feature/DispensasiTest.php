@@ -177,6 +177,55 @@ class DispensasiTest extends TestCase
         $this->assertSame('MI-MD', $tagihan->paket);
     }
 
+    public function test_santri_tambahan_tersimpan_di_pivot_dan_menang_langsung(): void
+    {
+        $admin = $this->admin();
+        $jenis = JenisTagihan::create(['nama' => 'Infaq Bulanan', 'tipe' => 'bulanan']);
+        $khusus = $this->santriDenganRiwayat('Santri Khusus', '2');
+        $biasa = $this->santriDenganRiwayat('Santri Biasa', '2');
+
+        // Kriteria tingkat 1, tapi santri tingkat 2 didaftarkan sebagai tambahan.
+        $id = $this->actingAs($admin)->postJson('/api/admin/keuangan/dispensasi', [
+            'nama' => 'Khusus', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id,
+            'tingkat' => ['1'], 'santri_ids' => [$khusus->id],
+            'tipe' => 'nominal', 'nilai' => 7000,
+        ])->assertStatus(201)
+            ->assertJsonPath('santri_ids', [$khusus->id])
+            ->json('id');
+
+        $this->assertDatabaseHas('santri_dispensasi', ['dispensasi_id' => $id, 'santri_id' => $khusus->id]);
+
+        // Santri tambahan menang langsung meski tak cocok kriteria tingkat.
+        $this->actingAs($admin)->getJson("/api/admin/keuangan/dispensasi?tahun_ajaran=2025/2026&santri_id={$khusus->id}")
+            ->assertStatus(200)->assertJsonCount(1)->assertJsonPath('0.nama', 'Khusus');
+        $this->actingAs($admin)->getJson("/api/admin/keuangan/dispensasi?tahun_ajaran=2025/2026&santri_id={$biasa->id}")
+            ->assertStatus(200)->assertJsonCount(0);
+
+        // Generate menerapkan potongan ke santri tambahan.
+        $this->actingAs($admin)->postJson('/api/admin/keuangan/tagihan/generate', [
+            'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'periode' => '2025-07',
+            'nominal' => 100000, 'santri' => [['santri_id' => $khusus->id]],
+        ])->assertStatus(200);
+        $tagihan = Tagihan::where('santri_id', $khusus->id)->firstOrFail();
+        $this->assertSame(93000, $tagihan->nominal);
+        $this->assertSame(7000, $tagihan->potongan);
+
+        // Update mengosongkan pivot (sync).
+        $this->actingAs($admin)->putJson("/api/admin/keuangan/dispensasi/{$id}", [
+            'nama' => 'Khusus', 'tahun_ajaran' => '2025/2026', 'tingkat' => ['1'],
+            'tipe' => 'nominal', 'nilai' => 7000,
+        ])->assertStatus(200)->assertJsonPath('santri_ids', null);
+        $this->assertDatabaseMissing('santri_dispensasi', ['dispensasi_id' => $id]);
+
+        // Hapus santri menghapus baris pivot (cascade).
+        $this->actingAs($admin)->putJson("/api/admin/keuangan/dispensasi/{$id}", [
+            'nama' => 'Khusus', 'tahun_ajaran' => '2025/2026', 'tingkat' => ['1'],
+            'santri_ids' => [$biasa->id], 'tipe' => 'nominal', 'nilai' => 7000,
+        ])->assertStatus(200);
+        $biasa->delete();
+        $this->assertDatabaseMissing('santri_dispensasi', ['dispensasi_id' => $id]);
+    }
+
     public function test_index_dispensasi_per_santri_dan_kelas(): void
     {
         $admin = $this->admin();
