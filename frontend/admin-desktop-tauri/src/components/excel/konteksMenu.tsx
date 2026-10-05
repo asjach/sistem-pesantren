@@ -55,6 +55,13 @@ export interface MenuKonteksGridProps {
   onGeserKiri: () => void;
   onGeserKanan: () => void;
   onResetUrutan: () => void;
+  /** Tinggi baris: mode "ikut isi" + ada/tidaknya tinggi manual. */
+  barisIkutIsi: boolean;
+  onUbahBarisIkutIsi: (nyawa: boolean) => void;
+  /** Kembalikan tinggi manual baris ini (atau seluruh tabel bila null). */
+  onResetTinggiBaris: (rowId: string | number | null) => void;
+  barisManualAda: boolean;
+  barisManualBarisIni: boolean;
 }
 
 /** Isi menu klik-kanan grid: area header (AutoFit, beku, perataan, tampil di
@@ -83,6 +90,11 @@ export default function MenuKonteksGrid({
   onGeserKiri,
   onGeserKanan,
   onResetUrutan,
+  barisIkutIsi,
+  onUbahBarisIkutIsi,
+  onResetTinggiBaris,
+  barisManualAda,
+  barisManualBarisIni,
 }: MenuKonteksGridProps) {
   return (
     <ContextMenuContent>
@@ -306,6 +318,25 @@ export default function MenuKonteksGrid({
               })}
             </>
           )}
+          <ContextMenuSeparator />
+          <ContextMenuLabel>TINGGI BARIS</ContextMenuLabel>
+          <ContextMenuCheckboxItem
+            id={`menu_ctx_baris_ikut_isi_${tableKey}`}
+            checked={barisIkutIsi}
+            onCheckedChange={(c) => onUbahBarisIkutIsi(!!c)}
+          >
+            <span>Baris ikut isi (teks panjang membungkus)</span>
+          </ContextMenuCheckboxItem>
+          <ContextMenuItem
+            id={`menu_ctx_reset_tinggi_baris_${tableKey}`}
+            disabled={!barisManualBarisIni && !barisManualAda}
+            onSelect={() => onResetTinggiBaris(barisManualBarisIni ? row.rowId : null)}
+          >
+            <RotateCcw size={16} />
+            <span>
+              Kembalikan tinggi baris{barisManualBarisIni ? ' (baris ini)' : ' (seluruh tabel)'}
+            </span>
+          </ContextMenuItem>
           <ContextMenuSeparator />
           <ContextMenuLabel>SALIN</ContextMenuLabel>
           <ContextMenuItem onSelect={() => salinBaris(row.rowId)}>

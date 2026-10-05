@@ -24,6 +24,9 @@ import { judulTabel } from './excel/judul';
 import { useToolbarPresetState } from './excel/useToolbarPreset';
 import { useUrutanKolom } from './excel/useUrutanKolom';
 import { useLebarKolom } from './excel/useLebarKolom';
+import { useTinggiBaris } from './excel/useTinggiBaris';
+import { hitungTinggiBaris, MAX_BARIS_H, MIN_BARIS_H } from './excel/tinggiBaris';
+import { measureTextWidth } from './excel/measure';
 import { useSalinTabel } from './excel/useSalinTabel';
 import { copyText, tulisPolosSinkron } from '@/lib/clipboard';
 import { useBarisInput } from './excel/useBarisInput';
@@ -441,6 +444,17 @@ export default function ExcelTable<T extends { id: string | number }>({
     fontStackWeight,
   });
 
+  /** Tinggi baris per tabel: ikut isi + seret batas bawah baris (manual). */
+  const {
+    manual: tinggiBarisManual,
+    sigManual: sigTinggiBarisManual,
+    autoIkut: barisIkutIsi,
+    setAutoIkut: setBarisIkutIsi,
+    resetBaris: resetTinggiBaris,
+    resetSemua: resetSemuaTinggiBaris,
+    mulaiSeret: mulaiSeretBaris,
+  } = useTinggiBaris(tableKey);
+
   /** Perintah salin (menu konteks, ribbon, Ctrl+C) + pemetaan kolom grid. */
   const {
     selectedColumnKeys,
@@ -658,6 +672,69 @@ export default function ExcelTable<T extends { id: string | number }>({
 
 
   const effectiveH = rowH ?? densityPx;
+
+  /**
+   * Tinggi satu baris (dari baris GRID yang sudah berformat teks): manual
+   * (seret hanya baris itu) → ikut isi (baris ini membesar bila teksnya
+   * membungkus) → tinggi dasar kerapatan. Baris yang isinya muat tetap.
+   *
+   * Catatan: yang diterima DSG adalah `gridValue` (kunci = kolom, nilai =
+   * teks terformat), BUKAN baris domain — jadi `getValues` tidak boleh
+   * dipanggil lagi di sini.
+   *
+   * Mode ikut isi hanya untuk tabel halaman; tabel kompak `maxRows`
+   * menghitung tinggi dari jumlah baris tetap sehingga tinggi variabel akan
+   * membuat perkiraan itsinya meleset.
+   *
+   * Pengukuran lebar teks menyentuh DOM, jadi di-cache per teks dan tinggi
+   * akhir per baris. Kegagalan pengukuran tidak boleh menjatuhkan grid.
+   */
+  const cacheLebarTeks = useRef(new Map<string, number>());
+  const cacheTinggiBaris = useRef(new Map<string, number>());
+  const tinggiBarisSatuan = useCallback((rowData: GridRow): number => {
+    const rowKey = String(rowData.id);
+    const manual = tinggiBarisManual[rowKey];
+    if (manual !== undefined) return manual;
+    if (!barisIkutIsi || maxRows !== undefined || rowKey === INPUT_ROW_ID) return effectiveH;
+
+    try {
+      const style = wrapRef.current ? getComputedStyle(wrapRef.current) : null;
+      if (!style) return effectiveH;
+
+      const teks: string[] = [];
+      const lebarKolom: number[] = [];
+      for (const f of visibleFields) {
+        if (f.kind === 'toggle') continue;
+        const isi = rowData[f.key];
+        if (isi === null || isi === undefined || isi === '') continue;
+        teks.push(String(isi));
+        lebarKolom.push(widths[f.key] ?? autoWidths[f.key] ?? syncAutoWidths[f.key] ?? f.width ?? 150);
+      }
+      if (teks.length === 0) return effectiveH;
+
+      const sig = `${rowKey}|${effectiveFont}|${effectiveH}|${lebarKolom.join(',')}|${teks.join('\u0001')}`;
+      const tersimpan = cacheTinggiBaris.current.get(sig);
+      if (tersimpan !== undefined) return tersimpan;
+
+      const lebarTeks = teks.map((t) => {
+        const kunci = `${effectiveFont}|${t}`;
+        const ada = cacheLebarTeks.current.get(kunci);
+        if (ada !== undefined) return ada;
+        const baru = measureTextWidth(t, style);
+        if (cacheLebarTeks.current.size > 2000) cacheLebarTeks.current.clear();
+        cacheLebarTeks.current.set(kunci, baru);
+        return baru;
+      });
+      const tinggi = hitungTinggiBaris({ lebarTeks, lebarKolom, fontPx: effectiveFont, minH: effectiveH });
+      if (cacheTinggiBaris.current.size > 1000) cacheTinggiBaris.current.clear();
+      cacheTinggiBaris.current.set(sig, tinggi);
+      return tinggi;
+    } catch {
+      // Pengukuran gagal (mis. DOM belum siap) → tinggi dasar.
+      return effectiveH;
+    }
+  }, [tinggiBarisManual, barisIkutIsi, maxRows, effectiveH, effectiveFont, visibleFields, widths, autoWidths, syncAutoWidths]);
+
   // Tinggi header efektif (manual → terukur → bawaan). Dipakai untuk tinggi
   // tabel kompak agar header yang membungkus 2 baris (judul panjang) ikut
   // terhitung — dulu dipatok 1 baris sehingga tabel kompak kena scrollbar.
@@ -747,6 +824,64 @@ export default function ExcelTable<T extends { id: string | number }>({
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, drafts, checkedIds, fields, getValues, editing, showInput, inputRowValues]);
+
+  /**
+   * `rowHeight` DSG: fungsi saat tabel punya baris (tinggi per baris), angka
+   * saat kosong — jalur tinggi variabel DSG melempar `undefined.top` bila
+   * `value` kosong.
+   */
+  const gridRowHeight = useMemo(
+    () => (gridValue.length === 0
+      ? effectiveH
+      : ({ rowData }: { rowData: GridRow }) => tinggiBarisSatuan(rowData)),
+    [gridValue.length, effectiveH, tinggiBarisSatuan],
+  );
+
+  /** Tanda tinggi baris saat ini (setiap baris ikut isinya masing-masing). */
+  const sigTinggiBaris = useMemo(() => {
+    if (gridValue.length === 0) return 'kosong';
+    const parts: string[] = [];
+    for (const g of gridValue) parts.push(String(tinggiBarisSatuan(g)));
+    return parts.join(',');
+  }, [gridValue, tinggiBarisSatuan, sigTinggiBarisManual]);
+
+  /**
+   * Tanda remount yang DIPAKAI `key` grid.
+   *
+   * DSG meng-cache offset baris dan tidak pernah membersihkannya sendiri,
+   * jadi tinggi baru hanya terlihat setelah grid di-remount. Namun remount
+   * tiap frame membuat kedipan: lebar kolom diukur ulang dan
+   * posisi scroll hilang (gejala "lebar kolom melompat" saat lebar kolom
+   * digeser). Karena itu:
+   * - tinggi **manual** (seret batas baris) langsung dipakai — aksi memang disengaja;
+   * - tinggi **otomatis** (perubahan lebar kolom/data) ditunda ~180 ms sampai
+   *   semua gerakan selesai, sehingga hanya terjadi satu remount di akhir.
+   */
+  const sigRemount = `${sigTinggiBaris}|${sigTinggiBarisManual}`;
+  const [sigAktif, setSigAktif] = useState(sigRemount);
+  const sigManualTerakhir = useRef(sigTinggiBarisManual);
+  useEffect(() => {
+    if (sigManualTerakhir.current !== sigTinggiBarisManual) {
+      sigManualTerakhir.current = sigTinggiBarisManual;
+      setSigAktif(sigRemount);
+      return;
+    }
+    const t = setTimeout(() => setSigAktif(sigRemount), 180);
+    return () => clearTimeout(t);
+  }, [sigRemount, sigTinggiBarisManual]);
+
+  /** Posisi gulir disimpan agar pulih setelah remount. */
+  const scrollPos = useRef({ top: 0, left: 0 });
+  const simpanScroll = useCallback(() => {
+    const el = wrapRef.current?.querySelector('.dsg-container') as HTMLElement | null;
+    if (el) scrollPos.current = { top: el.scrollTop, left: el.scrollLeft };
+  }, []);
+  useLayoutEffect(() => {
+    const el = wrapRef.current?.querySelector('.dsg-container') as HTMLElement | null;
+    if (!el) return;
+    el.scrollTop = scrollPos.current.top;
+    el.scrollLeft = scrollPos.current.left;
+  }, [sigAktif]);
 
   function handleChange(newValue: GridRow[]) {    const base = new Map<string, T>(rowsRef.current.map((r) => [String(r.id), r]));
     const nd: Drafts = {};
@@ -905,6 +1040,14 @@ export default function ExcelTable<T extends { id: string | number }>({
               onDblClick: () => {
                 if (!showInput) enableEditByDoubleClick();
               },
+              // Pegangan seret tinggi baris hanya di kolom data pertama.
+              ...(iData === 0 ? {
+                onResizeBaris: (rowData: GridRow) => (event: React.MouseEvent) => {
+                  if (String(rowData.id) === INPUT_ROW_ID) return;
+                  mulaiSeretBaris(event, String(rowData.id), tinggiBarisSatuan(rowData));
+                },
+                labelBaris: (rowData: GridRow) => String(rowData[visibleFields[0]?.key ?? ''] ?? ''),
+              } : {}),
             },
             disableKeys: false,
             keepFocus: false,
@@ -1417,6 +1560,7 @@ export default function ExcelTable<T extends { id: string | number }>({
               ) : (
                 <CheckAllContext.Provider value={checkAllState}>
                   <DataSheetGrid
+                    key={`baris-${sigAktif}`}
                     ref={gridRef}
                     value={gridValue}
                     onChange={handleChange}
@@ -1425,7 +1569,7 @@ export default function ExcelTable<T extends { id: string | number }>({
                     stickyRightColumn={hideActions ? undefined : aksiColumn}
                     rowKey="id"
                     height={gridHeight}
-                    rowHeight={effectiveH}
+                    rowHeight={gridRowHeight}
                     headerRowHeight={headerH ?? headerAutoH ?? DEFAULT_HEADER_H}
                     lockRows
                     addRowsComponent={false}
@@ -1439,7 +1583,7 @@ export default function ExcelTable<T extends { id: string | number }>({
                       );
                     }}
                     onSelectionChange={({ selection }) => setRange(selection)}
-                    onScroll={fitActionsIfNeeded}
+                    onScroll={() => { fitActionsIfNeeded(); simpanScroll(); }}
                   />
                 </CheckAllContext.Provider>
               )}
@@ -1475,6 +1619,14 @@ export default function ExcelTable<T extends { id: string | number }>({
             onGeserKiri={() => ctxHeader && geserKolom(ctxHeader.colKey, -1)}
             onGeserKanan={() => ctxHeader && geserKolom(ctxHeader.colKey, 1)}
             onResetUrutan={() => kembalikanUrutan()}
+            barisIkutIsi={barisIkutIsi}
+            onUbahBarisIkutIsi={setBarisIkutIsi}
+            onResetTinggiBaris={(rowId) => {
+              if (rowId === null) resetSemuaTinggiBaris();
+              else resetTinggiBaris(String(rowId));
+            }}
+            barisManualAda={Object.keys(tinggiBarisManual).length > 0}
+            barisManualBarisIni={ctxRow ? tinggiBarisManual[String(ctxRow.rowId)] !== undefined : false}
           />
         </ContextMenu>
 

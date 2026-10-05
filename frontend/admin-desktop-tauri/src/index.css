@@ -432,6 +432,21 @@
 .simpes-dsg .simpes-dsg-resizer:hover {
   background: color-mix(in srgb, var(--accent) 35%, transparent);
 }
+/* Pegangan seret tinggi baris: strip tipis di tepi bawah sel kolom data
+   pertama (gaya Excel), mengangkari garis batas antar baris. */
+.simpes-dsg-pegangan-baris {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -4px;
+  height: 9px;
+  cursor: ns-resize;
+  touch-action: none;
+  z-index: 4;
+}
+.simpes-dsg-pegangan-baris:hover {
+  background: color-mix(in srgb, var(--accent) 45%, transparent);
+}
 /* Teks judul: `min-width: 0` supaya boleh menyusut ke lebarAvailable dan
    membungkus baris, bukan meluber ke area tepi kolom sempit. */
 .simpes-dsg-teks-judul {
@@ -457,6 +472,9 @@
   align-self: stretch;
   display: flex;
   align-items: center;
+  /* Jangkar pegangan seret tinggi baris (konteks nearest = sel, bukan
+     .dsg-container yang juga position: relative). */
+  position: relative;
 }
 .simpes-dsg .simpes-dsg-select {
   flex: 1;
