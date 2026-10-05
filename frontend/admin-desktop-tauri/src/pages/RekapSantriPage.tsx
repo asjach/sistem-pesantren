@@ -86,7 +86,7 @@ export default function RekapSantriPage() {
         </FilterField>
       </div>
 
-      <ResizablePanelGroup orientation="horizontal" className="mt-3 min-h-0 flex-1" id="grup_rekap_santri">
+      <ResizablePanelGroup orientation="horizontal" className="mt-0 min-h-0 flex-1" id="grup_rekap_santri">
         <ResizableAutoHidePanel id="panel_rekap_tahun_ajaran" defaultSize="34" minSize="15">
           <TabelRingkas
             className="h-full min-h-0"

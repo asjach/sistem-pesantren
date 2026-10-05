@@ -205,7 +205,7 @@ export default function App() {
         <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">PSB Online</p>
         <h1 className="text-lg font-bold text-slate-900">Pendaftaran Santri Baru</h1>
         {!hasil && tampilForm ? (
-          <ol className="mt-3 flex items-center gap-2 text-xs">
+          <ol className="mt-0 flex items-center gap-2 text-xs">
             {LABEL_LANGKAH.map((label, i) => {
               const nomor = i + 1;
               const aktif = langkah === nomor;
