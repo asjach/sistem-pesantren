@@ -323,6 +323,13 @@ class GlobalFilterTest extends TestCase
             ->assertOk();
         $this->assertSame(2, $rekap->json('total_aktif'));
         $this->assertCount(2, $rekap->json('per_kelas'));
+        // Per tingkat urut lembaga lalu tingkat (MD sebelum MI), bukan urutan
+        // grup acak dari DB. Urutan tingkat dalam satu lembaga diuji di
+        // SiklusFlowTest test_11.
+        $this->assertSame(
+            [['MD', '1'], ['MI', '1']],
+            array_map(fn ($r) => [$r['lembaga'], $r['tingkat']], $rekap->json('per_tingkat')),
+        );
 
         $mutasiQuery = http_build_query([
             'jenjang' => ['MI', 'MD'],

@@ -82,6 +82,22 @@ class KeanggotaanSortTest extends TestCase
         return array_column(array_column($res->json('data'), 'santri'), 'nama_lengkap');
     }
 
+    public function test_filter_status_semua_eksplisit(): void
+    {
+        $this->sebaris();
+        $super = $this->makeSuperAdmin();
+        LembagaSantri::where('nis_lokal', '300')->update(['is_active_lembaga' => 'Tidak']);
+
+        $total = fn (string $query) => $this->actingAs($super, 'sanctum')
+            ->getJson('/api/admin/lembaga-santri?per_page=50&'.$query)
+            ->assertStatus(200)->json('total');
+
+        $this->assertSame(2, $total('is_active_lembaga=1'));
+        $this->assertSame(1, $total('is_active_lembaga=0'));
+        // `semua` eksplisit = tanpa filter status (bukan bawaannya).
+        $this->assertSame(3, $total('is_active_lembaga=semua'));
+    }
+
     public function test_urut_nama_naik(): void
     {
         $this->sebaris();

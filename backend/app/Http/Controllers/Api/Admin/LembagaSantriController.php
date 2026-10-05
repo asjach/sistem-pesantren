@@ -64,7 +64,8 @@ class LembagaSantriController extends Controller
                 $this->applyAcademicFilters($riwayat, $request);
             });
         }
-        if ($request->has('is_active_lembaga')) {
+        // `semua` = tanpa filter (nilai eksplisit opsi "Semua" dari UI).
+        if ($request->has('is_active_lembaga') && $request->input('is_active_lembaga') !== 'semua') {
             $query->where('lembaga_santri.is_active_lembaga', $request->boolean('is_active_lembaga') ? LembagaSantri::YA : LembagaSantri::TIDAK);
         }
         if ($request->filled('tanpa_nis')) {
@@ -240,7 +241,8 @@ class LembagaSantriController extends Controller
         $auth = $request->user();
 
         $query = $this->scopeLembaga(LembagaSantri::query(), $auth, $request);
-        if ($request->has('is_active_lembaga')) {
+        // `semua` = tanpa filter (nilai eksplisit opsi "Semua" dari UI).
+        if ($request->has('is_active_lembaga') && $request->input('is_active_lembaga') !== 'semua') {
             $query->where('lembaga_santri.is_active_lembaga', $request->boolean('is_active_lembaga') ? LembagaSantri::YA : LembagaSantri::TIDAK);
         }
         if ($request->filled('search')) {

@@ -375,7 +375,8 @@ export function rekapSantri(params: {
   semester?: ScalarOrArray<string>;
   tingkat?: ScalarOrArray<string>;
   kelas_id?: ScalarOrArray<number>;
-  keaktifan?: string;
+  /** Basis status_akhir: aktif | nonaktif | semua (tanpa filter). */
+  keaktifan?: 'aktif' | 'nonaktif' | 'semua';
 } = {}) {
   const q = new URLSearchParams();
   appendQueryParam(q, 'jenjang', params.jenjang);

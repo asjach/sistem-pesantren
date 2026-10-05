@@ -105,6 +105,26 @@ class SantriFlowTest extends TestCase
         $this->assertContains($santriMd->nama_lengkap, $nama);
     }
 
+    // ---------- 01b. filter status eksplisit "semua" ----------
+
+    public function test_01b_index_status_semua_eksplisit(): void
+    {
+        $this->baseFixture();
+        $super = $this->makeUser('super_admin');
+
+        $this->makeSantri('Pst Aktif', ['is_active_pst' => Santri::YA]);
+        $this->makeSantri('Pst Nonaktif', ['is_active_pst' => Santri::TIDAK]);
+
+        $total = fn (string $query) => $this->actingAs($super, 'sanctum')
+            ->getJson('/api/admin/santri?per_page=50&'.$query)
+            ->assertStatus(200)->json('total');
+
+        $this->assertSame(1, $total('is_active_pst=1'));
+        $this->assertSame(1, $total('is_active_pst=0'));
+        // `semua` eksplisit = tanpa filter status (bukan bawaannya).
+        $this->assertSame(2, $total('is_active_pst=semua'));
+    }
+
     public function test_02_guru_akses_index_ditolak(): void
     {
         $this->baseFixture();

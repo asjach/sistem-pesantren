@@ -607,7 +607,9 @@ class SiklusController extends Controller
 
         $data = $request->validated();
         // Keaktifan dari `status_akhir`: aktif = selain Pindah/Keluar (bawaan),
-        // nonaktif = Pindah/Keluar, kosong = semua status.
+        // nonaktif = Pindah/Keluar, `semua`/kosong = tanpa filter status
+        // (aktif + nonaktif). Bawaan tetap aktif agar pemanggil lama yang tidak
+        // mengirim parameter tidak berubah perilakunya.
         $keaktifan = $data['keaktifan'] ?? 'aktif';
 
         $riwayatQuery = function (bool $semuaTa = false) use ($request, $keaktifan) {
@@ -645,6 +647,9 @@ class SiklusController extends Controller
                 'l' => (int) $r->l,
                 'p' => (int) $r->p,
             ])->values()->all();
+        // Urut tampil: lembaga lalu tingkat (natural agar "10" setelah "9").
+        usort($perTingkat, fn (array $a, array $b) => strnatcasecmp((string) $a['lembaga'], (string) $b['lembaga'])
+            ?: strnatcasecmp((string) $a['tingkat'], (string) $b['tingkat']));
 
         $kelasQuery = Kelas::query()->with(['lembaga:jenjang,nama', 'tahunAjaran:nama']);
         $this->scopeLembaga($kelasQuery, $request->user(), $request, 'jenjang');

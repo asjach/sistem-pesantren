@@ -78,6 +78,36 @@ class PegawaiModulTest extends TestCase
         ])->assertStatus(422);
     }
 
+    public function test_index_status_aktif_dan_keaktifan_semua_eksplisit(): void
+    {
+        $this->fixture();
+        $auth = $this->superAdmin();
+
+        $aktif = Pegawai::create(['nama_lengkap' => 'Pegawai Aktif', 'jenis_kelamin' => 'L']);
+        $nonaktif = Pegawai::create(['nama_lengkap' => 'Pegawai Nonaktif', 'jenis_kelamin' => 'P', 'status_aktif' => 'Tidak']);
+
+        $total = fn (string $url) => $this->actingAs($auth, 'sanctum')
+            ->getJson($url)->assertStatus(200)->json('total');
+
+        $this->assertSame(1, $total('/api/admin/pegawai?q=Pegawai&status_aktif=Ya'));
+        $this->assertSame(1, $total('/api/admin/pegawai?q=Pegawai&status_aktif=Tidak'));
+        // `semua` eksplisit = tanpa filter status (bukan 0 baris).
+        $this->assertSame(2, $total('/api/admin/pegawai?q=Pegawai&status_aktif=semua'));
+
+        KeaktifanPegawai::create([
+            'pegawai_id' => $aktif->id, 'jenjang' => 'MI', 'tahun_ajaran' => '2026/2027',
+            'status_keaktifan' => 'Ya', 'no_sk' => 'SK/aktif',
+        ]);
+        KeaktifanPegawai::create([
+            'pegawai_id' => $nonaktif->id, 'jenjang' => 'MI', 'tahun_ajaran' => '2026/2027',
+            'status_keaktifan' => 'Tidak', 'no_sk' => 'SK/nonaktif',
+        ]);
+
+        $this->assertSame(1, $total('/api/admin/pegawai-keaktifan?per_page=50&status_keaktifan=Ya'));
+        $this->assertSame(1, $total('/api/admin/pegawai-keaktifan?per_page=50&status_keaktifan=Tidak'));
+        $this->assertSame(2, $total('/api/admin/pegawai-keaktifan?per_page=50&status_keaktifan=semua'));
+    }
+
     public function test_penempatan_satu_baris_tanpa_nipp(): void
     {
         $this->fixture();

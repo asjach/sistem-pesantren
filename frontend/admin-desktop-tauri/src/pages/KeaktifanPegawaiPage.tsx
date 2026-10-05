@@ -65,7 +65,8 @@ export default function KeaktifanPegawaiPage() {
   const canHapus = bisa(user, 'pegawai.hapus');
   const { jenjangs, tahunAjaranNames } = useFilterGlobalAktif();
   const [cari, setCari] = useState('');
-  const [status, setStatus] = useState('');
+  /** Status keaktifan pegawai; `'semua'` dikirim eksplisit ke backend. */
+  const [status, setStatus] = useState<'semua' | 'Ya' | 'Tidak'>('semua');
   const [importOpen, setImportOpen] = useState(false);
   /** Mode gabungan import: buatkan penempatan aktif bila belum ada. */
   const [buatPenempatan, setBuatPenempatan] = useState(false);
@@ -83,7 +84,7 @@ export default function KeaktifanPegawaiPage() {
         return listKeaktifanPegawai({
           jenjang: jenjangs,
           tahun_ajaran: tahunAjaranNames,
-          status_keaktifan: status || undefined,
+          status_keaktifan: status,
           q: a.search || undefined,
           sort: a.urut.length ? a.urut : undefined,
           arah: a.urut.length ? a.arah : undefined,
@@ -258,9 +259,9 @@ export default function KeaktifanPegawaiPage() {
         filter={
           <FilterField label="Status" htmlFor="select_status_keaktifan">
             <Select
-              value={status === '' ? 'semua' : status}
+              value={status}
               onValueChange={(v) => {
-                setStatus(v === 'semua' ? '' : v);
+                setStatus(v as 'semua' | 'Ya' | 'Tidak');
                 pager.goFirst();
               }}
             >

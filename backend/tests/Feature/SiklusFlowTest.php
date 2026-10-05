@@ -925,6 +925,26 @@ class SiklusFlowTest extends TestCase
 
     // ---------- 11. daftar kelas & rekap santri ----------
 
+    public function test_11_rekap_per_tingkat_urut_lembaga_lalu_tingkat(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
+
+        // Sengaja tidak berurutan (tingkat 2 lebih dulu) agar sortir teruji.
+        foreach ([['B', '2'], ['A', '1']] as [$nama, $tingkat]) {
+            $s = $this->makeSantri('Urut '.$nama);
+            $this->makeKeanggotaan($s, $f['mi'], '2590'.$tingkat);
+            $this->makeRiwayat($s, $f['taBaru'], $f['mi'], '1', ['tingkat' => $tingkat]);
+        }
+
+        $res = $this->actingAs($admin, 'sanctum')
+            ->getJson('/api/admin/akademik/rekap-santri?jenjang='.$f['mi']->jenjang
+                .'&tahun_ajaran='.$f['taBaru']->nama.'&semester=1')
+            ->assertStatus(200);
+
+        $this->assertSame(['1', '2'], array_column($res->json('per_tingkat'), 'tingkat'));
+    }
+
     public function test_11_daftar_kelas_dan_rekap_santri(): void
     {
         $f = $this->baseFixture();
@@ -1012,6 +1032,14 @@ class SiklusFlowTest extends TestCase
                 .'&tahun_ajaran='.$f['taLama']->nama.'&semester=2&keaktifan=nonaktif')
             ->assertStatus(200);
         $this->assertSame(1, $nonaktif->json('total_aktif'));
+
+        // Filter keaktifan: semua = aktif + nonaktif (tanpa filter status).
+        $semua = $this->actingAs($admin, 'sanctum')
+            ->getJson('/api/admin/akademik/rekap-santri?jenjang='.$f['mi']->jenjang
+                .'&tahun_ajaran='.$f['taLama']->nama.'&semester=2&keaktifan=semua')
+            ->assertStatus(200);
+        $this->assertSame(3, $semua->json('total_aktif'));
+        $this->assertSame(3, $semua->json('per_kelas.0.terisi'));
     }
 
     // ---------- 12. daftar kelas basis status_akhir + lintas periode ----------

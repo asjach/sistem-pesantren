@@ -17,8 +17,8 @@ export default function RekapSantriPage() {
     semesters,
     loading: filterLoading,
   } = useFilterGlobalAktif();
-  /** Keaktifan dari `status_akhir`: aktif (bawaan) | nonaktif | '' = semua. */
-  const [keaktifan, setKeaktifan] = useState('aktif');
+  /** Keaktifan dari `status_akhir`: aktif (bawaan) | nonaktif | semua. */
+  const [keaktifan, setKeaktifan] = useState<'aktif' | 'nonaktif' | 'semua'>('aktif');
   const [data, setData] = useState<RekapSantri | null>(null);
   const [err, setErr] = useState('');
 
@@ -30,7 +30,7 @@ export default function RekapSantriPage() {
         jenjang: jenjangs,
         tahun_ajaran: tahunAjaranNames,
         semester: semesters,
-        keaktifan: keaktifan || undefined,
+        keaktifan,
       });
       setData(res);
     } catch (e) { setErr(errorMessage(e)); }
@@ -71,7 +71,7 @@ export default function RekapSantriPage() {
       <ErrorNotice>{err}</ErrorNotice>
       <div className="flex flex-wrap items-end gap-3">
         <FilterField label="Keaktifan" htmlFor="select_keaktifan_rekap" sejajar className="px-2 py-2">
-          <Select value={keaktifan === '' ? '_semua' : keaktifan} onValueChange={(v) => setKeaktifan(v === '_semua' ? '' : v)}>
+          <Select value={keaktifan} onValueChange={(v) => setKeaktifan(v as 'aktif' | 'nonaktif' | 'semua')}>
             <SelectTrigger id="select_keaktifan_rekap" title="Filter keaktifan" aria-label="Filter keaktifan" size="sm" className="w-40">
               <SelectValue placeholder="Aktif" />
             </SelectTrigger>
@@ -79,7 +79,7 @@ export default function RekapSantriPage() {
               <SelectGroup>
                 <SelectItem value="aktif">Aktif</SelectItem>
                 <SelectItem value="nonaktif">Tidak aktif</SelectItem>
-                <SelectItem value="_semua">Semua</SelectItem>
+                <SelectItem value="semua">Semua</SelectItem>
               </SelectGroup>
             </SelectContent>
           </Select>

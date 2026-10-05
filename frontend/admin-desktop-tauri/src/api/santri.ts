@@ -36,7 +36,8 @@ export function listKeanggotaan(params: {
   semester?: ScalarOrArray<string>;
   tingkat?: ScalarOrArray<string>;
   kelas_id?: ScalarOrArray<number>;
-  is_active_lembaga?: boolean | null;
+  /** Keaktifan keanggotaan per lembaga; `'semua'` = tanpa filter (eksplisit). */
+  is_active_lembaga?: boolean | 'semua' | null;
   tanpa_nis?: boolean;
   search?: string;
   sort?: string[];
@@ -50,7 +51,8 @@ export function listKeanggotaan(params: {
   appendQueryParam(q, 'semester', params.semester);
   appendQueryParam(q, 'tingkat', params.tingkat);
   appendQueryParam(q, 'kelas_id', params.kelas_id);
-  if (params.is_active_lembaga != null) q.set('is_active_lembaga', params.is_active_lembaga ? '1' : '0');
+  if (params.is_active_lembaga === 'semua') q.set('is_active_lembaga', 'semua');
+  else if (params.is_active_lembaga != null) q.set('is_active_lembaga', params.is_active_lembaga ? '1' : '0');
   if (params.tanpa_nis) q.set('tanpa_nis', '1');
   if (params.search) q.set('search', params.search);
   if (params.sort?.length) q.set('sort', params.sort.join(','));
@@ -157,7 +159,8 @@ export interface DokumenSantri {
 
 export function listSantri(
   params: {
-    is_active_pst?: boolean;
+    /** Keaktifan pesantren; `'semua'` = tanpa filter (nilai eksplisit). */
+    is_active_pst?: boolean | 'semua';
     jenjang?: ScalarOrArray<string>;
     tahun_ajaran?: ScalarOrArray<string>;
     semester?: ScalarOrArray<string>;
@@ -172,7 +175,8 @@ export function listSantri(
   } = {},
 ) {
   const q = new URLSearchParams();
-  if (params.is_active_pst !== undefined) q.set('is_active_pst', params.is_active_pst ? '1' : '0');
+  if (params.is_active_pst === 'semua') q.set('is_active_pst', 'semua');
+  else if (params.is_active_pst !== undefined) q.set('is_active_pst', params.is_active_pst ? '1' : '0');
   appendQueryParam(q, 'jenjang', params.jenjang);
   appendQueryParam(q, 'tahun_ajaran', params.tahun_ajaran);
   appendQueryParam(q, 'semester', params.semester);

@@ -52,7 +52,8 @@ class SantriController extends Controller
         $query = Santri::tenantScope()
             ->with(['lembagaAktif:id,santri_id,jenjang,nis_lokal,nis_kemenag', 'lembagaAktif.lembaga:jenjang,nama']);
 
-        if ($request->filled('is_active_pst')) {
+        // `semua` = tanpa filter (nilai eksplisit opsi "Semua" dari UI).
+        if ($request->filled('is_active_pst') && $request->input('is_active_pst') !== 'semua') {
             $query->where('is_active_pst', $request->boolean('is_active_pst') ? Santri::YA : Santri::TIDAK);
         }
         $lembaga = $this->nilaiFilter($request, 'jenjang');

@@ -69,7 +69,8 @@ function pakaiCommitBaris(rows: Santri[]) {
 /** Buku Induk: identitas santri (buku induk) + panel keanggotaan per lembaga + import identitas. */
 export default function SantriPage() {
   const [lembagas, setLembagas] = useState<Lembaga[]>([]);
-  const [statusGlobal, setStatusGlobal] = useState('_semua');
+  /** Status keaktifan pesantren; `'semua'` dikirim eksplisit ke backend. */
+  const [statusGlobal, setStatusGlobal] = useState<'semua' | 'aktif' | 'nonaktif'>('semua');
   const { jenjangs } = useFilterGlobalAktif();
   /** Pencarian tunggal halaman (topBar). */
   const [cari, setCari] = useState('');
@@ -88,7 +89,7 @@ export default function SantriPage() {
     tableKey: 'santri',
     search: cari,
     ambil: (a) => listSantri({
-      is_active_pst: statusGlobal === '_semua' ? undefined : statusGlobal === 'aktif',
+      is_active_pst: statusGlobal === 'semua' ? 'semua' : statusGlobal === 'aktif',
       jenjang: jenjangs,
       q: a.search || undefined,
       sort: a.urut.length ? a.urut : undefined,
@@ -253,13 +254,13 @@ export default function SantriPage() {
         )}
         filter={(
           <FilterField label="Status" htmlFor="select_status_santri">
-            <Select value={statusGlobal} onValueChange={(v) => { setStatusGlobal(v); pager.goFirst(); }}>
+            <Select value={statusGlobal} onValueChange={(v) => { setStatusGlobal(v as 'semua' | 'aktif' | 'nonaktif'); pager.goFirst(); }}>
               <SelectTrigger id="select_status_santri" title="Filter status" aria-label="Filter status" size="sm" className="w-36">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  <SelectItem value="_semua">Semua</SelectItem>
+                  <SelectItem value="semua">Semua</SelectItem>
                   <SelectItem value="aktif">Aktif</SelectItem>
                   <SelectItem value="nonaktif">Nonaktif</SelectItem>
                 </SelectGroup>

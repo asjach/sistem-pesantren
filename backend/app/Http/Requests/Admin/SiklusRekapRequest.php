@@ -40,7 +40,7 @@ class SiklusRekapRequest extends FormRequest
             'tingkat.*' => ['string'],
             'kelas_id' => ['nullable', 'array'],
             'kelas_id.*' => ['integer', 'exists:kelas,id'],
-            'keaktifan' => ['nullable', 'in:aktif,nonaktif'],
+            'keaktifan' => ['nullable', 'in:aktif,nonaktif,semua'],
         ];
     }
 }

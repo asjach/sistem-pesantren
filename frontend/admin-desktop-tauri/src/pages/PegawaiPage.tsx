@@ -145,7 +145,8 @@ export default function PegawaiPage() {
   const canHapus = bisa(user, 'pegawai.hapus');
   const canBuatAkun = canUbah && bisa(user, 'pengguna.tambah');
   const [cari, setCari] = useState('');
-  const [status, setStatus] = useState('');
+  /** Status aktif pegawai; `'semua'` dikirim eksplisit ke backend. */
+  const [status, setStatus] = useState<'semua' | 'Ya' | 'Tidak'>('semua');
 
   // Buku Induk bersifat global: abaikan filter global jenjang/TA agar pegawai
   // tanpa penempatan tetap tampil. Filter penempatan hanya di halaman terkait.
@@ -155,7 +156,7 @@ export default function PegawaiPage() {
       search: cari,
       ambil: (a) => listPegawai({
         q: a.search || undefined,
-        status_aktif: status || undefined,
+        status_aktif: status,
         sort: a.urut.length ? a.urut : undefined,
         arah: a.urut.length ? a.arah : undefined,
         page: a.page,
@@ -212,7 +213,7 @@ export default function PegawaiPage() {
     try {
       const res = await generateAkunPegawai({
         ...(cari.trim() === '' ? {} : { q: cari.trim() }),
-        ...(status === '' ? {} : { status_aktif: status }),
+        ...(status === 'semua' ? {} : { status_aktif: status }),
       });
       toast.success(res.pesan);
       setHasilGenerate(res.data);
@@ -317,7 +318,7 @@ export default function PegawaiPage() {
         onUrut={terapkanUrut}
         filter={(
           <FilterField label="Status" htmlFor="select_status_pegawai">
-            <Select value={status === '' ? 'semua' : status} onValueChange={(v) => { setStatus(v === 'semua' ? '' : v); pager.goFirst(); }}>
+            <Select value={status} onValueChange={(v) => { setStatus(v as 'semua' | 'Ya' | 'Tidak'); pager.goFirst(); }}>
               <SelectTrigger id="select_status_pegawai" title="Filter status" aria-label="Filter status" size="sm" className="w-36">
                 <SelectValue />
               </SelectTrigger>

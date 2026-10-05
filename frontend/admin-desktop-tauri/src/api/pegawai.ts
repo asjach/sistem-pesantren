@@ -97,7 +97,8 @@ export function listPegawai(params: {
   q?: string;
   jenjang?: ScalarOrArray<string> | null;
   tahun_ajaran?: ScalarOrArray<string>;
-  status_aktif?: string;
+  /** `'semua'` = tanpa filter (nilai eksplisit dari opsi Semua). */
+  status_aktif?: 'Ya' | 'Tidak' | 'semua';
   sort?: string[];
   arah?: 'naik' | 'turun';
   page?: number;
@@ -283,7 +284,8 @@ export interface KeaktifanPegawai {
 export function listKeaktifanPegawai(params: {
   jenjang?: ScalarOrArray<string> | null;
   tahun_ajaran?: ScalarOrArray<string>;
-  status_keaktifan?: string;
+  /** `'semua'` = tanpa filter (nilai eksplisit dari opsi Semua). */
+  status_keaktifan?: 'Ya' | 'Tidak' | 'semua';
   q?: string;
   sort?: string[];
   arah?: 'naik' | 'turun';

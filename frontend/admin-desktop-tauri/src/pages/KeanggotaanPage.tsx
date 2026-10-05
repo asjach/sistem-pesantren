@@ -60,7 +60,8 @@ export default function KeanggotaanPage() {
   const canTambah = bisa(user, 'santri.tambah');
   const pager = usePager('keanggotaan');
 
-  const [status, setStatus] = useState('');
+  /** Status keanggotaan; `'semua'` dikirim eksplisit ke backend. */
+  const [status, setStatus] = useState<'semua' | '1' | '0'>('semua');
   const [cari, setCari] = useState('');
   const { aksiProfil, dialogProfil } = useAksiProfilSantri();
   /** Urut header: daftar nilai allowlist + arah global (maks 3 kunci). */
@@ -105,7 +106,7 @@ export default function KeanggotaanPage() {
       const fl = f ?? { jenjangs, status, cari, urut, arah: arahUrut, arahKolom };
       const res = await listKeanggotaan({
         jenjang: fl.jenjangs,
-        is_active_lembaga: fl.status === '' ? null : fl.status === '1',
+        is_active_lembaga: fl.status === 'semua' ? 'semua' : fl.status === '1',
         search: fl.cari || undefined,
         sort: fl.urut?.length ? tokenUrut(fl.urut, fl.arahKolom) : undefined,
         arah: fl.urut?.length ? (fl.arah ?? 'naik') : undefined,
@@ -133,7 +134,7 @@ export default function KeanggotaanPage() {
   useEffect(() => { if (pager.ready) void load(pager.page); }, [pager.ready]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** Filter Status langsung terapkan saat berubah. */
-  function gantiFilter(patch: { status?: string }) {
+  function gantiFilter(patch: { status?: 'semua' | '1' | '0' }) {
     const next = { jenjangs, status, ...patch };
     if (patch.status !== undefined) setStatus(patch.status);
     pager.goFirst();
@@ -237,7 +238,7 @@ export default function KeanggotaanPage() {
     try {
       const res = await generateNiskBulk({
         jenjang: jenjangs,
-        ...(status === '' ? {} : { is_active_lembaga: status === '1' }),
+        ...(status === 'semua' ? {} : { is_active_lembaga: status === '1' }),
         ...(cari.trim() === '' ? {} : { search: cari.trim() }),
       });
        toast.success(res.pesan);
@@ -309,11 +310,11 @@ export default function KeanggotaanPage() {
         filter={(
           <>
             <FilterField label="Status" htmlFor="filter_status_keanggotaan">
-              <Select value={status || '_semua'} onValueChange={(v) => gantiFilter({ status: v === '_semua' ? '' : v })}>
+              <Select value={status} onValueChange={(v) => gantiFilter({ status: v as 'semua' | '1' | '0' })}>
                 <SelectTrigger id="filter_status_keanggotaan" className="w-36"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
-                    <SelectItem value="_semua">Semua</SelectItem>
+                    <SelectItem value="semua">Semua</SelectItem>
                     <SelectItem value="1">Aktif</SelectItem>
                     <SelectItem value="0">Nonaktif</SelectItem>
                   </SelectGroup>

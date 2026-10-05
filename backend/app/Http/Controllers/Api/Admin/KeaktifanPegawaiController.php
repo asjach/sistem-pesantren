@@ -48,7 +48,8 @@ class KeaktifanPegawaiController extends Controller
         );
 
         $this->applyFilter($query, $request, 'tahun_ajaran', 'keaktifan_pegawai.tahun_ajaran');
-        if ($request->filled('status_keaktifan')) {
+        // `semua` = tanpa filter (nilai eksplisit opsi "Semua" dari UI).
+        if ($request->filled('status_keaktifan') && $request->input('status_keaktifan') !== 'semua') {
             $query->where('keaktifan_pegawai.status_keaktifan', $request->input('status_keaktifan'));
         }
         $query->select('keaktifan_pegawai.*')
