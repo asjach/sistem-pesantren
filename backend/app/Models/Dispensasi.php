@@ -5,35 +5,33 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Attributes\Appends;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
-/** Dispensasi (keringanan) tagihan: target kriteria akademik atau santri tertentu. */
+/**
+ * Paket dispensasi (keringanan) tagihan: N aturan per jenis tagihan +
+ * daftar santri penerima. Cocok bila santri ada di pivot.
+ */
 #[Appends(['santri_ids'])]
 class Dispensasi extends Model
 {
     protected $table = 'dispensasi';
 
     protected $fillable = [
-        'nama', 'keterangan', 'tahun_ajaran', 'jenis_id', 'paket', 'tingkat',
-        'kelas_id', 'tipe', 'nilai', 'prioritas', 'is_active',
+        'nama', 'keterangan', 'tahun_ajaran', 'is_active',
     ];
 
     protected $casts = [
-        'paket' => 'array',
-        'tingkat' => 'array',
-        'kelas_id' => 'array',
-        'nilai' => 'integer',
-        'prioritas' => 'integer',
         'is_active' => 'boolean',
     ];
 
-    public function jenis(): BelongsTo
+    /** Aturan potongan per jenis tagihan. */
+    public function aturan(): HasMany
     {
-        return $this->belongsTo(JenisTagihan::class, 'jenis_id');
+        return $this->hasMany(DispensasiAturan::class, 'dispensasi_id');
     }
 
-    /** Santri tambahan individual via pivot `santri_dispensasi`. */
+    /** Santri penerima via pivot `santri_dispensasi`. */
     public function santriTambahan(): BelongsToMany
     {
         return $this->belongsToMany(Santri::class, 'santri_dispensasi', 'dispensasi_id', 'santri_id')

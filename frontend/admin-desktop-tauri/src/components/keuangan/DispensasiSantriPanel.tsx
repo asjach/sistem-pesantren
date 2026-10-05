@@ -56,27 +56,18 @@ export default function DispensasiSantriPanel({ santri }: { santri: { id: number
             <thead className="bg-muted/40">
               <tr>
                 <th className="p-1.5 text-left">Nama</th>
-                <th className="p-1.5 text-left">Jenis</th>
-                <th className="p-1.5 text-left">Potongan</th>
-                <th className="p-1.5 text-left">Sasaran</th>
+                <th className="p-1.5 text-left">Potongan per Jenis</th>
+                <th className="p-1.5 text-right">Santri</th>
               </tr>
             </thead>
             <tbody>
               {daftar.map((d) => (
                 <tr key={d.id} className="border-t">
                   <td className="p-1.5">{d.nama}</td>
-                  <td className="p-1.5">{d.jenis?.nama ?? 'Semua jenis'}</td>
                   <td className="p-1.5">
-                    {d.tipe === 'persen' ? `${d.nilai}%` : d.tipe === 'bebas' ? 'Bebas penuh' : `Rp ${d.nilai.toLocaleString('id')}`}
+                    {(d.aturan ?? []).map((a) => `${a.jenis?.nama ?? 'Semua jenis'}: ${a.tipe === 'persen' ? `${a.nilai}%` : a.tipe === 'bebas' ? 'bebas' : `Rp ${a.nilai.toLocaleString('id')}`}`).join(' · ')}
                   </td>
-                  <td className="p-1.5">
-                    {[
-                      (d.paket ?? []).join(', '),
-                      (d.tingkat ?? []).map((t) => `Tkt ${t}`).join(', '),
-                      (d.kelas_id ?? []).length > 0 ? `${(d.kelas_id ?? []).length} kelas` : '',
-                      (d.santri_ids ?? []).includes(santri.id) ? 'santri ini' : '',
-                    ].filter(Boolean).join(' · ') || 'Semua santri'}
-                  </td>
+                  <td className="p-1.5 text-right">{(d.santri_ids ?? []).length} santri</td>
                 </tr>
               ))}
             </tbody>

@@ -113,18 +113,26 @@ export function kandidatTagihan(params: {
 
 export type TipeDispensasi = 'persen' | 'nominal' | 'bebas';
 
-export interface Dispensasi {
-  id: number; nama: string; keterangan: string | null; tahun_ajaran: string;
-  jenis_id: number | null; paket: string[] | null; tingkat: string[] | null;
-  kelas_id: number[] | null; santri_ids: number[] | null;
-  tipe: TipeDispensasi; nilai: number; prioritas: number; is_active: boolean;
+export interface DispensasiAturan {
+  id: number; dispensasi_id: number; jenis_id: number | null;
+  tipe: TipeDispensasi; nilai: number;
   jenis?: { id: number; nama: string } | null;
 }
 
+export interface Dispensasi {
+  id: number; nama: string; keterangan: string | null; tahun_ajaran: string;
+  santri_ids: number[] | null; is_active: boolean;
+  aturan: DispensasiAturan[];
+}
+
+export interface DispensasiAturanInput {
+  jenis_id: number | null; tipe: TipeDispensasi; nilai: number;
+}
+
 export interface DispensasiInput {
-  nama: string; keterangan?: string | null; tahun_ajaran: string; jenis_id?: number | null;
-  paket?: string[] | null; tingkat?: string[] | null; kelas_id?: number[] | null; santri_ids?: number[] | null;
-  tipe: TipeDispensasi; nilai: number; prioritas?: number; is_active?: boolean;
+  nama: string; keterangan?: string | null; tahun_ajaran: string;
+  aturan: DispensasiAturanInput[]; santri_ids?: number[] | null;
+  is_active?: boolean;
 }
 
 export function daftarDispensasi(params: { tahun_ajaran?: string; jenis_id?: number | ''; is_active?: boolean; santri_id?: number; sort?: string[]; arah?: 'naik' | 'turun' } = {}) {

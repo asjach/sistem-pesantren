@@ -65,11 +65,9 @@ const FIELDS_TUNGGAKAN: ExcelField[] = [
 
 const FIELDS_DISPENSASI: ExcelField[] = [
   { key: 'nama', label: 'Dispensasi', kind: 'static' },
-  { key: 'jenis', label: 'Jenis', kind: 'static', width: 140 },
-  { key: 'target', label: 'Sasaran', kind: 'static' },
-  { key: 'nilai', label: 'Potongan', kind: 'static', width: 110 },
+  { key: 'aturan', label: 'Aturan per Jenis', kind: 'static' },
+  { key: 'santri', label: 'Santri', kind: 'static', width: 90 },
   { key: 'tahun_ajaran', label: 'TA', kind: 'static', width: 100 },
-  { key: 'prioritas', label: 'Prioritas', kind: 'static', width: 80 },
   { key: 'status', label: 'Status', kind: 'static', width: 80 },
 ];
 
@@ -446,16 +444,9 @@ export default function KeuanganPage() {
             onUrut={uDispensasi.terapkan}
             getValues={(r) => ({
               nama: r.nama,
-              jenis: r.jenis?.nama ?? 'Semua jenis',
-              target: [
-                (r.paket ?? []).join(', '),
-                (r.tingkat ?? []).map((t) => `Tkt ${t}`).join(', '),
-                (r.kelas_id ?? []).length > 0 ? `${(r.kelas_id ?? []).length} kelas` : '',
-                (r.santri_ids ?? []).length > 0 ? `${(r.santri_ids ?? []).length} santri` : '',
-              ].filter(Boolean).join(' · ') || 'Semua santri',
-              nilai: r.tipe === 'persen' ? `${r.nilai}%` : r.tipe === 'bebas' ? 'Bebas penuh' : `Rp ${r.nilai.toLocaleString('id')}`,
+              aturan: (r.aturan ?? []).map((a) => `${a.jenis?.nama ?? 'Semua jenis'}: ${a.tipe === 'persen' ? `${a.nilai}%` : a.tipe === 'bebas' ? 'bebas' : `Rp ${a.nilai.toLocaleString('id')}`}`).join(' · '),
+              santri: `${(r.santri_ids ?? []).length} santri`,
               tahun_ajaran: r.tahun_ajaran,
-              prioritas: String(r.prioritas),
               status: r.is_active ? 'Aktif' : 'Nonaktif',
             })}
             loading={loading}

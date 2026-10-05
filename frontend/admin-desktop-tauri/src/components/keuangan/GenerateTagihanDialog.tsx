@@ -49,38 +49,41 @@ type BarisTerpilih = KandidatTagihanRow & {
   potongan: number; dispensasiIds: number[] | null; dispensasiLabel: string | null;
 };
 
-/** Dispensasi yang cocok untuk satu baris santri (kriteria akademik / santri khusus). */
-function saringDispensasi(daftar: Dispensasi[], r: KandidatTagihanRow): Dispensasi[] {
-  return daftar.filter((d) => {
-    const santriIds = d.santri_ids ?? [];
-    if (santriIds.length > 0 && santriIds.includes(r.santri_id)) return true;
-    const paket = d.paket ?? [];
-    const kandidatPaket = r.paket === 'MI-MD' ? ['MI-MD', 'MI', 'MD'] : [r.paket];
-    if (paket.length > 0 && !paket.some((p) => kandidatPaket.includes(p))) return false;
-    const tingkat = d.tingkat ?? [];
-    if (tingkat.length > 0 && (r.tingkat === null || !tingkat.includes(r.tingkat))) return false;
-    const kelas = d.kelas_id ?? [];
-    if (kelas.length > 0 && (r.kelas_id === null || !kelas.includes(r.kelas_id))) return false;
-    return true;
-  });
+/** Aturan satu dispensasi untuk jenis terpilih (spesifik menang atas semua-jenis). */
+function aturanUntukJenis(d: Dispensasi, jenisId: number) {
+  let umum = null;
+  for (const a of d.aturan ?? []) {
+    if (a.jenis_id === null) umum ??= a;
+    else if (a.jenis_id === jenisId) return a;
+  }
+  return umum;
 }
 
-/** Akumulatif urut prioritas lalu id — sama dengan DispensasiService di backend. */
-function hitungDispensasi(nominalAwal: number, cocok: Dispensasi[]) {
-  const urut = [...cocok].sort((a, b) => (a.prioritas - b.prioritas) || (a.id - b.id));
+/** Dispensasi yang cocok untuk satu baris santri (terdaftar sebagai penerima). */
+function saringDispensasi(daftar: Dispensasi[], r: KandidatTagihanRow): Dispensasi[] {
+  return daftar.filter((d) => (d.santri_ids ?? []).includes(r.santri_id));
+}
+
+/** Akumulatif urut id — sama dengan DispensasiService di backend. */
+function hitungDispensasi(nominalAwal: number, cocok: Dispensasi[], jenisId: number) {
+  const urut = [...cocok].sort((a, b) => a.id - b.id);
   let nominal = nominalAwal;
+  const pakai: Dispensasi[] = [];
   for (const d of urut) {
-    nominal = d.tipe === 'persen'
-      ? Math.floor(nominal * (100 - Math.min(100, Math.max(0, d.nilai))) / 100)
-      : d.tipe === 'bebas'
+    const a = aturanUntukJenis(d, jenisId);
+    if (!a) continue;
+    nominal = a.tipe === 'persen'
+      ? Math.floor(nominal * (100 - Math.min(100, Math.max(0, a.nilai))) / 100)
+      : a.tipe === 'bebas'
         ? 0
-        : Math.max(0, nominal - Math.max(0, d.nilai));
+        : Math.max(0, nominal - Math.max(0, a.nilai));
+    pakai.push(d);
   }
   return {
     nominal,
     potongan: Math.max(0, nominalAwal - nominal),
-    ids: urut.map((d) => d.id),
-    label: urut.map((d) => d.nama).join(', '),
+    ids: pakai.map((d) => d.id),
+    label: pakai.map((d) => d.nama).join(', '),
   };
 }
 
@@ -194,7 +197,7 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
     if (jenisId === '' || !Number.isInteger(awal) || awal < 0) {
       return { ...r, nominal: nominalStr, nominalManual: false, potongan: 0, dispensasiIds: null, dispensasiLabel: null };
     }
-    const h = hitungDispensasi(awal, saringDispensasi(daftarDispen, r));
+    const h = hitungDispensasi(awal, saringDispensasi(daftarDispen, r), Number(jenisId));
     return {
       ...r, nominal: String(h.nominal), nominalManual: false,
       potongan: h.potongan, dispensasiIds: h.ids.length > 0 ? h.ids : null,

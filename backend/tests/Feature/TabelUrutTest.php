@@ -110,6 +110,16 @@ class TabelUrutTest extends TestCase
         );
     }
 
+    public function test_santri_urut_ayah(): void
+    {
+        Santri::create(['nama_lengkap' => 'Satu', 'jk' => 'L', 'ayah_nama' => 'Zul']);
+        Santri::create(['nama_lengkap' => 'Dua', 'jk' => 'L', 'ayah_nama' => 'Ari']);
+        $this->assertSame(
+            ['Dua', 'Satu'],
+            $this->kolom($this->super(), '/api/admin/santri?per_page=50&sort=ayah&arah=naik', 'nama_lengkap')
+        );
+    }
+
     public function test_santri_nilai_liar_ditolak(): void
     {
         $this->actingAs($this->super(), 'sanctum')
@@ -438,7 +448,7 @@ class TabelUrutTest extends TestCase
     {
         $this->dasar();
         foreach (['Zeta', 'Alfa'] as $nama) {
-            Dispensasi::create(['nama' => $nama, 'tahun_ajaran' => '2026/2027', 'tipe' => 'nominal', 'nilai' => 1000]);
+            Dispensasi::create(['nama' => $nama, 'tahun_ajaran' => '2026/2027']);
         }
         $res = $this->actingAs($this->super(), 'sanctum')
             ->getJson('/api/admin/keuangan/dispensasi?sort=nama&arah=naik')

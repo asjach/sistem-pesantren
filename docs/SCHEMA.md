@@ -1107,24 +1107,25 @@ Lifecycle mandiri (tidak lewat `riwayat_belajar`); masuk/keluar bisa kapan saja.
 - `created_at`, `updated_at`
 - UNIQUE(`jenjang`, `paket`, `tahun_ajaran`, `jenis_id`, `tingkat`) — nama `uq_tarif_tagihan`
 
-### `dispensasi`
+### `dispensasi` (paket keringanan: N aturan jenis + daftar santri penerima)
 - `id` PK
 - `nama`: string(100) — label dispensasi (mis. Anak Pegawai, Beasiswa Yatim)
 - `keterangan`: string(255) [null]
 - `tahun_ajaran`: string(20) — FK → tahun_ajaran [cascadeOnUpdate, cascadeOnDelete]; dispensasi terikat TA
-- `jenis_id`: FK → jenis_tagihan [null, nullOnDelete] — null = semua jenis
-- `paket`: json [null] — daftar paket sasaran (MI/D/MI-MD/MTS/MLN); kosong = semua paket
-- `tingkat`: json [null] — daftar tingkat sasaran; kosong = semua tingkat
-- `kelas_id`: json [null] — daftar FK kelas sasaran; kosong = semua kelas
-- ~~`santri_ids`: json~~ → pindah ke tabel pivot `santri_dispensasi` (kolom dihapus 2026-10-05); API tetap menyerialkan `santri_ids` dari pivot
-- `tipe`: enum('persen','nominal','bebas') [default 'nominal'] — bebas penuh = tagihan bernominal 0
-- `nilai`: unsignedInteger [default 0] — persen (maks 100) atau nominal rupiah
-- `prioritas`: integer [default 0] — urutan penerapan akumulatif (kecil dulu)
 - `is_active`: bool [default true]
 - `created_at`, `updated_at`
 - INDEX(`tahun_ajaran`, `is_active`)
 
-### `santri_dispensasi` (pivot santri tambahan dispensasi)
+### `dispensasi_aturan` (aturan potongan per jenis dalam satu paket)
+- `id` PK
+- `dispensasi_id`: FK → dispensasi [cascadeOnDelete]
+- `jenis_id`: FK → jenis_tagihan [null, nullOnDelete] — null = semua jenis (bila ada harus satu-satunya baris)
+- `tipe`: enum('persen','nominal','bebas') [default 'nominal'] — bebas penuh = tagihan bernominal 0
+- `nilai`: unsignedInteger [default 0] — persen (maks 100) atau nominal rupiah
+- `created_at`, `updated_at`
+- UNIQUE(`dispensasi_id`, `jenis_id`), INDEX(`jenis_id`)
+
+### `santri_dispensasi` (pivot santri penerima dispensasi)
 - `id` PK
 - `dispensasi_id`: FK → dispensasi [cascadeOnDelete]
 - `santri_id`: FK → santri [cascadeOnDelete]

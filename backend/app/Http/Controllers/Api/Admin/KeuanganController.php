@@ -162,12 +162,13 @@ class KeuanganController extends Controller
             'santri_id' => 'nullable|integer|exists:santri,id',
         ]);
 
-        $q = Dispensasi::with(['jenis', 'santriTambahan']);
+        $q = Dispensasi::with(['aturan.jenis', 'santriTambahan']);
         if (! empty($data['tahun_ajaran'])) {
             $q->where('tahun_ajaran', $data['tahun_ajaran']);
         }
         if (! empty($data['jenis_id'])) {
-            $q->where(fn ($w) => $w->whereNull('jenis_id')->orWhere('jenis_id', $data['jenis_id']));
+            $jenisId = (int) $data['jenis_id'];
+            $q->whereHas('aturan', fn ($w) => $w->whereNull('jenis_id')->orWhere('jenis_id', $jenisId));
         }
         if ($request->filled('is_active')) {
             $q->where('is_active', $request->boolean('is_active'));
@@ -176,8 +177,6 @@ class KeuanganController extends Controller
         if ($urut === null) {
             $q->orderBy('tahun_ajaran')->orderBy('nama');
         } else {
-            $q->select('dispensasi.*')
-                ->leftJoin('jenis_tagihan', 'jenis_tagihan.id', '=', 'dispensasi.jenis_id');
             $this->terapkanUrut($q, $urut, [['dispensasi.tahun_ajaran', 'naik'], ['dispensasi.nama', 'naik']]);
         }
 
@@ -193,7 +192,7 @@ class KeuanganController extends Controller
                 return response()->json([]);
             }
             $this->canLembaga($request->user(), $info['jenjang_utama']) || abort(403);
-            $daftar = app(DispensasiService::class)->saring($daftar, $info);
+            $daftar = app(DispensasiService::class)->saring($daftar, (int) $data['santri_id']);
         }
 
         return response()->json($daftar->values());
@@ -204,20 +203,28 @@ class KeuanganController extends Controller
         $data = $this->validasiDispensasi($request);
         $this->authorizeDispensasi($request->user(), $data);
 
-        $dispensasi = Dispensasi::create($this->bersihkanDispensasi($data));
-        $dispensasi->santriTambahan()->sync($this->normalisasiSantriIds($data['santri_ids'] ?? null));
+        $dispensasi = DB::transaction(function () use ($data) {
+            $d = Dispensasi::create($this->bersihkanDispensasi($data));
+            $this->simpanAturan($d, $data['aturan']);
+            $d->santriTambahan()->sync($this->normalisasiSantriIds($data['santri_ids'] ?? null));
 
-        return response()->json($dispensasi->load(['jenis', 'santriTambahan']), 201);
+            return $d;
+        });
+
+        return response()->json($dispensasi->load(['aturan.jenis', 'santriTambahan']), 201);
     }
 
     public function updateDispensasi(Request $request, Dispensasi $dispensasi)
     {
         $data = $this->validasiDispensasi($request);
         $this->authorizeDispensasi($request->user(), $data);
-        $dispensasi->update($this->bersihkanDispensasi($data));
-        $dispensasi->santriTambahan()->sync($this->normalisasiSantriIds($data['santri_ids'] ?? null));
+        DB::transaction(function () use ($dispensasi, $data) {
+            $dispensasi->update($this->bersihkanDispensasi($data));
+            $this->simpanAturan($dispensasi, $data['aturan']);
+            $dispensasi->santriTambahan()->sync($this->normalisasiSantriIds($data['santri_ids'] ?? null));
+        });
 
-        return response()->json($dispensasi->load(['jenis', 'santriTambahan']));
+        return response()->json($dispensasi->load(['aturan.jenis', 'santriTambahan']));
     }
 
     public function destroyDispensasi(Dispensasi $dispensasi)
@@ -239,44 +246,87 @@ class KeuanganController extends Controller
             'nama' => 'required|string|max:100',
             'keterangan' => 'nullable|string|max:255',
             'tahun_ajaran' => 'required|string|exists:tahun_ajaran,nama',
-            'jenis_id' => 'nullable|integer|exists:jenis_tagihan,id',
-            'paket' => 'nullable|array',
-            'paket.*' => 'string|max:20',
-            'tingkat' => 'nullable|array',
-            'tingkat.*' => 'string|max:20',
-            'kelas_id' => 'nullable|array',
-            'kelas_id.*' => 'integer|exists:kelas,id',
+            'aturan' => 'required|array|min:1',
+            'aturan.*.jenis_id' => 'nullable|integer|exists:jenis_tagihan,id',
+            'aturan.*.tipe' => 'required|in:persen,nominal,bebas',
+            'aturan.*.nilai' => 'required|integer|min:0',
             'santri_ids' => 'nullable|array',
             'santri_ids.*' => 'integer|exists:santri,id',
-            'tipe' => 'required|in:persen,nominal,bebas',
-            'nilai' => 'required|integer|min:0',
-            'prioritas' => 'nullable|integer',
             'is_active' => 'nullable|boolean',
         ]);
-        if ($data['tipe'] === 'persen' && $data['nilai'] > 100) {
-            abort(422, 'Nilai persen maksimal 100.');
+        $data['aturan'] = $this->normalisasiAturan($data['aturan']);
+        foreach ($data['aturan'] as $a) {
+            if ($a['tipe'] === 'persen' && $a['nilai'] > 100) {
+                abort(422, 'Nilai persen maksimal 100.');
+            }
         }
 
         return $data;
     }
 
     /**
-     * Dispensasi tanpa batas paket & tanpa santri khusus = global (semua
-     * lembaga) → super_admin saja; paket yang dipilih wajib boleh diakses.
+     * Normalisasi daftar aturan: dedupe per jenis (`jenis_id` null = semua
+     * jenis, bila ada harus menjadi satu-satunya baris).
+     *
+     * @return list<array{jenis_id: ?int, tipe: string, nilai: int}>
+     */
+    private function normalisasiAturan(mixed $nilai): array
+    {
+        if (! is_array($nilai)) {
+            abort(422, 'Aturan dispensasi tidak valid.');
+        }
+        $perJenis = [];
+        foreach ($nilai as $a) {
+            if (! is_array($a)) {
+                continue;
+            }
+            $jenisId = ($a['jenis_id'] ?? null) === null || ($a['jenis_id'] ?? '') === ''
+                ? null
+                : (int) $a['jenis_id'];
+            $kunci = $jenisId === null ? 'semua' : "jenis-{$jenisId}";
+            $perJenis[$kunci] ??= [
+                'jenis_id' => $jenisId,
+                'tipe' => in_array($a['tipe'] ?? null, ['persen', 'nominal', 'bebas'], true) ? $a['tipe'] : 'nominal',
+                'nilai' => max(0, (int) ($a['nilai'] ?? 0)),
+            ];
+        }
+        $hasil = array_values($perJenis);
+        if ($hasil === []) {
+            abort(422, 'Isi minimal satu jenis tagihan.');
+        }
+        if (count($hasil) > 1 && array_any($hasil, fn ($a) => $a['jenis_id'] === null)) {
+            abort(422, 'Aturan "semua jenis" harus berdiri sendiri.');
+        }
+
+        return $hasil;
+    }
+
+    /**
+     * Lingkup lembaga mengikuti jenis tagihan yang dipilih: aturan semua
+     * jenis atau seluruh jenis berjenjang global → super_admin saja;
+     * selain itu tiap jenjang jenis wajib boleh diakses.
      *
      * @param  array<string, mixed>  $data
      */
     private function authorizeDispensasi($actor, array $data): void
     {
-        $paket = array_values(array_filter($data['paket'] ?? [], fn ($v) => $v !== null && $v !== ''));
-        if ($paket !== []) {
-            $this->authorizeLembagaMany($actor, $paket);
-
+        $aturan = $data['aturan'] ?? [];
+        if (array_any($aturan, fn ($a) => ($a['jenis_id'] ?? null) === null)) {
+            $actor->bolehSuperAdmin() || abort(403, 'Dispensasi semua jenis hanya boleh dibuat super_admin.');
+        }
+        $ids = array_values(array_unique(array_map(
+            fn ($a) => (int) $a['jenis_id'],
+            array_filter($aturan, fn ($a) => ($a['jenis_id'] ?? null) !== null)
+        )));
+        if ($ids === []) {
             return;
         }
-        if (empty($data['santri_ids']) && ! $actor->bolehSuperAdmin()) {
-            abort(403, 'Dispensasi global (semua paket) hanya boleh dibuat super_admin.');
+        $jenjang = JenisTagihan::whereIn('id', $ids)->pluck('jenjang')
+            ->filter(fn ($j) => $j !== null && $j !== '')->unique()->values()->all();
+        if ($jenjang === []) {
+            $actor->bolehSuperAdmin() || abort(403, 'Dispensasi jenis global hanya boleh dibuat super_admin.');
         }
+        $this->authorizeLembagaMany($actor, array_map('strval', $jenjang));
     }
 
     /**
@@ -285,13 +335,24 @@ class KeuanganController extends Controller
      */
     private function bersihkanDispensasi(array $data): array
     {
-        foreach (['paket', 'tingkat', 'kelas_id'] as $kunci) {
-            $nilai = array_values(array_filter($data[$kunci] ?? [], fn ($v) => $v !== null && $v !== ''));
-            $data[$kunci] = $nilai === [] ? null : $nilai;
-        }
-        unset($data['santri_ids']);
+        unset($data['aturan'], $data['santri_ids']);
 
         return $data;
+    }
+
+    /** Simpan ulang daftar aturan satu paket dispensasi. */
+    private function simpanAturan(Dispensasi $dispensasi, array $aturan): void
+    {
+        $dispensasi->aturan()->delete();
+        $sekarang = now();
+        $baris = array_map(fn ($a) => [
+            'jenis_id' => $a['jenis_id'],
+            'tipe' => $a['tipe'],
+            'nilai' => $a['nilai'],
+            'created_at' => $sekarang,
+            'updated_at' => $sekarang,
+        ], $aturan);
+        $dispensasi->aturan()->createMany($baris);
     }
 
     /** Normalisasi daftar santri tambahan menjadi id unik terurut. */
@@ -486,10 +547,10 @@ class KeuanganController extends Controller
 
         // Dispensasi aktif untuk TA+jenis ini; baris tanpa override manual
         // dihitung ulang di sini (otoritatif), override manual menang.
-        $daftarDispensasi = Dispensasi::with(['jenis', 'santriTambahan'])
+        $daftarDispensasi = Dispensasi::with(['aturan.jenis', 'santriTambahan'])
             ->where('tahun_ajaran', $data['tahun_ajaran'])
             ->where('is_active', true)
-            ->where(fn ($w) => $w->whereNull('jenis_id')->orWhere('jenis_id', $jenis->id))
+            ->whereHas('aturan', fn ($w) => $w->whereNull('jenis_id')->orWhere('jenis_id', $jenis->id))
             ->get();
         $aturan = app(DispensasiService::class);
 
@@ -507,7 +568,7 @@ class KeuanganController extends Controller
                 $potongan = 0;
                 $dispensasiIds = null;
             } else {
-                $hasil = $aturan->terapkan((int) $data['nominal'], $aturan->saring($daftarDispensasi, $info));
+                $hasil = $aturan->terapkan((int) $data['nominal'], $aturan->saring($daftarDispensasi, (int) $santriId), (int) $jenis->id);
                 $nominal = $hasil['nominal'];
                 $potongan = $hasil['potongan'];
                 $dispensasiIds = $hasil['ids'] === [] ? null : $hasil['ids'];

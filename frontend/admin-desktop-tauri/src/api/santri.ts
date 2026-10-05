@@ -69,6 +69,8 @@ export interface Santri {
   nama_singkat: string | null;
   nik: string | null;
   nisn: string | null;
+  ayah_nama?: string | null;
+  ibu_nama?: string | null;
   tmp_lahir: string | null;
   tgl_lahir: string | null;
   jk: string | null;
