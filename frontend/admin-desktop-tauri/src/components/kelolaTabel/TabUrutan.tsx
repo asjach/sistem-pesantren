@@ -42,6 +42,8 @@ export default function TabUrutan({ tableKey }: { tableKey: string }) {
   const [data, setData] = useState<PresetUrutData | null>(null);
   const [draft, setDraft] = useState<OpsiUrut[]>([]);
   const [busy, setBusy] = useState(false);
+  /** Pesan galat muat terakhir (mis. tabel tak dikenal katalog urut). */
+  const [galatMuat, setGalatMuat] = useState('');
   const laporKotor = useBagian('urutan', () => void simpan());
   /** Draf terakhir yang sama dengan isi server (acuan deteksi kotor). */
   const acuanRef = useRef('[]');
@@ -52,10 +54,12 @@ export default function TabUrutan({ tableKey }: { tableKey: string }) {
       setData(res.data);
       const bersih = res.data.opsi.map((o) => ({ ...o, kode: [...o.kode], arah_kolom: o.arah_kolom ? { ...o.arah_kolom } : null }));
       setDraft(bersih);
+      setGalatMuat('');
       acuanRef.current = JSON.stringify(bersih);
-    } catch {
+    } catch (e) {
       setData({ table_key: tableKey, opsi: [], tersedia: [] });
       setDraft([]);
+      setGalatMuat(errorMessage(e));
       acuanRef.current = '[]';
     }
   }, [tableKey]);
@@ -174,6 +178,23 @@ export default function TabUrutan({ tableKey }: { tableKey: string }) {
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-2">
+      {galatMuat ? (
+        <div className="flex shrink-0 items-center justify-between gap-2 rounded-md border border-destructive/40 bg-destructive/5 px-2 py-1.5">
+          <p className="min-w-0 flex-1 truncate text-xs text-destructive" title={galatMuat}>
+            {galatMuat}
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            id={`btn_urut_muat_ulang_${tableKey}`}
+            className="shrink-0"
+            onClick={() => void muat()}
+          >
+            Coba lagi
+          </Button>
+        </div>
+      ) : null}
       <div className="flex flex-col gap-1">
         {draft.length === 0 ? (
           <p className="py-2 text-center text-xs text-muted-foreground">

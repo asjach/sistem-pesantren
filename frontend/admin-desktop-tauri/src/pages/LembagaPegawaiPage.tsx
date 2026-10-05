@@ -84,7 +84,7 @@ export default function LembagaPegawaiPage() {
   // Halaman ini tanpa pagination: kedua tabel memuat seluruh baris sekaligus
   // (per_page=0) dan mengisi seluruh ruang vertikal panel masing-masing.
   const kiri = useDaftarTabel<Pegawai>({
-    tableKey: 'pegawai',
+    tableKey: 'pegawai_ringkas',
     search: cari,
     ambil: (a) => listPegawai({
       q: a.search || undefined,

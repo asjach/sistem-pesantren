@@ -100,6 +100,7 @@ class UrutPresetTest extends TestCase
             'pengajuan_biodata',
             'psb',
             'pegawai',
+            'pegawai_ringkas',
         ] as $tableKey) {
             $res = $this->actingAs($pusat, 'sanctum')
                 ->getJson("/api/admin/urut-preset?table_key={$tableKey}")
@@ -120,7 +121,6 @@ class UrutPresetTest extends TestCase
                 ['kode' => ['jk', 'nama'], 'label' => 'JK-Nama'],
             ],
         ])->assertStatus(200);
-
         $simpan = UrutPreset::where('table_key', 'santri')->first();
         $this->assertCount(2, $simpan->opsi);
         $this->assertTrue($simpan->opsi[0]['bawaan']);
@@ -130,6 +130,31 @@ class UrutPresetTest extends TestCase
             'table_key' => 'santri',
             'opsi' => [['kode' => ['kolom_karangan'], 'label' => 'X']],
         ])->assertStatus(422)->assertJsonValidationErrors(['opsi']);
+    }
+
+    public function test_pegawai_ringkas_memakai_kolom_pegawai(): void
+    {
+        $pusat = $this->makeUser('super_admin');
+
+        $res = $this->actingAs($pusat, 'sanctum')
+            ->getJson('/api/admin/urut-preset?table_key=pegawai_ringkas')
+            ->assertOk();
+        $this->assertSame(
+            ['nama', 'nip', 'nipp', 'jk', 'status', 'mulai', 'sk', 'id'],
+            array_column($res->json('data.tersedia'), 'kode'),
+        );
+
+        $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/urut-preset', [
+            'table_key' => 'pegawai_ringkas',
+            'opsi' => [
+                ['kode' => ['nama'], 'label' => 'Nama', 'bawaan' => true],
+                ['kode' => ['nip'], 'label' => 'NIP'],
+            ],
+        ])->assertStatus(200);
+
+        $opsi = UrutPreset::where('table_key', 'pegawai_ringkas')->first()->opsi;
+        $this->assertCount(2, $opsi);
+        $this->assertTrue($opsi[0]['bawaan']);
     }
 
     public function test_bawaan_dinormalisasi_maks_satu(): void

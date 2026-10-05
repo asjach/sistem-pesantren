@@ -159,6 +159,17 @@ class UrutKatalog
             'sk' => ['pegawai.no_sk_awal'],
             'id' => ['pegawai.id'],
         ],
+        // Tabel ringkas di Lembaga Pegawai memakai daftar Pegawai yang sama.
+        'pegawai_ringkas' => [
+            'nama' => ['pegawai.nama_lengkap'],
+            'nip' => ['pegawai.nip'],
+            'nipp' => ['pegawai.nipp'],
+            'jk' => ['pegawai.jenis_kelamin'],
+            'status' => ['pegawai.status_aktif'],
+            'mulai' => ['pegawai.tgl_mulai_kerja'],
+            'sk' => ['pegawai.no_sk_awal'],
+            'id' => ['pegawai.id'],
+        ],
         'pegawai_lembaga' => [
             'nama' => ['pegawai.nama_lengkap'],
             'nipp' => ['pegawai.nipp'],
