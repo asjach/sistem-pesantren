@@ -4,9 +4,10 @@ import { errorMessage, prefGet, prefSet } from '../api/client';
 import { tokenUrut, type PetaArahKolom } from '@/lib/urut';
 import {
   daftarJenis, buatJenis, ubahJenis, buatTarif, daftarTarif, ubahTarif, hapusTarif,
-  daftarTagihan, hapusTagihan, catatPembayaran, daftarTunggakan,
+  daftarTunggakan, crosstabTagihan, hapusTagihan, catatPembayaran,
   riwayatPembayaran, hapusPembayaran, daftarDispensasi, hapusDispensasi,
-  type JenisTagihan, type Tarif, type TagihanRow, type TunggakanRow, type PembayaranRow, type Dispensasi,
+  type JenisTagihan, type Tarif, type TunggakanRow, type PembayaranRow, type Dispensasi,
+  type CrosstabTagihan,
 } from '../api/keuangan';
 import { listLembaga, listTahunAjaran, type Lembaga, type TahunAjaran } from '../api/master';
 import { Button } from '@/components/ui/button';
@@ -17,8 +18,7 @@ import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { FieldLabel } from '@/components/ui/field';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
-import ConfirmDelete from '@/components/ConfirmDelete';
-import { Plus, Trash2 } from '@/icons';
+import { Plus } from '@/icons';
 import { ActionIcon, DeleteAction } from '@/components/RowActions';
 import { History } from '@/icons';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
@@ -28,6 +28,7 @@ import Pager from '@/components/Pager';
 import { usePager } from '@/hooks/usePager';
 import { EditAction } from '@/components/RowActions';
 import GenerateTagihanDialog from '@/components/keuangan/GenerateTagihanDialog';
+import TagihanCrosstab from '@/components/keuangan/TagihanCrosstab';
 import DispensasiDialog from '@/components/keuangan/DispensasiDialog';
 
 const FIELDS_JENIS: ExcelField[] = [
@@ -44,15 +45,6 @@ const FIELDS_TARIF: ExcelField[] = [
   { key: 'jenis', label: 'Jenis', kind: 'static' },
   { key: 'nominal', label: 'Nominal', kind: 'static', width: 110 },
   { key: 'aktif', label: 'Aktif', kind: 'static', width: 70 },
-];
-
-const FIELDS_TAGIHAN: ExcelField[] = [
-  { key: 'santri', label: 'Santri', kind: 'static' },
-  { key: 'jenis', label: 'Jenis', kind: 'static' },
-  { key: 'periode', label: 'Periode', kind: 'static', width: 90 },
-  { key: 'nominal', label: 'Nominal', kind: 'static', width: 100 },
-  { key: 'terbayar', label: 'Terbayar', kind: 'static', width: 100 },
-  { key: 'status', label: 'Status', kind: 'static', width: 90 },
 ];
 
 const FIELDS_TUNGGAKAN: ExcelField[] = [
@@ -72,6 +64,14 @@ const FIELDS_DISPENSASI: ExcelField[] = [
 ];
 
 const OPSI_PAKET = ['MI', 'MD', 'MI-MD', 'MTS', 'MLN'];
+
+/** Paket yang berlaku per jenjang (MI-MD = santri MI yang juga MD). */
+const PAKET_PER_JENJANG: Record<string, string[]> = {
+  MI: ['MI', 'MI-MD'],
+  MD: ['MD', 'MI-MD'],
+  MTS: ['MTS'],
+  MLN: ['MLN'],
+};
 const TAB_KEUANGAN = ['jenis', 'tarif', 'tagihan', 'tunggakan', 'dispensasi'] as const;
 
 /** State urut satu tabel; perubahan state memicu muat ulang via effect. */
@@ -92,7 +92,6 @@ function useUrutTabel() {
 export default function KeuanganPage() {
   const [jenis, setJenis] = useState<JenisTagihan[]>([]);
   const [tarif, setTarif] = useState<Tarif[]>([]);
-  const [tagihan, setTagihan] = useState<TagihanRow[]>([]);
   const [tunggakan, setTunggakan] = useState<TunggakanRow[]>([]);
   const [dispensasi, setDispensasi] = useState<Dispensasi[]>([]);
   const [lembagas, setLembagas] = useState<Lembaga[]>([]);
@@ -109,7 +108,7 @@ export default function KeuanganPage() {
     return () => { hidup = false; };
   }, []);
 
-  const { page: tagihanPage, perPage: tagihanPerPage, ready: tagihanPagerReady, setPage: setTagihanPage, setPerPage: setTagihanPerPage, sync: tagihanSync } = usePager('keuangan_tagihan');
+  const { page: tagihanPage, perPage: tagihanPerPage, setPage: setTagihanPage, setPerPage: setTagihanPerPage } = usePager('keuangan_tagihan');
   const [tagihanLastPage, setTagihanLastPage] = useState(1);
   const [tagihanTotal, setTagihanTotal] = useState(0);
   const { jenjangs, tahunAjaranNames, loading: filterLoading } = useFilterGlobalAktif();
@@ -118,32 +117,44 @@ export default function KeuanganPage() {
   /** Urut header tiap tabel (perubahan memicu muat ulang via effect). */
   const uJenis = useUrutTabel();
   const uTarif = useUrutTabel();
-  const uTagihan = useUrutTabel();
   const uTunggakan = useUrutTabel();
   const uDispensasi = useUrutTabel();
 
-  const loadTagihan = useCallback(async (page: number, perPage: number, jenjang: readonly string[], ta: readonly string[]) => {
-    try {
-      const peta = {
-        page: String(page), per_page: String(perPage), jenjang, tahun_ajaran: ta,
-        sort: uTagihan.urut.length ? tokenUrut(uTagihan.urut, uTagihan.arahKolom) : undefined,
-        arah: uTagihan.urut.length ? uTagihan.arah : undefined,
-      };
-      const res = await daftarTagihan(peta);
-      const koreksi = tagihanSync(res.current_page, res.last_page);
-      if (koreksi !== null) {
-        const r2 = await daftarTagihan({ ...peta, page: String(koreksi) });
-        setTagihan(r2.data); setTagihanLastPage(r2.last_page); setTagihanTotal(r2.total);
-      } else {
-        setTagihan(res.data); setTagihanLastPage(res.last_page); setTagihanTotal(res.total);
-      }
-    } catch (e) { setErr(errorMessage(e)); }
-  }, [tagihanSync, uTagihan.urut, uTagihan.arah, uTagihan.arahKolom]);
+  /** Crosstab tagihan: baris = santri, kolom = jenis (bulanan per bulan). */
+  const [crosstab, setCrosstab] = useState<CrosstabTagihan | null>(null);
+  const [cariTagihan, setCariTagihan] = useState('');
+  const [urutTagihan, setUrutTagihan] = useState('');
+  const [arahTagihan, setArahTagihan] = useState<'naik' | 'turun'>('naik');
 
+  const loadCrosstab = useCallback(async (
+    page: number, perPage: number, jenjang: readonly string[], ta: readonly string[],
+  ) => {
+    setLoading(true);
+    try {
+      const res = await crosstabTagihan({
+        page,
+        per_page: perPage === 0 ? 'all' : String(perPage),
+        jenjang,
+        tahun_ajaran: ta,
+        santri: cariTagihan.trim() === '' ? undefined : cariTagihan.trim(),
+        sort: urutTagihan === '' ? undefined : [urutTagihan],
+        arah: urutTagihan === '' ? undefined : arahTagihan,
+      });
+      setCrosstab(res);
+      setTagihanPage(res.current_page);
+      setTagihanLastPage(res.last_page);
+      setTagihanTotal(res.total);
+    } catch (e) {
+      setErr(errorMessage(e));
+      setCrosstab(null);
+    } finally { setLoading(false); }
+  }, [cariTagihan, urutTagihan, arahTagihan]);
+
+  // Filter global/pencarian/urut berubah → muat dari halaman 1.
   useEffect(() => {
-    if (!tagihanPagerReady || filterLoading || jenjangs.length === 0) { if (!filterLoading && jenjangs.length === 0) setTagihan([]); return; }
-    void loadTagihan(tagihanPage, tagihanPerPage, jenjangs, tahunAjaranNames);
-  }, [tagihanPagerReady, filterLoading, tagihanPage, tagihanPerPage, jenjangs, tahunAjaranNames, loadTagihan]);
+    if (filterLoading || jenjangs.length === 0) { if (!filterLoading && jenjangs.length === 0) setCrosstab(null); return; }
+    void loadCrosstab(1, tagihanPerPage, jenjangs, tahunAjaranNames);
+  }, [filterLoading, jenjangs, tahunAjaranNames, tagihanPerPage, cariTagihan, urutTagihan, arahTagihan, loadCrosstab]);
 
   /** Tarif mengikuti filter lembaga & tahun ajaran (server-side; kosong = semua). */
   const loadTarif = useCallback(async (jenjang: readonly string[], ta: readonly string[]) => {
@@ -220,53 +231,28 @@ export default function KeuanganPage() {
   const [bayarJumlah, setBayarJumlah] = useState('');
   const [bayarMetode, setBayarMetode] = useState<'tunai' | 'transfer'>('tunai');
   const [bayarKas, setBayarKas] = useState<'tunai_tu' | 'bank_lembaga' | 'bank_pesantren'>('tunai_tu');
+  /** Tagihan terpilih dari sel crosstab (aksi bayar/riwayat/hapus). */
+  const [selTagihan, setSelTagihan] = useState<{
+    id: number; nama: string; label: string; nominal: number; sisa: number;
+    status: 'belum' | 'sebagian' | 'lunas';
+  } | null>(null);
 
-  const hapusBulkTagihan = useCallback(async (list: TagihanRow[]) => {
-    if (list.length === 0) return;
-    setErr('');
-    const results = await Promise.allSettled(list.map((r) => hapusTagihan(r.id)));
-    const gagal = results.filter((result) => result.status === 'rejected');
-    if (gagal.length > 0) {
-      const alasan = gagal
-        .map((result) => result.status === 'rejected' ? errorMessage(result.reason) : '')
-        .filter(Boolean)
-        .join(' · ');
-      setErr(`${gagal.length} tagihan gagal dihapus${alasan ? `: ${alasan}` : '.'}`);
-      toast.error('Sebagian tagihan gagal dihapus.');
-    } else {
-      toast.success(`${list.length} tagihan dihapus.`);
-    }
-    await load();
-    await loadTagihan(tagihanPage, tagihanPerPage, jenjangs, tahunAjaranNames);
-  }, [load, loadTagihan, tagihanPage, tagihanPerPage, jenjangs, tahunAjaranNames]);
+  /** Muat ulang crosstab pada posisi halaman saat ini. */
+  const muatCrosstabSekarang = useCallback(async () => {
+    await loadCrosstab(tagihanPage, tagihanPerPage, jenjangs, tahunAjaranNames);
+  }, [loadCrosstab, tagihanPage, tagihanPerPage, jenjangs, tahunAjaranNames]);
 
-  const renderBulkActionsTagihan = useCallback((checked: TagihanRow[], clear: () => void) => {
-    if (checked.length === 0) return null;
-    return (
-      <ConfirmDelete
-        title={`Hapus ${checked.length} tagihan?`}
-        description="Tagihan yang dipilih dihapus permanen dan tidak bisa dikembalikan. Tagihan yang sudah dibayar dilewati (hapus dulu pembayarannya)."
-        confirmLabel="Hapus permanen"
-        onConfirm={() => { clear(); void hapusBulkTagihan(checked); }}
-      >
-        <Button id="btn_bulk_hapus_tagihan" size="sm" variant="destructive">
-          <Trash2 data-icon="inline-start" size={14} /> Hapus ({checked.length})
-        </Button>
-      </ConfirmDelete>
-    );
-  }, [hapusBulkTagihan]);
-
-  const [riwayatTagihan, setRiwayatTagihan] = useState<TagihanRow | null>(null);
+  const [riwayatTagihan, setRiwayatTagihan] = useState<{ id: number; label: string } | null>(null);
   const [riwayatRows, setRiwayatRows] = useState<PembayaranRow[]>([]);
 
-  const bukaRiwayat = useCallback(async (t: TagihanRow) => {
+  const bukaRiwayat = useCallback(async (t: { id: number; label: string }) => {
     setRiwayatTagihan(t);
     try {
       setRiwayatRows(await riwayatPembayaran(t.id));
     } catch (e) { toast.error(errorMessage(e)); }
   }, []);
 
-  const muatRiwayat = useCallback(async (t: TagihanRow) => {
+  const muatRiwayat = useCallback(async (t: { id: number; label: string }) => {
     try {
       setRiwayatRows(await riwayatPembayaran(t.id));
     } catch (e) { toast.error(errorMessage(e)); }
@@ -280,7 +266,6 @@ export default function KeuanganPage() {
         tabel={[
           { key: 'keuangan_jenis', judul: 'Jenis Tagihan', fields: FIELDS_JENIS },
           { key: 'keuangan_tarif', judul: 'Tarif', fields: FIELDS_TARIF },
-          { key: 'keuangan_tagihan', judul: 'Tagihan', fields: FIELDS_TAGIHAN },
           { key: 'keuangan_tunggakan', judul: 'Tunggakan', fields: FIELDS_TUNGGAKAN },
           { key: 'keuangan_dispensasi', judul: 'Dispensasi', fields: FIELDS_DISPENSASI },
         ]}
@@ -354,59 +339,123 @@ export default function KeuanganPage() {
           />
         </TabsContent>
 
-        <TabsContent value="tagihan" className={`min-h-0 flex-1 flex flex-col gap-1 ${KELAS_PANEL_TAB}`}>
-          <ExcelTable<TagihanRow & { id: number }>
-            tableKey="keuangan_tagihan"
-            fields={FIELDS_TAGIHAN}
-            rows={tagihan.map((t) => ({ ...t, id: t.id }))}
-            urutAktif={uTagihan.urut}
-            arahUrut={uTagihan.arah}
-            onUrut={(nilai, arah, peta) => { setTagihanPage(1); uTagihan.terapkan(nilai, arah, peta); }}
-            getValues={(r) => ({
-              santri: r.santri?.nama_lengkap ?? null, jenis: r.jenis?.nama ?? null,
-              periode: r.periode, nominal: r.nominal.toLocaleString('id'),
-              terbayar: r.terbayar.toLocaleString('id'), status: r.status,
-            })}
-            loading={loading}
-            emptyText="Belum ada tagihan."
-            canEdit={false}
-            onCommit={async () => {}}
-            onSaved={() => {}}
-            addButtonLangsung
-            addButton={<Button id="btn_gen_buka" onClick={() => setGenerateOpen(true)}>+ Buat Tagihan</Button>}
-            renderActions={(t) => (
-              bayarId === t.id ? (
-                <form className="flex gap-1" onSubmit={async (e) => { e.preventDefault(); if (!bayarJumlah) return; try { await catatPembayaran({ tagihan_id: t.id, jumlah: Number(bayarJumlah), metode: bayarMetode, kas: bayarKas }); toast.success('Tercatat.'); setBayarId(null); setBayarJumlah(''); await load(); await loadTagihan(tagihanPage, tagihanPerPage, jenjangs, tahunAjaranNames); } catch (e2) { toast.error(errorMessage(e2)); } }}>
-                  <Input id={`inp_bayar_jumlah_${t.id}`} type="number" placeholder="Jumlah" value={bayarJumlah} onChange={(e) => setBayarJumlah(e.target.value)} className="w-24" />
-                  <select id={`sel_bayar_metode_${t.id}`} value={bayarMetode} onChange={(e) => setBayarMetode(e.target.value as 'tunai' | 'transfer')} className="border rounded px-1"><option value="tunai">Tunai</option><option value="transfer">Transfer</option></select>
-                  <select id={`sel_bayar_kas_${t.id}`} value={bayarKas} onChange={(e) => setBayarKas(e.target.value as typeof bayarKas)} className="border rounded px-1"><option value="tunai_tu">Tunai TU</option><option value="bank_lembaga">Bank Lembaga</option><option value="bank_pesantren">Bank Pesantren</option></select>
-                  <Button id={`btn_bayar_simpan_${t.id}`} type="submit" size="sm">Simpan</Button>
-                  <Button id={`btn_bayar_batal_${t.id}`} type="button" size="sm" variant="ghost" onClick={() => setBayarId(null)}>Batal</Button>
+<TabsContent value="tagihan" className={`min-h-0 flex-1 flex flex-col gap-1 ${KELAS_PANEL_TAB}`}>
+          <div className="flex flex-wrap items-center gap-2">
+            <Input
+              id="inp_tagihan_cari"
+              placeholder="Cari nama / NIS / NISN…"
+              className="h-8 w-64"
+              value={cariTagihan}
+              onChange={(e) => setCariTagihan(e.target.value)}
+            />
+            <select
+              id="sel_tagihan_urut"
+              className="h-8 rounded border px-2 text-xs"
+              value={urutTagihan}
+              onChange={(e) => setUrutTagihan(e.target.value)}
+              aria-label="Urutkan baris"
+            >
+              <option value="">Urutkan: nama</option>
+              <option value="total">Total tagihan</option>
+              <option value="bayar">Terbayar</option>
+              <option value="sisa">Tunggakan</option>
+            </select>
+            <Button
+              id="btn_tagihan_arah"
+              size="sm"
+              variant="outline"
+              title={arahTagihan === 'naik' ? 'Arah: naik' : 'Arah: turun'}
+              onClick={() => setArahTagihan((a) => (a === 'naik' ? 'turun' : 'naik'))}
+            >
+              {arahTagihan === 'naik' ? 'Naik' : 'Turun'}
+            </Button>
+            <Button id="btn_gen_buka" size="sm" onClick={() => setGenerateOpen(true)}>+ Buat Tagihan</Button>
+          </div>
+
+          {selTagihan === null ? (
+            <p className="text-xs text-muted-foreground">Klik sel tagihan untuk membayar, melihat riwayat, atau menghapusnya.</p>
+          ) : (
+            <div className="flex flex-wrap items-center gap-2 rounded border bg-muted/30 px-2 py-1.5">
+              <p className="text-xs">
+                <b>{selTagihan.label}</b> — {selTagihan.nama} · sisa{' '}
+                <b className={selTagihan.sisa > 0 ? 'text-destructive' : ''}>Rp {selTagihan.sisa.toLocaleString('id')}</b> dari Rp {selTagihan.nominal.toLocaleString('id')}
+              </p>
+              <div className="ml-auto flex items-center gap-1">
+                <Button
+                  id="btn_bayar_sel"
+                  size="sm"
+                  variant="outline"
+                  disabled={selTagihan.status === 'lunas'}
+                  onClick={() => setBayarId(selTagihan.id)}
+                >
+                  Bayar
+                </Button>
+                <ActionIcon id="btn_riwayat_bayar" title="Riwayat pembayaran" onClick={() => void bukaRiwayat(selTagihan)}>
+                  <History size={16} />
+                </ActionIcon>
+                <DeleteAction
+                  id="btn_hapus_tagihan"
+                  title="Hapus tagihan?"
+                  description="Tagihan dihapus permanen dan tidak bisa dikembalikan. Tagihan yang sudah dibayar harus dihapus pembayarannya dulu."
+                  onConfirm={() => { void (async () => { try { await hapusTagihan(selTagihan.id); toast.success('Tagihan dihapus.'); setSelTagihan(null); await load(); await muatCrosstabSekarang(); } catch (e2) { toast.error(errorMessage(e2)); } })(); }}
+                />
+                <Button id="btn_tutup_sel" size="sm" variant="ghost" onClick={() => setSelTagihan(null)}>Tutup</Button>
+              </div>
+              {bayarId === selTagihan.id && (
+                <form
+                  id="form_bayar_sel"
+                  className="flex flex-wrap items-center gap-1"
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    if (bayarJumlah === '') return;
+                    try {
+                      await catatPembayaran({ tagihan_id: selTagihan.id, jumlah: Number(bayarJumlah), metode: bayarMetode, kas: bayarKas });
+                      toast.success('Tercatat.');
+                      setBayarId(null); setBayarJumlah('');
+                      await load();
+                      await muatCrosstabSekarang();
+                    } catch (e2) { toast.error(errorMessage(e2)); }
+                  }}
+                >
+                  <Input id="inp_bayar_jumlah" type="number" placeholder="Jumlah" value={bayarJumlah} onChange={(e) => setBayarJumlah(e.target.value)} className="w-28" />
+                  <select id="sel_bayar_metode" value={bayarMetode} onChange={(e) => setBayarMetode(e.target.value as 'tunai' | 'transfer')} className="h-8 rounded border px-1 text-xs">
+                    <option value="tunai">Tunai</option>
+                    <option value="transfer">Transfer</option>
+                  </select>
+                  <select id="sel_bayar_kas" value={bayarKas} onChange={(e) => setBayarKas(e.target.value as typeof bayarKas)} className="h-8 rounded border px-1 text-xs">
+                    <option value="tunai_tu">Tunai TU</option>
+                    <option value="bank_lembaga">Bank Lembaga</option>
+                    <option value="bank_pesantren">Bank Pesantren</option>
+                  </select>
+                  <Button id="btn_bayar_simpan" type="submit" size="sm">Simpan</Button>
+                  <Button id="btn_bayar_batal" type="button" size="sm" variant="ghost" onClick={() => setBayarId(null)}>Batal</Button>
                 </form>
-              ) : (
-                <>
-                  <Button id={`btn_bayar_${t.id}`} size="sm" onClick={() => setBayarId(t.id)} disabled={t.status === 'lunas'}>Bayar</Button>
-                  <ActionIcon id={`btn_riwayat_bayar_${t.id}`} title="Riwayat pembayaran" onClick={() => void bukaRiwayat(t)}>
-                    <History size={16} />
-                  </ActionIcon>
-                  <DeleteAction
-                    id={`btn_hapus_tagihan_${t.id}`}
-                    title="Hapus tagihan?"
-                    description="Tagihan dihapus permanen dan tidak bisa dikembalikan. Tagihan yang sudah dibayar harus dihapus pembayarannya dulu."
-                    onConfirm={() => { void (async () => { try { await hapusTagihan(t.id); toast.success('Tagihan dihapus.'); await load(); await loadTagihan(tagihanPage, tagihanPerPage, jenjangs, tahunAjaranNames); } catch (e2) { toast.error(errorMessage(e2)); } })(); }}
-                  />
-                </>
-              )
-            )}
-            renderBulkActions={renderBulkActionsTagihan}
-          />
+              )}
+            </div>
+          )}
+
+          <div className="min-h-0 flex-1">
+            <TagihanCrosstab
+              data={crosstab}
+              loading={loading}
+              terpilihId={selTagihan?.id ?? null}
+              emptyText="Belum ada tagihan."
+              onPilih={(sel, meta) => {
+                setBayarId(null);
+                setSelTagihan({
+                  id: sel.id, nama: meta.nama, label: meta.label,
+                  nominal: sel.nominal, sisa: sel.sisa, status: sel.status,
+                });
+              }}
+            />
+          </div>
           <Pager
             page={tagihanPage}
             lastPage={tagihanLastPage}
             total={tagihanTotal}
             perPage={tagihanPerPage}
-            onPage={setTagihanPage}
-            onPerPage={setTagihanPerPage}
+            onPage={(p) => { setTagihanPage(p); void loadCrosstab(p, tagihanPerPage, jenjangs, tahunAjaranNames); }}
+            onPerPage={(pp) => { setTagihanPerPage(pp); void loadCrosstab(1, pp, jenjangs, tahunAjaranNames); }}
           />
         </TabsContent>
 
@@ -474,7 +523,7 @@ export default function KeuanganPage() {
       <Dialog open={riwayatTagihan !== null} onOpenChange={(o) => { if (!o) setRiwayatTagihan(null); }}>
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Riwayat Pembayaran{riwayatTagihan?.santri?.nama_lengkap ? ` — ${riwayatTagihan.santri.nama_lengkap}` : ''}</DialogTitle>
+            <DialogTitle>Riwayat Pembayaran{riwayatTagihan ? ` — ${riwayatTagihan.label}` : ''}</DialogTitle>
             <DialogDescription className="sr-only">Daftar pembayaran tagihan ini.</DialogDescription>
           </DialogHeader>
           {riwayatRows.length === 0 ? (
@@ -496,7 +545,7 @@ export default function KeuanganPage() {
                         id={`btn_hapus_bayar_${p.id}`}
                         title="Hapus pembayaran?"
                         description="Baris pembayaran dihapus permanen dan total tagihan menyesuaikan."
-                        onConfirm={() => { void (async () => { try { await hapusPembayaran(p.id); toast.success('Pembayaran dihapus.'); if (riwayatTagihan) await muatRiwayat(riwayatTagihan); await load(); await loadTagihan(tagihanPage, tagihanPerPage, jenjangs, tahunAjaranNames); } catch (e2) { toast.error(errorMessage(e2)); } })(); }}
+                        onConfirm={() => { void (async () => { try { await hapusPembayaran(p.id); toast.success('Pembayaran dihapus.'); if (riwayatTagihan) await muatRiwayat(riwayatTagihan); await load(); await muatCrosstabSekarang(); } catch (e2) { toast.error(errorMessage(e2)); } })(); }}
                       />
                     </td>
                   </tr>
@@ -518,7 +567,7 @@ export default function KeuanganPage() {
         onSelesai={async () => {
           await load();
           setTagihanPage(1);
-          await loadTagihan(1, tagihanPerPage, jenjangs, tahunAjaranNames);
+          await loadCrosstab(1, tagihanPerPage, jenjangs, tahunAjaranNames);
         }}
       />
       <DispensasiDialog
@@ -540,11 +589,11 @@ export default function KeuanganPage() {
           <form id="form_tambah_tarif" className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4" onSubmit={async (e) => { e.preventDefault(); if (tfJenis === '') return; try { await buatTarif({ jenjang: tfJenjang, paket: tfPaket, tahun_ajaran: tfTA, jenis_id: Number(tfJenis), nominal: Number(tfNominal) }); toast.success('Tarif dibuat.'); setTfJenis(''); setTfNominal(''); setTambahTarifOpen(false); await load(); await loadTarif(jenjangs, tahunAjaranNames); } catch (e2) { toast.error(errorMessage(e2)); } }}>
             <FieldLabel htmlFor="sel_tarif_jenjang">Jenjang</FieldLabel>
             <select id="sel_tarif_jenjang" className="border rounded px-2" value={tfJenjang} onChange={(e) => setTfJenjang(e.target.value)} required>
-              {lembagas.map((l) => <option key={l.jenjang} value={l.jenjang}>{l.jenjang} — {l.nama}</option>)}
+              {lembagas.filter((l) => pilihanLembaga.some((p) => p.jenjang === l.jenjang)).map((l) => <option key={l.jenjang} value={l.jenjang}>{l.jenjang} — {l.nama}</option>)}
             </select>
             <FieldLabel htmlFor="sel_tarif_paket">Paket</FieldLabel>
             <select id="sel_tarif_paket" className="border rounded px-2" value={tfPaket} onChange={(e) => setTfPaket(e.target.value)} required>
-              {OPSI_PAKET.map((x) => <option key={x} value={x}>{x}</option>)}
+              {(PAKET_PER_JENJANG[tfJenjang] ?? OPSI_PAKET).map((x) => <option key={x} value={x}>{x}</option>)}
             </select>
             <FieldLabel htmlFor="sel_tarif_ta">Tahun Ajaran</FieldLabel>
             <select id="sel_tarif_ta" className="border rounded px-2" value={tfTA} onChange={(e) => setTfTA(e.target.value)} required>

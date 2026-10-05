@@ -159,6 +159,48 @@ export function hapusDispensasi(id: number) {
   return api<{ pesan: string }>(`/admin/keuangan/dispensasi/${id}`, { method: 'DELETE' });
 }
 
+export interface CrosstabSel {
+  id: number; nominal: number; terbayar: number; sisa: number;
+  status: 'belum' | 'sebagian' | 'lunas'; jatuh_tempo: string | null;
+}
+
+export interface CrosstabKolom {
+  key: string; jenis_id: number; jenis_nama: string;
+  tipe: 'bulanan' | 'non_bulanan'; periode: string | null;
+}
+
+export interface CrosstabBaris {
+  santri_id: number; nama: string; jenjang: string; paket: string;
+  sel: Record<string, CrosstabSel>;
+  total_tagihan: number; total_terbayar: number; tunggakan: number;
+}
+
+export interface CrosstabTagihan {
+  kolom: CrosstabKolom[];
+  baris: CrosstabBaris[];
+  total: number; per_page: number; current_page: number; last_page: number;
+}
+
+export function crosstabTagihan(params: {
+  tahun_ajaran?: ScalarOrArray<string>; jenjang?: ScalarOrArray<string>; jenis_id?: number | '';
+  status?: string; belum_lunas?: boolean; santri?: string;
+  page?: number; per_page?: string; sort?: string[]; arah?: 'naik' | 'turun';
+} = {}) {
+  const q = new URLSearchParams();
+  appendQueryParam(q, 'tahun_ajaran', params.tahun_ajaran);
+  appendQueryParam(q, 'jenjang', params.jenjang);
+  if (params.jenis_id !== undefined && params.jenis_id !== '') q.set('jenis_id', String(params.jenis_id));
+  if (params.status) q.set('status', params.status);
+  if (params.belum_lunas) q.set('belum_lunas', '1');
+  if (params.santri) q.set('santri', params.santri);
+  if (params.page) q.set('page', String(params.page));
+  if (params.per_page) q.set('per_page', params.per_page);
+  if (params.sort?.length) q.set('sort', params.sort.join(','));
+  if (params.arah) q.set('arah', params.arah);
+  const s = q.toString();
+  return api<CrosstabTagihan>(`/admin/keuangan/tagihan/crosstab${s ? `?${s}` : ''}`);
+}
+
 export function hapusTagihan(id: number) {
   return api<{ pesan: string }>(`/admin/keuangan/tagihan/${id}`, { method: 'DELETE' });
 }

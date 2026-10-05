@@ -428,6 +428,56 @@ class KeuanganTest extends TestCase
             ->assertJsonPath('data.0.santri_id', $lain->id);
     }
 
+    public function test_crosstab_tagihan_kolom_per_jenis_dan_bulan(): void
+    {
+        $admin = $this->admin();
+        $infaq = JenisTagihan::create(['nama' => 'Infaq Bulanan', 'tipe' => 'bulanan']);
+        $hipa = JenisTagihan::create(['nama' => 'HIPA', 'tipe' => 'non_bulanan']);
+        $santri = Santri::create(['nama_lengkap' => 'Santri Crosstab', 'jk' => 'L']);
+        $lain = Santri::create(['nama_lengkap' => 'Santri Kosong', 'jk' => 'P']);
+
+        $juli = Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $infaq->id, 'periode' => '2025-07', 'nominal' => 50000]);
+        Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $infaq->id, 'periode' => '2025-08', 'nominal' => 50000, 'terbayar' => 20000, 'status' => 'sebagian']);
+        Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $hipa->id, 'periode' => '2025/2026', 'nominal' => 300000, 'terbayar' => 300000, 'status' => 'lunas']);
+        Tagihan::create(['santri_id' => $lain->id, 'jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $infaq->id, 'periode' => '2025-08', 'nominal' => 50000]);
+
+        $res = $this->actingAs($admin)->getJson('/api/admin/keuangan/tagihan/crosstab?tahun_ajaran=2025/2026')
+            ->assertStatus(200)
+            ->assertJsonCount(2, 'baris');
+
+        // Bulanan dipecah per bulan, non-bulanan satu kolom.
+        $this->assertSame(
+            ["{$infaq->id}-2025-07", "{$infaq->id}-2025-08", 'jenis-'.$hipa->id],
+            array_column($res->json('kolom'), 'key')
+        );
+        $this->assertSame(['bulanan', 'bulanan', 'non_bulanan'], array_column($res->json('kolom'), 'tipe'));
+
+        $baris = collect($res->json('baris'))->keyBy('nama');
+        $santriBaris = $baris['Santri Crosstab'];
+        $this->assertSame($juli->id, $santriBaris['sel']["{$infaq->id}-2025-07"]['id']);
+        $this->assertSame('belum', $santriBaris['sel']["{$infaq->id}-2025-07"]['status']);
+        $this->assertSame(30000, $santriBaris['sel']["{$infaq->id}-2025-08"]['sisa']);
+        $this->assertSame('lunas', $santriBaris['sel']['jenis-'.$hipa->id]['status']);
+        $this->assertSame(400000, $santriBaris['total_tagihan']);
+        $this->assertSame(80000, $santriBaris['tunggakan']);
+        // Santri tanpa tagihan Juli → sel kosong (tidak ada key).
+        $this->assertArrayNotHasKey("{$infaq->id}-2025-07", $baris['Santri Kosong']['sel']);
+
+        // Filter jenis_id hanya menyisakan kolom jenis itu.
+        $this->actingAs($admin)->getJson("/api/admin/keuangan/tagihan/crosstab?tahun_ajaran=2025/2026&jenis_id={$hipa->id}")
+            ->assertStatus(200)
+            ->assertJsonCount(1, 'kolom')
+            ->assertJsonPath('kolom.0.key', 'jenis-'.$hipa->id);
+
+        // Sort koleksi: nama naik, dan nilai liar ditolak.
+        $this->assertSame(
+            ['Santri Crosstab', 'Santri Kosong'],
+            array_column($this->actingAs($admin)->getJson('/api/admin/keuangan/tagihan/crosstab?sort=nama&arah=naik')->json('baris'), 'nama')
+        );
+        $this->actingAs($admin)->getJson('/api/admin/keuangan/tagihan/crosstab?sort=nominal')
+            ->assertStatus(422);
+    }
+
     public function test_hapus_tagihan(): void
     {
         $admin = $this->admin();

@@ -43,6 +43,14 @@ const FIELDS_KANDIDAT: ExcelField[] = [
   { key: 'status_akhir', label: 'Status', kind: 'static', width: 90 },
 ];
 
+const FIELDS_TERPILIH: ExcelField[] = [
+  { key: 'nama', label: 'Santri', kind: 'static' },
+  { key: 'paket', label: 'Paket', kind: 'static', width: 80 },
+  { key: 'kelas', label: 'Tkt / Kelas', kind: 'static', width: 120 },
+  { key: 'nominal', label: 'Nominal', kind: 'text', width: 110 },
+  { key: 'dispensasi', label: 'Dispensasi', kind: 'static', width: 170 },
+];
+
 type KandidatRow = KandidatTagihanRow & { id: number };
 type BarisTerpilih = KandidatTagihanRow & {
   nominal: string; nominalManual: boolean;
@@ -413,64 +421,41 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
             </div>
           </ResizablePanel>
           <ResizableHandle orientation="horizontal" withHandle id="gagang_gen_tagihan" aria-label="Atur lebar kandidat dan daftar generate" />
-          <ResizablePanel defaultSize="50%" minSize="25%" id="panel_gen_terpilih" className="min-h-0 min-w-0">
-            <div className="flex h-full min-h-0 flex-col gap-1 p-2">
-              <p className="text-sm font-medium">Akan digenerate ({terpilih.length})</p>
-              <div className="min-h-0 flex-1 overflow-auto rounded-xl border bg-card">
-                <table className="w-full text-sm">
-                  <thead className="sticky top-0 bg-muted/40">
-                    <tr>
-                      <th className="p-2 text-left">Santri</th>
-                      <th className="w-20 p-2 text-left">Paket</th>
-                      <th className="w-28 p-2 text-left">Tkt / Kelas</th>
-                      <th className="w-36 p-2 text-right">Nominal</th>
-                      <th className="w-10 p-2" />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {terpilih.map((r) => (
-                      <tr key={r.santri_id} className="border-t">
-                        <td className="p-2">{r.nama_lengkap}</td>
-                        <td className="p-2">{r.paket}</td>
-                        <td className="p-2">{[r.tingkat, r.kelas].filter(Boolean).join(' / ') || '—'}</td>
-                        <td className="p-2">
-                          <Input
-                            id={`inp_gen_nominal_${r.santri_id}`}
-                            type="number"
-                            min={0}
-                            className="h-8 w-full text-right"
-                            value={r.nominal}
-                            onChange={(e) => setTerpilih((rows) => rows.map((x) => (
-                              x.santri_id === r.santri_id
-                                ? { ...x, nominal: e.target.value, nominalManual: true, potongan: 0, dispensasiIds: null, dispensasiLabel: null }
-                                : x
-                            )))}
-                          />
-                          {r.dispensasiLabel !== null && (
-                            <p className="mt-0.5 text-right text-[10px] text-muted-foreground" title={r.dispensasiLabel}>
-                              −Rp {r.potongan.toLocaleString('id')} · {r.dispensasiLabel}
-                            </p>
-                          )}
-                        </td>
-                        <td className="p-2">
-                          <ActionIcon id={`btn_gen_hapus_${r.santri_id}`} title="Keluarkan dari daftar" onClick={() => setTerpilih((rows) => rows.filter((x) => x.santri_id !== r.santri_id))}>
-                            <Trash2 size={14} />
-                          </ActionIcon>
-                        </td>
-                      </tr>
-                    ))}
-                    {terpilih.length === 0 && (
-                      <tr>
-                        <td colSpan={5} className="p-8 text-center text-muted-foreground">
-                          Pindahkan santri dari daftar kandidat (centang lalu Pindahkan, atau ikon →).
-                        </td>
-                      </tr>
+<ResizablePanel defaultSize="50%" minSize="25%" id="panel_gen_terpilih" className="min-h-0 min-w-0">
+              <div className="flex h-full min-h-0 flex-col gap-1 p-2">
+                <div className="flex min-h-0 flex-1 flex-col">
+                  <ExcelTable<BarisTerpilih & { id: number }>
+                    tableKey="keuangan_gen_terpilih"
+                    fields={FIELDS_TERPILIH}
+                    rows={terpilih.map((r) => ({ ...r, id: r.santri_id }))}
+                    getValues={(r) => ({
+                      nama: r.nama_lengkap,
+                      paket: r.paket,
+                      kelas: [r.tingkat, r.kelas].filter(Boolean).join(' / ') || '—',
+                      nominal: r.nominal,
+                      dispensasi: r.dispensasiLabel === null
+                        ? null
+                        : `−Rp ${r.potongan.toLocaleString('id')} · ${r.dispensasiLabel}`,
+                    })}
+                    emptyText="Pindahkan santri dari daftar kandidat (centang lalu Pindahkan, atau ikon →)."
+                    canEdit
+                    onCommit={async (id, fields) => {
+                      setTerpilih((rows) => rows.map((x) => x.santri_id === id
+                        ? { ...x, nominal: fields.nominal ?? x.nominal, nominalManual: true, potongan: 0, dispensasiIds: null, dispensasiLabel: null }
+                        : x));
+                    }}
+                    onSaved={() => {}}
+                    aksiLangsung
+                    hideCheckbox
+                    renderActions={(r) => (
+                      <ActionIcon id={`btn_gen_hapus_${r.santri_id}`} title="Keluarkan dari daftar" onClick={() => setTerpilih((rows) => rows.filter((x) => x.santri_id !== r.santri_id))}>
+                        <Trash2 size={16} />
+                      </ActionIcon>
                     )}
-                  </tbody>
-                </table>
+                  />
+                </div>
               </div>
-            </div>
-          </ResizablePanel>
+            </ResizablePanel>
         </ResizablePanelGroup>
 
         <DialogFooter className="flex-row items-center justify-between gap-2 border-t px-2 py-2 sm:justify-between">

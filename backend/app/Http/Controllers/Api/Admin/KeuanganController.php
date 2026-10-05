@@ -367,6 +367,122 @@ class KeuanganController extends Controller
         return array_values(array_filter($ids, fn ($id) => $id > 0));
     }
 
+    /**
+     * GET /api/admin/keuangan/tagihan/crosstab — tabel silang: satu baris
+     * per santri, kolom per jenis tagihan (jenis bulanan dipecah per bulan =
+     * periode). Nilai sel membawa nominal + status sehingga FE bisa mewarnai
+     * lunas/belum. Label bulan FE yang membentuk (dari `periode`).
+     */
+    public function crosstabTagihan(Request $request)
+    {
+        $request->validate([
+            'tahun_ajaran' => 'nullable',
+            'tahun_ajaran.*' => 'string|max:20',
+            'jenjang' => 'nullable|array',
+            'jenjang.*' => 'string|max:20',
+            'jenis_id' => 'nullable|integer|exists:jenis_tagihan,id',
+            'status' => 'nullable|in:belum,sebagian,lunas',
+            'belum_lunas' => 'nullable|boolean',
+            'santri' => 'nullable|string|max:100',
+        ]);
+
+        $q = Tagihan::with(['jenis', 'santri']);
+        $this->applyFilter($q, $request, 'jenjang', 'jenjang');
+        $this->applyFilter($q, $request, 'tahun_ajaran', 'tahun_ajaran');
+        if ($request->filled('jenis_id')) {
+            $q->where('jenis_id', (int) $request->input('jenis_id'));
+        }
+        if ($request->filled('status')) {
+            $q->where('status', $request->input('status'));
+        }
+        if ($request->boolean('belum_lunas')) {
+            $q->where('status', '!=', 'lunas');
+        }
+        if ($request->filled('santri')) {
+            $cari = $request->input('santri');
+            $q->whereHas('santri', fn ($s) => $s
+                ->where('nama_lengkap', 'like', '%'.$cari.'%')
+                ->orWhere('nisn', 'like', '%'.$cari.'%')
+                ->orWhereHas('lembagaSantri', fn ($ls) => $ls->where('nis_lokal', 'like', '%'.$cari.'%')));
+        }
+
+        $tagihan = $q->orderBy('santri_id')->orderBy('jenis_id')->get();
+        $bulanan = fn ($t) => $t->jenis?->tipe === 'bulanan';
+        $key = fn ($t) => $this->keyKolomCrosstab((int) $t->jenis_id, $bulanan($t) ? $t->periode : null, $bulanan($t));
+
+        // Kolom: per jenis; bulanan dipecah satu kolom per bulan (periode).
+        $kolom = [];
+        foreach ($tagihan->groupBy('jenis_id') as $jenisId => $baris) {
+            $jenis = $baris->first()->jenis;
+            $periode = $jenis?->tipe === 'bulanan'
+                ? $baris->pluck('periode')->filter()->unique()->sort()->values()->all()
+                : [null];
+            foreach ($periode as $p) {
+                $kolom[] = [
+                    'key' => $this->keyKolomCrosstab((int) $jenisId, $p, $jenis?->tipe === 'bulanan'),
+                    'jenis_id' => (int) $jenisId,
+                    'jenis_nama' => $jenis?->nama ?? 'Jenis #'.$jenisId,
+                    'tipe' => $jenis?->tipe ?? 'non_bulanan',
+                    'periode' => $p,
+                ];
+            }
+        }
+
+        $baris = [];
+        foreach ($tagihan->groupBy('santri_id') as $santriId => $kelompok) {
+            $sel = [];
+            foreach ($kelompok as $t) {
+                $sel[$key($t)] = [
+                    'id' => (int) $t->id,
+                    'nominal' => (int) $t->nominal,
+                    'terbayar' => (int) $t->terbayar,
+                    'sisa' => $t->sisa(),
+                    'status' => (string) $t->status,
+                    'jatuh_tempo' => $t->jatuh_tempo?->format('Y-m-d'),
+                ];
+            }
+            $santri = $kelompok->first()->santri;
+            $baris[] = [
+                'santri_id' => (int) $santriId,
+                'nama' => $santri?->nama_lengkap ?? 'Tidak dikenal',
+                'jenjang' => (string) $kelompok->first()->jenjang,
+                'paket' => (string) $kelompok->first()->paket,
+                'sel' => $sel,
+                'total_tagihan' => (int) $kelompok->sum('nominal'),
+                'total_terbayar' => (int) $kelompok->sum('terbayar'),
+                'tunggakan' => (int) $kelompok->sum(fn ($t) => $t->sisa()),
+            ];
+        }
+
+        $baris = $this->terapkanUrutKoleksi($request, $baris, [
+            'nama' => 'nama',
+            'total' => 'total_tagihan',
+            'bayar' => 'total_terbayar',
+            'sisa' => 'tunggakan',
+            'id' => 'santri_id',
+        ]);
+
+        $page = max(1, (int) $request->input('page', 1));
+        $perPage = $this->perPage($request);
+
+        return response()->json([
+            'kolom' => $kolom,
+            'baris' => array_slice($baris, ($page - 1) * $perPage, $perPage),
+            'total' => count($baris),
+            'per_page' => $perPage,
+            'current_page' => $page,
+            'last_page' => max(1, (int) ceil(count($baris) / $perPage)),
+        ]);
+    }
+
+    /** Kunci sel crosstab: bulanan per periode, non-bulanan satu kolom per jenis. */
+    private function keyKolomCrosstab(int $jenisId, ?string $periode, bool $bulanan): string
+    {
+        return $bulanan && $periode !== null
+            ? $jenisId.'-'.$periode
+            : 'jenis-'.$jenisId;
+    }
+
     public function indexTagihan(Request $request)
     {
         $q = Tagihan::with(['jenis', 'santri']);
