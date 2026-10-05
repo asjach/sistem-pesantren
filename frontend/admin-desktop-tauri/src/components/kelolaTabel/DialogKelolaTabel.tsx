@@ -53,9 +53,12 @@ function kabariPreset(tableKey: string) {
 function KelolaKolomTabel({
   tableKey,
   fields,
+  aksi,
 }: {
   tableKey: string;
   fields: ExcelField[];
+  /** Aksi ikon section Kolom (togol tampil/sembunyi semua) dari registri induk. */
+  aksi?: AksiBagian;
 }) {
   const [presets, setPresets] = useState<PresetTabel[]>([]);
   const [bawaanId, setBawaanId] = useState<number | null>(null);
@@ -134,7 +137,7 @@ function KelolaKolomTabel({
     /* Kolom (kiri) dan Nama & Perataan (kanan) berdampingan; menumpuk di
        layar sempit. */
     <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
-      <Bagian id="bagian_kolom_tabel" judul="Kolom">
+      <Bagian id="bagian_kolom_tabel" judul="Kolom" aksi={aksi}>
         <TabKolom
           key={kelola.nonce}
           tableKey={tableKey}
@@ -208,13 +211,13 @@ export function Bagian({ id, judul, aksi, children }: {
                 type="button"
                 variant="ghost"
                 size="icon-xs"
-                id={`btn_kembalikan_${id}`}
+                id={aksi.idTombol ?? `btn_kembalikan_${id}`}
                 className="ml-auto"
                 aria-label={aksi.label}
                 disabled={aksi.disabled}
                 onClick={aksi.onClick}
               >
-                <RotateCcw />
+                {aksi.ikon ?? <RotateCcw />}
               </Button>
             </TooltipTrigger>
             <TooltipContent>
@@ -344,7 +347,7 @@ export default function DialogKelolaTabel({
 
           <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-1">
             {fields ? (
-              <KelolaKolomTabel key={tableKey} tableKey={tableKey} fields={fields} />
+              <KelolaKolomTabel key={tableKey} tableKey={tableKey} fields={fields} aksi={aksiBagian.kolom} />
             ) : (
               <Bagian id="bagian_kolom_tabel" judul="Kolom">
                 <p className="rounded-md border px-3 py-2 text-xs text-muted-foreground">

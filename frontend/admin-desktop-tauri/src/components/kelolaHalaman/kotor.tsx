@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, type ReactNode } from 'react';
 
 /** Registri bagian dialog Kelola Tabel / Filter Halaman.
  *
@@ -10,6 +10,10 @@ export interface AksiBagian {
   label: string;
   onClick: () => void;
   disabled?: boolean;
+  /** Ikon tombol (bawaan = putar-ulang). */
+  ikon?: ReactNode;
+  /** Id tombol (bawaan = `btn_kembalikan_<id bagian>`). */
+  idTombol?: string;
 }
 
 /** Hasil simpan satu bagian: `false` = gagal (galat sudah di-toast bagian),
@@ -42,16 +46,16 @@ export function useBagian(id: string, simpan: () => HasilSimpan): (kotor: boolea
 }
 
 /** Daftarkan aksi ikon bagian ini. `onClick` selalu versi terakhir; daftar
- *  ulang hanya saat label/disabled berubah. */
+ *  ulang saat label/disabled/ikon/id berubah. */
 export function useAksiBagian(id: string, aksi: AksiBagian): void {
   const { daftarAksi } = useContext(Ctx);
   const ref = useRef(aksi);
   ref.current = aksi;
-  const { label, disabled } = aksi;
+  const { label, disabled, ikon, idTombol } = aksi;
   useEffect(() => {
-    daftarAksi(id, { label, disabled, onClick: () => ref.current.onClick() });
+    daftarAksi(id, { label, disabled, ikon, idTombol, onClick: () => ref.current.onClick() });
     return () => daftarAksi(id, null);
-  }, [daftarAksi, id, label, disabled]);
+  }, [daftarAksi, id, label, disabled, ikon, idTombol]);
 }
 
 /** Nilai provider yang stabil untuk cangkang dialog. */

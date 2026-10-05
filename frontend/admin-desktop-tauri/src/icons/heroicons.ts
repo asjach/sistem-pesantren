@@ -21,6 +21,7 @@ import IcClipboardCheckHeroicons from '~icons/heroicons/clipboard-document-check
 import IcClipboardListHeroicons from '~icons/heroicons/clipboard';
 import IcCopyHeroicons from '~icons/heroicons/document-duplicate';
 import IcEyeHeroicons from '~icons/heroicons/eye';
+import IcEyeOffHeroicons from '~icons/heroicons/eye-slash';
 import IcFileCheck2Heroicons from '~icons/heroicons/document-check';
 import IcFileUpHeroicons from '~icons/heroicons/document-arrow-up';
 import IcFolderOpenHeroicons from '~icons/heroicons/folder-open';
@@ -82,6 +83,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   ClipboardList: IcClipboardListHeroicons,
   Copy: IcCopyHeroicons,
   Eye: IcEyeHeroicons,
+  EyeOff: IcEyeOffHeroicons,
   FileCheck2: IcFileCheck2Heroicons,
   FileUp: IcFileUpHeroicons,
   FolderOpen: IcFolderOpenHeroicons,

@@ -70,7 +70,7 @@ export default function RekapSantriPage() {
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
       <div className="flex flex-wrap items-end gap-3">
-        <FilterField label="Keaktifan" htmlFor="select_keaktifan_rekap">
+        <FilterField label="Keaktifan" htmlFor="select_keaktifan_rekap" sejajar className="px-2 py-2">
           <Select value={keaktifan === '' ? '_semua' : keaktifan} onValueChange={(v) => setKeaktifan(v === '_semua' ? '' : v)}>
             <SelectTrigger id="select_keaktifan_rekap" title="Filter keaktifan" aria-label="Filter keaktifan" size="sm" className="w-40">
               <SelectValue placeholder="Aktif" />
@@ -84,10 +84,6 @@ export default function RekapSantriPage() {
             </SelectContent>
           </Select>
         </FilterField>
-        <span className="rounded-md border px-3 py-2 text-xs">
-          {keaktifan === 'nonaktif' ? 'Tidak aktif' : keaktifan === 'aktif' ? 'Aktif' : 'Semua status'}
-          {' · '}{semesters.length ? `semester ${semesters.join(', ')}` : 'semua semester'}: <strong>{data?.total_aktif ?? 0}</strong>
-        </span>
       </div>
 
       <ResizablePanelGroup orientation="horizontal" className="mt-3 min-h-0 flex-1" id="grup_rekap_santri">

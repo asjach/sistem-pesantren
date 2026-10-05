@@ -26,6 +26,7 @@ import IcClipboardListRi from '~icons/ri/clipboard-line';
 import IcCopyRi from '~icons/ri/file-copy-line';
 import IcCropRi from '~icons/ri/crop-line';
 import IcEyeRi from '~icons/ri/eye-line';
+import IcEyeOffRi from '~icons/ri/eye-off-line';
 import IcExternalLinkRi from '~icons/ri/external-link-line';
 import IcFileCheck2Ri from '~icons/ri/file-check-line';
 import IcFileUpRi from '~icons/ri/file-upload-line';
@@ -102,6 +103,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   Copy: IcCopyRi,
   Crop: IcCropRi,
   Eye: IcEyeRi,
+  EyeOff: IcEyeOffRi,
   ExternalLink: IcExternalLinkRi,
   FileCheck2: IcFileCheck2Ri,
   FileUp: IcFileUpRi,

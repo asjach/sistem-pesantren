@@ -133,6 +133,10 @@ export interface ExcelTableProps<T extends { id: string | number }> {
   aksiLangsung?: boolean;
   /** Tabel ringkas baca-saja: sembunyikan pemilih preset kolom di toolbar. */
   hidePreset?: boolean;
+  /** Pemanggil menggambar bar judul sendiri (mis. `TabelRingkas`): grid
+   *  tidak perlu jarak `mt-2` dari pemanggil maupun margin horizontal
+   *  negatif `-mx-1` yang biasanya mengimbangi padding halaman. */
+  judulPemilik?: boolean;
   /** Timpa lebar trigger dropdown Kolom (bawaan `w-44`), mis. tabel sempit. */
   presetKolomClassName?: string;
   /** Tampilkan rel filter Tingkat/Kelas di kiri grid (di bawah bar judul
@@ -212,6 +216,7 @@ export default function ExcelTable<T extends { id: string | number }>({
   hideActions = false,
   aksiLangsung = false,
   hidePreset = false,
+  judulPemilik = false,
   presetKolomClassName,
   rail = false,
   onCheckedChange,
@@ -1295,7 +1300,7 @@ export default function ExcelTable<T extends { id: string | number }>({
   return (
     <div className={cn(
       'flex flex-col',
-      !headerTampil && 'mt-2',
+      !headerTampil && !judulPemilik && 'mt-2',
       maxRows === undefined ? 'min-h-0 flex-1' : 'shrink-0',
     )}>
       <KonteksLebarFilter.Provider value={konteksLebarFilter}>
@@ -1389,7 +1394,7 @@ export default function ExcelTable<T extends { id: string | number }>({
           // Grid full-bleed: menempel tepi kiri-kanan area konten (imbangi padding
           // layout p-1) tanpa sudut membulat; judul tetap berpadding.
           'simpes-dsg relative flex min-w-0 flex-col',
-          !headerTampil && '-mx-1',
+          !headerTampil && !judulPemilik && '-mx-1',
           maxRows === undefined ? 'min-h-[280px] flex-1' : 'shrink-0',
           !editing && 'simpes-dsg-readonly',
         )}

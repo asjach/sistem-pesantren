@@ -26,6 +26,7 @@ import IcClipboardListLucide from '~icons/lucide/clipboard-list';
 import IcCopyLucide from '~icons/lucide/copy';
 import IcCropLucide from '~icons/lucide/crop';
 import IcEyeLucide from '~icons/lucide/eye';
+import IcEyeOffLucide from '~icons/lucide/eye-off';
 import IcExternalLinkLucide from '~icons/lucide/external-link';
 import IcFileCheck2Lucide from '~icons/lucide/file-check-2';
 import IcFileUpLucide from '~icons/lucide/file-up';
@@ -115,6 +116,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   Copy: IcCopyLucide,
   Crop: IcCropLucide,
   Eye: IcEyeLucide,
+  EyeOff: IcEyeOffLucide,
   ExternalLink: IcExternalLinkLucide,
   FileCheck2: IcFileCheck2Lucide,
   FileUp: IcFileUpLucide,

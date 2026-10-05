@@ -57,31 +57,42 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
-describe('TabNamaPerataan — tulis ulang nama header', () => {
-  it('menampilkan nama kustom dari state + pensil bertanda', async () => {
+describe('TabNamaPerataan — edit langsung di kolom EDIT', () => {
+  it('kolom pertama menampilkan nama bawaan, kolom EDIT nilai kustom', async () => {
     renderTampilan();
-    expect(await screen.findByText('Nama Santri')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /kini: Nama Santri/ })).toBeInTheDocument();
-  });
-
-  it('pensil membuka editor dan menyimpan nama baru', async () => {
-    renderTampilan();
-    fireEvent.click(await screen.findByRole('button', { name: /Ubah nama header Nama/ }));
-    const input = screen.getByLabelText(/Nama header Nama/);
+    expect(await screen.findByTitle('Nama bawaan: Nama')).toBeInTheDocument();
+    const input = screen.getByLabelText(/Edit nama header Nama/);
     expect(input).toHaveValue('Nama Santri');
-    fireEvent.change(input, { target: { value: 'Nama X' } });
-    fireEvent.click(screen.getByRole('button', { name: /Simpan nama header/ }));
-    expect(await screen.findByText('Nama X')).toBeInTheDocument();
+    // Kolom tanpa kustom: input kosong, nama bawaan tetap tampil di kolom 1.
+    expect(screen.getByLabelText(/Edit nama header Kode/)).toHaveValue('');
   });
 
-  it('input dikosongkan = kembali ke bawaan', async () => {
+  it('tanpa tombol edit: nama kustom berubah langsung dari input', async () => {
     renderTampilan();
-    fireEvent.click(await screen.findByRole('button', { name: /Ubah nama header Nama/ }));
-    const input = screen.getByLabelText(/Nama header Nama/);
+    expect(screen.queryByRole('button', { name: /Ubah nama header/ })).not.toBeInTheDocument();
+    const input = screen.getByLabelText(/Edit nama header Nama/);
+    fireEvent.change(input, { target: { value: 'Nama X' } });
+    expect(input).toHaveValue('Nama X');
+  });
+
+  it('spasi di tengah tidak terpotong, dirapikan saat blur', async () => {
+    renderTampilan();
+    const input = screen.getByLabelText(/Edit nama header Nama/);
+    fireEvent.change(input, { target: { value: '  Nama Lengkap Santri  ' } });
+    // Selama mengetik nilai mentah tersimpan apa adanya (spasi tidak terpotong).
+    expect(input).toHaveValue('  Nama Lengkap Santri  ');
+    // React 18 mendelegasikan onBlur ke `focusout`.
+    fireEvent.focusOut(input);
+    expect(input).toHaveValue('Nama Lengkap Santri');
+  });
+
+  it('input dikosongkan saat blur = kembali ke bawaan', async () => {
+    renderTampilan();
+    const input = screen.getByLabelText(/Edit nama header Nama/);
     fireEvent.change(input, { target: { value: '   ' } });
-    fireEvent.click(screen.getByRole('button', { name: /Simpan nama header/ }));
-    expect(await screen.findByText('Nama')).toBeInTheDocument();
-    expect(screen.queryByText('Nama Santri')).not.toBeInTheDocument();
+    fireEvent.focusOut(input);
+    expect(input).toHaveValue('');
+    expect(screen.getByTitle('Nama bawaan: Nama')).toBeInTheDocument();
   });
 });
 

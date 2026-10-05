@@ -11,13 +11,13 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Input } from '@/components/ui/input';
 import { labelKolom, bersihLabel, kanonLabel } from '@/lib/labelKolom';
-import { useBagian } from '@/components/kelolaHalaman/kotor';
+import { useAksiBagian, useBagian } from '@/components/kelolaHalaman/kotor';
 import { useLembagaAktif } from '@/lembagaAktif';
 import ConfirmDelete from '@/components/ConfirmDelete';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { Check, GripVertical, Pencil, Pin, Plus, Trash2, X } from '@/icons';
+import { Check, Eye, EyeOff, GripVertical, Pencil, Pin, Plus, Trash2, X } from '@/icons';
 import { toast } from 'sonner';
 import type { ExcelField } from '../excel/types';
 
@@ -107,7 +107,6 @@ export default function TabKolom({
   });
   /** Susunan yang dimuat memang "Lengkap kustom" (bukan semua kolom). */
   const kustomAwal = editId === null && !!kolomAwal && kolomAwal.length > 0;
-  const [cariKolom, setCariKolom] = useState('');
   const [, setBusy] = useState(false);
   const laporKotor = useBagian('kolom', () => simpanPreset());
   /** Acuan "tersimpan" untuk mendeteksi perubahan belum disimpan. */
@@ -139,30 +138,19 @@ export default function TabKolom({
     (f: ExcelField) => labelKolom(f.label) || labelKolom(f.key),
     [],
   );
-  /** Pencarian mencocokkan teks yang tampil maupun nama kolom aslinya, jadi
-   *  mengetik `nama_lengkap` tetap menemukan kolom "Nama Lengkap". */
-  const kolomCocok = useMemo(() => {
-    const q = cariKolom.trim().toLowerCase();
-    if (!q) return fields;
-    return fields.filter(
-      (f) => labelOf(f).toLowerCase().includes(q) || f.key.toLowerCase().includes(q),
-    );
-  }, [fields, cariKolom, labelOf]);
-  const semuaTampilTerpilih = kolomCocok.length > 0 && kolomCocok.every((f) => kolom.includes(f.key));
+  const semuaTampilTerpilih = fields.length > 0 && fields.every((f) => kolom.includes(f.key));
   /** Atribut field per key (untuk daftar kolom berurutan). */
   const fieldByKey = useMemo(() => new Map(fields.map((f) => [f.key, f])), [fields]);
-  /** Dua grup kolom: tampil (urutan `kolom`) dan tersembunyi, keduanya
-   *  tersaring pencarian. `indeks` = posisi asli di `kolom`, jadi pengurutan
-   *  lewat panah tetap benar walau daftar sedang tersaring. */
+  /** Dua grup kolom: tampil (urutan `kolom`) dan tersembunyi. `indeks` =
+   *  posisi asli di `kolom`. */
   const barisKolom = useMemo(() => {
-    const cocok = (f: ExcelField) => kolomCocok.includes(f);
     const tampil = kolom
       .map((k, i) => ({ f: fieldByKey.get(k), i }))
-      .filter((x): x is { f: ExcelField; i: number } => !!x.f && cocok(x.f))
+      .filter((x): x is { f: ExcelField; i: number } => !!x.f)
       .map(({ f, i }) => ({ f, indeks: i }));
-    const sembunyi = kolomCocok.filter((f) => !kolom.includes(f.key));
+    const sembunyi = fields.filter((f) => !kolom.includes(f.key));
     return { tampil, sembunyi };
-  }, [kolom, kolomCocok, fieldByKey]);
+  }, [kolom, fields, fieldByKey]);
 
   function togolKolom(key: string, aktif: boolean) {
     setKolom((prev) => {
@@ -175,12 +163,25 @@ export default function TabKolom({
     setKolom((prev) => {
       if (aktif) {
         const ada = new Set(prev);
-        return [...prev, ...kolomCocok.filter((f) => !ada.has(f.key)).map((f) => f.key)];
+        return [...prev, ...fields.filter((f) => !ada.has(f.key)).map((f) => f.key)];
       }
-      const buang = new Set(kolomCocok.map((f) => f.key));
-      return prev.filter((k) => !buang.has(k));
+      return [];
     });
   }
+  /** Togol tampil/sembunyi semua: satu tombol di kanan judul section.
+   *  Ikon di-memo agar identitasnya stabil (hindari efek daftar ulang tiap
+   *  render → loop setState). */
+  const ikonTogol = useMemo(
+    () => (semuaTampilTerpilih ? <EyeOff /> : <Eye />),
+    [semuaTampilTerpilih],
+  );
+  useAksiBagian('kolom', {
+    label: semuaTampilTerpilih ? 'Sembunyikan semua kolom' : 'Tampilkan semua kolom',
+    onClick: () => aturSemuaTampil(!semuaTampilTerpilih),
+    disabled: fields.length === 0,
+    ikon: ikonTogol,
+    idTombol: `btn_togol_tampil_kolom_${tableKey}`,
+  });
 
   /** Geser satu item kolom terpilih ke atas/bawah (tombol panah/WASD). */
   function geserTerpilih(dari: number, arah: -1 | 1) {
@@ -532,84 +533,11 @@ export default function TabKolom({
         ) : null}
       </div>
 
-      {/* Pencarian + aksi massal untuk hasil yang tersaring. */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative min-w-40 flex-1 sm:max-w-56">
-          <Input
-            id={`input_cari_kolom_${tableKey}`}
-            value={cariKolom}
-            onChange={(e) => setCariKolom(e.target.value)}
-            onKeyDown={(e) => {
-              // Enter di pencarian tidak boleh men-submit form (simpan preset).
-              if (e.key === 'Enter') e.preventDefault();
-            }}
-            placeholder="Cari kolom…"
-            aria-label="Cari kolom"
-            className="h-8 w-full pr-7"
-          />
-          {cariKolom !== '' ? (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  id={`btn_hapus_cari_kolom_${tableKey}`}
-                  aria-label="Bersihkan pencarian"
-                  onClick={() => setCariKolom('')}
-                  className="absolute top-1/2 right-1 grid size-5 -translate-y-1/2 place-items-center rounded text-muted-foreground hover:bg-accent hover:text-foreground"
-                >
-                  <X size={12} />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Bersihkan pencarian</p>
-              </TooltipContent>
-            </Tooltip>
-          ) : null}
-        </div>
-        <span className="min-w-0 flex-1 truncate text-[11px] text-muted-foreground">
-          {kolom.length} tampil · {fields.length - kolom.length} tersembunyi
-        </span>
-        <span className="flex shrink-0 items-center gap-2">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                id={`btn_pilih_semua_kolom_${tableKey}`}
-                type="button"
-                disabled={kolomCocok.length === 0 || semuaTampilTerpilih}
-                className="text-xs text-muted-foreground underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
-                onClick={() => aturSemuaTampil(true)}
-              >
-                Tampilkan semua
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>{cariKolom.trim() ? 'Tampilkan semua kolom hasil pencarian' : 'Tampilkan semua kolom'}</p>
-            </TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                id={`btn_kosongkan_kolom_${tableKey}`}
-                type="button"
-                disabled={kolomCocok.length === 0 || kolomCocok.every((f) => !kolom.includes(f.key))}
-                className="text-xs text-muted-foreground underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
-                onClick={() => aturSemuaTampil(false)}
-              >
-                Sembunyikan
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>{cariKolom.trim() ? 'Sembunyikan kolom hasil pencarian' : 'Sembunyikan semua kolom'}</p>
-            </TooltipContent>
-          </Tooltip>
-        </span>
-      </div>
-
       {/* Dua grup: tampil (berurut) dan tersembunyi. Header grup menempel di
           atas area gulir dialog agar konteks tetap terlihat. */}
       <div className="rounded-md border">
         {barisKolom.tampil.length === 0 && barisKolom.sembunyi.length === 0 ? (
-          <p className="px-3 py-4 text-xs text-muted-foreground">Tidak ada kolom cocok.</p>
+          <p className="px-3 py-4 text-xs text-muted-foreground">Belum ada kolom.</p>
         ) : (
           <>
             {barisKolom.tampil.length > 0 ? (
@@ -618,7 +546,6 @@ export default function TabKolom({
                   <span className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
                     Tampil · {barisKolom.tampil.length}
                   </span>
-                  <span className="text-[11px] text-muted-foreground">seret untuk mengurutkan (nama & perataan di section bawah)</span>
                 </div>
                 {barisKolom.tampil.map(({ f, indeks }) => renderBaris(f, true, indeks))}
               </>

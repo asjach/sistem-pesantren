@@ -52,6 +52,7 @@ const IKON = {
   Copy: ['copy', 'copy-simple', 'duplicate', 'content-copy', 'clipboard-copy', 'files', 'document-duplicate', 'file-copy-line'],
   Crop: ['crop'],
   Eye: ['eye', 'eye-open', 'eye-2', 'view', 'visibility', 'show', 'eye-line'],
+  EyeOff: ['eye-off', 'eye-slash', 'eye-none', 'visibility-off', 'eye-closed', 'hide'],
   ExternalLink: ['external-link', 'square-arrow-out-up-right', 'open-in-new-window', 'arrow-out-square', 'new-window', 'launch'],
   FileCheck2: ['file-check-2', 'file-check', 'file-checked', 'file-ok', 'file-verify', 'document-check'],
   FileUp: ['file-up', 'upload-file', 'document-arrow-up', 'file-upload', 'file-arrow-up', 'file-import'],

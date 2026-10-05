@@ -26,6 +26,7 @@ import IcClipboardListBi from '~icons/bi/clipboard';
 import IcCopyBi from '~icons/bi/copy';
 import IcCropBi from '~icons/bi/crop';
 import IcEyeBi from '~icons/bi/eye';
+import IcEyeOffBi from '~icons/bi/eye-slash';
 import IcFileCheck2Bi from '~icons/bi/file-check';
 import IcFileUpBi from '~icons/bi/file-arrow-up';
 import IcFolderOpenBi from '~icons/bi/folder';
@@ -99,6 +100,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   Copy: IcCopyBi,
   Crop: IcCropBi,
   Eye: IcEyeBi,
+  EyeOff: IcEyeOffBi,
   FileCheck2: IcFileCheck2Bi,
   FileUp: IcFileUpBi,
   FolderOpen: IcFolderOpenBi,

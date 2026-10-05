@@ -20,6 +20,7 @@ import IcClipboardListRadix from '~icons/radix-icons/clipboard';
 import IcCopyRadix from '~icons/radix-icons/copy';
 import IcCropRadix from '~icons/radix-icons/crop';
 import IcEyeRadix from '~icons/radix-icons/eye-open';
+import IcEyeOffRadix from '~icons/radix-icons/eye-none';
 import IcExternalLinkRadix from '~icons/radix-icons/external-link';
 import IcGridRadix from '~icons/radix-icons/grid';
 import IcHistoryRadix from '~icons/radix-icons/clock';
@@ -69,6 +70,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   Copy: IcCopyRadix,
   Crop: IcCropRadix,
   Eye: IcEyeRadix,
+  EyeOff: IcEyeOffRadix,
   ExternalLink: IcExternalLinkRadix,
   Grid: IcGridRadix,
   History: IcHistoryRadix,

@@ -15,13 +15,16 @@ import { daftarkanFilter, hapusFilter, pakaiLebarFilter } from './excel/lebarFil
  *  anak selain combobox (mis. input tanggal) memakai lebar alami. Kontrol
  *  bawaan toolbar (Urutkan, Kolom) mematikan ini karena lebarnya sudah
  *  diatur lewat jalur kontrol. Di luar toolbar: polos seperti semula. */
-export default function FilterField({ label, htmlFor, children, className, kelolaLebar = true }: {
+export default function FilterField({ label, htmlFor, children, className, kelolaLebar = true, sejajar = false }: {
   label: string;
   htmlFor?: string;
   children: ReactNode;
   className?: string;
   /** Daftarkan ke kelola lebar filter (matikan untuk kontrol bawaan toolbar). */
   kelolaLebar?: boolean;
+  /** Label sejajar horizontal dengan kontrol (bukan di atasnya). Dipakai di
+   *  luar toolbar, mis. baris filter halaman Rekap Santri. */
+  sejajar?: boolean;
 }) {
   const konteks = pakaiLebarFilter();
   const ref = useRef<HTMLSpanElement>(null);
@@ -62,11 +65,14 @@ export default function FilterField({ label, htmlFor, children, className, kelol
     }
   }
 
+  // Mode mendatar dipakai baik di dalam konteks toolbar maupun lewat prop
+  // `sejajar`; selain itu label tetap di atas kontrol seperti semula.
+  const mendatar = konteks || sejajar;
   return (
-    <span ref={ref} className={cn(konteks ? 'flex items-center gap-1.5' : 'flex flex-col gap-0.5', className)}>
+    <span ref={ref} className={cn(mendatar ? 'flex items-center gap-1.5' : 'flex flex-col gap-0.5', className)}>
       <label
         htmlFor={htmlFor}
-        className={cn('text-[11px] text-muted-foreground', konteks ? 'leading-none whitespace-nowrap' : 'leading-tight')}
+        className={cn('text-[11px] text-muted-foreground', mendatar ? 'leading-none whitespace-nowrap' : 'leading-tight')}
       >
         {label}
       </label>

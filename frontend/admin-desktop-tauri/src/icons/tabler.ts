@@ -26,6 +26,7 @@ import IcClipboardListTabler from '~icons/tabler/clipboard-list';
 import IcCopyTabler from '~icons/tabler/copy';
 import IcCropTabler from '~icons/tabler/crop';
 import IcEyeTabler from '~icons/tabler/eye';
+import IcEyeOffTabler from '~icons/tabler/eye-off';
 import IcExternalLinkTabler from '~icons/tabler/external-link';
 import IcFileCheck2Tabler from '~icons/tabler/file-check';
 import IcFileUpTabler from '~icons/tabler/file-upload';
@@ -106,6 +107,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   Copy: IcCopyTabler,
   Crop: IcCropTabler,
   Eye: IcEyeTabler,
+  EyeOff: IcEyeOffTabler,
   ExternalLink: IcExternalLinkTabler,
   FileCheck2: IcFileCheck2Tabler,
   FileUp: IcFileUpTabler,

@@ -69,10 +69,10 @@ export default function TabelRingkas({
   return (
     <section className={cn('flex min-w-0 flex-col', className)}>
       <header className="flex items-center justify-between gap-2 border-b bg-muted/40 px-3 py-1.5 text-xs font-medium">
-        <span>{judul}</span>
+        <span className="uppercase">{judul}</span>
         {aksi}
       </header>
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col px-2 pb-1">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <ExcelTable
           tableKey={tableKey}
           fields={fields}
@@ -87,6 +87,7 @@ export default function TabelRingkas({
           hideCheckbox
           hideActions
           hidePreset
+          judulPemilik
         />
       </div>
     </section>

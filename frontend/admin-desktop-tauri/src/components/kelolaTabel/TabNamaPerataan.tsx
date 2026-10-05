@@ -1,17 +1,16 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
+import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { errorMessage } from '../../api/client';
 import {
   muatToolbarPreset,
   simpanToolbarPreset,
   type AlignKolomApi,
 } from '../../api/toolbarPreset';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Input } from '@/components/ui/input';
 import { labelKolom } from '@/lib/labelKolom';
 import { useBagian } from '@/components/kelolaHalaman/kotor';
 import { useLembagaAktif } from '@/lembagaAktif';
 import { cn } from '@/lib/utils';
-import { Check, Pencil, X, AlignCenter, AlignLeft, AlignRight } from '@/icons';
+import { AlignCenter, AlignLeft, AlignRight } from '@/icons';
 import { bacaAlign, kabariToolbar, type AlignKolom } from './jenis';
 import { toast } from 'sonner';
 import type { ExcelField } from '../excel/types';
@@ -47,10 +46,6 @@ export default function TabNamaPerataan({
   const [align, setAlign] = useState<Partial<Record<string, AlignKolom>>>({});
   /** Acuan align tersimpan (kanonik) untuk deteksi kotor. */
   const alignAwalRef = useRef<string>(kanonAlign({}));
-  /** Baris yang sedang diedit namanya (null = tidak ada). */
-  const [editLabelKey, setEditLabelKey] = useState<string | null>(null);
-  const [drafLabel, setDrafLabel] = useState('');
-  const [cari, setCari] = useState('');
   const laporKotor = useBagian('tampilan', () => simpanAlign());
   const kotorAlign = useCallback(
     () => kanonAlign(align) !== alignAwalRef.current,
@@ -64,17 +59,6 @@ export default function TabNamaPerataan({
     (f: ExcelField) => labelKolom(f.label) || labelKolom(f.key),
     [],
   );
-  /** Pencarian mencocokkan teks tampil, nama kustom, maupun key kolom aslinya. */
-  const cocok = useMemo(() => {
-    const q = cari.trim().toLowerCase();
-    if (!q) return fields;
-    return fields.filter(
-      (f) =>
-        labelOf(f).toLowerCase().includes(q) ||
-        (label[f.key] ?? '').toLowerCase().includes(q) ||
-        f.key.toLowerCase().includes(q),
-    );
-  }, [fields, cari, labelOf, label]);
 
   const muatAlign = useCallback(async () => {
     try {
@@ -105,9 +89,18 @@ export default function TabNamaPerataan({
     });
   }
 
-  /** Simpan draf nama header satu baris (kosong = kembali ke bawaan). */
-  function simpanLabelBaris(key: string) {
-    const t = drafLabel.trim().slice(0, 60);
+  /** Ubah nama header satu baris langsung dari kolom EDIT (tanpa tombol
+   *  edit terpisah). Nilai mentah ikut tersimpan supaya mengetik spasi di
+   *  tengah tidak terpotong; pemangkasan + kosong = kembali ke bawaan
+   *  dilakukan saat blur (Enter atau klik kolom lain). */
+  function ubahLabelBaris(key: string, nilai: string) {
+    const t = nilai.slice(0, 60);
+    setLabel((prev) => (prev[key] === t ? prev : { ...prev, [key]: t }));
+  }
+
+  /** Rapikan nilai saat keluar dari kolom: trim, kosong = bawaan. */
+  function rapiLabelBaris(key: string, nilai: string) {
+    const t = nilai.trim().slice(0, 60);
     setLabel((prev) => {
       if (t === '') {
         if (!(key in prev)) return prev;
@@ -118,7 +111,6 @@ export default function TabNamaPerataan({
       if (prev[key] === t) return prev;
       return { ...prev, [key]: t };
     });
-    setEditLabelKey(null);
   }
 
   /** Simpan perataan kolom (merge: hanya kunci `align` yang dikirim). */
@@ -149,53 +141,23 @@ export default function TabNamaPerataan({
     );
   }
 
-  const hitungNama = Object.keys(label).length;
-  const hitungAlign = Object.keys(align).length;
-
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative min-w-40 flex-1 sm:max-w-56">
-          <Input
-            id={`input_cari_tampilan_${tableKey}`}
-            value={cari}
-            onChange={(e) => setCari(e.target.value)}
-            onKeyDown={(e) => {
-              // Enter di pencarian tidak boleh men-submit form induk.
-              if (e.key === 'Enter') e.preventDefault();
-            }}
-            placeholder="Cari kolom…"
-            aria-label="Cari kolom"
-            className="h-8 w-full pr-7"
-          />
-          {cari !== '' ? (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  id={`btn_hapus_cari_tampilan_${tableKey}`}
-                  aria-label="Bersihkan pencarian"
-                  onClick={() => setCari('')}
-                  className="absolute top-1/2 right-1 grid size-5 -translate-y-1/2 place-items-center rounded text-muted-foreground hover:bg-accent hover:text-foreground"
-                >
-                  <X size={12} />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Bersihkan pencarian</p>
-              </TooltipContent>
-            </Tooltip>
-          ) : null}
-        </div>
-        <span className="min-w-0 flex-1 truncate text-[11px] text-muted-foreground">
-          {hitungNama} nama kustom · {hitungAlign} perataan kustom
-        </span>
-      </div>
-
       <div className="rounded-md border">
-        {cocok.length === 0 ? (
-          <p className="px-3 py-4 text-xs text-muted-foreground">Tidak ada kolom cocok.</p>
-        ) : cocok.map((f) => {
+        {/* Kepala kolom: nama bawaan, kolom edit langsung, perataan. */}
+        <div className="flex items-center gap-1.5 border-b bg-muted/30 px-1.5 py-1 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+          <span className="min-w-0 flex-1">Nama</span>
+          <span className="min-w-0 flex-[2]">Edit</span>
+          {/* Kolom perataan selebar tombol ikon (w-5), jadi judulnya ditulis
+              vertikal (bawah→atas) supaya tidak meluber ke kolom sebelah.
+              Tingginya ikut konten, bukan tinggi tetap. */}
+          <span className="flex w-5 shrink-0 items-center justify-center self-stretch" title="Perataan">
+            <span className="text-[10px] leading-none tracking-normal [writing-mode:vertical-rl] rotate-180">
+              Perataan
+            </span>
+          </span>
+        </div>
+        {fields.map((f) => {
           const teks = labelOf(f);
           const kustom = label[f.key] !== undefined;
           const a = align[f.key] ?? 'center';
@@ -206,66 +168,25 @@ export default function TabNamaPerataan({
               key={f.key}
               className="flex items-center gap-1.5 border-b px-1.5 py-0.5 last:border-0"
             >
-              {editLabelKey === f.key ? (
-                <span className="flex min-w-0 flex-1 items-center gap-1">
-                  <Input
-                    id={`input_nama_tampilan_${tableKey}_${f.key}`}
-                    autoFocus
-                    value={drafLabel}
-                    onChange={(e) => setDrafLabel(e.target.value)}
-                    maxLength={60}
-                    placeholder={teks}
-                    aria-label={`Nama header ${teks} (kosongkan untuk bawaan)`}
-                    className="h-6 min-w-0 flex-1 text-xs"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') { e.preventDefault(); simpanLabelBaris(f.key); }
-                      if (e.key === 'Escape') setEditLabelKey(null);
-                    }}
-                  />
-                  <button
-                    type="button"
-                    id={`btn_simpan_nama_tampilan_${tableKey}_${f.key}`}
-                    aria-label={`Simpan nama header ${teks}`}
-                    title="Simpan (kosong = kembali ke bawaan)"
-                    onClick={() => simpanLabelBaris(f.key)}
-                    className="grid size-5 shrink-0 place-items-center rounded text-foreground hover:bg-accent"
-                  >
-                    <Check size={12} />
-                  </button>
-                  <button
-                    type="button"
-                    id={`btn_batal_nama_tampilan_${tableKey}_${f.key}`}
-                    aria-label={`Batal ubah nama header ${teks}`}
-                    title="Batal"
-                    onClick={() => setEditLabelKey(null)}
-                    className="grid size-5 shrink-0 place-items-center rounded text-muted-foreground hover:bg-accent hover:text-foreground"
-                  >
-                    <X size={12} />
-                  </button>
-                </span>
-              ) : (
-                <>
-                  <span
-                    className={cn('min-w-0 flex-1 truncate text-xs', kustom && 'font-medium text-foreground')}
-                    title={kustom ? `${teks} → ${label[f.key]}` : `${teks} — klik pensil untuk tulis ulang`}
-                  >
-                    {label[f.key] ?? teks}
-                  </span>
-                  <button
-                    type="button"
-                    id={`btn_nama_tampilan_${tableKey}_${f.key}`}
-                    aria-label={kustom ? `Ubah nama header ${teks} (kini: ${label[f.key]})` : `Ubah nama header ${teks}`}
-                    title={kustom ? `Nama kustom: ${label[f.key]} — klik untuk ubah` : 'Tulis ulang nama header'}
-                    onClick={() => { setEditLabelKey(f.key); setDrafLabel(label[f.key] ?? ''); }}
-                    className={cn(
-                      'grid size-5 shrink-0 place-items-center rounded hover:bg-accent hover:text-foreground',
-                      kustom ? 'text-foreground' : 'text-muted-foreground/60',
-                    )}
-                  >
-                    <Pencil size={12} />
-                  </button>
-                </>
-              )}
+              {/* Kolom 1: nama bawaan (tidak bisa diubah di sini). */}
+              <span
+                className="min-w-0 flex-1 truncate text-xs text-muted-foreground"
+                title={`Nama bawaan: ${teks}`}
+              >
+                {teks}
+              </span>
+              {/* Kolom 2: nama kustom — ketik langsung, tanpa tombol edit. */}
+              <Input
+                id={`input_nama_tampilan_${tableKey}_${f.key}`}
+                value={label[f.key] ?? ''}
+                onChange={(e) => ubahLabelBaris(f.key, e.target.value)}
+                onBlur={(e) => rapiLabelBaris(f.key, e.target.value)}
+                maxLength={60}
+                placeholder="—"
+                aria-label={`Edit nama header ${teks} (kosongkan untuk bawaan)`}
+                className={cn('h-6 min-w-0 flex-[2] text-xs', !kustom && 'text-muted-foreground')}
+              />
+              {/* Kolom 3: perataan. */}
               <button
                 type="button"
                 id={`btn_align_tampilan_${tableKey}_${f.key}`}

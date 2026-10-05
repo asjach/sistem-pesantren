@@ -25,6 +25,7 @@ import IcClipboardListMaterial from '~icons/material-symbols/assignment';
 import IcCopyMaterial from '~icons/material-symbols/content-copy';
 import IcCropMaterial from '~icons/material-symbols/crop';
 import IcEyeMaterial from '~icons/material-symbols/visibility';
+import IcEyeOffMaterial from '~icons/material-symbols/visibility-off';
 import IcExternalLinkMaterial from '~icons/material-symbols/new-window';
 import IcFileUpMaterial from '~icons/material-symbols/upload-file';
 import IcFolderOpenMaterial from '~icons/material-symbols/folder-open';
@@ -103,6 +104,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   Copy: IcCopyMaterial,
   Crop: IcCropMaterial,
   Eye: IcEyeMaterial,
+  EyeOff: IcEyeOffMaterial,
   ExternalLink: IcExternalLinkMaterial,
   FileUp: IcFileUpMaterial,
   FolderOpen: IcFolderOpenMaterial,

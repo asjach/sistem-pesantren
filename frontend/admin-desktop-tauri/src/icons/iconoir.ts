@@ -26,6 +26,7 @@ import IcClipboardListIconoir from '~icons/iconoir/task-list';
 import IcCopyIconoir from '~icons/iconoir/copy';
 import IcCropIconoir from '~icons/iconoir/crop';
 import IcEyeIconoir from '~icons/iconoir/eye';
+import IcEyeOffIconoir from '~icons/iconoir/eye-off';
 import IcFolderOpenIconoir from '~icons/iconoir/folder';
 import IcGraduationCapIconoir from '~icons/iconoir/graduation-cap';
 import IcGridIconoir from '~icons/iconoir/view-grid';
@@ -93,6 +94,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   Copy: IcCopyIconoir,
   Crop: IcCropIconoir,
   Eye: IcEyeIconoir,
+  EyeOff: IcEyeOffIconoir,
   FolderOpen: IcFolderOpenIconoir,
   GraduationCap: IcGraduationCapIconoir,
   Grid: IcGridIconoir,

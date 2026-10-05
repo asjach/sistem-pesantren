@@ -24,6 +24,7 @@ import IcClipboardListPh from '~icons/ph/clipboard';
 import IcCopyPh from '~icons/ph/copy';
 import IcCropPh from '~icons/ph/crop';
 import IcEyePh from '~icons/ph/eye';
+import IcEyeOffPh from '~icons/ph/eye-slash';
 import IcFileUpPh from '~icons/ph/file-arrow-up';
 import IcFolderOpenPh from '~icons/ph/folder-open';
 import IcGraduationCapPh from '~icons/ph/graduation-cap';
@@ -97,6 +98,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   Copy: IcCopyPh,
   Crop: IcCropPh,
   Eye: IcEyePh,
+  EyeOff: IcEyeOffPh,
   FileUp: IcFileUpPh,
   FolderOpen: IcFolderOpenPh,
   GraduationCap: IcGraduationCapPh,

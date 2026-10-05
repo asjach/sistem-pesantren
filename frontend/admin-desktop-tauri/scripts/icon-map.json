@@ -252,6 +252,17 @@
   "bi": "eye",
   "material": "visibility"
  },
+ "EyeOff": {
+  "lucide": "eye-off",
+  "tabler": "eye-off",
+  "ph": "eye-slash",
+  "heroicons": "eye-slash",
+  "ri": "eye-off-line",
+  "iconoir": "eye-off",
+  "radix": "eye-none",
+  "bi": "eye-slash",
+  "material": "visibility-off"
+ },
  "ExternalLink": {
   "lucide": "external-link",
   "tabler": "external-link",
