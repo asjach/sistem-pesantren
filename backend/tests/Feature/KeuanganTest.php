@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\JenisTagihan;
+use App\Models\Kelas;
 use App\Models\Lembaga;
 use App\Models\Pembayaran;
 use App\Models\Santri;
@@ -34,6 +35,36 @@ class KeuanganTest extends TestCase
         $u->assignRole('super_admin');
 
         return $u;
+    }
+
+    public function test_kandidat_urut_kelas_jk_lalu_nama(): void
+    {
+        $admin = $this->admin();
+        $ia = Kelas::create(['jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'tingkat' => '1', 'nama_kelas' => 'IA']);
+        $ib = Kelas::create(['jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'tingkat' => '1', 'nama_kelas' => 'IB']);
+
+        $buat = function (string $nama, string $jk, ?int $kelasId) {
+            $santri = Santri::create(['nama_lengkap' => $nama, 'jk' => $jk]);
+            DB::table('riwayat_belajar')->insert([
+                'santri_id' => $santri->id, 'tahun_ajaran' => '2025/2026', 'jenjang' => 'MI',
+                'tingkat' => '1', 'kelas_id' => $kelasId, 'semester' => '1',
+                'status_akhir' => 'aktif', 'is_active_riwayat' => 'Ya',
+                'created_at' => now(), 'updated_at' => now(),
+            ]);
+
+            return $santri->id;
+        };
+
+        $zul = $buat('Zul', 'L', $ib->id);
+        $ani = $buat('Ani', 'P', $ia->id);
+        $budi = $buat('Budi', 'L', $ia->id);
+        $candra = $buat('Candra', 'L', null);
+
+        $res = $this->actingAs($admin)
+            ->getJson('/api/admin/keuangan/tagihan/kandidat?tahun_ajaran=2025/2026&kelompok=aktif')
+            ->assertStatus(200)->json();
+
+        $this->assertSame([$budi, $ani, $zul, $candra], array_column($res['data'], 'santri_id'));
     }
 
     public function test_kandidat_kelompok_santri_dan_generate_terpilih(): void

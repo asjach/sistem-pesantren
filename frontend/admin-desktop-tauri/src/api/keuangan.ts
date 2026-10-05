@@ -80,7 +80,7 @@ export function generateTagihan(data: {
 export type KelompokKandidat = 'mi_saja' | 'md_saja' | 'mi' | 'md' | 'mi_md' | 'aktif' | 'kelas_akhir' | 'selain_kelas_akhir' | 'custom';
 
 export interface KandidatTagihanRow {
-  santri_id: number; nama_lengkap: string; nisn: string | null; nis_lokal: string | null;
+  santri_id: number; nama_lengkap: string; jk: string | null; nisn: string | null; nis_lokal: string | null;
   paket: string; jenjang: string; tingkat: string | null; kelas: string | null; kelas_id: number | null;
   status_akhir: string | null;
 }

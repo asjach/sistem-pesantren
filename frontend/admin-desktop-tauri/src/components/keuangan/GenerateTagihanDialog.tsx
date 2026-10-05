@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dialog';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ActionIcon } from '@/components/RowActions';
 import { ErrorNotice } from '@/components/PageHeader';
 import Pager from '@/components/Pager';
@@ -33,6 +34,7 @@ const OPSI_KELOMPOK: { value: KelompokKandidat; label: string }[] = [
 
 const FIELDS_KANDIDAT: ExcelField[] = [
   { key: 'nama', label: 'Santri', kind: 'static' },
+  { key: 'jk', label: 'JK', kind: 'static', width: 40 },
   { key: 'nis', label: 'NIS/NISN', kind: 'static', width: 110 },
   { key: 'paket', label: 'Paket', kind: 'static', width: 80 },
   { key: 'tingkat', label: 'Tkt', kind: 'static', width: 50 },
@@ -337,7 +339,27 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
             <div className="flex h-full min-h-0 flex-col gap-1 p-2">
               <div className="flex items-center justify-between gap-2">
                 <p className="text-sm font-medium">Kandidat</p>
-                <Input id="inp_gen_cari" placeholder="Cari nama / NIS…" className="h-8 max-w-56" value={cari} onChange={(e) => setCari(e.target.value)} />
+                <div className="relative max-w-56">
+                  <Input id="inp_gen_cari" placeholder="Cari nama / NIS…" className="h-8 w-full pr-7" value={cari} onChange={(e) => setCari(e.target.value)} />
+                  {cari !== '' && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          id="btn_hapus_cari_gen"
+                          aria-label="Bersihkan pencarian"
+                          onClick={() => setCari('')}
+                          className="absolute top-1/2 right-1 grid size-5 -translate-y-1/2 place-items-center rounded text-muted-foreground hover:bg-accent hover:text-foreground"
+                        >
+                          <X size={12} />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Bersihkan pencarian</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+                </div>
               </div>
               <div className="flex min-h-0 flex-1 flex-col">
                 <ExcelTable<KandidatRow>
@@ -345,7 +367,7 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
                   fields={FIELDS_KANDIDAT}
                   rows={kandidatTampil}
                   getValues={(r) => ({
-                    nama: r.nama_lengkap, nis: r.nis_lokal ?? r.nisn, paket: r.paket,
+                    nama: r.nama_lengkap, jk: r.jk, nis: r.nis_lokal ?? r.nisn, paket: r.paket,
                     tingkat: r.tingkat, kelas: r.kelas, status_akhir: r.status_akhir,
                   })}
                   loading={loading}

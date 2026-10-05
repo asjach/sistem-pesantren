@@ -361,6 +361,7 @@ class KeuanganController extends Controller
             $hasil[] = [
                 'santri_id' => $id,
                 'nama_lengkap' => $info['nama_lengkap'],
+                'jk' => $info['jk'],
                 'nisn' => $info['nisn'],
                 'nis_lokal' => $info['nis_lokal'],
                 'paket' => $info['paket'],
@@ -371,6 +372,16 @@ class KeuanganController extends Controller
                 'status_akhir' => $info['status_akhir'],
             ];
         }
+
+        // Urut: kelas (tanpa kelas paling bawah) → JK (L dulu) → nama.
+        usort($hasil, function ($a, $b) {
+            if (($a['kelas'] === null) !== ($b['kelas'] === null)) {
+                return $a['kelas'] === null ? 1 : -1;
+            }
+
+            return [$a['kelas'] ?? '', $a['jk'] ?? '', $a['nama_lengkap']]
+                <=> [$b['kelas'] ?? '', $b['jk'] ?? '', $b['nama_lengkap']];
+        });
 
         $page = max(1, (int) $request->input('page', 1));
         $perPage = $this->perPage($request);
@@ -517,7 +528,7 @@ class KeuanganController extends Controller
      * tetap bisa digenerate). Baris semester 2 menang sebagai baris tampilan.
      *
      * @param  list<int>  $santriIds
-     * @return array<int, array{santri_id:int, nama_lengkap:string, nisn:?string, nis_lokal:?string, per_jenjang:array<string, array{semester:?string, tingkat:?string, kelas:?string, kelas_id:?int, status:?string}>, paket:string, jenjang_utama:string, tingkat:?string, kelas:?string, kelas_id:?int, status_akhir:?string, kelas_akhir:bool}>
+     * @return array<int, array{santri_id:int, nama_lengkap:string, jk:?string, nisn:?string, nis_lokal:?string, per_jenjang:array<string, array{semester:?string, tingkat:?string, kelas:?string, kelas_id:?int, status:?string}>, paket:string, jenjang_utama:string, tingkat:?string, kelas:?string, kelas_id:?int, status_akhir:?string, kelas_akhir:bool}>
      */
     private function petaSantriGenerate(string $ta, array $santriIds = [], ?string $cari = null): array
     {
@@ -538,7 +549,7 @@ class KeuanganController extends Controller
                     ->orWhere('ls2.nis_lokal', 'like', '%'.$cari.'%'))
                 ->select('s2.id')))
             ->orderBy('s.nama_lengkap')
-            ->get(['rb.santri_id', 'rb.jenjang', 'rb.tingkat', 'rb.kelas_id', 'rb.semester', 'rb.status_akhir', 's.nama_lengkap', 's.nisn', 'ls.nis_lokal', 'k.nama_kelas']);
+            ->get(['rb.santri_id', 'rb.jenjang', 'rb.tingkat', 'rb.kelas_id', 'rb.semester', 'rb.status_akhir', 's.nama_lengkap', 's.nisn', 's.jk', 'ls.nis_lokal', 'k.nama_kelas']);
 
         $peta = [];
         foreach ($baris as $b) {
@@ -546,6 +557,7 @@ class KeuanganController extends Controller
             $peta[$id] ??= [
                 'santri_id' => $id,
                 'nama_lengkap' => (string) $b->nama_lengkap,
+                'jk' => $b->jk,
                 'nisn' => $b->nisn,
                 'nis_lokal' => $b->nis_lokal,
                 'per_jenjang' => [],
