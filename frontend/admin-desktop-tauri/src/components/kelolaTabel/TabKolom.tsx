@@ -109,7 +109,7 @@ export default function TabKolom({
   const kustomAwal = editId === null && !!kolomAwal && kolomAwal.length > 0;
   const [cariKolom, setCariKolom] = useState('');
   const [, setBusy] = useState(false);
-  const laporKotor = useBagian('kolom', () => void simpanPreset());
+  const laporKotor = useBagian('kolom', () => simpanPreset());
   /** Acuan "tersimpan" untuk mendeteksi perubahan belum disimpan. */
   const awalNamaRef = useRef(presetAwal?.nama ?? '');
   const awalKolomRef = useRef(kolom);
@@ -216,11 +216,12 @@ export default function TabKolom({
     await simpanPreset();
   }
 
-  /** Simpan bagian ini (dipanggil form maupun tombol Simpan terpadu). */
-  async function simpanPreset() {
+  /** Simpan bagian ini (dipanggil form maupun tombol Simpan terpadu).
+   *  Kembalikan `false` bila gagal (cangkang membatalkan tutup dialog). */
+  async function simpanPreset(): Promise<boolean> {
     if (kolom.length === 0) {
       toast.error('Pilih minimal satu kolom.');
-      return;
+      return false;
     }
     // Nama header kustom yang ikut tersimpan (null = tanpa kustom).
     const labelSimpan = bersihLabel(label, fieldKeys);
@@ -232,10 +233,10 @@ export default function TabKolom({
         // Sudah diterapkan: preset + label kembali bersih.
         labelAwalRef.current = kanonLabel(labelSimpan);
         laporKotor(false);
-        return;
+        return true;
       }
       toast.error('Nama preset wajib diisi.');
-      return;
+      return false;
     }
     setBusy(true);
     try {
@@ -270,8 +271,10 @@ export default function TabKolom({
       // Induk me-remount section ini; laporkan sisa kotor (label).
       labelAwalRef.current = kanonLabel(labelSimpan);
       laporKotor(false);
+      return true;
     } catch (e2) {
       toast.error(errorMessage(e2));
+      return false;
     } finally {
       setBusy(false);
     }

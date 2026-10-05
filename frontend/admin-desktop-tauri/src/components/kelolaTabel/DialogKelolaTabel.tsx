@@ -24,7 +24,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { BagianProvider, useRegistriBagian, type AksiBagian } from '@/components/kelolaHalaman/kotor';
+import { BagianProvider, useRegistriBagian, type AksiBagian, type HasilSimpan } from '@/components/kelolaHalaman/kotor';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { RotateCcw } from '@/icons';
 import { cn } from '@/lib/utils';
@@ -259,7 +259,7 @@ export default function DialogKelolaTabel({
   /** Status kotor per bagian (semua bagian tampil sekaligus). */
   const [kotorBagian, setKotorBagian] = useState<Record<string, boolean>>({});
   /** Fungsi simpan tiap bagian, dipakai tombol Simpan terpadu. */
-  const simpanBagianRef = useRef<Record<string, () => void>>({});
+  const simpanBagianRef = useRef<Record<string, () => HasilSimpan>>({});
   /** Aksi ikon tiap bagian (mis. kembalikan bawaan). */
   const [aksiBagian, setAksiBagian] = useState<Record<string, AksiBagian>>({});
   const [menyimpan, setMenyimpan] = useState(false);
@@ -296,19 +296,23 @@ export default function DialogKelolaTabel({
    *  halaman disegarkan setelah setelan lain selesai. */
   const URUTAN_BAGIAN = ['kolom', 'tampilan', 'urutan', 'kontrol', 'filter'] as const;
 
-  /** Simpan semua bagian yang berubah, berurutan. */
+  /** Simpan semua bagian yang berubah, berurutan. Sukses semua = keluar
+   *  dialog; ada yang gagal = tetap buka (galat sudah di-toast bagian). */
   const simpanSemua = useCallback(async () => {
     setMenyimpan(true);
     try {
       for (const id of URUTAN_BAGIAN) {
         if (!kotorBagian[id]) continue;
         const fn = simpanBagianRef.current[id];
-        if (fn) await fn();
+        if (!fn) continue;
+        const ok = await fn();
+        if (ok === false) return;
       }
+      onOpenChange(false);
     } finally {
       setMenyimpan(false);
     }
-  }, [kotorBagian]);
+  }, [kotorBagian, onOpenChange]);
 
   /** Jalankan aksi, tapi tanya dulu bila ada perubahan belum tersimpan. */
   const coba = useCallback((aksi: () => void) => {

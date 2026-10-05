@@ -56,7 +56,7 @@ export default function TabFilterTabel({
   /** Ada baris tersimpan di DB (untuk status tombol Kembalikan). */
   const [adaSimpanan, setAdaSimpanan] = useState(false);
   const [busy, setBusy] = useState(false);
-  const laporKotor = useBagian('filter', () => void simpan());
+  const laporKotor = useBagian('filter', () => simpan());
   useAksiBagian('filter', {
     label: labelKembalikan,
     onClick: () => void kembalikan(),
@@ -105,8 +105,8 @@ export default function TabFilterTabel({
     window.dispatchEvent(new CustomEvent(EVENT_HALAMAN_BERUBAH, { detail: { tableKey } }));
   }
 
-  async function simpan() {
-    if (!bolehUbah || filterRelevan.length === 0) return;
+  async function simpan(): Promise<boolean> {
+    if (!bolehUbah || filterRelevan.length === 0) return true;
     setBusy(true);
     try {
       const filter: FilterTabel = {};
@@ -123,8 +123,10 @@ export default function TabFilterTabel({
       setAdaSimpanan(true);
       toast.success(res.pesan);
       kabariBerubah();
+      return true;
     } catch (e) {
       toast.error(errorMessage(e));
+      return false;
     } finally {
       setBusy(false);
     }

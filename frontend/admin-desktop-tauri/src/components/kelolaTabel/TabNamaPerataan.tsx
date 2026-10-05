@@ -51,7 +51,7 @@ export default function TabNamaPerataan({
   const [editLabelKey, setEditLabelKey] = useState<string | null>(null);
   const [drafLabel, setDrafLabel] = useState('');
   const [cari, setCari] = useState('');
-  const laporKotor = useBagian('tampilan', () => void simpanAlign());
+  const laporKotor = useBagian('tampilan', () => simpanAlign());
   const kotorAlign = useCallback(
     () => kanonAlign(align) !== alignAwalRef.current,
     [align],
@@ -122,8 +122,9 @@ export default function TabNamaPerataan({
   }
 
   /** Simpan perataan kolom (merge: hanya kunci `align` yang dikirim). */
-  async function simpanAlign() {
-    if (!kotorAlign()) return;
+  /** Simpan perataan kolom (cangkang menutup dialog bila semua sukses). */
+  async function simpanAlign(): Promise<boolean> {
+    if (!kotorAlign()) return true;
     const bersih: AlignKolomApi = {};
     for (const [k, v] of Object.entries(align)) {
       if (v !== undefined && fieldKeys.has(k)) bersih[k] = v;
@@ -133,8 +134,10 @@ export default function TabNamaPerataan({
       alignAwalRef.current = kanonAlign(bersih);
       kabariToolbar(tableKey);
       laporKotor(false);
+      return true;
     } catch (e) {
       toast.error(errorMessage(e));
+      return false;
     }
   }
 

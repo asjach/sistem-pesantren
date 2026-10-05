@@ -12,9 +12,13 @@ export interface AksiBagian {
   disabled?: boolean;
 }
 
+/** Hasil simpan satu bagian: `false` = gagal (galat sudah di-toast bagian),
+ *  selain itu = sukses. Dipakai cangkang untuk putuskan tutup dialog. */
+export type HasilSimpan = boolean | Promise<boolean> | void | Promise<void>;
+
 interface Registri {
   lapor: (id: string, kotor: boolean) => void;
-  daftarSimpan: (id: string, simpan: (() => void) | null) => void;
+  daftarSimpan: (id: string, simpan: (() => HasilSimpan) | null) => void;
   daftarAksi: (id: string, aksi: AksiBagian | null) => void;
 }
 
@@ -26,7 +30,7 @@ export const BagianProvider = Ctx.Provider;
  *  kotor; `simpan` adalah fungsi simpan bagian (dipanggil tombol Simpan
  *  terpadu). Identitas `simpan` boleh berubah tiap render — yang dipakai
  *  selalu versi terakhir. */
-export function useBagian(id: string, simpan: () => void): (kotor: boolean) => void {
+export function useBagian(id: string, simpan: () => HasilSimpan): (kotor: boolean) => void {
   const { lapor, daftarSimpan } = useContext(Ctx);
   const simpanRef = useRef(simpan);
   simpanRef.current = simpan;
@@ -53,7 +57,7 @@ export function useAksiBagian(id: string, aksi: AksiBagian): void {
 /** Nilai provider yang stabil untuk cangkang dialog. */
 export function useRegistriBagian(
   lapor: (id: string, kotor: boolean) => void,
-  daftarSimpan: (id: string, simpan: (() => void) | null) => void,
+  daftarSimpan: (id: string, simpan: (() => HasilSimpan) | null) => void,
   daftarAksi: (id: string, aksi: AksiBagian | null) => void,
 ) {
   return useMemo(() => ({ lapor, daftarSimpan, daftarAksi }), [lapor, daftarSimpan, daftarAksi]);

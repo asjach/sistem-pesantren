@@ -44,7 +44,7 @@ export default function TabUrutan({ tableKey }: { tableKey: string }) {
   const [busy, setBusy] = useState(false);
   /** Pesan galat muat terakhir (mis. tabel tak dikenal katalog urut). */
   const [galatMuat, setGalatMuat] = useState('');
-  const laporKotor = useBagian('urutan', () => void simpan());
+  const laporKotor = useBagian('urutan', () => simpan());
   /** Draf terakhir yang sama dengan isi server (acuan deteksi kotor). */
   const acuanRef = useRef('[]');
 
@@ -135,12 +135,12 @@ export default function TabUrutan({ tableKey }: { tableKey: string }) {
     });
   }
 
-  async function simpan() {
+  async function simpan(): Promise<boolean> {
     const bersih: OpsiUrut[] = [];
     for (const o of draft) {
       if (o.kode.length === 0) {
         toast.error('Ada opsi yang belum memilih kolom.');
-        return;
+        return false;
       }
       bersih.push({
         kode: o.kode,
@@ -155,8 +155,10 @@ export default function TabUrutan({ tableKey }: { tableKey: string }) {
       await simpanUrutPreset(tableKey, bersih);
       await muat();
       toast.success('Preset urut disimpan.');
+      return true;
     } catch (e) {
       toast.error(errorMessage(e));
+      return false;
     } finally {
       setBusy(false);
     }
@@ -208,7 +210,7 @@ export default function TabUrutan({ tableKey }: { tableKey: string }) {
               onDrop={() => jatuhSeret(i)}
               onDragEnd={() => { seretRef.current = null; setTujuanSeret(null); }}
               className={cn(
-                'flex items-center gap-1 rounded-md border p-1',
+                'flex flex-wrap items-center gap-1 rounded-md border p-1',
                 tujuanSeret === i && seretRef.current !== i && 'border-accent bg-accent/20',
               )}
             >

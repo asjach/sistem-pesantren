@@ -37,7 +37,7 @@ export default function TabKontrol({ tableKey }: { tableKey: string }) {
   const [busy, setBusy] = useState(false);
   /** Ada baris preset tersimpan (untuk status tombol Kembalikan). */
   const [adaSimpanan, setAdaSimpanan] = useState(false);
-  const laporKotor = useBagian('kontrol', () => void simpan());
+  const laporKotor = useBagian('kontrol', () => simpan());
   useAksiBagian('kontrol', {
     label: 'Kembalikan ke bawaan tabel',
     onClick: () => void kembalikan(),
@@ -118,8 +118,8 @@ export default function TabKontrol({ tableKey }: { tableKey: string }) {
     setLebar((v) => ({ ...v, [kunci]: n }));
   }
 
-  async function simpan() {
-    if (!bolehUbah) return;
+  async function simpan(): Promise<boolean> {
+    if (!bolehUbah) return true;
     setBusy(true);
     try {
       const lebarKirim: Record<string, number> = {
@@ -140,8 +140,10 @@ export default function TabKontrol({ tableKey }: { tableKey: string }) {
       await muat();
       toast.success(res.pesan);
       kabariBerubah();
+      return true;
     } catch (e) {
       toast.error(errorMessage(e));
+      return false;
     } finally {
       setBusy(false);
     }
