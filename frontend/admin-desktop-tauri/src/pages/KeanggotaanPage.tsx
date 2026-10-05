@@ -281,7 +281,7 @@ export default function KeanggotaanPage() {
   const fields = useMemo<ExcelField[]>(() => [
     ...SANTRI_IDENTITAS_FIELDS,
     {
-      key: 'lembaga', label: 'lembaga.jenjang', kind: 'static'
+      key: 'lembaga', label: 'Jenjang', kind: 'static'
     },
     { key: 'nis_lokal', label: 'nis_lokal', kind: 'text', maxLength: 20 },
     { key: 'nis_kemenag', label: 'nis_kemenag', kind: 'text', maxLength: 20 },

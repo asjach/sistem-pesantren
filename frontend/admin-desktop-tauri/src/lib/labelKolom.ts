@@ -26,17 +26,16 @@ function kapitalkanKata(kata: string): string {
  *  - nama kolom mentah (`nama_lengkap`) → di-humanize otomatis supaya tidak
  *    pernah tampil apa adanya di header.
  *
- *  Label berawalan nama tabel (`santri.nama_lengkap`) dipangkas jadi nama
- *  kolomnya saja lalu di-humanize — dipakai halaman yang mengambil kolom
- *  milik tabel lain. */
+ *  Bentuk `tabel.kolom` sudah tidak dipakai lagi — label ditulis prosa
+ *  langsung di tiap halaman. String bertitik yang lolos ke sini dikembalikan
+ *  apa adanya agar kesalahan penulisannya langsung terlihat. */
 export function labelKolom(teks: string | null | undefined): string {
   const mentah = (teks ?? '').trim();
   if (mentah === '') return '';
 
-  const dasar = /^[a-z0-9_]+\.([a-z0-9_]+)$/.exec(mentah)?.[1] ?? mentah;
-  if (!POLA_KODE.test(dasar)) return dasar;
+  if (!POLA_KODE.test(mentah)) return mentah;
 
   // Kolom boolean diawali `is_`: tampilkan nama state-nya saja, bukan "Is ...".
-  const inti = dasar.startsWith('is_') ? dasar.slice(3) : dasar;
+  const inti = mentah.startsWith('is_') ? mentah.slice(3) : mentah;
   return inti.split('_').map(kapitalkanKata).join(' ');
 }

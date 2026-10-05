@@ -223,18 +223,18 @@ export default function MiMdPage() {
   }
 
   const FIELDS_MI: ExcelField[] = useMemo(() => ([
-    { key: 'nama', label: 'santri.nama_lengkap', width: 200, kind: 'static' },
-    { key: 'nis_mi', label: 'mi.nis_lokal', width: 110, kind: 'static' },
+    { key: 'nama', label: 'Nama Lengkap', width: 200, kind: 'static' },
+    { key: 'nis_mi', label: 'NIS Lokal', width: 110, kind: 'static' },
     { key: 'kelas_mi', label: 'KELAS MI', width: 100, kind: 'static' },
   ]), []);
   const FIELDS_MD: ExcelField[] = useMemo(() => ([
-    { key: 'nama', label: 'santri.nama_lengkap', width: 200, kind: 'static' },
-    { key: 'nis_md', label: 'md.nis_lokal', width: 110, kind: 'static' },
+    { key: 'nama', label: 'Nama Lengkap', width: 200, kind: 'static' },
+    { key: 'nis_md', label: 'NIS Lokal', width: 110, kind: 'static' },
     { key: 'kelas_md', label: 'KELAS MD', width: 100, kind: 'static' },
     { key: 'juga_mi', label: 'Juga MI', width: 80, kind: 'static' },
   ]), []);
   const FIELDS_BEDA: ExcelField[] = useMemo(() => ([
-    { key: 'nama', label: 'santri.nama_lengkap', width: 200, kind: 'static' },
+    { key: 'nama', label: 'Nama Lengkap', width: 200, kind: 'static' },
     { key: 'kelas_mi', label: 'KELAS MI', width: 100, kind: 'static' },
     { key: 'kelas_md', label: 'KELAS MD', width: 100, kind: 'static',  },
   ]), []);

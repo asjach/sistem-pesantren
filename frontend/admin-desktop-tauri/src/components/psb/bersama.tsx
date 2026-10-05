@@ -36,7 +36,7 @@ export function psbFields(gelombangChoices: ExcelChoice[]): ExcelField[] {
         { value: 'non_asrama', label: 'non_asrama' },
       ],
     },
-    { key: 'lembaga', label: 'lembaga.jenjang', width: 180, kind: 'static',  },
+    { key: 'lembaga', label: 'Jenjang', width: 180, kind: 'static',  },
     {
       key: 'gelombang', label: 'Nama Gelombang', width: 140, kind: 'static',
       inputKind: 'select', required: true, inputChoices: gelombangChoices,

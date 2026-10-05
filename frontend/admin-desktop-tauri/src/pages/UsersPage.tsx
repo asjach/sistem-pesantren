@@ -88,7 +88,7 @@ const USER_FIELDS_BASE: ExcelField[] = [
     validate: (v) => (!v || v.trim().length < 8 ? 'Kata sandi minimal 8 karakter.' : null),
   },
   { key: 'peran', label: 'Peran', width: 200, kind: 'static', inputKind: 'select' },
-  { key: 'lembaga', label: 'lembaga.jenjang', width: 200, kind: 'static', inputKind: 'select',  },
+  { key: 'lembaga', label: 'Jenjang', width: 200, kind: 'static', inputKind: 'select',  },
 ];
 
 /** Kolom grid pengguna: pilihan peran (sesuai kewenangan) & lembaga disuntik. */

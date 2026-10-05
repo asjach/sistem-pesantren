@@ -23,11 +23,11 @@ import { toast } from 'sonner';
  *  dimuat penuh oleh endpoint daftar-kelas), keduanya baca-saja karena
  *  halaman ini hanya berpindah kelas, bukan mengubah data Santri. */
 const FIELDS_PINDAH_KELAS: ExcelField[] = [
-  { key: 'nama', label: 'santri.nama_lengkap', kind: 'static' },
+  { key: 'nama', label: 'Nama Lengkap', kind: 'static' },
   { key: 'nis_lokal', label: 'nis_lokal', kind: 'static' },
   { key: 'no_absen', label: 'no_absen', kind: 'static' },
   { key: 'jk', label: 'jk', width: 60, kind: 'static' },
-  { key: 'alamat', label: 'santri.alamat', width: 220, kind: 'static' },
+  { key: 'alamat', label: 'Alamat', width: 220, kind: 'static' },
 ];
 
 interface KolomKelas {

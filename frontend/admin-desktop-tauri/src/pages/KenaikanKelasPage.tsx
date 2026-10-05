@@ -49,8 +49,8 @@ function bisaBatalkan(b: Baris): boolean {
 
 /** Kolom tabel kandidat (santri semester 2) + tabel hasil (naik/tidak naik). */
 const FIELDS_KENAIKAN: ExcelField[] = [
-  { key: 'nama', label: 'santri.nama_lengkap', kind: 'static' },
-  { key: 'kelas', label: 'kelas.nama_kelas', kind: 'static' },
+  { key: 'nama', label: 'Nama Lengkap', kind: 'static' },
+  { key: 'kelas', label: 'Nama Kelas', kind: 'static' },
   { key: 'tingkat', label: 'tingkat', kind: 'static' },
   { key: 'tahun_ajaran', label: 'tahun_ajaran', kind: 'static',  },
 ];

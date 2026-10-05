@@ -38,8 +38,8 @@ import { useAksiProfilSantri } from '@/components/santri/useAksiProfilSantri';
 const STATUS = ['diajukan', 'disetujui', 'ditolak'];
 
 const FIELDS: ExcelField[] = [
-  { key: 'santri', label: 'santri.nama_lengkap', width: 200, kind: 'static' },
-  { key: 'nik', label: 'santri.nik', width: 160, kind: 'static' },
+  { key: 'santri', label: 'Nama Lengkap', width: 200, kind: 'static' },
+  { key: 'nik', label: 'NIK', width: 160, kind: 'static' },
   { key: 'wali', label: 'Nama Wali', width: 160, kind: 'static' },
   { key: 'perubahan', label: 'Perubahan', width: 320, kind: 'static' },
   { key: 'status', label: 'status', width: 110, kind: 'static' },

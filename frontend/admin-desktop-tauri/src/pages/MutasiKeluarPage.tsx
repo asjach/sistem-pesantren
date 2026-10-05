@@ -47,8 +47,8 @@ const KOLOM_IMPORT_MUTASI = [
 
 /** Kolom tabel kiri (santri aktif). */
 const FIELDS_AKTIF: ExcelField[] = [
-  { key: 'nama', label: 'santri.nama_lengkap', kind: 'static' },
-  { key: 'kelas', label: 'kelas.nama_kelas', kind: 'static' },
+  { key: 'nama', label: 'Nama Lengkap', kind: 'static' },
+  { key: 'kelas', label: 'Nama Kelas', kind: 'static' },
 ];
 
 /** Kolom tabel kanan (arsip mutasi keluar). */

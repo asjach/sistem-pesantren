@@ -71,16 +71,16 @@ const KOLOM_IMPORT_ALUMNI = [
 
 /** Kolom santri tingkat akhir. */
 const FIELDS_SANTRI: ExcelField[] = [
-  { key: 'nama', label: 'santri.nama_lengkap', kind: 'static' },
-  { key: 'kelas', label: 'kelas.nama_kelas', kind: 'static' },
+  { key: 'nama', label: 'Nama Lengkap', kind: 'static' },
+  { key: 'kelas', label: 'Nama Kelas', kind: 'static' },
   { key: 'tingkat', label: 'tingkat', kind: 'static' },
   { key: 'tahun_ajaran', label: 'tahun_ajaran', kind: 'static' },
 ];
 
 /** Kolom santri tidak lulus (pengulang tahun berikutnya). */
 const FIELDS_TIDAK_LULUS: ExcelField[] = [
-  { key: 'nama', label: 'santri.nama_lengkap', kind: 'static' },
-  { key: 'kelas', label: 'kelas.nama_kelas', kind: 'static' },
+  { key: 'nama', label: 'Nama Lengkap', kind: 'static' },
+  { key: 'kelas', label: 'Nama Kelas', kind: 'static' },
   { key: 'tingkat', label: 'tingkat', kind: 'static' },
   { key: 'tahun_ajaran', label: 'tahun_ajaran', kind: 'static' },
   { key: 'status_awal', label: 'status_awal', kind: 'static' },
@@ -96,7 +96,7 @@ const PILIHAN_MELANJUTKAN = [
   { value: 'tidak', label: 'Tidak' },
 ];
 const FIELDS_ALUMNI: ExcelField[] = [
-  { key: 'nama', label: 'santri.nama_lengkap', kind: 'static' },
+  { key: 'nama', label: 'Nama Lengkap', kind: 'static' },
   { key: 'lembaga', label: 'Nama Lembaga', kind: 'static' },
   { key: 'tahun_ajaran_lulus', label: 'tahun_ajaran_lulus', kind: 'static',  },
   {
@@ -105,7 +105,7 @@ const FIELDS_ALUMNI: ExcelField[] = [
     kind: 'text',
     validate: (v) => (!v || /^\d{4}-\d{2}-\d{2}$/.test(v) ? null : 'Format tanggal: YYYY-MM-DD.'),
   },
-  { key: 'kelas_lulus', label: 'kelas.nama_kelas', kind: 'static' },
+  { key: 'kelas_lulus', label: 'Nama Kelas', kind: 'static' },
   { key: 'nomor_ijazah', label: 'nomor_ijazah', kind: 'text' },
   { key: 'no_peserta', label: 'no_peserta', kind: 'text' },
   { key: 'skhun', label: 'skhun', kind: 'text' },

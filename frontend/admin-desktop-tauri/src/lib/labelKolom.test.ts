@@ -29,10 +29,9 @@ describe('labelKolom', () => {
     expect(labelKolom('is_active_lembaga')).toBe('Active Lembaga');
   });
 
-  it('pangkas nama tabel lalu humanize', () => {
-    expect(labelKolom('santri.nama_lengkap')).toBe('Nama Lengkap');
-    expect(labelKolom('kelas.nama_kelas')).toBe('Nama Kelas');
-    expect(labelKolom('lembaga.nama')).toBe('Nama');
+  it('bentuk tabel.kolom tidak lagi dipangkas (tulis prosa langsung)', () => {
+    expect(labelKolom('santri.nama_lengkap')).toBe('santri.nama_lengkap');
+    expect(labelKolom('kelas.nama_kelas')).toBe('kelas.nama_kelas');
   });
 
   it('label prosa dipakai apa adanya', () => {

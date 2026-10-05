@@ -36,8 +36,8 @@ import { bisa } from '../api/auth';
 import { toast } from 'sonner';
 
 const FIELDS_KIRI: ExcelField[] = [
-  { key: 'nama_lengkap', label: 'pegawai.nama_lengkap', width: 220, kind: 'static' },
-  { key: 'nip', label: 'pegawai.nip', width: 180, kind: 'static' },
+  { key: 'nama_lengkap', label: 'Nama Lengkap', width: 220, kind: 'static' },
+  { key: 'nip', label: 'NIP', width: 180, kind: 'static' },
 ];
 
 function nilaiKiri(p: Pegawai): Record<string, string | null> {
@@ -226,9 +226,9 @@ export default function LembagaPegawaiPage() {
   }, [canUbah, jenjangs, busy, kanan, kiri]);
 
   const fieldsKanan = useMemo<ExcelField[]>(() => [
-    { key: 'nama', label: 'pegawai.nama_lengkap', width: 220, kind: 'static' },
-    { key: 'nipp', label: 'pegawai.nipp', width: 130, kind: 'static' },
-    { key: 'lembaga', label: 'lembaga.jenjang', width: 100, kind: 'static' },
+    { key: 'nama', label: 'Nama Lengkap', width: 220, kind: 'static' },
+    { key: 'nipp', label: 'NIPP', width: 130, kind: 'static' },
+    { key: 'lembaga', label: 'Jenjang', width: 100, kind: 'static' },
     { key: 'tugas', label: 'Tugas', width: 160, kind: 'select', selectTanpaEdit: true, choices: tugasOpsi },
     { key: 'aktif', label: 'Aktif', width: 90, kind: 'toggle' },
     { key: 'tgl_masuk', label: 'Tgl Masuk', width: 130, kind: 'text', maxLength: 10 },

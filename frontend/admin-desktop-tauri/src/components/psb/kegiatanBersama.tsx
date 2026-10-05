@@ -30,7 +30,7 @@ export const KEGIATAN_FIELDS: ExcelField[] = [
 ];
 
 export const KUOTA_FIELDS: ExcelField[] = [
-  { key: 'lembaga', label: 'lembaga.jenjang', width: 180, kind: 'static' },
+  { key: 'lembaga', label: 'Jenjang', width: 180, kind: 'static' },
   { key: 'tipe', label: 'tipe_santri', width: 110, kind: 'static' },
   { key: 'kuota', label: 'kuota', width: 130, kind: 'text', maxLength: 9, validate: angkaInput('Kuota'),  },
   {

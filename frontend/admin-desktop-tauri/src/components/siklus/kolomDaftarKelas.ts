@@ -144,7 +144,7 @@ export function medanDaftarKelas({ bolehSantri, bolehRiwayat }: { bolehSantri: b
   return [
     // Identitas + konteks baris (urutan lama dipertahankan di depan).
     bolehSantri
-      ? { key: 'nama_lengkap', label: 'santri.nama_lengkap', width: 200, kind: 'text', maxLength: 255, validate: (v) => (v && v.trim() ? null : 'Nama wajib diisi.') }
+      ? { key: 'nama_lengkap', label: 'Nama Lengkap', width: 200, kind: 'text', maxLength: 255, validate: (v) => (v && v.trim() ? null : 'Nama wajib diisi.') }
       : statis('nama_lengkap', 'santri.nama_lengkap', 200),
     bolehSantri
       ? { key: 'nis_lokal', label: 'nis_lokal', width: 110, kind: 'text', maxLength: 20 }

@@ -12,10 +12,10 @@ import { TopBarSearch } from '@/components/TopBarSearch';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 
 const FIELDS: ExcelField[] = [
-  { key: 'nama', label: 'pegawai.nama_lengkap', width: 220, kind: 'static' },
-  { key: 'nipp', label: 'pegawai.nipp', width: 130, kind: 'static' },
-  { key: 'email_pegawai', label: 'pegawai.email_pribadi', width: 220, kind: 'static' },
-  { key: 'hp_pegawai', label: 'pegawai.no_hp', width: 150, kind: 'static' },
+  { key: 'nama', label: 'Nama Lengkap', width: 220, kind: 'static' },
+  { key: 'nipp', label: 'NIPP', width: 130, kind: 'static' },
+  { key: 'email_pegawai', label: 'Email Pribadi', width: 220, kind: 'static' },
+  { key: 'hp_pegawai', label: 'No HP', width: 150, kind: 'static' },
   { key: 'login', label: 'Login Akun', width: 220, kind: 'static',  },
 ];
 

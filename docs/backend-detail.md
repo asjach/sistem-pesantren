@@ -530,14 +530,15 @@ Status: 🔲 not scaffolded (backend 201/202 pending).
   (referensi, kegiatan, kuota, grup MI-MD, tabel kerja daftar-kelas) tetap
   urutan bawaan.
 * Nama header kolom TIDAK lagi disimpan di server (Kamus Label dihapus pada
-  v2.278). Label ditulis di kode tiap halaman sebagai `ExcelField.label`;
-  label yang masih berupa nama kolom mentah di-humanize di frontend
-  (`lib/labelKolom.ts`: `nama_lengkap` → `Nama Lengkap`, `santri.nama_lengkap`
-  → `Nama Lengkap`, singkatan seperti `nip`/`nis` tetap kapital). Tidak ada
-  query label saat memuat tabel. Presedensi: label preset per tabel (bila
-  diatur lewat dialog Kelola Tabel) → label field. Format isi sel pindah ke
-  `ExcelField.format` (`angka`/`tanggal`/`ya_tidak`); perataan & lebar tetap
-  milik preferensi pengguna dan preset tabel.
+  v2.278). Label ditulis di kode tiap halaman sebagai `ExcelField.label`
+  (prosa langsung; konvensi `tabel.kolom` dihapus pada v2.321); nama kolom
+  mentah yang tersisa di-humanize di frontend (`lib/labelKolom.ts`:
+  `nama_lengkap` → `Nama Lengkap`, singkatan seperti `nip`/`nis` tetap
+  kapital). Tidak ada query label saat memuat tabel. Presedensi: label
+  preset per tabel (bila diatur lewat dialog Kelola Tabel) → label field.
+  Format isi sel pindah ke `ExcelField.format` (`angka`/`tanggal`/`ya_tidak`);
+  lebar & visibilitas milik preset tabel; perataan: preferensi pribadi
+  pengguna > perataan global tabel (`toolbar_preset.align`).
 * Preset urut daftar (v2.73): allowlist kode urut = satu sumber di
   `App\Services\UrutKatalog` (`table_key` grid → `kode` → kolom ORDER BY),
   dipakai `UrutDaftar::parseUrut` semua controller sekaligus endpoint
