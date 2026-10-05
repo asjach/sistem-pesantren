@@ -115,6 +115,9 @@ export function useLebarKolom<T extends { id: string | number }>({
   const fittedRef = useRef<string | null>(cacheHit ? tableKey : null);
   /** Sedang mencoba mengukur kolom Aksi yang baru ter-render (hindari loop ganda). */
   const aksiFitRef = useRef(false);
+  /** True selama gagang lebar kolom sedang diseret (grid tidak boleh
+   *  di-remount di tengah gerakan — lihat ExcelTable). */
+  const [sedangLebar, setSedangLebar] = useState(false);
   const resizeRef = useRef<{ key: string; startX: number; startW: number; targets: string[] } | null>(null);
   /** Listener resize aktif (dibersihkan saat unmount bila masih menyeret). */
   const resizeListenersRef = useRef<{ move: (ev: MouseEvent) => void; up: () => void } | null>(null);
@@ -337,6 +340,7 @@ export function useLebarKolom<T extends { id: string | number }>({
     const group = getSelectedColumnKeys();
     const targets = group.length > 1 && group.includes(key) ? group : [key];
     resizeRef.current = { key, startX: e.clientX, startW, targets };
+    setSedangLebar(true);
     const onMove = (ev: MouseEvent) => {
       const d = resizeRef.current;
       if (!d) return;
@@ -352,6 +356,7 @@ export function useLebarKolom<T extends { id: string | number }>({
       window.removeEventListener('mouseup', onUp);
       resizeListenersRef.current = null;
       resizeRef.current = null;
+      setSedangLebar(false);
       setWidths((prev) => {
         persistWidths(prev);
         return prev;
@@ -535,6 +540,7 @@ export function useLebarKolom<T extends { id: string | number }>({
 
   return {
     widths,
+    sedangLebar,
     autoWidths,
     widthsReady,
     lebarStabil,

@@ -412,6 +412,7 @@ export default function ExcelTable<T extends { id: string | number }>({
    *  lebarStabil, seret gagang, AutoFit, lebar Aksi, tinggi header otomatis. */
   const {
     widths,
+    sedangLebar,
     autoWidths,
     lebarStabil,
     headerAutoH,
@@ -866,9 +867,13 @@ export default function ExcelTable<T extends { id: string | number }>({
       setSigAktif(sigRemount);
       return;
     }
-    const t = setTimeout(() => setSigAktif(sigRemount), 180);
+    // Selama gagang lebar diseret, JANGAN remount: remount memunculkan
+    // placeholder AutoFit sehingga lebar kolom terlihat melompat. Remount
+    // cukup dilakukan setelah gerakan selesai (ditunda 120 ms).
+    if (sedangLebar) return;
+    const t = setTimeout(() => setSigAktif(sigRemount), 120);
     return () => clearTimeout(t);
-  }, [sigRemount, sigTinggiBarisManual]);
+  }, [sigRemount, sigTinggiBarisManual, sedangLebar]);
 
   /** Posisi gulir disimpan agar pulih setelah remount. */
   const scrollPos = useRef({ top: 0, left: 0 });
