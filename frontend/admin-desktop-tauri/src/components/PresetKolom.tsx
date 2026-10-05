@@ -56,6 +56,8 @@ export default function PresetKolom({
   const [aktifId, setAktifId] = useState<number | null>(null);
   /** Preset bawaan tabel (dipakai bila user belum memilih dan ada preset). */
   const [bawaanId, setBawaanId] = useState<number | null>(null);
+  /** Muat pertama selesai? Gerbang tampil/sembunyi dropdown. */
+  const [muatSelesai, setMuatSelesai] = useState(false);
 
   const fieldKeys = useMemo(() => new Set(fields.map((f) => f.key)), [fields]);
 
@@ -100,6 +102,8 @@ export default function PresetKolom({
       setBawaanId(null);
       terapkan(null);
       toast.error(errorMessage(e));
+    } finally {
+      setMuatSelesai(true);
     }
   }, [tableKey, terapkan]);
 
@@ -166,6 +170,10 @@ export default function PresetKolom({
       </span>
     ) : p.nama
   );
+
+  // Tanpa preset (hanya "Lengkap") dropdown tak berguna: sembunyikan setelah
+  // muat pertama; tabel berpreset tetap menampilkannya.
+  if (muatSelesai && presets.length === 0) return null;
 
   return (
     <>

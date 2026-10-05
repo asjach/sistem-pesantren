@@ -43,14 +43,21 @@ export default function PresetUrut({
   const [data, setData] = useState<PresetUrutData | null>(null);
   /** table_key yang opsi bawaannya sudah diterapkan (sekali per tabel). */
   const sudahRef = useRef('');
+  /** Sudah selesai muat pertama? Dipakai gerbang tampil/sembunyi dropdown. */
+  const [muatSelesai, setMuatSelesai] = useState(false);
+  const [gagalMuat, setGagalMuat] = useState(false);
 
   const muat = useCallback(async () => {
     try {
       const res = await muatUrutPreset(tableKey);
       setData(res.data);
+      setGagalMuat(false);
     } catch {
       // Gagal memuat preset: dropdown tampil tanpa opsi (urutan tetap jalan).
       setData({ table_key: tableKey, opsi: [], tersedia: [] });
+      setGagalMuat(true);
+    } finally {
+      setMuatSelesai(true);
     }
   }, [tableKey]);
 
@@ -100,6 +107,12 @@ export default function PresetUrut({
     if ((urutAktif ?? []).length === 0) return;
     onUrut?.(urutAktif ?? [], arahUrut === 'naik' ? 'turun' : 'naik');
   }
+
+  // Tanpa opsi nyata (hanya "—") dropdown tak berguna: sembunyikan. Tetap
+  // tampil saat masih memuat, saat muat gagal, atau saat ada urutan aktif
+  // (agar arah masih bisa dibalik).
+  const tampil = !muatSelesai || gagalMuat || opsi.length > 0 || (urutAktif ?? []).length > 0;
+  if (!tampil) return null;
 
   return (
     <span className="flex items-end gap-0">
