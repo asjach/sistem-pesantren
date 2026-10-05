@@ -200,15 +200,29 @@ export default function DispensasiDialog({ open, onOpenChange, editing, jenis, d
               </div>
             )}
             {santriPilih.length > 0 && (
-              <div className="flex flex-wrap gap-1">
-                {santriPilih.map((s) => (
-                  <span key={s.id} className="inline-flex items-center gap-1 rounded-full border bg-muted/40 px-2 py-0.5 text-xs">
-                    {s.nama}
-                    <button type="button" aria-label={`Hapus ${s.nama}`} id={`btn_dispensasi_hapus_santri_${s.id}`} onClick={() => setSantriPilih((lama) => lama.filter((x) => x.id !== s.id))}>
-                      <X size={12} />
-                    </button>
-                  </span>
-                ))}
+              <div className="max-h-32 overflow-auto rounded border">
+                <table id="tbl_dispensasi_santri" className="w-full text-xs">
+                  <thead className="bg-muted/40">
+                    <tr>
+                      <th className="w-10 p-1.5 text-left">No</th>
+                      <th className="p-1.5 text-left">Nama</th>
+                      <th className="w-14 p-1.5 text-right">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {santriPilih.map((s, i) => (
+                      <tr key={s.id} className="border-t">
+                        <td className="p-1.5">{i + 1}</td>
+                        <td className="p-1.5">{s.nama}</td>
+                        <td className="p-1.5 text-right">
+                          <button type="button" aria-label={`Hapus ${s.nama}`} title={`Hapus ${s.nama}`} id={`btn_dispensasi_hapus_santri_${s.id}`} className="rounded p-1 hover:bg-accent" onClick={() => setSantriPilih((lama) => lama.filter((x) => x.id !== s.id))}>
+                            <X size={12} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>
