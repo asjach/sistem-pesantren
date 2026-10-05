@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { labelKolom } from './labelKolom';
+import { bersihLabel, kanonLabel, labelKolom } from './labelKolom';
 
 describe('labelKolom', () => {
   it('humanize nama kolom mentah', () => {
@@ -44,5 +44,13 @@ describe('labelKolom', () => {
     expect(labelKolom('')).toBe('');
     expect(labelKolom(null)).toBe('');
     expect(labelKolom(undefined)).toBe('');
+  });
+
+  it('bersihLabel hanya menyimpan kolom ada + teks tak kosong', () => {
+    const fieldKeys = new Set(['nama', 'kode']);
+    expect(bersihLabel({ nama: ' Nama X ', kode: '  ', asing: 'Y' }, fieldKeys)).toEqual({
+      nama: 'Nama X',
+    });
+    expect(kanonLabel({ b: '2', a: '1' })).toBe(kanonLabel({ a: '1', b: '2' }));
   });
 });

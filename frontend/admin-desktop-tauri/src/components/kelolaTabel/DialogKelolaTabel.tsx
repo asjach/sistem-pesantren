@@ -28,9 +28,11 @@ import { BagianProvider, useRegistriBagian, type AksiBagian } from '@/components
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { RotateCcw } from '@/icons';
 import { cn } from '@/lib/utils';
+import { bersihLabel, kanonLabel } from '@/lib/labelKolom';
 import { toast } from 'sonner';
 import type { ExcelField } from '../excel/types';
 import TabKolom from './TabKolom';
+import TabNamaPerataan from './TabNamaPerataan';
 import TabUrutan from './TabUrutan';
 import TabKontrol from './TabKontrol';
 import TabFilterTabel from './TabFilterTabel';
@@ -43,9 +45,11 @@ function kabariPreset(tableKey: string) {
   window.dispatchEvent(new CustomEvent(EVENT_PRESET_BERUBAH, { detail: { tableKey } }));
 }
 
-/** Isi section Kolom untuk satu tabel: lem preset kolom (cermin logika
- *  `PresetKolom`, tanpa dropdown pemilih) — hasil simpan diterapkan ke grid
- *  lewat event agar grid terkait menyegarkan dirinya sendiri. */
+/** Isi section Kolom + Nama & Perataan untuk satu tabel: lem preset kolom
+ *  (cermin logika `PresetKolom`, tanpa dropdown pemilih) plus editor nama
+ *  header & perataan — hasil simpan diterapkan ke grid lewat event agar grid
+ *  terkait menyegarkan dirinya sendiri. State nama header diangkat ke sini
+ *  agar section Kolom (simpan preset) dan Nama & Perataan (edit) sinkron. */
 function KelolaKolomTabel({
   tableKey,
   fields,
@@ -65,10 +69,13 @@ function KelolaKolomTabel({
     lengkap: boolean;
     /** Susunan "Lengkap kustom" tersimpan (null = semua kolom). */
     kolomAwal: string[] | null;
-    /** Nama header kustom "Lengkap kustom" (null = tanpa kustom). */
-    labelAwal: Record<string, string> | null;
     nonce: number;
-  }>({ preset: null, lengkap: true, kolomAwal: null, labelAwal: null, nonce: 0 });
+  }>({ preset: null, lengkap: true, kolomAwal: null, nonce: 0 });
+
+  /** Nama header kustom susunan yang dibuka (satu nilai per kolom, dipakai
+   *  section Kolom saat simpan + diedit di section Nama & Perataan). */
+  const [label, setLabel] = useState<Record<string, string>>({});
+  const labelAwalRef = useRef(kanonLabel({}));
 
   const fieldKeys = useMemo(() => new Set(fields.map((f) => f.key)), [fields]);
 
@@ -87,16 +94,23 @@ function KelolaKolomTabel({
         : res.data.presets.find((p) => p.id === aktifId) ?? null;
       const kolomKustom = aktif === null ? res.data.aktif_kolom ?? null : null;
       const labelKustom = aktif === null ? res.data.aktif_label ?? null : null;
-      setKelola((s) => ({ preset: aktif, lengkap: aktif === null, kolomAwal: kolomKustom, labelAwal: labelKustom, nonce: s.nonce + 1 }));
+      const labelBersih = bersihLabel(aktif ? (aktif.label ?? null) : labelKustom, fieldKeys);
+      setLabel(labelBersih);
+      labelAwalRef.current = kanonLabel(labelBersih);
+      setKelola((s) => ({ preset: aktif, lengkap: aktif === null, kolomAwal: kolomKustom, nonce: s.nonce + 1 }));
     } catch (e) {
       setPresets([]);
       setBawaanId(null);
+      setLabel({});
+      labelAwalRef.current = kanonLabel({});
       toast.error(errorMessage(e));
     }
-  }, [tableKey]);
+  }, [fieldKeys, tableKey]);
 
   useEffect(() => {
-    setKelola({ preset: null, lengkap: true, kolomAwal: null, labelAwal: null, nonce: 0 });
+    setKelola({ preset: null, lengkap: true, kolomAwal: null, nonce: 0 });
+    setLabel({});
+    labelAwalRef.current = kanonLabel({});
     void muat();
   }, [muat]);
 
@@ -117,31 +131,56 @@ function KelolaKolomTabel({
   }, [fieldKeys, tableKey]);
 
   return (
-    <TabKolom
-      key={kelola.nonce}
-      tableKey={tableKey}
-      fields={fields}
-      kolomAwal={kelola.kolomAwal}
-      labelAwal={kelola.labelAwal}
-      fieldKeys={fieldKeys}
-      presets={presets}
-      presetAwal={kelola.preset}
-      mulaiLengkap={kelola.lengkap}
-      onPilihLengkap={() => setKelola((s) => ({ preset: null, lengkap: true, kolomAwal: null, labelAwal: null, nonce: s.nonce + 1 }))}
-      bawaanId={bawaanId}
-      onPilihPreset={(p) => setKelola((s) => ({ preset: p, lengkap: false, kolomAwal: null, labelAwal: null, nonce: s.nonce + 1 }))}
-      onTersimpan={async (id) => {
-        await setPresetAktif(tableKey, id);
-        kabariPreset(tableKey);
-        await muat();
-      }}
-      onPakaiLengkap={pakaiLengkap}
-      onDihapus={async () => {
-        await setPresetAktif(tableKey, null);
-        kabariPreset(tableKey);
-        await muat();
-      }}
-    />
+    <>
+      <Bagian id="bagian_kolom_tabel" judul="Kolom">
+        <TabKolom
+          key={kelola.nonce}
+          tableKey={tableKey}
+          fields={fields}
+          kolomAwal={kelola.kolomAwal}
+          fieldKeys={fieldKeys}
+          presets={presets}
+          presetAwal={kelola.preset}
+          mulaiLengkap={kelola.lengkap}
+          onPilihLengkap={() => {
+            setLabel({});
+            labelAwalRef.current = kanonLabel({});
+            setKelola((s) => ({ preset: null, lengkap: true, kolomAwal: null, nonce: s.nonce + 1 }));
+          }}
+          bawaanId={bawaanId}
+          onPilihPreset={(p) => {
+            const bersih = bersihLabel(p?.label ?? null, fieldKeys);
+            setLabel(bersih);
+            labelAwalRef.current = kanonLabel(bersih);
+            setKelola((s) => ({ preset: p, lengkap: false, kolomAwal: null, nonce: s.nonce + 1 }));
+          }}
+          onTersimpan={async (id) => {
+            await setPresetAktif(tableKey, id);
+            kabariPreset(tableKey);
+            await muat();
+          }}
+          onPakaiLengkap={pakaiLengkap}
+          onDihapus={async () => {
+            await setPresetAktif(tableKey, null);
+            kabariPreset(tableKey);
+            await muat();
+          }}
+          label={label}
+          setLabel={setLabel}
+          labelAwalRef={labelAwalRef}
+        />
+      </Bagian>
+      <Bagian id="bagian_nama_perataan_tabel" judul="Nama & Perataan">
+        <TabNamaPerataan
+          key={kelola.nonce}
+          tableKey={tableKey}
+          fields={fields}
+          fieldKeys={fieldKeys}
+          label={label}
+          setLabel={setLabel}
+        />
+      </Bagian>
+    </>
   );
 }
 
@@ -149,7 +188,7 @@ function KelolaKolomTabel({
  *  WAJIB di scope modul: kalau didefinisikan di dalam komponen, identitasnya
  *  berubah tiap render sehingga isi bagian di-remount dan state lokalnya
  *  (centang, penanda kotor) selalu kembali ke awal. */
-function Bagian({ id, judul, aksi, children }: {
+export function Bagian({ id, judul, aksi, children }: {
   id: string;
   judul: string;
   /** Aksi ikon di kanan judul (mis. kembalikan bawaan). */
@@ -187,9 +226,9 @@ function Bagian({ id, judul, aksi, children }: {
   );
 }
 
-/** Satu pintu pengaturan satu tabel: filter topBar + preset kolom + preset
- *  urutan + visibilitas toolbar. Dibuka dari tabel terkait (menu konteks
- *  header) atau dari topBar halaman yang hanya punya satu tabel. */
+/** Satu pintu pengaturan satu tabel: filter topBar + preset kolom + nama &
+ *  perataan + preset urutan + visibilitas toolbar. Dibuka dari tabel terkait
+ *  (menu konteks header) atau dari topBar halaman yang hanya punya satu tabel. */
 export default function DialogKelolaTabel({
   open,
   onOpenChange,
@@ -250,9 +289,10 @@ export default function DialogKelolaTabel({
     });
   }, []);
   const registri = useRegistriBagian(lapor, daftarSimpan, daftarAksi);
-  /** Urutan simpan: bagian per tabel dulu (kolom, urutan, toolbar), filter
-   *  terakhir agar penanda halaman disegarkan setelah setelan lain selesai. */
-  const URUTAN_BAGIAN = ['kolom', 'urutan', 'kontrol', 'filter'] as const;
+  /** Urutan simpan: preset kolom dulu (membuat id bila preset baru),
+   *  lalu nama & perataan, urutan, toolbar; filter terakhir agar penanda
+   *  halaman disegarkan setelah setelan lain selesai. */
+  const URUTAN_BAGIAN = ['kolom', 'tampilan', 'urutan', 'kontrol', 'filter'] as const;
 
   /** Simpan semua bagian yang berubah, berurutan. */
   const simpanSemua = useCallback(async () => {
@@ -292,21 +332,21 @@ export default function DialogKelolaTabel({
           <DialogHeader className="shrink-0">
             <DialogTitle>Kelola tabel: {judul}</DialogTitle>
             <DialogDescription className="sr-only">
-              Atur kolom, urutan, toolbar, dan filter tabel ini.
+              Atur kolom, nama & perataan, urutan, toolbar, dan filter tabel ini.
             </DialogDescription>
           </DialogHeader>
 
           <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-1">
-            <Bagian id="bagian_kolom_tabel" judul="Kolom">
-              {fields ? (
-                <KelolaKolomTabel key={tableKey} tableKey={tableKey} fields={fields} />
-              ) : (
+            {fields ? (
+              <KelolaKolomTabel key={tableKey} tableKey={tableKey} fields={fields} />
+            ) : (
+              <Bagian id="bagian_kolom_tabel" judul="Kolom">
                 <p className="rounded-md border px-3 py-2 text-xs text-muted-foreground">
                   Tabel “{judul}” tidak memakai preset kolom — kelola kolomnya dari toolbar tabel
                   masing-masing.
                 </p>
-              )}
-            </Bagian>
+              </Bagian>
+            )}
 
             <Bagian id="bagian_urutan_tabel" judul="Urutan">
               <TabUrutan key={tableKey} tableKey={tableKey} />

@@ -39,3 +39,22 @@ export function labelKolom(teks: string | null | undefined): string {
   const inti = mentah.startsWith('is_') ? mentah.slice(3) : mentah;
   return inti.split('_').map(kapitalkanKata).join(' ');
 }
+
+/** Bersihkan peta nama header kustom: hanya kolom yang ada + teks tak kosong
+ *  (maks 60 karakter, ikut batas API). */
+export function bersihLabel(
+  mentah: Record<string, string> | null | undefined,
+  fieldKeys: Set<string>,
+): Record<string, string> {
+  const hasil: Record<string, string> = {};
+  for (const [k, v] of Object.entries(mentah ?? {})) {
+    const t = v.trim().slice(0, 60);
+    if (fieldKeys.has(k) && t !== '') hasil[k] = t;
+  }
+  return hasil;
+}
+
+/** Bandingkan peta nama header tanpa peduli urutan kunci. */
+export function kanonLabel(o: Record<string, string>): string {
+  return JSON.stringify(Object.keys(o).sort().map((k) => [k, o[k]]));
+}
