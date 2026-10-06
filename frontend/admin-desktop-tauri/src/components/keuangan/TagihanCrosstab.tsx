@@ -91,22 +91,32 @@ interface TooltipSel {
   jatuhTempo: string | null;
 }
 
-function TooltipTagihan({ data, x, y }: { data: TooltipSel; x: number; y: number }) {
+const LEBAR_TOOLTIP = 224;
+const TINGGI_TOOLTIP = 200;
+
+/**
+ * Letak tooltip. Ditulis langsung ke DOM (bukan state) — posisi mengikuti
+ * kursor pada tiap frame mouse; lewat state akan merender ulang seluruh
+ * tabel (ratusan sel) tiap gerakan dan terasa berat.
+ */
+function NeedleLetak(el: HTMLElement | null, x: number, y: number): void {
+  if (el === null) return;
+  const geser = Math.min(x + 12, window.innerWidth - LEBAR_TOOLTIP - 12);
+  el.style.left = `${Math.max(8, geser)}px`;
+  el.style.top = `${y + TINGGI_TOOLTIP > window.innerHeight ? Math.max(8, y - TINGGI_TOOLTIP) : y + 18}px`;
+}
+
+function TooltipTagihan({ data, tipRef }: { data: TooltipSel; tipRef: React.Ref<HTMLDivElement> }) {
   const status = data.status === 'lunas'
     ? 'Lunas'
     : data.terlambat ? 'Tunggakan' : 'Belum jatuh tempo';
-
-  // `fixed` wajib pada elemen yang diberi koordinat; di dekat tepi kanan/dasar
-  // tooltip dibalik agar tidak terpotong viewport.
-  const geser = typeof window !== 'undefined' ? Math.min(x + 12, window.innerWidth - 240) : x + 12;
-  const bawah = typeof window !== 'undefined' && y + 200 > window.innerHeight;
 
   return (
     <div
       id="tip_tagihan_sel"
       role="tooltip"
-      style={{ left: geser, top: bawah ? y - 190 : y + 18 }}
-      className="pointer-events-none fixed z-50 w-56 rounded-lg border bg-popover p-2.5 text-xs shadow-md"
+      ref={tipRef}
+      className="pointer-events-none fixed left-0 top-0 z-50 w-56 rounded-lg border bg-popover p-2.5 text-xs shadow-md"
     >
       <p className="font-semibold">{data.nama}</p>
       <dl className="mt-1.5 grid grid-cols-[auto_1fr] gap-x-2 gap-y-1">
@@ -149,8 +159,9 @@ export default function TagihanCrosstab({ data, loading, terpilihId, onPilih, em
   // menembus header saat digulir.
   const grupRef = useRef<HTMLTableRowElement>(null);
   const [tinggiGrup, setTinggiGrup] = useState(0);
-  /** Sel yang sedang di-hover + posisi kursor (tooltip rincian, bukan `title`). */
-  const [hover, setHover] = useState<{ isi: TooltipSel; x: number; y: number } | null>(null);
+  /** Sel yang sedang di-hover. Isinya berubah → render ulang; posisinya ditulis ke DOM. */
+  const [hover, setHover] = useState<TooltipSel | null>(null);
+  const tipRef = useRef<HTMLDivElement | null>(null);
   useLayoutEffect(() => {
     const el = grupRef.current;
     if (!el) return;
@@ -225,10 +236,10 @@ export default function TagihanCrosstab({ data, loading, terpilihId, onPilih, em
                       type="button"
                       id={`btn_tagihan_sel_${sel.id}`}
                       onClick={() => onPilih(sel, { nama: r.nama, label: labelSel(k) })}
-                      onMouseEnter={(e) => setHover({ isi: isiTooltip, x: e.clientX, y: e.clientY })}
-                      onMouseMove={(e) => setHover((h) => (h === null ? h : { ...h, x: e.clientX, y: e.clientY }))}
+                      onMouseEnter={(e) => { setHover(isiTooltip); NeedleLetak(tipRef.current, e.clientX, e.clientY); }}
+                      onMouseMove={(e) => NeedleLetak(tipRef.current, e.clientX, e.clientY)}
                       onMouseLeave={() => setHover(null)}
-                      aria-describedby={hover?.isi === isiTooltip ? 'tip_tagihan_sel' : undefined}
+                      aria-describedby={hover === isiTooltip ? 'tip_tagihan_sel' : undefined}
                       className={`w-full rounded px-1.5 py-1 text-right tabular-nums hover:ring-1 hover:ring-ring ${kelasSel(sel)} ${sel.terlambat ? 'font-semibold' : ''} ${dipilih ? 'ring-2 ring-ring' : ''}`}
                     >
                       {sel.nominal.toLocaleString('id')}
@@ -252,7 +263,7 @@ export default function TagihanCrosstab({ data, loading, terpilihId, onPilih, em
           )}
         </tbody>
       </table>
-      {hover !== null && <TooltipTagihan data={hover.isi} x={hover.x} y={hover.y} />}
+      {hover !== null && <TooltipTagihan data={hover} tipRef={tipRef} />}
     </div>
   );
 }
