@@ -21,6 +21,7 @@ function sel(partial: Partial<CrosstabSel>): CrosstabSel {
 function baris(selJul: CrosstabSel, selAgu: CrosstabSel): CrosstabBaris {
   return {
     santri_id: 7, nama: 'Santri Uji', jenjang: 'MI',
+    ayah_nama: 'Ayah Uji', ibu_nama: 'Ibu Uji',
     sel: { '1-2025-07': selJul, '1-2025-08': selAgu },
     total_tagihan: 100000, total_terbayar: 0, tunggakan: 0,
   };

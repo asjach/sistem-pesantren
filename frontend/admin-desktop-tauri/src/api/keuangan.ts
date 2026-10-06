@@ -180,6 +180,8 @@ export interface CrosstabKolom {
 
 export interface CrosstabBaris {
   santri_id: number; nama: string; jenjang: string;
+  /** Nama ayah & ibu; dipakai ringkasan di popover aksi sel. */
+  ayah_nama: string | null; ibu_nama: string | null;
   sel: Record<string, CrosstabSel>;
   total_tagihan: number; total_terbayar: number;
   /** Sisa tagihan yang sudah lewat jatuh tempo saja. */

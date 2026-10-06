@@ -4,7 +4,7 @@ import { errorMessage, prefGet, prefSet } from '../api/client';
 import { tokenUrut, type PetaArahKolom } from '@/lib/urut';
 import {
   daftarJenis, buatJenis, ubahJenis, buatTarif, daftarTarif, ubahTarif, hapusTarif,
-  daftarTunggakan, crosstabTagihan, hapusTagihan, catatPembayaran,
+  daftarTunggakan, crosstabTagihan, hapusTagihan, ubahTagihan, catatPembayaran,
   riwayatPembayaran, hapusPembayaran, daftarDispensasi, hapusDispensasi,
   type JenisTagihan, type Tarif, type TunggakanRow, type PembayaranRow, type Dispensasi,
   type CrosstabTagihan, type CrosstabSel, type CrosstabKolom,
@@ -12,27 +12,16 @@ import {
 import { listLembaga, listTahunAjaran, type Lembaga, type TahunAjaran } from '../api/master';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { KELAS_LIST_TAB, KELAS_PANEL_TAB, KELAS_TRIGGER } from '@/components/HalamanTabs';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { FieldLabel } from '@/components/ui/field';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { ArrowDownAZ, ArrowUpAZ, Info, Plus, RotateCcw, Search, TriangleAlert, X } from '@/icons';
 import { DeleteAction } from '@/components/RowActions';
-import UbahTagihanDialog, { type TargetUbahTagihan } from '@/components/keuangan/UbahTagihanDialog';
 import PopoverAksiTagihan, { type TagihanAktif } from '@/components/keuangan/PopoverAksiTagihan';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { useFilterGlobalAktif, targetTunggal } from '@/hooks/useFilterGlobalAktif';
@@ -236,9 +225,11 @@ export default function KeuanganPage() {
   const genTAtopbar = targetTunggal(tahunAjaranNames);
   /** Sel asal popover aksi (jangkar). null = popover tertutup. */
   const [anchorSel, setAnchorSel] = useState<HTMLElement | null>(null);
-  /** Tagihan terpilih dari sel crosstab (aksi bayar/riwayat/hapus). */
+  /** Tagihan terpilih dari sel crosstab (isi popover aksi). */
   const [selTagihan, setSelTagihan] = useState<{
-    id: number; nama: string; label: string; nominal: number; sisa: number;
+    id: number; nama: string; label: string;
+    ayah_nama: string | null; ibu_nama: string | null;
+    nominal: number; sisa: number;
     status: 'belum' | 'sebagian' | 'lunas';
   } | null>(null);
 
@@ -247,14 +238,14 @@ export default function KeuanganPage() {
     await loadCrosstab(tagihanPage, tagihanPerPage, jenjangs, tahunAjaranNames);
   }, [loadCrosstab, tagihanPage, tagihanPerPage, jenjangs, tahunAjaranNames]);
 
-  const [riwayatTagihan, setRiwayatTagihan] = useState<{ id: number; label: string } | null>(null);
+  /** Riwayat pembayaran untuk tab Detail di popover. */
   const [riwayatRows, setRiwayatRows] = useState<PembayaranRow[]>([]);
+  /** Tagihan pemilik `riwayatRows` — biar tak difetch ulang saat tab dibuka berkali-kali. */
+  const [riwayatUntuk, setRiwayatUntuk] = useState<number | null>(null);
+  const [riwayatBusy, setRiwayatBusy] = useState(false);
+  const [riwayatError, setRiwayatError] = useState('');
 
-  /** Id tagihan yang menunggu konfirmasi hapus (dipicu dari popover sel). */
-  const [hapusTagihanId, setHapusTagihanId] = useState<number | null>(null);
-  /** Tagihan yang sedang diubah lewat dialog Ubah. */
-  const [ubahTarget, setUbahTarget] = useState<TargetUbahTagihan | null>(null);
-  /** Sel + kolom crosstab terpilih (dipakai popover & dialog ubah). */
+  /** Sel + kolom crosstab terpilih (dipakai popover aksi). */
   const [selPenuh, setSelPenuh] = useState<CrosstabSel | null>(null);
   const [kolomTerpilih, setKolomTerpilih] = useState<CrosstabKolom | null>(null);
 
@@ -265,11 +256,15 @@ export default function KeuanganPage() {
           id: selTagihan.id,
           nama: selTagihan.nama,
           label: selTagihan.label,
+          ayah_nama: selTagihan.ayah_nama,
+          ibu_nama: selTagihan.ibu_nama,
           nominal: selPenuh.nominal,
+          terbayar: selPenuh.terbayar,
           sisa: selPenuh.sisa,
           status: selPenuh.status,
           terlambat: selPenuh.terlambat,
           jatuhTempo: selPenuh.jatuh_tempo,
+          tahunAjaran: selPenuh.tahun_ajaran,
           tipe: kolomTerpilih.tipe,
         }
       : null;
@@ -282,7 +277,7 @@ export default function KeuanganPage() {
   const pindahSelRef = useRef(false);
   const pilihSel = useCallback((
     sel: CrosstabSel,
-    meta: { nama: string; label: string },
+    meta: { nama: string; label: string; ayah_nama: string | null; ibu_nama: string | null },
     anchor: HTMLElement,
     kolom: CrosstabKolom,
   ) => {
@@ -290,6 +285,7 @@ export default function KeuanganPage() {
     setTimeout(() => { pindahSelRef.current = false; }, 0);
     setSelTagihan({
       id: sel.id, nama: meta.nama, label: meta.label,
+      ayah_nama: meta.ayah_nama, ibu_nama: meta.ibu_nama,
       nominal: sel.nominal, sisa: sel.sisa, status: sel.status,
     });
     setSelPenuh(sel);
@@ -305,20 +301,21 @@ export default function KeuanganPage() {
     setSelPenuh(null);
     setKolomTerpilih(null);
   }, []);
-  const [hapusTagihanBusy, setHapusTagihanBusy] = useState(false);
 
-  const bukaRiwayat = useCallback(async (t: { id: number; label: string }) => {
-    setRiwayatTagihan(t);
+  /** Muat riwayat pembayaran tagihan terpilih (dipanggil saat tab Detail dibuka). */
+  const muatRiwayat = useCallback(async (id: number) => {
+    if (riwayatUntuk === id) return;
+    setRiwayatBusy(true);
+    setRiwayatError('');
     try {
-      setRiwayatRows(await riwayatPembayaran(t.id));
-    } catch (e) { toast.error(errorMessage(e)); }
-  }, []);
-
-  const muatRiwayat = useCallback(async (t: { id: number; label: string }) => {
-    try {
-      setRiwayatRows(await riwayatPembayaran(t.id));
-    } catch (e) { toast.error(errorMessage(e)); }
-  }, []);
+      setRiwayatRows(await riwayatPembayaran(id));
+      setRiwayatUntuk(id);
+    } catch (e) {
+      setRiwayatError(errorMessage(e));
+    } finally {
+      setRiwayatBusy(false);
+    }
+  }, [riwayatUntuk]);
 
   return (
     <div className={PAGE_SHELL}>
@@ -410,7 +407,7 @@ export default function KeuanganPage() {
               <Input
                 id="inp_tagihan_cari"
                 placeholder="Cari nama / NIS / NISN…"
-                className="h-8 w-64 pl-8 pr-8"
+                className="w-64 pl-8 pr-8"
                 value={cariTagihan}
                 onChange={(e) => setCariTagihan(e.target.value)}
               />
@@ -429,43 +426,37 @@ export default function KeuanganPage() {
             </div>
             <div aria-hidden="true" className="hidden h-6 w-px bg-border sm:block" />
             <div className="flex items-center gap-1.5">
-              <select
-                id="sel_tagihan_urut"
-                className="h-8 rounded-lg border border-border bg-background px-2 text-xs transition-colors hover:border-ring/50 focus:border-ring focus:outline-none"
-                value={urutTagihan}
-                onChange={(e) => setUrutTagihan(e.target.value)}
-                aria-label="Urutkan baris"
+              <Select
+                value={urutTagihan === '' ? 'nama' : urutTagihan}
+                onValueChange={(v) => setUrutTagihan(v === 'nama' ? '' : v)}
               >
-                <option value="">Urutkan: nama</option>
-                <option value="total">Total tagihan</option>
-                <option value="bayar">Terbayar</option>
-                <option value="sisa">Tunggakan</option>
-              </select>
+                <SelectTrigger
+                  id="sel_tagihan_urut"
+                  size="sm"
+                  aria-label="Urutkan baris"
+                  title="Urutkan baris"
+                  className="w-[168px]"
+                >
+                  <SelectValue placeholder="Urutkan: nama" />
+                </SelectTrigger>
+                <SelectContent position="popper" align="start">
+                  <SelectItem value="nama">Urutkan: nama</SelectItem>
+                  <SelectItem value="total">Total tagihan</SelectItem>
+                  <SelectItem value="bayar">Terbayar</SelectItem>
+                  <SelectItem value="sisa">Tunggakan</SelectItem>
+                </SelectContent>
+              </Select>
               <Button
                 id="btn_tagihan_arah"
-                size="sm"
+                size="icon"
                 variant="outline"
-                className="h-8 gap-1.5 px-2.5 text-xs"
+                aria-label={arahTagihan === 'naik' ? 'Arah urutan: naik' : 'Arah urutan: turun'}
                 title={arahTagihan === 'naik' ? 'Arah: naik (klik untuk turun)' : 'Arah: turun (klik untuk naik)'}
                 onClick={() => setArahTagihan((a) => (a === 'naik' ? 'turun' : 'naik'))}
               >
                 {arahTagihan === 'naik' ? <ArrowUpAZ size={14} /> : <ArrowDownAZ size={14} />}
-                {arahTagihan === 'naik' ? 'Naik' : 'Turun'}
               </Button>
             </div>
-            <div aria-hidden="true" className="hidden h-6 w-px bg-border sm:block" />
-            <Button
-              id="btn_tagihan_terlambat"
-              size="sm"
-              variant={terlambatTagihan ? 'default' : 'outline'}
-              aria-pressed={terlambatTagihan}
-              className="h-8 gap-1.5 px-2.5 text-xs"
-              title="Tampilkan hanya tagihan yang sudah lewat jatuh tempo"
-              onClick={() => { setTerlambatTagihan((v) => !v); setTagihanPage(1); }}
-            >
-              <TriangleAlert size={14} />
-              Terlambat saja
-            </Button>
             <div className="flex-1" />
             {(cariTagihan !== '' || urutTagihan !== '' || arahTagihan !== 'naik' || terlambatTagihan) && (
               <Button
@@ -473,7 +464,7 @@ export default function KeuanganPage() {
                 type="button"
                 size="sm"
                 variant="ghost"
-                className="h-8 gap-1.5 px-2.5 text-xs text-muted-foreground hover:text-foreground"
+                className="gap-1.5 px-2.5 text-xs text-muted-foreground hover:text-foreground"
                 title="Kembalikan pencarian, urutan, dan filter ke awal"
                 onClick={() => { setCariTagihan(''); setUrutTagihan(''); setArahTagihan('naik'); setTerlambatTagihan(false); setTagihanPage(1); }}
               >
@@ -481,7 +472,19 @@ export default function KeuanganPage() {
                 Atur ulang
               </Button>
             )}
-            <Button id="btn_gen_buka" size="sm" className="h-8 gap-1.5 px-3 text-xs font-medium" onClick={() => setGenerateOpen(true)}><Plus size={14} /> Buat Tagihan</Button>
+            <Button
+              id="btn_tagihan_terlambat"
+              size="sm"
+              variant={terlambatTagihan ? 'default' : 'outline'}
+              aria-pressed={terlambatTagihan}
+              className="gap-1.5 px-2.5 text-xs"
+              title="Tampilkan hanya tagihan aktif (sudah jatuh tempo)"
+              onClick={() => { setTerlambatTagihan((v) => !v); setTagihanPage(1); }}
+            >
+              <TriangleAlert size={14} />
+              Tagihan Aktif
+            </Button>
+            <Button id="btn_gen_buka" size="sm" className="gap-1.5 px-3 text-xs font-medium" onClick={() => setGenerateOpen(true)}><Plus size={14} /> Tagihan</Button>
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-dashed pt-2 text-[11px] text-muted-foreground">
             <span className="inline-flex items-center gap-1.5">
@@ -491,7 +494,7 @@ export default function KeuanganPage() {
             <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1" aria-label="Arti warna sel">
               <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-500" />Lunas</span>
               <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-destructive" />Tunggakan</span>
-              <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-muted-foreground/40" />Belum jatuh tempo</span>
+              <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-muted-foreground/40" />Belum Aktif</span>
             </span>
             <span className="ml-auto tabular-nums">
               {tagihanTotal > 0 ? tagihanTotal + ' santri' : 'Belum ada data'}
@@ -510,7 +513,12 @@ export default function KeuanganPage() {
             <PopoverAksiTagihan
               tagihan={popoverTagihan}
               anchor={anchorSel}
+              daftarTA={daftarTA}
+              riwayat={riwayatRows}
+              riwayatBusy={riwayatBusy}
+              riwayatError={riwayatError}
               onTutup={tutupPopover}
+              onMuatRiwayat={() => { if (selTagihan !== null) void muatRiwayat(selTagihan.id); }}
               onBayar={async (d) => {
                 if (selTagihan === null) return;
                 try {
@@ -521,12 +529,38 @@ export default function KeuanganPage() {
                   await muatCrosstabSekarang();
                 } catch (e2) { toast.error(errorMessage(e2)); }
               }}
-              onUbah={() => {
-                if (selPenuh === null || kolomTerpilih === null || selTagihan === null) return;
-                setUbahTarget({ sel: selPenuh, kolom: kolomTerpilih, nama: selTagihan.nama, label: selTagihan.label });
+              onUbah={async (d) => {
+                if (selTagihan === null) return;
+                try {
+                  await ubahTagihan(selTagihan.id, d);
+                  toast.success('Tagihan diubah.');
+                  tutupPopover();
+                  await load();
+                  await muatCrosstabSekarang();
+                } catch (e2) { toast.error(errorMessage(e2)); throw e2; }
               }}
-              onRiwayat={() => { if (selTagihan !== null) void bukaRiwayat({ id: selTagihan.id, label: selTagihan.label }); }}
-              onHapus={() => { if (selTagihan !== null) setHapusTagihanId(selTagihan.id); }}
+              onHapusPembayaran={async (id) => {
+                try {
+                  await hapusPembayaran(id);
+                  toast.success('Pembayaran dihapus.');
+                  if (selTagihan !== null) {
+                    setRiwayatUntuk(null);
+                    await muatRiwayat(selTagihan.id);
+                  }
+                  await load();
+                  await muatCrosstabSekarang();
+                } catch (e2) { toast.error(errorMessage(e2)); throw e2; }
+              }}
+              onHapus={async () => {
+                if (selTagihan === null) return;
+                try {
+                  await hapusTagihan(selTagihan.id);
+                  toast.success('Tagihan dihapus.');
+                  tutupPopover();
+                  await load();
+                  await muatCrosstabSekarang();
+                } catch (e2) { toast.error(errorMessage(e2)); throw e2; }
+              }}
             />
           </div>
           <Pager
@@ -602,95 +636,6 @@ export default function KeuanganPage() {
         </TabsContent>
       </Tabs>
 
-      <UbahTagihanDialog
-        open={ubahTarget !== null}
-        onOpenChange={(o) => { if (!o) setUbahTarget(null); }}
-        target={ubahTarget}
-        daftarTA={daftarTA}
-        onSelesai={async () => {
-          await load();
-          await muatCrosstabSekarang();
-        }}
-      />
-
-      {/* Konfirmasi hapus tagihan dari popover sel crosstab. */}
-      <AlertDialog
-        open={hapusTagihanId !== null}
-        onOpenChange={(o) => { if (!o && !hapusTagihanBusy) setHapusTagihanId(null); }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Hapus tagihan?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Tagihan dihapus permanen dan tidak bisa dikembalikan. Tagihan yang sudah dibayar
-              harus dihapus pembayarannya dulu.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={hapusTagihanBusy}>Batal</AlertDialogCancel>
-            <AlertDialogAction
-              id="btn_konfirmasi_hapus_tagihan"
-              className={cn(buttonVariants({ variant: 'destructive' }))}
-              onClick={() => {
-                const id = hapusTagihanId;
-                if (id === null) return;
-                setHapusTagihanBusy(true);
-                void (async () => {
-                  try {
-                    await hapusTagihan(id);
-                    toast.success('Tagihan dihapus.');
-                    if (selTagihan?.id === id) setSelTagihan(null);
-                    await load();
-                    await muatCrosstabSekarang();
-                  } catch (e2) { toast.error(errorMessage(e2)); }
-                  finally { setHapusTagihanBusy(false); setHapusTagihanId(null); }
-                })();
-              }}
-            >
-              Hapus
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <Dialog open={riwayatTagihan !== null} onOpenChange={(o) => { if (!o) setRiwayatTagihan(null); }}>
-        <DialogContent className="sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Riwayat Pembayaran{riwayatTagihan ? ` — ${riwayatTagihan.label}` : ''}</DialogTitle>
-            <DialogDescription className="sr-only">Daftar pembayaran tagihan ini.</DialogDescription>
-          </DialogHeader>
-          {riwayatRows.length === 0 ? (
-            <p className="text-xs text-muted-foreground">Belum ada pembayaran.</p>
-          ) : (
-            <table className="w-full text-xs border">
-              <thead><tr className="bg-muted/40"><th className="p-2">Tanggal</th><th className="p-2">Jumlah</th><th className="p-2">Metode</th><th className="p-2">Kas</th><th className="p-2">Kwitansi</th><th className="p-2">Status</th><th className="p-2">Aksi</th></tr></thead>
-              <tbody>
-                {riwayatRows.map((p) => (
-                  <tr key={p.id} className="border-t">
-                    <td className="p-2">{p.created_at.slice(0, 10)}</td>
-                    <td className="p-2 text-right">{p.jumlah.toLocaleString('id')}</td>
-                    <td className="p-2">{p.metode}</td>
-                    <td className="p-2">{p.kas}</td>
-                    <td className="p-2">{p.no_kwitansi ?? '—'}</td>
-                    <td className="p-2">{p.status}</td>
-                    <td className="p-2">
-                      <DeleteAction
-                        id={`btn_hapus_bayar_${p.id}`}
-                        title="Hapus pembayaran?"
-                        description="Baris pembayaran dihapus permanen dan total tagihan menyesuaikan."
-                        onConfirm={() => { void (async () => { try { await hapusPembayaran(p.id); toast.success('Pembayaran dihapus.'); if (riwayatTagihan) await muatRiwayat(riwayatTagihan); await load(); await muatCrosstabSekarang(); } catch (e2) { toast.error(errorMessage(e2)); } })(); }}
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setRiwayatTagihan(null)}>Tutup</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
       <GenerateTagihanDialog
         open={generateOpen}
         onOpenChange={setGenerateOpen}

@@ -51,6 +51,7 @@ function DialogContent({
   className,
   children,
   showCloseButton = true,
+  onPointerDownOutside,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
@@ -60,6 +61,20 @@ function DialogContent({
       <DialogOverlay />
       <DialogPrimitive.Content
         data-slot="dialog-content"
+        onPointerDownOutside={(event) => {
+          /* Gagang resizer (react-resizable-panels) berada DI DALAM dialog,
+             tapi Radix tetap memicu `onPointerDownOutside` untuknya --
+             akibatnya dialog ikut tertutup begitu pegangan diklik/digeser.
+             Dicek di browser: yang memicu hanya gagang, judul dialog dan isi
+             panel aman. `preventDefault()` wajib dipakai, bukan sekadar
+             `return`: Radix menutup dialog bila `!event.defaultPrevented`. */
+          const target = event.target as Element | null
+          if (target?.closest?.('[data-slot="resizable-handle"]') != null) {
+            event.preventDefault()
+            return
+          }
+          onPointerDownOutside?.(event)
+        }}
         className={cn(
           "fixed top-[50%] left-[50%] z-50 grid max-h-[85dvh] w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 overflow-y-auto rounded-lg border bg-background p-6 shadow-lg duration-200 outline-none data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 sm:max-w-lg",
           className

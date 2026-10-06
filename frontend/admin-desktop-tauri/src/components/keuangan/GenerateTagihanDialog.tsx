@@ -347,7 +347,7 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
             <div className="flex flex-col gap-1">
               <FieldLabel htmlFor="info_gen_jatuh_tempo">Jatuh Tempo</FieldLabel>
               <p id="info_gen_jatuh_tempo" className="flex h-8 items-center text-xs text-muted-foreground">
-                Otomatis tanggal 10 bulan berikutnya
+                Otomatis tanggal 10 bulan berjalan
               </p>
             </div>
           ) : (
@@ -363,7 +363,7 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
             {tahunAjaran === null
               ? <span className="text-destructive">Pilih satu tahun ajaran pada filter di atas.</span>
               : bulanan
-                ? <>TA {tahunAjaran}. Isi Dari Bulan; Sampai Bulan opsional (kosong = satu bulan, maks 24 bulan). Tunggakan dihitung setelah tanggal 10 bulan berikutnya lewat.</>
+                ? <>TA {tahunAjaran}. Isi Dari Bulan; Sampai Bulan opsional (kosong = satu bulan, maks 24 bulan). Tunggakan dihitung setelah tanggal 10 bulan berjalan lewat.</>
                 : <>TA {tahunAjaran}. Jenis non-bulanan: periode otomatis kode TA — bisa digenerate lagi di tahun ajaran berikutnya. Isi Jatuh Tempo bila tagihan ini punya tenggat; kosong = langsung dihitung tunggakan.</>}
           </p>
         </div>

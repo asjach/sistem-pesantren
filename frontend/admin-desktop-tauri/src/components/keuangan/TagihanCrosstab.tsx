@@ -30,7 +30,7 @@ interface Props {
    *  `anchor` = elemen sel, dipakai sebagai jangkar popover. */
   onPilih: (
     sel: CrosstabSel,
-    meta: { nama: string; label: string },
+    meta: { nama: string; label: string; ayah_nama: string | null; ibu_nama: string | null },
     anchor: HTMLElement,
     kolom: CrosstabKolom,
   ) => void;
@@ -145,7 +145,7 @@ const BarisCrosstab = memo(function BarisCrosstab({
   kolom: CrosstabKolom[];
   onPilih: (
     sel: CrosstabSel,
-    meta: { nama: string; label: string },
+    meta: { nama: string; label: string; ayah_nama: string | null; ibu_nama: string | null },
     anchor: HTMLElement,
     kolom: CrosstabKolom,
   ) => void;
@@ -168,7 +168,10 @@ const BarisCrosstab = memo(function BarisCrosstab({
           nominal: sel.nominal, terbayar: sel.terbayar, sisa: sel.sisa,
           status: sel.status, terlambat: sel.terlambat, jatuhTempo: sel.jatuh_tempo,
         };
-        const meta = { nama: baris.nama, label: labelSel(k) };
+        const meta = {
+          nama: baris.nama, label: labelSel(k),
+          ayah_nama: baris.ayah_nama, ibu_nama: baris.ibu_nama,
+        };
         return (
           <td key={k.key} className="border-b border-r p-0.5">
             <button
@@ -342,7 +345,7 @@ export default function TagihanCrosstab({ data, loading, terpilihId, onPilih, em
   const pilihStabil = useCallback(
     (
       sel: CrosstabSel,
-      meta: { nama: string; label: string },
+      meta: { nama: string; label: string; ayah_nama: string | null; ibu_nama: string | null },
       anchor: HTMLElement,
       kolom: CrosstabKolom,
     ) => {
