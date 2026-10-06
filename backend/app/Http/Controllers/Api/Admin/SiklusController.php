@@ -145,6 +145,25 @@ class SiklusController extends Controller
         $petaRiwayat = $idRiwayat === [] ? collect() : RiwayatBelajar::whereIn('id', $idRiwayat)->get()->keyBy('id');
         $petaKelas = $idKelas === [] ? collect() : Kelas::whereIn('id', $idKelas)->get()->keyBy('id');
 
+        // Pra-cek batch: dua EXISTS per siswa di cekPindahDariRiwayat diganti
+        // satu query whereIn untuk seluruh batch (hanya bila ada baris riwayat).
+        $praCek = null;
+        if ($idRiwayat !== []) {
+            $idBatch = array_keys($petaSantri->all());
+            $namaTaAktif = TahunAjaran::aktif($lembagaId)?->nama;
+            $praCek = [
+                'lembaga_aktif' => LembagaSantri::whereIn('santri_id', $idBatch)
+                    ->where('jenjang', $lembagaId)
+                    ->where('is_active_lembaga', LembagaSantri::YA)
+                    ->pluck('santri_id')->flip()->all(),
+                'sudah_genap' => RiwayatBelajar::whereIn('santri_id', $idBatch)
+                    ->where('jenjang', $lembagaId)
+                    ->where('tahun_ajaran', $namaTaAktif)
+                    ->where('semester', '2')
+                    ->pluck('santri_id')->flip()->all(),
+            ];
+        }
+
         $ok = 0;
         $gagal = [];
         /** @var array<string, array{ta: string|null, semester: string|null}> $aturanPindah */
@@ -163,7 +182,7 @@ class SiklusController extends Controller
                         'ta' => TahunAjaran::aktif($riwayat->jenjang)?->nama,
                         'semester' => SemesterAktif::where('jenjang', $riwayat->jenjang)->value('semester'),
                     ];
-                    $this->cekPindahDariRiwayat($riwayat, $aturanPindah[$riwayat->jenjang]);
+                    $this->cekPindahDariRiwayat($riwayat, $aturanPindah[$riwayat->jenjang], $praCek);
                     $idSantri = (int) $riwayat->santri_id;
                 } else {
                     $idSantri = (int) $item['santri_id'];
@@ -195,8 +214,10 @@ class SiklusController extends Controller
     /**
      * @param  array{ta: string|null, semester: string|null}|null  $aturan
      *                                                                      Aturan jenjang yang sudah dibaca pemanggil massal (opsional).
+     * @param  array{lembaga_aktif: array<int, int>, sudah_genap: array<int, int>}|null  $praCek
+     *                                                                                            Hasil pra-cek batch; tanpa ini query per siswa.
      */
-    protected function cekPindahDariRiwayat(RiwayatBelajar $riwayat, ?array $aturan = null): void
+    protected function cekPindahDariRiwayat(RiwayatBelajar $riwayat, ?array $aturan = null, ?array $praCek = null): void
     {
         $aturan ??= [
             'ta' => TahunAjaran::aktif($riwayat->jenjang)?->nama,
@@ -212,17 +233,24 @@ class SiklusController extends Controller
         if ($riwayat->semester !== '1' || $riwayat->status_akhir === 'pindah_keluar') {
             throw ValidationException::withMessages(['riwayat_id' => 'Hanya sejarah semester 1 dengan status akhir selain Pindah/Keluar yang dapat dipindahkan.']);
         }
-        if (! LembagaSantri::where('santri_id', $riwayat->santri_id)
-            ->where('jenjang', $riwayat->jenjang)
-            ->where('is_active_lembaga', LembagaSantri::YA)
-            ->exists()) {
+        $santriId = (int) $riwayat->santri_id;
+        $aktifDiLembaga = $praCek === null
+            ? LembagaSantri::where('santri_id', $santriId)
+                ->where('jenjang', $riwayat->jenjang)
+                ->where('is_active_lembaga', LembagaSantri::YA)
+                ->exists()
+            : isset($praCek['lembaga_aktif'][$santriId]);
+        if (! $aktifDiLembaga) {
             throw ValidationException::withMessages(['riwayat_id' => 'Santri tidak aktif di lembaga ini.']);
         }
-        if (RiwayatBelajar::where('santri_id', $riwayat->santri_id)
-            ->where('jenjang', $riwayat->jenjang)
-            ->where('tahun_ajaran', $riwayat->tahun_ajaran)
-            ->where('semester', '2')
-            ->exists()) {
+        $punyaGenap = $praCek === null
+            ? RiwayatBelajar::where('santri_id', $santriId)
+                ->where('jenjang', $riwayat->jenjang)
+                ->where('tahun_ajaran', $riwayat->tahun_ajaran)
+                ->where('semester', '2')
+                ->exists()
+            : isset($praCek['sudah_genap'][$santriId]);
+        if ($punyaGenap) {
             throw ValidationException::withMessages(['riwayat_id' => 'Baris semester 2 tahun ini sudah ada.']);
         }
     }
