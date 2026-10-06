@@ -327,38 +327,6 @@ class SiklusSantriService
         });
     }
 
-    /**
-     * Kenaikan massal per-item partial: satu batch = satu lembaga + satu tahun + satu tingkat.
-     * $items: [['santri_id'=>int,'status'=>'naik|tidak_naik','tgl_masuk'=>?string,'no_absen'=>?int], ...]
-     *
-     * @return array{berhasil: int, gagal: array<int, array{santri_id: ?int, pesan: string}>, data: array<int, RiwayatBelajar>}
-     */
-    public function naikMassal(string $jenjang, string $tahunBaru, string $tingkat, array $items): array
-    {
-        $berhasil = 0;
-        $gagal = [];
-        $data = [];
-        foreach ($items as $item) {
-            try {
-                $santri = Santri::findOrFail($item['santri_id'] ?? 0);
-                $data[] = $this->prosesKenaikanPerSantri(
-                    $santri,
-                    $jenjang,
-                    $tahunBaru,
-                    $tingkat,
-                    $item['status'] ?? '',
-                    $item['tgl_masuk'] ?? null,
-                    $item['no_absen'] ?? null
-                );
-                $berhasil++;
-            } catch (\Throwable $e) {
-                $gagal[] = ['santri_id' => $item['santri_id'] ?? null, 'pesan' => $e->getMessage()];
-            }
-        }
-
-        return ['berhasil' => $berhasil, 'gagal' => $gagal, 'data' => $data];
-    }
-
     /** Pindah/penempatan kelas dalam tahun berjalan (riwayat aktif yang sama). */
     public function pindahKelas(RiwayatBelajar $riwayat, int $kelasBaruId): RiwayatBelajar
     {
