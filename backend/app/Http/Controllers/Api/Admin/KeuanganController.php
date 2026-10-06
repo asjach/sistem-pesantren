@@ -453,6 +453,8 @@ class KeuanganController extends Controller
             $baris[] = [
                 'santri_id' => (int) $santriId,
                 'nama' => $santri?->nama_lengkap ?? 'Tidak dikenal',
+                'ayah_nama' => $santri?->ayah_nama,
+                'ibu_nama' => $santri?->ibu_nama,
                 'jenjang' => (string) $kelompok->first()->jenjang,
                 'sel' => $sel,
                 'total_tagihan' => (int) $kelompok->sum('nominal'),
@@ -555,8 +557,8 @@ class KeuanganController extends Controller
      *
      * Nominal tidak boleh turun di bawah yang sudah dibayar (sisa negatif).
      * Status dihitung ulang dari nominal vs terbayar. Jenis bulanan mengabaikan
-     * jatuh tempo manual — aturan tanggal 10 bulan berikutnya berlaku juga di
-     * sini, supaya tunggangan tidak bisa dikecualikan lewat dialog ubah.
+     * jatuh tempo manual — aturan tanggal 10 bulan berjalan berlaku juga di
+     * sini, supaya tunggangan tidak bisa dikecualikan lewat ubah.
      */
     public function updateTagihan(Request $request, Tagihan $tagihan)
     {

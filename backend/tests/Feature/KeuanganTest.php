@@ -285,9 +285,9 @@ class KeuanganTest extends TestCase
         ])->assertStatus(200)->assertJson(['dibuat' => 1, 'dilewati' => 0]);
         $this->assertDatabaseHas('tagihan', ['santri_id' => $santri->id, 'jenis_id' => $bulanan->id, 'periode' => '2025-08']);
 
-        // Jatuh tempo bulanan = tanggal 10 BULAN BERIKUTNYA; input manual diabaikan.
+        // Jatuh tempo bulanan = tanggal 10 BULAN BERJALAN; input manual diabaikan.
         $this->assertSame(
-            '2025-09-10',
+            '2025-08-10',
             Tagihan::where('jenis_id', $bulanan->id)->where('periode', '2025-08')->firstOrFail()->jatuh_tempo->format('Y-m-d')
         );
         $this->actingAs($admin)->postJson('/api/admin/keuangan/tagihan/generate', [
@@ -296,8 +296,8 @@ class KeuanganTest extends TestCase
             'jatuh_tempo' => '2025-12-31',
             'santri' => [['santri_id' => $santri->id]],
         ])->assertStatus(200)->assertJson(['dibuat' => 2, 'dilewati' => 1]);
-        // Tiap bulan dapat tanggalnya sendiri (Des → tahun depan).
-        foreach (['2025-07' => '2025-08-10', '2025-08' => '2025-09-10', '2025-09' => '2025-10-10'] as $periode => $harus) {
+        // Tiap bulan dapat tanggalnya sendiri, semuanya tanggal 10 bulan itu.
+        foreach (['2025-07' => '2025-07-10', '2025-08' => '2025-08-10', '2025-09' => '2025-09-10'] as $periode => $harus) {
             $this->assertSame($harus, Tagihan::where('jenis_id', $bulanan->id)->where('periode', $periode)->firstOrFail()->jatuh_tempo->format('Y-m-d'));
         }
 
@@ -508,8 +508,8 @@ class KeuanganTest extends TestCase
         $admin = $this->admin();
         $infaq = JenisTagihan::create(['nama' => 'Infaq Bulanan', 'tipe' => 'bulanan']);
         $hipa = JenisTagihan::create(['nama' => 'HIPA', 'tipe' => 'non_bulanan']);
-        $santri = Santri::create(['nama_lengkap' => 'Santri Crosstab', 'jk' => 'L']);
-        $lain = Santri::create(['nama_lengkap' => 'Santri Kosong', 'jk' => 'P']);
+        $santri = Santri::create(['nama_lengkap' => 'Santri Crosstab', 'jk' => 'L', 'ayah_nama' => 'Ayah Crosstab', 'ibu_nama' => 'Ibu Crosstab']);
+        $lain = Santri::create(['nama_lengkap' => 'Santri Kosong', 'jk' => 'P', 'ayah_nama' => 'Ayah Kosong', 'ibu_nama' => null]);
 
         $juli = Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $infaq->id, 'periode' => '2025-07', 'nominal' => 50000, 'jatuh_tempo' => now()->subDays(40)->toDateString()]);
         Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $infaq->id, 'periode' => '2025-08', 'nominal' => 50000, 'terbayar' => 20000, 'status' => 'sebagian', 'jatuh_tempo' => now()->subDays(10)->toDateString()]);
@@ -538,6 +538,11 @@ class KeuanganTest extends TestCase
         $this->assertSame(80000, $santriBaris['tunggakan']);
         // Santri tanpa tagihan Juli → sel kosong (tidak ada key).
         $this->assertArrayNotHasKey("{$infaq->id}-2025-07", $baris['Santri Kosong']['sel']);
+        // Orang tua ikut dibawa untuk popover aksi sel (ayah & ibu).
+        $this->assertSame('Ayah Crosstab', $santriBaris['ayah_nama']);
+        $this->assertSame('Ibu Crosstab', $santriBaris['ibu_nama']);
+        $this->assertSame('Ayah Kosong', $baris['Santri Kosong']['ayah_nama']);
+        $this->assertNull($baris['Santri Kosong']['ibu_nama']);
 
         // Filter jenis_id hanya menyisakan kolom jenis itu.
         $this->actingAs($admin)->getJson("/api/admin/keuangan/tagihan/crosstab?tahun_ajaran=2025/2026&jenis_id={$hipa->id}")
@@ -688,11 +693,11 @@ class KeuanganTest extends TestCase
         $t = Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $infaq->id, 'periode' => '2025-07', 'nominal' => 50000]);
 
         // Input jatuh tempo manual diabaikan untuk bulanan: aturan tanggal 10
-        // bulan berikutnya tetap berlaku agar tunggakan tak bisa dikecualikan.
+        // bulan berjalan tetap berlaku agar tunggakan tak bisa dikecualikan.
         $this->actingAs($admin)->putJson("/api/admin/keuangan/tagihan/{$t->id}", [
             'nominal' => 60000, 'tahun_ajaran' => '2025/2026', 'jatuh_tempo' => '2099-12-31',
         ])->assertStatus(200);
-        $this->assertSame('2025-08-10', $t->fresh()->jatuh_tempo->format('Y-m-d'));
+        $this->assertSame('2025-07-10', $t->fresh()->jatuh_tempo->format('Y-m-d'));
         $this->assertSame(60000, $t->fresh()->nominal);
     }
 

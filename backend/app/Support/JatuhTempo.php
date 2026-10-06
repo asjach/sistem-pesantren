@@ -7,15 +7,15 @@ use Illuminate\Support\Carbon;
 /**
  * Aturan jatuh tempo tagihan.
  *
- * Jenis bulanan: jatuh tempo tetap tanggal 10 pada bulan SESUDAH periode tagihan
- * (tagihan periode 2025-07 → jatuh tempo 2025-08-10). Jadi tagihan baru
- * dianggap TUNGGAKAN setelah tanggal 10 itu lewat.
+ * Jenis bulanan: jatuh tempo tetap tanggal 10 pada bulan yang SAMA dengan
+ * periode tagihan (tagihan periode 2025-07 → jatuh tempo 2025-07-10). Jadi
+ * tagihan dianggap TUNGGAKAN setelah tanggal 10 bulan itu lewat.
  *
  * Jenis non-bulanan: jatuh tempo diisi manual per tagihan (boleh kosong).
  */
 class JatuhTempo
 {
-    /** Tanggal jatuh tempo tagihan bulanan (tanggal 10 bulan berikutnya). */
+    /** Tanggal jatuh tempo tagihan bulanan (tanggal 10 bulan berjalan). */
     public const HARI_BULANAN = 10;
 
     /**
@@ -29,7 +29,6 @@ class JatuhTempo
         }
 
         return Carbon::createFromFormat('Y-m-d', $m[1].'-'.$m[2].'-01')
-            ->addMonthNoOverflow()
             ->day(self::HARI_BULANAN)
             ->toDateString();
     }

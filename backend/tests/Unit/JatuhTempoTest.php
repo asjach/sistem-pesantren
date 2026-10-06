@@ -7,15 +7,18 @@ use PHPUnit\Framework\TestCase;
 
 class JatuhTempoTest extends TestCase
 {
-    public function test_bulanan_tanggal_suluh_bulan_berikutnya(): void
+    public function test_bulanan_tanggal_suluh_bulan_berjalan(): void
     {
-        $this->assertSame('2025-08-10', JatuhTempo::bulanan('2025-07'));
-        $this->assertSame('2025-02-10', JatuhTempo::bulanan('2025-01'));
+        $this->assertSame('2025-07-10', JatuhTempo::bulanan('2025-07'));
+        $this->assertSame('2025-01-10', JatuhTempo::bulanan('2025-01'));
     }
 
-    public function test_bulanan_lintas_tahun(): void
+    public function test_bulanan_tidak_geser_bulan_depan(): void
     {
-        $this->assertSame('2026-01-10', JatuhTempo::bulanan('2025-12'));
+        // Aturan lama memakai tanggal 10 bulan berikutnya; ini yang dikunci
+        // supaya tidak kembali bergeser diam-diam.
+        $this->assertSame('2025-12-10', JatuhTempo::bulanan('2025-12'));
+        $this->assertSame('2026-01-10', JatuhTempo::bulanan('2026-01'));
     }
 
     public function test_periode_tidak_valid_kosong(): void
@@ -29,7 +32,7 @@ class JatuhTempoTest extends TestCase
 
     public function test_bulanan_mengabaikan_input_manual(): void
     {
-        $this->assertSame('2025-08-10', JatuhTempo::untuk('bulanan', '2025-07', '2025-12-31'));
+        $this->assertSame('2025-07-10', JatuhTempo::untuk('bulanan', '2025-07', '2025-12-31'));
     }
 
     public function test_non_bulanan_pakai_input_manual(): void
