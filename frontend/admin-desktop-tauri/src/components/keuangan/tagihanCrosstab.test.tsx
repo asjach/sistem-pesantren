@@ -150,7 +150,11 @@ describe('sel tagihan: klik kiri = klik kanan', () => {
     expect(peristiwa.defaultPrevented).toBe(true);
   });
 
-  it('sel terpilih diberi cincin (terpilihId)', () => {
+  /* Cincin sel terpilih digambar sebagai satu overlay, bukan class ring di
+     tiap sel. Mengoper `terpilihId` ke baris membuat props SEMUA baris
+     berubah tiap klik, sehingga memo tak berlaku dan ribuan tombol dirender
+     ulang -- itu yang membuat popover terlambat ~250ms. */
+  it('sel terpilih digarisbawahi overlay tunggal, bukan class ring di sel', () => {
     render(
       <TagihanCrosstab
         data={{ kolom: KOLOM, baris: [baris(sel({}), sel({ id: 2 }))], total: 1, per_page: 25, current_page: 1, last_page: 1 }}
@@ -160,8 +164,18 @@ describe('sel tagihan: klik kiri = klik kanan', () => {
         emptyText="Kosong"
       />,
     );
-    const aktif = screen.getAllByRole('button', { name: '50.000' })[1];
-    expect(aktif.className).toContain('ring-2');
+    const selTerpilih = screen.getAllByRole('button', { name: '50.000' })[1];
+    expect(selTerpilih.className).not.toContain('ring-2');
+
+    const cincin = document.getElementById('cincin_sel_tagihan');
+    expect(cincin).not.toBeNull();
+    // Tak boleh menutupi selnya sendiri, atau sel tak bisa diklik.
+    expect(cincin?.className).toContain('pointer-events-none');
+  });
+
+  it('tanpa terpilihId tidak ada overlay', () => {
+    renderCrosstab(baris(sel({}), sel({ id: 2 })));
+    expect(document.getElementById('cincin_sel_tagihan')).toBeNull();
   });
 });
 
@@ -209,5 +223,48 @@ describe('kartu hovervs popover: tak boleh menumpuk', () => {
     // Gerak jauh → kartu hidup lagi.
     fireEvent.mouseMove(tombol, { clientX: 640, clientY: 200 });
     expect(await screen.findByRole('tooltip')).toBeInTheDocument();
+  });
+});
+
+describe('pemilihan sel pada pointerdown (bukan click)', () => {
+  /* jsdom tak punya PointerEvent; fireEvent.pointerDown membuat Event biasa
+     tanpa `button`. Pakai MouseEvent bertipe pointerdown supaya `button`
+     terbaca seperti di browser. */
+  const pointerDown = (el: Element, button: number) =>
+    fireEvent(el, new MouseEvent('pointerdown', { bubbles: true, cancelable: true, button }));
+
+  /* Radix DismissableLayer membatalkan pointerdown saat popover sudah terbuka,
+     sehingga browser tak melempar `click` → pindah sel harus terjadi di
+     pointerdown, kalau tidak pengguna harus klik dua kali. */
+  it('pointerdown tombol kiri langsung memanggil onPilih', () => {
+    const onPilih = vi.fn();
+    renderCrosstab(baris(sel({}), sel({ id: 2 })), onPilih);
+    pointerDown(screen.getAllByRole('button', { name: '50.000' })[0], 0);
+    expect(onPilih).toHaveBeenCalledTimes(1);
+  });
+
+  it('pointerdown + click dalam satu gesture tetap satu pemanggilan', () => {
+    const onPilih = vi.fn();
+    renderCrosstab(baris(sel({}), sel({ id: 2 })), onPilih);
+    const tombol = screen.getAllByRole('button', { name: '50.000' })[0];
+    pointerDown(tombol, 0);
+    fireEvent.click(tombol);
+    expect(onPilih).toHaveBeenCalledTimes(1);
+  });
+
+  it('klik keyboard (tanpa pointerdown) tetap memilih', () => {
+    const onPilih = vi.fn();
+    renderCrosstab(baris(sel({}), sel({ id: 2 })), onPilih);
+    fireEvent.click(screen.getAllByRole('button', { name: '50.000' })[0]);
+    expect(onPilih).toHaveBeenCalledTimes(1);
+  });
+
+  it('tombol tengah/kanan tidak memicu pemilihan di pointerdown', () => {
+    const onPilih = vi.fn();
+    renderCrosstab(baris(sel({}), sel({ id: 2 })), onPilih);
+    const tombol = screen.getAllByRole('button', { name: '50.000' })[0];
+    pointerDown(tombol, 1);
+    pointerDown(tombol, 2);
+    expect(onPilih).not.toHaveBeenCalled();
   });
 });

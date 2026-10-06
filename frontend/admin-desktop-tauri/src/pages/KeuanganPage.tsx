@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { errorMessage, prefGet, prefSet } from '../api/client';
 import { tokenUrut, type PetaArahKolom } from '@/lib/urut';
@@ -274,7 +274,32 @@ export default function KeuanganPage() {
         }
       : null;
 
+  /* Menandai "gesture ini sedang memilih sel baru". Radix DismissableLayer
+     menutup popover di pointerdown pertama, lalu memilih sel baru di
+     pointerdown yang sama; tanpa penanda ini, pindah sel akan menutup popover
+     sepenuhnya (tak ada sel terpilih) dan pengguna harus klik dua kali. Direset di task berikutnya supaya tak hinggap bila tak ada
+     dismiss yang menyusul (mis. popover sedang tertutup). */
+  const pindahSelRef = useRef(false);
+  const pilihSel = useCallback((
+    sel: CrosstabSel,
+    meta: { nama: string; label: string },
+    anchor: HTMLElement,
+    kolom: CrosstabKolom,
+  ) => {
+    pindahSelRef.current = true;
+    setTimeout(() => { pindahSelRef.current = false; }, 0);
+    setSelTagihan({
+      id: sel.id, nama: meta.nama, label: meta.label,
+      nominal: sel.nominal, sisa: sel.sisa, status: sel.status,
+    });
+    setSelPenuh(sel);
+    setKolomTerpilih(kolom);
+    setAnchorSel(anchor);
+  }, []);
+
   const tutupPopover = useCallback(() => {
+    // Gesture pindah sel → biarkan popover tetap terbuka di sel baru.
+    if (pindahSelRef.current) { pindahSelRef.current = false; return; }
     setAnchorSel(null);
     setSelTagihan(null);
     setSelPenuh(null);
@@ -480,15 +505,7 @@ export default function KeuanganPage() {
               loading={loading}
               terpilihId={selTagihan?.id ?? null}
               emptyText="Belum ada tagihan."
-              onPilih={(sel, meta, anchor, kolom) => {
-                setSelTagihan({
-                  id: sel.id, nama: meta.nama, label: meta.label,
-                  nominal: sel.nominal, sisa: sel.sisa, status: sel.status,
-                });
-                setSelPenuh(sel);
-                setKolomTerpilih(kolom);
-                setAnchorSel(anchor);
-              }}
+              onPilih={pilihSel}
             />
             <PopoverAksiTagihan
               tagihan={popoverTagihan}

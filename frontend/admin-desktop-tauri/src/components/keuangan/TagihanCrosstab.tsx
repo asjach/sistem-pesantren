@@ -139,11 +139,10 @@ function NeedleLetak(el: HTMLElement | null, x: number, y: number): void {
 /** Satu baris tabel. `memo` + props stabil → saat tooltip berpindah sel, hanya
  *  baris yang di-hover yang dirender ulang, bukan seluruh tabel (ratusan sel). */
 const BarisCrosstab = memo(function BarisCrosstab({
-  baris, kolom, terpilihId, onPilih, onHoverMasuk, onHoverGerak, onHoverKeluar,
+  baris, kolom, onPilih, onHoverMasuk, onHoverGerak, onHoverKeluar,
 }: {
   baris: CrosstabBaris;
   kolom: CrosstabKolom[];
-  terpilihId: number | null;
   onPilih: (
     sel: CrosstabSel,
     meta: { nama: string; label: string },
@@ -164,7 +163,6 @@ const BarisCrosstab = memo(function BarisCrosstab({
         if (!sel) {
           return <td key={k.key} className="border-b border-r p-0.5 text-center text-muted-foreground/40">·</td>;
         }
-        const dipilih = terpilihId === sel.id;
         const isiTooltip: TooltipSel = {
           nama: baris.nama, jenisNama: k.jenis_nama, tipe: k.tipe, periode: k.periode,
           nominal: sel.nominal, terbayar: sel.terbayar, sisa: sel.sisa,
@@ -177,6 +175,16 @@ const BarisCrosstab = memo(function BarisCrosstab({
               type="button"
               id={`btn_tagihan_sel_${sel.id}`}
               /* Klik kiri dan klik kanan sama-sama membuka popover aksi. */
+              /* Pemilihan harus di pointerdown, bukan click: selama popover
+                 terbuka, Radix DismissableLayer memanggil preventDefault()
+                 pada pointerdown di luar (agar fokus tak bergeser), dan
+                 membatalkan pointerdown berarti browser tak lagi melempar
+                 `click`. Kalau menunggu `click`, klik di sel lain hanya
+                 memunculkan "tutup" dan popover baru butuh klik kedua. */
+              onPointerDown={(e) => {
+                if (e.button !== 0) return;
+                onPilih(sel, meta, e.currentTarget, k);
+              }}
               onClick={(e) => onPilih(sel, meta, e.currentTarget, k)}
               onContextMenu={(e) => { e.preventDefault(); onPilih(sel, meta, e.currentTarget, k); }}
               onMouseEnter={(e) => onHoverMasuk(isiTooltip, e.currentTarget)}
@@ -184,7 +192,7 @@ const BarisCrosstab = memo(function BarisCrosstab({
               onMouseLeave={onHoverKeluar}
               aria-describedby="tip_tagihan_sel"
               title={`${baris.nama} — sisa Rp ${sel.sisa.toLocaleString('id')}`}
-              className={`w-full rounded px-1.5 py-0.5 text-right tabular-nums hover:ring-1 hover:ring-ring ${kelasSel(sel)} ${sel.terlambat ? 'font-semibold' : ''} ${dipilih ? 'ring-2 ring-ring' : ''}`}
+              className={`w-full rounded px-1.5 py-0.5 text-right tabular-nums hover:ring-1 hover:ring-ring ${kelasSel(sel)} ${sel.terlambat ? 'font-semibold' : ''}`}
             >
               {sel.nominal.toLocaleString('id')}
             </button>
@@ -264,9 +272,40 @@ export default function TagihanCrosstab({ data, loading, terpilihId, onPilih, em
   // menempel tepat di bawahnya, dan salah ukur => sel data terlihat
   // menembus header saat digulir.
   const grupRef = useRef<HTMLTableRowElement>(null);
+  /** Wadah gulir; sekaligus offsetParent cincin sel terpilih. */
+  const scrollRef = useRef<HTMLDivElement>(null);
   const [tinggiGrup, setTinggiGrup] = useState(0);
   /** Sel yang sedang di-hover + elemen selnya (jangkar kartu). */
   const [hover, setHover] = useState<{ isi: TooltipSel; anchor: HTMLElement } | null>(null);
+  /* Cincin sel terpilih digambar sebagai overlay, bukan class di tiap sel.
+    mengoper `terpilihId` ke baris berarti props SEMUA baris berubah tiap
+     klik → memo tak berlaku → ribuan tombol dirender ulang (~250ms, memblokir
+     main thread) dan popover ikut terlambat muncul. Overlay cuma satu
+     elemen, jadi yang dirender ulang hanya dirinya sendiri. */
+  const [cincin, setCincin] = useState<{ left: number; top: number; width: number; height: number } | null>(null);
+
+  useLayoutEffect(() => {
+    const wadah = scrollRef.current;
+    if (wadah === null || terpilihId === null) { setCincin(null); return; }
+    const sel = wadah.querySelector<HTMLElement>(`#btn_tagihan_sel_${terpilihId}`);
+    if (sel === null) { setCincin(null); return; }
+    /* offsetParent tak bisa dipakai: untuk elemen di dalam <td>, offsetParent
+       adalah sel itu sendiri (aturan CSSOM View), bukan container kita --
+       offsetLeft hanya memberi padding td. Jadi diukur dari rect, lalu
+       ditambah scroll agar dalam koordinat konten (cincin ikut tergulir). */
+    const kotakWadah = wadah.getBoundingClientRect();
+    const kotakSel = sel.getBoundingClientRect();
+    /* clientLeft/clientTop = lebar border container; rect memuat border, sedangkan
+       koordinat `left/top` diukur dari padding box → tanpa dikurangi, cincin
+       bergeser 1px. */
+    setCincin({
+      left: kotakSel.left - kotakWadah.left - wadah.clientLeft + wadah.scrollLeft,
+      top: kotakSel.top - kotakWadah.top - wadah.clientTop + wadah.scrollTop,
+      width: kotakSel.width,
+      height: kotakSel.height,
+    });
+  }, [terpilihId, data]);
+
   /** Elemen jangkar HoverCard (diposisikan di atas sel yang di-hover). */
   const jangkarRef = useRef<HTMLDivElement | null>(null);
   /** Tenggang sebelum menutup, agar perpindahan sel tak berkedip. */
@@ -292,6 +331,14 @@ export default function TagihanCrosstab({ data, loading, terpilihId, onPilih, em
     setHover({ isi, anchor: e.currentTarget });
   }, []);
 
+  /* Idempoten per gesture: di browser nyata `click` tak pernah menyusul
+     `pointerdown` (Radix membatalkan event itu), tapi di jsdom tetap datang —
+     dan klik keyboard hanya menghasilkan `click`.
+
+     Flag ini di-reset lewat task berikutnya; sisa event gesture (pointerup,
+     click) diproses browser dalam satu task input, jadi masih terpasang saat
+     `click` tiba. */
+  const baruPilihRef = useRef(false);
   const pilihStabil = useCallback(
     (
       sel: CrosstabSel,
@@ -299,6 +346,12 @@ export default function TagihanCrosstab({ data, loading, terpilihId, onPilih, em
       anchor: HTMLElement,
       kolom: CrosstabKolom,
     ) => {
+      // Gesture ini sudah diproses (pointerdown lebih dulu) — abaikan click
+      // yang menyusul agar `onPilih` tak dipanggil dua kali.
+      if (baruPilihRef.current) return;
+      baruPilihRef.current = true;
+      setTimeout(() => { baruPilihRef.current = false; }, 0);
+
       // Klik kiri/kanan membuka popover aksi → tutup kartu hover seketika,
       // jangan sampai dua-duanya menumpuk di atas sel yang sama. Pointer tak
       // bergerak lagi, jadi mouseenter tak akan menyalakannya kembali.
@@ -361,7 +414,7 @@ export default function TagihanCrosstab({ data, loading, terpilihId, onPilih, em
   }
 
   return (
-    <div id="crosstab_tagihan_scroll" className="h-full overflow-auto rounded-xl border bg-card">
+    <div id="crosstab_tagihan_scroll" ref={scrollRef} className="relative h-full overflow-auto rounded-xl border bg-card">
       <table id="tbl_tagihan_crosstab" className="w-full border-separate border-spacing-0 text-xs">
         <thead>
           <tr ref={grupRef}>
@@ -402,7 +455,6 @@ export default function TagihanCrosstab({ data, loading, terpilihId, onPilih, em
               key={r.santri_id}
               baris={r}
               kolom={kolom}
-              terpilihId={terpilihId}
               onPilih={pilihStabil}
               onHoverMasuk={hoverMasuk}
               onHoverGerak={hoverGerak}
@@ -418,7 +470,24 @@ export default function TagihanCrosstab({ data, loading, terpilihId, onPilih, em
           )}
         </tbody>
       </table>
-      <HoverCard open={hover !== null} openDelay={0} closeDelay={200}>
+      {cincin !== null && (
+        <div
+          id="cincin_sel_tagihan"
+          aria-hidden
+          /* pointer-events-none: cincin tak boleh menutupi selnya sendiri. */
+          className="pointer-events-none absolute z-20 rounded ring-2 ring-ring"
+          style={{ left: cincin.left, top: cincin.top, width: cincin.width, height: cincin.height }}
+        />
+      )}
+      <HoverCard
+      open={hover !== null}
+      /* `open` di sini dikontrol, jadi tanpa onOpenChange permintaan tutup dari
+         Radix (mis. Escape) diabaikan: kartu tetap terbuka sekaligus memakan
+         Escape yang seharusnya sampai ke popover. */
+      onOpenChange={(o) => { if (!o) { if (tutupRef.current !== null) { clearTimeout(tutupRef.current); tutupRef.current = null; } setHover(null); } }}
+      openDelay={0}
+      closeDelay={200}
+    >
         <HoverCardTrigger asChild>
           <div
             ref={jangkarRef}
