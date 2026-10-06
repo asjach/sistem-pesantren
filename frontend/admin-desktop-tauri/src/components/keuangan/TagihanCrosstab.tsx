@@ -1,3 +1,5 @@
+import { useLayoutEffect, useRef, useState } from 'react';
+
 import type { CrosstabBaris, CrosstabKolom, CrosstabSel, CrosstabTagihan } from '../../api/keuangan';
 
 const BULAN = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
@@ -60,6 +62,21 @@ export default function TagihanCrosstab({ data, loading, terpilihId, onPilih, em
   const baris: CrosstabBaris[] = data?.baris ?? [];
   const grup = grupKolom(kolom);
 
+  // Tinggi baris header grup diukur, bukan di-hardcode: baris daun harus
+  // menempel tepat di bawahnya, dan salah ukur => sel data terlihat
+  // menembus header saat digulir.
+  const grupRef = useRef<HTMLTableRowElement>(null);
+  const [tinggiGrup, setTinggiGrup] = useState(0);
+  useLayoutEffect(() => {
+    const el = grupRef.current;
+    if (!el) return;
+    const ukur = () => setTinggiGrup(el.getBoundingClientRect().height);
+    ukur();
+    const ro = new ResizeObserver(ukur);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [grup.length, kolom.length]);
+
   if (kolom.length === 0) {
     return <p className="p-8 text-center text-sm text-muted-foreground">{loading ? 'Memuat…' : emptyText}</p>;
   }
@@ -68,28 +85,29 @@ export default function TagihanCrosstab({ data, loading, terpilihId, onPilih, em
     <div className="h-full overflow-auto rounded-xl border bg-card">
       <table id="tbl_tagihan_crosstab" className="w-full border-separate border-spacing-0 text-xs">
         <thead>
-          <tr>
-            <th rowSpan={2} className="sticky top-0 left-0 z-30 border-b border-r bg-muted/40 p-2 text-left align-bottom">
+          <tr ref={grupRef}>
+            <th rowSpan={2} className="sticky left-0 top-0 z-30 border-b border-r bg-muted p-2 text-left align-bottom">
               Santri
             </th>
             {grup.map((g) => (
               <th
                 key={g.jenisId}
                 colSpan={g.kolom.length}
-                className="sticky top-0 z-20 border-b border-r bg-muted/40 p-1.5 text-center font-medium"
+                className="sticky top-0 z-20 border-b border-r bg-muted p-1.5 text-center font-medium"
               >
                 {g.jenisNama}
               </th>
             ))}
-            <th rowSpan={2} className="sticky top-0 z-20 border-b border-l bg-muted/40 p-2 text-right align-bottom">Tagihan</th>
-            <th rowSpan={2} className="sticky top-0 z-20 border-b border-l bg-muted/40 p-2 text-right align-bottom">Terbayar</th>
-            <th rowSpan={2} className="sticky top-0 z-20 border-b border-l bg-muted/40 p-2 text-right align-bottom">Tunggakan</th>
+            <th rowSpan={2} className="sticky top-0 z-20 border-b border-l bg-muted p-2 text-right align-bottom">Tagihan</th>
+            <th rowSpan={2} className="sticky top-0 z-20 border-b border-l bg-muted p-2 text-right align-bottom">Terbayar</th>
+            <th rowSpan={2} className="sticky top-0 z-20 border-b border-l bg-muted p-2 text-right align-bottom">Tunggakan</th>
           </tr>
           <tr>
             {kolom.map((k) => (
               <th
                 key={k.key}
-                className={`sticky top-[22px] z-10 border-b border-r bg-muted/40 p-1.5 text-center font-normal ${k.tipe === 'non_bulanan' ? 'text-muted-foreground' : ''}`}
+                style={{ top: tinggiGrup }}
+                className={`sticky z-10 border-b border-r bg-muted p-1.5 text-center font-normal ${k.tipe === 'non_bulanan' ? 'text-muted-foreground' : ''}`}
                 title={labelSel(k)}
               >
                 {labelKolom(k)}
