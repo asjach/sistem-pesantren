@@ -638,6 +638,85 @@ class KeuanganTest extends TestCase
             ->assertStatus(200)->assertJsonCount(0, 'per_santri');
     }
 
+    public function test_ubah_tagihan_nominal_tempo_tahun_ajaran(): void
+    {
+        $admin = $this->admin();
+        $hipa = JenisTagihan::create(['nama' => 'HIPA', 'tipe' => 'non_bulanan']);
+        $santri = Santri::create(['nama_lengkap' => 'Santri Ubah', 'jk' => 'L']);
+        $t = Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $hipa->id, 'nominal' => 100000]);
+
+        // Non-bulanan: nominal, TA, dan jatuh tempo manual ketiganya bisa diubah.
+        $this->actingAs($admin)->putJson("/api/admin/keuangan/tagihan/{$t->id}", [
+            'nominal' => 125000, 'tahun_ajaran' => '2026/2027', 'jatuh_tempo' => '2026-08-15',
+        ])->assertStatus(200)->assertJson([
+            'nominal' => 125000, 'tahun_ajaran' => '2026/2027', 'status' => 'belum',
+        ]);
+        $this->assertSame('2026-08-15', $t->fresh()->jatuh_tempo->format('Y-m-d'));
+
+        // Nominal turun di bawah yang dibayar ditolak (sisa jadi negatif).
+        $this->actingAs($admin)->postJson('/api/admin/keuangan/pembayaran', [
+            'tagihan_id' => $t->id, 'jumlah' => 120000,
+        ])->assertStatus(201);
+        $this->actingAs($admin)->putJson("/api/admin/keuangan/tagihan/{$t->id}", [
+            'nominal' => 100000, 'tahun_ajaran' => '2026/2027',
+        ])->assertStatus(422);
+
+        // Nominal tepat sama dengan terbayar → lunas.
+        $this->actingAs($admin)->putJson("/api/admin/keuangan/tagihan/{$t->id}", [
+            'nominal' => 120000, 'tahun_ajaran' => '2026/2027', 'jatuh_tempo' => null,
+        ])->assertStatus(200)->assertJson(['status' => 'lunas']);
+        $this->assertNull($t->fresh()->jatuh_tempo);
+
+        // Jenis & periode diabaikan (bukan bagian kontrak ubah).
+        $periodeAwal = $t->fresh()->periode;
+        $this->actingAs($admin)->putJson("/api/admin/keuangan/tagihan/{$t->id}", [
+            'nominal' => 120000, 'tahun_ajaran' => '2026/2027', 'periode' => '2099-01', 'jenis_id' => 999,
+        ])->assertStatus(200);
+        $this->assertSame($periodeAwal, $t->fresh()->periode);
+        $this->assertSame($hipa->id, $t->fresh()->jenis_id);
+
+        // Validasi: nominal wajib, tahun ajaran wajib.
+        $this->actingAs($admin)->putJson("/api/admin/keuangan/tagihan/{$t->id}", ['tahun_ajaran' => '2026/2027'])
+            ->assertStatus(422);
+    }
+
+    public function test_ubah_tagihan_bulanan_jatuh_tempo_ikuti_aturan_tanggal_10(): void
+    {
+        $admin = $this->admin();
+        $infaq = JenisTagihan::create(['nama' => 'Infaq Bulanan', 'tipe' => 'bulanan']);
+        $santri = Santri::create(['nama_lengkap' => 'Santri Ubah Bulanan', 'jk' => 'P']);
+        $t = Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $infaq->id, 'periode' => '2025-07', 'nominal' => 50000]);
+
+        // Input jatuh tempo manual diabaikan untuk bulanan: aturan tanggal 10
+        // bulan berikutnya tetap berlaku agar tunggakan tak bisa dikecualikan.
+        $this->actingAs($admin)->putJson("/api/admin/keuangan/tagihan/{$t->id}", [
+            'nominal' => 60000, 'tahun_ajaran' => '2025/2026', 'jatuh_tempo' => '2099-12-31',
+        ])->assertStatus(200);
+        $this->assertSame('2025-08-10', $t->fresh()->jatuh_tempo->format('Y-m-d'));
+        $this->assertSame(60000, $t->fresh()->nominal);
+    }
+
+    public function test_ubah_tagihan_ditolak_bila_tidak_bisa_lembaga(): void
+    {
+        $pusat = $this->admin();
+        $hipa = JenisTagihan::create(['nama' => 'HIPA', 'tipe' => 'non_bulanan']);
+        $santri = Santri::create(['nama_lengkap' => 'Santri Scope', 'jk' => 'L']);
+        $t = Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $hipa->id, 'nominal' => 100000]);
+        $this->actingAs($pusat)->putJson("/api/admin/keuangan/tagihan/{$t->id}", [
+            'nominal' => 90000, 'tahun_ajaran' => '2025/2026',
+        ])->assertStatus(200);
+
+        // Admin lembaga lain (MTS; bukan pasangan MI↔MD) tidak boleh mengubah (403).
+        Lembaga::create(['nama' => 'Tsanawiyah', 'jenjang' => 'MTS', 'is_active' => true]);
+        $lain = User::create(['name' => 'Admin MTS', 'email' => 'adminmts@example.com', 'phone' => '081234567899', 'password' => 'password']);
+        $lain->assignRole('admin');
+        DB::table('user_lembaga')->insert(['user_id' => $lain->id, 'jenjang' => 'MTS', 'created_at' => now(), 'updated_at' => now()]);
+        $this->actingAs($lain)->putJson("/api/admin/keuangan/tagihan/{$t->id}", [
+            'nominal' => 1, 'tahun_ajaran' => '2025/2026',
+        ])->assertStatus(403);
+        $this->assertSame(90000, $t->fresh()->nominal);
+    }
+
     public function test_hapus_tagihan(): void
     {
         $admin = $this->admin();

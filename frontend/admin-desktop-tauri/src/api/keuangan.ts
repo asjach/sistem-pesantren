@@ -170,6 +170,7 @@ export interface CrosstabSel {
   status: 'belum' | 'sebagian' | 'lunas'; jatuh_tempo: string | null;
   /** Sudah lewat jatuh tempo & belum lunas (dasar hitungan tunggakan). */
   terlambat: boolean;
+  tahun_ajaran: string;
 }
 
 export interface CrosstabKolom {
@@ -214,6 +215,14 @@ export function crosstabTagihan(params: {
 
 export function hapusTagihan(id: number) {
   return api<{ pesan: string }>(`/admin/keuangan/tagihan/${id}`, { method: 'DELETE' });
+}
+
+/**
+ * Ubah tagihan yang sudah terlanjur dibuat: nominal, tahun ajaran, jatuh tempo.
+ * Jenis & periode tidak bisa diubah — keduanya bagian kunci unik tagihan.
+ */
+export function ubahTagihan(id: number, data: { nominal: number; tahun_ajaran: string; jatuh_tempo: string | null }) {
+  return api<TagihanRow>(`/admin/keuangan/tagihan/${id}`, { method: 'PUT', body: JSON.stringify(data) });
 }
 
 export function catatPembayaran(data: Record<string, unknown>) {

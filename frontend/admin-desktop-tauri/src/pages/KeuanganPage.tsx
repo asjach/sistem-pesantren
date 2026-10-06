@@ -7,7 +7,7 @@ import {
   daftarTunggakan, crosstabTagihan, hapusTagihan, catatPembayaran,
   riwayatPembayaran, hapusPembayaran, daftarDispensasi, hapusDispensasi,
   type JenisTagihan, type Tarif, type TunggakanRow, type PembayaranRow, type Dispensasi,
-  type CrosstabTagihan,
+  type CrosstabTagihan, type CrosstabSel, type CrosstabKolom,
 } from '../api/keuangan';
 import { listLembaga, listTahunAjaran, type Lembaga, type TahunAjaran } from '../api/master';
 import { Button } from '@/components/ui/button';
@@ -33,7 +33,8 @@ import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { Plus } from '@/icons';
 import { DeleteAction } from '@/components/RowActions';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
-import { History, Trash2 } from '@/icons';
+import { History, Pencil, Trash2 } from '@/icons';
+import UbahTagihanDialog, { type TargetUbahTagihan } from '@/components/keuangan/UbahTagihanDialog';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { useFilterGlobalAktif, targetTunggal } from '@/hooks/useFilterGlobalAktif';
 import { useLembagaAktif } from '@/lembagaAktif';
@@ -261,8 +262,13 @@ export default function KeuanganPage() {
   const [riwayatTagihan, setRiwayatTagihan] = useState<{ id: number; label: string } | null>(null);
   const [riwayatRows, setRiwayatRows] = useState<PembayaranRow[]>([]);
 
-  /** Id tagihan yang menunggu konfirmasi hapus (dipicu dari context menu). */
+  /** Id tagihan yang menunggu konfirmasi hapus (dipicu dari popover sel). */
   const [hapusTagihanId, setHapusTagihanId] = useState<number | null>(null);
+  /** Tagihan yang sedang diubah lewat dialog Ubah. */
+  const [ubahTarget, setUbahTarget] = useState<TargetUbahTagihan | null>(null);
+  /** Sel + kolom crosstab terpilih (dipakai popover & dialog ubah). */
+  const [selPenuh, setSelPenuh] = useState<CrosstabSel | null>(null);
+  const [kolomTerpilih, setKolomTerpilih] = useState<CrosstabKolom | null>(null);
   const [hapusTagihanBusy, setHapusTagihanBusy] = useState(false);
 
   const bukaRiwayat = useCallback(async (t: { id: number; label: string }) => {
@@ -408,11 +414,13 @@ export default function KeuanganPage() {
               loading={loading}
               terpilihId={selTagihan?.id ?? null}
               emptyText="Belum ada tagihan."
-              onPilih={(sel, meta, anchor) => {
+              onPilih={(sel, meta, anchor, kolom) => {
                 setSelTagihan({
                   id: sel.id, nama: meta.nama, label: meta.label,
                   nominal: sel.nominal, sisa: sel.sisa, status: sel.status,
                 });
+                setSelPenuh(sel);
+                setKolomTerpilih(kolom);
                 setBayarJumlah('');
                 setAnchorSel(anchor);
               }}
@@ -420,7 +428,14 @@ export default function KeuanganPage() {
             {/* Popover aksi melekat pada sel: bayar, riwayat, hapus. */}
             <Popover
               open={anchorSel !== null && selTagihan !== null}
-              onOpenChange={(o) => { if (!o) { setAnchorSel(null); setSelTagihan(null); } }}
+              onOpenChange={(o) => {
+                if (!o) {
+                  setAnchorSel(null);
+                  setSelTagihan(null);
+                  setSelPenuh(null);
+                  setKolomTerpilih(null);
+                }
+              }}
             >
               <PopoverAnchor virtualRef={anchorVirtual} />
               <PopoverContent align="start" sideOffset={4} className="w-72 p-2">
@@ -475,6 +490,20 @@ export default function KeuanganPage() {
                       </Button>
                     </form>
                     <div className="mt-2 flex flex-col gap-1 border-t pt-1.5">
+                      <Button
+                        id="btn_ubah_tagihan"
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 justify-start px-1.5 text-xs"
+                        disabled={selPenuh === null || kolomTerpilih === null}
+                        onClick={() => {
+                          if (selPenuh === null || kolomTerpilih === null) return;
+                          setUbahTarget({ sel: selPenuh, kolom: kolomTerpilih, nama: selTagihan.nama, label: selTagihan.label });
+                        }}
+                      >
+                        <Pencil size={14} />
+                        Ubah tagihan
+                      </Button>
                       <Button id="btn_riwayat_bayar" size="sm" variant="ghost" className="h-7 justify-start px-1.5 text-xs" onClick={() => {
                         void bukaRiwayat({ id: selTagihan.id, label: selTagihan.label });
                       }}>
@@ -564,7 +593,18 @@ export default function KeuanganPage() {
         </TabsContent>
       </Tabs>
 
-      {/* Konfirmasi hapus tagihan dari context menu crosstab. */}
+      <UbahTagihanDialog
+        open={ubahTarget !== null}
+        onOpenChange={(o) => { if (!o) setUbahTarget(null); }}
+        target={ubahTarget}
+        daftarTA={daftarTA}
+        onSelesai={async () => {
+          await load();
+          await muatCrosstabSekarang();
+        }}
+      />
+
+      {/* Konfirmasi hapus tagihan dari popover sel crosstab. */}
       <AlertDialog
         open={hapusTagihanId !== null}
         onOpenChange={(o) => { if (!o && !hapusTagihanBusy) setHapusTagihanId(null); }}

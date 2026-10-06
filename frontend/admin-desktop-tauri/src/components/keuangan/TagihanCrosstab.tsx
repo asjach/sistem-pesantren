@@ -27,7 +27,12 @@ interface Props {
   terpilihId: number | null;
   /** Sel diklik (kiri maupun kanan) → halaman membuka popover aksi pada sel itu.
    *  `anchor` = elemen sel, dipakai sebagai jangkar popover. */
-  onPilih: (sel: CrosstabSel, meta: { nama: string; label: string }, anchor: HTMLElement) => void;
+  onPilih: (
+    sel: CrosstabSel,
+    meta: { nama: string; label: string },
+    anchor: HTMLElement,
+    kolom: CrosstabKolom,
+  ) => void;
   emptyText: string;
 }
 
@@ -124,7 +129,12 @@ const BarisCrosstab = memo(function BarisCrosstab({
   baris: CrosstabBaris;
   kolom: CrosstabKolom[];
   terpilihId: number | null;
-  onPilih: (sel: CrosstabSel, meta: { nama: string; label: string }, anchor: HTMLElement) => void;
+  onPilih: (
+    sel: CrosstabSel,
+    meta: { nama: string; label: string },
+    anchor: HTMLElement,
+    kolom: CrosstabKolom,
+  ) => void;
   onHoverMasuk: (isi: TooltipSel, e: React.MouseEvent) => void;
   onHoverGerak: (e: React.MouseEvent) => void;
   onHoverKeluar: () => void;
@@ -152,8 +162,8 @@ const BarisCrosstab = memo(function BarisCrosstab({
               type="button"
               id={`btn_tagihan_sel_${sel.id}`}
               /* Klik kiri dan klik kanan sama-sama membuka popover aksi. */
-              onClick={(e) => onPilih(sel, meta, e.currentTarget)}
-              onContextMenu={(e) => { e.preventDefault(); onPilih(sel, meta, e.currentTarget); }}
+              onClick={(e) => onPilih(sel, meta, e.currentTarget, k)}
+              onContextMenu={(e) => { e.preventDefault(); onPilih(sel, meta, e.currentTarget, k); }}
               onMouseEnter={(e) => onHoverMasuk(isiTooltip, e)}
               onMouseMove={onHoverGerak}
               onMouseLeave={onHoverKeluar}
@@ -242,7 +252,12 @@ export default function TagihanCrosstab({ data, loading, terpilihId, onPilih, em
   const pilihRef = useRef(onPilih);
   pilihRef.current = onPilih;
   const pilihStabil = useCallback(
-    (sel: CrosstabSel, meta: { nama: string; label: string }, anchor: HTMLElement) => pilihRef.current(sel, meta, anchor),
+    (
+      sel: CrosstabSel,
+      meta: { nama: string; label: string },
+      anchor: HTMLElement,
+      kolom: CrosstabKolom,
+    ) => pilihRef.current(sel, meta, anchor, kolom),
     [],
   );
   const hoverMasuk = useCallback((isi: TooltipSel, e: React.MouseEvent) => {

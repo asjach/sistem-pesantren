@@ -445,6 +445,7 @@ class KeuanganController extends Controller
                     'sisa' => $t->sisa(),
                     'status' => (string) $t->status,
                     'terlambat' => $t->terlambat(),
+                    'tahun_ajaran' => (string) $t->tahun_ajaran,
                     'jatuh_tempo' => $t->jatuh_tempo?->format('Y-m-d'),
                 ];
             }
@@ -544,6 +545,49 @@ class KeuanganController extends Controller
         $tagihan = Tagihan::create($data + ['status' => 'belum', 'terbayar' => 0]);
 
         return response()->json($tagihan, 201);
+    }
+
+    /**
+     * Ubah tagihan yang sudah terlanjur dibuat: nominal, tahun ajaran, dan
+     * jatuh tempo. Jenis & periode TIDAK bisa diubah — keduanya bagian kunci
+     * `uq_tagihan_santri_jenis_periode`, jadi mengubahnya berarti tagihan ini
+     * menjadi tagihan yang lain, bukan koreksi.
+     *
+     * Nominal tidak boleh turun di bawah yang sudah dibayar (sisa negatif).
+     * Status dihitung ulang dari nominal vs terbayar. Jenis bulanan mengabaikan
+     * jatuh tempo manual — aturan tanggal 10 bulan berikutnya berlaku juga di
+     * sini, supaya tunggangan tidak bisa dikecualikan lewat dialog ubah.
+     */
+    public function updateTagihan(Request $request, Tagihan $tagihan)
+    {
+        $data = $request->validate([
+            'nominal' => 'required|integer|min:0',
+            'tahun_ajaran' => 'required|string|max:9',
+            'jatuh_tempo' => 'nullable|date',
+        ]);
+        $this->canLembaga($request->user(), $tagihan->jenjang) || abort(403);
+
+        if ($data['nominal'] < $tagihan->terbayar) {
+            abort(422, "Nominal tidak boleh lebih kecil dari yang sudah dibayar (Rp {$tagihan->terbayar}).");
+        }
+
+        $jenis = JenisTagihan::findOrFail($tagihan->jenis_id);
+
+        $tagihan->nominal = $data['nominal'];
+        $tagihan->tahun_ajaran = $data['tahun_ajaran'];
+        $tagihan->jatuh_tempo = JatuhTempo::untuk(
+            (string) $jenis->tipe,
+            $tagihan->periode,
+            $data['jatuh_tempo'] ?? null,
+        );
+        $tagihan->status = match (true) {
+            $tagihan->terbayar <= 0 => 'belum',
+            $tagihan->terbayar >= $tagihan->nominal => 'lunas',
+            default => 'sebagian',
+        };
+        $tagihan->save();
+
+        return response()->json($tagihan);
     }
 
     /** Tingkat akhir per jenjang (sinkron peta TINGKAT_AKHIR halaman Kelulusan). */

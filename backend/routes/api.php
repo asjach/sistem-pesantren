@@ -92,6 +92,7 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::get('keuangan/tagihan', [KeuanganController::class, 'indexTagihan'])->middleware('permission:keuangan.lihat');
         Route::post('keuangan/tagihan', [KeuanganController::class, 'storeTagihan'])->middleware('permission:keuangan.tambah');
         Route::delete('keuangan/tagihan/{tagihan}', [KeuanganController::class, 'destroyTagihan'])->middleware('permission:keuangan.hapus');
+        Route::match(['put', 'patch'], 'keuangan/tagihan/{tagihan}', [KeuanganController::class, 'updateTagihan'])->middleware('permission:keuangan.ubah');
         Route::post('keuangan/tagihan/generate', [KeuanganController::class, 'generateTagihan'])->middleware('permission:keuangan.tambah');
         Route::get('keuangan/tagihan/kandidat', [KeuanganController::class, 'kandidatTagihan'])->middleware('permission:keuangan.tambah');
         Route::post('keuangan/pembayaran', [KeuanganController::class, 'storePembayaran'])->middleware('permission:keuangan.tambah');

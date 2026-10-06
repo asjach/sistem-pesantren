@@ -14,7 +14,7 @@ const KOLOM: CrosstabKolom[] = [
 function sel(partial: Partial<CrosstabSel>): CrosstabSel {
   return {
     id: 1, nominal: 50000, terbayar: 0, sisa: 50000,
-    status: 'belum', jatuh_tempo: '2025-08-10', terlambat: false, ...partial,
+    status: 'belum', jatuh_tempo: '2025-08-10', terlambat: false, tahun_ajaran: '2025/2026', ...partial,
   };
 }
 
