@@ -472,7 +472,7 @@ class TabelUrutTest extends TestCase
         ]);
         $this->assertSame(
             ['Besar', 'Kecil'],
-            $this->kolom($this->super(), '/api/admin/keuangan/tunggakan?sort=sisa&arah=turun', 'nama', 'per_santri')
+            $this->kolom($this->super(), '/api/admin/keuangan/tunggakan?sort=sisa&arah=turun', 'nama', 'data')
         );
     }
 

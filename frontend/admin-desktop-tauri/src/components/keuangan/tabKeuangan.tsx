@@ -139,35 +139,55 @@ export function TarifTab({ rows, loading, sort, onTambah, onEdit, onHapus }: {
   );
 }
 
-/** Tab Tunggakan: tabel baca-saja (urut dari header). */
-export function TunggakanTab({ rows, loading, sort }: {
+/** Tab Tunggakan: tabel baca-saja (urut dari header) + pager server-side. */
+export function TunggakanTab({
+  rows, loading, sort, page, lastPage, total, perPage, onPage, onPerPage,
+}: {
   rows: TunggakanRow[];
   loading: boolean;
   sort: SortTabel;
+  page: number;
+  lastPage: number;
+  total: number;
+  perPage: PerPage;
+  onPage: (p: number) => void;
+  onPerPage: (pp: PerPage) => void;
 }) {
   return (
-    <ExcelTable<TunggakanRow & { id: number }>
-      tableKey="keuangan_tunggakan"
-      fields={FIELDS_TUNGGAKAN}
-      rows={rows.map((w) => ({ ...w, id: w.santri_id }))}
-      urutAktif={sort.urut}
-      arahUrut={sort.arah}
-      onUrut={sort.terapkan}
-      getValues={(r) => ({
-        nama: r.nama, jumlah_tagihan: String(r.jumlah_tagihan),
-        total_tagihan: r.total_tagihan.toLocaleString('id'),
-        terbayar: r.terbayar.toLocaleString('id'),
-        tunggakan: r.tunggakan.toLocaleString('id'),
-        terlambat_terlama: r.tanpa_jatuh_tempo ? 'Tanpa batas' : tanggal(r.terlambat_terlama),
-      })}
-      loading={loading}
-      emptyText="Tidak ada tagihan yang lewat jatuh tempo."
-      canEdit={false}
-      onCommit={async () => {}}
-      onSaved={() => {}}
-      renderActions={() => null}
-      hideCheckbox
-    />
+    <>
+      <div className="flex min-h-0 flex-1 flex-col">
+        <ExcelTable<TunggakanRow & { id: number }>
+          tableKey="keuangan_tunggakan"
+          fields={FIELDS_TUNGGAKAN}
+          rows={rows.map((w) => ({ ...w, id: w.santri_id }))}
+          urutAktif={sort.urut}
+          arahUrut={sort.arah}
+          onUrut={sort.terapkan}
+          getValues={(r) => ({
+            nama: r.nama, jumlah_tagihan: String(r.jumlah_tagihan),
+            total_tagihan: r.total_tagihan.toLocaleString('id'),
+            terbayar: r.terbayar.toLocaleString('id'),
+            tunggakan: r.tunggakan.toLocaleString('id'),
+            terlambat_terlama: r.tanpa_jatuh_tempo ? 'Tanpa batas' : tanggal(r.terlambat_terlama),
+          })}
+          loading={loading}
+          emptyText="Tidak ada tagihan yang lewat jatuh tempo."
+          canEdit={false}
+          onCommit={async () => {}}
+          onSaved={() => {}}
+          renderActions={() => null}
+          hideCheckbox
+        />
+      </div>
+      <Pager
+        page={page}
+        lastPage={lastPage}
+        total={total}
+        perPage={perPage}
+        onPage={onPage}
+        onPerPage={onPerPage}
+      />
+    </>
   );
 }
 

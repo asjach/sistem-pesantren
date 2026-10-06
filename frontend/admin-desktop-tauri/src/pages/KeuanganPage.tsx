@@ -85,6 +85,9 @@ export default function KeuanganPage() {
   const { page: tagihanPage, perPage: tagihanPerPage, setPage: setTagihanPage, setPerPage: setTagihanPerPage } = usePager('keuangan_tagihan');
   const [tagihanLastPage, setTagihanLastPage] = useState(1);
   const [tagihanTotal, setTagihanTotal] = useState(0);
+  const { page: tunggakanPage, perPage: tunggakanPerPage, setPage: setTunggakanPage, setPerPage: setTunggakanPerPage } = usePager('keuangan_tunggakan');
+  const [tunggakanLastPage, setTunggakanLastPage] = useState(1);
+  const [tunggakanTotal, setTunggakanTotal] = useState(0);
   const { jenjangs, tahunAjaranNames, loading: filterLoading } = useFilterGlobalAktif();
   /** Jenis global (Semua) hanya untuk super_admin efektif — mati saat bertindak. */
   const { efektifSuper, peranJenjang, pilihan: pilihanLembaga } = useLembagaAktif();
@@ -150,20 +153,42 @@ export default function KeuanganPage() {
     void loadTarif(jenjangs, tahunAjaranNames);
   }, [filterLoading, jenjangs, tahunAjaranNames, loadTarif]);
 
+  /**
+   * Tunggakan per santri: server-side & terpaginasi. Perubahan urut header
+   * mengganti identitas `loadTunggakan` sehingga effect memuat ulang dari
+   * halaman 1 (pager ikut disinkronkan dari respons).
+   */
+  const loadTunggakan = useCallback(async (page: number, perPage: number) => {
+    setErrTunggakan(''); setLoadingTunggakan(true);
+    try {
+      const res = await daftarTunggakan({
+        page,
+        per_page: perPage === 0 ? 'all' : String(perPage),
+        sort: uTunggakan.urut.length ? tokenUrut(uTunggakan.urut, uTunggakan.arahKolom) : undefined,
+        arah: uTunggakan.urut.length ? uTunggakan.arah : undefined,
+      });
+      setTunggakan(res.data);
+      setTunggakanPage(res.current_page);
+      setTunggakanLastPage(res.last_page);
+      setTunggakanTotal(res.total);
+    } catch (e) {
+      setErrTunggakan(errorMessage(e));
+      setTunggakan([]);
+    } finally { setLoadingTunggakan(false); }
+  }, [uTunggakan.urut, uTunggakan.arah, uTunggakan.arahKolom, setTunggakanPage]);
+
+  useEffect(() => { void loadTunggakan(1, tunggakanPerPage); }, [loadTunggakan, tunggakanPerPage]);
+
   useEffect(() => { setTagihanPage(1); }, [jenjangs, tahunAjaranNames]);
 
   const load = useCallback(async () => {
-    setErrJenis(''); setErrTunggakan(''); setErrDispensasi('');
-    setLoadingJenis(true); setLoadingTunggakan(true); setLoadingDispensasi(true);
+    setErrJenis(''); setErrDispensasi('');
+    setLoadingJenis(true); setLoadingDispensasi(true);
     try {
-      const [j, w, l, tas, dispen] = await Promise.all([
+      const [j, l, tas, dispen] = await Promise.all([
         daftarJenis({
           sort: uJenis.urut.length ? tokenUrut(uJenis.urut, uJenis.arahKolom) : undefined,
           arah: uJenis.urut.length ? uJenis.arah : undefined,
-        }),
-        daftarTunggakan({
-          sort: uTunggakan.urut.length ? tokenUrut(uTunggakan.urut, uTunggakan.arahKolom) : undefined,
-          arah: uTunggakan.urut.length ? uTunggakan.arah : undefined,
         }),
         listLembaga({ per_page: 100 }),
         listTahunAjaran({ per_page: 100 }),
@@ -172,7 +197,7 @@ export default function KeuanganPage() {
           arah: uDispensasi.urut.length ? uDispensasi.arah : undefined,
         }),
       ]);
-      setJenis(j); setTunggakan(w.per_santri);
+      setJenis(j);
       setLembagas(l.data); setDaftarTA(tas.data); setDispensasi(dispen);
       const taAktif = tas.data.find((x) => x.is_aktif)?.nama ?? tas.data[0]?.nama ?? '';
       const diTA = (v: string) => v !== '' && tas.data.some((x) => x.nama === v);
@@ -182,11 +207,11 @@ export default function KeuanganPage() {
       setTfJenjang((v) => (diLembaga(v) ? v : jenjangBawaan));
     } catch (e) {
       const m = errorMessage(e);
-      setErrJenis(m); setErrTunggakan(m); setErrDispensasi(m);
+      setErrJenis(m); setErrDispensasi(m);
     } finally {
-      setLoadingJenis(false); setLoadingTunggakan(false); setLoadingDispensasi(false);
+      setLoadingJenis(false); setLoadingDispensasi(false);
     }
-  }, [uJenis.urut, uJenis.arah, uJenis.arahKolom, uTunggakan.urut, uTunggakan.arah, uTunggakan.arahKolom, uDispensasi.urut, uDispensasi.arah, uDispensasi.arahKolom]);
+  }, [uJenis.urut, uJenis.arah, uJenis.arahKolom, uDispensasi.urut, uDispensasi.arah, uDispensasi.arahKolom]);
   useEffect(() => { void load(); }, [load]);
 
   // Form sederhana
@@ -450,7 +475,17 @@ export default function KeuanganPage() {
         </TabsContent>
 
         <TabsContent value="tunggakan" className={`min-h-0 flex-1 flex flex-col gap-1 ${KELAS_PANEL_TAB}`}>
-          <TunggakanTab rows={tunggakan} loading={loadingTunggakan} sort={uTunggakan} />
+          <TunggakanTab
+            rows={tunggakan}
+            loading={loadingTunggakan}
+            sort={uTunggakan}
+            page={tunggakanPage}
+            lastPage={tunggakanLastPage}
+            total={tunggakanTotal}
+            perPage={tunggakanPerPage}
+            onPage={(p) => { setTunggakanPage(p); void loadTunggakan(p, tunggakanPerPage); }}
+            onPerPage={(pp) => { setTunggakanPerPage(pp); void loadTunggakan(1, pp); }}
+          />
         </TabsContent>
 
         <TabsContent value="dispensasi" className={`min-h-0 flex-1 flex flex-col gap-1 ${KELAS_PANEL_TAB}`}>

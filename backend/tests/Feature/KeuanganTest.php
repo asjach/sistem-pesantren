@@ -590,7 +590,7 @@ class KeuanganTest extends TestCase
         $this->assertSame(50000, $tersaring['tunggakan']);
 
         // Endpoint tunggakan: hanya tagihan terlambat.
-        $tunggakan = $this->actingAs($admin)->getJson('/api/admin/keuangan/tunggakan')->assertStatus(200)->json('per_santri');
+        $tunggakan = $this->actingAs($admin)->getJson('/api/admin/keuangan/tunggakan')->assertStatus(200)->json('data');
         $this->assertCount(1, $tunggakan);
         $this->assertSame('Santri Telat', $tunggakan[0]['nama']);
         $this->assertSame(50000, $tunggakan[0]['tunggakan']);
@@ -600,7 +600,7 @@ class KeuanganTest extends TestCase
         // Tidak ada satu pun yang lewat → kosong.
         Tagihan::query()->update(['jatuh_tempo' => now()->addMonth()->toDateString()]);
         $this->actingAs($admin)->getJson('/api/admin/keuangan/tunggakan')
-            ->assertStatus(200)->assertJsonCount(0, 'per_santri');
+            ->assertStatus(200)->assertJsonCount(0, 'data');
     }
 
     public function test_tagihan_tanpa_jatuh_tempo_langsung_terlambat(): void
@@ -616,7 +616,7 @@ class KeuanganTest extends TestCase
 
         // Endpoint tunggakan memuatnya; tandai "tanpa batas".
         $tunggakan = $this->actingAs($admin)->getJson('/api/admin/keuangan/tunggakan')
-            ->assertStatus(200)->json('per_santri');
+            ->assertStatus(200)->json('data');
         $this->assertCount(1, $tunggakan);
         $this->assertSame(300000, $tunggakan[0]['tunggakan']);
         $this->assertNull($tunggakan[0]['terlambat_terlama']);
@@ -640,7 +640,7 @@ class KeuanganTest extends TestCase
         $this->assertFalse($t->terlambat());
         $this->assertSame(0, $t->sisaTerlambat());
         $this->actingAs($admin)->getJson('/api/admin/keuangan/tunggakan')
-            ->assertStatus(200)->assertJsonCount(0, 'per_santri');
+            ->assertStatus(200)->assertJsonCount(0, 'data');
     }
 
     public function test_ubah_tagihan_nominal_tempo_tahun_ajaran(): void
@@ -778,7 +778,7 @@ class KeuanganTest extends TestCase
         $this->assertSame(500000, $tagihan->terbayar);
         $this->assertSame('sebagian', $tagihan->status);
 
-        $tunggakan = $this->actingAs($admin)->getJson('/api/admin/keuangan/tunggakan')->assertStatus(200)->json('per_santri');
+        $tunggakan = $this->actingAs($admin)->getJson('/api/admin/keuangan/tunggakan')->assertStatus(200)->json('data');
         $this->assertNotEmpty($tunggakan);
     }
 

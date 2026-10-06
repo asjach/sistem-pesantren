@@ -495,50 +495,57 @@ class TagihanController extends Controller
     }
 
     /**
-     * Tunggakan per santri: tagihan belum lunas yang sudah lewat batas
-     * waktunya. Tagihan bulanan bulan yang masih berjalan tidak dihitung;
+     * Tunggakan per santri, terpaginasi: tagihan belum lunas yang sudah lewat
+     * batas waktunya. Tagihan bulanan bulan yang masih berjalan tidak dihitung;
      * tagihan tanpa jatuh tempo (non-bulanan yang tidak diisi manual) langsung
      * dihitung, sebab tidak punya batas waktu.
+     *
+     * Agregasi dilakukan di SQL — bukan memuat semua baris lalu groupBy di PHP —
+     * supaya daftar bisa dipaginasi. Nilainya setara `Tagihan::sisaTerlambat()`:
+     * baris yang lolos filter tanggal selalu terlambat, sisa = max(0, nominal - terbayar).
      */
     public function tunggakan(Request $request)
     {
-        $q = Tagihan::with(['jenis', 'santri'])
-            ->where('status', '!=', 'lunas')
-            ->where(fn ($w) => $w->whereNull('jatuh_tempo')->orWhereDate('jatuh_tempo', '<', today()));
-        if ($request->filled('jenjang')) {
-            $q->where('jenjang', $request->input('jenjang'));
-        }
-        if ($request->filled('tahun_ajaran')) {
-            $q->where('tahun_ajaran', $request->input('tahun_ajaran'));
-        }
-        $baris = $q->get();
+        $q = Tagihan::query()
+            ->selectRaw("tagihan.santri_id as santri_id,
+                COALESCE(santri.nama_lengkap, 'Tidak diketahui') as nama,
+                SUM(tagihan.nominal) as total_tagihan,
+                SUM(tagihan.terbayar) as terbayar,
+                SUM(CASE WHEN tagihan.nominal > tagihan.terbayar THEN tagihan.nominal - tagihan.terbayar ELSE 0 END) as tunggakan,
+                COUNT(*) as jumlah_tagihan,
+                MIN(tagihan.jatuh_tempo) as terlambat_terlama,
+                SUM(CASE WHEN tagihan.jatuh_tempo IS NULL THEN 1 ELSE 0 END) as tanpa_jatuh_tempo")
+            ->leftJoin('santri', 'santri.id', '=', 'tagihan.santri_id')
+            ->where('tagihan.status', '!=', 'lunas')
+            ->where(fn ($w) => $w->whereNull('tagihan.jatuh_tempo')->orWhereDate('tagihan.jatuh_tempo', '<', today()))
+            ->groupBy('tagihan.santri_id', 'santri.nama_lengkap');
+        $this->applyFilter($q, $request, 'jenjang', 'tagihan.jenjang');
+        $this->applyFilter($q, $request, 'tahun_ajaran', 'tagihan.tahun_ajaran');
 
-        $perSantri = $baris->groupBy('santri_id')->map(function ($rows) {
-            $s = $rows->first()->santri;
-
-            return [
-                'santri_id' => $rows->first()->santri_id,
-                'nama' => $s?->nama_lengkap ?? 'Tidak diketahui',
-                'total_tagihan' => $rows->sum('nominal'),
-                'terbayar' => $rows->sum('terbayar'),
-                'tunggakan' => $rows->sum(fn ($r) => $r->sisaTerlambat()),
-                'jumlah_tagihan' => $rows->count(),
-                'terlambat_terlama' => $rows->filter(fn ($r) => $r->jatuh_tempo !== null)
-                    ->min(fn ($r) => $r->jatuh_tempo->format('Y-m-d')),
-                // Ada tagihan terlambat tanpa tanggal batas sama sekali.
-                'tanpa_jatuh_tempo' => $rows->contains(fn ($r) => $r->jatuh_tempo === null),
-            ];
-        })->values();
-
-        $perSantri = $this->terapkanUrutKoleksi($request, $perSantri->all(), [
-            'nama' => 'nama',
-            'total' => 'total_tagihan',
-            'bayar' => 'terbayar',
-            'sisa' => 'tunggakan',
-            'jumlah' => 'jumlah_tagihan',
-            'id' => 'santri_id',
+        // Token urut sama dengan katalog lama (nama/total/bayar/sisa/jumlah/id),
+        // kini memetakan ke alias SQL hasil agregasi.
+        $urut = $this->parseUrut($request, [
+            'nama' => ['nama'],
+            'total' => ['total_tagihan'],
+            'bayar' => ['terbayar'],
+            'sisa' => ['tunggakan'],
+            'jumlah' => ['jumlah_tagihan'],
+            'id' => ['santri_id'],
         ]);
+        $this->terapkanUrut($q, $urut, [['santri_id', 'naik']]);
 
-        return response()->json(['per_santri' => $perSantri]);
+        return response()->json($q->paginate($this->perPage($request))->through(fn ($r) => [
+            'santri_id' => (int) $r->santri_id,
+            'nama' => $r->nama,
+            'total_tagihan' => (int) $r->total_tagihan,
+            'terbayar' => (int) $r->terbayar,
+            'tunggakan' => (int) $r->tunggakan,
+            'jumlah_tagihan' => (int) $r->jumlah_tagihan,
+            // MIN() mengembalikan datetime mentah; samakan format lama (Y-m-d).
+            'terlambat_terlama' => $r->terlambat_terlama === null
+                ? null
+                : substr((string) $r->terlambat_terlama, 0, 10),
+            'tanpa_jatuh_tempo' => (bool) $r->tanpa_jatuh_tempo,
+        ]));
     }
 }
