@@ -4,6 +4,9 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Api\Concerns\TenantGuard;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\MiMdDaftarkanMdRequest;
+use App\Http\Requests\Admin\MiMdHapusMdRequest;
+use App\Http\Requests\Admin\MiMdSamakanKelasRequest;
 use App\Models\Kelas;
 use App\Models\Lembaga;
 use App\Models\LembagaSantri;
@@ -212,7 +215,7 @@ class MiMdController extends Controller
     }
 
     /** POST /api/admin/mi-md/samakan-kelas — sejajarkan kelas by-nama dua arah. */
-    public function samakanKelas(Request $request): JsonResponse
+    public function samakanKelas(MiMdSamakanKelasRequest $request): JsonResponse
     {
         $pasangan = $this->resolvePasangan();
         if (! $pasangan) {
@@ -220,11 +223,7 @@ class MiMdController extends Controller
         }
         ['mi_id' => $miId, 'md_id' => $mdId] = $pasangan;
 
-        $data = $request->validate([
-            'items' => ['required', 'array', 'min:1', 'max:100'],
-            'items.*.santri_id' => ['required', 'integer', 'exists:santri,id'],
-            'items.*.arah' => ['required', 'in:ke_mi,ke_md'],
-        ]);
+        $data = $request->validated();
 
         $auth = $request->user();
         $berhasil = 0;
@@ -336,7 +335,7 @@ class MiMdController extends Controller
     }
 
     /** POST /api/admin/mi-md/daftarkan-md — input santri MI Only ke keanggotaan MD. */
-    public function daftarkanMd(Request $request): JsonResponse
+    public function daftarkanMd(MiMdDaftarkanMdRequest $request): JsonResponse
     {
         $pasangan = $this->resolvePasangan();
         if (! $pasangan) {
@@ -344,10 +343,7 @@ class MiMdController extends Controller
         }
         ['mi_id' => $miId, 'md_id' => $mdId] = $pasangan;
 
-        $data = $request->validate([
-            'items' => ['required', 'array', 'min:1', 'max:100'],
-            'items.*.santri_id' => ['required', 'integer', 'exists:santri,id'],
-        ]);
+        $data = $request->validated();
 
         $auth = $request->user();
         $berhasil = 0;
@@ -399,7 +395,7 @@ class MiMdController extends Controller
     /** POST /api/admin/mi-md/hapus-md — hapus FISIK jejak MD (anggota + riwayat).
      *  Halaman ini khusus tambah/hapus tanpa histori; pengarsipan ranah mutasi.
      *  Ditolak bila sudah ada arsip alumni/mutasi MD (pakai halaman mutasi). */
-    public function hapusMd(Request $request): JsonResponse
+    public function hapusMd(MiMdHapusMdRequest $request): JsonResponse
     {
         $pasangan = $this->resolvePasangan();
         if (! $pasangan) {
@@ -407,10 +403,7 @@ class MiMdController extends Controller
         }
         ['mi_id' => $miId, 'md_id' => $mdId] = $pasangan;
 
-        $data = $request->validate([
-            'items' => ['required', 'array', 'min:1', 'max:100'],
-            'items.*.santri_id' => ['required', 'integer', 'exists:santri,id'],
-        ]);
+        $data = $request->validated();
 
         $auth = $request->user();
         $berhasil = 0;

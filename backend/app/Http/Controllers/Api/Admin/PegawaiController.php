@@ -7,9 +7,11 @@ use App\Http\Controllers\Api\Concerns\ImporBertahap;
 use App\Http\Controllers\Api\Concerns\TenantGuard;
 use App\Http\Controllers\Api\Concerns\UrutDaftar;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\PegawaiAktifRequest;
 use App\Http\Requests\Admin\PegawaiFotoRequest;
 use App\Http\Requests\Admin\PegawaiPotongRequest;
 use App\Http\Requests\Admin\PegawaiStoreRequest;
+use App\Http\Requests\Admin\PegawaiTautkanAkunRequest;
 use App\Http\Requests\Admin\PegawaiUpdateRequest;
 use App\Models\ImportSesi;
 use App\Models\KeaktifanPegawai;
@@ -105,9 +107,9 @@ class PegawaiController extends Controller
     }
 
     /** POST /api/admin/pegawai/{pegawai}/tautkan-akun — tautkan/lepas akun login. */
-    public function tautkanAkun(Request $request, Pegawai $pegawai): JsonResponse
+    public function tautkanAkun(PegawaiTautkanAkunRequest $request, Pegawai $pegawai): JsonResponse
     {
-        $data = $request->validate(['user_id' => ['nullable', 'integer', 'exists:users,id']]);
+        $data = $request->validated();
         $pegawai->update(['user_id' => $data['user_id'] ?? null]);
 
         return response()->json(['pesan' => 'Akun ditautkan.', 'data' => $pegawai->fresh()]);
@@ -240,12 +242,9 @@ class PegawaiController extends Controller
     }
 
     /** GET /api/admin/pegawai/aktif — opsi dropdown wali: pegawai aktif di lembaga + TA. */
-    public function aktif(Request $request): JsonResponse
+    public function aktif(PegawaiAktifRequest $request): JsonResponse
     {
-        $data = $request->validate([
-            'jenjang' => ['required', 'exists:lembaga,jenjang'],
-            'tahun_ajaran' => ['required', 'string', 'exists:tahun_ajaran,nama'],
-        ]);
+        $data = $request->validated();
         $this->authorizeLembaga($request->user(), $data['jenjang']);
 
         $rows = Pegawai::where('pegawai.status_aktif', Pegawai::AKTIF)

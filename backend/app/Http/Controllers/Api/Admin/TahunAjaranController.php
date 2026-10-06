@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\Concerns\UrutDaftar;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\TahunAjaranStoreRequest;
 use App\Http\Requests\Admin\TahunAjaranUpdateRequest;
+use App\Http\Requests\Admin\TahunAjaranVisibilitasRequest;
 use App\Models\LembagaTahunAjaran;
 use App\Models\TahunAjaran;
 use App\Services\UrutKatalog;
@@ -189,13 +190,10 @@ class TahunAjaranController extends Controller
     }
 
     /** Sembunyikan TA untuk satu lembaga (pivot is_active = false). */
-    public function sembunyikan(Request $request)
+    public function sembunyikan(TahunAjaranVisibilitasRequest $request)
     {
         $auth = $request->user();
-        $data = $request->validate([
-            'nama' => ['required', 'string'],
-            'jenjang' => ['nullable', 'string', 'exists:lembaga,jenjang'],
-        ]);
+        $data = $request->validated();
         $lembagaId = $data['jenjang'] ?? ($auth->lembagaIds()[0] ?? null);
         if ($lembagaId === null) {
             abort(422, 'jenjang wajib.');
@@ -216,13 +214,10 @@ class TahunAjaranController extends Controller
     }
 
     /** Tampilkan kembali TA untuk satu lembaga (hapus baris pivot). */
-    public function tampilkan(Request $request)
+    public function tampilkan(TahunAjaranVisibilitasRequest $request)
     {
         $auth = $request->user();
-        $data = $request->validate([
-            'nama' => ['required', 'string'],
-            'jenjang' => ['nullable', 'string', 'exists:lembaga,jenjang'],
-        ]);
+        $data = $request->validated();
         $lembagaId = $data['jenjang'] ?? ($auth->lembagaIds()[0] ?? null);
         if ($lembagaId === null) {
             abort(422, 'jenjang wajib.');

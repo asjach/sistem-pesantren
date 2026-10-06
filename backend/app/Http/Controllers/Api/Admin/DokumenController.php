@@ -7,6 +7,8 @@ use App\Http\Controllers\Api\Concerns\ImporBertahap;
 use App\Http\Controllers\Api\Concerns\TenantGuard;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\DokumenPotongRequest;
+use App\Http\Requests\Admin\DokumenStatusBerkasRequest;
+use App\Http\Requests\Admin\DokumenStoreRequest;
 use App\Models\DokumenLembaga;
 use App\Models\DokumenSantri;
 use App\Models\ImportSesi;
@@ -153,10 +155,11 @@ class DokumenController extends Controller
     }
 
     /** POST /api/admin/dokumen/{tipe} — buat baris dokumen (opsional sekalian unggah berkas). */
-    public function store(Request $request, string $tipe): JsonResponse
+    public function store(DokumenStoreRequest $request, string $tipe): JsonResponse
     {
         $this->cekTipe($tipe);
-        $data = $this->validasi($request, $tipe);
+        $data = $request->validated();
+        $this->cekLingkupDokumen($request, $tipe, $data);
 
         $row = DB::transaction(function () use ($request, $tipe, $data) {
             $berkas = $request->file('file');
@@ -434,13 +437,10 @@ class DokumenController extends Controller
 
     /** GET /api/admin/dokumen/{tipe}/status-berkas — status byte server per
      *  nama (batch ≤100, sinkronus tanpa antrean untuk shared hosting). */
-    public function statusBerkas(Request $request, string $tipe): JsonResponse
+    public function statusBerkas(DokumenStatusBerkasRequest $request, string $tipe): JsonResponse
     {
         $this->cekTipe($tipe);
-        $data = $request->validate([
-            'nama' => ['required', 'array', 'max:100'],
-            'nama.*' => ['required', 'string', 'max:255'],
-        ]);
+        $data = $request->validated();
 
         $disk = Storage::disk('local');
         $hasil = [];
@@ -657,34 +657,9 @@ class DokumenController extends Controller
         return $r;
     }
 
-    /** Validasi store per tipe (pemilik wajib sesuai tipe; lingkup lembaga dicek). */
-    private function validasi(Request $request, string $tipe): array
+    /** Cek lingkup lembaga untuk payload store (bentuk sudah divalidasi FormRequest). */
+    private function cekLingkupDokumen(Request $request, string $tipe, array $data): void
     {
-        $aturanPemilik = match ($tipe) {
-            'santri' => ['required', 'integer', 'exists:santri,id'],
-            'pegawai' => ['required', 'integer', 'exists:pegawai,id'],
-            'lembaga' => ['required', 'string', 'exists:lembaga,jenjang'],
-        };
-
-        $data = $request->validate([
-            'santri_id' => $tipe === 'santri' ? $aturanPemilik : ['prohibited'],
-            'pegawai_id' => $tipe === 'pegawai' ? $aturanPemilik : ['prohibited'],
-            'jenjang' => $tipe === 'lembaga' ? $aturanPemilik : ($tipe === 'pegawai' ? ['required', 'string', 'exists:lembaga,jenjang'] : ['nullable', 'string']),
-            'jenis_dokumen' => ['required', 'string', 'max:100'],
-            // Kolom status hanya tersisa di tabel lembaga.
-            'status_verifikasi' => $tipe === 'lembaga' ? ['sometimes', 'in:menunggu,valid,ditolak'] : ['prohibited'],
-            // Konteks lembaga pemakaian hanya ada di tabel santri.
-            'lembaga' => $tipe === 'santri' ? ['sometimes', 'nullable', 'string', 'exists:lembaga,jenjang'] : ['prohibited'],
-            'catatan' => ['nullable', 'string'],
-            // Pegawai bebas semua jenis berkas; santri/lembaga tetap gambar/PDF.
-            'file' => $tipe === 'pegawai'
-                ? ['nullable', 'file', 'max:10240']
-                : ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:10240'],
-            // Simpanan lokal/test (dev): tanpa byte, nama dicadangkan untuk arsip perangkat.
-            'tujuan' => ['sometimes', 'in:server,lokal,test'],
-            'ekstensi' => ['sometimes', 'nullable', 'string', 'regex:/^[a-z0-9]{2,5}$/'],
-        ]);
-
         // Cakupan lembaga: pemilik harus milik lembaga yang boleh diakses.
         $auth = $request->user();
         if ($tipe === 'santri') {
@@ -706,8 +681,6 @@ class DokumenController extends Controller
         } elseif (! $auth->canAccessLembaga($data['jenjang'])) {
             throw ValidationException::withMessages(['jenjang' => 'Lembaga di luar lingkup akses Anda.']);
         }
-
-        return $data;
     }
 
     /** Baris pegawai segar dengan is_active boolean (kontrak API). */

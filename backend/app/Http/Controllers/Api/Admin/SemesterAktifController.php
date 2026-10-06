@@ -5,11 +5,11 @@ namespace App\Http\Controllers\Api\Admin;
 use App\Http\Controllers\Api\Concerns\TenantGuard;
 use App\Http\Controllers\Api\Concerns\UrutDaftar;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\SemesterAktifUpsertRequest;
 use App\Models\Lembaga;
 use App\Models\SemesterAktif;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 /**
  * Semester aktif per lembaga operasional ('1' = Ganjil, '2' = Genap).
@@ -49,12 +49,9 @@ class SemesterAktifController extends Controller
     }
 
     /** PUT /api/admin/semester-aktif — tetapkan semester aktif satu lembaga. */
-    public function upsert(Request $request): JsonResponse
+    public function upsert(SemesterAktifUpsertRequest $request): JsonResponse
     {
-        $data = $request->validate([
-            'jenjang' => ['required', 'string', 'exists:lembaga,jenjang'],
-            'semester' => ['required', Rule::in(['1', '2'])],
-        ]);
+        $data = $request->validated();
 
         $auth = $request->user();
         $this->authorizeLembaga($auth, $data['jenjang']);
