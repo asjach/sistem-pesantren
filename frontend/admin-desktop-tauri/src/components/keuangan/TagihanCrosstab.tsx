@@ -65,22 +65,66 @@ function kelasSel(sel: CrosstabSel): string {
     : 'bg-muted/40 text-muted-foreground';
 }
 
-function tanggalPanjang(iso: string): string {
+/** "10 Agu 2025" untuk tooltip; input ISO date. */
+export function tanggalPanjang(iso: string): string {
   const [y, b, h] = iso.split('-');
   return `${h} ${BULAN[Number(b) - 1]} ${y}`;
 }
 
-/** Tooltip sel: sisa + jatuh tempo + status-sdkterminasi. */
-function judulSel(sel: CrosstabSel, label: string): string {
-  const nominal = `sisa Rp ${sel.sisa.toLocaleString('id')}`;
-  const tempo = sel.jatuh_tempo === null
-    ? 'tanpa batas jatuh tempo'
-    : `jatuh tempo ${tanggalPanjang(sel.jatuh_tempo)}`;
-  const status = sel.status === 'lunas'
-    ? 'lunas'
-    : (sel.terlambat ? 'TERLAMBAT' : 'belum jatuh tempo');
+/** "Juli 2025" dari periode bulanan 'YYYY-MM'. */
+function periodePanjang(periode: string): string {
+  const [y, b] = periode.split('-');
+  return `${BULAN[Number(b) - 1] ?? b} ${y}`;
+}
 
-  return `${label} — ${nominal} · ${tempo} · ${status}`;
+/** Baris tooltip hover: rincian tagihan per sel. */
+interface TooltipSel {
+  nama: string;
+  jenisNama: string;
+  tipe: CrosstabKolom['tipe'];
+  periode: string | null;
+  nominal: number;
+  terbayar: number;
+  sisa: number;
+  status: CrosstabSel['status'];
+  terlambat: boolean;
+  jatuhTempo: string | null;
+}
+
+function TooltipTagihan({ data }: { data: TooltipSel }) {
+  const status = data.status === 'lunas'
+    ? 'Lunas'
+    : data.terlambat ? 'Tunggakan' : 'Belum jatuh tempo';
+
+  return (
+    <div className="pointer-events-none fixed z-50 w-56 rounded-lg border bg-popover p-2.5 text-xs shadow-md">
+      <p className="font-semibold">{data.nama}</p>
+      <dl className="mt-1.5 grid grid-cols-[auto_1fr] gap-x-2 gap-y-1">
+        <dt className="text-muted-foreground">Nama Tarif</dt>
+        <dd className="text-right">{data.jenisNama}</dd>
+        {data.tipe === 'bulanan' && data.periode !== null && (
+          <>
+            <dt className="text-muted-foreground">Periode</dt>
+            <dd className="text-right">{periodePanjang(data.periode)}</dd>
+          </>
+        )}
+        <dt className="text-muted-foreground">Nominal Tagihan</dt>
+        <dd className="text-right tabular-nums">Rp {data.nominal.toLocaleString('id')}</dd>
+        <dt className="text-muted-foreground">Nominal Terbayar</dt>
+        <dd className="text-right tabular-nums">Rp {data.terbayar.toLocaleString('id')}</dd>
+        <dt className="text-muted-foreground">Sisa</dt>
+        <dd className={`text-right font-semibold tabular-nums ${data.sisa > 0 ? 'text-destructive' : ''}`}>
+          Rp {data.sisa.toLocaleString('id')}
+        </dd>
+      </dl>
+      <p className="mt-2 border-t pt-1.5 text-[11px] text-muted-foreground">
+        {status}
+        {data.jatuhTempo === null
+          ? ' · tanpa batas jatuh tempo'
+          : ` · jatuh tempo ${tanggalPanjang(data.jatuhTempo)}`}
+      </p>
+    </div>
+  );
 }
 
 /** Tabel silang tagihan: baris = santri, kolom = jenis (bulanan per bulan).
@@ -95,6 +139,8 @@ export default function TagihanCrosstab({ data, loading, terpilihId, onPilih, em
   // menembus header saat digulir.
   const grupRef = useRef<HTMLTableRowElement>(null);
   const [tinggiGrup, setTinggiGrup] = useState(0);
+  /** Sel yang sedang di-hover + posisi kursor (tooltip rincian, bukan `title`). */
+  const [hover, setHover] = useState<{ isi: TooltipSel; x: number; y: number } | null>(null);
   useLayoutEffect(() => {
     const el = grupRef.current;
     if (!el) return;
@@ -158,13 +204,21 @@ export default function TagihanCrosstab({ data, loading, terpilihId, onPilih, em
                   return <td key={k.key} className="border-b border-r p-1.5 text-center text-muted-foreground/40">·</td>;
                 }
                 const dipilih = terpilihId === sel.id;
+                const isiTooltip: TooltipSel = {
+                  nama: r.nama, jenisNama: k.jenis_nama, tipe: k.tipe, periode: k.periode,
+                  nominal: sel.nominal, terbayar: sel.terbayar, sisa: sel.sisa,
+                  status: sel.status, terlambat: sel.terlambat, jatuhTempo: sel.jatuh_tempo,
+                };
                 return (
                   <td key={k.key} className="border-b border-r p-0.5">
                     <button
                       type="button"
                       id={`btn_tagihan_sel_${sel.id}`}
                       onClick={() => onPilih(sel, { nama: r.nama, label: labelSel(k) })}
-                      title={`${judulSel(sel, `${labelSel(k)} · ${r.nama}`)}`}
+                      onMouseEnter={(e) => setHover({ isi: isiTooltip, x: e.clientX, y: e.clientY })}
+                      onMouseMove={(e) => setHover((h) => (h === null ? h : { ...h, x: e.clientX, y: e.clientY }))}
+                      onMouseLeave={() => setHover(null)}
+                      aria-describedby={hover?.isi === isiTooltip ? 'tip_tagihan_sel' : undefined}
                       className={`w-full rounded px-1.5 py-1 text-right tabular-nums hover:ring-1 hover:ring-ring ${kelasSel(sel)} ${sel.terlambat ? 'font-semibold' : ''} ${dipilih ? 'ring-2 ring-ring' : ''}`}
                     >
                       {sel.nominal.toLocaleString('id')}
@@ -188,6 +242,18 @@ export default function TagihanCrosstab({ data, loading, terpilihId, onPilih, em
           )}
         </tbody>
       </table>
+      {hover !== null && (
+        <div
+          id="tip_tagihan_sel"
+          role="tooltip"
+          style={{
+            left: Math.min(hover.x + 12, (typeof window === 'undefined' ? 0 : window.innerWidth) - 240),
+            top: hover.y + 18,
+          }}
+        >
+          <TooltipTagihan data={hover.isi} />
+        </div>
+      )}
     </div>
   );
 }

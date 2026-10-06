@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { CrosstabBaris, CrosstabKolom, CrosstabSel } from '@/api/keuangan';
@@ -63,30 +64,46 @@ describe('warna sel crosstab menurut jatuh tempo', () => {
   });
 });
 
-describe('tooltip sel crosstab', () => {
-  it('menyebut TUNGGAKAN dan tanggal jatuh tempo', () => {
+describe('tooltip hover sel crosstab', () => {
+  async function hoverSel(i: number) {
+    const tombol = screen.getAllByRole('button', { name: '50.000' })[i];
+    await userEvent.hover(tombol);
+    return screen.getByRole('tooltip');
+  }
+
+  it('menampilkan nama, tarif, nominal, terbayar, sisa, dan periode bulanan', async () => {
     renderCrosstab(baris(sel({ terlambat: true }), sel({ id: 2 })));
-    const tooltip = screen.getAllByRole('button', { name: '50.000' })[0].getAttribute('title') ?? '';
-    expect(tooltip).toContain('TERLAMBAT');
-    expect(tooltip).toContain('jatuh tempo 10 Agu 2025');
+    const tip = await hoverSel(0);
+    expect(tip).toHaveTextContent('Santri Uji');
+    expect(tip).toHaveTextContent('Nama Tarif');
+    expect(tip).toHaveTextContent('Infaq Bulanan');
+    expect(tip).toHaveTextContent('Periode');
+    expect(tip).toHaveTextContent('Jul 2025');
+    expect(tip).toHaveTextContent('Rp 50.000');
   });
 
-  it('menyebut "belum jatuh tempo" bila belum lewat', () => {
+  it('menandai TUNGGAKAN + tanggal jatuh tempo', async () => {
     renderCrosstab(baris(sel({ terlambat: true }), sel({ id: 2 })));
-    const tooltip = screen.getAllByRole('button', { name: '50.000' })[1].getAttribute('title') ?? '';
-    expect(tooltip).toContain('belum jatuh tempo');
-    expect(tooltip).not.toContain('TERLAMBAT');
+    const tip = await hoverSel(0);
+    expect(tip).toHaveTextContent('Tunggakan');
+    expect(tip).toHaveTextContent('jatuh tempo 10 Agu 2025');
   });
 
-  it('tanpa batas = langsung TUNGGAKAN', () => {
+  it('menandai belum jatuh tempo bila belum lewat', async () => {
+    renderCrosstab(baris(sel({ terlambat: true }), sel({ id: 2 })));
+    const tip = await hoverSel(1);
+    expect(tip).toHaveTextContent('Belum jatuh tempo');
+    expect(tip).not.toHaveTextContent('Tunggakan');
+  });
+
+  it('tanpa batas = Tunggakan, tanpa baris Periode', async () => {
     renderCrosstab(baris(
       sel({ jatuh_tempo: null, terlambat: true }),
       sel({ id: 2, jatuh_tempo: null, terlambat: true }),
     ));
-    for (const tombol of screen.getAllByRole('button')) {
-      expect(tombol.getAttribute('title')).toContain('tanpa batas jatuh tempo');
-      expect(tombol.className).toContain('text-destructive');
-    }
+    const tip = await hoverSel(0);
+    expect(tip).toHaveTextContent('Tunggakan');
+    expect(tip).toHaveTextContent('tanpa batas jatuh tempo');
   });
 });
 
