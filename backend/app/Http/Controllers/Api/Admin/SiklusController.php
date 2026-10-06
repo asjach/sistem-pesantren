@@ -738,40 +738,54 @@ class SiklusController extends Controller
         })->values()->all();
 
         // Usia per tingkat: rata-rata + sebaran kelompok umur (dari tgl_lahir santri).
-        $usiaPerTingkat = [];
-        $riwayatTingkat = (clone $riwayatQuery())
+        // Diakumulasi per 500 baris (chunkById) supaya seluruh riwayat tidak masuk
+        // memori sekaligus pada lembaga besar; hasilnya sama dengan groupBy lama.
+        /** @var array<string, array{jumlah: int, total: int, min: int, max: int, kelompok: array<string, int>}> $usiaAkumulasi */
+        $usiaAkumulasi = [];
+        (clone $riwayatQuery())
+            ->select(['riwayat_belajar.id', 'riwayat_belajar.tingkat', 'riwayat_belajar.santri_id'])
             ->with(['santri:id,tgl_lahir'])
-            ->get()
-            ->groupBy(fn (RiwayatBelajar $r) => (string) ($r->tingkat ?? ''));
-
-        foreach ($riwayatTingkat as $tingkat => $baris) {
-            $usia = $baris->map(fn (RiwayatBelajar $r) => $r->santri?->tgl_lahir?->age)
-                ->filter(fn ($u) => $u !== null);
-
-            if ($usia->isEmpty()) {
-                continue;
-            }
-            $kelompok = ['<7' => 0, '7-9' => 0, '10-12' => 0, '13-15' => 0, '>=16' => 0];
-            foreach ($usia as $u) {
-                if ($u < 7) {
-                    $kelompok['<7']++;
-                } elseif ($u <= 9) {
-                    $kelompok['7-9']++;
-                } elseif ($u <= 12) {
-                    $kelompok['10-12']++;
-                } elseif ($u <= 15) {
-                    $kelompok['13-15']++;
-                } else {
-                    $kelompok['>=16']++;
+            ->chunkById(500, function ($baris) use (&$usiaAkumulasi): void {
+                foreach ($baris as $r) {
+                    $umur = $r->santri?->tgl_lahir?->age;
+                    if ($umur === null) {
+                        continue;
+                    }
+                    $kunci = (string) ($r->tingkat ?? '');
+                    $usiaAkumulasi[$kunci] ??= [
+                        'jumlah' => 0,
+                        'total' => 0,
+                        'min' => $umur,
+                        'max' => $umur,
+                        'kelompok' => ['<7' => 0, '7-9' => 0, '10-12' => 0, '13-15' => 0, '>=16' => 0],
+                    ];
+                    $usiaAkumulasi[$kunci]['jumlah']++;
+                    $usiaAkumulasi[$kunci]['total'] += $umur;
+                    $usiaAkumulasi[$kunci]['min'] = min($usiaAkumulasi[$kunci]['min'], $umur);
+                    $usiaAkumulasi[$kunci]['max'] = max($usiaAkumulasi[$kunci]['max'], $umur);
+                    if ($umur < 7) {
+                        $usiaAkumulasi[$kunci]['kelompok']['<7']++;
+                    } elseif ($umur <= 9) {
+                        $usiaAkumulasi[$kunci]['kelompok']['7-9']++;
+                    } elseif ($umur <= 12) {
+                        $usiaAkumulasi[$kunci]['kelompok']['10-12']++;
+                    } elseif ($umur <= 15) {
+                        $usiaAkumulasi[$kunci]['kelompok']['13-15']++;
+                    } else {
+                        $usiaAkumulasi[$kunci]['kelompok']['>=16']++;
+                    }
                 }
-            }
+            });
+
+        $usiaPerTingkat = [];
+        foreach ($usiaAkumulasi as $tingkat => $a) {
             $usiaPerTingkat[] = [
                 'tingkat' => $tingkat === '' ? null : (string) $tingkat,
-                'jumlah' => $usia->count(),
-                'rata_usia' => round($usia->avg(), 1),
-                'min' => $usia->min(),
-                'max' => $usia->max(),
-                'kelompok' => $kelompok,
+                'jumlah' => $a['jumlah'],
+                'rata_usia' => round($a['total'] / $a['jumlah'], 1),
+                'min' => $a['min'],
+                'max' => $a['max'],
+                'kelompok' => $a['kelompok'],
             ];
         }
         usort($usiaPerTingkat, fn ($a, $b) => strnatcasecmp((string) $a['tingkat'], (string) $b['tingkat']));
