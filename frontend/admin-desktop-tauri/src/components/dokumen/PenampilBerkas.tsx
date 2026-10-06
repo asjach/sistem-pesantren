@@ -28,13 +28,19 @@ import {
 } from '@/lib/olahGambar';
 import { Check, ChevronLeft, ChevronRight, Crop, Download, Focus, Fullscreen, Grid, ImageUp, Link2, Minus, Plus, RotateCcw, RotateCw, Ruler, Scaling, Unlink, X } from '@/icons';
 import { toast } from 'sonner';
-import type { PDFDocumentProxy, RenderTask } from 'pdfjs-dist';
+import GarisPanduan from './GarisPanduan';
+import {
+  POS_PANDUAN_BAWAN,
+  ZOOM_MAX,
+  ZOOM_MIN,
+  ekstensiDariNama,
+  formatMiring,
+  namaTanpaEkstensi,
+  type SumberBerkas,
+} from './penampilBerkasUtil';
+import { usePdfDokumen } from './usePdfDokumen';
 
-export interface SumberBerkas {
-  bytes: Uint8Array;
-  mime: string;
-  nama: string;
-}
+export type { SumberBerkas } from './penampilBerkasUtil';
 
 interface Props {
   sumber: SumberBerkas | null;
@@ -52,135 +58,6 @@ interface Props {
   onProses?: (sibuk: boolean) => void;
 }
 
-const ZOOM_MIN = 0.25;
-const ZOOM_MAX = 4;
-
-function pasangWorkerPdf(): Promise<typeof import('pdfjs-dist')> {
-  return import('pdfjs-dist').then(async (pdfjs) => {
-    if (!pdfjs.GlobalWorkerOptions.workerSrc) {
-      const { default: workerUrl } = await import('pdfjs-dist/build/pdf.worker.min.mjs?url');
-      pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
-    }
-    return pdfjs;
-  });
-}
-
-function ekstensiDariNama(nama: string): string {
-  const i = nama.lastIndexOf('.');
-  return i >= 0 ? nama.slice(i + 1).toLowerCase() : '';
-}
-
-function formatMiring(v: number): string {
-  const r = Math.round(v * 10) / 10;
-  return `${Number.isInteger(r) ? r : r.toFixed(1)}°`;
-}
-
-/** Posisi bawaan garis acuan (fraksi): tengah + sepertiga. */
-const POS_PANDUAN_BAWAN = { v: [1 / 3, 1 / 2, 2 / 3], h: [1 / 3, 1 / 2, 2 / 3] };
-
-/** Satu garis acuan putus-putus yang bisa digeser (seret/keyboard/klik-ganda reset). */
-function GarisPanduan({
-  id,
-  vertikal,
-  fraksi,
-  bawaan,
-  tengah,
-  label,
-  warna,
-  padaUbah,
-}: {
-  id: string;
-  vertikal: boolean;
-  fraksi: number;
-  bawaan: number;
-  tengah: boolean;
-  label: string;
-  warna: string;
-  padaUbah: (f: number) => void;
-}) {
-  const seret = useRef<{ dasar: number } | null>(null);
-
-  function mulaiSeret(e: React.PointerEvent) {
-    if (e.button !== 0) return;
-    seret.current = { dasar: fraksi };
-    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
-  }
-
-  function gerakSeret(e: React.PointerEvent) {
-    const s = seret.current;
-    if (!s || !(e.buttons & 1)) return;
-    const kotak = (e.currentTarget as HTMLElement).parentElement?.getBoundingClientRect();
-    if (!kotak) return;
-    const pos = vertikal ? e.clientX - kotak.left : e.clientY - kotak.top;
-    const ukuran = vertikal ? kotak.width : kotak.height;
-    if (ukuran <= 0) return;
-    padaUbah(Math.min(1, Math.max(0, pos / ukuran)));
-  }
-
-  function tombol(e: React.KeyboardEvent) {
-    const langkah = e.shiftKey ? 0.1 : 0.01;
-    const kurang = vertikal ? ['ArrowLeft', 'ArrowDown'] : ['ArrowUp', 'ArrowLeft'];
-    const tambah = vertikal ? ['ArrowRight', 'ArrowUp'] : ['ArrowDown', 'ArrowRight'];
-    if (kurang.includes(e.key)) {
-      e.preventDefault();
-      padaUbah(Math.min(1, Math.max(0, fraksi - langkah)));
-    } else if (tambah.includes(e.key)) {
-      e.preventDefault();
-      padaUbah(Math.min(1, Math.max(0, fraksi + langkah)));
-    } else if (e.key === 'Home') {
-      e.preventDefault();
-      padaUbah(0);
-    } else if (e.key === 'End') {
-      e.preventDefault();
-      padaUbah(1);
-    }
-  }
-
-  const persen = Math.round(fraksi * 100);
-  return (
-    <div
-      id={id}
-      role="slider"
-      tabIndex={0}
-      data-seret
-      aria-label={label}
-      aria-valuemin={0}
-      aria-valuemax={100}
-      aria-valuenow={persen}
-      aria-valuetext={`${persen}%`}
-      onPointerDown={mulaiSeret}
-      onPointerMove={gerakSeret}
-      onPointerUp={() => { seret.current = null; }}
-      onPointerCancel={() => { seret.current = null; }}
-      onDoubleClick={() => padaUbah(bawaan)}
-      onKeyDown={tombol}
-      title={`${label} — seret untuk geser, klik ganda untuk kembali`}
-      className={cn(
-        'pointer-events-auto absolute touch-none rounded outline-none select-none focus-visible:bg-white/15',
-        vertikal
-          ? 'inset-y-0 w-[9px] -translate-x-1/2 cursor-ew-resize'
-          : 'inset-x-0 h-[9px] -translate-y-1/2 cursor-ns-resize',
-      )}
-      style={vertikal ? { left: `${persen}%` } : { top: `${persen}%` }}
-    >
-      <span
-        aria-hidden
-        className={cn(
-          'absolute border-dashed',
-          vertikal
-            ? 'inset-y-0 left-1/2 border-l'
-            : 'inset-x-0 top-1/2 border-t',
-        )}
-        style={{ borderColor: warna, opacity: tengah ? 0.9 : 0.45 }}
-      />
-    </div>
-  );
-}
-
-function namaTanpaEkstensi(nama: string): string {
-  const i = nama.lastIndexOf('.');
-  return i >= 0 ? nama.slice(0, i) : nama;
-}
 
 interface RectBox {
   x: number;
@@ -395,81 +272,7 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
   }, [memproses]);
 
   // ----- PDF: dokumen + render halaman -----
-  const [dokPdf, setDokPdf] = useState<PDFDocumentProxy | null>(null);
-  const [halPdf, setHalPdf] = useState(1);
-  const [totalHal, setTotalHal] = useState(0);
-  const [galatPdf, setGalatPdf] = useState('');
-  const kanvasRef = useRef<HTMLCanvasElement | null>(null);
-
-  useEffect(() => {
-    if (!sumber || !pdf) {
-      setDokPdf(null);
-      setTotalHal(0);
-      setHalPdf(1);
-      setGalatPdf('');
-      return;
-    }
-    let hidup = true;
-    let dok: PDFDocumentProxy | null = null;
-    setGalatPdf('');
-    pasangWorkerPdf()
-      .then((pdfjs) => pdfjs.getDocument({ data: sumber.bytes.slice() }).promise)
-      .then((d) => {
-        if (!hidup) {
-          void d.destroy();
-          return;
-        }
-        dok = d;
-        setDokPdf(d);
-        setTotalHal(d.numPages);
-        setHalPdf(1);
-      })
-      .catch((e) => {
-        if (hidup) {
-          setGalatPdf(errorMessage(e));
-          toast.error(errorMessage(e));
-        }
-      });
-    return () => {
-      hidup = false;
-      if (dok) void dok.destroy();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sumber]);
-
-  useEffect(() => {
-    const kanvas = kanvasRef.current;
-    if (!dokPdf || !kanvas || halPdf < 1) return;
-    let batal = false;
-    let tugas: RenderTask | null = null;
-    (async () => {
-      try {
-        const hal = await dokPdf.getPage(Math.min(halPdf, dokPdf.numPages));
-        if (batal) return;
-        const dasar = hal.getViewport({ scale: 1 });
-        const skala = Math.max(0.2, ((ukuranWadah.w || dasar.width) / dasar.width) * zoom);
-        const pandang = hal.getViewport({ scale: skala });
-        const dpr = Math.min(window.devicePixelRatio || 1, 2);
-        kanvas.width = Math.round(pandang.width * dpr);
-        kanvas.height = Math.round(pandang.height * dpr);
-        kanvas.style.width = `${Math.round(pandang.width)}px`;
-        kanvas.style.height = `${Math.round(pandang.height)}px`;
-        const ctx = kanvas.getContext('2d');
-        if (!ctx || batal) return;
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        tugas = hal.render({ canvas: kanvas, canvasContext: ctx, viewport: pandang });
-        await tugas.promise;
-      } catch (e) {
-        if (!batal && (e as Error)?.name !== 'RenderingCancelledException') {
-          setGalatPdf(errorMessage(e));
-        }
-      }
-    })();
-    return () => {
-      batal = true;
-      tugas?.cancel();
-    };
-  }, [dokPdf, halPdf, zoom, ukuranWadah]);
+  const { dokPdf, halPdf, setHalPdf, totalHal, galatPdf, kanvasRef } = usePdfDokumen({ aktif: pdf, sumber, zoom, ukuranWadah });
 
   // ----- Crop gambar: baru / pindah / ubah-sudut, komit eksplisit via Terapkan -----
   type SeretCrop =
