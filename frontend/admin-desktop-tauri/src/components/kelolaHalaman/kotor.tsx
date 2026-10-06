@@ -2,9 +2,13 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, typ
 
 /** Registri bagian dialog Kelola Tabel / Filter Halaman.
  *
- *  Semua bagian tampil sekaligus (tanpa tab) dan kini memakai satu tombol
- *  Simpan di footer. Tiap bagian mendaftarkan dua hal ke cangkang: status
- *  "kotor" (ada perubahan belum tersimpan) dan fungsi simpannya. */
+ *  Semua bagian memakai satu tombol Simpan di footer. Tiap bagian
+ *  mendaftarkan dua hal ke cangkang: status "kotor" (ada perubahan belum
+ *  tersimpan) dan fungsi simpannya.
+ *
+ *  Dialog Kelola Tabel menaruh tiap bagian di tab sendiri, tapi panelnya
+ *  `forceMount` — registration di bawah tetap hidup walau tab tidak aktif,
+ *  jadi bagian yang sudah dikotori tidak diam-diam lepas dari Simpan. */
 /** Aksi ikon di kanan judul bagian (mis. "Kembalikan bawaan"). */
 export interface AksiBagian {
   label: string;

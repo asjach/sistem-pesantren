@@ -5,6 +5,7 @@ import { useCallback, useState } from 'react';
 import TabNamaPerataan from './TabNamaPerataan';
 import { BagianProvider, useRegistriBagian } from '@/components/kelolaHalaman/kotor';
 import { renderDenganTema } from '@/test/utils';
+import { kanonLabel } from '@/lib/labelKolom';
 
 vi.mock('@/api/toolbarPreset', () => ({
   muatToolbarPreset: vi.fn(async () => ({
@@ -29,6 +30,7 @@ const fields = [
 /** Harness dengan state nama nyata + menangkap fungsi simpan section. */
 function renderTampilan(labelAwal: Record<string, string> = { nama: 'Nama Santri' }) {
   const simpanRef: { current: (() => void) | null } = { current: null };
+  const labelAwalRef = { current: kanonLabel(labelAwal) };
   function Harness() {
     const [label, setLabel] = useState(labelAwal);
     const lapor = useCallback(() => {}, []);
@@ -45,6 +47,7 @@ function renderTampilan(labelAwal: Record<string, string> = { nama: 'Nama Santri
           fieldKeys={new Set(['nama', 'kode'])}
           label={label}
           setLabel={setLabel}
+          labelAwalRef={labelAwalRef}
         />
       </BagianProvider>
     );

@@ -6,7 +6,7 @@ import {
   type AlignKolomApi,
 } from '../../api/toolbarPreset';
 import { Input } from '@/components/ui/input';
-import { labelKolom } from '@/lib/labelKolom';
+import { kanonLabel, labelKolom } from '@/lib/labelKolom';
 import { useBagian } from '@/components/kelolaHalaman/kotor';
 import { useLembagaAktif } from '@/lembagaAktif';
 import { cn } from '@/lib/utils';
@@ -30,6 +30,7 @@ export default function TabNamaPerataan({
   fieldKeys,
   label,
   setLabel,
+  labelAwalRef,
 }: {
   tableKey: string;
   fields: ExcelField[];
@@ -37,6 +38,8 @@ export default function TabNamaPerataan({
   /** Nama header kustom (milik induk; dipakai section Kolom saat simpan preset). */
   label: Record<string, string>;
   setLabel: Dispatch<SetStateAction<Record<string, string>>>;
+  /** Acuan nama tersimpan (dipemilik section Kolom). */
+  labelAwalRef: { current: string };
 }) {
   /** Nama & perataan = pengaturan global super_admin EFEKTIF (mati saat
    *  bertindak; lapis pertahanan kedua karena dialog pun hanya untuk
@@ -51,9 +54,18 @@ export default function TabNamaPerataan({
     () => kanonAlign(align) !== alignAwalRef.current,
     [align],
   );
+  /* Nama kolom dicoret di tab ini tapi BENYARANNYA disimpan section Kolom
+     (preset). Section Kolom memang menandai dirinya kotor karena itu, tapi
+     kalau hanya dia yang menyala, penandanya muncul di tab yang tidak sedang
+     dilihat user. Ikut tandai di sini supaya saat mengetik nama, tab tempat
+     user berada ikut memberi tahu ada yang belum tersimpan. */
+  const kotorLabel = useCallback(
+    () => kanonLabel(label) !== labelAwalRef.current,
+    [label, labelAwalRef],
+  );
   useEffect(() => {
-    laporKotor(kotorAlign());
-  }, [kotorAlign, laporKotor]);
+    laporKotor(kotorAlign() || kotorLabel());
+  }, [kotorAlign, kotorLabel, laporKotor]);
 
   const labelOf = useCallback(
     (f: ExcelField) => labelKolom(f.label) || labelKolom(f.key),
@@ -145,7 +157,7 @@ export default function TabNamaPerataan({
     <div className="flex flex-col gap-2">
       <div className="rounded-md border">
         {/* Kepala kolom: nama bawaan, kolom edit langsung, perataan. */}
-        <div className="flex items-center gap-1.5 border-b bg-muted/30 px-1.5 py-1 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+        <div className="sticky top-0 z-10 flex items-center gap-1.5 border-b bg-card/95 px-1.5 py-1 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase backdrop-blur-sm">
           <span className="min-w-0 flex-1">Nama</span>
           <span className="min-w-0 flex-[2]">Edit</span>
           {/* Kolom perataan selebar tombol ikon (w-5), jadi judulnya ditulis

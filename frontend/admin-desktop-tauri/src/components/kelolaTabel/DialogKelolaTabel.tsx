@@ -27,15 +27,15 @@ import {
 import { BagianProvider, useRegistriBagian, type AksiBagian, type HasilSimpan } from '@/components/kelolaHalaman/kotor';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { RotateCcw } from '@/icons';
-import { cn } from '@/lib/utils';
 import { bersihLabel, kanonLabel } from '@/lib/labelKolom';
 import { toast } from 'sonner';
 import type { ExcelField } from '../excel/types';
-import TabKolom from './TabKolom';
+import TabKolom, { type TabKolomProps } from './TabKolom';
 import TabNamaPerataan from './TabNamaPerataan';
 import TabUrutan from './TabUrutan';
 import TabKontrol from './TabKontrol';
 import TabFilterTabel from './TabFilterTabel';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { EVENT_PRESET_BERUBAH } from './jenis';
 import type { KunciFilterGlobal } from '@/components/VisibilitasFilter';
 import type { ModeSemuaFilterGlobal, TampilFilterGlobal } from '@/lib/filterHalaman';
@@ -45,21 +45,13 @@ function kabariPreset(tableKey: string) {
   window.dispatchEvent(new CustomEvent(EVENT_PRESET_BERUBAH, { detail: { tableKey } }));
 }
 
-/** Isi section Kolom + Nama & Perataan untuk satu tabel: lem preset kolom
+/** State bersama tab Kolom + Nama & Perataan untuk satu tabel: preset kolom
  *  (cermin logika `PresetKolom`, tanpa dropdown pemilih) plus editor nama
- *  header & perataan — hasil simpan diterapkan ke grid lewat event agar grid
- *  terkait menyegarkan dirinya sendiri. State nama header diangkat ke sini
- *  agar section Kolom (simpan preset) dan Nama & Perataan (edit) sinkron. */
-function KelolaKolomTabel({
-  tableKey,
-  fields,
-  aksi,
-}: {
-  tableKey: string;
-  fields: ExcelField[];
-  /** Aksi ikon section Kolom (togol tampil/sembunyi semua) dari registri induk. */
-  aksi?: AksiBagian;
-}) {
+ *  header & perataan. Keduanya mengedit hal yang sama (susunan kolom + nama
+ *  header kustom) dan sekarang duduk di tab berbeda, jadi state-nya harus
+ *  hidup di satu tempat di luar tab — state lokal tiap tab baru di-reset
+ *  lewat `nonce` saat preset dibuka ulang. */
+function useKelolaKolom({ tableKey, fields }: { tableKey: string; fields: ExcelField[] }) {
   const [presets, setPresets] = useState<PresetTabel[]>([]);
   const [bawaanId, setBawaanId] = useState<number | null>(null);
   /** Preset yang dibuka + mulai-lengkap + penanda remount (agar state lokal
@@ -133,60 +125,51 @@ function KelolaKolomTabel({
       .catch((e: unknown) => toast.error(errorMessage(e)));
   }, [fieldKeys, tableKey]);
 
-  return (
-    /* Kolom (kiri) dan Nama & Perataan (kanan) berdampingan; menumpuk di
-       layar sempit. */
-    <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
-      <Bagian id="bagian_kolom_tabel" judul="Kolom" aksi={aksi}>
-        <TabKolom
-          key={kelola.nonce}
-          tableKey={tableKey}
-          fields={fields}
-          kolomAwal={kelola.kolomAwal}
-          fieldKeys={fieldKeys}
-          presets={presets}
-          presetAwal={kelola.preset}
-          mulaiLengkap={kelola.lengkap}
-          onPilihLengkap={() => {
-            setLabel({});
-            labelAwalRef.current = kanonLabel({});
-            setKelola((s) => ({ preset: null, lengkap: true, kolomAwal: null, nonce: s.nonce + 1 }));
-          }}
-          bawaanId={bawaanId}
-          onPilihPreset={(p) => {
-            const bersih = bersihLabel(p?.label ?? null, fieldKeys);
-            setLabel(bersih);
-            labelAwalRef.current = kanonLabel(bersih);
-            setKelola((s) => ({ preset: p, lengkap: false, kolomAwal: null, nonce: s.nonce + 1 }));
-          }}
-          onTersimpan={async (id) => {
-            await setPresetAktif(tableKey, id);
-            kabariPreset(tableKey);
-            await muat();
-          }}
-          onPakaiLengkap={pakaiLengkap}
-          onDihapus={async () => {
-            await setPresetAktif(tableKey, null);
-            kabariPreset(tableKey);
-            await muat();
-          }}
-          label={label}
-          setLabel={setLabel}
-          labelAwalRef={labelAwalRef}
-        />
-      </Bagian>
-      <Bagian id="bagian_nama_perataan_tabel" judul="Nama & Perataan">
-        <TabNamaPerataan
-          key={kelola.nonce}
-          tableKey={tableKey}
-          fields={fields}
-          fieldKeys={fieldKeys}
-          label={label}
-          setLabel={setLabel}
-        />
-      </Bagian>
-    </div>
-  );
+  const pilihLengkap = useCallback(() => {
+    setLabel({});
+    labelAwalRef.current = kanonLabel({});
+    setKelola((s) => ({ preset: null, lengkap: true, kolomAwal: null, nonce: s.nonce + 1 }));
+  }, []);
+  const pilihPreset = useCallback((p: PresetTabel | null) => {
+    const bersih = bersihLabel(p?.label ?? null, fieldKeys);
+    setLabel(bersih);
+    labelAwalRef.current = kanonLabel(bersih);
+    setKelola((s) => ({ preset: p, lengkap: false, kolomAwal: null, nonce: s.nonce + 1 }));
+  }, [fieldKeys]);
+  const tersimpan = useCallback(async (id: number) => {
+    await setPresetAktif(tableKey, id);
+    kabariPreset(tableKey);
+    await muat();
+  }, [muat, tableKey]);
+  const dihapus = useCallback(async () => {
+    await setPresetAktif(tableKey, null);
+    kabariPreset(tableKey);
+    await muat();
+  }, [muat, tableKey]);
+
+  return {
+    /** `key` untuk TabKolom & TabNamaPerataan: naik tiap preset dibuka ulang. */
+    nonce: kelola.nonce,
+    kolom: {
+      tableKey,
+      fields,
+      fieldKeys,
+      presets,
+      kolomAwal: kelola.kolomAwal,
+      presetAwal: kelola.preset,
+      mulaiLengkap: kelola.lengkap,
+      bawaanId,
+      label,
+      setLabel,
+      labelAwalRef,
+      onPilihLengkap: pilihLengkap,
+      onPilihPreset: pilihPreset,
+      onTersimpan: tersimpan,
+      onPakaiLengkap: pakaiLengkap,
+      onDihapus: dihapus,
+    } satisfies TabKolomProps,
+    namaPerataan: { tableKey, fields, fieldKeys, label, setLabel, labelAwalRef },
+  };
 }
 
 /** Bagian dialog: judul + isi, tanpa tab.
@@ -205,19 +188,23 @@ export function Bagian({ id, judul, aksi, children }: {
       <div className="flex items-center gap-2">
         <h3 className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">{judul}</h3>
         {aksi ? (
+          /* Label ikut tampil, bukan hanya tooltip: di dialog ini tiap bagian
+             punya tab sendiri, jadi tidak lagi banyak ikon ↺ yangbertumpuk
+             dan ikon polos jadi tak terbaca. */
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 type="button"
                 variant="ghost"
-                size="icon-xs"
+                size="xs"
                 id={aksi.idTombol ?? `btn_kembalikan_${id}`}
-                className="ml-auto"
+                className="ml-auto gap-1.5 text-muted-foreground"
                 aria-label={aksi.label}
                 disabled={aksi.disabled}
                 onClick={aksi.onClick}
               >
                 {aksi.ikon ?? <RotateCcw />}
+                <span className="text-xs">{aksi.label}</span>
               </Button>
             </TooltipTrigger>
             <TooltipContent>
@@ -228,6 +215,26 @@ export function Bagian({ id, judul, aksi, children }: {
       </div>
       {children}
     </section>
+  );
+}
+
+/** Tab satu bagian. Titik amber = bagiannya punya perubahan belum
+ *  tersimpan; badge angka sengaja tidak dipakai (ramai di 5 tab), yang penting
+ *  user tahu "ada yang belum disimpan" tanpa harus membuka tabnya. */
+function TabBagian({ id, label, kotor }: { id: string; label: string; kotor: boolean }) {
+  return (
+    <TabsTrigger id={`tab_kelola_${id}`} value={id} className="gap-1.5">
+      {label}
+      {kotor ? (
+        <>
+          {/* Spasi eksplisit: `{label}` dan node ini berdempetan, tanpa
+              spasi keduanya menempel jadi "Nama & Perataan(belum tersimpan)". */}
+          {' '}
+          <span className="size-1.5 shrink-0 rounded-full bg-amber-500" aria-hidden="true" />
+          <span className="sr-only">(belum tersimpan)</span>
+        </>
+      ) : null}
+    </TabsTrigger>
   );
 }
 
@@ -259,8 +266,11 @@ export default function DialogKelolaTabel({
   /** Jumlah tabel halaman (untuk catatan merge filter). */
   jumlahTabel?: number;
 }) {
-  /** Status kotor per bagian (semua bagian tampil sekaligus). */
+  /** Status kotor per bagian (dipakai badge di tab + penanda simpan). */
   const [kotorBagian, setKotorBagian] = useState<Record<string, boolean>>({});
+  /** Tab aktif. Cada bagian punya tab sendiri supaya tidak perlu scroll jauh
+   *  mencari bagian; isi tab tetap ter-mount semua (lihat catatan TabsContent). */
+  const [tab, setTab] = useState('kolom');
   /** Fungsi simpan tiap bagian, dipakai tombol Simpan terpadu. */
   const simpanBagianRef = useRef<Record<string, () => HasilSimpan>>({});
   /** Aksi ikon tiap bagian (mis. kembalikan bawaan). */
@@ -333,44 +343,83 @@ export default function DialogKelolaTabel({
   }, [open, tableKey]);
 
   const adaFilter = filterRelevan.length > 0 && !!filterBawaan && !!filterModeBawaan;
+  // Hook tetap dipanggil tanpa syarat: `fields` boleh undefined (tab Kolom
+  // lalu menampilkan keterangan), tapi state Kolom/Nama & Perataan harus
+  // hidup terus supaya tidak hilang saat pindah tabel.
+  const kolom = useKelolaKolom({ tableKey, fields: fields ?? [] });
+
+  // Tab Filter tidak ada untuk tabel tanpa filter — jangan sampai panelnya
+  // yang sedang aktif lenyap (dialog tampak kosong).
+  useEffect(() => {
+    if (tab === 'filter' && !adaFilter) setTab('kolom');
+  }, [adaFilter, tab]);
+  /** Jumlah bagian yang belum tersimpan — dipakai badge di tab + footer. */
+  const jumlahKotor = useMemo(
+    () => ['kolom', 'tampilan', 'urutan', 'kontrol', 'filter'].filter((id) => kotorBagian[id]).length,
+    [kotorBagian],
+  );
 
   return (
     <Dialog open={open} onOpenChange={(v) => (v ? onOpenChange(true) : tutup())}>
-      <DialogContent className="!flex h-[85dvh] max-h-[85dvh] flex-col !overflow-hidden !p-2 sm:max-w-2xl lg:max-w-4xl [&>[data-slot=dialog-close]]:top-2 [&>[data-slot=dialog-close]]:right-2">
+      <DialogContent className="!flex h-[85dvh] max-h-[85dvh] flex-col !gap-0 !overflow-hidden !p-0 sm:max-w-2xl lg:max-w-4xl [&>[data-slot=dialog-close]]:top-2.5 [&>[data-slot=dialog-close]]:right-2.5">
         <BagianProvider value={registri}>
-          <DialogHeader className="shrink-0">
+          <DialogHeader className="shrink-0 gap-1 border-b px-4 py-3">
             <DialogTitle>Kelola tabel: {judul}</DialogTitle>
-            <DialogDescription className="sr-only">
-              Atur kolom, nama & perataan, urutan, toolbar, dan filter tabel ini.
+            <DialogDescription className="text-xs text-muted-foreground">
+              Atur kolom, nama & perataan, urutan, toolbar, dan filter tabel ini. Setiap tab tersimpan
+              sendiri lewat tombol Simpan di bawah.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-1">
-            {fields ? (
-              <KelolaKolomTabel key={tableKey} tableKey={tableKey} fields={fields} aksi={aksiBagian.kolom} />
-            ) : (
-              <Bagian id="bagian_kolom_tabel" judul="Kolom">
-                <p className="rounded-md border px-3 py-2 text-xs text-muted-foreground">
-                  Tabel “{judul}” tidak memakai preset kolom — kelola kolomnya dari toolbar tabel
-                  masing-masing.
-                </p>
+          <Tabs value={tab} onValueChange={setTab} className="flex min-h-0 flex-1 flex-col gap-0">
+            <TabsList variant="line" className="h-auto w-full shrink-0 justify-start gap-1 border-b px-3 py-1.5">
+              <TabBagian id="kolom" label="Kolom" kotor={!!kotorBagian.kolom} />
+              <TabBagian id="tampilan" label="Nama & Perataan" kotor={!!kotorBagian.tampilan} />
+              <TabBagian id="urutan" label="Urutan" kotor={!!kotorBagian.urutan} />
+              <TabBagian id="kontrol" label="Toolbar" kotor={!!kotorBagian.kontrol} />
+              {adaFilter && <TabBagian id="filter" label="Filter" kotor={!!kotorBagian.filter} />}
+            </TabsList>
+
+            {/* Semua panel `forceMount`: pindah tab tidak boleh membuang state
+                lokal tiap bagian (centang, penanda kotor) — kalau ter-unmount,
+                bagian yang sudah dikotori diam-diam tak ikut tersimpan. */}
+            <TabsContent value="kolom" forceMount className="min-h-0 flex-1 overflow-y-auto p-3 data-[state=inactive]:hidden">
+              <Bagian id="bagian_kolom_tabel" judul="Kolom" aksi={aksiBagian.kolom}>
+                {fields ? (
+                  <TabKolom key={`${tableKey}-${kolom.nonce}`} {...kolom.kolom} />
+                ) : (
+                  <p className="rounded-md border px-3 py-2 text-xs text-muted-foreground">
+                    Tabel “{judul}” tidak memakai preset kolom — kelola kolomnya dari toolbar tabel
+                    masing-masing.
+                  </p>
+                )}
               </Bagian>
-            )}
+            </TabsContent>
 
-            <Bagian id="bagian_urutan_tabel" judul="Urutan">
-              <TabUrutan key={tableKey} tableKey={tableKey} />
-            </Bagian>
+            <TabsContent value="tampilan" forceMount className="min-h-0 flex-1 overflow-y-auto p-3 data-[state=inactive]:hidden">
+              <Bagian id="bagian_nama_perataan_tabel" judul="Nama & Perataan">
+                {fields
+                  ? <TabNamaPerataan key={`${tableKey}-${kolom.nonce}`} {...kolom.namaPerataan} />
+                  : <p className="rounded-md border px-3 py-2 text-xs text-muted-foreground">
+                      Tabel “{judul}” tidak memakai preset kolom — nama header & perataan diatur dari toolbar tabel.
+                    </p>}
+              </Bagian>
+            </TabsContent>
 
-            {/* Toolbar (kiri) dan Filter (kanan) berdampingan; menumpuk di
-                layar sempit, dan Toolbar melebar penuh bila tabel tanpa filter. */}
-            <div className={cn(
-              'grid grid-cols-1 items-start gap-4',
-              adaFilter && 'lg:grid-cols-2',
-            )}>
+            <TabsContent value="urutan" forceMount className="min-h-0 flex-1 overflow-y-auto p-3 data-[state=inactive]:hidden">
+              <Bagian id="bagian_urutan_tabel" judul="Urutan">
+                <TabUrutan key={tableKey} tableKey={tableKey} />
+              </Bagian>
+            </TabsContent>
+
+            <TabsContent value="kontrol" forceMount className="min-h-0 flex-1 overflow-y-auto p-3 data-[state=inactive]:hidden">
               <Bagian id="bagian_toolbar_tabel" judul="Toolbar" aksi={aksiBagian.kontrol}>
                 <TabKontrol key={tableKey} tableKey={tableKey} />
               </Bagian>
-              {adaFilter ? (
+            </TabsContent>
+
+            {adaFilter ? (
+              <TabsContent value="filter" forceMount className="min-h-0 flex-1 overflow-y-auto p-3 data-[state=inactive]:hidden">
                 <Bagian id="bagian_filter_tabel" judul="Filter" aksi={aksiBagian.filter}>
                   <TabFilterTabel
                     tableKey={tableKey}
@@ -382,17 +431,25 @@ export default function DialogKelolaTabel({
                       : undefined}
                   />
                 </Bagian>
-              ) : null}
-            </div>
-          </div>
+              </TabsContent>
+            ) : null}
+          </Tabs>
 
-          <DialogFooter className="shrink-0 gap-2 pt-2">
+          <DialogFooter className="shrink-0 items-center gap-2 border-t px-4 py-3">
+            {/* Simpan nonaktif tanpa keterangan = form yang terlihat rusak;
+                beri tahu apa yang perlu dilakukan (atau belum ada apa-apa). */}
+            <p className="mr-auto text-xs text-muted-foreground" id="petunjuk_simpan_kelola_tabel">
+              {adaKotor
+                ? `${jumlahKotor} bagian belum tersimpan.`
+                : 'Tidak ada perubahan yang perlu disimpan.'}
+            </p>
             <Button type="button" variant="outline" id="btn_tutup_kelola_tabel" onClick={tutup}>
               Tutup
             </Button>
             <Button
               type="button"
               id="btn_simpan_kelola_tabel"
+              aria-describedby="petunjuk_simpan_kelola_tabel"
               disabled={!adaKotor || menyimpan}
               onClick={() => void simpanSemua()}
             >
