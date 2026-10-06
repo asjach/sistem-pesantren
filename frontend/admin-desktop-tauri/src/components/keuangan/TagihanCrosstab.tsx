@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { memo, useCallback, useLayoutEffect, useRef, useState } from 'react';
 
 import type { CrosstabBaris, CrosstabKolom, CrosstabSel, CrosstabTagihan } from '../../api/keuangan';
 
@@ -108,6 +108,62 @@ function NeedleLetak(el: HTMLElement | null, x: number, y: number): void {
   el.style.top = `${Math.max(8, y + TINGGI_TOOLTIP > window.innerHeight ? y - TINGGI_TOOLTIP : y + JARAK_Y)}px`;
 }
 
+/** Satu baris tabel. `memo` + props stabil → saat tooltip berpindah sel, hanya
+ *  baris yang di-hover yang dirender ulang, bukan seluruh tabel (ratusan sel). */
+const BarisCrosstab = memo(function BarisCrosstab({
+  baris, kolom, terpilihId, onPilih, onHoverMasuk, onHoverGerak, onHoverKeluar,
+}: {
+  baris: CrosstabBaris;
+  kolom: CrosstabKolom[];
+  terpilihId: number | null;
+  onPilih: (sel: CrosstabSel, meta: { nama: string; label: string }) => void;
+  onHoverMasuk: (isi: TooltipSel, e: React.MouseEvent) => void;
+  onHoverGerak: (e: React.MouseEvent) => void;
+  onHoverKeluar: () => void;
+}) {
+  return (
+    <tr>
+      <th scope="row" className="sticky left-0 z-10 max-w-56 border-b border-r bg-card p-2 text-left font-normal">
+        <span className="block truncate font-medium">{baris.nama}</span>
+        <span className="block text-[10px] text-muted-foreground">{baris.paket}</span>
+      </th>
+      {kolom.map((k) => {
+        const sel = baris.sel[k.key];
+        if (!sel) {
+          return <td key={k.key} className="border-b border-r p-1.5 text-center text-muted-foreground/40">·</td>;
+        }
+        const dipilih = terpilihId === sel.id;
+        const isiTooltip: TooltipSel = {
+          nama: baris.nama, jenisNama: k.jenis_nama, tipe: k.tipe, periode: k.periode,
+          nominal: sel.nominal, terbayar: sel.terbayar, sisa: sel.sisa,
+          status: sel.status, terlambat: sel.terlambat, jatuhTempo: sel.jatuh_tempo,
+        };
+        return (
+          <td key={k.key} className="border-b border-r p-0.5">
+            <button
+              type="button"
+              id={`btn_tagihan_sel_${sel.id}`}
+              onClick={() => onPilih(sel, { nama: baris.nama, label: labelSel(k) })}
+              onMouseEnter={(e) => onHoverMasuk(isiTooltip, e)}
+              onMouseMove={onHoverGerak}
+              onMouseLeave={onHoverKeluar}
+              aria-describedby="tip_tagihan_sel"
+              className={`w-full rounded px-1.5 py-1 text-right tabular-nums hover:ring-1 hover:ring-ring ${kelasSel(sel)} ${sel.terlambat ? 'font-semibold' : ''} ${dipilih ? 'ring-2 ring-ring' : ''}`}
+            >
+              {sel.nominal.toLocaleString('id')}
+            </button>
+          </td>
+        );
+      })}
+      <td className="border-b border-l p-1.5 text-right tabular-nums">{baris.total_tagihan.toLocaleString('id')}</td>
+      <td className="border-b border-l p-1.5 text-right tabular-nums">{baris.total_terbayar.toLocaleString('id')}</td>
+      <td className={`border-b border-l p-1.5 text-right tabular-nums ${baris.tunggakan > 0 ? 'font-medium text-destructive' : 'text-muted-foreground'}`}>
+        {baris.tunggakan.toLocaleString('id')}
+      </td>
+    </tr>
+  );
+});
+
 function TooltipTagihan({ data, tipRef }: { data: TooltipSel; tipRef: React.Ref<HTMLDivElement> }) {
   const status = data.status === 'lunas'
     ? 'Lunas'
@@ -169,6 +225,21 @@ export default function TagihanCrosstab({ data, loading, terpilihId, onPilih, em
    *  tanpa ini tooltip sempat berkedip di pojok kiri atas. */
   const kursorRef = useRef<{ x: number; y: number } | null>(null);
 
+  // Handler stabil (dipakai props memo BarisCrosstab): `onPilih` & friends
+  // dibuat ulang tiap render bila ditulis inline, sehingga memo tidak berlaku.
+  const pilihRef = useRef(onPilih);
+  pilihRef.current = onPilih;
+  const pilihStabil = useCallback(
+    (sel: CrosstabSel, meta: { nama: string; label: string }) => pilihRef.current(sel, meta),
+    [],
+  );
+  const hoverMasuk = useCallback((isi: TooltipSel, e: React.MouseEvent) => {
+    kursorRef.current = { x: e.clientX, y: e.clientY };
+    setHover(isi);
+  }, []);
+  const hoverGerak = useCallback((e: React.MouseEvent) => NeedleLetak(tipRef.current, e.clientX, e.clientY), []);
+  const hoverKeluar = useCallback(() => setHover(null), []);
+
   // useLayoutEffect: posisi dipasang sebelum browser melukis => tooltip tidak
   // pernah tampil di posisi default sesaat.
   useLayoutEffect(() => {
@@ -228,48 +299,16 @@ export default function TagihanCrosstab({ data, loading, terpilihId, onPilih, em
         </thead>
         <tbody>
           {baris.map((r) => (
-            <tr key={r.santri_id}>
-              <th scope="row" className="sticky left-0 z-10 max-w-56 border-b border-r bg-card p-2 text-left font-normal">
-                <span className="block truncate font-medium">{r.nama}</span>
-                <span className="block text-[10px] text-muted-foreground">{r.paket}</span>
-              </th>
-              {kolom.map((k) => {
-                const sel = r.sel[k.key];
-                if (!sel) {
-                  return <td key={k.key} className="border-b border-r p-1.5 text-center text-muted-foreground/40">·</td>;
-                }
-                const dipilih = terpilihId === sel.id;
-                const isiTooltip: TooltipSel = {
-                  nama: r.nama, jenisNama: k.jenis_nama, tipe: k.tipe, periode: k.periode,
-                  nominal: sel.nominal, terbayar: sel.terbayar, sisa: sel.sisa,
-                  status: sel.status, terlambat: sel.terlambat, jatuhTempo: sel.jatuh_tempo,
-                };
-                return (
-                  <td key={k.key} className="border-b border-r p-0.5">
-                    <button
-                      type="button"
-                      id={`btn_tagihan_sel_${sel.id}`}
-                      onClick={() => onPilih(sel, { nama: r.nama, label: labelSel(k) })}
-                      onMouseEnter={(e) => {
-                        kursorRef.current = { x: e.clientX, y: e.clientY };
-                        setHover(isiTooltip);
-                      }}
-                      onMouseMove={(e) => NeedleLetak(tipRef.current, e.clientX, e.clientY)}
-                      onMouseLeave={() => setHover(null)}
-                      aria-describedby={hover === isiTooltip ? 'tip_tagihan_sel' : undefined}
-                      className={`w-full rounded px-1.5 py-1 text-right tabular-nums hover:ring-1 hover:ring-ring ${kelasSel(sel)} ${sel.terlambat ? 'font-semibold' : ''} ${dipilih ? 'ring-2 ring-ring' : ''}`}
-                    >
-                      {sel.nominal.toLocaleString('id')}
-                    </button>
-                  </td>
-                );
-              })}
-              <td className="border-b border-l p-1.5 text-right tabular-nums">{r.total_tagihan.toLocaleString('id')}</td>
-              <td className="border-b border-l p-1.5 text-right tabular-nums">{r.total_terbayar.toLocaleString('id')}</td>
-              <td className={`border-b border-l p-1.5 text-right tabular-nums ${r.tunggakan > 0 ? 'font-medium text-destructive' : 'text-muted-foreground'}`}>
-                {r.tunggakan.toLocaleString('id')}
-              </td>
-            </tr>
+            <BarisCrosstab
+              key={r.santri_id}
+              baris={r}
+              kolom={kolom}
+              terpilihId={terpilihId}
+              onPilih={pilihStabil}
+              onHoverMasuk={hoverMasuk}
+              onHoverGerak={hoverGerak}
+              onHoverKeluar={hoverKeluar}
+            />
           ))}
           {baris.length === 0 && (
             <tr>
