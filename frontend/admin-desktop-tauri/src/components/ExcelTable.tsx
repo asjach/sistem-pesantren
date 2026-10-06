@@ -17,29 +17,26 @@ import { useVisibilitasFilter } from '@/components/VisibilitasFilter';
 import DialogKelolaTabel from '@/components/kelolaTabel/DialogKelolaTabel';
 import type { AlignKolom } from '@/components/kelolaTabel/jenis';
 import FilterRail from '@/components/FilterRail';
-import PresetKolom, { type PresetKolomApi } from '@/components/PresetKolom';
-import PresetUrut from '@/components/PresetUrut';
 import { gabungUrutan } from './excel/urutanKolom';
 import { judulTabel } from './excel/judul';
 import { useToolbarPresetState } from './excel/useToolbarPreset';
 import { useUrutanKolom } from './excel/useUrutanKolom';
 import { useLebarKolom } from './excel/useLebarKolom';
 import { useTinggiBaris } from './excel/useTinggiBaris';
-import { hitungTinggiBaris, MAX_BARIS_H, MIN_BARIS_H } from './excel/tinggiBaris';
-import { measureTextWidth } from './excel/measure';
+import { useTinggiBarisSatuan } from './excel/useTinggiBarisSatuan';
 import { useSalinTabel } from './excel/useSalinTabel';
+import { useSalinClipboard } from './excel/useSalinClipboard';
+import { useInteraksiSel } from './excel/useInteraksiSel';
 import { copyText, tulisPolosSinkron } from '@/lib/clipboard';
 import { useBarisInput } from './excel/useBarisInput';
 import { KonteksLebarFilter } from './excel/lebarFilter';
 import { useRibbonTable } from '@/components/RibbonTable';
 import {
   ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
 import { ActionIcon } from '@/components/RowActions';
-import { NotebookTabs, Pencil, PlusCircle, Save } from '@/icons';
+import { Pencil, PlusCircle, Save } from '@/icons';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -78,7 +75,8 @@ import {
 } from './excel/cells';
 import { HeaderTitle } from './excel/header';
 import { useAntreanSimpan } from './excel/useAntreanSimpan';
-import MenuAksiToolbar from '@/components/MenuAksiToolbar';
+import type { PresetKolomApi } from '@/components/PresetKolom';
+import JudulTabel from './excel/JudulTabel';
 import { ActionsCell, flattenAksi } from './excel/actions';
 import MenuKonteksGrid from './excel/konteksMenu';
 import type { AksiMenu, CheckAllState, ExcelField, GridRow, GridSelection } from './excel/types';
@@ -563,109 +561,8 @@ export default function ExcelTable<T extends { id: string | number }>({
     return () => cancelAnimationFrame(raf);
   }, [showInput]);
 
-  // Shortcut Ctrl/Cmd+C: tulis clipboard ditangani DSG (tanpa notifikasi).
-  // Listener ini (capture: jalan SEBELUM handler DSG) menjaga tiga kasus
-  // tepi agar toast tak menipu + clipboard tak tertimpa string kosong:
-  // 1. Fokus di input/teks (kolom cari, filter, dialog): biarkan salin
-  //    native — tahan DSG yang tetap menimpa clipboard dari sel aktif lama.
-  // 2. Teks diseleksi manual (seret mouse) pada satu sel: salin teksnya apa
-  //    adanya — tahan DSG yang menyalin sel aktif/gutter.
-  // 3. Sel aktif di gutter (centang/aksi/nomor baris) tanpa blok: DSG
-  //    menyalin kosong — tahan + beri petunjuk. Blok multi-sel tetap milik DSG.
-  useEffect(() => {
-    function saatSalin(e: ClipboardEvent) {
-      const t = e.target as HTMLElement | null;
-      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) {
-        e.stopPropagation();
-        return;
-      }
-      const root = wrapRef.current;
-      if (!root || !(t && root.contains(t))) return;
-      if (root.querySelector('.dsg-active-cell-focus')) return; // sedang mengedit sel
-      // Desktop: clipboardData webview tak andal — tulis via plugin sebelum
-      // DSG sempat menimpa clipboard (wajib preventDefault sinkron; tulis
-      // async di bawah, clipboard lama aman bila tak ada yang tersalin).
-      if (isTauri()) {
-        const r = rangeRef.current;
-        const blokBanyak = !!r && (r.min.col !== r.max.col || r.min.row !== r.max.row);
-        const sel = window.getSelection();
-        if (!blokBanyak && sel && !sel.isCollapsed && sel.anchorNode && root.contains(sel.anchorNode)) {
-          const teks = sel.toString();
-          if (teks !== '') {
-            e.preventDefault();
-            e.stopPropagation();
-            if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
-            tulisPolosSinkron(e, teks);
-            if (import.meta.env.DEV) {
-              // eslint-disable-next-line no-console
-              console.debug(`[simpes-salin] tabel teks: ${teks.length} aksara`);
-            }
-            void copyText(teks).then((ok) => {
-              if (ok) toast.success('Telah disalin ke clipboard.');
-              else toast.error('Gagal menyalin.');
-            });
-            return;
-          }
-        }
-        e.preventDefault();
-        e.stopPropagation();
-        if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
-        // Tulis sinkron agar clipboard langsung terisi teks polos meski
-        // tulis async plugin terlambat; TANPA text/html agar tempel
-        // ke Excel tetap memakai TSV (grid utuh, bukan satu kolom).
-        const praduga = teksSalinan();
-        if (praduga != null && praduga !== '') {
-          try {
-            e.clipboardData?.setData('text/plain', praduga);
-          } catch {
-            /* abaikan — tulis ulang via plugin di bawah */
-          }
-          if (import.meta.env.DEV) {
-            // eslint-disable-next-line no-console
-            console.debug(`[simpes-salin] tabel TSV: ${praduga.length} aksara`);
-          }
-        }
-        void salinFisik().then((ok) => {
-          if (!ok) toast.warning('Pilih sel data untuk menyalin.');
-        });
-        return;
-      }
-      const r = rangeRef.current;
-      const blokBanyak = !!r && (r.min.col !== r.max.col || r.min.row !== r.max.row);
-      const sel = window.getSelection();
-      if (!blokBanyak && sel && !sel.isCollapsed && sel.anchorNode && root.contains(sel.anchorNode)) {
-        const teks = sel.toString();
-        if (teks !== '') {
-          e.preventDefault();
-          e.stopPropagation();
-          try {
-            e.clipboardData?.setData('text/plain', teks);
-          } catch {
-            /* abaikan — copyText menangani fallback */
-          }
-          void copyText(teks).then((ok) => {
-            if (ok) toast.success('Telah disalin ke clipboard.');
-            else toast.error('Gagal menyalin.');
-          });
-          return;
-        }
-      }
-      const selAktif = root.querySelector('.dsg-active-cell');
-      if (!selAktif) return;
-      if (!blokBanyak) {
-        const kunciKolom = selAktif.closest?.('[data-col-key]')?.getAttribute('data-col-key');
-        if (kunciKolom === 'check' || kunciKolom === '__aksi' || kunciKolom == null) {
-          e.preventDefault();
-          e.stopPropagation();
-          toast.warning('Pilih sel data untuk menyalin.');
-          return;
-        }
-      }
-      toast.success('Telah disalin ke clipboard.');
-    }
-    document.addEventListener('copy', saatSalin, true);
-    return () => document.removeEventListener('copy', saatSalin, true);
-  }, []);
+  /** Salin (Ctrl/Cmd+C) — listener capture, lihat useSalinClipboard. */
+  useSalinClipboard({ wrapRef, rangeRef, teksSalinan, salinFisik });
 
 
 
@@ -674,67 +571,19 @@ export default function ExcelTable<T extends { id: string | number }>({
 
   const effectiveH = rowH ?? densityPx;
 
-  /**
-   * Tinggi satu baris (dari baris GRID yang sudah berformat teks): manual
-   * (seret hanya baris itu) → ikut isi (baris ini membesar bila teksnya
-   * membungkus) → tinggi dasar kerapatan. Baris yang isinya muat tetap.
-   *
-   * Catatan: yang diterima DSG adalah `gridValue` (kunci = kolom, nilai =
-   * teks terformat), BUKAN baris domain — jadi `getValues` tidak boleh
-   * dipanggil lagi di sini.
-   *
-   * Mode ikut isi hanya untuk tabel halaman; tabel kompak `maxRows`
-   * menghitung tinggi dari jumlah baris tetap sehingga tinggi variabel akan
-   * membuat perkiraan itsinya meleset.
-   *
-   * Pengukuran lebar teks menyentuh DOM, jadi di-cache per teks dan tinggi
-   * akhir per baris. Kegagalan pengukuran tidak boleh menjatuhkan grid.
-   */
-  const cacheLebarTeks = useRef(new Map<string, number>());
-  const cacheTinggiBaris = useRef(new Map<string, number>());
-  const tinggiBarisSatuan = useCallback((rowData: GridRow): number => {
-    const rowKey = String(rowData.id);
-    const manual = tinggiBarisManual[rowKey];
-    if (manual !== undefined) return manual;
-    if (!barisIkutIsi || maxRows !== undefined || rowKey === INPUT_ROW_ID) return effectiveH;
-
-    try {
-      const style = wrapRef.current ? getComputedStyle(wrapRef.current) : null;
-      if (!style) return effectiveH;
-
-      const teks: string[] = [];
-      const lebarKolom: number[] = [];
-      for (const f of visibleFields) {
-        if (f.kind === 'toggle') continue;
-        const isi = rowData[f.key];
-        if (isi === null || isi === undefined || isi === '') continue;
-        teks.push(String(isi));
-        lebarKolom.push(widths[f.key] ?? autoWidths[f.key] ?? syncAutoWidths[f.key] ?? f.width ?? 150);
-      }
-      if (teks.length === 0) return effectiveH;
-
-      const sig = `${rowKey}|${effectiveFont}|${effectiveH}|${lebarKolom.join(',')}|${teks.join('\u0001')}`;
-      const tersimpan = cacheTinggiBaris.current.get(sig);
-      if (tersimpan !== undefined) return tersimpan;
-
-      const lebarTeks = teks.map((t) => {
-        const kunci = `${effectiveFont}|${t}`;
-        const ada = cacheLebarTeks.current.get(kunci);
-        if (ada !== undefined) return ada;
-        const baru = measureTextWidth(t, style);
-        if (cacheLebarTeks.current.size > 2000) cacheLebarTeks.current.clear();
-        cacheLebarTeks.current.set(kunci, baru);
-        return baru;
-      });
-      const tinggi = hitungTinggiBaris({ lebarTeks, lebarKolom, fontPx: effectiveFont, minH: effectiveH });
-      if (cacheTinggiBaris.current.size > 1000) cacheTinggiBaris.current.clear();
-      cacheTinggiBaris.current.set(sig, tinggi);
-      return tinggi;
-    } catch {
-      // Pengukuran gagal (mis. DOM belum siap) → tinggi dasar.
-      return effectiveH;
-    }
-  }, [tinggiBarisManual, barisIkutIsi, maxRows, effectiveH, effectiveFont, visibleFields, widths, autoWidths, syncAutoWidths]);
+  /** Tinggi satu baris grid: manual → ikut isi → dasar kerapatan. */
+  const tinggiBarisSatuan = useTinggiBarisSatuan({
+    wrapRef,
+    effectiveH,
+    effectiveFont,
+    visibleFields,
+    widths,
+    autoWidths,
+    syncAutoWidths,
+    tinggiBarisManual,
+    barisIkutIsi,
+    maxRows,
+  });
 
   // Tinggi header efektif (manual → terukur → bawaan). Dipakai untuk tinggi
   // tabel kompak agar header yang membungkus 2 baris (judul panjang) ikut
@@ -1213,72 +1062,15 @@ export default function ExcelTable<T extends { id: string | number }>({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [widths, autoWidths, tableKey, aksiRingkas, aksiLangsung]);
 
-  /** Posisi mousedown terakhir: klik setelah drag-seleksi bukan maksud mencentang. */
-  const downPosRef = useRef<{ x: number; y: number } | null>(null);
-
-  /** Mousedown di sel centang (termasuk tepat di kotak) = niat mencentang,
-   *  bukan menyeleksi: cegah DSG memasang anchor/drag-seleksi dari sel ini.
-   *  Toggle tetap jalan sekali via onClick di bawah (mousedown asli yang
-   *  diblokir tak sampai ke input, jadi tak ada toggle ganda). Klik kanan &
-   *  kontrol lain dikecualikan agar menu konteks tetap bekerja. */
-  function cegahSeleksiSelCentang(e: React.MouseEvent): void {
-    if (hideCheckbox || e.button !== 0) return;
-    const t = e.target as HTMLElement | null;
-    if (!t || t.closest?.('select, textarea, button, a')) return;
-    const sel = t.closest?.('.dsg-cell');
-    if (!sel || !wrapRef.current?.contains(sel)) return;
-    const box = sel.querySelector('input.dsg-checkbox, input.simpes-dsg-checkall');
-    if (!box || (box as HTMLInputElement).disabled) return;
-    e.preventDefault();
-    e.stopPropagation();
-  }
-
-  /** Klik sel centang (area maupun tepat di kotak): toggle 1× via `checkedIds`
-   *  sendiri memakai `data-row-id` — deterministik, tanpa lewat DSG (jalur
-   *  bawaannya butuh 2× klik dan berbalapan dengan flip browser). Header
-   *  pilih-semua memakai jalur `onChange`-nya sendiri. Baris nonaktif dan
-   *  hasil drag (>4px) dilewati. */
-  function toggleCheckByCell(e: React.MouseEvent) {
-    if (hideCheckbox) return;
-    const d = downPosRef.current;
-    if (d && Math.hypot(e.clientX - d.x, e.clientY - d.y) > 4) return;
-    const t = e.target as HTMLElement | null;
-    if (!t || t.closest?.('select, textarea, button, a')) return;
-    const sel = t.closest?.('.dsg-cell');
-    if (!sel || !wrapRef.current?.contains(sel)) return;
-    const box = sel.querySelector<HTMLInputElement>('input.dsg-checkbox, input.simpes-dsg-checkall');
-    if (!box || box.disabled) return;
-    if (box.classList.contains('simpes-dsg-checkall')) {
-      // Header pilih-semua: biarkan onChange alaminya yang bekerja. Klik
-      // sintetis di sini justru men-toggle balik (true→false) sebelum change
-      // terbaca, sehingga check/uncheck-all tampak tidak berfungsi.
-      return;
-    }
-    const rowId = box.dataset.rowId;
-    const row = rowsRef.current.find((r) => String(r.id) === rowId);
-    if (!row) return;
-    const id = row.id;
-    setCheckedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
-
-  /** Klik/pindah ke sel lain saat ada editor terbuka: tutup dulu editor lama
-   *  (memicu commit + auto-save), lalu DSG memindahkan sel aktif. Tanpa ini
-   *  input lama tetap fokus sehingga ketikan lanjut masuk ke sel sebelumnya. */
-  function closeEditorOnOtherCell(e: React.MouseEvent) {
-    if (!editing && !showInput) return;
-    const aktif = document.activeElement as HTMLElement | null;
-    if (!aktif || !(aktif.classList.contains('dsg-input') || aktif.classList.contains('simpes-dsg-select'))) {
-      return;
-    }
-    const targetCell = (e.target as HTMLElement).closest?.('.dsg-cell') ?? null;
-    if (targetCell && targetCell === aktif.closest('.dsg-cell')) return;
-    aktif.blur();
-  }
+  /** Interaksi sel: drag centang, toggle centang, tutup editor saat pindah sel. */
+  const { downPosRef, cegahSeleksiSelCentang, toggleCheckByCell, closeEditorOnOtherCell } = useInteraksiSel<T>({
+    hideCheckbox,
+    wrapRef,
+    rowsRef,
+    editing,
+    showInput,
+    setCheckedIds,
+  });
 
   /** Teks tampil (draft-merged) untuk TSV — lookup O(1) via Map. */
   const gridById = useMemo(() => {
@@ -1453,66 +1245,33 @@ export default function ExcelTable<T extends { id: string | number }>({
     )}>
       <KonteksLebarFilter.Provider value={konteksLebarFilter}>
         {headerTampil ? (
-          <ContextMenu>
-            <ContextMenuTrigger asChild disabled={!bolehKelolaHalaman}>
-              <div data-part="header_tabel" className="flex shrink-0 items-center justify-between gap-2 border-b border-[color:var(--warna-border-ribbon)] bg-muted/40 px-3 py-1 text-xs font-medium">
-            <div className="flex min-w-0 flex-1 items-center gap-2">
-              <div className="min-w-0 flex-1 truncate">{judulHeader}</div>
-              {infoHeader ? (
-                <div className="flex max-w-full shrink-0 self-center flex-col items-center gap-0.5 rounded-full border bg-muted/60 px-4 py-1 text-center">
-                  <span className="max-w-[32rem] truncate text-[11px] text-muted-foreground">{tengah}</span>
-                </div>
-              ) : null}
-            </div>
-            <div className="ml-auto flex shrink-0 items-center justify-end gap-2">
-              <div className="flex shrink-0 items-center justify-end gap-2">
-                {filterTampil ? <div className="flex items-center gap-1.5 [&>*]:shrink-0">{filter}</div> : null}
-                {aksiMassal ? <div className="flex flex-nowrap items-center gap-1.5 [&>*]:shrink-0">{aksiMassal}</div> : null}
-                {awalanToolbar}
-                {akhirToolbar}
-                {urutTampil ? (
-                  <PresetUrut
-                    tableKey={tableKey}
-                    urutAktif={urutAktif}
-                    arahUrut={arahUrut}
-                    onUrut={onUrut}
-                    wrapperClassName="flex-row items-center gap-1.5"
-                    lebarTrigger={lebarToolbar.urut}
-                  />
-                ) : null}
-                {kolomTampil ? (
-                  <PresetKolom
-                    tableKey={tableKey}
-                    fields={fields}
-                    onApply={terapkanPreset}
-                    apiRef={presetApiRef}
-                    triggerClassName={presetKolomClassName}
-                    wrapperClassName="flex-row items-center gap-1.5"
-                    lebarTrigger={lebarKolomDb}
-                  />
-                ) : null}
-              </div>
-              {addButton ? (
-                addButtonLangsung
-                  ? <div className="shrink-0">{addButton}</div>
-                  : <div className="shrink-0"><MenuAksiToolbar triggerId={`btn_aksi_${tableKey}`}>{addButton}</MenuAksiToolbar></div>
-              ) : null}
-              </div>
-            </div>
-            </ContextMenuTrigger>
-            {bolehKelolaHalaman ? (
-              <ContextMenuContent>
-                <ContextMenuItem
-                  id={`menu_kelola_tabel_${tableKey}`}
-                  onSelect={() => setKelolaTabelOpen(true)}
-                >
-                  <NotebookTabs data-icon="inline-start" size={16} /> Kelola Tabel
-                </ContextMenuItem>
-              </ContextMenuContent>
-            ) : null}
-          </ContextMenu>
-        ) : null}
-       </KonteksLebarFilter.Provider>
+          <JudulTabel
+            tableKey={tableKey}
+            judul={judulHeader}
+            infoTampil={infoHeader != null}
+            info={tengah}
+            filterTampil={filterTampil}
+            filter={filter}
+            aksiMassal={aksiMassal}
+            awalanToolbar={awalanToolbar}
+            akhirToolbar={akhirToolbar}
+            urutTampil={urutTampil}
+            urutAktif={urutAktif}
+            arahUrut={arahUrut}
+            onUrut={onUrut}
+            lebarUrut={lebarToolbar.urut}
+            kolomTampil={kolomTampil}
+            fields={fields}
+            onApplyPreset={terapkanPreset}
+            presetApiRef={presetApiRef}
+            presetKolomClassName={presetKolomClassName}
+            lebarKolom={lebarKolomDb}
+            addButton={addButton}
+            addButtonLangsung={addButtonLangsung}
+            bolehKelola={bolehKelolaHalaman}
+            onKelolaTabel={() => setKelolaTabelOpen(true)}
+          />
+        ) : null}       </KonteksLebarFilter.Provider>
 
       {/* Rel Tingkat/Kelas (bila `rail`): di kiri grid, tepat di bawah bar
           judul tabel sehingga bagian atasnya sejajar judul kolom grid.
