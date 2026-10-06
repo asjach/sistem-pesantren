@@ -223,24 +223,21 @@ class SantriController extends Controller
         }
 
         $auth = $request->user();
+        // Model dimuat sekali; sebelumnya satu Santri::find() per kandidat.
         $kandidat = Santri::tenantScope()
             ->whereHas('lembagaAktif', fn ($q) => $q->where('jenjang', $miId))
             ->whereHas('lembagaAktif', fn ($q) => $q->where('jenjang', $mdId))
-            ->pluck('id');
+            ->get();
 
         $layanan = app(PenerimaanService::class);
         $rincian = [];
-        foreach ($kandidat as $id) {
+        foreach ($kandidat as $santri) {
             if (! $auth->canAccessLembaga($miId) || ! $auth->canAccessLembaga($mdId)) {
-                continue;
-            }
-            $santri = Santri::find($id);
-            if (! $santri) {
                 continue;
             }
             $hasil = $layanan->samakanNisSatu($santri, $miId, $mdId, ! $periksa);
             if ($hasil !== null) {
-                $rincian[] = array_merge(['santri_id' => (int) $id, 'nama' => $santri->nama_lengkap], $hasil);
+                $rincian[] = array_merge(['santri_id' => (int) $santri->id, 'nama' => $santri->nama_lengkap], $hasil);
             }
         }
 
