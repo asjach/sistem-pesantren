@@ -7,14 +7,17 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\MiMdDaftarkanMdRequest;
 use App\Http\Requests\Admin\MiMdHapusMdRequest;
 use App\Http\Requests\Admin\MiMdSamakanKelasRequest;
+use App\Models\Alumni;
 use App\Models\Kelas;
 use App\Models\Lembaga;
 use App\Models\LembagaSantri;
+use App\Models\MutasiKeluar;
 use App\Models\RiwayatBelajar;
 use App\Models\Santri;
 use App\Models\TahunAjaran;
 use App\Services\PenerimaanService;
 use App\Services\SiklusSantriService;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -229,39 +232,75 @@ class MiMdController extends Controller
         $berhasil = 0;
         $gagal = [];
 
-        foreach ($data['items'] as $item) {
+        $items = $data['items'];
+        $sepihak = $auth->canAccessLembaga($miId) || $auth->canAccessLembaga($mdId);
+        $berpasangan = Lembaga::pasanganJenjang($miId) === $mdId;
+
+        // Preload batch: satu query per jenis, bukan ~10 query per item.
+        $idSantri = array_values(array_unique(array_map(
+            static fn (array $i): int => (int) $i['santri_id'],
+            $items,
+        )));
+        $petaSantri = Santri::whereIn('id', $idSantri)->get()->keyBy('id');
+
+        $anggotaAktif = [];
+        foreach (LembagaSantri::whereIn('santri_id', $idSantri)
+            ->whereIn('jenjang', [$miId, $mdId])
+            ->where('is_active_lembaga', LembagaSantri::YA)
+            ->get(['santri_id', 'jenjang']) as $baris) {
+            $anggotaAktif[(int) $baris->santri_id][(string) $baris->jenjang] = true;
+        }
+
+        /** @var array<int, array<string, RiwayatBelajar>> $riwayatAktif id terbesar menang. */
+        $riwayatAktif = [];
+        foreach (RiwayatBelajar::whereIn('santri_id', $idSantri)
+            ->whereIn('jenjang', [$miId, $mdId])
+            ->where('is_active_riwayat', RiwayatBelajar::YA)
+            ->with('kelas:id,nama_kelas')
+            ->orderBy('id')
+            ->get() as $riwayat) {
+            $riwayatAktif[(int) $riwayat->santri_id][(string) $riwayat->jenjang] = $riwayat;
+        }
+
+        // Kelas senama di sisi tujuan jarang berubah dalam satu request; memo per kunci.
+        /** @var array<string, Kelas|null> $cacheKelasTujuan */
+        $cacheKelasTujuan = [];
+        $cariKelasTujuan = function (string $jenjang, string $tahun, string $nama) use (&$cacheKelasTujuan): ?Kelas {
+            $kunci = $jenjang.'|'.$tahun.'|'.$nama;
+            if (! array_key_exists($kunci, $cacheKelasTujuan)) {
+                $cacheKelasTujuan[$kunci] = Kelas::where('jenjang', $jenjang)
+                    ->where('tahun_ajaran', $tahun)
+                    ->whereRaw('LOWER(nama_kelas) = ?', [$nama])
+                    ->first();
+            }
+
+            return $cacheKelasTujuan[$kunci];
+        };
+
+        foreach ($items as $item) {
             try {
-                $santri = Santri::findOrFail((int) $item['santri_id']);
+                $idSantriItem = (int) $item['santri_id'];
+                $santri = $petaSantri->get($idSantriItem)
+                    ?? throw (new ModelNotFoundException)->setModel(Santri::class, [$idSantriItem]);
                 $keMi = $item['arah'] === 'ke_mi';
                 $acuanId = $keMi ? $mdId : $miId;
                 $tujuanId = $keMi ? $miId : $mdId;
 
                 // Samakan kelas: pemegang salah satu pihak pasangan boleh
                 // (cerminan daftarkan/hapus-md; tanpa pivot silang).
-                $sepihak = $auth->canAccessLembaga($miId) || $auth->canAccessLembaga($mdId);
-                if (! $sepihak || Lembaga::pasanganJenjang($miId) !== $mdId) {
+                if (! $sepihak || ! $berpasangan) {
                     throw ValidationException::withMessages([
                         'santri_id' => 'Akses ditolak.',
                     ]);
                 }
 
-                $aktifKeduaSisi = LembagaSantri::where('santri_id', $santri->id)
-                    ->whereIn('jenjang', [$miId, $mdId])
-                    ->where('is_active_lembaga', LembagaSantri::YA)
-                    ->distinct()
-                    ->count('jenjang');
-                if ($aktifKeduaSisi !== 2) {
+                if (count($anggotaAktif[$idSantriItem] ?? []) !== 2) {
                     throw ValidationException::withMessages([
                         'santri_id' => 'Santri harus aktif di MI dan MD.',
                     ]);
                 }
 
-                $acuan = RiwayatBelajar::where('santri_id', $santri->id)
-                    ->where('jenjang', $acuanId)
-                    ->where('is_active_riwayat', RiwayatBelajar::YA)
-                    ->with('kelas:id,nama_kelas')
-                    ->latest('id')
-                    ->first();
+                $acuan = $riwayatAktif[$idSantriItem][$acuanId] ?? null;
                 $namaAcuan = $acuan?->kelas?->nama_kelas;
                 if ($namaAcuan === null || trim($namaAcuan) === '') {
                     throw ValidationException::withMessages([
@@ -269,11 +308,7 @@ class MiMdController extends Controller
                     ]);
                 }
 
-                $tujuan = RiwayatBelajar::where('santri_id', $santri->id)
-                    ->where('jenjang', $tujuanId)
-                    ->where('is_active_riwayat', RiwayatBelajar::YA)
-                    ->latest('id')
-                    ->first();
+                $tujuan = $riwayatAktif[$idSantriItem][$tujuanId] ?? null;
                 if (! $tujuan) {
                     // Sisi tujuan belum punya riwayat: buatkan (kelas senama
                     // acuan), bukan gagal. TA mengikuti acuan bila berlaku di
@@ -287,10 +322,7 @@ class MiMdController extends Controller
                         ]);
                     }
                     $namaNormal = mb_strtolower(preg_replace('/\s+/u', ' ', trim($namaAcuan)) ?? $namaAcuan);
-                    $kelasTujuan = Kelas::where('jenjang', $tujuanId)
-                        ->where('tahun_ajaran', $taTujuan)
-                        ->whereRaw('LOWER(nama_kelas) = ?', [$namaNormal])
-                        ->first();
+                    $kelasTujuan = $cariKelasTujuan($tujuanId, $taTujuan, $namaNormal);
                     if (! $kelasTujuan) {
                         throw ValidationException::withMessages([
                             'santri_id' => "Kelas \"{$namaAcuan}\" tidak ada di sisi tujuan.",
@@ -307,10 +339,7 @@ class MiMdController extends Controller
 
                 // Kelas senama di lembaga + TA berjalan sisi tujuan.
                 $namaNormal = mb_strtolower(preg_replace('/\s+/u', ' ', trim($namaAcuan)) ?? $namaAcuan);
-                $kelasTujuan = Kelas::where('jenjang', $tujuanId)
-                    ->where('tahun_ajaran', $tujuan->tahun_ajaran)
-                    ->whereRaw('LOWER(nama_kelas) = ?', [$namaNormal])
-                    ->first();
+                $kelasTujuan = $cariKelasTujuan($tujuanId, (string) $tujuan->tahun_ajaran, $namaNormal);
                 if (! $kelasTujuan) {
                     throw ValidationException::withMessages([
                         'santri_id' => "Kelas \"{$namaAcuan}\" tidak ada di sisi tujuan.",
@@ -349,24 +378,39 @@ class MiMdController extends Controller
         $berhasil = 0;
         $gagal = [];
 
-        foreach ($data['items'] as $item) {
+        $items = $data['items'];
+        $sepihak = $auth->canAccessLembaga($miId) || $auth->canAccessLembaga($mdId);
+        $berpasangan = Lembaga::pasanganJenjang($miId) === $mdId;
+
+        // Preload batch: peta santri + keanggotaan MI aktif sekali untuk semua item.
+        $idSantri = array_values(array_unique(array_map(
+            static fn (array $i): int => (int) $i['santri_id'],
+            $items,
+        )));
+        $petaSantri = Santri::whereIn('id', $idSantri)->get()->keyBy('id');
+
+        $anggotaMi = [];
+        foreach (LembagaSantri::whereIn('santri_id', $idSantri)
+            ->where('jenjang', $miId)
+            ->where('is_active_lembaga', LembagaSantri::YA)
+            ->orderBy('id')
+            ->get(['santri_id', 'nis_lokal']) as $baris) {
+            $anggotaMi[(int) $baris->santri_id] ??= $baris;
+        }
+
+        foreach ($items as $item) {
             try {
-                $santri = Santri::findOrFail((int) $item['santri_id']);
+                $idSantriItem = (int) $item['santri_id'];
+                $santri = $petaSantri->get($idSantriItem)
+                    ?? throw (new ModelNotFoundException)->setModel(Santri::class, [$idSantriItem]);
 
                 // Tulis ke MD; baca MI via pengecualian pasangan. Pemegang salah
                 // satu pihak boleh menulis ke pasangannya (tanpa pivot silang).
-                $punyaMi = $auth->canAccessLembaga($miId);
-                $punyaMd = $auth->canAccessLembaga($mdId);
-                $sepihak = $punyaMi || $punyaMd;
-                $berpasangan = Lembaga::pasanganJenjang($miId) === $mdId;
                 if (! $sepihak || ! $berpasangan) {
                     throw ValidationException::withMessages(['santri_id' => 'Akses ditolak.']);
                 }
 
-                $mi = LembagaSantri::where('santri_id', $santri->id)
-                    ->where('jenjang', $miId)
-                    ->where('is_active_lembaga', LembagaSantri::YA)
-                    ->first();
+                $mi = $anggotaMi[$idSantriItem] ?? null;
                 if (! $mi) {
                     throw ValidationException::withMessages(['santri_id' => 'Bukan anggota aktif MI.']);
                 }
@@ -409,33 +453,55 @@ class MiMdController extends Controller
         $berhasil = 0;
         $gagal = [];
 
-        foreach ($data['items'] as $item) {
+        $items = $data['items'];
+        $sepihak = $auth->canAccessLembaga($miId) || $auth->canAccessLembaga($mdId);
+        $berpasangan = Lembaga::pasanganJenjang($miId) === $mdId;
+
+        // Preload batch: peta santri, keanggotaan MI/MD, dan arsip MD sekali untuk semua item.
+        $idSantri = array_values(array_unique(array_map(
+            static fn (array $i): int => (int) $i['santri_id'],
+            $items,
+        )));
+        $petaSantri = Santri::whereIn('id', $idSantri)->get()->keyBy('id');
+
+        $miAktif = [];
+        $mdAda = [];
+        foreach (LembagaSantri::whereIn('santri_id', $idSantri)
+            ->whereIn('jenjang', [$miId, $mdId])
+            ->get(['santri_id', 'jenjang', 'is_active_lembaga']) as $baris) {
+            $sid = (int) $baris->santri_id;
+            if ((string) $baris->jenjang === $miId && $baris->is_active_lembaga === LembagaSantri::YA) {
+                $miAktif[$sid] = true;
+            }
+            if ((string) $baris->jenjang === $mdId) {
+                $mdAda[$sid] = true;
+            }
+        }
+        $adaAlumni = Alumni::whereIn('santri_id', $idSantri)->where('lembaga_lulus', $mdId)->pluck('santri_id')->flip()->all();
+        $adaMutasi = MutasiKeluar::whereIn('santri_id', $idSantri)->where('jenjang', $mdId)->pluck('santri_id')->flip()->all();
+
+        foreach ($items as $item) {
             try {
-                $santri = Santri::findOrFail((int) $item['santri_id']);
+                $idSantriItem = (int) $item['santri_id'];
+                $santri = $petaSantri->get($idSantriItem)
+                    ?? throw (new ModelNotFoundException)->setModel(Santri::class, [$idSantriItem]);
 
                 // Hapus jejak MD: pemegang salah satu pihak pasangan boleh
                 // (cerminan daftarkan-md; tanpa pivot silang).
-                $sepihak = $auth->canAccessLembaga($miId) || $auth->canAccessLembaga($mdId);
-                if (! $sepihak || Lembaga::pasanganJenjang($miId) !== $mdId) {
+                if (! $sepihak || ! $berpasangan) {
                     throw ValidationException::withMessages(['santri_id' => 'Akses ditolak.']);
                 }
 
                 // Hanya yang masih MI aktif (kembali menjadi MI Only).
-                $miAktif = LembagaSantri::where('santri_id', $santri->id)
-                    ->where('jenjang', $miId)
-                    ->where('is_active_lembaga', LembagaSantri::YA)
-                    ->exists();
-                if (! $miAktif) {
+                if (! isset($miAktif[$idSantriItem])) {
                     throw ValidationException::withMessages(['santri_id' => 'Bukan anggota aktif MI.']);
                 }
-                if (! LembagaSantri::where('santri_id', $santri->id)->where('jenjang', $mdId)->exists()) {
+                if (! isset($mdAda[$idSantriItem])) {
                     throw ValidationException::withMessages(['santri_id' => 'Tidak ada keanggotaan MD.']);
                 }
 
                 // Arsip resmi ada → lewat halaman mutasi, bukan X.
-                $adaArsip = $santri->alumni()->where('lembaga_lulus', $mdId)->exists()
-                    || $santri->mutasiKeluar()->where('jenjang', $mdId)->exists();
-                if ($adaArsip) {
+                if (isset($adaAlumni[$idSantriItem]) || isset($adaMutasi[$idSantriItem])) {
                     throw ValidationException::withMessages(['santri_id' => 'Sudah ada arsip MD — hapus via mutasi.']);
                 }
 
