@@ -46,14 +46,8 @@ const FIELDS_ATURAN: ExcelField[] = [
   },
 ];
 
-const FIELDS_SANTRI_AKTIF: ExcelField[] = [
-  { key: 'nama', label: 'Santri', kind: 'static' },
-  { key: 'nis_lokal', label: 'NIS Lokal', kind: 'static', width: 110 },
-  { key: 'ayah', label: 'Ayah', kind: 'static', width: 140 },
-  { key: 'ibu', label: 'Ibu', kind: 'static', width: 140 },
-];
-
-const FIELDS_SANTRI_PENERIMA: ExcelField[] = [
+/** Kolom tabel santri kandidat & penerima (identik, sengaja satu konstanta). */
+const FIELDS_SANTRI: ExcelField[] = [
   { key: 'nama', label: 'Santri', kind: 'static' },
   { key: 'nis_lokal', label: 'NIS Lokal', kind: 'static', width: 110 },
   { key: 'ayah', label: 'Ayah', kind: 'static', width: 140 },
@@ -355,7 +349,7 @@ export default function DispensasiDialog({ open, onOpenChange, editing, jenis, d
                   <div className="flex min-h-0 flex-1 flex-col">
                     <ExcelTable<Santri>
                       tableKey="dispensasi_santri_aktif"
-                      fields={FIELDS_SANTRI_AKTIF}
+                      fields={FIELDS_SANTRI}
                       rows={kandidatTampil}
                       urutAktif={urut}
                       arahUrut={arahUrut}
@@ -393,7 +387,7 @@ export default function DispensasiDialog({ open, onOpenChange, editing, jenis, d
                   <div className="flex min-h-0 flex-1 flex-col">
                     <ExcelTable<Penerima>
                       tableKey="dispensasi_santri_penerima"
-                      fields={FIELDS_SANTRI_PENERIMA}
+                      fields={FIELDS_SANTRI}
                       rows={santriPilih}
                       getValues={(r) => ({ nama: r.nama, nis_lokal: r.nisLokal, ayah: r.ayah, ibu: r.ibu })}
                       emptyText="Masukkan santri dari daftar kiri (centang lalu Masukkan, atau ikon →)."
