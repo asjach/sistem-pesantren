@@ -164,9 +164,7 @@ class SantriImporService extends ImporPotongan
             }
 
             if (! $kering) {
-                foreach (array_unique($this->tersentuh) as $santriId) {
-                    Santri::find($santriId)?->hitungUlangStatusGlobal();
-                }
+                Santri::hitungUlangStatusGlobalBanyak(array_unique($this->tersentuh));
             }
         };
 

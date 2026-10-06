@@ -214,4 +214,36 @@ class Santri extends Model
                 : self::TIDAK,
         ]);
     }
+
+    /**
+     * Versi massal dari `hitungUlangStatusGlobal()`.
+     *
+     * Jalur lama menembak EXISTS + UPDATE untuk tiap santri (2N query saat
+     * impor/backfill). Di sini cukup 2 query untuk berapa pun jumlah id.
+     * Kolom yang diubah hanya `is_active_pst`, jadi hook `saving` (normalisasi
+     * NIK) tidak relevan.
+     *
+     * @param  iterable<int|string>  $santriIds
+     */
+    public static function hitungUlangStatusGlobalBanyak(iterable $santriIds): void
+    {
+        $id = array_values(array_unique(array_map('intval', is_array($santriIds) ? $santriIds : iterator_to_array($santriIds))));
+        if ($id === []) {
+            return;
+        }
+
+        $aktif = array_map('intval', RiwayatBelajar::whereIn('santri_id', $id)
+            ->where('is_active_riwayat', self::YA)
+            ->distinct()
+            ->pluck('santri_id')
+            ->all());
+
+        if ($aktif !== []) {
+            self::whereIn('id', $aktif)->update(['is_active_pst' => self::YA]);
+        }
+        $nonaktif = array_values(array_diff($id, $aktif));
+        if ($nonaktif !== []) {
+            self::whereIn('id', $nonaktif)->update(['is_active_pst' => self::TIDAK]);
+        }
+    }
 }

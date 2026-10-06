@@ -115,9 +115,7 @@ use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
                 foreach ($this->tersentuh as [$santriId, $jenjang]) {
                     $siklus->sinkronkanAktifRiwayat($santriId, $jenjang);
                 }
-                foreach (array_unique(array_column($this->tersentuh, 0)) as $santriId) {
-                    Santri::find($santriId)?->hitungUlangStatusGlobal();
-                }
+                Santri::hitungUlangStatusGlobalBanyak(array_unique(array_column($this->tersentuh, 0)));
             }
         };
 

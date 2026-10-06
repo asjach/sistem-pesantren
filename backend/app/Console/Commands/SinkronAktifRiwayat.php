@@ -42,9 +42,7 @@ class SinkronAktifRiwayat extends Command
         $bar->finish();
         $this->newLine();
 
-        foreach (array_keys($tersentuh) as $id) {
-            Santri::find($id)?->hitungUlangStatusGlobal();
-        }
+        Santri::hitungUlangStatusGlobalBanyak(array_keys($tersentuh));
 
         $this->info("Selesai: {$pasangan->count()} pasangan (santri+jenjang), ".count($tersentuh).' santri dihitung ulang.');
 
