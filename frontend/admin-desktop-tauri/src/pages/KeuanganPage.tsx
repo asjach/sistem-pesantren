@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { errorMessage, prefGet, prefSet } from '../api/client';
 import { tokenUrut, type PetaArahKolom } from '@/lib/urut';
@@ -32,9 +32,8 @@ import { FieldLabel } from '@/components/ui/field';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { Plus } from '@/icons';
 import { DeleteAction } from '@/components/RowActions';
-import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
-import { History, Pencil, Trash2 } from '@/icons';
 import UbahTagihanDialog, { type TargetUbahTagihan } from '@/components/keuangan/UbahTagihanDialog';
+import PopoverAksiTagihan, { type TagihanAktif } from '@/components/keuangan/PopoverAksiTagihan';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { useFilterGlobalAktif, targetTunggal } from '@/hooks/useFilterGlobalAktif';
 import { useLembagaAktif } from '@/lembagaAktif';
@@ -235,19 +234,8 @@ export default function KeuanganPage() {
   const [tfJenis, setTfJenis] = useState<number | ''>('');
   const [tfNominal, setTfNominal] = useState('');
   const genTAtopbar = targetTunggal(tahunAjaranNames);
-  const [bayarJumlah, setBayarJumlah] = useState('');
-  const [bayarMetode, setBayarMetode] = useState<'tunai' | 'transfer'>('tunai');
-  const [bayarKas, setBayarKas] = useState<'tunai_tu' | 'bank_lembaga' | 'bank_pesantren'>('tunai_tu');
   /** Sel asal popover aksi (jangkar). null = popover tertutup. */
   const [anchorSel, setAnchorSel] = useState<HTMLElement | null>(null);
-  /* Jangkar virtual untuk PopoverAnchor: identitas objek tetap, hanya .current
-     yang berubah — effect Radix membacanya tiap render. */
-  const anchorVirtual = useRef<{ getBoundingClientRect: () => DOMRect } | null>(null);
-  useEffect(() => {
-    anchorVirtual.current = anchorSel === null
-      ? null
-      : { getBoundingClientRect: () => anchorSel.getBoundingClientRect() };
-  }, [anchorSel]);
   /** Tagihan terpilih dari sel crosstab (aksi bayar/riwayat/hapus). */
   const [selTagihan, setSelTagihan] = useState<{
     id: number; nama: string; label: string; nominal: number; sisa: number;
@@ -269,6 +257,29 @@ export default function KeuanganPage() {
   /** Sel + kolom crosstab terpilih (dipakai popover & dialog ubah). */
   const [selPenuh, setSelPenuh] = useState<CrosstabSel | null>(null);
   const [kolomTerpilih, setKolomTerpilih] = useState<CrosstabKolom | null>(null);
+
+  /** Data yang ditampilkan popover, diturunkan dari sel + kolom terpilih. */
+  const popoverTagihan: TagihanAktif | null =
+    selTagihan !== null && selPenuh !== null && kolomTerpilih !== null
+      ? {
+          id: selTagihan.id,
+          nama: selTagihan.nama,
+          label: selTagihan.label,
+          nominal: selPenuh.nominal,
+          sisa: selPenuh.sisa,
+          status: selPenuh.status,
+          terlambat: selPenuh.terlambat,
+          jatuhTempo: selPenuh.jatuh_tempo,
+          tipe: kolomTerpilih.tipe,
+        }
+      : null;
+
+  const tutupPopover = useCallback(() => {
+    setAnchorSel(null);
+    setSelTagihan(null);
+    setSelPenuh(null);
+    setKolomTerpilih(null);
+  }, []);
   const [hapusTagihanBusy, setHapusTagihanBusy] = useState(false);
 
   const bukaRiwayat = useCallback(async (t: { id: number; label: string }) => {
@@ -421,104 +432,30 @@ export default function KeuanganPage() {
                 });
                 setSelPenuh(sel);
                 setKolomTerpilih(kolom);
-                setBayarJumlah('');
                 setAnchorSel(anchor);
               }}
             />
-            {/* Popover aksi melekat pada sel: bayar, riwayat, hapus. */}
-            <Popover
-              open={anchorSel !== null && selTagihan !== null}
-              onOpenChange={(o) => {
-                if (!o) {
-                  setAnchorSel(null);
-                  setSelTagihan(null);
-                  setSelPenuh(null);
-                  setKolomTerpilih(null);
-                }
+            <PopoverAksiTagihan
+              tagihan={popoverTagihan}
+              anchor={anchorSel}
+              onTutup={tutupPopover}
+              onBayar={async (d) => {
+                if (selTagihan === null) return;
+                try {
+                  await catatPembayaran({ tagihan_id: selTagihan.id, jumlah: d.jumlah, metode: d.metode, kas: d.kas });
+                  toast.success('Tercatat.');
+                  tutupPopover();
+                  await load();
+                  await muatCrosstabSekarang();
+                } catch (e2) { toast.error(errorMessage(e2)); }
               }}
-            >
-              <PopoverAnchor virtualRef={anchorVirtual} />
-              <PopoverContent align="start" sideOffset={4} className="w-72 p-2">
-                {selTagihan !== null && (
-                  <>
-                    <p className="text-xs">
-                      <b className="block truncate">{selTagihan.label}</b>
-                      <span className="text-muted-foreground">{selTagihan.nama}</span>
-                      <span className="mt-0.5 block tabular-nums">
-                        sisa{' '}
-                        <b className={selTagihan.sisa > 0 ? 'text-destructive' : ''}>
-                          Rp {selTagihan.sisa.toLocaleString('id')}
-                        </b>{' '}
-                        dari Rp {selTagihan.nominal.toLocaleString('id')}
-                      </span>
-                    </p>
-                    <form
-                      id="form_bayar_sel"
-                      className="mt-2 flex flex-wrap items-center gap-1"
-                      onSubmit={async (e) => {
-                        e.preventDefault();
-                        if (bayarJumlah === '' || selTagihan === null) return;
-                        try {
-                          await catatPembayaran({ tagihan_id: selTagihan.id, jumlah: Number(bayarJumlah), metode: bayarMetode, kas: bayarKas });
-                          toast.success('Tercatat.');
-                          setBayarJumlah('');
-                          setAnchorSel(null);
-                          setSelTagihan(null);
-                          await load();
-                          await muatCrosstabSekarang();
-                        } catch (e2) { toast.error(errorMessage(e2)); }
-                      }}
-                    >
-                      <Input id="inp_bayar_jumlah" type="number" placeholder="Jumlah" value={bayarJumlah} onChange={(e) => setBayarJumlah(e.target.value)} className="h-7 w-24" />
-                      <select id="sel_bayar_metode" className="h-7 rounded border px-1 text-xs" value={bayarMetode} onChange={(e) => setBayarMetode(e.target.value as 'tunai' | 'transfer')}>
-                        <option value="tunai">Tunai</option>
-                        <option value="transfer">Transfer</option>
-                      </select>
-                      <select id="sel_bayar_kas" className="h-7 rounded border px-1 text-xs" value={bayarKas} onChange={(e) => setBayarKas(e.target.value as typeof bayarKas)}>
-                        <option value="tunai_tu">Tunai TU</option>
-                        <option value="bank_lembaga">Bank Lembaga</option>
-                        <option value="bank_pesantren">Bank Pesantren</option>
-                      </select>
-                      <Button
-                        id="btn_bayar_simpan"
-                        type="submit"
-                        size="sm"
-                        className="h-7"
-                        disabled={selTagihan.status === 'lunas' || bayarJumlah === ''}
-                      >
-                        Bayar
-                      </Button>
-                    </form>
-                    <div className="mt-2 flex flex-col gap-1 border-t pt-1.5">
-                      <Button
-                        id="btn_ubah_tagihan"
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 justify-start px-1.5 text-xs"
-                        disabled={selPenuh === null || kolomTerpilih === null}
-                        onClick={() => {
-                          if (selPenuh === null || kolomTerpilih === null) return;
-                          setUbahTarget({ sel: selPenuh, kolom: kolomTerpilih, nama: selTagihan.nama, label: selTagihan.label });
-                        }}
-                      >
-                        <Pencil size={14} />
-                        Ubah tagihan
-                      </Button>
-                      <Button id="btn_riwayat_bayar" size="sm" variant="ghost" className="h-7 justify-start px-1.5 text-xs" onClick={() => {
-                        void bukaRiwayat({ id: selTagihan.id, label: selTagihan.label });
-                      }}>
-                        <History size={14} />
-                        Lihat riwayat pembayaran
-                      </Button>
-                      <Button id="btn_hapus_tagihan" size="sm" variant="ghost" className="h-7 justify-start px-1.5 text-xs text-destructive hover:text-destructive" onClick={() => setHapusTagihanId(selTagihan.id)}>
-                        <Trash2 size={14} />
-                        Hapus tagihan
-                      </Button>
-                    </div>
-                  </>
-                )}
-              </PopoverContent>
-            </Popover>
+              onUbah={() => {
+                if (selPenuh === null || kolomTerpilih === null || selTagihan === null) return;
+                setUbahTarget({ sel: selPenuh, kolom: kolomTerpilih, nama: selTagihan.nama, label: selTagihan.label });
+              }}
+              onRiwayat={() => { if (selTagihan !== null) void bukaRiwayat({ id: selTagihan.id, label: selTagihan.label }); }}
+              onHapus={() => { if (selTagihan !== null) setHapusTagihanId(selTagihan.id); }}
+            />
           </div>
           <Pager
             page={tagihanPage}
