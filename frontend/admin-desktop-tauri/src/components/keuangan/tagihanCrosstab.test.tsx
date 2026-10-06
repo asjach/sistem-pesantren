@@ -1,7 +1,8 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
+import { renderDenganTema } from '@/test/utils';
 import type { CrosstabBaris, CrosstabKolom, CrosstabSel } from '@/api/keuangan';
 import TagihanCrosstab from './TagihanCrosstab';
 
@@ -25,14 +26,19 @@ function baris(selJul: CrosstabSel, selAgu: CrosstabSel): CrosstabBaris {
   };
 }
 
-function renderCrosstab(b: CrosstabBaris, onPilih = () => {}) {
-  return render(
+function renderCrosstab(b: CrosstabBaris, onPilih = () => {}, aksi: Partial<{
+  onBayar: (sel: CrosstabSel, meta: { nama: string; label: string }) => void;
+  onRiwayat: (sel: CrosstabSel, meta: { nama: string; label: string }) => void;
+  onHapus: (sel: CrosstabSel, meta: { nama: string; label: string }) => void;
+}> = {}) {
+  return renderDenganTema(
     <TagihanCrosstab
       data={{ kolom: KOLOM, baris: [b], total: 1, per_page: 25, current_page: 1, last_page: 1 }}
       loading={false}
       terpilihId={null}
       onPilih={onPilih}
       emptyText="Kosong"
+      {...aksi}
     />,
   );
 }
@@ -45,11 +51,13 @@ describe('warna sel crosstab menurut jatuh tempo', () => {
     expect(merah.className).toContain('font-semibold');
   });
 
-  it('belum jatuh tempo netral, bukan merah', () => {
+  it('belum jatuh tempo dibuat samar, bukan merah', () => {
     renderCrosstab(baris(sel({ terlambat: true }), sel({ id: 2 })));
     const netral = screen.getAllByRole('button', { name: '50.000' })[1];
     expect(netral.className).not.toContain('text-destructive');
-    expect(netral.className).toContain('text-muted-foreground');
+    // Samar: teks pudar, bukan warna penuh seperti sel tunggakan.
+    expect(netral.className).toContain('text-muted-foreground/50');
+    expect(netral.className).toContain('bg-muted/20');
   });
 
   it('lunas hijau walau jatuh tempo sudah lewat', () => {
@@ -114,5 +122,85 @@ describe('klik sel tetap meneruskan data', () => {
     screen.getAllByRole('button', { name: '50.000' })[0].click();
     expect(onPilih).toHaveBeenCalledTimes(1);
     expect(onPilih.mock.calls[0][1]).toMatchObject({ nama: 'Santri Uji' });
+  });
+});
+describe('context menu sel tagihan', () => {
+  async function bukaMenu(i = 0) {
+    fireEvent.contextMenu(screen.getAllByRole('button', { name: '50.000' })[i]);
+    return screen.findByRole('menu');
+  }
+
+  it('klik kanan juga menandai sel sebagai terpilih (isi bar aksi)', async () => {
+    const onPilih = vi.fn();
+    renderCrosstab(baris(sel({}), sel({ id: 2 })), onPilih, {
+      onBayar: () => {}, onRiwayat: () => {}, onHapus: () => {},
+    });
+    await bukaMenu(1);
+    expect(onPilih).toHaveBeenCalledTimes(1);
+    expect(onPilih.mock.calls[0][0].id).toBe(2);
+  });
+
+  it('isi menu: bayar, riwayat, hapus', async () => {
+    renderCrosstab(baris(sel({}), sel({ id: 2 })), () => {}, {
+      onBayar: () => {}, onRiwayat: () => {}, onHapus: () => {},
+    });
+    await bukaMenu();
+    const menu = await screen.findByRole('menu');
+    expect(menu).toHaveTextContent('Bayar');
+    expect(menu).toHaveTextContent('Lihat riwayat pembayaran');
+    expect(menu).toHaveTextContent('Hapus tagihan');
+  });
+
+  it('pilih "Bayar" meneruskan sel & metadata', async () => {
+    const onBayar = vi.fn();
+    renderCrosstab(baris(sel({}), sel({ id: 2 })), () => {}, { onBayar });
+    await bukaMenu();
+    await userEvent.click(await screen.findByText('Bayar'));
+    expect(onBayar).toHaveBeenCalledTimes(1);
+    expect(onBayar.mock.calls[0][0].id).toBe(1);
+    expect(onBayar.mock.calls[0][1]).toMatchObject({ nama: 'Santri Uji', label: 'Infaq Bulanan · Jul 2025' });
+  });
+
+  it('pilih "Lihat riwayat pembayaran" meneruskan sel', async () => {
+    const onRiwayat = vi.fn();
+    renderCrosstab(baris(sel({}), sel({ id: 2 })), () => {}, { onRiwayat });
+    await bukaMenu();
+    await userEvent.click(await screen.findByText('Lihat riwayat pembayaran'));
+    expect(onRiwayat.mock.calls[0][0].id).toBe(1);
+  });
+
+  it('pilih "Hapus tagihan" meneruskan id tagihan', async () => {
+    const onHapus = vi.fn();
+    renderCrosstab(baris(sel({}), sel({ id: 2 })), () => {}, { onHapus });
+    await bukaMenu();
+    await userEvent.click(await screen.findByText('Hapus tagihan'));
+    expect(onHapus.mock.calls[0][0].id).toBe(1);
+  });
+
+  it('item "Bayar" nonaktif pada sel lunas (Radix pakai aria-disabled)', async () => {
+    const onBayar = vi.fn();
+    renderCrosstab(baris(
+      sel({ status: 'lunas', sisa: 0, terbayar: 50000 }),
+      sel({ id: 2 }),
+    ), () => {}, { onBayar });
+    await bukaMenu();
+    const item = await screen.findByRole('menuitem', { name: 'Bayar' });
+    expect(item).toHaveAttribute('aria-disabled', 'true');
+    await userEvent.click(item);
+    expect(onBayar).not.toHaveBeenCalled();
+  });
+
+  it('tanpa handler = tidak ada menu sama sekali', async () => {
+    renderCrosstab(baris(sel({}), sel({ id: 2 })));
+    fireEvent.contextMenu(screen.getAllByRole('button', { name: '50.000' })[0]);
+    expect(screen.queryByRole('menu')).toBeNull();
+  });
+
+  it('hanya sebagian handler = menu berisi item itu saja', async () => {
+    renderCrosstab(baris(sel({}), sel({ id: 2 })), () => {}, { onRiwayat: () => {} });
+    await bukaMenu();
+    const menu = await screen.findByRole('menu');
+    expect(menu).toHaveTextContent('Lihat riwayat pembayaran');
+    expect(menu).not.toHaveTextContent('Hapus tagihan');
   });
 });

@@ -16,11 +16,22 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { KELAS_LIST_TAB, KELAS_PANEL_TAB, KELAS_TRIGGER } from '@/components/HalamanTabs';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { buttonVariants } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { FieldLabel } from '@/components/ui/field';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { Plus } from '@/icons';
-import { ActionIcon, DeleteAction } from '@/components/RowActions';
-import { History } from '@/icons';
+import { DeleteAction } from '@/components/RowActions';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { useFilterGlobalAktif, targetTunggal } from '@/hooks/useFilterGlobalAktif';
 import { useLembagaAktif } from '@/lembagaAktif';
@@ -239,6 +250,10 @@ export default function KeuanganPage() {
   const [riwayatTagihan, setRiwayatTagihan] = useState<{ id: number; label: string } | null>(null);
   const [riwayatRows, setRiwayatRows] = useState<PembayaranRow[]>([]);
 
+  /** Id tagihan yang menunggu konfirmasi hapus (dipicu dari context menu). */
+  const [hapusTagihanId, setHapusTagihanId] = useState<number | null>(null);
+  const [hapusTagihanBusy, setHapusTagihanBusy] = useState(false);
+
   const bukaRiwayat = useCallback(async (t: { id: number; label: string }) => {
     setRiwayatTagihan(t);
     try {
@@ -377,7 +392,9 @@ export default function KeuanganPage() {
           </div>
 
           {selTagihan === null ? (
-            <p className="text-xs text-muted-foreground">Klik sel tagihan untuk membayar, melihat riwayat, atau menghapusnya.</p>
+            <p className="text-xs text-muted-foreground">
+                Klik kanan sel tagihan untuk membayar, melihat riwayat, atau menghapusnya.
+              </p>
           ) : (
             <div className="flex flex-wrap items-center gap-2 rounded border bg-muted/30 px-2 py-1.5">
               <p className="text-xs">
@@ -385,24 +402,6 @@ export default function KeuanganPage() {
                 <b className={selTagihan.sisa > 0 ? 'text-destructive' : ''}>Rp {selTagihan.sisa.toLocaleString('id')}</b> dari Rp {selTagihan.nominal.toLocaleString('id')}
               </p>
               <div className="ml-auto flex items-center gap-1">
-                <Button
-                  id="btn_bayar_sel"
-                  size="sm"
-                  variant="outline"
-                  disabled={selTagihan.status === 'lunas'}
-                  onClick={() => setBayarId(selTagihan.id)}
-                >
-                  Bayar
-                </Button>
-                <ActionIcon id="btn_riwayat_bayar" title="Riwayat pembayaran" onClick={() => void bukaRiwayat(selTagihan)}>
-                  <History size={16} />
-                </ActionIcon>
-                <DeleteAction
-                  id="btn_hapus_tagihan"
-                  title="Hapus tagihan?"
-                  description="Tagihan dihapus permanen dan tidak bisa dikembalikan. Tagihan yang sudah dibayar harus dihapus pembayarannya dulu."
-                  onConfirm={() => { void (async () => { try { await hapusTagihan(selTagihan.id); toast.success('Tagihan dihapus.'); setSelTagihan(null); await load(); await muatCrosstabSekarang(); } catch (e2) { toast.error(errorMessage(e2)); } })(); }}
-                />
                 <Button id="btn_tutup_sel" size="sm" variant="ghost" onClick={() => setSelTagihan(null)}>Tutup</Button>
               </div>
               {bayarId === selTagihan.id && (
@@ -451,6 +450,22 @@ export default function KeuanganPage() {
                   nominal: sel.nominal, sisa: sel.sisa, status: sel.status,
                 });
               }}
+              onBayar={(sel, meta) => {
+                setBayarId(null);
+                setSelTagihan({
+                  id: sel.id, nama: meta.nama, label: meta.label,
+                  nominal: sel.nominal, sisa: sel.sisa, status: sel.status,
+                });
+                setBayarId(sel.id);
+              }}
+              onRiwayat={(sel, meta) => {
+                setSelTagihan({
+                  id: sel.id, nama: meta.nama, label: meta.label,
+                  nominal: sel.nominal, sisa: sel.sisa, status: sel.status,
+                });
+                void bukaRiwayat({ id: sel.id, label: meta.label });
+              }}
+              onHapus={(sel) => setHapusTagihanId(sel.id)}
             />
           </div>
           <Pager
@@ -525,6 +540,47 @@ export default function KeuanganPage() {
           />
         </TabsContent>
       </Tabs>
+
+      {/* Konfirmasi hapus tagihan dari context menu crosstab. */}
+      <AlertDialog
+        open={hapusTagihanId !== null}
+        onOpenChange={(o) => { if (!o && !hapusTagihanBusy) setHapusTagihanId(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus tagihan?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tagihan dihapus permanen dan tidak bisa dikembalikan. Tagihan yang sudah dibayar
+              harus dihapus pembayarannya dulu.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={hapusTagihanBusy}>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              id="btn_konfirmasi_hapus_tagihan"
+              className={cn(buttonVariants({ variant: 'destructive' }))}
+              onClick={() => {
+                const id = hapusTagihanId;
+                if (id === null) return;
+                setHapusTagihanBusy(true);
+                void (async () => {
+                  try {
+                    await hapusTagihan(id);
+                    toast.success('Tagihan dihapus.');
+                    if (selTagihan?.id === id) setSelTagihan(null);
+                    await load();
+                    await muatCrosstabSekarang();
+                  } catch (e2) { toast.error(errorMessage(e2)); }
+                  finally { setHapusTagihanBusy(false); setHapusTagihanId(null); }
+                })();
+              }}
+            >
+              Hapus
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <Dialog open={riwayatTagihan !== null} onOpenChange={(o) => { if (!o) setRiwayatTagihan(null); }}>
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
