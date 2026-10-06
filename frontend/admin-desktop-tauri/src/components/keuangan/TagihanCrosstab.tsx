@@ -198,6 +198,21 @@ const BarisCrosstab = memo(function BarisCrosstab({
   );
 });
 
+/**
+ * Mematikan pointer pada pembungkus Popper milik Radix.
+ *
+ * `pointer-events: none` pada isi kartu saja tak cukup: Radix menyisipkan
+ * `<div data-radix-popper-content-wrapper>` yang tetap menahan pointer, sehingga
+ * sel yang tertutup kartu tak bisa di-hover. Wrapper itu ikut dimatikan.
+ */
+function WrapperTanPointer({ children }: { children: React.ReactNode }) {
+  const ref = useCallback((el: HTMLDivElement | null) => {
+    const bungkus = el?.parentElement?.parentElement;
+    if (bungkus instanceof HTMLElement) bungkus.style.pointerEvents = 'none';
+  }, []);
+  return <div ref={ref}>{children}</div>;
+}
+
 /** Isi kartu hover: rincian tagihan per sel (dipakai di dalam HoverCardContent). */
 function IsiKartuTagihan({ data }: { data: TooltipSel }) {
   const status = data.status === 'lunas'
@@ -252,7 +267,7 @@ export default function TagihanCrosstab({ data, loading, terpilihId, onPilih, em
   const [hover, setHover] = useState<{ isi: TooltipSel; anchor: HTMLElement } | null>(null);
   /** Elemen jangkar HoverCard (diposisikan di atas sel yang di-hover). */
   const jangkarRef = useRef<HTMLDivElement | null>(null);
-  /** Tenggang sebelum menutup: mousemove dari sel ke kartu takfeflictutnutup. */
+  /** Tenggang sebelum menutup, agar perpindahan sel tak berkedip. */
   const tutupRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Handler stabil (dipakai props memo BarisCrosstab): `onPilih` & friends
@@ -275,10 +290,6 @@ export default function TagihanCrosstab({ data, loading, terpilihId, onPilih, em
   const hoverKeluar = useCallback(() => {
     if (tutupRef.current !== null) clearTimeout(tutupRef.current);
     tutupRef.current = setTimeout(() => setHover(null), 400);
-  }, []);
-  /** Pointer masuk kartu: batalkan penundaan tutup. */
-  const hoverMasukKartu = useCallback(() => {
-    if (tutupRef.current !== null) { clearTimeout(tutupRef.current); tutupRef.current = null; }
   }, []);
 
   /* Radix HoverCard tidak punya virtualRef seperti PopoverAnchor, jadi
@@ -395,11 +406,18 @@ export default function TagihanCrosstab({ data, loading, terpilihId, onPilih, em
           align="center"
           sideOffset={6}
           collisionPadding={12}
-          onPointerEnter={hoverMasukKartu}
-          onPointerLeave={hoverKeluar}
-          className="w-56 p-2.5"
+          /* Kartu TIDAK interaktif → pointer-events-none. Tanpa ini kartu
+             menutupi sel di bawahnya dan pointer tak pernah sampai ke sana,
+             sehingga sel yang tertutup tak bisa di-hover. Tembusnya membuat
+             hover selalu mendarat di sel yang sebenarnya di bawah kursor,
+             dan kartu ikut berganti isi. */
+          className="pointer-events-none w-56 p-2.5"
         >
-          {hover !== null && <IsiKartuTagihan data={hover.isi} />}
+          {hover !== null && (
+            <WrapperTanPointer>
+              <IsiKartuTagihan data={hover.isi} />
+            </WrapperTanPointer>
+          )}
         </HoverCardContent>
       </HoverCard>
     </div>
