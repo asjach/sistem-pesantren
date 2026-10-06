@@ -24,5 +24,20 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     target: 'es2021',
+    rollupOptions: {
+      output: {
+        /* Pisahkan vendor besar dari kode aplikasi supaya chunk utama tidak
+           menanggung semuanya (peringatan >500 kB). Lib berat yang memang
+           dinamis (xlsx-js-style, pdfjs, heic2any) tetap punya chunk sendiri. */
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return;
+          if (/node_modules\/(react|react-dom|react-router|react-router-dom|scheduler)\//.test(id)) return 'vendor-react';
+          if (/node_modules\/(@radix-ui|radix-ui)\//.test(id)) return 'vendor-radix';
+          // Sisanya biarkan Rollup: lib yang diimpor dinamis (xlsx-js-style,
+          // pdfjs, heic2any, DataExistingCard) tetap punya chunk sendiri dan
+          // tidak ikut terunduh saat aplikasi start.
+        },
+      },
+    },
   },
 });
