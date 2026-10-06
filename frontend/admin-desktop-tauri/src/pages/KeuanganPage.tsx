@@ -439,7 +439,7 @@ export default function KeuanganPage() {
                 >
                   <SelectValue placeholder="Urutkan: nama" />
                 </SelectTrigger>
-                <SelectContent position="popper" align="start">
+                <SelectContent position="popper" align="start" className="contain-layout will-change-transform">
                   <SelectItem value="nama">Urutkan: nama</SelectItem>
                   <SelectItem value="total">Total tagihan</SelectItem>
                   <SelectItem value="bayar">Terbayar</SelectItem>
@@ -754,7 +754,6 @@ export default function KeuanganPage() {
         </DialogContent>
       </Dialog>
 
-      {loading && <p className="text-xs text-muted-foreground">Memuat…</p>}
     </div>
   );
 }

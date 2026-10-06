@@ -86,29 +86,6 @@ describe('tooltip hover sel crosstab', () => {
     expect(tip).toHaveTextContent('Rp 50.000');
   });
 
-  it('menandai TUNGGAKAN + tanggal jatuh tempo', async () => {
-    renderCrosstab(baris(sel({ terlambat: true }), sel({ id: 2 })));
-    const tip = await hoverSel(0);
-    expect(tip).toHaveTextContent('Tunggakan');
-    expect(tip).toHaveTextContent('jatuh tempo 10 Agu 2025');
-  });
-
-  it('menandai belum jatuh tempo bila belum lewat', async () => {
-    renderCrosstab(baris(sel({ terlambat: true }), sel({ id: 2 })));
-    const tip = await hoverSel(1);
-    expect(tip).toHaveTextContent('Belum jatuh tempo');
-    expect(tip).not.toHaveTextContent('Tunggakan');
-  });
-
-  it('tanpa batas = Tunggakan, tanpa baris Periode', async () => {
-    renderCrosstab(baris(
-      sel({ jatuh_tempo: null, terlambat: true }),
-      sel({ id: 2, jatuh_tempo: null, terlambat: true }),
-    ));
-    const tip = await hoverSel(0);
-    expect(tip).toHaveTextContent('Tunggakan');
-    expect(tip).toHaveTextContent('tanpa batas jatuh tempo');
-  });
 });
 
 describe('klik sel tetap meneruskan data', () => {

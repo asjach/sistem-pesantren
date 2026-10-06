@@ -79,19 +79,13 @@ function kelasSel(sel: CrosstabSel): string {
     : 'bg-muted/20 text-muted-foreground/50';
 }
 
-/** "10 Agu 2025" untuk tooltip; input ISO date. */
-export function tanggalPanjang(iso: string): string {
-  const [y, b, h] = iso.split('-');
-  return `${h} ${BULAN[Number(b) - 1]} ${y}`;
-}
-
 /** "Juli 2025" dari periode bulanan 'YYYY-MM'. */
 function periodePanjang(periode: string): string {
   const [y, b] = periode.split('-');
   return `${BULAN[Number(b) - 1] ?? b} ${y}`;
 }
 
-/** Baris tooltip hover: rincian tagihan per sel. */
+/** Data satu sel yang ditampilkan di kartu hover. */
 interface TooltipSel {
   nama: string;
   jenisNama: string;
@@ -100,23 +94,6 @@ interface TooltipSel {
   nominal: number;
   terbayar: number;
   sisa: number;
-  status: CrosstabSel['status'];
-  terlambat: boolean;
-  jatuhTempo: string | null;
-}
-
-/** Baris tooltip hover: rincian tagihan per sel. */
-interface TooltipSel {
-  nama: string;
-  jenisNama: string;
-  tipe: CrosstabKolom['tipe'];
-  periode: string | null;
-  nominal: number;
-  terbayar: number;
-  sisa: number;
-  status: CrosstabSel['status'];
-  terlambat: boolean;
-  jatuhTempo: string | null;
 }
 
 const LEBAR_TOOLTIP = 224;
@@ -166,7 +143,6 @@ const BarisCrosstab = memo(function BarisCrosstab({
         const isiTooltip: TooltipSel = {
           nama: baris.nama, jenisNama: k.jenis_nama, tipe: k.tipe, periode: k.periode,
           nominal: sel.nominal, terbayar: sel.terbayar, sisa: sel.sisa,
-          status: sel.status, terlambat: sel.terlambat, jatuhTempo: sel.jatuh_tempo,
         };
         const meta = {
           nama: baris.nama, label: labelSel(k),
@@ -228,10 +204,6 @@ function WrapperTanPointer({ children }: { children: React.ReactNode }) {
 
 /** Isi kartu hover: rincian tagihan per sel (dipakai di dalam HoverCardContent). */
 function IsiKartuTagihan({ data }: { data: TooltipSel }) {
-  const status = data.status === 'lunas'
-    ? 'Lunas'
-    : data.terlambat ? 'Tunggakan' : 'Belum jatuh tempo';
-
   return (
     <div className="text-xs">
       <p className="font-semibold">{data.nama}</p>
@@ -253,12 +225,6 @@ function IsiKartuTagihan({ data }: { data: TooltipSel }) {
           Rp {data.sisa.toLocaleString('id')}
         </dd>
       </dl>
-      <p className="mt-2 border-t pt-1.5 text-[11px] text-muted-foreground">
-        {status}
-        {data.jatuhTempo === null
-          ? ' · tanpa batas jatuh tempo'
-          : ` · jatuh tempo ${tanggalPanjang(data.jatuhTempo)}`}
-      </p>
     </div>
   );
 }
@@ -266,7 +232,7 @@ function IsiKartuTagihan({ data }: { data: TooltipSel }) {
 /** Tabel silang tagihan: baris = santri, kolom = jenis (bulanan per bulan).
  *  Sel berisi nominal dengan warna status; klik sel (kiri maupun kanan)
  *  melaporkan tagihan terpilih ke halaman, yang membuka popover aksi. */
-export default function TagihanCrosstab({ data, loading, terpilihId, onPilih, emptyText }: Props) {
+function TagihanCrosstab({ data, loading, terpilihId, onPilih, emptyText }: Props) {
   const kolom = data?.kolom ?? [];
   const baris: CrosstabBaris[] = data?.baris ?? [];
   const grup = grupKolom(kolom);
@@ -523,3 +489,9 @@ export default function TagihanCrosstab({ data, loading, terpilihId, onPilih, em
     </div>
   );
 }
+
+/* `memo`: tabel ini berat (ratusan baris × puluhan kolom), sedangkan props-nya
+   stabil kecuali `data`/`loading`/pilihan sel. Tanpa memo, tiap perubahan state
+   halaman (mis. mengetik di pencarian, buka dialog) ikut merekonsiliasi seluruh
+   tabel dan membuat interaksi lain (termasuk membuka dropdown) terasa lambat. */
+export default memo(TagihanCrosstab);
