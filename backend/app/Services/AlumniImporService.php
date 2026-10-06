@@ -9,6 +9,7 @@ use App\Models\LembagaSantri;
 use App\Models\RiwayatBelajar;
 use App\Models\Santri;
 use App\Support\Tanggal;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Logika import arsip alumni per baris — dipakai dua jalur: file Excel
@@ -31,6 +32,34 @@ use App\Support\Tanggal;
  */
 class AlumniImporService extends ImporPotongan
 {
+    /** Santri yang status globalnya perlu dihitung ulang di akhir potongan. */
+    protected array $tersentuh = [];
+
+    /**
+     * Sama seperti induk, tetapi status global semua santri tersentuh dihitung
+     * sekali di akhir potongan (bukan 2 query per baris).
+     *
+     * @param  array<int, array<string, mixed>>  $potongan
+     */
+    public function prosesPotongan(array $potongan, int $nomorAwal, bool $kering): void
+    {
+        $jalan = function () use ($potongan, $nomorAwal, $kering): void {
+            $this->tersentuh = [];
+            foreach (array_values($potongan) as $i => $baris) {
+                $this->prosesBaris(is_array($baris) ? $baris : [], $nomorAwal + $i + 1, $kering);
+            }
+            if (! $kering) {
+                Santri::hitungUlangStatusGlobalBanyak(array_keys($this->tersentuh));
+            }
+        };
+
+        if ($kering) {
+            $jalan();
+        } else {
+            DB::transaction($jalan);
+        }
+    }
+
     /**
      * Normalisasi SEBELUM cek: angka Excel → string, objek DateTime → Y-m-d.
      *
@@ -222,7 +251,7 @@ class AlumniImporService extends ImporPotongan
             ->update(['is_active_lembaga' => LembagaSantri::TIDAK]);
 
         if ($riwayat->isNotEmpty()) {
-            $santri->hitungUlangStatusGlobal();
+            $this->tersentuh[(int) $santri->id] = true;
         }
     }
 
