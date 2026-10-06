@@ -70,7 +70,7 @@ export default function ImportBertahapDialog({ open, onOpenChange, onSelesai }: 
     setNamaFile(f.name);
     setSibuk(true);
     try {
-      const XLSX = await import('xlsx');
+      const XLSX = await import('xlsx-js-style');
       const buf = await f.arrayBuffer();
       const wb = XLSX.read(buf, { type: 'array', cellDates: false });
       const ws = wb.Sheets[wb.SheetNames[0]];

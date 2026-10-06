@@ -37,7 +37,6 @@
     "react-resizable-panels": "^4.12.4",
     "react-router-dom": "^6.26.2",
     "sonner": "^2.0.8",
-    "xlsx": "^0.18.5",
     "xlsx-js-style": "^1.2.0"
   },
   "devDependencies": {
