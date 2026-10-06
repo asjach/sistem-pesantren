@@ -345,15 +345,24 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
               </p>
             </div>
           )}
-          <div className="flex flex-col gap-1">
-            <FieldLabel htmlFor="inp_gen_jatuh_tempo">Jatuh Tempo</FieldLabel>
-            <Input id="inp_gen_jatuh_tempo" type="date" className="h-8" value={jatuhTempo} onChange={(e) => setJatuhTempo(e.target.value)} />
-          </div>
+          {bulanan ? (
+            <div className="flex flex-col gap-1">
+              <FieldLabel htmlFor="info_gen_jatuh_tempo">Jatuh Tempo</FieldLabel>
+              <p id="info_gen_jatuh_tempo" className="flex h-8 items-center text-xs text-muted-foreground">
+                Otomatis tanggal 10 bulan berikutnya
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-1">
+              <FieldLabel htmlFor="inp_gen_jatuh_tempo">Jatuh Tempo</FieldLabel>
+              <Input id="inp_gen_jatuh_tempo" type="date" className="h-8" value={jatuhTempo} onChange={(e) => setJatuhTempo(e.target.value)} />
+            </div>
+          )}
           <p className="pb-1 text-xs text-muted-foreground">
             {tahunAjaran === null
               ? <span className="text-destructive">Pilih satu tahun ajaran pada filter di atas.</span>
               : bulanan
-                ? <>TA {tahunAjaran}. Isi Dari Bulan; Sampai Bulan opsional (kosong = satu bulan, maks 24 bulan).</>
+                ? <>TA {tahunAjaran}. Isi Dari Bulan; Sampai Bulan opsional (kosong = satu bulan, maks 24 bulan). Tunggakan dihitung setelah tanggal 10 bulan berikutnya lewat.</>
                 : <>TA {tahunAjaran}. Jenis non-bulanan: periode otomatis kode TA — bisa digenerate lagi di tahun ajaran berikutnya.</>}
           </p>
         </div>

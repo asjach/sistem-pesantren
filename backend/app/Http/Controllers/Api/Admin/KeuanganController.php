@@ -13,6 +13,7 @@ use App\Models\Tagihan;
 use App\Models\TarifTagihan;
 use App\Services\DispensasiService;
 use App\Services\UrutKatalog;
+use App\Support\JatuhTempo;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
@@ -383,6 +384,7 @@ class KeuanganController extends Controller
             'jenis_id' => 'nullable|integer|exists:jenis_tagihan,id',
             'status' => 'nullable|in:belum,sebagian,lunas',
             'belum_lunas' => 'nullable|boolean',
+            'terlambat' => 'nullable|boolean',
             'santri' => 'nullable|string|max:100',
         ]);
 
@@ -397,6 +399,11 @@ class KeuanganController extends Controller
         }
         if ($request->boolean('belum_lunas')) {
             $q->where('status', '!=', 'lunas');
+        }
+        // Tunggakan = sudah lewat jatuh tempo DAN belum lunas.
+        if ($request->boolean('terlambat')) {
+            $q->where('status', '!=', 'lunas')
+                ->whereNotNull('jatuh_tempo')->whereDate('jatuh_tempo', '<', today());
         }
         if ($request->filled('santri')) {
             $cari = $request->input('santri');
@@ -438,6 +445,7 @@ class KeuanganController extends Controller
                     'terbayar' => (int) $t->terbayar,
                     'sisa' => $t->sisa(),
                     'status' => (string) $t->status,
+                    'terlambat' => $t->terlambat(),
                     'jatuh_tempo' => $t->jatuh_tempo?->format('Y-m-d'),
                 ];
             }
@@ -450,7 +458,7 @@ class KeuanganController extends Controller
                 'sel' => $sel,
                 'total_tagihan' => (int) $kelompok->sum('nominal'),
                 'total_terbayar' => (int) $kelompok->sum('terbayar'),
-                'tunggakan' => (int) $kelompok->sum(fn ($t) => $t->sisa()),
+                'tunggakan' => (int) $kelompok->sum(fn ($t) => $t->sisaTerlambat()),
             ];
         }
 
@@ -534,6 +542,8 @@ class KeuanganController extends Controller
             'jatuh_tempo' => 'nullable|date',
         ]);
         $this->canLembaga($request->user(), $data['jenjang']) || abort(403);
+        $jenis = JenisTagihan::findOrFail($data['jenis_id']);
+        $data['jatuh_tempo'] = JatuhTempo::untuk((string) $jenis->tipe, $data['periode'] ?? null, $data['jatuh_tempo'] ?? null);
         $tagihan = Tagihan::create($data + ['status' => 'belum', 'terbayar' => 0]);
 
         return response()->json($tagihan, 201);
@@ -697,7 +707,8 @@ class KeuanganController extends Controller
                         'jenjang' => $info['jenjang_utama'], 'paket' => $info['paket'],
                         'tahun_ajaran' => $data['tahun_ajaran'], 'nominal' => $nominal,
                         'potongan' => $potongan, 'dispensasi_ids' => $dispensasiIds,
-                        'jatuh_tempo' => $data['jatuh_tempo'] ?? null, 'status' => 'belum', 'terbayar' => 0,
+                        'jatuh_tempo' => JatuhTempo::untuk((string) $jenis->tipe, $periode, $data['jatuh_tempo'] ?? null),
+                        'status' => 'belum', 'terbayar' => 0,
                     ]
                 );
                 $tagihan->wasRecentlyCreated ? $dibuat++ : $dilewati++;
@@ -983,9 +994,17 @@ class KeuanganController extends Controller
         return response()->json(['pesan' => 'Pembayaran dihapus.']);
     }
 
+    /**
+     * Tunggakan per santri: HANYA tagihan yang sudah lewat jatuh tempo dan belum
+     * lunas. Tagihan bulan yang masih berjalan tidak dihitung. Tagihan tanpa
+     * jatuh tempo (jenis non-bulanan yang tidak diisi) ikut diabaikan.
+     */
     public function tunggakan(Request $request)
     {
-        $q = Tagihan::with(['jenis', 'santri'])->where('status', '!=', 'lunas');
+        $q = Tagihan::with(['jenis', 'santri'])
+            ->where('status', '!=', 'lunas')
+            ->whereNotNull('jatuh_tempo')
+            ->whereDate('jatuh_tempo', '<', today());
         if ($request->filled('jenjang')) {
             $q->where('jenjang', $request->input('jenjang'));
         }
@@ -999,11 +1018,12 @@ class KeuanganController extends Controller
 
             return [
                 'santri_id' => $rows->first()->santri_id,
-                'nama' => $s?->nama_lengkap ?? 'Tidak dikenal',
+                'nama' => $s?->nama_lengkap ?? 'Tidak diketahui',
                 'total_tagihan' => $rows->sum('nominal'),
                 'terbayar' => $rows->sum('terbayar'),
-                'tunggakan' => $rows->sum(fn ($r) => max(0, $r->nominal - $r->terbayar)),
+                'tunggakan' => $rows->sum(fn ($r) => $r->sisaTerlambat()),
                 'jumlah_tagihan' => $rows->count(),
+                'terlambat_terlama' => $rows->min(fn ($r) => $r->jatuh_tempo?->format('Y-m-d')),
             ];
         })->values();
 

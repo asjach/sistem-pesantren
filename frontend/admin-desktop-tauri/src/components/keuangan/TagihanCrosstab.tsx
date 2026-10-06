@@ -49,11 +49,37 @@ function grupKolom(kolom: CrosstabKolom[]): GrupKolom[] {
   return grup;
 }
 
-const KELAS_SEL: Record<CrosstabSel['status'], string> = {
-  lunas: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
-  sebagian: 'bg-amber-500/20 text-amber-700 dark:text-amber-300',
-  belum: 'bg-destructive/10 text-destructive',
-};
+/** Warna sel: lunas hijau, terlambat merah, belum jatuh tempo netral. */
+function kelasSel(sel: CrosstabSel): string {
+  if (sel.status === 'lunas') {
+    return 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300';
+  }
+  if (sel.status === 'sebagian') {
+    return sel.terlambat
+      ? 'bg-amber-500/20 text-amber-800 dark:text-amber-300'
+      : 'bg-amber-500/10 text-amber-700/80 dark:text-amber-300/80';
+  }
+
+  return sel.terlambat
+    ? 'bg-destructive/10 text-destructive'
+    : 'bg-muted/40 text-muted-foreground';
+}
+
+function tanggalPanjang(iso: string): string {
+  const [y, b, h] = iso.split('-');
+  return `${h} ${BULAN[Number(b) - 1]} ${y}`;
+}
+
+/** Tooltip sel: sisa + jatuh tempo + status-sdkterminasi. */
+function judulSel(sel: CrosstabSel, label: string): string {
+  const nominal = `sisa Rp ${sel.sisa.toLocaleString('id')}`;
+  const tempo = sel.jatuh_tempo === null ? 'tanpa jatuh tempo' : `jatuh tempo ${tanggalPanjang(sel.jatuh_tempo)}`;
+  const status = sel.status === 'lunas'
+    ? 'lunas'
+    : (sel.terlambat ? 'TERLAMBAT' : 'belum jatuh tempo');
+
+  return `${label} — ${nominal} · ${tempo} · ${status}`;
+}
 
 /** Tabel silang tagihan: baris = santri, kolom = jenis (bulanan per bulan).
  *  Sel berisi nominal dengan warna status; klik sel memilih tagihan itu. */
@@ -100,7 +126,9 @@ export default function TagihanCrosstab({ data, loading, terpilihId, onPilih, em
             ))}
             <th rowSpan={2} className="sticky top-0 z-20 border-b border-l bg-muted p-2 text-right align-bottom">Tagihan</th>
             <th rowSpan={2} className="sticky top-0 z-20 border-b border-l bg-muted p-2 text-right align-bottom">Terbayar</th>
-            <th rowSpan={2} className="sticky top-0 z-20 border-b border-l bg-muted p-2 text-right align-bottom">Tunggakan</th>
+            <th rowSpan={2} className="sticky top-0 z-20 border-b border-l bg-muted p-2 text-right align-bottom" title="Sisa tagihan yang sudah lewat jatuh tempo">
+              Tunggakan
+            </th>
           </tr>
           <tr>
             {kolom.map((k) => (
@@ -134,8 +162,8 @@ export default function TagihanCrosstab({ data, loading, terpilihId, onPilih, em
                       type="button"
                       id={`btn_tagihan_sel_${sel.id}`}
                       onClick={() => onPilih(sel, { nama: r.nama, label: labelSel(k) })}
-                      title={`${labelSel(k)} · ${r.nama} — sisa Rp ${sel.sisa.toLocaleString('id')}`}
-                      className={`w-full rounded px-1.5 py-1 text-right tabular-nums hover:ring-1 hover:ring-ring ${KELAS_SEL[sel.status]} ${dipilih ? 'ring-2 ring-ring' : ''}`}
+                      title={`${judulSel(sel, `${labelSel(k)} · ${r.nama}`)}`}
+                      className={`w-full rounded px-1.5 py-1 text-right tabular-nums hover:ring-1 hover:ring-ring ${kelasSel(sel)} ${sel.terlambat ? 'font-semibold' : ''} ${dipilih ? 'ring-2 ring-ring' : ''}`}
                     >
                       {sel.nominal.toLocaleString('id')}
                     </button>

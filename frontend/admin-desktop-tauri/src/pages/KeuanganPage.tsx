@@ -30,6 +30,7 @@ import { EditAction } from '@/components/RowActions';
 import GenerateTagihanDialog from '@/components/keuangan/GenerateTagihanDialog';
 import TagihanCrosstab from '@/components/keuangan/TagihanCrosstab';
 import DispensasiDialog from '@/components/keuangan/DispensasiDialog';
+import { tanggal } from '@/lib/tanggal';
 
 const FIELDS_JENIS: ExcelField[] = [
   { key: 'nama', label: 'Jenis Tagihan', kind: 'static' },
@@ -53,6 +54,7 @@ const FIELDS_TUNGGAKAN: ExcelField[] = [
   { key: 'total_tagihan', label: 'Total', kind: 'static', width: 110 },
   { key: 'terbayar', label: 'Terbayar', kind: 'static', width: 110 },
   { key: 'tunggakan', label: 'Tunggakan', kind: 'static', width: 110 },
+  { key: 'terlambat_terlama', label: 'Lewat Sejak', kind: 'static', width: 110 },
 ];
 
 const FIELDS_DISPENSASI: ExcelField[] = [
@@ -125,6 +127,8 @@ export default function KeuanganPage() {
   const [cariTagihan, setCariTagihan] = useState('');
   const [urutTagihan, setUrutTagihan] = useState('');
   const [arahTagihan, setArahTagihan] = useState<'naik' | 'turun'>('naik');
+  /** Tab Tagihan: hanya sel yang sudah lewat jatuh tempo. */
+  const [terlambatTagihan, setTerlambatTagihan] = useState(false);
 
   const loadCrosstab = useCallback(async (
     page: number, perPage: number, jenjang: readonly string[], ta: readonly string[],
@@ -139,6 +143,7 @@ export default function KeuanganPage() {
         santri: cariTagihan.trim() === '' ? undefined : cariTagihan.trim(),
         sort: urutTagihan === '' ? undefined : [urutTagihan],
         arah: urutTagihan === '' ? undefined : arahTagihan,
+        terlambat: terlambatTagihan || undefined,
       });
       setCrosstab(res);
       setTagihanPage(res.current_page);
@@ -148,13 +153,13 @@ export default function KeuanganPage() {
       setErr(errorMessage(e));
       setCrosstab(null);
     } finally { setLoading(false); }
-  }, [cariTagihan, urutTagihan, arahTagihan]);
+  }, [cariTagihan, urutTagihan, arahTagihan, terlambatTagihan]);
 
   // Filter global/pencarian/urut berubah → muat dari halaman 1.
   useEffect(() => {
     if (filterLoading || jenjangs.length === 0) { if (!filterLoading && jenjangs.length === 0) setCrosstab(null); return; }
     void loadCrosstab(1, tagihanPerPage, jenjangs, tahunAjaranNames);
-  }, [filterLoading, jenjangs, tahunAjaranNames, tagihanPerPage, cariTagihan, urutTagihan, arahTagihan, loadCrosstab]);
+  }, [filterLoading, jenjangs, tahunAjaranNames, tagihanPerPage, cariTagihan, urutTagihan, arahTagihan, terlambatTagihan, loadCrosstab]);
 
   /** Tarif mengikuti filter lembaga & tahun ajaran (server-side; kosong = semua). */
   const loadTarif = useCallback(async (jenjang: readonly string[], ta: readonly string[]) => {
@@ -369,6 +374,16 @@ export default function KeuanganPage() {
             >
               {arahTagihan === 'naik' ? 'Naik' : 'Turun'}
             </Button>
+            <Button
+              id="btn_tagihan_terlambat"
+              size="sm"
+              variant={terlambatTagihan ? 'default' : 'outline'}
+              aria-pressed={terlambatTagihan}
+              title="Tampilkan hanya tagihan yang sudah lewat jatuh tempo"
+              onClick={() => { setTerlambatTagihan((v) => !v); setTagihanPage(1); }}
+            >
+              Terlambat
+            </Button>
             <Button id="btn_gen_buka" size="sm" onClick={() => setGenerateOpen(true)}>+ Buat Tagihan</Button>
           </div>
 
@@ -472,9 +487,10 @@ export default function KeuanganPage() {
               total_tagihan: r.total_tagihan.toLocaleString('id'),
               terbayar: r.terbayar.toLocaleString('id'),
               tunggakan: r.tunggakan.toLocaleString('id'),
+              terlambat_terlama: tanggal(r.terlambat_terlama),
             })}
             loading={loading}
-            emptyText="Tidak ada tunggakan."
+            emptyText="Tidak ada tagihan yang lewat jatuh tempo."
             canEdit={false}
             onCommit={async () => {}}
             onSaved={() => {}}

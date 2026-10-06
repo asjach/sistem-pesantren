@@ -18,9 +18,12 @@ export interface TagihanRow {
   santri?: { nama_lengkap: string };
 }
 
+/** Baris tab Tunggakan: hanya tagihan yang sudah lewat jatuh tempo. */
 export interface TunggakanRow {
   santri_id: number; nama: string; total_tagihan: number; terbayar: number;
   tunggakan: number; jumlah_tagihan: number;
+  /** Jatuh tempo paling awal di antara tagihan yang terlambat. */
+  terlambat_terlama: string | null;
 }
 
 export function daftarJenis(params: { sort?: string[]; arah?: 'naik' | 'turun' } = {}) {
@@ -61,7 +64,7 @@ export function hapusTarif(id: number) {
   return api<{ pesan: string }>(`/admin/keuangan/tarif/${id}`, { method: 'DELETE' });
 }
 
-export function daftarTagihan(params: { page?: string; per_page?: string; jenjang?: ScalarOrArray<string>; tahun_ajaran?: ScalarOrArray<string>; jenis_id?: string; status?: string; belum_lunas?: boolean; santri?: string; santri_id?: number | string; sort?: string[]; arah?: 'naik' | 'turun' } = {}) {
+export function daftarTagihan(params: { page?: string; per_page?: string; jenjang?: ScalarOrArray<string>; tahun_ajaran?: ScalarOrArray<string>; jenis_id?: string; status?: string; belum_lunas?: boolean; terlambat?: boolean; santri?: string; santri_id?: number | string; sort?: string[]; arah?: 'naik' | 'turun' } = {}) {
   const q = new URLSearchParams();
   if (params.page) q.set('page', params.page);
   if (params.per_page) q.set('per_page', params.per_page);
@@ -70,6 +73,7 @@ export function daftarTagihan(params: { page?: string; per_page?: string; jenjan
   if (params.jenis_id) q.set('jenis_id', params.jenis_id);
   if (params.status) q.set('status', params.status);
   if (params.belum_lunas) q.set('belum_lunas', '1');
+  if (params.terlambat) q.set('terlambat', '1');
   if (params.santri) q.set('santri', params.santri);
   if (params.santri_id !== undefined && params.santri_id !== '') q.set('santri_id', String(params.santri_id));
   if (params.sort?.length) q.set('sort', params.sort.join(','));
@@ -162,6 +166,8 @@ export function hapusDispensasi(id: number) {
 export interface CrosstabSel {
   id: number; nominal: number; terbayar: number; sisa: number;
   status: 'belum' | 'sebagian' | 'lunas'; jatuh_tempo: string | null;
+  /** Sudah lewat jatuh tempo & belum lunas (dasar hitungan tunggakan). */
+  terlambat: boolean;
 }
 
 export interface CrosstabKolom {
@@ -172,7 +178,9 @@ export interface CrosstabKolom {
 export interface CrosstabBaris {
   santri_id: number; nama: string; jenjang: string; paket: string;
   sel: Record<string, CrosstabSel>;
-  total_tagihan: number; total_terbayar: number; tunggakan: number;
+  total_tagihan: number; total_terbayar: number;
+  /** Sisa tagihan yang sudah lewat jatuh tempo saja. */
+  tunggakan: number;
 }
 
 export interface CrosstabTagihan {
@@ -183,7 +191,7 @@ export interface CrosstabTagihan {
 
 export function crosstabTagihan(params: {
   tahun_ajaran?: ScalarOrArray<string>; jenjang?: ScalarOrArray<string>; jenis_id?: number | '';
-  status?: string; belum_lunas?: boolean; santri?: string;
+  status?: string; belum_lunas?: boolean; terlambat?: boolean; santri?: string;
   page?: number; per_page?: string; sort?: string[]; arah?: 'naik' | 'turun';
 } = {}) {
   const q = new URLSearchParams();
@@ -192,6 +200,7 @@ export function crosstabTagihan(params: {
   if (params.jenis_id !== undefined && params.jenis_id !== '') q.set('jenis_id', String(params.jenis_id));
   if (params.status) q.set('status', params.status);
   if (params.belum_lunas) q.set('belum_lunas', '1');
+  if (params.terlambat) q.set('terlambat', '1');
   if (params.santri) q.set('santri', params.santri);
   if (params.page) q.set('page', String(params.page));
   if (params.per_page) q.set('per_page', params.per_page);

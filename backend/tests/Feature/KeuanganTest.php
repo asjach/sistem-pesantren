@@ -281,6 +281,33 @@ class KeuanganTest extends TestCase
             'santri' => [['santri_id' => $santri->id]],
         ])->assertStatus(200)->assertJson(['dibuat' => 1, 'dilewati' => 0]);
         $this->assertDatabaseHas('tagihan', ['santri_id' => $santri->id, 'jenis_id' => $bulanan->id, 'periode' => '2025-08']);
+
+        // Jatuh tempo bulanan = tanggal 10 BULAN BERIKUTNYA; input manual diabaikan.
+        $this->assertSame(
+            '2025-09-10',
+            Tagihan::where('jenis_id', $bulanan->id)->where('periode', '2025-08')->firstOrFail()->jatuh_tempo->format('Y-m-d')
+        );
+        $this->actingAs($admin)->postJson('/api/admin/keuangan/tagihan/generate', [
+            'tahun_ajaran' => '2025/2026', 'jenis_id' => $bulanan->id,
+            'periode' => '2025-07', 'periode_sampai' => '2025-09', 'nominal' => 10000,
+            'jatuh_tempo' => '2025-12-31',
+            'santri' => [['santri_id' => $santri->id]],
+        ])->assertStatus(200)->assertJson(['dibuat' => 2, 'dilewati' => 1]);
+        // Tiap bulan dapat tanggalnya sendiri (Des → tahun depan).
+        foreach (['2025-07' => '2025-08-10', '2025-08' => '2025-09-10', '2025-09' => '2025-10-10'] as $periode => $harus) {
+            $this->assertSame($harus, Tagihan::where('jenis_id', $bulanan->id)->where('periode', $periode)->firstOrFail()->jatuh_tempo->format('Y-m-d'));
+        }
+
+        // Non-bulanan: jatuh tempo manual tetap dipakai.
+        $nonBulanan2 = JenisTagihan::create(['nama' => 'Ujian', 'tipe' => 'non_bulanan']);
+        $this->actingAs($admin)->postJson('/api/admin/keuangan/tagihan/generate', [
+            'tahun_ajaran' => '2025/2026', 'jenis_id' => $nonBulanan2->id, 'jatuh_tempo' => '2025-08-15',
+            'nominal' => 10000, 'santri' => [['santri_id' => $santri->id]],
+        ])->assertStatus(200);
+        $this->assertSame(
+            '2025-08-15',
+            Tagihan::where('jenis_id', $nonBulanan2->id)->where('periode', '2025/2026')->firstOrFail()->jatuh_tempo->format('Y-m-d')
+        );
     }
 
     public function test_jenis_tagihan_scoping_lembaga(): void
@@ -436,8 +463,8 @@ class KeuanganTest extends TestCase
         $santri = Santri::create(['nama_lengkap' => 'Santri Crosstab', 'jk' => 'L']);
         $lain = Santri::create(['nama_lengkap' => 'Santri Kosong', 'jk' => 'P']);
 
-        $juli = Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $infaq->id, 'periode' => '2025-07', 'nominal' => 50000]);
-        Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $infaq->id, 'periode' => '2025-08', 'nominal' => 50000, 'terbayar' => 20000, 'status' => 'sebagian']);
+        $juli = Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $infaq->id, 'periode' => '2025-07', 'nominal' => 50000, 'jatuh_tempo' => now()->subDays(40)->toDateString()]);
+        Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $infaq->id, 'periode' => '2025-08', 'nominal' => 50000, 'terbayar' => 20000, 'status' => 'sebagian', 'jatuh_tempo' => now()->subDays(10)->toDateString()]);
         Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $hipa->id, 'periode' => '2025/2026', 'nominal' => 300000, 'terbayar' => 300000, 'status' => 'lunas']);
         Tagihan::create(['santri_id' => $lain->id, 'jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $infaq->id, 'periode' => '2025-08', 'nominal' => 50000]);
 
@@ -457,6 +484,7 @@ class KeuanganTest extends TestCase
         $this->assertSame($juli->id, $santriBaris['sel']["{$infaq->id}-2025-07"]['id']);
         $this->assertSame('belum', $santriBaris['sel']["{$infaq->id}-2025-07"]['status']);
         $this->assertSame(30000, $santriBaris['sel']["{$infaq->id}-2025-08"]['sisa']);
+        $this->assertTrue($santriBaris['sel']["{$infaq->id}-2025-08"]['terlambat']);
         $this->assertSame('lunas', $santriBaris['sel']['jenis-'.$hipa->id]['status']);
         $this->assertSame(400000, $santriBaris['total_tagihan']);
         $this->assertSame(80000, $santriBaris['tunggakan']);
@@ -476,6 +504,67 @@ class KeuanganTest extends TestCase
         );
         $this->actingAs($admin)->getJson('/api/admin/keuangan/tagihan/crosstab?sort=nominal')
             ->assertStatus(422);
+    }
+
+    public function test_tunggakan_hanya_yang_sudah_lewat_jatuh_tempo(): void
+    {
+        $admin = $this->admin();
+        $infaq = JenisTagihan::create(['nama' => 'Infaq Bulanan', 'tipe' => 'bulanan']);
+        $santri = Santri::create(['nama_lengkap' => 'Santri Telat', 'jk' => 'P']);
+
+        // Lewat jatuh tempo & belum lunas → tunggakan.
+        $lewat = Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $infaq->id, 'periode' => '2025-07', 'nominal' => 50000, 'jatuh_tempo' => now()->subDays(5)->toDateString()]);
+        // Lewat jatuh tempo tapi lunas → bukan tunggakan.
+        Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $infaq->id, 'periode' => '2025-08', 'nominal' => 50000, 'terbayar' => 50000, 'status' => 'lunas', 'jatuh_tempo' => now()->subDays(3)->toDateString()]);
+        // Jatuh tempo tepat hari ini → belum terlambat.
+        Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $infaq->id, 'periode' => '2025-09', 'nominal' => 50000, 'jatuh_tempo' => now()->toDateString()]);
+        // Bulan depan → belum jatuh tempo.
+        Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $infaq->id, 'periode' => '2025-10', 'nominal' => 50000, 'jatuh_tempo' => now()->addMonth()->toDateString()]);
+
+        $baris = collect($this->actingAs($admin)->getJson('/api/admin/keuangan/tagihan/crosstab')->assertStatus(200)->json('baris'))->first();
+
+        // Sel menandai terlambat; kolom Tunggakan hanya menghitung yang lewat.
+        $this->assertTrue($baris['sel']["{$infaq->id}-2025-07"]['terlambat']);
+        $this->assertFalse($baris['sel']["{$infaq->id}-2025-08"]['terlambat'], 'lunas bukan tunggakan');
+        $this->assertFalse($baris['sel']["{$infaq->id}-2025-09"]['terlambat'], 'jatuh tempo hari ini belum terlambat');
+        $this->assertFalse($baris['sel']["{$infaq->id}-2025-10"]['terlambat'], 'bulan depan belum jatuh tempo');
+        $this->assertSame(200000, $baris['total_tagihan'], 'total tagihan tetap semua bulan');
+        $this->assertSame(50000, $baris['tunggakan'], 'hanya sisa yang lewat jatuh tempo');
+
+        // Filter terlambat=1 menyembunyikan bulan yang belum jatuh tempo.
+        $tersaring = collect($this->actingAs($admin)->getJson('/api/admin/keuangan/tagihan/crosstab?terlambat=1')->assertStatus(200)->json('baris'))->first();
+        $this->assertSame([$lewat->id], array_column($tersaring['sel'], 'id'));
+        $this->assertSame(50000, $tersaring['tunggakan']);
+
+        // Endpoint tunggakan: hanya tagihan terlambat.
+        $tunggakan = $this->actingAs($admin)->getJson('/api/admin/keuangan/tunggakan')->assertStatus(200)->json('per_santri');
+        $this->assertCount(1, $tunggakan);
+        $this->assertSame('Santri Telat', $tunggakan[0]['nama']);
+        $this->assertSame(50000, $tunggakan[0]['tunggakan']);
+        $this->assertSame(1, $tunggakan[0]['jumlah_tagihan']);
+        $this->assertSame(now()->subDays(5)->toDateString(), $tunggakan[0]['terlambat_terlama']);
+
+        // Tidak ada satu pun yang lewat → kosong.
+        Tagihan::query()->update(['jatuh_tempo' => now()->addMonth()->toDateString()]);
+        $this->actingAs($admin)->getJson('/api/admin/keuangan/tunggakan')
+            ->assertStatus(200)->assertJsonCount(0, 'per_santri');
+    }
+
+    public function test_tagihan_tanpa_jatuh_tempo_bukan_tunggakan(): void
+    {
+        $admin = $this->admin();
+        $hipa = JenisTagihan::create(['nama' => 'HIPA', 'tipe' => 'non_bulanan']);
+        $santri = Santri::create(['nama_lengkap' => 'Santri Tanpa Tempo', 'jk' => 'L']);
+        $t = Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $hipa->id, 'nominal' => 300000]);
+
+        $this->assertFalse($t->terlambat());
+        $this->assertSame(0, $t->sisaTerlambat());
+        $this->actingAs($admin)->getJson('/api/admin/keuangan/tunggakan')
+            ->assertStatus(200)->assertJsonCount(0, 'per_santri');
+        // Crosstab tetap menagih &0 tunggakan.
+        $baris = $this->actingAs($admin)->getJson('/api/admin/keuangan/tagihan/crosstab')->assertStatus(200)->json('baris.0');
+        $this->assertSame(300000, $baris['total_tagihan']);
+        $this->assertSame(0, $baris['tunggakan']);
     }
 
     public function test_hapus_tagihan(): void
@@ -512,7 +601,7 @@ class KeuanganTest extends TestCase
         $admin = $this->admin();
         $jenis = JenisTagihan::create(['nama' => 'Ujian', 'tipe' => 'non_bulanan']);
         $santri = Santri::create(['nama_lengkap' => 'Santri Ujian', 'jk' => 'L']);
-        $tagihan = Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'nominal' => 800000]);
+        $tagihan = Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'nominal' => 800000, 'jatuh_tempo' => now()->subDays(10)->toDateString()]);
 
         $this->actingAs($admin)->postJson('/api/admin/keuangan/pembayaran', [
             'tagihan_id' => $tagihan->id, 'jumlah' => 300000, 'metode' => 'tunai', 'kas' => 'tunai_tu',

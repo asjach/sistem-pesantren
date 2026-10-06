@@ -39,4 +39,23 @@ class Tagihan extends Model
     {
         return max(0, (int) $this->nominal - (int) $this->terbayar);
     }
+
+    /**
+     * Sudah lewat jatuh tempo dan masih punya sisa? Tagihan tanpa jatuh tempo
+     * (jenis non-bulanan yang tidak diisi manual) tidak dianggap terlambat.
+     *
+     * Batasnya "lewat tanggal": jatuh tempo tepat hari ini belum terlambat.
+     */
+    public function terlambat(): bool
+    {
+        return $this->jatuh_tempo !== null
+            && $this->sisa() > 0
+            && $this->jatuh_tempo->lt(today());
+    }
+
+    /** Sisa tagihan yang masuk hitungan tunggakan (0 bila belum terlambat). */
+    public function sisaTerlambat(): int
+    {
+        return $this->terlambat() ? $this->sisa() : 0;
+    }
 }
