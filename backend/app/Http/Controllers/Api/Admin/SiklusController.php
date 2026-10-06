@@ -23,6 +23,7 @@ use App\Models\SemesterAktif;
 use App\Models\TahunAjaran;
 use App\Services\SiklusSantriService;
 use App\Services\UrutKatalog;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -128,26 +129,52 @@ class SiklusController extends Controller
                 ->all();
         }
 
+        // Muat sekali untuk seluruh batch: satu query per jenis, bukan per siswa.
+        $petaSantri = Santri::whereIn('id', array_unique(array_map(
+            static fn (array $i): int => (int) $i['santri_id'],
+            $items,
+        )))->get()->keyBy('id');
+        $idRiwayat = array_values(array_unique(array_filter(array_map(
+            static fn (array $i): ?int => isset($i['riwayat_id']) ? (int) $i['riwayat_id'] : null,
+            $items,
+        ))));
+        $idKelas = array_values(array_unique(array_filter(array_map(
+            static fn (array $i): ?int => isset($i['kelas_id']) ? (int) $i['kelas_id'] : null,
+            $items,
+        ))));
+        $petaRiwayat = $idRiwayat === [] ? collect() : RiwayatBelajar::whereIn('id', $idRiwayat)->get()->keyBy('id');
+        $petaKelas = $idKelas === [] ? collect() : Kelas::whereIn('id', $idKelas)->get()->keyBy('id');
+
         $ok = 0;
         $gagal = [];
+        /** @var array<string, array{ta: string|null, semester: string|null}> $aturanPindah */
+        $aturanPindah = [];
         foreach ($items as $item) {
             try {
                 $riwayatId = isset($item['riwayat_id']) ? (int) $item['riwayat_id'] : null;
                 if ($riwayatId !== null) {
-                    $riwayat = RiwayatBelajar::findOrFail($riwayatId);
+                    $riwayat = $petaRiwayat->get($riwayatId)
+                        ?? throw (new ModelNotFoundException)->setModel(RiwayatBelajar::class, [$riwayatId]);
                     if ($riwayat->jenjang !== $lembagaId || (int) $riwayat->santri_id !== (int) $item['santri_id']) {
                         throw ValidationException::withMessages(['riwayat_id' => 'Riwayat tidak sesuai dengan siswa atau lembaga.']);
                     }
-                    $this->cekPindahDariRiwayat($riwayat);
-                    $santri = Santri::findOrFail($riwayat->santri_id);
+                    // Aturan jenjang dibaca sekali per jenjang untuk seluruh batch.
+                    $aturanPindah[$riwayat->jenjang] ??= [
+                        'ta' => TahunAjaran::aktif($riwayat->jenjang)?->nama,
+                        'semester' => SemesterAktif::where('jenjang', $riwayat->jenjang)->value('semester'),
+                    ];
+                    $this->cekPindahDariRiwayat($riwayat, $aturanPindah[$riwayat->jenjang]);
+                    $idSantri = (int) $riwayat->santri_id;
                 } else {
-                    $santri = Santri::findOrFail($item['santri_id']);
+                    $idSantri = (int) $item['santri_id'];
                 }
+                $santri = $petaSantri->get($idSantri)
+                    ?? throw (new ModelNotFoundException)->setModel(Santri::class, [$idSantri]);
                 if ($riwayatId === null) {
                     $this->authorizeAksiLembaga($request, $santri, $lembagaId);
                 }
                 $kelasId = isset($item['kelas_id']) ? (int) $item['kelas_id'] : null;
-                $this->cekKelasGenap($santri, $lembagaId, $kelasId, $riwayatId);
+                $this->cekKelasGenap($santri, $lembagaId, $kelasId, $riwayatId, $kelasId === null ? null : $petaKelas->get($kelasId));
                 $this->siklusService->salinKeGenap(
                     $santri,
                     $lembagaId,
@@ -165,13 +192,20 @@ class SiklusController extends Controller
         return response()->json(['pesan' => 'Salin ke genap selesai.', 'berhasil' => $ok, 'gagal' => $gagal]);
     }
 
-    protected function cekPindahDariRiwayat(RiwayatBelajar $riwayat): void
+    /**
+     * @param  array{ta: string|null, semester: string|null}|null  $aturan
+     *                                                                      Aturan jenjang yang sudah dibaca pemanggil massal (opsional).
+     */
+    protected function cekPindahDariRiwayat(RiwayatBelajar $riwayat, ?array $aturan = null): void
     {
-        $tahunAktif = TahunAjaran::aktif($riwayat->jenjang);
-        if ($tahunAktif === null || $riwayat->tahun_ajaran !== $tahunAktif->nama) {
+        $aturan ??= [
+            'ta' => TahunAjaran::aktif($riwayat->jenjang)?->nama,
+            'semester' => SemesterAktif::where('jenjang', $riwayat->jenjang)->value('semester'),
+        ];
+        if ($aturan['ta'] === null || $riwayat->tahun_ajaran !== $aturan['ta']) {
             throw ValidationException::withMessages(['riwayat_id' => 'Pindah hanya berlaku pada tahun ajaran aktif.']);
         }
-        $semesterAktif = SemesterAktif::where('jenjang', $riwayat->jenjang)->value('semester');
+        $semesterAktif = $aturan['semester'];
         if ((string) $semesterAktif !== '1') {
             throw ValidationException::withMessages(['riwayat_id' => 'Pindah hanya aktif pada semester aktif Ganjil.']);
         }
@@ -194,12 +228,12 @@ class SiklusController extends Controller
     }
 
     /** Guard kelas pengganti salin genap: wajib se-lembaga & se-tahun dengan baris aktif. */
-    protected function cekKelasGenap(Santri $santri, string $lembagaId, ?int $kelasId, ?int $riwayatId = null): void
+    protected function cekKelasGenap(Santri $santri, string $lembagaId, ?int $kelasId, ?int $riwayatId = null, ?Kelas $kelas = null): void
     {
         if ($kelasId === null) {
             return;
         }
-        $kelas = Kelas::findOrFail($kelasId);
+        $kelas ??= Kelas::findOrFail($kelasId);
         if ($kelas->jenjang !== $lembagaId) {
             throw ValidationException::withMessages(['kelas_id' => 'Kelas beda lembaga.']);
         }
@@ -227,11 +261,18 @@ class SiklusController extends Controller
         $tingkat = (string) $data['tingkat'];
         $this->cekTaEfektif($lembagaId, $tahunBaru, 'tahun_ajaran_baru');
 
+        $petaSantri = Santri::whereIn('id', array_unique(array_map(
+            static fn (array $i): int => (int) $i['santri_id'],
+            $data['siswa'],
+        )))->get()->keyBy('id');
+
         $ok = 0;
         $gagal = [];
         foreach ($data['siswa'] as $item) {
             try {
-                $santri = Santri::findOrFail($item['santri_id']);
+                $idSantri = (int) $item['santri_id'];
+                $santri = $petaSantri->get($idSantri)
+                    ?? throw (new ModelNotFoundException)->setModel(Santri::class, [$idSantri]);
                 $this->authorizeAksiLembaga($request, $santri, $lembagaId);
                 $this->siklusService->prosesKenaikanPerSantri(
                     $santri,
@@ -261,12 +302,19 @@ class SiklusController extends Controller
 
         $lembagaId = $data['jenjang'];
 
+        $petaSantri = Santri::whereIn('id', array_unique(array_map(
+            static fn (array $i): int => (int) $i['santri_id'],
+            $data['siswa'],
+        )))->get()->keyBy('id');
+
         $ok = 0;
         $gagal = [];
         $hasil = [];
         foreach ($data['siswa'] as $item) {
             try {
-                $santri = Santri::findOrFail($item['santri_id']);
+                $idSantri = (int) $item['santri_id'];
+                $santri = $petaSantri->get($idSantri)
+                    ?? throw (new ModelNotFoundException)->setModel(Santri::class, [$idSantri]);
                 $this->authorizeAksiLembaga($request, $santri, $lembagaId);
                 $baru = $this->siklusService->prosesKenaikanOtomatis(
                     $santri,
@@ -327,11 +375,16 @@ class SiklusController extends Controller
                 ->orWhere('nik', 'like', "%{$q}%"));
         }
 
+        $riwayatBatch = $query->orderBy('id')->get();
+        $petaSantri = Santri::whereIn('id', $riwayatBatch->pluck('santri_id')->unique()->all())->get()->keyBy('id');
+
         $ok = 0;
         $gagal = [];
-        foreach ($query->orderBy('id')->get() as $riwayat) {
+        foreach ($riwayatBatch as $riwayat) {
             try {
-                $santri = Santri::findOrFail($riwayat->santri_id);
+                $idSantri = (int) $riwayat->santri_id;
+                $santri = $petaSantri->get($idSantri)
+                    ?? throw (new ModelNotFoundException)->setModel(Santri::class, [$idSantri]);
                 $this->authorizeAksiLembaga($request, $santri, $lembagaId);
                 $this->cekBatalDariRiwayat($riwayat, $tahunAktif->nama);
                 $this->siklusService->batalSalin($santri, $lembagaId, $riwayat->id);
