@@ -3,68 +3,30 @@ import { toast } from 'sonner';
 import { errorMessage, prefGet, prefSet } from '../api/client';
 import { tokenUrut, type PetaArahKolom } from '@/lib/urut';
 import {
-  daftarJenis, buatJenis, ubahJenis, buatTarif, daftarTarif, ubahTarif, hapusTarif,
+  daftarJenis, daftarTarif, hapusTarif,
   daftarTunggakan, crosstabTagihan, hapusTagihan, ubahTagihan, catatPembayaran,
   riwayatPembayaran, hapusPembayaran, daftarDispensasi, hapusDispensasi,
   type JenisTagihan, type Tarif, type TunggakanRow, type PembayaranRow, type Dispensasi,
   type CrosstabTagihan, type CrosstabSel, type CrosstabKolom,
 } from '../api/keuangan';
 import { listLembaga, listTahunAjaran, type Lembaga, type TahunAjaran } from '../api/master';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { KELAS_LIST_TAB, KELAS_PANEL_TAB, KELAS_TRIGGER } from '@/components/HalamanTabs';
-import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { cn } from '@/lib/utils';
-import { FieldLabel } from '@/components/ui/field';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
-import { ArrowDownAZ, ArrowUpAZ, Info, Plus, RotateCcw, Search, TriangleAlert, X } from '@/icons';
-import { DeleteAction } from '@/components/RowActions';
 import PopoverAksiTagihan, { type TagihanAktif } from '@/components/keuangan/PopoverAksiTagihan';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { useFilterGlobalAktif, targetTunggal } from '@/hooks/useFilterGlobalAktif';
 import { useLembagaAktif } from '@/lembagaAktif';
-import Pager from '@/components/Pager';
 import { usePager } from '@/hooks/usePager';
-import { EditAction } from '@/components/RowActions';
 import GenerateTagihanDialog from '@/components/keuangan/GenerateTagihanDialog';
-import TagihanCrosstab from '@/components/keuangan/TagihanCrosstab';
 import DispensasiDialog from '@/components/keuangan/DispensasiDialog';
-import { tanggal } from '@/lib/tanggal';
-
-const FIELDS_JENIS: ExcelField[] = [
-  { key: 'nama', label: 'Jenis Tagihan', kind: 'static' },
-  { key: 'tipe', label: 'Tipe', kind: 'static', width: 90 },
-  { key: 'lembaga', label: 'Lembaga', kind: 'static', width: 130 },
-  { key: 'aktif', label: 'Status', kind: 'static', width: 80 },
-];
-
-const FIELDS_TARIF: ExcelField[] = [
-  { key: 'jenjang', label: 'Lembaga', kind: 'static', width: 90 },
-  { key: 'tahun_ajaran', label: 'Tahun Ajaran', kind: 'static', width: 110 },
-  { key: 'jenis', label: 'Jenis', kind: 'static' },
-  { key: 'nominal', label: 'Nominal', kind: 'static', width: 110 },
-  { key: 'aktif', label: 'Aktif', kind: 'static', width: 70 },
-];
-
-const FIELDS_TUNGGAKAN: ExcelField[] = [
-  { key: 'nama', label: 'Santri', kind: 'static' },
-  { key: 'jumlah_tagihan', label: 'Jml Tagihan', kind: 'static', width: 100 },
-  { key: 'total_tagihan', label: 'Total', kind: 'static', width: 110 },
-  { key: 'terbayar', label: 'Terbayar', kind: 'static', width: 110 },
-  { key: 'tunggakan', label: 'Tunggakan', kind: 'static', width: 110 },
-  { key: 'terlambat_terlama', label: 'Lewat Sejak', kind: 'static', width: 120 },
-];
-
-const FIELDS_DISPENSASI: ExcelField[] = [
-  { key: 'nama', label: 'Dispensasi', kind: 'static' },
-  { key: 'aturan', label: 'Aturan per Jenis', kind: 'static' },
-  { key: 'santri', label: 'Santri', kind: 'static', width: 90 },
-  { key: 'tahun_ajaran', label: 'TA', kind: 'static', width: 100 },
-  { key: 'status', label: 'Status', kind: 'static', width: 80 },
-];
+import {
+  DispensasiTab, FIELDS_DISPENSASI, FIELDS_JENIS, FIELDS_TARIF, FIELDS_TUNGGAKAN,
+  JenisTab, TagihanTab, TarifTab, TunggakanTab,
+} from '@/components/keuangan/tabKeuangan';
+import {
+  DialogTambahJenis, DialogTambahTarif, DialogUbahJenis, DialogUbahTarif,
+} from '@/components/keuangan/jenisTarifDialogs';
 
 const TAB_KEUANGAN = ['jenis', 'tarif', 'tagihan', 'tunggakan', 'dispensasi'] as const;
 
@@ -82,7 +44,13 @@ function useUrutTabel() {
   return { urut, arah, arahKolom, terapkan };
 }
 
-/** Halaman Keuangan: jenis tagihan, tarif, tagihan, pembayaran, tunggakan. */
+/** Halaman Keuangan: jenis tagihan, tarif, tagihan, pembayaran, tunggakan.
+ *
+ *  Isi tiap tab hidup di `components/keuangan/tabKeuangan.tsx` dan form
+ *  jenis/tarif di `components/keuangan/jenisTarifDialogs.tsx`. Seluruh state
+ *  tetap di halaman ini (Radix melepas isi tab yang tidak aktif, jadi state di
+ *  dalam komponen tab akan hilang saat berpindah tab) — hanya `loading`/`err`
+ *  yang dipisah per tab supaya aktivitas satu tab tak menandai tab lain. */
 export default function KeuanganPage() {
   const [jenis, setJenis] = useState<JenisTagihan[]>([]);
   const [tarif, setTarif] = useState<Tarif[]>([]);
@@ -90,9 +58,21 @@ export default function KeuanganPage() {
   const [dispensasi, setDispensasi] = useState<Dispensasi[]>([]);
   const [lembagas, setLembagas] = useState<Lembaga[]>([]);
   const [daftarTA, setDaftarTA] = useState<TahunAjaran[]>([]);
-  const [err, setErr] = useState('');
-  const [loading, setLoading] = useState(false);
+  /** Error per tab; digabung untuk satu ErrorNotice di atas halaman. */
+  const [errJenis, setErrJenis] = useState('');
+  const [errTarif, setErrTarif] = useState('');
+  const [errTunggakan, setErrTunggakan] = useState('');
+  const [errDispensasi, setErrDispensasi] = useState('');
+  const [errTagihan, setErrTagihan] = useState('');
+  /** Status muat per tab — supaya muat ulang satu tab tak menandai tab lain. */
+  const [loadingJenis, setLoadingJenis] = useState(false);
+  const [loadingTarif, setLoadingTarif] = useState(false);
+  const [loadingTunggakan, setLoadingTunggakan] = useState(false);
+  const [loadingDispensasi, setLoadingDispensasi] = useState(false);
+  const [loadingTagihan, setLoadingTagihan] = useState(false);
   const [tab, setTab] = useState<string>('jenis');
+
+  const err = errJenis || errTarif || errTunggakan || errDispensasi || errTagihan;
 
   useEffect(() => {
     let hidup = true;
@@ -125,7 +105,7 @@ export default function KeuanganPage() {
   const loadCrosstab = useCallback(async (
     page: number, perPage: number, jenjang: readonly string[], ta: readonly string[],
   ) => {
-    setLoading(true);
+    setErrTagihan(''); setLoadingTagihan(true);
     try {
       const res = await crosstabTagihan({
         page,
@@ -142,9 +122,9 @@ export default function KeuanganPage() {
       setTagihanLastPage(res.last_page);
       setTagihanTotal(res.total);
     } catch (e) {
-      setErr(errorMessage(e));
+      setErrTagihan(errorMessage(e));
       setCrosstab(null);
-    } finally { setLoading(false); }
+    } finally { setLoadingTagihan(false); }
   }, [cariTagihan, urutTagihan, arahTagihan, terlambatTagihan]);
 
   // Filter global/pencarian/urut berubah → muat dari halaman 1.
@@ -155,13 +135,14 @@ export default function KeuanganPage() {
 
   /** Tarif mengikuti filter lembaga & tahun ajaran (server-side; kosong = semua). */
   const loadTarif = useCallback(async (jenjang: readonly string[], ta: readonly string[]) => {
+    setErrTarif(''); setLoadingTarif(true);
     try {
       setTarif(await daftarTarif({
         jenjang, tahun_ajaran: ta,
         sort: uTarif.urut.length ? tokenUrut(uTarif.urut, uTarif.arahKolom) : undefined,
         arah: uTarif.urut.length ? uTarif.arah : undefined,
       }));
-    } catch (e) { setErr(errorMessage(e)); }
+    } catch (e) { setErrTarif(errorMessage(e)); } finally { setLoadingTarif(false); }
   }, [uTarif.urut, uTarif.arah, uTarif.arahKolom]);
 
   useEffect(() => {
@@ -172,7 +153,8 @@ export default function KeuanganPage() {
   useEffect(() => { setTagihanPage(1); }, [jenjangs, tahunAjaranNames]);
 
   const load = useCallback(async () => {
-    setErr(''); setLoading(true);
+    setErrJenis(''); setErrTunggakan(''); setErrDispensasi('');
+    setLoadingJenis(true); setLoadingTunggakan(true); setLoadingDispensasi(true);
     try {
       const [j, w, l, tas, dispen] = await Promise.all([
         daftarJenis({
@@ -198,12 +180,16 @@ export default function KeuanganPage() {
       const diLembaga = (v: string) => v !== '' && l.data.some((x) => x.jenjang === v);
       const jenjangBawaan = l.data.some((x) => x.jenjang === 'MI') ? 'MI' : (l.data[0]?.jenjang ?? '');
       setTfJenjang((v) => (diLembaga(v) ? v : jenjangBawaan));
-    } catch (e) { setErr(errorMessage(e)); } finally { setLoading(false); }
+    } catch (e) {
+      const m = errorMessage(e);
+      setErrJenis(m); setErrTunggakan(m); setErrDispensasi(m);
+    } finally {
+      setLoadingJenis(false); setLoadingTunggakan(false); setLoadingDispensasi(false);
+    }
   }, [uJenis.urut, uJenis.arah, uJenis.arahKolom, uTunggakan.urut, uTunggakan.arah, uTunggakan.arahKolom, uDispensasi.urut, uDispensasi.arah, uDispensasi.arahKolom]);
   useEffect(() => { void load(); }, [load]);
 
   // Form sederhana
-  const [namaJenis, setNamaJenis] = useState('');
   const [tambahJenisOpen, setTambahJenisOpen] = useState(false);
   const [tambahTarifOpen, setTambahTarifOpen] = useState(false);
   const [generateOpen, setGenerateOpen] = useState(false);
@@ -211,17 +197,8 @@ export default function KeuanganPage() {
   const [editDispensasi, setEditDispensasi] = useState<Dispensasi | null>(null);
   const [editJenis, setEditJenis] = useState<JenisTagihan | null>(null);
   const [editTarif, setEditTarif] = useState<Tarif | null>(null);
-  const [eNama, setENama] = useState('');
-  const [eTipe, setETipe] = useState<'bulanan' | 'non_bulanan'>('non_bulanan');
-  const [eJenjang, setEJenjang] = useState('');
-  const [eAktif, setEAktif] = useState(true);
-  const [eNominal, setENominal] = useState('');
-  const [tipeJenis, setTipeJenis] = useState<'bulanan' | 'non_bulanan'>('non_bulanan');
-  const [lembagaJenis, setLembagaJenis] = useState('');
   const [tfJenjang, setTfJenjang] = useState('MI');
   const [tfTA, setTfTA] = useState('2025/2026');
-  const [tfJenis, setTfJenis] = useState<number | ''>('');
-  const [tfNominal, setTfNominal] = useState('');
   const genTAtopbar = targetTunggal(tahunAjaranNames);
   /** Sel asal popover aksi (jangkar). null = popover tertutup. */
   const [anchorSel, setAnchorSel] = useState<HTMLElement | null>(null);
@@ -317,6 +294,37 @@ export default function KeuanganPage() {
     }
   }, [riwayatUntuk]);
 
+  /** Aksi tambah/ubah/hapus yang dipakai komponen tab & dialog. */
+  const bukaTambahJenis = useCallback(() => setTambahJenisOpen(true), []);
+  const bukaTambahTarif = useCallback(() => {
+    if (genTAtopbar && daftarTA.some((x) => x.nama === genTAtopbar)) setTfTA(genTAtopbar);
+    setTambahTarifOpen(true);
+  }, [genTAtopbar, daftarTA]);
+  const bukaTambahDispensasi = useCallback(() => { setEditDispensasi(null); setDispensasiOpen(true); }, []);
+  const bukaUbahDispensasi = useCallback((d: Dispensasi) => { setEditDispensasi(d); setDispensasiOpen(true); }, []);
+  const suksesTarif = useCallback(async () => {
+    await load();
+    await loadTarif(jenjangs, tahunAjaranNames);
+  }, [load, loadTarif, jenjangs, tahunAjaranNames]);
+  const hapusTarifBaris = useCallback((r: Tarif) => {
+    void (async () => {
+      try {
+        await hapusTarif(r.id);
+        toast.success('Tarif dihapus.');
+        await loadTarif(jenjangs, tahunAjaranNames);
+      } catch (e2) { toast.error(errorMessage(e2)); }
+    })();
+  }, [loadTarif, jenjangs, tahunAjaranNames]);
+  const hapusDispensasiBaris = useCallback((r: Dispensasi) => {
+    void (async () => {
+      try {
+        await hapusDispensasi(r.id);
+        toast.success('Dispensasi dihapus.');
+        await load();
+      } catch (e2) { toast.error(errorMessage(e2)); }
+    })();
+  }, [load]);
+
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
@@ -339,299 +347,120 @@ export default function KeuanganPage() {
         </TabsList>
 
         <TabsContent value="jenis" className={`min-h-0 flex-1 flex flex-col gap-1 ${KELAS_PANEL_TAB}`}>
-          <ExcelTable<JenisTagihan & { id: number }>
-            tableKey="keuangan_jenis"
-            fields={FIELDS_JENIS}
-            rows={jenis.map((j) => ({ ...j, id: j.id }))}
-            urutAktif={uJenis.urut}
-            arahUrut={uJenis.arah}
-            onUrut={uJenis.terapkan}
-            getValues={(r) => ({ nama: r.nama, tipe: r.tipe === 'bulanan' ? 'Bulanan' : 'Non-bulanan', lembaga: r.jenjang ?? 'Semua', aktif: r.is_active ? 'Aktif' : 'Nonaktif' })}
-            loading={loading}
-            emptyText="Belum ada jenis tagihan."
-            canEdit={false}
-            onCommit={async () => {}}
-            onSaved={() => {}}
-            renderActions={(j) => (
-              (j.jenjang !== null || efektifSuper)
-                ? <EditAction id={`btn_jenis_ubah_${j.id}`} onClick={() => { setEditJenis(j); setENama(j.nama); setETipe(j.tipe); setEJenjang(j.jenjang ?? ''); setEAktif(j.is_active); }} />
-                : null
-            )}
-            hideCheckbox
-            addButtonLangsung
-            addButton={<Button id="btn_jenis_tambah_buka" size="icon" variant="outline" aria-label="Tambah jenis tagihan" title="Tambah jenis tagihan" onClick={() => { setNamaJenis(''); setTipeJenis('non_bulanan'); setLembagaJenis(peranJenjang ?? ''); setTambahJenisOpen(true); }}><Plus size={16} /></Button>}
+          <JenisTab
+            rows={jenis}
+            loading={loadingJenis}
+            sort={uJenis}
+            efektifSuper={efektifSuper}
+            onTambah={bukaTambahJenis}
+            onEdit={setEditJenis}
           />
         </TabsContent>
 
         <TabsContent value="tarif" className={`min-h-0 flex-1 flex flex-col gap-1 ${KELAS_PANEL_TAB}`}>
-          <ExcelTable<Tarif & { id: number }>
-            tableKey="keuangan_tarif"
-            fields={FIELDS_TARIF}
-            rows={tarif.map((t) => ({ ...t, id: t.id }))}
-            urutAktif={uTarif.urut}
-            arahUrut={uTarif.arah}
-            onUrut={uTarif.terapkan}
-            getValues={(r) => ({
-              jenjang: r.jenjang, tahun_ajaran: r.tahun_ajaran,
-              jenis: r.jenis?.nama ?? null, nominal: r.nominal.toLocaleString('id'),
-              aktif: r.is_active ? 'Ya' : 'Tidak',
-            })}
-            loading={loading}
-            emptyText="Belum ada tarif."
-            canEdit={false}
-            onCommit={async () => {}}
-            onSaved={() => {}}
-            renderActions={(r) => (
-              <>
-                <EditAction id={`btn_tarif_ubah_${r.id}`} onClick={() => { setEditTarif(r); setENominal(String(r.nominal)); setEAktif(r.is_active); }} />
-                <DeleteAction
-                  id={`btn_tarif_hapus_${r.id}`}
-                  title="Hapus tarif?"
-                  description="Tarif dihapus permanen. Tarif yang sudah dipakai pada tagihan tidak bisa dihapus — nonaktifkan saja."
-                  onConfirm={() => { void (async () => { try { await hapusTarif(r.id); toast.success('Tarif dihapus.'); await loadTarif(jenjangs, tahunAjaranNames); } catch (e2) { toast.error(errorMessage(e2)); } })(); }}
-                />
-              </>
-            )}
-            hideCheckbox
-            addButtonLangsung
-            addButton={<Button id="btn_tarif_tambah_buka" size="icon" variant="outline" aria-label="Tambah tarif" title="Tambah tarif" onClick={() => { setTfJenis(''); setTfNominal(''); if (genTAtopbar && daftarTA.some((x) => x.nama === genTAtopbar)) setTfTA(genTAtopbar); setTambahTarifOpen(true); }}><Plus size={16} /></Button>}
+          <TarifTab
+            rows={tarif}
+            loading={loadingTarif}
+            sort={uTarif}
+            onTambah={bukaTambahTarif}
+            onEdit={setEditTarif}
+            onHapus={hapusTarifBaris}
           />
         </TabsContent>
 
-<TabsContent value="tagihan" className={`min-h-0 flex-1 flex flex-col gap-2 bg-muted/30 p-2 ${KELAS_PANEL_TAB}`}>
-          {/* Bilah alat tagihan: cari | urut | filter | aksi. */}
-          <div className="rounded-xl border bg-card p-2.5 shadow-sm">
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="relative">
-              <Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                id="inp_tagihan_cari"
-                placeholder="Cari nama / NIS / NISN…"
-                className="w-64 pl-8 pr-8"
-                value={cariTagihan}
-                onChange={(e) => setCariTagihan(e.target.value)}
-              />
-              {cariTagihan !== '' && (
-                <button
-                  type="button"
-                  id="btn_tagihan_cari_bersih"
-                  aria-label="Bersihkan pencarian"
-                  title="Bersihkan pencarian"
-                  className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                  onClick={() => setCariTagihan('')}
-                >
-                  <X size={13} />
-                </button>
-              )}
-            </div>
-            <div aria-hidden="true" className="hidden h-6 w-px bg-border sm:block" />
-            <div className="flex items-center gap-1.5">
-              <Select
-                value={urutTagihan === '' ? 'nama' : urutTagihan}
-                onValueChange={(v) => setUrutTagihan(v === 'nama' ? '' : v)}
-              >
-                <SelectTrigger
-                  id="sel_tagihan_urut"
-                  size="sm"
-                  aria-label="Urutkan baris"
-                  title="Urutkan baris"
-                  className="w-[168px]"
-                >
-                  <SelectValue placeholder="Urutkan: nama" />
-                </SelectTrigger>
-                <SelectContent position="popper" align="start" className="contain-layout will-change-transform">
-                  <SelectItem value="nama">Urutkan: nama</SelectItem>
-                  <SelectItem value="total">Total tagihan</SelectItem>
-                  <SelectItem value="bayar">Terbayar</SelectItem>
-                  <SelectItem value="sisa">Tunggakan</SelectItem>
-                </SelectContent>
-              </Select>
-              <Button
-                id="btn_tagihan_arah"
-                size="icon"
-                variant="outline"
-                aria-label={arahTagihan === 'naik' ? 'Arah urutan: naik' : 'Arah urutan: turun'}
-                title={arahTagihan === 'naik' ? 'Arah: naik (klik untuk turun)' : 'Arah: turun (klik untuk naik)'}
-                onClick={() => setArahTagihan((a) => (a === 'naik' ? 'turun' : 'naik'))}
-              >
-                {arahTagihan === 'naik' ? <ArrowUpAZ size={14} /> : <ArrowDownAZ size={14} />}
-              </Button>
-            </div>
-            <div className="flex-1" />
-            {(cariTagihan !== '' || urutTagihan !== '' || arahTagihan !== 'naik' || terlambatTagihan) && (
-              <Button
-                id="btn_tagihan_reset"
-                type="button"
-                size="sm"
-                variant="ghost"
-                className="gap-1.5 px-2.5 text-xs text-muted-foreground hover:text-foreground"
-                title="Kembalikan pencarian, urutan, dan filter ke awal"
-                onClick={() => { setCariTagihan(''); setUrutTagihan(''); setArahTagihan('naik'); setTerlambatTagihan(false); setTagihanPage(1); }}
-              >
-                <RotateCcw size={14} />
-                Atur ulang
-              </Button>
-            )}
-            <Button
-              id="btn_tagihan_terlambat"
-              size="sm"
-              variant={terlambatTagihan ? 'default' : 'outline'}
-              aria-pressed={terlambatTagihan}
-              className="gap-1.5 px-2.5 text-xs"
-              title="Tampilkan hanya tagihan aktif (sudah jatuh tempo)"
-              onClick={() => { setTerlambatTagihan((v) => !v); setTagihanPage(1); }}
-            >
-              <TriangleAlert size={14} />
-              Tagihan Aktif
-            </Button>
-            <Button id="btn_gen_buka" size="sm" className="gap-1.5 px-3 text-xs font-medium" onClick={() => setGenerateOpen(true)}><Plus size={14} /> Tagihan</Button>
-          </div>
-          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-dashed pt-2 text-[11px] text-muted-foreground">
-            <span className="inline-flex items-center gap-1.5">
-              <Info size={13} className="shrink-0" />
-              Klik sel nominal untuk bayar, ubah, atau lihat riwayat.
-            </span>
-            <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1" aria-label="Arti warna sel">
-              <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-500" />Lunas</span>
-              <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-destructive" />Tunggakan</span>
-              <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-muted-foreground/40" />Belum Aktif</span>
-            </span>
-            <span className="ml-auto tabular-nums">
-              {tagihanTotal > 0 ? tagihanTotal + ' santri' : 'Belum ada data'}
-            </span>
-          </div>
-          </div>
-
-          <div className="min-h-0 flex-1">
-            <TagihanCrosstab
-              data={crosstab}
-              loading={loading}
-              terpilihId={selTagihan?.id ?? null}
-              emptyText="Belum ada tagihan."
-              onPilih={pilihSel}
-            />
-            <PopoverAksiTagihan
-              tagihan={popoverTagihan}
-              anchor={anchorSel}
-              daftarTA={daftarTA}
-              riwayat={riwayatRows}
-              riwayatBusy={riwayatBusy}
-              riwayatError={riwayatError}
-              onTutup={tutupPopover}
-              onMuatRiwayat={() => { if (selTagihan !== null) void muatRiwayat(selTagihan.id); }}
-              onBayar={async (d) => {
-                if (selTagihan === null) return;
-                try {
-                  await catatPembayaran({ tagihan_id: selTagihan.id, jumlah: d.jumlah, metode: d.metode, kas: d.kas });
-                  toast.success('Tercatat.');
-                  tutupPopover();
-                  await load();
-                  await muatCrosstabSekarang();
-                } catch (e2) { toast.error(errorMessage(e2)); }
-              }}
-              onUbah={async (d) => {
-                if (selTagihan === null) return;
-                try {
-                  await ubahTagihan(selTagihan.id, d);
-                  toast.success('Tagihan diubah.');
-                  tutupPopover();
-                  await load();
-                  await muatCrosstabSekarang();
-                } catch (e2) { toast.error(errorMessage(e2)); throw e2; }
-              }}
-              onHapusPembayaran={async (id) => {
-                try {
-                  await hapusPembayaran(id);
-                  toast.success('Pembayaran dihapus.');
-                  if (selTagihan !== null) {
-                    setRiwayatUntuk(null);
-                    await muatRiwayat(selTagihan.id);
-                  }
-                  await load();
-                  await muatCrosstabSekarang();
-                } catch (e2) { toast.error(errorMessage(e2)); throw e2; }
-              }}
-              onHapus={async () => {
-                if (selTagihan === null) return;
-                try {
-                  await hapusTagihan(selTagihan.id);
-                  toast.success('Tagihan dihapus.');
-                  tutupPopover();
-                  await load();
-                  await muatCrosstabSekarang();
-                } catch (e2) { toast.error(errorMessage(e2)); throw e2; }
-              }}
-            />
-          </div>
-          <Pager
-            page={tagihanPage}
-            lastPage={tagihanLastPage}
+        <TabsContent value="tagihan" className={`min-h-0 flex-1 flex flex-col gap-2 bg-muted/30 p-2 ${KELAS_PANEL_TAB}`}>
+          <TagihanTab
+            crosstab={crosstab}
+            loading={loadingTagihan}
+            terpilihId={selTagihan?.id ?? null}
             total={tagihanTotal}
-            perPage={tagihanPerPage}
-            onPage={(p) => { setTagihanPage(p); void loadCrosstab(p, tagihanPerPage, jenjangs, tahunAjaranNames); }}
-            onPerPage={(pp) => { setTagihanPerPage(pp); void loadCrosstab(1, pp, jenjangs, tahunAjaranNames); }}
+            cari={cariTagihan}
+            onCari={setCariTagihan}
+            urut={urutTagihan}
+            onUrut={setUrutTagihan}
+            arah={arahTagihan}
+            onArah={setArahTagihan}
+            terlambat={terlambatTagihan}
+            onTerlambat={(v) => { setTerlambatTagihan(v); setTagihanPage(1); }}
+            onPilih={pilihSel}
+            onReset={() => { setCariTagihan(''); setUrutTagihan(''); setArahTagihan('naik'); setTerlambatTagihan(false); setTagihanPage(1); }}
+            onBukaGenerate={() => setGenerateOpen(true)}
+            pager={{
+              page: tagihanPage,
+              lastPage: tagihanLastPage,
+              perPage: tagihanPerPage,
+              onPage: (p) => { setTagihanPage(p); void loadCrosstab(p, tagihanPerPage, jenjangs, tahunAjaranNames); },
+              onPerPage: (pp) => { setTagihanPerPage(pp); void loadCrosstab(1, pp, jenjangs, tahunAjaranNames); },
+            }}
+            popover={
+              <PopoverAksiTagihan
+                tagihan={popoverTagihan}
+                anchor={anchorSel}
+                daftarTA={daftarTA}
+                riwayat={riwayatRows}
+                riwayatBusy={riwayatBusy}
+                riwayatError={riwayatError}
+                onTutup={tutupPopover}
+                onMuatRiwayat={() => { if (selTagihan !== null) void muatRiwayat(selTagihan.id); }}
+                onBayar={async (d) => {
+                  if (selTagihan === null) return;
+                  try {
+                    await catatPembayaran({ tagihan_id: selTagihan.id, jumlah: d.jumlah, metode: d.metode, kas: d.kas });
+                    toast.success('Tercatat.');
+                    tutupPopover();
+                    await load();
+                    await muatCrosstabSekarang();
+                  } catch (e2) { toast.error(errorMessage(e2)); }
+                }}
+                onUbah={async (d) => {
+                  if (selTagihan === null) return;
+                  try {
+                    await ubahTagihan(selTagihan.id, d);
+                    toast.success('Tagihan diubah.');
+                    tutupPopover();
+                    await load();
+                    await muatCrosstabSekarang();
+                  } catch (e2) { toast.error(errorMessage(e2)); throw e2; }
+                }}
+                onHapusPembayaran={async (id) => {
+                  try {
+                    await hapusPembayaran(id);
+                    toast.success('Pembayaran dihapus.');
+                    if (selTagihan !== null) {
+                      setRiwayatUntuk(null);
+                      await muatRiwayat(selTagihan.id);
+                    }
+                    await load();
+                    await muatCrosstabSekarang();
+                  } catch (e2) { toast.error(errorMessage(e2)); throw e2; }
+                }}
+                onHapus={async () => {
+                  if (selTagihan === null) return;
+                  try {
+                    await hapusTagihan(selTagihan.id);
+                    toast.success('Tagihan dihapus.');
+                    tutupPopover();
+                    await load();
+                    await muatCrosstabSekarang();
+                  } catch (e2) { toast.error(errorMessage(e2)); throw e2; }
+                }}
+              />
+            }
           />
         </TabsContent>
 
         <TabsContent value="tunggakan" className={`min-h-0 flex-1 flex flex-col gap-1 ${KELAS_PANEL_TAB}`}>
-          <ExcelTable<TunggakanRow & { id: number }>
-            tableKey="keuangan_tunggakan"
-            fields={FIELDS_TUNGGAKAN}
-            rows={tunggakan.map((w) => ({ ...w, id: w.santri_id }))}
-            urutAktif={uTunggakan.urut}
-            arahUrut={uTunggakan.arah}
-            onUrut={uTunggakan.terapkan}
-            getValues={(r) => ({
-              nama: r.nama, jumlah_tagihan: String(r.jumlah_tagihan),
-              total_tagihan: r.total_tagihan.toLocaleString('id'),
-              terbayar: r.terbayar.toLocaleString('id'),
-              tunggakan: r.tunggakan.toLocaleString('id'),
-              terlambat_terlama: r.tanpa_jatuh_tempo ? 'Tanpa batas' : tanggal(r.terlambat_terlama),
-            })}
-            loading={loading}
-            emptyText="Tidak ada tagihan yang lewat jatuh tempo."
-            canEdit={false}
-            onCommit={async () => {}}
-            onSaved={() => {}}
-            renderActions={() => null}
-            hideCheckbox
-          />
+          <TunggakanTab rows={tunggakan} loading={loadingTunggakan} sort={uTunggakan} />
         </TabsContent>
 
         <TabsContent value="dispensasi" className={`min-h-0 flex-1 flex flex-col gap-1 ${KELAS_PANEL_TAB}`}>
-          <ExcelTable<Dispensasi & { id: number }>
-            tableKey="keuangan_dispensasi"
-            fields={FIELDS_DISPENSASI}
+          <DispensasiTab
             rows={dispensasi}
-            urutAktif={uDispensasi.urut}
-            arahUrut={uDispensasi.arah}
-            onUrut={uDispensasi.terapkan}
-            getValues={(r) => ({
-              nama: r.nama,
-              aturan: (r.aturan ?? []).map((a) => `${a.jenis?.nama ?? 'Semua jenis'}: ${a.tipe === 'persen' ? `${a.nilai}%` : a.tipe === 'bebas' ? 'bebas' : `Rp ${a.nilai.toLocaleString('id')}`}`).join(' · '),
-              santri: `${(r.santri_ids ?? []).length} santri`,
-              tahun_ajaran: r.tahun_ajaran,
-              status: r.is_active ? 'Aktif' : 'Nonaktif',
-            })}
-            loading={loading}
-            emptyText="Belum ada dispensasi."
-            canEdit={false}
-            onCommit={async () => {}}
-            onSaved={() => {}}
-            renderActions={(r) => (
-              <>
-                <EditAction id={`btn_dispensasi_ubah_${r.id}`} onClick={() => { setEditDispensasi(r); setDispensasiOpen(true); }} />
-                <DeleteAction
-                  id={`btn_dispensasi_hapus_${r.id}`}
-                  title="Hapus dispensasi?"
-                  description="Dispensasi dihapus permanen. Dispensasi yang sudah dipakai tagihan tidak bisa dihapus — nonaktifkan saja."
-                  onConfirm={() => { void (async () => { try { await hapusDispensasi(r.id); toast.success('Dispensasi dihapus.'); await load(); } catch (e2) { toast.error(errorMessage(e2)); } })(); }}
-                />
-              </>
-            )}
-            hideCheckbox
-            addButtonLangsung
-            addButton={<Button id="btn_dispensasi_tambah_buka" size="icon" variant="outline" aria-label="Tambah dispensasi" title="Tambah dispensasi" onClick={() => { setEditDispensasi(null); setDispensasiOpen(true); }}><Plus size={16} /></Button>}
+            loading={loadingDispensasi}
+            sort={uDispensasi}
+            onTambah={bukaTambahDispensasi}
+            onEdit={bukaUbahDispensasi}
+            onHapus={hapusDispensasiBaris}
           />
         </TabsContent>
       </Tabs>
@@ -658,102 +487,45 @@ export default function KeuanganPage() {
         onSaved={load}
       />
 
-      <Dialog open={tambahTarifOpen} onOpenChange={setTambahTarifOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Tambah Tarif</DialogTitle>
-            <DialogDescription className="sr-only">Formulir penambahan tarif tagihan.</DialogDescription>
-          </DialogHeader>
-          <form id="form_tambah_tarif" className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4" onSubmit={async (e) => { e.preventDefault(); if (tfJenis === '') return; try { await buatTarif({ jenjang: tfJenjang, tahun_ajaran: tfTA, jenis_id: Number(tfJenis), nominal: Number(tfNominal) }); toast.success('Tarif dibuat.'); setTfJenis(''); setTfNominal(''); setTambahTarifOpen(false); await load(); await loadTarif(jenjangs, tahunAjaranNames); } catch (e2) { toast.error(errorMessage(e2)); } }}>
-            <FieldLabel htmlFor="sel_tarif_jenjang">Jenjang</FieldLabel>
-            <select id="sel_tarif_jenjang" className="border rounded px-2" value={tfJenjang} onChange={(e) => setTfJenjang(e.target.value)} required>
-              {lembagas.filter((l) => pilihanLembaga.some((p) => p.jenjang === l.jenjang)).map((l) => <option key={l.jenjang} value={l.jenjang}>{l.jenjang} — {l.nama}</option>)}
-            </select>
-            <FieldLabel htmlFor="sel_tarif_ta">Tahun Ajaran</FieldLabel>
-            <select id="sel_tarif_ta" className="border rounded px-2" value={tfTA} onChange={(e) => setTfTA(e.target.value)} required>
-              {daftarTA.map((x) => <option key={x.nama} value={x.nama}>{x.nama}{x.is_aktif ? ' (aktif)' : ''}</option>)}
-            </select>
-            <FieldLabel htmlFor="sel_tarif_jenis">Jenis</FieldLabel>
-            <select id="sel_tarif_jenis" className="border rounded px-2" value={tfJenis} onChange={(e) => setTfJenis(e.target.value === '' ? '' : Number(e.target.value))} required>
-              <option value="">Jenis…</option>{jenis.filter((j) => j.jenjang === null || j.jenjang === tfJenjang).map((j) => <option key={j.id} value={j.id}>{j.nama}</option>)}
-            </select>
-            <FieldLabel htmlFor="inp_tarif_nominal">Nominal</FieldLabel>
-            <Input id="inp_tarif_nominal" type="number" value={tfNominal} onChange={(e) => setTfNominal(e.target.value)} required />
-            <DialogFooter className="col-span-2">
-              <Button type="button" variant="outline" onClick={() => setTambahTarifOpen(false)}>Batal</Button>
-              <Button id="btn_tarif_simpan" type="submit">Tambah</Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={tambahJenisOpen} onOpenChange={setTambahJenisOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Tambah Jenis Tagihan</DialogTitle>
-            <DialogDescription className="sr-only">Formulir penambahan jenis tagihan.</DialogDescription>
-          </DialogHeader>
-          <form id="form_tambah_jenis" className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4" onSubmit={async (e) => { e.preventDefault(); if (!namaJenis) return; try { await buatJenis(namaJenis, tipeJenis, lembagaJenis === '' ? null : lembagaJenis); toast.success('Jenis dibuat.'); setNamaJenis(''); setLembagaJenis(''); setTambahJenisOpen(false); await load(); } catch (e2) { toast.error(errorMessage(e2)); } }}>
-            <FieldLabel htmlFor="inp_jenis_nama">Nama</FieldLabel>
-            <Input id="inp_jenis_nama" placeholder="mis. HIPA" value={namaJenis} required onChange={(e) => setNamaJenis(e.target.value)} />
-            <FieldLabel htmlFor="sel_jenis_tipe">Tipe</FieldLabel>
-            <select id="sel_jenis_tipe" className="border rounded px-2" value={tipeJenis} onChange={(e) => setTipeJenis(e.target.value as 'bulanan' | 'non_bulanan')}>
-              <option value="non_bulanan">Non-bulanan</option>
-              <option value="bulanan">Bulanan</option>
-            </select>
-            <FieldLabel htmlFor="sel_jenis_lembaga">Lembaga</FieldLabel>
-            <select id="sel_jenis_lembaga" className="border rounded px-2" value={lembagaJenis} onChange={(e) => setLembagaJenis(e.target.value)}>
-              {efektifSuper ? <option value="">Semua (global)</option> : null}
-              {pilihanLembaga.map((l) => <option key={l.jenjang} value={l.jenjang}>{l.jenjang} — {l.nama}</option>)}
-            </select>
-            <DialogFooter className="col-span-2">
-              <Button type="button" variant="outline" onClick={() => setTambahJenisOpen(false)}>Batal</Button>
-              <Button id="btn_jenis_simpan" type="submit">Tambah</Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-      <Dialog open={editJenis !== null} onOpenChange={(o) => { if (!o) setEditJenis(null); }}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader><DialogTitle>Ubah Jenis Tagihan</DialogTitle></DialogHeader>
-          <form id="form_ubah_jenis" className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4" onSubmit={async (e) => { e.preventDefault(); if (!editJenis) return; try { await ubahJenis(editJenis.id, { nama: eNama, tipe: eTipe, jenjang: eJenjang === '' ? null : eJenjang, is_active: eAktif }); toast.success('Tersimpan.'); setEditJenis(null); await load(); } catch (e2) { toast.error(errorMessage(e2)); } }}>
-            <FieldLabel htmlFor="inp_jenis_edit_nama">Nama</FieldLabel>
-            <Input id="inp_jenis_edit_nama" value={eNama} onChange={(e) => setENama(e.target.value)} required />
-            <FieldLabel htmlFor="sel_jenis_edit_tipe">Tipe</FieldLabel>
-            <select id="sel_jenis_edit_tipe" className="border rounded px-2" value={eTipe} onChange={(e) => setETipe(e.target.value as 'bulanan' | 'non_bulanan')}>
-              <option value="non_bulanan">Non-bulanan</option><option value="bulanan">Bulanan</option>
-            </select>
-            <FieldLabel htmlFor="sel_jenis_edit_lembaga">Lembaga</FieldLabel>
-            <select id="sel_jenis_edit_lembaga" className="border rounded px-2" value={eJenjang} onChange={(e) => setEJenjang(e.target.value)}>
-              {efektifSuper ? <option value="">Semua (global)</option> : null}
-              {pilihanLembaga.map((l) => <option key={l.jenjang} value={l.jenjang}>{l.jenjang} — {l.nama}</option>)}
-            </select>
-            <FieldLabel htmlFor="chk_jenis_edit_aktif">Aktif</FieldLabel>
-            <input id="chk_jenis_edit_aktif" type="checkbox" checked={eAktif} onChange={(e) => setEAktif(e.target.checked)} />
-            <DialogFooter className="col-span-2">
-              <Button type="button" variant="outline" onClick={() => setEditJenis(null)}>Batal</Button>
-              <Button id="btn_jenis_edit_simpan" type="submit">Simpan</Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={editTarif !== null} onOpenChange={(o) => { if (!o) setEditTarif(null); }}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader><DialogTitle>Ubah Tarif</DialogTitle></DialogHeader>
-          <form id="form_ubah_tarif" className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4" onSubmit={async (e) => { e.preventDefault(); if (!editTarif) return; try { await ubahTarif(editTarif.id, Number(eNominal), eAktif); toast.success('Tersimpan.'); setEditTarif(null); await load(); await loadTarif(jenjangs, tahunAjaranNames); } catch (e2) { toast.error(errorMessage(e2)); } }}>
-            <FieldLabel htmlFor="inp_tarif_edit_nominal">Nominal</FieldLabel>
-            <Input id="inp_tarif_edit_nominal" type="number" value={eNominal} onChange={(e) => setENominal(e.target.value)} required />
-            <FieldLabel htmlFor="chk_tarif_edit_aktif">Aktif</FieldLabel>
-            <input id="chk_tarif_edit_aktif" type="checkbox" checked={eAktif} onChange={(e) => setEAktif(e.target.checked)} />
-            <DialogFooter className="col-span-2">
-              <Button type="button" variant="outline" onClick={() => setEditTarif(null)}>Batal</Button>
-              <Button id="btn_tarif_edit_simpan" type="submit">Simpan</Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
+      {tambahTarifOpen && (
+        <DialogTambahTarif
+          onClose={() => setTambahTarifOpen(false)}
+          onSukses={suksesTarif}
+          jenis={jenis}
+          lembagas={lembagas}
+          daftarTA={daftarTA}
+          pilihanLembaga={pilihanLembaga}
+          jenjang={tfJenjang}
+          ta={tfTA}
+          onJenjang={setTfJenjang}
+          onTa={setTfTA}
+        />
+      )}
+      {tambahJenisOpen && (
+        <DialogTambahJenis
+          onClose={() => setTambahJenisOpen(false)}
+          onSukses={load}
+          pilihanLembaga={pilihanLembaga}
+          efektifSuper={efektifSuper}
+          peranJenjang={peranJenjang}
+        />
+      )}
+      {editJenis !== null && (
+        <DialogUbahJenis
+          item={editJenis}
+          onClose={() => setEditJenis(null)}
+          onSukses={load}
+          pilihanLembaga={pilihanLembaga}
+          efektifSuper={efektifSuper}
+        />
+      )}
+      {editTarif !== null && (
+        <DialogUbahTarif
+          item={editTarif}
+          onClose={() => setEditTarif(null)}
+          onSukses={suksesTarif}
+        />
+      )}
     </div>
   );
 }
